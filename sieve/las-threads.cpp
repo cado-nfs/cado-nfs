@@ -115,17 +115,6 @@ void reservation_array<T>::release(T &BA) {
   leave();
 }
 
-template class reservation_array<bucket_array_t<1, shorthint_t> >;
-template class reservation_array<bucket_array_t<2, shorthint_t> >;
-template class reservation_array<bucket_array_t<3, shorthint_t> >;
-template class reservation_array<bucket_array_t<1, longhint_t> >;
-template class reservation_array<bucket_array_t<2, longhint_t> >;
-template class reservation_array<bucket_array_t<1, emptyhint_t> >;
-template class reservation_array<bucket_array_t<2, emptyhint_t> >;
-template class reservation_array<bucket_array_t<3, emptyhint_t> >;
-template class reservation_array<bucket_array_t<1, logphint_t> >;
-template class reservation_array<bucket_array_t<2, logphint_t> >;
-
 /* Reserve the required number of bucket arrays. For shorthint BAs, we
  * need at least as many as there are threads filling them (or more, for
  * balancing). This is controlled by the nr_workspaces field in
@@ -344,3 +333,15 @@ reservation_group::cget<3, logphint_t>() const
 {
     ASSERT_ALWAYS(0);
 }
+
+template class reservation_array<bucket_array_t<1, shorthint_t> >;
+template class reservation_array<bucket_array_t<2, shorthint_t> >;
+template class reservation_array<bucket_array_t<3, shorthint_t> >;
+template class reservation_array<bucket_array_t<1, longhint_t> >;
+template class reservation_array<bucket_array_t<2, longhint_t> >;
+template class reservation_array<bucket_array_t<1, emptyhint_t> >;
+template class reservation_array<bucket_array_t<2, emptyhint_t> >;
+template class reservation_array<bucket_array_t<3, emptyhint_t> >;
+template class reservation_array<bucket_array_t<1, logphint_t> >;
+template class reservation_array<bucket_array_t<2, logphint_t> >;
+

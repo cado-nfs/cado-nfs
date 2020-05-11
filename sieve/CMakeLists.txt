@@ -15,6 +15,13 @@ set (las_sources
     las-todo-entry.cpp
     las-siever-config.cpp
     las-arith.cpp
+    las-bkmult.cpp
+    las-descent.cpp
+    las-detached-cofac.cpp
+    las-divide-primes.cpp
+    las-dumpfile.cpp
+    las-process-bucket-region.cpp
+    las-globals.cpp
     las-qlattice.cpp
     las-norms.cpp logapprox.cpp
     las-coordinates.cpp
@@ -63,6 +70,8 @@ add_subdirectory(ecm)
 add_subdirectory(strategies)
 
 add_executable(dupsup
+    las-bkmult.cpp
+    las-globals.cpp
     las-todo-entry.cpp
     las-siever-config.cpp
     las-sieve-shared-data.cpp

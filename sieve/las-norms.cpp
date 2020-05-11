@@ -446,7 +446,7 @@ lognorm_reference::lognorm_reference(siever_config const & sc, cxx_cado_poly con
  * nothing clever, wrt discarding (a,b) pairs that are
  * not coprime, except for the line j=0.
  */
-void lognorm_fill_rat_reference(
+static void lognorm_fill_rat_reference(
         unsigned char *S,
         uint32_t N,
         int logI,
@@ -490,7 +490,7 @@ void lognorm_fill_rat_reference(
 /* {{{ void lognorm_fill_alg_reference */
 /* Exact initialisation of F(i,j) with degre >= 2 (not mandatory). Slow.
    Internal function, only with simple types, for unit/integration testing. */
-void lognorm_fill_alg_reference (unsigned char *S, uint32_t N, int logI, double scale, cxx_double_poly const & fijd)
+static void lognorm_fill_alg_reference (unsigned char *S, uint32_t N, int logI, double scale, cxx_double_poly const & fijd)
 {
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
@@ -543,7 +543,7 @@ static inline double compute_y(double G, double offset, double modscale) {
 /* Initialize lognorms of the bucket region S[] number N, for F(i,j) with
  * degree = 1.
  */
-void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, double scale, cxx_double_poly const & fijd, const double *cexp2)
+static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, double scale, cxx_double_poly const & fijd, const double *cexp2)
 {
     double modscale = scale / 0x100000;
     double offset = 0x3FF00000 - LOGNORM_GUARD_BITS / modscale;
@@ -699,7 +699,7 @@ void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned in
 #undef COMPUTE_Y
 }
 
-void lognorm_fill_rat_smart (unsigned char *S, uint32_t N, int logI, double scale, cxx_double_poly const & fijd, const double *cexp2)
+static void lognorm_fill_rat_smart (unsigned char *S, uint32_t N, int logI, double scale, cxx_double_poly const & fijd, const double *cexp2)
 {
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
@@ -707,7 +707,7 @@ void lognorm_fill_rat_smart (unsigned char *S, uint32_t N, int logI, double scal
 }
 /* }}} */
 
-void lognorm_fill_alg_smart (unsigned char *S, uint32_t N, int logI, double scale, cxx_double_poly const & fijd, piecewise_linear_function const & G, const double *cexp2) /* {{{ */
+static void lognorm_fill_alg_smart (unsigned char *S, uint32_t N, int logI, double scale, cxx_double_poly const & fijd, piecewise_linear_function const & G, const double *cexp2) /* {{{ */
 {
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
@@ -774,7 +774,7 @@ void lognorm_smart::fill(unsigned char * S, int N) const/*{{{*/
    thus its derivative with respect to u is (up to a factor):
    X * f'(u*X/Y) * (1+u^2) - d * Y * u * f(u*X/Y).
 */
-double
+static double
 get_maxnorm_circular (double_poly_srcptr src_poly, const double X,
 		      const double Y)
 {

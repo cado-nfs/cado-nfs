@@ -195,4 +195,7 @@ private:
     double estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, int N);
 };/*}}}*/
 
+extern sieve_range_adjust::vec<double> operator*(sieve_range_adjust::vec<double> const& a, sieve_range_adjust::mat<int> const& m) ;
+extern qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis const& Q) ;
+
 #endif	/* LAS_NORMS_HPP_ */

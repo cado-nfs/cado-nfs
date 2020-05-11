@@ -12,7 +12,6 @@
 #endif
 
 #include "las-smallsieve-types.hpp"
-#include "las-debug.hpp"
 
 class sieve2357base {
 public:

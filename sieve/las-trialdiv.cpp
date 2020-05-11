@@ -3,7 +3,7 @@
 #include "las-info.hpp"
 
 template<typename T>
-unsigned long
+static unsigned long
 append_prime_list (T inserter, prime_info pi, unsigned long pmax, cxx_mpz_poly const & f, int minroots = 1)
 {
     unsigned long p;

@@ -1,9 +1,16 @@
 #include "cado.h"
 
-#include <limits.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdarg.h>
+/* This compilation units reacts to TRACK_CODE_PATH and uses macros
+ * such as WHERE_AM_I_UPDATE.
+ * This compilation unit _must_ produce different object files depending
+ * on the value of TRACK_CODE_PATH.
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-debug.hpp
+ */
+
+#include <climits>
+#include <cinttypes>
+#include <cstring>
+#include <cstdarg>
 #include <array>
 #include <memory>
 
@@ -11,6 +18,7 @@
 #include "cxx_mpz.hpp"
 #include "las-info.hpp"
 #include "las-debug.hpp"
+#include "las-trace-proxy.hpp"
 #include "las-coordinates.hpp"
 #include "las-threads-work-data.hpp"    /* trace_per_sq_init needs this */
 #include "portability.h"
@@ -24,6 +32,21 @@ using namespace std;
 /* We use that to demangle C++ names */
 #include <cxxabi.h>
 #endif
+
+int extern_trace_on_spot_ab(int64_t a, uint64_t b) {
+    return trace_on_spot_ab(a, b);
+}
+
+
+where_am_I::where_am_I() : pimpl{ new impl{} } { }
+where_am_I::~where_am_I() = default;
+where_am_I::where_am_I(where_am_I const & x) : pimpl(new impl(*x.pimpl)) {
+}
+where_am_I & where_am_I::operator=(where_am_I const & x) {
+    *pimpl = *x.pimpl;
+    return *this;
+}
+
 
 #if defined(__GLIBC__)
 static void signal_handling (int signum)/*{{{*/
@@ -204,21 +227,21 @@ void trace_per_sq_init(nfs_work const & ws)
 }
 
 #ifdef TRACE_K
-int test_divisible(where_am_I& w)
+int test_divisible(where_am_I const & w)
 {
     /* we only check divisibility for the given (N,x) value */
-    if (!trace_on_spot_Nx(w.N, w.x))
+    if (!trace_on_spot_Nx(w->N, w->x))
         return 1;
 
     /* Note that when we are reaching here through apply_one_bucket, we
      * do not know the prime number. */
-    fbprime_t p = w.p;
+    fbprime_t p = w->p;
     if (p==0) return 1;
 
-    const unsigned int logI = w.logI;
+    const unsigned int logI = w->logI;
     const unsigned int I = 1U << logI;
 
-    const unsigned long X = w.x + (w.N << LOG_BUCKET_REGION);
+    const unsigned long X = w->x + (w->N << LOG_BUCKET_REGION);
     long i = (long) (X & (I-1)) - (long) (I/2);
     unsigned long j = X >> logI;
     fbprime_t q;
@@ -227,21 +250,21 @@ int test_divisible(where_am_I& w)
     if (q == 0)
         q = p;
 
-    int rc = mpz_divisible_ui_p (traced_norms[w.side], (unsigned long) q);
+    int rc = mpz_divisible_ui_p (traced_norms[w->side], (unsigned long) q);
 
     if (rc)
-        mpz_divexact_ui (traced_norms[w.side], traced_norms[w.side], (unsigned long) q);
+        mpz_divexact_ui (traced_norms[w->side], traced_norms[w->side], (unsigned long) q);
     else
         verbose_output_vfprint(3 /* TRACE_CHANNEL */, 0, gmp_vfprintf, "# FAILED test_divisible(p=%" FBPRIME_FORMAT
                 ", N=%d, x=%u, side %d): i = %ld, j = %u, norm = %Zd\n",
-                w.p, w.N, w.x, w.side, (long) i, j, (mpz_srcptr) traced_norms[w.side]);
+                w->p, w->N, w->x, w->side, (long) i, j, (mpz_srcptr) traced_norms[w->side]);
 
     return rc;
 }
 
 /* {{{ helper: sieve_increase */
 
-string remove_trailing_address_suffix(string const& a, string& suffix)
+static string remove_trailing_address_suffix(string const& a, string& suffix)
 {
     size_t pos = a.find('+');
     if (pos == a.npos) {
@@ -252,7 +275,7 @@ string remove_trailing_address_suffix(string const& a, string& suffix)
     return a.substr(0, pos);
 }
 
-string get_parenthesized_arg(string const& a, string& prefix, string& suffix)
+static string get_parenthesized_arg(string const& a, string& prefix, string& suffix)
 {
     size_t pos = a.find('(');
     if (pos == a.npos) {
@@ -271,10 +294,11 @@ string get_parenthesized_arg(string const& a, string& prefix, string& suffix)
     return a.substr(pos+1, pos2-pos-1);
 }
 
-/* Do this so that the _real_ caller is always 2 floors up */
-void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, where_am_I& w)
+/* Do this so that the _real_ caller is always 2 floors up. Must *NOT* be
+ * a static function, for this very reason ! */
+void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, where_am_I const & w)
 {
-    if (!trace_on_spot_Nx(w.N, w.x))
+    if (!trace_on_spot_Nx(w->N, w->x))
         return;
 
     ASSERT_ALWAYS(test_divisible(w));
@@ -321,19 +345,19 @@ void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, 
 #endif
     }
 #endif
-    if (w.p) 
+    if (w->p) 
         verbose_output_print(3 /* TRACE_CHANNEL */, 0, "# Add log(%" FBPRIME_FORMAT ",side %d) = %hhu to "
             "S[%u] = %hhu, from BA[%u] -> %hhu [%s]\n",
-            w.p, w.side, logp, w.x, *S, w.N, (unsigned char)(*S+logp), caller.c_str());
+            w->p, w->side, logp, w->x, *S, w->N, (unsigned char)(*S+logp), caller.c_str());
     else
         verbose_output_print(3 /* TRACE_CHANNEL */, 0, "# Add log(hint=%lu,side %d) = %hhu to "
             "S[%u] = %hhu, from BA[%u] -> %hhu [%s]\n",
-            (unsigned long) w.h, w.side, logp, w.x, *S, w.N, (unsigned char)(*S+logp), caller.c_str());
+            (unsigned long) w->h, w->side, logp, w->x, *S, w->N, (unsigned char)(*S+logp), caller.c_str());
 }
 
 /* Produce logging as sieve_increase() does, but don't actually update
    the sieve array. */
-void sieve_increase_logging(unsigned char *S, const unsigned char logp, where_am_I& w)
+void sieve_increase_logging(unsigned char *S, const unsigned char logp, where_am_I const & w)
 {
     sieve_increase_logging_backend(S, logp, w);
 }
@@ -341,7 +365,7 @@ void sieve_increase_logging(unsigned char *S, const unsigned char logp, where_am
 /* Increase the sieve array entry *S by logp, with underflow checking
  * and tracing if desired. w is used only for trace test and output */
 
-void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I& w)
+void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I const & w)
 {
     sieve_increase_logging_backend(S, logp, w);
 #ifdef CHECK_UNDERFLOW
@@ -356,7 +380,7 @@ void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I& w)
  * controlling it is CHECK_UNDERFLOW
  */
 #ifdef CHECK_UNDERFLOW
-void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, where_am_I& w)
+void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, where_am_I const & w)
 {
     int i;
     unsigned int j;
@@ -364,15 +388,15 @@ void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, w
     uint64_t b;
     static unsigned char maxdiff = ~0;
 
-    NxToIJ(&i, &j, w.N, w.x, w.logI);
-    IJToAB(&a, &b, i, j, *w.Q);
+    NxToIJ(&i, &j, w->N, w->x, w->logI);
+    IJToAB(&a, &b, i, j, *w->Q);
     if ((unsigned int) logp + *S > maxdiff)
       {
         maxdiff = logp - *S;
         verbose_output_print(3 /* TRACE_CHANNEL */, 0, "# Error, underflow at (N,x)=(%u, %u), "
                 "(i,j)=(%d, %u), (a,b)=(%ld, %lu), S[x] = %hhu, log(%"
                 FBPRIME_FORMAT ") = %hhu\n",
-                w.N, w.x, i, j, a, b, *S, w.p, logp);
+                w->N, w->x, i, j, a, b, *S, w->p, logp);
       }
     /* arrange so that the unconditional increase which comes next
      * has the effect of taking the result to maxdiff */
@@ -381,39 +405,4 @@ void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, w
 #endif
 
 
-dumpfile_t::~dumpfile_t() {
-    if (f) fclose(f);
-}
-
-void dumpfile_t::close() {
-    if (f) fclose(f);
-}
-
-void dumpfile_t::open(const char *filename_stem, las_todo_entry const & doing, int side)
-{
-    ASSERT_ALWAYS(!f);
-    if (filename_stem != NULL) {
-        char *filename;
-        int rc = gmp_asprintf(&filename, "%s.%d.sq%Zd.rho%Zd.side%d.dump",
-            filename_stem,
-            doing.side,
-            (mpz_srcptr) doing.p, 
-            (mpz_srcptr) doing.r, 
-            side);
-        ASSERT_ALWAYS(rc > 0);
-        f = fopen(filename, "w");
-        if (f == NULL) {
-            perror("Error opening dumpfile");
-        }
-        free(filename);
-    }
-}
-
-size_t dumpfile_t::write(const unsigned char * const data, const size_t size) const {
-    if (!f) return 0;
-
-    size_t rc = fwrite(data, sizeof(unsigned char), size, f);
-    ASSERT_ALWAYS(rc == size);
-    return rc;
-}
 /* }}} */

@@ -3,9 +3,8 @@
 #include "las-threads.hpp"
 #include "las-info.hpp"
 #include <iomanip>
+#include "las-globals.hpp"
 
-/* in las.cpp */
-extern int sync_at_special_q;
 
 void
 sieve_checksum::update(const unsigned int other)

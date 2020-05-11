@@ -55,7 +55,7 @@ To test the mpz arithmetic on a 64-bit processor:
 
 const char *method_name[] = {"P-1", "P+1", "ECM"};
 
-void
+static void
 print_pointorder (const unsigned long p, const unsigned long parameter,
                   ec_parameterization_t parameterization, const int verbose)
 {
@@ -120,7 +120,7 @@ tryfactor (cxx_mpz const & N, const facul_strategy_t *strategy,
   return facul_code;
 }
 
-void print_help (char *programname)
+static void print_help (char *programname)
 {
   printf ("%s [options] [<start> <stop>]\n", programname);
   printf ("Run factoring method on numbers in interval [<start>, <stop>], or from file\n");
@@ -155,7 +155,7 @@ void print_help (char *programname)
   printf ("-po <s>, -pom12 <s>, -pom16 <s>, -poem12 <s> Compute order of starting point. Use -vf\n");
 }
 
-unsigned long
+static unsigned long
 next_prime (unsigned long start)
 {
   mpz_t p;

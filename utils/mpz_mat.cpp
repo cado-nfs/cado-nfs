@@ -834,6 +834,9 @@ void mpq_mat_mulrow(mpq_mat_ptr M, unsigned int i0, mpq_srcptr lambda)/*{{{*/
     }
 }
 /*}}}*/
+
+#if 0
+/* XXX never used, untested ! */
 /* this computes an additive combination of n rows into row [didx] of the
  * initial matrix. We require that this destination row be cleared
  * initially.
@@ -849,6 +852,8 @@ void mpz_mat_combinerows(mpz_mat_ptr M, unsigned int didx, unsigned int sidx,/*{
     }
 }
 /*}}}*/
+#endif
+
 /* }}} */
 /*{{{ I/O*/
 void mpz_mat_fprint(FILE * stream, mpz_mat_srcptr M)

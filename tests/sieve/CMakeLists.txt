@@ -521,7 +521,9 @@ cado_divert_test(test_init_norms bug21684b
 # we have no pretense to have optimized code for these cases, so don't
 # bother.
 if(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-cado_define_test(test-smallsieve.cpp LIBRARIES utils ${gmplib}
+cado_define_test(test-smallsieve.cpp 
+                ${PROJECT_SOURCE_DIR}/sieve/las-debug.cpp
+                LIBRARIES utils ${gmplib}
     ARGUMENTS -q -C -A 18 -I 14 -B 14)
 cado_divert_test(test-smallsieve line_fragments1 # bucket region = half line
     ARGUMENTS -q -C -A 18 -I 14 -B 13)
@@ -536,6 +538,7 @@ else()
 endif()
 cado_define_test(test-sieve2357.cpp
                  ${PROJECT_SOURCE_DIR}/sieve/las-sieve2357.cpp
+                 ${PROJECT_SOURCE_DIR}/sieve/las-debug.cpp
                  LIBRARIES utils tests ${jevents_lib})
 
 # test renumber

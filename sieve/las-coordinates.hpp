@@ -1,8 +1,9 @@
 #ifndef LAS_COORDINATES_HPP_
 #define LAS_COORDINATES_HPP_
 
-#include <stdint.h>
+#include <cstdint>
 #include "las-info.hpp"
+#include "las-qlattice.hpp"
 
 /*  Forward declarations of conversion functions */
 void xToIJ(int & i, unsigned int & j, const uint64_t x, int logI);

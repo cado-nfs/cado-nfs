@@ -49,7 +49,7 @@ struct patterns_base {
     static const ELEMTYPE mask7[64];
 };
 
-static const uint8_t ff = ~(uint8_t)0;
+static constexpr const uint8_t ff = ~(uint8_t)0;
 template<> const uint8_t patterns_base<uint8_t>::mask2[64] =
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
    ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0};
@@ -115,8 +115,6 @@ public:
       return _and<SIMDTYPE, ELEMTYPE>(shifted_mask, set1<SIMDTYPE, ELEMTYPE>(elem));
   }
 };
-
-template class patterns<uint8_t>;
 
 template <typename SIMDTYPE, typename ELEMTYPE>
 inline void
@@ -374,6 +372,8 @@ sieve2357<SIMDTYPE, ELEMTYPE>::sieve(SIMDTYPE * const sievearray, const size_t a
   } else
     abort();
 }
+
+template class patterns<uint8_t>;
 
 #if GNUC_VERSION_ATLEAST(6,1,0)
 /* https://gcc.gnu.org/bugzilla/show_bug.cgi?id=69884 */

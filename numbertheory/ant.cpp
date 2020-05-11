@@ -24,6 +24,7 @@
 #include "utils/cxx_mpz.hpp"
 #include "utils/gmp_aux.h"
 #include "ant.hpp"
+#include "ant-conversions.h"
 
 using namespace std;
 

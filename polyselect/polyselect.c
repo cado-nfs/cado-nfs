@@ -32,6 +32,7 @@
 #include "polyselect.h"
 #include "mpz_poly.h"
 #include "size_optimization.h"
+#include "roots_mod.h"
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif

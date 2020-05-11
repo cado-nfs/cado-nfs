@@ -1,9 +1,16 @@
 #include "cado.h"
 
+/* This compilation units reacts to TRACK_CODE_PATH and uses macros
+ * such as WHERE_AM_I_UPDATE.
+ * This compilation unit _must_ produce different object files depending
+ * on the value of TRACK_CODE_PATH.
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-debug.hpp
+ */
+
 #ifdef HAVE_SSE2
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 
 #include "las-info.hpp"
 #include "las-unsieve.hpp"

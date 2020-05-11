@@ -7,7 +7,6 @@
 #include <sys/resource.h>	/* for cputime */
 #endif
 #include <sys/time.h>	/* for gettimeofday */
-#include "macros.h"
 #include "timing.h"
 #include "memusage.h"
 #include "portability.h"

@@ -269,7 +269,7 @@ double_poly_dichotomy (double_poly_srcptr p, double a, double b, double sa,
    refines that root by the weighted false position method
    Assumes sa is of same sign as g(a).
 */
-double
+static double
 double_poly_falseposition (double_poly_srcptr p, double a, double b, double pa)
 {
   double pb;

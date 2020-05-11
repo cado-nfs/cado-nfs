@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <limits.h>
-#include <unistd.h>
 #include "misc.h"
 
 #ifdef HAVE_SSE2

@@ -28,6 +28,7 @@ static inline unsigned int gpf_get(const unsigned long i) {
 #endif
 }
 
+/* FIXME: we never ever use it, it seems */
 void gpf_clear();
 
 #ifdef __cplusplus

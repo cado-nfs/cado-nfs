@@ -1,11 +1,12 @@
 #include "cado.h"
-#include <stdarg.h>
-#include <stdio.h>
+#include <cstdarg>
+#include <cstdio>
 #include <gmp.h>
 #include "las-info.hpp"
 #include "las-auxiliary-data.hpp"
 #include "verbose.h"
 #include "utils_cxx.hpp"
+#include "las-choose-sieve-area.hpp"
 
 int never_discard = 0;      /* only enabled for las_descent */
 

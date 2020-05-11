@@ -1,4 +1,15 @@
 #include "cado.h"
+
+/* This compilation units reacts to TRACK_CODE_PATH and uses macros
+ * such as WHERE_AM_I_UPDATE.
+ * This compilation unit _must_ produce different object files depending
+ * on the value of TRACK_CODE_PATH.
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-debug.hpp
+ */
+
+/* specifically for las-output.cpp ; I'd say it's a bug, we should move
+ * it to the independent tier */
+
 #include "las-output.hpp"
 #include "utils.h"
 #include "las-config.h"
