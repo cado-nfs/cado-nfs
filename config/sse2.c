@@ -1,6 +1,5 @@
 /* This source file is our test case for sse-2 support. If this can be
  * compiled, then we're happy because sse-2 will be usable in cantor/ ;
- * it also means that SSE_NORM_INIT will be usable in sieve/las.
  */
 #include <stdint.h>
 #include <emmintrin.h>

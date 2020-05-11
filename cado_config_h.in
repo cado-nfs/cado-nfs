@@ -51,6 +51,8 @@
 
 #cmakedefine HAVE_GAS_SYNTAX_ASSEMBLY_SOURCES
 
+#cmakedefine HAVE_GLIBC
+
 #cmakedefine    HAVE_CURL
 
 #cmakedefine    HAVE_CABSL
@@ -103,9 +105,6 @@
 #cmakedefine    HAVE_HWLOC
 
 #cmakedefine    HAVE_GMPECM
-
-#cmakedefine    HAVE_STD_SHARED_PTR
-#cmakedefine    HAVE_BOOST_SHARED_PTR
 
 #cmakedefine    HAVE_CXXABI_H
 

@@ -127,6 +127,8 @@ extern "C" {
  * Returns strlen(src); if retval >= siz, truncation occurred.
  */
 static inline size_t
+strlcpy(char *dst, const char *src, size_t siz) ATTRIBUTE_WARN_UNUSED_RESULT;
+static inline size_t
 strlcpy(char *dst, const char *src, size_t siz)
 {
 	char *d = dst;
@@ -190,6 +192,8 @@ extern "C" {
  * Returns strlen(src) + MIN(dsize, strlen(initial dst)).
  * If retval >= dsize, truncation occurred.
  */
+static inline size_t
+strlcat(char *dst, const char *src, size_t dsize) ATTRIBUTE_WARN_UNUSED_RESULT;
 static inline size_t
 strlcat(char *dst, const char *src, size_t dsize)
 {
