@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <math.h>            // for exp
-#include <stdio.h>           // for fprintf, stderr
+#include <cmath>             // for exp
+#include <cstdio>            // for fprintf, stderr
 #include <algorithm>         // for sort, max
 #include <initializer_list>  // for initializer_list
 #include <iterator>          // for begin, end

@@ -9,7 +9,6 @@
 
 #include <cstddef>                        // for size_t, NULL
 #include <cstdint>                        // for uint32_t, uint64_t
-#include <xmmintrin.h>                    // for _MM_HINT_T0, _mm_prefetch
 #include <algorithm>                      // for max_element, min
 #include <array>                          // for array
 #include <limits>                         // for numeric_limits
@@ -54,15 +53,6 @@ template<typename T> static inline T const& const_ref(T& x) { return x; }
 /**************************************************************************
  * Global DEFINEs for fill_in_buckets, fill_in_k_buckets, fill_in_m_buckets 
  **************************************************************************/
-
-#ifdef HAVE_SSE2							
-#define FILL_BUCKET_PREFETCH(PT) do {				\
-    _mm_prefetch((char *)(PT), _MM_HINT_T0);			\
-  } while (0)
-#else
-#define FILL_BUCKET_PREFETCH(PT)
-#endif
-
 
 #ifdef USE_CACHEBUFFER
 DECLARE_CACHE_BUFFER(bucket_update_shorthint_t, 256)

@@ -46,7 +46,7 @@ void configure_switches(cxx_param_list &) {}
 };
 
 template struct tdict::tree<tdict::timer_seconds_thread>;
-template struct std::map<tdict::key, tdict::tree<tdict::timer_seconds_thread> >;
-template struct std::map<tdict::key, tdict::slot_base const *>;
+template class std::map<tdict::key, tdict::tree<tdict::timer_seconds_thread> >;
+template class std::map<tdict::key, tdict::slot_base const *>;
 // template struct std::pair<tdict::key const, tdict::slot_base const *>;
 template struct tdict::tree<tdict::timer_seconds_thread>::accounting_child_meta<tdict::tree<tdict::timer_seconds_thread>::accounting_base>;

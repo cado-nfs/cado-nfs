@@ -48,21 +48,21 @@ struct qlattice_basis;
 
 /*  where_am_I (debug) */
 struct where_am_I::impl {
-    int logI;
-    const qlattice_basis * pQ;
+    int logI = 0;
+    const qlattice_basis * pQ = NULL;
     struct side_data {
-        const fb_factorbase::slicing * fbs;
+        const fb_factorbase::slicing * fbs = NULL;
     };
     side_data sides[2];
-    fbprime_t p;        /* current prime or prime power, when applicable */
-    fbroot_t r;         /* current root */
-    slice_index_t i;    /* Slice index, if applicable */
-    slice_offset_t h;   /* Prime hint, if not decoded yet */
-    unsigned int j;     /* row number in bucket */
-    unsigned int x;     /* value in bucket */
-    unsigned int N;     /* bucket number */
-    int side;
-    const las_info * plas;
+    fbprime_t p = 0;        /* current prime or prime power, when applicable */
+    fbroot_t r = 0;         /* current root */
+    slice_index_t i = 0;    /* Slice index, if applicable */
+    slice_offset_t h = 0;   /* Prime hint, if not decoded yet */
+    unsigned int j = 0;     /* row number in bucket */
+    unsigned int x = 0;     /* value in bucket */
+    unsigned int N = 0;     /* bucket number */
+    int side = 0;
+    const las_info * plas = NULL;
 };
 
 #define WHERE_AM_I_UPDATE(w, field, value) (w)->field = (value)

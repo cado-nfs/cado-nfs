@@ -2636,6 +2636,7 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data_ptr mmt, int i
                     mf_bal(&mba);
                 } else {
                     fprintf(stderr, "Cannot access balancing file %s: %s\n", Mloc->bname, strerror(errno));
+                    exit(EXIT_FAILURE);
                 }
             }
             balancing_read_header(Mloc->bal, Mloc->bname);
@@ -2783,9 +2784,10 @@ void matmul_top_init(matmul_top_data_ptr mmt,
     int nbals = param_list_get_list_count(pl, "balancing");
     mmt->nmatrices = param_list_get_list_count(pl, "matrix");
     const char * random_description = param_list_lookup_string(pl, "random_matrix");
+    const char * static_random_matrix = param_list_lookup_string(pl, "static_random_matrix");
 
 
-    if (random_description) {
+    if (random_description || static_random_matrix) {
         if (nbals || mmt->nmatrices) {
             fprintf(stderr, "random_matrix is incompatible with balancing= and matrix=\n");
             exit(EXIT_FAILURE);
@@ -2803,6 +2805,8 @@ void matmul_top_init(matmul_top_data_ptr mmt,
 
     if (random_description)
         mmt->nmatrices = 1;
+    if (static_random_matrix)
+        mmt->nmatrices = 1;
 
     mmt->matrices = malloc(mmt->nmatrices * sizeof(matmul_top_matrix));
     memset(mmt->matrices, 0, mmt->nmatrices * sizeof(matmul_top_matrix));
@@ -2814,7 +2818,12 @@ void matmul_top_init(matmul_top_data_ptr mmt,
         matmul_top_matrix_ptr Mloc = mmt->matrices[i];
         Mloc->mname = matrix_list_get_item(pl, "matrix", i);
         Mloc->bname = matrix_list_get_item(pl, "balancing", i);
+        if (static_random_matrix) {
+            ASSERT_ALWAYS(i == 0);
+            Mloc->mname = strdup(static_random_matrix);
+        }
         if (!Mloc->bname) {
+            /* returns NULL is mname is NULL */
             Mloc->bname = matrix_get_derived_balancing_filename(Mloc->mname, mmt->pi);
         }
         ASSERT_ALWAYS((Mloc->bname != NULL) == !random_description);

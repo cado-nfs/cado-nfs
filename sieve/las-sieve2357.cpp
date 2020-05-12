@@ -315,6 +315,11 @@ sieve2357<SIMDTYPE, ELEMTYPE>::sieve(SIMDTYPE * const sievearray, const size_t a
 
   pattern2 = andnot<SIMDTYPE, ELEMTYPE>(even_mask, pattern2);
 
+  /* This triggers a warning on debian-8-arm32
+   *
+   *    /home/ci/jenkins/workspace/master/compile-debian-8-arm32/sieve/las-sieve2357.cpp:310:12: warning: requested alignment 16 is larger than 8 [-Wattributes]
+   SIMDTYPE pattern23[3] = {pattern2, pattern2, pattern2};
+   */
 #ifdef HAVE_ALIGNAS
   alignas(sizeof(SIMDTYPE)) 
 #endif
