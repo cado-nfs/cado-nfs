@@ -396,7 +396,9 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     }
     delete[] ymy;
 
-    matmul_top_report(mmt, 1.0);
+    int want_full_report = 0;
+    param_list_parse_int(pl, "full_report", &want_full_report);
+    matmul_top_report(mmt, 1.0, want_full_report);
     matmul_top_clear(mmt);
     pi_free_mpfq_datatype(pi, Ac_pi);
     A->oo_field_clear(A);
