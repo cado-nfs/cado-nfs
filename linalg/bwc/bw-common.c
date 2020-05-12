@@ -56,6 +56,7 @@ void bw_common_decl_usage(param_list pl)/*{{{*/
     param_list_decl_usage(pl, "checkpoint_precious", "assuming keep_rolling_checkpoints is on, never delete checkpoints of index which is a multiple of that number");
     param_list_decl_usage(pl, "yes_i_insist", "do what I say, even it seems stupid or dangerous");
     param_list_decl_usage(pl, "check_stops", "for secure, create check files for all these values of the interval. This enables checking more checkpoint files against eachother, once offline checking is functional.");
+    param_list_decl_usage(pl, "full_report", "for krylov, report the lower-level matmul timings for _all_ jobs/threads");
     /* }}} */
 
     /* {{{ Parameters related to multi-sequences */
