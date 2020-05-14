@@ -1,8 +1,8 @@
 
-add_library (ant ant.cpp)
+add_library (ant ant.cpp badideals.cpp)
 target_link_libraries (ant utils)
 
-add_executable(badideals badideals.cpp)
+add_executable(badideals badideals_main.cpp)
 target_link_libraries (badideals ant)
 
 install(TARGETS badideals RUNTIME DESTINATION ${LIBSUFFIX}/numbertheory)
