@@ -47,6 +47,9 @@ fi
 : ${extra_las_params=""}
 : ${threads=2}
 : ${parallel=false}
+: ${las_threads=$threads}
+: ${las_parallel=$parallel}
+: ${fakerels_parallel=$parallel}
 
 ## The following can also be overriden with env variables
 # the [qmin,qmax] range is split into $NCHUNKS sub-ranges
@@ -152,16 +155,23 @@ for i in `seq 0 $((nsides-1))`; do
         (
             q0=$((qmin + (i-1)*qrange))
             q1=$((qmin + i*qrange))
-            echo "Dealing with qrange=[$q0,$q1]"
-            echo "  Sampling..."
+            echo "Sampling in qrange=[$q0,$q1]"
             cmd="$CADO_BUILD/sieve/las -A $A -poly $polyfile -q0 $q0 -q1 $q1 \
               -lim0 $lim0 -lim1 $lim1 -lpb0 $lpb0 -lpb1 $lpb1 -sqside $side \
               -mfb0 $mfb0 -mfb1 $mfb1 $compsq_las \
               -fb0 $rootfile0 -fb1 $rootfile1 -random-sample $NBSAMPLE \
-              -t $threads -sync -v -dup -dup-qmin $dupqmin $extra_las_params"
+              -t $las_threads -sync -v -dup -dup-qmin $dupqmin $extra_las_params"
             echo $cmd
             $cmd > $wdir/sample.side${side}.${q0}-${q1}
-            echo "  Building fake relations..."
+        ) &
+        if [ $las_parallel = false ] ; then wait ; fi
+    done
+    wait
+    for i in `seq 1 $NCHUNKS`; do
+        (
+            q0=$((qmin + (i-1)*qrange))
+            q1=$((qmin + i*qrange))
+            echo "  Building fake relations in qrange=[$q0,$q1]"
             cmd="$CADO_BUILD/sieve/fake_rels -poly $polyfile -lpb0 $lpb0 -lpb1 $lpb1 \
               -q0 $q0 -q1 $q1 -sqside $side $compsq_fake \
               -sample $wdir/sample.side${side}.${q0}-${q1} \
@@ -170,7 +180,7 @@ for i in `seq 0 $((nsides-1))`; do
             echo $cmd
             $cmd > $wdir/fakerels.side${side}.${q0}-${q1}
         ) &
-        if [ $parallel == "false" ]; then
+        if [ $fakerels_parallel == "false" ]; then
             wait
         fi
     done
