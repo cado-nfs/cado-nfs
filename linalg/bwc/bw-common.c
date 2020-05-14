@@ -6,16 +6,12 @@
 #include <errno.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <math.h>
 #include <gmp.h>
 #include "bwc_config.h"
 #include "bw-common.h"
-#include "params.h"
 #include "utils.h"
 #include "select_mpi.h"
-#include "timing.h"
-#include "portability.h"
-
-
 
 struct bw_params bw[1];
 

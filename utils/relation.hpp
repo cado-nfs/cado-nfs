@@ -5,8 +5,8 @@
 #error "This is C++-only"
 #endif
 
-#include <stdint.h>
-#include <stdio.h>
+#include <cstdint>
+#include <cstdio>
 #include <vector>
 #include <istream>
 #include <ostream>

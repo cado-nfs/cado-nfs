@@ -1,12 +1,17 @@
 #include "cado.h"
-#include "utils.h"
-#include "ant.hpp"
+#include <cstring>
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <algorithm>
 #include <iterator>
 #include <stdexcept>
+#include "params.h"
+#include "portability.h"
+#include "cxx_mpz.hpp"
+#include "mpz_poly.h"
+#include "numbertheory.hpp"
+#include "timing.h"     // seconds
 
 using namespace std;
 static char ** original_argv;

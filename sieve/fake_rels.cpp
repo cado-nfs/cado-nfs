@@ -1,8 +1,8 @@
 #include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h> /* for strcmp() */
-#include <math.h> /* for sqrt and floor and log and ceil */
+#include <cstdio>
+#include <cstdlib>
+#include <cstring> /* for strcmp() */
+#include <cmath> /* for sqrt and floor and log and ceil */
 #include <pthread.h>
 #include "portability.h"
 #include "utils.h"
@@ -144,24 +144,17 @@ struct indexrange {
 // gathering indices in two arrays, one for each side.
 // In case of composite special-qs, also fill-in the list of the
 // corresponding primes on the sqside.
-static void prepare_indexrange(indexrange *Ind, renumber_t ren_tab, 
-        cado_poly cpoly, int sqside, int compsq) {
+static void prepare_indexrange(indexrange *Ind, renumber_t const & ren_tab, 
+        int sqside, int compsq) {
     Ind[0].init();
     Ind[1].init();
-    for (index_t i = 0; i < ren_tab->size; i++) {
-        if (renumber_is_additional_column(ren_tab, i)) {
+    for (index_t i = 0; i < ren_tab.get_size(); i++) {
+        if (ren_tab.is_additional_column(i))
             continue;
-        }
-        int side = renumber_get_side_from_index(ren_tab, i, cpoly);
-        Ind[side].append(i);
-        if (compsq && (side == sqside)) {
-            p_r_values_t p, r;
-            if (ren_tab->table[i] == RENUMBER_SPECIAL_VALUE) {
-                renumber_badideal_get_p_r_below(ren_tab, &p, &r, &side, i);
-            } else {
-                renumber_get_p_r_from_index(ren_tab, &p, &r, &side, i, cpoly);
-            }
-            Ind[sqside].append_prime(p);
+        renumber_t::p_r_side x = ren_tab.p_r_from_index(i); // XXX forward iterator, really
+        Ind[x.side].append(i);
+        if (compsq && (x.side == sqside)) {
+            Ind[sqside].append_prime(x.p);
         }
     }
     Ind[0].finalize();
@@ -198,7 +191,7 @@ static int p_coprimeto_q(uint64_t p, uint64_t q, vector<uint64_t> facq) {
 
 
 static void read_rel(fake_rel& rel, uint64_t q, vector<uint64_t> facq,
-        int sqside, const char *str, renumber_t ren_tab) {
+        int sqside, const char *str, renumber_t const & ren_tab) {
     rel.nb_ind[0] = 0;
     rel.nb_ind[1] = 0;
     int side = 0;
@@ -237,12 +230,12 @@ static void read_rel(fake_rel& rel, uint64_t q, vector<uint64_t> facq,
         if (side != sqside || p_coprimeto_q(p, q, facq)) {
             p_r_values_t r = relation_compute_r(a, b, p);
             index_t index;
-            int nb;
-            if (renumber_is_bad (&nb, &index, ren_tab, p, r, side)) {
+            int nb = ren_tab.is_bad (index, p, r, side);
+            if (nb) {
                 // bad ideal: just pick a random ideal above this prime
                 index += (myrandom_non_mt() % nb);
             } else {
-                index = renumber_get_index_from_p_r(ren_tab, p, r, side);
+                index = ren_tab.index_from_p_r(p, r, side);
             }
             rel.ind[side][rel.nb_ind[side]] = index;
             rel.nb_ind[side]++;
@@ -253,7 +246,7 @@ static void read_rel(fake_rel& rel, uint64_t q, vector<uint64_t> facq,
 }
 
 static void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels,
-        int sqside, const char *filename, renumber_t ren_tab, int compsq)
+        int sqside, const char *filename, renumber_t & ren_tab, int compsq)
 {
     FILE * file;
     file = fopen_maybe_compressed(filename, "r");
@@ -609,8 +602,8 @@ static void declare_usage(param_list pl)
 int
 main (int argc, char *argv[])
 {
-  param_list pl;
-  cado_poly cpoly;
+  cxx_param_list pl;
+  cxx_cado_poly cpoly;
   int sqside = -1;
   char *argv0 = argv[0];
   int lpb[2] = {0, 0};
@@ -623,12 +616,9 @@ main (int argc, char *argv[])
   uint64_t qfac_max = UINT64_MAX;
   int shrink_factor = 1; // by default, no shrink
 
-  param_list_init(pl);
   declare_usage(pl);
   param_list_configure_switch(pl, "-dl", &dl);
   param_list_configure_switch(pl, "-allow-compsq", &compsq);
-  
-  cado_poly_init(cpoly);
 
   argv++, argc--;
   for( ; argc ; ) {
@@ -714,15 +704,14 @@ main (int argc, char *argv[])
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
-  renumber_t ren_table;
   printf ("# Start reading renumber table\n");
   fflush (stdout);
-  renumber_read_table(ren_table, renumberfile);
+  renumber_t ren_table(renumberfile);
   printf ("# Done reading renumber table\n");
   fflush (stdout);
 
   for (int side = 0; side < 2; ++side) {
-      if (ren_table->lpb[side] != (unsigned long)lpb[side]) {
+      if (ren_table.get_lpb(side) != (unsigned long)lpb[side]) {
           fprintf(stderr, "Error: on side %d, lpb on the command-line is different from the one in the renumber file\n", side);
           exit(EXIT_FAILURE);
       }
@@ -754,7 +743,7 @@ main (int argc, char *argv[])
   indexrange Ind[2];
   printf ("# Start preparing index ranges\n");
   fflush (stdout);
-  prepare_indexrange(Ind, ren_table, cpoly, sqside, compsq);
+  prepare_indexrange(Ind, ren_table, sqside, compsq);
   printf ("# Done preparing index ranges\n");
   fflush (stdout);
 
@@ -775,7 +764,7 @@ main (int argc, char *argv[])
       while (mult == 0) {
           advance_prime_in_fb(&mult, &q, roots, cpoly, sqside, pdata);
       }
-      index_t indq = renumber_get_index_from_p_r(ren_table, q, roots[0], sqside);
+      index_t indq = ren_table.index_from_p_r(q, roots[0], sqside);
       first_indq = Ind[sqside].iterator_from_index(indq);
       // Same for q1:
       while (q < q1) {
@@ -785,7 +774,7 @@ main (int argc, char *argv[])
       while (mult == 0) {
           advance_prime_in_fb(&mult, &q, roots, cpoly, sqside, pdata);
       }
-      indq = renumber_get_index_from_p_r(ren_table, q, roots[0], sqside);
+      indq = ren_table.index_from_p_r(q, roots[0], sqside);
       last_indq = Ind[sqside].iterator_from_index(indq);
       prime_info_clear(pdata);
   } else {
@@ -868,9 +857,6 @@ main (int argc, char *argv[])
   gmp_randclear(global_rstate_non_mt);
   free(thid);
   free(args);
-  renumber_clear(ren_table);
-  cado_poly_clear(cpoly);
-  param_list_clear(pl);
 
   return 0;
 }

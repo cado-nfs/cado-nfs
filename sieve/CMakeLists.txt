@@ -13,8 +13,10 @@ target_link_libraries (makefb utils)
 
 add_library (trialdiv OBJECT trialdiv.cpp)
 
-add_executable(freerel freerel.c fb.cpp)
+add_executable(freerel freerel.cpp fb.cpp)
 target_link_libraries(freerel utils)
+set_target_properties(freerel PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
+set_target_properties(freerel PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
 # las_core_a consists of all the object files that are necessary to build
 # a las_info object. It is probably more than what would be strictly

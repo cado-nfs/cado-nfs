@@ -1,17 +1,16 @@
 #include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <fcntl.h>   /* for _O_BINARY */
+#include <type_traits>
 
 #include "portability.h"
 #include "filter_config.h"
 #include "utils_with_io.h"
 #include "mod_ul.h"
+#include "renumber.hpp"
 
 char *argv0; /* = argv[0] */
-
-/* Renumbering table to convert from (p,r) to an index */
-renumber_t renumber_tab;
 
 static uint32_t *H; /* H contains the hash table */
 static unsigned long K = 0; /* Size of the hash table */
@@ -158,91 +157,92 @@ static p_r_values_t apply_auto(p_r_values_t p, p_r_values_t r, const char *actio
 }
 
 static void
-compute_galois_action (renumber_t tab, cado_poly cpoly, const char *action)
+compute_galois_action (renumber_t const & tab, const char *action)
 {
-  index_t i;
-  p_r_values_t old_p, p, r[20], rr;
-  index_t ind[20];
-  int side, old_side;
-  int nr;
-  int j, ord, imat[4];
-  old_p = 0;
-  old_side = 42; // any value different from the legit ones.
-  nr = 0;
+    index_t i;
+    p_r_values_t r[20], rr = 0;
+    index_t ind[20];
+    int nr;
+    int j, ord, imat[4];
+    renumber_t::p_r_side old { (p_r_values_t) 0, (p_r_values_t) 0, -1 };
+    nr = 0;
 
-  Gal = (index_t *) malloc(tab->size * sizeof(index_t));
-  ASSERT_ALWAYS(Gal != NULL);
+    Gal = (index_t *) malloc(tab.get_size() * sizeof(index_t));
+    ASSERT_ALWAYS(Gal != NULL);
 
-  automorphism_init(&ord, imat, action);
-  for (i = 0; i < tab->size; i++) {
-//    if (i % (1<<16) == 0)
-//      fprintf(stderr, "at %lu\n", (unsigned long)i);
-    if (tab->table[i] == RENUMBER_SPECIAL_VALUE) {
-      Gal[i] = i;
-    } else {
-      renumber_get_p_r_from_index(tab, &p, &rr, &side, i, cpoly);
-      // Is it a new (p, side) ?
-      if (old_p == p && old_side == side) {
-        r[nr] = rr;
-        ind[nr] = i;
-        nr++;
-      }
-      // If needed, take care of previous (p,side)
-      if ((old_p != p || old_side != side) || i == tab->size-1)
-      {
-        if (old_p != 0) {
-          // Sort the roots, to put sigma(r) near r.
-	  // -> build orbits r, sigma(r), ..., sigma^{ord-1}(r)
-	  if ((nr % ord) != 0){
-            fprintf(stderr,
-		"Warning: number of roots not divisible by %d,"
-		"skipping p=%" PRpr ", r=%" PRpr "\n", ord, old_p, r[0]);
-            for (int k = 0; k < nr; ++k)
-              Gal[ind[k]] = ind[k];
-          } else {
-            int k = 0;
-            while (k < nr) {
-              // Get sigma(r[k]) mod p
-	      p_r_values_t sigma_r = apply_auto(old_p, r[k], action);
-
-	      for(j = 1; j < ord; j++){
-		  // r[k], ..., sigma^{j-1}(r[k]) already treated
-		  // eq. r[k], ..., r[k+j-1]
-		  // Find the index of sigma_r
-		  int l;
-		  for (l = k+j; l <= nr; ++l) {
-		      if (r[l] == sigma_r)
-			  break;
-		  }
-		  ASSERT_ALWAYS(l < nr);
-		  // Swap position k+j and l
-		  r[l] = r[k+j];
-		  r[k+j] = sigma_r;
-		  int tmp = ind[l];
-		  ind[l] = ind[k+j];
-		  ind[k+j] = tmp;
-		  sigma_r = apply_auto(old_p, sigma_r, action);
-	      }
-	      ASSERT_ALWAYS(sigma_r == r[k]);
-              // Next
-              k += ord;
+    automorphism_init(&ord, imat, action);
+    for (i = 0; i < tab.get_size(); i++) {
+        //    if (i % (1<<16) == 0)
+        //      fprintf(stderr, "at %lu\n", (unsigned long)i);
+        if (tab.is_additional_column(i)) {
+            Gal[i] = i;
+        } else if (tab.is_bad(i)) {
+            /* XXX this is quite obviously wrong ! bad ideals do change with
+             * Galois action, come on ! */
+            ASSERT_ALWAYS(0);       // added ET 20200518
+            Gal[i] = i;
+        } else {
+            renumber_t::p_r_side x = tab.p_r_from_index(i);
+            // Is it a new (p, side) ?
+            if (old.same_p(x)) {
+                r[nr] = rr;
+                ind[nr] = i;
+                nr++;
             }
-            // Store the correspondence between conjugate ideals
-            for (k = 0; k < nr; k += ord) {
-		for(j = 0; j < ord; j++)
-		    Gal[ind[k+j]] = ind[k];
+            // If needed, take care of previous (p,side)
+            if (!old.same_p(x) || i == tab.get_size()-1) {
+                if (old.p != 0) {
+                    // Sort the roots, to put sigma(r) near r.
+                    // -> build orbits r, sigma(r), ..., sigma^{ord-1}(r)
+                    if ((nr % ord) != 0){
+                        fprintf(stderr,
+                                "Warning: number of roots not divisible by %d,"
+                                "skipping p=%" PRpr ", r=%" PRpr "\n", ord, old.p, r[0]);
+                        for (int k = 0; k < nr; ++k)
+                            Gal[ind[k]] = ind[k];
+                    } else {
+                        int k = 0;
+                        while (k < nr) {
+                            // Get sigma(r[k]) mod p
+                            p_r_values_t sigma_r = apply_auto(old.p, r[k], action);
+
+                            for(j = 1; j < ord; j++){
+                                // r[k], ..., sigma^{j-1}(r[k]) already treated
+                                // eq. r[k], ..., r[k+j-1]
+                                // Find the index of sigma_r
+                                int l;
+                                for (l = k+j; l <= nr; ++l) {
+                                    if (r[l] == sigma_r)
+                                        break;
+                                }
+                                ASSERT_ALWAYS(l < nr);
+                                // Swap position k+j and l
+                                r[l] = r[k+j];
+                                r[k+j] = sigma_r;
+                                int tmp = ind[l];
+                                ind[l] = ind[k+j];
+                                ind[k+j] = tmp;
+                                sigma_r = apply_auto(old.p, sigma_r, action);
+                            }
+                            ASSERT_ALWAYS(sigma_r == r[k]);
+                            // Next
+                            k += ord;
+                        }
+                        // Store the correspondence between conjugate ideals
+                        for (k = 0; k < nr; k += ord) {
+                            for(j = 0; j < ord; j++)
+                                Gal[ind[k+j]] = ind[k];
+                        }
+                    }
+                }
+                // Prepare for next
+                old = x;
+                nr = 1;
+                r[0] = rr;
+                ind[0] = i;
             }
-          }
         }
-        // Prepare for next
-        old_p = p;
-        old_side = side;
-        nr = 1;
-        r[0] = rr;
-        ind[0] = i;
-      }
     }
-  }
 }
 
 // Case 2.1 (x -> 1/x): (a-b/x) = 1/x*(-b-(-a)*x) = (-b, -a) ~ (b, a)
@@ -324,7 +324,7 @@ static inline uint64_t myhash_3_2(int64_t a, uint64_t b)
     return h;
 }
 
-static inline uint64_t myhash(int64_t a, uint64_t b, char *action)
+static inline uint64_t myhash(int64_t a, uint64_t b, const char *action)
 {
     if(strcmp(action, "1/y") == 0 || strcmp(action, "autom2.1g") == 0)
 	return myhash_2_1(a, b);
@@ -340,7 +340,7 @@ static inline uint64_t myhash(int64_t a, uint64_t b, char *action)
 
 static inline uint32_t
 insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel,
-				  unsigned int *is_dup, char *action)
+				  unsigned int *is_dup, const char *action)
 {
   uint64_t h;
   uint32_t i, j;
@@ -364,7 +364,7 @@ insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel,
 }
 
 static void *
-thread_galois (void * context_data, earlyparsed_relation_ptr rel, char *action)
+thread_galois (void * context_data, earlyparsed_relation_ptr rel, const char *action)
 {
   unsigned int is_dup;
   FILE * output = (FILE*) context_data;
@@ -568,11 +568,11 @@ main (int argc, char *argv[])
 
   set_antebuffer_path (argv0, path_antebuffer);
 
-  renumber_init_for_reading (renumber_tab);
-  renumber_read_table (renumber_tab, renumberfilename);
+  /* Renumbering table to convert from (p,r) to an index */
+  renumber_t renumber_tab(renumberfilename);
 
   fprintf(stderr, "Computing Galois action %s on ideals\n", action);
-  compute_galois_action(renumber_tab, cpoly, action);
+  compute_galois_action(renumber_tab, action);
 
   fprintf(stderr, "Rewriting relations files\n");
   char ** files;
@@ -583,7 +583,7 @@ main (int argc, char *argv[])
 
   struct filter_rels_description desc[2] = {
     { .f = thread_galois_2_1, .arg=0, .n=1, },
-    { .f = NULL, },
+    { .f = NULL, .arg=0, .n=1, },
   };
 
   if(strcmp(action, "_y") == 0)
@@ -627,7 +627,6 @@ main (int argc, char *argv[])
     filelist_clear(files);
 
   param_list_clear(pl);
-  renumber_clear (renumber_tab);
   cado_poly_clear (cpoly);
   free(H);
   return 0;

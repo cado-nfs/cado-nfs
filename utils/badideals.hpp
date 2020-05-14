@@ -3,7 +3,9 @@
 #include <string>
 #include <vector>
 #include <iosfwd>
-#include "utils.h"
+/* Do not include the utils.h bundle from here, since we're part of it ! */
+#include "cxx_mpz.hpp"
+#include "mpz_poly.h"
 
 /* Representation of an element of P^1(Z/p^kZ)
  * -------------------------------------------
@@ -28,14 +30,31 @@ struct badideal {/*{{{*/
     };
     std::vector<branch> branches;
 
+    badideal() = default;
     badideal(cxx_mpz const& p, cxx_mpz const& r) : p(p), r(r) {}
+    badideal(std::istream &);
+
+    std::ostream& operator<<(std::ostream& o) const;
+    std::istream& operator>>(std::istream& i);
 
     std::ostream& print_dot_badideals_file(std::ostream & o, int side) const;
 
     std::ostream& print_dot_badidealinfo_file(std::ostream& o, int side) const;
+
+    static cxx_mpz r_from_rk(cxx_mpz const & p, int k, cxx_mpz const & rk);
 };/*}}}*/
 
 std::vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side);
 std::vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_randstate_t state);
+
+inline std::istream& operator>>(std::istream& i, badideal & b)
+{
+    return b.operator>>(i);
+}
+inline std::ostream& operator<<(std::ostream& o, badideal const & b)
+{
+    return b.operator<<(o);
+}
+
 
 #endif	/* BADIDEALS_HPP_ */

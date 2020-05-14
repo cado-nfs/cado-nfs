@@ -1,4 +1,5 @@
 #include "cado.h"
+#include <math.h>       // INFINITY
 #include <stdio.h>
 #include "portability.h"
 #include "utils.h"

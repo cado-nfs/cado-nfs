@@ -36,7 +36,6 @@
 #include "params.h"
 #include "purgedfile.h"
 #include "relation-tools.h"
-#include "renumber.h"
 #include "rho.h"
 #include "rootfinder.h"
 #include "sm_utils.h"
@@ -46,6 +45,7 @@
 #include "verbose.h"
 #include "version_info.h"
 #ifdef __cplusplus
+#include "renumber.hpp"
 #include "cxx_misc.hpp"
 #include "cxx_mpz.hpp"
 #include "gmpxx.hpp"

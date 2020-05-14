@@ -8,7 +8,8 @@ set (sources
         gzip.cpp misc.c
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
         barrier.c usp.c fix-endianness.c memusage.c
-        cachesize_cpuid.c cachesize_guess.c roots_mod.c mod_mpz.c renumber.c
+        cachesize_cpuid.c cachesize_guess.c roots_mod.c mod_mpz.c
+        renumber.cpp
         ringbuf.c sm_utils.c galois_utils.c memalloc.c 
 	mpz_vector.c memory.c stats.c lll.c
         verbose.c 
@@ -22,6 +23,8 @@ set (sources
         fmt/format.cc
         fd_streambuf.cpp
         cado_pipe_streambuf.cpp
+        numbertheory.cpp
+        badideals.cpp
 )
 if (HAVE_GLIBC_VECTOR_INTERNALS)
     set(sources ${sources} mmap_allocator.cpp)
@@ -83,6 +86,10 @@ if(ENABLE_SHARED)
     install(TARGETS utils utils_with_io DESTINATION ${LIBSUFFIX}/utils)
 endif()
 
+add_executable(badideals badideals_main.cpp)
+target_link_libraries (badideals utils)
+
+install(TARGETS badideals RUNTIME DESTINATION ${LIBSUFFIX}/utils)
 
 include(CMakeLists-nodist.txt OPTIONAL)
 

@@ -46,8 +46,8 @@
 */
 
 #include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <fcntl.h>   /* for _O_BINARY */
 
 #include "portability.h"
@@ -175,35 +175,21 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
    *      renumber_tab->nonmonic is 1 (i.e., the polynomial on side i is non
    *      monic) and the relation contains at least one prime on side i.
    */
-  if (renumber_tab->naddcols)
-  {
-    if (renumber_tab->nb_polys == 2)
-    {
-      p = u64toa16(p, (uint64_t) 0);
-      *p++ = ',';
-    }
-    else
-    {
-      index_t index_add_col = 0;
-      for (uint64_t b = renumber_tab->nonmonic, side = 0; b != 0;
-                                                b>>=1, nonvoidside>>=1, side++)
-      {
-        if (b & ((uint64_t) 1))
-        {
-          if (nonvoidside & ((uint64_t) 1))
-          {
-            p = u64toa16(p, (uint64_t) index_add_col);
-            *p++ = ',';
+  if (renumber_tab.number_of_additional_columns()) {
+      index_t idx = 0;
+      for(int side = 0 ; side < (int) renumber_tab.get_nb_polys() ; side++) {
+          if (mpz_poly_is_monic(renumber_tab.get_poly(side)))
+              continue;
+          if ((nonvoidside & (((uint64_t) 1) << rel->primes[i].side))) {
+              p = u64toa16(p, (uint64_t) idx);
+              *p++ = ',';
           }
-          index_add_col++;
-        }
+          idx++;
       }
-    }
   }
 
-
   *(--p) = '\n';
-  p[1] = 0;
+  p[1] = '\0';
   if (fputs(buf, file) == EOF) {
     perror("Error writing relation");
     abort();
@@ -293,7 +279,7 @@ insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel, unsigned int 
  *  - the bad ideals
  */
 static inline void
-compute_index_rel (earlyparsed_relation_ptr rel, allbad_info_t info)
+compute_index_rel (earlyparsed_relation_ptr rel)
 {
   unsigned int i;
   p_r_values_t r;
@@ -304,8 +290,7 @@ compute_index_rel (earlyparsed_relation_ptr rel, allbad_info_t info)
   {
     if (pr[i].e > 0)
     {
-      if (pr[i].side != renumber_tab->rat)
-      {
+      if (pr[i].side != renumber_tab.get_rational_side()) {
 #if DEBUG >= 1
   // Check for this bug : [#15897] [las] output "ideals" that are not prime
         if (!modul_isprime(&(pr[i].p)))
@@ -322,39 +307,31 @@ compute_index_rel (earlyparsed_relation_ptr rel, allbad_info_t info)
       else
         r = 0; // on the rational side we need not compute r, which is m mod p.
       
-      int nb; //number of ideals above the bad ideal
-      index_t first_index; // first index of the ideals above a bad ideal
-      if (pr[i].p <= renumber_tab->bad_ideals.max_p
-          && renumber_is_bad (&nb, &first_index, renumber_tab, pr[i].p, r,
-                                                                    pr[i].side))
-      {
-        int exp_above[RENUMBER_MAX_ABOVE_BADIDEALS] = {0,};
-        handle_bad_ideals (exp_above, rel->a, rel->b, pr[i].p, pr[i].e,
-                           pr[i].side, info);
-        
+      renumber_t::p_r_side x { pr[i].p, r, pr[i].side };
+      if (renumber_tab.is_bad (x)) {
+
+        auto y = renumber_tab.indices_from_p_a_b(x, pr[i].e, rel->a, rel->b);
+
         /* allocate room for (nb) more valuations */
-        if (rel->nb + nb - 1 > rel->nb_alloc)
-        {
+        for( ; rel->nb + y.second.size() - 1 > rel->nb_alloc ; ) {
            realloc_buffer_primes(rel);
            pr = rel->primes;
         }
-
+        index_t first_index = y.first;
         /* the first is put in place, while the other are put at the end
          * of the relation. As a side-effect, the relations produced are
          * unsorted. Anyway, given that we're mixing sides when
          * renumbering, we're bound to do sorting downhill. */
         pr[i].h = first_index;
-        pr[i].e = exp_above[0];
-        for (int n = 1; n < nb; n++)
-        {
-          pr[rel->nb].h = first_index + n;
-          pr[rel->nb].e = exp_above[n];
-          rel->nb++;
+        pr[i].e = y.second[0];
+        for (size_t n = 1; n < y.second.size(); n++) {
+            pr[rel->nb].h = first_index + n;
+            pr[rel->nb].e = y.second[n];
+            rel->nb++;
         }
       }
       else
-        pr[i].h = renumber_get_index_from_p_r(renumber_tab, pr[i].p, r,
-                                              pr[i].side);
+        pr[i].h = renumber_tab.index_from_p_r(pr[i].p, r, pr[i].side);
     }
   }
 }
@@ -472,7 +449,7 @@ thread_dup2 (void * context_data, earlyparsed_relation_ptr rel)
 
 
 void *
-thread_root(void * context_data, earlyparsed_relation_ptr rel)
+thread_root(void *, earlyparsed_relation_ptr rel)
 {
     if (!is_for_dl) { /* Do we reduce mod 2 */
         /* XXX should we compress as well ? */
@@ -480,7 +457,7 @@ thread_root(void * context_data, earlyparsed_relation_ptr rel)
             rel->primes[i].e &= 1;
     }
 
-    compute_index_rel (rel, context_data);
+    compute_index_rel (rel);
 
     return NULL;
 }
@@ -574,8 +551,7 @@ main (int argc, char *argv[])
 {
     argv0 = argv[0];
 
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
     declare_usage(pl);
     argv++,argc--;
 
@@ -652,14 +628,9 @@ main (int argc, char *argv[])
       usage(pl, argv0);
     }
 
-    allbad_info_t badidealinfo;
-    if (is_for_dl)
-        read_bad_ideals_info(badidealinfofile, badidealinfo);
-
     set_antebuffer_path (argv0, path_antebuffer);
 
-    renumber_init_for_reading (renumber_tab);
-    renumber_read_table (renumber_tab, renumberfilename);
+    renumber_t renumber_tab(renumberfilename, badidealinfofile);
 
   /* sanity check: since we allocate two 64-bit words for each, instead of
      one 32-bit word for the hash table, taking K/100 will use 2.5% extra
@@ -701,8 +672,8 @@ main (int argc, char *argv[])
       for (char ** p = files; *p; p++)
           nb_files++;
 
-      files_already_renumbered = malloc((nb_files + 1) * sizeof(char*));
-      files_new = malloc((nb_files + 1) * sizeof(char*));
+      files_already_renumbered = (char **) malloc((nb_files + 1) * sizeof(char*));
+      files_new = (char **) malloc((nb_files + 1) * sizeof(char*));
 
       /* separate already processed files
        * check if f_tmp is in raw format a,b:...:... or 
@@ -713,7 +684,7 @@ main (int argc, char *argv[])
       for (char ** p = files; *p; p++) {
           /* always strdup these, so that we can safely call
            * filelist_clear in the end */
-          if (check_whether_file_is_renumbered(*p, renumber_tab->nb_polys)) {
+          if (check_whether_file_is_renumbered(*p, renumber_tab.get_nb_polys())) {
               files_already_renumbered[nb_f_renumbered++] = strdup(*p);
           } else {
               files_new[nb_f_new++] = strdup(*p);
@@ -740,10 +711,9 @@ main (int argc, char *argv[])
       struct filter_rels_description desc[3] = {
           { .f = thread_root, .arg=0, .n=nthreads_for_roots, },
           { .f = thread_dup2, .arg=0, .n=1, },
-          { .f = NULL, },
+          { .f = NULL, .arg=0, .n=1, },
       };
-      if (is_for_dl)
-          desc[0].arg = (void *) &badidealinfo[0];
+      // if (is_for_dl) desc[0].arg = (void *) &badidealinfo[0];
       fprintf (stderr, "Reading new files"
               " (using %d auxiliary threads for roots mod p):\n",
               desc[0].n);
@@ -808,15 +778,11 @@ main (int argc, char *argv[])
       }
   }
 
-  if (is_for_dl)
-      free(badidealinfo->badid_info);
   free (H);
   free (sanity_a);
   free (sanity_b);
   filelist_clear(files_already_renumbered);
   filelist_clear(files_new);
 
-  param_list_clear(pl);
-  renumber_clear (renumber_tab);
   return 0;
 }

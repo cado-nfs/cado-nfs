@@ -40,9 +40,9 @@ bool register_contending_relation(las_info const & las, las_todo_entry const & d
             relation::pr const & v(rel.sides[side][i]);
             if (mpz_cmp(doing.p, v.p) == 0)
                 continue;
-            unsigned long p = mpz_get_ui(v.p);
+            p_r_values_t p = mpz_get_ui(v.p);
             if (mpz_fits_ulong_p(v.p)) {
-                unsigned long r = mpz_get_ui(v.r);
+                p_r_values_t r = mpz_get_ui(v.r);
                 if (las.dlog_base.is_known(side, p, r))
                     continue;
             }

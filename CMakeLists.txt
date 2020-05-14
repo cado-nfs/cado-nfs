@@ -444,7 +444,6 @@ add_custom_target(gf2x-build ALL
 # add_subdirectory (gf2x-fft)
 add_subdirectory (utils)
 add_subdirectory (polyselect)
-add_subdirectory (numbertheory)
 add_subdirectory (sieve)
 add_subdirectory (sqrt)
 add_subdirectory (linalg)

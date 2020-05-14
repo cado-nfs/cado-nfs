@@ -2,7 +2,7 @@
 include_directories(${CADO_NFS_SOURCE_DIR}/numbertheory)
 
 add_executable(test-ant test-ant.cpp)
-target_link_libraries(test-ant ant)
+target_link_libraries(test-ant utils)
 
 cado_define_test(
     numbertheory-p-maximal-order
@@ -58,14 +58,4 @@ cado_define_test(
     )
 endif()
 
-
-cado_define_test(test-badideals
-    SCRIPT
-        ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir -- ${CMAKE_CURRENT_SOURCE_DIR}/test-badideals.sh --binary ${CADO_NFS_BINARY_DIR}/numbertheory/badideals
-        ${CMAKE_CURRENT_SOURCE_DIR}/badideals.small-example
-        ${CMAKE_CURRENT_SOURCE_DIR}/badideals.rsa220
-        ${CMAKE_CURRENT_SOURCE_DIR}/badideals.p1024
-    TARGET_DEPENDENCIES
-        badideals
-    )
 

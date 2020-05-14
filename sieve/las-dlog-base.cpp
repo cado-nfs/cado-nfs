@@ -28,7 +28,6 @@ las_dlog_base::las_dlog_base(cxx_param_list & pl)
     if (!dlp_descent) return;
     renumberfilename = NULL;
     logfilename = NULL;
-    renumber_init_for_reading(renumber_table);
     const char * tmp;
     if ((tmp = param_list_lookup_string(pl, "renumber")) != NULL) {
         renumberfilename = strdup(tmp);
@@ -54,12 +53,11 @@ las_dlog_base::las_dlog_base(cxx_param_list & pl)
 las_dlog_base::~las_dlog_base()
 {
     if (!dlp_descent) return;
-    renumber_clear (renumber_table);
     free(renumberfilename);
     free(logfilename);
 }
 
-bool las_dlog_base::is_known(int side, uint64_t p, uint64_t r) const
+bool las_dlog_base::is_known(int side, p_r_values_t p, p_r_values_t r) const
 {
     ASSERT_ALWAYS(dlp_descent);
     // if p is above large prime bound,  its log is not known.
@@ -73,9 +71,9 @@ bool las_dlog_base::is_known(int side, uint64_t p, uint64_t r) const
         /* If we want to be able to do a complete lookup for bad ideals
          * too, then we need the badidealinfo file, as well as a piece of
          * code which is currently in dup2 */
-        if (renumber_is_bad (NULL, NULL, renumber_table, p, r, side))
+        if (renumber_table.is_bad ({ p, r, side }))
             return true;
-        index_t h = renumber_get_index_from_p_r(renumber_table, p, r, side);
+        index_t h = renumber_table.index_from_p_r({ p, r, side });
         return known_logs[h];
     }
     return true;
@@ -93,16 +91,16 @@ void las_dlog_base::read()
 
     verbose_output_print(0, 1, "# Descent: will get list of known logs from %s, using also %s for mapping\n", logfilename, renumberfilename);
 
-    renumber_read_table(renumber_table, renumberfilename);
+    renumber_table = renumber_t(renumberfilename);
 
     for(int side = 0 ; side < 2 ; side++) {
-        if (lpb[side] != renumber_table->lpb[side]) {
-            fprintf(stderr, "lpb%d=%lu different from lpb%d=%lu stored in renumber table, probably a bug\n", side, lpb[side], side, renumber_table->lpb[side]);
+        if (lpb[side] != renumber_table.get_lpb(side)) {
+            fprintf(stderr, "lpb%d=%lu different from lpb%d=%u stored in renumber table, probably a bug\n", side, lpb[side], side, renumber_table.get_lpb(side));
             exit(EXIT_FAILURE);
         }
     }
 
-    uint64_t nprimes = renumber_table->size;
+    uint64_t nprimes = renumber_table.get_size();
     known_logs.assign(nprimes + 32, false);
     /* 32 is because the SM columns are here, too ! We would like to
      * avoid reallocation, so let's be generous (anyway we'll

@@ -1,14 +1,16 @@
 #include "cado.h"
 
-#include <float.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cfloat>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
 
 #include "facul_ecm.h"
 #include "facul.hpp"
 #include "portability.h"
 #include "utils.h"
+#include "tab_strategy.h"
 #include "finding_good_strategy.h"
 
 //#define STATS 

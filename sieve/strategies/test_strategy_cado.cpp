@@ -1,11 +1,9 @@
 #include "cado.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
-
-
-
+#include <cstdlib>
+#include <cstdio>
+#include <ctime>
+#include <cmath>
 #include "portability.h"
 #include "utils.h"
 #include "pm1.h"

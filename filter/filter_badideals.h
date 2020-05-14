@@ -1,5 +1,8 @@
-#ifndef __FILTER_BADIDEALS_H__
-#define __FILTER_BADIDEALS_H__
+#ifndef FILTER_BADIDEALS_H_
+#define FILTER_BADIDEALS_H_
+
+#include <stdint.h>
+#include "utils.h"      // p_r_values_t
 
 /* The information from this structure is the one found in the
  * .badidealinfo filename
@@ -26,8 +29,16 @@ typedef struct {
 
 typedef allbad_info_struct_t allbad_info_t[1];
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void read_bad_ideals_info(const char *filename, allbad_info_t info);
 void handle_bad_ideals (int *exp_above, int64_t a, uint64_t b, p_r_values_t p,
                         int e, int side, allbad_info_t info);
 
-#endif   /* __FILTER_BADIDEALS_H__ */
+#ifdef __cplusplus
+}
+#endif
+
+#endif   /* FILTER_BADIDEALS_H_ */

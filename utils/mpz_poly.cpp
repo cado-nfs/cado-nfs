@@ -1097,17 +1097,17 @@ int mpz_poly_normalized_p (mpz_poly_srcptr f)
   return (f->deg == -1) || mpz_cmp_ui (f->coeff[f->deg], 0) != 0;
 }
 
-/* return 1 if f is nonmonic, i.e. f[deg] != 1, return 0 otherwise (null
+/* return 1 if f is nmonic, i.e. f[deg] == 1, return 0 otherwise (null
  * polynomial is considered monic).
  */
-int mpz_poly_is_nonmonic (mpz_poly_srcptr f)
+int mpz_poly_is_monic (mpz_poly_srcptr f)
 {
   if (f->deg == -1)
-    return 0;
-  else if (mpz_cmp_ui (f->coeff[f->deg], 1) == 0)
-    return 0;
-  else
     return 1;
+  else if (mpz_cmp_ui (f->coeff[f->deg], 1) == 0)
+    return 1;
+  else
+    return 0;
 }
 
 /* -------------------------------------------------------------------------- */

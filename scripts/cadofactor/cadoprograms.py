@@ -1022,7 +1022,7 @@ class ReplayDLP(Program):
 class NumberTheory(Program):
     binary = "badideals"
     name = binary
-    subdir = "numbertheory"
+    subdir = "utils"
     def __init__(self,
                  poly: Parameter(),
                  ell: Parameter(),

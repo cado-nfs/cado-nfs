@@ -123,7 +123,7 @@ void mpz_poly_print_raw(mpz_poly_srcptr f);
 /* Tests and comparison functions */
 int mpz_poly_cmp (mpz_poly_srcptr, mpz_poly_srcptr);
 int mpz_poly_normalized_p (mpz_poly_srcptr f);
-int mpz_poly_is_nonmonic (mpz_poly_srcptr f);
+int mpz_poly_is_monic (mpz_poly_srcptr f);
 
 /* Polynomial arithmetic */
 void mpz_poly_to_monic(mpz_poly_ptr g, mpz_poly_srcptr f);

@@ -1,8 +1,7 @@
 #include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "portability.h"
+#include <math.h>
 
 #include "utils_with_io.h"
 #include "filter_config.h"

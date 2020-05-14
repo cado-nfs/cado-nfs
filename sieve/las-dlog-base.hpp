@@ -6,7 +6,6 @@
 #include "utils.h"   // for renumber_t
 
 struct las_dlog_base {
-
 private:
     char * renumberfilename;
     char * logfilename;
@@ -17,7 +16,7 @@ private:
 
     void read();
 public:
-    bool is_known(int side, uint64_t p, uint64_t r) const;
+    bool is_known(int side, p_r_values_t p, p_r_values_t r) const;
     las_dlog_base(cxx_param_list & pl);
     ~las_dlog_base();
     static void declare_usage(cxx_param_list & pl);

@@ -2,31 +2,36 @@
 /* 
  * Authors: Joshua Peignier and Emmanuel Thomé
  */
-#include <iostream>
-#include <math.h>
-#include <iomanip>
-#include <sstream>
-#include <stdio.h>
+#include <cmath>
+#include <cstdio>
 #include <cstdlib>
-#include <string.h>
-#include <string>
-#include <errno.h>
-#include <gmp.h>
-#include <stdint.h>
+#include <cstring>
+#include <cerrno>
+#include <cstdint>
 #include <sys/resource.h>	/* for getrusage */
 #include <queue>
+#include <ctime>
+#include <string>
 #include <list>
-#include <time.h>
 #include <algorithm>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <gmp.h>
 #include "macros.h"
-#include "mpz_poly.h"
-#include "mpz_mat.h"
-#include "utils/cxx_mpz.hpp"
-#include "utils/gmp_aux.h"
-#include "ant.hpp"
-#include "ant-conversions.h"
+#include "utils.h"
+#include "numbertheory.hpp"
 
 using namespace std;
+
+/*{{{ conversion of rows and columns to polynomials*/
+void mpz_mat_row_to_poly(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int i);
+void mpz_mat_row_to_poly_rev(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int i);
+void mpz_mat_column_to_poly(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int j);
+void mpq_mat_row_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const unsigned int i);
+void mpq_poly_to_mat_row(mpq_mat_ptr M, const unsigned int i, mpz_poly_srcptr f, mpz_srcptr denom);
+void mpq_mat_column_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const unsigned int j);
+/* }}} */
 
 /*{{{ conversion of rows and columns to polynomials*/
 void mpz_mat_row_to_poly(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int i)

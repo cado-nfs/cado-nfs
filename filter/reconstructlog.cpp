@@ -1,7 +1,8 @@
 #include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
 #include <fcntl.h>   /* for _O_BINARY */
 
 #include "cxx_mpz.hpp"
@@ -253,10 +254,10 @@ struct read_data
   uint64_t nrels;
   cado_poly_ptr poly;
   sm_side_info *sm_info;
-  renumber_ptr renum_tab;
+  renumber_t & renum_tab;
   read_data(logtab & log, uint64_t nrels,
           cado_poly_ptr poly, sm_side_info *sm_info,
-          renumber_ptr renum_tab)
+          renumber_t & renum_tab)
       : log(log)
       , nrels(nrels)
       , poly(poly)
@@ -290,7 +291,7 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
     if (data.poly->nb_polys > 2) {
         for (weight_t i = 0; i < rel->nb; i++) {
           index_t h = rel->primes[i].h;
-          int side = renumber_get_side_from_index (data.renum_tab, h, data.poly);
+          int side = data.renum_tab.p_r_from_index(h).side;
           nonvoidside |= ((uint64_t) 1) << side;
         }
         /* nonvoidside must *not* be a power of two. If it is, then we
@@ -868,7 +869,7 @@ read_log_format_LA (logtab & log, const char *logfile, const char *idealsfile,
 
 /* Read the logarithms in output format of reconstructlog */
 static void
-read_log_format_reconstruct (logtab & log, MAYBE_UNUSED renumber_t renumb,
+read_log_format_reconstruct (logtab & log, MAYBE_UNUSED renumber_t const & renumb,
                              const char *filename)
 {
   uint64_t nread = 0;
@@ -883,24 +884,21 @@ read_log_format_reconstruct (logtab & log, MAYBE_UNUSED renumber_t renumb,
   FATAL_ERROR_CHECK(f == NULL, "Cannot open file for reading");
 
   mpz_init (tmp_log);
-  stats_init (stats, stdout, &nread, nbits(renumb->size)-5, "Read", "logarithms", "",
+  stats_init (stats, stdout, &nread, nbits(renumb.get_size())-5, "Read", "logarithms", "",
               "logs");
-  for (index_t i = 0; i < renumb->naddcols; i++)
-  {
-    ret = gmp_fscanf (f, "%" SCNid " added column %Zd\n", &h, tmp_log);
-    ASSERT_ALWAYS (ret == 2 && h == i);
-    nread++;
-    log[h] = tmp_log;
-  }
-  for (int i = 0; i < renumb->bad_ideals.n; i++)
-  {
-    for (int k = 0; k < renumb->bad_ideals.nb[i]; k++)
-    {
-      ret = gmp_fscanf (f, "%" SCNid " bad ideals %Zd\n", &h, tmp_log);
+  for (index_t i = 0; i < renumb.number_of_additional_columns(); i++) {
+      ret = gmp_fscanf (f, "%" SCNid " added column %Zd\n", &h, tmp_log);
       ASSERT_ALWAYS (ret == 2);
+      ASSERT_ALWAYS (renumb.is_additional_column(h));
       nread++;
       log[h] = tmp_log;
-    }
+  }
+  for (index_t i = 0; i < renumb.number_of_bad_ideals(); i++) {
+      ret = gmp_fscanf (f, "%" SCNid " bad ideals %Zd\n", &h, tmp_log);
+      ASSERT_ALWAYS (ret == 2);
+      ASSERT_ALWAYS (renumb.is_bad(h));
+      nread++;
+      log[h] = tmp_log;
   }
   while (gmp_fscanf (f, "%" SCNid " %*" SCNpr " %*d %*s %Zd\n", &h, tmp_log)
           == 2)
@@ -937,8 +935,8 @@ read_log_format_reconstruct (logtab & log, MAYBE_UNUSED renumber_t renumb,
 
 /* Write values of the known logarithms. */
 static void
-write_log (const char *filename, logtab & log, renumber_t tab, 
-	   cado_poly poly, sm_side_info *sm_info)
+write_log (const char *filename, logtab & log, renumber_t const & tab, 
+	   sm_side_info *sm_info)
 {
   uint64_t i;
   FILE *f = NULL;
@@ -977,36 +975,35 @@ write_log (const char *filename, logtab & log, renumber_t tab,
   }
 
   uint64_t nknown = 0;
-  stats_init (stats, stdout, &nknown, nbits(tab->size)-5, "Wrote",
+  stats_init (stats, stdout, &nknown, nbits(tab.get_size())-5, "Wrote",
               "known logarithms", "ideals", "logs");
-  for (i = 0; i < tab->size; i++)
-  {
+  i = 0;
+  for( ; tab.is_additional_column(i) ; i++) {
       if (!log.is_known(i)) continue;
       nknown++;
-      if (tab->table[i] == RENUMBER_SPECIAL_VALUE)
-      {
-        if (renumber_is_additional_column (tab, i))
-          gmp_fprintf (f, "%" PRid " added column %Zd\n", i, (mpz_srcptr) log[i]);
-        else
-          gmp_fprintf (f, "%" PRid " bad ideals %Zd\n", i, (mpz_srcptr) log[i]);
-      }
-      else
-      {
-        p_r_values_t p, r;
-        int side;
-        renumber_get_p_r_from_index (tab, &p, &r, &side, i, poly);
-        if (side != tab->rat)
-          gmp_fprintf (f, "%" PRid " %" PRpr " %d %" PRpr " %Zd\n",
-                  i, p, side, r, (mpz_srcptr) log[i]);
-        else
-          gmp_fprintf (f, "%" PRid " %" PRpr " %d rat %Zd\n",
-                  i, p, side, (mpz_srcptr) log[i]);
-      }
-      if (stats_test_progress (stats))
-        stats_print_progress (stats, nknown, i+1, 0, 0);
+      gmp_fprintf (f, "%" PRid " added column %Zd\n", i, (mpz_srcptr) log[i]);
   }
-  stats_print_progress (stats, nknown, tab->size, 0, 1);
-  for (unsigned int nsm = 0, i = tab->size; nsm < log.nbsm; nsm++)
+  for( ; tab.is_bad(i) ; i++) {
+      if (!log.is_known(i)) continue;
+      nknown++;
+      gmp_fprintf (f, "%" PRid " bad ideals %Zd\n", i, (mpz_srcptr) log[i]);
+  }
+  for( ; i < tab.get_size(); i++) {
+      if (!log.is_known(i)) continue;
+      nknown++;
+      // TODO forward iterator
+      renumber_t::p_r_side x = tab.p_r_from_index(i);
+      if (x.side != tab.get_rational_side())
+          gmp_fprintf (f, "%" PRid " %" PRpr " %d %" PRpr " %Zd\n",
+                  i, x.p, x.side, x.r, (mpz_srcptr) log[i]);
+      else
+          gmp_fprintf (f, "%" PRid " %" PRpr " %d rat %Zd\n",
+                  i, x.p, x.side, (mpz_srcptr) log[i]);
+      if (stats_test_progress (stats))
+          stats_print_progress (stats, nknown, i+1, 0, 0);
+  }
+  stats_print_progress (stats, nknown, tab.get_size(), 0, 1);
+  for (unsigned int nsm = 0, i = tab.get_size(); nsm < log.nbsm; nsm++)
   {
     // compute side
     int side, nsm_tot = sm_info[0]->nsm, jnsm = nsm;
@@ -1024,12 +1021,12 @@ write_log (const char *filename, logtab & log, renumber_t tab,
             (mpz_srcptr) log[i+nsm]);
   }
 
-  uint64_t missing = tab->size - nknown;
+  uint64_t missing = tab.get_size() - nknown;
   printf ("# factor base contains %" PRIu64 " elements\n"
           "# logarithms of %" PRIu64 " elements are known (%.1f%%)\n"
           "# logarithms of %" PRIu64 " elements are missing (%.1f%%)\n",
-          tab->size, nknown, 100.0 * nknown / (double) tab->size,
-          missing, 100.0 * missing / (double) tab->size);
+          tab.get_size(), nknown, 100.0 * nknown / (double) tab.get_size(),
+          missing, 100.0 * missing / (double) tab.get_size());
   fclose_maybe_compressed (f, filename);
   ASSERT_ALWAYS (log.nknown == nknown);
 }
@@ -1274,7 +1271,6 @@ main(int argc, char *argv[])
 {
   char *argv0 = argv[0];
 
-  renumber_t renumber_table;
   uint64_t nrels_tot = 0, nrels_purged, nrels_del, nrels_needed;
   uint64_t nprimes;
   int mt = 1;
@@ -1456,10 +1452,10 @@ main(int argc, char *argv[])
 
 
   /* Reading renumber file */
+  /* XXX legacy format insists on getting the badidealinfo file */
   printf ("\n###### Reading renumber file ######\n");
-  renumber_init_for_reading (renumber_table);
-  renumber_read_table (renumber_table, renumberfilename);
-  nprimes = renumber_table->size;
+  renumber_t renumber_table(renumberfilename);
+  nprimes = renumber_table.get_size();
 
   /* Read number of rows and cols on first line of purged file */
   {
@@ -1526,7 +1522,7 @@ main(int argc, char *argv[])
 
   /* Writing all the logs in outfile */
   printf ("\n###### Writing logarithms in a file ######\n");
-  write_log (outfilename, log, renumber_table, poly, sm_info);
+  write_log (outfilename, log, renumber_table, sm_info);
 
   /* freeing and closing */
   mpz_clear(ell);
@@ -1534,7 +1530,6 @@ main(int argc, char *argv[])
   for (int side = 0 ; side < poly->nb_polys ; side++)
     sm_side_info_clear (sm_info[side]);
 
-  renumber_clear (renumber_table);
   bit_vector_clear(rels_to_process);
   cado_poly_clear (poly);
   param_list_clear (pl);

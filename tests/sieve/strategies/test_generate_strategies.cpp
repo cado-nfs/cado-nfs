@@ -1,9 +1,10 @@
 #include "cado.h"
 
-#include <float.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
+#include <cfloat>
+#include <cstdlib>
+#include <cstdio>
+#include <ctime>
+#include <cmath>
 
 #include "portability.h"
 #include "utils.h"

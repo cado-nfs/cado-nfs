@@ -6,7 +6,7 @@
 #include <sstream>
 
 #include "utils.h"
-#include "ant.hpp"
+#include "numbertheory.hpp"
 #include "badideals.hpp"
 
 using namespace std;
@@ -31,6 +31,53 @@ using namespace std;
         }
         return o;
     }/*}}}*/
+
+std::ostream& badideal::operator<<(std::ostream& os) const
+{
+    os << comments;
+    os << p
+        << " " << r
+        << "  " << nbad
+        << "  " << branches.size()
+        << std::endl;
+    for(unsigned int j = 0 ; j < branches.size() ; j++) {
+        badideal::branch const& br(branches[j]);
+        os << p << " " << br.k << " " << br.r;
+        ASSERT_ALWAYS(br.v.size() == (size_t) nbad);
+        for(unsigned int k = 0 ; k < br.v.size() ; k++) {
+            os << " " << br.v[k];
+        }
+        os << std::endl;
+    }
+    return os;
+}
+
+std::istream& badideal::operator>>(std::istream& is)
+{
+    badideal c(is);
+    std::swap(*this, c);
+    return is;
+}
+
+badideal::badideal(std::istream& is)
+{
+    std::istringstream iss;
+    std::string s;
+    for( ; getline(is, s) && !s.empty() && s[0] == '#' ; ) ;
+    size_t nbranches;
+    is >> p >> r >> nbad >> nbranches;
+    if (!is) return;
+    for(unsigned int j = 0 ; j < nbranches ; j++) {
+        badideal::branch br;
+        is >> p >> br.k >> br.r;
+        br.v.assign(nbad, 0);
+        for(unsigned int k = 0 ; k < br.v.size() ; k++) {
+            is >> br.v[k];
+        }
+        branches.emplace_back(std::move(br));
+    }
+    return;
+}
 
 vector<pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor)/*{{{*/
 {
@@ -349,3 +396,18 @@ vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side)
     gmp_randclear(state);
     return x;
 }
+
+cxx_mpz badideal::r_from_rk(cxx_mpz const & p, int k, cxx_mpz const & rk)
+{
+    cxx_mpz pk, r;
+    mpz_pow_ui(pk, p, k);
+    if (mpz_cmp(rk, pk) < 0) {
+        mpz_mod(r, rk, p);
+        return r;
+    } else {
+        /* then u=rk-p^k is divisible by p, and represents (1:u). Reduced
+         * mod p, this means (1:0), which is encoded by p */
+        return p;
+    }
+}
+

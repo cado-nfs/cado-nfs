@@ -5,6 +5,7 @@
 #include <iterator>
 #include <algorithm>
 #include "badideals.hpp"
+#include "utils.h"
 
 using namespace std;
 
@@ -100,14 +101,14 @@ ostream& operator<<(ostream& o, cxx_mpz_poly const& v)/*{{{*/
 }/*}}}*/
 }
 
-void badideals_declare_usage(param_list_ptr pl)/*{{{*/
+void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
 {
     param_list_decl_usage(pl, "badideals", "badideals file");
     param_list_decl_usage(pl, "badidealinfo", "badidealinfo file");
     param_list_decl_usage(pl, "polystr", "polynomial (string)");
     param_list_decl_usage(pl, "poly", "polynomial file");
     param_list_decl_usage(pl, "seed", "random seed");
-    param_list_decl_usage(pl, "ell", "ell (for computing default number of maps)");
+    param_list_decl_usage(pl, "ell", "ell (for computing default number of maps ; not used for bad ideals)");
 }/*}}}*/
 
 void usage(param_list_ptr pl, char ** argv, const char * msg = NULL)/*{{{*/
@@ -121,8 +122,7 @@ void usage(param_list_ptr pl, char ** argv, const char * msg = NULL)/*{{{*/
 
 int main(int argc, char * argv[])
 {
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
 
     badideals_declare_usage(pl);
     param_list_configure_alias(pl, "polystr", "f");
@@ -218,5 +218,4 @@ int main(int argc, char * argv[])
     }
 
     gmp_randclear(state);
-    param_list_clear(pl);
 }

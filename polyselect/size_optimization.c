@@ -1,7 +1,7 @@
 #include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "portability.h"
+#include <math.h>
 #include "utils.h"
 #include "auxiliary.h"
 #include "size_optimization.h"

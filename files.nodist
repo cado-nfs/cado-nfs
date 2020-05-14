@@ -122,7 +122,7 @@ misc/README
 misc/cachesim.c
 misc/contains_zerochar.c
 misc/convert_poly.c
-misc/convert_rels.c
+misc/convert_rels.cpp
 misc/phi.c
 misc/psi.c
 misc/cacheline.c
@@ -134,7 +134,7 @@ filter/out-of-core/Makefile
 filter/out-of-core/clique.c
 filter/out-of-core/singleton.c
 misc/singleton_simple.c
-filter/replay_dblemat.c
+filter/replay_dblemat.cpp
 scripts/cadofactor/README.OAR
 scripts/plot_params.sh
 scripts/make_graphs
