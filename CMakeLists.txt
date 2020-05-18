@@ -331,6 +331,14 @@ include("${CADO_NFS_SOURCE_DIR}/config/alignas.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/glibc_vector_internals.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
 
+if (ENV{IWYU})
+    find_program(iwyu_path NAMES include-what-you-use iwyu)
+    if(iwyu_path)
+        message(STATUS "Enabling iwyu when compiling c++ code")
+        set_property(GLOBAL PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${iwyu_path})
+    endif()
+endif()
+
 set(CADO_SHARED)
 
 if("$ENV{ENABLE_SHARED}")
