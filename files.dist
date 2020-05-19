@@ -595,7 +595,7 @@ utils/gmp_aux.c
 utils/gmp_aux.h
 utils/gmp_auxx.hpp
 utils/gmp_gcd.c
-utils/gzip.c
+utils/gzip.cpp
 utils/gzip.h
 utils/memusage.c
 utils/memusage.h
@@ -1433,3 +1433,8 @@ sieve/las-cofac-standalone.cpp
 sieve/las-cofac-standalone.hpp
 sieve/las-sighandlers.cpp
 sieve/las-sighandlers.hpp
+utils/cado_pipe_streambuf.cpp
+utils/cado_pipe_streambuf.hpp
+utils/fd_streambuf.cpp
+utils/fd_streambuf.hpp
+tests/utils/test_fstream_maybe_compressed.cpp

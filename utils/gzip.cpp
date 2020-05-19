@@ -13,7 +13,6 @@
 #include <errno.h>
 
 
-#include "portability.h"
 #include "macros.h"
 #include "gzip.h"
 #include "misc.h"
@@ -157,7 +156,7 @@ int set_antebuffer_path (const char *executable_filename, const char *path_anteb
   if (executable_filename) {
       char dummy[PATH_MAX];
       char dummy2[PATH_MAX + 64];
-      char * slash = strrchr(executable_filename, '/');
+      const char * slash = strrchr(executable_filename, '/');
       if (slash) {
           int len = MIN(PATH_MAX - 1, slash - executable_filename);
           strncpy(dummy, executable_filename, len);
@@ -212,7 +211,7 @@ char **prepare_grouped_command_lines(char **list_of_files)
     size_t arg_max = get_arg_max() - 20;
     
     for(char ** grouphead = list_of_files ; *grouphead ; ) {
-        char *cmd_prefix = NULL, *cmd_postfix = "";
+        char *cmd_prefix = NULL, *cmd_postfix = NULL;
         size_t prefix_len, postfix_len;
         const struct suffix_handler * this_suffix = r;
         for (; this_suffix && this_suffix->suffix; this_suffix++)
@@ -254,8 +253,8 @@ char **prepare_grouped_command_lines(char **list_of_files)
                 ASSERT_ALWAYS(rc >= 0);
             }
         }
-        prefix_len = strlen(cmd_prefix);
-        postfix_len = strlen(cmd_postfix);
+        prefix_len = cmd_prefix ? strlen(cmd_prefix) : 0;
+        postfix_len = cmd_postfix ? strlen(cmd_postfix) : 0;
         
         for(grouptail = grouphead ; *grouptail ; grouptail++) {
             const struct suffix_handler * other_suffix = r;
@@ -274,10 +273,10 @@ char **prepare_grouped_command_lines(char **list_of_files)
          * [grouphead..grouptail[ have the same suffix. Create a new
          * command for unpacking them.
          */
-        new_commands = realloc(new_commands, ++n_new_commands * sizeof(char*));
+        new_commands = (char**) realloc(new_commands, ++n_new_commands * sizeof(char*));
 
         /* intermediary string for the list of file names */
-        char * tmp = malloc(filenames_total_size + 1);
+        char * tmp = (char*)  malloc(filenames_total_size + 1);
         size_t k = 0;
         for(char ** g = grouphead ; g != grouptail ; g++) {
             k += snprintf(tmp + k, filenames_total_size + 1 - k, "%s ", *g);
@@ -288,18 +287,20 @@ char **prepare_grouped_command_lines(char **list_of_files)
         char * cmd;
         int rc;
 
-        rc = asprintf(&cmd, "%s%s%s", cmd_prefix, tmp, cmd_postfix);
+        rc = asprintf(&cmd, "%s%s%s",
+                cmd_prefix ? cmd_prefix : "",
+                tmp,
+                cmd_postfix ? cmd_postfix : "");
         ASSERT_ALWAYS(rc >= 0);
         ASSERT_ALWAYS(strlen(cmd) <= arg_max);
         ASSERT_ALWAYS(strlen(cmd) == filenames_total_size + prefix_len + postfix_len);
         new_commands[n_new_commands-1] = cmd;
         free(tmp);
-        free(cmd_prefix);
-        if (strcmp(cmd_postfix, ""))
-          free(cmd_postfix);
+        if (cmd_prefix) free(cmd_prefix);
+        if (cmd_postfix) free(cmd_postfix);
         grouphead = grouptail;
     }
-    new_commands = realloc(new_commands, ++n_new_commands * sizeof(char*));
+    new_commands = (char**) realloc(new_commands, ++n_new_commands * sizeof(char*));
     new_commands[n_new_commands-1] = NULL;
     return new_commands;
 }
@@ -409,4 +410,66 @@ int
 fclose_maybe_compressed (FILE * f, const char * name)
 {
     return fclose_maybe_compressed2(f, name, NULL);
+}
+
+#include <stdexcept>
+#include <ios>
+#include <fstream>  // filebuf
+#include "portability.h"
+
+streambase_maybe_compressed::streambase_maybe_compressed(const char * name, std::ios_base::openmode mode)
+{
+    open(name, mode);
+    init(buf);
+}
+
+void streambase_maybe_compressed::open(const char * name, std::ios_base::openmode mode)
+{
+    const struct suffix_handler * r = supported_compression_formats;
+
+    if (mode & std::ios_base::in && access(name, R_OK) != 0)
+        throw std::runtime_error("cannot open file for reading");
+    /* creating is ok, of course
+    if (mode & std::ios_base::out && access(name, W_OK) != 0)
+        throw std::runtime_error("cannot open file for writing");
+     */
+    for( ; r->suffix ; r++) {
+        if (!has_suffix(name, r->suffix)) continue;
+        char * command = NULL;
+        if (mode & std::ios_base::in && r->pfmt_in) {
+            int ret = asprintf(&command, r->pfmt_in, name);
+            ASSERT_ALWAYS(ret >= 0);
+        }
+        if (mode & std::ios_base::out && r->pfmt_out) {
+            int ret = asprintf(&command, r->pfmt_out, name);
+            ASSERT_ALWAYS(ret >= 0);
+        }
+
+        if (command) {
+            /* apparently popen() under Linux does not accept the 'b' modifier */
+            pbuf.reset(new cado_pipe_streambuf(command, mode));
+            buf = pbuf.get();
+            pipe = true;
+            free(command);
+        } else {
+            fbuf.reset(new std::filebuf());
+            fbuf->open(name, mode);
+            buf = fbuf.get();
+            pipe = false;
+        }
+        /* hmmm */
+        return;
+    }
+};
+
+void streambase_maybe_compressed::close()
+{
+    if (pipe) pbuf->close();
+    else fbuf->close();
+}
+
+streambase_maybe_compressed::~streambase_maybe_compressed()
+{
+    sync();
+    close();
 }

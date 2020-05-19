@@ -105,4 +105,57 @@ extern int fclose_maybe_compressed2 (FILE * f, const char * name, struct rusage 
 }
 #endif
 
+#ifdef __cplusplus
+#include <istream>
+#include <ostream>
+#include <memory>
+#include "cado_pipe_streambuf.hpp"
+
+class streambase_maybe_compressed : virtual public std::ios {
+    bool pipe;
+    protected:
+    std::unique_ptr<cado_pipe_streambuf> pbuf;
+    std::unique_ptr<std::filebuf> fbuf;
+    std::streambuf * buf;
+    public:
+    /* I don't think that we need a default ctor, do we ? */
+    streambase_maybe_compressed(const char * name, std::ios_base::openmode mode);
+    ~streambase_maybe_compressed();
+    void open(const char * name, std::ios_base::openmode mode);
+    void close();
+    bool is_pipe() const { return pipe; }
+};
+
+template <class charT, class Traits = std::char_traits<charT> >
+class basic_ifstream_maybe_compressed : public streambase_maybe_compressed, public std::basic_istream<charT, Traits> {
+public:
+    basic_ifstream_maybe_compressed(const char * name)
+        : streambase_maybe_compressed(name, std::ios::in)
+        , std::basic_istream<charT, Traits>(buf)
+    {}
+    void open(const char * name) {
+        streambase_maybe_compressed::open(name, std::ios::in);
+    }
+};
+
+template <class charT, class Traits = std::char_traits<charT> >
+class basic_ofstream_maybe_compressed : public streambase_maybe_compressed, public std::basic_ostream<charT, Traits> {
+public:
+    basic_ofstream_maybe_compressed(const char * name)
+        : streambase_maybe_compressed(name, std::ios::out)
+        , std::basic_ostream<charT, Traits>(buf)
+    {}
+    void open(const char * name) {
+        streambase_maybe_compressed::open(name, std::ios::out);
+    }
+};
+
+// extern template<> basic_ifstream_maybe_compressed<char>;
+// extern template<> basic_ofstream_maybe_compressed<char>;
+
+typedef basic_ifstream_maybe_compressed<char> ifstream_maybe_compressed;
+typedef basic_ofstream_maybe_compressed<char> ofstream_maybe_compressed;
+
+#endif
+
 #endif	/* GZIP_H_ */

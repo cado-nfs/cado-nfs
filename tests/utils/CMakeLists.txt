@@ -46,3 +46,9 @@ if(HAVE_GLIBC_VECTOR_INTERNALS)
     )
 endif()
 cado_define_test(test_sha1.c LIBRARIES utils ARGUMENTS --test)
+cado_define_test(test_fstream_maybe_compressed.cpp LIBRARIES utils
+    NO_DEFAULT_RUN
+    PRECOMMAND "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --arg --wdir)
+cado_divert_test(test_fstream_maybe_compressed gz ARGUMENTS test.gz)
+cado_divert_test(test_fstream_maybe_compressed bz2 ARGUMENTS test.bz2)
+cado_divert_test(test_fstream_maybe_compressed none ARGUMENTS test)
