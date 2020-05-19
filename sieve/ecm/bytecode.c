@@ -6,7 +6,6 @@
 #include <pthread.h>
 #include <float.h>
 
-#include "portability.h"
 #include "macros.h"
 
 #include "bytecode.h"

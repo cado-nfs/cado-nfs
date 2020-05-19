@@ -5,6 +5,10 @@
   #error "One of the mod*_default.h headers must be included before this file"
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Types of coordinates */
 typedef enum {
   SHORT_WEIERSTRASS_aff,
@@ -140,4 +144,9 @@ ec_point_fprintf (FILE *out, const ec_point_t P,
   mod_intclear (z);
   mod_intclear (t);
 }
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* EC_ARITH_COMMON_H_ */

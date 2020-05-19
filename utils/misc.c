@@ -23,9 +23,9 @@
 #endif
 
 #include "macros.h"
-#include "portability.h"
 #include "misc.h"
 #include "typecast.h"
+#include "portability.h"
 
 /* Wrapper around sysconf(ARG_MAX) that deals with availability of sysconf()
    and additional constraints on command line length */
@@ -138,7 +138,7 @@ char ** filelist_from_file(const char * basepath, const char * filename,
 
         if (nfiles == nfiles_alloc) {
             nfiles_alloc += nfiles_alloc / 2 + 16;
-            files = realloc(files, nfiles_alloc * sizeof(char*));
+            files = (char**) realloc(files, nfiles_alloc * sizeof(char*));
         }
         if (basepath) {
             char * name;
@@ -154,7 +154,7 @@ char ** filelist_from_file(const char * basepath, const char * filename,
 
     if (nfiles == nfiles_alloc) {
         nfiles_alloc += nfiles_alloc / 2 + 16;
-        files = realloc(files, nfiles_alloc * sizeof(char*));
+        files = (char**) realloc(files, nfiles_alloc * sizeof(char*));
     }
     files[nfiles++] = NULL;
     return files;
@@ -251,7 +251,7 @@ char * path_resolve(const char * progname, char * resolved)
 //  trivial utility
 const char *size_disp_fine(size_t s, char buf[16], double cutoff)
 {
-    char *prefixes = "bkMGT";
+    const char *prefixes = "bkMGT";
     double ds = s;
     const char *px = prefixes;
     for (; px[1] && ds > cutoff;) {

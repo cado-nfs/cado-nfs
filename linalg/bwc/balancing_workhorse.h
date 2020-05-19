@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 #include "parallelizing_info.h"
-#include "utils.h"
 #include "raw_matrix_u32.h"
 
 #ifdef __cplusplus

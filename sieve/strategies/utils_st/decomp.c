@@ -1,13 +1,10 @@
 #include "cado.h"
-#include "portability.h"
-#include "utils.h"
-
-#include "decomp.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#include "macros.h"
+#include "decomp.h"
 
 decomp_t *decomp_create(int len, int *tab, double nb_elem)
 {

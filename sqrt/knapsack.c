@@ -6,7 +6,6 @@
 #include <inttypes.h>
 #include <string.h>
 #include "knapsack.h"
-#include "portability.h"
 
 
 

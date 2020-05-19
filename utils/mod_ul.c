@@ -1,6 +1,5 @@
 #include "cado.h"
 #include <stdio.h>
-#include "portability.h"
 #include "mod_ul.h"
 #include "mod_ul_default.h"
 

@@ -4,7 +4,6 @@
 #include <misc.h>
 #include "bit_vector.h"
 #include "macros.h"
-#include "utils.h"
 
 void bit_vector_init(bit_vector_ptr b, size_t n)
 {

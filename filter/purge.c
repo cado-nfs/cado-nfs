@@ -75,13 +75,16 @@
 #include <libgen.h>
 #endif
 
-#include "portability.h"
-
-#include "utils_with_io.h"
+#include "clique_removal.h"
 #include "filter_config.h"
+#include "misc.h"                      // filelist_from_file UMAX
+#include "params.h"     // param_list_parse_*
 #include "purge_matrix.h"
 #include "singleton_removal.h"
-#include "clique_removal.h"
+#include "filter_io.h"
+#include "gzip.h"       // set_antebuffer_path
+#include "verbose.h"    // verbose_output_print
+#include "portability.h"
 
 // #define TRACE_J 0x5b841 /* trace column J */
 

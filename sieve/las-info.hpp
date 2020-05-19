@@ -16,7 +16,6 @@
 
 #include <gmp.h>
 
-#include "utils.h"
 
 #include "ecm/batch.hpp"               // for cofac_list
 #include "ecm/facul.hpp"                   // for facul_strategies_t

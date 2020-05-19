@@ -1,7 +1,6 @@
 #include "cado.h"
 #include <cstdio>
 #include <climits>
-#include "portability.h"
 #include "mod64.hpp"
 #include "modredc64.hpp"
 

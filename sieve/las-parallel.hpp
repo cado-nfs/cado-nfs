@@ -11,7 +11,8 @@
 
 #include "macros.h"          // for GNUC_VERSION_ATMOST, MAYBE_UNUSED
 
-#include "utils.h"           // for param_list_decl_usage, cxx_param_list
+#include "params.h"           // for param_list_decl_usage, cxx_param_list
+#include "hwloc-aux.h"  // hwloc_aux_get_depth_from_string
 
 class las_parallel_desc {
     std::string description_string;

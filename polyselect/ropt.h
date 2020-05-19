@@ -21,6 +21,10 @@ typedef __ropt_time_struct ropt_time_t[1];
 
 
 /* -- declarations -- */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ropt ( ropt_poly_t poly,
             ropt_bestpoly_t bestpoly,
             ropt_param_t param,
@@ -32,5 +36,10 @@ void ropt_get_bestpoly ( ropt_poly_t poly,
 
 void ropt_polyselect (cado_poly_ptr output_poly, cado_poly_ptr input_poly,
                       ropt_param_t param, ropt_time_t thr);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* ROPT_H */

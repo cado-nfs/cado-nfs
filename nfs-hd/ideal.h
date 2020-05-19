@@ -2,7 +2,6 @@
 #define IDEAL_H
 
 #include <stdint.h>
-#include "utils.h"
 
 #ifdef __cplusplus
 extern "C" {

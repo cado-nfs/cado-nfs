@@ -1,8 +1,10 @@
 #include "cado.h"
 #include <math.h>       // INFINITY
 #include <stdio.h>
-#include "portability.h"
-#include "utils.h"
+#include <stdint.h>
+#include <inttypes.h>
+#include "stats.h"
+#include "timing.h"     // wct_seconds
 
 void
 stats_init (stats_data_t r, FILE *f, uint64_t *followed_var,

@@ -1,9 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
-#include "utils.h"
-#include "macros.h"
-
 #include "las-config.h"
+#include "macros.h"
+#include "verbose.h"    // verbose_output_print
 
 int LOG_BUCKET_REGION = 16;
 int LOG_BUCKET_REGIONS[FB_MAX_PARTS];

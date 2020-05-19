@@ -1,6 +1,8 @@
 #ifndef EC_ARITH_COST_H_
 #define EC_ARITH_COST_H_
 
+// pragma no prototypes
+
 /* For "a=-1" twisted Edwards curves */
 #define EDWARDS_DBL 7.            /* doubling projective -> projective */
 #define EDWARDS_DBLext 8.         /* doubling projective -> extended */

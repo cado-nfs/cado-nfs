@@ -22,12 +22,12 @@
 #include "las-smallsieve.hpp"           // for resieve_small_bucket_region
 
 #include "macros.h"                     // for ASSERT, ASSERT_ALWAYS, MAYBE_...
-#include "utils.h"
 
 #include "bucket-push-update.hpp"       // for bucket_single::push_update
 #include "bucket.hpp"                   // for bucket_update_t, bucket_primes_t
 #include "fb-types.h"                   // for fbprime_t, FBROOT_FORMAT, FBP...
 #include "fb.hpp"                       // for fb_entry_general, fb_factorba...
+#include "gcd.h"       // for gcd_ul
 #include "las-arith.hpp"                // for invmod_32
 #include "las-config.h"                 // for LOG_BUCKET_REGION
 #include "las-where-am-i.hpp"           // for where_am_I, WHERE_AM_I_UPDATE
@@ -40,6 +40,7 @@
 #include "las-smallsieve-types.hpp"     // for ssp_t, small_sieve_data_t
 #include "las-todo-entry.hpp"           // for las_todo_entry
 #include "las-where-am-i-proxy.hpp"          // for where_am_I
+#include "portability.h"
 
 
 /* small sieve and resieving */

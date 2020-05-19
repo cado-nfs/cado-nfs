@@ -1,8 +1,6 @@
 #ifndef GPF_H_
 #define GPF_H_
 
-// IWYU pragma: private, include "utils.h"
-
 /* A look-up table of the largest prime factor of a non-negative integer i.
 
 Before calling gpf_get(i), gpf_init(m) must have been called with m >= i.

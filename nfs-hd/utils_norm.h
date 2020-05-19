@@ -1,7 +1,6 @@
 #ifndef UTILS_NORM_H
 #define UTILS_NORM_H
 
-#include "utils.h"
 #include "mpz_poly.h"
 #include "array.h"
 #include "sieving_bound.h"

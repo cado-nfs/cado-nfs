@@ -9,7 +9,6 @@
 #include "las-threads-work-data.hpp"
 
 #include "macros.h"        // for ASSERT_ALWAYS, iceildiv
-#include "utils.h"
 
 #include "ecm/batch.hpp"       // for cofac_list
 #include "bucket.hpp"      // for bucket_array_t, emptyhint_t (ptr only)

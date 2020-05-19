@@ -1,11 +1,10 @@
 #include "cado.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
-
-#include "portability.h"
-#include "utils.h"
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+#include "params.h"     // param_list
 #include "facul_ecm.h"
 #include "generate_factoring_method.hpp"
 

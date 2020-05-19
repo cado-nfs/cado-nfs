@@ -2,11 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <pthread.h>
 
-#include "utils_with_io.h"
+#include "filter_io.h"  // earlyparsed_relation_ptr
 #include "filter_config.h"
 #include "purge_matrix.h"
 #include "clique_removal.h" /* for computing stats on cliques */
+#include "memalloc.h"  // for my_malloc_free_all
+#include "misc.h"       // for UMAX
+#include "typedefs.h"  // weight_t
 
 /* If HAVE_SYNC_FETCH is not defined, we will use mutex for multithreaded
  * version of the code. May be too slow. */

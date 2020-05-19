@@ -4,11 +4,16 @@
 #include <fcntl.h>   /* for _O_BINARY */
 #include <type_traits>
 
-#include "portability.h"
 #include "filter_config.h"
-#include "utils_with_io.h"
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "galois_utils.h" // automorphism_init
+#include "gzip.h"       // get_suffix_from_filename
+#include "misc.h"       // filelist
 #include "mod_ul.h"
+#include "relation-tools.h" // u64toa16
 #include "renumber.hpp"
+#include "verbose.h"    // verbose_decl_usage
+#include "portability.h"
 
 char *argv0; /* = argv[0] */
 

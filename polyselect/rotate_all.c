@@ -3,10 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "utils.h"
-#include "auxiliary.h" /* for common routines with polyselect.c */
-#include "size_optimization.h"
 #include "area.h"
+#include "auxiliary.h" /* for common routines with polyselect.c */
+#include "gmp_aux.h"    // ulong_isprime
+#include "mod_ul.h"     // modulusul_t
+#include "modul_poly.h"
+#include "size_optimization.h"
+#include "timing.h"             // for seconds
 
 /* for the rotation, we try (j*x+k) for |k| <= 2^MAX_k */
 int MAX_k = 16;

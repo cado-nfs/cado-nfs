@@ -10,13 +10,14 @@
 #include <time.h>
 #include <errno.h>
 #include <math.h>
-#include "portability.h"
-#include "utils.h"
 #include "mf.h"
 #include "balancing.h"
 #include "rowset_heap.h"
 #include "cheating_vec_init.h"
 #include "mf_bal.h"
+#include "portability.h"
+#include "timing.h"     // wct_seconds
+#include "fix-endianness.h" // fread32_little
 
 typedef int (*sortfunc_t) (const void *, const void *);
 

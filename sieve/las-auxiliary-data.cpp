@@ -12,7 +12,6 @@
 #include "las-auxiliary-data.hpp"
 
 #include "macros.h"            // for ASSERT_ALWAYS_NOTHROW
-#include "utils.h"
 
 #include "las-info.hpp"        // for las_info
 #include "las-todo-entry.hpp"  // for las_todo_entry

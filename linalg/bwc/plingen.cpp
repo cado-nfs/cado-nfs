@@ -4,12 +4,12 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <errno.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <cerrno>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <unistd.h>
 #include <algorithm>
 #include <sys/types.h>
@@ -19,11 +19,9 @@
 #include <omp.h>
 #endif
 
-#include <assert.h>
+#include <cassert>
 
-#include "portability.h"
 #include "macros.h"
-#include "utils.h"
 #include "mpfq_layer.h"
 #include "memusage.h"
 
@@ -44,6 +42,8 @@
 #include "plingen-tuning.h"
 #include "logline.h"
 #include "tree_stats.hpp"
+#include "portability.h"
+#include "timing.h"     // wct_seconds
 
 /* Call tree for methods within this program:
  *

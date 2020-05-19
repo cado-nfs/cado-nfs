@@ -40,7 +40,6 @@ benefit from your work.
 #include <stdlib.h>
 #include <stdio.h>
 #endif
-#include "portability.h"
 
 /* no header file is defined here -- the prototypes are not meant to be
  * exposed. The source code could conceivably live within

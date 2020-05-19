@@ -5,9 +5,9 @@
 #include <ostream>
 #include <sstream>
 
-#include "utils.h"
 #include "numbertheory.hpp"
 #include "badideals.hpp"
+#include "rootfinder.h"
 
 using namespace std;
 

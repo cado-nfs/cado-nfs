@@ -1,8 +1,8 @@
 #include "cado.h"
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
+#include <cassert>
 #include <vector>
-#include <assert.h>
 #include <memory>
 #include <sstream>
 #include <sys/mman.h>
@@ -10,8 +10,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 // #include <sys/time.h>
-#include "utils.h"
 #include "mmappable_vector.hpp"
+#include "portability.h"
 
 /* This is inspired from https://github.com/johannesthoma/mmap_allocator
  * License is LGPL.

@@ -14,6 +14,7 @@
 #include <gmp.h>
 
 #include "smooth_detect.h"
+#include "portability.h"
 
 /*
  * Look for a bi-smooth pair among a set of pre-sieved pairs.

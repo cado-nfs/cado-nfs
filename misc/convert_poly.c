@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "gmp.h"
-#include "portability.h"
 
 #define MAX_DEGREE 6
 

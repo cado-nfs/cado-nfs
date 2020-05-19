@@ -3,13 +3,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <gmp.h>
-#include "utils.h" /* for getprime() */
-#include "pm1.h"
-#include "pp1.h"
-#include "facul_ecm.h"
 #include "bytecode.h"
 #include "ec_arith_cost.h"
-#include "portability.h"
+#include "facul_ecm.h"
+#include "getprime.h"   // getprime
+#include "pm1.h"
+#include "pp1.h"
+#include "verbose.h"             // verbose_output_print
 
 /* By default we compress the bytecode chain.
  * You can set it to 0 to disabled it.

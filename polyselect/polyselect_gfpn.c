@@ -1,8 +1,7 @@
 #include "cado.h"
 #include <stdio.h>
-#include "portability.h"
-#include "utils.h"
 #include "gfpkdlpolyselect.h"
+#include "verbose.h"             // verbose_output_print
 
 static void
 declare_usage(param_list pl)

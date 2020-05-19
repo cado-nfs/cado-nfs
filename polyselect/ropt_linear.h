@@ -7,6 +7,10 @@
 
 /* -- declarations -- */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ropt_linear ( ropt_poly_t poly,
                    ropt_bestpoly_t bestpoly,
                    ropt_param_t param,
@@ -71,5 +75,10 @@ void
 ropt_MurphyE_to_alpha ( MurphyE_pq *E_pqueue,
                         alpha_pq *alpha_pqueue );
 
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ROPT_LINEAR_H */

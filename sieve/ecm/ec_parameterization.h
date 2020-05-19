@@ -13,6 +13,10 @@
 /*********************** Brent--Suyama parameterization ***********************/
 /******************************************************************************/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Produces curve in Montgomery form.
  *
  * Rational parameterization (parameter is called sigma).
@@ -694,5 +698,9 @@ ec_parameterization_Z6 (residue_t b, ec_point_t P0, const unsigned long k,
 
   return ret;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EC_PARAMETERIZATION_H_ */

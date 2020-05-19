@@ -75,25 +75,29 @@
 // only.
 
 #include "cado.h"
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <gmp.h>
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <inttypes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#include "mod_ul.c"
-
-#include "cado-endian.h"
-#include "portability.h"
-#include "utils.h"
-#include "utils_with_io.h"
+#include <gmp.h>
 #include "blockmatrix.h"
+#include "cado-endian.h"
+#include "cado_poly.h"  // cado_poly_ptr
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "fix-endianness.h" // fwrite32_little
 #include "gauss.h"
+#include "gzip.h"       // fopen_maybe_compressed
+#include "misc.h"       // has_suffix
+#include "mod_ul.c"
+#include "mpz_poly.h"   // mpz_poly_ptr
+#include "purgedfile.h" // purgedfile_read_firstline
+#include "rootfinder.h" // mpz_poly_roots_ulong
 #include "worker-threads.h"
+#include "version_info.h"
 
 
 typedef struct {

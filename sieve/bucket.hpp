@@ -15,7 +15,6 @@
 #include <limits>
 #include <string>
 #include <functional>
-#include "portability.h"
 #endif
 #include "misc.h"
 #include "fb-types.h"

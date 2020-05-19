@@ -27,7 +27,6 @@
 #include "las-threads-work-data.hpp"  // for nfs_work_cofac
 #include "relation.hpp"               // for relation, operator<<
 #include "tdict.hpp"                  // for timetree_t, SIBLING_TIMER
-#include "utils.h"                    // for verbose_output_print, cxx_mpz
 
 /* asynchronous cofactorization */
 

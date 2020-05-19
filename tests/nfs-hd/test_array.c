@@ -5,7 +5,6 @@
 #include <limits.h>
 #include "sieving_bound.h"
 #include "array.h"
-#include "utils.h"
 #include "macros.h"
 #include "int64_vector.h"
 

@@ -30,14 +30,16 @@
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
-#include "utils.h"
-#include "rho.h"
+#include <pthread.h>
+#include "area.h"
 #include "auxiliary.h"
 #include "murphyE.h"
-#include <pthread.h>
-#include "portability.h"
-#include "area.h"
+#include "params.h"           // for param_list_decl_usage, param_list
+#include "rho.h"
 #include "ropt.h"
+#include "timing.h"             // for seconds_thread
+#include "verbose.h"             // verbose_output_print
+#include "version_info.h"        // cado_revision_string
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
                                                      lock for output */

@@ -9,7 +9,6 @@
 #include <sys/time.h>	/* for gettimeofday */
 #include "timing.h"
 #include "memusage.h"
-#include "portability.h"
 
 #ifdef HAVE_GETRUSAGE
 /* I'm including some STL code for the timer info layer, but this could
@@ -147,6 +146,7 @@ void thread_seconds_user_sys(double * res)
 #include <sys/syscall.h>
 #include <stdarg.h>
 #include <string.h>
+#include "portability.h"
 
 static inline pid_t gettid() { return syscall(SYS_gettid); }
 

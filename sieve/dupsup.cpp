@@ -12,7 +12,6 @@
 #include <assert.h>
 #include <fcntl.h>   /* for _O_BINARY */
 
-#include "portability.h"
 #include "macros.h"
 #include "relation.hpp"
 #include "params.h"

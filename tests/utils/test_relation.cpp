@@ -1,8 +1,8 @@
 #include "cado.h"
-#include "utils.h"
 #include "relation.hpp"
 #include "relation-tools.h"
 #include "tests_common.h"
+#include "portability.h"
 
 unsigned long
 mpz_compute_r (mpz_t a, mpz_t b, mpz_t p)

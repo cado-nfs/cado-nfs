@@ -1,13 +1,17 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>      // for fprintf, stderr, fclose, fgets, fopen, printf
-#include <stdlib.h>     // for exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <cstdio>      // for fprintf, stderr, fclose, fgets, fopen, printf
+#include <cstdlib>     // for exit, EXIT_FAILURE, EXIT_SUCCESS
 #include <vector>       // for vector
 
 #include <gmp.h>        // for mpz_ptr, mpz_sizeinbase, gmp_printf, gmp_sscanf
 
 #include "macros.h"     // for ASSERT_ALWAYS
-#include "utils.h"
+#include "params.h"     // param_list
+#include "timing.h"     // seconds
+#include "verbose.h"    // verbose_decl_usage
+#include "gzip.h"       // fopen_maybe_compressed
+#include "cxx_mpz.hpp"  // cxx_mpz
 
 #include "facul.hpp"    // for facul, facul_clear_strategy, facul_make_strategy
 

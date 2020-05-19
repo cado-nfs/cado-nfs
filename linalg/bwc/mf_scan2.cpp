@@ -8,10 +8,15 @@
 #endif
 #include <mutex>
 #include <atomic>
+#include <vector>
 #include <omp.h>
 #include <tuple>
-#include "utils.h"
 #include "ringbuf.h"
+#include "params.h"     // param_list
+#include "cxx_mpz.hpp"  // cxx_mpz
+#include "timing.h"     // wct_seconds
+#include "misc.h"       // size_disp
+#include "fix-endianness.h" // fwrite32_little
 
 void mf_scan2_decl_usage(cxx_param_list & pl)
 {

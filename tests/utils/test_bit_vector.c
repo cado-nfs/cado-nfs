@@ -5,6 +5,7 @@
 #include "test_iter.h"
 #include "tests_common.h"
 #include "macros.h"
+#include "portability.h"
 
 void
 test_bit_vector (unsigned long iter)

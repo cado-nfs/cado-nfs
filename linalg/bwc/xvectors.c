@@ -4,8 +4,6 @@
 #include "bwc_config.h"
 #include "parallelizing_info.h"
 #include "xvectors.h"
-#include "portability.h"
-#include "utils.h"
 #include "balancing.h"
 
 typedef int (*sortfunc_t) (const void *, const void *);

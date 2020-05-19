@@ -6,7 +6,6 @@
 
 #include "las-coordinates.hpp"
 
-#include "utils.h"
 
 #include "las-config.h"        // for LOG_BUCKET_REGION
 #include "las-qlattice.hpp"    // for qlattice_basis

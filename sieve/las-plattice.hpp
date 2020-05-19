@@ -8,7 +8,8 @@
 
 #include "fb-types.h"
 #include "las-config.h"  // for NOPROFILE_INLINE
-#include "utils.h"       // for UMAX, gcd_ul
+#include "misc.h"       // for UMAX
+#include "gcd.h"       // for gcd_ul
 
 /*******************************************************************/
 /********        Walking in p-lattices                    **********/

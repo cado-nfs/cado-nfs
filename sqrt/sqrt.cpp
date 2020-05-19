@@ -16,29 +16,36 @@
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <stdio.h>
-#include <stdlib.h>
-#include <gmp.h>
-#include <string.h>
-#include <inttypes.h>
-#include <math.h> /* for log */
+#include <cstdint>     /* AIX wants it first (it's a bug) */
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cinttypes>
+#include <cmath> /* for log */
+#include <cerrno>
 #ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>
 #endif
 #include <sys/stat.h>
-#include <errno.h>
 #include <pthread.h>
-#include "cxx_mpz.hpp"
-#include <vector>
-#include "fmt/format.h"
-#include "fmt/printf.h"
+#include <gmp.h>
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 #include <mutex>
-
-#include "utils_with_io.h"
+#include <vector>
+#include "cado_poly.h"  // cado_poly
+#include "cxx_mpz.hpp"
+#include "cxx_mpz.hpp"   // for cxx_mpz
+#include "filter_io.h"  // filter_rels
+#include "fmt/format.h"
+#include "fmt/printf.h"
+#include "gzip.h"       // fopen_maybe_compressed
+#include "memusage.h"   // PeakMemusage
+#include "modul_poly.h" // modul_poly
+#include "mpz_poly.h"   // mpz_poly
+#include "purgedfile.h" // purgedfile_read_firstline
+#include "version_info.h" // cado_revision_string
 #include "portability.h"
 
 /* frequency of messages "read xxx (a,b) pairs" */

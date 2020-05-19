@@ -9,7 +9,6 @@
 
 #include "lingen_mat_types.hpp"
 #include "lingen_qcode.h"
-#include "utils.h"
 
 using namespace std;
 

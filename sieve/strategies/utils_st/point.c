@@ -1,11 +1,8 @@
 #include "cado.h"
-#include "portability.h"
-#include "utils.h"
-
-#include "point.h"
-
 #include <stdio.h>
 #include <stdlib.h>
+#include "macros.h"
+#include "point.h"
 
 point_t *point_create(int numero, double x, double y)
 {

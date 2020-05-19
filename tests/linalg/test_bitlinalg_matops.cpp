@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-#include "portability.h"
 #include "macros.h"
 #include "matops.h"
 

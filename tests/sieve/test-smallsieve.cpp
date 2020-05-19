@@ -11,7 +11,6 @@
 #include <sstream>
 #include <algorithm>
 #include <x86intrin.h>
-#include "utils.h"
 #include "macros.h"
 #include "las-where-am-i.hpp"
 

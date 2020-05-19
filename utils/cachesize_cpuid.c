@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "macros.h"
-#include "portability.h"
+#include "cachesize_cpuid.h"
 
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
 

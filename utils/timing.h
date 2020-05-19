@@ -1,8 +1,6 @@
 #ifndef CADO_UTILS_TIMING_H_
 #define CADO_UTILS_TIMING_H_
 
-// IWYU pragma: private, include "utils.h"
-
 #include "macros.h"     /* MAYBE_UNUSED */
 #include <stdint.h> /* for uint64_t */
 

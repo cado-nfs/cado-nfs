@@ -1,6 +1,8 @@
 #ifndef CPUBINDING_H_
 #define CPUBINDING_H_
 
+#include "params.h"     // param_list
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -1,10 +1,11 @@
 #include "cado.h"
-#include <stdlib.h>
+#include <cstdlib>
 #include "macros.h"
-#include "utils.h"
 #include "lingen-matpoly.h"
 #include "lingen-matpoly-ft.h"
 #include "logline.h"
+#include "misc.h"        // pointer_arith
+#include "timing.h"     // wct_seconds
 
 #ifdef HAVE_OPENMP
 #include <omp.h>

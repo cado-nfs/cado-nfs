@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #ifndef CADO_MACROS_H_
 #define CADO_MACROS_H_
+// pragma no prototypes
 
 /**********************************************************************/
 /* Common asserting/debugging defines */
@@ -72,6 +73,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
         }								\
     } while (0)
 
+/* Note that string.h must be #included in order to use this macro */
 #define DIE_ERRNO_DIAG(tst, func, arg) do {				\
     if (UNLIKELY(tst)) {				        	\
         fprintf(stderr, func "(%s): %s\n", arg, strerror(errno));       \

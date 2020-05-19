@@ -4,13 +4,13 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
-
-#include "portability.h"
-
-#include "utils_with_io.h"
-#include "filter_config.h"
-#include "purge_matrix.h"
+#include "bit_vector.h"
 #include "clique_removal.h"
+#include "filter_config.h"
+#include "memory.h"             // malloc_check
+#include "misc.h"       // UMAX
+#include "purge_matrix.h"
+#include "timing.h"             // for seconds
 
 /********************* comp_t struct (clique) ********************************/
 

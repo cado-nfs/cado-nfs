@@ -1,13 +1,17 @@
 #include "cado.h"
+#include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include "mod_ul.c"
-#include "portability.h"
-#include "utils.h"
+#include "params.h"     // param_list
+#include "cado_poly.h"  // cado_poly
+#include "verbose.h"    // verbose_decl_usage
+#include "typedefs.h"   // index_t 
+#include "renumber.hpp" // renumber_t
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "poly", "input polynomial file");
   param_list_decl_usage(pl, "renumber", "input file for renumbering table");
@@ -16,7 +20,7 @@ static void declare_usage(param_list pl)
 }
 
 static void
-usage (param_list pl, char *argv0)
+usage (cxx_param_list & pl, char *argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);

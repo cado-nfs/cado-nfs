@@ -48,6 +48,10 @@
 #define ULARITH_CONSTRAINT_G "rme"
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef DEAD_CODE /* Unused and untested. Here be dragons. */
 /* Increases r if a != 0 */
 static inline void
@@ -958,6 +962,11 @@ ularith_redc(unsigned long *r, const unsigned long plow,
 #endif
   ASSERT_EXPENSIVE (r[0] < m);
 }
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* ifndef UL_ARITH_H__ */

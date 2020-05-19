@@ -10,10 +10,9 @@
 #include <dirent.h>
 #include <gmp.h>
 #include "bwc_config.h"
-#include "portability.h"
 #include "macros.h"
-#include "utils.h"
 #include "bw-common.h"
+#include "portability.h"
 
 /* This program is rather standalone. It checks the current directory
  * for files matching the pattern A%u-%u.%u-%u, and concatenates them.

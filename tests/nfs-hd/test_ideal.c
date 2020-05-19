@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
-#include "utils.h"
 #include "macros.h"
 #include "ideal.h"
 

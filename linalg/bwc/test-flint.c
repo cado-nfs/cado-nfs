@@ -5,8 +5,9 @@
 #include <unistd.h>
 #include <assert.h>
 
-#include "utils.h"
+#include "gmp_aux.h"    // mpn_rrandom
 #include "flint-fft/fft.h"
+#include "portability.h"
 
 /*{{{ macros */
 #ifndef PTR

@@ -8,7 +8,6 @@
 
 #include "fb.hpp"        // for fb_factorbase, fb_factorbase::key_type
 #include "las-base.hpp"  // for _padded_pod
-#include "utils.h"       // for param_list_ptr
 
 struct las_todo_entry;
 

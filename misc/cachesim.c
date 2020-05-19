@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include "portability.h"
 
 #define UNUSED 0xFFFFFFFFFFFFFFFFUL
 

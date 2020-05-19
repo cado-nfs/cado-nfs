@@ -18,12 +18,12 @@
  * it's gcc specific. We can't expect such a thing to work with other
  * compilers.
  */
-#include "utils.h"
 #include "murphyE.h"
 #include "auxiliary.h"
 #ifdef HAVE_OPENMP
-#include "omp.h"
+#include <omp.h>
 #endif
+#include "verbose.h"             // verbose_output_print
 
 static void
 declare_usage (param_list pl)

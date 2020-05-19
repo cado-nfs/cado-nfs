@@ -2,7 +2,6 @@
 #define UTILSINT64_T_H
 
 #include <stdint.h>
-#include "utils.h"
 #include "mod_ul_default.h"
 #include "mod_ul.h"
 

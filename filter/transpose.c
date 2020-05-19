@@ -20,26 +20,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
 #include "cado.h"
-
-/* the following should come after cado.h, which sets -Werror=all */
-#ifdef  __GNUC__
-#pragma GCC diagnostic ignored "-Wunknown-pragmas"
-#endif
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
-
-#include "portability.h"
+/* the following should come after cado.h, which sets -Werror=all */
+#ifdef  __GNUC__
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#endif
 #include "typedefs.h"
-#include "utils.h"
 #include "transpose.h"
-
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "memory.h" // free_aligned
 
 // #define BIG_BROTHER
 

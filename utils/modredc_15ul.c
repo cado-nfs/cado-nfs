@@ -1,6 +1,7 @@
 #include "cado.h"
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
 #include <stdio.h>
+#include "modredc_15ul.h"
 #include "modredc_15ul_default.h"
 #include "modredc_2ul_common.c"
 

@@ -6,7 +6,6 @@
 #include <gmp.h>                   // for mpz_srcptr, gmp_vfprintf
 
 #include "macros.h"                // for MAYBE_UNUSED
-#include "utils.h"
 
 #include "fb-types.h"              // for sublat_t
 #include "las-auxiliary-data.hpp"  // for nfs_aux, report_and_timer

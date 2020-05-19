@@ -17,17 +17,19 @@
 #include <inttypes.h>
 #include <unistd.h>
 #include <string.h>
+
 #include "bwc_config.h"
-#include "matmul.h"
-#include "portability.h"
+#include "cheating_vec_init.h"
+#include "crc.h"        // cado_crc_lfsr
 #include "macros.h"
-#include "params.h"
-#include "worker-threads.h"
-#include "utils.h"
+#include "matmul-mf.h"
+#include "matmul.h"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
-#include "matmul-mf.h"
-#include "cheating_vec_init.h"
+#include "params.h"
+#include "portability.h"
+#include "version_info.h" // cado_revision_string
+#include "worker-threads.h"
 
 void usage()
 {

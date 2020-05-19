@@ -1,8 +1,8 @@
 #ifndef LAS_DESCENT_DESCENT_TREES_HPP_
 #define LAS_DESCENT_DESCENT_TREES_HPP_
 
-#include <stdio.h>             // for FILE
-#include <stdlib.h>            // for free
+#include <cstdio>             // for FILE
+#include <cstdlib>            // for free
 #include <algorithm>           // for max
 #include <cmath>        /* isfinite is c99 and std::isfinite is c++11 ;
                          * it's not totally clear that #include <cmath> +
@@ -21,7 +21,9 @@
 #include "las-todo-entry.hpp"  // for las_todo_entry
 #include "macros.h"            // for ASSERT_ALWAYS
 #include "relation.hpp"        // for relation_ab, relation, relation::pr
-#include "utils.h"             // for seconds, verbose_output_print, cxx_mpz
+#include "timing.h"             // for seconds
+#include "verbose.h"            // for verbose_output_print
+#include "cxx_mpz.hpp"          // for cxx_mpz
 
 #ifdef isfinite
 /* Under some conditions, we can get #define'd C functions, which

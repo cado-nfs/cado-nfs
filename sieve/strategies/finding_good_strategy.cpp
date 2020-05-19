@@ -8,8 +8,6 @@
 
 #include "facul_ecm.h"
 #include "facul.hpp"
-#include "portability.h"
-#include "utils.h"
 #include "tab_strategy.h"
 #include "finding_good_strategy.h"
 

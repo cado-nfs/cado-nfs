@@ -15,6 +15,10 @@ typedef s_int64_poly_t int64_poly_t[1];
 typedef s_int64_poly_t * int64_poly_ptr;
 typedef const s_int64_poly_t * int64_poly_srcptr;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Initialize a polynomial.
  *
@@ -69,6 +73,7 @@ void int64_poly_cleandeg(int64_poly_ptr f, int deg);
  */
 void int64_poly_set_zero(int64_poly_ptr f);
 
+
 /*
  * Set the ith coefficient of a polynomial.
  *
@@ -76,31 +81,14 @@ void int64_poly_set_zero(int64_poly_ptr f);
  * i: index of the coefficient.
  * coeff: new value of the ith coefficient.
  */
-static inline void int64_poly_setcoeff(int64_poly_ptr f, int i, int64_t coeff)
-{
-  int64_poly_realloc (f, i + 1);
-  f->coeff[i] = coeff;
-  if (i >= f->deg) {
-    int64_poly_cleandeg (f, i);
-  }
-}
-
+static inline void int64_poly_setcoeff(int64_poly_ptr f, int i, int64_t coeff);
 /*
  * Return the ith coefficient of a polynomial.
  *
  * i: index of the coefficient.
  * f: the polynomial.
  */
-static inline int64_t int64_poly_getcoeff(int i, int64_poly_srcptr f)
-{
-  ASSERT_ALWAYS(f->deg == -1 ||  f->deg >= i);
-  if (i > f->deg) {
-    return 0;
-  } else {
-    return f->coeff[i];
-  }
-}
-
+static inline int64_t int64_poly_getcoeff(int i, int64_poly_srcptr f);
 /*
  * Set f to x^i.
  *
@@ -162,4 +150,28 @@ uint64_t int64_poly_infinity_norm(int64_poly_srcptr f);
  * b: the old int64_poly.
  */
 void int64_poly_to_mpz_poly(mpz_poly_ptr a, int64_poly_srcptr b);
+
+#ifdef __cplusplus
+}
+#endif
+
+static inline void int64_poly_setcoeff(int64_poly_ptr f, int i, int64_t coeff)
+{
+  int64_poly_realloc (f, i + 1);
+  f->coeff[i] = coeff;
+  if (i >= f->deg) {
+    int64_poly_cleandeg (f, i);
+  }
+}
+
+static inline int64_t int64_poly_getcoeff(int i, int64_poly_srcptr f)
+{
+  ASSERT_ALWAYS(f->deg == -1 ||  f->deg >= i);
+  if (i > f->deg) {
+    return 0;
+  } else {
+    return f->coeff[i];
+  }
+}
+
 #endif /* INT64_POLY_H */

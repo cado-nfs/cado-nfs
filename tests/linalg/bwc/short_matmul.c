@@ -10,7 +10,6 @@
 #include <string.h>
 #include <gmp.h>
 
-#include "portability.h"
 #include "gmp-hacks.h"
 #include "gmp_aux.h"
 #include "macros.h"

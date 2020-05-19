@@ -1,16 +1,15 @@
 #include "cado.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <time.h>
-#include <ctype.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <ctime>
+#include <cctype>
 
-#include "portability.h"
 #include "select_mpi.h"
-#include "utils.h"
 #include "tree_stats.hpp"
+#include "timing.h"     // wct_seconds
 
 using namespace std;
 

@@ -1,11 +1,11 @@
 #ifndef UTILS_COFACTORISATION_H
 #define UTILS_COFACTORISATION_H
 
-#include "utils.h"
 #include "uint64_array.h"
 #include "mat_Z.h"
 #include "sieving_bound.h"
 #include "ideal.h"
+#include "mpz_poly.h"
 
 /* TODO: This should really be an std::vector<cxx_mpz>,
  *
@@ -24,6 +24,10 @@ typedef struct
 typedef s_factor_t factor_t[1];
 typedef s_factor_t * factor_ptr;
 typedef const s_factor_t * factor_srcptr;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * Initialize an array of factors with number, the maximum number of elements.
@@ -92,5 +96,10 @@ unsigned int find_relations(uint64_array_t * indices, uint64_t number_element,
     sieving_bound_srcptr H, unsigned int V, ideal_spq_srcptr special_q,
     unsigned int q_side, int main, FILE * outstd, unsigned int gal,
     unsigned int gal_version, factor_t * gal_norm_denom, int * nb_curves);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* UTILS_COFACTORISATION_H */

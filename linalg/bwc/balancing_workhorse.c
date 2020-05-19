@@ -1,5 +1,6 @@
 #include "cado.h"
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,12 +9,11 @@
 #include <time.h>
 #include <unistd.h>
 #include <math.h>
-#include "portability.h"
 
 #include "parallelizing_info.h"
 #include "select_mpi.h"
+#include "verbose.h"  // verbose_enabled
 
-#include "utils.h"
 // #include "mf.h"
 
 #include "balancing.h"
@@ -26,6 +26,7 @@
 #endif
 
 #include "balancing_workhorse.h"
+#include "portability.h"
 
 /* TODO:
  * - implement file-backed rewind on thread pipes. There's a

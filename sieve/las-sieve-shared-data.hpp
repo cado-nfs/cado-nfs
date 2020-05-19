@@ -12,7 +12,6 @@
 #include "las-siever-config.hpp"       // for siever_config, siever_config::...
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
 #include "trialdiv.hpp"                // for trialdiv_data
-#include "utils.h"                     // for cxx_cado_poly, cxx_mpz_poly
 
 struct j_divisibility_helper;
 struct unsieve_data;

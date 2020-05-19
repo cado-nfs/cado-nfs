@@ -20,7 +20,8 @@
 #include <vector>                      // for vector
 
 #include "macros.h"                    // for ASSERT_ALWAYS, ASSERT, MAYBE_U...
-#include "utils.h"
+#include "mpz_poly.h"   // for cxx_mpz, cxx_mpz_poly
+#include "cado_poly.h"   // for MAX_DEGREE
 
 #include "fb-types.h"                  // for fbprime_t, slice_index_t, fbro...
 #include "las-base.hpp"                // for _padded_pod

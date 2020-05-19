@@ -8,7 +8,6 @@
 #include "las-qlattice.hpp"
 
 #include "macros.h"
-#include "utils.h"
 
 /* check that the double x fits into an int32_t */
 #define fits_int32_t(x) \

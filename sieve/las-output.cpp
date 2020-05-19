@@ -10,15 +10,14 @@
 /* specifically for las-output.cpp ; I'd say it's a bug, we should move
  * it to the independent tier */
 
-#include "las-config.h"    // for las_display_config_flags
-
+#include <cstring>       // strerror (in DIE_ERRNO_DIAG)
 #include <cstdio>          // for NULL, stderr, fflush, fopen, fprintf, setvbuf
 #include <cstdlib>         // for exit, EXIT_FAILURE
-
+#include "gzip.h"       // fopen_maybe_compressed
+#include "las-config.h"    // for las_display_config_flags
 #include "las-output.hpp"  // for las_output, NR_CHANNELS, TRACE_CHANNEL
-
 #include "macros.h"        // for ASSERT_ALWAYS, DIE_ERRNO_DIAG
-#include "utils.h"
+#include "verbose.h"    // verbose_output_print
 
 
 /* {{{ las_verbose things */

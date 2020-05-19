@@ -6,9 +6,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "utils.h"
 #include "stage2.h"
-#include "portability.h"
+#include "gcd.h"       // gcd_ul
+#include "gmp_aux.h"    // nbits
 
 static inline int
 cmp_uint2 (const void *p, const void *q)

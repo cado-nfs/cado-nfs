@@ -1,10 +1,13 @@
 #include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <fcntl.h>   /* for _O_BINARY */
 
-#include "portability.h"
-#include "utils_with_io.h"
+#include "renumber.hpp" // renumber_t
+#include "params.h" // param_list
+#include "cado_poly.h"  // cado_poly
+#include "gzip.h"       // fopen_maybe_compressed
+#include "verbose.h"   // verbose_interpret_parameters
 
 char *argv0; /* = argv[0] */
 
@@ -35,12 +38,10 @@ int
 main (int argc, char *argv[])
 {
   argv0 = argv[0];
-  cado_poly poly;
-  renumber_t renumber_table;
+  cxx_cado_poly poly;
   int inverse = 0;
 
-  param_list pl;
-  param_list_init(pl);
+  cxx_param_list pl;
   declare_usage(pl);
   param_list_configure_switch(pl, "inverse", &inverse);
   argv++,argc--;
@@ -87,7 +88,6 @@ main (int argc, char *argv[])
 
   if (inverse)
   {
-    cado_poly_init(poly);
     if (!cado_poly_read (poly, polyfilename))
     {
       fprintf (stderr, "Error reading polynomial file\n");
@@ -104,39 +104,30 @@ main (int argc, char *argv[])
   }
   ASSERT_ALWAYS (infile != NULL);
 
-  renumber_init_for_reading (renumber_table);
-  renumber_read_table (renumber_table, renumberfilename);
+  renumber_t renumber_table(renumberfilename);
 
-  if (inverse)
-  {
-    index_t i;
-    while (fscanf (infile, "%" SCNid "\n", &i) == 1)
-    {
-      uint64_t p, r;
+  if (inverse) {
+      index_t i;
+      while (fscanf (infile, "%" SCNid "\n", &i) == 1)
+      {
+          renumber_t::p_r_side x = renumber_table.p_r_from_index(i);
+          printf("CONVERT: index = %" PRid "   ===>   p = %" PRpr " r = %" PRpr
+                  " side = %d\n", i, x.p, x.r, x.side);
+      }
+  } else {
+      p_r_values_t p, r;
       int side;
-      renumber_get_p_r_from_index(renumber_table, &p, &r, &side, i, poly);
-      printf("CONVERT: index = %" PRid "   ===>   p = %" PRIx64 " r = %" PRIx64
-             " side = %d\n", i, p, r, side);
-    }
-  }
-  else
-  {
-    uint64_t p, r;
-    int side;
-    while (fscanf (infile, "%" SCNx64 " %" SCNx64 " %d\n", &p, &r, &side) == 3)
-    {
-      index_t i = renumber_get_index_from_p_r (renumber_table, p, r, side);
-      printf("CONVERT: p = %" PRIx64 " r = %" PRIx64 " side = %d   ===>  "
-             "index = %" PRid "\n", p, r, side, i);
-    }
+      while (fscanf (infile, "%" SCNpr " %" SCNpr " %d\n", &p, &r, &side) == 3)
+      {
+          index_t i = renumber_table.index_from_p_r (p, r, side);
+          printf("CONVERT: p = %" PRpr " r = %" PRpr " side = %d   ===>  "
+                  "index = %" PRid "\n", p, r, side, i);
+      }
   }
   ASSERT_ALWAYS (feof(infile));
 
   if (infilename != NULL)
     fclose_maybe_compressed (infile, infilename); 
-  renumber_clear (renumber_table);
-  if (inverse)
-    cado_poly_clear (poly);
-  param_list_clear(pl);
+
   return 0;
 }

@@ -1,5 +1,4 @@
 #include "cado.h"
-#include "utils.h"
 
 #define _GNU_SOURCE // for pthread_tryjoin_np()
 #include <time.h>
@@ -14,8 +13,10 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <gmp.h>
-
+#include "cado_poly.h"  // cado_poly
 #include "ecm.h"
+#include "lll.h"        // mat_Z LLL
+#include "mpz_poly.h"   // mpz_poly
 #include "smooth_detect.h"
 
 double default_B1done;

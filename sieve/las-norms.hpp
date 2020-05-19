@@ -13,7 +13,6 @@
 #include "las-siever-config.hpp"  // for siever_config
 #include "logapprox.hpp"          // for piecewise_linear_function
 #include "macros.h"               // for MAYBE_UNUSED
-#include "utils.h"                // for cxx_cado_poly, cado_poly_srcptr
 
 struct las_todo_entry;
 

@@ -1,7 +1,7 @@
 #ifndef FACUL_HPP_
 #define FACUL_HPP_
 
-#include <stdio.h>        // for FILE
+#include <cstdio>        // for FILE
 #include <array>          // for array
 #include <vector>         // for vector
 #include "facul_fwd.hpp"

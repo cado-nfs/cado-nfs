@@ -2,12 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <string.h>
 #include <sys/time.h>
 
 #include "sieve/ecm/bytecode.h"
-#include "utils.h"
 #include "test_iter.h"
 #include "tests_common.h"
+#include "getprime.h"   // prime_info
 
 void
 mpz_prod_primes_below_B1 (mpz_t E, unsigned int B1)

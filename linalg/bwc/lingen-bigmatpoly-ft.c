@@ -1,11 +1,11 @@
 #include "cado.h"
 #include "mpfq_layer.h"
 #include <stdlib.h>
-#include "portability.h"
 #include "macros.h"
 #include "lingen-matpoly-ft.h"
 #include "lingen-bigmatpoly-ft.h"
 #include "logline.h"
+#include "timing.h"     // wct_seconds
 
 /* This is the interface for doing products of polynomial matrices by
  * caching transforms, and transferring them over MPI. There are

@@ -1,8 +1,6 @@
 #ifndef GCD_H_
 #define GCD_H_
 
-// IWYU pragma: private, include "utils.h"
-
 #include <stdint.h>
 
 #ifdef __cplusplus

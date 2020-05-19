@@ -50,12 +50,15 @@
 #include <cstdlib>
 #include <fcntl.h>   /* for _O_BINARY */
 
-#include "portability.h"
-#include "filter_config.h"
-#include "utils_with_io.h"
-
 #include "filter_badideals.h"
+#include "filter_config.h"
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "gzip.h"       // get_suffix_from_filename
+#include "misc.h"       // filelist_from_file
 #include "relation-tools.h"
+#include "renumber.hpp"
+#include "verbose.h"
+#include "portability.h"
 
 #define DEBUG 0
 

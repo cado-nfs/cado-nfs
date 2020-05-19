@@ -17,7 +17,6 @@
 #include "mod_ul.h"
 #include "modredc_ul_default.h"
 #include "lucas_V_mod.h"
-#include "portability.h"
 #include "roots_mod.h"
 
 static int 

@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <time.h>
-#include "utils.h"
 #include "polynomials.h"
 #include "sieving_bound.h"
 #include "polyselect/auxiliary.h"

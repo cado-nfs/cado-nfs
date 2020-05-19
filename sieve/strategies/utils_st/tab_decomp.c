@@ -1,13 +1,11 @@
 #include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <regex.h>
-
-#include "portability.h"
-#include "utils.h"
-
 #include "tab_decomp.h"
+#include "macros.h"
 
 tabular_decomp_t *tabular_decomp_create(void)
 {

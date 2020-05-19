@@ -1,6 +1,11 @@
+#ifndef IQSORT_H_
+#define IQSORT_H_
+
 /* $Id: qsort.h,v 1.5 2008-01-28 18:16:49 mjt Exp $
  * Adopted from GNU glibc by Mjt.
  * See stdlib/qsort.c in glibc */
+
+// pragma no prototypes
 
 /* Copyright (C) 1991, 1992, 1996, 1997, 1999 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
@@ -286,5 +291,6 @@ typedef struct {
       }									\
     }									\
   }									\
-									\
 }
+
+#endif	/* IQSORT_H_ */

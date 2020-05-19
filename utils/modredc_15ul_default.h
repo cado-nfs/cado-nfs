@@ -1,5 +1,8 @@
+#ifndef MODREDC_15UL_DEFAULT_H_
+#define MODREDC_15UL_DEFAULT_H_
 #include "modredc_15ul.h"
 
+// pragma no prototypes
 /*
    Here are typedef's that rename all functions to mod_* instead of 
    modredc15ul_*, which one day might become an automatic renaming scheme so 
@@ -42,3 +45,5 @@
    implementations for 15ul and 2ul2. Maybe there's a prettier way */
 #undef mod_divn
 #define mod_divn modredc15ul_divn
+
+#endif	/* MODREDC_15UL_DEFAULT_H_ */

@@ -1,8 +1,6 @@
 #ifndef SM_UTILS_H_
 #define SM_UTILS_H_
 
-// IWYU pragma: private, include "utils.h"
-
 /* Which SMs are used ?
  * There have been several choices during time. We keep track of the old
  * choices, in case there are still parts of the code that make reference
@@ -54,7 +52,9 @@
 
 #define MAX_LEN_RELSET 1024
 
+#include <stdint.h>
 #include "mpz_poly.h"
+#include "cado_poly.h"  // MAX_DEGREE, NB_POLYS_MAX
 
 enum sm_mode {
     SM_MODE_LEGACY_PRE2018 = 1,

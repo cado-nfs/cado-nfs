@@ -1,8 +1,6 @@
 #ifndef MPZ_POLY_H_
 #define MPZ_POLY_H_
 
-// IWYU pragma: private, include "utils.h"
-
 #include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>

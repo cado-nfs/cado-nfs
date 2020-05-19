@@ -40,6 +40,7 @@
 #include "macros.h"
 #include "mod_ul_default.h"
 #include "modredc_ul.h"
+#include "mpqs_doit.h"
 #include "gmp_aux.h"
 
 #if 1

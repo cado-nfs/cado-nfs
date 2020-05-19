@@ -1,8 +1,6 @@
 #ifndef RENUMBER_HPP_
 #define RENUMBER_HPP_
 
-// IWYU pragma: private, include "utils.h"
-
 #include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <algorithm>
 #include <cstdio>

@@ -6,7 +6,6 @@
 #include <vector>          // for vector
 
 #include "macros.h"        // for ASSERT
-#include "utils.h"
 
 // #include "modint.hpp"      // for operator<<
 

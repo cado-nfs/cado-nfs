@@ -5,11 +5,11 @@
 
 #include "bwc_config.h"
 #include "matmul.h"
-#include "portability.h"
 #include "macros.h"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "matmul-mf.h"
+#include "portability.h"
 
 void declare_usage(param_list_ptr pl)
 {

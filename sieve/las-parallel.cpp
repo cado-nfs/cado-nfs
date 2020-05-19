@@ -20,7 +20,10 @@
 
 #include "las-parallel.hpp"
 
-#include "utils.h"
+#include "misc.h"       // size_disp
+#include "utils_cxx.hpp"        // call_dtor
+#include "verbose.h"             // verbose_output_print
+
 
 
 const char * default_placement_with_auto = "node,fit*4,fit,pu,loose";

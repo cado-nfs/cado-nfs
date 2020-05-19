@@ -33,6 +33,10 @@ typedef mpz_t modintmpz_t;
 typedef mpz_t modulusmpz_t;
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 MAYBE_UNUSED
 static inline void
 modmpz_intinit (modintmpz_t r)
@@ -766,5 +770,9 @@ modmpz_V_ul (residuempz_t, const residuempz_t, unsigned long,
 
 int modmpz_batchinv (residuempz_t *, const residuempz_t *,
                      size_t n, const residuempz_t, const modulusmpz_t);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* MOD_MPZ_H */

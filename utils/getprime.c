@@ -31,7 +31,6 @@
 #include <string.h>
 #include "getprime.h"
 #ifndef MAIN
-#include "portability.h"
 #endif
 
 /* provided for in cado.h, but we want getprime.c to be standalone */

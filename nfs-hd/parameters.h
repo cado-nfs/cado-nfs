@@ -2,7 +2,12 @@
 #define PARAMETERS_H
 
 #include <stdint.h>
+#include "mpz_poly.h"
 #include "sieving_bound.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 double size_sieving_region(sieving_bound_srcptr H);
 
@@ -20,5 +25,10 @@ void find_parameters_special_q(mpz_srcptr p, unsigned int n, uint64_t number_a,
     unsigned int lpb_min, unsigned int lpb_max, unsigned int t_min,
     unsigned int t_max, uint64_t size_start, mpz_poly_srcptr h, int coeff0,
     int coeff1, unsigned int nb_times, double weight_0, double weight_1);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // PARAMETERS_H

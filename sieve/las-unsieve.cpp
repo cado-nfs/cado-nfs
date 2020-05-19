@@ -14,18 +14,17 @@
 #include <cstdlib>          // for abs, abort, size_t, NULL
 #include <cstring>          // for memcpy, memset
 #include <vector>           // for vector
-
-#include "las-unsieve.hpp"  // for unsieve_data, unsieve_data::pattern_t
-
-#include "macros.h"         // for ASSERT_ALWAYS, no_break, MAYBE_UNUSED
-#include "utils.h"
-
 #include "fb-types.h"       // for sublat_t
+#include "gcd.h"       // for bin_gcd_int64_safe
+#include "gpf.h"        // gpf_init
+#include "las-unsieve.hpp"  // for unsieve_data, unsieve_data::pattern_t
+#include "macros.h"         // for ASSERT_ALWAYS, no_break, MAYBE_UNUSED
+#include "ularith.h"        // for ularith_invmod
 #ifdef TRACE_K
 #include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
 #include "las-output.hpp"   // IWYU pragma: keep
+#include "verbose.h"    // verbose_output_print
 #endif
-#include "ularith.h"        // for ularith_invmod
 
 static const int verify_gcd = 0; /* Enable slow but thorough test */
 

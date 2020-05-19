@@ -1,8 +1,6 @@
 #ifndef MPZ_MAT_H_
 #define MPZ_MAT_H_
 
-// IWYU pragma: private, include "utils.h"
-
 #include <stdio.h>
 #include <gmp.h>
 #include "macros.h"

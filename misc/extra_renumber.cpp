@@ -1,10 +1,21 @@
 #include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
 #include <fcntl.h>   /* for _O_BINARY */
+#include <fstream>
+#include "cado_poly.h"  // cado_poly
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "gzip.h"       // set_antebuffer_path
+#include "misc.h"       // filelist
+#include "params.h"     // param_list
+#include "renumber.hpp" // renumber_t
+#include "rootfinder.h" // mpz_poly_roots_ulong
+#include "typedefs.h"   // p_r_values_t
 
-#include "portability.h"
-#include "utils_with_io.h"
+/* This program creates an "appendix" to a renumber table. It's never
+ * used in cado, it seems, so that the code is _most likely_ buggy.
+ */
 
 char *argv0; /* = argv[0] */
 
@@ -70,7 +81,7 @@ int
 main (int argc, char *argv[])
 {
   argv0 = argv[0];
-  unsigned long lpb_arg[2] = {0, 0};
+  std::vector<unsigned int> lpb_arg(2,0);
   uint64_t lpb[2] = {0, 0};
   cado_poly poly;
 
@@ -100,8 +111,8 @@ main (int argc, char *argv[])
   param_list_print_command_line (stdout, pl);
   fflush(stdout);
 
-  param_list_parse_ulong(pl, "lpb0", &lpb_arg[0]);
-  param_list_parse_ulong(pl, "lpb1", &lpb_arg[1]);
+  param_list_parse_uint(pl, "lpb0", &lpb_arg[0]);
+  param_list_parse_uint(pl, "lpb1", &lpb_arg[1]);
   
   const char * filelist = param_list_lookup_string(pl, "filelist");
   const char * basepath = param_list_lookup_string(pl, "basepath");
@@ -157,10 +168,8 @@ main (int argc, char *argv[])
                           malloc (very_large_primes_alloc * sizeof (uint64_t));
   ASSERT_ALWAYS (very_large_primes != NULL);
 
-  renumber_t renumber_table;
-  int ratside = cado_poly_get_ratside (poly);
-  renumber_init_for_writing (renumber_table, 2, ratside, 0, lpb_arg);
-  renumber_write_open (renumber_table, outname, NULL, poly);
+  renumber_t renumber_table(poly);
+  renumber_table.set_lpb(lpb_arg);
 
   char ** files = filelist ? filelist_from_file (basepath, filelist, 0) : argv;
 
@@ -172,46 +181,39 @@ main (int argc, char *argv[])
   qsort (very_large_primes, nb_very_large_primes, sizeof (uint64_t),
                                                         (__compar_fn_t) cmp64);
 
-  uint64_t prev = 0;
-  unsigned long *roots[2];
-  int d[2], k[2];
-  mpz_t * c[2];
+  std::ofstream r_out(outname);
+  renumber_table.write_header(r_out);
+  /* true, we didn't compute the bad ideals. But we need to stick in
+   * there the proper format info saying "no bad ideals there"
+   */
+  renumber_table.write_bad_ideals(r_out);
 
-  for (int side = 0; side < 2; side++)
-  {
-    c[side] = poly->pols[side]->coeff;
-    d[side] = poly->pols[side]->deg;
-    roots[side] = (unsigned long*) malloc (d[side] * sizeof (unsigned long));
-  }
+  unsigned long prev = 0;
+  std::vector<std::vector<unsigned long>> roots;
+
   for (uint64_t i = 0; i < nb_very_large_primes; i++)
   {
-    uint64_t p = very_large_primes[i];
-    if (p != prev)
-    {
-      printf ("%" PRIu64 "\n", p);
-      for (int side = 0; side < 2; side++)
-      {
-        /* k[side] = poly_roots_ulong_1(roots[side], c[side], d[side], p); */
-        k[side] = mpz_poly_roots_ulong (roots[side], poly->pols[side], p);
-        // Check for a projective root
-        if (mpz_divisible_ui_p ((c[side])[d[side]], p))
-          roots[side][k[side]++] = p;
+      unsigned long p = very_large_primes[i];
+      if (p == prev) continue;
+      printf ("%lu\n", p);
+      for (int side = 0; side < 2; side++) {
+          mpz_poly_srcptr f = poly->pols[side];
+          roots.push_back(mpz_poly_roots(f, p));
+          // Check for a projective root
+          if (mpz_divisible_ui_p (f->coeff[f->deg], p))
+              roots.back().push_back(p);
       }
-      
-      renumber_write_p (renumber_table, p, roots, k);
-    }
-    prev = p;
-  }
 
-  free (roots[0]);
-  free (roots[1]);
+      auto cook = renumber_table.cook(p, roots);
+      renumber_table.use_cooked(cook);
+      r_out << cook.text;
+      prev = p;
+  }
 
 
   if (filelist)
     filelist_clear(files);
 
-  renumber_write_close (renumber_table, outname);
-  renumber_clear (renumber_table);
   cado_poly_clear (poly);
   param_list_clear(pl);
   free (very_large_primes);

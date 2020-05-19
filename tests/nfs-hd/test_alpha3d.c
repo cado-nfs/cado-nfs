@@ -1,5 +1,4 @@
 #include "cado.h"
-#include "utils.h"
 #include "macros.h"
 #include "alpha3d.h"
 #include "mpz_poly.h"

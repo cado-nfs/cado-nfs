@@ -1,8 +1,6 @@
 #ifndef PARAMS_H_
 #define PARAMS_H_
 
-// IWYU pragma: private, include "utils.h"
-
 #include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>

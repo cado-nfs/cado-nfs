@@ -9,7 +9,6 @@
 #include "matmul.h"
 #include "matmul-common.h"
 #include "mpfq_layer.h"
-#include "portability.h"
 
 #include "matmul_facade.h"
 

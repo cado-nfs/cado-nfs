@@ -50,17 +50,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 
 #include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <fcntl.h>   /* for _O_BINARY */
-#include <string.h>
-
-#include "portability.h"
-#include "utils_with_io.h"
-
 #include "filter_config.h"
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "fix-endianness.h" // fwrite32_little
+#include "gzip.h"       // fopen_maybe_compressed
 #include "merge_replay_matrix.h"
+#include "misc.h"       // derived_filename
+#include "params.h" // param_list
 #include "sparse.h"
+#include "stats.h"                     // stats_data_t
+#include "portability.h"
 
 /* An alias for the main matrix type */
 typedef typerow_t ** matrix_t;
@@ -128,7 +131,7 @@ read_purgedfile(matrix_t mat, const char* filename, uint64_t nrows,
 static void
 doAllAdds(matrix_t M, const char *str, index_data_t index_data)
 {
-  int32_t j;
+  index_t j;
   int32_t ind[MERGE_LEVEL_MAX], i0;
   int ni, destroy;
 
@@ -268,7 +271,7 @@ total_weight(const matrix_t M, const uint64_t nr, const uint32_t skip)
   for (uint64_t i = 0; i < nr; i++) {
     if (M[i] != NULL) {
       for (uint32_t k = 1; k <= rowLength(M, i); k++) {
-        if (rowCell(M, i, k) >= skip) {
+        if (rowCell(M[i], k) >= skip) {
           wt++;
         }
       }
@@ -287,8 +290,8 @@ compute_col_weights(const matrix_t M, uint32_t *col_weight,
   for (uint64_t i = 0; i < nr; i++) {
     if (M[i] != NULL)
       for (uint32_t k = 1; k <= rowLength(M, i); k++) {
-        ASSERT(rowCell(M, i, k) < nc);
-        col_weight[rowCell(M, i, k)] += 1;
+        ASSERT(rowCell(M[i], k) < nc);
+        col_weight[rowCell(M[i], k)] += 1;
       }
   }
 }
@@ -770,8 +773,8 @@ int main(int argc, char *argv[])
     uint32_t len = rowLength(M2, i);
     uint32_t l = 1;
     for (uint32_t k = 1; k <= len; k++) {
-      if (MM_col_wt[rowCell(M2, i, k)] != 0) {
-        rowCell(M2, i, l) = rowCell(M2, i, k);
+      if (MM_col_wt[rowCell(M2[i], k)] != 0) {
+        rowCell(M2[i], l) = rowCell(M2[i], k);
         l++;
       }
     }

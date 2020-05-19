@@ -5,6 +5,7 @@
 #include "gmp_aux.h"
 #include "macros.h"
 #include "tests_common.h"
+#include "portability.h"
 
 static void
 test_mpz_set_uint64 ()

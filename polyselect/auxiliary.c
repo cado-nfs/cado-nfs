@@ -24,12 +24,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <stdlib.h>
 #include <float.h> /* for DBL_MAX */
 #include <math.h>
-#include "gmp.h"
-#include "macros.h" /* for ASSERT_ALWAYS */
-#include "portability.h"
-#include "utils.h"
+#include <gmp.h>
+
 #include "auxiliary.h"
+#include "gmp_aux.h"    // ulong_isprime
+#include "macros.h" /* for ASSERT_ALWAYS */
 #include "murphyE.h"
+#include "rootfinder.h" // mpz_poly_roots
+#include "timing.h"             // for seconds
+#include "usp.h"        // usp_root_data
+#include "version_info.h"        // cado_revision_string
 
 /* define OPTIMIZE_MP to perform computations in multiple-precision */
 //#define OPTIMIZE_MP

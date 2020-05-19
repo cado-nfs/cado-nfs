@@ -7,10 +7,11 @@
 #include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "portability.h"
-#include "utils.h"
 #include "auxiliary.h"
 #include "size_optimization.h"
+#include "usp.h"        // numberOfRealRoots
+#include "verbose.h"             // verbose_decl_usage
+
 
 static void
 declare_usage(param_list pl)

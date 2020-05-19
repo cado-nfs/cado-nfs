@@ -1,5 +1,6 @@
 #ifndef LIST_H
 #define LIST_H 
+// pragma no prototypes
 
 #include "int64_vector.h"
 #include "double_vector.h"

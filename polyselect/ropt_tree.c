@@ -7,7 +7,6 @@
 #include "cado.h"
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
 #include "ropt_tree.h"
-#include "portability.h"
 
 
 #if 0 /* Leave them for debug */

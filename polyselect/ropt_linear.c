@@ -21,7 +21,7 @@
 
 #include "cado.h"
 #include "ropt_linear.h"
-#include "portability.h"
+#include "timing.h"             // for seconds_thread
 //#define ROPT_LINEAR_TUNE_HARDER
 
 

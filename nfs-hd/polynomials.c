@@ -5,7 +5,6 @@
 #include <math.h>
 #include <time.h>
 #include <float.h>
-#include "utils.h"
 #include "polynomials.h"
 #include "utils_cofactorisation.h"
 #include "polyselect/auxiliary.h"

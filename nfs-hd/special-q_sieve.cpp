@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <inttypes.h>
-#include "utils.h"
 #include "makefb.h"
 #include "vector.h"
 #include "int64_poly.h"

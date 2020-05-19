@@ -1,5 +1,6 @@
 #include "cado.h"
 #include <cstdio>
+#include <cinttypes>
 #include <pthread.h>
 #include "bwc_config.h"
 #include "parallelizing_info.h"
@@ -12,8 +13,8 @@
 #include "bw-common.h"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
-#include "portability.h"
 #include "cheating_vec_init.h"
+#include "portability.h"
 
 
 void bw_rank_check(matmul_top_data_ptr mmt, param_list_ptr pl)

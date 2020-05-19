@@ -20,6 +20,10 @@ typedef _sievearray_t sievearray_t[1];
 
 /* -- declarations -- */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void
 ropt_stage2 ( ropt_poly_t poly,
               ropt_s2param_t s2param,
@@ -38,5 +42,10 @@ void print_sievearray ( double **A,
                         unsigned long J_ST,
                         unsigned long MOD );
 #endif
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* ROPT_STAGE2_H */

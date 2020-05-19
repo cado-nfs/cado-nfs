@@ -7,7 +7,6 @@
 #include "parallelizing_info.h"
 #include "select_mpi.h"
 #include "params.h"
-#include "portability.h"
 #include "macros.h"
 
 int verbose=0;

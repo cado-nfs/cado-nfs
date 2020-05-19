@@ -64,7 +64,6 @@ B) to use within another program: compile without -DMAIN, the main function
 #include <gmp.h>
 #include "usp.h"
 #include "double_poly.h"
-#include "portability.h"
 #include "macros.h"
 
 /* #define DEBUG */

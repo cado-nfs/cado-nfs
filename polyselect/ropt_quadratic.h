@@ -7,10 +7,19 @@
 
 /* -- declarations -- */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ropt_quadratic ( ropt_poly_t rs,
                       ropt_bestpoly_t bestpoly,
                       ropt_param_t param,
                       ropt_info_t info );
+
+#ifdef __cplusplus
+}
+#endif
+
 
 
 #endif /* ROPT_QUADRATIC_H */

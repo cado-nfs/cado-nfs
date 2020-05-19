@@ -17,7 +17,6 @@
 #include <vector>                         // for vector, vector<>::iterator
 
 #include "macros.h"                       // for CADO_CONCATENATE, ASSERT_AL...
-#include "utils.h"
 
 #include "las-fill-in-buckets.hpp"        // for precomp_plattice_t, downsor...
 

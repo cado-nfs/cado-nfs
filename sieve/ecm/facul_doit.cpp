@@ -20,7 +20,8 @@
 #include "pp1.h"
 #include "facul_ecm.h"
 #include "mpqs.h"
-#include "utils.h"
+#include "cxx_mpz.hpp"
+#include "mod_ul.h"
 
 #ifdef ENABLE_UNSAFE_FACUL_STATS
 extern unsigned long stats_called[];

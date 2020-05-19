@@ -1,7 +1,8 @@
 #include "cado.h"
 #include <stdio.h>
-#include "portability.h"
-#include "utils.h"
+#include <string.h>
+#include "mod_ul.h"     // modulusul_t
+#include "galois_utils.h"
 
 void automorphism_init(int *ord, int mat[4], const char *galois_autom){
     int A, B, C, D; // x -> (A*x+B)/(C*x+D)

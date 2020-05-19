@@ -4,7 +4,6 @@
 #include "bwc_config.h"
 #include "matmul-common.h"
 #include "params.h"
-#include "portability.h"
 #include "verbose.h"
 
 #define MM_COMMON_MAGIC 0xb0010003UL

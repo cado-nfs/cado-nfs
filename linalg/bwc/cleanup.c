@@ -8,10 +8,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "portability.h"
-#include "utils.h"
 #include "blockmatrix.h"
 #include "gauss.h"
+#include "params.h"     // param_list
 
 void usage()
 {

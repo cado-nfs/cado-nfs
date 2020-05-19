@@ -33,7 +33,8 @@
 #include "las-todo-entry.hpp"  // for las_todo_entry
 #include "modset.hpp"          // for FaculModulusBase
 #include "relation.hpp"        // for relation
-#include "utils.h"             // for getprime_mt, prime_info_clear, prime_i...
+#include "rootfinder.h" // mpz_poly_roots_ulong
+#include "timing.h"             // for seconds
 
 /* This function is useful in the openmp context. This segment goes
  * parallel, and all threads except the calling thread subtract their

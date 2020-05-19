@@ -22,7 +22,6 @@
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
-#include "portability.h"
 #include "mpz_poly.h"
 #include "lll.h"
 #include "rootfinder.h"
@@ -33,6 +32,7 @@
 #include "double_poly.h"
 #include "cxx_mpz.hpp"
 #include "timing.h"
+#include "portability.h"
 
 #ifndef max
 #define max(a,b) ((a)<(b) ? (b) : (a))

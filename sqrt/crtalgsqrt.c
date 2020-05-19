@@ -61,6 +61,7 @@
 
 #include "cado.h"
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
+#include <inttypes.h>   // SCNu64 PRId64 etc
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,15 +81,18 @@
 
 #define DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS
 
-#include "macros.h"
-#include "utils.h"
-#include "portability.h"
-#include "modul_poly.h"
-#include "powers_of_p.h"
+#include "cado_poly.h"  // cado_poly
+#include "gmp-hacks.h"          // TODO: REMOVE ! we're still using MPZ_SET_MPN and friends, but the mpz_write_limbts things could very well be sufficient after all.
+#include "gmp_aux.h"    // ulong_nextprime mpz_set_uint64
 #include "knapsack.h"
-
+#include "macros.h"
+#include "modul_poly.h"
+#include "params.h"     // param_list_parse_*
+#include "powers_of_p.h"
 #include "select_mpi.h"
-#include "gmp-hacks.h"          // TODO: REMOVE !
+#include "timing.h"     // wct_seconds
+#include "version_info.h" // cado_revision_string
+#include "portability.h"
 
 /* {{{ time */
 double program_starttime;

@@ -9,6 +9,10 @@
 #include "macros.h"
 
 // See select_mpi.h for info on my_* stuff.
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /* {{{ create/join */
 typedef void * my_pthread_t;
@@ -114,5 +118,10 @@ my_pthread_rwlock_destroy(my_pthread_rwlock_t * m MAYBE_UNUSED) { return 0; }
 static inline int
 my_pthread_sigmask(int how, const sigset_t * set, sigset_t * oset)
 { return sigprocmask(how, set, oset); }
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* FAKEPTHREAD_H_ */

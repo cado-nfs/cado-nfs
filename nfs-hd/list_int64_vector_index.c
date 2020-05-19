@@ -1,5 +1,4 @@
 #include "cado.h"
-#include "utils.h"
 #include "list_int64_vector_index.h"
 
 void list_int64_vector_index_init(list_int64_vector_index_ptr list,

@@ -29,10 +29,15 @@
 #include <assert.h>
 #include <fcntl.h>   /* for _O_BINARY */
 
-#include "portability.h"
-#include "macros.h"
 #include "filter_config.h"
-#include "utils_with_io.h"
+#include "filter_io.h"  // filter_rels
+#include "gzip.h"       // fopen_maybe_compressed
+#include "macros.h"
+#include "portability.h"
+#include "misc.h"       // filelist_clear
+#include "params.h"     // param_list_parse_*
+#include "timing.h"     // timingstats_dict_t
+#include "verbose.h"
 
 #define DEFAULT_LOG_MAX_NRELS_PER_FILES 25
 

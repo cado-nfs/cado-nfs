@@ -19,9 +19,9 @@
 
 #include "matmul.h"
 #include "matmul-libnames.h"
-#include "portability.h"
 #include "misc.h"
 #include "verbose.h"
+#include "portability.h"
 
 void matmul_decl_usage(param_list_ptr pl)
 {

@@ -6,8 +6,8 @@
 
 #include "cado.h"
 #include "ropt_stage2.h"
-#include "portability.h"
 #include "size_optimization.h"
+#include "timing.h"             // for milliseconds
 
 //#define TIMING_ROPT_STAGE2
 /**

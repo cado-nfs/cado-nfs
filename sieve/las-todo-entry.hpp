@@ -9,7 +9,7 @@
 
 #include "macros.h"     // for ASSERT_ALWAYS
 
-#include "utils.h"  // for cxx_mpz
+#include "cxx_mpz.hpp"  // for cxx_mpz
 
 
 struct las_todo_entry {

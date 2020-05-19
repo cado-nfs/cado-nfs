@@ -11,7 +11,7 @@
 
 #include <algorithm>        // for max
 #include <emmintrin.h>      // for __m128i, _mm_xor_si128, _mm_set1_epi8
-#include <math.h>           // for abs
+#include <cmath>           // for abs
 #include <cstdint>          // for uint32_t
 #include <cstdlib>          // for size_t, abs
 #include <vector>           // for vector
@@ -19,12 +19,13 @@
 #ifdef TRACE_K
 #include "las-where-am-i.hpp"           // for where_am_I, WHERE_AM_I_UPDATE
 #include "las-output.hpp"   // IWYU pragma: keep
+#include "verbose.h"    // verbose_output_print
 #endif
 
 #include "las-unsieve.hpp"  // for extract_j_div, j_divisibility_helper, sea...
 #include "macros.h"         // for ASSERT_ALWAYS, MAYBE_UNUSED, no_break
-#include "utils.h"
 #include "ularith.h"        // for ularith_ctz
+#include "gcd.h"       // for bin_gcd_int64_safe
 
 static const int verify_gcd = 0; /* Enable slow but thorough test */
 static const __m128i sign_conversion = _mm_set1_epi8(-128);

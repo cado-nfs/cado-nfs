@@ -1,8 +1,6 @@
 #ifndef CADO_UTILS_MEMORY_H_
 #define CADO_UTILS_MEMORY_H_
 
-// IWYU pragma: private, include "utils.h"
-
 #include <stdlib.h>
 #ifdef __cplusplus
 #include <memory>

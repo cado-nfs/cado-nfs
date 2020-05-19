@@ -11,7 +11,6 @@
 #include <iomanip>
 #include <gmp.h>
 
-#include "utils.h"
 #include "relation.hpp"
 #include "relation-tools.h"
 

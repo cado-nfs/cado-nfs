@@ -10,8 +10,6 @@
 #ifndef MOD_UL_H
 #define MOD_UL_H
 
-// IWYU pragma: private, include "utils.h"
-
 /**********************************************************************/
 #include <limits.h>
 #include <stdint.h>

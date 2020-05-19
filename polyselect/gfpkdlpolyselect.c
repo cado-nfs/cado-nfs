@@ -12,17 +12,16 @@
  */
 
 #include "cado.h"
-#include "auxiliary.h"
-#include "area.h"
-#include "utils.h"
-#include "rootfinder.h"
-#include "portability.h"
-#include "murphyE.h"
-#include "ropt_param.h"
-
 #include <stdio.h>
 
+#include "area.h"
+#include "auxiliary.h"
 #include "gfpkdlpolyselect.h"
+#include "gmp_aux.h"
+#include "lll.h"        // mat_Z, LLL
+#include "murphyE.h"
+#include "rootfinder.h"
+#include "ropt_param.h"
 
 #include "table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h"
 // contains: fPyphi_poly_t ff4

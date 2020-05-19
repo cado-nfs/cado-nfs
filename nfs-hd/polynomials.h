@@ -2,7 +2,11 @@
 #define FUNCTIONS_H
 
 #include <stdint.h>
-#include "utils.h"
+#include "mpz_poly.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 unsigned int mpz_poly_is_reciprocal(mpz_poly_srcptr f);
 
@@ -29,5 +33,10 @@ double function_special_q(mpz_poly_ptr f0, mpz_poly_ptr f1, mpz_poly_ptr g,
 void function_classical(mpz_poly_ptr f0, mpz_poly_ptr f1, mpz_srcptr p,
     unsigned int n, int * coeff, unsigned int nb_times,
     double * weight, gmp_randstate_t state);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif // FUNCTIONS_H

@@ -1,8 +1,6 @@
 #ifndef CXX_MPZ_HPP_
 #define CXX_MPZ_HPP_
 
-// IWYU pragma: private, include "utils.h"
-
 #include "macros.h"
 
 #include <gmp.h>

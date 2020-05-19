@@ -1,5 +1,7 @@
 #include "cado.h"
-#include "utils.h"
+#include <stdint.h>
+#include "macros.h"        // cado_crc_lfsr
+#include "crc.h"        // cado_crc_lfsr
 
 /* This computes checksum or arbitrary data ranges. The data is piped
  * through an LFSR over GF(2^32) with a suitable defining polynomial.

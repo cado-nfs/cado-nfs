@@ -4,27 +4,26 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <assert.h>     // for assert
-#include <gmp.h>        // for mpz_cmp_ui, mpz_sgn, mpz_cmp, mpz_sizeinbase
-#include <math.h>       // for ldexp, sqrt
+#include <cassert>     // for assert
+#include <gmp.h>       // for mpz_cmp_ui, mpz_sgn, mpz_cmp, mpz_sizeinbase
+#include <cmath>       // for ldexp, sqrt
 #include <regex.h>      // for regmatch_t, regcomp, regexec, regfree, REG_EX...
-#include <stdio.h>      // for NULL, fprintf, size_t, FILE, fgets, fseek
-#include <stdlib.h>     // for malloc, free, atoi, calloc
-#include <string.h>     // for strcmp, strlen, strncpy
+#include <cstdio>      // for NULL, fprintf, size_t, FILE, fgets, fseek
+#include <cstdlib>     // for malloc, free, atoi, calloc
+#include <cstring>     // for strcmp, strlen, strncpy
 #include <algorithm>    // for sort
 #include <vector>       // for vector<>::iterator, vector
 
+#include "cxx_mpz.hpp"
 #include "facul.hpp"
-
-#include "macros.h"     // for ASSERT_ALWAYS, ASSERT, MAYBE_UNUSED
-#include "utils.h"
-
 #include "facul_ecm.h"  // for ecm_plan_t, ecm_make_plan, ecm_clear_plan
+#include "macros.h"     // for ASSERT_ALWAYS, ASSERT, MAYBE_UNUSED
 #include "mod_mpz.h"    // for MODMPZ_MAXBITS
 #include "modset.hpp"   // for FaculModulusBase
 #include "pm1.h"        // for pm1_plan_t, pm1_clear_plan, pm1_make_plan
 #include "pp1.h"        // for pp1_plan_t, pp1_clear_plan, pp1_make_plan
 #include "stage2.h"     // for stage2_plan_t
+#include "verbose.h"             // verbose_output_print
 
 //#define USE_LEGACY_DEFAULT_STRATEGY 1
 

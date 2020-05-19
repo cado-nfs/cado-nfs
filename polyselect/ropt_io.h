@@ -1,12 +1,15 @@
 #ifndef ROPT_IO_H
 #define ROPT_IO_H
 
-#include "utils.h"
 #include "murphyE.h"
 #include "ropt_param.h"
 #include "cachesize_cpuid.h"
 
 /* -- declarations -- */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int cachesize_guess ( int ); // from utils
 
@@ -36,6 +39,11 @@ void ropt_regen_raw ( mpz_t *f,
 void ropt_parse_param ( int argc,
                         char **argv,
                         ropt_param_t param );
+#endif
+
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

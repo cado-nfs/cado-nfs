@@ -5,7 +5,9 @@
 #include <iterator>
 #include <algorithm>
 #include "badideals.hpp"
-#include "utils.h"
+#include "params.h"
+#include "cado_poly.h"
+#include "sm_utils.h"
 
 using namespace std;
 

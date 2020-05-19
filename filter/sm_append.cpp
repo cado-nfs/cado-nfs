@@ -15,18 +15,19 @@
 */
 
 #include "cado.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <gmp.h>
-#include <string.h>
-
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cinttypes>
 #include <vector>
 #include <string>
-
+#include <gmp.h>
+#include "gzip.h"       // fopen_maybe_compressed
 #include "macros.h"
-#include "utils.h"
 #include "select_mpi.h"
+#include "sm_utils.h"   // sm_side_info
+#include "timing.h"     // seconds
+#include "verbose.h"    // verbose_output_print
 
 using namespace std;
 
@@ -373,7 +374,7 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "poly", "(required) poly file");
     param_list_decl_usage(pl, "ell", "(required) group order");
     param_list_decl_usage(pl, "nsm", "number of SMs to use per side");
-    param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-utils.h)");
+    param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-portability.h)");
     param_list_decl_usage(pl, "in", "data input (defaults to stdin)");
     param_list_decl_usage(pl, "out", "data output (defaults to stdout)");
     param_list_decl_usage(pl, "b", "batch size for MPI loop");

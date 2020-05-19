@@ -17,6 +17,10 @@
 typedef union {uint64_t x[2]; unsigned __int128 y;} _u64arith_union2_t;
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** Test whether a1:a2 > b1:b2
  * 
  * Let a = a1 + 2^64 * a2, b = b1 + 2^64 * b2. Return 1 if a > b,
@@ -1059,6 +1063,11 @@ u64arith_redc(uint64_t *r, const uint64_t plow,
 #endif
   ASSERT_EXPENSIVE (r[0] < m);
 }
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* ifndef U64_ARITH_H__ */

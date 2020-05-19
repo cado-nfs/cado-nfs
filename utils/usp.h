@@ -1,8 +1,6 @@
 #ifndef USP_H_
 #define USP_H_
 
-// IWYU pragma: private, include "utils.h"
-
 #include <gmp.h> /* for mpz_t */
 #include "mpz_poly.h"
 

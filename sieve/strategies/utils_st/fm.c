@@ -1,14 +1,10 @@
 #include "cado.h"
-#include "portability.h"
-#include "utils.h"
-
-#include "fm.h"
-
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <math.h>
 #include <stdbool.h>
+#include "fm.h"
+#include "macros.h"
 
 fm_t *fm_create(void)
 {

@@ -10,6 +10,8 @@
 
 #define MAX_FILES 1000000
 
+#define RELATION_MAX_BYTES 4096
+
 /* Size of relations buffer between parsing & processing.
  * CAREFUL! SIZE_BUF_REL must be greater (at least double) than (1<<(NNFR+1)).
  * Stores the sentences precomputed but not inserted. 

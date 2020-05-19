@@ -16,7 +16,6 @@
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
 #include "threadpool.hpp"              // for worker_thread
 #include "tdict.hpp"             // for slot, timetree_t, UNIQUE_ID
-#include "utils.h"                     // for seconds, wct_seconds
 
 struct las_output;
 struct las_todo_entry;

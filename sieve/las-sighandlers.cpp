@@ -11,7 +11,7 @@
 #include <execinfo.h>                    // for backtrace, backtrace_symbols
 #include <csignal>                      // for signal, raise, SIGABRT, SIGSEGV
 #endif
-#include "utils.h"      // IWYU pragma: keep
+#include "las-sighandlers.hpp"
 
 #ifdef HAVE_GLIBC
 static void signal_handling (int signum)/*{{{*/

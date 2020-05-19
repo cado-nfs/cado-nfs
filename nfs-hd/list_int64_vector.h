@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include "utils.h"
 #include "int64_vector.h"
 #include "mat_int64.h"
 #include "list.h"

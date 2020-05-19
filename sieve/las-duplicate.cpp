@@ -88,7 +88,6 @@ Thus the function to check for duplicates needs the following information:
 #include "las-todo-entry.hpp"         // for las_todo_entry
 #include "macros.h"                   // for ASSERT_ALWAYS
 #include "relation.hpp"               // for relation
-#include "utils.h"      // IWYU pragma: export
 
 
 /* default verbose level of # DUPECHECK lines */

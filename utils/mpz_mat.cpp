@@ -1,15 +1,14 @@
 #include "cado.h" // IWYU pragma: keep
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <gmp.h>
-#include <limits.h>     /* for INT_MAX */
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <climits>     /* for INT_MAX */
 #include <ostream>
+#include <gmp.h>
 #include "mpz_mat.h"
 #include "gmpxx.hpp"
-#include "portability.h"
-#include "utils.h"
+#include "lll.h"        // mat_Z, LLL
 
 /*{{{ entry access*/
 mpz_ptr mpz_mat_entry(mpz_mat_ptr M, unsigned int i, unsigned int j)

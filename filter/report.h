@@ -1,3 +1,13 @@
+#ifndef REPORT_H_
+#define REPORT_H_
+
+#include "typedefs.h"
+#include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // data structure for reporting actions during the merge; in standard mode
 // (say mono proc), this is just a wrap around for a FILE; otherwise,
 // it can be used to register things in an array that will be examined and
@@ -11,3 +21,9 @@ typedef struct{
     int mark;
     int bufsize; // says it!
 } report_t;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif	/* REPORT_H_ */

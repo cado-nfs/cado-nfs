@@ -6,6 +6,7 @@
 #include <time.h>
 #include "mpz_poly.h"
 #include "tests_common.h"
+#include "portability.h"
 
 /* Put random coefficients of k bits in a polynomial (already initialized).
    Ensure the coefficient of degree d is not zero. */

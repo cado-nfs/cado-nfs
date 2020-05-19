@@ -1,21 +1,22 @@
 #include "cado.h"
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <inttypes.h> /* for PRIx64 macro and strtoumax */
+#include <cstdint>     /* AIX wants it first (it's a bug) */
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cinttypes> /* for PRIx64 macro and strtoumax */
 #include <cmath>   // for ceiling, floor in cfrac
-#include <ctype.h>
-#include <float.h>
-#include <fcntl.h>   /* for _O_BINARY */
-#include <stdarg.h> /* Required so that GMP defines gmp_vfprintf() */
+#include <cctype>
+#include <cfloat>
+#include <cstdarg> /* Required so that GMP defines gmp_vfprintf() */
 #include <algorithm>
 #include <vector>
-#include "portability.h"
-#include "utils.h"           /* lots of stuff */
+#include <fcntl.h>   /* for _O_BINARY */
 #include "las-config.h"
 #include "las-norms.hpp"
 #include "memusage.h"
+#include "rootfinder.h" // mpz_poly_roots
+#include "verbose.h"    // verbose_output_print
+#include "timing.h"     // wct_seconds
 
 int adjust_strategy = 0;
 

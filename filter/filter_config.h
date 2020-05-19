@@ -92,7 +92,21 @@
 #define XSTR(s) #s
 
 
-#include "utils.h"  /* for ideal_merge_t */
+#include "typedefs.h"  /* for ideal_merge_t */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+static inline int cmp_ideal_merge (const void *p, const void *q);
+/* compare two index_t's */
+static inline int cmp_index (const void *p, const void *q);
+static inline int cmp_index2 (const void *p, const void *q);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 static inline int
 cmp_ideal_merge (const void *p, const void *q)

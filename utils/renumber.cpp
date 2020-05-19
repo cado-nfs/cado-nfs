@@ -12,7 +12,9 @@
 #include "gzip.h"       // ifstream_maybe_compressed
 #include "renumber.hpp"
 #include "badideals.hpp"
-#include "utils.h"
+#include "mpz_poly.h"   // mpz_poly
+#include "rootfinder.h" // mpz_poly_roots
+#include "mod_ul.h"     // modulusul_t
 
 /* Some documentation on the internal encoding of the renumber table...
  *

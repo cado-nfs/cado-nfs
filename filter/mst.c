@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "portability.h"
 #include "filter_config.h"
-#include "utils.h"
 #include "merge_replay_matrix.h"
 #include "sparse.h"
 #include "mst.h"

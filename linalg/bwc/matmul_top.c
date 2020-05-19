@@ -1,4 +1,6 @@
 #include "cado.h"
+#include <stdint.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -12,11 +14,13 @@
 #include "select_mpi.h"
 #include "intersections.h"
 #include "balancing_workhorse.h"
-#include "portability.h"
 #include "misc.h"
 #include "random_matrix.h"
 #include "cheating_vec_init.h"
 #include "mf_bal.h"
+#include "portability.h"
+#include "timing.h"     // wct_seconds
+#include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
 
 /* Our innermost communication routines are essentially all-gather and
  * reduce-scatter, following the MPI terminology. We provide several

@@ -6,9 +6,8 @@
 #include <initializer_list>  // for initializer_list
 #include <iterator>          // for begin, end
 #include <limits>            // for numeric_limits
-
+#include "double_poly.h"  // cxx_double_poly
 #include "logapprox.hpp"
-
 #include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY
 
 

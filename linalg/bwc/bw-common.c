@@ -1,5 +1,6 @@
 #include "cado.h"
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -10,8 +11,10 @@
 #include <gmp.h>
 #include "bwc_config.h"
 #include "bw-common.h"
-#include "utils.h"
 #include "select_mpi.h"
+#include "portability.h"
+#include "verbose.h"    // verbose_interpret_parameters
+#include "timing.h"     // wct_seconds
 
 struct bw_params bw[1];
 

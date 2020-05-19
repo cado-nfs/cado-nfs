@@ -21,8 +21,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 */
 
-// IWYU pragma: private, include "utils.h"
-
 /* This header file defines macros (and perhaps static functions) to improve 
  * portability of the CADO code. They aim to provide a wrapper for some C99
  * and POSIX functionality for systems that lack those.
@@ -473,39 +471,5 @@ static inline long pagesize ()
 #include <windows.h>
 #define sleep(seconds) Sleep((seconds)*1000) 
 #endif /* HAVE_MINGW *//*}}}*/
-
-#ifdef HAVE_OPENMP/*{{{*/
-#include <omp.h>
-#else
-/* minimal stub */
-#ifdef __cplusplus
-extern "C" {
-#endif
-static inline int omp_get_max_threads()
-{
-  return 1;
-}
-
-static inline int omp_get_num_threads()
-{
-  return 1;
-}
-
-static inline void omp_set_num_threads(int n MAYBE_UNUSED)
-{
-}
-
-static inline void omp_set_nested(int n MAYBE_UNUSED)
-{
-}
-
-static inline int omp_get_thread_num()
-{
-  return 0;
-}
-#ifdef __cplusplus
-}
-#endif
-#endif /* HAVE_OPENMP *//*}}}*/
 
 #endif /* ifndef CADO_PORTABILITY_H_ */

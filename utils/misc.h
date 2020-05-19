@@ -1,8 +1,6 @@
 #ifndef CADO_UTILS_MISC_H_
 #define CADO_UTILS_MISC_H_
 
-// IWYU pragma: private, include "utils.h"
-
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -15,7 +13,6 @@
 #include <string>
 #endif
 #include "macros.h"
-#include "portability.h"
 
 /* we prefer GMP 5 or later, but the history of the why and how seems
  * lost. It seems that the late GMP-4.3 versions are fine, and the few

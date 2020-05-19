@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <pthread.h>
 
-#include "portability.h"
-#include "utils.h"
+#include "typedefs.h"  // for index_t ideal_merge_t
+#include "memalloc.h"  // for BLOCK_SIZE
 
 /* index_plist is a list of blocks, each one of BLOCK_SIZE index_ts */
 static index_t **index_plist = NULL;

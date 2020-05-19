@@ -13,6 +13,8 @@
 #include <limits.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include "macros.h"
+#include "portability.h"
 
 #define MAX_SIZE 1024
 

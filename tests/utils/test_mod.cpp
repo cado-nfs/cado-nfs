@@ -7,7 +7,6 @@
 #include <iostream>
 #include <typeinfo>
 #include <vector>
-#include "portability.h"
 #include "cxx_mpz.hpp"
 #include "tests_common.h"
 #include "mod64.hpp"

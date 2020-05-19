@@ -2,11 +2,10 @@
 #include "mpfq_layer.h"
 #include <stdlib.h>
 #include <gmp.h>
-#include "portability.h"
-#include "macros.h"
-#include "utils.h"
-#include "lingen-matpoly.h"
 #include "flint-fft/fft.h"
+#include "lingen-matpoly.h"
+#include "macros.h"
+#include "timing.h"     // seconds
 
 int matpoly_check_pre_init(matpoly_srcptr p)
 {

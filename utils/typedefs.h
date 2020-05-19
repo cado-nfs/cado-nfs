@@ -1,6 +1,7 @@
 #ifndef	CADO_TYPEDEFS_H_
 #define	CADO_TYPEDEFS_H_
 
+// pragma no prototypes
 #include <inttypes.h>
 #include "ularith.h" /* NEEDED for LONG_BIT (32 or 64) */
 

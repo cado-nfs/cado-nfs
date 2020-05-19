@@ -5,9 +5,8 @@
 #include <time.h>
 #include <inttypes.h>
 #include "macros.h"
-#include "portability.h"
-#include "utils.h"
 #include "mf.h"
+#include "params.h"     // param_list
 
 
 void usage(int rc)

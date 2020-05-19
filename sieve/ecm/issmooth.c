@@ -28,7 +28,6 @@
 #include <limits.h>
 #include <gmp.h>
 #include "macros.h"
-#include "portability.h"
 
 #define NR_EXPONENTS 8
 #define EXP_PRIMES {2,3,5,7,11,13,17,19}

@@ -1,8 +1,6 @@
 #ifndef RHO_H_
 #define RHO_H_
 
-// IWYU pragma: private, include "utils.h"
-
 /* Header file for rho.c.
 
 Copyright 2010 Paul Zimmermann

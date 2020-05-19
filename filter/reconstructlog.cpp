@@ -4,13 +4,19 @@
 #include <cstring>
 #include <cmath>
 #include <fcntl.h>   /* for _O_BINARY */
-
+#include "cado_poly.h"  // cado_poly
 #include "cxx_mpz.hpp"
-#include "gmp-hacks.h"
-
 #include "filter_config.h"
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "gmp-hacks.h"
+#include "memalloc.h"             // my_malloc_free_all
+#include "renumber.hpp"
+#include "sm_utils.h"   // sm_side_info_clear
+#include "stats.h"                     // stats_data_t
+#include "gzip.h"       // fopen_maybe_compressed
+#include "verbose.h"    // verbose_decl_usage
+#include "purgedfile.h" // purgedfile_read_firstline
 
-#include "utils_with_io.h"
 #define DEBUG 0
 
 stats_data_t stats; /* struct for printing progress */
@@ -1249,7 +1255,7 @@ static void declare_usage(param_list pl)
                                      "-nrels parameter)");
   param_list_decl_usage(pl, "partial", "do not reconstruct everything "
                                        "that can be reconstructed");
-  param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-utils.h)");
+  param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-portability.h)");
   param_list_decl_usage(pl, "nsm", "number of SM's to add on side 0,1,...");
   param_list_decl_usage(pl, "mt", "number of threads (default 1)");
   param_list_decl_usage(pl, "wanted", "file containing list of wanted logs");

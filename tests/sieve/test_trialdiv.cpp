@@ -1,12 +1,16 @@
 #include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <limits.h>
+#include <cinttypes>
+#include <cstdio>
+#include <cstdlib>
+#include <climits>
 #include <sys/time.h>
 #include "sieve/trialdiv.hpp"
-#include "utils.h"
 #include "test_iter.h"
 #include "tests_common.h"
+#include "portability.h"
+#include "cxx_mpz.hpp"  // cxx_mpz
+#include "getprime.h"   // prime_info
+#include "timing.h"     // microseconds
 
 void
 trialdiv_stdinput(const unsigned long pmax, const int verbose)

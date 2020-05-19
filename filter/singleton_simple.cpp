@@ -1,13 +1,14 @@
 #include "cado.h"
-
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <gmp.h>
-#include <string.h>
-
-#include "macros.h"
-#include "utils_with_io.h"
 #include "filter_config.h"
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "macros.h"
+#include "misc.h"       // for UMAX
+#include "params.h"     // param_list_parse_*
+#include "verbose.h"
 
 
 // Some globals... laziness.

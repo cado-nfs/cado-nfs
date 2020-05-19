@@ -1,31 +1,36 @@
 #include "cado.h"
 
+#include <cinttypes>
 #include <cstdio>
 #include <cstring>
-#include <unistd.h>
 #include <climits>
-#include <dirent.h>
 #include <cerrno>
+
 #include <vector>
 #include <array>
 #include <set>
 #include <map>
 #include <tuple>
 #include <algorithm>
-#include "bwc_config.h"
-#include "parallelizing_info.h"
-#include "matmul_top.h"
-#include "select_mpi.h"
 
-#include "params.h"
-#include "xvectors.h"
-#include "portability.h"
-#include "misc.h"
-#include "bw-common.h"
+#include <unistd.h>
+#include <dirent.h>
+
 #include "balancing.h"
+#include "bw-common.h"
+#include "bwc_config.h"
+#include "cheating_vec_init.h"
+#include "cxx_mpz.hpp"
+#include "matmul_top.h"
+#include "misc.h"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
-#include "cheating_vec_init.h"
+#include "parallelizing_info.h"
+#include "params.h"
+#include "portability.h"
+#include "select_mpi.h"
+#include "verbose.h"    // verbose_enabled
+#include "xvectors.h"
 
 using namespace std;
 

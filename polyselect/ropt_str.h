@@ -1,7 +1,6 @@
 #ifndef ROPT_STR_H
 #define ROPT_STR_H
-
-
+#include <stdbool.h>    // for bool (in C)
 #include "ropt_arith.h"
 #include "ropt_param.h"
 
@@ -198,6 +197,10 @@ typedef _ropt_info_t ropt_info_t[1];
 /* --- declarations --- */
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ropt_poly_t */
 void ropt_poly_init ( ropt_poly_t );
 
@@ -320,5 +323,10 @@ void ropt_param_free ( ropt_param_t param );
 void ropt_info_init ( ropt_info_t info );
 
 void ropt_info_free ( ropt_info_t info );
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

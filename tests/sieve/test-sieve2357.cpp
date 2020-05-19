@@ -21,8 +21,8 @@
 #include "rdtsc.h"
 #endif
 #endif
-#include "utils.h"
 #include "tests_common.h"
+#include "memory.h"             // free_aligned
 #include "las-sieve2357.hpp"
 #include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
 

@@ -1,10 +1,9 @@
 #include "cado.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <limits.h>
-#include <gmp.h>
+#include <cstdlib>
+#include <cstdio>
+#include <climits>
 #include <algorithm>
-
+#include <gmp.h>
 #include "macros.h"
 #include "rootfinder.h"
 #include "modul_poly.h"

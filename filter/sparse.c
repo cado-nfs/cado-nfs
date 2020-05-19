@@ -12,10 +12,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "portability.h"
 #include "macros.h"
+#ifdef FOR_DL
+#include "gcd.h"        // gcd_uint64
+#endif
 #include "filter_config.h"
-#include "utils.h"
 #include "merge_replay_matrix.h"
 #include "sparse.h"
 

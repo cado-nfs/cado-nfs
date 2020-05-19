@@ -1,19 +1,19 @@
 #include "cado.h"
 
-#include <math.h>
-#include <float.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
+#include <cmath>
+#include <cfloat>
+#include <cstdlib>
+#include <cstdio>
+#include <ctime>
+#include <cstring>
 #include <gmp.h>
 
-#include "portability.h"
-#include "utils.h"
 #include "facul.hpp"
 #include "facul_ecm.h"
 #include "tab_strategy.h"
 #include "generate_strategies.h"
 #include "gen_decomp.h"
+#include "params.h"     // param_list
 
 
 /************************************************************************/

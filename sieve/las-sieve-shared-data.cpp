@@ -2,12 +2,17 @@
 #include <cstdio>            // for fclose, fopen, fprintf, NULL, FILE, stderr
 #include <cstdlib>           // for abort
 #include <mutex>             // for lock_guard, mutex
-#include "las-sieve-shared-data.hpp"
 #include "ecm/facul.hpp"         // for facul_clear_strategies, facul_strategies_t
+#include "gmp_aux.h"    // nbits
 #include "las-cofactor.hpp"  // for facul_make_strategies
+#include "las-sieve-shared-data.hpp"
 #include "las-unsieve.hpp"   // for j_divisibility_helper, unsieve_data
 #include "macros.h"          // for ASSERT, ASSERT_ALWAYS
-#include "utils.h"
+#include "memusage.h"   // Memusage2
+#include "misc.h"          // size_disp_fine
+#include "timing.h"             // for seconds
+#include "verbose.h"             // verbose_output_print
+
 
 void sieve_shared_data::declare_usage(cxx_param_list & pl)
 {

@@ -1,11 +1,10 @@
 #include "cado.h"
 #include "mpfq_layer.h"
 #include <stdlib.h>
-#include "portability.h"
 #include "macros.h"
-#include "utils.h"
 #include "lingen-matpoly.h"
 #include "lingen-bigmatpoly.h"
+#include "timing.h"     // wct_seconds
 
 /* {{{  init/zero/clear interface for bigmatpoly */
 matpoly_ptr bigmatpoly_my_cell(bigmatpoly_ptr p)

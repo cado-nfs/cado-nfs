@@ -1,22 +1,18 @@
 #include "cado.h"
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <inttypes.h> /* for PRIx64 macro and strtoumax */
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
-#include <sys/time.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <errno.h>
-#include <math.h>
-#include <time.h>
-#include <unistd.h>
+#include <cstdint>   /* AIX wants it first (it's a bug) */
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cinttypes> /* for PRIx64 macro and strtoumax */
+#include <cstddef>   /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
+#include <cerrno>
+#include <cmath>
+#include <ctime>
+
 #include <list>
 #include <cstdio>
-#include <gmp.h>
-#include <errno.h>
-#include <ctype.h>
+#include <cerrno>
+#include <cctype>
 #include <utility>
 #include <vector>
 #include <set>
@@ -27,22 +23,25 @@
 #include <sstream>
 
 #include <sys/types.h>
+#include <sys/time.h>
+#include <dirent.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#ifdef  HAVE_OPENMP
-#include <omp.h>
-#endif
-#include "bwc_config.h"
-#include "macros.h"
-#include "utils.h"
+
+#include <gmp.h>
+
 #include "bw-common.h"
-#include "tree_stats.hpp"
-#include "logline.h"
-
-#include "lingen_qcode.h"
-
+#include "bwc_config.h"
 #include "gf2x-fft.h"
 #include "lingen_mat_types.hpp"
+#include "lingen_qcode.h"
+#include "logline.h"
+#include "macros.h"
+#include "omp_proxy.h"
+#include "portability.h"
+#include "timing.h"  // seconds
+#include "tree_stats.hpp"
 
 /* we need a partial specialization because gf2x_fake_fft does its own
  * allocation within addcompose (for the moment)
@@ -81,7 +80,6 @@ void compose_inner<gf2x_fake_fft, strassen_default_selector>(
 }
 
 /* Provide workalikes of usual interfaces for some ungifted systems */
-#include "portability.h"
 
 /* Name of the source a file */
 char input_file[FILENAME_MAX]={'\0'};

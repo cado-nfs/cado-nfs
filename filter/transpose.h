@@ -1,6 +1,14 @@
+#ifndef TRANSPOSE_H_
+#define TRANSPOSE_H_
+
 #include "typedefs.h"
 
 // #define TRANSPOSE_EASY_WAY
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /* copy 64 bytes from src to dst using non-temporal store instructions
    if available (this bypasses the cache). */
@@ -19,6 +27,10 @@ static inline void store_nontemp_64B(void * dst, void * src);
    The input arrays are expendable (i.e. they might be destroyed). 
    The current code only reads them though. */
 void transpose(uint64_t nnz, index_t *Ai, index_t *Aj, index_t n, index_t *Rp, index_t *Ri);
+
+#ifdef __cplusplus
+}
+#endif
 
 /* L1 cache line has size 64 on most CPUs */
 #define CACHELINE_SIZE ((int) (64 / sizeof(index_t)))
@@ -44,3 +56,5 @@ static inline void store_nontemp_64B(void * dst, void * src)
     out[i] = in[i];
 }
 #endif
+
+#endif	/* TRANSPOSE_H_ */

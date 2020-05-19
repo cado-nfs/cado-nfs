@@ -1,5 +1,9 @@
+#ifndef MOD_MPZ_DEFAULT_H_
+#define MOD_MPZ_DEFAULT_H_
+
 #include "mod_mpz.h"
 
+// pragma no prototypes
 /*
    Here are typedef's that rename all functions to mod_* instead of 
    modmpz_*, which one day might become an automatic renaming scheme so 
@@ -35,3 +39,5 @@
 #define PRIMODx "Zx"
 #define MOD_PRINT_INT(x) x
 #define MOD_PRINT_MODULUS(m) m
+
+#endif	/* MOD_MPZ_DEFAULT_H_ */

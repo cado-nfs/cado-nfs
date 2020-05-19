@@ -2,7 +2,6 @@
 #define LIST_DOUBLE_VECTOR_H 
 
 #include <stdio.h>
-#include "utils.h"
 #include "list.h"
 #include "mat_double.h"
 

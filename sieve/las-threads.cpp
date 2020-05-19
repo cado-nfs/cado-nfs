@@ -5,7 +5,6 @@
 #include "las-threads.hpp"
 
 #include "macros.h"                // for ASSERT_ALWAYS
-#include "utils.h"
 
 #include "las-report-stats.hpp"    // for TIMER_CATEGORY
 #include "las-auxiliary-data.hpp"         // for nfs_aux

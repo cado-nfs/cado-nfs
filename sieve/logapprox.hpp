@@ -1,7 +1,10 @@
+#ifndef LOGAPPROX_HPP_
+#define LOGAPPROX_HPP_
+
 #include <list>     // for list
 #include <utility>  // for pair
 #include <vector>   // for vector
-#include "utils.h"  // for cxx_double_poly
+#include "double_poly.h"  // for cxx_double_poly
 
 struct piecewise_linear_function {
     std::list<double> endpoints;
@@ -33,3 +36,5 @@ class piecewise_linear_approximator {
     piecewise_linear_approximator(cxx_double_poly const & f, double scale);
     piecewise_linear_function logapprox(double i0, double i1);
 };
+
+#endif	/* LOGAPPROX_HPP_ */

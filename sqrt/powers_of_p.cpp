@@ -10,7 +10,6 @@
 #include <map>
 #include <gmp.h>
 #include <pthread.h>
-#include "utils.h"
 #include "powers_of_p.h"
 
 using namespace std;

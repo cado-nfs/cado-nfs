@@ -6,15 +6,15 @@
 #include <ctime>
 #include <cmath>
 
-#include "portability.h"
-#include "utils.h"
 #include "facul.hpp"
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"
+#include "cxx_mpz.hpp"
 
 #include "generate_strategies.h"
 #include "generate_factoring_method.hpp"
+#include "timing.h"     // microseconds
 
 static double EPSILON_DBL = LDBL_EPSILON;
 

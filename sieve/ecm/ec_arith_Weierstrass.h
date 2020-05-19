@@ -7,6 +7,10 @@
 
 #include "ec_arith_common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Short Weierstrass elliptic curves
  *
  * Affine coordinates, with equation
@@ -682,5 +686,10 @@ weierstrass_proj_smul_ui (ec_point_t P, const unsigned long e,
   }
   /* else do nothing for e == 1 */
 }
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* EC_ARITH_WEIERSTRASS_H_ */

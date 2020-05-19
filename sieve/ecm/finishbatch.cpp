@@ -1,24 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
-
-#include <inttypes.h>          // for PRIi64, PRIu64
-#include <limits.h>            // for ULONG_MAX
-#include <stdio.h>             // for fprintf, stderr, printf, stdout, NULL
-#include <stdlib.h>            // for exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <cinttypes>          // for PRIi64, PRIu64
+#include <climits>            // for ULONG_MAX
+#include <cstdio>             // for fprintf, stderr, printf, stdout, NULL
+#include <cstdlib>            // for exit, EXIT_FAILURE, EXIT_SUCCESS
 #include <array>               // for array, array<>::value_type
 #include <cstdint>             // for uint64_t
 #include <list>                // for list
 #include <sstream>             // for operator<<, ostringstream, ostream
 #include <string>              // for basic_string
 #include <vector>              // for vector
-
 #include <gmp.h>               // for gmp_sscanf, mpz_ptr, mpz_srcptr, gmp_p...
-
-#include "macros.h"            // for ASSERT_ALWAYS
-#include "utils.h"
-
 #include "batch.hpp"           // for cofac_candidate, cofac_list, create_ba...
+#include "gzip.h"       // fopen_maybe_compressed
 #include "las-todo-entry.hpp"  // for las_todo_entry
+#include "macros.h"            // for ASSERT_ALWAYS
+#include "memusage.h"   // PeakMemusage
 #include "relation.hpp"        // for operator<<, relation
+#include "verbose.h"    // verbose_decl_usage
 
 static void declare_usage(param_list pl)
 {

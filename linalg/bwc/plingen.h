@@ -1,5 +1,6 @@
 #ifndef PLINGEN_H_
 #define PLINGEN_H_
+// pragma no prototypes
 
 /* This contains some definitions for lingen mod p.
  *

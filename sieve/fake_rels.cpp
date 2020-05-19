@@ -4,11 +4,16 @@
 #include <cstring> /* for strcmp() */
 #include <cmath> /* for sqrt and floor and log and ceil */
 #include <pthread.h>
-#include "portability.h"
-#include "utils.h"
 #include <vector>
 #include <algorithm>
 #include "cxx_mpz.hpp"
+#include "typedefs.h"   // index_t p_r_values_t
+#include "renumber.hpp" // renumber_t
+#include "relation-tools.h"
+#include "gzip.h"       // fopen_maybe_compressed
+#include "rootfinder.h" // mpz_poly_roots_uint64
+#include "timing.h" // wct_seconds
+#include "verbose.h"    // verbose_decl_usage
 
 /*
  * The goal of this binary is to produce relations that try to be good

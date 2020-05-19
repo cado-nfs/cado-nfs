@@ -1,7 +1,10 @@
 #include "cado.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
-#include "utils.h"
 #include "tests_common.h"
+#include "macros.h"
+#include "rho.h"
 
 /* check relative error is less than emax */
 static int

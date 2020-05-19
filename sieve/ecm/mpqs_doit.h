@@ -1,3 +1,8 @@
+#ifndef MPQS_DOIT_H_
+#define MPQS_DOIT_H_
+
+#include <gmp.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -8,3 +13,5 @@ void smooth_stat (int);
 #ifdef __cplusplus
 }
 #endif
+
+#endif	/* MPQS_DOIT_H_ */

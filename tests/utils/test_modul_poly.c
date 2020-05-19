@@ -7,6 +7,7 @@
 #include "gmp_aux.h"
 #include "tests_common.h"
 #include "cado_poly.h"
+#include "portability.h"
 
 void
 test_modul_poly_is_irreducible (unsigned long iter)

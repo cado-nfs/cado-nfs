@@ -8,7 +8,6 @@
 #include "ecm/batch.hpp"              // for cofac_list
 #include "las-divide-primes.hpp"  // for factor_list_t
 #include "relation.hpp"           // for relation
-#include "utils.h"                // for cxx_mpz
 class nfs_work_cofac;
 struct las_todo_entry;
 struct qlattice_basis;

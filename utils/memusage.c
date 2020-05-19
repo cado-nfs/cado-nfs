@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "portability.h"
+#include "memusage.h"
 
 /* Returns memory usage, in KB 
  * This is the VmSize field in the status file of /proc/pid/ dir

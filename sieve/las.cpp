@@ -39,7 +39,6 @@
 #include <gmp.h>                          // for mpz_srcptr, gmp_vfprintf
 
 #include "macros.h"                       // for ASSERT_ALWAYS, MAX, iceildiv
-#include "utils.h"
 
 #include "ecm/batch.hpp"                      // for cofac_list, cofac_candidate
 #include "bucket.hpp"                     // for bucket_slice_alloc_defaults
@@ -75,6 +74,7 @@
 #include "las-todo-list.hpp"              // for las_todo_list
 #include "las-where-am-i-proxy.hpp"            // for where_am_I
 #include "lock_guarded_container.hpp"     // for lock_guarded_container
+#include "memusage.h"   // PeakMemusage
 #include "multityped_array.hpp"           // for multityped_array
 #include "relation.hpp"                   // for relation, operator<<
 #include "tdict.hpp"                      // for timetree_t, slot, SIBLING_T...

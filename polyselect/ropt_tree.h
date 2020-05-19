@@ -91,6 +91,10 @@ typedef struct MurphyE_pq_t {
 
 /* --- declarations --- */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /* tree, used in ropt_stage1.c */
 void new_tree ( node **root );
@@ -199,6 +203,11 @@ void free_MurphyE_pq ( MurphyE_pq **ppqueue );
 void reset_MurphyE_pq ( MurphyE_pq *pqueue );
 
 void remove_rep_MurphyE ( MurphyE_pq *pqueue );
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* ROPT_TREE_H */

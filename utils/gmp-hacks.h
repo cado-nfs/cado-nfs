@@ -48,6 +48,10 @@
 
 /* Useful for the lazy boyz */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static inline void MPZ_INIT_SET_MPN(mpz_ptr DST, const mp_limb_t * SRC, size_t NLIMBS)
 {
 #if GMP_VERSION_ATLEAST(6, 0, 0)
@@ -94,5 +98,10 @@ static inline void MPN_SET_MPZ(mp_limb_t * DST, size_t NLIMBS, mpz_srcptr SRC)
     memset((DST)+ABS(SIZ(SRC)),0,((NLIMBS)-r) * sizeof(mp_limb_t));
 #endif
 }
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* GMP_HACKS_H_ */	

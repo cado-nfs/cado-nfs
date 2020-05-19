@@ -1,10 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <errno.h>         // for errno
-#include <gmp.h>           // for mpz_t, mpz_fdiv_ui, mpz_gcd_ui
-#include <limits.h>        // for ULONG_MAX
-#include <stdint.h>        // for uint32_t, uint64_t, UINT64_C, UINT64_MAX
-#include <string.h>        // for strchr, strerror, strlen
+#include <cerrno>         // for errno
+#include <climits>        // for ULONG_MAX
+#include <cstdint>        // for uint32_t, uint64_t, UINT64_C, UINT64_MAX
+#include <cstring>        // for strchr, strerror, strlen
 #include <algorithm>       // for max, lower_bound, sort, is_sorted
 #include <cctype>          // for isspace
 #include <cmath>           // for fabs, floor, log2, pow, trunc
@@ -24,12 +23,14 @@
 // #include <sys/mman.h>
 #include <unistd.h>
 #endif
+#include <gmp.h>           // for mpz_t, mpz_fdiv_ui, mpz_gcd_ui
 
 #include "fb.hpp"
+#include "gzip.h"       // fopen_maybe_compressed
 #include "las-fbroot-qlattice.hpp"     // for fb_root_in_qlattice
 #include "threadpool.hpp"  // for thread_pool, task_result, task_parameters
 #include "ularith.h"       // for ularith_invmod
-#include "utils.h"
+#include "verbose.h"             // verbose_output_print
 struct qlattice_basis;
 
 /* {{{ fb_log fb_pow and friends */

@@ -5,6 +5,10 @@
 
 /* declarations */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 unsigned long invert (unsigned long, unsigned long);
 
 unsigned long roots_lift (uint64_t*, mpz_t, unsigned long, mpz_t,
@@ -28,4 +32,9 @@ uint64_t return_q_rq (qroots_t, unsigned long *, unsigned long,
                       mpz_t, mpz_t);
 
 uint64_t return_q_norq (qroots_t, unsigned long *, unsigned long);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

@@ -1,8 +1,6 @@
 #ifndef MPZ_POLY_BIVARIATE_H
 #define MPZ_POLY_BIVARIATE_H 
 
-// IWYU pragma: private, include "utils.h"
-
 #include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>
@@ -24,6 +22,10 @@ typedef struct {
 typedef mpz_poly_bivariate_struct_t mpz_poly_bivariate_t[1];
 typedef mpz_poly_bivariate_struct_t * mpz_poly_bivariate_ptr;
 typedef const mpz_poly_bivariate_struct_t * mpz_poly_bivariate_srcptr;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * Initialize a mpz_poly_bivariate with alloc = d + 1.
@@ -81,5 +83,10 @@ void mpz_poly_bivariate_resultant_y(mpz_poly_ptr resultant,
  */
 void mpz_poly_bivariate_resultant_x(mpz_poly_ptr resultant,
     mpz_poly_bivariate_srcptr f, mpz_poly_bivariate_srcptr g);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MPZ_POLY_BIVARIATE_H */

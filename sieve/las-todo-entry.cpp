@@ -4,7 +4,6 @@
 
 #include "las-todo-entry.hpp"
 
-#include "utils.h"
 
 void las_todo_entry::find_prime_factors()
 {

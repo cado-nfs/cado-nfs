@@ -1,6 +1,5 @@
 #include "cado.h"
 #include <math.h>
-#include "utils.h"
 #include "polyselect/auxiliary.h"
 #include "polyselect/size_optimization.h"
 #include "tests_common.h"

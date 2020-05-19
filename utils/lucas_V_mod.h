@@ -21,6 +21,10 @@
  * the PRAC algorithm.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Given a = V_n (x), b = V_m (x) and d = V_{n-m} (x), compute V_{m+n} (x).
  * r can be the same variable as a or b but must not be the same variable as d.
  */
@@ -150,5 +154,10 @@ mod_V_eval_ul (residue_t r, residue_t rp1, const residue_t b,
   mod_clear (t1, m);
   mod_clear (two, m);
 }
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* LUCAS_V_MOD_H_ */

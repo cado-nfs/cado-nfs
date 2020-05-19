@@ -3,9 +3,9 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
-#include "portability.h"
 #include "tests_common.h"
 #include "verbose.h"
+#include "portability.h"
 
 int verbose;
 volatile size_t conflict;

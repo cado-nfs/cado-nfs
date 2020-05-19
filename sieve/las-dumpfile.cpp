@@ -6,7 +6,6 @@
 #include "las-dumpfile.hpp"
 #include "las-todo-entry.hpp"  // for las_todo_entry
 #include "macros.h"
-#include "utils.h"
 
 dumpfile_t::~dumpfile_t() {
     if (f) fclose(f);

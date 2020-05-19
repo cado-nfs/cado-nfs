@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <gmp.h>
-#include "portability.h"
 #include "macros.h"
 #include "lingen-polymat.h"
 

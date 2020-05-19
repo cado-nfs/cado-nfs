@@ -1,7 +1,7 @@
 #include "cado.h"
 #include <stdio.h>
 #include <ctype.h>
-#include "utils.h"
+#include <string.h>
 #include "cpubinding.h"
 
 /* Example quick use:

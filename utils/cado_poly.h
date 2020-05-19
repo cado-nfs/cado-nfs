@@ -1,8 +1,6 @@
 #ifndef CADO_POLY_H_
 #define CADO_POLY_H_
 
-// IWYU pragma: private, include "utils.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <gmp.h>

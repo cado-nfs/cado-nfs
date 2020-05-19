@@ -3,8 +3,8 @@
 #ifdef HAVE_SSE2
 #include <emmintrin.h>
 #endif
-#include <errno.h>                        // for EAGAIN
-#include <stdio.h>                        // for perror
+#include <cerrno>                        // for EAGAIN
+#include <cstdio>                        // for perror
 #ifdef HAVE_SYS_MMAN_H
 // IWYU pragma: no_include <bits/mman-map-flags-generic.h>
 #include <sys/mman.h>
@@ -12,7 +12,10 @@
 #include <mutex>                          // for lock_guard, mutex
 
 #include "las-memory.hpp"
-#include "utils.h"
+#include "memory.h"             // free_aligned
+#include "misc.h"             // next_power_of_2
+#include "verbose.h"             // verbose_output_print
+#include "portability.h"
 
 #ifndef LARGE_PAGE_SIZE
 #define LARGE_PAGE_SIZE (2UL*1024*1024)

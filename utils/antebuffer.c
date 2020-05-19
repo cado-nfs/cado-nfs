@@ -23,8 +23,8 @@
 #include <pthread.h>
 #include <errno.h>
 #include <time.h>
-#include "portability.h"
 #include "timing.h"
+#include "portability.h"
 
 #ifdef HAVE_MINGW
 int _CRT_fmode = _O_BINARY; /* Binary open for stdin/out/err */

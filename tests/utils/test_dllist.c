@@ -3,6 +3,7 @@
 #include "tests_common.h"
 #include "macros.h"
 #include "dllist.h"
+#include "portability.h"
 
 void
 test_dllist(size_t len)

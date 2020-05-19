@@ -5,7 +5,6 @@
 #include <math.h>
 #include <time.h>
 #include <stdlib.h>
-#include "utils.h"
 #include "sieving_bound.h"
 #include "parameters.h"
 #include "polyselect/rho.h"

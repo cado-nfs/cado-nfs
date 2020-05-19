@@ -1,12 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <limits.h>     // for ULONG_MAX
-#include <stdio.h>      // for fprintf, stderr, NULL, fclose, fopen, stdout
-#include <stdlib.h>     // for exit, EXIT_FAILURE, EXIT_SUCCESS
-
-#include "utils.h"
-
+#include <climits>     // for ULONG_MAX
+#include <cstdio>      // for fprintf, stderr, NULL, fclose, fopen, stdout
+#include <cstdlib>     // for exit, EXIT_FAILURE, EXIT_SUCCESS
 #include "batch.hpp"    // for create_batch_file
+#include "verbose.h"    // verbose_decl_usage
 
 
 static void declare_usage(param_list pl)

@@ -207,7 +207,7 @@ linalg/bwc/raw_matrix_u32.h
 linalg/bwc/rolling.c
 linalg/bwc/rolling.h
 linalg/bwc/secure.cpp
-linalg/bwc/strassen-thresholds.h
+linalg/bwc/strassen-thresholds.hpp
 linalg/bwc/worker-threads.c
 linalg/bwc/worker-threads.h
 linalg/bwc/xdotprod.c
@@ -282,7 +282,6 @@ polyselect/gfpkdlpolyselect.c
 polyselect/table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h
 polyselect/table_t_Py_f_deg4_type0_h1_t-200--200.h
 polyselect/polyselect.c
-polyselect/polyselect.h
 polyselect/polyselect_arith.c
 polyselect/polyselect_arith.h
 polyselect/polyselect_str.c
@@ -1394,7 +1393,6 @@ sieve/las-divide-primes.hpp
 sieve/las-dumpfile.cpp
 sieve/las-dumpfile.hpp
 sieve/las-where-am-i-proxy.hpp
-sieve/las-trace-tool.h
 sieve/bucket.cpp
 sieve/las-apply-buckets.hpp
 sieve/las-where-am-i-debug.cpp
@@ -1435,3 +1433,7 @@ tests/utils/test_fstream_maybe_compressed.cpp
 utils/badideals.hpp
 utils/badideals_main.cpp
 tests/utils/test-sort.cpp
+scripts/check_portability_h.sh
+scripts/check_compilation_units_include_headers.sh
+scripts/check_header_protections.sh
+utils/omp_proxy.h

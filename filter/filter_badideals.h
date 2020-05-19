@@ -2,7 +2,7 @@
 #define FILTER_BADIDEALS_H_
 
 #include <stdint.h>
-#include "utils.h"      // p_r_values_t
+#include "typedefs.h"      // p_r_values_t
 
 /* The information from this structure is the one found in the
  * .badidealinfo filename

@@ -1,8 +1,6 @@
 #ifndef GMPXX_HPP_
 #define GMPXX_HPP_
 
-// IWYU pragma: private, include "utils.h"
-
 #include <gmp.h>
 #include <istream>
 #include <ostream>

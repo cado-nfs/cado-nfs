@@ -21,7 +21,6 @@
 #include "bwc_config.h"
 using namespace std;
 
-#include "portability.h"
 
 #include "mpfq_layer.h"
 #include "matmul-common.h"

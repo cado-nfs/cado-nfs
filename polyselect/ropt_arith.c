@@ -5,6 +5,7 @@
 
 
 #include "cado.h"
+#include "mod_ul.h"
 #include "ropt_arith.h"
 
 

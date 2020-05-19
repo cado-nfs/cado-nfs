@@ -1,4 +1,5 @@
 #include "cado.h"
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,10 +7,10 @@
 #include <time.h>
 #include <gmp.h>
 #include "bwc_config.h"
-#include "portability.h"
 #include "macros.h"
-#include "utils.h"
 #include "parallelizing_info.h"
+#include "portability.h"
+#include "verbose.h"    // verbose_enabled
 
 /* the files below are not useful for the standalone program */
 #ifndef WANT_MAIN

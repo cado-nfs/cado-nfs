@@ -56,7 +56,6 @@
 #include "macros.h"                       // for ASSERT_ALWAYS, ASSERT, MAX
 #include "tdict.hpp"                      // for slot, timetree_t, CHILD_TIMER
 #include "threadpool.hpp"                 // for worker_thread, thread_pool
-#include "utils.h"
 
 MAYBE_UNUSED static inline void subusb(unsigned char *S1, unsigned char *S2, ssize_t offset)
 {

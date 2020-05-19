@@ -1,15 +1,11 @@
 #include "cado.h"
-#include "portability.h"
-#include "utils.h"
-#include "tab_fm.h"
-
-#include <float.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <stdbool.h>
-
+#include <cfloat>
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
 #include "facul.hpp"
+#include "tab_fm.h"
+#include "macros.h"
 
 static const double EPSILON_DBL = 0.000001;
 

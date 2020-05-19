@@ -6,7 +6,6 @@
 #include "cado.h"
 #include <math.h>
 #include <inttypes.h>
-#include "portability.h"
 #include "facul_ecm.h"
 
 /* define to print number of operations of ECM (/!\ not thread-safe) */

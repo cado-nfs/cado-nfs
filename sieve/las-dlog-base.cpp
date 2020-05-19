@@ -9,7 +9,9 @@
 #include "las-multiobj-globals.hpp"
 #include "macros.h"    // for ASSERT_ALWAYS
 #include "typedefs.h"  // for index_t
-#include "utils.h"     // for cxx_param_list, param_list_decl_usage, verbose...
+#include "params.h"     // param_list_parse_*
+#include "verbose.h"    // verbose_output_print
+#include "portability.h"
 
 void las_dlog_base::declare_usage(cxx_param_list & pl)
 {

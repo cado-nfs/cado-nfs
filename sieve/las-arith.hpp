@@ -8,7 +8,8 @@
 
 #include "macros.h"       // for ASSERT, UNLIKELY, GNUC_VERSION_ATLEAST, MAY...
 #include "fb-types.h"     // for fbprime_t
-#include "utils.h"        // for modul_clear, modul_clearmod, modul_get_ul
+#include "misc.h"          // cado_ctz
+#include "mod_ul.h"        // for modul_clear, modul_clearmod, modul_get_ul
 
 /* This header file is also #include'd by tests/sieve/torture-redc.cpp,
  * which (as its name says) checks that redc_32 and redc_u32 hold to

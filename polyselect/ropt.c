@@ -11,7 +11,6 @@
 
 #include "cado.h"
 #include "ropt.h"
-#include "portability.h"
 #include "area.h"
 #include "size_optimization.h"
 

@@ -10,8 +10,6 @@
 #include <time.h>
 #include <errno.h>
 #include <math.h>
-#include "portability.h"
-#include "utils.h"
 #include "mf.h"
 #include "balancing.h"
 #include "rowset_heap.h"

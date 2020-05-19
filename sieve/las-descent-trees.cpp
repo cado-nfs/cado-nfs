@@ -7,8 +7,8 @@
 #include <sstream>
 
 #include "las-descent-trees.hpp"
+#include "portability.h"
 
-#include "utils.h"  // for strlcpy
 
 using namespace std;
 

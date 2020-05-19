@@ -1,8 +1,6 @@
 #ifndef CADO_UTILS_GETPRIME_H_
 #define CADO_UTILS_GETPRIME_H_
 
-// IWYU pragma: private, include "utils.h"
-
 #ifndef MAIN
 #include "macros.h"
 #else

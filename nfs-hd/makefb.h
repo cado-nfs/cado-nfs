@@ -1,7 +1,6 @@
 #ifndef MAKEFB_H
 #define MAKEFB_H
 
-#include "utils.h"
 #include <stdint.h>
 #include "factor_base.h"
 

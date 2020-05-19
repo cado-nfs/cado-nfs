@@ -9,8 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <gmp.h>
-#include "portability.h"
-#include "utils.h"
+#include "mpz_poly.h"
+#include "mpz_vector.h"
+#include "gmp_aux.h"       // mpz_set_uint64
 
 
 void

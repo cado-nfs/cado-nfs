@@ -4,8 +4,12 @@
 #include <string.h> /* for strcmp() */
 #include <math.h> /* for sqrt and floor and log and ceil */
 #include <pthread.h>
-#include "portability.h"
-#include "utils.h"
+#include "cado_poly.h"
+#include "getprime.h"   // getprime
+#include "gzip.h"       // fopen_maybe_compressed
+#include "mpz_poly.h"   // mpz_poly
+#include "rootfinder.h"
+#include "verbose.h"
 
 /*
  * Compute g(x) = f(a*x+b), with deg f = d, and a and b are longs.

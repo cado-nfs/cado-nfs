@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <math.h>
-#include "utils.h"
 #include "sieving_bound.h"
 #include "vector.h"
 

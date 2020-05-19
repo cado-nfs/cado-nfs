@@ -1,6 +1,8 @@
 #include "cado.h"
+#include <stdlib.h>
+#include <string.h>
+
 #include "lingen_qcode.h"
-#include "utils.h"
 
 void lingen_qcode_init(lingen_qcode_data_ptr qq, unsigned int m, unsigned int b, unsigned int length, unsigned int outlength)
 {

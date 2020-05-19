@@ -38,7 +38,6 @@ using std::isinf;
  * may perhaps be a bug. Anyway, it seems that the cmath way is better.
  */
 
-#include "portability.h"
 #include "gcd.h"
 #include "double_poly.h"
 

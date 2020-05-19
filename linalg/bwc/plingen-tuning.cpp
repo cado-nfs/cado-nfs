@@ -4,33 +4,21 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <errno.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <cerrno>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <unistd.h>
-#include <assert.h>
-#include <float.h>
+#include <cassert>
+#include <cfloat>
 #ifdef  HAVE_SIGHUP
-#include <signal.h>
+#include <csignal>
 #endif
 #ifdef  HAVE_OPENMP
 #include <omp.h>
 #endif
-
-#include "portability.h"
-#include "macros.h"
-#include "utils.h"
-#include "mpfq_layer.h"
-#include "lingen-polymat.h"
-#include "lingen-matpoly.h"
-// #include "lingen-bigpolymat.h" // 20150826: deleted.
-#include "lingen-matpoly-ft.h"
-#include "plingen.h"
-#include "plingen-tuning.h"
-
 #include <vector>
 #include <array>
 #include <utility>
@@ -39,6 +27,15 @@
 #include <ostream>
 #include <iostream>
 #include <sstream>
+#include "macros.h"
+#include "mpfq_layer.h"
+#include "lingen-polymat.h"
+#include "lingen-matpoly.h"
+#include "lingen-matpoly-ft.h"
+#include "plingen.h"
+#include "plingen-tuning.h"
+#include "timing.h"     // wct_seconds
+#include "cxx_mpz.hpp"  // cxx_mpz
 
 /* Assume we output something like one gigabyte per second. This is
  * rather conservative for HPC networks */

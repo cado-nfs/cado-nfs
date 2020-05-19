@@ -6,7 +6,6 @@
 #include <string.h>
 #include <gmp.h>
 #include <inttypes.h>
-#include "utils.h"
 #include "macros.h"
 #include "getprime.h"
 #include "makefb.h"

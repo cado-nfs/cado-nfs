@@ -15,10 +15,11 @@
 #define EMIT_ADDRESSABLE_shash_add
 
 #include "cado.h"
-#include "twocubics.h"
-#include "portability.h"
 #include "mpz_poly.h"
 #include "area.h"
+#include "polyselect_str.h"
+#include "polyselect_arith.h"
+#include "modredc_ul.h"
 
 #define TARGET_TIME 10000000 /* print stats every TARGET_TIME milliseconds */
 #define NEW_ROOTSIEVE

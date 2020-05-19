@@ -13,6 +13,8 @@
 #include "las-todo-list.hpp"
 #include "las-galois.hpp"  // for skip_galois_roots
 #include "macros.h"        // for ASSERT_ALWAYS
+#include "rootfinder.h" // mpz_poly_roots_ulong
+#include "verbose.h"    // verbose_output_print
 
 /* Put in r the smallest legitimate special-q value that it at least
  * s + diff (note that if s+diff is already legitimate, then r = s+diff

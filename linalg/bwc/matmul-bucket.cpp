@@ -29,7 +29,8 @@
 #include <limits>       // underlying_type_{min,max}
 #include <fmt/printf.h>
 #include "macros.h"
-#include "utils.h"
+#include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
+#include "timing.h"     // wct_seconds
 #include "bwc_config.h"
 using namespace std;
 
@@ -55,6 +56,7 @@ using namespace std;
 #include "matmul-common.h"
 
 #include "matmul_facade.h"
+#include "portability.h"
 
 /* {{{ Documentation
  *

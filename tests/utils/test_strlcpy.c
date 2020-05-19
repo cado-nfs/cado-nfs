@@ -39,6 +39,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "misc.h"
+#include "portability.h"
 
 #define PEGASUS_TEST_ASSERT(X) ASSERT_ALWAYS(X)
 #define Strlcpy strlcpy

@@ -5,7 +5,6 @@
 #include <limits.h>
 #include <gmp.h>
 #include <time.h>
-#include "portability.h"
 #include "tests_common.h"
 #include ARITHMETIC
 

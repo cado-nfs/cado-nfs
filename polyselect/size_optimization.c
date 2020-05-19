@@ -1,9 +1,11 @@
 #include "cado.h"
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "utils.h"
 #include "auxiliary.h"
+#include "gcd.h"        // gcd_uint64
+#include "lll.h"        // mat_Z, LLL
 #include "size_optimization.h"
 
 

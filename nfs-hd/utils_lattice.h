@@ -2,7 +2,6 @@
 #define UTILS_SIEVE_H 
 
 #include <stdint.h>
-#include "utils.h"
 #include "int64_vector.h"
 #include "double_vector.h"
 #include "mat_int64.h"

@@ -2,7 +2,6 @@
 // TODO: did not work.
 
 #include <stdlib.h>
-#include "utils.h"
 #include "parameters.h"
 
 int main()

@@ -11,9 +11,9 @@
 #include "params.h"
 #include "macros.h"
 #include "misc.h"
-#include "portability.h"
 #include "version_info.h"
 #include "verbose.h"
+#include "portability.h"
 
 typedef int (*sortfunc_t) (const void *, const void *);
 

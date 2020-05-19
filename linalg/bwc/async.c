@@ -7,10 +7,11 @@
 #include <ctype.h>
 #include "bwc_config.h"
 #include "async.h"
-#include "portability.h"
 #include "macros.h"
 #include "bw-common.h"
-#include "utils.h"
+#include "portability.h"
+#include "timing.h" // seconds_user_sys
+#include "verbose.h"  // verbose_enabled
 
 // int int_caught = 0;
 int hup_caught = 0;

@@ -15,10 +15,10 @@
 #include "bwc_config.h"
 #include "select_mpi.h"
 #include "parallelizing_info.h"
-#include "portability.h"
 #include "macros.h"
 #include "misc.h"
 #include "verbose.h"
+#include "portability.h"
 
 
 #include <sys/time.h>   // gettimeofday

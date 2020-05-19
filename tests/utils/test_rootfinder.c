@@ -4,12 +4,12 @@
 #include <string.h>
 #include <gmp.h>
 #include "rootfinder.h"
-#include "portability.h"
 #include "test_iter.h"
 #include "tests_common.h"
 #include "mpz_poly.h"
 #include "macros.h"
 #include "gmp_aux.h"
+#include "portability.h"
 
 int cmp(mpz_t * a, mpz_t * b)
 {

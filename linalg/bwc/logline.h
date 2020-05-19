@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include "utils.h"
+#include "params.h"      // param_list_ptr
 
 #ifdef __cplusplus
 extern "C" {

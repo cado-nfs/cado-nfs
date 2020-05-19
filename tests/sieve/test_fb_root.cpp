@@ -1,11 +1,12 @@
 /* test fb_root_in_qlattice_31bits */
 
 #include "cado.h"
+#include <vector>
+#include <gmp.h>
 #include "macros.h"
-#include "gmp.h"
 #include "las-qlattice.hpp"
 #include "las-fbroot-qlattice.hpp"
-#include <vector>
+#include "timing.h"  // seconds
 
 /* return (R*b1-a1)/(a0-R*b0) % p */
 static fbprime_t

@@ -1,13 +1,13 @@
 #include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "portability.h"
-
-#include "utils_with_io.h"
+#include <pthread.h>
+#include "bit_vector.h" // BV_BITS
 #include "filter_config.h"
 #include "purge_matrix.h"
 #include "singleton_removal.h"
+#include "misc.h"       // for UMAX
+#include "timing.h"     // seconds
 
 /* If HAVE_SYNC_FETCH is not defined, we will use mutex for multithreaded
  * version of the code. May be too slow. */

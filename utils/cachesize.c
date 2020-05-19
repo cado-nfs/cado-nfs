@@ -2,7 +2,6 @@
 #include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "portability.h"
 #include "version_info.h"
 
 int cachesize_cpuid(int verbose);

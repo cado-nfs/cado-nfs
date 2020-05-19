@@ -18,6 +18,8 @@
 #endif
 
 #include "bucket.hpp"              // for bucket_array_t, bucket_update_t
+#include "memory.h"             // free_aligned
+#include "verbose.h"             // verbose_output_print
 
 #include "bucket-push-update.hpp"  // for bucket_single::push_update
 #include "fb-types.h"              // for slice_index_t, FBPRIME_FORMAT, fbp...
@@ -28,7 +30,6 @@
 #include "las-memory.hpp"          // for las_memory_accessor
 #include "las-where-am-i-proxy.hpp" // IWYU pragma: keep    // for where_am_I
 #include "macros.h"                // for MAYBE_UNUSED, ASSERT_ALWAYS, UNLIKELY
-#include "utils.h"
 #ifdef TRACE_K
 #include "las-output.hpp"          // for TRACE_CHANNEL
 #endif

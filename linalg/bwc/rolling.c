@@ -11,11 +11,11 @@
 #include "bwc_config.h"
 #include "params.h"
 #include "async.h"
-#include "portability.h"
 #include "misc.h"
 
 #include "rolling.h"
 #include "bw-common.h"
+#include "portability.h"
 
 typedef int (*sortfunc_t) (const void *, const void *);
 

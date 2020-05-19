@@ -1,23 +1,21 @@
 #include "cado.h"
 
-#include <float.h>
+#include <cfloat>
+#include <cmath>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
 #include <gmp.h>
-#include <math.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
+#include <cxx_mpz.hpp>
 
-
-#include "portability.h"
-#include "utils.h"
 #include "facul.hpp"
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"
 #include "generate_factoring_method.hpp"
 #include "convex_hull.h"
+#include "timing.h"  // microseconds
 
 /*
   BOUND_SIGMA is used when you generate a random value of sigma.

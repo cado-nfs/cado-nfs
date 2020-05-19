@@ -17,6 +17,10 @@ static unsigned int _count_montgomery_dadd, _count_montgomery_dbl;
     } while (0)
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Montgomery elliptic curves
  *
  * XZ-only coordinates, with equation:
@@ -424,5 +428,10 @@ montgomery_curve_order (residue_t A, ec_point_t P, const modulus_t m)
   return order;
 }
 #endif /* defined(MOD_SIZE) && MOD_SIZE == 1 */
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EC_ARITH_MONTGOMERY_H_ */

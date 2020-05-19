@@ -6,6 +6,10 @@
 #include "tab_point.h"
 #include "convex_hull.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /************************************************************************/
 /*                      COLLECT DATA FOR ONLY ONE COFACTOR              */
 /************************************************************************/
@@ -51,5 +55,9 @@ tabular_strategy_t *convert_tab_strategy_to_tab_point(tabular_point_t * t,
 						      init);
 
 tabular_strategy_t *convex_hull_strategy(tabular_strategy_t * t);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif				/* GENERATE_STRATEGIES */

@@ -14,12 +14,13 @@
 #include <vector>
 
 #include <hwloc.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
 
-#include "utils.h"
 #include "cpubinding.h"
+#include "portability.h"
+#include "params.h"     // param_list
 
 /* This causes all messages to be immediately printed to stderr, instead
  * of being captured to a string */

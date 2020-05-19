@@ -2,7 +2,6 @@
 #define ARRAY_H
 
 #include <stdio.h>
-#include "utils.h"
 #include "int64_vector.h"
 
 /* TODO: this looks like reinventing the wheel again and

@@ -20,7 +20,6 @@
 #include "las-where-am-i-proxy.hpp"    // for extern_trace_on_spot_ab
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
 #include "relation.hpp"                // for relation
-#include "utils.h"                     // for cxx_mpz, bin_gcd_int64_safe
 
 struct qlattice_basis;
 

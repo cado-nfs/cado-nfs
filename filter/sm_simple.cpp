@@ -9,14 +9,15 @@
    */
 
 #include "cado.h"
-
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <gmp.h>
-#include <string.h>
-
 #include "macros.h"
-#include "utils.h"
+#include "mpz_poly.h"   // mpz_poly
+#include "sm_utils.h"   // sm_side_info
+#include "timing.h"     // seconds
+#include "verbose.h"    // verbose_output_print
 
 static void my_sm(const char *outfile, const char *infile, 
 		  sm_side_info *sm_info, int nb_polys)
@@ -94,7 +95,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "inp", "(required) input file containing relations");
   param_list_decl_usage(pl, "out", "output file");
   param_list_decl_usage(pl, "ell", "(required) group order");
-  param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-utils.h)");
+  param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-portability.h)");
   verbose_decl_usage(pl);
 }
 

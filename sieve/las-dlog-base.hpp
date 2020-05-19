@@ -3,7 +3,7 @@
 
 #include <cstdint>  // for uint64_t
 #include <vector>    // for vector
-#include "utils.h"   // for renumber_t
+#include "renumber.hpp"   // for renumber_t
 
 struct las_dlog_base {
 private:

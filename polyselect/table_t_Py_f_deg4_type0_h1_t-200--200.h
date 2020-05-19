@@ -1,3 +1,7 @@
+#ifndef TABLE_T_PY_F_DEG4_TYPE0_H1_T_200__200_H_
+#define TABLE_T_PY_F_DEG4_TYPE0_H1_T_200__200_H_
+
+// pragma no prototypes
 
 /*
        f := x^4 - t*x^3 - 6*x^2 + t*x + 1;
@@ -52,3 +56,4 @@ table_f4.deg_Py = 2;
 table_f4.varphi = {{-1, 0}, {0, 1}, {1,0}}; // -1 + y*X + X^2
 */
 
+#endif

@@ -7,7 +7,6 @@
 #include "select_mpi.h"
 #include "params.h"
 #include "xvectors.h"
-#include "portability.h"
 #include "misc.h"
 #include "bw-common.h"
 #include "async.h"
@@ -17,6 +16,8 @@
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "cheating_vec_init.h"
+#include "portability.h"
+#include "bit_vector.h"
 
 int exit_code = 0;
 

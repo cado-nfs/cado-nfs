@@ -4,9 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "portability.h"
-#include "utils.h"
 #include "finding_good_strategy.h"
+#include "params.h"     // param_list
 
 /************************************************************************/
 /*             USAGE                                                    */

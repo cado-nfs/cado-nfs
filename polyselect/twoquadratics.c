@@ -4,8 +4,6 @@
 #include <gmp.h>
 #include <assert.h>
 #include <math.h>
-#include "portability.h"
-#include "utils.h"
 #include "auxiliary.h"
 #include "area.h"
 #include "murphyE.h"

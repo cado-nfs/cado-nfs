@@ -9,8 +9,6 @@
 #include "matmul-common.h"
 #include "mpfq_layer.h"
 #include "worker-threads.h"
-#include "portability.h"
-#include "utils.h"
 
 #include "matmul_facade.h"
 

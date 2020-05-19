@@ -26,24 +26,22 @@ command line is faster than the current code:
 
 #include "cado.h"
 #include "macros.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h> /* for UINT32_MAX */
-#include <inttypes.h>
-#include <string.h>
-#include <assert.h>
-
-
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint> /* for UINT32_MAX */
+#include <cinttypes>
+#include <cstring>
+#include <cassert>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
-
-
-#include "../utils/gzip.h"
-#include "gmp.h"
-#include "portability.h"
-#include "utils_with_io.h"
+#include <unistd.h>
+#include <gmp.h>
+#include "cado_poly.h"
+#include "renumber.hpp"
+#include "gzip.h"
+#include "filter_io.h"  // filter_rels
 
 #define MAX_PRIMES 255 /* maximal number of factor base primes */
 #define MAX_LPRIMES 3  /* maximal number of large primes */
@@ -84,12 +82,12 @@ uint64_t relations_written = 0;
 timingstats_dict_t stats = {0};
 
 typedef struct {
-    pid_t pid;
-    int fd[2];
+    pid_t pid = 0;
+    int fd[2] = {0,};
 
-    char readbuf[16 * 1024];
-    int bufsize;
-    int readpos;
+    char readbuf[16 * 1024] = {0,};
+    int bufsize = 0;
+    int readpos = 0;
 } worker_t;
 
 typedef struct {
@@ -137,7 +135,7 @@ typedef struct relation_data {
     const int out_alg_first;
 
     cado_poly_ptr poly;
-    renumber_ptr renumber;
+    const renumber_t * renumber;
 
     read_relation_func read_relation;
     print_relation_func print_relation;
@@ -769,7 +767,7 @@ read_relation_cwi (FILE *fp, relation_t *rel, relation_data_t* data)
         rat_now ? &rel->rfb_entries : &rel->afb_entries;
       unsigned long *primes = rat_now ? rel->rprimes : rel->aprimes;
       unsigned long *exps = rat_now ? rel->rexp : rel->aexp;
-      char *side_name = rat_now ? "rational" : "algebraic";
+      const char *side_name = rat_now ? "rational" : "algebraic";
       unsigned int n;
 
       n = cwi_char_to_idx(flag[2 + side]);
@@ -903,7 +901,8 @@ read_relation_ggnfs (FILE *fp, relation_t *rel, relation_data_t* data)
  * Bluntly stolen from check_rels, should be refactored.
  * renumbered relations do not contain all the prime factors for the relation, we use this function to add the missing primes.
  */
-static int fix_relation(relation_t *rel, cado_poly_ptr cpoly, unsigned long* lpb) {
+static int fix_relation(relation_t *rel, cado_poly_ptr cpoly, unsigned int * lpb)
+{
   mpz_t norm[NB_POLYS_MAX];
   int err = 0;
   unsigned long lpb_max[NB_POLYS_MAX];
@@ -984,7 +983,7 @@ read_relation_renumbered (FILE *fp, relation_t *rel, relation_data_t* data)
 {
   int c;
   cado_poly_ptr poly = data->poly;
-  renumber_ptr renumber_table = data->renumber;
+  const renumber_t * renumber_table = data->renumber;
 
   if (fscanf (fp, "%" SCNx64 ",%" SCNx64 ":", &(rel->a), &(rel->b)) != 2)
     {
@@ -1020,22 +1019,21 @@ read_relation_renumbered (FILE *fp, relation_t *rel, relation_data_t* data)
 
   do {
     unsigned long i;
-    p_r_values_t p, r;
-    int side;
+    renumber_t::p_r_side x;
     if (fscanf (fp, "%lx", &i) == 1) {
         if (i == 0) {
             c = getc (fp);
             break;
         }
-        renumber_get_p_r_from_index(renumber_table, &p, &r, &side, i, poly);
-        if (side == 0) {
-            add_prime (rel->rprimes, rel->rexp, &rel->rfb_entries, p);
+        x = renumber_table->p_r_from_index(i);
+        if (x.side == 0) {
+            add_prime (rel->rprimes, rel->rexp, &rel->rfb_entries, x.p);
         }
-        else if (side == 1) {
-            add_prime (rel->aprimes, rel->aexp, &rel->afb_entries, p);
+        else if (x.side == 1) {
+            add_prime (rel->aprimes, rel->aexp, &rel->afb_entries, x.p);
         }
         else {
-            fprintf (stderr, "Got unexpected side: %d", side);
+            fprintf (stderr, "Got unexpected side: %d", x.side);
             exit(1);
         }
     }
@@ -1053,7 +1051,10 @@ read_relation_renumbered (FILE *fp, relation_t *rel, relation_data_t* data)
   }
 
   /* Add missing primes - Not they will be added out-of-order */
-  fix_relation(rel, poly, renumber_table->lpb);
+  std::vector<unsigned int> lpb;
+  for(int side = 0 ; side < (int) renumber_table->get_nb_polys() ; side++)
+      lpb.push_back(renumber_table->get_lpb(side));
+  fix_relation(rel, poly, &lpb[0]);
 
   return 1;
 }
@@ -1122,7 +1123,7 @@ convert_relations (FILE* infp, FILE* outfp, int lpb, int multi, unsigned int rel
 /* read fp until the string s is found,
    the next char read by getc (fp) is the one following s. */
 void
-get_string (char *s, FILE *fp, int verbose)
+get_string (const char *s, FILE *fp, int verbose)
 {
   int l, i, c;
 
@@ -1265,7 +1266,7 @@ void* read_rels(void* _args) {
     int len = 0;
     uint32_t i = 0;
 
-    if (verbose) fprintf(stderr, "# read_rels() started tid=%ld\n", gettid());
+    if (verbose) fprintf(stderr, "# read_rels() started\n");
 
     for (i = 0; fgets(line, sizeof(line) / sizeof(line[0]), fp) != NULL; i++) {
         len = strlen(line);
@@ -1296,7 +1297,7 @@ void* read_ggnfs_rels(void* _args) {
     size_t ok = 0;
     size_t written = 0;
 
-    if (verbose) fprintf(stderr, "# read_ggnfs_rels() started tid=%ld\n", gettid());
+    if (verbose) fprintf(stderr, "# read_ggnfs_rels() started\n");
 
     for (i = 0; !feof(fp); i++) {
         int fd = workers[i % num_workers].fd[0];
@@ -1364,7 +1365,7 @@ void* read_ggnfs_rels(void* _args) {
 #define READ_PARTIAL  0
 #define READ_COMPLETE 1
 
-int read_until(worker_t* worker, char** buf, int* bufsize, char* needle) {
+int read_until(worker_t* worker, char** buf, int* bufsize, const char* needle) {
     int ret = 0;
     if (worker->readpos >= worker->bufsize) {
         ret = read(worker->fd[0], worker->readbuf, sizeof(worker->readbuf));
@@ -1380,7 +1381,7 @@ int read_until(worker_t* worker, char** buf, int* bufsize, char* needle) {
     *buf = &worker->readbuf[worker->readpos];
     *bufsize = worker->bufsize - worker->readpos;
 
-    char* ptr = memmem(&worker->readbuf[worker->readpos], *bufsize, needle, strlen(needle));
+    const char* ptr = (const char *) memmem(&worker->readbuf[worker->readpos], *bufsize, needle, strlen(needle));
     if (ptr == NULL) {
         // Consume all buffer
         worker->readpos = worker->bufsize;
@@ -1403,7 +1404,7 @@ void* write_rels(void* _args) {
     int num_workers = args->num_workers;
     FILE* fp MAYBE_UNUSED = args->fp;
 
-    if (verbose) fprintf(stderr, "# write_rels() started tid=%ld\n", gettid());
+    if (verbose) fprintf(stderr, "# write_rels() started\n");
     char* buf;
     int bufsize;
     int ret = READ_EOF;
@@ -1456,7 +1457,7 @@ main (int argc, char *argv[])
 
   uint32_t rels_in_file = UINT32_MAX;
 
-  worker_t workers[MAX_THREADS] = {0};
+  worker_t workers[MAX_THREADS];
 
   cado_poly poly;
   renumber_t renumber_table;
@@ -1662,8 +1663,7 @@ main (int argc, char *argv[])
           exit(1);
       }
 
-      renumber_init_for_reading (renumber_table);
-      renumber_read_table (renumber_table, renumberfile);
+      renumber_table = renumber_t(renumberfile);
   }
 
   switch (iformat) {
@@ -1711,7 +1711,7 @@ main (int argc, char *argv[])
           .afb = afb,
 
           .poly = poly,
-          .renumber = renumber_table,
+          .renumber = & renumber_table,
 
           .in_alg_first = in_alg_first,
           .out_alg_first = out_alg_first,

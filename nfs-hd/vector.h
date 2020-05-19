@@ -1,6 +1,9 @@
 #ifndef VECTOR_H
 #define VECTOR_H 
 
+// pragma no prototypes
+#include <stdint.h>
+
 /*
  * int64_vector.
  */

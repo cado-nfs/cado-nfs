@@ -28,14 +28,26 @@
  */
 #include <stdio.h>
 #include <limits.h> /* for CHAR_BIT */
-#include "portability.h"
-#include "polyselect.h"
-#include "mpz_poly.h"
-#include "size_optimization.h"
-#include "roots_mod.h"
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
+#include <gmp.h>
+
+#include "gcd.h"       // for gcd_ul
+#include "getprime.h"   // getprime
+#include "gmp_aux.h"       // mpz_set_uint64
+#include "mpz_poly.h"
+#include "roots_mod.h"
+#include "size_optimization.h"
+#include "timing.h"             // for seconds
+#include "usp.h"        // usp_root_data
+#include "verbose.h"             // verbose_output_print
+#include "portability.h"
+#include "cado_poly.h"
+#include "auxiliary.h"
+#include "polyselect_str.h"
+#include "polyselect_arith.h"
+#include "modredc_ul.h"
 
 #define INIT_FACTOR 8UL
 #define PREFIX_HASH

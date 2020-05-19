@@ -28,6 +28,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <stdlib.h>
 #include <fcntl.h>         /* for _O_BINARY */
 #include "filter_config.h" /* for definition of USE_HEAP */
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "params.h"     // param_list_parse_*
+#include "typedefs.h"  // weight_t
+#include "misc.h"       // UMAX
+#include "memory.h"             // malloc_aligned
+#include "memusage.h"   // PeakMemusage
+#include "gcd.h"        // gcd_int64
+#include "gzip.h"       // fopen_maybe_compressed
+#include "timing.h"  // seconds
+#include "verbose.h"    // verbose_interpret_parameters
+#include "omp_proxy.h"    // verbose_interpret_parameters
 
 int pass = 0;
 
@@ -65,10 +76,8 @@ unsigned long cancel_cols[CANCEL_MAX] = {0,};
 #define CBOUND_INCR 31
 #endif
 
-#include "portability.h"
 
 #include "filter_config.h"
-#include "utils_with_io.h"
 #include "merge_replay_matrix.h" /* for filter_matrix_t */
 #include "report.h"     /* for report_t */
 #include "sparse.h"

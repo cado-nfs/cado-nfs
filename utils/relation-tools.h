@@ -1,9 +1,6 @@
 #ifndef RELATION_TOOLS_H_
 #define RELATION_TOOLS_H_
 
-// IWYU pragma: private, include "utils.h"
-
-#include "utils.h"
 #include "typedefs.h"
 
 #ifdef __cplusplus

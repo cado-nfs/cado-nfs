@@ -16,7 +16,6 @@
 #include "las-todo-entry.hpp"     // for las_todo_entry
 #include "las-todo-list.hpp"      // for las_todo_list
 #include "relation.hpp"           // for relation::pr, relation
-#include "utils.h"                // for cxx_mpz, verbose_output_print, verb...
 
 /* This returns true only if this descent node is now done, either based
  * on the new relation we have registered, or because the previous

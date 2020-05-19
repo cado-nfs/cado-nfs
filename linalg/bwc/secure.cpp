@@ -13,7 +13,6 @@
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "async.h"
-#include "portability.h"
 #include <algorithm>
 #include "cheating_vec_init.h"
 #include "fmt/printf.h"

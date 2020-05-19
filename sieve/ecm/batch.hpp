@@ -8,7 +8,8 @@
 #include <utility>      // for move
 #include <gmp.h>        // for mpz_t
 #include "macros.h"  // for MAYBE_UNUSED
-#include "utils.h"   // for cxx_mpz, cxx_cado_poly, cxx_mpz_poly
+#include "cado_poly.h"   // cxx_cado_poly
+#include "cxx_mpz.hpp"   // for cxx_mpz
 
 struct las_todo_entry;
 struct relation;

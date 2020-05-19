@@ -19,7 +19,6 @@
 #include <sstream>
 #include <gmp.h>
 #include "macros.h"
-#include "utils.h"
 #include "numbertheory.hpp"
 
 using namespace std;

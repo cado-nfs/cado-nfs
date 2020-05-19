@@ -7,8 +7,8 @@
 #include "cado.h"
 #include "ropt_io.h"
 #include "ropt.h"
-#include "portability.h"
 #include "size_optimization.h"
+#include "usp.h"
 
 /**
  * Get L1 cache size in the beginning.

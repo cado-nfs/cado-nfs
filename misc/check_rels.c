@@ -16,9 +16,16 @@
 #include <assert.h>
 #include <fcntl.h>   /* for _O_BINARY */
 
-#include "portability.h"
+#include "cado_poly.h"
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "getprime.h"   // prime_info
+#include "gzip.h"       // fopen_maybe_compressed
 #include "macros.h"
-#include "utils_with_io.h"
+#include "misc.h"       // filelist
+#include "mod_ul.h"     // modulusul_t
+#include "relation-tools.h" // u64toa16
+#include "typedefs.h"  // weight_t
+#include "verbose.h"   // verbose_interpret_parameters
 
 #define FACTOR_DO_NOT_DIVIDE 1UL
 #define FACTOR_NOT_PRIME 2UL

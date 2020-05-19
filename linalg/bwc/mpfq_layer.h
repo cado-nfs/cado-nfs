@@ -1,5 +1,6 @@
 #ifndef MPFQ_LAYER_H_
 #define MPFQ_LAYER_H_
+// pragma no prototypes
 
 #if defined(SELECT_MPFQ_LAYER_u64k1) || defined(SELECT_MPFQ_LAYER_u64)
 #include "mpfq/mpfq_u64k1.h"

@@ -10,12 +10,11 @@
 #include <omp.h>
 #endif
 
-#include "portability.h"
-#include "utils_with_io.h"
 #include "filter_config.h"
 #include "merge_replay_matrix.h"
 #include "sparse.h"
 #include "mst.h"
+#include "gcd.h"       // for gcd_ul
 
 /*****************************************************************************/
 

@@ -1,10 +1,10 @@
 #include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "utils.h"
-#include "portability.h"
+#include <errno.h>
 #include "filter_config.h"
 #include "filter_badideals.h"
+#include "relation-tools.h"  // relation_compute_r
 #include "mod_ul.h"
 
 #define MAXLINE 1024

@@ -1,7 +1,9 @@
 #include "cado.h"
 #include <stdio.h>
-#include "portability.h"
-#include "utils.h"
+#include <string.h>
+#include "mpz_poly.h"   // mpz_poly
+#include "sm_utils.h"
+#include "cado_poly.h"  // NB_POLYS_MAX
 
 /* compute the SM */
 static void

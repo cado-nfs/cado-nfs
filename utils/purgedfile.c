@@ -6,7 +6,6 @@
 #include "timing.h"
 #include "macros.h"
 #include "gzip.h"
-#include "portability.h"
 
 /* Read all lines which begin with # in the input file, until we find one
  * which matches the desided format.

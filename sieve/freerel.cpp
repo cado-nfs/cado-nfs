@@ -59,8 +59,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <list>
 #include <fstream>
 #include <gmp.h>
-
-#include "utils.h"
+#include "gzip.h"       // fopen_maybe_compressed
+#include "mpz_poly.h"   // mpz_poly_srcptr
+#include "renumber.hpp" // renumber_t
+#include "rootfinder.h" // mpz_poly_roots
+#include "stats.h"      // stats_data_t
+#include "verbose.h"    // verbose_interpret_parameters
 
 struct freerel_data_t {
     FILE * sink = NULL;

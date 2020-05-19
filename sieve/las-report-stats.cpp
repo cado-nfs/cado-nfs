@@ -1,8 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
-
 #include "las-report-stats.hpp"
-
-#include "utils.h"  // for verbose_output_print
+#include "verbose.h"    // verbose_output_print
 
 
 /* declared in las.cpp */

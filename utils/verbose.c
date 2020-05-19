@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <inttypes.h>
-#include "portability.h" /* For vasprintf */
 #include "verbose.h"
+#include "portability.h"
 
 #define G(X) CADO_VERBOSE_PRINT_ ## X
 #define F(X) (UINT64_C(1) << G(X))

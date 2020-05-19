@@ -1,3 +1,6 @@
+#ifndef TYPECAST_H_
+#define TYPECAST_H_
+
 #include "macros.h"
 
 /* Typecasting inline functions that assert that cast values are within 
@@ -27,6 +30,10 @@
 #define ASSERT_CONVERSION(x)
 #endif
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 static inline unsigned int
 cast_ulong_uint(unsigned long int x)
@@ -1636,3 +1643,8 @@ cast_size_char_fast(size_t x)
   return (char) x;
 }
 
+#ifdef __cplusplus
+}
+#endif
+
+#endif	/* TYPECAST_H_ */

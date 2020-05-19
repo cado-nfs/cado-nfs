@@ -41,7 +41,7 @@
 #include "las-threads-work-data.hpp"     // for nfs_work, nfs_work::side_data
 #include "las-where-am-i-proxy.hpp"           // for where_am_I, where_am_I::pimpl_t
 #include "macros.h"                      // for ASSERT_ALWAYS
-#include "utils.h"
+#include "verbose.h"    // verbose_output_print
 
 int extern_trace_on_spot_ab(int64_t a, uint64_t b) {
     return trace_on_spot_ab(a, b);

@@ -4,8 +4,7 @@
 #include <cstdio>
 #include <ctime>
 #include <cmath>
-#include "portability.h"
-#include "utils.h"
+#include <cstring>
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"
@@ -16,6 +15,9 @@
 #include "tab_strategy.h"
 #include "tab_fm.h"
 #include "tab_decomp.h"
+#include "cxx_mpz.hpp"  // cxx_mpz
+#include "timing.h"  // microseconds
+#include "params.h"     // param_list
 
 int CONST_TEST_R = 55;
 

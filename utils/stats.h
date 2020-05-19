@@ -1,7 +1,8 @@
 #ifndef STATS_H_
 #define STATS_H_
 
-// IWYU pragma: private, include "utils.h"
+#include <stdint.h>
+#include <stdio.h>
 
 #define MIN_LOG_REPORT 10
 

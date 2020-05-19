@@ -62,18 +62,21 @@ skew: 1.37
 */
 
 #include "cado.h"
-#include "auxiliary.h"
-#include "utils.h"
-#include "mpz_poly.h"
-#include "portability.h"
-#include "murphyE.h"
-#include "ropt_param.h"
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
 #include <ctype.h>
 #include <stdlib.h>
 #include <time.h>
+#include "auxiliary.h"
+#include "gcd.h"        // gcd_uint64
+#include "lll.h"        // mat_Z, LLL
+#include "mpz_poly.h"
+#include "murphyE.h"
+#include "rootfinder.h"
+#include "ropt_param.h"
+#include "timing.h"             // for seconds
+#include "usp.h"        // numberOfRealRoots
 
 /* We assume a difference <= ALPHA_BOUND_GUARD between alpha computed
    with ALPHA_BOUND_SMALL and ALPHA_BOUND. In practice the largest value

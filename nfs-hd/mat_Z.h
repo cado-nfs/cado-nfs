@@ -1,7 +1,6 @@
 #ifndef MAT_Z_H
 #define MAT_Z_H
 
-#include "utils.h"
 #include <gmp.h>
 #include <stdint.h>
 #include "matrix.h"

@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include "params.h"
 #include "cado_poly.h"
-#include "portability.h"
 
 /* Be conservative and allocate two polynomials by default. */
 void cado_poly_init(cado_poly_ptr poly)
