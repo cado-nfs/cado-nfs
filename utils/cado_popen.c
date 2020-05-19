@@ -23,7 +23,7 @@ static struct {
     struct { int fd; pid_t kid; } p[1024];
 } popenlist[1] = {{{PTHREAD_MUTEX_INITIALIZER}, 0, {{0,0},}}};
 
-FILE * cado_popen(const char * command, const char * mode)
+int cado_fd_popen(const char * command, const char * mode)
 {
     /* Is this a pipe for reading or for writing ? */
     int imode = -1; /* 0: reading; 1: writing */
@@ -41,7 +41,7 @@ FILE * cado_popen(const char * command, const char * mode)
     int pipefd[2];
     if (pipe(pipefd) < 0) {
         perror("pipe");
-        return NULL;
+        return -1;
     }
     /* pipefd[0] is the read end, pipefd[1] is the write end */
     pthread_mutex_lock(popenlist->m);
@@ -51,7 +51,7 @@ FILE * cado_popen(const char * command, const char * mode)
     popenlist->n++;
 
     pid_t child = fork();
-    if (child < 0) { perror("fork"); return NULL; }
+    if (child < 0) { perror("fork"); return -1; }
     if (child) {
         /* I'm the father. I only want to use pipefd[imode]. */
         close(pipefd[!imode]);
@@ -62,7 +62,7 @@ FILE * cado_popen(const char * command, const char * mode)
                 imode ?  "Writing to" : "Reading from",
                 child, command, pipefd[imode]);
                 */
-        return fdopen(pipefd[imode], mode);
+        return pipefd[imode];
     } else {
         /* if father wants to read, we close our standard input
          * (0==imode), and bind our standard output (1==!imode) to the
@@ -96,17 +96,21 @@ FILE * cado_popen(const char * command, const char * mode)
                 strlen (command) + strlen ("sh -c "));
         exit(EXIT_FAILURE);
     }
-    return NULL;
+    return -1;
 }
 
-#ifdef HAVE_GETRUSAGE
-int cado_pclose2(FILE * stream, struct rusage * nr)
-#else
-int cado_pclose2(FILE * stream, void * nr MAYBE_UNUSED)
-#endif
+FILE * cado_popen(const char * command, const char * mode)
+{
+    int fd = cado_fd_popen(command, mode);
+    if (fd < 0) return NULL;
+    return fdopen(fd, mode);
+}
+
+/* remove the fd from our list of popen'ed files, and return the kid id.
+ */
+static int reap_fd(int fd)
 {
     pid_t kid = 0;
-    int fd = fileno(stream);
     pthread_mutex_lock(popenlist->m);
     int nn = 0;
     for(int i = 0 ; i < popenlist->n ; i++) {
@@ -124,11 +128,20 @@ int cado_pclose2(FILE * stream, void * nr MAYBE_UNUSED)
     }
     popenlist->n = nn;
     pthread_mutex_unlock(popenlist->m);
+    return kid;
+}
+
+#ifdef HAVE_GETRUSAGE
+int cado_fd_pclose2(int fd, struct rusage * nr)
+#else
+int cado_fd_pclose2(int fd, void * nr MAYBE_UNUSED)
+#endif
+{
+    int kid = reap_fd(fd);
     /* close the kid's fd, which will trigger its termination -- at least
      * if it's reading from it. If it's writing to it, at this point we
      * expect the child's source to have been consumed, and thus the
      * write end of the pipe to have been closed already */
-    fclose(stream);
     close(fd);
     /* we must wait() for the kid now */
     int status, error;
@@ -169,3 +182,15 @@ int cado_pclose2(FILE * stream, void * nr MAYBE_UNUSED)
     */
     return status;
 }
+
+#ifdef HAVE_GETRUSAGE
+int cado_pclose2(FILE * stream, struct rusage * nr)
+#else
+int cado_pclose2(FILE * stream, void * nr MAYBE_UNUSED)
+#endif
+{
+    int fd = fileno(stream);
+    fclose(stream);
+    return cado_fd_pclose2(fd, nr);
+}
+
