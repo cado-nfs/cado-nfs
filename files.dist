@@ -1433,7 +1433,4 @@ tests/utils/test_fstream_maybe_compressed.cpp
 utils/badideals.hpp
 utils/badideals_main.cpp
 tests/utils/test-sort.cpp
-scripts/check_portability_h.sh
-scripts/check_compilation_units_include_headers.sh
-scripts/check_header_protections.sh
 utils/omp_proxy.h

@@ -1,4 +1,4 @@
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"
 
 #define VERBOSE 0
 
@@ -18,7 +18,6 @@
 #include "cxx_mpz.hpp"
 
 #include "ularith.h"    // for ularith_mul_ul_ul_2ul, ularith_add_2ul_2ul
-
 
 /* shortcoming of C++11. C++17 would (I think) allow this be defined
  * directly in the struct body and get a real compile-time constant,
