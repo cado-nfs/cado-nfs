@@ -402,9 +402,11 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
         } else {
             C.traditional.push_back(vp);
             /* if there _is_ a rational side, then it's an obvious
-             * candidate for which root is going to be explicit.
+             * candidate for which root is going to be explicit. This
+             * does not work if the lpb on the rational side is too
+             * small, however.
              */
-            int print_it = get_rational_side() >= 0;
+            int print_it = get_rational_side() >= 0 && !(p >> get_lpb(get_rational_side()));
             for (int side = get_nb_polys(); side--; ) {
                 if (side == get_rational_side())
                     continue;
@@ -1403,11 +1405,12 @@ void renumber_t::builder::preprocess(prime_chunk & P)/*{{{*/
             std::vector<unsigned long> roots;
             mpz_poly_srcptr f = R.get_poly(side);
 
-            if (UNLIKELY(p >> R.get_lpb(side)))
-                roots.clear();
-            else if (f->deg == 1)
+            if (UNLIKELY(p >> R.get_lpb(side))) {
+                all_roots.emplace_back(roots);
+                continue;
+            } else if (f->deg == 1) {
                 roots.assign(1, 0);
-            else {
+            } else {
                 /* Note that roots are sorted */
                 roots = mpz_poly_roots(f, p);
             }
