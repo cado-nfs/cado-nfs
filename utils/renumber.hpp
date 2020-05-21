@@ -195,6 +195,7 @@ public:
         std::vector<p_r_values_t> traditional;
         std::vector<std::array<p_r_values_t, 2>> flat;
         std::string text;
+        bool empty() const { return traditional.empty() && flat.empty(); }
     };
     /* This is purely descriptive, used for debugging */
     std::string debug_data(index_t i) const;
@@ -235,6 +236,7 @@ private:
     bool traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const;
     index_t traditional_backtrack_until_vp(index_t i, index_t min) const;
     bool traditional_is_vp_marker(index_t i) const;
+    void variant_translate_index(index_t & i0, index_t & ii, index_t i) const;
 
 
     /* The "cook" function can be used asynchronously to prepare the
@@ -244,10 +246,16 @@ private:
      * made for the situation where we have no interest in keeping track
      * of the renumber table itself. The only thing that matters is
      * keeping track of the above_all index, which is done by the input
-     * and output index_t values. */
+     * and output index_t values.
+     *
+     * In the "variant" format, the cooked data is position-dependent, as
+     * it encodes the logical position, which is known only in
+     * synchronous context. This is the reason why C is passed as a
+     * non-const reference.
+     * */
     cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> &) const;
-    void use_cooked(p_r_values_t p, cooked const & C);
-    index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked const & C);
+    void use_cooked(p_r_values_t p, cooked & C);
+    index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked & C);
 
     struct builder;
     friend struct builder;

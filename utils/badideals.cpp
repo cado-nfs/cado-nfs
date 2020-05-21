@@ -67,9 +67,7 @@ std::istream& badideal::operator>>(std::istream& is)
 
 badideal::badideal(std::istream& is)
 {
-    std::istringstream iss;
-    std::string s;
-    for( ; getline(is, s) && !s.empty() && s[0] == '#' ; ) ;
+    for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
     size_t nbranches;
     is >> p >> r >> nbad >> nbranches;
     if (!is) return;

@@ -152,7 +152,7 @@ constexpr const int renumber_format_flat = 20200515; /*{{{*/
  */
 /*}}}*/
 
-constexpr const int renumber_format = renumber_format_traditional;
+constexpr const int renumber_format = renumber_format_variant;
 
 /* {{{ exceptions */
 renumber_t::corrupted_table::corrupted_table(std::string const & x)
@@ -386,8 +386,6 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
 
     if (total_nroots == 0) return C;
 
-    std::ostringstream os;
-
     if (renumber_format != renumber_format_flat) {
         for (unsigned int i = 0; i < get_nb_polys() ; i++)
             renumber_sort_ul (&roots[i][0], roots[i].size());
@@ -400,6 +398,8 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
 
         if (renumber_format == renumber_format_variant) {
             /* The "variant" has the advantage of being fairly simple */
+            C.traditional.push_back(vp);
+            /* except that we'll need to tweak this field */
             C.traditional.push_back(vp);
             for (int side = get_nb_polys(); side--; ) {
                 if (side == get_rational_side())
@@ -429,9 +429,16 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
                 }
             }
         }
+        std::ostringstream os;
         os << std::hex;
-        for(auto x : C.traditional)
-            os << x << "\n";
+        if (renumber_format == renumber_format_variant) {
+            ASSERT_ALWAYS(C.traditional.size() >= 2);
+            for(auto it = C.traditional.begin() + 2 ; it != C.traditional.end() ; ++it)
+                os << *it << "\n";
+        } else {
+            for(auto x : C.traditional)
+                os << x << "\n";
+        }
         C.text = os.str();
     } else {
         for (int side = 0; side < (int) get_nb_polys(); ++side) {
@@ -444,6 +451,7 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
                         });
             }
         }
+        std::ostringstream os;
         for(auto x : C.flat)
             os << x[0] << " " << x[1] << "\n";
         C.text = os.str();
@@ -493,8 +501,12 @@ renumber_t::traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const
 index_t renumber_t::traditional_backtrack_until_vp(index_t i, index_t min) const
 {
     for( ; i > min && traditional_data[i-1] > traditional_data[i] ; --i);
-    if (renumber_format == renumber_format_variant && i > min && traditional_data[i-1] > traditional_data[i])
-        i--;
+    if (renumber_format == renumber_format_variant) {
+        if (i == min + 1)
+            i--;
+        else if (i > min + 1 && traditional_data[i-2] < traditional_data[i-1])
+            i--;
+    }
     return i;
 }
 
@@ -619,7 +631,10 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
 
 index_t renumber_t::index_from_p_r (p_r_side x) const
 {
-    index_t i = get_first_index_from_p(x);
+    index_t i;
+    if (is_bad(i, x))
+        return i;
+    i = get_first_index_from_p(x);
     p_r_values_t vr = compute_vr_from_p_r_side(x);
 
     if (renumber_format == renumber_format_flat) {
@@ -663,17 +678,22 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
      *  - if the sequence contains only one value
      *  - if the first sequence element is less than vr
      */
+    // this first case probably makes no sense in the variant format, as
+    // we'll never use it when there is a rational side.
     if (x.side == get_rational_side())
         return outer_idx;
     if (i == traditional_data.size())
         return outer_idx;
+    // likewise, in the variant format, vp is not used to store something
+    // implicit, so there's no reason for the sequence that begins with
+    // vp to be empty.
     if (vp < traditional_data[i])
         return outer_idx;
     if (vr > traditional_data[i])
         return outer_idx;
-    /* otherwise we'll find it eventually. Note that it's _not_
-     * represented  */
-    outer_idx++;
+    /* otherwise we'll find it eventually. */
+    if (renumber_format == renumber_format_traditional)
+        outer_idx++;
     for(unsigned int j = 0 ; traditional_data[i + j] < vp ; j++) {
         if (vr == traditional_data[i + j])
             return outer_idx + j;
@@ -755,6 +775,68 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
     throw cannot_lookup_p_a_b_in_bad_ideals(x, a, b);
 }
 
+/* This takes an index i in the range [0, above_all-above_bad[, and returns
+ * in ii the actual position of the i-th interesting data element in the
+ * traditional_data[] array. i0 is the index of the corresponding vp
+ * marker.
+ */
+void renumber_t::variant_translate_index(index_t & i0, index_t & ii, index_t i) const
+{
+    index_t max = traditional_data.size();
+    index_t min = 0;
+    index_t maxroots = 0;
+    for(int side = 0 ; side < (int) get_nb_polys() ; side++) {
+        maxroots += get_poly(side)->deg;
+    }
+    /* We have to look for i0 and i1 two consecutive vp markers
+     * (possibly with i1==max) such that
+     * traditional_data[i0 + 1] <= i < traditional_data[i1 + 1]
+     */
+    for( ; max > min ; ) {
+        index_t middle = min + (max - min) / 2; /* avoids overflow */
+        middle = traditional_backtrack_until_vp(middle, min);
+        long delta = traditional_data[middle + 1] - traditional_data[middle];
+        if (middle == min || (delta <= i && delta + maxroots > i)) {
+            /* got it, probably. need to adjust a little, but that
+             * will be quick */
+            int run = maxroots;
+            if (middle == min) run = 3 * maxroots;
+            i0 = middle;
+            index_t j;
+            for(j = i0 + 2 ; j < max ; j++) {
+                if (traditional_is_vp_marker(j)) {
+                    i0 = j;
+                    delta = traditional_data[i0 + 1] - traditional_data[i0];
+                    j++;
+                    continue;
+                }
+                if (run-- < 0)
+                    throw cannot_find_i(above_bad + i);
+                if (delta + (j-(i0 + 2)) == i)
+                    break;
+            }
+            if (j == max)
+                throw cannot_find_i(above_bad + i);
+            break;
+        } else if (delta < i) {
+            min = middle;
+        } else {
+            max = middle;
+        }
+    }
+    if (min >= max)
+        throw cannot_find_i(above_bad + i);
+    index_t vp = traditional_data[i0];
+    unsigned int di = i - (traditional_data[i0 + 1] - vp);
+    /* Note that there is no point in using the "variant" format when we
+     * have a rational side.
+     */
+    if (get_rational_side() >= 0) {
+        ii = di ? i0 + 1 + di : i0;
+    } else {
+        ii = i0 + 2 + di;
+    }
+}
 
 
 /* additional columns _must_ be handled differently at this point */
@@ -803,47 +885,10 @@ renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
     }
     if (renumber_format == renumber_format_variant) {
         /* That is the annoying part. lookup at i is probably not right. */
-        index_t i0;
-
-        index_t max = traditional_data.size();
-        index_t min = above_cache - above_bad;
-        /* We have to look for i0 and i1 two consecutive vp markers
-         * (possibly with i1==max) such that
-         * traditional_data[i0 + 1] <= i < traditional_data[i1 + 1]
-         */
-        for( ; max > min ; ) {
-            index_t middle = min + (max - min) / 2; /* avoids overflow */
-            middle = traditional_backtrack_until_vp(middle, min);
-            if (traditional_data[middle + 1] == i) {
-                i0 = middle;
-                break;
-            } else if (traditional_data[middle + 1] < i) {
-                if (UNLIKELY(middle == min)) {
-                    /* This is a corner case. We're below what we're
-                     * looking for, sure, but we're actually looping.
-                     * Need to break the corner case. We'll finish soon
-                     * anyway, because our middle index landed inside the
-                     * range for the smallest p, which is obviously truly
-                     * exceptional.
-                     */
-                    index_t j = middle;
-                    for(j+=2 ; j < max && !traditional_is_vp_marker(j) ; j++)
-                        ;
-                    if (j == max || i < traditional_data[j + 1]) {
-                        i0 = middle;
-                        break;
-                    }
-                }
-                min = middle;
-            } else {
-                max = middle;
-            }
-        }
-        if (min >= max)
-            throw cannot_find_i(i);
-        unsigned int di = i - traditional_data[i0 + 1];
-        index_t vp = traditional_data[i0];
-        index_t vr = di ? traditional_data[i0 + 1 + di] : vp;
+        index_t i0, ii;
+        variant_translate_index(i0, ii, i);
+        p_r_values_t vp = traditional_data[i0];
+        p_r_values_t vr = traditional_data[ii];
         index_t p  = compute_p_from_vp(vp);
         return compute_p_r_side_from_p_vr(p, vr);
     }
@@ -952,6 +997,12 @@ void renumber_t::read_header(std::istream& is)
     } else {
         // we only have to parse the large prime bounds
         for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
+        int format;
+        is >> format;
+        if (!is) throw parse_error("header");
+        if (format != renumber_format) throw parse_error("wrong format");
+
+        for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
         for(auto & x : lpb) is >> x;
         if (!is) throw parse_error("header");
     }
@@ -970,6 +1021,7 @@ void renumber_t::read_bad_ideals(std::istream& is)
     above_bad = above_add;
     bad_ideals_max_p = 0;
     for(int side = 0; is && side < (int) get_nb_polys(); side++) {
+        for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
         int x, n;
         /* The "side, number of bad ideals" is in decimal */
         is >> std::dec;
@@ -991,6 +1043,8 @@ void renumber_t::read_bad_ideals(std::istream& is)
         }
     }
     above_all = above_cache = above_bad;
+    if (!is.good())
+        throw parse_error("header, stream failed after reading bad ideals");
     is.flags(ff);
 }
 
@@ -1085,7 +1139,7 @@ void renumber_t::write_bad_ideals(std::ostream& os) const
                     // we print p,r in hexa at the beginning of the line,
                     // but the rest of the bad ideal information is in
                     // decimal.
-                    os << std::hex << b.second << std::endl; 
+                    os << std::hex << b.second;
                 }
             }
         }
@@ -1143,23 +1197,42 @@ void renumber_t::compute_bad_ideals()
     above_all = above_cache = above_bad;
 }
 
-void renumber_t::use_cooked(p_r_values_t p, cooked const & C)
+void renumber_t::use_cooked(p_r_values_t p, cooked & C)
 {
-    index_t pos = traditional_data.size() + flat_data.size();
+    if (C.empty()) return;
+    /* We must really use above_all - above_bad, and not
+     * traditional_data.size() + flat_data.size() -- in the
+     * renumber_format_variant case, they're different !
+     */
+    index_t pos_hard = traditional_data.size() + flat_data.size();
+    above_all = use_cooked_nostore(above_all, p, C);
     traditional_data.insert(traditional_data.end(), C.traditional.begin(), C.traditional.end());
     flat_data.insert(flat_data.end(), C.flat.begin(), C.flat.end());
-    above_all = use_cooked_nostore(above_all, p, C);
     if (!(p >> RENUMBER_MAX_LOG_CACHED)) {
         index_from_p_cache.insert(index_from_p_cache.end(),
                 p - index_from_p_cache.size(),
                 std::numeric_limits<index_t>::max());
         ASSERT_ALWAYS(index_from_p_cache.size() == p);
-        index_from_p_cache.push_back(pos);
+        index_from_p_cache.push_back(pos_hard);
         above_cache = above_all;
     }
 }
-index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, cooked const & C)
+index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, cooked & C)
 {
+    if (C.empty()) return n0;
+    index_t pos_logical = n0 - above_bad;
+    if (renumber_format == renumber_format_variant) {
+        /* This fixup is required by the "variant" format. Well, it's
+         * actually the whole point... */
+        ASSERT_ALWAYS(C.traditional.size() >= 2);
+        C.traditional[1] += pos_logical;
+        std::ostringstream os;
+        os << std::hex
+            << C.traditional[0] << "\n"
+            << C.traditional[1] << "\n"
+            << C.text;
+        C.text = os.str();
+    }
     for(auto n : C.nroots) n0 += n;
     return n0;
 }
@@ -1176,16 +1249,28 @@ void renumber_t::read_table(std::istream& is)
     } else {
         std::ios_base::fmtflags ff = is.flags();
         is >> std::hex;
-        for(p_r_values_t v ; is >> v ; ) {
-            traditional_data.push_back(v);
-            above_all++;
+        if (renumber_format == renumber_format_traditional) {
+            for(p_r_values_t v ; is >> v ; ) {
+                traditional_data.push_back(v);
+                above_all++;
+            }
+        } else if (renumber_format == renumber_format_variant) {
+            for(p_r_values_t v, vp = 0 ; is >> v ; ) {
+                if (v > vp) {
+                    above_all -= 2;
+                    vp = v;
+                }
+                traditional_data.push_back(v);
+                above_all++;
+            }
         }
         is.flags(ff);
     }
 
-    if (renumber_format == renumber_format_traditional) {
+    if (renumber_format == renumber_format_traditional || renumber_format == renumber_format_variant) {
         p_r_values_t vp = 0;
         index_t i = 0;
+        index_t logical_adjust = 0;
         for( ; i < traditional_data.size() ; i++)  {
             p_r_values_t v = traditional_data[i];
             if (v <= vp) continue;
@@ -1198,8 +1283,12 @@ void renumber_t::read_table(std::istream& is)
                     std::numeric_limits<index_t>::max());
             ASSERT_ALWAYS(index_from_p_cache.size() == p);
             index_from_p_cache.push_back(i);
+            if (renumber_format == renumber_format_variant) {
+                i++;
+                logical_adjust += 2;
+            }
         }
-        above_cache = above_bad + i;
+        above_cache = above_bad + i - logical_adjust;
     } else {
         throw std::runtime_error("not implemented");
     }
@@ -1309,12 +1398,24 @@ std::string renumber_t::debug_data(index_t i) const
             << " (" << x.p << "," << x.r << ")"
             << " on side " << x.side;
     } else {
-        os << " tab[i]=";
-        os << std::hex;
         i -= above_bad;
+        os << std::hex;
         if (renumber_format == renumber_format_flat) {
+            os << " tab[i]=";
             os << " (0x" << flat_data[i][0] << ",0x" << flat_data[i][1] << ")";
+        } else if (renumber_format == renumber_format_variant) {
+            index_t i0, ii;
+            variant_translate_index(i0, ii, i);
+            if (i0 == ii) {
+                os << " tab[0x" << i0 << "]=";
+            } else {
+                os << " tab[0x" << i0 << "+1+"
+                    << std::dec << (ii-(i0+1)) << "]="
+                    << std::hex;
+            }
+            os << "0x" << traditional_data[ii];
         } else {
+            os << " tab[i]=";
             os << "0x" << traditional_data[i];
         }
         os << " p=0x" << x.p;
@@ -1467,7 +1568,7 @@ void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
      */
     for(size_t i = 0; i < P.primes.size() ; i++) {
         p_r_values_t p = P.primes[i];
-        renumber_t::cooked const & C = P.C[i];
+        renumber_t::cooked & C = P.C[i];
 
         if (hook) (*hook)(R, p, R_max_index, C);
 
