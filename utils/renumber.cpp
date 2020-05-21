@@ -453,9 +453,12 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
         }
         C.text = os.str();
     } else {
-        for (int side = 0; side < (int) get_nb_polys(); ++side) {
-            for (auto r : roots[side]) {
-                p_r_side x { (p_r_values_t) p, (p_r_values_t) r, side };
+        /* reverse the ordering, because our goal is to remain compatible
+         * with the old-format indexing
+         */
+        for (int side = get_nb_polys(); side--; ) {
+            for (auto it = roots[side].rbegin() ; it != roots[side].rend() ; ++it) {
+                p_r_side x { (p_r_values_t) p, (p_r_values_t) *it, side };
                 C.flat.emplace_back(
                         std::array<p_r_values_t, 2> {
                             (p_r_values_t) p,
