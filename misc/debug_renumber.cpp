@@ -39,9 +39,9 @@ main (int argc, char *argv[])
 
     cxx_param_list pl;
     declare_usage(pl);
-    param_list_configure_switch(pl, "--check", &check);
-    param_list_configure_switch(pl, "--build", &build);
-    param_list_configure_switch(pl, "--quiet", &quiet);
+    param_list_configure_switch(pl, "check", &check);
+    param_list_configure_switch(pl, "build", &build);
+    param_list_configure_switch(pl, "quiet", &quiet);
 
     argv++, argc--;
     if (argc == 0)
