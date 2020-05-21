@@ -44,10 +44,13 @@ main (int argc, char *argv[])
 
     cxx_param_list pl;
     declare_usage(pl);
+    renumber_t::builder_declare_usage(pl);
+
     param_list_configure_switch(pl, "check", &check);
     param_list_configure_switch(pl, "build", &build);
     param_list_configure_switch(pl, "quiet", &quiet);
     param_list_configure_switch(pl, "bench", &bench);
+    renumber_t::builder_configure_switches(pl);
 
     argv++, argc--;
     if (argc == 0)
@@ -66,6 +69,8 @@ main (int argc, char *argv[])
 
     const char *polyfilename = param_list_lookup_string(pl, "poly");
     const char *renumberfilename = param_list_lookup_string(pl, "renumber");
+
+    renumber_t::builder_lookup_parameters(pl);
 
     if (polyfilename == NULL)
     {
@@ -103,7 +108,7 @@ main (int argc, char *argv[])
         std::vector<unsigned int> lpb(tab.get_nb_polys(),0);
         param_list_parse_uint_list(pl, "lpbs", &lpb[0], tab.get_nb_polys(), ",");
         tab.set_lpb(lpb);
-        tab.build();
+        tab.build(pl);
 
         if (bench) {
             printf("# Build time: %.2f (%.2f on cpu)\n",

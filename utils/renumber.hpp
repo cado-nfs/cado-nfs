@@ -41,10 +41,10 @@
 #define RENUMBER_MAX_LOG_CACHED 20
 
 struct renumber_t {
-    struct corrupted_table : public std::runtime_error {
+    struct corrupted_table : public std::runtime_error {/*{{{*/
         corrupted_table(std::string const &);
-    };
-    struct p_r_side {
+    };/*}}}*/
+    struct p_r_side {/*{{{*/
         p_r_values_t p;
         p_r_values_t r;
         int side;
@@ -57,8 +57,17 @@ struct renumber_t {
             if ((s = (r > x.r) - (x.r > r)) != 0) return s < 0;
             return false;
         }
-    };
-private:
+    };/*}}}*/
+
+    /* The various known formats are documented in renumber.cpp */
+    static constexpr const int format_traditional = 20130603;
+    static constexpr const int format_variant = 20199999;
+    static constexpr const int format_flat = 20200515;
+
+private:/*{{{ internal data fields*/
+
+    int format = format_traditional;
+
     /* all the (p,r,side) description of the bad ideals */
     std::vector<std::pair<p_r_side, badideal> > bad_ideals;
 
@@ -72,9 +81,7 @@ private:
      */
     std::vector<p_r_values_t> traditional_data;
     std::vector<std::array<p_r_values_t, 2>> flat_data;
-
     std::vector<unsigned int> lpb;
-
     std::vector<index_t> index_from_p_cache;
 
     /*
@@ -94,8 +101,10 @@ private:
     index_t above_bad = 0;
     index_t above_cache = 0;
     index_t above_all = 0;
-
+/*}}}*/
 public:
+    /* various accessors {{{*/
+    inline int get_format() const { return format; }
     inline unsigned int get_lpb(unsigned int i) const { return lpb[i]; }
     inline unsigned int get_max_lpb() const { return *std::max_element(lpb.begin(), lpb.end()); }
     inline unsigned int get_min_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
@@ -120,27 +129,36 @@ public:
         return traditional_data.size() * sizeof(decltype(traditional_data)::value_type)
             + flat_data.size() * sizeof(decltype(flat_data)::value_type);
     }
+/*}}}*/
+
+    /*{{{ default ctors */
     renumber_t() = default;
     // ~renumber_t() = default;
     renumber_t(renumber_t const &) = delete;
     renumber_t& operator=(renumber_t const &) = delete;
     renumber_t(renumber_t &&) = default;
     renumber_t& operator=(renumber_t &&) = default;
+    /*}}}*/
 
     renumber_t(cxx_cado_poly const & cpoly) : cpoly(cpoly), lpb(cpoly->nb_polys, 0) {}
 
+    /*{{{ configuration when creating the table */
     void set_lpb(std::vector<unsigned int> const & x) {
         ASSERT_ALWAYS(x.size() == lpb.size());
         lpb = x;
     }
     void use_additional_columns_for_dl();
+    void set_format(int);
     void compute_bad_ideals();
     void compute_bad_ideals_from_dot_badideals_hint(std::istream&, unsigned int = UINT_MAX);
 
-    void read_header(std::istream& os);
     void write_header(std::ostream& os) const;
-    void read_bad_ideals(std::istream& is);
     void write_bad_ideals(std::ostream& os) const;
+/*}}}*/
+
+    /*{{{ reading the table */
+    void read_header(std::istream& os);
+    void read_bad_ideals(std::istream& is);
     /* transitory, for interface that produces renumber file in legacy
      * format.
      */
@@ -158,7 +176,9 @@ public:
     void read_from_file(const char *, const char *);
     // renumber_t(const char *);
     // renumber_t(const char *, const char *);
+    /*}}}*/
 
+    /*{{{ most important outer-visible routines: lookups */
     /* return the number of bad ideals above x (and therefore zero if
      * x is not bad). If the ideal is bad, put in the reference [first] the
      * first index that corresponds to the bad ideals.
@@ -189,6 +209,15 @@ public:
 
     /* This second interface works for bad ideals as well. */
     std::pair<index_t, std::vector<int>> indices_from_p_a_b(p_r_side x, int e, int64_t a, uint64_t b) const;
+    /*}}}*/
+
+    /* {{{ build() functionality */
+    /* To build a renumber table in memory in the simplest way, the
+     * process goes as follows
+       renumber_t renumber_table(cpoly);
+       renumber_table.set_lpb(lpb);
+       renumber_table.build();
+     */
 
     struct cooked {
         std::vector<unsigned int> nroots;
@@ -197,29 +226,25 @@ public:
         std::string text;
         bool empty() const { return traditional.empty() && flat.empty(); }
     };
-    /* This is purely descriptive, used for debugging */
-    std::string debug_data(index_t i) const;
 
     struct hook {
         virtual void operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) = 0;
         virtual ~hook() = default;
     };
 
-    /* To build a renumber table in memory in the simplest way, the
-     * process goes as follows
-       renumber_t renumber_table(cpoly);
-       renumber_table.set_lpb(lpb);
-       renumber_table.build();
-     */
-
     static void builder_configure_switches(cxx_param_list &);
     static void builder_declare_usage(cxx_param_list &);
     static void builder_lookup_parameters(cxx_param_list &);
     index_t build(cxx_param_list &, hook * = nullptr);
     index_t build(hook * = nullptr);
+    /* }}} */
 
+    /*{{{ debugging aids*/
+    std::string debug_data(index_t i) const;
+    void info(std::ostream & os) const;
+    /*}}}*/
 
-private:
+private:/*{{{ more implementation-level stuff. */
     unsigned int needed_bits() const;
     /* this returns an index i such that data[i - above_bad] points to
      * the beginning of data for p. Note that in the
@@ -242,22 +267,23 @@ private:
     /* The "cook" function can be used asynchronously to prepare the
      * fragments of the renumber table in parallel. use_cooked must use
      * the same data, but synchronously -- and stores it to the table, of
-     * course. The use_cooked_nostore does the same, except that it is
-     * made for the situation where we have no interest in keeping track
-     * of the renumber table itself. The only thing that matters is
-     * keeping track of the above_all index, which is done by the input
-     * and output index_t values.
+     * course. use_cooked_nostore does the same, except that it is made
+     * for the situation where we have no interest in keeping track of
+     * the renumber table itself. The only thing that matters is keeping
+     * track of the above_all index, which is done by the input and
+     * output index_t values.
      *
      * In the "variant" format, the cooked data is position-dependent, as
      * it encodes the logical position, which is known only in
      * synchronous context. This is the reason why C is passed as a
-     * non-const reference.
-     * */
+     * non-const reference. (and we do play dirty tricks with it...)
+     */
     cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> &) const;
     void use_cooked(p_r_values_t p, cooked & C);
     index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked & C);
 
     struct builder;
     friend struct builder;
+/*}}}*/
 };
 #endif /* RENUMBER_HPP_ */

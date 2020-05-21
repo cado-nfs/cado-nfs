@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <list>
 #include <map>
+#include <iostream>
 #include "gzip.h"       // ifstream_maybe_compressed
 #include "renumber.hpp"
 #include "badideals.hpp"
@@ -81,7 +82,7 @@
  * structure that makes these lookups possible.
  */
 
-constexpr const int renumber_format_traditional = 20130603; /*{{{*/
+constexpr const int renumber_t::format_traditional; /*{{{*/
 /* The traditional way that cado-nfs has been using for quite a while now
  * (2013-2020) uses the following memory layout.
  * In memory, the table is stored as a sequence of integers.  The info
@@ -109,7 +110,7 @@ constexpr const int renumber_format_traditional = 20130603; /*{{{*/
  */
 /*}}}*/
 
-constexpr const int renumber_format_variant = 20199999; /*{{{*/
+constexpr const int renumber_t::format_variant; /*{{{*/
 /* Variations around the previous scheme may be tried: we may try to
  * store _all_ roots on non-rational sides.
  * (The rational root is still implicit, if there is a rational side).
@@ -141,7 +142,7 @@ constexpr const int renumber_format_variant = 20199999; /*{{{*/
  */
 /*}}}*/
 
-constexpr const int renumber_format_flat = 20200515; /*{{{*/
+constexpr const int renumber_t::format_flat; /*{{{*/
 /* My personal preference would be to bite the bullet and allow for two
  * integers per ideal, always storing both p and r explicitly:
  *  - The _from_index lookups would be trivial (we could keep the encoding
@@ -151,8 +152,6 @@ constexpr const int renumber_format_flat = 20200515; /*{{{*/
  *  - The database in itself would be human readable.
  */
 /*}}}*/
-
-constexpr const int renumber_format = renumber_format_flat;
 
 /* {{{ exceptions */
 renumber_t::corrupted_table::corrupted_table(std::string const & x)
@@ -196,26 +195,26 @@ static renumber_t::corrupted_table prime_is_too_large(p_r_values_t p) {/*{{{*/
 #endif
     return renumber_t::corrupted_table(os.str());
 }/*}}}*/
-static renumber_t::corrupted_table prime_maps_to_garbage(p_r_values_t p, index_t i, p_r_values_t q)/*{{{*/
+static renumber_t::corrupted_table prime_maps_to_garbage(int format, p_r_values_t p, index_t i, p_r_values_t q)/*{{{*/
 {
     std::ostringstream os;
     os << std::hex;
     os << "cached index for prime p=0x" << p;
     os << " is 0x" << i << ", which points to q=0x" << q;
-    if (renumber_format == renumber_format_flat)
+    if (format == renumber_t::format_flat)
         os << " (should be p)";
     else
         os << " (should be vp)";
     os << " ; note: isprime(p)==" << ulong_isprime(p);
     return renumber_t::corrupted_table(os.str());
 }/*}}}*/
-static renumber_t::corrupted_table prime_maps_to_garbage(p_r_values_t p, index_t i)/*{{{*/
+static renumber_t::corrupted_table prime_maps_to_garbage(int format, p_r_values_t p, index_t i)/*{{{*/
 {
     std::ostringstream os;
     os << std::hex;
     os << "cached index for prime p=0x" << p;
     os << " is 0x" << i << ", which points nowhere";
-    if (renumber_format == renumber_format_flat)
+    if (format == renumber_t::format_flat)
         os << " (should be p)";
     else
         os << " (should be vp)";
@@ -268,32 +267,32 @@ static renumber_t::corrupted_table parse_error(std::string const & what)/*{{{*/
 
 /* This one is a helper only, because we use it for both T ==
  * p_r_values_t and T == uint64_t */
-template<typename T> inline T vp_from_p(T p, int n, int c)
+template<typename T> inline T vp_from_p(T p, int n, int c, int format)
 {
     /* The final "+c" is not necessary, but we keep it for compatibility */
-    int d = (renumber_format == renumber_format_traditional) ? (c - 1) : 0;
+    int d = (format == renumber_t::format_traditional) ? (c - 1) : 0;
     return (n - c) * (p + 1) + d;
 }
 
-/* only used for renumber_format == renumber_format_{traditional,variant} */
+/* only used for format == format_{traditional,variant} */
 p_r_values_t renumber_t::compute_vp_from_p (p_r_values_t p) const/*{{{*/
 {
     int n = get_nb_polys();
     int c = (get_rational_side() >= 0);
-    return vp_from_p(p, n, c);
+    return vp_from_p(p, n, c, format);
 }/*}}}*/
 
 /* Inverse function of compute_vp_from_p */
-/* only used for renumber_format == renumber_format_{traditional,variant} */
+/* only used for format == format_{traditional,variant} */
 p_r_values_t renumber_t::compute_p_from_vp (p_r_values_t vp) const/*{{{*/
 {
     int n = get_nb_polys();
     int c = (get_rational_side() >= 0);
-    int d = (renumber_format == renumber_format_traditional) ? (c - 1) : 0;
+    int d = (format == format_traditional) ? (c - 1) : 0;
     return (vp - d) / (n - c) - 1;
 }/*}}}*/
 
-/* only used for renumber_format == renumber_format_{traditional,variant} */
+/* only used for format == format_{traditional,variant} */
 p_r_values_t renumber_t::compute_vr_from_p_r_side (renumber_t::p_r_side x) const/*{{{*/
 {
     if (x.side == get_rational_side()) {
@@ -309,7 +308,7 @@ p_r_values_t renumber_t::compute_vr_from_p_r_side (renumber_t::p_r_side x) const
     return vr;
 }/*}}}*/
 
-/* only used for renumber_format == renumber_format_{traditional,variant} */
+/* only used for format == format_{traditional,variant} */
 renumber_t::p_r_side renumber_t::compute_p_r_side_from_p_vr (p_r_values_t p, p_r_values_t vr) const/*{{{*/
 {
     /* Note that vr is only used for the encoding of non-rational ideals.
@@ -333,7 +332,7 @@ renumber_t::p_r_side renumber_t::compute_p_r_side_from_p_vr (p_r_values_t p, p_r
         if (get_rational_side() >= 0) {
             res.side = get_rational_side();
             return res;
-        } else if (renumber_format == renumber_format_traditional && traditional_get_largest_nonbad_root_mod_p(res)) {
+        } else if (format == format_traditional && traditional_get_largest_nonbad_root_mod_p(res)) {
             /* that is the _really, really_ annoying thing with the
              * traditional format */
             return res;
@@ -344,7 +343,7 @@ renumber_t::p_r_side renumber_t::compute_p_r_side_from_p_vr (p_r_values_t p, p_r
 /* }}} */
 
 /* sort in decreasing order. Faster than qsort for ~ < 15 values in r[] */
-/* only used for renumber_format == renumber_format_{traditional,variant} */
+/* only used for format == format_{traditional,variant} */
 /* XXX This is total legacy, and should go away soon (we only temporarily
  * keep it for measurement). See test-sort in
  * tests/utils. This code is actually slow in most cases, and clearly
@@ -399,7 +398,7 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
 
     if (total_nroots == 0) return C;
 
-    if (renumber_format != renumber_format_flat) {
+    if (format != format_flat) {
         for (unsigned int i = 0; i < get_nb_polys() ; i++)
             renumber_sort_ul (&roots[i][0], roots[i].size());
 
@@ -409,7 +408,7 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
          */
         p_r_values_t vp = compute_vp_from_p (p);
 
-        if (renumber_format == renumber_format_variant) {
+        if (format == format_variant) {
             /* The "variant" has the advantage of being fairly simple */
             C.traditional.push_back(vp);
             /* except that we'll need to tweak this field */
@@ -444,7 +443,7 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
         }
         std::ostringstream os;
         os << std::hex;
-        if (renumber_format == renumber_format_variant) {
+        if (format == format_variant) {
             ASSERT_ALWAYS(C.traditional.size() >= 2);
             for(auto it = C.traditional.begin() + 2 ; it != C.traditional.end() ; ++it)
                 os << *it << "\n";
@@ -514,7 +513,7 @@ renumber_t::traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const
 index_t renumber_t::traditional_backtrack_until_vp(index_t i, index_t min) const
 {
     for( ; i > min && traditional_data[i-1] > traditional_data[i] ; --i);
-    if (renumber_format == renumber_format_variant) {
+    if (format == format_variant) {
         if (i == min + 1)
             i--;
         else if (i > min + 1 && traditional_data[i-2] < traditional_data[i-1])
@@ -555,7 +554,7 @@ bool renumber_t::traditional_is_vp_marker(index_t i) const
     if (i == traditional_data.size()) return true;
     if (i == 0) return true;
     if (traditional_data[i] > traditional_data[i-1]) {
-        if (renumber_format == renumber_format_variant) {
+        if (format == format_variant) {
             ASSERT_ALWAYS(i + 1 < traditional_data.size());
             return traditional_data[i] <= traditional_data[i + 1];
         }
@@ -578,15 +577,15 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
     p_r_values_t side = x.side;
     if (p < index_from_p_cache.size()) {
         index_t i = index_from_p_cache[p];
-        if (renumber_format == renumber_format_flat) {
+        if (format == format_flat) {
             if (UNLIKELY(i >= flat_data.size()))
-                throw prime_maps_to_garbage(p, i);
+                throw prime_maps_to_garbage(format, p, i);
             if (UNLIKELY(flat_data[i][0] != p))
-                throw prime_maps_to_garbage(p, i, flat_data[i][0]);
+                throw prime_maps_to_garbage(format, p, i, flat_data[i][0]);
         } else {
             p_r_values_t vp = compute_vp_from_p (p);
             if (UNLIKELY(i >= traditional_data.size() || traditional_data[i] != vp))
-                throw prime_maps_to_garbage(p, i, traditional_data[i]);
+                throw prime_maps_to_garbage(format, p, i, traditional_data[i]);
         }
         return i;
     }
@@ -594,22 +593,22 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
     if (UNLIKELY(p >> lpb[side]))
         throw prime_is_too_large(p);
 
-    if (renumber_format == renumber_format_flat) {
+    if (format == format_flat) {
         std::array<p_r_values_t, 2> p0 {{ p, 0 }};
         auto it = std::lower_bound(flat_data.begin(), flat_data.end(), p0);
         if (it == flat_data.end())
             throw prime_is_too_large(p);
         index_t i = it - flat_data.begin();
         if ((*it)[0] != p)
-            throw prime_maps_to_garbage(p, i, (*it)[0]);
+            throw prime_maps_to_garbage(format, p, i, (*it)[0]);
         return i;
     } else {
         /* A priori, traditional_data has exactly above_all-above_bad
          * entries. Except that it holds _only_ in the
-         * renumber_format_traditional case, since we insert extra data
-         * in the renumber_format_variant case
+         * format_traditional case, since we insert extra data
+         * in the format_variant case
          */
-        if (renumber_format == renumber_format_traditional)
+        if (format == format_traditional)
             ASSERT_ALWAYS(above_all == above_bad + traditional_data.size());
         index_t max = traditional_data.size();
         index_t min = above_cache - above_bad;
@@ -652,7 +651,7 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
     i = get_first_index_from_p(x);
     p_r_values_t vr = compute_vr_from_p_r_side(x);
 
-    if (renumber_format == renumber_format_flat) {
+    if (format == format_flat) {
         /* The "flat" format has really simple lookups */
         for( ; flat_data[i][0] == x.p ; i++) {
             if (flat_data[i][1] == vr)
@@ -670,7 +669,7 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
      */
 
     int outer_idx;
-    if (renumber_format == renumber_format_variant) {
+    if (format == format_variant) {
         /* This is the special thing about the "variant" format */
         outer_idx = above_bad + traditional_data[++i] - vp;
     } else {
@@ -707,7 +706,7 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
     if (vr > traditional_data[i])
         return outer_idx;
     /* otherwise we'll find it eventually. */
-    if (renumber_format == renumber_format_traditional)
+    if (format == format_traditional)
         outer_idx++;
     for(unsigned int j = 0 ; traditional_data[i + j] < vp ; j++) {
         if (vr == traditional_data[i + j])
@@ -877,12 +876,12 @@ renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
         throw corrupted_table("bad bad ideals");
     }
     i -= above_bad;
-    if (renumber_format == renumber_format_flat) {
+    if (format == format_flat) {
         p_r_values_t p = flat_data[i][0];
         p_r_values_t vr = flat_data[i][1];
         return compute_p_r_side_from_p_vr(p, vr);
     }
-    if (renumber_format == renumber_format_traditional) {
+    if (format == format_traditional) {
         index_t i0 = traditional_backtrack_until_vp(i, 0);
         index_t vr = traditional_data[i];
         index_t vp = traditional_data[i0];
@@ -898,7 +897,7 @@ renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
         }
         return compute_p_r_side_from_p_vr(p, vr);
     }
-    if (renumber_format == renumber_format_variant) {
+    if (format == format_variant) {
         /* That is the annoying part. lookup at i is probably not right. */
         index_t i0, ii;
         variant_translate_index(i0, ii, i);
@@ -907,6 +906,7 @@ renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
         index_t p  = compute_p_from_vp(vp);
         return compute_p_r_side_from_p_vr(p, vr);
     }
+    ASSERT_ALWAYS(0);   // cannot reach here.
 }
 
 static uint64_t previous_prime_of_powers_of_2[65] = { 0x0, 0x0, 0x3, 0x7, 0xd,
@@ -935,16 +935,24 @@ unsigned int renumber_t::needed_bits() const
 {
     /* based on the lpbs and the number of sides, return 32 or 64 */
     uint64_t p = previous_prime_of_powers_of_2[get_max_lpb()];
-    uint64_t vp = vp_from_p(p, get_nb_polys(), get_rational_side() >= 0);
+    uint64_t vp = vp_from_p(p, get_nb_polys(), get_rational_side() >= 0, format);
     if (nbits (vp) <= 32)
         return 32;
     else
         return 64;
 }
 
+void renumber_t::set_format(int f)
+{
+    ASSERT_ALWAYS (above_all == above_bad);
+    ASSERT_ALWAYS (above_cache == above_bad);
+    ASSERT_ALWAYS(f == format_flat || f == format_traditional || f == format_variant);
+    format = f;
+}
+
 void renumber_t::compute_bad_ideals_from_dot_badideals_hint(std::istream & is, unsigned int n)
 {
-    ASSERT_ALWAYS (renumber_format == renumber_format_traditional);
+    ASSERT_ALWAYS (format == format_traditional);
     ASSERT_ALWAYS (above_all == above_bad);
     ASSERT_ALWAYS (above_cache == above_bad);
     above_bad = above_add;
@@ -986,16 +994,30 @@ void renumber_t::read_header(std::istream& is)
     std::ios_base::fmtflags ff = is.flags();
     is >> std::dec;
 
+    for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
+
+    std::string s;
+    getline(is, s);
+    std::istringstream iss(s);
+    int f;
+    if (iss >> f && (f == format_flat || f == format_variant)) {
+        format = f;
+    } else {
+        format = format_traditional;
+        /* We'll re-parse this line according to the rules of the
+         * traditional format */
+        iss.str(s);
+    }
+
     ASSERT_ALWAYS(above_all == above_add);
-    if (renumber_format == renumber_format_traditional) {
-        for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
+    if (format == format_traditional) {
         unsigned int nbits, nbad, nadd, nonmonic_bitmap, nbpol;
         int ratside;
-        is >> nbits >> ratside >> nbad >> nadd
+        iss >> nbits >> ratside >> nbad >> nadd
             >> std::hex >> nonmonic_bitmap 
             >> std::dec >> nbpol;
-        for(auto & x : lpb) is >> x;
-        if (!is) throw parse_error("header");
+        for(auto & x : lpb) iss >> x;
+        if (!iss) throw parse_error("header");
         if (::nbits(nonmonic_bitmap) > (int) nbpol)
             throw parse_error("header, bad bitmap");
         if (above_add == 0 && nadd)
@@ -1012,12 +1034,6 @@ void renumber_t::read_header(std::istream& is)
     } else {
         // we only have to parse the large prime bounds
         for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
-        int format;
-        is >> format;
-        if (!is) throw parse_error("header");
-        if (format != renumber_format) throw parse_error("wrong format");
-
-        for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
         for(auto & x : lpb) is >> x;
         if (!is) throw parse_error("header");
     }
@@ -1030,7 +1046,7 @@ void renumber_t::read_bad_ideals(std::istream& is)
 {
     std::ios_base::fmtflags ff = is.flags();
 
-    ASSERT_ALWAYS (renumber_format != renumber_format_traditional);
+    ASSERT_ALWAYS (format != format_traditional);
     ASSERT_ALWAYS (above_all == above_bad);
     ASSERT_ALWAYS (above_cache == above_bad);
     above_bad = above_add;
@@ -1070,7 +1086,7 @@ void renumber_t::write_header(std::ostream& os) const
     /* The traditional format doesn't even accept comments in the very
      * first line !
      */
-    if (renumber_format == renumber_format_traditional) {
+    if (format == format_traditional) {
         // the first line
         unsigned long nonmonic_bitmap = 0;
         for (unsigned int i = get_nb_polys(); i-- ; ) {
@@ -1093,7 +1109,7 @@ void renumber_t::write_header(std::ostream& os) const
     // So if we want (for the moment) to provide old-format renumber
     // files that can be parsed by old code, we can only convey the
     // format information as an (unparsed) side note.
-    os << "# Renumber file using format " << renumber_format << std::endl;
+    os << "# Renumber file using format " << format << std::endl;
 
     /* Write the polynomials as comments */
     for (unsigned int i = 0; i < get_nb_polys() ; i++) {
@@ -1102,8 +1118,8 @@ void renumber_t::write_header(std::ostream& os) const
             << "\n";
     }
 
-    if (renumber_format != renumber_format_traditional) {
-        os << renumber_format << "\n";
+    if (format != format_traditional) {
+        os << format << "\n";
         // number of additional columns is implicit anyway.
         os << "# large prime bounds:\n";
         for (unsigned int i = 0; i < get_nb_polys() ; i++) {
@@ -1135,7 +1151,7 @@ void renumber_t::write_bad_ideals(std::ostream& os) const
             if (n == 0) os << "not used";
         }
         os << std::endl;
-        if (renumber_format == renumber_format_traditional) {
+        if (format == format_traditional) {
             for(auto const & b : bad_ideals) {
                 if (b.first.side == side)
                     os << std::hex
@@ -1144,7 +1160,7 @@ void renumber_t::write_bad_ideals(std::ostream& os) const
                         << b.first.side
                         << ": " << b.second.nbad << "\n";
             }
-        } else if (renumber_format != renumber_format_traditional) {
+        } else if (format != format_traditional) {
             unsigned int n = 0;
             for(auto const & b : bad_ideals)
                 if (b.first.side == side) n++;
@@ -1217,7 +1233,7 @@ void renumber_t::use_cooked(p_r_values_t p, cooked & C)
     if (C.empty()) return;
     /* We must really use above_all - above_bad, and not
      * traditional_data.size() + flat_data.size() -- in the
-     * renumber_format_variant case, they're different !
+     * format_variant case, they're different !
      */
     index_t pos_hard = traditional_data.size() + flat_data.size();
     above_all = use_cooked_nostore(above_all, p, C);
@@ -1236,7 +1252,7 @@ index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, 
 {
     if (C.empty()) return n0;
     index_t pos_logical = n0 - above_bad;
-    if (renumber_format == renumber_format_variant) {
+    if (format == format_variant) {
         /* This fixup is required by the "variant" format. Well, it's
          * actually the whole point... */
         ASSERT_ALWAYS(C.traditional.size() >= 2);
@@ -1256,7 +1272,7 @@ index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, 
 void renumber_t::read_table(std::istream& is)
 {
     for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
-    if (renumber_format == renumber_format_flat) {
+    if (format == format_flat) {
         for(p_r_values_t p, r ; is >> p >> r ; ) {
             flat_data.emplace_back(std::array<p_r_values_t, 2> {{ p, r }});
             above_all++;
@@ -1264,12 +1280,12 @@ void renumber_t::read_table(std::istream& is)
     } else {
         std::ios_base::fmtflags ff = is.flags();
         is >> std::hex;
-        if (renumber_format == renumber_format_traditional) {
+        if (format == format_traditional) {
             for(p_r_values_t v ; is >> v ; ) {
                 traditional_data.push_back(v);
                 above_all++;
             }
-        } else if (renumber_format == renumber_format_variant) {
+        } else if (format == format_variant) {
             for(p_r_values_t v, vp = 0 ; is >> v ; ) {
                 if (v > vp) {
                     above_all -= 2;
@@ -1282,7 +1298,7 @@ void renumber_t::read_table(std::istream& is)
         is.flags(ff);
     }
 
-    if (renumber_format == renumber_format_traditional || renumber_format == renumber_format_variant) {
+    if (format == format_traditional || format == format_variant) {
         p_r_values_t vp = 0;
         index_t i = 0;
         index_t logical_adjust = 0;
@@ -1298,7 +1314,7 @@ void renumber_t::read_table(std::istream& is)
                     std::numeric_limits<index_t>::max());
             ASSERT_ALWAYS(index_from_p_cache.size() == p);
             index_from_p_cache.push_back(i);
-            if (renumber_format == renumber_format_variant) {
+            if (format == format_variant) {
                 i++;
                 logical_adjust += 2;
             }
@@ -1327,11 +1343,12 @@ void renumber_t::read_from_file(const char * filename)
 {
     ifstream_maybe_compressed is(filename);
     read_header(is);
-    if (renumber_format == renumber_format_traditional) {
+    if (format == format_traditional) {
         compute_bad_ideals();
     } else {
         read_bad_ideals(is);
     }
+    info(std::cout);
     read_table(is);
 }
 
@@ -1347,6 +1364,7 @@ void renumber_t::read_from_file(const char * filename, const char * badidealinfo
         // NULL, assume that this reflects an intention to avoid bad
         // ideals entirely.
     }
+    info(std::cout);
     read_table(is);
 }
 
@@ -1429,10 +1447,10 @@ std::string renumber_t::debug_data(index_t i) const
     } else {
         i -= above_bad;
         os << std::hex;
-        if (renumber_format == renumber_format_flat) {
+        if (format == format_flat) {
             os << " tab[i]=";
             os << " (0x" << flat_data[i][0] << ",0x" << flat_data[i][1] << ")";
-        } else if (renumber_format == renumber_format_variant) {
+        } else if (format == format_variant) {
             index_t i0, ii;
             variant_translate_index(i0, ii, i);
             if (i0 == ii) {
@@ -1462,6 +1480,51 @@ std::string renumber_t::debug_data(index_t i) const
     return os.str();
 }
 
+/* can be called rather early, in fact (after the bad ideals computation) */
+void renumber_t::info(std::ostream & os) const
+{
+    const char * P = "# INFO: ";
+    os << "# Information on renumber table:\n";
+
+    std::string format_string;
+
+    if (format == format_traditional)
+        format_string = "traditional";
+    else if (format == format_variant)
+        format_string = "variant";
+    else if (format == format_flat)
+        format_string = "flat";
+
+    os << P << "format = " << format_string << " (" << format << ")\n";
+    os << P << "sizeof(p_r_values_t) = " << sizeof(p_r_values_t) << "\n";
+    os << P << "nb_bits = " << needed_bits() << "\n";
+    os << P << "number of polynomials = " << get_nb_polys() << "\n";
+    if (get_rational_side() < 0)
+        os << P << "There is no rational side\n";
+    else
+        os << P << "Polynomial on side " << get_rational_side() << " is rational\n";
+    os << P << "#additional columns = " << above_add;
+    if (above_add) {
+        os << ", on sides";
+        for(auto s : get_sides_of_additional_columns())
+            os << " " << s;
+    }
+    os << "\n";
+    os << P << "#badideals = " << above_bad - above_add
+        << ", above " << bad_ideals.size() << " (p,r) pairs"
+        << " [max_p = " << bad_ideals_max_p << "]\n";
+    for(int side = 0 ; side < (int) get_nb_polys() ; side++) {
+        os << P << "pol" << side << ": ";
+        if (mpz_poly_is_monic(get_poly(side)))
+            os << "monic\n";
+        else
+            os << "not monic\n";
+    }
+    for(int side = 0 ; side < (int) get_nb_polys() ; side++) {
+        os << P << "lpb" << side << " = " << lpb[side] << "\n";
+    }
+}
+
 static int builder_switch_lcideals = 0;
 void renumber_t::builder_configure_switches(cxx_param_list & pl)
 {
@@ -1471,6 +1534,7 @@ void renumber_t::builder_configure_switches(cxx_param_list & pl)
 void renumber_t::builder_declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "renumber", "output file for renumbering table");
+    param_list_decl_usage(pl, "renumber_format", "format of the renumbering table (\"traditional\", \"variant\", \"flat\")");
     param_list_decl_usage(pl, "badideals", "file describing bad ideals (for DL). Only the primes are used, most of the data is recomputed anyway.");
     param_list_decl_usage(pl,
                           "lcideals",
@@ -1481,6 +1545,7 @@ void renumber_t::builder_declare_usage(cxx_param_list & pl)
 void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
 {
     param_list_lookup_string(pl, "renumber");
+    param_list_lookup_string(pl, "renumber_format");
     param_list_lookup_string(pl, "badideals");
     param_list_lookup_string(pl, "lcideals");
 }
@@ -1680,6 +1745,19 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
 {
     const char * badidealsfilename = param_list_lookup_string(pl, "badideals");
     const char * renumberfilename = param_list_lookup_string(pl, "renumber");
+    const char * format_string = param_list_lookup_string(pl, "renumber_format");
+
+    if (format_string == NULL) {
+        set_format(format_traditional);
+    } else if (strcmp(format_string, "traditional") == 0) {
+        format = format_traditional;
+    } else if (strcmp(format_string, "variant") == 0) {
+        format = format_variant;
+    } else if (strcmp(format_string, "flat") == 0) {
+        format = format_flat;
+    } else {
+        throw std::runtime_error("cannot use this renumber format");
+    }
 
     if (builder_switch_lcideals)
         use_additional_columns_for_dl();
@@ -1699,6 +1777,8 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
         /* We can pass some hint primes as well, in a vector */
         compute_bad_ideals();
     }
+
+    info(std::cout);
 
     std::unique_ptr<std::ostream> out;
 
