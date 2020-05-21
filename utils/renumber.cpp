@@ -152,7 +152,7 @@ constexpr const int renumber_format_flat = 20200515; /*{{{*/
  */
 /*}}}*/
 
-constexpr const int renumber_format = renumber_format_variant;
+constexpr const int renumber_format = renumber_format_flat;
 
 /* {{{ exceptions */
 renumber_t::corrupted_table::corrupted_table(std::string const & x)
@@ -201,7 +201,20 @@ static renumber_t::corrupted_table prime_maps_to_garbage(p_r_values_t p, index_t
     std::ostringstream os;
     os << std::hex;
     os << "cached index for prime p=0x" << p;
-    os << " is " << i << ", which points to q=0x" << q;
+    os << " is 0x" << i << ", which points to q=0x" << q;
+    if (renumber_format == renumber_format_flat)
+        os << " (should be p)";
+    else
+        os << " (should be vp)";
+    os << " ; note: isprime(p)==" << ulong_isprime(p);
+    return renumber_t::corrupted_table(os.str());
+}/*}}}*/
+static renumber_t::corrupted_table prime_maps_to_garbage(p_r_values_t p, index_t i)/*{{{*/
+{
+    std::ostringstream os;
+    os << std::hex;
+    os << "cached index for prime p=0x" << p;
+    os << " is 0x" << i << ", which points nowhere";
     if (renumber_format == renumber_format_flat)
         os << " (should be p)";
     else
@@ -566,7 +579,9 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
     if (p < index_from_p_cache.size()) {
         index_t i = index_from_p_cache[p];
         if (renumber_format == renumber_format_flat) {
-            if (UNLIKELY(i >= flat_data.size() || flat_data[i][0] != p))
+            if (UNLIKELY(i >= flat_data.size()))
+                throw prime_maps_to_garbage(p, i);
+            if (UNLIKELY(flat_data[i][0] != p))
                 throw prime_maps_to_garbage(p, i, flat_data[i][0]);
         } else {
             p_r_values_t vp = compute_vp_from_p (p);
@@ -1208,7 +1223,7 @@ void renumber_t::use_cooked(p_r_values_t p, cooked & C)
     above_all = use_cooked_nostore(above_all, p, C);
     traditional_data.insert(traditional_data.end(), C.traditional.begin(), C.traditional.end());
     flat_data.insert(flat_data.end(), C.flat.begin(), C.flat.end());
-    if (!(p >> RENUMBER_MAX_LOG_CACHED)) {
+    if (!(p >> RENUMBER_MAX_LOG_CACHED) && p >= index_from_p_cache.size()) {
         index_from_p_cache.insert(index_from_p_cache.end(),
                 p - index_from_p_cache.size(),
                 std::numeric_limits<index_t>::max());
@@ -1290,7 +1305,21 @@ void renumber_t::read_table(std::istream& is)
         }
         above_cache = above_bad + i - logical_adjust;
     } else {
-        throw std::runtime_error("not implemented");
+        index_t i = 0;
+        for( ; i < flat_data.size() ; i++)  {
+            auto pvr = flat_data[i];
+            p_r_values_t p = pvr[0];
+            if (p >> RENUMBER_MAX_LOG_CACHED)
+                break;
+            if (p < index_from_p_cache.size())
+                continue;
+            index_from_p_cache.insert(index_from_p_cache.end(),
+                    p - index_from_p_cache.size(),
+                    std::numeric_limits<index_t>::max());
+            ASSERT_ALWAYS(index_from_p_cache.size() == p);
+            index_from_p_cache.push_back(i);
+        }
+        above_cache = above_bad + i;
     }
 }
 
