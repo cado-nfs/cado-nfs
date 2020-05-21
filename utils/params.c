@@ -569,12 +569,9 @@ int param_list_configure_switch(param_list_ptr pl, const char * switchname, int 
         pl->switches = realloc(pl->switches, pl->nswitches_alloc * sizeof(param_list_switch));
     }
     char * tmp;
-    if (switchname[1] == '-') { // have -- in the switch
-        tmp = strdup(switchname);
-    } else {
-        int rc = asprintf(&tmp, "-%s", switchname);
-        ASSERT_ALWAYS(rc >= 0);
-    }
+    // build "--blah"
+    int rc = asprintf(&tmp, "--%s", switchname + offset);
+    ASSERT_ALWAYS(rc >= 0);
     // put the -- version
     pl->switches[pl->nswitches]->switchname = strdup(tmp);
     pl->switches[pl->nswitches]->ptr = ptr;
