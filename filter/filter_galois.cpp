@@ -574,7 +574,8 @@ main (int argc, char *argv[])
   set_antebuffer_path (argv0, path_antebuffer);
 
   /* Renumbering table to convert from (p,r) to an index */
-  renumber_t renumber_tab(renumberfilename);
+  renumber_t renumber_tab(cpoly);
+  renumber_tab.read_from_file(renumberfilename);
 
   fprintf(stderr, "Computing Galois action %s on ideals\n", action);
   compute_galois_action(renumber_tab, action);

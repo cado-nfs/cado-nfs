@@ -1289,7 +1289,7 @@ main(int argc, char *argv[])
     nsm_arg[side] = -1;
 
   mpz_t ell;
-  cado_poly poly;
+  cxx_cado_poly poly;
 
   param_list pl;
   param_list_init(pl);
@@ -1400,7 +1400,6 @@ main(int argc, char *argv[])
                     "-partial is not set\n");
   }
 
-  cado_poly_init (poly);
   if (!cado_poly_read (poly, polyfilename))
   {
     fprintf (stderr, "Error reading polynomial file\n");
@@ -1460,7 +1459,8 @@ main(int argc, char *argv[])
   /* Reading renumber file */
   /* XXX legacy format insists on getting the badidealinfo file */
   printf ("\n###### Reading renumber file ######\n");
-  renumber_t renumber_table(renumberfilename);
+  renumber_t renumber_table(poly);
+  renumber_table.read_from_file(renumberfilename);
   nprimes = renumber_table.get_size();
 
   /* Read number of rows and cols on first line of purged file */
@@ -1537,7 +1537,6 @@ main(int argc, char *argv[])
     sm_side_info_clear (sm_info[side]);
 
   bit_vector_clear(rels_to_process);
-  cado_poly_clear (poly);
   param_list_clear (pl);
   return EXIT_SUCCESS;
 }

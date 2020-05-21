@@ -3,6 +3,7 @@
  */
 #include "cado.h"
 #include <ostream>
+#include <iomanip>
 #include <sstream>
 
 #include "numbertheory.hpp"
@@ -34,9 +35,13 @@ using namespace std;
 
 std::ostream& badideal::operator<<(std::ostream& os) const
 {
+    std::ios_base::fmtflags ff = os.flags();
     os << comments;
+    // p and r are printed according to the current format flags, but the
+    // number of ideals and the branches are always in decimal.
     os << p
         << " " << r
+        << dec
         << "  " << nbad
         << "  " << branches.size()
         << std::endl;
@@ -49,6 +54,7 @@ std::ostream& badideal::operator<<(std::ostream& os) const
         }
         os << std::endl;
     }
+    os.flags(ff);
     return os;
 }
 
@@ -379,7 +385,6 @@ vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_r
 
     typedef vector<pair<cxx_mpz,int> >::const_iterator vzci_t;
 
-
     for(vzci_t it = small_primes.begin() ; it != small_primes.end() ; it++) {
         vector<badideal> tmp = badideals_above_p(f, side, it->first, state);
         badideals.insert(badideals.end(), tmp.begin(), tmp.end());
@@ -393,6 +398,15 @@ vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side)
     gmp_randstate_t state;
     gmp_randinit_default(state);
     auto x = badideals_for_polynomial(f, side, state);
+    gmp_randclear(state);
+    return x;
+}
+
+vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const & p)
+{
+    gmp_randstate_t state;
+    gmp_randinit_default(state);
+    auto x = badideals_above_p(f, side, p, state);
     gmp_randclear(state);
     return x;
 }

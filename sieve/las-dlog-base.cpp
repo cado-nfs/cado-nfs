@@ -25,7 +25,9 @@ void las_dlog_base::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "lpb1", "set large prime bound on side 1 to 2^lpb1");
 }
 
-las_dlog_base::las_dlog_base(cxx_param_list & pl)
+las_dlog_base::las_dlog_base(cxx_cado_poly const & cpoly, cxx_param_list & pl)
+    : cpoly(cpoly)
+    , renumber_table(cpoly)
 {
     if (!dlp_descent) return;
     renumberfilename = NULL;
@@ -70,9 +72,11 @@ bool las_dlog_base::is_known(int side, p_r_values_t p, p_r_values_t r) const
     }
     if (renumberfilename) {
         /* For now we assume that we know the log of all bad ideals */
-        /* If we want to be able to do a complete lookup for bad ideals
-         * too, then we need the badidealinfo file, as well as a piece of
-         * code which is currently in dup2 */
+        /* If we want to be able to do a complete lookup for bad ideals,
+         * then we need to use
+         *      renumber_table.indices_from_p_a_b
+         * which needs a,b as well.
+         */
         if (renumber_table.is_bad ({ p, r, side }))
             return true;
         index_t h = renumber_table.index_from_p_r({ p, r, side });
@@ -93,7 +97,7 @@ void las_dlog_base::read()
 
     verbose_output_print(0, 1, "# Descent: will get list of known logs from %s, using also %s for mapping\n", logfilename, renumberfilename);
 
-    renumber_table = renumber_t(renumberfilename);
+    renumber_table.read_from_file(renumberfilename);
 
     for(int side = 0 ; side < 2 ; side++) {
         if (lpb[side] != renumber_table.get_lpb(side)) {

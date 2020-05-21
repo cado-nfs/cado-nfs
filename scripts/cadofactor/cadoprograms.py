@@ -913,6 +913,7 @@ class Duplicates2(Program):
     subdir = "filter"
     def __init__(self,
                  *args: PositionalParameter(is_input_file=True),
+                 poly: Parameter(is_input_file=True),
                  rel_count: Parameter("nrels", checktype=int),
                  renumber: Parameter(is_input_file=True),
                  filelist: Parameter(is_input_file=True)=None,

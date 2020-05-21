@@ -61,6 +61,7 @@ If just the dimension of kernel is wanted, set ker=NULL.
 #include <assert.h>
 #include "gmp.h"   /* only used for setting a random matrix */
 #include "gauss.h"
+#include "macros.h"     // ASSERT
 
 #ifndef MULTI_ROW
 #define MULTI_ROW 3

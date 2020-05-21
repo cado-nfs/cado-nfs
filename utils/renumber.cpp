@@ -8,6 +8,7 @@
 #include <exception>
 #include <iomanip>
 #include <algorithm>
+#include <list>
 #include <map>
 #include "gzip.h"       // ifstream_maybe_compressed
 #include "renumber.hpp"
@@ -15,6 +16,7 @@
 #include "mpz_poly.h"   // mpz_poly
 #include "rootfinder.h" // mpz_poly_roots
 #include "mod_ul.h"     // modulusul_t
+#include "stats.h"      // for the builder process
 
 /* Some documentation on the internal encoding of the renumber table...
  *
@@ -216,7 +218,7 @@ static renumber_t::corrupted_table cannot_find_pr(renumber_t::p_r_side x)/*{{{*/
     os << "cannot find p=0x" << x.p << ", r=0x" << x.r << " on side " << x.side;
     return renumber_t::corrupted_table(os.str());
 }/*}}}*/
-static renumber_t::corrupted_table cannot_lookup_p_a_b_in_bad_ideals(renumber_t::p_r_side x, int64_t a, uint64_t b)
+static renumber_t::corrupted_table cannot_lookup_p_a_b_in_bad_ideals(renumber_t::p_r_side x, int64_t a, uint64_t b)/*{{{*/
 {
     std::ostringstream os;
     os << "failed bad ideal lookup for"
@@ -224,7 +226,21 @@ static renumber_t::corrupted_table cannot_lookup_p_a_b_in_bad_ideals(renumber_t:
         << " at p=0x" << std::hex << x.p
         << " on side " << x.side;
     return renumber_t::corrupted_table(os.str());
-}
+}/*}}}*/
+static renumber_t::corrupted_table parse_error(std::string const & what, std::istream& is)/*{{{*/
+{
+    std::ostringstream os;
+    std::string s;
+    getline(is, s);
+    os << "parse error (" << what << "), next to read is: " << s;
+    return renumber_t::corrupted_table(os.str());
+}/*}}}*/
+static renumber_t::corrupted_table parse_error(std::string const & what)/*{{{*/
+{
+    std::ostringstream os;
+    os << "parse error (" << what << ")";
+    return renumber_t::corrupted_table(os.str());
+}/*}}}*/
 /* }}} */
 
 /* {{{ helper functions relative to the "traditional" and "variant"
@@ -236,7 +252,8 @@ static renumber_t::corrupted_table cannot_lookup_p_a_b_in_bad_ideals(renumber_t:
 template<typename T> inline T vp_from_p(T p, int n, int c)
 {
     /* The final "+c" is not necessary, but we keep it for compatibility */
-    return (n - c) * (p + 1) - 1 + c;
+    int d = (renumber_format == renumber_format_traditional) ? (c - 1) : 0;
+    return (n - c) * (p + 1) + d;
 }
 
 /* only used for renumber_format == renumber_format_{traditional,variant} */
@@ -253,7 +270,8 @@ p_r_values_t renumber_t::compute_p_from_vp (p_r_values_t vp) const/*{{{*/
 {
     int n = get_nb_polys();
     int c = (get_rational_side() >= 0);
-    return (vp + 1 - c) / (n - c);
+    int d = (renumber_format == renumber_format_traditional) ? (c - 1) : 0;
+    return (vp - d) / (n - c) - 1;
 }/*}}}*/
 
 /* only used for renumber_format == renumber_format_{traditional,variant} */
@@ -344,10 +362,20 @@ inline void renumber_sort_ul (unsigned long *r, size_t n)
 renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<unsigned long>> & roots) const
 {
     cooked C;
-    std::ostringstream os;
 
-    for (unsigned int i = 0; i < get_nb_polys() ; i++)
+    size_t total_nroots = 0;
+
+    /* Note that all_roots always a root on the rational side, even
+     * though it's only a zero -- the root itself isn't computed.
+     */
+    for (unsigned int i = 0; i < get_nb_polys() ; i++) {
         C.nroots.push_back(roots[i].size());
+        total_nroots += roots[i].size();
+    }
+
+    if (total_nroots == 0) return C;
+
+    std::ostringstream os;
 
     if (renumber_format != renumber_format_flat) {
         for (unsigned int i = 0; i < get_nb_polys() ; i++)
@@ -362,7 +390,7 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
         if (renumber_format == renumber_format_variant) {
             /* The "variant" has the advantage of being fairly simple */
             C.traditional.push_back(vp);
-            for (int side = get_nb_polys() - 1; side--; ) {
+            for (int side = get_nb_polys(); side--; ) {
                 if (side == get_rational_side())
                     continue;
                 for (auto r : roots[side]) {
@@ -370,53 +398,25 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
                     C.traditional.push_back(compute_vr_from_p_r_side (x));
                 }
             }
-        } else if (get_nb_polys() == 1) {
-            roots[0][0] = vp;
-            for(auto x : roots[0])
-                C.traditional.push_back(x);
-        } else if (get_nb_polys() == 2 && get_rational_side() >= 0) {
-            if (LIKELY(roots[get_rational_side()].size())) /* There is at most 1 rational root. */
-                C.traditional.push_back(vp);
-            else {
-                int algside = 1-get_rational_side();
-                roots[algside][0] = vp; /* No rational root */
-                for(auto x : roots[algside])
-                    C.traditional.push_back(x);
-            }
-        } else if (get_nb_polys() == 2) { /* Two alg polys */
-            if (LIKELY (roots[1].size())) {
-                roots[1][0] = vp;
-                for(auto x : roots[1])
-                    C.traditional.push_back(x + p + 1);
-            } else {
-                roots[0][0] = vp;
-            }
-            for(auto x : roots[0])
-                C.traditional.push_back(x);
-        } else { /* More than two polys (with or without ratside side). */
-            bool replace_first = false;
-
-            if (get_rational_side() == -1 || roots[get_rational_side()].empty())
-                /* The largest root becomes vp */
-                replace_first = true;
-            else
-                C.traditional.push_back(vp);
-
-            for (int side = get_nb_polys() - 1; side--; ) {
+        } else {
+            C.traditional.push_back(vp);
+            /* if there _is_ a rational side, then it's an obvious
+             * candidate for which root is going to be explicit.
+             */
+            int print_it = get_rational_side() >= 0;
+            for (int side = get_nb_polys(); side--; ) {
                 if (side == get_rational_side())
                     continue;
 
                 for (auto r : roots[side]) {
-                    if (UNLIKELY(replace_first)) {
-                        C.traditional.push_back(vp);
-                        replace_first = false;
-                    } else {
+                    if (print_it++) {
                         p_r_side x { (p_r_values_t) p, (p_r_values_t) r, side };
                         C.traditional.push_back(compute_vr_from_p_r_side (x));
                     }
                 }
             }
         }
+        os << std::hex;
         for(auto x : C.traditional)
             os << x << "\n";
         C.text = os.str();
@@ -448,21 +448,25 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
 bool
 renumber_t::traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const
 {
-    mpz_poly_srcptr f = cpoly->pols[x.side];
-    mpz_srcptr lc = f->coeff[f->deg];
-    p_r_values_t p = x.p;
-    int side = x.side;
-    if (mpz_divisible_ui_p (lc, p) && !is_bad ({p, p, side})) {
-        x.r = p;
-        return true;
-    }
+    for(x.side = get_nb_polys(); x.side--; ) {
+        mpz_poly_srcptr f = cpoly->pols[x.side];
+        mpz_srcptr lc = f->coeff[f->deg];
+        p_r_values_t p = x.p;
+        int side = x.side;
+        if (x.p >> lpb[x.side]) continue;
 
-    auto roots = mpz_poly_roots(cpoly->pols[side], (unsigned long) p);
-    renumber_sort_ul (&roots[0], roots.size()); /* sort in decreasing order */
-    for (auto r : roots) {
-        if (!is_bad ({ (p_r_values_t) p, (p_r_values_t) r, side})) {
-            x.r = r;
+        if (mpz_divisible_ui_p (lc, p) && !is_bad ({p, p, side})) {
+            x.r = p;
             return true;
+        }
+
+        auto roots = mpz_poly_roots(cpoly->pols[side], (unsigned long) p);
+        renumber_sort_ul (&roots[0], roots.size()); /* sort in decreasing order */
+        for (auto r : roots) {
+            if (!is_bad ({ (p_r_values_t) p, (p_r_values_t) r, side})) {
+                x.r = r;
+                return true;
+            }
         }
     }
     return false;
@@ -654,7 +658,9 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
         return outer_idx;
     if (vr > traditional_data[i])
         return outer_idx;
-    /* otherwise we'll find it eventually. */
+    /* otherwise we'll find it eventually. Note that it's _not_
+     * represented  */
+    outer_idx++;
     for(unsigned int j = 0 ; traditional_data[i + j] < vp ; j++) {
         if (vr == traditional_data[i + j])
             return outer_idx + j;
@@ -691,6 +697,7 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
                     p_r_values_t pk1 = pk * x.p;
                     /* we want to be sure that we don't wrap around ! */
                     ASSERT_ALWAYS(pk1 > pk);
+                    pk = pk1;
                 }
                 p_r_values_t rk = mpz_get_uint64(J.r);
                 /* rk represents an element in P^1(Z/p^k). Ir rk < pk, it's
@@ -710,7 +717,7 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
                 modul_init (muk, m);
                 modul_init (mvk, m);
                 modul_set_int64 (ma, a, m);
-                modul_set_uint64 (ma, b, m);
+                modul_set_uint64 (mb, b, m);
                 modul_set_int64  (muk, uk, m);
                 modul_set_uint64 (mvk, vk, m);
                 modul_mul(ma, ma, mvk, m);
@@ -770,6 +777,13 @@ renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
         index_t vr = traditional_data[i];
         index_t vp = traditional_data[i0];
         index_t p  = compute_p_from_vp(vp);
+        if (i == i0) {
+            /* then we're victims of the "optimization" that uses the same
+             * value to represent both the implicit root and a projective
+             * root on the last side.
+             */
+            return compute_p_r_side_from_p_vr(p, vr + 1);
+        }
         return compute_p_r_side_from_p_vr(p, vr);
     }
     if (renumber_format == renumber_format_variant) {
@@ -853,56 +867,122 @@ unsigned int renumber_t::needed_bits() const
         return 64;
 }
 
-void renumber_t::read_header(std::istream& is)
+void renumber_t::compute_bad_ideals_from_dot_badideals_hint(std::istream & is, unsigned int n)
 {
-    std::istringstream iss;
-    std::string s;
+    ASSERT_ALWAYS (renumber_format == renumber_format_traditional);
+    ASSERT_ALWAYS (above_all == above_bad);
+    ASSERT_ALWAYS (above_cache == above_bad);
+    above_bad = above_add;
+    bad_ideals_max_p = 0;
 
-    if (renumber_format == renumber_format_traditional) {
-        for( ; getline(is, s) && !s.empty() && s[0] == '#' ; ) ;
-        iss.str(s);
-        unsigned int nbits, nbad, nadd, nonmonic_bitmap, nbpol;
-        int ratside;
-        iss >> nbits >> ratside >> nbad >> nadd >> nonmonic_bitmap >> nbpol;
-        for(auto & x : lpb) iss >> x;
-        if (!iss) throw corrupted_table("cannot parse");
-        if (nbits != needed_bits()
-                || ratside != get_rational_side()
-                || nbad != (above_bad - above_add)
-                || nadd != above_add
-                || nbpol != get_nb_polys())
-            throw std::runtime_error("incompatible renumber table");
-    } else {
-        for( ; getline(is, s) && !s.empty() && s[0] == '#' ; ) ;
-        iss.str(s);
-        for(auto & x : lpb) iss >> x;
-        if (!iss) throw corrupted_table("cannot parse");
+    /* the bad ideal computation is per p, so any hints that we'll see
+     * triggers the insertion of all bad ideals above p. Of course when
+     * there are multiple bad ideals above the same p, we must do this
+     * only once.
+     */
+    p_r_side latest_x;
 
-        // we only have to parse the large prime bounds
-        for( ; getline(is, s) && !s.empty() && s[0] == '#' ; ) ;
-        iss.str(s);
-        for(auto & x : lpb) iss >> x;
-        if (!iss) throw corrupted_table("cannot parse");
+    for( ; is && n-- ; ) {
+        p_r_side x;
+        for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
+        std::string s;
+        getline(is, s);
+        if (is.eof() && s.empty()) break;
+        int rc = sscanf(s.c_str(), "%" SCNpr ",%" SCNpr ":%d:", &x.p, &x.r, &x.side);
+        if (rc != 3)
+            throw parse_error("bad ideals", is);
+
+        if (x.same_p(latest_x)) continue;
+
+        mpz_poly_srcptr f = cpoly->pols[x.side];
+        for(badideal & b : badideals_above_p(f, x.side, x.p)) {
+            above_bad += b.nbad;
+            bad_ideals.emplace_back(x, std::move(b));
+        }
+        if (x.p >= bad_ideals_max_p)
+            bad_ideals_max_p = x.p;
+        latest_x = x;
     }
+    above_all = above_cache = above_bad;
 }
 
+void renumber_t::read_header(std::istream& is)
+{
+    std::ios_base::fmtflags ff = is.flags();
+    is >> std::dec;
+
+    ASSERT_ALWAYS(above_all == above_add);
+    if (renumber_format == renumber_format_traditional) {
+        for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
+        unsigned int nbits, nbad, nadd, nonmonic_bitmap, nbpol;
+        int ratside;
+        is >> nbits >> ratside >> nbad >> nadd
+            >> std::hex >> nonmonic_bitmap 
+            >> std::dec >> nbpol;
+        for(auto & x : lpb) is >> x;
+        if (!is) throw parse_error("header");
+        if (::nbits(nonmonic_bitmap) > (int) nbpol)
+            throw parse_error("header, bad bitmap");
+        if (above_add == 0 && nadd)
+            above_add = above_bad = above_cache = above_all = nadd;
+        if (nbpol != get_nb_polys())
+            throw std::runtime_error("incompatible renumber table -- mismatch in number of polynomials");
+        if (nbits != needed_bits())
+            throw std::runtime_error("incompatible renumber table -- wrong needed_bits");
+        if (ratside != get_rational_side())
+            throw std::runtime_error("incompatible renumber table -- different rational_side");
+        if (nadd != above_add)
+            throw std::runtime_error("incompatible renumber table -- mismatch in number of additional columns");
+        compute_bad_ideals_from_dot_badideals_hint(is, nbad);
+    } else {
+        // we only have to parse the large prime bounds
+        for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
+        for(auto & x : lpb) is >> x;
+        if (!is) throw parse_error("header");
+    }
+    is.flags(ff);
+}
+
+/* This reads the bad ideals section of the new-format renumber file
+ */
 void renumber_t::read_bad_ideals(std::istream& is)
 {
+    std::ios_base::fmtflags ff = is.flags();
+
     ASSERT_ALWAYS (renumber_format != renumber_format_traditional);
+    ASSERT_ALWAYS (above_all == above_bad);
+    ASSERT_ALWAYS (above_cache == above_bad);
+    above_bad = above_add;
+    bad_ideals_max_p = 0;
     for(int side = 0; is && side < (int) get_nb_polys(); side++) {
         int x, n;
+        /* The "side, number of bad ideals" is in decimal */
+        is >> std::dec;
         is >> x >> n;
         ASSERT_ALWAYS(x == side);
         for( ; n-- ; ) {
+            /* The "p, r", for consistency with the rest of the renumber
+             * file, are in hex, while the rest of the bad ideal
+             * description is parsed in decimal. This is enforced by the
+             * badideal(std::istream &) ctor.
+             */
+            is >> std::hex;
             badideal b(is);
             p_r_side x { (p_r_values_t) mpz_get_ui(b.p), (p_r_values_t) mpz_get_ui(b.r), side };
             bad_ideals.emplace_back(x, b);
+            above_bad += b.nbad;
+            if (x.p >= bad_ideals_max_p)
+                bad_ideals_max_p = x.p;
         }
     }
+    above_all = above_cache = above_bad;
+    is.flags(ff);
 }
 
 void renumber_t::write_header(std::ostream& os) const
 {
+    std::ios_base::fmtflags ff = os.flags();
+    os << std::dec;
     /* The traditional format doesn't even accept comments in the very
      * first line !
      */
@@ -915,9 +995,9 @@ void renumber_t::write_header(std::ostream& os) const
         }
         os << needed_bits()
             << " " << get_rational_side()
-            << " " << above_bad - above_add
+            << " " << bad_ideals.size() // above_bad - above_add
             << " " << above_add
-            << " " << nonmonic_bitmap
+            << " " << std::hex << nonmonic_bitmap << std::dec
             << " " << get_nb_polys();
         for(auto x : lpb)
             os << " " << x;
@@ -929,11 +1009,14 @@ void renumber_t::write_header(std::ostream& os) const
     // So if we want (for the moment) to provide old-format renumber
     // files that can be parsed by old code, we can only convey the
     // format information as an (unparsed) side note.
-    os << "# Renumber file using format " << renumber_format;
+    os << "# Renumber file using format " << renumber_format << std::endl;
 
     /* Write the polynomials as comments */
-    for (unsigned int i = 0; i < get_nb_polys() ; i++)
-        os << "# pol" << i << ": " << cpoly->pols[i] << "\n";
+    for (unsigned int i = 0; i < get_nb_polys() ; i++) {
+        os << "# pol" << i << ": "
+            << cxx_mpz_poly(cpoly->pols[i]).print_poly("x")
+            << "\n";
+    }
 
     if (renumber_format != renumber_format_traditional) {
         os << renumber_format << "\n";
@@ -945,32 +1028,71 @@ void renumber_t::write_header(std::ostream& os) const
         }
         os << "\n";
     }
+
+    os << "# " << above_add << " additional columns\n";
+    os.flags(ff);
 }
 
 void renumber_t::write_bad_ideals(std::ostream& os) const
 {
+    std::ios_base::fmtflags ff = os.flags();
     /* Write first the bad ideal information at the beginning of file */
     for(int side = 0; os && side < (int) get_nb_polys(); side++) {
-        os << "# bad ideals on side" << side << std::endl;
-        unsigned int n = 0;
-        for(auto const & b : bad_ideals)
-            if (b.first.side == side) n++;
-        os << side << " " << n << std::endl;
-        for(auto const & b : bad_ideals) {
-            if (b.first.side == side)
-                os << b.second << std::endl; 
+        os << "# bad ideals on side " << side << ": ";
+        {
+            unsigned int n = 0;
+            for(auto const & b : bad_ideals) {
+                if (b.first.side == side) {
+                    if (n++) os << "+";
+                    n++;
+                    os << b.second.nbad;
+                }
+            }
+        }
+        os << std::endl;
+        if (renumber_format == renumber_format_traditional) {
+            for(auto const & b : bad_ideals) {
+                if (b.first.side == side)
+                    os << std::hex
+                        << b.first.p << "," << b.first.r << ":"
+                        << std::dec
+                        << b.first.side
+                        << ": " << b.second.nbad << "\n";
+            }
+        } else if (renumber_format != renumber_format_traditional) {
+            unsigned int n = 0;
+            for(auto const & b : bad_ideals)
+                if (b.first.side == side) n++;
+            os << side << " " << n << std::endl;
+            for(auto const & b : bad_ideals) {
+                if (b.first.side == side) {
+                    // we print p,r in hexa at the beginning of the line,
+                    // but the rest of the bad ideal information is in
+                    // decimal.
+                    os << std::hex << b.second << std::endl; 
+                }
+            }
         }
     }
-
+    os.flags(ff);
     os << "# renumber table for all indices above " << above_bad << ":\n";
+}
+
+inline std::vector<int> renumber_t::get_sides_of_additional_columns() const
+{
+    std::vector<int> res;
+    for(unsigned int side = 0 ; side < get_nb_polys() ; side++) {
+        mpz_poly_srcptr f = cpoly->pols[side];
+        if (f->deg > 1 && !mpz_poly_is_monic(f))
+            res.push_back(side);
+    }
+    return res;
 }
 
 void renumber_t::use_additional_columns_for_dl()
 {
     ASSERT_ALWAYS(above_all == 0);
-    above_add = 0;
-    for(unsigned int side = 0 ; side < get_nb_polys() ; side++)
-        above_add += !mpz_poly_is_monic(cpoly->pols[side]);
+    above_add = get_sides_of_additional_columns().size();
     above_bad = above_add;
     above_cache = above_add;
     above_all = above_add;
@@ -978,25 +1100,31 @@ void renumber_t::use_additional_columns_for_dl()
 
 void renumber_t::compute_bad_ideals()
 {
+    ASSERT_ALWAYS (above_all == above_bad);
+    ASSERT_ALWAYS (above_cache == above_bad);
+    /* most useful for traditional format, where we need to do this on
+     * every open. Well, it's super cheap anyway
+     *
+     * Note that in all cases, we also use this function to compute bad
+     * ideals when we create the table in the first place, from
+     * freerel.cpp
+     */
+    above_bad = above_add;
+    bad_ideals_max_p = 0;
     for(int side = 0 ; side < (int) get_nb_polys() ; side++) {
         cxx_mpz_poly f(cpoly->pols[side]);
         if (f->deg == 1) continue;
-        std::vector<badideal> badideals = badideals_for_polynomial(f, side);
-
         for(auto const & b : badideals_for_polynomial(f, side)) {
             p_r_values_t p = mpz_get_ui(b.p);
             p_r_values_t r = mpz_get_ui(b.r);
             p_r_side x { p, r, side };
             bad_ideals.emplace_back(x, b);
+            above_bad += b.nbad;
+            if (p >= bad_ideals_max_p)
+                bad_ideals_max_p = p;
         }
     }
-}
-
-index_t renumber_t::use_cooked_nostore(index_t n0, cooked const & C)
-{
-    for(auto n : C.nroots)
-        n0 += n;
-    return n0;
+    above_all = above_cache = above_bad;
 }
 
 void renumber_t::use_cooked(cooked const & C)
@@ -1005,37 +1133,67 @@ void renumber_t::use_cooked(cooked const & C)
     flat_data.insert(flat_data.end(), C.flat.begin(), C.flat.end());
     above_all = use_cooked_nostore(above_all, C);
 }
+index_t renumber_t::use_cooked_nostore(index_t n0, cooked const & C)
+{
+    for(auto n : C.nroots) n0 += n;
+    return n0;
+}
+
 
 void renumber_t::read_table(std::istream& is)
 {
+    for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
     if (renumber_format == renumber_format_flat) {
         for(p_r_values_t p, r ; is >> p >> r ; ) {
             flat_data.emplace_back(std::array<p_r_values_t, 2> {{ p, r }});
+            above_all++;
         }
     } else {
-        for(p_r_values_t v ; is >> v ; )
+        std::ios_base::fmtflags ff = is.flags();
+        is >> std::hex;
+        for(p_r_values_t v ; is >> v ; ) {
             traditional_data.push_back(v);
+            above_all++;
+        }
+        is.flags(ff);
     }
 }
 
-renumber_t::renumber_t(const char * filename)
+void renumber_t::read_from_file(const char * filename)
 {
     ifstream_maybe_compressed is(filename);
     read_header(is);
-    read_bad_ideals(is);
+    if (renumber_format == renumber_format_traditional) {
+        compute_bad_ideals();
+    } else {
+        read_bad_ideals(is);
+    }
+    read_table(is);
+}
+
+void renumber_t::read_from_file(const char * filename, const char * badidealinfofile)
+{
+    ifstream_maybe_compressed is(filename);
+    read_header(is);
+    std::ifstream isi(badidealinfofile);
+    read_bad_ideals_info(isi);
     read_table(is);
 }
 
 void renumber_t::read_bad_ideals_info(std::istream & is)
 {
+    std::ios_base::fmtflags ff = is.flags();
+    is >> std::dec;
     /* the badidealinfo file of old is slightly annoying to deal with.
      */
+    ASSERT_ALWAYS (above_all == above_bad);
+    ASSERT_ALWAYS (above_cache == above_bad);
+    above_bad = above_add;
+    bad_ideals_max_p = 0;
     bad_ideals.clear();
     std::map<p_r_side, badideal> met;
     for( ; is ; ) {
-        std::string s;
-        std::istringstream iss;
-        for( ; getline(is, s) && !s.empty() && s[0] == '#' ; ) ;
+        for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
         p_r_values_t p, rk;
         int k, side;
         is >> p >> k >> rk >> side;
@@ -1061,17 +1219,14 @@ void renumber_t::read_bad_ideals_info(std::istream & is)
         met[x].branches.emplace_back(std::move(br));
     }
     for(auto const & prb : met) {
+        p_r_values_t p = prb.first.p;
         bad_ideals.emplace_back(prb);
+        above_bad += prb.second.nbad;
+        if (p >= bad_ideals_max_p)
+            bad_ideals_max_p = p;
     }
-}
-
-renumber_t::renumber_t(const char * filename, const char * badidealinfofile)
-{
-    ifstream_maybe_compressed is(filename);
-    read_header(is);
-    std::ifstream isi(badidealinfofile);
-    read_bad_ideals_info(isi);
-    read_table(is);
+    above_all = above_cache = above_bad;
+    is.flags(ff);
 }
 
 std::string renumber_t::debug_data(index_t i) const
@@ -1079,36 +1234,289 @@ std::string renumber_t::debug_data(index_t i) const
     p_r_side x = p_r_from_index (i);
     std::ostringstream os;
 
-    os << "i=" << i;
+    os << "i=0x" << std::hex << i;
 
     if (is_additional_column (i)) {
         os << " tab[i]=#"
-            << " added column for side " << x.side;
+            << " added column for side " << std::dec << x.side;
     } else if (is_bad(i)) {
         os << " tab[i]=#"
             << " bad ideal"
+            << std::dec
             << " (" << bad_ideals[i - above_add].second.nbad << " branches)"
             << " above"
             << " (" << x.p << "," << x.r << ")"
             << " on side " << x.side;
     } else {
         os << " tab[i]=";
+        os << std::hex;
         i -= above_bad;
         if (renumber_format == renumber_format_flat) {
-            os << " (" << flat_data[i][0] << "," << flat_data[i][1] << ")";
+            os << " (0x" << flat_data[i][0] << ",0x" << flat_data[i][1] << ")";
         } else {
-            os << traditional_data[i];
+            os << "0x" << traditional_data[i];
         }
-        os << " p=%" << x.p;
+        os << " p=0x" << x.p;
         if (x.side == get_rational_side()) {
             os << " rat";
+            os << " side " << std::dec << x.side;
         } else {
-            os << " r=" << x.r;
+            os << " r=0x" << x.r;
+            os << " side " << std::dec << x.side;
             if (x.r == x.p)
                 os << " proj";
         }
-        os << " side " << x.side;
     }
 
     return os.str();
 }
+
+static int builder_switch_lcideals = 0;
+void renumber_t::builder_configure_switches(cxx_param_list & pl)
+{
+    param_list_configure_switch(pl, "-lcideals", &builder_switch_lcideals);
+}
+
+void renumber_t::builder_declare_usage(cxx_param_list & pl)
+{
+    param_list_decl_usage(pl, "renumber", "output file for renumbering table");
+    param_list_decl_usage(pl, "badideals", "file describing bad ideals (for DL). Only the primes are used, most of the data is recomputed anyway.");
+    param_list_decl_usage(pl,
+                          "lcideals",
+                          "Add ideals for the leading "
+                          "coeffs of the polynomials (for DL)");
+}
+
+void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
+{
+    param_list_lookup_string(pl, "renumber");
+    param_list_lookup_string(pl, "badideals");
+    param_list_lookup_string(pl, "lcideals");
+}
+
+/* This is the core of the renumber table building routine. Part of this
+ * code used to exist in freerel.cpp file.
+ */
+struct renumber_t::builder{/*{{{*/
+    struct prime_chunk {/*{{{*/
+        bool preprocess_done = false;
+        bool end_mark = false;
+        std::vector<unsigned long> primes;
+        std::vector<renumber_t::cooked> C;
+        prime_chunk(std::vector<unsigned long> && primes) : primes(primes) {}
+        static prime_chunk end_marker() {
+            prime_chunk x;
+            x.end_mark = true;
+            return x;
+        }
+        private:
+        prime_chunk() = default;
+    };/*}}}*/
+
+    renumber_t & R;
+    std::ostream * os_p;
+    renumber_t::hook * hook;
+    stats_data_t stats;
+    unsigned long nprimes = 0; // sigh... *must* be ulong for stats().
+    index_t R_max_index; // we *MUST* follow it externally, since we're not storing the table in memory.
+    builder(renumber_t & R, std::ostream * os_p, renumber_t::hook * hook)
+        : R(R)
+        , os_p(os_p)
+        , hook(hook)
+        , R_max_index(R.get_max_index())
+    {
+        /* will print report at 2^10, 2^11, ... 2^23 computed primes
+         * and every 2^23 primes after that */
+        stats_init(stats, stdout, &nprimes, 23, "Processed", "primes", "", "p");
+    }
+    void progress() {
+        if (stats_test_progress(stats))
+            stats_print_progress(stats, nprimes, 0, 0, 0);
+    }
+    ~builder() {
+        stats_print_progress(stats, nprimes, 0, 0, 1);
+    }
+    index_t operator()();
+    void preprocess(prime_chunk & P);
+    void postprocess(prime_chunk & P);
+};/*}}}*/
+
+void renumber_t::builder::preprocess(prime_chunk & P)/*{{{*/
+{
+    ASSERT_ALWAYS(!P.preprocess_done);
+    /* change x (list of input primes) into the list of integers that go
+     * to the renumber table, and then set "done" to true.
+     * This is done asynchronously.
+     */
+    for(auto p : P.primes) {
+        std::vector<std::vector<unsigned long>> all_roots;
+        for (unsigned int side = 0; side < R.get_nb_polys(); side++) {
+            std::vector<unsigned long> roots;
+            mpz_poly_srcptr f = R.get_poly(side);
+
+            if (UNLIKELY(p >> R.get_lpb(side)))
+                roots.clear();
+            else if (f->deg == 1)
+                roots.assign(1, 0);
+            else {
+                /* Note that roots are sorted */
+                roots = mpz_poly_roots(f, p);
+            }
+
+            /* Check for a projective root ; append it (so that the list of roots
+             * is still sorted)
+             */
+
+            if ((int) roots.size() != R.get_poly_deg(side)
+                    && mpz_divisible_ui_p(f->coeff[f->deg], p))
+                roots.push_back(p);
+
+            /* take off bad ideals from the list, if any. */
+            if (p <= R.get_max_bad_p()) { /* can it be a bad ideal ? */
+                for (size_t i = 0; i < roots.size() ; i++) {
+                    unsigned long r = roots[i];
+                    if (!R.is_bad(p, r, side))
+                        continue;
+                    /* bad ideal -> remove this root from the list */
+                    roots.erase(roots.begin() + i);
+                    i--;
+                }
+            }
+            all_roots.emplace_back(roots);
+        }
+
+        /* Data is written in the temp buffer in a way that is not quite
+         * similar to the renumber table, but still close enough.
+         */
+        P.C.emplace_back(R.cook(p, all_roots));
+    }
+#pragma omp atomic write
+    P.preprocess_done = true;
+}/*}}}*/
+
+void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
+{
+    ASSERT_ALWAYS(P.preprocess_done);
+    /* put all entries from x into the renumber table, and also print
+     * to freerel_file any free relation encountered. This is done
+     * synchronously.
+     *
+     * (if freerel_file is NULL, store only into the renumber table)
+     */
+    for(size_t i = 0; i < P.primes.size() ; i++) {
+        p_r_values_t p = P.primes[i];
+        renumber_t::cooked const & C = P.C[i];
+
+        if (hook) (*hook)(R, p, R_max_index, C);
+
+        if (os_p) {
+            R_max_index = R.use_cooked_nostore(R_max_index, C);
+            (*os_p) << C.text;
+        } else {
+            ASSERT_ALWAYS(R_max_index == R.get_max_index());
+            R.use_cooked(C);
+            R_max_index = R.get_max_index();
+        }
+
+        nprimes++;
+    }
+    /* free memory ! */
+    P.primes.clear();
+    P.C.clear();
+    progress();
+}/*}}}*/
+
+index_t renumber_t::builder::operator()()/*{{{*/
+{
+    /* Generate the renumbering table. */
+
+    prime_info pi;
+    prime_info_init(pi);
+    unsigned long p = 2;
+    constexpr const unsigned int granularity = 1024;
+    std::list<prime_chunk> chunks;
+    chunks.push_back(prime_chunk::end_marker());
+    std::list<prime_chunk>::iterator next_to_postprocess = chunks.begin();
+    std::list<prime_chunk>::iterator next_to_preprocess = chunks.begin();
+    unsigned long lpbmax = 1UL << R.get_max_lpb();
+
+#pragma omp parallel
+    {
+#pragma omp single
+        {
+            for (; p <= lpbmax || next_to_postprocess != next_to_preprocess ;) {
+                if (p <= lpbmax) {
+                    std::vector<unsigned long> pp;
+                    pp.reserve(granularity);
+                    for (; p <= lpbmax && pp.size() < granularity;) {
+                        pp.push_back(p);
+                        p = getprime_mt(pi); /* get next prime */
+                    }
+                    *next_to_preprocess = prime_chunk(std::move(pp));
+                    chunks.push_back(prime_chunk::end_marker());
+#pragma omp task firstprivate(next_to_preprocess)
+                    {
+                        preprocess(*next_to_preprocess);
+                    }
+                    next_to_preprocess++;
+                }
+
+                for (; next_to_postprocess != next_to_preprocess ; ) {
+                    bool ok;
+#pragma omp atomic read
+                    ok = next_to_postprocess->preprocess_done;
+                    if (!ok)
+                        break;
+                    postprocess(*next_to_postprocess);
+                    chunks.erase(next_to_postprocess++);
+                }
+            }
+        }
+    }
+    prime_info_clear(pi);
+
+    return R_max_index;
+}/*}}}*/
+
+index_t renumber_t::build(hook * f)
+{
+    cxx_param_list pl;
+    return build(pl, f);
+}
+
+index_t renumber_t::build(cxx_param_list & pl, hook * f)
+{
+    const char * badidealsfilename = param_list_lookup_string(pl, "badideals");
+    const char * renumberfilename = param_list_lookup_string(pl, "renumber");
+
+    if (builder_switch_lcideals)
+        use_additional_columns_for_dl();
+    if (badidealsfilename) {
+        /* we don't really care about the .badideals file. Except that if
+         * we have it at hand, we might as well use it as a set of hints
+         * to avoid the trial division when rediscovering bad ideals.
+         *
+         * Note that it's undoubtedly more expensive than the old version
+         * which was just simply reusing the .badideals file. But we do
+         * more, here. And anyway we're talking a ridiculous overhead
+         * compared to the rest of the computation.
+         */
+        std::ifstream is(badidealsfilename);
+        compute_bad_ideals_from_dot_badideals_hint(is);
+    } else {
+        /* We can pass some hint primes as well, in a vector */
+        compute_bad_ideals();
+    }
+
+    std::unique_ptr<std::ostream> out;
+
+    if (renumberfilename) {
+        out.reset(new ofstream_maybe_compressed(renumberfilename));
+
+        write_header(*out);
+        write_bad_ideals(*out);
+    }
+
+    return builder(*this, out.get(), f)();
+}
+

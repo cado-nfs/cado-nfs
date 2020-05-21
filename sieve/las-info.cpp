@@ -134,7 +134,7 @@ las_info::las_info(cxx_param_list & pl)
 #else
       shared_structure_private(cpoly, pl),
 #endif
-      dlog_base(pl),
+      dlog_base(cpoly, pl),
       cofac_stats(pl)
       /*{{{*/
 {

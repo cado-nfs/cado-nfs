@@ -142,8 +142,6 @@ static inline void
 print_relation (FILE * file, earlyparsed_relation_srcptr rel)
 {
   char buf[1 << 12], *p, *op;
-  size_t t;
-  unsigned int i, j;
   uint64_t nonvoidside = 0; /* bit vector of which sides appear in the rel */
 
   p = d64toa16(buf, rel->a);
@@ -151,15 +149,15 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
   p = u64toa16(p, rel->b);
   *p++ = ':';
 
-  for (i = 0; i < rel->nb; i++)
+  for (unsigned int i = 0; i < rel->nb; i++)
   {
     if (rel->primes[i].e > 0)
     {
       op = p;
       p = u64toa16(p, (uint64_t) rel->primes[i].h);
       *p++ = ',';
-      t = p - op;
-      for (j = (unsigned int) ((rel->primes[i].e) - 1); j--; p += t)
+      ptrdiff_t t = p - op;
+      for (unsigned int j = (unsigned int) ((rel->primes[i].e) - 1); j--; p += t)
         memcpy(p, op, t);
       nonvoidside |= ((uint64_t) 1) << rel->primes[i].side;
     }
@@ -170,24 +168,19 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
    * if naddcols == 0:
    *    do nothing.
    * else: 
-   *    if nb_polys == 2:
-   *      we add the columns 0 (in this case there is always 1 additional column
-   *      and it is always necessary)
-   *    if nb_polys != 2:
-   *      we add the columns i if and only if the ith bit of
-   *      renumber_tab->nonmonic is 1 (i.e., the polynomial on side i is non
-   *      monic) and the relation contains at least one prime on side i.
+   *    we add the columns i if and only if the polynomial on side i is non
+   *    monic and the relation contains at least one prime on side i.
+   *
+   *    if nb_polys == 2, this was previously claimed to reduce to "we
+   *    add the column 0 (in this case there is always 1 additional column
+   *      and it is always necessary)", which I think is wrong.
    */
-  if (renumber_tab.number_of_additional_columns()) {
-      index_t idx = 0;
-      for(int side = 0 ; side < (int) renumber_tab.get_nb_polys() ; side++) {
-          if (mpz_poly_is_monic(renumber_tab.get_poly(side)))
-              continue;
-          if ((nonvoidside & (((uint64_t) 1) << rel->primes[i].side))) {
-              p = u64toa16(p, (uint64_t) idx);
-              *p++ = ',';
-          }
-          idx++;
+  auto addsides = renumber_tab.get_sides_of_additional_columns();
+  for(index_t idx = 0; idx < addsides.size() ; idx++) {
+      int side = addsides[idx];
+      if ((nonvoidside & (((uint64_t) 1) << side))) {
+          p = u64toa16(p, (uint64_t) idx);
+          *p++ = ',';
       }
   }
 
@@ -526,6 +519,7 @@ int check_whether_file_is_renumbered(const char * filename, unsigned int npoly)
 
 static void declare_usage(param_list pl)
 {
+  param_list_decl_usage(pl, "poly", "input polynomial file");
   param_list_decl_usage(pl, "filelist", "file containing a list of input files");
   param_list_decl_usage(pl, "basepath", "path added to all file in filelist");
   param_list_decl_usage(pl, "renumber", "input file for renumbering table");
@@ -555,6 +549,8 @@ main (int argc, char *argv[])
     argv0 = argv[0];
 
     cxx_param_list pl;
+    cxx_cado_poly cpoly;
+
     declare_usage(pl);
     argv++,argc--;
 
@@ -583,6 +579,7 @@ main (int argc, char *argv[])
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 
+    const char * polyfilename = param_list_lookup_string(pl, "poly");
     const char * outfmt = param_list_lookup_string(pl, "outfmt");
     const char * filelist = param_list_lookup_string(pl, "filelist");
     const char * basepath = param_list_lookup_string(pl, "basepath");
@@ -599,6 +596,11 @@ main (int argc, char *argv[])
       usage(pl, argv0);
     }
 
+    if (polyfilename == NULL || ! cado_poly_read(cpoly, polyfilename))
+    {
+      fprintf (stderr, "Error, missing -poly command line argument\n");
+      usage(pl, argv0);
+    }
     if (renumberfilename == NULL)
     {
       fprintf (stderr, "Error, missing -renumber command line argument\n");
@@ -633,7 +635,8 @@ main (int argc, char *argv[])
 
     set_antebuffer_path (argv0, path_antebuffer);
 
-    renumber_t renumber_tab(renumberfilename, badidealinfofile);
+    renumber_tab = renumber_t(cpoly);
+    renumber_tab.read_from_file(renumberfilename, badidealinfofile);
 
   /* sanity check: since we allocate two 64-bit words for each, instead of
      one 32-bit word for the hash table, taking K/100 will use 2.5% extra

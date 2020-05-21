@@ -15,6 +15,26 @@
 #include "cado_poly.h"
 #include "badideals.hpp"
 
+/* To build a renumber table in memory in the simplest way, the
+ * process goes as follows
+
+ renumber_t renumber_table(cpoly);
+ renumber_table.set_lpb(lpb);
+ renumber_table.build();
+
+ (there are various ways to control the build process, including a way to
+ stream the computed table to a file, and compute free relations as well.
+ This is done in freerel.cpp ; but the heavylifting really happens in
+ renumber proper.)
+
+ * To read a renumber table from a file, this goes as:
+
+ renumber_t renumber_table(cpoly);
+ renumber_table.read_from_file(renumberfilename);
+
+*/
+
+/* TODO: implement this */
 #define RENUMBER_MAX_LOG_CACHED 20
 
 struct renumber_t {
@@ -74,7 +94,7 @@ private:
 
 public:
     inline unsigned int get_lpb(unsigned int i) const { return lpb[i]; }
-    inline unsigned int get_max_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
+    inline unsigned int get_max_lpb() const { return *std::max_element(lpb.begin(), lpb.end()); }
     inline unsigned int get_min_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
     inline uint64_t get_size() const { return above_all; }
     inline unsigned int get_nb_polys() const { return cpoly->nb_polys; }
@@ -89,6 +109,7 @@ public:
     }
     inline index_t get_max_index() const { return above_all; }
     inline index_t number_of_additional_columns() const { return above_add; }
+    std::vector<int> get_sides_of_additional_columns() const;
     inline index_t number_of_bad_ideals() const { return above_bad - above_add; }
 
     renumber_t() = default;
@@ -106,6 +127,7 @@ public:
     }
     void use_additional_columns_for_dl();
     void compute_bad_ideals();
+    void compute_bad_ideals_from_dot_badideals_hint(std::istream&, unsigned int = UINT_MAX);
 
     void read_header(std::istream& os);
     void write_header(std::ostream& os) const;
@@ -116,7 +138,7 @@ public:
      */
     void read_bad_ideals_info(std::istream & is);
     /* there's no write_table, because writing the table is done by
-     * freerel anyway using the cook() / use_cooked*() functions.
+     * the build() function (called from freerel)
      */
     void read_table(std::istream& is);
 
@@ -124,8 +146,10 @@ public:
      * the old format, and we need the badidealinfo file as well (not the
      * badideals file, which does not contain enough info.
      */
-    renumber_t(const char *);
-    renumber_t(const char *, const char *);
+    void read_from_file(const char * filename);
+    void read_from_file(const char *, const char *);
+    // renumber_t(const char *);
+    // renumber_t(const char *, const char *);
 
     /* return the number of bad ideals above x (and therefore zero if
      * x is not bad). If the ideal is bad, put in the reference [first] the
@@ -158,27 +182,33 @@ public:
     /* This second interface works for bad ideals as well. */
     std::pair<index_t, std::vector<int>> indices_from_p_a_b(p_r_side x, int e, int64_t a, uint64_t b) const;
 
-
     struct cooked {
         std::vector<unsigned int> nroots;
         std::vector<p_r_values_t> traditional;
         std::vector<std::array<p_r_values_t, 2>> flat;
         std::string text;
     };
-    /* The "cook" function can be used asynchronously to prepare the
-     * fragments of the renumber table in parallel. use_cooked must use
-     * the same data, but synchronously -- and stores it to the table, of
-     * course. The use_cooked_nostore does the same, except that it is
-     * made for the situation where we have no interest in keeping track
-     * of the renumber table itself. The only thing that matters is
-     * keeping track of the above_all index, which is done by the input
-     * and output index_t values. */
-    cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> &) const;
-    void use_cooked(cooked const & C);
-    index_t use_cooked_nostore(index_t, cooked const & C);
-
     /* This is purely descriptive, used for debugging */
     std::string debug_data(index_t i) const;
+
+    struct hook {
+        virtual void operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) = 0;
+    };
+
+    /* To build a renumber table in memory in the simplest way, the
+     * process goes as follows
+       renumber_t renumber_table(cpoly);
+       renumber_table.set_lpb(lpb);
+       renumber_table.build();
+     */
+
+    static void builder_configure_switches(cxx_param_list &);
+    static void builder_declare_usage(cxx_param_list &);
+    static void builder_lookup_parameters(cxx_param_list &);
+    index_t build(cxx_param_list &, hook * = nullptr);
+    index_t build(hook * = nullptr);
+
+
 private:
     unsigned int needed_bits() const;
     /* this returns an index i such that data[i - above_bad] points to
@@ -196,7 +226,20 @@ private:
     bool traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const;
     index_t traditional_backtrack_until_vp(index_t i, index_t min) const;
     bool traditional_is_vp_marker(index_t i) const;
+
+
+    /* The "cook" function can be used asynchronously to prepare the
+     * fragments of the renumber table in parallel. use_cooked must use
+     * the same data, but synchronously -- and stores it to the table, of
+     * course. The use_cooked_nostore does the same, except that it is
+     * made for the situation where we have no interest in keeping track
+     * of the renumber table itself. The only thing that matters is
+     * keeping track of the above_all index, which is done by the input
+     * and output index_t values. */
+    cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> &) const;
+    void use_cooked(cooked const & C);
+    index_t use_cooked_nostore(index_t, cooked const & C);
+    struct builder;
+    friend struct builder;
 };
-
-
 #endif /* RENUMBER_HPP_ */

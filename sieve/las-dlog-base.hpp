@@ -6,6 +6,7 @@
 #include "renumber.hpp"   // for renumber_t
 
 struct las_dlog_base {
+    cxx_cado_poly const & cpoly;
 private:
     char * renumberfilename;
     char * logfilename;
@@ -17,7 +18,7 @@ private:
     void read();
 public:
     bool is_known(int side, p_r_values_t p, p_r_values_t r) const;
-    las_dlog_base(cxx_param_list & pl);
+    las_dlog_base(cxx_cado_poly const &, cxx_param_list & pl);
     ~las_dlog_base();
     static void declare_usage(cxx_param_list & pl);
     static void lookup_parameters(cxx_param_list & pl);
