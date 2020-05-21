@@ -304,6 +304,11 @@ renumber_t::p_r_side renumber_t::compute_p_r_side_from_p_vr (p_r_values_t p, p_r
     p_r_side res { p, 0, 0 };
 
     res.r = vr;
+    if (format == format_traditional && get_rational_side() < 0 && vr == compute_vp_from_p(p)) {
+        if (traditional_get_largest_nonbad_root_mod_p(res))
+            return res;
+        throw wrong_entry(p, vr);
+    }
     for(res.side = 0 ; res.side < (int) get_nb_polys() ; res.side++) {
         if (res.side == get_rational_side())
             continue;
