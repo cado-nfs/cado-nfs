@@ -150,7 +150,7 @@ declare_usage(param_list pl)
                           "lpbs",
                           "large primes bounds (comma-separated list) "
                           "(for MNFS)");
-    // param_list_decl_usage(pl, "t", "number of threads");
+    param_list_decl_usage(pl, "t", "number of threads");
 }
 
 int
@@ -199,7 +199,13 @@ main(int argc, char* argv[])
     has_lpb01 += param_list_parse_int(pl, "lpb1", &(lpb_arg[1]));
     int has_nlpbs =
       param_list_parse_int_list(pl, "lpbs", lpb_arg, NB_POLYS_MAX, ",");
-    // param_list_parse_uint (pl, "t", &nthreads);
+
+    int nthreads = 0;
+    if (param_list_parse_int (pl, "t", &nthreads)) {
+        fprintf(stderr, "Warning: the -t argument to freerel is kept for compatibility, but you should rather take it out and let openmp deal with it\n");
+        omp_set_num_threads(nthreads);
+    }
+
 
     freerel_data_t::lookup_parameters(pl);
 
