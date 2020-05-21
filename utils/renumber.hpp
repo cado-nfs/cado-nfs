@@ -111,10 +111,15 @@ public:
         return -1;
     }
     inline index_t get_max_index() const { return above_all; }
+    inline index_t get_max_cached_index() const { return above_cache; }
+    inline p_r_values_t get_cached_primes_bound() const { return index_from_p_cache.size(); }
     inline index_t number_of_additional_columns() const { return above_add; }
     std::vector<int> get_sides_of_additional_columns() const;
     inline index_t number_of_bad_ideals() const { return above_bad - above_add; }
-
+    inline size_t get_memory_size() const {
+        return traditional_data.size() * sizeof(decltype(traditional_data)::value_type)
+            + flat_data.size() * sizeof(decltype(flat_data)::value_type);
+    }
     renumber_t() = default;
     // ~renumber_t() = default;
     renumber_t(renumber_t const &) = delete;

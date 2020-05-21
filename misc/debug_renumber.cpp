@@ -10,6 +10,8 @@
 #include "verbose.h"    // verbose_decl_usage
 #include "typedefs.h"   // index_t 
 #include "renumber.hpp" // renumber_t
+#include "timing.h"     // seconds wct_seconds
+#include "misc.h"     // size_disp
 
 static void declare_usage(cxx_param_list & pl)
 {
@@ -18,6 +20,7 @@ static void declare_usage(cxx_param_list & pl)
   param_list_decl_usage(pl, "lpbs", "large primes bounds (comma-separated list, for --build only)");
   param_list_decl_usage(pl, "check", "check the renumbering table");
   param_list_decl_usage(pl, "build", "build the renumbering table on the fly, instead of loading it (requires --lpbs)");
+  param_list_decl_usage(pl, "bench", "bench lookup performance in the renumbering table");
   param_list_decl_usage(pl, "quiet", "do not print the renumbering table contents");
   verbose_decl_usage(pl);
 }
@@ -35,6 +38,7 @@ main (int argc, char *argv[])
     int check = 0;
     int build = 0;
     int quiet = 0;
+    int bench = 0;
     char *argv0 = argv[0];
     cxx_cado_poly cpoly;
 
@@ -43,6 +47,7 @@ main (int argc, char *argv[])
     param_list_configure_switch(pl, "check", &check);
     param_list_configure_switch(pl, "build", &build);
     param_list_configure_switch(pl, "quiet", &quiet);
+    param_list_configure_switch(pl, "bench", &bench);
 
     argv++, argc--;
     if (argc == 0)
@@ -93,13 +98,38 @@ main (int argc, char *argv[])
     renumber_t tab(cpoly);
 
     if (build) {
+        double wtt = wct_seconds();
+        double tt = seconds();
         std::vector<unsigned int> lpb(tab.get_nb_polys(),0);
         param_list_parse_uint_list(pl, "lpbs", &lpb[0], tab.get_nb_polys(), ",");
         tab.set_lpb(lpb);
         tab.build();
+
+        if (bench) {
+            printf("# Build time: %.2f (%.2f on cpu)\n",
+                    wct_seconds() -  wtt,
+                    seconds() -  tt);
+        }
+
     } else {
+        double wtt = wct_seconds();
+        double tt = seconds();
+
         tab.read_from_file(renumberfilename);
+
+        if (bench) {
+            printf("# Read time: %.2f (%.2f on cpu)\n",
+                    wct_seconds() -  wtt,
+                    seconds() -  tt);
+        }
     }
+
+    if (bench) {
+        char buf[16];
+        printf("# memory size of the renumbering table: %s\n",
+                size_disp(tab.get_memory_size(), buf));
+    }
+
 
     if (!quiet) {
         for (index_t i = 0; i < tab.get_size() ; i++) {
@@ -140,6 +170,49 @@ main (int argc, char *argv[])
         printf("Number of errors: %" PRIu64 "\n", nerrors);
         if (nerrors) return EXIT_FAILURE;
     }
+
+    if (bench) {
+        gmp_randstate_t rstate;
+        gmp_randinit_default(rstate);
+        double tt;
+        volatile unsigned long sum_h =0;
+        int nlookups = 1000 * 1000;
+
+        std::vector<renumber_t::p_r_side> sample;
+
+        tt = seconds();
+        for(int i = 0 ; i < nlookups ; i++) {
+            index_t h = gmp_urandomm_ui(rstate, tab.get_size());
+            renumber_t::p_r_side x = tab.p_r_from_index(h);
+            sample.push_back(x);
+        }
+        printf("# Time for %d random lookups (p_r_from_index, arbitrary primes): %.3g\n",
+                nlookups,
+                seconds() - tt);
+
+        tt = seconds();
+        for(auto const & x : sample) {
+            if (x.p >> tab.get_max_lpb()) continue;
+            index_t h = tab.index_from_p_r(x);
+            sum_h += h;
+        }
+        printf("# Time for %d random lookups (index_from_p_r, cached primes): %.3g\n",
+                nlookups,
+                seconds() - tt);
+
+        tt = seconds();
+        for(auto const & x : sample) {
+            index_t h = tab.index_from_p_r(x);
+            sum_h += h;
+        }
+        printf("# Time for %d random lookups (index_from_p_r, arbitrary primes): %.3g\n",
+                nlookups,
+                seconds() - tt);
+
+
+        gmp_randclear(rstate);
+    }
+
     return EXIT_SUCCESS;
 }
 
