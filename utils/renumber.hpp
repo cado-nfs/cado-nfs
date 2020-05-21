@@ -10,6 +10,7 @@
 #include <array>
 #include <vector>
 #include <stdexcept>
+#include <iterator>
 #include <type_traits>
 #include "typedefs.h"
 #include "cado_poly.h"
@@ -189,11 +190,14 @@ public:
      */
 
     /* return the number of bad ideals above x (and therefore zero if
-     * x is not bad). If the ideal is bad, put in the reference [first] the
+     * x is not bad) ; likewise for index h.
+     * If the ideal is bad, put in the reference [first] the
      * first index that corresponds to the bad ideals.
      */
     int is_bad(p_r_side) const;
     int is_bad(index_t &, p_r_side) const;
+    int is_bad(index_t & first_index, index_t h) const;
+
     /* two convenience shortcuts, to avoid curlies */
     inline int is_bad(p_r_values_t p, p_r_values_t r, int side) const {
         return is_bad({p, r, side});
@@ -293,5 +297,39 @@ private:/*{{{ more implementation-level stuff. */
     struct builder;
     friend struct builder;
 /*}}}*/
+
+public:
+
+    friend class const_iterator;
+
+    class const_iterator
+    {
+        private:
+            renumber_t const & table;
+            /* these are outer indices when below above_bad, and then we have
+             * above_bad + the inner index.  Subtract table.above_bad to get
+             * inner table indices.
+             */
+            index_t i0;
+            index_t i;
+        public:
+            typedef p_r_side                value_type;
+            typedef std::ptrdiff_t          difference_type;
+            typedef p_r_side const *        const_pointer;
+            typedef p_r_side const &        const_reference;
+            typedef std::input_iterator_tag iterator_category;
+
+            explicit const_iterator(renumber_t const & table, index_t i);
+
+            p_r_side operator*() const;
+            bool operator==(const const_iterator& other) const { return i == other.i; }
+            bool operator!=(const const_iterator& other) const { return !(*this == other); }
+            const_iterator operator++(int);
+            const_iterator& operator++();
+    };
+
+    const_iterator begin() const;
+    const_iterator end() const;
 };
 #endif /* RENUMBER_HPP_ */
+

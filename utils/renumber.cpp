@@ -50,10 +50,9 @@
  *      filter/dup2.cpp
  *      sieve/las-dlog-base.cpp  -- not yet, but maybe at some point.
  * 
- * p_r_from_index but as a forward iterator only (TODO: implement one!)
+ * p_r_from_index but as a forward iterator only
  *      filter/filter_galois.cpp
  *      filter/reconstructlog.cpp
- *      sieve/fake_rels.cpp
  *      sieve/fake_rels.cpp
  *      filter/reconstructlog.cpp
  *
@@ -1804,3 +1803,119 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
     return builder(*this, out.get(), f)();
 }
 
+renumber_t::const_iterator renumber_t::begin() const
+{
+    return const_iterator(*this, 0);
+}
+renumber_t::const_iterator renumber_t::end() const
+{
+    return const_iterator(*this, above_bad + traditional_data.size() + flat_data.size());
+}
+
+renumber_t::const_iterator::const_iterator(renumber_t const & table, index_t i)
+    : table(table)
+      , i(i)
+{
+    if (i < table.above_bad) {
+        if (table.is_additional_column(i)) {
+            i0 = UINT_MAX;
+            return;
+        } else if (table.is_bad(i0, i)) {
+            // ok, fine. i0 is set to exactly what we want.
+        } else {
+            throw std::runtime_error("Cannot create iterator");
+        }
+    }
+    if (table.format != format_flat) {
+        if (i == table.above_bad + table.traditional_data.size()) {
+            i0 = i;
+        } else {
+            i0 = table.above_bad + table.traditional_backtrack_until_vp(i - table.above_bad, 0);
+            if (table.format == format_variant && table.get_rational_side() < 0 && i == i0)
+                i += 2;
+        }
+    } else {
+        /* flat format doesn't give shit about keeping track of the
+         * full p range -- so that we _don't_ use i0. */
+        i0 = UINT_MAX;
+    }
+}
+renumber_t::p_r_side renumber_t::const_iterator::operator*() const {
+    if (i < table.above_add) {
+        index_t j = 0;
+        for(auto side : table.get_sides_of_additional_columns()) {
+            if (j++ == i)
+                return { 0, 0, side };
+        }
+    }
+    if (i < table.above_bad) {
+        /* annoying. we don't exactly have the pointer to the bad
+         * ideal, we have to recover it. */
+        index_t ii0 = i0 - table.above_add;
+        for(auto const & I : table.bad_ideals) {
+            if (ii0 == 0)
+                return I.first;
+            ii0 -= I.second.nbad;
+        }
+    }
+    if (table.format != format_flat) {
+        p_r_values_t vp = table.traditional_data[i0-table.above_bad];
+        p_r_values_t vr = table.traditional_data[i-table.above_bad];
+        p_r_values_t p = table.compute_p_from_vp(vp);
+        return table.compute_p_r_side_from_p_vr(p, vr);
+    } else {
+        p_r_values_t p = table.flat_data[i-table.above_bad][0];
+        p_r_values_t vr = table.flat_data[i-table.above_bad][1];
+        return table.compute_p_r_side_from_p_vr(p, vr);
+    }
+}
+renumber_t::const_iterator renumber_t::const_iterator::operator++(int)
+{
+    const_iterator ret = *this;
+    ++*this;
+    return ret;
+}
+renumber_t::const_iterator& renumber_t::const_iterator::operator++()
+{
+    if (i < table.above_add) {
+        ++i;
+        if (i == table.above_add)
+            i0 = i;
+        return *this;
+    } else if (i < table.above_bad) {
+        ++i;
+        if (i == table.above_bad) {
+            i0 = i;
+            if (table.format == format_variant && table.get_rational_side() < 0)
+                i += 2;
+            return *this;
+        } else if (table.is_bad(i0, i)) {
+            // fine
+            return *this;
+        }
+        throw std::runtime_error("Cannot increase iterator");
+    }
+    /* general case */
+    i++;
+
+    if (table.format == format_flat)
+        return *this;
+
+    if (i == table.above_bad + table.traditional_data.size()) {
+        i0 = i;
+        return *this;
+    }
+    p_r_values_t vp = table.traditional_data[i0-table.above_bad];
+    if (table.format == format_variant && i == i0 + 1) {
+        // can only happen if we've been crazy enough to test
+        // the variant format with a rational side defined.
+        i++;
+    }
+    p_r_values_t vr = table.traditional_data[i-table.above_bad];
+    if (vr > vp) {
+        i0 = i;
+        if (table.format == format_variant && table.get_rational_side() < 0)
+            i += 2;
+    }
+    return *this;
+}
