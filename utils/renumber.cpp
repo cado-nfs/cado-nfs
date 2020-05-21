@@ -40,30 +40,35 @@
  * the uses that pertain only to the building and handling of the
  * database itself, are the following.
  *
-filter/dup2.cpp:        pr[i].h = renumber_get_index_from_p_r(renumber_tab, pr[i].p, r,
-sieve/las-dlog-base.cpp:        index_t h = renumber_get_index_from_p_r(tab, p, r, side);
-sieve/fake_rels.cpp:                index = renumber_get_index_from_p_r(ren_tab, p, r, side);
-sieve/fake_rels.cpp:      index_t indq = renumber_get_index_from_p_r(ren_table, q, roots[0], sqside);
-sieve/fake_rels.cpp:      indq = renumber_get_index_from_p_r(ren_table, q, roots[0], sqside);
-
-filter/filter_galois.cpp:      renumber_get_p_r_from_index(tab, &p, &rr, &side, i, cpoly);// XXX forward iter
-filter/reconstructlog.cpp:        renumber_get_p_r_from_index (tab, &p, &r, &side, i, poly);// XXX forward iter
-sieve/fake_rels.cpp:        int side = renumber_get_side_from_index(ren_tab, i, cpoly);// XXX forward iter
-sieve/fake_rels.cpp:                renumber_get_p_r_from_index(ren_tab, &p, &r, &side, i, cpoly);// XXX forward iter
-filter/reconstructlog.cpp:          int side = renumber_get_side_from_index (data.renum_tab, h, data.poly);//XXX MNFS only
-misc/convert_rels.cpp:        renumber_get_p_r_from_index(renumber_table, &p, &r, &side, i, poly);
-
-filter/dup2.cpp:          && renumber_is_bad (&nb, &first_index, renumber_tab, pr[i].p, r,
-(followed by handle_bad_ideals which returns a vector of valuations -- the (a,b) pair is required. The norm valuation is needed as input as well, I believe.)
-sieve/las-dlog-base.cpp:        if (renumber_is_bad (NULL, NULL, tab, p, r, side))
-(which acknowledges that the very bit of code that is in dup2 is missing here, and we would really like to have it)
-sieve/fake_rels.cpp:            if (renumber_is_bad (&nb, &index, ren_tab, p, r, side)) {
-(there, we do something very simple, and only pick a random index for a bad ideal, in [index, index+nb) )
-
-sieve/fake_rels.cpp:                renumber_badideal_get_p_r_below(ren_tab, &p, &r, &side, i);
-
-filter/reconstructlog.cpp:        if (renumber_is_additional_column (tab, i))
-sieve/fake_rels.cpp:        if (renumber_is_additional_column(ren_tab, i)) {
+ * index_from_p_r :
+ *      filter/dup2.cpp
+ *      sieve/las-dlog-base.cpp
+ *      sieve/fake_rels.cpp
+ * 
+ * indices_from_p_a_b :
+ *      filter/dup2.cpp
+ *      sieve/las-dlog-base.cpp  -- not yet, but maybe at some point.
+ * 
+ * p_r_from_index but as a forward iterator only (TODO: implement one!)
+ *      filter/filter_galois.cpp
+ *      filter/reconstructlog.cpp
+ *      sieve/fake_rels.cpp
+ *      sieve/fake_rels.cpp
+ *      filter/reconstructlog.cpp
+ *
+ * p_r_from_index, random access:
+ *      misc/convert_rels.cpp
+ *
+ * is_bad :
+ *      filter/dup2.cpp
+ *      sieve/las-dlog-base.cpp
+ *      sieve/fake_rels.cpp
+ *      (there, we do something very simple, and only pick a random index for a bad ideal, in [index, index+nb) )
+ *
+ * is_additional_column :
+ *      filter/reconstructlog.cpp
+ *      sieve/fake_rels.cpp
+ *
  * }}} */
 
 /* In the above uses, the lookup (side,p,r) -> index is critical in the

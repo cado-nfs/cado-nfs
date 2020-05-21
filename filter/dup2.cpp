@@ -50,7 +50,6 @@
 #include <cstdlib>
 #include <fcntl.h>   /* for _O_BINARY */
 
-#include "filter_badideals.h"
 #include "filter_config.h"
 #include "filter_io.h"  // earlyparsed_relation_ptr
 #include "gzip.h"       // get_suffix_from_filename

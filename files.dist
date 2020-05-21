@@ -58,7 +58,6 @@ config/int128.cmake
 config/int128.c
 filter/CMakeLists.txt
 filter/Makefile
-filter/filter_badideals.h
 filter/filter_config.h
 filter/dup1.c
 filter/dup2.cpp
@@ -752,7 +751,6 @@ linalg/bwc/flint-fft/transform_interface.c
 linalg/bwc/flint-fft/transform_interface.h
 linalg/bwc/flint-fft/ulong_extras.h
 linalg/bwc/test-flint.c
-filter/filter_badideals.c
 parameters/dlp/params.p2dd20
 parameters/dlp/p2dd20.hint
 parameters/dlp/p155.hint
@@ -809,7 +807,6 @@ parameters/dlp/p95.hint
 parameters/dlp/p100.hint
 parameters/dlp/p2dd30.hint
 parameters/dlp/README
-filter/filter_badideals.c
 linalg/bwc/lingen-matpoly-ft.h
 linalg/bwc/lingen-matpoly-ft.cpp
 linalg/bwc/lingen-bigmatpoly-ft.c
