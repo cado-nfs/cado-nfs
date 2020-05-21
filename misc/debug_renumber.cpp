@@ -189,7 +189,8 @@ main (int argc, char *argv[])
         for(int i = 0 ; i < nlookups ; i++) {
             index_t h = gmp_urandomm_ui(rstate, tab.get_size());
             renumber_t::p_r_side x = tab.p_r_from_index(h);
-            sample.push_back(x);
+            if (!tab.is_additional_column(h))
+                sample.push_back(x);
         }
         printf("# Time for %d random lookups (p_r_from_index, arbitrary primes): %.3g\n",
                 nlookups,

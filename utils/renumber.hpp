@@ -179,6 +179,15 @@ public:
     /*}}}*/
 
     /*{{{ most important outer-visible routines: lookups */
+
+    /* special lookups:
+     *  a lookup of an additional column on side s returns {0, 0, s}
+     *  a lookup of a bad ideal (given by (p,r)) returns the index of the
+     *  _first_ ideal above this (p,r)
+     * except for the non-injectivity of the mapping index->(p,r) for bad
+     * ideals, the map is "almost" a bijection.
+     */
+
     /* return the number of bad ideals above x (and therefore zero if
      * x is not bad). If the ideal is bad, put in the reference [first] the
      * first index that corresponds to the bad ideals.
@@ -200,7 +209,6 @@ public:
         return h < above_add;
     }
 
-    /* None of these access interfaces work for additional columns. */
     index_t index_from_p_r (p_r_side) const;
     inline index_t index_from_p_r (p_r_values_t p, p_r_values_t r, int side) const {
         return index_from_p_r({p, r, side});

@@ -584,7 +584,9 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
                 throw prime_maps_to_garbage(format, p, i, flat_data[i][0]);
         } else {
             p_r_values_t vp = compute_vp_from_p (p);
-            if (UNLIKELY(i >= traditional_data.size() || traditional_data[i] != vp))
+            if (UNLIKELY(i >= traditional_data.size()))
+                throw prime_maps_to_garbage(format, p, i);
+            if (UNLIKELY(traditional_data[i] != vp))
                 throw prime_maps_to_garbage(format, p, i, traditional_data[i]);
         }
         return i;
@@ -648,6 +650,16 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
     index_t i;
     if (is_bad(i, x))
         return i;
+    if (x.p == 0) {
+        // additional columns
+        i = 0;
+        for(auto side : get_sides_of_additional_columns()) {
+            if (side == x.side)
+                return i;
+            i++;
+        }
+        throw cannot_find_pr(x);
+    }
     i = get_first_index_from_p(x);
     p_r_values_t vr = compute_vr_from_p_r_side(x);
 
@@ -857,12 +869,9 @@ void renumber_t::variant_translate_index(index_t & i0, index_t & ii, index_t i) 
 renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
 {
     if (i < above_add) {
-        for(int side = 0 ; side < (int) get_nb_polys() ; side++) {
-            if (mpz_poly_is_monic(cpoly->pols[side]))
-                continue;
-            if (i == 0)
+        for(auto side : get_sides_of_additional_columns()) {
+            if (i-- == 0)
                 return { 0, 0, side };
-            i--;
         }
         throw corrupted_table("bad additional columns");
     }
