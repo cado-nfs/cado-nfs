@@ -890,7 +890,7 @@ void renumber_t::compute_bad_ideals_from_dot_badideals_hint(std::istream & is, u
      * there are multiple bad ideals above the same p, we must do this
      * only once.
      */
-    p_r_side latest_x;
+    p_r_side latest_x { 0,0,0 };
 
     for( ; is && n-- ; ) {
         p_r_side x;
@@ -1089,7 +1089,7 @@ void renumber_t::write_bad_ideals(std::ostream& os) const
     os << "# renumber table for all indices above " << above_bad << ":\n";
 }
 
-inline std::vector<int> renumber_t::get_sides_of_additional_columns() const
+std::vector<int> renumber_t::get_sides_of_additional_columns() const
 {
     std::vector<int> res;
     for(unsigned int side = 0 ; side < get_nb_polys() ; side++) {
