@@ -27,6 +27,10 @@
  This is done in freerel.cpp ; but the heavylifting really happens in
  renumber proper.)
 
+ Note that by default, the renumber tables include the bad ideals
+ information. There is currently no way to turn it off. It should
+ probably be done.
+
  * To read a renumber table from a file, this goes as:
 
  renumber_t renumber_table(cpoly);
@@ -34,7 +38,6 @@
 
 */
 
-/* TODO: implement this */
 #define RENUMBER_MAX_LOG_CACHED 20
 
 struct renumber_t {

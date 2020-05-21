@@ -541,11 +541,11 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
     if (p < index_from_p_cache.size()) {
         index_t i = index_from_p_cache[p];
         if (renumber_format == renumber_format_flat) {
-            if (UNLIKELY(flat_data[i][0] != p))
+            if (UNLIKELY(i >= flat_data.size() || flat_data[i][0] != p))
                 throw prime_maps_to_garbage(p, i, flat_data[i][0]);
         } else {
             p_r_values_t vp = compute_vp_from_p (p);
-            if (UNLIKELY(traditional_data[i] != vp))
+            if (UNLIKELY(i >= traditional_data.size() || traditional_data[i] != vp))
                 throw prime_maps_to_garbage(p, i, traditional_data[i]);
         }
         return i;
@@ -780,9 +780,11 @@ renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
         if (i == i0) {
             /* then we're victims of the "optimization" that uses the same
              * value to represent both the implicit root and a projective
-             * root on the last side.
+             * root on the last side. Note that this is not the case when
+             * we have a rational side.
              */
-            return compute_p_r_side_from_p_vr(p, vr + 1);
+            int c = get_rational_side() == -1;
+            return compute_p_r_side_from_p_vr(p, vr + c);
         }
         return compute_p_r_side_from_p_vr(p, vr);
     }
@@ -1048,6 +1050,7 @@ void renumber_t::write_bad_ideals(std::ostream& os) const
                     os << b.second.nbad;
                 }
             }
+            if (n == 0) os << "not used";
         }
         os << std::endl;
         if (renumber_format == renumber_format_traditional) {
@@ -1175,8 +1178,14 @@ void renumber_t::read_from_file(const char * filename, const char * badidealinfo
 {
     ifstream_maybe_compressed is(filename);
     read_header(is);
-    std::ifstream isi(badidealinfofile);
-    read_bad_ideals_info(isi);
+    if (badidealinfofile) {
+        std::ifstream isi(badidealinfofile);
+        read_bad_ideals_info(isi);
+    } else {
+        // if this function was called with badidealinfo file set to
+        // NULL, assume that this reflects an intention to avoid bad
+        // ideals entirely.
+    }
     read_table(is);
 }
 
@@ -1194,9 +1203,11 @@ void renumber_t::read_bad_ideals_info(std::istream & is)
     std::map<p_r_side, badideal> met;
     for( ; is ; ) {
         for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
+        if (is.eof()) break;
         p_r_values_t p, rk;
         int k, side;
         is >> p >> k >> rk >> side;
+        if (!is) throw corrupted_table("bad bad ideals");
         p_r_values_t r = mpz_get_ui(badideal::r_from_rk(p, k, rk)); 
         p_r_side x { p, r, side };
         badideal b(p, r);
@@ -1241,10 +1252,17 @@ std::string renumber_t::debug_data(index_t i) const
             << " added column for side " << std::dec << x.side;
     } else if (is_bad(i)) {
         os << " tab[i]=#"
-            << " bad ideal"
-            << std::dec
-            << " (" << bad_ideals[i - above_add].second.nbad << " branches)"
-            << " above"
+            << " bad ideal";
+        index_t j = i - above_add;
+        for(auto const & b : bad_ideals) {
+            if (j < (index_t) b.second.nbad) {
+                os << std::dec
+                    << " (number " << (1+j) << "/" << b.second.nbad << ")";
+                break;
+            }
+            j -= b.second.nbad;
+        }
+        os  << " above"
             << " (" << x.p << "," << x.r << ")"
             << " on side " << x.side;
     } else {
