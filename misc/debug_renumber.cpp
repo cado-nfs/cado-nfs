@@ -15,9 +15,10 @@ static void declare_usage(cxx_param_list & pl)
 {
   param_list_decl_usage(pl, "poly", "input polynomial file");
   param_list_decl_usage(pl, "renumber", "input file for renumbering table ; exclusive with --build");
-  param_list_decl_usage(pl, "build", "build the renumbering table ; exclusive with --renumber");
   param_list_decl_usage(pl, "lpbs", "large primes bounds (comma-separated list, for --build only)");
   param_list_decl_usage(pl, "check", "check the renumbering table");
+  param_list_decl_usage(pl, "build", "build the renumbering table on the fly, instead of loading it (requires --lpbs)");
+  param_list_decl_usage(pl, "quiet", "do not print the renumbering table contents");
   verbose_decl_usage(pl);
 }
 
@@ -100,10 +101,11 @@ main (int argc, char *argv[])
         tab.read_from_file(renumberfilename);
     }
 
-    for (index_t i = 0; i < tab.get_size() ; i++)
-    {
-        std::string s = tab.debug_data(i);
-        if (!quiet) printf ("%s\n", s.c_str());
+    if (!quiet) {
+        for (index_t i = 0; i < tab.get_size() ; i++) {
+            std::string s = tab.debug_data(i);
+            printf ("%s\n", s.c_str());
+        }
     }
 
     /* Check for all indices if mapping i <--> (p,r,side) works
