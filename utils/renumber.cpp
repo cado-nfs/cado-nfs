@@ -549,6 +549,21 @@ int renumber_t::is_bad (p_r_side x) const
     return is_bad(first, x);
 }
 
+int renumber_t::is_bad (index_t & first, index_t i) const
+{
+    if (i >= above_bad)
+        return 0;
+    i -= above_add;
+    first = above_add;
+    for (auto const & I : bad_ideals) {
+        index_t n = I.second.nbad;
+        if (i < n) return n;
+        i -= n;
+        first += n;
+    }
+    throw corrupted_table("bad bad ideals");
+}
+
 /* i-above_bad is in [0..traditional_data.size()]
  */
 bool renumber_t::traditional_is_vp_marker(index_t i) const
@@ -748,7 +763,7 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
     std::vector<int> exps;
     for (auto const & I : bad_ideals) {
         if (x == I.first) {
-            std::vector<int> exps(I.second.nbad, 0);
+            std::vector<int> exps;
 
             /* work here, and return */
             for(auto J : I.second.branches) {
@@ -797,6 +812,8 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
                     return { first, exps };
                 }
             }
+            /* then it's a fatal error ! */
+            break;
         }
         first += I.second.nbad;
     }
@@ -1047,6 +1064,7 @@ void renumber_t::read_header(std::istream& is)
         for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
         for(auto & x : lpb) is >> x;
         if (!is) throw parse_error("header");
+        read_bad_ideals(is);
     }
     is.flags(ff);
 }
@@ -1354,27 +1372,6 @@ void renumber_t::read_from_file(const char * filename)
 {
     ifstream_maybe_compressed is(filename);
     read_header(is);
-    if (format == format_traditional) {
-        compute_bad_ideals();
-    } else {
-        read_bad_ideals(is);
-    }
-    info(std::cout);
-    read_table(is);
-}
-
-void renumber_t::read_from_file(const char * filename, const char * badidealinfofile)
-{
-    ifstream_maybe_compressed is(filename);
-    read_header(is);
-    if (badidealinfofile) {
-        std::ifstream isi(badidealinfofile);
-        read_bad_ideals_info(isi);
-    } else {
-        // if this function was called with badidealinfo file set to
-        // NULL, assume that this reflects an intention to avoid bad
-        // ideals entirely.
-    }
     info(std::cout);
     read_table(is);
 }

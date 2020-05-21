@@ -1,7 +1,7 @@
 /* dup2: 2nd pass
 
    Usage: dup2 -nrels <nrels> -renumber <renumberfile> [ -outdir <dir> ]
-               [ -outfmt <fmt> ] [ -dl ] [ -badidealinfo <file> ]
+               [ -outfmt <fmt> ] [ -dl ]
                [ -filelist <fl> [ -basepath <dir> ] | file1 ... filen ]
 
    Input files can be given on command line, or via a filelist file.
@@ -304,7 +304,6 @@ compute_index_rel (earlyparsed_relation_ptr rel)
       
       renumber_t::p_r_side x { pr[i].p, r, pr[i].side };
       if (renumber_tab.is_bad (x)) {
-
         auto y = renumber_tab.indices_from_p_a_b(x, pr[i].e, rel->a, rel->b);
 
         /* allocate room for (nb) more valuations */
@@ -319,14 +318,22 @@ compute_index_rel (earlyparsed_relation_ptr rel)
          * renumbering, we're bound to do sorting downhill. */
         pr[i].h = first_index;
         pr[i].e = y.second[0];
+
         for (size_t n = 1; n < y.second.size(); n++) {
             pr[rel->nb].h = first_index + n;
             pr[rel->nb].e = y.second[n];
+            if (!is_for_dl) { /* Do we reduce mod 2 */
+                pr[rel->nb].e &= 1;
+            }
             rel->nb++;
         }
-      }
-      else
+      } else {
         pr[i].h = renumber_tab.index_from_p_r(pr[i].p, r, pr[i].side);
+      }
+    }
+    if (!is_for_dl) { /* Do we reduce mod 2 */
+        /* XXX should we compress as well ? */
+        pr[i].e &= 1;
     }
   }
 }
@@ -446,12 +453,13 @@ thread_dup2 (void * context_data, earlyparsed_relation_ptr rel)
 void *
 thread_root(void *, earlyparsed_relation_ptr rel)
 {
-    if (!is_for_dl) { /* Do we reduce mod 2 */
-        /* XXX should we compress as well ? */
-        for (unsigned int i = 0; i < rel->nb; i++)
-            rel->primes[i].e &= 1;
-    }
-
+    /* We used to reduce exponents here. However, it's not a good idea if
+     * we want to get the valuations at bad ideals.
+     * (maybe we could reduce exponents for primes which we know are
+     * above the bad ideal bound...).
+     *
+     * Anyway. Reduction is now done at the _end_ of compute_index_rel.
+     */
     compute_index_rel (rel);
 
     return NULL;
@@ -528,7 +536,6 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "outfmt",
                                "format of output file (default same as input)");
   param_list_decl_usage(pl, "dl", "do not reduce exponents modulo 2");
-  param_list_decl_usage(pl, "badidealinfo", "file containing info about bad ideals");
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "t", "number of threads for roots mod p (default 4)");
@@ -584,7 +591,6 @@ main (int argc, char *argv[])
     const char * basepath = param_list_lookup_string(pl, "basepath");
     const char * outdir = param_list_lookup_string(pl, "outdir");
     const char * renumberfilename = param_list_lookup_string(pl, "renumber");
-    const char * badidealinfofile = param_list_lookup_string(pl, "badidealinfo");
     const char * path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
     param_list_parse_ulong(pl, "nrels", &nrels_expected);
     param_list_parse_int(pl, "t", &nthreads_for_roots);
@@ -603,10 +609,6 @@ main (int argc, char *argv[])
     if (renumberfilename == NULL)
     {
       fprintf (stderr, "Error, missing -renumber command line argument\n");
-      usage(pl, argv0);
-    }
-    if (badidealinfofile == NULL && is_for_dl) {
-      fprintf (stderr, "Error, missing -badidealinfo command line argument\n");
       usage(pl, argv0);
     }
     if (nrels_expected == 0)
@@ -635,7 +637,7 @@ main (int argc, char *argv[])
     set_antebuffer_path (argv0, path_antebuffer);
 
     renumber_tab = renumber_t(cpoly);
-    renumber_tab.read_from_file(renumberfilename, badidealinfofile);
+    renumber_tab.read_from_file(renumberfilename);
 
   /* sanity check: since we allocate two 64-bit words for each, instead of
      one 32-bit word for the hash table, taking K/100 will use 2.5% extra
@@ -718,7 +720,6 @@ main (int argc, char *argv[])
           { .f = thread_dup2, .arg=0, .n=1, },
           { .f = NULL, .arg=0, .n=1, },
       };
-      // if (is_for_dl) desc[0].arg = (void *) &badidealinfo[0];
       fprintf (stderr, "Reading new files"
               " (using %d auxiliary threads for roots mod p):\n",
               desc[0].n);

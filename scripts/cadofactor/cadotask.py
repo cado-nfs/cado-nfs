@@ -3679,9 +3679,6 @@ class Duplicates2Task(Task, FilesCreator, HasStatistics):
     def programs(self):
         input = {"poly": Request.GET_POLYNOMIAL_FILENAME,
                 "renumber": Request.GET_RENUMBER_FILENAME}
-        # it's only of minor importance now.
-        if self.params["dlp"]:
-            input["badidealinfo"] = Request.GET_BADIDEALINFO_FILENAME
         return ((cadoprograms.Duplicates2, ("rel_count", "filelist"), input),)
     @property
     def paramnames(self):

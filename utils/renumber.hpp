@@ -169,12 +169,7 @@ public:
      */
     void read_table(std::istream& is);
 
-    /* first version uses only the renumber table. Second version is for
-     * the old format, and we need the badidealinfo file as well (not the
-     * badideals file, which does not contain enough info.
-     */
     void read_from_file(const char * filename);
-    void read_from_file(const char *, const char *);
     // renumber_t(const char *);
     // renumber_t(const char *, const char *);
     /*}}}*/
