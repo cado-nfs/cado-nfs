@@ -196,6 +196,7 @@ public:
 
     struct hook {
         virtual void operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) = 0;
+        virtual ~hook() = default;
     };
 
     /* To build a renumber table in memory in the simplest way, the

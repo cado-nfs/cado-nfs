@@ -68,7 +68,7 @@ struct freerel_data_t : public renumber_t::hook {
         param_list_lookup_string(pl, "pmin");
         param_list_lookup_string(pl, "pmax");
     }
-    ~freerel_data_t() { if (filename) fclose_maybe_compressed(sink, filename); }
+    ~freerel_data_t() override { if (filename) fclose_maybe_compressed(sink, filename); }
 };
 
 freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb)
@@ -256,12 +256,16 @@ main(int argc, char* argv[])
     }
     /* }}} */
 
-    freerel_data_t freerel_data(pl, cpoly, lpb);
+    std::unique_ptr<freerel_data_t> F;
 
-    printf("Considering freerels for %lu <= p <= %lu\n", 
-            freerel_data.pmin,
-            freerel_data.pmax);
-    fflush(stdout);
+    if (param_list_lookup_string(pl, "out")) {
+        F.reset(new freerel_data_t(pl, cpoly, lpb));
+
+        printf("Considering freerels for %lu <= p <= %lu\n", 
+                F->pmin,
+                F->pmax);
+        fflush(stdout);
+    }
 
     renumber_t renumber_table(cpoly);
     renumber_table.set_lpb(lpb);
@@ -276,10 +280,12 @@ main(int argc, char* argv[])
      * lcideals         // optional, for DL
      *
      */
-    index_t R_max_index = renumber_table.build(pl, &freerel_data);
+    index_t R_max_index = renumber_table.build(pl, F.get());
 
-    /* /!\ Needed by the Python script. /!\ */
-    fprintf(stderr, "# Free relations: %" PRIu64 "\n", freerel_data.nfree);
+    if (F.get()) {
+        /* /!\ Needed by the Python script. /!\ */
+        fprintf(stderr, "# Free relations: %" PRIu64 "\n", F->nfree);
+    }
     fprintf(stderr, "Renumbering struct: nprimes=%lu\n", (unsigned long) R_max_index);
 
 
