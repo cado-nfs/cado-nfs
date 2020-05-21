@@ -240,8 +240,9 @@ private:
      * keeping track of the above_all index, which is done by the input
      * and output index_t values. */
     cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> &) const;
-    void use_cooked(cooked const & C);
-    index_t use_cooked_nostore(index_t, cooked const & C);
+    void use_cooked(p_r_values_t p, cooked const & C);
+    index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked const & C);
+
     struct builder;
     friend struct builder;
 };

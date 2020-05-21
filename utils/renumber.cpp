@@ -1,5 +1,6 @@
 #include "cado.h"
 #include <sstream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <sstream>
@@ -1130,13 +1131,22 @@ void renumber_t::compute_bad_ideals()
     above_all = above_cache = above_bad;
 }
 
-void renumber_t::use_cooked(cooked const & C)
+void renumber_t::use_cooked(p_r_values_t p, cooked const & C)
 {
+    index_t pos = traditional_data.size() + flat_data.size();
     traditional_data.insert(traditional_data.end(), C.traditional.begin(), C.traditional.end());
     flat_data.insert(flat_data.end(), C.flat.begin(), C.flat.end());
-    above_all = use_cooked_nostore(above_all, C);
+    above_all = use_cooked_nostore(above_all, p, C);
+    if (!(p >> RENUMBER_MAX_LOG_CACHED)) {
+        index_from_p_cache.insert(index_from_p_cache.end(),
+                p - index_from_p_cache.size(),
+                std::numeric_limits<index_t>::max());
+        ASSERT_ALWAYS(index_from_p_cache.size() == p);
+        index_from_p_cache.push_back(pos);
+        above_cache = above_all;
+    }
 }
-index_t renumber_t::use_cooked_nostore(index_t n0, cooked const & C)
+index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, cooked const & C)
 {
     for(auto n : C.nroots) n0 += n;
     return n0;
@@ -1159,6 +1169,27 @@ void renumber_t::read_table(std::istream& is)
             above_all++;
         }
         is.flags(ff);
+    }
+
+    if (renumber_format == renumber_format_traditional) {
+        p_r_values_t vp = 0;
+        index_t i = 0;
+        for( ; i < traditional_data.size() ; i++)  {
+            p_r_values_t v = traditional_data[i];
+            if (v <= vp) continue;
+            vp = v;
+            p_r_values_t p = compute_p_from_vp(vp);
+            if (p >> RENUMBER_MAX_LOG_CACHED)
+                break;
+            index_from_p_cache.insert(index_from_p_cache.end(),
+                    p - index_from_p_cache.size(),
+                    std::numeric_limits<index_t>::max());
+            ASSERT_ALWAYS(index_from_p_cache.size() == p);
+            index_from_p_cache.push_back(i);
+        }
+        above_cache = above_bad + i;
+    } else {
+        throw std::runtime_error("not implemented");
     }
 }
 
@@ -1428,11 +1459,11 @@ void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
         if (hook) (*hook)(R, p, R_max_index, C);
 
         if (os_p) {
-            R_max_index = R.use_cooked_nostore(R_max_index, C);
+            R_max_index = R.use_cooked_nostore(R_max_index, p, C);
             (*os_p) << C.text;
         } else {
             ASSERT_ALWAYS(R_max_index == R.get_max_index());
-            R.use_cooked(C);
+            R.use_cooked(p, C);
             R_max_index = R.get_max_index();
         }
 
