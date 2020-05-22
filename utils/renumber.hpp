@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <cerrno>
 #include <array>
@@ -266,7 +267,7 @@ private:/*{{{ more implementation-level stuff. */
     p_r_values_t compute_p_from_vp (p_r_values_t vp) const;
 
     bool traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const;
-    index_t traditional_backtrack_until_vp(index_t i, index_t min) const;
+    index_t traditional_backtrack_until_vp(index_t i, index_t min = 0, index_t max = std::numeric_limits<index_t>::max()) const;
     bool traditional_is_vp_marker(index_t i) const;
     void variant_translate_index(index_t & i0, index_t & ii, index_t i) const;
 

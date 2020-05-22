@@ -512,14 +512,53 @@ renumber_t::traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const
  * values j such that traditional_data[j-1] <= traditional_data[j]
  * (in the traditional_variant mode, such increases always come in pairs.
  */
-index_t renumber_t::traditional_backtrack_until_vp(index_t i, index_t min) const
+index_t renumber_t::traditional_backtrack_until_vp(index_t i, index_t min, index_t max) const
 {
-    for( ; i > min && traditional_data[i-1] > traditional_data[i] ; --i);
     if (format == format_variant) {
-        if (i == min + 1)
-            i--;
-        else if (i > min + 1 && traditional_data[i-2] < traditional_data[i-1])
-            i--;
+        if (max == std::numeric_limits<index_t>::max())
+            max = traditional_data.size();
+        /* we have conspicuous vp markers are at the positions before all
+         * local maxima of the traditional_data array. But in presence of
+         * large prime gaps, there might be _more_ vp markers.
+         *
+         * If we write - or + depending on whether traditional_data[]
+         * increases (>=) or decreases (<), we have
+         *
+         *  - + + -      Typical case ; previous prime has a non-implicit
+         *     ^         root, and gap with next prime is small.
+         *    - + -      Degenerate case ; previous prime has a no root, and
+         *     ^         gap with previous and next primes are small.
+         *  - + + + + -  These two cases happen when we have one or
+         *     ^   ^     several consecutive large prime gaps.
+         *    - + + + -
+         *     ^   ^
+         */
+        // index_t i0 = i;
+        /* move i to somewhere within an increasing sequence */
+        for( ; i > min && (i + 1 >= max || traditional_data[i+1] < traditional_data[i]) ; --i);
+        /* find the end of the increasing sequence where i was found. */
+        index_t rise_end = i + 1;
+        for( ; rise_end < max ; rise_end++) {
+            if (traditional_data[rise_end] < traditional_data[rise_end - 1])
+                break;
+        }
+        /* Now find the beginning of the increasing sequence where i was
+         * found.
+         */
+        index_t rise_begin = i;
+        for( ; rise_begin > min ; --rise_begin) {
+            if (traditional_data[rise_begin] < traditional_data[rise_begin-1])
+                break;
+        }
+        if (((rise_end - rise_begin) & 1) && i == rise_begin) {
+            /* Can occur at most once. */
+            return traditional_backtrack_until_vp(i-1, min, max);
+        }
+        index_t j = rise_end - 2;
+        for( ; j > i ; j -= 2);
+        return j;
+    } else {
+        for( ; i > min && traditional_data[i] < traditional_data[i-1] ; --i);
     }
     return i;
 }
@@ -564,20 +603,17 @@ int renumber_t::is_bad (index_t & first, index_t i) const
     throw corrupted_table("bad bad ideals");
 }
 
-/* i-above_bad is in [0..traditional_data.size()]
- */
+/* i is in [0..traditional_data.size()) */
 bool renumber_t::traditional_is_vp_marker(index_t i) const
 {
     if (i == traditional_data.size()) return true;
     if (i == 0) return true;
-    if (traditional_data[i] > traditional_data[i-1]) {
-        if (format == format_variant) {
-            ASSERT_ALWAYS(i + 1 < traditional_data.size());
-            return traditional_data[i] <= traditional_data[i + 1];
-        }
-        return true;
-    }
-    return false;
+    if (format == format_traditional)
+        return traditional_data[i] > traditional_data[i-1];
+    /* regarding the variant case, see the long comment in
+     * traditional_backtrack_until_vp()
+     */
+    return traditional_backtrack_until_vp(i) == i;
 }
 
 
@@ -636,7 +672,7 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
         for( ; max > min ; ) {
             index_t i = min + (max - min) / 2; /* avoids overflow when
                                                   min + max >= UMAX(index_t) */
-            i = traditional_backtrack_until_vp(i, min);
+            i = traditional_backtrack_until_vp(i, min, max);
             if (traditional_data[i] == vp)
                 return i;
             if (traditional_data[i] < vp) {
@@ -820,6 +856,43 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
     throw cannot_lookup_p_a_b_in_bad_ideals(x, a, b);
 }
 
+/* Scan data[i0..i0+run-1] for a location which encodes precisely index
+ * target_i. the boolean c indicates whether we have a rational side.
+ * i0 is modified by this call, to point to the beginning of the range
+ * where the location was found.
+ */
+static bool variant_scan_small_range_forward(std::vector<p_r_values_t> const & data, index_t & i0, index_t target_i, index_t run, bool c)
+{
+    for( ; run ; ) {
+        long delta = data[i0 + 1] - data[i0];
+        if (delta == target_i) {
+            /* whether or not we have a rational side, we're
+             * definitely spot on.
+             * (if the sequence is a short one, then it makes no sense if
+             * we happen to have a rational side)
+             */
+            ASSERT_ALWAYS(c || run >= 3);
+            return true;
+        }
+        if (run < 2) return false;
+        run -= 2;
+        for(index_t j = i0 + 2 ; run ; j++, run--) {
+            if (data[j] > data[i0]) {
+                /* Then we have a new vp marker. */
+                i0 = j;
+                delta = data[i0 + 1] - data[i0];
+                break;
+            }
+            /* The delta that is attached to this i depends on
+             * the presence of a rational side.
+             */
+            if (delta + (j-(i0 + 2)) + c == target_i)
+                return true;
+        }
+    }
+    return false;
+}
+
 /* This takes an index i in the range [0, above_all-above_bad[, and returns
  * in ii the actual position of the i-th interesting data element in the
  * traditional_data[] array. i0 is the index of the corresponding vp
@@ -839,30 +912,17 @@ void renumber_t::variant_translate_index(index_t & i0, index_t & ii, index_t i) 
      */
     for( ; max > min ; ) {
         index_t middle = min + (max - min) / 2; /* avoids overflow */
-        middle = traditional_backtrack_until_vp(middle, min);
+        middle = traditional_backtrack_until_vp(middle, min, max);
         long delta = traditional_data[middle + 1] - traditional_data[middle];
         if (middle == min || (delta <= i && delta + maxroots > i)) {
             /* got it, probably. need to adjust a little, but that
              * will be quick */
-            int run = maxroots;
-            if (middle == min) run = 3 * maxroots;
             i0 = middle;
-            index_t j;
-            for(j = i0 + 2 ; j < max ; j++) {
-                if (traditional_is_vp_marker(j)) {
-                    i0 = j;
-                    delta = traditional_data[i0 + 1] - traditional_data[i0];
-                    j++;
-                    continue;
-                }
-                if (run-- < 0)
-                    throw cannot_find_i(above_bad + i);
-                if (delta + (j-(i0 + 2)) == i)
-                    break;
-            }
-            if (j == max)
-                throw cannot_find_i(above_bad + i);
-            break;
+            index_t run = std::min(3 * maxroots, max - i0);
+            if (variant_scan_small_range_forward(traditional_data,
+                        i0, i, run, get_rational_side() >= 0))
+                break;
+            throw cannot_find_i(above_bad + i);
         } else if (delta < i) {
             min = middle;
         } else {
@@ -910,7 +970,7 @@ renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
         return compute_p_r_side_from_p_vr(p, vr);
     }
     if (format == format_traditional) {
-        index_t i0 = traditional_backtrack_until_vp(i, 0);
+        index_t i0 = traditional_backtrack_until_vp(i);
         index_t vr = traditional_data[i];
         index_t vp = traditional_data[i0];
         index_t p  = compute_p_from_vp(vp);
@@ -1827,7 +1887,7 @@ renumber_t::const_iterator::const_iterator(renumber_t const & table, index_t i)
         if (i == table.above_bad + table.traditional_data.size()) {
             i0 = i;
         } else {
-            i0 = table.above_bad + table.traditional_backtrack_until_vp(i - table.above_bad, 0);
+            i0 = table.above_bad + table.traditional_backtrack_until_vp(i - table.above_bad);
             if (table.format == format_variant && table.get_rational_side() < 0 && i == i0)
                 i += 2;
         }
