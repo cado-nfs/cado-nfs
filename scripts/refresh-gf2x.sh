@@ -4,7 +4,8 @@ set -e
 set -x
 
 : ${gf2x_url:=https://gforge.inria.fr/git/gf2x/gf2x.git}
-: ${gf2x_rev:=gf2x-1.2.x}
+: ${gf2x_rev:=master}
+# : ${gf2x_rev:=gf2x-1.2.x}
 rm -rf gf2x
 
 checkout_that() {
@@ -20,6 +21,9 @@ checkout_that() {
     git reset --hard FETCH_HEAD
     cd "$OPWD"
     rm -rf "$path/.git"
+    rm -rf "$path/apps"
+    sed -e s/apps// -i $path/Makefile.am
+    sed -e s/apps.Makefile// -i $path/configure.ac
 }
 
 checkout_that ${gf2x_url} ${gf2x_rev} gf2x

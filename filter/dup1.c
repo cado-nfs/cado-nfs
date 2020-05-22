@@ -60,7 +60,7 @@ typedef struct {
 } split_output_iter_t;
 
 static split_output_iter_t *
-split_iter_init(const char *prefix, const char *suffix, 
+split_iter_init(const char *prefix, const char *suffix,
                 const size_t lines_per_file, const char *msg)
 {
   split_output_iter_t *iter = malloc(sizeof(split_output_iter_t));
@@ -77,7 +77,7 @@ split_iter_init(const char *prefix, const char *suffix,
   ASSERT_ALWAYS(lines_per_file > 0);
   iter->lines_per_file = lines_per_file;
   iter->lines_left = 0; /* Force opening of file on next write */
-  return iter; 
+  return iter;
 }
 
 /* used for counting time in different processes */
@@ -97,7 +97,7 @@ split_iter_end(split_output_iter_t *iter)
 }
 
 /* Closes the currently open file, if any, and opens the next one */
-void 
+void
 split_iter_open_next_file(split_output_iter_t *iter)
 {
   if (iter->file != NULL) {
@@ -113,7 +113,7 @@ split_iter_open_next_file(split_output_iter_t *iter)
   }
 
   free (iter->filename);
-  int rc = asprintf(&(iter->filename), "%s%04x%s", 
+  int rc = asprintf(&(iter->filename), "%s%04x%s",
                     iter->prefix, iter->next_idx++, iter->suffix);
   ASSERT_ALWAYS (rc >= 0);
   if (iter->msg != NULL)

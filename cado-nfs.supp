@@ -65,7 +65,6 @@
    ...
    fun:GOMP_parallel
    ...
-   fun:main
 }
 {
    another_openmp_leak
@@ -112,6 +111,19 @@
    fun:pthread_create*
    ...
    fun:_ZN11thread_poolC1Emm
+   ...
+}
+{
+   another_one_quite_similar_to_the_previous_leak
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create*
+   ...
+   fun:_ZN11thread_poolC1EmRdm
    ...
 }
 {

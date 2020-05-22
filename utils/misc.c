@@ -290,3 +290,39 @@ strtoull_const(const char *nptr, const char **endptr, const int base)
   return r;
 }
 
+static inline unsigned long MAYBE_UNUSED bitrev1(unsigned long a)/*{{{*/
+{
+    unsigned long m;
+#if ULONG_BITS == 64
+    /* these three should be doable with simple bswap, right ? */
+    a = (a >> 32) ^ (a << 32);
+    m = UINT64_C(0x0000ffff0000ffff); a = ((a >> 16) & m) ^ ((a << 16) & ~m);
+    m = UINT64_C(0x00ff00ff00ff00ff); a = ((a >> 8) & m) ^ ((a << 8) & ~m);
+    
+    m = UINT64_C(0x0f0f0f0f0f0f0f0f); a = ((a >> 4) & m) ^ ((a << 4) & ~m);
+    m = UINT64_C(0x3333333333333333); a = ((a >> 2) & m) ^ ((a << 2) & ~m);
+    m = UINT64_C(0x5555555555555555); a = ((a >> 1) & m) ^ ((a << 1) & ~m);
+#else
+    a = (a >> 16) ^ (a << 16);
+    m = 0x00ff00ffUL; a = ((a >> 8) & m) ^ ((a << 8) & ~m);
+
+    m = 0x0f0f0f0fUL; a = ((a >> 4) & m) ^ ((a << 4) & ~m);
+    m = 0x33333333UL; a = ((a >> 2) & m) ^ ((a << 2) & ~m);
+    m = 0x55555555UL; a = ((a >> 1) & m) ^ ((a << 1) & ~m);
+#endif
+    return a;
+}
+
+extern void bit_reverse(unsigned long * dst, const unsigned long * ptr, size_t n)
+{
+    unsigned int i = 0;
+    unsigned int j = n-1;
+    for(i = 0 ; i < j ; i++, j--) {
+        unsigned long lo = ptr[i];
+        unsigned long hi = ptr[j];
+        dst[j] = bitrev1(lo);
+        dst[i] = bitrev1(hi);
+    }
+    if (i == j)
+        dst[i] = bitrev1(ptr[i]);
+}

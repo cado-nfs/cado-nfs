@@ -25,7 +25,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <float.h> /* for DBL_MAX */
 #include <math.h>
 #include <gmp.h>
-
 #include "auxiliary.h"
 #include "gmp_aux.h"    // ulong_isprime
 #include "macros.h" /* for ASSERT_ALWAYS */

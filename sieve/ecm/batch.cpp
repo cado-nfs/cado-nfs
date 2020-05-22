@@ -9,11 +9,9 @@
 
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
-
 #include <cmath>               // for ceil, pow, log2
 #include <cstdio>              // for fprintf, snprintf, fflush, stderr, FILE
 #include <cstdlib>             // for free, malloc, exit, abort, realloc
-
 #include <iterator>            // for begin, end
 #include <list>                // for list, operator!=, _List_iterator, list...
 #include <memory>              // for allocator_traits<>::value_type
@@ -829,7 +827,7 @@ factor_one (
              * have non-smooth values after all.
              */
             if (batchlpb[side] == lpb[side]) {
-#ifdef  HAVE_OPENMP
+#ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
                 {

@@ -84,19 +84,19 @@ void *flint_realloc(void *ptr, size_t size);
 void *flint_calloc(size_t num, size_t size);
 void flint_free(void *ptr);
 
-typedef void (*flint_cleanup_function_t) (void);
+typedef void (*flint_cleanup_function_t)(void);
 void flint_register_cleanup_function(flint_cleanup_function_t
 				     cleanup_function);
 void flint_cleanup(void);
 void flint_cleanup_master(void);
 
-void __flint_set_memory_functions(void *(*alloc_func) (size_t),
-				  void *(*calloc_func) (size_t, size_t),
-				  void *(*realloc_func) (void *, size_t),
-				  void (*free_func) (void *));
+void __flint_set_memory_functions(void *(*alloc_func)(size_t),
+				  void * (*calloc_func)(size_t, size_t),
+				  void * (*realloc_func)(void *, size_t),
+				  void(*free_func)(void *));
 
 void flint_abort(void);
-void flint_set_abort(void (*func) (void));
+void flint_set_abort(void (*func)(void));
   /* flint_abort is calling abort by default if flint_set_abort is used, then 
    * instead of abort this function is called. EXPERIMENTALLY use at your own 
    * risk! May disappear in future versions. */
@@ -136,7 +136,7 @@ void flint_set_abort(void (*func) (void));
 #define FLINT_D_BITS 31
 #endif
 
-#define mp_bitcnt_t ulong
+#define flint_bitcnt_t ulong
 
 #if HAVE_TLS
 #if __STDC_VERSION__ >= 201112L
@@ -162,6 +162,8 @@ void flint_set_abort(void (*func) (void));
 
 int flint_get_num_threads(void);
 void flint_set_num_threads(int num_threads);
+int flint_set_thread_affinity(int *cpus, slong length);
+int flint_restore_thread_affinity();
 void flint_parallel_cleanup(void);
 
 int flint_test_multiplier(void);
@@ -334,13 +336,22 @@ static __inline__ unsigned int FLINT_BIT_COUNT(mp_limb_t x)
 #define TMP_START \
    __tmp_root = NULL
 
+#if WANT_ASSERT
 #define TMP_ALLOC(size) \
-   ((size) > 8192 ? \
+   (__tpx = (__tmp_t *) alloca(sizeof(__tmp_t)), \
+       __tpx->next = __tmp_root, \
+       __tmp_root = __tpx, \
+       __tpx->block = flint_malloc(size))
+#else
+#define TMP_ALLOC(size) \
+   (((size) > 8192) ? \
       (__tpx = (__tmp_t *) alloca(sizeof(__tmp_t)), \
        __tpx->next = __tmp_root, \
        __tmp_root = __tpx, \
        __tpx->block = flint_malloc(size)) : \
       alloca(size))
+#endif
+
 
 #define TMP_END \
    while (__tmp_root) { \

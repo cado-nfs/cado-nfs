@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "mod_ul.c"
+#include "mod_ul.h"
 #include "params.h"     // param_list
 #include "cado_poly.h"  // cado_poly
 #include "verbose.h"    // verbose_decl_usage

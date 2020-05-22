@@ -33,7 +33,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/resource.h>
-#include "gmp.h"
+#include <gmp.h>
 #include "ecm.h"
 #include "portability.h"
 

@@ -42,9 +42,12 @@ extern int time_ift;
 #define ENGINE_EXTRA_ARG_DEFAULT  0     /* does not make sense here (yet) */
 
 #define ENGINE_info_t gf2x_cantor_fft_info_t
+#define ENGINE_t gf2x_cantor_fft_elt
+#define ENGINE_get_alloc_sizes gf2x_cantor_fft_info_get_alloc_sizes
 #define ENGINE_srcptr gf2x_cantor_fft_srcptr
 #define ENGINE_ptr gf2x_cantor_fft_ptr
-#define ENGINE_init gf2x_cantor_fft_init
+#define ENGINE_init gf2x_cantor_fft_info_init
+#define ENGINE_adjust gf2x_cantor_fft_info_adjust
 #define ENGINE_alloc gf2x_cantor_fft_alloc
 #define ENGINE_dft gf2x_cantor_fft_dft
 #define ENGINE_zero gf2x_cantor_fft_zero
@@ -55,8 +58,8 @@ extern int time_ift;
 #define ENGINE_ift gf2x_cantor_fft_ift
 #define ENGINE_get gf2x_cantor_fft_get
 #define ENGINE_get_const gf2x_cantor_fft_get_const
-#define ENGINE_clear gf2x_cantor_fft_clear
-#define ENGINE_recoverorder gf2x_cantor_fft_recoverorder 
+#define ENGINE_clear gf2x_cantor_fft_info_clear
+#define ENGINE_order gf2x_cantor_fft_info_order 
 #define ENGINE_mul      test_gf2x_cantor_fft_mul
 #elif defined(ENGINE_TERNARY)
 #include "gf2x-ternary-fft.h"
@@ -67,9 +70,12 @@ extern int time_ift;
 #define ENGINE_EXTRA_ARG_DEFAULT  0
 
 #define ENGINE_info_t gf2x_ternary_fft_info_t
+#define ENGINE_t gf2x_ternary_fft_elt
+#define ENGINE_get_alloc_sizes gf2x_ternary_fft_info_get_alloc_sizes
 #define ENGINE_srcptr gf2x_ternary_fft_srcptr
 #define ENGINE_ptr gf2x_ternary_fft_ptr
-#define ENGINE_init gf2x_ternary_fft_init
+#define ENGINE_init gf2x_ternary_fft_info_init
+#define ENGINE_adjust gf2x_ternary_fft_info_adjust
 #define ENGINE_alloc gf2x_ternary_fft_alloc
 #define ENGINE_dft gf2x_ternary_fft_dft
 #define ENGINE_zero gf2x_ternary_fft_zero
@@ -80,8 +86,8 @@ extern int time_ift;
 #define ENGINE_ift gf2x_ternary_fft_ift
 #define ENGINE_get gf2x_ternary_fft_get
 #define ENGINE_get_const gf2x_ternary_fft_get_const
-#define ENGINE_clear gf2x_ternary_fft_clear
-#define ENGINE_recoverorder gf2x_ternary_fft_recoverorder
+#define ENGINE_clear gf2x_ternary_fft_info_clear
+#define ENGINE_order gf2x_ternary_fft_info_order
 #define ENGINE_mul      test_gf2x_ternary_fft_mul
 #else
 #error "Please define either ENGINE_CANTOR or ENGINE_TERNARY"

@@ -28,6 +28,8 @@ die "No SCM found ???" unless @files_scm;
 
 my $known_lists=[];
 
+my $error=0;
+
 sub add_known_list {
     my $n = shift;
     my $f = {};
@@ -36,7 +38,18 @@ sub add_known_list {
     while (defined($_=<$fh>)) {
         next unless /^[^#]/;
         chomp($_);
-        m{/$} && do { $d->{$_}=0; next; };
+        m{/$} && do {
+            if (exists $d->{$_}) {
+                print STDERR "Pattern $_ appears more than once in $n\n";
+                $error++;
+            }
+            $d->{$_}=0;
+            next;
+        };
+        if (exists $f->{$_}) {
+            print STDERR "Pattern $_ appears more than once in $n\n";
+            $error++;
+        }
         $f->{$_}=0;
     }
     close $fh;
@@ -53,7 +66,6 @@ if (defined(my $x = &add_known_list('files.unknown'))) {
     push @$known_lists, $x;
 }
 
-my $error=0;
 for my $file (@files_scm) {
     # Check whether this matches in any way.
     my @matches=();

@@ -30,6 +30,7 @@
 
 #include "gf2x/gf2x-config.h"
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdint.h> /* for uint64_t in Lshift */
 #include <stdlib.h>
@@ -39,7 +40,9 @@
 
 #include "gf2x.h"
 #include "gf2x/gf2x-impl.h"
+#include "gf2x-fft.h"
 #include "gf2x-ternary-fft.h"
+#include "gf2x-fft-impl-utils.h"
 
 // #define DEBUG
 // #define DEBUG_LSHIFT
@@ -51,214 +54,9 @@
    balanced operands of size <= 13 words.  Hence this threshhold. */
 
 
-#ifndef MUL_FFT_THRESHOLD
-#define MUL_FFT_THRESHOLD 28
+#if (GF2X_TERNARY_FFT_MINIMUM_SIZE < 28)
+#error "GF2X_TERNARY_FFT_MINIMUM_SIZE too small, should be at least 28"
 #endif
-
-#if (MUL_FFT_THRESHOLD < 28)
-#error "MUL_FFT_THRESHOLD too small, should be at least 28"
-#endif
-
-/* Assume wordlength  WLEN is 32 or 64 */
-
-# define WLEN GF2X_WORDSIZE
-
-/** Some support functions. **/
-
-/* CEIL(a,b) = ceiling(a/b) */
-static inline size_t CEIL(size_t a, size_t b)
-{
-    return ((a)+(b)-1)/(b);
-}
-
-/* W(b) is the number of words needed to store b bits */
-static inline size_t W(size_t b)
-{
-    return CEIL(b, WLEN);
-}
-
-/* I(b) is the index word of bit b, assuming bits 0..WLEN-1
-   have index 0 */
-static inline size_t I(size_t b)
-{
-    return b / WLEN;
-}
-
-static inline size_t R(size_t b)
-{
-    return b % WLEN;
-}
-
-static inline size_t R2(size_t b)       /* remaining bits */
-{
-    return (-b) % WLEN;
-}
-
-static inline unsigned long MASK(size_t x)
-{
-    ASSERT(x < WLEN);
-    return ((1UL << (x)) - 1UL);
-}
-
-/* GETBIT(a,i)   gets the i-th bit of the bit-array starting at a[0],
-   XORBIT(a,i,x) xors this bit with the bit x, where x = 0 or 1.   */
-static inline unsigned long GETBIT(unsigned long *a, size_t i)
-{
-    return (a[I(i)] >> R(i)) & 1UL;
-}
-
-static inline void XORBIT(unsigned long *a, size_t i, unsigned long x)
-{
-    ASSERT((x & ~1UL) == 0);
-    a[I(i)] ^= x << R(i);
-}
-
-/* Don't define MIN, MAX, ABS as inlines, as they're already quite
- * customarily defined as macros */
-#ifndef MAX
-#define MAX(h,i) ((h) > (i) ? (h) : (i))
-#endif
-#ifndef MIN
-#define MIN(h,i) ((h) < (i) ? (h) : (i))
-#endif
-#ifndef ABS
-#define ABS(h) ((h) < 0 ? -(h) : (h))
-#endif
-
-static void *malloc_or_die(size_t size)
-{
-    void *res = malloc(size);
-    if (res == NULL)
-	abort();
-    return res;
-}
-
-static inline void Copy(unsigned long *a, const unsigned long *b, size_t n)
-{
-    memcpy(a, b, n * sizeof(unsigned long));
-}
-
-static inline void Zero(unsigned long *a, size_t n)
-{
-    memset(a, 0, n * sizeof(unsigned long));
-}
-
-static inline void Clear(unsigned long *a, size_t low, size_t high)
-{
-    if (high > low)
-       memset (a + low, 0, (high - low) * sizeof(unsigned long));
-}
-
-/** Now the specific things */
-
-/* a <- b + c */
-
-static void AddMod(unsigned long *a, unsigned long *b, unsigned long *c,
-		   size_t n)
-{
-    for (size_t i = 0; i < n; i++)
-       a[i] = b[i] ^ c[i];
-}
-
-/* a <- b + c + d */
-static void
-AddMod3 (unsigned long *a, unsigned long *b, unsigned long *c,
-         unsigned long *d, size_t n)
-{
-  for (size_t i = 0; i < n; i++)
-    a[i] = b[i] ^ c[i] ^ d[i];
-}
-
-/* c <- a * x^k, return carry out, 0 <= k < WLEN */
-static unsigned long
-Lsh (unsigned long *c, unsigned long *a, size_t n, size_t k)
-{
-    if (k == 0) {
-	if (c != a)
-	    Copy(c, a, n);
-	return 0;
-    }
-
-    /* {c, n} and {a, n} should not overlap */
-    ASSERT(c <= a || a + n <= c);
-    ASSERT(k > 0);
-
-    unsigned long t, cy = 0;
-    for (size_t i = 0; i < n; i++) {
-	t = (a[i] << k) | cy;
-	cy = a[i] >> (WLEN - k);
-	c[i] = t;
-    }
-    return cy;
-}
-
-/* c <- c + a * x^k, return carry out, 0 <= k < WLEN */
-
-static unsigned long AddLsh(unsigned long *c, unsigned long *a, size_t n,
-			    size_t k)
-{
-    unsigned long t, cy = 0;
-
-    if (k == 0) {
-	AddMod(c, c, a, n);
-	return 0;
-    }
-
-    /* {c, n} and {a, n} should not overlap */
-    ASSERT(c <= a || a + n <= c);
-
-    ASSERT(k > 0);
-
-    for (size_t i = 0; i < n; i++) {
-	t = (a[i] << k) | cy;
-	cy = a[i] >> (WLEN - k);
-	c[i] ^= t;
-    }
-    return cy;
-}
-
-/* c <- a / x^k, return carry out, 0 <= k < WLEN */
-static unsigned long
-Rsh (unsigned long *c, const unsigned long *a, size_t n, size_t k)
-{
-    if (k == 0) {
-	if (c != a)
-	    Copy(c, a, n);
-	return 0;
-    }
-
-    ASSERT(k > 0);
-
-    unsigned long t, cy = 0;
-    for (size_t i = n; i-- ; ) {
-	t = (a[i] >> k) | cy;
-	cy = a[i] << (WLEN - k);
-	c[i] = t;
-    }
-    return cy;
-}
-
-/* c <- c + a / x^k, return carry out, 0 <= k < WLEN */
-
-static unsigned long AddRsh(unsigned long *c, unsigned long *a, size_t n,
-			    size_t k)
-{
-    unsigned long t, cy = 0;
-
-    if (k == 0) {
-	AddMod(c, c, a, n);
-	return 0;
-    }
-
-    ASSERT(k > 0);
-
-    for (size_t i = n ; i-- ; ) {
-	t = (a[i] >> k) | cy;
-	cy = a[i] << (WLEN - k);
-	c[i] ^= t;
-    }
-    return cy;
-}
 
 #if (defined(DEBUG) || defined(DEBUG_LSHIFT) || defined(DEBUG_MULMOD))
 
@@ -360,16 +158,24 @@ static void Lshift(unsigned long *a, unsigned long *b, uint64_t k, size_t N)
 	if (R(N))
 	    a[I(N)] &= MASK(R(N));
 	/* now we have a = H0:H1 */
-	if (R(N) > 0)
-	    s1 = a[I(N)];
 	// ASSERT(I(N) >= 0);
-	s2 = Lsh(a + I(N), a, I(N), R(N));
-	if (R(N) > 0) {
-	    a[I(N)] ^= s1;	/* restore high R(N) bits */
-	    a[2 * I(N)] = s2 ^ (s1 << R(N));
-	    if (2 * R(N) > WLEN)
-		a[2 * I(N) + 1] = s1 >> (WLEN - R(N));
-	}
+        if (I(N)) {
+            if (R(N) > 0)
+                s1 = a[I(N)];
+            s2 = Lsh(a + I(N), a, I(N), R(N));
+            if (R(N) > 0) {
+                a[I(N)] ^= s1;	/* restore high R(N) bits if they were
+                                   overwritten by Lsh above.  */
+                a[2 * I(N)] = s2 ^ (s1 << R(N));
+                if (2 * R(N) > WLEN)
+                    a[2 * I(N) + 1] = s1 >> (WLEN - R(N));
+            }
+        } else {
+            if (2 * R(N) > WLEN) {
+                a[1] = a[0] >> (WLEN - R(N));
+            }
+            a[0] ^= a[0] << R(N);
+        }
 	/* now we have a = H0:H1:H0:H1 */
 	AddRsh(a, b + I(N + l), W(2 * N) - I(N + l), R(N + l));
 	/* now we have a = H0+H2:H1:H0:H1 */
@@ -429,11 +235,11 @@ static void Lshift(unsigned long *a, unsigned long *b, uint64_t k, size_t N)
 }
 
 /* a <- b * c mod x^(2*N)+x^(N)+1.
-   Assumes t has space for 2n words, and u for gf2x_toomspace(n) words,
-   where n = ceil(2N/WLEN).
-   a and b may be equal.
-   a must have space for n words.
-*/
+ * Assumes t has space for 2n words, and u for gf2x_toomspace(n) words,
+ * where n = ceil(2N/WLEN).
+ * a and b may be equal.
+ * a, b, c must have space for n words.
+ */
 
 static void MulMod(unsigned long *a, const unsigned long *b, const unsigned long *c,
 		   size_t N, unsigned long *t, unsigned long *u)
@@ -508,26 +314,36 @@ static void bitrev(size_t i, size_t j, size_t K, size_t Z, size_t *perm)
    base-3 representation of i and j are reverse one from each other.
 */
 
-static void fft(unsigned long **A, uint64_t K, uint64_t j, size_t Np, size_t stride,
+static int fft(unsigned long **A, uint64_t K, uint64_t j, size_t Np, size_t stride,
+		unsigned long *t1, unsigned long *t2, unsigned long *t3,
+		size_t *p) GF2X_ATTRIBUTE_WARN_UNUSED_RESULT;
+static int fft(unsigned long **A, uint64_t K, uint64_t j, size_t Np, size_t stride,
 		unsigned long *t1, unsigned long *t2, unsigned long *t3,
 		size_t *p)
 {
     ASSERT(j < 3 * Np);
 
     if (K == 1)
-	return;
+	return 0;
 
     size_t i, k = K / 3, twonp = W(2 * Np);
     uint64_t ii;
 
-    fft(A, k, (3 * j) % (3 * Np), Np, 3 * stride, t1, t2, t3, p);
-    fft(A + stride, k, (3 * j) % (3 * Np), Np, 3 * stride, t1, t2, t3, p);
-    fft(A + 2 * stride, k, (3 * j) % (3 * Np), Np, 3 * stride, t1, t2, t3, p);
+    int rc;
+
+    rc = fft(A, k, (3 * j) % (3 * Np), Np, 3 * stride, t1, t2, t3, p);
+    if (rc < 0) return rc;
+    rc = fft(A + stride, k, (3 * j) % (3 * Np), Np, 3 * stride, t1, t2, t3, p);
+    if (rc < 0) return rc;
+    rc = fft(A + 2 * stride, k, (3 * j) % (3 * Np), Np, 3 * stride, t1, t2, t3, p);
+    if (rc < 0) return rc;
 
 #define a A[3*i*stride]
 #define b A[(3*i+1)*stride]
 #define c A[(3*i+2)*stride]
     unsigned long *t4 = malloc (twonp * sizeof (unsigned long)); /* extra */
+    if (t4 == NULL)
+        return GF2X_ERROR_OUT_OF_MEMORY;
     for (i = 0; i < k; i++) {
 	ii = p[3 * stride * i];	/* bitrev(i,K/3) = bitrev(3*stride*i,K) */
         /* a <- a + b * w^(ii*j) + c * w^(2*ii*j)
@@ -548,6 +364,7 @@ static void fft(unsigned long **A, uint64_t K, uint64_t j, size_t Np, size_t str
 #undef a
 #undef b
 #undef c
+    return 0;
 }
 
 /* allocate A[0]...A[K-1], and put there {a, an} cut into K chunks of M bits;
@@ -587,16 +404,19 @@ static void recompose(unsigned long * c, size_t cn, unsigned long **C, size_t K,
 {
     // size_t np = W(Np);	       	// Words to store Np bits
 
-    /* reconstruct C = sum(C[i]*X^(M*i) mod x^N+1.
+    /* reconstruct C = sum(C[i]*X^(M*i) mod x^N+1. (N = K * M)
        We first compute sum(C[i]*X^(M*i), then reduce it using the wrap function.
        Since we know the result has at most cn words, any value exceeding cn
        words is necessarily zero.
        Each C[i] has 2*Np bits, thus the full C has (K-1)*M+2*Np
        = N - M + 2*Np >= N + Np >= 2*n*WLEN + Np bits.
        Thus exactly 2*Np-M bits wrap around mod x^N+1.
+     *
+     * (and in full generality, for any i, we have 2*Np-M bits of C[i]
+     * that overlap with low bits from C[i+1])
      */
 
-    size_t l = 2 * Np - M;/* number of overlapping bits with previous C[i] */
+    size_t l = 2 * Np - M;/* number of overlapping bits from one C[i] to the next */
     size_t i, j, k;
     size_t j1, k1;
     size_t z;
@@ -629,6 +449,12 @@ static void recompose(unsigned long * c, size_t cn, unsigned long **C, size_t K,
 		Lsh(c + j + z, C[i] + z, cn - j - z, k);
 	    }
 	    /* then deal with the low bits of C[i], overlapping with C[i-1] */
+            /* Note that z may be larger than the full width of C, for
+             * very small cases. If this happens, then of course we don't
+             * need to read that many bits from C[i]
+             */
+            if (z > W(2*Np)) z--;
+            ASSERT(z <= W(2*Np));
 	    if (j + z < cn)
 		c[j + z] ^= AddLsh(c + j, C[i], z, k);
 	    else if (j < cn)
@@ -641,6 +467,56 @@ static void recompose(unsigned long * c, size_t cn, unsigned long **C, size_t K,
 	k1 += M;
 	j1 += k1 / WLEN;
 	k1 %= WLEN;
+    }
+}
+
+static void recompose_simpler(unsigned long * c, size_t cn, size_t shift, unsigned long **C, size_t K, size_t M, size_t Np)
+{
+    // size_t np = W(Np);	       	// Words to store Np bits
+
+    /* reconstruct C = sum(C[i]*X^(M*i)) div X^shift to {c, cn}.
+     * This is more general than the function above (which I don't
+     * understand), with the following differences:
+     *  - flow is simpler
+     *  - We intentionally don't create the artificial wrap of the high
+     *  bits of the high coefficient, so that we really compute a
+     *  polynomial of length (K-1)*M+2*Np-shift, which may be more than
+     *  N-shift.
+     */
+
+    memset(c, 0, cn * sizeof(unsigned long));
+    for(size_t i = 0 ; i < K ; i++) {
+        /* C[i] has bits [i*M .. i*M + 2*Np[ */
+        for(size_t l = 0 ; l < W(2*Np) ; l++) {
+            /* word l of C[i] has bits [i*M+l*WLEN..i*M+MAX((l+1)*WLEN,2*Np)[
+             */
+            size_t b0 = i * M + l * WLEN;
+            size_t b1 = i * M + MIN((l+1) * WLEN, 2 * Np);
+            /* w has no extraneous high bits */
+            unsigned long w = C[i][l];
+            if (b1 <= shift)
+                continue;
+            else {
+                if (b0 < shift) {
+                    /* first useful word. We artificially shift it so
+                     * that we can use the general code afterwards.
+                     */
+                    w >>= shift - b0;
+                    b0 = shift;
+                }
+                if (I(b0 - shift) >= cn)
+                    continue;
+                size_t cnt = R(b0 - shift);
+                if (cnt) {
+                    size_t tnc = WLEN - cnt;
+                    c[I(b0-shift)] ^= w << cnt;
+                    if (I(b0 - shift) + 1 < cn)
+                        c[I(b0-shift) + 1] ^= w >> tnc;
+                } else {
+                    c[I(b0-shift)] ^= w;
+                }
+            }
+        }
     }
 }
 
@@ -692,7 +568,7 @@ static void wrap(unsigned long *c, size_t bits_c, size_t N)
     Clear(c, Nw + 1, cn);
 }
 
-static void split_reconstruct(unsigned long * c, unsigned long * c1, unsigned long * c2, size_t cn, size_t K, size_t m1)
+static void split_reconstruct(unsigned long * c, size_t bits_c, size_t shift, unsigned long * c1, unsigned long * c2, size_t cn, size_t K, size_t m1)
 {
     size_t n = WLEN * cn;	// Max bit-size of full product
     size_t delta = K;		// delta = n1 - n2;
@@ -766,13 +642,14 @@ static void split_reconstruct(unsigned long * c, unsigned long * c1, unsigned lo
     }
 #endif
 
-    Copy(c, c1, cn);	// Copy result
+    // Copy result c1 to c, possibly shifting some bits.
+    CopyBitsRsh(c, c1, bits_c, shift);
 }
 
 
 /** now the external calls for the gf2x_ternary_fft interface **/
 
-size_t gf2x_ternary_fft_size(gf2x_ternary_fft_info_srcptr o)
+size_t gf2x_ternary_fft_transform_size(gf2x_ternary_fft_info_srcptr o)
 {
     size_t K = o->K;
     if (K == 0) {
@@ -792,27 +669,27 @@ size_t gf2x_ternary_fft_size(gf2x_ternary_fft_info_srcptr o)
 
 void gf2x_ternary_fft_zero(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr ptr, size_t n)
 {
-    memset(ptr, 0, n * gf2x_ternary_fft_size(o) * sizeof(gf2x_ternary_fft_t));
+    memset(ptr, 0, n * gf2x_ternary_fft_transform_size(o) * sizeof(gf2x_ternary_fft_elt));
 }
 
-void gf2x_ternary_fft_cpy(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr y, gf2x_ternary_fft_srcptr x)
+void gf2x_ternary_fft_cpy(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr y, gf2x_ternary_fft_srcptr x, size_t n)
 {
-    memcpy(y, x, gf2x_ternary_fft_size(o) * sizeof(gf2x_ternary_fft_t));
+    memcpy(y, x, n * gf2x_ternary_fft_transform_size(o) * sizeof(gf2x_ternary_fft_elt));
 }
 
 gf2x_ternary_fft_ptr gf2x_ternary_fft_get(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr ptr, size_t k)
 {
-    return ptr + k * gf2x_ternary_fft_size(o);
+    return ptr + k * gf2x_ternary_fft_transform_size(o);
 }
 
 gf2x_ternary_fft_srcptr gf2x_ternary_fft_get_const(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_srcptr ptr, size_t k)
 {
-    return ptr + k * gf2x_ternary_fft_size(o);
+    return ptr + k * gf2x_ternary_fft_transform_size(o);
 }
 
 gf2x_ternary_fft_ptr gf2x_ternary_fft_alloc(gf2x_ternary_fft_info_srcptr o, size_t n)
 {
-    return malloc_or_die(n * gf2x_ternary_fft_size(o) * sizeof(gf2x_ternary_fft_t));
+    return malloc(n * gf2x_ternary_fft_transform_size(o) * sizeof(gf2x_ternary_fft_elt));
 }
 
 void gf2x_ternary_fft_free(gf2x_ternary_fft_info_srcptr o GF2X_MAYBE_UNUSED, gf2x_ternary_fft_ptr ptr, size_t n GF2X_MAYBE_UNUSED)
@@ -820,7 +697,8 @@ void gf2x_ternary_fft_free(gf2x_ternary_fft_info_srcptr o GF2X_MAYBE_UNUSED, gf2
     free(ptr);
 }
 
-static void gf2x_ternary_fft_dft_inner(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tr, const unsigned long * a, size_t bits_a, size_t M)
+static int gf2x_ternary_fft_dft_inner(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tr, const unsigned long * a, size_t bits_a, size_t M, gf2x_ternary_fft_ptr temp1) GF2X_ATTRIBUTE_WARN_UNUSED_RESULT;
+static int gf2x_ternary_fft_dft_inner(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tr, const unsigned long * a, size_t bits_a, size_t M, gf2x_ternary_fft_ptr temp1)
 {
     size_t K = o->K;
     size_t Mp = CEIL(M, K / 3);	// ceil(M/(K/3))
@@ -828,18 +706,21 @@ static void gf2x_ternary_fft_dft_inner(gf2x_ternary_fft_info_srcptr o, gf2x_tern
     size_t np = W(Np);	       	// Words to store Np bits
 
     // allocate the array of pointers. It's just temporary stuff.
-    unsigned long ** A = malloc_or_die(K * sizeof(unsigned long *));
+    unsigned long ** A = malloc(K * sizeof(unsigned long *));
+    if (A == NULL) return GF2X_ERROR_OUT_OF_MEMORY;
     for (size_t i = 0; i < K; i++) A[i] = tr + 2 * i * np;
     decompose(A, a, W(bits_a), M, K, np);
     unsigned long * tmp1, * tmp2, * tmp3;
-    tmp1 = o->tmp;
-    tmp2 = o->tmp + 2 * np;
-    tmp3 = o->tmp + 4 * np; /* max(2np,gf2x_toomspace(2np)) words */
-    fft(A, K, Mp, Np, 1, tmp1, tmp2, tmp3, o->perm);
+    tmp1 = temp1;
+    tmp2 = temp1 + 2 * np;
+    tmp3 = temp1 + 4 * np; /* max(2np,gf2x_toomspace(2np)) words */
+    int rc = fft(A, K, Mp, Np, 1, tmp1, tmp2, tmp3, o->perm);
     free(A);
+    return rc;
 }
 
-static void gf2x_ternary_fft_dft_inner_split(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tr, const unsigned long * a, size_t bits_a, size_t M, unsigned long * buf, size_t bufsize)
+static int gf2x_ternary_fft_dft_inner_split(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tr, const unsigned long * a, size_t bits_a, size_t M, unsigned long * buf, size_t bufsize, gf2x_ternary_fft_ptr temp1) GF2X_ATTRIBUTE_WARN_UNUSED_RESULT;
+static int gf2x_ternary_fft_dft_inner_split(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tr, const unsigned long * a, size_t bits_a, size_t M, unsigned long * buf, size_t bufsize, gf2x_ternary_fft_ptr temp1)
 {
     size_t K = o->K;
     size_t N = K * M;
@@ -852,20 +733,22 @@ static void gf2x_ternary_fft_dft_inner_split(gf2x_ternary_fft_info_srcptr o, gf2
     Copy(buf, a, W(bits_a));
     Clear(buf, W(bits_a), bufsize);		// Clear upper part of a
     wrap(buf, bits_a, N);
-    gf2x_ternary_fft_dft_inner(o, tr, buf, MIN(N, bits_a), M);
+    return gf2x_ternary_fft_dft_inner(o, tr, buf, MIN(N, bits_a), M, temp1);
 }
 
 /* bits_a is a number of BITS */
-void gf2x_ternary_fft_dft(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tr, const unsigned long * a, size_t bits_a)
+int gf2x_ternary_fft_dft(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tr, const unsigned long * a, size_t bits_a, gf2x_ternary_fft_ptr temp1)
 {
     // bits_a is a number of BITS.
     if (o->K == 0) {
         Copy(tr, a, W(bits_a));
         /* zeroing out the bits isn't really needed. */
         Clear(tr, W(bits_a), W(o->bits_a) + W(o->bits_b));
+        return 0;
     } else if (!o->split) {
-        gf2x_ternary_fft_dft_inner(o, tr, a, bits_a, o->M);
+        return gf2x_ternary_fft_dft_inner(o, tr, a, bits_a, o->M, temp1);
     } else {
+        int rc = 0;
         size_t m1 = o->M;
         size_t m2 = o->M - 1;
         size_t K = o->K;
@@ -874,26 +757,82 @@ void gf2x_ternary_fft_dft(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr t
 
         size_t bufsize = MAX(W(bits_a), W((size_t) m1));
 
-        unsigned long * buf = malloc_or_die(bufsize * sizeof(unsigned long));
+        unsigned long * buf = malloc(bufsize * sizeof(unsigned long));
+        if (buf == NULL)
+            return GF2X_ERROR_OUT_OF_MEMORY;
 
-        gf2x_ternary_fft_dft_inner_split(o, tr, a, bits_a, m1, buf, bufsize);
+        rc = gf2x_ternary_fft_dft_inner_split(o, tr, a, bits_a, m1, buf, bufsize, temp1);
+        if (rc < 0) {
+            free(buf);
+            return rc;
+        }
         tr += 2 * K * compute_np(m1, K);
-        gf2x_ternary_fft_dft_inner_split(o, tr, a, bits_a, m2, buf, bufsize);
+        rc = gf2x_ternary_fft_dft_inner_split(o, tr, a, bits_a, m2, buf, bufsize, temp1);
 
         free(buf);
+        return rc;
     }
 }
 
-static void gf2x_ternary_fft_compose_inner(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb, size_t M)
+#if 0 && defined(__GNU_MP__) /* we don't want a gmp dependency... */
+/* annoying. */
+static void gf2x_ternary_fft_fill_random_inner(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr x, size_t n, size_t M, gmp_randstate_t rstate)
+{
+    size_t K = o->K;
+    size_t Np = compute_Np(M, K);
+    size_t np = W(Np);
+    for (size_t i = 0; i < K; i++) {
+        /* fill x with 2 * Np random bits */
+        mpz_t dummy;
+        dummy->_mp_d = x;
+        dummy->_mp_alloc = 2 * np;
+        dummy->_mp_size = 2 * np;
+        mpz_urandomb(dummy, rstate, 2 * Np);
+        x += 2 * np;
+    }
+}
+
+static inline void mpn_randomb_bits (mp_limb_t *rp, gmp_randstate_t rstate, mp_bitcnt_t N)
+{
+    mpz_t dummy;
+    dummy->_mp_d = rp;
+    dummy->_mp_alloc = W(N);
+    dummy->_mp_size = W(N);
+    mpz_urandomb(dummy, rstate, N);
+}
+
+void gf2x_ternary_fft_fill_random(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr x, size_t n, size_t M, gmp_randstate_t rstate)
+
+    for(size_t i = 0 ; i < n ; i++) {
+        gf2x_ternary_fft_ptr rp = gf2x_ternary_fft_get(o, x, k);
+        if (o->K == 0) {
+            mpn_randomb_bits(rp, rstate, W(o->bits_a + o->bits_b - 1));
+        } else if (!o->split){
+            gf2x_ternary_fft_fill_random_inner(o, rp, M, rstate);
+        } else {
+            size_t m1 = o->M;
+            size_t m2 = o->M - 1;
+            size_t K = o->K;
+            gf2x_ternary_fft_fill_random_inner(o, rp, m1, rstate);
+            size_t offset = 2 * K * compute_np(m1, K);
+            rp += offset;
+            gf2x_ternary_fft_fill_random_inner(o, rp, m2, rstate);
+        }
+    }
+}
+#endif
+
+static int gf2x_ternary_fft_compose_inner(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb, size_t M, gf2x_ternary_fft_ptr temp2) GF2X_ATTRIBUTE_WARN_UNUSED_RESULT;
+static int gf2x_ternary_fft_compose_inner(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb, size_t M, gf2x_ternary_fft_ptr temp2)
 {
     size_t K = o->K;
     // tc, ta, tb may happily alias each other.
     size_t Np = compute_Np(M, K);
     size_t np = W(Np);
-    unsigned long * tmp1 = o->tmp;
+    unsigned long * tmp1 = temp2;
     // tmp2 = o->tmp + 2 * np;
     /* max(2np,gf2x_toomspace(2np)) words */
-    unsigned long * tmp3 = o->tmp + 4 * np;
+    unsigned long * tmp3 = temp2 + 4 * np;
 
     for (size_t i = 0; i < K; i++) {
 	MulMod(tc, ta, tb, Np, tmp1, tmp3);
@@ -901,50 +840,72 @@ static void gf2x_ternary_fft_compose_inner(gf2x_ternary_fft_info_srcptr o, gf2x_
         tb += 2 * np;
         tc += 2 * np;
     }
+    return 0;
 }
 
-void gf2x_ternary_fft_compose(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb)
+int gf2x_ternary_fft_compose(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb, gf2x_ternary_fft_ptr temp2)
 {
     if (o->K == 0) {
-        gf2x_mul(tc, ta, W(o->bits_a), tb, W(o->bits_b));
+        return gf2x_mul(tc, ta, W(o->bits_a), tb, W(o->bits_b));
     } else if (!o->split){
-        gf2x_ternary_fft_compose_inner(o, tc, ta, tb, o->M);
+        /* We're expected to overwrite our result, However when 2*np >
+         * W(2*Np), the high word is left untouched by MulMod. For this
+         * reason, we need to clear the output area first.
+         */
+        gf2x_ternary_fft_zero(o, tc, 1);
+        return gf2x_ternary_fft_compose_inner(o, tc, ta, tb, o->M, temp2);
     } else {
+        int rc;
+        // see above
+        gf2x_ternary_fft_zero(o, tc, 1);
+
         size_t m1 = o->M;
         size_t m2 = o->M - 1;
         size_t K = o->K;
-        gf2x_ternary_fft_compose_inner(o, tc, ta, tb, m1);
+        rc = gf2x_ternary_fft_compose_inner(o, tc, ta, tb, m1, temp2);
+        if (rc < 0) return rc;
+
         size_t offset = 2 * K * compute_np(m1, K);
         tc += offset;
         ta += offset;
         tb += offset;
-        gf2x_ternary_fft_compose_inner(o, tc, ta, tb, m2);
+        rc = gf2x_ternary_fft_compose_inner(o, tc, ta, tb, m2, temp2);
+        if (rc < 0) return rc;
+        return 0;
     }
 }
 
 void gf2x_ternary_fft_add(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb)
 {
-    for (size_t i = 0; i < gf2x_ternary_fft_size(o) ; i++) {
+    for (size_t i = 0; i < gf2x_ternary_fft_transform_size(o) ; i++) {
         tc[i] = ta[i] ^ tb[i];
     }
 }
 
-void gf2x_ternary_fft_addcompose_n(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr * ta, gf2x_ternary_fft_srcptr * tb, size_t n)
+int gf2x_ternary_fft_addcompose_n(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr * ta, gf2x_ternary_fft_srcptr * tb, size_t n, gf2x_ternary_fft_ptr temp2, gf2x_ternary_fft_ptr temp1 GF2X_MAYBE_UNUSED)
 {
-    gf2x_ternary_fft_t * t = gf2x_ternary_fft_alloc(o, 1);
+    /* TODO: Write an AddMulMod, which is the only missing bit that
+     * prevents us from avoiding this temp allocation.
+     */
+    gf2x_ternary_fft_ptr t = gf2x_ternary_fft_alloc(o, 1);
+    if (t == NULL) return GF2X_ERROR_OUT_OF_MEMORY;
+    int rc = 0;
     for(size_t k = 0 ; k < n ; k++) {
-        gf2x_ternary_fft_compose(o, t, ta[k], tb[k]);
+        rc = gf2x_ternary_fft_compose(o, t, ta[k], tb[k], temp2);
+        if (rc < 0) break;
         gf2x_ternary_fft_add(o, tc, tc, t);
     }
     gf2x_ternary_fft_free(o, t, 1);
+    return rc;
 }
 
-void gf2x_ternary_fft_addcompose(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb)
+int gf2x_ternary_fft_addcompose(gf2x_ternary_fft_info_srcptr o, gf2x_ternary_fft_ptr tc, gf2x_ternary_fft_srcptr ta, gf2x_ternary_fft_srcptr tb, gf2x_ternary_fft_ptr temp2, gf2x_ternary_fft_ptr temp1 GF2X_MAYBE_UNUSED)
 {
-    gf2x_ternary_fft_addcompose_n(o, tc, &ta, &tb, 1);
+    return gf2x_ternary_fft_addcompose_n(o, tc, &ta, &tb, 1, temp2, temp1);
 }
 
-void gf2x_ternary_fft_ift_inner(gf2x_ternary_fft_info_srcptr o, unsigned long * a, size_t bits_a, gf2x_ternary_fft_ptr tr, size_t M)
+static int gf2x_ternary_fft_ift_inner(gf2x_ternary_fft_info_srcptr o, unsigned long * a, size_t bits_a, gf2x_ternary_fft_ptr tr, size_t M, gf2x_ternary_fft_ptr temp1) GF2X_ATTRIBUTE_WARN_UNUSED_RESULT;
+int gf2x_ternary_fft_ift_inner(gf2x_ternary_fft_info_srcptr o, unsigned long * a, size_t bits_a, gf2x_ternary_fft_ptr tr, size_t M, gf2x_ternary_fft_ptr temp1)
 {
     size_t K = o->K;
     size_t Mp = CEIL(M, K / 3);	// ceil(M/(K/3))
@@ -953,30 +914,53 @@ void gf2x_ternary_fft_ift_inner(gf2x_ternary_fft_info_srcptr o, unsigned long * 
     size_t i;
 
     unsigned long * tmp1, * tmp2, * tmp3;
-    tmp1 = o->tmp;
-    tmp2 = o->tmp + 2 * np;
-    tmp3 = o->tmp + 4 * np; /* max(2np,gf2x_toomspace(2np)) words */
+    tmp1 = temp1;
+    tmp2 = temp1 + 2 * np;
+    tmp3 = temp1 + 4 * np; /* max(2np,gf2x_toomspace(2np)) words */
 
     // allocate the array of pointers. It's just temporary stuff.
-    unsigned long ** A = malloc_or_die(K * sizeof(unsigned long *));
+    unsigned long ** A = malloc(K * sizeof(unsigned long *));
+    if (A == NULL)
+        return GF2X_ERROR_OUT_OF_MEMORY;
+
     for (i = 0; i < K; i++) A[i] = tr + 2 * i * np;
-    unsigned long ** Ap = malloc_or_die(K * sizeof(unsigned long *));
+    unsigned long ** Ap = malloc(K * sizeof(unsigned long *));
+    if (Ap == NULL) {
+        free(A);
+        return GF2X_ERROR_OUT_OF_MEMORY;
+    }
 
     for (i = 0; i < K; i++) Ap[i] = A[o->perm[i]];
-    fft(Ap, K, 3 * Np - Mp, Np, 1, tmp1, tmp2, tmp3, o->perm);
+    int rc = fft(Ap, K, 3 * Np - Mp, Np, 1, tmp1, tmp2, tmp3, o->perm);
+    if (rc < 0) {
+        free(Ap);
+        free(A);
+        return rc;
+    }
     for (i = 0; i < K; i++) ASSERT(A[i] == Ap[o->perm[i]]);
 
     free(Ap);
-    recompose(a, W(bits_a), A, K, M, Np);
+    if (o->mp_shift && !o->split) {
+        /* we sidestep the recompose() call in order to embed the shift
+         * operation.
+         */
+        recompose_simpler(a, W(bits_a), o->mp_shift, A, K, M, Np);
+        if (R(bits_a))
+            a[I(bits_a)] &= MASK(R(bits_a));
+    } else {
+        recompose(a, W(bits_a), A, K, M, Np);
+    }
     free(A);
+    return rc;
 }
 
-void gf2x_ternary_fft_ift(gf2x_ternary_fft_info_srcptr o, unsigned long * c, size_t bits_c, gf2x_ternary_fft_ptr tr)
+int gf2x_ternary_fft_ift(gf2x_ternary_fft_info_srcptr o, unsigned long * c, size_t bits_c, gf2x_ternary_fft_ptr tr, gf2x_ternary_fft_ptr temp1)
 {
     if (o->K == 0) {
-        Copy(c, tr, W(bits_c));
+        CopyBitsRsh(c, tr, bits_c, o->mp_shift);
+        return 0;
     } else if (!o->split) {
-        gf2x_ternary_fft_ift_inner(o, c, bits_c, tr, o->M);
+        return gf2x_ternary_fft_ift_inner(o, c, bits_c, tr, o->M, temp1);
     } else {
         size_t K = o->K;
         size_t m1 = o->M;
@@ -984,27 +968,111 @@ void gf2x_ternary_fft_ift(gf2x_ternary_fft_info_srcptr o, unsigned long * c, siz
         size_t cn = W(2 * K * m1);
         size_t cn0 = W(o->bits_a) + W(o->bits_b);
         ASSERT(cn0 <= cn);
+        int rc;
 
         size_t cn1 = W(MIN(K*m1,o->bits_a)) + W(MIN(K*m1,o->bits_b));
-        unsigned long * c1 = malloc_or_die(cn * sizeof(unsigned long));
+        unsigned long * c1 = malloc(cn * sizeof(unsigned long));
+        if (c1 == NULL) return GF2X_ERROR_OUT_OF_MEMORY;
         Clear(c1, I(K * m1), cn);
-        gf2x_ternary_fft_ift_inner(o, c1, cn * WLEN, tr, m1);
+        rc = gf2x_ternary_fft_ift_inner(o, c1, cn * WLEN, tr, m1, temp1);
+        if (rc < 0) {
+            free(c1);
+            return rc;
+        }
         wrap(c1, cn1 * WLEN, K * m1);
 
         tr += 2 * K * compute_np(m1, K);
 
         size_t cn2 = W(MIN(K*m2,o->bits_a)) + W(MIN(K*m2,o->bits_b));
-        unsigned long * c2 = malloc_or_die(cn * sizeof(unsigned long));
+        unsigned long * c2 = malloc(cn * sizeof(unsigned long));
+        if (c2 == NULL) {
+            free(c1);
+            return GF2X_ERROR_OUT_OF_MEMORY;
+        }
         Clear(c2, I(K * m2), cn);
-        gf2x_ternary_fft_ift_inner(o, c2, cn * WLEN, tr, m2);
+        rc = gf2x_ternary_fft_ift_inner(o, c2, cn * WLEN, tr, m2, temp1);
+        if (rc < 0) {
+            free(c2);
+            free(c1);
+            return rc;
+        }
         wrap(c2, cn2 * WLEN, K * m2);
 
-        split_reconstruct(c, c1, c2, cn0, K, m1);
+        split_reconstruct(c, bits_c, o->mp_shift, c1, c2, cn0, K, m1);
         free(c1);
         free(c2);
+
+        return 0;
     }
 }
 
+
+int gf2x_ternary_fft_info_adjust(
+        gf2x_ternary_fft_info_ptr o GF2X_MAYBE_UNUSED,
+        int adjust_kind GF2X_MAYBE_UNUSED,
+        long val)
+{
+    if (adjust_kind == GF2X_FFT_ADJUST_DEPTH) {
+        long K = val;
+        /* Since we have a dangerous interface with a variable argument which
+         * is a possibly _signed_ long, better try to catch the expected
+         * mistakes */
+        for(int i = 2*(K>0)-1 ; K/i > 1 ; i*=3) {
+            if ((K/i)%3) {
+                // fprintf(stderr, "extra argument to gf2x_ternary_fft_init (of type long) must be a power of 3 (got %ld)\n", K);
+                return GF2X_ERROR_INVALID_ARGUMENTS;
+            }
+        }
+        if (K <= 0)
+            return GF2X_ERROR_INVALID_ARGUMENTS;
+        if ((size_t) K == o->K) return 0;
+        free(o->perm);
+        o->perm = NULL;
+
+        o->K = K;
+        size_t nwa = W(o->bits_a);
+        size_t nwb = W(o->bits_b);
+        if (o->split == 0) {
+            o->M = CEIL((nwa + nwb) * WLEN, K);	// ceil(bits(product)/K)
+        } else {
+            ASSERT(K >= WLEN);
+            size_t cn2 = CEIL(nwa + nwb, 2);	// Space for half product
+            size_t m2 = CEIL(cn2 * WLEN, K);	// m2 = ceil(cn2*WLEN/K)
+            size_t m1 = m2 + 1;		        // next possible M
+            o->M = m1;
+        }
+        int rc = 0;
+        /* the temporary space used by this FFT is computed in
+         * gf2x_ternary_fft_info_get_alloc_sizes */
+        o->perm = (size_t *) malloc(o->K * sizeof(size_t));
+        if (o->perm == NULL)
+            rc = GF2X_ERROR_OUT_OF_MEMORY;
+        else
+            bitrev(0, 0, o->K, 1, o->perm);
+        return rc;
+    } else if (adjust_kind == GF2X_FFT_ADJUST_SPLIT_FFT) {
+        if (o->K == 0)
+            return GF2X_ERROR_INVALID_ARGUMENTS;
+        size_t nwa = W(o->bits_a);
+        size_t nwb = W(o->bits_b);
+        o->split = val != 0;
+        if (o->split == 0) {
+            if (o->mp_shift) {
+                o->M = CEIL(MAX(nwa, nwb) * WLEN, o->K);
+            } else {
+                o->M = CEIL((nwa + nwb) * WLEN, o->K);// ceil(bits(product)/K)
+            }
+        } else {
+            /* do the same for middle product and normal product */
+            ASSERT(o->K >= WLEN);
+            size_t cn2 = CEIL(nwa + nwb, 2);	// Space for half product
+            size_t m2 = CEIL(cn2 * WLEN, o->K);	// m2 = ceil(cn2*WLEN/K)
+            size_t m1 = m2 + 1;		        // next possible M
+            o->M = m1;
+        }
+    }
+    return 0;
+}
 
 /* multiplies {a, an} by {b, bn} using an FFT of length K,
    and stores the result into {c, an+bn}. If an+bn is too small
@@ -1016,7 +1084,8 @@ void gf2x_ternary_fft_ift(gf2x_ternary_fft_info_srcptr o, unsigned long * c, siz
 // because this algorithm needs to know about the K value, which in turns
 // depends on proper tuning, we ask for it to be provided by the caller.
 // Negative values of K mean to use FFT2.
-void gf2x_ternary_fft_init(gf2x_ternary_fft_info_ptr o, size_t bits_a, size_t bits_b, ...)
+
+static int gf2x_ternary_fft_info_init_common(gf2x_ternary_fft_info_ptr o, size_t bits_a, size_t bits_b, size_t shift)
 {
     o->bits_a = bits_a;
     o->bits_b = bits_b;
@@ -1024,77 +1093,128 @@ void gf2x_ternary_fft_init(gf2x_ternary_fft_info_ptr o, size_t bits_a, size_t bi
     size_t nwa = W(bits_a);
     size_t nwb = W(bits_b);
 
-    va_list ap;
-    va_start(ap, bits_b);
-    long K = va_arg(ap, long);
+    o->mp_shift = shift;
+    o->split = 0;
+    o->perm = NULL;
 
-    /* Since we have a dangerous interface with a variable argument which
-     * is a possibly _signed_ long, better try to catch the expected
-     * mistakes */
-    for(int i = 2*(K>0)-1 ; K/i > 1 ; i*=3) {
-        if ((K/i)%3) {
-            fprintf(stderr, "extra argument to gf2x_ternary_fft_init (of type long) must be a power of 3 (got %ld)\n", K);
-            abort();
-        }
-    }
-
-    size_t M;
-    if (K > 0) {
-        M = CEIL((nwa + nwb) * WLEN, K);	// ceil(bits(product)/K)
-        o->K = K;
-        o->M = M;
-        o->split = 0;
-    } else {
-        ASSERT(-K >= WLEN);
-        size_t cn2 = CEIL(nwa + nwb, 2);	// Space for half product
-        size_t m2 = CEIL(cn2 * WLEN, -K);	// m2 = ceil(cn2*WLEN/K)
-        size_t m1 = m2 + 1;		// next possible M
-        M = m1;
-        o->K = -K;
-        o->M = M;
-        o->split = 1;
-    }
-
-    if (nwa + nwb < MUL_FFT_THRESHOLD) {
+    if (nwa + nwb < GF2X_TERNARY_FFT_MINIMUM_SIZE) {
         // make this special.
         o->K = 0;
         o->M = 0;
-        o->tmp = NULL;
         o->perm = NULL;
-        return;
+        return 0;
     }
 
-    /* We also have to allocate the temporary space used by this FFT */
-    size_t np = compute_np(M, o->K);
+    /* pick a reasonable default -- TODO use a proper table for MP
+     * (shift>0), not the same as for multiplication.
+     * */
+#ifdef GF2X_MUL_FFT_TABLE
+    static int64_t T_FFT_TAB[][2] = GF2X_MUL_FFT_TABLE;
+    long ix, K, sab = MAX(nwa, nwb) / 2;
+    long max_ix = sizeof(T_FFT_TAB)/sizeof(T_FFT_TAB[0]);
+    for (ix = 0; ix + 1 < max_ix && T_FFT_TAB[ix + 1][0] <= sab; ix++);
+    /* now T_FFT_TAB[ix][0] <= sab < T_FFT_TAB[ix+1][0] */
+    K = T_FFT_TAB[ix][1];
+#else
+    K = 27;
+#endif
 
-    size_t i = gf2x_toomspace(2 * np);
-    if (i < 2 * np)
-	i = 2 * np;
-    size_t ltmp = 4 * np + i;
-    o->tmp = (unsigned long *) malloc_or_die(ltmp * sizeof(unsigned long));
-    o->perm = (size_t *) malloc_or_die(o->K * sizeof(size_t));
-    bitrev(0, 0, o->K, 1, o->perm);
-    va_end(ap);
+    /* use this temporarily so that we can set the right arguments with
+     * the _adjust call */
+    o->split = 0;
+    o->K = 0;
+    
+    long split = K < 0;
+    if (split) K = -K;
+
+    if (K == 1) {
+        /* the semantics are not the same in FFT_TAB and in o->K, but
+         * really if we reach here with K == 1, it means that the
+         * fall-back that uses o->K==0 must be used
+         */
+        return 0;
+    }
+
+    int rc;
+
+    rc = gf2x_ternary_fft_info_adjust(o, GF2X_FFT_ADJUST_DEPTH, K);
+    if (rc < 0) return rc;
+
+    rc = gf2x_ternary_fft_info_adjust(o, GF2X_FFT_ADJUST_SPLIT_FFT, split);
+    if (rc < 0) return rc;
+
+    return rc;
 }
 
-void gf2x_ternary_fft_init_similar(gf2x_ternary_fft_info_ptr o, size_t bits_a, size_t bits_b, gf2x_ternary_fft_info_srcptr other)
+int gf2x_ternary_fft_info_init(gf2x_ternary_fft_info_ptr o, size_t bits_a, size_t bits_b)
 {
-    gf2x_ternary_fft_init(o, bits_a, bits_b, other->K);
+    return gf2x_ternary_fft_info_init_common(o, bits_a, bits_b, 0);
 }
 
-int gf2x_ternary_fft_compatible(gf2x_ternary_fft_info_srcptr o1, gf2x_ternary_fft_info_srcptr o2)
+int gf2x_ternary_fft_info_init_mp(gf2x_ternary_fft_info_ptr o, size_t bits_a, size_t bits_b)
 {
-    return o1->K == o2->K && o1->M == o2->M;
+    return gf2x_ternary_fft_info_init_common(o, bits_a, bits_b, MIN(bits_a, bits_b) - 1);
 }
 
-void gf2x_ternary_fft_clear(gf2x_ternary_fft_info_ptr o)
+void gf2x_ternary_fft_info_empty(gf2x_ternary_fft_info_ptr o)
+{
+    memset(o, 0, sizeof(struct gf2x_ternary_fft_info));
+}
+
+int gf2x_ternary_fft_info_copy(
+        gf2x_ternary_fft_info_ptr o,
+        gf2x_ternary_fft_info_srcptr other)
+{
+    memcpy(o, other, sizeof(struct gf2x_ternary_fft_info));
+    o->perm = (size_t *) malloc(o->K * sizeof(size_t));
+    if (o->perm == NULL) {
+        memset(o, 0, sizeof(struct gf2x_ternary_fft_info));
+        return GF2X_ERROR_OUT_OF_MEMORY;
+    } else {
+        memcpy(o->perm, other->perm, o->K * sizeof(size_t));
+        return 0;
+    }
+}
+
+void gf2x_ternary_fft_info_get_alloc_sizes(
+        gf2x_ternary_fft_info_srcptr o,
+        size_t sizes[3])
+{
+    sizes[0] = gf2x_ternary_fft_transform_size(o) * sizeof(gf2x_ternary_fft_elt);
+    if (o->K == 0) {
+        sizes[1] = sizes[2] = 0;
+    } else {
+        size_t np = compute_np(o->M, o->K);
+        size_t i = gf2x_toomspace(2 * np);
+        if (i < 2 * np)
+            i = 2 * np;
+        sizes[1] = (4 * np + i) * sizeof(gf2x_ternary_fft_elt);
+        sizes[2] = (4 * np + i) * sizeof(gf2x_ternary_fft_elt);
+    }
+}
+
+void gf2x_ternary_fft_info_clear(gf2x_ternary_fft_info_ptr o)
 {
     if (o->K) {
-        free(o->tmp);
         free(o->perm);
     }
     memset(o, 0, sizeof(gf2x_ternary_fft_info_t));
 }
+
+char * gf2x_ternary_fft_info_explain(gf2x_ternary_fft_info_srcptr p)
+{
+    int rc;
+    char * line;
+    if (p->K == 0) {
+        rc = asprintf(&line, "invalid (Schoenhage ternary FFT but length 0)");
+    } else if (p->split) {
+        rc = asprintf(&line, "Schoenhage ternary FFT of length %zu, doing products %zu by %zu.", p->K, p->bits_a, p->bits_b);
+    } else {
+        rc = asprintf(&line, "Schoenhage ternary FFT of length %zu, split in two, doing products %zu by %zu.", p->K, p->bits_a, p->bits_b);
+    }
+    return rc >= 0 ? line : NULL;
+}
+
 
 /** gf2x_mul_fft merely wraps around the calls above **/
 
@@ -1107,35 +1227,106 @@ void gf2x_ternary_fft_clear(gf2x_ternary_fft_info_ptr o)
 
 // here an and bn denote numbers of WORDS, while the gf2x_ternary_fft_* routines
 // are interested in number of BITS.
-void gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
+int gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
 	    const unsigned long *b, size_t bn, long K)
 {
     gf2x_ternary_fft_info_t o;
-    gf2x_ternary_fft_init(o, an * WLEN, bn * WLEN, K);
+    int rc;
+    rc = gf2x_ternary_fft_info_init(o, an * WLEN, bn * WLEN);
+    if (rc < 0) return rc;
+    if (K < 0) {
+        rc = gf2x_ternary_fft_info_adjust(o, GF2X_FFT_ADJUST_DEPTH, -K);
+        if (rc < 0) return rc;
+        rc = gf2x_ternary_fft_info_adjust(o, GF2X_FFT_ADJUST_SPLIT_FFT, 1);
+        if (rc < 0) return rc;
+    } else {
+        rc = gf2x_ternary_fft_info_adjust(o, GF2X_FFT_ADJUST_DEPTH, K);
+        if (rc < 0) return rc;
+    }
+
+    size_t sizes[3];
+    gf2x_ternary_fft_info_get_alloc_sizes(o, sizes);
+    gf2x_ternary_fft_ptr temp = malloc(MAX(sizes[1], sizes[2]));
+    if (temp == NULL) {
+        gf2x_ternary_fft_info_clear(o);
+        return GF2X_ERROR_OUT_OF_MEMORY;
+    }
 
     if (o->K == 0) {
 	printf("gf2x_mul_fft: arguments (%zu, %zu) too small\n", an, bn);
         /* Note that actually the routines below do work, because they're
          * specified for working. However, this contradicts the fact that
-         * via this entry point, we have explicitly asked for _not_
-         * falling back to standard gf2x routines. So it's a caller bug
+         * via this entry point, we have explicitly asked to _not_
+         * fall back to standard gf2x routines. So it's a caller bug
          */
-        abort();
+        return -1;
     }
     gf2x_ternary_fft_ptr ta = gf2x_ternary_fft_alloc(o, 1);
+    if (ta == NULL) {
+        free(temp);
+        gf2x_ternary_fft_info_clear(o);
+        return GF2X_ERROR_OUT_OF_MEMORY;
+    }
     gf2x_ternary_fft_ptr tb = gf2x_ternary_fft_alloc(o, 1);
+    if (tb == NULL) {
+        gf2x_ternary_fft_free(o, ta, 1);
+        free(temp);
+        gf2x_ternary_fft_info_clear(o);
+        return GF2X_ERROR_OUT_OF_MEMORY;
+    }
     gf2x_ternary_fft_ptr tc = gf2x_ternary_fft_alloc(o, 1);
+    if (tc == NULL) {
+        gf2x_ternary_fft_free(o, tb, 1);
+        gf2x_ternary_fft_free(o, ta, 1);
+        free(temp);
+        gf2x_ternary_fft_info_clear(o);
+        return GF2X_ERROR_OUT_OF_MEMORY;
+    }
 
-    gf2x_ternary_fft_dft(o, ta, a, an * WLEN);
-    gf2x_ternary_fft_dft(o, tb, b, bn * WLEN);
+    rc = gf2x_ternary_fft_dft(o, ta, a, an * WLEN, temp);
+    if (rc < 0) {
+        gf2x_ternary_fft_free(o, tc, 1);
+        gf2x_ternary_fft_free(o, tb, 1);
+        gf2x_ternary_fft_free(o, ta, 1);
+        free(temp);
+        gf2x_ternary_fft_info_clear(o);
+        return rc;
+    }
+    rc = gf2x_ternary_fft_dft(o, tb, b, bn * WLEN, temp);
+    if (rc < 0) {
+        gf2x_ternary_fft_free(o, tc, 1);
+        gf2x_ternary_fft_free(o, tb, 1);
+        gf2x_ternary_fft_free(o, ta, 1);
+        free(temp);
+        gf2x_ternary_fft_info_clear(o);
+        return rc;
+    }
 
-    gf2x_ternary_fft_compose(o, tc, ta, tb);
+    rc = gf2x_ternary_fft_compose(o, tc, ta, tb, temp);
+    if (rc < 0) {
+        gf2x_ternary_fft_free(o, tc, 1);
+        gf2x_ternary_fft_free(o, tb, 1);
+        gf2x_ternary_fft_free(o, ta, 1);
+        free(temp);
+        gf2x_ternary_fft_info_clear(o);
+        return rc;
+    }
 
-    gf2x_ternary_fft_ift(o, c, (an+bn)*WLEN, tc);
+    rc = gf2x_ternary_fft_ift(o, c, (an+bn)*WLEN, tc, temp);
+    if (rc < 0) {
+        gf2x_ternary_fft_free(o, tc, 1);
+        gf2x_ternary_fft_free(o, tb, 1);
+        gf2x_ternary_fft_free(o, ta, 1);
+        free(temp);
+        gf2x_ternary_fft_info_clear(o);
+        return rc;
+    }
 
     gf2x_ternary_fft_free(o, ta, 1);
     gf2x_ternary_fft_free(o, tb, 1);
     gf2x_ternary_fft_free(o, tc, 1);
 
-    gf2x_ternary_fft_clear(o);
+    free(temp);
+    gf2x_ternary_fft_info_clear(o);
+    return 0;
 }

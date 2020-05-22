@@ -51,16 +51,24 @@ set(CADO_DIST_ARCHIVE_NAME "cado-nfs-${CADO_VERSION_STRING}")
 #####################################################################
 
 # If you change the min version, also change scripts/call_cmake.sh
-cmake_minimum_required(VERSION 2.8.11)
-if(COMMAND cmake_policy)
-    cmake_policy(SET CMP0003 NEW)
-    # VERSION_GREATER_EQUAL is newish
-    if (NOT CMAKE_VERSION VERSION_LESS 3.1)
-        # does this get in the way with cmake tests ?? We used to have
-        # CMP0054 OLD at some point.
-        cmake_policy(SET CMP0054 NEW)
-    endif()
-endif()
+cmake_minimum_required(VERSION 3.4.0)
+
+cmake_policy(SET CMP0003 NEW)
+
+# does this get in the way with cmake tests ?? We used to have
+# CMP0054 OLD at some point.
+cmake_policy(SET CMP0054 NEW)
+
+# IN_LIST
+cmake_policy(SET CMP0057 NEW)
+
+# Here's how we set cmake policies that are unknown to old cmake
+# versions.
+#
+# VERSION_GREATER_EQUAL is for cmake 3.7+
+# if (NOT CMAKE_VERSION VERSION_LESS 3.8)
+#    cmake_policy(SET CMP1234 NEW)
+# endif()
 
 if (MINGW)
     # we could do this as well in other cases.
@@ -68,6 +76,8 @@ if (MINGW)
     set_property(GLOBAL PROPERTY RULE_MESSAGES OFF)
     set(CMAKE_COLOR_MAKEFILE OFF)
 endif()
+
+set(CMAKE_REQUIRED_QUIET 1)
 
 #####################################################################
 # What are we building ?
@@ -144,48 +154,25 @@ if(CMAKE_COMPILER_IS_GNUCC)
     endif()
     # Someday we'll enable c11. This will provide us aligned_alloc.
 endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "-g -W -Wall ${CMAKE_CXX_FLAGS}")
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
-        # only gcc-4.8 is supposed to be c++11-complete. But for what we
-        # use, gcc-4.7 will be ok.
-        message(STATUS "Enabling C++11 support")
-        set(HAVE_CXX11 1)
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+        message(FATAL_ERROR "cado-nfs requires gcc version 5 or greater")
     endif()
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7 AND
-        CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
-        # see comment in utils/smallset.h
-        message(STATUS "Forcing -fabi-version=6 for g++-4.[789]")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fabi-version=6")
-    endif()
-    if(HAVE_CXX11)
-        if(MINGW)
-            set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
-        else()
-            set (CMAKE_CXX_FLAGS "-std=c++11 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
-        endif()
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
-        endif()
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0 AND
-                CMAKE_SYSTEM_PROCESSOR MATCHES "^arm")
-            # https://gcc.gnu.org/ml/gcc/2017-05/msg00073.html
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
-        endif()
+    set(HAVE_CXX11 1)
+    if(MINGW)
+        set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
     else()
-        # It seems that even g++-4.6.3, as shipped in ubuntu 12.04, is
-        # sufficient for the little we use, provided we use the -std=c++0x
-        # flag (-std=c++11 replaced it with gcc-4.7.0).
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.6.3)
-            set (CMAKE_CXX_FLAGS "-std=c++0x -Wno-c++11-compat -g -W -Wall ${CMAKE_CXX_FLAGS}")
-        else()
-            if(MINGW)
-                set (CMAKE_CXX_FLAGS "-std=gnu++98 ${CMAKE_CXX_FLAGS}")
-            else()
-                set (CMAKE_CXX_FLAGS "-std=c++98 ${CMAKE_CXX_FLAGS}")
-            endif()
-        endif()
+        set (CMAKE_CXX_FLAGS "-std=c++11 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
     endif()
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0 AND
+            CMAKE_SYSTEM_PROCESSOR MATCHES "^arm")
+        # https://gcc.gnu.org/ml/gcc/2017-05/msg00073.html
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")
+    endif()
+    set (CMAKE_CXX_FLAGS "-export-dynamic ${CMAKE_CXX_FLAGS}")
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "Intel")
@@ -266,7 +253,7 @@ math (EXPR ULONG_BITS "8*${ulong_size}")
 math (EXPR ULONGLONG_BITS "8*${ulonglong_size}")
 message(STATUS "bits in unsigned long: ${ULONG_BITS}")
 message(STATUS "bits in unsigned long long: ${ULONGLONG_BITS}")
-include(${CADO_NFS_SOURCE_DIR}/config/check_uint64_type.cmake)
+include(${CADO_NFS_SOURCE_DIR}/config/check_types.cmake)
 
 include(${CADO_NFS_SOURCE_DIR}/config/gmp_randstate.cmake)
 
@@ -280,8 +267,10 @@ if (DEFINED ENV{NO_SSE})
     message(STATUS "As per $NO_SSE, disabling all simd intrinsics")
 elseif (ULONG_BITS EQUAL 32)
     list(APPEND GF2X_CONFIGURE_FLAGS --disable-sse2)
+    include("${CADO_NFS_SOURCE_DIR}/config/mmx.cmake")
     message(STATUS "32-bit platform, lazily disabling all Intel simd intrinsics")
 else()
+    set(HAVE_MMX 1)
     include("${CADO_NFS_SOURCE_DIR}/config/sse2.cmake")
     include("${CADO_NFS_SOURCE_DIR}/config/sse3.cmake")
     include("${CADO_NFS_SOURCE_DIR}/config/ssse3.cmake")
@@ -330,6 +319,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/aligned_alloc.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/alignas.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/glibc_vector_internals.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/m4ri.cmake")
 
 if (ENV{IWYU})
     find_program(iwyu_path NAMES include-what-you-use iwyu)
@@ -359,8 +349,6 @@ if("$ENV{ENABLE_SHARED}")
 else()
     message(STATUS "Building with static libraries (ENABLE_SHARED=\"$ENV{ENABLE_SHARED}\")")
 endif()
-
-
 
 
 ######################################################################
@@ -428,8 +416,6 @@ include_directories(${CADO_NFS_BINARY_DIR}/gf2x)
 
 ############################################################
 
-
-
 add_custom_command(OUTPUT ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
     COMMAND mkdir -p ${CADO_NFS_BINARY_DIR}/gf2x
     COMMAND echo Configuring gf2x with options ${GF2X_CONFIGURE_FLAGS}
@@ -443,11 +429,6 @@ add_custom_target(gf2x-build ALL
     COMMAND "${CMAKE_MAKE_PROGRAM}"
     COMMENT "Building gf2x"
 )
-
-# set(GF2X_LIB_FILE  ${CADO_NFS_BINARY_DIR}/gf2x/.libs/libgf2x.a)
-# set(GF2X-FFT_LIB_FILE ${CADO_NFS_BINARY_DIR}/gf2x/gf2x-fft/.libs/libgf2x-fft.a)
-# set(CANTOR128_LIB_FILE ${CADO_NFS_BINARY_DIR}/gf2x/gf2x-fft/.libs/libcantor128.a)
-
 
 # add_subdirectory (gf2x-fft)
 add_subdirectory (utils)

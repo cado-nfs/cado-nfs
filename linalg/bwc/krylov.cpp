@@ -200,11 +200,14 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         if (!legacy_check_mode) {
             std::string Ct_filename = "Ct0-{}.0-{}"_format(nchecks, bw->m);
             cheating_vec_init(Ac, &Tdata, bw->m);
-            FILE * Tfile = fopen(Ct_filename.c_str(), "rb");
-            int rc = fread(Tdata, Ac->vec_elt_stride(Ac, bw->m), 1, Tfile);
-            ASSERT_ALWAYS(rc == 1);
-            fclose(Tfile);
+            if (pi->m->trank == 0 && pi->m->jrank == 0) {
+                FILE * Tfile = fopen(Ct_filename.c_str(), "rb");
+                int rc = fread(Tdata, Ac->vec_elt_stride(Ac, bw->m), 1, Tfile);
+                ASSERT_ALWAYS(rc == 1);
+                fclose(Tfile);
+            }
             if (tcan_print) fmt::printf("loaded %s\n", Ct_filename);
+            pi_bcast(Tdata, bw->m, Ac_pi, 0, 0, pi->m);
         }
 
         cheating_vec_init(A, &ahead, nchecks);
@@ -392,7 +395,9 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     }
     delete[] ymy;
 
-    matmul_top_report(mmt, 1.0);
+    int want_full_report = 0;
+    param_list_parse_int(pl, "full_report", &want_full_report);
+    matmul_top_report(mmt, 1.0, want_full_report);
     matmul_top_clear(mmt);
     pi_free_mpfq_datatype(pi, Ac_pi);
     A->oo_field_clear(A);

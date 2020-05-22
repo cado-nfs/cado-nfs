@@ -29,9 +29,9 @@
 #include <sys/stat.h>
 #include <pthread.h>
 #include <gmp.h>
-#include "omp_proxy.h"
 #include <mutex>
 #include <vector>
+#include "omp_proxy.h"
 #include "cado_poly.h"  // cado_poly
 #include "cxx_mpz.hpp"
 #include "cxx_mpz.hpp"   // for cxx_mpz

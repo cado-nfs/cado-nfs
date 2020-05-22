@@ -56,8 +56,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
         fprintf(stderr,"%s in %s at %s:%d -- %s\n",			\
                 (x),__func__,__FILE__,__LINE__,(y));			\
     } while (0)
+#define croak_throw__(x) do {						\
+        throw std::runtime_error("code BUG() : condition " x            \
+                " failed at " __FILE__ ":" CPP_STRINGIFY(__LINE__));    \
+    } while (0)
 
-#define ASSERT_ALWAYS(x)						\
+/* In C++ dtors which are not allowed to throw, use this variant instead.
+ */
+#define ASSERT_ALWAYS_NOTHROW(x)					\
     do {								\
         if (!(x)) {							\
             croak__("code BUG() : condition " #x " failed",		\
@@ -65,6 +71,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
             abort();							\
         }								\
     } while (0)
+#ifdef __cplusplus
+#include <stdexcept>
+#define ASSERT_ALWAYS(x)						\
+    do {								\
+        if (!(x)) 							\
+            croak_throw__(#x);                                          \
+    } while (0)
+#else
+#define ASSERT_ALWAYS(x) ASSERT_ALWAYS_NOTHROW(x)
+#endif
+
+/* never throw exceptions in that case, just exit */
 #define FATAL_ERROR_CHECK(cond, msg)					\
     do {								\
       if (UNLIKELY((cond))) {                                           \

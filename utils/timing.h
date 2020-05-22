@@ -67,6 +67,11 @@ static inline void timingstats_dict_add_myprocess(timingstats_dict_ptr x MAYBE_U
 
 #ifdef __cplusplus
 }
+
+struct weighted_double {
+    unsigned int n;
+    double t;
+};
 #endif
 
 #endif	/* CADO_UTILS_TIMING_H_ */

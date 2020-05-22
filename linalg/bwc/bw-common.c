@@ -54,6 +54,7 @@ void bw_common_decl_usage(param_list pl)/*{{{*/
     param_list_decl_usage(pl, "checkpoint_precious", "assuming keep_rolling_checkpoints is on, never delete checkpoints of index which is a multiple of that number");
     param_list_decl_usage(pl, "yes_i_insist", "do what I say, even it seems stupid or dangerous");
     param_list_decl_usage(pl, "check_stops", "for secure, create check files for all these values of the interval. This enables checking more checkpoint files against eachother, once offline checking is functional.");
+    param_list_decl_usage(pl, "full_report", "for krylov, report the lower-level matmul timings for _all_ jobs/threads");
     /* }}} */
 
     /* {{{ Parameters related to multi-sequences */
@@ -106,17 +107,17 @@ void bw_common_parse_cmdline(struct bw_params * bw, param_list pl, int * p_argc,
         param_list_print_usage(pl, bw->original_argv[0], stderr);
         exit(EXIT_FAILURE);
     }
-
-    if (bw->can_print) {
-        param_list_print_command_line(stderr, pl);
-        param_list_print_command_line(stdout, pl);
-    }
 }
 /*}}}*/
 
 void bw_common_interpret_parameters(struct bw_params * bw, param_list pl)/*{{{*/
 {
     verbose_interpret_parameters(pl);
+
+    if (bw->can_print) {
+        param_list_print_command_line(stderr, pl);
+        param_list_print_command_line(stdout, pl);
+    }
 
     const char * tmp;
 
@@ -146,7 +147,7 @@ void bw_common_interpret_parameters(struct bw_params * bw, param_list pl)/*{{{*/
     param_list_parse_int(pl, "yes_i_insist", &yes_i_insist);
 
     if (bw->skip_online_checks && bw->keep_rolling_checkpoints) {
-        fprintf(stderr, "The combination of skip_online_checks and keep_rolling_checkpointsis a dangerous match.");
+        fprintf(stderr, "The combination of skip_online_checks and keep_rolling_checkpoints is a dangerous match.");
         if (!yes_i_insist) {
             printf("\n");
             exit(EXIT_FAILURE);
@@ -246,53 +247,37 @@ static int bw_common_init_defaults(struct bw_params * bw)/*{{{*/
 }
 /*}}}*/
 
+int doinit(int * p_argc, char *** p_argv, char ** pmpiinit_diag MAYBE_UNUSED,
+        int req, const char * reqname)
+{
+    int prov;
+    MPI_Init_thread(p_argc, p_argv, req, &prov);
+    if (req != prov) {
+        fprintf(stderr, "Cannot init mpi with %s ;"
+                " got %d != req %d\n"
+                "Proceeding anyway\n",
+                reqname,
+                prov, req);
+        return 0;
+    } else {
+#ifndef FAKEMPI_H_
+        int rc = asprintf(pmpiinit_diag, "Successfully initialized MPI with %s\n", reqname);
+        ASSERT_ALWAYS(rc >= 0);
+#endif
+        return 1;
+    }
+}
+
 int bw_common_init(struct bw_params * bw, int * p_argc, char *** p_argv)/*{{{*/
 {
     char * mpiinit_diag = NULL;
-    /* First do MPI_Init */
-#if defined(MPI_LIBRARY_MT_CAPABLE)
-    int req = MPI_THREAD_MULTIPLE;
-    int prov;
-    MPI_Init_thread(p_argc, p_argv, req, &prov);
-    if (req != prov) {
-        fprintf(stderr, "Cannot init mpi with MPI_THREAD_MULTIPLE ;"
-                " got %d != req %d\n",
-                prov, req);
-        exit(EXIT_FAILURE);
-    }
-#if 0   /* was: elif OMPI_VERSION_ATLEAST(1,8,2) */
-    /* This is just a try, right. In practice, we do rely on the
-     * SERIALIZED model, so let's at least do as we cared about telling
-     * the MPI implementation about it.
-     */
-    int req = MPI_THREAD_SERIALIZED;
-    int prov;
-    MPI_Init_thread(p_argc, p_argv, req, &prov);
-    if (req != prov) {
-        fprintf(stderr, "Cannot init mpi with MPI_THREAD_SERIALIZED ;"
-                " got %d != req %d\n",
-                prov, req);
-        exit(EXIT_FAILURE);
-    }
-#endif  /* #if 0 */
-#else
-    int req = MPI_THREAD_SERIALIZED;
-    int prov;
-    MPI_Init_thread(p_argc, p_argv, req, &prov);
-    if (req != prov) {
-        int rc = asprintf(&mpiinit_diag, "Cannot init mpi with MPI_THREAD_SERIALIZED ;"
-                " got %d != req %d\n"
-                "Proceeding anyway\n",
-                prov, req);
-        ASSERT_ALWAYS(rc >= 0);
-    } else {
-#ifndef FAKEMPI_H_
-        int rc = asprintf(&mpiinit_diag, "Successfully initialized MPI with MPI_THREAD_SERIALIZED\n");
-        ASSERT_ALWAYS(rc >= 0);
-#endif
-    }
+    int init_done = 0;
+    
+    // init_done = init_done || doinit(p_argc, p_argv, &mpiinit_diag, MPI_THREAD_MULTIPLE, "MPI_THREAD_MULTIPLE");
+    init_done = init_done || doinit(p_argc, p_argv, &mpiinit_diag, MPI_THREAD_SERIALIZED, "MPI_THREAD_SERIALIZED");
+
     // MPI_Init(p_argc, p_argv);
-#endif
+    
     int rank;
     int size;
 
@@ -309,7 +294,7 @@ int bw_common_init(struct bw_params * bw, int * p_argc, char *** p_argv)/*{{{*/
     if (bw->can_print) {
         if (mpiinit_diag) {
             fputs(mpiinit_diag, stdout);
-            if (req != prov) {
+            if (!init_done) {
                 fputs(mpiinit_diag, stderr);
             }
         }

@@ -19,12 +19,16 @@ basic:
 	/bin/cp -f $(MPFQ)/simd/binary-dotprods-backends.h .
 	/bin/cp -f $(MPFQ)/include/mpfq.h .
 	/bin/cp -f $(MPFQ)/gfp/mpfq_gfp_common.h .
-	/bin/cp -f $(MPFQ)/test/mpfq_test.c.meta ../../../tests/linalg/bwc/mpfq/
-	-rm -f mpfq_*.?pp
-	$(MPFQ)/test/mk_name_k.pl  name=ab --noshift | sed -e '/cxx/ d' > mpfq_name_ab.h
-	$(MPFQ)/test/mk_name_k.pl  name=K | sed -e '/cxx/ d' > ../../../tests/linalg/bwc/mpfq/mpfq_name_K.h
+	/bin/cp -f $(MPFQ)/test/mpfq_test.cpp.meta ../../../tests/linalg/bwc/mpfq/
+	# -rm -f mpfq_*.?pp
+	# $(MPFQ)/test/mk_name_k.pl  name=ab --noshift | sed -e '/cxx/ d' > mpfq_name_ab.h
+	# $(MPFQ)/test/mk_name_k.pl  name=K | sed -e '/cxx/ d' > ../../../tests/linalg/bwc/mpfq/mpfq_name_K.h
+	$(MPFQ)/test/mk_name_k.pl  name=ab --noshift > mpfq_name_ab.h
+	$(MPFQ)/test/mk_name_k.pl  name=K > ../../../tests/linalg/bwc/mpfq/mpfq_name_K.h
 
-# for tag in $(filter p%,$(mpfq_tag_list)) ; do (echo '#include "cado.h"' ; sed -e "s/TAG/$$tag/g" -e "/^#line/ d" -e "/^#warning/ d" < $(MPFQ)/test/mpfq_test.c.meta) > ../../../tests/linalg/bwc/mpfq/mpfq_test_$$tag.c ; done
+# ../../../tests/linalg/bwc/mpfq/mpfq_test_fixmp.cpp.meta is now expanded by
+# a cmake custom command
+# for tag in $(filter p%,$(mpfq_tag_list)) ; do (echo '#include "cado.h"' ; sed -e "s/TAG/$$tag/g" -e "/^#line/ d" -e "/^#warning/ d" < $(MPFQ)/test/mpfq_test.cpp.meta) > ../../../tests/linalg/bwc/mpfq/mpfq_test_$$tag.cpp ; done
 
 .PHONY: mpfq-buildtree
 
@@ -43,9 +47,11 @@ prime-fields: mpfq-buildtree
 	patch -p1 -d. < asm-constraints.patch
 	-rm -f *.orig
 
+# ../../../tests/linalg/bwc/mpfq/mpfq_test_fixmp.cpp.meta is expanded by
+# a cmake custom command
 prepend-includes:
 	ls mpfq_*.c | xargs -n 1 sed -e '1 i#include "cado.h"' -i
-	ls ../../../tests/linalg/bwc/mpfq/mpfq_*.c | xargs -n 1 sed -e '1 i#include "cado.h"' -i
+	ls ../../../tests/linalg/bwc/mpfq/mpfq_test_fixmp.c | xargs -n 1 sed -e '1 i#include "cado.h"' -i
 
 
 clean-mpfq_%:

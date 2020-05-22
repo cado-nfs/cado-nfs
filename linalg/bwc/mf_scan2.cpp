@@ -3,9 +3,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <pthread.h>
-#ifdef HAVE_HWLOC
-#include <hwloc.h>
-#endif
+#include "omp_proxy.h"
 #include <mutex>
 #include <atomic>
 #include <vector>
@@ -17,6 +15,7 @@
 #include "timing.h"     // wct_seconds
 #include "misc.h"       // size_disp
 #include "fix-endianness.h" // fwrite32_little
+#include "hwloc-aux.h"
 
 void mf_scan2_decl_usage(cxx_param_list & pl)
 {

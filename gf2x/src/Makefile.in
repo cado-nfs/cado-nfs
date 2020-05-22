@@ -206,7 +206,8 @@ DIST_COMMON = $(srcdir)/Makefile.am $(noinst_HEADERS) \
 	$(am__DIST_COMMON)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/gf2x/gf2x-config.h \
-	$(top_builddir)/gf2x/gf2x-config-export.h
+	$(top_builddir)/gf2x/gf2x-config-export.h \
+	$(top_builddir)/gf2x.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@am__EXEEXT_1 = check_mul2t$(EXEEXT) \
@@ -265,131 +266,139 @@ libtuneup_s9_la_OBJECTS = $(nodist_libtuneup_s9_la_OBJECTS)
 am__check_mul1cl_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul1cl_OBJECTS = check_mul1cl-check_small_size.$(OBJEXT)
 check_mul1cl_OBJECTS = $(am_check_mul1cl_OBJECTS)
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul1cl_DEPENDENCIES = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul1cl_DEPENDENCIES =  \
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__check_mul2cl_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul2cl_OBJECTS = check_mul2cl-check_small_size.$(OBJEXT)
 check_mul2cl_OBJECTS = $(am_check_mul2cl_OBJECTS)
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul2cl_DEPENDENCIES = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul2cl_DEPENDENCIES =  \
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__check_mul2cl2_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul2cl2_OBJECTS = check_mul2cl2-check_small_size.$(OBJEXT)
 check_mul2cl2_OBJECTS = $(am_check_mul2cl2_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul2cl2_DEPENDENCIES =  \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_check_mul2k_OBJECTS = check_mul2k-check_small_size.$(OBJEXT)
 check_mul2k_OBJECTS = $(am_check_mul2k_OBJECTS)
-check_mul2k_DEPENDENCIES = ../libgf2x.la
+check_mul2k_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul2t_SOURCES_DIST = check_small_size.c
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@am_check_mul2t_OBJECTS = check_mul2t-check_small_size.$(OBJEXT)
 check_mul2t_OBJECTS = $(am_check_mul2t_OBJECTS)
-@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t_DEPENDENCIES = ../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul2t2_SOURCES_DIST = check_small_size.c
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@am_check_mul2t2_OBJECTS = check_mul2t2-check_small_size.$(OBJEXT)
 check_mul2t2_OBJECTS = $(am_check_mul2t2_OBJECTS)
-@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t2_DEPENDENCIES = ../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t2_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul3cl_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul3cl_OBJECTS = check_mul3cl-check_small_size.$(OBJEXT)
 check_mul3cl_OBJECTS = $(am_check_mul3cl_OBJECTS)
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul3cl_DEPENDENCIES = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul3cl_DEPENDENCIES =  \
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_check_mul3k_OBJECTS = check_mul3k-check_small_size.$(OBJEXT)
 check_mul3k_OBJECTS = $(am_check_mul3k_OBJECTS)
-check_mul3k_DEPENDENCIES = ../libgf2x.la
+check_mul3k_DEPENDENCIES = ../libgf2x-local.a
 am_check_mul3k2_OBJECTS = check_mul3k2-check_small_size.$(OBJEXT)
 check_mul3k2_OBJECTS = $(am_check_mul3k2_OBJECTS)
-check_mul3k2_DEPENDENCIES = ../libgf2x.la
+check_mul3k2_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul3t_SOURCES_DIST = check_small_size.c
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@am_check_mul3t_OBJECTS = check_mul3t-check_small_size.$(OBJEXT)
 check_mul3t_OBJECTS = $(am_check_mul3t_OBJECTS)
-@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul3t_DEPENDENCIES = ../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul3t_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul4cl1_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul4cl1_OBJECTS = check_mul4cl1-check_small_size.$(OBJEXT)
 check_mul4cl1_OBJECTS = $(am_check_mul4cl1_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul4cl1_DEPENDENCIES =  \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__check_mul4clk_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul4clk_OBJECTS = check_mul4clk-check_small_size.$(OBJEXT)
 check_mul4clk_OBJECTS = $(am_check_mul4clk_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul4clk_DEPENDENCIES =  \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_check_mul4k_OBJECTS = check_mul4k-check_small_size.$(OBJEXT)
 check_mul4k_OBJECTS = $(am_check_mul4k_OBJECTS)
-check_mul4k_DEPENDENCIES = ../libgf2x.la
+check_mul4k_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul4t_SOURCES_DIST = check_small_size.c
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@am_check_mul4t_OBJECTS = check_mul4t-check_small_size.$(OBJEXT)
 check_mul4t_OBJECTS = $(am_check_mul4t_OBJECTS)
-@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul4t_DEPENDENCIES = ../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul4t_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul5clk2_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul5clk2_OBJECTS = check_mul5clk2-check_small_size.$(OBJEXT)
 check_mul5clk2_OBJECTS = $(am_check_mul5clk2_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5clk2_DEPENDENCIES =  \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__check_mul5clk_c_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul5clk_c_OBJECTS = check_mul5clk_c-check_small_size.$(OBJEXT)
 check_mul5clk_c_OBJECTS = $(am_check_mul5clk_c_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5clk_c_DEPENDENCIES =  \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__check_mul5k3_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul5k3_OBJECTS = check_mul5k3-check_small_size.$(OBJEXT)
 check_mul5k3_OBJECTS = $(am_check_mul5k3_OBJECTS)
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5k3_DEPENDENCIES = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5k3_DEPENDENCIES =  \
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_check_mul5k_a_OBJECTS = check_mul5k_a-check_small_size.$(OBJEXT)
 check_mul5k_a_OBJECTS = $(am_check_mul5k_a_OBJECTS)
-check_mul5k_a_DEPENDENCIES = ../libgf2x.la
+check_mul5k_a_DEPENDENCIES = ../libgf2x-local.a
 am_check_mul5k_b_OBJECTS = check_mul5k_b-check_small_size.$(OBJEXT)
 check_mul5k_b_OBJECTS = $(am_check_mul5k_b_OBJECTS)
-check_mul5k_b_DEPENDENCIES = ../libgf2x.la
+check_mul5k_b_DEPENDENCIES = ../libgf2x-local.a
 am_check_mul5k_c_OBJECTS = check_mul5k_c-check_small_size.$(OBJEXT)
 check_mul5k_c_OBJECTS = $(am_check_mul5k_c_OBJECTS)
-check_mul5k_c_DEPENDENCIES = ../libgf2x.la
+check_mul5k_c_DEPENDENCIES = ../libgf2x-local.a
 am_check_mul5k_d_OBJECTS = check_mul5k_d-check_small_size.$(OBJEXT)
 check_mul5k_d_OBJECTS = $(am_check_mul5k_d_OBJECTS)
-check_mul5k_d_DEPENDENCIES = ../libgf2x.la
+check_mul5k_d_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul6clk2_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul6clk2_OBJECTS = check_mul6clk2-check_small_size.$(OBJEXT)
 check_mul6clk2_OBJECTS = $(am_check_mul6clk2_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul6clk2_DEPENDENCIES =  \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_check_mul6k_a_OBJECTS = check_mul6k_a-check_small_size.$(OBJEXT)
 check_mul6k_a_OBJECTS = $(am_check_mul6k_a_OBJECTS)
-check_mul6k_a_DEPENDENCIES = ../libgf2x.la
+check_mul6k_a_DEPENDENCIES = ../libgf2x-local.a
 am_check_mul6k_b_OBJECTS = check_mul6k_b-check_small_size.$(OBJEXT)
 check_mul6k_b_OBJECTS = $(am_check_mul6k_b_OBJECTS)
-check_mul6k_b_DEPENDENCIES = ../libgf2x.la
+check_mul6k_b_DEPENDENCIES = ../libgf2x-local.a
 am_check_mul6k_c_OBJECTS = check_mul6k_c-check_small_size.$(OBJEXT)
 check_mul6k_c_OBJECTS = $(am_check_mul6k_c_OBJECTS)
-check_mul6k_c_DEPENDENCIES = ../libgf2x.la
+check_mul6k_c_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul7cl_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul7cl_OBJECTS = check_mul7cl-check_small_size.$(OBJEXT)
 check_mul7cl_OBJECTS = $(am_check_mul7cl_OBJECTS)
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7cl_DEPENDENCIES = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7cl_DEPENDENCIES =  \
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_check_mul7k_OBJECTS = check_mul7k-check_small_size.$(OBJEXT)
 check_mul7k_OBJECTS = $(am_check_mul7k_OBJECTS)
-check_mul7k_DEPENDENCIES = ../libgf2x.la
+check_mul7k_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul7k3_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul7k3_OBJECTS = check_mul7k3-check_small_size.$(OBJEXT)
 check_mul7k3_OBJECTS = $(am_check_mul7k3_OBJECTS)
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7k3_DEPENDENCIES = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7k3_DEPENDENCIES =  \
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_check_mul8k_OBJECTS = check_mul8k-check_small_size.$(OBJEXT)
 check_mul8k_OBJECTS = $(am_check_mul8k_OBJECTS)
-check_mul8k_DEPENDENCIES = ../libgf2x.la
+check_mul8k_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul9cl_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul9cl_OBJECTS = check_mul9cl-check_small_size.$(OBJEXT)
 check_mul9cl_OBJECTS = $(am_check_mul9cl_OBJECTS)
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9cl_DEPENDENCIES = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9cl_DEPENDENCIES =  \
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__check_mul9clk2_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul9clk2_OBJECTS = check_mul9clk2-check_small_size.$(OBJEXT)
 check_mul9clk2_OBJECTS = $(am_check_mul9clk2_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9clk2_DEPENDENCIES =  \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_check_mul9k_OBJECTS = check_mul9k-check_small_size.$(OBJEXT)
 check_mul9k_OBJECTS = $(am_check_mul9k_OBJECTS)
-check_mul9k_DEPENDENCIES = ../libgf2x.la
+check_mul9k_DEPENDENCIES = ../libgf2x-local.a
 am_check_mul9k2_OBJECTS = check_mul9k2-check_small_size.$(OBJEXT)
 check_mul9k2_OBJECTS = $(am_check_mul9k2_OBJECTS)
-check_mul9k2_DEPENDENCIES = ../libgf2x.la
+check_mul9k2_DEPENDENCIES = ../libgf2x-local.a
 am__check_mul9k3_SOURCES_DIST = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_check_mul9k3_OBJECTS = check_mul9k3-check_small_size.$(OBJEXT)
 check_mul9k3_OBJECTS = $(am_check_mul9k3_OBJECTS)
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9k3_DEPENDENCIES = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9k3_DEPENDENCIES =  \
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_modify_thresholds_OBJECTS = modify-thresholds.$(OBJEXT) \
 	replace.$(OBJEXT)
 modify_thresholds_OBJECTS = $(am_modify_thresholds_OBJECTS)
@@ -398,52 +407,52 @@ modify_thresholds_LDADD = $(LDADD)
 tune_gen_mul1_w32k2_OBJECTS = $(nodist_tune_gen_mul1_w32k2_OBJECTS)
 @GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k2_DEPENDENCIES =  \
 @GF2X_32BIT_SOURCES_TRUE@	libtuneup-s1.la libtiming.la \
-@GF2X_32BIT_SOURCES_TRUE@	../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@	../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w32k3_OBJECTS = tune_gen_mul1_w32k3-gen_mul1_w32k3.$(OBJEXT)
 tune_gen_mul1_w32k3_OBJECTS = $(nodist_tune_gen_mul1_w32k3_OBJECTS)
 @GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k3_DEPENDENCIES =  \
 @GF2X_32BIT_SOURCES_TRUE@	libtuneup-s1.la libtiming.la \
-@GF2X_32BIT_SOURCES_TRUE@	../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@	../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w32k4_OBJECTS = tune_gen_mul1_w32k4-gen_mul1_w32k4.$(OBJEXT)
 tune_gen_mul1_w32k4_OBJECTS = $(nodist_tune_gen_mul1_w32k4_OBJECTS)
 @GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k4_DEPENDENCIES =  \
 @GF2X_32BIT_SOURCES_TRUE@	libtuneup-s1.la libtiming.la \
-@GF2X_32BIT_SOURCES_TRUE@	../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@	../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w32k5_OBJECTS = tune_gen_mul1_w32k5-gen_mul1_w32k5.$(OBJEXT)
 tune_gen_mul1_w32k5_OBJECTS = $(nodist_tune_gen_mul1_w32k5_OBJECTS)
 @GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k5_DEPENDENCIES =  \
 @GF2X_32BIT_SOURCES_TRUE@	libtuneup-s1.la libtiming.la \
-@GF2X_32BIT_SOURCES_TRUE@	../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@	../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w32k6_OBJECTS = tune_gen_mul1_w32k6-gen_mul1_w32k6.$(OBJEXT)
 tune_gen_mul1_w32k6_OBJECTS = $(nodist_tune_gen_mul1_w32k6_OBJECTS)
 @GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k6_DEPENDENCIES =  \
 @GF2X_32BIT_SOURCES_TRUE@	libtuneup-s1.la libtiming.la \
-@GF2X_32BIT_SOURCES_TRUE@	../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@	../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w64k2_OBJECTS = tune_gen_mul1_w64k2-gen_mul1_w64k2.$(OBJEXT)
 tune_gen_mul1_w64k2_OBJECTS = $(nodist_tune_gen_mul1_w64k2_OBJECTS)
 @GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k2_DEPENDENCIES =  \
 @GF2X_64BIT_SOURCES_TRUE@	libtuneup-s1.la libtiming.la \
-@GF2X_64BIT_SOURCES_TRUE@	../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@	../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w64k3_OBJECTS = tune_gen_mul1_w64k3-gen_mul1_w64k3.$(OBJEXT)
 tune_gen_mul1_w64k3_OBJECTS = $(nodist_tune_gen_mul1_w64k3_OBJECTS)
 @GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k3_DEPENDENCIES =  \
 @GF2X_64BIT_SOURCES_TRUE@	libtuneup-s1.la libtiming.la \
-@GF2X_64BIT_SOURCES_TRUE@	../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@	../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w64k4_OBJECTS = tune_gen_mul1_w64k4-gen_mul1_w64k4.$(OBJEXT)
 tune_gen_mul1_w64k4_OBJECTS = $(nodist_tune_gen_mul1_w64k4_OBJECTS)
 @GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k4_DEPENDENCIES =  \
 @GF2X_64BIT_SOURCES_TRUE@	libtuneup-s1.la libtiming.la \
-@GF2X_64BIT_SOURCES_TRUE@	../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@	../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w64k5_OBJECTS = tune_gen_mul1_w64k5-gen_mul1_w64k5.$(OBJEXT)
 tune_gen_mul1_w64k5_OBJECTS = $(nodist_tune_gen_mul1_w64k5_OBJECTS)
 @GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k5_DEPENDENCIES =  \
 @GF2X_64BIT_SOURCES_TRUE@	libtuneup-s1.la libtiming.la \
-@GF2X_64BIT_SOURCES_TRUE@	../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@	../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w64k6_OBJECTS = tune_gen_mul1_w64k6-gen_mul1_w64k6.$(OBJEXT)
 tune_gen_mul1_w64k6_OBJECTS = $(nodist_tune_gen_mul1_w64k6_OBJECTS)
 @GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k6_DEPENDENCIES =  \
 @GF2X_64BIT_SOURCES_TRUE@	libtuneup-s1.la libtiming.la \
-@GF2X_64BIT_SOURCES_TRUE@	../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@	../libgf2x-local.a
 am__tune_mul1cl_SOURCES_DIST = ../lowlevel/mul1cl.c
 am__dirstamp = $(am__leading_dot)dirstamp
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul1cl_OBJECTS = ../lowlevel/tune_mul1cl-mul1cl.$(OBJEXT)
@@ -452,7 +461,7 @@ tune_mul1cl_OBJECTS = $(am_tune_mul1cl_OBJECTS) \
 	$(nodist_tune_mul1cl_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul1cl_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s1.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__tune_mul2cl_SOURCES_DIST = ../lowlevel/mul2cl.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul2cl_OBJECTS = ../lowlevel/tune_mul2cl-mul2cl.$(OBJEXT)
 nodist_tune_mul2cl_OBJECTS =
@@ -460,7 +469,7 @@ tune_mul2cl_OBJECTS = $(am_tune_mul2cl_OBJECTS) \
 	$(nodist_tune_mul2cl_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul2cl_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s2.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__tune_mul2cl2_SOURCES_DIST = ../lowlevel/mul2cl2.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul2cl2_OBJECTS = ../lowlevel/tune_mul2cl2-mul2cl2.$(OBJEXT)
 nodist_tune_mul2cl2_OBJECTS =
@@ -468,12 +477,13 @@ tune_mul2cl2_OBJECTS = $(am_tune_mul2cl2_OBJECTS) \
 	$(nodist_tune_mul2cl2_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul2cl2_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s2.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_tune_mul2k_OBJECTS = ../lowlevel/tune_mul2k-mul2k.$(OBJEXT)
 nodist_tune_mul2k_OBJECTS =
 tune_mul2k_OBJECTS = $(am_tune_mul2k_OBJECTS) \
 	$(nodist_tune_mul2k_OBJECTS)
-tune_mul2k_DEPENDENCIES = libtuneup-s2.la libtiming.la ../libgf2x.la
+tune_mul2k_DEPENDENCIES = libtuneup-s2.la libtiming.la \
+	../libgf2x-local.a
 am__tune_mul2t_SOURCES_DIST = ../lowlevel/mul2t.c
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@am_tune_mul2t_OBJECTS = ../lowlevel/tune_mul2t-mul2t.$(OBJEXT)
 nodist_tune_mul2t_OBJECTS =
@@ -481,7 +491,7 @@ tune_mul2t_OBJECTS = $(am_tune_mul2t_OBJECTS) \
 	$(nodist_tune_mul2t_OBJECTS)
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul2t_DEPENDENCIES = libtuneup-s2.la \
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	libtiming.la \
-@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	../libgf2x-local.a
 am__tune_mul2t2_SOURCES_DIST = ../lowlevel/mul2t2.c
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@am_tune_mul2t2_OBJECTS = ../lowlevel/tune_mul2t2-mul2t2.$(OBJEXT)
 nodist_tune_mul2t2_OBJECTS =
@@ -489,7 +499,7 @@ tune_mul2t2_OBJECTS = $(am_tune_mul2t2_OBJECTS) \
 	$(nodist_tune_mul2t2_OBJECTS)
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul2t2_DEPENDENCIES = libtuneup-s2.la \
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	libtiming.la \
-@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	../libgf2x-local.a
 am__tune_mul3cl_SOURCES_DIST = ../lowlevel/mul3cl.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul3cl_OBJECTS = ../lowlevel/tune_mul3cl-mul3cl.$(OBJEXT)
 nodist_tune_mul3cl_OBJECTS =
@@ -497,17 +507,19 @@ tune_mul3cl_OBJECTS = $(am_tune_mul3cl_OBJECTS) \
 	$(nodist_tune_mul3cl_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul3cl_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s3.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_tune_mul3k_OBJECTS = ../lowlevel/tune_mul3k-mul3k.$(OBJEXT)
 nodist_tune_mul3k_OBJECTS =
 tune_mul3k_OBJECTS = $(am_tune_mul3k_OBJECTS) \
 	$(nodist_tune_mul3k_OBJECTS)
-tune_mul3k_DEPENDENCIES = libtuneup-s3.la libtiming.la ../libgf2x.la
+tune_mul3k_DEPENDENCIES = libtuneup-s3.la libtiming.la \
+	../libgf2x-local.a
 am_tune_mul3k2_OBJECTS = ../lowlevel/tune_mul3k2-mul3k2.$(OBJEXT)
 nodist_tune_mul3k2_OBJECTS =
 tune_mul3k2_OBJECTS = $(am_tune_mul3k2_OBJECTS) \
 	$(nodist_tune_mul3k2_OBJECTS)
-tune_mul3k2_DEPENDENCIES = libtuneup-s3.la libtiming.la ../libgf2x.la
+tune_mul3k2_DEPENDENCIES = libtuneup-s3.la libtiming.la \
+	../libgf2x-local.a
 am__tune_mul3t_SOURCES_DIST = ../lowlevel/mul3t.c
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@am_tune_mul3t_OBJECTS = ../lowlevel/tune_mul3t-mul3t.$(OBJEXT)
 nodist_tune_mul3t_OBJECTS =
@@ -515,7 +527,7 @@ tune_mul3t_OBJECTS = $(am_tune_mul3t_OBJECTS) \
 	$(nodist_tune_mul3t_OBJECTS)
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul3t_DEPENDENCIES = libtuneup-s3.la \
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	libtiming.la \
-@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	../libgf2x-local.a
 am__tune_mul4cl1_SOURCES_DIST = ../lowlevel/mul4cl1.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul4cl1_OBJECTS = ../lowlevel/tune_mul4cl1-mul4cl1.$(OBJEXT)
 nodist_tune_mul4cl1_OBJECTS =
@@ -523,7 +535,7 @@ tune_mul4cl1_OBJECTS = $(am_tune_mul4cl1_OBJECTS) \
 	$(nodist_tune_mul4cl1_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul4cl1_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s4.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__tune_mul4clk_SOURCES_DIST = ../lowlevel/mul4clk.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul4clk_OBJECTS = ../lowlevel/tune_mul4clk-mul4clk.$(OBJEXT)
 nodist_tune_mul4clk_OBJECTS =
@@ -531,12 +543,13 @@ tune_mul4clk_OBJECTS = $(am_tune_mul4clk_OBJECTS) \
 	$(nodist_tune_mul4clk_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul4clk_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s4.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_tune_mul4k_OBJECTS = ../lowlevel/tune_mul4k-mul4k.$(OBJEXT)
 nodist_tune_mul4k_OBJECTS =
 tune_mul4k_OBJECTS = $(am_tune_mul4k_OBJECTS) \
 	$(nodist_tune_mul4k_OBJECTS)
-tune_mul4k_DEPENDENCIES = libtuneup-s4.la libtiming.la ../libgf2x.la
+tune_mul4k_DEPENDENCIES = libtuneup-s4.la libtiming.la \
+	../libgf2x-local.a
 am__tune_mul4t_SOURCES_DIST = ../lowlevel/mul4t.c
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@am_tune_mul4t_OBJECTS = ../lowlevel/tune_mul4t-mul4t.$(OBJEXT)
 nodist_tune_mul4t_OBJECTS =
@@ -544,7 +557,7 @@ tune_mul4t_OBJECTS = $(am_tune_mul4t_OBJECTS) \
 	$(nodist_tune_mul4t_OBJECTS)
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul4t_DEPENDENCIES = libtuneup-s4.la \
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	libtiming.la \
-@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@	../libgf2x-local.a
 am__tune_mul5clk2_SOURCES_DIST = ../lowlevel/mul5clk2.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul5clk2_OBJECTS = ../lowlevel/tune_mul5clk2-mul5clk2.$(OBJEXT)
 nodist_tune_mul5clk2_OBJECTS =
@@ -552,7 +565,7 @@ tune_mul5clk2_OBJECTS = $(am_tune_mul5clk2_OBJECTS) \
 	$(nodist_tune_mul5clk2_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5clk2_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s5.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__tune_mul5clk_c_SOURCES_DIST = ../lowlevel/mul5clk_c.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul5clk_c_OBJECTS = ../lowlevel/tune_mul5clk_c-mul5clk_c.$(OBJEXT)
 nodist_tune_mul5clk_c_OBJECTS =
@@ -560,7 +573,7 @@ tune_mul5clk_c_OBJECTS = $(am_tune_mul5clk_c_OBJECTS) \
 	$(nodist_tune_mul5clk_c_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5clk_c_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s5.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__tune_mul5k3_SOURCES_DIST = ../lowlevel/mul5k3.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul5k3_OBJECTS = ../lowlevel/tune_mul5k3-mul5k3.$(OBJEXT)
 nodist_tune_mul5k3_OBJECTS =
@@ -568,27 +581,31 @@ tune_mul5k3_OBJECTS = $(am_tune_mul5k3_OBJECTS) \
 	$(nodist_tune_mul5k3_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5k3_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s5.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_tune_mul5k_a_OBJECTS = ../lowlevel/tune_mul5k_a-mul5k_a.$(OBJEXT)
 nodist_tune_mul5k_a_OBJECTS =
 tune_mul5k_a_OBJECTS = $(am_tune_mul5k_a_OBJECTS) \
 	$(nodist_tune_mul5k_a_OBJECTS)
-tune_mul5k_a_DEPENDENCIES = libtuneup-s5.la libtiming.la ../libgf2x.la
+tune_mul5k_a_DEPENDENCIES = libtuneup-s5.la libtiming.la \
+	../libgf2x-local.a
 am_tune_mul5k_b_OBJECTS = ../lowlevel/tune_mul5k_b-mul5k_b.$(OBJEXT)
 nodist_tune_mul5k_b_OBJECTS =
 tune_mul5k_b_OBJECTS = $(am_tune_mul5k_b_OBJECTS) \
 	$(nodist_tune_mul5k_b_OBJECTS)
-tune_mul5k_b_DEPENDENCIES = libtuneup-s5.la libtiming.la ../libgf2x.la
+tune_mul5k_b_DEPENDENCIES = libtuneup-s5.la libtiming.la \
+	../libgf2x-local.a
 am_tune_mul5k_c_OBJECTS = ../lowlevel/tune_mul5k_c-mul5k_c.$(OBJEXT)
 nodist_tune_mul5k_c_OBJECTS =
 tune_mul5k_c_OBJECTS = $(am_tune_mul5k_c_OBJECTS) \
 	$(nodist_tune_mul5k_c_OBJECTS)
-tune_mul5k_c_DEPENDENCIES = libtuneup-s5.la libtiming.la ../libgf2x.la
+tune_mul5k_c_DEPENDENCIES = libtuneup-s5.la libtiming.la \
+	../libgf2x-local.a
 am_tune_mul5k_d_OBJECTS = ../lowlevel/tune_mul5k_d-mul5k_d.$(OBJEXT)
 nodist_tune_mul5k_d_OBJECTS =
 tune_mul5k_d_OBJECTS = $(am_tune_mul5k_d_OBJECTS) \
 	$(nodist_tune_mul5k_d_OBJECTS)
-tune_mul5k_d_DEPENDENCIES = libtuneup-s5.la libtiming.la ../libgf2x.la
+tune_mul5k_d_DEPENDENCIES = libtuneup-s5.la libtiming.la \
+	../libgf2x-local.a
 am__tune_mul6clk2_SOURCES_DIST = ../lowlevel/mul6clk2.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul6clk2_OBJECTS = ../lowlevel/tune_mul6clk2-mul6clk2.$(OBJEXT)
 nodist_tune_mul6clk2_OBJECTS =
@@ -596,22 +613,25 @@ tune_mul6clk2_OBJECTS = $(am_tune_mul6clk2_OBJECTS) \
 	$(nodist_tune_mul6clk2_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul6clk2_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s6.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_tune_mul6k_a_OBJECTS = ../lowlevel/tune_mul6k_a-mul6k_a.$(OBJEXT)
 nodist_tune_mul6k_a_OBJECTS =
 tune_mul6k_a_OBJECTS = $(am_tune_mul6k_a_OBJECTS) \
 	$(nodist_tune_mul6k_a_OBJECTS)
-tune_mul6k_a_DEPENDENCIES = libtuneup-s6.la libtiming.la ../libgf2x.la
+tune_mul6k_a_DEPENDENCIES = libtuneup-s6.la libtiming.la \
+	../libgf2x-local.a
 am_tune_mul6k_b_OBJECTS = ../lowlevel/tune_mul6k_b-mul6k_b.$(OBJEXT)
 nodist_tune_mul6k_b_OBJECTS =
 tune_mul6k_b_OBJECTS = $(am_tune_mul6k_b_OBJECTS) \
 	$(nodist_tune_mul6k_b_OBJECTS)
-tune_mul6k_b_DEPENDENCIES = libtuneup-s6.la libtiming.la ../libgf2x.la
+tune_mul6k_b_DEPENDENCIES = libtuneup-s6.la libtiming.la \
+	../libgf2x-local.a
 am_tune_mul6k_c_OBJECTS = ../lowlevel/tune_mul6k_c-mul6k_c.$(OBJEXT)
 nodist_tune_mul6k_c_OBJECTS =
 tune_mul6k_c_OBJECTS = $(am_tune_mul6k_c_OBJECTS) \
 	$(nodist_tune_mul6k_c_OBJECTS)
-tune_mul6k_c_DEPENDENCIES = libtuneup-s6.la libtiming.la ../libgf2x.la
+tune_mul6k_c_DEPENDENCIES = libtuneup-s6.la libtiming.la \
+	../libgf2x-local.a
 am__tune_mul7cl_SOURCES_DIST = ../lowlevel/mul7cl.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul7cl_OBJECTS = ../lowlevel/tune_mul7cl-mul7cl.$(OBJEXT)
 nodist_tune_mul7cl_OBJECTS =
@@ -619,12 +639,13 @@ tune_mul7cl_OBJECTS = $(am_tune_mul7cl_OBJECTS) \
 	$(nodist_tune_mul7cl_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul7cl_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s7.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_tune_mul7k_OBJECTS = ../lowlevel/tune_mul7k-mul7k.$(OBJEXT)
 nodist_tune_mul7k_OBJECTS =
 tune_mul7k_OBJECTS = $(am_tune_mul7k_OBJECTS) \
 	$(nodist_tune_mul7k_OBJECTS)
-tune_mul7k_DEPENDENCIES = libtuneup-s7.la libtiming.la ../libgf2x.la
+tune_mul7k_DEPENDENCIES = libtuneup-s7.la libtiming.la \
+	../libgf2x-local.a
 am__tune_mul7k3_SOURCES_DIST = ../lowlevel/mul7k3.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul7k3_OBJECTS = ../lowlevel/tune_mul7k3-mul7k3.$(OBJEXT)
 nodist_tune_mul7k3_OBJECTS =
@@ -632,12 +653,13 @@ tune_mul7k3_OBJECTS = $(am_tune_mul7k3_OBJECTS) \
 	$(nodist_tune_mul7k3_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul7k3_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s7.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_tune_mul8k_OBJECTS = ../lowlevel/tune_mul8k-mul8k.$(OBJEXT)
 nodist_tune_mul8k_OBJECTS =
 tune_mul8k_OBJECTS = $(am_tune_mul8k_OBJECTS) \
 	$(nodist_tune_mul8k_OBJECTS)
-tune_mul8k_DEPENDENCIES = libtuneup-s8.la libtiming.la ../libgf2x.la
+tune_mul8k_DEPENDENCIES = libtuneup-s8.la libtiming.la \
+	../libgf2x-local.a
 am__tune_mul9cl_SOURCES_DIST = ../lowlevel/mul9cl.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul9cl_OBJECTS = ../lowlevel/tune_mul9cl-mul9cl.$(OBJEXT)
 nodist_tune_mul9cl_OBJECTS =
@@ -645,7 +667,7 @@ tune_mul9cl_OBJECTS = $(am_tune_mul9cl_OBJECTS) \
 	$(nodist_tune_mul9cl_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9cl_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s9.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am__tune_mul9clk2_SOURCES_DIST = ../lowlevel/mul9clk2.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul9clk2_OBJECTS = ../lowlevel/tune_mul9clk2-mul9clk2.$(OBJEXT)
 nodist_tune_mul9clk2_OBJECTS =
@@ -653,17 +675,19 @@ tune_mul9clk2_OBJECTS = $(am_tune_mul9clk2_OBJECTS) \
 	$(nodist_tune_mul9clk2_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9clk2_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s9.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_tune_mul9k_OBJECTS = ../lowlevel/tune_mul9k-mul9k.$(OBJEXT)
 nodist_tune_mul9k_OBJECTS =
 tune_mul9k_OBJECTS = $(am_tune_mul9k_OBJECTS) \
 	$(nodist_tune_mul9k_OBJECTS)
-tune_mul9k_DEPENDENCIES = libtuneup-s9.la libtiming.la ../libgf2x.la
+tune_mul9k_DEPENDENCIES = libtuneup-s9.la libtiming.la \
+	../libgf2x-local.a
 am_tune_mul9k2_OBJECTS = ../lowlevel/tune_mul9k2-mul9k2.$(OBJEXT)
 nodist_tune_mul9k2_OBJECTS =
 tune_mul9k2_OBJECTS = $(am_tune_mul9k2_OBJECTS) \
 	$(nodist_tune_mul9k2_OBJECTS)
-tune_mul9k2_DEPENDENCIES = libtuneup-s9.la libtiming.la ../libgf2x.la
+tune_mul9k2_DEPENDENCIES = libtuneup-s9.la libtiming.la \
+	../libgf2x-local.a
 am__tune_mul9k3_SOURCES_DIST = ../lowlevel/mul9k3.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@am_tune_mul9k3_OBJECTS = ../lowlevel/tune_mul9k3-mul9k3.$(OBJEXT)
 nodist_tune_mul9k3_OBJECTS =
@@ -671,13 +695,13 @@ tune_mul9k3_OBJECTS = $(am_tune_mul9k3_OBJECTS) \
 	$(nodist_tune_mul9k3_OBJECTS)
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9k3_DEPENDENCIES =  \
 @GF2X_PCLMUL_AVAILABLE_TRUE@	libtuneup-s9.la libtiming.la \
-@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@	../libgf2x-local.a
 am_tunefft_OBJECTS = tunefft.$(OBJEXT) tuning-common.$(OBJEXT)
 tunefft_OBJECTS = $(am_tunefft_OBJECTS)
-tunefft_DEPENDENCIES = libtiming.la ../libgf2x.la
+tunefft_DEPENDENCIES = libtiming.la ../libgf2x-local.a
 am_tunetoom_OBJECTS = tunetoom.$(OBJEXT) tuning-common.$(OBJEXT)
 tunetoom_OBJECTS = $(am_tunetoom_OBJECTS)
-tunetoom_DEPENDENCIES = libtiming.la ../libgf2x.la
+tunetoom_DEPENDENCIES = libtiming.la ../libgf2x-local.a
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -690,7 +714,7 @@ AM_V_at = $(am__v_at_@AM_V@)
 am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
 am__v_at_0 = @
 am__v_at_1 = 
-DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/gf2x
+DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/gf2x -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ../lowlevel/$(DEPDIR)/tune_mul1cl-mul1cl.Po \
@@ -1181,6 +1205,12 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 EXEEXT_FOR_BUILD = @EXEEXT_FOR_BUILD@
 FGREP = @FGREP@
+GF2X_FFT_VERSION_MAJOR = @GF2X_FFT_VERSION_MAJOR@
+GF2X_FFT_VERSION_MINOR = @GF2X_FFT_VERSION_MINOR@
+GF2X_FFT_VERSION_PATCHLEVEL = @GF2X_FFT_VERSION_PATCHLEVEL@
+GF2X_VERSION_MAJOR = @GF2X_VERSION_MAJOR@
+GF2X_VERSION_MINOR = @GF2X_VERSION_MINOR@
+GF2X_VERSION_PATCHLEVEL = @GF2X_VERSION_PATCHLEVEL@
 GF2X_WORDSIZE = @GF2X_WORDSIZE@
 GREP = @GREP@
 INSTALL = @INSTALL@
@@ -1200,7 +1230,6 @@ LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
-MAYBE_APPS = @MAYBE_APPS@
 MKDIR_P = @MKDIR_P@
 NM = @NM@
 NMEDIT = @NMEDIT@
@@ -1247,6 +1276,7 @@ datarootdir = @datarootdir@
 docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
+gf2x_fft_lib_version = @gf2x_fft_lib_version@
 gf2x_lib_version = @gf2x_lib_version@
 host = @host@
 host_alias = @host_alias@
@@ -1286,7 +1316,7 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = subdir-objects
 # note that most automatic targets have their own CPPFLAGS, which
 # override this one.
-AM_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir)
+AM_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_srcdir)/fft
 AM_LDFLAGS = -no-install
 
 # -- end generated code --
@@ -1354,281 +1384,281 @@ nodist_libtuneup_s9_la_SOURCES = tuneup_9.c tuning_undefs_9.h
 libtuneup_s9_la_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir)
 @GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=1
 @GF2X_32BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w32k2_SOURCES = gen_mul1_w32k2.c tuning_undefs_1.h
-@GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k2_LDADD = libtuneup-s1.la libtiming.la ../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k2_LDADD = libtuneup-s1.la libtiming.la ../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k3_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=1
 @GF2X_32BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w32k3_SOURCES = gen_mul1_w32k3.c tuning_undefs_1.h
-@GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k3_LDADD = libtuneup-s1.la libtiming.la ../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k3_LDADD = libtuneup-s1.la libtiming.la ../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k4_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=1
 @GF2X_32BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w32k4_SOURCES = gen_mul1_w32k4.c tuning_undefs_1.h
-@GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k4_LDADD = libtuneup-s1.la libtiming.la ../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k4_LDADD = libtuneup-s1.la libtiming.la ../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k5_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=1
 @GF2X_32BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w32k5_SOURCES = gen_mul1_w32k5.c tuning_undefs_1.h
-@GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k5_LDADD = libtuneup-s1.la libtiming.la ../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k5_LDADD = libtuneup-s1.la libtiming.la ../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k6_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=1
 @GF2X_32BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w32k6_SOURCES = gen_mul1_w32k6.c tuning_undefs_1.h
-@GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k6_LDADD = libtuneup-s1.la libtiming.la ../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@tune_gen_mul1_w32k6_LDADD = libtuneup-s1.la libtiming.la ../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=1
 @GF2X_64BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w64k2_SOURCES = gen_mul1_w64k2.c tuning_undefs_1.h
-@GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k2_LDADD = libtuneup-s1.la libtiming.la ../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k2_LDADD = libtuneup-s1.la libtiming.la ../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k3_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=1
 @GF2X_64BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w64k3_SOURCES = gen_mul1_w64k3.c tuning_undefs_1.h
-@GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k3_LDADD = libtuneup-s1.la libtiming.la ../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k3_LDADD = libtuneup-s1.la libtiming.la ../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k4_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=1
 @GF2X_64BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w64k4_SOURCES = gen_mul1_w64k4.c tuning_undefs_1.h
-@GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k4_LDADD = libtuneup-s1.la libtiming.la ../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k4_LDADD = libtuneup-s1.la libtiming.la ../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k5_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=1
 @GF2X_64BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w64k5_SOURCES = gen_mul1_w64k5.c tuning_undefs_1.h
-@GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k5_LDADD = libtuneup-s1.la libtiming.la ../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k5_LDADD = libtuneup-s1.la libtiming.la ../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k6_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=1
 @GF2X_64BIT_SOURCES_TRUE@nodist_tune_gen_mul1_w64k6_SOURCES = gen_mul1_w64k6.c tuning_undefs_1.h
-@GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k6_LDADD = libtuneup-s1.la libtiming.la ../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@tune_gen_mul1_w64k6_LDADD = libtuneup-s1.la libtiming.la ../libgf2x-local.a
 tune_mul2k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=2
 tune_mul2k_SOURCES = ../lowlevel/mul2k.c
 nodist_tune_mul2k_SOURCES = tuning_undefs_2.h
-tune_mul2k_LDADD = libtuneup-s2.la libtiming.la ../libgf2x.la
+tune_mul2k_LDADD = libtuneup-s2.la libtiming.la ../libgf2x-local.a
 check_mul2k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul2k.c\" -DTESTING_SIZE=2
-check_mul2k_LDADD = ../libgf2x.la
+check_mul2k_LDADD = ../libgf2x-local.a
 check_mul2k_SOURCES = check_small_size.c
 tune_mul3k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=3
 tune_mul3k_SOURCES = ../lowlevel/mul3k.c
 nodist_tune_mul3k_SOURCES = tuning_undefs_3.h
-tune_mul3k_LDADD = libtuneup-s3.la libtiming.la ../libgf2x.la
+tune_mul3k_LDADD = libtuneup-s3.la libtiming.la ../libgf2x-local.a
 check_mul3k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul3k.c\" -DTESTING_SIZE=3
-check_mul3k_LDADD = ../libgf2x.la
+check_mul3k_LDADD = ../libgf2x-local.a
 check_mul3k_SOURCES = check_small_size.c
 tune_mul3k2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=3
 tune_mul3k2_SOURCES = ../lowlevel/mul3k2.c
 nodist_tune_mul3k2_SOURCES = tuning_undefs_3.h
-tune_mul3k2_LDADD = libtuneup-s3.la libtiming.la ../libgf2x.la
+tune_mul3k2_LDADD = libtuneup-s3.la libtiming.la ../libgf2x-local.a
 check_mul3k2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul3k2.c\" -DTESTING_SIZE=3
-check_mul3k2_LDADD = ../libgf2x.la
+check_mul3k2_LDADD = ../libgf2x-local.a
 check_mul3k2_SOURCES = check_small_size.c
 tune_mul4k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=4
 tune_mul4k_SOURCES = ../lowlevel/mul4k.c
 nodist_tune_mul4k_SOURCES = tuning_undefs_4.h
-tune_mul4k_LDADD = libtuneup-s4.la libtiming.la ../libgf2x.la
+tune_mul4k_LDADD = libtuneup-s4.la libtiming.la ../libgf2x-local.a
 check_mul4k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul4k.c\" -DTESTING_SIZE=4
-check_mul4k_LDADD = ../libgf2x.la
+check_mul4k_LDADD = ../libgf2x-local.a
 check_mul4k_SOURCES = check_small_size.c
 tune_mul5k_a_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=5
 tune_mul5k_a_SOURCES = ../lowlevel/mul5k_a.c
 nodist_tune_mul5k_a_SOURCES = tuning_undefs_5.h
-tune_mul5k_a_LDADD = libtuneup-s5.la libtiming.la ../libgf2x.la
+tune_mul5k_a_LDADD = libtuneup-s5.la libtiming.la ../libgf2x-local.a
 check_mul5k_a_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul5k_a.c\" -DTESTING_SIZE=5
-check_mul5k_a_LDADD = ../libgf2x.la
+check_mul5k_a_LDADD = ../libgf2x-local.a
 check_mul5k_a_SOURCES = check_small_size.c
 tune_mul5k_b_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=5
 tune_mul5k_b_SOURCES = ../lowlevel/mul5k_b.c
 nodist_tune_mul5k_b_SOURCES = tuning_undefs_5.h
-tune_mul5k_b_LDADD = libtuneup-s5.la libtiming.la ../libgf2x.la
+tune_mul5k_b_LDADD = libtuneup-s5.la libtiming.la ../libgf2x-local.a
 check_mul5k_b_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul5k_b.c\" -DTESTING_SIZE=5
-check_mul5k_b_LDADD = ../libgf2x.la
+check_mul5k_b_LDADD = ../libgf2x-local.a
 check_mul5k_b_SOURCES = check_small_size.c
 tune_mul5k_c_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=5
 tune_mul5k_c_SOURCES = ../lowlevel/mul5k_c.c
 nodist_tune_mul5k_c_SOURCES = tuning_undefs_5.h
-tune_mul5k_c_LDADD = libtuneup-s5.la libtiming.la ../libgf2x.la
+tune_mul5k_c_LDADD = libtuneup-s5.la libtiming.la ../libgf2x-local.a
 check_mul5k_c_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul5k_c.c\" -DTESTING_SIZE=5
-check_mul5k_c_LDADD = ../libgf2x.la
+check_mul5k_c_LDADD = ../libgf2x-local.a
 check_mul5k_c_SOURCES = check_small_size.c
 tune_mul5k_d_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=5
 tune_mul5k_d_SOURCES = ../lowlevel/mul5k_d.c
 nodist_tune_mul5k_d_SOURCES = tuning_undefs_5.h
-tune_mul5k_d_LDADD = libtuneup-s5.la libtiming.la ../libgf2x.la
+tune_mul5k_d_LDADD = libtuneup-s5.la libtiming.la ../libgf2x-local.a
 check_mul5k_d_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul5k_d.c\" -DTESTING_SIZE=5
-check_mul5k_d_LDADD = ../libgf2x.la
+check_mul5k_d_LDADD = ../libgf2x-local.a
 check_mul5k_d_SOURCES = check_small_size.c
 tune_mul6k_a_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=6
 tune_mul6k_a_SOURCES = ../lowlevel/mul6k_a.c
 nodist_tune_mul6k_a_SOURCES = tuning_undefs_6.h
-tune_mul6k_a_LDADD = libtuneup-s6.la libtiming.la ../libgf2x.la
+tune_mul6k_a_LDADD = libtuneup-s6.la libtiming.la ../libgf2x-local.a
 check_mul6k_a_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul6k_a.c\" -DTESTING_SIZE=6
-check_mul6k_a_LDADD = ../libgf2x.la
+check_mul6k_a_LDADD = ../libgf2x-local.a
 check_mul6k_a_SOURCES = check_small_size.c
 tune_mul6k_b_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=6
 tune_mul6k_b_SOURCES = ../lowlevel/mul6k_b.c
 nodist_tune_mul6k_b_SOURCES = tuning_undefs_6.h
-tune_mul6k_b_LDADD = libtuneup-s6.la libtiming.la ../libgf2x.la
+tune_mul6k_b_LDADD = libtuneup-s6.la libtiming.la ../libgf2x-local.a
 check_mul6k_b_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul6k_b.c\" -DTESTING_SIZE=6
-check_mul6k_b_LDADD = ../libgf2x.la
+check_mul6k_b_LDADD = ../libgf2x-local.a
 check_mul6k_b_SOURCES = check_small_size.c
 tune_mul6k_c_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=6
 tune_mul6k_c_SOURCES = ../lowlevel/mul6k_c.c
 nodist_tune_mul6k_c_SOURCES = tuning_undefs_6.h
-tune_mul6k_c_LDADD = libtuneup-s6.la libtiming.la ../libgf2x.la
+tune_mul6k_c_LDADD = libtuneup-s6.la libtiming.la ../libgf2x-local.a
 check_mul6k_c_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul6k_c.c\" -DTESTING_SIZE=6
-check_mul6k_c_LDADD = ../libgf2x.la
+check_mul6k_c_LDADD = ../libgf2x-local.a
 check_mul6k_c_SOURCES = check_small_size.c
 tune_mul7k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=7
 tune_mul7k_SOURCES = ../lowlevel/mul7k.c
 nodist_tune_mul7k_SOURCES = tuning_undefs_7.h
-tune_mul7k_LDADD = libtuneup-s7.la libtiming.la ../libgf2x.la
+tune_mul7k_LDADD = libtuneup-s7.la libtiming.la ../libgf2x-local.a
 check_mul7k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul7k.c\" -DTESTING_SIZE=7
-check_mul7k_LDADD = ../libgf2x.la
+check_mul7k_LDADD = ../libgf2x-local.a
 check_mul7k_SOURCES = check_small_size.c
 tune_mul8k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=8
 tune_mul8k_SOURCES = ../lowlevel/mul8k.c
 nodist_tune_mul8k_SOURCES = tuning_undefs_8.h
-tune_mul8k_LDADD = libtuneup-s8.la libtiming.la ../libgf2x.la
+tune_mul8k_LDADD = libtuneup-s8.la libtiming.la ../libgf2x-local.a
 check_mul8k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul8k.c\" -DTESTING_SIZE=8
-check_mul8k_LDADD = ../libgf2x.la
+check_mul8k_LDADD = ../libgf2x-local.a
 check_mul8k_SOURCES = check_small_size.c
 tune_mul9k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=9
 tune_mul9k_SOURCES = ../lowlevel/mul9k.c
 nodist_tune_mul9k_SOURCES = tuning_undefs_9.h
-tune_mul9k_LDADD = libtuneup-s9.la libtiming.la ../libgf2x.la
+tune_mul9k_LDADD = libtuneup-s9.la libtiming.la ../libgf2x-local.a
 check_mul9k_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul9k.c\" -DTESTING_SIZE=9
-check_mul9k_LDADD = ../libgf2x.la
+check_mul9k_LDADD = ../libgf2x-local.a
 check_mul9k_SOURCES = check_small_size.c
 tune_mul9k2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=9
 tune_mul9k2_SOURCES = ../lowlevel/mul9k2.c
 nodist_tune_mul9k2_SOURCES = tuning_undefs_9.h
-tune_mul9k2_LDADD = libtuneup-s9.la libtiming.la ../libgf2x.la
+tune_mul9k2_LDADD = libtuneup-s9.la libtiming.la ../libgf2x-local.a
 check_mul9k2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul9k2.c\" -DTESTING_SIZE=9
-check_mul9k2_LDADD = ../libgf2x.la
+check_mul9k2_LDADD = ../libgf2x-local.a
 check_mul9k2_SOURCES = check_small_size.c
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul2t_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=2
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul2t_SOURCES = ../lowlevel/mul2t.c
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@nodist_tune_mul2t_SOURCES = tuning_undefs_2.h
-@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul2t_LDADD = libtuneup-s2.la libtiming.la ../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul2t_LDADD = libtuneup-s2.la libtiming.la ../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul2t.c\" -DTESTING_SIZE=2
-@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t_LDADD = ../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t_LDADD = ../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t_SOURCES = check_small_size.c
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul2t2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=2
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul2t2_SOURCES = ../lowlevel/mul2t2.c
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@nodist_tune_mul2t2_SOURCES = tuning_undefs_2.h
-@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul2t2_LDADD = libtuneup-s2.la libtiming.la ../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul2t2_LDADD = libtuneup-s2.la libtiming.la ../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul2t2.c\" -DTESTING_SIZE=2
-@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t2_LDADD = ../libgf2x.la
+@GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t2_LDADD = ../libgf2x-local.a
 @GF2X_64BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul2t2_SOURCES = check_small_size.c
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul4t_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=4
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul4t_SOURCES = ../lowlevel/mul4t.c
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@nodist_tune_mul4t_SOURCES = tuning_undefs_4.h
-@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul4t_LDADD = libtuneup-s4.la libtiming.la ../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul4t_LDADD = libtuneup-s4.la libtiming.la ../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul4t_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul4t.c\" -DTESTING_SIZE=4
-@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul4t_LDADD = ../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul4t_LDADD = ../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul4t_SOURCES = check_small_size.c
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul3t_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=3
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul3t_SOURCES = ../lowlevel/mul3t.c
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@nodist_tune_mul3t_SOURCES = tuning_undefs_3.h
-@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul3t_LDADD = libtuneup-s3.la libtiming.la ../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@tune_mul3t_LDADD = libtuneup-s3.la libtiming.la ../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul3t_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul3t.c\" -DTESTING_SIZE=3
-@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul3t_LDADD = ../libgf2x.la
+@GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul3t_LDADD = ../libgf2x-local.a
 @GF2X_32BIT_SOURCES_TRUE@@GF2X_SSE2_AVAILABLE_TRUE@check_mul3t_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul1cl_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=1
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul1cl_SOURCES = ../lowlevel/mul1cl.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul1cl_SOURCES = tuning_undefs_1.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul1cl_LDADD = libtuneup-s1.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul1cl_LDADD = libtuneup-s1.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul1cl_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul1cl.c\" -DTESTING_SIZE=1
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul1cl_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul1cl_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul1cl_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul2cl_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=2
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul2cl_SOURCES = ../lowlevel/mul2cl.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul2cl_SOURCES = tuning_undefs_2.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul2cl_LDADD = libtuneup-s2.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul2cl_LDADD = libtuneup-s2.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul2cl_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul2cl.c\" -DTESTING_SIZE=2
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul2cl_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul2cl_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul2cl_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul2cl2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=2
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul2cl2_SOURCES = ../lowlevel/mul2cl2.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul2cl2_SOURCES = tuning_undefs_2.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul2cl2_LDADD = libtuneup-s2.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul2cl2_LDADD = libtuneup-s2.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul2cl2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul2cl2.c\" -DTESTING_SIZE=2
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul2cl2_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul2cl2_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul2cl2_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul3cl_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=3
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul3cl_SOURCES = ../lowlevel/mul3cl.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul3cl_SOURCES = tuning_undefs_3.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul3cl_LDADD = libtuneup-s3.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul3cl_LDADD = libtuneup-s3.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul3cl_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul3cl.c\" -DTESTING_SIZE=3
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul3cl_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul3cl_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul3cl_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul4cl1_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=4
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul4cl1_SOURCES = ../lowlevel/mul4cl1.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul4cl1_SOURCES = tuning_undefs_4.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul4cl1_LDADD = libtuneup-s4.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul4cl1_LDADD = libtuneup-s4.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul4cl1_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul4cl1.c\" -DTESTING_SIZE=4
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul4cl1_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul4cl1_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul4cl1_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul4clk_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=4
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul4clk_SOURCES = ../lowlevel/mul4clk.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul4clk_SOURCES = tuning_undefs_4.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul4clk_LDADD = libtuneup-s4.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul4clk_LDADD = libtuneup-s4.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul4clk_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul4clk.c\" -DTESTING_SIZE=4
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul4clk_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul4clk_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul4clk_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5clk_c_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=5
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5clk_c_SOURCES = ../lowlevel/mul5clk_c.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul5clk_c_SOURCES = tuning_undefs_5.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5clk_c_LDADD = libtuneup-s5.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5clk_c_LDADD = libtuneup-s5.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5clk_c_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul5clk_c.c\" -DTESTING_SIZE=5
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5clk_c_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5clk_c_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5clk_c_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5k3_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=5
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5k3_SOURCES = ../lowlevel/mul5k3.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul5k3_SOURCES = tuning_undefs_5.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5k3_LDADD = libtuneup-s5.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5k3_LDADD = libtuneup-s5.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5k3_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul5k3.c\" -DTESTING_SIZE=5
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5k3_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5k3_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5k3_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5clk2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=5
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5clk2_SOURCES = ../lowlevel/mul5clk2.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul5clk2_SOURCES = tuning_undefs_5.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5clk2_LDADD = libtuneup-s5.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul5clk2_LDADD = libtuneup-s5.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5clk2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul5clk2.c\" -DTESTING_SIZE=5
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5clk2_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5clk2_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul5clk2_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul6clk2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=6
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul6clk2_SOURCES = ../lowlevel/mul6clk2.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul6clk2_SOURCES = tuning_undefs_6.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul6clk2_LDADD = libtuneup-s6.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul6clk2_LDADD = libtuneup-s6.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul6clk2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul6clk2.c\" -DTESTING_SIZE=6
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul6clk2_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul6clk2_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul6clk2_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul7cl_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=7
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul7cl_SOURCES = ../lowlevel/mul7cl.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul7cl_SOURCES = tuning_undefs_7.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul7cl_LDADD = libtuneup-s7.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul7cl_LDADD = libtuneup-s7.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7cl_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul7cl.c\" -DTESTING_SIZE=7
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7cl_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7cl_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7cl_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul7k3_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=7
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul7k3_SOURCES = ../lowlevel/mul7k3.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul7k3_SOURCES = tuning_undefs_7.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul7k3_LDADD = libtuneup-s7.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul7k3_LDADD = libtuneup-s7.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7k3_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul7k3.c\" -DTESTING_SIZE=7
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7k3_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7k3_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul7k3_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9k3_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=9
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9k3_SOURCES = ../lowlevel/mul9k3.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul9k3_SOURCES = tuning_undefs_9.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9k3_LDADD = libtuneup-s9.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9k3_LDADD = libtuneup-s9.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9k3_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul9k3.c\" -DTESTING_SIZE=9
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9k3_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9k3_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9k3_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9clk2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=9
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9clk2_SOURCES = ../lowlevel/mul9clk2.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul9clk2_SOURCES = tuning_undefs_9.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9clk2_LDADD = libtuneup-s9.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9clk2_LDADD = libtuneup-s9.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9clk2_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul9clk2.c\" -DTESTING_SIZE=9
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9clk2_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9clk2_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9clk2_SOURCES = check_small_size.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9cl_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -DTUNING=9
 @GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9cl_SOURCES = ../lowlevel/mul9cl.c
 @GF2X_PCLMUL_AVAILABLE_TRUE@nodist_tune_mul9cl_SOURCES = tuning_undefs_9.h
-@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9cl_LDADD = libtuneup-s9.la libtiming.la ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@tune_mul9cl_LDADD = libtuneup-s9.la libtiming.la ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9cl_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_builddir)/gf2x -DSOURCEFILE=\"../lowlevel/mul9cl.c\" -DTESTING_SIZE=9
-@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9cl_LDADD = ../libgf2x.la
+@GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9cl_LDADD = ../libgf2x-local.a
 @GF2X_PCLMUL_AVAILABLE_TRUE@check_mul9cl_SOURCES = check_small_size.c
 
 ######################################################################
 noinst_HEADERS = timing.h tuning-common.h replace.h
 modify_thresholds_SOURCES = modify-thresholds.c replace.c
 tunetoom_SOURCES = tunetoom.c tuning-common.c
-tunetoom_LDADD = libtiming.la ../libgf2x.la -lm
+tunetoom_LDADD = libtiming.la ../libgf2x-local.a -lm
 TOOM_TUNING_LIMIT = 2048
 tunefft_SOURCES = tunefft.c tuning-common.c
-tunefft_LDADD = libtiming.la ../libgf2x.la
+tunefft_LDADD = libtiming.la ../libgf2x-local.a
 FFT_TUNING_LIMIT = 8000000
 FFT_TUNING_SCALE = 1.02
 all: $(BUILT_SOURCES)

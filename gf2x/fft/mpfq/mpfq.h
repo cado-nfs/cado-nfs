@@ -26,7 +26,8 @@ extern "C" {
 #define MPFQ_POLYNOMIAL 2       /* this expects an mpfq polynomial */
 #define MPFQ_DEGREE 3           /* int */
 #define MPFQ_IO_TYPE 4          /* for setopt */
-#define MPFQ_GROUPSIZE 5        /* int (SIMD group size) */
+#define MPFQ_SIMD_GROUPSIZE 5   /* int (SIMD group size) */
+#define MPFQ_GROUPSIZE 5        /* (for compatibility, just in case) */
 // #define MPFQ_PRIME_MPZ 6        /* mpz_t */
 #define MPFQ_MANDATORY_TAG 7    /* force the tag to be this one ; this is
                                  * of course pointless for the low-level
@@ -185,45 +186,6 @@ static inline int mpfq_ctzlx(unsigned long * x, int n)
 }
 
 /***  Some useful macros ***/
-
-/* use these only for the large malloc()s, please */
-static inline void * mpfq_malloc_check(size_t s) {
-    void * r = malloc(s);
-#ifdef  MPFQ_TRACK_MALLOC
-    if (s>>28) { fprintf(stderr, "MALLOC(%.1f)\n", s/1048576.); }
-#endif
-    if (!r) {
-        fprintf(stderr, "malloc(%zu) failed\n", s);
-        abort();
-    }
-    return r;
-}
-
-static inline void * mpfq_realloc_check(void * p, size_t os, size_t s) {
-    void * r = realloc(p, s);
-#ifdef  MPFQ_TRACK_MALLOC
-    if (s>>28) { fprintf(stderr, "REALLOC(%.1f, %.1f)\n", os/1048576., s/1048576.); }
-#endif
-    if (s && !r) {
-        fprintf(stderr, "realloc(%zu, %zu) failed\n", os, s);
-        abort();
-    }
-    return r;
-}
-
-static inline void mpfq_free(void * p, size_t s MAYBE_UNUSED)
-{
-#ifdef  MPFQ_TRACK_MALLOC
-    if (s>>28) { fprintf(stderr, "FREE(%.1f)\n", s/1048576.); }
-#endif
-    free(p);
-}
-
-static inline void malloc_failed() {
-    fprintf(stderr, "malloc() failed\n");
-    abort();
-}
-
 
 #if 0
 

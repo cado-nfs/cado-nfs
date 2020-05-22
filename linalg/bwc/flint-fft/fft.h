@@ -134,7 +134,7 @@ void fft_combine_limbs(mp_limb_t * res, mp_limb_t ** poly, slong length,
 		       mp_size_t total_limbs);
 
 void fft_addcombine_bits(mp_limb_t * res, mp_limb_t ** poly, slong length,
-			 mp_bitcnt_t bits, mp_size_t output_limbs,
+			 flint_bitcnt_t bits, mp_size_t output_limbs,
 			 mp_size_t total_limbs);
 
 mp_size_t fft_split_limbs(mp_limb_t ** poly, mp_srcptr limbs,
@@ -142,7 +142,7 @@ mp_size_t fft_split_limbs(mp_limb_t ** poly, mp_srcptr limbs,
 			  mp_size_t output_limbs);
 
 mp_size_t fft_split_bits(mp_limb_t ** poly, mp_srcptr limbs,
-			 mp_size_t total_limbs, mp_bitcnt_t bits,
+			 mp_size_t total_limbs, flint_bitcnt_t bits,
 			 mp_size_t output_limbs);
 
 void fermat_to_mpz(mpz_t m, mp_limb_t * i, mp_size_t limbs);
@@ -158,132 +158,137 @@ void butterfly_rshB(mp_limb_t * t, mp_limb_t * u, mp_limb_t * i1,
 		    mp_size_t y);
 
 void mpn_mul_2expmod_2expp1(mp_limb_t * t,
-			    mp_limb_t * i1, mp_size_t limbs, mp_bitcnt_t d);
+			    mp_limb_t * i1, mp_size_t limbs,
+			    flint_bitcnt_t d);
 
 void mpn_div_2expmod_2expp1(mp_limb_t * t,
-			    mp_limb_t * i1, mp_size_t limbs, mp_bitcnt_t d);
+			    mp_limb_t * i1, mp_size_t limbs,
+			    flint_bitcnt_t d);
 
 void fft_adjust(mp_limb_t * r, mp_limb_t * i1,
-		mp_size_t i, mp_size_t limbs, mp_bitcnt_t w);
+		mp_size_t i, mp_size_t limbs, flint_bitcnt_t w);
 
 void fft_butterfly(mp_limb_t * s, mp_limb_t * t, mp_limb_t * i1,
 		   mp_limb_t * i2, mp_size_t i, mp_size_t limbs,
-		   mp_bitcnt_t w);
+		   flint_bitcnt_t w);
 
 void ifft_butterfly(mp_limb_t * s, mp_limb_t * t, mp_limb_t * i1,
 		    mp_limb_t * i2, mp_size_t i, mp_size_t limbs,
-		    mp_bitcnt_t w);
+		    flint_bitcnt_t w);
 
 void fft_radix2(mp_limb_t ** ii,
-		mp_size_t n, mp_bitcnt_t w, mp_limb_t ** t1, mp_limb_t ** t2);
+		mp_size_t n, flint_bitcnt_t w, mp_limb_t ** t1,
+		mp_limb_t ** t2);
 
-void fft_truncate1(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void fft_truncate1(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 		   mp_limb_t ** t1, mp_limb_t ** t2, mp_size_t trunc);
 
-void fft_truncate(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void fft_truncate(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 		  mp_limb_t ** t1, mp_limb_t ** t2, mp_size_t trunc);
 
 void ifft_radix2(mp_limb_t ** ii, mp_size_t n,
-		 mp_bitcnt_t w, mp_limb_t ** t1, mp_limb_t ** t2);
+		 flint_bitcnt_t w, mp_limb_t ** t1, mp_limb_t ** t2);
 
-void ifft_truncate1(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void ifft_truncate1(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 		    mp_limb_t ** t1, mp_limb_t ** t2, mp_size_t trunc);
 
-void ifft_truncate(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void ifft_truncate(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 		   mp_limb_t ** t1, mp_limb_t ** t2, mp_size_t trunc);
 
 void fft_butterfly_sqrt2(mp_limb_t * s, mp_limb_t * t,
 			 mp_limb_t * i1, mp_limb_t * i2, mp_size_t i,
-			 mp_size_t limbs, mp_bitcnt_t w, mp_limb_t * temp);
+			 mp_size_t limbs, flint_bitcnt_t w, mp_limb_t * temp);
 
 void ifft_butterfly_sqrt2(mp_limb_t * s, mp_limb_t * t, mp_limb_t * i1,
 			  mp_limb_t * i2, mp_size_t i, mp_size_t limbs,
-			  mp_bitcnt_t w, mp_limb_t * temp);
+			  flint_bitcnt_t w, mp_limb_t * temp);
 
 void fft_adjust_sqrt2(mp_limb_t * r, mp_limb_t * i1,
-		      mp_size_t i, mp_size_t limbs, mp_bitcnt_t w,
+		      mp_size_t i, mp_size_t limbs, flint_bitcnt_t w,
 		      mp_limb_t * temp);
 
-void fft_truncate_sqrt2(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void fft_truncate_sqrt2(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 			mp_limb_t ** t1, mp_limb_t ** t2, mp_limb_t ** temp,
 			mp_size_t trunc);
 
-void ifft_truncate_sqrt2(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void ifft_truncate_sqrt2(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 			 mp_limb_t ** t1, mp_limb_t ** t2, mp_limb_t ** temp,
 			 mp_size_t trunc);
 
 void mul_truncate_sqrt2(mp_ptr r1, mp_srcptr i1, mp_size_t n1,
-			mp_srcptr i2, mp_size_t n2, mp_bitcnt_t depth,
-			mp_bitcnt_t w);
+			mp_srcptr i2, mp_size_t n2, flint_bitcnt_t depth,
+			flint_bitcnt_t w);
 
 void fft_butterfly_twiddle(mp_limb_t * u, mp_limb_t * v,
 			   mp_limb_t * s, mp_limb_t * t, mp_size_t limbs,
-			   mp_bitcnt_t b1, mp_bitcnt_t b2);
+			   flint_bitcnt_t b1, flint_bitcnt_t b2);
 
 void ifft_butterfly_twiddle(mp_limb_t * u, mp_limb_t * v,
 			    mp_limb_t * s, mp_limb_t * t, mp_size_t limbs,
-			    mp_bitcnt_t b1, mp_bitcnt_t b2);
+			    flint_bitcnt_t b1, flint_bitcnt_t b2);
 
 void fft_radix2_twiddle(mp_limb_t ** ii, mp_size_t is,
-			mp_size_t n, mp_bitcnt_t w, mp_limb_t ** t1,
+			mp_size_t n, flint_bitcnt_t w, mp_limb_t ** t1,
 			mp_limb_t ** t2, mp_size_t ws, mp_size_t r,
 			mp_size_t c, mp_size_t rs);
 
 void ifft_radix2_twiddle(mp_limb_t ** ii, mp_size_t is,
-			 mp_size_t n, mp_bitcnt_t w, mp_limb_t ** t1,
+			 mp_size_t n, flint_bitcnt_t w, mp_limb_t ** t1,
 			 mp_limb_t ** t2, mp_size_t ws, mp_size_t r,
 			 mp_size_t c, mp_size_t rs);
 
 void fft_truncate1_twiddle(mp_limb_t ** ii, mp_size_t is,
-			   mp_size_t n, mp_bitcnt_t w, mp_limb_t ** t1,
+			   mp_size_t n, flint_bitcnt_t w, mp_limb_t ** t1,
 			   mp_limb_t ** t2, mp_size_t ws, mp_size_t r,
 			   mp_size_t c, mp_size_t rs, mp_size_t trunc);
 
 void ifft_truncate1_twiddle(mp_limb_t ** ii, mp_size_t is,
-			    mp_size_t n, mp_bitcnt_t w, mp_limb_t ** t1,
+			    mp_size_t n, flint_bitcnt_t w, mp_limb_t ** t1,
 			    mp_limb_t ** t2, mp_size_t ws, mp_size_t r,
 			    mp_size_t c, mp_size_t rs, mp_size_t trunc);
 
 void fft_mfa_truncate_sqrt2(mp_limb_t ** ii, mp_size_t n,
-			    mp_bitcnt_t w, mp_limb_t ** t1, mp_limb_t ** t2,
-			    mp_limb_t ** temp, mp_size_t n1, mp_size_t trunc);
+			    flint_bitcnt_t w, mp_limb_t ** t1,
+			    mp_limb_t ** t2, mp_limb_t ** temp, mp_size_t n1,
+			    mp_size_t trunc);
 
 void ifft_mfa_truncate_sqrt2(mp_limb_t ** ii, mp_size_t n,
-			     mp_bitcnt_t w, mp_limb_t ** t1, mp_limb_t ** t2,
-			     mp_limb_t ** temp, mp_size_t n1,
+			     flint_bitcnt_t w, mp_limb_t ** t1,
+			     mp_limb_t ** t2, mp_limb_t ** temp, mp_size_t n1,
 			     mp_size_t trunc);
 
 void mul_mfa_truncate_sqrt2(mp_ptr r1, mp_srcptr i1, mp_size_t n1,
-			    mp_srcptr i2, mp_size_t n2, mp_bitcnt_t depth,
-			    mp_bitcnt_t w);
+			    mp_srcptr i2, mp_size_t n2, flint_bitcnt_t depth,
+			    flint_bitcnt_t w);
 
 void fft_mfa_truncate_sqrt2_outer(mp_limb_t ** ii, mp_size_t n,
-				  mp_bitcnt_t w, mp_limb_t ** t1,
+				  flint_bitcnt_t w, mp_limb_t ** t1,
 				  mp_limb_t ** t2, mp_limb_t ** temp,
 				  mp_size_t n1, mp_size_t trunc);
 
 void fft_mfa_truncate_sqrt2_inner(mp_limb_t ** ii, mp_limb_t ** jj,
-				  mp_size_t n, mp_bitcnt_t w, mp_limb_t ** t1,
-				  mp_limb_t ** t2, mp_limb_t ** temp,
-				  mp_size_t n1, mp_size_t trunc,
-				  mp_limb_t ** tt);
+				  mp_size_t n, flint_bitcnt_t w,
+				  mp_limb_t ** t1, mp_limb_t ** t2,
+				  mp_limb_t ** temp, mp_size_t n1,
+				  mp_size_t trunc, mp_limb_t ** tt);
 
 void ifft_mfa_truncate_sqrt2_outer(mp_limb_t ** ii, mp_size_t n,
-				   mp_bitcnt_t w, mp_limb_t ** t1,
+				   flint_bitcnt_t w, mp_limb_t ** t1,
 				   mp_limb_t ** t2, mp_limb_t ** temp,
 				   mp_size_t n1, mp_size_t trunc);
 
-void fft_negacyclic(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void fft_negacyclic(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 		    mp_limb_t ** t1, mp_limb_t ** t2, mp_limb_t ** temp);
 
-void ifft_negacyclic(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void ifft_negacyclic(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 		     mp_limb_t ** t1, mp_limb_t ** t2, mp_limb_t ** temp);
 
 void fft_naive_convolution_1(mp_limb_t * r, mp_limb_t * ii,
 			     mp_limb_t * jj, mp_size_t m);
 
 void _fft_mulmod_2expp1(mp_limb_t * r1, mp_limb_t * i1, mp_limb_t * i2,
-			mp_size_t r_limbs, mp_bitcnt_t depth, mp_bitcnt_t w);
+			mp_size_t r_limbs, flint_bitcnt_t depth,
+			flint_bitcnt_t w);
 
 slong fft_adjust_limbs(mp_size_t limbs);
 
@@ -306,12 +311,12 @@ void fft_convolution(mp_limb_t ** ii, mp_limb_t ** jj, slong depth,
  * we may use the code we have here. */
 #define mpn_mulmod_2expp1 flint_mpn_mulmod_2expp1_basecase
 
-#include "transform_interface.h"
-
 /* end CADO-NFS addition */
 
 #ifdef __cplusplus
 }
 #endif
+
+#include "transform_interface.h"
 
 #endif

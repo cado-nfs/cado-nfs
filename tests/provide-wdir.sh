@@ -4,11 +4,42 @@
 #
 # - create a temp directory.
 # - run the given command line, by providing the information about the
-#   location of the temp directory in any desired way.
-# - clean up the temp directory
-
-# If CADO_DEBUG is set to something, the temp directory is not cleaned.
-
+#   location of the temp directory in any desired way (see below for
+#   typical uses)
+# - clean up the temp directory.  If CADO_DEBUG is set to something, the
+#   temp directory is not cleaned.
+#
+# Typical uses:
+#
+# The provided temp dir can be given to the subcommand via a command line
+# option (anything that starts with a dash is interpreted as such).
+#
+#       ./provide-wdir.sh --arg --wdir ./foo.sh [args]
+#
+#       creates a temp dir (say $T) and run ./foo.sh [args] --wdir $T
+#
+# If the token that follows --arg does not start with a dash, the command
+# line addition looks like an assignment instead. Note that several
+# arguments can be set to the created temp directory.
+#
+#       ./provide-wdir.sh --arg wdir --arg x ./foo.sh [args]
+#
+#       creates a temp dir (say $T) and run ./foo.sh [args] wdir=$T x=$T
+#
+# The provided temp dir can be given to the subcommand via an environment
+# variable.
+#
+#       ./provide-wdir.sh --env wdir ./foo.sh [args]
+#
+#       creates a temp dir (say $T) and run env wdir=$T ./foo.sh [args]
+#
+#
+# It is also possible to create several temp directories.
+#
+#       ./provide-wdir.sh --env wdir --other --env wdir2 ./foo.sh [args]
+#
+#       creates two temp dirs (say $T and $T2) and run env wdir=$T wdir2=$T2 ./foo.sh [args]
+#
 
 : ${TMPDIR:=/tmp}
 t=`mktemp -d $TMPDIR/cado-nfs.XXXXXXXXXXXXXX`
@@ -43,7 +74,7 @@ while [ $# -gt 0 ] ; do
         esac
         shift
     elif [ "$1" = "--other" ] ; then
-        t=`mktemp -d $TMPDIR/XXXXXXXXXXXXXX`
+        t=`mktemp -d $TMPDIR/cado-nfs.XXXXXXXXXXXXXX`
         temps+=("$t")
         if [ "$CADO_DEBUG" ] ; then
             echo "debug mode, data will be left in $t (in addition to other temp directories above)"

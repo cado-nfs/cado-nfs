@@ -69,6 +69,20 @@ wq
 EOF
 done
 
+ex -s flint-fft/ulong_extras.h >/dev/null <<EOF
+/n_primes_struct
+?typedef struct
+i
+#if 0
+.
+/n_randlimb
+i
+#endif
+
+.
+wq
+EOF
+
 ex -s flint-fft/fft.h >/dev/null <<EOF
 $
 ?ifdef.*__cplusplus
@@ -85,10 +99,14 @@ i
  */
 #define mpn_mulmod_2expp1 flint_mpn_mulmod_2expp1_basecase
 
-#include "transform_interface.h"
-
 /* end CADO-NFS addition */
 
+.
+/endif
++1
+i
+
+#include "transform_interface.h"
 .
 wq
 EOF

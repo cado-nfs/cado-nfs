@@ -135,7 +135,6 @@ filter/out-of-core/singleton.c
 misc/singleton_simple.c
 filter/replay_dblemat.cpp
 scripts/cadofactor/README.OAR
-scripts/plot_params.sh
 scripts/make_graphs
 scripts/rsa704.test
 linalg/bwc/update-flint.sh
@@ -148,7 +147,6 @@ sieve/strategies/script_str_r.sh
 sieve/strategies/CMakeLists-nodist.txt
 sieve/strategies/test_strategy_cado.cpp
 sieve/strategies/F9.sh
-linalg/bwc/lingen.txt
 nfs-hd/array.c
 nfs-hd/array.h
 nfs-hd/factor_base.c
@@ -189,7 +187,6 @@ nfs-hd/list_double_vector.c
 nfs-hd/list_int64_vector.h
 nfs-hd/list_int64_vector_index.c
 nfs-hd/list_int64_vector_index.h
-nfs-hd/CMakeLists.txt
 nfs-hd/parameters.c
 nfs-hd/parameters.h
 nfs-hd/polynomials.c

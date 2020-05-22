@@ -41,9 +41,9 @@ sieve_checksum::update(const unsigned char *data, const size_t len)
 
 nfs_aux::~nfs_aux()
 {
-    ASSERT_ALWAYS(!rt.timer.running());
+    ASSERT_ALWAYS_NOTHROW(!rt.timer.running());
 
-    ASSERT_ALWAYS(dest_rt);
+    ASSERT_ALWAYS_NOTHROW(dest_rt);
 
     if (!complete) {
         std::lock_guard<std::mutex> lock(rt.mm);

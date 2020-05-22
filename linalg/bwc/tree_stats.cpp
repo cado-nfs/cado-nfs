@@ -6,6 +6,12 @@
 #include <cmath>
 #include <ctime>
 #include <cctype>
+#include <algorithm>
+#include <sstream>
+
+#include "fmt/format.h"
+#include "fmt/printf.h"
+#include "portability.h"
 
 #include "select_mpi.h"
 #include "tree_stats.hpp"
@@ -13,38 +19,98 @@
 
 using namespace std;
 
-double tree_stats::level_stats::projected_time(unsigned int total_breadth, unsigned int trimmed_breadth)
-{
-    // return total_breadth * spent / sum_inputsize;
-    unsigned int sum_inputsize = 0;
-    // unsigned int ncalled = 0;
-    trimmed_here = 0;
-    for(auto const & x : *this) {
-        function_stats const& F(x.second);
-        sum_inputsize += F.sum_inputsize;
-        trimmed_here += F.trimmed;
-        // ncalled += ncalled;
-    }
-    // unsigned int expected_total_calls = total_breadth / (sum_inputsize / (double) ncalled);
-    /* Now count the contribution of each sub-function */
-    double contrib = 0;
-    for(auto & x : *this) {
-        function_stats & F(x.second);
-        // expected_calls = expected_total_calls * (double) ncalled / ncalled;
-        double r = (double) (total_breadth - trimmed_breadth) / sum_inputsize;
-        ASSERT_ALWAYS(sum_inputsize <= (total_breadth - trimmed_breadth));
-        // double contrib = n * spent / ncalled;
-        // total_breadth / sum_inputsize * (double) ncalled * (double) ncalled / ncalled * spent / ncalled;
-        F.projected_calls = round(r * F.ncalled);
-        F.projected_time = r * F.spent;
+int tree_stats::max_nesting = 0;
 
-        contrib += F.projected_time;
-    }
-    return contrib;
+void tree_stats::interpret_parameters(cxx_param_list & pl)
+{
+    param_list_parse_int(pl, "tree_stats_max_nesting", &max_nesting);
 }
 
 
-void tree_stats::print(unsigned int level)
+void tree_stats::declare_usage(cxx_param_list & pl)
+{
+    param_list_decl_usage(pl, "tree_stats_max_nesting", "max nesting level of small steps to display within lingen");
+}
+
+double tree_stats::level_stats::projected_time()
+{
+    /* Now count the contribution of each sub-function */
+    double contrib = 0;
+    for(auto & x : *this)
+        contrib += x.second.projected_time();
+    return contrib;
+}
+
+std::ostream& tree_stats::recursively_print_substeps_at_depth(
+        std::ostream & os,
+        step_time::steps_t const & FS,
+        unsigned int ncalled,
+        unsigned int total_ncalls,
+        int nesting)
+{
+    std::string prefix(2 + nesting, ' ');
+
+    if (nesting >= max_nesting)
+        return os;
+
+    for(auto const & y : FS) {
+        std::string const & func(y.first);
+        unsigned int n = y.second.ncalled;
+        double t = y.second.real;
+        unsigned int items_per_call = y.second.items_per_call;
+        double th = y.second.planned_time;
+        double th_n = y.second.planned_calls;
+        os << prefix
+           << "(" << func;
+        /* For a function that has been entered k times (each time going
+         * through a tree of small steps), we have the following values
+         * for the different step_time objects (here, t0 is some
+         * theoretical value, t1 is a measured value)
+         *
+         * top-level (parent of the function_stats) object, **NOT**
+         * printed by this function:
+         *      ncalled = k
+         *      real = k * t1 (without children)
+         *      total_ncalls = should be a power of two.
+         *      projected_time = total_ncalls/ncalled * real
+         *
+         * small steps:
+         *      items_per_call = X (X can be the contribution of multiple
+         *          calls to begin_smallstep, with ncalls arguments summing
+         *          up to X).
+         *      ncalled = k * X
+         *      planned_time = k * X * t0
+         *      real = k * X * t1
+         */
+        os << " "
+            << fmt::sprintf("%zu/%zu",
+                    items_per_call * (size_t) n,
+                    items_per_call * (size_t) total_ncalls);
+        if (n) {
+            if (th > 0)
+                os << fmt::sprintf(" [%.1f%%]", 100.0 * (t/n) / (th/th_n));
+            os << " " << fmt::format("{:.2g} -> {:.1f}",
+                    t / n / items_per_call, t / n * (double) total_ncalls);
+        } else if (th > 0) {
+            /* Since n == 0, begin_smallstep has never been called.
+             * We only had plan_smallstep, and we had it only once,
+             * so that th corresponds t 
+             * that th_n corresponds to one call of the function, not
+             * more */
+            ASSERT_ALWAYS(th_n == 1);
+            os << fmt::sprintf(" %.2g -> %.1f",
+                    (th/th_n), (th/th_n) * (double) total_ncalls);
+        }
+        os << ")\n";
+        recursively_print_substeps_at_depth(os, y.second.steps,
+                ncalled, total_ncalls, nesting+1);
+    }
+    return os;
+}
+
+
+
+void tree_stats::print(unsigned int)
 {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -52,196 +118,165 @@ void tree_stats::print(unsigned int level)
 
     double sum = 0;
     double time_to_go = 0;
-    int nstars=0;
-    int nok=0;
-    double firstok = 0;
-    double complement = 0;
-    unsigned int tree_trimmed_breadth = 0;
-    const char * prefix = draft ? "##DRAFT## ":"";
+    bool has_untimed = false;
 
-    for(unsigned int k = 0 ; k < stack.size() ; k++) {
-        level_stats & u(stack[k]);
+    std::ostringstream os;
 
-        if (k > level && u.empty())
-            break;
+    int total_transition_levels = 0;
+    for(unsigned int k = 0 ; k < levels.size() ; k++) {
+        /* At depth k, we have:
+         *  - cold timers for several functions, in levels[k]
+         *  - if k < curstack.size(), one hot timer, which may actually
+         *  contain info that is really interesting to report, so we'll
+         *  strive to do this. They will maybe 
+         */
+        level_stats & u(levels[k]);
 
-        if (!u.empty()) {
-            /* Compute projected time for this level based on the total
-             * breadth, and the calls which we had so far.
+        curstack_t::value_type const * wip = nullptr;
+        if (k < curstack.size())
+            wip = &curstack[k];
+
+        /* does this have any use ? XXX */
+        // if (k > level && u.empty()) break;
+
+        /* Compute projected time for this level based on the total
+         * breadth, and the calls which we had so far.
+         */
+        double pt = u.projected_time();
+        u.last_printed_projected_time = pt;
+
+        char mixedlevel_code = (u.size() <= 1) ? '\0' : 'a';
+
+        bool all_functions_are_transitions = true;
+
+        for(auto x = u.cbegin(); x != u.cend(); ++x, mixedlevel_code++) {
+            function_with_input_size const& fi(x->first);
+            function_stats const& F(x->second);
+            sum += F.projected_time();
+            time_to_go += F.projected_time() - F.real;
+            /* when printing at this level, we must take into account the
+             * running_stats pointed to by "extra" as well.
              */
-            double pt = u.projected_time(tree_total_breadth, tree_trimmed_breadth);
+            if (!F.is_transition_level()) {
+                os << k-total_transition_levels;
+                if (mixedlevel_code) os << mixedlevel_code;
+                all_functions_are_transitions = false;
+            } else {
+                os << "--";
+            }
+            os << " " << fmt::sprintf("[%u-%u, %s]", F.min_inputsize, F.max_inputsize, fi.func)
+               << " " << fmt::sprintf("%u/%u", F.ncalled, F.total_ncalls())
+               << " " << fmt::sprintf("%.2g -> %.1f",
+                       F.real / F.ncalled, F.projected_time())
+               << " " << fmt::sprintf(" (total: %.1f wct)", sum)
+               << "\n";
 
-            if (nstars && nok == 0) {
-                firstok = pt;
-            } else if (nstars && nok == 1) {
-                double ratio = firstok / pt;
-                complement = ratio * firstok * (pow(ratio, nstars) - 1) / (ratio - 1);
+            step_time FS = F;
+            if (wip && wip->first == fi) {
+                FS += wip->second;
+                wip = nullptr;
             }
-            nok++;
 
-            char code[2]={'\0', '\0'};
-            if (u.size() > 1) code[0] = 'a';
-            for(auto const & x : u) {
-                string const& key(x.first);
-                function_stats const& F(x.second);
-                sum += F.projected_time;
-                time_to_go += F.projected_time - F.spent;
-                printf("%s%u%s [%u-%u, %s] %u/%u %.2g -> %.1f (total: %.1f wct)\n",
-                        prefix,
-                        k, (const char*) code,
-                        F.min_inputsize, F.max_inputsize,
-                        key.c_str(),
-                        F.ncalled, F.projected_calls,
-                        F.spent / F.ncalled, F.projected_time, sum);
-                if (code[0]) code[0]++;
-                for(auto const & y : F.small_steps) {
-                    double t = y.second.real + y.second.artificial;
-                    unsigned int n = F.ncalled;
-                    if (k < curstack.size()) {
-                        running_stats const& r(curstack[k]);
-                        if (r.func == key) {
-                            /* shall we count one extra call which has alreay
-                             * been done ?? */
-                            auto z = r.small_steps.find(y.first);
-                            if (z != r.small_steps.end() && &(z->second) != r.substep) {
-                                /* also count the artificial time */
-                                t += z->second.real;
-                                t += z->second.artificial;
-                                n++;
-                            }
-                        }
-                    }
-                    printf("%s   (%s %u/%u %.2g -> %.1f)\n",
-                            prefix,
-                            y.first.c_str(),
-                            n, F.projected_calls,
-                            t / n,
-                            t * (double) F.projected_calls / n);
-                }
-            }
-            tree_trimmed_breadth += u.trimmed_here;
-            u.last_printed_projected_time = pt;
-        } else {
-            /* We're not in a situation where we can control exactly
-             * what's going to happen, because none of the running_stats
-             * has issued a leave() command. The only thing we have is
-             * the currently running stats, which nevertheless has some
-             * data which can be printed.
-             */
-            ASSERT_ALWAYS(k < curstack.size());
-            running_stats const& r(curstack[k]);
-            unsigned int exp_ncalls = round((double) tree_total_breadth / r.inputsize);
-            printf("%s%u * [%u, %s] 0/%u\n",
-                    prefix,
-                    k,
-                    r.inputsize,
-                    r.func.c_str(),
-                    exp_ncalls);
-            for(auto const & y : r.small_steps) {
-                unsigned int n = 0;
-                ASSERT_ALWAYS(&(y.second) != r.substep);
-                /* also count the artificial time */
-                double t = y.second.real + y.second.artificial;
-                n++;
-                printf("%s   (%s %u/%u %.2g -> %.1f)\n",
-                        prefix,
-                        y.first.c_str(),
-                        n, exp_ncalls,
-                        t / n,
-                        t * (double) exp_ncalls / n);
-            }
-            nstars++;
-            continue;
+            recursively_print_substeps_at_depth(os, FS.steps, F.ncalled, F.total_ncalls(), 0);
         }
 
+        /* Since the running stats are a different type, with different
+         * semantics, we must do things a bit differently.
+         */
+        if (wip) {
+            function_with_input_size const & fi(wip->first);
+            running_stats const & r(wip->second);
+            double level_th = 0;
+            for(auto const & y : r.steps) {
+                double t = y.second.real;
+                double th = y.second.planned_time;
+                unsigned int n = y.second.ncalled;
+                level_th += n ? t : th;
+                if (th > 0)
+                    time_to_go += th * (r.total_ncalls() - n);
+                else
+                    has_untimed = true;
+            }
+            if (!r.is_transition_level()) {
+                os << k-total_transition_levels;
+                all_functions_are_transitions = false;
+            } else {
+                os << "--";
+            }
+            os << fmt::sprintf("* [%u, %s] 0/%u",
+                    r.inputsize,
+                    fi.func,
+                    r.total_ncalls()
+                    );
+            if (level_th > 0) {
+                sum += level_th * r.total_ncalls();
+                os << fmt::sprintf(" %.2g -> %.1f (total: %.1f wct)",
+                        level_th, level_th * r.total_ncalls(),
+                        sum);
+            }
+            os << "\n";
+            recursively_print_substeps_at_depth(os, r.steps, 1, r.total_ncalls(), 0);
+        }
+        if (all_functions_are_transitions) total_transition_levels++;
     }
 
-    if (nstars && nok >= 2) {
-        printf("%sexpected time for levels 0-%u: %.1f (total: %.1f)\n",
-                prefix,
-                nstars-1, complement, sum + complement);
-    }
+    puts(os.str().c_str());
 
     /* Note that time_to_go is only relative to the levels for which we
      * have got at least one data point */
 
-    if (draft) {
-        /* draft mode means that we're going to start over anyway ! */
-        time_to_go = sum;
-    }
-
     {
         /* print ETA */
-        time_t eta[1];
         char eta_string[32] = "not available yet\n";
-        *eta = wct_seconds() + time_to_go + complement;
+        if (!has_untimed) {
+            time_t eta[1];
+            *eta = wct_seconds() + time_to_go;
 #ifdef HAVE_CTIME_R
-        ctime_r(eta, eta_string);
+            ctime_r(eta, eta_string);
 #else
-        strncpy(eta_string, ctime(eta), sizeof(eta_string));
+            strncpy(eta_string, ctime(eta), sizeof(eta_string));
 #endif
+        }
         unsigned int s = strlen(eta_string);
         for( ; s && isspace((int)(unsigned char)eta_string[s-1]) ; eta_string[--s]='\0') ;
 
-        if (draft) {
-            printf("%slingen expected duration: %f s (ETA from now: %s)\n", prefix, sum + complement, eta_string);
-        } else {
-            printf("lingen ETA: %s\n", eta_string);
-        }
+        printf("lingen ETA: %s\n", eta_string);
     }
 }
 
-void tree_stats::add_artificial_time(double t) {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank) return;
-    curstack.back().add_artificial_time(t);
-}
-
-void tree_stats::enter(const char * func, unsigned int inputsize, bool recurse)
+void tree_stats::enter(std::string const & func, unsigned int inputsize, int total_ncalls, bool leaf)
 {
-    unsigned int trimmed = recurse ? 0 : inputsize;
-
+    if (func.find(" ") != std::string::npos)
+        abort();
     int rank;
     if (depth == 0)
         tree_total_breadth = inputsize;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank) { ++depth; return; }
-    if (depth == 0) {
-        begin = wct_seconds();
-    }
-    running_stats s;
-    s.time_self = -wct_seconds();
-    s.func = func;
-    s.inputsize = inputsize;
-    s.trimmed = trimmed;
-    if (!curstack.empty()) {
-        ASSERT_ALWAYS(!curstack.back().substep);
-    }
-    curstack.push_back(s);
+    running_stats s(func, inputsize, leaf);
+    s.set_total_ncalls(total_ncalls);
+    s.heat_up();
+    // ASSERT_ALWAYS(curstack.empty() || !curstack.back().second.in_substep());
+    curstack.push_back({{func, inputsize}, s});
     ++depth;
-    ASSERT_ALWAYS(depth == curstack.size());
-    if (curstack.size() > stack.size())
-        stack.insert(stack.end(), curstack.size() - stack.size(), level_stats());
+    // we used to have the following, but now we allow ourselves to
+    // insert empty shells between levels (so that intermediate
+    // operations such as the mpi gather and scatter steps can be
+    // identified as small steps of something...)
+    // ASSERT_ALWAYS(depth == curstack.size());
+    //
+    // Bottom line, we can only assert the weaker:
+    ASSERT_ALWAYS(depth <= curstack.size());
+    if (curstack.size() > levels.size())
+        levels.insert(levels.end(), curstack.size() - levels.size(), level_stats());
 }
 
-/* This returns the time spent on this function for all calls at this
- * level, including the artificial time that has been reported so far by
- * these calls.
- */
-double tree_stats::spent_so_far()
+tree_stats::function_stats& tree_stats::function_stats::operator+=(tree_stats::running_stats const & s)
 {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank) return 0;
-    double now = wct_seconds();
-    running_stats s = curstack.back();
-    unsigned int level = depth-1;
-    ASSERT_ALWAYS(level < stack.size());
-    double t = s.time_self + now + s.time_artificial;
-    auto fi = stack[level].find(s.func);
-    if (fi != stack[level].end()) t += fi->second.spent;
-    return t;
+    (tree_stats::step_time&)*this += (tree_stats::step_time const&) s;
+    if (s.inputsize < min_inputsize) min_inputsize = s.inputsize;
+    if (s.inputsize > max_inputsize) max_inputsize = s.inputsize;
+    return *this;
 }
 
 void tree_stats::leave()
@@ -250,53 +285,49 @@ void tree_stats::leave()
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank) { --depth; return; }
     double now = wct_seconds();
-    running_stats s = curstack.back();
+    auto sback = std::move(curstack.back());
+    function_with_input_size const & sfunc = sback.first;
+    running_stats & s = sback.second;
     curstack.pop_back();
 
-    s.time_self += now;
+    s.cool_down(now);
     if (!curstack.empty())
-        curstack.back().time_children += s.time_self;
-    // comparing timings is asking for (non-reproducible) trouble.
-    // ASSERT_ALWAYS(s.time_children <= s.time_self);
-    s.time_self -= s.time_children;
+        curstack.back().second.time_children += s.real;
+    s.real -= s.time_children;
     unsigned int level = --depth;
     ASSERT_ALWAYS(depth == curstack.size());
-    ASSERT_ALWAYS(level < stack.size());
+    ASSERT_ALWAYS(level < levels.size());
+    ASSERT_ALWAYS(!s.has_pending_smallsteps());
 
     /* merge our running stats into the level_stats */
-
-    function_stats & F(stack[level][s.func]);
+    function_with_input_size fi = sfunc;
+    //function_stats & F(levels[level][fi]);
+    // F += s;
+    auto itb = levels[level].emplace(fi, s);
+    function_stats & F(itb.first->second);
+    if (!itb.second) F += s;
+    F.planned_calls++;  /* just for consistency */
     F.ncalled++;
-    if (s.inputsize < F.min_inputsize)
-        F.min_inputsize = s.inputsize;
-    if (s.inputsize > F.max_inputsize)
-        F.max_inputsize = s.inputsize;
-    F.sum_inputsize += s.inputsize;
-    F.trimmed += s.trimmed;
-    F.spent += s.time_self + s.time_artificial;
-    for(auto const & x : s.small_steps) {
-        F.small_steps[x.first] += x.second;
-    }
 
+#define xxxFORCE_PRINT_ALWAYS
+
+#ifndef FORCE_PRINT_ALWAYS
     /* Is it any useful to print something new ? */
-
-    if (now < last_print_time + 2) return;
+    if (now < last_print_time + 5) return;
 
     int needprint = 0;
-    unsigned int trimmed_breadth = 0;
-    for(unsigned int k = 0 ; !needprint && k < stack.size() ; k++) {
-        level_stats & u(stack[k]);
-        double t = u.projected_time(tree_total_breadth, trimmed_breadth);
+    for(unsigned int k = 0 ; !needprint && k < levels.size() ; k++) {
+        level_stats & u(levels[k]);
+        double t = u.projected_time();
         double t0 = u.last_printed_projected_time;
-        needprint = (t < 0.98 * t0) || (t > 1.02 * t0);
-        trimmed_breadth += u.trimmed_here;
+        needprint = (t < 0.9 * t0) || (t > 1.1 * t0);
     }
 
-    if (!needprint)
-        return;
+    if (!needprint) return;
+#endif
 
     last_print_time = now;
-    last_print_position = make_pair(level, F.sum_inputsize);
+    last_print_position = make_pair(level, F.ncalled);
 
     print(level);
 }
@@ -304,7 +335,7 @@ void tree_stats::leave()
 void tree_stats::final_print()
 {
     ASSERT_ALWAYS(depth == 0);
-    if (last_print_position != make_pair(0u, tree_total_breadth))
+    if (last_print_position != make_pair(0u, 1u))
         print(0);
     {
         /* print ETA */
@@ -319,47 +350,290 @@ void tree_stats::final_print()
         unsigned int s = strlen(eta_string);
         for( ; s && isspace((int)(unsigned char)eta_string[s-1]) ; eta_string[--s]='\0') ;
 
-        if (!draft) printf("lingen done at: %s\n", eta_string);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (!rank)
+            printf("lingen done at: %s\n", eta_string);
     }
 }
 
-void tree_stats::begin_smallstep(const char * func)
+void tree_stats::begin_plan_smallstep(std::string const & func, weighted_double const & theory)
 {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank) return;
-    ASSERT_ALWAYS(!curstack.empty());
-    running_stats& s(curstack.back());
-    // At first thought, we never have two substeps of the same name at a given
-    // level. Alas, this is not always right. One example is at the mpi
-    // threshold in lingen. We have 2 gather and 2 scatter steps.
-    // In effect, the way we're proceeding sets the substep pointer to the
-    // current smallstep, so that it's counted as "in progress", although
-    // that does not properly acknowledge the fact that one instance of
-    // that sub-step has already run. In that situation:
-    //  - we're failing to list something for which we do have info.
-    //  - at the end of the day, the "number of calls" will consider both
-    //    instances as one single call.
-    //
-    // This is considered harmless, given that:
-    //  - the cut-off point (MPI threshold, in our current use) is early
-    //    enough that timings are displayed.
-    //  - it is possible to embed in the substep name some info hinting
-    //    at the fact that we have 2 substeps (e.g. "foo(1+2)" or
-    //    "foo(L+R)").
-    //
-    // ASSERT_ALWAYS(ssi.second);
-    s.substep = &(s.small_steps[func]);
-    s.substep->real -= wct_seconds();
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
+
+        step_time::steps_t * where = &s.steps;
+        if (!s.nested_substeps.empty())
+            where = & s.current_substep().steps;
+        running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
+        s.nested_substeps.push_back(it);
+
+        step_time & S(it->second);
+        S.set_total_ncalls(s.total_ncalls());
+        S.items_per_call = theory.n;
+        S.planned_time += theory.t * theory.n;
+        ASSERT_ALWAYS(S.ncalled == S.planned_calls);
+        S.planned_calls++;
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at {}({}, {:.3g}, {})\n", __func__, func, theory.t, theory.n);
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
+}
+void tree_stats::end_plan_smallstep()
+{
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
+        s.nested_substeps.pop_back();
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at {}()\n", __func__);
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
+}
+
+/* The only subtlety here is that we expect that the planning for the
+ * smallstep is already done, and that we're now interested in planning
+ * for the micro steps only.
+ */
+void tree_stats::begin_plan_smallstep_microsteps(std::string const & func)
+{
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
+
+        step_time::steps_t * where = &s.steps;
+        if (!s.nested_substeps.empty())
+            where = & s.current_substep().steps;
+        running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
+        s.nested_substeps.push_back(it);
+
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at {}({})\n", __func__);
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
+}
+
+void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)
+{
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
+        // At first thought, we never have two substeps of the same name at a given
+        // level. Alas, this is not always right. One example is at the mpi
+        // threshold in lingen. We have 2 gather and 2 scatter steps.
+        // In effect, the way we're proceeding sets the substep pointer to the
+        // current smallstep, so that it's counted as "in progress", although
+        // that does not properly acknowledge the fact that one instance of
+        // that sub-step has already run. In that situation:
+        //  - we're failing to list something for which we do have info.
+        //  - at the end of the day, the "number of calls" will consider both
+        //    instances as one single call.
+        //
+        // This is considered harmless, given that:
+        //  - the cut-off point (MPI threshold, in our current use) is early
+        //    enough that timings are displayed.
+        //  - it is possible to embed in the substep name some info hinting
+        //    at the fact that we have 2 substeps (e.g. "foo(1+2)" or
+        //    "foo(L+R)").
+        //
+        // ASSERT_ALWAYS(ssi.second);
+        step_time::steps_t * where = &s.steps;
+        if (!s.nested_substeps.empty())
+            where = & s.current_substep().steps;
+        running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
+        it->second.set_total_ncalls(s.total_ncalls());
+        s.nested_substeps.push_back(it);
+        step_time & S(s.current_substep());
+        S.items_pending += ncalls;
+        ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
+        S.heat_up();
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at {}({},{})\n", __func__, func, ncalls);
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
 }
 
 void tree_stats::end_smallstep()
 {
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
+        step_time & S(s.current_substep());
+        S.cool_down();
+        ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
+        if (S.items_pending == S.items_per_call) {
+            S.ncalled++;
+            S.items_pending = 0;
+        }
+        s.nested_substeps.pop_back();
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at {}()\n", __func__);
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
+}
+
+void tree_stats::skip_smallstep(std::string const & func, unsigned int ncalls)
+{
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats& s(curstack.back().second);
+        step_time::steps_t * where = &s.steps;
+        if (!s.nested_substeps.empty())
+            where = & s.current_substep().steps;
+        running_stats::steps_t::iterator it = where->insert({func, step_time(func)}).first;
+        it->second.set_total_ncalls(s.total_ncalls());
+        s.nested_substeps.push_back(it);
+        step_time & S(s.current_substep());
+        S.items_pending += ncalls;
+        ASSERT_ALWAYS(S.items_pending <= S.items_per_call);
+        if (S.items_pending == S.items_per_call) {
+            S.ncalled++;
+            S.items_pending = 0;
+        }
+        s.nested_substeps.pop_back();
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at {}({}, {})\n", __func__, func, ncalls);
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
+}
+
+bool tree_stats::local_smallsteps_done(bool compulsory) const
+{
+    try {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (rank) return true;
+        ASSERT_ALWAYS(!curstack.empty());
+        running_stats const & s(curstack.back().second);
+        step_time::steps_t const * where = &s.steps;
+        if (!s.nested_substeps.empty())
+            where = & s.current_substep().steps;
+        for(auto const & s : *where) {
+            if (s.second.items_pending) {
+                if (compulsory) {
+                    throw std::runtime_error(s.second.name + " has pending items");
+                }
+                return false;
+            }
+        }
+        return true;
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << fmt::format("Exception at {}()\n", __func__);
+        os << "State of *this\n";
+        debug_print(os);
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
+}
+
+std::ostream& tree_stats::debug_print(std::ostream& os) const
+{
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank) return;
+    if (rank) return os;
     ASSERT_ALWAYS(!curstack.empty());
-    running_stats& s(curstack.back());
-    s.substep->real += wct_seconds();
-    s.substep = NULL;
+    running_stats const & s(curstack.back().second);
+    s.debug_print(os, "");
+    return os;
 }
+
+std::ostream& tree_stats::step_time::debug_print(std::ostream& os, std::string indent) const {
+    os << indent << fmt::format("name={}\n", name);
+    os << indent << fmt::format("items_pending={}\n", items_pending);
+    os << indent << fmt::format("items_per_call={}\n", items_per_call);
+    os << indent << fmt::format("ncalled={}\n", ncalled);
+    os << indent << fmt::format("planned_calls={}\n", planned_calls);
+    os << indent << fmt::format("planned_time={}\n", planned_time);
+    os << indent << fmt::format("total_ncalls={}\n", total_ncalls());
+    os << indent << fmt::format("is_transition={}\n", is_transition_level());
+    os << indent << fmt::format("real={}\n", real);
+    for(auto const & s : steps) {
+        s.second.debug_print(os, indent + "  ");
+    }
+    return os;
+}
+
+
+tree_stats::step_time & tree_stats::step_time::operator+=(step_time const & x)
+{
+    try {
+        ASSERT_ALWAYS(!is_hot());
+        ASSERT_ALWAYS(_total_ncalls == 0 || _total_ncalls == x._total_ncalls);
+        _total_ncalls = x._total_ncalls;
+        ASSERT_ALWAYS(items_per_call == 1 || items_per_call == x.items_per_call);
+        ASSERT_ALWAYS(ncalled <= planned_calls);
+        ASSERT_ALWAYS(ncalled + 1 >= planned_calls);
+        ASSERT_ALWAYS(x.ncalled <= x.planned_calls);
+        ASSERT_ALWAYS(x.ncalled + 1 >= x.planned_calls);
+        items_per_call = x.items_per_call;
+        if (!x.is_hot()) {
+            real += x.real;
+            ncalled += x.ncalled;
+        }
+        planned_time += x.planned_time;
+        planned_calls += x.planned_calls;
+        ASSERT_ALWAYS(ncalled <= planned_calls);
+        ASSERT_ALWAYS(ncalled + 1 >= planned_calls);
+        for(auto const & s : x.steps) {
+            auto itb = steps.emplace(s);
+            step_time & N(itb.first->second);
+            ASSERT_ALWAYS(N.name == s.second.name);
+            if (!itb.second) N += s.second;
+            // steps[s.first] += s.second;
+        }
+        return *this;
+    } catch (std::runtime_error const & e) {
+        std::stringstream os;
+        os << "Exception while adding counters with id " << name << "\n";
+        os << "State of *this\n";
+        debug_print(os, "(*this)  ");
+        os << "State of x\n";
+        x.debug_print(os, "(x)      ");
+        os << "Error message: " << e.what() << "\n";
+        throw std::runtime_error(os.str());
+    }
+} 

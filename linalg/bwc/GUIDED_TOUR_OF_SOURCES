@@ -80,14 +80,7 @@ linalg/bwc/balancing.c
 linalg/bwc/balancing.h
 linalg/bwc/intersections.c
 linalg/bwc/intersections.h
-linalg/bwc/balancing_curl_source.c
-linalg/bwc/balancing_curl_source.h
-linalg/bwc/balancing_data_source.h
-linalg/bwc/balancing_file_source.c
-linalg/bwc/balancing_file_source.h
-linalg/bwc/balancing_mpi_source.c
-linalg/bwc/balancing_mpi_source.h
-linalg/bwc/balancing_workhorse.c
+linalg/bwc/balancing_workhorse.cpp
 linalg/bwc/balancing_workhorse.h
 linalg/bwc/raw_matrix_u32.h
 linalg/bwc/mf.c
@@ -99,9 +92,8 @@ linalg/bwc/mf_scan.c
 linalg/bwc/mf_scan2.cpp
 
     => code that implements the dispatching of matrix data to several
-    nodes. The balancing_curl_source code is mostly outdated. The mf_
-    files define some auxiliary binaries that are useful, even used in
-    test scripts.
+    nodes. The mf_ files define some auxiliary binaries that are useful,
+    even used in test scripts.
 
 
 linalg/bwc/random_matrix.c
@@ -143,16 +135,16 @@ linalg/bwc/parse-flint-fft-doc.pl
     caching interface.
 
 
-linalg/bwc/lingen-bigmatpoly-ft.c
-linalg/bwc/lingen-bigmatpoly-ft.h
-linalg/bwc/lingen-bigmatpoly.c
-linalg/bwc/lingen-bigmatpoly.h
-linalg/bwc/lingen-matpoly-ft.cpp
-linalg/bwc/lingen-matpoly-ft.h
-linalg/bwc/lingen-matpoly.c
-linalg/bwc/lingen-matpoly.h
-linalg/bwc/lingen-polymat.c
-linalg/bwc/lingen-polymat.h
+linalg/bwc/lingen_bigmatpoly_ft.c
+linalg/bwc/lingen_bigmatpoly_ft.h
+linalg/bwc/lingen_bigmatpoly.c
+linalg/bwc/lingen_bigmatpoly.h
+linalg/bwc/lingen_matpoly_ft.cpp
+linalg/bwc/lingen_matpoly_ft.h
+linalg/bwc/lingen_matpoly.c
+linalg/bwc/lingen_matpoly.h
+linalg/bwc/lingen_polymat.c
+linalg/bwc/lingen_polymat.h
 
     => low-level arithmetic code that multiplies matrices of polynomials
     over prime fields, used for lingen in BW over GF(p)
@@ -166,9 +158,9 @@ linalg/bwc/lingen_mat_types.hpp
     then forwarded to GF2X.
 
 
-linalg/bwc/lingen_qcode.c
-linalg/bwc/lingen_qcode.h
-linalg/bwc/lingen_qcode_do.cpp
+linalg/bwc/lingen_qcode_binary.c
+linalg/bwc/lingen_qcode_binary.h
+linalg/bwc/lingen_qcode_binary_do.cpp
 
     => low-level arithmetic code that does the quadratic base case of BW
     over GF(2)
@@ -227,11 +219,7 @@ linalg/bwc/dispatch.cpp
 linalg/bwc/prep.cpp
 linalg/bwc/secure.cpp
 linalg/bwc/krylov.cpp
-linalg/bwc/lingen_binary.cpp
-linalg/bwc/plingen-tuning.cpp
-linalg/bwc/plingen-tuning.h
-linalg/bwc/plingen.cpp
-linalg/bwc/plingen.h
+linalg/bwc/lingen-*
 linalg/bwc/mksol.cpp
 linalg/bwc/gather.cpp
 linalg/bwc/cleanup.c
@@ -349,10 +337,10 @@ code for details on how to use this. Functions are all following the mpfq
 api.
 
 Currently the following are implemented:
-  abase-u64     // uint64_t
-  abase-u128    // uint128_t, packed into SSE2 if possible.
-  abase-u64k    // block of k unint64_t, size known at compile-time
-  abase-u64n    // block of n unint64_t, size not known at compile-time
+  abase-u64k1   // uint64_t
+  abase-m128    // uint128_t, packed into SSE2
+  abase-u64k#   // block of # uint64_t, size known at compile-time, with
+                // # being 1,2,3, or 4
 
 The main use of this type is for vectors to be multiplied by the binary
 matrix. We have for instance in matmul.[ch] a function called:

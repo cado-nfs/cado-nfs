@@ -1,12 +1,12 @@
-#ifndef THREADPOOL_H_
-#define THREADPOOL_H_
+#ifndef THREADPOOL_HPP_
+#define THREADPOOL_HPP_
 
 #include <pthread.h>
 #include <queue>
 #include <vector>
 #include <exception>
-#include <stdarg.h>
-#include <errno.h>
+#include <cstdarg>
+#include <cerrno>
 #include <memory>
 #include <mutex>
 
@@ -45,7 +45,7 @@ class mutex {
     LOG;
     pthread_mutex_init(&m, mutexattr);
   }
-  ~mutex() {LOG; ASSERT_ALWAYS(pthread_mutex_destroy(&m) == 0);}
+  ~mutex() {LOG; ASSERT_ALWAYS_NOTHROW(pthread_mutex_destroy(&m) == 0);}
   void lock(){LOG; ASSERT_ALWAYS(pthread_mutex_lock(&m) == 0);}
   bool try_lock() {
     LOG;
@@ -124,7 +124,7 @@ class worker_thread {
   worker_thread& operator=(worker_thread const &) = delete;
 public:
   worker_thread(worker_thread&&) = default;
-  worker_thread& operator=(worker_thread&&) = delete;
+  // worker_thread& operator=(worker_thread&&) = default;
   int rank() const;
   int nthreads() const;
   /* It doesn't seem that unholy to me to have a thread access the pool
@@ -311,4 +311,4 @@ public:
 #endif
 };
 
-#endif
+#endif  /* THREADPOOL_HPP_ */
