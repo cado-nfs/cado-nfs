@@ -12,7 +12,9 @@
 #include "macros.h"          // for GNUC_VERSION_ATMOST, MAYBE_UNUSED
 
 #include "params.h"           // for param_list_decl_usage, cxx_param_list
-#include "hwloc-aux.h"  // hwloc_aux_get_depth_from_string
+#ifdef HAVE_HWLOC
+#include "hwloc-aux.h"  // cxx_hwloc_nodeset
+#endif
 
 class las_parallel_desc {
     std::string description_string;

@@ -15,9 +15,8 @@
 #include <tuple>               // for tie, get, make_tuple, tuple
 #include <vector>              // for vector, vector<>::iterator
 #ifdef HAVE_HWLOC
-#include <hwloc.h>
+#include "hwloc-aux.h"
 #endif
-
 #include "las-parallel.hpp"
 
 #include "misc.h"       // size_disp
