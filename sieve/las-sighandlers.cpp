@@ -14,6 +14,7 @@
 #include "verbose.h"    // verbose_output_print
 #endif
 #include "las-sighandlers.hpp"
+#include "verbose.h"    // verbose_output_print
 
 #ifdef HAVE_GLIBC
 static void signal_handling (int signum)/*{{{*/
