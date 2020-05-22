@@ -7,6 +7,7 @@
 #include "auxiliary.h"
 #include "area.h"
 #include "murphyE.h"
+#include "mpz_vector.h"
 
 typedef struct {
   cado_poly poly;

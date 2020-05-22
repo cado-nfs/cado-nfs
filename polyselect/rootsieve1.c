@@ -25,6 +25,8 @@
 #include "murphyE.h"
 #include "size_optimization.h"
 #include "omp_proxy.h"
+#include "gmp_aux.h"    // ulong_isprime
+#include "timing.h"     // seconds
 /* define ORIGINAL if you want the original algorithm from the paper */
 // #define ORIGINAL
 
@@ -593,7 +595,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
               double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
               /* to compute E, we need to divide g by mod */
               mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
-              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K);
+              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, ALPHA_BOUND);
               /* restore g */
               mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
               /* this can only occur for one thread, thus no need to put
@@ -615,7 +617,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
               double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
               /* to compute E, we need to divide g by mod */
               mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
-              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K);
+              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, ALPHA_BOUND);
               /* restore g */
               mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
               /* restore the original polynomial (w=0) and skewness */

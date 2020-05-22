@@ -20,6 +20,10 @@
 #include "polyselect_str.h"
 #include "polyselect_arith.h"
 #include "modredc_ul.h"
+#include "mpz_vector.h"
+#include "roots_mod.h"  // roots_mod_uint64
+#include "timing.h"     // milliseconds
+#include "verbose.h"    // verbose_decl_usage
 
 #define TARGET_TIME 10000000 /* print stats every TARGET_TIME milliseconds */
 #define NEW_ROOTSIEVE
