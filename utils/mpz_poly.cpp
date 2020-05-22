@@ -19,9 +19,7 @@
 #include <string>
 #include <utility>
 #include <stdexcept>
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
+#include "omp_proxy.h"
 #include "mpz_poly.h"
 #include "lll.h"
 #include "rootfinder.h"

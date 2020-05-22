@@ -20,9 +20,7 @@
  */
 #include "murphyE.h"
 #include "auxiliary.h"
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
+#include "omp_proxy.h"
 #include "verbose.h"             // verbose_output_print
 
 static void

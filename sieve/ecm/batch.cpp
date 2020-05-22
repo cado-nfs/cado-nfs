@@ -17,16 +17,13 @@
 #include <iterator>            // for begin, end
 #include <list>                // for list, operator!=, _List_iterator, list...
 #include <memory>              // for allocator_traits<>::value_type
-#ifdef  HAVE_OPENMP
-#include <omp.h>
-#endif
 #include <sstream>             // for operator<<, ostringstream, basic_ostream
 #include <string>              // for basic_string
 #include <type_traits>         // for remove_reference<>::type
 #include <vector>              // for vector
 
+#include "omp_proxy.h"
 #include "batch.hpp"           // for facul_clear_methods, facul_make_defaul...
-
 #include "facul.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul_doit.hpp"      // for facul_doit_onefm
 #include "facul_fwd.hpp"       // for facul_method_t

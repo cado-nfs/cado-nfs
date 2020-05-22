@@ -29,9 +29,7 @@
 #include <sys/stat.h>
 #include <pthread.h>
 #include <gmp.h>
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
+#include "omp_proxy.h"
 #include <mutex>
 #include <vector>
 #include "cado_poly.h"  // cado_poly

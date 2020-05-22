@@ -24,8 +24,7 @@
 #include "area.h"
 #include "murphyE.h"
 #include "size_optimization.h"
-#include "omp.h"
-
+#include "omp_proxy.h"
 /* define ORIGINAL if you want the original algorithm from the paper */
 // #define ORIGINAL
 

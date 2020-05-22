@@ -15,12 +15,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
-#ifdef  HAVE_OPENMP
-#include <omp.h>
-#endif
-
 #include <cassert>
 
+#include "omp_proxy.h"
 #include "macros.h"
 #include "mpfq_layer.h"
 #include "memusage.h"

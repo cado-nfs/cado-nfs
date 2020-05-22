@@ -864,7 +864,7 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
 static bool variant_scan_small_range_forward(std::vector<p_r_values_t> const & data, index_t & i0, index_t target_i, index_t run, bool c)
 {
     for( ; run ; ) {
-        long delta = data[i0 + 1] - data[i0];
+        index_t delta = data[i0 + 1] - data[i0];
         if (delta == target_i) {
             /* whether or not we have a rational side, we're
              * definitely spot on.
@@ -913,7 +913,7 @@ void renumber_t::variant_translate_index(index_t & i0, index_t & ii, index_t i) 
     for( ; max > min ; ) {
         index_t middle = min + (max - min) / 2; /* avoids overflow */
         middle = traditional_backtrack_until_vp(middle, min, max);
-        long delta = traditional_data[middle + 1] - traditional_data[middle];
+        index_t delta = traditional_data[middle + 1] - traditional_data[middle];
         if (middle == min || (delta <= i && delta + maxroots > i)) {
             /* got it, probably. need to adjust a little, but that
              * will be quick */
@@ -1641,7 +1641,7 @@ struct renumber_t::builder{/*{{{*/
     std::ostream * os_p;
     renumber_t::hook * hook;
     stats_data_t stats;
-    unsigned long nprimes = 0; // sigh... *must* be ulong for stats().
+    uint64_t nprimes = 0; // sigh... *must* be ulong for stats().
     index_t R_max_index; // we *MUST* follow it externally, since we're not storing the table in memory.
     builder(renumber_t & R, std::ostream * os_p, renumber_t::hook * hook)
         : R(R)

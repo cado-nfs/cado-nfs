@@ -27,10 +27,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
 #include <pthread.h>
+#include "omp_proxy.h"
 #include "area.h"
 #include "auxiliary.h"
 #include "murphyE.h"

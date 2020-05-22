@@ -284,7 +284,7 @@ main(int argc, char* argv[])
 
     if (F.get()) {
         /* /!\ Needed by the Python script. /!\ */
-        fprintf(stderr, "# Free relations: %" PRIu64 "\n", F->nfree);
+        fprintf(stderr, "# Free relations: %lu\n", F->nfree);
     }
     fprintf(stderr, "Renumbering struct: nprimes=%lu\n", (unsigned long) R_max_index);
 

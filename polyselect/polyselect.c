@@ -28,11 +28,8 @@
  */
 #include <stdio.h>
 #include <limits.h> /* for CHAR_BIT */
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
 #include <gmp.h>
-
+#include "omp_proxy.h"
 #include "gcd.h"       // for gcd_ul
 #include "getprime.h"   // getprime
 #include "gmp_aux.h"       // mpz_set_uint64

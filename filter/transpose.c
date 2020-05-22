@@ -26,9 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
+#include "omp_proxy.h"
 /* the following should come after cado.h, which sets -Werror=all */
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"

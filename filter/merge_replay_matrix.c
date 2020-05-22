@@ -6,10 +6,7 @@
 
 #include <string.h>
 #include <stdio.h>
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
-
+#include "omp_proxy.h"
 #include "filter_config.h"
 #include "merge_replay_matrix.h"
 #include "sparse.h"

@@ -62,12 +62,10 @@ skew: 1.37
 */
 
 #include "cado.h"
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
 #include <ctype.h>
 #include <stdlib.h>
 #include <time.h>
+#include "omp_proxy.h"
 #include "auxiliary.h"
 #include "gcd.h"        // gcd_uint64
 #include "lll.h"        // mat_Z, LLL

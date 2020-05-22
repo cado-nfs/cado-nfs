@@ -16,9 +16,6 @@
 #ifdef  HAVE_SIGHUP
 #include <csignal>
 #endif
-#ifdef  HAVE_OPENMP
-#include <omp.h>
-#endif
 #include <vector>
 #include <array>
 #include <utility>
@@ -27,6 +24,7 @@
 #include <ostream>
 #include <iostream>
 #include <sstream>
+#include "omp_proxy.h"
 #include "macros.h"
 #include "mpfq_layer.h"
 #include "lingen-polymat.h"
