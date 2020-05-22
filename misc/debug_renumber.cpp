@@ -140,16 +140,18 @@ main (int argc, char *argv[])
         double tt = seconds();
         std::vector<size_t> counts(tab.get_nb_polys(),0);
         for(auto const & x : tab) {
+            /*
             if (x.side == tab.get_rational_side())
                 printf("%" PRpr " rat %d\n", x.p, x.side);
             else
                 printf("%" PRpr " %" PRpr " %d\n", x.p, x.r, x.side);
+                */
             counts[x.side]++;
         }
         tt = seconds() - tt;
         printf("# full table traversal (%" PRIu64 " entries):"
                 " %.3g (time per 1000000 steps: %.3g)\n",
-                tab.get_size(), tt, tt/1.0e6);
+                tab.get_size(), tt, tt*1.0e6/tab.get_size());
         printf("# ideals per side:");
         for(auto x : counts)
             printf(" %zu", x);
