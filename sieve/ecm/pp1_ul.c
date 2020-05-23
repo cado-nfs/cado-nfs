@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "modredc_ul.h"
 #include "modredc_ul_default.h"
 #define pp1_27 pp1_27_ul

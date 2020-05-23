@@ -1,12 +1,15 @@
-#include "cado.h"
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <assert.h>
+#include "cado.h" // IWYU pragma: keep
+#include <cstdio>
+#include <string>       // std::string
+
+#include <sys/types.h>  // IWYU pragma: keep
+#include <sys/mman.h>  // for PROT_READ, mmap, munmap, MAP_SHARED, PROT_WRITE
+#include <sys/stat.h>  // for fstat, stat
+#include <fcntl.h>      // O_RDONLY etc // IWYU pragma: keep
+#include <unistd.h>    // for sysconf, _SC_PAGE_SIZE, close
+
 #include "mmap_allocator.hpp"
+
 
 /* This is inspired from https://github.com/johannesthoma/mmap_allocator
  * License is LGPL.
@@ -49,7 +52,7 @@ namespace mmap_allocator_details {
 
         fd = open(filename, mode);
         if (fd < 0)
-            throw mmap_allocator_exception("Error opening file " + std::string(filename));
+            throw mmap_allocator_exception(std::string("Error opening file ") + filename);
 
         if (length == std::numeric_limits<size_type>::max()) {
             /* well, we really want the file length, not more ! */

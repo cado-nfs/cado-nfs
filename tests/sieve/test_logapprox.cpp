@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <string.h>
 #include <iostream>
 #include "logapprox.hpp"

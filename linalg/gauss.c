@@ -53,7 +53,7 @@ If just the dimension of kernel is wanted, set ker=NULL.
 /* Warning: there are some (static) global variables                         */
 /*===========================================================================*/
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

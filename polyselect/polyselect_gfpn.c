@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include "gfpkdlpolyselect.h"
 #include "verbose.h"             // verbose_output_print

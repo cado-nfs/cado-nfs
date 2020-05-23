@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* This file defines some functions that work more or less the same
    with mod_ul.h and modredc_ul.h. I.e. mod_div3() and mod_gcd() work
    unchanged with plain and Montgomery representation (so we can work on

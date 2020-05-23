@@ -3,7 +3,7 @@
 #define LABEL_UNIQUE TOKENPASTE2(Label, __LINE__)
 
 /* Data struct used for polyselect */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "polyselect_str.h"
 #include "getprime.h"   // getprime
 

@@ -1,5 +1,7 @@
-#include "cado.h"
-#include "macros.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stddef.h>  // for NULL
+#include <hwloc.h>   // for hwloc_type_sscanf_as_depth, HWLOC_API_VERSION
+#include "macros.h"     // ASSERT_ALWAYS
 #include "hwloc-aux.h"
 
 /* missing api calls in hwloc */

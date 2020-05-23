@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "int64_poly.h"
 #include "mpz_poly.h"
 

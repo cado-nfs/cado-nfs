@@ -1,23 +1,29 @@
-#include "cado.h"
-#include <sstream>
-#include <limits>
-#include <stdexcept>
-#include <string>
-#include <sstream>
-#include <fstream>
-#include <vector>
-#include <exception>
-#include <iomanip>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
 #include <algorithm>
+#include <fstream>      // std::ifstream // IWYU pragma: keep
+#include <iomanip>      // std::hex // IWYU pragma: keep
+#include <iostream>     // std::cout
+#include <limits>
 #include <list>
 #include <map>
-#include <iostream>
-#include "gzip.h"       // ifstream_maybe_compressed
-#include "renumber.hpp"
+#include <memory>              // for allocator_traits<>::value_type, unique...
+#include <sstream>      // std::ostringstream // IWYU pragma: keep
+#include <stdexcept>
+#include <string>
+#include <vector>
+#include <cstring>             // for strcmp
+#include <gmp.h>               // for mpz_get_ui, mpz_divisible_ui_p, mpz_t
 #include "badideals.hpp"
-#include "mpz_poly.h"   // mpz_poly
-#include "rootfinder.h" // mpz_poly_roots
+#include "cxx_mpz.hpp"         // for cxx_mpz
+#include "getprime.h"          // for getprime_mt, prime_info_clear, prime_i...
+#include "gmp_aux.h"           // for ulong_isprime, nbits, mpz_get_uint64
+#include "gzip.h"       // ifstream_maybe_compressed
 #include "mod_ul.h"     // modulusul_t
+#include "mpz_poly.h"   // mpz_poly
+#include "params.h"            // for cxx_param_list, param_list_lookup_string
+#include "renumber.hpp"
+#include "rootfinder.h" // mpz_poly_roots
 #include "stats.h"      // for the builder process
 
 /* Some documentation on the internal encoding of the renumber table...

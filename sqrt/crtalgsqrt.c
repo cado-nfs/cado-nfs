@@ -59,7 +59,7 @@
  *   valgrind. I don't understand.
  */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
 #include <inttypes.h>   // SCNu64 PRId64 etc
 #include <stdio.h>
@@ -80,6 +80,7 @@
 #include <errno.h>
 
 #define DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS
+#include "double_poly.h"
 
 #include "cado_poly.h"  // cado_poly
 #include "gmp-hacks.h"          // TODO: REMOVE ! we're still using MPZ_SET_MPN and friends, but the mpz_write_limbts things could very well be sufficient after all.
@@ -92,7 +93,7 @@
 #include "select_mpi.h"
 #include "timing.h"     // wct_seconds
 #include "version_info.h" // cado_revision_string
-#include "portability.h"
+#include "portability.h" // strdup // IWYU pragma: keep
 
 /* {{{ time */
 double program_starttime;

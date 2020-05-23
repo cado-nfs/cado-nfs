@@ -1,6 +1,7 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <cstdio>
+#include <cstdlib>        // for abort
 #include "modredc126.hpp"
 
 /* Divide residue by 3. Returns 1 if division is possible, 0 otherwise.

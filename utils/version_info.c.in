@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "version_info.h"
 
 /* CADO_REV indicates the scm-level revision */

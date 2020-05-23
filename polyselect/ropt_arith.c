@@ -4,7 +4,7 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "mod_ul.h"
 #include "ropt_arith.h"
 

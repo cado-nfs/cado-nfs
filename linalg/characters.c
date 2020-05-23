@@ -74,7 +74,7 @@
 // This is done on a heuristic basis, taking the first 4k coordinates
 // only.
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,6 +94,7 @@
 #include "misc.h"       // has_suffix
 #include "mod_ul.c"
 #include "mpz_poly.h"   // mpz_poly_ptr
+#include "params.h"     // param_list
 #include "purgedfile.h" // purgedfile_read_firstline
 #include "rootfinder.h" // mpz_poly_roots_ulong
 #include "worker-threads.h"

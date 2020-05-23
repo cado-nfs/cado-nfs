@@ -9,19 +9,15 @@
 #define xxxMPZ_POLY_TIMINGS
 // for timings of roots mod p (beware, this is not thread-safe)
 
-/* forward-declare our type before inclusion by double_poly.h, since we
- * include eachother
- */
-struct mpz_poly_s;
-typedef struct mpz_poly_s * mpz_poly_ptr;
-typedef const struct mpz_poly_s * mpz_poly_srcptr;
-
-#include "double_poly.h"
+#ifndef DOUBLE_POLY_H_
+typedef struct double_poly_s * double_poly_ptr;
+typedef const struct double_poly_s * double_poly_srcptr;
+#endif
 
 #ifdef __cplusplus
 #include <string>
-#include <istream>
-#include <ostream>
+#include <istream>      // std::istream // IWYU pragma: keep
+#include <ostream>      // std::ostream // IWYU pragma: keep
 extern "C" {
 #endif
 
@@ -37,6 +33,8 @@ struct mpz_poly_s {
   int deg;
   mpz_t *coeff;
 };
+typedef struct mpz_poly_s * mpz_poly_ptr;
+typedef const struct mpz_poly_s * mpz_poly_srcptr;
 
 typedef struct mpz_poly_s mpz_poly[1];
 

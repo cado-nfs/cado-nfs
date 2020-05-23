@@ -1,11 +1,10 @@
 #ifndef CADO_UTILS_GMP_AUX_H_
 #define CADO_UTILS_GMP_AUX_H_
 
+#include "cado_config.h"  // for ULONG_BITS
 #include <gmp.h>
 #include <stdint.h>
 #include <macros.h>
-#include <stdbool.h>
-#include "getprime.h"
 
 /* the following function are missing in GMP */
 #ifndef mpz_add_si

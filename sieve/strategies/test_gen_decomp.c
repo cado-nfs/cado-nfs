@@ -29,7 +29,7 @@ $ gen_decomp 60 524288
 60 20 21 21 1.030657e+13 # 26
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>

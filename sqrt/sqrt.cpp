@@ -10,7 +10,7 @@
    sqrt -poly cxxx.poly -prefix cxxx.dep.gz -sqrt0 -sqrt1 -gcd
  */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* the following avoids the warnings "Unknown pragma" if OpenMP is not
    available, and should come after cado.h, which sets -Werror=all */
 #ifdef  __GNUC__
@@ -38,13 +38,14 @@
 #include "filter_io.h"  // filter_rels
 #include "fmt/format.h"
 #include "fmt/printf.h"
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gzip.h"       // fopen_maybe_compressed
 #include "memusage.h"   // PeakMemusage
 #include "modul_poly.h" // modul_poly
 #include "mpz_poly.h"   // mpz_poly
 #include "purgedfile.h" // purgedfile_read_firstline
 #include "version_info.h" // cado_revision_string
-#include "portability.h"
+#include "portability.h" // strndup // IWYU pragma: keep
 
 /* frequency of messages "read xxx (a,b) pairs" */
 #define REPORT 10000000

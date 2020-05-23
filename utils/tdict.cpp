@@ -1,4 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
+#include <ostream>    // for operator<<, basic_ostream<>::__ostream_type
 #include <pthread.h>
 #include "tdict.hpp"
 #include "params.h"

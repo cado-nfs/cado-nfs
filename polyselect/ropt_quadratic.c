@@ -16,7 +16,7 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "ropt_quadratic.h"
 #include "ropt.h"
 #include "timing.h"             // for seconds_thread

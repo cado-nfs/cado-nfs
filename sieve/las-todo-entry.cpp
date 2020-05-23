@@ -3,6 +3,7 @@
 #include <ostream>     // for operator<<, ostream, basic_ostream, basic_ostr...
 
 #include "las-todo-entry.hpp"
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 
 
 void las_todo_entry::find_prime_factors()

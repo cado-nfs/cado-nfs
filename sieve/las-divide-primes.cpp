@@ -6,6 +6,7 @@
 #include <cstdint>              // for uint64_t, int64_t
 #include <cstdio>               // for fprintf, size_t, FILE
 #include <ostream>              // for operator<<, basic_ostream, ostringstream
+#include <sstream>              // ostringstream
 #include <string>               // for char_traits, basic_string
 #include <cstdarg>             // IWYU pragma: keep
 #include <gmp.h>                // for gmp_vfprintf, mpz_divisible_ui_p, mpz...

@@ -1,5 +1,5 @@
 /* Copyright (C) 1999--2007 Emmanuel Thom'e --- see LICENSE file */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <sys/time.h>
 #include <sys/types.h>

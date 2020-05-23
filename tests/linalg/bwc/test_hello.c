@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>

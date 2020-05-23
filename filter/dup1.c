@@ -13,7 +13,7 @@
    Input can be in gzipped or bzipped format.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #define MAX_NSLICES_LOG 6
 

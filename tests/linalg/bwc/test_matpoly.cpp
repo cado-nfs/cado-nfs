@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "lingen-matpoly.h"
 #include "lingen-matpoly-ft.h"
 #include "cxx_mpz.hpp"

@@ -1,6 +1,6 @@
 #ifndef CADO_POPEN_H_
 #define CADO_POPEN_H_
-
+#include "cado_config.h"  // just because we're a header.
 #include <stdio.h>
 #include <unistd.h>
 #ifdef HAVE_GETRUSAGE

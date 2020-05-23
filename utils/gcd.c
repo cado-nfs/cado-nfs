@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include "gcd.h"
 #include "mod_ul.h"
-#include "macros.h"
+#include "macros.h"   // for ASSERT
 #include "misc.h" /* for cado_ctzl */
 
 uint64_t
@@ -64,7 +64,7 @@ invert_ul (unsigned long a, unsigned long p)
 
   modul_initmod_ul (q, p);
   modul_init (b, q);
-  assert (a < p);
+  ASSERT (a < p);
   modul_set_ul_reduced (b, a, q);
   modul_inv (b, b, q);
   a = modul_get_ul (b, q);

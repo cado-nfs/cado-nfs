@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdint>   /* AIX wants it first (it's a bug) */
 #include <cstdio>
 #include <cstdlib>

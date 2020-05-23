@@ -27,7 +27,7 @@
 /* number of small primes we skip (should be >= 1 since we always skip 2) */
 #define SKIP 10
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

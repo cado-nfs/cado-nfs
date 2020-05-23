@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stddef.h>     /* ptrdiff_t */
 #include <stdint.h>
 #include <algorithm>

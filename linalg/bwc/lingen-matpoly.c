@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "mpfq_layer.h"
 #include <stdlib.h>
 #include <gmp.h>

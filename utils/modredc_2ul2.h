@@ -16,12 +16,13 @@
 #define MODREDC_2UL2_H
 
 /**********************************************************************/
-#include <assert.h>
+#include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM
 #if defined(MODTRACE)
 #include <stdio.h>
 #endif
 #include <limits.h>
 #include <stdint.h>
+#include <stdlib.h>       // for size_t, abort
 #include "macros.h"
 #include "ularith.h"
 

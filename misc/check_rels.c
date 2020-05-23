@@ -2,7 +2,7 @@
    Can also, in option, check the primality of ideal and correct uncomplete
    relation or relation with non prime ideal */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <stdlib.h>
 #include <stdio.h>

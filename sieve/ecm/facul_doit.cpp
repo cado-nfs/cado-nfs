@@ -8,7 +8,7 @@
  * detection script will insist on seeing this include, and it doesn't do
  * any harm
  */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #ifndef FACUL_DOIT_READY_TO_INCLUDE_IMPL_CODE
 #error "This file must not be used as a standalone compilation unit"

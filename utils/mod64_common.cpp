@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* This file implements some methods that work more or less the same
    with Modulus64 and ModulusREDC64. E.g., div3() and gcd() work
    unchanged with plain and Montgomery representation (so we can work on

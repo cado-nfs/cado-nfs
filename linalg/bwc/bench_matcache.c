@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 /* This program is the simplest interface to the bare matrix
  * multiplication routine. It's meant to provide an easy way of benching,

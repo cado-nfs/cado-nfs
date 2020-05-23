@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "modredc_15ul_default.h"
 #include <gmp.h>
 #include "mpqs.h"

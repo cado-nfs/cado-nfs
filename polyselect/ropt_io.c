@@ -4,7 +4,7 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "ropt_io.h"
 #include "ropt.h"
 #include "size_optimization.h"

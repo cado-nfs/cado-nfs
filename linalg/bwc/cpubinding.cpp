@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
 #include <string>

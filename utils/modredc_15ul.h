@@ -14,7 +14,8 @@
 #define MODREDC_15UL_H
 
 /**********************************************************************/
-#include <assert.h>
+#include "cado_config.h"  // just because we're a header.
+#include <stdlib.h>       // for size_t, abort
 #if defined(MODTRACE)
 #include <stdio.h>
 #endif

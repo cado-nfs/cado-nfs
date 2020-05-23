@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "tests_common.h"
 #include <cstdint>
 #include <cinttypes>

@@ -4,18 +4,22 @@
 #include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <algorithm>
 #include <cstdio>
-#include <cstring>
 #include <limits>
 #include <string>
-#include <cerrno>
 #include <array>
 #include <vector>
 #include <stdexcept>
 #include <iterator>
-#include <type_traits>
+#include <climits>     // for UINT_MAX
+#include <iosfwd>       // for istream, ostream, ptrdiff_t
+#include <utility>      // for pair
+#include "macros.h"     // for ASSERT_ALWAYS
+#include "mpz_poly.h"   // for mpz_poly, mpz_poly_s, mpz_poly_srcptr
 #include "typedefs.h"
 #include "cado_poly.h"
 #include "badideals.hpp"
+// IWYU pragma: no_forward_declare badideal
+struct cxx_param_list;
 
 /* To build a renumber table in memory in the simplest way, the
  * process goes as follows

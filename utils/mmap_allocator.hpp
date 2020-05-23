@@ -2,15 +2,12 @@
 #define MMAP_ALLOCATOR_H
 
 #include "macros.h"
-#include <stdio.h>
+#include <cstdio>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include <memory>
 #include <limits>
 #include <string>
-#include <vector>
 #include <stdexcept>
 
 /* This is inspired from https://github.com/johannesthoma/mmap_allocator

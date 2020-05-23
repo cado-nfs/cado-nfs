@@ -1,4 +1,4 @@
-#include "cado.h"       /* feature macros, no includes */
+#include "cado.h" // IWYU pragma: keep
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>

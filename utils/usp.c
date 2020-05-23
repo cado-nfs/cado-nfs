@@ -56,7 +56,7 @@ B) to use within another program: compile without -DMAIN, the main function
 /* define MAIN if you want to compile as a stand-alone program */
 /* #define MAIN */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>

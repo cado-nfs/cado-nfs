@@ -4,7 +4,7 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "ropt_stage1.h"
 #include "timing.h"             // for milliseconds
 

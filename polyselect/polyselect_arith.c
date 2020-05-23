@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "polyselect_arith.h"
 #include "polyselect_str.h"
 #include "roots_mod.h"

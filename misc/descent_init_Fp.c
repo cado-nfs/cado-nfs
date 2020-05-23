@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #define _GNU_SOURCE // for pthread_tryjoin_np()
 #include <time.h>

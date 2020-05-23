@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "relation.hpp"
 #include "relation-tools.h"
 #include "tests_common.h"

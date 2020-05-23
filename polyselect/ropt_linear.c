@@ -19,7 +19,7 @@
  */ 
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "ropt_linear.h"
 #include "timing.h"             // for seconds_thread
 //#define ROPT_LINEAR_TUNE_HARDER

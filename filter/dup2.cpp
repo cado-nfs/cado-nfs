@@ -45,7 +45,7 @@
    We store j % 2^32 at the next empty cell after index i in the hash-table.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>   /* for _O_BINARY */

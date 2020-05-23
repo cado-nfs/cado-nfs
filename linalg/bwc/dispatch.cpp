@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 /* This is a very silly program which merely reads the matrix and then
  * exits. It must come before the prep program, and coalescing this one

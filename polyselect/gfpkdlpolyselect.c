@@ -11,7 +11,7 @@
  * \version 1: dedicated for GF(p^2).
  */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 
 #include "area.h"

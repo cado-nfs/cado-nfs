@@ -8,7 +8,7 @@
 */
 
 /* To avoid the warning: implicit declaration of nanosleep for c99 compliant */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #ifdef _POSIX_C_SOURCE
 #undef _POSIX_C_SOURCE
 #endif

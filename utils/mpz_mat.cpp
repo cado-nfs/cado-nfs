@@ -1,6 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 #include <cassert>
-#include <cstdio>
+#include <cstdio>       // FILE // IWYU pragma: keep
 #include <cstdlib>
 #include <cstring>
 #include <climits>     /* for INT_MAX */

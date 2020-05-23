@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "utils_mpz.h"
 #include <stdint.h>
 #include <stdlib.h>

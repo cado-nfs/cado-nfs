@@ -36,6 +36,7 @@
 #endif
 #include "multityped_array.hpp"        // for multityped_array_foreach, mult...
 struct qlattice_basis;
+struct cxx_param_list;
 
 
 /* The *factor base* is made of *entries*. We have several vectors of

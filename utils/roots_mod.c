@@ -5,7 +5,7 @@
    Qian Sha, Xiao Fan, 2011, http://arxiv.org/abs/1111.4877.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <stdint.h>
 #include <gmp.h>

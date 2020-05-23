@@ -19,7 +19,7 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h> /* for DBL_MAX */
@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "timing.h"             // for seconds
 #include "usp.h"        // usp_root_data
 #include "version_info.h"        // cado_revision_string
+#include "double_poly.h"
 
 /* define OPTIMIZE_MP to perform computations in multiple-precision */
 //#define OPTIMIZE_MP

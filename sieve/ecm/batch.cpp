@@ -27,6 +27,7 @@
 #include "facul.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul_doit.hpp"      // for facul_doit_onefm
 #include "facul_fwd.hpp"       // for facul_method_t
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "las-todo-entry.hpp"  // for las_todo_entry
 #include "modset.hpp"          // for FaculModulusBase
 #include "relation.hpp"        // for relation

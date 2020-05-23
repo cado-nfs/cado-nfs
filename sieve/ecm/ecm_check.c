@@ -5,7 +5,7 @@
    Puts in 'out' the primes which are not found with the curve (B1,B2,sigma).
  */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include "../../utils/modredc_ul_default.h"
 #include "facul.h"

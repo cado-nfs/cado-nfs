@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <math.h>
 #include "polyselect/auxiliary.h"
 #include "polyselect/size_optimization.h"

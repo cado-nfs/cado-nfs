@@ -53,6 +53,8 @@
 #define MAX_LEN_RELSET 1024
 
 #include <stdint.h>
+#include <stdio.h>      // FILE
+#include <gmp.h>        // mpz_t
 #include "mpz_poly.h"
 #include "cado_poly.h"  // MAX_DEGREE, NB_POLYS_MAX
 

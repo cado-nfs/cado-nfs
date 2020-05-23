@@ -110,7 +110,10 @@ FILE: for my $f (@all_files) {
                 if (/.*cado\.h/) { push @include_cado, $aa; }
                 if (/.*portability\.h/) { $portability_score++; }
             }
-            if (/\b(strdup|strndup|strlcat|strlcpy|asprintf|lrand48|realpath|pagesize|sleep)\b/ && !scalar @needs_portability_h) { push @needs_portability_h, $aa; }
+            for my $func (qw/strlcat strlcpy asprintf realpath pagesize lrand48 sleep strdup strndup/) {
+                last if @needs_portability_h;
+                if (/\b$func\b/) { push @needs_portability_h, [@$aa, $func]; }
+            }
         }
     }
 
@@ -188,7 +191,7 @@ EOF
     }
     if ($ENABLE_CHECK_FOR_PORTABILITY_H_WHEN_NEEDED && @needs_portability_h && $portability_score == 0) {
         my $first = shift @needs_portability_h;
-        print STDERR "$f:$first->[0]: uses a function that is not always present. You must #include \"portability.h\"\n";
+        print STDERR "$f:$first->[0]: uses function $first->[2], which is not always present. You must #include \"portability.h\" // $first->[2]\n";
         $err++;
     }
 

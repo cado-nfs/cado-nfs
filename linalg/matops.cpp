@@ -22,7 +22,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "cado.h"       /* HAVE_* macros ! */
+#include "cado.h" // IWYU pragma: keep
 #include "macros.h"
 
 #include "gf2x.h"

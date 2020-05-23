@@ -24,7 +24,7 @@ command line is faster than the current code:
       the three lines containing W Y and X should be separate by a blank line
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "macros.h"
 #include <cstdio>
 #include <cstdlib>

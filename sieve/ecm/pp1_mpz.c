@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "mod_mpz_default.h"
 #define pp1_27 pp1_27_mpz
 #define pp1_65 pp1_65_mpz

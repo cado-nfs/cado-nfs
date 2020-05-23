@@ -61,7 +61,7 @@ skew: 1.37
 
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <ctype.h>
 #include <stdlib.h>
 #include <time.h>

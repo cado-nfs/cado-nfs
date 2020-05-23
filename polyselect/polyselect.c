@@ -14,7 +14,7 @@
 
 #define EMIT_ADDRESSABLE_shash_add
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* The following avoids to put #ifdef HAVE_OPENMP ... #endif around each
  * OpenMP pragma. It should come after cado.h, which sets -Werror=all.
  *
@@ -26,6 +26,7 @@
  * it's gcc specific. We can't expect such a thing to work with other
  * compilers.
  */
+#include <stdbool.h>    // bool
 #include <stdio.h>
 #include <limits.h> /* for CHAR_BIT */
 #include <gmp.h>

@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
 #include <cstring> /* for strcmp() */
@@ -10,6 +10,7 @@
 #include "typedefs.h"   // index_t p_r_values_t
 #include "renumber.hpp" // renumber_t
 #include "relation-tools.h"
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gzip.h"       // fopen_maybe_compressed
 #include "rootfinder.h" // mpz_poly_roots_uint64
 #include "timing.h" // wct_seconds

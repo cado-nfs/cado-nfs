@@ -3,7 +3,7 @@
   #error "One of the mod*_default.h headers must be included before this file"
 #endif
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <math.h>
 #include <inttypes.h>
 #include "facul_ecm.h"

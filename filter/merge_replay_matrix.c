@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"

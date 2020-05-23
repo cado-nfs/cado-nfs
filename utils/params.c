@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>              /* isdigit isspace */
@@ -10,10 +10,9 @@
 
 #include "params.h"
 #include "macros.h"
-#include "misc.h"
 #include "version_info.h"
 #include "verbose.h"
-#include "portability.h"
+#include "portability.h" // strdup // IWYU pragma: keep
 
 typedef int (*sortfunc_t) (const void *, const void *);
 

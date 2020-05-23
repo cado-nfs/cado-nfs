@@ -58,7 +58,7 @@
  * - 2 if not enough relations
  */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <gmp.h>
 #include <stdio.h>
 #include <stdlib.h>

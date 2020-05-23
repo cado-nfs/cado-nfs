@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #define BL_TESTING
 #include "blocklanczos.c"
 

@@ -1,8 +1,6 @@
-#include "cado.h"
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <stdio.h>
+#include "cado.h" // IWYU pragma: keep
 #include "modredc_15ul.h"
-#include "modredc_15ul_default.h"
+#include "modredc_15ul_default.h" // IWYU pragma: keep
 #include "modredc_2ul_common.c"
 
 

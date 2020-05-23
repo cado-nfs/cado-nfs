@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>   /* for _O_BINARY */

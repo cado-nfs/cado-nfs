@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdint.h>
 #include "macros.h"        // cado_crc_lfsr
 #include "crc.h"        // cado_crc_lfsr

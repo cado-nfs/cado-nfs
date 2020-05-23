@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "utils_int64.h"
 
 uint64_t invmod_uint64(uint64_t xx, uint64_t mm)

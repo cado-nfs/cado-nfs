@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>

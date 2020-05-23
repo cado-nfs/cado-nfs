@@ -1,19 +1,17 @@
 #ifndef THREADPOOL_H_
 #define THREADPOOL_H_
 
-#include <pthread.h>
-#include <queue>
-#include <vector>
-#include <exception>
-#include <stdarg.h>
-#include <errno.h>
-#include <memory>
-#include <mutex>
+#include <cerrno>        // for EBUSY
+#include <pthread.h>      // for pthread_cond_broadcast, pthread_cond_destroy
+#include <cstddef>       // for size_t, NULL
+#include <memory>         // for shared_ptr, make_shared
+#include <mutex>          // for mutex
+#include <type_traits>    // for is_base_of
+#include <vector>         // for vector
+#include "macros.h"       // for ASSERT_ALWAYS
+#include "utils_cxx.hpp"  // for call_dtor, NonCopyable
+struct clonable_exception;
 
-#include "macros.h"
-#include "utils_cxx.hpp"
-#include "tdict.hpp"
-#include "clonable-exception.hpp"
 
 #if 0
 /* Verbosely log all mutex and condition variable operations */

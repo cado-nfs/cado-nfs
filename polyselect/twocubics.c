@@ -14,7 +14,7 @@
 
 #define EMIT_ADDRESSABLE_shash_add
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "mpz_poly.h"
 #include "area.h"
 #include "polyselect_str.h"

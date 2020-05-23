@@ -1,7 +1,8 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "macros.h"  // for ASSERT_ALWAYS, ASSERT
 #include "params.h"
 #include "cado_poly.h"
 

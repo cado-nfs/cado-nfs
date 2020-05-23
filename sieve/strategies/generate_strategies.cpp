@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "generate_strategies.h"
 #include "facul.hpp"
 #include "facul_ecm.h"

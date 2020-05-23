@@ -1,16 +1,19 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
 #include <stdio.h>
 #include <errno.h>
-#include <ctype.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/wait.h>
+#include <sys/types.h> // IWYU pragma: keep
+#include <sys/time.h> // IWYU pragma: keep
+#include <sys/wait.h> // IWYU pragma: keep
+#ifdef HAVE_GETRUSAGE
+#include <sys/resource.h> // IWYU pragma: keep
+#endif
 #include <pthread.h>
 
-#include "macros.h"
+#include "macros.h"     // MAYBE_UNUSED
 #include "cado_popen.h"
 
 /* We need to close file descriptors underlying other popen()-ed calls on

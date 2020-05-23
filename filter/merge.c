@@ -19,7 +19,7 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* the following should come after cado.h, which sets -Werror=all */
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"

@@ -1,6 +1,6 @@
 /* test fb_root_in_qlattice_31bits */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <vector>
 #include <gmp.h>
 #include "macros.h"

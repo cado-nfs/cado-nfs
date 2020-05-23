@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* Routines that are the same for modredc_15ul.c and modredc_2ul2.c */
 
 

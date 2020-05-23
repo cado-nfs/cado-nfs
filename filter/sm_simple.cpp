@@ -8,7 +8,7 @@
 
    */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

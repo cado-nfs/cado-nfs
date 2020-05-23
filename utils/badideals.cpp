@@ -1,14 +1,15 @@
 /* 
  * Authors: Joshua Peignier and Emmanuel Thomé
  */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <ostream>
-#include <iomanip>
+#include <iomanip>      // std::dec // IWYU pragma: keep
 #include <sstream>
 
 #include "numbertheory.hpp"
 #include "badideals.hpp"
 #include "rootfinder.h"
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 
 using namespace std;
 

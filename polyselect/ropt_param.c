@@ -5,7 +5,7 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "ropt_param.h"
 
 

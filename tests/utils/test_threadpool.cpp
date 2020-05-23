@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <pthread.h>
 #include <string.h>
 #include "tests_common.h"

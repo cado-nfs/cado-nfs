@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,6 +7,7 @@
 #include "gcd.h"        // gcd_uint64
 #include "lll.h"        // mat_Z, LLL
 #include "size_optimization.h"
+#include "double_poly.h"
 
 
 /******************************************************************************/

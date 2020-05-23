@@ -1,8 +1,6 @@
-#include "cado.h"
-#include <cstdio>
-#include <climits>
+#include "cado.h" // IWYU pragma: keep
 #include "mod64.hpp"
-#include "modredc64.hpp"
+#include "modredc64.hpp" // IWYU pragma: keep
 
 typedef Modulus64 Modulus;
 #include "mod64_common.cpp"

@@ -9,7 +9,7 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "ropt.h"
 #include "area.h"
 #include "size_optimization.h"
