@@ -4,7 +4,6 @@
 #include <string.h>
 #include <assert.h>
 #include <stddef.h>
-#include <unistd.h>
 #include <stdint.h>
 #include "macros.h"
 #include "ringbuf.h"

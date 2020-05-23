@@ -1430,3 +1430,4 @@ utils/badideals.hpp
 utils/badideals_main.cpp
 tests/utils/test-sort.cpp
 utils/omp_proxy.h
+config/iwyu.pl.in

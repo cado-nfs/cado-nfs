@@ -1,8 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
+#include <utility> // pair
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
 #include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>		/* for cputime */
+#include <cstdio>       // FILE // IWYU pragma: keep
 #ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>	/* for cputime */
 #endif

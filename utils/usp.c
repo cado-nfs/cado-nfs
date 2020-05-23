@@ -57,12 +57,12 @@ B) to use within another program: compile without -DMAIN, the main function
 /* #define MAIN */
 
 #include "cado.h" // IWYU pragma: keep
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <gmp.h>
 #include "usp.h"
+#include "mpz_poly.h"
 #include "double_poly.h"
 #include "macros.h"
 

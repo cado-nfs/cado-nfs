@@ -2,9 +2,7 @@
 #define MPZ_POLY_BIVARIATE_H 
 
 #include <stdio.h>
-#include <stdint.h>
 #include <gmp.h>
-#include "macros.h"
 #include "mpz_poly.h"
 
 /*

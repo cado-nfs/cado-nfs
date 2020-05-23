@@ -32,6 +32,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include <gmp.h> /* for __GNU_MP_VERSION */
 
 #define ASSERT(x)	assert(x)

@@ -1,12 +1,12 @@
 /* arithmetic on polynomial with double-precision coefficients */
 #include "cado.h" // IWYU pragma: keep
-#if defined(__GNU_LIBRARY__)
+#ifdef HAVE_GLIBC
 #include <features.h>
 #endif
 #include <sstream>
 #include <string>
 #include <cstring>
-#include <cstdio>
+#include <cstdio> // FILE // IWYU pragma: keep
 #include <cstdlib>
 #include <climits>
 #include <cfloat> /* for DBL_MAX */
@@ -22,7 +22,7 @@
  * https://sourceware.org/bugzilla/show_bug.cgi?id=19439
  *
  */
-#if defined(__GNU_LIBRARY__)
+#ifdef HAVE_GLIBC
 #if __GLIBC_PREREQ(2, 23)
 #include <cmath>
 using std::isnan;

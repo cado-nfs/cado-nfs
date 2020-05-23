@@ -2,7 +2,6 @@
 #include <cstdio>
 #include <string>       // std::string
 
-#include <sys/types.h>  // IWYU pragma: keep
 #include <sys/mman.h>  // for PROT_READ, mmap, munmap, MAP_SHARED, PROT_WRITE
 #include <sys/stat.h>  // for fstat, stat
 #include <fcntl.h>      // O_RDONLY etc // IWYU pragma: keep

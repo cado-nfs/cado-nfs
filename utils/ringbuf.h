@@ -1,6 +1,9 @@
 #ifndef ROLLBUF_H_
 #define ROLLBUF_H_
 
+#include <sys/types.h>  // ssize_t
+#include <stdio.h>      // for size_t, FILE
+
 /* Example of a rotating, and reallocating buffer. A separate thread has
  * to fetch the data from the real source and fill the buffer. This way,
  * reads block as little as possible -- sort of a userland pipe, only we

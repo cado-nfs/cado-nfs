@@ -1,6 +1,8 @@
 #ifndef MPZ_POLY_H_
 #define MPZ_POLY_H_
 
+// IWYU pragma: no_include "double_poly.h"
+// (only the fwd-decl is needed)
 #include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>

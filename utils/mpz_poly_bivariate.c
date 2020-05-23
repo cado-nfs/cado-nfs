@@ -5,6 +5,7 @@
 #include <gmp.h>
 #include "mpz_poly_bivariate.h"
 #include "mpz_poly.h"
+#include "macros.h" // ASSERT
 
 // ----- lagrange_poly -----
 /*

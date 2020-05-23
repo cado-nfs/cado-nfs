@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include "macros.h"
+#include "macros.h" // MAYBE_UNUSED // IWYU pragma: keep
 #include "cachesize_cpuid.h"
 
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM

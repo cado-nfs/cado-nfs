@@ -1,6 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 #include <cstdint>     /* AIX wants it first (it's a bug) */
-#include <cstdio>
 #include <cstdlib>        // for abort
 #include "modredc126.hpp"
 

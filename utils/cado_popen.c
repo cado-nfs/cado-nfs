@@ -5,7 +5,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/types.h> // IWYU pragma: keep
 #include <sys/time.h> // IWYU pragma: keep
 #include <sys/wait.h> // IWYU pragma: keep
 #ifdef HAVE_GETRUSAGE

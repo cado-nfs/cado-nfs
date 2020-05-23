@@ -1,10 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
+#include <stdio.h>      // printf
+#include <stdlib.h>        // for abort exit
 #include <string.h>
 #include <errno.h>
 #include <inttypes.h>
 #include "purgedfile.h"
-#include "timing.h"
-#include "macros.h"
 #include "gzip.h"
 
 /* Read all lines which begin with # in the input file, until we find one

@@ -1,6 +1,9 @@
 #ifndef DOUBLE_POLY_H_
 #define DOUBLE_POLY_H_
 
+// IWYU pragma: no_include "mpz_poly.h"
+// the fwd-decl is enough
+
 #include <stdint.h>    // for uint32_t
 #include <stdio.h>     // for FILE
 #include "macros.h"    // for GNUC_VERSION_ATLEAST

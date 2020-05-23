@@ -1,22 +1,23 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdlib.h>
-#include <limits.h>
-#include <stdio.h>
-#include <string.h>
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
+#include <cstdlib>
+#include <climits>
+#include <cstdio> // FILE // IWYU pragma: keep
+#include <cstring>
 #include <unistd.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#ifdef HAVE_WAIT_H
-#include <sys/wait.h>
+#include <sys/stat.h> // stat // IWYU pragma: keep
+#ifdef HAVE_GETRUSAGE
+#include <sys/time.h> // IWYU pragma: keep
+#include <sys/resource.h> // IWYU pragma: keep
 #endif
-#include <errno.h>
+#include <cerrno>
 
 
 #include "macros.h"
 #include "gzip.h"
 #include "misc.h"
 #include "cado_popen.h"
+#include "cado_pipe_streambuf.hpp"
 
 struct suffix_handler {
     const char * suffix;
@@ -413,9 +414,9 @@ fclose_maybe_compressed (FILE * f, const char * name)
 }
 
 #include <stdexcept>
-#include <ios>
+#include <ios>  // std::ios_base::openmode // IWYU pragma: keep
 #include <fstream>  // filebuf
-#include "portability.h"
+#include "portability.h" // strdup // IWYU pragma: keep
 
 streambase_maybe_compressed::streambase_maybe_compressed(const char * name, std::ios_base::openmode mode)
 {

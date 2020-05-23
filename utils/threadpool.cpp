@@ -1,7 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
-#include <cstring>
-#include <cstdio>
 #include <cstdint>                // for SIZE_MAX
 #include <queue>                   // for queue, priority_queue
 #include <utility>                 // for move

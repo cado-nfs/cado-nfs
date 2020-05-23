@@ -1,6 +1,7 @@
 #ifndef FILTER_MEMALLOC_H_
 #define FILTER_MEMALLOC_H_
 
+#include <stddef.h>     // size_t
 #include "typedefs.h"
 
 /********************** own memory allocation routines ***********************/
