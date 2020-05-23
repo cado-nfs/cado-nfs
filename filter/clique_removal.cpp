@@ -4,6 +4,7 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
+#include <pthread.h>
 #include "bit_vector.h"
 #include "clique_removal.h"
 #include "filter_config.h"
