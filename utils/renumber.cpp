@@ -459,10 +459,10 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
             for (auto it = roots[side].rbegin() ; it != roots[side].rend() ; ++it) {
                 p_r_side x { (p_r_values_t) p, (p_r_values_t) *it, side };
                 C.flat.emplace_back(
-                        std::array<p_r_values_t, 2> {
+                        std::array<p_r_values_t, 2> {{
                             (p_r_values_t) p,
                             compute_vr_from_p_r_side (x)
-                        });
+                        }});
             }
         }
         std::ostringstream os;
