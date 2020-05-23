@@ -1,6 +1,8 @@
 #ifndef STAGE2_H
 #define STAGE2_H
 
+#include <limits.h>
+
 #define PAIR_INCR_V (UINT_MAX-1)
 #define PAIR_END UINT_MAX
 

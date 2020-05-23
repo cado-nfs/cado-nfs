@@ -5,6 +5,7 @@
 #include <string>
 // #include <iostream>
 #include <sstream>
+#include <cstring>      // strlcpy (openbsd) // IWYU pragma: keep
 
 #include "las-descent-trees.hpp"
 #include "portability.h"
