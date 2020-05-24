@@ -1,23 +1,19 @@
 #ifndef ROPT_H
 #define ROPT_H
 
-#include "ropt_linear.h"
-#include "ropt_quadratic.h"
-#include "ropt_param.h"
-#include "ropt_arith.h"
-#include "ropt_io.h"
+#include "cado_poly.h"
 #include "ropt_str.h"
+#include "ropt_tree.h"  // MurphyE_pq
 
 
 /* timing structure for ropt */
-typedef struct
-{
+struct ropt_sime_struct {
   double ropt_time;
   double ropt_time_stage1;
   double ropt_time_tuning;
   double ropt_time_stage2;
-} __ropt_time_struct;
-typedef __ropt_time_struct ropt_time_t[1];
+};
+typedef struct ropt_sime_struct ropt_time_t[1];
 
 
 /* -- declarations -- */

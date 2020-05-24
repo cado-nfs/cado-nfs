@@ -1,9 +1,9 @@
 #ifndef ROPT_IO_H
 #define ROPT_IO_H
 
-#include "murphyE.h"
-#include "ropt_param.h"
-#include "cachesize_cpuid.h"
+#include <stdio.h> // FILE
+#include <gmp.h>        // mpz_t
+#include "ropt_str.h"    // ropt_param_t
 
 /* -- declarations -- */
 

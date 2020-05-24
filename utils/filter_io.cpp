@@ -1,17 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
-#include <sys/resource.h>              // for rusage
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
 #include <cerrno>                     // for errno
 #include <climits>                    // for INT_MAX
-#include <pthread.h>                   // for pthread_cond_broadcast, pthrea...
 #include <cstdio>                     // for fprintf, stderr, stdout, FILE
 #include <cstdlib>                    // for abort, malloc, realloc, free
 #include <cstring>                    // for memset, memcpy, strcmp, strerror
-#include <sys/types.h>                 // for int8_t
-#include <ctime>                      // for size_t, NULL, nanosleep, timespec
-#include <unistd.h>                    // for ssize_t
-#ifdef HAVE_WAIT_H
-#include <sys/wait.h>
+#ifdef  HAVE_GETRUSAGE
+#include <sys/resource.h>              // for rusage // IWYU pragma: keep
 #endif
+#include <pthread.h>                   // for pthread_cond_broadcast, pthrea...
+#include <sys/types.h>                 // for int8_t ssize_t
 #include "barrier.h"                   // for barrier_destroy, barrier_init
 #include "cado_popen.h"                // for cado_pclose2, cado_popen
 #include "filter_io.h"
@@ -20,7 +18,7 @@
 #include "misc.h"                      // filelist_clear
 #include "ringbuf.h"                   // for ringbuf_s, ringbuf_ptr, RINGBU...
 #include "stats.h"                     // stats_data_t
-#include "portability.h"
+#include "portability.h" // sleep // IWYU pragma: keep
 
 /* This is a configuration variable which may be set by the caller (it's
  * possible to bind it to a command-line argument)

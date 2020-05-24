@@ -1,10 +1,9 @@
 #ifndef ROPT_ARITH_H
 #define ROPT_ARITH_H
 
-#include <math.h>
-#include "auxiliary.h"
+#include <gmp.h>
 
-#define NP 46
+#define ROPT_NPRIMES 46
 
 /* declarations */
 #ifdef __cplusplus

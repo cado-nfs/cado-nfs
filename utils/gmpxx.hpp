@@ -2,7 +2,7 @@
 #define GMPXX_HPP_
 
 #include <gmp.h>
-#include <istream>    // std::istream
+#include <istream>    // std::istream // IWYU pragma: keep
 #include <ostream>    // std::ostream // IWYU pragma: keep
 
 // used to be protected by: !defined(HAVE_GMPXX) && !defined(HAVE_MPIRXX)

@@ -1,8 +1,8 @@
 #ifndef ROPT_TREE_H
 #define ROPT_TREE_H
 
-
-#include "auxiliary.h"
+#include <stdint.h>     // int16_t
+#include <gmp.h>
 
 
 /**

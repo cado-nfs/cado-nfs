@@ -1,15 +1,23 @@
-/* 
+/*
  * Authors: Joshua Peignier and Emmanuel Thomé
  */
 #include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <memory>
+// iwyu wants it for allocator_traits<>::value_type, which seems weird
 #include <ostream>
 #include <iomanip>      // std::dec // IWYU pragma: keep
 #include <sstream>
+#include <utility>
 
+#include <cstddef> // size_t
+
+#include "gmp_aux.h"  // mpz_p_valuation
+#include "mpz_mat.h"
 #include "numbertheory.hpp"
 #include "badideals.hpp"
 #include "rootfinder.h"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
+#include "macros.h"     // ASSERT_ALWAYS
 
 using namespace std;
 

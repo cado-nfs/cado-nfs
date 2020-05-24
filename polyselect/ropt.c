@@ -10,9 +10,20 @@
 
 
 #include "cado.h" // IWYU pragma: keep
+#include <stdio.h>      // fprintf stderr
+#include <stdlib.h>     // exit free malloc
+#include <gmp.h>        // mpz_t
+#include "mpz_poly.h"
 #include "ropt.h"
-#include "area.h"
+#include "ropt_arith.h" // compute_fuv_mp
+#include "ropt_linear.h" // ropt_linear
+#include "ropt_quadratic.h" // ropt_quadratic
+#include "ropt_stage2.h" // ropt_stage2
+#include "ropt_str.h" // ropt_poly_t
+#include "ropt_tree.h" // MurphyE_pq
+#include "ropt_param.h" // BOUND_LOGNORM_INCR_MAX L1_cachesize ...
 #include "size_optimization.h"
+#include "auxiliary.h"  // ALG_SIDE RAT_SIDE
 
 
 /**

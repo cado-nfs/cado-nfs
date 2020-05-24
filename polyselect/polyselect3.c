@@ -18,8 +18,12 @@
  * it's gcc specific. We can't expect such a thing to work with other
  * compilers.
  */
+#include <stdio.h>      // FILE
+#include <stdlib.h>     // exit ...
 #include "murphyE.h"
+#include "cado_poly.h"
 #include "auxiliary.h"
+#include "params.h"
 #include "omp_proxy.h"
 #include "verbose.h"             // verbose_output_print
 

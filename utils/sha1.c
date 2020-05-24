@@ -17,7 +17,6 @@ A million repetitions of "a"
 /* #define LITTLE_ENDIAN * This should be #define'd already, if true. */
 
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
 #include <string.h>
 #include <stdint.h> /* for uint32_t */
 

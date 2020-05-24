@@ -35,13 +35,14 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include "gmp.h"
+#include <gmp.h>
 #include "flint.h"
 #include "fft.h"
 #include "ulong_extras.h"
 #include "fft_tuning.h"
 #include "fft.h"
 #include "timing.h"
+#include "macros.h"             // for ASSERT_ALWAYS
 
 #ifndef iceildiv
 /* unfortunately this fails miserably if x+y-1 overflows */

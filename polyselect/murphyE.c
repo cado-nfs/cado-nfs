@@ -47,6 +47,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "rho.h"
 #include "murphyE.h"
 #include "double_poly.h"
+#include "mpz_poly.h"
 
 double
 MurphyE (cado_poly_srcptr cpoly, double Bf, double Bg, double area, int K,

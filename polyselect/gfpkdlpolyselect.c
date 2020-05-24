@@ -13,13 +13,14 @@
 
 #include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
+#include <stdlib.h> // abort free
+#include <math.h>       // log
 
-#include "area.h"
 #include "auxiliary.h"
 #include "gfpkdlpolyselect.h"
 #include "gmp_aux.h"
 #include "lll.h"        // mat_Z, LLL
-#include "murphyE.h"
+#include "macros.h"     // ASSERT
 #include "rootfinder.h"
 #include "ropt_param.h"
 

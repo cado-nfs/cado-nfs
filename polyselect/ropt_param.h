@@ -2,9 +2,6 @@
 #define ROPT_PARAM_H
 
 
-#include "ropt_str.h"
-
-
 /* -------------------------
    perhaps no need to change
    ------------------------- */

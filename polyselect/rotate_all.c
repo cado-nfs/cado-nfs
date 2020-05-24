@@ -3,7 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "area.h"
+#include <float.h> // DBL_MAX
+#include <gmp.h>                // for mpz_t, mpz_clear, mpz_init, mpz_submu...
+#include <stdint.h>             // for uint32_t
+#include "cado_poly.h"          // for cado_poly_init, cado_poly_read, cado_...
+#include "macros.h"             // for ASSERT_ALWAYS
+#include "mpz_poly.h"           // for mpz_poly_s, mpz_poly, mpz_poly_discri...
 #include "auxiliary.h" /* for common routines with polyselect.c */
 #include "gmp_aux.h"    // ulong_isprime
 #include "mod_ul.h"     // modulusul_t

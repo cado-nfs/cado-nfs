@@ -22,8 +22,8 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-#include <float.h>  /* for DBL_MAX */
-#include <string.h>
+#include <stdio.h>      // FILE
+#include <gmp.h>
 #include "cado_poly.h"
 #include "mpz_poly.h"
 

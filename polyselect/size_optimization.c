@@ -2,12 +2,15 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>     // memset
 #include <math.h>
+#include <float.h>
 #include "auxiliary.h"
 #include "gcd.h"        // gcd_uint64
 #include "lll.h"        // mat_Z, LLL
 #include "size_optimization.h"
 #include "double_poly.h"
+#include "macros.h" // ASSERT_ALWAYS
 
 
 /******************************************************************************/

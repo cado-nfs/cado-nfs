@@ -1,14 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <stdio.h>          // for asprintf, fprintf, perror, snprintf, fclose
+#include <sys/stat.h>   // mkdir
 #include <unistd.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include <stdint.h>
 #include <errno.h>
 #include <limits.h>
-#include <unistd.h>
 #include <ctype.h>
 #ifdef HAVE_LINUX_BINFMTS_H
 /* linux/binfmts.h defines MAX_ARG_STRLEN in terms of PAGE_SIZE, but does not
@@ -24,8 +22,7 @@
 
 #include "macros.h"
 #include "misc.h"
-#include "typecast.h"
-#include "portability.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
 
 /* Wrapper around sysconf(ARG_MAX) that deals with availability of sysconf()
    and additional constraints on command line length */

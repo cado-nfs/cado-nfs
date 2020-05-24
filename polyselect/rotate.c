@@ -3,8 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <gmp.h>
 #include "auxiliary.h" /* for common routines with polyselect.c */
 #include "area.h"
+#include "cado_poly.h"
+#include "mpz_poly.h"
 
 static void usage_and_die(char *argv0) {
     fprintf(stderr, "usage: %s [-area a] [-I nnn] [-Bf b] [-Bg c] [-skew s] poly j k\n", argv0);

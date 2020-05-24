@@ -28,7 +28,11 @@
  */
 #include <stdbool.h>    // bool
 #include <stdio.h>
+#include <stdlib.h>     // malloc ...
+#include <stdint.h>     // uint64_t
 #include <limits.h> /* for CHAR_BIT */
+#include <float.h> // DBL_MAX
+#include <math.h> // sqrt
 #include <gmp.h>
 #include "omp_proxy.h"
 #include "gcd.h"       // for gcd_ul
@@ -40,12 +44,14 @@
 #include "timing.h"             // for seconds
 #include "usp.h"        // usp_root_data
 #include "verbose.h"             // verbose_output_print
-#include "portability.h"
+#include "portability.h"        // lrand48      // IWYU pragma: keep
 #include "cado_poly.h"
 #include "auxiliary.h"
 #include "polyselect_str.h"
 #include "polyselect_arith.h"
 #include "modredc_ul.h"
+#include "macros.h" // ASSERT
+#include "params.h"
 
 #define INIT_FACTOR 8UL
 #define PREFIX_HASH
@@ -1157,7 +1163,7 @@ collision_on_each_sq ( header_t header,
 #undef INSERT_2I
 #undef INSERT_I
 
-  for (i = 0; i < SHASH_NBUCKETS; i++) assert (H->current[i] <= H->base[i+1]);
+  for (i = 0; i < SHASH_NBUCKETS; i++) ASSERT (H->current[i] <= H->base[i+1]);
 
   found = shash_find_collision (H);
 

@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <limits.h>
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

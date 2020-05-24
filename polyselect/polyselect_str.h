@@ -1,16 +1,13 @@
 #ifndef POLYSELECT_STR_H
 #define POLYSELECT_STR_H
 
+#include <stdint.h>     // int64_t
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <math.h>
 #include <inttypes.h>
 #include <gmp.h>
-#include <pthread.h>
 #include <limits.h> /* for ULONG_MAX */
-#include "auxiliary.h"
-#include "murphyE.h"
+#include "macros.h"     // LIKELY
 
 #if ULONG_MAX == 4294967295UL
 #define LEN_SPECIAL_Q 57

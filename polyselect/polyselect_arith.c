@@ -1,4 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
+#include <stdio.h> // fprintf
+#include <stdlib.h>     // exit free malloc
 #include "polyselect_arith.h"
 #include "polyselect_str.h"
 #include "roots_mod.h"

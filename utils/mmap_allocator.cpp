@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <string>       // std::string
+#include <exception>    // std::terminate
 
 #include <sys/mman.h>  // for PROT_READ, mmap, munmap, MAP_SHARED, PROT_WRITE
 #include <sys/stat.h>  // for fstat, stat

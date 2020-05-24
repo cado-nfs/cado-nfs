@@ -17,7 +17,16 @@
 
 
 #include "cado.h" // IWYU pragma: keep
+#include <stdio.h>      // fprintf stderr
+#include <stdlib.h>     // free malloc
+#include <gmp.h>
+#include "auxiliary.h"  // rotate_aux
 #include "ropt_quadratic.h"
+#include "ropt_linear.h" // ropt_call_sieve
+#include "ropt_param.h" // TUNE_LOGNORM_INCR ...
+#include "ropt_stage1.h" // ropt_stage1
+#include "ropt_str.h" // ropt_poly_t
+#include "ropt_tree.h" // alpha_pq
 #include "ropt.h"
 #include "timing.h"             // for seconds_thread
 

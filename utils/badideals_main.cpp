@@ -1,10 +1,20 @@
 #include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <memory>
+// iwyu wants it for allocator_traits<>::value_type, which seems weird
 #include <iostream>
-#include <sstream>
-#include <fstream>
+#include <sstream>      // ostringstream // IWYU pragma: keep
+#include <fstream>      // ofstream // IWYU pragma: keep
 #include <iterator>
 #include <algorithm>
+#include <string>
+#include <vector>
+#include <cstdio> // fprintf
+#include <cstdlib>        // exit
+#include <gmp.h>        // mpz_
 #include "badideals.hpp"
+#include "cxx_mpz.hpp"
+#include "mpz_poly.h"
 #include "params.h"
 #include "cado_poly.h"
 #include "sm_utils.h"

@@ -9,8 +9,6 @@ gpf_get(0) = 0, gpf_get(1) = 1.
 
 */
 
-#include "macros.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -5,7 +5,11 @@
 
 
 #include "cado.h" // IWYU pragma: keep
+#include <stdio.h>      // fprintf stderr
+#include <math.h>       // ceil
+#include <stdlib.h>       // exit
 #include "mod_ul.h"
+#include "macros.h"     // ASSERT
 #include "ropt_arith.h"
 
 

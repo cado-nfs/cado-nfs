@@ -1,9 +1,8 @@
 #ifndef ROPT_STAGE1_H
 #define ROPT_STAGE1_H
 
-#include "ropt_param.h"
-#include "ropt_tree.h"
-#include "ropt_arith.h"
+#include "ropt_str.h"    // ropt_param_t ropt_bound_t ...
+#include "ropt_tree.h" // alpha_pq
 
 
 #ifdef __cplusplus

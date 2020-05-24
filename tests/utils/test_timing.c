@@ -1,5 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
+#include <stdlib.h>     // exit
 #include <stdint.h>
 #include <inttypes.h>
 #include <pthread.h>
