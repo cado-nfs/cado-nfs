@@ -6,7 +6,6 @@
 #include <iostream>     // std::cout
 #include <limits>
 #include <list>
-#include <map>
 #include <memory>              // for allocator_traits<>::value_type, unique...
 #include <sstream>      // std::ostringstream // IWYU pragma: keep
 #include <stdexcept>
@@ -1446,6 +1445,7 @@ void renumber_t::read_from_file(const char * filename)
     read_table(is);
 }
 
+#if 0
 void renumber_t::read_bad_ideals_info(std::istream & is)
 {
     std::ios_base::fmtflags ff = is.flags();
@@ -1496,6 +1496,7 @@ void renumber_t::read_bad_ideals_info(std::istream & is)
     above_all = above_cache = above_bad;
     is.flags(ff);
 }
+#endif
 
 std::string renumber_t::debug_data(index_t i) const
 {
@@ -1701,7 +1702,7 @@ void renumber_t::builder::preprocess(prime_chunk & P)/*{{{*/
                 roots.push_back(p);
 
             /* take off bad ideals from the list, if any. */
-            if (p <= R.get_max_bad_p()) { /* can it be a bad ideal ? */
+            if (p <= R.bad_ideals_max_p) { /* can it be a bad ideal ? */
                 for (size_t i = 0; i < roots.size() ; i++) {
                     unsigned long r = roots[i];
                     if (!R.is_bad(p, r, side))

@@ -66,6 +66,10 @@ struct renumber_t {
     };/*}}}*/
 
     /* The various known formats are documented in renumber.cpp */
+    /* It's public because some of the static functions in renumber.cpp
+     * access these. But really, this stuff should be considered
+     * implementation-only.
+     */
     static constexpr const int format_traditional = 20130603;
     static constexpr const int format_variant = 20199999;
     static constexpr const int format_flat = 20200515;
@@ -108,6 +112,7 @@ private:/*{{{ internal data fields*/
     index_t above_cache = 0;
     index_t above_all = 0;
 /*}}}*/
+
 public:
     /* various accessors {{{*/
     inline int get_format() const { return format; }
@@ -116,7 +121,6 @@ public:
     inline unsigned int get_min_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
     inline uint64_t get_size() const { return above_all; }
     inline unsigned int get_nb_polys() const { return cpoly->nb_polys; }
-    inline p_r_values_t get_max_bad_p() const { return bad_ideals_max_p; }
     inline mpz_poly_srcptr get_poly(int side) const { return cpoly->pols[side]; }
     inline int get_poly_deg(int side) const { return get_poly(side)->deg; }
     inline int get_rational_side() const {
@@ -127,7 +131,6 @@ public:
     }
     inline index_t get_max_index() const { return above_all; }
     inline index_t get_max_cached_index() const { return above_cache; }
-    inline p_r_values_t get_cached_primes_bound() const { return index_from_p_cache.size(); }
     inline index_t number_of_additional_columns() const { return above_add; }
     std::vector<int> get_sides_of_additional_columns() const;
     inline index_t number_of_bad_ideals() const { return above_bad - above_add; }
@@ -153,30 +156,10 @@ public:
         ASSERT_ALWAYS(x.size() == lpb.size());
         lpb = x;
     }
-    void use_additional_columns_for_dl();
-    void set_format(int);
-    void compute_bad_ideals();
-    void compute_bad_ideals_from_dot_badideals_hint(std::istream&, unsigned int = UINT_MAX);
-
-    void write_header(std::ostream& os) const;
-    void write_bad_ideals(std::ostream& os) const;
-/*}}}*/
+    /*}}}*/
 
     /*{{{ reading the table */
-    void read_header(std::istream& os);
-    void read_bad_ideals(std::istream& is);
-    /* transitory, for interface that produces renumber file in legacy
-     * format.
-     */
-    void read_bad_ideals_info(std::istream & is);
-    /* there's no write_table, because writing the table is done by
-     * the build() function (called from freerel)
-     */
-    void read_table(std::istream& is);
-
     void read_from_file(const char * filename);
-    // renumber_t(const char *);
-    // renumber_t(const char *, const char *);
     /*}}}*/
 
     /*{{{ most important outer-visible routines: lookups */
@@ -257,6 +240,21 @@ public:
     /*}}}*/
 
 private:/*{{{ more implementation-level stuff. */
+    void read_header(std::istream& os);
+    void read_bad_ideals(std::istream& is);
+    /* there's no write_table, because writing the table is done by
+     * the build() function (called from freerel) */
+    void read_table(std::istream& is);
+    void compute_bad_ideals();
+    void compute_bad_ideals_from_dot_badideals_hint(std::istream&, unsigned int = UINT_MAX);
+    void write_header(std::ostream& os) const;
+    void write_bad_ideals(std::ostream& os) const;
+    /* these two could be made public, I believe. The public way to do
+     * the same is to use the param_list argument to build()
+     */
+    void use_additional_columns_for_dl();
+    void set_format(int);
+
     unsigned int needed_bits() const;
     /* this returns an index i such that data[i - above_bad] points to
      * the beginning of data for p. Note that in the
