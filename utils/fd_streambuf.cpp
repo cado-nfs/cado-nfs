@@ -13,6 +13,8 @@ fd_streambuf::fd_streambuf(int d) : fd_(d), readBuf(0), writeBuf(0)
 
 fd_streambuf::~fd_streambuf()
 {
+    if (writeBuf) { delete[] writeBuf; writeBuf = 0; }
+    if (readBuf) { delete[] readBuf; readBuf = 0; }
     if (fd_ < 0) return;
     close();
 }
