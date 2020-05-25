@@ -60,7 +60,7 @@ filter/CMakeLists.txt
 filter/Makefile
 filter/filter_config.h
 filter/dup1.c
-filter/dup2.cpp
+filter/dup2.c
 filter/merge_replay_matrix.c
 filter/merge_replay_matrix.h
 filter/purge_matrix.c
