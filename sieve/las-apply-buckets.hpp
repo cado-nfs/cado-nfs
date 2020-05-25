@@ -3,7 +3,11 @@
 
 #include "macros.h"
 #include "bucket.hpp"
+#include "cado-endian.h"
 #include "las-where-am-i.hpp"      // for where_am_I, WHERE_AM_I_UPDATE
+#ifdef HAVE_SSE2
+#include <emmintrin.h>
+#endif
 
 /* {{{ apply_buckets */
 template <typename HINT>
@@ -83,21 +87,22 @@ apply_one_bucket (unsigned char *S,
       x7 = ((uint64_t *) it)[7];
       it += 16;
       __asm__ __volatile__ (""); /* To be sure all x? are read together in one operation */
-#ifdef CADO_LITTLE_ENDIAN
+#if defined(CADO_LITTLE_ENDIAN)
 #define INSERT_2_VALUES(X) do {						\
 	(X) >>= 16; x = (uint16_t) (X);					\
 	WHERE_AM_I_UPDATE(w, x, x); sieve_increase(S + x, logp, w);	\
 	(X) >>= 32;							\
 	WHERE_AM_I_UPDATE(w, x, X); sieve_increase(S + (X), logp, w);	\
       } while (0);
-#else
+#elif defined(CADO_BIG_ENDIAN)
 #define INSERT_2_VALUES(X) do {						\
 	x = (uint16_t) (X);						\
 	WHERE_AM_I_UPDATE(w, x, x); sieve_increase(S + x, logp, w);	\
 	(X) >>= 32; x = (uint16_t) (X);					\
 	WHERE_AM_I_UPDATE(w, x, x); sieve_increase(S + x, logp, w);	\
       } while (0);
-
+#else
+#error "You must #include \"cado-endian.h\""
 #endif
       INSERT_2_VALUES(x0);
       INSERT_2_VALUES(x1);
