@@ -18,7 +18,9 @@
 #include "ecm/batch.hpp"               // for cofac_list
 #include "ecm/facul.hpp"                   // for facul_strategies_t
 #include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
+#ifdef HAVE_HWLOC
 #include "hwloc-aux.h"
+#endif
 #include "las-bkmult.hpp"              // for bkmult_specifier, bkmult_speci...
 #include "las-cofactor.hpp"            // for cofactorization_statistics
 #include "las-dlog-base.hpp"
