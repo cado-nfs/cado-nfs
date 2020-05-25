@@ -1,5 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 #include <inttypes.h>
+#include <limits.h> // ULONG_MAX
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
