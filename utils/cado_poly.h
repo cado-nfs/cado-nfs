@@ -1,11 +1,12 @@
 #ifndef CADO_POLY_H_
 #define CADO_POLY_H_
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <stdio.h>      // FILE
 #include <gmp.h>
 
+#ifdef __cplusplus
 #include "params.h"
+#endif
 #include "mpz_poly.h"
 
 /* The maximum degree of polynomials supported. Used for statically 

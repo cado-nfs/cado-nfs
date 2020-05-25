@@ -9,6 +9,7 @@
 
 #include <gmp.h>               // for gmp_vfprintf, mpz_srcptr, mpz_import
 
+#include "cxx_mpz.hpp"
 #include "las-auxiliary-data.hpp"
 
 #include "macros.h"            // for ASSERT_ALWAYS_NOTHROW
@@ -17,7 +18,7 @@
 #include "las-todo-entry.hpp"  // for las_todo_entry
 #include "tdict.hpp"           // for timetree_t, slot, global_enable, slot_...
 #include "ularith.h"           // for ularith_addmod_ul_ul
-
+#include "verbose.h"
 
 void
 sieve_checksum::update(const unsigned int other)

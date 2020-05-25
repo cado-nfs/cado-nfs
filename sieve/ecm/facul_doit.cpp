@@ -8,7 +8,8 @@
  * detection script will insist on seeing this include, and it doesn't do
  * any harm
  */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdlib.h>
 
 #ifndef FACUL_DOIT_READY_TO_INCLUDE_IMPL_CODE
 #error "This file must not be used as a standalone compilation unit"
@@ -22,6 +23,7 @@
 #include "mpqs.h"
 #include "cxx_mpz.hpp"
 #include "mod_ul.h"
+#include "macros.h"
 
 #ifdef ENABLE_UNSAFE_FACUL_STATS
 extern unsigned long stats_called[];

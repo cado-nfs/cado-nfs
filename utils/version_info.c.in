@@ -1,5 +1,5 @@
-#include "cado.h"
-#include "version_info.h"
+#include "cado.h" // IWYU pragma: keep
+#include "version_info.h" // IWYU pragma: keep
 
 /* CADO_REV indicates the scm-level revision */
 const char * cado_revision_string = "@CADO_REV@";

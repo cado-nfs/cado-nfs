@@ -1,8 +1,11 @@
 #ifndef BLOCKMATRIX_HPP_
 #define BLOCKMATRIX_HPP_
 
+#include <stddef.h>             // for NULL
+#include <stdint.h>             // for uint64_t
+#include <utility>              // for swap
+#include "bblas.hpp"      // for mat64
 #include "macros.h"
-#include "bblas.hpp"
 #include "submatrix_range.hpp"
 
 /* This interface is old. We most probably want to use bpack<mat64>

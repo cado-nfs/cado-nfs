@@ -1,10 +1,16 @@
 #ifndef LAS_SMALLSIEVE_GLUE_HPP_
 #define LAS_SMALLSIEVE_GLUE_HPP_
 
+#include <cstdio>
+#include <climits>
+#include "las-forwardtypes.hpp"         // spos_t
+#include "fb-types.h"                   // fbprime_t
 #include "las-smallsieve-lowlevel.hpp"
+#include "las-smallsieve-types.hpp"
 
 #ifdef HAVE_SSE2
 #include <x86intrin.h>
+#include "macros.h"
 #endif
 
 /* generated code for small sieve critical routine. */

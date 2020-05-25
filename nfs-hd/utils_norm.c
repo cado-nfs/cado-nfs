@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -8,6 +8,8 @@
 #include "mat_int64.h"
 #include <float.h>
 #include <limits.h>
+#include <gmp.h>
+#include "macros.h"
 
 #define NORM_TOLERANCE_NFSHD 4
 #define RAND_SEED 42

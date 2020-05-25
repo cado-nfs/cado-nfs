@@ -1,8 +1,19 @@
-#include "cado.h"
-#include "relation.hpp"
+#include "cado.h" // IWYU pragma: keep
+#include <cinttypes>        // for PRId64, PRIu64
+#include <cstdint>          // for uint64_t, uint8_t
+#include <cstring>          // for strcmp
+#include <cstdio>
+#include <cstdlib>
+#include <memory>            // for allocator_traits<>::value_type
+#include <vector>            // for vector
+#include <gmp.h>
+#include "cxx_mpz.hpp"       // for cxx_mpz
+#include "gmp_aux.h"         // for mpz_set_int64, mpz_set_uint64
+#include "portability.h" // lrand48 // IWYU pragma: keep
 #include "relation-tools.h"
+#include "relation.hpp"
 #include "tests_common.h"
-#include "portability.h"
+#include "typedefs.h"        // for PRpr
 
 unsigned long
 mpz_compute_r (mpz_t a, mpz_t b, mpz_t p)

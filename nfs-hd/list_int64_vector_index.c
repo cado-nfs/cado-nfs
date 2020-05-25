@@ -1,5 +1,8 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>
+#include <stdlib.h>
 #include "list_int64_vector_index.h"
+#include "macros.h"
 
 void list_int64_vector_index_init(list_int64_vector_index_ptr list,
     unsigned int vector_dim)

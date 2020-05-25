@@ -16,6 +16,7 @@
 #include "modredc_15ul.h"  // for modredc15ul_clearmod, modredc15ul_initmod_int
 #include "modredc_2ul2.h"  // for modredc2ul2_clearmod, modredc2ul2_initmod_int
 #include "modredc_ul.h"    // for modredcul_clearmod, modredcul_initmod_ul
+#include "params.h"
 
 void cofactorization_statistics::declare_usage(cxx_param_list & pl)
 {

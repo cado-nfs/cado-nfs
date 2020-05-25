@@ -13,6 +13,7 @@
 #include <sstream>                // IWYU pragma: keep
 #include <utility>                // for swap, pair
 #include <gmp.h> // IWYU pragma: keep // for gmp_vfprintf, mpz_srcptr, ...
+#include "cxx_mpz.hpp"
 #include "las-norms.hpp"
 #include "fb-types.h"             // for sublat_t
 #include "las-config.h"           // for LOG_BUCKET_REGION, LOGNORM_GUARD_BITS
@@ -20,6 +21,7 @@
 #include "las-todo-entry.hpp"     // for las_todo_entry
 #include "rho.h"        // dickman_rho_local
 #include "verbose.h"    // verbose_output_print
+#include "macros.h"
 
 using namespace std;
 

@@ -2,7 +2,8 @@
 #define MST_H_
 
 #include "filter_config.h"
-#include "merge_replay_matrix.h"
+#include "sparse.h"
+#include "typedefs.h"
 
 #ifdef __cplusplus
 extern "C" {

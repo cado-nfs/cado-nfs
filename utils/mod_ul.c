@@ -1,11 +1,11 @@
-#include "cado.h"
-#include <stdio.h>
+#include "cado.h" // IWYU pragma: keep
 #include "mod_ul.h"
 #include "mod_ul_default.h"
 
 #include "mod_ul_common.c"
 
 #include "modredc_ul.h"
+#include "macros.h"
 
 
 /* Put 1/s (mod t) in r and return 1 if s is invertible, 

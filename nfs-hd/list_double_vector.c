@@ -1,7 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>
+#include <stdlib.h>
 #include "int64_vector.h"
 #include "mat_int64.h"
 #include "list_double_vector.h"
+#include "macros.h"
 
 void list_double_vector_init(list_double_vector_ptr list)
 {

@@ -1,5 +1,6 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <inttypes.h>
+#include <limits.h> // ULONG_MAX
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,7 @@
 #ifndef WANT_MAIN
 #include "random_matrix.h"
 #include "balancing.h"
+#include "params.h"
 #endif
 
 /* The random generation works as follows.

@@ -4,7 +4,10 @@
 #include "tab_decomp.h"
 #include "tab_strategy.h"
 #include "tab_point.h"
-#include "convex_hull.h"
+#include "decomp.h"
+#include "fm.h"
+#include "tab_fm.h"
+#include "strategy.h"
 
 #ifdef __cplusplus
 extern "C" {

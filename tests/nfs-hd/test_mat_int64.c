@@ -1,6 +1,7 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "mat_int64.h"
 #include "timing.h"
+#include "macros.h"
 
 int main()
 {

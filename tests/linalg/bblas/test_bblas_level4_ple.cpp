@@ -1,11 +1,21 @@
-#include "cado.h"
-#include "test_bblas_level4.hpp"
-#include "bblas_level4_ple_internal.hpp"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include "bblas_mat8.hpp"
+#include <cstdio>                // for printf
 #include <cstdint>
-#include <cstring>
 #include <algorithm>
+#include <map>                    // for map
+#include <string>                 // for basic_string, string
+#include <utility>                // for pair
+#include <vector>                 // for vector
+#include <gmp.h>                  // for gmp_urandomm_ui, mpz_clear, mpz_div...
+#include "bblas_bitmat.hpp"       // for bitmat<>::vector_type, bitmat
+#include "bblas_level4_ple_internal.hpp"
+#include "bpack.hpp"              // for bpack, bpack_view, bpack_const_view
+#include "gmp_aux.h"              // for mpz_get_uint64, memfill_random
+#include "macros.h"               // for ASSERT_ALWAYS
+#include "test_bblas_base.hpp"    // for test_bblas_base, test_bblas_base::t...
 #include "time_bblas_common.hpp"
-#include "bblas_mat8.hpp"
+#include "test_bblas_level4.hpp"
 
 template<typename T>
 int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*/

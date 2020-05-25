@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>   /* for _O_BINARY */
@@ -8,6 +8,7 @@
 #include "cado_poly.h"  // cado_poly
 #include "gzip.h"       // fopen_maybe_compressed
 #include "verbose.h"   // verbose_interpret_parameters
+#include "macros.h"
 
 char *argv0; /* = argv[0] */
 

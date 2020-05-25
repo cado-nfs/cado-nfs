@@ -1,7 +1,10 @@
-#include "cado.h"
-#include <time.h>
+#include "cado.h" // IWYU pragma: keep
+#include <stdlib.h>
+#include <gmp.h>
 #include "tests_common.h"
 #include "cado_poly.h"
+#include "mpz_poly.h"
+#include "macros.h"
 
 void
 test_cado_poly_set ()

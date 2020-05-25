@@ -1,10 +1,9 @@
-#include "cado.h"
-
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-
+#include "fm.h"            // for fm_set_method, fm_set_proba, fm_set_time
+#include "strategy.h"      // for strategy_t, strategy_add_fm, strategy_free
+#include "tab_fm.h"        // for tabular_fm_get_fm, tabular_fm_t
 #include "tab_strategy.h"
 #include "macros.h"
 

@@ -19,26 +19,40 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* the following should come after cado.h, which sets -Werror=all */
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>       // for PRIu64
+#include <stdint.h>         // for uint64_t, int32_t, int64_t, uint32_t
+#include <string.h>         // for memset, memcpy, strlen
+#ifdef HAVE_MINGW
 #include <fcntl.h>         /* for _O_BINARY */
-#include "filter_config.h" /* for definition of USE_HEAP */
+#endif
+#include "filter_config.h" // USE_HEAP
 #include "filter_io.h"  // earlyparsed_relation_ptr
-#include "params.h"     // param_list_parse_*
-#include "typedefs.h"  // weight_t
-#include "misc.h"       // UMAX
+#ifdef FOR_DL
+#include "gcd.h"
+#endif
+#include "gzip.h"       // fopen_maybe_compressed
+#include "macros.h"
 #include "memory.h"             // malloc_aligned
 #include "memusage.h"   // PeakMemusage
-#include "gcd.h"        // gcd_int64
-#include "gzip.h"       // fopen_maybe_compressed
-#include "timing.h"  // seconds
-#include "verbose.h"    // verbose_interpret_parameters
+#include "misc.h"       // UMAX
+#include "mst.h"
 #include "omp_proxy.h"    // verbose_interpret_parameters
+#include "params.h"     // param_list_parse_*
+#include "purgedfile.h"     // for purgedfile_read_firstline
+#include "report.h"     /* for report_t */
+#include "sparse.h"
+#include "timing.h"  // seconds
+#include "transpose.h"
+#include "typedefs.h"  // weight_t
+#include "verbose.h"    // verbose_interpret_parameters
+
 
 int pass = 0;
 
@@ -76,13 +90,6 @@ unsigned long cancel_cols[CANCEL_MAX] = {0,};
 #define CBOUND_INCR 31
 #endif
 
-
-#include "filter_config.h"
-#include "merge_replay_matrix.h" /* for filter_matrix_t */
-#include "report.h"     /* for report_t */
-#include "sparse.h"
-#include "mst.h"
-#include "transpose.h"
 
 /* Note about variables used in the code:
  * cwmax is the (current) maximal weight of columns that will be considered
@@ -469,9 +476,9 @@ declare_usage(param_list pl)
   param_list_decl_usage(pl, "mat", "input purged file");
   param_list_decl_usage(pl, "out", "output history file");
   param_list_decl_usage(pl, "skip", "number of heavy columns to bury (default "
-				    STR(DEFAULT_MERGE_SKIP) ")");
+				    CADO_STRINGIZE(DEFAULT_MERGE_SKIP) ")");
   param_list_decl_usage(pl, "target_density", "stop when the average row density exceeds this value"
-			    " (default " STR(DEFAULT_MERGE_TARGET_DENSITY) ")");
+			    " (default " CADO_STRINGIZE(DEFAULT_MERGE_TARGET_DENSITY) ")");
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "t", "number of threads");

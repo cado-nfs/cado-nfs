@@ -1,13 +1,9 @@
 #ifndef CADO_UTILS_MISC_H_
 #define CADO_UTILS_MISC_H_
 
+#include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM, ULONGLONG_...
 #include <stddef.h>
 #include <stdint.h>
-#include <stdarg.h>
-#include <limits.h>
-#include <errno.h>
-#include <string.h>
-#include <gmp.h>
 #ifdef __cplusplus
 #include <type_traits>
 #include <string>

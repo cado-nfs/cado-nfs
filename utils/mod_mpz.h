@@ -1,7 +1,6 @@
 #ifndef MOD_MPZ_H
 #define MOD_MPZ_H
 
-#include <assert.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>

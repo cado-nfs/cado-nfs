@@ -1,11 +1,13 @@
 /* auxiliary routines on GMP data-types */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
 #include <limits.h>     /* for INT_MAX */
+#include <gmp.h>
 #include "gmp_aux.h"
-#include "macros.h"
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
+#include "macros.h"    // for ASSERT_ALWAYS // IWYU pragma: keep
 
 /* old versions of GMP do not provide mpn_neg (was mpn_neg_n) and mpn_xor_n */
 #if !GMP_VERSION_ATLEAST(5,0,0)

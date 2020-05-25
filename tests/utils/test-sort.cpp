@@ -1,13 +1,14 @@
-#include "cado.h"
-#include <cstddef>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
 #include <cstdlib>
 #include <cstdio>
-#include <cfloat> /* for DBL_MAX */
 #include <ctime>
 #include <string>
+#include <utility>  // for pair, swap
 #include <vector>
 #include <functional>
 #include <algorithm>
+#include <sys/time.h>
 #include "macros.h"
 #include "iqsort.h"
 

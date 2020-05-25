@@ -1,4 +1,8 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdint.h>        // for uint64_t
+#include <stdlib.h>        // for EXIT_FAILURE, EXIT_SUCCESS
+#include <string.h>        // for memcmp
+#include <stdio.h>
 #define BL_TESTING
 #include "blocklanczos.cpp"
 

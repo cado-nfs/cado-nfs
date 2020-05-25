@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* MPFQ generated file -- do not edit */
 
 #include "mpfq_m128_t.h"

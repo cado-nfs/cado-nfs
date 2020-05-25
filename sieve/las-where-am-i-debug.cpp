@@ -30,6 +30,7 @@
 
 #include <gmp.h>                         // for gmp_vfprintf, mpz_divexact_ui
 
+#include "cxx_mpz.hpp"
 #include "las-where-am-i.hpp"
 #include "las-where-am-i-debug.hpp"
 
@@ -42,6 +43,7 @@
 #include "las-where-am-i-proxy.hpp"           // for where_am_I, where_am_I::pimpl_t
 #include "macros.h"                      // for ASSERT_ALWAYS
 #include "verbose.h"    // verbose_output_print
+#include "params.h"
 
 int extern_trace_on_spot_ab(int64_t a, uint64_t b) {
     return trace_on_spot_ab(a, b);

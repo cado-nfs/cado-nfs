@@ -1,10 +1,11 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #define _GNU_SOURCE
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <assert.h>
+#include <stdlib.h>
+#include <gmp.h>
 #include "gmp_aux.h"    // mpn_rrandom
 #include "flint-fft/fft.h"
 #include "portability.h"
@@ -446,7 +447,7 @@ int test_mp_fppol(gmp_randstate_t rstate)/*{{{*/
      */
     cz = cy;
     cy = cx + cz - 1;
-    assert(cy >= cx);
+    ASSERT(cy >= cx);
     fprintf(stderr, "/* MP(degree %d, degree %d) -> degree %d */\n",
             cx - 1, cy - 1, cz - 1);
 

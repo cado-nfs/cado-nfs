@@ -4,10 +4,14 @@
   separated by a newline.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <float.h> // for DBL_MAX
 #include <stdio.h>
 #include <stdlib.h>
 #include "auxiliary.h"
+#include "cado_poly.h"
+#include "mpz_poly.h"
+#include "params.h"
 #include "size_optimization.h"
 #include "usp.h"        // numberOfRealRoots
 #include "verbose.h"             // verbose_decl_usage

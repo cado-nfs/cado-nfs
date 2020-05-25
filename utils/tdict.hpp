@@ -1,13 +1,15 @@
 #ifndef TDICT_HPP_
 #define TDICT_HPP_
 
-#include <ostream>
 #include <map>
 #include <string>
 #include <sstream>
 #include <pthread.h>
-#include "params.h"
 #include "timing.h"
+#include <cstddef>   // for NULL
+#include <utility>    // for pair
+#include "macros.h"   // for ASSERT_ALWAYS, CADO_CONCATENATE3, MAYBE_UNUSED
+struct cxx_param_list;
 
 /* Uncomment this flag if you believe that the fine-grain -T timings
  * negatively impact the performance */

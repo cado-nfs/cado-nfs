@@ -1,6 +1,10 @@
 #ifndef TEST_BBLAS_LEVEL5_HPP_
 #define TEST_BBLAS_LEVEL5_HPP_
 
+#include <stdio.h>              // for printf
+#include <set>                  // for set
+#include <string>               // for string, operator<
+#include <vector>               // for vector
 #include "test_bblas_base.hpp"
 
 struct test_bblas_level5 : public test_bblas_base

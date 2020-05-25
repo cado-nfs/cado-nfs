@@ -1,6 +1,11 @@
 #ifndef PERM_MATRIX_HPP_
 #define PERM_MATRIX_HPP_
 
+// IWYU pragma: private, include "bblas.hpp"
+// IWYU pragma: friend ".*/bblas.*"
+
+#include "bblas_mat64.hpp"
+
 /* We probably want this interface to disappear. A vector of int's should
  * do just equally well.
  */

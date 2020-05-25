@@ -10,6 +10,7 @@ set (sources
         barrier.c usp.c fix-endianness.c memusage.c
         cachesize_cpuid.c cachesize_guess.c roots_mod.c mod_mpz.c
         renumber.cpp
+        renumber_proxy.cpp
         ringbuf.c sm_utils.c galois_utils.c memalloc.c 
 	mpz_vector.c memory.c stats.c lll.c
         verbose.c 

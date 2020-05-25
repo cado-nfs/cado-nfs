@@ -1,5 +1,5 @@
 /* Main function to invoke cachesize_guess() or cachesize_cpuid() */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include "version_info.h"

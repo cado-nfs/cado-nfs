@@ -1,12 +1,8 @@
-#include "cado.h"
-
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>              /* for _O_BINARY */
-#include <errno.h>
-#include <math.h>
-#include <string.h>
-
+#include "fm.h"      // for fm_set_proba, fm_set_method, fm_set_time, fm_free
 #include "macros.h"
 #include "tab_fm.h"
 

@@ -1,6 +1,8 @@
 #ifndef POLYSELECT_ARITH_H
 #define POLYSELECT_ARITH_H
 
+#include <gmp.h>
+#include <stdint.h> // uint64_t
 #include "polyselect_str.h"
 
 /* declarations */

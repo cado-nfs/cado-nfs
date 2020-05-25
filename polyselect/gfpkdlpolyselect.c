@@ -11,15 +11,17 @@
  * \version 1: dedicated for GF(p^2).
  */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
+#include <stdlib.h> // abort free
+#include <math.h>       // log
+#include <gmp.h>
 
-#include "area.h"
 #include "auxiliary.h"
 #include "gfpkdlpolyselect.h"
 #include "gmp_aux.h"
 #include "lll.h"        // mat_Z, LLL
-#include "murphyE.h"
+#include "macros.h"     // ASSERT
 #include "rootfinder.h"
 #include "ropt_param.h"
 

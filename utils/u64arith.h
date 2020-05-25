@@ -11,6 +11,7 @@
 #define U64_ARITH_H__
 
 #include <stdint.h>
+#include <stdio.h>
 #include "macros.h"
 
 #if defined(HAVE_INT128)

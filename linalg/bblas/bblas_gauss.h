@@ -10,6 +10,9 @@ extern "C" {
 
 /* TODO: I'd like to deprecate this code and rely on block-level
  * operations only.
+ *
+ * for the moment, it's not marked an iwyu-private thing of bblas, since
+ * it should be regarded as an external piece of code, really.
  */
 
 /* Compute the right nullspace of the nrows times ncols matrix given by

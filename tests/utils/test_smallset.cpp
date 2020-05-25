@@ -1,7 +1,6 @@
-#include "cado.h"
-#include <cstdio>
-#include <string.h>
-#include "smallset.hpp"
+#include "cado.h" // IWYU pragma: keep
+#include "smallset.hpp" // IWYU pragma: keep
+#include "macros.h"
 
 #if defined(HAVE_SSE2) && GNUC_VERSION_ATLEAST(4,7,0)
 /* see utils/smallset.h */
@@ -17,15 +16,15 @@ test_smallset()
 
   if (SIZE == 0) {
     smallset<SIZE, ELEMENTTYPE> set(items, 0);
-    assert(!set.contains(0));
+    ASSERT(!set.contains(0));
   }
 
   for (size_t i = 1; i <= nr_items; i++) {
     smallset<SIZE, ELEMENTTYPE> set(items, i);
-    assert(set.contains(0));
-    assert(set.contains(i-1));
-    assert(!set.contains(i));
-    assert(set.contains(2) == (i > 2));
+    ASSERT(set.contains(0));
+    ASSERT(set.contains(i-1));
+    ASSERT(!set.contains(i));
+    ASSERT(set.contains(2) == (i > 2));
   }
 }
 

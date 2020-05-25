@@ -31,7 +31,6 @@ int mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p);
 #ifdef __cplusplus
 /* Some of the prototypes are available only from C++ */
 #include <vector>
-#include "cxx_mpz.hpp"
 
 /* instatiations are defined in rootfinder.cpp */
 template<typename T>

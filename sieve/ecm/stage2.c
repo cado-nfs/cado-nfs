@@ -2,13 +2,15 @@
    For given B1, B2 determines which value of d and pairs (i,j) to use
    so that the id+-j values cover the primes in ]B1, B2] */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "stage2.h"
 #include "gcd.h"       // gcd_ul
 #include "gmp_aux.h"    // nbits
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
+#include "macros.h"
 
 static inline int
 cmp_uint2 (const void *p, const void *q)

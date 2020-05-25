@@ -59,7 +59,7 @@ filter/CMakeLists.txt
 filter/Makefile
 filter/filter_config.h
 filter/dup1.c
-filter/dup2.cpp
+filter/dup2.c
 filter/merge_replay_matrix.c
 filter/merge_replay_matrix.h
 filter/purge_matrix.c
@@ -1266,7 +1266,6 @@ config/neon.cmake
 utils/multityped_array.hpp
 sieve/las-sieve-shared-data.cpp
 sieve/las-sieve-shared-data.hpp
-utils/cxx_misc.hpp
 config/glibc_vector_internals.cmake
 config/check_types.cmake
 config/posix_memalign.cmake
@@ -1567,3 +1566,6 @@ utils/badideals.hpp
 utils/badideals_main.cpp
 tests/utils/test-sort.cpp
 utils/omp_proxy.h
+config/iwyu.pl.in
+utils/renumber_proxy.cpp
+utils/renumber_proxy.h

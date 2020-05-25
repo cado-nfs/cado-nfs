@@ -7,14 +7,14 @@
 #define MODREDC64_HPP
 
 /**********************************************************************/
-#include <cassert>
-#include <climits>
+#include <cstdlib>       // for size_t, llabs, NULL
+#include <new>            // for operator new
 #include <cstdint>
 #include "macros.h"
 #include "u64arith.h"
 #include "modint.hpp"
 #include "mod_stdop.hpp"
-#include "macros.h"
+#include "macros.h"     // ASSERT MAYBE_UNUSED // IWYU pragma: keep
 
 
 class ModulusREDC64 {

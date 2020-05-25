@@ -1,6 +1,10 @@
 #ifndef TEST_BBLAS_LEVEL4_HPP_
 #define TEST_BBLAS_LEVEL4_HPP_
 
+#include <set>
+#include <string>
+#include <vector>
+
 #include "test_bblas_base.hpp"
 
 struct test_bblas_level4 : public test_bblas_base

@@ -1,11 +1,11 @@
-#include "cado.h"
-#include <stdlib.h>
+#include "cado.h" // IWYU pragma: keep
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <stdio.h>
 #include "tests_common.h"
 #include "verbose.h"
-#include "portability.h"
+#include "portability.h" // sleep // IWYU pragma: keep
 
 int verbose;
 volatile size_t conflict;

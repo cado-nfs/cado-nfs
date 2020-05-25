@@ -1,3 +1,4 @@
+#include "macros.h"
 #ifndef LUCAS_V_MOD_H_
 #define LUCAS_V_MOD_H_
 

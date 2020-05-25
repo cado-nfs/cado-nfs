@@ -3,10 +3,11 @@
  * for primes of a power p. It must be given an opaque structure, which
  * in fact is of type power_lookup_table
  */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
 #include <cstdlib>
 #include <cstdio>
+#include <utility>                 // pair
 #include <map>
 #include <gmp.h>
 #include <pthread.h>

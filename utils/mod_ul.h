@@ -10,11 +10,15 @@
 #ifndef MOD_UL_H
 #define MOD_UL_H
 
+#include "cado_config.h"  // just because we're a header.
 /**********************************************************************/
-#include <limits.h>
-#include <stdint.h>
-#include "macros.h"
-#include "ularith.h"
+#include <limits.h>       // for LONG_BIT, ULONG_MAX
+#include <stdint.h>       // for uint64_t, int64_t
+#include <stdlib.h>       // for size_t, llabs
+#include <stdio.h>
+#include "macros.h"       // for MAYBE_UNUSED, ASSERT_EXPENSIVE, ASSERT, ASS...
+#include "ularith.h"      // for ularith_mul_ul_ul_2ul, ularith_div_2ul_ul_ul_r
+
 
 /*********************************************************************/
 /* Helper macros, see also ularith.h */

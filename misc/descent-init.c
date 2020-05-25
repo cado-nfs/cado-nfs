@@ -30,11 +30,13 @@
 #include <stdlib.h>
 #include <values.h>
 #include <math.h>
-#include <assert.h>
 #include <sys/types.h>
 #include <sys/resource.h>
+#include <limits.h>
+#include <unistd.h>     // getpid
 #include <gmp.h>
 #include "ecm.h"
+#include "macros.h"
 #include "portability.h"
 
 #define KEEP 10 /* minimal number of elements in pool */
@@ -447,7 +449,7 @@ main (int argc, char *argv[])
         }
     }
 
-  assert (argc == 3);
+  ASSERT (argc == 3);
 
   for (i = 0; i < N; i++)
     {
@@ -522,7 +524,7 @@ main (int argc, char *argv[])
       while (S < Smax && (uprime == 0 || vprime == 0))
         {
           i = i + 1;
-	  assert (i < N);
+	  ASSERT (i < N);
           gain_u[i] = gain_u[i-1];
           gain_v[i] = gain_v[i-1];
           if (uprime == 0)

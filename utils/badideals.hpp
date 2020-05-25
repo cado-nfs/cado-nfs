@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <iosfwd>
-/* Do not include the portability.h bundle from here, since we're part of it ! */
+#include <gmp.h>        // for gmp_randstate_t
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
 

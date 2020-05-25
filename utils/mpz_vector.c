@@ -4,14 +4,14 @@
    We use them in twoquadractics and twocubics.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <gmp.h>
 #include "mpz_poly.h"
 #include "mpz_vector.h"
 #include "gmp_aux.h"       // mpz_set_uint64
+#include "macros.h" // ASSERT_ALWAYS
 
 
 void

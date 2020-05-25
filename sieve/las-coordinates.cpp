@@ -1,12 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
-
 #include <stdio.h>             // for fprintf, stderr
-
 #include <gmp.h>               // for mpz_clear, mpz_init, mpz_t, mpz_sgn
-
+#include "cxx_mpz.hpp"
+#include "gmp_aux.h"
 #include "las-coordinates.hpp"
-
-
 #include "las-config.h"        // for LOG_BUCKET_REGION
 #include "las-qlattice.hpp"    // for qlattice_basis
 #include "las-todo-entry.hpp"  // for las_todo_entry

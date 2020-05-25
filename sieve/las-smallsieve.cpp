@@ -9,7 +9,7 @@
  */
 
 #include <cinttypes>                    // for PRIi64
-#include <cstdarg>                      // for va_arg, va_list
+#include <cstdarg>                      // for va_arg, va_list // IWYU pragma: keep
 #include <cstdint>                      // for uint64_t, uint8_t, int64_t
 #include <cstdio>                       // for fprintf, size_t, FILE, asprintf
 #include <cstdlib>                      // for free
@@ -40,7 +40,8 @@
 #include "las-smallsieve-types.hpp"     // for ssp_t, small_sieve_data_t
 #include "las-todo-entry.hpp"           // for las_todo_entry
 #include "las-where-am-i-proxy.hpp"          // for where_am_I
-#include "portability.h"
+#include "portability.h"  // asprintf // IWYU pragma: keep
+#include "verbose.h"
 
 
 /* small sieve and resieving */

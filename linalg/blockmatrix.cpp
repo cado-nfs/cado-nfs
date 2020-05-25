@@ -1,14 +1,10 @@
-#include "cado.h"
-#include <cstdint>
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <cinttypes>
-#include <gmp.h>
+#include <algorithm>          // for fill_n
 #include "blockmatrix.hpp"
 #include "bblas.hpp"
 #include "macros.h"
-#include "portability.h"
 #include "cado-endian.h"
 
 blockmatrix::blockmatrix(unsigned int _nrows, unsigned int _ncols)

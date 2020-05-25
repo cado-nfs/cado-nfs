@@ -1,7 +1,10 @@
 #ifndef TAB_FM
 #define TAB_FM
 
+#include <stdio.h>
+#ifndef __cplusplus
 #include <stdbool.h>
+#endif
 
 #include "fm.h"
 

@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <inttypes.h>
-#include <assert.h>
 #include "getprime.h"
 
 /*
@@ -155,7 +154,7 @@ Psi(const uint64_t x, const uint64_t y)
     for ( ; primes[i] <= l_max; i++) {
       /* This integer division is where we spend most of the time */
       const uint64_t t = x / primes[i];
-      assert(t >= m);
+      ASSERT(t >= m);
       r += Psi(t, primes[i]);
     }
 
@@ -165,7 +164,7 @@ Psi(const uint64_t x, const uint64_t y)
          but this part of the code is currently not the bottleneck */
       l_max = min_u64(x / m, y);
       for ( ; primes[i] <= l_max; i++) {
-        assert (x / primes[i] == m);
+        ASSERT (x / primes[i] == m);
         r += m; /* With y >= l_max, Psi(m, y) = m */
       }
     }

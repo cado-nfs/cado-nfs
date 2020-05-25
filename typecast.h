@@ -1,3 +1,4 @@
+#include <limits.h>
 #ifndef TYPECAST_H_
 #define TYPECAST_H_
 

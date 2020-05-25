@@ -1,5 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 #include "ularith.h"
+#include "macros.h"
 
 /* Some functions that are implemented entirely on mod_*() functions, and which 
    thus can share source code for all arithmetic implentations */

@@ -10,6 +10,7 @@
 #ifdef HAVE_SSE2
 #include <emmintrin.h>                    // for __m128i, _mm_setzero_si128
 #endif
+#include <algorithm>    // for min
 #include <cinttypes>                      // for PRId64, PRIu64
 #include <cmath>                          // for log2
 #include <cstdarg>             // IWYU pragma: keep
@@ -23,9 +24,10 @@
 #include <utility>                        // for move
 #include <vector>                         // for vector
 #include <gmp.h>                          // for gmp_vfprintf, mpz_srcptr
+#include "cxx_mpz.hpp"
+#include "gmp_aux.h"
 #include "las-process-bucket-region.hpp"  // for process_bucket_region_spawn
 #include "bucket.hpp"                     // for bare_bucket_update_t<>::br_...
-#include "fb-types.h"                     // for fbprime_t
 #include "fb.hpp"                         // for fb_factorbase::slicing, fb_...
 #include "las-apply-buckets.hpp"          // for apply_one_bucket
 #include "las-auxiliary-data.hpp"         // for nfs_aux, nfs_aux::thread_data
@@ -56,6 +58,7 @@
 #include "macros.h"                       // for ASSERT_ALWAYS, ASSERT, MAX
 #include "tdict.hpp"                      // for slot, timetree_t, CHILD_TIMER
 #include "threadpool.hpp"                 // for worker_thread, thread_pool
+#include "verbose.h"
 
 MAYBE_UNUSED static inline void subusb(unsigned char *S1, unsigned char *S2, ssize_t offset)
 {

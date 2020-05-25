@@ -1,6 +1,7 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <math.h>
+#include <stdio.h>
 #include <gmp.h>
 #include "double_poly.h"
 #include "mpz_poly.h"

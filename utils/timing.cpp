@@ -1,8 +1,8 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <utility> // pair
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
 #include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>		/* for cputime */
+#include <cstdio>       // FILE // IWYU pragma: keep
 #ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>	/* for cputime */
 #endif
@@ -146,6 +146,7 @@ void thread_seconds_user_sys(double * res)
 #include <sys/syscall.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdlib.h>
 #include "portability.h"
 
 static inline pid_t gettid() { return syscall(SYS_gettid); }

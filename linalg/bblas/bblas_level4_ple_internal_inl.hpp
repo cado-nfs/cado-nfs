@@ -1,6 +1,9 @@
 #ifndef LEVEL4_PLE_INTERNAL_INL_HPP_
 #define LEVEL4_PLE_INTERNAL_INL_HPP_
 
+// IWYU pragma: private, include "bblas.hpp"
+// IWYU pragma: friend ".*/bblas.*"
+
 #include "cado_config.h"
 #include <cstdint>
 #include "bblas_level4_ple_internal.hpp"

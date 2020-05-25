@@ -1,6 +1,9 @@
 #ifndef LEVEL4_PLE_INTERNAL_HPP_
 #define LEVEL4_PLE_INTERNAL_HPP_
 
+// IWYU pragma: private, include "bblas.hpp"
+// IWYU pragma: friend ".*/bblas.*"
+
 #include "bblas_level4.hpp"
 #include <cstdint>
 #include "bblas_mat64.hpp"

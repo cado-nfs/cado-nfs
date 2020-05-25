@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -17,9 +17,12 @@
 #include <time.h>
 #include <limits.h>
 #include <ctype.h>
+#include <gmp.h>
 #include "utils_norm.h"
 #include "utils_cofactorisation.h"
 #include "ecm/facul.hpp"
+#include "macros.h"
+#include "params.h"
 
 //TODO: change % in test + add or subtract.
 

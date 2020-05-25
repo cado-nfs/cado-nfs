@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -24,10 +24,12 @@
 #include <sys/time.h>   // gettimeofday
 #ifdef  HAVE_UTSNAME_H
 #include <sys/utsname.h>
+#include <limits.h>
 #endif
 
 #if defined(HAVE_HWLOC) && defined(HAVE_CXX11)
 #include "cpubinding.h"
+#include "params.h"
 #endif  /* defined(HAVE_HWLOC) && defined(HAVE_CXX11) */
 
 static inline void pi_comm_init_pthread_things(pi_comm_ptr w, const char * desc)
@@ -1192,7 +1194,7 @@ static void pi_dispatch_op_add_stock(void *invec, void *inoutvec, int *len, MPI_
     int got_it;
     mpfq_vbase_ptr abase;
     MPI_Type_get_attr(*datatype, pi_mpi_attribute_key, (void*) &abase, &got_it);
-    assert(got_it);
+    ASSERT(got_it);
     abase->vec_add(abase, inoutvec, inoutvec, invec, *len);
 }
 static void pi_dispatch_op_add_custom(void *invec, void *inoutvec, size_t len, pi_datatype_ptr datatype)

@@ -1,6 +1,8 @@
 #ifndef FINDING_GOOD_STRATEGY
 #define FINDING_GOOD_STRATEGY
 
+#include <stdio.h>
+#include "strategy.h" // strategy_t
 #include "tab_strategy.h"
 
 #ifdef __cplusplus

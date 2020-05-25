@@ -1,18 +1,16 @@
 #ifndef LAS_PARALLEL_HPP_
 #define LAS_PARALLEL_HPP_
 // IWYU pragma: no_include <bits/exception.h>
-
 #include "cado_config.h"     // for HAVE_HWLOC
-
 #include <exception> // IWYU pragma: keep  // for exception
 #include <memory>            // for shared_ptr
 #include <string>            // for string
 #include <sstream>           // IWYU pragma: keep
-
 #include "macros.h"          // for GNUC_VERSION_ATMOST, MAYBE_UNUSED
-
 #include "params.h"           // for param_list_decl_usage, cxx_param_list
-#include "hwloc-aux.h"  // hwloc_aux_get_depth_from_string
+#ifdef HAVE_HWLOC
+#include "hwloc-aux.h"  // cxx_hwloc_nodeset
+#endif
 
 class las_parallel_desc {
     std::string description_string;
@@ -29,7 +27,7 @@ class las_parallel_desc {
     int cpu_binding_size = 0;
 #endif
 
-    struct helper;
+    struct helper; // IWYU pragma: keep
     friend struct helper;
     std::shared_ptr<helper> help;
 public:

@@ -1,10 +1,12 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stddef.h>
 #include <signal.h>
 #include <string.h>
 #include <math.h>
 #include <time.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "bwc_config.h"
 #include "async.h"
 #include "macros.h"

@@ -1,8 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <stdlib.h>
 #include "sieving_bound.h"
 #include "array.h"
 #include "macros.h"

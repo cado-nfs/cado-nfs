@@ -1,9 +1,16 @@
 #include "cado.h"
 
+#include <cstdint>               // for uint64_t
+#include <cstring>
+
+#include "test_bblas_base.hpp"
 #include "test_bblas_level2.hpp"
 #include "test_bblas_level3.hpp"
 #include "time_bblas_common.hpp"
-#include <cstring>
+#include "bblas_mat64.hpp"
+#include "bblas_level2a.hpp"              // for addmul_To64_o64_lsb_sse_v1 ...
+#include "bblas_level2b.hpp"              // for mul_o64_6464, mul_o64_6464_C_lsb
+#include "macros.h"               // for ASSERT_ALWAYS
 
 /* level-2 blas combines vectors and matrices (i.e. among three
  * operands, two of which are inputs and one is output, we have only

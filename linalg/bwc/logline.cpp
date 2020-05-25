@@ -1,17 +1,15 @@
-#include "cado.h"
-
-#include <cstdio>
-#include <cstdarg>
-
-#include <string>
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
 #include <vector>
-
 #include "logline.h"
 #include "memusage.h"   // Memusage2
 #include "params.h"     // param_list_parse_*
 #include "select_mpi.h"
 #include "timing.h"     // seconds
 #include "portability.h"
+#include "macros.h"
 
 /* This is intended to provide progress info, and optionally also more
  * detailed progress info when needed. Detailed progress info is assumed

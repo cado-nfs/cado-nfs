@@ -3,6 +3,7 @@
 
 #include "macros.h"
 
+// IWYU pragma: begin_exports
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #else
@@ -39,6 +40,7 @@ static inline int omp_get_thread_num()
 }
 #endif
 #endif /* HAVE_OPENMP */
+// IWYU pragma: end_exports
 
 
 #endif	/* OMP_PROXY_H_ */

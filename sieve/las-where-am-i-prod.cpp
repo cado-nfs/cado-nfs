@@ -12,12 +12,13 @@
  * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
  */
 
+// IWYU pragma: no_include "las-where-am-i.hpp"
 #include <cstdint>                    // for int64_t, uint64_t
 #include <memory>                     // for unique_ptr
 #include "las-where-am-i-proxy.hpp"   // for where_am_I, where_am_I::pimpl_t
 #include "las-where-am-i-prod.hpp"    // for where_am_I::impl
-struct cxx_param_list;
-class nfs_work;
+struct cxx_param_list; // IWYU pragma: keep
+class nfs_work; // IWYU pragma: keep
 
 
 int extern_trace_on_spot_ab(int64_t, uint64_t) {

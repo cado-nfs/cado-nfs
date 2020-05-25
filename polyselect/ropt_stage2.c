@@ -4,8 +4,18 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>      // fprintf stderr
+#include <stdlib.h>
+#include <math.h>
+#include <gmp.h>
 #include "ropt_stage2.h"
+#include "mpz_poly.h"
+#include "auxiliary.h"  // print_poly_fg
+#include "ropt_arith.h" // compute_fuv_mp
+#include "ropt_param.h"    // SUP_ALPHA
+#include "ropt_tree.h"  // node ...
+#include "ropt_str.h"    // ropt_s2param_t
 #include "size_optimization.h"
 #include "timing.h"             // for milliseconds
 

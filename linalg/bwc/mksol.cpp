@@ -1,7 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstring>
 #include <cerrno>
+#include <stdlib.h>
+#include <limits.h>
 #include "bwc_config.h"
 #include "parallelizing_info.h"
 #include "matmul_top.h"
@@ -18,6 +20,7 @@
 #include "cheating_vec_init.h"
 #include "fmt/printf.h"
 #include "fmt/format.h"
+#include "macros.h"
 using namespace fmt::literals;
 
 void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)

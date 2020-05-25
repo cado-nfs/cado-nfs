@@ -83,15 +83,6 @@
 #define DEFAULT_MERGE_SKIP 0  /* for discrete logarithm */
 #endif
 
-
-/* Some utilities */
-/******************/
-// (not sure they belong here...)
-
-#define STR(s) XSTR(s)
-#define XSTR(s) #s
-
-
 #include "typedefs.h"  /* for ideal_merge_t */
 
 #ifdef __cplusplus

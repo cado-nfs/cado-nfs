@@ -21,14 +21,14 @@
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
 #include "multityped_array.hpp"        // for multityped_array
 
-class las_memory_accessor;
-class nfs_aux;
-class thread_pool;
-struct j_divisibility_helper;
-struct las_info;
-struct trialdiv_data;
-struct unsieve_data;
-template <int LEVEL, typename HINT> class bucket_array_t;
+class las_memory_accessor; // IWYU pragma: keep
+class nfs_aux; // IWYU pragma: keep
+class thread_pool; // IWYU pragma: keep
+struct j_divisibility_helper; // IWYU pragma: keep
+struct las_info; // IWYU pragma: keep
+struct trialdiv_data; // IWYU pragma: keep
+struct unsieve_data; // IWYU pragma: keep
+template <int LEVEL, typename HINT> class bucket_array_t; // IWYU pragma: keep
 
 #define NUMBER_OF_BAS_FOR_THREADS(n)    ((n) == 1 ? 1 : ((n) + 2))
 

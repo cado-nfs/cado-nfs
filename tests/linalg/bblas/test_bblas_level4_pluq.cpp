@@ -1,7 +1,19 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+#include <cstdio>                // for printf
+#include <algorithm>              // for fill_n
+#include <memory>                 // for allocator_traits<>::value_type
+#include <string>                 // for basic_string
+#include <vector>                 // for vector
+#include "bblas_bitmat.hpp"       // for bitmat<>::vector_type, bitmat
+#include "bblas_level3b.hpp"      // for mul_6464_6464
+#include "bblas_mat64.hpp"
+#include "bblas_level4.hpp"
+#include "gmp_aux.h"              // for memfill_random
+#include "macros.h"               // for ASSERT_ALWAYS
+#include "test_bblas_base.hpp"    // for test_bblas_base, test_bblas_base::t...
 #include "test_bblas_level4.hpp"
 #include "bblas_perm_matrix.hpp"
-#include <cstring>
 
 /* PLUQ helpers -- well we're not computing exactly PLUQ 
  *

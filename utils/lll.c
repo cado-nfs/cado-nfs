@@ -19,10 +19,11 @@
    the shortest are the output vectors, but the computation takes longer.
  */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "macros.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <gmp.h>
 #include "lll.h"
 
 #define swap(x, y) { long _tmp = (x); (x) = (y); (y) = _tmp; }

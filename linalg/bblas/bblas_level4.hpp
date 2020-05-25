@@ -1,6 +1,9 @@
 #ifndef BBLAS_LEVEL4_HPP_
 #define BBLAS_LEVEL4_HPP_
 
+// IWYU pragma: private, include "bblas.hpp"
+// IWYU pragma: friend ".*/bblas.*"
+
 #include "bblas.hpp"
 #include "bblas_mat64.hpp"
 #include "bblas_perm_matrix.hpp"

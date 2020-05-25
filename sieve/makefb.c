@@ -1,15 +1,18 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> /* for strcmp() */
+#include <limits.h>     // INT_MAX
 #include <math.h> /* for sqrt and floor and log and ceil */
 #include <pthread.h>
+#include <gmp.h>
 #include "cado_poly.h"
 #include "getprime.h"   // getprime
 #include "gzip.h"       // fopen_maybe_compressed
 #include "mpz_poly.h"   // mpz_poly
 #include "rootfinder.h"
 #include "verbose.h"
+#include "macros.h"
+#include "params.h"
 
 /*
  * Compute g(x) = f(a*x+b), with deg f = d, and a and b are longs.

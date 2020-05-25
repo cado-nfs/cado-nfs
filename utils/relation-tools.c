@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "typedefs.h"   // p_r_values_t
 #include "mod_ul.h"     // modulusul_t
 #include "relation-tools.h"

@@ -5,8 +5,11 @@
  * Bucket sieving: radix-sort sieve updates as they are created.
  */
 
+#include "cado_config.h"  // HAVE_SSE2
+#include <type_traits> // enable_if is_same
+#include <vector>
+#include <cstddef>      // size_t NULL
 #include <cstdint>
-#include "cado-endian.h"
 #define xxxSAFE_BUCKETS_SINGLE
 #define xxxSAFE_BUCKET_ARRAYS
 #if defined(SAFE_BUCKETS_SINGLE) || defined(SAFE_BUCKET_ARRAYS)
@@ -16,13 +19,15 @@
 #include <string>
 #include <functional>
 #endif
-#include "misc.h"
 #include "fb-types.h"
 #include "fb.hpp"
-#include "threadpool.hpp"
+#include "las-config.h"
 #include "las-memory.hpp"
-#include "las-output.hpp"
-#include "las-where-am-i-proxy.hpp"
+#include "macros.h"
+#include "misc.h"
+#include "utils_cxx.hpp" // NonCopyable
+struct las_output;
+struct where_am_I;
 
 // #include "electric_alloc.h"
 
@@ -161,7 +166,7 @@ public:
    more, so the types for levels 1 and 3 must be changed accordingly.
    This creates, of course, a large memory overhead. */
  
-template<int LEVEL> struct bucket_update_size_per_level;
+template<int LEVEL> struct bucket_update_size_per_level; // IWYU pragma: keep
 
 /* This only works if LOG_BUCKET_REGION <= 16 !
  *
@@ -194,7 +199,7 @@ template <int LEVEL> struct bare_bucket_update_t {
 };
 
 
-template <int LEVEL, typename HINT> struct bucket_update_t;
+template <int LEVEL, typename HINT> struct bucket_update_t; // IWYU pragma: keep
 
 #define bu_explicit(LEVEL, HINT, ALIGNMENT_ATTRIBUTE)		\
     template <>								\

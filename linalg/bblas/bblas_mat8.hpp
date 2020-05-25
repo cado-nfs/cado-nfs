@@ -1,6 +1,10 @@
 #ifndef BBLAS_MAT8_HPP_
 #define BBLAS_MAT8_HPP_
 
+// IWYU pragma: private, include "bblas.hpp"
+// IWYU pragma: friend ".*/bblas.*"
+// IWYU pragma: friend "bpack.hpp"
+
 #include "bblas_bitmat.hpp"
 
 /* we provide a matrix type for 8*8 matrices. This should not be

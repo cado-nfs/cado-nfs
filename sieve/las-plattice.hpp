@@ -88,7 +88,7 @@
 
 typedef uint64_t plattice_x_t;
 
-struct plattice_info_t;
+struct plattice_info_t;  // IWYU pragma: keep
 static int reduce_plattice (plattice_info_t *, fbprime_t, fbroot_t, uint32_t);
 
 

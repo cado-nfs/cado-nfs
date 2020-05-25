@@ -1,9 +1,11 @@
 #ifndef LAS_DLOG_BASE_HPP_
 #define LAS_DLOG_BASE_HPP_
 
-#include <cstdint>  // for uint64_t
 #include <vector>    // for vector
+#include "cado_poly.h"   // cxx_cado_poly
 #include "renumber.hpp"   // for renumber_t
+#include "typedefs.h"
+struct cxx_param_list;
 
 struct las_dlog_base {
     cxx_cado_poly const & cpoly;

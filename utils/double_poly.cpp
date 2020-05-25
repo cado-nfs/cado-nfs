@@ -1,22 +1,28 @@
 /* arithmetic on polynomial with double-precision coefficients */
-#include "cado.h"
-#include <ostream>
+#include "cado.h" // IWYU pragma: keep
+#ifdef HAVE_GLIBC
+#include <features.h>
+#endif
 #include <sstream>
 #include <string>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <float.h> /* for DBL_MAX */
-#include <ctype.h> /* isspace */
+#include <cstring>
+#include <cstdio> // FILE // IWYU pragma: keep
+#include <cstdlib>
+#include <climits>
+#include <cfloat> /* for DBL_MAX */
+#include <cctype> /* isspace */
+#include <gmp.h>       // for mpz_t, mpz_clear, mpz_init, mpz_get_d, mpz_mul...
+#include "mpz_poly.h"  // mpz_poly
+#include "macros.h"     // for ASSERT, ASSERT_ALWAYS
 
 #define DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS
+#include "double_poly.h"
 
 /* it's a bit nasty here. See
  * https://sourceware.org/bugzilla/show_bug.cgi?id=19439
  *
  */
-#if defined(__GNU_LIBRARY__)
+#ifdef HAVE_GLIBC
 #if __GLIBC_PREREQ(2, 23)
 #include <cmath>
 using std::isnan;
@@ -37,9 +43,6 @@ using std::isinf;
  * This happens to *also* be the case with math.h on some boxes, and that
  * may perhaps be a bug. Anyway, it seems that the cmath way is better.
  */
-
-#include "gcd.h"
-#include "double_poly.h"
 
 /* Initialize a polynomial of degree d */
 void
@@ -1017,7 +1020,11 @@ void double_poly_set_string(double_poly_ptr poly, const char *str)
     double_poly_cleandeg(poly, n-1);
 }
 
+/* The implementation of poly_roots_* is in polyroots.c -- we expose them
+ * here, but new implementation should prefer using the functions above.
+ */
 
+/* exposed only if DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS is true */
 void double_poly_complex_roots(double _Complex *roots, double_poly_srcptr f)
 {
     poly_roots_double(f->coeff, f->deg, roots);

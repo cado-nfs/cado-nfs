@@ -1,4 +1,5 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>
 #include "macros.h"
 #include "alpha3d.h"
 #include "mpz_poly.h"

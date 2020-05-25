@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <inttypes.h>
 #include <stdlib.h>
@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <math.h>
+#include <limits.h>
 #include <gmp.h>
 #include "bwc_config.h"
 #include "bw-common.h"
@@ -15,6 +16,8 @@
 #include "portability.h"
 #include "verbose.h"    // verbose_interpret_parameters
 #include "timing.h"     // wct_seconds
+#include "macros.h"
+#include "params.h"
 
 struct bw_params bw[1];
 

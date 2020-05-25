@@ -22,20 +22,21 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <algorithm>
 #include <vector>
-#include <list>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <gmp.h>
-#include "omp_proxy.h"
+#include <memory>        // for unique_ptr, allocator_traits<>::value_type
+#include <utility>       // for pair
+#include <cstdio>       // fprintf
+#include <cstdlib>       // exit
+#include "cado_poly.h"   // for cxx_cado_poly, cado_poly_s, cado_poly_read
 #include "gzip.h"       // fopen_maybe_compressed
+#include "macros.h"      // for ASSERT_ALWAYS
 #include "mpz_poly.h"   // mpz_poly_srcptr
+#include "omp_proxy.h"
+#include "params.h"      // for cxx_param_list, param_list_decl_usage, param...
 #include "renumber.hpp" // renumber_t
-#include "rootfinder.h" // mpz_poly_roots
-#include "stats.h"      // stats_data_t
+#include "typedefs.h"    // for index_t, p_r_values_t, PRid, SIZEOF_INDEX, PRpr
 #include "verbose.h"    // verbose_interpret_parameters
 
 char * argv0;
@@ -165,6 +166,7 @@ main(int argc, char* argv[])
     /* {{{ parse cmdline */
     declare_usage(pl);
     freerel_data_t::declare_usage(pl);
+    verbose_decl_usage(pl);
     renumber_t::builder_declare_usage(pl);
     renumber_t::builder_configure_switches(pl);
 

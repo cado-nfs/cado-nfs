@@ -1,36 +1,18 @@
-
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <mm_malloc.h>
 #include <stdio.h>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <stddef.h>
 #include <string.h>
 #include <stdint.h>
-#include <errno.h>
-#include <limits.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <pthread.h>
-#ifdef HAVE_SSE2
-#include <emmintrin.h>
-#endif
-
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
-
 /* For MinGW Build */
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #endif
-
 #include "macros.h"
-#include "misc.h"
 #include "memory.h"
-#include "dllist.h"
 #include "portability.h"
 
 #ifndef LARGE_PAGE_SIZE

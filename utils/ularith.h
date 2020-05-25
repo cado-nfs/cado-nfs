@@ -11,7 +11,6 @@
 
 #define UL_ARITH_H__
 
-#include <assert.h>
 #include <limits.h>
 #include <gmp.h>
 #include "macros.h"

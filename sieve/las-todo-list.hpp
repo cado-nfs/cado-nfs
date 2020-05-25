@@ -8,8 +8,10 @@
 #include <mutex>               // for mutex, lock_guard
 #include <stack>               // for swap, stack
 #include <gmp.h>               // for gmp_randstate_t
+#include "cxx_mpz.hpp"
 #include "cado_poly.h"
 #include "las-todo-entry.hpp"  // for las_todo_entry
+struct cxx_param_list;
 
 class las_todo_list : private std::stack<las_todo_entry> {
     std::mutex mm;

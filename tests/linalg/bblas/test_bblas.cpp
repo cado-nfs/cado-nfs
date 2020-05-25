@@ -1,21 +1,15 @@
 #include "cado.h" /* HAVE_* macros ! */
 
 #include <algorithm>
-#include <cassert>
-#include <cinttypes>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
-#include <ctime>
 #include <string>
+#include <set>
 #include <vector>
 
-#include "bblas.hpp"
-#include "macros.h"
 #include "params.h"
-#include "portability.h"
 
+#include "test_bblas_base.hpp"
 #include "test_bblas_level2.hpp"
 #include "test_bblas_level3.hpp"
 #include "test_bblas_level4.hpp"

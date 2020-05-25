@@ -1,6 +1,10 @@
 #ifndef BBLAS_MAT64_HPP_
 #define BBLAS_MAT64_HPP_
 
+// IWYU pragma: private, include "bblas.hpp"
+// IWYU pragma: friend ".*/bblas.*"
+// IWYU pragma: friend "bpack.hpp"
+
 #include "bblas_bitmat.hpp"
 
 /* The attribute seems to be really necessary, and actually abided by by

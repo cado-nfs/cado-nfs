@@ -1,22 +1,33 @@
-#include "cado.h"
-#include <cstdint>     /* AIX wants it first (it's a bug) */
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
+#include <cstdarg> // needed by gmp_vfprintf // IWYU pragma: keep
 #include <cstring>
 #include <cinttypes> /* for PRIx64 macro and strtoumax */
 #include <cmath>   // for ceiling, floor in cfrac
-#include <cctype>
 #include <cfloat>
-#include <cstdarg> /* Required so that GMP defines gmp_vfprintf() */
 #include <algorithm>
 #include <vector>
+#ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
+#endif
+#include <climits>                // INT_MAX INT_MIN
+#include <gmp.h>                  // for mpz_srcptr, gmp_urandomm_ui, gmp_vf...
+#include <memory>                 // for shared_ptr, allocator_traits<>::val...
+#include <string>                 // for string, operator==
+#include "cado_poly.h"            // for cxx_cado_poly, cado_poly_read, cado...
+#include "cxx_mpz.hpp"            // for cxx_mpz
+#include "las-qlattice.hpp"       // for qlattice_basis
+#include "las-siever-config.hpp"  // for siever_config
+#include "las-todo-entry.hpp"     // for las_todo_entry
+#include "mpz_poly.h"             // for mpz_poly, mpz_poly_srcptr
 #include "las-config.h"
 #include "las-norms.hpp"
-#include "memusage.h"
 #include "rootfinder.h" // mpz_poly_roots
 #include "verbose.h"    // verbose_output_print
 #include "timing.h"     // wct_seconds
+#include "macros.h"
+#include "params.h"
 
 int adjust_strategy = 0;
 

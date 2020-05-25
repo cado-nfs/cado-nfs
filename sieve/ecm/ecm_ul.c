@@ -1,6 +1,14 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>
+#include <stdlib.h> // abort
+#include "modredc_ul.h"
 #include "modredc_ul_default.h"
 #include "ecm.c"
+#include "facul_ecm.h"             // for BRENT12, MONTY12, MONTY16, MONTYTW...
+#include "ec_parameterization.h"   // ec_parameterization_Brent_Suyama_ul
+#include "ec_arith_common.h"       // ec_point_clear
+#include "ec_arith_Weierstrass.h"  // weierstrass_aff_from_montgomery_ul
+
 
 /* Exported functions (specific to _ul arithmetic). */
 #define ec_parameterization_point_order MOD_APPEND_TYPE(ec_parameterization_point_order)

@@ -321,14 +321,6 @@ include("${CADO_NFS_SOURCE_DIR}/config/glibc_vector_internals.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/m4ri.cmake")
 
-if (ENV{IWYU})
-    find_program(iwyu_path NAMES include-what-you-use iwyu)
-    if(iwyu_path)
-        message(STATUS "Enabling iwyu when compiling c++ code")
-        set_property(GLOBAL PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${iwyu_path})
-    endif()
-endif()
-
 set(CADO_SHARED)
 
 if("$ENV{ENABLE_SHARED}")
@@ -396,6 +388,33 @@ set(CMAKE_CXX_COMPILER "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
 # or not. If yes, then it uses g++ rather than gcc (or mpic++ vs mpicc)
 set(CMAKE_C_LINKER_PREFERENCE "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
 set(CMAKE_CXX_LINKER_PREFERENCE "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
+
+if (NOT "$ENV{IWYU}" MATCHES "^(0|NO|no|OFF|off|)$")
+    message(STATUS "Enabling iwyu when compiling c++ code")
+    set(findprog_flags)
+    if(ENV{IWYU} MATCHES "/")
+        # If MPI contains a /, then we assume it should be a path
+        list(APPEND findprog_flags HINTS "$ENV{IWYU}" "$ENV{IWYU}/bin")
+    endif()
+    find_program(iwyu_path NAMES include-what-you-use iwyu ${findprog_flags})
+    if(iwyu_path)
+        message(STATUS "Enabling iwyu when compiling c++ code -- Success")
+        set(CMAKE_C_INCLUDE_WHAT_YOU_USE "${iwyu_path}")
+        set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${iwyu_path}")
+        if(NOT "$ENV{IWYU_FILTER}" MATCHES "^(0|NO|no|OFF|off|)$")
+            configure_file(config/iwyu.pl.in "${CADO_NFS_BINARY_DIR}/iwyu.pl")
+            set(CMAKE_C_INCLUDE_WHAT_YOU_USE "${CADO_NFS_BINARY_DIR}/iwyu.pl")
+            set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${CADO_NFS_BINARY_DIR}/iwyu.pl")
+        endif()
+        # oddly enough, the following does not work. (with or without a
+        # CMAKE_ prefix)
+        # set_property(GLOBAL PROPERTY CMAKE_C_INCLUDE_WHAT_YOU_USE ${iwyu_path})
+        # set_property(GLOBAL PROPERTY CMAKE_CXX_INCLUDE_WHAT_YOU_USE ${iwyu_path})
+    else()
+        message(WARNING "Enabling iwyu when compiling c++ code -- Failed, no binary found")
+    endif()
+endif()
+
 
 #####################################################################
 # now the real stuff.

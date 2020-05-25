@@ -1,13 +1,14 @@
-#ifndef ANT_HPP_
-#define ANT_HPP_
-
-#include "mpz_poly.h"
-#include "mpz_mat.h"
-#include "cxx_mpz.hpp"
+#ifndef NUMBERTHEORY_HPP_
+#define NUMBERTHEORY_HPP_
 
 #include <vector>
 #include <utility>
 #include <string>
+#include <gmp.h>       // for gmp_randstate_t
+#include "mpz_poly.h"
+#include "mpz_mat.h"
+struct cxx_mpz;
+
 
 /* Return a basis for a p-maximal order of the number field defined by
  * the polynomial f.
@@ -45,4 +46,4 @@ struct ideal_comparator {
     }
 };
 
-#endif	/* ANT_HPP_ */
+#endif	/* NUMBERTHEORY_HPP_ */

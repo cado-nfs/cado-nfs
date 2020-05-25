@@ -3,9 +3,11 @@
   #error "One of the mod*_default.h headers must be included before this file"
 #endif
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <math.h>
 #include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "facul_ecm.h"
 
 /* define to print number of operations of ECM (/!\ not thread-safe) */
@@ -33,6 +35,7 @@
 #include "ec_arith_Montgomery.h"
 #include "ec_arith_Weierstrass.h"
 #include "ec_parameterization.h"
+#include "macros.h"     // CADO_STRINGIZE
 
 /* Do we want backtracking when processing factors of 2 in E? */
 #ifndef ECM_BACKTRACKING
@@ -819,12 +822,9 @@ ecm (modint_t f, const modulus_t m, const ecm_plan_t *plan)
   montgomery_A_from_b (A, b, m);
   printf ("# %s: starting values:\n", __func__);
 
-#define STR(s) XSTR(s)
-#define XSTR(s) #s
-
   if (param_output_type == MONTGOMERY_xz)
   {
-    montgomery_curve_fprintf (stdout, "# " STR(ecm) ":   ", A, P, m);
+    montgomery_curve_fprintf (stdout, "# " CADO_STRINGIZE(ecm) ":   ", A, P, m);
     printf ("# %s:                     = ", __func__);
     montgomery_point_fprintf_affine (stdout, P, m);
     fputc ('\n', stdout);
@@ -834,12 +834,12 @@ ecm (modint_t f, const modulus_t m, const ecm_plan_t *plan)
     residue_t d;
     mod_init_noset0 (d, m);
     edwards_d_from_montgomery_A (d, A, m);
-    edwards_ext_curve_fprintf (stdout, "# " STR(ecm) ":   ", d, P, m);
+    edwards_ext_curve_fprintf (stdout, "# " CADO_STRINGIZE(ecm) ":   ", d, P, m);
     mod_clear (d, m);
 
     printf ("# %s:   Equivalent to Montgomery curve with:\n", __func__);
     montgomery_point_from_edwards_point (PM, P, 1, m);
-    montgomery_curve_fprintf (stdout, "# " STR(ecm) ":     ", A, PM, m);
+    montgomery_curve_fprintf (stdout, "# " CADO_STRINGIZE(ecm) ":     ", A, PM, m);
   }
   mod_clear (A, m);
   ec_point_clear (PM, m);

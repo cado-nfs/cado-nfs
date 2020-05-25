@@ -1,7 +1,15 @@
 #include "cado.h"
+#include <stddef.h>               // for NULL
+#include <string>                 // for basic_string
+#include <gmp.h>                  // for gmp_randstate_t, mp_limb_t
 #include "bblas_gauss.h"
-#include "test_bblas_level4.hpp"
+#include "bblas_mat64.hpp"
+#include "bblas_level3a.hpp"      // for mat64_fill_random
+#include "bblas_level4.hpp"
 #include "bblas_perm_matrix.hpp"
+#include "gmp_aux.h"              // for memfill_random
+#include "test_bblas_base.hpp"    // for test_bblas_base, test_bblas_base::t...
+#include "test_bblas_level4.hpp"
 #include "time_bblas_common.hpp"
 
 int gauss_MN_C(unsigned int bM, unsigned int bN, gmp_randstate_t rstate)

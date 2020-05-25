@@ -1,7 +1,9 @@
+#include <stdlib.h>
 #ifndef LAS_SMALLSIEVE_LOWLEVEL_HPP_
 #define LAS_SMALLSIEVE_LOWLEVEL_HPP_
 
 #include "las-config.h"
+#include "macros.h"
 
 /* About row0_is_oddj: in order to check whether a j coordinate is even,
  * we need to take into account the bucket number, especially in case

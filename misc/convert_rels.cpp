@@ -24,14 +24,13 @@ command line is faster than the current code:
       the three lines containing W Y and X should be separate by a blank line
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "macros.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint> /* for UINT32_MAX */
 #include <cinttypes>
 #include <cstring>
-#include <cassert>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -42,6 +41,7 @@ command line is faster than the current code:
 #include "cado_poly.h"
 #include "renumber.hpp"
 #include "gzip.h"
+#include "macros.h"
 #include "filter_io.h"  // filter_rels
 
 #define MAX_PRIMES 255 /* maximal number of factor base primes */
@@ -210,7 +210,7 @@ checksize_relation_cado (relation_t *rel, int32_t *rfb, int32_t *afb, int lpb)
   /* rational side */
   for (i = 0; i < rel->rfb_entries; i++)
     {
-      assert(rel->rexp[i] > 0);
+      ASSERT(rel->rexp[i] > 0);
       if (rfb == NULL)
         p = rel->rprimes[i];
       else
@@ -228,7 +228,7 @@ checksize_relation_cado (relation_t *rel, int32_t *rfb, int32_t *afb, int lpb)
   /* algebraic side */
   for (i = 0; i < rel->afb_entries; i++)
     {
-      assert (rel->aexp[i] > 0);
+      ASSERT (rel->aexp[i] > 0);
       if (afb == NULL)
         p = rel->aprimes[i];
       else
@@ -387,13 +387,13 @@ cwi_idx_to_char (unsigned char i)
 static unsigned char
 cwi_char_to_idx (unsigned char i)
 {
-  assert (i >= '0');
+  ASSERT (i >= '0');
   if (i <= '9')
     return i - '0';
-  assert (i >= 'A');
+  ASSERT (i >= 'A');
   if (i <= 'Z')
     return i - 'A' + 10;
-  assert (i >= 'a');
+  ASSERT (i >= 'a');
   if (i <= 'z')
     return i - 'a' + 36;
   abort();
@@ -495,7 +495,7 @@ add_prime (unsigned long *primes, unsigned long *exps, unsigned int *n,
         return;
       }
   
-  assert (*n < MAX_PRIMES);
+  ASSERT (*n < MAX_PRIMES);
   primes[*n] = p;
   exps[*n] = 1;
   (*n)++;
@@ -1162,7 +1162,7 @@ read_fb (FILE *fp, int32_t **rfb, int32_t *rfb_size, int32_t **afb,
     mpz_out_str (stderr, 10, f[0]);
   c = getc (fp); /* newline */
   retscanf = fscanf (fp, "c%d: ", &degf);
-  assert (retscanf == 1);
+  ASSERT (retscanf == 1);
   if (degf > DEGF_MAX)
     {
       fprintf (stderr, "Error, too large degree\n");
@@ -1750,7 +1750,7 @@ main (int argc, char *argv[])
       {
           size_t retfread MAYBE_UNUSED;
           retfread = fread (&rels_in_file, sizeof (int32_t), 1, fp);
-          assert (retfread != 0);
+          ASSERT (retfread != 0);
           if (verbose)
             fprintf (stderr, "File %s: header says %d relations.\n",
                      relsfile, rels_in_file);

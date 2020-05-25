@@ -1,8 +1,13 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include "bblas_mat8.hpp"
+#include <cstdint>                // for uint64_t, uint8_t
+#include <utility>                // for pair
+#include "bblas_bitmat.hpp"
+#include "bpack.hpp"              // for bpack
+#include "macros.h"               // for ASSERT_ALWAYS
+#include "test_bblas_base.hpp"
 #include "test_bpack.hpp"
 #include "time_bblas_common.hpp"
-#include <cstring>
-#include <algorithm>
 
 template<typename T>
 int test_bpack::test_invert_triangular(unsigned int m, unsigned int n)/*{{{*/

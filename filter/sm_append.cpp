@@ -14,16 +14,23 @@
 
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cinttypes>
 #include <vector>
 #include <string>
+#include <cstdarg>     // for va_end, va_list, va_start
+#include <cstdint>     // for int64_t, uint64_t
+#include <iosfwd>       // for std
+#include <memory>       // for allocator_traits<>::value_type
 #include <gmp.h>
+#include "cado_poly.h"  // for NB_POLYS_MAX, cado_poly_clear, cado_poly_init
 #include "gzip.h"       // fopen_maybe_compressed
 #include "macros.h"
+#include "mpz_poly.h"   // for mpz_poly_clear, mpz_poly_init, mpz_poly, mpz_...
+#include "params.h"
 #include "select_mpi.h"
 #include "sm_utils.h"   // sm_side_info
 #include "timing.h"     // seconds

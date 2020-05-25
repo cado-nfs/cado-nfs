@@ -1,7 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cinttypes>
 #include <pthread.h>
+#include <stdlib.h>
+#include <gmp.h>
 #include "bwc_config.h"
 #include "parallelizing_info.h"
 #include "matmul_top.h"
@@ -14,6 +16,7 @@
 #include "mpfq/mpfq_vbase.h"
 #include "cheating_vec_init.h"
 #include "portability.h"
+#include "macros.h"
 
 
 void bw_rank_check(matmul_top_data_ptr mmt, param_list_ptr pl)

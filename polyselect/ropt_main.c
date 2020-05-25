@@ -22,19 +22,25 @@
 */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <pthread.h>
+#include <gmp.h>
 #include "omp_proxy.h"
+#include "cado_poly.h"
 #include "area.h"
 #include "auxiliary.h"
+#include "macros.h" // ASSERT_ALWAYS
+#include "mpz_poly.h"
 #include "murphyE.h"
 #include "params.h"           // for param_list_decl_usage, param_list
-#include "rho.h"
 #include "ropt.h"
+#include "ropt_param.h"    // L1_cachesize
+#include "ropt_str.h"    // ropt_param_t
+#include "ropt_io.h"    // ropt_L1_cachesize ropt_on_cadopoly
 #include "timing.h"             // for seconds_thread
 #include "verbose.h"             // verbose_output_print
 #include "version_info.h"        // cado_revision_string

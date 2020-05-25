@@ -1,7 +1,7 @@
 /* This is (almost) standalone */
 #define _POSIX_C_SOURCE 200112L
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -17,6 +17,7 @@
 #include "select_mpi.h"
 #else
 #include <mpi.h>
+#include "macros.h"
 #define ASSERT_ALWAYS(x) do { if (!(x)) abort(); } while (0)
 #endif
 

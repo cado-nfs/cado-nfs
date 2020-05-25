@@ -1,6 +1,7 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <inttypes.h>
+#include <stdlib.h>
 #include "bwc_config.h"
 #include "parallelizing_info.h"
 #include "xvectors.h"

@@ -5,19 +5,19 @@
    Qian Sha, Xiao Fan, 2011, http://arxiv.org/abs/1111.4877.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <stdint.h>
-#include <gmp.h>
-#include <inttypes.h>
 
-#include "gmp_aux.h"
 #include "rootfinder.h"
 #include "modredc_ul.h"
 #include "mod_ul.h"
 #include "modredc_ul_default.h"
 #include "lucas_V_mod.h"
 #include "roots_mod.h"
+#include "mpz_poly.h"
+#include "macros.h" // ASSERT_ALWAYS
+#include "ularith.h" // ularith_ctz, ularith_sqrt
 
 static int 
 mod_roots (residue_t *, residue_t, int, modulus_t);

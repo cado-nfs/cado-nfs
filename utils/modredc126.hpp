@@ -6,9 +6,10 @@
    after multiplication is done with REDC. */
 
 /**********************************************************************/
-#include <cassert>
-#include <climits>
+#include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM
 #include <cstdint>
+#include <cstddef>       // for size_t, NULL
+#include <new>            // for operator new
 #include "macros.h"
 #include "u64arith.h"
 #include "modint.hpp"

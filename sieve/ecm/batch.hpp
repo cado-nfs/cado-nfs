@@ -9,10 +9,11 @@
 #include <gmp.h>        // for mpz_t
 #include "macros.h"  // for MAYBE_UNUSED
 #include "cado_poly.h"   // cxx_cado_poly
+#include "mpz_poly.h"
 #include "cxx_mpz.hpp"   // for cxx_mpz
 
-struct las_todo_entry;
-struct relation;
+struct las_todo_entry; // IWYU pragma: keep
+struct relation; // IWYU pragma: keep
 
 /* structure to compute on-line a product tree, avoiding to first compute a
    list of mpz_t (which might take too much memory) */

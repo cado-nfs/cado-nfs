@@ -1,10 +1,14 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>
 #include "utils_cofactorisation.h"
 #include "utils_norm.h"
 
 #include "ecm/facul.hpp"
 #include "ecm/facul_doit.hpp"
+#include "macros.h"
 
 void factor_init(factor_ptr factor, unsigned int alloc)
 {

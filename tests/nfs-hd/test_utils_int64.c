@@ -1,5 +1,6 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "utils_int64.h"
+#include "macros.h"
 
 int main()
 {

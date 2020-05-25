@@ -1,9 +1,7 @@
 #ifndef ROPT_QUADRATIC_H
 #define ROPT_QUADRATIC_H
 
-#include "ropt.h"
-#include "ropt_stage1.h"
-#include "ropt_stage2.h"
+#include "ropt_str.h"   // ropt_bestpoly_t ropt_poly_t ropt_param_t ropt_info_t
 
 /* -- declarations -- */
 

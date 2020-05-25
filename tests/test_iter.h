@@ -8,7 +8,6 @@ extern "C" {
 /* Iterators that produce the smallest and largest possible values uint64_t,
    and smallest, largest, and closest to 0 for int64_t. */
 
-struct test_iter_s;
 typedef struct test_iter_s * test_iter_ptr;
 typedef const struct test_iter_s * test_iter_srcptr;
 

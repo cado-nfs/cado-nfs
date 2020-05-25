@@ -3,12 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <assert.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/resource.h>
-#include <unistd.h>
 #include <stdbool.h>
+#include <limits.h>
+#include <sys/time.h>
 #include <gmp.h>
 #include "ecm.h"
 

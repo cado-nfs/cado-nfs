@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "ideal.h"
+#include "macros.h"
 
 #ifdef __cplusplus
 extern "C" {

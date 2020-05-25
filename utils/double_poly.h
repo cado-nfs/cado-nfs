@@ -1,21 +1,24 @@
 #ifndef DOUBLE_POLY_H_
 #define DOUBLE_POLY_H_
 
-#include <stdio.h>
-#include <limits.h>
+// IWYU pragma: no_include "mpz_poly.h"
+// the fwd-decl is enough
 
-#ifdef DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS
-#include <complex.h>
+#include <stdint.h>    // for uint32_t
+#include <stdio.h>     // for FILE
+#include "macros.h"    // for GNUC_VERSION_ATLEAST
+#ifdef __cplusplus
+#include <string>      // for string
 #endif
 
-/* forward-declare our type before inclusion by mpz_poly.h, since we
- * include eachother
- */
-struct double_poly_s;
-typedef struct double_poly_s * double_poly_ptr;
-typedef const struct double_poly_s * double_poly_srcptr;
+#ifdef DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS
+#include <complex.h>    // IWYU pragma: keep
+#endif
 
-#include "mpz_poly.h"
+#ifndef MPZ_POLY_H_
+typedef struct mpz_poly_s * mpz_poly_ptr;
+typedef const struct mpz_poly_s * mpz_poly_srcptr;
+#endif
 
 /* floating point polynomials */
 
@@ -30,6 +33,8 @@ struct double_poly_s {
 };
 
 typedef struct double_poly_s double_poly[1];
+typedef struct double_poly_s * double_poly_ptr;
+typedef const struct double_poly_s * double_poly_srcptr;
 
 /* double_poly.c */
 void double_poly_init (double_poly_ptr, int deg);
@@ -81,9 +86,6 @@ void double_poly_set_string(double_poly_ptr poly, const char *str);
  * to be nice to C++ code */
 void double_poly_complex_roots(double _Complex *roots, double_poly_srcptr);
 void double_poly_complex_roots_long(long double _Complex *roots, double_poly_srcptr);
-/* The implementation of these in in polyroots.c -- we expose them here,
- * but new implementation should prefer using the functions above.
- */
 uint32_t poly_roots_double(double *poly, uint32_t degree, double _Complex *roots);
 uint32_t poly_roots_longdouble(double *poly, uint32_t degree, long double _Complex *roots);
 #endif

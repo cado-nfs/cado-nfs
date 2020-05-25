@@ -1,8 +1,9 @@
-#include "cado.h"
-#include "cado_pipe_streambuf.hpp"
-#include "cado_popen.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdexcept>
 #include <ios>
+#include <cstddef>      // for NULL
+#include "cado_pipe_streambuf.hpp"
+#include "cado_popen.h"
 
 static const char*
 ios_mode_to_stdio_mode(std::ios_base::openmode mode)

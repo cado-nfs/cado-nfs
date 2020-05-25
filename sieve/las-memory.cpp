@@ -16,6 +16,7 @@
 #include "misc.h"             // next_power_of_2
 #include "verbose.h"             // verbose_output_print
 #include "portability.h"
+#include "macros.h"
 
 #ifndef LARGE_PAGE_SIZE
 #define LARGE_PAGE_SIZE (2UL*1024*1024)

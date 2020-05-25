@@ -4,8 +4,12 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <float.h>      // FLT_MAX DBL_MAX
+#include <stdio.h>      // fprintf stderr
+#include <stdlib.h>     // free malloc
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
+#include <gmp.h>
 #include "ropt_tree.h"
 
 

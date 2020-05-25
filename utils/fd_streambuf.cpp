@@ -1,9 +1,9 @@
-#include "cado.h"
-#include <cassert>
+#include "cado.h" // IWYU pragma: keep
 #include <streambuf>
 #include <new>
 #include <unistd.h>
 #include "fd_streambuf.hpp"
+#include "macros.h"
 
 constexpr const size_t fd_streambuf::bufferSize;
 
@@ -13,6 +13,8 @@ fd_streambuf::fd_streambuf(int d) : fd_(d), readBuf(0), writeBuf(0)
 
 fd_streambuf::~fd_streambuf()
 {
+    if (writeBuf) { delete[] writeBuf; writeBuf = 0; }
+    if (readBuf) { delete[] readBuf; readBuf = 0; }
     if (fd_ < 0) return;
     close();
 }
@@ -61,7 +63,7 @@ void fd_streambuf::close()
 
 fd_streambuf::int_type fd_streambuf::underflow()
 {
-    assert(gptr() == egptr());
+    ASSERT(gptr() == egptr());
 
     if (fd_ < 0) {
         return traits_type::eof();
@@ -86,7 +88,7 @@ fd_streambuf::int_type fd_streambuf::underflow()
 
 fd_streambuf::int_type fd_streambuf::overflow(int_type c)
 {
-    assert(pptr() == epptr());
+    ASSERT(pptr() == epptr());
 
     if (fd_ < 0) {
         return traits_type::eof();

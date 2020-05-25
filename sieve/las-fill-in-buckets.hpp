@@ -1,16 +1,18 @@
 #ifndef LAS_FILL_IN_BUCKETS_HPP_
 #define LAS_FILL_IN_BUCKETS_HPP_
 
+#include <cstdint>
+#include <vector>
 #include <array>
 #include <memory>
 #include "las-config.h" // FB_MAX_PARTS
-#include "fb-types.h"
-#include "las-plattice.hpp"
-#include "tdict.hpp"
-#include "threadpool.hpp"
-#include "las-threads-work-data.hpp"
-#include "las-forwardtypes.hpp"
-#include "multityped_array.hpp"
+class nfs_aux; // IWYU pragma: keep
+class nfs_work;
+class nfs_work_cofac;
+class thread_pool;
+struct where_am_I;
+template <int LEVEL> class plattices_vector_t;
+template <template <int> class F, int n0, int n1> struct multityped_array;
 
 // This one is used for keeping information of middle primes.
 template<int LEVEL>

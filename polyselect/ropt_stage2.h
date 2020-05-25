@@ -1,21 +1,20 @@
 #ifndef ROPT_STAGE2_H
 #define ROPT_STAGE2_H
 
-
-#include "ropt_param.h"
-#include "ropt_tree.h"
-#include "ropt_arith.h"
+#include <stdint.h>      // int16_t
+#include "ropt_str.h"    // ropt_param_t ...
+#include "ropt_tree.h" // MurphyE_pq
 
 
 /**
  * Sieving array 
  */
-typedef struct {
+struct sievearray_s {
   int16_t *array;
   unsigned int len_i;
   unsigned int len_j;
-} _sievearray_t;
-typedef _sievearray_t sievearray_t[1];
+};
+typedef struct sievearray_s sievearray_t[1];
 
 
 /* -- declarations -- */

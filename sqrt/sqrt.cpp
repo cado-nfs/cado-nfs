@@ -10,7 +10,7 @@
    sqrt -poly cxxx.poly -prefix cxxx.dep.gz -sqrt0 -sqrt1 -gcd
  */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* the following avoids the warnings "Unknown pragma" if OpenMP is not
    available, and should come after cado.h, which sets -Werror=all */
 #ifdef  __GNUC__
@@ -23,28 +23,32 @@
 #include <cinttypes>
 #include <cmath> /* for log */
 #include <cerrno>
-#ifdef HAVE_RESOURCE_H
-#include <sys/resource.h>
-#endif
 #include <sys/stat.h>
 #include <pthread.h>
 #include <gmp.h>
 #include <mutex>
+#include <string>
 #include <vector>
-#include "omp_proxy.h"
+#include <utility> // pair
 #include "cado_poly.h"  // cado_poly
-#include "cxx_mpz.hpp"
 #include "cxx_mpz.hpp"   // for cxx_mpz
 #include "filter_io.h"  // filter_rels
+#include "fmt/core.h"
 #include "fmt/format.h"
-#include "fmt/printf.h"
+#include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
+#include "gmp_aux.h"
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gzip.h"       // fopen_maybe_compressed
 #include "memusage.h"   // PeakMemusage
 #include "modul_poly.h" // modul_poly
 #include "mpz_poly.h"   // mpz_poly
+#include "omp_proxy.h"
 #include "purgedfile.h" // purgedfile_read_firstline
 #include "version_info.h" // cado_revision_string
-#include "portability.h"
+#include "portability.h" // strndup // IWYU pragma: keep
+#include "macros.h"
+#include "params.h"
+#include "timing.h"
 
 /* frequency of messages "read xxx (a,b) pairs" */
 #define REPORT 10000000

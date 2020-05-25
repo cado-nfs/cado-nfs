@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <cstdio>
 #include <cstdlib>
@@ -16,6 +16,7 @@
 #include "select_mpi.h"
 #include "tree_stats.hpp"
 #include "timing.h"     // wct_seconds
+#include "macros.h"
 
 using namespace std;
 

@@ -1,6 +1,9 @@
 #ifndef BBLAS_BITREV_HPP_
 #define BBLAS_BITREV_HPP_
 
+// IWYU pragma: private, include "bblas.hpp"
+// IWYU pragma: friend ".*/bblas.*"
+
 #include <cstdint>
 #include "macros.h"
 

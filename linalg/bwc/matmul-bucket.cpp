@@ -3,7 +3,7 @@
 /* It's in C++ because the STL is handy, but that's really all there is
  * to it ; a conversion to C would not be extremely difficult */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
 #include <cstdio>
 #include <cstdlib>
@@ -57,6 +57,7 @@ using namespace std;
 
 #include "matmul_facade.h"
 #include "portability.h"
+#include "params.h"
 
 /* {{{ Documentation
  *

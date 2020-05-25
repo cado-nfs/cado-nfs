@@ -1,10 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
-#include <stdbool.h>
 #include "macros.h"
 #include "tab_strategy.h"
+#include "fm.h" // fm_t
 
 
 tabular_strategy_t *tabular_strategy_create(void)

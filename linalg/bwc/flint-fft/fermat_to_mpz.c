@@ -1,3 +1,4 @@
+#include <gmp.h>
 /* 
  * Copyright (C) 2009, 2011 William Hart
  * 

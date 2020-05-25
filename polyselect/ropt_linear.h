@@ -1,9 +1,9 @@
 #ifndef ROPT_LINEAR_H
 #define ROPT_LINEAR_H
 
-#include "ropt.h"
-#include "ropt_stage1.h"
-#include "ropt_stage2.h"
+#include "ropt_str.h" // ropt_info_t
+#include "ropt_tree.h"  // MurphyE_pq alpha_pq
+#include "ropt_param.h" // TUNE_LOGNORM_INCR
 
 /* -- declarations -- */
 

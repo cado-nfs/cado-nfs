@@ -1,7 +1,6 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <string.h>
-#include <misc.h>
 #include "bit_vector.h"
 #include "macros.h"
 

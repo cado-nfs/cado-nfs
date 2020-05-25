@@ -1,7 +1,12 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <math.h>
 #include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>
 #include "alpha3d.h"
+#include "macros.h"
+#include "params.h"
 
 static double expect_val_p(mpz_poly_srcptr f, uint64_t p, gmp_randstate_t state)
 {

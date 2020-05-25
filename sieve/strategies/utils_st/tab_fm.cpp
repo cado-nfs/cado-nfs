@@ -1,8 +1,6 @@
-#include "cado.h"
-#include <cfloat>
-#include <cstdio>
+#include "cado.h" // IWYU pragma: keep
+#include <cstdio> // FILE // IWYU pragma: keep
 #include <cstdlib>
-#include <cmath>
 #include "facul.hpp"
 #include "tab_fm.h"
 #include "macros.h"

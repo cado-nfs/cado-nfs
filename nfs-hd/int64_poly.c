@@ -1,9 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
 #include <string.h>
+#include <gmp.h>
 #include "int64_poly.h"
 #include "macros.h"
 #include "sieving_bound.h"

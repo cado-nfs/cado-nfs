@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include "int64_vector.h"
+#include "macros.h"
 
 /* TODO: this looks like reinventing the wheel again and
  * again and again. */

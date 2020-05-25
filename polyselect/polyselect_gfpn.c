@@ -1,6 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>
 #include "gfpkdlpolyselect.h"
+#include "params.h"
 #include "verbose.h"             // verbose_output_print
 
 static void

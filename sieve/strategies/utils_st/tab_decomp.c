@@ -1,8 +1,7 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <regex.h>
 #include "tab_decomp.h"
 #include "macros.h"

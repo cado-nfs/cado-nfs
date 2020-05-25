@@ -1,6 +1,9 @@
-#include "cado.h"
-#include <stdio.h>
-#include <string.h>
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>      // FILE
+#include <stdlib.h>     // free, malloc, abort
+#include <string.h>     // strcmp memset
+#include <gmp.h>
+#include "macros.h"     // for ASSERT_ALWAYS
 #include "mpz_poly.h"   // mpz_poly
 #include "sm_utils.h"
 #include "cado_poly.h"  // NB_POLYS_MAX

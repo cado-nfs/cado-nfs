@@ -1,16 +1,11 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
-#include <dirent.h>
-#include <sys/types.h>
-#include <getopt.h>
 #include <cstdlib>
 #include <cstdio>
-#include <cstring>
 #include <ctime>
-#include <cmath>
 #include <gmp.h>
 
-#include "facul_ecm.h"
+#include "tab_fm.h"     // tabular_fm_free
 #include "generate_factoring_method.hpp"
 #include "params.h"     // param_list
 

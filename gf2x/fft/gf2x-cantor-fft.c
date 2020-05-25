@@ -74,6 +74,7 @@
 #endif
 
 #include "mpfq/mpfq_name_K.h"
+#include "macros.h"
 
 /* It's a placeholder, really. After macro expansion, nobody really uses
  * this. The symbol must exist, though, because we have static inlines

@@ -9,7 +9,6 @@
 
 #include <algorithm>        // for max
 #include <climits>          // for UINT_MAX
-#include <cmath>            // for abs
 #include <cstdint>          // for uint32_t
 #include <cstdlib>          // for abs, abort, size_t, NULL
 #include <cstring>          // for memcpy, memset

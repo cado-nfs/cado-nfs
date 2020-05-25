@@ -1,12 +1,16 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <gmp.h>
 #include "params.h"     // param_list
 #include "facul_ecm.h"
+#include "facul.hpp" // EC_METHOD ...
 #include "generate_factoring_method.hpp"
+#include "macros.h"
+#include "tab_fm.h"
 
 static void declare_usage(param_list pl)
 {

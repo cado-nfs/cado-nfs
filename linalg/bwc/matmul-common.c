@@ -1,6 +1,7 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <errno.h>
 #include <string.h>
+#include <stdio.h>
 #include "bwc_config.h"
 #include "matmul-common.h"
 #include "params.h"

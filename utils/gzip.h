@@ -1,11 +1,11 @@
 #ifndef GZIP_H_
 #define GZIP_H_
 
+#include "cado_config.h"  // for HAVE_GETRUSAGE
 #include <stdio.h>
-#include <libgen.h>
-#include <sys/time.h>
 #ifdef  HAVE_GETRUSAGE
-#include <sys/resource.h>
+#include <sys/time.h>   // IWYU pragma: keep
+#include <sys/resource.h>       // IWYU pragma: keep
 #endif
 
 /* Length of preempt buffer. Must be a power of 2. */
@@ -104,10 +104,10 @@ extern int fclose_maybe_compressed2 (FILE * f, const char * name, struct rusage 
 #endif
 
 #ifdef __cplusplus
-#include <istream>
-#include <ostream>
+#include <istream>      // std::istream // IWYU pragma: keep
+#include <ostream>      // std::ostream // IWYU pragma: keep
 #include <memory>
-#include "cado_pipe_streambuf.hpp"
+class cado_pipe_streambuf;
 
 class streambase_maybe_compressed : virtual public std::ios {
     bool pipe;

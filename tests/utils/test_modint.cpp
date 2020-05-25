@@ -1,8 +1,9 @@
-#include "cado.h"
-#include <cstdint>     /* AIX wants it first (it's a bug) */
+#include "cado.h" // IWYU pragma: keep
 #include <cstdlib>
-#include <climits>
 #include <sstream>
+#include <iostream> // cerr
+#include <string>
+#include "cxx_mpz.hpp"
 #include "modint.hpp"
 #include "tests_common.h"
 

@@ -1,6 +1,8 @@
-#include "cado.h"
+#include <gmp.h>
+#include "cado.h" // IWYU pragma: keep
 #include "int64_poly.h"
 #include "mpz_poly.h"
+#include "macros.h"
 
 int main()
 {

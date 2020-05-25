@@ -1,8 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
-
 #include <cstdlib>             // for free
 #include <gmp.h>               // for mpz_srcptr, gmp_asprintf
-
+#include "cxx_mpz.hpp"
 #include "las-dumpfile.hpp"
 #include "las-todo-entry.hpp"  // for las_todo_entry
 #include "macros.h"

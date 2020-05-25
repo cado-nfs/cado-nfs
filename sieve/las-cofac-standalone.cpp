@@ -1,6 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <inttypes.h>                  // for PRId64, PRIu64
+#include <inttypes.h> // for PRId64, PRIu64 // IWYU pragma: keep
 #include <array>                       // for array, array<>::value_type
 #include <cstdint>                     // for uint8_t
 #include <mutex>                       // for lock_guard, mutex
@@ -9,7 +9,7 @@
 #include <gmp.h>                       // for mpz_srcptr, gmp_fprintf, mpz_c...
 
 #include "las-cofac-standalone.hpp"    // for cofac_standalone
-
+#include "gcd.h"       // for bin_gcd_int64_safe // IWYU pragma: keep
 #include "ecm/batch.hpp"                   // for cofac_list
 #include "las-cofactor.hpp"            // for factor_both_leftover_norms
 #include "las-coordinates.hpp"         // for NxToAB
@@ -21,7 +21,7 @@
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
 #include "relation.hpp"                // for relation
 
-struct qlattice_basis;
+struct qlattice_basis; // IWYU pragma: keep
 
 /* This is one input to the late cofactoring process (aka ECM). Here, we
  * mean the stuff that is done detached from the rest of the siever

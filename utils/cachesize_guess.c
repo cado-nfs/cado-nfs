@@ -1,5 +1,5 @@
 /* program to determine the size of the L1 cache */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <stdio.h>
 #include <stdlib.h>

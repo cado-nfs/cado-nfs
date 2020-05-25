@@ -1,25 +1,19 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* 
  * Authors: Joshua Peignier and Emmanuel Thomé
  */
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <cerrno>
-#include <cstdint>
-#include <sys/resource.h>	/* for getrusage */
-#include <queue>
-#include <ctime>
-#include <string>
-#include <list>
-#include <algorithm>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
-#include <gmp.h>
-#include "macros.h"
 #include "numbertheory.hpp"
+#include <gmp.h>        // for mpz_t, mpz_mul, mpq_denref, mpq_numref, mpz_c...
+#include <algorithm>    // for sort
+#include <cstdio>       // for NULL, size_t
+#include <sstream>      // std::ostringstream // IWYU pragma: keep
+#include <memory>       // for allocator_traits<>::value_type
+#include <string>       // for char_traits, operator<<, string
+#include <type_traits>  // for __strip_reference_wrapper<>::__type
+#include "cxx_mpz.hpp"  // for cxx_mpz, operator<<
+#include "gmp_aux.h"    // for mpz_p_valuation
+#include "macros.h"     // for ASSERT_ALWAYS
+
 
 using namespace std;
 

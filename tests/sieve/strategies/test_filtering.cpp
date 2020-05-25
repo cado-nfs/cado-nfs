@@ -1,9 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "generate_factoring_method.hpp"
-
 #include <stdlib.h>
-#include <stdio.h>
 #include <math.h>
+#include "fm.h"                           // for fm_t, fm_create, fm_free
+#include "tab_fm.h"                       // for tabular_fm_free, tabular_fm_t
 
 //check if the spread of remaining methods is homogeneous.
 int check_filt (tabular_fm_t* res, int init_nb_method)

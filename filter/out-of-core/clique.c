@@ -22,7 +22,7 @@
    -remove nnn : the number of "cliques" to be removed
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -38,6 +38,7 @@
 #include <libgen.h>
 #include <limits.h> /* for CHAR_BIT */
 #include "portability.h"
+#include "macros.h"
 
 #define NEW_DIR "new/"
 #define MAX_FILES_PER_THREAD 1

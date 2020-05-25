@@ -1,8 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <string.h>
 #include "mod_ul.h"     // modulusul_t
 #include "galois_utils.h"
+#include "macros.h" // ASSERT_ALWAYS
 
 void automorphism_init(int *ord, int mat[4], const char *galois_autom){
     int A, B, C, D; // x -> (A*x+B)/(C*x+D)

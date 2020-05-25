@@ -1,7 +1,7 @@
 /* Manage the in-memory data for the matrix */
 /* It's in C++ because the STL is handy, but that's really all there is
  * to it... */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
 #include <cstdio>
 #include <cstdlib>
@@ -26,6 +26,8 @@ using namespace std;
 #include "matmul-common.h"
 
 #include "matmul_facade.h"
+#include "macros.h"
+#include "params.h"
 
 // assembly is now disabled for this code because the semantics of the
 // asm code have changed.

@@ -1,11 +1,10 @@
-#include "cado.h"
-#include <stdio.h>
-#include <string.h>
+#include "cado.h" // IWYU pragma: keep
+#include <limits.h>
 
 #include "filter_config.h"
-#include "merge_replay_matrix.h"
 #include "sparse.h"
 #include "mst.h"
+#include "macros.h"
 
 //////////////////////////////////////////////////////////////////////
 // heap data structure to store the remaining edges to be considered

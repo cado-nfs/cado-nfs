@@ -1,7 +1,13 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <math.h>
-#include "polyselect/auxiliary.h"
-#include "polyselect/size_optimization.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>                           // for mpz_t, mpz_set_si, mpz_set_ui
+#include "auxiliary.h"
+#include "cado_poly.h"                     // for MAX_DEGREE
+#include "macros.h"
+#include "mpz_poly.h"                      // for mpz_poly_clear, mpz_poly_init
+#include "size_optimization.h"
 #include "tests_common.h"
 
 static int

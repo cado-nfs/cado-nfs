@@ -1,3 +1,4 @@
+#include <stdio.h>
 #ifndef EC_ARITH_COMMON_H_
 #define EC_ARITH_COMMON_H_
 

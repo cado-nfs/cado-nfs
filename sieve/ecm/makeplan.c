@@ -1,5 +1,4 @@
-#include "cado.h"
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <stdio.h>
 #include <gmp.h>
@@ -9,7 +8,9 @@
 #include "getprime.h"   // getprime
 #include "pm1.h"
 #include "pp1.h"
+#include "stage2.h"         // for stage2_clear_plan, stage2_make_plan, stag...
 #include "verbose.h"             // verbose_output_print
+#include "macros.h"
 
 /* By default we compress the bytecode chain.
  * You can set it to 0 to disabled it.

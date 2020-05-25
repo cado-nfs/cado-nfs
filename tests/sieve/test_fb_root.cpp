@@ -1,8 +1,17 @@
 /* test fb_root_in_qlattice_31bits */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <cinttypes>               // for PRId64, PRIu64
+#include <cstdint>                 // for uint32_t, uint64_t
+#include <cstring>                 // for strcmp
+#include <cstdio>
+#include <cstdlib>
+#include <memory>                   // for allocator_traits<>::value_type
 #include <vector>
 #include <gmp.h>
+#include "fb-types.h"               // for fbprime_t, FBPRIME_FORMAT
+#include "gmp_aux.h"                // for mpz_add_int64, mpz_init_set_int64
+#include "las-arith.hpp"            // for invmod_redc_32
 #include "macros.h"
 #include "las-qlattice.hpp"
 #include "las-fbroot-qlattice.hpp"

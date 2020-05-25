@@ -15,16 +15,14 @@
 #include <memory>                         // for shared_ptr, allocator, __sh...
 #include <utility>                        // for move
 #include <vector>                         // for vector, vector<>::iterator
-
 #include "macros.h"                       // for CADO_CONCATENATE, ASSERT_AL...
-
 #include "las-fill-in-buckets.hpp"        // for precomp_plattice_t, downsor...
-
 #include "bucket-push-update.hpp"         // for bucket_array_t::push_update
 #include "bucket.hpp"                     // for longhint_t (ptr only), buck...
 #ifdef USE_CACHEBUFFER
 #include "cachebuf.h"
 #endif
+#include "utils_cxx.hpp"
 #include "fb-types.h"                     // for sublat_t, slice_offset_t
 #include "fb.hpp"                         // for fb_slice, fb_factorbase
 #include "las-auxiliary-data.hpp"         // for nfs_aux, nfs_aux::thread_data

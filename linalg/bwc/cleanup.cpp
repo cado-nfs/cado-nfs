@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <cstdio>
 #include <cstdlib>
@@ -10,6 +10,7 @@
 #include "blockmatrix.hpp"
 #include "bblas_gauss.h"
 #include "params.h"     // param_list
+#include "macros.h"
 
 void usage()
 {

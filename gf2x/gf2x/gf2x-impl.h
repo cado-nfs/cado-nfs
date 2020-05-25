@@ -50,6 +50,7 @@
 #define	GF2X_SELECT_UNB_TC3U	1	/* do not change ! */
 
 #include <assert.h>
+#include "macros.h"
 #ifndef ASSERT
 #define ASSERT(x)	assert(x)
 #endif

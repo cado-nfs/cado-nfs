@@ -1,23 +1,31 @@
-#include "cado.h"
-
+#include "cado.h" // IWYU pragma: keep
+#include <array>
+#include <vector>
 #include <cstdlib>
 #include <cstdio>
-#include <ctime>
 #include <cmath>
 #include <cstring>
+#include <gmp.h>
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"
 #include "facul.hpp"
+#include "facul_fwd.hpp"
+#include "fm.h" // fm_t fm_set_method
 #include "finding_good_strategy.h"
 #include "generate_factoring_method.hpp"
 #include "generate_strategies.h"
 #include "tab_strategy.h"
 #include "tab_fm.h"
+#include "decomp.h"     // decomp_t
 #include "tab_decomp.h"
 #include "cxx_mpz.hpp"  // cxx_mpz
 #include "timing.h"  // microseconds
 #include "params.h"     // param_list
+#include "macros.h"
+#include "modredc_ul.h" // MODREDCUL_MAXBITS
+#include "stage2.h" // stage2_plan_t
+#include "strategy.h"                     // for strategy_t, strategy_add_fm
 
 int CONST_TEST_R = 55;
 
@@ -1082,11 +1090,11 @@ facul_strategies_t* convert_strategy_to_facul_strategies (strategy_t* t, int* r,
     int r0, r1;
     for (r0 = 0; r0 <= mfb[0]; r0++) {
       methods[r0] = (facul_method_side_t**) malloc (sizeof (*methods[r0]) * (mfb[1]+1));
-      assert (methods[r0] != NULL);
+      ASSERT (methods[r0] != NULL);
       for (r1 = 0; r1 <= mfb[1];r1++)
 	{
 	  methods[r0][r1] = (facul_method_side_t*) malloc (50 * sizeof (facul_method_side_t));
-	  assert (methods[r0][r1] != NULL);
+	  ASSERT (methods[r0][r1] != NULL);
 	  methods[r0][r1][0].method = NULL;
 	}
     }

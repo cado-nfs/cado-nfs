@@ -1,4 +1,5 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include "bblas_level3a.hpp"
 #include "test_bblas_base.hpp"
 #include "memory.h"
 

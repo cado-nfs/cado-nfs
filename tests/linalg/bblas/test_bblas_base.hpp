@@ -1,13 +1,11 @@
 #ifndef TEST_BBLAS_BASE_HPP_
 #define TEST_BBLAS_BASE_HPP_
 
-#include "bblas.hpp"
-#include "test_bblas_base.hpp"
+#include "bblas_mat64.hpp"
 #include <gmp.h>
 #include <cstdint>
 #include <vector>
 #include <string>
-#include <set>
 #include "gmp_aux.h"
 #ifdef HAVE_M4RI
 /* To test against m4ri routines, include a checkout of

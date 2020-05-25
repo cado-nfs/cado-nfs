@@ -1,16 +1,18 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <memory>
+// IWYU asks for <memory> because of allocator_traits<>::value_type ; WTH ?
 #include <cstdio>
 #include <cstdlib>
-#include <cinttypes> /* for PRId64 */
-#include <cctype> /* for isxdigit */
-#include <cstring>
-#include <cerrno>
+#include <istream> // std::istream
+#include <ostream> // std::ostream
 #include <algorithm>
-#include <sstream>
+#include <sstream> // std::ostringstream // IWYU pragma: keep
 #include <string>
-#include <iomanip>
+#include <iomanip> // std::hex // IWYU pragma: keep
 #include <gmp.h>
 
+#include "macros.h" /* for ASSERT_ALWAYS */
 #include "relation.hpp"
 #include "relation-tools.h"
 

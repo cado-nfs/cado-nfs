@@ -1,12 +1,13 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "macros.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <stdint.h>
+#include <gmp.h>
 #include "mpz_poly.h"
 #include "tests_common.h"
-#include "portability.h"
+#include "portability.h" // lrand48 // IWYU pragma: keep
 
 /* Put random coefficients of k bits in a polynomial (already initialized).
    Ensure the coefficient of degree d is not zero. */
@@ -59,7 +60,7 @@ static void mpz_poly_setcoeffs_si_var(mpz_poly f, int d, ...)
 static int
 mpz_poly_mul_basecase (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s) {
   int i, j;
-  assert(f != g && f != h);
+  ASSERT(f != g && f != h);
   for (i = 0; i <= r + s; i++)
     mpz_set_ui (f[i], 0);
   for (i = 0; i <= r; ++i)

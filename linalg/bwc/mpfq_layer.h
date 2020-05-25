@@ -6,7 +6,10 @@
 #error "mpfq_layer.h and mpfq_fake.hpp are incomaptible"
 #endif
 
-#if defined(SELECT_MPFQ_LAYER_u64k1)
+// IWYU pragma: begin_exports
+#include "mpfq/mpfq.h"
+
+#if defined(SELECT_MPFQ_LAYER_u64k1) || defined(SELECT_MPFQ_LAYER_u64)
 #include "mpfq/mpfq_u64k1.h"
 #ifdef __cplusplus
 #include "mpfq/mpfq_u64k1.hpp"
@@ -148,5 +151,6 @@
  * interface.
  */
 #include "mpfq/mpfq_name_ab.h"
+ // IWYU pragma: end_exports
 
 #endif	/* MPFQ_LAYER_H_ */

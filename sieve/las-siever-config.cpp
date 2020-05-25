@@ -5,6 +5,7 @@
 #include <cstdio>             // for fprintf, stderr, fclose, fgets, fopen
 #include <cstdlib>            // for exit, strtoul, strtod, EXIT_FAILURE
 #include <gmp.h>               // for mpz_sizeinbase
+#include "cxx_mpz.hpp"   // for cxx_mpz
 #include "fb-types.h"          // for fbprime_t
 #include "las-multiobj-globals.hpp"     // for dlp_descent
 #include "las-siever-config.hpp"

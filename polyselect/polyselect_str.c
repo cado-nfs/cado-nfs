@@ -3,9 +3,18 @@
 #define LABEL_UNIQUE TOKENPASTE2(Label, __LINE__)
 
 /* Data struct used for polyselect */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <float.h> // DBL_MAX
+#include <math.h> // log
+#include <string.h> // memset
+#include <pthread.h> // pthread_mutex_lock
+#include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>
 #include "polyselect_str.h"
+#include "cado_poly.h"
 #include "getprime.h"   // getprime
+#include "macros.h"
 
 void match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
             mpz_t ad, unsigned long d, mpz_t N, unsigned long q,
@@ -252,7 +261,7 @@ qroots_init (qroots_t R)
 void
 qroots_realloc (qroots_t R, unsigned long newalloc)
 {
-  assert (newalloc >= R->size);
+  ASSERT (newalloc >= R->size);
   R->alloc = newalloc;
   R->q = realloc (R->q, newalloc * sizeof (unsigned int));
   if (R->q == NULL)

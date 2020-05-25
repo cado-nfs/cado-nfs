@@ -45,26 +45,37 @@
    We store j % 2^32 at the next empty cell after index i in the hash-table.
 */
 
-#include "cado.h"
-#include <cstdio>
-#include <cstdlib>
+#include "cado.h" // IWYU pragma: keep
+#include <errno.h>           // for errno
+#include <inttypes.h>        // for PRIu64, PRId64, PRIx64, PRIu32
+#include <stddef.h>          // for ptrdiff_t
+#include <stdint.h>          // for uint64_t, uint32_t, int64_t
+#include <string.h>          // for strlen, strdup, memset, memcpy, strerror
+#include <stdio.h>            // for fprintf, stderr, NULL, asprintf, feof, FILE
+#include <stdlib.h>           // for exit, free, malloc, abort, EXIT_FAILURE
+#ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
-
-#include "filter_config.h"
-#include "filter_io.h"  // earlyparsed_relation_ptr
-#include "gzip.h"       // get_suffix_from_filename
-#include "misc.h"       // filelist_from_file
-#include "relation-tools.h"
-#include "renumber.hpp"
-#include "verbose.h"
-#include "portability.h"
+#endif
+#include "cado_poly.h"       // for cado_poly_read, cxx_cado_poly
+#include "filter_config.h"   // for CA_DUP2, CB_DUP2
+#include "filter_io.h"       // for earlyparsed_relation_s, filter_rels_desc...
+#include "gmp_aux.h"         // for uint64_nextprime
+#include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
+#include "macros.h"          // for ASSERT_ALWAYS, MAYBE_UNUSED, UNLIKELY
+#include "misc.h"            // for filelist_clear, filelist_from_file
+#include "params.h"          // for cxx_param_list, param_list_decl_usage
+#include "portability.h" // strdup  // IWYU pragma: keep
+#include "relation-tools.h"  // for u64toa16, d64toa16, relation_compute_r
+#include "renumber_proxy.h"  // for renumber_proxy_t
+#include "typedefs.h"        // for prime_t, index_t, p_r_values_t, weight_t
+#include "verbose.h"         // for verbose_decl_usage, verbose_interpret_pa...
 
 #define DEBUG 0
 
 char *argv0; /* = argv[0] */
 
 /* Renumbering table to convert from (p,r) to an index */
-renumber_t renumber_tab;
+renumber_proxy_t renumber_tab;
 
 static uint32_t *H; /* H contains the hash table */
 static uint64_t K = 0; /* Size of the hash table */
@@ -174,14 +185,17 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
    *    add the column 0 (in this case there is always 1 additional column
    *      and it is always necessary)", which I think is wrong.
    */
-  auto addsides = renumber_tab.get_sides_of_additional_columns();
-  for(index_t idx = 0; idx < addsides.size() ; idx++) {
-      int side = addsides[idx];
+  size_t n = renumber_table_get_nb_polys(renumber_tab);
+  int * sides = malloc(n * sizeof(int));
+  renumber_table_get_sides_of_additional_columns(renumber_tab, sides, &n);
+  for(index_t idx = 0; idx < n ; idx++) {
+      int side = sides[idx];
       if ((nonvoidside & (((uint64_t) 1) << side))) {
           p = u64toa16(p, (uint64_t) idx);
           *p++ = ',';
       }
   }
+  free(sides);
 
   *(--p) = '\n';
   p[1] = '\0';
@@ -285,7 +299,7 @@ compute_index_rel (earlyparsed_relation_ptr rel)
   {
     if (pr[i].e > 0)
     {
-      if (pr[i].side != renumber_tab.get_rational_side()) {
+      if (pr[i].side != renumber_table_get_rational_side(renumber_tab)) {
 #if DEBUG >= 1
   // Check for this bug : [#15897] [las] output "ideals" that are not prime
         if (!modul_isprime(&(pr[i].p)))
@@ -302,33 +316,37 @@ compute_index_rel (earlyparsed_relation_ptr rel)
       else
         r = 0; // on the rational side we need not compute r, which is m mod p.
       
-      renumber_t::p_r_side x { pr[i].p, r, pr[i].side };
-      if (renumber_tab.is_bad (x)) {
-        auto y = renumber_tab.indices_from_p_a_b(x, pr[i].e, rel->a, rel->b);
+      p_r_values_t p = pr[i].p;
+      int side = pr[i].side;
+      if (renumber_table_p_r_side_is_bad(renumber_tab, NULL, p, r, side)) {
+        index_t first_index;
+        size_t nexps = renumber_table_get_poly_deg(renumber_tab, side);
+        int * exps = malloc(nexps * sizeof(int));
+        renumber_table_indices_from_p_a_b(renumber_tab, &first_index, exps, &nexps, p, r, side, pr[i].e, rel->a, rel->b);
 
         /* allocate room for (nb) more valuations */
-        for( ; rel->nb + y.second.size() - 1 > rel->nb_alloc ; ) {
+        for( ; rel->nb + nexps - 1 > rel->nb_alloc ; ) {
            realloc_buffer_primes(rel);
            pr = rel->primes;
         }
-        index_t first_index = y.first;
         /* the first is put in place, while the other are put at the end
          * of the relation. As a side-effect, the relations produced are
          * unsorted. Anyway, given that we're mixing sides when
          * renumbering, we're bound to do sorting downhill. */
         pr[i].h = first_index;
-        pr[i].e = y.second[0];
+        pr[i].e = exps[0];
 
-        for (size_t n = 1; n < y.second.size(); n++) {
+        for (size_t n = 1; n < nexps ; n++) {
             pr[rel->nb].h = first_index + n;
-            pr[rel->nb].e = y.second[n];
+            pr[rel->nb].e = exps[n];
             if (!is_for_dl) { /* Do we reduce mod 2 */
                 pr[rel->nb].e &= 1;
             }
             rel->nb++;
         }
+        free(exps);
       } else {
-        pr[i].h = renumber_tab.index_from_p_r(pr[i].p, r, pr[i].side);
+        pr[i].h = renumber_table_index_from_p_r(renumber_tab, pr[i].p, r, pr[i].side);
       }
     }
     if (!is_for_dl) { /* Do we reduce mod 2 */
@@ -451,7 +469,7 @@ thread_dup2 (void * context_data, earlyparsed_relation_ptr rel)
 
 
 void *
-thread_root(void *, earlyparsed_relation_ptr rel)
+thread_root(void * p MAYBE_UNUSED, earlyparsed_relation_ptr rel)
 {
     /* We used to reduce exponents here. However, it's not a good idea if
      * we want to get the valuations at bad ideals.
@@ -554,8 +572,11 @@ main (int argc, char *argv[])
 {
     argv0 = argv[0];
 
-    cxx_param_list pl;
-    cxx_cado_poly cpoly;
+    param_list pl;
+    cado_poly cpoly;
+
+    param_list_init(pl);
+    cado_poly_init(cpoly);
 
     declare_usage(pl);
     argv++,argc--;
@@ -636,8 +657,8 @@ main (int argc, char *argv[])
 
     set_antebuffer_path (argv0, path_antebuffer);
 
-    renumber_tab = renumber_t(cpoly);
-    renumber_tab.read_from_file(renumberfilename);
+    renumber_table_init(renumber_tab, cpoly);
+    renumber_table_read_from_file(renumber_tab, renumberfilename);
 
   /* sanity check: since we allocate two 64-bit words for each, instead of
      one 32-bit word for the hash table, taking K/100 will use 2.5% extra
@@ -691,7 +712,7 @@ main (int argc, char *argv[])
       for (char ** p = files; *p; p++) {
           /* always strdup these, so that we can safely call
            * filelist_clear in the end */
-          if (check_whether_file_is_renumbered(*p, renumber_tab.get_nb_polys())) {
+          if (check_whether_file_is_renumbered(*p, renumber_table_get_nb_polys(renumber_tab))) {
               files_already_renumbered[nb_f_renumbered++] = strdup(*p);
           } else {
               files_new[nb_f_new++] = strdup(*p);
@@ -784,11 +805,14 @@ main (int argc, char *argv[])
       }
   }
 
+  renumber_table_clear(renumber_tab);
   free (H);
   free (sanity_a);
   free (sanity_b);
   filelist_clear(files_already_renumbered);
   filelist_clear(files_new);
+  cado_poly_clear(cpoly);
+  param_list_clear(pl);
 
   return 0;
 }

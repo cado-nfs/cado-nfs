@@ -1,15 +1,18 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <cfloat>
-#include <cstdio>
+#include <cstdio> // FILE // IWYU pragma: keep
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
 
 #include "facul_ecm.h"
 #include "facul.hpp"
+#include "fm.h" // fm_t
+#include "tab_fm.h" // tabular_fm_t
 #include "tab_strategy.h"
 #include "finding_good_strategy.h"
+#include "macros.h"
 
 //#define STATS 
 /* if define then print in a file 'result_strat' the different values
@@ -36,7 +39,7 @@ tabular_strategy_t ***extract_matrix_strat(const char *pathname_st,
     ASSERT(matrix != NULL);
     for (int r1 = 0; r1 < len_abs; r1++) {
 	matrix[r1] = (tabular_strategy_t**) malloc(sizeof(*matrix[r1]) * len_ord);
-	assert(matrix[r1] != NULL);
+	ASSERT(matrix[r1] != NULL);
     }
 
     for (int r0 = 0; r0 < len_abs; r0++) {
@@ -72,11 +75,11 @@ unsigned long **extract_matrix_C(FILE * file, int len_abs, int len_ord)
 	return NULL;
     //create matrix
     unsigned long **matrix_call = (unsigned long**) malloc(sizeof(*matrix_call) * len_abs);
-    assert(matrix_call != NULL);
+    ASSERT(matrix_call != NULL);
 
     for (int i = 0; i < len_abs; i++) {
 	matrix_call[i] = (unsigned long *) calloc(sizeof(*matrix_call[i]), len_ord);
-	assert(matrix_call[i]);
+	ASSERT(matrix_call[i]);
     }
 
     //collect data
@@ -245,10 +248,10 @@ strategy_t ***compute_best_strategy(tabular_strategy_t *** matrix_strat,
     double Y = 0, T = C0;
     //build the matrix with the optimal strategies.
     strategy_t ***matrix_res = (strategy_t***) malloc(sizeof(*matrix_res) * len_abs);
-    assert(matrix_res != NULL);
+    ASSERT(matrix_res != NULL);
     for (int r1 = 0; r1 < len_abs; r1++) {
 	matrix_res[r1] = (strategy_t**) malloc(sizeof(*matrix_res[r1]) * len_ord);
-	assert(matrix_res[r1] != NULL);
+	ASSERT(matrix_res[r1] != NULL);
 	for (int r2 = 0; r2 < len_ord; r2++) {
 	    if (distrib_C[r1][r2] < EPSILON_DBL)
 		matrix_res[r1][r2] = NULL;

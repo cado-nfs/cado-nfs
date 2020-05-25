@@ -19,17 +19,21 @@
 #include <string>              // for basic_string
 #include <type_traits>         // for remove_reference<>::type
 #include <vector>              // for vector
+#include <gmp.h>
 
 #include "omp_proxy.h"
 #include "batch.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul_doit.hpp"      // for facul_doit_onefm
 #include "facul_fwd.hpp"       // for facul_method_t
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
+#include "gmp_aux.h"       // mpz_set_uint64
 #include "las-todo-entry.hpp"  // for las_todo_entry
 #include "modset.hpp"          // for FaculModulusBase
 #include "relation.hpp"        // for relation
 #include "rootfinder.h" // mpz_poly_roots_ulong
 #include "timing.h"             // for seconds
+#include "macros.h"
 
 /* This function is useful in the openmp context. This segment goes
  * parallel, and all threads except the calling thread subtract their

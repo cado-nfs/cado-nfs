@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
@@ -15,7 +15,9 @@
 #include "timing.h"     // wct_seconds
 #include "misc.h"       // size_disp
 #include "fix-endianness.h" // fwrite32_little
+#ifdef HAVE_HWLOC
 #include "hwloc-aux.h"
+#endif
 
 void mf_scan2_decl_usage(cxx_param_list & pl)
 {

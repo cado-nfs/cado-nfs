@@ -4,11 +4,24 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdlib.h> // exit
+#include <string.h> // strncmp strlen
+#include <math.h> // log
+#include <stdio.h>
+#include <gmp.h>
+#include "cado_poly.h"
+#include "mpz_poly.h"
 #include "ropt_io.h"
 #include "ropt.h"
+#include "ropt_str.h" // ropt_poly_t ...
 #include "size_optimization.h"
 #include "usp.h"
+#include "murphyE.h"    // MurphyE MURPHY_K
+#include "ropt_param.h"    // L1_cachesize MAX_LINE_LENGTH
+#include "cachesize_cpuid.h" // cachesize_cpuid
+#include "auxiliary.h" // print_poly_fg ALG_SIDE ALPHA_BOUND
+#include "ropt_arith.h" // Lemma21
 
 /**
  * Get L1 cache size in the beginning.

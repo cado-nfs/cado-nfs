@@ -36,18 +36,15 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include <stdio.h>
-#include "gmp.h"
+#include <gmp.h>
 #include "flint.h"
 #include "fft.h"
 #include "ulong_extras.h"
 #include "fft_tuning.h"
 #include "timing.h"
 #include "gmp_aux.h"
-
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
+#include "omp_proxy.h"
+#include "macros.h"             // for ASSERT_ALWAYS
 
 #ifndef iceildiv
 /* unfortunately this fails miserably if x+y-1 overflows */

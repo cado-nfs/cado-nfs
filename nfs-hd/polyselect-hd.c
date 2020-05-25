@@ -1,11 +1,15 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <time.h>
+#include <stdlib.h>
+#include <gmp.h>
 #include "polynomials.h"
 #include "sieving_bound.h"
 #include "polyselect/auxiliary.h"
+#include "macros.h"
+#include "params.h"
 
 static void mpz_poly_coeff_fprintf(FILE * file, mpz_poly_srcptr f)
 {

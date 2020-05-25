@@ -1,8 +1,11 @@
 #ifndef TEST_BPACK_HPP_
 #define TEST_BPACK_HPP_
 
+#include <stdio.h>              // for printf
+#include <set>                  // for set
+#include <string>               // for string, operator<
+#include <vector>               // for vector
 #include "test_bblas_base.hpp"
-#include "bpack.hpp"
 
 struct test_bpack : public test_bblas_base
 {

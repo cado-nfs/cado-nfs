@@ -1,13 +1,13 @@
-#include "cado.h"
-#include <math.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <assert.h>
+#include "cado.h" // IWYU pragma: keep
+#include <cmath>
+#include <cstdlib>
+#include <climits>
 #include <mutex>
 #include <vector>
 #include "getprime.h"
 #include "ularith.h"
 #include "gpf.h"
+#include "macros.h"     // ASSERT ASSERT_EXPENSIVE
 
 /* clumsy: we want a c-only accessor, but an automatic c++ dtor */
 unsigned int * gpf;

@@ -1,7 +1,12 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>
 #include "alpha3d.h"
 #include "murphyE3d.h"
+#include "macros.h"
+#include "params.h"
 
 typedef struct {
   //Array of spq with MqLLL.

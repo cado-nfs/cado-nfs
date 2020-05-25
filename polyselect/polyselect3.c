@@ -7,7 +7,7 @@
    and add the new Murphy-E value at the end of each file.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* The following avoids to put #ifdef HAVE_OPENMP ... #endif around each
    OpenMP pragma. It should come after cado.h, which sets -Werror=all.
 #ifdef  __GNUC__
@@ -18,8 +18,12 @@
  * it's gcc specific. We can't expect such a thing to work with other
  * compilers.
  */
+#include <stdio.h>      // FILE
+#include <stdlib.h>     // exit ...
 #include "murphyE.h"
+#include "cado_poly.h"
 #include "auxiliary.h"
+#include "params.h"
 #include "omp_proxy.h"
 #include "verbose.h"             // verbose_output_print
 

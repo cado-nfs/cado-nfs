@@ -1,6 +1,6 @@
 //Usage: ./check_relations <file_relation> <output> <poly.poly> <lpb> <error>
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <cassert>
 #include <sstream>

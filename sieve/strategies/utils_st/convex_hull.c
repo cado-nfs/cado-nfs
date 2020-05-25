@@ -1,5 +1,4 @@
-#include "cado.h"
-#include <stdlib.h>
+#include "cado.h" // IWYU pragma: keep
 #include "convex_hull.h"
 #include <math.h>
 

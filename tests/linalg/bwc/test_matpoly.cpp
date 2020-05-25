@@ -1,12 +1,12 @@
-#include "cado.h"
-#include <gmp.h>
+#include "cado.h" // IWYU pragma: keep
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>             // for strcmp
+#include <gmp.h>                // for gmp_randstate_t, gmp_randclear, gmp_r...
 #include "lingen_matpoly_ft.hpp"
-#include "gmp_aux.h"
-#include "tree_stats.hpp"
-#include "select_mpi.h"
 #include "lingen_qcode_select.hpp"
-#include "timing.h"
 #include "cxx_mpz.hpp"
+#include "macros.h"
 
 struct matpoly_checker_base {
     abfield ab;

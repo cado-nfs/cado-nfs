@@ -8,7 +8,7 @@
 */
 
 /* To avoid the warning: implicit declaration of nanosleep for c99 compliant */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #ifdef _POSIX_C_SOURCE
 #undef _POSIX_C_SOURCE
 #endif
@@ -23,8 +23,9 @@
 #include <pthread.h>
 #include <errno.h>
 #include <time.h>
+#include "macros.h"     // LIKELY UNLIKELY
 #include "timing.h"
-#include "portability.h"
+#include "portability.h" // sleep // IWYU pragma: keep
 
 #ifdef HAVE_MINGW
 int _CRT_fmode = _O_BINARY; /* Binary open for stdin/out/err */

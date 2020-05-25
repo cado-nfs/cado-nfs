@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
@@ -11,6 +11,7 @@
 #include "makefb.h"
 #include "utils_int64.h"
 #include "math.h"
+#include "params.h"
 
 /*
  * Mode:

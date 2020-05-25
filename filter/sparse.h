@@ -1,6 +1,7 @@
 #ifndef CADO_SPARSE_H_
 #define CADO_SPARSE_H_
 
+#include <stdio.h>
 #include <stdint.h> /* for int32_t */
 #include "typedefs.h"   // index_t
 #include "merge_replay_matrix.h"        // typerow_t

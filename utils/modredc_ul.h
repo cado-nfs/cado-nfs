@@ -12,7 +12,8 @@
 #define MODREDC_UL_H
 
 /**********************************************************************/
-#include <assert.h>
+#include "cado_config.h"  // just because we're a header.
+#include <stddef.h>
 #include <limits.h>
 #include <stdint.h>
 #include "macros.h"

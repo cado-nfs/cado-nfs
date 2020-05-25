@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include "params.h"
+#include "macros.h"     // ATTR_PRINTF
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,11 +1,15 @@
 #ifndef CADO_UTILS_TIMING_H_
 #define CADO_UTILS_TIMING_H_
 
-#include "macros.h"     /* MAYBE_UNUSED */
+#include "cado_config.h"  // for HAVE_GETRUSAGE, HAVE_GCC_STYLE_AMD64_INLINE...
+
+#include <stdio.h> // FILE
 #include <stdint.h> /* for uint64_t */
 
 #ifdef  HAVE_GETRUSAGE
-#include <sys/resource.h>
+#include <sys/resource.h> // IWYU pragma: keep
+#else
+#include "macros.h"     /* MAYBE_UNUSED */ // IWYU pragma: keep
 #endif
 
 #ifdef __cplusplus

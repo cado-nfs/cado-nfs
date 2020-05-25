@@ -1,24 +1,33 @@
-#include "cado.h"
-#include <sstream>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+#include <algorithm>
+#include <fstream>      // std::ifstream // IWYU pragma: keep
+#include <iomanip>      // std::hex // IWYU pragma: keep
+#include <iostream>     // std::cout
 #include <limits>
+#include <list>
+#include <memory>              // for allocator_traits<>::value_type, unique...
+#include <sstream>      // std::ostringstream // IWYU pragma: keep
 #include <stdexcept>
 #include <string>
-#include <sstream>
-#include <fstream>
 #include <vector>
-#include <exception>
-#include <iomanip>
-#include <algorithm>
-#include <list>
-#include <map>
-#include <iostream>
-#include "gzip.h"       // ifstream_maybe_compressed
-#include "renumber.hpp"
+#include <cstring>             // for strcmp
+#include <cstdio> // stdout // IWYU pragma: keep
+#include <climits> // UINT_MAX // IWYU pragma: keep
+#include <gmp.h>               // for mpz_get_ui, mpz_divisible_ui_p, mpz_t
 #include "badideals.hpp"
-#include "mpz_poly.h"   // mpz_poly
-#include "rootfinder.h" // mpz_poly_roots
+#include "cxx_mpz.hpp"         // for cxx_mpz
+#include "getprime.h"          // for getprime_mt, prime_info_clear, prime_i...
+#include "gmp_aux.h"           // for ulong_isprime, nbits, mpz_get_uint64
+#include "gzip.h"       // ifstream_maybe_compressed
 #include "mod_ul.h"     // modulusul_t
+#include "mpz_poly.h"   // mpz_poly
+#include "omp_proxy.h" // IWYU pragma: keep
+#include "params.h"            // for cxx_param_list, param_list_lookup_string
+#include "renumber.hpp"
+#include "rootfinder.h" // mpz_poly_roots
 #include "stats.h"      // for the builder process
+#include "macros.h"
 
 /* Some documentation on the internal encoding of the renumber table...
  *
@@ -459,10 +468,10 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
             for (auto it = roots[side].rbegin() ; it != roots[side].rend() ; ++it) {
                 p_r_side x { (p_r_values_t) p, (p_r_values_t) *it, side };
                 C.flat.emplace_back(
-                        std::array<p_r_values_t, 2> {
+                        std::array<p_r_values_t, 2> {{
                             (p_r_values_t) p,
                             compute_vr_from_p_r_side (x)
-                        });
+                        }});
             }
         }
         std::ostringstream os;
@@ -1436,6 +1445,7 @@ void renumber_t::read_from_file(const char * filename)
     read_table(is);
 }
 
+#if 0
 void renumber_t::read_bad_ideals_info(std::istream & is)
 {
     std::ios_base::fmtflags ff = is.flags();
@@ -1486,6 +1496,7 @@ void renumber_t::read_bad_ideals_info(std::istream & is)
     above_all = above_cache = above_bad;
     is.flags(ff);
 }
+#endif
 
 std::string renumber_t::debug_data(index_t i) const
 {
@@ -1624,15 +1635,9 @@ void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
 struct renumber_t::builder{/*{{{*/
     struct prime_chunk {/*{{{*/
         bool preprocess_done = false;
-        bool end_mark = false;
         std::vector<unsigned long> primes;
         std::vector<renumber_t::cooked> C;
         prime_chunk(std::vector<unsigned long> && primes) : primes(primes) {}
-        static prime_chunk end_marker() {
-            prime_chunk x;
-            x.end_mark = true;
-            return x;
-        }
         private:
         prime_chunk() = default;
     };/*}}}*/
@@ -1697,7 +1702,7 @@ void renumber_t::builder::preprocess(prime_chunk & P)/*{{{*/
                 roots.push_back(p);
 
             /* take off bad ideals from the list, if any. */
-            if (p <= R.get_max_bad_p()) { /* can it be a bad ideal ? */
+            if (p <= R.bad_ideals_max_p) { /* can it be a bad ideal ? */
                 for (size_t i = 0; i < roots.size() ; i++) {
                     unsigned long r = roots[i];
                     if (!R.is_bad(p, r, side))
@@ -1759,17 +1764,14 @@ index_t renumber_t::builder::operator()()/*{{{*/
     prime_info_init(pi);
     unsigned long p = 2;
     constexpr const unsigned int granularity = 1024;
-    std::list<prime_chunk> chunks;
-    chunks.push_back(prime_chunk::end_marker());
-    std::list<prime_chunk>::iterator next_to_postprocess = chunks.begin();
-    std::list<prime_chunk>::iterator next_to_preprocess = chunks.begin();
+    std::list<prime_chunk> inflight;
     unsigned long lpbmax = 1UL << R.get_max_lpb();
 
 #pragma omp parallel
     {
 #pragma omp single
         {
-            for (; p <= lpbmax || next_to_postprocess != next_to_preprocess ;) {
+            for (; p <= lpbmax || !inflight.empty() ;) {
                 if (p <= lpbmax) {
                     std::vector<unsigned long> pp;
                     pp.reserve(granularity);
@@ -1777,23 +1779,29 @@ index_t renumber_t::builder::operator()()/*{{{*/
                         pp.push_back(p);
                         p = getprime_mt(pi); /* get next prime */
                     }
-                    *next_to_preprocess = prime_chunk(std::move(pp));
-                    chunks.push_back(prime_chunk::end_marker());
-#pragma omp task firstprivate(next_to_preprocess)
+                    inflight.emplace_back(std::move(pp));
+                    /* do not use a c++ reference for the omp
+                     * firstprivate construct. It does not do what we
+                     * want. (I saw a _copy_ !)
+                     */
+                    prime_chunk * latest(&inflight.back());
+#pragma omp task firstprivate(latest)
                     {
-                        preprocess(*next_to_preprocess);
+                        preprocess(*latest);
                     }
-                    next_to_preprocess++;
+                } else {
+#pragma omp taskwait
                 }
 
-                for (; next_to_postprocess != next_to_preprocess ; ) {
-                    bool ok;
+                for ( ; !inflight.empty() ; ) {
+                    bool ready;
+                    prime_chunk & next(inflight.front());
 #pragma omp atomic read
-                    ok = next_to_postprocess->preprocess_done;
-                    if (!ok)
+                    ready = next.preprocess_done;
+                    if (!ready)
                         break;
-                    postprocess(*next_to_postprocess);
-                    chunks.erase(next_to_postprocess++);
+                    postprocess(next);
+                    inflight.pop_front();
                 }
             }
         }

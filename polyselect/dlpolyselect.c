@@ -61,10 +61,17 @@ skew: 1.37
 
 */
 
-#include "cado.h"
-#include <ctype.h>
+#include "cado.h" // IWYU pragma: keep
+#include <float.h> // for DBL_MAX
 #include <stdlib.h>
+#include <math.h> // pow
 #include <time.h>
+#include <limits.h>      // for ULONG_MAX
+#include <stdio.h>       // for fprintf, printf, stderr, fflush, stdout
+#include <string.h>      // for strcmp
+#include <gmp.h>         // for mpz_t, mpz_clear, mpz_init, gmp_printf, mpz_...
+#include "cado_poly.h"   // for cado_poly_fprintf_MurphyE, cado_poly
+#include "macros.h"      // for ASSERT_ALWAYS, ASSERT
 #include "omp_proxy.h"
 #include "auxiliary.h"
 #include "gcd.h"        // gcd_uint64
@@ -72,7 +79,6 @@ skew: 1.37
 #include "mpz_poly.h"
 #include "murphyE.h"
 #include "rootfinder.h"
-#include "ropt_param.h"
 #include "timing.h"             // for seconds
 #include "usp.h"        // numberOfRealRoots
 

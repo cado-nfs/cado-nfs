@@ -8,6 +8,7 @@
 #include <ostream>
 #include <limits>
 #include <type_traits>
+#include <stdlib.h>
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
 

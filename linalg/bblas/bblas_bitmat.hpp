@@ -1,6 +1,9 @@
 #ifndef BBLAS_BITMAT_HPP_
 #define BBLAS_BITMAT_HPP_
 
+// IWYU pragma: private, include "bblas.hpp"
+// IWYU pragma: friend ".*/bblas.*"
+
 /* very generic code on bit matrices. We don't keep much here. More
  * concrete types such as mat64 provide most of the actual code.
  */

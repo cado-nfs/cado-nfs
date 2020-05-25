@@ -9,7 +9,9 @@
 #include <cmath>           // for fabs, floor, log2, pow, trunc
 #include <cstdlib>         // for exit, EXIT_FAILURE
 #include <iomanip>         // for operator<<, setprecision
-#include <istream>         // for operator<<, basic_ostream, ostringstream
+#include <sstream>         // std::ostringstream // IWYU pragma: keep
+#include <istream>         // std::istream // IWYU pragma: keep
+#include <ostream>         // std::ostream // IWYU pragma: keep
 #include <memory>          // for allocator_traits<>::value_type
 #include <queue>           // for priority_queue
 #include <stdexcept>       // for runtime_error
@@ -24,14 +26,22 @@
 #include <unistd.h>
 #endif
 #include <gmp.h>           // for mpz_t, mpz_fdiv_ui, mpz_gcd_ui
-
 #include "fb.hpp"
+#include "getprime.h"               // for getprime_mt, prime_info_clear
+#ifndef NDEBUG
+#include "gmp_aux.h"                // for ulong_isprime // IWYU pragma: keep
+#endif
 #include "gzip.h"       // fopen_maybe_compressed
 #include "las-fbroot-qlattice.hpp"     // for fb_root_in_qlattice
+#include "macros.h"     // ASSERT // IWYU pragma: keep
+#include "misc.h"                   // for strtoul_const, strtoull_const
+#include "mod_ul.h"                 // for modul_set_ul_reduced, modul_clear
+#include "params.h"                 // for cxx_param_list, param_list_parse_...
 #include "threadpool.hpp"  // for thread_pool, task_result, task_parameters
+#include "timing.h"                 // for seconds, wct_seconds
 #include "ularith.h"       // for ularith_invmod
 #include "verbose.h"             // verbose_output_print
-struct qlattice_basis;
+struct qlattice_basis; // IWYU pragma: keep
 
 /* {{{ fb_log fb_pow and friends */
 /* Returns floor(log_2(n)) for n > 0, and 0 for n == 0 */

@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 // IWYU pragma: no_include <hwloc/bitmap.h>
+// IWYU pragma: no_include "hwloc/bitmap.h"
 
 #include <errno.h>             // for EXDEV, errno
 #include <inttypes.h>          // for PRIu64
@@ -16,13 +17,15 @@
 #include <vector>              // for vector, vector<>::iterator
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
+#include "hwloc-aux.h"
 #endif
-
 #include "las-parallel.hpp"
 
 #include "misc.h"       // size_disp
 #include "utils_cxx.hpp"        // call_dtor
 #include "verbose.h"             // verbose_output_print
+#include "macros.h"
+#include "params.h"
 
 
 

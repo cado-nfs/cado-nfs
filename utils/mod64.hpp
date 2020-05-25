@@ -5,9 +5,9 @@
 #define MOD64_HPP
 
 /**********************************************************************/
-#include <cassert>
-#include <climits>
 #include <cstdint>
+#include <cstdlib>
+#include <new>
 #include "macros.h"
 #include "u64arith.h"
 #include "modint.hpp"

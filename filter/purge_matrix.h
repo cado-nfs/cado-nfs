@@ -1,6 +1,7 @@
 #ifndef PURGE_MATRIX_H_
 #define PURGE_MATRIX_H_
 
+#include <stdio.h>
 #include <stdint.h>
 #include "filter_io.h"  // earlyparsed_relation_ptr
 #include "typedefs.h"   // index_t weight_t

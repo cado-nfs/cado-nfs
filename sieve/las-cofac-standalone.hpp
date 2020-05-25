@@ -5,13 +5,15 @@
 #include <array>                  // for array
 #include <cstdint>                // for uint8_t, int64_t, uint64_t
 #include <vector>                 // for vector
+#include <gmp.h> // mpz_even_p // IWYU pragma: keep
+#include "cxx_mpz.hpp"
 #include "ecm/batch.hpp"              // for cofac_list
 #include "las-divide-primes.hpp"  // for factor_list_t
 #include "relation.hpp"           // for relation
-class nfs_work_cofac;
-struct las_todo_entry;
-struct qlattice_basis;
-template <typename T> struct lock_guarded_container;
+class nfs_work_cofac; // IWYU pragma: keep
+struct las_todo_entry; // IWYU pragma: keep
+struct qlattice_basis; // IWYU pragma: keep
+template <typename T> struct lock_guarded_container; // IWYU pragma: keep
 
 struct cofac_standalone {
     std::array<uint8_t, 2> S;

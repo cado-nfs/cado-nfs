@@ -20,13 +20,12 @@ please consider making those additions public too, so that others may
 benefit from your work.	
        				   --jasonp@boo.net 4/3/09
 --------------------------------------------------------------------*/
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdint.h>
 #include <math.h>
 #include <float.h>
 #include <complex.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 #define MAX_ROOTFINDER_DEGREE   10
 

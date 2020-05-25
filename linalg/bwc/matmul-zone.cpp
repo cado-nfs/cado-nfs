@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <map>
 #include <type_traits>  // for std::is_same (C++11)
+#include <gmp.h>
 
 #include "bwc_config.h"
 #include "matmul.h"
@@ -22,6 +23,8 @@
 #include "matmul_facade.h"
 
 #include "arith-modp.hpp"
+#include "macros.h"
+#include "params.h"
 
 typedef arith_modp::gfp<sizeof(abelt)/sizeof(unsigned long)> gfp;
 
