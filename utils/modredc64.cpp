@@ -4,6 +4,7 @@
 typedef ModulusREDC64 Modulus;
 
 #include "mod64_common.cpp"
+#include "macros.h"
 
 bool
 Modulus::inv (Residue &r, const Residue &A) const

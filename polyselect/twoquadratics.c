@@ -2,12 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <gmp.h>
-#include <assert.h>
 #include <math.h>
 #include "auxiliary.h"
 #include "area.h"
 #include "murphyE.h"
 #include "mpz_vector.h"
+#include "macros.h"
+#include "gmp_aux.h"
+#include "params.h"
+#include "verbose.h"
 
 typedef struct {
   cado_poly poly;

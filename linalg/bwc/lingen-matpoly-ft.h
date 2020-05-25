@@ -1,3 +1,4 @@
+#include <limits.h>
 #ifndef LINGEN_MATPOLY_FT_H_
 #define LINGEN_MATPOLY_FT_H_
 

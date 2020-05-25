@@ -1,3 +1,4 @@
+#include <limits.h>
 #ifndef BIGMATPOLY_FT_H_
 #define BIGMATPOLY_FT_H_
 

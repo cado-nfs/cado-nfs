@@ -64,6 +64,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "sparse.h"
 #include "stats.h"                     // stats_data_t
 #include "portability.h"
+#include "macros.h"
 
 /* An alias for the main matrix type */
 typedef typerow_t ** matrix_t;

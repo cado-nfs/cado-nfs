@@ -14,6 +14,8 @@
 
 #ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
 #include <dlfcn.h>
+#include <stdio.h>
+#include <stdlib.h>
 #endif
 
 
@@ -22,6 +24,7 @@
 #include "misc.h"
 #include "verbose.h"
 #include "portability.h"
+#include "params.h"
 
 void matmul_decl_usage(param_list_ptr pl)
 {

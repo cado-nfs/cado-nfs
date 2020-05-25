@@ -8,6 +8,7 @@
 
 #include <gmp.h>
 #include <limits.h>
+#include <stdio.h>
 #include "bwc_config.h"
 #include "params.h"
 

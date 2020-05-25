@@ -1,4 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
 #include <cstring>
 #include <iostream>
 #include <sstream>
@@ -6,11 +7,21 @@
 #include <algorithm>
 #include <iterator>
 #include <stdexcept>
-#include "params.h"
-#include "portability.h"
+#include <cstdio>
+#include <cstdlib>
+#include <memory>              // for allocator_traits<>::value_type
+#include <string>              // for string, getline, operator!=, operator>>
+#include <utility>             // for pair, operator==, swap, make_pair
+#include <vector>              // for vector
+#include <gmp.h>               // for mpz_t, operator>>, gmp_randclear, gmp_...
 #include "cxx_mpz.hpp"
+#include "gmp_aux.h"           // for mpz_p_valuation
+#include "macros.h"
+#include "mpz_mat.h"           // for cxx_mpz_mat, cxx_mpq_mat, mpz_mat_fprint
 #include "mpz_poly.h"
 #include "numbertheory.hpp"
+#include "params.h"
+#include "portability.h" // strdup // IWYU pragma: keep
 #include "timing.h"     // seconds
 
 using namespace std;

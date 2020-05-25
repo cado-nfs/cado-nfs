@@ -2,7 +2,10 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdlib.h>
 #include "cpubinding.h"
+#include "macros.h"
+#include "params.h"
 
 /* Example quick use:
  * $build_tree/tests/linalg/bwc/test_cpubinding  -s "NUMANode:4 Socket:1 Core:12 PU:2" thr=8x8   cpubinding="NUMANode=>2x2 Core*12=>4x4"

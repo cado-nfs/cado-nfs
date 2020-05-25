@@ -8,6 +8,7 @@
 
 typedef ModulusREDC126 Modulus;
 #include "mod_common.cpp"
+#include "macros.h"
 
 bool
 ModulusREDC126::div3 (Residue &r, const Residue &a) const

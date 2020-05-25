@@ -6,6 +6,8 @@
 #include <pthread.h>
 #include "verbose.h"
 #include "portability.h" // strdup // IWYU pragma: keep
+#include "macros.h"
+#include "params.h"
 
 #define G(X) CADO_VERBOSE_PRINT_ ## X
 #define F(X) (UINT64_C(1) << G(X))

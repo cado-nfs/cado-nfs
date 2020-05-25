@@ -4,6 +4,7 @@
 
 typedef Modulus64 Modulus;
 #include "mod64_common.cpp"
+#include "macros.h"
 
 /* Put 1/s (mod t) in r and return 1 if s is invertible, 
    or set r to 0 and return 0 if s is not invertible */

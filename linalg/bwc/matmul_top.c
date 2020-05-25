@@ -8,6 +8,7 @@
 #include <sys/types.h>          // truncate()
 #include <errno.h>
 #include <sys/stat.h>
+#include <gmp.h>
 #include "bwc_config.h"
 #include "matmul.h"
 #include "matmul_top.h"
@@ -21,6 +22,8 @@
 #include "portability.h"
 #include "timing.h"     // wct_seconds
 #include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
+#include "macros.h"
+#include "params.h"
 
 /* Our innermost communication routines are essentially all-gather and
  * reduce-scatter, following the MPI terminology. We provide several

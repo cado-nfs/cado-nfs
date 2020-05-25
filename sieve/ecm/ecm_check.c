@@ -7,6 +7,7 @@
 
 #include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
+#include <stdio.h>
 #include "../../utils/modredc_ul_default.h"
 #include "facul.h"
 #include "ecm.h"

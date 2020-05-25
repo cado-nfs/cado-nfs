@@ -1,16 +1,22 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <gmp.h>
-#include <time.h>
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <mm_malloc.h>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <ctime>
 #include <vector>
 #include <sstream>
 #include <algorithm>
-#include <x86intrin.h>
+#include <memory>                             // for allocator_traits<>::val...
+#include <string>                             // for string
+#include <type_traits>                        // for is_same
+#include <sys/time.h>
+#include <gmp.h>
+#include "fb-types.h"                         // for sublat_t
+#include "las-smallsieve-types.hpp"           // for ssp_simple_t, ssp_t
+#include "las-where-am-i-proxy.hpp"           // for where_am_I
 #include "macros.h"
 #include "las-where-am-i.hpp"
 
@@ -20,6 +26,7 @@
 
 #include "sieve/las-smallsieve-lowlevel.hpp"
 #include "sieve/las-smallsieve-glue.hpp"
+#include "params.h"
 
 
 int consistency_check_mode = 0;

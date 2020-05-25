@@ -1,11 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
-
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
 #include <stdlib.h>     // exit
 #include <stdint.h>
 #include <inttypes.h>
 #include <pthread.h>
 #ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>	/* for cputime */
+#include <stdio.h>
 #endif
 #include "timing.h"
 

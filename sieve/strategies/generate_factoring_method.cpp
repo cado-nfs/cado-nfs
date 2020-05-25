@@ -1,20 +1,27 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cfloat>
+#include <climits>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <cstdio>
-#include <cstring>
-#include <ctime>
+#include <climits>      // ULONG_MAX // IWYU pragma: keep
 #include <gmp.h>
-#include <cxx_mpz.hpp>
-
+#include "convex_hull.h"
+#include "cxx_mpz.hpp"
 #include "facul.hpp"
+#include "facul_fwd.hpp"
+#include "facul_ecm.h"
+#include "fm.h"
+#include "generate_factoring_method.hpp"
+#include "macros.h"
+#include "modredc_ul.h" // MODREDCUL_MAXBITS
+#include "modredc_15ul.h" // MODREDC15UL_MAXBITS
+#include "modredc_2ul2.h" // MODREDC2UL2_MAXBITS
 #include "pm1.h"
 #include "pp1.h"
-#include "facul_ecm.h"
-#include "generate_factoring_method.hpp"
-#include "convex_hull.h"
+#include "point.h"      // point_t
 #include "timing.h"  // microseconds
 
 /*

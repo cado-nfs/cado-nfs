@@ -15,6 +15,7 @@
 #include <limits.h>       // for LONG_BIT, ULONG_MAX
 #include <stdint.h>       // for uint64_t, int64_t
 #include <stdlib.h>       // for size_t, llabs
+#include <stdio.h>
 #include "macros.h"       // for MAYBE_UNUSED, ASSERT_EXPENSIVE, ASSERT, ASS...
 #include "ularith.h"      // for ularith_mul_ul_ul_2ul, ularith_div_2ul_ul_ul_r
 

@@ -10,8 +10,8 @@
 #include "macros.h"    // for ASSERT_ALWAYS
 #include "typedefs.h"  // for index_t
 #include "params.h"     // param_list_parse_*
+#include "portability.h" // strdup // IWYU pragma: keep
 #include "verbose.h"    // verbose_output_print
-#include "portability.h"
 
 void las_dlog_base::declare_usage(cxx_param_list & pl)
 {

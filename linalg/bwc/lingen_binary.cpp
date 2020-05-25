@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <limits.h>
 
 #include <gmp.h>
 
@@ -42,6 +43,7 @@
 #include "portability.h"
 #include "timing.h"  // seconds
 #include "tree_stats.hpp"
+#include "params.h"
 
 /* we need a partial specialization because gf2x_fake_fft does its own
  * allocation within addcompose (for the moment)

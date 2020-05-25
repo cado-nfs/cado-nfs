@@ -7,6 +7,7 @@
 #include <cstdio>              // IWYU pragma: keep
 #include <cstdarg>             // IWYU pragma: keep
 #include <gmp.h>                  // for mpz_srcptr, gmp_vfprintf, mpz_sizei...
+#include "cxx_mpz.hpp"
 #include "las-descent.hpp"
 #include "las-descent-trees.hpp"  // for descent_tree::candidate_relation
 #include "las-dlog-base.hpp"      // for las_dlog_base
@@ -16,6 +17,8 @@
 #include "las-todo-entry.hpp"     // for las_todo_entry
 #include "las-todo-list.hpp"      // for las_todo_list
 #include "relation.hpp"           // for relation::pr, relation
+#include "typedefs.h"             // p_r_values_t
+#include "verbose.h"
 
 /* This returns true only if this descent node is now done, either based
  * on the new relation we have registered, or because the previous

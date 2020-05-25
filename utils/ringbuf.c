@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include "macros.h"
@@ -129,19 +128,19 @@ int ringbuf_put(ringbuf_ptr r, char * p, size_t s)
 
     size_t tail = r->alloc - (r->whead - r->p);
     if (r->avail_to_write <= tail || s <= tail) {
-        assert(s <= r->avail_to_write);
+        ASSERT(s <= r->avail_to_write);
         // s = MIN(r->avail_to_write, s);
-        assert(s <= tail);
+        ASSERT(s <= tail);
         memcpy(r->whead, p, s);
         r->whead += s;
     } else {
-        assert(tail > 0);
-        assert(s > tail);
+        ASSERT(tail > 0);
+        ASSERT(s > tail);
         memcpy(r->whead, p, tail);
 #ifndef NDEBUG
         ptrdiff_t head = r->avail_to_write - tail;
-        assert(head > 0);
-        assert(s-tail <= (size_t) head);
+        ASSERT(head > 0);
+        ASSERT(s-tail <= (size_t) head);
 #endif
         // s = tail + MIN((size_t) head, s - tail);
         memcpy(r->p, p + tail, s - tail);
@@ -161,7 +160,7 @@ int ringbuf_put(ringbuf_ptr r, char * p, size_t s)
 void ringbuf_mark_done(ringbuf_ptr r)
 {
     pthread_mutex_lock(r->mx);
-    assert(!r->done);
+    ASSERT(!r->done);
     r->done = 1;
     pthread_cond_broadcast(r->bored);
     pthread_mutex_unlock(r->mx);
@@ -185,32 +184,32 @@ int ringbuf_get(ringbuf_ptr r, char * p, size_t s)
         pthread_cond_wait(r->bored, r->mx);
         // fprintf(stderr, "get(%zu): resumed (ravail: %zu, wavail: %zu)\n", s, r->avail_to_read, r->avail_to_write);
     }
-    assert(r->done || r->avail_to_read >= RINGBUF_ALIGNED_RETURNS);
+    ASSERT(r->done || r->avail_to_read >= RINGBUF_ALIGNED_RETURNS);
     if (r->done && !r->avail_to_read) {
         pthread_mutex_unlock(r->mx);
         return 0;
     }
     if (r->avail_to_read < RINGBUF_ALIGNED_RETURNS)
-        assert(r->done);
+        ASSERT(r->done);
     size_t tail = r->alloc - (r->rhead - r->p);
-    assert(s >= RINGBUF_ALIGNED_RETURNS);
+    ASSERT(s >= RINGBUF_ALIGNED_RETURNS);
     s = MIN(r->avail_to_read, s);
     if (s >= RINGBUF_ALIGNED_RETURNS) s -= s % RINGBUF_ALIGNED_RETURNS;
     if (r->avail_to_read <= tail || s <= tail) {
-        assert(s <= tail);
+        ASSERT(s <= tail);
         memcpy(p, r->rhead, s);
         r->rhead += s;
     } else {
-        assert(tail > 0);
-        assert(s > tail);
+        ASSERT(tail > 0);
+        ASSERT(s > tail);
         memcpy(p, r->rhead, tail);
 #ifndef NDEBUG
         ptrdiff_t head = r->avail_to_read - tail;
-        assert(head > 0);
-        assert((size_t) (s - tail) <= (size_t) head);
+        ASSERT(head > 0);
+        ASSERT((size_t) (s - tail) <= (size_t) head);
         // s = tail + MIN((size_t) head, s - tail);
 #endif
-        assert(s >= tail);
+        ASSERT(s >= tail);
         memcpy(p + tail, r->p, s - tail);
         r->rhead = r->p + (s-tail);
     }
@@ -230,7 +229,7 @@ int ringbuf_get2(ringbuf_ptr r, void ** p, size_t s)
     if (*p) {
         return ringbuf_get(r, *p, s);
     }
-    assert(s == 0);     // does not really make sense otherwise
+    ASSERT(s == 0);     // does not really make sense otherwise
     pthread_mutex_lock(r->mx);
     if (!r->rbuf) {
         r->rbuf = malloc(RINGBUF_READING_BUFFER_SIZE);

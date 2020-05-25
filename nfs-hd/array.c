@@ -4,9 +4,11 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <gmp.h>
 #include "sieving_bound.h"
 #include "array.h"
 #include "int64_vector.h"
+#include "macros.h"
 
 void array_init(array_ptr array, uint64_t number_element)
 {

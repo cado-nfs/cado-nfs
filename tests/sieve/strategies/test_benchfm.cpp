@@ -1,9 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
-#include "generate_factoring_method.hpp"
-
 #include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
+#include <gmp.h>
+#include "generate_factoring_method.hpp"
+#include "fm.h"                           // for fm_create, fm_free, fm_set_...
+#include "tab_fm.h"                       // for tabular_fm_add_fm, tabular_...
+
 
 int main ()
 {

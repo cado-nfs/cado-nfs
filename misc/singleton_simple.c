@@ -7,9 +7,9 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <limits.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -18,6 +18,7 @@
 
 #define MAX_SIZE 1024
 
+#undef ASSERT_ALWAYS
 #define ASSERT_ALWAYS assert
 
 #define AB_BASE 16 /* base of a,b */
@@ -169,7 +170,7 @@ pass1 (int argc, char *argv[], unsigned long col_max_index)
       argv ++;
       while (fgets (s, MAX_SIZE, fp) != NULL)
 	{
-	  assert (s[0] != '\n');
+	  ASSERT (s[0] != '\n');
           /* ensure line ends with \n */
           if (s[strlen(s)-1] != '\n')
             sprintf (s + strlen(s), "\n");
@@ -185,7 +186,7 @@ pass1 (int argc, char *argv[], unsigned long col_max_index)
 		    {
 		      if (lastp != ULONG_MAX && (e & 1))
 			{
-			  assert (lastp < col_max_index);
+			  ASSERT (lastp < col_max_index);
 			  T[lastp] += (T[lastp] < 255);
 			}
 		      e = 1;
@@ -194,7 +195,7 @@ pass1 (int argc, char *argv[], unsigned long col_max_index)
 		}
 	      if (e & 1)
 		{
-		  assert (lastp < col_max_index);
+		  ASSERT (lastp < col_max_index);
 		  T[lastp] += (T[lastp] < 255);
 		}
 	      nrels ++;
@@ -235,7 +236,7 @@ pass2 (int argc, char *argv[], char *out_file)
       argv ++;
       while (fgets (s, MAX_SIZE, fp) != NULL)
 	{
-	  assert (s[0] != '\n');
+	  ASSERT (s[0] != '\n');
           /* ensure line ends with \n */
           if (s[strlen(s)-1] != '\n')
             sprintf (s + strlen(s), "\n");
@@ -247,7 +248,7 @@ pass2 (int argc, char *argv[], char *out_file)
 	      while (*end != '\n' && singleton == 0)
 		{
 		  p = strtoul (end + 1, &end, 16);
-		  assert (T[p] != 0);
+		  ASSERT (T[p] != 0);
 		  if (T[p] == 1)
 		    singleton = 1;
 		}

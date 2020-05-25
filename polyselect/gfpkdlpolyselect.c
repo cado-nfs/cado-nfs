@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h> // abort free
 #include <math.h>       // log
+#include <gmp.h>
 
 #include "auxiliary.h"
 #include "gfpkdlpolyselect.h"

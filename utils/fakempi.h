@@ -1,6 +1,6 @@
 #ifndef	FAKEMPI_H_
 #define	FAKEMPI_H_
-
+// IWYU pragma: private, include "select_mpi.h"
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>

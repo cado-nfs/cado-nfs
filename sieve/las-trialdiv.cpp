@@ -16,6 +16,7 @@
 #include "las-sieve-shared-data.hpp"   // for sieve_shared_data::side_data
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
 #include "macros.h"                    // for MIN, ASSERT, ASSERT_ALWAYS
+#include "mpz_poly.h"
 #include "rootfinder.h" // mpz_poly_roots_ulong
 #include "trialdiv.hpp"                // for trialdiv_data, trialdiv_data::...
 

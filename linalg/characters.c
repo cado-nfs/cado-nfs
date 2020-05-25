@@ -99,6 +99,7 @@
 #include "rootfinder.h" // mpz_poly_roots_ulong
 #include "worker-threads.h"
 #include "version_info.h"
+#include "macros.h"
 
 
 typedef struct {

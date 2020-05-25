@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #ifndef EC_ARITH_WEIERSTRASS_H_
 #define EC_ARITH_WEIERSTRASS_H_
 
@@ -6,6 +8,7 @@
 #endif
 
 #include "ec_arith_common.h"
+#include "macros.h"
 
 #ifdef __cplusplus
 extern "C" {

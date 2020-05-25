@@ -1,8 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
-#include "modredc_15ul_default.h"
+#include <limits.h> // LONG_BIT
 #include <gmp.h>
+#include "modredc_15ul.h"
+#include "modredc_15ul_default.h"
 #include "mpqs.h"
 #include "mpqs_doit.h"
+#include "macros.h"
 
 int
 mpqs_15ul (modint_t f, const modulus_t m)

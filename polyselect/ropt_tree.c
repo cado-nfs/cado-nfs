@@ -9,6 +9,7 @@
 #include <stdio.h>      // fprintf stderr
 #include <stdlib.h>     // free malloc
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
+#include <gmp.h>
 #include "ropt_tree.h"
 
 

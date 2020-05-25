@@ -1,6 +1,7 @@
 #ifndef LAS_CONFIG_H_
 #define LAS_CONFIG_H_
 
+#include "cado_config.h"  // HAVE_SSE2
 #include <stddef.h>
 
 /* un-sieving of locations where gcd(i,j)>1 instead of testing gcd for
@@ -81,8 +82,6 @@ extern int NB_DEVIATIONS_BUCKET_REGIONS;
 #ifdef HAVE_SSE2
 // #define USE_CACHEBUFFER 1
 #endif 
-
-#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {

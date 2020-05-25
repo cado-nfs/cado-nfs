@@ -21,11 +21,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include "cado.h" // IWYU pragma: keep
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <stdio.h> // printf
 #include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include "omp_proxy.h"
 /* the following should come after cado.h, which sets -Werror=all */
 #ifdef  __GNUC__
@@ -34,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "typedefs.h"
 #include "transpose.h"
 #include "memory.h" // free_aligned
+#include "macros.h"
 
 // #define BIG_BROTHER
 

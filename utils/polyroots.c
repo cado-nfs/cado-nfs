@@ -26,7 +26,6 @@ benefit from your work.
 #include <float.h>
 #include <complex.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 #define MAX_ROOTFINDER_DEGREE   10
 

@@ -1,11 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 #include "bit_vector.h"
-#include "test_iter.h"
 #include "tests_common.h"
 #include "macros.h"
-#include "portability.h"
+#include "portability.h" // lrand48 // IWYU pragma: keep
 
 void
 test_bit_vector (unsigned long iter)

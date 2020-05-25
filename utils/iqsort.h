@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #ifndef IQSORT_H_
 #define IQSORT_H_
 

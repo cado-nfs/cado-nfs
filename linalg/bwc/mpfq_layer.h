@@ -2,6 +2,9 @@
 #define MPFQ_LAYER_H_
 // pragma no prototypes
 
+// IWYU pragma: begin_exports
+#include "mpfq/mpfq.h"
+
 #if defined(SELECT_MPFQ_LAYER_u64k1) || defined(SELECT_MPFQ_LAYER_u64)
 #include "mpfq/mpfq_u64k1.h"
 #elif defined(SELECT_MPFQ_LAYER_u64k2)
@@ -84,5 +87,6 @@
  * interface.
  */
 #include "mpfq/mpfq_name_ab.h"
+ // IWYU pragma: end_exports
 
 #endif	/* MPFQ_LAYER_H_ */

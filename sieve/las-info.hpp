@@ -13,13 +13,12 @@
 #include <thread>                      // for thread
 #include <utility>                     // for forward
 #include <vector>                      // for vector
-
 #include <gmp.h>
-
-
+#include "cado_poly.h"   // cxx_cado_poly
 #include "ecm/batch.hpp"               // for cofac_list
 #include "ecm/facul.hpp"                   // for facul_strategies_t
 #include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
+#include "hwloc-aux.h"
 #include "las-bkmult.hpp"              // for bkmult_specifier, bkmult_speci...
 #include "las-cofactor.hpp"            // for cofactorization_statistics
 #include "las-dlog-base.hpp"
@@ -27,12 +26,14 @@
 #include "las-parallel.hpp"            // for las_parallel_desc
 #include "las-sieve-shared-data.hpp"   // for sieve_shared_data, sieve_share...
 #include "las-siever-config.hpp"       // for siever_config (ptr only), siev...
+#include "params.h"
+#include "utils_cxx.hpp" // NonCopyable
 /* forward decls of j_divisibility_helperand unsieve_data are not
  * sufficient.
  */
 #include "las-unsieve.hpp"      // IWYU pragma: keep
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
-struct trialdiv_data;
+struct trialdiv_data; // IWYU pragma: keep
 
 /* This one wants to have siever_config defined */
 #include "las-descent-trees.hpp"

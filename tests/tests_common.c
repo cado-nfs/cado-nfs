@@ -6,8 +6,7 @@
 #include <time.h>
 #include <errno.h>
 #include "tests_common.h"
-#include "macros.h"
-#include "portability.h"
+#include "portability.h" // lrand48 // IWYU pragma: keep
 
 static int rng_state_inited = 0;
 gmp_randstate_t state;

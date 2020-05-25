@@ -1,8 +1,10 @@
+#include <stdio.h>
 #ifndef BUCKET_PUSH_UPDATE_HPP_
 #define BUCKET_PUSH_UPDATE_HPP_
 
 #include "bucket.hpp"
 #include "las-where-am-i.hpp"
+#include "macros.h"
 
 template<int LEVEL, typename HINT>
 void

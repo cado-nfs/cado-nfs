@@ -47,6 +47,7 @@
 #ifdef MPZ_POLY_TIMINGS
 #include <time.h>
 #include <timing.h>
+#include "macros.h"
 static double timer[3] = {0.0, 0.0, 0.0};
 static unsigned long calls[3] = {0, 0, 0};
 #endif

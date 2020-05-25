@@ -24,6 +24,8 @@
 #include <ostream>
 #include <iostream>
 #include <sstream>
+#include <limits.h>
+#include <gmp.h>
 #include "omp_proxy.h"
 #include "macros.h"
 #include "mpfq_layer.h"
@@ -34,6 +36,7 @@
 #include "plingen-tuning.h"
 #include "timing.h"     // wct_seconds
 #include "cxx_mpz.hpp"  // cxx_mpz
+#include "params.h"
 
 /* Assume we output something like one gigabyte per second. This is
  * rather conservative for HPC networks */

@@ -23,6 +23,7 @@
 #include "macros.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <gmp.h>
 #include "lll.h"
 
 #define swap(x, y) { long _tmp = (x); (x) = (y); (y) = _tmp; }

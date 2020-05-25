@@ -1,3 +1,4 @@
+#include <stdio.h>
 #ifndef EC_ARITH_EDWARDS_H_
 #define EC_ARITH_EDWARDS_H_
 

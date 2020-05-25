@@ -5,6 +5,7 @@
 #include <math.h>
 #include "sieving_bound.h"
 #include "vector.h"
+#include "macros.h"
 
 // TODO: STL
 

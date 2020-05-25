@@ -2,6 +2,7 @@
 #define PARALLELIZING_INFO_H_
 
 #include <sys/time.h>   /* for struct timeval */
+#include <stdlib.h>
 
 #include "params.h"
 #include "select_mpi.h"

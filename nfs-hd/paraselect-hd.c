@@ -2,6 +2,8 @@
 // TODO: did not work.
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <gmp.h>
 #include "parameters.h"
 
 int main()

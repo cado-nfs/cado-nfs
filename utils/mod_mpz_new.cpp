@@ -1,4 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
+#include <gmp.h>
 #include "u64arith.h"      // for u64arith_mul_1_1_2
 #include "ularith.h"    // IWYU pragma: keep
 #include "mod_mpz_new.hpp"
@@ -9,6 +10,7 @@
 
 typedef ModulusMPZ Modulus;
 #include "mod_common.cpp"
+#include "macros.h"
 
 void ModulusMPZ::pow (Residue &r, const Residue &b, const uint64_t e) const
 {

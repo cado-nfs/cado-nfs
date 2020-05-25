@@ -4,7 +4,7 @@
 #include "cado_config.h"  // for ULONG_BITS
 #include <gmp.h>
 #include <stdint.h>
-#include <macros.h>
+#include "macros.h"
 
 /* the following function are missing in GMP */
 #ifndef mpz_add_si

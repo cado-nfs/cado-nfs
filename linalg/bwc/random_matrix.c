@@ -16,6 +16,7 @@
 #ifndef WANT_MAIN
 #include "random_matrix.h"
 #include "balancing.h"
+#include "params.h"
 #endif
 
 /* The random generation works as follows.

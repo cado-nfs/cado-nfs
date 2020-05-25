@@ -1,21 +1,19 @@
 #include "cado.h" // IWYU pragma: keep
 #include "tab_point.h"
+#include "macros.h"
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <math.h>
 
 tabular_point_t *tabular_point_create(void)
 {
     tabular_point_t *t = malloc(sizeof(*t));
-    assert(t != NULL);
+    ASSERT(t != NULL);
 
     t->index = 0;
     t->size = 2;
 
     t->tab = malloc(t->size * sizeof(point_t *));
-    assert(t->tab != NULL);
+    ASSERT(t->tab != NULL);
 
     return t;
 }
@@ -31,7 +29,7 @@ void tabular_point_free(tabular_point_t * t)
 void tabular_point_realloc(tabular_point_t * t)
 {
     t->tab = realloc(t->tab, t->size * 2 * (sizeof(point_t *)));
-    assert(t->tab != NULL);
+    ASSERT(t->tab != NULL);
     t->size *= 2;
 }
 
@@ -42,7 +40,7 @@ int tabular_point_get_index(tabular_point_t * t)
 
 point_t *tabular_point_get_point(tabular_point_t * t, int index)
 {
-    assert(index < t->index);
+    ASSERT(index < t->index);
     return t->tab[index];
 }
 
@@ -56,6 +54,6 @@ void tabular_point_add(tabular_point_t * t, int numero, double x, double y)
     if (t->index >= t->size)
 	tabular_point_realloc(t);
     t->tab[t->index] = point_create(numero, x, y);
-    assert(t->tab[t->index] != NULL);
+    ASSERT(t->tab[t->index] != NULL);
     t->index++;
 }

@@ -19,7 +19,7 @@
 #include "cado_poly.h"
 #include "badideals.hpp"
 // IWYU pragma: no_forward_declare badideal
-struct cxx_param_list;
+struct cxx_param_list; // IWYU pragma: keep
 
 /* To build a renumber table in memory in the simplest way, the
  * process goes as follows
@@ -294,7 +294,7 @@ private:/*{{{ more implementation-level stuff. */
     void use_cooked(p_r_values_t p, cooked & C);
     index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked & C);
 
-    struct builder;
+    struct builder; // IWYU pragma: keep
     friend struct builder;
 /*}}}*/
 

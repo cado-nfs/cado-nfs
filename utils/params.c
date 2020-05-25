@@ -7,6 +7,8 @@
 #include <stdarg.h>
 #include <inttypes.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <gmp.h>
 
 #include "params.h"
 #include "macros.h"

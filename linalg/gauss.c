@@ -54,12 +54,10 @@ If just the dimension of kernel is wanted, set ker=NULL.
 /*===========================================================================*/
 
 #include "cado.h" // IWYU pragma: keep
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-#include "gmp.h"   /* only used for setting a random matrix */
+#include <gmp.h>
 #include "gauss.h"
 #include "macros.h"     // ASSERT
 
@@ -191,7 +189,7 @@ void gaussian_elimination(struct gaussian_elimination_data * G)
 
   /* if G->lmat == NULL, then don't bug the user if he just gave 0 for the
    * otherwise unused limbs_per_col value */
-  assert (G->lmat == NULL || limbs_per_col*ULONG_BITS >= NROWS);
+  ASSERT (G->lmat == NULL || limbs_per_col*ULONG_BITS >= NROWS);
 
   G->set_pivot = (int *)malloc(NCOLS*sizeof(int));
   G->set_used  = (int *)malloc(NROWS*sizeof(int));
@@ -234,9 +232,9 @@ void gaussian_elimination(struct gaussian_elimination_data * G)
     if (pivot != -1) {
 #ifndef NDEBUG
       for (i = 0; i < pivot; ++i)
-	assert (!((*ptr_current[i]) & mask1 ));
-      assert (((*ptr_current[pivot]) & mask1 ));
-      assert (G->set_used[pivot] == 0);
+	ASSERT (!((*ptr_current[i]) & mask1 ));
+      ASSERT (((*ptr_current[pivot]) & mask1 ));
+      ASSERT (G->set_used[pivot] == 0);
 #endif
       G->set_pivot[col_current] = pivot;
       G->set_used[pivot] = 1;
@@ -335,7 +333,7 @@ void gaussian_elimination(struct gaussian_elimination_data * G)
       mask1 = 1UL;
       mask2 = (-(1UL)) ^ (1UL);
       j_current++;
-      assert (j_current <= LIMBS_PER_ROW);
+      ASSERT (j_current <= LIMBS_PER_ROW);
       for (i = 0; i < NROWS; ++i)
 	ptr_current[i]++;
     }      
@@ -384,7 +382,7 @@ int kernel(mp_limb_t* mat, mp_limb_t** ker, int nrows, int ncols,
  
   /* if ker == NULL, then don't bug the user if he just gave 0 for the
    * otherwise unused limbs_per_col value */
-  assert (ker == NULL || limbs_per_col*ULONG_BITS >= NROWS);
+  ASSERT (ker == NULL || limbs_per_col*ULONG_BITS >= NROWS);
   /* Explore the set of unused rows, get the G->rank */
   G->rank = NROWS;
   for (i = 0; i < NROWS; ++i)

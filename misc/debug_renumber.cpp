@@ -2,8 +2,11 @@
 #include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
-
+#include <cstdint>      // for uint64_t
+#include <algorithm>     // for copy, max
+#include <string>        // for string
+#include <vector>        // for vector
+#include <gmp.h>         // for gmp_randclear, gmp_randinit_default, gmp_ran...
 #include "mod_ul.c"
 #include "params.h"     // param_list
 #include "cado_poly.h"  // cado_poly

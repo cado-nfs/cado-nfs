@@ -1,6 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
 #include "mpfq_layer.h"
 #include <stdlib.h>
+#include <stdio.h>
+#include <limits.h>
 #include "macros.h"
 #include "lingen-matpoly.h"
 #include "lingen-bigmatpoly.h"

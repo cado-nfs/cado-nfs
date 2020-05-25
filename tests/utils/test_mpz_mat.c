@@ -2,6 +2,7 @@
 #include "macros.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <gmp.h>
 #include "mpz_mat.h"
 
 void mpz_mat_fprintf(FILE * stream, mpz_mat_srcptr M)

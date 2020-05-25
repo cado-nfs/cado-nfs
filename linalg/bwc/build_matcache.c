@@ -2,6 +2,8 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>
 
 #include "bwc_config.h"
 #include "matmul.h"
@@ -10,6 +12,7 @@
 #include "mpfq/mpfq_vbase.h"
 #include "matmul-mf.h"
 #include "portability.h"
+#include "params.h"
 
 void declare_usage(param_list_ptr pl)
 {

@@ -46,18 +46,31 @@
 */
 
 #include "cado.h" // IWYU pragma: keep
-#include <cstdio>
-#include <cstdlib>
+#include <cerrno>           // for errno
+#include <cinttypes>        // for PRIu64, PRId64, PRIx64, PRIu32
+#include <cstddef>          // for ptrdiff_t
+#include <cstdint>          // for uint64_t, uint32_t, int64_t
+#include <cstring>          // for strlen, strdup, memset, memcpy, strerror
+#include <cstdio>            // for fprintf, stderr, NULL, asprintf, feof, FILE
+#include <cstdlib>           // for exit, free, malloc, abort, EXIT_FAILURE
+#include <utility>           // for pair
+#include <vector>            // for vector
+#ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
-
-#include "filter_config.h"
-#include "filter_io.h"  // earlyparsed_relation_ptr
-#include "gzip.h"       // get_suffix_from_filename
-#include "misc.h"       // filelist_from_file
-#include "relation-tools.h"
-#include "renumber.hpp"
-#include "verbose.h"
-#include "portability.h"
+#endif
+#include "cado_poly.h"       // for cado_poly_read, cxx_cado_poly
+#include "filter_config.h"   // for CA_DUP2, CB_DUP2
+#include "filter_io.h"       // for earlyparsed_relation_s, filter_rels_desc...
+#include "gmp_aux.h"         // for uint64_nextprime
+#include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
+#include "macros.h"          // for ASSERT_ALWAYS, MAYBE_UNUSED, UNLIKELY
+#include "misc.h"            // for filelist_clear, filelist_from_file
+#include "params.h"          // for cxx_param_list, param_list_decl_usage
+#include "portability.h" // strdup  // IWYU pragma: keep
+#include "relation-tools.h"  // for u64toa16, d64toa16, relation_compute_r
+#include "renumber.hpp"      // for renumber_t, renumber_t::p_r_side
+#include "typedefs.h"        // for prime_t, index_t, p_r_values_t, weight_t
+#include "verbose.h"         // for verbose_decl_usage, verbose_interpret_pa...
 
 #define DEBUG 0
 

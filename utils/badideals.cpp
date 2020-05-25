@@ -10,6 +10,7 @@
 #include <utility>
 
 #include <cstddef> // size_t
+#include <gmp.h>
 
 #include "gmp_aux.h"  // mpz_p_valuation
 #include "mpz_mat.h"
@@ -17,7 +18,7 @@
 #include "badideals.hpp"
 #include "rootfinder.h"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
-#include "macros.h"     // ASSERT_ALWAYS
+#include "macros.h" // ASSERT_ALWAYS // IWYU pragma: keep
 
 using namespace std;
 

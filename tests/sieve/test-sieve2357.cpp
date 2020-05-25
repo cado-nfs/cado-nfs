@@ -2,9 +2,9 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
-#include <typeinfo>
-#ifdef HAVE_SSSE3
-#include "tmmintrin.h"
+#include <cstdint>                  // for uint32_t, uint64_t
+#ifdef HAVE_SSE2
+#include "emmintrin.h"
 #endif
 #ifdef HAVE_AVX2
 #include "immintrin.h"
@@ -21,10 +21,11 @@
 #include "rdtsc.h"
 #endif
 #endif
+#include "fb-types.h"                // for fbprime_t, fbroot_t
+#include "las-where-am-i-proxy.hpp"  // for where_am_I
 #include "tests_common.h"
 #include "memory.h"             // free_aligned
 #include "las-sieve2357.hpp"
-#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
 
 template<typename T>
 class gettypename {

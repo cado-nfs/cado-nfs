@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "balancing.h"
 #include "cheating_vec_init.h"
@@ -14,6 +15,7 @@
 #include "fix-endianness.h" // fread32_little
 #include "crc.h"        // cado_crc_lfsr
 #include "misc.h"       // has_suffix
+#include "macros.h"
 
 void balancing_set_row_col_count(balancing_ptr bal)
 {

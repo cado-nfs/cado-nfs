@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>        // for ULONG_MAX
 #include <gmp.h>
 #include "tests_common.h"
 #include "gcd.h"

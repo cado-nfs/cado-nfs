@@ -2,6 +2,7 @@
 #include "mpfq_layer.h"
 #include <stdlib.h>
 #include <limits.h>
+#include <stdio.h>
 #include <gmp.h>
 #include "macros.h"
 #include "lingen-polymat.h"

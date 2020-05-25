@@ -16,6 +16,8 @@
 #include "murphyE.h"
 #include <ctype.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <gmp.h>
 //#include <time.h> 
 #include "cado_poly.h"
 #include "gfpkdlpolyselect.h"

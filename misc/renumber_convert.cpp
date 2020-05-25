@@ -8,6 +8,7 @@
 #include "cado_poly.h"  // cado_poly
 #include "gzip.h"       // fopen_maybe_compressed
 #include "verbose.h"   // verbose_interpret_parameters
+#include "macros.h"
 
 char *argv0; /* = argv[0] */
 

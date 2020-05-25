@@ -1,12 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
-
-#include <stdlib.h>        // for abort, NULL
+// IWYU pragma: no_include "cxx_mpz.hpp"
+// IWYU pragma: no_include "modint.hpp"
+#include <cstdlib>        // for abort, NULL
 #include <cinttypes>       // for PRIu64
 #include <cmath>           // for sqrt, ceil
 #include <vector>          // for vector
 
 #include "macros.h"        // for ASSERT
-
 // #include "modint.hpp"      // for operator<<
 
 #include "mod64.hpp"    // IWYU pragma: keep

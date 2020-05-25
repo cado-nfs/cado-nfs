@@ -6,6 +6,7 @@
 #include "clonable-exception.hpp"  // for clonable_exception
 #include "timing.h"                // for seconds_thread
 #include "threadpool.hpp"
+#include "macros.h"
 
 /*
   With multiple queues, when new work is added to a queue, we need to be able

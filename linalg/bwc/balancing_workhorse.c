@@ -27,6 +27,8 @@
 
 #include "balancing_workhorse.h"
 #include "portability.h"
+#include "macros.h"
+#include "params.h"
 
 /* TODO:
  * - implement file-backed rewind on thread pipes. There's a

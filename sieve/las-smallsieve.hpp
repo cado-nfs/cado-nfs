@@ -1,11 +1,17 @@
 #ifndef LAS_SMALLSIEVE_HPP_
 #define LAS_SMALLSIEVE_HPP_
 
-#include <stdarg.h>
-#include "las-smallsieve-types.hpp"
-#include "las-info.hpp"
-#include "bucket.hpp"
-
+#include <cstdarg>
+#include <cstdio>
+#include <vector>
+#include "fb-types.h"   // sublat_t
+#include "fb.hpp"
+#include "las-forwardtypes.hpp"
+#include "macros.h"
+class bucket_primes_t;
+struct qlattice_basis;
+struct small_sieve_data_t;
+struct where_am_I;
 
 /* Do not compute start positions for more than this number of bucket
  * regions in advance. This defines the frequency of a synchronization

@@ -35,13 +35,11 @@
 #include <type_traits>                    // for remove_reference<>::type
 #include <utility>                        // for move, pair
 #include <vector>                         // for vector<>::iterator, vector
-
 #include <gmp.h>                          // for mpz_srcptr, gmp_vfprintf
-
-#include "macros.h"                       // for ASSERT_ALWAYS, MAX, iceildiv
-
-#include "ecm/batch.hpp"                      // for cofac_list, cofac_candidate
 #include "bucket.hpp"                     // for bucket_slice_alloc_defaults
+#include "cado_poly.h"
+#include "cxx_mpz.hpp"
+#include "ecm/batch.hpp"                      // for cofac_list, cofac_candidate
 #include "ecm/facul.hpp"                      // for facul_print_stats
 #include "fb-types.h"                     // for fbprime_t, sublat_t, slice_...
 #include "fb.hpp"                         // for fb_factorbase::key_type
@@ -50,10 +48,9 @@
 #include "las-choose-sieve-area.hpp"      // for choose_sieve_area, never_di...
 #include "las-cofactor.hpp"               // for cofactorization_statistics
 #include "las-config.h"                   // for LOG_BUCKET_REGIONS, BUCKET_...
-#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
-#include "las-divide-primes.hpp"          // for display_bucket_prime_stats
-#include "las-descent.hpp"                // for postprocess_specialq_descent
 #include "las-descent-trees.hpp"          // descent_tree
+#include "las-descent.hpp"                // for postprocess_specialq_descent
+#include "las-divide-primes.hpp"          // for display_bucket_prime_stats
 #include "las-dlog-base.hpp"              // IWYU pragma: keep
 #include "las-fill-in-buckets.hpp"        // for downsort_tree, fill_in_buck...
 #include "las-globals.hpp"                // for main_output, base_memory
@@ -73,12 +70,21 @@
 #include "las-todo-entry.hpp"             // for las_todo_entry
 #include "las-todo-list.hpp"              // for las_todo_list
 #include "las-where-am-i-proxy.hpp"            // for where_am_I
+#include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
 #include "lock_guarded_container.hpp"     // for lock_guarded_container
+#include "macros.h"                       // for ASSERT_ALWAYS, MAX, iceildiv
 #include "memusage.h"   // PeakMemusage
+#include "misc.h"          // size_disp
+#include "mpz_poly.h"
 #include "multityped_array.hpp"           // for multityped_array
+#include "params.h"
 #include "relation.hpp"                   // for relation, operator<<
 #include "tdict.hpp"                      // for timetree_t, slot, SIBLING_T...
 #include "threadpool.hpp"                 // for thread_pool, thread_pool::s...
+#include "timing.h"             // for seconds
+#include "utils_cxx.hpp"
+#include "verbose.h"
+
 
 
 /*************************** main program ************************************/

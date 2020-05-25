@@ -7,6 +7,7 @@
 #include <gmp.h>
 #include "getprime.h"
 #include "gmp_aux.h"
+#include "mpz_poly.h"
 #include "rootfinder.h"
 
 int

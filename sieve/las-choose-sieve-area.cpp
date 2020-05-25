@@ -2,22 +2,21 @@
 #include <cinttypes>               // for PRId64
 #include <cstdio>              // IWYU pragma: keep
 #include <cstdarg>             // IWYU pragma: keep
-
 #include <gmp.h>                   // for mpz_srcptr, gmp_vfprintf
-
-#include "macros.h"                // for MAYBE_UNUSED
-
+#include "cado_poly.h"   // cxx_cado_poly
+#include "cxx_mpz.hpp"   // for cxx_mpz
 #include "fb-types.h"              // for sublat_t
 #include "las-auxiliary-data.hpp"  // for nfs_aux, report_and_timer
+#include "las-choose-sieve-area.hpp"
 #include "las-info.hpp"            // for las_info, HILIGHT_END, HILIGHT_START
 #include "las-multiobj-globals.hpp"
 #include "las-norms.hpp"           // for sieve_range_adjust
 #include "las-qlattice.hpp"        // for qlattice_basis, qlattice_basis::to...
 #include "las-siever-config.hpp"   // for siever_config, siever_config_pool
 #include "las-todo-entry.hpp"      // for las_todo_entry
+#include "macros.h"                // for MAYBE_UNUSED
 #include "tdict.hpp"               // for timetree_t
-
-#include "las-choose-sieve-area.hpp"
+#include "verbose.h"    // verbose_output_vfprint
 
 int never_discard = 0;      /* only enabled for las_descent */
 

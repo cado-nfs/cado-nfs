@@ -57,6 +57,7 @@ using namespace std;
 
 #include "matmul_facade.h"
 #include "portability.h"
+#include "params.h"
 
 /* {{{ Documentation
  *

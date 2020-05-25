@@ -62,7 +62,6 @@ skew: 1.37
 */
 
 #include "cado.h" // IWYU pragma: keep
-#include <ctype.h>
 #include <float.h> // for DBL_MAX
 #include <stdlib.h>
 #include <math.h> // pow
@@ -80,7 +79,6 @@ skew: 1.37
 #include "mpz_poly.h"
 #include "murphyE.h"
 #include "rootfinder.h"
-#include "ropt_param.h"
 #include "timing.h"             // for seconds
 #include "usp.h"        // numberOfRealRoots
 

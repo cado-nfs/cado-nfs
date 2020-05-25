@@ -3,7 +3,8 @@
 
 /* Need size_t */
 #include <stddef.h>
-#include <macros.h>
+#include <stdlib.h>
+#include "macros.h"
 
 #ifdef __cplusplus
 extern "C" {

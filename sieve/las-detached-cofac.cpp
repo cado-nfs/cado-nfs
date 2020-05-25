@@ -1,6 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <inttypes.h>                 // for PRId64, PRIu64
+#include <cinttypes>                 // for PRId64, PRIu64
 #include <array>                      // for array, array<>::value_type
 #include <cstdint>                    // for uint8_t
 #include <cstdio>                     // for NULL
@@ -13,8 +13,8 @@
 
 #include <gmp.h>                      // for mpz_srcptr, gmp_vfprintf
 
+#include "cxx_mpz.hpp"
 #include "las-detached-cofac.hpp"
-
 #include "las-auxiliary-data.hpp"     // for nfs_aux, nfs_aux::rel_hash_t
 #include "las-cofactor.hpp"           // for cofactorization_statistics
 #include "las-duplicate.hpp"          // for relation_is_duplicate
@@ -27,6 +27,9 @@
 #include "las-threads-work-data.hpp"  // for nfs_work_cofac
 #include "relation.hpp"               // for relation, operator<<
 #include "tdict.hpp"                  // for timetree_t, SIBLING_TIMER
+#include "timing.h"                 // for seconds
+#include "utils_cxx.hpp"        // call_dtor
+#include "verbose.h"
 
 /* asynchronous cofactorization */
 

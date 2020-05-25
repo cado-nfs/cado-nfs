@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "sieving_bound.h"
 #include "mpz_poly.h"
+#include "macros.h"
 
 typedef struct {
   int alloc;

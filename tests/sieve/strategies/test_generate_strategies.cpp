@@ -1,19 +1,31 @@
 #include "cado.h" // IWYU pragma: keep
-
+// IWYU pragma: no_include <ext/alloc_traits.h>
 #include <cfloat>
 #include <cstdlib>
 #include <cstdio>
-#include <ctime>
 #include <cmath>
-
+#include <climits>                       // for ULONG_MAX
+#include <memory>                         // for allocator_traits<>::value_type
+#include <vector>                         // for vector
+#include <gmp.h>                          // for gmp_randstate_t, gmp_randclear
+#include "cxx_mpz.hpp"
+#include "decomp.h"                       // for decomp_t, decomp_create
 #include "facul.hpp"
+#include "facul_ecm.h"
+#include "facul_fwd.hpp"                  // for facul_method_t
+#include "fm.h"                           // for fm_t, fm_create, fm_free
+#include "generate_factoring_method.hpp"
+#include "generate_strategies.h"
+#include "macros.h"
+#include "modredc_15ul.h"                 // for MODREDC15UL_MAXBITS
+#include "modredc_2ul2.h"                 // for MODREDC2UL2_MAXBITS
+#include "modredc_ul.h"                   // for MODREDCUL_MAXBITS
 #include "pm1.h"
 #include "pp1.h"
-#include "facul_ecm.h"
-#include "cxx_mpz.hpp"
-
-#include "generate_strategies.h"
-#include "generate_factoring_method.hpp"
+#include "strategy.h"                     // for strategy_t, strategy_add_fm
+#include "tab_decomp.h"                   // for tabular_decomp_t, tabular_d...
+#include "tab_fm.h"                       // for tabular_fm_t, tabular_fm_ad...
+#include "tab_strategy.h"                 // for tabular_strategy_t, tabular...
 #include "timing.h"     // microseconds
 
 static double EPSILON_DBL = LDBL_EPSILON;

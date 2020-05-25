@@ -2,6 +2,7 @@
 #define GMP_HACKS_H_
 
 #include <string.h>
+#include <stdlib.h>
 #include <gmp.h>
 #include "macros.h"
 

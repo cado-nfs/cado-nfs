@@ -1,7 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdint.h>
 #include <inttypes.h>
-#include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <gmp.h>
 #include "gcd.h"
 #include "macros.h"

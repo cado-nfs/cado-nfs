@@ -17,10 +17,12 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <limits.h>
 
 #include "cpubinding.h"
 #include "portability.h"
 #include "params.h"     // param_list
+#include "macros.h"
 
 /* This causes all messages to be immediately printed to stderr, instead
  * of being captured to a string */

@@ -2,9 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-
+#include "decomp.h"      // for decomp_t, decomp_create, decomp_free, decomp...
 #include "macros.h"
 #include "tab_decomp.h"
 

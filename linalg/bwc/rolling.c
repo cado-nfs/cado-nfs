@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdlib.h>
 
 #include "bwc_config.h"
 #include "params.h"
@@ -16,6 +17,7 @@
 #include "rolling.h"
 #include "bw-common.h"
 #include "portability.h"
+#include "macros.h"
 
 typedef int (*sortfunc_t) (const void *, const void *);
 

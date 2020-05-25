@@ -22,6 +22,7 @@ typedef struct matpoly_s * matpoly_ptr;
 typedef const struct matpoly_s * matpoly_srcptr;
 
 #include "lingen-polymat.h"
+#include "macros.h"
 
 #ifdef __cplusplus
 extern "C" {

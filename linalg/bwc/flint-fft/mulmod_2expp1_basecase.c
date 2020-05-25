@@ -1,3 +1,4 @@
+#include <gmp.h>
 /* 
  * Copyright 2009 Jason Moxham
  * 

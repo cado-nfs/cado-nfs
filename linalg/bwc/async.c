@@ -5,6 +5,8 @@
 #include <math.h>
 #include <time.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "bwc_config.h"
 #include "async.h"
 #include "macros.h"

@@ -1,18 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <limits.h>           // for ULONG_MAX
-#include <math.h>             // for log2
-#include <stdlib.h>           // for abort, exit, EXIT_FAILURE
+#include <climits>           // for ULONG_MAX
+#include <cmath>             // for log2
 #include <cstdio>             // for fprintf, NULL, stderr
-
+#include <cstdlib>           // for abort, exit, EXIT_FAILURE
 #include <gmp.h>              // for GMP_LIMB_BITS, gmp_randclear, gmp_randi...
-
-#include "macros.h"           // for ASSERT_ALWAYS
-
-#include "las-info.hpp"
-
 #include "ecm/batch.hpp"          // for cofac_list
+#include "las-info.hpp"
 #include "las-todo-list.hpp"  // for las_todo_list
+#include "macros.h"           // for ASSERT_ALWAYS
+#include "params.h"
 
 /* las_info stuff */
 

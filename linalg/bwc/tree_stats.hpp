@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <limits.h>
 
 class tree_stats {
     struct small_step_time {

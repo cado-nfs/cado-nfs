@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #ifndef ALLOC_PROXY_H_
 #define ALLOC_PROXY_H_
 

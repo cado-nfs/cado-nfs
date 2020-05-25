@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "pp1.h"
 #include "lucas_V_mod.h"
+#include "macros.h"
 
 //#define PP1_STAGE2_DEBUG /* define to print debug information for stage 2 */
 

@@ -15,7 +15,8 @@
 #include "las-info.hpp"    // for las_info
 #include "las-memory.hpp"  // for las_memory_accessor
 #include "threadpool.hpp"  // for thread_pool
-class nfs_aux;
+#include "verbose.h"
+class nfs_aux; // IWYU pragma: keep
 
 nfs_work::thread_data::thread_data(thread_data && o) : ws(o.ws)
 {

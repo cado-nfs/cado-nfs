@@ -7,6 +7,7 @@
 #include <time.h>
 #include "tests_common.h"
 #include ARITHMETIC
+#include "macros.h"
 
 
 /* Mask the (possibly multi-word) integer m so that only the

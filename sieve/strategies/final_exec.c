@@ -2,10 +2,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "finding_good_strategy.h"
 #include "params.h"     // param_list
+#include "strategy.h"
+#include "tab_strategy.h"
 
 /************************************************************************/
 /*             USAGE                                                    */

@@ -15,6 +15,7 @@
 
 #include <unistd.h>
 #include <dirent.h>
+#include <stdlib.h>
 
 #include "balancing.h"
 #include "bw-common.h"
@@ -31,6 +32,7 @@
 #include "select_mpi.h"
 #include "verbose.h"    // verbose_enabled
 #include "xvectors.h"
+#include "macros.h"
 
 using namespace std;
 

@@ -11,6 +11,7 @@
 #include "blockmatrix.h"
 #include "gauss.h"
 #include "params.h"     // param_list
+#include "macros.h"
 
 void usage()
 {

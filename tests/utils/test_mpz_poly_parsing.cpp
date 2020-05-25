@@ -1,10 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+#include <cstdlib>
 #include <iostream>
-#include <sstream>
+#include <sstream> // istringstream // IWYU pragma: keep
 #include <vector>
 #include <utility>
+#include <memory>              // for allocator_traits<>::value_type
+#include <string>              // for string, basic_string
+#include <gmp.h>               // for mpz_cmp, mpz_set_str, mpz_t
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
+#include "macros.h"
 
 /* a shorthand so that we can use user-defined literals */
 cxx_mpz operator "" _mpz (const char* str, size_t)

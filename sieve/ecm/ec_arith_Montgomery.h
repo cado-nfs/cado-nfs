@@ -1,3 +1,4 @@
+#include <stdio.h>
 #ifndef EC_ARITH_MONTGOMERY_H_
 #define EC_ARITH_MONTGOMERY_H_
 
@@ -9,6 +10,7 @@
 
 #ifdef ECM_COUNT_OPS
 #include "ec_arith_cost.h"
+#include "macros.h"
 static unsigned int _count_montgomery_dadd, _count_montgomery_dbl;
 #define MONTGOMERY_COUNT_OPS_M _count_montgomery_dadd * MONTGOMERY_dADD \
                              + _count_montgomery_dbl * MONTGOMERY_DBL

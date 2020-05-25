@@ -41,7 +41,7 @@
 #include "timing.h"                 // for seconds, wct_seconds
 #include "ularith.h"       // for ularith_invmod
 #include "verbose.h"             // verbose_output_print
-struct qlattice_basis;
+struct qlattice_basis; // IWYU pragma: keep
 
 /* {{{ fb_log fb_pow and friends */
 /* Returns floor(log_2(n)) for n > 0, and 0 for n == 0 */

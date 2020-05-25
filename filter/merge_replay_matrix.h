@@ -1,7 +1,8 @@
 #ifndef SPARSE_MAT_H_
 #define SPARSE_MAT_H_
 
-#include "purgedfile.h"
+#include <stddef.h>    // for NULL
+#include <stdint.h>    // for uint64_t, uint32_t
 #include "typedefs.h"
 
 #define TRACE_COL -1 // 253224 // 231 // put to -1 if not...!

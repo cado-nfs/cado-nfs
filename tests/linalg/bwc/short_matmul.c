@@ -1,12 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <stdint.h>
-#include <inttypes.h>
-#include <assert.h>
 #include <string.h>
 #include <gmp.h>
 
@@ -17,6 +13,7 @@
 #include "balancing_curl_source.h"
 #endif
 #include "balancing_file_source.h"
+#include "balancing_data_source.h"
 
 /* This is a stupid program for checking a matrix-times-vector product:
  *
@@ -50,7 +47,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
 
     unsigned long ncols = sbuf->st_size;
     unsigned long nrows;
-    assert(ncols % sizeof(uint64_t) == 0);
+    ASSERT(ncols % sizeof(uint64_t) == 0);
     ncols /= sizeof(uint64_t);
     if (mul_left == 0) {
         fprintf(stderr, "Found %lu columns in input vector\n", ncols);
@@ -63,7 +60,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
     uint64_t * vec;
     vec = malloc(ncols * sizeof(uint64_t));
     memset(vec, 0, ncols * sizeof(uint64_t));
-    assert(vec);
+    ASSERT(vec);
 
     data_source_ptr m;
 #ifdef  HAVE_CURL
@@ -103,7 +100,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
                     fprintf(stderr, "matrix: short read\n");
                     exit(1);
                 }
-                assert(x < ncols);
+                ASSERT(x < ncols);
                 w ^= vec[x];
             }
             // printf("%016" PRIx64 "\n", w);
@@ -148,7 +145,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
             }
         }
         fclose(v);
-        assert(nrows == rrows);
+        ASSERT(nrows == rrows);
         unsigned long k;
         for(k = 0 ; k < nrows ; k++) {
             uint64_t w = vec[k];
@@ -177,7 +174,7 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
     unsigned long ncols = sbuf->st_size;
     unsigned long nrows;
     size_t coeffsize = sizeof(mp_limb_t) * mpz_size(p);
-    assert(ncols % coeffsize == 0);
+    ASSERT(ncols % coeffsize == 0);
     ncols /= coeffsize;
     if (mul_left == 0) {
         fprintf(stderr, "Found %lu columns in input vector\n", ncols);
@@ -188,11 +185,11 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
         ncols += ncols / 10;
     }
     mp_limb_t * vec = malloc(ncols * coeffsize);
-    assert(vec);
+    ASSERT(vec);
     memset(vec, 0, ncols * coeffsize);
 
     mp_limb_t * varea = malloc(coeffsize);
-    assert(varea);
+    ASSERT(varea);
     memset(varea, 0, coeffsize);
 
     data_source_ptr m;
@@ -244,7 +241,7 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
                     fprintf(stderr, "matrix: short read\n");
                     exit(1);
                 }
-                assert(x < ncols);
+                ASSERT(x < ncols);
                 MPZ_SET_MPN(tmp, vec + x * mpz_size(p), mpz_size(p));
                 mpz_addmul_si(w, tmp, c);
             }
@@ -304,7 +301,7 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
             }
         }
         fclose(v);
-        assert(nrows == rrows);
+        ASSERT(nrows == rrows);
         unsigned long k;
         for(k = 0 ; k < nrows ; k++) {
             // printf("%016" PRIx64 "\n", w);

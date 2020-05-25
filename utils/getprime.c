@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "getprime.h"
+#include "macros.h"
 #ifndef MAIN
 #endif
 

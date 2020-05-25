@@ -1,12 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <errno.h>
-#include <string.h>
-
-#include "macros.h"
+#include "point.h"        // for point_t
+#include "tab_point.h"    // for tabular_point_free, tabular_point_add, tabu...
 #include "convex_hull.h"
 //#define FPRINT 1
 

@@ -9,6 +9,7 @@
 
 #include "las-descent-trees.hpp"
 #include "portability.h"
+#include "macros.h"
 
 
 using namespace std;

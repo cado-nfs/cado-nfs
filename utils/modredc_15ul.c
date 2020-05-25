@@ -2,6 +2,7 @@
 #include "modredc_15ul.h"
 #include "modredc_15ul_default.h" // IWYU pragma: keep
 #include "modredc_2ul_common.c"
+#include "macros.h"
 
 
 #define PARI 0

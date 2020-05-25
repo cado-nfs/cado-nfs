@@ -1,13 +1,14 @@
 #ifndef LAS_PROCESS_BUCKET_REGION_HPP_
 #define LAS_PROCESS_BUCKET_REGION_HPP_
 
-#include <cstdint>
 #include <memory>
-#include <array>
-#include "threadpool.hpp"
-#include "las-threads-work-data.hpp"
-#include "las-auxiliary-data.hpp"
-#include "las-report-stats.hpp"
+#include "las-where-am-i-proxy.hpp"         // for where_am_I
+class nfs_aux;
+class nfs_work;
+class nfs_work_cofac;
+class thread_pool;
+class worker_thread;
+
 
 /* process_many_bucket_regions is found in las.cpp, currently */
 

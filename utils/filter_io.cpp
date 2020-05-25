@@ -10,6 +10,7 @@
 #endif
 #include <pthread.h>                   // for pthread_cond_broadcast, pthrea...
 #include <sys/types.h>                 // for int8_t ssize_t
+#include <gmp.h>
 #include "barrier.h"                   // for barrier_destroy, barrier_init
 #include "cado_popen.h"                // for cado_pclose2, cado_popen
 #include "filter_io.h"

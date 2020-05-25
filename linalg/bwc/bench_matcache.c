@@ -17,6 +17,8 @@
 #include <inttypes.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/time.h>
+#include <gmp.h>
 
 #include "bwc_config.h"
 #include "cheating_vec_init.h"

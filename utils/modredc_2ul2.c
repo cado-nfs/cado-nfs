@@ -6,6 +6,8 @@
 #define PARI 0
 #if PARI
 #include <stdio.h>      // IWYU pragma: keep
+#include <stdlib.h>
+#include "macros.h"
 #define MODINV_PRINT_PARI_M \
     printf ("m = (%lu << %d) + %lu; /* PARI %d */\n", m[0].m[1], LONG_BIT, m[0].m[0], __LINE__)
 #define MODINV_PRINT_PARI_x \

@@ -17,9 +17,11 @@
 */
 
 #include "cado.h" // IWYU pragma: keep
+#include <float.h>      // DBL_MAX
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <gmp.h>
 #include "auxiliary.h" /* for common routines with polyselect.c */
 #include "area.h"
 #include "murphyE.h"
@@ -27,6 +29,7 @@
 #include "omp_proxy.h"
 #include "gmp_aux.h"    // ulong_isprime
 #include "timing.h"     // seconds
+#include "macros.h"
 /* define ORIGINAL if you want the original algorithm from the paper */
 // #define ORIGINAL
 
@@ -748,7 +751,7 @@ print_transformation (cado_poly_ptr poly0, cado_poly_srcptr poly)
   ASSERT_ALWAYS(mpz_divisible_p (k, poly0->pols[RAT_SIDE]->coeff[1]));
   mpz_divexact (k, k, poly0->pols[RAT_SIDE]->coeff[1]);
   gmp_printf ("rotation [%Zd,", k);
-  assert (mpz_fits_slong_p (k));
+  ASSERT (mpz_fits_slong_p (k));
   u0 = mpz_get_si (k);
   rotate_auxg_z (poly0->pols[ALG_SIDE]->coeff, poly0->pols[RAT_SIDE]->coeff[1],
                  poly0->pols[RAT_SIDE]->coeff[0], k, 2);
@@ -756,7 +759,7 @@ print_transformation (cado_poly_ptr poly0, cado_poly_srcptr poly)
   ASSERT_ALWAYS(mpz_divisible_p (k, poly0->pols[RAT_SIDE]->coeff[1]));
   mpz_divexact (k, k, poly0->pols[RAT_SIDE]->coeff[1]);
   gmp_printf ("%Zd,", k);
-  assert (mpz_fits_slong_p (k));
+  ASSERT (mpz_fits_slong_p (k));
   v0 = mpz_get_si (k);
   rotate_auxg_z (poly0->pols[ALG_SIDE]->coeff, poly0->pols[RAT_SIDE]->coeff[1],
                  poly0->pols[RAT_SIDE]->coeff[0], k, 1);
@@ -764,7 +767,7 @@ print_transformation (cado_poly_ptr poly0, cado_poly_srcptr poly)
   ASSERT_ALWAYS(mpz_divisible_p (k, poly0->pols[RAT_SIDE]->coeff[1]));
   mpz_divexact (k, k, poly0->pols[RAT_SIDE]->coeff[1]);
   gmp_printf ("%Zd]\n", k);
-  assert (mpz_fits_slong_p (k));
+  ASSERT (mpz_fits_slong_p (k));
   w0 = mpz_get_si (k);
   rotate_auxg_z (poly0->pols[ALG_SIDE]->coeff, poly0->pols[RAT_SIDE]->coeff[1],
                  poly0->pols[RAT_SIDE]->coeff[0], k, 0);

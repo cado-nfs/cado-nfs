@@ -8,6 +8,8 @@
 #include <stdlib.h> // exit
 #include <string.h> // strncmp strlen
 #include <math.h> // log
+#include <stdio.h>
+#include <gmp.h>
 #include "cado_poly.h"
 #include "mpz_poly.h"
 #include "ropt_io.h"

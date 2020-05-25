@@ -38,6 +38,7 @@
 
 /* We need gf2x_addmul_1_n */
 #include "gf2x/gf2x-small.h"
+#include "macros.h"
 
 #if GPL_CODE_PRESENT
 short best_tab[GF2X_TOOM_TUNING_LIMIT] = GF2X_BEST_TOOM_TABLE;

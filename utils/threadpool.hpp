@@ -17,6 +17,7 @@ struct clonable_exception;
 /* Verbosely log all mutex and condition variable operations */
 #include <typeinfo>
 #include <verbose.h>
+#include <stdio.h>
 static inline void
 thread_log(const char *c, const char *m, const void *p)
 {

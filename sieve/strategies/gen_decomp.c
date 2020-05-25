@@ -1,8 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "macros.h"
+#include "decomp.h"
 #include "gen_decomp.h"
 
 #define PREC 1000000

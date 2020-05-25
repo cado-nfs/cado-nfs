@@ -25,6 +25,7 @@ uint64_t u32_to_64(uint32_t low, uint32_t high)
 #ifdef USE_INTEL_PCM
 
 #include <sched.h>
+#include <stdio.h>
 #include "cpucounters.h"
 static PCM * m;
 static CoreCounterState before_sstate, after_sstate;

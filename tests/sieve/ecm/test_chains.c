@@ -1,14 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 #include <string.h>
-#include <sys/time.h>
-
+#include <gmp.h>
 #include "sieve/ecm/bytecode.h"
-#include "test_iter.h"
 #include "tests_common.h"
 #include "getprime.h"   // prime_info
+#include "macros.h"
 
 void
 mpz_prod_primes_below_B1 (mpz_t E, unsigned int B1)

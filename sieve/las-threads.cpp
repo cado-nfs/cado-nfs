@@ -9,7 +9,8 @@
 #include "las-report-stats.hpp"    // for TIMER_CATEGORY
 #include "las-auxiliary-data.hpp"         // for nfs_aux
 #include "tdict.hpp"               // for timetree_t, slot
-class las_memory_accessor;
+#include "verbose.h"    // verbose_output_print
+class las_memory_accessor; // IWYU pragma: keep
 
 
 template <typename T>

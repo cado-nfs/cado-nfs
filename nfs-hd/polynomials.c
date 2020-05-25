@@ -5,9 +5,11 @@
 #include <math.h>
 #include <time.h>
 #include <float.h>
+#include <gmp.h>
 #include "polynomials.h"
 #include "utils_cofactorisation.h"
 #include "polyselect/auxiliary.h"
+#include "macros.h"
 
 MAYBE_UNUSED static void extended_euclidean_algorithm(mpz_ptr r0, mpz_ptr t0,
     mpz_srcptr f, mpz_srcptr g)

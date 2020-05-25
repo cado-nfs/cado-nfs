@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 #include <cstring>             // for strcmp
+#include <cstdio> // stdout // IWYU pragma: keep
+#include <climits> // UINT_MAX // IWYU pragma: keep
 #include <gmp.h>               // for mpz_get_ui, mpz_divisible_ui_p, mpz_t
 #include "badideals.hpp"
 #include "cxx_mpz.hpp"         // for cxx_mpz
@@ -25,6 +27,7 @@
 #include "renumber.hpp"
 #include "rootfinder.h" // mpz_poly_roots
 #include "stats.h"      // for the builder process
+#include "macros.h"
 
 /* Some documentation on the internal encoding of the renumber table...
  *

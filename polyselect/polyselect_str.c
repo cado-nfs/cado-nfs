@@ -8,9 +8,13 @@
 #include <math.h> // log
 #include <string.h> // memset
 #include <pthread.h> // pthread_mutex_lock
+#include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>
 #include "polyselect_str.h"
 #include "cado_poly.h"
 #include "getprime.h"   // getprime
+#include "macros.h"
 
 void match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
             mpz_t ad, unsigned long d, mpz_t N, unsigned long q,

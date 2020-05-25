@@ -1,6 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 #include "macros.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <limits.h>

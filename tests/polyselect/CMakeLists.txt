@@ -1,5 +1,7 @@
 # Build polyselect before running check
 
+include_directories(${PROJECT_SOURCE_DIR}/polyselect)
+
 macro(polyselect_test n)
     cado_define_test(test_polsel_${n}
         PROGRAM ${CADO_NFS_BINARY_DIR}/polyselect/polyselect ${ARGN}

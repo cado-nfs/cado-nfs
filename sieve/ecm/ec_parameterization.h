@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #ifndef EC_PARAMETERIZATION_H_
 #define EC_PARAMETERIZATION_H_
 
@@ -7,6 +8,7 @@
 
 #include "ec_arith_common.h"
 #include "ec_arith_Weierstrass.h"
+#include "macros.h"
 
 
 /******************************************************************************/

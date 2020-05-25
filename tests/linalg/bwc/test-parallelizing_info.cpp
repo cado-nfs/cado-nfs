@@ -1,9 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "macros.h"
 #include "misc.h"
 #include "select_mpi.h"
 #include "parallelizing_info.h"
-#include "portability.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "params.h"
 
 int verbose = 0;
 

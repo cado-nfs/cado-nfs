@@ -1,5 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
+#include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>
 #include "macros.h"
+#include "mpz_poly.h"
 #include "mpz_poly_bivariate.h"
 
 void test_mpz_poly_bivariate_trivialities()

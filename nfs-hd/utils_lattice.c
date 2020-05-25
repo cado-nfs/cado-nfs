@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <math.h>
+#include <gmp.h>
 #include "utils_lattice.h"
 #include "ideal.h"
 #include "utils_mpz.h"
@@ -14,6 +15,7 @@
 #include "list_int64_vector_index.h"
 #include "gcd.h"
 #include "utils_int64.h"
+#include "macros.h"
 
 #define swap(x, y) { unsigned int _tmp = (x); (x) = (y); (y) = _tmp; }
 #define int64_swap_n(x, y) { int64_t *_tmp = (x); (x) = (y); (y) = _tmp; }

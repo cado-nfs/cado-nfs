@@ -2,6 +2,7 @@
 #include "utils_mpz.h"
 #include <stdint.h>
 #include <stdlib.h>
+#include <gmp.h>
 #include "macros.h"
 
 int mpz_invert_ui(mpz_ptr rop, mpz_srcptr op1, const uint64_t op2)

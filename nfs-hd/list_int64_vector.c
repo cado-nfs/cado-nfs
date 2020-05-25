@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include "list_int64_vector.h"
+#include "macros.h"
 
 void list_int64_vector_init(list_int64_vector_ptr list,
     unsigned int vector_dim)

@@ -3,29 +3,29 @@
    relation or relation with non prime ideal */
 
 #include "cado.h" // IWYU pragma: keep
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <inttypes.h>
-#include <ctype.h>
-#include <time.h>
-#include <limits.h> /* for CHAR_BIT */
-#include <unistd.h>
-#include <assert.h>
+#include <inttypes.h>        // for PRIu64, PRId64
+#include <stdint.h>          // for uint64_t
+#include <stdio.h>           // for fprintf, printf, stderr, fflush, FILE, NULL
+#include <stdlib.h>          // for exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <string.h>          // for memcpy, memset
+#ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
+#endif
+#include <gmp.h>             // for mpz_t, gmp_fprintf, mpz_cmp_ui, mpz_dive...
+#include "cado_poly.h"       // for NB_POLYS_MAX, cado_poly_clear, cado_poly...
+#include "filter_io.h"       // for earlyparsed_relation_s, earlyparsed_rela...
+#include "getprime.h"        // for getprime_mt, prime_info_clear, prime_inf...
+#include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
+#include "macros.h"          // for ASSERT_ALWAYS, MAX
+#include "misc.h"            // for filelist_clear, filelist_from_file
+#include "mod_ul.h"          // for modul_clearmod, modul_initmod_ul, modul_...
+#include "mpz_poly.h"        // for mpz_poly_homogeneous_eval_siui, mpz_poly
+#include "params.h"          // for param_list_decl_usage, param_list_config...
+#include "relation-tools.h"  // for u64toa16, d64toa10, d64toa16, u64toa10
+#include "timing.h"          // for timingstats_dict_add_mythread, timingsta...
+#include "typedefs.h"        // for prime_t, weight_t, exponent_t, p_r_values_t
+#include "verbose.h"         // for verbose_interpret_parameters
 
-#include "cado_poly.h"
-#include "filter_io.h"  // earlyparsed_relation_ptr
-#include "getprime.h"   // prime_info
-#include "gzip.h"       // fopen_maybe_compressed
-#include "macros.h"
-#include "misc.h"       // filelist
-#include "mod_ul.h"     // modulusul_t
-#include "relation-tools.h" // u64toa16
-#include "typedefs.h"  // weight_t
-#include "verbose.h"   // verbose_interpret_parameters
 
 #define FACTOR_DO_NOT_DIVIDE 1UL
 #define FACTOR_NOT_PRIME 2UL

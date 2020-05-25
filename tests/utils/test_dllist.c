@@ -1,9 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
+#include <stdio.h>
 #include "tests_common.h"
-#include "macros.h"
 #include "dllist.h"
-#include "portability.h"
+#include "portability.h" // lrand48 // IWYU pragma: keep
 
 void
 test_dllist(size_t len)

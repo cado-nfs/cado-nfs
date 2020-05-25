@@ -5,6 +5,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <float.h>
+#include <gmp.h>
 
 #include "macros.h"
 

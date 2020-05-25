@@ -12,6 +12,7 @@
 #include "misc.h"          // size_disp_fine
 #include "timing.h"             // for seconds
 #include "verbose.h"             // verbose_output_print
+#include "params.h"
 
 
 void sieve_shared_data::declare_usage(cxx_param_list & pl)

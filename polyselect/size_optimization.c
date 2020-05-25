@@ -5,6 +5,7 @@
 #include <string.h>     // memset
 #include <math.h>
 #include <float.h>
+#include <gmp.h>
 #include "auxiliary.h"
 #include "gcd.h"        // gcd_uint64
 #include "lll.h"        // mat_Z, LLL

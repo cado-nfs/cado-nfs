@@ -5,6 +5,8 @@
 #include <errno.h>
 #include <stdint.h>
 #include <string.h>
+#include <limits.h>
+#include <gmp.h>
 #include "bwc_config.h"
 #include "matmul.h"
 #include "matmul-common.h"
@@ -13,6 +15,8 @@
 #include "matmul_facade.h"
 
 #include "arith-modp.hpp"
+#include "macros.h"
+#include "params.h"
 
 /* define "gfp" as being our c++ type built from the number of words in
  * the underlying mpfq data type.

@@ -1,19 +1,27 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cstdio>
-#include <cstdlib>
+#include <cinttypes>        // for PRId64, PRIu64
+#include <cstdint>          // for int64_t, uint64_t, uint32_t
+#include <cstring>          // for strcmp, strlen, memcpy, memset, strdup
+#include <cstdio>            // for fprintf, stderr, NULL, asprintf, FILE
+#include <cstdlib>           // for free, abort, exit, malloc, EXIT_FAILURE
+#ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
-#include <type_traits>
+#endif
+#include "cado_poly.h"       // for cado_poly_clear, cado_poly_init, cado_po...
+#include "filter_config.h"   // for CA_DUP2, CB_DUP2
+#include "filter_io.h"       // for earlyparsed_relation_s, filter_rels_desc...
+#include "galois_utils.h"    // for automorphism_init
+#include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
+#include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY
+#include "misc.h"            // for filelist_clear, filelist_from_file
+#include "mod_ul.h"          // for modul_clear, modul_clearmod, modul_get_ul
+#include "params.h"          // for param_list_decl_usage, param_list_lookup...
+#include "portability.h" // strdup  // IWYU pragma: keep
+#include "relation-tools.h"  // for u64toa16, d64toa16
+#include "renumber.hpp"      // for renumber_t, renumber_t::p_r_side
+#include "typedefs.h"        // for p_r_values_t, index_t, prime_t, PRpr
+#include "verbose.h"         // for verbose_decl_usage, verbose_interpret_pa...
 
-#include "filter_config.h"
-#include "filter_io.h"  // earlyparsed_relation_ptr
-#include "galois_utils.h" // automorphism_init
-#include "gzip.h"       // get_suffix_from_filename
-#include "misc.h"       // filelist
-#include "mod_ul.h"
-#include "relation-tools.h" // u64toa16
-#include "renumber.hpp"
-#include "verbose.h"    // verbose_decl_usage
-#include "portability.h"
 
 char *argv0; /* = argv[0] */
 

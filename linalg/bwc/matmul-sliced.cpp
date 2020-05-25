@@ -26,6 +26,8 @@ using namespace std;
 #include "matmul-common.h"
 
 #include "matmul_facade.h"
+#include "macros.h"
+#include "params.h"
 
 // assembly is now disabled for this code because the semantics of the
 // asm code have changed.

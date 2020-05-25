@@ -3,19 +3,30 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <cinttypes>    // for PRIu64, SCNu64
+#include <cstdint>      // for uint64_t, int32_t, int64_t, uint8_t
+#include <pthread.h>     // for pthread_mutex_lock, pthread_mutex_unlock
+#ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
+#endif
+#include <gmp.h>
+#include "bit_vector.h"  // for bit_vector_set, bit_vector, bit_vector_getbit
 #include "cado_poly.h"  // cado_poly
 #include "cxx_mpz.hpp"
-#include "filter_config.h"
 #include "filter_io.h"  // earlyparsed_relation_ptr
-#include "gmp-hacks.h"
+#include "gmp_aux.h"     // for nbits, mpz_addmul_si
+#include "gzip.h"       // fopen_maybe_compressed
+#include "macros.h"
 #include "memalloc.h"             // my_malloc_free_all
+#include "mpz_poly.h"    // for mpz_poly_setcoeff_int64, mpz_poly, mpz_poly_...
+#include "params.h"
+#include "purgedfile.h" // purgedfile_read_firstline
 #include "renumber.hpp"
 #include "sm_utils.h"   // sm_side_info_clear
 #include "stats.h"                     // stats_data_t
-#include "gzip.h"       // fopen_maybe_compressed
+#include "timing.h"      // for wct_seconds
+#include "typedefs.h"    // for ideal_merge_t, index_t, weight_t, PRid, prime_t
 #include "verbose.h"    // verbose_decl_usage
-#include "purgedfile.h" // purgedfile_read_firstline
 
 #define DEBUG 0
 

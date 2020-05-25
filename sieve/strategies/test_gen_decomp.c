@@ -30,11 +30,10 @@ $ gen_decomp 60 524288
 */
 
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include "macros.h"
 #include "gen_decomp.h"
+#include "tab_decomp.h"
 
 /*
   To test the function generate_all_decomp ()!!

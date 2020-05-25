@@ -5,19 +5,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <assert.h>
 #include <string.h>
 #include <sys/types.h> 
-#include <sys/resource.h>
 #include <unistd.h>
-#include <stdbool.h>
 #include <pthread.h>
+#include <sys/time.h>
 #include <gmp.h>
 #include "cado_poly.h"  // cado_poly
 #include "ecm.h"
 #include "lll.h"        // mat_Z LLL
 #include "mpz_poly.h"   // mpz_poly
 #include "smooth_detect.h"
+#include "macros.h"
 
 double default_B1done;
 
@@ -657,7 +656,7 @@ int main(int argc, char **argv) {
         // one of them is not squarefree. Restart the thread and wait for
         // another candidate.
         ret = pthread_create(&thid[i], NULL, process_one_thread, &thparam[i]);
-        assert(ret == 0);
+        ASSERT(ret == 0);
         pthread_mutex_lock(&mut_found);
         pthread_cond_wait(&cond_found, &mut_found);
         i = thid_found;

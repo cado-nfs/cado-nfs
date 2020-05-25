@@ -11,7 +11,6 @@
 
 #include <algorithm>        // for max
 #include <emmintrin.h>      // for __m128i, _mm_xor_si128, _mm_set1_epi8
-#include <cmath>           // for abs
 #include <cstdint>          // for uint32_t
 #include <cstdlib>          // for size_t, abs
 #include <vector>           // for vector

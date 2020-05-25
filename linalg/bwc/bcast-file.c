@@ -17,6 +17,7 @@
 #include "select_mpi.h"
 #else
 #include <mpi.h>
+#include "macros.h"
 #define ASSERT_ALWAYS(x) do { if (!(x)) abort(); } while (0)
 #endif
 

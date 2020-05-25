@@ -3,11 +3,19 @@
 #include <cstdint>
 #include <cinttypes>
 #include <typeinfo>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>                                // for strlen
+#include <gmp.h>                                   // for mpz_ptr, gmp_sscanf
+#include <iostream>                                // for operator<<, endl
+#include "cxx_mpz.hpp"                             // for cxx_mpz, operator==
+#include "modint.hpp"                              // for operator<<
 #include "mod64.hpp"
 #include "modredc64.hpp"
 #include "modredc126.hpp"
 #include "mod_mpz_new.hpp"
 #include "sieve/ecm/ec_arith_Weierstrass_new.hpp"
+#include "macros.h"
 
 template <typename MODULUS>
 class TestWeierstrass {

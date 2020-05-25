@@ -10,6 +10,7 @@
 #include "gcd.h"       // gcd_ul
 #include "gmp_aux.h"    // nbits
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
+#include "macros.h"
 
 static inline int
 cmp_uint2 (const void *p, const void *q)

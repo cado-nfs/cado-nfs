@@ -1,9 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
+#include <stdlib.h>
+#include <gmp.h>
 #include "modredc_ul.h"
-#include "test_iter.h"
 #include "tests_common.h"
 #include "gcd.h"
 #include "gmp_aux.h"
+#include "macros.h"
 
 static void
 test_modredcul_intinv (unsigned long iter)

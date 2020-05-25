@@ -3,10 +3,15 @@
 #include <cstdlib>
 #include <cstring> /* for strcmp() */
 #include <cmath> /* for sqrt and floor and log and ceil */
-#include <pthread.h>
+#include <cstdint>           // for uint64_t, int64_t, UINT64_MAX
 #include <vector>
 #include <algorithm>
-#include "cxx_mpz.hpp"
+#include <iosfwd>            // for std
+#include <memory>            // for allocator_traits<>::value_type
+#include <pthread.h>
+#include <gmp.h>             // for gmp_randstate_t, gmp_randclear, gmp_rand...
+#include "cado_poly.h"       // for cxx_cado_poly, cado_poly_read, cado_poly_s
+#include "mpz_poly.h"        // for mpz_poly
 #include "typedefs.h"   // index_t p_r_values_t
 #include "renumber.hpp" // renumber_t
 #include "relation-tools.h"
@@ -15,6 +20,8 @@
 #include "rootfinder.h" // mpz_poly_roots_uint64
 #include "timing.h" // wct_seconds
 #include "verbose.h"    // verbose_decl_usage
+#include "macros.h"
+#include "params.h"
 
 /*
  * The goal of this binary is to produce relations that try to be good

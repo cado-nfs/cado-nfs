@@ -146,6 +146,7 @@ void thread_seconds_user_sys(double * res)
 #include <sys/syscall.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdlib.h>
 #include "portability.h"
 
 static inline pid_t gettid() { return syscall(SYS_gettid); }

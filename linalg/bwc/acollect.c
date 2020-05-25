@@ -13,6 +13,7 @@
 #include "macros.h"
 #include "bw-common.h"
 #include "portability.h"
+#include "params.h"
 
 /* This program is rather standalone. It checks the current directory
  * for files matching the pattern A%u-%u.%u-%u, and concatenates them.

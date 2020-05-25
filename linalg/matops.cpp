@@ -88,6 +88,9 @@
 
 #ifdef  HAVE_SSE41
 #include <smmintrin.h>  // sse 4.1 _mm_cmpeq_epi64
+#include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>
 #endif  /* HAVE_SSE41 */
 
 /* We reach the mpfq sources through the gf2x code base, and then these
@@ -1031,7 +1034,7 @@ static inline void VUBit(unsigned long m,
 /* lengths of a1 and a2 are n1 and n2 */
 void m64pol_addmul(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n1, unsigned int n2)
 {
-    assert(r != a1 && r != a2);
+    ASSERT(r != a1 && r != a2);
     for(unsigned int i = 0 ; i < n1 ; i++) {
         for(unsigned int j = 0 ; j < n2 ; j++) {
             mat64 x;
@@ -1056,9 +1059,9 @@ void m64pol_mul(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n
 
 void m64pol_mul_kara(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n1, unsigned int n2)
 {
-    assert(r != a1 && r != a2);
-    assert(n1 == n2);
-    assert((n1 & (n1 - 1)) == 0);
+    ASSERT(r != a1 && r != a2);
+    ASSERT(n1 == n2);
+    ASSERT((n1 & (n1 - 1)) == 0);
     /* As is certainly not surprising, karatsuba wins as early on as one
      * can imagine */
     if (n1 == 1) {
@@ -1310,7 +1313,7 @@ void m64pol_scalmul_gf2_128_nobitslice(uint64_t * r, uint64_t * a, uint64_t * sc
  */
 void m64polblock_mul(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n1, unsigned int n2, unsigned int K)
 {
-    assert(r != a1 && r != a2);
+    ASSERT(r != a1 && r != a2);
     memset(r, 0, (n1 + n2 - 1) * K * K * sizeof(mat64));
     for(unsigned int i = 0 ; i < K ; i++) {
         m64pol_srcptr ra1 = a1 + i * n1 * K;
@@ -1329,7 +1332,7 @@ void m64polblock_mul(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned 
 
 void m64polblock_mul_kara(m64pol_ptr r, m64pol_srcptr a1, m64pol_srcptr a2, unsigned int n1, unsigned int n2, unsigned int K)
 {
-    assert(r != a1 && r != a2);
+    ASSERT(r != a1 && r != a2);
     memset(r, 0, (n1 + n2 - 1) * K * K * sizeof(mat64));
     for(unsigned int i = 0 ; i < K ; i++) {
         m64pol_srcptr ra1 = a1 + i * n1 * K;
@@ -1359,8 +1362,8 @@ void my_mzd_randomize(mzd_t * A)
 
 void mzd_set_mem(mzd_t * M, const uint64_t * s, unsigned int n)
 {
-    assert(M->width == 1);
-    assert(M->nrows == n);
+    ASSERT(M->width == 1);
+    ASSERT(M->nrows == n);
     for(size_t i = 0 ; i < M->nrows ; i++) {
         uint64_t * ptr = (uint64_t *) M->rows[i];
         ptr[0] = sometimes_bitrev(s[i]);
@@ -1375,8 +1378,8 @@ void mzd_set_memT(mzd_t * M, const uint64_t * s, unsigned int n)
 
 void mzd_check_mem(mzd_t * M, uint64_t * s, unsigned int n)
 {
-    assert(M->width == 1);
-    assert(M->nrows == n);
+    ASSERT(M->width == 1);
+    ASSERT(M->nrows == n);
     for(size_t i = 0 ; i < M->nrows ; i++) {
         uint64_t * ptr = (uint64_t *) M->rows[i];
         if (ptr[0] != sometimes_bitrev(s[i])) {

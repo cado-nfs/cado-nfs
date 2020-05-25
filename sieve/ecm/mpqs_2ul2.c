@@ -1,8 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
+#include "modredc_2ul2.h"
 #include "modredc_2ul2_default.h"
+#include <limits.h>
 #include <gmp.h>
 #include "mpqs.h"
 #include "mpqs_doit.h"
+#include "macros.h"
 
 int
 mpqs_2ul2 (modint_t f, const modulus_t m)

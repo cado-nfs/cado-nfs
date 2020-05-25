@@ -1,6 +1,7 @@
 #ifndef TRANSPOSE_H_
 #define TRANSPOSE_H_
 
+#include <stdint.h>
 #include "typedefs.h"
 
 // #define TRANSPOSE_EASY_WAY

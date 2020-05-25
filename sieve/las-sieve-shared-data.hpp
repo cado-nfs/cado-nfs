@@ -6,6 +6,8 @@
 #include <memory>                      // for shared_ptr
 #include <utility>                     // for pair
 
+#include "cado_poly.h"
+#include "mpz_poly.h"
 #include "ecm/facul.hpp"                   // for facul_strategies_t
 #include "fb-types.h"                  // for fbprime_t
 #include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
@@ -13,8 +15,9 @@
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
 #include "trialdiv.hpp"                // for trialdiv_data
 
-struct j_divisibility_helper;
-struct unsieve_data;
+struct j_divisibility_helper; // IWYU pragma: keep
+struct unsieve_data; // IWYU pragma: keep
+struct cxx_param_list;
 
 /*
  * A sieve_shared_data struct is only a thin layer above the factor base. It

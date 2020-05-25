@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #ifndef CPUBINDING_H_
 #define CPUBINDING_H_
 

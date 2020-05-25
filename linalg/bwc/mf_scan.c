@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <inttypes.h>
+#include <stdlib.h>
 #include "macros.h"
 #include "mf.h"
 #include "params.h"     // param_list

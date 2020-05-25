@@ -1,18 +1,17 @@
 #include "cado.h" // IWYU pragma: keep
 #include <cstdint>     /* AIX wants it first (it's a bug) */
 #include <cstdlib>
-#include <climits>
 #include <gmp.h>
-#include <ctime>
 #include <iostream>
 #include <typeinfo>
-#include <vector>
 #include "cxx_mpz.hpp"
 #include "tests_common.h"
 #include "mod64.hpp"
 #include "modredc64.hpp"
 #include "modredc126.hpp"
 #include "mod_mpz_new.hpp"
+#include "modint.hpp"
+#include "macros.h"
 
 template <typename T>
 T randomInteger();

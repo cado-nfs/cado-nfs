@@ -12,6 +12,7 @@
 #include "renumber.hpp" // renumber_t
 #include "rootfinder.h" // mpz_poly_roots_ulong
 #include "typedefs.h"   // p_r_values_t
+#include "macros.h"
 
 /* This program creates an "appendix" to a renumber table. It's never
  * used in cado, it seems, so that the code is _most likely_ buggy.

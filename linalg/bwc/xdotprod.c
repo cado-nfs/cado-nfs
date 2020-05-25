@@ -2,6 +2,7 @@
 #include "bwc_config.h"
 #include "xdotprod.h"
 #include "bw-common.h"
+#include "macros.h"
 
 void x_dotprod(void * dst, uint32_t * xv, unsigned int m, unsigned int nx, mmt_vec_ptr v, int sign)
 {

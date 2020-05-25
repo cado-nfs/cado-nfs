@@ -1,8 +1,8 @@
 #ifndef LAS_OUTPUT_HPP_
 #define LAS_OUTPUT_HPP_
 
-#include "params.h"
 #include <cstdio>
+struct cxx_param_list;
 
 struct las_output {
     int verbose = 1;

@@ -11,6 +11,8 @@
 #include <string>
 #include <sstream>
 #include <utility>
+#include <stdlib.h>
+#include <limits.h>
 
 #include "bwc_config.h"
 #include "parallelizing_info.h"
@@ -28,6 +30,7 @@
 #include "cheating_vec_init.h"
 #include "fmt/printf.h"
 #include "portability.h"
+#include "macros.h"
 
 using namespace std;
 

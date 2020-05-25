@@ -15,7 +15,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
-#include <cassert>
+#include <limits.h>
+#include <gmp.h>
 
 #include "omp_proxy.h"
 #include "macros.h"
@@ -41,6 +42,7 @@
 #include "tree_stats.hpp"
 #include "portability.h"
 #include "timing.h"     // wct_seconds
+#include "params.h"
 
 /* Call tree for methods within this program:
  *
@@ -502,7 +504,7 @@ bw_lingen_basecase_raw(bmstatus_ptr bm, matpoly_ptr pi, matpoly_srcptr E, unsign
                     break;
             }
             if (u == m) continue;
-            assert(r < m);
+            ASSERT(r < m);
             /* }}} */
             pivots[r++] = j;
             is_pivot[j] = 1;
@@ -526,7 +528,7 @@ bw_lingen_basecase_raw(bmstatus_ptr bm, matpoly_ptr pi, matpoly_srcptr E, unsign
                 abelt lambda;
                 abinit(ab, &lambda);
                 abmul(ab, lambda, inv, matpoly_coeff(ab, e, u, k, 0));
-                assert(delta[j] <= delta[k]);
+                ASSERT(delta[j] <= delta[k]);
                 /* {{{ Apply on both e and pi */
                 abelt tmp;
                 abinit(ab, &tmp);

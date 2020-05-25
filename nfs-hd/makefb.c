@@ -11,6 +11,7 @@
 #include "makefb.h"
 #include "utils_int64.h"
 #include "math.h"
+#include "params.h"
 
 /*
  * Mode:

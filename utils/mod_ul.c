@@ -5,6 +5,7 @@
 #include "mod_ul_common.c"
 
 #include "modredc_ul.h"
+#include "macros.h"
 
 
 /* Put 1/s (mod t) in r and return 1 if s is invertible, 

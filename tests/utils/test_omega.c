@@ -1,14 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
-#include <gmp.h>
-#include "ularith.h"
 #include "modredc_ul.h"
-#include "rootfinder.h"
 #include "modredc_ul_default.h"
 #include "roots_mod.h"
+#include "macros.h"
 
 void omega (residue_t o, residue_t b, const unsigned long k, const modulus_t pp);
 

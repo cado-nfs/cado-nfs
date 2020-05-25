@@ -6,9 +6,12 @@
 #include <sstream>
 #include <algorithm>
 #include <vector>
+#include <stdio.h>
+#include <limits.h>
 
 #include "lingen_mat_types.hpp"
 #include "lingen_qcode.h"
+#include "macros.h"
 
 using namespace std;
 

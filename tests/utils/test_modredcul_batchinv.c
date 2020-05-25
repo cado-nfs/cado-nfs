@@ -1,5 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
+#include <stdio.h>
 #include "tests_common.h"
 #include "modredc_ul.h"
 

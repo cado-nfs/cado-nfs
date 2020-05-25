@@ -2,6 +2,7 @@
 #define LAS_WHERE_AM_I_PROXY_HPP_
 
 #include <memory>
+#include <stdlib.h>
 struct cxx_param_list;
 class nfs_work;
 

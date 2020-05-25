@@ -28,7 +28,7 @@
 
 #include <stdio.h>      // FILE
 #include <stdbool.h>    // for bool (in C)
-#include <gmp.h>    // for bool (in C)
+#include <gmp.h>
 #include "cado_poly.h"   // for MAX_DEGREE
 #include "mpz_poly.h"
 

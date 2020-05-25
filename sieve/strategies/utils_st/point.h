@@ -1,8 +1,6 @@
 #ifndef POINT_H_
 #define POINT_H_
 
-#include <stdio.h>
-
 /* TODO: hell, what a waste of namespace... */
 #ifdef __cplusplus
 extern "C" {

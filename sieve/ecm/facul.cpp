@@ -4,7 +4,6 @@
 
 #include "cado.h" // IWYU pragma: keep
 
-#include <cassert>     // for assert
 #include <gmp.h>       // for mpz_cmp_ui, mpz_sgn, mpz_cmp, mpz_sizeinbase
 #include <cmath>       // for ldexp, sqrt
 #include <regex.h>      // for regmatch_t, regcomp, regexec, regfree, REG_EX...
@@ -442,7 +441,7 @@ return_data_ex (char** res, regmatch_t *pmatch, size_t nmatch,
 	    {
 	      int size = end-start;
 	      char* el = (char*) malloc (size+1);
-	      assert (el != NULL);
+	      ASSERT (el != NULL);
 	      strncpy (el, &str_process[start], size);
 	      el[size] = '\0';
 	      res[i-1] = el;

@@ -41,7 +41,6 @@ History: 0.1 initial release
 #include <string.h>
 #include <math.h>
 #include <gmp.h>
-#include <assert.h>
 
 #define VERSION "0.1.2.1"
 

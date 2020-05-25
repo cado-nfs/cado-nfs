@@ -10,6 +10,8 @@
 #include "polyselect/rho.h"
 #include "polynomials.h"
 #include <stdint.h>
+#include <gmp.h>
+#include "macros.h"
 
 double size_sieving_region(sieving_bound_srcptr H)
 {

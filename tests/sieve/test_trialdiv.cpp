@@ -2,15 +2,17 @@
 #include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
-#include <climits>
-#include <sys/time.h>
+#include <gmp.h>               // for mpz_sgn, mpz_add_ui, mpz_set_ui, mpz_s...
+#include <stdint.h>            // for uint64_t
+#include <vector>              // for vector
+#include "gmp_aux.h"           // for ulong_nextprime
 #include "sieve/trialdiv.hpp"
-#include "test_iter.h"
 #include "tests_common.h"
-#include "portability.h"
+#include "portability.h" // lrand48  // IWYU pragma: keep
 #include "cxx_mpz.hpp"  // cxx_mpz
 #include "getprime.h"   // prime_info
 #include "timing.h"     // microseconds
+#include "macros.h"
 
 void
 trialdiv_stdinput(const unsigned long pmax, const int verbose)

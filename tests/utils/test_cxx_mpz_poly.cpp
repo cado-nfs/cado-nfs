@@ -1,15 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
-#include "macros.h"
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <memory>
+// iwyu wants it for allocator_traits<>::value_type, which seems weird
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
 #include <algorithm>
 #include "mpz_poly.h"
-#include "tests_common.h"
-
-using namespace std;
 
 bool operator<(cxx_mpz_poly const& a, cxx_mpz_poly const& b) {
     return mpz_poly_cmp(a, b) < 0;
@@ -21,7 +18,7 @@ int main(int argc, char * argv[])
         srand(atoi(argv[1]));
     }
 
-    vector<cxx_mpz_poly> v;
+    std::vector<cxx_mpz_poly> v;
 
     for(int i = 0 ; i < 10 ; i++) {
         cxx_mpz_poly x;

@@ -5,6 +5,7 @@
 #include <memory>        // for allocator_traits<>::value_type
 #include <ostream>
 #include <vector>        // for vector
+#include "cxx_mpz.hpp"
 #include "galois_utils.h" // automorphism_init
 #include "las-galois.hpp"
 #include "macros.h"      // for ASSERT_ALWAYS

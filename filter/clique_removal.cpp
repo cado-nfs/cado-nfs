@@ -2,16 +2,22 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <cerrno>         // for errno
+#include <cinttypes>      // for PRId64, PRIu64
+#include <cstring>        // for memset, strerror
+#include <cstdint>         // for uint64_t
 #include <vector>
 #include <algorithm>
 #include <pthread.h>
 #include "bit_vector.h"
-#include "clique_removal.h"
-#include "filter_config.h"
+// proto has extern "C"
+#include "clique_removal.h" // IWYU pragma: keep
 #include "memory.h"             // malloc_check
 #include "misc.h"       // UMAX
 #include "purge_matrix.h"
 #include "timing.h"             // for seconds
+#include "typedefs.h"      // for index_t, weight_t
+#include "macros.h"
 
 /********************* comp_t struct (clique) ********************************/
 

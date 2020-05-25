@@ -7,14 +7,16 @@
 #include <string>                 // for string
 
 #include <gmp.h>                  // for mpz_ptr
-
+#include "cado_poly.h"   // cxx_cado_poly
+#include "double_poly.h"
 #include "las-config.h"           // for LOG_BUCKET_REGION
 #include "las-qlattice.hpp"       // for qlattice_basis
 #include "las-siever-config.hpp"  // for siever_config
 #include "logapprox.hpp"          // for piecewise_linear_function
 #include "macros.h"               // for MAYBE_UNUSED
+#include "mpz_poly.h"
 
-struct las_todo_entry;
+struct las_todo_entry; // IWYU pragma: keep
 
 /* Only relevant with --adjust-strategy 2 */
 #define ADJUST_STRATEGY2_MIN_SQUEEZE 0

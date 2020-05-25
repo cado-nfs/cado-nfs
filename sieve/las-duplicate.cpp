@@ -76,9 +76,12 @@ Thus the function to check for duplicates needs the following information:
 #include <cstdarg>             // IWYU pragma: keep
 #include <gmp.h>                      // for mpz_srcptr, gmp_vfprintf, mpz_g...
 
+#include "cado_poly.h"
+#include "cxx_mpz.hpp"
 #include "las-duplicate.hpp"
 #include "ecm/facul.hpp"                  // for facul_strategies_t
 #include "fb.hpp"                     // for fb_log
+#include "gmp_aux.h"
 #include "las-choose-sieve-area.hpp"  // for choose_sieve_area
 #include "las-cofactor.hpp"           // for check_leftover_norm, factor_bot...
 #include "las-coordinates.hpp"        // for ABToIJ
@@ -87,7 +90,9 @@ Thus the function to check for duplicates needs the following information:
 #include "las-siever-config.hpp"      // for siever_config::side_config, sie...
 #include "las-todo-entry.hpp"         // for las_todo_entry
 #include "macros.h"                   // for ASSERT_ALWAYS
+#include "mpz_poly.h"
 #include "relation.hpp"               // for relation
+#include "verbose.h"
 
 
 /* default verbose level of # DUPECHECK lines */
