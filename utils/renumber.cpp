@@ -1785,20 +1785,12 @@ index_t renumber_t::builder::operator()()/*{{{*/
                      * want. (I saw a _copy_ !)
                      */
                     prime_chunk * latest(&inflight.back());
-                    if (omp_get_num_threads() > 1) {
 #pragma omp task firstprivate(latest)
-                        {
-                            preprocess(*latest);
-                        }
-                    } else {
-                        /* Gcc's openmp runtime, when run with only one
-                         * threads (as decided maybe by OMP_DYNAMIC=true
-                         * on a loaded machine) seems to make no
-                         * progress, despite the taskyield below. This
-                         * seems preposterous.
-                         */
+                    {
                         preprocess(*latest);
                     }
+                } else {
+#pragma omp taskwait
                 }
 
                 for ( ; !inflight.empty() ; ) {
@@ -1811,7 +1803,6 @@ index_t renumber_t::builder::operator()()/*{{{*/
                     postprocess(next);
                     inflight.pop_front();
                 }
-#pragma omp taskyield
             }
         }
     }
