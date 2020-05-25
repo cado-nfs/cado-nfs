@@ -23,6 +23,7 @@
 #include "gzip.h"       // ifstream_maybe_compressed
 #include "mod_ul.h"     // modulusul_t
 #include "mpz_poly.h"   // mpz_poly
+#include "omp_proxy.h" // IWYU pragma: keep
 #include "params.h"            // for cxx_param_list, param_list_lookup_string
 #include "renumber.hpp"
 #include "rootfinder.h" // mpz_poly_roots
@@ -1633,15 +1634,9 @@ void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
 struct renumber_t::builder{/*{{{*/
     struct prime_chunk {/*{{{*/
         bool preprocess_done = false;
-        bool end_mark = false;
         std::vector<unsigned long> primes;
         std::vector<renumber_t::cooked> C;
         prime_chunk(std::vector<unsigned long> && primes) : primes(primes) {}
-        static prime_chunk end_marker() {
-            prime_chunk x;
-            x.end_mark = true;
-            return x;
-        }
         private:
         prime_chunk() = default;
     };/*}}}*/
@@ -1768,17 +1763,14 @@ index_t renumber_t::builder::operator()()/*{{{*/
     prime_info_init(pi);
     unsigned long p = 2;
     constexpr const unsigned int granularity = 1024;
-    std::list<prime_chunk> chunks;
-    chunks.push_back(prime_chunk::end_marker());
-    std::list<prime_chunk>::iterator next_to_postprocess = chunks.begin();
-    std::list<prime_chunk>::iterator next_to_preprocess = chunks.begin();
+    std::list<prime_chunk> inflight;
     unsigned long lpbmax = 1UL << R.get_max_lpb();
 
 #pragma omp parallel
     {
 #pragma omp single
         {
-            for (; p <= lpbmax || next_to_postprocess != next_to_preprocess ;) {
+            for (; p <= lpbmax || !inflight.empty() ;) {
                 if (p <= lpbmax) {
                     std::vector<unsigned long> pp;
                     pp.reserve(granularity);
@@ -1786,24 +1778,29 @@ index_t renumber_t::builder::operator()()/*{{{*/
                         pp.push_back(p);
                         p = getprime_mt(pi); /* get next prime */
                     }
-                    *next_to_preprocess = prime_chunk(std::move(pp));
-                    chunks.push_back(prime_chunk::end_marker());
-#pragma omp task firstprivate(next_to_preprocess)
+                    inflight.emplace_back(std::move(pp));
+                    /* do not use a c++ reference for the omp
+                     * firstprivate construct. It does not do what we
+                     * want. (I saw a _copy_ !)
+                     */
+                    prime_chunk * latest(&inflight.back());
+#pragma omp task firstprivate(latest)
                     {
-                        preprocess(*next_to_preprocess);
+                        preprocess(*latest);
                     }
-                    next_to_preprocess++;
                 }
 
-                for (; next_to_postprocess != next_to_preprocess ; ) {
-                    bool ok;
+                for ( ; !inflight.empty() ; ) {
+                    bool ready;
+                    prime_chunk & next(inflight.front());
 #pragma omp atomic read
-                    ok = next_to_postprocess->preprocess_done;
-                    if (!ok)
+                    ready = next.preprocess_done;
+                    if (!ready)
                         break;
-                    postprocess(*next_to_postprocess);
-                    chunks.erase(next_to_postprocess++);
+                    postprocess(next);
+                    inflight.pop_front();
                 }
+#pragma omp taskyield
             }
         }
     }
