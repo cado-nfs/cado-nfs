@@ -5,11 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <time.h>
-#include <unistd.h>
 #include <math.h>
-
+#include <pthread.h>                // for pthread_mutex_unlock, pthread_mut...
+#include "misc.h"                   // for size_disp
 #include "parallelizing_info.h"
 #include "select_mpi.h"
 #include "verbose.h"  // verbose_enabled
@@ -26,7 +25,7 @@
 #endif
 
 #include "balancing_workhorse.h"
-#include "portability.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
 #include "macros.h"
 #include "params.h"
 
