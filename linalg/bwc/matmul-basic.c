@@ -1,11 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
-
+#include <stdarg.h>         // for va_list, va_end, va_start
+#include <stddef.h>         // for ptrdiff_t
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <stdint.h>
 #include <string.h>
-#include "bwc_config.h"
 #include "matmul.h"
 #include "matmul-common.h"
 #include "mpfq_layer.h"

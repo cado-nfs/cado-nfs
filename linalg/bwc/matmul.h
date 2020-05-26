@@ -1,6 +1,7 @@
 #ifndef MATMUL_H_
 #define MATMUL_H_
 
+#include <stddef.h>
 #include <stdarg.h>
 #include <stdint.h>
 
@@ -9,8 +10,9 @@
 #include "params.h"
 #include "mpfq/mpfq_vbase.h"
 #include "raw_matrix_u32.h"
+#include "bwc_config.h" // BUILD_DYNAMICALLY_LINKABLE_BWC // IWYU pragma: keep
 
-struct matmul_public_s;
+struct matmul_public_s; // IWYU pragma: keep
 
 typedef struct matmul_public_s  * matmul_t;
 typedef struct matmul_public_s  * matmul_ptr;

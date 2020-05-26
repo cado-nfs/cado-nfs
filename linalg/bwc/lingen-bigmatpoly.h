@@ -1,6 +1,8 @@
 #ifndef BIGMATPOLY_H_
 #define BIGMATPOLY_H_
 
+#include <stddef.h>          // for size_t
+
 #include "mpfq_layer.h"
 #include "lingen-matpoly.h"
 

@@ -1,42 +1,42 @@
 #include "cado.h" // IWYU pragma: keep
-
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
-#include <sys/time.h>
-#include <sys/types.h>
-#include <dirent.h>
+// IWYU pragma: no_include <sys/param.h>
 #include <cerrno>
-#include <cmath>
+#include <cfloat>
+#include <climits>
+#include <cstdint>                         // for uint64_t
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
-#include <unistd.h>
-#include <cassert>
-#include <cfloat>
+#include <cmath> // log2 // IWYU pragma: keep
 #ifdef  HAVE_SIGHUP
 #include <csignal>
 #endif
-#include <vector>
-#include <array>
-#include <utility>
-#include <map>
-#include <string>
-#include <ostream>
+#include <algorithm>                        // for max
 #include <iostream>
-#include <sstream>
-#include <limits.h>
+#include <map>
+#include <memory>                           // for allocator_traits<>::value...
+#include <sstream> // for ostringstream // IWYU pragma: keep
+#include <string>
+#include <tuple>                            // for get, make_tuple, tuple, tie
+#include <type_traits>                      // for __strip_reference_wrapper...
+#include <utility>
+#include <vector>
+
+#include <sys/types.h>
 #include <gmp.h>
-#include "omp_proxy.h"
-#include "macros.h"
-#include "mpfq_layer.h"
-#include "lingen-polymat.h"
-#include "lingen-matpoly.h"
+
+#include "cxx_mpz.hpp"  // cxx_mpz
+#include "flint-fft/transform_interface.h"  // for fft_transform_prepare
 #include "lingen-matpoly-ft.h"
-#include "plingen.h"
+#include "lingen-matpoly.h"
+#include "lingen-polymat.h"
+#include "macros.h"
+#include "misc.h"                           // for size_disp
+#include "mpfq_layer.h"
+#include "omp_proxy.h"
+#include "params.h"
 #include "plingen-tuning.h"
 #include "timing.h"     // wct_seconds
-#include "cxx_mpz.hpp"  // cxx_mpz
-#include "params.h"
 
 /* Assume we output something like one gigabyte per second. This is
  * rather conservative for HPC networks */

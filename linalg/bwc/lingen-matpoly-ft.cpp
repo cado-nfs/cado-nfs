@@ -1,11 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <sys/param.h>
 #include <cstdlib>
-#include <limits.h>
+#include <cstring>
 #include <gmp.h>
 #include "macros.h"
 #include "lingen-matpoly.h"
 #include "lingen-matpoly-ft.h"
-#include "logline.h"
+#include "flint-fft/transform_interface.h"  // for fft_get_transform_allocs
 #include "misc.h"        // pointer_arith
 #include "timing.h"     // wct_seconds
 #include "omp_proxy.h"

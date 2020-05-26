@@ -1,6 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 #include <string.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "select_mpi.h"

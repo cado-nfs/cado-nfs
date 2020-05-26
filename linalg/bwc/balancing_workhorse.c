@@ -221,10 +221,6 @@ typedef struct data_dest_s *data_dest_ptr;/*}}}*/
 /*}}}*/
 
 /* {{{ dual-head thread pipes */
-struct thread_pipe_s;
-struct thread_source_s;
-struct thread_dest_s;
-
 struct thread_pipe_s {
     pthread_cond_t hello;
     pthread_mutex_t mu;
@@ -487,8 +483,6 @@ void mf_pipe(data_source_ptr input, data_dest_ptr output, const char * name)/*{{
 
 
 // _outbound_ communication channel./*{{{*/
-
-struct mpi_dest_s;
 
 // all outbound channels use the same type of send queue. There is a
 // double-size buffer, and flushes are performed each time one of the two

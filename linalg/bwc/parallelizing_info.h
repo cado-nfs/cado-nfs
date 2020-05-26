@@ -1,12 +1,14 @@
 #ifndef PARALLELIZING_INFO_H_
 #define PARALLELIZING_INFO_H_
 
-#include <sys/time.h>   /* for struct timeval */
-#include <stdlib.h>
+#include <stdio.h>            // for FILE
 
+#include <sys/types.h>        // for ssize_t
+#include <sys/time.h>   /* for struct timeval */
+#include "barrier.h"          // for barrier_t
+#include "macros.h"           // for OMPI_VERSION_ATLEAST
 #include "params.h"
 #include "select_mpi.h"
-#include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 
 /*
@@ -76,12 +78,6 @@
 
 /* {{{ definition of the parallelizing_info communicator type */
 
-/* {{{ forward-define */
-struct pi_comm_s;
-typedef struct pi_comm_s * pi_comm_ptr;
-typedef const struct pi_comm_s * pi_comm_srcptr;
-/* }}} */
-
 /* {{{ utility structures for communicators. */
 
 /* {{{ This one is stored in thread-shared memory ; shared locks and so on */
@@ -129,8 +125,9 @@ struct pi_comm_s { /* {{{ */
 #endif
     struct pi_log_book * log_book;
 };
-
 typedef struct pi_comm_s pi_comm[1];
+typedef struct pi_comm_s * pi_comm_ptr;
+typedef const struct pi_comm_s * pi_comm_srcptr;
 /* }}} */
 /* }}} */
 
@@ -147,7 +144,6 @@ typedef struct pi_interleaving_s * pi_interleaving_ptr;
 /* {{{ This arbitrary associative array is meant to be very global, even
  * common to two interleaved pi structures. Used to pass lightweight info
  * only */
-struct pi_dictionary_entry_s;
 typedef struct pi_dictionary_entry_s * pi_dictionary_entry_ptr;
 struct pi_dictionary_entry_s {
     unsigned long key;

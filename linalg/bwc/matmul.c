@@ -1,16 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
+#include <stdio.h>        // for fprintf, stderr, asprintf
+#include <stdlib.h>       // for free, abort
 #include <stdarg.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <pthread.h>
+
+#include <sys/stat.h>
+#include <unistd.h>
+#include <pthread.h> // IWYU pragma: keep
 #ifdef HAVE_STATVFS_H
 #include <sys/statvfs.h>
 #endif
-
-#include "bwc_config.h"
 
 #ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
 #include <dlfcn.h>
@@ -18,12 +18,12 @@
 #include <stdlib.h>
 #endif
 
-
+#include <gmp.h>          // for mp_bits_per_limb
+#include "macros.h"       // for FATAL_ERROR_CHECK, iceildiv
+#include "bwc_config.h" // BUILD_DYNAMICALLY_LINKABLE_BWC // IWYU pragma: keep
 #include "matmul.h"
-#include "matmul-libnames.h"
-#include "misc.h"
 #include "verbose.h"
-#include "portability.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
 #include "params.h"
 
 void matmul_decl_usage(param_list_ptr pl)

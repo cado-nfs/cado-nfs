@@ -1,24 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
-#include <inttypes.h>
+#include <inttypes.h>   // PRIu32 // IWYU pragma: keep
 #include <limits.h> // ULONG_MAX
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>              // for uint32_t, int32_t, uint64_t
 #include <math.h>
 #include <time.h>
 #include <gmp.h>
-#include "bwc_config.h"
 #include "macros.h"
 #include "misc.h" // derived_filename mkdir_with_parents next_power_of_2
 #include "parallelizing_info.h"
-#include "portability.h"
-#include "verbose.h"    // verbose_enabled
+#include "portability.h" // strdup // IWYU pragma: keep
+#include "params.h"              // for param_list_configure_switch, param_l...
+#include "verbose.h"  // verbose_enabled // IWYU pragma: keep
 
 /* the files below are not useful for the standalone program */
 #ifndef WANT_MAIN
 #include "random_matrix.h"
 #include "balancing.h"
-#include "params.h"
 #endif
 
 /* The random generation works as follows.
@@ -639,7 +639,6 @@ void random_matrix_ddata_adjust(random_matrix_ddata_ptr f, random_matrix_process
 /* }}} */
 
 /* {{{ punch intervals */
-struct punched_interval_s;
 struct punched_interval_s {
     double b0, b1;
     double holes;

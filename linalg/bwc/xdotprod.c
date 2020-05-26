@@ -1,8 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
-#include "bwc_config.h"
+#include "mpfq/mpfq_vbase.h"     // for mpfq_vbase_s
+#include "parallelizing_info.h"  // for parallelizing_info_s, pi_comm, seria...
 #include "xdotprod.h"
-#include "bw-common.h"
-#include "macros.h"
 
 void x_dotprod(void * dst, uint32_t * xv, unsigned int m, unsigned int nx, mmt_vec_ptr v, int sign)
 {

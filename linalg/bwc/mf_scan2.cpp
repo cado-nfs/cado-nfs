@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
-#include <pthread.h>
+#include <cstring>
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
 #endif
@@ -10,10 +10,8 @@
 #include <atomic>
 #include <vector>
 #include <omp.h>
-#include <tuple>
 #include "ringbuf.h"
 #include "params.h"     // param_list
-#include "cxx_mpz.hpp"  // cxx_mpz
 #include "timing.h"     // wct_seconds
 #include "misc.h"       // size_disp
 #include "fix-endianness.h" // fwrite32_little
@@ -141,7 +139,7 @@ struct segment {
 std::atomic<segment *> segments[64];
 std::mutex segment_mutexes[64];
 
-template<bool> struct nz_coeff;
+template<bool> struct nz_coeff; // IWYU pragma: keep
 template<> struct nz_coeff<false> { struct type { uint32_t j; }; };
 template<> struct nz_coeff<true> { struct type { uint32_t j; int32_t v; }; };
 

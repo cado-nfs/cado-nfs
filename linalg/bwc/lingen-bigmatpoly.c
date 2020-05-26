@@ -1,12 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
-#include "mpfq_layer.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <limits.h>
-#include "macros.h"
-#include "lingen-matpoly.h"
+#include <limits.h>          // for INT_MAX
+#include <stdlib.h>          // for free, malloc, abort
+#include <string.h>          // for memcpy, memset
 #include "lingen-bigmatpoly.h"
-#include "timing.h"     // wct_seconds
+#include "lingen-matpoly.h"  // for matpoly_s, matpoly_part, matpoly_init
+#include "macros.h"          // for ASSERT_ALWAYS
+#include "mpfq_layer.h"      // for abdst_field, mpfq_pz_dst_field, mpfq_pz_...
+#include "timing.h"          // for wct_seconds
+
 
 /* {{{  init/zero/clear interface for bigmatpoly */
 matpoly_ptr bigmatpoly_my_cell(bigmatpoly_ptr p)

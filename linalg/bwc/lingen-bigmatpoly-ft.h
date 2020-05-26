@@ -5,9 +5,8 @@
 #include "mpfq_layer.h"
 #include "lingen-matpoly-ft.h"
 #include "lingen-bigmatpoly.h"
-#include "flint-fft/fft.h"
-
 #include "select_mpi.h"
+struct fft_transform_info; // IWYU pragma: keep
 
 /* This defines an MPI-shared polynomial matrix type */
 

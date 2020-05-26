@@ -1,6 +1,7 @@
 #ifndef BLOCKMATRIX_H_
 #define BLOCKMATRIX_H_
 
+#include <stdint.h>  // for uint64_t
 #include "matops.h"
 #include "macros.h"
 

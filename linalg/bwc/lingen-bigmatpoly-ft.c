@@ -1,13 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <sys/param.h>
 #include "mpfq_layer.h"
 #include <stdlib.h>
 #include <limits.h>
+#include <string.h>
 #include <gmp.h>
 #include "macros.h"
 #include "lingen-matpoly-ft.h"
 #include "lingen-bigmatpoly-ft.h"
 #include "logline.h"
 #include "timing.h"     // wct_seconds
+#include "flint-fft/transform_interface.h"  // for fft_get_transform_allocs
 
 /* This is the interface for doing products of polynomial matrices by
  * caching transforms, and transferring them over MPI. There are

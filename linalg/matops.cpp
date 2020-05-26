@@ -23,15 +23,19 @@
  */
 
 #include "cado.h" // IWYU pragma: keep
+
+#include <string.h>                  // for memset, memcpy, memcmp
+
 #include "macros.h"
 
-#include "gf2x.h"
+#include "gf2x.h" // (see further below) // IWYU pragma: keep
 
 #include "matops.h"
 #include "utils/memory.h"
 #include "utils/misc.h"
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
+#include <mmintrin.h>                // for _mm_cvtsi64_m64, _mm_empty
 #include <emmintrin.h>
 /* {{{ helper macros for sse-2. Copied from gf2x */
 /* {{{ _mm_cvtsi64_m64 is not consistent across compiler versions... */
@@ -82,10 +86,6 @@
 /* }}} */
 #endif
 
-#ifdef  HAVE_PCLMUL
-#include <wmmintrin.h>
-#endif
-
 #ifdef  HAVE_SSE41
 #include <smmintrin.h>  // sse 4.1 _mm_cmpeq_epi64
 #include <stdio.h>
@@ -97,8 +97,8 @@
  * are considered internal cantor-related stuff. We need to include the
  * gf2x config flags before including the mpfq sources.
  */
-#include "gf2x/gf2x-config-export.h"
-#include "gf2x/gf2x-impl-export.h"
+#include "gf2x/gf2x-config-export.h" // IWYU pragma: keep
+#include "gf2x/gf2x-impl-export.h" // IWYU pragma: keep
 #if ULONG_BITS == 64
 #include "mpfq/x86_64/mpfq_2_64.h"
 #include "mpfq/x86_64/mpfq_2_128.h"
@@ -127,7 +127,6 @@ using namespace M4RIE;
  */
 #define sometimes_bitrev(x)     (x)
 #include "gauss.h"
-#include "macros.h"
 
 /* The following is **only** for 64 * 64 matrices */
 

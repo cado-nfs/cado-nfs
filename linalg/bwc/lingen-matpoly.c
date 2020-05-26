@@ -2,7 +2,8 @@
 #include "mpfq_layer.h"
 #include <stdlib.h>
 #include <gmp.h>
-#include "flint-fft/fft.h"
+#include <string.h>          // for memcpy, memmove, memset
+#include "lingen-polymat.h"  // for polymat_s, polymat_coeff_const, polymat_...
 #include "lingen-matpoly.h"
 #include "macros.h"
 #include "timing.h"     // seconds

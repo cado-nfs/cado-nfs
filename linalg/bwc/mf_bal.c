@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <inttypes.h>
-#include <float.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -13,11 +12,12 @@
 #include <limits.h>
 #include <sys/time.h>
 #include "mf.h"
+#include "mod_ul.h"
 #include "balancing.h"
 #include "rowset_heap.h"
 #include "cheating_vec_init.h"
 #include "mf_bal.h"
-#include "portability.h"
+#include "portability.h" // strdup // IWYU pragma: keep
 #include "timing.h"     // wct_seconds
 #include "fix-endianness.h" // fread32_little
 #include "macros.h"

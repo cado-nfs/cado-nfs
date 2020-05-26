@@ -2,11 +2,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <gmp.h>
+#include <stdint.h>
 #include <string.h>
 #include <ctype.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <gmp.h>
 
 #include "blockmatrix.h"
 #include "gauss.h"

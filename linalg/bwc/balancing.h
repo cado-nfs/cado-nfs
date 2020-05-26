@@ -2,6 +2,7 @@
 #define BALANCING_H_
 
 #include <stdint.h>
+#include "macros.h"  // for MIN
 #include "mod_ul.h"
 
 // #include "mf.h"

@@ -1,18 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
-
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <memory>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <cmath>
 #include <ctime>
 #include <cctype>
-
 #include "select_mpi.h"
 #include "tree_stats.hpp"
 #include "timing.h"     // wct_seconds
 #include "macros.h"
-
-using namespace std;
 
 double tree_stats::level_stats::projected_time(unsigned int total_breadth, unsigned int trimmed_breadth)
 {
@@ -83,7 +80,7 @@ void tree_stats::print(unsigned int level)
             char code[2]={'\0', '\0'};
             if (u.size() > 1) code[0] = 'a';
             for(auto const & x : u) {
-                string const& key(x.first);
+                std::string const& key(x.first);
                 function_stats const& F(x.second);
                 sum += F.projected_time;
                 time_to_go += F.projected_time - F.spent;
@@ -297,7 +294,7 @@ void tree_stats::leave()
         return;
 
     last_print_time = now;
-    last_print_position = make_pair(level, F.sum_inputsize);
+    last_print_position = std::make_pair(level, F.sum_inputsize);
 
     print(level);
 }
@@ -305,7 +302,7 @@ void tree_stats::leave()
 void tree_stats::final_print()
 {
     ASSERT_ALWAYS(depth == 0);
-    if (last_print_position != make_pair(0u, tree_total_breadth))
+    if (last_print_position != std::make_pair(0u, tree_total_breadth))
         print(0);
     {
         /* print ETA */

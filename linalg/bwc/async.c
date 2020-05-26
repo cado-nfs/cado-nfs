@@ -1,19 +1,18 @@
 #include "cado.h" // IWYU pragma: keep
+#include <stdarg.h>      // for va_end, va_list, va_start
 #include <stddef.h>
 #include <signal.h>
 #include <string.h>
-#include <math.h>
 #include <time.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "bwc_config.h"
 #include "async.h"
 #include "macros.h"
-#include "bw-common.h"
-#include "portability.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
 #include "timing.h" // seconds_user_sys
 #include "verbose.h"  // verbose_enabled
+#include "select_mpi.h"  // for my_pthread_sigmask
 
 // int int_caught = 0;
 int hup_caught = 0;
