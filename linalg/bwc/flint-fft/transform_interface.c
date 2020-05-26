@@ -32,19 +32,26 @@
  * official policies, either expressed or implied, of the author(s).
  * 
  */
+#include "cado.h" // IWYU pragma: keep
+#include <gmp.h>                            // for mp_limb_t, mp_size_t, mp_...
+#include <limits.h>                         // for ULONG_MAX
+#include <omp.h>                            // for omp_get_max_threads, omp_...
+#include <stddef.h>                         // for ptrdiff_t
+#include <stdio.h>                          // for asprintf, fprintf, size_t
+#include <stdlib.h>                         // for free, malloc, abort
+#include <string.h>                         // for memset, memcpy
+#include <sys/param.h>                      // for MIN, MAX
+#include "fft.h"                            // for FLINT_BITS, fft_addcombin...
+#include "fft_tuning.h"                     // for FFT_TAB
+#include "flint.h"                // for FLINT_BITS, FLINT_CLOG2
+#include "transform_interface.h"  // for fft_transform_info, fft_g...
+#include "gmp_aux.h"                        // for mpn_randomb
+#include "macros.h"                         // for iceildiv, ASSERT_ALWAYS
+#include "ulong_extras.h"                   // for n_revbin
 
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <gmp.h>
-#include "flint.h"
-#include "fft.h"
-#include "ulong_extras.h"
-#include "fft_tuning.h"
-#include "timing.h"
-#include "gmp_aux.h"
-#include "omp_proxy.h"
-#include "macros.h"             // for ASSERT_ALWAYS
+#if defined(_OPENMP)
+#include <omp.h> // IWYU pragma: keep
+#endif
 
 #ifndef iceildiv
 /* unfortunately this fails miserably if x+y-1 overflows */
@@ -590,7 +597,7 @@ void fft_transform_info_init(struct fft_transform_info * fti, mp_bitcnt_t bits1,
  */
 void fft_transform_info_init_mp(struct fft_transform_info * fti, mp_bitcnt_t bitsmin, mp_bitcnt_t bitsmax, unsigned int nacc)
 {
-    assert(bitsmax >= bitsmin);
+    ASSERT(bitsmax >= bitsmin);
     mp_bitcnt_t bits1 = bitsmin;
     mp_bitcnt_t bits2 = bitsmax-bitsmin;
     /* our input takes iceildiv(bitsmax, bits), which is more than just
@@ -995,18 +1002,18 @@ void fft_combine_fppol(const struct fft_transform_info * fti, mp_limb_t * x, mp_
     for(mp_size_t j = 0 ; (j+1) * fti->ks_coeff_bits < bxtemp ; j++) {
         mp_bitcnt_t bit0 = j * fti->ks_coeff_bits;
         mp_bitcnt_t bit1 = (j+1) * fti->ks_coeff_bits;
-        assert(j * np < nx);
-        assert((j+1) * np <= nx);
+        ASSERT(j * np < nx);
+        ASSERT((j+1) * np <= nx);
 
         /* TODO: rather read these from ptrs directly */
         /* How much words does [bit0..bit1[ span ? */
         mp_size_t w0 = bit0 / FLINT_BITS;
         mp_size_t w1 = (bit1 + FLINT_BITS - 1) / FLINT_BITS;
 
-        assert(w1 - w0 <= ksspan);
+        ASSERT(w1 - w0 <= ksspan);
 
         mp_size_t nwritten = (fti->ks_coeff_bits + FLINT_BITS - 1) / FLINT_BITS;
-        assert(nwritten == w1 - w0 || nwritten+1 == w1-w0);
+        ASSERT(nwritten == w1 - w0 || nwritten+1 == w1-w0);
         if (bit0 % FLINT_BITS) {
             mpn_rshift(temp, xtemp + w0, w1 - w0, bit0 % FLINT_BITS);
         } else {
@@ -1016,7 +1023,7 @@ void fft_combine_fppol(const struct fft_transform_info * fti, mp_limb_t * x, mp_
             temp[nwritten-1] &= topmask;
         }
         /* TODO: Barrett ! */
-        assert(nwritten <= np + ksspan);
+        ASSERT(nwritten <= np + ksspan);
         /* XXX tdiv_qr does not work if the dividend is smaller than the
          * divisor !
          */
@@ -1082,7 +1089,7 @@ void fft_combine_fppol_mp(const struct fft_transform_info * fti, mp_limb_t * x, 
     /* Then lxtemp is normally eactly the number of coefficients of the
      * largest of the two operands in R[x] */
     mp_size_t lxtemp = 1 + (bxtemp-1) / fti->bits;
-    assert(lxtemp <= (4 << fti->depth));
+    ASSERT(lxtemp <= (4 << fti->depth));
 
     /* nxtemp is an approximation of the number of words it takes to
      * write the evaluated integer.
@@ -1114,18 +1121,18 @@ void fft_combine_fppol_mp(const struct fft_transform_info * fti, mp_limb_t * x, 
     for(mp_size_t j = nmin ; j < nmax ; j++) {
         mp_bitcnt_t bit0 = j * fti->ks_coeff_bits;
         mp_bitcnt_t bit1 = (j+1) * fti->ks_coeff_bits;
-        assert((j     - nmin) * np <  nx);
-        assert((j + 1 - nmin) * np <= nx);
+        ASSERT((j     - nmin) * np <  nx);
+        ASSERT((j + 1 - nmin) * np <= nx);
 
         /* TODO: rather read these from ptrs directly */
         /* How much words does [bit0..bit1[ span ? */
         mp_size_t w0 = bit0 / FLINT_BITS;
         mp_size_t w1 = (bit1 + FLINT_BITS - 1) / FLINT_BITS;
 
-        assert(w1 - w0 <= ksspan);
+        ASSERT(w1 - w0 <= ksspan);
 
         mp_size_t nwritten = (fti->ks_coeff_bits + FLINT_BITS - 1) / FLINT_BITS;
-        assert(nwritten == w1 - w0 || nwritten+1 == w1-w0);
+        ASSERT(nwritten == w1 - w0 || nwritten+1 == w1-w0);
         if (bit0 % FLINT_BITS) {
             mpn_rshift(temp, xtemp + w0, w1 - w0, bit0 % FLINT_BITS);
         } else {
@@ -1232,11 +1239,11 @@ static void fft_dft_backend(const struct fft_transform_info * fti, void * y, voi
              * fft_mfa_truncate_sqrt2_inner */
 
             /* First the bottom half of the matrix */
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
 #pragma omp parallel
 #endif
             {
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
                 int k = omp_get_thread_num();
 #pragma omp for
 #else
@@ -1251,11 +1258,11 @@ static void fft_dft_backend(const struct fft_transform_info * fti, void * y, voi
                 }
             }
             /* Now the top half */
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
 #pragma omp parallel
 #endif
             {
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
                 int k = omp_get_thread_num();
 #pragma omp for
 #else
@@ -1320,11 +1327,11 @@ static void fft_ift_backend(const struct fft_transform_info * fti, void * y, voi
         /* Begin with inner steps (those which are intertwined with
          * convolution inside fft_mfa_truncate_sqrt2_inner), and finish
          * with outer steps */
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
 #pragma omp parallel
 #endif
         {
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
                 int k = omp_get_thread_num();
 #pragma omp for
 #else
@@ -1336,11 +1343,11 @@ static void fft_ift_backend(const struct fft_transform_info * fti, void * y, voi
                 ifft_radix2(row, n1 / 2, fti->w * n2, tslot0 + k, tslot1 + k);
             }
         }
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
 #pragma omp parallel
 #endif
         {
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
                 int k = omp_get_thread_num();
 #pragma omp for
 #else
@@ -1407,18 +1414,18 @@ void fft_ift(const struct fft_transform_info * fti, mp_limb_t * x, mp_size_t nx_
         for(mp_size_t j = 0 ; j * np < nx ; j++) {
             mp_bitcnt_t bit0 = (j+fti->mp_shift) * fti->ks_coeff_bits;
             mp_bitcnt_t bit1 = (j+fti->mp_shift+1) * fti->ks_coeff_bits;
-            assert(j * np < nx);
-            assert((j+1) * np <= nx);
+            ASSERT(j * np < nx);
+            ASSERT((j+1) * np <= nx);
 
             /* TODO: rather read these from ptrs directly */
             /* How many words does [bit0..bit1[ span ? */
             mp_size_t w0 = bit0 / FLINT_BITS;
             mp_size_t w1 = (bit1 + FLINT_BITS - 1) / FLINT_BITS;
 
-            assert(w1 - w0 <= ksspan);
+            ASSERT(w1 - w0 <= ksspan);
 
             mp_size_t nwritten = (fti->ks_coeff_bits + FLINT_BITS - 1) / FLINT_BITS;
-            assert(nwritten == w1 - w0 || nwritten+1 == w1-w0);
+            ASSERT(nwritten == w1 - w0 || nwritten+1 == w1-w0);
             if (bit0 % FLINT_BITS) {
                 mpn_rshift(smalltemp, bigtemp + w0, w1 - w0, bit0 % FLINT_BITS);
             } else {
@@ -1455,12 +1462,12 @@ void fft_ift(const struct fft_transform_info * fti, mp_limb_t * x, mp_size_t nx_
          */
         /* we want at least (4*n-1)*bits+n*w bits in the output zone */
         mp_bitcnt_t need = (4*n-1)*fti->bits+nw;
-        assert(nx >= (mp_size_t) iceildiv(need, FLINT_BITS));
+        ASSERT(nx >= (mp_size_t) iceildiv(need, FLINT_BITS));
         fft_addcombine_bits(x, y, fti->trunc0, fti->bits, rsize0, nx);
         /* bits above 4*n*fti->bits need to wrap around */
         mp_bitcnt_t outneed = need - 4*n*fti->bits;
         mp_size_t outneedlimbs = iceildiv(outneed, FLINT_BITS);
-        assert(outneedlimbs <= rsize0 + 1);
+        ASSERT(outneedlimbs <= rsize0 + 1);
         mp_size_t toplimb = (4*n*fti->bits) / FLINT_BITS;
         mp_bitcnt_t topoffset = (4*n*fti->bits) % FLINT_BITS;
         mp_size_t cy;
@@ -1504,7 +1511,7 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
              * for the top bit of p1[j].  */
             mp_limb_t c = 2 * p0[j][rsize0] + p1[j][rsize0];
             q[j][rsize0] = mpn_mulmod_2expp1(q[j], p0[j], p1[j], c, nw, temp);
-            assert(q[j][rsize0] <= 1);
+            ASSERT(q[j][rsize0] <= 1);
         }
     } else {
         /* 4n coeffs split into 2n2 rows of n1 coeffs */
@@ -1519,11 +1526,11 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
         mp_size_t trunc2 = (trunc - 2 * n) / n1;
 
         /* First the bottom half of the matrix */
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
 #pragma omp parallel
 #endif
         {
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
             int k = omp_get_thread_num();
 #else
             int k = 0;
@@ -1533,7 +1540,7 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
 
             mp_size_t t = 2 * n;
             mp_size_t last_s = 0;
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
 #pragma omp for collapse(2)
 #endif
             /* convolutions on relevant rows */
@@ -1545,16 +1552,16 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
                     }
                     mp_limb_t c = 2 * p0[t+j][rsize0] + p1[t+j][rsize0];
                     q[t+j][rsize0] = mpn_mulmod_2expp1(q[t+j], p0[t+j], p1[t+j], c, nw, temp_k);
-                    assert(q[t+j][rsize0] <= 1);
+                    ASSERT(q[t+j][rsize0] <= 1);
                 }
             }
         }
         /* Now the top half */
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
 #pragma omp parallel
 #endif
         {
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
             int k = omp_get_thread_num();
 #else
             int k = 0;
@@ -1564,7 +1571,7 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
 
             mp_size_t t = 0;
             mp_size_t last_i = 0;
-#ifdef HAVE_OPENMP
+#if defined(_OPENMP)
 #pragma omp for collapse(2)
 #endif
             /* convolutions on rows */
@@ -1576,7 +1583,7 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
                     }
                     mp_limb_t c = 2 * p0[t+j][rsize0] + p1[t+j][rsize0];
                     q[t+j][rsize0] = mpn_mulmod_2expp1(q[t+j], p0[t+j], p1[t+j], c, nw, temp_k);
-                    assert(q[t+j][rsize0] <= 1);
+                    ASSERT(q[t+j][rsize0] <= 1);
                 }
             }
         }
@@ -1611,8 +1618,8 @@ void mpn_addmod_2expp1(mp_limb_t * z, const mp_limb_t * x, const mp_limb_t * y, 
      * The important thing is to optimize is the most likely case c0==0,
      * and c1 to be subtracted
      */
-    assert(x[limbs] <= 1);
-    assert(y[limbs] <= 1);
+    ASSERT(x[limbs] <= 1);
+    ASSERT(y[limbs] <= 1);
 
     mp_size_t c0 = x[limbs] + y[limbs];
     if (c0 == 0) {
@@ -1650,7 +1657,7 @@ void fft_zero(const struct fft_transform_info * fti, void * z)
     }
 }
 
-/* XXX This is ugly. I'm not even certain that some assert won't blow
+/* XXX This is ugly. I'm not even certain that some ASSERT won't blow
  * up...
  */
 void fft_fill_random(const struct fft_transform_info * fti, void * z, gmp_randstate_t rstate)
@@ -1747,7 +1754,7 @@ void fft_addcompose(const struct fft_transform_info * fti, void * z, const void 
              * for the top bit of p1[j].  */
             mp_limb_t c = 2 * p0[j][rsize0] + p1[j][rsize0];
             qt[rsize0] = mpn_mulmod_2expp1(qt, p0[j], p1[j], c, nw, temp);
-            assert(qt[rsize0] <= 1);
+            ASSERT(qt[rsize0] <= 1);
             /* now q[j] += qt : */
             mpn_addmod_2expp1(q[j], q[j], qt, rsize0);
         }
@@ -1769,7 +1776,7 @@ void fft_addcompose(const struct fft_transform_info * fti, void * z, const void 
             for (mp_size_t j = 0; j < n1; j++, t++) {
                 mp_limb_t c = 2 * p0[t][rsize0] + p1[t][rsize0];
                 qt[rsize0] = mpn_mulmod_2expp1(qt, p0[t], p1[t], c, nw, temp);
-                assert(qt[rsize0] <= 1);
+                ASSERT(qt[rsize0] <= 1);
                 mpn_addmod_2expp1(q[t], q[t], qt, rsize0);
             }
         }
@@ -1779,7 +1786,7 @@ void fft_addcompose(const struct fft_transform_info * fti, void * z, const void 
             for (mp_size_t j = 0; j < n1; j++, t++) {
                 mp_limb_t c = 2 * p0[t][rsize0] + p1[t][rsize0];
                 qt[rsize0] = mpn_mulmod_2expp1(qt, p0[t], p1[t], c, nw, temp);
-                assert(qt[rsize0] <= 1);
+                ASSERT(qt[rsize0] <= 1);
                 mpn_addmod_2expp1(q[t], q[t], qt, rsize0);
             }
         }

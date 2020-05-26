@@ -1,6 +1,6 @@
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"
 #include <iostream>
-#include "transform_interface.h"  // for fft_get_transform_info_mulmod, fft_...
+#include "fft.h"
 #include "macros.h"
 
 using namespace std;
