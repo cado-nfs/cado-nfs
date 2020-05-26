@@ -217,26 +217,42 @@ main (int argc, char *argv[])
             if (!tab.is_additional_column(h))
                 sample.push_back(x);
         }
-        printf("# Time for %d random lookups (p_r_from_index, arbitrary primes): %.3g\n",
+        printf("# Time for %d random lookups"
+                " (p_r_from_index, arbitrary primes): %.3g\n",
                 nlookups,
                 seconds() - tt);
 
         tt = seconds();
+        std::vector<renumber_t::p_r_side> sample_cached;
         for(auto const & x : sample) {
-            if (x.p >> tab.get_max_lpb()) continue;
+            if (x.p >> RENUMBER_MAX_LOG_CACHED) continue;
+            sample_cached.push_back(x);
+        }
+
+        int nlookups_cached = 0;
+        for(auto const & x : sample_cached) {
+            nlookups_cached += 1;
             index_t h = tab.index_from_p_r(x);
             sum_h += h;
         }
-        printf("# Time for %d random lookups (index_from_p_r, cached primes): %.3g\n",
-                nlookups,
+        printf("# Time for %d random lookups"
+                " (index_from_p_r, cached primes): %.3g\n",
+                nlookups_cached,
                 seconds() - tt);
+        if (nlookups_cached) {
+            printf("# (scaled time for %d random lookups"
+                    " (index_from_p_r, cached primes): %.3g)\n",
+                    nlookups,
+                    (seconds() - tt) * nlookups / nlookups_cached);
+        }
 
         tt = seconds();
         for(auto const & x : sample) {
             index_t h = tab.index_from_p_r(x);
             sum_h += h;
         }
-        printf("# Time for %d random lookups (index_from_p_r, arbitrary primes): %.3g\n",
+        printf("# Time for %d random lookups"
+                " (index_from_p_r, arbitrary primes): %.3g\n",
                 nlookups,
                 seconds() - tt);
 
