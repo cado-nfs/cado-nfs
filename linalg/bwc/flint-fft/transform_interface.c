@@ -1535,7 +1535,7 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
 #else
             int k = 0;
 #endif
-            size_t off_k = k * (rsize0 + 1) * sizeof(mp_limb_t);
+            size_t off_k = 2 * k * (rsize0 + 1) * sizeof(mp_limb_t);
             mp_limb_t * temp_k = (mp_limb_t *) VOID_POINTER_ADD(temp, off_k);
 
             mp_size_t t = 2 * n;
@@ -1566,7 +1566,7 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
 #else
             int k = 0;
 #endif
-            size_t off_k = k * (rsize0 + 1) * sizeof(mp_limb_t);
+            size_t off_k = 2 * k * (rsize0 + 1) * sizeof(mp_limb_t);
             mp_limb_t * temp_k = (mp_limb_t *) VOID_POINTER_ADD(temp, off_k);
 
             mp_size_t t = 0;
