@@ -8,6 +8,7 @@
 #include "select_mpi.h"
 #include "timing.h"     // seconds
 #include "portability.h"
+#include "misc.h"       // size_disp_fine
 #include "macros.h"
 
 /* This is intended to provide progress info, and optionally also more
