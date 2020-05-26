@@ -35,7 +35,6 @@
 #include "cado.h" // IWYU pragma: keep
 #include <gmp.h>                            // for mp_limb_t, mp_size_t, mp_...
 #include <limits.h>                         // for ULONG_MAX
-#include <omp.h>                            // for omp_get_max_threads, omp_...
 #include <stddef.h>                         // for ptrdiff_t
 #include <stdio.h>                          // for asprintf, fprintf, size_t
 #include <stdlib.h>                         // for free, malloc, abort
