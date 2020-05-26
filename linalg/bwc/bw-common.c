@@ -17,6 +17,7 @@
 #include "verbose.h"    // verbose_interpret_parameters
 #include "timing.h"     // wct_seconds
 #include "macros.h"
+#include "misc.h"       // mkdir_with_parents next_power_of_2 integer_sqrt
 #include "params.h"
 
 struct bw_params bw[1];
