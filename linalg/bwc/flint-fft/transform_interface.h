@@ -1,9 +1,10 @@
 #ifndef TRANSFORM_INTERFACE_H_
 #define TRANSFORM_INTERFACE_H_
 
+#include <string.h>
+
 #include <gmp.h>
 #include "flint.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
