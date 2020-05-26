@@ -9,6 +9,7 @@
 #include <gmp.h>
 #include "bwc_config.h"
 #include "macros.h"
+#include "misc.h" // derived_filename mkdir_with_parents next_power_of_2
 #include "parallelizing_info.h"
 #include "portability.h"
 #include "verbose.h"    // verbose_enabled
