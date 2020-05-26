@@ -33,8 +33,11 @@ struct double_poly_s {
 };
 
 typedef struct double_poly_s double_poly[1];
+#ifndef MPZ_POLY_H_
+/* mpz_poly.h forward-declares these. Don't do it twice */
 typedef struct double_poly_s * double_poly_ptr;
 typedef const struct double_poly_s * double_poly_srcptr;
+#endif
 
 /* double_poly.c */
 void double_poly_init (double_poly_ptr, int deg);
