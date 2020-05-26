@@ -49,7 +49,7 @@
 #include "macros.h"                         // for iceildiv, ASSERT_ALWAYS
 #include "ulong_extras.h"                   // for n_revbin
 
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
 #include <omp.h> // IWYU pragma: keep
 #endif
 
@@ -687,7 +687,7 @@ void fft_transform_info_get_alloc_sizes(const struct fft_transform_info * fti, s
     size_t chunks = ((w * n) / FLINT_BITS + 1) * sizeof(mp_limb_t);
 
     int N = 1;
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
     if (fti->alg != 0) {
         /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
         N = omp_get_max_threads();
@@ -711,7 +711,7 @@ void fft_transform_info_get_alloc_sizes(const struct fft_transform_info * fti, s
 void fft_prepare(const struct fft_transform_info * fti, void * x)
 {
     int N = 1;
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
     if (fti->alg != 0) {
         /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
         N = omp_get_max_threads();
@@ -730,7 +730,7 @@ void fft_prepare(const struct fft_transform_info * fti, void * x)
 int fft_check(const struct fft_transform_info * fti, const void * x, int diag)
 {
     int N = 1;
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
     if (fti->alg != 0) {
         /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
         N = omp_get_max_threads();
@@ -753,7 +753,7 @@ int fft_check(const struct fft_transform_info * fti, const void * x, int diag)
 void fft_export(const struct fft_transform_info * fti, void * x)
 {
     int N = 1;
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
     if (fti->alg != 0) {
         /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
         N = omp_get_max_threads();
@@ -780,7 +780,7 @@ void fft_export(const struct fft_transform_info * fti, void * x)
 void fft_import(const struct fft_transform_info * fti, void * x)
 {
     int N = 1;
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
     if (fti->alg != 0) {
         /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
         N = omp_get_max_threads();
@@ -1205,7 +1205,7 @@ static void fft_dft_backend(const struct fft_transform_info * fti, void * y, voi
     mp_size_t trunc = fti_trunc(fti);
 
     int N = 1;
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
     if (fti->alg != 0)
         N = omp_get_max_threads();
 #endif
@@ -1239,11 +1239,11 @@ static void fft_dft_backend(const struct fft_transform_info * fti, void * y, voi
              * fft_mfa_truncate_sqrt2_inner */
 
             /* First the bottom half of the matrix */
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
 #pragma omp parallel
 #endif
             {
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
                 int k = omp_get_thread_num();
 #pragma omp for
 #else
@@ -1258,11 +1258,11 @@ static void fft_dft_backend(const struct fft_transform_info * fti, void * y, voi
                 }
             }
             /* Now the top half */
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
 #pragma omp parallel
 #endif
             {
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
                 int k = omp_get_thread_num();
 #pragma omp for
 #else
@@ -1295,7 +1295,7 @@ static void fft_ift_backend(const struct fft_transform_info * fti, void * y, voi
     mp_size_t trunc = fti_trunc(fti);
 
     int N = 1;
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
     if (fti->alg != 0)
         N = omp_get_max_threads();
 #endif
@@ -1327,11 +1327,11 @@ static void fft_ift_backend(const struct fft_transform_info * fti, void * y, voi
         /* Begin with inner steps (those which are intertwined with
          * convolution inside fft_mfa_truncate_sqrt2_inner), and finish
          * with outer steps */
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
 #pragma omp parallel
 #endif
         {
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
                 int k = omp_get_thread_num();
 #pragma omp for
 #else
@@ -1343,11 +1343,11 @@ static void fft_ift_backend(const struct fft_transform_info * fti, void * y, voi
                 ifft_radix2(row, n1 / 2, fti->w * n2, tslot0 + k, tslot1 + k);
             }
         }
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
 #pragma omp parallel
 #endif
         {
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
                 int k = omp_get_thread_num();
 #pragma omp for
 #else
@@ -1526,11 +1526,11 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
         mp_size_t trunc2 = (trunc - 2 * n) / n1;
 
         /* First the bottom half of the matrix */
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
 #pragma omp parallel
 #endif
         {
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
             int k = omp_get_thread_num();
 #else
             int k = 0;
@@ -1540,7 +1540,7 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
 
             mp_size_t t = 2 * n;
             mp_size_t last_s = 0;
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
 #endif
             /* convolutions on relevant rows */
@@ -1557,11 +1557,11 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
             }
         }
         /* Now the top half */
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
 #pragma omp parallel
 #endif
         {
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
             int k = omp_get_thread_num();
 #else
             int k = 0;
@@ -1571,7 +1571,7 @@ void fft_compose(const struct fft_transform_info * fti, void * z, const void * y
 
             mp_size_t t = 0;
             mp_size_t last_i = 0;
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
 #endif
             /* convolutions on rows */
@@ -1641,7 +1641,7 @@ void mpn_addmod_2expp1(mp_limb_t * z, const mp_limb_t * x, const mp_limb_t * y, 
 void fft_zero(const struct fft_transform_info * fti, void * z)
 {
     int N = 1;
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
     if (fti->alg != 0) {
         /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
         N = omp_get_max_threads();
@@ -1663,7 +1663,7 @@ void fft_zero(const struct fft_transform_info * fti, void * z)
 void fft_fill_random(const struct fft_transform_info * fti, void * z, gmp_randstate_t rstate)
 {
     int N = 1;
-#if defined(_OPENMP)
+#ifdef HAVE_OPENMP
     if (fti->alg != 0) {
         /* only fft_mfa_truncate_sqrt2_outer is openmp-ized */
         N = omp_get_max_threads();
