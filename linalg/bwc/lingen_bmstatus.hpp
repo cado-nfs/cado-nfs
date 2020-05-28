@@ -1,14 +1,14 @@
 #ifndef LINGEN_BMSTATUS_HPP_
 #define LINGEN_BMSTATUS_HPP_
-
-#include <cstddef>
+// IWYU pragma: no_include <algorithm>
 #include <cstring>
 #include <vector>
 #include <tuple>
-#include "lingen.hpp"
+#include "lingen_bw_dimensions.hpp"
 #include "lingen_hints.hpp"
 #include "lingen_call_companion.hpp"
 #include "tree_stats.hpp"
+#include "select_mpi.h"               // for MPI_Comm
 
 struct bmstatus {
     bw_dimensions d;

@@ -1,14 +1,10 @@
-#include "cado.h"
-#include <cstdlib>
-#include <sstream>
-#include "macros.h"
-#include "lingen_matpoly_ft.hpp"
+#include "cado.h" // IWYU pragma: keep
+#include <cstdint>                                 // for SIZE_MAX
+#include <cstdio>                                  // for fprintf, stderr
 #include "lingen_mul_substeps.hpp"
 #include "lingen_matpoly_ft.hpp"
-#include "logline.h"
-#include "sha1.h"
-#include "omp_proxy.h"
 #include "lingen_matpoly_bigmatpoly_ft_common.hpp"
+template <typename T, typename fft_type> struct OP_CTX;
 
 template<typename fft_type> struct OP_CTX<matpoly, fft_type> : public OP_CTX_base<matpoly> {
     tree_stats & stats;

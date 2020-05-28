@@ -1,11 +1,11 @@
 #ifndef LINGEN_QCODE_PRIME_HPP_
 #define LINGEN_QCODE_PRIME_HPP_
 
-#include <cstddef>
-#include <vector>
-#include <gmp.h>
-#include "lingen_bmstatus.hpp"
-#include "lingen_matpoly.hpp"
+#include <cstddef>      // size_t
+#include <gmp.h>        // gmp_randstate_t
+#include "lingen_abfield.hpp" // IWYU pragma: keep
+#include "lingen_matpoly_select.hpp"
+struct bmstatus;
 
 extern matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E);
 // extern int bw_lingen_basecase_raw(bmstatus & bm, matpoly & pi, matpoly const & E, std::vector<unsigned int> & delta);

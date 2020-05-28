@@ -1,11 +1,18 @@
-#include "cado.h"
-#include <cstdlib>
-#include "portability.h"
-#include "macros.h"
-#include "logline.h"
-#include "lingen_matpoly_select.hpp"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <sys/param.h>
+#include <climits>                     // for INT_MAX, UINT_MAX
+#include <algorithm>                    // for min, max
+#include <array>                        // for array
+#include <tuple>                        // for tie
+#include <utility>                      // for swap
 #include "lingen_bigmatpoly.hpp"
+#include "lingen_matpoly_select.hpp"
 #include "lingen_mul_substeps.hpp"
+#include "lingen_substep_schedule.hpp"  // for lingen_substep_schedule
+#include "logline.h"
+#include "macros.h"
+#include "submatrix_range.hpp"          // for submatrix_range
+#include "tree_stats.hpp"               // for tree_stats
 
 int bigmatpoly_model::rank() const
 {

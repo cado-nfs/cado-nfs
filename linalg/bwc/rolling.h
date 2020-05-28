@@ -1,8 +1,6 @@
 #ifndef ROLLING_H_
 #define ROLLING_H_
 
-#include "balancing.h"
-
 #ifdef __cplusplus
 #include <string>
 #endif

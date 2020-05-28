@@ -1,8 +1,13 @@
-#include "cado.h"
-#include "lingen_average_matsize.hpp"
-#include "cxx_mpz.hpp"
+#include "cado.h" // IWYU pragma: keep
+#include <stdint.h>                   // for uint64_t
+#ifndef SELECT_MPFQ_LAYER_u64k1
 #include <cmath>
-
+#include <gmp.h>                      // for mpz_get_d, mpz_fdiv_q_ui, mpz_s...
+#include <stddef.h>                   // for size_t
+#include "cxx_mpz.hpp"
+#endif
+#include "macros.h"                   // for ASSERT_ALWAYS
+#include "lingen_average_matsize.hpp"
 #include "lingen_matpoly_select.hpp"
 
 /*{{{ avg_matsize */

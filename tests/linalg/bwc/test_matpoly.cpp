@@ -1,12 +1,30 @@
 #include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>             // for strcmp
+#include <climits>                         // for ULONG_MAX
+#include <cstdint>                         // for SIZE_MAX
+#include <algorithm>                        // for min
+#include <utility>                          // for move
+#include <vector>                           // for vector
 #include <gmp.h>                // for gmp_randstate_t, gmp_randclear, gmp_r...
+#ifdef SELECT_MPFQ_LAYER_u64k1
+#include "gf2x-fft.h"
+#include "gf2x-fake-fft.h"
+#include "gf2x-cantor-fft.h"
+#include "gf2x-ternary-fft.h"             // for gf2x_ternary_fft_info
+#else
+#include "flint-fft/transform_interface.h"  // for fft_transform_info
+#endif
+#include "lingen_abfield.hpp"  // IWYU pragma: keep
+#include "lingen_matpoly_select.hpp"        // for matpoly, matpoly::memory_...
+#include "select_mpi.h"                     // for MPI_Finalize, MPI_Init
+#include "timing.h"                         // for wct_seconds
+#include "tree_stats.hpp"                   // for tree_stats, tree_stats::s...
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_qcode_select.hpp"
 #include "cxx_mpz.hpp"
 #include "macros.h"
+#include "params.h"
 
 struct matpoly_checker_base {
     abfield ab;

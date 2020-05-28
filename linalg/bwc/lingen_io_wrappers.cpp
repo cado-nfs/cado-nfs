@@ -1,13 +1,28 @@
 #include "cado.h"
-#include <sys/types.h>
-#include <sys/stat.h>
-#include "lingen_io_wrappers.hpp"
-#include "timing.h"
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <sys/param.h>
+#include <limits.h>                    // for UINT_MAX
+#include <stdlib.h>                    // for exit, EXIT_FAILURE
+#include <algorithm>                   // for max, sort
+#include <stdexcept>                   // for runtime_error
+#include <type_traits>                 // for integral_constant<>::value
+#include <utility>                     // for move
+#include <sys/types.h>  // ssize_t
+#include <sys/stat.h>   // stat fstat
+#ifdef SELECT_MPFQ_LAYER_u64k1
+#include <cstring>        // memset
+#include <gmp.h>        // mpn_lshift
+#include "misc.h"       // bit_reverse
+#endif
+#include "fmt/core.h"
+#include "fmt/format.h" // IWYU pragma: keep
 #include "lingen_average_matsize.hpp"
+#include "lingen_bmstatus.hpp"
 #include "lingen_io_matpoly.hpp"
-#include "fmt/format.h"
-#include "misc.h"
+#include "lingen_io_wrappers.hpp"
+#include "macros.h"     // MIN
 #include "omp_proxy.h"
+#include "timing.h"
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 

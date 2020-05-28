@@ -1,14 +1,28 @@
 #include "cado.h"
 
+#include <climits>                       // for UINT_MAX
+#include <cstdio>                        // for printf
+#include <cstdlib>                       // for free, malloc
+#include <cstring>                       // for memset, memcpy
+
+#include <array>                          // for array<>::iterator, array
+#include <cstdint>                        // for uint64_t
+#include <iterator>                       // for begin
+#include <utility>                        // for swap
 #include <algorithm>
 #include <vector>
 #include <type_traits>
 
 #define LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE
 #include "lingen_qcode_binary.hpp"
-
+#include "bpack.hpp"                      // for bpack_view, bpack_view_base...
+#include "lingen_bmstatus.hpp"            // for bmstatus
+#include "lingen_bw_dimensions.hpp"       // for bw_dimensions
+#include "lingen_call_companion.hpp"      // for lingen_call_companion
+#include "macros.h"                       // for ASSERT_ALWAYS, iceildiv
+#include "timing.h"                       // for wct_seconds
+#include "tree_stats.hpp"                 // for tree_stats, tree_stats::sen...
 #include "lingen_expected_pi_length.hpp"
-#include "gf2x.h"
 #include "bblas.hpp"
 
 /* We have two interfaces here. The first one is the one that is common

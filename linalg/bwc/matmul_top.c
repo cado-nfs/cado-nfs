@@ -4,26 +4,28 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>             // truncate()
-#include <sys/types.h>          // truncate()
 #include <errno.h>
-#include <sys/stat.h>
+#include <unistd.h>               // for access, unlink, ssize_t, R_OK
+#include <sys/stat.h>             // for stat, mkdir
+#include <pthread.h>              // for pthread_mutex_lock, pthread_mutex_u...
 #include <gmp.h>
-#include "bwc_config.h"
+#include "async.h"                // for timing_next_timer, timing_data (ptr...
+#include "balancing_workhorse.h"
+#include "cheating_vec_init.h"
+#include "intersections.h"
+#include "bwc_config.h" // IWYU pragma: keep
+#include "macros.h"     // ASSERT_ALWAYS // IWYU pragma: keep
 #include "matmul.h"
 #include "matmul_top.h"
-#include "select_mpi.h"
-#include "intersections.h"
-#include "balancing_workhorse.h"
-#include "misc.h"
-#include "random_matrix.h"
-#include "cheating_vec_init.h"
 #include "mf_bal.h"
-#include "portability.h"
+#include "misc.h"
+#include "params.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "random_matrix.h"
+#include "raw_matrix_u32.h"       // for matrix_u32
+#include "select_mpi.h"
 #include "timing.h"     // wct_seconds
 #include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
-#include "macros.h"
-#include "params.h"
 
 /* Our innermost communication routines are essentially all-gather and
  * reduce-scatter, following the MPI terminology. We provide several

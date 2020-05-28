@@ -1,6 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <cstdint>         // for uint64_t
+#include <algorithm>        // for min
 #include "bblas_mat64.hpp"
 #include "bblas_level3d.hpp"
+#include "macros.h"         // for ASSERT
 
 /**********************************************************************/
 /* level 3d: solution of triangular linear systems

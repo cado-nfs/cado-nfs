@@ -1,54 +1,45 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
-#include <sys/time.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <cerrno>
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-#include <unistd.h>
-#include <cassert>
-#include <cfloat>
-#include <stdexcept>
-#include <algorithm>
-#include <functional>
-#ifdef  HAVE_SIGHUP
-#include <csignal>
-#endif
-#include "omp_proxy.h"
-#include "portability.h"
-#include "macros.h"
-#include "lingen_qcode_select.hpp"
-#include "lingen_matpoly_ft.hpp"
-#include "lingen_mul_substeps.hpp"
+#include <climits>                            // for UINT_MAX
+#include <cstdint>                            // for SIZE_MAX
+#include <cfloat>                              // for DBL_MAX
+#include <cstdio>                              // for fputs, stderr
+#include <cmath>                              // for log2
 
-#include "lingen.hpp"
+#include <algorithm>                           // for max, sort, find, unique
+#include <array>                               // for array
+#include <iostream>                            // for operator<<, basic_ostream
+#include <fstream> // ofstream // IWYU pragma: keep
+#include <map>                                 // for map, operator!=, map<>...
+#include <memory>                              // for allocator_traits<>::va...
+#include <stdexcept>                           // for invalid_argument, over...
+#include <string>                              // for string, operator<<
+#include <tuple>                               // for tie, get, tuple
+#include <utility>                             // for pair, make_pair
+#include <vector>                              // for vector
+
+#include <gmp.h>                               // for mp_limb_t, mpz_size
+
 #include "lingen_tuning.hpp"
-#include "lingen_tuning_cache.hpp"
-#include "lingen_platform.hpp"
-#include "tree_stats.hpp"
-#include "fmt/format.h"
-#include "fmt/printf.h"
-#include "lingen_substep_schedule.hpp"
-#include "lingen_substep_characteristics.hpp"
-
-#include <vector>
-#include <array>
-#include <utility>
-#include <map>
-#include <string>
-#include <ostream>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
-#include <fstream>
-
-using namespace std;
+#include "cxx_mpz.hpp"                         // for cxx_mpz
+#include "fmt/core.h"                          // for check_format_string
+#include "fmt/format.h"                        // for basic_buffer::append
+#include "fmt/ostream.h"                       // for formatbuf<>::int_type
+#include "lingen_abfield.hpp"                  // for abdst_field
+#include "lingen_bw_dimensions.hpp"            // for bw_dimensions
+#include "lingen_call_companion.hpp"           // for lingen_call_companion
+#include "lingen_matpoly_select.hpp"           // for matpoly, matpoly::over...
+#include "lingen_mul_substeps_base.hpp"        // for op_mul_or_mp_base, op_...
+#include "lingen_platform.hpp"                 // for lingen_platform
+#include "lingen_qcode_select.hpp"             // for test_basecase
+#include "lingen_substep_characteristics.hpp"  // for lingen_substep_charact...
+#include "lingen_substep_schedule.hpp"         // for lingen_substep_schedule
+#include "lingen_tuning_cache.hpp"             // for lingen_tuning_cache::c...
+#include "macros.h"                            // for iceildiv, ASSERT_ALWAYS
+#include "misc.h"                              // for size_disp
+#include "params.h"                            // for cxx_param_list, param_...
+#include "subdivision.hpp"                     // for subdivision
+#include "timing.h"                            // for wct_seconds, weighted_...
 
 /* {{{ all_splits_of
  * Given n>=1 return the list of all integers k (1<=k<=n) such
@@ -257,10 +248,10 @@ struct lingen_tuner {
             const char * tmp = param_list_lookup_string(pl, "tuning_thresholds");
             if (!tmp) return;
             std::string tlist = tmp;
-            for(size_t pos = 0 ; pos != string::npos ; ) {
+            for(size_t pos = 0 ; pos != std::string::npos ; ) {
                 size_t next = tlist.find(',', pos);
                 std::string tok;
-                if (next == string::npos) {
+                if (next == std::string::npos) {
                     tok = tlist.substr(pos);
                     pos = next;
                 } else {
@@ -275,7 +266,7 @@ struct lingen_tuner {
                 };
 
                 size_t colon = tok.find(':');
-                if (colon == string::npos)
+                if (colon == std::string::npos)
                     error("has no colon");
 
                 std::string algorithm = tok.substr(0, colon);

@@ -1,14 +1,21 @@
 #include "cado.h"
-#include "bblas_level5.hpp"
 #include <cstring>
+#include "bblas_mat64.hpp"
+#include "bblas_level5.hpp"
+#include "bblas_level3a.hpp"  // for mat64_add
+#include "bblas_level3b.hpp"  // for mul_6464_6464
 #include "memory.h"      // malloc_aligned
+#include "macros.h"                      // for ASSERT, ASSERT_ALWAYS
 
 /* We reach the mpfq sources through the gf2x code base, and then these
  * are considered internal cantor-related stuff. We need to include the
  * gf2x config flags before including the mpfq sources.
+ *
+ * TODO: I don't understand this maze. Do we still need these crazy
+ * includes ?
  */
-#include "gf2x/gf2x-config-export.h"
-#include "gf2x/gf2x-impl-export.h"
+#include "gf2x/gf2x-config-export.h" // IWYU pragma: keep
+#include "gf2x/gf2x-impl-export.h" // IWYU pragma: keep
 #if ULONG_BITS == 64
 #include "mpfq/x86_64/mpfq_2_64.h"
 #include "mpfq/x86_64/mpfq_2_128.h"
@@ -47,7 +54,7 @@ void m64pol_mul(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, 
 
 void m64pol_addmul(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2)/*{{{*/
 {
-    assert(r != a1 && r != a2);
+    ASSERT(r != a1 && r != a2);
     for(unsigned int i = 0 ; i < n1 ; i++) {
         for(unsigned int j = 0 ; j < n2 ; j++) {
             mat64 x;
@@ -59,9 +66,9 @@ void m64pol_addmul(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n
 
 void m64pol_mul_kara(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2)/*{{{*/
 {
-    assert(r != a1 && r != a2);
-    assert(n1 == n2);
-    assert((n1 & (n1 - 1)) == 0);
+    ASSERT(r != a1 && r != a2);
+    ASSERT(n1 == n2);
+    ASSERT((n1 & (n1 - 1)) == 0);
     /* As is certainly not surprising, karatsuba wins as early on as one
      * can imagine */
     if (n1 == 1) {
@@ -299,7 +306,7 @@ void m64polblock_mul(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int
      * stored row-major, with all polynomials contiguous (and of fixed
      * lengths n1, resp n2).
      */
-    assert(r != a1 && r != a2);
+    ASSERT(r != a1 && r != a2);
     memset((void *) r, 0, (n1 + n2 - 1) * K * K * sizeof(mat64));
     for(unsigned int i = 0 ; i < K ; i++) {
         mat64 const * ra1 = a1 + i * n1 * K;
@@ -318,7 +325,7 @@ void m64polblock_mul(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int
 
 void m64polblock_mul_kara(mat64 * r, mat64 const * a1, mat64 const * a2, unsigned int n1, unsigned int n2, unsigned int K)/*{{{*/
 {
-    assert(r != a1 && r != a2);
+    ASSERT(r != a1 && r != a2);
     memset((void *) r, 0, (n1 + n2 - 1) * K * K * sizeof(mat64));
     for(unsigned int i = 0 ; i < K ; i++) {
         mat64 const * ra1 = a1 + i * n1 * K;

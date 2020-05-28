@@ -1,6 +1,6 @@
-#include "cado.h"
-#include "bblas_level2a.hpp"
+#include "cado.h" // IWYU pragma: keep
 #include "bblas_level2b.hpp"
+#include "bblas_mat64.hpp"
 #include "misc.h"      // cado_parity64
 
 /**********************************************************************/

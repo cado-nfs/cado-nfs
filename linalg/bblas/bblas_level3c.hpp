@@ -4,7 +4,9 @@
 // IWYU pragma: private, include "bblas.hpp"
 // IWYU pragma: friend ".*/bblas.*"
 
-#include "bblas.hpp"
+#include "cado_config.h"    // for HAVE_SSE2, ULONG_BITS, HAVE_AVX2
+#include <cstddef>         // for size_t
+#include <cstdint>         // for uint64_t, uint32_t
 #include "bblas_mat64.hpp"
 
 /**********************************************************************/

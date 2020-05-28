@@ -2,6 +2,11 @@
 # and caused by the fact that bwc.pl is for the moment unable to call
 # anything else than lingen_pz
 
+# some tests below use the bwc include files.
+include_directories(${PROJECT_SOURCE_DIR}/linalg)
+include_directories(${PROJECT_SOURCE_DIR}/linalg/bwc)
+include_directories(${PROJECT_SOURCE_DIR}/linalg/bwc/mpfq)
+include_directories(${PROJECT_SOURCE_DIR}/utils)
 include_directories(${PROJECT_SOURCE_DIR}/linalg/bblas)
 
 macro(add_bwc_test nm script)
@@ -405,11 +410,6 @@ add_bwc_test(mod2_m_neq_n bwc-ptrace.sh prime=2 nullspace=left random_matrix_siz
 add_dependencies(test_bwc_mod2_m_neq_n_dependencies mf_scan)
 
 add_subdirectory(mpfq)
-
-# some tests below use the bwc include files.
-include_directories(${PROJECT_SOURCE_DIR}/linalg)
-include_directories(${PROJECT_SOURCE_DIR}/linalg/bwc)
-include_directories(${PROJECT_SOURCE_DIR}/utils)
 
 
 if(HAVE_CXX11 AND HAVE_HWLOC)

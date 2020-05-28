@@ -675,7 +675,6 @@ linalg/bwc/mpfq/mpfq_p_3.h
 linalg/bwc/mpfq/mpfq_p_3_t.c
 linalg/bwc/mpfq/mpfq_p_3_t.h
 linalg/bwc/lingen.cpp
-linalg/bwc/lingen.hpp
 linalg/bwc/lingen_tuning_cache.cpp
 linalg/bwc/lingen_tuning_cache.hpp
 linalg/bwc/lingen_tune_cutoffs.cpp
@@ -1469,7 +1468,6 @@ linalg/bblas/bpack.cpp
 linalg/bblas/bblas_level4_echelon.cpp
 linalg/bblas/bblas_level4_gauss.cpp
 linalg/bblas/bblas_level4_lup.cpp
-linalg/bblas/bblas_level4_ple.cpp
 linalg/bblas/bblas_level4_pluq.cpp
 linalg/bblas/bblas_level5.cpp
 linalg/bblas/bblas_level5.hpp
@@ -1569,3 +1567,5 @@ utils/omp_proxy.h
 config/iwyu.pl.in
 utils/renumber_proxy.cpp
 utils/renumber_proxy.h
+linalg/bwc/lingen_abfield.hpp
+linalg/bwc/lingen_bw_dimensions.hpp

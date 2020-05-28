@@ -24,7 +24,7 @@
 #include "cado_poly.h"
 #include "auxiliary.h"
 #include "params.h"
-#include "omp_proxy.h"
+#include "omp_proxy.h" // IWYU pragma: keep
 #include "verbose.h"             // verbose_output_print
 
 static void

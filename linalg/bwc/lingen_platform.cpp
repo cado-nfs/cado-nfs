@@ -1,6 +1,9 @@
-#include "cado.h"
-#include "omp_proxy.h"
+#include "cado.h" // IWYU pragma: keep
+#include <cstdio>      // for fprintf, stderr
+#include <cstdlib>     // for abort
+#include "omp_proxy.h" // IWYU pragma: keep
 #include "lingen_platform.hpp"
+#include "params.h"     // for cxx_param_list, param_list_lookup_string, par...
 
 /* TODO: fetch data from hwloc */
 

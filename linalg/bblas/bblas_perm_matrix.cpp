@@ -1,7 +1,9 @@
-#include "cado.h"
-#include "bblas.hpp"
-#include "bblas_perm_matrix.hpp"
+#include "cado.h" // IWYU pragma: keep
 #include <cstring>
+#include <cstdlib>                      // for free, malloc
+#include "macros.h"                      // for ASSERT_ALWAYS
+#include "bblas_mat64.hpp"  // for mat64
+#include "bblas_perm_matrix.hpp"
 #include "misc.h"      // cado_ctz64
 
 /* perm_matrix stuff */

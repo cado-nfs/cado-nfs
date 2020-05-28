@@ -1,6 +1,10 @@
 #include "cado.h"
-#include "bblas_level4.hpp"
 #include <cstring>
+#include <gmp.h>                         // for mp_limb_t
+#include <cstdint>                      // for uint64_t, UINT64_C
+#include "bblas_mat64.hpp"  // for mat64
+#include "macros.h"                      // for ATTRIBUTE
+#include "bblas_level4.hpp"
 #include "bblas_gauss.h"
 
 int gauss_6464_C(mat64 & mm, mat64 & e, mat64 const & m)

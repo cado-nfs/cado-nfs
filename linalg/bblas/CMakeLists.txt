@@ -15,7 +15,6 @@ add_library(bblas
         bblas_level4_echelon.cpp
         bblas_level4_gauss.cpp
         bblas_level4_lup.cpp
-        bblas_level4_ple.cpp
         bblas_level4_pluq.cpp
         bblas_level5.cpp
         bblas_perm_matrix.cpp

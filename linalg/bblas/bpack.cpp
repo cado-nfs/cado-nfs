@@ -1,11 +1,14 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <climits>                       // for UINT_MAX
+#include <cstddef>                       // for size_t
 #include <cstdint>
 #include "bpack.hpp"
-#include "bblas_level4.hpp"
-#include "bblas_level4_ple_internal.hpp"
-#include "bblas_level4_ple_internal_inl.hpp"
-#include "gmp_aux.h"
-#include "omp_proxy.h"
+// #include "bblas_level4.hpp"
+#include "bblas_bitmat.hpp"  // for bitmat
+#include "bblas_level4_ple_internal.hpp" // PLE
+#include "bblas_level4_ple_internal_inl.hpp" // IWYU pragma: keep
+#include "gmp_aux.h"    // memfill_random
+#include "omp_proxy.h" // IWYU pragma: keep
 
 /* Is it sufficient to meet the ODR requirement ? There are places where
  * we do std::min(B, foo). That requires that a definition of B be

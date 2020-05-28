@@ -1,8 +1,20 @@
 #include "cado.h"
+// IWYU pragma: no_include <ext/alloc_traits.h>
+#include <cstdint>                        // for uint64_t
+#include <cstring>                        // for memcpy, NULL
+#include "linalg/bblas/bblas_bitmat.hpp"   // for bitmat<>::vector_type
+#include "linalg/bblas/bblas_level3a.hpp"  // for mat64_add
+#include "linalg/bblas/bblas_level3b.hpp"  // for mul_6464_6464
+#include "linalg/bblas/bblas_mat64.hpp"    // for mat64
+#include "macros.h"                        // for ATTRIBUTE, ASSERT, ASSERT_...
 #include "bblas_level4.hpp"
 #include "bblas_simd.hpp"
 #include "bblas_perm_matrix.hpp"
 #include "misc.h"      // cado_ctz64
+// the whole point of bblas_simd is to avoid including these files...
+// IWYU pragma: no_include <mmintrin.h>
+// IWYU pragma: no_include <emmintrin.h>
+// IWYU pragma: no_include <smmintrin.h>
 
 /*  PLUQ stuff -- well we're not computing exactly PLUQ */
 

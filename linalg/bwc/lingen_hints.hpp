@@ -1,7 +1,9 @@
 #ifndef LINGEN_HINTS_HPP_
 #define LINGEN_HINTS_HPP_
 
+#include <cstddef>                   // for size_t
 #include <map>
+#include <iosfwd>       // istream, ostream
 #include "select_mpi.h"
 #include "lingen_call_companion.hpp"
 

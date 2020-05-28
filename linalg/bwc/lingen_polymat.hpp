@@ -1,16 +1,18 @@
 #ifndef LINGEN_POLYMAT_HPP_
 #define LINGEN_POLYMAT_HPP_
 
+#ifdef SELECT_MPFQ_LAYER_u64k1
+#error "lingen_polymat does not work with binary (maybe use bblas instead -- could end up being the same interface, IDK)"
+#endif
+
+#include <cstddef>      // for size_t, NULL
+#include <gmp.h>         // for gmp_randstate_t
 #include "mpfq_layer.h"
 #include "macros.h"
 
 class matpoly;
-struct polymat;
-
-#include "lingen_matpoly.hpp"
 
 /* This is used only for lingen. */
-
 struct polymat {
     abdst_field ab = NULL;
     unsigned int m = 0;

@@ -1,11 +1,24 @@
-#include "cado.h"
-#include <cstdlib>
-#include "portability.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <algorithm>
+// IWYU pragma: no_include <string>
+#include <climits>                                 // for UINT_MAX
+#include <cstdint>                                 // for SIZE_MAX
+#include <cstdio>                                  // for fprintf, stderr
+#include <array>                                    // for array
 #include "macros.h"
+// technically, abfield isn't _really_ needed. We use this include as
+// a kludge
+#include "lingen_abfield.hpp" // IWYU pragma: keep
 #include "lingen_matpoly_ft.hpp"
+#include "lingen_fft_select.hpp" // IWYU pragma: keep
 #include "lingen_bigmatpoly_ft.hpp"
-#include "logline.h"
-#include "fmt/format.h"
+#include "lingen_memory_pool.hpp"                   // for memory_pool_excep...
+#include "lingen_mul_substeps.hpp"                  // for op_mp, op_mul
+#include "select_mpi.h"                             // for MPI_Comm_rank
+class matpoly;
+class tree_stats;
+template <typename T, typename fft_type> struct OP_CTX;
+
 
 /* This is the interface for doing products of polynomial matrices by
  * caching transforms, and transferring them over MPI. There are

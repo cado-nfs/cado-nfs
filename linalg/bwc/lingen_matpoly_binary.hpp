@@ -19,9 +19,6 @@
 
 #include <cstdlib>
 #include <gmp.h>
-
-#include <mutex>
-
 #include "cado_config.h"
 #include "macros.h"
 #include "lingen_memory_pool.hpp"
@@ -246,8 +243,6 @@ public:
     // void set_polymat(polymat const & src);
     int coeff_is_zero(unsigned int k) const;
     void coeff_set_zero(unsigned int k);
-    struct view_t;
-    struct const_view_t;
 
     struct view_t : public submatrix_range {
         matpoly & M;

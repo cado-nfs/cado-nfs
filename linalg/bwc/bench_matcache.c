@@ -10,17 +10,18 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>             // for uint64_t
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
 #include <limits.h>
 #include <inttypes.h>
-#include <unistd.h>
 #include <string.h>
 #include <sys/time.h>
+#include <pthread.h>            // for pthread_mutex_lock, pthread_mutex_unlock
 #include <gmp.h>
 
-#include "bwc_config.h"
+#include "raw_matrix_u32.h"     // for matrix_u32
 #include "cheating_vec_init.h"
 #include "crc.h"        // cado_crc_lfsr
 #include "macros.h"
@@ -29,7 +30,7 @@
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "params.h"
-#include "portability.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
 #include "version_info.h" // cado_revision_string
 #include "worker-threads.h"
 

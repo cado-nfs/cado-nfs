@@ -1,8 +1,13 @@
-#include "cado.h"
-
+#include "cado.h" // IWYU pragma: keep
+#include <climits>                  // for UINT_MAX
+#ifndef SELECT_MPFQ_LAYER_u64k1
+#include <gmp.h>
 #include "cxx_mpz.hpp"
+#endif
+#include "lingen_abfield.hpp" // IWYU pragma: keep
+#include "lingen_bw_dimensions.hpp"  // for bw_dimensions
 #include "lingen_expected_pi_length.hpp"
-
+#include "macros.h"                  // for iceildiv, MAYBE_UNUSED
 
 
 std::tuple<unsigned int, unsigned int> get_minmax_delta(std::vector<unsigned int> const & delta)/*{{{*/

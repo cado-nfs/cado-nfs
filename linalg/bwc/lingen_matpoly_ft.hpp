@@ -1,14 +1,22 @@
 #ifndef LINGEN_MATPOLY_FT_HPP_
 #define LINGEN_MATPOLY_FT_HPP_
 
-#include <mutex>
-#include "omp_proxy.h"
-#include "lingen_matpoly_select.hpp"
-#include "lingen_fft_select.hpp"
-#include "lingen_substep_schedule.hpp"
-#include "tree_stats.hpp"
-#include "misc.h"
+#include "cado_config.h"              // for HAVE_OPENMP
+#include <limits.h>                   // for UINT_MAX
+#include <string.h>                   // for NULL, memset, size_t
+#include <algorithm>                  // for min
+#include <array>                      // for array
+#include <gmp.h>                      // for mp_limb_t
+#include "lingen_abfield.hpp"        // for abdst_field
 #include "lingen_call_companion.hpp"
+#include "lingen_fft_select.hpp" // IWYU pragma: keep
+#include "lingen_matpoly_select.hpp"
+#include "lingen_memory_pool.hpp"     // for memory_pool_wrapper
+#include "macros.h"                   // for ASSERT_ALWAYS, ASSERT
+#include "misc.h"
+#include "omp_proxy.h"
+#include "submatrix_range.hpp"        // for submatrix_range
+class tree_stats;
 
 template<typename fft_type>
 class matpoly_ft {
@@ -89,9 +97,6 @@ public:
     }
     /* }}} */
     /* {{{ views -- some of the modifiers are implemented here only */
-    struct view_t;
-    struct const_view_t;
-
     struct view_t : public submatrix_range {/*{{{*/
         matpoly_ft & M;
         view_t(matpoly_ft & M, submatrix_range S) : submatrix_range(S), M(M) {}

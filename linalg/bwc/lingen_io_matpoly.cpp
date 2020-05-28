@@ -1,8 +1,18 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+#include <fstream> // IWYU pragma: keep
+#ifdef SELECT_MPFQ_LAYER_u64k1
+#include <limits.h>                   // for UINT_MAX
+#include <stdlib.h>                   // for abort
+#else
+#include <gmp.h>               // for mp_limb_t, __gmpn_cmp, __gmpn_copyi
+#endif
+#include <unistd.h>     // pread // IWYU pragma: keep
 #include "lingen_io_matpoly.hpp"
-#include "gmp-hacks.h"
-#include <unistd.h>
-#include "omp_proxy.h"
+#include "lingen_matpoly_select.hpp"
+#include "macros.h"            // for ASSERT_ALWAYS
+#include "params.h"            // for cxx_param_list, param_list_decl_usage
+#include "omp_proxy.h" // IWYU pragma: keep
 
 
 // constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;

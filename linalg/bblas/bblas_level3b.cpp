@@ -1,7 +1,14 @@
-#include "cado.h"
-#include "bblas_level3b.hpp"
-#include "bblas_simd.hpp"
+#include "cado.h" // IWYU pragma: keep
 #include <cstring>
+#include <cstdint>                        // for uint64_t, UINT64_C
+#ifdef HAVE_SSE2
+#include <emmintrin.h>                     // for __m128i, _mm_and_si128
+#endif
+#include "bblas_level3b.hpp"
+#include "bblas_level3c.hpp"  // for mul_6464lt_6464_lookup4
+#include "bblas_mat64.hpp"    // for mat64
+#include "bblas_simd.hpp"
+#include "macros.h"                        // for MAYBE_UNUSED
 
 /**********************************************************************/
 /* level 3b: matrix multiplications

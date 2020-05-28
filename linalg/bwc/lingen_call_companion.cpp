@@ -1,4 +1,8 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <ostream> // ostream operator<< // IWYU pragma: keep
+#include <istream> // istream operator<< // IWYU pragma: keep
+#include <string>                       // for operator==, operator>>, string
+#include "lingen_substep_schedule.hpp"  // for lingen_substep_schedule
 #include "lingen_call_companion.hpp"
 
 std::istream& lingen_call_companion::unserialize(std::istream& is) {

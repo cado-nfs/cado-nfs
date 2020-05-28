@@ -1,8 +1,9 @@
-#include "cado.h"
-
-#include "bblas.hpp"
-#include "bblas_bitmat_inl.hpp"
+#include "cado.h" // IWYU pragma: keep
+#include "bblas_bitmat.hpp"   // for bitmat_ops, bblas_bitmat_d...
+#include "bblas_bitmat_inl.hpp" // many generic inlines of the bitmat type // IWYU pragma: keep
+#include "bblas_level3a.hpp"  // for mat64_add, mat64_transpose
 #include "bblas_level3b.hpp"
+#include "bblas_level3c.hpp"  // for addmul_6464_blocks, mul_64...
 #include "bblas_level3d.hpp"
 #include "bblas_mat64.hpp"
 

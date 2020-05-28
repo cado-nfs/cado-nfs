@@ -151,6 +151,6 @@
  * interface.
  */
 #include "mpfq/mpfq_name_ab.h"
- // IWYU pragma: end_exports
+// IWYU pragma: end_exports
 
 #endif	/* MPFQ_LAYER_H_ */

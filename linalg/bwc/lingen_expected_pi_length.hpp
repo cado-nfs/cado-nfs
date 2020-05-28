@@ -3,8 +3,7 @@
 
 #include <tuple>
 #include <vector>
-
-#include "lingen_bmstatus.hpp"
+struct bw_dimensions;
 
 extern std::tuple<unsigned int, unsigned int> get_minmax_delta(std::vector<unsigned int> const & delta);
 // extern unsigned int get_min_delta(std::vector<unsigned int> const & delta);

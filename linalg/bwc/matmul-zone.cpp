@@ -1,29 +1,31 @@
 #include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
-#include <pthread.h>
+#include <cstdarg>         // for va_list, va_end, va_start
+#include <cstddef>         // for ptrdiff_t
+#include <cstdint>          // for uint16_t, uint32_t, int32_t, uint64_t
+#include <string>           // for basic_string
+#include <cstdio>
+#include <cstdlib>
+#include <cinttypes>
+#include <cstring>
+
 #include <vector>
 #include <utility>
 #include <sstream>
 #include <algorithm>
 #include <map>
 #include <type_traits>  // for std::is_same (C++11)
+
+#include <pthread.h>
 #include <gmp.h>
-
-#include "bwc_config.h"
-#include "matmul.h"
-#include "matmul-common.h"
-#include "mpfq_layer.h"
-
-#include "matmul_facade.h"
 
 #include "arith-modp.hpp"
 #include "macros.h"
+#include "matmul-common.h"
+#include "matmul.h"
+#include "matmul_facade.h"
+#include "memory.h"         // for aligned_allocator
+#include "mpfq_layer.h"
 #include "params.h"
 
 typedef arith_modp::gfp<sizeof(abelt)/sizeof(unsigned long)> gfp;

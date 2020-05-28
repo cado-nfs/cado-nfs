@@ -1,9 +1,13 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
-#include <algorithm>
-
+#include <limits.h>   // for UINT_MAX, INT_MAX
+#include <stdio.h>    // for printf, fprintf, stderr
+#include <stdlib.h>   // for exit, EXIT_FAILURE
+#include <algorithm>  // for find_if
+#include <map>        // for _Rb_tree_iterator, operator!=, operator==, map
+#include <utility>    // for pair
+#include "macros.h"   // for ASSERT_ALWAYS
 #include "lingen_bmstatus.hpp"
-#include "lingen_expected_pi_length.hpp"
 
 /* Attention: reloading a checkpoint invalidates this reference !! */
 lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/

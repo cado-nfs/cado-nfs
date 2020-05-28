@@ -1,7 +1,7 @@
 #ifndef XDOTPROD_H_
 #define XDOTPROD_H_
 
-#include "mpfq/mpfq_vbase.h"
+#include <stdint.h>              // for uint32_t
 #include "matmul_top.h"
 
 /* This interface is relevant to both krylov and mksol, since it's used

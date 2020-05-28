@@ -1,28 +1,33 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <memory>
+#include <cstddef>              // for ptrdiff_t
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cinttypes>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <ctime>
-#include <unistd.h>
-#include <cmath>
+
 #include <vector>
-#include <thread>
 #include <mutex>
 #include <algorithm>
-#include "portability.h"
-#include "parallelizing_info.h"
-#include "select_mpi.h"
+#include <string>                // for string
+#include <utility>               // for move
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "balancing.h"
 #include "balancing_workhorse.h"
-#include "subdivision.hpp"
-#include "fmt/printf.h"
+#include "fmt/core.h"            // for check_format_string
+#include "fmt/format.h"          // for basic_buffer::append, basic_parse_co...
+#include "fmt/printf.h" // IWYU pragma: keep
+#include "macros.h"              // for ASSERT_ALWAYS, ASSERT
+#include "misc.h"                // for size_disp, derived_filename
+#include "parallelizing_info.h"
+#include "params.h"     // param_list
+#include "select_mpi.h"
 #include "timing.h" // wct_seconds
 #include "verbose.h" // verbose_enabled
-#include "params.h"     // param_list
 
 #define xxxRELY_ON_MPI_THREAD_MULTIPLE
 

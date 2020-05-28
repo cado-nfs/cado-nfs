@@ -1,20 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <inttypes.h>
-#include <float.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <errno.h>
-#include <math.h>
-#include "mf.h"
-#include "balancing.h"
-#include "rowset_heap.h"
-#include "cheating_vec_init.h"
-#include "mf_bal.h"
+#include <stdio.h>   // for fflush, stdout
+#include <string.h>  // for memset
+#include "mf_bal.h"  // for mf_bal, mf_bal_configure_switches, mf_bal_decl_u...
+#include "params.h"  // for param_list_clear, param_list_init, param_list_pr...
 
 /* This program computes how a matrix would have to be balanced for
  * fitting a job grid of given size. This does _not_ read the matrix,

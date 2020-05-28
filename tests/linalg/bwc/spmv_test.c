@@ -9,8 +9,8 @@
 #include "matmul_top.h"
 #include "params.h"
 #include "bw-common.h"
-#include "mpfq/mpfq.h"
-#include "mpfq/mpfq_vbase.h"
+#include "mpfq.h"
+#include "mpfq_vbase.h"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "macros.h"
 

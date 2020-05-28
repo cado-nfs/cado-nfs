@@ -1,7 +1,15 @@
-#include "cado.h"
-#include "bblas_level3c.hpp"
+#include "cado.h" // IWYU pragma: keep
 #include <cstring>
+#include "bblas_level2a.hpp"  // for addmul_To64_o64
+#include "bblas_level2b.hpp"  // for mul_o64_6464, mul_o64_T6464
+#include "bblas_level3a.hpp"  // for mat64_transpose
+#include "bblas_level3c.hpp"
+#include "bblas_mat64.hpp"    // for mat64
 #include "bblas_simd.hpp"
+#include "macros.h"                        // for MAYBE_UNUSED
+// the whole point of bblas_simd is to avoid including these files...
+// IWYU pragma: no_include <emmintrin.h>
+// IWYU pragma: no_include <immintrin.h>
 
 /**********************************************************************/
 /* level 3c: operations on matrices with one arbitrary length (sometimes 2)

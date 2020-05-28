@@ -3,9 +3,9 @@
 
 #include <cstddef>
 #include <gmp.h>
-#include "lingen_bmstatus.hpp"
 #include "mpfq_fake.hpp"
-#include "lingen_matpoly_binary.hpp"
+#include "lingen_matpoly_select.hpp"
+struct bmstatus;
 
 extern matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E);
 

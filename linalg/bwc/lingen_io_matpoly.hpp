@@ -1,14 +1,13 @@
 #ifndef LINGEN_IO_MATPOLY_HPP_
 #define LINGEN_IO_MATPOLY_HPP_
-
-#include "lingen.hpp"
-#include <ostream>
-#include <fstream>
-#include <cstdio>
+// The selection is done within lingen_matpoly_select.hpp only
+// IWYU pragma: no_include "mpfq_layer.h"
+// IWYU pragma: no_include "mpfq_fake.hpp"
+#include <iosfwd>
+#include <cstdio>       // FILE
 #include <vector>
-#include "params.h"
-
-#include "lingen_matpoly_select.hpp"
+#include "lingen_matpoly_select.hpp" // IWYU pragma: keep
+struct cxx_param_list;
 
 extern unsigned int io_matpoly_block_size;
 

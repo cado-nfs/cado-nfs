@@ -1,15 +1,34 @@
 #include "cado.h"
+// IWYU pragma: no_include "mpfq_fake.hpp"
+// IWYU pragma: no_include "mpfq_layer.h"
+// IWYU pragma: no_include <sys/param.h>
 #include <cstdio>
-#include <ostream>
-#include <istream>
-#include <fstream>
-#include <sstream>
+#include <istream> // IWYU pragma: keep
+#include <fstream> // IWYU pragma: keep
+#include <gmp.h>                       // for operator<<, mpz_cmp
+#include <stdint.h>                    // for SIZE_MAX
+#include <stdlib.h>                    // for abort, free
+#include <unistd.h>                    // for unlink, access, R_OK, X_OK
+#include <map>                         // for operator!=, map
+#include <utility>                     // for move, pair
+#include <vector>                      // for vector
+#include "fmt/core.h"                  // for check_format_string, char_t
+#include "fmt/format.h"                // for basic_buffer::append, basic_pa...
+#include "lingen_abfield.hpp"
+#include "lingen_bw_dimensions.hpp"
+#include "lingen_call_companion.hpp"   // for lingen_call_companion, lingen_...
+#include "lingen_hints.hpp"            // for operator<<, lingen_hints, oper...
+#include "lingen_matpoly_select.hpp"   // for matpoly
+#include "macros.h"                    // for ASSERT_ALWAYS, MIN, iceildiv
+#include "params.h"                    // for cxx_param_list, param_list_loo...
+#include "select_mpi.h"                // for MPI_Allreduce, MPI_Bcast, MPI_...
+#include "tree_stats.hpp"              // for operator<<, operator>>
 #include "lingen_bmstatus.hpp"
 #include "lingen_checkpoints.hpp"
 #include "lingen_io_matpoly.hpp"
 #include "lingen_average_matsize.hpp"
 #include "logline.h"
-#include "fmt/printf.h"
+#include "fmt/printf.h" // IWYU pragma: keep
 #include "cxx_mpz.hpp"
 
 /* Checkpoints */

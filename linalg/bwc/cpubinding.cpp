@@ -1,28 +1,32 @@
 #include "cado.h" // IWYU pragma: keep
-
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <memory>
+#include <cstring>
+#include <climits>
+#include <cerrno>             // for errno
+#include <stdlib.h>            // for free, NULL
+#include <type_traits>         // for remove_reference<>::type
+#include <utility>             // for pair, move, swap, make_pair
 #include <string>
 #include <map>
 #include <list>
-#include <iostream>
-#include <fstream>
-#include <sstream>
+#include <iostream>      // std::cerr
+#include <fstream>      // ifstream // IWYU pragma: keep
+#include <sstream>      // ostringstream // IWYU pragma: keep
 #include <stdexcept>
 #include <cctype>
 #include <algorithm>
 #include <iterator>
 #include <vector>
-
+#ifdef HAVE_HWLOC
 #include <hwloc.h>
-#include <cstdio>
-#include <cstring>
-#include <cstdlib>
-#include <limits.h>
+#include <hwloc/bitmap.h>
+#endif
 
 #include "cpubinding.h"
-#include "portability.h"
 #include "params.h"     // param_list
 #include "macros.h"
+#include "portability.h" // strdup
 
 /* This causes all messages to be immediately printed to stderr, instead
  * of being captured to a string */
@@ -30,8 +34,6 @@
 
 /* All output is prefixed by this. */
 #define PRE "cpubinding: "
-
-using namespace std;
 
 void cpubinding_decl_usage(param_list_ptr pl)
 {
@@ -49,40 +51,40 @@ void cpubinding_lookup_parameters(param_list_ptr pl)
 
 
 /* {{{ sugar */
-template<class T> invalid_argument operator<<(invalid_argument const& i, T const& a)
+template<class T> std::invalid_argument operator<<(std::invalid_argument const& i, T const& a)
 {
-    ostringstream os;
+    std::ostringstream os;
     os << i.what() << a;
-    return invalid_argument(os.str());
+    return std::invalid_argument(os.str());
 }
-template<typename T> istream& parse_and_copy_to_list(istream& is, list<T>& L)
+template<typename T> std::istream& parse_and_copy_to_list(std::istream& is, std::list<T>& L)
 {
     L.clear();
     /* The following is neat, but is does nothing to distinguish eof from
      * parse failure */
 #if 0
-    istream_iterator<T> w0(is);
-    istream_iterator<T> w1;
-    copy(w0, w1, back_inserter(L));
+    std::istream_iterator<T> w0(is);
+    std::istream_iterator<T> w1;
+    std::copy(w0, w1, back_inserter(L));
 #endif
     /* Here we promise to set failbit on failure. */
-    string t;
+    std::string t;
     while (getline(is, t, ' ')) {
         if (t.empty()) continue;
         T v;
-        if (istringstream(t) >> v) {
+        if (std::istringstream(t) >> v) {
             L.push_back(v);
         } else {
             is.clear();
-            is.setstate(is.rdstate() | ios_base::failbit);
+            is.setstate(is.rdstate() | std::ios_base::failbit);
             return is;
         }
     }
     /* EOF, but no fail */
     is.clear();
-    is.setstate(is.rdstate() | ios_base::eofbit);
-    // is.setstate(is.rdstate() | ios_base::failbit);
-    // is.setstate(is.rdstate() & ~ios_base::goodbit);
+    is.setstate(is.rdstate() | std::ios_base::eofbit);
+    // is.setstate(is.rdstate() | std::ios_base::failbit);
+    // is.setstate(is.rdstate() & ~std::ios_base::goodbit);
     return is;
 }
 /* }}} */
@@ -125,39 +127,39 @@ class thread_split {
     }
 
 };
-ostream& operator<<(ostream& os, thread_split const& t) {
+std::ostream& operator<<(std::ostream& os, thread_split const& t) {
     os << t[0] << 'x' << t[1];
     return os;
 }
-istream& operator>>(istream& is, thread_split& t) {
+std::istream& operator>>(std::istream& is, thread_split& t) {
     /* a "thr=" may be prepended */
-    string s;
+    std::string s;
     if (!(is>>s)) return is;
 
     const char * digits = "0123456789";
-    string::size_type x00;
+    std::string::size_type x00;
     x00 = s.find_first_of(digits);
     if (x00) {
         if (s[x00-1] == '=') {
             /* we might want to do something with s.substr(0, x00-1) */
             // t.key = s.substr(0, x00-1);
         } else {
-            is.setstate(ios_base::failbit);
+            is.setstate(std::ios_base::failbit);
             return is;
         }
     }
-    string::size_type x01 = s.find_first_not_of(digits, x00);
-    if (x01 == string::npos
+    std::string::size_type x01 = s.find_first_not_of(digits, x00);
+    if (x01 == std::string::npos
             || x01 >= s.size()
-            || !(istringstream(s.substr(x00, x01 - x00)) >> t[0]))
+            || !(std::istringstream(s.substr(x00, x01 - x00)) >> t[0]))
     {
-        is.setstate(ios_base::failbit);
+        is.setstate(std::ios_base::failbit);
         return is;
     }
 
-    string::size_type x10 = x01 + 1;
-    if (!(istringstream(s.substr(x10)) >> t[1])) {
-        is.setstate(ios_base::failbit);
+    std::string::size_type x10 = x01 + 1;
+    if (!(std::istringstream(s.substr(x10)) >> t[1])) {
+        is.setstate(std::ios_base::failbit);
         return is;
     }
 
@@ -169,18 +171,18 @@ istream& operator>>(istream& is, thread_split& t) {
  * topology tree */
 class topology_level {
 public:
-    string object;
+    std::string object;
     int n;
     bool has_memory = false;
     topology_level() {}
-    topology_level(string const& s, int n, bool has_memory = false)
+    topology_level(std::string const& s, int n, bool has_memory = false)
         : object(s)
         , n(n)
         , has_memory(has_memory)
     {
         if (s == "Socket") object="Package";
     }
-    friend istream& operator>>(istream& is, topology_level& t);
+    friend std::istream& operator>>(std::istream& is, topology_level& t);
     bool operator<(topology_level const& o) const {
         if (object < o.object) return true;
         return (object == o.object && n < o.n);
@@ -188,9 +190,9 @@ public:
     bool operator==(topology_level const& o) const { return object == o.object && n == o.n; }
     bool operator!=(topology_level const& o) const { return !operator==(o); }
 };
-istream& operator>>(istream& is, topology_level& t)
+std::istream& operator>>(std::istream& is, topology_level& t)
 {
-    string s;
+    std::string s;
     if (!(is>>s)) return is;
     /* This makes sense only with hwloc-2.x, but we might want to avoid
      * having code compiled for hwloc-1.x choke on files that were
@@ -200,17 +202,17 @@ istream& operator>>(istream& is, topology_level& t)
         t.has_memory=1;
         return is;
     }
-    string::size_type colon = s.find(':');
-    if (colon != string::npos) {
+    std::string::size_type colon = s.find(':');
+    if (colon != std::string::npos) {
         t.object = s.substr(0, colon);
         if (t.object == "Socket") t.object="Package";
-        if (!(istringstream(s.substr(colon+1)) >> t.n)) {
-            is.setstate(ios_base::failbit);
+        if (!(std::istringstream(s.substr(colon+1)) >> t.n)) {
+            is.setstate(std::ios_base::failbit);
         }
     }
     return is;
 }
-ostream& operator<<(ostream& os, const topology_level& t)
+std::ostream& operator<<(std::ostream& os, const topology_level& t)
 {
     os << t.object << ":" << t.n;
     if (t.has_memory)
@@ -219,7 +221,7 @@ ostream& operator<<(ostream& os, const topology_level& t)
 }
 /* }}} */
 
-typedef list<topology_level> synthetic_topology;
+typedef std::list<topology_level> synthetic_topology;
 
 /* {{{ dealing with hwloc synthetic topology strings */
 synthetic_topology hwloc_synthetic_topology(hwloc_topology_t topology)
@@ -228,7 +230,7 @@ synthetic_topology hwloc_synthetic_topology(hwloc_topology_t topology)
     hwloc_obj_t obj = hwloc_get_root_obj(topology);
 
     if (!obj->symmetric_subtree) {
-        throw invalid_argument("Cannot output asymetric topology in synthetic format.");
+        throw std::invalid_argument("Cannot output asymetric topology in synthetic format.");
     }
 
     synthetic_topology result;
@@ -242,7 +244,7 @@ synthetic_topology hwloc_synthetic_topology(hwloc_topology_t topology)
         char t[64];
         int d = hwloc_obj_type_snprintf(t, sizeof(t), obj, 1);
         if (d >= (int) sizeof(t))
-            throw overflow_error("Too long hwloc type name.");
+            throw std::overflow_error("Too long hwloc type name.");
         topology_level T(t, arity);
 #if HWLOC_API_VERSION >= 0x020000
         T.has_memory = obj->memory_arity > 0;
@@ -262,10 +264,10 @@ synthetic_topology hwloc_synthetic_topology(hwloc_topology_t topology)
 
 std::ostream& operator<<(std::ostream& os, synthetic_topology const& t)
 {
-    copy(t.begin(), t.end(), ostream_iterator<synthetic_topology::value_type>(os, " "));
+    std::copy(t.begin(), t.end(), std::ostream_iterator<synthetic_topology::value_type>(os, " "));
     return os;
 }
-istream& operator>>(istream& is, synthetic_topology& L)
+std::istream& operator>>(std::istream& is, synthetic_topology& L)
 {
     return parse_and_copy_to_list(is, L);
 }
@@ -274,17 +276,17 @@ istream& operator>>(istream& is, synthetic_topology& L)
 
 /* {{{ mapping strings are elementary objects of mapping indications */
 struct mapping_string {
-    string object;
+    std::string object;
     int group;
     thread_split t;
     mapping_string() : group(0) {}
-    mapping_string(string const& type, int g, thread_split const& t) : object(type), group(g), t(t) {
+    mapping_string(std::string const& type, int g, thread_split const& t) : object(type), group(g), t(t) {
         if (type == "Socket") { object = "Package"; }
     }
-    mapping_string(string const& type, int g, int t[2]) : object(type), group(g), t(t) {
+    mapping_string(std::string const& type, int g, int t[2]) : object(type), group(g), t(t) {
         if (type == "Socket") { object = "Package"; }
     }
-    mapping_string(string const& type, int g): object(type), group(g) {
+    mapping_string(std::string const& type, int g): object(type), group(g) {
         if (type == "Socket") { object = "Package"; }
     }
     bool operator<(const mapping_string& o) const {
@@ -293,49 +295,49 @@ struct mapping_string {
         return t < o.t;
     }
 };
-ostream& operator<<(ostream& os, const mapping_string& ms)
+std::ostream& operator<<(std::ostream& os, const mapping_string& ms)
 {
     os << ms.object;
     if (ms.group) os << "*" << ms.group;
     return os << "=>" << ms.t;
 }
-istream& operator>>(istream& is, mapping_string& ms)
+std::istream& operator>>(std::istream& is, mapping_string& ms)
 {
     ms = mapping_string();
-    string s;
+    std::string s;
     if (!(is>>s)) {
         return is;
     }
-    string::size_type rel = s.find("=>");
-    if (rel == string::npos || !(istringstream(s.substr(rel+2)) >> ms.t)) {
-        is.setstate(ios_base::failbit);
+    std::string::size_type rel = s.find("=>");
+    if (rel == std::string::npos || !(std::istringstream(s.substr(rel+2)) >> ms.t)) {
+        is.setstate(std::ios_base::failbit);
     } else {
-        string::size_type star = s.find('*');
-        if (star == string::npos) {
+        std::string::size_type star = s.find('*');
+        if (star == std::string::npos) {
             ms.object = s.substr(0, rel);
             if (ms.object == "Socket") ms.object="Package";
         } else if (star < rel) {
             ms.object = s.substr(0, star);
             if (ms.object == "Socket") ms.object="Package";
-            if (!(istringstream(s.substr(star+1, rel-(star+1))) >> ms.group)) {
-                is.setstate(ios_base::failbit);
+            if (!(std::istringstream(s.substr(star+1, rel-(star+1))) >> ms.group)) {
+                is.setstate(std::ios_base::failbit);
             }
         } else {
-            is.setstate(ios_base::failbit);
+            is.setstate(std::ios_base::failbit);
         }
     }
     return is;
 }
 
-ostream& operator<<(ostream& os, list<mapping_string> const& L)
+std::ostream& operator<<(std::ostream& os, std::list<mapping_string> const& L)
 {
     if (L.empty()) return os;
-    copy(L.begin(), --L.end(), ostream_iterator<mapping_string>(os, " "));
+    std::copy(L.begin(), --L.end(), std::ostream_iterator<mapping_string>(os, " "));
     os << L.back();
     return os;
 }
 
-istream& operator>>(istream& is, list<mapping_string>& L)
+std::istream& operator>>(std::istream& is, std::list<mapping_string>& L)
 {
     return parse_and_copy_to_list(is, L);
 }
@@ -348,7 +350,7 @@ struct matching_string : public topology_level {
     private:
         typedef topology_level super;
     public:
-    string joker;
+    std::string joker;
     bool operator<(const matching_string& o) const {
         if (!joker.empty() && !o.joker.empty()) { return joker < o.joker; }
         if (!joker.empty()) { return true; }
@@ -357,7 +359,7 @@ struct matching_string : public topology_level {
     }
 };
 
-istream& operator>>(istream& is, matching_string& ms)
+std::istream& operator>>(std::istream& is, matching_string& ms)
 {
     char c;
     ms = matching_string();
@@ -370,27 +372,27 @@ istream& operator>>(istream& is, matching_string& ms)
     }
 }
 
-ostream& operator<<(ostream& os, const matching_string& ms)
+std::ostream& operator<<(std::ostream& os, const matching_string& ms)
 {
     if (!ms.joker.empty()) return os << '@' << ms.joker;
     return os << (const topology_level&) ms;
 }
 
-ostream& operator<<(ostream& os, list<matching_string> const& L)
+std::ostream& operator<<(std::ostream& os, std::list<matching_string> const& L)
 {
     if (L.empty()) return os;
-    copy(L.begin(), --L.end(), ostream_iterator<matching_string>(os, " "));
+    std::copy(L.begin(), --L.end(), std::ostream_iterator<matching_string>(os, " "));
     os << L.back();
     return os;
 }
 
-istream& operator>>(istream& is, list<matching_string>& L)
+std::istream& operator>>(std::istream& is, std::list<matching_string>& L)
 {
     parse_and_copy_to_list(is, L);
-    /* Our parser may either encounter matching strings for hwloc-1.x or hwloc-2.x. In the former case, we have NUMANode objects that we must place differently. In the latter case our parser inserted hwloc-2.x memory objects at temporary places, and we must adjust the list accordingly. */
+    /* Our parser may either encounter matching strings for hwloc-1.x or hwloc-2.x. In the former case, we have NUMANode objects that we must place differently. In the latter case our parser inserted hwloc-2.x memory objects at temporary places, and we must adjust the std::list accordingly. */
     
 #if HWLOC_API_VERSION >= 0x020000
-    list<matching_string> L2 { };
+    std::list<matching_string> L2 { };
     /* our section matching must be smart enough to do the right thing
      * with NUMANode matchers that we have here and there. Most often, we
      * want our binding logic to remain sensible to the position of the
@@ -406,18 +408,18 @@ istream& operator>>(istream& is, list<matching_string>& L)
         auto &x = L.front();
         if (x.has_memory) {
             if (is_version == 1) {
-                throw invalid_argument("")
-                    << "Invalid matching string:"
+                throw std::invalid_argument("")
+                    << "Invalid matching std::string:"
                     << "can't have both hwloc-1.x and hwloc-2.x syntax";
             } else if (is_version == 2) {
-                throw invalid_argument("")
-                    << "Invalid matching string:"
+                throw std::invalid_argument("")
+                    << "Invalid matching std::string:"
                     << "found memory objects at two different levels";
             }
             is_version = 2;
             if (L2.empty()) {
-                throw invalid_argument("")
-                    << "Invalid matching string:"
+                throw std::invalid_argument("")
+                    << "Invalid matching std::string:"
                     << "memory objects cannot be on top";
             }
             L2.back().has_memory=1;
@@ -429,12 +431,12 @@ istream& operator>>(istream& is, list<matching_string>& L)
             continue;
         }
         if (is_version == 2) {
-            throw invalid_argument("")
-                << "Invalid matching string:"
+            throw std::invalid_argument("")
+                << "Invalid matching std::string:"
                 << "can't have both hwloc-1.x and hwloc-2.x syntax";
         } else if (is_version == 1) {
-            throw invalid_argument("")
-                << "Invalid matching string:"
+            throw std::invalid_argument("")
+                << "Invalid matching std::string:"
                 << "found memory objects at two different levels";
         }
         is_version = 1;
@@ -474,14 +476,14 @@ istream& operator>>(istream& is, list<matching_string>& L)
         }
         L.pop_front();
         if (L.empty()) {
-            throw invalid_argument("")
-                << "Invalid matching string:"
+            throw std::invalid_argument("")
+                << "Invalid matching std::string:"
                 <<" NUMANode must be followed by something";
         }
         auto & next = L.front();
         if (!next.joker.empty()) {
-            throw invalid_argument("")
-                << "Invalid matching string:"
+            throw std::invalid_argument("")
+                << "Invalid matching std::string:"
                 <<" NUMANode followed by a joker would have ambiguous meaning with hwloc-2.x";
         }
         next.n *= n;
@@ -490,7 +492,7 @@ istream& operator>>(istream& is, list<matching_string>& L)
     }
     if (!is_version) {
         ASSERT_ALWAYS(!L2.empty());
-        /* then we have an hwloc-1.x version string, let's mark its
+        /* then we have an hwloc-1.x version std::string, let's mark its
          * topmost item as having memory */
         L2.front().has_memory = true;
     }
@@ -502,20 +504,20 @@ istream& operator>>(istream& is, list<matching_string>& L)
 
 /* }}} */
 
-typedef map<list<matching_string>,
-            map<thread_split,
-                list<mapping_string>>> conf_file;
+typedef std::map<std::list<matching_string>,
+            std::map<thread_split,
+                std::list<mapping_string>>> conf_file;
 
 /* {{{ Dealing with the configuration file */
-istream& operator>>(istream& f, conf_file& result)
+std::istream& operator>>(std::istream& f, conf_file& result)
 {
-    string s;
+    std::string s;
     result.clear();
 
-    pair<conf_file::key_type, conf_file::mapped_type> current;
+    std::pair<conf_file::key_type, conf_file::mapped_type> current;
 
     for(int lnum = 0; getline(f, s) ; lnum++) {
-        istringstream is(s);
+        std::istringstream is(s);
         thread_split t;
         char c;
 
@@ -523,17 +525,17 @@ istream& operator>>(istream& f, conf_file& result)
         if (c == '#') continue;
 
         if (c == '[') {
-            string::size_type i0, i1;
+            std::string::size_type i0, i1;
             for(i0 = 0 ; i0 < s.size() && isspace(s[i0]) ; i0++) ;
             for(i1 = s.size() ; --i1 < s.size() && isspace(s[i1]) ; ) ;
-            if (i0 == string::npos) goto conf_file_parse_error;
-            if (i1 == string::npos) goto conf_file_parse_error;
+            if (i0 == std::string::npos) goto conf_file_parse_error;
+            if (i1 == std::string::npos) goto conf_file_parse_error;
             i0++;
             if (i0 >= i1) goto conf_file_parse_error;
 
             if (!current.first.empty()) {
                 if (result.find(current.first) != result.end()) {
-                    throw invalid_argument("")
+                    throw std::invalid_argument("")
                         << "Found two sections with header " << current.first;
                 }
                 result.insert(std::move(current));
@@ -541,7 +543,7 @@ istream& operator>>(istream& f, conf_file& result)
 
             conf_file::key_type key_in_conf;
 
-            if (!(istringstream(s.substr(i0, i1 - i0)) >> key_in_conf)) {
+            if (!(std::istringstream(s.substr(i0, i1 - i0)) >> key_in_conf)) {
                 goto conf_file_parse_error;
             }
 
@@ -549,55 +551,55 @@ istream& operator>>(istream& f, conf_file& result)
             continue;
         }
         is.putback(c);
-        if (is >> skipws >> t) {
-            string rhs;
+        if (is >> std::skipws >> t) {
+            std::string rhs;
             for( ; (is>>c) && isspace(c) ; ) ;
             is.putback(c);
             getline(is, rhs);
             conf_file::mapped_type::mapped_type v;
             if (rhs == "remove") {
                 /* then an empty v is fine */
-            } else if (!(istringstream(rhs) >> v)) {
+            } else if (!(std::istringstream(rhs) >> v)) {
                 /* try special cases */
                 goto conf_file_parse_error;
             }
             if (!current.first.empty()) {
-                current.second.insert(make_pair(t, v));
+                current.second.insert(std::make_pair(t, v));
             }
             continue;
         }
 
 conf_file_parse_error:
-        throw invalid_argument("") << "parse error on line " << lnum << ": " << s;
+        throw std::invalid_argument("") << "parse error on line " << lnum << ": " << s;
     }
     if (!current.first.empty()) {
         if (result.find(current.first) != result.end()) {
-            throw invalid_argument("")
+            throw std::invalid_argument("")
                 << "Found two sections with header " << current.first;
         }
         result.insert(std::move(current));
     }
 
     /* reaching EOF is *normal* here ! */
-    bool fail = f.rdstate() & ios_base::failbit;
-    bool eof = f.rdstate() & ios_base::eofbit;
+    bool fail = f.rdstate() & std::ios_base::failbit;
+    bool eof = f.rdstate() & std::ios_base::eofbit;
     if (fail && !eof) {
         return f;
     } else if (eof) {
         f.clear();
     } else {
-        f.setstate(f.rdstate() | ios_base::failbit);
-        f.setstate(f.rdstate() & ~ios_base::goodbit);
+        f.setstate(f.rdstate() | std::ios_base::failbit);
+        f.setstate(f.rdstate() & ~std::ios_base::goodbit);
     }
     return f;
 }
 
-ostream& operator<<(ostream& os, conf_file const& conf)
+std::ostream& operator<<(std::ostream& os, conf_file const& conf)
 {
     for(auto it : conf) {
-        os << "[" << it.first << "]" << endl;
+        os << "[" << it.first << "]" << std::endl;
         for(auto jt : it.second) {
-            os << jt.first << " " << jt.second << endl;
+            os << jt.first << " " << jt.second << std::endl;
         }
     }
     return os;
@@ -605,7 +607,7 @@ ostream& operator<<(ostream& os, conf_file const& conf)
 /* }}} */
 
 /* {{{ the matching code within the conf file */
-bool compare_to_section_title(ostream& os, synthetic_topology & topology, list<matching_string> const& title, int& njokers, list<mapping_string>& extra)
+bool compare_to_section_title(std::ostream& os, synthetic_topology & topology, std::list<matching_string> const& title, int& njokers, std::list<mapping_string>& extra)
 {
     njokers = 0;
     extra.clear();
@@ -617,15 +619,15 @@ bool compare_to_section_title(ostream& os, synthetic_topology & topology, list<m
             return false;
         }
         if (s.joker == "merge_caches") {
-            while (t->object.find("Cache") != string::npos) {
+            while (t->object.find("Cache") != std::string::npos) {
                 int g = t->n;
                 t = topology.erase(t);
                 if (t == topology.end()) {
-                    throw invalid_argument("@merge_caches failure");
+                    throw std::invalid_argument("@merge_caches failure");
                 }
                 t->n *= g;
             }
-            if (t->object.find("Core") == string::npos) {
+            if (t->object.find("Core") == std::string::npos) {
                 os << PRE << "Warning: @merge_caches should encounter one or several Caches above a \"Core\"\n";
                 os << PRE << "Warning: got " << *t << " instead, weird (but harmless).\n";
             }
@@ -640,7 +642,7 @@ bool compare_to_section_title(ostream& os, synthetic_topology & topology, list<m
             njokers++;
             continue;
         } else if (!s.joker.empty()) {
-            throw invalid_argument("") << "Bad joker " << s;
+            throw std::invalid_argument("") << "Bad joker " << s;
         }
         /* now compare the topology level *t with the section title token s */
         if (s != *t) return false;
@@ -697,12 +699,12 @@ public:
         hwloc_bitmap_or(mem, mem, o.mem);
         return *this;
     }
-    friend ostream& operator<<(ostream& o, pinning_group const & p);
+    friend std::ostream& operator<<(std::ostream& o, pinning_group const & p);
     int pin(hwloc_topology_t topology, int flags) const {
         return hwloc_set_cpubind(topology, cpu, flags);
     }
 };
-ostream& operator<<(ostream& o, pinning_group const & p) {
+std::ostream& operator<<(std::ostream& o, pinning_group const & p) {
     char * c, * m;
     hwloc_bitmap_list_asprintf(&c, p.cpu);
     hwloc_bitmap_list_asprintf(&m, p.mem);
@@ -716,7 +718,7 @@ ostream& operator<<(ostream& o, pinning_group const & p) {
 
 class cpubinder {
     /* {{{ pinning_group_matrices */
-    /* This is an internal type for stage_mapping, really. We have a list of
+    /* This is an internal type for stage_mapping, really. We have a std::list of
      * matrices of pinning groups. All pinning groups are distinct. At the
      * beginning of the stage_mapping processing, they collectively represent
      * the whole system. Later, as chop_off gets called (which might be
@@ -727,7 +729,7 @@ class cpubinder {
     class pinning_group_matrices {
         public:
         thread_split t;
-        vector<pinning_group> m;
+        std::vector<pinning_group> m;
         int outer_dimension() const { return m.size() / (int) t; }
     //private:
         pinning_group_matrices(thread_split const& t) : t(t) {}
@@ -735,7 +737,7 @@ class cpubinder {
         /* flat constructors */
         pinning_group_matrices() {}
         pinning_group_matrices(pinning_group const& p) : m(1,p) {}
-        pinning_group_matrices(vector<pinning_group> const& p) : m(p) {}
+        pinning_group_matrices(std::vector<pinning_group> const& p) : m(p) {}
         /* i <= t[0], j <= t[1] */
         pinning_group& xs(int k, int i, int j) {
             ASSERT_ALWAYS(k >= 0 && k < outer_dimension());
@@ -754,8 +756,8 @@ class cpubinder {
 
         pinning_group_matrices& coarsen(thread_split n) {
             if (outer_dimension() % (int) n) {
-                throw invalid_argument("")
-                        << "Cannot coarsen a list of " << outer_dimension()
+                throw std::invalid_argument("")
+                        << "Cannot coarsen a std::list of " << outer_dimension()
                         << " matrices of pinning groups in blocks of size " << n;
             }
             pinning_group_matrices result(t*n);
@@ -775,21 +777,21 @@ class cpubinder {
                     }
                 }
             }
-            swap(*this, result);
+            std::swap(*this, result);
             return *this;
         }
         pinning_group_matrices& chop_off(int n) {
             pinning_group_matrices result(t);
             ASSERT_ALWAYS(outer_dimension() > 0 && outer_dimension() % n == 0);
             for(int k = 0 ; k < outer_dimension() ; k+=n) {
-                copy(&xs(k,0,0), &xs(k+1,0,0), back_inserter(result.m));
+                std::copy(&xs(k,0,0), &xs(k+1,0,0), back_inserter(result.m));
             }
-            swap(*this, result);
+            std::swap(*this, result);
             return *this;
         }
     };
     /* }}} */
-    ostream& os;
+    std::ostream& os;
     /* initialized by ctor, freed by dtor */
     hwloc_topology_t topology;
 
@@ -800,7 +802,7 @@ class cpubinder {
     /* filled by ::find and ::force */
     synthetic_topology stopo;
     thread_split thr;
-    list<mapping_string> mapping;
+    std::list<mapping_string> mapping;
 
     /* filled by ::stage */
     thread_split coarse;
@@ -811,7 +813,7 @@ class cpubinder {
      * notice. */
     cpubinder(cpubinder const&) = delete;
     cpubinder&operator=(cpubinder const&) = delete;
-    cpubinder(ostream& os) : os(os) { hwloc_topology_init(&topology); }
+    cpubinder(std::ostream& os) : os(os) { hwloc_topology_init(&topology); }
     ~cpubinder() { hwloc_topology_destroy(topology); }
     void read_param_list(param_list_ptr pl, int want_conf_file);
     bool find(thread_split const& thr);
@@ -829,21 +831,21 @@ void cpubinder::read_param_list(param_list_ptr pl, int want_conf_file)
      * context. It's only used by the helper binary I have for testing
      * the topology matching code */
     const char * topology_file = param_list_lookup_string(pl, "input-topology-file");
-    const char * topology_string = param_list_lookup_string(pl, "input-topology-string");
+    const char * topology_string = param_list_lookup_string(pl, "input-topology-std::string");
     const char * cpubinding_conf = param_list_lookup_string(pl, "cpubinding");
 
     /* If we arrive here, then cpubinding_conf is not something which
      * looks like a forced binding, so this should be a config file
      */
     if (cpubinding_conf && want_conf_file) {
-        if (ifstream(cpubinding_conf) >> cf) {
-            os << PRE << "Read configuration from " << cpubinding_conf << endl;
+        if (std::ifstream(cpubinding_conf) >> cf) {
+            os << PRE << "Read configuration from " << cpubinding_conf << std::endl;
         } else {
-            throw invalid_argument("")
+            throw std::invalid_argument("")
                 << "Could not read cpubinding conf file "
                 << cpubinding_conf;
         }
-        // cerr << "Configuration:\n" << cf << endl;
+        // cerr << "Configuration:\n" << cf << std::endl;
     }
 
 #if HWLOC_API_VERSION < 0x020000
@@ -866,13 +868,13 @@ void cpubinder::read_param_list(param_list_ptr pl, int want_conf_file)
         /* hwloc-1.4.1 does not seem to understand "NUMANode" when
          * parsing synthetic strings. With 1.9.1 it works fine. I don't
          * know when exactly that changed.
-         * 1.4.1 wants "node" in the synthetic string instead. 1.9.1
+         * 1.4.1 wants "node" in the synthetic std::string instead. 1.9.1
          * still groks that. Let's do a transformation for pre-1.9, that
          * should keep us safe.
          */
         int rc = -1;
         {
-            istringstream is(topology_string);
+            std::istringstream is(topology_string);
             synthetic_topology stopo;
             if (is >> stopo) {
 #if HWLOC_API_VERSION < 0x010b00
@@ -883,15 +885,15 @@ void cpubinder::read_param_list(param_list_ptr pl, int want_conf_file)
                     if (x.object == "Package") { x.object="Socket"; }
                 }
 #endif
-                ostringstream os;
+                std::ostringstream os;
                 os << stopo;
-                string ss(os.str());
+                std::string ss(os.str());
                 const char * v = ss.c_str();
                 rc = hwloc_topology_set_synthetic(topology, v);
                 if (rc < 0)
-                    cerr << "hwloc_topology_set_synthetic("<< v <<") [mangled for hwloc<1.9] failed\n";
+                    std::cerr << "hwloc_topology_set_synthetic("<< v <<") [mangled for hwloc<1.9] failed\n";
             } else {
-                cerr << "pre-hwloc-1.9 mangling for hwloc_topology_set_synthetic("<< topology_string <<") failed\n";
+                std::cerr << "pre-hwloc-1.9 mangling for hwloc_topology_set_synthetic("<< topology_string <<") failed\n";
                 rc = -1;
             }
         }
@@ -908,7 +910,7 @@ void cpubinder::set_permissive_binding()
 {
     /* stopo and thr must have been set */
     os << PRE << "Selecting permissive mapping:"
-        << " " << mapping << endl;
+        << " " << mapping << std::endl;
     mapping.clear();
     mapping_string top(stopo.front().object, stopo.front().n, thr);
     mapping.push_back(top);
@@ -921,20 +923,20 @@ bool cpubinder::find(thread_split const& thr)
 {
     this->thr = thr;
     stopo = hwloc_synthetic_topology(topology);
-    os << PRE << "Hardware: " << stopo << endl;
-    os << PRE << "Target split: " << thr << endl;
+    os << PRE << "Hardware: " << stopo << std::endl;
+    os << PRE << "Target split: " << thr << std::endl;
 
     struct {
         int n;
-        pair<conf_file::key_type, conf_file::mapped_type> it;
-        list<mapping_string> e;
+        std::pair<conf_file::key_type, conf_file::mapped_type> it;
+        std::list<mapping_string> e;
         synthetic_topology s;
     } best;
     int nm=0;
     best.n = INT_MAX;
     for(auto it : cf) {
         int n;
-        list<mapping_string> e;
+        std::list<mapping_string> e;
         synthetic_topology s = stopo;
         if (compare_to_section_title(os, s, it.first, n, e)) {
             nm++;
@@ -945,8 +947,8 @@ bool cpubinder::find(thread_split const& thr)
                 best.e = e;
             } else if (n == best.n) {
                 os << PRE << "Found two matches with same accuracy level\n";
-                os << PRE << "First match:\n" << best.it.first << endl;
-                os << PRE << "Second match:\n" << it.first << endl;
+                os << PRE << "First match:\n" << best.it.first << std::endl;
+                os << PRE << "Second match:\n" << it.first << std::endl;
                 os << PRE << "First match wins.\n";
             }
 
@@ -954,7 +956,7 @@ bool cpubinder::find(thread_split const& thr)
     }
     if (best.n == INT_MAX)
         return false;
-    os << PRE << "config match: " << "[" << best.it.first << "]" << endl;
+    os << PRE << "config match: " << "[" << best.it.first << "]" << std::endl;
     if (nm > 1) {
         os << PRE << "(note: " << (nm-1) << "other (possibly looser) matches)\n";
     }
@@ -970,7 +972,7 @@ bool cpubinder::find(thread_split const& thr)
         }
         mapping.splice(mapping.end(), best.e);
     } else {
-        os << PRE << "Found \"remove\" mapping in config file." << endl;
+        os << PRE << "Found \"remove\" mapping in config file." << std::endl;
         set_permissive_binding();
     }
     stopo = best.s;
@@ -983,12 +985,12 @@ void cpubinder::force(thread_split const& t, const char * desc)/*{{{*/
     thr = t;
     stopo = hwloc_synthetic_topology(topology);
     if (strcmp(desc, "remove") == 0 || strlen(desc) == 0) {
-        os << PRE << "As per the provided string \""<<desc<<"\","
+        os << PRE << "As per the provided std::string \""<<desc<<"\","
             << " applying permissive mapping:"
-            << " " << mapping << endl;
+            << " " << mapping << std::endl;
         set_permissive_binding();
     } else {
-        istringstream(desc) >> mapping;
+        std::istringstream(desc) >> mapping;
     }
 }
 /*}}}*/
@@ -1007,7 +1009,7 @@ void cpubinder::stage()
     for(auto it = stopo.begin() ; it != stopo.end() ; g*=it++->n) ;
     ASSERT_ALWAYS(g == npu);
     */
-    vector<pinning_group> slots;
+    std::vector<pinning_group> slots;
     for(hwloc_obj_t pu = hwloc_get_obj_by_depth(topology, depth-1, 0) ;
             pu != NULL;
             pu = pu->next_cousin) slots.push_back(pu);
@@ -1022,8 +1024,8 @@ void cpubinder::stage()
 
     bool stars = true;
 
-    os << PRE << "Reduced topology: " << stopo << endl;
-    os << PRE << "Applying mapping: " << mapping << endl;
+    os << PRE << "Reduced topology: " << stopo << std::endl;
+    os << PRE << "Applying mapping: " << mapping << std::endl;
 
 #if HWLOC_API_VERSION >= 0x020000
     int numa_depth = hwloc_get_memory_parents_depth(topology);
@@ -1033,14 +1035,14 @@ void cpubinder::stage()
         char t[64];
         int d = hwloc_obj_type_snprintf(t, sizeof(t), pu, 1);
         if (d >= (int) sizeof(t))
-            throw overflow_error("Too long hwloc type name.");
+            throw std::overflow_error("Too long hwloc type name.");
         numa_replace = t;
     }
     for(auto & x : mapping) {
         if (x.object == "NUMANode") {
             x.object = numa_replace;
-            os << PRE << "Found legacy hwloc-1.x mapping string,"
-                << "replacing NUMANode by " << numa_replace << endl;
+            os << PRE << "Found legacy hwloc-1.x mapping std::string,"
+                << "replacing NUMANode by " << numa_replace << std::endl;
         }
     }
 #endif
@@ -1053,7 +1055,7 @@ void cpubinder::stage()
         }
         if (!stars) {
             if (jt->group) {
-                throw invalid_argument("") << "Wrongly placed * in " << mapping;
+                throw std::invalid_argument("") << "Wrongly placed * in " << mapping;
             }
             if ((int) jt->t == 1) continue;
         }
@@ -1078,7 +1080,7 @@ void cpubinder::stage()
                     os << PRE << "Warning: while applying " << *jt
                         << ": we have only " << rtn
                         << " " << rt->object << " scheduled"
-                        << " out of " << rt->n << endl;
+                        << " out of " << rt->n << std::endl;
                     /* well, do it, then ! */
                     coarse_slots.chop_off(rtn);
                 }
@@ -1090,7 +1092,7 @@ void cpubinder::stage()
         }
 
         if (rt == stopo.rend())
-            throw invalid_argument("")
+            throw std::invalid_argument("")
                 << "Hit end of hardware description"
                 << " while applying " << *jt;
         bool check;
@@ -1104,7 +1106,7 @@ void cpubinder::stage()
         }
 
         if (!check) {
-            throw invalid_argument("")
+            throw std::invalid_argument("")
                     << *rt << " ("<<rtn<<" left)"
                     << " is not correct while applying " << *jt;
         }
@@ -1133,7 +1135,7 @@ void cpubinder::stage()
             /* we have no way to silence this warning at the moment.
              * Maybe add an explicit syntax like Core/2, or something ?
              */
-            os << PRE << "Warning: completed mapping uses only " << (rt->n/rtn) << " " << rt->object << " out of " << rt->n << endl;
+            os << PRE << "Warning: completed mapping uses only " << (rt->n/rtn) << " " << rt->object << " out of " << rt->n << std::endl;
             coarse_slots.chop_off(rtn);
         }
         if (++rt == stopo.rend())
@@ -1143,20 +1145,20 @@ void cpubinder::stage()
 
     ASSERT_ALWAYS(coarse_slots.outer_dimension() == 1);
 
-    // os << PRE << "Coarse slots now organized in " << coarse_slots.outer_dimension() << " matrices of size " << coarse_slots.t << endl;
+    // os << PRE << "Coarse slots now organized in " << coarse_slots.outer_dimension() << " matrices of size " << coarse_slots.t << std::endl;
 
     /* We should have a matrix of thread groups whose dimension is
      * thr/coarse, each grouping coarse threads */
 
-    os << PRE << "Threads organized as " << thr/coarse << " blocks of dimensions " << coarse << endl;
+    os << PRE << "Threads organized as " << thr/coarse << " blocks of dimensions " << coarse << std::endl;
 
     if (coarse_slots.t != thr/coarse) {
-        throw invalid_argument("") << "mapping does achieve desired split"
+        throw std::invalid_argument("") << "mapping does achieve desired split"
             << " (" << coarse_slots.t*coarse << ", wanted " << thr << ")\n";
     }
     for(int i = 0 ; i < thr[0] ; i+=coarse[0]) {
         for(int j = 0 ; j < thr[1] ; j+=coarse[1]) {
-            ostringstream oos;
+            std::ostringstream oos;
             if ((int) coarse > 1) {
                 oos << "threads ("<<i<<","<<j<<")"
                     << " to ("<<i+coarse[0]-1<<","<<j+coarse[1]-1<<")";
@@ -1164,7 +1166,7 @@ void cpubinder::stage()
                 oos << "thread ("<<i<<","<<j<<")";
             }
             pinning_group p = coarse_slots.xs(i/coarse[0], j/coarse[1]);
-            os << PRE << "" << oos.str() << " -> " << p << endl;
+            os << PRE << "" << oos.str() << " -> " << p << std::endl;
         }
     }
     if (fake)
@@ -1195,9 +1197,9 @@ void * cpubinding_get_info(char ** messages, param_list_ptr pl, int ttt[2])
     }
 
 #ifdef  CPUBINDING_DEBUG
-    ostream& os(cerr);
+    std::ostream& os(std::cerr);
 #else   /* CPUBINDING_DEBUG */
-    ostringstream os;
+    std::ostringstream os;
 #endif  /* CPUBINDING_DEBUG */
 
     cpubinder * cb = new cpubinder(os);
@@ -1216,7 +1218,7 @@ void * cpubinding_get_info(char ** messages, param_list_ptr pl, int ttt[2])
             delete cb;
             cb = NULL;
         }
-    } catch (invalid_argument const& e) {
+    } catch (std::invalid_argument const& e) {
         os << PRE << "Failed on error:\n"
             << PRE << "  " << e.what() << "\n";
         delete cb;
@@ -1243,7 +1245,7 @@ void cpubinder::apply(int i, int j) const
     // cout << "Pinning thread ("<<i<<","<<j<<") to " << p << "\n";
     int rc = p.pin(topology, HWLOC_CPUBIND_THREAD);
     if (rc < 0) {
-        cerr << "Pinning thread ("<<i<<","<<j<<") to " << p << ": " << strerror(errno) << endl;
+        std::cerr << "Pinning thread ("<<i<<","<<j<<") to " << p << ": " << strerror(errno) << std::endl;
     }
 }
 

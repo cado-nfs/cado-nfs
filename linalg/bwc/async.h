@@ -1,6 +1,8 @@
-#ifndef ASYNC_H_
+#ifndef ASYNC_H_ // IWYU pragma: keep
 #define ASYNC_H_
 
+#include <stddef.h>              // for size_t
+#include "macros.h"              // for ATTR_PRINTF
 #include "parallelizing_info.h"
 
 /* How long do we typically accept to wait for asynchronous output (=

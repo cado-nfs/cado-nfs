@@ -1,21 +1,25 @@
 #ifndef BPACK_HPP_
 #define BPACK_HPP_
 
-#include "bblas.hpp"
-#include "bblas_mat64.hpp"
-#include "bblas_mat8.hpp"
+#include <cstdint>                       // for uint64_t, uint8_t
 #include <vector>
 #include <type_traits>
 #include <algorithm>
+#include <gmp.h>                          // for gmp_randstate_t
+#include "bblas_bitmat.hpp"  // for bitmat
+// wee need these to resolve the member constexpr
+#include "bblas_mat64.hpp" // IWYU pragma: keep
+#include "bblas_mat8.hpp" // IWYU pragma: keep
+#include "macros.h"                       // for ASSERT_ALWAYS
 
 /* a bpack_view is *non-owning* view on a bit bitmat<T>, made of bit
  * matrices stored in row major order, the base type being the template
  * parameter "bitmat<T>".
  */
 
-template<typename T> struct bpack;
-template<typename T> struct bpack_const_view;
-template<typename T> struct bpack_view;
+template<typename T> struct bpack; // IWYU pragma: keep
+template<typename T> struct bpack_const_view; // IWYU pragma: keep
+template<typename T> struct bpack_view; // IWYU pragma: keep
 
 template<typename T>
 struct bpack_ops {

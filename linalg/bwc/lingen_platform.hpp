@@ -1,8 +1,9 @@
 #ifndef LINGEN_PLATFORM_HPP_
 #define LINGEN_PLATFORM_HPP_
 
-#include "params.h"
+#include <cstddef>      // for size_t
 #include "select_mpi.h"
+struct cxx_param_list;
 
 struct lingen_platform {
     /* input characteristics -- the ones we have to live with */

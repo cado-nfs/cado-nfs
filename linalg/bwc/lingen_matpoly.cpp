@@ -1,12 +1,15 @@
-#include "cado.h"
-#include "mpfq_layer.h"
-#include <cstdlib>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <sys/param.h>
+#include <cstring>                   // for memmove
+#include <algorithm>                  // for min, max
+#include <utility>                    // for move, swap
 #include <gmp.h>
+#include "lingen_matpoly_select.hpp"  // for matpoly, matpoly::const_view_t
+#include "mpfq_layer.h"
 #include "omp_proxy.h"
-#include "portability.h"
 #include "macros.h"
 #include "lingen_matpoly.hpp"
-#include "flint-fft/fft.h"
+#include "lingen_polymat.hpp"
 
 matpoly::memory_pool_type matpoly::memory;
 

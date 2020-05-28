@@ -1,4 +1,6 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <features.h>
+#include <cstdio>       // for fprintf, stderr
 #include "lingen_memory_pool.hpp"
 #include "misc.h"
 #include "select_mpi.h"
@@ -42,12 +44,10 @@ void memory_pool_details::alloc_check(const char * text, bool condition)
 
 #if defined(__GLIBC__)
 #include <execinfo.h>   /* For backtrace. Since glibc 2.1 */
-#include <dlfcn.h>
 #ifdef HAVE_CXXABI_H
 /* We use that to demangle C++ names */
 #include <cxxabi.h>
 #endif
-#include "fmt/printf.h"
 #endif
 
 std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)

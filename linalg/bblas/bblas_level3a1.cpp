@@ -1,8 +1,11 @@
-#include "cado.h"
-#include "bblas_level3a1.hpp"
-
+#include "cado.h" // IWYU pragma: keep
+#include <cstdint>                         // for uint64_t
 #include <cstring>
 #include <algorithm>
+#include "bblas_mat64.hpp"  // for mat64
+#include "bblas_level3a.hpp"  // for mat64_transpose
+#include "macros.h"           // for ASSERT_ALWAYS, iceildiv
+#include "bblas_level3a1.hpp"
 
 /**********************************************************************/
 /* level 3a (extension, matpoly_polmat): conversions.

@@ -3,12 +3,20 @@
 my $iwyu=q{@iwyu_path@};
 my $srcpath=q{@CADO_NFS_SOURCE_DIR@};
 
-exit 0 if grep(/gf2x\//, @ARGV);
-exit 0 if grep(/fmt\//, @ARGV);
-exit 0 if grep(/flint\//, @ARGV);
-exit 0 if grep(/mpfq\//, @ARGV);
+my @cmd = @ARGV;
+while(@cmd) {
+    next unless defined($_=shift @cmd);
+    next unless $_ eq '-c';
+    die "no source file ?" unless defined($_=shift @cmd);
+    print "// source file: $_";
+    exit 0 if /gf2x\//;
+    exit 0 if /fmt\//;
+    exit 0 if /flint-fft\//;
+    exit 0 if /mpfq\//;
+    last;
+}
 
-my $cmd=join(" ", ($iwyu, @ARGV));
+my $cmd=join(" ", ($iwyu, grep { !/--mpi/ } @ARGV));
 
 
 # my %files = ();

@@ -29,7 +29,7 @@
 #include <math.h>
 #include <pthread.h>
 #include <gmp.h>
-#include "omp_proxy.h"
+#include "omp_proxy.h" // IWYU pragma: keep
 #include "cado_poly.h"
 #include "area.h"
 #include "auxiliary.h"

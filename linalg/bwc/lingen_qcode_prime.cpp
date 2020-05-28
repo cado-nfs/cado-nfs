@@ -1,9 +1,18 @@
-#include "cado.h"
-#include "lingen_qcode_prime.hpp"
-#include "bw-common.h"
-#include "lingen.hpp"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <sys/param.h>
+#include <cstdio>                        // for printf, fprintf, stderr
+#include <cstdlib>                       // for exit, qsort, EXIT_FAILURE
+#include <tuple>                          // for tie, tuple
+#include <vector>                         // for vector
 #include "cxx_mpz.hpp"
+#include "lingen_abfield.hpp" // IWYU pragma: keep
+#include "lingen_bmstatus.hpp"            // for bmstatus
+#include "lingen_bw_dimensions.hpp"
+#include "lingen_call_companion.hpp"      // for lingen_call_companion
 #include "lingen_expected_pi_length.hpp"
+#include "lingen_qcode_prime.hpp"
+#include "macros.h"                       // for ASSERT_ALWAYS, ASSERT, icei...
+#include "tree_stats.hpp"                 // for tree_stats, tree_stats::sen...
 
 /* This destructively cancels the first len coefficients of E, and
  * computes the appropriate matrix pi which achieves this. The
@@ -233,7 +242,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                     break;
             }
             if (u == m) continue;
-            assert(r < m);
+            ASSERT(r < m);
             /* }}} */
             pivots[r++] = j;
             is_pivot[j] = 1;
@@ -257,7 +266,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                 abelt lambda;
                 abinit(ab, &lambda);
                 abmul(ab, lambda, inv, e.coeff(u, k, 0));
-                assert(bm.delta[j] <= bm.delta[k]);
+                ASSERT(bm.delta[j] <= bm.delta[k]);
                 /* {{{ Apply on both e and pi */
                 abelt tmp;
                 abinit(ab, &tmp);

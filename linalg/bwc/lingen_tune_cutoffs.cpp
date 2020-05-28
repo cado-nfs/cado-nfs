@@ -1,41 +1,46 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
-#include <sys/time.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <cerrno>
-#include <cmath>
+// IWYU pragma: no_include <sys/param.h>
+// IWYU pragma: no_include <memory>
+
+#ifdef SELECT_MPFQ_LAYER_u64k1
+#error "lingen_tune_cutoffs does not work with binary, at least for the moment"
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
-#include <unistd.h>
-#include <cassert>
-#include <cfloat>
+#include <climits>                         // for UINT_MAX
+#include <cstdint>                         // for uint64_t
 #ifdef  HAVE_SIGHUP
 #include <csignal>
 #endif
-#include "omp_proxy.h"
-#include "portability.h"
-#include "macros.h"
-#include "cxx_mpz.hpp"
-#include "mpfq_layer.h"
-#include "lingen_polymat.hpp"
-#include "lingen_matpoly.hpp"
-// #include "lingen_bigpolymat.h" // 20150826: deleted.
-#include "lingen_matpoly_ft.hpp"
-#include "lingen.hpp"
-#include "lingen_tune_cutoffs.hpp"
-
 #include <vector>
-#include <array>
 #include <utility>
 #include <map>
 #include <string>
-#include <ostream>
-#include <iostream>
-#include <sstream>
+#include <iostream>     // std::cout
+#include <sstream> // IWYU pragma: keep
+#include <type_traits>                      // for __strip_reference_wrapper...
+
+#include <gmp.h>                            // for mp_limb_t, gmp_randclear
+
+#include "timing.h"                         // for seconds, wct_seconds, cpu...
+#include "tree_stats.hpp"                   // for tree_stats
+
+#include "macros.h"
+#include "cxx_mpz.hpp"
+#ifndef SELECT_MPFQ_LAYER_u64k1
+#include "lingen_polymat.hpp"
+#endif
+#include "lingen_matpoly_select.hpp"
+#include "lingen_fft_select.hpp" // IWYU pragma: keep
+// #include "lingen_bigpolymat.h" // 20150826: deleted.
+#include "lingen_matpoly_ft.hpp"
+#include "lingen_abfield.hpp" // IWYU pragma: keep
+#include "lingen_bw_dimensions.hpp"
+#include "lingen_tune_cutoffs.hpp"
+#include "params.h"
 
 using namespace std;
 

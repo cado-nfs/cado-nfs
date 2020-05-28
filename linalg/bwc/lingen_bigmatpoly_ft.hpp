@@ -3,10 +3,19 @@
 
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_bigmatpoly.hpp"
+#include "lingen_fft_select.hpp" // IWYU pragma: keep
+#include "lingen_call_companion.hpp"
+/*
+#ifdef SELECT_MPFQ_LAYER_u64k1
+struct gf2x_fake_fft_info;
+struct gf2x_cantor_fft_info;
+struct gf2x_ternary_fft_info;
+#else
+struct fft_transform_info;
+#endif
+*/
 
-#include "select_mpi.h"
-#include "lingen_substep_schedule.hpp"
-#include "tree_stats.hpp"
+class tree_stats;
 
 /* The class is only used as a namespace, really */
 template<typename fft_type>

@@ -1,18 +1,16 @@
 #include "cado.h" // IWYU pragma: keep
+#include <pthread.h>      // for pthread_t
+#include <stddef.h>       // for ptrdiff_t
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <ctype.h>
-#include "bwc_config.h"
 #include "select_mpi.h"
 #include "parallelizing_info.h"
 #include "macros.h"

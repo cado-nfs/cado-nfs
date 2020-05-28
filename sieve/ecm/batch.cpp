@@ -21,7 +21,7 @@
 #include <vector>              // for vector
 #include <gmp.h>
 
-#include "omp_proxy.h"
+#include "omp_proxy.h" // IWYU pragma: keep
 #include "batch.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul_doit.hpp"      // for facul_doit_onefm

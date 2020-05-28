@@ -2,10 +2,9 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdlib.h>
-#include "bwc_config.h"
 #include "parallelizing_info.h"
 #include "xvectors.h"
-#include "balancing.h"
+#include "macros.h"              // for FATAL_ERROR_CHECK
 
 typedef int (*sortfunc_t) (const void *, const void *);
 

@@ -1,15 +1,25 @@
 #ifndef LINGEN_IO_WRAPPERS_HPP_
 #define LINGEN_IO_WRAPPERS_HPP_
 
-#include "gmp_aux.h"
-#include "lingen_bigmatpoly.hpp"
-#include "lingen_matpoly_select.hpp"
-#include "lingen_bmstatus.hpp"
-#include "sha1.h"
+// IWYU pragma: no_include <algorithm>
+
+#include <stdio.h>                    // for size_t, FILE
 #include <fstream>
-#include <gmp.h>
 #include <vector>
 #include <memory>
+#include <array>                      // for array
+#include <string>                     // for string
+#include <tuple>                      // for tuple
+#include <sys/types.h>                // for ssize_t
+#include "gmp_aux.h"
+#include "lingen_abfield.hpp"         // for abdst_field, mpfq_p_1_dst_field
+#include "lingen_bigmatpoly.hpp"
+#include "lingen_bw_dimensions.hpp"   // for bw_dimensions
+#include "lingen_matpoly_select.hpp"
+#include "macros.h"                   // for ASSERT_ALWAYS
+#include "select_mpi.h"               // for MPI_Comm
+#include "sha1.h"
+struct bmstatus;
 
 /* This layer intends to absorb some 1400 lines of lingen.cpp, in a
  * "pipes and fittings" approach. This should be more usable than the
@@ -17,8 +27,6 @@
  * accept to pay in exchange is some caching matpoly's at some places
  * (those will also bring the benefit of maximizing the performance for
  * the binary case, and might even do good in the prime field case either).
- *
- * XXX Most of all this is still "not implemented yet". XXX
  */
 struct lingen_io_wrapper_base
 {

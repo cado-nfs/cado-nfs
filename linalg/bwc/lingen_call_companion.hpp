@@ -1,8 +1,11 @@
 #ifndef LINGEN_CALL_COMPANION_HPP_
 #define LINGEN_CALL_COMPANION_HPP_
 
+#include <cstddef>                       // for size_t
+#include <stdexcept>                      // for runtime_error
+#include <string>                         // for string
+#include <iosfwd>
 #include <istream>
-#include <ostream>
 #include <array>
 #include "lingen_substep_schedule.hpp"
 #include "timing.h"     /* weighted_double */

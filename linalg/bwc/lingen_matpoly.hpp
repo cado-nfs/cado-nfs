@@ -1,21 +1,16 @@
 #ifndef LINGEN_MATPOLY_HPP_
 #define LINGEN_MATPOLY_HPP_
 
-#include <mutex>
-#include <list>
-#include <tuple>
-#include <functional>   /* reference_wrapper */
-
-#include "mpfq_layer.h"
-
-class matpoly;
-struct polymat;
-
-#include "lingen_polymat.hpp"
-#include "submatrix_range.hpp"
-#include "lingen_memory_pool.hpp"
-#include "tree_stats.hpp"
+#include <cstddef>                   // for size_t, NULL
+#include <gmp.h>                      // for gmp_randstate_t
 #include "lingen_call_companion.hpp"
+#include "lingen_memory_pool.hpp"
+#include "macros.h"                   // for ASSERT_ALWAYS, ATTRIBUTE_WARN_U...
+#include "mpfq_layer.h"
+#include "submatrix_range.hpp"
+#include "tree_stats.hpp"
+
+struct polymat;
 
 /* This is used only for lingen. */
 
@@ -210,8 +205,6 @@ public:
     void set_polymat(polymat const & src);
     int coeff_is_zero(unsigned int k) const;
     void coeff_set_zero(unsigned int k);
-    struct view_t;
-    struct const_view_t;
 
     struct view_t : public submatrix_range {
         matpoly & M;

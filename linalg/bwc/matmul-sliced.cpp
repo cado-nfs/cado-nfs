@@ -2,29 +2,23 @@
 /* It's in C++ because the STL is handy, but that's really all there is
  * to it... */
 #include "cado.h" // IWYU pragma: keep
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
 #include <cstdio>
-#include <cstdlib>
-#include <cerrno>
-
-#include <climits>
 #include <cmath>
-
-#include <stdint.h>
-#include <string.h>
+#include <cstdint>
+#include <cstring>
+#include <cstdarg>         // for va_list, va_end, va_start
 
 // C++ headers.
-// #include <string>
+#include <utility>          // for pair, make_pair
 #include <vector>
 #include <algorithm>    // sort
 #include <iostream>     // cout
-#include "bwc_config.h"
+
 using namespace std;
 
-
+#include "matmul.h"         // for matmul_ptr, matmul_public_s
 #include "mpfq_layer.h"
 #include "matmul-common.h"
-
 #include "matmul_facade.h"
 #include "macros.h"
 #include "params.h"

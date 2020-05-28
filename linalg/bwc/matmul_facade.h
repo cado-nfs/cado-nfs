@@ -1,6 +1,11 @@
 #ifndef MATMUL_FACADE_H_
 #define MATMUL_FACADE_H_
 
+#include <stdarg.h>  // for va_list
+#include <stddef.h>  // for size_t
+#include <stdint.h>  // for uint32_t
+#include "params.h"  // for param_list
+
 /* This file is included by all matmul implementations so as to enable
  * the macros MATMUL_NAME and MATMUL_T.
  *

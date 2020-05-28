@@ -1,14 +1,17 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdlib.h>
+#include <cstdint>      // for SIZE_MAX
+#include <cstring>      // for memset, strlen
+#include <cstdio>       // fprintf // IWYU pragma: keep
+#include <cstdarg>      // va_list // IWYU pragma: keep
+#include <cstdlib>
+#include <string>        // for string, basic_string
 #include <vector>
 #include "logline.h"
 #include "memusage.h"   // Memusage2
 #include "params.h"     // param_list_parse_*
 #include "select_mpi.h"
 #include "timing.h"     // seconds
-#include "portability.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
 #include "misc.h"       // size_disp_fine
 #include "macros.h"
 

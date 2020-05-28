@@ -1,13 +1,12 @@
 #ifndef LINGEN_TUNING_HPP_
 #define LINGEN_TUNING_HPP_
 
-#include <map>
-#include "params.h"
-#include "lingen.hpp"
-#include "select_mpi.h"
-#include "timing.h"     /* for weighted_double */
-#include "tree_stats.hpp"
-#include "lingen_hints.hpp"
+#include <stddef.h>          // for size_t
+#include "lingen_hints.hpp"  // for lingen_hints
+#include "select_mpi.h"      // for MPI_Comm
+struct bw_dimensions;
+struct cxx_param_list;
+
 
 void lingen_tuning_decl_usage(cxx_param_list & pl);
 void lingen_tuning_lookup_parameters(cxx_param_list & pl);

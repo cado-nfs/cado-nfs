@@ -1,5 +1,8 @@
-#include "cado.h"
-#include "bblas.hpp"
+#include "cado.h" // IWYU pragma: keep
+#include <cstdint>                      // for uint64_t
+#include <cstdio>                       // for putchar
+#include "macros.h"                      // for ASSERT_ALWAYS
+#include "bblas_mat64.hpp"  // for mat64
 
 /* at least theoretically, we should be able to use the following unicode
  * characters to obtain more condensed printing.

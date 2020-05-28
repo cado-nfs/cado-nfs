@@ -4,7 +4,8 @@
 // IWYU pragma: private, include "bblas.hpp"
 // IWYU pragma: friend ".*/bblas.*"
 
-#include "bblas.hpp"
+#include <cstdint>          // for uint64_t, UINT64_C
+#include "bblas_mat64.hpp"  // for mat64
 
 /**********************************************************************/
 /* level 5: polynomials with 64*64 matrix coefficients

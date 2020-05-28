@@ -2,7 +2,6 @@
 #define CADO_LINALG_GAUSS_H_
 
 #include <gmp.h>
-#include "macros.h"
 
 #ifdef __cplusplus
 extern "C" {

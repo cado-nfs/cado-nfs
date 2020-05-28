@@ -1,12 +1,13 @@
 #ifndef LINGEN_CHECKPOINTS_HPP_
 #define LINGEN_CHECKPOINTS_HPP_
 
-#include "lingen.hpp"
-#include "lingen_bmstatus.hpp"
-#include "params.h"
-
-#include "lingen_matpoly_select.hpp"
-#include "lingen_bigmatpoly.hpp"
+#include <stddef.h>               // for size_t
+#include <stdexcept>              // for runtime_error
+#include <string>                 // for string
+#include "lingen_bigmatpoly.hpp"  // for bigmatpoly
+class matpoly;
+struct bmstatus;
+struct cxx_param_list;
 
 enum cp_which {
     LINGEN_CHECKPOINT_E,

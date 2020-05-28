@@ -1,17 +1,20 @@
 #ifndef TREE_STATS_HPP_
 #define TREE_STATS_HPP_
-
+// IWYU pragma: no_include <ext/alloc_traits.h>
+#include <cstdlib>                       // for abs
+#include <utility>   // for pair
 #include <string>
 #include <vector>
 #include <map>
 #include <climits>
 #include <cmath>
-#include <istream>
-#include <ostream>
+#include <istream> // IWYU pragma: keep
+#include <ostream> // IWYU pragma: keep
 #include "macros.h"
 #include "timing.h"
-#include "params.h"
 #include "lingen_round_operand_size.hpp"
+struct cxx_param_list; // IWYU pragma: keep
+
 
 /* This structure is meant to help the timing of a recursive tree-like
  * algorithms like the linear generator algorithm we use in block
@@ -56,11 +59,15 @@ class tree_stats {
     static void declare_usage(cxx_param_list & pl);
     private:
 
-    struct step_time;
-    struct function_with_input_size;
-    struct running_stats;
-    struct function_stats;
-    struct level_stats;
+    // for clarity, fwd-decl. We really _must_ keep the fwd-decl of
+    // level_stats, despite what iwyu says (and as a matter of fact, it
+    // does not seem to abide by its very own pragma)
+    // struct step_time; // IWYU pragma: keep
+    struct function_with_input_size; // IWYU pragma: keep
+    struct running_stats; // IWYU pragma: keep
+    // struct function_stats; // IWYU pragma: keep
+    struct level_stats; // IWYU pragma: keep
+
     typedef std::vector<std::pair<function_with_input_size, running_stats>> curstack_t;
 
     struct step_time {/*{{{*/

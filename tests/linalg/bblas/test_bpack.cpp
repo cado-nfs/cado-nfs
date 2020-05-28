@@ -1,5 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include "bblas_mat8.hpp"
+// IWYU pragma: no_include "bblas_mat64.hpp"
 #include <cstdint>                // for uint64_t, uint8_t
 #include <utility>                // for pair
 #include "bblas_bitmat.hpp"

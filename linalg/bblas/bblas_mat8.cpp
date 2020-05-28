@@ -1,8 +1,9 @@
-#include "cado.h"
-#include "bblas.hpp"
+#include "cado.h" // IWYU pragma: keep
+#include <algorithm>                      // for min
+#include "macros.h"                       // for ASSERT
+#include "bblas_bitmat.hpp"  // for bitmat_ops, bblas_bitmat_de...
 #include "bblas_mat8.hpp"
-#include "bblas_bitmat_inl.hpp"
-#include "gmp_aux.h"      // memfill_random
+#include "bblas_bitmat_inl.hpp" // IWYU pragma: keep
 
 using namespace bblas_bitmat_details;
 

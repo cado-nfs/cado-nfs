@@ -1,7 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <cstdint>
 #include "bblas_level3a.hpp"
-#include <cstring>
+#include "bblas_mat64.hpp"
 #include "gmp_aux.h"    // memfill_random
+#include "macros.h"      // for ASSERT_ALWAYS
 
 /**********************************************************************/
 /* level 3a: basic operations on 64*64 matrices.

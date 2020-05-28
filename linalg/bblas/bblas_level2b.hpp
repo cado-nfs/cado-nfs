@@ -4,7 +4,7 @@
 // IWYU pragma: private, include "bblas.hpp"
 // IWYU pragma: friend ".*/bblas.*"
 
-#include "bblas.hpp"
+#include <cstdint>         // for uint64_t
 #include "bblas_mat64.hpp"
 
 /**********************************************************************/

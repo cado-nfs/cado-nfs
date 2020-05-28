@@ -1,25 +1,25 @@
 #include "cado.h" // IWYU pragma: keep
-
-#include <stdio.h>
-#include <stdlib.h>
-#include "bwc_config.h"
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>              // for uint64_t, UINT64_C
+#include <cstring>              // for memcpy, memset
+#include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
+#include "matmul.h"              // for matmul_public_s
 #include "parallelizing_info.h"
 #include "matmul_top.h"
 #include "select_mpi.h"
 #include "params.h"
-#include "xvectors.h"
 #include "misc.h"
 #include "bw-common.h"
 #include "async.h"
-#include "xdotprod.h"
-#include "rolling.h"
 #include "bblas.hpp"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "cheating_vec_init.h"
-#include "portability.h"
 #include "bit_vector.h"
 #include "macros.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
+
 
 int exit_code = 0;
 

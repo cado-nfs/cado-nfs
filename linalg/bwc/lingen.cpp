@@ -1,58 +1,60 @@
 /* Copyright (C) 1999--2007 Emmanuel Thom'e --- see LICENSE file */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <sys/param.h>
+#include <cstdint>                        // for SIZE_MAX
+#include <cmath>                          // for ceil
+#include <cstdio>                         // for printf, fprintf, size_t
+#include <cstdlib>                        // for exit, free, EXIT_FAILURE
+#include <cstring>                        // for strcmp, memcpy, memset, strdup
 
-#include <sys/time.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <cerrno>
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-#include <unistd.h>
-#include <algorithm>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/utsname.h>
-#include <stdexcept>
-#include <cassert>
-#include <fstream>
-#include <sstream>
-#include "omp_proxy.h"
+#include <algorithm>                      // for fill
+#include <fstream>                        // for basic_ostream::write
+#include <memory>                         // for unique_ptr
+#include <stdexcept>                      // for runtime_error, overflow_error
+#include <string>                         // for operator+, string
+#include <vector>                         // for vector
 
-#include "portability.h"
-#include "macros.h"
-#include "memusage.h"
+#include <sys/utsname.h>                  // for uname, utsname
+#include <gmp.h>                          // for gmp_randclear, gmp_randinit...
 
-#include "lingen.hpp"
+#include "bw-common.h"                    // for bw, bw_common_clear, bw_com...
+#include "fmt/core.h"                     // for check_format_string
+#include "fmt/format.h"                   // for basic_buffer::append, basic...
+#include "fmt/printf.h" // IWYU pragma: keep
+#ifdef SELECT_MPFQ_LAYER_u64k1
+#include "gf2x-fft.h"                     // for gf2x_cantor_fft_info
+#include "gf2x-ternary-fft.h"             // for gf2x_ternary_fft_info
+#else
+#include "flint-fft/transform_interface.h"          // fft_transform_info
+#endif
+#include "lingen_abfield.hpp"             // for abfield_clear, abfield_init
+#include "lingen_bigmatpoly.hpp"          // for bigmatpoly, bigmatpoly_model
+#include "lingen_bigmatpoly_ft.hpp"       // for bigmatpoly_ft
+#include "lingen_bmstatus.hpp"            // for bmstatus
+#include "lingen_bw_dimensions.hpp"       // for bw_dimensions
+#include "lingen_call_companion.hpp"      // for lingen_call_companion, ling...
+#include "lingen_checkpoints.hpp"         // for save_checkpoint_file, load_...
+#include "lingen_expected_pi_length.hpp"  // for expected_pi_length, expecte...
+#include "lingen_hints.hpp"               // for lingen_hints
+#include "lingen_io_matpoly.hpp"          // for lingen_io_matpoly_decl_usage
+#include "lingen_io_wrappers.hpp"         // for lingen_output_wrapper_base
+#include "lingen_matpoly_ft.hpp"          // for matpoly_ft, matpoly_ft<>::m...
+#include "lingen_matpoly_select.hpp"      // for matpoly, matpoly::memory_guard
+#include "lingen_qcode_select.hpp"           // for bw_lingen_basecase
+#include "lingen_substep_schedule.hpp"    // for lingen_substep_schedule
+#include "lingen_tuning.hpp"              // for lingen_tuning, lingen_tunin...
+#include "logline.h"                      // for logline_end, logline_init_t...
+#include "macros.h"                       // for ASSERT_ALWAYS, iceildiv, MIN
+#include "memusage.h"                     // for PeakMemusage
+#include "misc.h"                         // for size_disp
+#include "omp_proxy.h"                    // for omp_set_num_threads
+#include "params.h"                       // for cxx_param_list, param_list_...
+#include "select_mpi.h"                   // for MPI_Comm, MPI_Comm_rank
+#include "sha1.h"                         // for sha1_checksumming_stream
+#include "timing.h"                       // for seconds
+#include "tree_stats.hpp"                 // for tree_stats, tree_stats::tra...
+#include "portability.h" // strdup // IWYU pragma: keep
 
-#include "lingen_bmstatus.hpp"
-#include "lingen_average_matsize.hpp"
-#include "logline.h"
-#include "tree_stats.hpp"
-
-#include "lingen_expected_pi_length.hpp"
-
-#include "lingen_matpoly_select.hpp"
-#include "lingen_io_matpoly.hpp"
-
-#include "lingen_io_wrappers.hpp"
-
-#include "lingen_qcode_select.hpp"
-
-#include "lingen_matpoly_ft.hpp"
-
-#include "lingen_bigmatpoly.hpp"
-#include "lingen_bigmatpoly_ft.hpp"
-
-#include "bw-common.h"		/* Handy. Allows Using global functions
-                                 * for recovering parameters */
-
-#include "lingen_checkpoints.hpp"
-#include "lingen_tuning.hpp"
-#include "sha1.h"
-#include "fmt/printf.h"
 
 /* If non-zero, then reading from A is actually replaced by reading from
  * a random generator */

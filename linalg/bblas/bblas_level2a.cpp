@@ -1,6 +1,10 @@
-#include "cado.h"
-#include "bblas.hpp"
+#include "cado.h" // IWYU pragma: keep
+#ifdef HAVE_SSE2
+#include <emmintrin.h>                   // for _mm_setzero_si128, __m128i
+#include <mmintrin.h>                    // for _mm_empty
+#endif
 #include "bblas_level2a.hpp"
+#include "bblas_mat64.hpp"
 #include "bblas_simd.hpp"
 
 /**********************************************************************/

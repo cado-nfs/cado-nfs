@@ -1,7 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <vector>
+#include <ostream>       // for istream, operator<<, ostream, basic_ostream
+#include <type_traits>   // for enable_if, is_trivially_copyable
+#include <utility>       // for pair, move
 #include "select_mpi.h"
 #include "lingen_hints.hpp"
-#include <vector>
 
 template<typename T>
     typename std::enable_if<std::is_trivially_copyable<typename T::mapped_type>::value, void>::type

@@ -1,7 +1,12 @@
 #include "cado.h"
+#include <cstdint>          // for uint64_t, UINT64_C
+#include "bblas_mat64.hpp"  // for mat64
 #include "bblas_level4.hpp"
-#include <cstring>
 #include "bblas_simd.hpp"
+// the whole point of bblas_simd is to avoid including these files...
+// IWYU pragma: no_include <emmintrin.h>
+// IWYU pragma: no_include <smmintrin.h>
+// IWYU pragma: no_include <immintrin.h>
 
 /* Computes l,u,p, such that:
  *  - l is unit lower triangular

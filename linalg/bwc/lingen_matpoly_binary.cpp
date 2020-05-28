@@ -1,12 +1,18 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <climits>                   // for UINT_MAX
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>                  // for min, max
+#include <type_traits>                // for integral_constant<>::value, is_...
+#include <utility>                    // for move, swap
 #include <gmp.h>
+#include "gmp_aux.h"                  // for mpn_randomb
+#include "lingen_matpoly_binary.hpp"  // for matpoly, matpoly::const_view_t
 #include "omp_proxy.h"
-#include "portability.h"
 #include "macros.h"
+
+#include "mpfq_fake.hpp"
 #include "misc.h"       // cado_ctzl
-#include "lingen_matpoly_binary.hpp"
 #include "gf2x.h"
 
 matpoly::memory_pool_type matpoly::memory;

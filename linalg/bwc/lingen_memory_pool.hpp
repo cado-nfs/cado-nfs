@@ -1,11 +1,12 @@
 #ifndef LINGEN_MEMORY_POOL_HPP_
 #define LINGEN_MEMORY_POOL_HPP_
-
+// IWYU pragma: no_include <bits/exception.h>
+#include <cstdint>          // for SIZE_MAX
+#include <new>               // for bad_alloc
 #include <mutex>
 #include <cstdlib>
-#include <exception>
+#include <exception> // std::exception // IWYU pragma: keep
 #include <string>
-#include "macros.h"
 
 #define MEMORY_POOL_ALLOC_CHECK(X) memory_pool_details::alloc_check(#X, (X))
 

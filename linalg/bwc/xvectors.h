@@ -1,9 +1,9 @@
 #ifndef XVECTORS_H_
 #define XVECTORS_H_
 
+#include <gmp.h>
 #include <stdint.h>
 #include "parallelizing_info.h"
-#include "balancing.h"
 
 #ifdef __cplusplus
 extern "C" {

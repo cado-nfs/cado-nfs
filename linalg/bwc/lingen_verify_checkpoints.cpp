@@ -7,28 +7,44 @@
 */
 
 #include "cado.h"
-#include "cxx_mpz.hpp"
-#include "fmt/format.h"
-#include "fmt/printf.h"
-#include "gmp-hacks.h"
-#include "lingen_checkpoints.hpp"
-#include "macros.h"
-#include "params.h"
-#include "subdivision.hpp"
-#include <cassert>
+
+// IWYU pragma: no_include <sys/param.h>
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <memory>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
-#include <gmp.h>
-#include <istream>
-#include <sstream>
-#include <sys/types.h>
-#include <unistd.h>
+#include <climits>                  // for UINT_MAX
+
+
+#include <iostream>     // std::cout // IWYU pragma: keep
+#include <fstream>      // std::ifstream // IWYU pragma: keep
+#include <sstream>      // std::istringstream // IWYU pragma: keep
 #include <vector>
-#include <iostream>
+#include <stdexcept>                 // for runtime_error
+#include <string>                    // for string, operator+, basic_string
+#include <tuple>                     // for tie, tuple
+#include <utility>                   // for pair, move
+
+#include <unistd.h>
+#include <gmp.h>
+
+#include "cxx_mpz.hpp"
+#include "fmt/core.h"                // for check_format_string, char_t, format
+#include "fmt/format.h"
+#include "fmt/printf.h" // IWYU pragma: keep
+#include "gmp-hacks.h"
+#include "lingen_abfield.hpp"        // for mpfq_p_1_field_specify, MPFQ_PRI...
+#include "lingen_bmstatus.hpp"
+#include "lingen_bw_dimensions.hpp"  // for bw_dimensions
+#include "lingen_checkpoints.hpp"
+#include "lingen_hints.hpp"  // for lingen_hints
+#include "macros.h"
+#include "omp_proxy.h" // IWYU pragma: keep
+#include "params.h"
 #include "select_mpi.h"
-#include "omp_proxy.h"
+#include "subdivision.hpp"
 
 /* define WARNING to get warning for non-zero padding coefficients */
 // #define WARNING
