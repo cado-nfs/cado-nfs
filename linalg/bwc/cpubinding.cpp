@@ -18,10 +18,8 @@
 #include <algorithm>
 #include <iterator>
 #include <vector>
-#ifdef HAVE_HWLOC
 #include <hwloc.h>
 #include <hwloc/bitmap.h>
-#endif
 
 #include "cpubinding.h"
 #include "params.h"     // param_list

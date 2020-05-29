@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <hwloc.h>
 #include "cpubinding.h"
 #include "macros.h"
 #include "params.h"
