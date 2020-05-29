@@ -831,7 +831,7 @@ void cpubinder::read_param_list(param_list_ptr pl, int want_conf_file)
      * context. It's only used by the helper binary I have for testing
      * the topology matching code */
     const char * topology_file = param_list_lookup_string(pl, "input-topology-file");
-    const char * topology_string = param_list_lookup_string(pl, "input-topology-std::string");
+    const char * topology_string = param_list_lookup_string(pl, "input-topology-string");
     const char * cpubinding_conf = param_list_lookup_string(pl, "cpubinding");
 
     /* If we arrive here, then cpubinding_conf is not something which
