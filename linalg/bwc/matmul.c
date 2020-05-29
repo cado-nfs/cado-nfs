@@ -12,15 +12,17 @@
 #include <sys/statvfs.h>
 #endif
 
+#include "bwc_config.h" // BUILD_DYNAMICALLY_LINKABLE_BWC // IWYU pragma: keep
+
 #ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "matmul-libnames.h" // IWYU pragma: keep
 #endif
 
 #include <gmp.h>          // for mp_bits_per_limb
 #include "macros.h"       // for FATAL_ERROR_CHECK, iceildiv
-#include "bwc_config.h" // BUILD_DYNAMICALLY_LINKABLE_BWC // IWYU pragma: keep
 #include "matmul.h"
 #include "verbose.h"
 #include "portability.h" // asprintf // IWYU pragma: keep
