@@ -1760,17 +1760,17 @@ index_t renumber_t::builder::operator()()/*{{{*/
 {
     /* Generate the renumbering table. */
 
-    prime_info pi;
-    prime_info_init(pi);
-    unsigned long p = 2;
     constexpr const unsigned int granularity = 1024;
-    std::list<prime_chunk> inflight;
-    unsigned long lpbmax = 1UL << R.get_max_lpb();
 
-#pragma omp parallel
+#pragma omp parallel default(none)
     {
 #pragma omp single
         {
+            prime_info pi;
+            prime_info_init(pi);
+            std::list<prime_chunk> inflight;
+            unsigned long lpbmax = 1UL << R.get_max_lpb();
+            unsigned long p = 2;
             for (; p <= lpbmax || !inflight.empty() ;) {
                 if (p <= lpbmax) {
                     std::vector<unsigned long> pp;
@@ -1785,7 +1785,7 @@ index_t renumber_t::builder::operator()()/*{{{*/
                      * want. (I saw a _copy_ !)
                      */
                     prime_chunk * latest(&inflight.back());
-#pragma omp task firstprivate(latest)
+#pragma omp task firstprivate(latest) default(none)
                     {
                         preprocess(*latest);
                     }
@@ -1804,9 +1804,9 @@ index_t renumber_t::builder::operator()()/*{{{*/
                     inflight.pop_front();
                 }
             }
+            prime_info_clear(pi);
         }
     }
-    prime_info_clear(pi);
 
     return R_max_index;
 }/*}}}*/
