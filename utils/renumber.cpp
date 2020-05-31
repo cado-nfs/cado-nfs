@@ -1369,6 +1369,9 @@ index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, 
 
 void renumber_t::read_table(std::istream& is)
 {
+    stats_data_t stats;
+    uint64_t nprimes = 0; // sigh... *must* be ulong for stats().
+    stats_init(stats, stdout, &nprimes, 23, "Read", "primes", "", "p");
     for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
     if (format == format_flat) {
         for(p_r_values_t p, r ; is >> p >> r ; ) {
@@ -1382,6 +1385,9 @@ void renumber_t::read_table(std::istream& is)
             for(p_r_values_t v ; is >> v ; ) {
                 traditional_data.push_back(v);
                 above_all++;
+                nprimes = above_all;
+                if (stats_test_progress(stats))
+                    stats_print_progress(stats, nprimes, 0, 0, 0);
             }
         } else if (format == format_variant) {
             for(p_r_values_t v, vp = 0 ; is >> v ; ) {
@@ -1391,10 +1397,14 @@ void renumber_t::read_table(std::istream& is)
                 }
                 traditional_data.push_back(v);
                 above_all++;
+                nprimes = above_all;
+                if (stats_test_progress(stats))
+                    stats_print_progress(stats, nprimes, 0, 0, 0);
             }
         }
         is.flags(ff);
     }
+    stats_print_progress(stats, nprimes, 0, 0, 1);
 
     if (format == format_traditional || format == format_variant) {
         p_r_values_t vp = 0;
