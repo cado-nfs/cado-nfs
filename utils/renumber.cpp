@@ -742,7 +742,7 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
      *  then come the descriptors for all roots mod p
      */
 
-    int outer_idx;
+    index_t outer_idx;
     if (format == format_variant) {
         /* This is the special thing about the "variant" format */
         outer_idx = above_bad + traditional_data[++i] - vp;
