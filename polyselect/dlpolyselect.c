@@ -185,7 +185,7 @@ print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
       return 0;
 
     /* now get a more precise alpha value */
-    alpha_g = get_alpha (gg, ALPHA_BOUND);
+    alpha_g = get_alpha (gg, get_alpha_bound ());
 
     score = logmu[1] + alpha_g + logmu[0] + alpha_f;
     if (score_approx - score > max_guard)
@@ -214,7 +214,7 @@ print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
         p->pols[RAT_SIDE]->coeff = g;
         p->pols[RAT_SIDE]->deg = dg;
         p->skew = skew;
-        E = MurphyE (p, Bf, Bg, Area, MURPHY_K, ALPHA_BOUND);
+        E = MurphyE (p, Bf, Bg, Area, MURPHY_K, get_alpha_bound ());
 	END_TIMER (TIMER_MURPHYE);
         if (E <= bestE)
             return 0;
@@ -599,7 +599,7 @@ polygen_JL2 (mpz_t n,
 
     /* update the best and worst score for f (FIXME: even if f has no roots?) */
     double skew_f, lognorm_f, score_f;
-    alpha_f = get_alpha (f, ALPHA_BOUND);
+    alpha_f = get_alpha (f, get_alpha_bound ());
     skew_f = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
     lognorm_f = L2_lognorm (f, skew_f);
     score_f = lognorm_f + alpha_f;
