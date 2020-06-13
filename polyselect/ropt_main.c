@@ -456,7 +456,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
                                                       bound_f, bound_g, area,
                                                       NULL);
   nb_optimized += 1.0;
-  printf ("### Best MurphyE so far is %.2e, av. exp_E %.2f, av. E %.2f\n",
+  printf ("### Best MurphyE so far is %.3e, av. exp_E %.2f, av. E %.2f\n",
           best_MurphyE, total_exp_E / nb_read, total_E / nb_optimized);
   fflush (stdout);
 
