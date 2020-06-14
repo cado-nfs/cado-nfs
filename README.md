@@ -532,7 +532,12 @@ no longer supported by cado-nfs anyway)
   environment variable `OBJECT_MODE`, for example:
   export `OBJECT_MODE=64`
 * if you encounter the error "Exceeded maximum number of failed workunits,
-  maxfailed=100", you can restart the factorization with tasks.maxfailed=200
+  maxfailed=100", you can restart the factorization with
+  `tasks.maxfailed=200`.   But it would be wise, first, to try to
+  understand _why_ workunits are failing. This should not appear. It
+  might be that all your workunits are timing out, because your `adrange`
+  ar `qrange` parameters are too large.  Or it's a bug in cado-nfs, and
+  then it should definitely be reported.
 
 
 Contact, links:
@@ -557,7 +562,7 @@ There are two mailing-lists associated to Cado-nfs:
     if you want to receive an email each time a modification to the
     development version is committed to the repository. (Alternatively,
     you can set a watch on gitlab if you have an account.)
-  * [cado-nfs-discuss`](https://lists.gforge.inria.fr/mailman/listinfo/cado-nfs-discuss): for general discussions about cado-nfs.
+  * [cado-nfs-discuss](https://lists.gforge.inria.fr/mailman/listinfo/cado-nfs-discuss): for general discussions about cado-nfs.
 
 If you find a bug, if you have a problem compiling cado-nfs, if you want to
 factor a large number and seek for advice for tuning the parameters, then
