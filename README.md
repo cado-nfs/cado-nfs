@@ -536,7 +536,7 @@ no longer supported by cado-nfs anyway)
   `tasks.maxfailed=200`.   But it would be wise, first, to try to
   understand _why_ workunits are failing. This should not appear. It
   might be that all your workunits are timing out, because your `adrange`
-  ar `qrange` parameters are too large.  Or it's a bug in cado-nfs, and
+  and `qrange` parameters are too large.  Or it's a bug in cado-nfs, and
   then it should definitely be reported.
 
 
