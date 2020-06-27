@@ -32,9 +32,6 @@
 /* Merge */
 /*********/
 
-/* define USE_HEAP for custom memory management */
-#define USE_HEAP
-
 /* Maximum level for a merge. */
 #define MERGE_LEVEL_MAX 32
 /* Maximum number of characters of a merge in the history file.
