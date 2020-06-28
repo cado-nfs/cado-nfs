@@ -1271,7 +1271,11 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param, i
 /*}}}*/
 void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*/
 {
-    CHILD_TIMER(timer, __func__);
+    /* by declaring this timer "fuzzy", we make the child timers use only
+     * userspace calls, and not system calls. This makes it possible to
+     * be really fine-grain, at only little expense.
+     */
+    CHILD_TIMER_FUZZY(this->timer, timer, __func__);
     TIMER_CATEGORY(timer, cofactoring_mixed());
 
     int N = first_region0_index + already_done + bucket_relative_index;
