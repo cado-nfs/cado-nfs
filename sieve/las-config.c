@@ -4,6 +4,8 @@
 #include "macros.h"
 #include "verbose.h"    // verbose_output_print
 
+int las_production_mode = 0;
+
 int LOG_BUCKET_REGION = 16;
 int LOG_BUCKET_REGIONS[FB_MAX_PARTS];
 size_t BUCKET_REGION;

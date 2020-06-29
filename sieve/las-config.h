@@ -29,6 +29,8 @@ extern size_t BUCKET_REGIONS[FB_MAX_PARTS];
 
 extern int NB_DEVIATIONS_BUCKET_REGIONS;
 
+extern int las_production_mode;
+
 #ifdef __cplusplus
 }
 #endif

@@ -110,6 +110,7 @@ static void configure_switches(cxx_param_list & pl)
     param_list_configure_switch(pl, "-prepend-relation-time", &prepend_relation_time);
     param_list_configure_switch(pl, "-sync", &sync_at_special_q);
     param_list_configure_switch(pl, "-never-discard", &never_discard);
+    param_list_configure_switch(pl, "-production", &las_production_mode);
 }
 
 static void declare_usage(cxx_param_list & pl)/*{{{*/
@@ -153,6 +154,7 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
      */
     param_list_decl_usage(pl, "never-discard", "Disable the discarding process for special-q's. This is dangerous. See bug #15617");
 
+    param_list_decl_usage(pl, "production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
     verbose_decl_usage(pl);
 }/*}}}*/
 
@@ -1307,6 +1309,10 @@ int main (int argc0, char *argv0[])/*{{{*/
 
     main_output.set(pl);
 
+    if (las_production_mode) {
+        tdict::global_enable = 0;
+    }
+
     las_info las(pl);    /* side effects: prints cmdline and flags */
 #ifdef SAFE_BUCKET_ARRAYS
       verbose_output_print(0, 0, "# WARNING: SAFE_BUCKET_ARRAYS is on !\n");
@@ -1592,10 +1598,12 @@ int main (int argc0, char *argv0[])/*{{{*/
     /*{{{ Display tally */
     display_bucket_prime_stats();
 
-
-    verbose_output_print (2, 1, "# Wasted cpu time due to %d bkmult adjustments: %1.2f\n", global_rt.rep.nwaste, global_rt.rep.waste);
-    verbose_output_print(0, 1, "# Cumulated wait time over all threads %.2f\n", global_rt.rep.cumulated_wait_time);
-    verbose_output_print (2, 1, "# Total cpu time %1.2fs, useful %1.2fs [norm %1.2f+%1.1f, sieving %1.1f"
+    if (las_production_mode) {
+        verbose_output_print (2, 1, "# Total cpu time %1.2fs [remove -production flag for timings]\n", t0);
+    } else {
+        verbose_output_print (2, 1, "# Wasted cpu time due to %d bkmult adjustments: %1.2f\n", global_rt.rep.nwaste, global_rt.rep.waste);
+        verbose_output_print(0, 1, "# Cumulated wait time over all threads %.2f\n", global_rt.rep.cumulated_wait_time);
+        verbose_output_print (2, 1, "# Total cpu time %1.2fs, useful %1.2fs [norm %1.2f+%1.1f, sieving %1.1f"
             " (%1.1f+%1.1f + %1.1f),"
             " factor %1.1f (%1.1f+%1.1f + %1.1f),"
             " rest %1.1f], wasted+waited %1.2fs, rest %1.2fs\n",
@@ -1626,6 +1634,7 @@ int main (int argc0, char *argv0[])/*{{{*/
             global_rt.rep.waste+global_rt.rep.cumulated_wait_time,
             t0-tcpu-global_rt.rep.waste-global_rt.rep.cumulated_wait_time
             );
+    }
 
     verbose_output_print (2, 1, "# Total elapsed time %1.2fs, per special-q %gs, per relation %gs\n",
                  wct, wct / (double) global_rt.rep.nr_sq_processed, wct / (double) global_rt.rep.reports);
