@@ -46,9 +46,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "utils.h"
 #include "auxiliary.h"
 #include "rho.h"
+#include "murphyE.h"
 
 double
-MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K,
+MurphyE (cado_poly_srcptr cpoly, double Bf, double Bg, double area, int K,
          unsigned long B)
 {
   double E = 0, x, y, ti;

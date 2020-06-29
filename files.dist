@@ -1,7 +1,6 @@
 # This file gives the exact contents of the distribution. If a directory is
 # mentioned (with a trailing slash), then all its children are included. Note
 # that the union of this file and its companion files.nodist must agree with
-# the list of files known to the SCM.  A further word of caution: wildcards
 # are *NOT* recognized (by the fascist sanity check program).
 AUTHORS
 CMakeLists.txt
@@ -782,6 +781,7 @@ parameters/dlp/params.p85
 parameters/dlp/params.p90
 parameters/dlp/params.p95
 parameters/dlp/params.p100
+parameters/dlp/params.p2dd30
 parameters/dlp/Joux-Lercier/params.p100
 parameters/dlp/Joux-Lercier/params.p30
 parameters/dlp/Joux-Lercier/params.p35
@@ -816,6 +816,8 @@ parameters/dlp/p85.hint
 parameters/dlp/p90.hint
 parameters/dlp/p95.hint
 parameters/dlp/p100.hint
+parameters/dlp/p2dd30.hint
+parameters/dlp/README
 filter/filter_badideals.c
 linalg/bwc/lingen-matpoly-ft.h
 linalg/bwc/lingen-matpoly-ft.cpp
@@ -1273,7 +1275,6 @@ utils/tdict.cpp
 scripts/check_compilation_units_policy.pl
 scripts/check_repo_policies.sh
 sieve/las-trialdiv.cpp
-config/shared_ptr.cmake
 config/cxxabi.cmake
 sieve/display-lattice-adjust.sage
 config/perl.cmake
@@ -1384,3 +1385,18 @@ sieve/las-output.hpp
 tests/sieve/torture-redc.cpp
 tests/sieve/test_fb_root.cpp
 scripts/filter-ctest.pl
+config/xcode.cmake
+config/posix_memalign.c
+config/test-srand-deterministic.c
+config/alignas.cpp
+config/aligned_alloc.cpp
+config/glibc_vector_internals.cpp
+config/math-special.cpp
+config/mpi2.c
+config/mpi3.c
+config/openmp.c
+config/hwloc.c
+config/pthread.c
+config/pthread_barrier_wait.c
+config/glibc.c
+config/glibc.cmake

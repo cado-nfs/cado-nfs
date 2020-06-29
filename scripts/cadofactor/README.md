@@ -364,17 +364,10 @@ want to modify it:
 tasks.filter.purge.keep=1000
 ```
 
-Note that the `merge` step also has a minimal excess, which by default is the
-one for the `purge` step. You can override it as follows:
-
-```
-tasks.filter.merge.keep=160
-```
-
-Thus by default CADO-NFS discards all the excess (larger than `keep`) during the
+By default CADO-NFS discards all the excess (larger than `keep`) during the
 purge step. If you want to keep some excess for the merge step:
 
-$ ./cado-nfs.py ... `tasks.filter.purge.keep=1000` `tasks.filter.merge.keep=160`
+$ ./cado-nfs.py ... `tasks.filter.purge.keep=1000`
 
 If your factorization already started the linear algebra step, and you
 want to do more sieving, you can restart it with a larger `rels_wanted` than

@@ -1150,7 +1150,9 @@ void mpz_poly_add(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h) {
 void mpz_poly_sub(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h) {
   int maxdeg = max(g->deg, h->deg);
   mpz_poly_realloc(f, maxdeg + 1);
+#ifdef HAVE_OPENMP
 #pragma omp parallel for  
+#endif
   for (int i = 0 ; i <= maxdeg ; i++) {
     if (i <= g->deg && i <= h->deg)
         mpz_sub(f->coeff[i], g->coeff[i], h->coeff[i]);
@@ -2038,7 +2040,9 @@ mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
       size_t size_c = mpz_size (c);
       if (size_c + size_f > (3 * size_R) / 2)
 	mpz_mod (c, c, m);
+#ifdef HAVE_OPENMP
 #pragma omp parallel for      
+#endif
       for (int i = R->deg - 1; i >= R->deg - f->deg; --i)
 	mpz_submul (R->coeff[i], c, f->coeff[f->deg - R->deg + i]);
       R->deg--;

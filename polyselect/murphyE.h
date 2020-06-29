@@ -1,3 +1,6 @@
+#ifndef MURPHY_E_H_
+#define MURPHY_E_H_
+
 /* Header file for murphyE.c.
 
 Copyright 2010 Paul Zimmermann
@@ -19,7 +22,19 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
+#include "cado_poly.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MURPHY_K 1000
 
-double MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K,
+double MurphyE (cado_poly_srcptr cpoly, double Bf, double Bg, double area, int K,
                 unsigned long B);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif	/* MURPHY_E_H_ */

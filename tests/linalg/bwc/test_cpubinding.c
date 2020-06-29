@@ -11,11 +11,10 @@
 void usage() {
     fprintf(stderr, "cpubinding example program\n"
             "Options:\n"
-            "--cpubind <filename>     take cpubinding config from <filename>\n"
             "--input-topology-file <filename>     take <filename> as an hwloc hardware description\n"
             "--input-topology-string <string>       take <string> as an hwloc synthetic hardware description\n"
             "thr=<int>x<int>   give results for this target mapping\n"
-            "cpubinding=<string>   use this mapping\n"
+            "cpubinding=<string>   use this mapping (or file)\n"
            );
     exit(1);
 }

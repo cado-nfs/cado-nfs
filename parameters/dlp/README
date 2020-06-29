@@ -1,0 +1,18 @@
+The meaning of hint files is explained in
+https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-April/001205.html
+
+Here is the meaning of a hint file line :
+21@1 1 1 I=11 20000,18,36 20000,18,36
+
+To descend a special-q of 21 bits on side 1, use a sieve with
+I=11
+lim0=lim1=20000
+lpb0=lpb1=18
+mfb0=mfb1=36
+the first block 20000,18,36 corresponding to side0 and the second to
+side1.
+
+The "1 1" in second and third positions can be safely ignored.
+
+Each line gives therefore a rule about how to handle a node in the
+descent tree.

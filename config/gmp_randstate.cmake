@@ -24,16 +24,11 @@ try_run(gmp_randstate_runs gmp_randstate_compiles
 
 
 if(NOT gmp_randstate_runs EQUAL 0)
-    message(FATAL_ERROR "Cannot run a simple gmp program\nCompile output (${gmp_randstate_compiles}): ${compilevar}\nRun output (${gmp_randstate_runs}): ${outvar}")
-endif()
-
-string(STRIP "${outvar}" outvar)
-if("${outvar}" STREQUAL "d41c91186caf806b_45558c7335696741_71096848fde90ec7_7b34411325e1217a")
-    message(STATUS "Testing for gmp_random predictability -- ok")
-    set(HAVE_KNOWN_GMP_RANDOM_BEHAVIOUR 1)
-else()
     message(STATUS "Testing for gmp_random predictability -- failed")
     message(STATUS "gmp_randstate test code returns [[${outvar}]]")
     message(STATUS "Warning: ${gmp_libname}'s internal random behaves differently from what we expect. This is not a big issue, but it is definitely going to ruin tests that rely on it giving a deterministic and known output once the seed is set")
     set(HAVE_KNOWN_GMP_RANDOM_BEHAVIOUR 0)
+else()
+    message(STATUS "Testing for gmp_random predictability -- ok")
+    set(HAVE_KNOWN_GMP_RANDOM_BEHAVIOUR 1)
 endif()

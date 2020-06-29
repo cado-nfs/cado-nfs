@@ -152,7 +152,16 @@ if [ "$1" = "cmake" ] || [ ! -f "$build_tree/Makefile" ] ; then
     if [ ! "x$CMAKE_GENERATOR" == "x" ] ; then
       CMAKE_GENERATOR_OPT="-G$CMAKE_GENERATOR"
     fi
-    (cd "$absolute_path_of_build_tree" ; "$cmake_path" "$CMAKE_GENERATOR_OPT" $CMAKE_EXTRA_ARGS "$absolute_path_of_source")
+    if [ "$(bash -c 'echo ${CC}')" ] ; then
+        cmake_overrides+=(-DCMAKE_C_COMPILER="$CC")
+    fi
+    if [ "$(bash -c 'echo ${CXX}')" ] ; then
+        cmake_overrides+=(-DCMAKE_CXX_COMPILER="$CXX")
+    fi
+    if [ "$(bash -c 'echo ${MAKE}')" ] ; then
+        cmake_overrides+=(-DCMAKE_MAKE_PROGRAM="$MAKE")
+    fi
+    (cd "$absolute_path_of_build_tree" ; "$cmake_path" "$CMAKE_GENERATOR_OPT" $CMAKE_EXTRA_ARGS "${cmake_overrides[@]}" "$absolute_path_of_source")
 fi
 
 if [ "$1" = "cmake" ] ; then

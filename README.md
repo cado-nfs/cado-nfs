@@ -78,6 +78,10 @@ Required software tools
  * Support for POSIX threads.
  * The main `cado-nfs.py` script uses a lot of unix tools: Python, Python3,
    `ssh`, `rsync`, `gzip` to mention but a few.
+ * On MacOS X, the cado-nfs client script needs an alternative to the
+   system-provided curl binary, which it doesn't like. The simplest way
+   to deal with this issue is to install the wget downloader (e.g. via
+   homebrew).
  * For a large computation, MySQL is recommended.
 
 Optionally, cado-nfs can use the following additional software.
@@ -527,6 +531,8 @@ no longer supported by cado-nfs anyway)
 * under AIX, if GMP is compiled in 64-bit mode, you should set the
   environment variable `OBJECT_MODE`, for example:
   export `OBJECT_MODE=64`
+* if you encounter the error "Exceeded maximum number of failed workunits,
+  maxfailed=100", you can restart the factorization with tasks.maxfailed=200
 
 
 Contact, links:

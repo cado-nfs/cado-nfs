@@ -22,8 +22,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 /* This header file defines macros (and perhaps static functions) to improve 
-   portability of the CADO code. They aim to provide a wrapper for some C99
-   and POSIX functionality for systems that lack those. */
+ * portability of the CADO code. They aim to provide a wrapper for some C99
+ * and POSIX functionality for systems that lack those.
+ */
 
 #ifndef CADO_PORTABILITY_H_
 #define CADO_PORTABILITY_H_
@@ -34,7 +35,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "macros.h"
 
-#ifndef HAVE_STRDUP
+#ifndef HAVE_STRDUP/*{{{*/
 #include <stdlib.h>
 #include <string.h>
 #ifdef __cplusplus
@@ -51,10 +52,10 @@ static inline char * strdup(const char * const s)
 #ifdef __cplusplus
 }
 #endif
-#endif /* HAVE_STRDUP */
+#endif /* HAVE_STRDUP *//*}}}*/
 
-#ifndef HAVE_STRNDUP
-/* Not every libc has this, and providing a workalike is very easy */
+#ifndef HAVE_STRNDUP/*{{{*/
+/* strndup is posix-2008. providing a workalike is very easy */
 #include <stdlib.h>
 #include <string.h>
 #ifdef __cplusplus
@@ -74,7 +75,156 @@ static inline char * strndup(const char * const a, const size_t n)
 #ifdef __cplusplus
 }
 #endif
-#endif /* HAVE_STRNDUP */
+#endif /* HAVE_STRNDUP *//*}}}*/
+
+#ifndef HAVE_STRNLEN/*{{{*/
+/* strnlen is posix-2008. providing a workalike is very easy */
+#ifdef __cplusplus
+extern "C" {
+#endif
+static inline size_t strnlen (const char *s, size_t maxlen)
+{
+  size_t ret = 0;
+  for (; ret < maxlen && *s; s++)
+    ret++;
+  return ret;
+}
+#ifdef __cplusplus
+}
+#endif
+#endif/*}}}*/
+
+#ifndef HAVE_STRLCPY/*{{{*/
+/* strlcpy is a bsd specificity, but we find it quite handy */
+
+/*	$OpenBSD: strlcpy.c,v 1.11 2006/05/05 15:27:38 millert Exp $	*/
+
+/*
+ * Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#include <sys/types.h>
+#include <string.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+/*
+ * Copy src to string dst of size siz.  At most siz-1 characters
+ * will be copied.  Always NUL terminates (unless siz == 0).
+ * Returns strlen(src); if retval >= siz, truncation occurred.
+ */
+static inline size_t
+strlcpy(char *dst, const char *src, size_t siz) ATTRIBUTE_WARN_UNUSED_RESULT;
+static inline size_t
+strlcpy(char *dst, const char *src, size_t siz)
+{
+	char *d = dst;
+	const char *s = src;
+	size_t n = siz;
+
+	/* Copy as many bytes as will fit */
+	if (n != 0) {
+		while (--n != 0) {
+			if ((*d++ = *s++) == '\0')
+				break;
+		}
+	}
+
+	/* Not enough room in dst, add NUL and traverse rest of src */
+	if (n == 0) {
+		if (siz != 0)
+			*d = '\0';		/* NUL-terminate dst */
+		while (*s++)
+			;
+	}
+
+	return(s - src - 1);	/* count does not include NUL */
+}
+#ifdef __cplusplus
+}
+#endif
+#endif/*}}}*/
+
+#ifndef HAVE_STRLCAT/*{{{*/
+/* strlcat is a bsd specificity, but we find it quite handy */
+
+/*	$OpenBSD: strlcat.c,v 1.19 2019/01/25 00:19:25 millert Exp $	*/
+
+/*
+ * Copyright (c) 1998, 2015 Todd C. Miller <millert@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#include <sys/types.h>
+#include <string.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+/*
+ * Appends src to string dst of size dsize (unlike strncat, dsize is the
+ * full size of dst, not space left).  At most dsize-1 characters
+ * will be copied.  Always NUL terminates (unless dsize <= strlen(dst)).
+ * Returns strlen(src) + MIN(dsize, strlen(initial dst)).
+ * If retval >= dsize, truncation occurred.
+ */
+static inline size_t
+strlcat(char *dst, const char *src, size_t dsize) ATTRIBUTE_WARN_UNUSED_RESULT;
+static inline size_t
+strlcat(char *dst, const char *src, size_t dsize)
+{
+	const char *odst = dst;
+	const char *osrc = src;
+	size_t n = dsize;
+	size_t dlen;
+
+	/* Find the end of dst and adjust bytes left but don't go past end. */
+	while (n-- != 0 && *dst != '\0')
+		dst++;
+	dlen = dst - odst;
+	n = dsize - dlen;
+
+	if (n-- == 0)
+		return(dlen + strlen(src));
+	while (*src != '\0') {
+		if (n != 0) {
+			*dst++ = *src;
+			n--;
+		}
+		src++;
+	}
+	*dst = '\0';
+
+	return(dlen + (src - osrc));	/* count does not include NUL */
+}
+#ifdef __cplusplus
+}
+#endif
+#endif/*}}}*/
 
 /* MS VS and MinGW use the MS RTL (called MSVCRT for MinGW) which does not
  * know the "%zu" format, they use "%Iu" instead. On MinGW, we use wrapper 
@@ -93,7 +243,7 @@ static inline char * strndup(const char * const a, const size_t n)
  * use substitutes for every call ?
  */
 
-#ifdef HAVE_MINGW
+#ifdef HAVE_MINGW/*{{{*/
 
 #include <stdio.h>
 
@@ -215,20 +365,9 @@ fprintf_subst_zu (FILE * const stream, const char * const format, ...)
 #define printf  printf_subst_zu
 #define fprintf fprintf_subst_zu
 
-static inline size_t
-strnlen_mingw (const char *s, size_t maxlen)
-{
-  size_t ret = 0;
-  for (; ret < maxlen && *s; s++)
-    ret++;
-  return ret;
-}
+#endif /* ifdef HAVE_MINGW *//*}}}*/
 
-#define strnlen strnlen_mingw
-
-#endif /* ifdef HAVE_MINGW */
-
-#ifndef HAVE_ASPRINTF
+#ifndef HAVE_ASPRINTF/*{{{*/
 /* Copied and improved from
  * http://mingw-users.1079350.n2.nabble.com/Query-regarding-offered-alternative-to-asprintf-td6329481.html
  */
@@ -264,15 +403,15 @@ asprintf( char ** const sptr, const char * const fmt, ... )
 #ifdef __cplusplus
 }
 #endif
-#endif  /* HAVE_ASPRINTF */
+#endif  /* HAVE_ASPRINTF *//*}}}*/
 
-#ifndef HAVE_LRAND48
+#ifndef HAVE_LRAND48/*{{{*/
 #include <stdlib.h>
 #define lrand48 rand
 #define mrand48() (rand() - RAND_MAX/2)
-#endif
+#endif/*}}}*/
 
-#if defined(HAVE_MINGW) && !defined(HAVE_REALPATH)
+#if defined(HAVE_MINGW) && !defined(HAVE_REALPATH)/*{{{*/
 #include <io.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -304,13 +443,13 @@ static inline char __cdecl
   }
   return retname;
 }
-#endif
+#endif/*}}}*/
 
-#if defined(HAVE_SYSCONF)
+#if defined(HAVE_SYSCONF)/*{{{*/
 #include <unistd.h>
-#endif
+#endif/*}}}*/
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)  /* mingw lacks pagesize() *//*{{{*/
 #include <windows.h>
 #endif
 static inline long pagesize ()
@@ -325,15 +464,15 @@ static inline long pagesize ()
 #else
   #error "Cannot determine page size"
 #endif
-}
+}/*}}}*/
 
-#ifdef HAVE_MINGW
+#ifdef HAVE_MINGW       /* mingw lacks sleep() (!?!!?) *//*{{{*/
 /* oh dear... */
 #include <windows.h>
 #define sleep(seconds) Sleep((seconds)*1000) 
-#endif /* HAVE_MINGW */
+#endif /* HAVE_MINGW *//*}}}*/
 
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OPENMP/*{{{*/
 #include <omp.h>
 #else
 /* minimal stub */
@@ -365,6 +504,6 @@ static inline int omp_get_thread_num()
 #ifdef __cplusplus
 }
 #endif
-#endif /* HAVE_OPENMP */
+#endif /* HAVE_OPENMP *//*}}}*/
 
 #endif /* ifndef CADO_PORTABILITY_H_ */

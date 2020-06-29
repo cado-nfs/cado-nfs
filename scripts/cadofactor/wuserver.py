@@ -766,7 +766,7 @@ subjectAltName=@altnames
         return self.port
 
     def get_url(self, origin=None):
-        if origin is "localhost":
+        if origin == "localhost":
             return self.url_loc
         elif origin is not None:
             self.logger.warning("Server address requested for origin=%s ; this is not understood, returning generic url %s instead" % (origin, self.url))
