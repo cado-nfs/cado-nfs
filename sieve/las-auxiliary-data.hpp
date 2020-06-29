@@ -181,15 +181,20 @@ extern tdict::slot tdict_slot_for_fibt;
 
 #define ENTER_THREAD_TIMER(timer)       \
     ACTIVATE_TIMER_IF_NOT_RUNNING(timer);                           \
-    timetree_t::accounting_child UNIQUE_ID(dummy)(timer, tdict_slot_for_threads)
+    std::remove_reference<decltype(timer)>::type::accounting_child UNIQUE_ID(dummy)(timer, tdict_slot_for_threads)
+
+#define ENTER_THREAD_FUZZY_TIMER(T, U)       \
+    ACTIVATE_TIMER_IF_NOT_RUNNING(T);                           \
+    tdict::tie_timer<typename TIMER_TYPE_(T)::timer_type, fast_timetree_t::timer_type> U(T, tdict_slot_for_threads)
 
 #define MARK_TIMER_FOR_SIDE(timer, side)       \
-    timetree_t::accounting_child UNIQUE_ID(dummy)(timer, tdict_slot_for_side(side))
+    std::remove_reference<decltype(timer)>::type::accounting_child UNIQUE_ID(dummy)(timer, tdict_slot_for_side(side))
 
 #else /* DISABLE_TIMINGS */
 
 #define ENTER_THREAD_TIMER(timer) timer.nop() /**/
 #define MARK_TIMER_FOR_SIDE(timer, side) timer.nop() /**/
+#define ENTER_THREAD_FUZZY_TIMER(T, U) T.nop(); tdict::tie_timer U
 
 #endif  /* DISABLE_TIMINGS */
 

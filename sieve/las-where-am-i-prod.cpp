@@ -25,6 +25,7 @@ int extern_trace_on_spot_ab(int64_t, uint64_t) {
     return 0;
 }
 
+/* The ctors / dtors in production code are trivial
 
 where_am_I::where_am_I() : pimpl{ new impl{} } { }
 where_am_I::~where_am_I() = default;
@@ -35,6 +36,7 @@ where_am_I & where_am_I::operator=(where_am_I const & x) {
     return *this;
 }
 
+ */
 
 void where_am_I::decl_usage(cxx_param_list &)
 {
