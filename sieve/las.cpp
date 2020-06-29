@@ -72,7 +72,6 @@
 
 #include "las-globals.hpp"
 
-
 /*************************** main program ************************************/
 
 static void configure_aliases(cxx_param_list & pl)
