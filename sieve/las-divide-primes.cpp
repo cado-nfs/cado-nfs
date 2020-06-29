@@ -9,6 +9,7 @@
 #include "verbose.h"
 #include "bucket.hpp"
 #include "trialdiv.hpp"
+#include "bucket-push-update.hpp"
 
 /* {{{ Trial division */
 
