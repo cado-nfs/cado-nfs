@@ -13,6 +13,12 @@
  * negatively impact the performance */
 #define xxxDISABLE_TIMINGS
 
+namespace tdict {
+    struct timer_none {
+        typedef int type;
+        inline type operator()() const { return 0; }
+    };
+}
 #ifndef DISABLE_TIMINGS
 
 /* This header file defines objects for a "timing dictionary".
@@ -246,12 +252,8 @@ namespace tdict {
         }
     };
 #endif
-    struct timer_none {
-        typedef int type;
-        inline type operator()() const { return 0; }
-    };
-    std::ostream& operator<<(std::ostream & o, timer_seconds_thread_and_wct::type const & a);
 
+    std::ostream& operator<<(std::ostream & o, timer_seconds_thread_and_wct::type const & a);
 
     /*
     template<typename T>
@@ -621,17 +623,20 @@ class : public tdict::slot_base {
     tdict::tie_timer<typename TIMER_TYPE_(T)::timer_type, fast_timetree_t::timer_type> U(T, UNIQUE_ID(slot))
 
 
+typedef tdict::tie_timer<timetree_t::timer_type, fast_timetree_t::timer_type> fuzzy_diverted_timetree_t;
 
 #else /* DISABLE_TIMINGS */
 
 struct timetree_t {
     typedef double timer_data_type;
+    typedef tdict::timer_none timer_type;
     std::map<int, double> filter_by_category() const {
         /* always an empty map */
         return std::map<int, double>();
     }
     void filter_by_category(std::map<int, double> &, int) const { }
     timetree_t& operator+=(timetree_t const&) { return *this; }
+    double total_counted_time() const { return 0; }
     std::string display() const { return std::string(); }
     /* what should we do */
     bool running() const { return false; }
@@ -642,6 +647,13 @@ struct timetree_t {
 };
 
 typedef timetree_t fast_timetree_t;
+
+namespace tdict {
+    struct tie_timer : public timetree_t {
+        tie_timer() = default;
+    };
+};
+typedef tdict::tie_timer fuzzy_diverted_timetree_t;
 
 namespace tdict {
     extern int global_enable;
