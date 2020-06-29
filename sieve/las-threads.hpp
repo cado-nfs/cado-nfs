@@ -13,6 +13,7 @@
 #include "las-memory.hpp"
 #include "las-output.hpp"
 #include "tdict.hpp"
+#include "las-bkmult.hpp"
 
 /* A set of n bucket arrays, all of the same type, and methods to reserve one
    of them for exclusive use and to release it again. */

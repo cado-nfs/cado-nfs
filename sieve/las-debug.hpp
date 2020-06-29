@@ -1,14 +1,63 @@
 #ifndef LAS_DEBUG_HPP_
 #define LAS_DEBUG_HPP_
 
-#include <limits.h>
-#include <stdint.h>
+#include <climits>
+#include <cstdint>
 #include <array>
 
 #include "las-config.h"
 #include "las-todo-entry.hpp"
 #include "las-forwardtypes.hpp"
 #include "cxx_mpz.hpp"
+#include "las-trace-proxy.hpp"
+
+/* define PROFILE to keep certain functions from being inlined, in order to
+   make them show up on profiler output */
+//#define PROFILE
+
+/* (for debugging only) define TRACE_K, to something non-zero,
+ * in order to get tracing information on a
+ * particular relation.  In particular this traces the sieve array entry
+ * corresponding to the relation. Upon startup, the three values below
+ * are reconciled.
+ *
+ * This activates new command lines arguments: -traceab, -traceij, -traceNx.
+ * (see las-coordinates.cpp for the description of these)
+ */
+#ifndef TRACE_K
+#define xxxTRACE_K
+#endif
+
+/* Define CHECK_UNDERFLOW to check for underflow when subtracting
+   the rounded log(p) from sieve array locations */
+//#define CHECK_UNDERFLOW
+
+/* Define TRACK_CODE_PATH in order to have the where_am_I structures
+ * propagate info on the current situation of the data being handled.
+ * This more or less makes the variables global, in that every function
+ * can then access the totality of the variables. But it's for debug and
+ * inspection purposes only.
+ *
+ * Note that WANT_ASSERT_EXPENSIVE, a flag which exists in broader
+ * context, augments the scope of the tracking here by performing a
+ * divisibility test on each sieve update. This is obviously very
+ * expensive, but provides nice checking.
+ *
+ * Another useful tool for debugging is the sieve-area checksums that get
+ * printed with verbose output (-v) enabled.
+ */
+#define xxxTRACK_CODE_PATH
+#define xxxWANT_ASSERT_EXPENSIVE
+
+/* TRACE_K *requires* TRACK_CODE_PATH -- or it displays rubbish */
+#if defined(TRACE_K) && !defined(TRACK_CODE_PATH)
+#define TRACK_CODE_PATH
+#endif
+
+/* idem for CHECK_UNDERFLOW */
+#if defined(CHECK_UNDERFLOW) && !defined(TRACK_CODE_PATH)
+#define TRACK_CODE_PATH
+#endif
 
 /* FIXME: This does not seem to work well */
 #ifdef  __GNUC__
@@ -17,10 +66,11 @@
 #define TYPE_MAYBE_UNUSED       /**/
 #endif
 
+
 extern void las_install_sighandlers();
 
 /* {{{ where_am_I (debug) */
-struct where_am_I {
+struct where_am_I::impl {
 #ifdef TRACK_CODE_PATH
     int logI;
     const qlattice_basis * pQ;
@@ -41,7 +91,7 @@ struct where_am_I {
 } /* TYPE_MAYBE_UNUSED */;
 
 #ifdef TRACK_CODE_PATH
-#define WHERE_AM_I_UPDATE(w, field, value) (w).field = (value)
+#define WHERE_AM_I_UPDATE(w, field, value) (w)->field = (value)
 #else
 #define WHERE_AM_I_UPDATE(w, field, value) /**/
 #endif
@@ -59,7 +109,8 @@ extern void trace_per_sq_init(nfs_work const & ws);
 
 #ifdef TRACE_K
 
-extern int test_divisible(where_am_I& w);
+extern int test_divisible(where_am_I const & w);
+
 extern struct trace_Nx_t trace_Nx;
 extern struct trace_ab_t trace_ab;
 extern struct trace_ij_t trace_ij;
@@ -94,11 +145,11 @@ static inline int trace_on_spot_ij(int i, unsigned int j) {
     return i == trace_ij.i && j == trace_ij.j;
 }
 
-void sieve_increase_logging(unsigned char *S, const unsigned char logp, where_am_I& w);
-void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I& w);
+void sieve_increase_logging(unsigned char *S, const unsigned char logp, where_am_I const & w);
+void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I const & w);
 
 #else
-static inline int test_divisible(where_am_I& w MAYBE_UNUSED) { return 1; }
+static inline int test_divisible(where_am_I const & w MAYBE_UNUSED) { return 1; }
 static inline int trace_on_spot_N(unsigned int N MAYBE_UNUSED) { return 0; }
 static inline int trace_on_spot_Nx(unsigned int N MAYBE_UNUSED, unsigned int x MAYBE_UNUSED) { return 0; }
 static inline int trace_on_range_Nx(unsigned int N MAYBE_UNUSED, unsigned int x0 MAYBE_UNUSED, unsigned int x1 MAYBE_UNUSED) { return 0; }
@@ -107,10 +158,10 @@ static inline int trace_on_spot_ab(int64_t a MAYBE_UNUSED, uint64_t b MAYBE_UNUS
 static inline int trace_on_spot_ij(int i MAYBE_UNUSED, unsigned int j MAYBE_UNUSED) { return 0; }
 
 #ifdef CHECK_UNDERFLOW
-void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, where_am_I& w);
+void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, where_am_I const & w);
 #endif  /* CHECK_UNDERFLOW */
 
-static inline void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I& w MAYBE_UNUSED)
+static inline void sieve_increase(unsigned char *S, const unsigned char logp, where_am_I const & w MAYBE_UNUSED)
 {
 #ifdef CHECK_UNDERFLOW
   if (*S > UCHAR_MAX - logp)
@@ -120,18 +171,6 @@ static inline void sieve_increase(unsigned char *S, const unsigned char logp, wh
 }
 
 #endif  /* TRACE_K */
-
-/* If -dumpregion is given, dump sieve region to a file to be able to
-   compare new sieving code with a known good reference. Beware of
-   resulting large files. */
-class dumpfile_t {
-    FILE *f = NULL;
-public:
-    ~dumpfile_t();
-    void close();
-    void open(const char *filename_stem, las_todo_entry const & doing, int side);
-    size_t write(const unsigned char *, size_t) const;
-};
 
 
 #endif	/* LAS_DEBUG_HPP_ */

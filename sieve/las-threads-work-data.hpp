@@ -12,6 +12,7 @@
 #include "ecm/batch.hpp"
 #include "multityped_array.hpp"
 #include "las-memory.hpp"
+#include "las-dumpfile.hpp"
 #include "lock_guarded_container.hpp"
 
 #define NUMBER_OF_BAS_FOR_THREADS(n)    ((n) == 1 ? 1 : ((n) + 2))

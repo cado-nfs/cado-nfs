@@ -11,7 +11,7 @@
 
 const char * default_placement_with_auto = "node,fit*4,fit,pu,loose";
 
-bool parse_number(std::string const & s, int & x, std::string::size_type pos = 0) /*{{{*/
+static bool parse_number(std::string const & s, int & x, std::string::size_type pos = 0) /*{{{*/
 {
     const char * digits = "0123456789";
     if (s.empty() || s.find_first_not_of(digits, pos) != std::string::npos)
@@ -703,7 +703,7 @@ struct las_parallel_desc::helper {
    }/*}}}*/
 };
 
-void extended_usage()/*{{{*/
+static void extended_usage()/*{{{*/
 {
     std::ostringstream os;
     os << R"(

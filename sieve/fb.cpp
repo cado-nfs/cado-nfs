@@ -38,7 +38,7 @@ fb_log_2 (fbprime_t n)
 }
 
 /* Return p^e. Trivial exponentiation for small e, no check for overflow */
-fbprime_t
+static fbprime_t
 fb_pow (const fbprime_t p, const unsigned long e)
 {
     fbprime_t r = 1;
@@ -1302,7 +1302,7 @@ static int get_new_task(task_info_t &T, uint64_t &next_prime, prime_info& pi, co
 
 typedef std::pair<unsigned int, task_info_t *> pending_result_t;
 /* priority queue is for lowest index first, here */
-bool operator<(pending_result_t const & a, pending_result_t const& b)
+static bool operator<(pending_result_t const & a, pending_result_t const& b)
 {
     return a.first > b.first;
 }
@@ -1454,7 +1454,7 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
    Return length in characters or remaining line, without trailing '\0'
    character.
 */
-size_t
+static size_t
 read_strip_comment (char *const line)
 {
     size_t linelen, i;
@@ -1694,12 +1694,12 @@ struct fbc_header {
         base_offset = header_offset;
     }
 };
-std::istream& operator>>(std::istream& in, fbc_header & hdr)
+static std::istream& operator>>(std::istream& in, fbc_header & hdr)
 {
     return hdr.parse(in);
 }
 
-std::ostream& operator<<(std::ostream& out, fbc_header const & hdr)
+static std::ostream& operator<<(std::ostream& out, fbc_header const & hdr)
 {
     return hdr.print(out);
 }
@@ -1719,7 +1719,7 @@ struct imemstream: virtual membuf, std::istream {
     }
 };
 
-fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_mpz_poly const & f, unsigned long lim, unsigned long powlim, int side)
+static fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_mpz_poly const & f, unsigned long lim, unsigned long powlim, int side)
 {
     /* The cached file header must absolutely be seekable (asking it to
      * be mmap-able is anyway an even stricter requirement as far as I

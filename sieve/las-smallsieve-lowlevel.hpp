@@ -372,10 +372,10 @@
 #define INTERMEDIARY_FOBJ()       do {} while (0)
 #else
 #define INTERMEDIARY_FOBJ() do {					\
-            if (trace_on_range_Nx(w.N, x0 + pos, x0 + S1 - S0)) {	\
+            if (trace_on_range_Nx(w->N, x0 + pos, x0 + S1 - S0)) {	\
                 if ((trace_Nx.x - x0 - pos) % p_or_2p == 0) {           \
                     WHERE_AM_I_UPDATE(w, x, trace_Nx.x);		\
-                    sieve_increase_logging(S0 + w.x - x0, logp, w);	\
+                    sieve_increase_logging(S0 + w->x - x0, logp, w);	\
                 }							\
             }								\
 } while (0)

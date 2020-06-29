@@ -13,6 +13,7 @@
 #include <x86intrin.h>
 #include "utils.h"
 #include "macros.h"
+#include "las-debug.hpp"
 
 #define xxxLOG_BUCKET_REGION_IS_A_CONSTANT
 

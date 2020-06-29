@@ -96,7 +96,7 @@ struct sq_with_fac {
 // down the line, we stumble on the fact that just a plain integer isn't
 // appropriate to represent elements of P1(Z/qZ) when q is composite.
 //
-las_todo_entry special_q_from_ab(const int64_t a, const uint64_t b, sq_with_fac const & sq, int side)
+static las_todo_entry special_q_from_ab(const int64_t a, const uint64_t b, sq_with_fac const & sq, int side)
 {
     cxx_mpz p, r;
 
@@ -339,7 +339,7 @@ sq_was_previously_sieved (las_info const & las, const uint64_t sq, int side, las
 //   - it destroys its argument along the way
 //   - it allocates the result it returns; the caller must free it.
 // Keep only products that fit in 64 bits.
-std::vector<sq_with_fac>
+static std::vector<sq_with_fac>
 all_multiples(std::vector<uint64_t> & prime_list) {
   if (prime_list.empty()) {
     std::vector<sq_with_fac> res;

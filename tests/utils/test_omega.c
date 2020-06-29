@@ -8,6 +8,7 @@
 #include "modredc_ul.h"
 #include "rootfinder.h"
 #include "modredc_ul_default.h"
+#include "roots_mod.h"
 
 void omega (residue_t o, residue_t b, const unsigned long k, const modulus_t pp);
 

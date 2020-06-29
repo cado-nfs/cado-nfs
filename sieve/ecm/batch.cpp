@@ -44,7 +44,7 @@
  * it is also *not* ok to call such a function within a subtract/add
  * pair.
  */
-void subtract_openmp_subtimings(double & extra_time MAYBE_UNUSED)
+static void subtract_openmp_subtimings(double & extra_time MAYBE_UNUSED)
 {
 #ifdef HAVE_OPENMP
 #pragma omp parallel
@@ -58,7 +58,7 @@ void subtract_openmp_subtimings(double & extra_time MAYBE_UNUSED)
   }
 #endif
 }
-void add_openmp_subtimings(double & extra_time MAYBE_UNUSED)
+static void add_openmp_subtimings(double & extra_time MAYBE_UNUSED)
 {
 #ifdef HAVE_OPENMP
 #pragma omp parallel
@@ -769,8 +769,10 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
     return true;
 }
 
+#if 0
+/* unused */
 /* strip integers in l[0..n-1] which do not divide P */
-unsigned long
+static unsigned long
 strip (unsigned long *l, unsigned long n, mpz_t P)
 {
   unsigned long i, j;
@@ -780,6 +782,7 @@ strip (unsigned long *l, unsigned long n, mpz_t P)
       l[j++] = l[i];
   return j;
 }
+#endif
 
 /* sqside = 1 if the special-q is on side 1 (algebraic) */
 static bool

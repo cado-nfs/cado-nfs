@@ -14,6 +14,7 @@
 #include "utils_with_io.h"
 #include "ringbuf.h"
 #include "barrier.h"
+#include "filter_io.h"
 
 /* This is a configuration variable which may be set by the caller (it's
  * possible to bind it to a command-line argument)

@@ -26,6 +26,7 @@
 #include "cxx_mpz.hpp"
 #include "lock_guarded_container.hpp"
 #include "las-memory.hpp"
+#include "las-bkmult.hpp"
 
 #include <memory>
 #ifdef HAVE_BOOST_SHARED_PTR

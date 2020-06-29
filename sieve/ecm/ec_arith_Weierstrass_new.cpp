@@ -1,6 +1,6 @@
 #include "cado.h"
 #include "macros.h"
-#include "cmath"
+#include <cmath>
 #include <cinttypes>
 #include <vector>
 #include "mod64.hpp"
@@ -474,11 +474,7 @@ void ECWeierstrass<MODULUS>::ProjectivePoint::smul (ProjectivePoint &R, const ui
     }
 }
 
-template
-class ECWeierstrass<Modulus64>;
-template
-class ECWeierstrass<ModulusREDC64>;
-template
-class ECWeierstrass<ModulusREDC126>;
-template
-class ECWeierstrass<ModulusMPZ>;
+template class ECWeierstrass<Modulus64>;
+template class ECWeierstrass<ModulusREDC64>;
+template class ECWeierstrass<ModulusREDC126>;
+template class ECWeierstrass<ModulusMPZ>;
