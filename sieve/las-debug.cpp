@@ -38,14 +38,16 @@ int extern_trace_on_spot_ab(int64_t a, uint64_t b) {
 }
 
 
+#ifdef TRACK_CODE_PATH
 where_am_I::where_am_I() : pimpl{ new impl{} } { }
-where_am_I::~where_am_I() = default;
+where_am_I::~where_am_I() { delete pimpl; }
 where_am_I::where_am_I(where_am_I const & x) : pimpl(new impl(*x.pimpl)) {
 }
 where_am_I & where_am_I::operator=(where_am_I const & x) {
     *pimpl = *x.pimpl;
     return *this;
 }
+#endif
 
 
 #if defined(__GLIBC__)
