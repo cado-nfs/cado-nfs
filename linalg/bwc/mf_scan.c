@@ -1,13 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
-#include <time.h>
-#include <inttypes.h>
-#include "macros.h"
-#include "portability.h"
-#include "utils.h"
+#include <stdlib.h>
 #include "mf.h"
+#include "params.h"     // param_list
 
 
 void usage(int rc)

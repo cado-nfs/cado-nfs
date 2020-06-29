@@ -1,14 +1,12 @@
-#include "cado.h"       /* HAVE_* macros ! */
+#include "cado.h" // IWYU pragma: keep
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <assert.h>
 #include <stdint.h>
-#include <inttypes.h>
+#include <sys/time.h>
 
-#include "portability.h"
 #include "macros.h"
 #include "matops.h"
 
@@ -327,7 +325,7 @@ void level1_mul_tests_N(unsigned int n)
 void level1_mul_tests_1_list(l1_data_ptr D)
 {
     SCOPE_L1_DATA_MEMBERS(D);
-    assert(n == 1);
+    ASSERT(n == 1);
 
     mul_o64_6464_C_lsb(r, *a, w);
     if (memcmp(xr, r, n * sizeof(uint64_t))) abort();
@@ -365,7 +363,7 @@ void level1_mul_tests_1()
 void level1_mul_tests_64_list(l1_data_ptr D)
 {
     SCOPE_L1_DATA_MEMBERS(D);
-    assert(n == 64);
+    ASSERT(n == 64);
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
     mul_6464_6464_sse(r, a, w);

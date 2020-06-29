@@ -10,11 +10,9 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "auxiliary.h"
 #include "area.h"
-#include "utils.h"
-#include "portability.h"
 #include "murphyE.h"
 #include <ctype.h>
 #include <stdlib.h>

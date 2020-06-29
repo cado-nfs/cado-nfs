@@ -35,10 +35,11 @@
 //%/////////////////////////////////////////////////////////////////////////////
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <string.h>
-#include "misc.h"
+#include "portability.h"
+#include "macros.h"
 
 #define PEGASUS_TEST_ASSERT(X) ASSERT_ALWAYS(X)
 #define Strlcat strlcat

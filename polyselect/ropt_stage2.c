@@ -4,10 +4,20 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>      // fprintf stderr
+#include <stdlib.h>
+#include <math.h>
+#include <gmp.h>
 #include "ropt_stage2.h"
-#include "portability.h"
+#include "mpz_poly.h"
+#include "auxiliary.h"  // print_poly_fg
+#include "ropt_arith.h" // compute_fuv_mp
+#include "ropt_param.h"    // SUP_ALPHA
+#include "ropt_tree.h"  // node ...
+#include "ropt_str.h"    // ropt_s2param_t
 #include "size_optimization.h"
+#include "timing.h"             // for milliseconds
 
 //#define TIMING_ROPT_STAGE2
 /**
@@ -1007,7 +1017,7 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
       /* use E for ranking: takes slightly less time */
       double skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
       double E = L2_lognorm (F, skew);
-      double alpha = get_alpha (F, ALPHA_BOUND);
+      double alpha = get_alpha (F, get_alpha_bound ());
       insert_MurphyE_pq (local_E_pqueue, info->w, tmpu, tmpv, 
                          s2param->MOD, -(E + alpha));
 #endif

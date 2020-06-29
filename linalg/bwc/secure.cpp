@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -13,11 +13,12 @@
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "async.h"
-#include "portability.h"
 #include <algorithm>
+#include <stdlib.h>
 #include "cheating_vec_init.h"
 #include "fmt/printf.h"
 #include "fmt/format.h"
+#include "macros.h"
 using namespace fmt::literals;
 
 int legacy_check_mode = 0;

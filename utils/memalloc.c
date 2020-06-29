@@ -1,9 +1,10 @@
-#include "cado.h"
-#include <stdio.h>
+#include "cado.h" // IWYU pragma: keep
+#include <stdlib.h> // free malloc ...
 #include <pthread.h>
 
-#include "portability.h"
-#include "utils.h"
+#include "typedefs.h"  // for index_t ideal_merge_t
+#include "macros.h" // FATAL_ERROR_CHECK
+#include "memalloc.h"  // for BLOCK_SIZE
 
 /* index_plist is a list of blocks, each one of BLOCK_SIZE index_ts */
 static index_t **index_plist = NULL;

@@ -1,8 +1,10 @@
 #ifndef LINGEN_MATPOLY_FT_H_
 #define LINGEN_MATPOLY_FT_H_
 
-#include "lingen-matpoly.h"
-#include "flint-fft/fft.h"
+#include <limits.h>          // for UINT_MAX
+#include "lingen-matpoly.h"  // for matpoly, matpoly_ptr
+#include "mpfq_layer.h"      // for abdst_field, mpfq_pz_dst_field
+struct fft_transform_info; // IWYU pragma: keep
 
 struct matpoly_ft_s {
     unsigned int m;

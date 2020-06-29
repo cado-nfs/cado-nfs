@@ -1,7 +1,15 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+#include <cmath>             // for exp
+#include <cstdio>            // for fprintf, stderr
+#include <algorithm>         // for sort, max
+#include <initializer_list>  // for initializer_list
+#include <iterator>          // for begin, end
+#include <limits>            // for numeric_limits
+#include "double_poly.h"  // cxx_double_poly
 #include "logapprox.hpp"
-#include <algorithm>
-#include <cmath>
+#include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY
+
 
 #define xxxDEBUG_LOGAPPROX
 

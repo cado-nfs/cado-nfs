@@ -1,22 +1,23 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <math.h>
+#include <limits.h>
 #include <gmp.h>
-#include "bwc_config.h"
-#include "cado_config.h"
 #include "bw-common.h"
-#include "params.h"
-#include "utils.h"
 #include "select_mpi.h"
-#include "timing.h"
-#include "portability.h"
-
-
+#include "portability.h" // strdup // IWYU pragma: keep
+#include "verbose.h"    // verbose_interpret_parameters
+#include "timing.h"     // wct_seconds
+#include "macros.h"     // ASSERT_ALWAYS // IWYU pragma: keep
+#include "misc.h"       // mkdir_with_parents next_power_of_2 integer_sqrt
+#include "params.h"
 
 struct bw_params bw[1];
 

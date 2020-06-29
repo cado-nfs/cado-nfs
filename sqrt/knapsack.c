@@ -1,12 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <inttypes.h>
 #include <string.h>
 #include "knapsack.h"
-#include "portability.h"
+#include "macros.h"     // ASSERT
 
 
 
@@ -184,8 +182,8 @@ int knapsack_solve(knapsack_object_ptr ks)
 	}
 
 	/* Now u1 is the first index such that x1 + x2 >= 0 */
-	// assert(u1 == n1 || s2[u2].x + s1[u1].x >= 0);
-	// assert(s2[u2].x + s1[u1+pd].x >= ebound);
+	// ASSERT(u1 == n1 || s2[u2].x + s1[u1].x >= 0);
+	// ASSERT(s2[u2].x + s1[u1+pd].x >= ebound);
 
 	for (unsigned int h = 0; u1 + h < n1; h++) {
 	    int64_t x = s1[u1 + h].x + s2[u2].x;
@@ -193,8 +191,8 @@ int knapsack_solve(knapsack_object_ptr ks)
 		break;
 	    unsigned long v = s2[u2].v << k1 | s1[u1 + h].v;
 	    // fprintf(stderr, "u1=%u u2=%u h=%u: %" PRId64 "\n", u1,u2,h,x);
-	    assert(x >= 0);
-	    assert(x < ebound);
+	    ASSERT(x >= 0);
+	    ASSERT(x < ebound);
 	    res += cb(cb_arg, v, x - bound);
 	}
     }

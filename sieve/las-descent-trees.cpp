@@ -1,13 +1,16 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <list>
 #include <map>
 #include <string>
 // #include <iostream>
 #include <sstream>
+#include <cstring>      // strlcpy (openbsd) // IWYU pragma: keep
 
-#include "las-info.hpp"
 #include "las-descent-trees.hpp"
+#include "portability.h"
+#include "macros.h"
+
 
 using namespace std;
 

@@ -74,26 +74,31 @@
 // This is done on a heuristic basis, taking the first 4k coordinates
 // only.
 
-#include "cado.h"
-
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include <gmp.h>
 #include <string.h>
-#include <ctype.h>
 #include <limits.h>
-#include <sys/types.h>
+#include <inttypes.h>
 #include <sys/stat.h>
-
-#include "mod_ul.c"
-
-#include "cado-endian.h"
-#include "portability.h"
-#include "utils.h"
-#include "utils_with_io.h"
+#include <stdint.h>          // for uint64_t, int64_t, uint32_t
+#include <gmp.h>
 #include "blockmatrix.h"
+#include "cado_poly.h"  // cado_poly_ptr
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "fix-endianness.h" // fwrite32_little
 #include "gauss.h"
+#include "gzip.h"       // fopen_maybe_compressed
+#include "misc.h"       // has_suffix
+#include "mod_ul.h"     // for modul_clear, modul_init, modul_set_ul
+#include "timing.h"     // for wct_seconds, print_timing_and_memory
+#include "mpz_poly.h"   // mpz_poly_ptr
+#include "params.h"     // param_list
+#include "purgedfile.h" // purgedfile_read_firstline
+#include "rootfinder.h" // mpz_poly_roots_ulong
 #include "worker-threads.h"
+#include "version_info.h"
+#include "macros.h"
 
 
 typedef struct {

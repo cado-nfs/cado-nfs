@@ -1,6 +1,8 @@
 #ifndef FB_TYPES_H
 #define FB_TYPES_H
 
+// pragma no prototypes
+
 /* Elementary data types for the factor base */
 
 #include <stdint.h>

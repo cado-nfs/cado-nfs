@@ -1,22 +1,20 @@
-#include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <inttypes.h> /* for PRId64 */
-#include <ctype.h> /* for isxdigit */
-#include <string.h>
-#include <errno.h>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <memory>
+// IWYU asks for <memory> because of allocator_traits<>::value_type ; WTH ?
+#include <cstdio>
+#include <cstdlib>
+#include <istream> // std::istream
+#include <ostream> // std::ostream
 #include <algorithm>
-#include <sstream>
-#include <iomanip>
+#include <sstream> // std::ostringstream // IWYU pragma: keep
+#include <string>
+#include <iomanip> // std::hex // IWYU pragma: keep
+#include <gmp.h>
 
+#include "macros.h" /* for ASSERT_ALWAYS */
 #include "relation.hpp"
-#include "gzip.h"
-#include "timing.h"
-#include "portability.h"
 #include "relation-tools.h"
-#include "relation.hpp"
-
-using namespace std;
 
 /*
  * Convention for I/O of rels:
@@ -70,7 +68,7 @@ relation::parse(const char *line)
 std::istream& operator>>(std::istream& is, relation& rel)
 {
     std::string s;
-    if (!getline(is, s, '\n') || !rel.parse(s.c_str())) {
+    if (!std::getline(is, s, '\n') || !rel.parse(s.c_str())) {
         is.setstate(std::ios_base::failbit);
         rel = relation();
     }
@@ -161,7 +159,7 @@ void relation::fixup_r(bool also_rational)
     }
 }
 
-inline bool operator==(relation::pr const& a, relation::pr const& b) {
+static inline bool operator==(relation::pr const& a, relation::pr const& b) {
     return mpz_cmp(a.p, b.p) == 0 && mpz_cmp(a.r, b.r) == 0;
 }
 
@@ -169,8 +167,8 @@ inline bool operator==(relation::pr const& a, relation::pr const& b) {
 void relation::compress()
 {
     for(int side = 0 ; side < nb_polys ; side++) {
-        vector<pr> & v(sides[side]);
-        sort(v.begin(), v.end(), pr_cmp());
+        std::vector<pr> & v(sides[side]);
+        std::sort(v.begin(), v.end(), pr_cmp());
         unsigned int j = 0;
         for(unsigned int i = 0; i < v.size() ; j++) {
             if (j < i) {

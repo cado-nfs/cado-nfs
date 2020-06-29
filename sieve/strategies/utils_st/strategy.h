@@ -1,6 +1,8 @@
 #ifndef STRATEGY_H
 #define STRATEGY_H
 
+#include <stdio.h> // FILE
+#include "fm.h" // fm_t
 #include "tab_fm.h"
 
 #ifdef __cplusplus

@@ -1,33 +1,34 @@
-#include "cado.h"
-#include <cstdio>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <memory>
+#include <cerrno>              // for ENOENT, errno
+#include <climits>             // for UINT_MAX
+#include <cstdlib>             // for exit, EXIT_FAILURE
+#include <cstring>             // for strncmp, strlen, strrchr
+#include <cstdio>               // for size_t, sscanf, fclose, fopen, fread
 
-#include <vector>
-#include <algorithm>
-#include <stdexcept>
-#include <map>
-#include <string>
-#include <sstream>
-#include <utility>
+#include <algorithm>            // for sort, min
+#include <map>                  // for map<>::mapped_type, _Rb_tree_iterator
+#include <sstream>              // for ostringstream, operator<<, basic_ostream
+#include <stdexcept>            // for runtime_error
+#include <string>               // for string, basic_string, operator<<, cha...
+#include <utility>              // for pair, make_pair
+#include <vector>               // for vector
 
-#include "bwc_config.h"
-#include "parallelizing_info.h"
-#include "matmul_top.h"
-#include "select_mpi.h"
-#include "params.h"
-#include "xvectors.h"
-#include "portability.h"
-#include "misc.h"
-#include "bw-common.h"
-#include "async.h"
-#include "xdotprod.h"
-#include "rolling.h"
-#include "mpfq/mpfq.h"
-#include "mpfq/mpfq_vbase.h"
-#include "cheating_vec_init.h"
-#include "fmt/printf.h"
+#include <sys/stat.h>           // for stat
+#include <gmp.h>                // for mpz_cmp_ui
+#include "bw-common.h"          // for bw, bw_common_clear, bw_common_decl_u...
+
+#include "cheating_vec_init.h"  // for cheating_vec_clear, cheating_vec_init
+#include "fmt/core.h"           // for check_format_string
+#include "fmt/format.h"         // for basic_buffer::append, basic_parse_con...
+#include "fmt/printf.h"         // fmt::printf // IWYU pragma: keep
+#include "macros.h"             // for ASSERT_ALWAYS, MAYBE_UNUSED
+#include "mpfq/mpfq.h"          // for MPFQ_DONE, MPFQ_PRIME_MPZ, MPFQ_SIMD_...
+#include "mpfq/mpfq_vbase.h"    // for mpfq_vbase_s, mpfq_vbase_oo_field_ini...
+#include "params.h"             // for param_list_clear, param_list_init
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "select_mpi.h"         // for MPI_Abort, MPI_Comm_rank, MPI_COMM_WORLD
 
 using namespace std;
 

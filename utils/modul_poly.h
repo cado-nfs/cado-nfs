@@ -7,8 +7,6 @@
  * providing unsigned longs here.
  */
 
-#include <gmp.h>
-#include <stdint.h>
 #include "mod_ul.h"
 #include "mpz_poly.h"
 

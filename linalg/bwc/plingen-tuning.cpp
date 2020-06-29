@@ -1,44 +1,42 @@
-#include "cado.h"
-
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
-#include <sys/time.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <errno.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
-#include <assert.h>
-#include <float.h>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <sys/param.h>
+#include <cerrno>
+#include <cfloat>
+#include <climits>
+#include <cstdint>                         // for uint64_t
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath> // log2 // IWYU pragma: keep
 #ifdef  HAVE_SIGHUP
-#include <signal.h>
+#include <csignal>
 #endif
-#ifdef  HAVE_OPENMP
-#include <omp.h>
-#endif
-
-#include "portability.h"
-#include "macros.h"
-#include "utils.h"
-#include "mpfq_layer.h"
-#include "lingen-polymat.h"
-#include "lingen-matpoly.h"
-// #include "lingen-bigpolymat.h" // 20150826: deleted.
-#include "lingen-matpoly-ft.h"
-#include "plingen.h"
-#include "plingen-tuning.h"
-
-#include <vector>
-#include <array>
-#include <utility>
-#include <map>
-#include <string>
-#include <ostream>
+#include <algorithm>                        // for max
 #include <iostream>
-#include <sstream>
+#include <map>
+#include <memory>                           // for allocator_traits<>::value...
+#include <sstream> // for ostringstream // IWYU pragma: keep
+#include <string>
+#include <tuple>                            // for get, make_tuple, tuple, tie
+#include <type_traits>                      // for __strip_reference_wrapper...
+#include <utility>
+#include <vector>
+
+#include <sys/types.h>
+#include <gmp.h>
+
+#include "cxx_mpz.hpp"  // cxx_mpz
+#include "flint-fft/transform_interface.h"  // for fft_transform_prepare
+#include "lingen-matpoly-ft.h"
+#include "lingen-matpoly.h"
+#include "lingen-polymat.h"
+#include "macros.h"
+#include "misc.h"                           // for size_disp
+#include "mpfq_layer.h"
+#include "omp_proxy.h"
+#include "params.h"
+#include "plingen-tuning.h"
+#include "timing.h"     // wct_seconds
 
 /* Assume we output something like one gigabyte per second. This is
  * rather conservative for HPC networks */

@@ -1,8 +1,12 @@
-#include "cado.h"
-#include <string.h>
-#include <stdio.h>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+#include <cstdint>                // for SIZE_MAX
+#include <queue>                   // for queue, priority_queue
+#include <utility>                 // for move
+#include "clonable-exception.hpp"  // for clonable_exception
+#include "timing.h"                // for seconds_thread
 #include "threadpool.hpp"
-#include "barrier.h"
+#include "macros.h"
 
 /*
   With multiple queues, when new work is added to a queue, we need to be able

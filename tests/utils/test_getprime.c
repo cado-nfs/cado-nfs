@@ -1,6 +1,5 @@
-#include "cado.h"
-#include <stdint.h>
-#include <time.h>
+#include "cado.h" // IWYU pragma: keep
+#include <stdlib.h>
 #include "getprime.h"
 #include "macros.h"
 

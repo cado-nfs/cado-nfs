@@ -1,19 +1,22 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <stdint.h>
-#include <string.h>
-#include "bwc_config.h"
+#include <cstdarg>         // for va_list, va_end, va_start
+#include <cstddef>         // for ptrdiff_t
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+#include <cstring>
+#include <climits>
+#include <gmp.h>
 #include "matmul.h"
 #include "matmul-common.h"
 #include "mpfq_layer.h"
-#include "portability.h"
 
 #include "matmul_facade.h"
 
 #include "arith-modp.hpp"
+#include "macros.h"
+#include "params.h"
 
 /* define "gfp" as being our c++ type built from the number of words in
  * the underlying mpfq data type.

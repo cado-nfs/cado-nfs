@@ -1,8 +1,13 @@
 #ifndef LAS_CHOOSE_SIEVE_AREA_HPP_
 #define LAS_CHOOSE_SIEVE_AREA_HPP_
 
-#include "las-info.hpp"
-#include "verbose.h"
+#include <cstdint>       // for uint32_t
+#include <memory>        // for shared_ptr
+#include "las-info.hpp"  // for las_info
+class nfs_aux;
+struct las_todo_entry;
+struct qlattice_basis;
+struct siever_config;
 
 extern int never_discard;
 

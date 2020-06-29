@@ -1,6 +1,10 @@
 #ifndef POLYSELECT_SIZE_OPTIMIZATION_H_
 #define POLYSELECT_SIZE_OPTIMIZATION_H_
 
+#include <stdint.h>
+#include <gmp.h>
+#include "mpz_poly.h"
+
 typedef struct
 {
   mpz_t *tab;
@@ -40,10 +44,19 @@ typedef const list_mpz_s * list_mpz_srcptr;
 #define SOPT_LOCAL_DESCENT_GUARD 0.001
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 double sopt_local_descent (mpz_poly_ptr, mpz_poly_ptr, mpz_poly_srcptr,
                            mpz_poly_srcptr, int, int, unsigned int, int);
 double size_optimization (mpz_poly_ptr, mpz_poly_ptr, mpz_poly_srcptr,
                           mpz_poly_srcptr, const unsigned int, const int);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif	/* POLYSELECT_SIZE_OPTIMIZATION_H_ */
 

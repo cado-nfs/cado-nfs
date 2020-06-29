@@ -1,9 +1,7 @@
-#include "cado.h"
-#include <sys/types.h>
-#include <sys/time.h>
+#include "cado.h" // IWYU pragma: keep
+#include <stddef.h> // NULL
 #include <errno.h>
 #include <pthread.h>
-#include <time.h>
 #include "barrier.h"
 
 int barrier_init (barrier_t *barrier, int count)

@@ -1,10 +1,9 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "balancing_file_source.h"
-#include "portability.h"
-#include "utils.h"
+#include "fix-endianness.h" // fread32_little
 
 // there's presently no provision for tweaking the following parameter,
 // but adding it is clearly a completely trivial matter.

@@ -24,7 +24,7 @@ modredcul_initmod_ul (unsigned long *m, const unsigned long s)
       ularith_div_2ul_ul_ul_r (m, 0UL, 1UL, s);
     }
 
-  fprintf(stderr, "m = %lu\n", *m);
+  // fprintf(stderr, "m = %lu\n", *m);
 
   if (sizeof(unsigned long) == 8)
     if (*m != 8241071186)

@@ -1,22 +1,22 @@
-#include "cado.h"
-#include "utils.h"
+#include "cado.h" // IWYU pragma: keep
 
 #define _GNU_SOURCE // for pthread_tryjoin_np()
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <assert.h>
 #include <string.h>
 #include <sys/types.h> 
-#include <sys/resource.h>
 #include <unistd.h>
-#include <stdbool.h>
 #include <pthread.h>
+#include <sys/time.h>
 #include <gmp.h>
-
+#include "cado_poly.h"  // cado_poly
 #include "ecm.h"
+#include "lll.h"        // mat_Z LLL
+#include "mpz_poly.h"   // mpz_poly
 #include "smooth_detect.h"
+#include "macros.h"
 
 double default_B1done;
 
@@ -222,7 +222,7 @@ int get_Fpn_candiate_from_e(unsigned long e, mpz_poly_ptr UU, mpz_poly_ptr VV,
   // Bottomleft d*d block
   for (int i = 0; i < d; ++i) {
     mpz_poly_set_xi(y,i);     // y is the polynomial alpha^i
-    mpz_poly_mul_mod_f_mod_mpz(c, ze, y, param->f, param->p, NULL);
+    mpz_poly_mul_mod_f_mod_mpz(c, ze, y, param->f, param->p, NULL, NULL);
     for (int j = 0; j < d; ++j) {
       if (j > c->deg)
         mpz_set_ui(M.coeff[d+i+1][j+1], 0);
@@ -656,7 +656,7 @@ int main(int argc, char **argv) {
         // one of them is not squarefree. Restart the thread and wait for
         // another candidate.
         ret = pthread_create(&thid[i], NULL, process_one_thread, &thparam[i]);
-        assert(ret == 0);
+        ASSERT(ret == 0);
         pthread_mutex_lock(&mut_found);
         pthread_cond_wait(&cond_found, &mut_found);
         i = thid_found;

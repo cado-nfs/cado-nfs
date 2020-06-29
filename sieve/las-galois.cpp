@@ -1,7 +1,16 @@
-#include "cado.h"
-#include <string.h>
-#include "utils.h"
+#include "cado.h" // IWYU pragma: keep
+#include <cstdint>       // for int64_t, uint64_t
+#include <cstdio>        // for fprintf, stderr
+#include <cstring>       // for strcmp, memset
+#include <memory>        // for allocator_traits<>::value_type
+#include <ostream>
+#include <vector>        // for vector
+#include "cxx_mpz.hpp"
+#include "galois_utils.h" // automorphism_init
 #include "las-galois.hpp"
+#include "macros.h"      // for ASSERT_ALWAYS
+#include "mod_ul.h"     // modulusul_t
+#include "relation.hpp"
 
 static void adwg(std::ostream& os, const char *comment, unsigned long *cpt,
 		 relation &rel, int64_t a, int64_t b){

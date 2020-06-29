@@ -1,7 +1,6 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "generate_factoring_method.hpp"
 
-#include <float.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <vector>

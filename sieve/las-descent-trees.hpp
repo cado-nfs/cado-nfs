@@ -1,18 +1,30 @@
 #ifndef LAS_DESCENT_DESCENT_TREES_HPP_
 #define LAS_DESCENT_DESCENT_TREES_HPP_
 
-#include <string>
-#include <sstream>
-#include <list>
-#include <set>
-#include <map>
-#include <mutex>
-#include <pthread.h>
-#include <algorithm>    /* max */
+#include <cstdio>             // for FILE
+#include <cstdlib>            // for free
+#include <algorithm>           // for max
 #include <cmath>        /* isfinite is c99 and std::isfinite is c++11 ;
                          * it's not totally clear that #include <cmath> +
                          * accessing std::isfinite works.
                          */
+#include <list>                // for list, operator!=, _List_iterator, list...
+#include <mutex>               // for mutex, lock_guard
+#include <set>                 // for operator!=, set, set<>::const_iterator
+#include <sstream>             // for basic_ostream::operator<<, operator<<
+#include <string>              // for string, allocator
+#include <utility>             // for pair
+#include <vector>              // for vector
+
+#include <gmp.h>               // for mpz_srcptr, gmp_asprintf, mpz_sizeinbase
+
+#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "macros.h"            // for ASSERT_ALWAYS
+#include "relation.hpp"        // for relation_ab, relation, relation::pr
+#include "timing.h"             // for seconds
+#include "verbose.h"            // for verbose_output_print
+#include "cxx_mpz.hpp"          // for cxx_mpz
+
 #ifdef isfinite
 /* Under some conditions, we can get #define'd C functions, which
  * obviously invalidate the C++ prototype (icc version 16.0.3 based on
@@ -20,10 +32,6 @@
  */
 #undef isfinite
 #endif
-
-#include "relation.hpp"
-#include "las-forwardtypes.hpp"
-#include "las-info.hpp"
 
 struct descent_tree {
     private:

@@ -1,10 +1,29 @@
-#include "cado.h"
+/* This file is _NOT_ a standalone compilation unit. It is included by
+ * facul_doit_blah.cpp ; therefore it's _normal_ if this file does not
+ * seem to be self-contained.
+ */
+
+/* We don't even need to #include "cado.h", because the
+ * facul_doit_blah.cpp has to do so already. However, our policy
+ * detection script will insist on seeing this include, and it doesn't do
+ * any harm
+ */
+#include "cado.h" // IWYU pragma: keep
+#include <stdlib.h>
+
+#ifndef FACUL_DOIT_READY_TO_INCLUDE_IMPL_CODE
+#error "This file must not be used as a standalone compilation unit"
+#endif
+
 #include "facul_doit.hpp"
 #include "modset.hpp"
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"
 #include "mpqs.h"
+#include "cxx_mpz.hpp"
+#include "mod_ul.h"
+#include "macros.h"
 
 #ifdef ENABLE_UNSAFE_FACUL_STATS
 extern unsigned long stats_called[];

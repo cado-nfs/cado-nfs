@@ -1,9 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <string.h>
+#include <stdlib.h>
 
 #include "select_mpi.h"
 #include "balancing_mpi_source.h"
-#include "portability.h"
+#include "macros.h"
 
 size_t mpi_source_get(mpi_source_ptr s, uint32_t ** p, size_t avail)
 {

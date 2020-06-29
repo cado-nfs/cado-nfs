@@ -1,11 +1,13 @@
-#include "cado.h"
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <stdio.h>
+#include "cado.h" // IWYU pragma: keep
+#include "modredc_2ul2.h"
 #include "modredc_2ul2_default.h"
 #include "modredc_2ul_common.c"
 
 #define PARI 0
 #if PARI
+#include <stdio.h>      // IWYU pragma: keep
+#include <stdlib.h>
+#include "macros.h"
 #define MODINV_PRINT_PARI_M \
     printf ("m = (%lu << %d) + %lu; /* PARI %d */\n", m[0].m[1], LONG_BIT, m[0].m[0], __LINE__)
 #define MODINV_PRINT_PARI_x \

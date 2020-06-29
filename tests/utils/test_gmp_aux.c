@@ -1,10 +1,13 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdint.h>
-#include <time.h>
 #include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>
 #include "gmp_aux.h"
 #include "macros.h"
 #include "tests_common.h"
+#include "portability.h" // lrand48 // IWYU pragma: keep
 
 static void
 test_mpz_set_uint64 ()

@@ -24,22 +24,29 @@ Output
 
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <gmp.h>
 #include <string.h>
-#include <ctype.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <inttypes.h>    // for PRIu64, SCNu64, SCNd64, SCNx64
+#include <stdint.h>      // for uint64_t, int64_t
 #include <pthread.h>
-#include <errno.h>
-
+#include <unistd.h>      // for usleep
+#include <gmp.h>
+#include "cado_poly.h"   // for NB_POLYS_MAX, cado_poly_clear, cado_poly_init
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "gmp_aux.h"    // nbits
+#include "gzip.h"       // fopen_maybe_compressed
 #include "macros.h"
-#include "utils_with_io.h"
-#include "filter_config.h"
+#include "mpz_poly.h"   // mpz_poly_ptr
+#include "params.h"
+#include "purgedfile.h" // purgedfile_read_firstline
 #include "select_mpi.h"
+#include "sm_utils.h"   // sm_relset_ptr
+#include "stats.h"      // stats_data_t
+#include "timing.h"      // for seconds
+#include "verbose.h"    // verbose_output_print
 
 stats_data_t stats; /* struct for printing progress */
 
@@ -281,7 +288,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "index", "(required) index file");
   param_list_decl_usage(pl, "out", "output file (stdout if not given)");
   param_list_decl_usage(pl, "ell", "(required) group order");
-  param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-utils.h)");
+  param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-portability.h)");
   param_list_decl_usage(pl, "nsm", "number of SM on side 0,1,... (default is "
                                    "computed by the program)");
   param_list_decl_usage(pl, "t", "number of threads on each mpi job (default 1)");

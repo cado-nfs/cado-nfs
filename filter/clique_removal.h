@@ -7,6 +7,9 @@
    We will try to use the "connected component" terminology instead.
 */
 
+#include <stdint.h>
+#include "purge_matrix.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

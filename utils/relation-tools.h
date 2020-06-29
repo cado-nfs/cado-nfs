@@ -1,8 +1,8 @@
 #ifndef RELATION_TOOLS_H_
 #define RELATION_TOOLS_H_
 
-#include "utils.h"
-#include "typedefs.h"
+#include <stdint.h>    // for int64_t, uint64_t
+#include "typedefs.h"  // for p_r_values_t
 
 #ifdef __cplusplus
 extern "C" {

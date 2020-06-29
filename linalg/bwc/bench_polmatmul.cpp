@@ -1,18 +1,18 @@
-#include "cado.h"
-#include <stdio.h>
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 #include <ctime>
-#include <gmp.h>
 #include <vector>
-#include "macros.h"
-#include "utils.h"
-#include "gf2x.h"
+#include <cmath>
+#include <limits.h>
+#include <sys/time.h>
+#include <gmp.h>
 #include "gf2x-fft.h"
-#include "math.h"
-
+#include "gf2x.h"
 #include "lingen_mat_types.hpp"
+#include "macros.h"
+#include "portability.h"
 
 using namespace std;
 
@@ -252,7 +252,7 @@ template<> my_strassen_selector foo<gf2x_cantor_fft>::s = my_strassen_selector()
 template<> my_strassen_selector foo<gf2x_ternary_fft>::s = my_strassen_selector();
 
 #define STRASSEN_THRESHOLDS_AS_CPP_CONSTANTS
-#include "strassen-thresholds.h"
+#include "strassen-thresholds.hpp"
 /*
 template<> unsigned int foo<gf2x_fake_fft>::default_selector_data[] = {};
 template<> unsigned int foo<gf2x_cantor_fft>::default_selector_data[] = {};

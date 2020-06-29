@@ -58,30 +58,25 @@
  * - 2 if not enough relations
  */
 
-#include "cado.h"
-#include <gmp.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>  /* for _O_BINARY */
-#include <math.h>
-#include <unistd.h>
-#include <string.h>
-#include <time.h>
-#include <float.h>
-#include <pthread.h>
-#include <errno.h>
-#include <pthread.h>
-#ifdef HAVE_LIBGEN_H
-#include <libgen.h>
-#endif
-
-#include "portability.h"
-
-#include "utils_with_io.h"
-#include "filter_config.h"
-#include "purge_matrix.h"
-#include "singleton_removal.h"
-#include "clique_removal.h"
+#include "cado.h" // IWYU pragma: keep
+#include <inttypes.h>           // for PRIu64, PRId64
+#include <stdint.h>             // for int64_t, uint64_t
+#include <stdio.h>              // for fprintf, stdout, fflush, stderr, NULL
+#include <stdlib.h>             // for exit, EXIT_FAILURE, abort, malloc
+#include <string.h>             // for memset
+#include "clique_removal.h"     // for cliques_removal, comp_print_info_weig...
+#include "filter_config.h"      // for DEFAULT_PURGE_NSTEPS, DEFAULT_FI...
+#include "filter_io.h"          // for filter_rels, earlyparsed_relation_s
+#include "gzip.h"               // for fclose_maybe_compressed, fopen_maybe_...
+#include "macros.h"             // for ASSERT_ALWAYS
+#include "misc.h"               // for filelist_clear, filelist_from_file, UMAX
+#include "params.h"             // for param_list_decl_usage, param_list_loo...
+#include "purge_matrix.h"       // for purge_matrix_s, purge_matrix_print_st...
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "singleton_removal.h"  // for singleton_removal
+#include "timing.h"             // for print_timing_and_memory, seconds, wct...
+#include "typedefs.h"           // for index_t, weight_t
+#include "verbose.h"            // for verbose_decl_usage, verbose_interpret...
 
 // #define TRACE_J 0x5b841 /* trace column J */
 
@@ -324,16 +319,16 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "col-min-index", "only take into account columns"
                                              " with indexes >= col-min-index");
   param_list_decl_usage(pl, "keep", "wanted excess at the end of purge "
-                                    "(default " STR(DEFAULT_FILTER_EXCESS) ")");
+                                    "(default " CADO_STRINGIZE(DEFAULT_FILTER_EXCESS) ")");
   param_list_decl_usage(pl, "nsteps", "maximal number of steps of clique "
                                       "removal (default: chosen in [1.."
-                                             STR(DEFAULT_PURGE_NSTEPS) "])");
+                                             CADO_STRINGIZE(DEFAULT_PURGE_NSTEPS) "])");
   param_list_decl_usage(pl, "required_excess", "%% of excess required at the "
                             "end of the 1st singleton removal step (default "
-                            STR(DEFAULT_PURGE_REQUIRED_EXCESS) ")");
+                            CADO_STRINGIZE(DEFAULT_PURGE_REQUIRED_EXCESS) ")");
   param_list_decl_usage(pl, "outdel", "outfile for deleted relations (for DL)");
   param_list_decl_usage(pl, "t", "number of threads (default "
-                                             STR(DEFAULT_PURGE_NTHREADS) ")");
+                                             CADO_STRINGIZE(DEFAULT_PURGE_NTHREADS) ")");
   param_list_decl_usage(pl, "v", "verbose mode");
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");

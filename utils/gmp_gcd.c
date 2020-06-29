@@ -1,7 +1,6 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <gmp.h>
 #include <stdio.h>
-#include "portability.h"
 
 int main(int argc, char **argv)
 {

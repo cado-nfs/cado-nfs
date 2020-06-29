@@ -135,7 +135,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #pragma GCC diagnostic error "-Wall"
 #endif
 
-#include "cado_config.h"
+#include "cado_config.h"        // IWYU pragma: export
 
 /* some stuff that we wish to enable only after we read our config-time
  * defines...
@@ -155,6 +155,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifdef __GNUC__
 #if (__GNUC__ == 4 && __GNUC_MINOR__ == 9) || (__GNUC__ == 5 && __GNUC_MINOR__ <= 4)
 #include <cstddef>	// problem with gcc 4.9.4 and gcc 5.4.0
+#include <stdio.h>
+#include <stdlib.h>
 #endif
 #endif
 #endif

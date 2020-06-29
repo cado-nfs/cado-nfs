@@ -1,17 +1,17 @@
-#include "cado.h"
-
+#include "cado.h" // IWYU pragma: keep
+#include <stdarg.h>         // for va_list, va_end, va_start
+#include <stddef.h>         // for ptrdiff_t
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <stdint.h>
 #include <string.h>
-#include "bwc_config.h"
 #include "matmul.h"
 #include "matmul-common.h"
 #include "mpfq_layer.h"
-#include "portability.h"
 
 #include "matmul_facade.h"
+#include "macros.h"
+#include "params.h"
 
 /* This extension is used to distinguish between several possible
  * implementations of the product */

@@ -1,7 +1,12 @@
-#include "cado.h"
-#include <string.h>
+#include "cado.h" // IWYU pragma: keep
+#include <cstring>
+#include <initializer_list>  // for initializer_list
+#include <list>              // for list
+#include <utility>           // for pair
 #include <iostream>
+#include "double_poly.h"     // for cxx_double_poly, double_poly_s
 #include "logapprox.hpp"
+#include "macros.h"
 
 void display_logapprox(piecewise_linear_function & F)
 {

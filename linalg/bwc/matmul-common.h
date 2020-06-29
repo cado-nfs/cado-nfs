@@ -3,9 +3,9 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <stddef.h>
-#include "params.h"
-#include "matmul.h"
+#include "macros.h"  // for DIE_ERRNO_DIAG, FATAL_ERROR_CHECK
+struct matmul_public_s;
+
 
 #ifdef __cplusplus
 extern "C" {

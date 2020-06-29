@@ -1,10 +1,8 @@
 #ifndef BALANCING_WORKHORSE_H_
 #define BALANCING_WORKHORSE_H_
 
-#include <stdint.h>
-
+#include "params.h"              // for param_list_ptr, param_list
 #include "parallelizing_info.h"
-#include "utils.h"
 #include "raw_matrix_u32.h"
 
 #ifdef __cplusplus

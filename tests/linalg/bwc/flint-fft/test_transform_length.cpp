@@ -1,7 +1,7 @@
 #include "cado.h"
-#include "utils.h"
-#include "fft.h"
 #include <iostream>
+#include "fft.h"
+#include "macros.h"
 
 using namespace std;
 

@@ -1,8 +1,8 @@
 #ifndef BALANCING_FILE_SOURCE_H_
 #define BALANCING_FILE_SOURCE_H_
 
+#include <stdint.h>                 // for uint32_t
 #include <stdio.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 
 #include "balancing_data_source.h"

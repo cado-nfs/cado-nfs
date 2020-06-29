@@ -1,3 +1,4 @@
+// pragma multi include
 /* Renames mod_ function names so that the function for the desired
    arithmetic type/width is used */
 
@@ -145,6 +146,10 @@
 #define mod_fprintf          gmp_fprintf
 #define mod_printf           gmp_printf
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* A function that is not used anywhere. The purpose is solely generating 
    compilation errors if any of the renamed functions, which constitute  
    kind of a definition of the API, are not implemented. */
@@ -226,3 +231,8 @@ mod_test_if_functions_exist()
   p = (void*) &mod_finished;
   return p;
 }
+
+#ifdef __cplusplus
+}
+#endif
+

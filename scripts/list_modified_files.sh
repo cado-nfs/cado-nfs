@@ -5,8 +5,8 @@ OUTPUT_FILE="$1"
 if ! [ -d .git ] ; then
     if ! [ -f "$OUTPUT_FILE" ] ; then
         cat > "$OUTPUT_FILE" <<'EOF'
-#include "cado.h"
-#include "version_info.h"
+#include "cado.h" // IWYU pragma: keep
+#include "version_info.h"       // IWYU pragma: keep
 const char * cado_modified_files = "# (tarball extracted)\n";
 EOF
     fi
@@ -23,8 +23,8 @@ fi
 
 function list_modified() {
   cat << 'EOF'
-#include "cado.h"
-#include "version_info.h"
+#include "cado.h" // IWYU pragma: keep
+#include "version_info.h"       // IWYU pragma: keep
 const char * cado_modified_files = 
 EOF
   git status --porcelain -uno | while read STATUS FILE

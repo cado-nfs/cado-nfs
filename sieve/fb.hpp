@@ -5,33 +5,39 @@
 #ifndef FB_HPP_
 #define FB_HPP_
 
-#include <stdio.h>
-#include <stddef.h>
-#include <string.h>
-#include <limits.h>
-#include <stdint.h>
-#include <gmp.h>
-#include <array>
-#include <vector>
-#include <deque>
-#include <list>
-#include <algorithm>
-#include <map>
-#include "multityped_array.hpp"
-#include "las-config.h"
-#include "cado_poly.h" // for MAX_DEGREE
-#include "fb-types.h"
-#include "las-qlattice.hpp"
-#include "las-plattice.hpp"
-#include "las-base.hpp"
-#include "lock_guarded_container.hpp"
+#include "cado_config.h"               // for HAVE_GLIBC_VECTOR_INTERNALS
 
+#include <cstddef>                    // for size_t, NULL
+#include <cstdio>                     // for fprintf, FILE
+#include <algorithm>                   // for sort, max
+#include <array>                       // for array
+#include <iosfwd>                      // for ostream
+#include <limits>                      // for numeric_limits
+#include <list>                        // for list
+#include <map>                         // for map, operator!=, _Rb_tree_iter...
+#include <mutex>                       // for lock_guard, mutex
+#include <utility>                     // for pair
+#include <vector>                      // for vector
+
+#include "macros.h"                    // for ASSERT_ALWAYS, ASSERT, MAYBE_U...
+#include "mpz_poly.h"   // for cxx_mpz, cxx_mpz_poly
+#include "cado_poly.h"   // for MAX_DEGREE
+
+#include "fb-types.h"                  // for fbprime_t, slice_index_t, fbro...
+#include "las-base.hpp"                // for _padded_pod
+#include "las-config.h"                // for FB_MAX_PARTS
+#include "lock_guarded_container.hpp"  // for lock_guarded_container
+#include "mmap_allocator.hpp"          // for mmap_allocator
 #ifdef HAVE_GLIBC_VECTOR_INTERNALS
 #include "mmappable_vector.hpp"
 #else
 /* yes, it's a hack */
 #define mmappable_vector std::vector
 #endif
+#include "multityped_array.hpp"        // for multityped_array_foreach, mult...
+struct qlattice_basis;
+struct cxx_param_list;
+
 
 /* The *factor base* is made of *entries*. We have several vectors of
  * entries, each with primes splitting in the same number of roots.
@@ -96,11 +102,7 @@ struct fb_general_root {
 
   void transform(fb_general_root &result, const fbprime_t q,
                  const redc_invp_t invq,
-                 const qlattice_basis &basis) const {
-    unsigned long long t = to_old_format(q);
-    t = fb_root_in_qlattice(q, t, invq, basis);
-    result = fb_general_root(t, q, exp, oldexp);
-  }
+                 const qlattice_basis &basis) const;
 };
 
 /* General entries are anything that needs auxiliary information:
@@ -210,11 +212,6 @@ class fb_slice_interface {
         virtual bool is_general() const = 0;
         virtual int get_nr_roots() const = 0;
 };
-
-/* This is one of the function objects in fb.cpp that needs to tinker
- * with the internals of fb_slice.
- */
-struct helper_functor_subdivide_slices;
 
 /* see fb_slice_weight.hpp */
 template<typename FB_ENTRY_TYPE>

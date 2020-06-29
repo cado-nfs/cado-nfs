@@ -1,8 +1,8 @@
 #ifndef ROPT_TREE_H
 #define ROPT_TREE_H
 
-
-#include "auxiliary.h"
+#include <stdint.h>     // int16_t
+#include <gmp.h>
 
 
 /**
@@ -90,6 +90,10 @@ typedef struct MurphyE_pq_t {
 
 
 /* --- declarations --- */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* tree, used in ropt_stage1.c */
@@ -199,6 +203,11 @@ void free_MurphyE_pq ( MurphyE_pq **ppqueue );
 void reset_MurphyE_pq ( MurphyE_pq *pqueue );
 
 void remove_rep_MurphyE ( MurphyE_pq *pqueue );
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* ROPT_TREE_H */

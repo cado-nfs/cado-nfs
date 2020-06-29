@@ -1,59 +1,8 @@
 #ifndef LAS_CONFIG_H_
 #define LAS_CONFIG_H_
 
+#include "cado_config.h"  // HAVE_SSE2
 #include <stddef.h>
-
-#ifdef HAVE_SSE2
-#define SSE_NORM_INIT
-#endif
-
-/* define PROFILE to keep certain functions from being inlined, in order to
-   make them show up on profiler output */
-//#define PROFILE
-
-/* (for debugging only) define TRACE_K, to something non-zero,
- * in order to get tracing information on a
- * particular relation.  In particular this traces the sieve array entry
- * corresponding to the relation. Upon startup, the three values below
- * are reconciled.
- *
- * This activates new command lines arguments: -traceab, -traceij, -traceNx.
- * (see las-coordinates.cpp for the description of these)
- */
-#ifndef TRACE_K
-#define xxxTRACE_K
-#endif
-
-/* Define CHECK_UNDERFLOW to check for underflow when subtracting
-   the rounded log(p) from sieve array locations */
-//#define CHECK_UNDERFLOW
-
-/* Define TRACK_CODE_PATH in order to have the where_am_I structures
- * propagate info on the current situation of the data being handled.
- * This more or less makes the variables global, in that every function
- * can then access the totality of the variables. But it's for debug and
- * inspection purposes only.
- *
- * Note that WANT_ASSERT_EXPENSIVE, a flag which exists in broader
- * context, augments the scope of the tracking here by performing a
- * divisibility test on each sieve update. This is obviously very
- * expensive, but provides nice checking.
- *
- * Another useful tool for debugging is the sieve-area checksums that get
- * printed with verbose output (-v) enabled.
- */
-#define xxxTRACK_CODE_PATH
-#define xxxWANT_ASSERT_EXPENSIVE
-
-/* TRACE_K *requires* TRACK_CODE_PATH -- or it displays rubbish */
-#if defined(TRACE_K) && !defined(TRACK_CODE_PATH)
-#define TRACK_CODE_PATH
-#endif
-
-/* idem for CHECK_UNDERFLOW */
-#if defined(CHECK_UNDERFLOW) && !defined(TRACK_CODE_PATH)
-#define TRACK_CODE_PATH
-#endif
 
 /* un-sieving of locations where gcd(i,j)>1 instead of testing gcd for
  * each survivor. Appears slower than default. This code has always been
@@ -62,10 +11,6 @@
 #define xxxUNSIEVE_NOT_COPRIME  /* see las-unsieve.c */
 
 #define FB_MAX_PARTS 4
-
-#define VARIABLE_BUCKET_REGION
-
-#ifdef VARIABLE_BUCKET_REGION
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,32 +33,17 @@ extern int NB_DEVIATIONS_BUCKET_REGIONS;
 }
 #endif
 
-#else   /* !VARIABLE_BUCKET_REGION */
-/* Optimal bucket region: 2^16 = 64K == close to L1 size.
- * It is possible to put a higher value, in order to set I > 16.
- * However, this will have a bad impact on the memory usage, and on
- * efficiency, due to worse memory access. See bucket.h .
-*/
-#ifndef LOG_BUCKET_REGION
-#define LOG_BUCKET_REGION 16
-#endif
-
-#define NB_BUCKETS_2 256
-#define NB_BUCKETS_3 256
-
-#define BUCKET_REGION (UINT64_C(1) << LOG_BUCKET_REGION)
-
-#define BUCKET_REGION_1 BUCKET_REGION
-#define BUCKET_REGION_2 NB_BUCKETS_2*BUCKET_REGION_1
-#define BUCKET_REGION_3 NB_BUCKETS_3*BUCKET_REGION_2
-
-#define BUCKET_REGIONS { 0, BUCKET_REGION_1, BUCKET_REGION_2, BUCKET_REGION_3 }
-#endif  /* VARIABLE_BUCKET_REGION */
-
 #define DESCENT_DEFAULT_GRACE_TIME_RATIO 0.2    /* default value */
 
 /* (Re-)define this to support larger q. This is almost mandatory for the
- * descent. */
+ * descent.
+ *
+ * Modify the flag here **ONLY** if you intend to produce a custom las
+ * siever that supports large q. The "normal" use case for this flag is
+ * the las_descent binary, which is anyway _compiled_ with -DDLP_DESCENT
+ * -DSUPPORT_LARGE_Q
+ */
+
 #ifndef SUPPORT_LARGE_Q
 #define xxxSUPPORT_LARGE_Q
 #endif
@@ -139,7 +69,7 @@ extern int NB_DEVIATIONS_BUCKET_REGIONS;
 #define NOPROFILE_STATIC static
 #endif
 
-/* A memset with less than MEMSET_MIN bytes is slower than an fixed
+/* A memset with less than MEMSET_MIN bytes is slower than a fixed
  * memset (which is inlined with special code). So, if possible, it is
  * worthwhile to write:
  *   if (LIKELY(ts <= MEMSET_MIN)) memset (S, i, MEMSET_MIN); else memset (S, i, ts);
@@ -152,8 +82,6 @@ extern int NB_DEVIATIONS_BUCKET_REGIONS;
 #ifdef HAVE_SSE2
 // #define USE_CACHEBUFFER 1
 #endif 
-
-#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {

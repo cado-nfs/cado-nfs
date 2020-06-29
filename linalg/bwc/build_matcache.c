@@ -1,15 +1,19 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <gmp.h>
 
-#include "bwc_config.h"
 #include "matmul.h"
-#include "portability.h"
 #include "macros.h"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "matmul-mf.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "params.h"
+#include "raw_matrix_u32.h"   // for matrix_u32
+
 
 void declare_usage(param_list_ptr pl)
 {

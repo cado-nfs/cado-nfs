@@ -1,7 +1,9 @@
 #ifndef MATOPS_H_
 #define MATOPS_H_
 
+#include "cado_config.h"  // for HAVE_SSE2, ULONG_BITS
 #include <stdint.h>
+#include <stddef.h>       // for size_t
 #include "macros.h"
 
 typedef uint64_t mat64[64] ATTRIBUTE((aligned(64)));

@@ -495,7 +495,7 @@ cado_define_test(full_c30
             -t 2 -dlp-no-keep
             target=92800609832959449330691138186
             3037544709654617415632521514287
-            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
+            TARGET_DEPENDENCIES full_c30_dependencies
             plingen_pz sm sm_simple las_descent reconstructlog-dl
             merge-dl replay-dl badideals)
         # The following case was hitting the bug #21707
@@ -518,7 +518,7 @@ cado_define_test(full_c30
             tasks.sieve.qrange=100
             tasks.sieve.sqside=0
             tasks.sieve.rels_wanted=1500
-            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
+            TARGET_DEPENDENCIES full_c30_dependencies
             plingen_pz sm sm_simple las_descent reconstructlog-dl
             dlpolyselect merge-dl replay-dl badideals)
     endif()
@@ -567,20 +567,20 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 #               43341748620473677010074177283795146221310971425909898235183
 #               -dlp -t 2 -s auto -dlpnokeep
 #                ${CADO_NFS_SOURCE_DIR}
-#            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
+#            TARGET_DEPENDENCIES full_c30_dependencies
 #            plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
 #        )
         cado_define_test(full_gfp3
             SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
-            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
+            TARGET_DEPENDENCIES full_c30_dependencies
             plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals)
         cado_define_test(full_gfp2
             SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
             ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
-            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
+            TARGET_DEPENDENCIES full_c30_dependencies
             plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
             filter_galois polyselect_gfpn)
 # see bug http://cado-nfs.gforge.inria.fr/bug.php?21767
@@ -588,7 +588,7 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 #             SCRIPT
 #                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp2_2_2g.sh
 #                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
-#             TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
+#             TARGET_DEPENDENCIES full_c30_dependencies
 #             plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
 # 	    filter_galois)
     endif()
@@ -616,11 +616,8 @@ add_subdirectory (scripts)
 add_subdirectory (utils)
 add_subdirectory (sieve)
 add_subdirectory (polyselect)
-add_subdirectory (numbertheory)
 add_subdirectory (filter)
 add_subdirectory (linalg)
 add_subdirectory (gf2x)
 add_subdirectory (misc)
 add_subdirectory (sqrt)
-# commented the following since nfs-hd is not in "make dist"
-# add_subdirectory (nfs-hd)

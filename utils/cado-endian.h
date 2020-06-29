@@ -25,7 +25,9 @@
 #ifndef CADO_ENDIAN_H_
 #define CADO_ENDIAN_H_
 
-#if defined (__GLIBC__)
+// pragma no prototypes
+
+#ifdef HAVE_GLIBC
 // GNU libc offers the helpful header <endian.h> which defines
 // __BYTE_ORDER
 # include <endian.h>

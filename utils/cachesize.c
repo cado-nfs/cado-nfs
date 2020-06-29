@@ -1,8 +1,7 @@
 /* Main function to invoke cachesize_guess() or cachesize_cpuid() */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include "portability.h"
 #include "version_info.h"
 
 int cachesize_cpuid(int verbose);

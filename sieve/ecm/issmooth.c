@@ -20,15 +20,13 @@
      (which requires N|O).
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
 #include <limits.h>
 #include <gmp.h>
 #include "macros.h"
-#include "portability.h"
 
 #define NR_EXPONENTS 8
 #define EXP_PRIMES {2,3,5,7,11,13,17,19}
@@ -250,7 +248,7 @@ main (int argc, char **argv)
 
           if (scanf_code == 3)
             {
-              assert (O % N == 0);
+              ASSERT (O % N == 0);
               for (i = 0; i < NR_EXPONENTS; i++)
                 {
                   stats[r].exp_order[i] += valuation (O, exp_primes[i]);

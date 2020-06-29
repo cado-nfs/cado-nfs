@@ -1,12 +1,12 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "mpfq_layer.h"
 #include <stdlib.h>
 #include <gmp.h>
-#include "portability.h"
-#include "macros.h"
-#include "utils.h"
+#include <string.h>          // for memcpy, memmove, memset
+#include "lingen-polymat.h"  // for polymat_s, polymat_coeff_const, polymat_...
 #include "lingen-matpoly.h"
-#include "flint-fft/fft.h"
+#include "macros.h"
+#include "timing.h"     // seconds
 
 int matpoly_check_pre_init(matpoly_srcptr p)
 {

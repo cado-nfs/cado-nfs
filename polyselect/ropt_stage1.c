@@ -4,9 +4,20 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>      // fprintf stderr
+#include <stdlib.h> // free malloc exit
+#include <limits.h>     // LONG_MAX
+#include <math.h>     // log
+#include <gmp.h>
+#include "auxiliary.h"  // get_alpha
 #include "ropt_stage1.h"
-#include "portability.h"
+#include "ropt_str.h" // ropt_poly_t
+#include "ropt_arith.h" // reduce_poly_ul ...
+#include "ropt_tree.h" // node ...
+#include "ropt_param.h" // TUNE_RATIO_STAGE1_FULL_ALPHA ...
+#include "mpz_poly.h"
+#include "timing.h"             // for milliseconds
 
 
 /**
@@ -919,10 +930,10 @@ ropt_stage1 ( ropt_poly_t poly,
     /* use exp_E as benchmark instead of alpha. */
     double skew = L2_skewness (Fuv, SKEWNESS_DEFAULT_PREC);
     alpha_lat = L2_lognorm (Fuv, skew);
-    alpha_lat += get_alpha (Fuv, ALPHA_BOUND);
+    alpha_lat += get_alpha (Fuv, get_alpha_bound ());
 #else
     //alpha_lat = get_alpha (fuv, poly->d, primes[s1param->tlen_e_sl-1]);
-    alpha_lat = get_alpha (Fuv, ALPHA_BOUND);
+    alpha_lat = get_alpha (Fuv, get_alpha_bound ());
 #endif
 
 #if DEBUG_ROPT_STAGE1

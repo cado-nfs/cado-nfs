@@ -2,7 +2,6 @@
 #define USP_H_
 
 #include <gmp.h> /* for mpz_t */
-#include "mpz_poly.h"
 
 /* this structure represents the interval [a/2^ka, b/2^kb] */
 typedef struct {

@@ -1,11 +1,11 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <gmp.h>
-#include "utils.h"
-#include "portability.h"
+#include "mpz_poly_bivariate.h"
 #include "mpz_poly.h"
+#include "macros.h" // ASSERT
 
 // ----- lagrange_poly -----
 /*

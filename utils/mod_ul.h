@@ -10,24 +10,15 @@
 #ifndef MOD_UL_H
 #define MOD_UL_H
 
+#include "cado_config.h"  // just because we're a header.
 /**********************************************************************/
-#include <assert.h>
-#include <limits.h>
-#include <stdint.h>
-#include "macros.h"
-#include "ularith.h"
+#include <limits.h>       // for LONG_BIT, ULONG_MAX
+#include <stdint.h>       // for uint64_t, int64_t
+#include <stdlib.h>       // for size_t, llabs
+#include <stdio.h>
+#include "macros.h"       // for MAYBE_UNUSED, ASSERT_EXPENSIVE, ASSERT, ASS...
+#include "ularith.h"      // for ularith_mul_ul_ul_2ul, ularith_div_2ul_ul_ul_r
 
-#ifndef ASSERT
-#define ASSERT(x)	assert(x)
-#endif
-
-/* Even simple assertions are relatively expensive in very simple functions.
-   If we want them anyway to hunt a bug, define WANT_ASSERT_EXPENSIVE */
-#ifdef WANT_ASSERT_EXPENSIVE
-#define ASSERT_EXPENSIVE(x) ASSERT(x)
-#else
-#define ASSERT_EXPENSIVE(x)
-#endif
 
 /*********************************************************************/
 /* Helper macros, see also ularith.h */
@@ -573,10 +564,10 @@ static inline void
 modul_frommontgomery (residueul_t r, const residueul_t a, 
                       const unsigned long invm, const modulusul_t m)
 {
-  unsigned long tlow, thigh;
-  tlow = a[0] * invm;
-  ularith_mul_ul_ul_2ul (&tlow, &thigh, tlow, m[0]);
-  r[0] = thigh + (a[0] != 0UL ? 1UL : 0UL);
+  unsigned long t_low, t_high;
+  t_low = a[0] * invm;
+  ularith_mul_ul_ul_2ul (&t_low, &t_high, t_low, m[0]);
+  r[0] = t_high + (a[0] != 0UL ? 1UL : 0UL);
 }
 
 
@@ -587,15 +578,15 @@ static inline void
 modul_redcsemi_ul_not0 (residueul_t r, const unsigned long a, 
                         const unsigned long invm, const modulusul_t m)
 {
-  unsigned long tlow, thigh;
+  unsigned long t_low, t_high;
 
   ASSERT (a != 0);
 
-  tlow = a * invm; /* tlow <= 2^w-1 */
-  ularith_mul_ul_ul_2ul (&tlow, &thigh, tlow, m[0]);
-  /* thigh:tlow <= (2^w-1) * m */
-  r[0] = thigh + 1UL; 
-  /* (thigh+1):tlow <= 2^w + (2^w-1) * m  <= 2^w + 2^w*m - m 
+  t_low = a * invm; /* t_low <= 2^w-1 */
+  ularith_mul_ul_ul_2ul (&t_low, &t_high, t_low, m[0]);
+  /* t_high:t_low <= (2^w-1) * m */
+  r[0] = t_high + 1UL; 
+  /* (t_high+1):t_low <= 2^w + (2^w-1) * m  <= 2^w + 2^w*m - m 
                     <= 2^w * (m + 1) - m */
   /* r <= floor ((2^w * (m + 1) - m) / 2^w) <= floor((m + 1) - m/2^w)
        <= m */
@@ -608,17 +599,17 @@ static inline void
 modul_addredc_ul (residueul_t r, const residueul_t a, const unsigned long b, 
                   const unsigned long invm, const modulusul_t m)
 {
-  unsigned long slow, shigh, tlow, thigh;
+  unsigned long s_low, s_high, t_low, t_high;
   
   ASSERT_EXPENSIVE (a[0] <= m[0]);
-  slow = b;
-  shigh = 0UL;
-  ularith_add_ul_2ul (&slow, &shigh, a[0]);
+  s_low = b;
+  s_high = 0UL;
+  ularith_add_ul_2ul (&s_low, &s_high, a[0]);
   
-  tlow = slow * invm;
-  ularith_mul_ul_ul_2ul (&tlow, &thigh, tlow, m[0]);
-  ASSERT_EXPENSIVE (slow + tlow == 0UL);
-  r[0] = thigh + shigh + (slow != 0UL ? 1UL : 0UL);
+  t_low = s_low * invm;
+  ularith_mul_ul_ul_2ul (&t_low, &t_high, t_low, m[0]);
+  ASSERT_EXPENSIVE (s_low + t_low == 0UL);
+  r[0] = t_high + s_high + (s_low != 0UL ? 1UL : 0UL);
   
   /* r = ((a+b) + (((a+b)%2^w * invm) % 2^w) * m) / 2^w  Use a<=m-1, b<=2^w-1
      r <= (m + 2^w - 1 + (2^w - 1) * m) / 2^w
@@ -640,21 +631,21 @@ modul_addredcsemi_ul (residueul_t r, const residueul_t a,
                       const unsigned long b, const unsigned long invm, 
                       const modulusul_t m)
 {
-  unsigned long slow, shigh, tlow;
+  unsigned long s_low, s_high, t_low;
   
   ASSERT_EXPENSIVE(a[0] <= m[0]);
-  slow = b;
+  s_low = b;
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
   {
     unsigned char sb;
     __asm__ __VOLATILE (
-      "addq %2, %0\n\t" /* cy * 2^w + slow = a + b */
-      "setne %1\n\t"     /* if (slow != 0) sb = 1 */
+      "addq %2, %0\n\t" /* cy * 2^w + s_low = a + b */
+      "setne %1\n\t"     /* if (s_low != 0) sb = 1 */
       "adcb $0, %1\n"    /* sb += cy */
-      : "+&r" (slow), "=qm" (sb)
+      : "+&r" (s_low), "=qm" (sb)
       : "rm" (a[0])
       : "cc");
-    shigh = sb;
+    s_high = sb;
   }
 #elif defined(__i386__) && defined(__GNUC__)
   {
@@ -663,21 +654,21 @@ modul_addredcsemi_ul (residueul_t r, const residueul_t a,
       "addl %2, %0\n\t"
       "setne %1\n\t"
       "adcb $0, %1\n"
-      : "+&r" (slow), "=qm" (sb)
+      : "+&r" (s_low), "=qm" (sb)
       : "rm" (a[0])
       : "cc");
-    shigh = sb;
+    s_high = sb;
   }
 #else
-  shigh = 0UL;
-  ularith_add_ul_2ul (&slow, &shigh, a[0]);
-  shigh += (slow != 0UL ? 1UL : 0UL);
+  s_high = 0UL;
+  ularith_add_ul_2ul (&s_low, &s_high, a[0]);
+  s_high += (s_low != 0UL ? 1UL : 0UL);
 #endif
 
-  tlow = slow * invm;
-  ularith_mul_ul_ul_2ul (&tlow, r, tlow, m[0]);
-  ASSERT_EXPENSIVE (slow + tlow == 0UL);
-  r[0] += shigh;
+  t_low = s_low * invm;
+  ularith_mul_ul_ul_2ul (&t_low, r, t_low, m[0]);
+  ASSERT_EXPENSIVE (s_low + t_low == 0UL);
+  r[0] += s_high;
 
   /* r = ((a+b) + (((a+b)%2^w * invm) % 2^w) * m) / 2^w
      r <= ((a+b) + (2^w - 1) * m) / 2^w
@@ -694,7 +685,7 @@ static inline void
 modul_mulredc (residueul_t r, const residueul_t a, const residueul_t b,
                const unsigned long invm, const modulusul_t m)
 {
-  unsigned long plow, phigh, tlow, thigh;
+  unsigned long p_low, p_high, t_low, t_high;
 
   ASSERT_EXPENSIVE (m[0] % 2 != 0);
   ASSERT_EXPENSIVE (a[0] < m[0] && b[0] < m[0]);
@@ -703,23 +694,23 @@ modul_mulredc (residueul_t r, const residueul_t a, const residueul_t b,
           a[0], b[0], 8 * sizeof(unsigned long), m[0]);
 #endif
   
-  ularith_mul_ul_ul_2ul (&plow, &phigh, a[0], b[0]);
-  tlow = plow * invm;
-  ularith_mul_ul_ul_2ul (&tlow, &thigh, tlow, m[0]);
-  /* Let w = 2^wordsize. We know (phigh * w + plow) + (thigh * w + tlow) 
-     == 0 (mod w) so either plow == tlow == 0, or plow !=0 and tlow != 0. 
-     In the former case we want phigh + thigh + 1, in the latter 
-     phigh + thigh */
+  ularith_mul_ul_ul_2ul (&p_low, &p_high, a[0], b[0]);
+  t_low = p_low * invm;
+  ularith_mul_ul_ul_2ul (&t_low, &t_high, t_low, m[0]);
+  /* Let w = 2^wordsize. We know (p_high * w + p_low) + (t_high * w + t_low) 
+     == 0 (mod w) so either p_low == t_low == 0, or p_low !=0 and t_low != 0. 
+     In the former case we want p_high + t_high + 1, in the latter 
+     p_high + t_high */
   /* Since a <= p-1 and b <= p-1, and p <= w-1, a*b <= w^2 - 4*w + 4, so
-     adding 1 to phigh is safe */
+     adding 1 to p_high is safe */
 #if 0
-  /* Slower? */
-  ularith_add_ul_2ul (&plow, &phigh, tlow);
+  /* S_lower? */
+  ularith_add_ul_2ul (&p_low, &p_high, t_low);
 #else
-  phigh += (plow != 0UL ? 1UL : 0UL);
+  p_high += (p_low != 0UL ? 1UL : 0UL);
 #endif
 
-  modul_add (r, &phigh, &thigh, m);
+  modul_add (r, &p_high, &t_high, m);
 
 #if defined(MODTRACE)
   printf (" == %lu /* PARI */ \n", r[0]);
@@ -733,18 +724,18 @@ static inline void
 modul_mulredc_ul (residueul_t r, const residueul_t a, const unsigned long b,
                   const unsigned long invm, const modulusul_t m)
 {
-  unsigned long plow, phigh, tlow, thigh;
+  unsigned long p_low, p_high, t_low, t_high;
   ASSERT_EXPENSIVE (m[0] % 2 != 0);
 #if defined(MODTRACE)
   printf ("(%lu * %lu / 2^%ld) %% %lu", 
           a[0], b, 8 * sizeof(unsigned long), m[0]);
 #endif
   
-  ularith_mul_ul_ul_2ul (&plow, &phigh, a[0], b);
-  tlow = plow * invm;
-  ularith_mul_ul_ul_2ul (&tlow, &thigh, tlow, m[0]);
-  phigh += (plow != 0UL ? 1UL : 0UL);
-  r[0] = (phigh >= m[0] - thigh) ? (phigh - (m[0] - thigh)) : (phigh + thigh);
+  ularith_mul_ul_ul_2ul (&p_low, &p_high, a[0], b);
+  t_low = p_low * invm;
+  ularith_mul_ul_ul_2ul (&t_low, &t_high, t_low, m[0]);
+  p_high += (p_low != 0UL ? 1UL : 0UL);
+  r[0] = (p_high >= m[0] - t_high) ? (p_high - (m[0] - t_high)) : (p_high + t_high);
   
 #if defined(MODTRACE)
   printf (" == %lu /* PARI */ \n", r[0]);
@@ -761,19 +752,19 @@ modul_muladdredc_ul (residueul_t r, const residueul_t a, const unsigned long b,
                      const unsigned long c, const unsigned long invm, 
                      const modulusul_t m)
 {
-  unsigned long plow, phigh, tlow, thigh;
+  unsigned long p_low, p_high, t_low, t_high;
   ASSERT_EXPENSIVE (m[0] % 2 != 0);
 #if defined(MODTRACE)
   printf ("(%lu * %lu / 2^%ld) %% %lu", 
           a[0], b, 8 * sizeof(unsigned long), m[0]);
 #endif
   
-  ularith_mul_ul_ul_2ul (&plow, &phigh, a[0], b);
-  ularith_add_ul_2ul (&plow, &phigh, c);
-  tlow = plow * invm;
-  ularith_mul_ul_ul_2ul (&tlow, &thigh, tlow, m[0]);
-  phigh += (plow != 0UL ? 1UL : 0UL);
-  r[0] = (phigh >= m[0] - thigh) ? (phigh - (m[0] - thigh)) : (phigh + thigh);
+  ularith_mul_ul_ul_2ul (&p_low, &p_high, a[0], b);
+  ularith_add_ul_2ul (&p_low, &p_high, c);
+  t_low = p_low * invm;
+  ularith_mul_ul_ul_2ul (&t_low, &t_high, t_low, m[0]);
+  p_high += (p_low != 0UL ? 1UL : 0UL);
+  r[0] = (p_high >= m[0] - t_high) ? (p_high - (m[0] - t_high)) : (p_high + t_high);
   
 #if defined(MODTRACE)
   printf (" == %lu /* PARI */ \n", r[0]);

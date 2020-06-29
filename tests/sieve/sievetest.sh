@@ -45,7 +45,7 @@ chmod a+rx "${WORKDIR}"
 
 args=()
 
-for var in fbc lambda{0,1} ncurves{0,1} descent_hint bkmult bkthresh{,1} hint_table ; do
+for var in fbc lambda{0,1} ncurves{0,1} descent_hint_table bkmult bkthresh{,1} hint_table ; do
     # Those are optional
     if [ "${!var}" ] ; then args+=(-$var "${!var}") ; fi
 done

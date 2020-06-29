@@ -1,13 +1,15 @@
 #ifndef TDICT_HPP_
 #define TDICT_HPP_
 
-#include <ostream>
 #include <map>
 #include <string>
 #include <sstream>
 #include <pthread.h>
-#include "params.h"
 #include "timing.h"
+#include <cstddef>   // for NULL
+#include <utility>    // for pair
+#include "macros.h"   // for ASSERT_ALWAYS, CADO_CONCATENATE3, MAYBE_UNUSED
+struct cxx_param_list;
 
 /* Uncomment this flag if you believe that the fine-grain -T timings
  * negatively impact the performance */
@@ -549,6 +551,23 @@ typedef tdict::tree<tdict::timer_seconds_thread> timetree_t;
 typedef tdict::tree<tdict::timer_ticks> fast_timetree_t;
 #else
 typedef tdict::tree<tdict::timer_none> fast_timetree_t;
+#endif
+
+extern template class std::map<tdict::key, tdict::slot_base const *>;
+
+extern template struct tdict::tree<tdict::timer_seconds_thread>;
+extern template class std::map<tdict::key, tdict::tree<tdict::timer_seconds_thread> >;
+// extern template struct std::pair<tdict::key const, tdict::slot_base const *>;
+extern template struct tdict::tree<tdict::timer_seconds_thread>::accounting_child_meta<tdict::tree<tdict::timer_seconds_thread>::accounting_base>;
+
+#ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
+extern template struct tdict::tree<tdict::timer_ticks>;
+extern template class std::map<tdict::key, tdict::tree<tdict::timer_ticks> >;
+extern template struct tdict::tree<tdict::timer_ticks>::accounting_child_meta<tdict::tree<tdict::timer_ticks>::accounting_base>;
+#else
+extern template struct tdict::tree<tdict::timer_none>;
+extern template class std::map<tdict::key, tdict::tree<tdict::timer_none> >;
+extern template struct tdict::tree<tdict::timer_none>::accounting_child_meta<tdict::tree<tdict::timer_none>::accounting_base>;
 #endif
 
 #if 0

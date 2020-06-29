@@ -1,22 +1,31 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdint.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>             // truncate()
-#include <sys/types.h>          // truncate()
 #include <errno.h>
-#include <sys/stat.h>
-#include "bwc_config.h"
+#include <unistd.h>               // for access, unlink, ssize_t, R_OK
+#include <sys/stat.h>             // for stat, mkdir
+#include <pthread.h>              // for pthread_mutex_lock, pthread_mutex_u...
+#include <gmp.h>
+#include "async.h"                // for timing_next_timer, timing_data (ptr...
+#include "balancing_workhorse.h"
+#include "cheating_vec_init.h"
+#include "intersections.h"
+#include "bwc_config.h" // IWYU pragma: keep
+#include "macros.h"     // ASSERT_ALWAYS // IWYU pragma: keep
 #include "matmul.h"
 #include "matmul_top.h"
-#include "select_mpi.h"
-#include "intersections.h"
-#include "balancing_workhorse.h"
-#include "portability.h"
-#include "misc.h"
-#include "random_matrix.h"
-#include "cheating_vec_init.h"
 #include "mf_bal.h"
+#include "misc.h"
+#include "params.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "random_matrix.h"
+#include "raw_matrix_u32.h"       // for matrix_u32
+#include "select_mpi.h"
+#include "timing.h"     // wct_seconds
+#include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
 
 /* Our innermost communication routines are essentially all-gather and
  * reduce-scatter, following the MPI terminology. We provide several
@@ -2636,6 +2645,7 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data_ptr mmt, int i
                     mf_bal(&mba);
                 } else {
                     fprintf(stderr, "Cannot access balancing file %s: %s\n", Mloc->bname, strerror(errno));
+                    exit(EXIT_FAILURE);
                 }
             }
             balancing_read_header(Mloc->bal, Mloc->bname);
@@ -2783,9 +2793,10 @@ void matmul_top_init(matmul_top_data_ptr mmt,
     int nbals = param_list_get_list_count(pl, "balancing");
     mmt->nmatrices = param_list_get_list_count(pl, "matrix");
     const char * random_description = param_list_lookup_string(pl, "random_matrix");
+    const char * static_random_matrix = param_list_lookup_string(pl, "static_random_matrix");
 
 
-    if (random_description) {
+    if (random_description || static_random_matrix) {
         if (nbals || mmt->nmatrices) {
             fprintf(stderr, "random_matrix is incompatible with balancing= and matrix=\n");
             exit(EXIT_FAILURE);
@@ -2803,6 +2814,8 @@ void matmul_top_init(matmul_top_data_ptr mmt,
 
     if (random_description)
         mmt->nmatrices = 1;
+    if (static_random_matrix)
+        mmt->nmatrices = 1;
 
     mmt->matrices = malloc(mmt->nmatrices * sizeof(matmul_top_matrix));
     memset(mmt->matrices, 0, mmt->nmatrices * sizeof(matmul_top_matrix));
@@ -2814,7 +2827,12 @@ void matmul_top_init(matmul_top_data_ptr mmt,
         matmul_top_matrix_ptr Mloc = mmt->matrices[i];
         Mloc->mname = matrix_list_get_item(pl, "matrix", i);
         Mloc->bname = matrix_list_get_item(pl, "balancing", i);
+        if (static_random_matrix) {
+            ASSERT_ALWAYS(i == 0);
+            Mloc->mname = strdup(static_random_matrix);
+        }
         if (!Mloc->bname) {
+            /* returns NULL is mname is NULL */
             Mloc->bname = matrix_get_derived_balancing_filename(Mloc->mname, mmt->pi);
         }
         ASSERT_ALWAYS((Mloc->bname != NULL) == !random_description);

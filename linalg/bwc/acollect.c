@@ -1,19 +1,17 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <limits.h>
 #include <dirent.h>
 #include <gmp.h>
-#include "bwc_config.h"
-#include "portability.h"
 #include "macros.h"
-#include "utils.h"
 #include "bw-common.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "params.h"
 
 /* This program is rather standalone. It checks the current directory
  * for files matching the pattern A%u-%u.%u-%u, and concatenates them.

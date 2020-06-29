@@ -1,7 +1,25 @@
-#include "cado.h"
-#include "las-output.hpp"
-#include "utils.h"
-#include "las-config.h"
+#include "cado.h" // IWYU pragma: keep
+
+/* This compilation units reacts to TRACK_CODE_PATH and uses macros
+ * such as WHERE_AM_I_UPDATE.
+ * This compilation unit _must_ produce different object files depending
+ * on the value of TRACK_CODE_PATH.
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
+ */
+
+/* specifically for las-output.cpp ; I'd say it's a bug, we should move
+ * it to the independent tier */
+
+#include <cstring>       // strerror (in DIE_ERRNO_DIAG) // IWYU pragma: keep
+#include <cstdio>          // for NULL, stderr, fflush, fopen, fprintf, setvbuf
+#include <cstdlib>         // for exit, EXIT_FAILURE
+#include "gzip.h"       // fopen_maybe_compressed
+#include "las-config.h"    // for las_display_config_flags
+#include "las-output.hpp"  // for las_output, NR_CHANNELS, TRACE_CHANNEL
+#include "macros.h"        // for ASSERT_ALWAYS, DIE_ERRNO_DIAG
+#include "verbose.h"    // verbose_output_print
+#include "params.h"
+
 
 /* {{{ las_verbose things */
 static void las_verbose_enter(cxx_param_list & pl, FILE * output, int verbose)

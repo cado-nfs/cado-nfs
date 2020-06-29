@@ -13,7 +13,9 @@
    Input can be in gzipped or bzipped format.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
 
 #define MAX_NSLICES_LOG 6
 
@@ -22,17 +24,19 @@
 #include <stdint.h>
 #include <string.h>
 #include <inttypes.h>
-#include <ctype.h>
-#include <time.h>
-#include <limits.h> /* for CHAR_BIT */
-#include <unistd.h>
-#include <assert.h>
+#ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
+#endif
 
-#include "portability.h"
-#include "macros.h"
 #include "filter_config.h"
-#include "utils_with_io.h"
+#include "filter_io.h"  // filter_rels
+#include "gzip.h"       // fopen_maybe_compressed
+#include "macros.h"
+#include "portability.h" // strdup // IWYU pragma: keep
+#include "misc.h"       // filelist_clear
+#include "params.h"     // param_list_parse_*
+#include "timing.h"     // timingstats_dict_t
+#include "verbose.h"
 
 #define DEFAULT_LOG_MAX_NRELS_PER_FILES 25
 

@@ -1,3 +1,4 @@
+#include <stdlib.h>
 /* 
   This program is a test case for GCC bug 58805, see
   http://gcc.gnu.org/bugzilla/show_bug.cgi?id=58805

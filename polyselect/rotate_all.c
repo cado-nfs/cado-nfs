@@ -1,12 +1,20 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "portability.h"
-#include "utils.h"
+#include <math.h>
+#include <float.h> // DBL_MAX
+#include <gmp.h>                // for mpz_t, mpz_clear, mpz_init, mpz_submu...
+#include <stdint.h>             // for uint32_t
+#include "cado_poly.h"          // for cado_poly_init, cado_poly_read, cado_...
+#include "macros.h"             // for ASSERT_ALWAYS
+#include "mpz_poly.h"           // for mpz_poly_s, mpz_poly, mpz_poly_discri...
 #include "auxiliary.h" /* for common routines with polyselect.c */
+#include "gmp_aux.h"    // ulong_isprime
+#include "mod_ul.h"     // modulusul_t
+#include "modul_poly.h"
 #include "size_optimization.h"
-#include "area.h"
+#include "timing.h"             // for seconds
 
 /* for the rotation, we try (j*x+k) for |k| <= 2^MAX_k */
 int MAX_k = 16;
@@ -605,7 +613,7 @@ main (int argc, char **argv)
       print_cadopoly_extra (stdout, poly, argc0, argv0, 0);
     else
       printf ("skewness=%1.2f, alpha=%1.2f\n", poly->skew,
-              get_alpha (poly->pols[ALG_SIDE], ALPHA_BOUND));
+              get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ()));
     size_optimization (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], poly->pols[ALG_SIDE], poly->pols[RAT_SIDE],
                        SOPT_DEFAULT_EFFORT, verbose - 1);
     poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
@@ -615,7 +623,7 @@ main (int argc, char **argv)
       print_cadopoly_extra (stdout, poly, argc0, argv0, 0);
     else
       printf ("skewness=%1.2f, alpha=%1.2f\n",
-              poly->skew, get_alpha (poly->pols[ALG_SIDE], ALPHA_BOUND));
+              poly->skew, get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ()));
 
     mpz_set (b, poly->pols[RAT_SIDE]->coeff[1]);
     mpz_neg (m, poly->pols[RAT_SIDE]->coeff[0]);

@@ -1,13 +1,14 @@
-#include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <gmp.h>
-#include <limits.h>     /* for INT_MAX */
+#include "cado.h" // IWYU pragma: keep
+#include <cstdio>       // FILE // IWYU pragma: keep
+#include <cstdlib>
+#include <cstring>
+#include <climits>     /* for INT_MAX */
 #include <ostream>
+#include <gmp.h>
 #include "mpz_mat.h"
-#include "portability.h"
-#include "utils.h"
+#include "gmpxx.hpp"
+#include "lll.h"        // mat_Z, LLL
+#include "macros.h"
 
 /*{{{ entry access*/
 mpz_ptr mpz_mat_entry(mpz_mat_ptr M, unsigned int i, unsigned int j)
@@ -834,6 +835,9 @@ void mpq_mat_mulrow(mpq_mat_ptr M, unsigned int i0, mpq_srcptr lambda)/*{{{*/
     }
 }
 /*}}}*/
+
+#if 0
+/* XXX never used, untested ! */
 /* this computes an additive combination of n rows into row [didx] of the
  * initial matrix. We require that this destination row be cleared
  * initially.
@@ -849,6 +853,8 @@ void mpz_mat_combinerows(mpz_mat_ptr M, unsigned int didx, unsigned int sidx,/*{
     }
 }
 /*}}}*/
+#endif
+
 /* }}} */
 /*{{{ I/O*/
 void mpz_mat_fprint(FILE * stream, mpz_mat_srcptr M)
@@ -1674,8 +1680,8 @@ static int mpz_mat_hnf_helper_heap_aux_cmp(struct mpz_mat_hnf_helper_heap_aux * 
     mpz_srcptr xa = mpz_mat_entry_const(data->A, a, 0);
     mpz_srcptr xb = mpz_mat_entry_const(data->A, b, 0);
 
-    assert(mpz_sgn(xa) >= 0);
-    assert(mpz_sgn(xb) >= 0);
+    ASSERT(mpz_sgn(xa) >= 0);
+    ASSERT(mpz_sgn(xb) >= 0);
     int r = mpz_cmp(xa, xb);
     if (r) return r;
     /* among combinations giving the same result, we want the "best" to

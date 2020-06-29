@@ -1,13 +1,18 @@
 #ifndef LAS_COFACTOR_HPP_
 #define LAS_COFACTOR_HPP_
 
-#include "gmp.h"
-#include "las-siever-config.hpp"
-#include "cxx_mpz.hpp"
-#include "ecm/facul.hpp"
-#include <array>
-#include <vector>
-#include <mutex>
+// IWYU pragma: no_include <ext/alloc_traits.h>
+
+#include <cstdint>               // for uint32_t
+#include <cstdio>                // for FILE, NULL
+#include <array>                  // for array, array<>::value_type
+#include <mutex>                  // for mutex
+#include <vector>                 // for vector
+#include <gmp.h>                  // for mpz_sizeinbase
+#include "cxx_mpz.hpp"  // for cxx_mpz
+#include "ecm/facul.hpp"          // for facul_make_strategies, facul_strate...
+#include "las-siever-config.hpp"  // for siever_config::side_config, siever_...
+#include "params.h"     // param_list_ptr
 
 class cofactorization_statistics {
     FILE * file;

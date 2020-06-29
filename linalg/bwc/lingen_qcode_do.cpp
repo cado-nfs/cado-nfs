@@ -1,15 +1,17 @@
-#include "cado.h"
-
-#include <ostream>
-#include <iostream>
-#include <iterator>
-#include <sstream>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <memory>
+#include <cstdio>
+#include <climits>
+#include <gmp.h>           // for __gmpn_xor_n, mpn_xor_n, __gmpn_lshift
+#include <cstdint>        // for uint64_t
+#include <cstdlib>        // for abort
+#include <cstring>        // for memcpy, memset
+#include <utility>         // for pair, make_pair
+#include <iostream>     // cerr
 #include <algorithm>
 #include <vector>
-
-#include "lingen_mat_types.hpp"
 #include "lingen_qcode.h"
-#include "utils.h"
+#include "macros.h"
 
 using namespace std;
 

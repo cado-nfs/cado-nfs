@@ -1,17 +1,19 @@
 #ifndef COFAC_LIST_H
 #define COFAC_LIST_H
 
-#include <stdlib.h>
-#include <inttypes.h>
-#include <gmp.h>
-#include <list>
-#include <array>
-#include "cxx_mpz.hpp"
-#include "facul.hpp"
-#include "facul_doit.hpp"
-#include "utils.h"
-#include "relation.hpp"
-#include "las-todo-entry.hpp"
+#include <cstdint>     // for int64_t, uint64_t
+#include <cstdio>      // for FILE
+#include <array>        // for array
+#include <list>         // for list
+#include <utility>      // for move
+#include <gmp.h>        // for mpz_t
+#include "macros.h"  // for MAYBE_UNUSED
+#include "cado_poly.h"   // cxx_cado_poly
+#include "mpz_poly.h"
+#include "cxx_mpz.hpp"   // for cxx_mpz
+
+struct las_todo_entry; // IWYU pragma: keep
+struct relation; // IWYU pragma: keep
 
 /* structure to compute on-line a product tree, avoiding to first compute a
    list of mpz_t (which might take too much memory) */

@@ -6,12 +6,11 @@
    Call with --help or any invalid option for usage information.
  */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "gmp.h"
-#include "portability.h"
+#include <gmp.h>
 
 #define MAX_DEGREE 6
 

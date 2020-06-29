@@ -1,8 +1,14 @@
 #ifndef STAGE2_H
 #define STAGE2_H
 
+#include <limits.h>
+
 #define PAIR_INCR_V (UINT_MAX-1)
 #define PAIR_END UINT_MAX
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* See the comments above the stage2_one_w function in stage2.c for details */
 typedef struct {
@@ -41,5 +47,10 @@ typedef struct stage2_cost_s stage2_cost_t;
 void stage2_make_plan (stage2_plan_t *, unsigned int, unsigned int,
                        const stage2_cost_t *, int);
 void stage2_clear_plan (stage2_plan_t *);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* STAGE2_H */

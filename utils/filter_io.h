@@ -1,9 +1,16 @@
 #ifndef FILTER_IO_H_
 #define FILTER_IO_H_
 
+#include <gmp.h>         // for mpz_t
+#include <stdint.h>      // for uint64_t, int64_t
+#include <time.h>        // for NULL
+#include "bit_vector.h"  // for bit_vector_srcptr
+#include "timing.h"      // for timingstats_dict_ptr
+#include "typedefs.h"    // for prime_t, weight_t
+
 #define MAX_FILES 1000000
-#include <unistd.h>
-#include <time.h>
+
+#define RELATION_MAX_BYTES 4096
 
 /* Size of relations buffer between parsing & processing.
  * CAREFUL! SIZE_BUF_REL must be greater (at least double) than (1<<(NNFR+1)).

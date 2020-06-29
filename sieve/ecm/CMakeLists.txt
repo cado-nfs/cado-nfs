@@ -64,9 +64,7 @@ add_library(facul
 
 set_target_properties(facul PROPERTIES COMPILE_FLAGS "${OpenMP_C_FLAGS}")
 
-if(MINGW)
-target_link_libraries(facul gnurx)
-endif()
+target_link_libraries(facul utils ${gmp_libname})
 
 add_executable(testbench testbench.cpp)
 target_link_libraries(testbench facul utils m)

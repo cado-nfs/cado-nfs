@@ -1,14 +1,12 @@
-#include "cado.h"       /* feature macros, no includes */
-#include <sys/types.h>
-#include <sys/stat.h>
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>          // for asprintf, fprintf, perror, snprintf, fclose
+#include <sys/stat.h>   // mkdir
 #include <unistd.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include <stdint.h>
 #include <errno.h>
 #include <limits.h>
-#include <unistd.h>
 #include <ctype.h>
 #ifdef HAVE_LINUX_BINFMTS_H
 /* linux/binfmts.h defines MAX_ARG_STRLEN in terms of PAGE_SIZE, but does not
@@ -23,9 +21,8 @@
 #endif
 
 #include "macros.h"
-#include "portability.h"
 #include "misc.h"
-#include "typecast.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
 
 /* Wrapper around sysconf(ARG_MAX) that deals with availability of sysconf()
    and additional constraints on command line length */
@@ -105,46 +102,6 @@ static void chomp(char *s) {
 }
 
 
-#ifndef HAVE_STRLCPY
-size_t
-strlcpy(char *dst, const char *src, const size_t size)
-{
-  strncpy (dst, src, size); /* Copy at most 'size' bytes from src to dst;
-                               if strlen(src) < size, then dst is null-
-                               terminated, otherwise it may not be */
-  if (size > 0)
-      dst[size - 1] = '\0'; /* Guarantee null-termination; thus 
-                               strlen(dst) < size */
-  return strlen(src);
-}
-#endif
-
-#ifndef HAVE_STRLCAT
-size_t
-strlcat(char *dst, const char *src, const size_t size)
-{
-  const size_t dst_len = strnlen(dst, size); /* 0 <= dst_len <= size */
-  const size_t src_len = strlen(src);
-
-  /* From man page: Note however, that if strlcat() traverses size characters
-     without finding a NUL, the length of the string is considered to be size
-     and the destination string will not be NUL-terminated (since there was 
-     no space for the NUL). */
-  if (dst_len == size)
-      return dst_len + src_len;
-
-  /* Here, 0 <= dst_len < size, thus no underflow */
-  strncpy(dst + dst_len, src, size - dst_len - 1);
-  
-  /* If dst_len + src_len < size, then string is 0-terminated. Otherwise
-     we need to put '\0' in dst[size-1] to truncate the string to length
-     size-1. */
-  dst[size-1] = '\0';
-  
-  return dst_len + src_len;
-}
-#endif
-
 /* Return a NULL-terminated list of file names read from filename.
    Empty lines and comment lines (starting with '#') are skipped.
    If basepath != NULL, it is used as path before each read filename
@@ -178,7 +135,7 @@ char ** filelist_from_file(const char * basepath, const char * filename,
 
         if (nfiles == nfiles_alloc) {
             nfiles_alloc += nfiles_alloc / 2 + 16;
-            files = realloc(files, nfiles_alloc * sizeof(char*));
+            files = (char**) realloc(files, nfiles_alloc * sizeof(char*));
         }
         if (basepath) {
             char * name;
@@ -194,7 +151,7 @@ char ** filelist_from_file(const char * basepath, const char * filename,
 
     if (nfiles == nfiles_alloc) {
         nfiles_alloc += nfiles_alloc / 2 + 16;
-        files = realloc(files, nfiles_alloc * sizeof(char*));
+        files = (char**) realloc(files, nfiles_alloc * sizeof(char*));
     }
     files[nfiles++] = NULL;
     return files;
@@ -291,7 +248,7 @@ char * path_resolve(const char * progname, char * resolved)
 //  trivial utility
 const char *size_disp_fine(size_t s, char buf[16], double cutoff)
 {
-    char *prefixes = "bkMGT";
+    const char *prefixes = "bkMGT";
     double ds = s;
     const char *px = prefixes;
     for (; px[1] && ds > cutoff;) {

@@ -1,25 +1,27 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 /* This is a very silly program which merely reads the matrix and then
  * exits. It must come before the prep program, and coalescing this one
  * and prep into one would be difficult and/or artificial, because they
  * handle different data widths.
  */
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <stdio.h>
-#include <string.h>
-#include "bwc_config.h"
+#include <cstdint>     /* AIX wants it first (it's a bug) */
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <gmp.h>                 // for mpz_cmp_ui
+#include "balancing.h"           // for DUMMY_VECTOR_COORD_VALUE, DUMMY_VECT...
 #include "parallelizing_info.h"
 #include "matmul_top.h"
 #include "select_mpi.h"
 #include "params.h"
-#include "portability.h"
-#include "misc.h"
 #include "bw-common.h"
 #include "async.h"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "cheating_vec_init.h"
+#include "intersections.h"
+#include "macros.h"
 
 void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {

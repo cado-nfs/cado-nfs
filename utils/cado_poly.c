@@ -1,10 +1,11 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <gmp.h>
+#include "macros.h"  // for ASSERT_ALWAYS, ASSERT
 #include "params.h"
 #include "cado_poly.h"
-#include "portability.h"
 
 /* Be conservative and allocate two polynomials by default. */
 void cado_poly_init(cado_poly_ptr poly)
@@ -179,7 +180,7 @@ int cado_poly_read(cado_poly_ptr poly, const char *filename)
  *    compute for each pair (0,i) the corresponding common root m_i
  *    check all m_i are equal
  */
-int cado_poly_getm(mpz_ptr m, cado_poly_ptr cpoly, mpz_ptr N)
+int cado_poly_getm(mpz_ptr m, cado_poly_srcptr cpoly, mpz_ptr N)
 {
     // have to work with copies, because pseudo_gcd destroys its input
     mpz_poly f[2];
@@ -234,12 +235,12 @@ int cado_poly_getm(mpz_ptr m, cado_poly_ptr cpoly, mpz_ptr N)
 }
 
 /* Return the rational side or -1 if only algebraic sides */
-/* Assume that there is at most 1 rational side (renumber.c does the same
+/* Assume that there is at most 1 rational side (renumber.cpp does the same
  * assumption).
  * XXX: Is there a case where more than 1 rational side is needed ??
  */
 int
-cado_poly_get_ratside (cado_poly_ptr pol)
+cado_poly_get_ratside (cado_poly_srcptr pol)
 {
   for(int side = 0; side < pol->nb_polys; side++)
     if(pol->pols[side]->deg == 1)

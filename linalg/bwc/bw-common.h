@@ -7,8 +7,8 @@
  */
 
 #include <gmp.h>
-#include <limits.h>
-#include "bwc_config.h"
+#include <stdio.h>
+#include <stdint.h>  // for uint32_t
 #include "params.h"
 
 /* relevant to secure.c as well ; really, this is almost a hard-coded

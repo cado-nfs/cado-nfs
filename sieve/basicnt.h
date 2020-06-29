@@ -1,12 +1,25 @@
+#ifndef BASICNT_H_
+#define BASICNT_H_
+
+
 /*****************************************************************
  *       Some basic number theory functions for inlining         *
  *****************************************************************/
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+static inline unsigned long iscomposite (const unsigned long n);
+static inline uint32_t signed_mod_longto32 (long a, uint32_t p);
+#ifdef __cplusplus
+}
+#endif
+
 /* Returns 0 if n is prime, otherwise the smallest prime factor of n */
-static inline unsigned long
-iscomposite (const unsigned long n)
+static inline unsigned long iscomposite (const unsigned long n)
 {
   unsigned long i, i2;
 
@@ -21,8 +34,7 @@ iscomposite (const unsigned long n)
   return 0;
 }
 
-static inline uint32_t
-signed_mod_longto32 (long a, uint32_t p)
+static inline uint32_t signed_mod_longto32 (long a, uint32_t p)
 {
   uint32_t amodp;
   if (a < 0)
@@ -37,3 +49,5 @@ signed_mod_longto32 (long a, uint32_t p)
   return amodp;
 }
 
+
+#endif	/* BASICNT_H_ */

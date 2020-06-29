@@ -4,10 +4,21 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h> // free malloc exit
+#include <float.h> // DBL_MAX
+#include <math.h> // fmin
+#include <gmp.h>
+#include "cado_poly.h"
+#include "mpz_poly.h"
+#include "ropt_param.h"        // NUM_SUBLATTICE_PRIMES
 #include "ropt_str.h"
-#include "portability.h"
+#include "ropt_arith.h" // ab2uv
+#include "auxiliary.h"  // ALG_SIDE RAT_SIDE
 #include "area.h"
+#include "auxiliary.h"  // L2_skew_lognorm // IWYU pragma: keep
 #include "size_optimization.h"
 
 
@@ -245,9 +256,9 @@ ropt_poly_init ( ropt_poly_t poly )
   /* fx, gx holds pre-computed values f(r), g(r) where 0 <= r < p. */
   poly->f = (mpz_t*) malloc ((MAX_DEGREE + 1) * sizeof (mpz_t));
   poly->g = (mpz_t*) malloc ((MAX_DEGREE + 1) * sizeof (mpz_t));
-  (poly->fx) = (mpz_t *) malloc ((primes[NP-1]+1) * sizeof (mpz_t));
-  (poly->gx) = (mpz_t *) malloc ((primes[NP-1]+1) * sizeof (mpz_t));
-  (poly->numerator) = (mpz_t *) malloc ((primes[NP-1]+1) * sizeof (mpz_t));
+  (poly->fx) = (mpz_t *) malloc ((primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
+  (poly->gx) = (mpz_t *) malloc ((primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
+  (poly->numerator) = (mpz_t *) malloc ((primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
 
   if ( (poly->f == NULL) || (poly->g == NULL) ||
        ((poly->fx) == NULL) || ((poly->gx) == NULL) ||
@@ -262,7 +273,7 @@ ropt_poly_init ( ropt_poly_t poly )
     mpz_init (poly->g[i]);
   }
 
-  for (i = 0; i <= primes[NP-1]; i++) {
+  for (i = 0; i <= primes[ROPT_NPRIMES-1]; i++) {
     mpz_init (poly->fx[i]);
     mpz_init (poly->gx[i]);
     mpz_init (poly->numerator[i]);
@@ -283,7 +294,7 @@ ropt_poly_refresh ( ropt_poly_t poly )
     mpz_set_ui (poly->f[i], 0);
     mpz_set_ui (poly->g[i], 0);
   }
-  for (i = 0; i <= primes[NP-1]; i++) {
+  for (i = 0; i <= primes[ROPT_NPRIMES-1]; i++) {
     mpz_set_ui (poly->fx[i], 0);
     mpz_set_ui (poly->gx[i], 0);
     mpz_set_ui (poly->numerator[i], 0);
@@ -302,7 +313,7 @@ ropt_poly_setup_eval (mpz_t *fr, mpz_t *gr, mpz_t *numerator, mpz_poly_srcptr f,
   mpz_t tmp;
   mpz_init (tmp);
 
-  for ( i = 0; i <= p[NP-1]; i ++ ) {
+  for ( i = 0; i <= p[ROPT_NPRIMES-1]; i ++ ) {
     mpz_set_ui (fr[i], 0);
     mpz_set_ui (gr[i], 0);
     mpz_poly_eval_ui (fr[i], f, i);
@@ -381,7 +392,7 @@ ropt_poly_setup ( ropt_poly_t poly )
   ropt_poly_setup_eval (poly->fx, poly->gx, poly->numerator,
                         F, G, primes);
   /* projective alpha */
-  poly->alpha_proj = get_alpha_projective (F, ALPHA_BOUND);
+  poly->alpha_proj = get_alpha_projective (F, get_alpha_bound ());
 }
 
 
@@ -393,7 +404,7 @@ ropt_poly_free ( ropt_poly_t poly )
 {
   unsigned int i;
 
-  for (i = 0; i <= primes[NP-1]; i ++) {
+  for (i = 0; i <= primes[ROPT_NPRIMES-1]; i ++) {
     mpz_clear(poly->fx[i]);
     mpz_clear(poly->gx[i]);
     mpz_clear(poly->numerator[i]);
@@ -926,7 +937,7 @@ ropt_s2param_init ( ropt_poly_t poly,
                     ropt_s2param_t s2param )
 {
   int i;
-  s2param->len_p_rs = NP - 1;
+  s2param->len_p_rs = ROPT_NPRIMES - 1;
   s2param->Amax = s2param->Amin = 0;
   s2param->Bmax = s2param->Bmin = 0;
 
@@ -1077,7 +1088,7 @@ ropt_s2param_setup_stage2_only ( ropt_bound_t bound,
                                  mpz_t B,
                                  mpz_t MOD )
 {
-  s2param->len_p_rs = NP - 1;
+  s2param->len_p_rs = ROPT_NPRIMES - 1;
 
   /* set sieving length */
   ropt_s2param_setup_range (bound, s2param, param, MOD);

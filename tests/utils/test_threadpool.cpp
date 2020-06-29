@@ -1,8 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <pthread.h>
 #include <string.h>
+#include <stdio.h>
 #include "tests_common.h"
 #include "threadpool.hpp"
+#include "macros.h"        // for MAYBE_UNUSED, MIN
 
 class print_parameter : public task_parameters {
 public:

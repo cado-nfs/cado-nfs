@@ -3,7 +3,12 @@
 
 /* Need size_t */
 #include <stddef.h>
-#include <macros.h>
+#include <stdlib.h>
+#include "macros.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct dllist_s {
  void *data;
@@ -29,7 +34,7 @@ dll_is_empty(dllist head) {
 
 static inline void
 dll_insert(dllist node, void *data) {
-  dllist_ptr new_node = malloc(sizeof(dllist));
+  dllist_ptr new_node = (dllist_ptr) malloc(sizeof(dllist));
   ASSERT_ALWAYS(new_node != NULL);
   new_node->prev = node;
   new_node->next = node->next;
@@ -89,4 +94,9 @@ dll_find (dllist head, void *data) {
 
   return next;
 }
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

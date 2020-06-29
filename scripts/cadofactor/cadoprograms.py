@@ -854,7 +854,7 @@ class Las(Program):
                  factorbase0: Parameter("fb0", is_input_file=True)=None,
                  factorbase1: Parameter("fb1", is_input_file=True)=None,
                  out: Parameter(is_output_file=True)=None,
-                 threads: Parameter("t", checktype=int)=None,
+                 threads: Parameter("t")=None,
                  batch: Toggle()=None,
                  batch0: Parameter("batch0", is_input_file=True)=None,
                  batch1: Parameter("batch1", is_input_file=True)=None,
@@ -913,10 +913,10 @@ class Duplicates2(Program):
     subdir = "filter"
     def __init__(self,
                  *args: PositionalParameter(is_input_file=True),
+                 poly: Parameter(is_input_file=True),
                  rel_count: Parameter("nrels", checktype=int),
                  renumber: Parameter(is_input_file=True),
                  filelist: Parameter(is_input_file=True)=None,
-                 badidealinfo: Parameter(is_input_file=True)=None,
                  threads : Parameter("t", checktype=int)=None,
                  force_posix_threads: Toggle("force-posix-threads")=None,
                  dlp: Toggle("dl")=None,
@@ -1022,7 +1022,7 @@ class ReplayDLP(Program):
 class NumberTheory(Program):
     binary = "badideals"
     name = binary
-    subdir = "numbertheory"
+    subdir = "utils"
     def __init__(self,
                  poly: Parameter(),
                  ell: Parameter(),
@@ -1137,6 +1137,9 @@ class Descent(Program):
                  init_lim: Parameter("init-lim", prefix="--"),
                  init_mfb: Parameter("init-mfb", prefix="--"),
                  init_tkewness: Parameter("init-tkewness", prefix="--"),
+                 init_minB1: Parameter("init-minB1", prefix="--")=None,
+                 init_mineff: Parameter("init-mineff", prefix="--")=None,
+                 init_maxeff: Parameter("init-maxeff", prefix="--")=None,
                  init_side: Parameter("init-side", prefix="--")=None,
                  sm_mode: Parameter("sm-mode", prefix="--")=None,
                  I: Parameter(prefix="--"),

@@ -83,16 +83,21 @@
 #define DEFAULT_MERGE_SKIP 0  /* for discrete logarithm */
 #endif
 
+#include "typedefs.h"  /* for ideal_merge_t */
 
-/* Some utilities */
-/******************/
-// (not sure they belong here...)
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#define STR(s) XSTR(s)
-#define XSTR(s) #s
+static inline int cmp_ideal_merge (const void *p, const void *q);
+/* compare two index_t's */
+static inline int cmp_index (const void *p, const void *q);
+static inline int cmp_index2 (const void *p, const void *q);
 
+#ifdef __cplusplus
+}
+#endif
 
-#include "utils.h"  /* for ideal_merge_t */
 
 static inline int
 cmp_ideal_merge (const void *p, const void *q)

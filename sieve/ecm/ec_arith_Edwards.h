@@ -1,3 +1,4 @@
+#include <stdio.h>
 #ifndef EC_ARITH_EDWARDS_H_
 #define EC_ARITH_EDWARDS_H_
 
@@ -39,6 +40,10 @@ static unsigned int _count_edwards_dbl, _count_edwards_dblext,
 #endif
 
 /* #define SAFE_TWISTED_EDWARDS_TO_MONTGOMERY */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Compute d = -(A-2)/(A+2). A and d can be the same variable. */
 #define edwards_d_from_montgomery_A MOD_APPEND_TYPE(edwards_d_from_montgomery_A)
@@ -419,5 +424,10 @@ edwards_smul_ui (ec_point_t R, const ec_point_t P, const unsigned long k,
     ec_point_clear (T, m);
   }
 }
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* EC_ARITH_EDWARDS_H_ */

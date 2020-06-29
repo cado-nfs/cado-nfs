@@ -1,7 +1,9 @@
+#ifndef GMPXX_HPP_
+#define GMPXX_HPP_
+
 #include <gmp.h>
-#include <istream>
-#include <ostream>
-#include <string>
+#include <istream>    // std::istream // IWYU pragma: keep
+#include <ostream>    // std::ostream // IWYU pragma: keep
 
 // used to be protected by: !defined(HAVE_GMPXX) && !defined(HAVE_MPIRXX)
 
@@ -16,3 +18,4 @@ extern std::istream& operator>>(std::istream& is, mpz_ptr x);
 extern std::istream& operator>>(std::istream& is, mpq_ptr x);
 // #endif
 
+#endif	/* GMPXX_HPP_ */

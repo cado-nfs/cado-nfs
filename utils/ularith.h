@@ -11,7 +11,6 @@
 
 #define UL_ARITH_H__
 
-#include <assert.h>
 #include <limits.h>
 #include <gmp.h>
 #include "macros.h"
@@ -39,16 +38,6 @@
 #endif /* elif defined __LONG_MAX__ else */
 #endif /* ifndef LONG_BIT */
 
-#ifndef ASSERT
-#define ASSERT(x)	assert(x)
-#endif
-
-#ifdef WANT_ASSERT_EXPENSIVE
-#define ASSERT_EXPENSIVE(x) ASSERT(x)
-#else
-#define ASSERT_EXPENSIVE(x)
-#endif
-
 /* On 32 bit x86, the general constraint for, e.g., the source operand
    of add is "g". For x86_64, it is "rme", since immediate constants
    must be 32 bit. */
@@ -56,6 +45,10 @@
 #define ULARITH_CONSTRAINT_G "g"
 #elif defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
 #define ULARITH_CONSTRAINT_G "rme"
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #ifdef DEAD_CODE /* Unused and untested. Here be dragons. */
@@ -968,6 +961,11 @@ ularith_redc(unsigned long *r, const unsigned long plow,
 #endif
   ASSERT_EXPENSIVE (r[0] < m);
 }
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* ifndef UL_ARITH_H__ */

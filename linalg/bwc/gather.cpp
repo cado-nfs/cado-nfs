@@ -1,33 +1,38 @@
-#include "cado.h"
-
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <memory>
+#include <cinttypes>
 #include <cstdio>
 #include <cstring>
-#include <unistd.h>
 #include <climits>
-#include <dirent.h>
-#include <cerrno>
+#include <cstdint>              // for uint32_t
+#include <ctime>                // for time
+#include <cstdlib>
+
 #include <vector>
 #include <array>
 #include <set>
 #include <map>
 #include <tuple>
 #include <algorithm>
-#include "bwc_config.h"
-#include "parallelizing_info.h"
-#include "matmul_top.h"
-#include "select_mpi.h"
+#include <utility>               // for pair, make_pair
 
-#include "params.h"
-#include "xvectors.h"
-#include "portability.h"
-#include "misc.h"
+#include <dirent.h>
+#include <pthread.h>             // for pthread_mutex_lock, pthread_mutex_un...
+
+#include <gmp.h>                 // for mpz_cmp_ui, gmp_randclear, gmp_randi...
+
 #include "bw-common.h"
-#include "balancing.h"
+#include "cheating_vec_init.h"
+#include "cxx_mpz.hpp"
+#include "matmul_top.h"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
-#include "cheating_vec_init.h"
-
-using namespace std;
+#include "parallelizing_info.h"
+#include "params.h"
+#include "portability.h"
+#include "select_mpi.h"
+#include "verbose.h"    // verbose_enabled
+#include "macros.h"
 
 struct sfile_info {/*{{{*/
     unsigned int s0,s1;
@@ -69,12 +74,12 @@ static bool operator<(sfile_info const & a, sfile_info const & b)/*{{{*/
 
 int exitcode = 0;
 
-vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
+std::vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
 {
     int leader = pi->m->jrank == 0 && pi->m->trank == 0;
     int char2 = mpz_cmp_ui(bw->p, 2) == 0;
     int splitwidth = char2 ? 64 : 1;
-    vector<sfile_info> res;
+    std::vector<sfile_info> res;
     serialize_threads(pi->m);
     if (leader) {
         /* It's our job to collect the directory data.  */
@@ -96,7 +101,7 @@ vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
         closedir(dir);
         sort(res.begin(), res.end());
 
-        vector<sfile_info> res2;
+        std::vector<sfile_info> res2;
         auto it = res.begin();
         for( ; it < res.end() ; ) {
             if (it->s0 < bw->solutions[0] || it->s0 >= bw->solutions[1]) {
@@ -1173,7 +1178,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
      * are arranged to be multiples */
     unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
 
-    vector<sfile_info> sl = prelude(pi);
+    std::vector<sfile_info> sl = prelude(pi);
     if (sl.empty()) {
         if (tcan_print) {
             fprintf(stderr, "Found zero S files for solution range %u..%u. "

@@ -1,13 +1,17 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "portability.h"
-
-#include "utils_with_io.h"
-#include "filter_config.h"
+#include <errno.h>         // for errno
+#include <inttypes.h>      // for PRIu64, PRId64
+#include <string.h>        // for strerror
+#include <pthread.h>
+#include "bit_vector.h" // BV_BITS
+#include "macros.h"
+#include "misc.h"       // for UMAX
 #include "purge_matrix.h"
 #include "singleton_removal.h"
+#include "timing.h"     // seconds
+#include "typedefs.h"      // for index_t, weight_t
 
 /* If HAVE_SYNC_FETCH is not defined, we will use mutex for multithreaded
  * version of the code. May be too slow. */

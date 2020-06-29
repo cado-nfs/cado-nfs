@@ -1,11 +1,24 @@
-#include "cado.h"
-#include <cstddef>
-#include <cstdint>
+#include "cado.h" // IWYU pragma: keep
 
-#include "ularith.h"
-#include "cado-endian.h"
+#include <stdlib.h>        // for abort
+#include <cstddef>         // for size_t
+#include <cstdint>         // for uint8_t, uint32_t, uint64_t
+#ifdef HAVE_SSSE3
+#include <emmintrin.h>
+#include <tmmintrin.h>  // IWYU pragma: keep
+#endif
+#ifdef HAVE_AVX2
+#include <immintrin.h>
+#endif
+#ifdef HAVE_ARM_NEON
+#include <arm_neon.h>
+#endif
+
+#include "intrinsics.hpp"  // for adds, andnot, loadu, set1, _and, set0
+#include "macros.h"        // for ATTRIBUTE, ATTRIBUTE_ARTIFICIAL, ASSERT
+#include "ularith.h"       // for ularith_submod_ul_ul
+
 #include "las-sieve2357.hpp"
-#include "intrinsics.hpp"
 
 /* Specialize adds() for use in sieve2357, assuming that sieving very small
    primes does not overflow an element */
@@ -49,7 +62,7 @@ struct patterns_base {
     static const ELEMTYPE mask7[64];
 };
 
-static const uint8_t ff = ~(uint8_t)0;
+static constexpr const uint8_t ff = ~(uint8_t)0;
 template<> const uint8_t patterns_base<uint8_t>::mask2[64] =
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
    ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0, ff, 0};
@@ -115,8 +128,6 @@ public:
       return _and<SIMDTYPE, ELEMTYPE>(shifted_mask, set1<SIMDTYPE, ELEMTYPE>(elem));
   }
 };
-
-template class patterns<uint8_t>;
 
 template <typename SIMDTYPE, typename ELEMTYPE>
 inline void
@@ -304,6 +315,11 @@ sieve2357<SIMDTYPE, ELEMTYPE>::sieve(SIMDTYPE * const sievearray, const size_t a
 
   pattern2 = andnot<SIMDTYPE, ELEMTYPE>(even_mask, pattern2);
 
+  /* This triggers a warning on debian-8-arm32
+   *
+   *    /home/ci/jenkins/workspace/master/compile-debian-8-arm32/sieve/las-sieve2357.cpp:310:12: warning: requested alignment 16 is larger than 8 [-Wattributes]
+   SIMDTYPE pattern23[3] = {pattern2, pattern2, pattern2};
+   */
 #ifdef HAVE_ALIGNAS
   alignas(sizeof(SIMDTYPE)) 
 #endif
@@ -374,6 +390,8 @@ sieve2357<SIMDTYPE, ELEMTYPE>::sieve(SIMDTYPE * const sievearray, const size_t a
   } else
     abort();
 }
+
+template class patterns<uint8_t>;
 
 #if GNUC_VERSION_ATLEAST(6,1,0)
 /* https://gcc.gnu.org/bugzilla/show_bug.cgi?id=69884 */

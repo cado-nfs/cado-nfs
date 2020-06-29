@@ -1,12 +1,15 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "macros.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <gmp.h>
+#include "mod_ul.h"        // for modul_initmod_ul, modul_clearmod, modul_se...
+#include "mpz_poly.h"      // for mpz_poly
 #include "modul_poly.h"
 #include "gmp_aux.h"
 #include "tests_common.h"
 #include "cado_poly.h"
+#include "portability.h" // lrand48 // IWYU pragma: keep
 
 void
 test_modul_poly_is_irreducible (unsigned long iter)

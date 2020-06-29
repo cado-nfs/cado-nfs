@@ -1,8 +1,8 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
-#include "verbose.h"
-
 #include "las-config.h"
+#include "macros.h"
+#include "verbose.h"    // verbose_output_print
 
 int LOG_BUCKET_REGION = 16;
 int LOG_BUCKET_REGIONS[FB_MAX_PARTS];
@@ -33,7 +33,7 @@ void set_LOG_BUCKET_REGION()
 
 void las_display_config_flags()
 {
-    verbose_output_print(0, 1, "# las.c flags:");
+    verbose_output_print(0, 1, "# las flags:");
 #ifdef SAFE_BUCKETS
     verbose_output_print(0, 1, " SAFE_BUCKETS");
 #endif

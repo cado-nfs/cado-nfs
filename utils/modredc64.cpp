@@ -1,9 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "modredc64.hpp"
 
 typedef ModulusREDC64 Modulus;
 
 #include "mod64_common.cpp"
+#include "macros.h"
 
 bool
 Modulus::inv (Residue &r, const Residue &A) const
@@ -120,9 +121,6 @@ Modulus::inv (Residue &r, const Residue &A) const
   return 1;
 }
 
-
-// #undef ASSERT_EXPENSIVE
-// #define ASSERT_EXPENSIVE ASSERT
 
 /* same as inv, but for classical representation (not Montgomery).
    FIXME: should the operands be Integer type? */

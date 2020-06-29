@@ -19,9 +19,19 @@
  */ 
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>
+#include <gmp.h>
+#include "auxiliary.h"  // rotate_aux
+#include "ropt.h" // ropt_get_bestpoly
+#include "ropt_arith.h" // ROPT_NPRIMES
+#include "ropt_stage1.h" // ropt_stage1
+#include "ropt_stage2.h" // ropt_stage2
+#include "ropt_str.h" // ropt_poly_t ...
+#include "ropt_tree.h" // alpha_pq ...
 #include "ropt_linear.h"
-#include "portability.h"
+#include "ropt_param.h" // TUNE_LOGNORM_INCR ...
+#include "timing.h"             // for seconds_thread
 //#define ROPT_LINEAR_TUNE_HARDER
 
 
@@ -245,7 +255,7 @@ ropt_tune_stage2_fast ( ropt_poly_t poly,
     }
 
     ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
-                             0, curr_size_tune, NP-1);
+                             0, curr_size_tune, ROPT_NPRIMES-1);
     ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
     insert_alpha_pq (tmp_alpha_pqueue, w, u, v, mod, -info->ave_MurphyE);
     if (param->verbose >= 4)
@@ -388,7 +398,7 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
       while (k < 3) {
 
         ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
-                                 0, curr_size_tune, NP-1);
+                                 0, curr_size_tune, ROPT_NPRIMES-1);
 
         ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
 
@@ -417,7 +427,7 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
 #else
 
       ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
-                               0, curr_size_tune, NP-1);
+                               0, curr_size_tune, ROPT_NPRIMES-1);
 
       ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
 
@@ -476,7 +486,7 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
       while (k < 3) {
 
         ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
-                                 0, curr_size_tune, NP-1);
+                                 0, curr_size_tune, ROPT_NPRIMES-1);
         ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
 
         if (old_MurphyE > info->best_MurphyE)
@@ -504,7 +514,7 @@ ropt_tune_stage2_slow ( ropt_poly_t poly,
 #else
 
       ropt_s2param_setup_tune (s1param, s2param, tmpu, v, mod,
-                               0, curr_size_tune, NP-1);
+                               0, curr_size_tune, ROPT_NPRIMES-1);
 
       ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
 
@@ -802,7 +812,7 @@ ropt_call_sieve ( ropt_poly_t poly,
       }
      
       ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
-                               0, size_tune_sievearray * 10, NP - 1);
+                               0, size_tune_sievearray * 10, ROPT_NPRIMES - 1);
       ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
     }
   }
@@ -957,7 +967,7 @@ ropt_linear_deg34 ( ropt_poly_t poly,
   if (vb < 128) vb = 128;
   
   ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
-                           ub, vb, NP - 1);
+                           ub, vb, ROPT_NPRIMES - 1);
 
   ropt_stage2 (poly, s2param, param, info, global_E_pqueue, 0);
 

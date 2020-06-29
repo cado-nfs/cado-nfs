@@ -1,6 +1,6 @@
 #ifndef PURGEDFILE_H_
 #define PURGEDFILE_H_
-#include <stdio.h>
+
 #include <stdint.h>
 
 #ifdef __cplusplus

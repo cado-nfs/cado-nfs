@@ -1,16 +1,23 @@
+#include "cado.h" // IWYU pragma: keep
+
 #define VERBOSE 0
 
-#include "cado.h"
+#include <algorithm>    // for min
+#include <climits>      // for ULONG_MAX
+#include <cstdint>      // for uint64_t
+#include <cmath>        // IWYU pragma: keep // std::sqrt (albeit in constexpr)
+#include <gmp.h>        // for __mpz_struct, mp_limb_t, mp_ptr, mpz_cmp_ui
+
 #if VERBOSE
-#include <stdio.h>
+#include <cstdio>
 #endif
-#include <cstdlib>
-#include <climits>
-#include <cmath>
-#include "ularith.h"
-#include "modredc_ul.h"
+
 #include "trialdiv.hpp"
-#include "portability.h"
+
+#include "macros.h"     // for ASSERT, ASSERT_ALWAYS
+#include "cxx_mpz.hpp"
+
+#include "ularith.h"    // for ularith_mul_ul_ul_2ul, ularith_add_2ul_2ul
 
 /* shortcoming of C++11. C++17 would (I think) allow this be defined
  * directly in the struct body and get a real compile-time constant,

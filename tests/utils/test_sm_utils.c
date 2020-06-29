@@ -1,9 +1,12 @@
-#include "cado.h"
-
+#include "cado.h" // IWYU pragma: keep
+#include <stdint.h>    // for uint64_t, int64_t
+#include <stdlib.h>    // for EXIT_FAILURE, EXIT_SUCCESS
+#include <inttypes.h>
 #include <stdio.h>
-
-#include "portability.h"
-#include "utils.h"
+#include <gmp.h>
+#include "sm_utils.h" // sm_relset_t
+#include "mpz_poly.h"   // mpz_poly_srcptr
+#include "macros.h"
 
 #define TEST_MAX_AB 16
 #define FREQ 2 // when possible one time out of FREQ we try sm_single_rel

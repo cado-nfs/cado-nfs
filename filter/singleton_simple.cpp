@@ -1,13 +1,16 @@
-#include "cado.h"
-
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include <gmp.h>
 #include <string.h>
-
+#include <inttypes.h>   // for PRIu64
+#include <stdint.h>     // for uint64_t
+#include "filter_io.h"  // earlyparsed_relation_ptr
 #include "macros.h"
-#include "utils_with_io.h"
-#include "filter_config.h"
+#include "misc.h"       // for UMAX
+#include "params.h"     // param_list_parse_*
+#include "typedefs.h"   // for weight_t, prime_t, index_t
+
+#include "verbose.h"
 
 
 // Some globals... laziness.

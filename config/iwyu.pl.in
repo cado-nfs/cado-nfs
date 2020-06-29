@@ -1,0 +1,69 @@
+#!/usr/bin/perl -w
+
+my $iwyu=q{@iwyu_path@};
+my $srcpath=q{@CADO_NFS_SOURCE_DIR@};
+
+my @cmd = @ARGV;
+while(@cmd) {
+    next unless defined($_=shift @cmd);
+    next unless $_ eq '-c';
+    die "no source file ?" unless defined($_=shift @cmd);
+    print "// source file: $_";
+    exit 0 if /gf2x\//;
+    exit 0 if /fmt\//;
+    exit 0 if /flint-fft\//;
+    exit 0 if /mpfq\//;
+    last;
+}
+
+my $cmd=join(" ", ($iwyu, grep { !/--mpi/ } @ARGV));
+
+
+# my %files = ();
+
+open F, "$cmd 2>&1 |";
+my $current = undef;
+my $mode = undef;
+my @pending;
+
+while (defined($_=<F>)) {
+#    if (/^$/) {
+#        print;
+#        undef $current;
+#        undef $mode;
+#        next;
+#    }
+    if (defined($current) && /^---$/) {
+        undef $current;
+        undef $mode;
+        push @pending, $_;
+        print STDERR $_ for @pending;
+        @pending=();
+        next;
+    }
+    print STDERR $_;
+    next if /^\s*$/;
+    if (/^(\S+) should (add|remove) these lines:/) {
+        $current = $1;
+        $mode = $2;
+        $current =~ s{^$srcpath/*}{};
+        next;
+    }
+    if (defined($current) && $mode eq 'add') {
+        push @pending, "$current:1:1 warning: missing   $_";
+        next;
+    }
+    if (defined($current) && $mode eq 'remove') {
+        s/^- *//;
+        my $lnum=1;
+        if (s{  // lines (\d+)-\d+$}{}) {
+            $lnum=$1;
+            push @pending, "$current:$lnum:1 warning: useless    $_";
+        }
+        next;
+    }
+}
+
+print for @pending;
+
+close F;

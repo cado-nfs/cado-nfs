@@ -337,7 +337,8 @@ class Cado_NFS_toplevel(object):
 
         >>> fd,name=tempfile.mkstemp(text=True)
         >>> paramfile=os.fdopen(fd, 'w')
-        >>> paramfile.writelines(['tasks.workdir=/tmp\\n'])
+        >>> slashtmp=tempfile.mkdtemp()
+        >>> paramfile.writelines(['tasks.workdir='+slashtmp+'\\n'])
         >>> paramfile.close()
         >>> t = Cado_NFS_toplevel(args=['12345', name])
         >>> t.filter_out_N_paramfile_workdir()
@@ -393,9 +394,9 @@ class Cado_NFS_toplevel(object):
         True
 
         Existing directory path understood as workdir
-        >>> t = Cado_NFS_toplevel(args=["/tmp"])
+        >>> t = Cado_NFS_toplevel(args=[slashtmp])
         >>> t.filter_out_N_paramfile_workdir()
-        >>> t.args.workdir == "/tmp"
+        >>> t.args.workdir == slashtmp
         True
 
         >>> os.unlink(name)
@@ -482,6 +483,7 @@ class Cado_NFS_toplevel(object):
         self.parameters.
 
         >>> tempdir=tempfile.mkdtemp()
+        >>> slashtmp=tempfile.mkdtemp()
         >>> os.mkdir(os.path.join(tempdir, "factor"))
         >>> fd,name=tempfile.mkstemp(text=True)
         >>> c5=os.path.join(tempdir, "factor", "params.c5")
@@ -490,7 +492,8 @@ class Cado_NFS_toplevel(object):
         >>> f.close()
         >>> foo=os.path.join(tempdir, "foo")
         >>> f=open(foo, "w")
-        >>> f.writelines(['N=67890\\n', 'name=blabla\\n', 'a.b.c=32\\n', 'tasks.workdir=/tmp/somedirectory\\n'])
+        >>> tempdir2=tempfile.mkdtemp()
+        >>> f.writelines(['N=67890\\n', 'name=blabla\\n', 'a.b.c=32\\n', 'tasks.workdir='+tempdir2+'\\n'])
         >>> f.close()
 
         N given, no parameter file provided. We want to make sure that we
@@ -515,7 +518,7 @@ class Cado_NFS_toplevel(object):
         N given, no parameter file provided, but working directory
         override present. We want to make sure that we are going to read
         our default parameter file.
-        >>> t = Cado_NFS_toplevel(args=['12345', '/tmp'])
+        >>> t = Cado_NFS_toplevel(args=['12345', slashtmp])
         >>> t.filter_out_N_paramfile_workdir()
         >>> t.setpath("data", tempdir)
         >>> t.parameters = cadoparams.Parameters()
@@ -527,8 +530,8 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.get_or_set_default("a.b.x.y.c", 0)
         32
 
-        >>> t.parameters.get_or_set_default("tasks.workdir")
-        '/tmp'
+        >>> t.parameters.get_or_set_default("tasks.workdir") == slashtmp
+        True
 
         >>> t.using_default_parameter_file
         True
@@ -558,8 +561,8 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.get_or_set_default("N", 0)
         67890
 
-        >>> t.parameters.get_or_set_default("tasks.workdir")
-        '/tmp/somedirectory'
+        >>> t.parameters.get_or_set_default("tasks.workdir") == tempdir2
+        True
 
         >>> t.using_default_parameter_file
         False
@@ -577,8 +580,8 @@ class Cado_NFS_toplevel(object):
         >>> t.parameters.get_or_set_default('name')
         'blabla'
 
-        >>> t.parameters.get_or_set_default('tasks.workdir')
-        '/tmp/somedirectory'
+        >>> t.parameters.get_or_set_default('tasks.workdir') == tempdir2
+        True
 
         Parameter file with no N provided. Complain
         >>> t = Cado_NFS_toplevel(args=[c5])
@@ -593,19 +596,25 @@ class Cado_NFS_toplevel(object):
 
         Parameter file and workdir provided.
         >>> cadoparams.logger.setLevel(logging.CRITICAL)
-        >>> t = Cado_NFS_toplevel(args=[foo, '/tmp'])
+        >>> slashtmp=tempfile.mkdtemp()
+        >>> t = Cado_NFS_toplevel(args=[foo, slashtmp])
         >>> t.filter_out_N_paramfile_workdir()
         >>> t.parameters = cadoparams.Parameters()
         >>> t.set_N_paramfile_workdir()
         >>> t.access_or_create_workdir_and_db()
-        >>> t.parameters.get_or_set_default('tasks.workdir')
-        '/tmp'
-
-        >>> os.unlink(c5)
-        >>> os.rmdir(os.path.join(tempdir, "factor"))
-        >>> os.unlink(foo)
-        >>> os.rmdir(tempdir)
+        >>> t.parameters.get_or_set_default('tasks.workdir') == slashtmp
+        True
         '''
+
+        # now we wrap everything with provide-wdir, it's much easier.
+        # >>> os.unlink(c5)
+        # >>> os.rmdir(os.path.join(tempdir, "factor"))
+        # >>> os.unlink(foo)
+        # >>> os.rmdir(tempdir)
+        # >>> os.unlink(t.db.path)
+        # >>> os.unlink(os.path.join(tempdir2, 'blabla.db'))
+        # >>> os.rmdir(tempdir2)
+
         # The top-level logic which depends on N, parameters, and workdir
         # is as follows.
         #
@@ -697,8 +706,6 @@ class Cado_NFS_toplevel(object):
             db_state = query_db_path(db=self.db)
 
         db_state.state["workdir"]=wdir
-
-
 
     def set_threads_and_client_threads(self):
         ''' This function processes the --client-threads argument and
@@ -926,9 +933,10 @@ class Cado_NFS_toplevel(object):
 
     def set_slaves_parameters(self):
         ''' sets slaves.nrclients and slaves.scriptpath to default values
-        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.hostnames=foo,bar', 'slaves.scriptpath=/tmp'])
-        >>> t.setpath("lib", "/tmp")
-        >>> t.setpath("data", "/tmp")
+        >>> slashtmp=tempfile.mkdtemp()
+        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.hostnames=foo,bar', 'slaves.scriptpath=' + slashtmp])
+        >>> t.setpath("lib", slashtmp)
+        >>> t.setpath("data", slashtmp)
         >>> p,db = t.get_cooked_parameters()
         >>> p.get_or_set_default("slaves.nrclients", 0)
         0
@@ -936,17 +944,17 @@ class Cado_NFS_toplevel(object):
         If we are run with a non-default parameter file, then we end up
         running in pure server mode.
         >>> os.environ["NCPUS_FAKE"]="4"
-        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.scriptpath=/tmp'])
-        >>> t.setpath("lib", "/tmp")
-        >>> t.setpath("data", "/tmp")
+        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.scriptpath=' + slashtmp])
+        >>> t.setpath("lib", slashtmp)
+        >>> t.setpath("data", slashtmp)
         >>> p,db = t.get_cooked_parameters()
         >>> p.get_or_set_default("slaves.nrclients", 0)
         0
 
         >>> os.environ["NCPUS_FAKE"]="4"
-        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.scriptpath=/tmp'])
-        >>> t.setpath("lib", "/tmp")
-        >>> t.setpath("data", "/tmp")
+        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.scriptpath=' + slashtmp])
+        >>> t.setpath("lib", slashtmp)
+        >>> t.setpath("data", slashtmp)
 
         We are cheating. In order to see what happens in the old
         "factor.sh"-like way, see what happens if we read the old
@@ -975,11 +983,15 @@ class Cado_NFS_toplevel(object):
             # for.
             t = self.parameters.get_or_set_default("tasks.threads", 0)
             tp = self.parameters.get_or_set_default("tasks.polyselect.threads", 0)
-            ts = self.parameters.get_or_set_default("tasks.sieve.las.threads", 0)
+            ts = self.parameters.get_or_set_default("tasks.sieve.las.threads")
             if t:
-                ct = max(tp,ts)
-                nrclients=int((t+ct-1)//ct)
-                self.parameters.set_if_unset("slaves.nrclients", nrclients)
+                if isinstance(ts, int) or isinstance(ts, str) and re.match('^\d+', ts):
+                    ct = max(tp,int(ts))
+                    nrclients=int((t+ct-1)//ct)
+                    self.parameters.set_if_unset("slaves.nrclients", nrclients)
+                else:
+                    self.logger.info("since tasks.sieve.las.threads = %s, we use only 1 client per slave" % ts)
+                    self.parameters.set_if_unset("slaves.nrclients", 1)
             else:
                 self.parameters.set_if_unset("slaves.nrclients", 1)
         self.parameters.set_if_unset("slaves.basepath",
@@ -1129,19 +1141,24 @@ class Cado_NFS_toplevel(object):
         for processing by all the other parts of the python code.
         
         >>> os.environ["NCPUS_FAKE"]="4"
-        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.hostnames=foo,bar', 'tasks.workdir=/tmp/a', 'slaves.scriptpath=/tmp'])
-        >>> t.setpath("lib", "/tmp")
-        >>> t.setpath("data", "/tmp")
+        >>> tempdir=tempfile.mkdtemp()
+        >>> slashtmp=tempfile.mkdtemp()
+        >>> t = Cado_NFS_toplevel(args=['-p', os.path.os.devnull, '12345', 'slaves.hostnames=foo,bar', 'tasks.workdir='+tempdir, 'slaves.scriptpath=' + slashtmp])
+        >>> t.setpath("lib", slashtmp)
+        >>> t.setpath("data", slashtmp)
         >>> p,db = t.get_cooked_parameters()
-        >>> print(re.sub('(C:)?\\\\\\\\', '/', str(p)))
+        >>> px=str(re.sub('(C:)?\\\\\\\\', '/', str(p)))
+        >>> px=px.replace(tempdir, "TEMPDIR")
+        >>> px=px.replace(slashtmp, "SLASHTMP")
+        >>> print(px)
         N = 12345
-        slaves.basepath = /tmp/a/client
+        slaves.basepath = TEMPDIR/client
         slaves.hostnames = foo,bar
-        slaves.scriptpath = /tmp
-        tasks.execpath = /tmp
+        slaves.scriptpath = SLASHTMP
+        tasks.execpath = SLASHTMP
         tasks.threads = 4
-        tasks.workdir = /tmp/a
-        tasks.linalg.bwc.cpubinding = /tmp/misc/cpubinding.conf
+        tasks.workdir = TEMPDIR
+        tasks.linalg.bwc.cpubinding = SLASHTMP/misc/cpubinding.conf
         tasks.linalg.bwc.threads = 4
         tasks.polyselect.threads = 2
         tasks.sieve.las.threads = 2

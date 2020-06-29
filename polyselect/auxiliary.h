@@ -22,8 +22,8 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-#include <float.h>  /* for DBL_MAX */
-#include <string.h>
+#include <stdio.h>      // FILE
+#include <gmp.h>
 #include "cado_poly.h"
 #include "mpz_poly.h"
 
@@ -90,6 +90,9 @@ double cado_poly_fprintf_with_info_and_MurphyE (FILE *fp, cado_poly_ptr,
 double expected_rotation_gain (mpz_poly_srcptr f, mpz_poly_srcptr g);
 void expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g,
                       int i, double maxlognorm, double skew);
+
+void set_alpha_bound (unsigned long bound);
+unsigned long get_alpha_bound (void);
 
 #ifdef __cplusplus
 }

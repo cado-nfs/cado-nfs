@@ -1,19 +1,18 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <time.h>
-#include <unistd.h>
 #include <math.h>
-#include "portability.h"
-
+#include <pthread.h>                // for pthread_mutex_unlock, pthread_mut...
+#include "misc.h"                   // for size_disp
 #include "parallelizing_info.h"
 #include "select_mpi.h"
+#include "verbose.h"  // verbose_enabled
 
-#include "utils.h"
 // #include "mf.h"
 
 #include "balancing.h"
@@ -26,6 +25,9 @@
 #endif
 
 #include "balancing_workhorse.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "macros.h"
+#include "params.h"
 
 /* TODO:
  * - implement file-backed rewind on thread pipes. There's a
@@ -219,10 +221,6 @@ typedef struct data_dest_s *data_dest_ptr;/*}}}*/
 /*}}}*/
 
 /* {{{ dual-head thread pipes */
-struct thread_pipe_s;
-struct thread_source_s;
-struct thread_dest_s;
-
 struct thread_pipe_s {
     pthread_cond_t hello;
     pthread_mutex_t mu;
@@ -485,8 +483,6 @@ void mf_pipe(data_source_ptr input, data_dest_ptr output, const char * name)/*{{
 
 
 // _outbound_ communication channel./*{{{*/
-
-struct mpi_dest_s;
 
 // all outbound channels use the same type of send queue. There is a
 // double-size buffer, and flushes are performed each time one of the two

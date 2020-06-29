@@ -1,7 +1,10 @@
 #ifndef LINGEN_MATPOLY_H_
 #define LINGEN_MATPOLY_H_
 
-#include "mpfq_layer.h"
+#include <gmp.h>
+#include <stddef.h>      // for size_t
+#include "macros.h"      // for ASSERT_ALWAYS
+#include "mpfq_layer.h"  // for abdst_field, mpfq_pz_dst_field, MAYBE_UNUSED
 
 /* This is used only for plingen. */
 
@@ -18,10 +21,12 @@ struct matpoly_s {
     abvec x;
 };
 typedef struct matpoly_s matpoly[1];
+#ifndef POLYMAT_H_
 typedef struct matpoly_s * matpoly_ptr;
 typedef const struct matpoly_s * matpoly_srcptr;
-
-#include "lingen-polymat.h"
+typedef struct polymat_s * polymat_ptr;
+typedef const struct polymat_s * polymat_srcptr;
+#endif
 
 #ifdef __cplusplus
 extern "C" {

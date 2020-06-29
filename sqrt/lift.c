@@ -1,12 +1,13 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <gmp.h>
 #include <math.h>
 #include <string.h>
-#include "utils.h"
-#include "portability.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "macros.h"
 #include "powers_of_p.h"
+#include "timing.h"     // wct_seconds
 
 double program_starttime;
 double print_delay = 0.1;
@@ -169,7 +170,7 @@ static void mp_2poly_eval_mod(mpz_ptr r, mpz_ptr s, mpz_t * f, mpz_t * g, int de
 void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* {{{ */
 {
     double w0 = WCT;
-    assert(precision > 0);
+    ASSERT(precision > 0);
 
     if (precision == 1) {
         return;

@@ -1,17 +1,17 @@
-#include "cado.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <limits.h>
-#include <gmp.h>
+#include "cado.h" // IWYU pragma: keep
+#include <cstdlib>
+#include <cstdio>
+#include <climits>
 #include <algorithm>
-
-#include "macros.h"
-#include "rootfinder.h"
-#include "mpz_poly.h"
-#include "modul_poly.h"
+#include <type_traits>   // for is_same
+#include <gmp.h>
+#include "cxx_mpz.hpp"   // for cxx_mpz
 #include "gmp_aux.h"
-#include "getprime.h"
-#include "portability.h"
+#include "macros.h"
+#include "mod_ul.h"      // for residueul_t, modul_clear, modul_clearmod
+#include "modul_poly.h"
+#include "rootfinder.h"
+#include "portability.h" // lrand48 (TODO: remove) // IWYU pragma: keep
 
 /* Entry point for rootfind routines, for prime p.
    Assume r is an array of deg(F) entries, which are mpz_init'ed. */

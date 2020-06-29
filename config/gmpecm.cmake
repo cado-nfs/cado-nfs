@@ -74,5 +74,9 @@ CHECK_C_SOURCE_COMPILES("
       printf(\"ECM version: %s\", ecm_version());
       return EXIT_SUCCESS;
     }
-" HAVE_GMPECM)
+    " HAVE_GMPECM)
 endif()
+set(CMAKE_REQUIRED_FLAGS)
+set(CMAKE_REQUIRED_DEFINITIONS)
+set(CMAKE_REQUIRED_INCLUDES)
+set(CMAKE_REQUIRED_LIBRARIES)

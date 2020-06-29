@@ -1,7 +1,13 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>             // for strcmp
+#include <gmp.h>                // for gmp_randstate_t, gmp_randclear, gmp_r...
+#include "mpfq_layer.h"
 #include "lingen-matpoly.h"
 #include "lingen-matpoly-ft.h"
-#include "utils.h"
+#include "cxx_mpz.hpp"
+#include "macros.h"
 
 void one_test(cxx_mpz const & p, unsigned int m, unsigned int len1, unsigned int len2, gmp_randstate_t rstate)
 {

@@ -1,6 +1,8 @@
 #ifndef BALANCING_MPI_SOURCE_H_
 #define BALANCING_MPI_SOURCE_H_
 
+#include <stddef.h>                 // for size_t
+#include <stdint.h>                 // for uint32_t
 #include "balancing_data_source.h"
 #include "select_mpi.h"
 

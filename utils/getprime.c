@@ -24,14 +24,14 @@
 /* compile with -DMAIN to use as a standalone program */
 
 #ifndef MAIN
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "getprime.h"
+#include "macros.h"
 #ifndef MAIN
-#include "portability.h"
 #endif
 
 /* provided for in cado.h, but we want getprime.c to be standalone */

@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
@@ -6,16 +6,17 @@
 
 #include <string.h>
 #include <stdio.h>
-#ifdef HAVE_OPENMP
-#include <omp.h>
+#include <stdlib.h>
+#ifndef USE_HEAP
+#include "omp_proxy.h" // IWYU pragma: keep
 #endif
-
-#include "portability.h"
-#include "utils_with_io.h"
+#ifdef FOR_DL
+#include "gcd.h"
+#endif
 #include "filter_config.h"
 #include "merge_replay_matrix.h"
 #include "sparse.h"
-#include "mst.h"
+#include "macros.h"
 
 /*****************************************************************************/
 

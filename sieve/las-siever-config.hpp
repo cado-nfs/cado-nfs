@@ -1,15 +1,16 @@
 #ifndef LAS_SIEVER_CONFIG_HPP_
 #define LAS_SIEVER_CONFIG_HPP_
 
-#include "las-base.hpp"
-#include "las-todo-entry.hpp"
-#include "fb-types.h"
-#include "fb.hpp"
-#include <string.h>
-#include <string>
-#include <map>
-#include <tuple>
-#include "params.h"
+#include <cstring>      // for memcmp, NULL
+#include <map>           // for operator==, map<>::const_iterator, _Rb_tree_...
+#include <tuple>         // for tie, operator<, tuple
+#include <utility>       // for pair
+#include "fb.hpp"        // for fb_factorbase, fb_factorbase::key_type
+#include "las-base.hpp"  // for _padded_pod
+#include "params.h"     // param_list_ptr
+
+struct las_todo_entry; // IWYU pragma: keep
+
 
 /* siever_config */
  

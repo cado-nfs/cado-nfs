@@ -1,5 +1,9 @@
+#ifndef MODREDC_UL_DEFAULT_H_
+#define MODREDC_UL_DEFAULT_H_
+
 #include "modredc_ul.h"
 
+// pragma no prototypes
 /*
    Here are typedef's that rename all functions to mod_* instead of 
    modredcul_*, which one day might become an automatic renaming scheme so 
@@ -36,3 +40,5 @@
 #define PRIMODx "lx"
 #define MOD_PRINT_INT(x) x[0]
 #define MOD_PRINT_MODULUS(x) x[0].m
+
+#endif	/* MODREDC_UL_DEFAULT_H_ */

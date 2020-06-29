@@ -2,9 +2,6 @@
 #define ROPT_PARAM_H
 
 
-#include "ropt_str.h"
-
-
 /* -------------------------
    perhaps no need to change
    ------------------------- */
@@ -95,6 +92,10 @@
 /* --- declarations --- */
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern unsigned int L1_cachesize;
 
 /* set once in ropt_io.c and unchanged then */
@@ -115,5 +116,10 @@ extern const unsigned int s1_size_each_sublattice_tune[NUM_SUBLATTICE_PRIMES];
 extern const unsigned int size_total_sublattices[NUM_DEFAULT_DIGITS][4];
 
 double exp_alpha (double logK);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -1,15 +1,17 @@
 /* arithmetic on polynomials over Z/pZ, with coefficients represented by
    the same type as in mod_ul.[ch] ; most presumably an unsigned long */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <gmp.h>      // for mpz_t, mpz_divisible_ui_p, mpz_fdiv_ui
+#include "macros.h"   // for ASSERT, ASSERT_ALWAYS, FATAL_ERROR_CHECK, MAX
 #include "mod_ul.h"
 #include "modul_poly.h"
 #include "gmp_aux.h"
-#include "portability.h"
+#include "portability.h" // lrand48 // IWYU pragma: keep
 
 static void modul_poly_normalize (modul_poly_t, modulusul_t);
 
@@ -411,7 +413,7 @@ modul_poly_divexact (modul_poly_t q, const modul_poly_t h, const modul_poly_t f,
 static void
 modul_poly_gcd_clobber (modul_poly_t fp, modul_poly_t g, modulusul_t p)
 {
-    assert(fp != g);
+    ASSERT(fp != g);
   while (g->degree >= 0)
     {
       modul_poly_div_r (fp, g, p);

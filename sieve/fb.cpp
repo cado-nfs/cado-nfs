@@ -1,31 +1,47 @@
-#include "cado.h"
-#include <cstdlib>
-#include <cstdio>
-#include <algorithm>
-#include <cmath>
-#include <cstdarg>
-#include <cctype>
-#include <gmp.h>
-#include <pthread.h>
-#include <streambuf>
-#include <istream>
-#include <iomanip>
+#include "cado.h" // IWYU pragma: keep
+
+#include <cerrno>         // for errno
+#include <climits>        // for ULONG_MAX
+#include <cstdint>        // for uint32_t, uint64_t, UINT64_C, UINT64_MAX
+#include <cstring>        // for strchr, strerror, strlen
+#include <algorithm>       // for max, lower_bound, sort, is_sorted
+#include <cctype>          // for isspace
+#include <cmath>           // for fabs, floor, log2, pow, trunc
+#include <cstdlib>         // for exit, EXIT_FAILURE
+#include <iomanip>         // for operator<<, setprecision
+#include <sstream>         // std::ostringstream // IWYU pragma: keep
+#include <istream>         // std::istream // IWYU pragma: keep
+#include <ostream>         // std::ostream // IWYU pragma: keep
+#include <memory>          // for allocator_traits<>::value_type
+#include <queue>           // for priority_queue
+#include <stdexcept>       // for runtime_error
+#include <string>          // for basic_string, string
+#include <type_traits>     // for is_same
 #ifdef HAVE_GLIBC_VECTOR_INTERNALS
 /* need all that for mmap() stuff */
-#include <sys/types.h>
+// #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/mman.h>
+// #include <sys/mman.h>
 #include <unistd.h>
 #endif
+#include <gmp.h>           // for mpz_t, mpz_fdiv_ui, mpz_gcd_ui
 #include "fb.hpp"
-#include "mod_ul.h"
-#include "verbose.h"
-#include "getprime.h"
-#include "gmp_aux.h"
-#include "gzip.h"
-#include "threadpool.hpp"
-#include "misc.h"
+#include "getprime.h"               // for getprime_mt, prime_info_clear
+#ifndef NDEBUG
+#include "gmp_aux.h"                // for ulong_isprime // IWYU pragma: keep
+#endif
+#include "gzip.h"       // fopen_maybe_compressed
+#include "las-fbroot-qlattice.hpp"     // for fb_root_in_qlattice
+#include "macros.h"     // ASSERT // IWYU pragma: keep
+#include "misc.h"                   // for strtoul_const, strtoull_const
+#include "mod_ul.h"                 // for modul_set_ul_reduced, modul_clear
+#include "params.h"                 // for cxx_param_list, param_list_parse_...
+#include "threadpool.hpp"  // for thread_pool, task_result, task_parameters
+#include "timing.h"                 // for seconds, wct_seconds
+#include "ularith.h"       // for ularith_invmod
+#include "verbose.h"             // verbose_output_print
+struct qlattice_basis; // IWYU pragma: keep
 
 /* {{{ fb_log fb_pow and friends */
 /* Returns floor(log_2(n)) for n > 0, and 0 for n == 0 */
@@ -38,7 +54,7 @@ fb_log_2 (fbprime_t n)
 }
 
 /* Return p^e. Trivial exponentiation for small e, no check for overflow */
-fbprime_t
+static fbprime_t
 fb_pow (const fbprime_t p, const unsigned long e)
 {
     fbprime_t r = 1;
@@ -146,6 +162,14 @@ fb_general_root::fb_general_root (fbprime_t q, cxx_mpz_poly const & poly,
   proj = fb_linear_root (r, poly, q);
 }
 
+
+void fb_general_root::transform(fb_general_root &result, const fbprime_t q,
+        const redc_invp_t invq,
+        const qlattice_basis &basis) const {
+    unsigned long long t = to_old_format(q);
+    t = fb_root_in_qlattice(q, t, invq, basis);
+    result = fb_general_root(t, q, exp, oldexp);
+}
 
 /* Allow assignment-construction of general entries from simple entries */
 template <int Nr_roots>
@@ -1302,7 +1326,7 @@ static int get_new_task(task_info_t &T, uint64_t &next_prime, prime_info& pi, co
 
 typedef std::pair<unsigned int, task_info_t *> pending_result_t;
 /* priority queue is for lowest index first, here */
-bool operator<(pending_result_t const & a, pending_result_t const& b)
+static bool operator<(pending_result_t const & a, pending_result_t const& b)
 {
     return a.first > b.first;
 }
@@ -1454,7 +1478,7 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
    Return length in characters or remaining line, without trailing '\0'
    character.
 */
-size_t
+static size_t
 read_strip_comment (char *const line)
 {
     size_t linelen, i;
@@ -1694,12 +1718,12 @@ struct fbc_header {
         base_offset = header_offset;
     }
 };
-std::istream& operator>>(std::istream& in, fbc_header & hdr)
+static std::istream& operator>>(std::istream& in, fbc_header & hdr)
 {
     return hdr.parse(in);
 }
 
-std::ostream& operator<<(std::ostream& out, fbc_header const & hdr)
+static std::ostream& operator<<(std::ostream& out, fbc_header const & hdr)
 {
     return hdr.print(out);
 }
@@ -1719,7 +1743,7 @@ struct imemstream: virtual membuf, std::istream {
     }
 };
 
-fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_mpz_poly const & f, unsigned long lim, unsigned long powlim, int side)
+static fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_mpz_poly const & f, unsigned long lim, unsigned long powlim, int side)
 {
     /* The cached file header must absolutely be seekable (asking it to
      * be mmap-able is anyway an even stricter requirement as far as I
@@ -1744,9 +1768,9 @@ fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_mpz_pol
     for(size_t header_offset = 0, index = 0 ; header_offset != fbc_size ; index++) {
         /* Read header block starting at position "header_offset" */
         std::vector<char> area(fbc_header::header_block_size);
-        int rc = lseek(fbc, header_offset, SEEK_SET);
+        off_t rc = lseek(fbc, header_offset, SEEK_SET);
         ASSERT_ALWAYS(rc >= 0);
-        int nr = ::read(fbc, &area.front(), area.size());
+        ssize_t nr = ::read(fbc, &area.front(), area.size());
         ASSERT_ALWAYS(nr >= 0 && (size_t) nr == area.size());
         imemstream is(&area.front(), area.size());
         fbc_header hdr;
@@ -1870,8 +1894,14 @@ struct helper_functor_write_to_fbc_file {
             lseek(fbc, header_block_offset + next->offset, SEEK_SET);
             ASSERT_ALWAYS(x.size() == next->nentries);
             size_t n = sizeof(FB_ENTRY_TYPE) * x.size();
-            ssize_t m = ::write(fbc, &x.front(), n);
-            ASSERT_ALWAYS (m == (ssize_t)n);
+            size_t written = 0;
+            while (n > 0) {
+                ssize_t m = ::write(fbc, (char *)(&x.front())+written, n);
+                ASSERT_ALWAYS (m != -1);
+                ASSERT_ALWAYS (m <= (ssize_t)n);
+                n -= m;
+                written += m;
+            }
             next++;
         }
 };
@@ -1886,8 +1916,14 @@ struct helper_functor_write_to_fbc_file_weight_part {
             if (next == chunks.end()) return;
             lseek(fbc, header_block_offset + next->weight_offset, SEEK_SET);
             size_t n = sizeof(double) * (x.size() + 1);
-            ssize_t m = ::write(fbc, &*x.weight_begin(), n);
-            ASSERT_ALWAYS (m == (ssize_t)n);
+            size_t written = 0;
+            while (n > 0) {
+                ssize_t m = ::write(fbc, (char *)(&*x.weight_begin()) + written, n);
+                ASSERT_ALWAYS (m != -1);
+                ASSERT_ALWAYS (m <= (ssize_t)n);
+                n -= m;
+                written += m;
+            }
             next++;
         }
 };

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #ifndef EC_ARITH_MONTGOMERY_H_
 #define EC_ARITH_MONTGOMERY_H_
 
@@ -9,12 +10,17 @@
 
 #ifdef ECM_COUNT_OPS
 #include "ec_arith_cost.h"
+#include "macros.h"
 static unsigned int _count_montgomery_dadd, _count_montgomery_dbl;
 #define MONTGOMERY_COUNT_OPS_M _count_montgomery_dadd * MONTGOMERY_dADD \
                              + _count_montgomery_dbl * MONTGOMERY_DBL
 #define MONTGOMERY_COUNT_OPS_RESET() do {                   \
       _count_montgomery_dadd = _count_montgomery_dbl = 0;   \
     } while (0)
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 /* Montgomery elliptic curves
@@ -424,5 +430,10 @@ montgomery_curve_order (residue_t A, ec_point_t P, const modulus_t m)
   return order;
 }
 #endif /* defined(MOD_SIZE) && MOD_SIZE == 1 */
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EC_ARITH_MONTGOMERY_H_ */

@@ -1,4 +1,5 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <ostream>    // std::ostream // IWYU pragma: keep
 #include <pthread.h>
 #include "tdict.hpp"
 #include "params.h"
@@ -44,3 +45,21 @@ void configure_switches(cxx_param_list &) {}
 #endif
 
 };
+
+template class std::map<tdict::key, tdict::slot_base const *>;
+
+template struct tdict::tree<tdict::timer_seconds_thread>;
+template class std::map<tdict::key, tdict::tree<tdict::timer_seconds_thread> >;
+// template struct std::pair<tdict::key const, tdict::slot_base const *>;
+template struct tdict::tree<tdict::timer_seconds_thread>::accounting_child_meta<tdict::tree<tdict::timer_seconds_thread>::accounting_base>;
+
+#ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
+template struct tdict::tree<tdict::timer_ticks>;
+template class std::map<tdict::key, tdict::tree<tdict::timer_ticks> >;
+template struct tdict::tree<tdict::timer_ticks>::accounting_child_meta<tdict::tree<tdict::timer_ticks>::accounting_base>;
+#else
+template struct tdict::tree<tdict::timer_none>;
+template class std::map<tdict::key, tdict::tree<tdict::timer_none> >;
+template struct tdict::tree<tdict::timer_none>::accounting_child_meta<tdict::tree<tdict::timer_none>::accounting_base>;
+#endif
+

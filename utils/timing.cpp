@@ -1,16 +1,14 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <utility> // pair
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
 #include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>		/* for cputime */
+#include <cstdio>       // FILE // IWYU pragma: keep
 #ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>	/* for cputime */
 #endif
 #include <sys/time.h>	/* for gettimeofday */
-#include "macros.h"
 #include "timing.h"
 #include "memusage.h"
-#include "portability.h"
 
 #ifdef HAVE_GETRUSAGE
 /* I'm including some STL code for the timer info layer, but this could
@@ -148,6 +146,8 @@ void thread_seconds_user_sys(double * res)
 #include <sys/syscall.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdlib.h>
+#include "portability.h"
 
 static inline pid_t gettid() { return syscall(SYS_gettid); }
 

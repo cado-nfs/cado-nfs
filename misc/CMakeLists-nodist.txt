@@ -5,7 +5,7 @@ target_link_libraries (psi utils)
 add_executable(convert_poly EXCLUDE_FROM_ALL convert_poly.c)
 target_link_libraries(convert_poly utils)
 
-add_executable(convert_rels EXCLUDE_FROM_ALL convert_rels.c)
+add_executable(convert_rels EXCLUDE_FROM_ALL convert_rels.cpp)
 target_link_libraries(convert_rels utils)
 
 add_executable(svsm EXCLUDE_FROM_ALL svsm.c)

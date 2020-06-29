@@ -1,12 +1,11 @@
-#include "cado.h"
-#include <assert.h>
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "balancing_curl_source.h"
 #include "ringbuf.h"
-#include "portability.h"
 
 static int curl_global_init_done;
 static pthread_mutex_t curl_global_init_done_mx = PTHREAD_MUTEX_INITIALIZER;
@@ -19,7 +18,7 @@ curl_source_callback(void *ptr, size_t size, size_t nmemb, ringbuf_ptr r)
     size_t realsize = size * nmemb;
 
     size_t rc = ringbuf_put(r, ptr, realsize);
-    assert(rc == 0 || rc == realsize);
+    ASSERT(rc == 0 || rc == realsize);
     return rc;
 }
 
@@ -92,13 +91,13 @@ size_t curl_source_get(curl_source_ptr f, void ** p, size_t avail)
     /* The API in the balancing code talks abount uint32_t * areas, with
      * size counted in uint32_t's. Here we are talking bytes.
      */
-    assert((*p == NULL) == (avail == 0));
+    ASSERT((*p == NULL) == (avail == 0));
 
     int rc = ringbuf_get2(f->r, p, avail * sizeof(uint32_t));
     if (rc == 0)
-        assert(ringbuf_is_done(f->r));
+        ASSERT(ringbuf_is_done(f->r));
     if (!ringbuf_is_done(f->r))
-        assert(rc % sizeof(uint32_t) == 0);
+        ASSERT(rc % sizeof(uint32_t) == 0);
     size_t n = rc / sizeof(uint32_t);
     f->b->pos += n;
     return n;

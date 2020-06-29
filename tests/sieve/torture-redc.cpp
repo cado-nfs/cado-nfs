@@ -1,11 +1,16 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
 #include "macros.h"
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
 #include <vector>
 #include <ctime>
-#include "gmp.h"
+#include <cstdlib>
+#include <cinttypes>          // for PRIu32, PRId64, PRIu64
+#include <sys/time.h>
+#include <gmp.h>               // for gmp_randstate_t, gmp_urandomb_ui, mpz_...
+#include "gmp_aux.h"           // for mpz_get_uint64, mpz_fits_sint64_p, mpz...
 #include "utils/cxx_mpz.hpp"
 #include "las-arith.hpp"
 

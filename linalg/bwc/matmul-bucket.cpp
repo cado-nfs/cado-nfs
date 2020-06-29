@@ -3,37 +3,38 @@
 /* It's in C++ because the STL is handy, but that's really all there is
  * to it ; a conversion to C would not be extremely difficult */
 
-#include "cado.h"
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
-#include <cstdio>
-#include <cstdlib>
-#include <cerrno>
-
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <memory>
+#include <cinttypes>
 #include <climits>
 #include <cmath>
-
-#include <algorithm>
-
+#include <cstdarg>         // for va_list, va_end, va_start
+#include <cstddef>      // size_t, NULL
 #include <cstdint>
-#include <cinttypes>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <sstream>
-
 // C++ headers.
-// #include <string>
-#include <vector>
-#include <deque>
-#include <list>
 #include <algorithm>    // sort
-#include <iostream>     // cout
+#include <deque>
 #include <limits>       // underlying_type_{min,max}
-#include <fmt/printf.h>
-#include "macros.h"
-#include "utils.h"
-#include "bwc_config.h"
-using namespace std;
+#include <list>
+#include <sstream> // ostringstream // IWYU pragma: keep
+#include <string>           // for basic_string
+#include <type_traits>      // for __strip_reference_wrapper<>::__type
+#include <utility>          // for pair, make_pair, swap
+#include <vector>
 
+#include "fmt/core.h"       // for check_format_string
+#include "fmt/format.h"     // for basic_buffer::append, basic_parse_context...
+#include "fmt/printf.h"     // fmt::fprintf // IWYU pragma: keep
+#include "matmul.h"         // for matmul_ptr, matmul_public_s, MATMUL_AUX_Z...
+#include "macros.h"
+#include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
+#include "timing.h"     // wct_seconds
 #include "mpfq_layer.h"
+
+using namespace std;
 
 /* Make sure that the assembly function is only called if it matches
  * correctly the abase header !! */
@@ -43,18 +44,20 @@ using namespace std;
 // list is the CMakeLists.txt file, but in reality it's not needed. This
 // file being C++, the names are mangled if no header file marks them as
 // having C linkage. So commenting out is enough).
-#include "matmul-sub-small1.h"
-#include "matmul-sub-small2.h"
-#include "matmul-sub-large-fbd.h"
-#include "matmul-sub-large-fbi.h"
-#include "matmul-sub-vsc-dispatch.h"
-#include "matmul-sub-vsc-combine.h"
+#include "matmul-sub-small1.h" // IWYU pragma: keep
+#include "matmul-sub-small2.h" // IWYU pragma: keep
+#include "matmul-sub-large-fbd.h" // IWYU pragma: keep
+#include "matmul-sub-large-fbi.h" // IWYU pragma: keep
+#include "matmul-sub-vsc-dispatch.h" // IWYU pragma: keep
+#include "matmul-sub-vsc-combine.h" // IWYU pragma: keep
 // #define ENABLE_ASM
 #endif
 
 #include "matmul-common.h"
 
 #include "matmul_facade.h"
+#include "portability.h" // strdup // IWYU pragma: keep
+#include "params.h"
 
 /* {{{ Documentation
  *

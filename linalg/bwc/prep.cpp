@@ -1,19 +1,24 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
-#include <pthread.h>
-#include "bwc_config.h"
+#include <cinttypes>
+#include <cstdint>              // for uint32_t
+#include <cstring>              // for memset
+#include <ctime>                // for time
+#include <cstdlib>
+#include <gmp.h>
+#include "balancing.h"           // for balancing_pre_shuffle
 #include "parallelizing_info.h"
 #include "matmul_top.h"
 #include "select_mpi.h"
-#include "gauss.h"
 #include "gauss.h"
 #include "params.h"
 #include "xvectors.h"
 #include "bw-common.h"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
-#include "portability.h"
 #include "cheating_vec_init.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "macros.h"
 
 
 void bw_rank_check(matmul_top_data_ptr mmt, param_list_ptr pl)

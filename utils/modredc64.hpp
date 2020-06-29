@@ -7,26 +7,15 @@
 #define MODREDC64_HPP
 
 /**********************************************************************/
-#include <assert.h>
-#include <limits.h>
-#include <stdint.h>
+#include <cstdlib>       // for size_t, llabs, NULL
+#include <new>            // for operator new
+#include <cstdint>
 #include "macros.h"
 #include "u64arith.h"
 #include "modint.hpp"
 #include "mod_stdop.hpp"
+#include "macros.h"     // ASSERT MAYBE_UNUSED // IWYU pragma: keep
 
-
-#ifndef ASSERT
-#define ASSERT(x)	assert(x)
-#endif
-
-/* Even simple assertions are relatively expensive in very simple functions.
-   If we want them anyway to hunt a bug, define WANT_ASSERT_EXPENSIVE */
-#ifdef WANT_ASSERT_EXPENSIVE
-#define ASSERT_EXPENSIVE(x) ASSERT(x)
-#else
-#define ASSERT_EXPENSIVE(x)
-#endif
 
 class ModulusREDC64 {
     /* Type definitions */

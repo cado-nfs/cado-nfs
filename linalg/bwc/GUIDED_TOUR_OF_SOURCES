@@ -158,7 +158,7 @@ linalg/bwc/lingen-polymat.h
     over prime fields, used for lingen in BW over GF(p)
 
 
-linalg/bwc/strassen-thresholds.h
+linalg/bwc/strassen-thresholds.hpp
 linalg/bwc/lingen_mat_types.hpp
 
     => low-level arithmetic code that deals with matrices of polynomials

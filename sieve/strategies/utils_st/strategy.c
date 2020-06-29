@@ -1,11 +1,9 @@
-#include "cado.h"
-#include "portability.h"
-#include "utils.h"
-
-#include "strategy.h"
-
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include "macros.h"
+#include "strategy.h"
 
 strategy_t *strategy_create()
 {

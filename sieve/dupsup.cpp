@@ -1,26 +1,21 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <inttypes.h>
-#include <ctype.h>
-#include <time.h>
-#include <limits.h> /* for CHAR_BIT */
-#include <unistd.h>
-#include <assert.h>
+#include <array>
+#include <cstdlib>
+#include <cstdio>
+#include <climits> /* for CHAR_BIT */
+#ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
-
-#include "portability.h"
-#include "macros.h"
-#include "relation.hpp"
-#include "params.h"
-#include "cado_poly.h"
+#endif
+#include <gmp.h>
+#include "cxx_mpz.hpp"
 #include "gzip.h"
 #include "las-duplicate.hpp"
-#include "las-coordinates.hpp"
-#include "las-norms.hpp"
+#include "las-info.hpp"
+#include "las-siever-config.hpp"
+#include "las-todo-entry.hpp"
+#include "params.h"
+#include "relation.hpp"
 #include "verbose.h"
 
 

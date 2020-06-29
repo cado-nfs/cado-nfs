@@ -1,16 +1,19 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <string.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "balancing.h"
-#include "portability.h"
-#include "utils.h"
 #include "cheating_vec_init.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "fix-endianness.h" // fread32_little
+#include "crc.h"        // cado_crc_lfsr
+#include "misc.h"       // has_suffix
+#include "macros.h"
 
 void balancing_set_row_col_count(balancing_ptr bal)
 {

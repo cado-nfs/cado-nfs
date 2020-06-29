@@ -20,18 +20,29 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
+#endif
 #include <string.h>
-
-#include "portability.h"
-#include "utils_with_io.h"
-
+#include <inttypes.h>        // for PRIu64, PRIu32, PRIx64
+#include <stdint.h>          // for uint64_t, uint32_t, UINT32_MAX
+#include "purgedfile.h"      // for purgedfile_read_firstline
+#include "typedefs.h"        // for index_t, ideal_merge_t, index_signed_t
 #include "filter_config.h"
-#include "merge_replay_matrix.h"
+#include "filter_io.h"  // earlyparsed_relation_ptr
+#include "fix-endianness.h" // fwrite32_little
+#include "gzip.h"       // fopen_maybe_compressed
+#include "misc.h"       // derived_filename
+#include "params.h"     // param_list_parse_*
 #include "sparse.h"
+#include "stats.h"      // stats_data_t
+#include "timing.h"     // seconds
+#include "verbose.h"    // verbose_decl_usage
+#include "portability.h" // strdup  // IWYU pragma: keep
+#include "macros.h"
 
 #define DEBUG 0
 
@@ -792,7 +803,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "out", "basename for output matrices");
 #ifndef FOR_DL
   param_list_decl_usage(pl, "skip", "number of heaviest columns that go to the "
-                            "dense matrix (default " STR(DEFAULT_MERGE_SKIP) ")");
+                            "dense matrix (default " CADO_STRINGIZE(DEFAULT_MERGE_SKIP) ")");
 #endif
   param_list_decl_usage(pl, "index", "file containing description of rows "
                                      "(relations-sets) of the matrix");

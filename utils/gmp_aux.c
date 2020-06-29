@@ -1,11 +1,13 @@
 /* auxiliary routines on GMP data-types */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
 #include <limits.h>     /* for INT_MAX */
+#include <gmp.h>
 #include "gmp_aux.h"
-#include "macros.h"
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
+#include "macros.h"    // for ASSERT_ALWAYS // IWYU pragma: keep
 
 /* old versions of GMP do not provide mpn_neg (was mpn_neg_n) and mpn_xor_n */
 #if !GMP_VERSION_ATLEAST(5,0,0)
@@ -661,6 +663,26 @@ mpz_ndiv_r (mpz_ptr a, mpz_srcptr b, mpz_srcptr c)
     }
   if (sub)
     mpz_sub (a, a, c);
+}
+
+int mpz_rdiv_q(mpz_ptr q, mpz_srcptr a, mpz_srcptr b)
+{
+    /* Return the relative integer q which is closest to a/b. We
+     * guarantee -1/2<=a/b-q<1/2.
+     * It's a pity that this is not supported directly by gmp... */
+    mpz_t r;
+    mpz_init(r);
+
+    mpz_fdiv_qr(q,r,a,b);
+    /* b>0: We want -b/2 <= a-bq < b/2 */
+    /* b<0: We want  b/2 < a-bq <= -b/2 */
+    mpz_mul_2exp(r,r,1);
+    if (mpz_cmp(r,b) * mpz_sgn(b) >= 0) {
+        mpz_add_ui(q, q, 1);
+    }
+    mpz_clear(r);
+
+    return 1;
 }
 
 /* Return non-zero if a and b are coprime, else return 0 if gcd(a, b) != 1 */

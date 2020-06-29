@@ -27,6 +27,7 @@
 
 #ifdef __cplusplus
 #include <new>  /* for std::bad_alloc */
+#include <stdlib.h>
 #endif
 
 static inline

@@ -1,8 +1,11 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <ctype.h>
-#include "utils.h"
+#include <string.h>
+#include <stdlib.h>
 #include "cpubinding.h"
+#include "macros.h"
+#include "params.h"
 
 /* Example quick use:
  * $build_tree/tests/linalg/bwc/test_cpubinding  -s "NUMANode:4 Socket:1 Core:12 PU:2" thr=8x8   cpubinding="NUMANode=>2x2 Core*12=>4x4"
@@ -11,11 +14,10 @@
 void usage() {
     fprintf(stderr, "cpubinding example program\n"
             "Options:\n"
-            "--cpubind <filename>     take cpubinding config from <filename>\n"
             "--input-topology-file <filename>     take <filename> as an hwloc hardware description\n"
             "--input-topology-string <string>       take <string> as an hwloc synthetic hardware description\n"
             "thr=<int>x<int>   give results for this target mapping\n"
-            "cpubinding=<string>   use this mapping\n"
+            "cpubinding=<string>   use this mapping (or file)\n"
            );
     exit(1);
 }

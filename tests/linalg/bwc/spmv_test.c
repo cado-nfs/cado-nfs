@@ -1,15 +1,18 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
-#include "bwc_config.h"
+#include <stdlib.h>
+#include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
+#include <stdint.h>              // for uint32_t, uint64_t
+#include <string.h>              // for memset
+#include "balancing.h"           // for balancing_clear, balancing_init, bal...
 #include "parallelizing_info.h"
 #include "matmul_top.h"
-#include "select_mpi.h"
 #include "params.h"
-#include "xvectors.h"
 #include "bw-common.h"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
-#include "portability.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "macros.h"
 
 int verbose = 0;
 

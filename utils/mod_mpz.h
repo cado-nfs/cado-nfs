@@ -1,31 +1,21 @@
 #ifndef MOD_MPZ_H
 #define MOD_MPZ_H
 
-#include <assert.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <gmp.h>
 #include "macros.h"
 
-#ifndef ASSERT
-#define ASSERT(x)	assert(x)
-#endif
-
-/* Even simple assertions are relatively expensive in very simple functions.
-   If we want them anyway to hunt a bug, define WANT_ASSERT_EXPENSIVE */
 #ifdef WANT_ASSERT_EXPENSIVE
 #include <valgrind/memcheck.h>
-#undef ASSERT_EXPENSIVE
 #define SET_MPZ_UNDEF(x) VALGRIND_MAKE_MEM_UNDEFINED(x, sizeof(x[0]));
-#define ASSERT_EXPENSIVE(x) ASSERT(x)
 #define ASSERT_DEFINED(x) VALGRIND_CHECK_VALUE_IS_DEFINED(x); 
 #define ASSERT_MPZ(x) ASSERT_DEFINED(x[0]); VALGRIND_CHECK_MEM_IS_DEFINED(x->_mp_d, llabs(x->_mp_size)); VALGRIND_CHECK_MEM_IS_ADDRESSABLE(x->_mp_d, llabs(x->_mp_alloc));
 #define ASSERT_MPZ_RES(x) ASSERT_MPZ(x); ASSERT_EXPENSIVE (mpz_cmp(m, x) > 0);
 #define ASSERT_UL_RES(x) ASSERT_DEFINED(x); ASSERT_EXPENSIVE (mpz_cmp_ui(m, x) > 0);
 #else
 #define SET_MPZ_UNDEF(x)
-#define ASSERT_EXPENSIVE(x)
 #define ASSERT_DEFINED(x)
 #define ASSERT_MPZ(x)
 #define ASSERT_MPZ_RES(x)
@@ -41,6 +31,10 @@ typedef mpz_t residuempz_t;
 typedef mpz_t modintmpz_t;
 typedef mpz_t modulusmpz_t;
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 MAYBE_UNUSED
 static inline void
@@ -775,5 +769,9 @@ modmpz_V_ul (residuempz_t, const residuempz_t, unsigned long,
 
 int modmpz_batchinv (residuempz_t *, const residuempz_t *,
                      size_t n, const residuempz_t, const modulusmpz_t);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* MOD_MPZ_H */

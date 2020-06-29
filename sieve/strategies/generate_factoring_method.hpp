@@ -1,7 +1,10 @@
 #ifndef GENERATE_FACTORING_METHOD
 #define  GENERATE_FACTORING_METHOD
 
+#include <cstdio>
+#include <vector>
 #include <gmp.h>
+#include "cxx_mpz.hpp"
 #include "facul.hpp"
 #include "facul_ecm.h"
 #include "tab_fm.h"

@@ -1,13 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+#include <string.h>
 #include <regex.h>
-
-#include "portability.h"
-#include "utils.h"
-
 #include "tab_decomp.h"
+#include "macros.h"
 
 tabular_decomp_t *tabular_decomp_create(void)
 {

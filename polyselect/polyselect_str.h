@@ -1,18 +1,13 @@
 #ifndef POLYSELECT_STR_H
 #define POLYSELECT_STR_H
 
+#include <stdint.h>     // int64_t
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <math.h>
 #include <inttypes.h>
 #include <gmp.h>
-#include <pthread.h>
 #include <limits.h> /* for ULONG_MAX */
-#include "portability.h"
-#include "utils.h"
-#include "auxiliary.h"
-#include "murphyE.h"
+#include "macros.h"     // LIKELY
 
 #if ULONG_MAX == 4294967295UL
 #define LEN_SPECIAL_Q 57
@@ -149,6 +144,10 @@ shash_add (shash_t H, uint64_t i)
 
 extern const unsigned int SPECIAL_Q[];
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 unsigned long initPrimes (unsigned long, uint32_t**);
 void printPrimes (uint32_t*, unsigned long);
 void clearPrimes (uint32_t**);
@@ -186,5 +185,10 @@ void data_clear (data_t);
 void data_add (data_t, double);
 double data_mean (data_t);
 double data_var (data_t);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

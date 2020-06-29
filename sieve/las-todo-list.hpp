@@ -1,13 +1,17 @@
 #ifndef LAS_TODO_LIST_HPP_
 #define LAS_TODO_LIST_HPP_
 
-#include "las-forwardtypes.hpp"
-#include "las-todo-entry.hpp"
+#include <algorithm>
+#include <cstdint>            // for uint64_t, UINT64_MAX
+#include <cstdio>             // for FILE, NULL, size_t
+#include <list>                // for list
+#include <mutex>               // for mutex, lock_guard
+#include <stack>               // for swap, stack
+#include <gmp.h>               // for gmp_randstate_t
 #include "cxx_mpz.hpp"
-#include <stdio.h>
-#include <stack>
-#include <vector>
-#include <mutex>        /* std::mutex and std::lock_guard */
+#include "cado_poly.h"
+#include "las-todo-entry.hpp"  // for las_todo_entry
+struct cxx_param_list;
 
 class las_todo_list : private std::stack<las_todo_entry> {
     std::mutex mm;

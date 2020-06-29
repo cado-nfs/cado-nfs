@@ -7,15 +7,16 @@
  *
  */
 
-
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#ifdef FOR_DL
+#include <inttypes.h>             // for PRId32
+#endif
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include "portability.h"
 #include "macros.h"
-#include "filter_config.h"
-#include "utils.h"
+#ifdef FOR_DL
+#include "gcd.h"        // gcd_uint64
+#endif
 #include "merge_replay_matrix.h"
 #include "sparse.h"
 

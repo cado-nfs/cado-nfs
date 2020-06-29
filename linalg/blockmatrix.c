@@ -1,15 +1,13 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
-#include <gmp.h>
 
 #include "blockmatrix.h"
 #include "matops.h"
 #include "macros.h"
-#include "portability.h"
 #include "cado-endian.h"
 
 blockmatrix blockmatrix_alloc(unsigned int nrows, unsigned int ncols)

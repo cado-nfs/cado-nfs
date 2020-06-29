@@ -1,8 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
-#include "portability.h"
-#include "utils.h"
+#include <stdlib.h>
+#include <gmp.h>
 #include "gfpkdlpolyselect.h"
+#include "params.h"
+#include "verbose.h"             // verbose_output_print
 
 static void
 declare_usage(param_list pl)

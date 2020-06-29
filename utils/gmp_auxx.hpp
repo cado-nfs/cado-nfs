@@ -2,7 +2,8 @@
 #define GMP_AUXX_HPP_
 
 #include <type_traits>
-#include "cxx_misc.hpp"
+#include <gmp.h>
+#include "utils_cxx.hpp"
 #include "gmp_aux.h"
 
 /* A C++ wrapper around functions in gmp_aux.h. The functions here delegate

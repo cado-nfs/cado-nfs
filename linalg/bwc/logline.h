@@ -1,9 +1,10 @@
 #ifndef LOGLINE_H_
 #define LOGLINE_H_
 
-#include <stdio.h>
-#include <stdarg.h>
-#include "utils.h"
+#include <stdarg.h>  // for va_list
+#include <stdio.h>   // for FILE, size_t
+#include "macros.h"  // for ATTR_PRINTF
+#include "params.h"  // for param_list, param_list_ptr
 
 #ifdef __cplusplus
 extern "C" {

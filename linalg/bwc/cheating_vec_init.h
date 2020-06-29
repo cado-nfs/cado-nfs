@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #ifndef CHEATING_VEC_INIT_H_
 #define CHEATING_VEC_INIT_H_
 

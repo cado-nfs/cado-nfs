@@ -1,13 +1,15 @@
 #ifndef ROPT_ARITH_H
 #define ROPT_ARITH_H
 
-#include <math.h>
-#include "auxiliary.h"
-#include "utils.h"
+#include <gmp.h>
 
-#define NP 46
+#define ROPT_NPRIMES 46
 
 /* declarations */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void compute_fuv_mp ( mpz_t *fuv,
                       mpz_t *f,
                       mpz_t *g,
@@ -92,5 +94,9 @@ long uv2ij_mod ( mpz_t A,
                  unsigned int U,
                  unsigned int p );
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

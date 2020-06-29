@@ -1,7 +1,22 @@
-#include "cado.h"
-#include "las-info.hpp"
+#include "cado.h" // IWYU pragma: keep
+
+#include <algorithm>
+#include <string.h>        // for size_t, NULL, memset
+#include <ostream>         // for operator<<, basic_ostream, ostringstream
+#include <string>          // for char_traits, basic_string, string
+#include <type_traits>     // for is_same
+
 #include "las-threads-work-data.hpp"
-#include "las-auxiliary-data.hpp"
+
+#include "macros.h"        // for ASSERT_ALWAYS, iceildiv
+
+#include "ecm/batch.hpp"       // for cofac_list
+#include "bucket.hpp"      // for bucket_array_t, emptyhint_t (ptr only)
+#include "las-info.hpp"    // for las_info
+#include "las-memory.hpp"  // for las_memory_accessor
+#include "threadpool.hpp"  // for thread_pool
+#include "verbose.h"
+class nfs_aux; // IWYU pragma: keep
 
 nfs_work::thread_data::thread_data(thread_data && o) : ws(o.ws)
 {

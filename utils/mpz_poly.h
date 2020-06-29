@@ -1,6 +1,8 @@
 #ifndef MPZ_POLY_H_
 #define MPZ_POLY_H_
 
+// IWYU pragma: no_include "double_poly.h"
+// (only the fwd-decl is needed)
 #include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>
@@ -9,19 +11,15 @@
 #define xxxMPZ_POLY_TIMINGS
 // for timings of roots mod p (beware, this is not thread-safe)
 
-/* forward-declare our type before inclusion by double_poly.h, since we
- * include eachother
- */
-struct mpz_poly_s;
-typedef struct mpz_poly_s * mpz_poly_ptr;
-typedef const struct mpz_poly_s * mpz_poly_srcptr;
-
-#include "double_poly.h"
+#ifndef DOUBLE_POLY_H_
+typedef struct double_poly_s * double_poly_ptr;
+typedef const struct double_poly_s * double_poly_srcptr;
+#endif
 
 #ifdef __cplusplus
 #include <string>
-#include <istream>
-#include <ostream>
+#include <istream>      // std::istream // IWYU pragma: keep
+#include <ostream>      // std::ostream // IWYU pragma: keep
 extern "C" {
 #endif
 
@@ -37,7 +35,11 @@ struct mpz_poly_s {
   int deg;
   mpz_t *coeff;
 };
-
+#ifndef DOUBLE_POLY_H_
+/* double_poly.h forward-declares these. Don't do it twice */
+typedef struct mpz_poly_s * mpz_poly_ptr;
+typedef const struct mpz_poly_s * mpz_poly_srcptr;
+#endif
 typedef struct mpz_poly_s mpz_poly[1];
 
 /* -------------------------------------------------------------------------- */
@@ -121,7 +123,7 @@ void mpz_poly_print_raw(mpz_poly_srcptr f);
 /* Tests and comparison functions */
 int mpz_poly_cmp (mpz_poly_srcptr, mpz_poly_srcptr);
 int mpz_poly_normalized_p (mpz_poly_srcptr f);
-int mpz_poly_is_nonmonic (mpz_poly_srcptr f);
+int mpz_poly_is_monic (mpz_poly_srcptr f);
 
 /* Polynomial arithmetic */
 void mpz_poly_to_monic(mpz_poly_ptr g, mpz_poly_srcptr f);

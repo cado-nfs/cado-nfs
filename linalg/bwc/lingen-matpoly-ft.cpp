@@ -1,14 +1,15 @@
-#include "cado.h"
-#include <stdlib.h>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <sys/param.h>
+#include <cstdlib>
+#include <cstring>
+#include <gmp.h>
 #include "macros.h"
-#include "utils.h"
 #include "lingen-matpoly.h"
 #include "lingen-matpoly-ft.h"
-#include "logline.h"
-
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
+#include "flint-fft/transform_interface.h"  // for fft_get_transform_allocs
+#include "misc.h"        // pointer_arith
+#include "timing.h"     // wct_seconds
+#include "omp_proxy.h"
 
 /* timings made on cochon, rev 6877b97 (buggy; fixed in 76dde6c) */
 #define MP_FTI_DEPTH_ADJ_24_36_36 { { 1, 6 }, { 2, 4 }, { 3, 3 }, { 4, 2 }, { 10, 1 }, { 11, 2 }, { 13, 1 }, { 22, 2 }, { 28, 1 }, { 32, 2 }, { 33, 1 }, { 38, 0 }, { 39, 1 }, { 54, 0 }, { 55, 1 }, { 64, 0 }, { 65, 1 }, { 66, 0 }, { 103, 1 }, { 104, 0 }, { 107, 1 }, { 114, 0 }, { 115, 1 }, { 129, 0 }, }

@@ -4,11 +4,24 @@
  */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdlib.h> // exit
+#include <string.h> // strncmp strlen
+#include <math.h> // log
+#include <stdio.h>
+#include <gmp.h>
+#include "cado_poly.h"
+#include "mpz_poly.h"
 #include "ropt_io.h"
 #include "ropt.h"
-#include "portability.h"
+#include "ropt_str.h" // ropt_poly_t ...
 #include "size_optimization.h"
+#include "usp.h"
+#include "murphyE.h"    // MurphyE MURPHY_K
+#include "ropt_param.h"    // L1_cachesize MAX_LINE_LENGTH
+#include "cachesize_cpuid.h" // cachesize_cpuid
+#include "auxiliary.h" // print_poly_fg ALG_SIDE ALPHA_BOUND
+#include "ropt_arith.h" // Lemma21
 
 /**
  * Get L1 cache size in the beginning.
@@ -516,9 +529,9 @@ print_poly_info_short ( mpz_t *f,
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   cpoly->skew = skew;
   logmu = L2_lognorm (F, skew);
-  alpha = get_alpha (F, ALPHA_BOUND);
-  alpha_proj = get_alpha_projective (F, ALPHA_BOUND);
-  e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K, ALPHA_BOUND);
+  alpha = get_alpha (F, get_alpha_bound ());
+  alpha_proj = get_alpha_projective (F, get_alpha_bound ());
+  e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K, get_alpha_bound ());
 
   printf ("# lognorm: %.2f, alpha: %.2f, (proj: %.2f) E: %.2f, nr: %u, exp_E: %1.2f, MurphyE: %1.2e\n",
           logmu,

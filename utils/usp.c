@@ -56,15 +56,14 @@ B) to use within another program: compile without -DMAIN, the main function
 /* define MAIN if you want to compile as a stand-alone program */
 /* #define MAIN */
 
-#include "cado.h"
-#include <ctype.h>
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <gmp.h>
 #include "usp.h"
+#include "mpz_poly.h"
 #include "double_poly.h"
-#include "portability.h"
 #include "macros.h"
 
 /* #define DEBUG */

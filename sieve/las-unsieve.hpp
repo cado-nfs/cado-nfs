@@ -1,13 +1,16 @@
 #ifndef LAS_UNSIEVE_HPP_
 #define LAS_UNSIEVE_HPP_
 
+#include "cado_config.h"
 #include <stdint.h>
+#include <utility>                 // pair
 #include <vector>
 #include "ularith.h"
-#include "fb.hpp" // for sublat_t
+#include "fb-types.h" // for sublat_t
 
 #ifdef HAVE_SSE2
-#include <xmmintrin.h>
+#include <emmintrin.h>
+#include "macros.h"
 #endif
 
 struct unsieve_data {

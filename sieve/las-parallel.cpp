@@ -1,17 +1,37 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <hwloc/bitmap.h>
+// IWYU pragma: no_include "hwloc/bitmap.h"
 
-#include <iostream>
-#include <string>
-#include <vector>
-#include <sstream>
-#include <regex.h>
-#include <mutex>
-#include "utils.h"
+#include <errno.h>             // for EXDEV, errno
+#include <inttypes.h>          // for PRIu64
+#include <regex.h>             // for regmatch_t, regcomp, regexec, regfree
+#include <sstream>      // IWYU pragma: keep
+#include <stdint.h>            // for uint64_t
+#include <stdio.h>             // for fprintf, stderr, size_t, fputs
+#include <stdlib.h>            // for free, exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <strings.h>           // for strcasecmp
+#include <mutex>               // for mutex, lock_guard
+#include <string>              // for string, operator<<, char_traits, opera...
+#include <tuple>               // for tie, get, make_tuple, tuple
+#include <vector>              // for vector, vector<>::iterator
+#ifdef HAVE_HWLOC
+#include <hwloc.h>
+#include "hwloc-aux.h"
+#endif
 #include "las-parallel.hpp"
+
+#include "misc.h"       // size_disp
+#include "utils_cxx.hpp"        // call_dtor
+#include "verbose.h"             // verbose_output_print
+#include "macros.h"
+#include "params.h"
+
+
 
 const char * default_placement_with_auto = "node,fit*4,fit,pu,loose";
 
-bool parse_number(std::string const & s, int & x, std::string::size_type pos = 0) /*{{{*/
+static bool parse_number(std::string const & s, int & x, std::string::size_type pos = 0) /*{{{*/
 {
     const char * digits = "0123456789";
     if (s.empty() || s.find_first_not_of(digits, pos) != std::string::npos)
@@ -703,7 +723,7 @@ struct las_parallel_desc::helper {
    }/*}}}*/
 };
 
-void extended_usage()/*{{{*/
+static void extended_usage()/*{{{*/
 {
     std::ostringstream os;
     os << R"(

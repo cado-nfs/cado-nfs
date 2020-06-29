@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -6,13 +6,13 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <errno.h>
 #include <ctype.h>
+#include <gmp.h>
 
-#include "portability.h"
 #include "macros.h"
 #include "mf.h"
-#include "utils.h"
+#include "fix-endianness.h" // fwrite32_little
+#include "misc.h"       // derived_filename
 
 /* This our favorite way of expanding buffer. We always clear to zero */
 static inline void expand(struct mf_io_file * m, uint64_t nn)

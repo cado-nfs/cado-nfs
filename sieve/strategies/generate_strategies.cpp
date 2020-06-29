@@ -1,11 +1,16 @@
-#include "cado.h"
-#include "generate_strategies.h"
-#include "facul.hpp"
-#include "facul_ecm.h"
-
+#include "cado.h" // IWYU pragma: keep
 #include <math.h>
 #include <stdlib.h>
 #include <float.h>
+#include <stdio.h>
+#include "convex_hull.h"
+#include "generate_strategies.h"
+#include "facul.hpp"
+#include "facul_ecm.h"
+#include "macros.h"
+#include "modredc_ul.h" // MODREDCUL_MAXBITS
+#include "point.h"      // point_get_number
+
 
 
 static int is_good_decomp(decomp_t * dec, int len_p_min, int len_p_max)

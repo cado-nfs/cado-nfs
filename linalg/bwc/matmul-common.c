@@ -1,10 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <errno.h>
 #include <string.h>
-#include "bwc_config.h"
+#include <stdio.h>
+#include <stdlib.h>   // for abort
+#include "matmul.h"   // for matmul_public_s
 #include "matmul-common.h"
-#include "params.h"
-#include "portability.h"
 #include "verbose.h"
 
 #define MM_COMMON_MAGIC 0xb0010003UL

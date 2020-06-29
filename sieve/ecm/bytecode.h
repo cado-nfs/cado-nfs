@@ -8,6 +8,10 @@ typedef uint8_t bytecode_elt;
 typedef uint8_t * bytecode;
 typedef const uint8_t * bytecode_const;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* No-op (because bytecode_elt is an uint8_t for now). */
 static inline uint8_t
 bytecode_elt_to_uint8 (bytecode_elt b)
@@ -46,6 +50,7 @@ bytecode_elt_split_2_1_1_4 (uint8_t *b3, uint8_t *b2, uint8_t *b1, uint8_t *b0,
   if (b3)
     *b3 = b & 0x03;
 }
+
 
 /******************************************************************************/
 /************************************ cost ************************************/
@@ -105,6 +110,7 @@ void bytecode_prac_encode (bytecode *, unsigned int, unsigned int, unsigned int,
 int bytecode_prac_check (bytecode_const, mpz_srcptr, int);
 void bytecode_prac_cache_free ();
 
+
 /******************************************************************************/
 /********************************** MISHMASH **********************************/
 /******************************************************************************/
@@ -119,6 +125,11 @@ typedef struct mishmash_cost_s mishmash_cost_t;
 void bytecode_mishmash_encode (bytecode *, unsigned int, unsigned int,
                                unsigned int, const mishmash_cost_t *, int, int);
 int bytecode_mishmash_check (bytecode_const, mpz_srcptr, int);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 
 #endif /* BYTECODE_H_ */

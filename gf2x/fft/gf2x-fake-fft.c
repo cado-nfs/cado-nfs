@@ -31,6 +31,7 @@
 #include "gf2x/gf2x-impl.h"
 
 #include "gf2x-fake-fft.h"
+#include "macros.h"
 
 
 #define ULONG_BITS      GF2X_WORDSIZE

@@ -1,20 +1,18 @@
-#include "cado.h"
-
-#include <math.h>
-#include <float.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
-#include <gmp.h>
-
-#include "portability.h"
-#include "utils.h"
+#include "cado.h" // IWYU pragma: keep
+#include <cmath>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include "facul.hpp"
 #include "facul_ecm.h"
-#include "tab_strategy.h"
-#include "generate_strategies.h"
+#include "fm.h"
 #include "gen_decomp.h"
-
+#include "generate_strategies.h"
+#include "macros.h"
+#include "params.h"     // param_list
+#include "tab_decomp.h"
+#include "tab_fm.h"
+#include "tab_strategy.h"
 
 /************************************************************************/
 /*                            USAGE                                     */

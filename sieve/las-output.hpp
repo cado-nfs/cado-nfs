@@ -1,8 +1,8 @@
-#ifndef LAS_output_HPP_
-#define LAS_output_HPP_
+#ifndef LAS_OUTPUT_HPP_
+#define LAS_OUTPUT_HPP_
 
-#include "params.h"
 #include <cstdio>
+struct cxx_param_list;
 
 struct las_output {
     int verbose = 1;
@@ -31,4 +31,4 @@ enum {
   NR_CHANNELS /* This must be the last element of the enum */
 };
 
-#endif	/* LAS_output_HPP_ */
+#endif	/* LAS_OUTPUT_HPP_ */

@@ -1,8 +1,7 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
 #include <stdio.h>
-#include <stdlib.h>
-#include "macros.h"
+#include "macros.h" // ASSERT_ALWAYS // IWYU pragma: keep
 
 #include "fix-endianness.h"
 #include "cado-endian.h"

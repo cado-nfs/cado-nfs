@@ -19,11 +19,10 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
-#include <stdlib.h>
 #include <math.h>
-#include "portability.h"
+#include "rho.h"
 
 /* return an approximation of rho(x) with relative error <= 2.1e-6 (about)
    for x <= 15, and an absolute error <= 3.5e-21 for x > 15. */

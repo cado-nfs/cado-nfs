@@ -1,31 +1,25 @@
 /* Copyright (C) 1999--2007 Emmanuel Thom'e --- see LICENSE file */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
-#include <sys/time.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <errno.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
 #include <algorithm>
-#include <sys/types.h>
+#include <vector>                  // for vector
+
+#include <cstdint>                // for SIZE_MAX
+#include <cstdlib>                // for free, malloc, exit, NULL, size_t
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <climits>
+
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
-#ifdef  HAVE_OPENMP
-#include <omp.h>
-#endif
-
-#include <assert.h>
-
-#include "portability.h"
+#include <gmp.h>
+#include "lingen-matpoly-ft.h"     // for matpoly_mp_caching, matpoly_mul_ca...
+#include "select_mpi.h"            // for MPI_Bcast, MPI_Comm_rank, MPI_Comm
+#include "omp_proxy.h" // IWYU pragma: keep
 #include "macros.h"
-#include "utils.h"
 #include "mpfq_layer.h"
-#include "memusage.h"
 
 /* lingen-matpoly is the default code. */
 #include "lingen-matpoly.h"
@@ -44,6 +38,9 @@
 #include "plingen-tuning.h"
 #include "logline.h"
 #include "tree_stats.hpp"
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "timing.h"     // wct_seconds
+#include "params.h"
 
 /* Call tree for methods within this program:
  *
@@ -505,7 +502,7 @@ bw_lingen_basecase_raw(bmstatus_ptr bm, matpoly_ptr pi, matpoly_srcptr E, unsign
                     break;
             }
             if (u == m) continue;
-            assert(r < m);
+            ASSERT(r < m);
             /* }}} */
             pivots[r++] = j;
             is_pivot[j] = 1;
@@ -529,7 +526,7 @@ bw_lingen_basecase_raw(bmstatus_ptr bm, matpoly_ptr pi, matpoly_srcptr E, unsign
                 abelt lambda;
                 abinit(ab, &lambda);
                 abmul(ab, lambda, inv, matpoly_coeff(ab, e, u, k, 0));
-                assert(delta[j] <= delta[k]);
+                ASSERT(delta[j] <= delta[k]);
                 /* {{{ Apply on both e and pi */
                 abelt tmp;
                 abinit(ab, &tmp);

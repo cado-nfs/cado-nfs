@@ -9,30 +9,32 @@
 */
 
 
-#include "cado.h"
-#include <cstdio>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <bits/exception.h>
+#include <exception>    // std::exception // IWYU pragma: keep
+#include <sstream>      // std::ostringstream // IWYU pragma: keep
+#include <vector>
+#include <string>
+#include <ostream>        // for operator<<, basic_ostream, basic_ostream::o...
+#include <climits>      // ULONG_MAX
+#include <cctype>       // isdigit etc
+#include <cstdio>       // fprintf // IWYU pragma: keep
 #include <cstdlib>
 #include <cstring>
 #include <gmp.h>
-#include <sstream>
-#include <vector>
-#include <string>
-#include <utility>
-#include <stdexcept>
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
-#include "portability.h"
+#include "cxx_mpz.hpp"    // for cxx_mpz
+#include "double_poly.h"  // for double_poly_s, double_poly_srcptr
+#include "gmp_aux.h"      // for mpz_addmul_si, mpz_mul_uint64, mpz_ndiv_r
+#include "lll.h"          // for mat_Z, LLL
 #include "mpz_poly.h"
-#include "lll.h"
-#include "rootfinder.h"
-#include "gmp_aux.h"
-#include "misc.h"
-/* and just because we expose a proxy to usp.c's root finding... */
-#include "usp.h"
-#include "double_poly.h"
-#include "cxx_mpz.hpp"
+#include "omp_proxy.h"  // IWYU pragma: keep
+#include "portability.h"  // for strlcpy
+#include "rootfinder.h"   // for mpz_poly_roots_mpz
+#ifdef MPZ_POLY_TIMINGS
 #include "timing.h"
+#endif
+/* and just because we expose a proxy to usp.c's root finding... */
+#include "usp.h"          // for numberOfRealRoots
 
 #ifndef max
 #define max(a,b) ((a)<(b) ? (b) : (a))
@@ -45,6 +47,7 @@
 #ifdef MPZ_POLY_TIMINGS
 #include <time.h>
 #include <timing.h>
+#include "macros.h"
 static double timer[3] = {0.0, 0.0, 0.0};
 static unsigned long calls[3] = {0, 0, 0};
 #endif
@@ -91,7 +94,7 @@ void print_timings_pow_mod_f_mod_p(){
 static int
 mpz_poly_mul_basecase (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s) {
   int i, j;
-  assert(f != g && f != h);
+  ASSERT(f != g && f != h);
   for (i = 0; i <= r + s; i++)
     mpz_set_ui (f[i], 0);
   for (i = 0; i <= r; ++i)
@@ -104,7 +107,7 @@ mpz_poly_mul_basecase (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s) {
 static int
 mpz_poly_sqr_basecase (mpz_t *f, mpz_t *g, int r) {
   int i, j;
-  assert(f != g);
+  ASSERT(f != g);
   for (i = 0; i <= 2 * r; i++)
     mpz_set_ui (f[i], 0);
   for (i = 0; i <= r; ++i)
@@ -912,7 +915,7 @@ void mpz_poly_mul_xplusa(mpz_poly_ptr g, mpz_poly_srcptr f, mpz_srcptr a)
 int mpz_poly_valuation(mpz_poly_srcptr f)
 {
     int n = 0;
-    assert(f->deg >= 0);
+    ASSERT(f->deg >= 0);
     for( ; n < f->deg  && mpz_cmp_ui(f->coeff[n], 0) == 0 ; n++) ;
     return n;
 }
@@ -1097,17 +1100,17 @@ int mpz_poly_normalized_p (mpz_poly_srcptr f)
   return (f->deg == -1) || mpz_cmp_ui (f->coeff[f->deg], 0) != 0;
 }
 
-/* return 1 if f is nonmonic, i.e. f[deg] != 1, return 0 otherwise (null
+/* return 1 if f is nmonic, i.e. f[deg] == 1, return 0 otherwise (null
  * polynomial is considered monic).
  */
-int mpz_poly_is_nonmonic (mpz_poly_srcptr f)
+int mpz_poly_is_monic (mpz_poly_srcptr f)
 {
   if (f->deg == -1)
-    return 0;
-  else if (mpz_cmp_ui (f->coeff[f->deg], 1) == 0)
-    return 0;
-  else
     return 1;
+  else if (mpz_cmp_ui (f->coeff[f->deg], 1) == 0)
+    return 1;
+  else
+    return 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1150,7 +1153,9 @@ void mpz_poly_add(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h) {
 void mpz_poly_sub(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h) {
   int maxdeg = max(g->deg, h->deg);
   mpz_poly_realloc(f, maxdeg + 1);
+#ifdef HAVE_OPENMP
 #pragma omp parallel for  
+#endif
   for (int i = 0 ; i <= maxdeg ; i++) {
     if (i <= g->deg && i <= h->deg)
         mpz_sub(f->coeff[i], g->coeff[i], h->coeff[i]);
@@ -2038,7 +2043,9 @@ mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
       size_t size_c = mpz_size (c);
       if (size_c + size_f > (3 * size_R) / 2)
 	mpz_mod (c, c, m);
+#ifdef HAVE_OPENMP
 #pragma omp parallel for      
+#endif
       for (int i = R->deg - 1; i >= R->deg - f->deg; --i)
 	mpz_submul (R->coeff[i], c, f->coeff[f->deg - R->deg + i]);
       R->deg--;
@@ -3389,7 +3396,7 @@ int mpz_poly_factor_sqf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f0,
 			mpz_srcptr p)
 {
     /* factoring 0 doesn't make sense, really */
-    assert(f0->deg >= 0);
+    ASSERT(f0->deg >= 0);
 
     /* We'll call mpz_poly_factor_sqf_inner, possibly several times if
      * we are in small characteristic.
@@ -3397,7 +3404,7 @@ int mpz_poly_factor_sqf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f0,
     mpz_poly f;
     mpz_poly_init(f, f0->deg);
     mpz_poly_makemonic_mod_mpz(f, f0, p);
-    assert(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
+    ASSERT(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
 
     int m = 0;
     int pu = mpz_get_ui(p);  // see below
@@ -3417,7 +3424,7 @@ int mpz_poly_factor_sqf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f0,
             if (i % pu == 0) {
                 mpz_set(f->coeff[i / pu], lf->factors[0]->f->coeff[i]);
             } else {
-                assert (mpz_cmp_ui(lf->factors[0]->f->coeff[i], 0) == 0);
+                ASSERT (mpz_cmp_ui(lf->factors[0]->f->coeff[i], 0) == 0);
             }
         }
         f->deg = lf->factors[0]->f->deg / pu;
@@ -3453,10 +3460,10 @@ static int mpz_poly_factor_ddf_inner(mpz_poly_factor_list_ptr lf, mpz_poly_srcpt
     int i;
 
     /* factoring 0 doesn't make sense, really */
-    assert(f0->deg >= 0);
+    ASSERT(f0->deg >= 0);
 
     mpz_poly_makemonic_mod_mpz(f, f0, p);
-    assert(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
+    ASSERT(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
 
     /* reset the factor list completely */
     mpz_poly_factor_list_flush(lf);
@@ -3772,9 +3779,9 @@ static void mpz_poly_factor_edf_pre(mpz_poly g[2], mpz_poly_srcptr f, int k,
             /* multiply g[s] by (x+a) */
             mpz_poly_mul_mod_f_mod_mpz(g[s], g[s], xplusa, f, p, NULL, NULL);
         }
-        assert(g[0]->deg + g[1]->deg == f->deg);
-        assert(g[0]->deg % k == 0);
-        assert(g[1]->deg % k == 0);
+        ASSERT(g[0]->deg + g[1]->deg == f->deg);
+        ASSERT(g[0]->deg % k == 0);
+        ASSERT(g[1]->deg % k == 0);
 
         nontrivial += g[0]->deg != 0 && g[0]->deg != f->deg;
         nontrivial += g[1]->deg != 0 && g[1]->deg != f->deg;

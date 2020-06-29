@@ -7,18 +7,35 @@
    cofactors have been detected, instead of using another remainder tree
    approach to factor them, we factor them naively. */
 
-#include "cado.h"
-#include <stdio.h>
-#include <math.h>
-#ifdef  HAVE_OPENMP
-#include <omp.h>
-#endif
-#include <vector>
-#include <list>
-#include <sstream>
-#include "batch.hpp"
-#include "modset.hpp"
-#include "utils.h"
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+
+#include <cmath>               // for ceil, pow, log2
+#include <cstdio>              // for fprintf, snprintf, fflush, stderr, FILE
+#include <cstdlib>             // for free, malloc, exit, abort, realloc
+
+#include <iterator>            // for begin, end
+#include <list>                // for list, operator!=, _List_iterator, list...
+#include <memory>              // for allocator_traits<>::value_type
+#include <sstream>             // for operator<<, ostringstream, basic_ostream
+#include <string>              // for basic_string
+#include <type_traits>         // for remove_reference<>::type
+#include <vector>              // for vector
+#include <gmp.h>
+
+#include "omp_proxy.h"
+#include "batch.hpp"           // for facul_clear_methods, facul_make_defaul...
+#include "facul.hpp"           // for facul_clear_methods, facul_make_defaul...
+#include "facul_doit.hpp"      // for facul_doit_onefm
+#include "facul_fwd.hpp"       // for facul_method_t
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
+#include "gmp_aux.h"       // mpz_set_uint64
+#include "las-todo-entry.hpp"  // for las_todo_entry
+#include "modset.hpp"          // for FaculModulusBase
+#include "relation.hpp"        // for relation
+#include "rootfinder.h" // mpz_poly_roots_ulong
+#include "timing.h"             // for seconds
+#include "macros.h"
 
 /* This function is useful in the openmp context. This segment goes
  * parallel, and all threads except the calling thread subtract their
@@ -44,7 +61,7 @@
  * it is also *not* ok to call such a function within a subtract/add
  * pair.
  */
-void subtract_openmp_subtimings(double & extra_time MAYBE_UNUSED)
+static void subtract_openmp_subtimings(double & extra_time MAYBE_UNUSED)
 {
 #ifdef HAVE_OPENMP
 #pragma omp parallel
@@ -58,7 +75,7 @@ void subtract_openmp_subtimings(double & extra_time MAYBE_UNUSED)
   }
 #endif
 }
-void add_openmp_subtimings(double & extra_time MAYBE_UNUSED)
+static void add_openmp_subtimings(double & extra_time MAYBE_UNUSED)
 {
 #ifdef HAVE_OPENMP
 #pragma omp parallel
@@ -769,8 +786,10 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
     return true;
 }
 
+#if 0
+/* unused */
 /* strip integers in l[0..n-1] which do not divide P */
-unsigned long
+static unsigned long
 strip (unsigned long *l, unsigned long n, mpz_t P)
 {
   unsigned long i, j;
@@ -780,6 +799,7 @@ strip (unsigned long *l, unsigned long n, mpz_t P)
       l[j++] = l[i];
   return j;
 }
+#endif
 
 /* sqside = 1 if the special-q is on side 1 (algebraic) */
 static bool

@@ -1,13 +1,15 @@
 #ifndef LAS_ARITH_HPP_
 #define LAS_ARITH_HPP_
 
-#include <cstdint>
-#include <cinttypes>
+#include "las-config.h"   // for NOPROFILE_INLINE
+#include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM
 
-#include "fb-types.h"
-#include "utils.h"
-#include "las-config.h"
-#include "utils/misc.h" /* cado_ctzl */
+#include <cstdint>        // for uint32_t, uint64_t, uint8_t, int64_t
+
+#include "macros.h"       // for ASSERT, UNLIKELY, GNUC_VERSION_ATLEAST, MAY...
+#include "fb-types.h"     // for fbprime_t
+#include "misc.h"          // cado_ctz
+#include "mod_ul.h"        // for modul_clear, modul_clearmod, modul_get_ul
 
 /* This header file is also #include'd by tests/sieve/torture-redc.cpp,
  * which (as its name says) checks that redc_32 and redc_u32 hold to

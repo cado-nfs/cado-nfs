@@ -26,6 +26,11 @@
 #define ERROR_VERYBADIDEALS 9
 #define ERROR_MAX 10
 
+#include <stdio.h>      // FILE
+#include <stdbool.h>    // for bool (in C)
+#include <gmp.h>
+#include "cado_poly.h"   // for MAX_DEGREE
+#include "mpz_poly.h"
 
 #define DEG_PY 2
 #if DEG_PY > 2
@@ -98,6 +103,10 @@ typedef struct {
 
 typedef polyselect_parameters_t pp_t[1];
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // to convert a poly from int poly[] to mpz_poly format
 void mpz_poly_set_si(mpz_poly f, const int * h, int deg_h);
 void mpz_poly_setcoeff_sli(mpz_poly_ptr f, int i, long int z);
@@ -147,6 +156,11 @@ void gfpk_print_params(unsigned int n, mpz_srcptr p, mpz_srcptr ell);
 // works only for n=2 at the moment.
 // , mpz_t ell, unsigned int mnfs
 int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell, unsigned int mnfs, const char* out_filename);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 
 #endif // DEG_PY > 2 is not supported

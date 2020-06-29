@@ -1,19 +1,14 @@
 #ifndef CADO_UTILS_MISC_H_
 #define CADO_UTILS_MISC_H_
 
+#include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM, ULONGLONG_...
 #include <stddef.h>
 #include <stdint.h>
-#include <stdarg.h>
-#include <limits.h>
-#include <errno.h>
-#include <string.h>
-#include <gmp.h>
 #ifdef __cplusplus
 #include <type_traits>
 #include <string>
 #endif
 #include "macros.h"
-#include "portability.h"
 
 /* we prefer GMP 5 or later, but the history of the why and how seems
  * lost. It seems that the late GMP-4.3 versions are fine, and the few
@@ -40,22 +35,6 @@ static inline void* pointer_arith(void * a, ptrdiff_t q) {
 static inline const void* pointer_arith_const(const void * a, ptrdiff_t q) {
     return (const void*)(((const char*)a)+q);
 }
-
-/* MinGW's string.h does not declare a prototype for strdup if __STRICT_ANSI__
-   is defined */
-#if !defined(HAVE_STRDUP) || (defined(__MINGW32__) && defined(__STRICT_ANSI__))
-char * strdup(const char *s);
-#endif
-#ifndef HAVE_STRNDUP
-char * strndup(const char * a, size_t n);
-#endif
-
-#ifndef HAVE_STRLCPY
-size_t strlcpy(char *dst, const char *src, size_t size) ATTRIBUTE((__warn_unused_result__));
-#endif
-#ifndef HAVE_STRLCAT
-size_t strlcat(char *dst, const char *src, size_t size) ATTRIBUTE((__warn_unused_result__));
-#endif
 
 /* strtoul(), but with const char ** for second argument.
    Otherwise it's not possible to do, e.g., strtoul(p, &p, 10) when p is

@@ -11,18 +11,15 @@
 #define U64_ARITH_H__
 
 #include <stdint.h>
+#include <stdio.h>
 #include "macros.h"
-
-#ifdef WANT_ASSERT_EXPENSIVE
-#ifndef ASSERT_EXPENSIVE
-#define ASSERT_EXPENSIVE(x) ASSERT_ALWAYS(x)
-#endif
-#else
-#define ASSERT_EXPENSIVE(x)
-#endif
 
 #if defined(HAVE_INT128)
 typedef union {uint64_t x[2]; unsigned __int128 y;} _u64arith_union2_t;
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 /** Test whether a1:a2 > b1:b2
@@ -1067,6 +1064,11 @@ u64arith_redc(uint64_t *r, const uint64_t plow,
 #endif
   ASSERT_EXPENSIVE (r[0] < m);
 }
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* ifndef U64_ARITH_H__ */

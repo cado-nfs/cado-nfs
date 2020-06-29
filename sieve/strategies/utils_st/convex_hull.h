@@ -1,6 +1,7 @@
 #ifndef CONVEX_HULL
 #define CONVEX_HULL
 
+#include "point.h"      // point_t
 #include "tab_point.h"
 
 #ifdef __cplusplus

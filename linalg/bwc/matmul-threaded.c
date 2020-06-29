@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -9,10 +9,10 @@
 #include "matmul-common.h"
 #include "mpfq_layer.h"
 #include "worker-threads.h"
-#include "portability.h"
-#include "utils.h"
 
 #include "matmul_facade.h"
+#include "macros.h"
+#include "params.h"
 
 /* This extension is used to distinguish between several possible
  * implementations of the product */

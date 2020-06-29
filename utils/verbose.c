@@ -1,11 +1,13 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h> // free realloc malloc abort
 #include <pthread.h>
-#include <inttypes.h>
-#include "portability.h" /* For vasprintf */
 #include "verbose.h"
+#include "portability.h" // strdup // IWYU pragma: keep
+#include "macros.h"
+#include "params.h"
 
 #define G(X) CADO_VERBOSE_PRINT_ ## X
 #define F(X) (UINT64_C(1) << G(X))

@@ -1,17 +1,17 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <gmp.h>
+#include <stdint.h>
 #include <string.h>
 #include <ctype.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <gmp.h>
 
-#include "portability.h"
-#include "utils.h"
 #include "blockmatrix.h"
 #include "gauss.h"
+#include "params.h"     // param_list
+#include "macros.h"
 
 void usage()
 {

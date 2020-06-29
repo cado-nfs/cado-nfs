@@ -1,6 +1,7 @@
 #ifndef TAB_STRATEGY_H
 #define TAB_STRATEGY_H
 
+#include <stdio.h> // FILE
 #include "strategy.h"
 
 #ifdef __cplusplus

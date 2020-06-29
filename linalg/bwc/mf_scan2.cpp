@@ -1,17 +1,21 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
-#include <pthread.h>
+#include <cstring>
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
 #endif
 #include <mutex>
 #include <atomic>
+#include <vector>
 #include <omp.h>
-#include <tuple>
-#include "utils.h"
 #include "ringbuf.h"
+#include "params.h"     // param_list
+#include "timing.h"     // wct_seconds
+#include "misc.h"       // size_disp
+#include "fix-endianness.h" // fwrite32_little
+#include "macros.h"
 
 void mf_scan2_decl_usage(cxx_param_list & pl)
 {
@@ -135,7 +139,7 @@ struct segment {
 std::atomic<segment *> segments[64];
 std::mutex segment_mutexes[64];
 
-template<bool> struct nz_coeff;
+template<bool> struct nz_coeff; // IWYU pragma: keep
 template<> struct nz_coeff<false> { struct type { uint32_t j; }; };
 template<> struct nz_coeff<true> { struct type { uint32_t j; int32_t v; }; };
 

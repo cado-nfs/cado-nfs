@@ -1,15 +1,16 @@
-#include "cado.h"
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <stdio.h>
 #include <gmp.h>
-#include "utils.h" /* for getprime() */
-#include "pm1.h"
-#include "pp1.h"
-#include "facul_ecm.h"
 #include "bytecode.h"
 #include "ec_arith_cost.h"
-#include "portability.h"
+#include "facul_ecm.h"
+#include "getprime.h"   // getprime
+#include "pm1.h"
+#include "pp1.h"
+#include "stage2.h"         // for stage2_clear_plan, stage2_make_plan, stag...
+#include "verbose.h"             // verbose_output_print
+#include "macros.h"
 
 /* By default we compress the bytecode chain.
  * You can set it to 0 to disabled it.

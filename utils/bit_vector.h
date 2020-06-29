@@ -1,6 +1,7 @@
 #ifndef BIT_VECTOR_H_
 #define BIT_VECTOR_H_
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
 

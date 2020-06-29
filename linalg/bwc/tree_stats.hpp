@@ -1,9 +1,13 @@
 #ifndef TREE_STATS_HPP_
 #define TREE_STATS_HPP_
 
+#include <cstddef>  // for NULL
+#include <climits>
+#include <utility>   // for pair
 #include <string>
 #include <vector>
 #include <map>
+#include "macros.h"  // for MAYBE_UNUSED
 
 class tree_stats {
     struct small_step_time {

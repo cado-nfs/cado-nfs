@@ -1,13 +1,13 @@
 #ifndef	FAKEMPI_H_
 #define	FAKEMPI_H_
-
+// IWYU pragma: private, include "select_mpi.h"
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include "cado_mpi_config.h"
 #include "macros.h"
-#include "portability.h"
 #include "misc.h"
+#include "portability.h"
 
 typedef int MPI_Status;
 typedef int MPI_Datatype;
@@ -76,6 +76,10 @@ typedef int MPI_Request;
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
 */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 static inline int MPI_Wait(MPI_Request *request MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED) { return 0; }
 static inline int MPI_Waitall(int count MAYBE_UNUSED, MPI_Request *request MAYBE_UNUSED, MPI_Status *statuses MAYBE_UNUSED) { return 0; }
@@ -253,6 +257,11 @@ static inline int MPI_Get_version(int * ver, int * subver)
     *subver = MPI_SUBVERSION;
     return 0;
 }
+
+
+#ifdef __cplusplus
+}
+#endif
 
 /* See at the beginning of this file.
 #ifdef  __GNUC__

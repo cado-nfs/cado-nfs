@@ -111,7 +111,7 @@
    fun:allocate_stack
    fun:pthread_create*
    ...
-   fun:_ZN11thread_poolC1Emm
+   fun:_ZN11thread_pool*
    ...
 }
 {

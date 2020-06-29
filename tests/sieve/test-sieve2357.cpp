@@ -1,10 +1,10 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
-#include <typeinfo>
-#ifdef HAVE_SSSE3
-#include "tmmintrin.h"
+#include <cstdint>                  // for uint32_t, uint64_t
+#ifdef HAVE_SSE2
+#include "emmintrin.h"
 #endif
 #ifdef HAVE_AVX2
 #include "immintrin.h"
@@ -21,10 +21,11 @@
 #include "rdtsc.h"
 #endif
 #endif
-#include "utils.h"
+#include "fb-types.h"                // for fbprime_t, fbroot_t
+#include "las-where-am-i-proxy.hpp"  // for where_am_I
 #include "tests_common.h"
+#include "memory.h"             // free_aligned
 #include "las-sieve2357.hpp"
-#include "las-debug.hpp"
 
 template<typename T>
 class gettypename {

@@ -1,23 +1,41 @@
-#include "cado.h"
-#include <inttypes.h>
-#include <stdlib.h>   // for malloc and friends
-#include <string.h>   // for memcpy
-#include <new>        // for std::bad_alloc
-#include <type_traits> // for std::is_same (C++11)
-#include <gmp.h>
-#if defined(HAVE_SSE2)
-#include <emmintrin.h>
+#include "cado.h" // IWYU pragma: keep
+
+/* This compilation units reacts to TRACK_CODE_PATH and uses macros
+ * such as WHERE_AM_I_UPDATE.
+ * This compilation unit _must_ produce different object files depending
+ * on the value of TRACK_CODE_PATH.
+ * The WHERE_AM_I_UPDATE macro itself is defined in las-where-am-i.hpp
+ */
+
+#include <cmath>                   // for sqrt
+#include <cstdint>                 // for uint32_t, uint64_t, UINT32_C
+#include <cinttypes>               // for PRIu32
+#include <cstdlib>                 // for size_t, NULL, free, realloc
+#include <cstring>                 // for memset
+#include <new>                     // for bad_alloc
+#ifdef TRACE_K
+#include <type_traits>             // for is_same
 #endif
-#include "las-info.hpp"
-#include "bucket.hpp"
-#include "portability.h"
-#include "memory.h"
-#include "las-config.h"
-#include "las-debug.hpp"
-#include "iqsort.h"
-#include "verbose.h"
-#include "ularith.h"
-#include "smallset.hpp"
+
+#include "bucket.hpp"              // for bucket_array_t, bucket_update_t
+#include "memory.h"             // free_aligned
+#include "verbose.h"             // verbose_output_print
+
+#include "bucket-push-update.hpp"  // for bucket_single::push_update
+#include "fb-types.h"              // for slice_index_t, FBPRIME_FORMAT, fbp...
+#include "fb.hpp"                  // for fb_factorbase, fb_factorbase::slicing
+#include "iqsort.h"                // for QSORT
+#include "las-config.h"            // for BUCKET_REGIONS, LOG_BUCKET_REGIONS
+#include "las-where-am-i.hpp"      // for where_am_I, WHERE_AM_I_UPDATE
+#include "las-memory.hpp"          // for las_memory_accessor
+#include "las-where-am-i-proxy.hpp" // IWYU pragma: keep    // for where_am_I
+#include "macros.h"                // for MAYBE_UNUSED, ASSERT_ALWAYS, UNLIKELY
+#ifdef TRACE_K
+#include "las-output.hpp"          // for TRACE_CHANNEL
+#endif
+
+template <int LEVEL, typename HINT> struct bucket_update_t;
+
 
 static size_t
 bucket_misalignment(const size_t sz, const size_t sr MAYBE_UNUSED) {
@@ -278,27 +296,27 @@ bucket_array_t<LEVEL, HINT>::log_this_update (
 {
 #if defined(TRACE_K)
     size_t (&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
-    unsigned int saveN = w.N;
+    unsigned int saveN = w->N;
     /* flatten the (N,x) coordinate as if relative to a unique array of
      * level-1 bucket regions */
     unsigned int x = update.x % BRS[1];
-    unsigned int N = w.N +
+    unsigned int N = w->N +
         bucket_number*BRS[LEVEL]/BRS[1] + (update.x / BRS[1]);
 
     WHERE_AM_I_UPDATE(w, x, x);
     WHERE_AM_I_UPDATE(w, N, N);
 
-    if (trace_on_spot_Nx(w.N, w.x)) {
+    if (trace_on_spot_Nx(w->N, w->x)) {
         verbose_output_print (TRACE_CHANNEL, 0,
             "# Pushed hit at location (x=%u, side %d), from factor base entry "
             "(slice_index=%u, slice_offset=%u, p=%" FBPRIME_FORMAT "), "
             "to BA<%d>[%u]\n",
-            (unsigned int) w.x, w.side, (unsigned int) w.i,
-            (unsigned int) w.h, w.p, LEVEL, (unsigned int) w.N);
+            (unsigned int) w->x, w->side, (unsigned int) w->i,
+            (unsigned int) w->h, w->p, LEVEL, (unsigned int) w->N);
         if (std::is_same<HINT,longhint_t>::value) {
           verbose_output_print (TRACE_CHANNEL, 0,
              "# Warning: did not check divisibility during downsorting p=%"
-             FBPRIME_FORMAT "\n", w.p);
+             FBPRIME_FORMAT "\n", w->p);
         } else {
           ASSERT_ALWAYS(test_divisible(w));
         }
@@ -309,23 +327,12 @@ bucket_array_t<LEVEL, HINT>::log_this_update (
 
 
 
-/* Instantiate concrete classes that we need or some methods do not get
-   compiled and cause "undefined reference" errors during linking. */
-template class bucket_array_t<1, shorthint_t>;
-template class bucket_array_t<2, shorthint_t>;
-template class bucket_array_t<3, shorthint_t>;
-template class bucket_array_t<1, longhint_t>;
-template class bucket_array_t<2, longhint_t>;
-template class bucket_array_t<1, emptyhint_t>;
-template class bucket_array_t<2, emptyhint_t>;
-template class bucket_array_t<3, emptyhint_t>;
-template class bucket_array_t<1, logphint_t>;
-template class bucket_array_t<2, logphint_t>;
 
-
+#if 0
+/* no longer used */
 /* A compare function suitable for sorting updates in order of ascending x
    with qsort() */
-int
+static inline int
 bucket_cmp_x (const bucket_update_t<1, longhint_t>  *a, const bucket_update_t<1, longhint_t>  *b)
 {
   if (a->x < b->x)
@@ -334,6 +341,7 @@ bucket_cmp_x (const bucket_update_t<1, longhint_t>  *a, const bucket_update_t<1,
     return 0;
   return 1;
 }
+#endif
 
 template <int LEVEL, typename HINT>
 void
@@ -361,21 +369,23 @@ bucket_primes_t::purge (const bucket_array_t<1, shorthint_t> &BA,
     }
 }
 
+/*
 template <typename HINT>
 static inline bucket_update_t<1, longhint_t>
 to_longhint(const bucket_update_t<1, HINT> &update, slice_index_t slice_index);
+*/
 
-template<>
+static inline
 bucket_update_t<1, longhint_t>
-to_longhint<shorthint_t>(const bucket_update_t<1, shorthint_t> &update,
+to_longhint(const bucket_update_t<1, shorthint_t> &update,
                          const slice_index_t slice_index)
 {
   return bucket_update_t<1, longhint_t> (update.x, 0, update.hint, slice_index);
 }
 
-template<>
+static inline
 bucket_update_t<1, longhint_t>
-to_longhint<longhint_t>(const bucket_update_t<1, longhint_t> &update,
+to_longhint(const bucket_update_t<1, longhint_t> &update,
                         const slice_index_t slice_index MAYBE_UNUSED)
 {
   return update;
@@ -459,9 +469,6 @@ bucket_array_complete::purge<shorthint_t> (
     const unsigned char *,
     const std::vector<typename bucket_update_t<1, shorthint_t>::br_index_t> &);
 #endif
-
-template class bucket_single<1, primehint_t>;
-template class bucket_single<1, longhint_t>;
 
 template<int INPUT_LEVEL>
 void
@@ -582,48 +589,18 @@ downsort<2>(fb_factorbase::slicing const &,
         const bucket_array_t<2, logphint_t> &BA_in,
         uint32_t bucket_number, where_am_I & w);
 
-buckets_are_full::buckets_are_full(bkmult_specifier::key_type const& key, int b, int r, int t) : key(key), bucket_number(b), reached_size(r), theoretical_max_size(t) {
-    std::ostringstream os;
-    os << "Fullest level-"<<bkmult_specifier::printkey(key)<<" bucket #"<<b<<", wrote "<<reached_size<<"/"<<theoretical_max_size<<"";
-    message = os.str();
-}
+/* Instantiate concrete classes that we need or some methods do not get
+   compiled and cause "undefined reference" errors during linking. */
+template class bucket_single<1, primehint_t>;
+template class bucket_single<1, longhint_t>;
+template class bucket_array_t<1, shorthint_t>;
+template class bucket_array_t<2, shorthint_t>;
+template class bucket_array_t<3, shorthint_t>;
+template class bucket_array_t<1, longhint_t>;
+template class bucket_array_t<2, longhint_t>;
+template class bucket_array_t<1, emptyhint_t>;
+template class bucket_array_t<2, emptyhint_t>;
+template class bucket_array_t<3, emptyhint_t>;
+template class bucket_array_t<1, logphint_t>;
+template class bucket_array_t<2, logphint_t>;
 
-bkmult_specifier::bkmult_specifier(const char * specifier)
-{
-    const char * p = specifier;
-    for(const char * q ; *p ; p = q + (*q != '\0') ) {
-        const char * colon = NULL;
-        for(q = p ; *q && *q != ',' ; q++)
-            if (*q == ':')
-                colon = q;
-        /* parse from p to q */
-        if (colon) {
-            std::string vs(colon+1, q);
-            std::istringstream is(vs);
-            double v;
-            is >> v;
-            ASSERT_ALWAYS(!(is.rdstate() & std::ios_base::failbit));
-            ASSERT_ALWAYS(colon - p == 2);
-            ASSERT_ALWAYS(p[0] >= '1' && p[0] <= '9');
-            ASSERT_ALWAYS(p[1] == 's' || p[1] == 'l');
-            dict_t::key_type key(p[0]-'0', p[1]);
-            dict.insert(std::make_pair(key, v));
-        } else {
-            std::string vs(p, q);
-            std::istringstream is(vs);
-            is >> base;
-            ASSERT_ALWAYS(!(is.rdstate() & std::ios_base::failbit));
-        }
-    }
-}
-
-std::string bkmult_specifier::print_all() const
-{
-    std::ostringstream os;
-    os << base;
-    for(auto const & x : dict) {
-        key_type const& key(x.first);
-        os << "," << key.first << key.second << ":" << x.second;
-    }
-    return os.str();
-}

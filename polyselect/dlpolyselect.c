@@ -61,19 +61,26 @@ skew: 1.37
 
 */
 
-#include "cado.h"
-#include "auxiliary.h"
-#include "utils.h"
-#include "mpz_poly.h"
-#include "portability.h"
-#include "murphyE.h"
-#include "ropt_param.h"
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
-#include <ctype.h>
+#include "cado.h" // IWYU pragma: keep
+#include <float.h> // for DBL_MAX
 #include <stdlib.h>
+#include <math.h> // pow
 #include <time.h>
+#include <limits.h>      // for ULONG_MAX
+#include <stdio.h>       // for fprintf, printf, stderr, fflush, stdout
+#include <string.h>      // for strcmp
+#include <gmp.h>         // for mpz_t, mpz_clear, mpz_init, gmp_printf, mpz_...
+#include "cado_poly.h"   // for cado_poly_fprintf_MurphyE, cado_poly
+#include "macros.h"      // for ASSERT_ALWAYS, ASSERT
+#include "omp_proxy.h"
+#include "auxiliary.h"
+#include "gcd.h"        // gcd_uint64
+#include "lll.h"        // mat_Z, LLL
+#include "mpz_poly.h"
+#include "murphyE.h"
+#include "rootfinder.h"
+#include "timing.h"             // for seconds
+#include "usp.h"        // numberOfRealRoots
 
 /* We assume a difference <= ALPHA_BOUND_GUARD between alpha computed
    with ALPHA_BOUND_SMALL and ALPHA_BOUND. In practice the largest value
@@ -178,7 +185,7 @@ print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
       return 0;
 
     /* now get a more precise alpha value */
-    alpha_g = get_alpha (gg, ALPHA_BOUND);
+    alpha_g = get_alpha (gg, get_alpha_bound ());
 
     score = logmu[1] + alpha_g + logmu[0] + alpha_f;
     if (score_approx - score > max_guard)
@@ -207,7 +214,7 @@ print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
         p->pols[RAT_SIDE]->coeff = g;
         p->pols[RAT_SIDE]->deg = dg;
         p->skew = skew;
-        E = MurphyE (p, Bf, Bg, Area, MURPHY_K, ALPHA_BOUND);
+        E = MurphyE (p, Bf, Bg, Area, MURPHY_K, get_alpha_bound ());
 	END_TIMER (TIMER_MURPHYE);
         if (E <= bestE)
             return 0;
@@ -592,7 +599,7 @@ polygen_JL2 (mpz_t n,
 
     /* update the best and worst score for f (FIXME: even if f has no roots?) */
     double skew_f, lognorm_f, score_f;
-    alpha_f = get_alpha (f, ALPHA_BOUND);
+    alpha_f = get_alpha (f, get_alpha_bound ());
     skew_f = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
     lognorm_f = L2_lognorm (f, skew_f);
     score_f = lognorm_f + alpha_f;

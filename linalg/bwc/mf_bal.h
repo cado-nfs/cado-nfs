@@ -1,6 +1,8 @@
 #ifndef MF_BAL_H_
 #define MF_BAL_H_
 
+#include "params.h"      // param_list_ptr
+
 #ifdef __cplusplus
 extern "C" {
 #endif

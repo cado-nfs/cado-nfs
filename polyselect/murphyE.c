@@ -39,16 +39,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
    a factor sqrt(area), with area = 1e16.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #define PI 3.14159265358979324
 
 #include <math.h>
-#include "utils.h"
 #include "auxiliary.h"
 #include "rho.h"
+#include "murphyE.h"
+#include "double_poly.h"
+#include "mpz_poly.h"
 
 double
-MurphyE (cado_poly cpoly, double Bf, double Bg, double area, int K,
+MurphyE (cado_poly_srcptr cpoly, double Bf, double Bg, double area, int K,
          unsigned long B)
 {
   double E = 0, x, y, ti;

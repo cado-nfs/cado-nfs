@@ -10,6 +10,7 @@
     -I/-A          "I- or A-value (alternative to -area, with A=2I-1)"
     -Bf            "algebraic smoothness bound"
     -Bg            "rational smoothness bound"
+    -B             "bound for computing alpha"
     -v             "toggle verbose"
     -boundmaxlognorm  "maximum lognorm to bound the rotation"
 
@@ -22,22 +23,28 @@
 */
 
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#ifdef HAVE_OPENMP
-#include <omp.h>
-#endif
-#include "utils.h"
-#include "rho.h"
-#include "auxiliary.h"
-#include "murphyE.h"
 #include <pthread.h>
-#include "portability.h"
+#include <gmp.h>
+#include "omp_proxy.h"
+#include "cado_poly.h"
 #include "area.h"
+#include "auxiliary.h"
+#include "macros.h" // ASSERT_ALWAYS
+#include "mpz_poly.h"
+#include "murphyE.h"
+#include "params.h"           // for param_list_decl_usage, param_list
 #include "ropt.h"
+#include "ropt_param.h"    // L1_cachesize
+#include "ropt_str.h"    // ropt_param_t
+#include "ropt_io.h"    // ropt_L1_cachesize ropt_on_cadopoly
+#include "timing.h"             // for seconds_thread
+#include "verbose.h"             // verbose_output_print
+#include "version_info.h"        // cado_revision_string
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
                                                      lock for output */
@@ -447,7 +454,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
                                            ropt_poly->pols[1],
                                            SKEWNESS_DEFAULT_PREC);
   curr_MurphyE = MurphyE (ropt_poly, bound_f, bound_g, area, MURPHY_K,
-                          ALPHA_BOUND);
+                          get_alpha_bound ());
 
   if (nthreads > 1)
     pthread_mutex_lock (&lock);
@@ -599,6 +606,8 @@ declare_usage_basic (param_list pl)
   param_list_decl_usage(pl, "Bf", str);
   snprintf (str, 200, "rational smoothness bound (default %.2e)", BOUND_G);
   param_list_decl_usage(pl, "Bg", str);
+  snprintf (str, 200, "bound for computing alpha (default %d)", ALPHA_BOUND);
+  param_list_decl_usage(pl, "alpha_bound", str);
   param_list_decl_usage(pl, "v", "verbose mode");
   param_list_decl_usage(pl, "boundmaxlognorm", "Maximum lognorm. Used to compute"
                                                " bounds for rotations for the "
@@ -671,6 +680,9 @@ main_basic (int argc, char **argv)
     bound_f = BOUND_F;
   if (param_list_parse_double (pl, "Bg", &bound_g) == 0) /* no -Bg */
     bound_g = BOUND_G;
+  int a;
+  if (param_list_parse_int (pl, "B", &a)) /* -B option */
+    set_alpha_bound (a);
   int has_area = param_list_parse_double (pl, "area", &area);
   int has_A_or_I = param_list_parse_int (pl, "A", &A);
   if (has_A_or_I == 0 && param_list_parse_int (pl, "I", &A))

@@ -1,33 +1,33 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <pthread.h>      // for pthread_t
+#include <stddef.h>       // for ptrdiff_t
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <ctype.h>
-#include "bwc_config.h"
 #include "select_mpi.h"
 #include "parallelizing_info.h"
-#include "portability.h"
 #include "macros.h"
 #include "misc.h"
 #include "verbose.h"
+#include "portability.h"
 
 
 #include <sys/time.h>   // gettimeofday
 #ifdef  HAVE_UTSNAME_H
 #include <sys/utsname.h>
+#include <limits.h>
 #endif
 
 #if defined(HAVE_HWLOC) && defined(HAVE_CXX11)
 #include "cpubinding.h"
+#include "params.h"
 #endif  /* defined(HAVE_HWLOC) && defined(HAVE_CXX11) */
 
 static inline void pi_comm_init_pthread_things(pi_comm_ptr w, const char * desc)
@@ -1192,7 +1192,7 @@ static void pi_dispatch_op_add_stock(void *invec, void *inoutvec, int *len, MPI_
     int got_it;
     mpfq_vbase_ptr abase;
     MPI_Type_get_attr(*datatype, pi_mpi_attribute_key, (void*) &abase, &got_it);
-    assert(got_it);
+    ASSERT(got_it);
     abase->vec_add(abase, inoutvec, inoutvec, invec, *len);
 }
 static void pi_dispatch_op_add_custom(void *invec, void *inoutvec, size_t len, pi_datatype_ptr datatype)

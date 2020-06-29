@@ -1,14 +1,27 @@
-#include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h> /* for strcmp() */
-#include <math.h> /* for sqrt and floor and log and ceil */
-#include <pthread.h>
-#include "portability.h"
-#include "utils.h"
+#include "cado.h" // IWYU pragma: keep
+#include <cstdio>
+#include <cstdlib>
+#include <cstring> /* for strcmp() */
+#include <cmath> /* for sqrt and floor and log and ceil */
+#include <cstdint>           // for uint64_t, int64_t, UINT64_MAX
 #include <vector>
 #include <algorithm>
-#include "cxx_mpz.hpp"
+#include <iosfwd>            // for std
+#include <memory>            // for allocator_traits<>::value_type
+#include <pthread.h>
+#include <gmp.h>             // for gmp_randstate_t, gmp_randclear, gmp_rand...
+#include "cado_poly.h"       // for cxx_cado_poly, cado_poly_read, cado_poly_s
+#include "mpz_poly.h"        // for mpz_poly
+#include "typedefs.h"   // index_t p_r_values_t
+#include "renumber.hpp" // renumber_t
+#include "relation-tools.h"
+#include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
+#include "gzip.h"       // fopen_maybe_compressed
+#include "rootfinder.h" // mpz_poly_roots_uint64
+#include "timing.h" // wct_seconds
+#include "verbose.h"    // verbose_decl_usage
+#include "macros.h"
+#include "params.h"
 
 /*
  * The goal of this binary is to produce relations that try to be good
@@ -39,10 +52,10 @@
 using namespace std;
 
 // A global mutex for I/O
-pthread_mutex_t io_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t io_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // A global variable for the number of relations printed
-unsigned long rels_printed = 0;
+static unsigned long rels_printed = 0;
 
 // We need a re-entrant random. Let's take GMP.
 static inline uint64_t long_random(gmp_randstate_t buf) {
@@ -55,8 +68,9 @@ static inline uint64_t long_random(gmp_randstate_t buf) {
 #endif
 }
 
-gmp_randstate_t global_rstate_non_mt;
-long myrandom_non_mt() {
+static gmp_randstate_t global_rstate_non_mt;
+
+static long myrandom_non_mt() {
     return long_random(global_rstate_non_mt);
 }
 
@@ -143,24 +157,17 @@ struct indexrange {
 // gathering indices in two arrays, one for each side.
 // In case of composite special-qs, also fill-in the list of the
 // corresponding primes on the sqside.
-void prepare_indexrange(indexrange *Ind, renumber_t ren_tab, 
-        cado_poly cpoly, int sqside, int compsq) {
+static void prepare_indexrange(indexrange *Ind, renumber_t const & ren_tab, 
+        int sqside, int compsq) {
     Ind[0].init();
     Ind[1].init();
-    for (index_t i = 0; i < ren_tab->size; i++) {
-        if (renumber_is_additional_column(ren_tab, i)) {
+    for (index_t i = 0; i < ren_tab.get_size(); i++) {
+        if (ren_tab.is_additional_column(i))
             continue;
-        }
-        int side = renumber_get_side_from_index(ren_tab, i, cpoly);
-        Ind[side].append(i);
-        if (compsq && (side == sqside)) {
-            p_r_values_t p, r;
-            if (ren_tab->table[i] == RENUMBER_SPECIAL_VALUE) {
-                renumber_badideal_get_p_r_below(ren_tab, &p, &r, &side, i);
-            } else {
-                renumber_get_p_r_from_index(ren_tab, &p, &r, &side, i, cpoly);
-            }
-            Ind[sqside].append_prime(p);
+        renumber_t::p_r_side x = ren_tab.p_r_from_index(i); // XXX forward iterator, really
+        Ind[x.side].append(i);
+        if (compsq && (x.side == sqside)) {
+            Ind[sqside].append_prime(x.p);
         }
     }
     Ind[0].finalize();
@@ -183,7 +190,7 @@ bool operator<(fake_rel const& x, fake_rel const& y) {
     return x.b < y.b;
 }
 
-int p_coprimeto_q(uint64_t p, uint64_t q, vector<uint64_t> facq) {
+static int p_coprimeto_q(uint64_t p, uint64_t q, vector<uint64_t> facq) {
     if (facq.size() == 0) {
         return q != p;
     } else {
@@ -196,8 +203,8 @@ int p_coprimeto_q(uint64_t p, uint64_t q, vector<uint64_t> facq) {
 }
 
 
-void read_rel(fake_rel& rel, uint64_t q, vector<uint64_t> facq,
-        int sqside, const char *str, renumber_t ren_tab) {
+static void read_rel(fake_rel& rel, uint64_t q, vector<uint64_t> facq,
+        int sqside, const char *str, renumber_t const & ren_tab) {
     rel.nb_ind[0] = 0;
     rel.nb_ind[1] = 0;
     int side = 0;
@@ -236,12 +243,12 @@ void read_rel(fake_rel& rel, uint64_t q, vector<uint64_t> facq,
         if (side != sqside || p_coprimeto_q(p, q, facq)) {
             p_r_values_t r = relation_compute_r(a, b, p);
             index_t index;
-            int nb;
-            if (renumber_is_bad (&nb, &index, ren_tab, p, r, side)) {
+            int nb = ren_tab.is_bad (index, p, r, side);
+            if (nb) {
                 // bad ideal: just pick a random ideal above this prime
                 index += (myrandom_non_mt() % nb);
             } else {
-                index = renumber_get_index_from_p_r(ren_tab, p, r, side);
+                index = ren_tab.index_from_p_r(p, r, side);
             }
             rel.ind[side][rel.nb_ind[side]] = index;
             rel.nb_ind[side]++;
@@ -251,8 +258,8 @@ void read_rel(fake_rel& rel, uint64_t q, vector<uint64_t> facq,
     }
 }
 
-void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels,
-        int sqside, const char *filename, renumber_t ren_tab, int compsq)
+static void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels,
+        int sqside, const char *filename, renumber_t & ren_tab, int compsq)
 {
     FILE * file;
     file = fopen_maybe_compressed(filename, "r");
@@ -323,7 +330,7 @@ int index_cmp(const void *p1, const void *p2)
     return 1;
 }
 
-void reduce_mod_2(index_t *frel, int *nf) {
+static void reduce_mod_2(index_t *frel, int *nf) {
     int i = 1;
     index_t curr = frel[0];
     int nb = 1;
@@ -346,8 +353,8 @@ void reduce_mod_2(index_t *frel, int *nf) {
     *nf = j;
 }
 
-void shrink_indices(index_t *frel, int nf, int shrink_factor) {
-    // Indices below this threshold are not shrinked
+static void shrink_indices(index_t *frel, int nf, int shrink_factor) {
+    // Indices below this threshold are not shrunk
     // FIXME: I am not sure we should keep the heavy weight columns
     // un-shrinked. The answer might be different in DL and in facto...
     const index_t noshrink_threshold = 0;
@@ -360,7 +367,7 @@ void shrink_indices(index_t *frel, int nf, int shrink_factor) {
     }
 }
 
-void print_fake_rel_manyq(
+static void print_fake_rel_manyq(
         vector<index_t>::iterator list_q, int nfacq, uint64_t nq,
         vector<fake_rel> *rels, vector<unsigned int> *nrels,
         indexrange *Ind, int dl, int shrink_factor,
@@ -474,7 +481,7 @@ struct th_args {
 };
 
 
-void * do_thread(void * rgs) {
+static void * do_thread(void * rgs) {
     struct th_args * args = (struct th_args *) rgs;
     if (args->nq > 0)
         print_fake_rel_manyq(args->list_q_prime, 1, args->nq, args->rels,
@@ -494,7 +501,7 @@ void * do_thread(void * rgs) {
     return NULL;
 }
 
-void advance_prime_in_fb(int *mult, uint64_t *q, uint64_t *roots,
+static void advance_prime_in_fb(int *mult, uint64_t *q, uint64_t *roots,
         cado_poly cpoly, int sqside, prime_info pdata)
 {
     int nr;
@@ -511,7 +518,7 @@ void advance_prime_in_fb(int *mult, uint64_t *q, uint64_t *roots,
 
 // All composite special-q in [q0, q1] with 2 prime factors in the range
 // [qfac_min, qfac_max] in Ind.
-vector<index_t> all_comp_sq_2(uint64_t q0, uint64_t q1, uint64_t qfac_min,
+static vector<index_t> all_comp_sq_2(uint64_t q0, uint64_t q1, uint64_t qfac_min,
         uint64_t qfac_max, indexrange &Ind)
 {
     vector<index_t> list;
@@ -546,7 +553,7 @@ vector<index_t> all_comp_sq_2(uint64_t q0, uint64_t q1, uint64_t qfac_min,
 
 // All composite special-q in [q0, q1] with 3 prime factors in the range
 // [qfac_min, qfac_max] in Ind.
-vector<index_t> all_comp_sq_3(uint64_t q0, uint64_t q1, uint64_t qfac_min,
+static vector<index_t> all_comp_sq_3(uint64_t q0, uint64_t q1, uint64_t qfac_min,
         uint64_t qfac_max, indexrange &Ind)
 {
     vector<index_t> list;
@@ -608,8 +615,8 @@ static void declare_usage(param_list pl)
 int
 main (int argc, char *argv[])
 {
-  param_list pl;
-  cado_poly cpoly;
+  cxx_param_list pl;
+  cxx_cado_poly cpoly;
   int sqside = -1;
   char *argv0 = argv[0];
   int lpb[2] = {0, 0};
@@ -622,12 +629,9 @@ main (int argc, char *argv[])
   uint64_t qfac_max = UINT64_MAX;
   int shrink_factor = 1; // by default, no shrink
 
-  param_list_init(pl);
   declare_usage(pl);
   param_list_configure_switch(pl, "-dl", &dl);
   param_list_configure_switch(pl, "-allow-compsq", &compsq);
-  
-  cado_poly_init(cpoly);
 
   argv++, argc--;
   for( ; argc ; ) {
@@ -713,15 +717,15 @@ main (int argc, char *argv[])
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
-  renumber_t ren_table;
   printf ("# Start reading renumber table\n");
   fflush (stdout);
-  renumber_read_table(ren_table, renumberfile);
+  renumber_t ren_table(cpoly);
+  ren_table.read_from_file(renumberfile);
   printf ("# Done reading renumber table\n");
   fflush (stdout);
 
   for (int side = 0; side < 2; ++side) {
-      if (ren_table->lpb[side] != (unsigned long)lpb[side]) {
+      if (ren_table.get_lpb(side) != (unsigned long)lpb[side]) {
           fprintf(stderr, "Error: on side %d, lpb on the command-line is different from the one in the renumber file\n", side);
           exit(EXIT_FAILURE);
       }
@@ -753,7 +757,7 @@ main (int argc, char *argv[])
   indexrange Ind[2];
   printf ("# Start preparing index ranges\n");
   fflush (stdout);
-  prepare_indexrange(Ind, ren_table, cpoly, sqside, compsq);
+  prepare_indexrange(Ind, ren_table, sqside, compsq);
   printf ("# Done preparing index ranges\n");
   fflush (stdout);
 
@@ -774,7 +778,7 @@ main (int argc, char *argv[])
       while (mult == 0) {
           advance_prime_in_fb(&mult, &q, roots, cpoly, sqside, pdata);
       }
-      index_t indq = renumber_get_index_from_p_r(ren_table, q, roots[0], sqside);
+      index_t indq = ren_table.index_from_p_r(q, roots[0], sqside);
       first_indq = Ind[sqside].iterator_from_index(indq);
       // Same for q1:
       while (q < q1) {
@@ -784,7 +788,7 @@ main (int argc, char *argv[])
       while (mult == 0) {
           advance_prime_in_fb(&mult, &q, roots, cpoly, sqside, pdata);
       }
-      indq = renumber_get_index_from_p_r(ren_table, q, roots[0], sqside);
+      indq = ren_table.index_from_p_r(q, roots[0], sqside);
       last_indq = Ind[sqside].iterator_from_index(indq);
       prime_info_clear(pdata);
   } else {
@@ -867,9 +871,6 @@ main (int argc, char *argv[])
   gmp_randclear(global_rstate_non_mt);
   free(thid);
   free(args);
-  renumber_clear(ren_table);
-  cado_poly_clear(cpoly);
-  param_list_clear(pl);
 
   return 0;
 }

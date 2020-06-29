@@ -1,5 +1,6 @@
 #ifndef CADO_UTILS_GETPRIME_H_
 #define CADO_UTILS_GETPRIME_H_
+
 #ifndef MAIN
 #include "macros.h"
 #else

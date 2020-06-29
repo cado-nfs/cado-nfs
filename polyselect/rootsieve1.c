@@ -16,18 +16,20 @@
      and an average of 0.0045 only.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <float.h>      // DBL_MAX
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "portability.h"
-#include "utils.h"
+#include <gmp.h>
 #include "auxiliary.h" /* for common routines with polyselect.c */
 #include "area.h"
 #include "murphyE.h"
 #include "size_optimization.h"
-#include "omp.h"
-
+#include "omp_proxy.h"
+#include "gmp_aux.h"    // ulong_isprime
+#include "timing.h"     // seconds
+#include "macros.h"
 /* define ORIGINAL if you want the original algorithm from the paper */
 // #define ORIGINAL
 
@@ -596,7 +598,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
               double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
               /* to compute E, we need to divide g by mod */
               mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
-              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K);
+              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
               /* restore g */
               mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
               /* this can only occur for one thread, thus no need to put
@@ -618,7 +620,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
               double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
               /* to compute E, we need to divide g by mod */
               mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
-              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K);
+              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
               /* restore g */
               mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
               /* restore the original polynomial (w=0) and skewness */
@@ -749,7 +751,7 @@ print_transformation (cado_poly_ptr poly0, cado_poly_srcptr poly)
   ASSERT_ALWAYS(mpz_divisible_p (k, poly0->pols[RAT_SIDE]->coeff[1]));
   mpz_divexact (k, k, poly0->pols[RAT_SIDE]->coeff[1]);
   gmp_printf ("rotation [%Zd,", k);
-  assert (mpz_fits_slong_p (k));
+  ASSERT (mpz_fits_slong_p (k));
   u0 = mpz_get_si (k);
   rotate_auxg_z (poly0->pols[ALG_SIDE]->coeff, poly0->pols[RAT_SIDE]->coeff[1],
                  poly0->pols[RAT_SIDE]->coeff[0], k, 2);
@@ -757,7 +759,7 @@ print_transformation (cado_poly_ptr poly0, cado_poly_srcptr poly)
   ASSERT_ALWAYS(mpz_divisible_p (k, poly0->pols[RAT_SIDE]->coeff[1]));
   mpz_divexact (k, k, poly0->pols[RAT_SIDE]->coeff[1]);
   gmp_printf ("%Zd,", k);
-  assert (mpz_fits_slong_p (k));
+  ASSERT (mpz_fits_slong_p (k));
   v0 = mpz_get_si (k);
   rotate_auxg_z (poly0->pols[ALG_SIDE]->coeff, poly0->pols[RAT_SIDE]->coeff[1],
                  poly0->pols[RAT_SIDE]->coeff[0], k, 1);
@@ -765,7 +767,7 @@ print_transformation (cado_poly_ptr poly0, cado_poly_srcptr poly)
   ASSERT_ALWAYS(mpz_divisible_p (k, poly0->pols[RAT_SIDE]->coeff[1]));
   mpz_divexact (k, k, poly0->pols[RAT_SIDE]->coeff[1]);
   gmp_printf ("%Zd]\n", k);
-  assert (mpz_fits_slong_p (k));
+  ASSERT (mpz_fits_slong_p (k));
   w0 = mpz_get_si (k);
   rotate_auxg_z (poly0->pols[ALG_SIDE]->coeff, poly0->pols[RAT_SIDE]->coeff[1],
                  poly0->pols[RAT_SIDE]->coeff[0], k, 0);
@@ -873,7 +875,6 @@ main (int argc, char **argv)
     double margin = NORM_MARGIN;
     long umin = LONG_MIN, umax = LONG_MAX;
     int sopt = 0;
-    long B = ALPHA_BOUND;
     double time = seconds ();
 
     while (argc >= 2 && argv[1][0] == '-')
@@ -935,7 +936,8 @@ main (int argc, char **argv)
           }
         else if (strcmp (argv[1], "-B") == 0)
           {
-            B = strtol (argv [2], NULL, 10);
+            unsigned long B = strtol (argv [2], NULL, 10);
+            set_alpha_bound (B);
             argv += 2;
             argc -= 2;
           }

@@ -5,13 +5,14 @@
 #define MODMPZ_HPP
 
 /**********************************************************************/
-#include <cassert>
-#include <climits>
 #include <cstdint>
+#include <gmp.h>          // for mp_limb_t, mpz_size, __gmpn_copyi, __gmpn_s...
+#include <cstddef>        // for size_t, NULL
+#include <new>            // for operator new
 #include "macros.h"
+#include "gmp_aux.h"      // for mpz_cmp_uint64, mpz_get_uint64, mpz_set_uint64
 #include "cxx_mpz.hpp"
-#include "u64arith.h"
-#include "modint.hpp"
+// #include "modint.hpp"
 #include "mod_stdop.hpp"
 #include "misc.h"
 

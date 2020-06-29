@@ -9,8 +9,6 @@ gpf_get(0) = 0, gpf_get(1) = 1.
 
 */
 
-#include "macros.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,6 +26,7 @@ static inline unsigned int gpf_get(const unsigned long i) {
 #endif
 }
 
+/* FIXME: we never ever use it, it seems */
 void gpf_clear();
 
 #ifdef __cplusplus

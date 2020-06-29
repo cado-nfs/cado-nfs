@@ -1,5 +1,9 @@
+#ifndef MOD_UL_DEFAULT_H_
+#define MOD_UL_DEFAULT_H_
+
 #include "mod_ul.h"
 
+// pragma no prototypes
 /*
    Here are typedef's that rename all functions to mod_* instead of 
    modul_*, which one day might become an automatic renaming scheme so 
@@ -26,3 +30,5 @@
 #define modint_t             modintul_t
 #define MOD_SIZE             MODUL_SIZE
 #define MOD_MAXBITS          MODUL_MAXBITS
+
+#endif	/* MOD_UL_DEFAULT_H_ */

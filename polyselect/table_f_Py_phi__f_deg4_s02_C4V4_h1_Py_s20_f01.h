@@ -1,3 +1,8 @@
+#ifndef TABLE_F_PY_PHI__F_DEG4_S02_C4V4_H1_PY_S20_F01_H_
+#define TABLE_F_PY_PHI__F_DEG4_S02_C4V4_H1_PY_S20_F01_H_
+
+// pragma no prototypes
+
 /* table of polynomials f preselected with good properties. */
 
 fPyphi_t table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01[8] = { \
@@ -51,3 +56,5 @@ const fPyphi_poly_t fPyphi_4 = {
   8,
   table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01,
 };
+
+#endif

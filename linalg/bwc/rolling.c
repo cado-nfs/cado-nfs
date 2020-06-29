@@ -1,21 +1,20 @@
-#include "cado.h"
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include "cado.h" // IWYU pragma: keep
+#include <errno.h>      // for errno, ENOENT
+#include <stdio.h>      // for printf, asprintf, size_t, NULL, perror, sscanf
+#include <stdlib.h>     // for free, realloc, qsort
+#include <string.h>     // for strerror
+#include <time.h>       // for time
 
-#include "bwc_config.h"
-#include "params.h"
-#include "async.h"
-#include "portability.h"
-#include "misc.h"
+#include <unistd.h>     // for unlink
+#include <sys/stat.h>   // for stat, st_mtime
+#include <sys/types.h>  // for time_t
+#include <dirent.h>     // for closedir, opendir, readdir, DIR, dirent
 
 #include "rolling.h"
-#include "bw-common.h"
+#include "bw-common.h"  // for bw
+#include "macros.h"     // for ASSERT_ALWAYS
+#include "portability.h" // asprintf // IWYU pragma: keep
+
 
 typedef int (*sortfunc_t) (const void *, const void *);
 

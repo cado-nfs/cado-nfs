@@ -1,7 +1,12 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h> // fprintf
+#include <stdlib.h>     // exit free malloc
+#include <gmp.h>
 #include "polyselect_arith.h"
 #include "polyselect_str.h"
-#include "portability.h"
+#include "roots_mod.h"
+#include "gcd.h"       // for invert_ul
+#include "gmp_aux.h"       // mpz_set_uint64
 
 /* Lift the n roots r[0..n-1] of N = x^d (mod p) to roots of
    N = (m0 + r)^d (mod p^2).

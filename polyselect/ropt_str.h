@@ -1,18 +1,14 @@
 #ifndef ROPT_STR_H
 #define ROPT_STR_H
-
-
-#include "ropt_arith.h"
-#include "ropt_param.h"
-
+#include <gmp.h>
+#include <stdbool.h>    // for bool (in C)
 
 /* --- structs for ropt --- */
-
 
 /**
  * Struct for the polynomial currently being ropt-ed.
  */
-typedef struct {
+struct ropt_poly_s {
   /* polynomial */
   int d;
   double skew;
@@ -26,14 +22,14 @@ typedef struct {
   mpz_t *fx;
   mpz_t *gx;
   mpz_t *numerator;
-} _ropt_poly_t; 
-typedef _ropt_poly_t ropt_poly_t[1];
+}; 
+typedef struct ropt_poly_s ropt_poly_t[1];
 
 
 /**
  * Struct for size bound.
  */
-typedef struct {
+struct ropt_bound_s {
   /* global bounds */
   long global_w_boundl;
   long global_w_boundr;
@@ -47,14 +43,14 @@ typedef struct {
   double bound_lognorm;
   double bound_E;
   double exp_min_alpha;
-} _ropt_bound_t;
-typedef _ropt_bound_t ropt_bound_t[1];
+};
+typedef struct ropt_bound_s ropt_bound_t[1];
 
 
 /**
  * Struct for stage 1 parameters.
  */
-typedef struct {
+struct ropt_s1param_s {
   unsigned int len_e_sl;
   unsigned int tlen_e_sl;
 
@@ -79,15 +75,15 @@ typedef struct {
   mpz_t modulus;
 
   unsigned long modbound;
-} _ropt_s1param_t;
-typedef _ropt_s1param_t ropt_s1param_t[1];
+};
+typedef struct ropt_s1param_s ropt_s1param_t[1];
 
 
 /**
  * Struct for stage 2 parameters:
  * sieve bound for (A + MOD*i)*x + (B + MOD*j).
  */
-typedef struct {
+struct ropt_s2param_s {
   /* maybe different to global_*_bound */
   mpz_t Umax;
   mpz_t Umin;
@@ -110,15 +106,15 @@ typedef struct {
   /* polynomial */
   mpz_t *f;
   mpz_t *g;
-} _ropt_s2param_t;
-typedef _ropt_s2param_t ropt_s2param_t[1];
+};
+typedef struct ropt_s2param_s ropt_s2param_t[1];
 
 
 /**
  * Struct for manually-input parameters:
  * it has miscellaneous parameters filled from stdin.
  */
-typedef struct {
+struct ropt_param_s {
   /* for msieve format, we need n, d */
   mpz_t n;
   int d;
@@ -163,18 +159,18 @@ typedef struct {
 
   /* verbose */
   int verbose;
-} _ropt_param_t;
-typedef _ropt_param_t ropt_param_t[1];
+};
+typedef struct ropt_param_s ropt_param_t[1];
 
 
 /**
  * Struct for top polynomials.
  */
-typedef struct {
+struct ropt_bestpoly_s {
   mpz_t *f;
   mpz_t *g;
-} _ropt_bestpoly_t;
-typedef _ropt_bestpoly_t ropt_bestpoly_t[1];
+};
+typedef struct ropt_bestpoly_s ropt_bestpoly_t[1];
 
 
 /**
@@ -182,7 +178,7 @@ typedef _ropt_bestpoly_t ropt_bestpoly_t[1];
  */
 #define ROPT_MODE_INIT 0
 #define ROPT_MODE_TUNE 1
-typedef struct {
+struct ropt_info_s {
   double ave_MurphyE;
   double best_MurphyE;
   int mode; /* ROPT_MODE_INIT or ROPT_MODE_TUNE */
@@ -191,12 +187,16 @@ typedef struct {
   double ropt_time_stage1;
   double ropt_time_tuning;
   double ropt_time_stage2;
-} _ropt_info_t;
-typedef _ropt_info_t ropt_info_t[1];
+};
+typedef struct ropt_info_s ropt_info_t[1];
 
 
 /* --- declarations --- */
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ropt_poly_t */
 void ropt_poly_init ( ropt_poly_t );
@@ -320,5 +320,10 @@ void ropt_param_free ( ropt_param_t param );
 void ropt_info_init ( ropt_info_t info );
 
 void ropt_info_free ( ropt_info_t info );
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

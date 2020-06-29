@@ -1,7 +1,7 @@
 /* dup2: 2nd pass
 
    Usage: dup2 -nrels <nrels> -renumber <renumberfile> [ -outdir <dir> ]
-               [ -outfmt <fmt> ] [ -dl ] [ -badidealinfo <file> ]
+               [ -outfmt <fmt> ] [ -dl ]
                [ -filelist <fl> [ -basepath <dir> ] | file1 ... filen ]
 
    Input files can be given on command line, or via a filelist file.
@@ -45,24 +45,37 @@
    We store j % 2^32 at the next empty cell after index i in the hash-table.
 */
 
-#include "cado.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "cado.h" // IWYU pragma: keep
+#include <errno.h>           // for errno
+#include <inttypes.h>        // for PRIu64, PRId64, PRIx64, PRIu32
+#include <stddef.h>          // for ptrdiff_t
+#include <stdint.h>          // for uint64_t, uint32_t, int64_t
+#include <string.h>          // for strlen, strdup, memset, memcpy, strerror
+#include <stdio.h>            // for fprintf, stderr, NULL, asprintf, feof, FILE
+#include <stdlib.h>           // for exit, free, malloc, abort, EXIT_FAILURE
+#ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
-
-#include "portability.h"
-#include "filter_config.h"
-#include "utils_with_io.h"
-
-#include "filter_badideals.h"
-#include "relation-tools.h"
+#endif
+#include "cado_poly.h"       // for cado_poly_read, cxx_cado_poly
+#include "filter_config.h"   // for CA_DUP2, CB_DUP2
+#include "filter_io.h"       // for earlyparsed_relation_s, filter_rels_desc...
+#include "gmp_aux.h"         // for uint64_nextprime
+#include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
+#include "macros.h"          // for ASSERT_ALWAYS, MAYBE_UNUSED, UNLIKELY
+#include "misc.h"            // for filelist_clear, filelist_from_file
+#include "params.h"          // for cxx_param_list, param_list_decl_usage
+#include "portability.h" // strdup  // IWYU pragma: keep
+#include "relation-tools.h"  // for u64toa16, d64toa16, relation_compute_r
+#include "renumber_proxy.h"  // for renumber_proxy_t
+#include "typedefs.h"        // for prime_t, index_t, p_r_values_t, weight_t
+#include "verbose.h"         // for verbose_decl_usage, verbose_interpret_pa...
 
 #define DEBUG 0
 
 char *argv0; /* = argv[0] */
 
 /* Renumbering table to convert from (p,r) to an index */
-renumber_t renumber_tab;
+renumber_proxy_t renumber_tab;
 
 static uint32_t *H; /* H contains the hash table */
 static uint64_t K = 0; /* Size of the hash table */
@@ -139,8 +152,6 @@ static inline void
 print_relation (FILE * file, earlyparsed_relation_srcptr rel)
 {
   char buf[1 << 12], *p, *op;
-  size_t t;
-  unsigned int i, j;
   uint64_t nonvoidside = 0; /* bit vector of which sides appear in the rel */
 
   p = d64toa16(buf, rel->a);
@@ -148,15 +159,15 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
   p = u64toa16(p, rel->b);
   *p++ = ':';
 
-  for (i = 0; i < rel->nb; i++)
+  for (unsigned int i = 0; i < rel->nb; i++)
   {
     if (rel->primes[i].e > 0)
     {
       op = p;
       p = u64toa16(p, (uint64_t) rel->primes[i].h);
       *p++ = ',';
-      t = p - op;
-      for (j = (unsigned int) ((rel->primes[i].e) - 1); j--; p += t)
+      ptrdiff_t t = p - op;
+      for (unsigned int j = (unsigned int) ((rel->primes[i].e) - 1); j--; p += t)
         memcpy(p, op, t);
       nonvoidside |= ((uint64_t) 1) << rel->primes[i].side;
     }
@@ -167,43 +178,27 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
    * if naddcols == 0:
    *    do nothing.
    * else: 
-   *    if nb_polys == 2:
-   *      we add the columns 0 (in this case there is always 1 additional column
-   *      and it is always necessary)
-   *    if nb_polys != 2:
-   *      we add the columns i if and only if the ith bit of
-   *      renumber_tab->nonmonic is 1 (i.e., the polynomial on side i is non
-   *      monic) and the relation contains at least one prime on side i.
+   *    we add the columns i if and only if the polynomial on side i is non
+   *    monic and the relation contains at least one prime on side i.
+   *
+   *    if nb_polys == 2, this was previously claimed to reduce to "we
+   *    add the column 0 (in this case there is always 1 additional column
+   *      and it is always necessary)", which I think is wrong.
    */
-  if (renumber_tab->naddcols)
-  {
-    if (renumber_tab->nb_polys == 2)
-    {
-      p = u64toa16(p, (uint64_t) 0);
-      *p++ = ',';
-    }
-    else
-    {
-      index_t index_add_col = 0;
-      for (uint64_t b = renumber_tab->nonmonic, side = 0; b != 0;
-                                                b>>=1, nonvoidside>>=1, side++)
-      {
-        if (b & ((uint64_t) 1))
-        {
-          if (nonvoidside & ((uint64_t) 1))
-          {
-            p = u64toa16(p, (uint64_t) index_add_col);
-            *p++ = ',';
-          }
-          index_add_col++;
-        }
+  size_t n = renumber_table_get_nb_polys(renumber_tab);
+  int * sides = malloc(n * sizeof(int));
+  renumber_table_get_sides_of_additional_columns(renumber_tab, sides, &n);
+  for(index_t idx = 0; idx < n ; idx++) {
+      int side = sides[idx];
+      if ((nonvoidside & (((uint64_t) 1) << side))) {
+          p = u64toa16(p, (uint64_t) idx);
+          *p++ = ',';
       }
-    }
   }
-
+  free(sides);
 
   *(--p) = '\n';
-  p[1] = 0;
+  p[1] = '\0';
   if (fputs(buf, file) == EOF) {
     perror("Error writing relation");
     abort();
@@ -293,7 +288,7 @@ insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel, unsigned int 
  *  - the bad ideals
  */
 static inline void
-compute_index_rel (earlyparsed_relation_ptr rel, allbad_info_t info)
+compute_index_rel (earlyparsed_relation_ptr rel)
 {
   unsigned int i;
   p_r_values_t r;
@@ -304,8 +299,7 @@ compute_index_rel (earlyparsed_relation_ptr rel, allbad_info_t info)
   {
     if (pr[i].e > 0)
     {
-      if (pr[i].side != renumber_tab->rat)
-      {
+      if (pr[i].side != renumber_table_get_rational_side(renumber_tab)) {
 #if DEBUG >= 1
   // Check for this bug : [#15897] [las] output "ideals" that are not prime
         if (!modul_isprime(&(pr[i].p)))
@@ -322,39 +316,42 @@ compute_index_rel (earlyparsed_relation_ptr rel, allbad_info_t info)
       else
         r = 0; // on the rational side we need not compute r, which is m mod p.
       
-      int nb; //number of ideals above the bad ideal
-      index_t first_index; // first index of the ideals above a bad ideal
-      if (pr[i].p <= renumber_tab->bad_ideals.max_p
-          && renumber_is_bad (&nb, &first_index, renumber_tab, pr[i].p, r,
-                                                                    pr[i].side))
-      {
-        int exp_above[RENUMBER_MAX_ABOVE_BADIDEALS] = {0,};
-        handle_bad_ideals (exp_above, rel->a, rel->b, pr[i].p, pr[i].e,
-                           pr[i].side, info);
-        
+      p_r_values_t p = pr[i].p;
+      int side = pr[i].side;
+      if (renumber_table_p_r_side_is_bad(renumber_tab, NULL, p, r, side)) {
+        index_t first_index;
+        size_t nexps = renumber_table_get_poly_deg(renumber_tab, side);
+        int * exps = malloc(nexps * sizeof(int));
+        renumber_table_indices_from_p_a_b(renumber_tab, &first_index, exps, &nexps, p, r, side, pr[i].e, rel->a, rel->b);
+
         /* allocate room for (nb) more valuations */
-        if (rel->nb + nb - 1 > rel->nb_alloc)
-        {
+        for( ; rel->nb + nexps - 1 > rel->nb_alloc ; ) {
            realloc_buffer_primes(rel);
            pr = rel->primes;
         }
-
         /* the first is put in place, while the other are put at the end
          * of the relation. As a side-effect, the relations produced are
          * unsorted. Anyway, given that we're mixing sides when
          * renumbering, we're bound to do sorting downhill. */
         pr[i].h = first_index;
-        pr[i].e = exp_above[0];
-        for (int n = 1; n < nb; n++)
-        {
-          pr[rel->nb].h = first_index + n;
-          pr[rel->nb].e = exp_above[n];
-          rel->nb++;
+        pr[i].e = exps[0];
+
+        for (size_t n = 1; n < nexps ; n++) {
+            pr[rel->nb].h = first_index + n;
+            pr[rel->nb].e = exps[n];
+            if (!is_for_dl) { /* Do we reduce mod 2 */
+                pr[rel->nb].e &= 1;
+            }
+            rel->nb++;
         }
+        free(exps);
+      } else {
+        pr[i].h = renumber_table_index_from_p_r(renumber_tab, pr[i].p, r, pr[i].side);
       }
-      else
-        pr[i].h = renumber_get_index_from_p_r(renumber_tab, pr[i].p, r,
-                                              pr[i].side);
+    }
+    if (!is_for_dl) { /* Do we reduce mod 2 */
+        /* XXX should we compress as well ? */
+        pr[i].e &= 1;
     }
   }
 }
@@ -472,15 +469,16 @@ thread_dup2 (void * context_data, earlyparsed_relation_ptr rel)
 
 
 void *
-thread_root(void * context_data, earlyparsed_relation_ptr rel)
+thread_root(void * p MAYBE_UNUSED, earlyparsed_relation_ptr rel)
 {
-    if (!is_for_dl) { /* Do we reduce mod 2 */
-        /* XXX should we compress as well ? */
-        for (unsigned int i = 0; i < rel->nb; i++)
-            rel->primes[i].e &= 1;
-    }
-
-    compute_index_rel (rel, context_data);
+    /* We used to reduce exponents here. However, it's not a good idea if
+     * we want to get the valuations at bad ideals.
+     * (maybe we could reduce exponents for primes which we know are
+     * above the bad ideal bound...).
+     *
+     * Anyway. Reduction is now done at the _end_ of compute_index_rel.
+     */
+    compute_index_rel (rel);
 
     return NULL;
 }
@@ -546,6 +544,7 @@ int check_whether_file_is_renumbered(const char * filename, unsigned int npoly)
 
 static void declare_usage(param_list pl)
 {
+  param_list_decl_usage(pl, "poly", "input polynomial file");
   param_list_decl_usage(pl, "filelist", "file containing a list of input files");
   param_list_decl_usage(pl, "basepath", "path added to all file in filelist");
   param_list_decl_usage(pl, "renumber", "input file for renumbering table");
@@ -555,7 +554,6 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "outfmt",
                                "format of output file (default same as input)");
   param_list_decl_usage(pl, "dl", "do not reduce exponents modulo 2");
-  param_list_decl_usage(pl, "badidealinfo", "file containing info about bad ideals");
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "t", "number of threads for roots mod p (default 4)");
@@ -575,7 +573,11 @@ main (int argc, char *argv[])
     argv0 = argv[0];
 
     param_list pl;
+    cado_poly cpoly;
+
     param_list_init(pl);
+    cado_poly_init(cpoly);
+
     declare_usage(pl);
     argv++,argc--;
 
@@ -604,12 +606,12 @@ main (int argc, char *argv[])
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 
+    const char * polyfilename = param_list_lookup_string(pl, "poly");
     const char * outfmt = param_list_lookup_string(pl, "outfmt");
     const char * filelist = param_list_lookup_string(pl, "filelist");
     const char * basepath = param_list_lookup_string(pl, "basepath");
     const char * outdir = param_list_lookup_string(pl, "outdir");
     const char * renumberfilename = param_list_lookup_string(pl, "renumber");
-    const char * badidealinfofile = param_list_lookup_string(pl, "badidealinfo");
     const char * path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
     param_list_parse_ulong(pl, "nrels", &nrels_expected);
     param_list_parse_int(pl, "t", &nthreads_for_roots);
@@ -620,13 +622,14 @@ main (int argc, char *argv[])
       usage(pl, argv0);
     }
 
+    if (polyfilename == NULL || ! cado_poly_read(cpoly, polyfilename))
+    {
+      fprintf (stderr, "Error, missing -poly command line argument\n");
+      usage(pl, argv0);
+    }
     if (renumberfilename == NULL)
     {
       fprintf (stderr, "Error, missing -renumber command line argument\n");
-      usage(pl, argv0);
-    }
-    if (badidealinfofile == NULL && is_for_dl) {
-      fprintf (stderr, "Error, missing -badidealinfo command line argument\n");
       usage(pl, argv0);
     }
     if (nrels_expected == 0)
@@ -652,14 +655,10 @@ main (int argc, char *argv[])
       usage(pl, argv0);
     }
 
-    allbad_info_t badidealinfo;
-    if (is_for_dl)
-        read_bad_ideals_info(badidealinfofile, badidealinfo);
-
     set_antebuffer_path (argv0, path_antebuffer);
 
-    renumber_init_for_reading (renumber_tab);
-    renumber_read_table (renumber_tab, renumberfilename);
+    renumber_table_init(renumber_tab, cpoly);
+    renumber_table_read_from_file(renumber_tab, renumberfilename);
 
   /* sanity check: since we allocate two 64-bit words for each, instead of
      one 32-bit word for the hash table, taking K/100 will use 2.5% extra
@@ -701,8 +700,8 @@ main (int argc, char *argv[])
       for (char ** p = files; *p; p++)
           nb_files++;
 
-      files_already_renumbered = malloc((nb_files + 1) * sizeof(char*));
-      files_new = malloc((nb_files + 1) * sizeof(char*));
+      files_already_renumbered = (char **) malloc((nb_files + 1) * sizeof(char*));
+      files_new = (char **) malloc((nb_files + 1) * sizeof(char*));
 
       /* separate already processed files
        * check if f_tmp is in raw format a,b:...:... or 
@@ -713,7 +712,7 @@ main (int argc, char *argv[])
       for (char ** p = files; *p; p++) {
           /* always strdup these, so that we can safely call
            * filelist_clear in the end */
-          if (check_whether_file_is_renumbered(*p, renumber_tab->nb_polys)) {
+          if (check_whether_file_is_renumbered(*p, renumber_table_get_nb_polys(renumber_tab))) {
               files_already_renumbered[nb_f_renumbered++] = strdup(*p);
           } else {
               files_new[nb_f_new++] = strdup(*p);
@@ -740,10 +739,8 @@ main (int argc, char *argv[])
       struct filter_rels_description desc[3] = {
           { .f = thread_root, .arg=0, .n=nthreads_for_roots, },
           { .f = thread_dup2, .arg=0, .n=1, },
-          { .f = NULL, },
+          { .f = NULL, .arg=0, .n=1, },
       };
-      if (is_for_dl)
-          desc[0].arg = (void *) &badidealinfo[0];
       fprintf (stderr, "Reading new files"
               " (using %d auxiliary threads for roots mod p):\n",
               desc[0].n);
@@ -808,15 +805,14 @@ main (int argc, char *argv[])
       }
   }
 
-  if (is_for_dl)
-      free(badidealinfo->badid_info);
+  renumber_table_clear(renumber_tab);
   free (H);
   free (sanity_a);
   free (sanity_b);
   filelist_clear(files_already_renumbered);
   filelist_clear(files_new);
-
+  cado_poly_clear(cpoly);
   param_list_clear(pl);
-  renumber_clear (renumber_tab);
+
   return 0;
 }

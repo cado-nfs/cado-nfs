@@ -1,14 +1,12 @@
-#include "cado.h"
-#include "macros.h"
-#include <stdarg.h>
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
-#include <vector>
+#include <iosfwd>     // for std
+#include <utility>    // for pair, make_pair
 #include <map>
 #include <algorithm>
+#include <gmp.h>
 #include "mpz_mat.h"
-#include "tests_common.h"
 
 using namespace std;
 

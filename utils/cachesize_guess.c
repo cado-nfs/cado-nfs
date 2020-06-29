@@ -1,12 +1,11 @@
 /* program to determine the size of the L1 cache */
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
-#include "utils.h"
-#include "portability.h"
+#include "timing.h"     // microseconds
 
 /* we assume the L1 cache has size 2^k */
 #define L1_NUM 11

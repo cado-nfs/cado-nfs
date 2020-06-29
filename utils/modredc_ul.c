@@ -1,7 +1,8 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include "modredc_ul.h"
-#include "modredc_ul_default.h"
+#include "modredc_ul_default.h" // IWYU pragma: keep
 #include "mod_ul_common.c"
+#include "macros.h"
 
 int
 modredcul_inv (residueredcul_t r, const residueredcul_t A,
@@ -119,9 +120,6 @@ modredcul_inv (residueredcul_t r, const residueredcul_t A,
   return 1;
 }
 
-
-// #undef ASSERT_EXPENSIVE
-// #define ASSERT_EXPENSIVE ASSERT
 
 /* same as modredcul_inv, but for classical representation (not Montgomery) */
 int

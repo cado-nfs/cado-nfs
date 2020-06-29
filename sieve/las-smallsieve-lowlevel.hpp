@@ -1,7 +1,9 @@
+#include <stdlib.h>
 #ifndef LAS_SMALLSIEVE_LOWLEVEL_HPP_
 #define LAS_SMALLSIEVE_LOWLEVEL_HPP_
 
 #include "las-config.h"
+#include "macros.h"
 
 /* About row0_is_oddj: in order to check whether a j coordinate is even,
  * we need to take into account the bucket number, especially in case
@@ -372,10 +374,10 @@
 #define INTERMEDIARY_FOBJ()       do {} while (0)
 #else
 #define INTERMEDIARY_FOBJ() do {					\
-            if (trace_on_range_Nx(w.N, x0 + pos, x0 + S1 - S0)) {	\
+            if (trace_on_range_Nx(w->N, x0 + pos, x0 + S1 - S0)) {	\
                 if ((trace_Nx.x - x0 - pos) % p_or_2p == 0) {           \
                     WHERE_AM_I_UPDATE(w, x, trace_Nx.x);		\
-                    sieve_increase_logging(S0 + w.x - x0, logp, w);	\
+                    sieve_increase_logging(S0 + w->x - x0, logp, w);	\
                 }							\
             }								\
 } while (0)

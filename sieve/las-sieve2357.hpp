@@ -1,18 +1,25 @@
 #ifndef LAS_SIEVE2357_HPP
 #define LAS_SIEVE2357_HPP
 
-#ifdef HAVE_SSSE3
-#include "tmmintrin.h"
+#include "cado_config.h"  // for HAVE_AVX2, HAVE_SSSE3
+
+#include <cstddef>       // for size_t
+#include <cstdint>       // for uint8_t
+#ifdef HAVE_SSE2
+/* The base type that we'll use is good ol sse2 __m128i, but we need
+ * SSSE3 instructions to deal with them in the .cpp file */
+#include <emmintrin.h>  // IWYU pragma: keep
 #endif
 #ifdef HAVE_AVX2
-#include "immintrin.h"
+#include <immintrin.h>
 #endif
 #ifdef HAVE_ARM_NEON
 #include <arm_neon.h>
 #endif
 
-#include "las-smallsieve-types.hpp"
-#include "las-debug.hpp"
+#include "fb-types.h"     // for fbprime_t
+struct where_am_I;
+
 
 class sieve2357base {
 public:

@@ -4,16 +4,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <assert.h>
 #include <string.h>
 #include <sys/types.h> 
 #include <sys/resource.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <sys/time.h>
 #include <gmp.h>
 
 #include "smooth_detect.h"
+#include "macros.h"
+#include "portability.h"
 
 /*
  * Look for a bi-smooth pair among a set of pre-sieved pairs.
@@ -40,24 +42,24 @@ typedef struct {
 int next_cand_sieved_pair(cand_t cand, void *params) {
   sieved_params *param = (sieved_params *)params;
   int ret = pthread_mutex_lock(&param->mutex);
-  assert(ret == 0);
+  ASSERT(ret == 0);
   unsigned long id;
   mpz_t u, v, u0;
   mpz_init(u);
   mpz_init(v);
   // skip commented lines
   int c = fgetc(param->file);
-  assert (c != EOF);
+  ASSERT (c != EOF);
   while (c == '#') {
     char str[2048];
     fgets(str, 2048, param->file);
     c = fgetc(param->file);
-    assert (c != EOF);
+    ASSERT (c != EOF);
   }
   ungetc(c, param->file);
   // read the line
   ret = gmp_fscanf(param->file, "%*Zd %lu %Zd %Zd %*Zd\n", &id, u, v);
-  assert (ret == 3);
+  ASSERT (ret == 3);
   mpz_init_set_ui(u0, 1);
   mpz_mul_2exp(u0, u0, 512);
   cand_set_presieved_values(cand, u0, u0, u, v, 0, 0, id);
@@ -163,7 +165,7 @@ int main(int argc, char **argv) {
   pthread_t *thid = malloc(nthread*sizeof(pthread_t));
   for (unsigned int i = 0; i < nthread; ++i) {
     int ret = pthread_create(&thid[i], NULL, process_one_thread, thparam);
-    assert(ret == 0);
+    ASSERT(ret == 0);
   }
   
   while (1) {

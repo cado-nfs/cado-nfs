@@ -7,18 +7,25 @@
    and add the new Murphy-E value at the end of each file.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 /* The following avoids to put #ifdef HAVE_OPENMP ... #endif around each
-   OpenMP pragma. It should come after cado.h, which sets -Werror=all. */
+   OpenMP pragma. It should come after cado.h, which sets -Werror=all.
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
-#include "utils.h"
+ *
+ * unfortunately, while it looks like a reasonable thing to do in theory,
+ * it's gcc specific. We can't expect such a thing to work with other
+ * compilers.
+ */
+#include <stdio.h>      // FILE
+#include <stdlib.h>     // exit ...
 #include "murphyE.h"
+#include "cado_poly.h"
 #include "auxiliary.h"
-#ifdef HAVE_OPENMP
-#include "omp.h"
-#endif
+#include "params.h"
+#include "omp_proxy.h"
+#include "verbose.h"             // verbose_output_print
 
 static void
 declare_usage (param_list pl)
@@ -102,7 +109,9 @@ main (int argc, char *argv[])
       exit (EXIT_FAILURE);
    }
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
   for (int i = 0; i < num; i++)
     {
       cado_poly cpoly;
@@ -117,7 +126,7 @@ main (int argc, char *argv[])
           exit (EXIT_FAILURE);
         }
 
-      double e = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, 10 * ALPHA_BOUND);
+      double e = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, 10 * get_alpha_bound ());
       fp = fopen (s, "a");
       fprintf (fp, "# MurphyF (Bf=%.3e,Bg=%.3e,area=%.3e) = %.3e\n",
                Bf, Bg, area, e);

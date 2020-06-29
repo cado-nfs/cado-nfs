@@ -1,11 +1,12 @@
 #ifndef CADO_POLY_H_
 #define CADO_POLY_H_
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <stdio.h>      // FILE
 #include <gmp.h>
 
+#ifdef __cplusplus
 #include "params.h"
+#endif
 #include "mpz_poly.h"
 
 /* The maximum degree of polynomials supported. Used for statically 
@@ -58,10 +59,10 @@ extern void cado_poly_clear (cado_poly_ptr);
 // that is given instead of m.
 // The return value tells whether it worked (and then m is the common
 // root) or it failed (and then m is a factor of N).
-extern int cado_poly_getm(mpz_ptr, cado_poly_ptr, mpz_ptr);
+extern int cado_poly_getm(mpz_ptr, cado_poly_srcptr, mpz_ptr);
 
 /* Return the rational side or -1 if two algebraic side */
-extern int cado_poly_get_ratside (cado_poly_ptr);
+extern int cado_poly_get_ratside (cado_poly_srcptr);
 
 #ifdef __cplusplus
 }

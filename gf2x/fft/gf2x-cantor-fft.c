@@ -51,6 +51,7 @@
 #define xxxCANTOR_GM_TRUNCATE   /* Use truncated variant */
 
 #include "mpfq/mpfq_name_K.h"
+#include "macros.h"
 
 /* It's a placeholder, really. After macro expansion, nobody really uses
  * this */

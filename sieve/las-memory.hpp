@@ -1,13 +1,15 @@
 #ifndef LAS_MEMORY_HPP_
 #define LAS_MEMORY_HPP_
 
-#include <set>
-#include <list>
-#include <stack>
-#include <map>
-#include "macros.h"
-#include "las-config.h"
-#include "lock_guarded_container.hpp"
+#include <stddef.h>                    // for size_t
+#include <list>                        // for list
+#include <map>                         // for map
+#include <set>                         // for set
+#include <stack>                       // for stack
+#include "macros.h"                    // for ATTR_ASSUME_ALIGNED
+#include "las-config.h"                // for BUCKET_REGION, MEMSET_MIN
+#include "lock_guarded_container.hpp"  // for lock_guarded_container
+
 
 /* This structure is shared by threads that have the same memory binding.
  * It is in charge of providing momory-bound zones, e.g. for buckets, or

@@ -2,24 +2,27 @@
    factors are unsigned long. Returns number of factors found, 
    or -1 in case of error. */
 
-#include "cado.h"
-#include <stdint.h>	/* AIX wants it first (it's a bug) */
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <math.h>
-#include <regex.h>
-#include <vector>
-#include <algorithm>
+#include "cado.h" // IWYU pragma: keep
 
-#include "utils.h"      /* verbose_ stuff */
-#include "portability.h"
-#include "pm1.h"
-#include "pp1.h"
-#include "facul_ecm.h"
+#include <gmp.h>       // for mpz_cmp_ui, mpz_sgn, mpz_cmp, mpz_sizeinbase
+#include <cmath>       // for ldexp, sqrt
+#include <regex.h>      // for regmatch_t, regcomp, regexec, regfree, REG_EX...
+#include <cstdio>      // for NULL, fprintf, size_t, FILE, fgets, fseek
+#include <cstdlib>     // for malloc, free, atoi, calloc
+#include <cstring>     // for strcmp, strlen, strncpy
+#include <algorithm>    // for sort
+#include <vector>       // for vector<>::iterator, vector
+
+#include "cxx_mpz.hpp"
 #include "facul.hpp"
-#include "facul_doit.hpp"
-#include "modset.hpp"
+#include "facul_ecm.h"  // for ecm_plan_t, ecm_make_plan, ecm_clear_plan
+#include "macros.h"     // for ASSERT_ALWAYS, ASSERT, MAYBE_UNUSED
+#include "mod_mpz.h"    // for MODMPZ_MAXBITS
+#include "modset.hpp"   // for FaculModulusBase
+#include "pm1.h"        // for pm1_plan_t, pm1_clear_plan, pm1_make_plan
+#include "pp1.h"        // for pp1_plan_t, pp1_clear_plan, pp1_make_plan
+#include "stage2.h"     // for stage2_plan_t
+#include "verbose.h"             // verbose_output_print
 
 //#define USE_LEGACY_DEFAULT_STRATEGY 1
 
@@ -438,7 +441,7 @@ return_data_ex (char** res, regmatch_t *pmatch, size_t nmatch,
 	    {
 	      int size = end-start;
 	      char* el = (char*) malloc (size+1);
-	      assert (el != NULL);
+	      ASSERT (el != NULL);
 	      strncpy (el, &str_process[start], size);
 	      el[size] = '\0';
 	      res[i-1] = el;

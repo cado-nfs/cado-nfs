@@ -1,7 +1,5 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
-#include <stdio.h>
-#include <gmp.h>
 #include "tests_common.h"
 #include "getprime.h"
 #include "modredc_2ul2.h"

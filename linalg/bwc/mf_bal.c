@@ -1,22 +1,27 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <inttypes.h>
-#include <float.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <errno.h>
 #include <math.h>
-#include "portability.h"
-#include "utils.h"
+#include <limits.h>
+#include <sys/time.h>
 #include "mf.h"
+#include "mod_ul.h"
 #include "balancing.h"
 #include "rowset_heap.h"
 #include "cheating_vec_init.h"
 #include "mf_bal.h"
+#include "portability.h" // strdup // IWYU pragma: keep
+#include "timing.h"     // wct_seconds
+#include "fix-endianness.h" // fread32_little
+#include "macros.h"
+#include "params.h"
 
 typedef int (*sortfunc_t) (const void *, const void *);
 
@@ -130,7 +135,7 @@ struct slice * shuffle_rtable(
     for(i = 0 ; i < n ; i++) {
         int j = heap[0].i;
         int pos = slices[j].nrows-heap[0].room;
-        assert(heap[0].room);
+        ASSERT(heap[0].room);
         slices[j].r[pos] = rt[2*i+1];
         heap[0].s += rt[2*i];
         heap[0].room--;
@@ -146,7 +151,7 @@ struct slice * shuffle_rtable(
 
     for(i = 0 ; i < ns ; i++) {
         int j = heap[i].i;
-        assert(heap[i].i == (int) i);
+        ASSERT(heap[i].i == (int) i);
         printf("%s slice %d, span=%ld, weight=%ld\n",
                 text,
                 i, slices[j].nrows - heap[i].room,

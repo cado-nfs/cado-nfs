@@ -7,24 +7,24 @@
 #ifndef LINGEN_MAT_TYPES_HPP_
 #define LINGEN_MAT_TYPES_HPP_
 
-#include <stdint.h>
-#include <inttypes.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdint>
+#include <cinttypes>
+#include <cstdlib>
+#include <cstring>
 #include <gmp.h>
 
 #include <algorithm>
-#ifdef  HAVE_OPENMP
-#include <omp.h>
+#include <stdio.h>
+#include <limits.h>
+#include <sys/time.h>
+#include "omp_proxy.h"
 #define OMP_ROUND(k) ((k) % omp_get_num_threads() == omp_get_thread_num())
-#else
-#define OMP_ROUND(k) (1)
-#endif
-
 #include "bwc_config.h"
 #include "alloc_proxy.h"
-#include "utils.h"
 #include "gf2x-fft.h"
+#include "misc.h"
+#include "crc.h"        // cado_crc_lfsr
+#include "macros.h"
 
 /* Number of words holding B bits ; better naming sought. */
 #define BITS_TO_WORDS(B,W)      iceildiv((B),(W))

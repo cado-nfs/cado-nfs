@@ -1,13 +1,15 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <cstdio>
-#include "bwc_config.h"
+#include <cstdlib>
+#include <cstdint>              // for uint32_t
+#include <string>                // for string, operator+
+#include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
+#include "matmul.h"              // for matmul_public_s
 #include "parallelizing_info.h"
 #include "matmul_top.h"
 #include "select_mpi.h"
 #include "params.h"
 #include "xvectors.h"
-#include "portability.h"
-#include "misc.h"
 #include "bw-common.h"
 #include "async.h"
 #include "xdotprod.h"
@@ -15,8 +17,10 @@
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
 #include "cheating_vec_init.h"
-#include "fmt/printf.h"
+#include "fmt/core.h"            // for check_format_string
+#include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
 #include "fmt/format.h"
+#include "macros.h"
 using namespace fmt::literals;
 
 void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)

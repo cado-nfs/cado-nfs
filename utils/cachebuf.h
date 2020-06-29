@@ -1,6 +1,8 @@
 #ifndef CACHEBUF_H_
 #define CACHEBUF_H_
 
+// pragma no prototypes
+
 #ifdef HAVE_SSE2
 
 #include <stdlib.h>

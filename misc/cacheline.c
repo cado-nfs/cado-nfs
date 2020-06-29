@@ -18,6 +18,7 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "portability.h"
               
 /*
   http://www.mjmwired.net/kernel/Documentation/vm/pagemap.txt

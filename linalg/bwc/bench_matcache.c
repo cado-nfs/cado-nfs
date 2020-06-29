@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 
 /* This program is the simplest interface to the bare matrix
  * multiplication routine. It's meant to provide an easy way of benching,
@@ -10,24 +10,29 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>             // for uint64_t
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
 #include <limits.h>
 #include <inttypes.h>
-#include <unistd.h>
 #include <string.h>
-#include "bwc_config.h"
-#include "matmul.h"
-#include "portability.h"
+#include <sys/time.h>
+#include <pthread.h>            // for pthread_mutex_lock, pthread_mutex_unlock
+#include <gmp.h>
+
+#include "raw_matrix_u32.h"     // for matrix_u32
+#include "cheating_vec_init.h"
+#include "crc.h"        // cado_crc_lfsr
 #include "macros.h"
-#include "params.h"
-#include "worker-threads.h"
-#include "utils.h"
+#include "matmul-mf.h"
+#include "matmul.h"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
-#include "matmul-mf.h"
-#include "cheating_vec_init.h"
+#include "params.h"
+#include "portability.h" // asprintf // IWYU pragma: keep
+#include "version_info.h" // cado_revision_string
+#include "worker-threads.h"
 
 void usage()
 {

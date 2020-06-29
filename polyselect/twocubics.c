@@ -1,3 +1,4 @@
+#include <gmp.h>
 /*
   Polynomial selection using Kleinjung's algorithm (cf slides presented
   at the CADO Workshop in October 2008, Nancy, France).
@@ -14,11 +15,23 @@
 
 #define EMIT_ADDRESSABLE_shash_add
 
-#include "cado.h"
-#include "twocubics.h"
-#include "portability.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <pthread.h>
+#include <float.h>      // DBL_MAX
+#include <math.h> // pow
 #include "mpz_poly.h"
 #include "area.h"
+#include "polyselect_str.h"
+#include "polyselect_arith.h"
+#include "modredc_ul.h"
+#include "mpz_vector.h"
+#include "roots_mod.h"  // roots_mod_uint64
+#include "timing.h"     // milliseconds
+#include "verbose.h"    // verbose_decl_usage
+#include "auxiliary.h"  // DEFAULT_INCR
 
 #define TARGET_TIME 10000000 /* print stats every TARGET_TIME milliseconds */
 #define NEW_ROOTSIEVE
@@ -28,6 +41,8 @@
 
 #ifdef NEW_ROOTSIEVE
 #include "ropt.h"
+#include "macros.h"
+#include "params.h"
 #endif
 
 #ifdef PREFIX_HASH
@@ -693,7 +708,7 @@ collision_on_each_sq ( header_t header,
 #undef INSERT_2I
 #undef INSERT_I
 
-  for (i = 0; i < SHASH_NBUCKETS; i++) assert (H->current[i] <= H->base[i+1]);
+  for (i = 0; i < SHASH_NBUCKETS; i++) ASSERT (H->current[i] <= H->base[i+1]);
 
   found = shash_find_collision (H);
   shash_clear (H);

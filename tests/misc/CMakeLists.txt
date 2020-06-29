@@ -11,3 +11,34 @@ cado_define_test(descent_init_Fp_jl
     -seed 42 701173953068971112417987441927 128476523876523762325
     TARGET_DEPENDENCIES descent_init_Fp)
 endif()
+
+# test renumber
+cado_define_test(test_renumber_on_the_fly_mnfsdl
+    PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
+    -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.data/mnfs5.poly
+    -lpbs 11,10,10,10,10
+    -lcideals -check -build -quiet
+    TARGET_DEPENDENCIES debug_renumber)
+
+cado_define_test(test_renumber_on_the_fly_snfs
+    PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
+    -poly ${PROJECT_SOURCE_DIR}/parameters/polynomials/F9.poly
+    -lpbs 10,10
+    -check -build -quiet
+    TARGET_DEPENDENCIES debug_renumber)
+
+cado_define_test(test_renumber_on_the_fly_gnfs
+    PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
+    -poly ${PROJECT_SOURCE_DIR}/parameters/polynomials/rsa768.poly
+    -lpbs 10,10
+    -check -build -quiet
+    TARGET_DEPENDENCIES debug_renumber)
+
+# keep a file that is saved by freerel and read by debug_renumber.
+cado_define_test(test_renumber_file
+   SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.sh
+    ${CADO_NFS_BINARY_DIR} 
+    PRECOMMAND
+    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+    TARGET_DEPENDENCIES freerel debug_renumber)
+

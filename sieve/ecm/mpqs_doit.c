@@ -27,20 +27,23 @@
 /* number of small primes we skip (should be >= 1 since we always skip 2) */
 #define SKIP 10
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
-#include <sys/types.h>
 #include <float.h> /* for DBL_MAX */
-#include "gmp.h"
+#include <gmp.h>
+#include <limits.h> // ULONG_MAX
 #include "timing.h"
 #include "macros.h"
+#include "mod_ul.h"
 #include "mod_ul_default.h"
 #include "modredc_ul.h"
+#include "mpqs_doit.h"
 #include "gmp_aux.h"
+#include "ularith.h"
 
 #if 1
 /* Allows disabling static for profiling */
@@ -1081,7 +1084,7 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
       maxnorm1 = Nd / ad;
       maxnorm = ad * (double) M * (double) M - maxnorm1;
       maxnorm = (maxnorm > maxnorm1) ? maxnorm : maxnorm1;
-      assert(log(maxnorm) * inv_logradix < 256.);
+      ASSERT(log(maxnorm) * inv_logradix < 256.);
 #ifdef TRACE
       printf ("radix=%f logradix=%f\n", radix, 1. / inv_logradix);
 #endif
@@ -1102,7 +1105,7 @@ mpqs_doit (mpz_t f, const mpz_t N0, int verbose)
         skip_value += SKIP_FACTOR * 2.0 * log ((double) F[j].p)
           / (double) (F[j].p - 1);
 
-      assert(FLT_RADIX == 2);
+      ASSERT(FLT_RADIX == 2);
       const double N_div_a2 = Nd / (ad * ad);
       const double to_add = (log((double) ad) - skip_value) * inv_logradix;
       const double sqrt2 = sqrt(2.);

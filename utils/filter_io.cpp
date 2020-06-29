@@ -1,19 +1,25 @@
-#include "cado.h"
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <pthread.h>
-#include <errno.h>
-#include <sys/types.h>
-#ifdef HAVE_WAIT_H
-#include <sys/wait.h>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
+#include <cerrno>                     // for errno
+#include <climits>                    // for INT_MAX
+#include <cstdio>                     // for fprintf, stderr, stdout, FILE
+#include <cstdlib>                    // for abort, malloc, realloc, free
+#include <cstring>                    // for memset, memcpy, strcmp, strerror
+#ifdef  HAVE_GETRUSAGE
+#include <sys/resource.h>              // for rusage // IWYU pragma: keep
 #endif
-          
-#include "portability.h"
-#include "utils_with_io.h"
-#include "ringbuf.h"
-#include "barrier.h"
+#include <pthread.h>                   // for pthread_cond_broadcast, pthrea...
+#include <sys/types.h>                 // for int8_t ssize_t
+#include <gmp.h>
+#include "barrier.h"                   // for barrier_destroy, barrier_init
+#include "cado_popen.h"                // for cado_pclose2, cado_popen
+#include "filter_io.h"
+#include "gzip.h"                      // prepare_grouped_command_lines
+#include "macros.h"                    // for ASSERT_ALWAYS, ASSERT, UNLIKELY
+#include "misc.h"                      // filelist_clear
+#include "ringbuf.h"                   // for ringbuf_s, ringbuf_ptr, RINGBU...
+#include "stats.h"                     // stats_data_t
+#include "portability.h" // sleep // IWYU pragma: keep
 
 /* This is a configuration variable which may be set by the caller (it's
  * possible to bind it to a command-line argument)

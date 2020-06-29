@@ -37,6 +37,7 @@ cado_define_test(test_mpz_poly_bivariate.c LIBRARIES utils)
 cado_define_test(test_smallset.cpp LIBRARIES)
 cado_define_test(test_mpz_mat.c LIBRARIES utils)
 cado_define_test(test_gpf.c LIBRARIES utils)
+cado_define_test(test-sort.cpp ARGUMENTS --log-bigsize 14 --max-span 128)
 cado_define_test(test_u64arith.cpp LIBRARIES tests)
 cado_define_test(test_mod.cpp LIBRARIES utils tests)
 cado_define_test(test_modint.cpp LIBRARIES utils tests)
@@ -46,3 +47,24 @@ if(HAVE_GLIBC_VECTOR_INTERNALS)
     )
 endif()
 cado_define_test(test_sha1.c LIBRARIES utils ARGUMENTS --test)
+cado_define_test(test_fstream_maybe_compressed.cpp LIBRARIES utils
+    NO_DEFAULT_RUN
+    PRECOMMAND "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --arg --wdir)
+cado_divert_test(test_fstream_maybe_compressed gz ARGUMENTS test.gz)
+cado_divert_test(test_fstream_maybe_compressed bz2 ARGUMENTS test.bz2)
+cado_divert_test(test_fstream_maybe_compressed none ARGUMENTS test)
+
+cado_define_test(
+    SCRIPT
+        ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/test-badideals.sh --binary
+        ${CADO_NFS_BINARY_DIR}/utils/badideals
+        ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.small-example
+        ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.rsa220
+        ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.p1024
+    PRECOMMAND
+        ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir --
+    TARGET_DEPENDENCIES
+        badideals
+    )
+
+add_subdirectory(numbertheory)

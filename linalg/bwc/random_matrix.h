@@ -1,10 +1,10 @@
 #ifndef RANDOM_MATRIX_H_
 #define RANDOM_MATRIX_H_
 
-#include <stdio.h>
 #include "parallelizing_info.h"
 #include "raw_matrix_u32.h"
 #include "balancing.h"
+#include "params.h"
 
 #ifdef __cplusplus
 extern "C" {

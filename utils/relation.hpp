@@ -5,11 +5,13 @@
 #error "This is C++-only"
 #endif
 
-#include <stdint.h>
-#include <stdio.h>
+#include <algorithm> // max
+#include <cstdint>
+#include <cstdio>
 #include <vector>
-#include <istream>
-#include <ostream>
+#include <istream> // std::istream // IWYU pragma: keep
+#include <ostream> // std::ostream // IWYU pragma: keep
+#include <gmp.h>      // mpz_srcptr
 
 #include "cado_poly.h"
 #include "gmp_aux.h"

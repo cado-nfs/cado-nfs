@@ -1,12 +1,15 @@
-#include "cado.h"
-#include <cstdio>
-#include <cstdarg>
-#include <gmp.h>
+#include "cado.h" // IWYU pragma: keep
+
+#include <climits>           // for ULONG_MAX
+#include <cmath>             // for log2
+#include <cstdio>             // for fprintf, NULL, stderr
+#include <cstdlib>           // for abort, exit, EXIT_FAILURE
+#include <gmp.h>              // for GMP_LIMB_BITS, gmp_randclear, gmp_randi...
+#include "ecm/batch.hpp"          // for cofac_list
 #include "las-info.hpp"
-#include "las-config.h"
-#include "las-norms.hpp"
-#include "misc.h"
-#include "memusage.h"
+#include "las-todo-list.hpp"  // for las_todo_list
+#include "macros.h"           // for ASSERT_ALWAYS
+#include "params.h"
 
 /* las_info stuff */
 
@@ -29,9 +32,7 @@ void las_info::declare_usage(cxx_param_list & pl)
     cxx_cado_poly::declare_usage(pl);
     siever_config_pool::declare_usage(pl);
     sieve_shared_data::declare_usage(pl);
-#ifdef  DLP_DESCENT
     las_dlog_base::declare_usage(pl);
-#endif
     cofactorization_statistics::declare_usage(pl);
 
 
@@ -130,9 +131,7 @@ las_info::las_info(cxx_param_list & pl)
 #else
       shared_structure_private(cpoly, pl),
 #endif
-#ifdef  DLP_DESCENT
-      dlog_base(pl),
-#endif
+      dlog_base(cpoly, pl),
       cofac_stats(pl)
       /*{{{*/
 {
@@ -165,9 +164,7 @@ las_info::las_info(cxx_param_list & pl)
     }
 
     // ----- stuff roughly related to the descent {{{
-#ifdef  DLP_DESCENT
     descent_helper = NULL;
-#endif
     // }}}
 
     /* {{{ duplicate suppression */

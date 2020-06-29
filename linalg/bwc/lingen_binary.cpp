@@ -1,48 +1,40 @@
-#include "cado.h"
-#include <stdint.h>     /* AIX wants it first (it's a bug) */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <inttypes.h> /* for PRIx64 macro and strtoumax */
-#include <cstddef>      /* see https://gcc.gnu.org/gcc-4.9/porting_to.html */
-#include <sys/time.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <errno.h>
-#include <math.h>
-#include <time.h>
-#include <unistd.h>
-#include <list>
-#include <cstdio>
-#include <gmp.h>
-#include <errno.h>
-#include <ctype.h>
-#include <utility>
-#include <vector>
-#include <set>
-#include <iostream>
-#include <fstream>
-#include <functional>
-#include <iomanip>
-#include <sstream>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <memory>
+#include <cerrno>                // for errno
+#include <cinttypes>             // for PRIx32
+#include <climits>               // for UINT_MAX, CHAR_BIT
+#include <cstddef>               // for size_t, ptrdiff_t
+#include <cstdio>                // for printf, fprintf, FILE, stderr, fclose
+#include <cstdlib>               // for exit, free, malloc, EXIT_FAILURE
+#include <cstring>               // for memset, strlen, memcpy, strerror
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#ifdef  HAVE_OPENMP
-#include <omp.h>
-#endif
-#include "bwc_config.h"
-#include "macros.h"
-#include "utils.h"
-#include "bw-common.h"
-#include "tree_stats.hpp"
-#include "logline.h"
+#include <algorithm>             // for copy, max, fill
+#include <iomanip>               // for operator<<, setfill, setw
+#include <iostream>              // for operator<<, basic_ostream, ostringst...
+#include <iterator>              // for iterator_traits
+#include <set>                   // for _Rb_tree_const_iterator, operator!=
+#include <fstream> // ifstream // IWYU pragma: keep
+#include <sstream> // ostringstream // IWYU pragma: keep
+#include <string>                // for char_traits, operator<<, string
+#include <utility>               // for pair, make_pair
+#include <vector>                // for vector
 
-#include "lingen_qcode.h"
+#include <dirent.h>              // for dirent, closedir, opendir, readdir, DIR
+#include <sys/stat.h>            // for stat
+#include <unistd.h>              // for ssize_t, unlink
 
-#include "gf2x-fft.h"
-#include "lingen_mat_types.hpp"
+#include "bw-common.h"           // for bw, bw_common_clear, bw_common_decl_...
+#include "gf2x-fft.h"            // for gf2x_fake_fft, gf2x_cantor_fft
+#include "lingen_mat_types.hpp"  // for polmat, tpolmat, bcol, bmat, compose...
+#include "lingen_qcode.h"        // for lingen_qcode_clear, lingen_qcode_do
+#include "logline.h"             // for logline_end, logline_begin, logline_...
+#include "macros.h"              // for ASSERT_ALWAYS, DIE_ERRNO_DIAG, ASSERT
+#include "omp_proxy.h"           // for omp_get_num_threads, omp_set_num_thr...
+#include "params.h"              // for param_list_decl_usage, param_list_pa...
+#include "portability.h"         // for strlcpy
+#include "timing.h"              // for seconds, print_timing_and_memory
+#include "tree_stats.hpp"        // for tree_stats, tree_stats::sentinel
+
 
 /* we need a partial specialization because gf2x_fake_fft does its own
  * allocation within addcompose (for the moment)
@@ -81,7 +73,6 @@ void compose_inner<gf2x_fake_fft, strassen_default_selector>(
 }
 
 /* Provide workalikes of usual interfaces for some ungifted systems */
-#include "portability.h"
 
 /* Name of the source a file */
 char input_file[FILENAME_MAX]={'\0'};

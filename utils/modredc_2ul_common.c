@@ -1,4 +1,5 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <stdio.h>
 /* Routines that are the same for modredc_15ul.c and modredc_2ul2.c */
 
 
@@ -6,6 +7,7 @@
    Assumes that a+3m does not overflow */
 
 #include "mod_common.c"
+#include "macros.h"
 
 int
 mod_div3 (residue_t r, const residue_t a, const modulus_t m)

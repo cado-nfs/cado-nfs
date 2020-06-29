@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include <gmp.h>
-#include "portability.h"
 
 #define PARSE_SEED 1
 #define PARSE_ITER 2

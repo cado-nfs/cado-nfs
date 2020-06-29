@@ -40,6 +40,7 @@
 #include "gf2x.h"
 #include "gf2x/gf2x-impl.h"
 #include "gf2x-ternary-fft.h"
+#include "macros.h"
 
 // #define DEBUG
 // #define DEBUG_LSHIFT

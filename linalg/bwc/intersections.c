@@ -1,5 +1,4 @@
-#include "cado.h"
-#include "bwc_config.h"
+#include "cado.h" // IWYU pragma: keep
 #include "macros.h"
 #include "intersections.h"
 

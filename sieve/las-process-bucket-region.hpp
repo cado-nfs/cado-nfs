@@ -1,15 +1,16 @@
 #ifndef LAS_PROCESS_BUCKET_REGION_HPP_
 #define LAS_PROCESS_BUCKET_REGION_HPP_
 
-#include <stdint.h>
 #include <memory>
-#include <array>
-#include "threadpool.hpp"
-#include "las-threads-work-data.hpp"
-#include "las-auxiliary-data.hpp"
-#include "las-report-stats.hpp"
+#include "las-where-am-i-proxy.hpp"         // for where_am_I
+class nfs_aux;
+class nfs_work;
+class nfs_work_cofac;
+class thread_pool;
+class worker_thread;
 
-extern void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool, int first_region0_index, where_am_I const & w);
+
+/* process_many_bucket_regions is found in las.cpp, currently */
 
 /* {{{ process_one_bucket_region */
 
@@ -39,13 +40,14 @@ struct process_bucket_region_spawn {
             nfs_work & ws,
             std::shared_ptr<nfs_work_cofac> wc_p,
             std::shared_ptr<nfs_aux> aux_p,
-            where_am_I w
-            ) :
-        ws(ws), wc_p(wc_p), aux_p(aux_p), w_saved(w) {}
+            where_am_I const & w)
+    : ws(ws), wc_p(wc_p), aux_p(aux_p), w_saved(w) {}
 
     void operator()(worker_thread * worker, int id);
 };
 
 /*}}}*/
+
+extern void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool, int first_region0_index, where_am_I & w);
 
 #endif	/* LAS_PROCESS_BUCKET_REGION_HPP_ */

@@ -7,23 +7,21 @@
 #ifdef __cplusplus
 #include <string>
 #endif
+#include <gmp.h>                 // for gmp_randstate_t
+struct timing_data;
 
 #include "select_mpi.h"
-#include "intersections.h"
 #include "parallelizing_info.h"
 #include "matmul.h"
 #include "params.h"
 #include "balancing.h"
-#include "misc.h"
 #include "mpfq/mpfq_vbase.h"
-#include "async.h"
 
 // the ``all_v'' field collects all the pointers to the per-thread vector
 // values. There are exactly pi->wr[0]->ncores such pointers in
 // mmt->wr[0]. In some cases, these pointers may be equal (for source
 // vectors, never used as destination), and in some cases not.
 
-struct mmt_vec_s;
 typedef struct mmt_vec_s * mmt_vec_ptr;
 
 struct mmt_vec_s {

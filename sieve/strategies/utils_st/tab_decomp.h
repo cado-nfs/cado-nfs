@@ -1,6 +1,7 @@
 #ifndef TAB_DECOMP
 #define TAB_DECOMP
 
+#include <stdio.h>
 #include "decomp.h"
 
 #ifdef __cplusplus

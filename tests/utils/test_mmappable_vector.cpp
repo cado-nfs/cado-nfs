@@ -1,17 +1,16 @@
-#include "cado.h"
-#include <stdio.h>
-#include <string.h>
+#include "cado.h" // IWYU pragma: keep
+// IWYU pragma: no_include <ext/alloc_traits.h>
+#include <cstdio>
+#include <cstring>
 #include <vector>
-#include <assert.h>
 #include <memory>
+#include <string>
 #include <sstream>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 // #include <sys/time.h>
-#include "utils.h"
+#include "mmap_allocator.hpp"
 #include "mmappable_vector.hpp"
+#include "portability.h" // strdup // IWYU pragma: keep
+#include "macros.h"
 
 /* This is inspired from https://github.com/johannesthoma/mmap_allocator
  * License is LGPL.

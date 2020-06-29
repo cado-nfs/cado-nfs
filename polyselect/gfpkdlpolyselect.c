@@ -11,18 +11,19 @@
  * \version 1: dedicated for GF(p^2).
  */
 
-#include "cado.h"
-#include "auxiliary.h"
-#include "area.h"
-#include "utils.h"
-#include "rootfinder.h"
-#include "portability.h"
-#include "murphyE.h"
-#include "ropt_param.h"
-
+#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
+#include <stdlib.h> // abort free
+#include <math.h>       // log
+#include <gmp.h>
 
+#include "auxiliary.h"
 #include "gfpkdlpolyselect.h"
+#include "gmp_aux.h"
+#include "lll.h"        // mat_Z, LLL
+#include "macros.h"     // ASSERT
+#include "rootfinder.h"
+#include "ropt_param.h"
 
 #include "table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h"
 // contains: fPyphi_poly_t ff4
@@ -836,7 +837,7 @@ fprintf_gfpn_poly_info ( FILE* fp, mpz_poly f, const char *label_poly)
     const double exp_rot[] = {0, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 0}; // ??? copy paste from dlpolyselect.c:26
     skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC); // macro defined in polyselect/auxiliary.h
     logmu = L2_lognorm (f, skew);
-    alpha = get_alpha (f, ALPHA_BOUND);
+    alpha = get_alpha (f, get_alpha_bound ());
     fprintf (fp, "# ");
     if (label_poly != NULL){
       fputs (label_poly, fp);

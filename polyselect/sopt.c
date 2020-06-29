@@ -4,13 +4,18 @@
   separated by a newline.
 */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
+#include <float.h> // for DBL_MAX
 #include <stdio.h>
 #include <stdlib.h>
-#include "portability.h"
-#include "utils.h"
 #include "auxiliary.h"
+#include "cado_poly.h"
+#include "mpz_poly.h"
+#include "params.h"
 #include "size_optimization.h"
+#include "usp.h"        // numberOfRealRoots
+#include "verbose.h"             // verbose_decl_usage
+
 
 static void
 declare_usage(param_list pl)
@@ -107,8 +112,8 @@ int main (int argc, char **argv)
     poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
     nrroots = numberOfRealRoots (poly->pols[ALG_SIDE]->coeff, poly->pols[ALG_SIDE]->deg, 0, 0, NULL);
     lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
-    alpha = get_alpha (poly->pols[ALG_SIDE], ALPHA_BOUND);
-    alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], ALPHA_BOUND);
+    alpha = get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ());
+    alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], get_alpha_bound ());
     exp_E = lognorm
       + expected_rotation_gain (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE]);
     cado_poly_fprintf (stdout, poly, "# ");
@@ -132,8 +137,8 @@ int main (int argc, char **argv)
     poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
     nrroots = numberOfRealRoots (poly->pols[ALG_SIDE]->coeff, poly->pols[ALG_SIDE]->deg, 0, 0, NULL);
     lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
-    alpha = get_alpha (poly->pols[ALG_SIDE], ALPHA_BOUND);
-    alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], ALPHA_BOUND);
+    alpha = get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ());
+    alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], get_alpha_bound ());
     exp_E = lognorm
       + expected_rotation_gain (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE]);
     cado_poly_fprintf (stdout, poly, NULL);

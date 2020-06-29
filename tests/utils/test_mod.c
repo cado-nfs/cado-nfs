@@ -1,13 +1,13 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <gmp.h>
 #include <time.h>
-#include "portability.h"
 #include "tests_common.h"
 #include ARITHMETIC
+#include "macros.h"
 
 
 /* Mask the (possibly multi-word) integer m so that only the

@@ -1,6 +1,16 @@
 #ifndef LAS_PLATTICE_H
 #define LAS_PLATTICE_H
 
+#include <cstdint>
+#include <vector>
+
+#include "macros.h"
+
+#include "fb-types.h"
+#include "las-config.h"  // for NOPROFILE_INLINE
+#include "misc.h"       // for UMAX
+#include "gcd.h"       // for gcd_ul
+
 /*******************************************************************/
 /********        Walking in p-lattices                    **********/
 
@@ -78,7 +88,7 @@
 
 typedef uint64_t plattice_x_t;
 
-struct plattice_info_t;
+struct plattice_info_t;  // IWYU pragma: keep
 static int reduce_plattice (plattice_info_t *, fbprime_t, fbroot_t, uint32_t);
 
 
@@ -895,6 +905,27 @@ plattice_x_t plattice_starting_vector(const plattice_info_t * pli, sieve_info_sr
     return (v[1] << si->conf->logI) | (v[0] + (1 << (si->conf->logI-1)));
 }
 #endif
+
+/* All of these are defined in las-plattice.cpp */
+extern template class plattice_enumerator<1>;
+extern template class plattice_enumerator_coprime<1>;
+extern template class plattices_vector_t<1>;
+extern template struct plattice_info_dense_t<1>;
+extern template class plattices_dense_vector_t<1>;
+extern template struct precomp_plattice_dense_t<1>;
+extern template class plattice_enumerator<2>;
+extern template class plattice_enumerator_coprime<2>;
+extern template class plattices_vector_t<2>;
+extern template struct plattice_info_dense_t<2>;
+extern template class plattices_dense_vector_t<2>;
+extern template struct precomp_plattice_dense_t<2>;
+extern template class plattice_enumerator<3>;
+extern template class plattice_enumerator_coprime<3>;
+extern template class plattices_vector_t<3>;
+extern template struct plattice_info_dense_t<3>;
+extern template class plattices_dense_vector_t<3>;
+extern template struct precomp_plattice_dense_t<3>;
+
 
 
 #endif

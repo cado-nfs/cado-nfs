@@ -1,6 +1,11 @@
 #ifndef MPZ_VECTOR_H_
 #define MPZ_VECTOR_H_
 
+#include <stdio.h> // FILE
+#include <stdint.h>
+#include <gmp.h>
+#include "mpz_poly.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

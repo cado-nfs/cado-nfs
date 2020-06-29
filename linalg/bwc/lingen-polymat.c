@@ -1,11 +1,12 @@
-#include "cado.h"
-#include "mpfq_layer.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdlib.h>
 #include <limits.h>
+#include <string.h>
 #include <gmp.h>
-#include "portability.h"
 #include "macros.h"
+#include "mpfq_layer.h"
 #include "lingen-polymat.h"
+#include "lingen-matpoly.h"
 
 #define POLYMAT_MUL_KARA_CUTOFF_DEFAULT { .cut = 10, .subdivide = 10, .table = NULL, .table_size = 0}
 #define POLYMAT_MP_KARA_CUTOFF_DEFAULT { .cut = 10, .subdivide = 10, .table = NULL, .table_size = 0}

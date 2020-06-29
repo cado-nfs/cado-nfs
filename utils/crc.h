@@ -1,6 +1,7 @@
 #ifndef CRC_H_
 #define CRC_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 struct cado_crc_lfsr_s {

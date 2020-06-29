@@ -1,5 +1,44 @@
+#####################################################################
+# First get some overrides from the environment. Maybe it's a rather bad
+# idea, but cado-nfs likes to pass things to cmake as environment
+# variable. We arrange so that the environment variables take precedence
+# over the cmake command-line.  Therefore the code below is called
+# _before_ project(). This touches the variable cache. Since we FORCE the
+# variable into the cache, it's stronger than cmake command-line
+# overrides.
+
+macro(get_override extname intname)
+string(COMPARE NOTEQUAL "$ENV{${extname}}" "" HAS_${intname}_OVERRIDE)
+if(HAS_${intname}_OVERRIDE)
+    set(${intname} "$ENV{${extname}}" CACHE STRING "" FORCE)
+    message(STATUS "${extname}=${${intname}} (from environment)")
+endif()
+endmacro()
+
+# Syntax is (user-friendly name) (cmake name)
+# Make sure everything is exported from scripts/call_cmake.sh
+get_override(PREFIX               CMAKE_INSTALL_PREFIX)
+get_override(CFLAGS               CMAKE_C_FLAGS)
+get_override(CXXFLAGS             CMAKE_CXX_FLAGS)
+get_override(MAKE                 CMAKE_MAKE_PROGRAM)
+get_override(CC                   CMAKE_C_COMPILER)
+get_override(CXX                  CMAKE_CXX_COMPILER)
+get_override(CADO_DIST_ARCHIVE_NAME         CADO_DIST_ARCHIVE_NAME)
+get_override(MPI                  MPI)
+get_override(LDFLAGS              CMAKE_EXE_LINKER_FLAGS)
+get_override(LDFLAGS              CMAKE_SHARED_LINKER_FLAGS)
+get_override(FLAGS_SIZE           CMAKE_FLAGS_SIZE)
+get_override(BWC_GF2_ARITHMETIC_BACKENDS BWC_GF2_ARITHMETIC_BACKENDS)
+get_override(BWC_GF2_MATMUL_BACKENDS    BWC_GF2_MATMUL_BACKENDS)
+get_override(BWC_GFP_ARITHMETIC_BACKENDS BWC_GFP_ARITHMETIC_BACKENDS)
+get_override(BWC_GFP_MATMUL_BACKENDS    BWC_GFP_MATMUL_BACKENDS)
+get_override(BWC_EXTRA_BACKENDS    BWC_EXTRA_BACKENDS)
+get_override(CHECKS_EXPENSIVE   CHECKS_EXPENSIVE)
 
 project(CADO_NFS)
+
+# must be done early, but after project()
+include(config/xcode.cmake)
 
 set(CADO_VERSION_MAJOR  3)
 set(CADO_VERSION_MINOR  0)
@@ -52,37 +91,6 @@ enable_testing()
 # pass $$ ; well, plus quoting. So that gives, e.g.:
 #        make check ARGS="-R ^foo\$\$"
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V $(ARGS))
-
-#####################################################################
-# Get some overrides from the environment.
-
-macro(get_override extname intname)
-string(COMPARE NOTEQUAL "$ENV{${extname}}" "" HAS_${intname}_OVERRIDE)
-if(HAS_${intname}_OVERRIDE)
-    set(${intname} "$ENV{${extname}}" CACHE STRING "" FORCE)
-    message(STATUS "${extname}=${${intname}} (from environment)")
-endif()
-endmacro()
-
-# Syntax is (user-friendly name) (cmake name)
-# Make sure everything is exported from scripts/call_cmake.sh
-get_override(PREFIX               CMAKE_INSTALL_PREFIX)
-get_override(CFLAGS               CMAKE_C_FLAGS)
-get_override(CXXFLAGS             CMAKE_CXX_FLAGS)
-get_override(MAKE                 CMAKE_MAKE_PROGRAM)
-get_override(CC                   CMAKE_C_COMPILER)
-get_override(CXX                  CMAKE_CXX_COMPILER)
-get_override(CADO_DIST_ARCHIVE_NAME         CADO_DIST_ARCHIVE_NAME)
-get_override(MPI                  MPI)
-get_override(LDFLAGS              CMAKE_EXE_LINKER_FLAGS)
-get_override(LDFLAGS              CMAKE_SHARED_LINKER_FLAGS)
-get_override(FLAGS_SIZE           CMAKE_FLAGS_SIZE)
-get_override(BWC_GF2_ARITHMETIC_BACKENDS BWC_GF2_ARITHMETIC_BACKENDS)
-get_override(BWC_GF2_MATMUL_BACKENDS    BWC_GF2_MATMUL_BACKENDS)
-get_override(BWC_GFP_ARITHMETIC_BACKENDS BWC_GFP_ARITHMETIC_BACKENDS)
-get_override(BWC_GFP_MATMUL_BACKENDS    BWC_GFP_MATMUL_BACKENDS)
-get_override(BWC_EXTRA_BACKENDS    BWC_EXTRA_BACKENDS)
-get_override(CHECKS_EXPENSIVE   CHECKS_EXPENSIVE)
 
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
 	# sigh...
@@ -212,8 +220,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
         set (HAVE_CXX11 1)
         message(STATUS "Enabling C++11 support")
     endif()
-endif()
-if(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
     # According to http://clang.llvm.org/cxx_status.html
     # Caveat: Apple's clang identifies itself as plain Clang on some
     # occasions... I don't exactly know when and how, but there's some
@@ -299,7 +306,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/gcc-bugs.cmake")
 if (NOT DEFINED ENV{NO_GAS_ASSEMBLY})
   include("${CADO_NFS_SOURCE_DIR}/config/gas-assembly.cmake")
 endif()
-include("${CADO_NFS_SOURCE_DIR}/config/curl.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/glibc.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/math.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/math-special.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/posix.cmake")
@@ -316,7 +323,6 @@ IF (NOT DEFINED ENV{NO_PYTHON_CHECK})
   include("${CADO_NFS_SOURCE_DIR}/config/python.cmake")
 endif()
 include("${CADO_NFS_SOURCE_DIR}/config/perl.cmake")
-include("${CADO_NFS_SOURCE_DIR}/config/shared_ptr.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/cxxabi.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/regex.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/jevents.cmake")
@@ -395,6 +401,33 @@ set(CMAKE_CXX_COMPILER "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
 set(CMAKE_C_LINKER_PREFERENCE "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
 set(CMAKE_CXX_LINKER_PREFERENCE "${CADO_NFS_BINARY_DIR}/cxxwrap.pl")
 
+if (NOT "$ENV{IWYU}" MATCHES "^(0|NO|no|OFF|off|)$")
+    message(STATUS "Enabling iwyu when compiling c++ code")
+    set(findprog_flags)
+    if(ENV{IWYU} MATCHES "/")
+        # If MPI contains a /, then we assume it should be a path
+        list(APPEND findprog_flags HINTS "$ENV{IWYU}" "$ENV{IWYU}/bin")
+    endif()
+    find_program(iwyu_path NAMES include-what-you-use iwyu ${findprog_flags})
+    if(iwyu_path)
+        message(STATUS "Enabling iwyu when compiling c++ code -- Success")
+        set(CMAKE_C_INCLUDE_WHAT_YOU_USE "${iwyu_path}")
+        set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${iwyu_path}")
+        if(NOT "$ENV{IWYU_FILTER}" MATCHES "^(0|NO|no|OFF|off|)$")
+            configure_file(config/iwyu.pl.in "${CADO_NFS_BINARY_DIR}/iwyu.pl")
+            set(CMAKE_C_INCLUDE_WHAT_YOU_USE "${CADO_NFS_BINARY_DIR}/iwyu.pl")
+            set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${CADO_NFS_BINARY_DIR}/iwyu.pl")
+        endif()
+        # oddly enough, the following does not work. (with or without a
+        # CMAKE_ prefix)
+        # set_property(GLOBAL PROPERTY CMAKE_C_INCLUDE_WHAT_YOU_USE ${iwyu_path})
+        # set_property(GLOBAL PROPERTY CMAKE_CXX_INCLUDE_WHAT_YOU_USE ${iwyu_path})
+    else()
+        message(WARNING "Enabling iwyu when compiling c++ code -- Failed, no binary found")
+    endif()
+endif()
+
+
 #####################################################################
 # now the real stuff.
 
@@ -438,7 +471,6 @@ add_custom_target(gf2x-build ALL
 # add_subdirectory (gf2x-fft)
 add_subdirectory (utils)
 add_subdirectory (polyselect)
-add_subdirectory (numbertheory)
 add_subdirectory (sieve)
 add_subdirectory (sqrt)
 add_subdirectory (linalg)
@@ -447,8 +479,6 @@ add_subdirectory (linalg/bwc)
 add_subdirectory (misc)
 add_subdirectory (scripts/cadofactor)
 add_subdirectory (tests EXCLUDE_FROM_ALL)
-# commented the following since nfs-hd is not in "make dist"
-# add_subdirectory (nfs-hd)
 
 add_custom_target(dist
     COMMAND scripts/dist.sh ${package_basename}

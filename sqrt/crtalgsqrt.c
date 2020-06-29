@@ -59,36 +59,42 @@
  *   valgrind. I don't understand.
  */
 
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #include <stdint.h>     /* AIX wants it first (it's a bug) */
+#include <inttypes.h>   // SCNu64 PRId64 etc
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <math.h>
 #include <limits.h>
 #include <complex.h>
-#include <float.h>
-#include <time.h>
 #include <stdarg.h>
 #include <ctype.h>
 #include <unistd.h>
-
-#include <sys/types.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <gmp.h>
 
 #define DOUBLE_POLY_EXPOSE_COMPLEX_FUNCTIONS
+#include "double_poly.h"
 
-#include "macros.h"
-#include "utils.h"
-#include "portability.h"
-#include "modul_poly.h"
-#include "powers_of_p.h"
+#include "barrier.h"
+#include "cado_poly.h"  // cado_poly
+#include "gmp-hacks.h"          // TODO: REMOVE ! we're still using MPZ_SET_MPN and friends, but the mpz_write_limbts things could very well be sufficient after all.
+#include "gmp_aux.h"    // ulong_nextprime mpz_set_uint64
 #include "knapsack.h"
-
+#include "macros.h"
+#include "misc.h"       // size_disp cado_ctzl
+#include "mod_ul.h"
+#include "modul_poly.h"
+#include "mpz_poly.h"
+#include "params.h"     // param_list_parse_*
+#include "powers_of_p.h"
 #include "select_mpi.h"
-#include "gmp-hacks.h"          // TODO: REMOVE !
+#include "timing.h"     // wct_seconds
+#include "version_info.h" // cado_revision_string
+#include "portability.h" // strdup // IWYU pragma: keep
 
 /* {{{ time */
 double program_starttime;
@@ -1362,7 +1368,6 @@ void estimate_nbits_sqrt(size_t * sbits, ab_source_ptr ab) // , int guess)
 /* }}} */
 
 /*{{{ have to pre-declare prime_data */
-struct alg_ptree_s;
 
 #if 0
 struct individual_contribution {
@@ -1559,7 +1564,7 @@ int modul_field_sqrt(residueul_t z, residueul_t a, residueul_t g, modulusul_t p)
         modul_set(t, b, p);
         for(m=0; !modul_is1(t, p); m++)
             modul_sqr(t, t, p);
-        assert(m<=r);
+        ASSERT(m<=r);
 
         if (m==0 || m==r)
             break;
@@ -1585,7 +1590,7 @@ int modul_field_sqrt(residueul_t z, residueul_t a, residueul_t g, modulusul_t p)
 void invsqrt_lift(struct prime_data * p, mpz_ptr A, mpz_ptr sx, int precision)
 {
     double w0 = WCT;
-    assert(precision > 0);
+    ASSERT(precision > 0);
 
     if (precision == 1) {
         residueul_t z, a;
@@ -1674,7 +1679,7 @@ void sqrt_lift(struct prime_data * p, mpz_ptr A, mpz_ptr sx, int precision)
 void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* {{{ */
 {
     double w0 = WCT;
-    assert(precision > 0);
+    ASSERT(precision > 0);
 
     if (precision == 1) {
         return;
@@ -2994,7 +2999,7 @@ void inversion_lift(struct prime_data * p, mpz_ptr iHx, mpz_srcptr Hx, int preci
     double w0 = WCT;
 
     mpz_srcptr pk = power_lookup_const(p->powers, precision);
-    assert(precision > 0);
+    ASSERT(precision > 0);
 
     if (precision == 1) {
         mpz_invert(iHx, Hx, pk);

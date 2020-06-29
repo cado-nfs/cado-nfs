@@ -1,5 +1,6 @@
 #ifndef CXX_MPZ_HPP_
 #define CXX_MPZ_HPP_
+
 #include "macros.h"
 
 #include <gmp.h>
@@ -7,6 +8,7 @@
 #include <ostream>
 #include <limits>
 #include <type_traits>
+#include <stdlib.h>
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
 
