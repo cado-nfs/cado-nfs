@@ -437,15 +437,16 @@ public:
   double average_full () const;
   /* Push an update to the designated bucket. Also check for overflow, if
      SAFE_BUCKET_ARRAYS is defined. */
-  void push_update(const int i, const update_t &update);
+  inline void push_update(const int i, const update_t &update);
 
   /* Create an update for a hit at location offset and push it to the
      coresponding bucket */
-  void push_update(const uint64_t offset, const fbprime_t p,
+  inline void push_update(const uint64_t offset, const fbprime_t p,
       const slice_offset_t slice_offset, const slice_index_t slice_index,
       where_am_I & w);
 
   template<typename hh = HINT>
+  inline
   typename std::enable_if<std::is_same<hh,emptyhint_t>::value, void>::type
   push_update(const uint64_t offset, where_am_I & w MAYBE_UNUSED)
   {
@@ -456,6 +457,7 @@ public:
       push_update(bucket_number, update);
   }
   template<typename hh = HINT>
+  inline
   typename std::enable_if<std::is_same<hh,logphint_t>::value, void>::type
   push_update(const uint64_t offset, logphint_t const & logp, where_am_I & w MAYBE_UNUSED)
   {
@@ -548,8 +550,8 @@ public:
    * enough room for the update. This could lead to a segfault, with the
    * current implementation!
    */
-  void push_update (const update_t &update);
-  const update_t &get_next_update ();
+  inline void push_update (const update_t &update);
+  inline const update_t &get_next_update ();
   void rewind_by_1() {if (read > start) read--;}
   bool is_end() const { return read == write; }
 
