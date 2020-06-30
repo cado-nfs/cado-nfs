@@ -116,9 +116,10 @@ unsigned long cancel_cols[CANCEL_MAX] = {0,};
    4: pass
    5: renumber
    6: recompress
-   7: buffer_flush */
-double cpu_t[8] = {0};
-double wct_t[8] = {0};
+   7: buffer_flush 
+   8: garbage collection */
+double cpu_t[9] = {0};
+double wct_t[9] = {0};
 
 static int verbose = 0; /* verbosity level */
 
@@ -429,6 +430,7 @@ heap_waste_ratio()
 static void
 full_garbage_collection(filter_matrix_t *mat)
 {
+        double cpu8 = seconds (), wct8 = wct_seconds ();
         double waste = heap_waste_ratio();
         printf("Starting collection with %.0f%% of waste...", 100 * waste);
         fflush(stdout);
@@ -450,6 +452,12 @@ full_garbage_collection(filter_matrix_t *mat)
         double recycling = 1 - heap_waste_ratio() / waste;
         printf("Examined %.0f%% of full pages, recycled %.0f%% of waste. %.0f%% of examined data was garbage\n",
         	100 * page_ratio, 100 * recycling, 100.0 * collected_garbage / i / PAGE_SIZE);
+
+        cpu8 = seconds () - cpu8;
+        wct8 = wct_seconds () - wct8;
+        print_timings ("   GC took", cpu8, wct8);
+        cpu_t[8] += cpu8;
+        wct_t[8] += wct8;
 }
 
 /*****************************************************************************/
@@ -624,7 +632,7 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
                 }
 
                 /* rewrite the row indices */
-#pragma omp for schedule(dynamic, 128)
+#pragma omp for schedule(guided)
                 for (uint64_t i = 0; i < nrows; i++) {
                     if (mat->rows[i] == NULL) 	/* row was discarded */
                         continue;
@@ -1979,6 +1987,7 @@ main (int argc, char *argv[])
     print_timings ("pass           :", cpu_t[4], wct_t[4]);
     print_timings ("recompress     :", cpu_t[6], wct_t[6]);
     print_timings ("buffer_flush   :", cpu_t[7], wct_t[7]);
+    print_timings ("garbage_coll   :", cpu_t[8], wct_t[8]);
 
     printf ("Final matrix has N=%" PRIu64 " nc=%" PRIu64 " (%" PRIu64
 	    ") W=%" PRIu64 "\n", mat->rem_nrows, mat->rem_ncols,
