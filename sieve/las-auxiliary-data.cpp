@@ -114,7 +114,7 @@ nfs_aux::~nfs_aux()
             (mpz_srcptr) doing.p, (mpz_srcptr) doing.r
             );
     if (las_production_mode) {
-        verbose_output_print (0, 2, " [-production mode, no timings]");
+        verbose_output_print (0, 1, " [-production mode, no timings]");
     } else {
         verbose_output_print (0, 1, " %1.2fs", qtcpu);
         verbose_output_print (0, 2,
