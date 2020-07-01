@@ -6,6 +6,7 @@
 
 #include "balancing_curl_source.h"
 #include "ringbuf.h"
+#include "macros.h"
 
 static int curl_global_init_done;
 static pthread_mutex_t curl_global_init_done_mx = PTHREAD_MUTEX_INITIALIZER;
