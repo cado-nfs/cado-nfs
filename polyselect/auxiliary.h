@@ -91,6 +91,9 @@ double expected_rotation_gain (mpz_poly_srcptr f, mpz_poly_srcptr g);
 void expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g,
                       int i, double maxlognorm, double skew);
 
+void set_alpha_bound (unsigned long bound);
+unsigned long get_alpha_bound (void);
+
 #ifdef __cplusplus
 }
 #endif

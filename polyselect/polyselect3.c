@@ -126,7 +126,7 @@ main (int argc, char *argv[])
           exit (EXIT_FAILURE);
         }
 
-      double e = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, 10 * ALPHA_BOUND);
+      double e = MurphyE (cpoly, Bf, Bg, area, MURPHY_K, 10 * get_alpha_bound ());
       fp = fopen (s, "a");
       fprintf (fp, "# MurphyF (Bf=%.3e,Bg=%.3e,area=%.3e) = %.3e\n",
                Bf, Bg, area, e);

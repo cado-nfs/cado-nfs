@@ -143,7 +143,7 @@ ropt_do_stage2 (ropt_poly_t poly,
 
   /* print some basic information */
   compute_fuv_mp (fuv, poly->f, poly->g, poly->d, param->s2_u, param->s2_v);
-  alpha_lat = get_alpha (Fuv, ALPHA_BOUND);
+  alpha_lat = get_alpha (Fuv, get_alpha_bound ());
   gmp_fprintf ( stderr,
                 "\n# Info: Sieve on sublattice, (w, u, v): (%d, %Zd, %Zd) "
                 "(mod %Zd)\n"

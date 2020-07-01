@@ -18,6 +18,7 @@
 #include "macros.h"             // for UNLIKELY
 #include "trialdiv.hpp"         // for trialdiv_data, (anonymous)
 #include "verbose.h"    // verbose_output_print
+#include "bucket-push-update.hpp"
 
 /*  Trial division */
 

@@ -1239,7 +1239,10 @@ void renumber_t::write_header(std::ostream& os) const
         os << "\n";
     }
 
-    os << "# " << above_add << " additional columns\n";
+    os << "# " << above_add << " additional columns";
+    if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2)
+        os << " (combined for both sides)";
+    os << "\n";
     os.flags(ff);
 }
 
