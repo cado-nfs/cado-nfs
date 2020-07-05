@@ -48,11 +48,6 @@ initMat (filter_matrix_t *mat, uint32_t skip)
 void
 clearMat (filter_matrix_t *mat)
 {
-#ifndef USE_HEAP
-#pragma omp parallel for
-  for (uint64_t i = 0; i < mat->nrows; i++)
-    free (mat->rows[i]);
-#endif
   free (mat->rows);
   free (mat->wt);
 }
