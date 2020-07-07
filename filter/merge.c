@@ -1,6 +1,6 @@
 /* merge --- new merge program
 
-Copyright 2019 Charles Bouillaguet and Paul Zimmermann.
+Copyright 2019-2020 Charles Bouillaguet and Paul Zimmermann.
 
 This file is part of CADO-NFS.
 
@@ -32,7 +32,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #ifdef HAVE_MINGW
 #include <fcntl.h>         /* for _O_BINARY */
 #endif
-#include "filter_config.h" // USE_HEAP
 #include "filter_io.h"  // earlyparsed_relation_ptr
 #ifdef FOR_DL
 #include "gcd.h"
@@ -116,7 +115,7 @@ unsigned long cancel_cols[CANCEL_MAX] = {0,};
    4: pass
    5: renumber
    6: recompress
-   7: buffer_flush 
+   7: buffer_flush
    8: garbage collection */
 double cpu_t[9] = {0};
 double wct_t[9] = {0};
@@ -855,7 +854,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
   int cwmax = mat->cwmax;
 
   /* compute the number of rows, the indices of the rowd and the row pointers */
-  
+
   int T = omp_get_max_threads();
   index_t tRnz[T];
   index_t tRn[T];
@@ -909,7 +908,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
               }
           }
   } /* end parallel section */
-  
+
   index_t Rn = mat->Rn;
   index_t Rnz = Rp[Rn];
 
@@ -918,7 +917,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
   mat->Ri = Ri;
 
   MAYBE_UNUSED double before_extraction = wct_seconds();
- 
+
   /* dispatch entries */
   #pragma omp parallel for schedule(guided)
   for (index_t i = 0; i < nrows; i++) {
@@ -1802,7 +1801,7 @@ main (int argc, char *argv[])
 #ifdef USE_ARENAS
     printf (", M_ARENA_MAX=%d", arenas);
 #endif
-    printf (", USE_HEAP(PAGE_SIZE=%d)", PAGE_SIZE);
+    printf (", PAGE_SIZE=%d", PAGE_SIZE);
 #ifdef HAVE_OPENMP
     /* https://stackoverflow.com/questions/38281448/how-to-check-the-version-of-openmp-on-windows
        201511 is OpenMP 4.5 */

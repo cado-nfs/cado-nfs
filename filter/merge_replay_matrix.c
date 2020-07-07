@@ -7,9 +7,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef USE_HEAP
-#include "omp_proxy.h" // IWYU pragma: keep
-#endif
 #ifdef FOR_DL
 #include "gcd.h"
 #endif
