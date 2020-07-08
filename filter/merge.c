@@ -326,6 +326,17 @@ heap_setup()
         }
 }
 
+static void
+heap_clear ()
+{
+  int T = omp_get_max_threads ();
+  #pragma omp parallel for
+  for (int t = 0 ; t < T ; t++)
+    free (active_page[t]);
+  free (active_page);
+  free (heap_waste);
+}
+
 
 /* Returns a pointer to allocated space holding a size-s array of typerow_t.
    This function is thread-safe thanks to the threadprivate directive above. */
@@ -1997,6 +2008,8 @@ main (int argc, char *argv[])
     print_timing_and_memory (stdout, cpu_after_read, wct_after_read);
 
     buffer_clear (Buf, nthreads);
+
+    heap_clear ();
 
 #ifdef FOR_DL
     free (mat->p);
