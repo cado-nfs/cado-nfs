@@ -198,7 +198,7 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
 /*************************** heap structures *********************************/
 
 /* Allocates and garbage-collects relations (i.e. arrays of typerow_t).
-   
+
   Threads allocate PAGES of memory of a fixed size to store rows, and each
   thread has a single ACTIVE page in which it writes new rows. When the active
   page is FULL, the thread grabs an EMPTY page that becomes its new active page.
@@ -206,7 +206,7 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
   allocate [[b]] bytes for a new row, it suffices to note the current value of
   [[ptr]] and then to increase it by [[b]] --- if this would overflow the current
   page, then it is marked as "full" and a new active page is obtained. Rows are
-  stored along with their number, their size and the list of their coefficient.
+  stored along with their number, their size and the list of their coefficients.
   To delete a row, we just mark it as deleted by setting its number to -1. Thus,
   row allocation and deallocation are thread-local operations that are very
   fast. The last allocated row can easily be shrunk (by diminishing [[ptr]]).
@@ -216,9 +216,9 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
   during this pass; copy all non-deleted rows to the current active page; mark the
   old full page as "empty". Note that moving row $i$ to a different address
   in memory requires an update to the ``row pointer'' in [[mat]]; this is
-  why rows are stored along with their number. When they need a new page, threads 
-  first try to grab an existing empty page. If there is none, a new page is 
-  allocated from the OS. There are global doubly-linked lists of full and empty 
+  why rows are stored along with their number. When they need a new page, threads
+  first try to grab an existing empty page. If there is none, a new page is
+  allocated from the OS. There are global doubly-linked lists of full and empty
   pages, protected by a lock, but these are infrequently accessed.
 */
 
