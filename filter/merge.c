@@ -108,17 +108,16 @@ unsigned long cancel_cols[CANCEL_MAX] = {0,};
    columns: if we start from the end, we can stop at soon as j < j0.
 */
 
-/* 0: compute_weights
-   1: compute_R
-   2: compute_merges
-   3: apply_merges
-   4: pass
-   5: renumber
-   6: recompress
-   7: buffer_flush
-   8: garbage collection */
-double cpu_t[9] = {0};
-double wct_t[9] = {0};
+#define COMPUTE_W  0 /* compute_weights */
+#define COMPUTE_R  1 /* compute_R */
+#define COMPUTE_M  2 /* compute_merges */
+#define APPLY_M    3 /* apply_merges */
+#define PASS       4 /* pass */
+#define RECOMPRESS 5 /* recompress */
+#define FLUSH      6 /* buffer_flush */
+#define GC         7 /* garbage collection */
+double cpu_t[8] = {0};
+double wct_t[8] = {0};
 
 static int verbose = 0; /* verbosity level */
 
@@ -186,8 +185,8 @@ buffer_flush (buffer_struct_t *Buf, int nthreads, FILE *out)
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   buffer_flush took", cpu, wct);
-  cpu_t[7] += cpu;
-  wct_t[7] += wct;
+  cpu_t[FLUSH] += cpu;
+  wct_t[FLUSH] += wct;
 }
 
 static void
@@ -456,7 +455,7 @@ heap_destroy_row (typerow_t *row)
 
 /* Copy non-garbage data to the active page of the current thread, then
    return the page to the freelist. Thread-safe.
-   Warning : this may fill the current active page and release it. */
+   Warning: this may fill the current active page and release it. */
 static int
 collect_page(filter_matrix_t *mat, struct page_t *page)
 {
@@ -526,8 +525,8 @@ full_garbage_collection(filter_matrix_t *mat)
         cpu8 = seconds () - cpu8;
         wct8 = wct_seconds () - wct8;
         print_timings ("   GC took", cpu8, wct8);
-        cpu_t[8] += cpu8;
-        wct_t[8] += wct8;
+        cpu_t[GC] += cpu8;
+        wct_t[GC] += wct8;
 }
 
 /*****************************************************************************/
@@ -665,7 +664,7 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
                 int T = omp_get_num_threads();
                 int t = omp_get_thread_num();
                 index_t m = 0;
-#pragma omp for schedule(static) nowait
+#pragma omp for schedule(static) nowait /* static is mandatory here */
                 for (index_t j = 0; j < ncols; j++)
                     if (0 < mat->wt[j])
                         m++;
@@ -693,7 +692,7 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
 
                 /* compute the new column indices */
                 m = tm[t];
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) /* static is mandatory here */
                 for (index_t j = 0; j < ncols; j++) {
                     ASSERT(m <= j);
                     p[j] = m;
@@ -702,7 +701,7 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
                 }
 
                 /* rewrite the row indices */
-#pragma omp for schedule(guided)
+#pragma omp for schedule(guided) /* guided is slightly better than static */
                 for (uint64_t i = 0; i < nrows; i++) {
                     if (mat->rows[i] == NULL) 	/* row was discarded */
                         continue;
@@ -711,7 +710,7 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
                 }
 
                 /* update mat->wt */
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) /* static is slightly better than guided */
                 for (index_t j = 0; j < ncols; j++)
                     if (0 < mat->wt[j])
                         nwt[p[j]] = mat->wt[j];
@@ -744,7 +743,8 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
            mat->p[2], instead of the initial value of mat->p[1]).
            To solve that problem, we store the new values in another array. */
         	index_t *new_p = malloc (mat->rem_ncols * sizeof (index_t));
-        	#pragma omp for schedule(static)
+		/* static slightly better than guided for the following loop */
+                #pragma omp for schedule(static)
 		for (index_t j = 0; j < ncols; j++)
 			if (0 < mat->wt[j])
 				new_p[p[j]] = mat->p[j];
@@ -769,8 +769,8 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
 	cpu = seconds () - cpu;
 	wct = wct_seconds () - wct;
 	print_timings ("   recompress took", cpu, wct);
-	cpu_t[6] += cpu;
-	wct_t[6] += wct;
+	cpu_t[RECOMPRESS] += cpu;
+	wct_t[RECOMPRESS] += wct;
 }
 
 
@@ -799,14 +799,18 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
             for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
                 local[w] = mat->ncols;
 
-#pragma omp for schedule(static)
+	    /* compute_jmin takes so little time that it makes no sense
+	       optimizing the schedule below */
+            #pragma omp for schedule(static)
             for (index_t j = 0; j < mat->ncols; j++) {
                 col_weight_t w = mat->wt[j];
                 if (0 < w && w <= MERGE_LEVEL_MAX && j < local[w])
                     local[w] = j;
             }
 
-#pragma omp for schedule(static)
+	    /* compute_jmin takes so little time that it makes no sense
+	       optimizing the schedule below */
+            #pragma omp for schedule(static)
             for (int w = 1; w <= MERGE_LEVEL_MAX; w++) {
                 jmin[w] = mat->ncols;
                 for (int t = 0; t < T; t++)
@@ -861,11 +865,11 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
              We only consider ideals of index >= j0, and put the weight of ideal j,
              j >= j0, in Wt[k][j]. */
 
-          /* using a dynamic schedule here is crucial, since during merge,
-             the distribution of row lengths is no longer uniform (including
-             discarded rows) */
+          /* using a dynamic or guided schedule here is crucial, since during
+	     merge, the distribution of row lengths is no longer uniform
+	     (including discarded rows) */
           col_weight_t *Wtk = Wt[tid];
-#pragma omp for schedule(dynamic, 128)
+          #pragma omp for schedule(guided)
           for (index_t i = 0; i < mat->nrows; i++) {
               if (mat->rows[i] == NULL) /* row was discarded */
                   continue;
@@ -882,7 +886,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
              saturating at cwmax + 1:
              Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
           col_weight_t *Wt0 = Wt[0];
-#pragma omp for schedule(static)
+          #pragma omp for schedule(static) /* slightly better than guided */
           for (index_t i = j0; i < mat->ncols; i++) {
               col_weight_t val = Wt0[i];
               for (int t = 1; t < T; t++)
@@ -906,8 +910,8 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   compute_weights took", cpu, wct);
-  cpu_t[0] += cpu;
-  wct_t[0] += wct;
+  cpu_t[COMPUTE_W] += cpu;
+  wct_t[COMPUTE_W] += wct;
 }
 
 /* computes the transposed matrix for columns of weight <= cwmax
@@ -935,7 +939,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
           int tid = omp_get_thread_num();
           index_t Rnz = 0;
           index_t Rn = 0;
-#pragma omp for schedule(static) nowait
+          #pragma omp for schedule(static) nowait
           for (index_t j = j0; j < ncols; j++) {
               col_weight_t w = mat->wt[j];
               if (0 < w && w <= cwmax) {
@@ -967,7 +971,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
           Rnz = tRnz[tid];
           Rn = tRn[tid];
 
-#pragma omp for schedule(static)
+          #pragma omp for schedule(static) /* static is mandatory here */
           for (index_t j = j0; j < ncols; j++) {
               col_weight_t w = mat->wt[j];
               if (0 < w && w <= cwmax) {
@@ -1033,8 +1037,8 @@ compute_R (filter_matrix_t *mat, index_t j0)
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   compute_R took", cpu, wct);
-  cpu_t[1] += cpu;
-  wct_t[1] += wct;
+  cpu_t[COMPUTE_R] += cpu;
+  wct_t[COMPUTE_R] += wct;
 }
 
 
@@ -1437,7 +1441,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
      smaller weight, thus the load would not be evenly distributed with a
      static schedule. The value 128 was determined optimal experimentally
      on the RSA-512 benchmark with 32 threads. */
-  #pragma omp parallel for schedule(dynamic, 128)
+  #pragma omp parallel for schedule(guided)
   for (index_t i = 0; i < Rn; i++)
     cost[i] = merge_cost (mat, i) + BIAS;
 
@@ -1505,8 +1509,8 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   double cpu2 = seconds() - cpu;
   double wct2 = end - wct;
   print_timings ("   compute_merges took", cpu2, wct2);
-  cpu_t[2] += cpu2;
-  wct_t[2] += wct2;
+  cpu_t[COMPUTE_M] += cpu2;
+  wct_t[COMPUTE_M] += wct2;
   return s;
 }
 
@@ -1619,8 +1623,8 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
   cpu3 = seconds () - cpu3;
   wct3 = end - wct3;
   print_timings ("   apply_merges took", cpu3, wct3);
-  cpu_t[3] += cpu3;
-  wct_t[3] += wct3;
+  cpu_t[APPLY_M] += cpu3;
+  wct_t[APPLY_M] += wct3;
   return nmerges;
 }
 
@@ -1989,8 +1993,8 @@ main (int argc, char *argv[])
 	cpu1 = seconds () - cpu1;
 	wct1 = wct_seconds () - wct1;
 	print_timings ("   pass took", cpu1, wct1);
-	cpu_t[4] += cpu1;
-	wct_t[4] += wct1;
+	cpu_t[PASS] += cpu1;
+	wct_t[PASS] += wct1;
 
 	#ifdef BIG_BROTHER
 	    printf("$$$     timings:\n");
@@ -2049,15 +2053,14 @@ main (int argc, char *argv[])
 		(uint64_t) ((target_density - b) / a), target_density);
       }
 
-    print_timings ("renumber       :", cpu_t[5], wct_t[5]);
-    print_timings ("compute_weights:", cpu_t[0], wct_t[0]);
-    print_timings ("compute_R      :", cpu_t[1], wct_t[1]);
-    print_timings ("compute_merges :", cpu_t[2], wct_t[2]);
-    print_timings ("apply_merges   :", cpu_t[3], wct_t[3]);
-    print_timings ("pass           :", cpu_t[4], wct_t[4]);
-    print_timings ("recompress     :", cpu_t[6], wct_t[6]);
-    print_timings ("buffer_flush   :", cpu_t[7], wct_t[7]);
-    print_timings ("garbage_coll   :", cpu_t[8], wct_t[8]);
+    print_timings ("compute_weights:", cpu_t[COMPUTE_W], wct_t[COMPUTE_W]);
+    print_timings ("compute_R      :", cpu_t[COMPUTE_R], wct_t[COMPUTE_R]);
+    print_timings ("compute_merges :", cpu_t[COMPUTE_M], wct_t[COMPUTE_M]);
+    print_timings ("apply_merges   :", cpu_t[APPLY_M], wct_t[APPLY_M]);
+    print_timings ("pass           :", cpu_t[PASS], wct_t[PASS]);
+    print_timings ("recompress     :", cpu_t[RECOMPRESS], wct_t[RECOMPRESS]);
+    print_timings ("buffer_flush   :", cpu_t[FLUSH], wct_t[FLUSH]);
+    print_timings ("garbage_coll   :", cpu_t[GC], wct_t[GC]);
 
     printf ("Final matrix has N=%" PRIu64 " nc=%" PRIu64 " (%" PRIu64
 	    ") W=%" PRIu64 "\n", mat->rem_nrows, mat->rem_ncols,
