@@ -198,7 +198,29 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
 /*************************** heap structures *********************************/
 
 /* Allocates and garbage-collects relations (i.e. arrays of typerow_t).
-   This works using PAGES. */
+   
+  Threads allocate PAGES of memory of a fixed size to store rows, and each
+  thread has a single ACTIVE page in which it writes new rows. When the active
+  page is FULL, the thread grabs an EMPTY page that becomes its new active page.
+  In each page, there is a pointer [[ptr]] to the begining of the free space. To
+  allocate [[b]] bytes for a new row, it suffices to note the current value of
+  [[ptr]] and then to increase it by [[b]] --- if this would overflow the current
+  page, then it is marked as "full" and a new active page is obtained. Rows are
+  stored along with their number, their size and the list of their coefficient.
+  To delete a row, we just mark it as deleted by setting its number to -1. Thus,
+  row allocation and deallocation are thread-local operations that are very
+  fast. The last allocated row can easily be shrunk (by diminishing [[ptr]]).
+
+  After each pass, memory is garbage-collected. All threads do the following
+  procedure in parallel, while possible: grab a full page that was not created
+  during this pass; copy all non-deleted rows to the current active page; mark the
+  old full page as "empty". Note that moving row $i$ to a different address
+  in memory requires an update to the ``row pointer'' in [[mat]]; this is
+  why rows are stored along with their number. When they need a new page, threads 
+  first try to grab an existing empty page. If there is none, a new page is 
+  allocated from the OS. There are global doubly-linked lists of full and empty 
+  pages, protected by a lock, but these are infrequently accessed.
+*/
 
 #define PAGE_SIZE ((1<<18) - 4) /* seems to be optimal for RSA-512 */
 
@@ -210,6 +232,7 @@ struct page_t {
         typerow_t data[PAGE_SIZE];
 };
 
+// linked list of pages (doubly-linked for the full pages, simply-linked for the empty pages)
 struct pagelist_t {
         struct pagelist_t *next;
         struct pagelist_t *prev;
@@ -217,8 +240,8 @@ struct pagelist_t {
 };
 
 int n_pages, n_full_pages, n_empty_pages;
-struct pagelist_t headnode;
-struct pagelist_t *full_pages, *empty_pages;
+struct pagelist_t headnode;                  // dummy node for the list of full pages
+struct pagelist_t *full_pages, *empty_pages; // head of the page linked lists
 
 struct page_t **active_page; /* active page of each thread */
 long long *heap_waste;       /* space wasted, per-thread. Can be negative! The sum over all threads is correct. */
@@ -231,6 +254,7 @@ heap_get_free_page()
         struct page_t *page = NULL;
         #pragma omp critical(pagelist)
         {
+                // try to grab it from the doubly-linked list of empty pages.
                 if (empty_pages != NULL) {
                         page = empty_pages->page;
                         empty_pages = empty_pages->next;
@@ -240,6 +264,7 @@ heap_get_free_page()
                 }
         }
         if (page == NULL) {
+                // we must allocate a new page from the OS.
                 page = malloc(sizeof(struct page_t));
                 struct pagelist_t *item = malloc(sizeof(struct pagelist_t));
                 page->list = item;
@@ -252,7 +277,7 @@ heap_get_free_page()
 }
 
 /* provide the oldest full page with generation < max_generation, or NULL if none is available,
-   and remove it from the list of full pages */
+   and remove it from the doubly-linked list of full pages */
 static struct page_t *
 heap_get_full_page(int max_generation)
 {
@@ -309,6 +334,7 @@ heap_release_page(struct page_t *page)
 static void
 heap_setup()
 {
+        // setup the doubly-linked list of full pages.
         full_pages = &headnode;
         full_pages->page = NULL;
         full_pages->next = full_pages;
