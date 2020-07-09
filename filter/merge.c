@@ -1441,7 +1441,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
      smaller weight, thus the load would not be evenly distributed with a
      static schedule. The value 128 was determined optimal experimentally
      on the RSA-512 benchmark with 32 threads. */
-  #pragma omp parallel for schedule(guided)
+  #pragma omp parallel for schedule(dynamic, 128)
   for (index_t i = 0; i < Rn; i++)
     cost[i] = merge_cost (mat, i) + BIAS;
 
