@@ -330,10 +330,31 @@ static void
 heap_clear ()
 {
   int T = omp_get_max_threads ();
+  /* clear active pages */
   #pragma omp parallel for
   for (int t = 0 ; t < T ; t++)
-    free (active_page[t]);
+    {
+      struct page_t *page = active_page[t];
+      struct pagelist_t *list = page->list;
+      struct pagelist_t *list2 = list->prev;
+      list = list2;
+      while (list != NULL)
+        {
+          if (list->page != NULL)
+            free (list->page);
+          list = list->prev;
+          if (list == list2)
+            break;
+        }
+      free (page);
+    }
   free (active_page);
+  /* clear empty pages */
+  while (n_empty_pages > 0)
+    {
+      empty_pages = empty_pages->next;
+      n_empty_pages --;
+    }
   free (heap_waste);
 }
 
