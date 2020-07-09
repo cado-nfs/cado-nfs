@@ -124,6 +124,9 @@ static int verbose = 0; /* verbosity level */
 
 #define MARGIN 5 /* reallocate dynamic lists with increment 1/MARGIN */
 
+// #define TRACE_J 1438672   for debuging purposes
+
+
 static void
 print_timings (char *s, double cpu, double wct)
 {
@@ -225,10 +228,10 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
 #define PAGE_SIZE ((1<<18) - 4) /* seems to be optimal for RSA-512 */
 
 struct page_t {
-        struct pagelist_t *list;
-        int i;                /* page number, for debugging purposes */
-        int generation;       /* pass in which this page was filled. */
-        int ptr;              /* data[ptr:PAGE_SIZE] is available*/
+        struct pagelist_t *list;     /* the pagelist_t structure associated with this page */
+        int i;                       /* page number, for debugging purposes */
+        int generation;              /* pass in which this page was filled. */
+        int ptr;                     /* data[ptr:PAGE_SIZE] is available*/
         typerow_t data[PAGE_SIZE];
 };
 
@@ -254,7 +257,7 @@ heap_get_free_page()
         struct page_t *page = NULL;
         #pragma omp critical(pagelist)
         {
-                // try to grab it from the doubly-linked list of empty pages.
+                // try to grab it from the simply-linked list of empty pages.
                 if (empty_pages != NULL) {
                         page = empty_pages->page;
                         empty_pages = empty_pages->next;
@@ -352,35 +355,45 @@ heap_setup()
         }
 }
 
+/* release all memory. This is technically not necessary, because the "malloc"
+   allocations are internal to the process, and all space allocated to the
+   process is reclaimed by the OS on termination. However, doing this enables
+   valgrind to check the absence of leaks.
+*/
 static void
 heap_clear ()
 {
-  int T = omp_get_max_threads ();
   /* clear active pages */
-  #pragma omp parallel for
-  for (int t = 0 ; t < T ; t++)
-    {
-      struct page_t *page = active_page[t];
-      struct pagelist_t *list = page->list;
-      struct pagelist_t *list2 = list->prev;
-      list = list2;
-      while (list != NULL)
-        {
-          if (list->page != NULL)
-            free (list->page);
-          list = list->prev;
-          if (list == list2)
-            break;
-        }
-      free (page);
-    }
-  free (active_page);
+  int T = omp_get_max_threads ();
+  for (int t = 0 ; t < T ; t++) {
+    free(active_page[t]->list);
+    free(active_page[t]);
+  }
+
   /* clear empty pages */
-  while (n_empty_pages > 0)
-    {
-      empty_pages = empty_pages->next;
-      n_empty_pages --;
-    }
+  while (empty_pages != NULL) {
+    struct pagelist_t *item = empty_pages;
+    empty_pages = item->next;
+    free(item->page);
+    free(item);
+  }
+
+  /* clear full pages. 1. Locate dummy node */
+  while (full_pages->page != NULL)
+    full_pages = full_pages->next;
+
+  // 2. Skip dummy node
+  full_pages = full_pages->next;
+
+  // 3. Walk list until dummy node is met again, free everything.
+  
+  while (full_pages->page != NULL) {
+    struct pagelist_t *item = full_pages;
+    full_pages = full_pages->next;
+    free(item->page);
+    free(item);
+  }
+  free (active_page);
   free (heap_waste);
 }
 
