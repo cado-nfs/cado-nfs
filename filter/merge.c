@@ -385,7 +385,6 @@ heap_clear ()
   full_pages = full_pages->next;
 
   // 3. Walk list until dummy node is met again, free everything.
-  
   while (full_pages->page != NULL) {
     struct pagelist_t *item = full_pages;
     full_pages = full_pages->next;
@@ -673,7 +672,7 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 #pragma omp barrier
 
                 /* prefix-sum over the T threads (sequentially) */
-#pragma omp master
+#pragma omp single
                 {
                     index_t s = 0;
                     for (int t = 0; t < T; t++) {
@@ -687,8 +686,6 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-testing-amd64-large-pr/147/) */
                     mat->rem_ncols = s;
                 }
-
-#pragma omp barrier
 
                 /* compute the new column indices */
                 m = tm[t];
@@ -1453,6 +1450,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
        */
       int T = omp_get_max_threads();
       index_t count[T][cbound + 1];
+
       /* Yet Another Bucket Sort (sigh) : sort the candidate merges by cost. Check if worth parallelizing */
 #pragma omp parallel
       {
@@ -1461,17 +1459,14 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 
           memset(tcount, 0, (cbound + 1) * sizeof(index_t));
 
-#pragma omp for
+#pragma omp for schedule(static)  // static is mandatory
           for (index_t i = 0; i < Rn; i++) {
               int c = cost[i];
               if (c <= cbound)
                   tcount[c]++;
           }
 
-          /* We need to do this because if OMP_DYNAMIC=true we can't be certain
-           * that omp_get_num_threads() == T
-           */
-#pragma omp barrier
+         
 #pragma omp single
           {
               /* prefix-sum */
@@ -1485,9 +1480,8 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
                   }
               }
           }
-#pragma omp barrier
 
-#pragma omp for
+#pragma omp for schedule(static) // static is mandatory
           for (index_t i = 0; i < Rn; i++) {
               int c = cost[i];
               if (c > cbound)
