@@ -384,7 +384,7 @@ static void histogram(struct ctx_t *ctx, const index_t *Aj, index_t lo,
             W[3][q3]++;
         }
         break;
-#if __SIZEOF_INDEX__ == 8
+#if SIZEOF_INDEX == 8
     case 5:
         #pragma omp for schedule(static)
         for (index_t k = lo; k < hi; k++) {

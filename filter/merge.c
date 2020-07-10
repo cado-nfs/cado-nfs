@@ -1817,15 +1817,15 @@ main (int argc, char *argv[])
     /* Read number of rows and cols on first line of purged file */
     purgedfile_read_firstline (purgedname, &(mat->nrows), &(mat->ncols));
 
-#if (__SIZEOF_INDEX__ == 4)
+#if (SIZEOF_INDEX == 4)
     if (mat->nrows >> 32)
       {
-	fprintf (stderr, "Error, nrows = %" PRIu64 " larger than 2^32, please recompile with -D__SIZEOF_INDEX__=8\n", mat->nrows);
+	fprintf (stderr, "Error, nrows = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->nrows);
 	exit (EXIT_FAILURE);
       }
     if (mat->ncols >> 32)
       {
-	fprintf (stderr, "Error, ncols = %" PRIu64 " larger than 2^32, please recompile with -D__SIZEOF_INDEX__=8\n", mat->ncols);
+	fprintf (stderr, "Error, ncols = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->ncols);
 	exit (EXIT_FAILURE);
       }
 #endif
