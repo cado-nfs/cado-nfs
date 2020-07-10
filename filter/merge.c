@@ -1262,6 +1262,8 @@ printRow (filter_matrix_t *mat, index_t i)
 }
 #endif
 
+#define BIAS 3
+
 /* classical cost: merge the row of smaller weight with the other ones,
    and return the merge cost (taking account of cancellations).
    id is the index of a row in R. */
@@ -1272,28 +1274,28 @@ merge_cost (filter_matrix_t *mat, index_t id)
   index_t hi = mat->Rp[id + 1];
   int w = hi - lo;
 
-  ASSERT (1 <= w && w <= mat->cwmax);
-
   if (w == 1)
-    return -3; /* ensure all 1-merges are processed before 2-merges with no
-		  cancellation */
+    return 0; /* ensure all 1-merges are processed before 2-merges with no
+		 cancellation */
+
+  if (w > mat->cwmax)
+    return INT32_MAX;
 
   /* find shortest row in the merged column */
-  index_t imin = mat->Ri[lo];
-  int32_t cmin = matLengthRow (mat, imin);
+  index_t i = mat->Ri[lo];
+  int32_t c, cmin = matLengthRow (mat, i);
   for (index_t k = lo + 1; k < hi; k++)
     {
-      index_t i = mat->Ri[k];
-      int32_t c = matLengthRow(mat, i);
+      i = mat->Ri[k];
+      c = matLengthRow(mat, i);
       if (c < cmin)
-	{
-		imin = i;
-		cmin = c;
-	      }
+	cmin = c;
     }
 
-  /* fill-in formula for Markowitz pivoting */
-  return (hi - lo - 1) * (cmin - 2) - cmin;
+  /* fill-in formula for Markowitz pivoting: since w >= 2 we have
+     (w - 1) * (cmin - 2) - cmin >= -2, thus adding 3 ensures we
+     get a value >= 1, then 1-merges will be merged first */
+  return (w - 1) * (cmin - 2) - cmin + BIAS;
 }
 
 /* Output a list of merges to a string.
@@ -1415,12 +1417,6 @@ merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
   return c;
 }
 
-/* since merge costs might be negative (for weight 2), we translate them by 3,
-   so that 2-merges with no cancellation give biased cost -2+3=1, and those
-   with cancellation give biased cost 0, so they will be merged first */
-#define BIAS 3
-
-
 /* accumulate in L all merges of (biased) cost <= cbound.
    L must be preallocated.
    L is a linear array and the merges appear by increasing cost.
@@ -1431,6 +1427,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   double cpu = seconds(), wct = wct_seconds();
   index_t Rn = mat->Rn;
   int * cost = malloc(Rn * sizeof(*cost));
+  ASSERT_ALWAYS(cost != NULL);
   // int Lp[cbound + 2];  cost pointers
 
   /* compute the cost of all candidate merges */
@@ -1440,7 +1437,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
      on the RSA-512 benchmark with 32 threads. */
   #pragma omp parallel for schedule(guided)
   for (index_t i = 0; i < Rn; i++)
-    cost[i] = merge_cost (mat, i) + BIAS;
+    cost[i] = merge_cost (mat, i);
 
   int s;
 
@@ -1451,7 +1448,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
       int T = omp_get_max_threads();
       index_t count[T][cbound + 1];
 
-      /* Yet Another Bucket Sort (sigh) : sort the candidate merges by cost. Check if worth parallelizing */
+      /* Yet Another Bucket Sort (sigh): sort the candidate merges by cost. Check if worth parallelizing */
 #pragma omp parallel
       {
           int tid = omp_get_thread_num();
@@ -1491,7 +1488,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
       } /* end parallel section */
   }
 
-  free(cost);
+  free (cost);
 
   double end = wct_seconds();
   #ifdef BIG_BROTHER
