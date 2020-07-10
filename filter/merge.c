@@ -1441,54 +1441,53 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 
   int s;
 
-  {
-      /* need an array that is visible to all threads in order to do the
-       * prefix sum. Wish I knew another way.
-       */
-      int T = omp_get_max_threads();
-      index_t count[T][cbound + 1];
+  
+  /* need an array that is visible to all threads in order to do the
+   * prefix sum. Wish I knew another way.
+   */
+  int T = omp_get_max_threads();
+  index_t count[T][cbound + 1];
 
-      /* Yet Another Bucket Sort (sigh): sort the candidate merges by cost. Check if worth parallelizing */
+  /* Yet Another Bucket Sort (sigh): sort the candidate merges by cost. Check if worth parallelizing */
 #pragma omp parallel
-      {
-          int tid = omp_get_thread_num();
-          index_t *tcount = &count[tid][0];
+  {
+    int tid = omp_get_thread_num();
+    index_t *tcount = &count[tid][0];
 
-          memset(tcount, 0, (cbound + 1) * sizeof(index_t));
+    memset(tcount, 0, (cbound + 1) * sizeof(index_t));
 
 #pragma omp for schedule(static)  // static is mandatory
-          for (index_t i = 0; i < Rn; i++) {
-              int c = cost[i];
-              if (c <= cbound)
-                  tcount[c]++;
-          }
+    for (index_t i = 0; i < Rn; i++) {
+      int c = cost[i];
+      if (c <= cbound)
+	tcount[c]++;
+    }
 
          
 #pragma omp single
-          {
-              /* prefix-sum */
-              s = 0;
-              for (int c = 0; c <= cbound; c++) {
-                  // Lp[c] = s;                     /* global row pointer in L */
-                  for (int t = 0; t < omp_get_num_threads(); t++) {
-                      index_t w = count[t][c];       /* per-thread row pointer in L */
-                      count[t][c] = s;
-                      s += w;
-                  }
-              }
-          }
+    {
+      /* prefix-sum */
+      s = 0;
+      for (int c = 0; c <= cbound; c++) {
+	// Lp[c] = s;                     /* global row pointer in L */
+	for (int t = 0; t < omp_get_num_threads(); t++) {
+	  index_t w = count[t][c];       /* per-thread row pointer in L */
+	  count[t][c] = s;
+	  s += w;
+	}
+      }
+    }
 
 #pragma omp for schedule(static) // static is mandatory
-          for (index_t i = 0; i < Rn; i++) {
-              int c = cost[i];
-              if (c > cbound)
-                  continue;
-              L[tcount[c]++] = i;
-          }
-      } /* end parallel section */
-  }
+    for (index_t i = 0; i < Rn; i++) {
+      int c = cost[i];
+      if (c > cbound)
+	continue;
+      L[tcount[c]++] = i;
+    }
+  } /* end parallel section */
 
-  free (cost);
+  free(cost);
 
   double end = wct_seconds();
   #ifdef BIG_BROTHER
