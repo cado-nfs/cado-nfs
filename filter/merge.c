@@ -1444,7 +1444,7 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
 
   int s;
 
-  {
+  
       /* need an array that is visible to all threads in order to do the
        * prefix sum. Wish I knew another way.
        */
@@ -1489,8 +1489,6 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
               L[tcount[c]++] = i;
           }
       } /* end parallel section */
-  }
-
   free(cost);
 
   double end = wct_seconds();
