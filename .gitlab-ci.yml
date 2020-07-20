@@ -1,0 +1,20 @@
+image: gcc
+
+build:
+  stage: build
+  before_script:
+    - id -a
+    - echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+    - env DEBIAN_FRONTEND=noninteractive apt-get -y update
+    - env DEBIAN_FRONTEND=noninteractive apt-get -y install make perl locales cmake gcc python
+  script:
+    - make
+    - make all_test_dependencies
+  cache:
+    paths:
+      - "*.o"
+
+test:
+  stage: test
+  script:
+    - make check
