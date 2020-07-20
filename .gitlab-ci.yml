@@ -10,9 +10,11 @@ build:
   script:
     - make
     - make all_test_dependencies
-  cache:
-    paths:
-      - "*.o"
+    # okay. "cache" is only when the runners have a notion of available
+    # cache server, it seems. Don't do that for now.
+    # cache:
+    # # paths:
+    # - "*.o"
 
 test:
   stage: test
