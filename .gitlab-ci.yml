@@ -1,22 +1,19 @@
 image: gcc
 
 build:
-  stage: build
+  stage: build-and-test
   before_script:
     - id -a
     - echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
     - env DEBIAN_FRONTEND=noninteractive apt-get -y update
-    - env DEBIAN_FRONTEND=noninteractive apt-get -y install make perl locales cmake gcc python
+    - env DEBIAN_FRONTEND=noninteractive apt-get -y install locales cmake libhwloc-dev
   script:
-    - make
-    - make all_test_dependencies
+    - make cmake
+    - make -j4
+    - make -j4 all_test_dependencies
+    - env OMP_DYNAMIC=true make check ARGS="-j4"
     # okay. "cache" is only when the runners have a notion of available
     # cache server, it seems. Don't do that for now.
     # cache:
     # # paths:
     # - "*.o"
-
-test:
-  stage: test
-  script:
-    - make check
