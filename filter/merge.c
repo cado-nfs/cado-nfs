@@ -1434,8 +1434,9 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   /* A dynamic schedule is needed here, since the columns of larger index have
      smaller weight, thus the load would not be evenly distributed with a
      static schedule. The value 128 was determined optimal experimentally
-     on the RSA-512 benchmark with 32 threads. */
-  #pragma omp parallel for schedule(guided)
+     on the RSA-512 benchmark with 32 threads, and is better than
+     schedule(guided) for RSA-240 with 112 threads. */
+  #pragma omp parallel for schedule(dynamic,128)
   for (index_t i = 0; i < Rn; i++)
     cost[i] = merge_cost (mat, i);
 
