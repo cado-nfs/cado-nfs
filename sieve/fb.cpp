@@ -355,21 +355,62 @@ void
 fb_entry_x_roots<Nr_roots>::transform_roots(fb_entry_x_roots<Nr_roots>::transformed_entry_t &result, const qlattice_basis &basis) const
 {
   result.p = p;
-  /* TODO: Use batch-inversion here */
-  for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
-    const unsigned long long t = fb_root_in_qlattice(p, roots[i_root], invq, basis);
-    result.proj[i_root] = (t >= p);
-    result.roots[i_root] = (t < p) ? t : (t - p);
+  /* Try batch transform; if that fails because any root is projective, do
+   * the roots one at a time. */
+  if (fb_root_in_qlattice_31bits_batch (result.roots, p, roots, invq, basis,
+      Nr_roots)) {
+    /* If the batch transform worked, mark all roots as affine */
+    for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
+      result.proj[i_root] = false;
+    }
+//#define COMPARE_BATCH_ROOTS_TRANSFORM 1
+#ifdef COMPARE_BATCH_ROOTS_TRANSFORM
+    for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
+      const unsigned long long t = fb_root_in_qlattice(p, roots[i_root], invq, basis);
+      if (t >= p || t != result.roots[i_root]) {
+          verbose_output_print(1, 0, "%hhu-th batch transformed root modulo %" FBPRIME_FORMAT 
+              " is wrong: %" FBROOT_FORMAT ", correct: %llu\n",
+              i_root, p, result.roots[i_root], t);
+          verbose_output_print(1, 0,
+            "Root in a,b-plane: %" FBROOT_FORMAT " modulo %" FBPRIME_FORMAT "\n"
+            "Lattice basis: a0=%" PRId64 ", b0=%" PRId64 ", a1=%" PRId64 ", b1=%" PRId64 "\n",
+            roots[i_root], p, basis.a0, basis.b0, basis.a1, basis.b1);
+          ASSERT(0);
+      }
+    }
+#endif
+  } else {
+    // Batch transform failed: do roots one at a time.
+    for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
+      const unsigned long long t = fb_root_in_qlattice(p, roots[i_root], invq, basis);
+      result.proj[i_root] = (t >= p);
+      result.roots[i_root] = (t < p) ? t : (t - p);
+    }
   }
+}
+
+template<>
+void
+fb_entry_x_roots<0>::transform_roots(fb_entry_x_roots<0>::transformed_entry_t &result, const qlattice_basis &basis MAYBE_UNUSED) const
+{
+  result.p = p;
+}
+
+/* With only one root, batch transform does not save anything and just adds
+ * a little overhead */
+template<>
+void
+fb_entry_x_roots<1>::transform_roots(fb_entry_x_roots<1>::transformed_entry_t &result, const qlattice_basis &basis) const
+{
+  result.p = p;
+  const unsigned long long t = fb_root_in_qlattice(p, roots[0], invq, basis);
+  result.proj[0] = (t >= p);
+  result.roots[0] = (t < p) ? t : (t - p);
 }
 
 // FIXME: why do I have to make those instances explicit???
 // If someone knows how to avoid that...
 
-template void
-fb_entry_x_roots<0>::transform_roots(fb_transformed_entry_x_roots<0> &, qlattice_basis const&) const; 
-template void 
-fb_entry_x_roots<1>::transform_roots(fb_transformed_entry_x_roots<1> &, qlattice_basis const&) const; 
 template void 
 fb_entry_x_roots<2>::transform_roots(fb_transformed_entry_x_roots<2> &, qlattice_basis const&) const; 
 template void 

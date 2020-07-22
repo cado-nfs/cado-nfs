@@ -5,11 +5,13 @@
 #include "cado_config.h"  // for HAVE_GCC_STYLE_AMD64_INLINE_ASM
 
 #include <cstdint>        // for uint32_t, uint64_t, uint8_t, int64_t
+#include <cinttypes>      // for PRI* macros
 
 #include "macros.h"       // for ASSERT, UNLIKELY, GNUC_VERSION_ATLEAST, MAY...
 #include "fb-types.h"     // for fbprime_t
 #include "misc.h"          // cado_ctz
 #include "mod_ul.h"        // for modul_clear, modul_clearmod, modul_get_ul
+#include "verbose.h"
 
 /* This header file is also #include'd by tests/sieve/torture-redc.cpp,
  * which (as its name says) checks that redc_32 and redc_u32 hold to
@@ -69,6 +71,13 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
    * and (2) the final result will be < p as wanted */
 
   return (cf || u >= p) ? u - p : u;
+}
+
+static inline uint32_t
+mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const uint32_t invp)
+{
+  uint64_t x = (uint64_t) a * (uint64_t) b;
+  return redc_u32(x, p, invp);
 }
 
 // Signed redc_32 based on 64-bit arithmetic
@@ -265,6 +274,73 @@ invmod_redc_32(uint32_t a, uint32_t b) {
 #undef T4
   return u;
 }
+
+/* Compute r[i] = 2^32*a[i]^(-1) mod m, for 0 <= i < n, where a[i] are
+   non-negative integers and r[i] are integers with 0 <= r[i] < m.
+   a[i] need not be reduced modulo m. r and a must be non-overlapping. If
+   any inverse does not exists, returns 0 and contents of r are undefined,
+   otherwise returns 1. */
+
+static inline int
+batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
+              const uint32_t p, const uint32_t invp)
+{
+  uint32_t R;
+
+  /* For the sake of readability of the comments, let
+     $P_i := \prod_{0 \leq j \leq i} a_j$, for $0 \leq i < n$.
+     This is just a notational aid for the comments, the variable
+     P does not occur in the code.
+   */
+
+  if (n == 0)
+    return 1;
+
+  /* Reduce a[0] % m, and store in r[0]. */
+  r[0] = (a[0] >= p) ? a[0] % p : a[0];
+
+  for (size_t i = 1; i < n; i++) {
+    r[i] = mulmodredc_u32(r[i - 1], a[i], p, invp);
+  }
+
+  /*
+    Here, $r_i = (\beta^{-i} P_i ) \pmod{p}$, for $0 \leq i < n$,
+    with $\beta = 2^{32}$.
+    E.g., $r_0 = a_0, r_1 = a_0 * a_1 * \beta^{-1}$, etc.,
+  */
+
+  /* R := \beta * r_{n-1}^{-1} */
+  R = invmod_redc_32(r[n - 1], p);
+  if (R == 0 || R == UINT32_MAX)
+    return 0;
+
+  /* R = P_{n-1}^{-1} * \beta^{n} mod p */
+
+  for (size_t i = n - 1; i > 0; i--) {
+    /* Invariant here: $R = P_i^{-1} * \beta^{i+1} \pmod{p}$ */
+    r[i] = mulmodredc_u32(R, r[i-1], p, invp);
+    /* $r_i := R * r_{i-1} * beta^{-1}
+             = (P_i^{-1} * \beta^{i+1}) * (\beta^{-i+1} P_{i-1}) * \beta^{-1}
+             = \beta * a_i^{-1}$. */
+    R = mulmodredc_u32(R, a[i], p, invp);
+    /* Here, $R = R * a_i * \beta^{-1} \pmod{p} = 
+       P_{i-1}^{-1} * \beta^{i} \pmod{p}$. */
+  }
+  r[0] = R;
+//#define LAS_ARITH_COMPARE_BATCHINV 1
+#ifdef LAS_ARITH_COMPARE_BATCHINV
+  for (size_t i = 0; i < n; i++) {
+    uint32_t product = mulmodredc_u32(r[i], a[i], p, invp);
+    if (product != 1) {
+      verbose_output_print(1, 0, "batchinv_u32: 1/%" PRIu32 " (mod %" PRIu32
+        ") wrong: %" PRIu32 "\n", a[i], p, r[i]);
+      ASSERT(0);
+    }
+  }
+#endif
+  return 1;
+}
+
 
 fbprime_t is_prime_power(fbprime_t q);
 

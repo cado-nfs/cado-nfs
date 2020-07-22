@@ -115,6 +115,57 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
   return (fbprime_t) (redc_u32 (aux2, p, invp) + aux1);
 }
 
+/* The version fb_root_in_qlattice_31bits mandates that the coordinates
+ * of the q-lattice are at most 31 bits, so that combinations such as
+ * Rb1-a1 always fit within the interval ]-2^32p, +2^32p[.
+ * It makes 3 calls to redc_32 per root and 1 to invmod_redc_32
+ * for the whole batch.
+ */
+static inline bool
+fb_root_in_qlattice_31bits_batch (fbroot_t *R, const fbprime_t p, 
+        const fbroot_t *r, const uint32_t invp, const qlattice_basis &basis,
+        const size_t n)
+{
+  ASSERT(n > 0);
+  /* p must be odd for REDC to work */
+  ASSERT(p % 2 == 1);
+
+  for (size_t i = 0; i < n; i++) {
+      int64_t aux = basis.a0 - (int64_t)r[i] *basis.b0;
+      /* USE_NATIVE_MOD is slightly slower on Intel i5-4590 with gcc 9.2.1:
+       * test_fb_root 10000 reports 14.49s instead of 13.26s
+       * (same pattern on i7-8550U)
+       */
+//#define USE_NATIVE_MOD
+#ifdef USE_NATIVE_MOD
+      R[i] = (aux >= 0) ? aux % p : p - ((-aux) % p);
+#else
+      // Use Signed Redc for the computation:
+      // Numerator and denominator will get divided by 2^32, but this does
+      // not matter, since we take their quotient.
+      R[i] = redc_32(aux, p, invp); /* 0 <= v < p */
+#endif
+  }
+
+  uint32_t inverses[n];
+  // If any transformed root is projective, return false.
+  if (batchinvredc_u32(inverses, R, n, p, invp) == 0) {
+      return false;
+  }
+
+  for (size_t i = 0; i < n; i++) {
+      int64_t aux = (int64_t)r[i] * basis.b1 - basis.a1;
+#ifdef USE_NATIVE_MOD
+      uint32_t u = (aux >= 0) ? aux % p : p - ((-aux) % p);
+#else
+      uint32_t u = redc_32(aux, p, invp); /* 0 <= u < p */
+#endif
+      aux = (int64_t) u * (int64_t) inverses[i];
+      R[i] = (fbroot_t) (redc_u32 (aux, p, invp));
+  }
+  return true;
+}
+
 /* This one is slower, but should be correct under the relaxed condition
  * that q be at most 127 bits or so, so that the coordinates of the
  * Q-lattice can be as large as 63 bits. We call redc 7 times here, instead
