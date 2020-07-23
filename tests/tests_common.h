@@ -18,6 +18,8 @@ extern "C" {
 int cmp_double(double, double, double);
 int64_t random_int64 ();
 uint64_t random_uint64 ();
+void tests_common_urandomb (mpz_t, mp_bitcnt_t);
+void tests_common_urandomm (mpz_t, mpz_t);
 void tests_common_get_iter(unsigned long *);
 int tests_common_get_verbose();
 int tests_common_get_quiet();

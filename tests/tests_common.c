@@ -52,6 +52,16 @@ random_int64 ()
 #endif
 }
 
+void tests_common_urandomb(mpz_t ROP, mp_bitcnt_t N)
+{
+    mpz_urandomb(ROP, state, N);
+}
+
+void tests_common_urandomm(mpz_t ROP, mpz_t N)
+{
+    mpz_urandomm(ROP, state, N);
+}
+
 /* Set *output to the value from -iter, if -iter was given,
    otherwise do nothing */
 void
