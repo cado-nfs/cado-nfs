@@ -16,6 +16,7 @@
 #include "las-qlattice.hpp"
 #include "las-fbroot-qlattice.hpp"
 #include "timing.h"  // seconds
+#include "tests_common.h"
 
 /* return (R*b1-a1)/(a0-R*b0) % p */
 static fbprime_t
@@ -43,7 +44,7 @@ ref_fb_root_in_qlattice (fbprime_t p, fbprime_t R, qlattice_basis basis)
 }
 
 static void
-test_fb_root_in_qlattice_31bits (gmp_randstate_t rstate, int test_speed, unsigned long N)
+test_fb_root_in_qlattice_31bits (int test_speed, unsigned long N)
 {
   fbprime_t *p, *R, r, rref;
   uint32_t *invp;
@@ -68,12 +69,12 @@ test_fb_root_in_qlattice_31bits (gmp_randstate_t rstate, int test_speed, unsigne
     {
       do
 	{
-	  mpz_urandomb (t, rstate, 32);
+	  tests_common_urandomb (t, 32);
 	  mpz_nextprime (t, t);
 	}
       while (mpz_sizeinbase (t, 2) != 32);
       p[i] = mpz_get_ui (t);
-      mpz_urandomm (u, rstate, t);
+      tests_common_urandomm (u, t);
       R[i] = mpz_get_ui (u);
       ASSERT_ALWAYS (R[i] < p[i]);
       /* invp[i] is -1/p[i] mod 2^32 */
@@ -90,13 +91,13 @@ test_fb_root_in_qlattice_31bits (gmp_randstate_t rstate, int test_speed, unsigne
 	 and additionally |a0-R*b0|,|R*b1-a1| < 2^32*p (which holds here
 	 since p has 32 bits, thus 2^32*p > 2^63);
 	 we take 0 <= b0,b1 < 2^30, and |a0|, |a1| < 2^61 */
-      mpz_urandomb (t, rstate, 63);
+      tests_common_urandomb (t, 63);
       basis[j].a0 = mpz_get_ui (t) - 0x4000000000000000UL;
-      mpz_urandomb (t, rstate, 63);
+      tests_common_urandomb (t, 63);
       basis[j].a1 = mpz_get_ui (t) - 0x4000000000000000UL;
-      mpz_urandomb (t, rstate, 30);
+      tests_common_urandomb (t, 30);
       basis[j].b0 = mpz_get_ui (t);
-      mpz_urandomb (t, rstate, 30);
+      tests_common_urandomb (t, 30);
       basis[j].b1 = mpz_get_ui (t);
     }
 
@@ -137,7 +138,7 @@ test_fb_root_in_qlattice_31bits (gmp_randstate_t rstate, int test_speed, unsigne
 }
 
 static void
-test_fb_root_in_qlattice_127bits (gmp_randstate_t rstate, int test_speed, unsigned long N)
+test_fb_root_in_qlattice_127bits (int test_speed, unsigned long N)
 {
   fbprime_t *p, *R, r, r31, rref;
   uint32_t *invp32;
@@ -165,12 +166,12 @@ test_fb_root_in_qlattice_127bits (gmp_randstate_t rstate, int test_speed, unsign
     {
       do
 	{
-	  mpz_urandomb (t, rstate, 32);
+	  tests_common_urandomb (t, 32);
 	  mpz_nextprime (t, t);
 	}
       while (mpz_sizeinbase (t, 2) != 32);
       p[i] = mpz_get_ui (t);
-      mpz_urandomm (u, rstate, t);
+      tests_common_urandomm (u, t);
       R[i] = mpz_get_ui (u);
       ASSERT_ALWAYS (R[i] < p[i]);
       /* invp32[i] is -1/p[i] mod 2^32 */
@@ -189,13 +190,13 @@ test_fb_root_in_qlattice_127bits (gmp_randstate_t rstate, int test_speed, unsign
   /* generate basis[j] for 0 <= j < N */
   for (j = 0; j < N; j++)
     {
-      mpz_urandomb (t, rstate, 63);
+      tests_common_urandomb (t, 63);
       basis[j].a0 = mpz_get_ui (t) - 0x4000000000000000UL;
-      mpz_urandomb (t, rstate, 63);
+      tests_common_urandomb (t, 63);
       basis[j].a1 = mpz_get_ui (t) - 0x4000000000000000UL;
-      mpz_urandomb (t, rstate, 30);
+      tests_common_urandomb (t, 30);
       basis[j].b0 = mpz_get_ui (t);
-      mpz_urandomb (t, rstate, 30);
+      tests_common_urandomb (t, 30);
       basis[j].b1 = mpz_get_ui (t);
     }
 
@@ -341,52 +342,40 @@ bug20200225 (void)
     }
 }
 
+/* The usual tests command line parameters "-seed" and "-iter" are accepted.
+   So is "-c" to check only correctness but not timing. Unfortunately,
+   the -c parameter must be given last on the command line to work. */
+
 int
-main (int argc, char *argv[])
+main (int argc, const char *argv[])
 {
   unsigned long N = 1000;
-  unsigned long seed = 1;
   int correctness_only = 0;
 
   setbuf(stdout, NULL);
   setbuf(stderr, NULL);
 
-  int wild = 0;
+  tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
+  tests_common_get_iter(&N);
+  
   for( ; argc > 1 ; argc--,argv++) {
-      if (strcmp(argv[1], "-s") == 0) {
-          seed = strtoul (argv[2], NULL, 10);
-          argc--,argv++;
-      } else if (strcmp(argv[1], "-c") == 0) {
+      if (strcmp(argv[1], "-c") == 0) {
           correctness_only = 1;
-      } else if (!wild++) {
-          N = strtoul (argv[1], NULL, 10);
       } else {
           fprintf(stderr, "unparsed arg: %s\n", argv[1]);
           exit (EXIT_FAILURE);
       }
   }
 
-  gmp_randstate_t rstate;
-  gmp_randinit_default(rstate);
-
   /* do correctness tests first */
   bug20200225 ();
-  gmp_randseed_ui(rstate, seed);
-  test_fb_root_in_qlattice_31bits (rstate, 0, N / 10);
-  gmp_randseed_ui(rstate, seed);
-  test_fb_root_in_qlattice_127bits (rstate, 0, N / 10);
+  test_fb_root_in_qlattice_31bits (0, N / 10);
+  test_fb_root_in_qlattice_127bits (0, N / 10);
 
   if (!correctness_only) {
-      gmp_randseed_ui(rstate, seed);
-      test_fb_root_in_qlattice_31bits (rstate, 1, N);
-      gmp_randseed_ui(rstate, seed);
-      test_fb_root_in_qlattice_127bits (rstate, 1, N);
+      test_fb_root_in_qlattice_31bits (1, N);
+      test_fb_root_in_qlattice_127bits (1, N);
   }
-
-  gmp_randclear(rstate);
 
   return 0;
 }
-
-
-
