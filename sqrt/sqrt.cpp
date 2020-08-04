@@ -1257,14 +1257,27 @@ FindSuitableModP (mpz_poly F, mpz_t N)
     int d;
 
     p = getprime_mt (pi);
-    if (mpz_gcd_ui(NULL, N, p) != 1)
+
+    /* check p does not divide N */
+    if (mpz_gcd_ui (NULL, N, p) != 1)
       continue;
 
+    /* check the leading coefficient of F does not vanish mod p */
     d = modul_poly_set_mod (fp, F, &p);
     if (d != dF)
       continue;
+
+    /* check that F is irreducible mod p */
     if (modul_poly_is_irreducible (fp, &p))
       break;
+
+#define MAXP 1000000
+    if (p > MAXP)
+      {
+	fprintf (stderr, "Error, found no suitable prime up to %d\n", MAXP);
+	fprintf (stderr, "See paragraph \"Factoring with SNFS\" in README\n");
+	exit (1);
+      }
     }
   modul_poly_clear (fp);
   prime_info_clear (pi);
