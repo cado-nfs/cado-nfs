@@ -24,9 +24,11 @@ gives you control over the place where the binaries will be found.
 
 The `./cado-nfs.py` script, when not instructed to start clients
 explicitly (that is, with `slaves.hostnames` not set), decides
-nevertheless to do so when it choses a default parameter file. If provided
-with an explicit parameter file, the default is to obey what is in there,
-and therefore not start clients unless `slaves.hostnames` is set.
+nevertheless to do so when it is using a parameter file that was picked
+automatically from the set of default parameter files that are shipped
+with cado-nfs. If provided with an explicit parameter file, the default
+is to obey what is in there, and therefore not start clients unless
+`slaves.hostnames` is set.
 
 To start additional clients, do (following the command line given in the
 output of the server):
