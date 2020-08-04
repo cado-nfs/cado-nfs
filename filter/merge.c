@@ -1,6 +1,6 @@
 /* merge --- new merge program
 
-Copyright 2019 Charles Bouillaguet and Paul Zimmermann.
+Copyright 2019-2020 Charles Bouillaguet and Paul Zimmermann.
 
 This file is part of CADO-NFS.
 
@@ -32,7 +32,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #ifdef HAVE_MINGW
 #include <fcntl.h>         /* for _O_BINARY */
 #endif
-#include "filter_config.h" // USE_HEAP
 #include "filter_io.h"  // earlyparsed_relation_ptr
 #ifdef FOR_DL
 #include "gcd.h"
@@ -49,7 +48,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "report.h"     /* for report_t */
 #include "sparse.h"
 #include "timing.h"  // seconds
-#include "transpose.h"
 #include "typedefs.h"  // weight_t
 #include "verbose.h"    // verbose_interpret_parameters
 
@@ -73,9 +71,6 @@ int pass = 0;
 unsigned long cancel_rows = 0;
 unsigned long cancel_cols[CANCEL_MAX] = {0,};
 #endif
-
-#define GC_MAX_GARBAGE_RATIO   0.08  /* only run the collection when there is this much garbage */
-#define GC_COLLECTION_LATENCY   0     /* wait before collecting */
 
 /* define DEBUG if printRow or copy_matrix is needed */
 // #define DEBUG
@@ -113,20 +108,23 @@ unsigned long cancel_cols[CANCEL_MAX] = {0,};
    columns: if we start from the end, we can stop at soon as j < j0.
 */
 
-/* 0: compute_weights
-   1: compute_R
-   2: compute_merges
-   3: apply_merges
-   4: pass
-   5: renumber
-   6: recompress
-   7: buffer_flush */
+#define COMPUTE_W  0 /* compute_weights */
+#define COMPUTE_R  1 /* compute_R */
+#define COMPUTE_M  2 /* compute_merges */
+#define APPLY_M    3 /* apply_merges */
+#define PASS       4 /* pass */
+#define RECOMPRESS 5 /* recompress */
+#define FLUSH      6 /* buffer_flush */
+#define GC         7 /* garbage collection */
 double cpu_t[8] = {0};
 double wct_t[8] = {0};
 
 static int verbose = 0; /* verbosity level */
 
 #define MARGIN 5 /* reallocate dynamic lists with increment 1/MARGIN */
+
+// #define TRACE_J 1438672   for debuging purposes
+
 
 static void
 print_timings (char *s, double cpu, double wct)
@@ -187,8 +185,8 @@ buffer_flush (buffer_struct_t *Buf, int nthreads, FILE *out)
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   buffer_flush took", cpu, wct);
-  cpu_t[7] += cpu;
-  wct_t[7] += wct;
+  cpu_t[FLUSH] += cpu;
+  wct_t[FLUSH] += wct;
 }
 
 static void
@@ -202,19 +200,41 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
 /*************************** heap structures *********************************/
 
 /* Allocates and garbage-collects relations (i.e. arrays of typerow_t).
-   This works using PAGES. */
 
-#ifdef USE_HEAP
+  Threads allocate PAGES of memory of a fixed size to store rows, and each
+  thread has a single ACTIVE page in which it writes new rows. When the active
+  page is FULL, the thread grabs an EMPTY page that becomes its new active page.
+  In each page, there is a pointer [[ptr]] to the begining of the free space. To
+  allocate [[b]] bytes for a new row, it suffices to note the current value of
+  [[ptr]] and then to increase it by [[b]] --- if this would overflow the current
+  page, then it is marked as "full" and a new active page is obtained. Rows are
+  stored along with their number, their size and the list of their coefficients.
+  To delete a row, we just mark it as deleted by setting its number to -1. Thus,
+  row allocation and deallocation are thread-local operations that are very
+  fast. The last allocated row can easily be shrunk (by diminishing [[ptr]]).
+
+  After each pass, memory is garbage-collected. All threads do the following
+  procedure in parallel, while possible: grab a full page that was not created
+  during this pass; copy all non-deleted rows to the current active page; mark the
+  old full page as "empty". Note that moving row $i$ to a different address
+  in memory requires an update to the ``row pointer'' in [[mat]]; this is
+  why rows are stored along with their number. When they need a new page, threads
+  first try to grab an existing empty page. If there is none, a new page is
+  allocated from the OS. There are global doubly-linked lists of full and empty
+  pages, protected by a lock, but these are infrequently accessed.
+*/
+
 #define PAGE_SIZE ((1<<18) - 4) /* seems to be optimal for RSA-512 */
 
 struct page_t {
-        struct pagelist_t *list;
-        int i;                /* page number, for debugging purposes */
-        int generation;       /* pass in which this page was filled. */
-        int ptr;              /* data[ptr:PAGE_SIZE] is available*/
+        struct pagelist_t *list;     /* the pagelist_t structure associated with this page */
+        int i;                       /* page number, for debugging purposes */
+        int generation;              /* pass in which this page was filled. */
+        int ptr;                     /* data[ptr:PAGE_SIZE] is available*/
         typerow_t data[PAGE_SIZE];
 };
 
+// linked list of pages (doubly-linked for the full pages, simply-linked for the empty pages)
 struct pagelist_t {
         struct pagelist_t *next;
         struct pagelist_t *prev;
@@ -222,8 +242,8 @@ struct pagelist_t {
 };
 
 int n_pages, n_full_pages, n_empty_pages;
-struct pagelist_t headnode;
-struct pagelist_t *full_pages, *empty_pages;
+struct pagelist_t headnode;                  // dummy node for the list of full pages
+struct pagelist_t *full_pages, *empty_pages; // head of the page linked lists
 
 struct page_t **active_page; /* active page of each thread */
 long long *heap_waste;       /* space wasted, per-thread. Can be negative! The sum over all threads is correct. */
@@ -236,6 +256,7 @@ heap_get_free_page()
         struct page_t *page = NULL;
         #pragma omp critical(pagelist)
         {
+                // try to grab it from the simply-linked list of empty pages.
                 if (empty_pages != NULL) {
                         page = empty_pages->page;
                         empty_pages = empty_pages->next;
@@ -245,6 +266,7 @@ heap_get_free_page()
                 }
         }
         if (page == NULL) {
+                // we must allocate a new page from the OS.
                 page = malloc(sizeof(struct page_t));
                 struct pagelist_t *item = malloc(sizeof(struct pagelist_t));
                 page->list = item;
@@ -257,8 +279,8 @@ heap_get_free_page()
 }
 
 /* provide the oldest full page with generation < max_generation, or NULL if none is available,
-   and remove it from the list of full pages */
-MAYBE_UNUSED static struct page_t *
+   and remove it from the doubly-linked list of full pages */
+static struct page_t *
 heap_get_full_page(int max_generation)
 {
         struct pagelist_t *item = NULL;
@@ -278,7 +300,7 @@ heap_get_full_page(int max_generation)
 
 
 /* declare that the given page is empty */
-MAYBE_UNUSED static  void
+static  void
 heap_clear_page(struct page_t *page)
 {
         struct pagelist_t *item = page->list;
@@ -314,6 +336,7 @@ heap_release_page(struct page_t *page)
 static void
 heap_setup()
 {
+        // setup the doubly-linked list of full pages.
         full_pages = &headnode;
         full_pages->page = NULL;
         full_pages->next = full_pages;
@@ -329,6 +352,47 @@ heap_setup()
             active_page[t] = heap_get_free_page();
             heap_waste[t] = 0;
         }
+}
+
+/* release all memory. This is technically not necessary, because the "malloc"
+   allocations are internal to the process, and all space allocated to the
+   process is reclaimed by the OS on termination. However, doing this enables
+   valgrind to check the absence of leaks.
+*/
+static void
+heap_clear ()
+{
+  /* clear active pages */
+  int T = omp_get_max_threads ();
+  for (int t = 0 ; t < T ; t++) {
+    free(active_page[t]->list);
+    free(active_page[t]);
+  }
+
+  /* clear empty pages */
+  while (empty_pages != NULL) {
+    struct pagelist_t *item = empty_pages;
+    empty_pages = item->next;
+    free(item->page);
+    free(item);
+  }
+
+  /* clear full pages. 1. Locate dummy node */
+  while (full_pages->page != NULL)
+    full_pages = full_pages->next;
+
+  // 2. Skip dummy node
+  full_pages = full_pages->next;
+
+  // 3. Walk list until dummy node is met again, free everything.
+  while (full_pages->page != NULL) {
+    struct pagelist_t *item = full_pages;
+    full_pages = full_pages->next;
+    free(item->page);
+    free(item);
+  }
+  free (active_page);
+  free (heap_waste);
 }
 
 
@@ -390,7 +454,7 @@ heap_destroy_row (typerow_t *row)
 
 /* Copy non-garbage data to the active page of the current thread, then
    return the page to the freelist. Thread-safe.
-   Warning : this may fill the current active page and release it. */
+   Warning: this may fill the current active page and release it. */
 static int
 collect_page(filter_matrix_t *mat, struct page_t *page)
 {
@@ -431,24 +495,16 @@ heap_waste_ratio()
 }
 
 /* examine every full pages not created during the current pass and reclaim all lost space */
-MAYBE_UNUSED static void
+static void
 full_garbage_collection(filter_matrix_t *mat)
 {
+        double cpu8 = seconds (), wct8 = wct_seconds ();
         double waste = heap_waste_ratio();
-        // actual_waste = waste * (n_pages - n_empty_pages) / PAGE_SIZE
-        /* Not enough garbage? Do nothing at all */
-        if (waste < GC_MAX_GARBAGE_RATIO)
-                return;
-
         printf("Starting collection with %.0f%% of waste...", 100 * waste);
         fflush(stdout);
 
         // I don't want to collect pages just filled during the collection
-        int max_generation;
-        if (pass == 2)
-                max_generation = 2;
-        else
-                max_generation = pass - GC_COLLECTION_LATENCY;   // tradeoff.
+        int max_generation = pass;
 
         int i = 0;
         int initial_full_pages = n_full_pages;
@@ -464,9 +520,13 @@ full_garbage_collection(filter_matrix_t *mat)
         double recycling = 1 - heap_waste_ratio() / waste;
         printf("Examined %.0f%% of full pages, recycled %.0f%% of waste. %.0f%% of examined data was garbage\n",
         	100 * page_ratio, 100 * recycling, 100.0 * collected_garbage / i / PAGE_SIZE);
-}
 
-#endif
+        cpu8 = seconds () - cpu8;
+        wct8 = wct_seconds () - wct8;
+        print_timings ("   GC took", cpu8, wct8);
+        cpu_t[GC] += cpu8;
+        wct_t[GC] += wct8;
+}
 
 /*****************************************************************************/
 
@@ -557,11 +617,7 @@ insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
   qsort (&(buf[1]), j, sizeof(typerow_t), cmp_typerow_t);
 #endif
 
-#ifdef USE_HEAP
   mat->rows[rel->num] = heap_alloc_row(rel->num, j);
-#else
-  mat->rows[rel->num] = malloc((j + 1) * sizeof (typerow_t));
-#endif
   compressRow (mat->rows[rel->num], buf, j);  /* sparse.c, simple copy loop... */
 
   return NULL;
@@ -607,7 +663,7 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
                 int T = omp_get_num_threads();
                 int t = omp_get_thread_num();
                 index_t m = 0;
-#pragma omp for schedule(static) nowait
+#pragma omp for schedule(static) nowait /* static is mandatory here */
                 for (index_t j = 0; j < ncols; j++)
                     if (0 < mat->wt[j])
                         m++;
@@ -616,7 +672,7 @@ static void recompress(filter_matrix_t *mat, index_t *jmin)
 #pragma omp barrier
 
                 /* prefix-sum over the T threads (sequentially) */
-#pragma omp master
+#pragma omp single
                 {
                     index_t s = 0;
                     for (int t = 0; t < T; t++) {
@@ -631,11 +687,9 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
                     mat->rem_ncols = s;
                 }
 
-#pragma omp barrier
-
                 /* compute the new column indices */
                 m = tm[t];
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) /* static is mandatory here */
                 for (index_t j = 0; j < ncols; j++) {
                     ASSERT(m <= j);
                     p[j] = m;
@@ -644,7 +698,7 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
                 }
 
                 /* rewrite the row indices */
-#pragma omp for schedule(dynamic, 128)
+#pragma omp for schedule(guided) /* guided is slightly better than static */
                 for (uint64_t i = 0; i < nrows; i++) {
                     if (mat->rows[i] == NULL) 	/* row was discarded */
                         continue;
@@ -653,7 +707,7 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
                 }
 
                 /* update mat->wt */
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) /* static is slightly better than guided */
                 for (index_t j = 0; j < ncols; j++)
                     if (0 < mat->wt[j])
                         nwt[p[j]] = mat->wt[j];
@@ -686,7 +740,8 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
            mat->p[2], instead of the initial value of mat->p[1]).
            To solve that problem, we store the new values in another array. */
         	index_t *new_p = malloc (mat->rem_ncols * sizeof (index_t));
-        	#pragma omp for schedule(static)
+		/* static slightly better than guided for the following loop */
+                #pragma omp for schedule(static)
 		for (index_t j = 0; j < ncols; j++)
 			if (0 < mat->wt[j])
 				new_p[p[j]] = mat->p[j];
@@ -711,8 +766,8 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
 	cpu = seconds () - cpu;
 	wct = wct_seconds () - wct;
 	print_timings ("   recompress took", cpu, wct);
-	cpu_t[6] += cpu;
-	wct_t[6] += wct;
+	cpu_t[RECOMPRESS] += cpu;
+	wct_t[RECOMPRESS] += wct;
 }
 
 
@@ -741,14 +796,18 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
             for (int w = 1; w <= MERGE_LEVEL_MAX; w++)
                 local[w] = mat->ncols;
 
-#pragma omp for schedule(static)
+	    /* compute_jmin takes so little time that it makes no sense
+	       optimizing the schedule below */
+            #pragma omp for schedule(static)
             for (index_t j = 0; j < mat->ncols; j++) {
                 col_weight_t w = mat->wt[j];
                 if (0 < w && w <= MERGE_LEVEL_MAX && j < local[w])
                     local[w] = j;
             }
 
-#pragma omp for schedule(static)
+	    /* compute_jmin takes so little time that it makes no sense
+	       optimizing the schedule below */
+            #pragma omp for schedule(static)
             for (int w = 1; w <= MERGE_LEVEL_MAX; w++) {
                 jmin[w] = mat->ncols;
                 for (int t = 0; t < T; t++)
@@ -803,11 +862,11 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
              We only consider ideals of index >= j0, and put the weight of ideal j,
              j >= j0, in Wt[k][j]. */
 
-          /* using a dynamic schedule here is crucial, since during merge,
-             the distribution of row lengths is no longer uniform (including
-             discarded rows) */
+          /* using a dynamic or guided schedule here is crucial, since during
+	     merge, the distribution of row lengths is no longer uniform
+	     (including discarded rows) */
           col_weight_t *Wtk = Wt[tid];
-#pragma omp for schedule(dynamic, 128)
+          #pragma omp for schedule(guided)
           for (index_t i = 0; i < mat->nrows; i++) {
               if (mat->rows[i] == NULL) /* row was discarded */
                   continue;
@@ -824,7 +883,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
              saturating at cwmax + 1:
              Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
           col_weight_t *Wt0 = Wt[0];
-#pragma omp for schedule(static)
+          #pragma omp for schedule(static) /* slightly better than guided */
           for (index_t i = j0; i < mat->ncols; i++) {
               col_weight_t val = Wt0[i];
               for (int t = 1; t < T; t++)
@@ -848,8 +907,8 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   compute_weights took", cpu, wct);
-  cpu_t[0] += cpu;
-  wct_t[0] += wct;
+  cpu_t[COMPUTE_W] += cpu;
+  wct_t[COMPUTE_W] += wct;
 }
 
 /* computes the transposed matrix for columns of weight <= cwmax
@@ -867,17 +926,17 @@ compute_R (filter_matrix_t *mat, index_t j0)
   int cwmax = mat->cwmax;
 
   /* compute the number of rows, the indices of the rowd and the row pointers */
-  {
-      int T = omp_get_max_threads();
-      index_t tRnz[T];
-      index_t tRn[T];
+
+  int T = omp_get_max_threads();
+  index_t tRnz[T];
+  index_t tRn[T];
 #pragma omp parallel
-      {
+  {
           int T = omp_get_num_threads();
           int tid = omp_get_thread_num();
           index_t Rnz = 0;
           index_t Rn = 0;
-#pragma omp for schedule(static) nowait
+          #pragma omp for schedule(static) nowait
           for (index_t j = j0; j < ncols; j++) {
               col_weight_t w = mat->wt[j];
               if (0 < w && w <= cwmax) {
@@ -891,7 +950,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
 #pragma omp barrier
 
           /* prefix-sum over the T threads (sequentially) */
-#pragma omp master
+#pragma omp single
           {
               index_t r = 0;
               index_t s = 0;
@@ -906,115 +965,64 @@ compute_R (filter_matrix_t *mat, index_t j0)
               mat->Rn = s;
               Rp[s] = r; /* set the last row pointer */
           }
-
-#pragma omp barrier
           Rnz = tRnz[tid];
           Rn = tRn[tid];
 
-#pragma omp for schedule(static)
+          #pragma omp for schedule(static) /* static is mandatory here */
           for (index_t j = j0; j < ncols; j++) {
               col_weight_t w = mat->wt[j];
               if (0 < w && w <= cwmax) {
                   Rq[j] = Rn;
                   Rqinv[Rn] = j;
-#ifdef TRANSPOSE_EASY_WAY
                   Rnz += w;
                   Rp[Rn] = Rnz;
-#else
-                  Rp[Rn] = Rnz;
-                  Rnz += w;
-#endif
                   Rn++;
               }
           }
-      } /* end parallel section */
-  }
+  } /* end parallel section */
+
   index_t Rn = mat->Rn;
   index_t Rnz = Rp[Rn];
 
-  MAYBE_UNUSED double before_extraction = wct_seconds();
-  MAYBE_UNUSED double before_compression = before_extraction;
-  MAYBE_UNUSED double end_time;
-
-  if (Rn == 0) /* the transpose code does not like Rn = 0 */
-    {
-      mat->Ri = NULL;
-      goto end;
-    }
-
-  /* extract submatrix */
-  index_t *Mi = malloc_aligned (Rnz * sizeof(index_t), 64);
-  index_t *Mj = malloc_aligned (Rnz * sizeof(index_t), 64);
+  /* allocate variable-sized output (Rp is preallocated) */
   index_t *Ri = malloc_aligned (Rnz * sizeof(index_t), 64);
-  index_t ptr = 0;
-
-  #pragma omp parallel
-  {
-	index_t tptr;
-	index_t slot = 0;
-	#define BUFFER_SIZE 1024
-	index_t row[BUFFER_SIZE] __attribute__((__aligned__(64)));
-	index_t col[BUFFER_SIZE] __attribute__((__aligned__(64)));
-
-	#pragma omp for schedule(dynamic, 1024)
-	for (index_t i = 0; i < nrows; i++) {
-		if (mat->rows[i] == NULL)
-			continue; /* row was discarded */
-		for (index_t k = matLengthRow(mat, i); k >= 1; k--) {
-			index_t j = matCell (mat, i, k);
-			if (j < j0)
-				break;
-			if (mat->wt[j] > cwmax)
-				continue;
-			row[slot] = i;
-			col[slot] = Rq[j];
-			if (slot == BUFFER_SIZE - 1) {
-				#pragma omp atomic capture
-				{ tptr = ptr; ptr += BUFFER_SIZE; }
-				for (int j = 0; j < BUFFER_SIZE; j += 64 / sizeof(index_t)) {
-					store_nontemp_64B(Mi + tptr, row + j);
-					store_nontemp_64B(Mj + tptr, col + j);
-					tptr += 64 / sizeof(index_t);
-				}
-				slot = 0;
-			} else {
-				slot++;
-			}
-		}
-	}
-	/* purge buffer */
-	#pragma omp atomic capture
-	{ tptr = ptr; ptr += slot; }
-	for (index_t i = 0; i < slot; i++) {
-		Mi[tptr + i] = row[i];
-		Mj[tptr + i] = col[i];
-	}
-  }
-  ASSERT(ptr == Rnz);
-  before_compression = wct_seconds();
-
-  /* finally... */
-  transpose(Rnz, Mi, Mj, Rn, Rp, Ri);
-  free_aligned (Mi);
-  free_aligned (Mj);
-
-  /* save */
-  mat->Rn = Rn;
   mat->Ri = Ri;
- end:
-  end_time = wct_seconds();
 
- #ifdef BIG_BROTHER
+  MAYBE_UNUSED double before_extraction = wct_seconds();
+
+  /* dispatch entries */
+  #pragma omp parallel for schedule(guided)
+  for (index_t i = 0; i < nrows; i++) {
+          if (mat->rows[i] == NULL)
+                  continue; /* row was discarded */
+          for (int k = matLengthRow(mat, i); k >= 1; k--) {
+                  index_t j = matCell(mat, i, k);
+                  if (j < j0)
+                          break;
+                  if (mat->wt[j] > cwmax)
+                          continue;
+                  index_t row = i;
+                  index_t col = Rq[j];
+                  uint64_t ptr;
+                  #pragma omp atomic capture
+                  ptr = --Rp[col];
+                  Ri[ptr] = row;
+          }
+  }
+  MAYBE_UNUSED double before_compression = wct_seconds();
+  MAYBE_UNUSED double end_time = before_compression;
+
+#ifdef BIG_BROTHER
   printf("$$$     compute_R:\n");
   #ifdef BIG_BROTHER_EXPENSIVE
-  	index_t n_empty = 0;
-  	for (index_t j = 0; j < ncols; j++)
-		if (mat->wt[j] == 0)
-			n_empty++;
-  	printf("$$$       empty-columns: %d\n", n_empty);
+        index_t n_empty = 0;
+        for (index_t j = 0; j < ncols; j++)
+                if (mat->wt[j] == 0)
+                        n_empty++;
+        printf("$$$       empty-columns: %d\n", n_empty);
   #endif
-  printf("$$$       Rn: %d\n", Rn);
-  printf("$$$       Rnz: %d\n", Rnz);
+  printf("$$$       Rn: % " PRId64 "\n", Rn);
+  printf("$$$       Rnz: %" PRId64 "\n", Rnz);
   printf("$$$       timings:\n");
   printf("$$$         row-count: %f\n", before_extraction - wct);
   printf("$$$         extraction: %f\n", before_compression - before_extraction);
@@ -1026,11 +1034,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   compute_R took", cpu, wct);
-  cpu_t[1] += cpu;
-  wct_t[1] += wct;
+  cpu_t[COMPUTE_R] += cpu;
+  wct_t[COMPUTE_R] += wct;
 }
 
-// #define TRACE_J 1438672
 
 static inline void
 decrease_weight (filter_matrix_t *mat, index_t j)
@@ -1081,11 +1088,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, MAYBE_UNUSED index_t j)
 #endif
 
 	/* fast-track : don't precompute the size */
-#ifdef USE_HEAP
 	typerow_t *sum = heap_alloc_row(i1, k1 + k2);
-#else
-	typerow_t *sum = malloc((k1 + k2) * sizeof(*sum));  /* over-allocation: let it be...*/
-#endif
 
 	while (t1 <= k1 && t2 <= k2) {
 		if (mat->rows[i1][t1] == mat->rows[i2][t2]) {
@@ -1113,13 +1116,8 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, MAYBE_UNUSED index_t j)
 	cancel_cols[cancel] ++;
 #endif
 
-#ifdef USE_HEAP
 	heap_resize_last_row(sum, t);
 	heap_destroy_row(mat->rows[i1]);
-#else
-	sum[0] = t;
-	free(mat->rows[i1]);
-#endif
 	mat->rows[i1] = sum;
 	return;
 }
@@ -1167,11 +1165,7 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, index_t j)
 
   /* now perform the real merge */
   typerow_t *sum;
-#ifdef USE_HEAP
   sum = heap_alloc_row(i1, k1 + k2 - 1);
-#else
-  sum = malloc ((k1 + k2) * sizeof(*sum));
-#endif
 
   int64_t e;
   while (t1 <= k1 && t2 <= k2) {
@@ -1230,13 +1224,8 @@ add_row (filter_matrix_t *mat, index_t i1, index_t i2, index_t j)
 	cancel_cols[cancel] ++;
 #endif
 
-#ifdef USE_HEAP
   heap_resize_last_row(sum, t);
   heap_destroy_row(mat->rows[i1]);
-#else
-  setCell(sum, 0, t, 0);
-  free (mat->rows[i1]);
-#endif
   mat->rows[i1] = sum;
 }
 #endif
@@ -1248,11 +1237,7 @@ remove_row (filter_matrix_t *mat, index_t i)
   int32_t w = matLengthRow (mat, i);
   for (int k = 1; k <= w; k++)
     decrease_weight (mat, rowCell(mat->rows[i], k));
-#ifdef USE_HEAP
   heap_destroy_row(mat->rows[i]);
-#else
-  free (mat->rows[i]);
-#endif
   mat->rows[i] = NULL;
 }
 
@@ -1277,6 +1262,8 @@ printRow (filter_matrix_t *mat, index_t i)
 }
 #endif
 
+#define BIAS 3
+
 /* classical cost: merge the row of smaller weight with the other ones,
    and return the merge cost (taking account of cancellations).
    id is the index of a row in R. */
@@ -1287,28 +1274,28 @@ merge_cost (filter_matrix_t *mat, index_t id)
   index_t hi = mat->Rp[id + 1];
   int w = hi - lo;
 
-  ASSERT (1 <= w && w <= mat->cwmax);
-
   if (w == 1)
-    return -3; /* ensure all 1-merges are processed before 2-merges with no
-		  cancellation */
+    return 0; /* ensure all 1-merges are processed before 2-merges with no
+		 cancellation */
+
+  if (w > mat->cwmax)
+    return INT32_MAX;
 
   /* find shortest row in the merged column */
-  index_t imin = mat->Ri[lo];
-  int32_t cmin = matLengthRow (mat, imin);
+  index_t i = mat->Ri[lo];
+  int32_t c, cmin = matLengthRow (mat, i);
   for (index_t k = lo + 1; k < hi; k++)
     {
-      index_t i = mat->Ri[k];
-      int32_t c = matLengthRow(mat, i);
+      i = mat->Ri[k];
+      c = matLengthRow(mat, i);
       if (c < cmin)
-	{
-		imin = i;
-		cmin = c;
-	      }
+	cmin = c;
     }
 
-  /* fill-in formula for Markowitz pivoting */
-  return (hi - lo - 1) * (cmin - 2) - cmin;
+  /* fill-in formula for Markowitz pivoting: since w >= 2 we have
+     (w - 1) * (cmin - 2) - cmin >= -2, thus adding 3 ensures we
+     get a value >= 1, then 1-merges will be merged first */
+  return (w - 1) * (cmin - 2) - cmin + BIAS;
 }
 
 /* Output a list of merges to a string.
@@ -1430,12 +1417,6 @@ merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
   return c;
 }
 
-/* since merge costs might be negative (for weight 2), we translate them by 3,
-   so that 2-merges with no cancellation give biased cost -2+3=1, and those
-   with cancellation give biased cost 0, so they will be merged first */
-#define BIAS 3
-
-
 /* accumulate in L all merges of (biased) cost <= cbound.
    L must be preallocated.
    L is a linear array and the merges appear by increasing cost.
@@ -1446,68 +1427,66 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   double cpu = seconds(), wct = wct_seconds();
   index_t Rn = mat->Rn;
   int * cost = malloc(Rn * sizeof(*cost));
+  ASSERT_ALWAYS(cost != NULL);
   // int Lp[cbound + 2];  cost pointers
 
   /* compute the cost of all candidate merges */
   /* A dynamic schedule is needed here, since the columns of larger index have
      smaller weight, thus the load would not be evenly distributed with a
      static schedule. The value 128 was determined optimal experimentally
-     on the RSA-512 benchmark with 32 threads. */
-  #pragma omp parallel for schedule(dynamic, 128)
+     on the RSA-512 benchmark with 32 threads, and is better than
+     schedule(guided) for RSA-240 with 112 threads. */
+  #pragma omp parallel for schedule(dynamic,128)
   for (index_t i = 0; i < Rn; i++)
-    cost[i] = merge_cost (mat, i) + BIAS;
+    cost[i] = merge_cost (mat, i);
 
   int s;
 
-  {
-      /* need an array that is visible to all threads in order to do the
-       * prefix sum. Wish I knew another way.
-       */
-      int T = omp_get_max_threads();
-      index_t count[T][cbound + 1];
-      /* Yet Another Bucket Sort (sigh) : sort the candidate merges by cost. Check if worth parallelizing */
+  
+  /* need an array that is visible to all threads in order to do the
+   * prefix sum. Wish I knew another way.
+   */
+  int T = omp_get_max_threads();
+  index_t count[T][cbound + 1];
+
+  /* Yet Another Bucket Sort (sigh): sort the candidate merges by cost. Check if worth parallelizing */
 #pragma omp parallel
-      {
-          int tid = omp_get_thread_num();
-          index_t *tcount = &count[tid][0];
+  {
+    int tid = omp_get_thread_num();
+    index_t *tcount = &count[tid][0];
 
-          memset(tcount, 0, (cbound + 1) * sizeof(index_t));
+    memset(tcount, 0, (cbound + 1) * sizeof(index_t));
 
-#pragma omp for
-          for (index_t i = 0; i < Rn; i++) {
-              int c = cost[i];
-              if (c <= cbound)
-                  tcount[c]++;
-          }
+#pragma omp for schedule(static)  // static is mandatory
+    for (index_t i = 0; i < Rn; i++) {
+      int c = cost[i];
+      if (c <= cbound)
+	tcount[c]++;
+    }
 
-          /* We need to do this because if OMP_DYNAMIC=true we can't be certain
-           * that omp_get_num_threads() == T
-           */
-#pragma omp barrier
+         
 #pragma omp single
-          {
-              /* prefix-sum */
-              s = 0;
-              for (int c = 0; c <= cbound; c++) {
-                  // Lp[c] = s;                     /* global row pointer in L */
-                  for (int t = 0; t < omp_get_num_threads(); t++) {
-                      index_t w = count[t][c];       /* per-thread row pointer in L */
-                      count[t][c] = s;
-                      s += w;
-                  }
-              }
-          }
-#pragma omp barrier
+    {
+      /* prefix-sum */
+      s = 0;
+      for (int c = 0; c <= cbound; c++) {
+	// Lp[c] = s;                     /* global row pointer in L */
+	for (int t = 0; t < omp_get_num_threads(); t++) {
+	  index_t w = count[t][c];       /* per-thread row pointer in L */
+	  count[t][c] = s;
+	  s += w;
+	}
+      }
+    }
 
-#pragma omp for
-          for (index_t i = 0; i < Rn; i++) {
-              int c = cost[i];
-              if (c > cbound)
-                  continue;
-              L[tcount[c]++] = i;
-          }
-      } /* end parallel section */
-  }
+#pragma omp for schedule(static) // static is mandatory
+    for (index_t i = 0; i < Rn; i++) {
+      int c = cost[i];
+      if (c > cbound)
+	continue;
+      L[tcount[c]++] = i;
+    }
+  } /* end parallel section */
 
   free(cost);
 
@@ -1521,8 +1500,8 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   double cpu2 = seconds() - cpu;
   double wct2 = end - wct;
   print_timings ("   compute_merges took", cpu2, wct2);
-  cpu_t[2] += cpu2;
-  wct_t[2] += wct2;
+  cpu_t[COMPUTE_M] += cpu2;
+  wct_t[COMPUTE_M] += wct2;
   return s;
 }
 
@@ -1597,6 +1576,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
       if (ok) {
 	fill_in += merge_do(mat, id, Buf + tid);
 	nmerges ++;
+        ASSERT(hi - lo <= MERGE_LEVEL_MAX);
       }
     }  /* for */
   } /* parallel section */
@@ -1634,8 +1614,8 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
   cpu3 = seconds () - cpu3;
   wct3 = end - wct3;
   print_timings ("   apply_merges took", cpu3, wct3);
-  cpu_t[3] += cpu3;
-  wct_t[3] += wct3;
+  cpu_t[APPLY_M] += cpu3;
+  wct_t[APPLY_M] += wct3;
   return nmerges;
 }
 
@@ -1808,24 +1788,21 @@ main (int argc, char *argv[])
       usage (pl, argv0);
     }
 
-#ifdef USE_HEAP
     heap_setup();
-#endif
-
     set_antebuffer_path (argv0, path_antebuffer);
 
     /* Read number of rows and cols on first line of purged file */
     purgedfile_read_firstline (purgedname, &(mat->nrows), &(mat->ncols));
 
-#if (__SIZEOF_INDEX__ == 4)
+#if (SIZEOF_INDEX == 4)
     if (mat->nrows >> 32)
       {
-	fprintf (stderr, "Error, nrows = %" PRIu64 " larger than 2^32, please recompile with -D__SIZEOF_INDEX__=8\n", mat->nrows);
+	fprintf (stderr, "Error, nrows = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->nrows);
 	exit (EXIT_FAILURE);
       }
     if (mat->ncols >> 32)
       {
-	fprintf (stderr, "Error, ncols = %" PRIu64 " larger than 2^32, please recompile with -D__SIZEOF_INDEX__=8\n", mat->ncols);
+	fprintf (stderr, "Error, ncols = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->ncols);
 	exit (EXIT_FAILURE);
       }
 #endif
@@ -1890,9 +1867,7 @@ main (int argc, char *argv[])
 #ifdef USE_ARENAS
     printf (", M_ARENA_MAX=%d", arenas);
 #endif
-#ifdef USE_HEAP
-    printf (", USE_HEAP(PAGE_SIZE=%d)", PAGE_SIZE);
-#endif
+    printf (", PAGE_SIZE=%d", PAGE_SIZE);
 #ifdef HAVE_OPENMP
     /* https://stackoverflow.com/questions/38281448/how-to-check-the-version-of-openmp-on-windows
        201511 is OpenMP 4.5 */
@@ -1944,10 +1919,8 @@ main (int argc, char *argv[])
 	double cpu1 = seconds (), wct1 = wct_seconds ();
 	pass++;
 
-	#ifdef USE_HEAP
         if (pass == 2 || mat->cwmax > 2)
                 full_garbage_collection(mat);
-	#endif
 
 	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
 	   merges. If one decreases CBOUND_INCR, the final matrix will be
@@ -2011,8 +1984,8 @@ main (int argc, char *argv[])
 	cpu1 = seconds () - cpu1;
 	wct1 = wct_seconds () - wct1;
 	print_timings ("   pass took", cpu1, wct1);
-	cpu_t[4] += cpu1;
-	wct_t[4] += wct1;
+	cpu_t[PASS] += cpu1;
+	wct_t[PASS] += wct1;
 
 	#ifdef BIG_BROTHER
 	    printf("$$$     timings:\n");
@@ -2071,14 +2044,14 @@ main (int argc, char *argv[])
 		(uint64_t) ((target_density - b) / a), target_density);
       }
 
-    print_timings ("renumber       :", cpu_t[5], wct_t[5]);
-    print_timings ("compute_weights:", cpu_t[0], wct_t[0]);
-    print_timings ("compute_R      :", cpu_t[1], wct_t[1]);
-    print_timings ("compute_merges :", cpu_t[2], wct_t[2]);
-    print_timings ("apply_merges   :", cpu_t[3], wct_t[3]);
-    print_timings ("pass           :", cpu_t[4], wct_t[4]);
-    print_timings ("recompress     :", cpu_t[6], wct_t[6]);
-    print_timings ("buffer_flush   :", cpu_t[7], wct_t[7]);
+    print_timings ("compute_weights:", cpu_t[COMPUTE_W], wct_t[COMPUTE_W]);
+    print_timings ("compute_R      :", cpu_t[COMPUTE_R], wct_t[COMPUTE_R]);
+    print_timings ("compute_merges :", cpu_t[COMPUTE_M], wct_t[COMPUTE_M]);
+    print_timings ("apply_merges   :", cpu_t[APPLY_M], wct_t[APPLY_M]);
+    print_timings ("pass           :", cpu_t[PASS], wct_t[PASS]);
+    print_timings ("recompress     :", cpu_t[RECOMPRESS], wct_t[RECOMPRESS]);
+    print_timings ("buffer_flush   :", cpu_t[FLUSH], wct_t[FLUSH]);
+    print_timings ("garbage_coll   :", cpu_t[GC], wct_t[GC]);
 
     printf ("Final matrix has N=%" PRIu64 " nc=%" PRIu64 " (%" PRIu64
 	    ") W=%" PRIu64 "\n", mat->rem_nrows, mat->rem_ncols,
@@ -2089,6 +2062,8 @@ main (int argc, char *argv[])
     print_timing_and_memory (stdout, cpu_after_read, wct_after_read);
 
     buffer_clear (Buf, nthreads);
+
+    heap_clear ();
 
 #ifdef FOR_DL
     free (mat->p);

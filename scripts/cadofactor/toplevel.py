@@ -850,8 +850,8 @@ class Cado_NFS_toplevel(object):
 
         Finish the test above (verify that capping works as
         intended), and also make sure that
-        tasks.linalg.bwc.threads priorituzes the number of
-        *physical* cores.
+        tasks.linalg.bwc.threads prioritizes the number of
+        *physical* cores. For merge, using all hyperthreads is beneficial.
         >>> os.environ["NCPUS_FAKE"]="16"
         >>> os.environ["NVIRTUAL_CPUS_FAKE"]="32"
         >>> t = Cado_NFS_toplevel(args=['12345', '-p', os.path.os.devnull])
@@ -868,6 +868,9 @@ class Cado_NFS_toplevel(object):
 
         >>> t.parameters.get_or_set_default("tasks.linalg.bwc.threads",0)
         16
+
+        >>> t.parameters.get_or_set_default("tasks.filter.merge.threads",0)
+        32
 
         >>> del os.environ["NCPUS_FAKE"]
         >>> del os.environ["NVIRTUAL_CPUS_FAKE"]
