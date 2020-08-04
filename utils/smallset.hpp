@@ -339,5 +339,39 @@ public:
   }
 };
 
+template <typename ELEMENTTYPE>
+class smallset<0, ELEMENTTYPE> {
+public:
+#if defined(HAVE_AVX2)
+  typedef __m256i storagetype;
+#else
+  typedef __m128i storagetype;
+#endif
+
+public:
+  /* The maximum number of items, each of type ELEMENTTYPE, which we can
+     store in "items" */
+  static const size_t nr_items = 0;
+
+  /* "data" contains "len" entries, each of type ELEMENTTYPE */
+  smallset(const ELEMENTTYPE *, const size_t len) {
+    ASSERT_ALWAYS(len == 0);
+  }
+
+  smallset(const std::vector<ELEMENTTYPE> &data) {
+    ASSERT_ALWAYS(data.empty());
+  }
+
+  /* Returns true if "item" is in the set, and false otherwise */
+  inline bool contains(const ELEMENTTYPE &) const {
+    return false;
+  }
+
+  /* Returns true if "item" is in the set, and false otherwise */
+  inline bool contains(const storagetype) const {
+    return false;
+  }
+};
+
 #endif /* if defined(HAVE_SSE2) */
 #endif /* ifndef SMALLSET_HPP_ */
