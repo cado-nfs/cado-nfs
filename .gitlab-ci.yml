@@ -5,13 +5,23 @@ build:
   before_script:
     - id -a
     - echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+    - echo -e "section_start:`date +%s`:install_packages\r\e[0KInstalling required packages"
     - env DEBIAN_FRONTEND=noninteractive apt-get -y update
     - env DEBIAN_FRONTEND=noninteractive apt-get -y install locales cmake libhwloc-dev
+    - echo -e "section_end:`date +%s`:install_packages\r\e[0K"
   script:
+    - echo -e "section_start:`date +%s`:configuration\r\e[0KConfiguring"
     - make cmake
+    - echo -e "section_end:`date +%s`:configuration\r\e[0K"
+    - echo -e "section_start:`date +%s`:build\r\e[0KBuilding"
     - make -j4
+    - echo -e "section_end:`date +%s`:build\r\e[0K"
+    - echo -e "section_start:`date +%s`:build2\r\e[0KBuilding test dependencies"
     - make -j4 all_test_dependencies
+    - echo -e "section_end:`date +%s`:build2\r\e[0K"
+    - echo -e "section_start:`date +%s`:test\r\e[0KRunning tests"
     - env OMP_DYNAMIC=true make check ARGS="-j4"
+    - echo -e "section_end:`date +%s`:test\r\e[0K"
     # okay. "cache" is only when the runners have a notion of available
     # cache server, it seems. Don't do that for now.
     # cache:
