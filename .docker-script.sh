@@ -6,17 +6,19 @@
 # following command lines:
 #
 # Example with the "gcc" image that is used by the .gitlab-ci.yml jobs:
-#     docker run -ti  --volume $PWD:/host gcc bash /host/.docker-script.sh
+#     docker run --rm -ti  --volume $PWD:/host gcc bash /host/.docker-script.sh
 #
 # Example with another base image, here "fedora". The script below has
 # provision for fedora as well.
-#     docker run -ti  --volume $PWD:/host fedora bash /host/.docker-script.sh
+#     docker run --rm -ti  --volume $PWD:/host fedora bash /host/.docker-script.sh
 #
 # This leaves you in a container, within directory /host, which is
 # directly mapped to the directory from which you're calling this
 # script. Your edits are directly reflected in the directory on the host,
 # and you can even do git commits. Beyond that, the script is pretty
 # frugal and doesn't claim to do much.
+#
+# All traces of the container are removed when the script exit (as per --rm)
 # 
 # Caveat: absolute symlinks, or symlinks to outside the filesystem
 # hierarchy under the path from which this script is called, cannot work.
