@@ -36,7 +36,7 @@ my $csi = {
     success => "\033[01;32m",   # bold green
     starting => "\033[01;33m",  # bold yellow
     skipped => "\033[01;37m",   # bold gray
-    normal => "\033[00;30m",    # black
+    normal => "\033[00m",    # black
 };
 
 while (defined($_ = shift @ARGV)) {

@@ -41,7 +41,7 @@ struct trialdiv_data; // IWYU pragma: keep
 #include "las-descent-trees.hpp"
 
 // #define HILIGHT_START   "\e[01;31m"
-// #define HILIGHT_END   "\e[00;30m"
+// #define HILIGHT_END   "\e[00m"
 #define HILIGHT_START   ""
 #define HILIGHT_END   ""
 
