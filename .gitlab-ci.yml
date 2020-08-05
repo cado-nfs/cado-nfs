@@ -1,3 +1,5 @@
+# cf .docker-script.sh
+
 image: gcc
 
 build:
