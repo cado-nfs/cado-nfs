@@ -136,9 +136,9 @@ static inline void
 edwards_addsub (ec_point_t R, const ec_point_t P, const ec_point_t Q, int sub,
                 const modulus_t m, const ec_point_coord_type_t output_type)
 {
-  ASSERT_EXPENSIVE (output_flag == TWISTED_EDWARDS_ext ||
-                    output_flag == TWISTED_EDWARDS_proj ||
-                    output_flag == MONTGOMERY_xz);
+  ASSERT_EXPENSIVE (output_type == TWISTED_EDWARDS_ext ||
+                    output_type == TWISTED_EDWARDS_proj ||
+                    output_type == MONTGOMERY_xz);
 
 #ifdef ECM_COUNT_OPS
   if (output_type == TWISTED_EDWARDS_proj)
@@ -262,8 +262,8 @@ static inline void
 edwards_dbl (ec_point_t R, const ec_point_t P,
              const modulus_t m, const ec_point_coord_type_t output_type)
 {
-  ASSERT_EXPENSIVE (output_flag == TWISTED_EDWARDS_ext ||
-                    output_flag == TWISTED_EDWARDS_proj);
+  ASSERT_EXPENSIVE (output_type == TWISTED_EDWARDS_ext ||
+                    output_type == TWISTED_EDWARDS_proj);
 
 #ifdef ECM_COUNT_OPS
   if (output_type == TWISTED_EDWARDS_proj)
@@ -318,8 +318,8 @@ static inline void
 edwards_tpl (ec_point_t R, const ec_point_t P,
              const modulus_t m, const ec_point_coord_type_t output_type)
 {
-  ASSERT_EXPENSIVE (output_flag == TWISTED_EDWARDS_ext ||
-                    output_flag == TWISTED_EDWARDS_proj);
+  ASSERT_EXPENSIVE (output_type == TWISTED_EDWARDS_ext ||
+                    output_type == TWISTED_EDWARDS_proj);
 
 #ifdef ECM_COUNT_OPS
   if (output_type == TWISTED_EDWARDS_proj)
