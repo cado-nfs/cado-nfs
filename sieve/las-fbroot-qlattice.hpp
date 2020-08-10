@@ -52,9 +52,9 @@ static inline fbprime_t
 fb_root_in_qlattice_po2 (const fbprime_t p, const fbprime_t R,
         const qlattice_basis &basis);
 
-/* The version fb_root_in_qlattice_31bits mandates that the coordinates
+/* This version fb_root_in_qlattice_31bits mandates that the coordinates
  * of the q-lattice are at most 31 bits, so that combinations such as
- * Rb1-a1 always fit within the interval ]-2^32p, +2^32p[.
+ * R*b1-a1 always fit within the interval ]-2^32p, +2^32p[.
  * It makes 3 calls to redc_32 and 1 to invmod_redc_32.
  */
 static inline fbprime_t
@@ -64,7 +64,9 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
   int64_t aux1, aux2;
   uint32_t u, v;
 
-    /* Handle powers of 2 separately, REDC doesn't like them */
+  ASSERT_EXPENSIVE(basis.fits_31bits());
+  
+  /* Handle powers of 2 separately, REDC doesn't like them */
   if (UNLIKELY(!(p & 1)))
     return fb_root_in_qlattice_po2(p, R, basis);
 
@@ -74,7 +76,17 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
 
   if (LIKELY(R < p)) /* Root in a,b-plane is affine */
     {
+      /* With 0 <= R <= 2^32-1, -2^31 <= a1, b1 <= 2^31-1, we have
+       * -2^63 + 1 <= aux1 <= 2^63 - 2^32 + 1
+       * With 0 <= R <= p-1, -2^31 <= a1, b1 <= 2^31-1, we have
+       * -2^31*p + 1 <= aux1 <= (p-1)*2^31 + 1, thus -2^32*p < aux1 < 2^32*p
+       */
       aux1 = (int64_t)R * basis.b1 - basis.a1;
+      /* With 0 <= R <= 2^32-1, -2^31 <= a0, b0 <= 2^31-1, we have
+       * -2^63 + 2^32 - 1 <= aux2 <= 2^63 - 1
+       * With 0 <= R <= p-1, -2^31 <= a0, b0 <= 2^31-1, we have
+       * -p(2^31 - 1) - 1 <= aux2 <= p*2^31 - 1, thus -2^32*p < aux2 < 2^32*p
+       */
       aux2 = basis.a0 - (int64_t)R *basis.b0;
     }
   else /* Root in a,b-plane is projective */
@@ -106,7 +118,9 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
       aux2 = invmod_redc_32(u, p);
       if (UNLIKELY(!aux2))
 	{
-	  fprintf (stderr, "Error, root in (i,j)-plane is projective\n");
+	  fprintf (stderr, "fb_root_in_qlattice_31bits(%" FBPRIME_FORMAT ", %"
+                   FBROOT_FORMAT ", %" PRIu32 "): Error, root %" PRIu32 "/%"
+                   PRIu32 " in (i,j)-plane is projective\n", p, R, invp, u, v);
           ASSERT_ALWAYS(0);
 	}
       aux1 = p;
@@ -115,7 +129,7 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
   return (fbprime_t) (redc_u32 (aux2, p, invp) + aux1);
 }
 
-/* The version fb_root_in_qlattice_31bits mandates that the coordinates
+/* This version fb_root_in_qlattice_31bits mandates that the coordinates
  * of the q-lattice are at most 31 bits, so that combinations such as
  * Rb1-a1 always fit within the interval ]-2^32p, +2^32p[.
  * It makes 3 calls to redc_32 per root and 1 to invmod_redc_32
@@ -126,10 +140,10 @@ fb_root_in_qlattice_31bits_batch (fbroot_t *R, const fbprime_t p,
         const fbroot_t *r, const uint32_t invp, const qlattice_basis &basis,
         const size_t n)
 {
-  ASSERT(n > 0);
   /* p must be odd for REDC to work */
   ASSERT(p % 2 == 1);
-
+  ASSERT_EXPENSIVE(basis.fits_31bits());
+  
   for (size_t i = 0; i < n; i++) {
       int64_t aux = basis.a0 - (int64_t)r[i] *basis.b0;
       /* USE_NATIVE_MOD is slightly slower on Intel i5-4590 with gcc 9.2.1:
