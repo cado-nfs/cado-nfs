@@ -18,9 +18,18 @@ extern "C" {
 int cmp_double(double, double, double);
 int64_t random_int64 ();
 uint64_t random_uint64 ();
-void tests_common_urandomb (mpz_t, mp_bitcnt_t);
-void tests_common_urandomm (mpz_t, mpz_t);
-void tests_common_get_iter(unsigned long *);
+/** Generate a uniformly distributed random integer in the range 0 to
+ *  2^N-1, inclusive. (Copied from GMP info page) */
+void tests_common_urandomb (mpz_t R, mp_bitcnt_t N);
+/** Generate a uniform random integer in the range 0 to N-1,
+ *  inclusive. (Copied from GMP info page) */
+void tests_common_urandomm (mpz_t R, mpz_t N);
+/** Generate a random integer with long strings of zeros and ones in
+ *  the binary representation. (Copied from GMP info page) */
+void tests_common_rrandomb (mpz_t R, mp_bitcnt_t N);
+/** If the "-iter" command line parameter was parsed by tests_common_cmdline(),
+ *  then write the iter value to *output, otherwise do nothing. */
+void tests_common_get_iter(unsigned long *output);
 int tests_common_get_verbose();
 int tests_common_get_quiet();
 void tests_common_cmdline(int *, const char ***, uint64_t);
