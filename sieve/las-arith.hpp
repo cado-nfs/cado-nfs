@@ -80,13 +80,12 @@ mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const uint3
   return redc_u32(x, p, invp);
 }
 
-// Signed redc_32 based on 64-bit arithmetic
-// Assume:
-//   * p is an odd number < 2^32.
-//   * invp is -1/p mod 2^32.
-//   * x is some signed integer in ]-2^32*p, 2^32*p[ (fitting in int64_t)
-// Compute:
-//   * x/2^32 mod p as an integer in [0, p[
+/** Signed redc_32 based on 64-bit arithmetic
+ *   \param [in] x is some signed integer in ]-2^32*p, 2^32*p[ (fitting in int64_t)
+ *   \param [in] p is an odd number < 2^32.
+ *   \param [in] invp is -1/p mod 2^32.
+ *   \return x/2^32 mod p as an integer in [0, p[
+*/
 static inline uint32_t
 redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 {
