@@ -303,6 +303,63 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
   return (fbprime_t) (redc_32 (aux2, p, invp) + aux1);
 }
 
+/* This one is slower, but should be correct under the relaxed condition
+ * that q be at most 127 bits or so, so that the coordinates of the
+ * Q-lattice can be as large as 63 bits. We call redc 7 times here, instead
+ * of 3 for fb_root_in_qlattice_31bits.
+ * Returns true if all inverses exist, and false otherwise.
+ */
+static inline fbprime_t
+fb_root_in_qlattice_127bits_batch (fbprime_t *r_ij, const fbprime_t p,
+        const fbprime_t *r_ab, const uint64_t invp, const qlattice_basis &basis,
+        const size_t n_roots)
+{
+    ASSERT(p % 2 == 1);
+
+    for (size_t i_root = 0; i_root < n_roots; i_root++) {
+        int64_t den;
+        uint64_t Rl = r_ab[i_root];
+        uint64_t b0l = redc_32(basis.b0, p, invp);
+        den = Rl*b0l; /* TODO: Should we not simply use unsigned REDC here? */
+        if (den < 0) den -= ((uint64_t)p)<<32;
+        den = redc_32(basis.a0, p, invp) - den;
+
+#ifdef USE_NATIVE_MOD
+        r_ij[i_root] = (den >= 0) ? den % p : p - ((-den) % p);
+#else
+        r_ij[i_root] = redc_32(den, p, invp); /* 0 <= r_ij[i_root]v < p */
+#endif
+    }
+
+    uint32_t inverses[n_roots];
+    // If any transformed root is projective, return false.
+    if (batchinvredc_u32(inverses, r_ij, n_roots, p, invp) == 0) {
+        return false;
+    }
+
+    for (size_t i_root = 0; i_root < n_roots; i_root++) {
+        int64_t aux1, aux2;
+        uint32_t u;
+        uint64_t Rl = r_ab[i_root];
+        uint64_t b1l = redc_32(basis.b1, p, invp);
+        aux1 = Rl*b1l;
+        if (aux1 < 0) aux1 -= ((uint64_t)p)<<32;
+        aux1 = aux1 - redc_32(basis.a1, p, invp);
+
+#ifdef USE_NATIVE_MOD
+        u = (aux1 >= 0) ? aux1 % p : p - ((-aux1) % p);
+#else
+        u = redc_32(aux1, p, invp); /* 0 <= u < p */
+#endif
+        aux2 = inverses[i_root];
+        aux2 = (aux2 < 2147483648L) ? aux2 * u : (aux2 - p) * u;
+        r_ij[i_root] = (fbprime_t) (redc_32 (aux2, p, invp));
+    }
+
+    return true;
+}
+
+
 /* This is just for powers of 2, and is used by both versions above */
 
 static inline fbprime_t fb_root_in_qlattice_po2 (const fbprime_t p, const fbprime_t R, const qlattice_basis &basis)
