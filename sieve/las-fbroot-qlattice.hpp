@@ -64,7 +64,7 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
   int64_t aux1, aux2;
   uint32_t u, v;
 
-  ASSERT_EXPENSIVE(basis.fits_31bits());
+  // ASSERT_EXPENSIVE(basis.fits_31bits());
   
   /* Handle powers of 2 separately, REDC doesn't like them */
   if (UNLIKELY(!(p & 1)))
@@ -134,49 +134,51 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
  * Rb1-a1 always fit within the interval ]-2^32p, +2^32p[.
  * It makes 3 calls to redc_32 per root and 1 to invmod_redc_32
  * for the whole batch.
+ * Returns true if all inverses exist, and false otherwise.
  */
 static inline bool
-fb_root_in_qlattice_31bits_batch (fbroot_t *R, const fbprime_t p, 
-        const fbroot_t *r, const uint32_t invp, const qlattice_basis &basis,
-        const size_t n)
+fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p, 
+        const fbroot_t *r_ab, const uint32_t invp, const qlattice_basis &basis,
+        const size_t n_roots)
 {
   /* p must be odd for REDC to work */
   ASSERT(p % 2 == 1);
-  ASSERT_EXPENSIVE(basis.fits_31bits());
-  
-  for (size_t i = 0; i < n; i++) {
-      int64_t aux = basis.a0 - (int64_t)r[i] *basis.b0;
+  // ASSERT_ALWAYS(basis.fits_31bits());
+
+  for (size_t i_root = 0; i_root < n_roots; i_root++) {
+      int64_t den = basis.a0 - (int64_t)r_ab[i_root] *basis.b0;
       /* USE_NATIVE_MOD is slightly slower on Intel i5-4590 with gcc 9.2.1:
        * test_fb_root 10000 reports 14.49s instead of 13.26s
        * (same pattern on i7-8550U)
        */
 //#define USE_NATIVE_MOD
 #ifdef USE_NATIVE_MOD
-      R[i] = (aux >= 0) ? aux % p : p - ((-aux) % p);
+      R[i] = (den >= 0) ? den % p : p - ((-den) % p);
 #else
       // Use Signed Redc for the computation:
       // Numerator and denominator will get divided by 2^32, but this does
       // not matter, since we take their quotient.
-      R[i] = redc_32(aux, p, invp); /* 0 <= v < p */
+      r_ij[i_root] = redc_32(den, p, invp); /* 0 <= v < p */
 #endif
   }
 
-  uint32_t inverses[n];
+  uint32_t inverses[n_roots];
   // If any transformed root is projective, return false.
-  if (batchinvredc_u32(inverses, R, n, p, invp) == 0) {
+  if (batchinvredc_u32(inverses, r_ij, n_roots, p, invp) == 0) {
       return false;
   }
 
-  for (size_t i = 0; i < n; i++) {
-      int64_t aux = (int64_t)r[i] * basis.b1 - basis.a1;
+  for (size_t i_root = 0; i_root < n_roots; i_root++) {
+      int64_t aux = (int64_t)r_ab[i_root] * basis.b1 - basis.a1;
 #ifdef USE_NATIVE_MOD
       uint32_t u = (aux >= 0) ? aux % p : p - ((-aux) % p);
 #else
       uint32_t u = redc_32(aux, p, invp); /* 0 <= u < p */
 #endif
-      aux = (int64_t) u * (int64_t) inverses[i];
-      R[i] = (fbroot_t) (redc_u32 (aux, p, invp));
+      aux = (int64_t) u * (int64_t) inverses[i_root];
+      r_ij[i_root] = (fbroot_t) (redc_u32 (aux, p, invp));
   }
+
   return true;
 }
 
