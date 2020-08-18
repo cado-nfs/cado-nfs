@@ -18,7 +18,7 @@
 #include "smooth_detect.h"
 #include "macros.h"
 
-double default_B1done;
+static double default_B1done;
 
 /*
 ECM=...

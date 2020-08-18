@@ -19,7 +19,7 @@
 #endif
 
 // For a bug in ecm ?
-double default_B1done;
+static double default_B1done;
 
 #define EA_THRESHOLD 0.8     // Heuristic for early-abort: low = keep many
 
