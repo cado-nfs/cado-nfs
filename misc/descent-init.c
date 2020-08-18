@@ -41,7 +41,7 @@
 
 #define KEEP 10 /* minimal number of elements in pool */
 
-double default_B1done;
+static double default_B1done;
 
 typedef struct {
   unsigned long e; /* exponent of z */
