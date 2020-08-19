@@ -129,13 +129,26 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
   return (fbprime_t) (redc_u32 (aux2, p, invp) + aux1);
 }
 
-/* This version fb_root_in_qlattice_31bits mandates that the coordinates
- * of the q-lattice are at most 31 bits, so that combinations such as
- * Rb1-a1 always fit within the interval ]-2^32p, +2^32p[.
- * It makes 3 calls to redc_32 per root and 1 to invmod_redc_32
- * for the whole batch.
- * Returns true if all inverses exist, and false otherwise.
+/** Transforms roots r_ab (mod p) according to a lattice basis.
+ *
+ * Each transformed root r_ij[i] is
+ * (r_ab[i] * b1 - a1) / (r_ab[i] * a0 - b0) mod p, where a0, a1, b0, b1
+ * are the lattice basis coordinates.
+ * This version mandates that each lattice coordinate is in [-2^31, 2^31-1].
+ * It makes 3 calls to redc_32 per root and 1 to batchinvredc_u32 for the
+ * whole batch.
+ *
+ * \param [out] r_ij    If all transformed roots are affine, contains the
+ *                      transformed roots, i.e., in i,j-coordinates in the
+ *                      q-lattice. Otherwise, contents undefined
+ * \param [in]  p       The modulus for the root transform
+ * \param [in]  r_ab    The roots in a,b-coordinates (not in q-lattice)
+ * \param [in]  invp    Must satisfy p*invp == -1 (mod p)
+ * \param [in]  basis   The basis of the q-lattice
+ * \param [in]  n_roots The number of roots in r_ab and r_ij
+ * \return true if all inverses exist, and false otherwise.
  */
+
 static inline bool
 fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p, 
         const fbroot_t *r_ab, const uint32_t invp, const qlattice_basis &basis,
@@ -158,6 +171,7 @@ fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
       // Use Signed Redc for the computation:
       // Numerator and denominator will get divided by 2^32, but this does
       // not matter, since we take their quotient.
+      // We use r_ij[] as temp storage
       r_ij[i_root] = redc_32(den, p, invp); /* 0 <= v < p */
 #endif
   }
@@ -169,14 +183,14 @@ fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
   }
 
   for (size_t i_root = 0; i_root < n_roots; i_root++) {
-      int64_t aux = (int64_t)r_ab[i_root] * basis.b1 - basis.a1;
+      int64_t num = (int64_t)r_ab[i_root] * basis.b1 - basis.a1;
 #ifdef USE_NATIVE_MOD
       uint32_t u = (aux >= 0) ? aux % p : p - ((-aux) % p);
 #else
-      uint32_t u = redc_32(aux, p, invp); /* 0 <= u < p */
+      uint32_t u = redc_32(num, p, invp); /* 0 <= u < p */
 #endif
-      aux = (int64_t) u * (int64_t) inverses[i_root];
-      r_ij[i_root] = (fbroot_t) (redc_u32 (aux, p, invp));
+      num = (int64_t) u * (int64_t) inverses[i_root];
+      r_ij[i_root] = (fbroot_t) (redc_u32 (num, p, invp));
   }
 
   return true;
@@ -305,11 +319,24 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
   return (fbprime_t) (redc_32 (aux2, p, invp) + aux1);
 }
 
-/* This one is slower, but should be correct under the relaxed condition
- * that q be at most 127 bits or so, so that the coordinates of the
- * Q-lattice can be as large as 63 bits. We call redc 7 times here, instead
- * of 3 for fb_root_in_qlattice_31bits.
- * Returns true if all inverses exist, and false otherwise.
+/** Transforms roots r_ab (mod p) according to a lattice basis.
+ *
+ * Each transformed root r_ij[i] is
+ * (r_ab[i] * b1 - a1) / (r_ab[i] * a0 - b0) mod p, where a0, a1, b0, b1
+ * are the lattice basis coordinates.
+ * This version allows the lattice coordinates in [-2^63, 2^63-1].
+ * It makes 7 calls to redc_32 per root and 1 to batchinvredc_u32 for the
+ * whole batch.
+ *
+ * \param [out] r_ij    If all transformed roots are affine, contains the
+ *                      transformed roots, i.e., in i,j-coordinates in the
+ *                      q-lattice. Otherwise, contents undefined
+ * \param [in]  p       The modulus for the root transform
+ * \param [in]  r_ab    The roots in a,b-coordinates (not in q-lattice)
+ * \param [in]  invp    Must satisfy p*invp == -1 (mod p)
+ * \param [in]  basis   The basis of the q-lattice
+ * \param [in]  n_roots The number of roots in r_ab and r_ij
+ * \return true if all inverses exist, and false otherwise.
  */
 static inline fbprime_t
 fb_root_in_qlattice_127bits_batch (fbprime_t *r_ij, const fbprime_t p,
@@ -326,6 +353,7 @@ fb_root_in_qlattice_127bits_batch (fbprime_t *r_ij, const fbprime_t p,
         if (den < 0) den -= ((uint64_t)p)<<32;
         den = redc_32(basis.a0, p, invp) - den;
 
+      // We use r_ij[] as temp storage
 #ifdef USE_NATIVE_MOD
         r_ij[i_root] = (den >= 0) ? den % p : p - ((-den) % p);
 #else
