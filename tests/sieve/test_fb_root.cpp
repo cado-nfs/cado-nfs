@@ -172,12 +172,19 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
 
     if (do_speed) {
         double st = seconds ();
-        fbroot_t fake_sum = 0;
+        fbroot_t fake_sum = 0; /* Fake sum to stop compiler from optimizing away
+                                  everything due to unused results */
         for (basis_citer_t basis_iter = basis_begin;
                 basis_iter != basis_end; basis_iter++) {
-            for (unsigned long i = 0; i < N; i++) {
+            for (unsigned long i_fb = 0; i_fb < N; i_fb++) {
                 typename fb_entry_x_roots<Nr_roots>::transformed_entry_t fbt;
-                fbv->transform_roots(fbt, *basis_iter);
+                const fbprime_t p = fbv[i_fb].get_q();
+                // fbv->transform_roots(fbt, *basis_iter);
+                if (bits == 31) {
+                    fb_root_in_qlattice_31bits_batch (fbt.roots, p, fbv[i_fb].roots, fbv[i_fb].invq, *basis_iter, Nr_roots);
+                } else {
+                    fb_root_in_qlattice_127bits_batch (fbt.roots, p, fbv[i_fb].roots, fbv[i_fb].invq, *basis_iter, Nr_roots);
+                }
                 for (unsigned long i_root = 0; i_root < Nr_roots; i_root++)
                     fake_sum += fbt.get_r(i_root);
             }
@@ -186,7 +193,7 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
         volatile fbroot_t fake_sum_vol = fake_sum;
         if (fake_sum_vol) {}
         printf ("fb_entry_x_roots<%d>::transform_roots with %d-bit basis: %lu tests took %.2fs\n",
-                Nr_roots, 31, N * N, st);
+                Nr_roots, bits, N * N, st);
     }
 
     if (do_test) {
@@ -232,7 +239,7 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
                     }
                     for (unsigned char i_root = 0; i_root < Nr_roots; i_root++) {
                         if (fbt_ref.get_r(i_root) != fbt.get_r(i_root) || fbt_ref.get_proj(i_root)) {
-                            print_error_and_exit(p, fbv[i_fb].get_r(i_root), fbt.get_r(i_root), fbt_ref.get_r(i_root), false, *basis_iter, 31);
+                            print_error_and_exit(p, fbv[i_fb].get_r(i_root), fbt.get_r(i_root), fbt_ref.get_r(i_root), fbt_ref.get_proj(i_root), *basis_iter, bits);
                         }
                     }
                 }
@@ -269,7 +276,8 @@ void test_one_root_31bits(const fbprime_t p, const fbroot_t R, const uint32_t in
 }
 
 static void
-test_fb_root_in_qlattice_31bits (int test_speed, unsigned long N)
+test_fb_root_in_qlattice_31bits (const bool test_timing,
+    const bool test_correctness, const unsigned long N)
 {
   fbprime_t *p, *R, r;
   uint32_t *invp;
@@ -302,9 +310,9 @@ test_fb_root_in_qlattice_31bits (int test_speed, unsigned long N)
         make_random_basis(basis[j], t, 31);
     }
 
-    test_chain_fb_root_in_qlattice_batch<MAX_DEGREE>(basis.cbegin(), basis.cend(), N, t, u, test_speed, true, 31);
+    test_chain_fb_root_in_qlattice_batch<MAX_DEGREE>(basis.cbegin(), basis.cend(), N, t, u, test_timing, test_correctness, 31);
 
-  if (test_speed) {
+  if (test_timing) {
       /* efficiency test */
       st = seconds ();
       r = 0;
@@ -314,7 +322,8 @@ test_fb_root_in_qlattice_31bits (int test_speed, unsigned long N)
       st = seconds () - st;
       printf ("fb_root_in_qlattice_31bits: %lu tests took %.2fs (r=%" FBPRIME_FORMAT ")\n",
               N * N, st, r);
-  } else {
+  }
+  if (test_correctness) {
       // const int64_t lim64[2] = {INT64_MIN / 4, INT64_MAX / 4};
       const int64_t lim32[2] = {INT32_MIN, INT32_MAX};
 
@@ -345,7 +354,8 @@ test_fb_root_in_qlattice_31bits (int test_speed, unsigned long N)
 }
 
 static void
-test_fb_root_in_qlattice_127bits (int test_speed, unsigned long N)
+test_fb_root_in_qlattice_127bits (const bool test_timing,
+    const bool test_correctness, const unsigned long N)
 {
   fbprime_t *p, *R, r;
   uint32_t *invp32;
@@ -381,9 +391,9 @@ test_fb_root_in_qlattice_127bits (int test_speed, unsigned long N)
       make_random_basis(basis[j], t, 63);
   }
 
-  test_chain_fb_root_in_qlattice_batch<MAX_DEGREE>(basis.cbegin(), basis.cend(), N, t, u, test_speed, true, 127);
+  test_chain_fb_root_in_qlattice_batch<MAX_DEGREE>(basis.cbegin(), basis.cend(), N, t, u, test_timing, test_correctness, 127);
 
-  if (test_speed) {
+  if (test_timing) {
       /* efficiency test */
       st = seconds ();
       r = 0;
@@ -393,7 +403,9 @@ test_fb_root_in_qlattice_127bits (int test_speed, unsigned long N)
       st = seconds () - st;
       printf ("fb_root_in_qlattice_127bits: %lu tests took %.2fs (r=%" FBPRIME_FORMAT ")\n",
               N * N, st, r);
-  } else {
+  }
+
+  if (test_correctness) {
       /* correctness test */
       for (i = 0; i < N; i++) {
           for (j = 0; j < N; j++) {
@@ -520,7 +532,7 @@ int
 main (int argc, const char *argv[])
 {
   unsigned long N = 100;
-  int correctness_only = 0;
+  bool test_correctness = true, test_timing = true;
 
   setbuf(stdout, NULL);
   setbuf(stderr, NULL);
@@ -530,22 +542,20 @@ main (int argc, const char *argv[])
   
   for( ; argc > 1 ; argc--,argv++) {
       if (strcmp(argv[1], "-c") == 0) {
-          correctness_only = 1;
+          test_correctness = true;
+          test_timing = false;
+      } else if (strcmp(argv[1], "-t") == 0) {
+          test_timing = true;
+          test_correctness = false;
       } else {
           fprintf(stderr, "unparsed arg: %s\n", argv[1]);
           exit (EXIT_FAILURE);
       }
   }
 
-  /* do correctness tests first */
   bug20200225 ();
-  test_fb_root_in_qlattice_31bits (0, N / 10);
-  test_fb_root_in_qlattice_127bits (0, N / 10);
-
-  if (!correctness_only) {
-      test_fb_root_in_qlattice_31bits (1, N);
-      test_fb_root_in_qlattice_127bits (1, N);
-  }
+  test_fb_root_in_qlattice_31bits (test_timing, test_correctness, N);
+  test_fb_root_in_qlattice_127bits (test_timing, test_correctness, N);
 
   return 0;
 }
