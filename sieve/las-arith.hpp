@@ -274,13 +274,19 @@ invmod_redc_32(uint32_t a, uint32_t b) {
   return u;
 }
 
-/* Compute r[i] = 2^32*a[i]^(-1) mod m, for 0 <= i < n, where a[i] are
-   non-negative integers and r[i] are integers with 0 <= r[i] < m.
-   a[i] need not be reduced modulo m. r and a must be non-overlapping. If
-   any inverse does not exists, returns 0 and contents of r are undefined,
-   otherwise returns 1. */
+/** Compute r[i] = 2^32*a[i]^(-1) mod p, for 0 <= i < n.
+ *
+ * The a[i] are non-negative integers and r[i] are integers with 0 <= r[i] < p.
+ * r and a must be non-overlapping.
+ * \param r [out] The n inverses, if all exist, otherwise undefined
+ * \param a [in] The n integers to invert. Need not be reduced modulo p
+ * \param n [in] Number of integers to invert
+ * \param p [in] The modulus for the inversion. Must be odd
+ * \param invp [in] Must satisfy p*invp == -1 (mod 2^32)
+ * \return true if all inverses exist, false otherwise returns
+ */
 
-static inline int
+static inline bool
 batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
               const uint32_t p, const uint32_t invp)
 {
@@ -288,9 +294,13 @@ batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
 
   /* For the sake of readability of the comments, let
      $P_i := \prod_{0 \leq j \leq i} a_j$, for $0 \leq i < n$.
-     This is just a notational aid for the comments, the variable
-     P does not occur in the code.
-   */
+     This is just a notational aid for the comments, the variables
+     P_i do not occur in the code. */
+
+  /* A weak test that a and r are non-overlapping. Sadly, C++11 leaves
+   * ordering comparisons of pointers undefined unless they are both part
+   * of the same array, which we can't guarantee here. */
+  ASSERT_EXPENSIVE(a != r);
 
   if (n == 0)
     return 1;
@@ -302,16 +312,14 @@ batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
     r[i] = mulmodredc_u32(r[i - 1], a[i], p, invp);
   }
 
-  /*
-    Here, $r_i = (\beta^{-i} P_i ) \pmod{p}$, for $0 \leq i < n$,
-    with $\beta = 2^{32}$.
-    E.g., $r_0 = a_0, r_1 = a_0 * a_1 * \beta^{-1}$, etc.,
-  */
+  /* Here, $r_i = (\beta^{-i} P_i ) \pmod{p}$, for $0 \leq i < n$,
+     with $\beta = 2^{32}$.
+     I.e., $r_0 = a_0, r_1 = a_0 * a_1 * \beta^{-1}$, etc., */
 
   /* R := \beta * r_{n-1}^{-1} */
   R = invmod_redc_32(r[n - 1], p);
   if (R == 0 || R == UINT32_MAX)
-    return 0;
+    return false;
 
   /* R = P_{n-1}^{-1} * \beta^{n} mod p */
 
@@ -337,7 +345,7 @@ batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
     }
   }
 #endif
-  return 1;
+  return true;
 }
 
 
