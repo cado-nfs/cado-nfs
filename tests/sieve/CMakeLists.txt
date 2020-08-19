@@ -547,5 +547,7 @@ cado_define_test(torture-redc.cpp LIBRARIES utils)
 
 cado_define_test(test_fb_root.cpp ${PROJECT_SOURCE_DIR}/sieve/fb.cpp LIBRARIES utils tests)
 
+cado_define_test(test_batchinv.cpp LIBRARIES utils tests)
+
 add_subdirectory (ecm)
 add_subdirectory (strategies)
