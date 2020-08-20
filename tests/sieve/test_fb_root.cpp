@@ -163,6 +163,15 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
 {
     /* Test N random factor base entries with Nr_roots roots each against
      * each of the bases in [basis_begin, basis_end] */
+    /* The reason why this is a recursively called function template is
+     * that I'd like to call fb_entry_x_roots<Nr_roots>::transform() in
+     * for the test eventually, but currently it is decided at compile
+     * time (via SUPPORT_LARGE_Q macro) whether
+     * fb_root_in_qlattice_31bits_batch() or
+     * fb_root_in_qlattice_127bits_batch() gets called from there.
+     * It should not be too hard to make that decision at run-time,
+     * then this test code can be adapted accordingly.
+    */
 
     fb_entry_x_roots<Nr_roots> *fbv = new fb_entry_x_roots<Nr_roots>[N];
 
