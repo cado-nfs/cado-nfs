@@ -170,7 +170,7 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
     for (unsigned long i = 0; i < N; i++)
         make_random_fb_entry_x_roots<Nr_roots>(fbv[i], t, u);
 
-    if (do_speed) {
+    if (do_speed && Nr_roots > 0) {
         double st = seconds ();
         fbroot_t fake_sum = 0; /* Fake sum to stop compiler from optimizing away
                                   everything due to unused results */
@@ -207,7 +207,7 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
                 /* Compute reference roots */
                 fbt_ref.p = p;
                 bool had_any_proj = false;
-                for (unsigned char i_root = 0; i_root < Nr_roots; i_root++) {
+                for (unsigned char i_root = 0; 0 < Nr_roots && i_root < Nr_roots; i_root++) {
                     const fbroot_t original_root = fbv[i_fb].get_r(i_root);
                     fb_general_root t = ref_fb_root_in_qlattice (p, original_root, *basis_iter);
                     fbt_ref.roots[i_root] = t.r;
@@ -237,7 +237,7 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
                         fprintf(stderr, "p = %" FBPRIME_FORMAT ", fbt.get_q() = %" FBPRIME_FORMAT "\n",
                                        p, fbt.get_q());
                     }
-                    for (unsigned char i_root = 0; i_root < Nr_roots; i_root++) {
+                    for (unsigned char i_root = 0; 0 < Nr_roots && i_root < Nr_roots; i_root++) {
                         if (fbt_ref.get_r(i_root) != fbt.get_r(i_root) || fbt_ref.get_proj(i_root)) {
                             print_error_and_exit(p, fbv[i_fb].get_r(i_root), fbt.get_r(i_root), fbt_ref.get_r(i_root), fbt_ref.get_proj(i_root), *basis_iter, bits);
                         }
