@@ -98,7 +98,7 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
    * test_fb_root 10000 reports 14.49s instead of 13.26s
    * (same pattern on i7-8550U)
    */
-//#define USE_NATIVE_MOD
+// #define USE_NATIVE_MOD 1
 #ifdef USE_NATIVE_MOD
   u = (aux1 >= 0) ? aux1 % p : p - ((-aux1) % p);
   v = (aux2 >= 0) ? aux2 % p : p - ((-aux2) % p);
@@ -166,7 +166,7 @@ fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
        */
 //#define USE_NATIVE_MOD
 #ifdef USE_NATIVE_MOD
-      R[i] = (den >= 0) ? den % p : p - ((-den) % p);
+      r_ij[i_root] = (den >= 0) ? den % p : p - ((-den) % p);
 #else
       // Use Signed Redc for the computation:
       // Numerator and denominator will get divided by 2^32, but this does
@@ -185,7 +185,7 @@ fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
   for (size_t i_root = 0; i_root < n_roots; i_root++) {
       int64_t num = (int64_t)r_ab[i_root] * basis.b1 - basis.a1;
 #ifdef USE_NATIVE_MOD
-      uint32_t u = (aux >= 0) ? aux % p : p - ((-aux) % p);
+      uint32_t u = (num >= 0) ? num % p : p - ((-num) % p);
 #else
       uint32_t u = redc_32(num, p, invp); /* 0 <= u < p */
 #endif
@@ -349,7 +349,7 @@ fb_root_in_qlattice_127bits_batch (fbprime_t *r_ij, const fbprime_t p,
         int64_t den;
         uint64_t Rl = r_ab[i_root];
         uint64_t b0l = redc_32(basis.b0, p, invp);
-        den = Rl*b0l; /* TODO: Should we not simply use unsigned REDC here? */
+        den = Rl*b0l;
         if (den < 0) den -= ((uint64_t)p)<<32;
         den = redc_32(basis.a0, p, invp) - den;
 
@@ -368,7 +368,7 @@ fb_root_in_qlattice_127bits_batch (fbprime_t *r_ij, const fbprime_t p,
     }
 
     for (size_t i_root = 0; i_root < n_roots; i_root++) {
-        int64_t aux1, aux2;
+        int64_t aux1;
         uint32_t u;
         uint64_t Rl = r_ab[i_root];
         uint64_t b1l = redc_32(basis.b1, p, invp);
@@ -381,9 +381,7 @@ fb_root_in_qlattice_127bits_batch (fbprime_t *r_ij, const fbprime_t p,
 #else
         u = redc_32(aux1, p, invp); /* 0 <= u < p */
 #endif
-        aux2 = inverses[i_root];
-        aux2 = (aux2 < 2147483648L) ? aux2 * u : (aux2 - p) * u;
-        r_ij[i_root] = (fbprime_t) (redc_32 (aux2, p, invp));
+        r_ij[i_root] = (fbprime_t) mulmodredc_u32(u, inverses[i_root], p, invp);
     }
 
     return true;
