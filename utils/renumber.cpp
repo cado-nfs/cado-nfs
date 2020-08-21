@@ -636,7 +636,7 @@ bool renumber_t::traditional_is_vp_marker(index_t i) const
 index_t renumber_t::get_first_index_from_p(p_r_side x) const
 {
     p_r_values_t p = x.p;
-    p_r_values_t side = x.side;
+    // p_r_values_t side = x.side;
     if (p < index_from_p_cache.size()) {
         index_t i = index_from_p_cache[p];
         if (format == format_flat) {
@@ -654,7 +654,7 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
         return i;
     }
 
-    if (UNLIKELY(p >> lpb[side]))
+    if (UNLIKELY(p >> *std::max_element(lpb.begin(), lpb.end())))
         throw prime_is_too_large(p);
 
     if (format == format_flat) {
