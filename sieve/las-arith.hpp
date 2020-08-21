@@ -39,25 +39,24 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
    */
   uint64_t tp = (uint64_t)t * (uint64_t)p;
   uint64_t xtp = x;
-  int cf;
   /* do xtp += tp, get carry out in cf */
-#if defined(GENUINE_GNUC) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
-  asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
+
+  t = 0;
+#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+  asm("addq %[tp],%[xtp]\n" 
+      "cmovc %[p], %[t]\n"
+      : [xtp]"+r"(xtp), [t]"+r"(t) : [tp]"r"(tp), [p] "r" (p));
 #else
-  /* With GCC 9.2.1 the following code is as fast as the above assembly code.
-     Example on Intel i5-4590 at 3.3Ghz with turbo-boost disabled
-     (revision 8de5fc9):
-     torture-redc 10000000:
-     assembly: redc_u32: 8388608 tests in 0.0659s
-     C code  : redc_u32: 8388608 tests in 0.0658s
-  */
+  /* The compiler should be able to turn this into addq/cmovc, but
+   * gcc 10.2.0 doesn't :( I have not tried other compilers.
+   * The compiler generates a branch which is slightly slower. */
   xtp += tp;
-  cf = xtp < tp;
+  if (xtp < tp) t = p;
 #endif
 #ifdef STAT
   static int count = 0, carry = 0;
   count ++;
-  carry += cf != 0;
+  carry += (xtp < tp) ? 1 : 0;
   if ((count % 1000000) == 0)
     printf ("redc_u32: count=%d carry=%d\n", count, carry);
 #endif
@@ -69,9 +68,17 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
    * thus u' - p < p, which ensures that (1) a borrow will occur in the
    * subtraction u - p, which will compensate for the carry in x + t*p,
    * and (2) the final result will be < p as wanted */
-
-  return (cf || u >= p) ? u - p : u;
+  if (u >= p) t = p;
+  return u - t;
 }
+
+/** Unsigned modular multiplication with REDC
+ *   \param [in] a unsigned 32-bit integer
+ *   \param [in] b unsigned 32-bit integer. We require a*b < 2^32*p
+ *   \param [in] p is an odd number < 2^32.
+ *   \param [in] invp is -1/p mod 2^32.
+ *   \return (a*b)/2^32 mod p as an integer in [0, p[
+*/
 
 static inline uint32_t
 mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const uint32_t invp)
@@ -95,17 +102,26 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   uint64_t xtp = (x >= 0) ? x : x + ((uint64_t) p << 32);
   /* the following does the same without any branch, but seems slightly
      worse with GCC 9.2.1. */
+#elif 1
+  /* This is as fast as the previous on i3-6100, but avoids the MUL and is
+   * branch-free. */
+  uint64_t xtp = x + ((uint64_t) p << 32);
+  if (x >= 0)
+      xtp = x;
 #else
   uint64_t xtp = x + (uint64_t) p * (uint64_t) ((x & 0x8000000000000000) >> 31);
 #endif
   /* now xtp >= 0, and we are in the same case as redc_u32,
      thus the same analysis as redc_u32 applies here */
-  int cf;
-#if defined(GENUINE_GNUC) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
-  asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
+  t = 0;
+#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+  asm("addq %[tp],%[xtp]\n" 
+      "cmovc %[p], %[t]\n"
+      : [xtp]"+r"(xtp), [t]"+r"(t) : [tp]"r"(tp), [p] "r" (p));
 #else
+  /* Same thing as in redc_u32 */
   xtp += tp;
-  cf = xtp < tp;
+  if (xtp < tp) t = p;
 #endif
   /* Timings with revision 8de5fc9
      on Intel i5-4590 at 3.3Ghz with turbo-boost disabled:
@@ -114,7 +130,8 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
      C code  : redc_32: 8388608 tests in 0.0679s
      assembly+(if 0 instead of if 1): redc_32: 8388608 tests in 0.0680s */
   uint32_t u = xtp >> 32;
-  return (cf || u >= p) ? u - p : u;
+  if (u >= p) t = p;
+  return u - t;
 }
 
 /* NOTE: we used to have redc_64, invmod_redc_64, and invmod_64 ; actually we
