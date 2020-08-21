@@ -132,6 +132,18 @@ make_random_basis (qlattice_basis &basis, mpz_t t, const int bits)
 }
 
 static void
+make_extremal_basis (qlattice_basis &basis, const int bits, const unsigned int count)
+{
+    const int64_t min = (bits == 31) ? INT32_MIN : INT64_MIN / 4;
+    const int64_t max = (bits == 31) ? INT32_MAX : INT64_MAX / 4;
+
+    basis.a0 = (count & 1) != 0 ? min : max;
+    basis.a1 = (count & 2) != 0 ? min : max;
+    basis.b0 = (count & 4) != 0 ? min : max; /* with bits==31, min-2 happens to pass, min-3 fails */
+    basis.b1 = (count & 8) != 0 ? min : max; /* with bits==31, min-2 happens to pass, min-3 fails */
+}
+
+static void
 print_error_and_exit(const fbprime_t p, const fbroot_t r, const fbroot_t rt, const fbroot_t rref, const bool proj_ref, const qlattice_basis &basis, const int bits)
 {
     fprintf (stderr, "Error for p=%" FBPRIME_FORMAT "; R=%" FBPRIME_FORMAT "; a0=%" PRId64 "; b0=%" PRId64 "; a1=%" PRId64 "; b1=%" PRId64 ";\n",
@@ -306,16 +318,27 @@ test_fb_root_in_qlattice_31bits (const bool test_timing,
   ASSERT_ALWAYS(invp != NULL);
   basis.assign(N, qlattice_basis()); /* What does this do? */
 
+  if (0 < N) {
+      p[0] = 4294967291U;
+      R[0] = p[0] - 1;
+      invp[0] = make_invp32(p[0], t, u);
+  }
+
   /* generate p[i], R[i], invp[i] for 0 <= i < N */
-  for (i = 0; i < N; i++) {
+  for (i = 1; i < N; i++) {
       p[i] = make_random_fb_prime(t);
       R[i] = make_random_fb_root(p[i], t);
       /* invp[i] is -1/p[i] mod 2^32 */
       invp[i] = make_invp32(p[i], t, u);
   }
 
-  /* generate basis[j] for 0 <= j < N */
-    for (j = 0; j < N; j++) {
+    /* Fill the first up to 16 basis entries with extremal bases */
+    for (j = 0; j < N && j < 16; j++) {
+        make_extremal_basis(basis[j], 31, j);
+    }
+  
+    /* Fill the remaining basis entries with random bases */
+    for (j = 16; j < N; j++) {
         make_random_basis(basis[j], t, 31);
     }
 
@@ -332,23 +355,8 @@ test_fb_root_in_qlattice_31bits (const bool test_timing,
       printf ("fb_root_in_qlattice_31bits: %lu tests took %.2fs (r=%" FBPRIME_FORMAT ")\n",
               N * N, st, r);
   }
-  if (test_correctness) {
-      // const int64_t lim64[2] = {INT64_MIN / 4, INT64_MAX / 4};
-      const int64_t lim32[2] = {INT32_MIN, INT32_MAX};
 
-      for (unsigned int i = 0; i < 16; i++) {
-          constexpr fbprime_t p = UINT32_C(4294967291);
-          constexpr fbroot_t r = p - 1;
-          const uint32_t invp = make_invp32(p, t, u);
-          qlattice_basis b;
-          b.a0 = lim32[(i & 1) != 0];
-          b.a1 = lim32[(i & 2) != 0];
-          b.b0 = lim32[(i & 4) != 0];
-          b.b1 = lim32[(i & 8) != 0];
-          test_one_root_31bits(p, r, invp, b);
-      }
-      
-      /* correctness test */
+  if (test_correctness) {
       for (i = 0; i < N; i++)
           for (j = 0; j < N; j++)
               test_one_root_31bits(p[i], R[i], invp[i], basis[j]);
@@ -395,8 +403,13 @@ test_fb_root_in_qlattice_127bits (const bool test_timing,
       invp64[i] = make_invp64(p[i], t, u);
   }
 
+    /* Fill the first up to 16 basis entries with extremal bases */
+    for (j = 0; j < N && j < 16; j++) {
+        make_extremal_basis(basis[j], 63, j);
+    }
+  
   /* generate basis[j] for 0 <= j < N */
-  for (j = 0; j < N; j++) {
+  for (j = 16; j < N; j++) {
       make_random_basis(basis[j], t, 63);
   }
 
