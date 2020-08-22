@@ -15,6 +15,14 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
 static inline fbprime_t
 fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
         const uint64_t invp, const qlattice_basis &basis);
+static inline bool
+fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
+        const fbroot_t *r_ab, const uint32_t invp,
+        const qlattice_basis &basis, const size_t n_roots);
+static inline bool
+fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
+        const fbroot_t *r_ab, const uint64_t invp, const qlattice_basis &basis,
+        const size_t n_roots);
 
 
 /* fb_root_in_qlattice returns (R*b1-a1)/(a0-R*b0) mod p */
@@ -33,6 +41,14 @@ fb_root_in_qlattice(const fbprime_t p, const fbprime_t R,
 {
     return fb_root_in_qlattice_127bits(p, R, invp, basis);
 }
+static inline bool
+fb_root_in_qlattice_batch (fbroot_t *r_ij, const fbprime_t p,
+        const fbroot_t *r_ab, const uint32_t invp, const qlattice_basis &basis,
+        const size_t n_roots)
+{
+    return fb_root_in_qlattice_127bits_batch (r_ij, p, r_ab, invp, basis,
+                                              n_roots);
+}
 #else
 
 #define MAX_SPECIALQ_BITSIZE    30
@@ -44,6 +60,14 @@ fb_root_in_qlattice(const fbprime_t p, const fbprime_t R,
         const redc_invp_t invp, const qlattice_basis &basis)
 {
     return fb_root_in_qlattice_31bits(p, R, invp, basis);
+}
+static inline bool
+fb_root_in_qlattice_batch (fbroot_t *r_ij, const fbprime_t p,
+        const fbroot_t *r_ab, const uint32_t invp, const qlattice_basis &basis,
+        const size_t n_roots)
+{
+    return fb_root_in_qlattice_31bits_batch (r_ij, p, r_ab, invp, basis,
+                                             n_roots);
 }
 #endif
 
@@ -338,9 +362,9 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
  * \param [in]  n_roots The number of roots in r_ab and r_ij
  * \return true if all inverses exist, and false otherwise.
  */
-static inline fbprime_t
-fb_root_in_qlattice_127bits_batch (fbprime_t *r_ij, const fbprime_t p,
-        const fbprime_t *r_ab, const uint64_t invp, const qlattice_basis &basis,
+static inline bool
+fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
+        const fbroot_t *r_ab, const uint64_t invp, const qlattice_basis &basis,
         const size_t n_roots)
 {
     ASSERT(p % 2 == 1);
