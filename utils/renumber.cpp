@@ -1089,7 +1089,8 @@ void renumber_t::compute_bad_ideals_from_dot_badideals_hint(std::istream & is, u
         mpz_poly_srcptr f = cpoly->pols[x.side];
         for(badideal & b : badideals_above_p(f, x.side, x.p)) {
             above_bad += b.nbad;
-            bad_ideals.emplace_back(x, std::move(b));
+            p_r_side xx { (p_r_values_t) mpz_get_ui(b.p), (p_r_values_t) mpz_get_ui(b.r), x.side };
+            bad_ideals.emplace_back(xx, std::move(b));
         }
         if (x.p >= bad_ideals_max_p)
             bad_ideals_max_p = x.p;
