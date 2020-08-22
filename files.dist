@@ -1433,3 +1433,5 @@ utils/renumber_proxy.h
 .gitlab-ci.yml
 .docker-script.sh
 tests/misc/test_renumber.data/c105_30003.poly
+tests/filter/c105_30003.rels.gz
+tests/filter/test_dup2.sh
