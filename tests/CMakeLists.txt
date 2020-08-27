@@ -469,6 +469,14 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     endif()
 endmacro()
 
+add_custom_target(full_dependencies_base)
+add_dependencies(full_dependencies_base
+        polyselect polyselect_ropt
+        freerel makefb
+        las
+        dup1 dup2 purge
+        )
+
 
 if(NOT MINGW)
 cado_define_test(full_c30
@@ -476,12 +484,10 @@ cado_define_test(full_c30
         ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 999073468111577057576445816581
         --server-threads 2
     TARGET_DEPENDENCIES
-        polyselect polyselect_ropt
-        freerel makefb
-        las
-        dup1 dup2 purge merge replay
+        full_dependencies_base
+        merge replay
         characters
-        bwc_full
+        bwc_full_gf2
         sqrt)
     if(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
         # see linalg/bwc/CMakeLists.txt for an explanation
@@ -493,7 +499,7 @@ cado_define_test(full_c30
             -t 2 -dlp-no-keep
             target=92800609832959449330691138186
             3037544709654617415632521514287
-            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
+            TARGET_DEPENDENCIES full_dependencies_base debug_renumber
             plingen_pz sm sm_simple las_descent reconstructlog-dl
             merge-dl replay-dl badideals)
         # The following case was hitting the bug #21707
@@ -516,7 +522,7 @@ cado_define_test(full_c30
             tasks.sieve.qrange=100
             tasks.sieve.sqside=0
             tasks.sieve.rels_wanted=1500
-            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
+            TARGET_DEPENDENCIES full_dependencies_base debug_renumber
             plingen_pz sm sm_simple las_descent reconstructlog-dl
             dlpolyselect merge-dl replay-dl badideals)
     endif()
@@ -565,28 +571,24 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 #               43341748620473677010074177283795146221310971425909898235183
 #               -dlp -t 2 -s auto -dlpnokeep
 #                ${CADO_NFS_SOURCE_DIR}
-#            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
-#            plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
+#            TARGET_DEPENDENCIES full_p30_dependencies
 #        )
         cado_define_test(test_gfp3
             SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
-            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
-            plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals)
+            TARGET_DEPENDENCIES full_p30_dependencies)
         cado_define_test(test_gfp2
             SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
             ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
-            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
-            plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
+            TARGET_DEPENDENCIES full_p30_dependencies 
             filter_galois polyselect_gfpn)
         cado_define_test(test_gfp2_2_2g
             SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp2_2_2g.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
-            TARGET_DEPENDENCIES full_c30_dependencies debug_renumber
-            plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
+            TARGET_DEPENDENCIES full_p30_dependencies
 	    filter_galois)
     endif()
 endif()
