@@ -259,7 +259,6 @@ macro(CONFIGURE_MATMUL_LIB v i)
         set_target_properties(matmul_${v}_${i} PROPERTIES
             COMPILE_FLAGS "--mpi -DSELECT_MPFQ_LAYER_${v} -DMM_IMPL=${i} -DMM_MPFQ_LAYER=${v}"
                 LINK_FLAGS "--mpi")
-        set(all_matmul_libs ${all_matmul_libs} "matmul_${v}_${i}")
         if(ENABLE_SHARED)
             install(TARGETS matmul_${v}_${i} DESTINATION ${LIBSUFFIX}/linalg/bwc)
         endif()
@@ -280,12 +279,17 @@ foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
     else()
         foreach(w ${BWC_GF2_MATMUL_BACKENDS})
             CONFIGURE_MATMUL_LIB(${v} ${w})
+            set(all_matmul_gf2_libs ${all_matmul_gf2_libs} "matmul_${v}_${w}")
         endforeach(w)
     endif()
 endforeach(v)
 foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
     foreach(w ${BWC_GFP_MATMUL_BACKENDS})
         CONFIGURE_MATMUL_LIB(${v} ${w})
+        if(v STREQUAL "pz")
+        else()
+            set(all_matmul_gfp_libs ${all_matmul_gfp_libs} "matmul_${v}_${w}")
+        endif()
     endforeach(w)
 endforeach(v)
 
@@ -312,9 +316,9 @@ endif()
 configure_file(matmul-libnames.h.in matmul-libnames.h ESCAPE_QUOTES @ONLY)
 include_directories (${CMAKE_CURRENT_BINARY_DIR})
 
-if(NOT BUILD_DYNAMICALLY_LINKABLE_BWC)
-target_link_libraries(bwc_base ${all_matmul_libs})
-endif()
+# if(NOT BUILD_DYNAMICALLY_LINKABLE_BWC)
+# target_link_libraries(bwc_base ${all_matmul_libs})
+# endif()
 
 ### matmul_mf
 mpi_add_library(matmul_mf ${CADO_SHARED} matmul-mf.c)
@@ -449,13 +453,23 @@ foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
         )
 endforeach(v)
 
-add_custom_target(bwc_matmul)
-add_dependencies(bwc_matmul ${all_matmul_libs})
+add_custom_target(bwc_matmul_gf2)
+add_dependencies(bwc_matmul_gf2 ${all_matmul_gf2_libs})
+add_custom_target(bwc_matmul_gfp)
+add_dependencies(bwc_matmul_gfp ${all_matmul_gfp_libs})
+
+add_custom_target(bwc_full_common)
+add_dependencies(bwc_full_common mf_bal random_matrix acollect
+    prep krylov dispatch mksol gather secure bwc_base
+    bwccheck)
+
+add_custom_target(bwc_full_gf2)
+add_dependencies(bwc_full_gf2 bwc_full_common bwc_matmul_gf2 lingen cleanup)
+add_custom_target(bwc_full_gfp)
+add_dependencies(bwc_full_gfp bwc_full_common bwc_matmul_gfp lingen)
 
 add_custom_target(bwc_full)
-add_dependencies(bwc_full mf_bal random_matrix acollect lingen
-    cleanup prep krylov dispatch mksol gather secure bwc_base
-    bwc_matmul bwccheck)
+add_dependencies(bwc_full bwc_full_gf2 bwc_full_gfp)
 
 # Those are used only for tests.
 bwc_program_extra(build_matcache build_matcache.c)

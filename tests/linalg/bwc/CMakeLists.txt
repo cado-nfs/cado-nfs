@@ -2,6 +2,8 @@
 # and caused by the fact that bwc.pl is for the moment unable to call
 # anything else than plingen_pz
 
+# add_bwc_test is used both for mod2 and modp tests, and therefore we
+# depend on bwc_full, not the finer grained bwc_full_gf2 and bwc_full_gfp
 macro(add_bwc_test nm script)
     cado_define_test(test-bwc-${nm} SCRIPT
         ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --other --arg wdir --
@@ -302,7 +304,7 @@ macro(test_dispatch_matmul testname)
     cado_define_test(${testname} SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/bwc-dispatch-matmul.sh
         bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc ${ARGN}
-        TARGET_DEPENDENCIES bwc_matmul dispatch mf_scan mf_bal
+        TARGET_DEPENDENCIES bwc_matmul_gf2 dispatch mf_scan mf_bal
         random_matrix)
 endmacro()
 
@@ -341,6 +343,11 @@ set(test-spmv-prime-p_3_alltests YES)
 
 macro(create_test_spmv test_spmv_base)
 if(HAVE_PERL_DIGEST_MD5)
+    if (test_spmv_base MATCHES "^prime")
+        set(deps bwc_matmul_gf2)
+    else()
+        set(deps bwc_matmul_gfp)
+    endif()
 cado_define_test(
     TEST_NAME test-spmv-${test_spmv_base}
     SCRIPT
@@ -350,7 +357,7 @@ cado_define_test(
     ${ARGN}
     NO_DEFAULT_RUN
     TARGET_DEPENDENCIES
-    random_matrix spmv_test short_matmul mf_scan mf_bal bwc_matmul)
+    random_matrix spmv_test short_matmul mf_scan mf_bal ${deps})
 
 
 cado_divert_test(test-spmv-${test_spmv_base} 11 APPEND_ARGUMENTS thr=1x1)
@@ -373,7 +380,7 @@ endmacro()
 
 cado_define_test(test_random_matrix
     PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/krylov --random_matrix 20000,density=100 m=64 n=64 ys=0..64 prime=2 interval=100 end=200
-    TARGET_DEPENDENCIES bwc_full
+    TARGET_DEPENDENCIES bwc_full_gf2
     )
 cado_divert_test(test_random_matrix thr22 APPEND_ARGUMENTS thr=2x2)
 
@@ -412,7 +419,7 @@ cado_define_test(TEST_NAME bwc_staged_krylov PROGRAM
     skip_online_checks=1 rebuild_cache=1 seed=1
     sequential_cache_build=1 random_matrix=10000,density=150,seed=1
     no_save_cache=1 verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch
-    TARGET_DEPENDENCIES bwc_full)
+    TARGET_DEPENDENCIES bwc_full_gf2)
 
 # Tests which use bwc_base will need nwc_config.h
 include_directories(${PROJECT_BINARY_DIR}/linalg/bwc)
@@ -443,7 +450,7 @@ if (HAVE_MPI)
 cado_define_test(test_random_matrix_mpi
     PROGRAM
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl krylov --random_matrix 20000,density=100 m=64 n=64 ys=0..64 prime=2 interval=100 end=200
-    TARGET_DEPENDENCIES bwc_full
+    TARGET_DEPENDENCIES bwc_full_gf2
     TEST_DEPENDENCIES test_random_matrix
     )
     cado_divert_test(test_random_matrix_mpi 22 APPEND_ARGUMENTS mpi=2x2)
@@ -462,7 +469,7 @@ cado_define_test(TEST_NAME test-blocklanczos
         --bindir ${CADO_NFS_BINARY_DIR}/linalg/bwc
     NO_DEFAULT_RUN
     TARGET_DEPENDENCIES mf_scan mf_bal random_matrix blocklanczos
-    bwc_full short_matmul)
+    bwc_full_gf2 short_matmul)
 cado_divert_test(test-blocklanczos right
     APPEND_ARGUMENTS --matrix-size "1000,2000" --nullspace RIGHT)
 cado_divert_test(test-blocklanczos left
