@@ -502,6 +502,7 @@ cado_define_test(full_c30
             target=92800609832959449330691138186
             3037544709654617415632521514287
             TARGET_DEPENDENCIES full_dependencies_base
+            bwc_full_gfp
             plingen_pz sm sm_simple las_descent reconstructlog-dl
             merge-dl replay-dl badideals)
         # The following case was hitting the bug #21707

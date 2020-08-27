@@ -466,7 +466,7 @@ add_dependencies(bwc_full_common mf_bal random_matrix acollect
 add_custom_target(bwc_full_gf2)
 add_dependencies(bwc_full_gf2 bwc_full_common bwc_matmul_gf2 lingen cleanup)
 add_custom_target(bwc_full_gfp)
-add_dependencies(bwc_full_gfp bwc_full_common bwc_matmul_gfp lingen)
+add_dependencies(bwc_full_gfp bwc_full_common bwc_matmul_gfp)
 
 add_custom_target(bwc_full)
 add_dependencies(bwc_full bwc_full_gf2 bwc_full_gfp)
