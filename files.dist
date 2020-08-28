@@ -1435,3 +1435,5 @@ utils/renumber_proxy.h
 tests/misc/test_renumber.data/c105_30003.poly
 tests/filter/c105_30003.rels.gz
 tests/filter/test_dup2.sh
+tests/filter/p40_30004.poly
+tests/filter/p40_30004.rels.gz
