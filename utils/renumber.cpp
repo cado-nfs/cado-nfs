@@ -859,7 +859,7 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
                             exps.push_back(v);
                         } else {
                             ASSERT_ALWAYS(e >= -v);
-                            exps.push_back(-v);
+                            exps.push_back(e + v);
                         }
                     }
                     return { first, exps };
