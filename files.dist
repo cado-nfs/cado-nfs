@@ -1438,3 +1438,6 @@ utils/cado_pipe_streambuf.hpp
 utils/fd_streambuf.cpp
 utils/fd_streambuf.hpp
 tests/utils/test_fstream_maybe_compressed.cpp
+tests/filter/p40_30004.poly
+tests/filter/p40_30004.rels.gz
+tests/filter/test_dup2.sh
