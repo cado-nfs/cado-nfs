@@ -1059,8 +1059,7 @@ class BWC(Program):
                  bwc_bindir: ParameterEq()=None,
                  mm_impl: ParameterEq()=None,
                  cpubinding: ParameterEq()=None,
-                 cantor_threshold: ParameterEq()=2048,
-                 lingen_threshold: ParameterEq()=None,
+                 # lingen_threshold: ParameterEq()=None,
                  precmd: ParameterEq()=None,
                  # put None below for a random seed,
                  # or any value (for example 1) for a fixed seed
@@ -1093,7 +1092,6 @@ class SM(Program):
                  out: Parameter(),
                  ell: Parameter(),
                  nsm: Parameter()=None,
-                 threads: Parameter("t")=None,
                  sm_mode: Parameter("sm-mode")=None,
                  **kwargs):
         super().__init__(locals(), **kwargs)

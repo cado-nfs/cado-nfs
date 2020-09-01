@@ -26,7 +26,6 @@
 #include <sys/stat.h>
 #include <pthread.h>
 #include <gmp.h>
-#include "omp_proxy.h"
 #include <mutex>
 #include <string>
 #include <vector>
@@ -43,6 +42,7 @@
 #include "memusage.h"   // PeakMemusage
 #include "modul_poly.h" // modul_poly
 #include "mpz_poly.h"   // mpz_poly
+#include "omp_proxy.h"
 #include "purgedfile.h" // purgedfile_read_firstline
 #include "version_info.h" // cado_revision_string
 #include "portability.h" // strndup // IWYU pragma: keep

@@ -18,7 +18,7 @@
  * `2n` input coefficients to be specified.
  * 
  */
-void fft_truncate1(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void fft_truncate1(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 		   mp_limb_t ** t1, mp_limb_t ** t2, mp_size_t trunc)
 {
     mp_size_t i;
@@ -53,7 +53,7 @@ void fft_truncate1(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
  * divisible by 2.
  * 
  */
-void fft_truncate(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void fft_truncate(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 		  mp_limb_t ** t1, mp_limb_t ** t2, mp_size_t trunc)
 {
     mp_size_t i;

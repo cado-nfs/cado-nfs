@@ -17,7 +17,7 @@
  * same as 2b rounded up to nearest limb */
 static __inline__ int
 flint_mpn_mulmod_2expp1_internal(mp_ptr xp, mp_srcptr yp, mp_srcptr zp,
-				 mp_bitcnt_t b, mp_ptr tp)
+				 flint_bitcnt_t b, mp_ptr tp)
 {
     mp_size_t n, k;
     mp_limb_t c;
@@ -53,7 +53,7 @@ flint_mpn_mulmod_2expp1_internal(mp_ptr xp, mp_srcptr yp, mp_srcptr zp,
 /* c is the top bits of the inputs, must be fully reduced */
 int
 flint_mpn_mulmod_2expp1_basecase(mp_ptr xp, mp_srcptr yp, mp_srcptr zp, int c,
-				 mp_bitcnt_t b, mp_ptr tp)
+				 flint_bitcnt_t b, mp_ptr tp)
 {
     int cy, cz;
     mp_size_t n, k;

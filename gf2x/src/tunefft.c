@@ -72,7 +72,7 @@
 
 /* This version of tunefft uses the midpoint of each stair */
 
-/* Must be at least >=GF2X_MUL_FFT_THRESHOLD (28), but it saves time to set larger */
+/* Must be at least >= GF2X_TERNARY_FFT_MINIMUM_SIZE (28), but it saves time to set larger */
 #define GF2X_MUL_FFT_BEGIN_TUNE 1000
 
 #define STEPMAX 50

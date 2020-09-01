@@ -32,58 +32,78 @@ use strict;
 my @lines;
 my @pattern;
 my @arguments;
+my @sed;
 my $target;
 
+my $in_pat=0;
+my $in_arg=0;
+my $in_sed=0;
+my $in_gen=0;
+
 while (<>) {
-    push @lines, $_;
-    if (/^# -- begin generated code --$/) {
-        while (<>) {
-            if (/^# -- end generated code --$/) {
-                push @lines, '';
-                $target=\$lines[$#lines];
-                last;
+    if (!$in_pat && /^# -- begin pattern --$/) {
+        $in_pat=1;
+        print;
+        next;
+    }
+    if (!$in_arg && /^# -- begin arguments --$/) {
+        $in_arg=1;
+        print;
+        next;
+    }
+    if (!$in_arg && /^# -- begin sed --$/) {
+        $in_sed=1;
+        print;
+        next;
+    }
+    if (!$in_gen && /^# -- begin generated code --$/) {
+        $in_gen=1;
+        print;
+        next;
+    }
+    print unless $in_gen;
+    if ($in_pat && /^# -- end pattern --$/) {
+        $in_pat = 0;
+        next;
+    }
+    if ($in_arg && /^# -- end arguments --$/) {
+        $in_arg = 0;
+        next;
+    }
+    if ($in_arg && /^# -- end sed --$/) {
+        $in_sed = 0;
+        next;
+    }
+    if ($in_gen && /^# -- end generated code --$/) {
+        # generate everything now.
+        my $footer=$_;
+        for my $arg (map { s/^#\s//; $_ } @arguments) {
+            if ($arg =~ /^(if|endif)/) {
+                print "$arg";
+                next;
+            }
+            my @args=split(' ', $arg);
+            my @locpat = @pattern;
+            for (@locpat) {
+                s/^#\s//;
+                my $i = 0;
+                for my $a (@args) {
+                    s/ARG$i/$a/g;
+                    $i++;
+                }
+                for my $s (@sed) {
+                    $s =~ s/^#\s//;
+                    eval $s;
+                }
+                print;
             }
         }
-        push @lines, $_;
-        next;
+        print $footer;
+        $in_gen=0;
     }
-    if (/^# -- begin pattern --$/) {
-        while (<>) {
-            push @lines, $_;
-            last if /^# -- end pattern --$/;
-            s/^#\s//;
-            push @pattern, $_;
-        }
-        next;
-    }
-    if (/^# -- begin arguments --$/) {
-        while (<>) {
-            push @lines, $_;
-            last if /^# -- end arguments --$/;
-            chomp($_);
-            s/^#\s//;
-            push @arguments, $_;
-        }
-        next;
-    }
+    next if $in_gen;
+    push @pattern, $_ if $in_pat;
+    push @arguments, $_ if $in_arg;
+    push @sed, $_ if $in_sed;
 }
-
-my $pat=join('',@pattern);
-for my $arg (@arguments) {
-    if ($arg =~ /^(if|endif)/) {
-        $$target .= "$arg\n";
-        next;
-    }
-    my @args=split(' ', $arg);
-    my $i = 0;
-    my $y = $pat;
-    while (my $a = shift @args) {
-        $y =~ s/ARG$i/$a/g;
-        $i++;
-    }
-    $$target .= $y;
-}
-
-select(STDOUT);
-
 print join('',@lines);

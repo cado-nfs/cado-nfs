@@ -81,7 +81,7 @@ LOWLEVEL+=tune_$code\$(EXEEXT)
 tune_${code}_CPPFLAGS=-I\$(top_builddir) -I\$(top_srcdir) -DTUNING=$size
 nodist_tune_${code}_SOURCES=$code.c tuning_undefs_$size.h
 $code.\$(OBJEXT): tuning_undefs_$size.h
-tune_${code}_LDADD=libtuneup-s$size.la libtiming.la ../libgf2x.la
+tune_${code}_LDADD=libtuneup-s$size.la libtiming.la ../libgf2x-local.a
 $code.c: gen_bb_mul_code\$(EXEEXT_FOR_BUILD) ; ./gen_bb_mul_code\$(EXEEXT_FOR_BUILD) $w $k > \$@
 BUILT_SOURCES+=$code.c
 EOF
@@ -91,12 +91,12 @@ LOWLEVEL+=tune_${code}\$(EXEEXT)
 tune_${code}_CPPFLAGS=-I\$(top_builddir) -I\$(top_srcdir) -DTUNING=$size
 tune_${code}_SOURCES=../lowlevel/$code.c
 nodist_tune_${code}_SOURCES=tuning_undefs_$size.h
-tune_${code}_LDADD=libtuneup-s$size.la libtiming.la ../libgf2x.la
+tune_${code}_LDADD=libtuneup-s$size.la libtiming.la ../libgf2x-local.a
 $code.\$(OBJEXT): tuning_undefs_$size.h
 check_PROGRAMS+=check_${code}
 TESTS += check_${code}
 check_${code}_CPPFLAGS=-I\$(top_builddir) -I\$(top_srcdir) -I\$(top_builddir)/gf2x -DSOURCEFILE=\\"../lowlevel/$code.c\\" -DTESTING_SIZE=$size
-check_${code}_LDADD=../libgf2x.la
+check_${code}_LDADD=../libgf2x-local.a
 check_${code}_SOURCES=check_small_size.c
 EOF
             }

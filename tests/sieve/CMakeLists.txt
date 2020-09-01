@@ -2,6 +2,7 @@
 # to stay compatible with older versions
 
 # Build makefb and las before running check
+include_directories(${PROJECT_SOURCE_DIR}/utils)
 include_directories(${PROJECT_SOURCE_DIR}/sieve)
 
 # Get paths to the makefb and las binaries and store in variables

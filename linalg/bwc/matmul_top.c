@@ -644,7 +644,9 @@ int mmt_vec_load(mmt_vec_ptr v, const char * filename_pattern, unsigned int item
     for(unsigned int b = 0 ; global_ok && b < Adisk_multiplex ; b++) {
         unsigned int b0 = block_position + b * Adisk_width;
         char * filename;
-        asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        int rc;
+        rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        ASSERT_ALWAYS(rc >= 0);
         double tt = -wct_seconds();
         if (tcan_print) {
             printf("Loading %s ...", filename);
@@ -719,9 +721,11 @@ int mmt_vec_save(mmt_vec_ptr v, const char * filename_pattern, unsigned int item
     for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
         unsigned int b0 = block_position + b * Adisk_width;
         char * filename;
-        asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        int rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        ASSERT_ALWAYS(rc >= 0);
         char * tmpfilename;
-        asprintf(&tmpfilename, "%s.tmp", filename);
+        rc = asprintf(&tmpfilename, "%s.tmp", filename);
+        ASSERT_ALWAYS(rc >= 0);
         double tt = -wct_seconds();
         if (tcan_print) {
             printf("Saving %s ...", filename);
@@ -2339,7 +2343,9 @@ void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename_patter
         for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
             unsigned int b0 = block_position + b * Adisk_width;
             char * filename;
-            asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+            int rc;
+            rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+            ASSERT_ALWAYS(rc >= 0);
 
             /* we want to create v->n / Adisk_multiplex entries --
              * but we can't do that with access to just A. So we
@@ -2354,12 +2360,12 @@ void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename_patter
             A->vec_random(A, y, nitems, rstate);
             double tt = -wct_seconds();
             if (tcan_print) {
-                printf("Creating fake vector %s...", filename);
+                printf("Creating random vector %s...", filename);
                 fflush(stdout);
             }
             FILE * f = fopen(filename, "wb");
             ASSERT_ALWAYS(f);
-            int rc = fwrite(y, A->vec_elt_stride(A,1), loc_itemsondisk, f);
+            rc = fwrite(y, A->vec_elt_stride(A,1), loc_itemsondisk, f);
             ASSERT_ALWAYS(rc == (int) loc_itemsondisk);
             fclose(f);
             tt += wct_seconds();
@@ -3202,7 +3208,7 @@ static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_l
     }
 }
 
-void matmul_top_report(matmul_top_data_ptr mmt, double scale)
+void matmul_top_report(matmul_top_data_ptr mmt, double scale, int full)
 {
     for(int midx = 0 ; midx < mmt->nmatrices ; midx++) {
         matmul_top_matrix_ptr Mloc = mmt->matrices[midx];
@@ -3219,8 +3225,8 @@ void matmul_top_report(matmul_top_data_ptr mmt, double scale)
             for(unsigned int j = 0 ; j < mmt->pi->m->njobs ; j++) {
                 for(unsigned int t = 0 ; t < mmt->pi->m->ncores ; t++) {
                     char * locreport = all_reports + max_report_size * (j * mmt->pi->m->ncores + t);
-                    printf("##### J%uT%u timing report:\n%s",
-                            j, t, locreport);
+                    if (full || (j == 0 && t == 0))
+                        printf("##### J%uT%u timing report:\n%s", j, t, locreport);
                 }
             }
         }

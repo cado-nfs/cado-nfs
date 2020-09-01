@@ -9,13 +9,17 @@ cado_define_test(TEST_NAME test_gf2x
     WORKING_DIRECTORY ${CADO_NFS_BINARY_DIR}/gf2x
     TARGET_DEPENDENCIES gf2x-build)
 
+link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
 link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
+include_directories(${CADO_NFS_SOURCE_DIR}/gf2x)
+include_directories(${CADO_NFS_BINARY_DIR}/gf2x)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
+include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft/mpfq)
 
 cado_define_test(test_cantor.c
     ARGUMENTS 100000
-    LIBRARIES gf2x tests ${gmp_libname}
+    LIBRARIES gf2x-fft gf2x tests ${gmp_libname}
     TARGET_DEPENDENCIES gf2x-build)
 # This **MUST** match the #define in gf2x/Makefile.am
 set_source_files_properties(test_cantor.c COMPILE_FLAGS

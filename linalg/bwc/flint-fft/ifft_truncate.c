@@ -23,7 +23,7 @@
  * not inferred to be zero but the supplied values.
  * 
  */
-void ifft_truncate1(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void ifft_truncate1(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 		    mp_limb_t ** t1, mp_limb_t ** t2, mp_size_t trunc)
 {
     mp_size_t i;
@@ -90,7 +90,7 @@ void ifft_truncate1(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
  * coefficients from ``trunc - n`` up to ``n``.
  * 
  */
-void ifft_truncate(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void ifft_truncate(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 		   mp_limb_t ** t1, mp_limb_t ** t2, mp_size_t trunc)
 {
     mp_size_t i;

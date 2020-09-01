@@ -11,7 +11,7 @@
 #include <sys/time.h>
 #include <gmp.h>               // for gmp_randstate_t, gmp_urandomb_ui, mpz_...
 #include "gmp_aux.h"           // for mpz_get_uint64, mpz_fits_sint64_p, mpz...
-#include "utils/cxx_mpz.hpp"
+#include "cxx_mpz.hpp"
 #include "las-arith.hpp"
 
 /* smaller p bits are good to spot some corner cases that happen only with

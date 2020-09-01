@@ -68,7 +68,7 @@ fi
 
 ## if wdir is not set, build one in /tmp
 if [ -z ${wdir+x} ]; then
-    wdir=`mktemp -d ${TMPDIR-/tmp}/est_mat.XXXXXXX`;
+    wdir=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.est_mat.XXXXXXX`;
 else
     mkdir -p $wdir || (echo "mkdir -p $wdir failed"; false) || exit 1
 fi

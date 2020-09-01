@@ -513,15 +513,15 @@ namespace tdict {
              * purpose_.
              */
             tree<T>& t = t_sentry.t;
-            ASSERT_ALWAYS(t.running());
-            ASSERT_ALWAYS(tree<U>::running());
+            ASSERT_ALWAYS_NOTHROW(t.running());
+            ASSERT_ALWAYS_NOTHROW(tree<U>::running());
             tree<U>::stop();
             typename U::type scale_u = sum_u(*this);
             if (scale_u == 0) return;
             /* compute the scale, and leave essentially zero time
              * to count on the t object */
             typename T::type scale_t = T()() - t0;
-            ASSERT_ALWAYS(t.running());
+            ASSERT_ALWAYS_NOTHROW(t.running());
             merge_scaled(*t.current, *this, scale_t, scale_u);
             t.self -= scale_t;
             /* well, really, this one is quite pedantic */

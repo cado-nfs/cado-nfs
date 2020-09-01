@@ -273,7 +273,7 @@ inflight_rels_buffer<locking, n>::~inflight_rels_buffer()
 {
     barrier_destroy(sync_point);
     for(int i = 0 ; i < n ; i++) {
-        ASSERT_ALWAYS(active[i] == 0);
+        ASSERT_ALWAYS_NOTHROW(active[i] == 0);
     }
     for(size_t i = 0 ; i < SIZE_BUF_REL ; i++) {
         if (rels[i]->primes != rels[i]->primes_data) {

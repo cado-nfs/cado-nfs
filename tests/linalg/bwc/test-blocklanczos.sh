@@ -73,7 +73,7 @@ redirect_unless_debug() {
 
 if ! [ "$nrows" ] ; then usage ; fi
 
-wdir=$(mktemp -d  ${TMPDIR-/tmp}/cado.XXXXXXXX)
+wdir=$(mktemp -d  ${TMPDIR-/tmp}/cado-nfs.XXXXXXXX)
 cleanup() { if ! [ "$CADO_DEBUG" ] ; then rm -rf $wdir ; fi ; }
 trap cleanup EXIT
 
