@@ -645,7 +645,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
                 ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --env t
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
-            TARGET_DEPENDENCIES full_p30_dependencies)
+            TARGET_DEPENDENCIES full_p30_dependencies
             lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
         AVOID_CONCURRENT
             )
