@@ -199,7 +199,7 @@ static inline void bli_64x64N_clobber(mat64 & h, mat64 * us, int * phi, int nb)
 void bli_64x128(mat64 & h, mat64 * us, int * phi)
 {
     mat64 uc[2] ATTRIBUTE((aligned(64)));
-    memcpy(uc,us,2*sizeof(mat64));
+    std::copy(us, us + 2, std::begin(uc));
     bli_64x64N_clobber(h,uc,phi,2);
 }
 

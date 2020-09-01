@@ -47,7 +47,7 @@ int gauss_6464_imm(mat64 & mm, mat64 & e, mat64 const & m)
 int gauss_128128_C(mat64 * m)
 {
     mat64 mm[4] ATTRIBUTE((aligned(64))); /* handy, even though it does not properly reflect how data is used */
-    memcpy(mm,m,4*sizeof(mat64));
+    std::copy(m, m + 4, std::begin(mm));
     int r = kernel((mp_limb_t*)mm, NULL, 128, 128, 128/ULONG_BITS, 128/ULONG_BITS);
     return r;
 }
