@@ -460,8 +460,6 @@ add_subdirectory (linalg/bwc)
 add_subdirectory (misc)
 add_subdirectory (scripts/cadofactor)
 add_subdirectory (tests EXCLUDE_FROM_ALL)
-# commented the following since nfs-hd is not in "make dist"
-# add_subdirectory (nfs-hd)
 
 add_custom_target(dist
     COMMAND scripts/dist.sh ${package_basename}

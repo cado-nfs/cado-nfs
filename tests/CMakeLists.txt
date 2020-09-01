@@ -688,5 +688,3 @@ add_subdirectory (linalg)
 add_subdirectory (gf2x)
 add_subdirectory (misc)
 add_subdirectory (sqrt)
-# commented the following since nfs-hd is not in "make dist"
-# add_subdirectory (nfs-hd)
