@@ -7,15 +7,15 @@
 #include <mutex>
 #include <atomic>
 #include <vector>
+#ifdef HAVE_HWLOC
+#include <hwloc.h>
+#endif
 #include "ringbuf.h"
 #include "macros.h"          // for ASSERT_ALWAYS, MAX, MIN
 #include "params.h"     // param_list
 #include "timing.h"     // wct_seconds
 #include "misc.h"       // size_disp
 #include "fix-endianness.h" // fwrite32_little
-#ifdef HAVE_HWLOC
-#include <hwloc.h>
-#endif
 
 void mf_scan2_decl_usage(cxx_param_list & pl)
 {

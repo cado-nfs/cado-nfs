@@ -1,11 +1,14 @@
 #include "cado.h" // IWYU pragma: keep
-#include <cstdint>         // for uint64_t
-#include <cstdio>
-#include <cstdlib>
-#include <gmp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <ctype.h>
 #include <sys/stat.h>
+#include <gmp.h>
 #include "blockmatrix.hpp"
 #include "bblas_gauss.h"
+
 #include "params.h"     // param_list
 #include "macros.h"
 

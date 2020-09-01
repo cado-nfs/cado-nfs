@@ -1,4 +1,4 @@
-#include "cado.h"
+#include "cado.h" // IWYU pragma: keep
 #define _GNU_SOURCE
 #include <string.h>
 #include <errno.h>
@@ -7,8 +7,11 @@
 #include <assert.h>
 #include "gmp_aux.h"    // mpn_rrandom
 #include "flint-fft/fft.h"
+#include "flint-fft/flint.h"                // for FLINT_BITS
+#include "flint-fft/transform_interface.h"  // for fft_add, fft_do_dft, fft_...
 #include "portability.h"
 #include "gmp-hacks.h"  // MPZ_SET_MPN
+#include "macros.h"                         // for iceildiv, ABS
 
 void get_ft_hash(mpz_t h, int bits_per_coeff, void * data, struct fft_transform_info * fti);
 

@@ -2,7 +2,6 @@
 // IWYU pragma: no_include <ext/alloc_traits.h>
 // IWYU pragma: no_include <memory>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <cctype>
