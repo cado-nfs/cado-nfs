@@ -1311,7 +1311,8 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                             pad_is_zero ? "also" : "NOT");
                 if (tcan_print && !pad_is_zero) {
                     char * tmp2;
-                    asprintf(&tmp2, tmp, solutions[0], solutions[1]);
+                    int rc = asprintf(&tmp2, tmp, solutions[0], solutions[1]);
+                    ASSERT_ALWAYS(rc >= 0);
                     fprintf(stderr,
                             "For reference, this useless vector (non-zero out, zero in) is stored in %s."
                             "\n",

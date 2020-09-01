@@ -88,7 +88,6 @@ void butterfly_lshB(mp_limb_t * t, mp_limb_t * u, mp_limb_t * i1,
 	cy1 = -(cy >> 1) - (i1[limbs] + i2[limbs]) - cy2;
 	mpn_addmod_2expp1_1(t + x, limbs - x, cy1);
     } else {			/* x == y */
-
 	cy = fft_sumdiff(t + x, u + x, i1, i2, limbs - x);
 	t[limbs] = cy >> 1;
 	u[limbs] = -(cy & 1);

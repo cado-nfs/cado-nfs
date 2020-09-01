@@ -8,7 +8,7 @@ set -e
 pkg=$1
 shift
 
-t=`mktemp -d ${TMPDIR-/tmp}/XXXXXXXX`
+t=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.XXXXXXXXXX`
 
 if [ "$CHECK_SCM_FILES" ] ; then
     # check whether we have everything the SCM system knows about in our

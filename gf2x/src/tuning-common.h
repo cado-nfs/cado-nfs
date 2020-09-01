@@ -31,14 +31,6 @@
 extern double mulstep;
 extern FILE * rp;
 
-#ifndef MAX
-#define MAX(a,b)        ((a)<(b) ? (b) : (a))
-#endif
-
-#ifndef MIN
-#define MIN(a,b)        ((a)<(b) ? (b) : (a))
-#endif
-
 extern double MINTIME;
 
 #define TIME(x, i)				\

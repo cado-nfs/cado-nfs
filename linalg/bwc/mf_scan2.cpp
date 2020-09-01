@@ -3,19 +3,19 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
-#ifdef HAVE_HWLOC
-#include <hwloc.h>
-#endif
+#include "omp_proxy.h"
 #include <mutex>
 #include <atomic>
 #include <vector>
-#include <omp.h>
+#ifdef HAVE_HWLOC
+#include <hwloc.h>
+#endif
 #include "ringbuf.h"
+#include "macros.h"          // for ASSERT_ALWAYS, MAX, MIN
 #include "params.h"     // param_list
 #include "timing.h"     // wct_seconds
 #include "misc.h"       // size_disp
 #include "fix-endianness.h" // fwrite32_little
-#include "macros.h"
 
 void mf_scan2_decl_usage(cxx_param_list & pl)
 {

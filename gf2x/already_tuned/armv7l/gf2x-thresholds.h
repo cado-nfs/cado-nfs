@@ -193,12 +193,6 @@
 	1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 	\
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, }
 
-/* This macro is not what you think, and does not completely belong here.
- * It merely recalls that the FFT code *DOES NOT WORK* below this size.
- * So GF2X_MUL_FFT_TABLE should not wander in this bleak range.
- */
-#define GF2X_MUL_FFT_THRESHOLD 28
-
 /* {n, K} means use FFT(|K|) up from n words, */
 /* where |K|<3 stands for Toom-Cook 3, K < 0 means use FFT2 */
 #define GF2X_MUL_FFT_TABLE		{	\

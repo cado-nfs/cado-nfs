@@ -8,7 +8,7 @@ License (for the library) is either:
       placeholder, the GNU Lesser General Public License, either
       version 2.1 of the License, or (at your option) any later
       version.
-   
+
 License for the apps/ subdir is the GNU General Public License, either
 version 2 of the License, or (at your option) any later version.
 
@@ -26,7 +26,10 @@ Dependencies
 
 gf2x has no external dependencies.
 
-Some of the demos in the apps/ subdirectory require the gmp and NTL libraries.
+Some of the demos in the apps/ subdirectory require the gmp and NTL
+libraries. (use ./configure ; make from that directory. You may want to
+use PKG_CONFIG_PATH to have the autotools stuff there find gf2x
+properly).
 
 
 

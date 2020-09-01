@@ -32,7 +32,7 @@ if ! [ "$binary" ] ; then
 fi
 
 : ${TMPDIR=/tmp}
-: ${wdir=$(mktemp -d  $TMPDIR/cado.badideals.XXXXXXXX)}
+: ${wdir=$(mktemp -d  $TMPDIR/cado-nfs.badideals.XXXXXXXX)}
 
 check_there() {
     u="$1"

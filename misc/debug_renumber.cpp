@@ -7,7 +7,6 @@
 #include <string>        // for string
 #include <vector>        // for vector
 #include <gmp.h>         // for gmp_randclear, gmp_randinit_default, gmp_ran...
-#include "mod_ul.c"
 #include "params.h"     // param_list
 #include "cado_poly.h"  // cado_poly
 #include "verbose.h"    // verbose_decl_usage

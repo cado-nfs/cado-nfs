@@ -132,13 +132,6 @@ double ram_gb = 3.0;    // Number of gigabytes. Note that this is the
 // considerably larger due to FFT allocation (by
 // a constant factor, though).
 
-#define MPI_MY_SIZE_T   MPI_UNSIGNED_LONG
-#define MPI_MY_UINT64_T   MPI_UNSIGNED_LONG
-#define MPI_MY_INT64_T   MPI_LONG
-#define MPI_MY_MP_SIZE_T        MPI_LONG
-#define MPI_MY_MP_LIMB_T        MPI_UNSIGNED_LONG
-#define MPI_MY_GMP_INTERNAL_SIZE_FIELD_T MPI_INT
-
 static void usage()
 {
     fprintf(stderr, "usage: crtalgsqrt algdepfile ratdepfile polyfile\n");
@@ -372,10 +365,10 @@ static void broadcast_mpz(mpz_ptr z, int root, MPI_Comm comm) /*{{{*/
     int k;
     MPI_Comm_rank(comm, &k);
     mp_size_t nlimbs = mpz_size(z);
-    MPI_Bcast(&nlimbs, 1, MPI_MY_MP_SIZE_T, root, comm);
+    MPI_Bcast(&nlimbs, 1, CADO_MPI_MP_SIZE_T, root, comm);
     if (k != root) _mpz_realloc(z, nlimbs);
-    MPI_Bcast(z->_mp_d, nlimbs, MPI_MY_MP_LIMB_T, root, comm);
-    MPI_Bcast(&z->_mp_size, 1, MPI_MY_GMP_INTERNAL_SIZE_FIELD_T, root, comm);
+    MPI_Bcast(z->_mp_d, nlimbs, CADO_MPI_MP_LIMB_T, root, comm);
+    MPI_Bcast(&z->_mp_size, 1, CADO_MPI_MPZ_INTERNAL_SIZE_T, root, comm);
 }/*}}}*/
 
 /* {{{ share_1mpz -- two nodes communicate with eachother. integer z is
@@ -392,21 +385,21 @@ static void share_1mpz(mpz_ptr z, mpz_ptr t, int r, int s, MPI_Comm comm)
     mp_size_t nlimbs = mpz_size(z);
 
     if (k == r) {
-        MPI_Recv(&nlimbs, 1, MPI_MY_MP_SIZE_T, s, (r<<4), comm, MPI_STATUS_IGNORE);
+        MPI_Recv(&nlimbs, 1, CADO_MPI_MP_SIZE_T, s, (r<<4), comm, MPI_STATUS_IGNORE);
         if (nlimbs == 0) {
             return;
         }
 
         _mpz_realloc(t, nlimbs);
-        MPI_Recv(t->_mp_d, nlimbs, MPI_MY_MP_LIMB_T, s, 1+(r<<4), comm, MPI_STATUS_IGNORE);
-        MPI_Recv(&(t->_mp_size), 1, MPI_MY_GMP_INTERNAL_SIZE_FIELD_T, s, 2+(r<<4), comm, MPI_STATUS_IGNORE);
+        MPI_Recv(t->_mp_d, nlimbs, CADO_MPI_MP_LIMB_T, s, 1+(r<<4), comm, MPI_STATUS_IGNORE);
+        MPI_Recv(&(t->_mp_size), 1, CADO_MPI_MPZ_INTERNAL_SIZE_T, s, 2+(r<<4), comm, MPI_STATUS_IGNORE);
     } else {
-        MPI_Send(&nlimbs, 1, MPI_MY_MP_SIZE_T, r, (r<<4), comm);
+        MPI_Send(&nlimbs, 1, CADO_MPI_MP_SIZE_T, r, (r<<4), comm);
         if (nlimbs == 0)
             return;
 
-        MPI_Send(z->_mp_d, nlimbs, MPI_MY_MP_LIMB_T, r, 1+(r<<4), comm);
-        MPI_Send(&(z->_mp_size), 1, MPI_MY_GMP_INTERNAL_SIZE_FIELD_T, r, 2+(r<<4), comm);
+        MPI_Send(z->_mp_d, nlimbs, CADO_MPI_MP_LIMB_T, r, 1+(r<<4), comm);
+        MPI_Send(&(z->_mp_size), 1, CADO_MPI_MPZ_INTERNAL_SIZE_T, r, 2+(r<<4), comm);
     }
 }/*}}}*/
 #if 0
@@ -421,18 +414,18 @@ static void share_2mpz(mpz_ptr z, mpz_ptr t, int r, int s, MPI_Comm comm)
     mp_size_t nlimbs = mpz_size(z);
     mp_size_t nlimbs_peer = 0;
 
-    MPI_Sendrecv(&nlimbs, 1, MPI_MY_MP_SIZE_T, peer, k<<4,
-            &nlimbs_peer, 1, MPI_MY_MP_SIZE_T, peer, peer<<4,
+    MPI_Sendrecv(&nlimbs, 1, CADO_MPI_MP_SIZE_T, peer, k<<4,
+            &nlimbs_peer, 1, CADO_MPI_MP_SIZE_T, peer, peer<<4,
             comm, MPI_STATUS_IGNORE);
     if (nlimbs == 0 || nlimbs_peer == 0) {
         return;
     }
     _mpz_realloc(t, nlimbs_peer);
-    MPI_Sendrecv(z->_mp_d, nlimbs, MPI_MY_MP_LIMB_T, peer, 1 + (k<<4),
-            t->_mp_d, nlimbs_peer, MPI_MY_MP_LIMB_T, peer, 1 + (peer<<4),
+    MPI_Sendrecv(z->_mp_d, nlimbs, CADO_MPI_MP_LIMB_T, peer, 1 + (k<<4),
+            t->_mp_d, nlimbs_peer, CADO_MPI_MP_LIMB_T, peer, 1 + (peer<<4),
             comm, MPI_STATUS_IGNORE);
-    MPI_Sendrecv(&(z->_mp_size), 1, MPI_MY_GMP_INTERNAL_SIZE_FIELD_T, peer, 2 + (k<<4),
-            &(t->_mp_size), 1, MPI_MY_GMP_INTERNAL_SIZE_FIELD_T, peer, 2 + (peer<<4),
+    MPI_Sendrecv(&(z->_mp_size), 1, CADO_MPI_MPZ_INTERNAL_SIZE_T, peer, 2 + (k<<4),
+            &(t->_mp_size), 1, CADO_MPI_MPZ_INTERNAL_SIZE_T, peer, 2 + (peer<<4),
             comm, MPI_STATUS_IGNORE);
 }
 /* }}} */
@@ -676,7 +669,7 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
             // ab->digitbytes_estim = tsize - 2.5 * ab->nab_estim;
         }
         // XXX OK, this requires endianness consistency.
-        MPI_Bcast(&ab->nab_estim, 1, MPI_MY_SIZE_T, root, comm);
+        MPI_Bcast(&ab->nab_estim, 1, CADO_MPI_SIZE_T, root, comm);
         ab->file_bases = malloc(2 * sizeof(size_t));
         ab->file_bases[0] = 0;
         ab->file_bases[1] = tsize;
@@ -694,7 +687,7 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
             hdrbytes = ftell(f);
             fclose(f);
         }
-        MPI_Bcast(&hdrbytes, 1, MPI_MY_SIZE_T, root, comm);
+        MPI_Bcast(&hdrbytes, 1, CADO_MPI_SIZE_T, root, comm);
 
         ab->sname_len = strlen(fname) + 10;
         ab->sname = malloc(ab->sname_len);
@@ -1977,14 +1970,14 @@ void mpi_custom_types_check()/*{{{*/
     int ret;
     /* If this ever fails, we have to do something to the defines above
      * (and maybe touch the cmake files) */
-    MPI_Type_size(MPI_MY_SIZE_T,&ret);   ASSERT_ALWAYS(ret==sizeof(size_t));
-    MPI_Type_size(MPI_MY_MP_SIZE_T,&ret);ASSERT_ALWAYS(ret==sizeof(mp_size_t));
-    MPI_Type_size(MPI_MY_MP_LIMB_T,&ret);ASSERT_ALWAYS(ret==sizeof(mp_limb_t));
-    MPI_Type_size(MPI_MY_UINT64_T,&ret);ASSERT_ALWAYS(ret==sizeof(uint64_t));
-    MPI_Type_size(MPI_MY_INT64_T,&ret);ASSERT_ALWAYS(ret==sizeof(int64_t));
+    MPI_Type_size(CADO_MPI_SIZE_T,&ret);   ASSERT_ALWAYS(ret==sizeof(size_t));
+    MPI_Type_size(CADO_MPI_MP_SIZE_T,&ret);ASSERT_ALWAYS(ret==sizeof(mp_size_t));
+    MPI_Type_size(CADO_MPI_MP_LIMB_T,&ret);ASSERT_ALWAYS(ret==sizeof(mp_limb_t));
+    MPI_Type_size(CADO_MPI_UINT64_T,&ret);ASSERT_ALWAYS(ret==sizeof(uint64_t));
+    MPI_Type_size(CADO_MPI_INT64_T,&ret);ASSERT_ALWAYS(ret==sizeof(int64_t));
     {
         mpz_t z;
-        MPI_Type_size(MPI_MY_GMP_INTERNAL_SIZE_FIELD_T,&ret);
+        MPI_Type_size(CADO_MPI_MPZ_INTERNAL_SIZE_T,&ret);
         ASSERT_ALWAYS(ret==sizeof(z->_mp_size));
     }
 }/*}}}*/
@@ -2087,7 +2080,7 @@ int rat_red_caches_ok(struct prime_data * primes, int i0, int i1, size_t off0, s
     for(int i = i0 ; i < i1 ; i++) {
         nok += cachefile_exists("a_%zu_%zu_mod_%lu_%lu", off0, off1, primes[i].p, glob.prec);
     }
-    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, MPI_MY_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, CADO_MPI_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
     return nok == glob.m * glob.s;
 }/*}}}*/
 
@@ -2102,7 +2095,7 @@ int alg_red_caches_ok(struct prime_data * primes, int i0, int i1, size_t off0, s
                     off0, off1, p->p, p->r[j], glob.prec);
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, MPI_MY_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, CADO_MPI_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
     return nok == glob.n * glob.m * glob.s;
 }/*}}}*/
 
@@ -2116,7 +2109,7 @@ int a_shared_caches_ok(struct prime_data * primes, int i0, int i1)/*{{{*/
             nok += cachefile_exists("a_mod_%lu_%lu_%lu", p->p, p->r[j], glob.prec);
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, MPI_MY_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, CADO_MPI_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
     return nok == glob.n * glob.m * glob.s;
 }/*}}}*/
 
@@ -2130,7 +2123,7 @@ int sqrt_caches_ok(struct prime_data * primes, int i0, int i1)/*{{{*/
             nok += cachefile_exists("sqrt_%lu_%lu_%lu", p->p, p->r[j], glob.prec);
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, MPI_MY_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &nok, 1, CADO_MPI_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
     return nok == glob.n * glob.m * glob.s;
 }/*}}}*/
 
@@ -2321,7 +2314,7 @@ size_t a_poly_read_share(mpz_poly P, size_t off0, size_t off1)
     log_step(": sharing");
 
     allreduce_polymodF_mul_monic(P, glob.acomm, glob.f_hat);
-    MPI_Allreduce(MPI_IN_PLACE, &nab_loc, 1, MPI_MY_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &nab_loc, 1, CADO_MPI_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
 
     STOPWATCH_GET();
     log_end();
@@ -3272,8 +3265,8 @@ void prime_postcomputations(struct prime_data * primes, int i0, int i1, int64_t 
             int k = (i-i0) * n + j;
             int64_t * c64 = contribs64 + (i * n + j) * n;
             mp_limb_t * cN = contribsN + ((i * n + j) * n) * sN;
-            MPI_Bcast(c64, n, MPI_MY_INT64_T,  k % glob.psize, glob.pcomm);
-            MPI_Bcast(cN, n*sN, MPI_MY_MP_LIMB_T, k % glob.psize, glob.pcomm);
+            MPI_Bcast(c64, n, CADO_MPI_INT64_T,  k % glob.psize, glob.pcomm);
+            MPI_Bcast(cN, n*sN, CADO_MPI_MP_LIMB_T, k % glob.psize, glob.pcomm);
         }
     }
 
@@ -3540,11 +3533,11 @@ int main(int argc, char **argv)
         if (glob.rank == 0) {
             estimate_nbits_sqrt(&glob.nbits_sqrt, glob.ab); //, size_guess);
         }
-        MPI_Bcast(&glob.nbits_sqrt, 1, MPI_MY_SIZE_T, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&glob.nbits_sqrt, 1, CADO_MPI_SIZE_T, 0, MPI_COMM_WORLD);
     } else {
         glob.nbits_sqrt = toto;
     }
-    // MPI_Bcast(&glob.nbits_a, 1, MPI_MY_SIZE_T, 0, MPI_COMM_WORLD);
+    // MPI_Bcast(&glob.nbits_a, 1, CADO_MPI_SIZE_T, 0, MPI_COMM_WORLD);
     // we no longer need to know nab, so let's drop it as a proof !
     glob.ab->nab = 0;
 
@@ -3722,8 +3715,8 @@ int main(int argc, char **argv)
         int root = i / r;
         int d64 = glob.n * glob.n;
         int dN = d64 * mpz_size(glob.pol->n);
-        MPI_Bcast(contribs64 + i * d64, d64, MPI_MY_INT64_T, root, glob.acomm);
-        MPI_Bcast(contribsN + i * dN, dN, MPI_MY_MP_LIMB_T, root, glob.acomm);
+        MPI_Bcast(contribs64 + i * d64, d64, CADO_MPI_INT64_T, root, glob.acomm);
+        MPI_Bcast(contribsN + i * dN, dN, CADO_MPI_MP_LIMB_T, root, glob.acomm);
     }
 #else
     if (glob.prank == 0) {
@@ -3740,8 +3733,8 @@ int main(int argc, char **argv)
             int root = i / r;
             int d64 = glob.n * glob.n;
             int dN = d64 * mpz_size(glob.pol->n);
-            MPI_Bcast(contribs64 + i * d64, d64, MPI_MY_INT64_T, root, glob.acomm);
-            MPI_Bcast(contribsN + i * dN, dN, MPI_MY_MP_LIMB_T, root, glob.acomm);
+            MPI_Bcast(contribs64 + i * d64, d64, CADO_MPI_INT64_T, root, glob.acomm);
+            MPI_Bcast(contribsN + i * dN, dN, CADO_MPI_MP_LIMB_T, root, glob.acomm);
         }
     }
 #endif

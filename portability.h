@@ -126,6 +126,7 @@ extern "C" {
  * will be copied.  Always NUL terminates (unless siz == 0).
  * Returns strlen(src); if retval >= siz, truncation occurred.
  */
+static inline size_t strlcpy(char *dst, const char *src, size_t size) ATTRIBUTE((__warn_unused_result__));
 static inline size_t
 strlcpy(char *dst, const char *src, size_t siz) ATTRIBUTE_WARN_UNUSED_RESULT;
 static inline size_t

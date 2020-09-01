@@ -26,37 +26,32 @@
 
 AUTOMAKE_OPTIONS=subdir-objects
 ACLOCAL_AMFLAGS=-I config --install
-AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir)
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir) -I$(top_builddir)/fft -I$(top_srcdir)/fft
 
-FFT_SOURCES=fft/gf2x-ternary-fft.c
-if ENABLE_FFT_INTERFACE
-AM_CPPFLAGS += -I$(srcdir)/mpfq
-FFT_SOURCES+=fft/gf2x-fake-fft.c
-FFT_SOURCES+=fft/gf2x-cantor-fft.c
-AM_CPPFLAGS += -I$(top_srcdir)/fft/mpfq
-gf2x_includedir=$(includedir)/gf2x
-gf2x_include_HEADERS=	\
-	fft/gf2x-fft.h			\
-	fft/gf2x-fake-fft.h		\
-	fft/gf2x-cantor-fft.h		\
-	fft/gf2x-ternary-fft.h
-endif
-
+FFT_SOURCES_ALWAYS=fft/gf2x-ternary-fft.c
 
 lib_LTLIBRARIES=libgf2x.la
-if ENABLE_FFT_INTERFACE
-# default which gets shipped
-libgf2x_la_CFLAGS=$(AM_CFLAGS) -DCANTOR_BASE_FIELD_SIZE=128
-endif
-libgf2x_la_SOURCES=gf2x.c toom.c toom128.c toom-gpl.c $(FFT_SOURCES)
+noinst_LIBRARIES=libgf2x-local.a
 
+if HAVE_HIDDEN_VISIBILITY_ATTRIBUTE
+VH_FLAG=-fvisibility=hidden -DGF2X_EXPORTED="__attribute__((visibility(\"default\")))"
+endif
+
+libgf2x_la_SOURCES=gf2x.c toom.c toom128.c toom-gpl.c $(FFT_SOURCES_ALWAYS)
+libgf2x_la_CFLAGS=$(AM_CFLAGS) $(VH_FLAG)
+
+libgf2x_local_a_SOURCES=$(libgf2x_la_SOURCES)
+libgf2x_local_a_CFLAGS=$(AM_CFLAGS)
 
 
 
 nobase_include_HEADERS=gf2x.h	\
-		gf2x/gf2x-impl.h		\
 		gf2x/gf2x-impl-export.h		\
 		gf2x/gf2x-small.h
+
+# gf2x/gf2x-impl.h is distributed but not installed. Hence it goes to
+# EXTRA_DIST, and is specified further down
+
 
 # All these are generated.
 nobase_nodist_include_HEADERS=	\
@@ -76,9 +71,9 @@ nobase_nodist_include_HEADERS=	\
 
 libgf2x_la_LDFLAGS=-version-info @gf2x_lib_version@ -no-undefined
 
-SUBDIRS=lowlevel src . fft tests $(MAYBE_APPS)
+SUBDIRS=lowlevel src . fft tests
 
-DIST_SUBDIRS=lowlevel src . fft tests apps
+DIST_SUBDIRS=lowlevel src . fft tests 
 
 DISTCLEANFILES=gf2x/gf2x-thresholds.h	\
 	       gf2x/gf2x_mul1.h		\
@@ -92,12 +87,17 @@ DISTCLEANFILES=gf2x/gf2x-thresholds.h	\
 	       gf2x/gf2x_mul9.h
 
 EXTRA_DIST=
+EXTRA_DIST+=gf2x/gf2x-impl.h
 EXTRA_DIST+=version.sh.in
 EXTRA_DIST+=BUGS
 EXTRA_DIST+=already_tuned
 EXTRA_DIST+=config/configfsf.sub
 EXTRA_DIST+=config/configfsf.guess
 EXTRA_DIST+=toom-gpl-placeholder.c
+EXTRA_DIST+=check-gf2x-version.c
+
+pkgconfigdir       = $(libdir)/pkgconfig
+pkgconfig_DATA     = gf2x.pc
 
 # This is really a maintainer-only command. This can be used for creating
 # a tarball with an LGPL-licensed gf2x. Note that when this is done,
@@ -118,8 +118,14 @@ dist-LGPL: distdir
 	mv $(distdir)-LGPL/ $(distdir)/
 	$(am__post_remove_distdir)
 
+if HAVE_NONCONSTANT_CLOCK
 tune-lowlevel tune-toom tune-fft: all
 	cd src; $(MAKE) $@
+else
+tune-lowlevel tune-toom tune-fft:
+	@echo "Tuning cannot run since clock() apparently returns constant values"
+endif
+
 
 distclean-local:
 	-find already_tuned/tuned -maxdepth 1 -name "gf2x*" | xargs -r rm -f

@@ -13,19 +13,24 @@ long gf2x_cantor_fft_matmul(unsigned long ** H, unsigned long ** F, size_t Fl, u
 {
     gf2x_cantor_fft_info_t order;
 
-    gf2x_cantor_fft_init(order, Fl * GF2X_WORDSIZE, Gl * GF2X_WORDSIZE, 0);
+    gf2x_cantor_fft_info_init(order, Fl * GF2X_WORDSIZE, Gl * GF2X_WORDSIZE);
 
     gf2x_cantor_fft_ptr f = gf2x_cantor_fft_alloc(order, n*n);
 
+    size_t sizes[3];
+    gf2x_cantor_fft_info_get_alloc_sizes(order, sizes);
+    gf2x_cantor_fft_ptr temp1 = malloc(sizes[1] * sizeof(gf2x_cantor_fft_elt));
+    gf2x_cantor_fft_ptr temp2 = malloc(sizes[2] * sizeof(gf2x_cantor_fft_elt));
+
     for(int i = 0 ; i < n ; i++)
         for(int j = 0 ; j < n ; j++)
-            gf2x_cantor_fft_dft(order, gf2x_cantor_fft_get(order, f, i*n+j), F[i*n+j], Fl * GF2X_WORDSIZE);
+            gf2x_cantor_fft_dft(order, gf2x_cantor_fft_get(order, f, i*n+j), F[i*n+j], Fl * GF2X_WORDSIZE, temp1);
 
     gf2x_cantor_fft_ptr g = gf2x_cantor_fft_alloc(order, n*n);
 
     for(int i = 0 ; i < n ; i++)
         for(int j = 0 ; j < n ; j++)
-            gf2x_cantor_fft_dft(order, gf2x_cantor_fft_get(order, g, i*n+j), G[i*n+j], Gl * GF2X_WORDSIZE);
+            gf2x_cantor_fft_dft(order, gf2x_cantor_fft_get(order, g, i*n+j), G[i*n+j], Gl * GF2X_WORDSIZE, temp1);
 
     gf2x_cantor_fft_ptr h = gf2x_cantor_fft_alloc(order, n*n);
 
@@ -34,12 +39,13 @@ long gf2x_cantor_fft_matmul(unsigned long ** H, unsigned long ** F, size_t Fl, u
             gf2x_cantor_fft_compose(order,
                     gf2x_cantor_fft_get(order, h, i*n+j),
                     gf2x_cantor_fft_get_const(order, (gf2x_cantor_fft_srcptr) f, i*n/*+k*/),
-                    gf2x_cantor_fft_get_const(order, (gf2x_cantor_fft_srcptr) g, /*k*n+*/j));
+                    gf2x_cantor_fft_get_const(order, (gf2x_cantor_fft_srcptr) g, /*k*n+*/j),
+                    temp2);
             for(int k = 1 ; k < n ; k++)
                 gf2x_cantor_fft_addcompose(order,
                         gf2x_cantor_fft_get(order, h, i*n+j),
                         gf2x_cantor_fft_get_const(order, (gf2x_cantor_fft_srcptr) f, i*n+k),
-                        gf2x_cantor_fft_get_const(order, (gf2x_cantor_fft_srcptr) g, k*n+j));
+                        gf2x_cantor_fft_get_const(order, (gf2x_cantor_fft_srcptr) g, k*n+j), temp2, temp1);
         }
 
     gf2x_cantor_fft_free(order, g, n*n);
@@ -47,12 +53,15 @@ long gf2x_cantor_fft_matmul(unsigned long ** H, unsigned long ** F, size_t Fl, u
 
     for(int i = 0 ; i < n ; i++)
         for(int j = 0 ; j < n ; j++)
-            gf2x_cantor_fft_ift(order, H[i*n+j], (Fl+Gl) * GF2X_WORDSIZE - 1,  gf2x_cantor_fft_get(order, h, i*n+j));
+            gf2x_cantor_fft_ift(order, H[i*n+j], (Fl+Gl) * GF2X_WORDSIZE - 1,  gf2x_cantor_fft_get(order, h, i*n+j), temp1);
 
-    long res = gf2x_cantor_fft_recoverorder(order);
+    long res = gf2x_cantor_fft_info_order(order);
+
+    free(temp1);
+    free(temp2);
 
     gf2x_cantor_fft_free(order, h, n*n);
-    gf2x_cantor_fft_clear(order);
+    gf2x_cantor_fft_info_clear(order);
 
     return res;
 }

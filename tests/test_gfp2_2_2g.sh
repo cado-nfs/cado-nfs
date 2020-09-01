@@ -7,7 +7,7 @@ CADO_NFS_BINARY_DIR=$2
 
 NCPUS=$("`dirname $0`"/ncpus.sh)
 
-t=`mktemp -d ${TMPDIR-/tmp}/cado-check.XXXXXXX`
+t=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.gfp2_2g.XXXXXXXXXX`
 
 POLYFILE=$t/p2dd10-JLSV1-moinsY-10-07-2015.poly
 PARAMFILE=$t/p2dd10-JLSV1-moinsY-10-07-2015.params

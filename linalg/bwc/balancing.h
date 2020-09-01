@@ -33,7 +33,7 @@
 
 #define FLAG_COLPERM    1
 #define FLAG_ROWPERM    2
-#define FLAG_REPLICATE  8       /* work with square matrices (padding in
+#define FLAG_REPLICATE  8       /* work with square matrices (padding if
                                    need be), and replicate one
                                    permutation to the other side, so that
                                    we get conjugated permutations.

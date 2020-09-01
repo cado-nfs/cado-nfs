@@ -36,9 +36,14 @@
 
 #include "gf2x/gf2x-impl.h"
 #include "gf2x/gf2x-thresholds.h"
+#include "fft/gf2x-fft.h"
 
 #include "test-tools.h"
 #include "check-and-bench-common.h"
+
+#ifndef MAX
+#define MAX(h,i) ((h) > (i) ? (h) : (i))
+#endif
 
 static long init_extra_arg = ENGINE_EXTRA_ARG_DEFAULT;
 
@@ -61,14 +66,19 @@ long ENGINE_mul(unsigned long ** H, unsigned long ** F, size_t Fl, unsigned long
     ENGINE_info_t order;
 
     t=cputime(); time_total -= t;
-    ENGINE_init(order, Fl * GF2X_WORDSIZE, Gl * GF2X_WORDSIZE, init_extra_arg);
+    ENGINE_init(order, Fl * GF2X_WORDSIZE, Gl * GF2X_WORDSIZE);
+    ENGINE_adjust(order, GF2X_FFT_ADJUST_DEPTH, init_extra_arg);
+    size_t sizes[3];
+    ENGINE_get_alloc_sizes(order, sizes);
+    ENGINE_t * temp1 = malloc(sizes[1]);
+    ENGINE_t * temp2 = malloc(sizes[2]);
 
     ENGINE_ptr f = ENGINE_alloc(order, n*n);
 
     t=cputime(); time_dft -= t;
     for(int i = 0 ; i < n ; i++)
         for(int j = 0 ; j < n ; j++)
-            ENGINE_dft(order, ENGINE_get(order, f, i*n+j), F[i*n+j], Fl * GF2X_WORDSIZE);
+            ENGINE_dft(order, ENGINE_get(order, f, i*n+j), F[i*n+j], Fl * GF2X_WORDSIZE, temp1);
     t=cputime(); time_dft += t;
 
     ENGINE_ptr g = ENGINE_alloc(order, n*n);
@@ -76,7 +86,7 @@ long ENGINE_mul(unsigned long ** H, unsigned long ** F, size_t Fl, unsigned long
     t=cputime(); time_dft -= t;
     for(int i = 0 ; i < n ; i++)
         for(int j = 0 ; j < n ; j++)
-            ENGINE_dft(order, ENGINE_get(order, g, i*n+j), G[i*n+j], Gl * GF2X_WORDSIZE);
+            ENGINE_dft(order, ENGINE_get(order, g, i*n+j), G[i*n+j], Gl * GF2X_WORDSIZE, temp1);
     t=cputime(); time_dft += t;
 
     ENGINE_ptr h = ENGINE_alloc(order, n*n);
@@ -91,7 +101,7 @@ long ENGINE_mul(unsigned long ** H, unsigned long ** F, size_t Fl, unsigned long
                 gg[k] = ENGINE_get_const(order, (ENGINE_srcptr) g, k*n+j);
             }
             ENGINE_zero(order, ENGINE_get(order, h, i*n+j), 1);
-            ENGINE_addcompose_n(order, ENGINE_get(order, h, i*n+j), ff, gg, n);
+            ENGINE_addcompose_n(order, ENGINE_get(order, h, i*n+j), ff, gg, n, temp2, temp1);
             free(ff);
             free(gg);
         }
@@ -103,12 +113,15 @@ long ENGINE_mul(unsigned long ** H, unsigned long ** F, size_t Fl, unsigned long
     t=cputime(); time_ift -= t;
     for(int i = 0 ; i < n ; i++)
         for(int j = 0 ; j < n ; j++)
-            ENGINE_ift(order, H[i*n+j], (Fl+Gl) * GF2X_WORDSIZE - 1,  ENGINE_get(order, h, i*n+j));
+            ENGINE_ift(order, H[i*n+j], (Fl+Gl) * GF2X_WORDSIZE - 1,  ENGINE_get(order, h, i*n+j), temp1);
     t=cputime(); time_ift += t;
 
-    long res = ENGINE_recoverorder(order);
+    long res = ENGINE_order(order);
 
     ENGINE_free(order, h, n*n);
+    free(temp1);
+    free(temp2);
+
     ENGINE_clear(order);
 
     t=cputime(); time_total += t;
