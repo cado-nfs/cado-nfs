@@ -9,6 +9,8 @@ include_directories(${PROJECT_SOURCE_DIR}/linalg/bwc/mpfq)
 include_directories(${PROJECT_SOURCE_DIR}/utils)
 include_directories(${PROJECT_SOURCE_DIR}/linalg/bblas)
 
+# add_bwc_test is used both for mod2 and modp tests, and therefore we
+# depend on bwc_full, not the finer grained bwc_full_gf2 and bwc_full_gfp
 macro(add_bwc_test nm script)
     set(mpiconfs ${${nm}_mpi_tests})
     if (NOT HAVE_MPI OR CMAKE_VERSION VERSION_LESS 3.9)
@@ -461,7 +463,7 @@ foreach(mpiconf nompi ${mpiconfs})
         ${CMAKE_CURRENT_SOURCE_DIR}/bwc-dispatch-matmul.sh
         density=2
         thr=2x2
-        TARGET_DEPENDENCIES bwc_matmul dispatch mf_scan mf_bal
+        TARGET_DEPENDENCIES bwc_matmul_gf2 dispatch mf_scan mf_bal
         random_matrix
         )
 endforeach()
@@ -491,6 +493,11 @@ set(test_spmv_prime_p_3_alltests YES)
 
 macro(create_test_spmv test_spmv_base)
     if(HAVE_PERL_DIGEST_MD5)
+        if (test_spmv_base MATCHES "^prime")
+            set(deps bwc_matmul_gf2)
+        else()
+            set(deps bwc_matmul_gfp)
+        endif()
         set(mpiconfs)
         if(${test_spmv_${test_spmv_base}_alltests})
             set(mpiconfs mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
@@ -512,7 +519,7 @@ macro(create_test_spmv test_spmv_base)
                 ${ARGN}
                 NO_DEFAULT_RUN
                 TARGET_DEPENDENCIES
-                random_matrix spmv_test short_matmul mf_scan mf_bal bwc_matmul)
+                random_matrix spmv_test short_matmul mf_scan mf_bal bwc_matmul_gf2)
 
 
             cado_divert_test(test_spmv_${test_spmv_base}${suffix} 11 APPEND_ARGUMENTS thr=1x1)
@@ -594,7 +601,7 @@ cado_define_test(TEST_NAME bwc_staged_krylov PROGRAM
     skip_online_checks=1 rebuild_cache=1 seed=1
     sequential_cache_build=1 random_matrix=10000,density=150,seed=1
     no_save_cache=1 verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch
-    TARGET_DEPENDENCIES bwc_full)
+    TARGET_DEPENDENCIES bwc_full_gf2)
 
 # Tests which use bwc_base will need bwc_config.h
 include_directories(${PROJECT_BINARY_DIR}/linalg/bwc)
@@ -634,8 +641,6 @@ foreach(mpiconf nompi ${mpiconfs})
     cado_divert_test(test_hello${suffix} thr23 APPEND_ARGUMENTS thr=2x3)
 endforeach()
 
-#########################################################################
-
 cado_define_test(test_bl_extraction.cpp LIBRARIES bwc_base bitlinalg)
 set_target_properties(test_bl_extraction PROPERTIES
                 LINKER_LANGUAGE CXX
@@ -650,7 +655,7 @@ cado_define_test(TEST_NAME test-blocklanczos
         --bindir ${CADO_NFS_BINARY_DIR}/linalg/bwc
     NO_DEFAULT_RUN
     TARGET_DEPENDENCIES mf_scan mf_bal random_matrix blocklanczos
-    bwc_full short_matmul)
+    bwc_full_gf2 short_matmul)
 cado_divert_test(test-blocklanczos right
     APPEND_ARGUMENTS --matrix-size "1000,2000" --nullspace RIGHT)
 cado_divert_test(test-blocklanczos left

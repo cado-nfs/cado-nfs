@@ -667,20 +667,20 @@ template<int bit, bool fragment> struct factory_for_bit_round2 {
 };
 
 struct bench_base {
-#define BBLACK(X) "\e[01;30m" X "\e[00;30m"
-#define BRED(X)   "\e[01;31m" X "\e[00;30m"
-#define BGREEN(X) "\e[01;32m" X "\e[00;30m"
-#define BYELLOW(X)"\e[01;33m" X "\e[00;30m"
-#define BBLUE(X)  "\e[01;34m" X "\e[00;30m"
-#define BVIOLET(X)"\e[01;35m" X "\e[00;30m"
-#define BNAVY(X)  "\e[01;36m" X "\e[00;30m"
-#define BLACK(X) "\e[00;30m" X "\e[00;30m"
-#define RED(X)   "\e[00;31m" X "\e[00;30m"
-#define GREEN(X) "\e[00;32m" X "\e[00;30m"
-#define YELLOW(X)"\e[00;33m" X "\e[00;30m"
-#define BLUE(X)  "\e[00;34m" X "\e[00;30m"
-#define VIOLET(X)"\e[00;35m" X "\e[00;30m"
-#define NAVY(X)  "\e[00;36m" X "\e[00;30m"
+#define BBLACK(X) "\e[01;30m" X "\e[00m"
+#define BRED(X)   "\e[01;31m" X "\e[00m"
+#define BGREEN(X) "\e[01;32m" X "\e[00m"
+#define BYELLOW(X)"\e[01;33m" X "\e[00m"
+#define BBLUE(X)  "\e[01;34m" X "\e[00m"
+#define BVIOLET(X)"\e[01;35m" X "\e[00m"
+#define BNAVY(X)  "\e[01;36m" X "\e[00m"
+#define BLACK(X) "\e[00;30m" X "\e[00m"
+#define RED(X)   "\e[00;31m" X "\e[00m"
+#define GREEN(X) "\e[00;32m" X "\e[00m"
+#define YELLOW(X)"\e[00;33m" X "\e[00m"
+#define BLUE(X)  "\e[00;34m" X "\e[00m"
+#define VIOLET(X)"\e[00;35m" X "\e[00m"
+#define NAVY(X)  "\e[00;36m" X "\e[00m"
 
     std::vector<ssp_simple_t> allprimes;
     std::vector<int> positions;

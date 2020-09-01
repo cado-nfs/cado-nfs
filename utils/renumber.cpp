@@ -636,7 +636,7 @@ bool renumber_t::traditional_is_vp_marker(index_t i) const
 index_t renumber_t::get_first_index_from_p(p_r_side x) const
 {
     p_r_values_t p = x.p;
-    p_r_values_t side = x.side;
+    // p_r_values_t side = x.side;
     if (p < index_from_p_cache.size()) {
         index_t i = index_from_p_cache[p];
         if (format == format_flat) {
@@ -654,7 +654,16 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
         return i;
     }
 
-    if (UNLIKELY(p >> lpb[side]))
+    /* Note that if lpbmax is > the width of the type, then
+     * check_needed_bits() should have complained already.
+     *
+     * If lpbmax is == the width of the type, then the table fits (if
+     * there's only one non-rational side). But we can't simply check p
+     * >> lpbmax, since the check overflows...
+     *
+     */
+    unsigned int lpbmax = *std::max_element(lpb.begin(), lpb.end());
+    if (lpbmax < (8 * sizeof(p_r_values_t)) && UNLIKELY(p >> lpbmax))
         throw prime_is_too_large(p);
 
     if (format == format_flat) {
@@ -859,7 +868,7 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
                             exps.push_back(v);
                         } else {
                             ASSERT_ALWAYS(e >= -v);
-                            exps.push_back(-v);
+                            exps.push_back(e + v);
                         }
                     }
                     return { first, exps };
@@ -1089,7 +1098,8 @@ void renumber_t::compute_bad_ideals_from_dot_badideals_hint(std::istream & is, u
         mpz_poly_srcptr f = cpoly->pols[x.side];
         for(badideal & b : badideals_above_p(f, x.side, x.p)) {
             above_bad += b.nbad;
-            bad_ideals.emplace_back(x, std::move(b));
+            p_r_side xx { (p_r_values_t) mpz_get_ui(b.p), (p_r_values_t) mpz_get_ui(b.r), x.side };
+            bad_ideals.emplace_back(xx, std::move(b));
         }
         if (x.p >= bad_ideals_max_p)
             bad_ideals_max_p = x.p;
@@ -1148,6 +1158,8 @@ void renumber_t::read_header(std::istream& is)
         read_bad_ideals(is);
     }
     is.flags(ff);
+
+    check_needed_bits(needed_bits());
 }
 
 /* This reads the bad ideals section of the new-format renumber file
@@ -1901,6 +1913,8 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
     }
 
     info(std::cout);
+
+    check_needed_bits(needed_bits());
 
     std::unique_ptr<std::ostream> out;
 

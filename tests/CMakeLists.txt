@@ -324,7 +324,10 @@ macro(cado_define_test)
     set(${TEST_NAME}_AVOID_CONCURRENT ${AVOID_CONCURRENT})
 
     if(NOT NO_DEFAULT_RUN)
-        set(test_env env PROJECT_BINARY_DIR=${PROJECT_BINARY_DIR})
+        set(test_env env)
+        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR)
+            set(test_env ${test_env} ${v}=${${v}})
+        endforeach()
         if (nENVIRONMENT GREATER 0)
             set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
         endif()
@@ -479,7 +482,10 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     set(${TEST_NAME}_AVOID_CONCURRENT ${AVOID_CONCURRENT})
 
     if(NOT NO_DEFAULT_RUN)
-        set(test_env env PROJECT_BINARY_DIR=${PROJECT_BINARY_DIR})
+        set(test_env env)
+        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR)
+            set(test_env ${test_env} ${v}=${${v}})
+        endforeach()
         if (nENVIRONMENT GREATER 0)
             set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
         endif()
@@ -517,19 +523,26 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     endif()
 endmacro()
 
+add_custom_target(full_dependencies_base)
+add_dependencies(full_dependencies_base
+        polyselect polyselect_ropt polyselect3
+        freerel makefb
+        las
+        dup1 dup2 purge
+        )
+
 # MPI binaries are not properly launched by cado-nfs.py (see #21819)
 if(NOT MINGW AND NOT HAVE_MPI)
+
 cado_define_test(full_c30
     SCRIPT
         ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 999073468111577057576445816581
         --server-threads 2
     TARGET_DEPENDENCIES
-        polyselect polyselect_ropt polyselect3
-        freerel makefb
-        las
-        dup1 dup2 purge merge replay
+        full_dependencies_base
+        merge replay
         characters
-        bwc_full
+        bwc_full_gf2
         sqrt
     AVOID_CONCURRENT
         )
@@ -543,7 +556,8 @@ cado_define_test(full_c30
             -t 2 -dlp-no-keep
             target=92800609832959449330691138186
             3037544709654617415632521514287
-            TARGET_DEPENDENCIES full_c30_dependencies
+            TARGET_DEPENDENCIES full_dependencies_base
+            bwc_full_gfp
             lingen_pz sm sm_simple las_descent reconstructlog-dl
             merge-dl replay-dl badideals
             AVOID_CONCURRENT
@@ -569,7 +583,7 @@ cado_define_test(full_c30
             tasks.sieve.sqside=0
             tasks.sieve.rels_wanted=1500
             TARGET_DEPENDENCIES
-            full_c30_dependencies
+            full_dependencies_base
             lingen_pz sm sm_simple las_descent reconstructlog-dl
             dlpolyselect merge-dl replay-dl badideals
             AVOID_CONCURRENT
@@ -624,15 +638,14 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
 #               43341748620473677010074177283795146221310971425909898235183
 #               -dlp -t 2 -s auto -dlpnokeep
 #                ${CADO_NFS_SOURCE_DIR}
-#            TARGET_DEPENDENCIES full_c30_dependencies
-#            lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
+#            TARGET_DEPENDENCIES full_p30_dependencies
 #        )
         cado_define_test(full_gfp3
             SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --env t
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
-            TARGET_DEPENDENCIES full_c30_dependencies
+            TARGET_DEPENDENCIES full_p30_dependencies)
             lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
         AVOID_CONCURRENT
             )
@@ -640,8 +653,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
             ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
-            TARGET_DEPENDENCIES full_c30_dependencies
-            lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
+            TARGET_DEPENDENCIES full_p30_dependencies
             filter_galois polyselect_gfpn
         AVOID_CONCURRENT
             )

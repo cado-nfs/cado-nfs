@@ -4,14 +4,40 @@ set -e
 
 : ${WORKDIR?missing}
 
-SOURCE_TEST_DIR="`dirname "$0"`"
-BUILD_DIR="$1"
+LC=(-lcideals)
 
-# Test MNFS with 5 polys (interesting primes are 2 and 3)
-POLY="${SOURCE_TEST_DIR}/test_renumber.data/mnfs5.poly"
-RENUMBER="${WORKDIR}/mnfs5.renumber.gz"
+while [ $# -gt 0 ] ; do
+    if [ "$1" = "-b" ] ; then
+        shift
+        BUILD_DIR="$1"
+        shift
+    elif [ "$1" = "-poly" ] ; then
+        shift
+        POLY="$1"
+        shift
+    elif [ "$1" = "-lpbs" ] ; then
+        shift
+        LPBS="$1"
+        shift
+    elif [ "$1" = "-lcideals" ] ; then
+        LC=(-lcideals)
+        shift
+    elif [ "$1" = "-nolcideals" ] ; then
+        LC=()
+        shift
+    else
+        echo "bad arg: $1" >&2
+        exit 1
+    fi
+done
+
+: ${BUILD_DIR?missing}
+: ${POLY?missing}
+: ${LPBS?missing}
+
+RENUMBER="${WORKDIR}/renumber.gz"
 
 ${BUILD_DIR}/sieve/freerel -poly ${POLY} -renumber ${RENUMBER} -out /dev/null \
-                           -lpbs 11,10,10,10,10 -lcideals
+                           -lpbs "$LPBS" "${LC[@]}"
 
 ${BUILD_DIR}/misc/debug_renumber -poly ${POLY} -renumber ${RENUMBER} -check -quiet
