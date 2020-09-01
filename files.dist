@@ -70,8 +70,6 @@ filter/singleton_simple.cpp
 filter/clique_removal.cpp
 filter/clique_removal.h
 filter/merge.c
-filter/transpose.h
-filter/transpose.c
 filter/mst.c
 filter/mst.h
 filter/purge.c

@@ -7,9 +7,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef USE_HEAP
-#include "omp_proxy.h" // IWYU pragma: keep
-#endif
 #ifdef FOR_DL
 #include "gcd.h"
 #endif
@@ -48,11 +45,6 @@ initMat (filter_matrix_t *mat, uint32_t skip)
 void
 clearMat (filter_matrix_t *mat)
 {
-#ifndef USE_HEAP
-#pragma omp parallel for
-  for (uint64_t i = 0; i < mat->nrows; i++)
-    free (mat->rows[i]);
-#endif
   free (mat->rows);
   free (mat->wt);
 }
