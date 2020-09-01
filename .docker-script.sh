@@ -19,6 +19,12 @@
 # frugal and doesn't claim to do much.
 #
 # All traces of the container are removed when the script exit (as per --rm)
+#
+# While the container still runs, if you want to open a second connection
+# to it, you might find the following commands useful:
+#       docker container list
+#       docker  exec -ti $CONTAINER_ID bash -i
+# (where $CONTAINER_ID is obtained from the first command)
 # 
 # Caveat: absolute symlinks, or symlinks to outside the filesystem
 # hierarchy under the path from which this script is called, cannot work.
@@ -46,6 +52,21 @@ gid=$(stat --printf '%g' .)
 groupadd -g $gid hostgroup
 useradd -m -g $gid -u $uid hostuser
 if ! [ -f /etc/fedora-release ] ; then
-    echo "# NOTE: You might need to type \"exec bash -i\" first so as to get a proper shell"
+    cat <<EOF
+# NOTE: You might need to type:
+#       exec bash -i
+# first, so as to get a proper shell
+#
+EOF
+fi
+if ! [ -f build ] && ! [ -e build ] ; then
+    cat <<EOF
+# NOTE: ./build appears to be a symlink that goes outside the
+# current container.
+# You might want to set the build directory by hand to work around this,
+# e.g. with:
+#       export force_build_tree=/tmp/b
+#
+EOF
 fi
 exec su hostuser
