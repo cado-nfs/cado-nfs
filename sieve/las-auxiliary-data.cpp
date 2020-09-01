@@ -109,40 +109,43 @@ nfs_aux::~nfs_aux()
     timetree_t::timer_data_type qtcpu = rt.timer.total_counted_time();
 
     verbose_output_vfprint (0, 1, gmp_vfprintf,
-            "# Time for side-%d q=%Zd r=%Zd:"
-            " %1.2fs",
+            "# Time for side-%d q=%Zd r=%Zd:",
             doing.side,
-            (mpz_srcptr) doing.p, (mpz_srcptr) doing.r,
-            qtcpu
+            (mpz_srcptr) doing.p, (mpz_srcptr) doing.r
             );
-    verbose_output_print (0, 2,
-            " [norm %1.2f+%1.1f, sieving %1.1f"
-            " (%1.1f+%1.1f + %1.1f),"
-            " factor %1.1f (%1.1f+%1.1f + %1.1f),"
-            " rest %1.1f]",
-            D[coarse_las_timers::norms(0)],
-            D[coarse_las_timers::norms(1)],
+    if (las_production_mode) {
+        verbose_output_print (0, 1, " [-production mode, no timings]");
+    } else {
+        verbose_output_print (0, 1, " %1.2fs", qtcpu);
+        verbose_output_print (0, 2,
+                " [norm %1.2f+%1.1f, sieving %1.1f"
+                " (%1.1f+%1.1f + %1.1f),"
+                " factor %1.1f (%1.1f+%1.1f + %1.1f),"
+                " rest %1.1f]",
+                D[coarse_las_timers::norms(0)],
+                D[coarse_las_timers::norms(1)],
 
-            D[coarse_las_timers::sieving(0)]+
-            D[coarse_las_timers::sieving(1)]+
-            D[coarse_las_timers::search_survivors()]+
-            D[coarse_las_timers::sieving_mixed()],
+                D[coarse_las_timers::sieving(0)]+
+                D[coarse_las_timers::sieving(1)]+
+                D[coarse_las_timers::search_survivors()]+
+                D[coarse_las_timers::sieving_mixed()],
 
-            D[coarse_las_timers::sieving(0)],
-            D[coarse_las_timers::sieving(1)],
-            D[coarse_las_timers::search_survivors()]+
-            D[coarse_las_timers::sieving_mixed()],
+                D[coarse_las_timers::sieving(0)],
+                D[coarse_las_timers::sieving(1)],
+                D[coarse_las_timers::search_survivors()]+
+                D[coarse_las_timers::sieving_mixed()],
 
-            D[coarse_las_timers::cofactoring(0)]+
-            D[coarse_las_timers::cofactoring(1)]+
-            D[coarse_las_timers::cofactoring_mixed()],
+                D[coarse_las_timers::cofactoring(0)]+
+                D[coarse_las_timers::cofactoring(1)]+
+                D[coarse_las_timers::cofactoring_mixed()],
 
-            D[coarse_las_timers::cofactoring(0)],
-            D[coarse_las_timers::cofactoring(1)],
-            D[coarse_las_timers::cofactoring_mixed()],
+                D[coarse_las_timers::cofactoring(0)],
+                D[coarse_las_timers::cofactoring(1)],
+                D[coarse_las_timers::cofactoring_mixed()],
 
-            D[coarse_las_timers::bookkeeping()]
-            );
+                D[coarse_las_timers::bookkeeping()]
+                    );
+    }
     verbose_output_print (0, 1, "\n");
 
     verbose_output_end_batch();

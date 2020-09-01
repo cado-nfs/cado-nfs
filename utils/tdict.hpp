@@ -610,33 +610,33 @@ class : public tdict::slot_base {
 #define CHILD_TIMER(T, name)                                            \
     TIMER_DEBUG_MESSAGE_(T);                                         	\
     static tdict::slot UNIQUE_ID(slot)(name);		                \
-    TIMER_TYPE_(T)::accounting_child UNIQUE_ID(sentry)(T,UNIQUE_ID(slot))
+    typename TIMER_TYPE_(T)::accounting_child UNIQUE_ID(sentry)(T,UNIQUE_ID(slot))
 #define CHILD_TIMER_PARAMETRIC(T, name, arg, suffix)                    \
     TIMER_DEBUG_MESSAGE_(T);                                         	\
     static tdict::slot_parametric UNIQUE_ID(slot)(name, suffix);    	\
-    TIMER_TYPE_(T)::accounting_child UNIQUE_ID(sentry)(T,UNIQUE_ID(slot)(arg))
+    typename TIMER_TYPE_(T)::accounting_child UNIQUE_ID(sentry)(T,UNIQUE_ID(slot)(arg))
 #define SIBLING_TIMER(T, name) do {					\
         TIMER_DEBUG_MESSAGE_(T);					\
         static tdict::slot x(name);					\
-        TIMER_TYPE_(T)::accounting_sibling UNIQUE_ID(sentry) (T,x);	\
+        typename TIMER_TYPE_(T)::accounting_sibling UNIQUE_ID(sentry) (T,x);	\
     } while (0)
 #define SIBLING_TIMER_PARAMETRIC(T, name, arg, suffix) do {		\
         TIMER_DEBUG_MESSAGE_(T);					\
         static tdict::slot_parametric x(name, suffix);			\
-        TIMER_TYPE_(T)::accounting_sibling UNIQUE_ID(sentry) (T,x(arg));\
+        typename TIMER_TYPE_(T)::accounting_sibling UNIQUE_ID(sentry) (T,x(arg));\
     } while (0)
 #define BOOKKEEPING_TIMER(T)						\
     TIMER_DEBUG_MESSAGE_(T);						\
-    TIMER_TYPE_(T)::accounting_bookkeeping UNIQUE_ID(sentry) (T);
+    typename TIMER_TYPE_(T)::accounting_bookkeeping UNIQUE_ID(sentry) (T);
 #define ACTIVATE_TIMER(T)						\
     TIMER_DEBUG_MESSAGE_(T);						\
-    TIMER_TYPE_(T)::accounting_activate UNIQUE_ID(sentry) (T);
+    typename TIMER_TYPE_(T)::accounting_activate UNIQUE_ID(sentry) (T);
 #define ACTIVATE_TIMER_IF_NOT_RUNNING(T)				\
     TIMER_DEBUG_MESSAGE_(T);						\
-    TIMER_TYPE_(T)::accounting_activate_recursive UNIQUE_ID(sentry) (T);
+    typename TIMER_TYPE_(T)::accounting_activate_recursive UNIQUE_ID(sentry) (T);
 #define DEBUG_DISPLAY_TIMER_AT_DTOR(T,o)				\
     TIMER_DEBUG_MESSAGE_(T);						\
-    TIMER_TYPE_(T)::accounting_debug UNIQUE_ID(sentry) (T, o);
+    typename TIMER_TYPE_(T)::accounting_debug UNIQUE_ID(sentry) (T, o);
 #define CHILD_TIMER_FUZZY(T, U, name)                \
     static tdict::slot UNIQUE_ID(slot)(name);		                \
     tdict::tie_timer<typename TIMER_TYPE_(T)::timer_type, fast_timetree_t::timer_type> U(T, UNIQUE_ID(slot))
