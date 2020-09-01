@@ -316,9 +316,12 @@ endif()
 configure_file(matmul-libnames.h.in matmul-libnames.h ESCAPE_QUOTES @ONLY)
 include_directories (${CMAKE_CURRENT_BINARY_DIR})
 
-# if(NOT BUILD_DYNAMICALLY_LINKABLE_BWC)
-# target_link_libraries(bwc_base ${all_matmul_libs})
-# endif()
+# If we use static libraries, then unfortunately we _have_ to build all
+# possible implementation for just any single run of bwc. Define
+# ENABLE_SHARED=1 in local.sh to avoid this pitfall.
+if(NOT BUILD_DYNAMICALLY_LINKABLE_BWC)
+target_link_libraries(bwc_base ${all_matmul_gf2_libs} ${all_matmul_gfp_libs})
+endif()
 
 ### matmul_mf
 mpi_add_library(matmul_mf ${CADO_SHARED} matmul-mf.c)

@@ -20,3 +20,14 @@ cado_divert_test(test_dup2 c105_30003
     -nolcideals
     )
 endif()
+
+cado_divert_test(test_dup2 c105_30004
+    APPEND_ARGUMENTS
+    -poly ${CMAKE_CURRENT_SOURCE_DIR}/p40_30004.poly
+    -rels ${CMAKE_CURRENT_SOURCE_DIR}/p40_30004.rels.gz
+    -lpbs 14,14
+    -dl
+    -S c8c5a0aa4750790e8e5e150bf13de7b1e77ade01
+    -R b40784b0e
+    )
+# b40784b0e is old working commit 122e3868, plus this test
