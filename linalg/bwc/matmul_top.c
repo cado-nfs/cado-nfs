@@ -644,7 +644,9 @@ int mmt_vec_load(mmt_vec_ptr v, const char * filename_pattern, unsigned int item
     for(unsigned int b = 0 ; global_ok && b < Adisk_multiplex ; b++) {
         unsigned int b0 = block_position + b * Adisk_width;
         char * filename;
-        asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        int rc;
+        rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        ASSERT_ALWAYS(rc >= 0);
         double tt = -wct_seconds();
         if (tcan_print) {
             printf("Loading %s ...", filename);
@@ -719,9 +721,11 @@ int mmt_vec_save(mmt_vec_ptr v, const char * filename_pattern, unsigned int item
     for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
         unsigned int b0 = block_position + b * Adisk_width;
         char * filename;
-        asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        int rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+        ASSERT_ALWAYS(rc >= 0);
         char * tmpfilename;
-        asprintf(&tmpfilename, "%s.tmp", filename);
+        rc = asprintf(&tmpfilename, "%s.tmp", filename);
+        ASSERT_ALWAYS(rc >= 0);
         double tt = -wct_seconds();
         if (tcan_print) {
             printf("Saving %s ...", filename);
@@ -2339,7 +2343,9 @@ void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename_patter
         for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
             unsigned int b0 = block_position + b * Adisk_width;
             char * filename;
-            asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+            int rc;
+            rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
+            ASSERT_ALWAYS(rc >= 0);
 
             /* we want to create v->n / Adisk_multiplex entries --
              * but we can't do that with access to just A. So we
@@ -2359,7 +2365,7 @@ void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename_patter
             }
             FILE * f = fopen(filename, "wb");
             ASSERT_ALWAYS(f);
-            int rc = fwrite(y, A->vec_elt_stride(A,1), loc_itemsondisk, f);
+            rc = fwrite(y, A->vec_elt_stride(A,1), loc_itemsondisk, f);
             ASSERT_ALWAYS(rc == (int) loc_itemsondisk);
             fclose(f);
             tt += wct_seconds();
