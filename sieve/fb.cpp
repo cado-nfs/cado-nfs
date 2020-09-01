@@ -1598,6 +1598,9 @@ fb_factorbase::read(const char * const filename)
 /* (desired) structure of the factor base cache header block (ascii, 4096
  * bytes).
  *
+ * No comments are supported in the header blocks (yes, it is a bit
+ * unfortunate. yes, it's possible to fix it, of course).
+ *
  * version (integer)
  * size in bytes of header + data (integer, aligned to page size)
  *      [note: other descriptors might follow at this position !]

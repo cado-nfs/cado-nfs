@@ -1438,3 +1438,4 @@ tests/filter/test_dup2.sh
 tests/filter/p40_30004.poly
 tests/filter/p40_30004.rels.gz
 sieve/inspect-fbc-file.pl
+tests/sieve/bogus.fbc
