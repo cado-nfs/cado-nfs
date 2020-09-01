@@ -97,6 +97,8 @@ bool siever_config::parse_default(siever_config & sc, param_list_ptr pl)
         complete &= param_list_parse_int  (pl, "I", &I);
         sc.logA = 2 * I - 1;
         verbose_output_print(0, 1, "# Interpreting -I %d as meaning -A %d\n", I, sc.logA);
+    } else {
+        complete = 0;
     }
 
     if (sc.sides[0].lim > 4294967295UL || sc.sides[1].lim > 4294967295UL)
