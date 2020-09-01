@@ -666,7 +666,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   {
       cxx_mpz_functions M(F);
 
-      std::string message = fmt::format("Rat({})", numdep);
+      std::string message = fmt::format(FMT_STRING("Rat({})"), numdep);
       char * depname = get_depname (prefix, "", numdep);
       std::vector<cxx_mpz> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
       free(depname);
@@ -1308,7 +1308,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
   {
       cxx_mpz_polymod_scaled_functions M(F);
 
-      std::string message = fmt::format("Alg({})", numdep);
+      std::string message = fmt::format(FMT_STRING("Alg({})"), numdep);
       char * depname = get_depname (prefix, "", numdep);
       std::vector<cxx_mpz_polymod_scaled> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
       free(depname);
