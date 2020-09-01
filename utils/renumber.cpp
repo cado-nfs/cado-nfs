@@ -713,7 +713,15 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
     if (is_bad(i, x))
         return i;
     if (x.p == 0) {
-        // additional columns
+        // additional columns. By convention they're attached to p==0.
+        // Note that also by convention/tradition we use only a single
+        // additional column where we have two non-monic sides, in which
+        // case it's only counted on side 0.
+        if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+            if (x.side == 0)
+                return 0;
+            throw cannot_find_pr(x);
+        }
         i = 0;
         for(auto side : get_sides_of_additional_columns()) {
             if (side == x.side)
@@ -742,7 +750,7 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
      *  then come the descriptors for all roots mod p
      */
 
-    int outer_idx;
+    index_t outer_idx;
     if (format == format_variant) {
         /* This is the special thing about the "variant" format */
         outer_idx = above_bad + traditional_data[++i] - vp;
@@ -957,6 +965,10 @@ void renumber_t::variant_translate_index(index_t & i0, index_t & ii, index_t i) 
 renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
 {
     if (i < above_add) {
+        /* In the special case where we have two non-monic polynomials,
+         * we have a single additional column, hence above_add=1 and i=0.
+         * We return {0,0,0} in that case.
+         */
         for(auto side : get_sides_of_additional_columns()) {
             if (i-- == 0)
                 return { 0, 0, side };
@@ -1227,7 +1239,10 @@ void renumber_t::write_header(std::ostream& os) const
         os << "\n";
     }
 
-    os << "# " << above_add << " additional columns\n";
+    os << "# " << above_add << " additional columns";
+    if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2)
+        os << " (combined for both sides)";
+    os << "\n";
     os.flags(ff);
 }
 
@@ -1292,6 +1307,12 @@ void renumber_t::use_additional_columns_for_dl()
 {
     ASSERT_ALWAYS(above_all == 0);
     above_add = get_sides_of_additional_columns().size();
+    if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+        /* This is a minor optimization. When we have two non-monic
+         * sides, a single additional column is sufficient.
+         */
+        above_add = 1;
+    }
     above_bad = above_add;
     above_cache = above_add;
     above_all = above_add;
@@ -1369,6 +1390,9 @@ index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, 
 
 void renumber_t::read_table(std::istream& is)
 {
+    stats_data_t stats;
+    uint64_t nprimes = 0; // sigh... *must* be ulong for stats().
+    stats_init(stats, stdout, &nprimes, 23, "Read", "primes", "", "p");
     for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
     if (format == format_flat) {
         for(p_r_values_t p, r ; is >> p >> r ; ) {
@@ -1382,6 +1406,9 @@ void renumber_t::read_table(std::istream& is)
             for(p_r_values_t v ; is >> v ; ) {
                 traditional_data.push_back(v);
                 above_all++;
+                nprimes = above_all;
+                if (stats_test_progress(stats))
+                    stats_print_progress(stats, nprimes, 0, 0, 0);
             }
         } else if (format == format_variant) {
             for(p_r_values_t v, vp = 0 ; is >> v ; ) {
@@ -1391,10 +1418,14 @@ void renumber_t::read_table(std::istream& is)
                 }
                 traditional_data.push_back(v);
                 above_all++;
+                nprimes = above_all;
+                if (stats_test_progress(stats))
+                    stats_print_progress(stats, nprimes, 0, 0, 0);
             }
         }
         is.flags(ff);
     }
+    stats_print_progress(stats, nprimes, 0, 0, 1);
 
     if (format == format_traditional || format == format_variant) {
         p_r_values_t vp = 0;
@@ -1507,8 +1538,13 @@ std::string renumber_t::debug_data(index_t i) const
     os << "i=0x" << std::hex << i;
 
     if (is_additional_column (i)) {
-        os << " tab[i]=#"
-            << " added column for side " << std::dec << x.side;
+        if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+            os << " tab[i]=#"
+                << " added column for both sides combined";
+        } else {
+            os << " tab[i]=#"
+                << " added column for side " << std::dec << x.side;
+        }
     } else if (is_bad(i)) {
         os << " tab[i]=#"
             << " bad ideal";
@@ -1588,6 +1624,9 @@ void renumber_t::info(std::ostream & os) const
         os << ", on sides";
         for(auto s : get_sides_of_additional_columns())
             os << " " << s;
+        if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+            os << " (one column for both sides combined)";
+        }
     }
     os << "\n";
     os << P << "#badideals = " << above_bad - above_add
@@ -1918,6 +1957,8 @@ renumber_t::const_iterator::const_iterator(renumber_t const & table, index_t i)
 }
 renumber_t::p_r_side renumber_t::const_iterator::operator*() const {
     if (i < table.above_add) {
+        /* See comment in p_r from index about the special case with 2
+         * non-monic sides */
         index_t j = 0;
         for(auto side : table.get_sides_of_additional_columns()) {
             if (j++ == i)
