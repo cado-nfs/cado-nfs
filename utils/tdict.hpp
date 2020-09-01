@@ -15,6 +15,12 @@ struct cxx_param_list;
  * negatively impact the performance */
 #define xxxDISABLE_TIMINGS
 
+namespace tdict {
+    struct timer_none {
+        typedef int type;
+        inline type operator()() const { return 0; }
+    };
+}
 #ifndef DISABLE_TIMINGS
 
 /* This header file defines objects for a "timing dictionary".
@@ -237,8 +243,19 @@ namespace tdict {
                 return type();
         }
     };
-    std::ostream& operator<<(std::ostream & o, timer_seconds_thread_and_wct::type const & a);
+#ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
+    struct timer_ticks {
+        typedef uint64_t type;
+        type operator()() const {
+            if (tdict::global_enable)
+                return cputicks();
+            else
+                return 0;
+        }
+    };
+#endif
 
+    std::ostream& operator<<(std::ostream & o, timer_seconds_thread_and_wct::type const & a);
 
     /*
     template<typename T>
@@ -256,66 +273,68 @@ namespace tdict {
         */
 
     template<typename T>
-        struct tree {
-            typedef typename T::type timer_data_type;
-            timer_data_type self;
-            bool scoping;
-            int category;
-            typedef std::map<tdict::key, tree<T> > M_t;
-            M_t M;
-            tree<T> * current;   /* could be NULL */
-            tree<T> * parent;   /* could be NULL */
-            tree() : self(timer_data_type()), scoping(true), category(-1), current(NULL), parent(this) { }
-            bool running() const { return current != NULL; }
-            void stop() {
-                if (!running()) return;
-                timer_data_type v = T()();
-                current->self += v;
-                current = NULL;
-                return;
-            }
-            void start() {
-                if (running()) return;
-                timer_data_type v = T()();
-                self -= v;
-                current = this;
-            }
-            void add_foreign_time(timer_data_type const & t) {
-                self += t;
-            }
-            void set_current_category(int c) {
-                ASSERT_ALWAYS(running());
-                /* It is not allowed to set a category for the root of
-                 * the tree */
-                ASSERT_ALWAYS(current != this);
-                current->category = c;
-            }
-
-
-            timer_data_type stop_and_start() {
-                ASSERT_ALWAYS(running());
-                timer_data_type v = T()();
-                timer_data_type res = current->self + v;
-                current->self = -v;
-                return res;
-            }
-            struct accounting_base {
-                tree& t;
-                inline accounting_base(tree& t): t(t) {}
-                inline ~accounting_base() {}
-            };
-            /* This one is useful so that ctor/dtor order works right.
+    struct tree {
+        typedef T timer_type;
+        typedef typename T::type timer_data_type;
+        timer_data_type self;
+        bool scoping;
+        int category;
+        typedef std::map<tdict::key, tree<T> > M_t;
+        M_t M;
+        tree<T> * current;   /* could be NULL */
+        tree<T> * parent;   /* could be NULL */
+        tree() : self(timer_data_type()), scoping(true), category(-1), current(NULL), parent(this) { }
+        bool running() const { return current != NULL; }
+        void stop() {
+            if (!running()) return;
+            timer_data_type v = T()();
+            current->self += v;
+            current = NULL;
+            return;
+        }
+        void start() {
+            if (running()) return;
+            timer_data_type v = T()();
+            self -= v;
+            current = this;
+        }
+        void add_foreign_time(timer_data_type const & t) {
+            self += t;
+        }
+        void set_current_category(int c) {
+            ASSERT_ALWAYS(running());
+            /* We used to forbid setting a category for the root of the
+             * tree. However, this looks like an artificial restriction.
+             * ASSERT_ALWAYS(current != this);
              */
-            struct accounting_activate : public accounting_base {
-                inline accounting_activate(tree& t): accounting_base(t) { accounting_base::t.start(); }
-                inline ~accounting_activate() { accounting_base::t.stop(); }
-            };
-            struct accounting_activate_recursive : public accounting_base {
-                bool act = false;
-                inline accounting_activate_recursive(tree& t): accounting_base(t), act(!t.running()) { if (act) accounting_base::t.start(); }
-                inline ~accounting_activate_recursive() { if (act) accounting_base::t.stop(); }
-            };
-            template<typename BB>
+            current->category = c;
+        }
+
+
+        timer_data_type stop_and_start() {
+            ASSERT_ALWAYS(running());
+            timer_data_type v = T()();
+            timer_data_type res = current->self + v;
+            current->self = -v;
+            return res;
+        }
+        struct accounting_base {
+            tree& t;
+            inline accounting_base(tree& t): t(t) {}
+            inline ~accounting_base() {}
+        };
+        /* This one is useful so that ctor/dtor order works right.
+        */
+        struct accounting_activate : public accounting_base {
+            inline accounting_activate(tree& t): accounting_base(t) { accounting_base::t.start(); }
+            inline ~accounting_activate() { accounting_base::t.stop(); }
+        };
+        struct accounting_activate_recursive : public accounting_base {
+            bool act = false;
+            inline accounting_activate_recursive(tree& t): accounting_base(t), act(!t.running()) { if (act) accounting_base::t.start(); }
+            inline ~accounting_activate_recursive() { if (act) accounting_base::t.stop(); }
+        };
+        template<typename BB>
             struct accounting_child_meta : public BB {
                 accounting_child_meta(tree& t, tdict::key k): BB(t) {
                     ASSERT_ALWAYS(BB::t.running());
@@ -338,125 +357,182 @@ namespace tdict {
                     BB::t.current->self -= v;
                 }
             };
-            typedef accounting_child_meta<accounting_base> accounting_child;
-            typedef accounting_child_meta<accounting_activate> accounting_child_autoactivate;
-            typedef accounting_child_meta<accounting_activate_recursive> accounting_child_autoactivate_recursive;
+        typedef accounting_child_meta<accounting_base> accounting_child;
+        typedef accounting_child_meta<accounting_activate> accounting_child_autoactivate;
+        typedef accounting_child_meta<accounting_activate_recursive> accounting_child_autoactivate_recursive;
 
-            struct accounting_debug : public accounting_base {
-                std::ostream& o;
-                inline accounting_debug(tree& t, std::ostream&o): accounting_base(t), o(o) {}
-                inline ~accounting_debug() {
-                    o << "# debug print\n";
-                    o << accounting_base::t.display();
-                    o << "# --\n";
-                }
-            };
-
-            /* We make this an object for consistency with the child case, but
-             * really we don't have to */
-            struct accounting_sibling {
-                accounting_sibling(tree& t, tdict::key k) {
-                    ASSERT_ALWAYS(t.running());
-                    timer_data_type v = T()();
-                    tree<T> * kid;
-                    if (t.current->scoping) {
-                        kid = &(t.current->M[k]);  /* auto-vivifies */
-                        kid->parent = t.current;
-                    } else {
-                        kid = &(t.current->parent->M[k]);  /* auto-vivifies */
-                        kid->parent = t.current->parent;
-                    }
-                    t.current->self += v;
-                    kid->scoping = false;
-                    kid->self -=  v;
-                    t.current = kid;
-                }
-            };
-            /* mostly the same as the previous, except that we return to
-             * the main "bookkeeping" timer attached to this level of the
-             * tree.
-             */
-            struct accounting_bookkeeping {
-                accounting_bookkeeping(tree& t) {
-                    ASSERT_ALWAYS(t.running());
-                    timer_data_type v = T()();
-                    if (!t.current->scoping) {
-                        t.current->self += v;
-                        t.current = t.current->parent;
-                        t.current->self -= v;
-                    }
-                }
-            };
-
-private:
-            std::ostream& _display(std::ostream& o, std::string const& prefix) const {
-                // o << prefix << self << " (self)\n";
-                std::ostringstream ss;
-                ss << prefix << " ";
-                for(typename M_t::const_iterator a = M.begin() ; a != M.end() ; a++) {
-                    o << prefix << a->second.self << " " << a->first;
-#define DEBUG_CATEGORY
-#ifdef DEBUG_CATEGORY
-                    if (a->second.category >= 0)
-                        o << " ; category " << a->second.category;
-#endif
-                    o << "\n";
-                    a->second._display(o, ss.str());
-                }
-                return o;
-            }
-
-            void filter_by_category(std::map<int, timer_data_type> & D, int inherited) const {
-                int flag = inherited;
-                if (category >= 0)
-                    flag = category;
-                D[flag] += self;
-                for(auto const & a : M) {
-                    a.second.filter_by_category(D, flag);
-                }
-            }
-
-public:
-            std::map<int, timer_data_type> filter_by_category() const {
-                std::map<int, timer_data_type> res;
-                filter_by_category(res, -1);
-                return res;
-            }
-            double total_counted_time() const {
-                double t = self;
-                for(auto const & a : M)
-                    t += a.second.total_counted_time();
-                return t;
-            }
-            std::string display(double bookkeeping_cutoff = 1e-5) const {
-                ASSERT_ALWAYS(!running());
-                std::ostringstream ss;
-                if (self > bookkeeping_cutoff)
-                    ss << "# " << self << " (bookkeeping)\n";
-                _display(ss, "# ");
-                return ss.str();
-            }
-            tree& operator+=(tree const& t) {
-                self += t.self;
-                ASSERT_ALWAYS(category < 0 || t.category < 0 || category == t.category);
-                if (t.category >= 0)
-                    category = t.category;
-                for(typename M_t::const_iterator a = t.M.begin() ; a != t.M.end() ; a++) {
-                    M[a->first] += a->second;
-                }
-                return *this;
-            }
-            tree& steal_children_timings(tree & t) {
-                ASSERT_ALWAYS(t.running());
-                ASSERT_ALWAYS(t.current = &t);
-                ASSERT_ALWAYS(t.category < 0);
-                for(typename M_t::iterator a = t.M.begin() ; a != t.M.end() ; a++) {
-                    M[a->first] += a->second;
-                }
-                t.M.clear();
-                return *this;
+        struct accounting_debug : public accounting_base {
+            std::ostream& o;
+            inline accounting_debug(tree& t, std::ostream&o): accounting_base(t), o(o) {}
+            inline ~accounting_debug() {
+                o << "# debug print\n";
+                o << accounting_base::t.display();
+                o << "# --\n";
             }
         };
+        /* We make this an object for consistency with the child case, but
+         * really we don't have to */
+        struct accounting_sibling {
+            accounting_sibling(tree& t, tdict::key k) {
+                ASSERT_ALWAYS(t.running());
+                timer_data_type v = T()();
+                tree<T> * kid;
+                if (t.current->scoping) {
+                    kid = &(t.current->M[k]);  /* auto-vivifies */
+                    kid->parent = t.current;
+                } else {
+                    kid = &(t.current->parent->M[k]);  /* auto-vivifies */
+                    kid->parent = t.current->parent;
+                }
+                t.current->self += v;
+                kid->scoping = false;
+                kid->self -=  v;
+                t.current = kid;
+            }
+        };
+        /* mostly the same as the previous, except that we return to
+         * the main "bookkeeping" timer attached to this level of the
+         * tree.
+         */
+        struct accounting_bookkeeping {
+            accounting_bookkeeping(tree& t) {
+                ASSERT_ALWAYS(t.running());
+                timer_data_type v = T()();
+                if (!t.current->scoping) {
+                    t.current->self += v;
+                    t.current = t.current->parent;
+                    t.current->self -= v;
+                }
+            }
+        };
+
+        private:
+        std::ostream& _display(std::ostream& o, std::string const& prefix) const {
+            // o << prefix << self << " (self)\n";
+            std::ostringstream ss;
+            ss << prefix << " ";
+            for(auto const & a : M) {
+                o << prefix << a.second.self << " " << a.first;
+#define DEBUG_CATEGORY
+#ifdef DEBUG_CATEGORY
+                if (a.second.category >= 0)
+                    o << " ; category " << a.second.category;
+#endif
+                o << "\n";
+                a.second._display(o, ss.str());
+            }
+            return o;
+        }
+
+        void filter_by_category(std::map<int, timer_data_type> & D, int inherited) const {
+            int flag = inherited;
+            if (category >= 0)
+                flag = category;
+            D[flag] += self;
+            for(auto const & a : M) {
+                a.second.filter_by_category(D, flag);
+            }
+        }
+
+        public:
+        std::map<int, timer_data_type> filter_by_category() const {
+            std::map<int, timer_data_type> res;
+            filter_by_category(res, -1);
+            return res;
+        }
+        double total_counted_time() const {
+            double t = self;
+            for(auto const & a : M)
+                t += a.second.total_counted_time();
+            return t;
+        }
+        std::string display(double bookkeeping_cutoff = 1e-5) const {
+            ASSERT_ALWAYS(!running());
+            std::ostringstream ss;
+            if (self > bookkeeping_cutoff)
+                ss << "# " << self << " (bookkeeping)\n";
+            _display(ss, "# ");
+            return ss.str();
+        }
+        tree& operator+=(tree const& t) {
+            self += t.self;
+            ASSERT_ALWAYS(category < 0 || t.category < 0 || category == t.category);
+            if (t.category >= 0)
+                category = t.category;
+            for(typename M_t::const_iterator a = t.M.begin() ; a != t.M.end() ; a++) {
+                M[a->first] += a->second;
+            }
+            return *this;
+        }
+        tree& steal_children_timings(tree & t) {
+            ASSERT_ALWAYS(t.running());
+            ASSERT_ALWAYS(t.current = &t);
+            ASSERT_ALWAYS(t.category < 0);
+            for(typename M_t::iterator a = t.M.begin() ; a != t.M.end() ; a++) {
+                M[a->first] += a->second;
+            }
+            t.M.clear();
+            return *this;
+        }
+    };
+
+    /* This is used to that timings obtained from a quick, and
+     * rather inaccurate timer u can be scaled to participate in
+     * the counts in the timer t.
+     * The timer t must be running, because the time captured
+     * while u is running will be used as a base. All timer counts that
+     * appear in u will be scaled to that base, according to the
+     * proportion of the timer counts that they represent in u.
+     * (tying an all-zero timer u is a no-op).
+     */
+    template<typename T, typename U> struct tie_timer : public tree<U> {
+        typename tree<T>::accounting_child t_sentry;
+        typename T::type t0;
+        tie_timer(tree<T>& t, tdict::key k) : t_sentry(t, k), t0(T()())
+        {
+            ASSERT_ALWAYS(t.running());
+            tree<U>::start();
+        }
+        static typename U::type sum_u(tree<U> const& u) {
+            typename U::type s = u.self;
+            for(auto const & a : u.M)
+                s += sum_u(a.second);
+            return s;
+        }
+
+        ~tie_timer() {
+            /* For consistency (at least given the current way we
+             * expect the code to work), we have a scoping object
+             * on timer t. The dtor of this scoping object will
+             * add to t's current count.
+             * What we have to do is to reconstruct the timings
+             * for the objects that would have existed under t if
+             * we had used the same timer consistently. Our first
+             * task is thus to determine the scale, which means
+             * that we'll make a measurement _just for that
+             * purpose_.
+             */
+            tree<T>& t = t_sentry.t;
+            ASSERT_ALWAYS(t.running());
+            ASSERT_ALWAYS(tree<U>::running());
+            tree<U>::stop();
+            typename U::type scale_u = sum_u(*this);
+            if (scale_u == 0) return;
+            /* compute the scale, and leave essentially zero time
+             * to count on the t object */
+            typename T::type scale_t = T()() - t0;
+            ASSERT_ALWAYS(t.running());
+            merge_scaled(*t.current, *this, scale_t, scale_u);
+            t.self -= scale_t;
+            /* well, really, this one is quite pedantic */
+        }
+        static void merge_scaled(tree<T>& t, tree<U> const& u, typename T::type scale_t, typename U::type scale_u)
+        {
+            t.self += u.self * scale_t / scale_u;
+            for(auto const & a : u.M)
+                merge_scaled(t.M[a.first], a.second, scale_t, scale_u);
+        }
+    };
 
     void declare_usage(cxx_param_list & pl);
     void configure_switches(cxx_param_list & pl);
@@ -467,11 +543,32 @@ public:
 // typedef tdict::tree<tdict::timer_seconds_thread_and_wct> timetree_t;
 typedef tdict::tree<tdict::timer_seconds_thread> timetree_t;
 
+/* The fast_timetree_t promises to make no system call whatsoever, and to
+ * do what it can to get _some_ sense of a timing value, with no pretense
+ * of being accurate.
+ */
+#ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
+typedef tdict::tree<tdict::timer_ticks> fast_timetree_t;
+#else
+typedef tdict::tree<tdict::timer_none> fast_timetree_t;
+#endif
+
+extern template class std::map<tdict::key, tdict::slot_base const *>;
+
 extern template struct tdict::tree<tdict::timer_seconds_thread>;
 extern template class std::map<tdict::key, tdict::tree<tdict::timer_seconds_thread> >;
-extern template class std::map<tdict::key, tdict::slot_base const *>;
 // extern template struct std::pair<tdict::key const, tdict::slot_base const *>;
 extern template struct tdict::tree<tdict::timer_seconds_thread>::accounting_child_meta<tdict::tree<tdict::timer_seconds_thread>::accounting_base>;
+
+#ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
+extern template struct tdict::tree<tdict::timer_ticks>;
+extern template class std::map<tdict::key, tdict::tree<tdict::timer_ticks> >;
+extern template struct tdict::tree<tdict::timer_ticks>::accounting_child_meta<tdict::tree<tdict::timer_ticks>::accounting_base>;
+#else
+extern template struct tdict::tree<tdict::timer_none>;
+extern template class std::map<tdict::key, tdict::tree<tdict::timer_none> >;
+extern template struct tdict::tree<tdict::timer_none>::accounting_child_meta<tdict::tree<tdict::timer_none>::accounting_base>;
+#endif
 
 #if 0
 
@@ -502,40 +599,63 @@ class : public tdict::slot_base {
  * avoid. In cases where the dtor is trivial, we can, since it makes no
  * difference.
  */
-#define CHILD_TIMER(T, name)                                            \
-        static tdict::slot UNIQUE_ID(slot)(name);		       	\
-        timetree_t::accounting_child UNIQUE_ID(sentry)(T,UNIQUE_ID(slot))
-#define CHILD_TIMER_PARAMETRIC(T, name, arg, suffix)                    \
-        static tdict::slot_parametric UNIQUE_ID(slot)(name, suffix);\
-        timetree_t::accounting_child UNIQUE_ID(sentry)(T,UNIQUE_ID(slot)(arg))
-#define SIBLING_TIMER(T, name) do {				        \
-        static tdict::slot x(name);			        	\
-        timetree_t::accounting_sibling UNIQUE_ID(sentry) (T,x);         \
+#if 0
+#define TIMER_DEBUG_MESSAGE_(T) do {					\
+        fprintf(stderr, "@ %s:%d\n", __func__, __LINE__);		\
     } while (0)
-#define SIBLING_TIMER_PARAMETRIC(T, name, arg, suffix) do {	        \
-        static tdict::slot_parametric x(name, suffix);                  \
-        timetree_t::accounting_sibling UNIQUE_ID(sentry) (T,x(arg));    \
+#else
+#define TIMER_DEBUG_MESSAGE_(T) /* */
+#endif
+#define TIMER_TYPE_(T)   std::remove_reference<decltype(T)>::type
+#define CHILD_TIMER(T, name)                                            \
+    TIMER_DEBUG_MESSAGE_(T);                                         	\
+    static tdict::slot UNIQUE_ID(slot)(name);		                \
+    TIMER_TYPE_(T)::accounting_child UNIQUE_ID(sentry)(T,UNIQUE_ID(slot))
+#define CHILD_TIMER_PARAMETRIC(T, name, arg, suffix)                    \
+    TIMER_DEBUG_MESSAGE_(T);                                         	\
+    static tdict::slot_parametric UNIQUE_ID(slot)(name, suffix);    	\
+    TIMER_TYPE_(T)::accounting_child UNIQUE_ID(sentry)(T,UNIQUE_ID(slot)(arg))
+#define SIBLING_TIMER(T, name) do {					\
+        TIMER_DEBUG_MESSAGE_(T);					\
+        static tdict::slot x(name);					\
+        TIMER_TYPE_(T)::accounting_sibling UNIQUE_ID(sentry) (T,x);	\
+    } while (0)
+#define SIBLING_TIMER_PARAMETRIC(T, name, arg, suffix) do {		\
+        TIMER_DEBUG_MESSAGE_(T);					\
+        static tdict::slot_parametric x(name, suffix);			\
+        TIMER_TYPE_(T)::accounting_sibling UNIQUE_ID(sentry) (T,x(arg));\
     } while (0)
 #define BOOKKEEPING_TIMER(T)						\
-    timetree_t::accounting_bookkeeping UNIQUE_ID(sentry) (T);
+    TIMER_DEBUG_MESSAGE_(T);						\
+    TIMER_TYPE_(T)::accounting_bookkeeping UNIQUE_ID(sentry) (T);
 #define ACTIVATE_TIMER(T)						\
-    timetree_t::accounting_activate UNIQUE_ID(sentry) (T);
+    TIMER_DEBUG_MESSAGE_(T);						\
+    TIMER_TYPE_(T)::accounting_activate UNIQUE_ID(sentry) (T);
 #define ACTIVATE_TIMER_IF_NOT_RUNNING(T)				\
-    timetree_t::accounting_activate_recursive UNIQUE_ID(sentry) (T);
+    TIMER_DEBUG_MESSAGE_(T);						\
+    TIMER_TYPE_(T)::accounting_activate_recursive UNIQUE_ID(sentry) (T);
 #define DEBUG_DISPLAY_TIMER_AT_DTOR(T,o)				\
-    timetree_t::accounting_debug UNIQUE_ID(sentry) (T, o);
+    TIMER_DEBUG_MESSAGE_(T);						\
+    TIMER_TYPE_(T)::accounting_debug UNIQUE_ID(sentry) (T, o);
+#define CHILD_TIMER_FUZZY(T, U, name)                \
+    static tdict::slot UNIQUE_ID(slot)(name);		                \
+    tdict::tie_timer<typename TIMER_TYPE_(T)::timer_type, fast_timetree_t::timer_type> U(T, UNIQUE_ID(slot))
 
+
+typedef tdict::tie_timer<timetree_t::timer_type, fast_timetree_t::timer_type> fuzzy_diverted_timetree_t;
 
 #else /* DISABLE_TIMINGS */
 
 struct timetree_t {
     typedef double timer_data_type;
+    typedef tdict::timer_none timer_type;
     std::map<int, double> filter_by_category() const {
         /* always an empty map */
         return std::map<int, double>();
     }
     void filter_by_category(std::map<int, double> &, int) const { }
     timetree_t& operator+=(timetree_t const&) { return *this; }
+    double total_counted_time() const { return 0; }
     std::string display() const { return std::string(); }
     /* what should we do */
     bool running() const { return false; }
@@ -544,6 +664,15 @@ struct timetree_t {
     inline void stop() const {}
     void add_foreign_time(timer_data_type const &) const {}
 };
+
+typedef timetree_t fast_timetree_t;
+
+namespace tdict {
+    struct tie_timer : public timetree_t {
+        tie_timer() = default;
+    };
+};
+typedef tdict::tie_timer fuzzy_diverted_timetree_t;
 
 namespace tdict {
     extern int global_enable;

@@ -173,7 +173,7 @@ struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
 
     std::array<side_data, 2> sides;
 
-    process_bucket_region_run(process_bucket_region_spawn const & p, worker_thread * worker, int id);
+    process_bucket_region_run(process_bucket_region_spawn const & p, timetree_t & timer, worker_thread * worker, int id);
 
     /* will be passed as results of functions
     std::vector<uint32_t> survivors;
@@ -204,12 +204,12 @@ struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
 /*}}}*/
 
 /* process_bucket_region, split into pieces. */
-process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn const & p, worker_thread * worker, int id): /* {{{ */
+process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn const & p, timetree_t & timer, worker_thread * worker, int id): /* {{{ */
     process_bucket_region_spawn(p),
     worker(worker),
     taux(aux_p->th[worker->rank()]),
     tws(ws.th[worker->rank()]),
-    timer(aux_p->get_timer(worker)),
+    timer(timer),
     bucket_relative_index(id),
     rep(taux.rep),
     w(taux.w)
@@ -243,7 +243,7 @@ void process_bucket_region_spawn::operator()(worker_thread * worker, int id) /*{
     ENTER_THREAD_TIMER(timer);
     /* create a temp object with more fields, and dispose it shortly
      * afterwards once we're done.  */
-    process_bucket_region_run(*this, worker, id)();
+    process_bucket_region_run(*this, timer, worker, id)();
 }/*}}}*/
 void process_bucket_region_run::init_norms(int side)/*{{{*/
 {
@@ -497,7 +497,12 @@ void process_bucket_region_run::resieve(int side)/*{{{*/
 
 void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*/
 {
-    CHILD_TIMER(timer, __func__);
+    /* by declaring this timer "fuzzy", we make the child timers use only
+     * userspace calls, and not system calls. This makes it possible to
+     * be really fine-grain, at only little expense.
+     */
+    CHILD_TIMER_FUZZY(this->timer, timer, __func__);
+    // CHILD_TIMER(timer, __func__);
     TIMER_CATEGORY(timer, cofactoring_mixed());
 
     int N = first_region0_index + already_done + bucket_relative_index;

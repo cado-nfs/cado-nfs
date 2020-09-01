@@ -3,11 +3,11 @@
 #define BUCKET_PUSH_UPDATE_HPP_
 
 #include "bucket.hpp"
-#include "las-where-am-i.hpp"
+#include "las-where-am-i.hpp"       // WHERE_AM_I_UPDATE
 #include "macros.h"
 
 template<int LEVEL, typename HINT>
-void
+inline void
 bucket_array_t<LEVEL, HINT>::push_update(const int i, const update_t& update)
 {
 #ifdef SAFE_BUCKET_ARRAYS
@@ -21,7 +21,7 @@ bucket_array_t<LEVEL, HINT>::push_update(const int i, const update_t& update)
 }
 
 template<int LEVEL, typename HINT>
-void
+inline void
 bucket_single<LEVEL, HINT>::push_update(const update_t& update)
 {
 #ifdef SAFE_BUCKETS_SINGLE
@@ -35,7 +35,7 @@ bucket_single<LEVEL, HINT>::push_update(const update_t& update)
 }
 
 template<int LEVEL, typename HINT>
-const typename bucket_single<LEVEL, HINT>::update_t&
+inline const typename bucket_single<LEVEL, HINT>::update_t&
 bucket_single<LEVEL, HINT>::get_next_update()
 {
 #ifdef SAFE_BUCKETS_SINGLE
@@ -45,7 +45,7 @@ bucket_single<LEVEL, HINT>::get_next_update()
 }
 
 template<int LEVEL, typename HINT>
-void
+inline void
 bucket_array_t<LEVEL, HINT>::push_update(
        const uint64_t offset, const fbprime_t p,
        const slice_offset_t slice_offset, const slice_index_t slice_index,
