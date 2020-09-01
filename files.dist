@@ -1446,3 +1446,6 @@ utils/fmt/posix.h
 utils/fmt/printf.h
 utils/fmt/ranges.h
 sieve/inspect-fbc-file.pl
+tests/sieve/bogus.fbc
+sieve/inspect-batch-file.pl
+tests/sieve/bogus.batch0

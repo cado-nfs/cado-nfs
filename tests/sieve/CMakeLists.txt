@@ -176,6 +176,22 @@ cado_divert_test(F9 sieve
             REFERENCE_REVISION=ede066464ba58b2d6127fa256cef01706282e0ed
         )
 
+cado_define_test(bogus_fbc_is_consistent
+    PROGRAM
+    ${CADO_NFS_SOURCE_DIR}/sieve/inspect-fbc-file.pl -fbc
+    ${CMAKE_CURRENT_SOURCE_DIR}/bogus.fbc)
+add_custom_target(copy_bogus_fbc ${CMAKE_COMMAND} -E copy
+    ${CMAKE_CURRENT_SOURCE_DIR}/bogus.fbc
+    ${CMAKE_CURRENT_BINARY_DIR}/bogus-copy.fbc)
+cado_divert_test(F9_sieve reuse_foreign_fbc
+        APPEND_ENVIRONMENT
+        fbc=${CMAKE_CURRENT_BINARY_DIR}/bogus-copy.fbc
+        TEST_DEPENDENCIES
+        bogus_fbc_is_consistent
+        TARGET_DEPENDENCIES
+        copy_bogus_fbc
+)
+
 # override all arguments for this one.
 cado_divert_test(F9 sieve_with_hints
         ENVIRONMENT
@@ -262,6 +278,15 @@ cado_divert_test(F9 batch
             REFERENCE_REVISION=5d9b68511102a957f941b272eb6d753526bcc3b1
         APPEND_ARGUMENTS -batch
         )
+cado_define_test(bogus_batch_is_consistent
+    PROGRAM
+    ${CADO_NFS_SOURCE_DIR}/sieve/inspect-batch-file.pl -batch
+    ${CMAKE_CURRENT_SOURCE_DIR}/bogus.batch0)
+cado_divert_test(F9_batch try_to_reuse_foreign
+    APPEND_ENVIRONMENT
+    batch0=${CMAKE_CURRENT_SOURCE_DIR}/bogus.batch0)
+set_tests_properties(F9_batch_try_to_reuse_foreign PROPERTIES WILL_FAIL 1)
+
 
 cado_divert_test(F9 sublat
         APPEND_ENVIRONMENT

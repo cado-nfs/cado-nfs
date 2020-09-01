@@ -111,11 +111,35 @@ if [ "$fbc" ] ; then
     # to parse the file headers. This can serve as an automated check
     # that the companion script and the source code are kept in sync.
     if [ "$fbc" = "." ] ; then
-        real_fbc="${WORKDIR}/${BASENAME}.$var"
+        real_fbc="${WORKDIR}/${BASENAME}.fbc"
     else
         real_fbc="$fbc"
     fi
     "${CADO_NFS_SOURCE_DIR}/sieve/inspect-fbc-file.pl" -fbc "$real_fbc" > "$real_fbc.txt"
+fi
+
+if [ "$batch0" ] ; then
+    # We should have created a cache file now. Use our companion script
+    # to parse the file headers. This can serve as an automated check
+    # that the companion script and the source code are kept in sync.
+    if [ "$file" = "." ] ; then
+        real_file="${WORKDIR}/${BASENAME}.batch0"
+    else
+        real_file="$batch0"
+    fi
+    "${CADO_NFS_SOURCE_DIR}/sieve/inspect-batch-file.pl" -batch "$real_file" > "$real_file.txt"
+fi
+
+if [ "$batch1" ] ; then
+    # We should have created a cache file now. Use our companion script
+    # to parse the file headers. This can serve as an automated check
+    # that the companion script and the source code are kept in sync.
+    if [ "$file" = "." ] ; then
+        real_file="${WORKDIR}/${BASENAME}.batch1"
+    else
+        real_file="$batch1"
+    fi
+    "${CADO_NFS_SOURCE_DIR}/sieve/inspect-batch-file.pl" -batch "$real_file" > "$real_file.txt"
 fi
 
 # then use the cache file created above
