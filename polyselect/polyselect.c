@@ -249,7 +249,7 @@ print_poly_info ( char *buf,
 #ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
-      data_add (raw_proj_alpha, get_alpha_projective (F, ALPHA_BOUND));
+      data_add (raw_proj_alpha, get_alpha_projective (F, get_alpha_bound ()));
     }
   else
     {
@@ -257,7 +257,7 @@ print_poly_info ( char *buf,
 #ifdef HAVE_OPENMP
 #pragma	omp critical
 #endif
-      data_add (opt_proj_alpha, get_alpha_projective (F, ALPHA_BOUND));
+      data_add (opt_proj_alpha, get_alpha_projective (F, get_alpha_bound ()));
     }
 
   np += gmp_snprintf (buf + np, size - np, "%sn: %Zd\n", prefix, n);

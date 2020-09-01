@@ -1622,21 +1622,22 @@ print_cadopoly (FILE *fp, cado_poly p)
    if (G->deg > 1)
    {
     logmu = L2_lognorm (G, p->skew);
-    alpha = get_alpha (G, ALPHA_BOUND);
-    alpha_proj = get_alpha_projective (G, ALPHA_BOUND);
+    alpha = get_alpha (G, get_alpha_bound ());
+    alpha_proj = get_alpha_projective (G, get_alpha_bound ());
     nroots = numberOfRealRoots (G->coeff, G->deg, 0, 0, NULL);
     fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
                  "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
    }
 
    logmu = L2_lognorm (F, p->skew);
-   alpha = get_alpha (F, ALPHA_BOUND);
-   alpha_proj = get_alpha_projective (F, ALPHA_BOUND);
+   alpha = get_alpha (F, get_alpha_bound ());
+   alpha_proj = get_alpha_projective (F, get_alpha_bound ());
    nroots = numberOfRealRoots (F->coeff, F->deg, 0, 0, NULL);
    fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
                 "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
 
-   e = MurphyE (p, bound_f, bound_g, area, MURPHY_K, ALPHA_BOUND);
+   int alpha_bound = get_alpha_bound ();
+   e = MurphyE (p, bound_f, bound_g, area, MURPHY_K, alpha_bound);
    cado_poly_fprintf_MurphyE (fp, e, bound_f, bound_g, area, "");
 
    return e;
@@ -1687,7 +1688,7 @@ print_poly_fg (mpz_poly_srcptr f, mpz_t *g, mpz_t N, int mode)
        fflush(stdout);
      }
    else
-     e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K, ALPHA_BOUND);
+     e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K, get_alpha_bound ());
 
    cado_poly_clear (cpoly);
    return e;
@@ -1734,8 +1735,8 @@ cado_poly_fprintf_with_info (FILE *fp, cado_poly_ptr poly, const char *prefix,
   if (poly->skew <= 0.0) /* If skew is undefined, compute it. */
     poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
   lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
-  alpha = get_alpha (poly->pols[ALG_SIDE], ALPHA_BOUND);
-  alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], ALPHA_BOUND);
+  alpha = get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ());
+  alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], get_alpha_bound ());
   exp_E = (final) ? 0.0 : lognorm
     + expected_rotation_gain (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE]);
 
@@ -1880,4 +1881,18 @@ expected_rotation_gain (mpz_poly_srcptr f, mpz_poly_srcptr g)
         incr += NORM_MARGIN / 2.0;
     }
   return proj_alpha + expected_alpha (S) + incr;
+}
+
+int alpha_bound = ALPHA_BOUND; /* default value */
+
+void
+set_alpha_bound (unsigned long bound)
+{
+  alpha_bound = bound;
+}
+
+unsigned long
+get_alpha_bound (void)
+{
+  return alpha_bound;
 }

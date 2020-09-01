@@ -529,9 +529,9 @@ print_poly_info_short ( mpz_t *f,
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   cpoly->skew = skew;
   logmu = L2_lognorm (F, skew);
-  alpha = get_alpha (F, ALPHA_BOUND);
-  alpha_proj = get_alpha_projective (F, ALPHA_BOUND);
-  e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K, ALPHA_BOUND);
+  alpha = get_alpha (F, get_alpha_bound ());
+  alpha_proj = get_alpha_projective (F, get_alpha_bound ());
+  e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K, get_alpha_bound ());
 
   printf ("# lognorm: %.2f, alpha: %.2f, (proj: %.2f) E: %.2f, nr: %u, exp_E: %1.2f, MurphyE: %1.2e\n",
           logmu,

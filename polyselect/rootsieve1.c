@@ -598,7 +598,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
               double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
               /* to compute E, we need to divide g by mod */
               mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
-              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, ALPHA_BOUND);
+              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
               /* restore g */
               mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
               /* this can only occur for one thread, thus no need to put
@@ -620,7 +620,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
               double lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
               /* to compute E, we need to divide g by mod */
               mpz_poly_divexact_ui (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
-              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, ALPHA_BOUND);
+              double E = MurphyE (poly, Bf, Bg, area, MURPHY_K, get_alpha_bound ());
               /* restore g */
               mpz_poly_mul_si (poly->pols[RAT_SIDE], poly->pols[RAT_SIDE], mod);
               /* restore the original polynomial (w=0) and skewness */
@@ -875,7 +875,6 @@ main (int argc, char **argv)
     double margin = NORM_MARGIN;
     long umin = LONG_MIN, umax = LONG_MAX;
     int sopt = 0;
-    long B = ALPHA_BOUND;
     double time = seconds ();
 
     while (argc >= 2 && argv[1][0] == '-')
@@ -937,7 +936,8 @@ main (int argc, char **argv)
           }
         else if (strcmp (argv[1], "-B") == 0)
           {
-            B = strtol (argv [2], NULL, 10);
+            unsigned long B = strtol (argv [2], NULL, 10);
+            set_alpha_bound (B);
             argv += 2;
             argc -= 2;
           }

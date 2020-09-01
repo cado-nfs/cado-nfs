@@ -613,7 +613,7 @@ main (int argc, char **argv)
       print_cadopoly_extra (stdout, poly, argc0, argv0, 0);
     else
       printf ("skewness=%1.2f, alpha=%1.2f\n", poly->skew,
-              get_alpha (poly->pols[ALG_SIDE], ALPHA_BOUND));
+              get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ()));
     size_optimization (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], poly->pols[ALG_SIDE], poly->pols[RAT_SIDE],
                        SOPT_DEFAULT_EFFORT, verbose - 1);
     poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
@@ -623,7 +623,7 @@ main (int argc, char **argv)
       print_cadopoly_extra (stdout, poly, argc0, argv0, 0);
     else
       printf ("skewness=%1.2f, alpha=%1.2f\n",
-              poly->skew, get_alpha (poly->pols[ALG_SIDE], ALPHA_BOUND));
+              poly->skew, get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ()));
 
     mpz_set (b, poly->pols[RAT_SIDE]->coeff[1]);
     mpz_neg (m, poly->pols[RAT_SIDE]->coeff[0]);

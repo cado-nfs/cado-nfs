@@ -10,7 +10,7 @@
 #include "mpz_poly.h"
 
 static void usage_and_die(char *argv0) {
-    fprintf(stderr, "usage: %s [-area a] [-I nnn] [-Bf b] [-Bg c] [-skew s] poly j k\n", argv0);
+    fprintf(stderr, "usage: %s [-area a] [-I nnn] [-Bf b] [-Bg c] [-skew s] [-B b] poly j k\n", argv0);
     fprintf(stderr, "  apply rotation f += (j*x+k)*g to poly.\n");
     fprintf(stderr, "  poly: filename of polynomial\n");
     fprintf(stderr, "  j,k : integers\n");
@@ -55,6 +55,12 @@ int main(int argc, char **argv) {
         else if (strcmp (argv[1], "-skew") == 0)
           {
             skew = atof (argv [2]);
+            argv += 2;
+            argc -= 2;
+          }
+        else if (strcmp (argv[1], "-B") == 0)
+          {
+            set_alpha_bound (strtoul (argv [2], NULL, 10));
             argv += 2;
             argc -= 2;
           }

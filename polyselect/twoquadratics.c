@@ -107,8 +107,8 @@ cado_poly_extended_print (FILE *out, cado_poly_extended poly, char *pre)
   if (f0->deg != -1 && f1->deg != -1)
   {
     fprintf (out, "%sE = %e\n", pre, poly->E);
-    fprintf (out, "%salpha_f0 = %.2f\n", pre, get_alpha (f0, ALPHA_BOUND));
-    fprintf (out, "%salpha_f1 = %.2f\n", pre, get_alpha (f1, ALPHA_BOUND));
+    fprintf (out, "%salpha_f0 = %.2f\n", pre, get_alpha (f0, get_alpha_bound ()));
+    fprintf (out, "%salpha_f1 = %.2f\n", pre, get_alpha (f1, get_alpha_bound ()));
     fprintf (out, "%sskew_f0 = %.2f\n", pre, L2_skewness (f0, SKEWNESS_DEFAULT_PREC));
     fprintf (out, "%sskew_f1 = %.2f\n", pre, L2_skewness (f1, SKEWNESS_DEFAULT_PREC));
     gmp_fprintf (out, "%sskewness = %Zd\n", pre, poly->skew);
@@ -481,7 +481,7 @@ main (int argc, char *argv[])
         MontgomeryTwoQuadratics (f, g, skew_used, N, P, m, max_skewness);
         cado_poly_set2 (cur_poly, f, g, N, skew_used);
         double E = MurphyE (cur_poly, bound_f, bound_g, area, MURPHY_K,
-            ALPHA_BOUND);
+                            get_alpha_bound ());
         if(E > cado_poly_extended_get_E(best_poly))
           cado_poly_extended_set (best_poly, f, g, N, P, skew_used, E, m);
         if (verbose >= 1)
