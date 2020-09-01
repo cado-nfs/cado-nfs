@@ -457,9 +457,13 @@ foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
 endforeach(v)
 
 add_custom_target(bwc_matmul_gf2)
+if(all_matmul_gf2_libs)
 add_dependencies(bwc_matmul_gf2 ${all_matmul_gf2_libs})
+endif()
 add_custom_target(bwc_matmul_gfp)
+if(all_matmul_gfp_libs)
 add_dependencies(bwc_matmul_gfp ${all_matmul_gfp_libs})
+endif()
 
 add_custom_target(bwc_full_common)
 add_dependencies(bwc_full_common mf_bal random_matrix acollect
