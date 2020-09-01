@@ -278,6 +278,15 @@ cado_divert_test(F9 batch
             REFERENCE_REVISION=5d9b68511102a957f941b272eb6d753526bcc3b1
         APPEND_ARGUMENTS -batch
         )
+cado_define_test(bogus_batch_is_consistent
+    PROGRAM
+    ${CADO_NFS_SOURCE_DIR}/sieve/inspect-batch-file.pl -batch
+    ${CMAKE_CURRENT_SOURCE_DIR}/bogus.batch0)
+cado_divert_test(F9_batch try_to_reuse_foreign
+    APPEND_ENVIRONMENT
+    batch0=${CMAKE_CURRENT_SOURCE_DIR}/bogus.batch0)
+set_tests_properties(F9_batch_try_to_reuse_foreign PROPERTIES WILL_FAIL 1)
+
 
 cado_divert_test(F9 sublat
         APPEND_ENVIRONMENT

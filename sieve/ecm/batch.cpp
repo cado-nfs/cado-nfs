@@ -954,7 +954,10 @@ create_batch_product (mpz_t P, unsigned long L, cxx_mpz_poly const & pol, double
    2) the large prime bound L
    3) the polynomial, in the form "f0 f1 ... fd"
    Then the integer P is written using mpz_out_raw.
-   The header can be read by a human with head -3 batch_file. */
+   The header can be read by a human with head -3 batch_file.
+
+   XXX This must be kept in sync with sieve/inspect-batch-file.pl
+*/
 static void
 output_batch (FILE *fp, unsigned long B, unsigned long L,
               cxx_mpz_poly const & pol, cxx_mpz const & P, const char *f)

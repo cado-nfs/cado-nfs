@@ -1439,3 +1439,5 @@ tests/filter/p40_30004.poly
 tests/filter/p40_30004.rels.gz
 sieve/inspect-fbc-file.pl
 tests/sieve/bogus.fbc
+sieve/inspect-batch-file.pl
+tests/sieve/bogus.batch0
