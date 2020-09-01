@@ -1434,8 +1434,9 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
   /* A dynamic schedule is needed here, since the columns of larger index have
      smaller weight, thus the load would not be evenly distributed with a
      static schedule. The value 128 was determined optimal experimentally
-     on the RSA-512 benchmark with 32 threads. */
-  #pragma omp parallel for schedule(guided)
+     on the RSA-512 benchmark with 32 threads, and is better than
+     schedule(guided) for RSA-240 with 112 threads. */
+  #pragma omp parallel for schedule(dynamic,128)
   for (index_t i = 0; i < Rn; i++)
     cost[i] = merge_cost (mat, i);
 
@@ -1793,15 +1794,15 @@ main (int argc, char *argv[])
     /* Read number of rows and cols on first line of purged file */
     purgedfile_read_firstline (purgedname, &(mat->nrows), &(mat->ncols));
 
-#if (__SIZEOF_INDEX__ == 4)
+#if (SIZEOF_INDEX == 4)
     if (mat->nrows >> 32)
       {
-	fprintf (stderr, "Error, nrows = %" PRIu64 " larger than 2^32, please recompile with -D__SIZEOF_INDEX__=8\n", mat->nrows);
+	fprintf (stderr, "Error, nrows = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->nrows);
 	exit (EXIT_FAILURE);
       }
     if (mat->ncols >> 32)
       {
-	fprintf (stderr, "Error, ncols = %" PRIu64 " larger than 2^32, please recompile with -D__SIZEOF_INDEX__=8\n", mat->ncols);
+	fprintf (stderr, "Error, ncols = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->ncols);
 	exit (EXIT_FAILURE);
       }
 #endif
