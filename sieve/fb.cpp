@@ -1626,6 +1626,8 @@ fb_factorbase::read(const char * const filename)
  *      size in bytes per entries with deg(f) roots (integer)
  *
  * Multiple cache files can be concatenated one after another.
+ *
+ * XXX please make some effort to keep this in sync with sieve/inspect-fbc-file.pl
  */
 
 struct fbc_header {

@@ -1445,3 +1445,4 @@ utils/fmt/ostream.h
 utils/fmt/posix.h
 utils/fmt/printf.h
 utils/fmt/ranges.h
+sieve/inspect-fbc-file.pl
