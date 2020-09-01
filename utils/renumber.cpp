@@ -1443,6 +1443,7 @@ void renumber_t::read_from_file(const char * filename)
     read_header(is);
     info(std::cout);
     read_table(is);
+    more_info(std::cout);
 }
 
 #if 0
@@ -1602,6 +1603,12 @@ void renumber_t::info(std::ostream & os) const
     for(int side = 0 ; side < (int) get_nb_polys() ; side++) {
         os << P << "lpb" << side << " = " << lpb[side] << "\n";
     }
+}
+void renumber_t::more_info(std::ostream & os) const
+{
+    const char * P = "# INFO: ";
+    os << "# Extra information on renumber table:\n";
+    os << P << "size = " << get_size() << "\n";
 }
 
 static int builder_switch_lcideals = 0;
@@ -1865,7 +1872,11 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
         write_bad_ideals(*out);
     }
 
-    return builder(*this, out.get(), f)();
+    index_t ret = builder(*this, out.get(), f)();
+
+    more_info(std::cout);
+
+    return ret;
 }
 
 renumber_t::const_iterator renumber_t::begin() const

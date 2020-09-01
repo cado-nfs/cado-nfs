@@ -237,6 +237,7 @@ public:
     /*{{{ debugging aids*/
     std::string debug_data(index_t i) const;
     void info(std::ostream & os) const;
+    void more_info(std::ostream & os) const;
     /*}}}*/
 
 private:/*{{{ more implementation-level stuff. */
