@@ -5108,6 +5108,7 @@ class SMTask(Task):
             if not smfilename.isfile():
                 raise Exception("Output file %s does not exist" % smfilename)
             self.state["sm"] = smfilename.get_wdir_relative()
+            self.remember_input_versions()
         self.logger.debug("Exit SMTask.run(" + self.name + ")")
         return True
     
