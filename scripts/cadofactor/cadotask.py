@@ -1247,10 +1247,12 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         attempt number.
         """
         assert not self.wu_paste_char in self.name # self.name is task name
-        assert not self.wu_paste_char in identifier # identifier is, e.g., range string
-        assert not self.wu_attempt_char in identifier
-        wuname = self.wu_paste_char.join([self.params["name"], self.name,
-                                          identifier])
+        arr = [self.params["name"], self.name]
+        if identifier:
+            assert not self.wu_paste_char in identifier # identifier is, e.g., range string
+            assert not self.wu_attempt_char in identifier
+            arr.append(identifier)
+        wuname = self.wu_paste_char.join(arr)
         if not attempt is None:
             wuname += "%s%d" % (self.wu_attempt_char, attempt)
         return wuname
@@ -1282,6 +1284,8 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         """
         arr = wuname.rsplit(self.wu_paste_char, 2)
         assert len(arr) == 3
+        if arr[-1] == "":
+            arr[-1] = None
         attempt = None
         # Split off attempt number, if available
         if "#" in arr[2]:
@@ -1354,6 +1358,12 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         Return the result tuple. If the caller is an Observer, also send
         result to updateObserver().
         '''
+
+        # Task objects may submit commands with an identifier, but in
+        # most cases it's unnecessary, and anyway the identifier isn't
+        # meaningful to any function here (in contrast with the
+        # ClientServerTask situation)
+
         wuname = self.make_wuname(identifier)
         process = cadocommand.Command(command)
         cputime_used = os.times()[2] # CPU time of child processes
@@ -1493,6 +1503,9 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
 
 
 class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
+    # Note that we get self.wuar = self.make_wu_access(db.connect()) via
+    # inheritance of wudb.UsesWorkunitDb
+
     @abc.abstractproperty
     def paramnames(self):
         return self.join_params(super().paramnames,  
@@ -1507,7 +1520,12 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
         self.state.setdefault("wu_submitted", 0)
+        # wu_received only counts the WUs as individual units. It is not
+        # robust to range parameter changing in the course of the
+        # computation.
+        # -> wu_range_received is a better measure of what we've done thus far.
         self.state.setdefault("wu_received", 0)
+        self.state.setdefault("wu_range_received", 0)
         self.state.setdefault("wu_timedout", 0)
         self.state.setdefault("wu_failed", 0)
         assert self.get_number_outstanding_wus() >= 0
@@ -1547,9 +1565,24 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
     def submit_command(self, command, identifier, commit=True, log_errors=False):
         ''' Submit a workunit to the database. '''
         
+        # client-server tasks *must* have identifiers...
+        assert identifier is not None
+
+        if re.match(r'\d+-\d+', identifier):
+            pass
+        elif re.match(r'\d+', identifier):
+            identifier="%d-%d" % (int(identifier), int(identifier)+1)
+        else:
+            raise ValueError("Bad WU identifer %s in %s" % (identifier,self.name))
+
         while self.get_number_available_wus() >= self.params["maxwu"]:
             self.wait()
         wuid = self.make_wuname(identifier)
+
+        # ...and we want to be sure that the range size can be extracted
+        # from the identifier.
+        assert self.get_wusize(wuid) > 0
+
         wutext = command.make_wu(wuid)
         for filename in command.get_exec_files() + command.get_input_files():
             basename = os.path.basename(filename)
@@ -1557,7 +1590,8 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
                                    {basename:filename})
         
         self.logger.info("Adding workunit %s to database", wuid)
-        # self.logger.debug("WU:\n%s" % wutext)
+        # Note that submit_wu parses the workunit to deduce the wuid
+        # (which was created by make_wu in the first place)
         self.submit_wu(wutext, commit=commit)
         # Write command line to a file
         cmdline = command.make_command_line()
@@ -1588,6 +1622,16 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         except (OverflowError,ZeroDivisionError):
            return "Unknown"
 
+    def get_wusize(self, wuid):
+        """ parses a wuid that is relevant for the current task, and
+        return the size of the attached workunit """
+        (name, task, identifier, attempt) = self.split_wuname(wuid)
+        m=re.match(r'(\d+)-(\d+)', identifier)
+        if not m:
+            raise ValueError(wuid)
+        return int(m.group(2))-int(m.group(1))
+
+
     def verification(self, wuid, ok, *, commit):
         """ Mark a workunit as verified ok or verified with error and update
         wu_received counter """
@@ -1595,6 +1639,12 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         assert self.get_number_outstanding_wus() >= 1
         key = "wu_received"
         self.state.update({key: self.state[key] + 1}, commit=False)
+        # Like wu_received, we count here the failed workunits as well as
+        # the good ones. So the range in wu_range_received might be
+        # different from what has been "done".
+        key = "wu_range_received"
+        z = self.get_wusize(wuid)
+        self.state.update({key: self.state[key] + z}, commit=False)
         # only print ETA when achievement > 0 to avoid division by zero
         a = self.get_achievement()
         if a > 0:
@@ -1920,7 +1970,9 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             self.get_number_outstanding_wus() == 0
     
     def get_achievement(self):
-        return self.state["wu_received"] * self.params["adrange"] / (self.params["admax"] - self.params["admin"])
+        # Note that wu_range_received (like wu_received, by the way)
+        # counts ERROR'd workunits as well !
+        return self.state["wu_range_received"] / (self.params["admax"] - self.params["admin"])
 
     def updateObserver(self, message):
         identifier = self.filter_notification(message)
@@ -2611,7 +2663,9 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
             self.get_number_outstanding_wus() == 0
     
     def get_achievement(self):
-        return self.state["wu_received"] / self.params["modm"]
+        # Note that wu_range_received (like wu_received, by the way)
+        # counts ERROR'd workunits as well !
+        return self.state["wu_range_received"] / self.params["modm"]
 
     def updateObserver(self, message):
         identifier = self.filter_notification(message)
@@ -2797,7 +2851,7 @@ class PolyselGFpnTask(Task, DoesImport):
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
                     **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             with open(str(polyfilename), "r") as inputfile:
@@ -2918,7 +2972,7 @@ class FactorBaseTask(Task):
                                     stdout=str(stdoutpath),
                                     stderr=str(stderrpath),
                                     **self.merged_args[0])
-                message = self.submit_command(p, "", log_errors=True)
+                message = self.submit_command(p, None, log_errors=True)
                 if message.get_exitcode(0) != 0:
                     raise Exception("Program failed")
             else:
@@ -2928,7 +2982,7 @@ class FactorBaseTask(Task):
                                     stdout=str(stdoutpath),
                                     stderr=str(stderrpath),
                                     **self.merged_args[0])
-                message = self.submit_command(p, "", log_errors=True)
+                message = self.submit_command(p, None, log_errors=True)
                 if message.get_exitcode(0) != 0:
                     raise Exception("Program failed")
                 p = cadoprograms.MakeFB(out=str(outputfilename1),
@@ -2937,7 +2991,7 @@ class FactorBaseTask(Task):
                                     stdout=str(stdoutpath),
                                     stderr=str(stderrpath),
                                     **self.merged_args[0])
-                message = self.submit_command(p, "", log_errors=True)
+                message = self.submit_command(p, None, log_errors=True)
                 if message.get_exitcode(0) != 0:
                     raise Exception("Program failed")
             
@@ -3044,7 +3098,7 @@ class FreeRelTask(Task):
                                      stdout=str(stdoutpath),
                                      stderr=str(stderrpath),
                                      **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             stderr = message.read_stderr(0).decode("utf-8")
@@ -3589,7 +3643,7 @@ class Duplicates1Task(Task, FilesCreator, HasStatistics):
                                                  stdout=str(stdoutpath),
                                                  stderr=str(stderrpath),
                                                  **self.progparams[0])
-                message = self.submit_command(p, "", log_errors=True)
+                message = self.submit_command(p, None, log_errors=True)
                 if message.get_exitcode(0) != 0:
                     raise Exception("Program failed")
                     # Check that the output files exist now
@@ -3753,7 +3807,7 @@ class Duplicates2Task(Task, FilesCreator, HasStatistics):
                                              stdout=str(stdoutpath),
                                              stderr=str(stderrpath),
                                              **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             with stderrpath.open("r") as stderrfile:
@@ -3940,7 +3994,7 @@ class PurgeTask(Task):
                                    stdout=str(stdoutpath),
                                    stderr=str(stderrpath),
                                    **self.progparams[0])
-        message = self.submit_command(p, "")
+        message = self.submit_command(p, None)
         stdout = message.read_stdout(0).decode('utf-8')
         stderr = message.read_stderr(0).decode('utf-8')
         if self.parse_output(stdout, input_nrels):
@@ -4139,7 +4193,7 @@ class FilterGaloisTask(Task):
                 stdout=str(stdoutpath),
                 stderr=str(stderrpath),
                 **self.merged_args[0])
-        message = self.submit_command(p, "", log_errors=True)
+        message = self.submit_command(p, None, log_errors=True)
         if message.get_exitcode(0) != 0:
             raise Exception("Program failed")
         with stderrpath.open("r") as stderrfile:
@@ -4210,7 +4264,7 @@ class MergeDLPTask(Task):
                                    stdout=str(stdoutpath),
                                    stderr=str(stderrpath),
                                    **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             stdout = message.read_stdout(0).decode("utf-8")
@@ -4235,7 +4289,7 @@ class MergeDLPTask(Task):
                                     out=mergedfile, stdout=str(stdoutpath),
                                     stderr=str(stderrpath),
                                     **self.merged_args[1])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             
@@ -4318,7 +4372,7 @@ class MergeTask(Task):
                                    stdout=str(stdoutpath),
                                    stderr=str(stderrpath),
                                    **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             stdout = message.read_stdout(0).decode("utf-8")
@@ -4341,7 +4395,7 @@ class MergeTask(Task):
                                     out=mergedfile, stdout=str(stdoutpath),
                                     stderr=str(stderrpath),
                                     **self.merged_args[1])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             
@@ -4411,7 +4465,7 @@ class NumberTheoryTask(Task):
                                stdout=str(stdoutpath),
                                stderr=str(stderrpath),
                                **self.merged_args[0])
-        message = self.submit_command(p, "", log_errors=True)
+        message = self.submit_command(p, None, log_errors=True)
         if message.get_exitcode(0) != 0:
             raise Exception("Program failed")
 
@@ -4543,7 +4597,7 @@ class LinAlgDLPTask(Task):
                                  m=m,
                                  n=n,
                                  **self.progparams[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             virtual_logs_filename = self.workdir.make_filename("K.sols0-1.0.txt", subdir="bwc")
@@ -4790,7 +4844,7 @@ class LinAlgTask(Task, HasStatistics):
                                      stdout=outfilter,
                                      stderr=str(stderrpath),
                                      **self.progparams[0])
-                message = self.submit_command(p, "", log_errors=True)
+                message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             dependencyfilename = self.workdir.make_filename("W", subdir="bwc")
@@ -4857,7 +4911,7 @@ class CharactersTask(Task):
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
                     **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             if not kernelfilename.isfile():
@@ -4917,7 +4971,7 @@ class SqrtTask(Task):
                     prefix=prefix, purged=purged, index=index, kernel=kernel,
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath), **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             
@@ -5102,7 +5156,7 @@ class SMTask(Task):
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
                     **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             if not smfilename.isfile():
@@ -5162,7 +5216,7 @@ class ReconstructLogTask(Task):
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
                     **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             if not dlogfilename.isfile():
@@ -5240,7 +5294,7 @@ class DescentTask(Task):
                 stdout=str(stdoutpath),
                 stderr=str(stderrpath),
                 **self.merged_args[0])
-        message = self.submit_command(p, "", log_errors=True)
+        message = self.submit_command(p, None, log_errors=True)
         if message.get_exitcode(0) != 0:
             raise Exception("Program failed")
 
