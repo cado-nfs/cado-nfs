@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import re
-import os.path
+import os
 from fractions import gcd
 import abc
 import random
@@ -37,13 +37,13 @@ def re_cap_n_fp(prefix, n, suffix=""):
     1 up to n floating-point numbers (possibly in scientific notation)
     separated by whitespace, and ends with suffix.
     
-    >>> re.match(re_cap_n_fp("foo", 2), 'foo 1.23').group(1)
+    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo 1.23').group(1)
     '1.23'
-    >>> re.match(re_cap_n_fp("foo", 2), 'foo1.23   4.56').groups()
+    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo1.23   4.56').groups()
     ('1.23', '4.56')
     
     # The first fp pattern must match something
-    >>> re.match(re_cap_n_fp("foo", 2), 'foo')
+    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo')
     """
     template = prefix
     if n > 0:
@@ -876,6 +876,8 @@ class HasStatistics(BaseStatistics, HasState, DoesLogging, metaclass=abc.ABCMeta
             self.logger.warning("some stats could not be displayed for %s (see log file for debug info)", self.name)
             for e in errors:
                 self.logger.debug(e)
+            if "STATS_PARSING_ERRORS_ARE_FATAL" in os.environ:
+                raise RuntimeError("Aborting now, since STATS_PARSING_ERRORS_ARE_FATAL is set")
         return result
 
 
@@ -1806,7 +1808,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: potential collisions=", 1)),
+            re.compile(re_cap_n_fp(r'# Stat: potential collisions=', 1)),
             False
         ),
         (
@@ -1830,7 +1832,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: total phase took", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Stat: total phase took', 1, "s")),
             False
         ),
     )
@@ -2234,7 +2236,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: total phase took", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Stat: total phase took', 1, "s")),
             False
         ),
         (
@@ -2242,7 +2244,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: rootsieve took", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Stat: rootsieve took', 1, "s")),
             False
         )
     )
@@ -3197,7 +3199,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (float, int),
             "0 0",
             Statistics.zip_combine_mean,
-            re.compile(re_cap_n_fp("# Average J=", 1, r"\s*for (\d+) special-q's")),
+            re.compile(re_cap_n_fp(r'# Average J=', 1, r"\s*for (\d+) special-q's")),
             False
         ),
         (
@@ -3213,7 +3215,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Total cpu time", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Total cpu time', 1, "s")),
             False
         ),
         (
@@ -3221,7 +3223,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (float, ),
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Total elapsed time", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Total elapsed time', 1, "s")),
             False
         )
     )
@@ -4643,7 +4645,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for prep: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for prep: .wct.', 1)),
             False
         ),
         (
@@ -4651,7 +4653,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for prep: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for prep: .cpu.', 1)),
             False
         ),
         (
@@ -4659,7 +4661,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for secure: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for secure: .wct.', 1)),
             False
         ),
         (
@@ -4667,7 +4669,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for secure: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for secure: .cpu.', 1)),
             False
         ),
         (
@@ -4675,7 +4677,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for gather: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for gather: .wct.', 1)),
             False
         ),
         (
@@ -4683,7 +4685,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for gather: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for gather: .cpu.', 1)),
             False
         ),
         (
@@ -4731,7 +4733,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for lingen: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for lingen_\w+: .wct.', 1)),
             False
         ),
         (
@@ -4739,7 +4741,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for lingen: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for lingen_\w+: .cpu.', 1)),
             False
         ),
         (
