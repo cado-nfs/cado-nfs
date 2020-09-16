@@ -4719,6 +4719,14 @@ class LinAlgTask(Task, HasStatistics):
         ),
         (
             "krylov_cpu",
+            float,
+            "0",
+            Statistics.add_list,
+            re.compile(re_cap_n_fp(r"Timings for krylov: .cpu.", 1)),
+            True
+        ),
+        (
+            "krylov_iteration_cpu",
             (int, float),
             "0",
             Statistics.add_list,
@@ -4726,7 +4734,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "krylov_cpu_wait",
+            "krylov_iteration_cpu_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4734,7 +4742,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "krylov_comm",
+            "krylov_iteration_comm",
             float,
             "0",
             Statistics.add_list,
@@ -4742,7 +4750,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "krylov_comm_wait",
+            "krylov_iteration_comm_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4775,6 +4783,14 @@ class LinAlgTask(Task, HasStatistics):
         ),
         (
             "mksol_cpu",
+            float,
+            "0",
+            Statistics.add_list,
+            re.compile(re_cap_n_fp(r"Timings for mksol: .cpu.", 1)),
+            True
+        ),
+        (
+            "mksol_iteration_cpu",
             (int, float),
             "0",
             Statistics.add_list,
@@ -4782,7 +4798,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "mksol_cpu_wait",
+            "mksol_iteration_cpu_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4790,7 +4806,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "mksol_comm",
+            "mksol_iteration_comm",
             float,
             "0",
             Statistics.add_list,
@@ -4798,7 +4814,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "mksol_comm_wait",
+            "mksol_iteration_comm_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4809,20 +4825,22 @@ class LinAlgTask(Task, HasStatistics):
     @property
     def stat_formats(self):
         return (
-            ["Krylov: WCT time {krylov_wct[0]}",
-                ", iteration CPU time {krylov_cpu[1]:g}",
-                ", COMM {krylov_comm[0]}",
-                ", cpu-wait {krylov_cpu_wait[0]}",
-                ", comm-wait {krylov_comm_wait[0]}",
-                " ({krylov_cpu[0]:d} iterations)"
+            ["Krylov: CPU time {krylov_cpu[0]}",
+                ", WCT time {krylov_wct[0]}",
+                ", iteration CPU time {krylov_iteration_cpu[1]:g}",
+                ", COMM {krylov_iteration_comm[0]}",
+                ", cpu-wait {krylov_iteration_cpu_wait[0]}",
+                ", comm-wait {krylov_iteration_comm_wait[0]}",
+                " ({krylov_iteration_cpu[0]:d} iterations)"
                 ],
             ["Lingen CPU time {lingen_cpu[0]}", ", WCT time {lingen_wct[0]}"],
-            ["Mksol: WCT time {mksol_wct[0]}",
-                ", iteration CPU time {mksol_cpu[1]:g}",
-                ", COMM {mksol_comm[0]}",
-                ", cpu-wait {mksol_cpu_wait[0]}",
-                ", comm-wait {mksol_comm_wait[0]}",
-                " ({mksol_cpu[0]:d} iterations)"
+            ["Mksol: CPU time {mksol_cpu[0]}",
+                ",  WCT time {mksol_wct[0]}",
+                ", iteration CPU time {mksol_iteration_cpu[1]:g}",
+                ", COMM {mksol_iteration_comm[0]}",
+                ", cpu-wait {mksol_iteration_cpu_wait[0]}",
+                ", comm-wait {mksol_iteration_comm_wait[0]}",
+                " ({mksol_iteration_cpu[0]:d} iterations)"
                 ],
         )
 
