@@ -870,23 +870,26 @@ class HasStatistics(BaseStatistics, HasState, DoesLogging, metaclass=abc.ABCMeta
         """ Return the statistics collected so far as a List of strings.
         
         Sub-classes can override to add/remove/change strings.
+
+        Typically, classes that subclass HasStatistics *AND* DoesImport
+        may wish to report stats differently if import has happened.
         """
         result, errors = self.statistics.as_strings()
+        return result, errors
+
+
+    def print_stats(self):
+        stat_msgs,errors = self.get_statistics_as_strings()
+        if stat_msgs:
+            self.logger.info("Aggregate statistics:")
+            for msg in stat_msgs:
+                self.logger.info(msg)
         if errors is not None:
             self.logger.warning("some stats could not be displayed for %s (see log file for debug info)", self.name)
             for e in errors:
                 self.logger.debug(e)
             if "STATS_PARSING_ERRORS_ARE_FATAL" in os.environ:
                 raise RuntimeError("Aborting now, since STATS_PARSING_ERRORS_ARE_FATAL is set")
-        return result
-
-
-    def print_stats(self):
-        stat_msgs = self.get_statistics_as_strings()
-        if stat_msgs:
-            self.logger.info("Aggregate statistics:")
-            for msg in stat_msgs:
-                self.logger.info(msg)
         super().print_stats()
     
     def parse_stats(self, filename, *, commit):
@@ -1847,6 +1850,16 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             ["Total time: {stats_total_time[0]:g}"],
             )
     
+    def get_statistics_as_strings(self):
+        # technically, polyselect1 does not import anything: it just
+        # doesn't run. So we can't check self.did_import, as it will
+        # remain false. The (final) import thing happens in polyselect2,
+        # while import that happens here is not exclusive with the fact
+        # of actually running.
+        if self.send_request(Request.GET_WILL_IMPORT_FINAL_POLYNOMIAL):
+            return [ ], None
+        else:
+            return super().get_statistics_as_strings()
     
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -2255,6 +2268,12 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             ["Rootsieve time: {stats_rootsieve_time[0]:g}"],
             )
 
+    def get_statistics_as_strings(self):
+        if self.did_import():
+            return [], None
+        else:
+            return super().get_statistics_as_strings()
+
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
@@ -2582,6 +2601,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
     def get_will_import(self):
         return "import" in self.params
 
+# TODO: add HasStatistics
 class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
     """ Find a polynomial pair using Joux-Lercier for DL in GF(p), uses client/server """
     @property
@@ -2801,6 +2821,7 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
         self.state.update({"rnext": modr+1}, commit=True)
 
 
+# TODO: add HasStatistics
 class PolyselGFpnTask(Task, DoesImport):
     """ Polynomial selection for DL in extension fields """
     @property
@@ -3469,8 +3490,8 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
 
     def get_statistics_as_strings(self):
         strings = ["Total number of relations: %d" % self.get_nrels()]
-        strings += super().get_statistics_as_strings()
-        return strings
+        s1, errors = super().get_statistics_as_strings()
+        return strings + s1, errors
     
     def get_nrels(self, filename=None):
         """ Return the number of relations found, either the total so far or
