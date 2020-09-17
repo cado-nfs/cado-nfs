@@ -6044,17 +6044,21 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         last_task = None
         last_status = True
         try:
-            tasks=[]
-            for i in range(len(self.tasks)):
-                tasks.append(self.tasks[i])
             self.start_all_clients()
+            # we rely here on Task not having a weird comparison operator
+            tasks_that_have_run = set()
             i=0
             while last_status:
-                last_status, last_task = self.run_next_task()
-                if i<len(self.tasks):
-                    self.tasks[i].print_stats()
-                    i+=1
-            for task in self.tasks:
+                task = self.next_task()
+                if task is None:
+                    break
+                last_task = task.title
+                last_status = task.run()
+                tasks_that_have_run.add(task)
+                task.print_stats()
+
+            # print everybody's stats before we exit.
+            for task in tasks_that_have_run:
                 task.print_stats()
 
         except KeyboardInterrupt:
@@ -6137,13 +6141,13 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         return elapsed
 
     
-    def run_next_task(self):
+    def next_task(self):
         for task in self.tasks:
             if task in self.tasks_that_want_to_run:
                 #self.logger.info("Next task that wants to run: %s", task.title)
                 self.tasks_that_want_to_run.remove(task)
-                return [task.run(), task.title]
-        return [False, None]
+                return task
+        return None
 
     def get_sum_of_cpu_or_real_time(self, is_cpu):
         total = 0
