@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import re
-import os.path
+import os
 from fractions import gcd
 import abc
 import random
@@ -37,13 +37,13 @@ def re_cap_n_fp(prefix, n, suffix=""):
     1 up to n floating-point numbers (possibly in scientific notation)
     separated by whitespace, and ends with suffix.
     
-    >>> re.match(re_cap_n_fp("foo", 2), 'foo 1.23').group(1)
+    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo 1.23').group(1)
     '1.23'
-    >>> re.match(re_cap_n_fp("foo", 2), 'foo1.23   4.56').groups()
+    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo1.23   4.56').groups()
     ('1.23', '4.56')
     
     # The first fp pattern must match something
-    >>> re.match(re_cap_n_fp("foo", 2), 'foo')
+    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo')
     """
     template = prefix
     if n > 0:
@@ -870,21 +870,26 @@ class HasStatistics(BaseStatistics, HasState, DoesLogging, metaclass=abc.ABCMeta
         """ Return the statistics collected so far as a List of strings.
         
         Sub-classes can override to add/remove/change strings.
+
+        Typically, classes that subclass HasStatistics *AND* DoesImport
+        may wish to report stats differently if import has happened.
         """
         result, errors = self.statistics.as_strings()
-        if errors is not None:
-            self.logger.warning("some stats could not be displayed for %s (see log file for debug info)", self.name)
-            for e in errors:
-                self.logger.debug(e)
-        return result
+        return result, errors
 
 
     def print_stats(self):
-        stat_msgs = self.get_statistics_as_strings()
+        stat_msgs,errors = self.get_statistics_as_strings()
         if stat_msgs:
             self.logger.info("Aggregate statistics:")
             for msg in stat_msgs:
                 self.logger.info(msg)
+        if errors is not None:
+            self.logger.warning("some stats could not be displayed for %s (see log file for debug info)", self.name)
+            for e in errors:
+                self.logger.debug(e)
+            if "STATS_PARSING_ERRORS_ARE_FATAL" in os.environ:
+                raise RuntimeError("Aborting now, since STATS_PARSING_ERRORS_ARE_FATAL is set")
         super().print_stats()
     
     def parse_stats(self, filename, *, commit):
@@ -1806,7 +1811,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: potential collisions=", 1)),
+            re.compile(re_cap_n_fp(r'# Stat: potential collisions=', 1)),
             False
         ),
         (
@@ -1830,7 +1835,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: total phase took", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Stat: total phase took', 1, "s")),
             False
         ),
     )
@@ -1845,6 +1850,16 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             ["Total time: {stats_total_time[0]:g}"],
             )
     
+    def get_statistics_as_strings(self):
+        # technically, polyselect1 does not import anything: it just
+        # doesn't run. So we can't check self.did_import, as it will
+        # remain false. The (final) import thing happens in polyselect2,
+        # while import that happens here is not exclusive with the fact
+        # of actually running.
+        if self.send_request(Request.GET_WILL_IMPORT_FINAL_POLYNOMIAL):
+            return [ ], None
+        else:
+            return super().get_statistics_as_strings()
     
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -2234,7 +2249,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: total phase took", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Stat: total phase took', 1, "s")),
             False
         ),
         (
@@ -2242,7 +2257,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: rootsieve took", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Stat: rootsieve took', 1, "s")),
             False
         )
     )
@@ -2252,6 +2267,12 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             ["Total time: {stats_total_time[0]:g}"],
             ["Rootsieve time: {stats_rootsieve_time[0]:g}"],
             )
+
+    def get_statistics_as_strings(self):
+        if self.did_import():
+            return [], None
+        else:
+            return super().get_statistics_as_strings()
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -2580,6 +2601,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
     def get_will_import(self):
         return "import" in self.params
 
+# TODO: add HasStatistics
 class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
     """ Find a polynomial pair using Joux-Lercier for DL in GF(p), uses client/server """
     @property
@@ -2799,6 +2821,7 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
         self.state.update({"rnext": modr+1}, commit=True)
 
 
+# TODO: add HasStatistics
 class PolyselGFpnTask(Task, DoesImport):
     """ Polynomial selection for DL in extension fields """
     @property
@@ -3197,7 +3220,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (float, int),
             "0 0",
             Statistics.zip_combine_mean,
-            re.compile(re_cap_n_fp("# Average J=", 1, r"\s*for (\d+) special-q's")),
+            re.compile(re_cap_n_fp(r'# Average J=', 1, r"\s*for (\d+) special-q's")),
             False
         ),
         (
@@ -3213,7 +3236,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Total cpu time", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Total cpu time', 1, "s")),
             False
         ),
         (
@@ -3221,7 +3244,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (float, ),
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Total elapsed time", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Total elapsed time', 1, "s")),
             False
         )
     )
@@ -3467,8 +3490,8 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
 
     def get_statistics_as_strings(self):
         strings = ["Total number of relations: %d" % self.get_nrels()]
-        strings += super().get_statistics_as_strings()
-        return strings
+        s1, errors = super().get_statistics_as_strings()
+        return strings + s1, errors
     
     def get_nrels(self, filename=None):
         """ Return the number of relations found, either the total so far or
@@ -4643,7 +4666,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for prep: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for prep: .wct.', 1)),
             False
         ),
         (
@@ -4651,7 +4674,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for prep: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for prep: .cpu.', 1)),
             False
         ),
         (
@@ -4659,7 +4682,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for secure: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for secure: .wct.', 1)),
             False
         ),
         (
@@ -4667,7 +4690,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for secure: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for secure: .cpu.', 1)),
             False
         ),
         (
@@ -4675,7 +4698,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for gather: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for gather: .wct.', 1)),
             False
         ),
         (
@@ -4683,7 +4706,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for gather: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for gather: .cpu.', 1)),
             False
         ),
         (
@@ -4696,6 +4719,14 @@ class LinAlgTask(Task, HasStatistics):
         ),
         (
             "krylov_cpu",
+            float,
+            "0",
+            Statistics.add_list,
+            re.compile(re_cap_n_fp(r"Timings for krylov: .cpu.", 1)),
+            True
+        ),
+        (
+            "krylov_iteration_cpu",
             (int, float),
             "0",
             Statistics.add_list,
@@ -4703,7 +4734,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "krylov_cpu_wait",
+            "krylov_iteration_cpu_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4711,7 +4742,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "krylov_comm",
+            "krylov_iteration_comm",
             float,
             "0",
             Statistics.add_list,
@@ -4719,7 +4750,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "krylov_comm_wait",
+            "krylov_iteration_comm_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4731,7 +4762,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for lingen: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for lingen_\w+: .wct.', 1)),
             False
         ),
         (
@@ -4739,7 +4770,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for lingen: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for lingen_\w+: .cpu.', 1)),
             False
         ),
         (
@@ -4752,6 +4783,14 @@ class LinAlgTask(Task, HasStatistics):
         ),
         (
             "mksol_cpu",
+            float,
+            "0",
+            Statistics.add_list,
+            re.compile(re_cap_n_fp(r"Timings for mksol: .cpu.", 1)),
+            True
+        ),
+        (
+            "mksol_iteration_cpu",
             (int, float),
             "0",
             Statistics.add_list,
@@ -4759,7 +4798,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "mksol_cpu_wait",
+            "mksol_iteration_cpu_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4767,7 +4806,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "mksol_comm",
+            "mksol_iteration_comm",
             float,
             "0",
             Statistics.add_list,
@@ -4775,7 +4814,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "mksol_comm_wait",
+            "mksol_iteration_comm_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4786,20 +4825,22 @@ class LinAlgTask(Task, HasStatistics):
     @property
     def stat_formats(self):
         return (
-            ["Krylov: WCT time {krylov_wct[0]}",
-                ", iteration CPU time {krylov_cpu[1]:g}",
-                ", COMM {krylov_comm[0]}",
-                ", cpu-wait {krylov_cpu_wait[0]}",
-                ", comm-wait {krylov_comm_wait[0]}",
-                " ({krylov_cpu[0]:d} iterations)"
+            ["Krylov: CPU time {krylov_cpu[0]}",
+                ", WCT time {krylov_wct[0]}",
+                ", iteration CPU time {krylov_iteration_cpu[1]:g}",
+                ", COMM {krylov_iteration_comm[0]}",
+                ", cpu-wait {krylov_iteration_cpu_wait[0]}",
+                ", comm-wait {krylov_iteration_comm_wait[0]}",
+                " ({krylov_iteration_cpu[0]:d} iterations)"
                 ],
             ["Lingen CPU time {lingen_cpu[0]}", ", WCT time {lingen_wct[0]}"],
-            ["Mksol: WCT time {mksol_wct[0]}",
-                ", iteration CPU time {mksol_cpu[1]:g}",
-                ", COMM {mksol_comm[0]}",
-                ", cpu-wait {mksol_cpu_wait[0]}",
-                ", comm-wait {mksol_comm_wait[0]}",
-                " ({mksol_cpu[0]:d} iterations)"
+            ["Mksol: CPU time {mksol_cpu[0]}",
+                ",  WCT time {mksol_wct[0]}",
+                ", iteration CPU time {mksol_iteration_cpu[1]:g}",
+                ", COMM {mksol_iteration_comm[0]}",
+                ", cpu-wait {mksol_iteration_cpu_wait[0]}",
+                ", comm-wait {mksol_iteration_comm_wait[0]}",
+                " ({mksol_iteration_cpu[0]:d} iterations)"
                 ],
         )
 
