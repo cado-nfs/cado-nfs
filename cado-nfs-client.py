@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # pylint: disable=too-many-lines
 # pylint: disable=deprecated-module
@@ -2133,6 +2133,15 @@ def merge_two_dicts(x, y):
     z.update(y)
     return z
 
+def abort_on_python2():
+    if int(sys.version_info[0]) < 3:
+        logging.error("You are running cado-nfs-client with Python%d.  "
+                "Python2 *used to be* supported, but no longer is.  "
+                "You can try to remove the explicit sys.exit(1) in "
+                "cado-nfs-client.py, abort_on_python2(), "
+                "but you're on your own." % int(sys.version[0]))
+        sys.exit(1)
+
 # This syntax is weird, but { a:b for [....] } won't work with python 2.6
 # -- which I'm not sure we really strive to support, though.
 SETTINGS = dict([(a,b) for (a, (b,c)) in
@@ -2275,6 +2284,8 @@ if __name__ == '__main__':
         logging.getLogger().addHandler(logging.StreamHandler(logfile))
     logging.info("Starting client %s", SETTINGS["CLIENTID"])
     logging.info("Python version is %d.%d.%d", *sys.version_info[0:3])
+
+    abort_on_python2()
 
     if FixedBytesGenerator != candidates_for_BytesGenerator[0]:
         logging.info("Using work-around %s for buggy BytesGenerator",
