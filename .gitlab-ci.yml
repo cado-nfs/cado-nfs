@@ -22,7 +22,7 @@ build:
     - make -j4 all_test_dependencies
     - echo -e "section_end:`date +%s`:build2\r\e[0K"
     - echo -e "section_start:`date +%s`:test\r\e[0KRunning tests"
-    - env OMP_DYNAMIC=true make check ARGS="-j4"
+    - env OMP_DYNAMIC=true STATS_PARSING_ERRORS_ARE_FATAL=1 make check ARGS="-j4"
     - echo -e "section_end:`date +%s`:test\r\e[0K"
     # okay. "cache" is only when the runners have a notion of available
     # cache server, it seems. Don't do that for now.
