@@ -12,7 +12,7 @@ static int rng_state_inited = 0;
 gmp_randstate_t state;
 static int parsed_iter = 0;
 unsigned long iter;
-static int verbose = 0, quiet = 0;
+static int verbose = 0, quiet = 0, want_check = 0, want_time = 0;
 
 /* Return non-zero iff |d2| is in the interval |d1| * (1 +- err_margin) */
 int
@@ -86,6 +86,30 @@ int
 tests_common_get_quiet()
 {
   return quiet;
+}
+
+int
+tests_common_get_check()
+{
+  return want_check;
+}
+
+int
+tests_common_get_time()
+{
+  return want_time;
+}
+
+void
+tests_common_get_check_and_time(int *do_check, int *do_time)
+{
+  if (!tests_common_get_check() && !tests_common_get_time()) {
+    /* If neither -check nor -time was given on command line, leave the
+       default values unchanged. */
+    return;
+  }
+  *do_check = tests_common_get_check();
+  *do_time = tests_common_get_time();
 }
 
 static int
@@ -169,6 +193,24 @@ tests_common_cmdline(int *argc, const char ***argv, const uint64_t flags)
     if ((flags & PARSE_QUIET) != 0 && (*argc) > 1 && 
         strcmp(name, (*argv)[1]) == 0) {
       quiet = 1;
+      *argc -= 1;
+      *argv += 1;
+      continue;
+    }
+
+    name = "-check";
+    if ((flags & PARSE_CHECK) != 0 && (*argc) > 1 &&
+        strcmp(name, (*argv)[1]) == 0) {
+      want_check = 1;
+      *argc -= 1;
+      *argv += 1;
+      continue;
+    }
+
+    name = "-time";
+    if ((flags & PARSE_TIME) != 0 && (*argc) > 1 &&
+        strcmp(name, (*argv)[1]) == 0) {
+      want_time = 1;
       *argc -= 1;
       *argv += 1;
       continue;
