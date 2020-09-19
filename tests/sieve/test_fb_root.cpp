@@ -547,37 +547,25 @@ bug20200225 (void)
 }
 
 /* The usual tests command line parameters "-seed" and "-iter" are accepted.
-   So is "-c" to check only correctness but not timing. Unfortunately,
-   the -c parameter must be given last on the command line to work. */
+   Giving the "-check" parameter does only correctness tests but not timing.
+   Giving only "-time" does only timing. Giving neither or both does both. */
 
 int
 main (int argc, const char *argv[])
 {
   unsigned long N = 100;
-  bool test_correctness = true, test_timing = true;
+  int test_correctness = 1, test_timing = 1;
 
   setbuf(stdout, NULL);
   setbuf(stderr, NULL);
 
-  tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
+  tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER | PARSE_CHECK | PARSE_TIME);
   tests_common_get_iter(&N);
-  
-  for( ; argc > 1 ; argc--,argv++) {
-      if (strcmp(argv[1], "-c") == 0) {
-          test_correctness = true;
-          test_timing = false;
-      } else if (strcmp(argv[1], "-t") == 0) {
-          test_timing = true;
-          test_correctness = false;
-      } else {
-          fprintf(stderr, "unparsed arg: %s\n", argv[1]);
-          exit (EXIT_FAILURE);
-      }
-  }
+  tests_common_get_check_and_time(&test_correctness, &test_timing);
 
   bug20200225 ();
-  test_fb_root_in_qlattice_31bits (test_timing, test_correctness, N);
-  test_fb_root_in_qlattice_127bits (test_timing, test_correctness, N);
+  test_fb_root_in_qlattice_31bits (test_timing != 0, test_correctness != 0, N);
+  test_fb_root_in_qlattice_127bits (test_timing != 0, test_correctness != 0, N);
 
   return 0;
 }
