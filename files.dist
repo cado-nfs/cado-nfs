@@ -1364,6 +1364,7 @@ sieve/las-output.hpp
 tests/sieve/torture-redc.cpp
 tests/sieve/test_fb_root.cpp
 tests/sieve/test_batchinv.cpp
+tests/sieve/test_invmod_redc_32.cpp
 scripts/filter-ctest.pl
 config/xcode.cmake
 config/posix_memalign.c

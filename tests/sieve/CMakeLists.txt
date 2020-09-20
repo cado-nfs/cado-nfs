@@ -549,5 +549,7 @@ cado_define_test(test_fb_root.cpp ${PROJECT_SOURCE_DIR}/sieve/fb.cpp LIBRARIES u
 
 cado_define_test(test_batchinv.cpp LIBRARIES utils tests)
 
+cado_define_test(test_invmod_redc_32.cpp LIBRARIES utils tests)
+
 add_subdirectory (ecm)
 add_subdirectory (strategies)
