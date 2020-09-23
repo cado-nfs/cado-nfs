@@ -8,7 +8,7 @@
 # compiled.
 #
 # Typical usage will be something like:
-#   wdir=/tmp/test I=12 lim0=... ./estimate_matsize.sh toto.poly
+#   wdir=/tmp/test A=23 lim0=... ./estimate_matsize.sh toto.poly
 # The root files and the renumber file are cached, so if you change lim or
 # lpb without changing wdir, you'll have to remove those cache-files
 # first in wdir.
@@ -27,7 +27,8 @@ if [ $# != 1 ]; then
 fi
 
 ## default parameters: can be overriden using env variables
-## these correspond more or less to a DLP-512.
+## TODO: old parameters (before 7151df7fe) here used to correspond more or
+## less to a DLP-512. Now what size are these parameters good for ?
 : ${A=23}
 : ${lim0=125000}
 : ${lim1=125000}
