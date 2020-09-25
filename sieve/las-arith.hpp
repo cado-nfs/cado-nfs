@@ -183,7 +183,6 @@ invmod_32 (uint32_t *pa, uint32_t b)
 // return result on succes (new a value), UINT32_MAX on failure
 NOPROFILE_INLINE uint32_t
 invmod_redc_32(uint32_t a, uint32_t b) {
-
   ASSERT (a < b);
   if (UNLIKELY(!a)) return a; /* or we get infinite loop */
   if (UNLIKELY(!(b & 1))) {
@@ -198,49 +197,43 @@ invmod_redc_32(uint32_t a, uint32_t b) {
   a >>= lsh;
   
   // Here a and b are odd, and a < b
-#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-#define T1 "sub %0,%1\n " /* tzcnt */ "rep; bsf %1,%5\n add %2,%3\n shr %%cl,%1\n add %%cl,%4\n shl %%cl,%2\n cmp %0,%1\n "
-#define T2 "sub %1,%0\n " /* tzcnt */ "rep; bsf %0,%5\n add %3,%2\n shr %%cl,%0\n add %%cl,%4\n shl %%cl,%3\n cmp %1,%0\n "
-  __asm__ ( ".balign 8\n 0:\n"						\
-	    T1 " je 9f\n jb  1f\n"					\
-	    T1 " je 9f\n jb  1f\n"					\
-	    T1 " je 9f\n jb  1f\n"					\
-	    T1 " je 9f\n jb  1f\n"					\
-	    T1 " je 9f\n jae 0b\n"					\
-	    ".balign 8\n 1:\n"						\
-	    T2 " je 9f\n jb  0b\n"					\
-	    T2 " je 9f\n jb  0b\n"					\
-	    T2 " je 9f\n jb  0b\n"					\
-	    T2 " je 9f\n jb  0b\n"					\
-	    T2 " jb 0b\n ja  1b\n"					\
-	    ".balign 8\n 2:\n"						\
-	    "9: \n"							\
-	    : "+r" (a), "+r" (b), "+r" (u), "+r" (v), "+r" (t), "+c" (lsh));
+  while (true) {
+    uint32_t diff1 = b - a;
+    if (diff1 == 0)
+      goto done;
+    lsh = cado_ctz(diff1);
+    diff1 >>= lsh;
+    uint32_t v2 = v << lsh;
+    uint32_t diff2 = (a - b) >> lsh;
+    v += u;
+    u <<= lsh;
+    t += lsh;
+#if 1 && (defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) || defined(__i386__) && defined(__GNUC__))
+    __asm__(
+      "cmp %[b], %[a]\n"          // Compare b, a
+      "cmovb %[diff1], %[b]\n"    // if a<b:  b = diff1 (= (b - a) >> lsh)
+      "cmovnb %[diff2], %[a]\n"   // if a>=b: a = diff2 (= (a - b) >> lsh)
+      "cmovnb %[v], %[u]\n"       // if a>=b: u = uv (= u + v)
+      "cmovnb %[v2], %[v]\n"      // if a>=b: v = v2 (= v << lsh)
+      : [a] "+r" (a), [b] "+r" (b), [u] "+r" (u), [v] "+r" (v)
+      : [diff1] "rm" (diff1), [diff2] "rm" (diff2), [v2] "rm" (v2)
+      /* On 32-bit i386 there are not enough registers to use only "r" for
+       * all the inputs, hence "rm". */
+      : "cc"
+    );
 #else
-#define T1 do { b-=a; lsh=cado_ctz(b); v+=u; b>>=lsh; t+=lsh; u<<=lsh; if (a==b) goto ok; } while (0)
-#define T2 do { a-=b; lsh=cado_ctz(a); u+=v; a>>=lsh; t+=lsh; v<<=lsh; if (b==a) goto ok; } while (0)
-  {
-      for (;;) {
-          do {
-              T1; if (a > b) break;
-              T1; if (a > b) break;
-              T1; if (a > b) break;
-              T1; if (a > b) break;
-              T1;
-          } while (a < b);
-          do {
-              T2; if (b > a) break;
-              T2; if (b > a) break;
-              T2; if (b > a) break;
-              T2; if (b > a) break;
-              T2;
-          } while (b < a);
-      }
-    ok: ; /* Need something after the label */
-  }
+    /* Unfortunately, gcc 7.5.0 and gcc 10.2.0 both produce a conditional
+     * branch rather than a bunch of CMOVs. The branch is slower. */
+    if (a < b) {
+      b = diff1;
+    } else {
+      a = diff2;
+      u = v;
+      v = v2;
+    }
 #endif
-#undef T1
-#undef T2
+  };
+done:
 
   if (UNLIKELY(a != 1)) return 0;
   const uint32_t fix = (p+1)>>1;
