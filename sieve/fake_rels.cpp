@@ -70,8 +70,8 @@ static inline uint64_t long_random(gmp_randstate_t buf) {
 
 static gmp_randstate_t global_rstate_non_mt;
 
-static long myrandom_non_mt() {
-    return long_random(global_rstate_non_mt);
+static unsigned long myrandom_non_mt() {
+    return (unsigned long)long_random(global_rstate_non_mt);
 }
 
 // Structure that contains indices (in the sense of renumber.[ch]) for
