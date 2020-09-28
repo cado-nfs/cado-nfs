@@ -499,6 +499,8 @@ tests/sieve/CMakeLists.txt
 tests/sieve/README
 tests/sieve/F9.dupsup.sh
 tests/sieve/F9.fakerels.sh
+tests/sieve/c60.fakerels.sh
+tests/sieve/c60.sample
 tests/sieve/F9.todo
 tests/sieve/F9.hint
 tests/sieve/c120.poly

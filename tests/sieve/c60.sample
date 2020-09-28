@@ -1,0 +1,793 @@
+# () /home/cado/GNFS/cado-nfs-1399-06-26/build/cado/sieve/las -I 10 -poly /home/cado/GNFS/cado-nfs-1399-06-26/parameters/polynomials/c60.poly -q0 61961 -q1 107974 -lim0 78682 -lim1 111342 -lpb0 18 -lpb1 19 -sqside 1 -mfb0 17 -mfb1 38 -fb0 /home/cado/GNFS/cado-nfs-1399-06-26/scripts/c60sam/roots0.gz -fb1 /home/cado/GNFS/cado-nfs-1399-06-26/scripts/c60sam/roots1.gz -random-sample 50 -t 2 -sync -v -dup -dup-qmin 0,61961
+# List of modified files in working directory and their SHA1 sum:
+# (tarball extracted)
+# Compiled with gcc 8.3.0
+# Compilation flags (C) -std=c99 -g -W -Wall -O2  -msse3 -mssse3 -msse4.1 -mpopcnt -mavx -mavx2 -mpclmul
+# Compilation flags (C++) -export-dynamic -std=c++11 -Wno-c++11-compat -g -W -Wall -O2  -Wno-literal-suffix -msse3 -mssse3 -msse4.1 -mpopcnt -mavx -mavx2 -mpclmul
+# las flags: LOGNORM_GUARD_BITS=1.00
+# Interpreting -I 10 as meaning -A 19
+# Getting rid of sieve_shared_data structure [rss=4252.00 k]
+# Applying binding machine,1,2 with hwloc disabled
+# 1 jobs in parallel
+# 2 threads per job
+# Expected memory usage per binding zone for the factor base: 296.56 kB
+# Expected memory usage per subjob for logI=10: 1.60 MB
+# Expected memory use per subjob (max reached for logI=10): 1.60 MB
+# Expected memory use for 1 binding zones and 1 2-threaded jobs per zone, counting 448 MB of base footprint: 450.80 MB
+# Using default value powlim0=ULONG_MAX
+# Creating side-0 rational factor base for polynomial f0(x) = -192826434309846+3463439717*x
+# including primes up to 78682 and prime powers up to 18446744073709551615 using threadpool of 2 threads.
+# Creating side-0 rational factor base took 0.1s (0.0s real)
+# Using default value powlim1=ULONG_MAX
+# Reading side-1 factor base from disk for polynomial f1(x) = -872946860084144525-194150820612996*x+7802053227*x^2-2550302*x^3+480*x^4
+# Reading side-1 factor base from /home/cado/GNFS/cado-nfs-1399-06-26/scripts/c60sam/roots1.gz
+# Factor base successfully read, 6547 primes, largest was 111341
+# Reading side-1 factor base took 0.0s (0.0s real)
+#
+# Now sieving side-1 q=62627; rho=34758
+# Side 0: log2(maxnorm)=58.21 scale=4.35, logbase=1.172742 bound=98
+# Creating new slicing on side 0 for scale=4.35, thresholds={1024, 78682, 78682, 78682}
+# side-0 part 0: 197 primes, 197 ideals, weight 2.9635
+# side-0 part 1: 7621 primes, 7621 ideals, weight 0.49317 [55 slices]
+# Side 1: log2(maxnorm)=89.08 scale=2.85, logbase=1.275336 bound=125
+# Creating new slicing on side 1 for scale=2.85, thresholds={1024, 111342, 111342, 111342}
+# side-1 part 0: 122 primes, 203 ideals, weight 4.5745
+# side-1 part 1: 6424 primes, 10189 ideals, weight 0.51853 [60 slices]
+# Using default strategy for the cofactorization: ncurves0=0 ncurves1=100
+# Building/reading strategies took 1.5s
+# Sieving side-1 q=62627; rho=34758; a0=-6889; b0=-2; a1=27869; b1=-1; I=1024; J=512;
+# Reserving buckets with a multiplier of 1
+# Error: 1s buckets are full, worst is bucket 6 on side 0: 8107* 0 7850 7723 /6304
+# redoing q=62627, rho=34758 because 1s buckets are full
+# Fullest level-1s bucket #6, wrote 8107/6304
+# Updating 1s bucket multiplier to 1.000*8107/6304*1.1=1.350
+# Expected memory usage per binding zone for the factor base: 296.56 kB
+# Expected memory usage per subjob for logI=10: 2.15 MB
+# Expected memory use per subjob (max reached for logI=10): 2.15 MB
+# Expected memory use for 1 binding zones and 1 2-threaded jobs per zone, counting 448 MB of base footprint: 451.35 MB
+#
+# Now sieving side-1 q=62627; rho=34758
+# Side 0: log2(maxnorm)=58.21 scale=4.35, logbase=1.172742 bound=98
+# Side 1: log2(maxnorm)=89.08 scale=2.85, logbase=1.275336 bound=125
+# Sieving side-1 q=62627; rho=34758; a0=-6889; b0=-2; a1=27869; b1=-1; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+-10386671,1130:d,3d,71,647,9bcb,acab:2,2,2,2,3,3,5,b,2b,2b,16f,337,1327,ba5f,f4a3,2add5
+-10727371,522:43,359,6b9,53f3,fd7b:2,2,2,2,2,3,5,7,11,2b,7f,125,611,773,fa7,f4a3,1e76f
+13305422,181:2,2,2,17,7f,be1,16b5,69bb:3,3,5,7,b,b,13,35,277,f4a3,18f49,357a1,648af
+-8502227,968:49,4f,95,1145,1a7d,20c5:2,2,2,2,3,3,7,11,67,a7,7eb,1115,f4a3,11c3f,6c5cb
+12581141,198:d,25,d87,aa47,12235:2,2,2,3,5,5,7,11,611,101f,4f3f,e593,f4a3,4ef0b
+-4905871,1003:5,1e01,24f5,356f,a55b:2,2,2,2,2,3,3,b,d,23b,3ca7,54fd,6f65,e915,f4a3
+9049919,291:9a3,357d,3835,c70d:2,2,3,3,5,35,2dd,2dd,335,da3,395b,f4a3,30545
+-7135403,283:61,e3,1609,3413,bb09:2,2,2,2,2,5,7,11,bf,101,1933,28ed,43f9,58c1,f4a3
+9708762,755:2,2,2,2,2,3,4f,1727,b91b,cd51:5,5,1f,ad,1c1,337,6785,ac61,f4a3,7aecd
+9358675,617:b,49,95,301,417b,db3b:2,2,2,2,2,2,2,3,3,5,5,7,1f,1f,c89,1ca3,f4a3,129d9,178c3
+6984167,264:5,17,a7,373,3373,1d341:2,2,2,2,3,3,7,d,1f,65,2a5,184d,f4a3,3dde9,51043
+6014386,137:2,2,5,35,4bd,bd0d,15eb3:3,3,b,d,1f,443,1999,1d75,4efb,f4a3,31a99
+-3712834,513:2,2,2,2,2,1f,9d,923,b2d,1a2f3:3,5,7,11,65,67,f29,118d,de7d,f4a3,2f357
+5973678,107:2,2,3,b5,313,5a7,5a17:5,5,11,1f,335,fa7,1597,f4a3,11a3b,7cf0d
+6142153,665:10d,17f,1b1,bc83,c211:2,2,3,3,5,b,d,35,bf,6713,f4a3,709fd,7c375
+-1061523,310:3,13,4d5,6f1,160f,15e51:2,2,2,5,7,6d,409,5437,f4a3,1497d,20801
+-1257545,344:7,7,7,11,37a3,6a67,7a0f:2,2,2,2,3,3,5,b,15d,191,347,455,c61,2875,f4a3
+4305926,441:2,2,2,397,3275,62ad,722f:3,17,17f,3be1,5ea5,acd9,c42d,f4a3
+260545,1112:17,a7,119,257,3551,5e85:2,2,2,2,3,3,5,b,259,277,293,de5,187f,f4a3,7bf19
+-648502,39:2,2,2,7,7f,683,6e93,71ad:3,3,3,3,3,5,b,11,209,38f,f4a3,20929,212e7
+-160325,8:161,65b,ab71,1451b:2,2,2,2,3,3,5,5,5,5,5,7,d,11,11,17,61,f4a3,3ef57
+1738216,241:2,177b,1ba7,37ab,8249:7,b,11,5227,dac3,f4a3,1947d,7da5b
+1591043,271:5,4f,10d,2f9,2225,10259:2,2,3,3,7,d,17,83,df,62d5,9d01,f4a3,fdf3
+-13966754,427:2,2,5,2b,d3,df,10d,7cf,1777:a63,1147,14a1,dcf9,f4a3,2f27b,7c9c3
+# survivors before_sieve: 524288
+# survivors after_sieve: 1618 (ratio 3.09e-03)
+# survivors not_both_even: 1618
+# survivors not_both_multiples_of_p: 1618
+# survivors trial_divided_on_side[0]: 473
+# survivors check_leftover_norm_on_side[0]: 473 (29.2%)
+# survivors trial_divided_on_side[1]: 36
+# survivors check_leftover_norm_on_side[1]: 36 (7.6%)
+# survivors enter_cofactoring: 36
+# survivors cofactored: 24 (66.7%)
+# survivors smooth: 24
+# Checksums over sieve region: after all sieving: 0, 0
+# 24 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=62627 r=34758: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=62969; rho=54609
+# Side 0: log2(maxnorm)=58.83 scale=4.30, logbase=1.174916 bound=97
+# Creating new slicing on side 0 for scale=4.3, thresholds={1024, 78682, 78682, 78682}
+# side-0 part 0: 197 primes, 197 ideals, weight 2.9635
+# side-0 part 1: 7621 primes, 7621 ideals, weight 0.49317 [55 slices]
+# Side 1: log2(maxnorm)=89.85 scale=2.83, logbase=1.278084 bound=124
+# Creating new slicing on side 1 for scale=2.825, thresholds={1024, 111342, 111342, 111342}
+# side-1 part 0: 122 primes, 203 ideals, weight 4.5745
+# side-1 part 1: 6424 primes, 10189 ideals, weight 0.51853 [59 slices]
+# Sieving side-1 q=62969; rho=54609; a0=8360; b0=-1; a1=21169; b1=5; I=1024; J=448;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+8814168,1597:2,3,7f,1e7,5b3,17cb,14899:5,7,d,d,d,d,11,65,1139,18c7,3925,f5f9,3cb41
+6040117,2087:35,3b,167,1c1,17b9,1e6d9:2,2,2,2,2,3,3,7,11,13,1d,83cb,e189,f5f9,11953,26cdd
+9102506,975:2,2,2,371,3b9,4c1,b2d,1a23:3,3,3,5,b,13d,3c17,87a1,da05,f5f9,6c6e3
+6547181,1243:29,2b,71,fb,e0f9,12659:2,2,2,2,2,2,3,3,5,5,d,d,11,17,3df,28d5,4c61,f5f9,50ca5
+8466463,1149:7,7,7,2f,3b,a7f,134f,3b71:2,2,2,2,2,2,3,3,5,13,2b,21d,599,1aa7,9509,f5f9,1522d
+9580350,1189:2,2,2,3,3,3,2b,b5,373,2a9d,2f4d:5,5,7,7,b,11,35,53,61,b69b,f5f9,124ab,1c1ad
+5136783,1246:3,5,11,59,78b,e417,1539b:2,2,2,2,2,15d,17b,611,649,2669,457d,7fc3,f5f9
+8024108,637:2,b,b3,363b,74e1,e2f3:3,3,5,20b,3df,28ed,3f7d,47c3,f5f9,2af01
+5318696,1051:2,7,b,13,1d,b23,692f,6e7b:3,3,35,259,69b3,f5f9,13451,3114d,403c7
+7562839,534:b,29,29,49,59,2cb7,da15:2,2,2,2,3,65,529,815,8a79,f5f9,1b761,3bb9d
+4403629,234:b,371,d03,2a8b,14be1:2,2,2,2,2,2,3,11,2b,139,191,3f79,f5f9,12b7b,15f3d
+2573617,242:d,13,53,61,137,3d1,f40d:2,2,2,2,2,2,3,3,9b51,f5f9,13f19,1a945,4266d
+-1015555,1063:11,11,293,5f3,41b7,a6e7:2,2,2,2,2,2,2,2,2,3,3,5,b,d,53,61,7f,337,b7f5,f5f9,19b23
+2543550,223:2,2,3,7,35,c7,16f,6bb,ee67:5,5,5,b,83,b93,15c5,f5f9,2a13f,2a68b
+179677,679:5,5,16f,26c9,5e69,e72f:2,2,2,2,2,2,2,b,11,1a3,493,40a3,f5f9,100a3,3ba1d
+84138,5:2,2,3,3,43,2ef,f25,1762f:5,83f,2089,7087,f5f9,175a3
+-1767188,121:2,61,1cf,779,a49,fe4b:5,107,6a1,15c5,21a1,7de9,80bd,f5f9
+-1953260,83:2,67,5dfd,913d,1e2a1:3,3,5,1f3,5cf,709,1597,1777,f5f9,115eb
+1745729,100:b,13,2b4b,aca9,1f901:2,2,2,3,3,5,7,d,11,709,357b,422f,f5f9,308a1
+-1372013,488:b,1d,6d,fad,5e21,72d7:2,2,2,2,3,3,5,7,11,11,13,17f,665,7bd3,f5f9,4775f
+1533894,163:2,2,3,5,5,d,40f,115cf,16207:7,b,1f,17b,815,907,2e97,f5f9,13a2d
+2786135,81:d,29,257,493,69d,24d7:2,2,2,2,2,2,2,3,5,7,13,1f,107,43e7,ddc5,f5f9,2e48f
+# survivors before_sieve: 458752
+# survivors after_sieve: 1337 (ratio 2.91e-03)
+# survivors not_both_even: 1337
+# survivors not_both_multiples_of_p: 1337
+# survivors trial_divided_on_side[0]: 361
+# survivors check_leftover_norm_on_side[0]: 361 (27.0%)
+# survivors trial_divided_on_side[1]: 25
+# survivors check_leftover_norm_on_side[1]: 25 (6.9%)
+# survivors enter_cofactoring: 25
+# survivors cofactored: 22 (88.0%)
+# survivors smooth: 22
+# Checksums over sieve region: after all sieving: 0, 0
+# 22 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=62969 r=54609: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=64567; rho=8488
+# Side 0: log2(maxnorm)=59.10 scale=4.28, logbase=1.176025 bound=96
+# Creating new slicing on side 0 for scale=4.275, thresholds={1024, 78682, 78682, 78682}
+# side-0 part 0: 197 primes, 197 ideals, weight 2.9635
+# side-0 part 1: 7621 primes, 7621 ideals, weight 0.49317 [55 slices]
+# Side 1: log2(maxnorm)=89.77 scale=2.83, logbase=1.278084 bound=124
+# Sieving side-1 q=64567; rho=8488; a0=8488; b0=1; a1=22127; b1=-5; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+-10541299,2204:d,3f5,2063,9145,1bbf9:2,2,2,5,7,b,33f1,6f8f,9e3b,d531,fc37,1a5f7
+-8171915,2544:13,d01,25d9,43f1,be25:2,2,2,2,2,2,3,3,5,7,b,11,1f,2b,61,bf,191,fef,fc37,22799
+-5555865,2624:3,3,e59,2b97,80ad,a8d7:2,2,2,2,2,5,1d,1d,6d,bf,32b,2d07,a8a9,fc37,3e4f1
+-9220489,1462:5,7,13,1d,1f,67,df,161,fceb:2,2,2,2,3,3,b,3b,13d,4b1f,8215,d1ff,fc37,22e85
+-5715236,1913:2,5,b5,2a1,2f9,1ff3,c83f:3,3,7,b,1d,35,2629,fc37,13f6d,25fa5,2cc57
+-8222601,1397:3,3,2e7,5cbd,6601,118a9:2,2,2,2,2,2,2,2,2,2,5,5,7,d,11,11,1d,1d,191,89f,28d5,47fb,fc37
+-9909967,970:25,2f9,5ad,a4ad,1f55b:2,2,2,2,3,3,5,5,5,7,11,4cd,955,164f,2225,fc37,69473
+-7659619,657:5,53,65,a9f,2ab9,1e029:2,2,3,1f,43,17f,9a9,9f43,fc37,255e3,4974d
+-8658157,585:35,3b,277,737,12c1,1fe1:2,2,2,2,2,2,2,2,3,5,7,b,13,65,17b,5219,da3f,fc37,3d655
+-3221113,830:10f,241,15d7,2f27,3f5f:2,2,2,2,2,2,5,5,5,b,281,455,d85,6803,fc37,4fae1
+# DUPECHECK Checking if relation (a,b) = (-3509841,370) is a dupe of sieving special-q -q0 62639 -rho 10660
+# DUPECHECK Checking if relation (a,b) = (-10838961,2245) is a dupe of sieving special-q -q0 62383 -rho 27600
+# DUPECHECK Trying side-1 q=62639; rho=10660; a0=10660; b0=1; a1=19999; b1=-4; I=1024; J=512;
+# DUPECHECK Trying side-1 q=62383; rho=27600; a0=7183; b0=-2; a1=20417; b1=3; I=1024; J=512;
+# Side 0: log2(maxnorm)=58.82 scale=4.30, logbase=1.174916 bound=97
+# DUPECHECK (i,j) = (1256, 89) is outside sieve region
+# DUPECHECK relation is probably not a dupe
+-10838961,2245:3,17,509,121f,44ad,fd55:2,2,2,2,2,5,b,4f,15b,f7f,f3af,fc37,23ced,2b8e3
+5872910,129:2,2,2,2,7,7,d,d,853,e75,10f3:3,3,5,b,11,13,21d,653,28d9,3b71,fc37,55e3b
+-5425442,15:2,2,13,1bb,acf,2443,61f1:3,3,5,7,d,6d,95,167,a97,bfb,e4b,2327,fc37
+-884585,801:59,a39,ceb,2add,48cd:2,2,2,2,2,2,3,5,7,b,5cf,1349,1a05,1b55,fc37,27afd
+1748169,31:3,1eb,265,c5b,6965:2,2,2,2,2,2,5,b,17,2f5,11a7,1345,1537,2135,fc37
+-2554170,49:2,2,2,3,3,3,1d,3d,2a1,16f9,2f41:5,b,b,d,d,11,17,35,59,4c1,1499,fc37,46e2f
+2339933,192:7,7,b,89,469,e95,16af9:2,2,2,2,2,3,3,3,5,6d,251,335,157d,1ca3,229d,fc37
+1941647,282:97,f1,11d1,2359,7bef:2,2,2,3,3,7,7,b,1d,16f,b3f,fc37,55999,5b657
+# Side 1: log2(maxnorm)=89.50 scale=2.83, logbase=1.278084 bound=124
+# DUPECHECK relation had i=106, j=119, remaining lognorms 73, 50
+# DUPECHECK relation is probably a dupe
+# DUPE -3509841,370:3,a63,1d39,2fdd,1be15:2,2,2,5,7,b,d,b3,4c7,594b,f4af,fc37,2babd
+# survivors before_sieve: 524288
+# survivors after_sieve: 1400 (ratio 2.67e-03)
+# survivors not_both_even: 1400
+# survivors not_both_multiples_of_p: 1400
+# survivors trial_divided_on_side[0]: 393
+# survivors check_leftover_norm_on_side[0]: 393 (28.1%)
+# survivors trial_divided_on_side[1]: 21
+# survivors check_leftover_norm_on_side[1]: 21 (5.3%)
+# survivors enter_cofactoring: 21
+# survivors cofactored: 19 (90.5%)
+# survivors smooth: 19
+# Checksums over sieve region: after all sieving: 0, 0
+# 18 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=64567 r=8488: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=65381; rho=59217
+# Side 0: log2(maxnorm)=58.76 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=90.20 scale=2.80, logbase=1.280887 bound=123
+# Creating new slicing on side 1 for scale=2.8, thresholds={1024, 111342, 111342, 111342}
+# side-1 part 0: 122 primes, 203 ideals, weight 4.5745
+# side-1 part 1: 6424 primes, 10189 ideals, weight 0.51853 [59 slices]
+# Sieving side-1 q=65381; rho=59217; a0=6164; b0=-1; a1=34561; b1=5; I=1024; J=448;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+12501430,1557:2,2,2,2,2,2,977,16af,2aeb,6571:3,5,7,b,1f,6d,bf,1b1,4bdf,ff65,1eb39,22e85
+7018013,1545:b,b,b,2f,115,185,d8d,2db5:2,2,3,5,5,5,7,53,b3,48b,1697,ff65,53a77,60623
+8569384,1113:2,5,89,e5,859,fa3,10d2d:3,3,1f,10f,209,21e9,283d,a7bf,ff65,345eb
+7000879,1272:7,599,fa7,b4e3,1cfdf:2,2,2,2,3,5,b,b,11,1f,25f,ff65,187ed,3537b,514f9
+10324593,754:3,13,17,2f,2f,2e3,d8d,39af:2,2,2,2,2,2,5,5,7,11,2b,9d,1cf,1369,a229,ff65,51317
+4479284,631:2,7,2f,2f9,301,2d07,5d6d:3,3,5,b,11,43,43,2a5,455,c5f,d85,2f45,ff65
+8907379,496:139,335,397,121d,e71f:2,2,2,2,2,2,2,5,1bef,3401,39e5,ff65,1ef13,41c77
+-4516135,22:13,8b,1915,25bd,1da17:2,2,2,3,3,5,7,11,1f,2b,2b,45d,647,177b,ff65,1ce19
+4266007,358:b,53,65,32b,1e2b,16ef5:2,2,2,2,5,5,7,17,1f,503,509,6a1,20fb,4423,ff65
+6764171,80:7,7,a7,833,2383,c829:2,2,2,2,2,2,5,b,1d,6d,b3,15b,8c3,be6f,ff65,2e9bd
+3656237,266:a7,251,1327,1843,3209:2,2,2,2,2,2,2,5,47,779,9d9,b93,21f1,ff65,1bfa1
+4528889,82:b,15cd,7c81,fc01:2,2,2,2,2,3,3,5,7,83,326b,3517,c0d9,ff65,3bc65
+-401765,97:14b,5fb,6a3,d3f,1ae3:2,2,2,2,2,2,2,2,5,b,11,13,1d,18c1,1e71,ff65,13ab7
+-2559591,341:3,43,175,1a4d,269f,3a67:2,2,5,7,9d,269,7f7,e2f,ff65,14d37,15607
+-1132179,67:3,3,5,5,b,df,1e7,11a1,363b:2,2,2,2,2,d,11,1f,8e1,1733,4c61,ff65,48ec5
+-1363096,9:2,53,1051,12619,1e31d:3,b,b,11,251,8f5,8f9,5ba3,e2d3,ff65
+-1366917,593:3,d,11,588d,11317,1b77b:2,2,2,2,2,2,7,7,7,7,29,95,b5,167,ff65,159b3,1d02f
+-4317609,308:3,3,3,d,6d,83,137,581,843b:2,2,2,5,11,47,95,eb9,1c09,ff65,11d4f,446e9
+217444,389:2,3d1,3dcf,555b,1ad59:3,3,7,b,d,65,38cf,4ed7,5f95,cd09,ff65
+-1307487,647:3,3,7,13,51f5,e557,15683:2,2,2,2,2,2,5,5,11,b5,1b1,269,1279,139d,8cb1,ff65
+# survivors before_sieve: 458752
+# survivors after_sieve: 1368 (ratio 2.98e-03)
+# survivors not_both_even: 1368
+# survivors not_both_multiples_of_p: 1368
+# survivors trial_divided_on_side[0]: 410
+# survivors check_leftover_norm_on_side[0]: 410 (30.0%)
+# survivors trial_divided_on_side[1]: 24
+# survivors check_leftover_norm_on_side[1]: 24 (5.9%)
+# survivors enter_cofactoring: 24
+# survivors cofactored: 20 (83.3%)
+# survivors smooth: 20
+# Checksums over sieve region: after all sieving: 0, 0
+# 20 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=65381 r=59217: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=66169; rho=32142
+# Side 0: log2(maxnorm)=57.75 scale=4.38, logbase=1.171674 bound=99
+# Creating new slicing on side 0 for scale=4.375, thresholds={1024, 78682, 78682, 78682}
+# side-0 part 0: 197 primes, 197 ideals, weight 2.9635
+# side-0 part 1: 7621 primes, 7621 ideals, weight 0.49317 [56 slices]
+# Side 1: log2(maxnorm)=89.35 scale=2.83, logbase=1.278084 bound=124
+# Sieving side-1 q=66169; rho=32142; a0=1885; b0=-2; a1=32142; b1=1; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+13117955,1176:b,1087,2bbd,3dcf,55e7:2,2,2,2,3,5,43,119,305,455,4bd,9f73,10279,431c9
+10368629,1004:13,17,2f,17b,427,443,443b:2,2,2,7,b,7f,209,955,1499,c2ff,10279,58819
+9806123,1320:17,9d,2f83,c857,17e7f:2,2,2,2,3,5,5,5,7,7,1f,1f,125,3d1,43f,6997,6ebd,10279
+11720617,412:35,43,386f,396b,c941:2,2,2,11,13,1b1,223,7f7,59f5,665b,10279,24151
+8417295,898:3,89,6a3,871,c31,7771:2,2,2,5,7,11,a7,b5,5ab,8f5,7195,10279,45577
+10162333,240:125,4531,7991,10c03:2,2,2,2,2,2,3,3,5,7,b,d,11,11,251,6b93,8423,10279,24055
+7623115,161:b,d,d,11,97,2065,1ca47:2,2,2,2,2,2,3,3,5,3b,295,7b5,274d,7b1d,10279,4bd31
+6458227,730:b,833,3341,4045,5cc9:2,2,2,5,5,7,35,269,2a5,21d7,10279,19e1d,1da61
+7350275,626:1f,6b,1b59,c5c3,13c7b:2,2,2,5,5,7,1d,61,b5,1b7,3df,10279,1f33f,29b79
+6897529,299:1d,53,7f,185,32c9,5551:2,2,2,2,2,2,3,3,7,b,11,65,233,277,337,15f7,10279,185cb
+6265278,689:2,2,2,2,2,2,2,2,2,2,2,2,3,13,223,49ab,b449:5,7,11,29,3b,1393,7f15,8bd9,10279,3e41f
+6127091,625:d,35,41b,5d1,bb7,77f3:2,2,2,2,2,3,3,5,7,b,1f,61,95,175,7cd,10279,3f965
+# DUPECHECK Checking if relation (a,b) = (4295815,181) is a dupe of sieving special-q -q0 65257 -rho 25897
+# DUPECHECK Trying side-1 q=65257; rho=25897; a0=13463; b0=-2; a1=12434; b1=3; I=1024; J=512;
+# Side 0: log2(maxnorm)=58.78 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=88.82 scale=2.85, logbase=1.275336 bound=125
+# DUPECHECK relation had i=163, j=169, remaining lognorms 0, 53
+# DUPECHECK relation is probably a dupe
+# DUPE 4295815,181:d,1af,16cf,4f81,7577:2,2,2,2,2,2,5,11,29,2309,7e2b,fee9,10279,6e003
+1896960,269:2,3,1f,175,4a9,597b,5d55:5,7,47,6c5,20ed,2beb,321d,5c2f,10279
+2431246,685:2,2,2,17,61,c5f,a9b1,c4bb:5,6b,b3,7b5,8f9,1115,263f,10279,41a53
+3167172,185:2,3,7,b,17,871,2f7d,159ad:5,d,1cf,755,10279,13751,3b2ed,690c5
+-209429,152:5,7,1d,a7,607,c41,8eff:2,2,2,2,3,3,377,10af,136d,32c9,10279,20831
+-255154,25:2,2,2,2,2,35f,5c9,10f1,7d9f:3,3,5,7,1d,223,455,676f,10279,60a91
+-579762,229:2,2,2,3,67,6b,e3,1e0b,18683:5,7,17,85a5,8a6d,9725,10279,48a09
+-1177307,863:ad,b3,dbd,82c7,b6a5:2,2,2,2,2,2,2,2,3,3,6d,36d,44f,761,7fed,10279,4fb95
+-471680,1027:2,95,463,80f,f5b,11f63:5,7,13,65,df,1b1,565,9a3,364d,a72d,10279
+-574689,13:3,89,2291,2f41,18f49:2,2,2,2,2,2,2,5,7,b,2a5,8c3,7685,10279,605fb
+# DUPECHECK Checking if relation (a,b) = (-702869,149) is a dupe of sieving special-q -q0 64937 -rho 37993
+# DUPECHECK Trying side-1 q=64937; rho=37993; a0=-11049; b0=-2; a1=15895; b1=-3; I=1024; J=512;
+# Side 0: log2(maxnorm)=58.80 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=88.53 scale=2.85, logbase=1.275336 bound=125
+-725683,103:13,25,2b,905,b89,1a809:2,2,2,2,2,2,3,3,5,11,151f,422f,7b9b,8a6d,10279
+646901,121:7,115,34e1,483d,a9bb:2,2,3,3,d,d,11,b5,281,79d,319f,47cb,10279
+# DUPECHECK relation had i=4, j=47, remaining lognorms 0, 0
+# DUPECHECK relation is probably a dupe
+-1510383,58:3,503,1051,2ce3,15b15:2,2,2,2,5,52f,bb7,1733,10279,24c17,285f7
+# DUPE -702869,149:b,d,a3,c5b,1fa5,cbd5:2,2,2,2,2,3,3,5,7,13,17,20b,f95,2333,fda9,10279
+1941909,116:3,3,83,18b9,5c87,159b3:2,2,2,5,b,13,152b,10279,13799,14e67,3363b
+1450063,6:5,551,581,26dd,9e47:2,2,2,2,3,3,3,161,c6d,155f,10279,11de5,276fb
+-2006956,971:2,1d,2b,61,1af,a625,ab0b:5,13,cbb,1669,dc9d,10279,27adf,51e33
+694220,141:2,25,6b,3161,351d,4723:3,5,b,13,61,8b,29d5,10279,112b7,4c23b
+# DUPECHECK Checking if relation (a,b) = (-1986179,282) is a dupe of sieving special-q -q0 62581 -rho 6050
+# DUPECHECK Trying side-1 q=62581; rho=6050; a0=6050; b0=1; a1=32331; b1=-5; I=1024; J=448;
+# Side 0: log2(maxnorm)=58.98 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=90.16 scale=2.80, logbase=1.280887 bound=123
+# DUPECHECK relation had i=13, j=59, remaining lognorms 0, 50
+# DUPECHECK relation is probably a dupe
+# DUPE -1986179,282:5,925,15c5,31ff,11e99:2,2,2,2,2,3,7,4f,6b,6b,8b09,f475,10279,32e87
+# survivors before_sieve: 524288
+# survivors after_sieve: 1730 (ratio 3.30e-03)
+# survivors not_both_even: 1730
+# survivors not_both_multiples_of_p: 1730
+# survivors trial_divided_on_side[0]: 498
+# survivors check_leftover_norm_on_side[0]: 498 (28.8%)
+# survivors trial_divided_on_side[1]: 39
+# survivors check_leftover_norm_on_side[1]: 39 (7.8%)
+# survivors enter_cofactoring: 39
+# survivors cofactored: 31 (79.5%)
+# survivors smooth: 31
+# Checksums over sieve region: after all sieving: 0, 0
+# 28 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=66169 r=32142: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=67157; rho=26136
+# Side 0: log2(maxnorm)=58.79 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=88.59 scale=2.85, logbase=1.275336 bound=125
+# Sieving side-1 q=67157; rho=26136; a0=14885; b0=-2; a1=11251; b1=3; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+10312879,798:5,53,1a3,35b,4787,a8c1:2,2,2,2,2,3,3,b,a7,15b,35f,76f1,9809,10655,2d953
+-3065163,2203:3,3,3,7,65,2be7,9949,ca07:2,2,2,2,2,5,5,5,b,d,11,11,13,10d,1cf,bcb,e4b,b795,10655
+4848627,1072:3,3,3,2b,1c9,3d7,c77,1bdc1:2,2,2,2,2,2,2,2,13,329,be9,e257,10655,2f81f,39ba1
+# DUPECHECK Checking if relation (a,b) = (-2377024,1903) is a dupe of sieving special-q -q0 65557 -rho 45223
+# DUPECHECK Trying side-1 q=65557; rho=45223; a0=4555; b0=3; a1=20334; b1=-1; I=1024; J=512;
+# DUPECHECK (i,j) = (-554, 241) is outside sieve region
+# DUPECHECK relation is probably not a dupe
+-2377024,1903:2,11,1d,25,47,301,16d9,7dcb:3,3,5,5,5,7,63d,815,10015,10655,394d9,48e3f
+-3220439,2084:11,209,34f1,df99,eacb:2,2,2,3,3,5,5,7,b,43,305b,10655,14f39,1c3cf,2094b
+1295034,1175:2,2,2,3,3,6fd,16bd,349d,55e7:5,35,b3,443,5a7,8cb,e27,1247,29e9,10655
+5132572,515:2,265,3b59,d01f,140e9:3,3,5,b,b,d,11,11,b5,79f,c91f,10655,7a51b
+4386516,137:2,3,3,3,3,5,b,bf,eaad,1acdd:1d,47,b3,b5,e5,9373,9ef9,10655,1702d
+1549209,622:3,3,529,1ec7,2527,1f657:2,2,2,5,7,b,b,d,13,53,67,b5,e9,1115,10655,36d01
+3182515,1:1f,5b3,8ad,1b83,3bcb:2,2,2,2,2,5,b,11,166d,10655,19421,31133,32075
+-6265455,323:3,35,a3,204d,2cdb,854f:2,2,2,2,2,2,2,5,b,d,1d,1d,107,d70b,10655,1a2f3,1e977
+2525337,166:3,11,199,611,6647,6b23:2,2,2,5,29,15d,1c9,4879,10655,110d7,77ca7
+1547608,347:2,7,35f,62f,d393,e819:3,3,5,b,1d,1f,20b,79d,8f9,38d5,5a1f,10655
+-7058487,601:3,5,5,5,5,f1,119,4613,f0a9:2,2,b,d,11,15d,269,7db,9ef,4aef,10655,245c3
+1216443,8:3,d,2f,3b,43,244d,9aeb:2,2,2,2,7,7,7,29,3fd,8ad,df2b,10655,7e91d
+-3078813,152:3,3,7,7,d,47,53,c5,15d,4339:2,2,2,2,b,11,65,493,b1bf,10655,2eb13,4436f
+-1076052,113:2,3,3,25,71,859,1d3f,52c7:b,11,2d7,1a2d,1d21,57a1,10655,1e76f
+# survivors before_sieve: 524288
+# survivors after_sieve: 1620 (ratio 3.09e-03)
+# survivors not_both_even: 1620
+# survivors not_both_multiples_of_p: 1620
+# survivors trial_divided_on_side[0]: 449
+# survivors check_leftover_norm_on_side[0]: 449 (27.7%)
+# survivors trial_divided_on_side[1]: 22
+# survivors check_leftover_norm_on_side[1]: 22 (4.9%)
+# survivors enter_cofactoring: 22
+# survivors cofactored: 17 (77.3%)
+# survivors smooth: 17
+# Checksums over sieve region: after all sieving: 0, 0
+# 17 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=67157 r=26136: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=67499; rho=26414
+# Side 0: log2(maxnorm)=58.79 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=88.64 scale=2.85, logbase=1.275336 bound=125
+# Sieving side-1 q=67499; rho=26414; a0=14671; b0=-2; a1=11743; b1=3; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+1138313,1906:5,d,43,53,7f,c1,b7b,368b:2,2,2,2,2,3,3,7,13,17,1d,b5,15d,1505,107ab,15be1,3ce4b
+-1528757,2357:47,53,65,4fd,2c87,cf4d:2,2,2,2,2,3,3,5,7,b,11,9d,5ab,91db,107ab,2027f,2745d
+3960753,1328:3,3,49,3f5,b11,d85,9113:2,2,2,2,2,2,7,d,d,65,493,50b,164f,3599,107ab,1189d
+4406677,1212:ad,151,1079,2443,175e1:2,2,2,3,3,1d,24b,335,8bf,a57,107ab,112b7,1c2e5
+11572074,295:2,2,2,3,b,b,53,65,2a5,35b,4a3:5,7,1d,1f,4bd,4025,6a4b,91c9,107ab,2a70f
+1157507,905:b,347,30ef,5003,1193f:2,2,2,2,2,2,5,5,7,13,13,29,9d,209,f0b,1aa7,7939,107ab
+5053703,61:5,7,7,49,1639,169f,260f:2,2,2,2,2,3,3,d,11,1d,65,1c1,1c1,209,22d,107ab,61577
+-4456064,1339:2,7,1fd,593,8bf,a67,11a1:5,b,13,65,107,76d,8f9,d21f,107ab,16315
+-4886249,68:a31,bb9,dee3,1069f:2,2,2,3,3,5,b,67,1b7,23b,295,107ab,2d323,55481
+6157111,21:b,2b,61,c1,5a7f,148f3:2,2,2,2,2,2,2,3,11,13,1d,35,95,4c1,1393,1949,22f7,107ab
+1500145,366:7,53,67,15b,293,2a5,1b91:2,2,2,3,3,3,5,b,11,e9,223,329,107ab,19283,2fb97
+-8374771,723:5,32b,3ca7,55b1,1dc51:2,2,2,2,2,3,3,3,7,b,1d,5245,d7cb,107ab,2736b,2931b
+1068551,227:5,5,7,95,233,6a3d,1880b:2,2,d,35,14b,20b,5507,5f33,107ab,3e653
+1247438,129:2,2,2,2,119,125,44f,c6d,115f:3,3,5,3b,1c1,8981,9505,107ab,512e1
+-3268829,349:d,1d,2b,35,53,1f7,257,e4b:2,2,2,2,2,5,5,7,269,1b23,29a1,7e47,107ab,30253
+-698259,155:3,3,3,7,61,fb,d943,1ed15:2,2,2,2,2,2,5,b,3d7,6df,af3,f4f,107ab,12733
+-331484,105:2,2bd,29a1,4613,137cf:3,3,3,5,11,295,25cd,4e5f,107ab,5119f
+-3165853,542:65,419,617,18eb,1ac1d:2,2,2,2,7,d,20b,2287,3a87,a699,107ab,73b2b
+-900663,224:3,5,5,5,b,11,7f,329,427,179f:2,2,2,2,2,17,17,187f,222b,9e95,107ab,4e86f
+-70427,5:49,c7,397,853,a5df:2,2,3,3,5,b,11,11,11,107ab,259ab,2c671
+-46879,57:5,b,e5,985,e27,187c9:2,2,3,3,35,bf,1e4d,107ab,19bbf,5a823
+472586,69:2,2,7,d,d,eb7,32cb,c4a5:3,5,133,47f,21fb,9bb7,107ab,475cd
+-6065227,652:2b,47,2fdd,bb09,13fff:2,2,2,3,3,5,b,d,43,79d,107ab,134c3,26ca1,382d5
+-6722494,737:2,2,5,5,13d,1db7,202d,14545:7,11,13,1f,33d,210d,2903,98b9,107ab,23fc5
+1317741,32:3,3,5,5,1f,c1,2a73,1acfb:2,2,2,2,2,7,b,b,13,599,19db,77ef,107ab,1e833
+-6373411,625:1169,314b,594d,1b133:2,2,3,3,5,7,17,1f,4c01,107ab,14485,1997f,23939
+# survivors before_sieve: 524288
+# survivors after_sieve: 1681 (ratio 3.21e-03)
+# survivors not_both_even: 1681
+# survivors not_both_multiples_of_p: 1681
+# survivors trial_divided_on_side[0]: 477
+# survivors check_leftover_norm_on_side[0]: 477 (28.4%)
+# survivors trial_divided_on_side[1]: 36
+# survivors check_leftover_norm_on_side[1]: 36 (7.5%)
+# survivors enter_cofactoring: 36
+# survivors cofactored: 26 (72.2%)
+# survivors smooth: 26
+# Checksums over sieve region: after all sieving: 0, 0
+# 26 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=67499 r=26414: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=68491; rho=25641
+# Side 0: log2(maxnorm)=58.82 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=87.99 scale=2.88, logbase=1.272642 bound=126
+# Creating new slicing on side 1 for scale=2.875, thresholds={1024, 111342, 111342, 111342}
+# side-1 part 0: 122 primes, 203 ideals, weight 4.5745
+# side-1 part 1: 6424 primes, 10189 ideals, weight 0.51853 [60 slices]
+# Sieving side-1 q=68491; rho=25641; a0=-8432; b0=-3; a1=17209; b1=-2; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+-5836196,1725:2,b,3d,18d,1eb,33d,48b,577:3,3,5,7,7,7,7,7,d,2441,335b,33cb,10b8b,453bf
+-5532147,2020:3,13,61,6b,cb3,cb9,fed7:2,2,2,5,5,5,7,b,a7,49d,7eb,9e3,1931,10b8b,18041
+9424889,226:d,71,1a3,1b1,3a9,ab11:2,2,2,2,2,2,2,3,3,5,7,11,9743,f0e3,10b8b,186b3,4838b
+-6694991,794:d,6b,8851,c4eb,1196b:2,2,2,2,3,3,7,11,13,b5,223,3c7,611,4a0f,8243,10b8b
+-4738767,1490:3,7,1f,83,fa3,3f0b,d757:2,2,2,2,2,2,2,5,11,11,43,53,6d,125,209,617,10b8b,1de67
+-3169228,2219:2,5,5,5,d,47,18d9,2485,7ced:b,11,13,17,b5,3d7,805,e9b,1a3f,10b8b,41ba3
+-6772715,214:89,8dd,acf,16ed,3215:2,2,2,5,7,7,d,11,61,b3,1c1,8db,177b,10b8b,5d7db
+6086922,5:2,2,3,3,2f,1f99,6f61,c95f:5,5,7,b,d,d,11,67,c5f,3167,319f,8119,10b8b
+-3390407,995:b,49,4d5,6bb,169f,503f:2,2,2,2,2,3,3,5,5,5,5,1cf,503,9a3,2267,10b8b,43613
+-2845087,1254:d,17,47,8b,269,665,149d5:2,2,2,3,3,3,3,5,11,22d,4b1,163d,10b8b,2c891,50939
+7837714,303:2,2,2,2,5,5,7,7,7,35,d67b,1320b:3,3,3,3,b,11,13,17,2b,74b,9e3,10b8b,1423d,2e0ed
+-1679401,1620:11,13,6b,151,1eb,b47,4b49:2,2,2,3,5,7,d,259,45d,503,1997,2e3f,10b8b,1635b
+-4958221,226:25,71,9d,ef,3b03,6421:2,2,2,3,3,5,5,7,b,19ed,963d,10b8b,5bae7,65add
+7736641,860:26b,aeb9,d069,16fa9:2,2,2,3,3,5,7,6d,1a2d,c473,10b8b,26dd7,5cc3b
+-1528619,1300:6b,1fd,35f,42d,841,96b:2,2,2,5,7,7,11,7f,bf,935,10e7,1a05,10b8b,74975
+-3671879,375:7,1d,3f5,565,eb7,13679:2,2,2,2,2,3,3,3,5,43,53,24b,373,859,8c3,a22f,10b8b
+4909313,114:7,7,409,43f,5f3,e81b:2,2,2,2,2,2,2,3,5,5,5,b,b,1f,65,b5,2b3,2ccf,10b8b,2183f
+-3921734,213:2,2,25,15b,8e1,17f3,12a4f:3,3,5,7,11,13,1087,10b8b,16769,28d09,54af3
+850433,1919:7f,ef,9f7,d459,154ab:2,2,2,2,2,5,7,7,7,11,14b,1c55,3023,9311,10b8b,2c8c9
+-2374579,1064:25,61,65,a61,1a51,8077:2,2,2,2,5,b,15b,1795,ce15,10b8b,2579b,6e551
+7693639,666:12af,181d,b377,12515:2,2,2,3,5,5,11,13,1d,823,571f,10b8b,1429f,52ab1
+-646668,1297:2,3,11,2b,52eb,61ff,1a605:7,13,29,a7,209,7b5,38dd,aa6b,d217,10b8b
+5139696,529:2,3,3,d,13,281f,4c01,17233:5,7,11,277,6d3,9ef,10b8b,2850d,55ae3
+3637917,214:3,5,2f,2f,fd1,1471,9f7d:2,2,2,7,b,17,35,7bb,316d,10b8b,15edd,717d9
+1394607,1609:3,3,5,47,47,6b,ad,d79,5261:2,2,2,2,2,2,7,1d,b5,107,623,6a1,869,89b,32ad,10b8b
+-3477557,38:7,29,223,94d,98f,52bb:2,2,2,2,2,2,2,2,2,3,3,233,685,1393,10b8b,3083f,3d8c5
+-795947,391:5,7,7,a7,c7,df,f0b,2ba9:2,2,2,2,2,b,13,21d,121d,156b,48cd,10b8b,14329
+-1444369,339:b,d,1d,1f,71,35f,83f,a63:2,2,3,5,5,7,580d,5c6f,10b8b,39785,50953
+-660690,431:2,2,3,b,2f,24c5,429d,14ef7:5,7,7,11,1d,7f,119,2b3,329,529,10b8b,1510f
+# DUPECHECK Checking if relation (a,b) = (4110261,577) is a dupe of sieving special-q -q0 67651 -rho 29752
+2293545,418:3,3,3,3,11,47,47,15d,c91,246b:2,2,2,2,2,2,5,7,3b,61,161,20b,611,224b,5b2b,10b8b
+# DUPECHECK Trying side-1 q=67651; rho=29752; a0=8147; b0=-2; a1=21605; b1=3; I=1024; J=512;
+# Side 0: log2(maxnorm)=58.70 scale=4.33, logbase=1.173822 bound=97
+# Side 1: log2(maxnorm)=89.48 scale=2.83, logbase=1.278084 bound=124
+# DUPECHECK relation had i=-2, j=191, remaining lognorms 73, 49
+# DUPECHECK relation is probably a dupe
+# DUPE 4110261,577:3,5,7,11,c5,407,a1f,19379:2,2,175,611,1997,43e1,10843,10b8b,223af
+# survivors before_sieve: 524288
+# survivors after_sieve: 1623 (ratio 3.10e-03)
+# survivors not_both_even: 1623
+# survivors not_both_multiples_of_p: 1623
+# survivors trial_divided_on_side[0]: 454
+# survivors check_leftover_norm_on_side[0]: 454 (28.0%)
+# survivors trial_divided_on_side[1]: 40
+# survivors check_leftover_norm_on_side[1]: 40 (8.8%)
+# survivors enter_cofactoring: 40
+# survivors cofactored: 31 (77.5%)
+# survivors smooth: 31
+# Checksums over sieve region: after all sieving: 0, 0
+# 30 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=68491 r=25641: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=69847; rho=25732
+# Side 0: log2(maxnorm)=58.83 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=87.60 scale=2.88, logbase=1.272642 bound=126
+# Sieving side-1 q=69847; rho=25732; a0=-7349; b0=-3; a1=18383; b1=-2; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+-5568191,2251:3d,427,779,db11,fe8f:2,2,2,2,2,5,b,11,11,13,35,15d,1b7,233,4973,110d7,1f26d
+-9370721,176:62f,1af3,b893,1f693:2,2,2,2,2,2,2,3,3,5,5,7,61,259,dc9d,110d7,45f37,4b5e9
+-5608117,1788:2987,59b3,6467,e2bb:2,2,2,3,b,b,43,167,65b,89f,110d7,147d1,695dd
+-5390975,1563:13,89,209,679,24c5,3b1b:2,2,2,2,2,3,3,5,5,7,b,d,a67,2cff,110d7,2543f,2662d
+11035301,475:6d,22d,3b9,3e41,e219:2,2,2,2,2,3,3,5,7,11,a7,107,139,1cf,305,35f,110d7,1a16b
+-4615939,2136:d,2b,59,df,2c5,e6b,3991:2,2,2,2,3,3,1f,3b,8f5,1ac9,2ae3,56b1,110d7,1b74b
+-4673681,1162:2b,bf,1d3,815,a3d,2d1f:2,2,2,5,b,11,1f,4f,b5,4c1,b23,6251,72b3,110d7
+-4398125,1303:d0f,7663,a321,f607:2,2,5,5,7,989,acf,1f67,110d7,1a993,4d089
+-3777103,1528:1f,6d9,c73,47bf,179e1:2,2,2,2,3,3,5,7,11,1d,43,b93,103d,110d7,14ae9,1fb0b
+-2398819,1777:5,1f,97,1d5d,43e1,1c06d:2,2,3,3,7,7,11,13,43,955,5563,110d7,1da07,54d33
+6039503,384:13,17,63c1,c101,17861:2,2,2,2,2,3,5,5,7,b,1d,1f,61,67,907,7633,b6d7,110d7
+-4422618,181:2,2,2,2,3,83,f1,161,1931,38dd:5,7,b,11,1f,35,aab,13bb,110d7,16235,3c79f
+-3496854,749:2,2,3,3,2dd,10f1,32d1,19ab7:5,5,d,a7,2f45,e8a5,110d7,4279f,4761d
+6608725,911:15b,191,83f,1c33,1196f:2,2,2,2,2,2,2,3,3,5,5,5,7,b,13,1f,36d,611,2309,110d7,2db89
+6898958,1077:2,2,2,6b,1b1,2e3,4297,99bf:3,5,5,7,35,b5,281,8bd,f17,6475,adf5,110d7
+-1489863,922:3,107,599,96b,b3f,5b0f:2,2,2,2,b,11,a7,f0d,aa17,110d7,20b91,75fb3
+281477,1436:b,fa3,20e3,35e7,d2b3:2,2,2,5,1d,29,7f,133,15b,152b,110d7,1ec73,1ecb3
+-2260941,94:3,3,11,13,3b,53,bf,25f,3d6f:2,2,2,2,d,d,1f,a7,67f,1039,2875,110d7,37b89
+-1779487,205:b,125,1ec5,4337,19895:2,2,3,3,5,d,59,335,f067,110d7,15503,26eed
+3683067,401:3,3,3,3,3,7,438b,a699,c911:2,2,2,2,2,2,5,5,5,11,161,685,fad,597b,6d93,110d7
+# DUPECHECK Checking if relation (a,b) = (2525337,166) is a dupe of sieving special-q -q0 67157 -rho 26136
+3833522,643:2,2,2,13,17,17,2dd,8baf,cd31:3,3,5,5,47,e9,40f,82cf,110d7,1387f,614cf
+# DUPECHECK Trying side-1 q=67157; rho=26136; a0=14885; b0=-2; a1=11251; b1=3; I=1024; J=512;
+# Side 0: log2(maxnorm)=58.79 scale=4.30, logbase=1.174916 bound=97
+-92671,694:d,7cd,4021,4193,493d:2,2,2,3,3,b,6d,83,f67,1471,7633,110d7,61405
+3039935,224:1f,2c5,49d,4d05,f94f:2,2,2,2,2,5,1d,47,101,2f5,443,4e8b,110d7,310cd
+2704537,1009:5,251,45d9,a3ff,14503:2,2,7,d,1f,29,65,bf,10d,17c9,4751,110d7,127bd
+# Side 1: log2(maxnorm)=88.59 scale=2.85, logbase=1.275336 bound=125
+-106634,23:2,2,409,132d,3841,403f:3,3,5,5,d,67,20b,85a9,110d7,79b41
+1143179,96:257,2135,bbf9,e7fb:2,2,2,2,2,3,5,7,b,11,b5,bf,20b,3e5,110d7,55a11
+-99327,64:3,11,13,13,49,e3,5db,6c59:2,2,2,2,2,5,7,b,d,e9,19b1,244d,de5b,110d7
+1075967,1038:1f,3d,83,8ef,1c4b,bafd:2,2,2,2,2,2,2,3,3,5,b,d,13,709,465d,110d7,1330f,6c991
+3531478,1185:2,2,2,13,3fd,7c9,54d1,7dcb:3,3,3,5,7,11,17,1f,19fd,3ae5,110d7,277f7,345a1
+# DUPECHECK relation had i=85, j=112, remaining lognorms 0, 54
+# DUPECHECK relation is probably a dupe
+# DUPE 2525337,166:3,11,199,611,6647,6b23:2,2,2,5,29,15d,1c9,4879,10655,110d7,77ca7
+# survivors before_sieve: 524288
+# survivors after_sieve: 1604 (ratio 3.06e-03)
+# survivors not_both_even: 1604
+# survivors not_both_multiples_of_p: 1604
+# survivors trial_divided_on_side[0]: 456
+# survivors check_leftover_norm_on_side[0]: 456 (28.4%)
+# survivors trial_divided_on_side[1]: 38
+# survivors check_leftover_norm_on_side[1]: 38 (8.3%)
+# survivors enter_cofactoring: 38
+# survivors cofactored: 30 (78.9%)
+# survivors smooth: 30
+# Checksums over sieve region: after all sieving: 0, 0
+# 29 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=69847 r=25732: 0.00s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=70481; rho=36828
+# Side 0: log2(maxnorm)=58.28 scale=4.35, logbase=1.172742 bound=98
+# Side 1: log2(maxnorm)=89.31 scale=2.83, logbase=1.278084 bound=124
+# Sieving side-1 q=70481; rho=36828; a0=-3175; b0=-2; a1=33653; b1=-1; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+-16381359,847:3,5,1d,17b,33d,4f3f,13607:2,2,2,2,2,1f,1f,4f,16f,2b3,335,779,368f,c0ef,11351
+-14365394,341:2,2,2,2a5,1e4d,75e5,163d9:3,3,7,13,53,22d,45a3,5135,a543,11351,5d0a9
+-11779742,1215:2,2,2,2,2,2,2,2,2,2,1bb,7bb,10fd,11339:3,5,7,b,11,11ab,19db,a6ff,11351,18215,193ff
+-15166095,214:3,3,13,139,175,1f7,293,375d:2,2,2,5,6d,21d,259,481d,52b1,53b9,7fed,11351
+-13501173,730:3,25,29,1843,13163,14b7b:2,2,2,5,5,b,11,13,61,4c0d,5a1f,8bfd,11351,44df1
+-13056743,233:11,287,329,4cd,67f,135d:2,2,3,3,5,5,10f,11351,11861,174b5,5436d,5c6e9
+-12007100,761:2,3d,7f,11b,5ab,de7,207d:3,3,5,5,11,13,bf,125,3e5,c25,11351,11461,392cb
+10023596,609:2,b5,c7,92f,1c8d,10505:3,5,15b,199,32b,529,109d,4339,11351,3e831
+-9442531,201:1d,283,e57,51a1,c325:2,2,3,3,5,b,b,11,65,b5,20b,60d9,61f1,6c05,11351
+-8639897,640:1d,97,1f85,a9eb,185b1:2,2,2,2,2,5,b,b,13,13,95,1cf,3463,a58b,11351,35d71
+-9106011,80:3,11,35b,153d,316d,3cdf:2,2,2,2,2,2,2,2,5,7,b,b,17,65,6b,6d,df,6475,11351,4722b
+# DUPECHECK Checking if relation (a,b) = (9700377,361) is a dupe of sieving special-q -q0 67853 -rho 66906
+# DUPECHECK Trying side-1 q=67853; rho=66906; a0=947; b0=-1; a1=66906; b1=1; I=1024; J=320;
+# Side 0: log2(maxnorm)=56.65 scale=4.48, logbase=1.167533 bound=101
+# Side 1: log2(maxnorm)=90.46 scale=2.80, logbase=1.280887 bound=123
+# DUPECHECK relation had i=-213, j=148, remaining lognorms 1, 47
+# DUPECHECK relation is probably a dupe
+# DUPE 9700377,361:3,161,239,2ab,c6d,6b75:2,2,5,b,1f,107,6155,1090d,11351,1a4c1,24139
+-9811382,901:2,2,5,df,6dc1,74fb,d837:17,2a1,7bb,b93,11351,11ca5,140d1,334ed
+-7920524,183:2,a3,283,2bd,155f,130c1:3,5,7,7,b,b,b,43,b5,209,2d7,380b,11351,734bd
+9109256,699:2,7,1d,29,115,199,24b,16c49:3,5,b,13,1bb,21d,281,5d0b,9da5,aef5,11351
+7156681,24:337,115f,ae8f,1e17b:2,2,2,2,3,3,5,d,17,2f11,11351,14add,2dae7,683a1
+-6561053,329:5,3b9,eb7,de4f,1497b:2,2,2,2,2,2,3,3,b,d,13,ad,1cd,230b,84cd,11351,6d027
+7368775,202:d,d,2fdb,10693,178f1:2,2,2,5,5,7,b,1c1,1cf,c5f,e09,e27,11351,1fd6b
+7629125,366:337,1b2f,f9b9,1d70b:2,2,2,3,5,5,b,191,5cd1,e507,e8db,11351,12a99
+7685033,712:17,1d,59,9f5,535d,85e1:2,2,2,2,3,3,5,7,b,b,b,d,655,103f,ae23,11351,2a667
+-6069599,239:167,1af,1105,1bd7,368f:2,2,2,2,2,3,3,5,7,b,d,11,17,287,5e27,6ef9,b56f,11351
+6515381,175:b,d,11,138b,40b1,d8cd:2,2,2,2,2,2,2,3,3,5,65,15b,2a5,63d,11351,22a6b,53341
+6266469,107:3,d,16f,16f,d13,edfb:2,2,2,2,2,5,5,7,7,11,1d,1d,1c1,5617,8c6f,bb9d,11351
+-5846738,113:2,2,2,2,7,2f,71,6df,1051,2593:3,3,5,107,1b1,4bd,551,779,146f,11351,1981f
+-3478869,1094:3,b,b,11,115,409,1085,74a7:2,2,2,2,2,2,5,7,15b,17cb,2263,d77b,11351,625a3
+3652993,503:2b,65,95,ef,5567,616f:2,2,2,2,2,2,2,2,3,3,7,b,b29,b729,11351,20c4b,692db
+-2927731,975:2f,599,709,43a5,1707b:2,2,2,2,2,3,3,3,5,7,59,35f,13bb,11351,3ffdf,7187b
+4143205,723:7,7,115,a81,892d,17d29:2,2,2,2,2,2,2,3,5,1073,1169,1337,11351,2c437,31d23
+-2866835,303:2f,78b,91d,12fd,1036d:2,2,2,2,2,3,3,5,7,7,b,2b,b5,4cf,c41,f25,279d,11351
+-1715632,451:2,5,11,43,b9b,6cb3,18167:3,3,7,e9,419,7db,a9f,800f,b647,11351
+995077,982:1f,1f,89,b89,10a5,1b65f:2,2,2,7,7,11,59,df,337,24f5,11351,1912d,20665
+978491,128:7,13,377,4c7,509,1bf3d:2,2,2,2,2,5,1f,47,115,1f7,11351,3f989,65f17
+-281273,178:7,11,11,59,ef,5675,90c5:2,2,2,5,b,13,17,35,47,4c1,4109,11351,7e91d
+972131,13:1f,bf,52f,22db,2fed:2,2,2,2,2,3,3,5,b,b,13,17,35,65,87f7,11351,616db
+-648291,80:3,3,3,17,17,29,6b,a7,199,1021:2,2,2,2,2,2,2,2,2,2,5,7f,b5,1795,6d61,11351,2116d
+-737111,912:7,827,1d99,6f3d,dd17:2,2,2,2,2,2,2,2,3,5,2b,a7,617,267b,11351,15913,2d707
+# survivors before_sieve: 524288
+# survivors after_sieve: 1604 (ratio 3.06e-03)
+# survivors not_both_even: 1604
+# survivors not_both_multiples_of_p: 1604
+# survivors trial_divided_on_side[0]: 461
+# survivors check_leftover_norm_on_side[0]: 461 (28.7%)
+# survivors trial_divided_on_side[1]: 43
+# survivors check_leftover_norm_on_side[1]: 43 (9.3%)
+# survivors enter_cofactoring: 43
+# survivors cofactored: 36 (83.7%)
+# survivors smooth: 36
+# Checksums over sieve region: after all sieving: 0, 0
+# 35 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=70481 r=36828: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=71569; rho=19806
+# Side 0: log2(maxnorm)=58.40 scale=4.33, logbase=1.173822 bound=97
+# Creating new slicing on side 0 for scale=4.325, thresholds={1024, 78682, 78682, 78682}
+# side-0 part 0: 197 primes, 197 ideals, weight 2.9635
+# side-0 part 1: 7621 primes, 7621 ideals, weight 0.49317 [55 slices]
+# Side 1: log2(maxnorm)=89.19 scale=2.83, logbase=1.278084 bound=124
+# Sieving side-1 q=71569; rho=19806; a0=19806; b0=1; a1=12151; b1=-3; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+-14431810,1107:2,2,25f,4ff,745,d85,3373:3,5,7,11,1f,8b,21d,407,16e5,11791,1997b,2bbaf
+-3965971,1256:1fd,503,5f3,a31,18143:2,2,2,2,5,7,d,61,ad,b3,3a9,11791,2b05d,7f2d1
+-7659115,766:d,2b,2b,229d,5617,90fd:2,2,2,3,3,5,7,b,59,bf,209,259,649,8f9,11791,13cdf
+6152837,1420:13,4f,6b,4cd,4f2d,f689:2,2,2,3,3,5,1d,2d7,58f,b215,11791,5d33d,76807
+-5000733,734:3,5,5,f1,11b,469,595,4b31:2,2,2,2,7,b,d,1d,46c9,b48b,11791,153d1,4d9cf
+-6572813,380:1d,14b,a7f,95b7,17b7f:2,2,2,3,3,5,5,7,17,4f,1f3,38f,a97,5e2d,6607,11791
+-9771908,251:2,b,b,d,d,65,a3,21b3,374f:3,3,5,5,7,11,329,63d,7663,11791,25181,6c18b
+-6467465,407:1f,67,e5,32b,dab,bdeb:2,2,3,3,5,7,125,4973,11791,14831,2001d,371d7
+-5180075,472:23b,3e5,4bd,9eb,f2bf:2,2,2,2,5,5,7,b,6d,95,2dd,79d,bd1d,11791,3d541
+4515755,817:1f,6d,15d,2b3,215b,4fa9:2,2,2,2,2,2,2,3,3,5,7,7,11,bf,e9,1a4d,7f5b,11791,36cf5
+-9185501,118:5,13,17,49,64d,7c3,1a0f3:2,2,2,2,2,2,7,2b,35,ad,f95,2875,4903,11791,5b97b
+1831983,602:3,3,3,3,3,d,1073,128ff,1a7d3:2,2,2,5,5,b,11,305,8c3,2ce1,4561,11791,3027b
+9766796,139:2,287,329,10237,18c7d:3,3,5,7,b,167,aaef,11791,13b79,1458b,25ad1
+2016922,521:2,2,b,209,102b,366d,11435:3,3,5,7,7,1bb,371,4c7,529,6295,b165,11791
+-517145,57:17,3b,43,1a5,23dd,8e15:2,2,2,2,2,3,5,b,1f,61,6d,337,569b,7a05,11791
+561371,97:5,b,8003,118a9,1f98b:2,2,2,2,2,2,2,2,2,2,3,3,67,2b3,2cf,b0ed,11791,17e8b
+1312177,106:49,101,293,4e79,f9fd:2,2,2,2,5,5,5,7,b,277,45d,11791,23f1d,754f7
+-18836,93:2,5,17b,9f5,9f73,b249:3,7,d,11,11,17,2629,11791,2c1fb,425e9
+3916607,158:5e7,23ad,75f5,9e6f:2,2,2,2,2,5,5,7,7,b,11,13,b5,bf,92b,1ac9,3e1d,11791
+1044855,172:3,1d,1d,49,1c1,3b39,5c0f:2,2,2,5,b,d,d,11,11,13,17,63d,3e0f,11791,15151
+3890850,23:2,2,2,2,3,3,b,13,47,47,67,6b,151f:5,5,7,9d,1675,1d7d,1ee3,2be7,36e9,11791
+8709541,241:7,7,101,189d,27d1,4ec1:2,2,b,11,6d,269,ce3,3023,11791,1378d,316f1
+-2744776,71:2,c7,1c1,4ff,977,a39f:5,11,95,5413,ea19,11791,13429,53419
+4681137,464:3,5,397,11c5,84f1,8617:2,2,2,2,2,2,2,7,11,61,df,5ad,649,1ee3,8357,11791
+# survivors before_sieve: 524288
+# survivors after_sieve: 1525 (ratio 2.91e-03)
+# survivors not_both_even: 1525
+# survivors not_both_multiples_of_p: 1525
+# survivors trial_divided_on_side[0]: 433
+# survivors check_leftover_norm_on_side[0]: 433 (28.4%)
+# survivors trial_divided_on_side[1]: 27
+# survivors check_leftover_norm_on_side[1]: 27 (6.2%)
+# survivors enter_cofactoring: 27
+# survivors cofactored: 24 (88.9%)
+# survivors smooth: 24
+# Checksums over sieve region: after all sieving: 0, 0
+# 24 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=71569 r=19806: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=72797; rho=59258
+# Side 0: log2(maxnorm)=58.75 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=89.02 scale=2.85, logbase=1.275336 bound=125
+# Sieving side-1 q=72797; rho=59258; a0=13539; b0=-1; a1=18641; b1=4; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+# DUPECHECK Checking if relation (a,b) = (11880541,1698) is a dupe of sieving special-q -q0 70867 -rho 17222
+# DUPECHECK Trying side-1 q=70867; rho=17222; a0=17222; b0=1; a1=1979; b1=-4; I=1024; J=512;
+# DUPECHECK (i,j) = (-718, 245) is outside sieve region
+# DUPECHECK relation is probably not a dupe
+11880541,1698:29,3d,49,20b,73c1,18b35:2,2,2,2,3,3,5,5,b,95,285d,114d3,11c5d,1f541,4f13b
+11657645,1822:11,152b,2419,2a83,831b:2,2,2,3,3,5,7,7,b,13,1f,3e63,4dc9,95f9,11c5d,2bf27
+13297631,1717:5,d,d3,e3,4cd,509,e1bf:2,2,2,2,2,3,3,b,67f,4e37,70e5,11c5d,2e427,44f29
+8848601,2094:1e2b,63b3,8baf,cec9:2,2,2,3,5,5,7,11,35,335,9ef,6857,92b9,cf65,11c5d
+9773336,1445:2,53,6b,1b7,277,ffb,2f81:5,b,d,9ad,4e19,e1fd,11c5d,22021,52b13
+7514066,1257:2,2,5,5,b,6d,f1,e879,1eb75:3,29,2b3,335,18d1,474b,636d,11c5d,44927
+3797511,1510:3,7,65,38f,679,b3f,75d1:2,2,2,2,5,11,347,319f,66b5,11c5d,75205,7f23b
+10114549,1280:15d,17f,5bf,70c3,91c1:2,2,2,2,2,3,3,5,7,b,d,1f,67,67,6b,7f7,1e8f,e8a5,11c5d
+6637915,698:7,a3,133,c0b,181d,4165:2,2,2,3,3,5,b,d,2ba5,7eeb,11c5d,253b5,4e87d
+1646131,857:5,1d,223,2b3,4c1,5cb,64d:2,2,2,2,2,2,3,3,7,d,13,13,53,7f,6df,11c5d,26617,284c3
+6135977,520:96b,321d,615b,19067:2,2,2,2,3,3,5,7,b,13,17,fd1,17c9,9b17,11c5d,1f6a5
+2975293,533:b,83,107,223,188f,11527:2,2,3,3,7,13,df,1a3,5eb7,11c5d,63919,6777b
+-2471317,817:3fd,5ea5,100c3,18f05:2,2,2,2,2,2,2,3,3,5,b,d,35,43,6b,115,6901,11c5d,425ed
+-577051,419:13,517,1d7d,444b,62fb:2,2,2,2,2,2,7,d,d,11,1d,53,281,d2d,148d,1b55,11c5d
+-7941145,108:b,23b,1bd9,277f,1a0fb:2,2,2,3,5,7,bf,9401,11c5d,18b9f,18f05,6d8d7
+-2101259,666:3b,4f,ef,26b,1e13,63d9:2,2,2,2,2,2,2,3,b,1d,95,11c5d,18239,39e7b,54e53
+2259867,317:3,11,d2d,1307,1433,300d:2,2,2,2,2,2,7,b,1f,10f,611,12b5,1f9d,11c5d,14fe7
+-3988529,15:13,4bd,1697,1ecb,3e1d:2,2,3,3,5,5,5,b,d,485b,8ad7,9a7f,11c5d,18ce3
+# DUPECHECK Checking if relation (a,b) = (2437641,320) is a dupe of sieving special-q -q0 71473 -rho 30623
+33374,261:2,2,2,13,17,13d,281,1c45,2627:3,5,7,11,fd3,bb9d,11c5d,56273,71fd1
+# DUPECHECK Trying side-1 q=71473; rho=30623; a0=10227; b0=-2; a1=20396; b1=3; I=1024; J=512;
+-160104,157:2,3,5,13,2f,b03,12bf,14c45:b,11,11,11,53,16f,1c55,3a31,79a3,11c5d
+# Side 0: log2(maxnorm)=58.72 scale=4.33, logbase=1.173822 bound=97
+-3242491,261:b,2b,6b,371,5e2b,dfb5:2,2,3,5,b5,10f,9a3,170f,11c5d,205ed,3437f
+1467911,26:7,53,3fd,427,1b4f1:2,2,2,b,1f,4f,655,18b9,11c5d,16987,212f9
+# Side 1: log2(maxnorm)=89.28 scale=2.83, logbase=1.278084 bound=124
+668139,241:3,10d,1b1,925,b7b,47bf:2,2,2,2,2,2,2,5,5,5,5,11,78b,a57,9995,11c5d,39025
+# DUPECHECK relation had i=11, j=114, remaining lognorms 72, 0
+# DUPECHECK relation is probably a dupe
+# DUPE 2437641,320:3,47,1fd,355,1529,19f4f:2,2,2,2,2,5,13,29,2197,8131,11731,11c5d,13931
+# survivors before_sieve: 524288
+# survivors after_sieve: 1579 (ratio 3.01e-03)
+# survivors not_both_even: 1579
+# survivors not_both_multiples_of_p: 1579
+# survivors trial_divided_on_side[0]: 437
+# survivors check_leftover_norm_on_side[0]: 437 (27.7%)
+# survivors trial_divided_on_side[1]: 29
+# survivors check_leftover_norm_on_side[1]: 29 (6.6%)
+# survivors enter_cofactoring: 29
+# survivors cofactored: 24 (82.8%)
+# survivors smooth: 24
+# Checksums over sieve region: after all sieving: 0, 0
+# 23 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=72797 r=59258: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=73019; rho=14434
+# Side 0: log2(maxnorm)=58.78 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=89.13 scale=2.83, logbase=1.278084 bound=124
+# Sieving side-1 q=73019; rho=14434; a0=14434; b0=1; a1=15283; b1=-4; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+-5438194,2011:2,2,b,b,a7,107,191,443,aac9:3,3,7,d,11,1d,53,14b,11d3b,12713,370b1,3e29f
+-12572837,1370:b,a1f,19ed,6703,f0f7:2,2,2,3,3,5,5,d,d,d,d,13,6b,175,fef,163d,11d3b,5a51b
+-10491799,1069:7,7,29,ad,679,1145,17401:2,2,3,3,5,5,b,209,281,7bb,1f01,2225,11d3b,53315
+-5889901,1317:122b,2f4b,9283,1fb6d:2,2,2,2,2,2,3,3,5,7,11,13,277,e68f,11d3b,4776d,50fb1
+-3562631,1458:5,95,10c03,125d1,12a2d:2,2,2,2,2,3,7,b,1d,1f,44f,51b,6f7,1ab1,11d3b,26875
+-3802919,1067:5,49,119,191b,191b,c9d9:2,2,2,2,2,2,3,3,11,11,11,1b1,21d,713,2275,11d3b,2d731
+-3147443,1335:59,a3,2da9,783d,c8cf:2,2,2,2,2,2,2,3,5,7,15b,36d,11d3b,14141,1564d,74971
+-4038958,995:2,2,2,13,25,c1,e3,24b,33b,6b9:5,53,2a5,1777,11d3b,16bcd,1d197,3c48b
+-10594543,384:5,b3,e9,1c1,223,40f,821:2,2,2,2,2,3,b,13,17,2f9,1297,3833,65fb,11d3b,279ef
+-5634343,586:25,3b,3d,397,2231,1e33b:2,2,2,2,3,3,5,7,7,1b1,1c1,c07,119b,274d,3541,11d3b
+-5796517,251:5,239,337,4b1,fd3,177b:2,2,7,b,11,15d,3f91,6db7,dfb5,11d3b,30bff
+-4876135,507:17,6d,5171,9c65,d603:2,2,2,2,2,2,2,2,3,3,5,7,293,18fd,4453,6571,b93b,11d3b
+-4082269,218:7,2f5,a9f,9d5b,17a13:2,2,2,5,5,1d,65,21e9,540d,11d3b,1284d,49f09
+-1019715,329:3,185,1bb,6fd,a61,6a75:2,2,5,b,1f,31d,4aef,11d3b,3ed7f,6eeeb
+-2081885,478:2cf,2e3,751,1e01,32c9:2,2,2,2,5,7,b,13,14b,9ef,1da5,3c0d,7a7d,11d3b
+-669901,505:17,599,6cd,43bd,18761:2,2,2,2,2,2,3,3,5,7,13,a7,2a5,247d,844f,96e5,11d3b
+-317541,580:3,53,239,8e9,3b53,59e3:2,2,2,5,1f,1c1,623,9ef,cf7,1675,6cf5,11d3b
+-6046143,1:3,3,3,3,b,2b6d,9787,d6d9:2,2,5,11,4f,22d,146f,4b1f,6b59,11d3b,33e63
+-2760285,259:3,65,7f,257,3d7,45d,92f:2,2,5,13,1b1,209,985,d3f,763d,7f8d,11d3b
+6501244,501:2,35f,35f,3f5,9d9,4c15:3,3,5,b,11,17,1d,2f83,3749,5ebb,11d3b,3592d
+-605377,125:d,49,359,407,50b,5e8b:2,2,2,2,2,2,5,7,7,11,13,1d,6b,79d,15c1,3d91,11d3b
+-2298400,33:2,61,9d,233,66b5,7c19:3,5,5,7,11,1d,6d,15b,f29,5245,11d3b,3c7db
+-3413213,62:49,ef,15c5,1c3d,8423:2,2,2,2,3,3,7,b,4bd,11a7,121f,4423,11d3b,30e65
+# survivors before_sieve: 524288
+# survivors after_sieve: 1493 (ratio 2.85e-03)
+# survivors not_both_even: 1493
+# survivors not_both_multiples_of_p: 1493
+# survivors trial_divided_on_side[0]: 429
+# survivors check_leftover_norm_on_side[0]: 429 (28.7%)
+# survivors trial_divided_on_side[1]: 30
+# survivors check_leftover_norm_on_side[1]: 30 (7.0%)
+# survivors enter_cofactoring: 30
+# survivors cofactored: 23 (76.7%)
+# survivors smooth: 23
+# Checksums over sieve region: after all sieving: 0, 0
+# 23 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=73019 r=14434: 0.00s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#
+# Now sieving side-1 q=73951; rho=56571
+# Side 0: log2(maxnorm)=58.84 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=87.78 scale=2.88, logbase=1.272642 bound=126
+# Sieving side-1 q=73951; rho=56571; a0=17380; b0=-1; a1=4431; b1=4; I=1024; J=512;
+# Reserving buckets with a multiplier of 1,1s:1.35031
+# DUPECHECK Checking if relation (a,b) = (6725741,1532) is a dupe of sieving special-q -q0 63839 -rho 36268
+# DUPECHECK Trying side-1 q=63839; rho=36268; a0=-8697; b0=-2; a1=18874; b1=-3; I=1024; J=512;
+# DUPECHECK (i,j) = (-769, 2) is outside sieve region
+# DUPECHECK relation is probably not a dupe
+6725741,1532:5,5,e9,189b,10e7f,1a25b:2,2,2,7,d,10f,31d,1ac9,2c41,f95f,120df,259ab
+10125079,1413:5,d,11,4f,61,6b,e2f,119e1:2,2,2,2,2,2,3,b,95,15b,a57,3d19,b7ef,120df,5efb1
+-1577427,2231:3,5,241,45ad,bb27,e615:2,2,2,2,2,2,2,2,2,7,11a5,468b,9b9f,120df,128d7,43871
+-5959677,1930:3,7,b,38f,a3d,1843,1bfe3:2,2,2,5,11,1f,139,713,815,d13,dc9,c989,120df
+2687307,1024:3,5,b,d,13,25,175,1655,e48f:2,2,2,2,2,25f7,7685,120df,1723d,1e445,2c435
+223434,1153:2,2,3,5,d,11,11,17b,594d,1bb1d:7,b,f07,2f75,120df,123fb,4202b,49069
+8895407,837:25,3d,4d81,c205,e557:2,2,2,2,2,3,7,b,1d,7f,1f3,3d0d,120df,15a69,56aa3
+-4880479,1519:b5,15b,bb9,3367,1e7ed:2,2,2,2,2,3,3,5,11,7f,1cd,5419,120df,331f9,59693
+7386746,877:2,2,5,7,7,8b,b47,1d87,bc99:3,3,b,d,11,13,b5,bf,7225,afab,120df,6de97
+-6078749,1205:2b,65,6d,e17,1327,763d:2,2,2,2,2,2,3,3,5,b,1f,e5,469,169f,120df,1f141,2313d
+4376140,429:2,17,78b,c61,f0d,f359:3,3,5,7,11,1d,61,79d,1c45,1ee3,120df,1ddd1
+9564930,173:2,2,3,7,b,ef,7c1b,80d7:5,11,17,47,25f,509,bc3,dcd,18f5,1a11,120df
+-49609,773:35,c1,d3,2f9,a7b,8447:2,2,2,2,2,2,5,5,5,b,d,a7,15b,277,293,22db,41f9,120df
+7196434,71:2,2,2,2,2,2,277,3c7,24bb,7781:3,3,5,5,29,65,16f,335,19b1,bdd1,120df,2cf17
+4782637,95:7,61,5a7,8fb7,bd8f:2,2,2,2,2,3,3,5,d,1f,4f,36d,fb5,ea2f,120df,4cc49
+44736,491:2,3,3,3,3,17,10f,10f,1b73,c005:7,b,53,9d,bf,c41,16ed,1e8f,630d,120df
+# DUPECHECK Checking if relation (a,b) = (708231,389) is a dupe of sieving special-q -q0 62213 -rho 35566
+# DUPECHECK Trying side-1 q=62213; rho=35566; a0=-8919; b0=-2; a1=17728; b1=-3; I=1024; J=512;
+# Side 0: log2(maxnorm)=58.82 scale=4.30, logbase=1.174916 bound=97
+# Side 1: log2(maxnorm)=88.12 scale=2.88, logbase=1.272642 bound=126
+2668772,323:2,189d,1efd,2c41,b6ef:5,b,61,df,21d,407,dff,1e71,238f,120df
+# DUPECHECK Checking if relation (a,b) = (448563,455) is a dupe of sieving special-q -q0 63599 -rho 21673
+# DUPECHECK Trying side-1 q=63599; rho=21673; a0=-1420; b0=-3; a1=21673; b1=1; I=1024; J=512;
+# Side 0: log2(maxnorm)=58.30 scale=4.35, logbase=1.172742 bound=98
+# Side 1: log2(maxnorm)=88.60 scale=2.85, logbase=1.275336 bound=125
+# DUPECHECK relation had i=145, j=33, remaining lognorms 2, 51
+# DUPECHECK relation is probably a dupe
+# DUPE 708231,389:3,7,d,1f,25,2b,2f,47,191,fbb:2,2,2,2,2,2,2,5,5,b,b,b,13,1cf,33d,f305,120df,2f5c9
+-818539,179:7,7,17,2b,67,28d,45d,2813:2,2,2,2,2,2,5,1d,3b,df,336b,dae9,120df,17c63
+-5549036,81:2,d,13,17,2803,3167,5c75:3,5,b,b,35,61,a7,15b,1bb,120df,1af8f,3d70f
+-233729,273:1f,3ad,4b1,5f35,f485:2,2,2,2,2,3,5,b,17,16f,58f,9e3,425b,4b3b,120df
+-4427854,25:2,2,c7,1eef,944f,148fd:3,3,5,7,b,d,11,bf,259,bb7,766f,120df,4e8ab
+-3831389,480:1d,53,10d,f59,103d,2717:2,2,2,2,2,3,5,7,b,17,29,13d,5615,120df,13c5d,2746f
+-1250287,340:65,8b,7c3,6a87,166e1:2,2,2,3,3,5,d,53,15b,7e79,8851,120df,2eab9
+-1747509,275:3,53,a7,16bd,1c8b,827b:2,2,5,7,61,295,b65,f7f,444b,120df,15f7f
+-499933,16:101,281b,588d,13a8f:2,2,2,2,2,2,3,3,5,b,b,d,128f,de83,120df,60bab
+# DUPECHECK relation had i=-148, j=11, remaining lognorms 0, 0
+# DUPECHECK relation is probably a dupe
+# DUPE 448563,455:3,25,3d,7f,2c5,925,ebdf:2,2,5,b,b5,b11,b23,c25,25b1,f86f,120df
+# survivors before_sieve: 524288
+# survivors after_sieve: 1648 (ratio 3.14e-03)
+# survivors not_both_even: 1648
+# survivors not_both_multiples_of_p: 1648
+# survivors trial_divided_on_side[0]: 472
+# survivors check_leftover_norm_on_side[0]: 472 (28.6%)
+# survivors trial_divided_on_side[1]: 32
+# survivors check_leftover_norm_on_side[1]: 32 (6.8%)
+# survivors enter_cofactoring: 32
+# survivors cofactored: 27 (84.4%)
+# survivors smooth: 27
+# Checksums over sieve region: after all sieving: 0, 0
+# 25 relation(s)
+# number of eliminated duplicates: 0
+# Time for side-1 q=73951 r=56571: 0.01s [norm 0.00+0.0, sieving 0.0 (0.0+0.0 + 0.0), factor 0.0 (0.0+0.0 + 0.0), rest 0.0]
+#

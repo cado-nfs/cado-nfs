@@ -418,6 +418,14 @@ cado_define_test(F9_fakereltest
     TARGET_DEPENDENCIES fake_rels freerel las
     TEST_DEPENDENCIES F9_makefb)
 
+# Check a bug in fake_rels (see 9d52c08c)
+cado_define_test(c60_fakereltest
+    SCRIPT
+    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/c60.fakerels.sh
+    ${CADO_NFS_BINARY_DIR} ${CADO_NFS_SOURCE_DIR}
+    TARGET_DEPENDENCIES fake_rels freerel)
+
 # Try with default TRIALDIV_MAXLEN, whatever it may be
 cado_define_test(test_trialdiv.cpp
     $<TARGET_OBJECTS:trialdiv>
