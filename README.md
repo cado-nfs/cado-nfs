@@ -554,7 +554,7 @@ or
 ```
 git clone git@gitlab.inria.fr:cado-nfs/cado-nfs.git
 ```
-(use the latter if you have an account on inria gitlab, and commit access
+(use the latter if you have an account on Inria gitlab, and commit access
 to cado-nfs)
 
 There are two mailing-lists associated to Cado-nfs:
@@ -571,6 +571,6 @@ the cado-nfs-discuss list is the right place to ask.
 On the <https://gitlab.inria.fr/cado-nfs/cado-nfs> web page you can also
 find the cado-nfs bug tracker (a.k.a project issues). The bug tracker is
 an important piece of the cado-nfs development cycle.  Submitting bugs
-and merge requests there is welcome (you need an inria gitlab account),
+and merge requests there is welcome (you need an Inria gitlab account),
 although if you are unsure, it might be better to speak up on the
 cado-nfs-discuss mailing list first.
