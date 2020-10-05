@@ -22,7 +22,6 @@
    redc_32 */
 // #define STAT
 
-static inline uint32_t
 /** Unsigned Redc_32 based on 64-bit arithmetic
  *   \param [in] x unsigned 64-bit integer, we require x < 2^32 * p
  *   \param [in] p is an odd number < 2^32.
@@ -30,6 +29,7 @@ static inline uint32_t
  *   \return x/2^32 mod p as an integer in [0, p[
 */
 
+static inline uint32_t // NO_INLINE
 redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 {
   uint32_t t = (uint32_t) x * invp;   /* t = x * invp mod 2^32 */
@@ -101,7 +101,7 @@ mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const uint3
  *   \param [in] invp is -1/p mod 2^32.
  *   \return x/2^32 mod p as an integer in [0, p[
 */
-static inline uint32_t
+static inline uint32_t // NO_INLINE
 redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 {
   uint32_t t = (uint32_t)x * invp;
@@ -193,7 +193,7 @@ invmod_32 (uint32_t *pa, uint32_t b)
 // and 1/a mod b for b even, by binary xgcd.
 // a must be less than b.
 // return result on succes (new a value), UINT32_MAX on failure
-NOPROFILE_INLINE uint32_t
+static inline uint32_t // NO_INLINE
 invmod_redc_32(uint32_t a, uint32_t b) {
   ASSERT (a < b);
   if (UNLIKELY(!a)) return a; /* or we get infinite loop */
