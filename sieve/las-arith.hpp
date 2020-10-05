@@ -22,14 +22,14 @@
    redc_32 */
 // #define STAT
 
-// Redc_32 based on 64-bit arithmetic
-// Assume:
-//   * p is an odd number < 2^32.
-//   * invp is -1/p mod 2^32.
-//   * x is some integer in [0, 2^32*p[
-// Compute:
-//   * x/2^32 mod p as an integer in [0, p[
 static inline uint32_t
+/** Unsigned Redc_32 based on 64-bit arithmetic
+ *   \param [in] x unsigned 64-bit integer, we require x < 2^32 * p
+ *   \param [in] p is an odd number < 2^32.
+ *   \param [in] invp is -1/p mod 2^32.
+ *   \return x/2^32 mod p as an integer in [0, p[
+*/
+
 redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 {
   uint32_t t = (uint32_t) x * invp;   /* t = x * invp mod 2^32 */
@@ -39,7 +39,9 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
    */
   uint64_t tp = (uint64_t)t * (uint64_t)p;
   uint64_t xtp = x;
-  /* do xtp += tp, get carry out in cf */
+
+  /* do xtp += tp. If the addition produces a carry, then set t = p,
+   * and t = 0 otherwise */
 
   t = 0;
 #if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
@@ -69,6 +71,11 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
    * thus u' - p < p, which ensures that (1) a borrow will occur in the
    * subtraction u - p, which will compensate for the carry in x + t*p,
    * and (2) the final result will be < p as wanted */
+
+  /* Alternative: t2=u-t; u-=p; if carry: u=t2. 4 insn instead of 3, dependent
+   * chain also has length 3 but with one MOV. Turned out to be slightly slower
+   * on i3-6100. */
+
   if (u >= p) t = p;
   return u - t;
 }
@@ -90,7 +97,7 @@ mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const uint3
 
 /** Signed redc_32 based on 64-bit arithmetic
  *   \param [in] x is some signed integer in ]-2^32*p, 2^32*p[ (fitting in int64_t)
- *   \param [in] p is an odd number < 2^32.
+ *   \param [in] p is an odd number, 0 < p < 2^32.
  *   \param [in] invp is -1/p mod 2^32.
  *   \return x/2^32 mod p as an integer in [0, p[
 */
@@ -100,6 +107,9 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   uint32_t t = (uint32_t)x * invp;
   uint64_t tp = (uint64_t)t * (uint64_t)p;
 #if 0
+  /* gcc 6.4, 7.5, 8.3, 9.3, 10.2 all turn this into test/lea(or add)/cmovns,
+   * which seems pretty good. On Skylake i3-6100 it makes root_transform()
+   * 1-2% percent faster than the MUL below */
   uint64_t xtp = (x >= 0) ? x : x + ((uint64_t) p << 32);
   /* the following does the same without any branch, but seems slightly
      worse with GCC 9.2.1. */
