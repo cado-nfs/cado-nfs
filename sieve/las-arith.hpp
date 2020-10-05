@@ -106,19 +106,11 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 {
   uint32_t t = (uint32_t)x * invp;
   uint64_t tp = (uint64_t)t * (uint64_t)p;
-#if 0
+#if 1
   /* gcc 6.4, 7.5, 8.3, 9.3, 10.2 all turn this into test/lea(or add)/cmovns,
    * which seems pretty good. On Skylake i3-6100 it makes root_transform()
    * 1-2% percent faster than the MUL below */
   uint64_t xtp = (x >= 0) ? x : x + ((uint64_t) p << 32);
-  /* the following does the same without any branch, but seems slightly
-     worse with GCC 9.2.1. */
-#elif 1
-  /* This is as fast as the previous on i3-6100, but avoids the MUL and is
-   * branch-free. */
-  uint64_t xtp = x + ((uint64_t) p << 32);
-  if (x >= 0)
-      xtp = x;
 #else
   uint64_t xtp = x + (uint64_t) p * (uint64_t) ((x & 0x8000000000000000) >> 31);
 #endif
