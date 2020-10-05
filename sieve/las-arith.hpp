@@ -43,9 +43,10 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 
   t = 0;
 #if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-  asm("addq %[tp],%[xtp]\n" 
-      "cmovc %[p], %[t]\n"
-      : [xtp]"+r"(xtp), [t]"+r"(t) : [tp]"r"(tp), [p] "r" (p));
+  __asm__("addq %[tp],%[xtp]\n" 
+          "cmovc %[p], %[t]\n"
+          : [xtp]"+r"(xtp), [t]"+r"(t) : [tp]"r"(tp), [p] "r" (p)
+          : "cc");
 #else
   /* The compiler should be able to turn this into addq/cmovc, but
    * gcc 10.2.0 doesn't :( I have not tried other compilers.
@@ -115,9 +116,10 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
      thus the same analysis as redc_u32 applies here */
   t = 0;
 #if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-  asm("addq %[tp],%[xtp]\n" 
-      "cmovc %[p], %[t]\n"
-      : [xtp]"+r"(xtp), [t]"+r"(t) : [tp]"r"(tp), [p] "r" (p));
+  __asm__("addq %[tp],%[xtp]\n" 
+          "cmovc %[p], %[t]\n"
+          : [xtp]"+r"(xtp), [t]"+r"(t) : [tp]"r"(tp), [p] "r" (p)
+          : "cc");
 #else
   /* Same thing as in redc_u32 */
   xtp += tp;
