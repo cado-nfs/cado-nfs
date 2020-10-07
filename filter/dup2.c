@@ -690,7 +690,7 @@ main (int argc, char *argv[])
       exit (1);
     }
   memset (H, 0, K * sizeof (uint32_t));
-  fprintf (stderr, "Allocated hash table of %" PRIu64 " entries (%" PRIu64 "Mb)\n",
+  fprintf (stderr, "Allocated hash table of %" PRIu64 " entries (%" PRIu64 "MiB)\n",
            K, (K * sizeof (uint32_t)) >> 20);
 
   /* Construct the two filelists : new files and already renumbered files */

@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include "memusage.h"
 
-/* Returns memory usage, in KB 
+/* Returns memory usage, in KiB (1024 bytes).
  * This is the VmSize field in the status file of /proc/pid/ dir
  * This is highly non portable.
  * Return -1 in case of failure. When not supported, simply return 0.
@@ -75,7 +75,7 @@ Memusage2 (void)
 #endif
 }
 
-/* Returns peak memory usage, in KB 
+/* Returns peak memory usage, in KiB (1024 bytes).
  * This is the VmPeak field in the status file of /proc/pid/ dir
  * This is highly non portable.
  * Return -1 in case of failure.
