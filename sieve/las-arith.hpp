@@ -242,7 +242,8 @@ done:
   if (UNLIKELY(a != 1)) return 0;
   const uint32_t fix = (p+1)>>1;
   
-  // Here, the inverse of a is u/2^t mod b.  
+  // TODO: can we use variable-width REDC for the division by 2^t here?
+  // Here, the inverse of a is u/2^t mod b.
 #define T3 do { uint8_t sig = (uint8_t) u; u >>= 1; if (sig & 1) u += fix; } while (0)
 #define T4 do { u <<= 1; if (u >= p) u -= p; } while (0)
 #if 1 /* Original code */
