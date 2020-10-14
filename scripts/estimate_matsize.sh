@@ -21,11 +21,6 @@
 
 set -e
 
-if [ $# != 1 ]; then
-    echo "Usage: $0 <polyfile>"
-    exit 1
-fi
-
 ## default parameters: can be overriden using env variables
 ## TODO: old parameters (before 7151df7fe) here used to correspond more or
 ## less to a DLP-512. Now what size are these parameters good for ?
@@ -58,9 +53,43 @@ fi
 # for each sub-range, we call las with -random-sample $NBSAMPLE
 : ${NBSAMPLE=50}
 
+usage() {
+    echo "Usage: $0 [options] <polyfile>"
+    echo "Options: -params <param file>  read extra parameters from there (shell script)"
+    echo "         -help                 show this help"
+}
+
+while [ $# -gt 0 ] ; do
+    if ! [[ $1 =~ ^- ]] ; then
+        break
+    fi
+    if [ "$1" = -params ] && [ $# -gt 1 ] ; then
+        if [ -f "$2" ] ; then
+            . "$2"
+            shift
+            shift
+            break
+        else
+            echo "$2: no such file or directory" >&2
+            usage
+            exit 1
+        fi
+    elif [ "$1" = -help ] ; then
+        usage
+        exit 0
+    else
+        echo "error in argument parsing at: $*" >&2
+        usage
+        exit 1
+    fi
+done
+
+if [ $# != 1 ]; then
+    usage
+    exit 1
+fi
 
 ## read poly file on command line
-
 polyfile=$1
 if [ ! -e $1 ]; then
     echo "Error: file $1 does not exist?"
