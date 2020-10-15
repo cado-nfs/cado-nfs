@@ -9,11 +9,9 @@
 
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
-
 #include <cmath>               // for ceil, pow, log2
 #include <cstdio>              // for fprintf, snprintf, fflush, stderr, FILE
 #include <cstdlib>             // for free, malloc, exit, abort, realloc
-
 #include <iterator>            // for begin, end
 #include <list>                // for list, operator!=, _List_iterator, list...
 #include <memory>              // for allocator_traits<>::value_type
@@ -23,7 +21,7 @@
 #include <vector>              // for vector
 #include <gmp.h>
 
-#include "omp_proxy.h"
+#include "omp_proxy.h" // IWYU pragma: keep
 #include "batch.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul_doit.hpp"      // for facul_doit_onefm
@@ -833,7 +831,7 @@ factor_one (
              * have non-smooth values after all.
              */
             if (batchlpb[side] == lpb[side]) {
-#ifdef  HAVE_OPENMP
+#ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
                 {
@@ -954,7 +952,10 @@ create_batch_product (mpz_t P, unsigned long L, cxx_mpz_poly const & pol, double
    2) the large prime bound L
    3) the polynomial, in the form "f0 f1 ... fd"
    Then the integer P is written using mpz_out_raw.
-   The header can be read by a human with head -3 batch_file. */
+   The header can be read by a human with head -3 batch_file.
+
+   XXX This must be kept in sync with sieve/inspect-batch-file.pl
+*/
 static void
 output_batch (FILE *fp, unsigned long B, unsigned long L,
               cxx_mpz_poly const & pol, cxx_mpz const & P, const char *f)

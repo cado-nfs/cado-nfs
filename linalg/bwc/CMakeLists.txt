@@ -1,5 +1,5 @@
 
-include_directories(. ..)
+include_directories(. .. ../bblas)
 # include_directories(mpfq)
 
 # Use with care. Normally, binaries not needing MPI for real should not
@@ -74,19 +74,6 @@ endmacro()
 
 ### bwc_base
 
-# Note that because the balancing code contains balancing_get_matrix_u32,
-# which calls the parallelizing_info layer, it's difficult to make them
-# two distinct libraries. So far it's the only stopper though.
-set(balancing_sources
-    balancing.c
-    balancing_workhorse.c
-    balancing_file_source.c
-    balancing_mpi_source.c)
-
-if (HAVE_CURL)
-set(balancing_sources ${balancing_sources} balancing_curl_source.c)
-endif()
-
 set(bwc_base_sources
     parallelizing_info.c
     intersections.c
@@ -100,7 +87,8 @@ set(bwc_base_sources
     mf.c 
     mf_bal.c
     ../rowset_heap.cpp
-    ${balancing_sources}
+    balancing.c
+    balancing_workhorse.cpp
 )
 
 if(HAVE_CXX11 AND HAVE_HWLOC)
@@ -163,7 +151,7 @@ foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
     if (v STREQUAL "m128" AND (NOT HAVE_SSE41 OR NOT HAVE_POPCNT))
         message(STATUS "GF(2) arithmetic backend m128 not compiled in, sse-4.1 or popcnt support missing")
     else()
-        set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}_t.c )
+        set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}.cpp mpfq/mpfq_${v}_t.c)
         set(COMPILE_MPFQ_BINARY_FIELD_${v} 1 CACHE INTERNAL "${v} is compiled in")
         set(bwc_mpfq_flags "${bwc_mpfq_flags} -DCOMPILE_MPFQ_BINARY_FIELD_${v}")
         message(STATUS "GF(2) arithmetic backend enabled for factoring linear algebra: ${v}")
@@ -171,7 +159,7 @@ foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
 endforeach(v)
 
 foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
-    set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}_t.c )
+    set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}.cpp mpfq/mpfq_${v}_t.c)
     set(COMPILE_MPFQ_PRIME_FIELD_${v} 1 CACHE INTERNAL "${v} is compiled in")
     set(bwc_mpfq_flags "${bwc_mpfq_flags} -DCOMPILE_MPFQ_PRIME_FIELD_${v}")
     message(STATUS "GF(p) arithmetic backend enabled for DL linear algebra: ${v}")
@@ -259,7 +247,6 @@ macro(CONFIGURE_MATMUL_LIB v i)
         set_target_properties(matmul_${v}_${i} PROPERTIES
             COMPILE_FLAGS "--mpi -DSELECT_MPFQ_LAYER_${v} -DMM_IMPL=${i} -DMM_MPFQ_LAYER=${v}"
                 LINK_FLAGS "--mpi")
-        set(all_matmul_libs ${all_matmul_libs} "matmul_${v}_${i}")
         if(ENABLE_SHARED)
             install(TARGETS matmul_${v}_${i} DESTINATION ${LIBSUFFIX}/linalg/bwc)
         endif()
@@ -280,12 +267,17 @@ foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
     else()
         foreach(w ${BWC_GF2_MATMUL_BACKENDS})
             CONFIGURE_MATMUL_LIB(${v} ${w})
+            set(all_matmul_gf2_libs ${all_matmul_gf2_libs} "matmul_${v}_${w}")
         endforeach(w)
     endif()
 endforeach(v)
 foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
     foreach(w ${BWC_GFP_MATMUL_BACKENDS})
         CONFIGURE_MATMUL_LIB(${v} ${w})
+        if(v STREQUAL "pz")
+        else()
+            set(all_matmul_gfp_libs ${all_matmul_gfp_libs} "matmul_${v}_${w}")
+        endif()
     endforeach(w)
 endforeach(v)
 
@@ -312,8 +304,11 @@ endif()
 configure_file(matmul-libnames.h.in matmul-libnames.h ESCAPE_QUOTES @ONLY)
 include_directories (${CMAKE_CURRENT_BINARY_DIR})
 
+# If we use static libraries, then unfortunately we _have_ to build all
+# possible implementation for just any single run of bwc. Define
+# ENABLE_SHARED=1 in local.sh to avoid this pitfall.
 if(NOT BUILD_DYNAMICALLY_LINKABLE_BWC)
-target_link_libraries(bwc_base ${all_matmul_libs})
+target_link_libraries(bwc_base ${all_matmul_gf2_libs} ${all_matmul_gfp_libs})
 endif()
 
 ### matmul_mf
@@ -352,7 +347,7 @@ bwc_program(dispatch dispatch.cpp xdotprod.c)
 bwc_program(mksol mksol.cpp xdotprod.c)
 bwc_program(gather gather.cpp)
 bwc_program(secure secure.cpp)
-bwc_program(blocklanczos blocklanczos.c)
+bwc_program(blocklanczos blocklanczos.cpp)
 target_link_libraries(blocklanczos bitlinalg)
 
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl DESTINATION
@@ -360,31 +355,16 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl DESTINATION
 
 # Also lingen.
 
+### This is the old binary lingen code. It is meant to go away.
+link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
 link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
-
+include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
-include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft/mpfq)
-add_executable(lingen lingen_binary.cpp tree_stats.cpp logline.c
-    lingen_qcode.c lingen_qcode_do.cpp)
 # This **MUST** match the #define in gf2x/Makefile.am
-set_source_files_properties(lingen_qcode_do.cpp COMPILE_FLAGS
+set_source_files_properties(lingen_qcode_binary.cpp COMPILE_FLAGS
     "-DCANTOR_BASE_FIELD_SIZE=128")
-set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
-    "-DCANTOR_BASE_FIELD_SIZE=128")
-# for debug only
-# set_source_files_properties(lingen_binary.cpp COMPILE_FLAGS
-# "-DCANTOR_BASE_FIELD_SIZE=128 -DLINGEN_BINARY_TRACE_MALLOCS=20")
-install(TARGETS lingen RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
-target_link_libraries(lingen bwc_base utils gf2x)
-add_dependencies(lingen gf2x-build)
 
-# It's ugly. FindOpenMP.cmake doesn't know how to differentiate between
-# required compile-time flags and required link-time flags...
-set_target_properties(lingen PROPERTIES
-    COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
-    LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
-
-add_executable(cleanup cleanup.c)
+add_executable(cleanup cleanup.cpp)
 target_link_libraries(cleanup bitlinalg utils m)
 
 install(TARGETS cleanup RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
@@ -397,65 +377,151 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
     set_target_properties(flint-fft PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
         LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
-    add_executable(test-flint test-flint.c)
-    target_link_libraries(test-flint flint-fft utils ${gmp_libname})
-    set_target_properties(test-flint PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
+    add_library(flint-fft-debug EXCLUDE_FROM_ALL ${flint_fft_files})
+    set_target_properties(flint-fft-debug PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DDEBUG_FFT"
         LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
 endif()
 
-foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
-    set(plingen_${v}_sources
-        bw-common.c
-        plingen.cpp
-        plingen-tuning.cpp
-        tree_stats.cpp
+# These files are not dependent on the mpfq layer, therefore it's ok to
+# put all of them in a common convenience library.
+add_library(lingen_common_support 
+    lingen_memory_pool.cpp
+    logline.cpp
+    check_mpi_problems.c
+    tree_stats.cpp
+    lingen_round_operand_size.cpp
+    bw-common.c
+    lingen_platform.cpp
+    lingen_hints.cpp
+    lingen_call_companion.cpp
+    )
+target_link_libraries(lingen_common_support ${gmp_libname} utils)
+set_target_properties(lingen_common_support PROPERTIES
+    COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+    LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+    )
+
+foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
+    set(lingen_${v}_support_sources
+        lingen_io_matpoly.cpp
+        lingen_checkpoints.cpp
+        lingen_average_matsize.cpp
+        lingen_bmstatus.cpp
+        lingen_bigmatpoly.cpp
+        lingen_matpoly_ft.cpp
         )
 
-    set(plingen_${v}_support_sources
-        logline.c
-        lingen-matpoly.c
-        lingen-bigmatpoly.c
-        lingen-polymat.c
-        # lingen-bigpolymat.c # deleted 20150826
-        mpfq/mpfq_${v}.c
-        lingen-matpoly-ft.cpp
-        lingen-bigmatpoly-ft.c)
+    set(lingen_${v}_sources
+        lingen.cpp
+        lingen_io_wrappers.cpp
+        lingen_tuning.cpp
+        lingen_tuning_cache.cpp
+        lingen_expected_pi_length.cpp
+        lingen_bigmatpoly_ft.cpp
+        )
 
-    # make plingen_pz a default target, but not the others.
-    if(v STREQUAL "pz")
-        add_library(plingen_${v}_support ${plingen_${v}_support_sources})
-        add_executable(plingen_${v} ${plingen_${v}_sources})
-        install(TARGETS plingen_${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
+    if (v STREQUAL "u64k1")
+        set(lingen_${v}_sources
+            ${lingen_${v}_sources}
+            lingen_qcode_binary.cpp
+            )
+        set(lingen_${v}_support_sources
+            ${lingen_${v}_support_sources}
+            lingen_matpoly_binary.cpp
+            )
     else()
-        add_library(plingen_${v}_support EXCLUDE_FROM_ALL ${plingen_${v}_support_sources})
-        add_executable(plingen_${v} EXCLUDE_FROM_ALL ${plingen_${v}_sources})
+        set(lingen_${v}_sources
+            ${lingen_${v}_sources}
+            lingen_tune_cutoffs.cpp
+            lingen_qcode_prime.cpp
+            )
+
+        set(lingen_${v}_support_sources
+            ${lingen_${v}_support_sources}
+            mpfq/mpfq_${v}.c
+            mpfq/mpfq_${v}.cpp
+            # I don't have the courage to ditch lingen_polymat entirely
+            # right now, because it's a bit tied inside
+            # lingen_tune_cutoffs.cpp (which I seldom use, if ever). But
+            # really, it should go. On the other hand, some of the
+            # functionality in lingen_tune_cutoffs.cpp should probably be
+            # made more of a first-class citizen
+            lingen_polymat.cpp
+            # lingen_bigpolymat.c # deleted 20150826
+            lingen_matpoly.cpp
+            )
     endif()
 
-    target_link_libraries(plingen_${v}_support flint-fft ${gmp_libname} utils)
-    target_link_libraries(plingen_${v} plingen_${v}_support)
+    add_executable(lingen_verify_checkpoints_${v}
+        lingen_verify_checkpoints.cpp
+        )
+    set_target_properties(lingen_verify_checkpoints_${v} PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
+        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+    target_link_libraries(lingen_verify_checkpoints_${v} utils ${gmp_libname})
+
+
+    # make lingen_pz a default target, but not the others.
+    if(v STREQUAL "pz" OR v STREQUAL "u64k1")
+        add_library(lingen_${v}_support ${lingen_${v}_support_sources})
+        add_executable(lingen_${v} ${lingen_${v}_sources})
+        install(TARGETS lingen_${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
+    else()
+        add_library(lingen_${v}_support EXCLUDE_FROM_ALL ${lingen_${v}_support_sources})
+        add_executable(lingen_${v} EXCLUDE_FROM_ALL ${lingen_${v}_sources})
+    endif()
+
+    target_link_libraries(lingen_${v}_support lingen_common_support)
+
+    if (v STREQUAL "u64k1")
+        add_dependencies(lingen_${v}_support gf2x-build)
+        target_link_libraries(lingen_${v}_support gf2x-fft gf2x bblas)
+    else()
+        # In fact the dependency could be put on lingen_${v} instead ;
+        # however time_matpoly_parallel relies on _support to provide the
+        # full thing.
+        target_link_libraries(lingen_${v}_support flint-fft)
+    endif()
+
+    target_link_libraries(lingen_${v} lingen_${v}_support)
+    target_link_libraries(lingen_verify_checkpoints_${v} lingen_${v}_support)
 
     # we also need link flags, and config/openmp.cmake won't provide them
     # separately.
 
-    # set_source_files_properties(plingen.cpp PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
-    set_target_properties(plingen_${v}_support PROPERTIES
+    # set_source_files_properties(lingen.cpp PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
+    set_target_properties(lingen_${v}_support PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
         )
-    set_target_properties(plingen_${v} PROPERTIES
+    set_target_properties(lingen_${v} PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
         )
 endforeach(v)
 
-add_custom_target(bwc_matmul)
-add_dependencies(bwc_matmul ${all_matmul_libs})
+add_custom_target(bwc_matmul_gf2)
+if(all_matmul_gf2_libs)
+add_dependencies(bwc_matmul_gf2 ${all_matmul_gf2_libs})
+endif()
+add_custom_target(bwc_matmul_gfp)
+if(all_matmul_gfp_libs)
+add_dependencies(bwc_matmul_gfp ${all_matmul_gfp_libs})
+endif()
+
+add_custom_target(bwc_full_common)
+add_dependencies(bwc_full_common mf_bal random_matrix acollect
+    prep krylov dispatch mksol gather secure bwc_base
+    bwccheck)
+
+add_custom_target(bwc_full_gf2)
+add_dependencies(bwc_full_gf2 bwc_full_common bwc_matmul_gf2 lingen_u64k1 cleanup)
+add_custom_target(bwc_full_gfp)
+add_dependencies(bwc_full_gfp bwc_full_common bwc_matmul_gfp)
 
 add_custom_target(bwc_full)
-add_dependencies(bwc_full mf_bal random_matrix acollect lingen
-    cleanup prep krylov dispatch mksol gather secure bwc_base
-    bwc_matmul bwccheck)
+add_dependencies(bwc_full bwc_full_gf2 bwc_full_gfp)
 
 # Those are used only for tests.
 bwc_program_extra(build_matcache build_matcache.c)

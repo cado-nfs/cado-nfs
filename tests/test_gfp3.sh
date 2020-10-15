@@ -5,7 +5,9 @@ CADO_NFS_BINARY_DIR=$2
 
 NCPUS=$("`dirname $0`"/ncpus.sh)
 
-t=`mktemp -d ${TMPDIR-/tmp}/cado-check.XXXXXXX`
+# We expect to be called with provide-wdir.sh, so that we don't need to
+# create a directory by ourselves.
+: ${t=${TMPDIR-/tmp}}
 
 POLYFILE=$t/p3dd7-f4g3-GJL-1.poly
 PARAMFILE=$t/p3dd7-f4g3-GJL-1.params
@@ -69,12 +71,4 @@ tasks.reconstructlog.partial = true
 checkdlp = false
 EOF
 
-cleanup() {
-    if ! [ "$CADO_DEBUG" ] ; then
-        rm -rf $t
-    else
-        echo "(debug mode, temporary files are kept in $t)"
-    fi
-}
-
-${CADO_NFS_SOURCE_DIR}/cado-nfs.py $PARAMFILE && cleanup
+${CADO_NFS_SOURCE_DIR}/cado-nfs.py $PARAMFILE

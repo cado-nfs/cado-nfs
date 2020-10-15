@@ -3,6 +3,7 @@
 
 #include "cado_config.h"  // for ULONG_BITS
 #include <gmp.h>
+#include <stddef.h>       // for size_t
 #include <stdint.h>
 #include "macros.h"
 
@@ -185,6 +186,19 @@ static inline void mpn_randomb (mp_limb_t *rp, gmp_randstate_t rstate, mp_size_t
     mpz_urandomb(dummy, rstate, (mp_bitcnt_t) N * GMP_LIMB_BITS);
 }
 
+#endif
+
+void memfill_random(void *p, size_t s, gmp_randstate_t rstate);
+
+
+/* The lack of these has become really annoying. There's a patch floating
+ * on the gmp list (may 2018, with rare reminders and no apparent action
+ * taken in the following months. Maybe it will be merged for gmp 17.42
+ * eventually...)
+ */
+#if !GMP_VERSION_ATLEAST(17,42,0)
+typedef __gmp_randstate_struct * gmp_randstate_ptr;
+typedef const __gmp_randstate_struct * gmp_randstate_srcptr;
 #endif
 
 #ifdef __cplusplus

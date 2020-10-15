@@ -34,8 +34,9 @@ command line is faster than the current code:
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
-#include <sys/syscall.h>
 #include <unistd.h>
+#include <sys/syscall.h>
+
 #include <gmp.h>
 #include "cado_poly.h"
 #include "renumber.hpp"

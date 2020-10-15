@@ -1,24 +1,28 @@
 #include "cado.h" // IWYU pragma: keep
+#include <cerrno>               // for ENOENT, errno
+#include <climits>              // for INT_MIN
+#include <cstdint>              // for uint32_t
+#include <cstdlib>
 #include <cstdio>
-#include <sys/types.h>
+#include <string>                // for string
+#include <algorithm>
 #include <sys/stat.h>
-#include <unistd.h>
-#include "bwc_config.h"
-#include "parallelizing_info.h"
-#include "matmul_top.h"
-#include "select_mpi.h"
-#include "params.h"
-#include "xvectors.h"
+#include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
+#include "async.h"
 #include "bw-common.h"
+#include "cheating_vec_init.h"
+#include "fmt/core.h"            // for check_format_string
+#include "fmt/format.h"
+#include "fmt/printf.h" // IWYU pragma: keep
+#include "macros.h"
+#include "matmul.h"              // for matmul_public_s
+#include "matmul_top.h"
 #include "mpfq/mpfq.h"
 #include "mpfq/mpfq_vbase.h"
-#include "async.h"
-#include <algorithm>
-#include <stdlib.h>
-#include "cheating_vec_init.h"
-#include "fmt/printf.h"
-#include "fmt/format.h"
-#include "macros.h"
+#include "parallelizing_info.h"
+#include "params.h"
+#include "select_mpi.h"
+#include "xvectors.h"
 using namespace fmt::literals;
 
 int legacy_check_mode = 0;

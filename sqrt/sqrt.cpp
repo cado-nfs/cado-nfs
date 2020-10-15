@@ -26,7 +26,6 @@
 #include <sys/stat.h>
 #include <pthread.h>
 #include <gmp.h>
-#include "omp_proxy.h"
 #include <mutex>
 #include <string>
 #include <vector>
@@ -43,6 +42,7 @@
 #include "memusage.h"   // PeakMemusage
 #include "modul_poly.h" // modul_poly
 #include "mpz_poly.h"   // mpz_poly
+#include "omp_proxy.h"
 #include "purgedfile.h" // purgedfile_read_firstline
 #include "version_info.h" // cado_revision_string
 #include "portability.h" // strndup // IWYU pragma: keep
@@ -666,7 +666,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   {
       cxx_mpz_functions M(F);
 
-      std::string message = fmt::format("Rat({})", numdep);
+      std::string message = fmt::format(FMT_STRING("Rat({})"), numdep);
       char * depname = get_depname (prefix, "", numdep);
       std::vector<cxx_mpz> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
       free(depname);
@@ -1308,7 +1308,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
   {
       cxx_mpz_polymod_scaled_functions M(F);
 
-      std::string message = fmt::format("Alg({})", numdep);
+      std::string message = fmt::format(FMT_STRING("Alg({})"), numdep);
       char * depname = get_depname (prefix, "", numdep);
       std::vector<cxx_mpz_polymod_scaled> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
       free(depname);

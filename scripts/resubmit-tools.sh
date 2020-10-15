@@ -105,6 +105,8 @@ reschedule_dead_wus_with_status6()
     # We also need to "un-receive" these WUs.
     #
     # Use case: a WU wasn't resubmitted beause attempt>=maxwuerror and status=6
+    #
+    # XXX: this doesn't properly update wu_range_received
     read -d \~ -r query <<'EOF'
     update workunits inner join temp using (wurowid) set status=2 where status=6;
     update sieving set value=value-row_count() where kkey='wu_received';

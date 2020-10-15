@@ -508,10 +508,10 @@ void check_A_files(mpfq_vbase_ptr Ac, std::vector<Vfile> const & Vfiles, std::ve
                                 size_t matsize = bw->m * rowsize;
                                 size_t nmats = p - A.n0;
 
-                                rc = fseek(a, Av->vec_elt_stride(Av,
-                                            nmats * matsize +
-                                            (c + r) * rowsize +
-                                            (V0.j0 - A.j0) / simd),
+                                rc = fseek(a,
+                                            nmats * Av->vec_elt_stride(Av, matsize) +
+                                            (c + r) * Av->vec_elt_stride(Av, rowsize) +
+                                            Av->vec_elt_stride(Av, (V0.j0 - A.j0) / simd),
                                         SEEK_SET);
                                 ASSERT_ALWAYS(rc == 0);
                                 rc = fread(Av->vec_subvec(Av, dotprod_scratch[2], r), Av->vec_elt_stride(Av, 1), 1, a);

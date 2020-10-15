@@ -117,7 +117,6 @@ extern FLINT_TLS_PREFIX int _flint_primes_used;
 #if defined(_OPENMP) && !defined(HAVE_TLS)
 #pragma omp threadprivate(_flint_primes, _flint_prime_inverses, _flint_primes_used)
 #endif
-#endif
 
 void n_compute_primes(ulong num_primes);
 
@@ -125,6 +124,8 @@ void n_cleanup_primes(void);
 
 const ulong *n_primes_arr_readonly(ulong n);
 const double *n_prime_inverses_arr_readonly(ulong n);
+
+#endif
 
 ulong n_randlimb(flint_rand_t state);
 

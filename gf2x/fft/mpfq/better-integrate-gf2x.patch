@@ -296,7 +296,7 @@ index 4ba2b9f..3d7717a 100644
  
  #ifdef __cplusplus
  extern "C" {
-@@ -19,43 +22,23 @@ extern "C" {
+@@ -19,44 +22,24 @@ extern "C" {
  /*** Constants for field_specify ***/
  
  #define MPFQ_DONE 0             /* At the end of the variadic option functions */
@@ -305,7 +305,8 @@ index 4ba2b9f..3d7717a 100644
  #define MPFQ_POLYNOMIAL 2       /* this expects an mpfq polynomial */
  #define MPFQ_DEGREE 3           /* int */
  #define MPFQ_IO_TYPE 4          /* for setopt */
- #define MPFQ_GROUPSIZE 5        /* int (SIMD group size) */
+ #define MPFQ_SIMD_GROUPSIZE 5   /* int (SIMD group size) */
+ #define MPFQ_GROUPSIZE 5        /* (for compatibility, just in case) */
 -#define MPFQ_PRIME_MPZ 6        /* mpz_t */
 +// #define MPFQ_PRIME_MPZ 6        /* mpz_t */
  #define MPFQ_MANDATORY_TAG 7    /* force the tag to be this one ; this is

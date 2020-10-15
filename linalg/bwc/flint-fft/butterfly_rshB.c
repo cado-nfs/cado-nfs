@@ -30,7 +30,6 @@ void butterfly_rshB(mp_limb_t * t, mp_limb_t * u, mp_limb_t * i1,
 	if (y == 0) {
 	    cy = fft_sumdiff(t, u, i1, i2, limbs + 1);
 	} else {		/* y != 0 */
-
 	    cy = fft_sumdiff(t, u, i1, i2 + y, limbs - y);
 	    cy1 = (cy >> 1);
 	    cy2 = -(cy & 1);
@@ -75,7 +74,6 @@ void butterfly_rshB(mp_limb_t * t, mp_limb_t * u, mp_limb_t * i1,
 	mpn_addmod_2expp1_1(t + limbs - x, x, (cy >> 1) + i1[limbs]);
 	mpn_addmod_2expp1_1(u + limbs - x, x, -(cy & 1) + i1[limbs]);
     } else {			/* x < y */
-
 	cy = fft_sumdiff(t + limbs - x, u + limbs - x, i2 + y - x, i1, x);
 	cy3 = mpn_neg_n(t + limbs - x, t + limbs - x, x);
 	t[limbs] = -(cy >> 1) - cy3;

@@ -28,6 +28,7 @@
 
 #define abfield	abcommon_name_(field)
 #define abdst_field	abcommon_name_(dst_field)
+#define absrc_field	abcommon_name_(src_field)
 
 #define abelt	abcommon_name_(elt)
 #define abdst_elt	abcommon_name_(dst_elt)
@@ -59,9 +60,12 @@
 #define abimpl_max_degree()	abcommon_name_(impl_max_degree) ()
 
 
+
 #define abfield_characteristic(a0,a1)	abcommon_name_(field_characteristic) (a0,a1)
+#define abfield_characteristic_srcptr(a0)	abcommon_name_(field_characteristic_srcptr) (a0)
 #define abfield_characteristic_bits(a0)	abcommon_name_(field_characteristic_bits) (a0)
 #define abfield_degree(a0)	abcommon_name_(field_degree) (a0)
+
 #define abfield_init(a0)	abcommon_name_(field_init) (a0)
 #define abfield_clear(a0)	abcommon_name_(field_clear) (a0)
 #define abfield_specify(a0,a1,a2)	abcommon_name_(field_specify) (a0,a1,a2)
@@ -139,9 +143,11 @@
 
 #define abasprint(a0,a1,a2)	abcommon_name_(asprint) (a0,a1,a2)
 #define abfprint(a0,a1,a2)	abcommon_name_(fprint) (a0,a1,a2)
+#define abcxx_out(a0,a1,a2)	abcommon_name_(cxx_out) (a0,a1,a2)
 #define abprint(a0,a1)	abcommon_name_(print) (a0,a1)
 #define absscan(a0,a1,a2)	abcommon_name_(sscan) (a0,a1,a2)
 #define abfscan(a0,a1,a2)	abcommon_name_(fscan) (a0,a1,a2)
+#define abcxx_in(a0,a1,a2)	abcommon_name_(cxx_in) (a0,a1,a2)
 #define abscan(a0,a1)	abcommon_name_(scan) (a0,a1)
 #define abread(a0,a1,a2)	abcommon_name_(read) (a0,a1,a2)
 #define abimportdata(a0,a1,a2,a3,a4)	abcommon_name_(importdata) (a0,a1,a2,a3,a4)
@@ -180,6 +186,8 @@
 #define abvec_sscan(a0,a1,a2,a3)	abcommon_name_(vec_sscan) (a0,a1,a2,a3)
 #define abvec_fscan(a0,a1,a2,a3)	abcommon_name_(vec_fscan) (a0,a1,a2,a3)
 #define abvec_scan(a0,a1,a2)	abcommon_name_(vec_scan) (a0,a1,a2)
+#define abvec_cxx_out(a0,a1,a2,a3)	abcommon_name_(vec_cxx_out) (a0,a1,a2,a3)
+#define abvec_cxx_in(a0,a1,a2,a3)	abcommon_name_(vec_cxx_in) (a0,a1,a2,a3)
 #define abvec_read(a0,a1,a2,a3)	abcommon_name_(vec_read) (a0,a1,a2,a3)
 #define abvec_write(a0,a1,a2,a3)	abcommon_name_(vec_write) (a0,a1,a2,a3)
 #define abvec_import(a0,a1,a2,a3,a4)	abcommon_name_(vec_import) (a0,a1,a2,a3,a4)
@@ -248,6 +256,8 @@
 #define abpoly_sscan(a0,a1,a2)	abcommon_name_(poly_sscan) (a0,a1,a2)
 #define abpoly_fscan(a0,a1,a2)	abcommon_name_(poly_fscan) (a0,a1,a2)
 #define abpoly_scan(a0,a1)	abcommon_name_(poly_scan) (a0,a1)
+#define abpoly_cxx_out(a0,a1,a2)	abcommon_name_(poly_cxx_out) (a0,a1,a2)
+#define abpoly_cxx_in(a0,a1,a2)	abcommon_name_(poly_cxx_in) (a0,a1,a2)
 
 
 

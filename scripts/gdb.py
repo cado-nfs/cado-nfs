@@ -241,6 +241,8 @@ def make_mp_printer_objects(val):
             return mpz_printer(val.dereference())
         if (t == '__mpz_struct'):
             return mpz_printer(val)
+        if (t == 'cxx_mpz'):
+            return mpz_printer(val['x'])
 
         if (t == 'mpq_ptr' or t == 'mpq_srcptr'):
             return mpq_printer(val.dereference())
@@ -248,6 +250,8 @@ def make_mp_printer_objects(val):
             return mpq_printer(val.dereference())
         if (t == '__mpq_struct'):
             return mpq_printer(val)
+        if (t == 'cxx_mpq'):
+            return mpq_printer(val['x'])
 
         if (t == 'mpfr_ptr' or t == 'mpfr_srcptr'):
             return mpfr_printer(val.dereference())
@@ -276,6 +280,8 @@ def make_mp_printer_objects(val):
             return mpz_mat_printer(val.dereference())
         if (t == 'mpz_mat_s'):
             return mpz_mat_printer(val)
+        if (t == 'cxx_mpz_mat'):
+            return mpz_mat_printer(val['x'])
 
         if (t == 'mpq_mat_ptr' or t == 'mpq_mat_srcptr'):
             return mpq_mat_printer(val.dereference())
@@ -283,6 +289,8 @@ def make_mp_printer_objects(val):
             return mpq_mat_printer(val.dereference())
         if (t == 'mpq_mat_s'):
             return mpq_mat_printer(val)
+        if (t == 'cxx_mpq_mat'):
+            return mpq_mat_printer(val['x'])
 
 
 

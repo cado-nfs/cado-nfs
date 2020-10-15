@@ -30,3 +30,8 @@ Files which contain the CADO version number and which need to be updated for a r
 CMakeLists.txt
 README
 AUTHORS
+
+Link between releases and commit identifiers:
+
+cado-nfs-2.0 aa1fae3d112f9acedc3089352dde0df606828fde
+cado-nfs-2.1 c7ecb0d9e6c8db1a02610c2fbaadbc2a40e154f0

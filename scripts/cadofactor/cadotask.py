@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import re
-import os.path
+import os
 from fractions import gcd
 import abc
 import random
@@ -37,13 +37,13 @@ def re_cap_n_fp(prefix, n, suffix=""):
     1 up to n floating-point numbers (possibly in scientific notation)
     separated by whitespace, and ends with suffix.
     
-    >>> re.match(re_cap_n_fp("foo", 2), 'foo 1.23').group(1)
+    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo 1.23').group(1)
     '1.23'
-    >>> re.match(re_cap_n_fp("foo", 2), 'foo1.23   4.56').groups()
+    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo1.23   4.56').groups()
     ('1.23', '4.56')
     
     # The first fp pattern must match something
-    >>> re.match(re_cap_n_fp("foo", 2), 'foo')
+    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo')
     """
     template = prefix
     if n > 0:
@@ -870,21 +870,26 @@ class HasStatistics(BaseStatistics, HasState, DoesLogging, metaclass=abc.ABCMeta
         """ Return the statistics collected so far as a List of strings.
         
         Sub-classes can override to add/remove/change strings.
+
+        Typically, classes that subclass HasStatistics *AND* DoesImport
+        may wish to report stats differently if import has happened.
         """
         result, errors = self.statistics.as_strings()
-        if errors is not None:
-            self.logger.warning("some stats could not be displayed for %s (see log file for debug info)", self.name)
-            for e in errors:
-                self.logger.debug(e)
-        return result
+        return result, errors
 
 
     def print_stats(self):
-        stat_msgs = self.get_statistics_as_strings()
+        stat_msgs,errors = self.get_statistics_as_strings()
         if stat_msgs:
             self.logger.info("Aggregate statistics:")
             for msg in stat_msgs:
                 self.logger.info(msg)
+        if errors is not None:
+            self.logger.warning("some stats could not be displayed for %s (see log file for debug info)", self.name)
+            for e in errors:
+                self.logger.debug(e)
+            if "STATS_PARSING_ERRORS_ARE_FATAL" in os.environ:
+                raise RuntimeError("Aborting now, since STATS_PARSING_ERRORS_ARE_FATAL is set")
         super().print_stats()
     
     def parse_stats(self, filename, *, commit):
@@ -1247,10 +1252,12 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         attempt number.
         """
         assert not self.wu_paste_char in self.name # self.name is task name
-        assert not self.wu_paste_char in identifier # identifier is, e.g., range string
-        assert not self.wu_attempt_char in identifier
-        wuname = self.wu_paste_char.join([self.params["name"], self.name,
-                                          identifier])
+        arr = [self.params["name"], self.name]
+        if identifier:
+            assert not self.wu_paste_char in identifier # identifier is, e.g., range string
+            assert not self.wu_attempt_char in identifier
+            arr.append(identifier)
+        wuname = self.wu_paste_char.join(arr)
         if not attempt is None:
             wuname += "%s%d" % (self.wu_attempt_char, attempt)
         return wuname
@@ -1282,6 +1289,8 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         """
         arr = wuname.rsplit(self.wu_paste_char, 2)
         assert len(arr) == 3
+        if arr[-1] == "":
+            arr[-1] = None
         attempt = None
         # Split off attempt number, if available
         if "#" in arr[2]:
@@ -1354,6 +1363,12 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         Return the result tuple. If the caller is an Observer, also send
         result to updateObserver().
         '''
+
+        # Task objects may submit commands with an identifier, but in
+        # most cases it's unnecessary, and anyway the identifier isn't
+        # meaningful to any function here (in contrast with the
+        # ClientServerTask situation)
+
         wuname = self.make_wuname(identifier)
         process = cadocommand.Command(command)
         cputime_used = os.times()[2] # CPU time of child processes
@@ -1493,6 +1508,9 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
 
 
 class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
+    # Note that we get self.wuar = self.make_wu_access(db.connect()) via
+    # inheritance of wudb.UsesWorkunitDb
+
     @abc.abstractproperty
     def paramnames(self):
         return self.join_params(super().paramnames,  
@@ -1507,7 +1525,12 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
         self.state.setdefault("wu_submitted", 0)
+        # wu_received only counts the WUs as individual units. It is not
+        # robust to range parameter changing in the course of the
+        # computation.
+        # -> wu_range_received is a better measure of what we've done thus far.
         self.state.setdefault("wu_received", 0)
+        self.state.setdefault("wu_range_received", 0)
         self.state.setdefault("wu_timedout", 0)
         self.state.setdefault("wu_failed", 0)
         assert self.get_number_outstanding_wus() >= 0
@@ -1547,9 +1570,24 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
     def submit_command(self, command, identifier, commit=True, log_errors=False):
         ''' Submit a workunit to the database. '''
         
+        # client-server tasks *must* have identifiers...
+        assert identifier is not None
+
+        if re.match(r'\d+-\d+', identifier):
+            pass
+        elif re.match(r'\d+', identifier):
+            identifier="%d-%d" % (int(identifier), int(identifier)+1)
+        else:
+            raise ValueError("Bad WU identifer %s in %s" % (identifier,self.name))
+
         while self.get_number_available_wus() >= self.params["maxwu"]:
             self.wait()
         wuid = self.make_wuname(identifier)
+
+        # ...and we want to be sure that the range size can be extracted
+        # from the identifier.
+        assert self.get_wusize(wuid) > 0
+
         wutext = command.make_wu(wuid)
         for filename in command.get_exec_files() + command.get_input_files():
             basename = os.path.basename(filename)
@@ -1557,7 +1595,8 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
                                    {basename:filename})
         
         self.logger.info("Adding workunit %s to database", wuid)
-        # self.logger.debug("WU:\n%s" % wutext)
+        # Note that submit_wu parses the workunit to deduce the wuid
+        # (which was created by make_wu in the first place)
         self.submit_wu(wutext, commit=commit)
         # Write command line to a file
         cmdline = command.make_command_line()
@@ -1588,6 +1627,16 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         except (OverflowError,ZeroDivisionError):
            return "Unknown"
 
+    def get_wusize(self, wuid):
+        """ parses a wuid that is relevant for the current task, and
+        return the size of the attached workunit """
+        (name, task, identifier, attempt) = self.split_wuname(wuid)
+        m=re.match(r'(\d+)-(\d+)', identifier)
+        if not m:
+            raise ValueError(wuid)
+        return int(m.group(2))-int(m.group(1))
+
+
     def verification(self, wuid, ok, *, commit):
         """ Mark a workunit as verified ok or verified with error and update
         wu_received counter """
@@ -1595,6 +1644,12 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         assert self.get_number_outstanding_wus() >= 1
         key = "wu_received"
         self.state.update({key: self.state[key] + 1}, commit=False)
+        # Like wu_received, we count here the failed workunits as well as
+        # the good ones. So the range in wu_range_received might be
+        # different from what has been "done".
+        key = "wu_range_received"
+        z = self.get_wusize(wuid)
+        self.state.update({key: self.state[key] + z}, commit=False)
         # only print ETA when achievement > 0 to avoid division by zero
         a = self.get_achievement()
         if a > 0:
@@ -1756,7 +1811,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: potential collisions=", 1)),
+            re.compile(re_cap_n_fp(r'# Stat: potential collisions=', 1)),
             False
         ),
         (
@@ -1780,7 +1835,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: total phase took", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Stat: total phase took', 1, "s")),
             False
         ),
     )
@@ -1795,6 +1850,16 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             ["Total time: {stats_total_time[0]:g}"],
             )
     
+    def get_statistics_as_strings(self):
+        # technically, polyselect1 does not import anything: it just
+        # doesn't run. So we can't check self.did_import, as it will
+        # remain false. The (final) import thing happens in polyselect2,
+        # while import that happens here is not exclusive with the fact
+        # of actually running.
+        if self.send_request(Request.GET_WILL_IMPORT_FINAL_POLYNOMIAL):
+            return [ ], None
+        else:
+            return super().get_statistics_as_strings()
     
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -1920,7 +1985,9 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             self.get_number_outstanding_wus() == 0
     
     def get_achievement(self):
-        return self.state["wu_received"] * self.params["adrange"] / (self.params["admax"] - self.params["admin"])
+        # Note that wu_range_received (like wu_received, by the way)
+        # counts ERROR'd workunits as well !
+        return self.state["wu_range_received"] / (self.params["admax"] - self.params["admin"])
 
     def updateObserver(self, message):
         identifier = self.filter_notification(message)
@@ -2182,7 +2249,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: total phase took", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Stat: total phase took', 1, "s")),
             False
         ),
         (
@@ -2190,7 +2257,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Stat: rootsieve took", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Stat: rootsieve took', 1, "s")),
             False
         )
     )
@@ -2200,6 +2267,12 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             ["Total time: {stats_total_time[0]:g}"],
             ["Rootsieve time: {stats_rootsieve_time[0]:g}"],
             )
+
+    def get_statistics_as_strings(self):
+        if self.did_import():
+            return [], None
+        else:
+            return super().get_statistics_as_strings()
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -2528,6 +2601,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
     def get_will_import(self):
         return "import" in self.params
 
+# TODO: add HasStatistics
 class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
     """ Find a polynomial pair using Joux-Lercier for DL in GF(p), uses client/server """
     @property
@@ -2611,7 +2685,9 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
             self.get_number_outstanding_wus() == 0
     
     def get_achievement(self):
-        return self.state["wu_received"] / self.params["modm"]
+        # Note that wu_range_received (like wu_received, by the way)
+        # counts ERROR'd workunits as well !
+        return self.state["wu_range_received"] / self.params["modm"]
 
     def updateObserver(self, message):
         identifier = self.filter_notification(message)
@@ -2745,6 +2821,7 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
         self.state.update({"rnext": modr+1}, commit=True)
 
 
+# TODO: add HasStatistics
 class PolyselGFpnTask(Task, DoesImport):
     """ Polynomial selection for DL in extension fields """
     @property
@@ -2797,7 +2874,7 @@ class PolyselGFpnTask(Task, DoesImport):
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
                     **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             with open(str(polyfilename), "r") as inputfile:
@@ -2918,7 +2995,7 @@ class FactorBaseTask(Task):
                                     stdout=str(stdoutpath),
                                     stderr=str(stderrpath),
                                     **self.merged_args[0])
-                message = self.submit_command(p, "", log_errors=True)
+                message = self.submit_command(p, None, log_errors=True)
                 if message.get_exitcode(0) != 0:
                     raise Exception("Program failed")
             else:
@@ -2928,7 +3005,7 @@ class FactorBaseTask(Task):
                                     stdout=str(stdoutpath),
                                     stderr=str(stderrpath),
                                     **self.merged_args[0])
-                message = self.submit_command(p, "", log_errors=True)
+                message = self.submit_command(p, None, log_errors=True)
                 if message.get_exitcode(0) != 0:
                     raise Exception("Program failed")
                 p = cadoprograms.MakeFB(out=str(outputfilename1),
@@ -2937,7 +3014,7 @@ class FactorBaseTask(Task):
                                     stdout=str(stdoutpath),
                                     stderr=str(stderrpath),
                                     **self.merged_args[0])
-                message = self.submit_command(p, "", log_errors=True)
+                message = self.submit_command(p, None, log_errors=True)
                 if message.get_exitcode(0) != 0:
                     raise Exception("Program failed")
             
@@ -3044,7 +3121,7 @@ class FreeRelTask(Task):
                                      stdout=str(stdoutpath),
                                      stderr=str(stderrpath),
                                      **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             stderr = message.read_stderr(0).decode("utf-8")
@@ -3143,7 +3220,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (float, int),
             "0 0",
             Statistics.zip_combine_mean,
-            re.compile(re_cap_n_fp("# Average J=", 1, r"\s*for (\d+) special-q's")),
+            re.compile(re_cap_n_fp(r'# Average J=', 1, r"\s*for (\d+) special-q's")),
             False
         ),
         (
@@ -3159,7 +3236,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Total cpu time", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Total cpu time', 1, "s")),
             False
         ),
         (
@@ -3167,7 +3244,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (float, ),
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("# Total elapsed time", 1, "s")),
+            re.compile(re_cap_n_fp(r'# Total elapsed time', 1, "s")),
             False
         )
     )
@@ -3413,8 +3490,8 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
 
     def get_statistics_as_strings(self):
         strings = ["Total number of relations: %d" % self.get_nrels()]
-        strings += super().get_statistics_as_strings()
-        return strings
+        s1, errors = super().get_statistics_as_strings()
+        return strings + s1, errors
     
     def get_nrels(self, filename=None):
         """ Return the number of relations found, either the total so far or
@@ -3589,7 +3666,7 @@ class Duplicates1Task(Task, FilesCreator, HasStatistics):
                                                  stdout=str(stdoutpath),
                                                  stderr=str(stderrpath),
                                                  **self.progparams[0])
-                message = self.submit_command(p, "", log_errors=True)
+                message = self.submit_command(p, None, log_errors=True)
                 if message.get_exitcode(0) != 0:
                     raise Exception("Program failed")
                     # Check that the output files exist now
@@ -3753,7 +3830,7 @@ class Duplicates2Task(Task, FilesCreator, HasStatistics):
                                              stdout=str(stdoutpath),
                                              stderr=str(stderrpath),
                                              **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             with stderrpath.open("r") as stderrfile:
@@ -3940,7 +4017,7 @@ class PurgeTask(Task):
                                    stdout=str(stdoutpath),
                                    stderr=str(stderrpath),
                                    **self.progparams[0])
-        message = self.submit_command(p, "")
+        message = self.submit_command(p, None)
         stdout = message.read_stdout(0).decode('utf-8')
         stderr = message.read_stderr(0).decode('utf-8')
         if self.parse_output(stdout, input_nrels):
@@ -4139,7 +4216,7 @@ class FilterGaloisTask(Task):
                 stdout=str(stdoutpath),
                 stderr=str(stderrpath),
                 **self.merged_args[0])
-        message = self.submit_command(p, "", log_errors=True)
+        message = self.submit_command(p, None, log_errors=True)
         if message.get_exitcode(0) != 0:
             raise Exception("Program failed")
         with stderrpath.open("r") as stderrfile:
@@ -4210,7 +4287,7 @@ class MergeDLPTask(Task):
                                    stdout=str(stdoutpath),
                                    stderr=str(stderrpath),
                                    **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             stdout = message.read_stdout(0).decode("utf-8")
@@ -4235,7 +4312,7 @@ class MergeDLPTask(Task):
                                     out=mergedfile, stdout=str(stdoutpath),
                                     stderr=str(stderrpath),
                                     **self.merged_args[1])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             
@@ -4318,7 +4395,7 @@ class MergeTask(Task):
                                    stdout=str(stdoutpath),
                                    stderr=str(stderrpath),
                                    **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             stdout = message.read_stdout(0).decode("utf-8")
@@ -4341,7 +4418,7 @@ class MergeTask(Task):
                                     out=mergedfile, stdout=str(stdoutpath),
                                     stderr=str(stderrpath),
                                     **self.merged_args[1])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             
@@ -4411,7 +4488,7 @@ class NumberTheoryTask(Task):
                                stdout=str(stdoutpath),
                                stderr=str(stderrpath),
                                **self.merged_args[0])
-        message = self.submit_command(p, "", log_errors=True)
+        message = self.submit_command(p, None, log_errors=True)
         if message.get_exitcode(0) != 0:
             raise Exception("Program failed")
 
@@ -4543,7 +4620,7 @@ class LinAlgDLPTask(Task):
                                  m=m,
                                  n=n,
                                  **self.progparams[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             virtual_logs_filename = self.workdir.make_filename("K.sols0-1.0.txt", subdir="bwc")
@@ -4589,7 +4666,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for prep: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for prep: .wct.', 1)),
             False
         ),
         (
@@ -4597,7 +4674,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for prep: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for prep: .cpu.', 1)),
             False
         ),
         (
@@ -4605,7 +4682,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for secure: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for secure: .wct.', 1)),
             False
         ),
         (
@@ -4613,7 +4690,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for secure: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for secure: .cpu.', 1)),
             False
         ),
         (
@@ -4621,7 +4698,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for gather: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for gather: .wct.', 1)),
             False
         ),
         (
@@ -4629,7 +4706,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for gather: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for gather: .cpu.', 1)),
             False
         ),
         (
@@ -4642,6 +4719,14 @@ class LinAlgTask(Task, HasStatistics):
         ),
         (
             "krylov_cpu",
+            float,
+            "0",
+            Statistics.add_list,
+            re.compile(re_cap_n_fp(r"Timings for krylov: .cpu.", 1)),
+            True
+        ),
+        (
+            "krylov_iteration_cpu",
             (int, float),
             "0",
             Statistics.add_list,
@@ -4649,7 +4734,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "krylov_cpu_wait",
+            "krylov_iteration_cpu_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4657,7 +4742,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "krylov_comm",
+            "krylov_iteration_comm",
             float,
             "0",
             Statistics.add_list,
@@ -4665,7 +4750,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "krylov_comm_wait",
+            "krylov_iteration_comm_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4677,7 +4762,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for lingen: .wct.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for lingen_\w+: .wct.', 1)),
             False
         ),
         (
@@ -4685,7 +4770,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp("Timings for lingen: .cpu.", 1)),
+            re.compile(re_cap_n_fp(r'Timings for lingen_\w+: .cpu.', 1)),
             False
         ),
         (
@@ -4698,6 +4783,14 @@ class LinAlgTask(Task, HasStatistics):
         ),
         (
             "mksol_cpu",
+            float,
+            "0",
+            Statistics.add_list,
+            re.compile(re_cap_n_fp(r"Timings for mksol: .cpu.", 1)),
+            True
+        ),
+        (
+            "mksol_iteration_cpu",
             (int, float),
             "0",
             Statistics.add_list,
@@ -4705,7 +4798,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "mksol_cpu_wait",
+            "mksol_iteration_cpu_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4713,7 +4806,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "mksol_comm",
+            "mksol_iteration_comm",
             float,
             "0",
             Statistics.add_list,
@@ -4721,7 +4814,7 @@ class LinAlgTask(Task, HasStatistics):
             True
         ),
         (
-            "mksol_comm_wait",
+            "mksol_iteration_comm_wait",
             float,
             "0",
             Statistics.add_list,
@@ -4732,20 +4825,22 @@ class LinAlgTask(Task, HasStatistics):
     @property
     def stat_formats(self):
         return (
-            ["Krylov: WCT time {krylov_wct[0]}",
-                ", iteration CPU time {krylov_cpu[1]:g}",
-                ", COMM {krylov_comm[0]}",
-                ", cpu-wait {krylov_cpu_wait[0]}",
-                ", comm-wait {krylov_comm_wait[0]}",
-                " ({krylov_cpu[0]:d} iterations)"
+            ["Krylov: CPU time {krylov_cpu[0]}",
+                ", WCT time {krylov_wct[0]}",
+                ", iteration CPU time {krylov_iteration_cpu[1]:g}",
+                ", COMM {krylov_iteration_comm[0]}",
+                ", cpu-wait {krylov_iteration_cpu_wait[0]}",
+                ", comm-wait {krylov_iteration_comm_wait[0]}",
+                " ({krylov_iteration_cpu[0]:d} iterations)"
                 ],
             ["Lingen CPU time {lingen_cpu[0]}", ", WCT time {lingen_wct[0]}"],
-            ["Mksol: WCT time {mksol_wct[0]}",
-                ", iteration CPU time {mksol_cpu[1]:g}",
-                ", COMM {mksol_comm[0]}",
-                ", cpu-wait {mksol_cpu_wait[0]}",
-                ", comm-wait {mksol_comm_wait[0]}",
-                " ({mksol_cpu[0]:d} iterations)"
+            ["Mksol: CPU time {mksol_cpu[0]}",
+                ",  WCT time {mksol_wct[0]}",
+                ", iteration CPU time {mksol_iteration_cpu[1]:g}",
+                ", COMM {mksol_iteration_comm[0]}",
+                ", cpu-wait {mksol_iteration_cpu_wait[0]}",
+                ", comm-wait {mksol_iteration_comm_wait[0]}",
+                " ({mksol_iteration_cpu[0]:d} iterations)"
                 ],
         )
 
@@ -4790,7 +4885,7 @@ class LinAlgTask(Task, HasStatistics):
                                      stdout=outfilter,
                                      stderr=str(stderrpath),
                                      **self.progparams[0])
-                message = self.submit_command(p, "", log_errors=True)
+                message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             dependencyfilename = self.workdir.make_filename("W", subdir="bwc")
@@ -4857,7 +4952,7 @@ class CharactersTask(Task):
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
                     **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             if not kernelfilename.isfile():
@@ -4917,7 +5012,7 @@ class SqrtTask(Task):
                     prefix=prefix, purged=purged, index=index, kernel=kernel,
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath), **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             
@@ -5102,12 +5197,13 @@ class SMTask(Task):
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
                     **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             if not smfilename.isfile():
                 raise Exception("Output file %s does not exist" % smfilename)
             self.state["sm"] = smfilename.get_wdir_relative()
+            self.remember_input_versions()
         self.logger.debug("Exit SMTask.run(" + self.name + ")")
         return True
     
@@ -5161,7 +5257,7 @@ class ReconstructLogTask(Task):
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
                     **self.merged_args[0])
-            message = self.submit_command(p, "", log_errors=True)
+            message = self.submit_command(p, None, log_errors=True)
             if message.get_exitcode(0) != 0:
                 raise Exception("Program failed")
             if not dlogfilename.isfile():
@@ -5239,7 +5335,7 @@ class DescentTask(Task):
                 stdout=str(stdoutpath),
                 stderr=str(stderrpath),
                 **self.merged_args[0])
-        message = self.submit_command(p, "", log_errors=True)
+        message = self.submit_command(p, None, log_errors=True)
         if message.get_exitcode(0) != 0:
             raise Exception("Program failed")
 
@@ -5948,17 +6044,21 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         last_task = None
         last_status = True
         try:
-            tasks=[]
-            for i in range(len(self.tasks)):
-                tasks.append(self.tasks[i])
             self.start_all_clients()
+            # we rely here on Task not having a weird comparison operator
+            tasks_that_have_run = set()
             i=0
             while last_status:
-                last_status, last_task = self.run_next_task()
-                if i<len(self.tasks):
-                    self.tasks[i].print_stats()
-                    i+=1
-            for task in self.tasks:
+                task = self.next_task()
+                if task is None:
+                    break
+                last_task = task.title
+                last_status = task.run()
+                tasks_that_have_run.add(task)
+                task.print_stats()
+
+            # print everybody's stats before we exit.
+            for task in tasks_that_have_run:
                 task.print_stats()
 
         except KeyboardInterrupt:
@@ -6041,13 +6141,13 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         return elapsed
 
     
-    def run_next_task(self):
+    def next_task(self):
         for task in self.tasks:
             if task in self.tasks_that_want_to_run:
                 #self.logger.info("Next task that wants to run: %s", task.title)
                 self.tasks_that_want_to_run.remove(task)
-                return [task.run(), task.title]
-        return [False, None]
+                return task
+        return None
 
     def get_sum_of_cpu_or_real_time(self, is_cpu):
         total = 0

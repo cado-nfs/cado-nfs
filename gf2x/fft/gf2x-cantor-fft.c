@@ -33,6 +33,8 @@
  * truncated and non-truncated case.
  */
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -44,18 +46,97 @@
 #include "gf2x/gf2x-impl.h"
 
 #include "gf2x-cantor-fft.h"
+#include "gf2x-fft-impl-utils.h"
+
+/* Actually including mpfq is reserved for the c file. The header has
+ * merely defined the main typedefs */
+#if CANTOR_BASE_FIELD_SIZE == 128
+#if WLEN == 64
+#include "mpfq/x86_64/mpfq_2_128.h"
+#else
+#include "mpfq/i386/mpfq_2_128.h"
+#endif
+#else
+#if WLEN == 64
+#include "mpfq/x86_64/mpfq_2_64.h"
+#else
+#include "mpfq/i386/mpfq_2_64.h"
+#endif
+#endif
 
 /* The following flags affect the behaviour of the program */
 
 #define xxxCANTOR_GM            /* Use Gao-Mateer recursion */
 #define xxxCANTOR_GM_TRUNCATE   /* Use truncated variant */
 
+#ifdef CANTOR_GM
+#error "This is experimental code, and it seems to be slightly buggy. Do not use"
+#endif
+
 #include "mpfq/mpfq_name_K.h"
 #include "macros.h"
 
 /* It's a placeholder, really. After macro expansion, nobody really uses
- * this */
-Kfield K;
+ * this. The symbol must exist, though, because we have static inlines
+ * here and there. So an empty macro won't do. */
+static Kfield K;
+
+
+/* Cantor transforms are always powers of two in size. But for truncated
+ * transforms, we spare some of the computation. For direct transforms,
+ * it seems just silly to not have shorter data. However, inverse
+ * transforms need the full data size, because interpolation is done on
+ * data which has zeros everywhere, and then it's reduced later on modulo
+ * the proper minimal polynomial.
+ *
+ * After _dft, all transforms have zero high part, and it remains so
+ * after gf2x_cantor_fft_{add,compose,addcompose} and so on.
+ *
+ * The only situation where transformed data temporarily has non-zero
+ * data in the high part is during the ift operation, and even then the
+ * data that comes out of the ift still has zero high part.
+ */
+size_t gf2x_cantor_fft_transform_size(const gf2x_cantor_fft_info_t p)
+{
+    return 1UL << p->k;
+}
+
+size_t significant_transform_size(const gf2x_cantor_fft_info_t p)
+{
+    // the _size() is a number of Kelt of the result.
+    // n normally, except when not truncating...
+    size_t n = p->n;
+#ifdef WITHOUT_CANTOR_TRUNCATION
+    n = 1 << p->k;
+#endif
+    return n;
+}
+
+int gf2x_cantor_fft_check(
+        gf2x_cantor_fft_info_srcptr o,
+        gf2x_cantor_fft_srcptr ptr,
+        size_t n,
+        int printf_diagnostics GF2X_MAYBE_UNUSED)
+{
+    for(size_t k = 0 ; k < n ; k++) {
+        gf2x_cantor_fft_srcptr xptr = gf2x_cantor_fft_get_const(o, ptr, k);
+        for(size_t i = significant_transform_size(o) ; i < gf2x_cantor_fft_transform_size(o) ; i++) {
+            if (!Kis_zero(xptr[i]))
+                return 0;
+        }
+    }
+    return 1;
+}
+
+static inline void zeropad_transform(
+        gf2x_cantor_fft_info_srcptr o,
+        gf2x_cantor_fft_ptr ptr)
+{
+    size_t n0 = significant_transform_size(o);
+    size_t n1 = gf2x_cantor_fft_transform_size(o);
+    if (n0 == n1) return;
+    memset(ptr + n0, 0, (n1 - n0) * sizeof(Kelt));
+}
 
 
 /*
@@ -96,7 +177,7 @@ Kfield K;
 */
 
 #if CANTOR_BASE_FIELD_SIZE == 128
-#if GF2X_WORDSIZE == 32
+#if WLEN == 32
 #define BETA(x,y,z,t) { x, y, z, t, }
 #else
 #define BETA(x,y,z,t) { y << 32 | x, t << 32 | z }
@@ -136,7 +217,7 @@ static const Kelt Betai[32] = {
     BETA(2252056148UL, 2850320680UL, 3455532848UL, 234262497UL),
 };
 #elif CANTOR_BASE_FIELD_SIZE == 64
-#if GF2X_WORDSIZE == 32
+#if WLEN == 32
 #define BETA(x,y) { x, y, }
 #else
 #define BETA(x,y) { y << 32 | x }
@@ -232,15 +313,6 @@ static inline void allBetai(Kdst_elt x, size_t i)
         if (!(i & 1)) continue;
         Kadd(x, x, Betai[j]);
     }
-}
-
-static inline size_t transform_datasize(gf2x_cantor_fft_info_srcptr p)
-{
-    size_t n = p->n;
-#ifdef WITHOUT_CANTOR_TRUNCATION
-    n = 1 << p->k;
-#endif
-    return n;
 }
 
 #ifdef  CANTOR_GM
@@ -390,7 +462,7 @@ void transpose_inplace(Kelt * f, unsigned int t)
     }
 }
 
-// assuming f has 1UL<<t1 rows of 1UL<<t2 values, transpose into g. Set stride
+// assuming f has 1UL<<t1 rows of 1UL<<t2 values, transpose into g. Set striding
 // in g to be 1UL<<t1 values, for 1UL<<t2 rows.
 //
 // doing this in place would be somewhat tricky, but maybe reachable
@@ -641,7 +713,7 @@ void gm_trick(unsigned int two_t, Kelt * f, size_t j)
     }
 }
 
-void multievaluateKrec(Kelt * f, unsigned int i, size_t rep_beta);
+static void multievaluateKrec(Kelt * f, unsigned int i, size_t rep_beta);
 
 /* This is the same gao-mateer trick. It reduces a length 2^two_t
  * polynomial to 2^t polynomials of length 2^t. Recursive work for the
@@ -650,7 +722,7 @@ void multievaluateKrec(Kelt * f, unsigned int i, size_t rep_beta);
  * evaluations are also processed the same way, and also handed over to
  * multievaluateKrec
  */
-void multievaluateKrecGM(Kelt * f, unsigned int two_t, size_t j)
+static void multievaluateKrecGM(Kelt * f, unsigned int two_t, size_t j)
 {
     assert((two_t & (two_t-1)) == 0);
     unsigned int t = two_t >> 1;
@@ -705,7 +777,7 @@ void gm_trick_trunc(unsigned int two_t, Kelt * f, Kelt * buf, size_t j, unsigned
     assert(k <= two_t);
     assert(n > (1UL << t));
     /* beware ; on 32-bit machines, two_t might be equal to 32... */
-    assert(two_t == GF2X_WORDSIZE || n <= (1UL << two_t));
+    assert(two_t == WLEN || n <= (1UL << two_t));
 
     size_t tau = 1UL << t;
     // long cn = (n+tau-1)>>t;      // Ceiling(n/tau);
@@ -781,7 +853,7 @@ void reduce_top_cantor(unsigned int k, unsigned int kappa, Kelt * f, size_t j)
 }
 #endif
 
-
+#ifndef WITHOUT_CANTOR_TRUNCATION
 // The generic reduction function.
 // truncated version
 static inline void reduceSiNobeta_trunc(unsigned int k, Kelt * f, size_t L)
@@ -804,6 +876,7 @@ static inline void reduceSiNobeta_trunc(unsigned int k, Kelt * f, size_t L)
     for (i = 0; i < K1; ++i)
         Kadd(f[i + K1], f[i + K1], f[i]);
 }
+#endif
 
 // A generic interpolation function.
 // TODO: unroll small sizes, like for reduction.
@@ -847,7 +920,7 @@ static inline void interpolateSiNobeta(unsigned int k, Kelt * f)
 }
 
 // f has length 2^i
-void multievaluateKrec(Kelt * f, unsigned int i, size_t rep_beta)
+static void multievaluateKrec(Kelt * f, unsigned int i, size_t rep_beta)
 {
     Kelt beta;
 
@@ -909,7 +982,8 @@ void multievaluateKrec(Kelt * f, unsigned int i, size_t rep_beta)
 
 #ifdef  CANTOR_GM
 // f must have 2^k coeffs exactly
-void multievaluateGM(Kelt * f, unsigned int k, size_t length GF2X_MAYBE_UNUSED)
+static int multievaluateGM(Kelt * f, unsigned int k, size_t length GF2X_MAYBE_UNUSED) GF2X_ATTRIBUTE_WARN_UNUSED_RESULT;
+static int multievaluateGM(Kelt * f, unsigned int k, size_t length GF2X_MAYBE_UNUSED)
 {
     unsigned int t = 1;
     unsigned int two_t;
@@ -917,6 +991,8 @@ void multievaluateGM(Kelt * f, unsigned int k, size_t length GF2X_MAYBE_UNUSED)
     assert(t < k && k <= two_t);
 #ifdef CANTOR_GM_TRUNCATE
     Kelt * buf = malloc(sizeof(Kelt) << k);
+    if (buf == NULL)
+        return GF2X_ERROR_OUT_OF_MEMORY;
     gm_trick_trunc(two_t,f,buf,0,k,length);
     free(buf);
 #else
@@ -930,12 +1006,14 @@ void multievaluateGM(Kelt * f, unsigned int k, size_t length GF2X_MAYBE_UNUSED)
         j++;
     }
 #endif
+    return 0;
 }
 #endif
 
+#ifndef WITHOUT_CANTOR_TRUNCATION
 // evaluate f, having _length_ coefficients, at the 2^i roots following
 // rep_beta
-void multievaluateKrec_trunc(Kelt * f, unsigned int i, size_t rep_beta, size_t length)
+static void multievaluateKrec_trunc(Kelt * f, unsigned int i, size_t rep_beta, size_t length)
 {
     Kelt beta;
 
@@ -986,7 +1064,7 @@ void multievaluateKrec_trunc(Kelt * f, unsigned int i, size_t rep_beta, size_t l
 
 // evaluate f, having length coefficients, at all the roots of the polynomial
 // s_k
-void multievaluateKnew_trunc(Kelt * f, unsigned int k, size_t length)
+static void multievaluateKnew_trunc(Kelt * f, unsigned int k, size_t length)
 {
     assert(length <= (1UL << k));
     if (k == 0) {
@@ -1010,9 +1088,10 @@ void multievaluateKnew_trunc(Kelt * f, unsigned int k, size_t length)
     multievaluateKrec_trunc(f + (1UL << (k - 1)), k - 1, 1,
                             length - (1UL << (k - 1)));
 }
+#endif
 
 // Interpolation with subproduct tree.
-void interpolateK(Kelt * f, unsigned int k)
+static void interpolateK(Kelt * f, unsigned int k)
 {
     size_t i, j;
     Kelt beta;
@@ -1028,6 +1107,7 @@ void interpolateK(Kelt * f, unsigned int k)
 }
 
 
+#ifndef WITHOUT_CANTOR_TRUNCATION
 // Quotrem Si. f is possibly larger than 2 times 1UL<<k.
 // Degree of f is given by L (with L > 1UL<<k)
 // Inplace computation: low part of f receive rem, high part gets quo.
@@ -1072,6 +1152,7 @@ static inline void mulSi(unsigned int k, Kelt * f, size_t L, Kelt beta)
         Kadd(f[i - K1], f[i - K1], coeff);
     }
 }
+#endif
 
 #if GNUC_VERSION_ATLEAST(3,4,0)
 #define gf2x_clzl(x)         __builtin_clzl(x)
@@ -1083,14 +1164,14 @@ static inline int gf2x_clzl(unsigned long x)
         static const int t[4] = { 2, 1, 0, 0 };
         int a = 0;
         int res;
-#if (GF2X_WORDSIZE == 64)
+#if (WLEN == 64)
         if (x >> 32) { a += 32; x >>= 32; }
 #endif  
         if (x >> 16) { a += 16; x >>= 16; }
         if (x >>  8) { a +=  8; x >>=  8; }
         if (x >>  4) { a +=  4; x >>=  4; }
         if (x >>  2) { a +=  2; x >>=  2; }
-        res = GF2X_WORDSIZE - 2 - a + t[x];
+        res = WLEN - 2 - a + t[x];
         return res;
 }
 
@@ -1099,11 +1180,12 @@ static inline int gf2x_clzl(unsigned long x)
    -x = 1...1(1-a)(1-b)(1-c)10...0, and x & (-x) = 0...000010...0 */
 static inline int gf2x_ctzl(unsigned long x)
 {
-  ASSERT(GF2X_WORDSIZE == sizeof(unsigned long) * CHAR_BIT);
-  return (GF2X_WORDSIZE - 1) - gf2x_clzl(x & - x);
+  ASSERT(WLEN == sizeof(unsigned long) * CHAR_BIT);
+  return (WLEN - 1) - gf2x_clzl(x & - x);
 }
 #endif
 
+#ifndef WITHOUT_CANTOR_TRUNCATION
 // Reduce f (with 1UL<<k coeffs) modulo the product of s_i corresponding
 // to length.
 static inline void reduceModTrunc(Kelt * f, unsigned int k, size_t length)
@@ -1145,12 +1227,11 @@ static inline void reduceModTrunc(Kelt * f, unsigned int k, size_t length)
     }
 }
 
-
 // Interpolation with subproduct tree.
 // This is a truncated version, where we reconstruct length coefficients,
 // from length values. (length <= 1UL<<k)
 // Assume that non-computed values are set to zero.
-void interpolateK_trunc(Kelt * f, unsigned int k, size_t length)
+static void interpolateK_trunc(Kelt * f, unsigned int k, size_t length)
 {
     unsigned int i;
     size_t j;
@@ -1184,10 +1265,10 @@ void interpolateK_trunc(Kelt * f, unsigned int k, size_t length)
 
     reduceModTrunc(f, k, length);
 }
+#endif
 
-#if (GF2X_WORDSIZE == 64)
-#if CANTOR_BASE_FIELD_SIZE == 128
-void decomposeK(Kelt * f, const unsigned long * F, size_t Fl, int k)
+#if CANTOR_BASE_FIELD_SIZE == 2 * WLEN/*{{{*/
+static void decomposeK(Kelt * f, const unsigned long * F, size_t Fl, int k)
 {
     assert(Fl <= (1UL << k));
     for (size_t i = 0; i < Fl; ++i) {
@@ -1198,15 +1279,41 @@ void decomposeK(Kelt * f, const unsigned long * F, size_t Fl, int k)
     memset(f + Fl, 0, ((1UL << k) - Fl) * sizeof(Kelt));
 }
 
-void recomposeK(unsigned long * F, Kelt * f, size_t Fl, int k GF2X_MAYBE_UNUSED)
+static void recomposeK(unsigned long * F, Kelt * f, size_t Fl, int k GF2X_MAYBE_UNUSED)
 {
     assert(Fl <= (1UL << k));
     F[0] = f[0][0];
     for (size_t i = 1; i < Fl ; ++i)
         F[i] = f[i][0] ^ f[i - 1][1];
 }
-#elif CANTOR_BASE_FIELD_SIZE == 64
-void decomposeK(Kelt * f, const unsigned long * F, size_t Fl, int k)
+static void recomposeK_bits(unsigned long * F, size_t nF, Kelt * f, size_t shift, int k GF2X_MAYBE_UNUSED)
+{
+    size_t Fl = W(nF);
+    size_t words_full = W(nF + shift);
+    /* shift = Q * 64 + cnt */
+    size_t Q = I(shift);
+    size_t cnt = R(shift);
+    size_t tnc = WLEN - cnt;
+    assert((Q + Fl) <= ((1UL << k) - (Q + Fl == words_full - 1)));
+    F[0] = f[Q][0];  /* wr:0 to 64; rd:Q*64 to Q*64+64 */
+    if (Q) F[0] ^= f[Q-1][1]; /* wr:0 to 64; rd:(Q-1)*64+64 to (Q-1)*64+64+64 */
+    for (size_t i = 1; i < Fl ; ++i) {
+        // rd: (Q+i)*64 to (Q+i)*64 and (Q+i-1)*64+64 to (Q+i-1)*64+64
+        // wr: i*64 to i*64+64
+        F[i] = f[Q + i][0] ^ f[Q + i - 1][1];
+    }
+    Rsh(F, F, Fl, cnt);
+    if (Q + Fl == words_full - 1) {
+        unsigned long e = f[Q + Fl][0];
+        if (Q+Fl)
+            e ^= f[Q + Fl - 1][1];
+        F[Fl - 1] |= e << tnc;
+    }
+    if (R(nF))
+        F[I(nF)] &= MASK(R(nF));
+}/*}}}*/
+#elif CANTOR_BASE_FIELD_SIZE == 64 && WLEN == 64/*{{{*/
+static void decomposeK(Kelt * f, const unsigned long * F, size_t Fl, int k)
 {
     size_t i;
     /* We're computing a DFT of length 2^k, so we can accomodate 2^k*32
@@ -1223,7 +1330,7 @@ void decomposeK(Kelt * f, const unsigned long * F, size_t Fl, int k)
     memset(f + i, 0, ((1UL << k) - 2*Fl) * sizeof(Kelt));
 }
 
-void recomposeK(unsigned long * F, Kelt * f, size_t Fl, int k GF2X_MAYBE_UNUSED)
+static void recomposeK(unsigned long * F, Kelt * f, size_t Fl, int k GF2X_MAYBE_UNUSED)
 {
     size_t i;
     assert(Fl <= (1UL << (k-1)));
@@ -1233,13 +1340,31 @@ void recomposeK(unsigned long * F, Kelt * f, size_t Fl, int k GF2X_MAYBE_UNUSED)
         F[i] = f[2*i][0] ^ (f[2*i+1][0] << 32) ^ (f[2*i-1][0] >> 32);
     }
 }
-#else
-#error  "Define CANTOR_BASE_FIELD_SIZE to 64 or 128"
-#endif
-
-#elif (GF2X_WORDSIZE == 32)
-#if CANTOR_BASE_FIELD_SIZE == 128
-void decomposeK(Kelt * f, const unsigned long * F, size_t Fl, int k)
+static void recomposeK_bits(unsigned long * F, size_t nF, Kelt * f, size_t shift, int k GF2X_MAYBE_UNUSED)
+{
+    size_t Fl = W(nF);
+    size_t words_full = W(nF + shift);
+    /* shift = Q * 64 + cnt */
+    size_t Q = I(shift);
+    size_t cnt = R(shift);
+    size_t tnc = WLEN - cnt;
+    assert(2 * (Q + Fl) <= (1UL << k));
+    F[0] = f[2*Q][0] ^ (f[2*Q+1][0] << 32);
+    if (Q) F[0] ^= f[2*Q-1][0] >> 32;
+    for (size_t i = 1; i < Fl ; ++i)
+        F[i] = f[2*(Q + i)][0] ^ (f[2*(Q + i) + 1][0] << 32) ^ (f[2*(Q + i) - 1][0] >> 32);
+    Rsh(F, F, Fl, cnt);
+    if (Q + Fl == words_full - 1) {
+        unsigned long e = f[2*(Q + Fl)][0] ^ (f[2*(Q+Fl)+1][0] << 32);
+        if (Q+Fl)
+            e ^= (f[2*(Q + Fl) - 1][0] >> 32);
+        F[Fl - 1] |= e << tnc;
+    }
+    if (R(nF))
+        F[I(nF)] &= MASK(R(nF));
+}/*}}}*/
+#elif CANTOR_BASE_FIELD_SIZE == 128 && WLEN == 32/*{{{*/
+static void decomposeK(Kelt * f, const unsigned long * F, size_t Fl, int k)
 {
     size_t i;
     assert(Fl <= (1UL << (k+1)));
@@ -1261,65 +1386,75 @@ void decomposeK(Kelt * f, const unsigned long * F, size_t Fl, int k)
     memset(f + i, 0, ((1UL << k) - i) * sizeof(Kelt));
 }
 
-void recomposeK(unsigned long * F, Kelt * f, size_t Fl, unsigned int k GF2X_MAYBE_UNUSED)
+static void recomposeK(unsigned long * F, Kelt * f, size_t Fl, unsigned int k GF2X_MAYBE_UNUSED)
 {
     size_t i;
 
     assert(Fl <= (1UL << (k+1)));
-    F[0] = f[0][0];
-    F[1] = f[0][1];
+    if (Fl>0) F[0] = f[0][0];
+    if (Fl>1) F[1] = f[0][1];
     for (i = 2; i + 1 < Fl; i += 2) {
         F[i] = f[i/2][0] ^ f[i/2 - 1][2];
         F[i+1] = f[i/2][1] ^ f[i/2 - 1][3];
     }
-    if (Fl & 1) {
+    if (Fl >= 2 && (Fl & 1)) {
             F[i] = f[i/2][0] ^ f[i/2 - 1][2];
     }
 }
-#elif CANTOR_BASE_FIELD_SIZE == 64
-void decomposeK(Kelt * f, const unsigned long * F, size_t Fl, int k)
+static void recomposeK_bits(unsigned long * F, size_t nF, Kelt * f, size_t shift, int k GF2X_MAYBE_UNUSED)
 {
-    /* We're computing a DFT of length 2^k, so we can accomodate 2^k*32
-     * bits in the coefficients. We need to make Fl*32 bits fit. Hence
-     * the following assertion.
-     */
-    assert(Fl <= (1UL << k));
-    for (size_t i = 0; i < Fl; ++i) {
-        /* Set low part of 64 bits from 32-bits in F[i] */
-        f[i][0] = F[i];
-        f[i][1] = 0;
+    size_t Fl = W(nF);
+    size_t words_full = W(nF + shift);
+    /* shift = Q * 32 + cnt */
+    size_t Q = I(shift);
+    size_t cnt = R(shift);
+    size_t tnc = WLEN - cnt;
+    assert((Q + Fl) <= (2UL << k));
+    size_t Qq = Q/2;
+    size_t Qr = Q&1;
+    if (Fl) {
+        F[0] = f[Qq][Qr];
+        if (Qq) F[0] ^= f[Qq-1][2+Qr];
     }
-    memset(f + Fl, 0, ((1UL << k) - Fl) * sizeof(Kelt));
+    size_t i = 1, j;
+    if (1 < Fl && Qr == 0) {
+        F[1] = f[Qq][1];
+        if (Qq) F[1] ^= f[Qq-1][3];
+        i++;
+    }
+    for (j = 1; i + 1 < Fl ; ++j, i += 2) {
+        F[i]   = f[Qq + j][0] ^ f[Qq + j - 1][2];
+        F[i+1] = f[Qq + j][1] ^ f[Qq + j - 1][3];
+    }
+    if (i < Fl) {
+        F[i]   = f[Qq + j][0] ^ f[Qq + j - 1][2];
+    }
+    Rsh(F, F, Fl, cnt);
+    if (Q + Fl == words_full - 1) {
+        unsigned long e = f[(Q + Fl)/2][(Q+Fl)&1];
+        if ((Q+Fl)/2)
+            e ^= f[(Q+Fl)/2-1][2+((Q+Fl)&1)];
+        F[Fl - 1] |= e << tnc;
+    }
+    if (R(nF))
+        F[I(nF)] &= MASK(R(nF));
 }
-
-void recomposeK(unsigned long * F, Kelt * f, size_t Fl, int k GF2X_MAYBE_UNUSED)
-{
-    assert(Fl <= (1UL << k));
-    F[0] = f[0][0];
-    for (size_t i = 1; i < Fl ; ++i)
-        F[i] = f[i][0] ^ f[i - 1][1];
-}
+/*}}}*/
 #else
-#error  "Define CANTOR_BASE_FIELD_SIZE to 64 or 128"
-#endif
-#else
-#error "define GF2X_WORDSIZE"
+#error  "Define CANTOR_BASE_FIELD_SIZE to 64 or 128 and WLEN to 32 or 64"
 #endif
 
 /* nF is a number of coefficients == number of bits ; a.k.a. degree + 1 */
-void gf2x_cantor_fft_init(gf2x_cantor_fft_info_t p, size_t nF, size_t nG, ...)
+int gf2x_cantor_fft_info_init(gf2x_cantor_fft_info_t p, size_t nF, size_t nG)
 {
     unsigned int k;
     size_t Hl;
     size_t n;
 
-    /* Since internally we're working with 64-bit data, then it's really
-     * a hard 64 here, not GF2X_WORDSIZE : We're just deciding on the order
-     * of things.
-     */
-    const int keep_bits_per_coeff = CANTOR_BASE_FIELD_SIZE / 2;
-    size_t Fl = (nF + keep_bits_per_coeff - 1) / keep_bits_per_coeff;
-    size_t Gl = (nG + keep_bits_per_coeff - 1) / keep_bits_per_coeff;
+    /* Really CANTOR_BASE_FIELD_SIZE / 2 here, not WLEN ! */
+    size_t ks = CANTOR_BASE_FIELD_SIZE / 2;
+    size_t Fl = CEIL(nF, ks);
+    size_t Gl = CEIL(nG, ks);
 
     n = Hl = Fl + Gl;               // nb of Kelt of the result, with padding.
     for(k = 1; (1UL << k) < n ; k++) ;
@@ -1328,32 +1463,134 @@ void gf2x_cantor_fft_init(gf2x_cantor_fft_info_t p, size_t nF, size_t nG, ...)
      * works. */
     p->k = k;
     p->n = n;
+    p->mp_shift = 0;
 
+    return 0;
 }
 
-void gf2x_cantor_fft_clear(gf2x_cantor_fft_info_t p)
+int gf2x_cantor_fft_info_init_mp(gf2x_cantor_fft_info_t p, size_t nF, size_t nG)
 {
-    memset(p, 0, sizeof(gf2x_cantor_fft_info_t));
+    unsigned int k;
+
+    /* Really CANTOR_BASE_FIELD_SIZE / 2 here, not WLEN ! */
+    size_t ks = CANTOR_BASE_FIELD_SIZE / 2;
+    size_t Fl = CEIL(nF, ks);
+    size_t Gl = CEIL(nG, ks);
+
+    /*
+    size_t first_wrapped_must_be_geq = MAX(nF, nG);
+    size_t first_nonwrapped_must_be_leq = MIN(nF, nG) - 1;
+
+     * we want (1<<k) * ks >= first_wrapped_must_be_geq
+     * and, if Fl+Gl-2>=(1<<k), then
+     * (Fl - 1 + Gl - 1 - (1<<k) + (1<<fk)) * ks + 2 * ks - 1 <= first_nonwrapped_must_be_leq
+     * ((Fl + Gl - 2 - (1<<k)) + (1<<fk)) * ks + 2 * ks - 1 <= first_nonwrapped_must_be_leq
+     * where (1<<fk) is for the index of the second leading coefficient
+     * of sk, and fk is the index of the second leading coefficient of
+     * (x+1)^k -- which is easy to tabulate.
+     *
+     * (it's not really 2*ks-1, in fact. We can probably take into
+     * account the actual lengths)
+     *
+     * Since fk>=1, the latter rewrites implies at the very least:
+     *
+     * (1<<k) * ks >= (Fl + Gl + 1) * ks - MIN(nF, nG)
+     *
+     * Note that this implies also, since Fl * ks > nF:
+     *
+     * (1<<k) * ks >= MAX(nF, nG)
+     *
+     * so that it is sufficient to check that
+     *
+     * ((1<<k) - (1<<fk)) * ks >= (Fl + Gl) * ks - MIN(nF, nG)
+     */
+    /* [Degree((x+1)^i-x^i):i in [0..63]]; */
+    int fk[64] = { -1, 0, 0, 2, 0, 4, 4, 6, 0, 8, 8, 10, 8, 12, 12, 14, 0, 16, 16, 18, 16, 20, 20, 22, 16, 24, 24, 26, 24, 28, 28, 30, 0, 32, 32, 34, 32, 36, 36, 38, 32, 40, 40, 42, 40, 44, 44, 46, 32, 48, 48, 50, 48, 52, 52, 54, 48, 56, 56, 58, 56, 60, 60, 62 };
+
+    size_t bound0a = Fl+Gl-1;
+    size_t bound1 = MAX(nF, nG);
+    size_t bound0b = (Fl + Gl) * ks - MIN(nF, nG);
+
+    for(k = 1; !((
+                    (1UL << k) >= bound0a &&  /* no wraparound */
+                    (1UL << k) * ks >= bound1 /* room for both ops */
+                ) ||
+                    ((1UL << k) - (1UL << fk[k])) * ks >= bound0b  /* controlled wraparound */
+                    ) ; k++) if (k >= 63) return GF2X_ERROR_INVALID_ARGUMENTS;
+    /* We used to refuse k < 2 here. Now we've got sufficient provision
+     * in here to accomodate for the case where k==1, so a safe fallback
+     * works. */
+    p->k = k;
+    /* We don't know how to deal with truncation in the middle product
+     * case. If the partial multi-evaluation leads us to a reconstructed
+     * polynomial that is the non-trivial reduction of the full product
+     * modulo a polynomial that has undesired trailing bits, then our
+     * output will be garbled.
+     *
+     * Some reduction polynomials are sparse enough, so that we can live
+     * with that reduction. Let n1 be the degree of the second largest
+     * bit of the polynomial with n roots in the evaluation tree.
+     * In particular, n1=1 if n is a power of two. If the following
+     * condition holds:
+     *          (1UL << k) * ks >= bound + n1 - 1,
+     * then we're good: following the same argument as we have developed
+     * above, wraparound bits will not bother us.
+     *
+     * Hence in theory, it should be sufficient to pick a truncation
+     * order that satisfies
+     *          MAX(Fl, Gl) <= n <= (1UL << k)
+     *          n1 <= (1UL << k) * ks + 1 - bound
+     * We know that the latter upper bound is at least 1, so that n =
+     * (1UL << k) is a solution.
+     *
+     * Alas, it doesn't seem very practical to search for a truncation
+     * order that meets these conditions. Most probably there isn't one,
+     * since the corresponding polynomials tend to be dense.  Let's stick
+     * to 2^k for the time being. (or Fl+Gl-1, which also means that we
+     * have no truncation).
+     */
+    p->n = MIN(Fl + Gl - 1, 1UL << k);
+    p->mp_shift = MIN(nF, nG) - 1;
+
+    return 0;
+}
+
+extern void GF2X_EXPORTED gf2x_cantor_fft_info_get_alloc_sizes(
+        gf2x_cantor_fft_info_srcptr p,
+        size_t sizes[3])
+{
+    sizes[0] = gf2x_cantor_fft_transform_size(p) * sizeof(gf2x_cantor_fft_elt);
+    sizes[1] = 0;
+    sizes[2] = 0;
+}
+
+char * GF2X_EXPORTED gf2x_cantor_fft_info_explain(gf2x_cantor_fft_info_srcptr p)
+{
+    int rc;
+    char * line;
+    rc = asprintf(&line, "Cantor additive FFT of depth %u over GF(2^%u), truncated to length %zu.", p->k, CANTOR_BASE_FIELD_SIZE, p->n);
+    return rc >= 0 ? line : NULL;
 }
 
 /* nF is a number of coefficients */
-void gf2x_cantor_fft_dft(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr x, const unsigned long * F, size_t nF)
+int gf2x_cantor_fft_dft(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr x, const unsigned long * F, size_t nF, gf2x_cantor_fft_ptr temp1 GF2X_MAYBE_UNUSED)
 {
-    size_t Fl = (nF + GF2X_WORDSIZE - 1) / GF2X_WORDSIZE;
-    if (nF % GF2X_WORDSIZE) {
+    size_t Fl = W(nF);
+    if (R(nF)) {
         /* Just as we are computing this assertion, we could easily mask out
          * the bits ourselves. However, our interface mandates that the high
          * bits be cleared in any case. So make sure we properly enforce this
          * constraint.
          */
-        assert((F[Fl-1] & ~((1UL << (nF % GF2X_WORDSIZE)) - 1)) == 0);
+        assert((F[I(nF)] & ~MASK(R(nF))) == 0);
     }
 #ifdef WITHOUT_CANTOR_TRUNCATION
     memset(x, 0, sizeof(Kelt) << p->k);
 #endif
     decomposeK(x,F,Fl,p->k);
 #ifdef  CANTOR_GM
-    multievaluateGM(x, p->k, p->n);
+    int rc = multievaluateGM(x, p->k, p->n);
+    if (rc < 0) return rc;
 #else
 #ifdef WITHOUT_CANTOR_TRUNCATION
     multievaluateKrec(x, p->k, 0);
@@ -1361,17 +1598,20 @@ void gf2x_cantor_fft_dft(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr x, 
     multievaluateKnew_trunc(x, p->k, p->n);
 #endif
 #endif
+    zeropad_transform(p, x);
+    return 0;
 }
 
 
-void gf2x_cantor_fft_compose(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr x1, gf2x_cantor_fft_srcptr x2)
+int gf2x_cantor_fft_compose(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr x1, gf2x_cantor_fft_srcptr x2, gf2x_cantor_fft_ptr temp2 GF2X_MAYBE_UNUSED)
 {
-    for (size_t j = 0; j < transform_datasize(p) ; j++) {
+    for (size_t j = 0; j < significant_transform_size(p) ; j++) {
         Kmul(y[j], x1[j], x2[j]);
     }
+    return 0;
 }
 
-void gf2x_cantor_fft_addcompose_n(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr * x1, gf2x_cantor_fft_srcptr * x2, size_t n)
+int gf2x_cantor_fft_addcompose_n(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr * x1, gf2x_cantor_fft_srcptr * x2, size_t n, gf2x_cantor_fft_ptr temp2 GF2X_MAYBE_UNUSED, gf2x_cantor_fft_ptr temp1 GF2X_MAYBE_UNUSED)
 {
     Kelt er;
 #if 0
@@ -1379,7 +1619,7 @@ void gf2x_cantor_fft_addcompose_n(const gf2x_cantor_fft_info_t p, gf2x_cantor_ff
      * simultaneous accumulators */
 #define ACCUMULATE      256
     size_t j;
-    for (j = 0; j + ACCUMULATE - 1 < transform_datasize(p) ; j+= ACCUMULATE) {
+    for (j = 0; j + ACCUMULATE - 1 < significant_transform_size(p) ; j+= ACCUMULATE) {
         Kelt_ur e[ACCUMULATE], s[ACCUMULATE];
         for(int t = 0 ; t < ACCUMULATE ; t++)
             Kelt_ur_set_zero(s[t]);
@@ -1394,7 +1634,7 @@ void gf2x_cantor_fft_addcompose_n(const gf2x_cantor_fft_info_t p, gf2x_cantor_ff
             Kadd(y[j+t], y[j+t], er);
         }
     }
-    for (; j < transform_datasize(p) ; j++) {
+    for (; j < significant_transform_size(p) ; j++) {
         Kelt_ur e, s;
         Kelt_ur_set_zero(s);
         for(size_t k = 0 ; k < n ; k++) {
@@ -1411,7 +1651,7 @@ void gf2x_cantor_fft_addcompose_n(const gf2x_cantor_fft_info_t p, gf2x_cantor_ff
 #define SIMULTANEOUS    8
     size_t k;
     for(k = 0 ; k + SIMULTANEOUS - 1 < n ; k += SIMULTANEOUS) {
-        for(size_t j = 0 ; j < transform_datasize(p) ; j++) {
+        for(size_t j = 0 ; j < significant_transform_size(p) ; j++) {
             Kelt_ur s;
             Kelt_ur_set_zero(s);
             for(size_t r = 0 ; r < SIMULTANEOUS ; r++) {
@@ -1426,7 +1666,7 @@ void gf2x_cantor_fft_addcompose_n(const gf2x_cantor_fft_info_t p, gf2x_cantor_ff
         x2 += SIMULTANEOUS;
     }
     for( ; k < n ; k ++) {
-        for(size_t j = 0 ; j < transform_datasize(p) ; j++) {
+        for(size_t j = 0 ; j < significant_transform_size(p) ; j++) {
             Kelt_ur s;
             Kelt_ur_set_zero(s);
             {
@@ -1442,41 +1682,36 @@ void gf2x_cantor_fft_addcompose_n(const gf2x_cantor_fft_info_t p, gf2x_cantor_ff
         x2 ++;
     }
 #endif
+    return 0;
 }
 
-void gf2x_cantor_fft_addcompose(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr x1, gf2x_cantor_fft_srcptr x2)
+int gf2x_cantor_fft_addcompose(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr x1, gf2x_cantor_fft_srcptr x2, gf2x_cantor_fft_ptr temp2, gf2x_cantor_fft_ptr temp1)
 {
-    gf2x_cantor_fft_addcompose_n(p, y, &x1, &x2, 1);
+    gf2x_cantor_fft_addcompose_n(p, y, &x1, &x2, 1, temp2, temp1);
+    return 0;
 }
 
 void gf2x_cantor_fft_add(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr x1, gf2x_cantor_fft_srcptr x2)
 {
-    for (size_t j = 0; j < transform_datasize(p) ; j++) {
+    for (size_t j = 0; j < significant_transform_size(p) ; j++) {
         Kadd(y[j], x1[j], x2[j]);
     }
 }
 
-void gf2x_cantor_fft_cpy(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr x)
+void gf2x_cantor_fft_cpy(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr y, gf2x_cantor_fft_srcptr x, size_t n)
 {
-    memcpy(y, x, transform_datasize(p)*sizeof(Kelt));
-}
-
-size_t gf2x_cantor_fft_size(const gf2x_cantor_fft_info_t p)
-{
-    // the _size() is a number of Kelt of the result.
-    // n normally, except when not truncating...
-    return transform_datasize(p);
+    memcpy(y, x, n * significant_transform_size(p) * sizeof(Kelt));
 }
 
 /* nH is a number of coefficients */
 /* this destroys the input */
-void gf2x_cantor_fft_ift(
+int gf2x_cantor_fft_ift(
         const gf2x_cantor_fft_info_t p,
         unsigned long * H,
         size_t nH,
-        gf2x_cantor_fft_ptr h)
+        gf2x_cantor_fft_ptr h, gf2x_cantor_fft_ptr temp1 GF2X_MAYBE_UNUSED)
 {
-    size_t Hl = (nH + GF2X_WORDSIZE - 1) / GF2X_WORDSIZE;
+    size_t Hl = W(nH);
 
 #ifdef WITHOUT_CANTOR_TRUNCATION
     interpolateK(h, p->k);
@@ -1490,13 +1725,20 @@ void gf2x_cantor_fft_ift(
         interpolateK(h, p->k);
     }
 #endif
-    recomposeK(H, h, Hl, p->k);
+    if (p->mp_shift == 0) {
+        recomposeK(H, h, Hl, p->k);
+    } else {
+        recomposeK_bits(H, nH, h, p->mp_shift, p->k);
+    }
+    if (R(nH))
+        H[I(nH)] &= MASK(R(nH));
+    return 0;
 }
 
 
 gf2x_cantor_fft_ptr gf2x_cantor_fft_alloc(const gf2x_cantor_fft_info_t p, size_t n)
 {
-    return (Kelt *) malloc((n+(n << p->k)) * sizeof(Kelt));
+    return (Kelt *) malloc(n * gf2x_cantor_fft_transform_size(p) * sizeof(Kelt));
 }
 void gf2x_cantor_fft_free(
         const gf2x_cantor_fft_info_t p GF2X_MAYBE_UNUSED,
@@ -1507,23 +1749,15 @@ void gf2x_cantor_fft_free(
 }
 gf2x_cantor_fft_srcptr gf2x_cantor_fft_get_const(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_srcptr x, size_t k)
 {
-    return x + (k << p->k) + k;
+    return x + k * gf2x_cantor_fft_transform_size(p);
 }
 gf2x_cantor_fft_ptr gf2x_cantor_fft_get(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr x, size_t k)
 {
-    return x + (k << p->k) + k;
+    return x + k * gf2x_cantor_fft_transform_size(p);
 }
 void gf2x_cantor_fft_zero(const gf2x_cantor_fft_info_t p, gf2x_cantor_fft_ptr x, size_t n)
 {
-    memset(x, 0, ((n << p->k) + n) * sizeof(Kelt));
-}
-void gf2x_cantor_fft_init_similar(gf2x_cantor_fft_info_ptr o, size_t bits_a, size_t bits_b, gf2x_cantor_fft_info_srcptr other GF2X_MAYBE_UNUSED)
-{
-    gf2x_cantor_fft_init(o, bits_a, bits_b);
-}
-int gf2x_cantor_fft_compatible(gf2x_cantor_fft_info_srcptr o1, gf2x_cantor_fft_info_srcptr o2)
-{
-    return o1->k == o2->k;
+    memset(x, 0, n * gf2x_cantor_fft_transform_size(p) * sizeof(Kelt));
 }
 
 /* vim: set sw=4 sta et: */

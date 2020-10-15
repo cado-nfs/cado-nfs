@@ -105,6 +105,47 @@ fi
 if [ "$fbc" ] || [ "$batch0" ] || [ "$batch1" ] ; then
     run "$LAS_BINARY" "${args[@]}" "${zero_qs[@]}" -out "${RELS}" "$@"
 fi
+
+if [ "$fbc" ] ; then
+    # We should have created a cache file now. Use our companion script
+    # to parse the file headers. This can serve as an automated check
+    # that the companion script and the source code are kept in sync.
+    if [ "$fbc" = "." ] ; then
+        real_fbc="${WORKDIR}/${BASENAME}.fbc"
+    else
+        real_fbc="$fbc"
+    fi
+    # Note that if HAVE_GLIBC_VECTOR_INTERNALS is not set, then we don't
+    # support fbc. We don't want the test to fail in that case.
+    if [ -f "$real_fbc" ] ; then
+        "${CADO_NFS_SOURCE_DIR}/sieve/inspect-fbc-file.pl" -fbc "$real_fbc" > "$real_fbc.txt"
+    fi
+fi
+
+if [ "$batch0" ] ; then
+    # We should have created a cache file now. Use our companion script
+    # to parse the file headers. This can serve as an automated check
+    # that the companion script and the source code are kept in sync.
+    if [ "$file" = "." ] ; then
+        real_file="${WORKDIR}/${BASENAME}.batch0"
+    else
+        real_file="$batch0"
+    fi
+    "${CADO_NFS_SOURCE_DIR}/sieve/inspect-batch-file.pl" -batch "$real_file" > "$real_file.txt"
+fi
+
+if [ "$batch1" ] ; then
+    # We should have created a cache file now. Use our companion script
+    # to parse the file headers. This can serve as an automated check
+    # that the companion script and the source code are kept in sync.
+    if [ "$file" = "." ] ; then
+        real_file="${WORKDIR}/${BASENAME}.batch1"
+    else
+        real_file="$batch1"
+    fi
+    "${CADO_NFS_SOURCE_DIR}/sieve/inspect-batch-file.pl" -batch "$real_file" > "$real_file.txt"
+fi
+
 # then use the cache file created above
 run "$LAS_BINARY" "${args[@]}" "${end[@]}" -out "${RELS}" "$@"
 

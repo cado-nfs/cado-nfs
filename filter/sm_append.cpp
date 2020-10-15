@@ -87,7 +87,8 @@ void peer_status::receive(task_globals & tg, int peer, int turn)
     MPI_Wait(&req, MPI_STATUS_IGNORE);
     batch.clear();
 
-    mp_limb_t returns[bsize][tg.nsm_total][tg.limbs_per_ell];
+    mp_limb_t * returns = new mp_limb_t[bsize * tg.nsm_total * tg.limbs_per_ell];
+    // [bsize][tg.nsm_total][tg.limbs_per_ell];
 
     MPI_Recv(returns, bsize * tg.nsm_total * tg.limbs_per_ell * sizeof(mp_limb_t), MPI_BYTE, peer, turn, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
@@ -97,13 +98,16 @@ void peer_status::receive(task_globals & tg, int peer, int turn)
         fputs(rels[i].c_str(), tg.out);
         bool comma = false;
         for (int j = 0 ; j < tg.nsm_total ; j++) {
-            gmp_fprintf(tg.out, "%c%Nd", comma ? ',' : ':', returns[i][j], tg.limbs_per_ell);
+            mp_limb_t * rij = returns + ((i * tg.nsm_total) + j) * tg.limbs_per_ell;
+            gmp_fprintf(tg.out, "%c%Nd", comma ? ',' : ':', rij, tg.limbs_per_ell);
             comma=true;
         }
         fputc('\n', tg.out);
         tg.nrels_out++;
     }
     rels.clear();
+
+    delete[] returns;
 }
 
 void peer_status::send_finish(task_globals &, int peer, int turn)
@@ -205,7 +209,8 @@ static void sm_append_master(FILE * in, FILE * out, sm_side_info *sm_info, int n
     fprintf(stderr, "# make sure you use \"--bind-to core\" or equivalent\n");
 
     double t0 = wct_seconds();
-    for(int turn = 0 ; eof <= 2 ; turn++, eof += !!eof) {
+    int turn;
+    for(turn = 0 ; eof <= 2 ; turn++, eof += !!eof) {
         double t = wct_seconds();
         debug_fprintf(stderr, "%.3f " CSI_BOLDRED "start turn %d" CSI_RESET "\n", t0, turn);
         for(int peer = 1; peer < size; peer++) {
@@ -241,6 +246,11 @@ static void sm_append_master(FILE * in, FILE * out, sm_side_info *sm_info, int n
                     tg.nrels_out / (wct_seconds()-t0));
         }
     }
+    fprintf(stderr, "# final: printed %zu rels in %.1f s"
+            " (%.1f / batch, %.1f rels/s)\n",
+            tg.nrels_out, wct_seconds()-t0,
+            (wct_seconds()-t0) / turn,
+            tg.nrels_out / (wct_seconds()-t0));
 }
 
 static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
@@ -258,9 +268,6 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
         if (sm_info[side]->nsm) limbs_per_ell = mpz_size(sm_info[side]->ell);
     }
 
-    mpz_poly smpol;
-
-    mpz_poly_init(smpol, maxdeg);
 
     for(int turn = 0 ; ; turn++) {
         unsigned long bsize;
@@ -274,24 +281,33 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
 
         double t0 = wct_seconds();
         debug_fprintf(stderr, "%.3f turn %d peer %d start on batch of size %lu\n", wct_seconds(), turn, rank, bsize);
-        mp_limb_t returns[bsize][nsm_total][limbs_per_ell];
+        mp_limb_t * returns = new mp_limb_t[bsize * nsm_total * limbs_per_ell];
         memset(returns, 0, bsize*nsm_total*limbs_per_ell*sizeof(mp_limb_t));
 
-        for(unsigned long i = 0 ; i < bsize ; i++) {
-            mpz_poly pol;
-            mpz_poly_init_set_ab(pol, batch[i].a, batch[i].b);
-            int smidx = 0;
-            for (int side = 0; side < nb_polys; ++side) {
-                compute_sm_piecewise(smpol, pol, sm_info[side]);
-                for(int k = 0 ; k < sm_info[side]->nsm ; k++, smidx++) {
-                    if (k <= smpol->deg) {
-                        for(size_t j = 0 ; j < limbs_per_ell ; j++) {
-                            returns[i][smidx][j] = mpz_getlimbn(smpol->coeff[k], j);
+#ifdef HAVE_OPENMP
+// #pragma omp parallel
+#endif
+        {
+            cxx_mpz_poly smpol(maxdeg), pol(1);
+#ifdef HAVE_OPENMP
+// #pragma omp for
+#endif
+            for(unsigned long i = 0 ; i < bsize ; i++) {
+                mpz_poly_setcoeff_int64(pol, 0, batch[i].a);
+                mpz_poly_setcoeff_int64(pol, 1, -(int64_t) batch[i].b);
+                int smidx = 0;
+                for (int side = 0; side < nb_polys; ++side) {
+                    compute_sm_piecewise(smpol, pol, sm_info[side]);
+                    for(int k = 0 ; k < sm_info[side]->nsm ; k++, smidx++) {
+                        if (k <= smpol->deg) {
+                            mp_limb_t * rix = returns + (i * nsm_total + smidx) * limbs_per_ell;
+                            for(size_t j = 0 ; j < limbs_per_ell ; j++) {
+                                rix[j] = mpz_getlimbn(smpol->coeff[k], j);
+                            }
                         }
                     }
                 }
             }
-            mpz_poly_clear(pol);
         }
         debug_fprintf(stderr, "%.3f " CSI_BLUE "turn %d peer %d done batch of size %lu" CSI_RESET " [taken %.1f]\n", wct_seconds(), turn, rank, bsize, wct_seconds() - t0);
         if (rank == 1 && turn == 2)
@@ -302,9 +318,9 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
 
         t0 = wct_seconds();
         MPI_Send(returns, bsize * nsm_total * limbs_per_ell * sizeof(mp_limb_t), MPI_BYTE, 0, turn, MPI_COMM_WORLD);
+        delete[] returns;
         debug_fprintf(stderr, "%.3f turn %d peer %d send return took %.1f\n", wct_seconds(), turn, rank, wct_seconds() - t0);
     }
-    mpz_poly_clear(smpol);
 }
 
 static void sm_append_sync(FILE * in, FILE * out, sm_side_info *sm_info, int nb_polys)

@@ -40,7 +40,7 @@ EOF
   echo '"";'
 }
 
-TEMPFILE="`mktemp ${TMPDIR-/tmp}/XXXXXXX`"
+TEMPFILE="`mktemp ${TMPDIR-/tmp}/cado-nfs.XXXXXXXXX`"
 list_modified >> "$TEMPFILE"
 if ! [ -f "$OUTPUT_FILE" ] || ! cmp -s "$TEMPFILE" "$OUTPUT_FILE"
 then

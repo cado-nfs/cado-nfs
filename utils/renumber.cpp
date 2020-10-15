@@ -654,7 +654,16 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
         return i;
     }
 
-    if (UNLIKELY(p >> *std::max_element(lpb.begin(), lpb.end())))
+    /* Note that if lpbmax is > the width of the type, then
+     * check_needed_bits() should have complained already.
+     *
+     * If lpbmax is == the width of the type, then the table fits (if
+     * there's only one non-rational side). But we can't simply check p
+     * >> lpbmax, since the check overflows...
+     *
+     */
+    unsigned int lpbmax = *std::max_element(lpb.begin(), lpb.end());
+    if (lpbmax < (8 * sizeof(p_r_values_t)) && UNLIKELY(p >> lpbmax))
         throw prime_is_too_large(p);
 
     if (format == format_flat) {
@@ -859,7 +868,7 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
                             exps.push_back(v);
                         } else {
                             ASSERT_ALWAYS(e >= -v);
-                            exps.push_back(-v);
+                            exps.push_back(e + v);
                         }
                     }
                     return { first, exps };
@@ -1149,6 +1158,8 @@ void renumber_t::read_header(std::istream& is)
         read_bad_ideals(is);
     }
     is.flags(ff);
+
+    check_needed_bits(needed_bits());
 }
 
 /* This reads the bad ideals section of the new-format renumber file
@@ -1902,6 +1913,8 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
     }
 
     info(std::cout);
+
+    check_needed_bits(needed_bits());
 
     std::unique_ptr<std::ostream> out;
 

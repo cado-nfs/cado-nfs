@@ -22,6 +22,7 @@ set (sources
         rho.c gpf.cpp
         sha1.c
         fmt/format.cc
+        fmt/os.cc
         fd_streambuf.cpp
         cado_pipe_streambuf.cpp
         numbertheory.cpp
