@@ -50,6 +50,9 @@
 #include "params.h"
 #include "timing.h"
 
+/* define to check the result of cxx_mpz_polymod_scaled_sqrt */
+// #define DEBUG
+
 /* frequency of messages "read xxx (a,b) pairs" */
 #define REPORT 10000000
 
@@ -987,7 +990,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
 }
 
 // res <- Sqrt(AA) mod F, using p-adic lifting, at prime p.
-void
+unsigned long
 cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scaled & AA, cxx_mpz_poly const & F, unsigned long p,
 	       int numdep)
 {
@@ -1242,6 +1245,8 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
 	     numdep, sqrt_size, 100.0 * (double) sqrt_size / target_size);
     fflush (stderr);
   }
+
+  return target_k;
 }
 
 static unsigned long
@@ -1355,7 +1360,43 @@ calculateSqrtAlg (const char *prefix, int numdep,
       fflush (stderr);
     }
 
-    cxx_mpz_polymod_scaled_sqrt (prod, prod, F, p, numdep);
+#ifdef DEBUG
+    mpz_poly prod0;
+    unsigned long v0 = prod.v;
+    ASSERT_ALWAYS(prod.p->deg == F->deg - 1);
+    mpz_poly_init (prod0, F->deg - 1);
+    mpz_poly_set (prod0, prod.p);
+#endif
+    unsigned long target_k MAYBE_UNUSED;
+    target_k = cxx_mpz_polymod_scaled_sqrt (prod, prod, F, p, numdep);
+#ifdef DEBUG
+    unsigned long v = prod.v;
+    /* we should have prod.p/fd^v = sqrt(prod0/fd^v0) mod (F,p^k)
+       thus prod.p^2/fd^(2v) = prod0/fd^v0 mod (F,p^k)
+       thus fd^v0*prod.p^2 = fd^(2v)*prod0 mod (F,p^k) */
+    mpz_poly q;
+    mpz_t pk, fdv0, fd2v;
+    mpz_poly_init (q, F->deg - 1);
+    mpz_init (pk);
+    mpz_ui_pow_ui (pk, p, target_k);
+    mpz_poly_sqr_mod_f_mod_mpz (q, prod.p, F, pk, NULL, NULL);
+    /* we should have fd^v0*q = fd^(2v)*prod0 mod p^k */
+    mpz_init (fdv0);
+    mpz_powm_ui (fdv0, F->coeff[F->deg], v0, pk);
+    mpz_poly_mul_mpz (q, q, fdv0);
+    mpz_poly_mod_mpz (q, q, pk, NULL);
+    /* now we should have q = fd^(2v)*prod0 mod p^k */
+    mpz_init (fd2v);
+    mpz_powm_ui (fd2v, F->coeff[F->deg], 2 * v, pk);
+    mpz_poly_mul_mpz (prod0, prod0, fd2v);
+    mpz_poly_mod_mpz (prod0, prod0, pk, NULL);
+    /* now we should have q = prod0 */
+    ASSERT_ALWAYS(mpz_poly_cmp (q, prod0) == 0);
+    mpz_poly_clear (prod0);
+    mpz_clear (pk);
+    mpz_clear (fdv0);
+    mpz_clear (fd2v);
+#endif
 #pragma omp critical
     {
       fprintf (stderr, "Alg(%d): square root lifted at %.2fs (wct %.2fs)\n",
