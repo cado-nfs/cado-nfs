@@ -1141,9 +1141,6 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
 	fflush (stderr);
       }
 
-    /* invariant: k = K[logk] */
-    ASSERT_ALWAYS(k == K[logk]);
-
     mpz_mul (pk, pk, pk);   // double the current precision
     logk --;
     if (K[logk] & 1)
@@ -1152,7 +1149,10 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
         k --;
       }
     barrett_precompute_inverse (invpk, pk);
-    k = K[logk];
+
+    /* check the invariant k = K[logk] */
+    ASSERT_ALWAYS(k == K[logk]);
+
 #pragma omp critical
     {
       fprintf (stderr, "Alg(%d): start lifting mod p^%lu (%lu bits) at %.2fs (wct %.2fs)\n",
