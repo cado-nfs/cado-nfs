@@ -1144,6 +1144,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
       }
 
     mpz_mul (pk, pk, pk);   // double the current precision
+    k = k + k;
     logk --;
     if (K[logk] & 1)
       {
