@@ -590,7 +590,11 @@ parse_t0_t1(std::string const& E_filename, std::string const& pi_filename)
     /* at this point, E should have ben consumed, and all that is left in
      * pi is t1 */
     ASSERT_ALWAYS(std::istringstream(pi_filename.substr(pi_pos)) >> t1);
-    return { t0, t1 };
+    /* This is pedantic, but oldish g++ has the ctor from init-list
+     * marked "explicit"
+     */
+    std::tuple<unsigned int, unsigned int> res { t0, t1 };
+    return res;
 }
 
 /* check that E*pi = O(x^length(E)) at a given level. */

@@ -301,14 +301,22 @@ std::tuple<unsigned int, unsigned int> lingen_F0::column_data_from_Aprime(unsign
         jA = fdesc[jE-n][1];
         kA = fdesc[jE-n][0];
     }
-    return { kA, jA };
+    /* This is pedantic, but oldish g++ has the ctor from init-list
+     * marked "explicit"
+     */
+    std::tuple<unsigned int, unsigned int> res { kA, jA };
+    return res;
 }
 std::tuple<unsigned int, unsigned int> lingen_F0::column_data_from_A(unsigned int jE) const
 {
     unsigned int kA, jA;
     std::tie(kA, jA) = column_data_from_Aprime(jE);
     kA += jA >= nrhs;
-    return { kA, jA };
+    /* This is pedantic, but oldish g++ has the ctor from init-list
+     * marked "explicit"
+     */
+    std::tuple<unsigned int, unsigned int> res { kA, jA };
+    return res;
 }
 
 void lingen_E_from_A::refresh_cache_upto(unsigned int k)
@@ -838,7 +846,11 @@ std::tuple<unsigned int, unsigned int> lingen_F_from_PI::get_shift_ij(unsigned i
     kF = t0 - kF;
     unsigned int s0 = shift + kF + (iF < nrhs);
 
-    return {iF, s0 };
+    /* This is pedantic, but oldish g++ has the ctor from init-list
+     * marked "explicit"
+     */
+    std::tuple<unsigned int, unsigned int> res { iF, s0 };
+    return res;
 }
 
 lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
