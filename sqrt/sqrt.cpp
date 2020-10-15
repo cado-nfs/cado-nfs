@@ -63,7 +63,7 @@ std::mutex stdio_guard;
 
 struct cxx_mpz_polymod_scaled {
   cxx_mpz_poly p;
-  int v;
+  unsigned long v;
   cxx_mpz_polymod_scaled(int deg) : p(deg), v(0) {}
   cxx_mpz_polymod_scaled() = default;
   cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled const &) = delete;
@@ -78,7 +78,7 @@ struct cxx_mpz_polymod_scaled {
    WARNING: this function destroys its input p !!! */
 static void
 cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_mpz_poly const & F) {
-  int v = 0;
+  unsigned long v = 0;
 
   if (p->deg < F->deg) {
     mpz_poly_set(P.p, p);
@@ -122,7 +122,7 @@ cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_
 void
 cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled const & P1, cxx_mpz_polymod_scaled const & P2,
                    cxx_mpz_poly const & F) {
-  int v;
+  unsigned long v;
 
   /* beware: if P1 and P2 are zero, P1.p->deg + P2.p->deg = -2 */
   cxx_mpz_poly prd ((P1.p->deg == -1) ? -1 : P1.p->deg + P2.p->deg);
@@ -132,9 +132,11 @@ cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled c
 
   mpz_poly_mul (prd, P1.p, P2.p);
   v = P1.v + P2.v;
+  ASSERT_ALWAYS(v >= P1.v); /* no overflow */
 
   cxx_mpz_polymod_scaled_reduce (Q, prd, F);
   Q.v += v;
+  ASSERT_ALWAYS(Q.v >= v); /* no overflow */
 }
 
 static char*
@@ -990,7 +992,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
 	       int numdep)
 {
   mpz_poly A, *P;
-  int v;
+  unsigned long v;
   int d = F->deg;
   unsigned long k, target_k;
   unsigned long K[65];
@@ -1344,7 +1346,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
     {
       fprintf (stderr, "Alg(%d): finished accumulating product at %.2fs (wct %.2fs)\n",
 	       numdep, seconds(), wct_seconds () - wct0);
-      fprintf (stderr, "Alg(%d): nab = %lu, nfree = %lu, v = %d\n", numdep,
+      fprintf (stderr, "Alg(%d): nab = %lu, nfree = %lu, v = %lu\n", numdep,
 	       nab, nfree, prod.v);
       fprintf (stderr, "Alg(%d): maximal polynomial bit-size = %lu\n", numdep,
 	       (unsigned long) mpz_poly_sizeinbase (prod.p, 2));
