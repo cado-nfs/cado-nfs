@@ -49,6 +49,7 @@
 #include "macros.h"
 #include "params.h"
 #include "timing.h"
+#include "rootfinder.h"
 
 /* define to check the result of cxx_mpz_polymod_scaled_sqrt */
 // #define DEBUG
@@ -1361,6 +1362,35 @@ calculateSqrtAlg (const char *prefix, int numdep,
     }
 
 #ifdef DEBUG
+    /* Check that post-accumulation, we have something that is still a
+     * square modulo several split primes */
+    cxx_mpz ptest;
+    mpz_ui_pow_ui(ptest, 2, 64);
+    for(int i = 0 ; i < 10 ; i++) {
+        cxx_mpz rtest;
+        for(;;) {
+            mpz_nextprime(ptest, ptest);
+            std::vector<cxx_mpz> rr = mpz_poly_roots(F, ptest);
+            if ((int) rr.size() == mpz_poly_degree(F)) {
+                rtest = rr[0];
+                break;
+            }
+        }
+        cxx_mpz A_of_r;
+        mpz_poly_eval_mod_mpz(A_of_r, prod.p, rtest, ptest);
+        cxx_mpz fdtest;
+        mpz_set(fdtest, mpz_poly_lc(F));
+        mpz_mod(fdtest, fdtest, ptest);
+        int l = mpz_legendre(A_of_r, ptest);
+        if (prod.v & 1) l *= mpz_legendre(fdtest, ptest);
+        gmp_fprintf (stderr,
+                "Alg(%d): A mod (%Zd, alpha-%Zd) = %Zd / %Zd^%lu [ legendre == %d ]\n",
+                numdep,
+                ptest, rtest, A_of_r, fdtest, prod.v, l);
+    }
+#endif
+
+#ifdef DEBUG
     mpz_poly prod0;
     unsigned long v0 = prod.v;
     ASSERT_ALWAYS(prod.p->deg == F->deg - 1);
@@ -1378,7 +1408,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
     mpz_t pk, fdv0, fd2v;
     mpz_poly_init (q, F->deg - 1);
     mpz_init (pk);
-    mpz_ui_pow_ui (pk, p, target_k);
+    mpz_ui_pow_ui (pk, p, 2*target_k);
     mpz_poly_sqr_mod_f_mod_mpz (q, prod.p, F, pk, NULL, NULL);
     /* we should have fd^v0*q = fd^(2v)*prod0 mod p^k */
     mpz_init (fdv0);
