@@ -52,7 +52,7 @@
 #include "rootfinder.h"
 
 /* define to check the result of cxx_mpz_polymod_scaled_sqrt */
-// #define DEBUG
+#define DEBUG
 
 /* frequency of messages "read xxx (a,b) pairs" */
 #define REPORT 10000000
@@ -1391,6 +1391,22 @@ calculateSqrtAlg (const char *prefix, int numdep,
 #endif
 
 #ifdef DEBUG
+    fprintf(stderr, "Alg(%d): signs of coefficients of A:", numdep);
+    for(int i = 0 ; i <= mpz_poly_degree(prod.p) ; i++) {
+        int s = mpz_sgn(prod.p->coeff[i]);
+        fprintf(stderr, "%c", ((s>0)?'+':((s<0)?'-':'0')));
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "Alg(%d): signs of coefficients of F:", numdep);
+    for(int i = 0 ; i <= mpz_poly_degree(F) ; i++) {
+        int s = mpz_sgn(F->coeff[i]);
+        fprintf(stderr, "%c", ((s>0)?'+':((s<0)?'-':'0')));
+    }
+    fprintf(stderr, "\n");
+
+#endif
+
+#ifdef DEBUG
     mpz_poly prod0;
     unsigned long v0 = prod.v;
     ASSERT_ALWAYS(prod.p->deg == F->deg - 1);
@@ -1399,6 +1415,16 @@ calculateSqrtAlg (const char *prefix, int numdep,
 #endif
     unsigned long target_k MAYBE_UNUSED;
     target_k = cxx_mpz_polymod_scaled_sqrt (prod, prod, F, p, numdep);
+
+#ifdef DEBUG
+    fprintf(stderr, "Alg(%d): signs of coefficients of sqrt(A):", numdep);
+    for(int i = 0 ; i <= mpz_poly_degree(prod.p) ; i++) {
+        int s = mpz_sgn(prod.p->coeff[i]);
+        fprintf(stderr, "%c", ((s>0)?'+':((s<0)?'-':'0')));
+    }
+    fprintf(stderr, "\n");
+#endif
+
 #ifdef DEBUG
     unsigned long v = prod.v;
     /* we should have prod.p/fd^v = sqrt(prod0/fd^v0) mod (F,p^k)
