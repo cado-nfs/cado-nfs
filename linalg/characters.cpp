@@ -618,7 +618,7 @@ declare_usage (param_list pl)
 int main(int argc, char **argv)
 {
     const char * heavyblockname = NULL;
-    int nchars;
+    int nchars, nratchars = 0;
     alg_prime_t *chars;
     cado_poly pol;
     const char *purgedname = NULL;
@@ -676,6 +676,8 @@ int main(int argc, char **argv)
         param_list_print_usage (pl, argv0, stderr);
         exit (EXIT_FAILURE);
       }
+    /* parse the optional -nratchars option */
+    param_list_parse_int(pl, "nratchars", &nratchars);
     if (param_list_parse_ulong(pl, "lpb0", &lpb[0]) == 0)
       {
         fprintf (stderr, "Error: parameter -lpb0 is mandatory\n");
@@ -699,7 +701,7 @@ int main(int argc, char **argv)
     }
 
     /* Put characters on all algebraic sides */
-    int nch[2] = {0, 0};
+    int nch[2] = {nratchars, 0};
     for (int side = 0; side < 2; ++side) {
         if (pol->pols[side]->deg > 1)
             nch[side] = nchars;
