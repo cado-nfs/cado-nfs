@@ -246,7 +246,7 @@ template<typename M>
 void accumulate(std::vector<typename M::T> & A, typename std::vector<typename M::T>::iterator vb, typename std::vector<typename M::T>::iterator ve, M const & m)
 {
     /* This is a single-threaded routine. We put the result in *vb, and
-     * the caller is reponsible of freeeing the range [vb+1,ve[
+     * the caller is reponsible of freeing the range [vb+1,ve[
      */
     if (ve - vb < 16) {
         /* Don't bother with very small vectors. Here we have a vector of
