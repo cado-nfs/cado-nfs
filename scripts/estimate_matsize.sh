@@ -288,8 +288,12 @@ echo "We have $nrels fake relations"
 nprimes=`echo "(2*2^$lpb0/l(2^$lpb0) + 2*2^$lpb1/l(2^$lpb1))/$shrink_factor" | bc -l | cut -d "." -f 1`
 
 # purge
+cmi=$((nprimes/2))
+if [ $cmi -gt 2000 ] ; then
+    cmi=2000
+fi
 cmd=($CADO_BUILD/filter/purge -out $wdir/purged.gz -nrels $nrels -keep 3
-    -col-min-index 2000 -col-max-index $nprimes -t $threads
+    -col-min-index $cmi -col-max-index $nprimes -t $threads
     ${fakefiles[@]})
 file=$wdir/purged.gz
 if ! has_file_already $file "${cmd[@]}" ; then
