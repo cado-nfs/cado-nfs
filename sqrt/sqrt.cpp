@@ -124,7 +124,7 @@ cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_
 /* Set Q=P1*P2 (mod F). Warning: Q might equal P1 (or P2). */
 void
 cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled const & P1, cxx_mpz_polymod_scaled const & P2,
-                   cxx_mpz_poly const & F) {
+                   cxx_mpz_poly const & F, mpz_poly_parallel_info * pinf) {
   unsigned long v;
 
   /* beware: if P1 and P2 are zero, P1.p->deg + P2.p->deg = -2 */
@@ -133,7 +133,7 @@ cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled c
   ASSERT_ALWAYS(mpz_poly_normalized_p (P1.p));
   ASSERT_ALWAYS(mpz_poly_normalized_p (P2.p));
 
-  mpz_poly_mul_notparallel (prd, P1.p, P2.p);
+  mpz_poly_mul_parallel (prd, P1.p, P2.p, pinf);
   v = P1.v + P2.v;
   ASSERT_ALWAYS(v >= P1.v); /* no overflow */
 
@@ -800,6 +800,7 @@ typedef struct
   cado_poly_ptr pol;
   int side;
   mpz_ptr Np;
+  mpz_poly_parallel_info * pinf;
 } __tab_struct;
 typedef __tab_struct tab_t[1];
 
@@ -845,7 +846,8 @@ void cxx_mpz_polymod_scaled_set(cxx_mpz_polymod_scaled & y, cxx_mpz_polymod_scal
 struct cxx_mpz_polymod_scaled_functions {
     typedef cxx_mpz_polymod_scaled T;
     cxx_mpz_poly const & F;
-    cxx_mpz_polymod_scaled_functions(cxx_mpz_poly & F) : F(F) {}
+    mpz_poly_parallel_info * pinf;
+    cxx_mpz_polymod_scaled_functions(cxx_mpz_poly & F, mpz_poly_parallel_info * pinf = NULL) : F(F), pinf(pinf) {}
     T from_ab(cxx_mpz const & a, cxx_mpz const & b) const {
         return cxx_mpz_polymod_scaled_from_ab(a, b);
     }
@@ -859,7 +861,7 @@ struct cxx_mpz_polymod_scaled_functions {
         cxx_mpz_polymod_scaled_set_ui(res, 1);
     }
     void operator()(T &res, T const & a, T const & b) const {
-        cxx_mpz_polymod_scaled_mul(res, a, b, F);
+        cxx_mpz_polymod_scaled_mul(res, a, b, F, pinf);
     }
 };
 
@@ -992,7 +994,8 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
 // res <- Sqrt(AA) mod F, using p-adic lifting, at prime p.
 unsigned long
 cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scaled & AA, cxx_mpz_poly const & F, unsigned long p,
-	       int numdep)
+	       int numdep,
+               mpz_poly_parallel_info * pinf)
 {
   mpz_poly A, *P;
   unsigned long v;
@@ -1001,14 +1004,6 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   unsigned long K[65];
   int lk, logk, logk0;
   size_t target_size; /* target bit size for Hensel lifting */
-
-  /* This descriptor will hold info about "how" we parallelize the
-   * mpz_poly operations. For the moment, there's not a lot in there.
-   * Only the fact that the pointer that we pass is not NULL is
-   * significant! But eventually, we may find it useful to add more
-   * stuff.
-   */
-  mpz_poly_parallel_info pinf[1];
 
   /* The size of the coefficients of the square root of A should be about half
      the size of the coefficients of A. Here is an heuristic argument: let
@@ -1037,7 +1032,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     v = AA.v / 2;
   } else {
     v = (1+AA.v) / 2;
-    mpz_poly_mul_mpz_notparallel(A, A, F->coeff[d]);
+    mpz_poly_mul_mpz_parallel(A, A, F->coeff[d], pinf);
   }
 
   // Now, we just have to take the square root of A (without denom) and
@@ -1063,7 +1058,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
       mpz_mul_ui (pk, pk, p);
       target_k ++;
     }
-  mpz_poly_mod_mpz_notparallel (A, A, pk, NULL);
+  mpz_poly_mod_mpz_parallel (A, A, pk, NULL, pinf);
   for (k = target_k, logk = 0; k > 1; k = (k + 1) / 2, logk ++)
     K[logk] = k;
   K[logk] = 1;
@@ -1178,7 +1173,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     // now, do the Newton operation x <- 1/2(3*x-a*x^3)
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_sqr_mod_f_mod_mpz_notparallel (tmp, invsqrtA, F, pk, NULL, invpk); /* tmp = invsqrtA^2 */
+    mpz_poly_sqr_mod_f_mod_mpz_parallel (tmp, invsqrtA, F, pk, NULL, invpk, pinf); /* tmp = invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
@@ -1193,7 +1188,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
        if 1-a*x^2 are divisible by p^(k/2). */
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_mul_mod_f_mod_mpz_notparallel (tmp, tmp, a, F, pk, NULL, invpk); /* tmp=a*invsqrtA^2 */
+    mpz_poly_mul_mod_f_mod_mpz_parallel (tmp, tmp, a, F, pk, NULL, invpk, pinf); /* tmp=a*invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
@@ -1203,10 +1198,10 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
         fflush (stderr);
       }
     mpz_poly_sub_ui (tmp, tmp, 1); /* a*invsqrtA^2-1 */
-    mpz_poly_div_2_mod_mpz_notparallel (tmp, tmp, pk); /* (a*invsqrtA^2-1)/2 */
+    mpz_poly_div_2_mod_mpz_parallel (tmp, tmp, pk, pinf); /* (a*invsqrtA^2-1)/2 */
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_mul_mod_f_mod_mpz_notparallel (tmp, tmp, invsqrtA, F, pk, NULL, invpk);
+    mpz_poly_mul_mod_f_mod_mpz_parallel (tmp, tmp, invsqrtA, F, pk, NULL, invpk, pinf);
     if (verbose)
 #pragma omp critical
       {
@@ -1216,13 +1211,13 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
         fflush (stderr);
       }
     /* tmp = invsqrtA/2 * (a*invsqrtA^2-1) */
-    mpz_poly_sub_mod_mpz_notparallel (invsqrtA, invsqrtA, tmp, pk);
+    mpz_poly_sub_mod_mpz_parallel (invsqrtA, invsqrtA, tmp, pk, pinf);
   } while (k < target_k);
 
   /* multiply by a to get an approximation of the square root */
   st = seconds ();
   wct = wct_seconds ();
-  mpz_poly_mul_mod_f_mod_mpz_notparallel (tmp, invsqrtA, a, F, pk, NULL, invpk);
+  mpz_poly_mul_mod_f_mod_mpz_parallel (tmp, invsqrtA, a, F, pk, NULL, invpk, pinf);
   mpz_clear (invpk);
   if (verbose)
 #pragma omp critical
@@ -1304,7 +1299,8 @@ FindSuitableModP (mpz_poly F, mpz_t N)
 */
 int
 calculateSqrtAlg (const char *prefix, int numdep,
-                  cado_poly_ptr pol, int side, mpz_t Np)
+                  cado_poly_ptr pol, int side, mpz_t Np,
+                  mpz_poly_parallel_info * pinf)
 {
   FILE *resfile;
   unsigned long p;
@@ -1320,7 +1316,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
 
   // Accumulate product with a subproduct tree
   {
-      cxx_mpz_polymod_scaled_functions M(F);
+      cxx_mpz_polymod_scaled_functions M(F, pinf);
 
       std::string message = fmt::format(FMT_STRING("Alg({})"), numdep);
       char * depname = get_depname (prefix, "", numdep);
@@ -1375,7 +1371,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
     mpz_poly_set (prod0, prod.p);
 #endif
     unsigned long target_k MAYBE_UNUSED;
-    target_k = cxx_mpz_polymod_scaled_sqrt (prod, prod, F, p, numdep);
+    target_k = cxx_mpz_polymod_scaled_sqrt (prod, prod, F, p, numdep, pinf);
 #ifdef DEBUG
     unsigned long v = prod.v;
     /* we should have prod.p/fd^v = sqrt(prod0/fd^v0) mod (F,p^k)
@@ -1725,7 +1721,7 @@ one_thread (void* args)
                   tab[0]->side, tab[0]->Np);
       } else {
           calculateSqrtAlg (tab[0]->prefix, tab[0]->numdep, tab[0]->pol,
-                  tab[0]->side, tab[0]->Np);
+                  tab[0]->side, tab[0]->Np, tab[0]->pinf);
       }
   } else /* gcd */
     calculateGcd (tab[0]->prefix, tab[0]->numdep, tab[0]->Np);
@@ -1742,6 +1738,14 @@ calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
   tab_t *T;
   int j;
 
+  /* This descriptor will hold info about "how" we parallelize the
+   * mpz_poly operations. For the moment, there's not a lot in there.
+   * Only the fact that the pointer that we pass is not NULL is
+   * significant! But eventually, we may find it useful to add more
+   * stuff.
+   */
+  mpz_poly_parallel_info pinf[1];
+
   omp_set_num_threads(iceildiv(omp_get_max_threads(), nthreads));
 
   tid = (pthread_t*) malloc (nthreads * sizeof (pthread_t));
@@ -1756,6 +1760,7 @@ calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
       T[j]->pol = pol;
       T[j]->side = side;
       T[j]->Np = Np;
+      T[j]->pinf = pinf;
     }
 #ifdef __OpenBSD__
   /* On openbsd, we have obscure failures that seem to be triggered
