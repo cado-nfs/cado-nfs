@@ -1074,7 +1074,7 @@ polymodF_mul_monic (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
     mpz_poly_init(prd, P1->deg+P2->deg);
     ASSERT_ALWAYS(mpz_poly_normalized_p (P1));
     ASSERT_ALWAYS(mpz_poly_normalized_p (P2));
-    mpz_poly_mul(prd, P1, P2);
+    mpz_poly_mul_notparallel(prd, P1, P2);
     mpz_poly_reducemodF_monic(Q, prd, F);
     mpz_poly_clear(prd);
 }

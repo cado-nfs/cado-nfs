@@ -286,7 +286,7 @@ lognorm_base::lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly
     mpz_poly_homography (fij, cpoly->pols[side], H);
     if (Q.doing.side == side) {
         ASSERT_ALWAYS(mpz_poly_divisible_mpz(fij, Q.doing.p));
-        mpz_poly_divexact_mpz(fij, fij, Q.doing.p);
+        mpz_poly_divexact_mpz_notparallel(fij, fij, Q.doing.p);
     }
     double_poly_set_mpz_poly(fijd, fij);
     // Take sublat into account: multiply all coefs by m^deg.
@@ -837,7 +837,7 @@ void sieve_range_adjust::prepare_fijd()/*{{{*/
         mpz_poly_homography (fz, cpoly->pols[side], H);
         if (Q.doing.side == side) {
             ASSERT_ALWAYS(mpz_poly_divisible_mpz(fz, Q.doing.p));
-            mpz_poly_divexact_mpz(fz, fz, Q.doing.p);
+            mpz_poly_divexact_mpz_notparallel(fz, fz, Q.doing.p);
         }
         double_poly_set_mpz_poly(fijd[side], fz);
     }

@@ -440,7 +440,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
     gmp_printf ("# WARNING: the content of the algebraic side of polynomial %u "
                 "is not 1 (%Zd). The input polynomial will be divided by its "
                 "content.\n", poly_id, t);
-    mpz_poly_divexact_mpz (input_poly->pols[ALG_SIDE], input_poly->pols[ALG_SIDE], t);
+    mpz_poly_divexact_mpz_notparallel (input_poly->pols[ALG_SIDE], input_poly->pols[ALG_SIDE], t);
   }
   mpz_clear (t);
 

@@ -62,7 +62,7 @@ void ensure_qrange_has_prime_ideals(cxx_mpz const & q0, cxx_mpz & q1, mpz_poly_s
         next_legitimate_specialq(q, q, 0);
         if (mpz_cmp(q, q1) >= 0)
             continue;
-        if (mpz_poly_roots(NULL, f, q) > 0)
+        if (mpz_poly_roots_notparallel(NULL, f, q) > 0)
             break;
         /* small optimization: avoid redoing root finding
          * several times (for all i such that nextprime(q1-i) is
@@ -288,7 +288,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                 mpz_add(q, q, q0);
                 next_legitimate_specialq(q, q, 0);
                 cxx_mpz roots[MAX_DEGREE];
-                int nroots = mpz_poly_roots ((mpz_t*)roots, cpoly->pols[sqside], q);
+                int nroots = mpz_poly_roots_notparallel ((mpz_t*)roots, cpoly->pols[sqside], q);
                 if (nroots) {
                     unsigned long i = gmp_urandomm_ui(rstate, nroots);
                     rho = roots[i];

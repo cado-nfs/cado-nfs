@@ -484,7 +484,7 @@ bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_
 	// 1st arg: tab of roots (ptr)
 	// 2nd: the poly to find the roots
 	// 3rd: p (prime)
-	nb_roots_y = mpz_poly_roots(y, Pyi_mpz_poly, p);
+	nb_roots_y = mpz_poly_roots_notparallel(y, Pyi_mpz_poly, p);
 	// this function calls either a ulong version or an mpz_t version.
 	// nb_roots_y = mpz_poly_roots_ulong (y, Pyi_mpz_poly, p);
 	// nb_roots_y = mpz_poly_roots_mpz   (y, Pyi_mpz_poly, p);

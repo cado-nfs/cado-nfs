@@ -151,7 +151,7 @@ check_SM (mpz_poly ff, mpz_t ell)
     }
     // in degree 3 and 4, the minimum number of SMs is 1. We
     // check that we have at least one root mod ell.
-    int nr = mpz_poly_roots_mpz(NULL, ff, ell);
+    int nr = mpz_poly_roots_mpz_notparallel(NULL, ff, ell);
     return (nr >= 1);
 }
 
@@ -593,7 +593,7 @@ polygen_JL2 (mpz_t n,
 
     /* compute roots of the polynomial f */
     START_TIMER;
-    nr = mpz_poly_roots_mpz (rf, f, n);
+    nr = mpz_poly_roots_mpz_notparallel (rf, f, n);
     END_TIMER (TIMER_ROOTS);
     ASSERT(nr <= df);
 

@@ -133,7 +133,7 @@ cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled c
   ASSERT_ALWAYS(mpz_poly_normalized_p (P1.p));
   ASSERT_ALWAYS(mpz_poly_normalized_p (P2.p));
 
-  mpz_poly_mul (prd, P1.p, P2.p);
+  mpz_poly_mul_notparallel (prd, P1.p, P2.p);
   v = P1.v + P2.v;
   ASSERT_ALWAYS(v >= P1.v); /* no overflow */
 
@@ -943,7 +943,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
 	mpz_urandomm(delta->coeff[i], state, myp);
       mpz_poly_cleandeg(delta, d-1);
       // raise it to power (q-1)/2
-      mpz_poly_pow_mod_f_mod_ui(auxpol, delta, F, aux, p);
+      mpz_poly_pow_mod_f_mod_ui_notparallel(auxpol, delta, F, aux, p);
       /* Warning: the coefficients of auxpol might either be reduced in
 	 [0, p) or in [-p/2, p/2). This code should work in both cases. */
     } while (auxpol->deg != 0 || (mpz_cmp_ui (auxpol->coeff[0], p-1) != 0 &&
@@ -959,23 +959,23 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
     mpz_poly_init(A, d);
     mpz_poly_init(D, d);
     mpz_init_set_ui(m, 0);
-    mpz_poly_pow_mod_f_mod_ui(A, a, F, t, p);
-    mpz_poly_pow_mod_f_mod_ui(D, delta, F, t, p);
+    mpz_poly_pow_mod_f_mod_ui_notparallel(A, a, F, t, p);
+    mpz_poly_pow_mod_f_mod_ui_notparallel(D, delta, F, t, p);
     for (i = 0; i <= s-1; ++i) {
-      mpz_poly_pow_mod_f_mod_ui(auxpol, D, F, m, p);
-      mpz_poly_mul_mod_f_mod_mpz(auxpol, auxpol, A, F, myp, NULL, NULL);
+      mpz_poly_pow_mod_f_mod_ui_notparallel(auxpol, D, F, m, p);
+      mpz_poly_mul_mod_f_mod_mpz_notparallel(auxpol, auxpol, A, F, myp, NULL, NULL);
       mpz_ui_pow_ui(aux, 2, (s-1-i));
-      mpz_poly_pow_mod_f_mod_ui(auxpol, auxpol, F, aux, p);
+      mpz_poly_pow_mod_f_mod_ui_notparallel(auxpol, auxpol, F, aux, p);
       if ((auxpol->deg == 0) && (mpz_cmp_ui(auxpol->coeff[0], p-1)== 0))
     mpz_add_ui(m, m, 1UL<<i);
     }
     mpz_add_ui(t, t, 1);
     mpz_divexact_ui(t, t, 2);
-    mpz_poly_pow_mod_f_mod_ui(res, a, F, t, p);
+    mpz_poly_pow_mod_f_mod_ui_notparallel(res, a, F, t, p);
     mpz_divexact_ui(m, m, 2);
-    mpz_poly_pow_mod_f_mod_ui(auxpol, D, F, m, p);
+    mpz_poly_pow_mod_f_mod_ui_notparallel(auxpol, D, F, m, p);
 
-    mpz_poly_mul_mod_f_mod_mpz(res, res, auxpol, F, myp, NULL, NULL);
+    mpz_poly_mul_mod_f_mod_mpz_notparallel(res, res, auxpol, F, myp, NULL, NULL);
     mpz_poly_clear(D);
     mpz_poly_clear(A);
     mpz_clear(m);
@@ -1001,6 +1001,14 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   unsigned long K[65];
   int lk, logk, logk0;
   size_t target_size; /* target bit size for Hensel lifting */
+
+  /* This descriptor will hold info about "how" we parallelize the
+   * mpz_poly operations. For the moment, there's not a lot in there.
+   * Only the fact that the pointer that we pass is not NULL is
+   * significant! But eventually, we may find it useful to add more
+   * stuff.
+   */
+  mpz_poly_parallel_info pinf[1];
 
   /* The size of the coefficients of the square root of A should be about half
      the size of the coefficients of A. Here is an heuristic argument: let
@@ -1029,7 +1037,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     v = AA.v / 2;
   } else {
     v = (1+AA.v) / 2;
-    mpz_poly_mul_mpz(A, A, F->coeff[d]);
+    mpz_poly_mul_mpz_notparallel(A, A, F->coeff[d]);
   }
 
   // Now, we just have to take the square root of A (without denom) and
@@ -1055,7 +1063,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
       mpz_mul_ui (pk, pk, p);
       target_k ++;
     }
-  mpz_poly_mod_mpz (A, A, pk, NULL);
+  mpz_poly_mod_mpz_notparallel (A, A, pk, NULL);
   for (k = target_k, logk = 0; k > 1; k = (k + 1) / 2, logk ++)
     K[logk] = k;
   K[logk] = 1;
@@ -1072,7 +1080,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   lk = 0; /* k = 2^lk */
   st = seconds ();
   wct = wct_seconds ();
-  P = mpz_poly_base_modp_init (A, p, K, logk0 = logk);
+  P = mpz_poly_base_modp_init_parallel (A, p, K, logk0 = logk, pinf);
 #pragma omp critical
   {
     fprintf (stderr, "Alg(%d): mpz_poly_base_modp_init took %.2fs (wct %.2fs)\n",
@@ -1103,7 +1111,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
 #else
     TonelliShanks(invsqrtA, a, F, p);
     mpz_sub_ui(aux, q, 2);
-    mpz_poly_pow_mod_f_mod_ui(invsqrtA, invsqrtA, F, aux, p);
+    mpz_poly_pow_mod_f_mod_ui_notparallel(invsqrtA, invsqrtA, F, aux, p);
 #endif
 
     mpz_clear(aux);
@@ -1134,7 +1142,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     st = seconds ();
     wct = wct_seconds ();
     /* a <- a + pk*P[lk] */
-    mpz_poly_base_modp_lift (a, P, lk, pk);
+    mpz_poly_base_modp_lift_parallel (a, P, lk, pk, pinf);
     /* free P[lk] which is no longer needed */
     mpz_poly_clear (P[lk]);
     if (verbose)
@@ -1170,7 +1178,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     // now, do the Newton operation x <- 1/2(3*x-a*x^3)
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_sqr_mod_f_mod_mpz (tmp, invsqrtA, F, pk, NULL, invpk); /* tmp = invsqrtA^2 */
+    mpz_poly_sqr_mod_f_mod_mpz_notparallel (tmp, invsqrtA, F, pk, NULL, invpk); /* tmp = invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
@@ -1185,7 +1193,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
        if 1-a*x^2 are divisible by p^(k/2). */
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, a, F, pk, NULL, invpk); /* tmp=a*invsqrtA^2 */
+    mpz_poly_mul_mod_f_mod_mpz_notparallel (tmp, tmp, a, F, pk, NULL, invpk); /* tmp=a*invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
@@ -1195,10 +1203,10 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
         fflush (stderr);
       }
     mpz_poly_sub_ui (tmp, tmp, 1); /* a*invsqrtA^2-1 */
-    mpz_poly_div_2_mod_mpz (tmp, tmp, pk); /* (a*invsqrtA^2-1)/2 */
+    mpz_poly_div_2_mod_mpz_notparallel (tmp, tmp, pk); /* (a*invsqrtA^2-1)/2 */
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, invsqrtA, F, pk, NULL, invpk);
+    mpz_poly_mul_mod_f_mod_mpz_notparallel (tmp, tmp, invsqrtA, F, pk, NULL, invpk);
     if (verbose)
 #pragma omp critical
       {
@@ -1208,15 +1216,13 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
         fflush (stderr);
       }
     /* tmp = invsqrtA/2 * (a*invsqrtA^2-1) */
-    mpz_poly_sub_mod_mpz (invsqrtA, invsqrtA, tmp, pk);
-
-
+    mpz_poly_sub_mod_mpz_notparallel (invsqrtA, invsqrtA, tmp, pk);
   } while (k < target_k);
 
   /* multiply by a to get an approximation of the square root */
   st = seconds ();
   wct = wct_seconds ();
-  mpz_poly_mul_mod_f_mod_mpz (tmp, invsqrtA, a, F, pk, NULL, invpk);
+  mpz_poly_mul_mod_f_mod_mpz_notparallel (tmp, invsqrtA, a, F, pk, NULL, invpk);
   mpz_clear (invpk);
   if (verbose)
 #pragma omp critical
@@ -1360,6 +1366,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
       fflush (stderr);
     }
 
+
 #ifdef DEBUG
     mpz_poly prod0;
     unsigned long v0 = prod.v;
@@ -1397,6 +1404,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
     mpz_clear (fdv0);
     mpz_clear (fd2v);
 #endif
+
 #pragma omp critical
     {
       fprintf (stderr, "Alg(%d): square root lifted at %.2fs (wct %.2fs)\n",

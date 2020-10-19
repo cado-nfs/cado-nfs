@@ -506,7 +506,7 @@ int main (int argc, char **argv)
           for(int side = 0 ; side < pol->nb_polys ; side++) {
               if (sm_info[side]->nsm == 0)
                   continue;
-              mpz_poly_reduce_frac_mod_f_mod_mpz(
+              mpz_poly_reduce_frac_mod_f_mod_mpz_notparallel(
                       part_rels[i].num[side],
                       part_rels[i].denom[side],
                       sm_info[side]->f0,

@@ -87,7 +87,7 @@ test_mpz_poly_mul_tc (unsigned long iter)
         {
           mpz_poly_random (g, r, 10);
           mpz_poly_random (h, s, 10);
-          mpz_poly_mul (f0, g, h);
+          mpz_poly_mul_notparallel (f0, g, h);
           mpz_poly_realloc (f1, r + s + 1);
           f1->deg = r + s;
           mpz_poly_mul_basecase (f1->coeff, g->coeff, r, h->coeff, s);
@@ -125,7 +125,7 @@ test_mpz_poly_sqr_tc (unsigned long iter)
     for (r = 0; r <= MAX_TC_DEGREE; r++)
       {
         mpz_poly_random (g, r, 10);
-        mpz_poly_mul (f0, g, g);
+        mpz_poly_mul_notparallel(f0, g, g);
         mpz_poly_realloc (f1, r + r + 1);
         f1->deg = r + r;
         mpz_poly_mul_basecase (f1->coeff, g->coeff, r, g->coeff, r);
@@ -176,10 +176,10 @@ test_polymodF_mul ()
               mpz_poly_random (P2->p, d2, k);
               P2->v = 0;
               if ((++count % 3) == 0)
-                polymodF_mul (Q, P1, P2, F);
+                polymodF_mul_notparallel (Q, P1, P2, F);
               else if ((count % 3) == 1)
                 {
-                  polymodF_mul (P1, P1, P2, F);
+                  polymodF_mul_notparallel (P1, P1, P2, F);
                   mpz_poly_set (Q->p, P1->p);
                   Q->v = P1->v;
                   mpz_poly_set (P1->p, P1_saved->p);
@@ -187,7 +187,7 @@ test_polymodF_mul ()
                 }
               else
                 {
-                  polymodF_mul (P1, P2, P1, F);
+                  polymodF_mul_notparallel (P1, P2, P1, F);
                   mpz_poly_set (Q->p, P1->p);
                   Q->v = P1->v;
                   mpz_poly_set (P1->p, P1_saved->p);
@@ -195,10 +195,10 @@ test_polymodF_mul ()
                 }
               /* check that Q->p = lc(F)^Q->v * P1 * P1 mod F */
               ASSERT_ALWAYS (Q->p->deg < F->deg);
-              mpz_poly_mul (T, P1->p, P2->p);
+              mpz_poly_mul_notparallel (T, P1->p, P2->p);
               mpz_pow_ui (c, F->coeff[F->deg], Q->v);
-              mpz_poly_mul_mpz (T, T, c);
-              mpz_poly_sub (T, T, Q->p);
+              mpz_poly_mul_mpz_notparallel (T, T, c);
+              mpz_poly_sub_notparallel (T, T, Q->p);
               /* T should be a multiple of F */
               while (T->deg >= F->deg)
                 {
@@ -213,10 +213,10 @@ test_polymodF_mul ()
                       exit (1);
                     }
                   mpz_divexact (c, T->coeff[T->deg], F->coeff[F->deg]);
-                  mpz_poly_mul_mpz (U, F, c);
+                  mpz_poly_mul_mpz_notparallel (U, F, c);
                   /* multiply U by x^(T->deg - F->deg) */
                   mpz_poly_mul_xi (U, U, T->deg - F->deg);
-                  mpz_poly_sub (T, T, U);
+                  mpz_poly_sub_notparallel (T, T, U);
                   ASSERT_ALWAYS (T->deg < oldd);
                 }
               if (T->deg != -1)
@@ -332,10 +332,10 @@ test_mpz_poly_sqr_mod_f_mod_mpz (unsigned long iter)
       else
         P->deg = -1; /* P=0 */
       mpz_poly_init (Q, d - 1);
-      mpz_poly_sqr_mod_f_mod_mpz (Q, P, f, m, NULL, NULL);
+      mpz_poly_sqr_mod_f_mod_mpz_notparallel (Q, P, f, m, NULL, NULL);
       if (iter == 0)
         ASSERT_ALWAYS(Q->deg == -1);
-      mpz_poly_mul_mod_f_mod_mpz (Q, P, P, f, m, NULL, NULL);
+      mpz_poly_mul_mod_f_mod_mpz_notparallel (Q, P, P, f, m, NULL, NULL);
       if (iter == 0)
         ASSERT_ALWAYS(Q->deg == -1);
       mpz_poly_clear (f);
@@ -452,7 +452,7 @@ test_mpz_poly_div_2_mod_mpz (void)
   mpz_poly_setcoeff_si (f, 1, -2);
   mpz_poly_setcoeff_si (f, 2, -3);
   mpz_poly_setcoeff_si (f, 3, 4);
-  mpz_poly_div_2_mod_mpz (f, f, m);
+  mpz_poly_div_2_mod_mpz_notparallel (f, f, m);
   ASSERT_ALWAYS(mpz_cmp_si (f->coeff[0], 9) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (f->coeff[1], -1) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (f->coeff[2], 7) == 0);
@@ -513,39 +513,39 @@ test_mpz_poly_pow_mod_f_mod_ui (void)
   mpz_poly_setcoeff_si (P, 1, 1); /* P = x */
 
   mpz_set_ui (a, 0);
-  mpz_poly_pow_mod_f_mod_ui (Q, P, f, a, p);
+  mpz_poly_pow_mod_f_mod_ui_notparallel (Q, P, f, a, p);
   ASSERT_ALWAYS(Q->deg == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[0], 1) == 0);
-  mpz_poly_pow_mod_f_mod_mpz (Q, P, f, a, pp);
+  mpz_poly_pow_mod_f_mod_mpz_notparallel (Q, P, f, a, pp);
   ASSERT_ALWAYS(Q->deg == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[0], 1) == 0);
 
   mpz_set_ui (a, 1);
-  mpz_poly_pow_mod_f_mod_ui (Q, P, f, a, p);
+  mpz_poly_pow_mod_f_mod_ui_notparallel (Q, P, f, a, p);
   ASSERT_ALWAYS(mpz_poly_cmp (Q, P) == 0);
-  mpz_poly_pow_mod_f_mod_mpz (Q, P, f, a, pp);
+  mpz_poly_pow_mod_f_mod_mpz_notparallel (Q, P, f, a, pp);
   ASSERT_ALWAYS(mpz_poly_cmp (Q, P) == 0);
 
   mpz_set_ui (a, 2);
-  mpz_poly_pow_mod_f_mod_ui (Q, P, f, a, p);
+  mpz_poly_pow_mod_f_mod_ui_notparallel (Q, P, f, a, p);
   ASSERT_ALWAYS(Q->deg == 2);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[0], 0) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[1], 0) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[2], 1) == 0);
-  mpz_poly_pow_mod_f_mod_mpz (Q, P, f, a, pp);
+  mpz_poly_pow_mod_f_mod_mpz_notparallel (Q, P, f, a, pp);
   ASSERT_ALWAYS(Q->deg == 2);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[0], 0) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[1], 0) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[2], 1) == 0);
 
   mpz_set_ui (a, 3);
-  mpz_poly_pow_mod_f_mod_ui (Q, P, f, a, p);
+  mpz_poly_pow_mod_f_mod_ui_notparallel (Q, P, f, a, p);
   ASSERT_ALWAYS(Q->deg == 3);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[0], 0) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[1], 0) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[2], 0) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[3], 1) == 0);
-  mpz_poly_pow_mod_f_mod_mpz (Q, P, f, a, pp);
+  mpz_poly_pow_mod_f_mod_mpz_notparallel (Q, P, f, a, pp);
   ASSERT_ALWAYS(Q->deg == 3);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[0], 0) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[1], 0) == 0);
@@ -553,13 +553,13 @@ test_mpz_poly_pow_mod_f_mod_ui (void)
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[3], 1) == 0);
 
   mpz_set_ui (a, 4);
-  mpz_poly_pow_mod_f_mod_ui (Q, P, f, a, p);
+  mpz_poly_pow_mod_f_mod_ui_notparallel (Q, P, f, a, p);
   ASSERT_ALWAYS(Q->deg == 3);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[0], 2081229567) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[1], 3524154901) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[2], 1102631344) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[3], 2362229259) == 0);
-  mpz_poly_pow_mod_f_mod_mpz (Q, P, f, a, pp);
+  mpz_poly_pow_mod_f_mod_mpz_notparallel (Q, P, f, a, pp);
   ASSERT_ALWAYS(Q->deg == 3);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[0], 2081229567) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[1], 3524154901) == 0);
@@ -567,13 +567,13 @@ test_mpz_poly_pow_mod_f_mod_ui (void)
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[3], 2362229259) == 0);
 
   mpz_set_ui (a, 999999);
-  mpz_poly_pow_mod_f_mod_ui (Q, P, f, a, p);
+  mpz_poly_pow_mod_f_mod_ui_notparallel (Q, P, f, a, p);
   ASSERT_ALWAYS(Q->deg == 3);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[0], 4223801964) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[1], 502704799) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[2], 3358125388) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[3], 1722383279) == 0);
-  mpz_poly_pow_mod_f_mod_mpz (Q, P, f, a, pp);
+  mpz_poly_pow_mod_f_mod_mpz_notparallel (Q, P, f, a, pp);
   ASSERT_ALWAYS(Q->deg == 3);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[0], 4223801964) == 0);
   ASSERT_ALWAYS(mpz_cmp_si (Q->coeff[1], 502704799) == 0);
@@ -596,6 +596,7 @@ test_mpz_poly_base_modp_init (unsigned long iter)
   mpz_poly f, *P, g;
   mpz_t pk;
   size_t s;
+  struct mpz_poly_parallel_info pinf[1];
 
   mpz_poly_init (f, -1);
   mpz_poly_init (g, -1);
@@ -622,12 +623,12 @@ test_mpz_poly_base_modp_init (unsigned long iter)
       s = mpz_poly_sizeinbase (f, 2);
       for (i = 0; i <= f->deg; i++)
         ASSERT_ALWAYS(mpz_sizeinbase (f->coeff[i], 2) <= s);
-      P = mpz_poly_base_modp_init (f, p, K, l);
+      P = mpz_poly_base_modp_init_parallel (f, p, K, l, pinf);
       /* check f = P[0] + p^K[l]*P[1] + p^K[l-1]*P[2] + ... + p^K[1]*P[l] */
       for (i = 1; i <= l; i++)
         {
           mpz_ui_pow_ui (pk, p, K[l + 1 - i]);
-          mpz_poly_base_modp_lift (P[0], P, i, pk);
+          mpz_poly_base_modp_lift_parallel (P[0], P, i, pk, pinf);
         }
       ASSERT_ALWAYS(mpz_poly_cmp (f, P[0]) == 0);
       mpz_poly_base_modp_clear (P, l);
@@ -652,8 +653,8 @@ void test_mpz_poly_is_root(unsigned long iter)
         mpz_rrandomb(r, state, 100);
         mpz_poly_setcoeff_si(ell, 1, 1);
         mpz_neg(ell->coeff[0], r);
-        mpz_poly_mul(f, f, ell);
-        mpz_poly_mod_mpz(f, f, p, NULL);
+        mpz_poly_mul_notparallel(f, f, ell);
+        mpz_poly_mod_mpz_notparallel(f, f, p, NULL);
         mpz_mod(r, r, p);
     }
 
@@ -814,7 +815,7 @@ void test_mpz_poly_factor(unsigned long iter)
         mpz_rrandomb(p, state, 20);
         mpz_nextprime(p, p);
         mpz_poly_random(f, 10, 10);
-        mpz_poly_mod_mpz(f, f, p, NULL);
+        mpz_poly_mod_mpz_notparallel(f, f, p, NULL);
         // mpz_poly_fprintf(stderr, f);
         mpz_poly_factor(lf, f, p, state);
         mpz_poly g;
@@ -822,9 +823,9 @@ void test_mpz_poly_factor(unsigned long iter)
         mpz_poly_set_xi(g, 0);
         for(int i = 0 ; i < lf->size ; i++) {
             mpz_poly_with_m_ptr fx = lf->factors[i];
-            mpz_poly_pow_ui_mod_f_mod_mpz(fx->f, fx->f, NULL, fx->m, p); 
-            mpz_poly_mul(g, g, fx->f);
-            mpz_poly_mod_mpz(g, g, p, NULL);
+            mpz_poly_pow_ui_mod_f_mod_mpz_notparallel(fx->f, fx->f, NULL, fx->m, p); 
+            mpz_poly_mul_notparallel(g, g, fx->f);
+            mpz_poly_mod_mpz_notparallel(g, g, p, NULL);
         }
         mpz_poly_makemonic_mod_mpz(f, f, p);
         ASSERT_ALWAYS(mpz_poly_cmp(f, g) == 0);
@@ -867,13 +868,13 @@ void test_mpz_poly_trivialities()
     ASSERT_ALWAYS(mpz_cmp_ui(a[0], 1) == 0);
     mpz_poly_getcoeff(a[1], 1, f);
     ASSERT_ALWAYS(mpz_cmp_ui(a[1], 1) == 0);
-    mpz_poly_sub_mod_mpz(f, f, g, p);
+    mpz_poly_sub_mod_mpz_notparallel(f, f, g, p);
     mpz_poly_set_zero(g);
     ASSERT_ALWAYS(mpz_poly_cmp(f, g) == 0);
 
     /* check that (x+1)^5 div x is irreducible mod 13 */
     mpz_poly_setcoeffs_ui_var(g, 1, 1, 1);
-    mpz_poly_pow_ui_mod_f_mod_mpz(g, g, NULL, 5, p);
+    mpz_poly_pow_ui_mod_f_mod_mpz_notparallel(g, g, NULL, 5, p);
     mpz_poly_div_xi(f, g, 6);
     ASSERT_ALWAYS(f->deg == -1);
     mpz_poly_div_xi(f, g, 0);
@@ -886,11 +887,11 @@ void test_mpz_poly_trivialities()
     mpz_poly_add_ui(f, f, 1);
     mpz_poly_set_xi(g, 1);
     mpz_poly_add(f, f, g);
-    mpz_poly_mul(g, f, f);
-    mpz_poly_sub(f, f, g);
+    mpz_poly_mul_notparallel(g, f, f);
+    mpz_poly_sub_notparallel(f, f, g);
     mpz_poly_set_zero(g);
     mpz_poly_sub_ui(g, g, 1);
-    mpz_poly_mul(f, f, g);
+    mpz_poly_mul_notparallel(f, f, g);
     mpz_poly_set_zero(g);
     mpz_set_ui(a[0], 1);
     mpz_poly_set_xi(g, 2);
@@ -900,7 +901,7 @@ void test_mpz_poly_trivialities()
     /* multiply by zero */
     mpz_poly_random(f, 10, 10);
     mpz_poly_set_zero(g);
-    mpz_poly_mul(f, f, g);
+    mpz_poly_mul_notparallel(f, f, g);
     ASSERT_ALWAYS(mpz_poly_cmp(f, g) == 0);
 
     /* div modulo non-prime N should get factor */
@@ -931,7 +932,7 @@ void test_mpz_poly_trivialities()
 
     /* multiply by p, then reduce mod p */
     mpz_poly_random(f, 10, 10);
-    mpz_poly_mul_mpz (f, f, p);
+    mpz_poly_mul_mpz_notparallel (f, f, p);
     mpz_poly_makemonic_mod_mpz(f, f, p);
     ASSERT_ALWAYS(f->deg < 0);
 

@@ -136,7 +136,7 @@ test_sm (FILE * datafile)
       sm_build_one_relset (relset, r, e, len_relset, ab_polys, FF, 2, sm_info->ell2);
       mpz_poly_set (Nc, relset->num[0]);
       mpz_poly_set (Dc, relset->denom[0]);
-      mpz_poly_reduce_frac_mod_f_mod_mpz (relset->num[0], relset->denom[0],
+      mpz_poly_reduce_frac_mod_f_mod_mpz_notparallel (relset->num[0], relset->denom[0],
               F, sm_info->ell2);
       compute_sm_piecewise (SMc, relset->num[0], sm_info);
       sm_relset_clear (relset, 2);
