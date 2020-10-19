@@ -3,6 +3,13 @@
  * Authors: E. Thomé.
  * Purpose: computing the squareroots and finishing the factorization
  *
+ * The algorithm implemented here is described in section 4 of:
+ *
+ *      Emmanuel Thomé, Square root algorithms for the number field sieve,
+ *      4th International Workshop on Arithmetic in Finite Fields - WAIFI 2012,
+ *      Jul 2012, Bochum, Germany. pp.208-224,
+ *      DOI : 10.1007/978-3-642-31662-3_15
+ *      https://hal.inria.fr/hal-00756838
  */
 
 /*
@@ -3720,7 +3727,6 @@ int main(int argc, char **argv)
     }
 #else
     if (glob.prank == 0) {
-
         for(int i = i0 ; i < i1 ; i++) {
             int disp = i * glob.n * glob.n;
             old_prime_postcomputations(contribs64 + disp, contribsN + disp * sN, &primes[i]);
