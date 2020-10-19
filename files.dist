@@ -1588,3 +1588,6 @@ sieve/inspect-fbc-file.pl
 tests/sieve/bogus.fbc
 sieve/inspect-batch-file.pl
 tests/sieve/bogus.batch0
+tests/estimate_matsize/p30.poly
+tests/estimate_matsize/params.txt
+tests/estimate_matsize/CMakeLists.txt
