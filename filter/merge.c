@@ -723,9 +723,12 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
 	j such that p[j] < p[j+1], or j = ncols-1. */
         if (mat->p == NULL) {
         	mat->p = malloc(mat->rem_ncols * sizeof (index_t));
-		for (uint64_t i = 0, j = 0; j < mat->ncols; j++)
-			if (p[j] == i && (j + 1 == mat->ncols || p[j] < p[j+1]))
-				mat->p[i++] = j; /* necessarily i <= j */
+                /* We must pay attention to the case of empty columns at the
+                 * end */
+		for (uint64_t i = 0, j = 0; j < mat->ncols && i < mat->rem_ncols; j++) {
+                    if (p[j] == i && (j + 1 == mat->ncols || p[j] < p[j+1]))
+                        mat->p[i++] = j; /* necessarily i <= j */
+                }
         } else {
 	/* update mat->p. It sends actual indices in mat to original indices in the purge file */
         // before : mat->p[i] == original

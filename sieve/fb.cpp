@@ -1089,6 +1089,8 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb, fb_factorbase::key_typ
     helper_functor_count_weight_parts D { local_thresholds };
     toplevel = multityped_array_fold(D, 0, fb.entries);
 
+    if (toplevel == 0) toplevel++;
+
     double total_weight = 0;
 
     for (int i = 0; i <= toplevel; i++) {
