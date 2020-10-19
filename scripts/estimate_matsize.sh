@@ -53,6 +53,8 @@ set -e
 # for each sub-range, we call las with -random-sample $NBSAMPLE
 : ${NBSAMPLE=50}
 
+force_redo=
+
 usage() {
     echo "Usage: $0 [options] <polyfile>"
     echo "Options: -params <param file>  read extra parameters from there (shell script)"
@@ -74,6 +76,9 @@ while [ $# -gt 0 ] ; do
             usage
             exit 1
         fi
+    elif [ "$1" = -f ] ; then
+        force_redo=1
+        shift
     elif [ "$1" = -help ] ; then
         usage
         exit 0
@@ -89,10 +94,15 @@ if [ $# != 1 ]; then
     exit 1
 fi
 
+if ! [ "$CADO_BUILD" ] ; then
+    echo "Error: \$CADO_BUILD must be set" >&2
+    exit 1
+fi
+
 ## read poly file on command line
 polyfile=$1
 if [ ! -e $1 ]; then
-    echo "Error: file $1 does not exist?"
+    echo "Error: file $1 does not exist?" >&2
     exit 1
 fi
 
@@ -110,16 +120,20 @@ has_file_already() {
     if ! [ -f "$filename" ] ; then
         echo "$*" > "$filename.cmd"
         return 1
-    elif ! [ -f "$filename.cmd" ] ; then
-        echo "file $filename already in wdir, but creating command not found. not reusing file."
+    elif [ "$force_redo" ] ; then
+        echo "# rebuilding $filename since \$force_redo is set (either because of -f or because of outdated earlier files)"
         echo "$*" > "$filename.cmd"
         return 1
-    elif ! diff -q "$filename.cmd" <(echo "$*") ; 
-        echo "file $filename already in wdir, but created with another command. not reusing it."
+    elif ! [ -f "$filename.cmd" ] ; then
+        echo "# file $filename already in wdir, but creating command not found. not reusing file."
+        echo "$*" > "$filename.cmd"
+        return 1
+    elif ! diff -q "$filename.cmd" <(echo "$*") ; then
+        echo "# file $filename already in wdir, but created with another command. not reusing it."
         echo "$*" > "$filename.cmd"
         return 1
     else
-        echo "file $filename already in wdir, created with same command. reusing it."
+        echo "# file $filename already in wdir, created with same command. reusing it."
         true
     fi
 }
@@ -225,7 +239,7 @@ for i in `seq 0 $((nsides-1))`; do
               -fb0 $rootfile0 -fb1 $rootfile1 -random-sample $NBSAMPLE 
               -t $las_threads -sync -v -dup -dup-qmin $dupqmin
                           $extra_las_params)
-            echo $cmd
+            echo "${cmd[@]}"
             file=$wdir/sample.side${side}.${q0}-${q1}
             if ! has_file_already $file "${cmd[@]}" ; then
                 "${cmd[@]}" > $file
@@ -249,7 +263,7 @@ for i in `seq 0 $((nsides-1))`; do
               -sample $wdir/sample.side${side}.${q0}-${q1}
               -shrink-factor $shrink_factor
               -renumber $renumberfile)
-            echo $cmd
+            echo "${cmd[@]}"
             file=$wdir/fakerels.side${side}.${q0}-${q1}
             if ! has_file_already $file "${cmd[@]}" ; then
                 "${cmd[@]}" > $file
