@@ -792,18 +792,6 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   return 0;
 }
 
-typedef struct
-{
-  const char *prefix;
-  int task;            /* 0:ratsqrt 1:algsqrt 2:gcd */
-  int numdep;
-  cado_poly_ptr pol;
-  int side;
-  mpz_ptr Np;
-  mpz_poly_parallel_info * pinf;
-} __tab_struct;
-typedef __tab_struct tab_t[1];
-
 /********** ALGSQRT **********/
 static cxx_mpz_polymod_scaled
 cxx_mpz_polymod_scaled_from_ab (cxx_mpz const & a, cxx_mpz const & b)
@@ -1708,23 +1696,37 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     free (abs);
 }
 
+
+struct sqrt_thread_args
+{
+  const char *prefix;
+  int task;            /* 0:ratsqrt 1:algsqrt 2:gcd */
+  int numdep;
+  cado_poly_ptr pol;
+  int side;
+  mpz_ptr Np;
+  mpz_poly_parallel_info * pinf;
+};
+typedef struct sqrt_thread_args * sqrt_thread_ptr;
+typedef struct sqrt_thread_args sqrt_thread[1];
+
 #define TASK_SQRT 0
 #define TASK_GCD  2
 /* perform one task (rat or alg or gcd) on one dependency */
 void*
 one_thread (void* args)
 {
-  tab_t *tab = (tab_t*) args;
-  if (tab[0]->task == TASK_SQRT) {
-      if (tab[0]->pol->pols[tab[0]->side]->deg == 1) {
-          calculateSqrtRat (tab[0]->prefix, tab[0]->numdep, tab[0]->pol,
-                  tab[0]->side, tab[0]->Np);
+  sqrt_thread_ptr tab = (sqrt_thread_ptr) args;
+  if (tab->task == TASK_SQRT) {
+      if (tab->pol->pols[tab->side]->deg == 1) {
+          calculateSqrtRat (tab->prefix, tab->numdep, tab->pol,
+                  tab->side, tab->Np);
       } else {
-          calculateSqrtAlg (tab[0]->prefix, tab[0]->numdep, tab[0]->pol,
-                  tab[0]->side, tab[0]->Np, tab[0]->pinf);
+          calculateSqrtAlg (tab->prefix, tab->numdep, tab->pol,
+                  tab->side, tab->Np, tab->pinf);
       }
   } else /* gcd */
-    calculateGcd (tab[0]->prefix, tab[0]->numdep, tab[0]->Np);
+    calculateGcd (tab->prefix, tab->numdep, tab->Np);
   return NULL;
 }
 
@@ -1735,7 +1737,7 @@ calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
                 cado_poly pol, int side, mpz_t Np)
 {
   pthread_t *tid;
-  tab_t *T;
+  sqrt_thread *T;
   int j;
 
   /* This descriptor will hold info about "how" we parallelize the
@@ -1750,7 +1752,7 @@ calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
 
   tid = (pthread_t*) malloc (nthreads * sizeof (pthread_t));
   ASSERT_ALWAYS(tid != NULL);
-  T = (tab_t*) malloc (nthreads * sizeof (tab_t));
+  T = (sqrt_thread*) malloc (nthreads * sizeof (sqrt_thread));
   ASSERT_ALWAYS(T != NULL);
   for (j = 0; j < nthreads; j++)
     {
