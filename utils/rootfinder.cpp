@@ -19,7 +19,7 @@ int mpz_poly_roots_notparallel (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
 {
     return mpz_poly_roots_parallel (r, F, p, NULL);
 }
-int mpz_poly_roots_parallel (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p, const struct mpz_poly_parallel_info * pinf)
+int mpz_poly_roots_parallel (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
     int d = F->deg;
 
@@ -240,7 +240,7 @@ mpz_poly_roots_mpz_notparallel (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p)
     return mpz_poly_roots_mpz_parallel(r, f, p, NULL);
 }
 int
-mpz_poly_roots_mpz_parallel (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, const struct mpz_poly_parallel_info * pinf)
+mpz_poly_roots_mpz_parallel (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   int nr = 0;
   mpz_poly fp, g, h;

@@ -216,7 +216,7 @@ mpz_poly_mul_eval_si (mpz_t v, mpz_t *g, int r, long i)
    Returns the degree of f.
 */
 static int
-mpz_poly_mul_tc_parallel (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s, const struct mpz_poly_parallel_info * pinf)
+mpz_poly_mul_tc_parallel (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   int t;
 
@@ -491,7 +491,7 @@ mpz_poly_sqr_tc4 (mpz_t *f, mpz_t *g)
    Returns the degree of f.
 */
 static int
-mpz_poly_sqr_tc_parallel (mpz_t *f, mpz_t *g, int r, const struct mpz_poly_parallel_info * pinf)
+mpz_poly_sqr_tc_parallel (mpz_t *f, mpz_t *g, int r, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   int t;
   size_t nbits;
@@ -1169,7 +1169,8 @@ mpz_poly_sub_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h)
 {
     mpz_poly_sub_parallel(f, g, h, NULL);
 }
-void mpz_poly_sub_parallel(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, const struct mpz_poly_parallel_info * pinf) {
+void mpz_poly_sub_parallel(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+{
   int maxdeg = max(g->deg, h->deg);
   mpz_poly_realloc(f, maxdeg + 1);
 #ifdef HAVE_OPENMP
@@ -1229,7 +1230,7 @@ mpz_poly_sub_mod_mpz_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_sr
     mpz_poly_sub_mod_mpz_parallel (f, g, h, m, NULL);
 }
 void
-mpz_poly_sub_mod_mpz_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, mpz_srcptr m, const struct mpz_poly_parallel_info * pinf)
+mpz_poly_sub_mod_mpz_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, mpz_srcptr m, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
     mpz_poly_sub_parallel(f, g, h, pinf);
     mpz_poly_mod_mpz_parallel(f, f, m, NULL, pinf);
@@ -1242,7 +1243,8 @@ void mpz_poly_mul_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcpt
     mpz_poly_mul_parallel(f, g, h, NULL);
 }
 void
-mpz_poly_mul_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, const struct mpz_poly_parallel_info * pinf) {
+mpz_poly_mul_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+{
   if (f == h || f == g)
     {
       mpz_poly aux;
@@ -1357,7 +1359,7 @@ mpz_poly_mul_mpz_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr a)
     mpz_poly_mul_mpz_parallel(f, g, a, NULL);
 }
 void
-mpz_poly_mul_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a, const struct mpz_poly_parallel_info * pinf)
+mpz_poly_mul_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
     mpz_poly_realloc (Q, P->deg + 1);
 #ifdef HAVE_OPENMP
@@ -1387,7 +1389,7 @@ mpz_poly_divexact_mpz_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr
     mpz_poly_divexact_mpz_parallel(f, g, a, NULL);
 }
 void
-mpz_poly_divexact_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a, const struct mpz_poly_parallel_info * pinf)
+mpz_poly_divexact_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
     mpz_poly_realloc (Q, P->deg + 1);
 #ifdef HAVE_OPENMP
@@ -1729,7 +1731,7 @@ mpz_poly_div_2_mod_mpz_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcpt
 {
     mpz_poly_div_2_mod_mpz_parallel(f, g, a, NULL);
 }
-void mpz_poly_div_2_mod_mpz_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m, const struct mpz_poly_parallel_info * pinf)
+void mpz_poly_div_2_mod_mpz_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   ASSERT_ALWAYS(mpz_scan1 (m, 0) == 0);
 
@@ -1888,7 +1890,7 @@ void polymodF_mul_notparallel (polymodF_t Q,
 void polymodF_mul_parallel (polymodF_t Q,
         const polymodF_t P1, const polymodF_t P2,
         mpz_poly_srcptr F,
-        const struct mpz_poly_parallel_info * pinf)
+        const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   mpz_poly prd;
   int v;
@@ -2013,7 +2015,7 @@ int mpz_poly_mod_mpz_notparallel (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr 
 }
 int
 mpz_poly_mod_mpz_parallel (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m,
-		  mpz_srcptr invm, const struct mpz_poly_parallel_info * pinf)
+		  mpz_srcptr invm, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   /* reduce lower coefficients */
   mpz_poly_realloc(R, A->deg + 1);
@@ -2059,7 +2061,7 @@ mpz_poly_mod_mpz_lazy (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m)
    If invf is not NULL, it should be 1/m mod lc(f). */
 int
 mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
-        mpz_srcptr invf, const struct mpz_poly_parallel_info * pinf)
+        mpz_srcptr invf, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
     return
         mpz_poly_mod_f_mod_mpz_parallel (R, f, m,
@@ -2073,7 +2075,7 @@ int mpz_poly_mod_f_mod_mpz_notparallel(mpz_poly_ptr R, mpz_poly_srcptr f, mpz_sr
 }
 int
 mpz_poly_mod_f_mod_mpz_parallel (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
-			mpz_srcptr invf, mpz_srcptr invm, const struct mpz_poly_parallel_info * pinf)
+			mpz_srcptr invf, mpz_srcptr invm, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   mpz_t aux, c;
   size_t size_f, size_R;
@@ -2177,7 +2179,7 @@ void
 mpz_poly_reduce_frac_mod_f_mod_mpz_parallel (
         mpz_poly_ptr num, mpz_poly_ptr denom,
         mpz_poly_srcptr F, mpz_srcptr m,
-        const mpz_poly_parallel_info * pinf)
+        const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   if (denom->deg == 0)
   {
@@ -2221,7 +2223,7 @@ void
 mpz_poly_mul_mod_f_mod_mpz_parallel(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
 			    mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf,
 			    mpz_srcptr invm,
-                            const mpz_poly_parallel_info * pinf)
+                            const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   int d1 = P1->deg;
   int d2 = P2->deg;
@@ -2260,7 +2262,7 @@ mpz_poly_mul_mod_f_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_src
 }
 void
 mpz_poly_mul_mod_f_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
-                        mpz_poly_srcptr f, const struct mpz_poly_parallel_info * pinf)
+                        mpz_poly_srcptr f, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
     mpz_poly_mul_parallel(Q,P1,P2,pinf);
     mpz_poly_div_r_z(Q,Q,f);
@@ -2275,7 +2277,7 @@ void mpz_poly_sqr_mod_f_mod_mpz_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P, 
 {
     mpz_poly_sqr_mod_f_mod_mpz_parallel (Q, P, f, m, invf, invm, NULL);
 }
-void mpz_poly_sqr_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm, const mpz_poly_parallel_info * pinf)
+void mpz_poly_sqr_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm, const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   int d1 = P->deg;
   int d = d1 + d1;
@@ -2394,7 +2396,7 @@ void mpz_poly_pow_mod_f_mod_ui_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P, m
 {
     mpz_poly_pow_mod_f_mod_ui_parallel (Q, P, f, a, p, NULL);
 }
-void mpz_poly_pow_mod_f_mod_ui_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, unsigned long p, const mpz_poly_parallel_info * pinf)
+void mpz_poly_pow_mod_f_mod_ui_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, unsigned long p, const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
     mpz_t m;
     mpz_init_set_ui(m, p);
@@ -2414,7 +2416,7 @@ mpz_poly_pow_ui_mod_f_mod_mpz_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mp
 }
 void
 mpz_poly_pow_ui_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f,
-                          unsigned long a, mpz_srcptr p, const mpz_poly_parallel_info * pinf)
+                          unsigned long a, mpz_srcptr p, const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
     mpz_t az;
     mpz_init_set_ui(az, a);
@@ -2437,7 +2439,7 @@ mpz_poly_pow_mod_f_mod_mpz_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P,
 void
 mpz_poly_pow_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P,
 			    mpz_poly_srcptr f, mpz_srcptr a, mpz_srcptr p,
-                            const mpz_poly_parallel_info * pinf)
+                            const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   int k = mpz_sizeinbase(a, 2), l, L = 0, j;
   mpz_poly R, *T = NULL;
@@ -2534,7 +2536,7 @@ mpz_poly* mpz_poly_base_modp_init_notparallel (mpz_poly_srcptr P0, int p, unsign
     return mpz_poly_base_modp_init_parallel (P0, p, K, l, NULL);
 }
 mpz_poly*
-mpz_poly_base_modp_init_parallel (mpz_poly_srcptr P0, int p, unsigned long *K, int l, const struct mpz_poly_parallel_info * pinf)
+mpz_poly_base_modp_init_parallel (mpz_poly_srcptr P0, int p, unsigned long *K, int l, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   mpz_poly *P;
   int k, i, j;
@@ -2611,7 +2613,7 @@ void mpz_poly_base_modp_lift_notparallel (mpz_poly_ptr a, mpz_poly *P, int k, mp
 {
     mpz_poly_base_modp_lift_parallel (a, P, k, pk, NULL);
 }
-void mpz_poly_base_modp_lift_parallel (mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk, const struct mpz_poly_parallel_info * pinf)
+void mpz_poly_base_modp_lift_parallel (mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
 {
   /* first check P[k] exists and is not zero */
   if (P[k]->deg == -1)
