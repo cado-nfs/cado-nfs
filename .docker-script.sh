@@ -42,9 +42,9 @@
 if [ -f /etc/debian_version ] ; then
     echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
     env DEBIAN_FRONTEND=noninteractive apt-get -y update
-    env DEBIAN_FRONTEND=noninteractive apt-get -y install locales cmake libhwloc-dev libgmp-dev python3 git vim gdb g++
+    env DEBIAN_FRONTEND=noninteractive apt-get -y install bc locales cmake libhwloc-dev libgmp-dev python3 git vim gdb g++
 elif [ -f /etc/fedora-release ] ; then
-    dnf -y install cmake hwloc-devel gmp-devel python git vim gdb gcc g++ make
+    dnf -y install bc cmake hwloc-devel gmp-devel python git vim gdb gcc g++ make
 fi
 cd /host
 uid=$(stat --printf '%u' .)
