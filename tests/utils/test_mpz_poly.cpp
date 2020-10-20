@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <gmp.h>
 #include "mpz_poly.h"
+#include "mpz_poly_parallel.hpp"
 #include "tests_common.h"
 #include "portability.h" // lrand48 // IWYU pragma: keep
 
@@ -125,7 +126,7 @@ test_mpz_poly_sqr_tc (unsigned long iter)
     for (r = 0; r <= MAX_TC_DEGREE; r++)
       {
         mpz_poly_random (g, r, 10);
-        mpz_poly_mul (f0, g, g);
+        mpz_poly_mul(f0, g, g);
         mpz_poly_realloc (f1, r + r + 1);
         f1->deg = r + r;
         mpz_poly_mul_basecase (f1->coeff, g->coeff, r, g->coeff, r);
@@ -596,6 +597,7 @@ test_mpz_poly_base_modp_init (unsigned long iter)
   mpz_poly f, *P, g;
   mpz_t pk;
   size_t s;
+  mpz_poly_parallel_info pinf;
 
   mpz_poly_init (f, -1);
   mpz_poly_init (g, -1);
@@ -622,12 +624,12 @@ test_mpz_poly_base_modp_init (unsigned long iter)
       s = mpz_poly_sizeinbase (f, 2);
       for (i = 0; i <= f->deg; i++)
         ASSERT_ALWAYS(mpz_sizeinbase (f->coeff[i], 2) <= s);
-      P = mpz_poly_base_modp_init (f, p, K, l);
+      P = pinf.mpz_poly_base_modp_init(f, p, K, l);
       /* check f = P[0] + p^K[l]*P[1] + p^K[l-1]*P[2] + ... + p^K[1]*P[l] */
       for (i = 1; i <= l; i++)
         {
           mpz_ui_pow_ui (pk, p, K[l + 1 - i]);
-          mpz_poly_base_modp_lift (P[0], P, i, pk);
+          pinf.mpz_poly_base_modp_lift (P[0], P, i, pk);
         }
       ASSERT_ALWAYS(mpz_poly_cmp (f, P[0]) == 0);
       mpz_poly_base_modp_clear (P, l);

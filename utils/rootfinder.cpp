@@ -15,8 +15,7 @@
 
 /* Entry point for rootfind routines, for prime p.
    Assume r is an array of deg(F) entries, which are mpz_init'ed. */
-int
-mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
+int mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
 {
     int d = F->deg;
 
@@ -87,6 +86,8 @@ mpz_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, unsigned long p)
 
 
 
+/* Note that parallelizing this makes no sense. The payload is too small.
+ */
 int
 mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p)
 {
@@ -258,7 +259,7 @@ mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p)
   /* FIXME: instead of computing x^p-x, we could compute x^(p-1) - 1 while
      saving the value of h = x^((p-1)/2). If several roots, gcd(h-1, f)
      might help to split them. */
-  mpz_poly_sub (h, h, g);
+  mpz_poly_sub(h, h, g);
   /* g = gcd (mpz_poly_fp, h) */
   mpz_poly_gcd_mpz (fp, fp, h, p);
   /* fp contains gcd(x^p-x, f) */
@@ -627,6 +628,10 @@ template std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz, uint64_t>(cxx_mpz_poly con
 template std::vector<uint64_t> mpz_poly_roots<uint64_t, uint64_t>(cxx_mpz_poly const & f, uint64_t const & q, std::vector<uint64_t> const & qfac);
 #endif
 
+/* TODO: we'd like to expose the parallelized version via this interface
+ * as well. However, the overloading approach show its limitations here.
+ * The pinf handles would pollute the code all over the place...
+ */
 template<>
 std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz>(cxx_mpz_poly const & f, cxx_mpz const & q)
 {

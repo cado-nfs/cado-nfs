@@ -475,7 +475,7 @@ tests/utils/test_gcd.c
 tests/utils/test_cado_poly.c
 tests/utils/test_getprime.c
 tests/utils/test_memusage.c
-tests/utils/test_mpz_poly.c
+tests/utils/test_mpz_poly.cpp
 tests/utils/test_modul_poly.c
 tests/utils/test_cache.c
 tests/utils/test_usp.c
@@ -1591,3 +1591,4 @@ tests/sieve/bogus.batch0
 tests/estimate_matsize/p30.poly
 tests/estimate_matsize/params.txt
 tests/estimate_matsize/CMakeLists.txt
+utils/mpz_poly_parallel.hpp
