@@ -23,15 +23,6 @@ typedef const struct double_poly_s * double_poly_srcptr;
 extern "C" {
 #endif
 
-/* A pointer to a struct of this type (or NULL) can be passed to the
- * _parallel variants of the functions in the API here. A priori, we
- * expect this to be implementation-specific data. NULL means: don't do
- * any parallelism.
- */
-struct mpz_poly_parallel_info {
-    int dummy;  /* avoid empty structs, which vary in size between C and C++ */
-};
-
 /* maximum degree we can reconstruct using mpz_poly_mul_tc_interpolate */
 #define MAX_TC_DEGREE 19
 
@@ -76,6 +67,27 @@ typedef struct {
 
 typedef poly_base_struct_t poly_base_t[1];
 
+/* Note on parallelism.
+ *
+ * Some functions in this API can optionally use openmp. We want to make
+ * sure that the code that calls these openmp-enabled functions does so
+ * **willingly**. And we don't want to pollute the "normal" interface.
+ *
+ * The chosen solution is as follows.
+ *
+ * - the functions declared here, and use as plain (e.g.) mpz_poly_mul
+ *   resolve to something that does **NOT** use openmp.
+ *
+ * - to use openmp, include mpz_poly_parallel.hpp instead, and call the
+ *   member functions of an mpz_poly_parallel_info object. E.g.
+ *
+ *   mpz_poly_parallel_info inf;
+ *   // (maybe add some configuration code for the inf object, if the
+ *   // need for that ever appears)
+ *   inf.mpz_poly_mul(....)
+ *
+ * More detail on can be found in mpz_poly_parallel.hpp and mpz_poly.cpp
+ */
 
 /* Management of the structure, set and print coefficients. */
 void mpz_poly_init(mpz_poly_ptr, int d);
@@ -138,18 +150,13 @@ int mpz_poly_is_monic (mpz_poly_srcptr f);
 void mpz_poly_to_monic(mpz_poly_ptr g, mpz_poly_srcptr f);
 void mpz_poly_neg(mpz_poly_ptr f, mpz_poly_srcptr g);
 void mpz_poly_add(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h);
-void mpz_poly_sub_parallel(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, const struct mpz_poly_parallel_info *);
-void mpz_poly_sub_notparallel(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h);
+void mpz_poly_sub(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h);
 void mpz_poly_add_ui(mpz_poly_ptr g, mpz_poly_srcptr f, unsigned long a);
 void mpz_poly_sub_ui(mpz_poly_ptr g, mpz_poly_srcptr f, unsigned long a);
-void mpz_poly_sub_mod_mpz_parallel(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, mpz_srcptr m, const struct mpz_poly_parallel_info *);
-void mpz_poly_sub_mod_mpz_notparallel(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, mpz_srcptr m);
-void mpz_poly_mul_parallel(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, const struct mpz_poly_parallel_info *);
-void mpz_poly_mul_notparallel(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h);
-void mpz_poly_mul_mpz_parallel(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a, const struct mpz_poly_parallel_info *);
-void mpz_poly_mul_mpz_notparallel(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a);
-void mpz_poly_divexact_mpz_parallel(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a, const struct mpz_poly_parallel_info *);
-void mpz_poly_divexact_mpz_notparallel(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a);
+void mpz_poly_sub_mod_mpz(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, mpz_srcptr m);
+void mpz_poly_mul(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h);
+void mpz_poly_mul_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a);
+void mpz_poly_divexact_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a);
 int mpz_poly_divisible_mpz (mpz_poly_srcptr P, mpz_srcptr a);
 void mpz_poly_translation (mpz_poly_ptr, mpz_poly_srcptr, mpz_srcptr);
 void mpz_poly_rotation (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr, int);
@@ -159,24 +166,18 @@ void mpz_poly_divexact_ui (mpz_poly_ptr, mpz_poly_srcptr, unsigned long);
 void mpz_poly_rotation_int64 (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, const int64_t, int);
 void mpz_poly_makemonic_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr m);
 void barrett_precompute_inverse (mpz_ptr invm, mpz_srcptr m);
-int mpz_poly_mod_f_mod_mpz_parallel(mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm, const struct mpz_poly_parallel_info *);
-int mpz_poly_mod_f_mod_mpz_notparallel(mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
-int mpz_poly_mod_mpz_parallel(mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m, mpz_srcptr invm, const struct mpz_poly_parallel_info *);
-int mpz_poly_mod_mpz_notparallel(mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m, mpz_srcptr invm);
+int mpz_poly_mod_f_mod_mpz(mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
+int mpz_poly_mod_mpz(mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m, mpz_srcptr invm);
 int mpz_poly_mod_mpz_lazy (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m);
-void mpz_poly_mul_mod_f_mod_mpz_parallel(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm, const struct mpz_poly_parallel_info *);
-void mpz_poly_mul_mod_f_mod_mpz_notparallel(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
-void mpz_poly_mul_mod_f_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2, mpz_poly_srcptr f);
-void mpz_poly_mul_mod_f_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2, mpz_poly_srcptr f, const struct mpz_poly_parallel_info *);
-void mpz_poly_reduce_frac_mod_f_mod_mpz_notparallel (mpz_poly_ptr num, mpz_poly_ptr denom, mpz_poly_srcptr F, mpz_srcptr m);
-void mpz_poly_reduce_frac_mod_f_mod_mpz_parallel (mpz_poly_ptr num, mpz_poly_ptr denom, mpz_poly_srcptr F, mpz_srcptr m, const struct mpz_poly_parallel_info *);
+void mpz_poly_mul_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
+void mpz_poly_mul_mod_f (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2, mpz_poly_srcptr f);
+void mpz_poly_reduce_frac_mod_f_mod_mpz (mpz_poly_ptr num, mpz_poly_ptr denom, mpz_poly_srcptr F, mpz_srcptr m);
 int mpz_poly_div_qr (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr p);
 int mpz_poly_div_r (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr p);
 int mpz_poly_div_qr_z (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g);
 int mpz_poly_div_r_z (mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g);
 int mpz_poly_divexact (mpz_poly_ptr q, mpz_poly_srcptr h, mpz_poly_srcptr f, mpz_srcptr p);
-void mpz_poly_div_2_mod_mpz_notparallel(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m);
-void mpz_poly_div_2_mod_mpz_parallel(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m, const struct mpz_poly_parallel_info *);
+void mpz_poly_div_2_mod_mpz(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m);
 void mpz_poly_div_xi(mpz_poly_ptr g, mpz_poly_srcptr f, int i);
 void mpz_poly_mul_xi(mpz_poly_ptr g, mpz_poly_srcptr f, int i);
 void mpz_poly_mul_xplusa(mpz_poly_ptr g, mpz_poly_srcptr f, mpz_srcptr a);
@@ -188,27 +189,17 @@ void mpz_poly_eval_diff_ui (mpz_ptr res, mpz_poly_srcptr f, unsigned long x);
 void mpz_poly_eval_mod_mpz(mpz_t res, mpz_poly_srcptr f, mpz_srcptr x, mpz_srcptr m);
 int mpz_poly_is_root(mpz_poly_srcptr poly, mpz_srcptr root, mpz_srcptr modulus);
 void mpz_poly_eval_several_mod_mpz(mpz_ptr * res, mpz_poly_srcptr * f, int k, mpz_srcptr x, mpz_srcptr m);
-void polymodF_mul_notparallel(polymodF_t Q, const polymodF_t P1, const polymodF_t P2, mpz_poly_srcptr F);
-void polymodF_mul_parallel (polymodF_t Q,
-        const polymodF_t P1, const polymodF_t P2,
-        mpz_poly_srcptr F,
-        const struct mpz_poly_parallel_info * pinf);
-void mpz_poly_sqr_mod_f_mod_mpz_notparallel(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
-void mpz_poly_sqr_mod_f_mod_mpz_parallel(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm, const struct mpz_poly_parallel_info *);
+void polymodF_mul(polymodF_t Q, const polymodF_t P1, const polymodF_t P2, mpz_poly_srcptr F);
+void mpz_poly_sqr_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
 void mpz_poly_pow_ui(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n);
 void mpz_poly_pow_ui_mod_f(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n, mpz_poly_srcptr f);
-void mpz_poly_pow_mod_f_mod_ui_notparallel(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, unsigned long p);
-void mpz_poly_pow_mod_f_mod_ui_parallel(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, unsigned long p, const struct mpz_poly_parallel_info *);
-void mpz_poly_pow_mod_f_mod_mpz_parallel(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, mpz_srcptr p, const struct mpz_poly_parallel_info *);
-void mpz_poly_pow_mod_f_mod_mpz_notparallel(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, mpz_srcptr p);
-void mpz_poly_pow_ui_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, unsigned long a, mpz_srcptr p, const struct mpz_poly_parallel_info *);
-void mpz_poly_pow_ui_mod_f_mod_mpz_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, unsigned long a, mpz_srcptr p);
+void mpz_poly_pow_mod_f_mod_ui(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, unsigned long p);
+void mpz_poly_pow_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, mpz_srcptr p);
+void mpz_poly_pow_ui_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, unsigned long a, mpz_srcptr p);
 void mpz_poly_derivative(mpz_poly_ptr df, mpz_poly_srcptr f);
-mpz_poly* mpz_poly_base_modp_init_notparallel (mpz_poly_srcptr P0, int p, unsigned long *K, int l);
-mpz_poly* mpz_poly_base_modp_init_parallel (mpz_poly_srcptr P0, int p, unsigned long *K, int l, const struct mpz_poly_parallel_info *);
+mpz_poly* mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l);
 void mpz_poly_base_modp_clear (mpz_poly *P, int l);
-void mpz_poly_base_modp_lift_notparallel(mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk);
-void mpz_poly_base_modp_lift_parallel(mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk, const struct mpz_poly_parallel_info *);
+void mpz_poly_base_modp_lift(mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk);
 size_t mpz_poly_sizeinbase (mpz_poly_srcptr f, int base);
 size_t mpz_poly_size (mpz_poly_srcptr f);
 void mpz_poly_infinity_norm(mpz_ptr in, mpz_poly_srcptr f);

@@ -208,8 +208,8 @@ cxx_mpz_mat multiplication_table_of_order(cxx_mpq_mat const& O,
             cxx_mpz_poly c;
             cxx_mpz dc;
             mpq_mat_row_to_poly(c, dc, O, j);
-            mpz_poly_mul_mpz_notparallel(c, c, mpz_poly_lc(g));
-            mpz_poly_mul_mod_f_notparallel(c, c, w, g);
+            mpz_poly_mul_mpz(c, c, mpz_poly_lc(g));
+            mpz_poly_mul_mod_f(c, c, w, g);
             mpz_mul(dc, dc, dw);
             mpz_mul(dc, dc, mpz_poly_lc(g));
             mpq_poly_to_mat_row(T, j, c, dc);

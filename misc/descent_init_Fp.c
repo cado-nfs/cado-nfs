@@ -196,7 +196,7 @@ int get_Fpn_candiate_from_e(unsigned long e, mpz_poly_ptr UU, mpz_poly_ptr VV,
 
   mpz_poly ze;
   mpz_poly_init(ze, d-1);
-  mpz_poly_pow_ui_mod_f_mod_mpz_notparallel(ze, param->zpol, param->f, e, param->p);
+  mpz_poly_pow_ui_mod_f_mod_mpz(ze, param->zpol, param->f, e, param->p);
 
   mpz_poly y;           // y represents x^i
   mpz_poly_init(y,0);
@@ -222,7 +222,7 @@ int get_Fpn_candiate_from_e(unsigned long e, mpz_poly_ptr UU, mpz_poly_ptr VV,
   // Bottomleft d*d block
   for (int i = 0; i < d; ++i) {
     mpz_poly_set_xi(y,i);     // y is the polynomial alpha^i
-    mpz_poly_mul_mod_f_mod_mpz_notparallel(c, ze, y, param->f, param->p, NULL, NULL);
+    mpz_poly_mul_mod_f_mod_mpz(c, ze, y, param->f, param->p, NULL, NULL);
     for (int j = 0; j < d; ++j) {
       if (j > c->deg)
         mpz_set_ui(M.coeff[d+i+1][j+1], 0);

@@ -475,7 +475,7 @@ tests/utils/test_gcd.c
 tests/utils/test_cado_poly.c
 tests/utils/test_getprime.c
 tests/utils/test_memusage.c
-tests/utils/test_mpz_poly.c
+tests/utils/test_mpz_poly.cpp
 tests/utils/test_modul_poly.c
 tests/utils/test_cache.c
 tests/utils/test_usp.c
@@ -1588,3 +1588,4 @@ sieve/inspect-fbc-file.pl
 tests/sieve/bogus.fbc
 sieve/inspect-batch-file.pl
 tests/sieve/bogus.batch0
+utils/mpz_poly_parallel.hpp

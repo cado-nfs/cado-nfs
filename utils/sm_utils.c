@@ -13,9 +13,9 @@ static void
 compute_sm_lowlevel (mpz_poly SM, mpz_poly_srcptr num, const mpz_poly F,
                      const mpz_t ell, const mpz_t smexp, const mpz_t ell2)
 {
-    mpz_poly_pow_mod_f_mod_mpz_notparallel (SM, num, F, smexp, ell2);
+    mpz_poly_pow_mod_f_mod_mpz (SM, num, F, smexp, ell2);
     mpz_poly_sub_ui (SM, SM, 1);
-    mpz_poly_divexact_mpz_notparallel (SM, SM, ell);
+    mpz_poly_divexact_mpz (SM, SM, ell);
 }
 
 double m_seconds = 0;
@@ -203,9 +203,9 @@ sm_build_one_relset (sm_relset_ptr rel, uint64_t *r, int64_t *e, int len,
       /* TODO: mpz_poly_long_power_mod_f_mod_mpz */
       for (int s = 0; s < nb_polys; ++s) {
         if (F[s] == NULL) continue;
-        mpz_poly_pow_mod_f_mod_mpz_notparallel(tmp[s], abpolys[r[k]],
+        mpz_poly_pow_mod_f_mod_mpz(tmp[s], abpolys[r[k]],
                 F[s], ee, ell2);
-        mpz_poly_mul_mod_f_mod_mpz_notparallel(rel->num[s], rel->num[s], tmp[s],
+        mpz_poly_mul_mod_f_mod_mpz(rel->num[s], rel->num[s], tmp[s],
                 F[s], ell2, NULL, NULL);
       }
     }
@@ -215,9 +215,9 @@ sm_build_one_relset (sm_relset_ptr rel, uint64_t *r, int64_t *e, int len,
       /* TODO: mpz_poly_long_power_mod_f_mod_mpz */
       for (int s = 0; s < nb_polys; ++s) {
         if (F[s] == NULL) continue;
-        mpz_poly_pow_mod_f_mod_mpz_notparallel(tmp[s], abpolys[r[k]],
+        mpz_poly_pow_mod_f_mod_mpz(tmp[s], abpolys[r[k]],
                 F[s], ee, ell2);
-        mpz_poly_mul_mod_f_mod_mpz_notparallel(rel->denom[s], rel->denom[s], tmp[s], F[s],
+        mpz_poly_mul_mod_f_mod_mpz(rel->denom[s], rel->denom[s], tmp[s], F[s],
                 ell2, NULL, NULL);
       }
     }
@@ -273,7 +273,7 @@ void compute_change_of_basis_matrix(mpz_t * matrix, mpz_poly_srcptr f, mpz_poly_
         mpz_poly_xgcd_mpz(d, g, h, a, b, ell);
 
         /* we now have the complete cofactor */
-        mpz_poly_mul_mod_f_mod_mpz_notparallel(h, b, h, f, ell, NULL, NULL);
+        mpz_poly_mul_mod_f_mod_mpz(h, b, h, f, ell, NULL, NULL);
         for(int j = 0 ; j < g->deg ; j++, s++) {
             /* store into the matrix the coefficients of x^j*h
              * modulo f */
@@ -282,7 +282,7 @@ void compute_change_of_basis_matrix(mpz_t * matrix, mpz_poly_srcptr f, mpz_poly_
                     mpz_set(matrix[s * f->deg + k], h->coeff[k]);
             }
             mpz_poly_mul_xi(h, h, 1);
-            mpz_poly_mod_f_mod_mpz_notparallel(h, f, ell, NULL, NULL);
+            mpz_poly_mod_f_mod_mpz(h, f, ell, NULL, NULL);
         }
         mpz_poly_clear(b);
         mpz_poly_clear(a);

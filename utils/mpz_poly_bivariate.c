@@ -51,12 +51,12 @@ static void lagrange_poly_add(lagrange_poly_ptr r, lagrange_poly_srcptr p,
   mpz_init(lcm_red);
   // r = p * lcm_red
   mpz_divexact(lcm_red, lcm, p->denom);
-  mpz_poly_mul_mpz_notparallel(r->p, p->p, lcm_red);
+  mpz_poly_mul_mpz(r->p, p->p, lcm_red);
   // r = r + q * lcm_red
   mpz_divexact(lcm_red, lcm, q->denom);
   mpz_poly tmp;
   mpz_poly_init(tmp, q->p->deg);
-  mpz_poly_mul_mpz_notparallel(tmp, q->p, lcm_red);
+  mpz_poly_mul_mpz(tmp, q->p, lcm_red);
   mpz_poly_add(r->p, r->p, tmp);
   mpz_set(r->denom, lcm);
   mpz_poly_clear(tmp);
@@ -67,7 +67,7 @@ static void lagrange_poly_add(lagrange_poly_ptr r, lagrange_poly_srcptr p,
 static inline void lagrange_poly_mul_mpz(lagrange_poly_ptr r,
     lagrange_poly_srcptr p, mpz_t a)
 {
-  mpz_poly_mul_mpz_notparallel(r->p, p->p, a);
+  mpz_poly_mul_mpz(r->p, p->p, a);
 }
 
 static void interpolate(mpz_poly_ptr p, mpz_t * x, mpz_t * y, unsigned int nb)
@@ -87,7 +87,7 @@ static void interpolate(mpz_poly_ptr p, mpz_t * x, mpz_t * y, unsigned int nb)
       if (i != j) {
         mpz_poly_setcoeff(poly_tmp, 0, x[j]);
         mpz_mul_si(poly_tmp->coeff[0], poly_tmp->coeff[0], -1);
-        mpz_poly_mul_notparallel(l[i]->p, l[i]->p, poly_tmp);
+        mpz_poly_mul(l[i]->p, l[i]->p, poly_tmp);
         mpz_sub(Z_tmp, x[i], x[j]);
         mpz_mul(l[i]->denom, l[i]->denom, Z_tmp);
       }
@@ -261,7 +261,7 @@ void mpz_poly_bivariate_eval_y(mpz_poly_ptr res,
   }
   mpz_poly_set(res, f->coeff[d]);
   for (i = d - 1; i >= 0; --i) {
-    mpz_poly_mul_mpz_notparallel(res, res, y);
+    mpz_poly_mul_mpz(res, res, y);
     mpz_poly_add(res, res, f->coeff[i]);
   }
 }

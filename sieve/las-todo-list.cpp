@@ -405,7 +405,7 @@ bool las_todo_list::feed_qlist()
             // For rational side, we can compute the root easily.
             ASSERT_ALWAYS(f->deg == 1);
             /* ugly cast, yes */
-            int nroots = mpz_poly_roots_notparallel ((mpz_t*) &r, f, p);
+            int nroots = mpz_poly_roots ((mpz_t*) &r, f, p);
             ASSERT_ALWAYS(nroots == 1);
         }
     }

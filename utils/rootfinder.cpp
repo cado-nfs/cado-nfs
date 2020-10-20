@@ -15,11 +15,7 @@
 
 /* Entry point for rootfind routines, for prime p.
    Assume r is an array of deg(F) entries, which are mpz_init'ed. */
-int mpz_poly_roots_notparallel (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
-{
-    return mpz_poly_roots_parallel (r, F, p, NULL);
-}
-int mpz_poly_roots_parallel (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+int mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
 {
     int d = F->deg;
 
@@ -46,7 +42,7 @@ int mpz_poly_roots_parallel (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p, const st
         return n;
     } else {
       int n;
-      n = mpz_poly_roots_mpz_parallel (r, F, p, pinf);
+      n = mpz_poly_roots_mpz (r, F, p);
       return n;
     }
 }
@@ -107,14 +103,14 @@ mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p)
         mpz_init (pp);
         mpz_set_uint64 (pp, p);
         if (r == NULL)
-          n = mpz_poly_roots_mpz_notparallel (NULL, F, pp);
+          n = mpz_poly_roots_mpz (NULL, F, pp);
         else
           {
             mpz_t *rr;
             rr = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
             for (i = 0; i <= d; i++)
               mpz_init (rr[i]);
-            n = mpz_poly_roots_mpz_notparallel (NULL, F, pp);
+            n = mpz_poly_roots_mpz (NULL, F, pp);
             for (i = 0; i <= d; i++)
               {
                 if (i < n)
@@ -196,7 +192,7 @@ mpz_poly_cantor_zassenhaus (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p,
     /* h=(x+a)^((p-1)/2) mod (f, p) */
     mpz_sub_ui (aux, p, 1);
     mpz_divexact_ui (aux, aux, 2);
-    mpz_poly_pow_mod_f_mod_mpz_notparallel (h, q, f, aux, p);
+    mpz_poly_pow_mod_f_mod_mpz (h, q, f, aux, p);
     mpz_poly_sub_ui (h, h, 1);
 
     /* q = gcd(f,h) */
@@ -235,12 +231,7 @@ clear_a:
    Assume d (the degree of f) is at least 1.
  */
 int
-mpz_poly_roots_mpz_notparallel (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p)
-{
-    return mpz_poly_roots_mpz_parallel(r, f, p, NULL);
-}
-int
-mpz_poly_roots_mpz_parallel (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p)
 {
   int nr = 0;
   mpz_poly fp, g, h;
@@ -264,11 +255,11 @@ mpz_poly_roots_mpz_parallel (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, const st
     goto clear_and_exit;
   /* h=x^p-x (mod mpz_poly_fp) */
   mpz_poly_setcoeff_ui (g, 1, 1);
-  mpz_poly_pow_mod_f_mod_mpz_parallel (h, g, fp, p, p, pinf);
+  mpz_poly_pow_mod_f_mod_mpz (h, g, fp, p, p);
   /* FIXME: instead of computing x^p-x, we could compute x^(p-1) - 1 while
      saving the value of h = x^((p-1)/2). If several roots, gcd(h-1, f)
      might help to split them. */
-  mpz_poly_sub_parallel (h, h, g, pinf);
+  mpz_poly_sub(h, h, g);
   /* g = gcd (mpz_poly_fp, h) */
   mpz_poly_gcd_mpz (fp, fp, h, p);
   /* fp contains gcd(x^p-x, f) */
@@ -316,7 +307,7 @@ mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, mpz_srcptr n)
       rp[0] = (mpz_t*) malloc (d * sizeof (mpz_t));
       for (i = 0; i < d; i++)
         mpz_init (rp[0][i]);
-      k = mpz_poly_roots_notparallel (rp[0], F, n);
+      k = mpz_poly_roots (rp[0], F, n);
       /* free the unused roots */
       for (i = k; i < d; i++)
         mpz_clear (rp[0][i]);
@@ -346,7 +337,7 @@ mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, mpz_srcptr n)
       if (mpz_divisible_p (nn, p))
         {
           unsigned long kp;
-          kp = mpz_poly_roots_notparallel (roots_p, F, p);
+          kp = mpz_poly_roots (roots_p, F, p);
           mpz_divexact (nn, nn, p);
           /* lift roots mod p^j if needed */
           mpz_set (q, p);
@@ -645,7 +636,7 @@ template<>
 std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz>(cxx_mpz_poly const & f, cxx_mpz const & q)
 {
     std::vector<cxx_mpz> tmp(f.degree());
-    int n = mpz_poly_roots_mpz_notparallel((mpz_t*) &tmp.front(), f, q);
+    int n = mpz_poly_roots_mpz((mpz_t*) &tmp.front(), f, q);
     tmp.erase(tmp.begin() + n, tmp.end());
     return tmp;
 }

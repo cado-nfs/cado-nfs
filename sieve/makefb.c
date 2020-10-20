@@ -38,10 +38,10 @@ void mp_poly_linear_comp(mpz_t *g, mpz_t *f, int d, long a, long b) {
     mpz_poly_set(aXpbi, aXpb);
     mpz_poly_setcoeff(G, 0, f[0]);
     for (int i = 1; i <= d; ++i) {
-        mpz_poly_mul_mpz_notparallel(Aux, aXpbi, f[i]);
+        mpz_poly_mul_mpz(Aux, aXpbi, f[i]);
         mpz_poly_add(G, G, Aux);
         if (i < d)
-            mpz_poly_mul_notparallel(aXpbi, aXpbi, aXpb);
+            mpz_poly_mul(aXpbi, aXpbi, aXpb);
     }
     for (int i = 0; i <= d; ++i)
         mpz_poly_getcoeff(g[i], i, G);

@@ -27,6 +27,7 @@
 #include "gmp_aux.h"      // for mpz_addmul_si, mpz_mul_uint64, mpz_ndiv_r
 #include "lll.h"          // for mat_Z, LLL
 #include "mpz_poly.h"
+#include "mpz_poly_parallel.hpp"
 #include "omp_proxy.h"  // IWYU pragma: keep
 #include "portability.h"  // for strlcpy
 #include "rootfinder.h"   // for mpz_poly_roots_mpz
@@ -39,6 +40,37 @@
 #ifndef max
 #define max(a,b) ((a)<(b) ? (b) : (a))
 #endif
+
+/* A note on the parallel interface.
+ *
+ * The interface in mpz_poly.h has some of its functions duplicated in
+ * mpz_poly_parallel.hpp. Those functions can be used either with or
+ * without openmp.
+ *
+ * A function such as ::mpz_poly_blah is implemented here as a simple
+ * trampoline to mpz_poly_notparallel_info::mpz_poly_blah.
+ *
+ * Then both mpz_poly_notparallel_info::mpz_poly_blah and
+ * mpz_poly_parallel_info::mpz_poly_blah are created as instances of a
+ * template member functions, so that the "parallel" criterion can
+ * resolve statically. (static resolution is the main reason why I
+ * didn't go for virtual functions)
+ *
+ * The code to implement mpz_poly_blah is therefore:
+ *
+ * void mpz_poly_blah(...)
+ * {
+ *      mpz_poly_notparallel_info().mpz_poly_blah(...);
+ * }
+ * template<typename inf>
+ * void mpz_poly_parallel_interface<inf>::mpz_poly_blah(...)
+ * {
+ *      then std::is_same<inf, mpz_poly_notparallel_info>::value is a
+ *      compile-time constant
+ * }
+ *
+ */
+
 
 // compute timings for Q^a mod(f,p): square, multiplication, reduction mod f
 // PZ piece of code:
@@ -215,8 +247,9 @@ mpz_poly_mul_eval_si (mpz_t v, mpz_t *g, int r, long i)
    Assumes f differs from g and h, and f[0..r+s] are already allocated.
    Returns the degree of f.
 */
+template<typename inf>
 static int
-mpz_poly_mul_tc_parallel (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_mul_tc(inf& inf_arg, mpz_t *f, mpz_t *g, int r, mpz_t *h, int s)
 {
   int t;
 
@@ -224,7 +257,7 @@ mpz_poly_mul_tc_parallel (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s, const stru
     return -1;
 
   if (r < s)
-    return mpz_poly_mul_tc_parallel (f, h, s, g, r, pinf);
+    return mpz_poly_mul_tc(inf_arg, f, h, s, g, r);
 
   /* now r >= s */
 
@@ -333,7 +366,7 @@ mpz_poly_mul_tc_parallel (mpz_t *f, mpz_t *g, int r, mpz_t *h, int s, const stru
   ASSERT(tc_points[0] == 0);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf != NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
   for (int i = 0; i <= t; i++)
     {
@@ -490,8 +523,9 @@ mpz_poly_sqr_tc4 (mpz_t *f, mpz_t *g)
    Assumes f differs from g, and f[0..2r] are already allocated.
    Returns the degree of f.
 */
+template<typename inf>
 static int
-mpz_poly_sqr_tc_parallel (mpz_t *f, mpz_t *g, int r, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_sqr_tc (inf& /* unused */, mpz_t *f, mpz_t *g, int r)
 {
   int t;
   size_t nbits;
@@ -534,7 +568,7 @@ mpz_poly_sqr_tc_parallel (mpz_t *f, mpz_t *g, int r, const struct mpz_poly_paral
   ASSERT(tc_points[0] == 0);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf != NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
   for (int i = 0; i <= t; i++)
     {
@@ -1165,16 +1199,17 @@ void mpz_poly_add(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h) {
    Note: f can be the same as g or h;
          g can be the same as h. */
 void
-mpz_poly_sub_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h)
+mpz_poly_sub(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h)
 {
-    mpz_poly_sub_parallel(f, g, h, NULL);
+    mpz_poly_notparallel_info().mpz_poly_sub(f, g, h);
 }
-void mpz_poly_sub_parallel(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+template<typename inf>
+void mpz_poly_parallel_interface<inf>::mpz_poly_sub(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h)
 {
   int maxdeg = max(g->deg, h->deg);
   mpz_poly_realloc(f, maxdeg + 1);
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf != NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
   for (int i = 0 ; i <= maxdeg ; i++) {
     if (i <= g->deg && i <= h->deg)
@@ -1225,31 +1260,32 @@ mpz_poly_sub_ui (mpz_poly_ptr g, mpz_poly_srcptr f, unsigned long a)
 
 /* Set f=g-h (mod m). */
 void
-mpz_poly_sub_mod_mpz_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, mpz_srcptr m)
+mpz_poly_sub_mod_mpz (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, mpz_srcptr m)
 {
-    mpz_poly_sub_mod_mpz_parallel (f, g, h, m, NULL);
+    mpz_poly_notparallel_info().mpz_poly_sub_mod_mpz (f, g, h, m);
 }
-void
-mpz_poly_sub_mod_mpz_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, mpz_srcptr m, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+template<typename inf>
+void mpz_poly_parallel_interface<inf>::mpz_poly_sub_mod_mpz (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, mpz_srcptr m)
 {
-    mpz_poly_sub_parallel(f, g, h, pinf);
-    mpz_poly_mod_mpz_parallel(f, f, m, NULL, pinf);
+    mpz_poly_sub(f, g, h);
+    mpz_poly_mod_mpz(f, f, m, NULL);
 }
 
 /* Set f=g*h. Note: f might equal g or h.
    Assumes the g[g->deg] and h[h->deg[] are not zero. */
-void mpz_poly_mul_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h)
+void mpz_poly_mul (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h)
 {
-    mpz_poly_mul_parallel(f, g, h, NULL);
+    mpz_poly_notparallel_info().mpz_poly_mul(f, g, h);
 }
+template<typename inf>
 void
-mpz_poly_mul_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_parallel_interface<inf>::mpz_poly_mul (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h)
 {
   if (f == h || f == g)
     {
       mpz_poly aux;
       mpz_poly_init (aux, -1);
-      mpz_poly_mul_parallel (aux, g, h,pinf);
+      mpz_poly_mul (aux, g, h);
       mpz_poly_set (f, aux);
       mpz_poly_clear (aux);
       return;
@@ -1266,17 +1302,17 @@ mpz_poly_mul_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, con
 
   if (g == h) /* this is a square */
     {
-      f->deg = mpz_poly_sqr_tc_parallel (f->coeff, g->coeff, g->deg, pinf);
+      f->deg = mpz_poly_sqr_tc ((inf&)*this, f->coeff, g->coeff, g->deg);
       return;
     }
 
   if (g->deg == 0) {
-    mpz_poly_mul_mpz_parallel (f, h, g->coeff[0], pinf);
+    mpz_poly_mul_mpz (f, h, g->coeff[0]);
     return;
   }
 
   if (h->deg == 0) {
-    mpz_poly_mul_mpz_parallel (f, g, h->coeff[0], pinf);
+    mpz_poly_mul_mpz (f, g, h->coeff[0]);
     return;
   }
 
@@ -1286,7 +1322,7 @@ mpz_poly_mul_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, con
   ASSERT(f != h);
 
 #if 1
-  f->deg = mpz_poly_mul_tc_parallel (f->coeff, g->coeff, g->deg, h->coeff, h->deg, pinf);
+  f->deg = mpz_poly_mul_tc((inf&)*this,f->coeff, g->coeff, g->deg, h->coeff, h->deg);
 #else /* segmentation, this code has problem with huge runs, for example
          degree 5 with lifting to 631516975 bits */
   {
@@ -1354,16 +1390,17 @@ mpz_poly_mul_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, con
 
 /* Set Q=a*P, where a is an mpz_t */
 void
-mpz_poly_mul_mpz_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr a)
+mpz_poly_mul_mpz(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr a)
 {
-    mpz_poly_mul_mpz_parallel(f, g, a, NULL);
+    mpz_poly_notparallel_info().mpz_poly_mul_mpz(f, g, a);
 }
+template<typename inf>
 void
-mpz_poly_mul_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_parallel_interface<inf>::mpz_poly_mul_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a)
 {
     mpz_poly_realloc (Q, P->deg + 1);
 #ifdef HAVE_OPENMP
-#pragma omp parallel if(pinf!=NULL)
+#pragma omp parallel if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
     {
         mpz_t aux;
@@ -1384,16 +1421,17 @@ mpz_poly_mul_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a, cons
 /* Set Q=P/a, where a is an mpz_t. Assume a divides the content of P (the
    division is done with mpz_divexact). Otherwise the result is not correct. */
 void
-mpz_poly_divexact_mpz_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr a)
+mpz_poly_divexact_mpz(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr a)
 {
-    mpz_poly_divexact_mpz_parallel(f, g, a, NULL);
+    mpz_poly_notparallel_info().mpz_poly_divexact_mpz(f, g, a);
 }
+template<typename inf>
 void
-mpz_poly_divexact_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_parallel_interface<inf>::mpz_poly_divexact_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a)
 {
     mpz_poly_realloc (Q, P->deg + 1);
 #ifdef HAVE_OPENMP
-#pragma omp parallel if(pinf!=NULL)
+#pragma omp parallel if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
     {
         mpz_t aux;
@@ -1727,18 +1765,19 @@ mpz_poly_divexact (mpz_poly_ptr q, mpz_poly_srcptr h, mpz_poly_srcptr f, mpz_src
  * reduced.
  */
 void
-mpz_poly_div_2_mod_mpz_notparallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr a)
+mpz_poly_div_2_mod_mpz(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr a)
 {
-    mpz_poly_div_2_mod_mpz_parallel(f, g, a, NULL);
+    mpz_poly_notparallel_info().mpz_poly_div_2_mod_mpz(f, g, a);
 }
-void mpz_poly_div_2_mod_mpz_parallel (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+template<typename inf>
+void mpz_poly_parallel_interface<inf>::mpz_poly_div_2_mod_mpz (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m)
 {
   ASSERT_ALWAYS(mpz_scan1 (m, 0) == 0);
 
   mpz_poly_realloc (f, g->deg + 1);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf!=NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
   for (int i = g->deg; i >= 0; --i)
     {
@@ -1881,16 +1920,16 @@ mpz_poly_eval_several_mod_mpz (mpz_ptr *r, mpz_poly_srcptr *f, int k,
 }
 
 /* Set Q=P1*P2 (mod F). Warning: Q might equal P1 (or P2). */
-void polymodF_mul_notparallel (polymodF_t Q,
+void polymodF_mul (polymodF_t Q,
         const polymodF_t P1, const polymodF_t P2,
         mpz_poly_srcptr F)
 {
-    polymodF_mul_parallel (Q, P1, P2, F, NULL);
+    mpz_poly_notparallel_info().polymodF_mul (Q, P1, P2, F);
 }
-void polymodF_mul_parallel (polymodF_t Q,
+template<typename inf>
+void mpz_poly_parallel_interface<inf>::polymodF_mul (polymodF_t Q,
         const polymodF_t P1, const polymodF_t P2,
-        mpz_poly_srcptr F,
-        const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+        mpz_poly_srcptr F)
 {
   mpz_poly prd;
   int v;
@@ -1901,7 +1940,7 @@ void polymodF_mul_parallel (polymodF_t Q,
   ASSERT_ALWAYS(mpz_poly_normalized_p (P1->p));
   ASSERT_ALWAYS(mpz_poly_normalized_p (P2->p));
 
-  mpz_poly_mul_parallel (prd, P1->p, P2->p, pinf);
+  mpz_poly_mul (prd, P1->p, P2->p);
   v = P1->v + P2->v;
 
   mpz_poly_reducemodF(Q, prd, F);
@@ -2009,18 +2048,19 @@ mpz_mod_barrett (mpz_ptr r, mpz_srcptr a, mpz_srcptr m, mpz_srcptr invm)
  * Otherwise use mpz_mod_barrett, where invm should have been precomputed
  * using barrett_precompute_inverse (invm, m).
  */
-int mpz_poly_mod_mpz_notparallel (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m, mpz_srcptr invm)
+int mpz_poly_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m, mpz_srcptr invm)
 {
-    return mpz_poly_mod_mpz_parallel(R, A, m, invm, NULL);
+    return mpz_poly_notparallel_info().mpz_poly_mod_mpz(R, A, m, invm);
 }
+template<typename inf>
 int
-mpz_poly_mod_mpz_parallel (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m,
-		  mpz_srcptr invm, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_parallel_interface<inf>::mpz_poly_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m,
+		  mpz_srcptr invm)
 {
   /* reduce lower coefficients */
   mpz_poly_realloc(R, A->deg + 1);
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf!=NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
   for (int i = 0; i <= A->deg; ++i)
     if (invm == NULL)
@@ -2061,21 +2101,20 @@ mpz_poly_mod_mpz_lazy (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m)
    If invf is not NULL, it should be 1/m mod lc(f). */
 int
 mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
-        mpz_srcptr invf, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+        mpz_srcptr invf)
 {
-    return
-        mpz_poly_mod_f_mod_mpz_parallel (R, f, m,
-                invf, NULL, pinf);
+    return mpz_poly_mod_f_mod_mpz (R, f, m, invf, NULL);
 }
 
-int mpz_poly_mod_f_mod_mpz_notparallel(mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
+int mpz_poly_mod_f_mod_mpz(mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
 			mpz_srcptr invf, mpz_srcptr invm)
 {
-    return mpz_poly_mod_f_mod_mpz_parallel(R, f, m, invf, invm, NULL);
+    return mpz_poly_notparallel_info().mpz_poly_mod_f_mod_mpz(R, f, m, invf, invm);
 }
+template<typename inf>
 int
-mpz_poly_mod_f_mod_mpz_parallel (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
-			mpz_srcptr invf, mpz_srcptr invm, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_parallel_interface<inf>::mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m,
+			mpz_srcptr invf, mpz_srcptr invm)
 {
   mpz_t aux, c;
   size_t size_f, size_R;
@@ -2118,7 +2157,7 @@ mpz_poly_mod_f_mod_mpz_parallel (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m
       if (size_c + size_f > (3 * size_R) / 2)
 	mpz_mod (c, c, m);
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf!=NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
       for (int i = R->deg - 1; i >= R->deg - f->deg; --i)
 	mpz_submul (R->coeff[i], c, f->coeff[f->deg - R->deg + i]);
@@ -2130,7 +2169,7 @@ mpz_poly_mod_f_mod_mpz_parallel (mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m
     mpz_clear (aux);
 
  reduce_R:
-  mpz_poly_mod_mpz_parallel (R, R, m, invm, pinf);
+  mpz_poly_mod_mpz (R, R, m, invm);
 
   return R->deg;
 }
@@ -2167,19 +2206,19 @@ void mpz_poly_to_monic(mpz_poly_ptr g, mpz_poly_srcptr f)
 /* TODO: We must state the input / output requirements with respect to
  * reduction mod m */
 void
-mpz_poly_reduce_frac_mod_f_mod_mpz_notparallel (
+mpz_poly_reduce_frac_mod_f_mod_mpz (
         mpz_poly_ptr num, mpz_poly_ptr denom,
         mpz_poly_srcptr F, mpz_srcptr m)
 {
-    mpz_poly_reduce_frac_mod_f_mod_mpz_parallel (
+    mpz_poly_notparallel_info().mpz_poly_reduce_frac_mod_f_mod_mpz (
             num, denom,
-            F, m, NULL);
+            F, m);
 }
+template<typename inf>
 void
-mpz_poly_reduce_frac_mod_f_mod_mpz_parallel (
+mpz_poly_parallel_interface<inf>::mpz_poly_reduce_frac_mod_f_mod_mpz (
         mpz_poly_ptr num, mpz_poly_ptr denom,
-        mpz_poly_srcptr F, mpz_srcptr m,
-        const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+        mpz_poly_srcptr F, mpz_srcptr m)
 {
   if (denom->deg == 0)
   {
@@ -2187,8 +2226,8 @@ mpz_poly_reduce_frac_mod_f_mod_mpz_parallel (
     mpz_init (inv);
     mpz_poly_getcoeff (inv, 0, denom); /* inv <- denom[0] */
     mpz_invert (inv, inv, m);          /* inv <- denom[0]^-1 */
-    mpz_poly_mul_mpz_parallel(num, num, inv, pinf);  /* num <- num * inv */
-    mpz_poly_mod_mpz_parallel(num, num, m, NULL, pinf); /* num <- num * inv mod m */
+    mpz_poly_mul_mpz(num, num, inv);  /* num <- num * inv */
+    mpz_poly_mod_mpz(num, num, m, NULL); /* num <- num * inv mod m */
     mpz_clear (inv);
   } else {
     mpz_poly g, U, V;
@@ -2196,7 +2235,7 @@ mpz_poly_reduce_frac_mod_f_mod_mpz_parallel (
     mpz_poly_init (U, 0);
     mpz_poly_init (V, 0);
     mpz_poly_xgcd_mpz (g, F, denom, U, V, m);
-    mpz_poly_mul_parallel (num, num, V, pinf);
+    mpz_poly_mul (num, num, V);
     mpz_poly_mod_f_mod_mpz (num, F, m, NULL, NULL);
     mpz_poly_clear (g);
     mpz_poly_clear (U);
@@ -2213,17 +2252,17 @@ mpz_poly_reduce_frac_mod_f_mod_mpz_parallel (
    Coefficients of Q are reduced mod m.
    If invf is not NULL, it is 1/m mod lc(f). */
 void
-mpz_poly_mul_mod_f_mod_mpz_notparallel(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
+mpz_poly_mul_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
 			    mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf,
 			    mpz_srcptr invm)
 {
-    mpz_poly_mul_mod_f_mod_mpz_parallel(Q, P1, P2, f, m, invf, invm, NULL);
+    mpz_poly_notparallel_info().mpz_poly_mul_mod_f_mod_mpz(Q, P1, P2, f, m, invf, invm);
 }
+template<typename inf>
 void
-mpz_poly_mul_mod_f_mod_mpz_parallel(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
+mpz_poly_parallel_interface<inf>::mpz_poly_mul_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
 			    mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf,
-			    mpz_srcptr invm,
-                            const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+			    mpz_srcptr invm)
 {
   int d1 = P1->deg;
   int d2 = P2->deg;
@@ -2234,7 +2273,7 @@ mpz_poly_mul_mod_f_mod_mpz_parallel(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly
 #ifdef MPZ_POLY_TIMINGS
   if (mpz_fits_sint_p (f->coeff[0])){
     START_TIMER;
-    d = mpz_poly_mul_tc (R->coeff, P1->coeff, d1, P2->coeff, d2);
+    d = mpz_poly_mul_tc ((inf&)*this, R->coeff, P1->coeff, d1, P2->coeff, d2);
     mpz_poly_cleandeg(R, d);
     END_TIMER (TIMER_MUL);
     // reduce mod f
@@ -2244,10 +2283,10 @@ mpz_poly_mul_mod_f_mod_mpz_parallel(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly
   }else
 #endif
   {
-    d = mpz_poly_mul_tc_parallel (R->coeff, P1->coeff, d1, P2->coeff, d2, pinf);
+    d = mpz_poly_mul_tc ((inf&)*this, R->coeff, P1->coeff, d1, P2->coeff, d2);
     mpz_poly_cleandeg(R, d);
     // reduce mod f
-    mpz_poly_mod_f_mod_mpz_parallel (R, f, m, invf, invm, pinf);
+    mpz_poly_mod_f_mod_mpz (R, f, m, invf, invm);
   }
   mpz_poly_set(Q, R);
   mpz_poly_clear(R);
@@ -2255,16 +2294,17 @@ mpz_poly_mul_mod_f_mod_mpz_parallel(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly
 
 /* Q = P1*P2 mod f, assuming f is monic */
 void
-mpz_poly_mul_mod_f_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
+mpz_poly_mul_mod_f (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
                         mpz_poly_srcptr f)
 {
-    mpz_poly_mul_mod_f_parallel (Q, P1, P2, f, NULL);
+    mpz_poly_notparallel_info().mpz_poly_mul_mod_f (Q, P1, P2, f);
 }
+template<typename inf>
 void
-mpz_poly_mul_mod_f_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
-                        mpz_poly_srcptr f, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_parallel_interface<inf>::mpz_poly_mul_mod_f (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
+                        mpz_poly_srcptr f)
 {
-    mpz_poly_mul_parallel(Q,P1,P2,pinf);
+    mpz_poly_mul(Q,P1,P2);
     mpz_poly_div_r_z(Q,Q,f);
 }
 
@@ -2273,11 +2313,12 @@ mpz_poly_mul_mod_f_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr
    Coefficients of P need not be reduced mod m.
    Coefficients of Q are reduced mod m.
    If not NULL, invf = 1/m mod lc(f). */
-void mpz_poly_sqr_mod_f_mod_mpz_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm)
+void mpz_poly_sqr_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm)
 {
-    mpz_poly_sqr_mod_f_mod_mpz_parallel (Q, P, f, m, invf, invm, NULL);
+    mpz_poly_notparallel_info().mpz_poly_sqr_mod_f_mod_mpz (Q, P, f, m, invf, invm);
 }
-void mpz_poly_sqr_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm, const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+template<typename inf>
+void mpz_poly_parallel_interface<inf>::mpz_poly_sqr_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm)
 {
   int d1 = P->deg;
   int d = d1 + d1;
@@ -2291,7 +2332,7 @@ void mpz_poly_sqr_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz
 #ifdef MPZ_POLY_TIMINGS
   if (mpz_fits_sint_p (f->coeff[0])){
     START_TIMER;
-    d = mpz_poly_sqr_tc (R->coeff, P->coeff, d1);
+    d = mpz_poly_sqr_tc ((inf&)*this, R->coeff, P->coeff, d1);
     mpz_poly_cleandeg(R, d);
     END_TIMER (TIMER_SQR);
     // reduce mod f
@@ -2301,10 +2342,10 @@ void mpz_poly_sqr_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz
   }else
 #endif
   {
-    d = mpz_poly_sqr_tc_parallel (R->coeff, P->coeff, d1, pinf);
+    d = mpz_poly_sqr_tc ((inf&)*this, R->coeff, P->coeff, d1);
     mpz_poly_cleandeg(R, d);
     // reduce mod f
-    mpz_poly_mod_f_mod_mpz_parallel (R, f, m, invf, invm, pinf);
+    mpz_poly_mod_f_mod_mpz (R, f, m, invf, invm);
   }
 
   mpz_poly_set(Q, R);
@@ -2344,9 +2385,9 @@ void mpz_poly_pow_ui(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n)/*{{{*/
     for( ; k > n ; k >>= 1);
     mpz_poly_set(B, A);
     for( ; k >>= 1 ; ) {
-        mpz_poly_mul_notparallel(B, B, B);
+        mpz_poly_mul(B, B, B);
         if (n & k)
-            mpz_poly_mul_notparallel(B, B, A);
+            mpz_poly_mul(B, B, A);
     }
 }/*}}}*/
 
@@ -2376,10 +2417,10 @@ void mpz_poly_pow_ui_mod_f(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n, m
     mpz_poly Q;
     mpz_poly_init(Q, 3*f->deg-3);
     for( ; k >>= 1 ; ) {
-        mpz_poly_mul_notparallel(Q, B, B);
+        mpz_poly_mul(Q, B, B);
         mpz_poly_swap(Q, B);
         if (n & k) {
-            mpz_poly_mul_notparallel(Q, B, A);
+            mpz_poly_mul(Q, B, A);
             mpz_poly_swap(Q, B);
         }
         mpz_poly_div_r_z(B, B, f);
@@ -2392,15 +2433,16 @@ void mpz_poly_pow_ui_mod_f(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n, m
  * Coefficients of P need not be reduced mod p.
  * Coefficients of Q are reduced mod p.
  */
-void mpz_poly_pow_mod_f_mod_ui_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, unsigned long p)
+void mpz_poly_pow_mod_f_mod_ui (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, unsigned long p)
 {
-    mpz_poly_pow_mod_f_mod_ui_parallel (Q, P, f, a, p, NULL);
+    mpz_poly_notparallel_info().mpz_poly_pow_mod_f_mod_ui (Q, P, f, a, p);
 }
-void mpz_poly_pow_mod_f_mod_ui_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, unsigned long p, const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+template<typename inf>
+void mpz_poly_parallel_interface<inf>::mpz_poly_pow_mod_f_mod_ui (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, unsigned long p)
 {
     mpz_t m;
     mpz_init_set_ui(m, p);
-    mpz_poly_pow_mod_f_mod_mpz_parallel(Q, P, f, a, m, pinf);
+    mpz_poly_pow_mod_f_mod_mpz(Q, P, f, a, m);
     mpz_clear(m);
 }
 
@@ -2409,18 +2451,19 @@ void mpz_poly_pow_mod_f_mod_ui_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_
  * Coefficients of Q are reduced mod p.
  */
 void
-mpz_poly_pow_ui_mod_f_mod_mpz_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f,
+mpz_poly_pow_ui_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f,
                           unsigned long a, mpz_srcptr p)
 {
-    mpz_poly_pow_ui_mod_f_mod_mpz_parallel(Q, P, f, a, p, NULL);
+    mpz_poly_notparallel_info().mpz_poly_pow_ui_mod_f_mod_mpz(Q, P, f, a, p);
 }
+template<typename inf>
 void
-mpz_poly_pow_ui_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f,
-                          unsigned long a, mpz_srcptr p, const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_parallel_interface<inf>::mpz_poly_pow_ui_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f,
+                          unsigned long a, mpz_srcptr p)
 {
     mpz_t az;
     mpz_init_set_ui(az, a);
-    mpz_poly_pow_mod_f_mod_mpz_parallel(Q, P, f, az, p, pinf);
+    mpz_poly_pow_mod_f_mod_mpz(Q, P, f, az, p);
     mpz_clear(az);
 }
 
@@ -2431,15 +2474,15 @@ mpz_poly_pow_ui_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_p
  * Coefficients of Q are reduced mod p
  */
 void
-mpz_poly_pow_mod_f_mod_mpz_notparallel (mpz_poly_ptr Q, mpz_poly_srcptr P,
+mpz_poly_pow_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P,
 			    mpz_poly_srcptr f, mpz_srcptr a, mpz_srcptr p)
 {
-    mpz_poly_pow_mod_f_mod_mpz_parallel(Q, P, f, a, p, NULL);
+    mpz_poly_notparallel_info().mpz_poly_pow_mod_f_mod_mpz(Q, P, f, a, p);
 }
+template<typename inf>
 void
-mpz_poly_pow_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P,
-			    mpz_poly_srcptr f, mpz_srcptr a, mpz_srcptr p,
-                            const mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_parallel_interface<inf>::mpz_poly_pow_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P,
+			    mpz_poly_srcptr f, mpz_srcptr a, mpz_srcptr p)
 {
   int k = mpz_sizeinbase(a, 2), l, L = 0, j;
   mpz_poly R, *T = NULL;
@@ -2477,10 +2520,10 @@ mpz_poly_pow_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P,
       /* we store P^2 in T[0], P^3 in T[1], ..., P^(2^l-1) in T[L-1] */
       for (j = 0; j < L; j++)
 	mpz_poly_init (T[j], f ? 2*f->deg : -1);
-      mpz_poly_sqr_mod_f_mod_mpz_parallel (T[0], R, f, p, invf, NULL, pinf);       /* P^2 */
-      mpz_poly_mul_mod_f_mod_mpz_parallel (T[1], T[0], R, f, p, invf, NULL, pinf); /* P^3 */
+      mpz_poly_sqr_mod_f_mod_mpz (T[0], R, f, p, invf, NULL);       /* P^2 */
+      mpz_poly_mul_mod_f_mod_mpz (T[1], T[0], R, f, p, invf, NULL); /* P^3 */
       for (j = 2; j < L; j++)
-	mpz_poly_mul_mod_f_mod_mpz_parallel (T[j], T[j-1], T[0], f, p, invf, NULL, pinf);
+	mpz_poly_mul_mod_f_mod_mpz (T[j], T[j-1], T[0], f, p, invf, NULL);
     }
 
   // Horner
@@ -2488,7 +2531,7 @@ mpz_poly_pow_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P,
   {
     while (k >= 0 && mpz_tstbit (a, k) == 0)
       {
-	mpz_poly_sqr_mod_f_mod_mpz_parallel (R, R, f, p, invf, NULL, pinf);
+	mpz_poly_sqr_mod_f_mod_mpz (R, R, f, p, invf, NULL);
 	k --;
       }
     if (k < 0)
@@ -2498,11 +2541,11 @@ mpz_poly_pow_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P,
     int e = 0;
     while (k >= j)
       {
-	mpz_poly_sqr_mod_f_mod_mpz_parallel (R, R, f, p, invf, NULL, pinf);
+	mpz_poly_sqr_mod_f_mod_mpz (R, R, f, p, invf, NULL);
 	e = 2 * e + mpz_tstbit (a, k);
 	k --;
       }
-    mpz_poly_mul_mod_f_mod_mpz_parallel (R, R, (e == 1) ? P : T[e/2], f, p, invf, NULL, pinf);
+    mpz_poly_mul_mod_f_mod_mpz (R, R, (e == 1) ? P : T[e/2], f, p, invf, NULL);
   }
 
   mpz_poly_swap(Q, R);
@@ -2531,12 +2574,13 @@ mpz_poly_pow_mod_f_mod_mpz_parallel (mpz_poly_ptr Q, mpz_poly_srcptr P,
    The end of the list is P[l+1]=0.
    Assume l > 0.
 */
-mpz_poly* mpz_poly_base_modp_init_notparallel (mpz_poly_srcptr P0, int p, unsigned long *K, int l)
+mpz_poly* mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l)
 {
-    return mpz_poly_base_modp_init_parallel (P0, p, K, l, NULL);
+    return mpz_poly_notparallel_info().mpz_poly_base_modp_init (P0, p, K, l);
 }
+template<typename inf>
 mpz_poly*
-mpz_poly_base_modp_init_parallel (mpz_poly_srcptr P0, int p, unsigned long *K, int l, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+mpz_poly_parallel_interface<inf>::mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l)
 {
   mpz_poly *P;
   int k, i, j;
@@ -2569,7 +2613,7 @@ mpz_poly_base_modp_init_parallel (mpz_poly_srcptr P0, int p, unsigned long *K, i
   P = (mpz_poly*) malloc ((l + 2) * sizeof(mpz_poly));
   FATAL_ERROR_CHECK (P == NULL, "not enough memory");
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf!=NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
   for (i = 0; i < l + 2; i++)
     mpz_poly_init (P[i], P0->deg);
@@ -2578,7 +2622,7 @@ mpz_poly_base_modp_init_parallel (mpz_poly_srcptr P0, int p, unsigned long *K, i
   /* initialize P[k], and put remainder in P[k-1] */
   k = l;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf!=NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
   for (i = 0; i <= P0->deg; i++)
     mpz_tdiv_qr (P[k]->coeff[i], P[k-1]->coeff[i], P0->coeff[i], pk[k-1]);
@@ -2589,7 +2633,7 @@ mpz_poly_base_modp_init_parallel (mpz_poly_srcptr P0, int p, unsigned long *K, i
   {
     /* reduce P[j] into P[j] and P[j-1] */
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf!=NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
     for (i = 0; i <= P0->deg; i++)
       mpz_tdiv_qr (P[j]->coeff[i], P[j-1]->coeff[i], P[j]->coeff[i],
@@ -2599,7 +2643,7 @@ mpz_poly_base_modp_init_parallel (mpz_poly_srcptr P0, int p, unsigned long *K, i
   mpz_poly_cleandeg (P[0], P0->deg);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf!=NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
   for (i = 0; i < l; i++)
     mpz_clear (pk[i]);
@@ -2609,11 +2653,12 @@ mpz_poly_base_modp_init_parallel (mpz_poly_srcptr P0, int p, unsigned long *K, i
 }
 
 /* a <- a + pk*P[k] */
-void mpz_poly_base_modp_lift_notparallel (mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk)
+void mpz_poly_base_modp_lift (mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk)
 {
-    mpz_poly_base_modp_lift_parallel (a, P, k, pk, NULL);
+    mpz_poly_notparallel_info().mpz_poly_base_modp_lift (a, P, k, pk);
 }
-void mpz_poly_base_modp_lift_parallel (mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk, const struct mpz_poly_parallel_info * pinf MAYBE_UNUSED)
+template<typename inf>
+void mpz_poly_parallel_interface<inf>::mpz_poly_base_modp_lift (mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk)
 {
   /* first check P[k] exists and is not zero */
   if (P[k]->deg == -1)
@@ -2623,13 +2668,13 @@ void mpz_poly_base_modp_lift_parallel (mpz_poly_ptr a, mpz_poly *P, int k, mpz_s
 
   int imax = (P[k]->deg < a->deg) ? P[k]->deg : a->deg;
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf!=NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
   for (int i = 0; i <= imax; i++)
     mpz_addmul (a->coeff[i], P[k]->coeff[i], pk);
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for if(pinf!=NULL)
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
   for (int i = imax + 1; i <= P[k]->deg; i++)
     mpz_mul (a->coeff[i], P[k]->coeff[i], pk);
@@ -2714,8 +2759,8 @@ static void
 mpz_poly_gcd_mpz_clobber (mpz_poly_ptr f, mpz_poly_ptr g, mpz_srcptr p)
 {
   /* First reduce mod p */
-  mpz_poly_mod_mpz_notparallel (f, f, p, NULL);
-  mpz_poly_mod_mpz_notparallel (g, g, p, NULL);
+  mpz_poly_mod_mpz(f, f, p, NULL);
+  mpz_poly_mod_mpz(g, g, p, NULL);
   while (g->deg >= 0)
     {
       mpz_poly_div_r (f, g, p);
@@ -2757,8 +2802,8 @@ mpz_poly_gcd_mpz (mpz_poly_ptr f, mpz_poly_srcptr a, mpz_poly_srcptr b,
 int
 mpz_poly_pseudogcd_mpz(mpz_poly_ptr f, mpz_poly_ptr g, mpz_srcptr N, mpz_ptr factor)
 {
-  mpz_poly_mod_mpz_notparallel(f, f, N, NULL);
-  mpz_poly_mod_mpz_notparallel(g, g, N, NULL);
+  mpz_poly_mod_mpz(f, f, N, NULL);
+  mpz_poly_mod_mpz(g, g, N, NULL);
   while (g->deg >= 0)
   {
     int ret = mpz_poly_pseudodiv_r(f, g, N, factor);
@@ -2788,8 +2833,8 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
   mpz_poly_init(gg, g->alloc);
   mpz_poly_set(d, f);
   mpz_poly_set(gg, g);
-  mpz_poly_mod_mpz_notparallel(d,  d,  p, NULL);
-  mpz_poly_mod_mpz_notparallel(gg, gg, p, NULL);
+  mpz_poly_mod_mpz(d,  d,  p, NULL);
+  mpz_poly_mod_mpz(gg, gg, p, NULL);
 
   mpz_poly uu, vv;
   mpz_poly_init (uu, 0);
@@ -2811,13 +2856,13 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
       mpz_poly_div_qr (q, d, d, gg, p);
 
       /* u := u - q * uu mod p */
-      mpz_poly_mul_notparallel(tmp, q, uu);
-      mpz_poly_sub_mod_mpz_notparallel(u, u, tmp, p);
+      mpz_poly_mul(tmp, q, uu);
+      mpz_poly_sub_mod_mpz(u, u, tmp, p);
       mpz_poly_swap (u, uu);
 
       /* v := v - q * vv mod p */
-      mpz_poly_mul_notparallel(tmp, q, vv);
-      mpz_poly_sub_mod_mpz_notparallel(v, v, tmp, p);
+      mpz_poly_mul(tmp, q, vv);
+      mpz_poly_sub_mod_mpz(v, v, tmp, p);
       mpz_poly_swap (v, vv);
 
       /* now deg(f) < deg(g): swap f and g */
@@ -2830,12 +2875,12 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
     {
       mpz_init(inv);
       mpz_invert(inv, d->coeff[0], p);
-      mpz_poly_mul_mpz_notparallel(d, d, inv);
-      mpz_poly_mod_mpz_notparallel(d, d, p, NULL);
-      mpz_poly_mul_mpz_notparallel(u, u, inv);
-      mpz_poly_mod_mpz_notparallel(u, u, p, NULL);
-      mpz_poly_mul_mpz_notparallel(v, v, inv);
-      mpz_poly_mod_mpz_notparallel(v, v, p, NULL);
+      mpz_poly_mul_mpz(d, d, inv);
+      mpz_poly_mod_mpz(d, d, p, NULL);
+      mpz_poly_mul_mpz(u, u, inv);
+      mpz_poly_mod_mpz(u, u, p, NULL);
+      mpz_poly_mul_mpz(v, v, inv);
+      mpz_poly_mod_mpz(v, v, p, NULL);
       mpz_clear(inv);
     }
 
@@ -3012,20 +3057,20 @@ static void mpz_poly_pseudo_division(mpz_poly_ptr q, mpz_poly_ptr r,
     mpz_poly_init(s, r->deg - n);
     mpz_poly_setcoeff(s, r->deg - n, mpz_poly_lc(r));
     if (q != NULL) {
-      mpz_poly_mul_mpz_notparallel(q, q, d);
+      mpz_poly_mul_mpz(q, q, d);
       mpz_poly_add(q, s, q);
     }
 
 #ifndef NDEBUG
     else {
-      mpz_poly_mul_mpz_notparallel(q_tmp, q_tmp, d);
+      mpz_poly_mul_mpz(q_tmp, q_tmp, d);
       mpz_poly_add(q_tmp, s, q_tmp);
     }
 #endif // NDEBUG
 
-    mpz_poly_mul_mpz_notparallel(r, r, d);
-    mpz_poly_mul_notparallel(s, b, s);
-    mpz_poly_sub_notparallel(r, r, s);
+    mpz_poly_mul_mpz(r, r, d);
+    mpz_poly_mul(s, b, s);
+    mpz_poly_sub(r, r, s);
     mpz_poly_clear(s);
     e--;
   }
@@ -3034,16 +3079,16 @@ static void mpz_poly_pseudo_division(mpz_poly_ptr q, mpz_poly_ptr r,
 
   mpz_pow_ui(d, d, (unsigned long int) e);
   if (q != NULL) {
-    mpz_poly_mul_mpz_notparallel(q, q, d);
+    mpz_poly_mul_mpz(q, q, d);
   }
 
 #ifndef NDEBUG
   else {
-    mpz_poly_mul_mpz_notparallel(q_tmp, q_tmp, d);
+    mpz_poly_mul_mpz(q_tmp, q_tmp, d);
   }
 #endif // NDEBUG
 
-  mpz_poly_mul_mpz_notparallel(r, r, d);
+  mpz_poly_mul_mpz(r, r, d);
 
 #ifndef NDEBUG
   mpz_poly f, g;
@@ -3057,12 +3102,12 @@ static void mpz_poly_pseudo_division(mpz_poly_ptr q, mpz_poly_ptr r,
   ASSERT(m - n + 1 >= 0);
 
   mpz_pow_ui(d, d, (unsigned long int) (m - n + 1));
-  mpz_poly_mul_mpz_notparallel(f, f, d);
+  mpz_poly_mul_mpz(f, f, d);
 
   if (q != NULL) {
-    mpz_poly_mul_notparallel(g, g, q);
+    mpz_poly_mul(g, g, q);
   } else {
-    mpz_poly_mul_notparallel(g, g, q_tmp);
+    mpz_poly_mul(g, g, q_tmp);
   }
   mpz_poly_add(g, g, r);
 
@@ -3128,8 +3173,8 @@ void mpz_poly_resultant(mpz_ptr res, mpz_poly_srcptr p, mpz_poly_srcptr q)
   mpz_poly_content(g, a);
   mpz_poly_content(h, b);
 
-  mpz_poly_divexact_mpz_notparallel(a, a, g);
-  mpz_poly_divexact_mpz_notparallel(b, b, h);
+  mpz_poly_divexact_mpz(a, a, g);
+  mpz_poly_divexact_mpz(b, b, h);
 
 #ifndef NDEBUG
   mpz_poly_content(tmp, a);
@@ -3168,7 +3213,7 @@ void mpz_poly_resultant(mpz_ptr res, mpz_poly_srcptr p, mpz_poly_srcptr q)
     mpz_pow_ui(tmp, h, (unsigned long int) d);
     mpz_mul(tmp, g, tmp);
 
-    mpz_poly_divexact_mpz_notparallel(b, r, tmp);
+    mpz_poly_divexact_mpz(b, r, tmp);
 
     mpz_set(g, mpz_poly_lc(a));
 
@@ -3284,7 +3329,7 @@ int mpz_poly_is_irreducible_z (mpz_poly_srcptr f)
 
   do {
     mpz_nextprime (p, p);
-    nr = mpz_poly_roots_mpz_notparallel (roots, f, p);
+    nr = mpz_poly_roots_mpz(roots, f, p);
     /* If f has no root mod p and degree <= 3, it is irreducible,
        since a degree 2 polynomial can only factor into 1+1 or 2,
        and a degree 3 polynomial can only factor into 1+2 or 3. */
@@ -3475,7 +3520,7 @@ static int mpz_poly_factor_sqf_inner(mpz_poly_factor_list_ptr lf, mpz_poly_srcpt
     mpz_poly_set_xi(T, 0);
     for(int i = 1 ; mi->deg > 0 ; i++) {
         /* note the weird argument ordering */
-        mpz_poly_pow_ui_mod_f_mod_mpz_notparallel(t0, mi, NULL, i, p);
+        mpz_poly_pow_ui_mod_f_mod_mpz(t0, mi, NULL, i, p);
         mpz_poly_divexact(t1, f, t0, p);
         /* t1 = all polynomials in mi taken out from f with multiplicity i */
         mpz_poly_gcd_mpz(mi1, t1, mi, p);
@@ -3489,9 +3534,9 @@ static int mpz_poly_factor_sqf_inner(mpz_poly_factor_list_ptr lf, mpz_poly_srcpt
         mpz_poly_divexact(tmp, mi, mi1, p);
         mpz_poly_set(lf->factors[i * stride]->f, tmp);
         /* multiplicity field still unused at this point */
-        mpz_poly_pow_ui_mod_f_mod_mpz_notparallel(t0, lf->factors[i * stride]->f, NULL, i, p);
-        mpz_poly_mul_notparallel(T, T, t0);
-        mpz_poly_mod_mpz_notparallel(T, T, p, NULL);
+        mpz_poly_pow_ui_mod_f_mod_mpz(t0, lf->factors[i * stride]->f, NULL, i, p);
+        mpz_poly_mul(T, T, t0);
+        mpz_poly_mod_mpz(T, T, p, NULL);
         mpz_poly_swap(mi, mi1);
         r = i * stride;
     }
@@ -3613,11 +3658,11 @@ static int mpz_poly_factor_ddf_inner(mpz_poly_factor_list_ptr lf, mpz_poly_srcpt
         }
 
         /* g <- g^p mod fp */
-        mpz_poly_pow_mod_f_mod_mpz_notparallel (g, g, f, p, p);
+        mpz_poly_pow_mod_f_mod_mpz(g, g, f, p, p);
 
         /* subtract x */
-        mpz_poly_sub_notparallel (gmx, g, x);
-        mpz_poly_mod_mpz_notparallel(gmx, gmx, p, NULL);
+        mpz_poly_sub(gmx, g, x);
+        mpz_poly_mod_mpz(gmx, gmx, p, NULL);
 
         /* lf[i] <- gcd (f, x^(p^i)-x) */
         mpz_poly_factor_list_prepare_write(lf, i);
@@ -3792,11 +3837,11 @@ static int mpz_poly_factor2(mpz_poly_factor_list_ptr list, mpz_poly_srcptr f,
   mpz_poly_init(fmul, -1);
   mpz_poly_set(fmul, list->factors[0]->f);
   for (int j = 1; j < list->factors[0]->m; j++) {
-    mpz_poly_mul_notparallel(fmul, fmul, list->factors[0]->f);
+    mpz_poly_mul(fmul, fmul, list->factors[0]->f);
   }
   for (int i = 1; i < list->size ; i++) {
     for (int j = 0; j < list->factors[i]->m; j++) {
-      mpz_poly_mul_notparallel(fmul, fmul, list->factors[i]->f);
+      mpz_poly_mul(fmul, fmul, list->factors[i]->f);
     }
   }
   for (int i = 0; i <= fmul->deg; i++) {
@@ -3885,13 +3930,13 @@ static void mpz_poly_factor_edf_pre(mpz_poly g[2], mpz_poly_srcptr f, int k,
             mpz_poly_setcoeff_ui(xplusa, 0, a);
         }
 
-        mpz_poly_pow_mod_f_mod_mpz_notparallel(g[0], xplusa, f, half_pk, p);
+        mpz_poly_pow_mod_f_mod_mpz(g[0], xplusa, f, half_pk, p);
 
         mpz_poly_add_ui(g[1], g[0], 1);     /* (x+a)^((p^k-1)/2) + 1 */
         mpz_poly_sub_ui(g[0], g[0], 1);     /* (x+a)^((p^k-1)/2) - 1 */
 
-        mpz_poly_mod_mpz_notparallel(g[0], g[0], p, NULL);
-        mpz_poly_mod_mpz_notparallel(g[1], g[1], p, NULL);
+        mpz_poly_mod_mpz(g[0], g[0], p, NULL);
+        mpz_poly_mod_mpz(g[1], g[1], p, NULL);
 
         mpz_poly_gcd_mpz(g[0], g[0], f, p);
         mpz_poly_gcd_mpz(g[1], g[1], f, p);
@@ -3900,7 +3945,7 @@ static void mpz_poly_factor_edf_pre(mpz_poly g[2], mpz_poly_srcptr f, int k,
             /* oh, we're lucky. x+a is a factor ! */
             int s = g[0]->deg > g[1]->deg;
             /* multiply g[s] by (x+a) */
-            mpz_poly_mul_mod_f_mod_mpz_notparallel(g[s], g[s], xplusa, f, p, NULL, NULL);
+            mpz_poly_mul_mod_f_mod_mpz(g[s], g[s], xplusa, f, p, NULL, NULL);
         }
         ASSERT(g[0]->deg + g[1]->deg == f->deg);
         ASSERT(g[0]->deg % k == 0);
@@ -4066,10 +4111,10 @@ int mpz_poly_factor_list_lift(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, m
     mpz_poly_set_xi(f1, 0);
     for(int i = 0 ; i < fac->size ; i++) {
         mpz_poly_srcptr g0 = fac->factors[i]->f;
-        mpz_poly_mul_mod_f_mod_mpz_notparallel(f1, f1, g0, 0, ell2, NULL, NULL);
+        mpz_poly_mul_mod_f_mod_mpz(f1, f1, g0, 0, ell2, NULL, NULL);
     }
-    mpz_poly_sub_mod_mpz_notparallel(f1, f, f1, ell2);
-    mpz_poly_divexact_mpz_notparallel(f1, f1, ell);
+    mpz_poly_sub_mod_mpz(f1, f, f1, ell2);
+    mpz_poly_divexact_mpz(f1, f1, ell);
 
     for(int i = 0 ; i < fac->size ; i++) {
         mpz_poly g1, d, a, b, h0;
@@ -4094,10 +4139,10 @@ int mpz_poly_factor_list_lift(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, m
         ASSERT_ALWAYS(mpz_cmp_ui(d->coeff[0], 1) == 0);
 
         /* b*f1 = b*g1*h0+b*h1*g0 = g1 mod g0 */
-        mpz_poly_mul_mod_f_mod_mpz_notparallel(g1, f1, b, g0, ell, NULL, NULL);
+        mpz_poly_mul_mod_f_mod_mpz(g1, f1, b, g0, ell, NULL, NULL);
 
         /* now update g */
-        mpz_poly_mul_mpz_notparallel(g1, g1, ell);
+        mpz_poly_mul_mpz(g1, g1, ell);
         mpz_poly_add(g, g, g1);
 
         mpz_poly_clear(g1);
@@ -4571,7 +4616,7 @@ private:
     cxx_mpz_poly parse_term() {
         cxx_mpz_poly p = parse_factor();
         for( ; accept(TIMES) ; )
-            mpz_poly_mul_notparallel(p, p, parse_factor());
+            mpz_poly_mul(p, p, parse_factor());
         return p;
     }
 
@@ -4590,7 +4635,7 @@ private:
                 mpz_poly_add(p, p, parse_term());
             } else if (test(MINUS)) {
                 next();
-                mpz_poly_sub_notparallel(p, p, parse_term());
+                mpz_poly_sub(p, p, parse_term());
             } else
                 break;
         }
@@ -4676,3 +4721,6 @@ std::istream& operator>>(std::istream& in, cxx_mpz_poly & f)
 std::ostream& operator<<(std::ostream& o, cxx_mpz_poly const & f) {
     return o << f.print_poly(std::string("x"));
 }
+
+template struct mpz_poly_parallel_interface<mpz_poly_notparallel_info>;
+template struct mpz_poly_parallel_interface<mpz_poly_parallel_info>;

@@ -18,12 +18,10 @@ extern "C" {
 
 
 unsigned long mpz_poly_roots_gen(mpz_t **r, mpz_poly_srcptr F, mpz_srcptr p);
-int mpz_poly_roots_notparallel(mpz_t * r, mpz_poly_srcptr F, mpz_srcptr p);
-int mpz_poly_roots_parallel (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p, const struct mpz_poly_parallel_info * pinf);
+int mpz_poly_roots(mpz_t * r, mpz_poly_srcptr F, mpz_srcptr p);
 int mpz_poly_roots_ulong(unsigned long * r, mpz_poly_srcptr F, unsigned long p);
 int mpz_poly_roots_uint64(uint64_t * r, mpz_poly_srcptr F, uint64_t p);
-int mpz_poly_roots_mpz_notparallel (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p);
-int mpz_poly_roots_mpz_parallel (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, const struct mpz_poly_parallel_info * pinf);
+int mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p);
 
 
 #ifdef __cplusplus

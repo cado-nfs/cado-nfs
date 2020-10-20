@@ -313,7 +313,7 @@ vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p)/*
     mpz_t * rr = new mpz_t[f->deg];
     for(int i = 0 ; i < f->deg ; i++) mpz_init(rr[i]);
 
-    int d = mpz_poly_roots_notparallel(rr, f, p);
+    int d = mpz_poly_roots(rr, f, p);
     for(int i = 0 ; i < d ; i++) {
         cxx_mpz a;
         mpz_set(a, rr[i]);
