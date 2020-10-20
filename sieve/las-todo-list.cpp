@@ -301,6 +301,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
         mpz_sub(diff, q1, q0);
         ASSERT_ALWAYS(nq_pushed == 0 || nq_pushed == nq_max);
 	unsigned long n = nq_max;
+        unsigned int spin = 0;
         for ( ; nq_pushed < n ; ) {
             /* try in [q0 + k * (q1-q0) / n, q0 + (k+1) * (q1-q0) / n[ */
             cxx_mpz q0l, q1l;
@@ -319,7 +320,15 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             mpz_add(q, q, q0l);
             next_legitimate_specialq(q, fac_q, q, 0, *this);
             std::vector<cxx_mpz> roots = mpz_poly_roots(f, q, fac_q);
-            if (roots.empty()) continue;
+            if (roots.empty()) {
+                spin++;
+                if (spin >= 1000) {
+                    fprintf(stderr, "Error: cannot find primes with roots in one of the sub-ranges for random sampling\n");
+                    exit(EXIT_FAILURE);
+                }
+                continue;
+            }
+            spin = 0;
             if (galois) {
                 size_t nroots = skip_galois_roots(roots.size(), q, (mpz_t*)&roots[0], galois);
                 roots.erase(roots.begin() + nroots, roots.end());

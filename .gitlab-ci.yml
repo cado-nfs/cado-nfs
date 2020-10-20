@@ -9,7 +9,7 @@ build:
     - echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
     - echo -e "section_start:`date +%s`:install_packages\r\e[0KInstalling required packages"
     - env DEBIAN_FRONTEND=noninteractive apt-get -y update
-    - env DEBIAN_FRONTEND=noninteractive apt-get -y install locales cmake libhwloc-dev
+    - env DEBIAN_FRONTEND=noninteractive apt-get -y install bc locales cmake libhwloc-dev
     - echo -e "section_end:`date +%s`:install_packages\r\e[0K"
   script:
     - echo -e "section_start:`date +%s`:configuration\r\e[0KConfiguring"

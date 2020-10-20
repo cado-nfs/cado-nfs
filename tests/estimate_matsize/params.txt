@@ -1,0 +1,16 @@
+I=19
+lim0=4000
+lim1=600
+lpb0=12
+lpb1=11
+mfb0=12
+mfb1=11
+qmin=600
+qmax=1800
+sqside=1
+maxlevel=25
+target_density=50
+allow_compsq=false
+NBSAMPLE=10
+# qfac_min=200
+# qfac_max=1000

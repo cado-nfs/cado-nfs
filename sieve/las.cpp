@@ -305,6 +305,8 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
             toplevel = m;
     }
 
+    if (toplevel == 0) toplevel++;
+
     ASSERT_ALWAYS(toplevel == 1 || toplevel == 2);
 
     /* the code path is radically different depending on toplevel. */
