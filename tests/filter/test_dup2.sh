@@ -70,7 +70,7 @@ common=(-poly "$POLY" -renumber "${RENUMBER}")
 # bail out early if debug_renumber sees an inconsistency.
 "${BUILD_DIR}/misc/debug_renumber" "${common[@]}" -check -quiet
 "${BUILD_DIR}/filter/dup2" "${common[@]}"       \
-                    -nrels $(zcat "$WORK_RELS" | wc -l) "${DL[@]}" "${WORK_RELS}"
+                    -nrels $(gzip -dc "$WORK_RELS" | wc -l) "${DL[@]}" "${WORK_RELS}"
 
 if [ "$REFERENCE_SHA1" ] ; then
     SHA1BIN=sha1sum
@@ -101,7 +101,7 @@ EOF
     }
 
     if [[ "$WORK_RELS" =~ \.gz$ ]] ; then
-        SHA1=`zcat "${WORK_RELS}" | grep "^[^#]" | sort_rels | ${SHA1BIN}` || exit 1
+        SHA1=`gzip -dc "${WORK_RELS}" | grep "^[^#]" | sort_rels | ${SHA1BIN}` || exit 1
     else
         SHA1=`grep "^[^#]" "${WORK_RELS}" | sort_rels | ${SHA1BIN}` || exit 1
     fi
@@ -118,7 +118,7 @@ EOF
           REFMSG=". Set CADO_DEBUG=1 to examine log output"
       fi
       echo "$0: Got SHA1(sort(${WORK_RELS}))=${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}"
-      zcat ${WORK_RELS}
+      gzip -dc ${WORK_RELS}
       exit 1
     fi
 fi
