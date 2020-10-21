@@ -1258,6 +1258,31 @@ mpz_poly_sub_ui (mpz_poly_ptr g, mpz_poly_srcptr f, unsigned long a)
     }
 }
 
+void mpz_poly_add_mpz(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr a)
+{
+    mpz_poly_set(f, g);
+    if (f->deg == -1) {
+        mpz_poly_set_mpz(f, a);
+    } else {
+        mpz_add(f->coeff[0], f->coeff[0], a);
+        if (f->deg == 0)
+            mpz_poly_cleandeg(f, 0);
+    }
+}
+
+void mpz_poly_sub_mpz(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr a)
+{
+    mpz_poly_set(f, g);
+    if (f->deg == -1) {
+        mpz_poly_set_mpz(f, a);
+        mpz_neg(f->coeff[0], f->coeff[0]);
+    } else {
+        mpz_sub(f->coeff[0], f->coeff[0], a);
+        if (f->deg == 0)
+            mpz_poly_cleandeg(f, 0);
+    }
+}
+
 /* Set f=g-h (mod m). */
 void
 mpz_poly_sub_mod_mpz (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_poly_srcptr h, mpz_srcptr m)
@@ -1794,6 +1819,7 @@ void mpz_poly_parallel_interface<inf>::mpz_poly_div_2_mod_mpz (mpz_poly_ptr f, m
 /* Set res=f(x). Assumes res and x are different variables. */
 void mpz_poly_eval(mpz_ptr res, mpz_poly_srcptr f, mpz_srcptr x) {
   int i, d;
+  ASSERT_ALWAYS(res != x);
   d = f->deg;
   if (d == -1) {
     mpz_set_ui(res, 0);
@@ -1803,6 +1829,24 @@ void mpz_poly_eval(mpz_ptr res, mpz_poly_srcptr f, mpz_srcptr x) {
   for (i = d-1; i>=0; --i) {
     mpz_mul(res, res, x);
     mpz_add(res, res, f->coeff[i]);
+  }
+}
+
+/* Set res=f(x). Assumes res and x are different variables. */
+void mpz_poly_eval_poly(mpz_poly_ptr res, mpz_poly_srcptr f, mpz_poly_srcptr x)
+{
+  int i, d;
+  ASSERT_ALWAYS(res != x);
+  ASSERT_ALWAYS(res != f);
+  d = f->deg;
+  if (d == -1) {
+    mpz_poly_set_zero(res);
+    return;
+  }
+  mpz_poly_set_mpz(res, f->coeff[d]);
+  for (i = d-1; i>=0; --i) {
+    mpz_poly_mul(res, res, x);
+    mpz_poly_add_mpz(res, res, f->coeff[i]);
   }
 }
 
@@ -1831,6 +1875,41 @@ mpz_poly_eval_diff_ui (mpz_ptr res, mpz_poly_srcptr f, unsigned long x)
       mpz_mul_ui (res, res, x);
       mpz_addmul_ui (res, f->coeff[i], i); /* res <- res + i*f[i] */
     }
+}
+
+void
+mpz_poly_eval_diff (mpz_ptr res, mpz_poly_srcptr f, mpz_srcptr x)
+{
+  int d = f->deg;
+  ASSERT_ALWAYS(res != x);
+
+  mpz_mul_ui (res, f->coeff[d], d);
+  for (int i = d - 1; i >= 1; i--)
+    {
+      mpz_mul (res, res, x);
+      mpz_addmul_ui (res, f->coeff[i], i); /* res <- res + i*f[i] */
+    }
+}
+
+
+/* Set res=f'(x), where x is a polynomial */
+void mpz_poly_eval_diff_poly (mpz_poly_ptr res, mpz_poly_srcptr f, mpz_poly_srcptr x)
+{
+  ASSERT_ALWAYS(res != x);
+  ASSERT_ALWAYS(res != f);
+  int d = f->deg;
+  mpz_poly_realloc(res, f->deg * x->deg + 1);
+  mpz_t t;
+  mpz_init(t);
+  mpz_mul_ui (t, f->coeff[d], d);
+  mpz_poly_add_mpz(res, res, t);
+  for (int i = d - 1; i >= 1; i--)
+    {
+      mpz_poly_mul (res, res, x);
+      mpz_mul_ui (t, f->coeff[i], i); /* res <- res + i*f[i] */
+      mpz_poly_add_mpz(res, res, t);
+    }
+  mpz_clear(t);
 }
 
 

@@ -71,6 +71,7 @@ struct cxx_mpz_polymod_scaled {
   unsigned long v;
   cxx_mpz_polymod_scaled(int deg) : p(deg), v(0) {}
   cxx_mpz_polymod_scaled() = default;
+  cxx_mpz_polymod_scaled(cxx_mpz_poly const & p, unsigned long v = 0) : p(p), v(v) {}
   cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled const &) = delete;
   cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled &&) = default;
   cxx_mpz_polymod_scaled& operator=(cxx_mpz_polymod_scaled const &) = delete;
@@ -1006,6 +1007,16 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
      the coefficients. */
   target_size = mpz_poly_sizeinbase (AA.p, 2);
   target_size = target_size / 2;
+
+  /* note that we scale by the derivative of f_hat, which might increase
+   * the coefficient a little bit. I suppose that the bitsize of the
+   * discriminant is a safe bet. Better take into account */
+  {
+      cxx_mpz disc;
+      mpz_poly_discriminant(disc, F);
+      target_size += mpz_sizeinbase(disc, 2);
+  }
+
   target_size += target_size / 10;
 #pragma omp critical
   {
@@ -1302,7 +1313,22 @@ calculateSqrtAlg (const char *prefix, int numdep,
 
   // Init F to be the corresponding polynomial
   cxx_mpz_poly F(pol->pols[side]);
+  cxx_mpz_poly F_hat(F->deg);
   cxx_mpz_polymod_scaled prod;
+
+  /* {{{ create F_hat, the minimal polynomial of alpha_hat = lc(F) *
+   * alpha */
+  {
+      cxx_mpz tmp;
+      mpz_init_set_ui(tmp, 1);
+      mpz_set_ui(F_hat->coeff[F->deg], 1);
+      for(int i = F->deg - 1 ; i >= 0 ; i--) {
+          mpz_mul(F_hat->coeff[i], tmp, F->coeff[i]);
+          mpz_mul(tmp, tmp, F->coeff[F->deg]);
+      }
+      mpz_poly_cleandeg(F_hat, F->deg);
+  }
+  /* }}} */
 
   // Accumulate product with a subproduct tree
   {
@@ -1312,6 +1338,19 @@ calculateSqrtAlg (const char *prefix, int numdep,
       char * depname = get_depname (prefix, "", numdep);
       std::vector<cxx_mpz_polymod_scaled> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
       free(depname);
+
+      {
+          cxx_mpz_poly scale, alpha_hat;
+          mpz_poly_set_xi(alpha_hat, 1);
+          mpz_poly_mul_mpz(alpha_hat, alpha_hat, mpz_poly_lc(F));
+          mpz_poly_eval_diff_poly(scale, F_hat, alpha_hat);
+          /* Add these two to the subproduct tree. ok, they're slightly
+           * larger than the other elements, but it won't make a big
+           * difference in the long run, and is certainly not worse than
+           * doing the full unbalanced mul after the accumulation */
+          prd.emplace_back(scale,0);
+          prd.emplace_back(scale,0);
+      }
 
       ASSERT_ALWAYS ((nab & 1) == 0);
       ASSERT_ALWAYS ((nfree & 1) == 0);
@@ -1474,7 +1513,20 @@ calculateSqrtAlg (const char *prefix, int numdep,
         }
     } while (!ret);
     mpz_poly_eval_mod_mpz(algsqrt, prod.p, m, Np);
+
+    /* now divide by f'(alpha_hat), but mod N. alpha_hat mod N is lc*m
+     */
+    {
+        cxx_mpz scale_modN, alpha_hat_modN;
+        mpz_mul(alpha_hat_modN, mpz_poly_lc(F), m);
+        mpz_poly_eval_diff(scale_modN, F_hat, alpha_hat_modN);
+        mpz_invert(scale_modN, scale_modN, Np);
+        mpz_mul(algsqrt, algsqrt, scale_modN);
+        mpz_mod(algsqrt, algsqrt, Np);
+    }
+
     mpz_clear(m);
+
     mpz_invert(aux, F->coeff[F->deg], Np);  // 1/fd mod n
     mpz_powm_ui(aux, aux, prod.v, Np);      // 1/fd^v mod n
     mpz_mul(algsqrt, algsqrt, aux);
