@@ -1386,7 +1386,11 @@ calculateSqrtAlg (const char *prefix, int numdep,
         gmp_fprintf (stderr,
                 "Alg(%d): A mod (%Zd, alpha-%Zd) = %Zd / %Zd^%lu [ legendre == %d ]\n",
                 numdep,
-                ptest, rtest, A_of_r, fdtest, prod.v, l);
+                (mpz_srcptr) ptest,
+                (mpz_srcptr) rtest,
+                (mpz_srcptr) A_of_r,
+                (mpz_srcptr) fdtest, prod.v, l);
+        ASSERT_ALWAYS(l == 1);
     }
 #endif
 
@@ -1430,28 +1434,31 @@ calculateSqrtAlg (const char *prefix, int numdep,
     /* we should have prod.p/fd^v = sqrt(prod0/fd^v0) mod (F,p^k)
        thus prod.p^2/fd^(2v) = prod0/fd^v0 mod (F,p^k)
        thus fd^v0*prod.p^2 = fd^(2v)*prod0 mod (F,p^k) */
-    mpz_poly q;
-    mpz_t pk, fdv0, fd2v;
-    mpz_poly_init (q, F->deg - 1);
-    mpz_init (pk);
-    mpz_ui_pow_ui (pk, p, 2*target_k);
-    mpz_poly_sqr_mod_f_mod_mpz (q, prod.p, F, pk, NULL, NULL);
-    /* we should have fd^v0*q = fd^(2v)*prod0 mod p^k */
-    mpz_init (fdv0);
-    mpz_powm_ui (fdv0, F->coeff[F->deg], v0, pk);
-    mpz_poly_mul_mpz (q, q, fdv0);
-    mpz_poly_mod_mpz (q, q, pk, NULL);
-    /* now we should have q = fd^(2v)*prod0 mod p^k */
-    mpz_init (fd2v);
-    mpz_powm_ui (fd2v, F->coeff[F->deg], 2 * v, pk);
-    mpz_poly_mul_mpz (prod0, prod0, fd2v);
-    mpz_poly_mod_mpz (prod0, prod0, pk, NULL);
-    /* now we should have q = prod0 */
-    ASSERT_ALWAYS(mpz_poly_cmp (q, prod0) == 0);
-    mpz_poly_clear (prod0);
-    mpz_clear (pk);
-    mpz_clear (fdv0);
-    mpz_clear (fd2v);
+    {
+        cxx_mpz_poly q;
+        cxx_mpz pk4, fdv0, fd2v;
+        mpz_ui_pow_ui (pk4, p, target_k + 4);
+        mpz_poly_sqr_mod_f_mod_mpz (q, prod.p, F, pk4, NULL, NULL);
+        /* we should have fd^v0*q = fd^(2v)*prod0 mod p^k */
+        mpz_powm_ui (fdv0, F->coeff[F->deg], v0, pk4);
+        mpz_poly_mul_mpz (q, q, fdv0);
+        mpz_poly_mod_mpz (q, q, pk4, NULL);
+        /* now we should have q = fd^(2v)*prod0 mod p^k */
+        mpz_powm_ui (fd2v, F->coeff[F->deg], 2 * v, pk4);
+        mpz_poly_mul_mpz (prod0, prod0, fd2v);
+        mpz_poly_mod_mpz (prod0, prod0, pk4, NULL);
+        /* now we should have q = prod0 */
+        if (mpz_poly_cmp (q, prod0) != 0) {
+#pragma omp critical
+            {
+              fprintf (stderr, "Alg(%d): the square root does not seem to be a correct lift modulo p^(%lu+4). The result is *most probably wrong* !\n",
+                       numdep, target_k);
+              fflush (stderr);
+            }
+        }
+
+        mpz_poly_clear (prod0);
+    }
 #endif
 #pragma omp critical
     {
