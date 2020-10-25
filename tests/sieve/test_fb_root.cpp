@@ -316,7 +316,7 @@ test_fb_root_in_qlattice_31bits (const bool test_timing,
   ASSERT_ALWAYS(R != NULL);
   invp = (uint32_t*) malloc (N * sizeof (uint32_t));
   ASSERT_ALWAYS(invp != NULL);
-  basis.assign(N, qlattice_basis()); /* What does this do? */
+  basis.assign(N, qlattice_basis());
 
   if (0 < N) {
       p[0] = 4294967291U;
@@ -344,7 +344,8 @@ test_fb_root_in_qlattice_31bits (const bool test_timing,
 
     test_chain_fb_root_in_qlattice_batch<MAX_DEGREE>(basis.cbegin(), basis.cend(), N, t, u, test_timing, test_correctness, 31);
 
-  if (test_timing) {
+    /* Timing of fb_root_in_qlattice_31bits(), i.e., without batch inversion */
+    if (test_timing) {
       /* efficiency test */
       st = seconds ();
       r = 0;
@@ -354,8 +355,9 @@ test_fb_root_in_qlattice_31bits (const bool test_timing,
       st = seconds () - st;
       printf ("fb_root_in_qlattice_31bits: %lu tests took %.2fs (r=%" FBPRIME_FORMAT ")\n",
               N * N, st, r);
-  }
+    }
 
+  /* Test of fb_root_in_qlattice_31bits(), i.e., without batch inversion */
   if (test_correctness) {
       for (i = 0; i < N; i++)
           for (j = 0; j < N; j++)
