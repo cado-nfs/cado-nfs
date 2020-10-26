@@ -769,7 +769,6 @@ parameters/dlp/params.p90
 parameters/dlp/params.p95
 parameters/dlp/params.p100
 parameters/dlp/params.p2dd30
-parameters/dlp/Joux-Lercier/params.p100
 parameters/dlp/Joux-Lercier/params.p30
 parameters/dlp/Joux-Lercier/params.p35
 parameters/dlp/Joux-Lercier/params.p40
@@ -1250,7 +1249,6 @@ tests/utils/numbertheory/badideals.rsa220.stdout
 tests/utils/numbertheory/badideals.small-example.input
 tests/utils/numbertheory/badideals.small-example.stdout
 tests/utils/numbertheory/test-badideals.sh
-scripts/cadofactor/wudb.py
 tests/utils/test_mpz_mat.c
 gf2x/toom128.c
 utils/tdict.hpp

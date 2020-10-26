@@ -135,7 +135,6 @@ filter/out-of-core/singleton.c
 misc/singleton_simple.c
 filter/replay_dblemat.cpp
 scripts/cadofactor/README.OAR
-scripts/plot_params.sh
 scripts/make_graphs
 scripts/rsa704.test
 linalg/bwc/update-flint.sh
