@@ -810,7 +810,8 @@ factor_one (
         int lpb[2],
         FILE *out,
         facul_method_t *methods,
-        std::vector<unsigned long> (&SP)[2])
+        std::vector<unsigned long> (&SP)[2],
+        int recomp_norm)
 {
     int64_t a = C.a;
     uint64_t b = C.b;
@@ -819,7 +820,15 @@ factor_one (
     cxx_mpz norm, cofac;
     for(int side = 0 ; side < 2 ; side++) {
         mpz_set(cofac, C.cofactor[side]);
-        mpz_poly_homogeneous_eval_siui (norm, pol->pols[side], a, b);
+        if (recomp_norm) {
+            mpz_poly_homogeneous_eval_siui (norm, pol->pols[side], a, b);
+        } else {
+            if (C.doing_p->side == side) {
+                mpz_mul(norm, cofac, C.doing_p->p);
+            } else {
+                mpz_set(norm, cofac);
+            }
+        }
         std::vector<uint64_t> empty;
         bool smooth = factor_simple_minded (factors[side], norm, methods,
                 lpb[side], (double) lim[side], SP[side],
@@ -872,7 +881,8 @@ factor (cofac_list const & L,
         int batchlpb[2],
         int lpb[2],
         int ncurves,
-        FILE *out, int nthreads MAYBE_UNUSED, double& extra_time)
+        FILE *out, int nthreads MAYBE_UNUSED, double& extra_time,
+        int recomp_norm)
 {
   unsigned long B[2];
   int nb_methods;
@@ -918,7 +928,8 @@ factor (cofac_list const & L,
 #ifdef HAVE_OPENMP
 #pragma omp single nowait
 #endif
-          factor_one (smooth_local, *it, pol, B, batchlpb, lpb, out, methods, SP);
+          factor_one (smooth_local, *it, pol, B, batchlpb, lpb, out, methods,
+                  SP, recomp_norm);
       }
 #ifdef HAVE_OPENMP
 #pragma omp critical
