@@ -1532,7 +1532,8 @@ int main (int argc0, char *argv0[])/*{{{*/
                 ncurves,
 		main_output.output,
                 las.number_of_threads_loose(),
-                extra_time);
+                extra_time,
+                1);
         verbose_output_print (0, 1, "# batch reported time for additional threads: %.2f\n", extra_time);
         batch_timer.add_foreign_time(extra_time);
 
