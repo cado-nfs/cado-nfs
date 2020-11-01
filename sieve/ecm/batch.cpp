@@ -899,7 +899,13 @@ factor (cofac_list const & L,
   for(int side = 0 ; side < 2 ; side++) {
       prime_info_init (pi);
       B[side] = (unsigned long) ceil (pow (2.0, (double) lpb[side] / 2.0));
-      prime_list_poly (SP[side], pi, B[side], pol->pols[side]);
+      if (!recomp_norm) {
+          // If not recomp_norm, then the poly file might be fake...
+          // This list of primes is rather small anyway.
+          prime_list (SP[side], pi, B[side]);
+      } else {
+          prime_list_poly (SP[side], pi, B[side], pol->pols[side]);
+      }
       prime_info_clear (pi);
   }
 
