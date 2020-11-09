@@ -18,6 +18,9 @@
  * their promises.
  */
 
+/* If defined to any value, use asm() CMOV in redc_u?32() */
+// #define LAS_ARITH_REDC_USE_ASM 1
+
 /* define STAT to get statistics on the frequency of carries in redc_u32 and
    redc_32 */
 // #define STAT
@@ -44,15 +47,15 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
    * and t = 0 otherwise */
 
   t = 0;
-#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if defined(LAS_ARITH_REDC_USE_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__("addq %[tp],%[xtp]\n" 
           "cmovc %[p], %[t]\n"
           : [xtp]"+r"(xtp), [t]"+r"(t) : [tp]"r"(tp), [p] "r" (p)
           : "cc");
 #else
-  /* The compiler should be able to turn this into addq/cmovc, but
-   * gcc 10.2.0 doesn't :( I have not tried other compilers.
-   * The compiler generates a branch which is slightly slower. */
+  /* This conditional branch is rarely taken unless p is close to 2^32.
+     In sieving tests, the branch was a little faster than the asm CMOV.
+     With special-q close to 2^32, this may change. */
   xtp += tp;
   if (xtp < tp) t = p;
 #endif
@@ -117,7 +120,7 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   /* now xtp >= 0, and we are in the same case as redc_u32,
      thus the same analysis as redc_u32 applies here */
   t = 0;
-#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if defined(LAS_ARITH_REDC_USE_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__("addq %[tp],%[xtp]\n" 
           "cmovc %[p], %[t]\n"
           : [xtp]"+r"(xtp), [t]"+r"(t) : [tp]"r"(tp), [p] "r" (p)
