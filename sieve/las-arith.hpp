@@ -21,6 +21,9 @@
 /* If defined to any value, use asm() CMOV in redc_u?32() */
 // #define LAS_ARITH_REDC_USE_ASM 1
 
+/* If defined, uses the old invmod code for speed comparison */
+// #define LAS_ARITH_HPP_OLD_INVMOD_REDC_32 1
+
 /* define STAT to get statistics on the frequency of carries in redc_u32 and
    redc_32 */
 // #define STAT
@@ -188,6 +191,9 @@ invmod_32 (uint32_t *pa, uint32_t b)
 // and 1/a mod b for b even, by binary xgcd.
 // a must be less than b.
 // return result on succes (new a value), UINT32_MAX on failure
+
+#ifndef LAS_ARITH_HPP_OLD_INVMOD_REDC_32
+
 static inline uint32_t // NO_INLINE
 invmod_redc_32(uint32_t a, uint32_t b) {
   ASSERT (a < b);
@@ -292,6 +298,120 @@ done:
   return u;
 }
 
+#else /* LAS_ARITH_HPP_OLD_INVMOD_REDC_32 */
+
+NOPROFILE_INLINE uint32_t
+invmod_redc_32(uint32_t a, uint32_t b) {
+
+  ASSERT (a < b);
+  if (UNLIKELY(!a)) return a; /* or we get infinite loop */
+  if (UNLIKELY(!(b & 1))) {
+    uint32_t pa = a;
+    invmod_32(&pa, (uint32_t) b);
+    return pa;
+  }
+  const uint32_t p = b;
+  uint32_t u = 1, v = 0, lsh = cado_ctz(a);
+  uint8_t t = lsh;
+  // make a odd
+  a >>= lsh;
+  
+  // Here a and b are odd, and a < b
+#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
+#define T1 "sub %0,%1\n " /* tzcnt */ "rep; bsf %1,%5\n add %2,%3\n shr %%cl,%1\n add %%cl,%4\n shl %%cl,%2\n cmp %0,%1\n "
+#define T2 "sub %1,%0\n " /* tzcnt */ "rep; bsf %0,%5\n add %3,%2\n shr %%cl,%0\n add %%cl,%4\n shl %%cl,%3\n cmp %1,%0\n "
+  __asm__ ( ".balign 8\n 0:\n"						\
+	    T1 " je 9f\n jb  1f\n"					\
+	    T1 " je 9f\n jb  1f\n"					\
+	    T1 " je 9f\n jb  1f\n"					\
+	    T1 " je 9f\n jb  1f\n"					\
+	    T1 " je 9f\n jae 0b\n"					\
+	    ".balign 8\n 1:\n"						\
+	    T2 " je 9f\n jb  0b\n"					\
+	    T2 " je 9f\n jb  0b\n"					\
+	    T2 " je 9f\n jb  0b\n"					\
+	    T2 " je 9f\n jb  0b\n"					\
+	    T2 " jb 0b\n ja  1b\n"					\
+	    ".balign 8\n 2:\n"						\
+	    "9: \n"							\
+	    : "+r" (a), "+r" (b), "+r" (u), "+r" (v), "+r" (t), "+c" (lsh));
+#else
+#define T1 do { b-=a; lsh=cado_ctz(b); v+=u; b>>=lsh; t+=lsh; u<<=lsh; if (a==b) goto ok; } while (0)
+#define T2 do { a-=b; lsh=cado_ctz(a); u+=v; a>>=lsh; t+=lsh; v<<=lsh; if (b==a) goto ok; } while (0)
+  {
+      for (;;) {
+          do {
+              T1; if (a > b) break;
+              T1; if (a > b) break;
+              T1; if (a > b) break;
+              T1; if (a > b) break;
+              T1;
+          } while (a < b);
+          do {
+              T2; if (b > a) break;
+              T2; if (b > a) break;
+              T2; if (b > a) break;
+              T2; if (b > a) break;
+              T2;
+          } while (b < a);
+      }
+    ok: ; /* Need something after the label */
+  }
+#endif
+#undef T1
+#undef T2
+
+  if (UNLIKELY(a != 1)) return 0;
+  const uint32_t fix = (p+1)>>1;
+  
+  // Here, the inverse of a is u/2^t mod b.  
+#define T3 do { uint8_t sig = (uint8_t) u; u >>= 1; if (sig & 1) u += fix; } while (0)
+#define T4 do { u <<= 1; if (u >= p) u -= p; } while (0)
+#if 1 /* Original code */
+  if (t > 32)
+    do T3; while (--t > 32);
+  else
+    while (t++ < 32) T4;
+#else
+  /* Duff's device (cf. Wikipedia) */
+  t -= 32;
+  if (LIKELY(t)) {
+    if (LIKELY((int8_t) t > 0)) {
+      uint8_t n = (t + 7) >> 3;
+      switch (t & 7) {
+          case 0: do { T3; no_break();
+                      case 7: T3; no_break();
+                      case 6: T3; no_break();
+                      case 5: T3; no_break();
+                      case 4: T3; no_break();
+                      case 3: T3; no_break();
+                      case 2: T3; no_break();
+                      case 1: T3;
+                  } while (--n > 0);
+      }
+    } else {
+      uint8_t n = ((t = -t) + 7) >> 3;
+      switch (t & 7) {
+            case 0: do { T4; no_break();
+                        case 7: T4; no_break();
+                        case 6: T4; no_break();
+                        case 5: T4; no_break();
+                        case 4: T4; no_break();
+                        case 3: T4; no_break();
+                        case 2: T4; no_break();
+                        case 1: T4;
+                    } while (--n > 0);
+      }
+    }
+  }
+#endif
+#undef T3
+#undef T4
+  return u;
+}
+
+
+#endif /* LAS_ARITH_HPP_OLD_INVMOD_REDC_32 */
 /** Compute r[i] = 2^32*a[i]^(-1) mod p, for 0 <= i < n.
  *
  * The a[i] are non-negative integers and r[i] are integers with 0 <= r[i] < p.
