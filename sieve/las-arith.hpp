@@ -21,6 +21,10 @@
 /* If defined to any value, use asm() CMOV in redc_u?32() */
 // #define LAS_ARITH_REDC_USE_ASM 1
 
+/* If defined to any value, use the old REDC code (e.g., for speed 
+   comparisons) */
+// #define LAS_ARITH_USE_OLD_REDC 1
+
 /* If defined, uses the old invmod code for speed comparison */
 // #define LAS_ARITH_HPP_OLD_INVMOD_REDC_32 1
 
@@ -35,6 +39,51 @@
  *   \return x/2^32 mod p as an integer in [0, p[
 */
 
+#if defined(LAS_ARITH_USE_OLD_REDC)
+static inline uint32_t
+redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
+{
+  uint32_t t = (uint32_t) x * invp;   /* t = x * invp mod 2^32 */
+  /* x + t*p is bounded by 2^32*p-1+(2^32-1)*p < 2*2^32*p
+   * therefore, we must pay attention to the carry flag while doing the
+   * addition.
+   */
+  uint64_t tp = (uint64_t)t * (uint64_t)p;
+  uint64_t xtp = x;
+  int cf;
+  /* do xtp += tp, get carry out in cf */
+#if defined(GENUINE_GNUC) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
+  asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
+#else
+  /* With GCC 9.2.1 the following code is as fast as the above assembly code.
+     Example on Intel i5-4590 at 3.3Ghz with turbo-boost disabled
+     (revision 8de5fc9):
+     torture-redc 10000000:
+     assembly: redc_u32: 8388608 tests in 0.0659s
+     C code  : redc_u32: 8388608 tests in 0.0658s
+  */
+  xtp += tp;
+  cf = xtp < tp;
+#endif
+#ifdef STAT
+  static int count = 0, carry = 0;
+  count ++;
+  carry += cf != 0;
+  if ((count % 1000000) == 0)
+    printf ("redc_u32: count=%d carry=%d\n", count, carry);
+#endif
+  uint32_t u = xtp >> 32;
+  // by construction, xtp is divisible by 2^32. u is such that
+  // 0 <= u < 2*p ; however the representative that we have is capped to
+  // 2^32, and may wrap around.
+  /* if cf is true, then with u' := 2^32 + u, we have 2^32 <= u' < 2*p,
+   * thus u' - p < p, which ensures that (1) a borrow will occur in the
+   * subtraction u - p, which will compensate for the carry in x + t*p,
+   * and (2) the final result will be < p as wanted */
+
+  return (cf || u >= p) ? u - p : u;
+}
+#else /* LAS_ARITH_USE_OLD_REDC */
 static inline uint32_t // NO_INLINE
 redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 {
@@ -85,6 +134,7 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
   if (u >= p) t = p;
   return u - t;
 }
+#endif /* LAS_ARITH_USE_OLD_REDC */
 
 /** Unsigned modular multiplication with REDC
  *   \param [in] a unsigned 32-bit integer
@@ -107,6 +157,38 @@ mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const uint3
  *   \param [in] invp is -1/p mod 2^32.
  *   \return x/2^32 mod p as an integer in [0, p[
 */
+#if defined(LAS_ARITH_USE_OLD_REDC)
+static inline uint32_t
+redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
+{
+  uint32_t t = (uint32_t)x * invp;
+  uint64_t tp = (uint64_t)t * (uint64_t)p;
+#if 0
+  uint64_t xtp = (x >= 0) ? x : x + ((uint64_t) p << 32);
+  /* the following does the same without any branch, but seems slightly
+     worse with GCC 9.2.1. */
+#else
+  uint64_t xtp = x + (uint64_t) p * (uint64_t) ((x & 0x8000000000000000) >> 31);
+#endif
+  /* now xtp >= 0, and we are in the same case as redc_u32,
+     thus the same analysis as redc_u32 applies here */
+  int cf;
+#if defined(GENUINE_GNUC) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
+  asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
+#else
+  xtp += tp;
+  cf = xtp < tp;
+#endif
+  /* Timings with revision 8de5fc9
+     on Intel i5-4590 at 3.3Ghz with turbo-boost disabled:
+     torture-redc 10000000:
+     assembly: redc_32: 8388608 tests in 0.0668s
+     C code  : redc_32: 8388608 tests in 0.0679s
+     assembly+(if 0 instead of if 1): redc_32: 8388608 tests in 0.0680s */
+  uint32_t u = xtp >> 32;
+  return (cf || u >= p) ? u - p : u;
+}
+#else /* LAS_ARITH_USE_OLD_REDC */
 static inline uint32_t // NO_INLINE
 redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 {
@@ -143,6 +225,7 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   if (u >= p) t = p;
   return u - t;
 }
+#endif /* LAS_ARITH_USE_OLD_REDC */
 
 /* NOTE: we used to have redc_64, invmod_redc_64, and invmod_64 ; actually we
  * never really needed these functions, and they're gone since b9a4cbb40 ;
