@@ -544,6 +544,15 @@ cado_define_test(test-sieve2357.cpp
                  LIBRARIES utils tests ${jevents_lib})
 
 cado_define_test(torture-redc.cpp LIBRARIES utils)
+set_property(TARGET torture-redc
+             PROPERTY COMPILE_DEFINITIONS ALIGN_LOOP_32=1)
+
+cado_define_test(torture-redc+asm_cmov SOURCES torture-redc.cpp
+    LIBRARIES utils tests
+    NO_DEFAULT_RUN)
+set_property(TARGET torture-redc+asm_cmov
+             PROPERTY COMPILE_DEFINITIONS ALIGN_LOOP_32=1
+                      LAS_ARITH_REDC_USE_ASM=1)
 
 cado_define_test(test_fb_root.cpp ${PROJECT_SOURCE_DIR}/sieve/fb.cpp LIBRARIES utils tests)
 
