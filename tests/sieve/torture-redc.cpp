@@ -210,9 +210,15 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
 
     if (check) {
         if (signed_x) {
+#if defined(__clang__)
+#pragma clang loop vectorize(disable)
+#endif
             for(size_t i = 0 ; i < N ; i++)
                 us.push_back(redc_32(xs[i], ps[i], ips[i]));
         } else {
+#if defined(__clang__)
+#pragma clang loop vectorize(disable)
+#endif
             for(size_t i = 0 ; i < N ; i++)
                 us.push_back(redc_u32(xs[i], ps[i], ips[i]));
         }
@@ -223,11 +229,17 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
 #if defined(ALIGN_LOOP_32)
                 __asm__ volatile (".p2align 5");
 #endif
+#if defined(__clang__)
+#pragma clang loop vectorize(disable)
+#endif
                 for(size_t i = 0 ; i < N ; i++)
                     fake_sum += redc_32(xs[i], ps[i], ips[i]);
             } else {
 #if defined(ALIGN_LOOP_32)
                 __asm__ volatile (".p2align 5");
+#endif
+#if defined(__clang__)
+#pragma clang loop vectorize(disable)
 #endif
                 for(size_t i = 0 ; i < N ; i++)
                     fake_sum += redc_u32(xs[i], ps[i], ips[i]);
