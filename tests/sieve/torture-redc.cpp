@@ -220,9 +220,15 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
         uint32_t fake_sum = 0;
         for (unsigned int loop = 0; loop < loops; loop++) {
             if (signed_x) {
+#if defined(ALING_LOOP_32)
+                __asm__ volatile (".p2align 5");
+#endif
                 for(size_t i = 0 ; i < N ; i++)
                     fake_sum = redc_32(xs[i], ps[i], ips[i]);
             } else {
+#if defined(ALING_LOOP_32)
+                __asm__ volatile (".p2align 5");
+#endif
                 for(size_t i = 0 ; i < N ; i++)
                     fake_sum = redc_u32(xs[i], ps[i], ips[i]);
             }
