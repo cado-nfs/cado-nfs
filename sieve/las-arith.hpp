@@ -136,6 +136,30 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 }
 #endif /* LAS_ARITH_USE_OLD_REDC */
 
+/** Variable-width unsigned REDC.
+ *   \param [in] x unsigned 32-bit integer. We require x < p.
+ *   \param [in] p is an odd number < 2^32.
+ *   \param [in] invp is -1/p mod 2^32.
+ *   \param [in] s is an integer 0 <= s < 32
+ *   \return x/2^s mod p as an integer in [0, p[
+*/
+static inline uint32_t // NO_INLINE
+varredc_u32(const uint32_t x, const uint32_t p, const uint32_t invp, const uint8_t s)
+{
+  ASSERT(s < 32); /* shift by word width is undefined. caller should use
+                     redc_u32() instead. */
+  ASSERT(x < p);
+  const uint32_t mask = (UINT32_C(1) << s) - 1;
+  uint32_t t = ((uint32_t) x * invp) & mask;   /* t = x * invp mod 2^s, 0 <= t <= 2^s-1 */
+  uint64_t tp = (uint64_t)t * (uint64_t)p;     /* 0 <= tp <= (2^s-1)*p */
+  uint64_t xtp = x + tp;                       /* 0 <= xtp <= 2^s*p - 1 <= 2^31*p - 1 < 2^64. No carry */
+
+  ASSERT((xtp & mask) == 0);
+  uint32_t u = xtp >> s;                       /* 0 <= u < p */
+  return u;
+}
+
+
 /** Unsigned modular multiplication with REDC
  *   \param [in] a unsigned 32-bit integer
  *   \param [in] b unsigned 32-bit integer. We require a*b < 2^32*p
