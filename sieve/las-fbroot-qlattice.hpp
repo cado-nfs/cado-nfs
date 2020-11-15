@@ -131,7 +131,7 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
   v = redc_32(aux2, p, invp); /* 0 <= v < p */
 #endif
 
-  aux2 = invmod_redc_32(v, p);
+  aux2 = invmod_redc_32(v, p, invp);
   if (LIKELY(aux2)) {
     aux1 = 0;
     aux2 *= u;
@@ -139,7 +139,7 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
   else 
     {
       /* root in i,j-plane is projective */
-      aux2 = invmod_redc_32(u, p);
+      aux2 = invmod_redc_32(u, p, invp);
       if (UNLIKELY(!aux2))
 	{
 	  fprintf (stderr, "fb_root_in_qlattice_31bits(%" FBPRIME_FORMAT ", %"
@@ -316,7 +316,7 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
   v = redc_32(aux2, p, invp); /* 0 <= v < p */
 #endif
   
-  aux2 = invmod_redc_32(v, p);
+  aux2 = invmod_redc_32(v, p, invp);
   if (LIKELY(aux2)) {
     aux1 = 0;
     /* Warning: since 0 <= u < p and 0 <= aux2 < p, we have
@@ -330,7 +330,7 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
   else 
     {
       /* root in i,j-plane is projective */
-      aux2 = invmod_redc_32(u, p);
+      aux2 = invmod_redc_32(u, p, invp);
       if (UNLIKELY(!aux2))
 	{
 	  fprintf (stderr, "Error, root in (i,j)-plane is projective\n");

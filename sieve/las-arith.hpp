@@ -291,6 +291,23 @@ invmod_32 (uint32_t *pa, uint32_t b)
   return rc;
 }
 
+/* Gather and print histogram of t values */
+static inline void t_hist(uint8_t t) {
+  static uint64_t t_hist[256] = {0};
+  static uint64_t total_calls = 0;
+  t_hist[t]++;
+  total_calls++;
+  if (total_calls > 0 && total_calls % (1 << 25) == 0) {
+      printf("# Histogram of t values: ");
+      for (unsigned int i = 0; i < 256; i++) {
+        if (t_hist[i] != 0) {
+          printf("%s%u:%" PRIu64, i==0 ? "" : ", ", i, t_hist[i]);
+        }
+      }
+      printf("\n");
+  }
+}
+
 /* TODO: this is a close cousin of modredcul_inv, but the latter does
  * 64-bit redc */
 
@@ -302,7 +319,8 @@ invmod_32 (uint32_t *pa, uint32_t b)
 #ifndef LAS_ARITH_HPP_OLD_INVMOD_REDC_32
 
 static inline uint32_t // NO_INLINE
-invmod_redc_32(uint32_t a, uint32_t b) {
+invmod_redc_32(uint32_t a, const uint32_t orig_b, const uint32_t invb) {
+  uint32_t b = orig_b;
   ASSERT (a < b);
   if (UNLIKELY(!a)) return a; /* or we get infinite loop */
   if (UNLIKELY(!(b & 1))) {
@@ -356,50 +374,20 @@ invmod_redc_32(uint32_t a, uint32_t b) {
 done:
 
   if (UNLIKELY(a != 1)) return 0;
-  const uint32_t fix = (p+1)>>1;
   
-  // TODO: can we use variable-width REDC for the division by 2^t here?
-  // Here, the inverse of a is u/2^t mod b.
-#define T3 do { uint8_t sig = (uint8_t) u; u >>= 1; if (sig & 1) u += fix; } while (0)
-#define T4 do { u <<= 1; if (u >= p) u -= p; } while (0)
-#if 1 /* Original code */
-  if (t > 32)
-    do T3; while (--t > 32);
-  else
-    while (t++ < 32) T4;
-#else
-  /* Duff's device (cf. Wikipedia) */
-  t -= 32;
-  if (LIKELY(t)) {
-    if (LIKELY((int8_t) t > 0)) {
-      uint8_t n = (t + 7) >> 3;
-      switch (t & 7) {
-          case 0: do { T3; no_break();
-                      case 7: T3; no_break();
-                      case 6: T3; no_break();
-                      case 5: T3; no_break();
-                      case 4: T3; no_break();
-                      case 3: T3; no_break();
-                      case 2: T3; no_break();
-                      case 1: T3;
-                  } while (--n > 0);
-      }
-    } else {
-      uint8_t n = ((t = -t) + 7) >> 3;
-      switch (t & 7) {
-            case 0: do { T4; no_break();
-                        case 7: T4; no_break();
-                        case 6: T4; no_break();
-                        case 5: T4; no_break();
-                        case 4: T4; no_break();
-                        case 3: T4; no_break();
-                        case 2: T4; no_break();
-                        case 1: T4;
-                    } while (--n > 0);
-      }
+#if 0
+  t_hist(t);
+#endif
+  // Here, the inverse of a is u/2^t mod b. We want the result to be
+  // u/2^32 mod b and divide or multiply by a power of 2 accordingly.
+  if (t >= 32) {
+    u = varredc_u32(u, orig_b, invb, t - 32);
+  } else {
+    while (t++ < 32) {
+      u <<= 1; /* FIXME: is overflow possible here? */
+      if (u >= p) u -= p;
     }
   }
-#endif
 #undef T3
 #undef T4
   return u;
@@ -408,7 +396,7 @@ done:
 #else /* LAS_ARITH_HPP_OLD_INVMOD_REDC_32 */
 
 NOPROFILE_INLINE uint32_t
-invmod_redc_32(uint32_t a, uint32_t b) {
+invmod_redc_32(uint32_t a, uint32_t b, const uint32_t invb MAYBE_UNUSED) {
 
   ASSERT (a < b);
   if (UNLIKELY(!a)) return a; /* or we get infinite loop */
@@ -562,7 +550,7 @@ batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
      I.e., $r_0 = a_0, r_1 = a_0 * a_1 * \beta^{-1}$, etc., */
 
   /* R := \beta * r_{n-1}^{-1} */
-  R = invmod_redc_32(r[n - 1], p);
+  R = invmod_redc_32(r[n - 1], p, invp);
   if (R == 0 || R == UINT32_MAX)
     return false;
 

@@ -459,14 +459,15 @@ bug20200225 (void)
   uint64_t got, expected;
   fbprime_t p, R;
   uint64_t invp;
-  unsigned long a, b;
+  unsigned long a, b, invb;
 
   /* exercises bug in assembly part of invmod_redc_32 (starting around line
      326 with 2nd #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM) */
   a = 8088625;
   b = 2163105767;
+  invb = -invmod_po2(b);
   expected = 2062858318;
-  got = invmod_redc_32 (a, b);
+  got = invmod_redc_32 (a, b, invb);
   if (got != expected)
     {
       fprintf (stderr, "Error in invmod_redc_32 for a=%lu b=%lu\n", a, b);
@@ -477,8 +478,9 @@ bug20200225 (void)
 
   a = 76285;
   b = 2353808591;
+  invb = -invmod_po2(b);
   expected = 2102979166;
-  got = invmod_redc_32(a, b);
+  got = invmod_redc_32(a, b, invb);
   if (got != expected)
     {
       fprintf (stderr, "Error in invmod_redc_32 for a:=%lu; b:=%lu;\n",

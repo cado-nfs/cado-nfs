@@ -22,10 +22,11 @@ int main(int argc, const char **argv) {
     if (test_timing) {
         uint32_t fake_sum = 0, to_invert = 0;
         volatile uint32_t m = 4294967291;
+        uint32_t invm = -invmod_po2(m);
 
         for (unsigned int i = 0; i < N; i++) {
             to_invert += 1073741827;
-            fake_sum += invmod_redc_32(to_invert, m);
+            fake_sum += invmod_redc_32(to_invert, m, invm);
         }
         volatile uint32_t fake_sum_vol = fake_sum;
         if (fake_sum_vol) {}
@@ -49,7 +50,7 @@ int main(int argc, const char **argv) {
                 unsigned long t;
                 ularith_addmod_ul_ul(&t, to_invert, to_add, m);
                 to_invert = t;
-                uint32_t inverse = invmod_redc_32(to_invert, m);
+                uint32_t inverse = invmod_redc_32(to_invert, m, invm);
                 if (inverse == 0 || inverse == UINT32_MAX) {
                     /* Compute GCD. Must be > 1, otherwise error */
                     if (gcd_uint64(to_invert, m) == 1) {
