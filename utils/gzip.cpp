@@ -4,13 +4,16 @@
 #include <climits>
 #include <cstdio> // FILE // IWYU pragma: keep
 #include <cstring>
-#include <unistd.h>
+#include <sys/types.h>  // pid_t
+#include <unistd.h>     // close getpid
 #include <sys/stat.h> // stat // IWYU pragma: keep
 #ifdef HAVE_GETRUSAGE
 #include <sys/time.h> // IWYU pragma: keep
 #include <sys/resource.h> // IWYU pragma: keep
 #endif
 #include <cerrno>
+
+#include "fmt/format.h"
 
 
 #include "macros.h"
@@ -426,7 +429,12 @@ streambase_maybe_compressed::streambase_maybe_compressed(const char * name, std:
 
 void streambase_maybe_compressed::open(const char * name, std::ios_base::openmode mode)
 {
+    orig_name = name;
     const struct suffix_handler * r = supported_compression_formats;
+    if (mode & std::ios_base::out && r->pfmt_out) {
+        tempname = fmt::format(FMT_STRING("{}.tmp.{}"), name, getpid());
+        name = tempname.c_str();
+    }
 
     if (mode & std::ios_base::in && access(name, R_OK) != 0)
         throw std::runtime_error("cannot open file for reading");
@@ -435,7 +443,7 @@ void streambase_maybe_compressed::open(const char * name, std::ios_base::openmod
         throw std::runtime_error("cannot open file for writing");
      */
     for( ; r->suffix ; r++) {
-        if (!has_suffix(name, r->suffix)) continue;
+        if (!has_suffix(orig_name, r->suffix)) continue;
         char * command = NULL;
         if (mode & std::ios_base::in && r->pfmt_in) {
             int ret = asprintf(&command, r->pfmt_in, name);
@@ -467,6 +475,9 @@ void streambase_maybe_compressed::close()
 {
     if (pipe) pbuf->close();
     else fbuf->close();
+    if (!tempname.empty()) {
+        rename(tempname.c_str(), orig_name);
+    }
 }
 
 streambase_maybe_compressed::~streambase_maybe_compressed()
