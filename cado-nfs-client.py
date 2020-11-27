@@ -716,13 +716,15 @@ class HTTP_connector(object):
                 # Python 3 implements HTTPS certificate checks, we can just
                 # let urllib do the work for us
 
-                # To skip the hostname check under Python 3, I'll have to
-                # override # HTTPSConnection.__init__() and register that
-                # with the urlopen director
-                if not check_hostname:
-                    raise Exception("Error, not checking hostname not "
-                                    "implemented for Python 3 yet")
-                return urllib_request.urlopen(request, cafile=cafile)
+                context = ssl.SSLContext()
+                context.check_hostname = bool(check_hostname)
+                if check_hostname:
+                    context.verify_mode = ssl.CERT_REQUIRED
+                else:
+                    context.verify_mode = ssl.CERT_NONE
+                context.load_verify_locations(cafile=cafile)
+
+                return urllib_request.urlopen(request, context=context)
             # For the time being, we just use HTTPS without check.
             # We should never get here, as we use wget or curl as
             # fall-backs under Python 2, and if neither is available,
