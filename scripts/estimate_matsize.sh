@@ -22,8 +22,8 @@
 set -e
 
 ## default parameters: can be overriden using env variables
-## TODO: old parameters (before 7151df7fe) here used to correspond more or
-## less to a DLP-512. Now what size are these parameters good for ?
+## before 7151df7fe, parameters here used to correspond to a DLP-512.
+## The parameters below are closer to a p80.
 : ${A=23}
 : ${lim0=125000}
 : ${lim1=125000}
@@ -62,7 +62,7 @@ usage() {
 }
 
 while [ $# -gt 0 ] ; do
-    if ! [[ $1 =~ ^- ]] ; then
+if ! [[ $1 =~ ^- ]] ; then
         break
     fi
     if [ "$1" = -params ] && [ $# -gt 1 ] ; then
@@ -100,8 +100,8 @@ if ! [ "$CADO_BUILD" ] ; then
 fi
 
 ## read poly file on command line
-polyfile=$1
-if [ ! -e $1 ]; then
+polyfile="$1"
+if [ ! -e "$1" ]; then
     echo "Error: file $1 does not exist?" >&2
     exit 1
 fi

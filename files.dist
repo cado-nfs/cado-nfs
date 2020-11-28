@@ -1589,6 +1589,9 @@ tests/sieve/bogus.fbc
 sieve/inspect-batch-file.pl
 tests/sieve/bogus.batch0
 tests/estimate_matsize/p30.poly
-tests/estimate_matsize/params.txt
+tests/estimate_matsize/p80.poly
 tests/estimate_matsize/CMakeLists.txt
 utils/mpz_poly_parallel.hpp
+tests/estimate_matsize/p30.ems.params
+tests/estimate_matsize/p80_compsq.ems.params
+tests/estimate_matsize/p80_compsq.params
