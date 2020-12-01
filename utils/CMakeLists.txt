@@ -27,6 +27,7 @@ set (sources
         cado_pipe_streambuf.cpp
         numbertheory.cpp
         badideals.cpp
+        json.cpp
 )
 if (HAVE_GLIBC_VECTOR_INTERNALS)
     set(sources ${sources} mmap_allocator.cpp)
