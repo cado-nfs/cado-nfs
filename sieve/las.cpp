@@ -1455,7 +1455,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
             nreports ? ct0 / nreports : -1,
             (double) (nq ? nreports / nq: -1),
             wt0,
-            ct0/wt0);
+            100.0 * ct0/wt0);
 
 }/*}}}*/
 
