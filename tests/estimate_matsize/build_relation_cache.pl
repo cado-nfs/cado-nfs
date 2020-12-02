@@ -173,29 +173,21 @@ for my $filename (@ARGV) {
             my $oq0 = $1;
             my $oq1 = $2;
             my @qq0;
-            $q1 -= 1;
-            my @qq1;
             for my $i (0..$#splits) {
                 my $nn = $splits[$#splits-$i];
                 unshift @qq0, $q0 % $nn; $q0 = int($q0/$nn);
-                unshift @qq1, $q1 % $nn; $q1 = int($q1/$nn);
                 my $format = "%0" . length($nn-1) . "d";
                 $qq0[0] = sprintf $format, $qq0[0];
-                $qq1[0] = sprintf $format, $qq1[0];
-                if ($i && $qq0[0] ne $qq1[0]) {
-                    die "ERROR: Cannot create file with q0=$oq0 and q=$oq1 (cross boundaries)\n";
-                }
             }
             die "$oq0 is too large for current settings" if $q0;
-            $qq1[$#qq1]+=1;
+            my $qq1 = $qq0[$#qq0]+($oq1-$oq0);
             my $d = "";
             for my $i (0..$#qq0-1) {
                 die "Refusing to create more than 1000 subdirs below a given level" if $qq0[$i] >= 1000;
                 $d .= "/$qq0[$i]";
                 mkdir "$outputdir$d" unless -d "$outputdir/$d";
             }
-            # print STDERR "$oq0 $oq1 $d/$qq0[$#qq0]-$qq1[$#qq1]\n";
-            my $f = "$outputdir$d/$qq0[$#qq0]-$qq1[$#qq1]";
+            my $f = "$outputdir$d/$qq0[$#qq0]-$qq1";
             open $fh, ">$f" or die "$f: $!";
         };
         die "Found data with no active file to write to: $_\n" unless $fh;

@@ -1028,6 +1028,8 @@ static void print_survivors_job(las_info & las)
     las.batch_print_survivors.doit();
 }
 
+
+
 static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_timer & global_rt)/*{{{*/
 {
     where_am_I w MAYBE_UNUSED;
@@ -1291,6 +1293,79 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
     verbose_output_print(0, 1, "# subjob %d done (%d special-q's), now waiting for other jobs\n", subjob, nq);
 }/*}}}*/
 
+static std::string relation_cache_subdir_name(std::vector<unsigned long> const & splits, std::vector<unsigned long> const & split_q)/*{{{*/
+{
+    std::string d;
+    /* find the file */
+    for(unsigned int i = 0 ; i + 1 < split_q.size() ; i++) {
+        int l = 0;
+        for(unsigned long s = 1 ; splits[i] > s ; s*=10, l++);
+        d += fmt::format("/{:0{}}", split_q[i], l);
+    }
+    return d;
+}/*}}}*/
+
+static std::string relation_cache_find_filepath_inner(std::string const & d, unsigned long qq)/*{{{*/
+{
+    std::string filepath;
+    DIR * dir = opendir(d.c_str());
+    DIE_ERRNO_DIAG(dir == NULL, "opendir", d.c_str());
+    for(struct dirent * ent ; (ent = readdir(dir)) != NULL ; ) {
+        unsigned long q0, q1;
+        if (sscanf(ent->d_name, "%lu-%lu", &q0, &q1) != 2) continue;
+        if (qq < q0 || qq >= q1) continue;
+        filepath = d + "/" + ent->d_name;
+        break;
+    }
+    closedir(dir);
+
+    return filepath;
+}/*}}}*/
+
+static std::string relation_cache_find_filepath(std::string const & cache_path, std::vector<unsigned long> const & splits, cxx_mpz q)/*{{{*/
+{
+    std::vector<std::string> searched;
+
+    /* write q in the variable basis given by the splits */
+    cxx_mpz oq = q;
+    std::vector<unsigned long> split_q = splits;
+    for(unsigned int i = splits.size() ; i-- ; ) {
+        split_q[i] = mpz_fdiv_ui(q, splits[i]);
+        mpz_fdiv_q_ui(q, q, splits[i]);
+    }
+    if (mpz_cmp_ui(q, 0) != 0) {
+        gmp_fprintf(stderr, "# q is too large for relation cache\n",
+                (mpz_srcptr) oq);
+        exit(EXIT_FAILURE);
+    }
+
+    std::string d = cache_path + relation_cache_subdir_name(splits, split_q);
+
+    std::string filepath = relation_cache_find_filepath_inner(d, split_q.back());
+
+    if (filepath.empty() && split_q.size() > 1) {
+        searched.push_back(d);
+
+        /* Try the previous directory, if qranges cross the
+         * boundaries at powers of ten */
+        split_q[split_q.size() - 2] -= 1;
+        split_q[split_q.size() - 1] += splits[splits.size() - 1];
+        d = cache_path + relation_cache_subdir_name(splits, split_q);
+        filepath = relation_cache_find_filepath_inner(d, split_q.back());
+    }
+
+    if (filepath.empty()) {
+        searched.push_back(d);
+        std::ostringstream os;
+        for(auto const & s : searched) os << " " << s;
+        gmp_fprintf(stderr, "# no file found in relation cache for q=%Zd (searched directories:%s)\n", (mpz_srcptr) q, os.str().c_str());
+        exit(EXIT_FAILURE);
+    }
+
+    return filepath;
+}
+/*}}}*/
+
 static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/*{{{*/
 {
     std::vector<unsigned long> splits;
@@ -1340,40 +1415,8 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
         if (!choose_sieve_area(las, aux.doing, conf, Q, J)) continue;
         check_whether_q_above_lare_prime_bound(conf, aux.doing);
 
-        /* Now write q in the variable basis given by the splits */
-        std::vector<unsigned long> split_q = splits;
-        cxx_mpz q(aux.doing.p);
-        for(unsigned int i = splits.size() ; i-- ; ) {
-            split_q[i] = mpz_fdiv_ui(q, splits[i]);
-            mpz_fdiv_q_ui(q, q, splits[i]);
-        }
-        if (mpz_cmp_ui(q, 0) != 0) {
-            gmp_fprintf(stderr, "# q is too large for relation cache\n",
-                    (mpz_srcptr) aux.doing.p);
-            exit(EXIT_FAILURE);
-        }
-        /* find the file */
-        std::string d = las.relation_cache;
-        for(unsigned int i = 0 ; i + 1 < split_q.size() ; i++) {
-            int l = 0;
-            for(unsigned long s = 1 ; splits[i] > s ; s*=10, l++);
-            d += fmt::format("/{:0{}}", split_q[i], l);
-        }
-        std::string filepath;
-        DIR * dir = opendir(d.c_str());
-        DIE_ERRNO_DIAG(dir == NULL, "opendir", d.c_str());
-        for(struct dirent * ent ; (ent = readdir(dir)) != NULL ; ) {
-            unsigned long q0, q1;
-            if (sscanf(ent->d_name, "%lu-%lu", &q0, &q1) != 2) continue;
-            if (split_q.back() < q0 || split_q.back() >= q1) continue;
-            filepath = d + "/" + ent->d_name;
-            break;
-        }
-        closedir(dir);
-        if (filepath.empty()) {
-            gmp_fprintf(stderr, "# no file found in relation cache for q=%Zd (searched in directory %s\n", (mpz_srcptr) aux.doing.p, d.c_str());
-            exit(EXIT_FAILURE);
-        }
+        std::string filepath = relation_cache_find_filepath(las.relation_cache, splits, aux.doing.p);
+
         std::ifstream rf(filepath);
         DIE_ERRNO_DIAG(!rf, "open", filepath.c_str());
         for(std::string line ; getline(rf, line) ; ) {
