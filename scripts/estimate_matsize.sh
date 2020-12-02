@@ -40,6 +40,7 @@ set -e
 : ${qfac_max=100000}
 : ${dlp=true}
 : ${shrink_factor=1}
+: ${relation_cache=}
 : ${extra_las_params=""}
 : ${threads=2}
 : ${parallel=false}
@@ -239,6 +240,9 @@ for i in `seq 0 $((nsides-1))`; do
               -fb0 $rootfile0 -fb1 $rootfile1 -random-sample $NBSAMPLE 
               -t $las_threads -sync -v -dup -dup-qmin $dupqmin
                           $extra_las_params)
+            if [ "${relation_cache}" ] ; then
+                cmd+=(-relation-cache "$relation_cache")
+            fi
             echo "${cmd[@]}"
             file=$wdir/sample.side${side}.${q0}-${q1}
             if ! has_file_already $file "${cmd[@]}" ; then

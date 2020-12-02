@@ -216,7 +216,19 @@ extern int param_list_save_parameter(param_list_ptr, enum parameter_origin o,
 // This function is a shorthand which does employ some hackery put into
 // param lists, which remember their oldest argv, argc pair.
 extern void param_list_print_command_line(FILE * stream, param_list_ptr);
+
 #ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+#include <string>
+static inline int param_list_parse_string(param_list_ptr pl, const char * key, std::string & s)
+{
+    const char * tmp = param_list_lookup_string(pl, key);
+    if (!tmp) return 0;
+    s = tmp;
+    return 1;
 }
 #endif
 
