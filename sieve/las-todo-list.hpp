@@ -81,6 +81,8 @@ class las_todo_list : private std::stack<las_todo_entry> {
         return (p >= qfac_min) && (p >= qfac_max);
     }
 
+    bool is_random() const { return random_sampling != 0; }
+
     bool feed(gmp_randstate_t rstate);
     las_todo_entry * feed_and_pop(gmp_randstate_t rstate);
 

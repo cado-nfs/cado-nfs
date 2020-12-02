@@ -208,18 +208,16 @@ subtract_fb_log(const unsigned char lognorm,
 static bool
 sq_finds_relation(las_info const & las,
         las_todo_entry const & doing,
-        relation const& rel)
+        siever_config const & conf,
+        qlattice_basis const & Q,
+        uint32_t J,
+        relation const& rel,
+        bool must,
+        bool talk)
 {
-  siever_config conf;
-  qlattice_basis Q;
-  uint32_t J;
-  if (!choose_sieve_area(las, doing, conf, Q, J)) {
-    verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK q-lattice discarded\n");
-    return false;
-  }
   int logI = conf.logI;
 
-  {   // Print some info
+  if (talk) {   // Print some info
       verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
               "# DUPECHECK Checking if relation"
               " (a,b) = (%" PRId64 ",%" PRIu64 ")"
@@ -244,6 +242,7 @@ sq_finds_relation(las_info const & las,
   {
     int ok;
     ok = ABToIJ(i, j, rel.a, rel.b, Q);
+    if (!must && !ok) return false;
     ASSERT_ALWAYS(ok);
   }
 
@@ -251,7 +250,7 @@ sq_finds_relation(las_info const & las,
      the special-q described in [doing], then it's not a duplicate */
   if (j >= J || (i < -(1L << (logI-1))) || (i >= (1L << (logI-1))))
   {
-    verbose_output_print(0, VERBOSE_LEVEL,
+    if (talk) verbose_output_print(0, VERBOSE_LEVEL,
         "# DUPECHECK (i,j) = (%d, %u) is outside sieve region\n", i, j);
     return false;
   }
@@ -274,12 +273,12 @@ sq_finds_relation(las_info const & las,
             doing);
 
     if (remaining_lognorm[side] > L.bound) {
-      verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK On side %d, remaining lognorm = %" PRId8 " > bound = %" PRId8 "\n",
+      if (talk) verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK On side %d, remaining lognorm = %" PRId8 " > bound = %" PRId8 "\n",
           side, remaining_lognorm[side], L.bound);
       is_dupe = false;
     }
   }
-  verbose_output_print(0, VERBOSE_LEVEL,
+  if (talk) verbose_output_print(0, VERBOSE_LEVEL,
       "# DUPECHECK relation had i=%d, j=%u, remaining lognorms %" PRId8 ", %" PRId8 "\n",
       i, j, remaining_lognorm[0], remaining_lognorm[1]);
   if (!is_dupe) {
@@ -328,13 +327,41 @@ sq_finds_relation(las_info const & las,
   int pass = factor_both_leftover_norms(cof, f, {{conf.sides[0].lim, conf.sides[1].lim}}, strategies);
 
   if (pass <= 0) {
-    verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
+    if (talk) verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
         "# DUPECHECK norms not both smooth, left over factors: %Zd, %Zd\n",
         (mpz_srcptr) cof[0], (mpz_srcptr) cof[1]);
     return false;
   }
 
   return true;
+}
+
+bool
+sq_finds_relation(las_info const & las,
+        las_todo_entry const & doing,
+        siever_config const & conf,
+        qlattice_basis const & Q,
+        uint32_t J,
+        relation const& rel)
+{
+    return sq_finds_relation(las, doing, conf, Q, J, rel, false, false);
+}
+
+static bool
+sq_finds_relation(las_info const & las,
+        las_todo_entry const & doing,
+        relation const& rel,
+        bool must,
+        bool talk)
+{
+  siever_config conf;
+  qlattice_basis Q;
+  uint32_t J;
+  if (!choose_sieve_area(las, doing, conf, Q, J)) {
+    if (talk) verbose_output_print(0, VERBOSE_LEVEL, "# DUPECHECK q-lattice discarded\n");
+    return false;
+  }
+  return sq_finds_relation(las, doing, conf, Q, J, rel, must, talk);
 }
 
 
@@ -472,7 +499,7 @@ relation_is_duplicate(relation const& rel,
             // relation.
             las_todo_entry other = special_q_from_ab(rel.a, rel.b, sq, side);
 
-            bool is_dupe = sq_finds_relation(las, other, rel);
+            bool is_dupe = sq_finds_relation(las, other, rel, true, true);
             verbose_output_print(0, VERBOSE_LEVEL,
                     "# DUPECHECK relation is probably%s a dupe\n",
                     is_dupe ? "" : " not");

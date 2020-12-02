@@ -1,0 +1,16 @@
+A=23
+lim0=125000
+lim1=125000
+lpb0=19
+lpb1=19
+mfb0=38
+mfb1=38
+qmin=800000
+qmax=1600000
+sqside=1
+target_density=100
+allow_compsq=true
+qfac_min=200
+qfac_max=100000
+dlp=true
+shrink_factor=1

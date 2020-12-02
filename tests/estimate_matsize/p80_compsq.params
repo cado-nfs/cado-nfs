@@ -1,0 +1,78 @@
+
+###########################################################################
+#     Parameter file for Cado-NFS ; DLP version
+###########################################################################
+# See params/params.c90 for an example which contains some documentation.
+
+###########################################################################
+# General parameters
+###########################################################################
+
+name = p80
+
+
+###########################################################################
+# Polynomial selection with Kleinjung's algorithm
+###########################################################################
+
+tasks.polyselect.degree = 4
+
+tasks.polyselect.admax = 2500
+tasks.polyselect.incr = 60
+tasks.polyselect.adrange = 2000
+tasks.polyselect.P = 5000
+tasks.polyselect.nq = 1500
+tasks.polyselect.ropteffort = 0.01
+
+
+###########################################################################
+# Sieve
+###########################################################################
+
+
+tasks.I = 12
+tasks.lim0 = 125000
+tasks.lim1 = 125000
+tasks.lpb0 = 19
+tasks.lpb1 = 19
+tasks.sieve.mfb0 = 38
+tasks.sieve.mfb1 = 38
+tasks.sieve.lambda0 = 2.2
+tasks.sieve.lambda1 = 2.2
+tasks.qmin = 800000
+tasks.qmax = 1600000
+tasks.sieve.qrange = 5000
+tasks.sieve.qfac_min = 200
+tasks.sieve.qfac_max = 100000
+tasks.sieve.allow_largesq = true
+tasks.sieve.allow_compsq = true
+tasks.sieve.rels_wanted = 150000
+
+
+
+###########################################################################
+# Filtering
+###########################################################################
+
+tasks.filter.target_density = 100
+
+tasks.reconstructlog.partial=false
+
+###########################################################################
+# Individual log
+###########################################################################
+
+tasks.descent.init_I = 12
+tasks.descent.init_ncurves = 15
+tasks.descent.init_lpb = 43
+tasks.descent.init_lim = 125000
+tasks.descent.init_mfb = 86
+tasks.descent.init_tkewness = 125000
+tasks.descent.I = 12
+tasks.descent.lim0 = 125000
+tasks.descent.lim1 = 125000
+tasks.descent.lpb0 = 19
+tasks.descent.lpb1 = 19
+tasks.descent.mfb0 = 38
+tasks.descent.mfb1 = 38
+

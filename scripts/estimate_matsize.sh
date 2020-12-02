@@ -22,11 +22,12 @@
 set -e
 
 ## default parameters: can be overriden using env variables
-## TODO: old parameters (before 7151df7fe) here used to correspond more or
-## less to a DLP-512. Now what size are these parameters good for ?
+## before 7151df7fe, parameters here used to correspond to a DLP-512.
+## The parameters below are closer to a p80.
 : ${A=23}
 : ${lim0=125000}
 : ${lim1=125000}
+: ${maxbits=}
 : ${lpb0=19}
 : ${lpb1=19}
 : ${mfb0=38}
@@ -40,6 +41,7 @@ set -e
 : ${qfac_max=100000}
 : ${dlp=true}
 : ${shrink_factor=1}
+: ${relation_cache=}
 : ${extra_las_params=""}
 : ${threads=2}
 : ${parallel=false}
@@ -62,7 +64,7 @@ usage() {
 }
 
 while [ $# -gt 0 ] ; do
-    if ! [[ $1 =~ ^- ]] ; then
+if ! [[ $1 =~ ^- ]] ; then
         break
     fi
     if [ "$1" = -params ] && [ $# -gt 1 ] ; then
@@ -100,8 +102,8 @@ if ! [ "$CADO_BUILD" ] ; then
 fi
 
 ## read poly file on command line
-polyfile=$1
-if [ ! -e $1 ]; then
+polyfile="$1"
+if [ ! -e "$1" ]; then
     echo "Error: file $1 does not exist?" >&2
     exit 1
 fi
@@ -138,12 +140,15 @@ has_file_already() {
     fi
 }
 
+# Set maxbits if it is empty.
+: ${maxbits:=$(((A+1)/2))}
 
 ## if wdir does not contain a rootfile, build it
 rootfile0="$wdir/roots0.gz"
 cmd=("$CADO_BUILD/sieve/makefb"
         -poly "$polyfile"
         -lim "$lim0"
+        -maxbits "$maxbits"
         -side 0
         -t "$threads"
         -out "$rootfile0")
@@ -155,6 +160,7 @@ rootfile1="$wdir/roots1.gz"
 cmd=("$CADO_BUILD/sieve/makefb"
         -poly "$polyfile"
         -lim "$lim1"
+        -maxbits "$maxbits"
         -side 1
         -t "$threads"
         -out "$rootfile1")
@@ -239,6 +245,9 @@ for i in `seq 0 $((nsides-1))`; do
               -fb0 $rootfile0 -fb1 $rootfile1 -random-sample $NBSAMPLE 
               -t $las_threads -sync -v -dup -dup-qmin $dupqmin
                           $extra_las_params)
+            if [ "${relation_cache}" ] ; then
+                cmd+=(-relation-cache "$relation_cache")
+            fi
             echo "${cmd[@]}"
             file=$wdir/sample.side${side}.${q0}-${q1}
             if ! has_file_already $file "${cmd[@]}" ; then
