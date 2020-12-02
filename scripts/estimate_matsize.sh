@@ -27,6 +27,7 @@ set -e
 : ${A=23}
 : ${lim0=125000}
 : ${lim1=125000}
+: ${maxbits=}
 : ${lpb0=19}
 : ${lpb1=19}
 : ${mfb0=38}
@@ -139,12 +140,15 @@ has_file_already() {
     fi
 }
 
+# Set maxbits if it is empty.
+: ${maxbits:=$(((A+1)/2))}
 
 ## if wdir does not contain a rootfile, build it
 rootfile0="$wdir/roots0.gz"
 cmd=("$CADO_BUILD/sieve/makefb"
         -poly "$polyfile"
         -lim "$lim0"
+        -maxbits "$maxbits"
         -side 0
         -t "$threads"
         -out "$rootfile0")
@@ -156,6 +160,7 @@ rootfile1="$wdir/roots1.gz"
 cmd=("$CADO_BUILD/sieve/makefb"
         -poly "$polyfile"
         -lim "$lim1"
+        -maxbits "$maxbits"
         -side 1
         -t "$threads"
         -out "$rootfile1")
