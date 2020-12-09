@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import sys
 import re
-import os.path
-from fractions import gcd
+import os
+if sys.version_info[1] < 5:
+    from fraction import gcd
+else:
+    from math import gcd
 import abc
 import random
 import time
