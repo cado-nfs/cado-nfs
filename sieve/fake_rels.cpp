@@ -30,9 +30,10 @@
  * relations to get an idea of the final matrix that will come out of the
  * sieving step for a given set of parameters.
  *
- * The shell script cado-nfs/misc/estimate_matsize.sh is an attempt to
- * run all the required steps for such a simulation: sampling with las,
- * fake relation generation with this binary, and filter.
+ * The shell script cado-nfs/scripts/estimate_matsize/estimate_matsize.sh
+ * is an attempt to run all the required steps for such a simulation:
+ * sampling with las, fake relation generation with this binary, and
+ * filter.
  *
  * The binary takes as input:
  *   - poly file

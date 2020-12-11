@@ -1599,4 +1599,5 @@ tests/utils/test_json_parsing.cpp
 utils/json.cpp
 utils/json.hpp
 tests/estimate_matsize/test_with_relation_cache.sh
-tests/estimate_matsize/build_relation_cache.pl
+scripts/estimate_matsize/build_relation_cache.pl
+scripts/estimate_matsize/estimate_matsize.sh
