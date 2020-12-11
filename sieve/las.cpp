@@ -1415,6 +1415,16 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
         if (!choose_sieve_area(las, aux.doing, conf, Q, J)) continue;
         check_whether_q_above_lare_prime_bound(conf, aux.doing);
 
+        {
+            std::ostringstream os;
+            os << Q;
+            verbose_output_vfprint(0, 2, gmp_vfprintf,
+                    "# "
+                    "Sieving %s; I=%u; J=%u;\n",
+                    os.str().c_str(),
+                    1u << conf.logI, J);
+        }
+
         std::string filepath = relation_cache_find_filepath(las.relation_cache, splits, aux.doing.p);
 
         std::ifstream rf(filepath);
@@ -1445,6 +1455,12 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
             verbose_output_start_batch();     /* unlock I/O */
             verbose_output_print(0, 1, "%s", os.str().c_str());
             verbose_output_end_batch();     /* unlock I/O */
+        }
+        
+        {
+            std::ostringstream os;
+            os << Q.doing;
+            verbose_output_print (0, 1, "# Time for %s: [not reported in relation-cache mode]\n", os.str().c_str());
         }
     }
 

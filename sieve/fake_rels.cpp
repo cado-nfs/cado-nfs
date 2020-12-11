@@ -271,6 +271,8 @@ static void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels
 
     char line[8192];
 
+    int nbegin = 0, nend = 0, maxdepth = 0;
+
     do {
         char * ret = fgets(line, 8192, file);
         if (ret == NULL) {
@@ -279,8 +281,11 @@ static void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels
         }
         if (line[0] == '#') {
             char *ptr;
-            ptr = strstr(line, "# Sieving side-");
-            if (ptr != NULL) {
+            if ((ptr = strstr(line, "# Sieving side-")) != NULL) {
+                nbegin++;
+                if (nbegin - nend > maxdepth) {
+                    maxdepth = nbegin - nend;
+                }
                 // starting a new special-q
                 ASSERT_ALWAYS (sqside == (ptr[15] - '0'));
                 ptr += 19; // skip "# Sieving side-0 q="
@@ -300,6 +305,8 @@ static void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels
                     nr = 0;
                     q = nq;
                 }
+            } else if ((ptr = strstr(line, "# Time for side-")) != NULL) {
+                nend++;
             }
         } else {
             fake_rel rel;
@@ -317,6 +324,25 @@ static void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels
     }
 
     fclose(file);
+
+    bool error=false;
+
+    if (nbegin == 0) {
+        fprintf(stderr, "# The sample file %s was apparently"
+                " created without -v, but -v is mandatory"
+                " for fake_rels\n", filename);
+        error = true;
+    }
+
+    if (maxdepth > 1) {
+        fprintf(stderr, "# The sample file %s was apparently"
+                " created without -sync, but -sync is mandatory"
+                " for fake_rels\n", filename);
+        error = true;
+    }
+
+    if (error)
+        exit(EXIT_FAILURE);
 }
 
 static
