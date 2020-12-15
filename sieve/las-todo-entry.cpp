@@ -1,5 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 #include <ostream>     // for operator<<, ostream, basic_ostream, basic_ostr...
+#include <istream>     // for operator>>, istream, ...
+#include <sstream>     // for istringstream
 #include <gmp.h>
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gmp_aux.h"
@@ -65,5 +67,53 @@ std::ostream& operator<<(std::ostream& os, las_todo_entry const & doing)
     }
     os << "; rho=" << doing.r;
     return os;
+}
+
+template<int N>
+struct expect_s
+{
+    const char * s;
+    expect_s(const char s0[N]) : s(s0) {}
+};
+
+template<int N>
+expect_s<N> expect(char const (&s0)[N]) { return expect_s<N>(s0); }
+
+template<int N>
+std::istream& operator>>(std::istream& is, expect_s<N> const & e)
+{
+    char t[N];
+    is.get(t, N);  // side-
+    if (strcmp(t, e.s) != 0)
+        is.setstate(std::ios::failbit);
+    return is;
+}
+
+std::istream& operator>>(std::istream& is, las_todo_entry & doing)
+{
+    doing = las_todo_entry();
+    is >> std::ws >> expect("side-") >> doing.side;
+    is >> std::ws >> expect("q=");
+    std::string token;
+    std::getline(is, token, ';');
+    for(char & c : token)
+        if (c == '=' || c == '*') c = ' ';
+    std::istringstream iss(token);
+    iss >> doing.p;
+    for( ; iss.peek() != EOF ; ) {
+        uint64_t g;
+        iss >> g;
+        if (iss.fail()) {
+            is.setstate(std::ios::failbit);
+            return is;
+        }
+        doing.prime_factors.push_back(g);
+    }
+    if (doing.prime_factors.empty())
+        doing.find_prime_factors();
+    is >> std::ws >> expect("rho=");
+    std::getline(is, token, ';');
+    std::istringstream(token) >> doing.r;
+    return is;
 }
 

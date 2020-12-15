@@ -632,13 +632,24 @@ bool renumber_t::traditional_is_vp_marker(index_t i) const
  * Note that we return the index relative to the internal table, which is
  * shifted by [[above_bad]] compared to the indices that we return in the
  * public interface.
+ *
+ * FIXME: want to return a good lower bound for non-primes as well.
  */
-index_t renumber_t::get_first_index_from_p(p_r_side x) const
+index_t renumber_t::get_first_index_from_p(p_r_values_t p) const
 {
-    p_r_values_t p = x.p;
     // p_r_values_t side = x.side;
     if (p < index_from_p_cache.size()) {
-        index_t i = index_from_p_cache[p];
+        index_t i;
+        /* Do this loop so that we can safely return something that is
+         * valid even if p is not a prime.
+         */
+        for( ; ; p++) {
+            if (p >= index_from_p_cache.size())
+                return get_first_index_from_p(p);
+            i = index_from_p_cache[p];
+            if (i != std::numeric_limits<index_t>::max())
+                break;
+        }
         if (format == format_flat) {
             if (UNLIKELY(i >= flat_data.size()))
                 throw prime_maps_to_garbage(format, p, i);
@@ -739,7 +750,7 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
         }
         throw cannot_find_pr(x);
     }
-    i = get_first_index_from_p(x);
+    i = get_first_index_from_p(x.p);
     p_r_values_t vr = compute_vr_from_p_r_side(x);
 
     if (format == format_flat) {
@@ -804,6 +815,18 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
             return outer_idx + j;
     }
     throw cannot_find_pr(x, vp, vr);
+}
+
+/* This returns an outer index i0 such that a no prime ideal above a
+ * prime p>=p0 is stored at an index < i0. It doesn't mean that there is
+ * an ideal above p0 that corresponds to the index returned. It is most
+ * practical to create an iterator from this index, and loop until a
+ * desired (p,r,side) is found.
+ */
+index_t renumber_t::index_from_p_lower_bound (p_r_values_t p0) const
+{
+    if (p0 < bad_ideals_max_p) return 0;
+    return above_bad + get_first_index_from_p(p0);
 }
 
 /* This used to be handle_bad_ideals in filter/filter_badideals.cpp ; in

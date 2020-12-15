@@ -202,6 +202,8 @@ public:
     }
     p_r_side p_r_from_index (index_t) const;
 
+    index_t index_from_p_lower_bound (p_r_values_t p0) const;
+
     /* This second interface works for bad ideals as well. */
     std::pair<index_t, std::vector<int>> indices_from_p_a_b(p_r_side x, int e, int64_t a, uint64_t b) const;
     /*}}}*/
@@ -262,7 +264,7 @@ private:/*{{{ more implementation-level stuff. */
      * renumber_format_variant case, this does not mean that i is the
      * index of the first prime above p !
      */
-    index_t get_first_index_from_p(p_r_side x) const;
+    index_t get_first_index_from_p(p_r_values_t p) const;
 
     p_r_values_t compute_vr_from_p_r_side (p_r_side x) const;
     p_r_side compute_p_r_side_from_p_vr (p_r_values_t p, p_r_values_t vr) const;
