@@ -704,11 +704,9 @@ void per_special_q_banner(las_todo_entry const & doing)
     // arrange so that we don't have the same header line as the one
     // which prints the q-lattice basis
     verbose_output_print(0, 2, "#\n");
-    verbose_output_vfprint(0, 1, gmp_vfprintf,
-            "# Now sieving side-%d q=%Zd; rho=%Zd\n",
-            doing.side,
-            (mpz_srcptr) doing.p,
-            (mpz_srcptr) doing.r);
+    std::ostringstream os;
+    os << doing;
+    verbose_output_print(0, 1, "# Now sieving %s\n", os.str().c_str());
 }
 
 /* This is the core of the sieving routine. We do fill-in-buckets,

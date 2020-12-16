@@ -303,8 +303,8 @@ struct indexed_relation
 
 std::ostream& operator<<(std::ostream& os, indexed_relation const & rel)
 {
-    os << fmt::format(FMT_STRING("{:x},{:x}"), rel.a, rel.b);
 #if 0
+    os << fmt::format(FMT_STRING("{:x},{:x}"), (uint64_t) rel.a, rel.b);
     /* this sorts the indices before printing. A priori there's no real
      * point in doing that, but just in case.
      *
@@ -323,6 +323,7 @@ std::ostream& operator<<(std::ostream& os, indexed_relation const & rel)
             c = ',';
         }
 #else
+    os << fmt::format(FMT_STRING("{:x},{:x}"), rel.a, rel.b);
     char c = ':';
     for(auto const & s : rel.sides) {
         for(auto i : s) {
@@ -349,9 +350,6 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
 
     for(std::string line ; std::getline(in, line) ; ) {
         if (line.rfind("# Now sieving side-", 0) != std::string::npos) {
-            nbegin++;
-            if (nbegin - nend > maxdepth) 
-                maxdepth = nbegin - nend;
             std::istringstream is(line.c_str() + 14);
             las_todo_entry Q;
             is >> Q;
@@ -359,7 +357,12 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
                 throw std::runtime_error(fmt::format(FMT_STRING("parse error at line: {}"), line));
             ASSERT_ALWAYS(sqside == Q.side);
             sample[Q];  // auto-vivify
-            current.insert(Q);
+            if (current.insert(Q).second) {
+                /* When we start over, there's a "second" beginning. */
+                nbegin++;
+                if (nbegin - nend > maxdepth) 
+                    maxdepth = nbegin - nend;
+            }
         } else if (line.rfind("# Time for side-", 0) != std::string::npos) {
             nend++;
             for(auto & x : line) if (x == ':') x = ' ';
@@ -532,7 +535,10 @@ std::vector<index_t> indexrange::all_composites(uint64_t q0, uint64_t q1,
      * smaller than this:
      */
     uint64_t l1min = MAX(q0/pow(qfac_max, n-1), qfac_min);
+    /* XXX prime at this position might be below l1min ! */
     uint64_t pos_l1min = pos_from_p(l1min);
+    for( ; p_from_pos(pos_l1min) < l1min ; pos_l1min++);
+    l1min = p_from_pos(pos_l1min);
 
     /* and never bigger than this: */
     uint64_t l1max = MIN(qfac_max, round(pow(q1, 1/(double) n)));
@@ -547,11 +553,18 @@ std::vector<index_t> indexrange::all_composites(uint64_t q0, uint64_t q1,
          * l1 * x <= q1-1
          * x <= (q1-1)/l1 ---> x <= floor((q1-1)/l1)  --> x < ceil(q1/l1)
          */
-        auto tail = all_composites(q0/l1, iceildiv(q1,l1), qfac_min, qfac_max, n-1);
-        for(auto it = tail.begin() ; it != tail.end() ; ) {
+        if (n == 1) {
+            /* no point in recursing to determine a list of zero-length
+             * continuations.
+             */
             *jt++ = pos1;
-            for(int j=n-1 ; j-- ; )
-                *jt++ = *it++;
+        } else {
+            auto tail = all_composites(iceildiv(q0,l1), iceildiv(q1,l1), l1, qfac_max, n-1);
+            for(auto it = tail.begin() ; it != tail.end() ; ) {
+                *jt++ = pos1;
+                for(int j=n-1 ; j-- ; )
+                    *jt++ = *it++;
+            }
         }
     }
 
@@ -571,7 +584,19 @@ std::vector<std::vector<index_t>> indexrange::all_composites(uint64_t q0, uint64
             list.pop_back();
             break;
         }
-        fprintf(stderr, "# Got %zu %d-composite sq\n",
+        if (verbose) {
+            for(auto it = list.back().begin() ; it != list.back().end() ; ) {
+                std::ostringstream os;
+                unsigned long q=1;
+                for(int m=n; m--; *it++) {
+                    unsigned long p = p_from_pos(*it);
+                    os << " " << p;
+                    q *= p;
+                }
+                fprintf(stderr, "# %lu:%s\n", q, os.str().c_str());
+            }
+        }
+        printf("# Got %zu %d-composite sq\n",
                 (size_t)(list.back().size()/n), n);
     }
     return list;

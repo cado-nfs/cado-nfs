@@ -95,7 +95,10 @@ std::istream& operator>>(std::istream& is, las_todo_entry & doing)
     is >> std::ws >> expect("side-") >> doing.side;
     is >> std::ws >> expect("q=");
     std::string token;
-    std::getline(is, token, ';');
+    /* read until space-or-semicolon, because old-style q printing did
+     * not have the semicolon...
+     */
+    for(char c ; is.get(c) && c != ';' && c != ' ' ; token.push_back(c));
     for(char & c : token)
         if (c == '=' || c == '*') c = ' ';
     std::istringstream iss(token);
@@ -111,7 +114,13 @@ std::istream& operator>>(std::istream& is, las_todo_entry & doing)
     }
     if (doing.prime_factors.empty())
         doing.find_prime_factors();
-    is >> std::ws >> expect("rho=");
+    is >> std::ws >> expect("r");
+    if (!is) return is;
+    /* support old-style q printing */
+    int c = is.peek();
+    if (c == 'h')
+        is >> expect("ho");
+    if (!is) return is;
     std::getline(is, token, ';');
     std::istringstream(token) >> doing.r;
     return is;

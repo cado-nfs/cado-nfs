@@ -1981,6 +1981,8 @@ renumber_t::const_iterator::const_iterator(renumber_t const & table, index_t i)
     if (table.format != format_flat) {
         if (i == table.above_bad + table.traditional_data.size()) {
             i0 = i;
+        } else if (i < table.above_bad) {
+            i0 = i;
         } else {
             i0 = table.above_bad + table.traditional_backtrack_until_vp(i - table.above_bad);
             if (table.format == format_variant && table.get_rational_side() < 0 && i == i0)
