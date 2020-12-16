@@ -89,7 +89,7 @@ static inline uint64_t long_random(gmp_randstate_t buf) {
 //  - do many append() (increasing order of indices) and append_prime()
 //  - finalize()
 //  - can call random_index()
-//  - can call iterator_from_index()
+//  - can call iterator_from_index()    (XXX unused code !)
 //  - can call pos_from_p() and p_from_pos() if append_prime() has been done
 
 struct indexrange {
@@ -130,33 +130,7 @@ struct indexrange {
         return std::lower_bound(prime.begin(), prime.end(), p) - prime.begin();
     }
 
-    // Compute one position corresponding to the given p. In the case where
-    // there are several positions, the choice is arbitrary.
-    // If p is not in the table, compute a position with a close-enough
-    // prime.
-    uint64_t old_pos_from_p(p_r_values_t p) const {
-        uint64_t low, high;
-        p_r_values_t pp;
-        low = 0; high = prime.size()-1;
-        pp = prime[low];
-        if (pp == p)
-            return low;
-        pp = prime[high];
-        if (pp == p)
-            return high;
-        do {
-            uint64_t middle = (low+high)>>1;
-            pp = prime[middle];
-            if (p == pp)
-                return middle;
-            if (p < pp)
-                high = middle;
-            else
-                low = middle;
-        } while (high > low+1);
-        return low;
-    }
- 
+    /* XXX unused ! */
     std::vector<index_t>::const_iterator iterator_from_index(index_t z) const {
         std::vector<index_t>::const_iterator it;
         it = std::lower_bound(ind.begin(), ind.end(), z);
@@ -824,9 +798,7 @@ main (int argc, char *argv[])
 
   for(int i = 0 ; i < mt ; i++)
       threads.emplace_back(worker, i, mt, 
-              std::cref(Ind),
-              std::cref(sample),
-              std::cref(qs),
+              Ind, sample, qs,
               shrink_factor, dl, seed);
   for(auto & t : threads)
       t.join();
