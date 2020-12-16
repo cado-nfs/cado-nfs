@@ -210,8 +210,7 @@ void remove_special_q(relation & rel, las_todo_entry const & Q)
     for(auto const & pr : V) {
         if (!Q.is_coprime_to(mpz_get_ui(pr.p)))
             continue;
-        if (&*nn != &pr)
-            *nn++ = pr;
+        *nn++ = pr;
     }
     V.erase(nn, V.end());
 }
@@ -315,7 +314,8 @@ std::ostream& operator<<(std::ostream& os, indexed_relation const & rel)
     return os;
 }
 
-static std::map<las_todo_entry, std::vector<indexed_relation> >
+// static std::map<las_todo_entry, std::vector<indexed_relation> >
+static std::pair<std::vector<size_t>, std::vector<indexed_relation>>
 read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
 {
     ifstream_maybe_compressed in(filename);
@@ -342,6 +342,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
             current.insert(Q);
         } else if (line.rfind("# Time for side-", 0) != std::string::npos) {
             nend++;
+            for(auto & x : line) if (x == ':') x = ' ';
             std::istringstream is(line.c_str() + 11);
             las_todo_entry Q;
             is >> Q;
@@ -406,7 +407,13 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
     printf("# found a max of %d concurrent special-q in %s\n",
             maxdepth, filename);
 
-    return sample;
+    // return sample;
+    std::pair<std::vector<size_t>, std::vector<indexed_relation>> ret;
+    for(auto const & x : sample) {
+        ret.first.push_back(x.second.size());
+        std::copy(x.second.begin(), x.second.end(), std::back_inserter(ret.second));
+    }
+    return ret;
 }
 
 static unsigned long print_fake_rel_manyq(
@@ -414,7 +421,8 @@ static unsigned long print_fake_rel_manyq(
         std::vector<index_t>::const_iterator qbegin,
         std::vector<index_t>::const_iterator qend,
         int nq,
-        std::vector<std::pair<las_todo_entry, std::vector<indexed_relation> > > const & sample,
+        // std::vector<std::pair<las_todo_entry, std::vector<indexed_relation> > > const & sample,
+        std::pair<std::vector<size_t>, std::vector<indexed_relation>> const & sample,
         std::vector<indexrange> const & Ind,
         int dl, int shrink_factor,
         gmp_randstate_t buf)
@@ -430,9 +438,9 @@ static unsigned long print_fake_rel_manyq(
         for(int n = nq ; n-- ; )
             qpart.push_back(*it++);
 
-        auto const & model = sample[R(sample.size())];
-        las_todo_entry const & model_q = model.first;
-        auto const & model_nrels = model.second.size();
+        auto const & model_nrels = sample.first[R(sample.first.size())];
+        // las_todo_entry const & model_q = model.first;
+        // auto const & model_nrels = model.second.size();
 
         int nr;
         if (shrink_factor == 1) {
@@ -445,17 +453,33 @@ static unsigned long print_fake_rel_manyq(
             double rnd = double(long_random(buf)) / double(UINT64_MAX);
             nr = int(trunc_part) + int(rnd < frac_part);
         }
-        if (verbose)
-            std::cout << "# " << *it
-                << ": modeled on " << model_q
+        if (verbose) {
+            std::cout << "# ";
+            char c = '{';
+            for(auto x : qpart) {
+                std::cout << c << x;
+                c = ',';
+            }
+            std::cout << "}"
+                // << ": modeled on " << model_q
                 << ", generating " << nr << " relations\n";
+        }
 
         for( ; nr-- ; ) {
-            auto const & model_rel = model.second[R(model_nrels)];
+            // auto const & model_rel = model.second[R(model_nrels)];
+            auto const & model_rel = sample.second[R(sample.second.size())];
 
             indexed_relation rel = model_rel.perturb(Ind, buf);
 
-            std::copy(qpart.begin(), qpart.end(), std::back_inserter(rel.sides[model_q.side]));
+            /* Note that we always add the indices that correspond to q
+             * to the **END** of the relation, irrespective of which side
+             * q is on ! This is because:
+             *   - it doesn't make any difference * down the line,
+             *   - and keeping track of the proper side for q (or,
+             *   conceivably, for the sides of all divisors of q !) would
+             *   be a bit annoying here.
+             */
+            std::copy(qpart.begin(), qpart.end(), std::back_inserter(rel.sides.back()));
 
             if (shrink_factor > 1)
                 rel.shrink(shrink_factor);
@@ -535,7 +559,8 @@ std::vector<std::vector<index_t>> indexrange::all_composites(uint64_t q0, uint64
 
 void worker(int tnum, int nt,
         std::vector<indexrange> const & Ind,
-        std::vector<std::pair<las_todo_entry, std::vector<indexed_relation>>> const & sample,
+        // std::vector<std::pair<las_todo_entry, std::vector<indexed_relation>>> const & sample,
+        std::pair<std::vector<size_t>, std::vector<indexed_relation>> const & sample,
         std::vector<std::vector<index_t>> const & qs,
         int shrink_factor, int dl, unsigned long seed)
 {
@@ -711,6 +736,9 @@ main (int argc, char *argv[])
   printf ("# Start reading sample file\n");
   fflush (stdout);
 
+  std::pair<std::vector<size_t>, std::vector<indexed_relation>> sample = read_sample_file(sqside, samplefile, ren_table);
+
+  /*
   std::vector<std::pair<las_todo_entry, std::vector<indexed_relation>>>
       sample;
   for(auto& x : read_sample_file(sqside, samplefile, ren_table))
@@ -720,6 +748,7 @@ main (int argc, char *argv[])
           std::cout << "# " << x.first << ": " << x.second.size() << " relations\n";
       }
   }
+  */
 
   printf ("# Done reading sample file\n");
   fflush (stdout);
