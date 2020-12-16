@@ -476,17 +476,6 @@ static unsigned long print_fake_rel_manyq(
             double rnd = double(long_random(buf)) / double(UINT64_MAX);
             nr = int(trunc_part) + int(rnd < frac_part);
         }
-        if (verbose) {
-            std::cout << "# ";
-            char c = '{';
-            for(auto x : qpart) {
-                std::cout << c << x;
-                c = ',';
-            }
-            std::cout << "}"
-                // << ": modeled on " << model_q
-                << ", generating " << nr << " relations\n";
-        }
 
         for( ; nr-- ; ) {
             // auto const & model_rel = model.second[R(model_nrels)];
@@ -583,18 +572,6 @@ std::vector<std::vector<index_t>> indexrange::all_composites(uint64_t q0, uint64
         if (list.back().empty()) {
             list.pop_back();
             break;
-        }
-        if (verbose) {
-            for(auto it = list.back().begin() ; it != list.back().end() ; ) {
-                std::ostringstream os;
-                unsigned long q=1;
-                for(int m=n; m--; *it++) {
-                    unsigned long p = p_from_pos(*it);
-                    os << " " << p;
-                    q *= p;
-                }
-                fprintf(stderr, "# %lu:%s\n", q, os.str().c_str());
-            }
         }
         printf("# Got %zu %d-composite sq\n",
                 (size_t)(list.back().size()/n), n);
@@ -819,17 +796,22 @@ main (int argc, char *argv[])
 
       /* jump-start in the renumber table, and enumerate the large primes
        * from there.
-       *
-       * (we can get rid of the indexrange.prime[] array using the same
-       * mechanism)
        */
-      index_t i = ren_table.index_from_p_lower_bound(q0);
+      index_t i = ren_table.index_from_p(q0, sqside);
       renumber_t::const_iterator it(ren_table, i);
       for( ; it != ren_table.end() && (*it).p < q1 ; ++it, ++i) {
           if ((*it).side == sqside)
               qs[1].push_back(i);
       }
   } else {
+      /* In theory, this is overkill. We don't _really_ need the prime[]
+       * cache in the indexrange type. Except that the renumber
+       * "traditional" format has expensive *_from_index lookups, and
+       * that would get in the way if we want to do away with
+       * indexrange::prime[]. Also, we don't have bidirectional iterators
+       * on the renumber table, so it's not really practical to use only
+       * the renumber table.
+       */
       qs = Ind[sqside].all_composites(q0, q1, qfac_min, qfac_max);
   }
 
