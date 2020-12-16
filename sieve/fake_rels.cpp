@@ -304,6 +304,25 @@ struct indexed_relation
 std::ostream& operator<<(std::ostream& os, indexed_relation const & rel)
 {
     os << fmt::format(FMT_STRING("{:x},{:x}"), rel.a, rel.b);
+#if 0
+    /* this sorts the indices before printing. A priori there's no real
+     * point in doing that, but just in case.
+     *
+     * The old fake_rels binary was doing that, though. And it was also
+     * printing rel.a as unsigned.
+     */
+    std::vector<index_t> S;
+    char c = ':';
+    for(auto const & s : rel.sides) {
+        std::copy(s.begin(), s.end(), std::back_inserter(S));
+    }
+    std::sort(S.begin(), S.end());
+
+        for(auto i : S) {
+            os << c << fmt::format(FMT_STRING("{:x}"), i);
+            c = ',';
+        }
+#else
     char c = ':';
     for(auto const & s : rel.sides) {
         for(auto i : s) {
@@ -311,6 +330,7 @@ std::ostream& operator<<(std::ostream& os, indexed_relation const & rel)
             c = ',';
         }
     }
+#endif
     return os;
 }
 
