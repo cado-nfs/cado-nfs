@@ -202,7 +202,12 @@ public:
     }
     p_r_side p_r_from_index (index_t) const;
 
-    index_t index_from_p_lower_bound (p_r_values_t p0) const;
+    class const_iterator;
+
+    index_t index_from_p(p_r_values_t p0) const;
+    const_iterator iterator_from_p(p_r_values_t p0) const;
+    index_t index_from_p(p_r_values_t p0, int side) const;
+    const_iterator iterator_from_p(p_r_values_t p0, int side) const;
 
     /* This second interface works for bad ideals as well. */
     std::pair<index_t, std::vector<int>> indices_from_p_a_b(p_r_side x, int e, int64_t a, uint64_t b) const;
@@ -305,6 +310,7 @@ public:
 
     class const_iterator
     {
+        friend struct renumber_t;
         private:
             renumber_t const & table;
             /* these are outer indices when below above_bad, and then we have
@@ -313,6 +319,8 @@ public:
              */
             index_t i0;
             index_t i;
+            // void reseat(index_t i0, index_t i);
+            void reseat(index_t i);
         public:
             typedef p_r_side                value_type;
             typedef std::ptrdiff_t          difference_type;

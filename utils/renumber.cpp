@@ -817,18 +817,48 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
     throw cannot_find_pr(x, vp, vr);
 }
 
-/* This returns an outer index i0 such that a no prime ideal above a
- * prime p>=p0 is stored at an index < i0. It doesn't mean that there is
- * an ideal above p0 that corresponds to the index returned. It is most
- * practical to create an iterator from this index, and loop until a
- * desired (p,r,side) is found.
+/* This returns the smallest outer index i0 that stores a prime ideal above a
+ * prime >=p0 ; note that p0 does not have to be prime.
+ * This function may return get_max_index() if no prime >= p0 is in the
+ * table.
  */
-index_t renumber_t::index_from_p_lower_bound (p_r_values_t p0) const
+index_t renumber_t::index_from_p(p_r_values_t p0) const
 {
-    if (p0 < bad_ideals_max_p) return 0;
-    return above_bad + get_first_index_from_p(p0);
+    if (p0 >> get_max_lpb())
+        return get_max_index();
+    index_t i;
+    if (p0 < bad_ideals_max_p)
+        i = 0;
+    else
+        i = above_bad + get_first_index_from_p(p0);
+    for(const_iterator it(*this, i) ; it != end() && (*it).p < p0 ; ++it, ++i);
+    return i;
+}
+index_t renumber_t::index_from_p(p_r_values_t p0, int side) const
+{
+    index_t i = index_from_p(p0);
+    for(const_iterator it(*this, i) ; it != end() && (*it).side != side ; ++it, ++i);
+    return i;
+}
+    
+renumber_t::const_iterator renumber_t::iterator_from_p(p_r_values_t p0) const
+{
+    if (p0 >> get_max_lpb())
+        return end();
+    const_iterator it = begin();
+    if (p0 >= bad_ideals_max_p)
+        it.reseat(above_bad + get_first_index_from_p(p0));
+    for( ; it != end() && (*it).p < p0 ; ++it);
+    return it;
 }
 
+renumber_t::const_iterator renumber_t::iterator_from_p(p_r_values_t p0, int side) const
+{
+    const_iterator it = iterator_from_p(p0);
+    for( ; it != end() && (*it).side != side ; ++it);
+    return it;
+}
+    
 /* This used to be handle_bad_ideals in filter/filter_badideals.cpp ; in
  * fact, this really belongs here.
  */
@@ -1968,6 +1998,20 @@ renumber_t::const_iterator::const_iterator(renumber_t const & table, index_t i)
     : table(table)
       , i(i)
 {
+    reseat(i);
+}
+
+/*
+void renumber_t::const_iterator::reseat(index_t new_i0, index_t new_i)
+{
+    i0 = new_i0;
+    i = new_i;
+}
+*/
+
+void renumber_t::const_iterator::reseat(index_t new_i)
+{
+    i = new_i;
     if (i < table.above_bad) {
         if (table.is_additional_column(i)) {
             i0 = UINT_MAX;
@@ -1994,6 +2038,7 @@ renumber_t::const_iterator::const_iterator(renumber_t const & table, index_t i)
         i0 = UINT_MAX;
     }
 }
+
 renumber_t::p_r_side renumber_t::const_iterator::operator*() const {
     if (i < table.above_add) {
         /* See comment in p_r from index about the special case with 2
@@ -2013,6 +2058,12 @@ renumber_t::p_r_side renumber_t::const_iterator::operator*() const {
                 return I.first;
             ii0 -= I.second.nbad;
         }
+    }
+    if (i == table.get_max_index()) {
+        return p_r_side {
+            std::numeric_limits<p_r_values_t>::max(),
+            std::numeric_limits<p_r_values_t>::max(),
+            0 };
     }
     if (table.format != format_flat) {
         p_r_values_t vp = table.traditional_data[i0-table.above_bad];
