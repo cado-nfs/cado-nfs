@@ -424,12 +424,16 @@ static unsigned long print_fake_rel_manyq(
         int dl, int shrink_factor,
         gmp_randstate_t buf)
 {
+    /* There's a question of whether we print at each special-q, or only
+     * once at the end. The former has the advantage of avoiding user
+     * boredom.
+     */
     unsigned long nrels_thread = 0;
-    std::ostringstream oss;
 
     auto R = [buf](unsigned long n) { return long_random(buf) % n; };
 
     for (auto it = qbegin ; it != qend ; ) {
+        std::ostringstream oss;
         /* This is the part that will go in _all_ relations */
         std::vector<index_t> qpart;
         for(int n = nq ; n-- ; )
@@ -476,9 +480,9 @@ static unsigned long print_fake_rel_manyq(
             nrels_thread++;
             // rels_printed++;
         }
+        std::lock_guard<std::mutex> dummy(io_mutex);
+        os << oss.str();
     }
-    std::lock_guard<std::mutex> dummy(io_mutex);
-    os << oss.str();
     return nrels_thread;
 }
 
