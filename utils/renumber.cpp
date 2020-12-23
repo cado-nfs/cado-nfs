@@ -165,6 +165,8 @@ constexpr const int renumber_t::format_flat; /*{{{*/
 renumber_t::corrupted_table::corrupted_table(std::string const & x)
     : std::runtime_error(std::string("Renumber table is corrupt: ") + x)
 {}
+
+#if 0
 static renumber_t::corrupted_table cannot_find_p(p_r_values_t p) {/*{{{*/
     std::ostringstream os;
     os << std::hex;
@@ -178,6 +180,8 @@ static renumber_t::corrupted_table cannot_find_p(p_r_values_t p) {/*{{{*/
 #endif
     return renumber_t::corrupted_table(os.str());
 }/*}}}*/
+#endif
+
 static renumber_t::corrupted_table cannot_find_i(index_t i) {/*{{{*/
     std::ostringstream os;
     os << std::hex;
@@ -633,7 +637,8 @@ bool renumber_t::traditional_is_vp_marker(index_t i) const
  * shifted by [[above_bad]] compared to the indices that we return in the
  * public interface.
  *
- * FIXME: want to return a good lower bound for non-primes as well.
+ * if p is a non-prime, we return a lower bound for the first entry that
+ * is >= p.
  */
 index_t renumber_t::get_first_index_from_p(p_r_values_t p) const
 {
@@ -682,9 +687,20 @@ index_t renumber_t::get_first_index_from_p(p_r_values_t p) const
         auto it = std::lower_bound(flat_data.begin(), flat_data.end(), p0);
         if (it == flat_data.end())
             throw prime_is_too_large(p);
+        if ((*it)[0] != p) {
+            /* we can reach here if p is not prime and we simply want a
+             * good lower bound on the entries that are >= p. For this,
+             * std::lower_bound really is the thing that we want.
+             *
+             * Here, (*it)[0] is a prime larger than p. But by the
+             * definition of lower_bound, (*--it)[0] is a prime that
+             * is less than p, and we definitely don't want to return
+             * that. So the good answer is really the thing that is
+             * pointed to by the iterator it.
+             */
+            //throw prime_maps_to_garbage(format, p, i, (*it)[0]);
+        }
         index_t i = it - flat_data.begin();
-        if ((*it)[0] != p)
-            throw prime_maps_to_garbage(format, p, i, (*it)[0]);
         return i;
     } else {
         /* A priori, traditional_data has exactly above_all-above_bad
@@ -723,7 +739,9 @@ index_t renumber_t::get_first_index_from_p(p_r_values_t p) const
                 max = i;
             }
         }
-        throw cannot_find_p(p);
+        // see remark above for the flat case.
+        return traditional_backtrack_until_vp(min, 0, max);
+        // throw cannot_find_p(p);
     }
 }
 
