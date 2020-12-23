@@ -401,15 +401,20 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
         exit(EXIT_FAILURE);
     }
 
-    printf("# found a max of %d concurrent special-q in %s\n",
-            maxdepth, filename);
+    size_t nq = 0;
+    size_t nr = 0;
 
     // return sample;
     std::pair<std::vector<size_t>, std::vector<indexed_relation>> ret;
     for(auto const & x : sample) {
+        nq++;
+        nr+=x.second.size();
         ret.first.push_back(x.second.size());
         std::copy(x.second.begin(), x.second.end(), std::back_inserter(ret.second));
     }
+
+    printf("# %s: %zu special-q's, %zu relations, max %d concurrent special-q's\b",
+            filename, nq, nr, maxdepth);
     return ret;
 }
 
