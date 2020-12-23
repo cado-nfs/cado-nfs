@@ -120,9 +120,14 @@ std::istream& operator>>(std::istream& is, las_todo_entry & doing)
     int c = is.peek();
     if (c == 'h')
         is >> expect("ho");
+    is >> expect("=");
     if (!is) return is;
     std::getline(is, token, ';');
-    std::istringstream(token) >> doing.r;
+    iss.clear();
+    iss.str(token);
+    if (!(iss >> doing.r)) {
+        is.setstate(std::ios::failbit);
+    }
     return is;
 }
 
