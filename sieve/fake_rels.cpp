@@ -605,6 +605,7 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "allow-compsq", "(switch) allows composite sq");
     param_list_decl_usage(pl, "qfac-min", "factors of q must be at least that");
     param_list_decl_usage(pl, "qfac-max", "factors of q must be at most that");
+    param_list_decl_usage(pl, "seed", "random seed");
     param_list_decl_usage(pl, "t", "number of threads to use");
     param_list_decl_usage(pl, "v", "verbose mode");
     verbose_decl_usage(pl);
@@ -696,6 +697,9 @@ main (int argc, char *argv[])
   param_list_parse_int(pl, "t", &mt);
   param_list_parse_uint64(pl, "qfac-min", &qfac_min);
   param_list_parse_uint64(pl, "qfac-max", &qfac_max);
+
+  unsigned long seed = 171717;
+  param_list_parse_ulong(pl, "seed", &seed);
 
   if (!cado_poly_read(cpoly, filename))
     {
@@ -800,7 +804,6 @@ main (int argc, char *argv[])
 
 
   std::vector<std::thread> threads;
-  unsigned long seed = 171717;
 
   double t0 = seconds ();
   double wct_t0 = wct_seconds ();
