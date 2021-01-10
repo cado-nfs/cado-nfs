@@ -107,7 +107,7 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 #else
   /* This conditional branch is rarely taken unless p is close to 2^32.
      In sieving tests, the branch was a little faster than the asm CMOV.
-     With special-q close to 2^32, this may change. */
+     With factor base primes close to 2^32, this may change. */
   xtp += tp;
   if (xtp < tp) t = p;
 #endif
