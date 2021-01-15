@@ -47,6 +47,7 @@ set -e
 : ${parallel=false}
 : ${las_threads=$threads}
 : ${las_parallel=$parallel}
+: ${fakerels_threads=$threads}
 : ${fakerels_parallel=$parallel}
 
 ## The following can also be overriden with env variables
@@ -271,6 +272,7 @@ for i in `seq 0 $((nsides-1))`; do
               -q0 $q0 -q1 $q1 -sqside $side $compsq_fake
               -sample $wdir/sample.side${side}.${q0}-${q1}
               -shrink-factor $shrink_factor
+              -t $fakerels_threads
               -renumber $renumberfile)
             echo "${cmd[@]}"
             file=$wdir/fakerels.side${side}.${q0}-${q1}
