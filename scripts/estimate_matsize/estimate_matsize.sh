@@ -235,6 +235,7 @@ for i in `seq 0 $((nsides-1))`; do
     qrange=$(((qmax-qmin)/NCHUNKS))
 
     ## sample with real sieving and build fake rels
+    processes=()
     for i in `seq 1 $NCHUNKS`; do
         (
             q0=$((qmin + (i-1)*qrange))
@@ -255,7 +256,16 @@ for i in `seq 0 $((nsides-1))`; do
                 "${cmd[@]}" > $file
             fi
         ) &
-        if [ $las_parallel = false ] ; then wait ; fi
+        if [ $las_parallel = true ] ; then continue ; fi
+        processes+=($!)
+        bound=$las_parallel
+        if [ $las_parallel = false ] ; then bound=1 ; fi
+        if [ $i -ge $bound ] ; then
+            wait "${processes[0]}"
+            set -- "${processes[@]}"
+            shift
+            processes=("$@")
+        fi
     done
     wait
 done
