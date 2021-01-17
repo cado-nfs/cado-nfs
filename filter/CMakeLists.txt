@@ -45,6 +45,9 @@ target_link_libraries(sm_simple utils)
 add_executable(singleton_simple singleton_simple.cpp)
 target_link_libraries(singleton_simple utils_with_io)
 
+add_executable(shrink_rels shrink_rels.cpp)
+target_link_libraries(shrink_rels utils)
+
 if (${WITH_MPI})
     add_definitions(-DWITH_MPI)
 endif()

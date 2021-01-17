@@ -1601,3 +1601,6 @@ utils/json.hpp
 tests/estimate_matsize/test_with_relation_cache.sh
 scripts/estimate_matsize/build_relation_cache.pl
 scripts/estimate_matsize/estimate_matsize.sh
+utils/indexed_relation.hpp
+filter/shrink_rels.cpp
+utils/indexed_relation.cpp

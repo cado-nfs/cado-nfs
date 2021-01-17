@@ -34,6 +34,8 @@
 #include "verbose.h"    // verbose_decl_usage
 #include "macros.h"
 #include "params.h"
+#include "misc.h"
+#include "indexed_relation.hpp"
 
 static int verbose = 0; /* verbosity level */
 
@@ -69,17 +71,6 @@ static std::mutex io_mutex;
 
 // A global variable for the number of relations printed
 static unsigned long rels_printed = 0;
-
-// We need a re-entrant random. Let's take GMP.
-static inline uint64_t long_random(gmp_randstate_t buf) {
-#if ULONG_BITS == 64
-    return gmp_urandomb_ui(buf, 64);
-#elif ULONG_BITS == 32
-    cxx_mpz z;
-    mpz_urandomb(z, buf, 64);
-    return mpz_get_uint64(z);
-#endif
-}
 
 // Structure that contains indices (in the sense of renumber.[ch]) for
 // one side, with the possibility to get a randomized ideal on the same
@@ -119,7 +110,7 @@ struct indexrange {
         uint64_t high = MIN(position + range, ind.size());
         if (high == low)
             high++;
-        return ind[low + uint64_t(long_random(buf)%(high-low))];
+        return ind[low + uint64_t(u64_random(buf)%(high-low))];
     }
 
     p_r_values_t p_from_pos(uint64_t position) const {
@@ -189,128 +180,29 @@ void remove_special_q(relation & rel, las_todo_entry const & Q)
     V.erase(nn, V.end());
 }
 
-/* In principle, this code should exist in other places, e.g. in dup2 ;
- * the subtle point here is that we'd like to keep the info of what index
- * corresponds to which side.
- */
-struct indexed_relation
-    : public relation_ab
-{
-    std::vector<std::vector<index_t>> sides;
+#include "misc.h"
 
-    indexed_relation(relation_ab const & ab) : relation_ab(ab) {}
-    indexed_relation(relation const & rel, renumber_t const & R)
-        : relation_ab(rel)
-    {
-        for(int side = 0 ; side < rel.nb_polys ; side++) {
-            sides.emplace_back();
-            for(auto const & pr : rel.sides[side]) {
-                p_r_values_t p = mpz_get_ui(pr.p);
-                p_r_values_t r = mpz_get_ui(pr.r);
-                if (side == rel.rational_side)
-                    r = relation_compute_r(a, b, p);
-                renumber_t::p_r_side ipr { p, r, side };
 
-                if (R.is_bad(ipr)) {
-                    auto ie = R.indices_from_p_a_b(ipr, pr.e, a, b);
-                    for(size_t i = 0 ; i < ie.second.size() ; i++)
-                        for(int k = ie.second[i] ; k-- ; )
-                            sides.back().push_back(ie.first + i);
-                } else {
-                    index_t i = R.index_from_p_r(ipr);
-                    for(int k = pr.e ; k-- ; )
-                        sides.back().push_back(i);
-                }
-            }
-        }
-    }
-    void sort() {
-        for(auto & s : sides)
-            std::sort(s.begin(), s.end());
-    }
-    void compress(bool dl) {
-        /* sort() must be called first ! */
-        for(auto & s : sides) {
-            if (dl) continue;
-            auto jt = s.begin();
-            for(auto it = s.begin() ; it != s.end() ; ) {
-                int n = 0;
-                auto itx = it;
-                for(; itx != s.end() && *it == *itx ; ++itx, n++);
-                if (n & 1)
-                    *jt++ = *it;
-                it = itx;
-            }
-            s.erase(jt, s.end());
-        }
-    }
-    void shrink(int shrink_factor) {
-        // Indices below this threshold are not shrunk
-        // FIXME: I am not sure we should keep the heavy weight columns
-        // un-shrunk. The answer might be different in DL and in facto...
-        const index_t noshrink_threshold = 0;
-        for(auto & s : sides) {
-            for(auto & i : s) {
-                //        if (i >= noshrink_threshold)
-                if (1) {
-                    i = noshrink_threshold +
-                        (i - noshrink_threshold) / shrink_factor;
-                }
-            }
-        }
-    }
-    indexed_relation perturb(std::vector<indexrange> const & Ind, gmp_randstate_t buf) const
+struct model_relation : public indexed_relation_byside {
+    template<typename... Args> model_relation(Args&&... args) : indexed_relation_byside(std::forward<Args>(args)...) {}
+    model_relation perturb(std::vector<indexrange> const & Ind, gmp_randstate_t buf) const
     {
-        auto R = [buf]() { return long_random(buf); };
+        auto R = [buf]() { return u64_random(buf); };
         relation_ab ab(R(), R());
-        indexed_relation rel(ab);
+        model_relation rel(ab);
 
-        rel.sides.assign(sides.size(), decltype(sides)::value_type());
+        rel.set_nsides(get_nsides());
         for(size_t side = 0 ; side < sides.size() ; side++) {
             for(auto i : sides[side]) {
-                rel.sides[side].push_back(Ind[side].random_index(i, buf));
+                rel[side].push_back(Ind[side].random_index(i, buf));
             }
         }
         return rel;
     }
 };
 
-std::ostream& operator<<(std::ostream& os, indexed_relation const & rel)
-{
-#if 0
-    os << fmt::format(FMT_STRING("{:x},{:x}"), (uint64_t) rel.a, rel.b);
-    /* this sorts the indices before printing. A priori there's no real
-     * point in doing that, but just in case.
-     *
-     * The old fake_rels binary was doing that, though. And it was also
-     * printing rel.a as unsigned.
-     */
-    std::vector<index_t> S;
-    char c = ':';
-    for(auto const & s : rel.sides) {
-        std::copy(s.begin(), s.end(), std::back_inserter(S));
-    }
-    std::sort(S.begin(), S.end());
-
-        for(auto i : S) {
-            os << c << fmt::format(FMT_STRING("{:x}"), i);
-            c = ',';
-        }
-#else
-    os << fmt::format(FMT_STRING("{:x},{:x}"), rel.a, rel.b);
-    char c = ':';
-    for(auto const & s : rel.sides) {
-        for(auto i : s) {
-            os << c << fmt::format(FMT_STRING("{:x}"), i);
-            c = ',';
-        }
-    }
-#endif
-    return os;
-}
-
-// static std::map<las_todo_entry, std::vector<indexed_relation> >
-static std::pair<std::vector<size_t>, std::vector<indexed_relation>>
+// static std::map<las_todo_entry, std::vector<model_relation> >
+static std::pair<std::vector<size_t>, std::vector<model_relation>>
 read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
 {
     ifstream_maybe_compressed in(filename);
@@ -318,7 +210,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
     ASSERT_ALWAYS (in);
 
     std::set<las_todo_entry> current;
-    std::map<las_todo_entry, std::vector<indexed_relation> > sample;
+    std::map<las_todo_entry, std::vector<model_relation> > sample;
 
     int nbegin = 0, nend = 0, maxdepth = 0;
 
@@ -405,7 +297,7 @@ read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
     size_t nr = 0;
 
     // return sample;
-    std::pair<std::vector<size_t>, std::vector<indexed_relation>> ret;
+    std::pair<std::vector<size_t>, std::vector<model_relation>> ret;
     for(auto const & x : sample) {
         nq++;
         nr+=x.second.size();
@@ -423,8 +315,8 @@ static unsigned long print_fake_rel_manyq(
         std::vector<index_t>::const_iterator qbegin,
         std::vector<index_t>::const_iterator qend,
         int nq,
-        // std::vector<std::pair<las_todo_entry, std::vector<indexed_relation> > > const & sample,
-        std::pair<std::vector<size_t>, std::vector<indexed_relation>> const & sample,
+        // std::vector<std::pair<las_todo_entry, std::vector<model_relation> > > const & sample,
+        std::pair<std::vector<size_t>, std::vector<model_relation>> const & sample,
         std::vector<indexrange> const & Ind,
         int dl, int shrink_factor,
         gmp_randstate_t buf)
@@ -435,7 +327,7 @@ static unsigned long print_fake_rel_manyq(
      */
     unsigned long nrels_thread = 0;
 
-    auto R = [buf](unsigned long n) { return long_random(buf) % n; };
+    auto R = [buf](unsigned long n) { return u64_random(buf) % n; };
 
     for (auto it = qbegin ; it != qend ; ) {
         std::ostringstream oss;
@@ -456,7 +348,7 @@ static unsigned long print_fake_rel_manyq(
             // Do probabilistic rounding, in case nr_dble is small (maybe < 1)
             double trunc_part = trunc(nr_dble);
             double frac_part = nr_dble - trunc_part;
-            double rnd = double(long_random(buf)) / double(UINT64_MAX);
+            double rnd = double(u64_random(buf)) / double(UINT64_MAX);
             nr = int(trunc_part) + int(rnd < frac_part);
         }
 
@@ -464,7 +356,7 @@ static unsigned long print_fake_rel_manyq(
             // auto const & model_rel = model.second[R(model_nrels)];
             auto const & model_rel = sample.second[R(sample.second.size())];
 
-            indexed_relation rel = model_rel.perturb(Ind, buf);
+            model_relation rel = model_rel.perturb(Ind, buf);
 
             /* Note that we always add the indices that correspond to q
              * to the **END** of the relation, irrespective of which side
@@ -564,8 +456,8 @@ std::vector<std::vector<index_t>> indexrange::all_composites(uint64_t q0, uint64
 
 void worker(int tnum, int nt,
         std::vector<indexrange> const & Ind,
-        // std::vector<std::pair<las_todo_entry, std::vector<indexed_relation>>> const & sample,
-        std::pair<std::vector<size_t>, std::vector<indexed_relation>> const & sample,
+        // std::vector<std::pair<las_todo_entry, std::vector<model_relation>>> const & sample,
+        std::pair<std::vector<size_t>, std::vector<model_relation>> const & sample,
         std::vector<std::vector<index_t>> const & qs,
         int shrink_factor, int dl, unsigned long seed)
 {
@@ -745,10 +637,10 @@ main (int argc, char *argv[])
   printf ("# Start reading sample file\n");
   fflush (stdout);
 
-  std::pair<std::vector<size_t>, std::vector<indexed_relation>> sample = read_sample_file(sqside, samplefile, ren_table);
+  std::pair<std::vector<size_t>, std::vector<model_relation>> sample = read_sample_file(sqside, samplefile, ren_table);
 
   /*
-  std::vector<std::pair<las_todo_entry, std::vector<indexed_relation>>>
+  std::vector<std::pair<las_todo_entry, std::vector<model_relation>>>
       sample;
   for(auto& x : read_sample_file(sqside, samplefile, ren_table))
       sample.emplace_back(std::move(x));
