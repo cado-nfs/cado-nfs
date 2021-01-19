@@ -49,7 +49,7 @@
 struct shrink_action {
     double row_fraction = 0;
     int shrink_factor = 0;
-    bool dl = false;
+    int dl = 0;
     gmp_randstate_t rstate;
 
     shrink_action() {
@@ -90,6 +90,7 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "shrink-factor", "divide all column indices by n");
     param_list_decl_usage(pl, "row-fraction", "ratio of rows to keep");
     param_list_decl_usage(pl, "seed", "random seed");
+    param_list_decl_usage(pl, "dl", "DL mode (do not reduce valuations mod 2)");
 }
 
 int
@@ -101,6 +102,11 @@ main (int argc, char *argv[])
     declare_usage(pl);
 
     argv++, argc--;
+
+    shrink_action A;
+
+    param_list_configure_switch(pl, "-dl", &A.dl);
+
     for( ; argc ; ) {
         if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
 
@@ -119,8 +125,6 @@ main (int argc, char *argv[])
     }
     // param_list_print_command_line(stdout, pl);
     //
-
-    shrink_action A;
 
     param_list_parse_int(pl, "shrink-factor", &A.shrink_factor);
     if (A.shrink_factor < 1) {
