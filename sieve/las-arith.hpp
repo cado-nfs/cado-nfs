@@ -19,7 +19,7 @@
  */
 
 /* If defined to any value, use asm() CMOV in redc_u?32() */
-// #define LAS_ARITH_REDC_USE_ASM 1
+#define LAS_ARITH_REDC_USE_ASM 1
 
 /* If defined to any value, use the old REDC code (e.g., for speed 
    comparisons) */
