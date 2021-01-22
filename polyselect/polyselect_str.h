@@ -148,6 +148,7 @@ extern const unsigned int SPECIAL_Q[];
 extern "C" {
 #endif
 
+size_t expected_memory_usage_for_primes(unsigned long P);
 unsigned long initPrimes (unsigned long, uint32_t**);
 void printPrimes (uint32_t*, unsigned long);
 void clearPrimes (uint32_t**);

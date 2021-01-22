@@ -5,7 +5,7 @@ set (sources
         modredc_ul.c modredc_15ul.c modredc_2ul2.c modul_poly.c gmp_aux.c
         mod64.cpp modredc64.cpp modredc126.cpp mod_mpz_new.cpp
         double_poly.cpp rootfinder.cpp params.c gcd.c
-        gzip.cpp misc.c
+        gzip.cpp misc.c misc2.cpp
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
         barrier.c usp.c fix-endianness.c memusage.c
         cachesize_cpuid.c cachesize_guess.c roots_mod.c mod_mpz.c

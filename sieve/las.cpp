@@ -1,5 +1,3 @@
-#define __STDCPP_MATH_SPEC_FUNCS__ 201003L
-#define __STDCPP_WANT_MATH_SPEC_FUNCS__ 1       /* for expint() */
 /* the macro above is for #include <cmath> -- however it must happen
  * first, because it may well be that one of the intermediary headers
  * pull stuff that is dependent on this flag.
@@ -165,21 +163,6 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
     verbose_decl_usage(pl);
 }/*}}}*/
-
-static double nprimes_interval(double p0, double p1)
-{
-#ifdef HAVE_STDCPP_MATH_SPEC_FUNCS
-    return std::expint(log(p1)) - std::expint(log(p0));
-#else
-    /* that can't be sooo wrong... */
-    double l0 = log(p0);
-    double l1 = log(p1);
-    double s1 = p1*(1/l1+1/pow(l1,2)+2/pow(l1,3)+6/pow(l1,4));
-    double s0 = p0*(1/l0+1/pow(l0,2)+2/pow(l0,3)+6/pow(l0,4));
-    return s1 - s0;
-#endif
-}
-
 
 /* Our fetching of the siever_config fields is definitely wrong here. We
  * should only use logA, logI, and the siever thresholds.
