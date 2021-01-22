@@ -50,6 +50,8 @@ set -e
 : ${las_parallel=$parallel}
 : ${fakerels_threads=$threads}
 : ${fakerels_parallel=$parallel}
+: ${sampling_method=todo}       # choose either todo or random-sampling
+: ${seed=0}
 
 if ! [ -d ${CADO_BUILD?missing} ] ; then echo "$CADO_BUILD missing" >&2 ; exit 1 ; fi
 if ! [ -d ${CADO_SOURCE?missing} ] ; then echo "$CADO_SOURCE missing" >&2 ; exit 1 ; fi
@@ -245,7 +247,8 @@ for i in `seq 0 $((nsides-1))`; do
         (
             q0=$((qmin + (i-1)*qrange))
             q1=$((qmin + i*qrange))
-            echo "Sampling in qrange=[$q0,$q1]"
+            echo "Sampling in qrange=[$q0,$q1] ; sampling method: $sampling_method"
+            samplebase=$wdir/sample.side${side}.${q0}-${q1}
 
             cmd0=($CADO_BUILD/sieve/las -A $A -poly $polyfile -q0 $q0 -q1 $q1 
               -lim0 $lim0 -lim1 $lim1 -lpb0 $lpb0 -lpb1 $lpb1 -sqside $side 
@@ -254,19 +257,34 @@ for i in `seq 0 $((nsides-1))`; do
               -t $las_threads -sync -v -dup -dup-qmin $dupqmin
                           $extra_las_params)
 
-            generate=("${cmd0[@]}" -print-todo-list)
-            completelist=$wdir/sample.side${side}.${q0}-${q1}.completelist
-            todolist=$wdir/sample.side${side}.${q0}-${q1}.todolist
-            if ! has_file_already "$completelist" "${generate[@]}" ; then
-                "${generate[@]}" | grep '^[0-9]' > "$completelist"
-            fi
-            sort -R $completelist | head -n $NBSAMPLE > $todolist
-            cmd=("{cmd0[@]}" -todo $todolist )
+            case "$sampling_method" in
+                random-sample)
+                    cmd=("${cmd0[@]}" -random-sample $NBSAMPLE -seed $seed)
+                    ;;
+                todo)
+                    generate=("${cmd0[@]}" -print-todo-list)
+                    completelist=$samplebase.completelist
+                    todolist=$samplebase.todolist
+                    if ! has_file_already "$completelist" "${generate[@]}" ; then
+                        echo "Preparing complete list of special-q in $completelist"
+                        echo "${generate[@]}"
+                        "${generate[@]}" | grep '^[0-9]' > "$completelist"
+                    fi
+                    random_gen=($CADO_SOURCE/tests/linalg/bwc/perlrandom.pl 0 $seed)
+                    fshuf() { shuf --random-source=<("${random_gen[@]}") "$@" ; }
+                    fshuf $completelist | head -n $NBSAMPLE > $todolist
+                    cmd=("${cmd0[@]}" -todo $todolist )
+                    ;;
+                *)
+                    echo "unsupported sampling method" >&2
+                    exit 1
+                    ;;
+            esac
             if [ "${relation_cache}" ] ; then
                 cmd+=(-relation-cache "$relation_cache")
             fi
             echo "${cmd[@]}"
-            file=$wdir/sample.side${side}.${q0}-${q1}
+            file=$samplebase
             if ! has_file_already $file "${cmd[@]}" ; then
                 "${cmd[@]}" > $file
             fi
@@ -292,10 +310,11 @@ for i in `seq 0 $((nsides-1))`; do
         (
             q0=$((qmin + (i-1)*qrange))
             q1=$((qmin + i*qrange))
+            samplebase=$wdir/sample.side${side}.${q0}-${q1}
             echo "  Building fake relations in qrange=[$q0,$q1]"
             cmd=($CADO_BUILD/sieve/fake_rels -poly $polyfile -lpb0 $lpb0 -lpb1 $lpb1
               -q0 $q0 -q1 $q1 -sqside $side $compsq_fake
-              -sample $wdir/sample.side${side}.${q0}-${q1}
+              -sample $samplebase
               -shrink-factor $shrink_factor
               -t $fakerels_threads
               -renumber $renumberfile)
