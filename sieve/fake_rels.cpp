@@ -329,6 +329,8 @@ static unsigned long print_fake_rel_manyq(
 
     auto R = [buf](unsigned long n) { return u64_random(buf) % n; };
 
+    ASSERT_ALWAYS((qend - qbegin) % nq == 0);
+
     for (auto it = qbegin ; it != qend ; ) {
         std::ostringstream oss;
         /* This is the part that will go in _all_ relations */
@@ -466,8 +468,9 @@ void worker(int tnum, int nt,
     gmp_randseed_ui(buf, seed + tnum);
     unsigned long ret = 0;
     for(size_t n = 1 ; n < qs.size() ; n++) {
-        auto it0 = qs[n].begin() + (tnum * qs[n].size()) / nt;
-        auto it1 = qs[n].begin() + ((tnum + 1) * qs[n].size()) / nt;
+        ASSERT_ALWAYS(qs[n].size() % n == 0);
+        auto it0 = qs[n].begin() + n * ((tnum * qs[n].size() / n) / nt);
+        auto it1 = qs[n].begin() + n * (((tnum + 1) * qs[n].size() / n) / nt);
         ret += print_fake_rel_manyq(
                 std::cout,
                 it0, it1,
