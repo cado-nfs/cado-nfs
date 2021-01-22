@@ -241,12 +241,22 @@ for i in `seq 0 $((nsides-1))`; do
             q0=$((qmin + (i-1)*qrange))
             q1=$((qmin + i*qrange))
             echo "Sampling in qrange=[$q0,$q1]"
-            cmd=($CADO_BUILD/sieve/las -A $A -poly $polyfile -q0 $q0 -q1 $q1 
+
+            cmd0=($CADO_BUILD/sieve/las -A $A -poly $polyfile -q0 $q0 -q1 $q1 
               -lim0 $lim0 -lim1 $lim1 -lpb0 $lpb0 -lpb1 $lpb1 -sqside $side 
               -mfb0 $mfb0 -mfb1 $mfb1 $compsq_las 
-              -fb0 $rootfile0 -fb1 $rootfile1 -random-sample $NBSAMPLE 
+              -fb0 $rootfile0 -fb1 $rootfile1
               -t $las_threads -sync -v -dup -dup-qmin $dupqmin
                           $extra_las_params)
+
+            generate=("${cmd0[@]}" -print-todo-list)
+            completelist=$wdir/sample.side${side}.${q0}-${q1}.completelist
+            todolist=$wdir/sample.side${side}.${q0}-${q1}.todolist
+            if ! has_file_already "$completelist" "${generate[@]}" ; then
+                "${generate[@]}" | grep '^[0-9]' > "$completelist"
+            fi
+            sort -R $completelist | head -n $NBSAMPLE > $todolist
+            cmd=("{cmd0[@]}" -todo $todolist )
             if [ "${relation_cache}" ] ; then
                 cmd+=(-relation-cache "$relation_cache")
             fi
