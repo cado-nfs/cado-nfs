@@ -4,7 +4,7 @@ script in relation to various distributions' Python installations.
 
 1. Python 3
 
-Python 3, version 3.2 or greater, is required for cado-nfs.py. If you
+Python 3, version 3.3 or greater, is required for cado-nfs.py. If you
 do not wish to use cado-nfs.py, maybe because you plan to run all
 commands by hand, you can disable the Python check in CMake by setting
 NO_PYTHON_CHECK to any non-empty string in local.sh. See local.sh.example
@@ -60,15 +60,7 @@ The necessary bits to build these optional modules were not found:
 _sqlite3
 
 
-3. Python 2 or 3 for the workunit client
-
-The client script cado-nfs-client.py can run under both Python 2, version 2.6 or
-newer, and Python 3, version 3.2 or newer. This backward compatibility is
-supported to simplify deployment on many different machines over which the
-user may not have administrative control.
-
-
-4. SSL
+3. SSL
 
 The workunit server and clients use SSL for communication to prevent an
 attacker on the same network from injecting text into workunits which could
@@ -76,7 +68,7 @@ be used to execute arbitrary commands on the client machines. Generating a
 server certificate requires that OpenSSL is installed on the computer
 running the server.
 
-5. MySQL
+4. MySQL
 
 If you wish to use MySQL you first need to install the Python MySQL connector library available at
 https://dev.mysql.com/get/Downloads/Connector-Python/mysql-connector-python-py3_2.1.3-1ubuntu14.04_all.deb

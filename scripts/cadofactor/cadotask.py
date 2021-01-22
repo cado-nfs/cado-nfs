@@ -2,7 +2,10 @@
 import sys
 import re
 import os
-from fractions import gcd
+if sys.version_info[1] < 5:
+    from fraction import gcd
+else:
+    from math import gcd
 import abc
 import random
 import time
