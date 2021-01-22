@@ -4,6 +4,7 @@
 # that one would obtain with a given set of parameters.
 # It takes as input a polynomial file, and sieving / filtering parameters
 # given as env variables.
+# The CADO_SOURCE variable must point to the cado-nfs source directory
 # The CADO_BUILD variable must point to the directory where cado-nfs was
 # compiled.
 #
@@ -49,6 +50,10 @@ set -e
 : ${las_parallel=$parallel}
 : ${fakerels_threads=$threads}
 : ${fakerels_parallel=$parallel}
+
+if ! [ -d ${CADO_BUILD?missing} ] ; then echo "$CADO_BUILD missing" >&2 ; exit 1 ; fi
+if ! [ -d ${CADO_SOURCE?missing} ] ; then echo "$CADO_SOURCE missing" >&2 ; exit 1 ; fi
+
 
 ## The following can also be overriden with env variables
 # the [qmin,qmax] range is split into $NCHUNKS sub-ranges
