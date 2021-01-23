@@ -444,7 +444,9 @@ numberOfRealRoots (mpz_t *p, const int orig_n, double T, int verbose, usp_root_d
       printInt (a, 0, a, 0, &nroots, Roots, verbose);
       while (mpz_cmp_ui (p[0], 0) == 0)
         {
-          divide (a, 0, n, p);
+          // divide p by X, but we do not want to touch p !!
+          // divide (a, 0, n, p);
+          p++;
           n--;
         }
     }
