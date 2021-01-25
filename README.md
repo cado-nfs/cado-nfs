@@ -413,6 +413,11 @@ however we give here some hints that might help people wanting to use CADO-NFS
 under Windows. We hope that the following information can be useful to
 some extent, but the general message is that you're on your own.
 
+* Cado-NFS uses the POSIX interface all over the place, which means that
+  in one form of the other, you need to have the corresponding
+  functionality. If you don't, you're out of luck. (e.g., cado-nfs cannot
+  build as a "pure" visual studio project.)
+
 * if you only need the siever to run on Windows, then you only need to compile
   the `las` program on Windows.
 
@@ -432,6 +437,7 @@ some extent, but the general message is that you're on your own.
 
 * you might try to use MPIR (<http://mpir.org/>) instead of GMP. MPIR
   is a fork of GMP, which claims to be more portable under Windows.
+  Alternatively, Windows ports of GMP shouldn't be too hard to find.
 
 * you might succeed in compiling the cado-nfs binaries with a
   cross-compiler for Windows (which does not waive the runtime
