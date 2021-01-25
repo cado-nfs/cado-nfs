@@ -123,7 +123,9 @@ template<typename T> double PLE<T>::t_total = 0;
 #if defined(HAVE_AVX2) || defined(HAVE_SSE41)
 template<> void PLE<uint64_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j);
 #endif
+#ifdef HAVE_MMX
 template<> void PLE<uint8_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j);
+#endif
 #if defined(HAVE_AVX2) || defined(HAVE_SSE41)
 template<> void PLE<uint64_t>::move_L_fragments(unsigned int yii0, std::vector<unsigned int> const & Q);
 #endif
