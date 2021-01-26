@@ -353,7 +353,7 @@ if sys.version_info[0] == 2:
 
 # }}}
 
-def create_daemon(workdir=None, umask=None, keepfd=None):# {{{
+def create_daemon(workdir=None, umask=None, logfile=None):# {{{
     """Run a sub-process, detach it from the control tty.
 
     This is a simplified version of the code found there.
@@ -411,10 +411,18 @@ def create_daemon(workdir=None, umask=None, keepfd=None):# {{{
     if maxfd == resource.RLIM_INFINITY:
         maxfd = maxfd_default
 
+    if logfile is not None:
+        # must remove the intermediary handlers that the logging system
+        # uses, otherwise we get inconsistent file position and python
+        # gets nuts.
+        logger = logging.getLogger()
+        for handler in list(logger.handlers): #Remove old handlers
+            logger.removeHandler(handler)
+
     # Iterate through and close all file descriptors.
     for fd in range(0, maxfd):
         try:
-            if keepfd is None or not fd in keepfd:
+            if logfile is not None and fd != logfile.fileno():
                 os.close(fd)
         except OSError:	# ERROR, fd wasn't open to begin with (ignored)
             pass
@@ -426,13 +434,25 @@ def create_daemon(workdir=None, umask=None, keepfd=None):# {{{
 
     # This call to open is guaranteed to return the lowest file descriptor,
     # which will be 0 (stdin), since it was closed above.
-    os.open(redirect_to, os.O_RDWR)	# standard input (0)
+    fd0 = os.open(redirect_to, os.O_RDWR)	# standard input (0)
+
+    fd12 = fd0
+    if logfile is not None:
+        fd12 = logfile.fileno()
 
     # Duplicate standard input to standard output and standard error.
-    os.dup2(0, 1)			# standard output (1)
-    os.dup2(0, 2)			# standard error (2)
+    os.dup2(fd12, 1)			# standard output (1)
+    os.dup2(fd12, 2)			# standard error (2)
 
-    return 0
+    if logfile is None:
+        return
+
+    # Now re-plug the logging system to the same file descriptor as
+    # stderr. we have three file descriptors open to the same file, by
+    # the way. We might as well decide to do away with one of them
+    # (e.g., logfile.fileno())
+    logger.addHandler(logging.StreamHandler(sys.stderr))
+    # os.close(logfile.fileno())
 # }}}
 
 class WuMIMEMultipart(MIMEMultipart):# {{{
@@ -2305,7 +2325,9 @@ if __name__ == '__main__':
         connector.test_can_download_https()
 
     if options.daemon:
-        create_daemon(keepfd=None if logfile is None else [logfile.fileno()])
+        # in fact, logfile can never be None, since we force a logfile no
+        # matter what.
+        create_daemon(logfile = logfile)
 
 
     # main control loop.
