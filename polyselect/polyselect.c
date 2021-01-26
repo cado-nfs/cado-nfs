@@ -375,8 +375,8 @@ check_divexact(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED, const m
 /* idx is the index of the raw (non-optimized) polynomial,
    with ad = admin + idx * incr */
 static void
-output_polynomials (mpz_t * f_old, const unsigned long d, const mpz_t * g_old,
-                    const mpz_t N, mpz_t *f, mpz_t *g, unsigned long idx)
+output_polynomials (const mpz_t * f_old, const unsigned long d, const mpz_t * g_old,
+                    const mpz_t N, const mpz_t *f, const mpz_t *g, unsigned long idx)
 {
   size_t sz = mpz_sizeinbase (N, 10);
   int length = sz*12;
@@ -519,7 +519,7 @@ void
 match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
        mpz_srcptr ad, unsigned long d, mpz_srcptr N, uint64_t q, mpz_srcptr rq)
 {
-  mpz_t l, mtilde, m, adm1, t, k, *f, g[2], *fold, gold[2];
+  mpz_t l, mtilde, m, adm1, t, k, *f, g[2], *f_old, g_old[2];
   int cmp, did_optimize;
   double skew, logmu;
   mpz_poly F;
@@ -541,19 +541,19 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
   mpz_init (mtilde);
   mpz_init (g[0]);
   mpz_init (g[1]);
-  mpz_init (gold[0]);
-  mpz_init (gold[1]);
+  mpz_init (g_old[0]);
+  mpz_init (g_old[1]);
   mpz_poly_init (F, d);
   F->deg = d;
   f = F->coeff;
-  fold = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
-  if (fold == NULL)
+  f_old = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
+  if (f_old == NULL)
   {
     fprintf (stderr, "Error, cannot allocate memory in match\n");
     exit (1);
   }
   for (unsigned long j = 0; j <= d; j++)
-    mpz_init (fold[j]);
+    mpz_init (f_old[j]);
   /* we have l = p1*p2*q */
   mpz_set_ui (l, p1);
   mpz_mul_ui (l, l, p2);
@@ -689,13 +689,13 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
       goto end;
     }
 
-  /* save unoptimized polynomial to fold */
+  /* save unoptimized polynomial to f_old */
   for (unsigned long j = d + 1; j -- != 0; )
-    mpz_set (fold[j], f[j]);
-  mpz_set (gold[1], g[1]);
-  mpz_set (gold[0], g[0]);
+    mpz_set (f_old[j], f[j]);
+  mpz_set (g_old[1], g[1]);
+  mpz_set (g_old[0], g[0]);
 
-  /* old lognorm */
+  /* _old lognorm */
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   logmu = L2_lognorm (F, skew);
 
@@ -721,7 +721,10 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
   if (did_optimize && verbose >= 0)
     {
       unsigned long idx = get_idx (ad);
-      output_polynomials (fold, d, gold, N, F->coeff, g, idx);
+      output_polynomials ((const mpz_t *) f_old, d,
+		      (const mpz_t *) g_old, N,
+		      (const mpz_t *) F->coeff,
+		      (const mpz_t *) g, idx);
     }
 
  end:
@@ -733,12 +736,12 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
   mpz_clear (mtilde);
   mpz_clear (g[0]);
   mpz_clear (g[1]);
-  mpz_clear (gold[0]);
-  mpz_clear (gold[1]);
+  mpz_clear (g_old[0]);
+  mpz_clear (g_old[1]);
   mpz_poly_clear (F);
   for (unsigned long j = 0; j <= d; j++)
-    mpz_clear (fold[j]);
-  free (fold);
+    mpz_clear (f_old[j]);
+  free (f_old);
 }
 
 
@@ -748,7 +751,7 @@ void
 gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
 	   mpz_srcptr ad, unsigned long d, mpz_srcptr N, uint64_t q, mpz_srcptr rq)
 {
-  mpz_t l, mtilde, m, adm1, t, k, *f, g[2], *fold, gold[2], qq, tmp;
+  mpz_t l, mtilde, m, adm1, t, k, *f, g[2], *f_old, g_old[2], qq, tmp;
   int cmp, did_optimize;
   double skew, logmu;
   mpz_poly F;
@@ -770,19 +773,19 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
   mpz_init (mtilde);
   mpz_init (g[0]);
   mpz_init (g[1]);
-  mpz_init (gold[0]);
-  mpz_init (gold[1]);
+  mpz_init (g_old[0]);
+  mpz_init (g_old[1]);
   mpz_poly_init (F, d);
   F->deg = d;
   f = F->coeff;
-  fold = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
-  if (fold == NULL)
+  f_old = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
+  if (f_old == NULL)
   {
     fprintf (stderr, "Error, cannot allocate memory in match\n");
     exit (1);
   }
   for (unsigned long j = 0; j <= d; j++)
-    mpz_init (fold[j]);
+    mpz_init (f_old[j]);
   /* we have l = p1*p2*q */
   mpz_set_ui (l, p1);
   mpz_mul_ui (l, l, p2);
@@ -855,13 +858,13 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
   check_divexact (t, t, "t", l, "l");
   mpz_set (f[0], t);
 
-  /* save unoptimized polynomial to fold */
+  /* save unoptimized polynomial to f_old */
   for (i = d + 1; i -- != 0; )
-    mpz_set (fold[i], f[i]);
-  mpz_set (gold[1], g[1]);
-  mpz_set (gold[0], g[0]);
+    mpz_set (f_old[i], f[i]);
+  mpz_set (g_old[1], g[1]);
+  mpz_set (g_old[0], g[0]);
 
-  /* old lognorm */
+  /* _old lognorm */
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   logmu = L2_lognorm (F, skew);
 
@@ -887,7 +890,10 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
   if (did_optimize && verbose >= 0)
     {
       unsigned long idx = get_idx (ad);
-      output_polynomials (fold, d, gold, N, F->coeff, g, idx);
+      output_polynomials ((const mpz_t *) f_old, d,
+		      (const mpz_t *) g_old, N,
+		      (const mpz_t *) F->coeff, 
+		      (const mpz_t *) g, idx);
     }
 
   mpz_clear (tmp);
@@ -900,12 +906,12 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
   mpz_clear (mtilde);
   mpz_clear (g[0]);
   mpz_clear (g[1]);
-  mpz_clear (gold[0]);
-  mpz_clear (gold[1]);
+  mpz_clear (g_old[0]);
+  mpz_clear (g_old[1]);
   mpz_poly_clear (F);
   for (unsigned long j = 0; j <= d; j++)
-    mpz_clear (fold[j]);
-  free (fold);
+    mpz_clear (f_old[j]);
+  free (f_old);
 }
 
 
@@ -1422,7 +1428,7 @@ collision_on_batch_sq_r ( polyselect_poly_header_srcptr header,
     }
 
     /* core function for a fixed qq and several rqqz[] */
-    collision_on_each_sq_r (header, R, q, rqqz, inv_qq, number_pr, num_rq, H);
+    collision_on_each_sq_r (header, R, q, (const mpz_t *) rqqz, inv_qq, number_pr, num_rq, H);
   }
 
   mpz_clear (qqz);
@@ -1895,7 +1901,7 @@ gmp_collision_on_sq ( polyselect_poly_header_srcptr header,
 #endif
 
     // collision batch
-    gmp_collision_on_batch_sq (header, R, q, qqz, rqqz, BATCH_SIZE, c);
+    gmp_collision_on_batch_sq (header, R, q, (const mpz_t *) qqz, (const mpz_t *) rqqz, BATCH_SIZE, c);
     i += BATCH_SIZE;
   }
 
@@ -1911,7 +1917,7 @@ gmp_collision_on_sq ( polyselect_poly_header_srcptr header,
 
   }
 
-  gmp_collision_on_batch_sq (header, R, q, qqz, rqqz, tot % BATCH_SIZE, c);
+  gmp_collision_on_batch_sq (header, R, q, (const mpz_t *) qqz, (const mpz_t *) rqqz, tot % BATCH_SIZE, c);
 
   for (l = 0; l < BATCH_SIZE; l++) {
     mpz_clear (qqz[l]);

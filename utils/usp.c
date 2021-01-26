@@ -256,6 +256,7 @@ usp (mpz_ptr a, mpz_ptr b, int m, int up, int va, int vb, int n, int *nroots,
        /* we cannot divide in-place, otherwise we will modify the input
           polynomial for the rest of the algorithm */
        q = malloc ((n + 1) * sizeof (mpz_t));
+       const mpz_t * qconst = (const mpz_t *) q;
        for (i = 0; i <= n0; i++)
          mpz_init_set (q[i], p[i]);
        while (smi == 0)
@@ -272,17 +273,21 @@ usp (mpz_ptr a, mpz_ptr b, int m, int up, int va, int vb, int n, int *nroots,
            printf ("new input polynomial is ");
            printPol (q, n);
 #endif
-           smi = signValue (mi, lmi, n, q);
+           smi = signValue (mi, lmi, n, qconst);
          }
        if (lmi > m)
          {
            mpz_mul_2exp (a, a, 1);
            mpz_mul_2exp (b, b, 1);
          }
-       le = usp (a, mi, lmi, n, signValue (a, lmi, n, q),
-                 signValue (mi, lmi, n, q), n, nroots, q, r, verbose, R);
-       ri = usp (mi, b, lmi, n, signValue (mi, lmi, n, q),
-                 signValue (b, lmi, n, q), n, nroots, q, r, verbose, R);
+       le = usp (a, mi, lmi, n,
+		 signValue (a, lmi, n, qconst),
+                 signValue (mi, lmi, n, qconst),
+		 n, nroots, qconst, r, verbose, R);
+       ri = usp (mi, b, lmi, n,
+		 signValue (mi, lmi, n, qconst),
+                 signValue (b, lmi, n, qconst),
+		 n, nroots, qconst, r, verbose, R);
        /* restore original a, b */
        if (lmi > m)
          {
