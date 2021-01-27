@@ -1546,6 +1546,7 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         # It should be in [0,1], and if not initialized yet it is -1.
         self.state.update({"start_achievement": -1})
         self.send_notification(Notification.SUBSCRIBE_WU_NOTIFICATIONS, None)
+        self.clients = None
     
     def submit_wu(self, wu, commit=True):
         """ Submit a WU and update wu_submitted counter """
@@ -1682,8 +1683,13 @@ class ClientServerTask(Task, wudb.UsesWorkunitDb, patterns.Observer):
         # If we get notification on new results reliably from the HTTP server,
         # we might not need this poll. But they probably won't be totally
         # reliable
+        if self.clients is None:
+            self.clients = self.send_request(Request.GET_CLIENTS)
         if not self.send_request(Request.GET_WU_RESULT):
             self.resubmit_timed_out_wus()
+            # Watch at least any local clients we may have.
+            for c in self.clients:
+                c.check_health()
             time.sleep(1)
     
     def resubmit_one_wu(self, wu, commit=True, maxresubmit=None):
@@ -3331,6 +3337,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
                                      factorbase1=fb1,
                                      out=outputfilename, stats_stderr=True,
                                      **self.merged_args[0])
+            # Note that submit_command may call wait() !
             self.submit_command(p, "%d-%d" % (q0, q1), commit=False)
             self.state.update({"qnext": q1}, commit=True)
 
@@ -5607,6 +5614,26 @@ class StartClientsTask(Task):
                                  cid, self.hosts[cid], self.pids[cid])
                 self._del_cid(cid)
     
+    def check_health(self, localhost=True):
+        """ This checks that clients are alive, and raises an exception
+        if they aren't. A priori, it is reasonable to do this only on
+        localhost, but optionally we support the idea of making this sort
+        of check on all remote hosts as well.
+        """
+        look = [ k for k,v in self.hosts.items() if not localhost or v == 'localhost' ]
+        for cid in look:
+            alive = self.is_alive(cid)
+            h = self.hosts[cid]
+            p = self.pids[cid]
+            who = "client id %s (Host %s, PID %d)" % (cid, h, p)
+            # self.logger.debug("check %s: %s", who, alive)
+            if not alive:
+                self.logger.critical("DEAD: " + who)
+                if localhost:
+                    raise RuntimeError("localhost clients should never die")
+                else:
+                    raise RuntimeError("clients should never die")
+
     def make_unique_id(self, host):
         # Make a unique client id for host
         clientid = host
@@ -5770,6 +5797,7 @@ class Request(Message):
     GET_WORKDIR_JOBNAME = object()
     GET_WORKDIR_PATH = object()
     GET_DLOG_FILENAME = object()
+    GET_CLIENTS = object()
 
 class CompleteFactorization(HasState, wudb.DbAccess, 
         DoesLogging, cadoparams.UseParameters, patterns.Mediator):
@@ -5794,6 +5822,9 @@ class CompleteFactorization(HasState, wudb.DbAccess,
     def programs(self):
         return []
     
+    def get_clients(self):
+        return self.clients
+
     def __init__(self, db, parameters, path_prefix):
         self.db=db
         super().__init__(db=db, parameters=parameters, path_prefix=path_prefix)
@@ -5998,6 +6029,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             Request.GET_WU_RESULT: self.db_listener.send_result,
             Request.GET_WORKDIR_JOBNAME: self.fb.workdir.get_workdir_jobname,
             Request.GET_WORKDIR_PATH: self.fb.workdir.get_workdir_path,
+            Request.GET_CLIENTS: self.get_clients,
         }
 
         ## Set requests related to polynomial selection
