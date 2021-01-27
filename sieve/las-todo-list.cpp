@@ -515,7 +515,7 @@ void las_todo_list::print_todo_list(cxx_param_list & pl, gmp_randstate_ptr rstat
     if (nthreads > 1) {
         verbose_output_vfprint(0, 1, gmp_vfprintf,
                 "# Collecting the todo list in memory from q0=%Zd to q1=%Zd using %d threads\n",
-                q0, q1, nthreads);
+                (mpz_srcptr) q0, (mpz_srcptr) q1, nthreads);
     }
 
     for(int subjob = 0 ; subjob < nthreads ; ++subjob)
