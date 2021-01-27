@@ -1528,21 +1528,6 @@ int main (int argc0, char *argv0[])/*{{{*/
 
     las_todo_list todo(las.cpoly, pl);
 
-    if (todo.print_todo_list) {
-        for(;;) {
-            las_todo_entry * doing_p = todo.feed_and_pop(las.rstate);
-            if (!doing_p) break;
-            las_todo_entry& doing(*doing_p);
-            verbose_output_vfprint(0, 1, gmp_vfprintf,
-                    "%d %Zd %Zd\n",
-                    doing.side,
-                    (mpz_srcptr) doing.p,
-                    (mpz_srcptr) doing.r);
-        }
-        main_output.release();
-        return EXIT_SUCCESS;
-    }
-
     /* If qmin is not given, use lim on the special-q side by default.
      * This makes sense only if the relevant fields have been filled from
      * the command line.
@@ -1555,6 +1540,18 @@ int main (int argc0, char *argv0[])/*{{{*/
     where_am_I::interpret_parameters(pl);
 
     base_memory = Memusage() << 10;
+
+    if (todo.print_todo_list_flag) {
+        /* printing the todo list takes only a very small amount of ram.
+         * In all likelihood, nsubjobs will be total number of cores (or
+         * the number of threads that were requested on command line)
+         */
+        las.set_parallel(pl, base_memory / (double) (1 << 30));
+        todo.print_todo_list(pl, las.rstate, las.number_of_threads_total());
+        main_output.release();
+        return EXIT_SUCCESS;
+
+    }
 
     /* First have a guess at our memory usage in single-threaded mode,
      * and see how many threads must be together. This means more memory
