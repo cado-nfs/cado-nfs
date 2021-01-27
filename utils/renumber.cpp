@@ -165,6 +165,8 @@ constexpr const int renumber_t::format_flat; /*{{{*/
 renumber_t::corrupted_table::corrupted_table(std::string const & x)
     : std::runtime_error(std::string("Renumber table is corrupt: ") + x)
 {}
+
+#if 0
 static renumber_t::corrupted_table cannot_find_p(p_r_values_t p) {/*{{{*/
     std::ostringstream os;
     os << std::hex;
@@ -178,6 +180,8 @@ static renumber_t::corrupted_table cannot_find_p(p_r_values_t p) {/*{{{*/
 #endif
     return renumber_t::corrupted_table(os.str());
 }/*}}}*/
+#endif
+
 static renumber_t::corrupted_table cannot_find_i(index_t i) {/*{{{*/
     std::ostringstream os;
     os << std::hex;
@@ -632,13 +636,25 @@ bool renumber_t::traditional_is_vp_marker(index_t i) const
  * Note that we return the index relative to the internal table, which is
  * shifted by [[above_bad]] compared to the indices that we return in the
  * public interface.
+ *
+ * if p is a non-prime, we return a lower bound for the first entry that
+ * is >= p.
  */
-index_t renumber_t::get_first_index_from_p(p_r_side x) const
+index_t renumber_t::get_first_index_from_p(p_r_values_t p) const
 {
-    p_r_values_t p = x.p;
     // p_r_values_t side = x.side;
     if (p < index_from_p_cache.size()) {
-        index_t i = index_from_p_cache[p];
+        index_t i;
+        /* Do this loop so that we can safely return something that is
+         * valid even if p is not a prime.
+         */
+        for( ; ; p++) {
+            if (p >= index_from_p_cache.size())
+                return get_first_index_from_p(p);
+            i = index_from_p_cache[p];
+            if (i != std::numeric_limits<index_t>::max())
+                break;
+        }
         if (format == format_flat) {
             if (UNLIKELY(i >= flat_data.size()))
                 throw prime_maps_to_garbage(format, p, i);
@@ -671,9 +687,20 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
         auto it = std::lower_bound(flat_data.begin(), flat_data.end(), p0);
         if (it == flat_data.end())
             throw prime_is_too_large(p);
+        if ((*it)[0] != p) {
+            /* we can reach here if p is not prime and we simply want a
+             * good lower bound on the entries that are >= p. For this,
+             * std::lower_bound really is the thing that we want.
+             *
+             * Here, (*it)[0] is a prime larger than p. But by the
+             * definition of lower_bound, (*--it)[0] is a prime that
+             * is less than p, and we definitely don't want to return
+             * that. So the good answer is really the thing that is
+             * pointed to by the iterator it.
+             */
+            //throw prime_maps_to_garbage(format, p, i, (*it)[0]);
+        }
         index_t i = it - flat_data.begin();
-        if ((*it)[0] != p)
-            throw prime_maps_to_garbage(format, p, i, (*it)[0]);
         return i;
     } else {
         /* A priori, traditional_data has exactly above_all-above_bad
@@ -712,7 +739,9 @@ index_t renumber_t::get_first_index_from_p(p_r_side x) const
                 max = i;
             }
         }
-        throw cannot_find_p(p);
+        // see remark above for the flat case.
+        return traditional_backtrack_until_vp(min, 0, max);
+        // throw cannot_find_p(p);
     }
 }
 
@@ -739,7 +768,7 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
         }
         throw cannot_find_pr(x);
     }
-    i = get_first_index_from_p(x);
+    i = get_first_index_from_p(x.p);
     p_r_values_t vr = compute_vr_from_p_r_side(x);
 
     if (format == format_flat) {
@@ -806,6 +835,48 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
     throw cannot_find_pr(x, vp, vr);
 }
 
+/* This returns the smallest outer index i0 that stores a prime ideal above a
+ * prime >=p0 ; note that p0 does not have to be prime.
+ * This function may return get_max_index() if no prime >= p0 is in the
+ * table.
+ */
+index_t renumber_t::index_from_p(p_r_values_t p0) const
+{
+    if (p0 >> get_max_lpb())
+        return get_max_index();
+    index_t i;
+    if (p0 < bad_ideals_max_p)
+        i = 0;
+    else
+        i = above_bad + get_first_index_from_p(p0);
+    for(const_iterator it(*this, i) ; it != end() && (*it).p < p0 ; ++it, ++i);
+    return i;
+}
+index_t renumber_t::index_from_p(p_r_values_t p0, int side) const
+{
+    index_t i = index_from_p(p0);
+    for(const_iterator it(*this, i) ; it != end() && (*it).side != side ; ++it, ++i);
+    return i;
+}
+    
+renumber_t::const_iterator renumber_t::iterator_from_p(p_r_values_t p0) const
+{
+    if (p0 >> get_max_lpb())
+        return end();
+    const_iterator it = begin();
+    if (p0 >= bad_ideals_max_p)
+        it.reseat(above_bad + get_first_index_from_p(p0));
+    for( ; it != end() && (*it).p < p0 ; ++it);
+    return it;
+}
+
+renumber_t::const_iterator renumber_t::iterator_from_p(p_r_values_t p0, int side) const
+{
+    const_iterator it = iterator_from_p(p0);
+    for( ; it != end() && (*it).side != side ; ++it);
+    return it;
+}
+    
 /* This used to be handle_bad_ideals in filter/filter_badideals.cpp ; in
  * fact, this really belongs here.
  */
@@ -1945,6 +2016,20 @@ renumber_t::const_iterator::const_iterator(renumber_t const & table, index_t i)
     : table(table)
       , i(i)
 {
+    reseat(i);
+}
+
+/*
+void renumber_t::const_iterator::reseat(index_t new_i0, index_t new_i)
+{
+    i0 = new_i0;
+    i = new_i;
+}
+*/
+
+void renumber_t::const_iterator::reseat(index_t new_i)
+{
+    i = new_i;
     if (i < table.above_bad) {
         if (table.is_additional_column(i)) {
             i0 = UINT_MAX;
@@ -1958,6 +2043,8 @@ renumber_t::const_iterator::const_iterator(renumber_t const & table, index_t i)
     if (table.format != format_flat) {
         if (i == table.above_bad + table.traditional_data.size()) {
             i0 = i;
+        } else if (i < table.above_bad) {
+            i0 = i;
         } else {
             i0 = table.above_bad + table.traditional_backtrack_until_vp(i - table.above_bad);
             if (table.format == format_variant && table.get_rational_side() < 0 && i == i0)
@@ -1969,6 +2056,7 @@ renumber_t::const_iterator::const_iterator(renumber_t const & table, index_t i)
         i0 = UINT_MAX;
     }
 }
+
 renumber_t::p_r_side renumber_t::const_iterator::operator*() const {
     if (i < table.above_add) {
         /* See comment in p_r from index about the special case with 2
@@ -1988,6 +2076,12 @@ renumber_t::p_r_side renumber_t::const_iterator::operator*() const {
                 return I.first;
             ii0 -= I.second.nbad;
         }
+    }
+    if (i == table.get_max_index()) {
+        return p_r_side {
+            std::numeric_limits<p_r_values_t>::max(),
+            std::numeric_limits<p_r_values_t>::max(),
+            0 };
     }
     if (table.format != format_flat) {
         p_r_values_t vp = table.traditional_data[i0-table.above_bad];

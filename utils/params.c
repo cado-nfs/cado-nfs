@@ -45,7 +45,7 @@ static void parameter_set(parameter dst, parameter src)
 {
     memcpy(dst, src, sizeof(parameter));
     dst->key = src->key ? strdup(src->key) : NULL;
-    dst->value = strdup(src->value);
+    dst->value = src->value ? strdup(src->value) : NULL;
 }
 
 static void param_list_doc_set(param_list_doc dst, param_list_doc src)

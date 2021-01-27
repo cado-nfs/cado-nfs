@@ -24,6 +24,17 @@
 #include "misc.h"
 #include "portability.h" // asprintf // IWYU pragma: keep
 
+// re-entrant random with GMP.
+uint64_t u64_random(gmp_randstate_t buf) {
+#if ULONG_BITS == 64
+    return gmp_urandomb_ui(buf, 64);
+#elif ULONG_BITS == 32
+    cxx_mpz z;
+    mpz_urandomb(z, buf, 64);
+    return mpz_get_uint64(z);
+#endif
+}
+
 /* Wrapper around sysconf(ARG_MAX) that deals with availability of sysconf()
    and additional constraints on command line length */
 long get_arg_max(void)

@@ -4,6 +4,7 @@
 # that one would obtain with a given set of parameters.
 # It takes as input a polynomial file, and sieving / filtering parameters
 # given as env variables.
+# The CADO_SOURCE variable must point to the cado-nfs source directory
 # The CADO_BUILD variable must point to the directory where cado-nfs was
 # compiled.
 #
@@ -47,7 +48,14 @@ set -e
 : ${parallel=false}
 : ${las_threads=$threads}
 : ${las_parallel=$parallel}
+: ${fakerels_threads=$threads}
 : ${fakerels_parallel=$parallel}
+: ${sampling_method=todo}       # choose either todo or random-sampling
+: ${seed=0}
+
+if ! [ -d ${CADO_BUILD?missing} ] ; then echo "$CADO_BUILD missing" >&2 ; exit 1 ; fi
+if ! [ -d ${CADO_SOURCE?missing} ] ; then echo "$CADO_SOURCE missing" >&2 ; exit 1 ; fi
+
 
 ## The following can also be overriden with env variables
 # the [qmin,qmax] range is split into $NCHUNKS sub-ranges
@@ -234,27 +242,63 @@ for i in `seq 0 $((nsides-1))`; do
     qrange=$(((qmax-qmin)/NCHUNKS))
 
     ## sample with real sieving and build fake rels
+    processes=()
     for i in `seq 1 $NCHUNKS`; do
         (
             q0=$((qmin + (i-1)*qrange))
             q1=$((qmin + i*qrange))
-            echo "Sampling in qrange=[$q0,$q1]"
-            cmd=($CADO_BUILD/sieve/las -A $A -poly $polyfile -q0 $q0 -q1 $q1 
+            echo "Sampling in qrange=[$q0,$q1] ; sampling method: $sampling_method"
+            samplebase=$wdir/sample.side${side}.${q0}-${q1}
+
+            cmd0=($CADO_BUILD/sieve/las -A $A -poly $polyfile -q0 $q0 -q1 $q1 
               -lim0 $lim0 -lim1 $lim1 -lpb0 $lpb0 -lpb1 $lpb1 -sqside $side 
               -mfb0 $mfb0 -mfb1 $mfb1 $compsq_las 
-              -fb0 $rootfile0 -fb1 $rootfile1 -random-sample $NBSAMPLE 
+              -fb0 $rootfile0 -fb1 $rootfile1
               -t $las_threads -sync -v -dup -dup-qmin $dupqmin
                           $extra_las_params)
+
+            case "$sampling_method" in
+                random-sample)
+                    cmd=("${cmd0[@]}" -random-sample $NBSAMPLE -seed $seed)
+                    ;;
+                todo)
+                    generate=("${cmd0[@]}" -print-todo-list)
+                    completelist=$samplebase.completelist
+                    todolist=$samplebase.todolist
+                    if ! has_file_already "$completelist" "${generate[@]}" ; then
+                        echo "Preparing complete list of special-q in $completelist"
+                        echo "${generate[@]}"
+                        "${generate[@]}" | grep '^[0-9]' > "$completelist"
+                    fi
+                    random_gen=($CADO_SOURCE/tests/linalg/bwc/perlrandom.pl 0 $seed)
+                    fshuf() { shuf --random-source=<("${random_gen[@]}") "$@" ; }
+                    fshuf $completelist | head -n $NBSAMPLE > $todolist
+                    cmd=("${cmd0[@]}" -todo $todolist )
+                    ;;
+                *)
+                    echo "unsupported sampling method" >&2
+                    exit 1
+                    ;;
+            esac
             if [ "${relation_cache}" ] ; then
                 cmd+=(-relation-cache "$relation_cache")
             fi
             echo "${cmd[@]}"
-            file=$wdir/sample.side${side}.${q0}-${q1}
+            file=$samplebase
             if ! has_file_already $file "${cmd[@]}" ; then
                 "${cmd[@]}" > $file
             fi
         ) &
-        if [ $las_parallel = false ] ; then wait ; fi
+        if [ $las_parallel = true ] ; then continue ; fi
+        processes+=($!)
+        bound=$las_parallel
+        if [ $las_parallel = false ] ; then bound=1 ; fi
+        if [ $i -ge $bound ] ; then
+            wait "${processes[0]}"
+            set -- "${processes[@]}"
+            shift
+            processes=("$@")
+        fi
     done
     wait
 done
@@ -266,11 +310,13 @@ for i in `seq 0 $((nsides-1))`; do
         (
             q0=$((qmin + (i-1)*qrange))
             q1=$((qmin + i*qrange))
+            samplebase=$wdir/sample.side${side}.${q0}-${q1}
             echo "  Building fake relations in qrange=[$q0,$q1]"
             cmd=($CADO_BUILD/sieve/fake_rels -poly $polyfile -lpb0 $lpb0 -lpb1 $lpb1
               -q0 $q0 -q1 $q1 -sqside $side $compsq_fake
-              -sample $wdir/sample.side${side}.${q0}-${q1}
+              -sample $samplebase
               -shrink-factor $shrink_factor
+              -t $fakerels_threads
               -renumber $renumberfile)
             echo "${cmd[@]}"
             file=$wdir/fakerels.side${side}.${q0}-${q1}

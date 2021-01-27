@@ -1599,7 +1599,11 @@ tests/utils/test_json_parsing.cpp
 utils/json.cpp
 utils/json.hpp
 tests/estimate_matsize/test_with_relation_cache.sh
-tests/estimate_matsize/build_relation_cache.pl
+scripts/estimate_matsize/build_relation_cache.pl
+scripts/estimate_matsize/estimate_matsize.sh
+utils/indexed_relation.hpp
+filter/shrink_rels.cpp
+utils/indexed_relation.cpp
 ci/00-prepare-docker.sh
 ci/00-prepare-shell.sh
 ci/000-functions.sh

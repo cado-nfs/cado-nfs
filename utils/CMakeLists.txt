@@ -28,6 +28,7 @@ set (sources
         numbertheory.cpp
         badideals.cpp
         json.cpp
+        indexed_relation.cpp
 )
 if (HAVE_GLIBC_VECTOR_INTERNALS)
     set(sources ${sources} mmap_allocator.cpp)
