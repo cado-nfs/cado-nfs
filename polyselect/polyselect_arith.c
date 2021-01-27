@@ -13,7 +13,7 @@
    Return the number of lifted roots (might be less than n if some root is 0).
 */
 unsigned long
-roots_lift (uint64_t *r, mpz_t N, unsigned long d, mpz_t m0,
+roots_lift (uint64_t *r, mpz_srcptr N, unsigned long d, mpz_srcptr m0,
             unsigned long p, unsigned long n)
 {
   uint64_t pp;
@@ -178,8 +178,8 @@ binom ( unsigned long n,
 
 /* prepare special-q's roots */
 void
-comp_sq_roots ( header_t header,
-                qroots_t SQ_R )
+comp_sq_roots ( polyselect_poly_header_srcptr header,
+                polyselect_qroots_ptr SQ_R )
 {
   unsigned long i, q, nrq;
   uint64_t *rq;
@@ -194,7 +194,7 @@ comp_sq_roots ( header_t header,
   /* prepare the special-q's */
   for (i = 1; (q = SPECIAL_Q[i]) != 0 ; i++)
   {
-    if (header_skip (header, q))
+    if (polyselect_poly_header_skip (header, q))
       continue;
 
     if ( mpz_fdiv_ui (header->Ntilde, q) == 0 )
@@ -232,20 +232,20 @@ comp_sq_roots ( header_t header,
     mpz_clear (r2);
 #endif
 
-    qroots_add (SQ_R, q, nrq, rq);
+    polyselect_qroots_add (SQ_R, q, nrq, rq);
   }
 
   /* Reorder R entries by decreasing number of roots (nr).
      It is safe to comment it. */
-  qroots_rearrange (SQ_R);
+  polyselect_qroots_rearrange (SQ_R);
 
   free(rq);
-  qroots_realloc (SQ_R, SQ_R->size); /* free unused space */
+  polyselect_qroots_realloc (SQ_R, SQ_R->size); /* free unused space */
 }
 
 /* return the maximal number of special-q's with k elements among lq */
 unsigned long
-number_comb (qroots_t SQ_R, unsigned long k, unsigned long lq)
+number_comb (polyselect_qroots_srcptr SQ_R, unsigned long k, unsigned long lq)
 {
   unsigned long s = 0;
   unsigned long idx[k], j;
@@ -265,11 +265,11 @@ number_comb (qroots_t SQ_R, unsigned long k, unsigned long lq)
 
 /* given individual q's, return crted rq */
 uint64_t
-return_q_rq ( qroots_t SQ_R,
+return_q_rq ( polyselect_qroots_srcptr SQ_R,
               unsigned long *idx_q,
               unsigned long k,
-              mpz_t qqz,
-              mpz_t rqqz )
+              mpz_ptr qqz,
+              mpz_ptr rqqz )
 {
   unsigned long i, j, idv_q[k], idv_rq[k];
   uint64_t q = 1;
@@ -298,7 +298,7 @@ return_q_rq ( qroots_t SQ_R,
 
 /* given individual q's, return \product q, no rq */
 uint64_t
-return_q_norq (qroots_t SQ_R, unsigned long *idx_q, unsigned long k)
+return_q_norq (polyselect_qroots_srcptr SQ_R, unsigned long *idx_q, unsigned long k)
 {
   unsigned long i;
   uint64_t q = 1;
