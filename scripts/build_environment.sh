@@ -79,6 +79,10 @@ if [ "$MPI" ] && [ "$MPI" != 0 ] && ! [[ "$build_tree" =~ \.mpi ]] ; then
     build_tree="$build_tree".mpi
 fi
 
+if [ "$force_build_tree" ] ; then
+        build_tree="$force_build_tree"
+fi
+
 # If no CFLAGS have been set yet, set something sensible: get optimization by
 # default, as well as asserts.  If you want to disable this, use either
 # local.sh or the environment to set an environment variable CFLAGS to be

@@ -1600,3 +1600,17 @@ utils/json.cpp
 utils/json.hpp
 tests/estimate_matsize/test_with_relation_cache.sh
 tests/estimate_matsize/build_relation_cache.pl
+ci/00-prepare-docker.sh
+ci/00-prepare-shell.sh
+ci/000-functions.sh
+ci/01-conf.sh
+ci/02-build1.sh
+ci/02-build2.sh
+ci/03-check.sh
+ci/04-check-more.sh
+ci/utilities/ncpus.sh
+ci/001-environment.sh
+ci/999-debug.sh
+ci/Dockerfile.debian
+ci/Dockerfile.fedora
+ci/Dockerfile.icc

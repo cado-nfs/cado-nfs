@@ -1,31 +1,127 @@
 # cf .docker-script.sh
 
+stages:
+  - early
+  - various
+  - thorough
+
 image: gcc
 
-build:
-  stage: test
+run on fast machine:
+  stage: early
   before_script:
-    - id -a
-    - echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
-    - echo -e "section_start:`date +%s`:install_packages\r\e[0KInstalling required packages"
-    - env DEBIAN_FRONTEND=noninteractive apt-get -y update
-    - env DEBIAN_FRONTEND=noninteractive apt-get -y install bc locales cmake libhwloc-dev
-    - echo -e "section_end:`date +%s`:install_packages\r\e[0K"
+    - ci/00-prepare-docker.sh
   script:
-    - echo -e "section_start:`date +%s`:configuration\r\e[0KConfiguring"
-    - make cmake
-    - echo -e "section_end:`date +%s`:configuration\r\e[0K"
-    - echo -e "section_start:`date +%s`:build\r\e[0KBuilding"
-    - make -j4
-    - echo -e "section_end:`date +%s`:build\r\e[0K"
-    - echo -e "section_start:`date +%s`:build2\r\e[0KBuilding test dependencies"
-    - make -j4 all_test_dependencies
-    - echo -e "section_end:`date +%s`:build2\r\e[0K"
-    - echo -e "section_start:`date +%s`:test\r\e[0KRunning tests"
-    - env OMP_DYNAMIC=true STATS_PARSING_ERRORS_ARE_FATAL=1 make check ARGS="-j4"
-    - echo -e "section_end:`date +%s`:test\r\e[0K"
-    # okay. "cache" is only when the runners have a notion of available
-    # cache server, it seems. Don't do that for now.
-    # cache:
-    # # paths:
-    # - "*.o"
+    - ci/01-conf.sh
+    - ci/02-build1.sh
+    - ci/02-build2.sh
+    - ci/03-check.sh
+
+compile with clang:
+  # use very latest
+  image: debian:unstable
+  stage: early
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/01-conf.sh
+    - ci/02-build1.sh
+    - ci/02-build2.sh
+    - ci/03-check.sh
+
+compile with icc:
+  stage: early
+  tags:
+    - icc
+  image: intel/oneapi-hpckit
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/01-conf.sh
+    - ci/02-build1.sh
+    - ci/02-build2.sh
+    - ci/03-check.sh
+    - ci/04-check-more.sh
+
+normal expensive checks:
+  stage: various
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/01-conf.sh
+    - ci/02-build1.sh
+    - ci/02-build2.sh
+    - ci/03-check.sh
+    - ci/04-check-more.sh
+
+coverage tests:
+  stage: various
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/01-conf.sh
+    - ci/02-build1.sh
+    - ci/02-build2.sh
+    - ci/03-check.sh
+    - ci/04-check-more.sh
+    - gcovr --json-pretty . > coverage-expensive.json
+  artifacts:
+    paths:
+      - coverage-expensive.json
+    expire_in: 1 week
+
+
+coverage tests with icc:
+  stage: various
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/01-conf.sh
+    - ci/02-build1.sh
+    - ci/02-build2.sh
+    - ci/03-check.sh
+    # no need to have two bots do the expensive checks IMO
+    # - ci/04-check-more.sh
+    - gcovr --json-pretty . > coverage-icc.json
+  artifacts:
+    paths:
+      - coverage-icc.json
+    expire_in: 1 week
+
+# the build name must match "coverage name" so that gcovr is installed.
+# the stage must be after the "various" stage.
+# we must import the json coverage reports for different runs. This is
+# apparently done automatically !
+# https://stackoverflow.com/questions/38140996/how-can-i-pass-artifacts-to-another-stage
+merge coverage tests:
+  stage: thorough
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - gcovr --add-tracefile coverage-icc.json --add-tracefile coverage-expensive.json --xml coverage.xml --xml-pretty
+  artifacts:
+    reports:
+      cobertura: coverage.xml
+
+
+run on very slow machines:
+  stage: thorough
+  tags:
+    - arm64
+  before_script:
+    - ci/00-prepare-shell.sh
+  script:
+    - ci/01-conf.sh
+    - ci/02-build1.sh
+    - ci/02-build2.sh
+    - ci/03-check.sh
+  dependencies:
+    # See https://docs.gitlab.com/ee/ci/yaml/#dependencies ; we don't
+    # want to bother with other artifacts.
+
+
+# okay. "cache" is only when the runners have a notion of available
+# cache server, it seems. Don't do that for now.
+# cache:
+# # paths:
+# - "*.o"
