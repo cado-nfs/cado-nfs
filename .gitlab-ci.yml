@@ -1,91 +1,132 @@
 # cf .docker-script.sh
 
 stages:
+  - build
   - early
   - various
   - thorough
 
 image: gcc
 
-run on fast machine:
+# took inspiration from https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/
+# however I'm not sure if/how the "latest" tagging actually works.
+
+# Note that the name of each section is significant, as the file
+# ci/001-environment.sh sets some important environment variables based
+# on what it finds. E.g. it reacts to "with gcc", "expensive checks",
+# "coverage tests", and so on.
+
+container with gcc:
+  image: docker
+  stage: build
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
+    IMAGE_TAG: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc:$CI_COMMIT_SHA
+    DOCKERFILE: ci/Dockerfile.gcc
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $IMAGE:latest || true
+    - docker build -t $IMAGE_TAG --cache-from $IMAGE:latest -f $DOCKERFILE ci
+    - docker push $IMAGE_TAG
+    - docker tag $IMAGE_TAG $IMAGE:latest
+    - docker push $IMAGE:latest
+
+container with icc:
+  image: docker
+  stage: build
+  tags:
+    - icc
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc
+    IMAGE_TAG: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc:$CI_COMMIT_SHA
+    DOCKERFILE: ci/Dockerfile.icc
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $IMAGE:latest || true
+    - docker build -t $IMAGE_TAG --cache-from $IMAGE:latest -f $DOCKERFILE ci
+    - docker push $IMAGE_TAG
+    - docker tag $IMAGE_TAG $IMAGE:latest
+    - docker push $IMAGE:latest
+
+container with clang:
+  image: docker
+  stage: build
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang
+    IMAGE_TAG: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang:$CI_COMMIT_SHA
+    DOCKERFILE: ci/Dockerfile.clang
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $IMAGE:latest || true
+    - docker build -t $IMAGE_TAG --cache-from $IMAGE:latest -f $DOCKERFILE ci
+    - docker push $IMAGE_TAG
+    - docker tag $IMAGE_TAG $IMAGE:latest
+    - docker push $IMAGE:latest
+
+checks with gcc:
   stage: early
-  before_script:
-    - ci/00-prepare-docker.sh
+  needs:
+    - container with gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
   script:
     - ci/01-conf.sh
     - ci/02-build1.sh
     - ci/02-build2.sh
     - ci/03-check.sh
 
-compile with clang:
+checks with clang:
   # use very latest
-  image: debian:unstable
+  needs:
+    - container with clang
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang
   stage: early
-  before_script:
-    - ci/00-prepare-docker.sh
   script:
     - ci/01-conf.sh
     - ci/02-build1.sh
     - ci/02-build2.sh
     - ci/03-check.sh
 
-compile with icc:
+checks with icc:
+  needs:
+    - container with icc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc
   stage: early
   tags:
     - icc
-  image: intel/oneapi-hpckit
-  before_script:
-    - ci/00-prepare-docker.sh
   script:
     - ci/01-conf.sh
     - ci/02-build1.sh
     - ci/02-build2.sh
     - ci/03-check.sh
-    - ci/04-check-more.sh
 
-normal expensive checks:
+expensive checks with gcc:
   stage: various
-  before_script:
-    - ci/00-prepare-docker.sh
+  needs:
+    - container with gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
   script:
     - ci/01-conf.sh
     - ci/02-build1.sh
     - ci/02-build2.sh
     - ci/03-check.sh
-    - ci/04-check-more.sh
 
-coverage tests:
+# need gcov 4.2 or later, the 'container with gcc' box doesn't have it
+# since it's based on debian stable.
+coverage tests on expensive checks with gcc:
   stage: various
+  image: debian:testing
   before_script:
+    # this will pull the coverage tools
     - ci/00-prepare-docker.sh
   script:
     - ci/01-conf.sh
     - ci/02-build1.sh
     - ci/02-build2.sh
     - ci/03-check.sh
-    - ci/04-check-more.sh
-    - gcovr --json-pretty . > coverage-expensive.json
+    - gcovr --json . > coverage-expensive.json
   artifacts:
     paths:
       - coverage-expensive.json
-    expire_in: 1 week
-
-
-coverage tests with icc:
-  stage: various
-  before_script:
-    - ci/00-prepare-docker.sh
-  script:
-    - ci/01-conf.sh
-    - ci/02-build1.sh
-    - ci/02-build2.sh
-    - ci/03-check.sh
-    # no need to have two bots do the expensive checks IMO
-    # - ci/04-check-more.sh
-    - gcovr --json-pretty . > coverage-icc.json
-  artifacts:
-    paths:
-      - coverage-icc.json
     expire_in: 1 week
 
 # the build name must match "coverage name" so that gcovr is installed.
@@ -95,19 +136,34 @@ coverage tests with icc:
 # https://stackoverflow.com/questions/38140996/how-can-i-pass-artifacts-to-another-stage
 merge coverage tests:
   stage: thorough
+  needs:
+    - coverage tests on expensive checks with gcc
+    # list more of these...
+  image: debian:testing
   before_script:
     - ci/00-prepare-docker.sh
   script:
-    - gcovr --add-tracefile coverage-icc.json --add-tracefile coverage-expensive.json --xml coverage.xml --xml-pretty
+    - >
+      gcovr
+      --add-tracefile coverage-expensive.json
+      --xml coverage.xml
+      --xml-pretty
   artifacts:
     reports:
       cobertura: coverage.xml
 
 
+# It would be possible to run the following test on arm64 as well, but my
+# only runner is an allwinner CPU with 2G of RAM, and it takes more than
+# two hours :-(. I think I would have to reduce the test surface first.
+#    - arm64
+#
+# # very slow machines run with the shell executor anyway.
+# # 00-prepare-shell.sh can only check if software is present.
 run on very slow machines:
   stage: thorough
   tags:
-    - arm64
+    - raspberry
   before_script:
     - ci/00-prepare-shell.sh
   script:
@@ -115,9 +171,9 @@ run on very slow machines:
     - ci/02-build1.sh
     - ci/02-build2.sh
     - ci/03-check.sh
-  dependencies:
-    # See https://docs.gitlab.com/ee/ci/yaml/#dependencies ; we don't
-    # want to bother with other artifacts.
+  # See https://docs.gitlab.com/ee/ci/yaml/#dependencies ; we don't
+  # want to bother with other artifacts.
+  dependencies: []
 
 
 # okay. "cache" is only when the runners have a notion of available

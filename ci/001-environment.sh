@@ -46,5 +46,9 @@ if [[ $CI_BUILD_NAME =~ "with icc" ]] ; then
     : ${CXX=icpc}
 fi
 
+if [[ $CI_BUILD_NAME =~ "expensive checks" ]] ; then
+    export CHECKS_EXPENSIVE=1
+fi
+
 export CC CXX
 export CFLAGS CXXFLAGS

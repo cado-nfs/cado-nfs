@@ -32,12 +32,25 @@ fedora_packages=(
     hostname
 )
 
-if [[ $CI_BUILD_NAME =~ "coverage tests" ]] ; then
+while [ $# -gt 0 ] ; do
+    case "$1" in
+        coverage|clang|gcc|debug|icc) eval "$1=1";;
+        *) echo "$1 -> ???" >&2 ; exit 1;;
+    esac
+    shift
+done
+
+if [[ $CI_BUILD_NAME =~ "coverage tests" ]] || [ "$coverage" ] ; then
     debian_packages+=(gcovr)
     fedora_packages+=(gcovr)
 fi
 
-if [[ $CI_BUILD_NAME =~ "with clang" ]] ; then
+if [[ $CI_BUILD_NAME =~ "with gcc" ]] || [ "$gcc" ] ; then
+    debian_packages+=(g++)
+    fedora_packages+=(g++)
+fi
+
+if [[ $CI_BUILD_NAME =~ "with clang" ]] || [ "$clang" ] ; then
     debian_packages+=(clang)
     fedora_packages+=(clang)
 fi

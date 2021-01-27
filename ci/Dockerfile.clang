@@ -1,0 +1,4 @@
+FROM debian:unstable
+COPY 0??-*.sh ??-*.sh /tmp/
+RUN /tmp/00-prepare-docker.sh clang
+# vim: filetype=dockerfile:
