@@ -12,13 +12,14 @@ case "$HOSTNAME" in
     docker-script-*) ;;
     cado-*) ;;
     raclette|fondue|tartiflette|berthoud) ;;
-    genepi|calva) ;;
     plafrim|fcatrel|fnancy|catrel-*|miriel*|mistral*|bora*) ;;
     gcc*) ;;
     poire*) ;;
     macintosh*home) ;;
     fedora*|debian*|ubuntu*|centos*|freebsd*|openbsd*|netbsd*) ;;
-    pine64) export NCPUS_FAKE=1;;
+    # some of our very slow machines have so little ram that clearly, we
+    # must not tax them too much.
+    genepi|calva|pine64) export NCPUS_FAKE=1;;
     *)
     if ! [ "$DOCKER_SCRIPT" ] ; then
         echo "${CSI_RED}Hostname is $HOSTNAME ; that is unexpected${CSI_RESET}" >&2
