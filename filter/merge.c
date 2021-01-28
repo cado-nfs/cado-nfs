@@ -237,14 +237,14 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
   pages, protected by a lock, but these are infrequently accessed.
 */
 
-#define PAGE_SIZE ((1<<18) - 4) /* seems to be optimal for RSA-512 */
+#define PAGE_DATA_SIZE ((1<<18) - 4) /* seems to be optimal for RSA-512 */
 
 struct page_t {
         struct pagelist_t *list;     /* the pagelist_t structure associated with this page */
         int i;                       /* page number, for debugging purposes */
         int generation;              /* pass in which this page was filled. */
-        int ptr;                     /* data[ptr:PAGE_SIZE] is available*/
-        typerow_t data[PAGE_SIZE];
+        int ptr;                     /* data[ptr:PAGE_DATA_SIZE] is available*/
+        typerow_t data[PAGE_DATA_SIZE];
 };
 
 // linked list of pages (doubly-linked for the full pages, simply-linked for the empty pages)
@@ -414,12 +414,12 @@ heap_clear ()
 static inline typerow_t *
 heap_malloc (size_t s)
 {
-  ASSERT(s <= PAGE_SIZE);
+  ASSERT(s <= PAGE_DATA_SIZE);
   int t = omp_get_thread_num();
   struct page_t *page = active_page[t];
   // ASSERT(page != NULL);
   /* enough room in active page ?*/
-  if (page->ptr + s >= PAGE_SIZE) {
+  if (page->ptr + s >= PAGE_DATA_SIZE) {
         heap_release_page(page);
         page = heap_get_free_page();
         active_page[t] = page;
@@ -503,7 +503,7 @@ heap_waste_ratio()
         long long total_waste = 0;
         for (int t = 0; t < T; t++)
                 total_waste += heap_waste[t];
-        double waste = ((double) total_waste) / (n_pages - n_empty_pages) / PAGE_SIZE;
+        double waste = ((double) total_waste) / (n_pages - n_empty_pages) / PAGE_DATA_SIZE;
         return waste;
 }
 
@@ -532,7 +532,7 @@ full_garbage_collection(filter_matrix_t *mat)
         double page_ratio = (double) i / initial_full_pages;
         double recycling = 1 - heap_waste_ratio() / waste;
         printf("Examined %.0f%% of full pages, recycled %.0f%% of waste. %.0f%% of examined data was garbage\n",
-        	100 * page_ratio, 100 * recycling, 100.0 * collected_garbage / i / PAGE_SIZE);
+        	100 * page_ratio, 100 * recycling, 100.0 * collected_garbage / i / PAGE_DATA_SIZE);
 
         cpu8 = seconds () - cpu8;
         wct8 = wct_seconds () - wct8;
@@ -1902,7 +1902,7 @@ main (int argc, char *argv[])
 #ifdef USE_ARENAS
     printf (", M_ARENA_MAX=%d", arenas);
 #endif
-    printf (", PAGE_SIZE=%d", PAGE_SIZE);
+    printf (", PAGE_DATA_SIZE=%d", PAGE_DATA_SIZE);
 #ifdef HAVE_OPENMP
     /* https://stackoverflow.com/questions/38281448/how-to-check-the-version-of-openmp-on-windows
        201511 is OpenMP 4.5 */
