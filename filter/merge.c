@@ -123,7 +123,8 @@ static int verbose = 0; /* verbosity level */
 
 #define MARGIN 5 /* reallocate dynamic lists with increment 1/MARGIN */
 
-// #define TRACE_J 1438672   for debuging purposes
+/* define TRACE_J to trace all occurrences of ideal TRACE_J in the matrix */
+// #define TRACE_J 1438672
 
 
 static void
@@ -133,6 +134,18 @@ print_timings (char *s, double cpu, double wct)
 	  s, cpu, wct, cpu / wct);
   fflush (stdout);
 }
+
+#ifdef DEBUG
+static void
+Print_row (filter_matrix_t *mat, index_t i)
+{
+  ASSERT_ALWAYS(mat->rows[i] != NULL);
+  printf ("%u:", i);
+  for (index_t k = 1; k <= matLengthRow(mat, i); k++)
+    printf (" %u", rowCell(mat->rows[i],k));
+  printf ("\n");
+}
+#endif
 
 /*************************** output buffer ***********************************/
 
@@ -1024,8 +1037,8 @@ compute_R (filter_matrix_t *mat, index_t j0)
                         n_empty++;
         printf("$$$       empty-columns: %d\n", n_empty);
   #endif
-  printf("$$$       Rn: % " PRId64 "\n", Rn);
-  printf("$$$       Rnz: %" PRId64 "\n", Rnz);
+  printf("$$$       Rn:  %" PRIu64 "\n", (uint64_t) Rn);
+  printf("$$$       Rnz: %" PRIu64 "\n", (uint64_t) Rnz);
   printf("$$$       timings:\n");
   printf("$$$         row-count: %f\n", before_extraction - wct);
   printf("$$$         extraction: %f\n", before_compression - before_extraction);
@@ -1942,8 +1955,8 @@ main (int argc, char *argv[])
 		if (mat->rows[i] == NULL)
 			continue;
 		for (index_t k = 1; k <= matLengthRow(mat, i); k++)
-			if (mat->rows[i][k] == TRACE_J)
-		printf ("ideal %d in row %lu\n", TRACE_J, (unsigned long) i);
+                  if (rowCell(mat->rows[i],k) == TRACE_J)
+                    printf ("ideal %d in row %lu\n", TRACE_J, (unsigned long) i);
 	}
 	#endif
 
@@ -1968,6 +1981,13 @@ main (int argc, char *argv[])
 	free(L);
 
 	free_aligned (mat->Ri);
+
+        if (nmerges == 0 && n_possible_merges > 0)
+          {
+            fprintf (stderr, "Error, no merge done while n_possible_merges > 0\n");
+            fprintf (stderr, "Please check the entries in your purged file are sorted\n");
+            exit (EXIT_FAILURE);
+          }
 
 	/* settings for next pass */
   	if (mat->cwmax == 2) { /* we first process all 2-merges */
