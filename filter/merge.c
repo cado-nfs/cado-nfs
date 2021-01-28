@@ -649,7 +649,25 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
   mat->rem_nrows = nread;
 }
 
-
+/* check the matrix rows are sorted by increasing index */
+static void
+check_matrix (filter_matrix_t *mat)
+{
+  #pragma omp parallel for
+  for (index_t i = 0; i < mat->nrows; i++)
+    {
+      index_t l = matLengthRow (mat, i);
+      for (index_t j = 1; j < l; l++)
+        /* for DL we can have duplicate entries in the purged file, but after
+           filter_matrix_read() they should be accumulated into one single
+           entry (k,e), thus successive values of k cannot be equal here */
+        if (matCell (mat, i, j-1) >= matCell (mat, i, j))
+          {
+            fprintf (stderr, "Error, the rows of the purged file should be sorted by increasing index\n");
+            exit (EXIT_FAILURE);
+          }
+    }
+}
 
 /* stack non-empty columns at the begining. Update mat->p (for DL) and jmin */
 static void recompress(filter_matrix_t *mat, index_t *jmin)
@@ -1850,6 +1868,7 @@ main (int argc, char *argv[])
     tt = seconds ();
     filter_matrix_read (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
+    check_matrix (mat);
 
     buffer_struct_t *Buf = buffer_init (nthreads);
 
