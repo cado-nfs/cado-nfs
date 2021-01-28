@@ -297,6 +297,7 @@ void PLE<uint64_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned i
 }/*}}}*/
 #endif
 
+#ifdef HAVE_MMX
 template<>
 void PLE<uint8_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned int i, unsigned int j)/*{{{*/
 {
@@ -340,6 +341,7 @@ void PLE<uint8_t>::propagate_pivot(unsigned int bi, unsigned int bj, unsigned in
         Yw = _mm_xor_si64(Yw, _mm_and_si64(cc, select));
     }
 }/*}}}*/
+#endif
 
 template<typename T>
 void PLE<T>::propagate_row_permutations(unsigned int ii1, unsigned int bj0, std::vector<unsigned int>::const_iterator q0, std::vector<unsigned int>::const_iterator q1)/*{{{*/
