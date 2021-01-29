@@ -28,26 +28,30 @@ fi
 
 # it's important that these come after the per-compiler selection of
 # "ideal" images, of course.
+#
+# note that we're on matching the "on " in "on debian9 system", so that
+# an argument "debian9 system with clang" should just work, which sounds
+# a bit more natural than keeping "checks on " in the argument.
 case "$CI_BUILD_NAME" in
-    *"on alpine system"*) FROM=alpine;;
-    *"on alpine-edge system"*) FROM=alpine:edge;;
-    *"on debian8 system"*) FROM=debian:8;;
-    *"on debian9 system"*) FROM=debian:9;;
-    *"on debian10 system"*) FROM=debian:10;;
-    *"on debian11 system"*) FROM=debian:11;;
-    *"on debian-testing system"*) FROM=debian:testing;;
-    *"on debian-unstable system"*) FROM=debian:unstable;;
-    *"on fedora25 system"*) FROM=fedora:25;;
-    *"on fedora26 system"*) FROM=fedora:26;;
-    *"on fedora27 system"*) FROM=fedora:27;;
-    *"on fedora28 system"*) FROM=fedora:28;;
-    *"on fedora29 system"*) FROM=fedora:29;;
-    *"on fedora30 system"*) FROM=fedora:30;;
-    *"on fedora31 system"*) FROM=fedora:31;;
-    *"on fedora32 system"*) FROM=fedora:32;;
-    *"on fedora33 system"*) FROM=fedora:33;;
-    *"on fedora34 system"*) FROM=fedora:34;;
-    *"on fedora-rawhide system"*) FROM=fedora:rawhide;;
+    *"alpine system"*) FROM=alpine;;
+    *"alpine-edge system"*) FROM=alpine:edge;;
+    *"debian8 system"*) FROM=debian:8;;
+    *"debian9 system"*) FROM=debian:9;;
+    *"debian10 system"*) FROM=debian:10;;
+    *"debian11 system"*) FROM=debian:11;;
+    *"debian-testing system"*) FROM=debian:testing;;
+    *"debian-unstable system"*) FROM=debian:unstable;;
+    *"fedora25 system"*) FROM=fedora:25;;
+    *"fedora26 system"*) FROM=fedora:26;;
+    *"fedora27 system"*) FROM=fedora:27;;
+    *"fedora28 system"*) FROM=fedora:28;;
+    *"fedora29 system"*) FROM=fedora:29;;
+    *"fedora30 system"*) FROM=fedora:30;;
+    *"fedora31 system"*) FROM=fedora:31;;
+    *"fedora32 system"*) FROM=fedora:32;;
+    *"fedora33 system"*) FROM=fedora:33;;
+    *"fedora34 system"*) FROM=fedora:34;;
+    *"fedora-rawhide system"*) FROM=fedora:rawhide;;
 esac
 
 cat <<EOF

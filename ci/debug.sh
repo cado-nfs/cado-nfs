@@ -15,6 +15,8 @@
 #  ./ci/debug.sh "checks with clang"
 #  ./ci/debug.sh "coverage tests with gcc"
 #  ./ci/debug.sh "checks on fedora31 system with clang"
+#  ./ci/debug.sh "fedora31 system with clang"
+# (the latter example is just a shorthand of the preceding one).
 #
 # The example below is special, because it needs a **LOT** of disk space
 # (about 20G).
@@ -48,7 +50,7 @@
 # location in the container's /tmp directory
 #
 #
-# Because the disk image of your container takes a predicible name, a
+# Because the disk image of your container takes a predictible name, a
 # subsequent call to the same script should bring you back to exactly the
 # same system !
 #

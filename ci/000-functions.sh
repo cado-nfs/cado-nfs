@@ -11,6 +11,10 @@ CSI_BLUE="\e[01;34m"
 CSI_RESET="\e[00;39m\e[m"
 CSI_KILLLINE="\e[0K"
 
+ECHO_E=echo
+if [ "$BASH_VERSION" ] ; then
+    ECHO_E="echo -e"
+fi
 
 # Usage: enter_section [internal name] [message]
 #
@@ -20,7 +24,7 @@ enter_section() {
     message="$2"
     : ${message:="$1"}
     current_section="$1"
-    echo -e "section_start:`date +%s`:$internal_name\r${CSI_KILLLINE}${CSI_BLUE}$message${CSI_RESET}"
+    $ECHO_E "section_start:`date +%s`:$internal_name\r${CSI_KILLLINE}${CSI_BLUE}$message${CSI_RESET}"
 }
 
 # Usage: leave_section [internal name] [message]
@@ -37,7 +41,7 @@ leave_section() {
         echo "script error, last pushed section is $current_section, not $1 !" >&2
         exit 1
     fi
-    echo -e "section_end:`date +%s`:$1\r${CSI_KILLLINE}${CSI_BLUE}$2${CSI_RESET}"
+    $ECHO_E "section_end:`date +%s`:$1\r${CSI_KILLLINE}${CSI_BLUE}$2${CSI_RESET}"
     unset current_section
 }
 
@@ -52,7 +56,7 @@ check_mandatory_tools() {
         fi
     done
     if [ "$fail" ] ; then
-        echo -e "${CSI_RED}Fix these missing tools on the runner host, and try again${CSI_RESET}" >&2
+        $ECHO_E "${CSI_RED}Fix these missing tools on the runner host, and try again${CSI_RESET}" >&2
         exit 1
     fi
 }
@@ -68,7 +72,7 @@ check_mandatory_files() {
         fi
     done
     if [ "$fail" ] ; then
-        echo -e "${CSI_RED}Fix these missing files on the runner host, and try again${CSI_RESET}" >&2
+        $ECHO_E "${CSI_RED}Fix these missing files on the runner host, and try again${CSI_RESET}" >&2
         exit 1
     fi
 }
@@ -84,7 +88,7 @@ check_optional_files() {
         fi
     done
     if [ "$fail" ] ; then
-        echo -e "${CSI_RED}Some optional files could not be found. This is not a fatal error${CSI_RESET}" >&2
+        $ECHO_E "${CSI_RED}Some optional files could not be found. This is not a fatal error${CSI_RESET}" >&2
     fi
 }
 
@@ -99,7 +103,7 @@ check_optional_nonzero_output_shell() {
         fi
     done
     if [ "$fail" ] ; then
-        echo -e "${CSI_RED}Some optional files could not be found. This is not a fatal error${CSI_RESET}" >&2
+        $ECHO_E "${CSI_RED}Some optional files could not be found. This is not a fatal error${CSI_RESET}" >&2
     fi
 }
 
@@ -114,7 +118,7 @@ check_mandatory_nonzero_output_shell() {
         fi
     done
     if [ "$fail" ] ; then
-        echo -e "${CSI_RED}Fix these missing tests on the runner host, and try again${CSI_RESET}" >&2
+        $ECHO_E "${CSI_RED}Fix these missing tests on the runner host, and try again${CSI_RESET}" >&2
     fi
 }
 

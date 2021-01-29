@@ -6,7 +6,8 @@ use POSIX qw/getcwd/;
 use File::Basename;
 use File::Temp qw/tempdir tempfile mktemp/;
 use List::Util qw/max/;
-use Data::Dumper;
+# do not include Data::Dumper except for debugging.
+# use Data::Dumper;
 use Fcntl;
 use Carp;
 

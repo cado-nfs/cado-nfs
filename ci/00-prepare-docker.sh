@@ -25,6 +25,8 @@ debian_packages="$debian_packages     locales"
 debian_packages="$debian_packages     cmake"
 debian_packages="$debian_packages     libhwloc-dev"
 debian_packages="$debian_packages     libgmp-dev"
+# is full perl really needed ?
+# debian_packages="$debian_packages     perl"
 debian_packages="$debian_packages     python3"
 
 fedora_packages="$fedora_packages     bc"
@@ -32,6 +34,9 @@ fedora_packages="$fedora_packages     cmake"
 fedora_packages="$fedora_packages     hwloc-devel"
 fedora_packages="$fedora_packages     gmp-devel"
 fedora_packages="$fedora_packages     hostname"
+# is full perl really needed ? seems that perl-interpreter and the auto
+# dependencies that we pull already pull what we need.
+# fedora_packages="$fedora_packages     perl"
 fedora_packages="$fedora_packages     python"
 
 alpine_packages="$alpine_packages     bc"
