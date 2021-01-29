@@ -49,10 +49,9 @@ image: gcc
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - docker pull $IMAGE:latest || true
-    - ci/00-dockerfile.sh | docker build -t $IMAGE:$CI_COMMIT_SHA --cache-from $IMAGE:latest -f - ci
-    - docker push $IMAGE:$CI_COMMIT_SHA
-    - docker tag $IMAGE:$CI_COMMIT_SHA $IMAGE:latest
-    - docker push $IMAGE:latest
+    - ci/00-dockerfile.sh | docker build -t $IMAGE --cache-from $IMAGE:latest -f - ci
+    - docker push $IMAGE
+    - T=`date +%Y%m%d%H%M`-$CI_COMMIT_SHA ; docker tag $IMAGE:latest $IMAGE:$T ; docker push $IMAGE:$T
 
 container with gcc:
   variables:
