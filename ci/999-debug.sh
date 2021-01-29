@@ -1,12 +1,17 @@
 #!/bin/bash
 
-# This is only used by .docker-script.sh
+# This is only used by ci/debug.sh
 
+uid=$(stat -c '%u' /host)
+gid=$(stat -c '%g' /host)
+if [ -f /etc/alpine-release ] ; then
+    addgroup -g $gid hostgroup
+    adduser -s /bin/bash -D -G hostgroup -u $uid hostuser
+else
+    groupadd -g $gid hostgroup
+    useradd -s /bin/bash -m -g $gid -u $uid hostuser
+fi
 
-uid=$(stat --printf '%u' /host)
-gid=$(stat --printf '%g' /host)
-groupadd -g $gid hostgroup
-useradd -s /bin/bash -m -g $gid -u $uid hostuser
 
 ## touch /tmp/trampoline.sh
 ## chmod 755 /tmp/trampoline.sh
@@ -47,10 +52,19 @@ cd /host
 # fi
 
 cat > /etc/profile.d/99-cado-nfs-build-tree.sh <<'EOF'
-echo
 export force_build_tree=/tmp/b 
 echo "# NOTE: cado-nfs build tree has just been set to $force_build_tree"
 echo "# NOTE: cado-nfs source tree is under /host"
 EOF
 
-exec su - hostuser
+cat >> ~hostuser/.bashrc <<EOF
+cd /host
+EOF
+
+if [ "$*" ] ; then
+    echo "# WARNING: script runs with \$PWD set to " ~hostuser
+    exec su -l hostuser -c "$*"
+else
+    # just want a shell
+    exec su - hostuser "$@"
+fi

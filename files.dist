@@ -1565,7 +1565,7 @@ utils/renumber_proxy.h
 linalg/bwc/lingen_abfield.hpp
 linalg/bwc/lingen_bw_dimensions.hpp
 .gitlab-ci.yml
-.docker-script.sh
+ci/debug.sh
 tests/misc/test_renumber.data/c105_30003.poly
 tests/filter/c105_30003.rels.gz
 tests/filter/test_dup2.sh
@@ -1618,8 +1618,4 @@ ci/03-check.sh
 ci/utilities/ncpus.sh
 ci/001-environment.sh
 ci/999-debug.sh
-ci/Dockerfile.debian
-ci/Dockerfile.fedora
-ci/Dockerfile.icc
-ci/Dockerfile.gcc
-ci/Dockerfile.clang
+ci/00-dockerfile.sh

@@ -1,4 +1,4 @@
-# cf .docker-script.sh
+# see also ci/debug.sh
 
 stages:
   - build
@@ -16,77 +16,135 @@ image: gcc
 # on what it finds. E.g. it reacts to "with gcc", "expensive checks",
 # "coverage tests", and so on.
 
-container with gcc:
+# We're using a few features from gitlab yaml:
+#
+# - [yaml anchors](https://docs.gitlab.com/ce/ci/yaml/#anchors)
+# - manual disable of pipeline elements, which we do more or less by hand
+#   (finer grained than the ["skip ci"
+#   syntax](https://docs.gitlab.com/ee/ci/yaml/#skip-pipeline))
+#
+# Much desired: https://gitlab.com/gitlab-org/gitlab/-/issues/23605
+  
+############################################################################
+# This template is used so that if the magic words "skip some ci" are
+# found in the git commit, then the whole pipeline becomes manual.
+.common-template: &common-template
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: true
+    - when: on_success
+  
+############################################################################
+# The containers.
+#
+# First, a generic rule that we use to build containers.
+#
+# Note that an important alter ego of this config bit is in the file
+# ci/00-dockerfile.sh, which is in shared between this file and ci/debug.sh
+
+.container-template: &container-template
   image: docker
   stage: build
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $IMAGE:latest || true
+    - ci/00-dockerfile.sh | docker build -t $IMAGE:$CI_COMMIT_SHA --cache-from $IMAGE:latest -f - ci
+    - docker push $IMAGE:$CI_COMMIT_SHA
+    - docker tag $IMAGE:$CI_COMMIT_SHA $IMAGE:latest
+    - docker push $IMAGE:latest
+
+container with gcc:
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
-    IMAGE_TAG: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc:$CI_COMMIT_SHA
-    DOCKERFILE: ci/Dockerfile.gcc
-  script:
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker pull $IMAGE:latest || true
-    - docker build -t $IMAGE_TAG --cache-from $IMAGE:latest -f $DOCKERFILE ci
-    - docker push $IMAGE_TAG
-    - docker tag $IMAGE_TAG $IMAGE:latest
-    - docker push $IMAGE:latest
+  <<: *common-template
+  <<: *container-template
+
+container on debian10 system with gcc:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian10-gcc
+  <<: *common-template
+  <<: *container-template
+
+container on debian9 system with gcc:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian9-gcc
+  <<: *common-template
+  <<: *container-template
 
 container with icc:
-  image: docker
-  stage: build
-  tags:
-    - icc
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc
-    IMAGE_TAG: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc:$CI_COMMIT_SHA
-    DOCKERFILE: ci/Dockerfile.icc
-  script:
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker pull $IMAGE:latest || true
-    - docker build -t $IMAGE_TAG --cache-from $IMAGE:latest -f $DOCKERFILE ci
-    - docker push $IMAGE_TAG
-    - docker tag $IMAGE_TAG $IMAGE:latest
-    - docker push $IMAGE:latest
+  tags:
+    - icc
+  <<: *common-template
+  <<: *container-template
 
 container with clang:
-  image: docker
-  stage: build
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang
-    IMAGE_TAG: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang:$CI_COMMIT_SHA
-    DOCKERFILE: ci/Dockerfile.clang
-  script:
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker pull $IMAGE:latest || true
-    - docker build -t $IMAGE_TAG --cache-from $IMAGE:latest -f $DOCKERFILE ci
-    - docker push $IMAGE_TAG
-    - docker tag $IMAGE_TAG $IMAGE:latest
-    - docker push $IMAGE:latest
+  <<: *common-template
+  <<: *container-template
+
+# need gcov 4.2 or later, the 'container with gcc' box doesn't have it
+# since it's based on debian stable.
+# TODO: find a more stable image !
+container with gcovr-4.2:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
+  <<: *container-template
+
+############################################################################
+# The jobs that do checks.
+#
+# Basically, much of the work is done in shell scripts for convenience,
+# and they're grouped in the template below.
+
+.checks-script: &checks-script
+  - ci/01-conf.sh
+  - ci/02-build1.sh
+  - ci/02-build2.sh
+  - ci/03-check.sh
 
 checks with gcc:
+  <<: *common-template
   stage: early
   needs:
     - container with gcc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
   script:
-    - ci/01-conf.sh
-    - ci/02-build1.sh
-    - ci/02-build2.sh
-    - ci/03-check.sh
+    - *checks-script
+
+checks on debian10 system with gcc:
+  <<: *common-template
+  stage: early
+  needs:
+    - container on debian10 system with gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian10-gcc
+  script:
+    - *checks-script
+
+checks on debian9 system with gcc:
+  <<: *common-template
+  stage: early
+  needs:
+    - container on debian9 system with gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian9-gcc
+  script:
+    - *checks-script
 
 checks with clang:
+  <<: *common-template
   # use very latest
   needs:
     - container with clang
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang
   stage: early
   script:
-    - ci/01-conf.sh
-    - ci/02-build1.sh
-    - ci/02-build2.sh
-    - ci/03-check.sh
+    - *checks-script
 
 checks with icc:
+  <<: *common-template
   needs:
     - container with icc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc
@@ -94,35 +152,29 @@ checks with icc:
   tags:
     - icc
   script:
-    - ci/01-conf.sh
-    - ci/02-build1.sh
-    - ci/02-build2.sh
-    - ci/03-check.sh
+    - *checks-script
 
 expensive checks with gcc:
+  <<: *common-template
   stage: various
   needs:
     - container with gcc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
   script:
-    - ci/01-conf.sh
-    - ci/02-build1.sh
-    - ci/02-build2.sh
-    - ci/03-check.sh
+    - *checks-script
 
-# need gcov 4.2 or later, the 'container with gcc' box doesn't have it
-# since it's based on debian stable.
+############################################################################
+# coverage. Actually, this is not really dependent on checks, after all.
+# It does depend on the availability of the coverage images, though!
+#
 coverage tests on expensive checks with gcc:
+  <<: *common-template
   stage: various
-  image: debian:testing
-  before_script:
-    # this will pull the coverage tools
-    - ci/00-prepare-docker.sh
+  needs:
+    - container with gcovr-4.2
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
   script:
-    - ci/01-conf.sh
-    - ci/02-build1.sh
-    - ci/02-build2.sh
-    - ci/03-check.sh
+    - *checks-script
     - gcovr --json . > coverage-expensive.json
   artifacts:
     paths:
@@ -135,13 +187,12 @@ coverage tests on expensive checks with gcc:
 # apparently done automatically !
 # https://stackoverflow.com/questions/38140996/how-can-i-pass-artifacts-to-another-stage
 merge coverage tests:
+  <<: *common-template
   stage: thorough
   needs:
     - coverage tests on expensive checks with gcc
     # list more of these...
-  image: debian:testing
-  before_script:
-    - ci/00-prepare-docker.sh
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
   script:
     - >
       gcovr
@@ -152,6 +203,8 @@ merge coverage tests:
     reports:
       cobertura: coverage.xml
 
+############################################################################
+# Tests on slow machines and/or shell executors. They depend on nothing.
 
 # It would be possible to run the following test on arm64 as well, but my
 # only runner is an allwinner CPU with 2G of RAM, and it takes more than
@@ -161,23 +214,19 @@ merge coverage tests:
 # # very slow machines run with the shell executor anyway.
 # # 00-prepare-shell.sh can only check if software is present.
 run on very slow machines:
+  <<: *common-template
   stage: thorough
+  needs: []
   tags:
     - raspberry
   before_script:
     - ci/00-prepare-shell.sh
   script:
-    - ci/01-conf.sh
-    - ci/02-build1.sh
-    - ci/02-build2.sh
-    - ci/03-check.sh
-  # See https://docs.gitlab.com/ee/ci/yaml/#dependencies ; we don't
-  # want to bother with other artifacts.
-  dependencies: []
+    - *checks-script
 
 
-# okay. "cache" is only when the runners have a notion of available
-# cache server, it seems. Don't do that for now.
+# "cache" is only when the runners have a notion of available cache
+# server, it seems. Don't do that for now.
 # cache:
 # # paths:
 # - "*.o"

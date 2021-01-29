@@ -1,5 +1,0 @@
-FROM intel/oneapi-hpckit
-COPY 0??-*.sh ??-*.sh /tmp/
-RUN /tmp/00-prepare-docker.sh
-RUN ln -s $ONEAPI_ROOT/setvars.sh /etc/profile.d/90-intel-setvars.sh
-# vim: filetype=dockerfile:

@@ -1,5 +1,0 @@
-FROM fedora:rawhide
-ENV DOCKER_SCRIPT=1
-COPY 0??-*.sh ??-*.sh /tmp/
-RUN /tmp/00-prepare-docker.sh
-# vim: filetype=dockerfile:

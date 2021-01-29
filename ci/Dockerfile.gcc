@@ -1,4 +1,0 @@
-FROM gcc
-COPY 0??-*.sh ??-*.sh /tmp/
-RUN /tmp/00-prepare-docker.sh
-# vim: filetype=dockerfile:

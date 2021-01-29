@@ -1,6 +1,8 @@
 # This file must be sourced.
-
-section_stack=()
+#
+# We're /bin/sh, not bash.
+#
+# We **must** be silent !
 
 set -e
 
@@ -9,6 +11,7 @@ CSI_BLUE="\e[01;34m"
 CSI_RESET="\e[00;39m\e[m"
 CSI_KILLLINE="\e[0K"
 
+
 # Usage: enter_section [internal name] [message]
 #
 # The message is optional and defaults to the internal name
@@ -16,7 +19,7 @@ enter_section() {
     internal_name="$1"
     message="$2"
     : ${message:="$1"}
-    section_stack+=("$1")
+    current_section="$1"
     echo -e "section_start:`date +%s`:$internal_name\r${CSI_KILLLINE}${CSI_BLUE}$message${CSI_RESET}"
 }
 
@@ -26,21 +29,16 @@ enter_section() {
 # internal name defaults to the last pushed section. If an inconsistency
 # is detected, error out.
 leave_section() {
-    if ! [ "${#section_stack[@]}" -gt 0 ] ; then
+    if ! [ "$current_section" ] ; then
         echo "script error, no section stack !" >&2
         exit 1
     fi
-    last_index=$((${#section_stack[@]}-1))
-    last_section="${section_stack[$last_index]}"
-    section_stack="${section_stack[@]::$last_index}"
-
-    if [ "$internal_name" ] && [ "$last_section" != "$internal_name" ] ; then
-        echo "script error, last pushed section is $last_section, not $internal_name !" >&2
+    if [ "$1" ] && [ "$current_section" != "$1" ] ; then
+        echo "script error, last pushed section is $current_section, not $1 !" >&2
         exit 1
     fi
-    internal_name="$last_section"
-    message="$2"
-    echo -e "section_end:`date +%s`:$internal_name\r${CSI_KILLLINE}${CSI_BLUE}$message${CSI_RESET}"
+    echo -e "section_end:`date +%s`:$1\r${CSI_KILLLINE}${CSI_BLUE}$2${CSI_RESET}"
+    unset current_section
 }
 
 check_mandatory_tools() {

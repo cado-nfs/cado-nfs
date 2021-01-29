@@ -1,4 +1,9 @@
 # This file must be sourced.
+#
+# We're /bin/sh, not bash.
+#
+# We **must** be silent !
+
 export CLICOLOR_FORCE=1
 
 if type -p hostname > /dev/null 2>&1 ; then
@@ -20,36 +25,41 @@ case "$HOSTNAME" in
     # some of our very slow machines have so little ram that clearly, we
     # must not tax them too much.
     genepi|calva|pine64) export NCPUS_FAKE=1;;
-    *)
-    if ! [ "$DOCKER_SCRIPT" ] ; then
-        echo "${CSI_RED}Hostname is $HOSTNAME ; that is unexpected${CSI_RESET}" >&2
-    fi
-    # Make this a non-fatal event now.
-    # exit 1
-    ;;
 esac
 
-# prefer if's to case switches, as it is possible that several such cases
-# are matches.
-
-if [[ $CI_BUILD_NAME =~ "coverage tests" ]] ; then
+case "$CI_BUILD_NAME" in
+    *"coverage tests"*)
     : ${CFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
     : ${CXXFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
-fi
-
-if [[ $CI_BUILD_NAME =~ "with clang" ]] ; then
+    coverage=1
+    ;;
+esac
+case "$CI_BUILD_NAME" in
+    *"with gcc"*)
+    : ${CC=gcc}
+    : ${CXX=g++}
+    gcc=1
+    ;;
+esac
+case "$CI_BUILD_NAME" in
+    *"with clang"*)
     : ${CC=clang}
     : ${CXX=clang++}
-fi
-
-if [[ $CI_BUILD_NAME =~ "with icc" ]] ; then
+    clang=1
+    ;;
+esac
+case "$CI_BUILD_NAME" in
+    *"with icc"*)
     : ${CC=icc}
     : ${CXX=icpc}
-fi
-
-if [[ $CI_BUILD_NAME =~ "expensive checks" ]] ; then
+    icc=1
+    ;;
+esac
+case "$CI_BUILD_NAME" in
+    *"expensive checks"*)
     export CHECKS_EXPENSIVE=1
-fi
+    ;;
+esac
 
 export CC CXX
 export CFLAGS CXXFLAGS
