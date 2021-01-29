@@ -91,6 +91,7 @@ container with clang:
 container for coverage tests with gcc:
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
+  <<: *common-template
   <<: *container-template
 
 ############################################################################
@@ -218,6 +219,18 @@ run on very slow machines:
   needs: []
   tags:
     - raspberry
+  before_script:
+    - ci/00-prepare-shell.sh
+  script:
+    - *checks-script
+
+# in fact, this one should be quick !
+checks on osx system:
+  <<: *common-template
+  stage: thorough
+  needs: []
+  tags:
+    - osx
   before_script:
     - ci/00-prepare-shell.sh
   script:
