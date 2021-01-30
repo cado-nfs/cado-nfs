@@ -1817,9 +1817,13 @@ calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
       T[j]->Np = Np;
       T[j]->pinf = pinf;
     }
-#ifdef __OpenBSD__
+#if defined(__OpenBSD__) || defined(HAVE_MUSL)
   /* On openbsd, we have obscure failures that seem to be triggered
    * by multithreading. So let's play it simple.
+   *
+   * We seem to experience exactly a similar problem with musl libc (used
+   * by alpine linux). Note that HAVE_MUSL is a custom flag that we define
+   * ourselves.
    */
   for (j = 0; j < nthreads; j++)
       (*one_thread)((void*)(T+j));

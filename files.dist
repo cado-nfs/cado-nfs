@@ -1603,3 +1603,5 @@ utils/json.cpp
 utils/json.hpp
 tests/estimate_matsize/test_with_relation_cache.sh
 tests/estimate_matsize/build_relation_cache.pl
+config/musl.cmake
+config/musl.sh
