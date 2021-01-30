@@ -661,6 +661,7 @@ AC_DEFUN([GF2X_PROG_CC_FOR_BUILD_WORKS],
 # remove anything that might look like compiler output to our "||" expression
 rm -f conftest* a.out b.out a.exe a_out.exe
 cat >conftest.c <<EOF
+#include <stdlib.h>
 int
 main ()
 {
@@ -699,6 +700,7 @@ AC_DEFUN([GF2X_PROG_EXEEXT_FOR_BUILD],
 AC_CACHE_CHECK([for build system executable suffix],
                gf2x_cv_prog_exeext_for_build,
 [cat >conftest.c <<EOF
+#include <stdlib.h>
 int
 main ()
 {

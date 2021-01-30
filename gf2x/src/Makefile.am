@@ -42,7 +42,6 @@ EXTRA_DIST+=tuning_undef_wrapper.h
 EXTRA_DIST+=tuning_undefs_pre.h
 
 
-
 # We've got a lot of per-target cfiles here, but it's rather silly to
 # have automake produce separate .o files for the files which fo _not_
 # change in this regard. So we resort to having lots of silly libraries,
@@ -56,7 +55,7 @@ CLEANFILES=
 DISTCLEANFILES=
 BUILT_SOURCES=
 
-# EXTRA_PROGRAMS=gen_bb_mul_code$(EXEEXT_FOR_BUILD)
+# EXTRA_PROGRAMS=gen_bb_mul_code
 # gen_bb_mul_code_SOURCES=gen_bb_mul_code.c
 
 gen_bb_mul_code$(EXEEXT_FOR_BUILD): ../lowlevel/gen_bb_mul_code.c
@@ -776,11 +775,11 @@ EXTRA_DIST+=tune-lowlevel.pl
 ######################################################################
 noinst_HEADERS=timing.h tuning-common.h replace.h
 
-EXTRA_PROGRAMS+=modify-thresholds$(EXEEXT)
+EXTRA_PROGRAMS+=modify-thresholds
 modify_thresholds_SOURCES=modify-thresholds.c replace.c
 
 ######################################################################
-EXTRA_PROGRAMS+=tunetoom$(EXEEXT)
+EXTRA_PROGRAMS+=tunetoom
 tunetoom_SOURCES=tunetoom.c tuning-common.c
 tunetoom_LDADD=libtiming.la ../libgf2x-local.a -lm
 
@@ -806,7 +805,7 @@ tune-toom:
 endif
 
 ######################################################################
-EXTRA_PROGRAMS+=tunefft$(EXEEXT)
+EXTRA_PROGRAMS+=tunefft
 tunefft_SOURCES=tunefft.c tuning-common.c
 tunefft_LDADD=libtiming.la ../libgf2x-local.a
 
@@ -825,6 +824,14 @@ tune-fft: tunefft.res modify-thresholds$(EXEEXT)
 	rm -f ../gf2x/gf2x-thresholds.h
 	ln -sf ../already_tuned/tuned/gf2x-thresholds.h ../gf2x/
 	cd $(top_builddir) ; $(MAKE)
+
+# This holds all the things that we possibly compile if we want to run
+# tune-lowlevel / tune-toom / tune-fft ; it might make sense to build
+# them in CD settings, even if we're not always running the tests anyway.
+# Note also that tuen-lowlevel changes the inlined code, so conceivably
+# there could be compilation errors that are hard to spot.
+tune-progs: $(EXTRA_PROGRAMS)
+	:
 
 CLEANFILES+=$(EXTRA_PROGRAMS) $(EXTRA_LTLIBRARIES) tunetoom.res tunefft.res
 CLEANFILES+=$(BUILT_SOURCES)
