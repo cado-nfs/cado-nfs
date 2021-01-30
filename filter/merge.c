@@ -661,20 +661,11 @@ check_matrix (filter_matrix_t *mat)
   for (index_t i = 0; i < mat->nrows; i++)
     {
       index_t l = matLengthRow (mat, i);
-      index_t j0 = 0;
-#ifdef FOR_DL
-      /* err. it's absolutely ugly beyond repair. Seems that we really
-       * have indices starting at 1 in the dl case ????
-       *
-       * (see fprintRow for example)
-       */
-      j0++;
-#endif
-      for (index_t j = 1; j < l; j++)
+      for (index_t j = 2; j < l; j++)
         /* for DL we can have duplicate entries in the purged file, but after
            filter_matrix_read() they should be accumulated into one single
            entry (k,e), thus successive values of k cannot be equal here */
-        if (matCell (mat, i, j0 + j-1) >= matCell (mat, i, j0 + j))
+        if (matCell (mat, i, j-1) >= matCell (mat, i, j))
           {
             fprintf (stderr, "Error, the rows of the purged file should be sorted by increasing index\n");
             exit (EXIT_FAILURE);
