@@ -22,7 +22,7 @@ $ctx->add($seed);
 while ($infinite || $nbytes > 0) {
     my $crap = $ctx->clone->digest;
     my $take = ($infinite || $nbytes >= 16) ? 16 : $nbytes;
-    syswrite(STDOUT, $crap, $take);
+    syswrite(STDOUT, $crap, $take) or die;
     $nbytes -= $take;
     $ctx->add($crap);
 }

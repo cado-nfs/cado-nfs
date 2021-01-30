@@ -27,7 +27,15 @@
 
 /* Program to tune Toom-Cook multiplication over GF(2). */
 
-/* How to use this program:
+/* This program is called by "make tune-toom". You may also want to call
+ * it independently.
+ *
+ * You are advised to run "make tune-lowlevel" beforehand, or otherwise
+ * the tuning results that you obtain with this program are likely to
+ * have limited significance.
+ *
+ * _IF_ you want to run this program independently of the "make
+ * tune-toom" scenario, the instructions are as follows.
 
    1) beforehand, tune the low-level multiplication routines
       with ``make tune-lowlevel''
@@ -65,7 +73,8 @@
        ln -sf already_tuned/tuned/gf2x-thresholds.h ../
 
    4) compile and run tunefft to tune FFT multiplication
-      (see instructions in tunefft.c).
+      (see instructions in tunefft.c) ; this is done by the toplevel
+      "make tune-fft" target.
 */
 
 #define _DEFAULT_SOURCE /* _BSD_SOURCE is deprecated */
@@ -110,8 +119,6 @@ const char * gf2x_utoom_select_string[] = {
     [GF2X_SELECT_UNB_DFLT] = "default",
     [GF2X_SELECT_UNB_TC3U]  = "TC3U",
 };
-
-FILE *rp;
 
 void tunetoom(long tablesz)
 {

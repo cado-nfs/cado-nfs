@@ -75,6 +75,7 @@ struct shrink_action {
                 continue;
 
             rel.shrink(shrink_factor);
+            rel.sort();
             rel.compress(dl);
 
             os << rel << std::endl;

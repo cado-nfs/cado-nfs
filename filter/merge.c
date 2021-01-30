@@ -123,7 +123,8 @@ static int verbose = 0; /* verbosity level */
 
 #define MARGIN 5 /* reallocate dynamic lists with increment 1/MARGIN */
 
-// #define TRACE_J 1438672   for debuging purposes
+/* define TRACE_J to trace all occurrences of ideal TRACE_J in the matrix */
+// #define TRACE_J 1438672
 
 
 static void
@@ -133,6 +134,18 @@ print_timings (char *s, double cpu, double wct)
 	  s, cpu, wct, cpu / wct);
   fflush (stdout);
 }
+
+#ifdef DEBUG
+static void
+Print_row (filter_matrix_t *mat, index_t i)
+{
+  ASSERT_ALWAYS(mat->rows[i] != NULL);
+  printf ("%u:", i);
+  for (index_t k = 1; k <= matLengthRow(mat, i); k++)
+    printf (" %u", rowCell(mat->rows[i],k));
+  printf ("\n");
+}
+#endif
 
 /*************************** output buffer ***********************************/
 
@@ -224,14 +237,14 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
   pages, protected by a lock, but these are infrequently accessed.
 */
 
-#define PAGE_SIZE ((1<<18) - 4) /* seems to be optimal for RSA-512 */
+#define PAGE_DATA_SIZE ((1<<18) - 4) /* seems to be optimal for RSA-512 */
 
 struct page_t {
         struct pagelist_t *list;     /* the pagelist_t structure associated with this page */
         int i;                       /* page number, for debugging purposes */
         int generation;              /* pass in which this page was filled. */
-        int ptr;                     /* data[ptr:PAGE_SIZE] is available*/
-        typerow_t data[PAGE_SIZE];
+        int ptr;                     /* data[ptr:PAGE_DATA_SIZE] is available*/
+        typerow_t data[PAGE_DATA_SIZE];
 };
 
 // linked list of pages (doubly-linked for the full pages, simply-linked for the empty pages)
@@ -401,12 +414,12 @@ heap_clear ()
 static inline typerow_t *
 heap_malloc (size_t s)
 {
-  ASSERT(s <= PAGE_SIZE);
+  ASSERT(s <= PAGE_DATA_SIZE);
   int t = omp_get_thread_num();
   struct page_t *page = active_page[t];
   // ASSERT(page != NULL);
   /* enough room in active page ?*/
-  if (page->ptr + s >= PAGE_SIZE) {
+  if (page->ptr + s >= PAGE_DATA_SIZE) {
         heap_release_page(page);
         page = heap_get_free_page();
         active_page[t] = page;
@@ -490,7 +503,7 @@ heap_waste_ratio()
         long long total_waste = 0;
         for (int t = 0; t < T; t++)
                 total_waste += heap_waste[t];
-        double waste = ((double) total_waste) / (n_pages - n_empty_pages) / PAGE_SIZE;
+        double waste = ((double) total_waste) / (n_pages - n_empty_pages) / PAGE_DATA_SIZE;
         return waste;
 }
 
@@ -519,7 +532,7 @@ full_garbage_collection(filter_matrix_t *mat)
         double page_ratio = (double) i / initial_full_pages;
         double recycling = 1 - heap_waste_ratio() / waste;
         printf("Examined %.0f%% of full pages, recycled %.0f%% of waste. %.0f%% of examined data was garbage\n",
-        	100 * page_ratio, 100 * recycling, 100.0 * collected_garbage / i / PAGE_SIZE);
+        	100 * page_ratio, 100 * recycling, 100.0 * collected_garbage / i / PAGE_DATA_SIZE);
 
         cpu8 = seconds () - cpu8;
         wct8 = wct_seconds () - wct8;
@@ -636,7 +649,25 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
   mat->rem_nrows = nread;
 }
 
-
+/* check the matrix rows are sorted by increasing index */
+static void
+check_matrix (filter_matrix_t *mat)
+{
+  #pragma omp parallel for
+  for (index_t i = 0; i < mat->nrows; i++)
+    {
+      index_t l = matLengthRow (mat, i);
+      for (index_t j = 1; j < l; l++)
+        /* for DL we can have duplicate entries in the purged file, but after
+           filter_matrix_read() they should be accumulated into one single
+           entry (k,e), thus successive values of k cannot be equal here */
+        if (matCell (mat, i, j-1) >= matCell (mat, i, j))
+          {
+            fprintf (stderr, "Error, the rows of the purged file should be sorted by increasing index\n");
+            exit (EXIT_FAILURE);
+          }
+    }
+}
 
 /* stack non-empty columns at the begining. Update mat->p (for DL) and jmin */
 static void recompress(filter_matrix_t *mat, index_t *jmin)
@@ -1024,8 +1055,8 @@ compute_R (filter_matrix_t *mat, index_t j0)
                         n_empty++;
         printf("$$$       empty-columns: %d\n", n_empty);
   #endif
-  printf("$$$       Rn: % " PRId64 "\n", Rn);
-  printf("$$$       Rnz: %" PRId64 "\n", Rnz);
+  printf("$$$       Rn:  %" PRIu64 "\n", (uint64_t) Rn);
+  printf("$$$       Rnz: %" PRIu64 "\n", (uint64_t) Rnz);
   printf("$$$       timings:\n");
   printf("$$$         row-count: %f\n", before_extraction - wct);
   printf("$$$         extraction: %f\n", before_compression - before_extraction);
@@ -1837,6 +1868,7 @@ main (int argc, char *argv[])
     tt = seconds ();
     filter_matrix_read (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
+    check_matrix (mat);
 
     buffer_struct_t *Buf = buffer_init (nthreads);
 
@@ -1870,7 +1902,7 @@ main (int argc, char *argv[])
 #ifdef USE_ARENAS
     printf (", M_ARENA_MAX=%d", arenas);
 #endif
-    printf (", PAGE_SIZE=%d", PAGE_SIZE);
+    printf (", PAGE_DATA_SIZE=%d", PAGE_DATA_SIZE);
 #ifdef HAVE_OPENMP
     /* https://stackoverflow.com/questions/38281448/how-to-check-the-version-of-openmp-on-windows
        201511 is OpenMP 4.5 */
@@ -1942,8 +1974,8 @@ main (int argc, char *argv[])
 		if (mat->rows[i] == NULL)
 			continue;
 		for (index_t k = 1; k <= matLengthRow(mat, i); k++)
-			if (mat->rows[i][k] == TRACE_J)
-		printf ("ideal %d in row %lu\n", TRACE_J, (unsigned long) i);
+                  if (rowCell(mat->rows[i],k) == TRACE_J)
+                    printf ("ideal %d in row %lu\n", TRACE_J, (unsigned long) i);
 	}
 	#endif
 
@@ -1968,6 +2000,13 @@ main (int argc, char *argv[])
 	free(L);
 
 	free_aligned (mat->Ri);
+
+        if (nmerges == 0 && n_possible_merges > 0)
+          {
+            fprintf (stderr, "Error, no merge done while n_possible_merges > 0\n");
+            fprintf (stderr, "Please check the entries in your purged file are sorted\n");
+            exit (EXIT_FAILURE);
+          }
 
 	/* settings for next pass */
   	if (mat->cwmax == 2) { /* we first process all 2-merges */
