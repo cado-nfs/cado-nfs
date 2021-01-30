@@ -11,6 +11,7 @@
 
 # {{{ libs
 import sys
+import io
 import os
 import random
 import errno
@@ -57,6 +58,15 @@ if not re.search("^/", CADO_PYTHON_LIBS_PATH):
 sys.path.append(CADO_PYTHON_LIBS_PATH)
 from workunit import Workunit
 # }}}
+
+
+def pid_exists(pid):
+    try:
+        os.kill(pid, 0)
+    except OSError as e:
+        return e.errno == errno.EPERM
+    else:
+        return True
 
 # {{{ locking plumbing.
 # File locking functions are specific to Unix/Windows/MacOS platforms.
@@ -2195,6 +2205,8 @@ if __name__ == '__main__':
                 parser.add_option('--' + arg.lower(), help=default[1])
         parser.add_option("-d", "--daemon", action="store_true", dest="daemon",
                           help="Daemonize the client")
+        parser.add_option("--ping", type="int", dest="ping",
+                          help="Checks health of existing client.  Requires clientid")
         parser.add_option("--keepoldresult", default=False, action="store_true",
                           help="Keep and upload old results when client starts")
         parser.add_option("--nosha1check", default=False, action="store_true",
@@ -2252,6 +2264,11 @@ if __name__ == '__main__':
 
     options = parse_cmdline()
 
+    if options.ping != None:
+        if SETTINGS["CLIENTID"] is None:
+                raise ValueError("--ping requires --clientid")
+        if not options.daemon and SETTINGS["LOGFILE"] is None:
+                raise ValueError("--ping requires --daemon or --logfile")
     # If no client id is given, we use <hostname>.<randomstr>
     if SETTINGS["CLIENTID"] is None:
         import random
@@ -2294,6 +2311,19 @@ if __name__ == '__main__':
     if options.daemon and logfilename is None:
         logfilename = "%s/%s.log" % (SETTINGS["WORKDIR"], SETTINGS["CLIENTID"])
         SETTINGS["LOGFILE"] = logfilename
+
+    if options.ping != None:
+        if pid_exists(options.ping):
+            sys.exit(0)
+        with open(logfilename, "r") as f:
+            size = os.stat(f.fileno()).st_size
+            if size >= 8192:
+                f.seek(size-8192,io.SEEK_SET)
+            lines=f.readlines()
+            for l in lines[-20:]:
+                sys.stderr.write("CLIENT ERROR: " + l)
+        sys.exit(1)
+
     logfile = None if logfilename is None else open(logfilename, "a")
     logging.basicConfig(level=loglevel)
     if options.logdate:
