@@ -115,17 +115,17 @@ edwards_neg (ec_point_t Q, const ec_point_t P, const modulus_t m)
   mod_neg (Q->t, P->t, m);
 }
 
-/* edwards_addsub (R:output_flag, P:edwards_ext, Q:edwards_ext, sub,output_flag)
+/* edwards_addsub (R:output_type, P:edwards_ext, Q:edwards_ext, sub,output_type)
  *     R <- P+Q      if sub == 0
  *     R <- P-Q      if sub != 0
- *     output_flag can be edwards_proj, edwards_ext or montgomery
+ *     output_type can be edwards_proj, edwards_ext or montgomery
  * R can be the same variable as P or Q.
  * All coordinates of the output point R can be modified (because they may be
  * used as temporary variables).
  * Cost:
- *    7M + 8add + 2*2         if output_flag == TWISTED_EDWARDS_proj
- *    8M + 8add + 2*2         if output_flag == TWISTED_EDWARDS_ext
- *    4M + 10add + 2*2        if output_flag == TWISTED_EDWARDS_ext
+ *    7M + 8add + 2*2         if output_type == TWISTED_EDWARDS_proj
+ *    8M + 8add + 2*2         if output_type == TWISTED_EDWARDS_ext
+ *    4M + 10add + 2*2        if output_type == TWISTED_EDWARDS_ext
  * Notations in the comments come from:
  *    https://hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html#addition-add-2008-hwcd-4
  * Source: Hisil–Wong–Carter–Dawson, 2008, section 3.2 of
@@ -136,9 +136,9 @@ static inline void
 edwards_addsub (ec_point_t R, const ec_point_t P, const ec_point_t Q, int sub,
                 const modulus_t m, const ec_point_coord_type_t output_type)
 {
-  ASSERT_EXPENSIVE (output_flag == TWISTED_EDWARDS_ext ||
-                    output_flag == TWISTED_EDWARDS_proj ||
-                    output_flag == MONTGOMERY_xz);
+  ASSERT_EXPENSIVE (output_type == TWISTED_EDWARDS_ext ||
+                    output_type == TWISTED_EDWARDS_proj ||
+                    output_type == MONTGOMERY_xz);
 
 #ifdef ECM_COUNT_OPS
   if (output_type == TWISTED_EDWARDS_proj)
@@ -243,15 +243,15 @@ edwards_sub (ec_point_t R, const ec_point_t P, const ec_point_t Q,
   edwards_addsub (R, P, Q, 1, m, output_type);
 }
 
-/* edwards_dbl (R:output_flag, P:edwards_proj, output_flag)
+/* edwards_dbl (R:output_type, P:edwards_proj, output_type)
  *     R <- 2*P
- *     output_flag can be edwards_proj or edwards_ext
+ *     output_type can be edwards_proj or edwards_ext
  * R can be the same variable as P.
  * All coordinates of the output point R can be modified (because they may be
  * used as temporary variables).
  * Cost:
- *    3M + 4S + 5add + 1*2         if output_flag == TWISTED_EDWARDS_proj
- *    4M + 4S + 5add + 1*2         if output_flag == TWISTED_EDWARDS_ext
+ *    3M + 4S + 5add + 1*2         if output_type == TWISTED_EDWARDS_proj
+ *    4M + 4S + 5add + 1*2         if output_type == TWISTED_EDWARDS_ext
  * Notations in the comments come from:
  *    https://hyperelliptic.org/EFD/g1p/auto-twisted-projective.html#doubling-dbl-2008-bbjlp
  * Source: Bernstein–Birkner–Joye–Lange–Peters, 2008
@@ -262,8 +262,8 @@ static inline void
 edwards_dbl (ec_point_t R, const ec_point_t P,
              const modulus_t m, const ec_point_coord_type_t output_type)
 {
-  ASSERT_EXPENSIVE (output_flag == TWISTED_EDWARDS_ext ||
-                    output_flag == TWISTED_EDWARDS_proj);
+  ASSERT_EXPENSIVE (output_type == TWISTED_EDWARDS_ext ||
+                    output_type == TWISTED_EDWARDS_proj);
 
 #ifdef ECM_COUNT_OPS
   if (output_type == TWISTED_EDWARDS_proj)
@@ -300,15 +300,15 @@ edwards_dbl (ec_point_t R, const ec_point_t P,
 }
 
 
-/* edwards_tpl (R:output_flag, P:edwards_proj, output_flag)
+/* edwards_tpl (R:output_type, P:edwards_proj, output_type)
  *     R <- 3*P
- *     output_flag can be edwards_proj or edwards_ext
+ *     output_type can be edwards_proj or edwards_ext
  * R can be the same variable as P.
  * All coordinates of the output point R can be modified (because they may be
  * used as temporary variables).
  * Cost:
- *     9M + 3S + 7add + 2*2 + 1*-1      if output_flag == TWISTED_EDWARDS_proj
- *    11M + 3S + 7add + 2*2 + 1*-1      if output_flag == TWISTED_EDWARDS_ext
+ *     9M + 3S + 7add + 2*2 + 1*-1      if output_type == TWISTED_EDWARDS_proj
+ *    11M + 3S + 7add + 2*2 + 1*-1      if output_type == TWISTED_EDWARDS_ext
  * Notations in the comments come from:
  *    https://hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html#tripling-tpl-2015-c
  * Source: 2015 Chuengsatiansup.
@@ -318,8 +318,8 @@ static inline void
 edwards_tpl (ec_point_t R, const ec_point_t P,
              const modulus_t m, const ec_point_coord_type_t output_type)
 {
-  ASSERT_EXPENSIVE (output_flag == TWISTED_EDWARDS_ext ||
-                    output_flag == TWISTED_EDWARDS_proj);
+  ASSERT_EXPENSIVE (output_type == TWISTED_EDWARDS_ext ||
+                    output_type == TWISTED_EDWARDS_proj);
 
 #ifdef ECM_COUNT_OPS
   if (output_type == TWISTED_EDWARDS_proj)
