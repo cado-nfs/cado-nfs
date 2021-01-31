@@ -1621,3 +1621,4 @@ ci/999-debug.sh
 ci/00-dockerfile.sh
 config/musl.cmake
 config/musl.sh
+ci/ctest-to-junit.xsl

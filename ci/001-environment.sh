@@ -67,8 +67,13 @@ case "$CI_BUILD_NAME" in
     ;;
 esac
 case "$CI_BUILD_NAME" in
+    *"checks"*)
+        checks=1
+    ;;
+esac
+case "$CI_BUILD_NAME" in
     *"expensive checks"*)
-    export CHECKS_EXPENSIVE=1
+        export CHECKS_EXPENSIVE=1
     ;;
 esac
 

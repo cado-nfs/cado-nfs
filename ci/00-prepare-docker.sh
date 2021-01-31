@@ -87,6 +87,12 @@ if [ "$clang" ] ; then
     alpine_packages="$alpine_packages     clang"
 fi
 
+if [ "$checks" ] ; then
+    debian_packages="$debian_packages     xsltproc"
+    fedora_packages="$fedora_packages     libxslt"
+    alpine_packages="$alpine_packages     libxslt"
+fi
+
 if [ "$DOCKER_SCRIPT" ] ; then
     debian_packages="$debian_packages sudo git vim gdb"
     fedora_packages="$fedora_packages sudo git vim gdb"

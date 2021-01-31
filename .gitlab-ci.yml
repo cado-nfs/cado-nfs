@@ -61,37 +61,37 @@ workflow:
     - docker push $IMAGE
     - T=`date +%Y%m%d%H%M`-$CI_COMMIT_SHA ; docker tag $IMAGE:latest $IMAGE:$T ; docker push $IMAGE:$T
 
-container with gcc:
+container for checks with gcc:
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
   <<: *common-template
   <<: *container-template
 
-container on alpine system with gcc:
+container for checks on alpine system with gcc:
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/alpine-gcc
   <<: *common-template
   <<: *container-template
 
-container on debian system with 32-bit gcc:
+container for checks on debian system with 32-bit gcc:
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian-32-bit-gcc
   <<: *common-template
   <<: *container-template
 
-container on debian10 system with gcc:
+container for checks on debian10 system with gcc:
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian10-gcc
   <<: *common-template
   <<: *container-template
 
-container on debian9 system with gcc:
+container for checks on debian9 system with gcc:
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian9-gcc
   <<: *common-template
   <<: *container-template
 
-container with icc:
+container for checks with icc:
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc
   tags:
@@ -99,13 +99,13 @@ container with icc:
   <<: *common-template
   <<: *container-template
 
-container with clang:
+container for checks with clang:
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang
   <<: *common-template
   <<: *container-template
 
-# need gcov 4.2 or later, the 'container with gcc' box doesn't have it
+# need gcov 4.2 or later, the 'container for checks with gcc' box doesn't have it
 # since it's based on debian stable.
 # TODO: find a more stable image !
 container for coverage tests with gcc:
@@ -126,80 +126,93 @@ container for coverage tests with gcc:
   - ci/02-build2.sh
   - ci/03-check.sh
 
+.checks-junit-report: &checks-junit-report
+  artifacts:
+    reports:
+      junit: junit.xml
+
 checks with gcc:
   <<: *common-template
   stage: early
   needs:
-    - container with gcc
+    - container for checks with gcc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
   script:
     - *checks-script
+  <<: *checks-junit-report
 
 checks on alpine system with gcc:
   <<: *common-template
   stage: early
   needs:
-    - container on alpine system with gcc
+    - container for checks on alpine system with gcc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/alpine-gcc
   script:
     - *checks-script
+  <<: *checks-junit-report
 
 checks on debian system with 32-bit gcc:
   <<: *common-template
   stage: early
   needs:
-    - container on debian system with 32-bit gcc
+    - container for checks on debian system with 32-bit gcc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian-32-bit-gcc
   script:
     - *checks-script
+  <<: *checks-junit-report
 
 checks on debian10 system with gcc:
   <<: *common-template
   stage: early
   needs:
-    - container on debian10 system with gcc
+    - container for checks on debian10 system with gcc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian10-gcc
   script:
     - *checks-script
+  <<: *checks-junit-report
 
 checks on debian9 system with gcc:
   <<: *common-template
   stage: early
   needs:
-    - container on debian9 system with gcc
+    - container for checks on debian9 system with gcc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian9-gcc
   script:
     - *checks-script
+  <<: *checks-junit-report
 
 checks with clang:
   <<: *common-template
   # use very latest
   needs:
-    - container with clang
+    - container for checks with clang
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang
   stage: early
   script:
     - *checks-script
+  <<: *checks-junit-report
 
 checks with icc:
   <<: *common-template
   needs:
-    - container with icc
+    - container for checks with icc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc
   stage: early
   tags:
     - icc
   script:
     - *checks-script
+  <<: *checks-junit-report
 
 expensive checks with gcc:
   <<: *common-template
   stage: various
   needs:
-    - container with gcc
+    - container for checks with gcc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
   script:
     - *checks-script
+  <<: *checks-junit-report
 
 ############################################################################
 # coverage. Actually, this is not really dependent on checks, after all.
@@ -262,6 +275,7 @@ run on very slow machines:
     - ci/00-prepare-shell.sh
   script:
     - *checks-script
+  <<: *checks-junit-report
 
 # in fact, this one should be quick !
 checks on osx system:
@@ -274,6 +288,7 @@ checks on osx system:
     - ci/00-prepare-shell.sh
   script:
     - *checks-script
+  <<: *checks-junit-report
 
 
 # "cache" is only when the runners have a notion of available cache
