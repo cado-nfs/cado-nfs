@@ -644,12 +644,16 @@ filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
 
   /* read all rels */
   nread = filter_rels (fic, (filter_rels_callback_t) &insert_rel_into_table,
-		       mat, EARLYPARSE_NEED_INDEX, NULL, NULL);
+		       mat, EARLYPARSE_NEED_INDEX_SORTED, NULL, NULL);
   ASSERT_ALWAYS(nread == mat->nrows);
   mat->rem_nrows = nread;
 }
 
 /* check the matrix rows are sorted by increasing index */
+/* this should not be needed at all, now that we ask filter_rels to
+ * give us sorted rows with EARLYPARSE_NEED_INDEX_SORTED. (non-sorted
+ * rows are sorted on the fly if needed)
+ */
 static void
 check_matrix (filter_matrix_t *mat)
 {
@@ -657,11 +661,11 @@ check_matrix (filter_matrix_t *mat)
   for (index_t i = 0; i < mat->nrows; i++)
     {
       index_t l = matLengthRow (mat, i);
-      for (index_t j = 1; j < l; l++)
+      for (index_t j = 1; j < l; j++)
         /* for DL we can have duplicate entries in the purged file, but after
            filter_matrix_read() they should be accumulated into one single
            entry (k,e), thus successive values of k cannot be equal here */
-        if (matCell (mat, i, j-1) >= matCell (mat, i, j))
+        if (matCell (mat, i, j) >= matCell (mat, i, j+1))
           {
             fprintf (stderr, "Error, the rows of the purged file should be sorted by increasing index\n");
             exit (EXIT_FAILURE);
