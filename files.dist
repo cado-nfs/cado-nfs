@@ -1619,3 +1619,5 @@ ci/utilities/ncpus.sh
 ci/001-environment.sh
 ci/999-debug.sh
 ci/00-dockerfile.sh
+config/musl.cmake
+config/musl.sh
