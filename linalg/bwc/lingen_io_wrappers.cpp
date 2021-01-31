@@ -1454,3 +1454,11 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
         if (is_last) break;
     }
 }
+
+template class lingen_scatter<matpoly>;
+template class lingen_scatter<bigmatpoly>;
+template class lingen_gather<matpoly>;
+template class lingen_gather<bigmatpoly>;
+template class lingen_gather_reverse<matpoly>;
+template class lingen_gather_reverse<bigmatpoly>;
+
