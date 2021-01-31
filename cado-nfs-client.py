@@ -737,11 +737,11 @@ class HTTP_connector(object):
                 # let urllib do the work for us
 
                 context = ssl.SSLContext()
-                context.check_hostname = bool(check_hostname)
                 if check_hostname:
                     context.verify_mode = ssl.CERT_REQUIRED
                 else:
                     context.verify_mode = ssl.CERT_NONE
+                context.check_hostname = bool(check_hostname)
                 context.load_verify_locations(cafile=cafile)
 
                 return urllib_request.urlopen(request, context=context)
