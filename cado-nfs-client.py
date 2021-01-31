@@ -1563,7 +1563,12 @@ class InputDownloader(object):
             return filesum
         return filesum.lower() == checksum.lower()
 
-    def get_file(self, urlpath, dlpath=None, options=None, is_wu=False, mandatory_server=None):
+    def get_file(self, urlpath,
+            dlpath=None,
+            options=None,
+            is_wu=False,
+            executable=False,
+            mandatory_server=None):
         """ gets a file from the server (of from one of the failover
         servers, for WUs), and wait until we succeed.
 
@@ -1675,6 +1680,13 @@ class InputDownloader(object):
             logging.info("Opened URL %s after %s seconds wait",
                          url, waiting_since)
 
+        if executable:
+            m = dlpath_tmp if dlpath_tmp is not None else dlpath
+            mode = os.stat(m).st_mode
+            if mode & stat.S_IXUSR == 0:
+                logging.info("Setting executable flag for %s", dlpath)
+                os.chmod(m, mode | stat.S_IXUSR)
+
         if dlpath_tmp is not None:
             # We can't atomically rename-unless-dst-does-not-exist-yet.
             os.rename(dlpath_tmp, dlpath)
@@ -1685,6 +1697,7 @@ class InputDownloader(object):
                          checksum=None,
                          options=None,
                          is_wu=False,
+                         executable=False,
                          mandatory_server=None
                          ):
         """ Downloads a file if it does not exist already, from one of
@@ -1755,6 +1768,7 @@ class InputDownloader(object):
             # we were catching HTTPError here previously. Useless now ?
             peer = self.get_file(urlpath, filename, options=options,
                                  is_wu=is_wu,
+                                 executable=executable,
                                  mandatory_server=mandatory_server)
             if peer is None:
                 if is_wu:
@@ -1796,20 +1810,17 @@ class InputDownloader(object):
                 checksum = None
             # If we fail to download the file, we'll deal with it at the
             # level above
+
+            executable = os.name != "nt" and \
+                    filename in dict(wu.get("EXECFILE", []))
             self.get_missing_file(archname, dlpath, checksum,
+                                  executable=executable,
                                   mandatory_server=server)
             # Try to lock the file once to be sure that download has finished
             # if another cado-nfs-client is doing the downloading
             with open(dlpath) as file_to_lock:
                 FileLock.lock(file_to_lock)
                 FileLock.unlock(file_to_lock)
-
-            if os.name != "nt" and \
-                    filename in dict(wu.get("EXECFILE", [])):
-                mode = os.stat(dlpath).st_mode
-                if mode & stat.S_IXUSR == 0:
-                    logging.info("Setting executable flag for %s", dlpath)
-                    os.chmod(dlpath, mode | stat.S_IXUSR)
         return True
 
     # }}}
