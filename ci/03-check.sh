@@ -30,5 +30,7 @@ if [ "${#xmls[@]}" != 1 ] ; then
     exit 1
 fi
 xsltproc "$(dirname $0)/ctest-to-junit.xsl" "${xmls[0]}" > junit.xml
+$ECHO_E "${CSI_BLUE}20 most expensive tests (real time):${CSI_RESET}"
+perl -ne '/testcase.*" name="([^"]+)" time="([\d\.]+)"/ && print "$2 $1\n";' junit.xml  |sort -n | tail -n 20
 leave_section
 exit $rc
