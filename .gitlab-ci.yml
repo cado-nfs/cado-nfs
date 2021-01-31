@@ -35,6 +35,14 @@ image: gcc
       allow_failure: true
     - when: on_success
   
+# see also https://gitlab.com/gitlab-org/gitlab/-/issues/201845 regarding
+# the pipeline deduplication
+workflow:
+   rules:
+     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+       when: never
+     - when: always
+
 ############################################################################
 # The containers.
 #
