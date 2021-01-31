@@ -42,6 +42,17 @@ case "$CI_BUILD_NAME" in
     ;;
 esac
 case "$CI_BUILD_NAME" in
+    *"with 32-bit gcc"*)
+    : ${CC=gcc}
+    : ${CXX=g++}
+    : ${CFLAGS="$CFLAGS -m32"}
+    : ${CXXFLAGS="$CXXFLAGS -m32"}
+    GMP="/usr/local/gmp-6.1.2.abi32"
+    export GMP
+    gcc32=1
+    ;;
+esac
+case "$CI_BUILD_NAME" in
     *"with clang"*)
     : ${CC=clang}
     : ${CXX=clang++}

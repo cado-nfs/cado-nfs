@@ -63,6 +63,18 @@ if [ "$coverage" ] ; then
     alpine_packages="$alpine_packages     gcovr"
 fi
 
+if [ "$gcc32" ] ; then
+    if ! [ -f /etc/debian_version ] ; then
+        echo "multlib -> only debian (fedora:IDK ; alpine:no-go)" >&2
+        exit 1
+    fi
+    debian_packages="$debian_packages     g++-multilib"
+    debian_packages="$debian_packages     curl"
+    debian_packages="$debian_packages     lzip"
+    # fedora_packages="$fedora_packages     g++"
+    # alpine_packages="$alpine_packages     g++"
+fi
+
 if [ "$gcc" ] ; then
     debian_packages="$debian_packages     g++"
     fedora_packages="$fedora_packages     g++"
@@ -95,5 +107,16 @@ EOF
     apk add $alpine_packages
 fi
 
-leave_section
+if [ "$gcc32" ] ; then
+    cd /tmp/
+    curl -O https://gmplib.org/download/gmp/gmp-6.2.1.tar.lz
+    tar xf gmp-6.2.1.tar.lz
+    cd gmp-6.2.1
+    # $GMP is set in ci/001-environment.sh
+    ./configure --prefix=$GMP ABI=32
+    NCPUS=`"$(dirname $0)/utilities/ncpus.sh"`
+    make -j$NCPUS
+    make install
+fi
 
+leave_section

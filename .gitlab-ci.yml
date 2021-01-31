@@ -65,6 +65,12 @@ container on alpine system with gcc:
   <<: *common-template
   <<: *container-template
 
+container on debian system with 32-bit gcc:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian-32-bit-gcc
+  <<: *common-template
+  <<: *container-template
+
 container on debian10 system with gcc:
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian10-gcc
@@ -130,6 +136,15 @@ checks on alpine system with gcc:
   script:
     - *checks-script
 
+checks on debian system with 32-bit gcc:
+  <<: *common-template
+  stage: early
+  needs:
+    - container on debian system with 32-bit gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian-32-bit-gcc
+  script:
+    - *checks-script
+
 checks on debian10 system with gcc:
   <<: *common-template
   stage: early
@@ -191,6 +206,7 @@ coverage tests on expensive checks with gcc:
   script:
     - *checks-script
     - gcovr --json . > coverage-expensive.json
+  <<: *checks-junit-report
   artifacts:
     paths:
       - coverage-expensive.json

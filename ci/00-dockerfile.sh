@@ -35,6 +35,7 @@ fi
 case "$CI_BUILD_NAME" in
     *"alpine system"*) FROM=alpine;;
     *"alpine-edge system"*) FROM=alpine:edge;;
+    *"debian system"*) FROM=debian;;
     *"debian8 system"*) FROM=debian:8;;
     *"debian9 system"*) FROM=debian:9;;
     *"debian10 system"*) FROM=debian:10;;
@@ -67,8 +68,8 @@ if [ "$CI_BUILD_NAME" ] ; then
 fi
 
 cat <<EOF
-COPY 0??-*.sh ??-*.sh /tmp/
-RUN /tmp/00-prepare-docker.sh
+COPY ./ /tmp/ci/
+RUN /tmp/ci/00-prepare-docker.sh
 EOF
 
 if [ "$icc" ] ; then
