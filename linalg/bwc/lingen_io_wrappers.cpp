@@ -139,7 +139,7 @@ size_t lingen_file_input::guessed_length() const
             }
             guess = filesize / avg;
         } else {
-            double expected_length = filesize / avg;
+            double expected_length = (double) filesize / avg;
             printf("# Expect roughly %.2f items in the sequence.\n", expected_length);
 
             /* First coefficient is always lighter, so we add a +1. */
