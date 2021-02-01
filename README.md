@@ -1,4 +1,7 @@
 
+[![pipeline status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.elliptic.org/cado-nfs/cado-nfs/-/commits/master)
+[![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.elliptic.org/cado-nfs/cado-nfs/-/commits/master)
+
 Quick install:
 ==============
 

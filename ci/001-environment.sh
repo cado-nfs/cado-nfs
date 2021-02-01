@@ -27,6 +27,21 @@ case "$HOSTNAME" in
     genepi|calva|pine64) export NCPUS_FAKE=1;;
 esac
 
+if ! [ "$CI_BUILD_NAME" ] && [ "$1" ] ; then
+    CI_BUILD_NAME="$1"
+    $ECHO_E "${CSI_BLUE}Setting CI_BUILD_NAME=\"$1\"${CSI_RESET}"
+fi
+
+if ! [ "$CI_COMMIT_SHORT_SHA" ] && [ -d .git ] ; then
+    CI_COMMIT_SHORT_SHA="$(git rev-parse --short HEAD)"
+    $ECHO_E "${CSI_BLUE}Setting CI_COMMIT_SHORT_SHA=\"$CI_COMMIT_SHORT_SHA\"${CSI_RESET}"
+fi
+    
+if ! [ "$CI_JOB_ID" ] ; then
+    CI_JOB_ID=0
+    $ECHO_E "${CSI_BLUE}Setting CI_JOB_ID=\"$CI_JOB_ID\"${CSI_RESET}"
+fi
+    
 case "$CI_BUILD_NAME" in
     *"coverage tests"*)
     : ${CFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}

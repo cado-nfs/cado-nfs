@@ -218,7 +218,7 @@ expensive checks with gcc:
 # coverage. Actually, this is not really dependent on checks, after all.
 # It does depend on the availability of the coverage images, though!
 #
-coverage tests on expensive checks with gcc:
+coverage tests on checks with gcc:
   <<: *common-template
   stage: various
   needs:
@@ -226,11 +226,10 @@ coverage tests on expensive checks with gcc:
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
   script:
     - *checks-script
-    - gcovr --json . > coverage-expensive.json
-  <<: *checks-junit-report
   artifacts:
     paths:
-      - coverage-expensive.json
+      - coverage-*.info
+      - coverage-*.json
     expire_in: 1 week
 
 # the build name must match "coverage name" so that gcovr is installed.
@@ -241,42 +240,41 @@ coverage tests on expensive checks with gcc:
 merge coverage tests:
   <<: *common-template
   stage: thorough
-  needs:
-    - coverage tests on expensive checks with gcc
-    # list more of these...
+  # needs:
+  #   - coverage tests on checks with gcc
+  #   # list more of these...
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
   script:
-    - >
-      gcovr
-      --add-tracefile coverage-expensive.json
-      --xml coverage.xml
-      --xml-pretty
+    - ci/09-merge-coverage.sh
   artifacts:
+    paths:
+      - coverage
+      - coverage.tar.gz
     reports:
       cobertura: coverage.xml
 
 ############################################################################
 # Tests on slow machines and/or shell executors. They depend on nothing.
 
-# It would be possible to run the following test on arm64 as well, but my
-# only runner is an allwinner CPU with 2G of RAM, and it takes more than
-# two hours :-(. I think I would have to reduce the test surface first.
-#    - arm64
-#
-# # very slow machines run with the shell executor anyway.
-# # 00-prepare-shell.sh can only check if software is present.
-run on very slow machines:
-  <<: *common-template
-  stage: thorough
-  needs: []
-  tags:
-    - raspberry
-  before_script:
-    - ci/00-prepare-shell.sh
-  script:
-    - *checks-script
-  <<: *checks-junit-report
-
+# # It would be possible to run the following test on arm64 as well, but my
+# # only runner is an allwinner CPU with 2G of RAM, and it takes more than
+# # two hours :-(. I think I would have to reduce the test surface first.
+# #    - arm64
+# #
+# # # very slow machines run with the shell executor anyway.
+# # # 00-prepare-shell.sh can only check if software is present.
+# run on very slow machines:
+#   <<: *common-template
+#   stage: thorough
+#   needs: []
+#   tags:
+#     - raspberry
+#   before_script:
+#     - ci/00-prepare-shell.sh
+#   script:
+#     - *checks-script
+#   <<: *checks-junit-report
+ 
 # in fact, this one should be quick !
 checks on osx system:
   <<: *common-template

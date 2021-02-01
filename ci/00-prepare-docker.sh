@@ -58,9 +58,10 @@ done
 
 # These variables are set in ci/001-environment.sh
 if [ "$coverage" ] ; then
-    debian_packages="$debian_packages     gcovr"
-    fedora_packages="$fedora_packages     gcovr"
-    alpine_packages="$alpine_packages     gcovr"
+    # vim is needed because we have a bit of ex scripting...
+    debian_packages="$debian_packages     lcov gcovr vim-nox"
+    fedora_packages="$fedora_packages     lcov gcovr vim"
+    alpine_packages="$alpine_packages     lcov gcovr vim"
 fi
 
 if [ "$gcc32" ] ; then
