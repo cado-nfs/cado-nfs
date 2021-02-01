@@ -13,6 +13,9 @@ leave_section
 enter_section install_packages "Checking required and optional software"
 
 check_mandatory_tools bc cmake
+if [ "$checks" ] ; then
+check_mandatory_tools xsltproc
+fi
 # check_mandatory_files /usr/include/gmp.h
 check_optional_files /usr/include/hwloc.h
 check_mandatory_nonzero_output_shell 'find /usr/include -name gmp.h'
