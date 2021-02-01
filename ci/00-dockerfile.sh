@@ -7,7 +7,7 @@
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
 
-FROM=alpine
+FROM=alpine:latest
 
 if [ "$clang" ] ; then
     # difficult. fedora:rawhide, debian:testing are ok and seem to bring
@@ -17,13 +17,13 @@ fi
 if [ "$gcc" ] && ! [ "$coverage" ] ; then
     # coverage tests need gcc, but also need recent gcov. We can get by
     # with the gcc on alpine linux.
-    FROM=gcc
+    FROM=gcc:latest
     # well, thinking of it... alpine linux, as of today, is on gcc
     # preversions...
 fi
 
 if [ "$icc" ] ; then
-    FROM=intel/oneapi-hpckit
+    FROM=intel/oneapi-hpckit:latest
 fi
 
 # it's important that these come after the per-compiler selection of
@@ -33,7 +33,7 @@ fi
 # an argument "debian9 system with clang" should just work, which sounds
 # a bit more natural than keeping "checks on " in the argument.
 case "$CI_BUILD_NAME" in
-    *"alpine system"*) FROM=alpine;;
+    *"alpine system"*) FROM=alpine:latest;;
     *"alpine-edge system"*) FROM=alpine:edge;;
     *"debian system"*) FROM=debian;;
     *"debian8 system"*) FROM=debian:8;;

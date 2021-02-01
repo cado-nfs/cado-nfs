@@ -14,6 +14,8 @@ CSI_KILLLINE="\e[0K"
 ECHO_E=echo
 if [ "$BASH_VERSION" ] ; then
     ECHO_E="echo -e"
+elif [ -f /proc/$$/exe ] && [ `readlink /proc/$$/exe` = /bin/busybox ] ; then
+    ECHO_E="echo -e"
 fi
 
 # Usage: enter_section [internal name] [message]
