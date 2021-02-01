@@ -14,7 +14,9 @@ export OMP_DYNAMIC=true STATS_PARSING_ERRORS_ARE_FATAL=1
 eval $(make show)
 
 set +e
-make check ARGS="-j$NCPUS -T Test"
+# --no-compress-output is perhaps better for test uploading, as ctest
+# likes to store as zlib but headerless, which is a bit of a pain
+make check ARGS="-j$NCPUS -T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144"
 rc=$?
 leave_section
 
@@ -29,6 +31,7 @@ if [ "${#xmls[@]}" != 1 ] ; then
     for f in "${xmls[@]}" ; do ls -l "$f" >&2 ; done
     exit 1
 fi
+# TODO: remove the builddep tests !
 xsltproc "$(dirname $0)/ctest-to-junit.xsl" "${xmls[0]}" > junit.xml
 $ECHO_E "${CSI_BLUE}20 most expensive tests (real time):${CSI_RESET}"
 perl -ne '/testcase.*" name="([^"]+)" time="([\d\.]+)"/ && print "$2 $1\n";' junit.xml  |sort -n | tail -n 20
