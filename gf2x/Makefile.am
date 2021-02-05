@@ -28,6 +28,9 @@ AUTOMAKE_OPTIONS=subdir-objects
 ACLOCAL_AMFLAGS=-I config --install
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir) -I$(top_builddir)/fft -I$(top_srcdir)/fft
 
+TAR_OPTIONS = --hard-dereference
+export TAR_OPTIONS
+
 FFT_SOURCES_ALWAYS=fft/gf2x-ternary-fft.c
 
 lib_LTLIBRARIES=libgf2x.la
@@ -70,6 +73,9 @@ nobase_nodist_include_HEADERS=	\
 
 
 libgf2x_la_LDFLAGS=-version-info @gf2x_lib_version@ -no-undefined
+
+check-local: all
+	:
 
 SUBDIRS=lowlevel src . fft tests
 
@@ -118,14 +124,16 @@ dist-LGPL: distdir
 	mv $(distdir)-LGPL/ $(distdir)/
 	$(am__post_remove_distdir)
 
+tune-progs: all
+	cd src; $(MAKE) $@
+
 if HAVE_NONCONSTANT_CLOCK
-tune-lowlevel tune-toom tune-fft: all
+tune-lowlevel tune-toom tune-fft: tune-progs
 	cd src; $(MAKE) $@
 else
 tune-lowlevel tune-toom tune-fft:
 	@echo "Tuning cannot run since clock() apparently returns constant values"
 endif
-
 
 distclean-local:
 	-find already_tuned/tuned -maxdepth 1 -name "gf2x*" | xargs -r rm -f

@@ -139,7 +139,7 @@ size_t lingen_file_input::guessed_length() const
             }
             guess = filesize / avg;
         } else {
-            double expected_length = filesize / avg;
+            double expected_length = (double) filesize / avg;
             printf("# Expect roughly %.2f items in the sequence.\n", expected_length);
 
             /* First coefficient is always lighter, so we add a +1. */
@@ -1454,3 +1454,11 @@ void pipe(lingen_input_wrapper_base & in, lingen_output_wrapper_base & out, cons
         if (is_last) break;
     }
 }
+
+template class lingen_scatter<matpoly>;
+template class lingen_scatter<bigmatpoly>;
+template class lingen_gather<matpoly>;
+template class lingen_gather<bigmatpoly>;
+template class lingen_gather_reverse<matpoly>;
+template class lingen_gather_reverse<bigmatpoly>;
+

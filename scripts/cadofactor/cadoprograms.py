@@ -1210,6 +1210,7 @@ class CadoNFSClient(Program):
                  logfile: Parameter(prefix='--')=None,
                  debug: Parameter(prefix='--')=None,
                  niceness: Parameter(prefix='--')=None,
+                 ping: Parameter(prefix='--')=None,
                  wu_filename: Parameter(prefix='--')=None,
                  arch: Parameter(prefix='--')=None,
                  certsha1: Parameter(prefix='--')=None,

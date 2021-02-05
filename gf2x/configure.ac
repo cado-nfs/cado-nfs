@@ -24,7 +24,7 @@
 #  Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #  02110-1301, USA.
 
-AC_INIT([gf2x], [1.3.0])
+AC_INIT([gf2x], [1.3.1dev])
 AC_SUBST([GF2X_VERSION_MAJOR],
 [regexp(AC_PACKAGE_VERSION,[\([0-9]+\)\.\([0-9]+\)\.\([0-9]+\)],[\1])])
 AC_SUBST([GF2X_VERSION_MINOR],
@@ -47,6 +47,8 @@ AC_CONFIG_MACRO_DIR([config])
 AC_CANONICAL_TARGET
 
 AC_LANG([C])
+AX_COMPILER_VENDOR()
+AX_COMPILER_VERSION()
 
 AC_FUNC_ALLOCA
 

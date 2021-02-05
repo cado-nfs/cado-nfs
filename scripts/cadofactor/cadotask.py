@@ -5519,6 +5519,7 @@ class StartClientsTask(Task):
         self.used_ids = {}
         self.pids = self.make_db_dict(self.make_tablename("client_pids"), connection=self.db_connection)
         self.hosts = self.make_db_dict(self.make_tablename("client_hosts"), connection=self.db_connection)
+        self.servertask = None
         assert set(self.pids) == set(self.hosts)
         # Invariants: the keys of self.pids and of self.hosts are the same set.
         # The keys of self.used_ids are a subset of the keys of self.pids.
@@ -5567,8 +5568,9 @@ class StartClientsTask(Task):
         # Simplistic: just test if process with that pid exists and accepts
         # signals from us. TODO: better testing here, probably with ps|grep
         # or some such
-        (rc, stdout, stderr) = self.kill_client(clientid, signal=0)
-        return (rc == 0)
+        # (rc, stdout, stderr) = self.kill_client(clientid, signal=0)
+        (rc, stdout, stderr) = self.ping_client(clientid)
+        return (rc == 0, stdout, stderr)
     
     def _add_cid(self, clientid, pid, host):
         """ Add a client id atomically to both the "pids" and "hosts"
@@ -5587,6 +5589,7 @@ class StartClientsTask(Task):
     def launch_clients(self, servertask):
         """ This now takes server as a servertask object, so that we can
         get an URL which is special-cased for localhost """
+        self.servertask = servertask
         url = servertask.get_url()
         url_loc = servertask.get_url(origin="localhost")
         certsha1 = servertask.get_cert_sha1()
@@ -5601,7 +5604,7 @@ class StartClientsTask(Task):
         self.logger.info("Running clients: %s" % s)
         # Check for old clients which we did not mean to start this run
         for cid in set(self.pids) - set(self.used_ids):
-            if self.is_alive(cid):
+            if self.is_alive(cid)[0]:
                 self.logger.warning("Client id %s (Host %s, PID %d), launched "
                                  "in a previous run and not meant to be "
                                  "launched this time, is still running",
@@ -5622,13 +5625,17 @@ class StartClientsTask(Task):
         """
         look = [ k for k,v in self.hosts.items() if not localhost or v == 'localhost' ]
         for cid in look:
-            alive = self.is_alive(cid)
+            alive, stdout, stderr = self.is_alive(cid)
             h = self.hosts[cid]
             p = self.pids[cid]
             who = "client id %s (Host %s, PID %d)" % (cid, h, p)
             # self.logger.debug("check %s: %s", who, alive)
             if not alive:
                 self.logger.critical("DEAD: " + who)
+                if stdout:
+                    self.logger.critical("Stdout: %s", stdout.decode("utf-8").strip())
+                if stderr:
+                    self.logger.critical("Stderr: %s", stderr.decode("utf-8").strip())
                 if localhost:
                     raise RuntimeError("localhost clients should never die")
                 else:
@@ -5657,7 +5664,7 @@ class StartClientsTask(Task):
         # Check if client is already running
         if clientid in self.pids:
             assert self.hosts[clientid] == host
-            if self.is_alive(clientid):
+            if self.is_alive(clientid)[0]:
                 self.logger.info("Client %s on host %s with PID %d already "
                                  "running",
                                  clientid, host, self.pids[clientid])
@@ -5717,6 +5724,38 @@ class StartClientsTask(Task):
                 # the list of running clients
                 self._del_cid(clientid)
     
+    def ping_client(self, clientid):
+        """ runs cado-nfs-client to see if the client that we started is
+        still running, and try to recover its output if it died.
+        
+        Old behaviour was to kill -0 the pid, but of course that doesn't
+        give us the error log.
+        """
+        pid = self.pids[clientid]
+        host = self.hosts[clientid]
+        url = self.servertask.get_url()
+        url_loc = self.servertask.get_url(origin="localhost")
+        certsha1 = self.servertask.get_cert_sha1()
+        if host == "localhost":
+            server = url_loc
+            ping = cadoprograms.CadoNFSClient(server=server,
+                                             clientid=clientid, 
+                                             ping=pid,
+                                             daemon=True,
+                                             certsha1=certsha1,
+                                             **self.progparams[0])
+            process = cadocommand.Command(ping)
+        else:
+            server = url
+            ping = cadoprograms.CadoNFSClient(server=server,
+                                             clientid=clientid, 
+                                             ping=pid,
+                                             daemon=True,
+                                             certsha1=certsha1,
+                                             **self.progparams[0])
+            process = cadocommand.RemoteCommand(ping, host, self.parameters)
+        return process.wait()
+
     def kill_client(self, clientid, signal=None):
         pid = self.pids[clientid]
         host = self.hosts[clientid]

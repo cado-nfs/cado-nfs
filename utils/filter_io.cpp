@@ -536,6 +536,12 @@ static int prime_t_cmp(prime_t * a, prime_t * b)
     return r;
 }
 
+static int prime_t_cmp_indices(prime_t * a, prime_t * b)
+{
+    int r = (a->h > b->h) - (b->h > a->h);
+    return r;
+}
+
 /* This earlyparser is the pass which is used to perform the renumbering
  * of the relation files. This has some implications.
  *  - a,b are in decimal (for factoring -- for FFS it's hex anyway)
@@ -554,6 +560,48 @@ static int earlyparser_abp_decimal(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 static int earlyparser_abp_hexa(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
     return earlyparser_abp_withbase(rel, r, 16);
+}
+
+static
+unsigned int sort_and_compress_rel_primes(prime_t * primes, unsigned int n)
+{
+    /* sort ; note that we're sorting correctly w.r.t the side as
+     * well. We could of course exploit the fact that the sides
+     * themselves are always in order, but the benefit is likely to
+     * be small. Anyway this branch is not critical, as we prefer
+     * to have las create sorted files */
+    qsort(primes, n, sizeof(prime_t), (int(*)(const void*,const void*))prime_t_cmp);
+    /* compress. idiomatic albeit subtle loop. */
+    unsigned int i,j;
+    prime_t * qq = primes;
+    for(i = j = 0 ; i < n ; j++) {
+        qq[j] = qq[i];
+        for(i++ ; i < n && prime_t_cmp(qq+i, qq+j) == 0 ; i++) {
+            qq[j].e += qq[i].e;
+        }
+    }
+    return j;
+}
+
+static
+unsigned int sort_and_compress_rel_indices(prime_t * primes, unsigned int n)
+{
+    /* sort ; note that we're sorting correctly w.r.t the side as
+     * well. We could of course exploit the fact that the sides
+     * themselves are always in order, but the benefit is likely to
+     * be small. Anyway this branch is not critical, as we prefer
+     * to have las create sorted files */
+    qsort(primes, n, sizeof(prime_t), (int(*)(const void*,const void*))prime_t_cmp_indices);
+    /* compress. idiomatic albeit subtle loop. */
+    unsigned int i,j;
+    prime_t * qq = primes;
+    for(i = j = 0 ; i < n ; j++) {
+        qq[j] = qq[i];
+        for(i++ ; i < n && prime_t_cmp_indices(qq+i, qq+j) == 0 ; i++) {
+            qq[j].e += qq[i].e;
+        }
+    }
+    return j;
 }
 
 static inline int earlyparser_abp_withbase(earlyparsed_relation_ptr rel, ringbuf_ptr r, uint64_t base)
@@ -594,24 +642,8 @@ static inline int earlyparser_abp_withbase(earlyparsed_relation_ptr rel, ringbuf
         }
         last_prime = pr;
     }
-    if (!sorted) {
-        /* sort ; note that we're sorting correctly w.r.t the side as
-         * well. We could of course exploit the fact that the sides
-         * themselves are always in order, but the benefit is likely to
-         * be small. Anyway this branch is not critical, as we prefer
-         * to have las create sorted files */
-        qsort(rel->primes, n, sizeof(prime_t), (int(*)(const void*,const void*))prime_t_cmp);
-        /* compress. idiomatic albeit subtle loop. */
-        unsigned int i,j;
-        prime_t * qq = rel->primes;
-        for(i = j = 0 ; i < n ; j++) {
-            qq[j] = qq[i];
-            for(i++ ; i < n && prime_t_cmp(qq+i, qq+j) == 0 ; i++) {
-                qq[j].e += qq[i].e;
-            }
-        }
-        n = j;
-    }
+    if (!sorted)
+        n = sort_and_compress_rel_primes(rel->primes, n);
     rel->nb = n;
 
     return 1;
@@ -693,7 +725,7 @@ earlyparser_abline_decimal(earlyparsed_relation_ptr rel, ringbuf_ptr r)
  */
 static int
 earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
-        int parseab, int parsesm)
+        int parseab, int parsesm, int sort)
 {
     const char *p = r->rhead;
 
@@ -706,6 +738,7 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
     }
     
     unsigned int n = 0;
+    int is_sorted = 1;
 
     char next_delim = parsesm ? ':' : '\n';
     c='\0';
@@ -722,6 +755,8 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
             RINGBUF_GET_ONE_BYTE(c, r, p);
         }
         c = earlyparser_inner_read_prime(r, &p, &pr);
+        if (sort && is_sorted && n && pr < rel->primes[n-1].h)
+            is_sorted = 0;
         if (n && pr == rel->primes[n-1].h) {
             rel->primes[n-1].e += sgn;
         } else {
@@ -732,6 +767,8 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
             n++;
         }
     }
+    if (sort && !is_sorted)
+        n = sort_and_compress_rel_indices(rel->primes, n);
     rel->nb = n;
     if (parsesm) {
         /* We need some more stuff. */
@@ -751,14 +788,21 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
 static int
 earlyparser_index(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
-    return earlyparser_index_maybeabhexa(rel, r, 0, 0);
+    return earlyparser_index_maybeabhexa(rel, r, 0, 0, 0);
+}
+
+/* merge wants sorted indices */
+static int
+earlyparser_index_sorted(earlyparsed_relation_ptr rel, ringbuf_ptr r)
+{
+    return earlyparser_index_maybeabhexa(rel, r, 0, 0, 1);
 }
 
 static int
 earlyparser_indexline(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
-    earlyparser_index_maybeabhexa(rel, r, 0, 0);
+    earlyparser_index_maybeabhexa(rel, r, 0, 0, 0);
     r->rhead = p; // rewind ringbuf
     return earlyparser_line(rel, r);
 }
@@ -766,13 +810,13 @@ earlyparser_indexline(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 static int
 earlyparser_abindex_hexa (earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
-    return earlyparser_index_maybeabhexa(rel, r, 1, 0);
+    return earlyparser_index_maybeabhexa(rel, r, 1, 0, 0);
 }
 
 static int
 earlyparser_abindex_hexa_sm (earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
-    return earlyparser_index_maybeabhexa(rel, r, 1, 1);
+    return earlyparser_index_maybeabhexa(rel, r, 1, 1, 0);
 }
 
 
@@ -945,8 +989,11 @@ uint64_t filter_rels2_inner(char ** input_files,
             earlyparser = earlyparser_abp_hexa;
             break;
 
+        case _(INDEX)|_(SORTED):
+            earlyparser = earlyparser_index_sorted;
+            break;
         case _(INDEX):
-            /* all binary after dup2 which did not need a,b*/
+            /* all binaries after dup2 which do not need a,b*/
             earlyparser = earlyparser_index;
             break;
         case _(INDEX) | _(AB_HEXA):
