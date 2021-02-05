@@ -633,7 +633,7 @@ static inline void
 ularith_shrd (unsigned long *r, const unsigned long hi, const unsigned long lo,
               const unsigned char i)
 {
-  ASSERT_EXPENSIVE (0 <= i && i < LONG_BIT);
+  ASSERT_EXPENSIVE (i < LONG_BIT);
 #ifdef ULARITH_VERBOSE_ASM
 /* Disable the "uninitialized" warning here, as *r is only written to and
    does not need to be initialized, but we need to write (*r) here so the
@@ -681,7 +681,7 @@ static inline void
 ularith_shld (unsigned long *r, const unsigned long lo, const unsigned long hi,
               const unsigned char i)
 {
-  ASSERT_EXPENSIVE (0 <= i && i < LONG_BIT);
+  ASSERT_EXPENSIVE (i < LONG_BIT);
 #ifdef ULARITH_VERBOSE_ASM
 #if GNUC_VERSION_ATLEAST(4,4,0)
 #if GNUC_VERSION_ATLEAST(4,6,0)

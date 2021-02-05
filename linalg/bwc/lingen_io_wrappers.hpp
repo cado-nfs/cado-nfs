@@ -248,8 +248,17 @@ class lingen_scatter : public lingen_output_wrapper_base
                                unsigned int k1) override;
 };
 
-template class lingen_scatter<matpoly>;
-template class lingen_scatter<bigmatpoly>;
+/* warn the compiler that we have some specializations */
+template<>
+ssize_t lingen_scatter<matpoly>::write_from_matpoly(matpoly const & src, unsigned int k0, unsigned int k1);
+template<>
+ssize_t lingen_scatter<bigmatpoly>::write_from_matpoly(matpoly const & src, unsigned int k0, unsigned int k1);
+
+/* yes, we must insist on extern template.
+ * https://github.com/OpenKinect/libfreenect2/issues/157
+ */
+extern template class lingen_scatter<matpoly>;
+extern template class lingen_scatter<bigmatpoly>;
 
 #if 0
 template<typename matpoly_type>
@@ -292,8 +301,13 @@ class lingen_gather : public lingen_input_wrapper_base
                             unsigned int k1) override;
 };
 
-template class lingen_gather<matpoly>;
-template class lingen_gather<bigmatpoly>;
+/* warn the compiler that we have some specializations */
+template<>
+ssize_t lingen_gather<matpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1);
+template<>
+ssize_t lingen_gather<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1);
+extern template class lingen_gather<matpoly>;
+extern template class lingen_gather<bigmatpoly>;
 
 template<typename matpoly_type>
 class lingen_gather_reverse : public lingen_input_wrapper_base
@@ -322,8 +336,13 @@ class lingen_gather_reverse : public lingen_input_wrapper_base
                             unsigned int k1) override;
 };
 
-template class lingen_gather_reverse<matpoly>;
-template class lingen_gather_reverse<bigmatpoly>;
+/* warn the compiler that we have some specializations */
+template<>
+ssize_t lingen_gather_reverse<matpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1);
+template<>
+ssize_t lingen_gather_reverse<bigmatpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1);
+extern template class lingen_gather_reverse<matpoly>;
+extern template class lingen_gather_reverse<bigmatpoly>;
 
 class lingen_F_from_PI
   : public lingen_F0

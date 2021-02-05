@@ -783,15 +783,18 @@ main_basic (int argc, char **argv)
      These two lines gets parsed by the script. */
   printf ("\n\n# Stat: total phase took %.2fs\n", seconds () - st0);
 
+  int has_correct_rootsieve_time = 1;
 #ifndef HAVE_RUSAGE_THREAD /* rootsieve_time is correct only if RUSAGE_THREAD
                               works or in mono-thread mode */
-  if (nthreads == 1)
+  has_correct_rootsieve_time = nthreads == 1;
 #endif
-  {
+  if (has_correct_rootsieve_time) {
     printf ("# Stat: rootsieve took %.2fs\n", tott->ropt_time);
     printf ("# Stat:  (stage 1 took %.2fs)\n", tott->ropt_time_stage1);
     printf ("# Stat:  (tuning took %.2fs)\n", tott->ropt_time_tuning);
     printf ("# Stat:  (stage 2 (sieving) took %.2fs)\n", tott->ropt_time_stage2);
+  } else {
+    printf ("# Stat: rootsieve took 0s (fake placeholder, we lack RUSAGE_THREAD)\n");
   }
 
   if (best_MurphyE == 0.0)

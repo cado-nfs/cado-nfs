@@ -44,6 +44,10 @@ public:
         return os;
     }
 
+    bool is_same(const ECWeierstrass &other) const {
+        return this == &other;
+    }
+
     class AffinePoint
     {
     public:
