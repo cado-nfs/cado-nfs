@@ -48,7 +48,7 @@
 
 struct shrink_action {
     double row_fraction = 0;
-    int shrink_factor = 0;
+    double shrink_factor = 0;
     int dl = 0;
     gmp_randstate_t rstate;
 
@@ -127,7 +127,7 @@ main (int argc, char *argv[])
     // param_list_print_command_line(stdout, pl);
     //
 
-    param_list_parse_int(pl, "shrink-factor", &A.shrink_factor);
+    param_list_parse_double(pl, "shrink-factor", &A.shrink_factor);
     if (A.shrink_factor < 1) {
         fprintf(stderr, "Error: shrink factor must be an integer >= 1\n");
         param_list_print_usage(pl, argv0, stderr);
