@@ -1607,3 +1607,4 @@ scripts/estimate_matsize/estimate_matsize.sh
 utils/indexed_relation.hpp
 filter/shrink_rels.cpp
 utils/indexed_relation.cpp
+misc/indexed_relations_to_density.cpp

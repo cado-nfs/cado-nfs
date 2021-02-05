@@ -16,4 +16,7 @@ target_link_libraries(extra_renumber utils_with_io)
 add_executable(renumber_convert EXCLUDE_FROM_ALL renumber_convert.cpp)
 target_link_libraries(renumber_convert utils_with_io)
 
+add_executable(indexed_relations_to_density EXCLUDE_FROM_ALL indexed_relations_to_density.cpp)
+target_link_libraries(indexed_relations_to_density utils_with_io)
+
 include(CMakeLists-nodist.txt OPTIONAL)
