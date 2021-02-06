@@ -7,7 +7,6 @@
 #include <string>        // for string
 #include <vector>        // for vector
 #include <gmp.h>         // for gmp_randclear, gmp_randinit_default, gmp_ran...
-#include "mod_ul.c"
 #include "params.h"     // param_list
 #include "cado_poly.h"  // cado_poly
 #include "verbose.h"    // verbose_decl_usage
@@ -142,7 +141,7 @@ main (int argc, char *argv[])
     if (bench) {
         double tt = seconds();
         std::vector<size_t> counts(tab.get_nb_polys(),0);
-        for(auto const & x : tab) {
+        for(auto const x : tab) {
             /*
             if (x.side == tab.get_rational_side())
                 printf("%" PRpr " rat %d\n", x.p, x.side);

@@ -203,9 +203,10 @@ sm_build_one_relset (sm_relset_ptr rel, uint64_t *r, int64_t *e, int len,
       /* TODO: mpz_poly_long_power_mod_f_mod_mpz */
       for (int s = 0; s < nb_polys; ++s) {
         if (F[s] == NULL) continue;
-        mpz_poly_pow_mod_f_mod_mpz (tmp[s], abpolys[r[k]], F[s], ee, ell2);
-        mpz_poly_mul_mod_f_mod_mpz (rel->num[s], rel->num[s], tmp[s], F[s],
-                                    ell2, NULL, NULL);
+        mpz_poly_pow_mod_f_mod_mpz(tmp[s], abpolys[r[k]],
+                F[s], ee, ell2);
+        mpz_poly_mul_mod_f_mod_mpz(rel->num[s], rel->num[s], tmp[s],
+                F[s], ell2, NULL, NULL);
       }
     }
     else
@@ -214,9 +215,10 @@ sm_build_one_relset (sm_relset_ptr rel, uint64_t *r, int64_t *e, int len,
       /* TODO: mpz_poly_long_power_mod_f_mod_mpz */
       for (int s = 0; s < nb_polys; ++s) {
         if (F[s] == NULL) continue;
-        mpz_poly_pow_mod_f_mod_mpz(tmp[s], abpolys[r[k]], F[s], ee, ell2);
+        mpz_poly_pow_mod_f_mod_mpz(tmp[s], abpolys[r[k]],
+                F[s], ee, ell2);
         mpz_poly_mul_mod_f_mod_mpz(rel->denom[s], rel->denom[s], tmp[s], F[s],
-                                   ell2, NULL, NULL);
+                ell2, NULL, NULL);
       }
     }
   }
@@ -375,7 +377,7 @@ void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell)
     }
 
     /* also compute the lcm of the ell^i-1 */
-    sm->exponents = malloc(sm->fac->size * sizeof(mpz_t));
+    sm->exponents = (mpz_t *) malloc(sm->fac->size * sizeof(mpz_t));
     mpz_set_ui(sm->exponent, 1);
     for(int i = 0 ; i < sm->fac->size ; i++) {
         mpz_init(sm->exponents[i]);
@@ -401,7 +403,7 @@ void sm_side_info_set_mode(sm_side_info_ptr sm, const char * mode_string)
     }
 
     if (sm->mode == SM_MODE_LEGACY_PRE2018) {
-        sm->matrix = malloc(sm->f->deg * sm->f->deg * sizeof(mpz_t));
+        sm->matrix = (mpz_t *) malloc(sm->f->deg * sm->f->deg * sizeof(mpz_t));
         for(int i = 0 ; i < sm->f->deg ; i++)
             for(int j = 0 ; j < sm->f->deg ; j++)
                 mpz_init_set_ui(sm->matrix[i * sm->f->deg + j], 0);

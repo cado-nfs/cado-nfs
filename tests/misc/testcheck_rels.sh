@@ -2,7 +2,7 @@
 
 CHECK_RELS="$1"
 SOURCE_TEST_DIR="`dirname "$0"`"
-WORKDIR=`mktemp -d ${TMPDIR-/tmp}/cadotest.XXXXXXXX`
+WORKDIR=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.XXXXXXXX`
 chmod a+rx "${WORKDIR}"
 
 poly="${SOURCE_TEST_DIR}/c60.poly"

@@ -1,5 +1,5 @@
-#ifndef RELATION_H_
-#define RELATION_H_
+#ifndef RELATION_HPP_
+#define RELATION_HPP_
 
 #ifndef __cplusplus
 #error "This is C++-only"
@@ -114,4 +114,4 @@ struct pr_cmp {
     }
 };
 
-#endif	/* RELATION_H_ */
+#endif	/* RELATION_HPP_ */

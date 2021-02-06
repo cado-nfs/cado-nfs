@@ -28,10 +28,10 @@ static void *_flint_calloc(size_t, size_t);
 static void *_flint_realloc(void *, size_t);
 static void _flint_free(void *);
 
-static void *(*__flint_allocate_func) (size_t) = _flint_malloc;
-static void *(*__flint_callocate_func) (size_t, size_t) = _flint_calloc;
-static void *(*__flint_reallocate_func) (void *, size_t) = _flint_realloc;
-static void (*__flint_free_func) (void *) = _flint_free;
+static void *(*__flint_allocate_func)(size_t) = _flint_malloc;
+static void *(*__flint_callocate_func)(size_t, size_t) = _flint_calloc;
+static void *(*__flint_reallocate_func)(void *, size_t) = _flint_realloc;
+static void (*__flint_free_func)(void *) = _flint_free;
 
 #if FLINT_REENTRANT && !HAVE_TLS
 #include <pthread.h>
@@ -56,10 +56,10 @@ static void flint_memory_error(size_t size)
     flint_abort();
 }
 
-void __flint_set_memory_functions(void *(*alloc_func) (size_t),
-				  void *(*calloc_func) (size_t, size_t),
-				  void *(*realloc_func) (void *, size_t),
-				  void (*free_func) (void *))
+void __flint_set_memory_functions(void *(*alloc_func)(size_t),
+				  void * (*calloc_func)(size_t, size_t),
+				  void * (*realloc_func)(void *, size_t),
+				  void(*free_func)(void *))
 {
 #if FLINT_REENTRANT && !HAVE_TLS
     pthread_once(&alloc_func_init, __flint_set_memory_functions_init);

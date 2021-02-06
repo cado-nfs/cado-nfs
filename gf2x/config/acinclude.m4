@@ -661,6 +661,7 @@ AC_DEFUN([GF2X_PROG_CC_FOR_BUILD_WORKS],
 # remove anything that might look like compiler output to our "||" expression
 rm -f conftest* a.out b.out a.exe a_out.exe
 cat >conftest.c <<EOF
+#include <stdlib.h>
 int
 main ()
 {
@@ -699,6 +700,7 @@ AC_DEFUN([GF2X_PROG_EXEEXT_FOR_BUILD],
 AC_CACHE_CHECK([for build system executable suffix],
                gf2x_cv_prog_exeext_for_build,
 [cat >conftest.c <<EOF
+#include <stdlib.h>
 int
 main ()
 {
@@ -722,3 +724,67 @@ fi
 AC_SUBST(EXEEXT_FOR_BUILD,$gf2x_cv_prog_exeext_for_build)
 ])
 
+
+AC_DEFUN([GF2X_CHECK_VISIBILITY_HIDDEN],
+[
+AC_CACHE_CHECK([for __attribute__((visibility("hidden")))],
+    gf2x_cv_hidden_visibility_attribute, [
+    cat > conftest.c <<EOF
+int __attribute__ ((visibility ("hidden"))) foo (void) { return 1; }
+int __attribute__ ((visibility ("default"))) bar (void) { return 1; }
+int baz (void) { return 1; }
+EOF
+    gf2x_cv_hidden_visibility_attribute=no
+    if AC_TRY_COMMAND(${CC-cc} -fvisibility=hidden -Werror -S conftest.c -o conftest.s 1>&AS_MESSAGE_LOG_FD);
+    then
+        if (grep '\.hidden.*foo' conftest.s && grep '\.hidden.*baz' conftest.s && ! grep '\.hidden.*bar' conftest.s) >/dev/null;
+        then
+            gf2x_cv_hidden_visibility_attribute=yes
+        fi
+    fi
+    rm -f conftest.*
+    ])
+if test $gf2x_cv_hidden_visibility_attribute = yes;
+then
+    AC_DEFINE(HAVE_HIDDEN_VISIBILITY_ATTRIBUTE, 1,
+          [Define if __attribute__((visibility("hidden"))) is supported.])
+fi
+AM_CONDITIONAL([HAVE_HIDDEN_VISIBILITY_ATTRIBUTE],[test "x$gf2x_cv_hidden_visibility_attribute" = xyes])
+])
+
+AC_DEFUN([GF2X_TEST_CLOCK_NOT_CONSTANT_CODE],[AC_LANG_SOURCE([
+#include <stdlib.h>
+#include <time.h>
+#include <sys/types.h>
+int main()
+{
+    clock_t c0 = clock(), c1;
+    long count = 0;
+    for( ; count < 1000000 ; count++) {
+        if ((c1 = clock()) != c0)
+            return EXIT_SUCCESS;
+    }
+    return EXIT_FAILURE;
+}
+])])
+    
+AC_DEFUN([GF2X_TEST_CLOCK_NOT_CONSTANT],
+[
+    AC_CACHE_CHECK([that clock() returns non-constant values],
+    gf2x_cv_clock_is_not_constant, [
+        AC_RUN_IFELSE([GF2X_TEST_CLOCK_NOT_CONSTANT_CODE()],[
+            gf2x_cv_clock_is_not_constant=yes
+        ],[
+            gf2x_cv_clock_is_not_constant=no
+        ],[
+            AC_MSG_NOTICE([check skipped because of cross-compiling])
+            gf2x_cv_clock_is_not_constant=dontknow
+        ])
+    ])
+    if test $gf2x_cv_clock_is_not_constant = yes;
+    then
+        AC_DEFINE(HAVE_NONCONSTANT_CLOCK, 1,
+              [Define if clock() returns non-constant values.])
+    fi
+    AM_CONDITIONAL([HAVE_NONCONSTANT_CLOCK],[test "x$gf2x_cv_clock_is_not_constant" = xyes])
+])

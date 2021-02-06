@@ -1114,6 +1114,8 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb, fb_factorbase::key_typ
     helper_functor_count_weight_parts D { local_thresholds };
     toplevel = multityped_array_fold(D, 0, fb.entries);
 
+    if (toplevel == 0) toplevel++;
+
     double total_weight = 0;
 
     for (int i = 0; i <= toplevel; i++) {
@@ -1623,6 +1625,9 @@ fb_factorbase::read(const char * const filename)
 /* (desired) structure of the factor base cache header block (ascii, 4096
  * bytes).
  *
+ * No comments are supported in the header blocks (yes, it is a bit
+ * unfortunate. yes, it's possible to fix it, of course).
+ *
  * version (integer)
  * size in bytes of header + data (integer, aligned to page size)
  *      [note: other descriptors might follow at this position !]
@@ -1651,6 +1656,8 @@ fb_factorbase::read(const char * const filename)
  *      size in bytes per entries with deg(f) roots (integer)
  *
  * Multiple cache files can be concatenated one after another.
+ *
+ * XXX please make some effort to keep this in sync with sieve/inspect-fbc-file.pl
  */
 
 struct fbc_header {

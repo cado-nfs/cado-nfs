@@ -30,6 +30,8 @@
 /* for reading index (i.e. renumber ideal) */
 #define EARLYPARSE_NEED_INDEX                  16
 #define EARLYPARSE_NEED_SM                     32
+#define EARLYPARSE_NEED_SORTED                 64
+#define EARLYPARSE_NEED_INDEX_SORTED (EARLYPARSE_NEED_INDEX | EARLYPARSE_NEED_SORTED)
 
 
 /* Initial size of primes_data array in earlyparsed_relation_s,

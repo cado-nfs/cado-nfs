@@ -8,7 +8,7 @@
 # compiled.
 #
 # Typical usage will be something like:
-#   wdir=/tmp/test I=12 lim0=... ./estimate_matsize.sh toto.poly
+#   wdir=/tmp/test A=23 lim0=... ./estimate_matsize.sh toto.poly
 # The root files and the renumber file are cached, so if you change lim or
 # lpb without changing wdir, you'll have to remove those cache-files
 # first in wdir.
@@ -21,16 +21,13 @@
 
 set -e
 
-if [ $# != 1 ]; then
-    echo "Usage: $0 <polyfile>"
-    exit 1
-fi
-
 ## default parameters: can be overriden using env variables
-## these correspond more or less to a DLP-512.
+## before 7151df7fe, parameters here used to correspond to a DLP-512.
+## The parameters below are closer to a p80.
 : ${A=23}
 : ${lim0=125000}
 : ${lim1=125000}
+: ${maxbits=}
 : ${lpb0=19}
 : ${lpb1=19}
 : ${mfb0=38}
@@ -44,6 +41,7 @@ fi
 : ${qfac_max=100000}
 : ${dlp=true}
 : ${shrink_factor=1}
+: ${relation_cache=}
 : ${extra_las_params=""}
 : ${threads=2}
 : ${parallel=false}
@@ -57,41 +55,126 @@ fi
 # for each sub-range, we call las with -random-sample $NBSAMPLE
 : ${NBSAMPLE=50}
 
+force_redo=
+
+usage() {
+    echo "Usage: $0 [options] <polyfile>"
+    echo "Options: -params <param file>  read extra parameters from there (shell script)"
+    echo "         -help                 show this help"
+}
+
+while [ $# -gt 0 ] ; do
+if ! [[ $1 =~ ^- ]] ; then
+        break
+    fi
+    if [ "$1" = -params ] && [ $# -gt 1 ] ; then
+        if [ -f "$2" ] ; then
+            . "$2"
+            shift
+            shift
+            break
+        else
+            echo "$2: no such file or directory" >&2
+            usage
+            exit 1
+        fi
+    elif [ "$1" = -f ] ; then
+        force_redo=1
+        shift
+    elif [ "$1" = -help ] ; then
+        usage
+        exit 0
+    else
+        echo "error in argument parsing at: $*" >&2
+        usage
+        exit 1
+    fi
+done
+
+if [ $# != 1 ]; then
+    usage
+    exit 1
+fi
+
+if ! [ "$CADO_BUILD" ] ; then
+    echo "Error: \$CADO_BUILD must be set" >&2
+    exit 1
+fi
 
 ## read poly file on command line
-
-polyfile=$1
-if [ ! -e $1 ]; then
-    echo "Error: file $1 does not exist?"
+polyfile="$1"
+if [ ! -e "$1" ]; then
+    echo "Error: file $1 does not exist?" >&2
     exit 1
 fi
 
 ## if wdir is not set, build one in /tmp
 if [ -z ${wdir+x} ]; then
-    wdir=`mktemp -d ${TMPDIR-/tmp}/est_mat.XXXXXXX`;
+    wdir=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.est_mat.XXXXXXX`;
 else
     mkdir -p $wdir || (echo "mkdir -p $wdir failed"; false) || exit 1
 fi
 echo "Working directory is $wdir"
 
+has_file_already() {
+    filename="$1"
+    shift
+    if ! [ -f "$filename" ] ; then
+        echo "$*" > "$filename.cmd"
+        return 1
+    elif [ "$force_redo" ] ; then
+        echo "# rebuilding $filename since \$force_redo is set (either because of -f or because of outdated earlier files)"
+        echo "$*" > "$filename.cmd"
+        return 1
+    elif ! [ -f "$filename.cmd" ] ; then
+        echo "# file $filename already in wdir, but creating command not found. not reusing file."
+        echo "$*" > "$filename.cmd"
+        return 1
+    elif ! diff -q "$filename.cmd" <(echo "$*") ; then
+        echo "# file $filename already in wdir, but created with another command. not reusing it."
+        echo "$*" > "$filename.cmd"
+        return 1
+    else
+        echo "# file $filename already in wdir, created with same command. reusing it."
+        true
+    fi
+}
+
+# Set maxbits if it is empty.
+: ${maxbits:=$(((A+1)/2))}
+
 ## if wdir does not contain a rootfile, build it
 rootfile0="$wdir/roots0.gz"
-rootfile1="$wdir/roots1.gz"
-if [ ! -e $rootfile0 ]; then
-    echo "Root file for side 0 not in wdir: building it..."
-    $CADO_BUILD/sieve/makefb -poly $polyfile -lim $lim0 -side 0 -t $threads -out $rootfile0
+cmd=("$CADO_BUILD/sieve/makefb"
+        -poly "$polyfile"
+        -lim "$lim0"
+        -maxbits "$maxbits"
+        -side 0
+        -t "$threads"
+        -out "$rootfile0")
+if ! has_file_already $rootfile0 "${cmd[@]}" ; then
+    "${cmd[@]}"
 fi
-if [ ! -e $rootfile1 ]; then
-    echo "Root file for side 1 not in wdir: building it..."
-    $CADO_BUILD/sieve/makefb -poly $polyfile -lim $lim1 -side 1 -t $threads -out $rootfile1
+
+rootfile1="$wdir/roots1.gz"
+cmd=("$CADO_BUILD/sieve/makefb"
+        -poly "$polyfile"
+        -lim "$lim1"
+        -maxbits "$maxbits"
+        -side 1
+        -t "$threads"
+        -out "$rootfile1")
+if ! has_file_already $rootfile1 "${cmd[@]}" ; then
+    "${cmd[@]}"
 fi
 
 ## if wdir does not contain a renumber table, build it
 renumberfile=$wdir/renumber.gz
-if [ ! -e $renumberfile ]; then
-    echo "Renumber file not in wdir: building it..."
-    $CADO_BUILD/sieve/freerel -poly $polyfile -renumber $renumberfile \
-      -out /dev/null -pmax 1 -lpb0 $lpb0 -lpb1 $lpb1 -t $threads
+cmd=("$CADO_BUILD/sieve/freerel" -poly "$polyfile" -renumber
+    "$renumberfile" -out /dev/null -pmax 1 -lpb0 "$lpb0" -lpb1 "$lpb1" -t
+    "$threads")
+if ! has_file_already $renumberfile "${cmd[@]}" ; then
+    "${cmd[@]}"
 fi
 
 ## deal with composite special-q's
@@ -144,8 +227,8 @@ else
 fi
 for i in `seq 0 $((nsides-1))`; do
     side=${sqside[$i]}
-    echo "******************************"
-    echo "Dealing with side $side..."
+    echo "******************************************************"
+    echo "Dealing with side $side (creating samples with las)..."
     qmax=${qmax[$i]}
     qmin=${qmin[$i]}
     qrange=$(((qmax-qmin)/NCHUNKS))
@@ -156,29 +239,44 @@ for i in `seq 0 $((nsides-1))`; do
             q0=$((qmin + (i-1)*qrange))
             q1=$((qmin + i*qrange))
             echo "Sampling in qrange=[$q0,$q1]"
-            cmd="$CADO_BUILD/sieve/las -A $A -poly $polyfile -q0 $q0 -q1 $q1 \
-              -lim0 $lim0 -lim1 $lim1 -lpb0 $lpb0 -lpb1 $lpb1 -sqside $side \
-              -mfb0 $mfb0 -mfb1 $mfb1 $compsq_las \
-              -fb0 $rootfile0 -fb1 $rootfile1 -random-sample $NBSAMPLE \
-              -t $las_threads -sync -v -dup -dup-qmin $dupqmin $extra_las_params"
-            echo $cmd
-            $cmd > $wdir/sample.side${side}.${q0}-${q1}
+            cmd=($CADO_BUILD/sieve/las -A $A -poly $polyfile -q0 $q0 -q1 $q1 
+              -lim0 $lim0 -lim1 $lim1 -lpb0 $lpb0 -lpb1 $lpb1 -sqside $side 
+              -mfb0 $mfb0 -mfb1 $mfb1 $compsq_las 
+              -fb0 $rootfile0 -fb1 $rootfile1 -random-sample $NBSAMPLE 
+              -t $las_threads -sync -v -dup -dup-qmin $dupqmin
+                          $extra_las_params)
+            if [ "${relation_cache}" ] ; then
+                cmd+=(-relation-cache "$relation_cache")
+            fi
+            echo "${cmd[@]}"
+            file=$wdir/sample.side${side}.${q0}-${q1}
+            if ! has_file_already $file "${cmd[@]}" ; then
+                "${cmd[@]}" > $file
+            fi
         ) &
         if [ $las_parallel = false ] ; then wait ; fi
     done
     wait
+done
+
+for i in `seq 0 $((nsides-1))`; do
+    echo "****************************************************"
+    echo "Dealing with side $side (creating fake relations)..."
     for i in `seq 1 $NCHUNKS`; do
         (
             q0=$((qmin + (i-1)*qrange))
             q1=$((qmin + i*qrange))
             echo "  Building fake relations in qrange=[$q0,$q1]"
-            cmd="$CADO_BUILD/sieve/fake_rels -poly $polyfile -lpb0 $lpb0 -lpb1 $lpb1 \
-              -q0 $q0 -q1 $q1 -sqside $side $compsq_fake \
-              -sample $wdir/sample.side${side}.${q0}-${q1} \
-              -shrink-factor $shrink_factor \
-              -renumber $renumberfile"
-            echo $cmd
-            $cmd > $wdir/fakerels.side${side}.${q0}-${q1}
+            cmd=($CADO_BUILD/sieve/fake_rels -poly $polyfile -lpb0 $lpb0 -lpb1 $lpb1
+              -q0 $q0 -q1 $q1 -sqside $side $compsq_fake
+              -sample $wdir/sample.side${side}.${q0}-${q1}
+              -shrink-factor $shrink_factor
+              -renumber $renumberfile)
+            echo "${cmd[@]}"
+            file=$wdir/fakerels.side${side}.${q0}-${q1}
+            if ! has_file_already $file "${cmd[@]}" ; then
+                "${cmd[@]}" > $file
+            fi
         ) &
         if [ $fakerels_parallel == "false" ]; then
             wait
@@ -199,9 +297,17 @@ echo "We have $nrels fake relations"
 nprimes=`echo "(2*2^$lpb0/l(2^$lpb0) + 2*2^$lpb1/l(2^$lpb1))/$shrink_factor" | bc -l | cut -d "." -f 1`
 
 # purge
-$CADO_BUILD/filter/purge -out $wdir/purged.gz -nrels $nrels -keep 3 \
-    -col-min-index 2000 -col-max-index $nprimes -t $threads ${fakefiles[@]} \
-    2>&1 | tee $wdir/purge.log
+cmi=$((nprimes/2))
+if [ $cmi -gt 2000 ] ; then
+    cmi=2000
+fi
+cmd=($CADO_BUILD/filter/purge -out $wdir/purged.gz -nrels $nrels -keep 3
+    -col-min-index $cmi -col-max-index $nprimes -t $threads
+    ${fakefiles[@]})
+file=$wdir/purged.gz
+if ! has_file_already $file "${cmd[@]}" ; then
+    "${cmd[@]}" 2>&1 | tee $wdir/purge.log
+fi
 
 # Did we get a positive excess?
 if (grep "number of rows < number of columns + keep" $wdir/purge.log > /dev/null); then
@@ -212,9 +318,17 @@ fi
 
 # merge
 if [ "$dlp" == "true" ]; then
-   $CADO_BUILD/filter/merge-dl -mat $wdir/purged.gz -out $wdir/history.gz \
-      -skip 0 -target_density $target_density -t $threads
+    cmd=($CADO_BUILD/filter/merge-dl -mat $wdir/purged.gz -out $wdir/history.gz 
+        -skip 0 -target_density $target_density -t $threads)
+    file=$wdir/history.gz
+    if ! has_file_already $file "${cmd[@]}" ; then
+        "${cmd[@]}" 2>&1 | tee $wdir/merge-dl.log
+    fi
 else
-   $CADO_BUILD/filter/merge -mat $wdir/purged.gz -out $wdir/history.gz \
-      -skip 32 -target_density $target_density -t $threads
+    cmd=($CADO_BUILD/filter/merge -mat $wdir/purged.gz -out $wdir/history.gz
+        -skip 32 -target_density $target_density -t $threads)
+    file=$wdir/history.gz
+    if ! has_file_already $file "${cmd[@]}" ; then
+        "${cmd[@]}" 2>&1 | tee $wdir/merge.log
+    fi
 fi

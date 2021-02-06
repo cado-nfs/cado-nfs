@@ -1,7 +1,26 @@
 #!/usr/bin/env bash
 
+# just to be sure
+unset DISPLAY
+
 set -e
-set -x
+if [ "$CADO_DEBUG" ] ; then set -x ; fi
+
+if ! [ "$WDIR" ] ; then
+    echo "Want \$WDIR" >&2
+    exit 1
+fi
+
+: ${bindir:=$PROJECT_BINARY_DIR}
+: ${bindir?missing variable}
+
+# inject the variables that were provided by guess_mpi_configs
+if [ "$mpi" ] ; then
+    eval "$exporter_mpirun"
+    eval "$exporter_mpi_extra_args"
+    set -- "$@" mpi="$mpi"
+fi
+
 # Create a fake sequence
 
 # Note that if we arrive here, we are 64-bit only, since the GFP backends
@@ -17,9 +36,6 @@ if ! type -p "$SHA1BIN" > /dev/null ; then
     echo "Could not find a SHA-1 checksumming binary !" >&2
     exit 1
 fi
-
-bindir="$1"
-shift
 
 # This is not accurate, unfortunately. There seems to be no way to do
 # long integer arithmetic in pure bash.
@@ -52,25 +68,30 @@ dotest() {
     REFERENCE_SHA1="$1"
     shift
 
-    : ${TMPDIR:=/tmp}
-    TMPDIR=`mktemp -d $TMPDIR/plingen-test.XXXXXXXXXX`
-
     m="$1"; shift
     n="$1"; shift
     kmax="$1"; shift
     p="$1"; shift
     seed="$1"; shift
 
-    unset thr
+    unset mpi
     unset ascii
 
     args=()
-    mt_args=()
+    mpi_specific_args=()
+    mpi_extra_args=()
+    ONLY_TUNE=
     for x in "$@" ; do
         case "$x" in
-            plingen_program=*) eval "$x";;
-            lingen_mpi_threshold*) mt_args+=("$x");;
-            thr*) mt_args+=("$x"); thr="${x#thr=}";;
+            lingen_program=*) eval "$x";;
+            skip_single=*) eval "$x";;
+            lingen_mpi_threshold*) mpi_specific_args+=("$x");;
+            # the mpi_magic= argument is interpreted by guess_mpi_configs.sh
+            mpi_magic=*) mpi_magic="${x#mpi_magic=}";;
+            # mpi_extra_args[@] is used by guess_mpi_configs.sh to form
+            # the mpirun[@] precommand
+            mpi_extra_args=*)
+                eval mpi_extra_args+=(${x#mpi_extra_args=});;
             *) args+=("$x");
                 if [[ "$x" =~ ascii ]] ; then
                     if [ "$p" -gt 1048576 ] ; then
@@ -78,6 +99,8 @@ dotest() {
                         exit 1
                     fi
                     ascii=1
+                elif [[ "$x" =~ --tune ]] ; then
+                    ONLY_TUNE=1
                 fi
                 ;;
         esac
@@ -86,24 +109,32 @@ dotest() {
     nbits_prime=$(sizeinbase2 $p)
     nwords=$((1+nbits_prime/wordsize))
 
-    : ${plingen_program:=plingen_p_$nwords}
+    : ${lingen_program:=lingen_p_$nwords}
 
-    F="$TMPDIR/base"
+    # The perl code for generating random data is using the seed argument
+    # in a weird way. seeds that are less than 1000 actually lead do
+    # random matrices that are likely to have some very non-random
+    # behaviour. It would be best to change that eventually, e.g. with
+    # the commented-out choices below. However that would entail changing
+    # all sha1sums in the tests, and I'm lazy.
+    F="$WDIR/base"
     if [ "$ascii" ] ; then
         # The perl code below generates ascii test cases which are good
         # provided that p is small. Otherwise, the smallish coefficients
         # we generate are inappropriate and lead to failure, since
-        # plingen guesses the length of the ascii input file.
+        # lingen guesses the length of the ascii input file.
         read -s -r -d '' code <<-'EOF'
             my ($m, $n, $kmax, $p, $seed) = @ARGV;
             my $u = int($seed / 1000);
             my $v = $seed % 1000;
+            # my $u = 1 + ($seed & 0x55555555);
+            # my $v = 1 + ($seed & 0xaaaaaaaa);
             sub newx {
                     $u = ($u * 2) % 1048573;
                     $v = ($v * 3) % 1048573;
-                    return ($u + $v) % $p;
+                    return $u + $v;
+                    # + int(1000 * $u / 7);
                 }
-
             for my $kmax (1..$kmax) {
                 for my $i (1..$m) {
                     print join(" ", map { newx; } (1..$n)), "\n";
@@ -113,6 +144,7 @@ dotest() {
             
 EOF
         perl -e "$code" $m $n $((kmax/3)) $p $seed > $F
+        args+=(--input-length $((3*(kmax/3))))
     else
         # generate $F with exactly ($kmax/3)*$m*$n*$nwords_per_gfp_elt
         # machine words of random data.
@@ -120,10 +152,13 @@ EOF
             my ($m, $n, $kmax, $nwords, $seed) = @ARGV;
             my $u = int($seed / 1000);
             my $v = $seed % 1000;
+            # my $u = 1 + ($seed & 0x55555555);
+            # my $v = 1 + ($seed & 0xaaaaaaaa);
             sub newx {
                     $u = ($u * 2) % 1048573;
                     $v = ($v * 3) % 1048573;
                     return $u + $v;
+                    # + int(1000 * $u / 7);
                 }
             for my $kmax (1..$kmax) {
                 for my $i (1..$m) {
@@ -139,55 +174,55 @@ EOF
         perl -e "$code" $m $n $((kmax/3)) $nwords $seed > $F
     fi
 
-    G="$TMPDIR/seq.txt"
+    G="$WDIR/seq.txt"
     cat $F $F $F > $G
     rm -f $F
 
-    $bindir/linalg/bwc/$plingen_program m=$m n=$n prime=$p --afile $G "${args[@]}"
+    # For mpi uses of this script, we expect to be called from
+    # do_with_mpi.sh. In this case, $mpi and $mpirun[@] are set.
+    if [ "$mpi" ] ; then
+        args+=("${mpi_specific_args[@]}")
+        if [ "$ONLY_TUNE" ] ; then
+            # push --tune at the very end of the argument list, otherwise
+            # openmpi gobbles it...
+            nargs=()
+            for x in "${args[@]}" ; do
+                if [ "$x" = "--tune" ] ; then : ; else nargs+=("$x") ; fi
+            done
+            args=("${nargs[@]}" tuning_mpi="$mpi" --tune)
+            set -- "${mpirun[@]}"
+            mpirun=()
+            while [ $# -gt 0 ] ; do
+                mpirun+=("$1")
+                if [ "$1" = "-n" ] ; then
+                    shift
+                    mpirun+=(1)
+                fi
+                shift
+            done
+        else
+            args+=(mpi="$mpi")
+        fi
+    fi
+
+    run=("${mpirun[@]}" $bindir/linalg/bwc/$lingen_program m=$m n=$n prime=$p --afile $G "${args[@]}")
+    echo "${run[@]}"
+    "${run[@]}"
+
+    if [ "$ONLY_TUNE" ] ; then exit 0 ; fi
+
     [ -f "$G.gen" ]
     SHA1=$($SHA1BIN < $G.gen)
     SHA1="${SHA1%% *}"
 
     if [ "$REFERENCE_SHA1" ] ; then
         if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
-            echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${TMPDIR}" >&2
+            echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
             exit 1
         fi
+        echo "$SHA1 (as expected)"
     else
         echo "========= $SHA1 ========"
-    fi
-    rm -f $G.gen
-
-    mpi_bindir=$(perl -ne '/HAVE_MPI\s*"(.*)"\s*$/ && print "$1\n";' $bindir/cado_mpi_config.h)
-
-    if [ "$mpi_bindir" ] && [ "${mt_args[*]}" ] && [ "$thr" ] ; then
-        set `echo $thr | tr 'x' ' '`
-        if ! [ "$1" ] || ! [ "$2" ] ; then
-            echo "Bad test configuration, thr should be of the form \d+x\d+ for MPI test" >&2
-            exit 1
-        fi
-        njobs=$(($1*$2))
-        $mpi_bindir/mpiexec -n $njobs $bindir/linalg/bwc/$plingen_program m=$m n=$n prime=$p --afile $G "${args[@]}" "${mt_args[@]}"
-
-        [ -f "$G.gen" ]
-        SHA1=$($SHA1BIN < $G.gen)
-        SHA1="${SHA1%% *}"
-
-        if [ "$REFERENCE_SHA1" ] ; then
-            if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
-                echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${TMPDIR}" >&2
-                exit 1
-            fi
-            if ! [ "$CADO_DEBUG" ] ; then
-                rm -f $G.gen
-            fi
-        else
-            echo "========= $SHA1 ========"
-        fi
-    fi
-
-    if ! [ "$CADO_DEBUG" ] ; then
-        rm -rf "$TMPDIR"
     fi
 }
 

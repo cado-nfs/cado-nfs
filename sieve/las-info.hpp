@@ -164,6 +164,12 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     void init_hint_table(param_list_ptr);
     void clear_hint_table();
 
+    // ----- special mode when we don't compute relations, but read them
+    // from a relation cache instead.
+
+    std::string relation_cache;
+    void reproduce_relations_from_cache(las_todo_entry const & doing);
+    
     // ----- batch mode
     int batch; /* batch mode for cofactorization */
 

@@ -27,7 +27,15 @@
 
 /* Program to tune the FFT multiplication over GF(2). */
 
-/* How to use this program:
+/* This program is called by "make tune-fft". You may also want to call
+ * it independently.
+ *
+ * You are advised to run "make tune-lowlevel" and "make tune-toom"
+ * beforehand, or otherwise the tuning results that you obtain with this
+ * program are likely to have limited significance.
+ *
+ * _IF_ you want to run this program independently of the "make
+ * tune-fft" scenario, the instructions are as follows.
 
    1) beforehand, tune the low-level and mid-sized multiplication routines
       with ``make tune-lowlevel'' and ``make tune-toom''
@@ -67,12 +75,13 @@
 #include <sys/utsname.h>	/* for uname */
 #include "gf2x.h"
 #include "gf2x/gf2x-impl.h"
+#include "fft/gf2x-fft-impl-utils.h"
 #include "timing.h"
 #include "tuning-common.h"
 
 /* This version of tunefft uses the midpoint of each stair */
 
-/* Must be at least >=GF2X_MUL_FFT_THRESHOLD (28), but it saves time to set larger */
+/* Must be at least >= GF2X_TERNARY_FFT_MINIMUM_SIZE (28), but it saves time to set larger */
 #define GF2X_MUL_FFT_BEGIN_TUNE 1000
 
 #define STEPMAX 50
@@ -85,6 +94,13 @@
    In fact we take for m the largest integer such that g(n) = g(m) with
    g(n) = ceil(6*n*GF2X_WORDSIZE/K^2).
 */
+
+static inline void wantzero(int x)
+{
+    if (x != 0) {
+        abort();
+    }
+}
 
 long end_of_stair(long n, long K)
 {
@@ -236,13 +252,13 @@ int main(int argc, char *argv[])
         i = 1;
 ugly_label:
 	for ( ; i <= 3; i++, K *= 3) {
-	    TIME(t1[i], gf2x_mul_fft(c, a, mid, b, mid, K));
+	    TIME(t1[i], wantzero(gf2x_mul_fft(c, a, mid, b, mid, K) == 0));
             if (tc_takes_too_long) {
                 memcpy(u, c, 2 * maxn * sizeof(unsigned long));
             }
             check(a, mid, b, mid, reference, u, "F1", c);
             if (K >= GF2X_WORDSIZE) {
-                TIME(t2[i], gf2x_mul_fft(v, a, mid, b, mid, -K));
+                TIME(t2[i], wantzero(gf2x_mul_fft(v, a, mid, b, mid, -K) == 0));
                 check(a, mid, b, mid, "F1", c, "F2", v);
             } else {
                 t2[i] = DBL_MAX;

@@ -22,7 +22,7 @@
  * point to blocks of size ``n*w + FLINT_BITS`` bits.
  * 
  */
-void fft_negacyclic(mp_limb_t ** ii, mp_size_t n, mp_bitcnt_t w,
+void fft_negacyclic(mp_limb_t ** ii, mp_size_t n, flint_bitcnt_t w,
 		    mp_limb_t ** t1, mp_limb_t ** t2, mp_limb_t ** temp)
 {
     mp_size_t i;

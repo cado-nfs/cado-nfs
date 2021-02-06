@@ -28,6 +28,15 @@
 
 
 /* Functions operating on the field structure */
+/* *Mpfq::gf2n::field::code_for_field_characteristic_srcptr */
+mpz_srcptr mpfq_2_128_field_characteristic_srcptr(mpfq_2_128_src_field K MAYBE_UNUSED)
+{
+        /* yes, this is ugly */
+        static mp_limb_t limbs[1] = {2};
+        static __mpz_struct a = { 1, 1, limbs };
+        return &a;
+}
+
 
 /* Element allocation functions */
 
@@ -44,6 +53,7 @@
 
 /* Input/output functions */
 /* missing fprint */
+/* missing cxx_out */
 /* missing print */
 /* missing scan */
 
@@ -84,12 +94,60 @@ void mpfq_2_128_vec_clear(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_vec * 
 
 /* missing vec_random */
 /* missing vec_random2 */
+/* *Mpfq::defaults::vec::generic::code_for_vec_cmp, Mpfq::defaults::vec */
+int mpfq_2_128_vec_cmp(mpfq_2_128_dst_field k, mpfq_2_128_src_vec u, mpfq_2_128_src_vec v, unsigned int n)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_2_128_src_elt x = mpfq_2_128_vec_coeff_ptr_const(k, u, i);
+            mpfq_2_128_src_elt y = mpfq_2_128_vec_coeff_ptr_const(k, v, i);
+        int ret = mpfq_2_128_cmp(k, x, y);
+        if (ret != 0)
+            return ret;
+        }
+        return 0;
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_is_zero, Mpfq::defaults::vec */
+int mpfq_2_128_vec_is_zero(mpfq_2_128_dst_field k, mpfq_2_128_src_vec v, unsigned int n)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_2_128_src_elt x = mpfq_2_128_vec_coeff_ptr_const(k, v, i);
+        if (!mpfq_2_128_is_zero(k, x))
+            return 0;
+        }
+        return 1;
+}
+
 /* missing vec_asprint */
 /* missing vec_fprint */
 /* missing vec_print */
 /* missing vec_sscan */
 /* missing vec_fscan */
 /* missing vec_scan */
+/* missing vec_cxx_out */
+/* missing vec_cxx_in */
+/* *Mpfq::defaults::vec::generic::code_for_vec_hamming_weight, Mpfq::defaults::vec */
+int mpfq_2_128_vec_hamming_weight(mpfq_2_128_dst_field k, mpfq_2_128_src_vec v, unsigned int n)
+{
+        int w = 0;
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_2_128_src_elt x = mpfq_2_128_vec_coeff_ptr_const(k, v, i);
+        w += !mpfq_2_128_is_zero(k, x);
+        }
+        return w;
+}
+
+/* *Mpfq::defaults::vec::generic::code_for_vec_find_first_set, Mpfq::defaults::vec */
+int mpfq_2_128_vec_find_first_set(mpfq_2_128_dst_field k, mpfq_2_128_src_vec v, unsigned int n)
+{
+        for (unsigned int i = 0; i < n; ++i) {
+            mpfq_2_128_src_elt x = mpfq_2_128_vec_coeff_ptr_const(k, v, i);
+        if (!mpfq_2_128_is_zero(k, x))
+            return i;
+        }
+        return -1;
+}
+
 /* *Mpfq::defaults::vec::alloc::code_for_vec_ur_init, Mpfq::defaults::vec */
 void mpfq_2_128_vec_ur_init(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_vec_ur * v, unsigned int n)
 {
@@ -331,5 +389,7 @@ void mpfq_2_128_poly_mod_pre(mpfq_2_128_dst_field K MAYBE_UNUSED, mpfq_2_128_dst
 /* missing poly_sscan */
 /* missing poly_fscan */
 /* missing poly_scan */
+/* missing poly_cxx_out */
+/* missing poly_cxx_in */
 
 /* vim:set ft=cpp: */

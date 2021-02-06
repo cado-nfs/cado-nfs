@@ -150,6 +150,7 @@
 
 typedef mpfq_p_field mpfq_pz_field;
 typedef mpfq_p_dst_field mpfq_pz_dst_field;
+typedef mpfq_p_src_field mpfq_pz_src_field;
 
 typedef mp_limb_t * mpfq_pz_elt;
 typedef mp_limb_t * mpfq_pz_dst_elt;
@@ -169,8 +170,8 @@ typedef const mp_limb_t * mpfq_pz_src_vec_ur;
 
 typedef struct {
   mpfq_pz_vec c;
-  unsigned int alloc;
-  unsigned int size;
+  unsigned long alloc;
+  unsigned long size;
 } mpfq_pz_poly_struct;
 typedef mpfq_pz_poly_struct mpfq_pz_poly [1];
 typedef mpfq_pz_poly_struct * mpfq_pz_dst_poly;
@@ -188,9 +189,11 @@ extern "C" {
 
 /* Functions operating on the field structure */
 static inline
-void mpfq_pz_field_characteristic(mpfq_pz_dst_field, mpz_ptr);
+void mpfq_pz_field_characteristic(mpfq_pz_src_field, mpz_ptr);
 static inline
-unsigned long mpfq_pz_field_characteristic_bits(mpfq_pz_dst_field);
+mpz_srcptr mpfq_pz_field_characteristic_srcptr(mpfq_pz_src_field);
+static inline
+unsigned long mpfq_pz_field_characteristic_bits(mpfq_pz_src_field);
 /* *pz::code_for_field_degree */
 #define mpfq_pz_field_degree(k)	1
 static inline
@@ -286,68 +289,68 @@ int mpfq_pz_fscan(mpfq_pz_dst_field, FILE *, mpfq_pz_dst_elt);
 #define mpfq_pz_scan(k, x)	mpfq_pz_fscan(k,stdin,x)
 
 /* Vector functions */
-void mpfq_pz_vec_init(mpfq_pz_dst_field, mpfq_pz_vec *, unsigned int);
-void mpfq_pz_vec_reinit(mpfq_pz_dst_field, mpfq_pz_vec *, unsigned int, unsigned int);
-void mpfq_pz_vec_clear(mpfq_pz_dst_field, mpfq_pz_vec *, unsigned int);
-void mpfq_pz_vec_set(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, unsigned int);
-void mpfq_pz_vec_set_zero(mpfq_pz_dst_field, mpfq_pz_dst_vec, unsigned int);
-void mpfq_pz_vec_setcoeff(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_elt, unsigned int);
-void mpfq_pz_vec_setcoeff_ui(mpfq_pz_dst_field, mpfq_pz_dst_vec, unsigned long, unsigned int);
-void mpfq_pz_vec_getcoeff(mpfq_pz_dst_field, mpfq_pz_dst_elt, mpfq_pz_src_vec, unsigned int);
-void mpfq_pz_vec_add(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_pz_src_vec, unsigned int);
-void mpfq_pz_vec_neg(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, unsigned int);
-void mpfq_pz_vec_rev(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, unsigned int);
-void mpfq_pz_vec_sub(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_pz_src_vec, unsigned int);
+void mpfq_pz_vec_init(mpfq_pz_dst_field, mpfq_pz_vec *, unsigned long);
+void mpfq_pz_vec_reinit(mpfq_pz_dst_field, mpfq_pz_vec *, unsigned long, unsigned long);
+void mpfq_pz_vec_clear(mpfq_pz_dst_field, mpfq_pz_vec *, unsigned long);
+void mpfq_pz_vec_set(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, unsigned long);
+void mpfq_pz_vec_set_zero(mpfq_pz_dst_field, mpfq_pz_dst_vec, unsigned long);
+void mpfq_pz_vec_setcoeff(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_elt, unsigned long);
+void mpfq_pz_vec_setcoeff_ui(mpfq_pz_dst_field, mpfq_pz_dst_vec, unsigned long, unsigned long);
+void mpfq_pz_vec_getcoeff(mpfq_pz_dst_field, mpfq_pz_dst_elt, mpfq_pz_src_vec, unsigned long);
+void mpfq_pz_vec_add(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_pz_src_vec, unsigned long);
+void mpfq_pz_vec_neg(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, unsigned long);
+void mpfq_pz_vec_rev(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, unsigned long);
+void mpfq_pz_vec_sub(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_pz_src_vec, unsigned long);
 static inline
-void mpfq_pz_vec_scal_mul(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_pz_src_elt, unsigned int);
-void mpfq_pz_vec_conv(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, unsigned int, mpfq_pz_src_vec, unsigned int);
-void mpfq_pz_vec_random(mpfq_pz_dst_field, mpfq_pz_dst_vec, unsigned int, gmp_randstate_t);
-void mpfq_pz_vec_random2(mpfq_pz_dst_field, mpfq_pz_dst_vec, unsigned int, gmp_randstate_t);
-int mpfq_pz_vec_cmp(mpfq_pz_dst_field, mpfq_pz_src_vec, mpfq_pz_src_vec, unsigned int);
-int mpfq_pz_vec_is_zero(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned int);
+void mpfq_pz_vec_scal_mul(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, mpfq_pz_src_elt, unsigned long);
+void mpfq_pz_vec_conv(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_src_vec, unsigned long, mpfq_pz_src_vec, unsigned long);
+void mpfq_pz_vec_random(mpfq_pz_dst_field, mpfq_pz_dst_vec, unsigned long, gmp_randstate_t);
+void mpfq_pz_vec_random2(mpfq_pz_dst_field, mpfq_pz_dst_vec, unsigned long, gmp_randstate_t);
+long mpfq_pz_vec_cmp(mpfq_pz_dst_field, mpfq_pz_src_vec, mpfq_pz_src_vec, unsigned long);
+long mpfq_pz_vec_is_zero(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned long);
 static inline
-mpfq_pz_dst_vec mpfq_pz_vec_subvec(mpfq_pz_dst_field, mpfq_pz_dst_vec, int);
+mpfq_pz_dst_vec mpfq_pz_vec_subvec(mpfq_pz_dst_field, mpfq_pz_dst_vec, long);
 static inline
-mpfq_pz_src_vec mpfq_pz_vec_subvec_const(mpfq_pz_dst_field, mpfq_pz_src_vec, int);
+mpfq_pz_src_vec mpfq_pz_vec_subvec_const(mpfq_pz_dst_field, mpfq_pz_src_vec, long);
 static inline
-mpfq_pz_dst_elt mpfq_pz_vec_coeff_ptr(mpfq_pz_dst_field, mpfq_pz_dst_vec, int);
+mpfq_pz_dst_elt mpfq_pz_vec_coeff_ptr(mpfq_pz_dst_field, mpfq_pz_dst_vec, long);
 static inline
-mpfq_pz_src_elt mpfq_pz_vec_coeff_ptr_const(mpfq_pz_dst_field, mpfq_pz_src_vec, int);
-int mpfq_pz_vec_asprint(mpfq_pz_dst_field, char * *, mpfq_pz_src_vec, unsigned int);
-int mpfq_pz_vec_fprint(mpfq_pz_dst_field, FILE *, mpfq_pz_src_vec, unsigned int);
-int mpfq_pz_vec_print(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned int);
-int mpfq_pz_vec_sscan(mpfq_pz_dst_field, mpfq_pz_vec *, unsigned int *, const char *);
-int mpfq_pz_vec_fscan(mpfq_pz_dst_field, FILE *, mpfq_pz_vec *, unsigned int *);
+mpfq_pz_src_elt mpfq_pz_vec_coeff_ptr_const(mpfq_pz_dst_field, mpfq_pz_src_vec, long);
+long mpfq_pz_vec_asprint(mpfq_pz_dst_field, char * *, mpfq_pz_src_vec, unsigned long);
+long mpfq_pz_vec_fprint(mpfq_pz_dst_field, FILE *, mpfq_pz_src_vec, unsigned long);
+long mpfq_pz_vec_print(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned long);
+long mpfq_pz_vec_sscan(mpfq_pz_dst_field, mpfq_pz_vec *, unsigned long *, const char *);
+long mpfq_pz_vec_fscan(mpfq_pz_dst_field, FILE *, mpfq_pz_vec *, unsigned long *);
 /* *Mpfq::defaults::vec::io::code_for_vec_scan, pz */
 #define mpfq_pz_vec_scan(K, w, n)	mpfq_pz_vec_fscan(K,stdin,w,n)
-int mpfq_pz_vec_hamming_weight(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned int);
-int mpfq_pz_vec_find_first_set(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned int);
-int mpfq_pz_vec_simd_hamming_weight(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned int);
-int mpfq_pz_vec_simd_find_first_set(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned int);
-void mpfq_pz_vec_ur_init(mpfq_pz_dst_field, mpfq_pz_vec_ur *, unsigned int);
-void mpfq_pz_vec_ur_set_zero(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, unsigned int);
-void mpfq_pz_vec_ur_set_vec(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec, unsigned int);
-void mpfq_pz_vec_ur_reinit(mpfq_pz_dst_field, mpfq_pz_vec_ur *, unsigned int, unsigned int);
-void mpfq_pz_vec_ur_clear(mpfq_pz_dst_field, mpfq_pz_vec_ur *, unsigned int);
-void mpfq_pz_vec_ur_set(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, unsigned int);
-void mpfq_pz_vec_ur_setcoeff(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_elt_ur, unsigned int);
-void mpfq_pz_vec_ur_getcoeff(mpfq_pz_dst_field, mpfq_pz_dst_elt_ur, mpfq_pz_src_vec_ur, unsigned int);
-void mpfq_pz_vec_ur_add(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, mpfq_pz_src_vec_ur, unsigned int);
-void mpfq_pz_vec_ur_sub(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, mpfq_pz_src_vec_ur, unsigned int);
-void mpfq_pz_vec_ur_neg(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, unsigned int);
-void mpfq_pz_vec_ur_rev(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, unsigned int);
+long mpfq_pz_vec_hamming_weight(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned long);
+long mpfq_pz_vec_find_first_set(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned long);
+long mpfq_pz_vec_simd_hamming_weight(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned long);
+long mpfq_pz_vec_simd_find_first_set(mpfq_pz_dst_field, mpfq_pz_src_vec, unsigned long);
+void mpfq_pz_vec_ur_init(mpfq_pz_dst_field, mpfq_pz_vec_ur *, unsigned long);
+void mpfq_pz_vec_ur_set_zero(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, unsigned long);
+void mpfq_pz_vec_ur_set_vec(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec, unsigned long);
+void mpfq_pz_vec_ur_reinit(mpfq_pz_dst_field, mpfq_pz_vec_ur *, unsigned long, unsigned long);
+void mpfq_pz_vec_ur_clear(mpfq_pz_dst_field, mpfq_pz_vec_ur *, unsigned long);
+void mpfq_pz_vec_ur_set(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, unsigned long);
+void mpfq_pz_vec_ur_setcoeff(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_elt_ur, unsigned long);
+void mpfq_pz_vec_ur_getcoeff(mpfq_pz_dst_field, mpfq_pz_dst_elt_ur, mpfq_pz_src_vec_ur, unsigned long);
+void mpfq_pz_vec_ur_add(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, mpfq_pz_src_vec_ur, unsigned long);
+void mpfq_pz_vec_ur_sub(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, mpfq_pz_src_vec_ur, unsigned long);
+void mpfq_pz_vec_ur_neg(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, unsigned long);
+void mpfq_pz_vec_ur_rev(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec_ur, unsigned long);
 static inline
-void mpfq_pz_vec_scal_mul_ur(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec, mpfq_pz_src_elt, unsigned int);
-void mpfq_pz_vec_conv_ur(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec, unsigned int, mpfq_pz_src_vec, unsigned int);
-void mpfq_pz_vec_reduce(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_dst_vec_ur, unsigned int);
+void mpfq_pz_vec_scal_mul_ur(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec, mpfq_pz_src_elt, unsigned long);
+void mpfq_pz_vec_conv_ur(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, mpfq_pz_src_vec, unsigned long, mpfq_pz_src_vec, unsigned long);
+void mpfq_pz_vec_reduce(mpfq_pz_dst_field, mpfq_pz_dst_vec, mpfq_pz_dst_vec_ur, unsigned long);
 static inline
-mpfq_pz_dst_vec_ur mpfq_pz_vec_ur_subvec(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, int);
+mpfq_pz_dst_vec_ur mpfq_pz_vec_ur_subvec(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, long);
 static inline
-mpfq_pz_src_vec_ur mpfq_pz_vec_ur_subvec_const(mpfq_pz_dst_field, mpfq_pz_src_vec_ur, int);
+mpfq_pz_src_vec_ur mpfq_pz_vec_ur_subvec_const(mpfq_pz_dst_field, mpfq_pz_src_vec_ur, long);
 static inline
-mpfq_pz_dst_elt mpfq_pz_vec_ur_coeff_ptr(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, int);
+mpfq_pz_dst_elt mpfq_pz_vec_ur_coeff_ptr(mpfq_pz_dst_field, mpfq_pz_dst_vec_ur, long);
 static inline
-mpfq_pz_src_elt mpfq_pz_vec_ur_coeff_ptr_const(mpfq_pz_dst_field, mpfq_pz_src_vec_ur, int);
+mpfq_pz_src_elt mpfq_pz_vec_ur_coeff_ptr_const(mpfq_pz_dst_field, mpfq_pz_src_vec_ur, long);
 /* *pz::code_for_vec_elt_stride */
 #define mpfq_pz_vec_elt_stride(k, n)	((n) * mpfq_pz_elt_stride((k)))
 /* *pz::code_for_vec_ur_elt_stride */
@@ -441,14 +444,21 @@ void mpfq_pz_oo_field_init(mpfq_vbase_ptr);
 /* Implementations for inlines */
 /* *Mpfq::gfp::field::code_for_field_characteristic, pz */
 static inline
-void mpfq_pz_field_characteristic(mpfq_pz_dst_field k, mpz_ptr z)
+void mpfq_pz_field_characteristic(mpfq_pz_src_field k, mpz_ptr z)
 {
         mpz_set(z, k->p);
 }
 
+/* *Mpfq::gfp::field::code_for_field_characteristic_srcptr, pz */
+static inline
+mpz_srcptr mpfq_pz_field_characteristic_srcptr(mpfq_pz_src_field k)
+{
+    return k->p;
+}
+
 /* *Mpfq::gfp::field::code_for_field_characteristic_bits, pz */
 static inline
-unsigned long mpfq_pz_field_characteristic_bits(mpfq_pz_dst_field k)
+unsigned long mpfq_pz_field_characteristic_bits(mpfq_pz_src_field k)
 {
         return mpz_sizeinbase(k->p, 2);
 }
@@ -606,7 +616,7 @@ int mpfq_pz_is_zero(mpfq_pz_dst_field k, mpfq_pz_src_elt x)
 
 /* *Mpfq::defaults::vec::mul::code_for_vec_scal_mul, pz */
 static inline
-void mpfq_pz_vec_scal_mul(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec w, mpfq_pz_src_vec u, mpfq_pz_src_elt c, unsigned int n)
+void mpfq_pz_vec_scal_mul(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec w, mpfq_pz_src_vec u, mpfq_pz_src_elt c, unsigned long n)
 {
         unsigned int i;
     for(i = 0; i < n; i++) {
@@ -618,35 +628,35 @@ void mpfq_pz_vec_scal_mul(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec w, m
 
 /* *pz::code_for_vec_subvec */
 static inline
-mpfq_pz_dst_vec mpfq_pz_vec_subvec(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec v, int i)
+mpfq_pz_dst_vec mpfq_pz_vec_subvec(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec v, long i)
 {
     return v + i * mpz_size(K->p);
 }
 
 /* *pz::code_for_vec_subvec_const */
 static inline
-mpfq_pz_src_vec mpfq_pz_vec_subvec_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_vec v, int i)
+mpfq_pz_src_vec mpfq_pz_vec_subvec_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_vec v, long i)
 {
     return v + i * mpz_size(K->p);
 }
 
 /* *pz::code_for_vec_coeff_ptr */
 static inline
-mpfq_pz_dst_elt mpfq_pz_vec_coeff_ptr(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec v, int i)
+mpfq_pz_dst_elt mpfq_pz_vec_coeff_ptr(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec v, long i)
 {
     return v + i*mpz_size(K->p);
 }
 
 /* *pz::code_for_vec_coeff_ptr_const */
 static inline
-mpfq_pz_src_elt mpfq_pz_vec_coeff_ptr_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_vec v, int i)
+mpfq_pz_src_elt mpfq_pz_vec_coeff_ptr_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_vec v, long i)
 {
     return v + i*mpz_size(K->p);
 }
 
 /* *Mpfq::defaults::vec::mul::code_for_vec_scal_mul_ur, pz */
 static inline
-void mpfq_pz_vec_scal_mul_ur(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec_ur w, mpfq_pz_src_vec u, mpfq_pz_src_elt c, unsigned int n)
+void mpfq_pz_vec_scal_mul_ur(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec_ur w, mpfq_pz_src_vec u, mpfq_pz_src_elt c, unsigned long n)
 {
     unsigned int i;
     for(i = 0; i < n; i++) {
@@ -658,28 +668,28 @@ void mpfq_pz_vec_scal_mul_ur(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec_u
 
 /* *pz::code_for_vec_ur_subvec */
 static inline
-mpfq_pz_dst_vec_ur mpfq_pz_vec_ur_subvec(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec_ur v, int i)
+mpfq_pz_dst_vec_ur mpfq_pz_vec_ur_subvec(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec_ur v, long i)
 {
     return v + i * mpz_size(K->bigmul_p);
 }
 
 /* *pz::code_for_vec_ur_subvec_const */
 static inline
-mpfq_pz_src_vec_ur mpfq_pz_vec_ur_subvec_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_vec_ur v, int i)
+mpfq_pz_src_vec_ur mpfq_pz_vec_ur_subvec_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_vec_ur v, long i)
 {
     return v + i * mpz_size(K->bigmul_p);
 }
 
 /* *pz::code_for_vec_ur_coeff_ptr */
 static inline
-mpfq_pz_dst_elt mpfq_pz_vec_ur_coeff_ptr(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec_ur v, int i)
+mpfq_pz_dst_elt mpfq_pz_vec_ur_coeff_ptr(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec_ur v, long i)
 {
     return v + i*mpz_size(K->bigmul_p);
 }
 
 /* *pz::code_for_vec_ur_coeff_ptr_const */
 static inline
-mpfq_pz_src_elt mpfq_pz_vec_ur_coeff_ptr_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_vec_ur v, int i)
+mpfq_pz_src_elt mpfq_pz_vec_ur_coeff_ptr_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_vec_ur v, long i)
 {
     return v + i*mpz_size(K->bigmul_p);
 }
