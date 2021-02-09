@@ -49,6 +49,7 @@
 struct shrink_action {
     double row_fraction = 0;
     double shrink_factor = 0;
+    index_t shrink_threshold = 0;
     int dl = 0;
     gmp_randstate_t rstate;
 
@@ -74,7 +75,7 @@ struct shrink_action {
             if (rnd >= row_fraction)
                 continue;
 
-            rel.shrink(shrink_factor);
+            rel.shrink(shrink_factor, shrink_threshold);
             rel.sort();
             rel.compress(dl);
 
@@ -89,6 +90,7 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "out", "output file (defaults to stdout)");
     param_list_decl_usage(pl, "in", "input file (defaults to stdin)");
     param_list_decl_usage(pl, "shrink-factor", "divide all column indices by n");
+    param_list_decl_usage(pl, "shrink-threshold", "colums below threshold are not shrunk");
     param_list_decl_usage(pl, "row-fraction", "ratio of rows to keep");
     param_list_decl_usage(pl, "seed", "random seed");
     param_list_decl_usage(pl, "dl", "DL mode (do not reduce valuations mod 2)");
@@ -133,7 +135,9 @@ main (int argc, char *argv[])
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }
-
+    
+    param_list_parse_ulong(pl, "shrink-threshold", &A.shrink_threshold);
+    
     unsigned long seed;
 
     if (param_list_parse_ulong(pl, "seed", &seed)) {
