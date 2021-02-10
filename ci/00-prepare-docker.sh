@@ -41,7 +41,7 @@ fedora_packages="$fedora_packages     python"
 
 alpine_packages="$alpine_packages     bc"
 alpine_packages="$alpine_packages     cmake"
-alpine_packages="$alpine_packages     hwloc-dev"
+# alpine_packages="$alpine_packages     hwloc-dev"
 alpine_packages="$alpine_packages     gmp-dev"
 alpine_packages="$alpine_packages     make"
 alpine_packages="$alpine_packages     bash"
@@ -109,6 +109,7 @@ elif [ -f /etc/alpine-release ] ; then
     # hwloc-dev still in alpine testing.
     cat >> /etc/apk/repositories <<EOF
 http://dl-cdn.alpinelinux.org/alpine/edge/testing
+http://dl-cdn.alpinelinux.org/alpine/edge/community
 EOF
     apk update
     apk add $alpine_packages

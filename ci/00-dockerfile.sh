@@ -4,6 +4,8 @@
 #
 # Our output must be a Dockerfile
 
+HUSH_STDOUT=1
+
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
 

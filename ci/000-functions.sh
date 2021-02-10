@@ -18,6 +18,10 @@ elif [ -f /proc/$$/exe ] && [ `readlink /proc/$$/exe` = /bin/busybox ] ; then
     ECHO_E="echo -e"
 fi
 
+if [ "$HUSH_STDOUT" ] ; then
+    ECHO_E=:
+fi
+
 # Usage: enter_section [internal name] [message]
 #
 # The message is optional and defaults to the internal name
