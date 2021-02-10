@@ -27,8 +27,9 @@ fi
 # The message is optional and defaults to the internal name
 enter_section() {
     internal_name="$1"
-    message="$2"
-    : ${message:="$1"}
+    shift
+    message="$*"
+    : ${message:="$internal_name"}
     current_section="$1"
     $ECHO_E "section_start:`date +%s`:$internal_name\r${CSI_KILLLINE}${CSI_BLUE}$message${CSI_RESET}"
 }
