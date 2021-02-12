@@ -301,6 +301,18 @@ checks on freebsd13 system with gcc:
     - make -C ci/utilities/tanker
     - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
 
+checks on freebsd12 system with gcc:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  <<: *common-template
+  stage: early
+  needs: []
+  tags:
+    - freebsd-tanker
+  script:
+    - make -C ci/utilities/tanker
+    - ci/50-libvirt-wrap-tests.sh freebsd:12.0 ci/40-testsuite.sh
+
 # how can I arrange so that this deploys in a subdirectory of the
 # statically generated main site ???
 #
