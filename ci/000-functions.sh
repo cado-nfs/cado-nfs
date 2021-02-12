@@ -12,6 +12,7 @@ set -e
 is_debian() { [ -f /etc/debian_version ] ; }
 is_fedora() { [ -f /etc/fedora-release ] ; }
 is_alpine() { [ -f /etc/alpine-release ] ; }
+is_osx() { case "`uname -s`" in Darwin) true;; *)false;; esac; }
 is_freebsd() {
     if [ -f /var/run/os-release ] ; then
         . "/var/run/os-release"
@@ -36,6 +37,9 @@ elif is_freebsd ; then
     # to check /bin/sh's version. Presumably it's attached to the system
     # as a whole...
     ECHO_E="echo -e"
+elif is_osx ; then
+    echo_e() { zsh -c "echo -e \"$*\"" ; }
+    ECHO_E=echo_e
 fi
 
 if [ "$HUSH_STDOUT" ] ; then
