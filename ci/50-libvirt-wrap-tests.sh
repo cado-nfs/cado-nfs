@@ -8,23 +8,7 @@ shift
 
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
-
-exported_variables=(
-      CI_BUILD_NAME
-      CI_COMMIT_SHORT_SHA
-      CI_JOB_ID
-      CI_JOB_STAGE
-      CI_PROJECT_NAMESPACE
-      CI_PROJECT_NAME
-      DOCKER_SCRIPT
-)
-
-exports=(RUNTIME_TYPE=tanker)
-for v in "${exported_variables[@]}" ; do exports+=("$v=\"${!v}\"") ; done
-
-tanker() {
-    bash -x "$(dirname $0)/utilities/tanker/tanker.sh" "$@"
-}
+. "$(dirname $0)/002-tanker.bash"
 
 # if ! tanker image list | grep -q cado-nfs-"$IMAGE_NAME" ; then
     enter_section configuration "Creating base image cado-nfs-$IMAGE_NAME"

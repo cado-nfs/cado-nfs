@@ -1629,3 +1629,4 @@ ci/40-testsuite.sh
 ci/50-libvirt-wrap-tests.sh
 .gitmodules
 ci/utilities/tanker
+ci/002-tanker.bash

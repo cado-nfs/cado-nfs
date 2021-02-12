@@ -60,13 +60,25 @@
 # docker image prune -f --filter "until=`date -Is --date='1 week ago'`"
 #
 #
-# NOTE: to debug the freebsd tests, this wrapper script cannot be used
-# since it has not been adapted to this case. The following command line
-# is potentially a good start (gives a bash shell on a fresh tree in sync
-# with current git HEAD).
-#    DOCKER_SCRIPT=1 CI_BUILD_NAME='checks on freebsd13 with gcc' ci/50-libvirt-wrap-tests.sh freebsd:13.0
-# but there's no funny volume mounting and so on. Getting to the shell
-# prompt takes roughly two minutes in this case.
+# NOTE: to debug the freebsd tests, this wrapper script tries to mimick
+# what we do in gitlab-ci as well. But it doesn't work in exactly the
+# same way. So, you might want to use this script, and you might choose
+# not to. The possible things to try are:
+#
+#  ./ci/debug.sh "checks on freebsd13.0 system with gcc"
+#     --> This will fire up a freebsd13.0 virtual machine, and reach a
+#     shell within an sshfs-mounted copy of your current directory. As a
+#     consequence, please note that symlink traversal won't work, and
+#     sshfs might incur some delays.
+#
+#  DOCKER_SCRIPT=1 CI_BUILD_NAME='checks on freebsd13 with gcc' ci/50-libvirt-wrap-tests.sh freebsd:13.0
+#     --> This second option is more faithful to what we do with
+#     gitlab-ci, and gives a bash shell on a fresh tree in sync with
+#     current git HEAD. But there's no funny volume mounting and so on.
+#
+# In either case, getting to the shell prompt takes from 2 to 10 minutes
+# depending on a variety of factors, and on the progress of caching in
+# the tanker script (at the moment: none, but I'm thinking of it).
 
 set -e
 export DOCKER_SCRIPT=1
@@ -82,21 +94,63 @@ cat > $tmp/prepare.sh <<EOF
 . /host/ci/001-environment.sh
 . /host/ci/999-debug.sh
 EOF
-ci/00-dockerfile.sh > $tmp/Dockerfile
-imagename="$1"
-shift
-: ${imagename=docker-image-$RANDOM}
-imagename="${imagename// /_}"
-imagename="${imagename//:/_}"
-imagename="${imagename//-/_}"
-imagename="debug_$imagename"
-docker build -t "$imagename" -f $tmp/Dockerfile ci
-echo "# NOTE: docker image is $imagename"
-echo "# NOTE: this image contains a few extra debug tools"
+
 DARGS=()
 if ! [ "$NO_REMOVE" ] ; then
     DARGS+=(--rm)
 else
     echo "# NOTE: the container will remain up on script exit"
 fi
-docker run "${DARGS[@]}" -ti --hostname docker-script-$RANDOM --volume $PWD:/host "$imagename" /host/ci/999-debug.sh "$@"
+
+if [[ "$CI_BUILD_NAME" =~ freebsd([0-9]+\.[0-9]+) ]] ; then
+    # use tanker script instead
+    IMAGE_NAME=freebsd:"${BASH_REMATCH[1]}"
+    . "$(dirname $0)/002-tanker.bash"
+    # create base image. As in the current gitlab-ci case, we have no
+    # caching, which is a pity.
+    myimage=cado-nfs-"$(id -n -u)"-"$IMAGE_NAME"
+    tanker vm build -R -t $myimage "$IMAGE_NAME" @host "$(dirname $0)/" env "${exports[@]}" ./00-prepare-docker.sh
+
+    cat > $tmp/getaddress.xsl <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<stylesheet version="1.0" xmlns="http://www.w3.org/1999/XSL/Transform">
+<output method="text" /><template match="/"><for-each select="//network/ip">
+<value-of select="@address" /><text>
+</text></for-each></template></stylesheet>
+EOF
+    libvirt_host=$(xsltproc $tmp/getaddress.xsl <(virsh -c qemu:///system net-dumpxml default))
+    random=$(uuidgen  | sha256sum | cut -c1-10)
+    # contrary to what I found in some places, user access to fues mounts
+    # is not a question of group membership. /dev/fuse is 0666 anyway.
+    # However the sysctl matters!
+    # pw groupmod operator -m user --
+    force_build_tree=/tmp/b
+    exports+=(force_build_tree=$force_build_tree)
+    echo "# NOTE: cado-nfs build tree has just been set to $force_build_tree"
+    commands=(
+        @guest root@ env ASSUME_ALWAYS_YES=yes pkg install fusefs-sshfs \;
+                     kldload fusefs \;
+                     sysctl vfs.usermount=1 --
+        @guest user@ mkdir /tmp/$random \;
+                     sshfs -o idmap=user,StrictHostkeyChecking=no $(id -u -n)@$libvirt_host:$PWD /tmp/$random \;
+                     cd /tmp/$random \;
+                     env "${exports[@]}" bash
+    )
+    tanker vm run "${DARGS[@]}" -t $myimage "${commands[@]}"
+else
+    ci/00-dockerfile.sh > $tmp/Dockerfile
+    # TODO what is this imagename business about ??? Seems to me that the
+    # whole command line, beyond CI_BUILD_NAME, is interpreted in a
+    # fairly weird way.
+    imagename="$1"
+    shift
+    : ${imagename=docker-image-$RANDOM}
+    imagename="${imagename// /_}"
+    imagename="${imagename//:/_}"
+    imagename="${imagename//-/_}"
+    imagename="debug_$imagename"
+    docker build -t "$imagename" -f $tmp/Dockerfile ci
+    echo "# NOTE: docker image is $imagename"
+    echo "# NOTE: this image contains a few extra debug tools"
+    docker run "${DARGS[@]}" -ti --hostname docker-script-$RANDOM --volume $PWD:/host "$imagename" /host/ci/999-debug.sh "$@"
+fi
