@@ -271,7 +271,11 @@ for i in `seq 0 $((nsides-1))`; do
                         "${generate[@]}" | grep '^[0-9]' > "$completelist"
                     fi
                     random_gen=($CADO_SOURCE/tests/linalg/bwc/perlrandom.pl 0 $seed)
-                    fshuf() { shuf --random-source=<("${random_gen[@]}") "$@" ; }
+                    if type -p shuf > /dev/null 2>&1 ; then
+                        fshuf() { shuf --random-source=<("${random_gen[@]}") "$@" ; }
+                    else
+                        fshuf() { sort -R "$@" ; }
+                    fi
                     fshuf $completelist | head -n $NBSAMPLE > $todolist
                     cmd=("${cmd0[@]}" -todo $todolist )
                     ;;

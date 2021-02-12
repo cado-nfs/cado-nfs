@@ -2,9 +2,29 @@
 #
 # We're /bin/sh, not bash.
 #
-# We **must** be silent !
+# We **must** be silent, because we're read by 00-dockerfile.sh. Note
+# though that 00-dockerfile.sh sets HUSH_STDOUT, so that ECHO_E is
+# actually a no-op (i.e. ECHO_E is ok to use safely, just don't use plain
+# echo)
 
 export CLICOLOR_FORCE=1
+
+
+# Note that our set of scripts reacts on CI_BUILD_NAME, and the logic for
+# this is here. CI_BUILD_NAME must follow the regexp below.
+#
+# (note that we **CANNOT** do regexp matching in this script because
+# we're /bin/sh, not bash !)
+#
+# (container for )?(coverage tests on )?((expensive )?checks)?( on (osx|alpine|(debian|fedora|centos|freebsd)[0-9]*) system)?( with ((32-bit )?gcc|clang|icc))?
+#
+# with one exception which is "merge coverage tests"
+#
+# a downside is that in the gitlab page, this makes many pipeline steps
+# with similar names. We could change to abbreviated names (e.g.
+# "coverage tests on " would be V, "container for " would be L, "checks"
+# and "expensive checks" would be C and XC, and so on. But it would be
+# really cryptic. to have, e.g. LC/debian10+gcc ; wouldn't it ?
 
 if type -p hostname > /dev/null 2>&1 ; then
     HOSTNAME=$(hostname)
@@ -30,6 +50,10 @@ esac
 if ! [ "$CI_BUILD_NAME" ] && [ "$1" ] ; then
     CI_BUILD_NAME="$1"
     $ECHO_E "${CSI_BLUE}Setting CI_BUILD_NAME=\"$1\"${CSI_RESET}"
+fi
+
+if ! [ "$CI_BUILD_NAME" ] ; then
+    $ECHO_E "${CSI_RED}This set of scripts really really expect that CI_BUILD_NAME is set to something!${CSI_RESET}"
 fi
 
 if ! [ "$CI_COMMIT_SHORT_SHA" ] && [ -d .git ] ; then
@@ -96,5 +120,11 @@ if [ -x /opt/homebrew/bin/brew ] ; then
     eval `/opt/homebrew/bin/brew shellenv`
 fi
 
+MAKE=make
+if type -p gmake > /dev/null 2>&1 ; then
+    MAKE=gmake
+fi
+
 export CC CXX
 export CFLAGS CXXFLAGS
+export MAKE

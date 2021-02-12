@@ -5,5 +5,5 @@
 
 NCPUS=`"$(dirname $0)/utilities/ncpus.sh"`
 enter_section build Building
-make -j$NCPUS
+"${MAKE}" -j$NCPUS
 leave_section

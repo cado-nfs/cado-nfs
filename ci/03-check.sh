@@ -11,7 +11,7 @@ else
     enter_section "test" "Running tests"
 fi
 export OMP_DYNAMIC=true STATS_PARSING_ERRORS_ARE_FATAL=1
-eval $(make show)
+eval $("${MAKE}" show)
 
 if [ "$coverage" ] ; then
     # The "base" coverage file has zero coverage for every instrumented
@@ -31,7 +31,7 @@ fi
 set +e
 # --no-compress-output is perhaps better for test uploading, as ctest
 # likes to store as zlib but headerless, which is a bit of a pain
-make check ARGS="-j$NCPUS -T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144"
+"${MAKE}" check ARGS="-j$NCPUS -T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144"
 rc=$?
 set -e
 

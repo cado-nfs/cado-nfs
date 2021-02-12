@@ -58,6 +58,15 @@
 # often. A command for this might be:
 #
 # docker image prune -f --filter "until=`date -Is --date='1 week ago'`"
+#
+#
+# NOTE: to debug the freebsd tests, this wrapper script cannot be used
+# since it has not been adapted to this case. The following command line
+# is potentially a good start (gives a bash shell on a fresh tree in sync
+# with current git HEAD).
+#    DOCKER_SCRIPT=1 CI_BUILD_NAME='checks on freebsd13 with gcc' ci/50-libvirt-wrap-tests.sh freebsd:13.0
+# but there's no funny volume mounting and so on. Getting to the shell
+# prompt takes roughly two minutes in this case.
 
 set -e
 export DOCKER_SCRIPT=1

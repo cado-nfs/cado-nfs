@@ -5,6 +5,6 @@
 
 NCPUS=`"$(dirname $0)/utilities/ncpus.sh"`
 enter_section build2 "Building test depedencies"
-make -j$NCPUS all_test_dependencies
+"${MAKE}" -j$NCPUS all_test_dependencies
 leave_section
 

@@ -2,9 +2,24 @@
 #
 # We're /bin/sh, not bash.
 #
-# We **must** be silent !
+# We **must** be silent, because we're read by 00-dockerfile.sh. Note
+# though that 00-dockerfile.sh sets HUSH_STDOUT, so that ECHO_E is
+# actually a no-op (i.e. ECHO_E is ok to use safely, just don't use plain
+# echo)
 
 set -e
+
+is_debian() { [ -f /etc/debian_version ] ; }
+is_fedora() { [ -f /etc/fedora-release ] ; }
+is_alpine() { [ -f /etc/alpine-release ] ; }
+is_freebsd() {
+    if [ -f /var/run/os-release ] ; then
+        . "/var/run/os-release"
+        [ "$NAME" = "FreeBSD" ]
+    else
+        false
+    fi
+}
 
 CSI_RED="\e[01;31m"
 CSI_BLUE="\e[01;34m"
@@ -15,6 +30,11 @@ ECHO_E=echo
 if [ "$BASH_VERSION" ] ; then
     ECHO_E="echo -e"
 elif [ -f /proc/$$/exe ] && [ `readlink /proc/$$/exe` = /bin/busybox ] ; then
+    ECHO_E="echo -e"
+elif is_freebsd ; then
+    # /bin/sh on freebsd does grok echo -e, but we have seemingly no way
+    # to check /bin/sh's version. Presumably it's attached to the system
+    # as a whole...
     ECHO_E="echo -e"
 fi
 

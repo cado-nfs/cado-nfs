@@ -33,7 +33,7 @@ image: gcc
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
       when: manual
-      allow_failure: true
+      allow_failure: false
     - when: on_success
   
 # see also https://gitlab.com/gitlab-org/gitlab/-/issues/201845 regarding
@@ -109,7 +109,7 @@ container for checks with clang:
 # need gcov 4.2 or later, the 'container for checks with gcc' box doesn't have it
 # since it's based on debian stable.
 # TODO: find a more stable image !
-container for coverage tests with gcc:
+container for coverage tests on checks with gcc:
   variables:
     IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
   <<: *common-template
@@ -223,7 +223,7 @@ coverage tests on checks with gcc:
   <<: *common-template
   stage: various
   needs:
-    - container for coverage tests with gcc
+    - container for coverage tests on checks with gcc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
   script:
     - *checks-script
@@ -233,7 +233,7 @@ coverage tests on checks with gcc:
       - coverage-*.json
     expire_in: 1 week
 
-# the build name must match "coverage name" so that gcovr is installed.
+# the build name must match "coverage tests" so that gcovr is installed.
 # the stage must be after the "various" stage.
 # we must import the json coverage reports for different runs. This is
 # apparently done automatically !
@@ -288,6 +288,18 @@ checks on osx system:
   script:
     - *checks-script
   <<: *checks-junit-report
+ 
+checks on freebsd13 system with gcc:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  <<: *common-template
+  stage: early
+  needs: []
+  tags:
+    - freebsd-tanker
+  script:
+    - make -C ci/utilities/tanker
+    - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
 
 # how can I arrange so that this deploys in a subdirectory of the
 # statically generated main site ???

@@ -4,6 +4,6 @@
 . "$(dirname $0)/001-environment.sh"
 
 enter_section configuration Configuring
-make cmake
+"${MAKE}" cmake
 leave_section
 
