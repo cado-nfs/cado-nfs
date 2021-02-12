@@ -38,8 +38,12 @@ elif is_freebsd ; then
     # as a whole...
     ECHO_E="echo -e"
 elif is_osx ; then
-    echo_e() { zsh -c "echo -e \"$*\"" ; }
-    ECHO_E=echo_e
+    # bash3 on osx does not like \e
+    CSI_RED="[01;31m"
+    CSI_BLUE="[01;34m"
+    CSI_RESET="[00;39m\e[m"
+    CSI_KILLLINE="[0K"
+    ECHO_E="echo -e"
 fi
 
 if [ "$HUSH_STDOUT" ] ; then
