@@ -1,31 +1,337 @@
-# cf .docker-script.sh
+# see also ci/debug.sh
+
+stages:
+  - build
+  - early
+  - various
+  - thorough
+# - deploy    # if using pages
 
 image: gcc
 
-build:
-  stage: test
-  before_script:
-    - id -a
-    - echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
-    - echo -e "section_start:`date +%s`:install_packages\r\e[0KInstalling required packages"
-    - env DEBIAN_FRONTEND=noninteractive apt-get -y update
-    - env DEBIAN_FRONTEND=noninteractive apt-get -y install bc locales cmake libhwloc-dev
-    - echo -e "section_end:`date +%s`:install_packages\r\e[0K"
+# took inspiration from https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/
+# however I'm not sure if/how the "latest" tagging actually works.
+
+# Note that the name of each section is significant, as the file
+# ci/001-environment.sh sets some important environment variables based
+# on what it finds. E.g. it reacts to "with gcc", "expensive checks",
+# "coverage tests", and so on.
+
+# We're using a few features from gitlab yaml:
+#
+# - [yaml anchors](https://docs.gitlab.com/ce/ci/yaml/#anchors)
+# - manual disable of pipeline elements, which we do more or less by hand
+#   (finer grained than the ["skip ci"
+#   syntax](https://docs.gitlab.com/ee/ci/yaml/#skip-pipeline))
+#
+# Much desired: https://gitlab.com/gitlab-org/gitlab/-/issues/23605
+  
+############################################################################
+# This template is used so that if the magic words "skip some ci" are
+# found in the git commit, then the whole pipeline becomes manual.
+.common-template: &common-template
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
+    - when: on_success
+  
+# see also https://gitlab.com/gitlab-org/gitlab/-/issues/201845 regarding
+# the pipeline deduplication
+workflow:
+   rules:
+     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+       when: never
+     - when: always
+
+############################################################################
+# The containers.
+#
+# First, a generic rule that we use to build containers.
+#
+# Note that an important alter ego of this config bit is in the file
+# ci/00-dockerfile.sh, which is in shared between this file and ci/debug.sh
+
+.container-template: &container-template
+  image: docker
+  stage: build
   script:
-    - echo -e "section_start:`date +%s`:configuration\r\e[0KConfiguring"
-    - make cmake
-    - echo -e "section_end:`date +%s`:configuration\r\e[0K"
-    - echo -e "section_start:`date +%s`:build\r\e[0KBuilding"
-    - make -j4
-    - echo -e "section_end:`date +%s`:build\r\e[0K"
-    - echo -e "section_start:`date +%s`:build2\r\e[0KBuilding test dependencies"
-    - make -j4 all_test_dependencies
-    - echo -e "section_end:`date +%s`:build2\r\e[0K"
-    - echo -e "section_start:`date +%s`:test\r\e[0KRunning tests"
-    - env OMP_DYNAMIC=true STATS_PARSING_ERRORS_ARE_FATAL=1 make check ARGS="-j4"
-    - echo -e "section_end:`date +%s`:test\r\e[0K"
-    # okay. "cache" is only when the runners have a notion of available
-    # cache server, it seems. Don't do that for now.
-    # cache:
-    # # paths:
-    # - "*.o"
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $IMAGE:latest || true
+    - ci/00-dockerfile.sh | docker build -t $IMAGE --cache-from $IMAGE:latest -f - ci
+    - docker push $IMAGE
+    - T=`date +%Y%m%d%H%M`-$CI_COMMIT_SHA ; docker tag $IMAGE:latest $IMAGE:$T ; docker push $IMAGE:$T
+
+container for checks with gcc:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
+  <<: *common-template
+  <<: *container-template
+
+container for checks on alpine system with gcc:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/alpine-gcc
+  <<: *common-template
+  <<: *container-template
+
+container for checks on debian system with 32-bit gcc:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian-32-bit-gcc
+  <<: *common-template
+  <<: *container-template
+
+container for checks on debian10 system with gcc:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian10-gcc
+  <<: *common-template
+  <<: *container-template
+
+container for checks on debian9 system with gcc:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian9-gcc
+  <<: *common-template
+  <<: *container-template
+
+container for checks with icc:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc
+  tags:
+    - icc
+  <<: *common-template
+  <<: *container-template
+
+container for checks with clang:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang
+  <<: *common-template
+  <<: *container-template
+
+# need gcov 4.2 or later, the 'container for checks with gcc' box doesn't have it
+# since it's based on debian stable.
+# TODO: find a more stable image !
+container for coverage tests on checks with gcc:
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
+  <<: *common-template
+  <<: *container-template
+
+############################################################################
+# The jobs that do checks.
+#
+# Basically, much of the work is done in shell scripts for convenience,
+# and they're grouped in the template below.
+
+.checks-script: &checks-script
+  - ci/01-conf.sh
+  - ci/02-build1.sh
+  - ci/02-build2.sh
+  - ci/03-check.sh
+
+.checks-junit-report: &checks-junit-report
+  artifacts:
+    reports:
+      junit: junit.xml
+
+checks with gcc:
+  <<: *common-template
+  stage: early
+  needs:
+    - container for checks with gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on alpine system with gcc:
+  <<: *common-template
+  stage: early
+  needs:
+    - container for checks on alpine system with gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/alpine-gcc
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on debian system with 32-bit gcc:
+  <<: *common-template
+  stage: early
+  needs:
+    - container for checks on debian system with 32-bit gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian-32-bit-gcc
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on debian10 system with gcc:
+  <<: *common-template
+  stage: early
+  needs:
+    - container for checks on debian10 system with gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian10-gcc
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on debian9 system with gcc:
+  <<: *common-template
+  stage: early
+  needs:
+    - container for checks on debian9 system with gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian9-gcc
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks with clang:
+  <<: *common-template
+  # use very latest
+  needs:
+    - container for checks with clang
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang
+  stage: early
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks with icc:
+  <<: *common-template
+  needs:
+    - container for checks with icc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc
+  stage: early
+  tags:
+    - icc
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+expensive checks with gcc:
+  <<: *common-template
+  stage: various
+  needs:
+    - container for checks with gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+############################################################################
+# coverage. Actually, this is not really dependent on checks, after all.
+# It does depend on the availability of the coverage images, though!
+#
+coverage tests on checks with gcc:
+  <<: *common-template
+  stage: various
+  needs:
+    - container for coverage tests on checks with gcc
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
+  script:
+    - *checks-script
+  artifacts:
+    paths:
+      - coverage-*.info
+      - coverage-*.json
+    expire_in: 1 week
+
+# the build name must match "coverage tests" so that gcovr is installed.
+# the stage must be after the "various" stage.
+# we must import the json coverage reports for different runs. This is
+# apparently done automatically !
+# https://stackoverflow.com/questions/38140996/how-can-i-pass-artifacts-to-another-stage
+merge coverage tests:
+  <<: *common-template
+  stage: thorough
+  # needs:
+  #   - coverage tests on checks with gcc
+  #   # list more of these...
+  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
+  script:
+    - ci/09-merge-coverage.sh
+  artifacts:
+    paths:
+      - coverage
+      - coverage.tar.gz
+    reports:
+      cobertura: coverage.xml
+
+############################################################################
+# Tests on slow machines and/or shell executors. They depend on nothing.
+
+# # It would be possible to run the following test on arm64 as well, but my
+# # only runner is an allwinner CPU with 2G of RAM, and it takes more than
+# # two hours :-(. I think I would have to reduce the test surface first.
+# #    - arm64
+# #
+# # # very slow machines run with the shell executor anyway.
+# # # 00-prepare-shell.sh can only check if software is present.
+# run on very slow machines:
+#   <<: *common-template
+#   stage: thorough
+#   needs: []
+#   tags:
+#     - raspberry
+#   before_script:
+#     - ci/00-prepare-shell.sh
+#   script:
+#     - *checks-script
+#   <<: *checks-junit-report
+ 
+# in fact, this one should be quick !
+checks on osx system:
+  <<: *common-template
+  stage: thorough
+  needs: []
+  tags:
+    - osx
+  before_script:
+    - ci/00-prepare-shell.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+ 
+checks on freebsd13.0 system with gcc:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  <<: *common-template
+  stage: early
+  needs: []
+  tags:
+    - freebsd-tanker
+  script:
+    - make -C ci/utilities/tanker
+    - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
+
+checks on freebsd12.2 system with gcc:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  <<: *common-template
+  stage: early
+  needs: []
+  tags:
+    - freebsd-tanker
+  script:
+    - make -C ci/utilities/tanker
+    - ci/50-libvirt-wrap-tests.sh freebsd:12.2 ci/40-testsuite.sh
+
+# how can I arrange so that this deploys in a subdirectory of the
+# statically generated main site ???
+#
+# pages:
+#   stage: deploy
+#   dependencies:
+#     - merge coverage tests
+#   script:
+#     - mkdir public
+#     - mv coverage public/coverage
+#   artifacts:
+#     paths:
+#       - public
+#     expire_in: 30 days
+#   only:
+#     - master
+ 
+# "cache" is only when the runners have a notion of available cache
+# server, it seems. Don't do that for now.
+# cache:
+# # paths:
+# - "*.o"

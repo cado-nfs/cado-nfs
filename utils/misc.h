@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <string>
 #endif
+#include <gmp.h>
 #include "macros.h"
 
 /* we prefer GMP 5 or later, but the history of the why and how seems
@@ -20,6 +21,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* This function is in misc2.cpp */
+double nprimes_interval(double p0, double p1);
+
+uint64_t u64_random(gmp_randstate_t buf);
 
 #define UMAX(A) (0xffffffffffffffffULL >>((8-sizeof(A))<<3))
 #define SMAX(A) (0x7fffffffffffffffLL  >>((8-sizeof(A))<<3))

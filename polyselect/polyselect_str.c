@@ -14,15 +14,16 @@
 #include "polyselect_str.h"
 #include "cado_poly.h"
 #include "getprime.h"   // getprime
+#include "misc.h"   // nprimes_interval
 #include "macros.h"
 
-void match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
-            mpz_t ad, unsigned long d, mpz_t N, unsigned long q,
-            mpz_t rq);
+void match (unsigned long p1, unsigned long p2, int64_t i, mpz_srcptr m0,
+            mpz_srcptr ad, unsigned long d, mpz_srcptr N, unsigned long q,
+            mpz_srcptr rq);
 
-void gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_t m0,
-		mpz_t ad, unsigned long d, mpz_t N, uint64_t q,
-		mpz_t rq);
+void gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
+		mpz_srcptr ad, unsigned long d, mpz_srcptr N, uint64_t q,
+		mpz_srcptr rq);
 
 /* The following are primes used as factors in the special-q.
    Warning: if you add larger primes, you should ensure that any product
@@ -54,20 +55,27 @@ static pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER;
 
 //#define LESS_P
 
+size_t expected_memory_usage_for_primes(unsigned long P)
+{
+  unsigned long Pmax = 2*P;
+#ifdef LESS_P // if impatient for root finding
+  Pmax = P + P/2;
+#endif
+  unsigned long maxprimes = nprimes_interval(P, Pmax);
+  return maxprimes * sizeof (uint32_t);
+}
+    
 /* init prime array */
 unsigned long
 initPrimes ( unsigned long P,
              uint32_t **primes )
 {
   unsigned long p, nprimes = 0;
-
+  unsigned long Pmax = 2*P;
 #ifdef LESS_P // if impatient for root finding
-  unsigned long maxprimes = (unsigned long) (1.2 * (double) P) /
-    log (1.2 * (double) P) - (double) P / log ((double) P);
-#else
-  unsigned long maxprimes = (unsigned long) 2.0 * (double) P /
-    log (2.0 * (double) P) - (double) P / log ((double) P);
+  Pmax = P + P/2;
 #endif
+  unsigned long maxprimes = nprimes_interval(P, Pmax);
 
   *primes = (uint32_t*) malloc (maxprimes * sizeof (uint32_t));
   if ( (*primes) == NULL) {
@@ -79,11 +87,7 @@ initPrimes ( unsigned long P,
   prime_info_init (pi);
   for (p = 2; p < P; p = getprime_mt (pi));
 
-#ifdef LESS_P
-  while (p <= (P + P/5)) {
-#else
-  while (p <= 2 * P) {
-#endif
+  while (p <= Pmax) {
     if (nprimes + 1 >= maxprimes) {
       maxprimes += maxprimes / 10;
       *primes = (uint32_t*) realloc (*primes, maxprimes * sizeof (uint32_t));
@@ -133,10 +137,10 @@ clearPrimes ( uint32_t **primes )
 
 /* init the header struct */
 void
-header_init ( header_t header,
-              mpz_t N,
+polyselect_poly_header_init (polyselect_poly_header_ptr header,
+              mpz_ptr N,
               unsigned long d,
-              mpz_t ad )
+              mpz_ptr ad )
 {
   /* compute Ntilde, m0 */
   mpz_init_set (header->N, N);
@@ -157,7 +161,7 @@ header_init ( header_t header,
 
 /* clear header struct */
 void
-header_clear ( header_t header )
+polyselect_poly_header_clear (polyselect_poly_header_ptr header )
 {
   mpz_clear (header->m0);
   mpz_clear (header->Ntilde);
@@ -166,14 +170,14 @@ header_clear ( header_t header )
 }
 
 int
-header_skip (header_t header, unsigned long p)
+polyselect_poly_header_skip (polyselect_poly_header_srcptr header, unsigned long p)
 {
   return header->d % p == 0 || mpz_divisible_ui_p (header->ad, p);
 }
 
-/* init proots_t */
+/* init polyselect_proots_t */
 void
-proots_init ( proots_t R,
+polyselect_proots_init (polyselect_proots_ptr R,
               unsigned long size )
 {
   R->size = size;
@@ -184,15 +188,15 @@ proots_init ( proots_t R,
   R->roots = (uint64_t **) malloc (size * sizeof (*(R->roots)));
 
   if (R->nr == NULL || R->roots == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in proots_init().\n");
+    fprintf (stderr, "Error, cannot allocate memory in polyselect_proots_init().\n");
     exit (1);
   }
 }
 
 
-/* add a root to proots_t */
+/* add a root to polyselect_proots_t */
 void
-proots_add ( proots_t R,
+polyselect_proots_add ( polyselect_proots_ptr R,
              unsigned long nr,
              uint64_t *roots,
              unsigned long index )
@@ -203,7 +207,7 @@ proots_add ( proots_t R,
   if (nr != 0) {
     R->roots[index] = (uint64_t *) malloc (nr * sizeof (uint64_t));
     if (R->roots[index] == NULL) {
-      fprintf (stderr, "Error, cannot allocate memory in proots_add\n");
+      fprintf (stderr, "Error, cannot allocate memory in polyselect_proots_add\n");
       exit (1);
     }
 
@@ -217,7 +221,7 @@ proots_add ( proots_t R,
 
 /* print roots */
 void
-proots_print ( proots_t R,
+polyselect_proots_print ( polyselect_proots_srcptr R,
                unsigned long size )
 {
   unsigned int i, j;
@@ -236,7 +240,7 @@ proots_print ( proots_t R,
 
 /* clear roots */
 void
-proots_clear ( proots_t R,
+polyselect_proots_clear ( polyselect_proots_ptr R,
                unsigned long size )
 {
   unsigned int i;
@@ -249,7 +253,7 @@ proots_clear ( proots_t R,
 
 
 void
-qroots_init (qroots_t R)
+polyselect_qroots_init (polyselect_qroots_ptr R)
 {
   R->alloc = 0;
   R->size = 0;
@@ -259,7 +263,7 @@ qroots_init (qroots_t R)
 }
 
 void
-qroots_realloc (qroots_t R, unsigned long newalloc)
+polyselect_qroots_realloc (polyselect_qroots_ptr R, unsigned long newalloc)
 {
   ASSERT (newalloc >= R->size);
   R->alloc = newalloc;
@@ -285,7 +289,7 @@ qroots_realloc (qroots_t R, unsigned long newalloc)
 
 /* reorder by decreasing number of roots (nr) */
 void
-qroots_rearrange (qroots_t R)
+polyselect_qroots_rearrange (polyselect_qroots_ptr R)
 {
   if (R->size > 1) {
     unsigned int i, j, k, max, tmpq, tmpnr;
@@ -319,14 +323,14 @@ qroots_rearrange (qroots_t R)
 }
 
 void
-qroots_add (qroots_t R, unsigned int q, unsigned int nr, uint64_t *roots)
+polyselect_qroots_add (polyselect_qroots_ptr R, unsigned int q, unsigned int nr, uint64_t *roots)
 {
   unsigned int i;
 
   if (nr == 0)
     return;
   if (R->size == R->alloc)
-    qroots_realloc (R, R->alloc + R->alloc / 2 + 1);
+    polyselect_qroots_realloc (R, R->alloc + R->alloc / 2 + 1);
   R->q[R->size] = q;
   R->nr[R->size] = nr;
   R->roots[R->size] = malloc (MAX_DEGREE * sizeof (uint64_t));
@@ -341,7 +345,7 @@ qroots_add (qroots_t R, unsigned int q, unsigned int nr, uint64_t *roots)
 }
 
 void
-qroots_print (qroots_t R)
+polyselect_qroots_print (polyselect_qroots_srcptr R)
 {
   unsigned int i, j;
   for (i = 0; i < R->size; i++) {
@@ -353,7 +357,7 @@ qroots_print (qroots_t R)
 }
 
 void
-qroots_clear (qroots_t R)
+polyselect_qroots_clear (polyselect_qroots_ptr R)
 {
   unsigned int i;
 
@@ -367,12 +371,12 @@ qroots_clear (qroots_t R)
 
 /* init hash table */
 void
-hash_init (hash_t H, unsigned int init_size)
+polyselect_hash_init (polyselect_hash_ptr H, unsigned int init_size)
 {
   H->alloc = init_size;
-  H->slot = (slot_t*) malloc (H->alloc * sizeof (slot_t));
+  H->slot = (struct polyselect_hash_slot_s *) malloc (H->alloc * sizeof (struct polyselect_hash_slot_s));
   if (H->slot == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in hash_init\n");
+    fprintf (stderr, "Error, cannot allocate memory in polyselect_hash_init\n");
     exit (1);
   }
 
@@ -389,43 +393,43 @@ hash_init (hash_t H, unsigned int init_size)
 
 /* init_size is an approximation of the number of entries */
 void
-shash_init (shash_t H, unsigned int init_size)
+polyselect_shash_init (polyselect_shash_ptr H, unsigned int init_size)
 {
   unsigned int init_size0 = init_size;
 
-  /* round up to multiple of SHASH_NBUCKETS */
-  init_size = 1 + (init_size - 1) / SHASH_NBUCKETS;
+  /* round up to multiple of polyselect_SHASH_NBUCKETS */
+  init_size = 1 + (init_size - 1) / polyselect_SHASH_NBUCKETS;
   init_size += init_size / 8 + 128; /* use 12.5% margin */
   if (init_size > init_size0)
     init_size = init_size0;
-  H->alloc = init_size * (SHASH_NBUCKETS + 1) + 8;
+  H->alloc = init_size * (polyselect_SHASH_NBUCKETS + 1) + 8;
   /* + init_size for guard for the last buckets to avoid seg fault */
   /* + 8 for extreme guard (ASM X86 needs 8, C needs 5 when init_size is too small */
   H->mem = (uint64_t*) malloc (H->alloc * sizeof (uint64_t));
   if (!H->mem)
     {
-      fprintf (stderr, "Error, cannot allocate memory in shash_init\n");
+      fprintf (stderr, "Error, cannot allocate memory in polyselect_shash_init\n");
       exit (1);
     }
   H->balloc = init_size;
 }
 
 void
-shash_reset (shash_t H)
+polyselect_shash_reset (polyselect_shash_ptr H)
 {
   H->base[0] = H->current[0] = H->mem;
-  for (int j = 1; j <= SHASH_NBUCKETS; j++)
+  for (int j = 1; j <= polyselect_SHASH_NBUCKETS; j++)
     H->base[j] = H->current[j] = H->base[j-1] + H->balloc;
-  /* Trick for prefetch T in shash_find_collision after the end
+  /* Trick for prefetch T in polyselect_shash_find_collision after the end
      of the last bucket. */
-  memset (H->base[SHASH_NBUCKETS], 0, sizeof(**(H->base) * 8));
+  memset (H->base[polyselect_SHASH_NBUCKETS], 0, sizeof(**(H->base) * 8));
 }
 
 
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
 void
-hash_add (hash_t H, unsigned long p, int64_t i, mpz_t m0, mpz_t ad,
-          unsigned long d, mpz_t N, unsigned long q, mpz_t rq)
+polyselect_hash_add (polyselect_hash_ptr H, unsigned long p, int64_t i, mpz_srcptr m0, mpz_srcptr ad,
+          unsigned long d, mpz_srcptr N, unsigned long q, mpz_srcptr rq)
 {
   uint32_t h;
 
@@ -455,14 +459,14 @@ hash_add (hash_t H, unsigned long p, int64_t i, mpz_t m0, mpz_t ad,
 }
 
 int
-shash_find_collision (shash_t H)
+polyselect_shash_find_collision (polyselect_shash_srcptr H)
 {
   static uint32_t size = 0, mask;
   uint64_t *Hj, *Hjm;
   uint32_t *T;
   uint32_t k;
 
-#define SHASH_RESEARCH(TH,I)				\
+#define polyselect_SHASH_RESEARCH(TH,I)				\
   do {							\
     key = ((I) >> 32) + (I);				\
     if (UNLIKELY(*TH)) do {				\
@@ -471,7 +475,7 @@ shash_find_collision (shash_t H)
     *TH = key;						\
   } while (0)
 
-#define SHASH_TH_I(TH,I,IND)			\
+#define polyselect_SHASH_TH_I(TH,I,IND)			\
   do {						\
     I = Hj[IND];				\
     TH = T + ((I >> LN2SHASH_NBUCKETS) & mask); \
@@ -488,55 +492,55 @@ shash_find_collision (shash_t H)
     size <<= 2;
     ASSERT_ALWAYS((size & (size - 1)) == 0);
     mask = size - 1;
-    size += 16; /* Guard to avoid to test the end of hash_table when ++TH */
+    size += 16; /* Guard to avoid to test the end of polyselect_hash_table when ++TH */
   }
   pthread_mutex_unlock (&lock);
   T = (uint32_t*) malloc (size * sizeof(*T));
-  for (k = 0; k < SHASH_NBUCKETS; k++) {
+  for (k = 0; k < polyselect_SHASH_NBUCKETS; k++) {
     Hj = H->base[k];
     Hjm = H->current[k];
     if (Hj == Hjm) continue;
     memset (T, 0, size * sizeof(*T));
-    /* Here, a special guard at the end of shash_init allows
-       until Hjm[SHASH_BUCKETS-1] + 5.
+    /* Here, a special guard at the end of polyselect_shash_init allows
+       until Hjm[polyselect_SHASH_BUCKETS-1] + 5.
        So, it's not needed to test if Hj + 4 < Hjm to avoid prefetch problem. */
     uint32_t *Th0, *Th1, *Th2, *Th3, *Th4;
     uint64_t i0, i1, i2, i3, i4;
     unsigned int key;
 
-    SHASH_TH_I(Th0, i0, 0);
-    SHASH_TH_I(Th1, i1, 1);
-    SHASH_TH_I(Th2, i2, 2);
-    SHASH_TH_I(Th3, i3, 3);
-    SHASH_TH_I(Th4, i4, 4);
+    polyselect_SHASH_TH_I(Th0, i0, 0);
+    polyselect_SHASH_TH_I(Th1, i1, 1);
+    polyselect_SHASH_TH_I(Th2, i2, 2);
+    polyselect_SHASH_TH_I(Th3, i3, 3);
+    polyselect_SHASH_TH_I(Th4, i4, 4);
     Hj += 5;
     while (LIKELY(Hj < Hjm)) {
       __builtin_prefetch(((void *) Hj) + 0x280, 0, 3);
-      SHASH_RESEARCH(Th0, i0); SHASH_TH_I(Th0, i0, 0);
-      SHASH_RESEARCH(Th1, i1); SHASH_TH_I(Th1, i1, 1);
-      SHASH_RESEARCH(Th2, i2); SHASH_TH_I(Th2, i2, 2);
-      SHASH_RESEARCH(Th3, i3); SHASH_TH_I(Th3, i3, 3);
-      SHASH_RESEARCH(Th4, i4); SHASH_TH_I(Th4, i4, 4);
+      polyselect_SHASH_RESEARCH(Th0, i0); polyselect_SHASH_TH_I(Th0, i0, 0);
+      polyselect_SHASH_RESEARCH(Th1, i1); polyselect_SHASH_TH_I(Th1, i1, 1);
+      polyselect_SHASH_RESEARCH(Th2, i2); polyselect_SHASH_TH_I(Th2, i2, 2);
+      polyselect_SHASH_RESEARCH(Th3, i3); polyselect_SHASH_TH_I(Th3, i3, 3);
+      polyselect_SHASH_RESEARCH(Th4, i4); polyselect_SHASH_TH_I(Th4, i4, 4);
       Hj += 5;
     }
     switch (Hj - Hjm) { /* no break: it's NOT an error! */
-    case 0: SHASH_RESEARCH(Th4, i4); no_break();
-    case 1: SHASH_RESEARCH(Th3, i3); no_break();
-    case 2: SHASH_RESEARCH(Th2, i2); no_break();
-    case 3: SHASH_RESEARCH(Th1, i1); no_break();
-    case 4: SHASH_RESEARCH(Th0, i0); // no_break();
+    case 0: polyselect_SHASH_RESEARCH(Th4, i4); no_break();
+    case 1: polyselect_SHASH_RESEARCH(Th3, i3); no_break();
+    case 2: polyselect_SHASH_RESEARCH(Th2, i2); no_break();
+    case 3: polyselect_SHASH_RESEARCH(Th1, i1); no_break();
+    case 4: polyselect_SHASH_RESEARCH(Th0, i0); // no_break();
     }
   }
   free (T);
   return 0;
 }
-#undef SHASH_TH_I
-#undef SHASH_RESEARCH
+#undef polyselect_SHASH_TH_I
+#undef polyselect_SHASH_RESEARCH
 
 /* return non-zero iff there is a collision */
 #define PREFETCH 256
 int
-MAYBE_UNUSED shash_find_collision_old (shash_t H)
+MAYBE_UNUSED polyselect_shash_find_collision_old (polyselect_shash_t H)
 {
   static uint32_t size = 0, mask;
   uint64_t data[PREFETCH], *pdata, *edata, *ldata;
@@ -560,7 +564,7 @@ MAYBE_UNUSED shash_find_collision_old (shash_t H)
   }
   T = (uint32_t*) malloc (size * sizeof(*T));
   edata = data + PREFETCH;
-  for (k = 0; k < SHASH_NBUCKETS; k++) {
+  for (k = 0; k < polyselect_SHASH_NBUCKETS; k++) {
     Hj = H->base[k];
     Hjm = H->current[k];
     if (Hj == Hjm) continue;
@@ -618,13 +622,13 @@ MAYBE_UNUSED shash_find_collision_old (shash_t H)
 
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
 void
-gmp_hash_add (hash_t H, uint32_t p, int64_t i, mpz_t m0, mpz_t ad,
-              unsigned long d, mpz_t N, uint64_t q, mpz_t rq)
+polyselect_hash_add_gmp (polyselect_hash_ptr H, uint32_t p, int64_t i, mpz_srcptr m0, mpz_srcptr ad,
+              unsigned long d, mpz_srcptr N, uint64_t q, mpz_srcptr rq)
 {
   unsigned long h;
 
   if (H->size >= H->alloc)
-    hash_grow (H);
+    polyselect_hash_grow (H);
   if (i >= 0)
     h = ((int)i) % H->alloc;
   else
@@ -648,22 +652,22 @@ gmp_hash_add (hash_t H, uint32_t p, int64_t i, mpz_t m0, mpz_t ad,
 }
 
 void
-hash_clear (hash_t H)
+polyselect_hash_clear (polyselect_hash_ptr H)
 {
   free (H->slot);
 }
 
 void
-shash_clear (shash_t H)
+polyselect_shash_clear (polyselect_shash_ptr H)
 {
   free (H->mem);
 }
 
 void
-hash_grow (hash_t H)
+polyselect_hash_grow (polyselect_hash_ptr H)
 {
   unsigned long j, old_alloc;
-  slot_t *old_slot;
+  struct polyselect_hash_slot_s *old_slot;
   mpz_t tmp;
 
   mpz_init (tmp);
@@ -672,9 +676,9 @@ hash_grow (hash_t H)
   old_alloc = H->alloc;
   old_slot = H->slot;
   H->alloc = 2 * old_alloc;
-  H->slot = (slot_t*) malloc (H->alloc * sizeof (slot_t));
+  H->slot = (struct polyselect_hash_slot_s *) malloc (H->alloc * sizeof (struct polyselect_hash_slot_s));
   if (H->slot == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in hash_init\n");
+    fprintf (stderr, "Error, cannot allocate memory in polyselect_hash_init\n");
     exit (1);
   }
   memset (H->slot, 0, (sizeof(int64_t) + sizeof(uint32_t)) * H->alloc);
@@ -682,16 +686,16 @@ hash_grow (hash_t H)
 
   for (j = 0; j < old_alloc; j++)
     if (old_slot[j].p != 0)
-      hash_add (H, old_slot[j].p, old_slot[j].i, NULL, 0, 0, NULL, 0, tmp);
+      polyselect_hash_add (H, old_slot[j].p, old_slot[j].i, NULL, 0, 0, NULL, 0, tmp);
 
   free (old_slot);
   mpz_clear (tmp);
 }
 
-/****************************** data_t functions ******************************/
+/****************************** polyselect_data_t functions ******************************/
 
 void
-data_init (data_t s)
+polyselect_data_init (polyselect_data_ptr s)
 {
   s->size = s->alloc = 0;
   s->x = NULL;
@@ -701,13 +705,13 @@ data_init (data_t s)
 }
 
 void
-data_clear (data_t s)
+polyselect_data_clear (polyselect_data_ptr s)
 {
   free (s->x);
 }
 
 void
-data_add (data_t s, double x)
+polyselect_data_add (polyselect_data_ptr s, double x)
 {
   if (s->size == s->alloc)
     {
@@ -724,14 +728,14 @@ data_add (data_t s, double x)
 }
 
 double
-data_mean (data_t s)
+polyselect_data_mean (polyselect_data_srcptr s)
 {
   return s->sum / (double) s->size;
 }
 
 double
-data_var (data_t s)
+polyselect_data_var (polyselect_data_srcptr s)
 {
-  double m = data_mean (s);
+  double m = polyselect_data_mean (s);
   return s->var / (double) s->size - m * m;
 }

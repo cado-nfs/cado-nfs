@@ -25,7 +25,7 @@
 #endif
 
 /* For the moment, this value is static. But it's highly critical for
-   performance in the shash table cribble:
+   performance in the polyselect_shash table cribble:
    * 10 (or 9) seems the best for an Intel nehalem (?).
    * 6 seems the best for Intel Core2 (?).
    * 7 seems the best for AMD (?).
@@ -37,91 +37,100 @@
 #define LN2SHASH_NBUCKETS 8
 
 /* hash table slots */
-typedef struct
+struct polyselect_hash_slot_s
 {
   int64_t i;               /* contains the values of r such that p^2
                               divides N - (m0 + r)^2 */
   uint32_t p;              /* contains the primes */
-} __slot_t;
-typedef __slot_t slot_t;
+};
 
 /* hash table structure */
-typedef struct
+struct polyselect_hash_s
 {
-  slot_t *slot;
+  struct polyselect_hash_slot_s *slot;
   unsigned int alloc;      /* total allocated size */
   unsigned int size;       /* number of entries in hash table */
 #ifdef DEBUG_HASH_TABLE
   unsigned long coll;
   unsigned long coll_all;
 #endif
-} __hash_struct;
-typedef __hash_struct hash_t[1];
+};
+typedef struct polyselect_hash_s polyselect_hash_t[1];
+typedef struct polyselect_hash_s * polyselect_hash_ptr;
+typedef const struct polyselect_hash_s * polyselect_hash_srcptr;
 
-#define SHASH_NBUCKETS (1<<LN2SHASH_NBUCKETS)
+#define polyselect_SHASH_NBUCKETS (1<<LN2SHASH_NBUCKETS)
 
-typedef struct
+struct polyselect_shash_s
 {
-  uint64_t *current[SHASH_NBUCKETS+1]; /* +1 for guard */
-  uint64_t *base[SHASH_NBUCKETS+1];    /* +1 for guard */
+  uint64_t *current[polyselect_SHASH_NBUCKETS+1]; /* +1 for guard */
+  uint64_t *base[polyselect_SHASH_NBUCKETS+1];    /* +1 for guard */
   uint64_t *mem;
   uint32_t alloc;      /* total allocated size */
   uint32_t balloc;     /* allocated size for each bucket */
-} __shash_struct;
-typedef __shash_struct shash_t[1];
+};
+typedef struct polyselect_shash_s polyselect_shash_t[1];
+typedef struct polyselect_shash_s * polyselect_shash_ptr;
+typedef const struct polyselect_shash_s * polyselect_shash_srcptr;
 
 /* thread structure */
-typedef struct
+struct polyselect_thread_tab_s
 {
   mpz_t N;
   unsigned int d;
   mpz_t ad;
   int thread;
-} __tab_struct;
-typedef __tab_struct tab_t[1];
+};
+typedef struct polyselect_thread_tab_s polyselect_thread_tab_t[1];
+typedef struct polyselect_thread_tab_s * polyselect_thread_tab_ptr;
+typedef const struct polyselect_thread_tab_s * polyselect_thread_tab_srcptr;
 
 /* structure to store P roots */
-typedef struct
-{
+struct polyselect_proots_s {
   unsigned long size;    /* used size */
   uint8_t *nr;     /* number of roots of x^d = N (mod p) */
   uint64_t **roots; /* roots of (m0+x)^d = N (mod p^2) */
-} __proots_struct;
-typedef __proots_struct proots_t[1];
+};
+typedef struct polyselect_proots_s polyselect_proots_t[1];
+typedef struct polyselect_proots_s * polyselect_proots_ptr;
+typedef const struct polyselect_proots_s * polyselect_proots_srcptr;
 
 /* structure to store q roots */
-typedef struct
-{
+struct polyselect_qroots_s {
   unsigned int alloc;   /* allocated size */
   unsigned int size;    /* used size */
   unsigned int *q;
   unsigned int *nr;     /* number of roots of x^d = N (mod p) */
   uint64_t **roots; /* roots of (m0+x)^d = N (mod p^2) */
-} __qroots_struct;
-typedef __qroots_struct qroots_t[1];
+};
+typedef struct polyselect_qroots_s polyselect_qroots_t[1];
+typedef struct polyselect_qroots_s * polyselect_qroots_ptr;
+typedef const struct polyselect_qroots_s * polyselect_qroots_srcptr;
 
 /* structure to store information on N, d, ad, etc... */
-typedef struct
-{
+struct polyselect_poly_header_s {
   mpz_t N;
   unsigned long d;
   mpz_t ad;
   mpz_t Ntilde;
   mpz_t m0;
-} _header_struct;
-typedef _header_struct header_t[1];
+};
+typedef struct polyselect_poly_header_s polyselect_poly_header_t[1];
+typedef struct polyselect_poly_header_s * polyselect_poly_header_ptr;
+typedef const struct polyselect_poly_header_s * polyselect_poly_header_srcptr;
 
 /* structure for series of data */
-typedef struct
-{
+struct polyselect_data_s {
   unsigned long size;  /* number of values */
   unsigned long alloc; /* allocated size */
   double *x;           /* values */
   double sum;          /* sum = x[0] + ... + x[size-1] */
   double var;          /* var = x[0]^2 + ... + x[size-1]^2 */
   double min, max;     /* minimum and maximum values */
-} data_struct;
-typedef data_struct data_t[1];
+};
+typedef struct polyselect_data_s polyselect_data_t[1];
+typedef struct polyselect_data_s * polyselect_data_ptr;
+typedef const struct polyselect_data_s * polyselect_data_srcptr;
 
 /* inline functions */
 
@@ -129,13 +138,13 @@ typedef data_struct data_t[1];
 INLINE
 #endif
 void
-shash_add (shash_t H, uint64_t i)
+polyselect_shash_add (polyselect_shash_t H, uint64_t i)
 {
-  *(H->current[i & (SHASH_NBUCKETS - 1)])++ = i;
-  if (UNLIKELY(H->current[i & (SHASH_NBUCKETS - 1)] >= H->base[(i & (SHASH_NBUCKETS - 1)) + 1]))
+  *(H->current[i & (polyselect_SHASH_NBUCKETS - 1)])++ = i;
+  if (UNLIKELY(H->current[i & (polyselect_SHASH_NBUCKETS - 1)] >= H->base[(i & (polyselect_SHASH_NBUCKETS - 1)) + 1]))
     {
-      fprintf (stderr, "Shash bucket %" PRIu64 " is full.\n",
-               i & (SHASH_NBUCKETS - 1));
+      fprintf (stderr, "polyselect_Shash bucket %" PRIu64 " is full.\n",
+               i & (polyselect_SHASH_NBUCKETS - 1));
       exit (1);
     }
 }
@@ -148,43 +157,45 @@ extern const unsigned int SPECIAL_Q[];
 extern "C" {
 #endif
 
+size_t expected_memory_usage_for_primes(unsigned long P);
 unsigned long initPrimes (unsigned long, uint32_t**);
 void printPrimes (uint32_t*, unsigned long);
 void clearPrimes (uint32_t**);
 
-void header_init (header_t, mpz_t, unsigned long, mpz_t);
-void header_clear (header_t);
-int header_skip (header_t, unsigned long);
+void polyselect_poly_header_init (polyselect_poly_header_ptr, mpz_ptr, unsigned long, mpz_ptr);
+void polyselect_poly_header_clear (polyselect_poly_header_ptr);
+int polyselect_poly_header_skip (polyselect_poly_header_srcptr, unsigned long);
 
-void proots_init (proots_t, unsigned long);
-void proots_add (proots_t, unsigned long, uint64_t*, unsigned long);
-void proots_print (proots_t, unsigned long);
-void proots_clear (proots_t, unsigned long);
+void polyselect_proots_init (polyselect_proots_ptr, unsigned long);
+void polyselect_proots_add (polyselect_proots_ptr, unsigned long, uint64_t*, unsigned long);
+void polyselect_proots_print (polyselect_proots_srcptr, unsigned long);
+void polyselect_proots_clear (polyselect_proots_ptr, unsigned long);
 
-void qroots_init (qroots_t);
-void qroots_realloc (qroots_t, unsigned long);
-void qroots_add (qroots_t, unsigned int, unsigned int, uint64_t*);
-void qroots_print (qroots_t);
-void qroots_rearrange (qroots_t R);
-void qroots_clear (qroots_t);
+void polyselect_qroots_init (polyselect_qroots_ptr);
+void polyselect_qroots_realloc (polyselect_qroots_ptr, unsigned long);
+void polyselect_qroots_add (polyselect_qroots_ptr, unsigned int, unsigned int, uint64_t*);
+void polyselect_qroots_print (polyselect_qroots_srcptr);
+void polyselect_qroots_rearrange (polyselect_qroots_ptr R);
+void polyselect_qroots_clear (polyselect_qroots_ptr);
 
-void hash_init (hash_t, unsigned int);
-void shash_init (shash_t, unsigned int);
-void shash_reset (shash_t);
-void hash_add (hash_t, unsigned long, int64_t, mpz_t, mpz_t,
-               unsigned long, mpz_t, unsigned long, mpz_t);
-int shash_find_collision (shash_t);
-void gmp_hash_add (hash_t, uint32_t, int64_t, mpz_t, mpz_t,
-		   unsigned long, mpz_t, uint64_t, mpz_t);
-void hash_grow (hash_t);
-void hash_clear (hash_t);
-void shash_clear (shash_t);
+void polyselect_hash_init (polyselect_hash_ptr, unsigned int);
+void polyselect_shash_init (polyselect_shash_ptr, unsigned int);
+void polyselect_shash_reset (polyselect_shash_ptr);
 
-void data_init (data_t);
-void data_clear (data_t);
-void data_add (data_t, double);
-double data_mean (data_t);
-double data_var (data_t);
+/* FIXME: what's the difference, really ? */
+void polyselect_hash_add (polyselect_hash_ptr, unsigned long, int64_t, mpz_srcptr, mpz_srcptr, unsigned long, mpz_srcptr, unsigned long, mpz_srcptr);
+void polyselect_hash_add_gmp (polyselect_hash_ptr, uint32_t, int64_t, mpz_srcptr, mpz_srcptr, unsigned long, mpz_srcptr, uint64_t, mpz_srcptr);
+
+int polyselect_shash_find_collision (polyselect_shash_srcptr);
+void polyselect_hash_grow (polyselect_hash_ptr);
+void polyselect_hash_clear (polyselect_hash_ptr);
+void polyselect_shash_clear (polyselect_shash_ptr);
+
+void polyselect_data_init (polyselect_data_ptr);
+void polyselect_data_clear (polyselect_data_ptr);
+void polyselect_data_add (polyselect_data_ptr, double);
+double polyselect_data_mean (polyselect_data_srcptr);
+double polyselect_data_var (polyselect_data_srcptr);
 
 
 #ifdef __cplusplus

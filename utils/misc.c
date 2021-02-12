@@ -22,7 +22,22 @@
 
 #include "macros.h"
 #include "misc.h"
+#include "gmp_aux.h"    // mpz_get_uint64
 #include "portability.h" // asprintf // IWYU pragma: keep
+
+// re-entrant random with GMP.
+uint64_t u64_random(gmp_randstate_t buf) {
+#if ULONG_BITS == 64
+    return gmp_urandomb_ui(buf, 64);
+#elif ULONG_BITS == 32
+    mpz_t z;
+    mpz_init(z);
+    mpz_urandomb(z, buf, 64);
+    uint64_t r = mpz_get_uint64(z);
+    mpz_clear(z);
+    return r;
+#endif
+}
 
 /* Wrapper around sysconf(ARG_MAX) that deals with availability of sysconf()
    and additional constraints on command line length */

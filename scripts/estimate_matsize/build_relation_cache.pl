@@ -22,7 +22,7 @@ use Data::Dumper;
 #
 # Usage example:
 #
-# localhost ~ $ tests/estimate_matsize/build_relation_cache.pl -o /tmp/split -s 1000,10000 /tmp/cado*/*.upload/*gz
+# localhost ~ $ scripts/estimate_matsize/build_relation_cache.pl -o /tmp/split -s 1000,10000 /tmp/cado*/*.upload/*gz
 # localhost ~ $ ls  /tmp/split/
 # 08  09  10  11  12  13  14
 # localhost ~ $ ls  /tmp/split/11
@@ -173,14 +173,17 @@ for my $filename (@ARGV) {
             my $oq0 = $1;
             my $oq1 = $2;
             my @qq0;
+            my @formats = ();
             for my $i (0..$#splits) {
                 my $nn = $splits[$#splits-$i];
                 unshift @qq0, $q0 % $nn; $q0 = int($q0/$nn);
-                my $format = "%0" . length($nn-1) . "d";
-                $qq0[0] = sprintf $format, $qq0[0];
+                unshift @formats, "%0" . length($nn-1) . "d";
             }
             die "$oq0 is too large for current settings" if $q0;
-            my $qq1 = $qq0[$#qq0]+($oq1-$oq0);
+            my $qq1 = sprintf $formats[$#qq0], $qq0[$#qq0]+($oq1-$oq0);
+            for my $i (0..$#splits) {
+                $qq0[$i] = sprintf $formats[$i], $qq0[$i];
+            }
             my $d = "";
             for my $i (0..$#qq0-1) {
                 die "Refusing to create more than 1000 subdirs below a given level" if $qq0[$i] >= 1000;
