@@ -40,11 +40,12 @@ Every cado-nfs commit triggers a gitlab pipeline that runs coverage
 tests, and even produces the html report. This report is just a bit
 tricky to access.
 
-To access the report, you must have read access to the cado-nfs pipelines
-(which is presently only for contributors).
+To access the report, you must have read access to the cado-nfs
+pipelines.
 
-Download the archive here.
+Download the archive [here](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/download?job=merge%20coverage%20tests).
+Then unpack it somewhere in /tmp/, and go look the `coverage/index.html` file.
 
-https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/download?job=merge%20coverage%20tests
+or simply run the [`./scripts/displaycov.sh`](scripts/displaycov.sh)
+script.
 
-Then unpack it somewhere in /tmp/, and go look the index.html file.
