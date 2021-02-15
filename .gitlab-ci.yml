@@ -35,6 +35,9 @@ image: gcc
       when: manual
       allow_failure: false
     - when: on_success
+  retry:
+    max: 2
+    when: runner_system_failure
   
 # see also https://gitlab.com/gitlab-org/gitlab/-/issues/201845 regarding
 # the pipeline deduplication
@@ -241,6 +244,8 @@ coverage tests on checks with gcc:
 merge coverage tests:
   <<: *common-template
   stage: thorough
+  dependencies:
+    - coverage tests on checks with gcc
   # needs:
   #   - coverage tests on checks with gcc
   #   # list more of these...

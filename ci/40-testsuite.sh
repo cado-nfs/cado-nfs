@@ -26,16 +26,16 @@ while (1) {
 }
 
 EOF
-    perl -e "$perl_code" &
+    perl -e "$perl_code"
 }
 
 disksize_watch &
 watch_process=$!
-trap "kill $watch_process" EXIT ERR
+trap "kill $watch_process || :" EXIT ERR
 
 "$(dirname $0)"/01-conf.sh
 "$(dirname $0)"/02-build1.sh
 "$(dirname $0)"/02-build2.sh
 "$(dirname $0)"/03-check.sh
 
-kill $watch_process
+kill $watch_process || :
