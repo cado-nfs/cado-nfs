@@ -3,9 +3,8 @@
 stages:
   - build
   - early
-  - various
   - thorough
-# - deploy    # if using pages
+  - publish
 
 image: gcc
 
@@ -210,9 +209,10 @@ checks with icc:
 
 expensive checks with gcc:
   <<: *common-template
-  stage: various
-  needs:
-    - container for checks with gcc
+  stage: thorough
+  # do not start it prematurely, in case previous jobs failed
+  # needs:
+  #   - container for checks with gcc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
   script:
     - *checks-script
@@ -224,9 +224,10 @@ expensive checks with gcc:
 #
 coverage tests on checks with gcc:
   <<: *common-template
-  stage: various
-  needs:
-    - container for coverage tests on checks with gcc
+  stage: thorough
+  # do not start it prematurely, in case previous jobs failed
+  # needs:
+  #   - container for coverage tests on checks with gcc
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
   script:
     - *checks-script
@@ -236,19 +237,34 @@ coverage tests on checks with gcc:
       - coverage-*.json
     expire_in: 1 week
 
-# the build name must match "coverage tests" so that gcovr is installed.
-# the stage must be after the "various" stage.
-# we must import the json coverage reports for different runs. This is
-# apparently done automatically !
+
+# The json coverage reports for different runs are imported, provided we
+# get the needs/artifacts combination right.
+#
 # https://stackoverflow.com/questions/38140996/how-can-i-pass-artifacts-to-another-stage
+# https://docs.gitlab.com/ee/ci/yaml/#artifact-downloads-with-needs
+#
+# Once this job has run, the job artifacts, and in particular the html
+# rendering of the coverage report, can be downloaded using links that
+# are formed according to the following rules:
+#
+# https://docs.gitlab.com/ee/ci/pipelines/job_artifacts.html#downloading-the-latest-artifacts
+#
+# Actually it took me a while to figure out the correct url. For the
+# master branch, we want: https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/index.html?job=merge+coverage+tests
+#
+# The good thing is that we don't need to play dirty tricks with gitlab
+# pages and subdirectories. As it turns out, the final rendered page does
+# show up under cado-nfs.gitlabpages.inria.fr, but we do not need to care
+# about it.
 merge coverage tests:
   <<: *common-template
-  stage: thorough
-  dependencies:
-    - coverage tests on checks with gcc
-  # needs:
-  #   - coverage tests on checks with gcc
-  #   # list more of these...
+  stage: publish
+  needs:
+    - job: coverage tests on checks with gcc
+      artifacts: true
+    # list more of these...
+  # This image has gcovr installed
   image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
   script:
     - ci/09-merge-coverage.sh
@@ -256,6 +272,7 @@ merge coverage tests:
     paths:
       - coverage
       - coverage.tar.gz
+    expire_in: 30 days
     reports:
       cobertura: coverage.xml
 
@@ -284,7 +301,8 @@ merge coverage tests:
 # in fact, this one should be quick !
 checks on osx system:
   <<: *common-template
-  stage: thorough
+  # do it early. It's one of our quickest runners.
+  stage: early
   needs: []
   tags:
     - osx
@@ -298,43 +316,34 @@ checks on freebsd13.0 system with gcc:
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
   <<: *common-template
-  stage: early
-  needs: []
+  stage: thorough
+  # do not start it prematurely, in case previous jobs failed
+  # needs: []
   tags:
     - freebsd-tanker
   script:
     - make -C ci/utilities/tanker
     - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
+  # https://gitlab.com/gitlab-org/gitlab/-/issues/15603 should be
+  # implemented someday. We would like to have it, to make sure that the
+  # cleanup sequence is called no matter what.
 
 checks on freebsd12.2 system with gcc:
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
   <<: *common-template
-  stage: early
-  needs: []
+  stage: thorough
+  # do not start it prematurely, in case previous jobs failed
+  # needs: []
   tags:
     - freebsd-tanker
   script:
     - make -C ci/utilities/tanker
     - ci/50-libvirt-wrap-tests.sh freebsd:12.2 ci/40-testsuite.sh
+  # https://gitlab.com/gitlab-org/gitlab/-/issues/15603 should be
+  # implemented someday. We would like to have it, to make sure that the
+  # cleanup sequence is called no matter what.
 
-# how can I arrange so that this deploys in a subdirectory of the
-# statically generated main site ???
-#
-# pages:
-#   stage: deploy
-#   dependencies:
-#     - merge coverage tests
-#   script:
-#     - mkdir public
-#     - mv coverage public/coverage
-#   artifacts:
-#     paths:
-#       - public
-#     expire_in: 30 days
-#   only:
-#     - master
- 
 # "cache" is only when the runners have a notion of available cache
 # server, it seems. Don't do that for now.
 # cache:
