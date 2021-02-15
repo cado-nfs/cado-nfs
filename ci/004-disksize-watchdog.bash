@@ -1,5 +1,5 @@
 # This must be sourced (because of traps), and we're bash. 
-disksize_watch() {
+start_disksize_watch() {
     read -d -r perl_code <<'EOF'
 #!/usr/bin/perl
 
@@ -22,10 +22,10 @@ while (1) {
 }
 
 EOF
-    perl -e "$perl_code" ${1:-.}
+    perl -e "$perl_code" ${1:-.} &
+    watch_process=$!
+    major_message "Started asynchronous disk usage watchdog process (pid $watch_process)"
+    trap_add "kill $watch_process || :" EXIT ERR
 }
 
-disksize_watch . &
-watch_process=$!
-major_message "Started asynchronous disk usage watchdog process (pid $watch_process)"
-trap_add "kill $watch_process || :" EXIT ERR
+start_disksize_watch .
