@@ -9,6 +9,7 @@ shift
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
 . "$(dirname $0)/002-tanker.bash"
+. "$(dirname $0)/003-trap-add.bash"
 
 # if ! tanker image list | grep -q cado-nfs-"$IMAGE_NAME" ; then
     enter_section configuration "Creating base image cado-nfs-$IMAGE_NAME"
@@ -24,7 +25,7 @@ if [ $# = 0 ] ; then
     tmp=$(mktemp -d /tmp/XXXXXXXXXXXXXXX)
     git archive --format=tar.gz HEAD > $tmp/git.tar.gz
     context=$tmp/git.tar.gz
-    trap "rm -rf $tmp" EXIT
+    trap_add "rm -rf $tmp" EXIT
     set -- bash
 fi
 tanker vm run --rm "${tty[@]}" cado-nfs-"$(id -n -u)"-"$IMAGE_NAME" @host user@ "$context" env "${exports[@]}" "$@"
