@@ -17,6 +17,6 @@ for v in "${exported_variables[@]}" ; do
 done
 
 tanker() {
-    "$(dirname $0)/utilities/tanker/tanker.sh" -B "${TANKER_DATABASE:-/tmp/tanker-$(id -n -u)}" "$@"
+    "$(dirname $0)/utilities/tanker/tanker.sh" -B "${TANKER_DATABASE:-/tmp}/tanker-$(id -n -u)" "$@"
 }
 
