@@ -27,30 +27,52 @@ The primary development platform is x86_64 linux with gcc 5 or newer,
 the most common processor being Intel core2-like or more recent.
 
 Other architectures are checked regularly, and should work. Please refer
-to the CI page for the list of regularly tested platforms, and their
-current status:
+to the gitlab-ci page for the list of regularly tested platforms, and their
+current status. The overall pipeline status for the master branch is
+[![pipeline
+status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/pipelines?ref=master),
+and details can be obtained by clicking on the badges.  Note however that
+a failing pipeline might mean that a bug affects only one platform in
+particular, or could be caused by one runner encountering difficulties.
+Such things do happen.
 
-<https://cado-nfs-ci.loria.fr/ci/job/master>
+Since we use gitlab-ci pipelines, the authoritative source as to what
+gets tested on a routine basis is of course the [`.gitlab-ci.yml`
+file](.gitlab-ci.yml). In plain english, the configurations that we test,
+or that we at least used to test at some point, are as follows.
+Anything beyond the set of regularly tested machines perhaps works,
+perhaps does not.
 
-Those machines, compared to the base install, are equipped with the
-necessary dependencies (see below). The console outputs for the different
-builds contain information related to the compiler versions being used.
+ * The primary development platform is `x86_64` Debian GNU/Linux, latest
+   version, with gcc. If it doesn't work, we have a problem.
 
-Anything beyond that set of regularly tested machines perhaps works,
-perhaps does not:
+ * A few recent versions of Debian or Fedora are also tested. CentOS
+   distributions (or derivatives) that have been EOL'd for some time, or
+   are deemed to be shortly because they have vastly out-of-date
+   software, are not tested.
 
- * x86_64 with icc 14, 15, 16, 17, and 18 did work once, but are not checked
+ * `x86_64` with icc 14, 15, 16, 17, and 18 did work once, but are not checked
    regularly (cado-nfs uses C++11, which is not available with icc <=
-   14).  Compilation with icc 19 has undergone more testing.
+   14). Compilation with icc 19 has undergone more testing. Routine
+   checks use the ICC version that is provided by Intel's
+   [`intel/oneapi-hpckit:latest` docker
+   image](https://hub.docker.com/r/intel/oneapi-hpckit).
+
  * Mac OS X is used for CI routine compilation checks, using the
    default compiler from XCode. All version from 10.5 onwards were part
    of the CI routine checks at some point in time, and worked
    successfully. However we do not commit to continued support for old
    versions. As of cado-nfs 2.3.0, Mac OS X 10.8+ should work. As of
    cado-nfs 3.0.0, we expect that Mac OS X 10.12+ should work.
+
  * Windows used to be partly supported, but this has been abandoned for
    some time now (see a longer note
    [there](#using-cado-nfs-under-windows) at the end of this file).
+
+Those machines, compared to the base install, are equipped with the
+necessary dependencies (see below). The console outputs for the different
+builds contain information related to the compiler versions being used.
+
 
 Required software tools
 =======================
