@@ -50,6 +50,11 @@ if [ "$HUSH_STDOUT" ] ; then
     ECHO_E=:
 fi
 
+major_message()
+{
+    $ECHO_E "${CSI_BLUE}$*${CSI_RESET}"
+}
+
 # Usage: enter_section [internal name] [message]
 #
 # The message is optional and defaults to the internal name

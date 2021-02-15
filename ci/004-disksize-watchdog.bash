@@ -27,5 +27,5 @@ EOF
 
 disksize_watch . &
 watch_process=$!
-inform major "Started asynchronous disk usage watchdog process (pid $watch_process)"
+major_message "Started asynchronous disk usage watchdog process (pid $watch_process)"
 trap_add "kill $watch_process || :" EXIT ERR
