@@ -90,7 +90,7 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "out", "output file (defaults to stdout)");
     param_list_decl_usage(pl, "in", "input file (defaults to stdin)");
     param_list_decl_usage(pl, "shrink-factor", "divide all column indices by n");
-    param_list_decl_usage(pl, "shink-threshold", "colums below threshold are not shrunk");
+    param_list_decl_usage(pl, "shrink-threshold", "colums below threshold are not shrunk");
     param_list_decl_usage(pl, "row-fraction", "ratio of rows to keep");
     param_list_decl_usage(pl, "seed", "random seed");
     param_list_decl_usage(pl, "dl", "DL mode (do not reduce valuations mod 2)");
