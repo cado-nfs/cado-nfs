@@ -36,16 +36,4 @@ And then the following commands produce an html report, provided the required to
 How to visualize the automatic coverage reports
 -----------------------------------------------
 
-Every cado-nfs commit triggers a gitlab pipeline that runs coverage
-tests, and even produces the html report. This report is just a bit
-tricky to access.
-
-To access the report, you must have read access to the cado-nfs
-pipelines.
-
-Download the archive [here](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/download?job=merge%20coverage%20tests).
-Then unpack it somewhere in /tmp/, and go look the `coverage/index.html` file.
-
-or simply run the [`./scripts/displaycov.sh`](scripts/displaycov.sh)
-script.
-
+Simple: follow this link: [![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/index.html?job=merge+coverage+tests) (for the master branch).

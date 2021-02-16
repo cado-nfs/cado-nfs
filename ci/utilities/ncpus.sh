@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
 
 if [ "$NCPUS_FAKE" ] ; then
     echo $NCPUS_FAKE

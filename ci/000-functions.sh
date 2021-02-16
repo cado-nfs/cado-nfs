@@ -30,6 +30,13 @@ CSI_KILLLINE="\e[0K"
 ECHO_E=echo
 if [ "$BASH_VERSION" ] ; then
     ECHO_E="echo -e"
+    if is_osx ; then
+        # bash3 on osx does not like \e
+        CSI_RED="[01;31m"
+        CSI_BLUE="[01;34m"
+        CSI_RESET="[00;39m[m"
+        CSI_KILLLINE="[0K"
+    fi
 elif [ -f /proc/$$/exe ] && [ `readlink /proc/$$/exe` = /bin/busybox ] ; then
     ECHO_E="echo -e"
 elif is_freebsd ; then
@@ -37,18 +44,18 @@ elif is_freebsd ; then
     # to check /bin/sh's version. Presumably it's attached to the system
     # as a whole...
     ECHO_E="echo -e"
-elif is_osx ; then
-    # bash3 on osx does not like \e
-    CSI_RED="[01;31m"
-    CSI_BLUE="[01;34m"
-    CSI_RESET="[00;39m\e[m"
-    CSI_KILLLINE="[0K"
-    ECHO_E="echo -e"
 fi
 
 if [ "$HUSH_STDOUT" ] ; then
     ECHO_E=:
 fi
+
+major_message()
+{
+    $ECHO_E "${CSI_BLUE}$*${CSI_RESET}"
+}
+
+pushed_sections=""
 
 # Usage: enter_section [internal name] [message]
 #
@@ -58,7 +65,8 @@ enter_section() {
     shift
     message="$*"
     : ${message:="$internal_name"}
-    current_section="$1"
+    set -- "$internal_name" $pushed_sections
+    pushed_sections="$*"
     $ECHO_E "section_start:`date +%s`:$internal_name\r${CSI_KILLLINE}${CSI_BLUE}$message${CSI_RESET}"
 }
 
@@ -68,18 +76,18 @@ enter_section() {
 # internal name defaults to the last pushed section. If an inconsistency
 # is detected, error out.
 leave_section() {
-    if ! [ "$current_section" ] ; then
+    if ! [ "$pushed_sections" ] ; then
         echo "script error, no section stack !" >&2
         exit 1
     fi
-    if [ "$1" ] && [ "$current_section" != "$1" ] ; then
-        echo "script error, last pushed section is $current_section, not $1 !" >&2
-        exit 1
-    fi
-    $ECHO_E "section_end:`date +%s`:$1\r${CSI_KILLLINE}${CSI_BLUE}$2${CSI_RESET}"
-    unset current_section
+    set -- $pushed_sections
+    current_section="$1"
+    shift
+    pushed_sections="$*"
+    $ECHO_E "section_end:`date +%s`:$current_section\r${CSI_KILLLINE}${CSI_BLUE}$2${CSI_RESET}"
 }
 
+# succeed if **ALL** of the listed tools exist
 check_mandatory_tools() {
     fail=
     for tool in "$@" ; do
@@ -96,64 +104,47 @@ check_mandatory_tools() {
     fi
 }
 
-check_mandatory_files() {
-    fail=
+# succeed if any of the provided files exists
+check_mandatory_file() {
     for file in "$@" ; do
-        if ! [ -f "$file" ] ; then
-            echo "Missing file: $file" >&2
-            fail=1
-        else
+        if [ -f "$file" ] ; then
             echo "ok - $file"
+            return
         fi
     done
-    if [ "$fail" ] ; then
-        $ECHO_E "${CSI_RED}Fix these missing files on the runner host, and try again${CSI_RESET}" >&2
-        exit 1
-    fi
+    $ECHO_E "${CSI_RED}Fix these missing files on the runner host, and try again${CSI_RESET}" >&2
+    exit 1
 }
 
-check_optional_files() {
-    fail=
+# succeed anyway, but report if none of the provided files exists
+check_optional_file() {
     for file in "$@" ; do
-        if ! [ -f "$file" ] ; then
-            echo "Optional file not found: $file" >&2
-            fail=1
-        else
+        if [ -f "$file" ] ; then
             echo "ok - $file"
+            return
         fi
     done
-    if [ "$fail" ] ; then
-        $ECHO_E "${CSI_RED}Some optional files could not be found. This is not a fatal error${CSI_RESET}" >&2
-    fi
+    $ECHO_E "${CSI_RED}Some optional files could not be found. This is not a fatal error${CSI_RESET}" >&2
 }
 
 check_optional_nonzero_output_shell() {
-    fail=
-    for cmd in "$@" ; do
-        if ! eval "$cmd" | grep -q . ; then
-            echo "shell test failed: $cmd" >&2
-            fail=1
-        else
-            echo "ok - $cmd"
-        fi
-    done
-    if [ "$fail" ] ; then
-        $ECHO_E "${CSI_RED}Some optional files could not be found. This is not a fatal error${CSI_RESET}" >&2
+    out="$(eval "$@" 2>/dev/null || :)"
+    if [ "$out" ] ; then
+        echo "ok - $* [$out]"
+        return
     fi
+    echo "shell test failed: $*" >&2
+    $ECHO_E "${CSI_RED}Some optional files could not be found. This is not a fatal error${CSI_RESET}" >&2
 }
 
 check_mandatory_nonzero_output_shell() {
-    fail=
-    for command in "$@" ; do
-        if ! eval "$command" | grep -q . ; then
-            echo "shell test failed: $command" >&2
-            fail=1
-        else
-            echo "ok - $command"
-        fi
-    done
-    if [ "$fail" ] ; then
-        $ECHO_E "${CSI_RED}Fix these missing tests on the runner host, and try again${CSI_RESET}" >&2
+    out="$(eval "$@" 2>/dev/null || :)"
+    if [ "$out" ] ; then
+        echo "ok - $* [$out]"
+        return
     fi
+    echo "shell test failed: $*" >&2
+    $ECHO_E "${CSI_RED}Fix these missing tests on the runner host, and try again${CSI_RESET}" >&2
+    exit 1
 }
 

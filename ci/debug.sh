@@ -85,15 +85,6 @@ export DOCKER_SCRIPT=1
 export CI_BUILD_NAME="$1"
 tmp=$(mktemp -d /tmp/XXXXXXXXXXXXXX)
 trap "rm -rf $tmp" EXIT
-cat > $tmp/prepare.sh <<EOF
-# This installs packages just as our CI jobs do. However, because of the
-# DOCKER_SCRIPT environment variable, some bonus packages are installed
-# as well (vim, gdb).
-/host/ci/00-prepare-docker.sh
-. /host/ci/000-functions.sh
-. /host/ci/001-environment.sh
-. /host/ci/999-debug.sh
-EOF
 
 DARGS=()
 if ! [ "$NO_REMOVE" ] ; then
@@ -138,7 +129,6 @@ EOF
     )
     tanker vm run "${DARGS[@]}" -t $myimage "${commands[@]}"
 else
-    ci/00-dockerfile.sh > $tmp/Dockerfile
     # TODO what is this imagename business about ??? Seems to me that the
     # whole command line, beyond CI_BUILD_NAME, is interpreted in a
     # fairly weird way.
@@ -149,7 +139,11 @@ else
     imagename="${imagename//:/_}"
     imagename="${imagename//-/_}"
     imagename="debug_$imagename"
-    docker build -t "$imagename" -f $tmp/Dockerfile ci
+    # run with bash instead of sh. the "docker" docker image has a
+    # /bin/sh shell that groks "set -o pipefail", which appears in
+    # ci/00-docker-build.sh ; such is not the case of /bin/sh on debian,
+    # at least.
+    bash ci/00-docker-build.sh "$imagename"
     echo "# NOTE: docker image is $imagename"
     echo "# NOTE: this image contains a few extra debug tools"
     docker run "${DARGS[@]}" -ti --hostname docker-script-$RANDOM --volume $PWD:/host "$imagename" /host/ci/999-debug.sh "$@"

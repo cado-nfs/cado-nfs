@@ -87,7 +87,7 @@ static void
 split_iter_end(split_output_iter_t *iter)
 {
   if (iter->file != NULL)
-    fclose(iter->file);
+    fclose_maybe_compressed(iter->file, iter->filename);
   free(iter->filename);
   free((void *) iter->prefix);
   free((void *) iter->suffix);
