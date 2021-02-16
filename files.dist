@@ -1632,3 +1632,4 @@ ci/utilities/tanker
 ci/002-tanker.bash
 ci/003-trap-add.bash
 ci/004-disksize-watchdog.bash
+ci/00-docker-build.sh
