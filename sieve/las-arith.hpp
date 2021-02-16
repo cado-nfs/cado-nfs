@@ -18,16 +18,6 @@
  * their promises.
  */
 
-/* If defined to any value, use asm() CMOV in redc_u?32() */
-#define LAS_ARITH_REDC_USE_ASM 1
-
-/* If defined to any value, use the old REDC code (e.g., for speed 
-   comparisons) */
-// #define LAS_ARITH_USE_OLD_REDC 1
-
-/* If defined, uses the old invmod code for speed comparison */
-// #define LAS_ARITH_HPP_OLD_INVMOD_REDC_32 1
-
 /* define STAT to get statistics on the frequency of carries in redc_u32 and
    redc_32 */
 // #define STAT
@@ -39,51 +29,6 @@
  *   \return x/2^32 mod p as an integer in [0, p[
 */
 
-#if defined(LAS_ARITH_USE_OLD_REDC)
-static inline uint32_t
-redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
-{
-  uint32_t t = (uint32_t) x * invp;   /* t = x * invp mod 2^32 */
-  /* x + t*p is bounded by 2^32*p-1+(2^32-1)*p < 2*2^32*p
-   * therefore, we must pay attention to the carry flag while doing the
-   * addition.
-   */
-  uint64_t tp = (uint64_t)t * (uint64_t)p;
-  uint64_t xtp = x;
-  int cf;
-  /* do xtp += tp, get carry out in cf */
-#if defined(GENUINE_GNUC) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
-  asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
-#else
-  /* With GCC 9.2.1 the following code is as fast as the above assembly code.
-     Example on Intel i5-4590 at 3.3Ghz with turbo-boost disabled
-     (revision 8de5fc9):
-     torture-redc 10000000:
-     assembly: redc_u32: 8388608 tests in 0.0659s
-     C code  : redc_u32: 8388608 tests in 0.0658s
-  */
-  xtp += tp;
-  cf = xtp < tp;
-#endif
-#ifdef STAT
-  static int count = 0, carry = 0;
-  count ++;
-  carry += cf != 0;
-  if ((count % 1000000) == 0)
-    printf ("redc_u32: count=%d carry=%d\n", count, carry);
-#endif
-  uint32_t u = xtp >> 32;
-  // by construction, xtp is divisible by 2^32. u is such that
-  // 0 <= u < 2*p ; however the representative that we have is capped to
-  // 2^32, and may wrap around.
-  /* if cf is true, then with u' := 2^32 + u, we have 2^32 <= u' < 2*p,
-   * thus u' - p < p, which ensures that (1) a borrow will occur in the
-   * subtraction u - p, which will compensate for the carry in x + t*p,
-   * and (2) the final result will be < p as wanted */
-
-  return (cf || u >= p) ? u - p : u;
-}
-#else /* LAS_ARITH_USE_OLD_REDC */
 static inline uint32_t // NO_INLINE
 redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 {
@@ -99,7 +44,7 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
    * and t = 0 otherwise */
 
   t = 0;
-#if defined(LAS_ARITH_REDC_USE_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__("addq %[tp],%[xtp]\n" 
           "cmovc %[p], %[t]\n"
           : [xtp]"+r"(xtp), [t]"+r"(t) : [tp]"r"(tp), [p] "r" (p)
@@ -134,7 +79,6 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
   if (u >= p) t = p;
   return u - t;
 }
-#endif /* LAS_ARITH_USE_OLD_REDC */
 
 /** Variable-width unsigned REDC.
  *   \param [in] x unsigned 32-bit integer. We require x < p.
@@ -181,38 +125,6 @@ mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const uint3
  *   \param [in] invp is -1/p mod 2^32.
  *   \return x/2^32 mod p as an integer in [0, p[
 */
-#if defined(LAS_ARITH_USE_OLD_REDC)
-static inline uint32_t
-redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
-{
-  uint32_t t = (uint32_t)x * invp;
-  uint64_t tp = (uint64_t)t * (uint64_t)p;
-#if 0
-  uint64_t xtp = (x >= 0) ? x : x + ((uint64_t) p << 32);
-  /* the following does the same without any branch, but seems slightly
-     worse with GCC 9.2.1. */
-#else
-  uint64_t xtp = x + (uint64_t) p * (uint64_t) ((x & 0x8000000000000000) >> 31);
-#endif
-  /* now xtp >= 0, and we are in the same case as redc_u32,
-     thus the same analysis as redc_u32 applies here */
-  int cf;
-#if defined(GENUINE_GNUC) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
-  asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
-#else
-  xtp += tp;
-  cf = xtp < tp;
-#endif
-  /* Timings with revision 8de5fc9
-     on Intel i5-4590 at 3.3Ghz with turbo-boost disabled:
-     torture-redc 10000000:
-     assembly: redc_32: 8388608 tests in 0.0668s
-     C code  : redc_32: 8388608 tests in 0.0679s
-     assembly+(if 0 instead of if 1): redc_32: 8388608 tests in 0.0680s */
-  uint32_t u = xtp >> 32;
-  return (cf || u >= p) ? u - p : u;
-}
-#else /* LAS_ARITH_USE_OLD_REDC */
 static inline uint32_t // NO_INLINE
 redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 {
@@ -229,7 +141,7 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   /* now xtp >= 0, and we are in the same case as redc_u32,
      thus the same analysis as redc_u32 applies here */
   t = 0;
-#if defined(LAS_ARITH_REDC_USE_ASM) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__("addq %[tp],%[xtp]\n" 
           "cmovc %[p], %[t]\n"
           : [xtp]"+r"(xtp), [t]"+r"(t) : [tp]"r"(tp), [p] "r" (p)
@@ -249,7 +161,6 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
   if (u >= p) t = p;
   return u - t;
 }
-#endif /* LAS_ARITH_USE_OLD_REDC */
 
 /* NOTE: we used to have redc_64, invmod_redc_64, and invmod_64 ; actually we
  * never really needed these functions, and they're gone since b9a4cbb40 ;
@@ -315,8 +226,6 @@ static inline void t_hist(uint8_t t) {
 // and 1/a mod b for b even, by binary xgcd.
 // a must be less than b.
 // return result on succes (new a value), UINT32_MAX on failure
-
-#ifndef LAS_ARITH_HPP_OLD_INVMOD_REDC_32
 
 static inline uint32_t // NO_INLINE
 invmod_redc_32(uint32_t a, const uint32_t orig_b, const uint32_t invb) {
@@ -393,120 +302,7 @@ done:
   return u;
 }
 
-#else /* LAS_ARITH_HPP_OLD_INVMOD_REDC_32 */
 
-NOPROFILE_INLINE uint32_t
-invmod_redc_32(uint32_t a, uint32_t b, const uint32_t invb MAYBE_UNUSED) {
-
-  ASSERT (a < b);
-  if (UNLIKELY(!a)) return a; /* or we get infinite loop */
-  if (UNLIKELY(!(b & 1))) {
-    uint32_t pa = a;
-    invmod_32(&pa, (uint32_t) b);
-    return pa;
-  }
-  const uint32_t p = b;
-  uint32_t u = 1, v = 0, lsh = cado_ctz(a);
-  uint8_t t = lsh;
-  // make a odd
-  a >>= lsh;
-  
-  // Here a and b are odd, and a < b
-#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-#define T1 "sub %0,%1\n " /* tzcnt */ "rep; bsf %1,%5\n add %2,%3\n shr %%cl,%1\n add %%cl,%4\n shl %%cl,%2\n cmp %0,%1\n "
-#define T2 "sub %1,%0\n " /* tzcnt */ "rep; bsf %0,%5\n add %3,%2\n shr %%cl,%0\n add %%cl,%4\n shl %%cl,%3\n cmp %1,%0\n "
-  __asm__ ( ".balign 8\n 0:\n"						\
-	    T1 " je 9f\n jb  1f\n"					\
-	    T1 " je 9f\n jb  1f\n"					\
-	    T1 " je 9f\n jb  1f\n"					\
-	    T1 " je 9f\n jb  1f\n"					\
-	    T1 " je 9f\n jae 0b\n"					\
-	    ".balign 8\n 1:\n"						\
-	    T2 " je 9f\n jb  0b\n"					\
-	    T2 " je 9f\n jb  0b\n"					\
-	    T2 " je 9f\n jb  0b\n"					\
-	    T2 " je 9f\n jb  0b\n"					\
-	    T2 " jb 0b\n ja  1b\n"					\
-	    ".balign 8\n 2:\n"						\
-	    "9: \n"							\
-	    : "+r" (a), "+r" (b), "+r" (u), "+r" (v), "+r" (t), "+c" (lsh));
-#else
-#define T1 do { b-=a; lsh=cado_ctz(b); v+=u; b>>=lsh; t+=lsh; u<<=lsh; if (a==b) goto ok; } while (0)
-#define T2 do { a-=b; lsh=cado_ctz(a); u+=v; a>>=lsh; t+=lsh; v<<=lsh; if (b==a) goto ok; } while (0)
-  {
-      for (;;) {
-          do {
-              T1; if (a > b) break;
-              T1; if (a > b) break;
-              T1; if (a > b) break;
-              T1; if (a > b) break;
-              T1;
-          } while (a < b);
-          do {
-              T2; if (b > a) break;
-              T2; if (b > a) break;
-              T2; if (b > a) break;
-              T2; if (b > a) break;
-              T2;
-          } while (b < a);
-      }
-    ok: ; /* Need something after the label */
-  }
-#endif
-#undef T1
-#undef T2
-
-  if (UNLIKELY(a != 1)) return 0;
-  const uint32_t fix = (p+1)>>1;
-  
-  // Here, the inverse of a is u/2^t mod b.  
-#define T3 do { uint8_t sig = (uint8_t) u; u >>= 1; if (sig & 1) u += fix; } while (0)
-#define T4 do { u <<= 1; if (u >= p) u -= p; } while (0)
-#if 1 /* Original code */
-  if (t > 32)
-    do T3; while (--t > 32);
-  else
-    while (t++ < 32) T4;
-#else
-  /* Duff's device (cf. Wikipedia) */
-  t -= 32;
-  if (LIKELY(t)) {
-    if (LIKELY((int8_t) t > 0)) {
-      uint8_t n = (t + 7) >> 3;
-      switch (t & 7) {
-          case 0: do { T3; no_break();
-                      case 7: T3; no_break();
-                      case 6: T3; no_break();
-                      case 5: T3; no_break();
-                      case 4: T3; no_break();
-                      case 3: T3; no_break();
-                      case 2: T3; no_break();
-                      case 1: T3;
-                  } while (--n > 0);
-      }
-    } else {
-      uint8_t n = ((t = -t) + 7) >> 3;
-      switch (t & 7) {
-            case 0: do { T4; no_break();
-                        case 7: T4; no_break();
-                        case 6: T4; no_break();
-                        case 5: T4; no_break();
-                        case 4: T4; no_break();
-                        case 3: T4; no_break();
-                        case 2: T4; no_break();
-                        case 1: T4;
-                    } while (--n > 0);
-      }
-    }
-  }
-#endif
-#undef T3
-#undef T4
-  return u;
-}
-
-
-#endif /* LAS_ARITH_HPP_OLD_INVMOD_REDC_32 */
 /** Compute r[i] = 2^32*a[i]^(-1) mod p, for 0 <= i < n.
  *
  * The a[i] are non-negative integers and r[i] are integers with 0 <= r[i] < p.
