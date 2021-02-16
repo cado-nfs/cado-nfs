@@ -30,11 +30,11 @@ args=("${dash_args[@]}" "${params_args[@]}" "${paramfile_args[@]}" "${freeform_a
 "$CADO_NFS_SOURCE_DIR/cado-nfs.py" "${args[@]}"
 
 mkdir "$wdir/p80.split"
-find $wdir/p80.upload -name '*.gz' | xargs "$CADO_NFS_SOURCE_DIR/tests/estimate_matsize/build_relation_cache.pl"  -o "$wdir/p80.split" -s 1000,10000
+find $wdir/p80.upload -name '*.gz' | xargs "$CADO_NFS_SOURCE_DIR/scripts/estimate_matsize/build_relation_cache.pl"  -o "$wdir/p80.split" -s 1000,10000
 
 export CADO_BUILD="$PROJECT_BINARY_DIR"
 
 # can also go in the .params file if we want.
 export relation_cache="$wdir/p80.split"
 
-"$CADO_NFS_SOURCE_DIR/scripts/estimate_matsize.sh" -params "$CADO_NFS_SOURCE_DIR/tests/estimate_matsize/p80_compsq.ems.params" "$CADO_NFS_SOURCE_DIR/tests/estimate_matsize/p80.poly"
+"$CADO_NFS_SOURCE_DIR/scripts/estimate_matsize/estimate_matsize.sh" -params "$CADO_NFS_SOURCE_DIR/tests/estimate_matsize/p80_compsq.ems.params" "$CADO_NFS_SOURCE_DIR/tests/estimate_matsize/p80.poly"

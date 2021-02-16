@@ -58,6 +58,7 @@
    || defined(_POWER) || defined(__powerpc__) \
    || defined(__ppc__) || defined(__hpux) \
    || defined(_MIPSEB) || defined(_POWER) \
+   || defined(__AARCH64EB__) \
    || defined(__s390__)
 # define CADO_BIG_ENDIAN
 # define CADO_BYTE_ORDER 4321
@@ -67,8 +68,8 @@
    || defined(_M_ALPHA) || defined(__amd64) \
    || defined(__amd64__) || defined(_M_AMD64) \
    || defined(__x86_64) || defined(__x86_64__) \
+   || defined(__AARCH64EL__) \
    || defined(_M_X64)
-
 # define CADO_LITTLE_ENDIAN
 # define CADO_BYTE_ORDER 1234
 #else

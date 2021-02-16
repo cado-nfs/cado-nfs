@@ -96,7 +96,7 @@ sign (mpz_t a)
 
 /* returns log2|a| */
 static double
-ln2 (mpz_t a)
+ln2 (mpz_srcptr a)
 {
    int l;
    double r;
@@ -119,7 +119,7 @@ ln2 (mpz_t a)
 
 /* divides in-place the input polynomial by 2^k*x-a */
 static void
-divide (mpz_t a, int k, int n, mpz_t *p)
+divide (mpz_t a, int k, int n, mpz_t * p)
 {
   int i;
   mpz_t u, v, w;
@@ -143,7 +143,7 @@ divide (mpz_t a, int k, int n, mpz_t *p)
 
 /* isolating interval is [a/2^ka, b/2^kb] */
 static void
-printInt (mpz_t a, int ka, mpz_t b, int kb, int *nroots, usp_root_data *R,
+printInt (mpz_srcptr a, int ka, mpz_srcptr b, int kb, int *nroots, usp_root_data *R,
           int verbose)
 {
   if (verbose)
@@ -160,7 +160,7 @@ printInt (mpz_t a, int ka, mpz_t b, int kb, int *nroots, usp_root_data *R,
 
 /* returns the sign of p(a/2^k) */
 static int
-signValue (mpz_t a, int k, int n, mpz_t *p)
+signValue (mpz_srcptr a, int k, int n, const mpz_t *p)
 {
   int i, ret;
   mpz_t v, w;
@@ -182,7 +182,7 @@ signValue (mpz_t a, int k, int n, mpz_t *p)
 
 #ifdef DEBUG
 static void
-printQ (mpz_t a, int k)
+printQ (mpz_srcptr a, int k)
 {
   mpz_t w;
 
@@ -200,7 +200,7 @@ printQ (mpz_t a, int k)
 }
 
 static void
-printPol (mpz_t *p, int n)
+printPol (const mpz_t *p, int n)
 {
   int i;
 
@@ -221,8 +221,8 @@ printPol (mpz_t *p, int n)
    If R is not NULL, puts the roots in R.
 */
 static int
-usp (mpz_t a, mpz_t b, int m, int up, int va, int vb, int n, int *nroots,
-     mpz_t *p, mpz_t *r, int verbose, usp_root_data *R)
+usp (mpz_ptr a, mpz_ptr b, int m, int up, int va, int vb, int n, int *nroots,
+     const mpz_t *p, mpz_t *r, int verbose, usp_root_data *R)
 {
    int lmi, i, k, c, s, smi, last, d;
    mpz_t mi, u, v, w;
@@ -256,6 +256,7 @@ usp (mpz_t a, mpz_t b, int m, int up, int va, int vb, int n, int *nroots,
        /* we cannot divide in-place, otherwise we will modify the input
           polynomial for the rest of the algorithm */
        q = malloc ((n + 1) * sizeof (mpz_t));
+       const mpz_t * qconst = (const mpz_t *) q;
        for (i = 0; i <= n0; i++)
          mpz_init_set (q[i], p[i]);
        while (smi == 0)
@@ -272,17 +273,21 @@ usp (mpz_t a, mpz_t b, int m, int up, int va, int vb, int n, int *nroots,
            printf ("new input polynomial is ");
            printPol (q, n);
 #endif
-           smi = signValue (mi, lmi, n, q);
+           smi = signValue (mi, lmi, n, qconst);
          }
        if (lmi > m)
          {
            mpz_mul_2exp (a, a, 1);
            mpz_mul_2exp (b, b, 1);
          }
-       le = usp (a, mi, lmi, n, signValue (a, lmi, n, q),
-                 signValue (mi, lmi, n, q), n, nroots, q, r, verbose, R);
-       ri = usp (mi, b, lmi, n, signValue (mi, lmi, n, q),
-                 signValue (b, lmi, n, q), n, nroots, q, r, verbose, R);
+       le = usp (a, mi, lmi, n,
+		 signValue (a, lmi, n, qconst),
+                 signValue (mi, lmi, n, qconst),
+		 n, nroots, qconst, r, verbose, R);
+       ri = usp (mi, b, lmi, n,
+		 signValue (mi, lmi, n, qconst),
+                 signValue (b, lmi, n, qconst),
+		 n, nroots, qconst, r, verbose, R);
        /* restore original a, b */
        if (lmi > m)
          {
@@ -304,29 +309,29 @@ usp (mpz_t a, mpz_t b, int m, int up, int va, int vb, int n, int *nroots,
            mpz_clear (mi);
            return 2;
          }
-     else if (vb * smi < 0)
-       {
-         mpz_t aa;
-
-         mpz_init (aa);
-         if (lmi > m)
-           mpz_mul_2exp (aa, a, 1);
-         else
-           mpz_set (aa, a);
-         c = usp (aa, mi, lmi, up, va, smi, n, nroots, p, r, verbose, R);
-         if (c < up)
-           {
-             if (lmi > m)
-               mpz_mul_2exp (aa, b, 1);
-             else
-               mpz_set (aa, b);
-             c += usp (mi, aa, lmi, up - c, smi, vb, n, nroots, p, r, verbose, R);
-           }
-         mpz_clear (mi);
-         mpz_clear (aa);
-         return c;
+       else if (vb * smi < 0)
+         {
+           mpz_t aa;
+ 
+           mpz_init (aa);
+           if (lmi > m)
+             mpz_mul_2exp (aa, a, 1);
+           else
+             mpz_set (aa, a);
+           c = usp (aa, mi, lmi, up, va, smi, n, nroots, p, r, verbose, R);
+           if (c < up)
+             {
+               if (lmi > m)
+                 mpz_mul_2exp (aa, b, 1);
+               else
+                 mpz_set (aa, b);
+               c += usp (mi, aa, lmi, up - c, smi, vb, n, nroots, p, r, verbose, R);
+             }
+           mpz_clear (mi);
+           mpz_clear (aa);
+           return c;
+         }
        }
-     }
    mpz_set (r[n], p[n]);
    mpz_init (w);
    for (i = n-1; i >= 0; i--)
@@ -420,7 +425,7 @@ usp (mpz_t a, mpz_t b, int m, int up, int va, int vb, int n, int *nroots,
    If Roots is not NULL, put the isolating intervals in Roots[0..nroots-1].
 */
 int
-numberOfRealRoots (mpz_t *p, const int orig_n, double T, int verbose, usp_root_data *Roots)
+numberOfRealRoots (const mpz_t *p, const int orig_n, double T, int verbose, usp_root_data *Roots)
 {
   int i, nroots, n = orig_n;
   mpz_t a, R, R1, *r;
@@ -444,7 +449,9 @@ numberOfRealRoots (mpz_t *p, const int orig_n, double T, int verbose, usp_root_d
       printInt (a, 0, a, 0, &nroots, Roots, verbose);
       while (mpz_cmp_ui (p[0], 0) == 0)
         {
-          divide (a, 0, n, p);
+          // divide p by X, but we do not want to touch p !!
+          // divide (a, 0, n, p);
+          p++;
           n--;
         }
     }
@@ -514,12 +521,11 @@ numberOfRealRoots (mpz_t *p, const int orig_n, double T, int verbose, usp_root_d
    Use it only if you know what you do!
 */
 double
-rootRefine (usp_root_data *r, mpz_t *p, int n, double precision)
+rootRefine (usp_root_data *r, const mpz_t *p, int n, double precision)
 {
   double a, b, c;
   double sa, sb, sc;
   double_poly q;
-  mpz_poly P;
 
   /* Note: if precision = 0.0, rootRefine will stop when the bound a and b
      are two adjacent floating-point numbers. */
@@ -533,8 +539,11 @@ rootRefine (usp_root_data *r, mpz_t *p, int n, double precision)
   if (b - a <= precision) /* includes the case a = b */
     return c;
 
-  P->coeff = p;
-  P->deg = n;
+  mpz_poly cheat_P;
+  cheat_P->coeff = (mpz_t *) p;
+  cheat_P->deg = n;
+  mpz_poly_srcptr P = cheat_P;
+
   double_poly_init (q, n);
   double_poly_set_mpz_poly (q, P);
   sa = double_poly_eval (q, a);

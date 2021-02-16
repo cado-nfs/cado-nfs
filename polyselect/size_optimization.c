@@ -944,6 +944,9 @@ best_norm2 (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
    TODO: LLL on gram matrix to be faster
    TODO: precompute skew^i for i in [0..d]
    TODO: return the n better poly not only the best one
+
+   Note: f_opt==f_raw and g_opt==g_raw are used by callers, so should be supported here.
+
 */
 static double
 size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,

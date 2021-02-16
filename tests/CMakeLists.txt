@@ -547,21 +547,26 @@ cado_define_test(full_c30
     AVOID_CONCURRENT
         )
     if(HAVE_GCC_STYLE_AMD64_INLINE_ASM AND pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
-        # see linalg/bwc/CMakeLists.txt for an explanation
-        cado_define_test(full_p30
-            SCRIPT
-            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
-            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
-            -dlp -ell 445257213376519703258944813
-            -t 2 -dlp-no-keep
-            target=92800609832959449330691138186
-            3037544709654617415632521514287
-            TARGET_DEPENDENCIES full_dependencies_base
-            bwc_full_gfp
-            lingen_pz sm sm_simple las_descent reconstructlog-dl
-            merge-dl replay-dl badideals
-            AVOID_CONCURRENT
-            )
+        # no need to have both the JL and non-JL in normal tests, I
+        # think, given that there's always at least one machine that does
+        # the expensive tests.
+        if(DEFINED ENV{CHECKS_EXPENSIVE})
+            # see linalg/bwc/CMakeLists.txt for an explanation
+            cado_define_test(full_p30
+                SCRIPT
+                ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
+                ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
+                -dlp -ell 445257213376519703258944813
+                -t 2 -dlp-no-keep
+                target=92800609832959449330691138186
+                3037544709654617415632521514287
+                TARGET_DEPENDENCIES full_dependencies_base
+                bwc_full_gfp
+                lingen_pz sm sm_simple las_descent reconstructlog-dl
+                merge-dl replay-dl badideals
+                AVOID_CONCURRENT
+                )
+        endif()
         # The following case was hitting the bug #21707
         cado_define_test(full_p30_JL
             SCRIPT

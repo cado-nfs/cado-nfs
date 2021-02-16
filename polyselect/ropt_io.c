@@ -525,7 +525,7 @@ print_poly_info_short ( mpz_t *f,
   mpz_neg (g[0], g[0]);
   
   /* compute skew, logmu, nroots */
-  nroots = numberOfRealRoots (cpoly->pols[ALG_SIDE]->coeff, d, 0, 0, NULL);
+  nroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, d, 0, 0, NULL);
   skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   cpoly->skew = skew;
   logmu = L2_lognorm (F, skew);

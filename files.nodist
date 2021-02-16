@@ -9,7 +9,6 @@ dev_docs/
 files.dist
 files.nodist
 files.unknown
-scripts/estimate_matsize.sh
 scripts/polsel_effort
 scripts/plot_params.sh
 scripts/plot_sieve_region.py
