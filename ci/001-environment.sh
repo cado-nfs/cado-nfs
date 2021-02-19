@@ -86,7 +86,7 @@ case "$CI_BUILD_NAME" in
     : ${CXX=g++}
     : ${CFLAGS="$CFLAGS -m32"}
     : ${CXXFLAGS="$CXXFLAGS -m32"}
-    GMP="/usr/local/gmp-6.1.2.abi32"
+    GMP="/usr/local/gmp-6.2.1.abi32"
     export GMP
     gcc32=1
     ;;
