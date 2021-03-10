@@ -869,13 +869,11 @@ static void
 compute_weights (filter_matrix_t *mat, index_t *jmin)
 {
   double cpu = seconds (), wct = wct_seconds ();
-  unsigned char cwmax = mat->cwmax;
 
   index_t j0;
   if (jmin[0] == 0) /* jmin was not initialized */
     {
       j0 = 0;
-      cwmax = MERGE_LEVEL_MAX;
     }
   else
     /* we only need to consider ideals of index >= j0, assuming the weight of
@@ -910,10 +908,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
                   continue;
               for (index_t l = matLengthRow (mat, i); l >= 1; l--) {
                   index_t j = matCell (mat, i, l);
-                  if (j < j0) /* assume ideals are sorted by increasing order */
-                      break;
-                  else if (Wtk[j] <= cwmax)      /* (*) HERE */
-                      Wtk[j]++;
+                  Wtk[j]++;
               }
           }
 
@@ -925,12 +920,8 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
           for (index_t i = j0; i < mat->ncols; i++) {
               col_weight_t val = Wt0[i];
               for (int t = 1; t < T; t++)
-                  if (val + Wt[t][i] <= cwmax)
-                      val += Wt[t][i];
-                  else {
-                      val = cwmax + 1;
-                      break;
-                  }
+                  val += Wt[t][i];
+                  
               Wt0[i] = val;
           }
 
@@ -1013,6 +1004,8 @@ compute_R (filter_matrix_t *mat, index_t j0)
                   Rq[j] = Rn;
                   Rqinv[Rn] = j;
                   Rnz += w;
+
+
                   Rp[Rn] = Rnz;
                   Rn++;
               }
