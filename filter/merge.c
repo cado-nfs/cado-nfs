@@ -910,10 +910,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
                   continue;
               for (index_t l = matLengthRow (mat, i); l >= 1; l--) {
                   index_t j = matCell (mat, i, l);
-                  if (j < j0) /* assume ideals are sorted by increasing order */
-                      break;
-                  else     /* (*) HERE */
-                      Wtk[j]++;
+                  Wtk[j]++;
               }
           }
 
