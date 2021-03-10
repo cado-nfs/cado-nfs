@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #ifdef  __GNUC__
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #endif
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>       // for PRIu64
@@ -143,6 +144,7 @@ declare_usage(param_list pl)
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "t", "number of threads");
   param_list_decl_usage(pl, "v", "verbose mode");
+  param_list_decl_usage(pl, "shrink", "shrink factor applied on the initial matrix, used to correct density");
 }
 
 static void
@@ -1416,6 +1418,7 @@ main (int argc, char *argv[])
 
     int nthreads = 1;
     uint32_t skip = DEFAULT_MERGE_SKIP;
+    uint32_t shrink = 1; /* default = no shrink */
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
 
 #ifdef HAVE_MINGW
@@ -1460,6 +1463,8 @@ main (int argc, char *argv[])
 #endif
 
     param_list_parse_uint (pl, "skip", &skip);
+
+    param_list_parse_uint(pl, "shrink", &shrink);
 
     param_list_parse_double (pl, "target_density", &target_density);
 
