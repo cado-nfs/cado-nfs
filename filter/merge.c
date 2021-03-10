@@ -1661,7 +1661,8 @@ average_density (filter_matrix_t *mat, uint32_t shrink)
     corrected_density += 1 - pow(1- (double) mat->wt[i] / nrows, 1 / (double) shrink);
   }
   return (double) shrink * corrected_density; */
-  return (double) mat->tot_weight / (double) mat->rem_nrows
+  printf("shrink=%" PRIu32, shrink);
+  return (double) mat->tot_weight / (double) mat->rem_nrows;
 }
 
 #ifdef DEBUG
