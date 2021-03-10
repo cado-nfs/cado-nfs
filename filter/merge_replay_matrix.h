@@ -16,7 +16,7 @@
 #define cmp_typerow_t cmp_ideal_merge
 #endif
 
-#define col_weight_t unsigned char
+#define col_weight_t uint64_t
 
 /* rows correspond to relations, and columns to primes (or prime ideals) */
 typedef struct {
