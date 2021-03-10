@@ -557,7 +557,7 @@ declare_usage(param_list pl)
   param_list_decl_usage(pl, "path_antebuffer", "path to antebuffer program");
   param_list_decl_usage(pl, "t", "number of threads");
   param_list_decl_usage(pl, "v", "verbose mode");
-  param_list_decl_usage(pl, "shrink", "shrink factor applied on the initial matrix, used to correct density")
+  param_list_decl_usage(pl, "shrink", "shrink factor applied on the initial matrix, used to correct density");
 }
 
 static void
@@ -1756,7 +1756,7 @@ main (int argc, char *argv[])
 
     int nthreads = 1;
     uint32_t skip = DEFAULT_MERGE_SKIP;
-    uint32_t shrink = 1 /* default = no shrink */
+    uint32_t shrink = 1; /* default = no shrink */
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
 
 #ifdef HAVE_MINGW
