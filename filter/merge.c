@@ -630,7 +630,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
           #pragma omp for schedule(static) nowait
           for (index_t j = j0; j < ncols; j++) {
               col_weight_t w = mat->wt[j];
-              if (0 < w && w <= cwmax) {
+              if (0 < w && w <= (uint64_t) cwmax) {
                   Rnz += w;
                   Rn++;
               }
@@ -662,7 +662,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
           #pragma omp for schedule(static) /* static is mandatory here */
           for (index_t j = j0; j < ncols; j++) {
               col_weight_t w = mat->wt[j];
-              if (0 < w && w <= cwmax) {
+              if (0 < w && w <= (uint64_t) cwmax) {
                   Rq[j] = Rn;
                   Rqinv[Rn] = j;
                   Rnz += w;
@@ -690,7 +690,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
                   index_t j = matCell(mat, i, k);
                   if (j < j0)
                           break;
-                  if (mat->wt[j] > cwmax)
+                  if (mat->wt[j] > (uint64_t) cwmax)
                           continue;
                   index_t row = i;
                   index_t col = Rq[j];
