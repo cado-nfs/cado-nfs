@@ -1654,10 +1654,10 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
 
 static double
 average_density (filter_matrix_t *mat, uint32_t shrink)
-{ double nrows = mat->rem_rows;
+{ double nrows = mat->rem_nrows;
   double corrected_density = 0;
-  compute_weights(mat, jmin);
-  for (index_t i = ; k < nrows ; i++) {
+  compute_weights(mat, 0);
+  for (index_t i = 0 ; i < nrows ; i++) {
     corrected_density += 1 - pow(1- (double) mat->wt[i] / nrows, 1 / (double) shrink);
   }
   return (double) shrink * corrected_density;
