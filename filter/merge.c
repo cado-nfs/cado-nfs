@@ -869,13 +869,11 @@ static void
 compute_weights (filter_matrix_t *mat, index_t *jmin)
 {
   double cpu = seconds (), wct = wct_seconds ();
-  unsigned char cwmax = mat->cwmax;
 
   index_t j0;
   if (jmin[0] == 0) /* jmin was not initialized */
     {
       j0 = 0;
-      cwmax = MERGE_LEVEL_MAX;
     }
   else
     /* we only need to consider ideals of index >= j0, assuming the weight of
