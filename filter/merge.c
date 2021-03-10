@@ -1653,9 +1653,14 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
 }
 
 static double
-average_density (filter_matrix_t *mat)
-{
-  return (double) mat->tot_weight / (double) mat->rem_nrows;
+average_density (filter_matrix_t *mat, uint32_t shrink)
+{ double nrows = mat->rem_rows;
+  double corrected_density = 0;
+  compute_weights(mat, jmin);
+  for (index_t i = ; k < nrows ; i++) {
+    corrected_density += 1 - pow(1- (double) mat->wt[i] / nrows, 1 / (double) shrink);
+  }
+  return (double) shrink * corrected_density;
 }
 
 #ifdef DEBUG
@@ -1913,7 +1918,7 @@ main (int argc, char *argv[])
     printf ("\n");
 
     printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
-	    mat->rem_nrows, mat->tot_weight, average_density (mat),
+	    mat->rem_nrows, mat->tot_weight, average_density (mat, shrink),
 	    seconds () - cpu0, wct_seconds () - wct0,
 	    PeakMemusage () >> 10);
 #ifdef BIG_BROTHER
@@ -2048,7 +2053,7 @@ main (int argc, char *argv[])
 		PeakMemusage () >> 10, pass, mat->cwmax);
 	fflush (stdout);
 
-	if (average_density (mat) >= target_density)
+	if (average_density (mat, shrink) >= target_density)
 		break;
 
 	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX)
@@ -2076,7 +2081,7 @@ main (int argc, char *argv[])
 
     fclose_maybe_compressed (rep->outfile, outname);
 
-    if (average_density (mat) > target_density)
+    if (average_density (mat, shrink) > target_density)
       {
 	/* estimate N for W/N = target_density, assuming W/N = a*N + b */
 	unsigned long N = mat->rem_nrows;
