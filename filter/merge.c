@@ -942,6 +942,69 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   wct_t[COMPUTE_W] += wct;
 }
 
+static void
+compute_column_weights (filter_matrix_t *mat)
+{
+  double cpu = seconds(), wct = wct_seconds();
+
+  col_weight_t *Wt[omp_get_max_threads()];
+#pragma omp parallel
+  {
+    int T = omp_get_num_threads();
+    int tid = omp_get_thread_num();
+
+    /* we allocate an array of size mat->ncols, but the first j0 entries are unused */
+    if (tid == 0)
+      Wt[0] = mat->wt; /* trick: we use wt for Wt[0] */
+    else
+      Wt[tid] = malloc(mat->ncols * sizeof(col_weight_t));
+    memset(Wt[tid], 0, (mat->ncols) * sizeof(col_weight_t));
+
+    /* Thread k accumulates weights in Wt[k].
+             We only consider ideals of index >= j0, and put the weight of ideal j,
+             j >= j0, in Wt[k][j]. */
+
+    /* using a dynamic or guided schedule here is crucial, since during
+	     merge, the distribution of row lengths is no longer uniform
+	     (including discarded rows) */
+    col_weight_t *Wtk = Wt[tid];
+#pragma omp for schedule(guided)
+    for (index_t i = 0; i < mat->nrows; i++)
+    {
+      if (mat->rows[i] == NULL) /* row was discarded */
+        continue;
+      for (index_t l = matLengthRow(mat, i); l >= 1; l--)
+      {
+        index_t j = matCell(mat, i, l);
+        Wtk[j]++;
+      }
+    }
+
+    /* Thread k accumulates in Wt[0] the weights for the k-th block of columns,
+             saturating at cwmax + 1:
+             Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
+    col_weight_t *Wt0 = Wt[0];
+#pragma omp for schedule(static) /* slightly better than guided */
+    for (index_t i = 0; i < mat->ncols; i++)
+    {
+      col_weight_t val = Wt0[i];
+      for (int t = 1; t < T; t++)
+        val += Wt[t][i];
+
+      Wt0[i] = val;
+    }
+
+    if (tid > 0) /* start from 1 since Wt[0] = mat->wt + j0 should be kept */
+      free(Wt[tid]);
+  }
+
+  cpu = seconds() - cpu;
+  wct = wct_seconds() - wct;
+  print_timings("   compute_colums_weights took", cpu, wct);
+  cpu_t[COMPUTE_W] += cpu;
+  wct_t[COMPUTE_W] += wct;
+}
+
 /* computes the transposed matrix for columns of weight <= cwmax
    (we only consider columns >= j0) */
 static void
@@ -1657,6 +1720,7 @@ average_density (filter_matrix_t *mat, uint32_t shrink)
 { double nrows = mat->rem_nrows;
   double corrected_density = 0;
   /*
+  compute_weights(mat,0);
   for (index_t i = 0 ; i < nrows ; i++) {
     corrected_density += 1 - pow(1- (double) mat->wt[i] / nrows, 1 / (double) shrink);
   }
