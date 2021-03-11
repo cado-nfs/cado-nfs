@@ -1725,9 +1725,12 @@ average_density (filter_matrix_t *mat, uint32_t shrink)
   for (index_t i = 0 ; i < nrows ; i++) {
     corrected_density += 1 - pow(1- (double) mat->wt[i] / nrows, 1 / (double) shrink);
   }
-  return (double) shrink * corrected_density; 
+  
   printf("corrected_density = %f \n", corrected_density); 
   printf("non corrected density = %f \n", base_density);
+
+  return (double) shrink * corrected_density; 
+
 }
 
 #ifdef DEBUG
