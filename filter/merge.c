@@ -567,6 +567,18 @@ usage (param_list pl, char *argv0)
     exit(EXIT_FAILURE);
 }
 
+/* check that mat->tot_weight and mat->wt say the same thing.
+ */
+static inline void check_invariant(filter_matrix_t *mat)
+{
+    uint64_t tot_weight2 = 0;
+    for (index_t i = 0; i < mat->ncols; i++) {
+        tot_weight2 += mat->wt[i];
+    }
+    printf("invariant %s: tw = %" PRIu64 " tw2=%" PRIu64 "\n",
+            mat->tot_weight == tot_weight2 ? "ok" : "NOK",
+            mat->tot_weight, tot_weight2);
+}
 
 
 #ifndef FOR_DL
@@ -601,10 +613,14 @@ insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
   for (unsigned int i = 0; i < rel->nb; i++)
   {
     index_t h = rel->primes[i].h;
-    mat->rem_ncols += (mat->wt[h] == 0);
-    mat->wt[h] += (mat->wt[h] != UMAX(col_weight_t));
     if (h < mat->skip)
 	continue; /* we skip (bury) the first 'skip' indices */
+    /* note that we don't update mat->wt for the buried columns: the
+     * first call to compute_weights will reset them to empty columns
+     * anyway, and we want tot_weight and mat->wt to be consistent.
+     */
+    mat->rem_ncols += (mat->wt[h] == 0);
+    mat->wt[h] += (mat->wt[h] != UMAX(col_weight_t));
 #ifdef FOR_DL
     exponent_t e = rel->primes[i].e;
     /* For factorization, they should not be any multiplicity here.
@@ -910,13 +926,15 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
                   continue;
               for (index_t l = matLengthRow (mat, i); l >= 1; l--) {
                   index_t j = matCell (mat, i, l);
-                  Wtk[j]++;
+                  if (j < j0) /* assume ideals are sorted by increasing order */
+                      break;
+                  else
+                      Wtk[j]++;
               }
           }
 
           /* Thread k accumulates in Wt[0] the weights for the k-th block of columns,
-             saturating at cwmax + 1:
-             Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
+             Wt[0][j] = Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j] */
           col_weight_t *Wt0 = Wt[0];
           #pragma omp for schedule(static) /* slightly better than guided */
           for (index_t i = j0; i < mat->ncols; i++) {
@@ -938,69 +956,6 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   cpu = seconds () - cpu;
   wct = wct_seconds () - wct;
   print_timings ("   compute_weights took", cpu, wct);
-  cpu_t[COMPUTE_W] += cpu;
-  wct_t[COMPUTE_W] += wct;
-}
-
-void
-compute_column_weights (filter_matrix_t *mat)
-{
-  double cpu = seconds(), wct = wct_seconds();
-
-  col_weight_t *Wt[omp_get_max_threads()];
-#pragma omp parallel
-  {
-    int T = omp_get_num_threads();
-    int tid = omp_get_thread_num();
-
-    /* we allocate an array of size mat->ncols, but the first j0 entries are unused */
-    if (tid == 0)
-      Wt[0] = mat->wt; /* trick: we use wt for Wt[0] */
-    else
-      Wt[tid] = malloc(mat->ncols * sizeof(col_weight_t));
-    memset(Wt[tid], 0, (mat->ncols) * sizeof(col_weight_t));
-
-    /* Thread k accumulates weights in Wt[k].
-             We only consider ideals of index >= j0, and put the weight of ideal j,
-             j >= j0, in Wt[k][j]. */
-
-    /* using a dynamic or guided schedule here is crucial, since during
-	     merge, the distribution of row lengths is no longer uniform
-	     (including discarded rows) */
-    col_weight_t *Wtk = Wt[tid];
-#pragma omp for schedule(guided)
-    for (index_t i = 0; i < mat->nrows; i++)
-    {
-      if (mat->rows[i] == NULL) /* row was discarded */
-        continue;
-      for (index_t l = matLengthRow(mat, i); l >= 1; l--)
-      {
-        index_t j = matCell(mat, i, l);
-        Wtk[j]++;
-      }
-    }
-
-    /* Thread k accumulates in Wt[0] the weights for the k-th block of columns,
-             saturating at cwmax + 1:
-             Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
-    col_weight_t *Wt0 = Wt[0];
-#pragma omp for schedule(static) /* slightly better than guided */
-    for (index_t i = 0; i < mat->ncols; i++)
-    {
-      col_weight_t val = Wt0[i];
-      for (int t = 1; t < T; t++)
-        val += Wt[t][i];
-
-      Wt0[i] = val;
-    }
-
-    if (tid > 0) /* start from 1 since Wt[0] = mat->wt + j0 should be kept */
-      free(Wt[tid]);
-  }
-
-  cpu = seconds() - cpu;
-  wct = wct_seconds() - wct;
-  print_timings("   compute_colums_weights took", cpu, wct);
   cpu_t[COMPUTE_W] += cpu;
   wct_t[COMPUTE_W] += wct;
 }
@@ -1033,7 +988,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
           #pragma omp for schedule(static) nowait
           for (index_t j = j0; j < ncols; j++) {
               col_weight_t w = mat->wt[j];
-              if (0 < w && w <= (uint64_t) cwmax) {
+              if (0 < w && w <= (col_weight_t) cwmax) {
                   Rnz += w;
                   Rn++;
               }
@@ -1065,12 +1020,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
           #pragma omp for schedule(static) /* static is mandatory here */
           for (index_t j = j0; j < ncols; j++) {
               col_weight_t w = mat->wt[j];
-              if (0 < w && w <= (uint64_t) cwmax) {
+              if (0 < w && w <= (col_weight_t) cwmax) {
                   Rq[j] = Rn;
                   Rqinv[Rn] = j;
                   Rnz += w;
-
-
                   Rp[Rn] = Rnz;
                   Rn++;
               }
@@ -1095,7 +1048,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
                   index_t j = matCell(mat, i, k);
                   if (j < j0)
                           break;
-                  if (mat->wt[j] > (uint64_t) cwmax)
+                  if (mat->wt[j] > (col_weight_t) cwmax)
                           continue;
                   index_t row = i;
                   index_t col = Rq[j];
@@ -1678,6 +1631,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
   } /* parallel section */
 
   mat->tot_weight += fill_in;
+
   /* each merge decreases the number of rows and columns by one */
   mat->rem_nrows -= nmerges;
   mat->rem_ncols -= nmerges;
@@ -1719,24 +1673,21 @@ static double
 average_density (filter_matrix_t *mat, uint32_t shrink)
 {
     double nrows = mat->rem_nrows;
-    double ncols = mat->rem_ncols;
     double corrected_density = 0;
     double base_density = (double) mat->tot_weight / (double) nrows;	/*check difference between the two methods to compute density */
     uint64_t tot_weight2 = 0;	/* try to recompute */
 
-    compute_column_weights(mat);	/*update all the weights */
-    for (index_t i = 0; i < ncols; i++) {
+    // check_invariant(mat);
+
+    for (index_t i = 0; i < mat->ncols; i++) {
 	corrected_density +=
-	    1 - pow(1 - (double) mat->wt[i] / nrows, 1 / (double) shrink);
+	    1 - pow(1 - (double) mat->wt[i] / mat->rem_nrows, 1 / (double) shrink);
         tot_weight2 += mat->wt[i];
     }
     corrected_density = corrected_density * (double) shrink;
 
-
     printf("corrected_density = %f \n", corrected_density);
     printf("non corrected density = %f \n", base_density);
-    printf("tot_weight = %" PRIu64 "\n", mat->tot_weight);
-    printf("tot_weight2 = %" PRIu64 "\n", tot_weight2);
 
     return corrected_density;
 
@@ -2082,6 +2033,7 @@ main (int argc, char *argv[])
 	index_t n_possible_merges = compute_merges(L, mat, cbound);
 
 	unsigned long nmerges = apply_merges(L, n_possible_merges, mat, Buf);
+
 	buffer_flush (Buf, nthreads, rep->outfile);
 	free(L);
 
