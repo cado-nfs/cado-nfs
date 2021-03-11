@@ -1719,14 +1719,15 @@ static double
 average_density (filter_matrix_t *mat, uint32_t shrink)
 { double nrows = mat->rem_nrows;
   double corrected_density = 0;
+  double base_density = (double) mat->tot_weight / (double) nrows /*check difference between the two methods to compute density */
+
   compute_column_weights(mat); /*update all the weights */
   for (index_t i = 0 ; i < nrows ; i++) {
     corrected_density += 1 - pow(1- (double) mat->wt[i] / nrows, 1 / (double) shrink);
   }
   return (double) shrink * corrected_density; 
-  printf("shrink=%" PRIu32 "\n", shrink);
-  /* printf("nrows = %f \n", nrows); */
-  /* printf("corrected_density = %f", corrected_density); */
+  printf("corrected_density = %f \n", corrected_density); 
+  printf("non corrected density = %f \n", base_density);
 }
 
 #ifdef DEBUG
