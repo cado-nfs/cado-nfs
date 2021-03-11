@@ -1719,7 +1719,7 @@ static double
 average_density (filter_matrix_t *mat, uint32_t shrink)
 { double nrows = mat->rem_nrows;
   double corrected_density = 0;
-  double base_density = (double) mat->tot_weight / (double) nrows /*check difference between the two methods to compute density */
+  double base_density = (double) mat->tot_weight / (double) nrows; /*check difference between the two methods to compute density */
 
   compute_column_weights(mat); /*update all the weights */
   for (index_t i = 0 ; i < nrows ; i++) {
