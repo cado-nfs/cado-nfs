@@ -942,7 +942,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   wct_t[COMPUTE_W] += wct;
 }
 
-static void
+void
 compute_column_weights (filter_matrix_t *mat)
 {
   double cpu = seconds(), wct = wct_seconds();
@@ -1140,7 +1140,7 @@ decrease_weight (filter_matrix_t *mat, index_t j)
 {
   /* only decrease the weight if <= MERGE_LEVEL_MAX,
      since we saturate to MERGE_LEVEL_MAX+1 */
-  if (mat->wt[j] <= MERGE_LEVEL_MAX) {
+  // if (mat->wt[j] <= MERGE_LEVEL_MAX) {
     /* update is enough, we do not need capture since we are not interested
        by the value of wt[j] */
     #pragma omp atomic update
@@ -1148,7 +1148,7 @@ decrease_weight (filter_matrix_t *mat, index_t j)
 #ifdef BIG_BROTHER_EXPENSIVE
     touched_columns[j] = 1;
 #endif
-  }
+  // }
 }
 
 static inline void
@@ -1156,13 +1156,13 @@ increase_weight (filter_matrix_t *mat, index_t j)
 {
   /* only increase the weight if <= MERGE_LEVEL_MAX,
      since we saturate to MERGE_LEVEL_MAX+1 */
-  if (mat->wt[j] <= MERGE_LEVEL_MAX) {
+  // if (mat->wt[j] <= MERGE_LEVEL_MAX) {
     #pragma omp atomic update
     mat->wt[j]++;
 #ifdef BIG_BROTHER_EXPENSIVE
     touched_columns[j] = 1;
 #endif
-  }
+  // }
 }
 
 /* doit == 0: return the weight of row i1 + row i2
@@ -1717,21 +1717,28 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
 
 static double
 average_density (filter_matrix_t *mat, uint32_t shrink)
-{ double nrows = mat->rem_nrows;
-  double corrected_density = 0;
-  double base_density = (double) mat->tot_weight / (double) nrows; /*check difference between the two methods to compute density */
+{
+    double nrows = mat->rem_nrows;
+    double ncols = mat->rem_ncols;
+    double corrected_density = 0;
+    double base_density = (double) mat->tot_weight / (double) nrows;	/*check difference between the two methods to compute density */
+    uint64_t tot_weight2 = 0;	/* try to recompute */
 
-  compute_column_weights(mat); /*update all the weights */
-  for (index_t i = 0 ; i < nrows ; i++) {
-    corrected_density += 1 - pow(1- (double) mat->wt[i] / nrows, 1 / (double) shrink);
-  }
-  corrected_density = corrected_density * (double) shrink;
+    compute_column_weights(mat);	/*update all the weights */
+    for (index_t i = 0; i < ncols; i++) {
+	corrected_density +=
+	    1 - pow(1 - (double) mat->wt[i] / nrows, 1 / (double) shrink);
+        tot_weight2 += mat->wt[i];
+    }
+    corrected_density = corrected_density * (double) shrink;
 
 
-  printf("corrected_density = %f \n", corrected_density); 
-  printf("non corrected density = %f \n", base_density);
+    printf("corrected_density = %f \n", corrected_density);
+    printf("non corrected density = %f \n", base_density);
+    printf("tot_weight = %" PRIu64 "\n", mat->tot_weight);
+    printf("tot_weight2 = %" PRIu64 "\n", tot_weight2);
 
-  return corrected_density; 
+    return corrected_density;
 
 }
 
