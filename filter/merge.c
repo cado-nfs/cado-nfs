@@ -45,7 +45,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "omp_proxy.h"    // verbose_interpret_parameters
 #include "params.h"     // param_list_parse_*
 #include "purgedfile.h"     // for purgedfile_read_firstline
-#include "report.h"     /* for report_t */
 #include "sparse.h"
 #include "timing.h"  // seconds
 #include "typedefs.h"  // weight_t
@@ -1337,7 +1336,6 @@ merge_cost (filter_matrix_t *mat, index_t id)
 }
 
 /* Output a list of merges to a string.
-   Assume rep->type = 0.
    size is the length of str.
    Return the number of characters written, except the final \0
    (or that would have been written if that number >= size) */
@@ -1751,13 +1749,34 @@ output_matrix (filter_matrix_t *mat, char *out)
 }
 #endif
 
+/*
+ * This makes early verifications that our matrix isn't too large
+ * compared to the types of the indices. Our goal is to bail out as
+ * soon as we can.
+ */
+void sanity_check_matrix_sizes(filter_matrix_t * mat MAYBE_UNUSED)
+{
+#if (SIZEOF_INDEX == 4)
+    if (mat->nrows >> 32)
+    {
+        fprintf (stderr, "Error, nrows = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->nrows);
+        exit (EXIT_FAILURE);
+    }
+    if (mat->ncols >> 32)
+    {
+        fprintf (stderr, "Error, ncols = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->ncols);
+        exit (EXIT_FAILURE);
+    }
+#endif
+}
+
 int
 main (int argc, char *argv[])
 {
     char *argv0 = argv[0];
 
     filter_matrix_t mat[1];
-    report_t rep[1];
+    FILE * history;
 
     int nthreads = 1;
     uint32_t skip = DEFAULT_MERGE_SKIP;
@@ -1832,33 +1851,20 @@ main (int argc, char *argv[])
     /* Read number of rows and cols on first line of purged file */
     purgedfile_read_firstline (purgedname, &(mat->nrows), &(mat->ncols));
 
-#if (SIZEOF_INDEX == 4)
-    if (mat->nrows >> 32)
-      {
-	fprintf (stderr, "Error, nrows = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->nrows);
-	exit (EXIT_FAILURE);
-      }
-    if (mat->ncols >> 32)
-      {
-	fprintf (stderr, "Error, ncols = %" PRIu64 " larger than 2^32, please recompile with -DSIZEOF_INDEX=8\n", mat->ncols);
-	exit (EXIT_FAILURE);
-      }
-#endif
+    sanity_check_matrix_sizes(mat);
 
-    /* initialize rep (i.e., mostly opens outname) and write matrix dimension */
-    rep->type = 0;
-    rep->outfile = fopen_maybe_compressed (outname, "w");
-    ASSERT_ALWAYS(rep->outfile != NULL);
+    history = fopen_maybe_compressed (outname, "w");
+    ASSERT_ALWAYS(history != NULL);
 
     /* some explanation about the history file */
-    fprintf (rep->outfile, "# Every line starting with # is ignored.\n");
-    fprintf (rep->outfile, "# A line i1 i2 ... ik means that row i1 ");
-    fprintf (rep->outfile, "is added to i2, ..., ik, and row i1\n");
-    fprintf (rep->outfile, "# is removed afterwards ");
-    fprintf (rep->outfile, "(where row 0 is the first line in *.purged.gz).\n");
+    fprintf (history, "# Every line starting with # is ignored.\n");
+    fprintf (history, "# A line i1 i2 ... ik means that row i1 ");
+    fprintf (history, "is added to i2, ..., ik, and row i1\n");
+    fprintf (history, "# is removed afterwards ");
+    fprintf (history, "(where row 0 is the first line in *.purged.gz).\n");
 #ifdef FOR_DL
-    fprintf (rep->outfile, "# A line ending with #j ");
-    fprintf (rep->outfile, "means that ideal of index j should be merged.\n");
+    fprintf (history, "# A line ending with #j ");
+    fprintf (history, "means that ideal of index j should be merged.\n");
 #endif
 
     /* initialize the matrix structure */
@@ -1872,6 +1878,11 @@ main (int argc, char *argv[])
     tt = seconds ();
     filter_matrix_read (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
+
+
+
+
+
     check_matrix (mat);
 
     buffer_struct_t *Buf = buffer_init (nthreads);
@@ -2000,7 +2011,8 @@ main (int argc, char *argv[])
 	index_t n_possible_merges = compute_merges(L, mat, cbound);
 
 	unsigned long nmerges = apply_merges(L, n_possible_merges, mat, Buf);
-	buffer_flush (Buf, nthreads, rep->outfile);
+
+	buffer_flush (Buf, nthreads, history);
 	free(L);
 
 	free_aligned (mat->Ri);
@@ -2076,7 +2088,7 @@ main (int argc, char *argv[])
     printf ("min_exp=%d max_exp=%d\n", min_exp, max_exp);
 #endif
 
-    fclose_maybe_compressed (rep->outfile, outname);
+    fclose_maybe_compressed (history, outname);
 
     if (average_density (mat) > target_density)
       {
