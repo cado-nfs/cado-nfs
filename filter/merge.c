@@ -42,97 +42,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "memusage.h"   // PeakMemusage
 #include "misc.h"       // UMAX
 #include "mst.h"
-#include "omp_proxy.h"    // verbose_interpret_parameters
+#include "omp_proxy.h"
 #include "params.h"     // param_list_parse_*
 #include "purgedfile.h"     // for purgedfile_read_firstline
 #include "sparse.h"
 #include "timing.h"  // seconds
 #include "typedefs.h"  // weight_t
 #include "verbose.h"    // verbose_interpret_parameters
-
-
-int pass = 0;
-
-/* a lot of verbosity */
-// #define BIG_BROTHER
-
-/* some more verbosity which requires additional operations */
-// #define BIG_BROTHER_EXPENSIVE
-
-#ifdef BIG_BROTHER
-    unsigned char *touched_columns = NULL;
-#endif
-
-/* define CANCEL to count column cancellations */
-// #define CANCEL
-#ifdef CANCEL
-#define CANCEL_MAX 2048
-unsigned long cancel_rows = 0;
-unsigned long cancel_cols[CANCEL_MAX] = {0,};
-#endif
-
-/* define DEBUG if printRow or copy_matrix is needed */
-// #define DEBUG
-
-/* CBOUND_INCR is the increment on the maximal cost of merges at each step.
-   Setting it to 1 is optimal in terms of matrix size, but will take a very
-   long time (typically 10 times more than with CBOUND_INCR=10).
-   The following values were determined experimentally. */
-#ifndef FOR_DL
-#define CBOUND_INCR 13
-#else
-#define CBOUND_INCR 31
-#endif
-
-
-/* Note about variables used in the code:
- * cwmax is the (current) maximal weight of columns that will be considered
-   for a merge. It starts at cwmax=2. Once we have performed *all* 2-merges,
-   we increase cwmax to 3, and at each step of the algorithm, we increase it
-   by 1 (not waiting for all 3-merges to be completed).
- * cbound is the maximum (current) fill-in that is allowed for a merge
-   (in fact, it is a biased value to avoid negative values, one should subtract
-    BIAS from cbound to get the actual value). It starts at 0, and once all
-    the 2-merges have been performed (which all give a negative fill-in, thus
-    they will all be allowed), we increase cbound by CBOUND_INCR at each step
-    of the algorithm (where CBOUND_INCR differs for integer factorization and
-    discrete logarithm).
- * j0 means that we assume that columns of index < j0 cannot have
-   weight <= cwmax. It depends on cwmax (decreases when cwmax increases).
-   At the first call to compute_weights(), the values j0(cwmax=2) up to
-   j0(MERGE_LEVEL_MAX) are computed once for all (since the weight of a
-   column usually does not decrease, the values of j0 should remain correct
-   during the algorithm, but not optimal).
-   In several places we use the fact that the rows are sorted by increasing
-   columns: if we start from the end, we can stop at soon as j < j0.
-*/
-
-#define COMPUTE_W  0 /* compute_weights */
-#define COMPUTE_R  1 /* compute_R */
-#define COMPUTE_M  2 /* compute_merges */
-#define APPLY_M    3 /* apply_merges */
-#define PASS       4 /* pass */
-#define RECOMPRESS 5 /* recompress */
-#define FLUSH      6 /* buffer_flush */
-#define GC         7 /* garbage collection */
-double cpu_t[8] = {0};
-double wct_t[8] = {0};
-
-static int verbose = 0; /* verbosity level */
-
-#define MARGIN 5 /* reallocate dynamic lists with increment 1/MARGIN */
-
-/* define TRACE_J to trace all occurrences of ideal TRACE_J in the matrix */
-// #define TRACE_J 1438672
-
-
-static void
-print_timings (char *s, double cpu, double wct)
-{
-  printf ("%s %.1fs (cpu), %.1fs (wct) [cpu/wct=%.1f]\n",
-	  s, cpu, wct, cpu / wct);
-  fflush (stdout);
-}
+#include "merge_heap.h"
+#include "merge_bookkeeping.h"
 
 #ifdef DEBUG
 static void
@@ -207,337 +125,6 @@ buffer_clear (buffer_struct_t *Buf, int nthreads)
   for (int i = 0; i < nthreads; i++)
     free (Buf[i].buf);
   free (Buf);
-}
-
-/*************************** heap structures *********************************/
-
-/* Allocates and garbage-collects relations (i.e. arrays of typerow_t).
-
-  Threads allocate PAGES of memory of a fixed size to store rows, and each
-  thread has a single ACTIVE page in which it writes new rows. When the active
-  page is FULL, the thread grabs an EMPTY page that becomes its new active page.
-  In each page, there is a pointer [[ptr]] to the begining of the free space. To
-  allocate [[b]] bytes for a new row, it suffices to note the current value of
-  [[ptr]] and then to increase it by [[b]] --- if this would overflow the current
-  page, then it is marked as "full" and a new active page is obtained. Rows are
-  stored along with their number, their size and the list of their coefficients.
-  To delete a row, we just mark it as deleted by setting its number to -1. Thus,
-  row allocation and deallocation are thread-local operations that are very
-  fast. The last allocated row can easily be shrunk (by diminishing [[ptr]]).
-
-  After each pass, memory is garbage-collected. All threads do the following
-  procedure in parallel, while possible: grab a full page that was not created
-  during this pass; copy all non-deleted rows to the current active page; mark the
-  old full page as "empty". Note that moving row $i$ to a different address
-  in memory requires an update to the ``row pointer'' in [[mat]]; this is
-  why rows are stored along with their number. When they need a new page, threads
-  first try to grab an existing empty page. If there is none, a new page is
-  allocated from the OS. There are global doubly-linked lists of full and empty
-  pages, protected by a lock, but these are infrequently accessed.
-*/
-
-#define PAGE_DATA_SIZE ((1<<18) - 4) /* seems to be optimal for RSA-512 */
-
-struct page_t {
-        struct pagelist_t *list;     /* the pagelist_t structure associated with this page */
-        int i;                       /* page number, for debugging purposes */
-        int generation;              /* pass in which this page was filled. */
-        int ptr;                     /* data[ptr:PAGE_DATA_SIZE] is available*/
-        typerow_t data[PAGE_DATA_SIZE];
-};
-
-// linked list of pages (doubly-linked for the full pages, simply-linked for the empty pages)
-struct pagelist_t {
-        struct pagelist_t *next;
-        struct pagelist_t *prev;
-        struct page_t *page;
-};
-
-int n_pages, n_full_pages, n_empty_pages;
-struct pagelist_t headnode;                  // dummy node for the list of full pages
-struct pagelist_t *full_pages, *empty_pages; // head of the page linked lists
-
-struct page_t **active_page; /* active page of each thread */
-long long *heap_waste;       /* space wasted, per-thread. Can be negative! The sum over all threads is correct. */
-
-
-/* provide an empty page */
-static struct page_t *
-heap_get_free_page()
-{
-        struct page_t *page = NULL;
-        #pragma omp critical(pagelist)
-        {
-                // try to grab it from the simply-linked list of empty pages.
-                if (empty_pages != NULL) {
-                        page = empty_pages->page;
-                        empty_pages = empty_pages->next;
-                        n_empty_pages--;
-                } else {
-                        n_pages++;   /* we will malloc() it, update count while still in critical section */
-                }
-        }
-        if (page == NULL) {
-                // we must allocate a new page from the OS.
-                page = malloc(sizeof(struct page_t));
-                struct pagelist_t *item = malloc(sizeof(struct pagelist_t));
-                page->list = item;
-                item->page = page;
-                page->i = n_pages;
-        }
-        page->ptr = 0;
-        page->generation = pass;
-        return page;
-}
-
-/* provide the oldest full page with generation < max_generation, or NULL if none is available,
-   and remove it from the doubly-linked list of full pages */
-static struct page_t *
-heap_get_full_page(int max_generation)
-{
-        struct pagelist_t *item = NULL;
-        struct page_t *page = NULL;
-        #pragma omp critical(pagelist)
-        {
-                item = full_pages->next;
-                if (item->page != NULL && item->page->generation < max_generation) {
-                        page = item->page;
-                        item->next->prev = item->prev;
-                        item->prev->next = item->next;
-                        n_full_pages--;
-                }
-        }
-        return page;
-}
-
-
-/* declare that the given page is empty */
-static  void
-heap_clear_page(struct page_t *page)
-{
-        struct pagelist_t *item = page->list;
-        #pragma omp critical(pagelist)
-        {
-                item->next = empty_pages;
-                empty_pages = item;
-                n_empty_pages++;
-        }
-}
-
-/* declare that the given page is full. Insert to the left of the list of full pages.
-   The list is sorted (following next) by increasing generation. */
-static void
-heap_release_page(struct page_t *page)
-{
-        struct pagelist_t *list = page->list;
-        struct pagelist_t *target;
-        #pragma omp critical(pagelist)
-        {
-                target = full_pages->prev;
-                while (target->page != NULL && page->generation < target->page->generation)
-                        target = target->prev;
-                list->next = target;
-                list->prev = target->prev;
-                list->next->prev = list;
-                list->prev->next = list;
-                n_full_pages++;
-        }
-}
-
-// set up the page linked lists
-static void
-heap_setup()
-{
-        // setup the doubly-linked list of full pages.
-        full_pages = &headnode;
-        full_pages->page = NULL;
-        full_pages->next = full_pages;
-        full_pages->prev = full_pages;
-
-        empty_pages = NULL;
-        int T = omp_get_max_threads();
-        active_page = malloc(T * sizeof(*active_page));
-        heap_waste = malloc(T * sizeof(*heap_waste));
-
-        #pragma omp parallel for
-        for(int t = 0 ; t < T ; t++) {
-            active_page[t] = heap_get_free_page();
-            heap_waste[t] = 0;
-        }
-}
-
-/* release all memory. This is technically not necessary, because the "malloc"
-   allocations are internal to the process, and all space allocated to the
-   process is reclaimed by the OS on termination. However, doing this enables
-   valgrind to check the absence of leaks.
-*/
-static void
-heap_clear ()
-{
-  /* clear active pages */
-  int T = omp_get_max_threads ();
-  for (int t = 0 ; t < T ; t++) {
-    free(active_page[t]->list);
-    free(active_page[t]);
-  }
-
-  /* clear empty pages */
-  while (empty_pages != NULL) {
-    struct pagelist_t *item = empty_pages;
-    empty_pages = item->next;
-    free(item->page);
-    free(item);
-  }
-
-  /* clear full pages. 1. Locate dummy node */
-  while (full_pages->page != NULL)
-    full_pages = full_pages->next;
-
-  // 2. Skip dummy node
-  full_pages = full_pages->next;
-
-  // 3. Walk list until dummy node is met again, free everything.
-  while (full_pages->page != NULL) {
-    struct pagelist_t *item = full_pages;
-    full_pages = full_pages->next;
-    free(item->page);
-    free(item);
-  }
-  free (active_page);
-  free (heap_waste);
-}
-
-
-/* Returns a pointer to allocated space holding a size-s array of typerow_t.
-   This function is thread-safe thanks to the threadprivate directive above. */
-static inline typerow_t *
-heap_malloc (size_t s)
-{
-  ASSERT(s <= PAGE_DATA_SIZE);
-  int t = omp_get_thread_num();
-  struct page_t *page = active_page[t];
-  // ASSERT(page != NULL);
-  /* enough room in active page ?*/
-  if (page->ptr + s >= PAGE_DATA_SIZE) {
-        heap_release_page(page);
-        page = heap_get_free_page();
-        active_page[t] = page;
-  }
-  typerow_t *alloc = page->data + page->ptr;
-  page->ptr += s;
-  return alloc;
-}
-
-/* Allocate space for row i, holding s coefficients in row[1:s+1] (row[0] == s).
-   This writes s in row[0]. The size of the row must not change afterwards. Thread-safe.
-*/
-static inline typerow_t *
-heap_alloc_row (index_t i, size_t s)
-{
-  typerow_t *alloc = heap_malloc(s + 2);
-  rowCell(alloc, 0) = i;
-  rowCell(alloc, 1) = s;
-  return alloc + 1;
-}
-
-/* Shrinks the row. It must be the last one allocated by this thread. Thread-safe. */
-static void
-heap_resize_last_row (typerow_t *row, index_t new_size)
-{
-  int t = omp_get_thread_num();
-  struct page_t *page = active_page[t];
-  index_t old_size = rowCell(row, 0);
-  ASSERT(row + old_size + 1 == page->data + page->ptr);
-  int delta = old_size - new_size;
-  rowCell(row, 0) = new_size;
-  page->ptr -= delta;
-}
-
-
-/* given the pointer provided by heap_alloc_row, mark the row as deleted.
-   Thread-safe */
-static inline void
-heap_destroy_row (typerow_t *row)
-{
-  int t = omp_get_thread_num();
-  rowCell(row, -1) = (index_signed_t) -1;
-  heap_waste[t] += rowCell(row, 0) + 2;
-}
-
-/* Copy non-garbage data to the active page of the current thread, then
-   return the page to the freelist. Thread-safe.
-   Warning: this may fill the current active page and release it. */
-static int
-collect_page(filter_matrix_t *mat, struct page_t *page)
-{
-        int garbage = 0;
-        int bot = 0;
-        int top = page->ptr;
-        typerow_t *data = page->data;
-        while (bot < top) {
-                index_signed_t i = rowCell(data, bot);
-                typerow_t *old = data + bot + 1;
-                index_t size = rowCell(old, 0);
-                if (i == (index_signed_t) -1) {
-                        garbage += size + 2;
-                } else {
-                        ASSERT(mat->rows[i] == old);
-                        typerow_t * new = heap_alloc_row(i, size);
-                        memcpy(new, old, (size + 1) * sizeof(typerow_t));
-                        setCell(new, -1, rowCell(old, -1), 0);
-                        mat->rows[i] = new;
-                }
-                bot += size + 2;
-        }
-        int t = omp_get_thread_num();
-        heap_waste[t] -= garbage;
-        heap_clear_page(page);
-        return garbage;
-}
-
-static double
-heap_waste_ratio()
-{
-        int T = omp_get_max_threads();
-        long long total_waste = 0;
-        for (int t = 0; t < T; t++)
-                total_waste += heap_waste[t];
-        double waste = ((double) total_waste) / (n_pages - n_empty_pages) / PAGE_DATA_SIZE;
-        return waste;
-}
-
-/* examine every full pages not created during the current pass and reclaim all lost space */
-static void
-full_garbage_collection(filter_matrix_t *mat)
-{
-        double cpu8 = seconds (), wct8 = wct_seconds ();
-        double waste = heap_waste_ratio();
-        printf("Starting collection with %.0f%% of waste...", 100 * waste);
-        fflush(stdout);
-
-        // I don't want to collect pages just filled during the collection
-        int max_generation = pass;
-
-        int i = 0;
-        int initial_full_pages = n_full_pages;
-        struct page_t *page;
-        long long collected_garbage = 0;
-        #pragma omp parallel reduction(+:i, collected_garbage) private(page)
-        while ((page = heap_get_full_page(max_generation)) != NULL) {
-                collected_garbage += collect_page(mat, page);
-                i++;
-        }
-
-        double page_ratio = (double) i / initial_full_pages;
-        double recycling = 1 - heap_waste_ratio() / waste;
-        printf("Examined %.0f%% of full pages, recycled %.0f%% of waste. %.0f%% of examined data was garbage\n",
-        	100 * page_ratio, 100 * recycling, 100.0 * collected_garbage / i / PAGE_DATA_SIZE);
-
-        cpu8 = seconds () - cpu8;
-        wct8 = wct_seconds () - wct8;
-        print_timings ("   GC took", cpu8, wct8);
-        cpu_t[GC] += cpu8;
-        wct_t[GC] += wct8;
 }
 
 /*****************************************************************************/
@@ -1794,7 +1381,7 @@ main (int argc, char *argv[])
     declare_usage(pl);
     argv++,argc--;
 
-    param_list_configure_switch (pl, "-v", &verbose);
+    param_list_configure_switch (pl, "-v", &merge_verbose);
     param_list_configure_switch(pl, "force-posix-threads", &filter_rels_force_posix_threads);
 
 #ifdef HAVE_MINGW
@@ -1848,11 +1435,6 @@ main (int argc, char *argv[])
     heap_setup();
     set_antebuffer_path (argv0, path_antebuffer);
 
-    /* Read number of rows and cols on first line of purged file */
-    purgedfile_read_firstline (purgedname, &(mat->nrows), &(mat->ncols));
-
-    sanity_check_matrix_sizes(mat);
-
     history = fopen_maybe_compressed (outname, "w");
     ASSERT_ALWAYS(history != NULL);
 
@@ -1867,12 +1449,13 @@ main (int argc, char *argv[])
     fprintf (history, "means that ideal of index j should be merged.\n");
 #endif
 
+    /* Read number of rows and cols on first line of purged file */
+    purgedfile_read_firstline (purgedname, &(mat->nrows), &(mat->ncols));
+
+    sanity_check_matrix_sizes(mat);
+
     /* initialize the matrix structure */
     initMat (mat, skip);
-
-    /* we bury the 'skip' ideals of smallest index */
-    mat->skip = skip;
-
 
     /* Read all rels and fill-in the mat structure */
     tt = seconds ();
@@ -1917,7 +1500,7 @@ main (int argc, char *argv[])
 #ifdef USE_ARENAS
     printf (", M_ARENA_MAX=%d", arenas);
 #endif
-    printf (", PAGE_DATA_SIZE=%d", PAGE_DATA_SIZE);
+    printf (", PAGE_DATA_SIZE=%d", heap_config_get_PAGE_DATA_SIZE());
 #ifdef HAVE_OPENMP
     /* https://stackoverflow.com/questions/38281448/how-to-check-the-version-of-openmp-on-windows
        201511 is OpenMP 4.5 */
@@ -1967,9 +1550,9 @@ main (int argc, char *argv[])
     /****** begin main loop ******/
     while (1) {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
-	pass++;
+	merge_pass++;
 
-        if (pass == 2 || mat->cwmax > 2)
+        if (merge_pass == 2 || mat->cwmax > 2)
                 full_garbage_collection(mat);
 
 	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
@@ -1995,14 +1578,14 @@ main (int argc, char *argv[])
 	#endif
 
 	#ifdef BIG_BROTHER
-		printf("$$$   - pass: %d\n", pass);
+		printf("$$$   - pass: %d\n", merge_pass);
 		printf("$$$     cwmax: %d\n", mat->cwmax);
 		printf("$$$     cbound: %d\n", cbound);
 	#endif
 
 	/* we only compute the weights at pass 1, afterwards they will be
 	   updated at each merge */
-	if (pass == 1)
+	if (merge_pass == 1)
 		compute_weights (mat, jmin);
 
 	compute_R (mat, jmin[mat->cwmax]);
@@ -2034,8 +1617,8 @@ main (int argc, char *argv[])
 	}
 
 	if (mat->rem_ncols < 0.66 * mat->ncols) {
-	  static int pass = 0;
-	  printf("============== Recompress %d ==============\n", ++pass);
+	  static int recompress_pass = 0;
+	  printf("============== Recompress %d ==============\n", ++recompress_pass);
 	  recompress(mat, jmin);
 	}
 
@@ -2059,7 +1642,7 @@ main (int argc, char *argv[])
 		9.5367431640625e-07 * (mat->rem_nrows + mat->tot_weight) * sizeof(index_t),
 		(double) mat->tot_weight / (double) mat->rem_nrows, av_fill_in,
 		seconds () - cpu0, wct_seconds () - wct0,
-		PeakMemusage () >> 10, pass, mat->cwmax);
+		PeakMemusage () >> 10, merge_pass, mat->cwmax);
 	fflush (stdout);
 
 	if (average_density (mat) >= target_density)
@@ -2069,7 +1652,7 @@ main (int argc, char *argv[])
 		break;
     }
     /****** end main loop ******/
-    pass++;
+    merge_pass++;
 
 #if defined(DEBUG) && defined(FOR_DL)
     min_exp = 0; max_exp = 0;
