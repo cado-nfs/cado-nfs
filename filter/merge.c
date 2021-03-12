@@ -547,13 +547,15 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
                   continue;
               for (index_t l = matLengthRow (mat, i); l >= 1; l--) {
                   index_t j = matCell (mat, i, l);
-                  Wtk[j]++;
+                  if (j < j0) /* assume ideals are sorted by increasing order */
+                      break;
+                  else
+                      Wtk[j]++;
               }
           }
 
           /* Thread k accumulates in Wt[0] the weights for the k-th block of columns,
-             saturating at cwmax + 1:
-             Wt[0][j] = min(cwmax+1, Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j]) */
+             Wt[0][j] = Wt[0][j] + Wt[1][j] + ... + Wt[nthreads-1][j] */
           col_weight_t *Wt0 = Wt[0];
           #pragma omp for schedule(static) /* slightly better than guided */
           for (index_t i = j0; i < mat->ncols; i++) {
@@ -612,7 +614,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
           #pragma omp for schedule(static) nowait
           for (index_t j = j0; j < ncols; j++) {
               col_weight_t w = mat->wt[j];
-              if (0 < w && w <= (uint64_t) cwmax) {
+              if (0 < w && w <= (col_weight_t) cwmax) {
                   Rnz += w;
                   Rn++;
               }
@@ -644,12 +646,10 @@ compute_R (filter_matrix_t *mat, index_t j0)
           #pragma omp for schedule(static) /* static is mandatory here */
           for (index_t j = j0; j < ncols; j++) {
               col_weight_t w = mat->wt[j];
-              if (0 < w && w <= (uint64_t) cwmax) {
+              if (0 < w && w <= (col_weight_t) cwmax) {
                   Rq[j] = Rn;
                   Rqinv[Rn] = j;
                   Rnz += w;
-
-
                   Rp[Rn] = Rnz;
                   Rn++;
               }
@@ -674,7 +674,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
                   index_t j = matCell(mat, i, k);
                   if (j < j0)
                           break;
-                  if (mat->wt[j] > (uint64_t) cwmax)
+                  if (mat->wt[j] > (col_weight_t) cwmax)
                           continue;
                   index_t row = i;
                   index_t col = Rq[j];
@@ -719,7 +719,7 @@ decrease_weight (filter_matrix_t *mat, index_t j)
 {
   /* only decrease the weight if <= MERGE_LEVEL_MAX,
      since we saturate to MERGE_LEVEL_MAX+1 */
-  if (mat->wt[j] <= MERGE_LEVEL_MAX) {
+  // if (mat->wt[j] <= MERGE_LEVEL_MAX) {
     /* update is enough, we do not need capture since we are not interested
        by the value of wt[j] */
     #pragma omp atomic update
@@ -727,7 +727,7 @@ decrease_weight (filter_matrix_t *mat, index_t j)
 #ifdef BIG_BROTHER_EXPENSIVE
     touched_columns[j] = 1;
 #endif
-  }
+  // }
 }
 
 static inline void
@@ -735,13 +735,13 @@ increase_weight (filter_matrix_t *mat, index_t j)
 {
   /* only increase the weight if <= MERGE_LEVEL_MAX,
      since we saturate to MERGE_LEVEL_MAX+1 */
-  if (mat->wt[j] <= MERGE_LEVEL_MAX) {
+  // if (mat->wt[j] <= MERGE_LEVEL_MAX) {
     #pragma omp atomic update
     mat->wt[j]++;
 #ifdef BIG_BROTHER_EXPENSIVE
     touched_columns[j] = 1;
 #endif
-  }
+  // }
 }
 
 /* doit == 0: return the weight of row i1 + row i2
@@ -1256,6 +1256,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
   } /* parallel section */
 
   mat->tot_weight += fill_in;
+
   /* each merge decreases the number of rows and columns by one */
   mat->rem_nrows -= nmerges;
   mat->rem_ncols -= nmerges;
@@ -1294,9 +1295,27 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
 }
 
 static double
-average_density (filter_matrix_t *mat)
+average_density (filter_matrix_t *mat, uint32_t shrink)
 {
-  return (double) mat->tot_weight / (double) mat->rem_nrows;
+    double nrows = mat->rem_nrows;
+    double corrected_density = 0;
+    double base_density = (double) mat->tot_weight / (double) nrows;	/*check difference between the two methods to compute density */
+    uint64_t tot_weight2 = 0;	/* try to recompute */
+
+    // check_invariant(mat);
+
+    for (index_t i = 0; i < mat->ncols; i++) {
+	corrected_density +=
+	    1 - pow(1 - (double) mat->wt[i] / mat->rem_nrows, 1 / (double) shrink);
+        tot_weight2 += mat->wt[i];
+    }
+    corrected_density = corrected_density * (double) shrink;
+
+    printf("corrected_density = %f \n", corrected_density);
+    printf("non corrected density = %f \n", base_density);
+
+    return corrected_density;
+
 }
 
 #ifdef DEBUG
@@ -1565,7 +1584,7 @@ main (int argc, char *argv[])
     printf ("\n");
 
     printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
-	    mat->rem_nrows, mat->tot_weight, average_density (mat),
+	    mat->rem_nrows, mat->tot_weight, average_density (mat, shrink),
 	    seconds () - cpu0, wct_seconds () - wct0,
 	    PeakMemusage () >> 10);
 #ifdef BIG_BROTHER
@@ -1702,7 +1721,7 @@ main (int argc, char *argv[])
 		PeakMemusage () >> 10, merge_pass, mat->cwmax);
 	fflush (stdout);
 
-	if (average_density (mat) >= target_density)
+	if (average_density (mat, shrink) >= target_density)
 		break;
 
 	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX)
@@ -1730,7 +1749,7 @@ main (int argc, char *argv[])
 
     fclose_maybe_compressed (history, outname);
 
-    if (average_density (mat) > target_density)
+    if (average_density (mat, shrink) > target_density)
       {
 	/* estimate N for W/N = target_density, assuming W/N = a*N + b */
 	unsigned long N = mat->rem_nrows;
