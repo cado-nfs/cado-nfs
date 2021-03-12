@@ -14,20 +14,6 @@
 #include "fmt/printf.h"
 #include "fmt/format.h"
 
-// https://stackoverflow.com/questions/1894886/parsing-a-comma-delimited-stdstring
-struct csv_reader: std::ctype<char> {
-    csv_reader(): std::ctype<char>(get_table()) {}
-    static std::ctype_base::mask const* get_table() {
-        static std::vector<std::ctype_base::mask> rc(table_size, std::ctype_base::mask());
-
-        rc[','] = std::ctype_base::space;
-        rc['\n'] = std::ctype_base::space;
-        rc[' '] = std::ctype_base::space;
-        rc[':'] = std::ctype_base::space;
-        return &rc[0];
-    }
-}; 
-
 
 struct global_tracking {
     std::vector < uint64_t > rows_per_thread;
@@ -54,34 +40,70 @@ struct global_tracking {
     }
 };
 
+template<typename T> inline T hacked_strtoul16(char * & p)/*{{{*/
+{
+    /* functionally equivalent to:
+         char * q;
+         T x = strtoul(p, &q, 16);
+         p = q;
+         return x;
+     */
+    static const unsigned char ugly[256] = {
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        0,   1,   2,   3,   4,   5,   6,   7,  
+        8,   9,   255, 255, 255, 255, 255, 255,
+        255, 10,  11,  12,  13,  14,  15,  255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 10,  11,  12,  13,  14,  15,  255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255 
+    };
+    T x = 0;
+    for(int c ; (c = ugly[(int) (unsigned char) *p++]) != 255 ; x = x*16+c) ;
+    p--;
+    return x;
+}
+/*}}}*/
 
-#if 0
-class countbuf : public std::streambuf {
-    std::streambuf & sbuf;
-    std::streamsize size = 0;
-    char ch;
-public:
-    countbuf(std::streambuf & sbuf): sbuf(sbuf) {}
-protected:
-    virtual int underflow()
-    {
-        size++;
-        ch = sbuf.sbumpc();
-        setg(&ch, &ch, &ch+1);
-        return ch;
+#ifdef FOR_DL
+template<>
+struct std::less<ideal_merge_t>
+{
+    inline bool operator() (ideal_merge_t const &a, ideal_merge_t const &b) const {
+        return a.id < b.id;
     }
-public:
-    std::streamsize count() { return this->size; }
 };
 #endif
-
 
 struct local_row_reader {
     global_tracking & G;
     size_t local_next_report = 256;
     size_t local_nrows_at_last_report = 0;
     size_t local_bytes_at_last_report = 0;
-    size_t local_coeffs = 0;
     std::vector < typerow_t * > local_rows;
     filter_matrix_t * mat;
     int i;
@@ -92,141 +114,38 @@ struct local_row_reader {
 
         std::string s;
 
-        // countbuf cc(*fi.rdbuf());
-        // std::istream fi2(&cc);
-
         off_t start = fi.tellg();
 
         for (off_t pos ; ((pos = fi.tellg()) - start)  < bytes_to_read ; ) {
             std::vector < typerow_t > primes;
             /* Insert a temporary marker. We'll use it for storing the
              * size, eventually */
-#ifdef FOR_DL
-            ideal_merge_t zz { 0, 0 };
-            primes.insert(primes.begin(), zz);
-#else
-            primes.emplace(primes.begin(), 0);
-#endif
+            typerow_t zz;
+            setCell(&zz, 0, 0, 0);
+            primes.push_back(zz);
             s.clear();
             {
                 /* this is going to be a bit ugly, I know */
                 std::getline(fi, s);
-                // pos += s.size();
                 if (s[0] == '#') continue;
 
-                /* At this point, there are several ways to parse the
-                 * string s and make a relation out of it.
-                 * The whole point of reading in parallel is that we're
-                 * going to have several threads that keep the I/O layer
-                 * happy, so that what happens CPU-bound shouldn't be
-                 * *that* important.
-                 *
-                 * However, we do care about lock contention. And
-                 * apparently, there are several bad ideas that one can
-                 * come up with, which eventually destroy performance.
-                 */
-#if 0
-                /* The #1 outrageously bad idea is this one. */
-                std::istringstream ss(s);
-#if 0
-                /* This is just catastrophic in terms of performance, for
-                 * reasons that I don't understand completely.
-                 */
-                ss.imbue(std::locale(std::locale(), new csv_reader()));
-                ss >> std::hex;
-                {
-                    std::string a,b;
-                    ss >> a >> b;
-                }
-                for( ; ss.good() ; ) {
-                    index_t x;
-                    ss >> x;
-#if 0
-#ifdef FOR_DL
-                    ideal_merge_t xx { x, 1};
-                    primes.push_back(xx);
-#else
-                    primes.emplace_back(x);
-#endif
-#endif
-                }
-#endif
-#else
+                /* see "BAD IDEAS FOR PARSING LOOP" below for things that
+                 * I tried and didn't play out well.  */
                 char * p = &s[0];
                 char * z = p + s.size();
                 for( ; *p && *p != ':' ; p++);
                 for( ; p++ != z ; ) {
-#if 0
-                    char * q;
-                    index_t x MAYBE_UNUSED = strtoul(p, &q, 16);
-#else
-                    static const unsigned char ugly[256] = {
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        0,   1,   2,   3,   4,   5,   6,   7,  
-                        8,   9,   255, 255, 255, 255, 255, 255,
-                        255, 10,  11,  12,  13,  14,  15,  255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 10,  11,  12,  13,  14,  15,  255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255,
-                        255, 255, 255, 255, 255, 255, 255, 255 
-                    };
-                    // index_t x MAYBE_UNUSED = strtoul(p, &q, 16);
-                    index_t x = 0;
-                    for(int c ; (c = ugly[(int) (unsigned char) *p++]) != 255 ; x = x*16+c) ;
-                    p--;
-#endif
+                    index_t x = hacked_strtoul16<index_t>(p);
                     if (x < mat->skip)
                         continue;
-#if 1
-#ifdef FOR_DL
-                    ideal_merge_t xx { x, 1};
+                    typerow_t xx;
+                    setCell(&xx, 0, x, 1);
                     primes.push_back(xx);
-#else
-                    primes.emplace_back(x);
-#endif
-#endif
                 }
-#endif
             }
-#if 1
-            /* sqrt has a weirdo check in here. Not sure we want this 
-               if ((rc != 2 && feof(fi)) || pos >= spos_tab[i+1])
-               break;
-               */
-#ifdef FOR_DL
-            struct cmp {
-                bool operator() (typerow_t const &a, typerow_t const &b) const {
-                    return a.id < b.id;
-                }
-            };
-            std::sort(primes.begin() + 1, primes.end(), cmp());
-#else
-            std::sort(primes.begin() + 1, primes.end());
-#endif
+
+            std::sort(primes.begin() + 1, primes.end(), std::less<typerow_t>());
+
             auto jt = primes.begin() + 1;
             for (auto it = primes.begin() + 1; it != primes.end();) {
                 *jt = *it;
@@ -244,23 +163,15 @@ struct local_row_reader {
             }
             primes.erase(jt, primes.end());
 
-            /* Pay attention to the special marker ! */
+            /* Pay attention to the special marker ! and update it, too. */
             unsigned int z = primes.size() - 1;
-            local_coeffs += z;
-
-#ifdef FOR_DL
-            primes[0].id = z;
-#else
-            primes[0] = z;
-#endif
+            setCell(primes, 0, z, 0);
 
             /* 0 here must eventually become the row index, but we can't
-             * write it right now.
-             */
+             * write it right now. We'll do so later on.  */
             typerow_t *newrow = heap_alloc_row(0, z);
             compressRow(newrow, &primes[0], z);
             local_rows.push_back(newrow);
-#endif
 
             /* At this point we should consider reporting. */
             size_t local_bytes = pos - start;
@@ -325,26 +236,17 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
         for (; i > 0 && fi.get() != '\n';);
         G.spos_tab[i] = fi.tellg();
 
-
 #pragma omp barrier
-        /* right, these are ugly pointers. well, this is how the
-         * structures in merge.c work, and we have to live with it.
-         * Anyway all the memory is owned by merge_heap.c
-         */
+
         off_t bytes_to_read = G.spos_tab[i + 1] - G.spos_tab[i];
         local_row_reader L(G, mat);
         L.read(fi, bytes_to_read, G);
-#pragma omp barrier
-#pragma omp single
-        {
-            fmt::fprintf(stderr, "# All local buffers are ready\n");
-        }
 
-        /* now we want to collect the number of rows for
-         * everyone, renumber all relations, and store them in order in
-         * mat->rows.
-         */
 #pragma omp barrier
+
+        /* now we want to collect the number of rows for everyone,
+         * renumber all relations, and store them in order in mat->rows.
+         */
         uint64_t index = 0;
         for(int j = 0 ; j < i ; j++)
             index += G.rows_per_thread[j];
@@ -358,3 +260,106 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
 
     return G.nrows;
 }
+
+
+/* BAD IDEAS FOR PARSING LOOP */
+
+/* In the critical parsing loop, there are several ways to parse the
+ * string s and make a relation out of it.  The whole point of reading in
+ * parallel is that we're going to have several threads that keep the I/O
+ * layer happy, so that what happens CPU-bound shouldn't be *that*
+ * important.
+ *
+ * However, we do care about lock contention. And apparently, there are
+ * several bad ideas that one can come up with, which eventually destroy
+ * performance.
+ */
+
+#if 0
+    /* The #1 outrageously bad idea is this one.  Doing _just_ this
+     * initialization of an istringstream, and nothing else, divides the
+     * 16-thread reading performance by about 10 (from ~ 900MB/s to
+     * 90MB/s from beegfs, with really nothing beyond progress printing
+     * down the line.
+     * */
+    std::istringstream ss(s);
+    /* This is another terrible idea, with catastrophic impact on
+     * performance. On the same metric as above, we drop from 90MB/s to
+     * 20MB/s.
+     */
+    ss.imbue(std::locale(std::locale(), new csv_reader()));
+#if 0   /* corresponding companion structure */
+        // https://stackoverflow.com/questions/1894886/parsing-a-comma-delimited-stdstring
+        struct csv_reader: std::ctype<char> {
+            csv_reader(): std::ctype<char>(get_table()) {}
+            static std::ctype_base::mask const* get_table() {
+                static std::vector<std::ctype_base::mask> rc(table_size, std::ctype_base::mask());
+
+                rc[','] = std::ctype_base::space;
+                rc['\n'] = std::ctype_base::space;
+                rc[' '] = std::ctype_base::space;
+                rc[':'] = std::ctype_base::space;
+                return &rc[0];
+            }
+        }; 
+#endif
+
+    /* This first step of parsing over a,b doesn't degrade performance
+     * too much.  */
+    ss >> std::hex;
+    {
+        std::string a,b;
+        ss >> a >> b;
+    }
+    /* this for loop, however, seems to tax the CPU somewhat (so yet
+     * another small degradation, but we've already reached a pretty
+     * degraded situation at this point).  I also see many futex calls, I
+     * suspect that some libstc++ locking is at stake here. Maybe it's a
+     * stupid thing with reference counting of a locale that goes with a
+     * shared ptr, or something like this.
+     */
+    for( ; ss.good() ; ) {
+        index_t x;
+        ss >> x;
+        typerow_t xx;
+        setCell(&xx, 0, x, 1);
+        primes.push_back(xx);
+    }
+#endif
+
+#if 0
+    /* it is also worth noting that hacked_strtoul16 is moderately, but
+     * still measurably slower than its strtoul-based equivalent
+     */
+#endif
+
+#if 0
+/* We also see many lseek(fd, 0, SEEK_CUR) in strace that correspond to
+ * our tellg() calls. We tried to kill them as follows, but it isn't
+ * great, and raises double buffering questions that I don't really want
+ * to go into.
+ */
+class countbuf : public std::streambuf {
+    std::streambuf & sbuf;
+    std::streamsize size = 0;
+    char ch;
+public:
+    countbuf(std::streambuf & sbuf): sbuf(sbuf) {}
+protected:
+    virtual int underflow()
+    {
+        size++;
+        ch = sbuf.sbumpc();
+        setg(&ch, &ch, &ch+1);
+        return ch;
+    }
+public:
+    std::streamsize count() { return this->size; }
+};
+// this would be used as follows, the ifstream fi being replaced by fi2
+// as follows.
+        // countbuf cc(*fi.rdbuf());
+        // std::istream fi2(&cc);
+
+#endif
+
