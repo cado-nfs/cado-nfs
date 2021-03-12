@@ -474,6 +474,13 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
 {
   double cpu = seconds (), wct = wct_seconds ();
 
+  /* This function used to work with jmin already initialized, and maybe
+   * still does. The thing is that it hasn't been used this way for a
+   * while, and the call path with jmin[0] != 0 is not tested at all. If
+   * needed, remove this assert, but be cautious !
+   */
+  ASSERT_ALWAYS(jmin[0] == 0);
+
   index_t j0;
   if (jmin[0] == 0) /* jmin was not initialized */
     {
@@ -484,9 +491,10 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
        an ideal cannot decrease (except when decreasing to zero when merged) */
     j0 = jmin[mat->cwmax];
 
+  uint64_t empty_cols = 0;
   {
       col_weight_t *Wt[omp_get_max_threads()];
-#pragma omp parallel
+#pragma omp parallel reduction(+: empty_cols)
       {
           int T = omp_get_num_threads();
           int tid = omp_get_thread_num();
@@ -529,12 +537,15 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
                   val += Wt[t][i];
                   
               Wt0[i] = val;
+              empty_cols += val == 0;
           }
 
           if (tid > 0)     /* start from 1 since Wt[0] = mat->wt + j0 should be kept */
               free (Wt[tid]);
       }
   }
+
+  mat->rem_ncols = mat->ncols - empty_cols;
 
   if (jmin[0] == 0) /* jmin was not initialized */
     compute_jmin (mat, jmin);
@@ -1511,6 +1522,8 @@ main (int argc, char *argv[])
        initialized. */
     index_t jmin[MERGE_LEVEL_MAX + 1] = {0,};
 
+    compute_weights (mat, jmin);
+
     recompress (mat, jmin);
 
     // output_matrix (mat, "out.sage");
@@ -1615,11 +1628,6 @@ main (int argc, char *argv[])
 		printf("$$$     cwmax: %d\n", mat->cwmax);
 		printf("$$$     cbound: %d\n", cbound);
 	#endif
-
-	/* we only compute the weights at pass 1, afterwards they will be
-	   updated at each merge */
-	if (merge_pass == 1)
-		compute_weights (mat, jmin);
 
 	compute_R (mat, jmin[mat->cwmax]);
 
