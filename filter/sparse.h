@@ -7,18 +7,18 @@
 #include "merge_replay_matrix.h"        // typerow_t
 
 #ifdef FOR_DL
-#define rowCell(row, k) row[k].id
-#define rowFullCell(row, k) row[k]
-#define setRawCell(row, k, v, c) row[k] = (ideal_merge_t) {.id = v, .e = c}
-#define setCell(row, k, v, c) row[k] = (ideal_merge_t) {.id = v, .e = c}
+#define rowCell(row, k) (row)[k].id
+#define rowFullCell(row, k) (row)[k]
+#define setRawCell(row, k, v, c) (row)[k] = (ideal_merge_t) {.id = (v), .e = (c)}
+#define setCell(row, k, v, c) (row)[k] = (ideal_merge_t) {.id = (v), .e = (c)}
 #define compressRow(row, buf, n) memcpy(row,buf,(n+1)*sizeof (typerow_t))
 #else
-#define setRawCell(row, k, v, c) row[k] = v
-#define rowFullCell(row, k) rowCell(row, k)
+#define setRawCell(row, k, v, c) (row)[k] = (v)
+#define rowFullCell(row, k) rowCell((row), (k))
 #if SIZEOF_INDEX == 4 || SIZEOF_INDEX == 8
-#define rowCell(row, k) row[k]
-#define setCell(row, k, v, c) row[k] = v
-#define compressRow(row, buf, n) memcpy(row,buf,(n+1)*sizeof (typerow_t))
+#define rowCell(row, k) (row)[k]
+#define setCell(row, k, v, c) (row)[k] = (v)
+#define compressRow(row, buf, n) memcpy((row),buf,((n)+1)*sizeof (typerow_t))
 #else /* experimental code for 5 <= SIZEOF_INDEX <= 7, for factorization */
 #ifdef __cplusplus
 extern "C" {
