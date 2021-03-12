@@ -51,6 +51,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "verbose.h"    // verbose_interpret_parameters
 #include "merge_heap.h"
 #include "merge_bookkeeping.h"
+#include "read_purgedfile_in_parallel.h"
 
 #ifdef DEBUG
 static void
@@ -151,7 +152,19 @@ usage (param_list pl, char *argv0)
     exit(EXIT_FAILURE);
 }
 
-
+/* check that mat->tot_weight and mat->wt say the same thing.
+ */
+static inline void check_invariant(filter_matrix_t *mat)
+{
+    uint64_t tot_weight2 = 0;
+    for (index_t i = 0; i < mat->ncols; i++) {
+        ASSERT_ALWAYS(mat->wt[i] <= mat->rem_nrows);
+        tot_weight2 += mat->wt[i];
+    }
+    printf("invariant %s: tw = %" PRIu64 " tw2=%" PRIu64 "\n",
+            mat->tot_weight == tot_weight2 ? "ok" : "NOK",
+            mat->tot_weight, tot_weight2);
+}
 
 #ifndef FOR_DL
 /* sort row[0], row[1], ..., row[n-1] in non-decreasing order */
@@ -185,8 +198,9 @@ insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
   for (unsigned int i = 0; i < rel->nb; i++)
   {
     index_t h = rel->primes[i].h;
-    mat->rem_ncols += (mat->wt[h] == 0);
-    mat->wt[h] += (mat->wt[h] != UMAX(col_weight_t));
+    /* we no longer touch mat->wt, mat->rem_ncols, and mat->tot_weight
+     * from here ; see compute_weights
+     */
     if (h < mat->skip)
 	continue; /* we skip (bury) the first 'skip' indices */
 #ifdef FOR_DL
@@ -206,9 +220,6 @@ insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
   buf[0] = j;
 #endif
 
-  /* only count the non-skipped coefficients */
-  mat->tot_weight += j;
-
   /* sort indices to ease row merges */
 #ifndef FOR_DL
   sort_relation (&(buf[1]), j);
@@ -222,15 +233,32 @@ insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
   return NULL;
 }
 
+
 static void
 filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
 {
   uint64_t nread;
   char *fic[2] = {(char *) purgedname, NULL};
 
-  /* read all rels */
-  nread = filter_rels (fic, (filter_rels_callback_t) &insert_rel_into_table,
-		       mat, EARLYPARSE_NEED_INDEX_SORTED, NULL, NULL);
+  /* first check if purgedname is seekable. if yes, we can do multithread
+   * I/O */
+  int can_go_parallel;
+  {
+      FILE * f = fopen_maybe_compressed(purgedname, "r");
+      ASSERT_ALWAYS(f != NULL);
+      can_go_parallel = fseek(f, 0, SEEK_END) == 0;
+      fclose_maybe_compressed (f, purgedname);
+  }
+
+  if (!can_go_parallel) {
+      fprintf(stderr, "# cannot seek in %s, using single-thread I/O\n", purgedname);
+      /* read all rels */
+      nread = filter_rels (fic, (filter_rels_callback_t) &insert_rel_into_table,
+              mat, EARLYPARSE_NEED_INDEX_SORTED, NULL, NULL);
+  } else {
+      nread = read_purgedfile_in_parallel(mat, purgedname);
+  }
+
   ASSERT_ALWAYS(nread == mat->nrows);
   mat->rem_nrows = nread;
 }
@@ -449,8 +477,22 @@ compute_jmin (filter_matrix_t *mat, index_t *jmin)
       jmin[w] = jmin[w - 1];
 }
 
-/* compute column weights (in fact, saturate to cwmax + 1 since we only need to
-   know whether the weights are <= cwmax or not) */
+/* 
+ * This does a pass on the matrix data (all rows), and collects the
+ * following info
+ *
+ * mat->wt[]
+ * mat->rem_ncols
+ * mat->tot_weight
+ *
+ * In the general case, column weights in mat->wt need only be computed
+ * up to cwmax + 1 since we only need to know whether the weights are <=
+ * cwmax or not).
+ *
+ * However, this is not true for the shrink case, where a full count is
+ * needed in order to accurately compute the density.
+ *
+ */
 static void
 compute_weights (filter_matrix_t *mat, index_t *jmin)
 {
@@ -476,9 +518,10 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
     j0 = jmin[mat->cwmax];
 
   uint64_t empty_cols = 0;
+  uint64_t tot_weight = 0;
   {
       col_weight_t *Wt[omp_get_max_threads()];
-#pragma omp parallel reduction(+: empty_cols)
+#pragma omp parallel reduction(+: empty_cols, tot_weight)
       {
           int T = omp_get_num_threads();
           int tid = omp_get_thread_num();
@@ -527,6 +570,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
                   }
               Wt0[i] = val;
               empty_cols += val == 0;
+              tot_weight += val;
           }
 
           if (tid > 0)     /* start from 1 since Wt[0] = mat->wt + j0 should be kept */
@@ -535,6 +579,7 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   }
 
   mat->rem_ncols = mat->ncols - empty_cols;
+  mat->tot_weight = tot_weight;
 
   if (jmin[0] == 0) /* jmin was not initialized */
     compute_jmin (mat, jmin);
@@ -654,7 +699,7 @@ compute_R (filter_matrix_t *mat, index_t j0)
         for (index_t j = 0; j < ncols; j++)
                 if (mat->wt[j] == 0)
                         n_empty++;
-        printf("$$$       empty-columns: %d\n", n_empty);
+        printf("$$$       empty-columns: %" PRid "\n", n_empty);
   #endif
   printf("$$$       Rn:  %" PRIu64 "\n", (uint64_t) Rn);
   printf("$$$       Rnz: %" PRIu64 "\n", (uint64_t) Rnz);
@@ -1231,14 +1276,14 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
   	index_t n_rows = 0;
   	for (index_t i = 0; i < mat->nrows; i++)
   	  n_rows += busy_rows[i];
-  	printf("$$$       affected-rows: %d\n", n_rows);
+  	printf("$$$       affected-rows: %" PRid "\n", n_rows);
 
   	index_t n_cols = 0;
   	for (index_t j = 0; j < mat->ncols; j++) {
   		n_cols += touched_columns[j];
   		touched_columns[j] = 0;
   	}
-	printf("$$$       affected-columns: %d\n", n_cols);
+	printf("$$$       affected-columns: %" PRid "\n", n_cols);
   #endif
   printf("$$$       timings:\n");
   printf("$$$         total: %f\n", end - wct3);
@@ -1599,9 +1644,15 @@ main (int argc, char *argv[])
 	compute_R (mat, jmin[mat->cwmax]);
 
 	index_t *L = malloc(mat->Rn * sizeof(index_t));
+
+        // check_invariant(mat);
+
 	index_t n_possible_merges = compute_merges(L, mat, cbound);
 
+        // check_invariant(mat);
 	unsigned long nmerges = apply_merges(L, n_possible_merges, mat, Buf);
+
+        // check_invariant(mat);
 
 	buffer_flush (Buf, nthreads, history);
 	free(L);

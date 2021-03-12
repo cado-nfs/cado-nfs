@@ -1,6 +1,7 @@
 #include "cado.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "typedefs.h"
 #include "merge_heap.h"
 #include "merge_bookkeeping.h"
 #include "sparse.h"
