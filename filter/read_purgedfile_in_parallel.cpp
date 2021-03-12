@@ -99,104 +99,103 @@ struct std::less<ideal_merge_t>
 };
 #endif
 
-struct local_row_reader {
-    global_tracking & G;
+std::vector < typerow_t * > read_local_rows(std::istream & fi, off_t bytes_to_read, global_tracking & G, uint64_t skip) {
     size_t local_next_report = 256;
     size_t local_nrows_at_last_report = 0;
     size_t local_bytes_at_last_report = 0;
+
     std::vector < typerow_t * > local_rows;
-    filter_matrix_t * mat;
-    int i;
-    local_row_reader(global_tracking & G, filter_matrix_t * mat) : G(G), mat(mat) {
-        i = omp_get_thread_num();
-    }
-    void read(std::istream & fi, off_t bytes_to_read, global_tracking & G) {
 
-        std::string s;
+    /* reuse local variables ; this avoids frequent roundtrips to the
+     * malloc layer */
 
-        off_t start = fi.tellg();
+    std::string s;
+    std::vector < typerow_t > primes;
 
-        for (off_t pos ; ((pos = fi.tellg()) - start)  < bytes_to_read ; ) {
-            std::vector < typerow_t > primes;
-            /* Insert a temporary marker. We'll use it for storing the
-             * size, eventually */
-            typerow_t zz;
-            setCell(&zz, 0, 0, 0);
-            primes.push_back(zz);
-            s.clear();
-            {
-                /* this is going to be a bit ugly, I know */
-                std::getline(fi, s);
-                if (s[0] == '#') continue;
+    off_t start = fi.tellg();
 
-                /* see "BAD IDEAS FOR PARSING LOOP" below for things that
-                 * I tried and didn't play out well.  */
-                char * p = &s[0];
-                char * z = p + s.size();
-                for( ; *p && *p != ':' ; p++);
-                for( ; p++ != z ; ) {
-                    index_t x = hacked_strtoul16<index_t>(p);
-                    if (x < mat->skip)
-                        continue;
-                    typerow_t xx;
-                    setCell(&xx, 0, x, 1);
-                    primes.push_back(xx);
-                }
-            }
+    for (off_t pos ; ((pos = fi.tellg()) - start)  < bytes_to_read ; ) {
 
-            std::sort(primes.begin() + 1, primes.end(), std::less<typerow_t>());
+        s.clear();
+        primes.clear();
 
-            auto jt = primes.begin() + 1;
-            for (auto it = primes.begin() + 1; it != primes.end();) {
-                *jt = *it;
-                auto kt = it;
-                ++kt;
-#ifdef FOR_DL
-                for (; kt != primes.end() && kt->id == jt->id; ++kt)
-                    jt->e += kt->e;
-                jt++;
-#else
-                for (; kt != primes.end() && *kt == *jt; ++kt);
-                jt += ((kt - it) & 1);
-#endif
-                it = kt;
-            }
-            primes.erase(jt, primes.end());
-
-            /* Pay attention to the special marker ! and update it, too. */
-            unsigned int z = primes.size() - 1;
-            setCell(primes, 0, z, 0);
-
-            /* 0 here must eventually become the row index, but we can't
-             * write it right now. We'll do so later on.  */
-            typerow_t *newrow = heap_alloc_row(0, z);
-            compressRow(newrow, &primes[0], z);
-            local_rows.push_back(newrow);
-
-            /* At this point we should consider reporting. */
-            size_t local_bytes = pos - start;
-            if (local_rows.size() >= local_next_report) {
-#pragma omp critical
-                {
-                    G.nrows += local_rows.size() - local_nrows_at_last_report;
-                    G.bytes += local_bytes - local_bytes_at_last_report;
-                    local_nrows_at_last_report = local_rows.size();
-                    local_bytes_at_last_report = local_bytes;
-                    if (G.nrows >= G.next_report)
-                        G.print_report();
-                    local_next_report += G.next_report / 2 / G.nthreads();
-                }
-            }
-        }
-#pragma omp critical
+        /* Insert a temporary marker. We'll use it for storing the
+         * size, eventually */
+        typerow_t zz;
+        setCell(&zz, 0, 0, 0);
+        primes.push_back(zz);
         {
-            G.nrows += local_rows.size() - local_nrows_at_last_report;
-            size_t local_bytes = fi.tellg() - start;
-            G.bytes += local_bytes - local_bytes_at_last_report;
-            G.rows_per_thread[i] = local_rows.size();
+            /* this is going to be a bit ugly, I know */
+            std::getline(fi, s);
+            if (s[0] == '#') continue;
+
+            /* see "BAD IDEAS FOR PARSING LOOP" below for things that
+             * I tried and didn't play out well.  */
+            char * p = &s[0];
+            char * z = p + s.size();
+            for( ; *p && *p != ':' ; p++);
+            for( ; p++ != z ; ) {
+                index_t x = hacked_strtoul16<index_t>(p);
+                if (x < skip)
+                    continue;
+                typerow_t xx;
+                setCell(&xx, 0, x, 1);
+                primes.push_back(xx);
+            }
+        }
+
+        std::sort(primes.begin() + 1, primes.end(), std::less<typerow_t>());
+
+        auto jt = primes.begin() + 1;
+        for (auto it = primes.begin() + 1; it != primes.end();) {
+            *jt = *it;
+            auto kt = it;
+            ++kt;
+#ifdef FOR_DL
+            for (; kt != primes.end() && kt->id == jt->id; ++kt)
+                jt->e += kt->e;
+            jt++;
+#else
+            for (; kt != primes.end() && *kt == *jt; ++kt);
+            jt += ((kt - it) & 1);
+#endif
+            it = kt;
+        }
+        primes.erase(jt, primes.end());
+
+        /* Pay attention to the special marker ! and update it, too. */
+        unsigned int z = primes.size() - 1;
+        setCell(primes, 0, z, 0);
+
+        /* 0 here must eventually become the row index, but we can't
+         * write it right now. We'll do so later on.  */
+        typerow_t *newrow = heap_alloc_row(0, z);
+        compressRow(newrow, &primes[0], z);
+        local_rows.push_back(newrow);
+
+        /* At this point we should consider reporting. */
+        size_t local_bytes = pos - start;
+        if (local_rows.size() >= local_next_report) {
+#pragma omp critical
+            {
+                G.nrows += local_rows.size() - local_nrows_at_last_report;
+                G.bytes += local_bytes - local_bytes_at_last_report;
+                local_nrows_at_last_report = local_rows.size();
+                local_bytes_at_last_report = local_bytes;
+                if (G.nrows >= G.next_report)
+                    G.print_report();
+                local_next_report += G.next_report / 2 / G.nthreads();
+            }
         }
     }
-};
+#pragma omp critical
+    {
+        G.nrows += local_rows.size() - local_nrows_at_last_report;
+        size_t local_bytes = fi.tellg() - start;
+        G.bytes += local_bytes - local_bytes_at_last_report;
+    }
+    return local_rows;
+}
 
 uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
 				     const char *filename)
@@ -239,8 +238,8 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
 #pragma omp barrier
 
         off_t bytes_to_read = G.spos_tab[i + 1] - G.spos_tab[i];
-        local_row_reader L(G, mat);
-        L.read(fi, bytes_to_read, G);
+        auto local_rows = read_local_rows(fi, bytes_to_read, G, mat->skip);
+        G.rows_per_thread[i] = local_rows.size();
 
 #pragma omp barrier
 
@@ -250,7 +249,7 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
         uint64_t index = 0;
         for(int j = 0 ; j < i ; j++)
             index += G.rows_per_thread[j];
-        for (auto & r : L.local_rows) {
+        for (auto & r : local_rows) {
             rowCell((r - 1), 0) = index;
             mat->rows[index] = r;
             index++;
