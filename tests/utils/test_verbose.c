@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 #include <string.h>
 #include <pthread.h>
-#include <unistd.h>
+#include <unistd.h>     // nanosleep is in posix 2001
 #include <stdio.h>
 #include "tests_common.h"
 #include "verbose.h"
@@ -19,7 +19,9 @@ void *print_stuff (void *data)
     verbose_output_print(1, verbose, "%c", text[i]);
     conflict = i;
     fflush(stdout);
-    sleep(1);
+    struct timespec tv = { 0, 5*1000*1000 };
+    struct timespec rem;
+    nanosleep(&tv, &rem);
   }
   verbose_output_end_batch();
   return NULL;
@@ -55,8 +57,8 @@ int main(int argc, const char **argv)
   }
 
   pthread_t threads[2];
-  pthread_create(&threads[0], NULL, print_stuff, "ab\n");
-  pthread_create(&threads[1], NULL, print_stuff, "cd\n");
+  pthread_create(&threads[0], NULL, print_stuff, "the quick brown fox\n");
+  pthread_create(&threads[1], NULL, print_stuff, "jumps over the lazy dog\n");
   pthread_join(threads[0], NULL);
   pthread_join(threads[1], NULL);
 

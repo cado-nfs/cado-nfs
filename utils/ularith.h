@@ -772,38 +772,19 @@ MAYBE_UNUSED
 static inline unsigned long
 ularith_invmod (const unsigned long n)
 {
+  /* T[i] = 1/(2i+1) mod 2^8 */
+  static unsigned char T[128] = {1, 171, 205, 183, 57, 163, 197, 239, 241, 27, 61, 167, 41, 19, 53, 223, 225, 139, 173, 151, 25, 131, 165, 207, 209, 251, 29, 135, 9, 243, 21, 191, 193, 107, 141, 119, 249, 99, 133, 175, 177, 219, 253, 103, 233, 211, 245, 159, 161, 75, 109, 87, 217, 67, 101, 143, 145, 187, 221, 71, 201, 179, 213, 127, 129, 43, 77, 55, 185, 35, 69, 111, 113, 155, 189, 39, 169, 147, 181, 95, 97, 11, 45, 23, 153, 3, 37, 79, 81, 123, 157, 7, 137, 115, 149, 63, 65, 235, 13, 247, 121, 227, 5, 47, 49, 91, 125, 231, 105, 83, 117, 31, 33, 203, 237, 215, 89, 195, 229, 15, 17, 59, 93, 199, 73, 51, 85, 255};
   unsigned long r;
 
   ASSERT (n % 2UL != 0UL);
   
-  /* Suggestion from PLM: initing the inverse to (3*n) XOR 2 gives the
-     correct inverse modulo 32, then 3 (for 32 bit) or 4 (for 64 bit) 
-     Newton iterations are enough. */
-  r = (3UL * n) ^ 2UL;
-  /* Newton iteration */
-  r = 2UL * r - (unsigned int) r * (unsigned int) r * (unsigned int) n;
-  r = 2UL * r - (unsigned int) r * (unsigned int) r * (unsigned int) n;
-#if LONG_BIT == 32
+  r = T[(n & 255)>>1];
+  /* Perform 2 Newton iterations for LONG_BIT=32, 3 for LONG_BIT=64 */
   r = 2UL * r - r * r * n;
-#else /* LONG_BIT == 32 */
-  r = 2UL * r - (unsigned int) r * (unsigned int) r * (unsigned int) n;
-#if 0
   r = 2UL * r - r * r * n;
-#else
-  /*
-    r*n = k*2^32 + 1
-        
-    r' = 2 * r - r * r * n
-    r' = 2 * r - r * (k*2^32 + 1)
-    r' = 2 * r - r * k*2^32 - r
-    r' = r - r * k*2^32
-    r' = r - ((r * k) % 2^32) * 2^32
-  */
-  unsigned int k = (unsigned int)(r * n >> 32);
-  k *= (unsigned int) r;
-  r = r - ((unsigned long)k << 32);
+#if LONG_BIT == 64
+  r = 2UL * r - r * r * n;
 #endif
-#endif /* LONG_BIT == 32 */
 
   return r;
 }

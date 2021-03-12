@@ -2,7 +2,8 @@
 
 use warnings;
 use strict;
-use Data::Dumper;
+# do not include Data::Dumper except for debugging.
+# use Data::Dumper;
 
 # Converts one bwc file as given on stdin to magma-parseable text on
 # stdout

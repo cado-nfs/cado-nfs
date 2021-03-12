@@ -23,8 +23,10 @@ cado_divert_test(estimate_matsize
     ${CMAKE_CURRENT_SOURCE_DIR}/p30.poly
     )
 
+if(DEFINED ENV{CHECKS_EXPENSIVE})
 cado_divert_test(estimate_matsize
     p80_compsq
     -params ${CMAKE_CURRENT_SOURCE_DIR}/p80_compsq.ems.params
     ${CMAKE_CURRENT_SOURCE_DIR}/p80.poly
     )
+endif()

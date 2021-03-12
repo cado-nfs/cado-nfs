@@ -125,11 +125,22 @@ verify
 
 # intentionally destroy part of the checkpoints
 # osx does not have -r option to xargs.
-ls -l "$cpdir"/pi*aux
-find "$cpdir" -name 'pi.0.*' | xargs rm -f || :
-nfiles=$(ls -rt "$cpdir"/pi*aux | wc -l)
-ls -t "$cpdir"/pi*aux | head -n $((2*nfiles/3)) | xargs rm -vf || :
-ls -l "$cpdir"/pi*aux
+
+auxfiles=(`find "$cpdir" -name 'pi*aux'`)
+if [ "${#auxfiles[@]}" -gt 0 ] ; then ls -l "${auxfiles[@]}" ; fi
+
+zfiles=(`find "$cpdir" -name 'pi.0.*'`)
+if [ "${#zfiles[@]}" -gt 0 ] ; then rm -f "${zfiles[@]}" ; fi
+
+auxfiles=(`find "$cpdir" -name 'pi*aux'`)
+nfiles="${#auxfiles[@]}"
+rem=$((2*nfiles/3))
+if [ "$rem" -gt 0 ] ; then
+    ls -t "${auxfiles[@]}" | head -n $rem | xargs rm -vf || :
+fi
+
+auxfiles=(`find "$cpdir" -name 'pi*aux'`)
+if [ "${#auxfiles[@]}" -gt 0 ] ; then ls -l "${auxfiles[@]}" ; fi
 
 # now run again, 
 "`dirname $0`"/test-plingen.sh "$@"

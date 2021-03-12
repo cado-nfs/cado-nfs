@@ -508,13 +508,13 @@ L2_skewness_deg6 (mpz_poly_ptr f MAYBE_UNUSED, double_poly_srcptr ff,
   mpz_mul_si (df->coeff[0], df->coeff[0], -99); /* -99*a0^2 */
 
   df->deg = 6;
-  k = numberOfRealRoots (df->coeff, 6, 0.0, 0, Roots);
+  k = numberOfRealRoots ((const mpz_t *) df->coeff, 6, 0.0, 0, Roots);
   int kpos = 0;
   for (i = 0; i < k; i++)
     if (mpz_sgn (Roots[i].b) > 0)
       {
         kpos ++;
-        s = rootRefine (Roots + i, df->coeff, 6, ldexp (1.0, -prec));
+        s = rootRefine (Roots + i, (const mpz_t *) df->coeff, 6, ldexp (1.0, -prec));
         s = sqrt (s);
         logmu = L2_lognorm_d (ff, s);
         if (logmu < logmu_min)
@@ -1624,7 +1624,7 @@ print_cadopoly (FILE *fp, cado_poly p)
     logmu = L2_lognorm (G, p->skew);
     alpha = get_alpha (G, get_alpha_bound ());
     alpha_proj = get_alpha_projective (G, get_alpha_bound ());
-    nroots = numberOfRealRoots (G->coeff, G->deg, 0, 0, NULL);
+    nroots = numberOfRealRoots ((const mpz_t *) G->coeff, G->deg, 0, 0, NULL);
     fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
                  "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
    }
@@ -1632,7 +1632,7 @@ print_cadopoly (FILE *fp, cado_poly p)
    logmu = L2_lognorm (F, p->skew);
    alpha = get_alpha (F, get_alpha_bound ());
    alpha_proj = get_alpha_projective (F, get_alpha_bound ());
-   nroots = numberOfRealRoots (F->coeff, F->deg, 0, 0, NULL);
+   nroots = numberOfRealRoots ((const mpz_t *) F->coeff, F->deg, 0, 0, NULL);
    fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
                 "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
 
@@ -1731,7 +1731,7 @@ cado_poly_fprintf_with_info (FILE *fp, cado_poly_ptr poly, const char *prefix,
   unsigned int nrroots;
   double lognorm, alpha, alpha_proj, exp_E;
 
-  nrroots = numberOfRealRoots (poly->pols[ALG_SIDE]->coeff, poly->pols[ALG_SIDE]->deg, 0, 0, NULL);
+  nrroots = numberOfRealRoots ((const mpz_t *) poly->pols[ALG_SIDE]->coeff, poly->pols[ALG_SIDE]->deg, 0, 0, NULL);
   if (poly->skew <= 0.0) /* If skew is undefined, compute it. */
     poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
   lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);

@@ -36,7 +36,7 @@ my $csi = {
     success => "\033[01;32m",   # bold green
     starting => "\033[01;33m",  # bold yellow
     skipped => "\033[01;37m",   # bold gray
-    normal => "\033[00m",    # black
+    normal => "\033[00;39m\033[00m",    # black
 };
 
 while (defined($_ = shift @ARGV)) {
@@ -188,6 +188,27 @@ sub sigint {
     exit 1;
 }
 
+
+sub hexdump {
+    my $str = shift @_;
+
+    return "[ZERO-LENGTH STRING]\n" unless length $str;
+
+    # split input up into 16-byte chunks:
+    my @chunks = $str =~ /([\0-\377]{1,16})/g;
+    # format and print:
+    my @print;
+    for (@chunks) {
+        my $hex = unpack "H*", $_;
+        tr/ -~/./c;                   # mask non-print chars
+        $hex =~ s/(..)(?!$)/$1 /g;      # insert spaces in hex
+        # make sure our hex output has the correct length
+        $hex .= ' ' x ( length($hex) < 48 ? 48 - length($hex) : 0 );
+        push @print, "$hex $_\n";
+    }
+    wantarray ? @print : join '', @print;
+}
+
 $SIG{'INT'} = \&sigint;
 
 while (<>) {
@@ -249,7 +270,7 @@ while (<>) {
             $color='failure';
         }
         remove_from_live_slot($n, $color);
-    } elsif (/^\s*\d+% tests/ || /The following/) {
+    } elsif (/\s*\d+% tests/ || /The following/) {
         die "unexpected final text, some tests are still running: @live\n$_" if scalar grep { defined($_) } @live;
         my $tailmsg = $_;
         print_all_outputs;
@@ -267,6 +288,6 @@ while (<>) {
     } elsif (scalar @live == 0) {
         next;
     } else {
-        die "unexpected data from stdin:\n$_";
+        die "unexpected data from stdin:\n$_\n" . hexdump($_);
     }
 }

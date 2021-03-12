@@ -112,7 +112,19 @@ if(HAVE_PERL_DIGEST_MD5)
     # expect_sha1_F=30b90451fb828f08caa160f96c585c4b1c0951a8 m=64 n=64 sequence_length=200 seed=1  -- lingen_mpi_threshold=10)
 endif()
 
+# Now we only ever test p_1, p_3, and pz.
+set(BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS)
 foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
+    string(REGEX MATCH "^(p_1|p_3|pz)$" t "${gfp_layer}")
+    if(t)
+        list(APPEND BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS ${t})
+    else()
+        message(STATUS "Note: tests for ${gfp_layer} are skipped, because we restrict the routine tests")
+    endif()
+endforeach()
+        
+
+foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     set(extra)
     string(REGEX MATCH "p_([0-9]+)" t "${gfp_layer}")
     if(t)
@@ -140,10 +152,13 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
             if(DEFINED ENV{CHECKS_EXPENSIVE} AND MAGMA)
                 set(mextra magma=${MAGMA})
             endif()
-            add_bwc_test(modp_inhomogeneous_minimal_3rhs_mn6 bwc-ptrace.sh prime=1009
-                random_matrix_size=50 nrhs=3 m=6 n=6 seed=1 ${mextra})
-            add_dependencies(test_bwc_modp_inhomogeneous_minimal_3rhs_mn6_dependencies
-                lingen_pz lingen_${gfp_layer})
+            if(DEFINED ENV{CHECKS_EXPENSIVE})
+                # it's quick, but let's avoid redundant tests
+                add_bwc_test(modp_inhomogeneous_minimal_3rhs_mn6 bwc-ptrace.sh prime=1009
+                    random_matrix_size=50 nrhs=3 m=6 n=6 seed=1 ${mextra})
+                add_dependencies(test_bwc_modp_inhomogeneous_minimal_3rhs_mn6_dependencies
+                    lingen_pz lingen_${gfp_layer})
+            endif()
 
             set(modp_inhomogeneous_minimal_2rhs_mn4_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
             add_bwc_test(modp_inhomogeneous_minimal_2rhs_mn4 bwc-ptrace.sh
@@ -158,10 +173,13 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
                     lingen_pz lingen_${gfp_layer})
             endif()
 
-            add_bwc_test(modp_inhomogeneous_minimal_1rhs_mn1 bwc-ptrace.sh
-                prime=1009 random_matrix_size=50 nrhs=1 m=1 n=1 seed=1 ${mextra})
-            add_dependencies(test_bwc_modp_inhomogeneous_minimal_1rhs_mn1_dependencies
-                lingen_pz lingen_${gfp_layer})
+            if(DEFINED ENV{CHECKS_EXPENSIVE})
+                add_bwc_test(modp_inhomogeneous_minimal_1rhs_mn1 bwc-ptrace.sh
+                    prime=1009 random_matrix_size=50 nrhs=1 m=1 n=1 seed=1 ${mextra})
+                add_dependencies(test_bwc_modp_inhomogeneous_minimal_1rhs_mn1_dependencies
+                    lingen_pz lingen_${gfp_layer})
+            endif()
+
             add_bwc_test(modp_homogeneous_minimal_mn4 bwc-ptrace.sh
                 prime=1009 random_matrix_size=50 m=4 n=4 seed=1
                 random_matrix_minkernel=1 ${mextra})
@@ -572,7 +590,7 @@ foreach(arith_layer ${BWC_GF2_ARITHMETIC_BACKENDS})
     endif()
 endforeach()
 
-foreach(arith_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
+foreach(arith_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     set(extra)
     string(REGEX MATCH "p_([0-9]+)" t "${arith_layer}")
     if(t)
