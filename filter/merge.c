@@ -160,8 +160,8 @@ usage (param_list pl, char *argv0)
  * col_weight_t, which should go with more accurate tracking in mat->wt,
  * and eventually the invariant should be always right
  */
-void check_invariant(filter_matrix_t *mat) {
-
+void check_invariant(filter_matrix_t *mat)
+{
     if (sizeof(col_weight_t) == 1)
         return;
 
