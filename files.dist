@@ -1634,7 +1634,7 @@ ci/004-disksize-watchdog.bash
 ci/00-docker-build.sh
 misc/indexed_relations_to_density.cpp
 filter/merge_bookkeeping.h
-filter/read_purgedfile_in_parallel.cpp
+filter/read_purgedfile_in_parallel.c
 filter/read_purgedfile_in_parallel.h
 filter/merge_bookkeeping.c
 filter/merge_heap.c
