@@ -1252,22 +1252,22 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
 static double
 average_density (filter_matrix_t *mat, uint32_t shrink)
 {
-    double nrows = mat->rem_nrows;
-    double corrected_density = 0;
-    double base_density = (double) mat->tot_weight / (double) nrows;	/*check difference between the two methods to compute density */
-    uint64_t tot_weight2 = 0;	/* try to recompute */
+    double base_density = (double) mat->tot_weight / (double) mat->rem_nrows;
+
+    if (shrink == 1)
+        return base_density;
 
     // check_invariant(mat);
 
+    double corrected_density = 0;
     for (index_t i = 0; i < mat->ncols; i++) {
 	corrected_density +=
 	    1 - pow(1 - (double) mat->wt[i] / mat->rem_nrows, 1 / (double) shrink);
-        tot_weight2 += mat->wt[i];
     }
     corrected_density = corrected_density * (double) shrink;
 
-    printf("corrected_density = %f \n", corrected_density);
-    printf("non corrected density = %f \n", base_density);
+    // printf("corrected_density = %f \n", corrected_density);
+    // printf("non corrected density = %f \n", base_density);
 
     return corrected_density;
 
@@ -1538,7 +1538,7 @@ main (int argc, char *argv[])
 #endif
     printf ("\n");
 
-    printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
+    printf ("N=%" PRIu64 " W=%" PRIu64 " d=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat, shrink),
 	    seconds () - cpu0, wct_seconds () - wct0,
 	    PeakMemusage () >> 10);
@@ -1574,8 +1574,10 @@ main (int argc, char *argv[])
 #endif
 
     unsigned long lastN, lastW;
-    double lastWoverN;
+    double lastdensity, density;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
+
+    density = average_density(mat, shrink);
 
     /****** begin main loop ******/
     while (1) {
@@ -1595,7 +1597,7 @@ main (int argc, char *argv[])
 
 	lastN = mat->rem_nrows;
 	lastW = mat->tot_weight;
-	lastWoverN = (double) lastW / (double) lastN;
+	lastdensity = density;
 
 	#ifdef TRACE_J
 	for (index_t i = 0; i < mat->ncols; i++) {
@@ -1663,15 +1665,18 @@ main (int argc, char *argv[])
 	double av_fill_in = ((double) mat->tot_weight - (double) lastW)
 	  / (double) (lastN - mat->rem_nrows);
 
-	printf ("N=%" PRIu64 " W=%" PRIu64 " (%.0fMB) W/N=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [pass=%d,cwmax=%d]\n",
+        density = average_density(mat, shrink);
+        char buf[16];
+	printf ("N=%" PRIu64 " W=%" PRIu64 " (%s) d=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [pass=%d,cwmax=%d]\n",
 		mat->rem_nrows, mat->tot_weight,
-		9.5367431640625e-07 * (mat->rem_nrows + mat->tot_weight) * sizeof(index_t),
-		(double) mat->tot_weight / (double) mat->rem_nrows, av_fill_in,
+                size_disp((mat->rem_nrows + mat->tot_weight) * sizeof(index_t), buf),
+                density,
+                av_fill_in,
 		seconds () - cpu0, wct_seconds () - wct0,
 		PeakMemusage () >> 10, merge_pass, mat->cwmax);
 	fflush (stdout);
 
-	if (average_density (mat, shrink) >= target_density)
+	if (density >= target_density)
 		break;
 
 	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX)
@@ -1699,15 +1704,15 @@ main (int argc, char *argv[])
 
     fclose_maybe_compressed (history, outname);
 
-    if (average_density (mat, shrink) > target_density)
+    if (density > target_density)
       {
-	/* estimate N for W/N = target_density, assuming W/N = a*N + b */
-	unsigned long N = mat->rem_nrows;
-	double WoverN = (double) mat->tot_weight / (double) N;
-	double a = (lastWoverN - WoverN) / (double) (lastN - N);
-	double b = WoverN - a * (double) N;
+        /* estimate N for density = target_density, assuming density(N) =
+         * a*N + b */
+        unsigned long N = mat->rem_nrows;
+	double a = (lastdensity - density) / (double) (lastN - N);
+	double b = density - a * (double) N;
 	/* we want target_density = a*N_target + b */
-	printf ("Estimated N=%" PRIu64 " for W/N=%.2f\n",
+	printf ("Estimated N=%" PRIu64 " for d=%.2f\n",
 		(uint64_t) ((target_density - b) / a), target_density);
       }
 
