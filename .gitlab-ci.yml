@@ -315,22 +315,6 @@ checks on osx system:
     - *checks-script
   <<: *checks-junit-report
  
-checks on freebsd13.0 system with gcc:
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-  <<: *common-template
-  stage: thorough
-  # do not start it prematurely, in case previous jobs failed
-  # needs: []
-  tags:
-    - freebsd-tanker
-  script:
-    - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
-  # https://gitlab.com/gitlab-org/gitlab/-/issues/15603 should be
-  # implemented someday. We would like to have it, to make sure that the
-  # cleanup sequence is called no matter what.
-
 checks on freebsd12.2 system with gcc:
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
