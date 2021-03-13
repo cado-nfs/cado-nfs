@@ -1639,3 +1639,5 @@ filter/merge_bookkeeping.c
 filter/merge_heap.c
 filter/merge_heap.h
 misc/indexed_relations_to_density.cpp
+filter/merge_compute_weights.cpp
+filter/merge_compute_weights.h
