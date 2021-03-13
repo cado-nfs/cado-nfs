@@ -1,52 +1,55 @@
 #include "cado.h"
 #include <stdio.h>
-#include <istream>
-#include <fstream>
-#include <vector>
-#include <iostream>
-#include <sstream>
-#include <locale>
+#include <stdlib.h>
 #include "omp_proxy.h"
 #include "timing.h"
 #include "merge_heap.h"
 #include "sparse.h"
 #include "read_purgedfile_in_parallel.h"
-#include "fmt/printf.h"
-#include "fmt/format.h"
 
+uint64_t * rows_per_thread;
+off_t * spos_tab;
+size_t global_bytes = 0;
+size_t global_next_report = 1024;
+double tt0;
+size_t global_nrows = 0;
+size_t global_nthreads;
 
-struct global_tracking {
-    std::vector < uint64_t > rows_per_thread;
-    std::vector < off_t > spos_tab;
-    size_t bytes = 0;
-    size_t next_report = 1024;
-    double tt0;
-    size_t nrows = 0;
-    size_t nthreads() const { return rows_per_thread.size(); }
-    global_tracking(int nthreads, off_t endpos) : rows_per_thread(nthreads,0) {
-        tt0 = wct_seconds();
-        for (int i = 0; i < nthreads; i++)
-            spos_tab.push_back((endpos * i) / nthreads);
-        spos_tab.push_back(endpos);
-    }
-    void print_report() {
-        double dt = wct_seconds() - tt0;
-        fmt::printf
-            ("# Read %zu relations in %.1fs -- %.1f MB/s -- %.1f rels/s\n",
-             nrows, dt, (bytes >> 20) / dt,
-             nrows / dt);
+void global_init(int nthreads, off_t endpos)
+{
+    global_nthreads = nthreads;
+    rows_per_thread = (uint64_t *) malloc(nthreads * sizeof(uint64_t));
+    tt0 = wct_seconds();
+    spos_tab = (off_t *) malloc((nthreads + 1) * sizeof(off_t));
 
-        next_report *= 2;
-    }
-};
+    for (int i = 0; i < nthreads; i++)
+        spos_tab[i] = (endpos * i) / nthreads;
+    spos_tab[nthreads] = endpos;
+}
 
-template<typename T> inline T hacked_strtoul16(char * & p)/*{{{*/
+void global_clear()
+{
+    free(rows_per_thread);
+    free(spos_tab);
+}
+
+void global_print_report() {
+    double dt = wct_seconds() - tt0;
+    printf
+        ("# Read %zu relations in %.1fs -- %.1f MB/s -- %.1f rels/s\n",
+         global_nrows, dt, (global_bytes >> 20) / dt,
+         global_nrows / dt);
+    fflush(stdout);
+
+    global_next_report *= 2;
+}
+
+static inline char * hacked_strtoul16(index_t * px, char * p)/*{{{*/
 {
     /* functionally equivalent to:
          char * q;
-         T x = strtoul(p, &q, 16);
-         p = q;
-         return x;
+         * px = strtoul(p, &q, 16);
+         return q;
      */
     static const unsigned char ugly[256] = {
         255, 255, 255, 255, 255, 255, 255, 255,
@@ -82,119 +85,188 @@ template<typename T> inline T hacked_strtoul16(char * & p)/*{{{*/
         255, 255, 255, 255, 255, 255, 255, 255,
         255, 255, 255, 255, 255, 255, 255, 255 
     };
-    T x = 0;
+    index_t x = 0;
     for(int c ; (c = ugly[(int) (unsigned char) *p++]) != 255 ; x = x*16+c) ;
     p--;
-    return x;
+    *px = x;
+    return p;
 }
 /*}}}*/
 
-#ifdef FOR_DL
-template<>
-struct std::less<ideal_merge_t>
-{
-    inline bool operator() (ideal_merge_t const &a, ideal_merge_t const &b) const {
-        return a.id < b.id;
-    }
+struct vector_of_typerow_pointer_s {
+    typerow_t ** x;
+    size_t size;
+    size_t alloc;
 };
-#endif
 
-std::vector < typerow_t * > read_local_rows(std::istream & fi, off_t bytes_to_read, global_tracking & G, uint64_t skip) {
+typedef struct vector_of_typerow_pointer_s vector_of_typerow_pointer[1];
+typedef struct vector_of_typerow_pointer_s * vector_of_typerow_pointer_ptr;
+typedef const struct vector_of_typerow_pointer_s * vector_of_typerow_pointer_srcptr;
+
+void vector_of_typerow_pointer_init(vector_of_typerow_pointer_ptr V)
+{
+    V->x = NULL;
+    V->size = V->alloc = 0;
+}
+
+void vector_of_typerow_pointer_clear(vector_of_typerow_pointer_ptr V)
+{
+    free(V->x);
+    V->x = NULL;
+    V->size = V->alloc = 0;
+}
+
+void vector_of_typerow_pointer_push_back(vector_of_typerow_pointer_ptr V, typerow_t * p)
+{
+    if (V->size >= V->alloc) {
+        size_t newalloc = MAX(V->size * 2, 16);
+        V->x = (typerow_t **) realloc(V->x, newalloc * sizeof(typerow_t *));
+        V->alloc = newalloc;
+    }
+    V->x[V->size++] = p;
+}
+
+struct vector_of_typerow_s {
+    typerow_t * x;
+    size_t size;
+    size_t alloc;
+};
+
+typedef struct vector_of_typerow_s vector_of_typerow[1];
+typedef struct vector_of_typerow_s * vector_of_typerow_ptr;
+typedef const struct vector_of_typerow_s * vector_of_typerow_srcptr;
+
+void vector_of_typerow_init(vector_of_typerow_ptr V)
+{
+    V->x = NULL;
+    V->size = V->alloc = 0;
+}
+
+void vector_of_typerow_clear(vector_of_typerow_ptr V)
+{
+    free(V->x);
+    V->x = NULL;
+    V->size = V->alloc = 0;
+}
+
+void vector_of_typerow_empty(vector_of_typerow_ptr V)
+{
+    V->size = 0;
+}
+
+void vector_of_typerow_push_back(vector_of_typerow_ptr V, const typerow_t * p)
+{
+    if (V->size >= V->alloc) {
+        size_t newalloc = MAX(V->size * 2, 16);
+        V->x = (typerow_t *) realloc(V->x, newalloc * sizeof(typerow_t));
+        V->alloc = newalloc;
+    }
+    memcpy(V->x + V->size++, p, sizeof(typerow_t));
+}
+
+void read_local_rows(vector_of_typerow_pointer_ptr V, FILE * fi, off_t bytes_to_read, uint64_t skip)
+{
     size_t local_next_report = 256;
     size_t local_nrows_at_last_report = 0;
     size_t local_bytes_at_last_report = 0;
 
-    std::vector < typerow_t * > local_rows;
-
     /* reuse local variables ; this avoids frequent roundtrips to the
      * malloc layer */
 
-    std::string s;
-    std::vector < typerow_t > primes;
+    char line[4096];
+    vector_of_typerow primes;
+    vector_of_typerow_init(primes);
 
-    off_t start = fi.tellg();
+    long start = ftell(fi);
 
-    for (off_t pos ; ((pos = fi.tellg()) - start)  < bytes_to_read ; ) {
+    for (long pos ; ((pos = ftell(fi)) - start)  < bytes_to_read ; ) {
 
-        s.clear();
-        primes.clear();
+        vector_of_typerow_empty(primes);
+        line[0]='\0';
 
         /* Insert a temporary marker. We'll use it for storing the
          * size, eventually */
         typerow_t zz;
         setCell(&zz, 0, 0, 0);
-        primes.push_back(zz);
+        vector_of_typerow_push_back(primes, & zz);
         {
             /* this is going to be a bit ugly, I know */
-            std::getline(fi, s);
-            if (s[0] == '#') continue;
+            fgets(line, sizeof(line), fi);
+
+            if (line[0] == '#') continue;
 
             /* see "BAD IDEAS FOR PARSING LOOP" below for things that
              * I tried and didn't play out well.  */
-            char * p = &s[0];
-            char * z = p + s.size();
+            char * p = line;
+            char * z = p + strlen(line);
+            /* otherwise 4096 is not enough ! */
+            ASSERT_ALWAYS((size_t) (z - p) < (sizeof(line) - 1));
+            /* we want to point to the EOL delimiter */
+            z--;
+
             for( ; *p && *p != ':' ; p++);
             for( ; p++ != z ; ) {
-                index_t x = hacked_strtoul16<index_t>(p);
+                index_t x;
+                p = hacked_strtoul16(&x, p);
                 if (x < skip)
                     continue;
                 typerow_t xx;
                 setCell(&xx, 0, x, 1);
-                primes.push_back(xx);
+                vector_of_typerow_push_back(primes, &xx);
             }
         }
 
-        std::sort(primes.begin() + 1, primes.end(), std::less<typerow_t>());
+        qsort(primes->x + 1, primes->size - 1, sizeof(typerow_t), cmp_typerow_t);
 
-        auto jt = primes.begin() + 1;
-        for (auto it = primes.begin() + 1; it != primes.end();) {
-            *jt = *it;
-            auto kt = it;
+        unsigned int jt = 1;
+        for (unsigned int it = 1; it != primes->size;) {
+            primes->x[jt] = primes->x[it];
+            unsigned int kt = it;
             ++kt;
 #ifdef FOR_DL
-            for (; kt != primes.end() && kt->id == jt->id; ++kt)
-                jt->e += kt->e;
+            for (; kt != primes->size && primes->x[kt].id == primes->x[jt].id; ++kt)
+                primes->x[jt].e += primes->x[kt].e;
             jt++;
 #else
-            for (; kt != primes.end() && *kt == *jt; ++kt);
+            for (; kt != primes->size && primes->x[kt] == primes->x[jt]; ++kt);
             jt += ((kt - it) & 1);
 #endif
             it = kt;
         }
-        primes.erase(jt, primes.end());
+        primes->size = jt;
 
         /* Pay attention to the special marker ! and update it, too. */
-        unsigned int z = primes.size() - 1;
-        setCell(primes, 0, z, 0);
+        unsigned int z = primes->size - 1;
+        setCell(primes->x, 0, z, 0);
 
         /* 0 here must eventually become the row index, but we can't
          * write it right now. We'll do so later on.  */
         typerow_t *newrow = heap_alloc_row(0, z);
-        compressRow(newrow, &primes[0], z);
-        local_rows.push_back(newrow);
+        compressRow(newrow, &primes->x[0], z);
+        vector_of_typerow_pointer_push_back(V, newrow);
 
         /* At this point we should consider reporting. */
         size_t local_bytes = pos - start;
-        if (local_rows.size() >= local_next_report) {
+        if (V->size >= local_next_report) {
 #pragma omp critical
             {
-                G.nrows += local_rows.size() - local_nrows_at_last_report;
-                G.bytes += local_bytes - local_bytes_at_last_report;
-                local_nrows_at_last_report = local_rows.size();
+                global_nrows += V->size - local_nrows_at_last_report;
+                global_bytes += local_bytes - local_bytes_at_last_report;
+                local_nrows_at_last_report = V->size;
                 local_bytes_at_last_report = local_bytes;
-                if (G.nrows >= G.next_report)
-                    G.print_report();
-                local_next_report += G.next_report / 2 / G.nthreads();
+                if (global_nrows >= global_next_report)
+                    global_print_report();
+                local_next_report += global_next_report / 2 / global_nthreads;
             }
         }
     }
 #pragma omp critical
     {
-        G.nrows += local_rows.size() - local_nrows_at_last_report;
-        size_t local_bytes = fi.tellg() - start;
-        G.bytes += local_bytes - local_bytes_at_last_report;
+        global_nrows += V->size - local_nrows_at_last_report;
+        size_t local_bytes = ftell(fi) - start;
+        global_bytes += local_bytes - local_bytes_at_last_report;
     }
-    return local_rows;
+    vector_of_typerow_clear(primes);
 }
 
 uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
@@ -203,8 +275,10 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
     off_t endpos;
 
     {
-	std::ifstream f(filename);
-	endpos = f.seekg(0, std::ios_base::end).tellg();
+	FILE * f = fopen(filename, "r");
+	fseek(f, 0, SEEK_END);
+        endpos = ftell(f);
+        fclose(f);
     }
 
     /* Find accurate starting positions for everyone */
@@ -214,32 +288,35 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
     if (nthreads > MAX_IO_THREADS)
 	nthreads = MAX_IO_THREADS;
 
-    fmt::fprintf(stderr, "# %s: Doing I/O with %u threads\n", filename,
+    fprintf(stderr, "# %s: Doing I/O with %u threads\n", filename,
 		 nthreads);
 
-    global_tracking G(nthreads, endpos);
+    global_init(nthreads, endpos);
 
     /* All threads get their private reading head. */
 #pragma omp parallel num_threads(nthreads)
     {
         int i = omp_get_thread_num();
-        std::ifstream fi;
-        std::vector<char> buffer(1<<16);
-        fi.rdbuf()->pubsetbuf(&buffer[0], buffer.size());
+        FILE * fi;
+        char buffer[1 << 16];
 
-        fi.open(filename, std::ios_base::in);
+        fi = fopen(filename, "r");
+        setbuffer(fi, buffer, sizeof(buffer));
 
-        fi.seekg(G.spos_tab[i], std::ios_base::beg);
+        fseek(fi, spos_tab[i], SEEK_SET);
+
         /* Except when we're at the beginning of the stream, read until
          * we get a newline */
-        for (; i > 0 && fi.get() != '\n';);
-        G.spos_tab[i] = fi.tellg();
+        for (; i > 0 && fgetc(fi) != '\n';);
+        spos_tab[i] = ftell(fi);
 
 #pragma omp barrier
 
-        off_t bytes_to_read = G.spos_tab[i + 1] - G.spos_tab[i];
-        auto local_rows = read_local_rows(fi, bytes_to_read, G, mat->skip);
-        G.rows_per_thread[i] = local_rows.size();
+        off_t bytes_to_read = spos_tab[i + 1] - spos_tab[i];
+        vector_of_typerow_pointer V;
+        vector_of_typerow_pointer_init(V);
+        read_local_rows(V, fi, bytes_to_read, mat->skip);
+        rows_per_thread[i] = V->size;
 
 #pragma omp barrier
 
@@ -248,16 +325,21 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
          */
         uint64_t index = 0;
         for(int j = 0 ; j < i ; j++)
-            index += G.rows_per_thread[j];
-        for (auto & r : local_rows) {
+            index += rows_per_thread[j];
+        for (size_t s = 0 ; s < V->size ; s++) {
+            typerow_t * r = V->x[s];
             rowCell((r - 1), 0) = index;
             mat->rows[index] = r;
             index++;
         }
-    }
-    G.print_report();
+        vector_of_typerow_pointer_clear(V);
 
-    return G.nrows;
+        fclose(fi);
+    }
+    global_print_report();
+    global_clear();
+
+    return global_nrows;
 }
 
 

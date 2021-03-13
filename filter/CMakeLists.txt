@@ -20,13 +20,13 @@ target_link_libraries(purge utils_with_io)
 
 
 add_executable(merge merge.c merge_heap.c merge_bookkeeping.c
-    read_purgedfile_in_parallel.cpp mst.c merge_replay_matrix.c sparse.c)
+    read_purgedfile_in_parallel.c mst.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge utils_with_io)
 set_target_properties(merge PROPERTIES
   COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 
 add_executable(merge-dl merge.c merge_heap.c merge_bookkeeping.c
-    read_purgedfile_in_parallel.cpp mst.c merge_replay_matrix.c sparse.c)
+    read_purgedfile_in_parallel.c mst.c merge_replay_matrix.c sparse.c)
 target_link_libraries(merge-dl utils_with_io)
 set_target_properties(merge-dl PROPERTIES
   COMPILE_FLAGS "-DFOR_DL ${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")

@@ -154,7 +154,7 @@ usage (param_list pl, char *argv0)
 
 /* check that mat->tot_weight and mat->wt say the same thing.
  */
-static inline void check_invariant(filter_matrix_t *mat)
+void check_invariant(filter_matrix_t *mat)
 {
     uint64_t tot_weight2 = 0;
     for (index_t i = 0; i < mat->ncols; i++) {
