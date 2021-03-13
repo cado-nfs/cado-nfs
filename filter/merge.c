@@ -156,9 +156,18 @@ usage (param_list pl, char *argv0)
 }
 
 /* check that mat->tot_weight and mat->wt say the same thing.
+ *
+ * Note that this check makes sense only if col_weight_t is a wide enough
+ * type.  Either we have col_weight_t very inaccurate, and then the
+ * invariant can't be right, or we choose to use a wider type for
+ * col_weight_t, which should go with more accurate tracking in mat->wt,
+ * and eventually the invariant should be always right
  */
 void check_invariant(filter_matrix_t *mat)
 {
+    if (sizeof(col_weight_t) == 1)
+        return;
+
     uint64_t tot_weight2 = 0;
     for (index_t i = 0; i < mat->ncols; i++) {
         ASSERT_ALWAYS(mat->wt[i] <= mat->rem_nrows);
@@ -167,6 +176,8 @@ void check_invariant(filter_matrix_t *mat)
     printf("invariant %s: tw = %" PRIu64 " tw2=%" PRIu64 "\n",
             mat->tot_weight == tot_weight2 ? "ok" : "NOK",
             mat->tot_weight, tot_weight2);
+    
+    ASSERT_ALWAYS(mat->tot_weight == tot_weight2);
 }
 
 #ifndef FOR_DL
@@ -1608,14 +1619,9 @@ main (int argc, char *argv[])
 
 	index_t *L = malloc(mat->Rn * sizeof(index_t));
 
-        // check_invariant(mat);
-
 	index_t n_possible_merges = compute_merges(L, mat, cbound);
 
-        // check_invariant(mat);
 	unsigned long nmerges = apply_merges(L, n_possible_merges, mat, Buf);
-
-        // check_invariant(mat);
 
 	buffer_flush (Buf, nthreads, history);
 	free(L);
