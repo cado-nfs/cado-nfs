@@ -51,6 +51,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "verbose.h"    // verbose_interpret_parameters
 #include "merge_heap.h"
 #include "merge_bookkeeping.h"
+#include "merge_compute_weights.h"
 #include "read_purgedfile_in_parallel.h"
 
 #ifdef DEBUG
@@ -508,7 +509,7 @@ static void
 compute_weights (filter_matrix_t *mat, index_t *jmin)
 {
   double cpu = seconds (), wct = wct_seconds ();
-  col_weight_t cwmax = mat->cwmax;
+  // col_weight_t cwmax = mat->cwmax;
 
   /* This function used to work with jmin already initialized, and maybe
    * still does. The thing is that it hasn't been used this way for a
@@ -521,63 +522,14 @@ compute_weights (filter_matrix_t *mat, index_t *jmin)
   if (jmin[0] == 0) /* jmin was not initialized */
     {
       j0 = 0;
-      cwmax = MERGE_LEVEL_MAX;
+      // cwmax = MERGE_LEVEL_MAX;
     }
   else
     /* we only need to consider ideals of index >= j0, assuming the weight of
        an ideal cannot decrease (except when decreasing to zero when merged) */
     j0 = jmin[mat->cwmax];
 
-  uint64_t empty_cols = 0;
-  uint64_t tot_weight = 0;
-
-  memset (mat->wt + j0, 0, (mat->ncols - j0) * sizeof (col_weight_t));
-
-#pragma omp parallel reduction(+: empty_cols, tot_weight)
-      {
-
-          /* using a dynamic or guided schedule here is crucial, since during
-             merge, the distribution of row lengths is no longer uniform
-             (including discarded rows) */
-#pragma omp for schedule(guided)
-          for (index_t i = 0; i < mat->nrows; i++) {
-              if (mat->rows[i] == NULL) /* row was discarded */
-                  continue;
-              tot_weight += matLengthRow (mat, i);
-              for (index_t l = matLengthRow (mat, i); l >= 1; l--) {
-                  index_t j = matCell (mat, i, l);
-                  if (j < j0) /* assume ideals are sorted by increasing order */
-                      break;
-                  /* There's no such thing as an atomic saturated
-                   * addition. It seems to be almost possible in openmp
-                   * 5.1, but not quite.
-                   */
-                  col_weight_t c;
-                  /* semantically, we want an atomic read. In truth it's
-                   * almost a no-op on x86 anyway
-                   */
-#pragma omp atomic read
-                  c = mat->wt[j];
-#pragma omp atomic update
-                  mat->wt[j] += c <= cwmax;
-                  /* the solution above has a clear race condition:
-                   * mat->wt[j] can be as large as cwmax + nthreads
-                   * eventually, so we'll have to do some fixup
-                   * afterwards.
-                   */
-              }
-          }
-
-#pragma omp for schedule(static) /* slightly better than guided */
-          for (index_t i = j0; i < mat->ncols; i++) {
-              if (mat->wt[i] > cwmax + 1)
-                  mat->wt[i] = cwmax + 1;
-              empty_cols += mat->wt[i] == 0;
-          }
-      }
-
-  mat->rem_ncols = mat->ncols - empty_cols;
-  mat->tot_weight = tot_weight;
+  compute_weights_backend(mat, j0);
 
   if (jmin[0] == 0) /* jmin was not initialized */
     compute_jmin (mat, jmin);
