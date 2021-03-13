@@ -89,9 +89,11 @@ template<typename T> inline T hacked_strtoul16(char * & p)/*{{{*/
 }
 /*}}}*/
 
+template<typename T>
+struct less : public std::less<T> {};
 #ifdef FOR_DL
 template<>
-struct std::less<ideal_merge_t>
+struct less<ideal_merge_t>
 {
     inline bool operator() (ideal_merge_t const &a, ideal_merge_t const &b) const {
         return a.id < b.id;
@@ -144,7 +146,7 @@ std::vector < typerow_t * > read_local_rows(std::istream & fi, off_t bytes_to_re
             }
         }
 
-        std::sort(primes.begin() + 1, primes.end(), std::less<typerow_t>());
+        std::sort(primes.begin() + 1, primes.end(), less<typerow_t>());
 
         auto jt = primes.begin() + 1;
         for (auto it = primes.begin() + 1; it != primes.end();) {
