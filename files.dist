@@ -1632,12 +1632,12 @@ ci/002-tanker.bash
 ci/003-trap-add.bash
 ci/004-disksize-watchdog.bash
 ci/00-docker-build.sh
-misc/indexed_relations_to_density.cpp
 filter/merge_bookkeeping.h
 filter/read_purgedfile_in_parallel.c
 filter/read_purgedfile_in_parallel.h
 filter/merge_bookkeeping.c
 filter/merge_heap.c
 filter/merge_heap.h
+misc/indexed_relations_to_density.cpp
 filter/merge_compute_weights.cpp
 filter/merge_compute_weights.h

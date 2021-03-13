@@ -169,7 +169,6 @@ void check_invariant(filter_matrix_t *mat)
             mat->tot_weight, tot_weight2);
 }
 
-
 #ifndef FOR_DL
 /* sort row[0], row[1], ..., row[n-1] in non-decreasing order */
 static void
@@ -202,6 +201,9 @@ insert_rel_into_table (void *context_data, earlyparsed_relation_ptr rel)
   for (unsigned int i = 0; i < rel->nb; i++)
   {
     index_t h = rel->primes[i].h;
+    /* we no longer touch mat->wt, mat->rem_ncols, and mat->tot_weight
+     * from here ; see compute_weights
+     */
     if (h < mat->skip)
 	continue; /* we skip (bury) the first 'skip' indices */
 #ifdef FOR_DL
