@@ -1638,5 +1638,5 @@ filter/read_purgedfile_in_parallel.h
 filter/merge_bookkeeping.c
 filter/merge_heap.c
 filter/merge_heap.h
-filter/merge_compute_weights.cpp
+filter/merge_compute_weights.c
 filter/merge_compute_weights.h
