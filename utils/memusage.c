@@ -45,7 +45,8 @@ Memusage (void)
   kern_return_t ret = task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info, &count);
   if (ret != KERN_SUCCESS || count != MACH_TASK_BASIC_INFO_COUNT)
       return -1;
-  return info.virtual_size >> 10;
+  /* seems that virtual_size is often inaccessible */
+  return info.resident_size >> 10;
 #else
   return 0;
 #endif
