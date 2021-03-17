@@ -648,8 +648,10 @@ public:
          *
          * for projective non-powers, we should have (b0,b1)=(1,0),
          * inc_c=1, and bound1=I-1. However we might have something
-         * different for projective powers (which I'm really not sure we
-         * handle at all, to be honest).
+         * different for projective powers. Presently, powers are not
+         * bucket-sieved anyway, so there's little point in bothering.
+         * (see "Shall we enable bucket-sieving for powers" in
+         * las-fill-in-buckets.cpp)
          */
         x = F.maskI;
         ASSERT_ALWAYS(inc_c == 1);

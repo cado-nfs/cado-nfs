@@ -292,6 +292,9 @@ transform_n_roots(unsigned long *p, unsigned long *r, fb_iterator t,
  * }}} */
 template<class FB_ENTRY_TYPE>
 static inline bool discard_power_for_bucket_sieving(FB_ENTRY_TYPE const &) {
+    /* the entry is not a general entry, therefore k is a const thing
+     * equal to 1.
+     */
     return false;
 }
 template<>
@@ -371,9 +374,6 @@ make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
     for (unsigned char i_root = 0; i_root != transformed.nr_roots; i_root++) {
       const fbroot_t r = transformed.get_r(i_root);
       const bool proj = transformed.get_proj(i_root);
-      /* If proj and r > 0, then r == 1/p (mod p^2), so all hits would be in
-         locations with p | gcd(i,j). */
-      if (LIKELY(!proj || r == 0)) {
         plattice_info_t pli = plattice_info_t(transformed.get_q(), r, proj, logI);
         plattice_enumerator<LEVEL> ple(pli, i_entry, logI, sublat);
         // Skip (0,0) unless we have sublattices.
@@ -382,7 +382,6 @@ make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
         if (LIKELY(pli.a0 != 0)) {
           result.push_back(ple);
         }
-      }
     }
   }
   /* This is moved, not copied. Note that V is a reference. */
@@ -507,9 +506,6 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
       for (unsigned char i_root = 0; i_root != transformed.nr_roots; i_root++) {
         const fbroot_t r = transformed.get_r(i_root);
         const bool proj = transformed.get_proj(i_root);
-        /* If proj and r > 0, then r == 1/p (mod p^2), so all hits would be in
-           locations with p | gcd(i,j). */
-        if (LIKELY(!proj || r == 0)) {
           plattice_info_t pli = plattice_info_t(transformed.get_q(), r, proj, logI);
           // In sublat mode, save it for later use
           precomp_slice.push_back(plattice_info_dense_t<LEVEL>(pli, i_entry));
@@ -529,6 +525,9 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
             const fbprime_t p = 0;
 #endif
             // Handle the rare special cases
+            // XXX Here, we're not bucket-sieving projective primes at
+            // all, and neither do we bucket-sieve primes with root equal
+            // to zero.
             const uint32_t I = 1 << logI;
             if ((UNLIKELY(ple.get_inc_c() == 1 && ple.get_bound1() == I - 1))
                 ||
@@ -543,7 +542,6 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
               ple.next(F);
             }
           } 
-        }
       }
     }
   } else { // Use precomputed FK-basis
@@ -627,9 +625,6 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
     for (unsigned char i_root = 0; i_root != transformed.nr_roots; i_root++) {
       const fbroot_t r = transformed.get_r(i_root);
       const bool proj = transformed.get_proj(i_root);
-      /* If proj and r > 0, then r == 1/p (mod p^2), so all hits would be in
-         locations with p | gcd(i,j). */
-      if (LIKELY(!proj || r == 0)) {
         plattice_info_t pli = plattice_info_t(transformed.get_q(), r, proj, logI);
   
         plattice_enumerator<LEVEL> ple(pli, i_entry, logI);
@@ -653,7 +648,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
           if (UNLIKELY(ple.get_inc_c() == 1 && ple.get_bound1() == I - 1)) {
             if (first_reg) {
               /* ple sets its first position in the (i,j) plane to (1,0),
-               * which will typically be the _only_ it in the normal
+               * which will typically be the _only_ hit in the normal
                * case.
                * We have to do a special-case though, because ple.next()
                * won't skip over the first line for us.
@@ -680,7 +675,6 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
             ple.next(F);
           }
         }
-      } 
     }
   }
   // printf("%.3f\n", BA.max_full());
