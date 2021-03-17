@@ -1270,7 +1270,7 @@ average_density (filter_matrix_t *mat, uint32_t shrink, uint32_t threshold)
       heavy_colums_contribution += mat->wt[i];
 
     }
-    corrected_density = heavy_colums_density * (double) shrink + heavy_colums_weight / mat->rem_nrows;
+    corrected_density = light_colums_contribution * (double) shrink + heavy_colums_contribution / mat->rem_nrows;
 
     //printf("corrected_density = %f \n", corrected_density);
     //printf("non corrected density = %f \n", base_density);
