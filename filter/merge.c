@@ -1273,7 +1273,7 @@ average_density (filter_matrix_t *mat, uint32_t shrink, uint32_t threshold)
       heavy_colums_contribution += mat->wt[i];
 
     }
-    
+
     corrected_density = light_colums_contribution * (double) shrink + heavy_colums_contribution / mat->rem_nrows;
 
     //printf("corrected_density = %f \n", corrected_density);
@@ -1552,7 +1552,7 @@ main (int argc, char *argv[])
     printf ("\n");
 
     printf ("N=%" PRIu64 " W=%" PRIu64 " d=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
-	    mat->rem_nrows, mat->tot_weight, average_density (mat, shrink),
+	    mat->rem_nrows, mat->tot_weight, average_density (mat, shrink, threshold),
 	    seconds () - cpu0, wct_seconds () - wct0,
 	    PeakMemusage () >> 10);
 #ifdef BIG_BROTHER
@@ -1590,7 +1590,7 @@ main (int argc, char *argv[])
     double lastdensity, density;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
 
-    density = average_density(mat, shrink);
+    density = average_density(mat, shrink, threshold);
 
     /****** begin main loop ******/
     while (1) {
@@ -1678,7 +1678,7 @@ main (int argc, char *argv[])
 	double av_fill_in = ((double) mat->tot_weight - (double) lastW)
 	  / (double) (lastN - mat->rem_nrows);
 
-        density = average_density(mat, shrink);
+        density = average_density(mat, shrink, threshold);
         char buf[16];
 	printf ("N=%" PRIu64 " W=%" PRIu64 " (%s) d=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [pass=%d,cwmax=%d]\n",
 		mat->rem_nrows, mat->tot_weight,
