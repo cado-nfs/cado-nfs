@@ -364,6 +364,70 @@ cado_define_test(sievetest_I
         TARGET_DEPENDENCIES las
         )
 
+# Try bucket-sieving of projective roots
+set(c30_30012_base_env
+        las_I=9
+        lim0=30000
+        lim1=30000
+        lpb0=17
+        lpb1=17
+        mfb0=18
+        mfb1=18
+        poly=${CMAKE_CURRENT_SOURCE_DIR}/c30_30012.poly
+        fb1=${CMAKE_CURRENT_SOURCE_DIR}/c30_30012.roots1.gz
+        t=auto
+        adjust_strategy=2
+)
+
+cado_define_test(c30_30012
+    ENVIRONMENT
+        ${c30_30012_base_env}
+    SCRIPT
+        "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+        ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
+    NO_DEFAULT_RUN
+    )
+
+# This one doesn't test much. It only verifies that a projective root
+# gets bucket sieved. If this fails, it probably means that this
+# q-lattice ended up behaving differently, and not have I=256 as per
+# adjust-strategy 2.
+cado_divert_test(c30_30012 1
+    APPEND_ENVIRONMENT
+        LAS_BINARY=${las_tracek_path}
+        q0=52919 rho=35788 traceij=1,0 "TRACE_REGEX=Pushed.hit.*p=347"
+    TARGET_DEPENDENCIES las_tracek
+)
+
+# This one is the real business about issue 30012
+# Normally, we should sieve the given prime within
+# fill_in_buckets_toplevel
+cado_divert_test(c30_30012 2a
+    APPEND_ENVIRONMENT
+        LAS_BINARY=${las_tracek_path}
+        q0=52919 rho=35788 traceij=0,347 "TRACE_REGEX=Pushed.hit.*p=347"
+    TARGET_DEPENDENCIES las_tracek
+)
+cado_divert_test(c30_30012 2b
+    APPEND_ENVIRONMENT
+        LAS_BINARY=${las_tracek_path}
+        q0=52919 rho=35788 traceij=1,694 "TRACE_REGEX=Pushed.hit.*p=347"
+    TARGET_DEPENDENCIES las_tracek
+)
+
+# This is for the 2-level sieving case.
+# Normally, we should sieve the given prime within
+# fill_in_buckets_lowlevel (this works because we've restricted to very
+# small sieving regions with B=10
+cado_divert_test(c30_30012 3
+    APPEND_ENVIRONMENT
+        LAS_BINARY=${las_tracek_path}
+        q0=50707 rho=50345
+        las_A=23 las_I= las_B=10 bkthresh1=2048     # kill I explicitly
+        traceij=1,1153 "TRACE_REGEX=Pushed.hit.*p=1153"
+    TARGET_DEPENDENCIES las_tracek
+)
+
 # Try the todo-list mode of las
 cado_divert_test(F9 todo
         APPEND_ENVIRONMENT
