@@ -1257,7 +1257,7 @@ average_density (filter_matrix_t *mat, uint32_t shrink)
     if (shrink == 1)
         return base_density;
 
-    // check_invariant(mat);
+    check_invariant(mat);
 
     double corrected_density = 0;
     for (index_t i = 0; i < mat->ncols; i++) {
@@ -1266,8 +1266,8 @@ average_density (filter_matrix_t *mat, uint32_t shrink)
     }
     corrected_density = corrected_density * (double) shrink;
 
-    // printf("corrected_density = %f \n", corrected_density);
-    // printf("non corrected density = %f \n", base_density);
+    printf("corrected_density = %f \n", corrected_density);
+    printf("non corrected density = %f \n", base_density);
 
     return corrected_density;
 
