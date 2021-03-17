@@ -651,12 +651,18 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
           // Handle the rare special cases
           const uint32_t I = 1 << logI;
           if (UNLIKELY(ple.get_inc_c() == 1 && ple.get_bound1() == I - 1)) {
-            // Projective root: only update is at (1,0).
             if (first_reg) {
-              uint64_t x = 1 + (I >> 1);
-              BA.push_update(x, p, hint, slice_index, w);
+              /* ple sets its first position in the (i,j) plane to (1,0),
+               * which will typically be the _only_ it in the normal
+               * case.
+               * We have to do a special-case though, because ple.next()
+               * won't skip over the first line for us.
+               */
+              BA.push_update(ple.get_x(), p, hint, slice_index, w);
+              ple.advance_to_end_of_projective_first_line(F);
             }
-            continue;
+            /* We no longer do "continue" here. The classical loop should
+             * do the trick! */
           }
           if (UNLIKELY(ple.get_inc_c() == I && ple.get_bound1() == I)) {
             // Root=0: only update is at (0,1).
@@ -734,11 +740,14 @@ fill_in_buckets_lowlevel(
     const uint32_t I = 1 << logI;
     if (UNLIKELY(ple.get_inc_c() == 1 && ple.get_bound1() == I - 1)) {
         // Projective root: only update is at (1,0).
-        if (!Q.sublat.m && first_reg) {
-            uint64_t x = 1 + (I >> 1);
-            BA.push_update(x, p, hint, slice_index, w);
+        if (Q.sublat.m)
+            continue;   /* headaches ! */
+
+        if (first_reg) {
+            /* same as in fill_in_bucket_toplevel */
+            BA.push_update(ple.get_x(), p, hint, slice_index, w);
+            ple.advance_to_end_of_projective_first_line(F);
         }
-        continue;
     }
     if (UNLIKELY(ple.get_inc_c() == I && ple.get_bound1() == I)) {
         // Root=0: only update is at (0,1).
