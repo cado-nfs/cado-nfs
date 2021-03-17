@@ -146,6 +146,7 @@ declare_usage(param_list pl)
   param_list_decl_usage(pl, "t", "number of threads");
   param_list_decl_usage(pl, "v", "verbose mode");
   param_list_decl_usage(pl, "shrink", "shrink factor applied on the initial matrix, used to correct density");
+  param_list_decl_usage(pl, "threshold", "threshold applied when the initial matrix is shrinked, used to correct density");
 }
 
 static void
@@ -1250,24 +1251,29 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
 }
 
 static double
-average_density (filter_matrix_t *mat, uint32_t shrink)
+average_density (filter_matrix_t *mat, uint32_t shrink, uint32_t threshold)
 {
     double base_density = (double) mat->tot_weight / (double) mat->rem_nrows;
 
     if (shrink == 1)
         return base_density;
 
-    check_invariant(mat);
+    //check_invariant(mat);
 
-    double corrected_density = 0;
-    for (index_t i = 0; i < mat->ncols; i++) {
-	corrected_density +=
+    double heavy_colums_contribution = 0;
+    double light_colums_contribution = 0;
+    for (index_t i = threshold; i < mat->ncols; i++) {
+	    light_colums_contribution +=
 	    1 - pow(1 - (double) mat->wt[i] / mat->rem_nrows, 1 / (double) shrink);
     }
-    corrected_density = corrected_density * (double) shrink;
+    for (index_t i = 0; i < threshold ; i++) {
+      heavy_colums_contribution += mat->wt[i];
 
-    printf("corrected_density = %f \n", corrected_density);
-    printf("non corrected density = %f \n", base_density);
+    }
+    corrected_density = heavy_colums_density * (double) shrink + heavy_colums_weight / mat->rem_nrows;
+
+    //printf("corrected_density = %f \n", corrected_density);
+    //printf("non corrected density = %f \n", base_density);
 
     return corrected_density;
 
@@ -1393,6 +1399,7 @@ main (int argc, char *argv[])
     int nthreads = 1;
     uint32_t skip = DEFAULT_MERGE_SKIP;
     uint32_t shrink = 1; /* default = no shrink */
+    uint32_t threshold = 0; /* default : no threshold when shrinking a matrix */
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
 
 #ifdef HAVE_MINGW
@@ -1439,6 +1446,8 @@ main (int argc, char *argv[])
     param_list_parse_uint (pl, "skip", &skip);
 
     param_list_parse_uint(pl, "shrink", &shrink);
+
+    param_list_parse_uint(pl, "threslold", &threshold);
 
     param_list_parse_double (pl, "target_density", &target_density);
 
