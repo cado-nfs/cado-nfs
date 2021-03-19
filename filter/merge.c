@@ -68,6 +68,8 @@ Print_row (filter_matrix_t *mat, index_t i)
 }
 #endif
 
+const char * dump_weight_template = NULL;
+
 /*************************** output buffer ***********************************/
 
 typedef struct {
@@ -148,6 +150,7 @@ declare_usage(param_list pl)
   param_list_decl_usage(pl, "v", "verbose mode");
   param_list_decl_usage(pl, "shrink", "shrink factor applied on the initial matrix, used to correct density");
   param_list_decl_usage(pl, "threshold", "threshold applied when the initial matrix is shrinked, used to correct density");
+  param_list_decl_usage(pl, "dump-weights", "periodically dump the matrix weights to the given file template (with .[[pass_number]] appended to the name)");
 }
 
 static void
@@ -1275,27 +1278,31 @@ average_density (filter_matrix_t *mat, double shrink, uint32_t threshold)
 
 }
 
-/*
-void dump_weight(filter_matrix_t * mat, int pass, double shrink, unsigned int threshold)
+void dump_weight(filter_matrix_t * mat, int pass, double shrink, index_t threshold)
 {
     char * filename;
-    int rc = asprintf(&filename, "/tmp/weight.%d", pass);
+    int rc = asprintf(&filename, "%s.%d", dump_weight_template, pass);
     ASSERT_ALWAYS(rc >= 0);
     FILE * f = fopen(filename, "w");
 
     double corrected_density = 0;
-    for(unsigned int i = 0 ; i < mat->ncols ; i++) {
+    for(index_t i = 0 ; i < mat->ncols ; i++) {
         double xd = (double) mat->wt[i] / mat->rem_nrows;
+        index_t j;
         if (i < threshold) {
+            j = i;
             corrected_density += xd;
         } else {
+            j = threshold + shrink * (i - threshold);
             corrected_density += (1 - pow(1 - xd, 1 / shrink)) * shrink;
         }
-        fprintf(f, "%u %.2f\n", (unsigned int) mat->wt[i], corrected_density);
+        fprintf(f, "%u %u %u %.2f\n",
+                (unsigned int) i,
+                (unsigned int) j,
+                (unsigned int) mat->wt[i], corrected_density);
     }
     fclose(f);
 }
-*/
 
 
 #ifdef DEBUG
@@ -1469,7 +1476,8 @@ main (int argc, char *argv[])
 
     param_list_parse_double(pl, "shrink", &shrink);
 
-    param_list_parse_uint(pl, "threslold", &threshold);
+    param_list_parse_uint(pl, "threshold", &threshold);
+    dump_weight_template = param_list_lookup_string(pl, "dump-weights");
 
     param_list_parse_double (pl, "target_density", &target_density);
 
@@ -1569,7 +1577,9 @@ main (int argc, char *argv[])
 #endif
     printf ("\n");
 
-    // dump_weight(mat, 0, shrink, threshold);
+    if (dump_weight_template)
+        dump_weight(mat, 0, shrink, threshold);
+
     printf ("N=%" PRIu64 " W=%" PRIu64 " d=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat, shrink, threshold),
 	    seconds () - cpu0, wct_seconds () - wct0,
@@ -1698,8 +1708,10 @@ main (int argc, char *argv[])
 	  / (double) (lastN - mat->rem_nrows);
 
         density = average_density(mat, shrink, threshold);
+        if (dump_weight_template)
+            dump_weight(mat, merge_pass, shrink, threshold);
+
         char buf[16];
-        // dump_weight(mat, merge_pass, shrink, threshold);
 	printf ("N=%" PRIu64 " W=%" PRIu64 " (%s) d=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [pass=%d,cwmax=%d]\n",
 		mat->rem_nrows, mat->tot_weight,
                 size_disp((mat->rem_nrows + mat->tot_weight) * sizeof(index_t), buf),
