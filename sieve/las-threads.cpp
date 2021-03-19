@@ -116,7 +116,7 @@ template <typename T>
 void reservation_array<T>::release(T &BA) {
   enter();
   ASSERT_ALWAYS(&BA >= &BAs.front());
-  ASSERT_ALWAYS(&BA < &BAs[BAs.size()]);
+  ASSERT_ALWAYS(&BA < &BAs.front() + BAs.size());
   size_t i = &BA - &BAs[0];
   in_use[i] = false;
   signal(cv);
