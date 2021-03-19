@@ -204,7 +204,7 @@ void read_local_rows(vector_of_typerow_pointer_ptr V, FILE * fi, off_t bytes_to_
             /* we want to point to the EOL delimiter */
             z--;
 
-            for( ; *p && *p != ':' ; p++);
+            for( ; *p && *p != ':' && *p != '\n' ; p++);
             for( ; p++ != z ; ) {
                 index_t x;
                 p = hacked_strtoul16(&x, p);
