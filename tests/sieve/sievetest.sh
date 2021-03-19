@@ -45,10 +45,34 @@ chmod a+rx "${WORKDIR}"
 
 args=()
 
-for var in fbc lambda{0,1} ncurves{0,1} descent_hint_table bkmult bkthresh{,1} hint_table ; do
+forwardable=(
+    fbc
+    lambda{0,1}
+    ncurves{0,1}
+    descent_hint_table
+    bkmult
+    bkthresh{,1}
+    hint_table
+    adjust_strategy
+    trace{ab,Nx,ij}
+    A B I
+)
+for var in "${forwardable[@]}" ; do
     # Those are optional
-    if [ "${!var}" ] ; then args+=(-$var "${!var}") ; fi
+    if [ "${#var}" -gt 1 ] && [ "${!var}" ] ; then args+=(-$var "${!var}") ; fi
+    # also recognize via las_$var, because it's a bit ugly to depend on
+    # what the external shell variables A, B, and I might be set to.
+    # Well, it's ugly to rely on shell variables altogether, of course.
+    xvar="las_$var"
+    if [ "${!xvar}" ] ; then
+        args+=(-$var "${!xvar}")
+        eval "$var=${!xvar}"
+    fi
+    if [[ $var =~ ^trace ]] ; then : ${TRACE="${WORKDIR}/${BASENAME}.trace"} ; fi
 done
+if [ "$TRACE" ] && [[ $LAS_BINARY =~ tracek ]] ; then
+    args+=(-traceout "$TRACE")
+fi
 
 # create las command line from environment variables, moan if any is
 # missing.
@@ -59,9 +83,13 @@ done
 if ! [ "$hint_table" ] ; then
     # The ones below are not be needed at all if we have a
     # hint_table (unless we use -t auto).
-    for var in I lpb{0,1} mfb{0,1} ; do
+    for var in lpb{0,1} mfb{0,1} ; do
         args+=(-$var "${!var:?missing}")
     done
+    if ! [ "$A$I" ] ; then
+        echo "missing A and I" >&2
+        exit 1
+    fi
 fi
 
 if [ "$fb0" ] ; then args+=(-fb0 "$fb0") ; fi
@@ -250,6 +278,15 @@ if [ -n "${REGEX}" ] ; then
   echo "Searching for regex \"${REGEX}\"" >&2
   if ! grep "${REGEX}" "${RELS}" >&2 ; then
     echo "Error, regular expression \"${REGEX}\" does not match output file"
+    exit 1
+  fi
+  let checks_passed+=1
+fi
+
+if [ -n "${TRACE}" ] && [ -n "${TRACE_REGEX}" ] ; then
+  echo "Searching for regex \"${TRACE_REGEX}\" on trace file" >&2
+  if ! grep "${TRACE_REGEX}" "${TRACE}" >&2 ; then
+    echo "Error, regular expression \"${TRACE_REGEX}\" does not match trace file"
     exit 1
   fi
   let checks_passed+=1
