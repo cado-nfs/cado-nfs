@@ -54,6 +54,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "merge_bookkeeping.h"
 #include "merge_compute_weights.h"
 #include "read_purgedfile_in_parallel.h"
+#include "portability.h"        // asprintf
 
 #ifdef DEBUG
 static void
@@ -1251,7 +1252,7 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
 }
 
 static double
-average_density (filter_matrix_t *mat, uint32_t shrink, uint32_t threshold)
+average_density (filter_matrix_t *mat, double shrink, uint32_t threshold)
 {
     double base_density = (double) mat->tot_weight / (double) mat->rem_nrows;
 
@@ -1260,28 +1261,42 @@ average_density (filter_matrix_t *mat, uint32_t shrink, uint32_t threshold)
 
     //check_invariant(mat);
 
-    double heavy_colums_contribution = 0;
-    double light_colums_contribution = 0;
     double corrected_density = 0;
-
-    for (index_t i = threshold; i < mat->ncols; i++) {
-	    light_colums_contribution +=
-	    1 - pow(1 - (double) mat->wt[i] / mat->rem_nrows, 1 / (double) shrink);
+    for (index_t i = 0; i < mat->ncols; i++) {
+        double xd = (double) mat->wt[i] / mat->rem_nrows;
+        if (i < threshold) {
+            corrected_density += xd;
+        } else {
+            corrected_density += (1 - pow(1 - xd, 1 / shrink)) * shrink;
+        }
     }
-
-    for (index_t i = 0; i < threshold ; i++) {
-      heavy_colums_contribution += mat->wt[i];
-
-    }
-
-    corrected_density = light_colums_contribution * (double) shrink + heavy_colums_contribution / mat->rem_nrows;
-
-    //printf("corrected_density = %f \n", corrected_density);
-    //printf("non corrected density = %f \n", base_density);
 
     return corrected_density;
 
 }
+
+/*
+void dump_weight(filter_matrix_t * mat, int pass, double shrink, unsigned int threshold)
+{
+    char * filename;
+    int rc = asprintf(&filename, "/tmp/weight.%d", pass);
+    ASSERT_ALWAYS(rc >= 0);
+    FILE * f = fopen(filename, "w");
+
+    double corrected_density = 0;
+    for(unsigned int i = 0 ; i < mat->ncols ; i++) {
+        double xd = (double) mat->wt[i] / mat->rem_nrows;
+        if (i < threshold) {
+            corrected_density += xd;
+        } else {
+            corrected_density += (1 - pow(1 - xd, 1 / shrink)) * shrink;
+        }
+        fprintf(f, "%u %.2f\n", (unsigned int) mat->wt[i], corrected_density);
+    }
+    fclose(f);
+}
+*/
+
 
 #ifdef DEBUG
 /* duplicate the matrix, where the lines of mat_copy are
@@ -1402,7 +1417,7 @@ main (int argc, char *argv[])
 
     int nthreads = 1, cbound_incr;
     uint32_t skip = DEFAULT_MERGE_SKIP;
-    uint32_t shrink = 1; /* default = no shrink */
+    double shrink = 1; /* default = no shrink */
     uint32_t threshold = 0; /* default : no threshold when shrinking a matrix */
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
 
@@ -1452,7 +1467,7 @@ main (int argc, char *argv[])
 
     param_list_parse_uint (pl, "skip", &skip);
 
-    param_list_parse_uint(pl, "shrink", &shrink);
+    param_list_parse_double(pl, "shrink", &shrink);
 
     param_list_parse_uint(pl, "threslold", &threshold);
 
@@ -1554,6 +1569,7 @@ main (int argc, char *argv[])
 #endif
     printf ("\n");
 
+    // dump_weight(mat, 0, shrink, threshold);
     printf ("N=%" PRIu64 " W=%" PRIu64 " d=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat, shrink, threshold),
 	    seconds () - cpu0, wct_seconds () - wct0,
@@ -1683,6 +1699,7 @@ main (int argc, char *argv[])
 
         density = average_density(mat, shrink, threshold);
         char buf[16];
+        // dump_weight(mat, merge_pass, shrink, threshold);
 	printf ("N=%" PRIu64 " W=%" PRIu64 " (%s) d=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [pass=%d,cwmax=%d]\n",
 		mat->rem_nrows, mat->tot_weight,
                 size_disp((mat->rem_nrows + mat->tot_weight) * sizeof(index_t), buf),
