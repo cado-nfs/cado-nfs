@@ -24,16 +24,10 @@ extern unsigned long cancel_cols[CANCEL_MAX];
 /* define DEBUG if printRow or copy_matrix is needed */
 // #define DEBUG
 
-/* CBOUND_INCR is the increment on the maximal cost of merges at each step.
+/* cbound_incr is the increment on the maximal cost of merges at each step.
    Setting it to 1 is optimal in terms of matrix size, but will take a very
-   long time (typically 10 times more than with CBOUND_INCR=10).
-   The following values were determined experimentally. */
-#ifndef FOR_DL
-#define CBOUND_INCR 13
-#else
-#define CBOUND_INCR 31
-#endif
-
+   long time (typically 10 times more than with cbound_incr=10). */
+#define CBOUND_INCR_DEFAULT 8
 
 /* Note about variables used in the code:
  * cwmax is the (current) maximal weight of columns that will be considered
@@ -44,8 +38,8 @@ extern unsigned long cancel_cols[CANCEL_MAX];
    (in fact, it is a biased value to avoid negative values, one should subtract
     BIAS from cbound to get the actual value). It starts at 0, and once all
     the 2-merges have been performed (which all give a negative fill-in, thus
-    they will all be allowed), we increase cbound by CBOUND_INCR at each step
-    of the algorithm (where CBOUND_INCR differs for integer factorization and
+    they will all be allowed), we increase cbound by cbound_incr at each step
+    of the algorithm (where cbound_incr differs for integer factorization and
     discrete logarithm).
  * j0 means that we assume that columns of index < j0 cannot have
    weight <= cwmax. It depends on cwmax (decreases when cwmax increases).
