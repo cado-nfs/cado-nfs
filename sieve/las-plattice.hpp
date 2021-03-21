@@ -639,7 +639,7 @@ public:
     inline bool done(fence const & F) { return x >= F.end; }
     void advance_to_next_area(fence const & F) { x -= F.end; }
 
-    void advance_to_end_of_projective_first_line(fence const & F)
+    inline void advance_to_end_of_projective_first_line(fence const & F)
     {
         /* This function is not critical at all. We want the last
          * matching position on the line (i,0). This depends on the
@@ -654,21 +654,8 @@ public:
          * las-fill-in-buckets.cpp)
          */
         x = F.maskI;
-        ASSERT_ALWAYS(inc_c == 1);
-        ASSERT_ALWAYS(bound1 == F.maskI);
-        return;
-#if 0
-        /* in greater generality, we might want to try the following
-         */
-        if (inc_c == 1) {
-            x = F.maskI;
-            return;
-        }
-        if ((x & F.maskI) >= bound1) 
-            return;
-        int k = (bound1 - (x & F.maskI)) / inc_c;
-        x += k * inc_c;
-#endif
+        ASSERT(inc_c == 1);
+        ASSERT(bound1 == F.maskI);
     }
     plattice_x_t get_x() const {return x;}
     void set_x(plattice_x_t xx) {x = xx;}

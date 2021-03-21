@@ -655,6 +655,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
                */
               BA.push_update(ple.get_x(), p, hint, slice_index, w);
               ple.advance_to_end_of_projective_first_line(F);
+              ple.next(F);
             }
             /* We no longer do "continue" here. The classical loop should
              * do the trick! */
