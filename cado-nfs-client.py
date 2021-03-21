@@ -639,7 +639,7 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
                              close_fds=close_fds,
                              **kwargs)
 
-    logging.info ("[%s] Subprocess has PID %d", time.asctime(), child.pid)
+    logging.info("[%s] Subprocess has PID %d", time.asctime(), child.pid)
 
     # If we receive SIGTERM (the default signal for "kill") while a
     # subprocess is running, we want to be able to terminate the
@@ -664,7 +664,7 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
         child.terminate()
         (stdout, stderr) = child.communicate()
         logging.error("[%s] Terminated command resulted in exit code %d",
-            time.asctime(), child.returncode)
+                      time.asctime(), child.returncode)
         raise # Re-raise KeyboardInterrupt to terminate cado-nfs-client.py
 
     # Un-install our handler and revert to the default handler
@@ -1051,16 +1051,16 @@ class ServerPool(object): # {{{
         if not self.has_https:
             if settings["CERTSHA1"] is not None:
                 logging.warning("Option --certsha1 makes sense only with"
-                             " https URLs,"
-                             " ignoring it.")
+                                " https URLs,"
+                                " ignoring it.")
             for ss in settings["SERVER"]:
                 ServerPool.Server.register(self.servers, ss)
             return
 
         if settings["CERTSHA1"] is None:
             logging.warning("https URLs were given"
-                         " but no --certsha1 option,"
-                         " NO SSL VALIDATION WILL BE PERFORMED.")
+                            " but no --certsha1 option,"
+                            " NO SSL VALIDATION WILL BE PERFORMED.")
             for ss in settings["SERVER"]:
                 ServerPool.Server.register(self.servers, ss)
             return
@@ -1226,10 +1226,10 @@ class WorkunitProcessor(object):
             for sub in self.settings["OVERRIDE"]:
                 if re.match('^-{1,2}' + sub[0] + '$', a):
                     krepl = sub
-                    used_overrides[sub[0]]=True
+                    used_overrides[sub[0]] = True
             mangled.append(a)
             if krepl is not None:
-                k,repl = krepl
+                k, repl = krepl
                 oldvalue = orig.pop(0)
                 logging.info("Overriding argument %s %s"
                              " by %s %s in command line"
@@ -1238,7 +1238,7 @@ class WorkunitProcessor(object):
                 mangled.append(repl)
         # apply the overrides even to flags which were *NOT* present in
         # the initial command line.
-        for f,v in self.settings["OVERRIDE"]:
+        for f, v in self.settings["OVERRIDE"]:
             if f in used_overrides:
                 continue
             mangled.append('-' + f)
@@ -1275,7 +1275,7 @@ class WorkunitProcessor(object):
                 "STDOUT": self.settings["WORKDIR"],
                 "STDERR": self.settings["WORKDIR"],
                 "STDIN": self.settings["WORKDIR"],
-                }
+               }
 
         for key in dirs:
             for (index, filename) in enumerate(self.workunit.get(key, [])):
@@ -1310,21 +1310,21 @@ class WorkunitProcessor(object):
             stdin = None
             if my_stdin_filename in files:
                 with open(files[my_stdin_filename], "r") as f:
-                    stdin=f.read()
+                    stdin = f.read()
 
             if sys.version_info[0] == 3:
                 if stdin is not None:
-                    stdin=stdin.encode()
+                    stdin = stdin.encode()
 
             rc, stdout, stderr = run_command(command,
-                                            stdin=stdin,
-                                            preexec_fn=renice_func)
+                                             stdin=stdin,
+                                             preexec_fn=renice_func)
 
             if sys.version_info[0] == 3:
                 if stdout is not None:
-                    stdout=stdout.decode()
+                    stdout = stdout.decode()
                 if stderr is not None:
-                    stderr=stderr.decode()
+                    stderr = stderr.decode()
 
             # steal stdout/stderr, put them to files.
             if my_stdout_filename in files:
@@ -1495,7 +1495,7 @@ class WorkunitWrapper(Workunit):
 #         # normal __str__ for workunits prints the text in full. In truth,
 #         # we don't need it.
 #         return self.get_id()
-# 
+#
     def get_peer(self):
         return self.peer
 
@@ -1564,11 +1564,11 @@ class InputDownloader(object):
         return filesum.lower() == checksum.lower()
 
     def get_file(self, urlpath,
-            dlpath=None,
-            options=None,
-            is_wu=False,
-            executable=False,
-            mandatory_server=None):
+                 dlpath=None,
+                 options=None,
+                 is_wu=False,
+                 executable=False,
+                 mandatory_server=None):
         """ gets a file from the server (of from one of the failover
         servers, for WUs), and wait until we succeed.
 
@@ -1608,10 +1608,10 @@ class InputDownloader(object):
         if dlpath is None:
             dlpath_tmp = None
         else:
-            dlpath_tmp = "%s%d" % (dlpath, random.randint(0,2**30)^os.getpid())
+            dlpath_tmp = "%s%d" % (dlpath, random.randint(0, 2**30)^os.getpid())
         while True:
             logging.info("spin=%d is_wu=%s blog=%d", spin, is_wu,
-                    len(self.wu_backlog)+len(self.wu_backlog_alt))
+                         len(self.wu_backlog)+len(self.wu_backlog_alt))
             if cap and spin > max_loops:
                 # we've had enough. Out of despair, we'll try our old
                 # WUs, but there seems to be veeery little we can do, to
@@ -1699,7 +1699,7 @@ class InputDownloader(object):
                          is_wu=False,
                          executable=False,
                          mandatory_server=None
-                         ):
+                        ):
         """ Downloads a file if it does not exist already, from one of
         the servers configured for failover.
 
@@ -1874,8 +1874,8 @@ class InputDownloader(object):
                 dline = workunit.get("DEADLINE")
                 dline = time.asctime(time.localtime(float(dline)))
                 logging.warning("Old workunit %s has passed deadline (%s),"
-                             " ignoring",
-                             workunit.get_id(), dline)
+                                " ignoring",
+                                workunit.get_id(), dline)
                 workunit.cleanup()
             else:
                 break
@@ -1888,7 +1888,7 @@ class InputDownloader(object):
     def _get_wu(self):
         if self.wu_backlog:
             logging.info("Current backlog of half-downloaded WUs: %s",
-                    ", ".join([w.get_id() for w in self.wu_backlog]))
+                         ", ".join([w.get_id() for w in self.wu_backlog]))
         while self.wu_backlog:
             workunit = self.wu_backlog[0]
             self.wu_backlog = self.wu_backlog[1:]
@@ -1896,8 +1896,8 @@ class InputDownloader(object):
                 dline = workunit.get("DEADLINE")
                 dline = time.asctime(time.localtime(float(dline)))
                 logging.warning("Old workunit %s has passed deadline (%s),"
-                             " ignoring",
-                             workunit.get_id(), dline)
+                                " ignoring",
+                                workunit.get_id(), dline)
                 workunit.cleanup()
             else:
                 logging.info("Re-attempting previously downloaded workunit %s",
@@ -2179,16 +2179,16 @@ def merge_two_dicts(x, y):
 def abort_on_python2():
     if int(sys.version_info[0]) < 3:
         logging.error("You are running cado-nfs-client with Python%d.  "
-                "Python2 *used to be* supported, but no longer is.  "
-                "You can try to remove the explicit sys.exit(1) in "
-                "cado-nfs-client.py, abort_on_python2(), "
-                "but you're on your own." % int(sys.version[0]))
+                      "Python2 *used to be* supported, but no longer is.  "
+                      "You can try to remove the explicit sys.exit(1) in "
+                      "cado-nfs-client.py, abort_on_python2(), "
+                      "but you're on your own." % int(sys.version[0]))
         sys.exit(1)
 
 # This syntax is weird, but { a:b for [....] } won't work with python 2.6
 # -- which I'm not sure we really strive to support, though.
-SETTINGS = dict([(a,b) for (a, (b,c)) in
-            merge_two_dicts(REQUIRED_SETTINGS, OPTIONAL_SETTINGS).items()])
+SETTINGS = dict([(a, b) for (a, (b, c)) in
+                 merge_two_dicts(REQUIRED_SETTINGS, OPTIONAL_SETTINGS).items()])
 
 BAD_WU_MAX = 3 # Maximum allowed number of bad WUs
 
@@ -2277,9 +2277,9 @@ if __name__ == '__main__':
 
     if options.ping != None:
         if SETTINGS["CLIENTID"] is None:
-                raise ValueError("--ping requires --clientid")
+            raise ValueError("--ping requires --clientid")
         if not options.daemon and SETTINGS["LOGFILE"] is None:
-                raise ValueError("--ping requires --daemon or --logfile")
+            raise ValueError("--ping requires --daemon or --logfile")
     # If no client id is given, we use <hostname>.<randomstr>
     if SETTINGS["CLIENTID"] is None:
         import random
@@ -2329,8 +2329,8 @@ if __name__ == '__main__':
         with open(logfilename, "r") as f:
             size = os.stat(f.fileno()).st_size
             if size >= 8192:
-                f.seek(size-8192,io.SEEK_SET)
-            lines=f.readlines()
+                f.seek(size-8192, io.SEEK_SET)
+            lines = f.readlines()
             for l in lines[-20:]:
                 sys.stderr.write("CLIENT ERROR: " + l)
         sys.exit(1)
@@ -2368,7 +2368,7 @@ if __name__ == '__main__':
     if options.daemon:
         # in fact, logfile can never be None, since we force a logfile no
         # matter what.
-        create_daemon(logfile = logfile)
+        create_daemon(logfile=logfile)
 
 
     # main control loop.
