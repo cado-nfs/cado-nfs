@@ -167,7 +167,7 @@ int peer_status::create_and_send_batch(task_globals& tg, int peer, int turn)
     unsigned long bsize = batch.size();
     MPI_Send(&bsize, 1, MPI_UNSIGNED_LONG, peer, turn, MPI_COMM_WORLD);
     if (bsize)
-        MPI_Isend((char*) &(batch[0]), bsize * sizeof(ab_pair), MPI_BYTE, peer, turn, MPI_COMM_WORLD, &req);
+        MPI_Isend((char*) batch.data(), bsize * sizeof(ab_pair), MPI_BYTE, peer, turn, MPI_COMM_WORLD, &req);
     return eof;
 }
 
@@ -277,7 +277,7 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
             break;
         }
         ab_pair_batch batch(bsize);
-        MPI_Recv((char*) &(batch[0]), bsize * sizeof(ab_pair), MPI_BYTE, 0, turn, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv((char*) batch.data(), bsize * sizeof(ab_pair), MPI_BYTE, 0, turn, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         double t0 = wct_seconds();
         debug_fprintf(stderr, "%.3f turn %d peer %d start on batch of size %lu\n", wct_seconds(), turn, rank, bsize);

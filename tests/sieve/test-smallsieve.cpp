@@ -234,7 +234,7 @@ void current_I18_branch(std::vector<int> const & positions, std::vector<ssp_simp
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
     for(auto const & ssp : primes) {
-        int pos = positions[&ssp - &primes.front()];
+        int pos = positions[&ssp - primes.data()];
 
         const fbprime_t p = ssp.get_p();
         const fbprime_t r = ssp.get_r();
@@ -282,7 +282,7 @@ void modified_I18_branch_C(std::vector<int> const & positions, std::vector<ssp_s
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
     for(auto const & ssp : primes) {
-        int pos = positions[&ssp - &primes.front()];
+        int pos = positions[&ssp - primes.data()];
 
         const fbprime_t p = ssp.get_p();
         const fbprime_t r = ssp.get_r();
@@ -320,7 +320,7 @@ void legacy_branch(std::vector<int> const & positions, std::vector<ssp_simple_t>
     ASSERT_ALWAYS(logI <= LOG_BUCKET_REGION);
 
     for(auto const & ssp : primes) {
-        int pos = positions[&ssp - &primes.front()];
+        int pos = positions[&ssp - primes.data()];
 
         const fbprime_t p = ssp.get_p();
         const fbprime_t r = ssp.get_r();
@@ -381,7 +381,7 @@ void devel_branch(std::vector<int> const & positions, std::vector<ssp_simple_t> 
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
     for(auto const & ssp : primes) {
-        int pos = positions[&ssp - &primes.front()];
+        int pos = positions[&ssp - primes.data()];
 
         const fbprime_t p = ssp.get_p();
         const fbprime_t r = ssp.get_r();
@@ -438,7 +438,7 @@ void legacy_mod_branch(std::vector<int> const & positions, std::vector<ssp_simpl
 
     if (logI > LOG_BUCKET_REGION) {
         for(auto const & ssp : primes) {
-            int pos = positions[&ssp - &primes.front()];
+            int pos = positions[&ssp - primes.data()];
 
             const fbprime_t p = ssp.get_p();
             const fbprime_t r = ssp.get_r();
@@ -496,7 +496,7 @@ j_odd0:
         }
     } else {
         for(auto const & ssp : primes) {
-            int pos = positions[&ssp - &primes.front()];
+            int pos = positions[&ssp - primes.data()];
 
             const fbprime_t p = ssp.get_p();
             const fbprime_t r = ssp.get_r();
@@ -557,7 +557,7 @@ template<typename even_code, typename odd_code, bool fragment> void devel_branch
     SMALLSIEVE_COMMON_DEFS();
     ASSERT_ALWAYS(positions.size() == primes.size());
     for(auto const & ssp : primes) {
-        int pos = positions[&ssp - &primes.front()];
+        int pos = positions[&ssp - primes.data()];
 
         const fbprime_t p = ssp.get_p();
         const fbprime_t r = ssp.get_r();
@@ -709,7 +709,7 @@ struct bench_base {
 
         where_am_I w;
         for(auto const& bf : cand) {
-            if (bf.sel) sel_index = &bf-&cand.front();
+            if (bf.sel) sel_index = &bf-cand.data();
 
             /* Do it once just to warm up */
             positions.clear();
@@ -763,7 +763,7 @@ struct bench_base {
             bool sel_best = (size_t) sel_index == best_index;
             bool sel_tied = timings[sel_index] <= 1.05 * best_time;;
             for(auto const& bf : cand) {
-                size_t index = &bf-&cand.front();
+                size_t index = &bf-cand.data();
                 double tt = timings[index];
                 bool is_best = index == best_index;
                 bool near_best = tt <= 1.05 * best_time;
@@ -793,7 +793,7 @@ struct bench_base {
             }
         } else {
             for(auto const& bf : cand) {
-                size_t index = &bf-&cand.front();
+                size_t index = &bf-cand.data();
                 double tt = timings[index];
                 bool is_best = index == best_index;
                 bool near_best = tt <= 1.05 * best_time;
@@ -849,12 +849,12 @@ struct bench_base {
         where_am_I w;
         for(int N = 0 ; N < Nmax ; N++) {
             for(auto const& bf : cand) {
-                size_t index = &bf-&cand.front();
+                size_t index = &bf-cand.data();
                 memset(refS[index], 0, B);
                 (*bf.f)(refpos[index], allprimes, refS[index], logI, N, w);
             }
             for(auto const& bf : cand) {
-                size_t index = &bf-&cand.front();
+                size_t index = &bf-cand.data();
                 if (!ok_perfunc[index]) continue;
                 if (index > 0) {
                     if (memcmp(refS[index], refS.front(), B) != 0) {

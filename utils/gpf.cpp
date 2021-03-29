@@ -74,5 +74,5 @@ void gpf_init(unsigned int m)
      * but in the most common memory model, we're not frightened, as a
      * pointer-size value can be read in one atomic op anyway). */
     std::swap(res, gpf_cxx);
-    gpf = &gpf_cxx.front();
+    gpf = gpf_cxx.data();
 }

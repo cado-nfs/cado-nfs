@@ -125,7 +125,7 @@ int matpoly_write(abdst_field, std::ostream& os, matpoly const & M, unsigned int
              */
             abort();
         } else {
-            err = !(os.write((const char*) &buf[0], ulongs_per_mat * sizeof(unsigned long)));
+            err = !(os.write((const char*) buf.data(), ulongs_per_mat * sizeof(unsigned long)));
         }
         if (err) return -1;
     }
@@ -178,7 +178,7 @@ int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> 
                         }
                     }
                 }
-                err = !(os.write((const char *) &buf[0], ulongs_per_mat * sizeof(unsigned long)));
+                err = !(os.write((const char *) buf.data(), ulongs_per_mat * sizeof(unsigned long)));
 #endif
                 if (!err) matnb++;
             }
@@ -218,7 +218,7 @@ int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigne
     const mp_limb_t * pzlimbs = PTR(pz);
 #endif
     std::vector<mp_limb_t> vbuf(pzsize + 1);
-    mp_limb_t * buf = &vbuf[0];
+    mp_limb_t * buf = vbuf.data();
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
@@ -278,14 +278,14 @@ int matpoly_read_inner(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsi
         } else {
             int rc;
             if (base < 0) {
-                rc = fread(&buf[0], sizeof(unsigned long), ulongs_per_mat * batch, f);
+                rc = fread(buf.data(), sizeof(unsigned long), ulongs_per_mat * batch, f);
                 if (rc != (int) (ulongs_per_mat * batch) && ferror(f))
                     return k - k0;
             } else {
                 /* use pread -- good for multithreading */
                 size_t one = ulongs_per_mat * sizeof(unsigned long);
                 off_t off = base + (k - k0) * one;
-                ssize_t r = pread(fileno(f), &buf[0], one * batch, off);
+                ssize_t r = pread(fileno(f), buf.data(), one * batch, off);
                 if (r < 0) rc = 0;
                 else rc = r / sizeof(unsigned long);
             }

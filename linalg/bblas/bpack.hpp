@@ -196,10 +196,10 @@ struct bpack : public bpack_ops<T> {
         *this = 0;
     }
     typedef bpack_view<T> view_t;
-    view_t view() { return view_t(&X[0], mblocks, nblocks); }
+    view_t view() { return view_t(X.data(), mblocks, nblocks); }
     typedef bpack_const_view<T> const_view_t;
-    const_view_t view() const { return const_view_t(&X[0], mblocks, nblocks); }
-    const_view_t const_view() const { return const_view_t(&X[0], mblocks, nblocks); }
+    const_view_t view() const { return const_view_t(X.data(), mblocks, nblocks); }
+    const_view_t const_view() const { return const_view_t(X.data(), mblocks, nblocks); }
 
     matrix & cell(unsigned int bi, unsigned int bj) { return view().cell(bi, bj); }
     matrix const & cell(unsigned int bi, unsigned int bj) const { return view().cell(bi, bj); }

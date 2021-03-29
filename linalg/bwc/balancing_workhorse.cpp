@@ -119,7 +119,7 @@ struct dispatcher {/*{{{*/
         }
 #endif
 
-        MPI_Allgather(MPI_IN_PLACE, 0, 0, &is_reader_map[0], 1, MPI_INT, pi->m->pals);
+        MPI_Allgather(MPI_IN_PLACE, 0, 0, is_reader_map.data(), 1, MPI_INT, pi->m->pals);
         readers_index = is_reader_map;
         nreaders = integrate(readers_index);
 
@@ -248,7 +248,7 @@ void dispatcher::post_send(std::vector<uint32_t> & Q, unsigned int k)/*{{{*/
         return;
     }
     MPI_Request req;
-    MPI_Isend(&Q[0], Q.size(), CADO_MPI_UINT32_T, k, 0, pi->m->pals, &req);
+    MPI_Isend(Q.data(), Q.size(), CADO_MPI_UINT32_T, k, 0, pi->m->pals, &req);
     outstanding.push_back(req);
     outstanding_queues.emplace_back(std::move(Q));
     if (!avail_queues.empty()) {
@@ -291,7 +291,7 @@ void dispatcher::progress(bool wait)/*{{{*/
     ASSERT_ALWAYS(!wait);
 #endif
     if (wait) {
-        MPI_Waitall(n_in, &outstanding[0], MPI_STATUSES_IGNORE);
+        MPI_Waitall(n_in, outstanding.data(), MPI_STATUSES_IGNORE);
         outstanding.clear();
         outstanding_queues.clear();
         avail_queues.clear();
@@ -299,8 +299,8 @@ void dispatcher::progress(bool wait)/*{{{*/
     }
     indices.assign(n_in, 0);
     // statuses.assign(n_in, 0);
-    int err = MPI_Testsome(n_in, &outstanding[0],
-            &n_out, &indices[0],
+    int err = MPI_Testsome(n_in, outstanding.data(),
+            &n_out, indices.data(),
             MPI_STATUSES_IGNORE);
     ASSERT_ALWAYS(!err);
     ASSERT_ALWAYS(n_out != MPI_UNDEFINED);
@@ -369,7 +369,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
     // matrix.
     //
     MPI_Allgather(MPI_IN_PLACE, 0, 0,
-            &bytes_per_reader[0], 1, CADO_MPI_SIZE_T,
+            bytes_per_reader.data(), 1, CADO_MPI_SIZE_T,
             reader_comm);
 #else
 
@@ -393,7 +393,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         rc = fseek(frw, 0, SEEK_SET);
         ASSERT_ALWAYS(rc == 0);
         std::vector<uint32_t> rw(bal->h->nrows,0);
-        rc = fread(&rw[0], sizeof(uint32_t), bal->h->nrows, frw);
+        rc = fread(rw.data(), sizeof(uint32_t), bal->h->nrows, frw);
         ASSERT_ALWAYS(rc == (int) bal->h->nrows);
         fclose(frw);
 
@@ -428,8 +428,8 @@ void dispatcher::reader_compute_offsets()/*{{{*/
                     size_disp(bytes_per_reader[r]));
         }
     }
-    MPI_Bcast(&row0_per_reader[0], row0_per_reader.size(), CADO_MPI_UINT32_T, 0, reader_comm);
-    MPI_Bcast(&bytes_per_reader[0], bytes_per_reader.size(), CADO_MPI_SIZE_T, 0, reader_comm);
+    MPI_Bcast(row0_per_reader.data(), row0_per_reader.size(), CADO_MPI_UINT32_T, 0, reader_comm);
+    MPI_Bcast(bytes_per_reader.data(), bytes_per_reader.size(), CADO_MPI_SIZE_T, 0, reader_comm);
     row0 = row0_per_reader[ridx];
     row1 = row0_per_reader[ridx+1];
 #endif
@@ -490,7 +490,7 @@ void dispatcher::reader_thread()/*{{{*/
         z += rc * sizeof(uint32_t);
         row.assign(w * (1 + withcoeffs), 0);
         int ww = w * (1 + withcoeffs);
-        rc = fread(&row[0], sizeof(uint32_t), ww, f);
+        rc = fread(row.data(), sizeof(uint32_t), ww, f);
         if (rc != ww) {
             fprintf(stderr, "%s: short read\n", mfile.c_str());
             exit(EXIT_FAILURE);
@@ -588,12 +588,12 @@ void dispatcher::reader_thread()/*{{{*/
         std::copy(check_vector.begin(), check_vector.end(),
                 full.begin() + displs[readers_index[pi->m->jrank]]);
         MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                &full[0], &sizes[0], &displs[0],
+                full.data(), sizes.data(), displs.data(),
                 CADO_MPI_UINT64_T, reader_comm);
 
         if (readers_index[pi->m->jrank] == 0) {
             FILE * f = fopen(check_vector_filename.c_str(), "wb");
-            int rc = fwrite(&full[0], sizeof(uint64_t), bal->h->nrows, f);
+            int rc = fwrite(full.data(), sizeof(uint64_t), bal->h->nrows, f);
             ASSERT_ALWAYS(rc == (int) bal->h->nrows);
             fclose(f);
         }
@@ -790,7 +790,7 @@ void dispatcher::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
                     bool operator<(cv const & a) const { return c < a.c; }
                 };
                 cv * Q0 = (cv *) &next[0];
-                cv * Q1 = (cv *) &next[2*rs];
+                cv * Q1 = (cv *) (&next[0] + 2*rs);
                 std::sort(Q0, Q1);
             }
         }
@@ -882,7 +882,7 @@ void dispatcher::endpoint_thread()/*{{{*/
         MPI_Probe(MPI_ANY_SOURCE, 0, pi->m->pals, &status);
         MPI_Get_count(&status, CADO_MPI_UINT32_T, &Qs);
         Q.assign(Qs, 0);
-        MPI_Recv(&Q[0], Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, 0, pi->m->pals, MPI_STATUS_IGNORE);
+        MPI_Recv(Q.data(), Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, 0, pi->m->pals, MPI_STATUS_IGNORE);
         if (Qs == 1 && Q[0] == UINT32_MAX) {
             active_peers--;
             continue;
@@ -907,7 +907,7 @@ void dispatcher::watch_incoming_on_reader(int &active_peers)
     // local row weight for all threads.
     MPI_Get_count(&status, CADO_MPI_UINT32_T, &Qs);
     Q.assign(Qs, 0);
-    MPI_Recv(&Q[0], Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, 0, pi->m->pals, MPI_STATUS_IGNORE);
+    MPI_Recv(Q.data(), Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, 0, pi->m->pals, MPI_STATUS_IGNORE);
     if (Qs == 1 && Q[0] == UINT32_MAX) {
         active_peers--;
         return;
