@@ -61,6 +61,10 @@ extern int las_production_mode;
 #define xxxFIX_30012
 #endif
 
+#ifndef BUCKET_SIEVE_POWERS
+#define xxxBUCKET_SIEVE_POWERS
+#endif
+
 /* Define SKIP_GCD3 to skip updates where 3 divides gcd(i,j) in the
    bucket sieving phase. Slightly slower than not skipping them
    in single-thread mode, but might be useful for multi-threading,

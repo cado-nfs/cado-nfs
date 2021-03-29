@@ -297,10 +297,12 @@ static inline bool discard_power_for_bucket_sieving(FB_ENTRY_TYPE const &) {
      */
     return false;
 }
+#ifndef BUCKET_SIEVE_POWERS
 template<>
 inline bool discard_power_for_bucket_sieving<fb_entry_general>(fb_entry_general const & e) {
     return e.k > 1;
 }
+#endif
 
 
 /***********************************************************************/
