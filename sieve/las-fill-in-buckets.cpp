@@ -635,6 +635,10 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 
   slice_offset_t i_entry = 0;
 
+  /* yes, we want the level-1 regions here */
+  int logB1 = LOG_BUCKET_REGIONS[1];
+  uint32_t maskB1I = (UINT32_C(1) << std::min(logB1, logI)) - 1;
+
   int logB = LOG_BUCKET_REGIONS[LEVEL];
   typename bucket_array_t<LEVEL, TARGET_HINT>::update_t::br_index_t bmask = (1UL << logB) - 1;
 
@@ -691,7 +695,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
               while (!ple.done(F)) {
                   u.set_x(ple.get_x() & bmask);
                   int N = ple.get_x() >> logB;
-                  int n = ple.advance_to_end_of_row(F);
+                  int n = ple.advance_to_end_of_row_or_smallest_region(maskB1I);
                   BA.push_row_update(slice_index, ple.get_inc_step(), N, n, u, w);
                   ple.next(F);
               }
@@ -747,6 +751,10 @@ fill_in_buckets_lowlevel(
    * conceivably give a lower bound) */
   typename plattice_enumerator<LEVEL>::fence F(ws.conf.logI, ws.J, BUCKET_REGIONS[LEVEL+1]);
 
+  /* yes, we want the level-1 regions here */
+  int logB1 = LOG_BUCKET_REGIONS[1];
+  uint32_t maskB1I = (UINT32_C(1) << std::min(logB1, logI)) - 1;
+
   int logB = LOG_BUCKET_REGIONS[LEVEL];
   typename bucket_array_t<LEVEL, TARGET_HINT>::update_t::br_index_t bmask = (1UL << logB) - 1;
 
@@ -781,9 +789,8 @@ fill_in_buckets_lowlevel(
         while (!ple.done(F)) {
             u.set_x(ple.get_x() & bmask);
             int N = ple.get_x() >> logB;
-            int n = ple.advance_to_end_of_row(F);
+            int n = ple.advance_to_end_of_row_or_smallest_region(maskB1I);
             BA.push_row_update(slice_index, ple.get_inc_step(), N, n, u, w);
-            ple.advance_to_end_of_row(F);
             ple.next(F);
         }
         /* we now do the end of loop normally: store x into ple_orig, and

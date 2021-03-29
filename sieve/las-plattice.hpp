@@ -517,11 +517,12 @@ public:
             x -= F.end;
     }
 
-    inline int advance_to_end_of_row(fence const & F)
+    inline int advance_to_end_of_row_or_smallest_region(uint32_t mask)
     {
         /* This function shouldn't be critical. We want the last matching
-         * position on the row where x stands.  This depends on the
-         * "step" vector (i1,j1).  Note that we need this only for
+         * position on the row where x stands, or in the lowest-level
+         * region if that happens to span less than a row.  This depends
+         * on the "step" vector (i1,j1).  Note that we need this only for
          * projective primes (and powers), so that the corresponding
          * plattice has i1>0 and j1==0
          *
@@ -532,11 +533,9 @@ public:
          * This returns the number of updates (not counting the current
          * x) that are skipped over by this update.
          */
-        ASSERT(inc_step < F.maskI);
-
 #ifdef BUCKET_SIEVE_POWERS
         if (inc_step > 1) {
-            int n = (F.maskI - (x & F.maskI)) / inc_step;
+            int n = (mask - (x & mask)) / inc_step;
             x += n * inc_step;
             return n;
         }
@@ -545,8 +544,8 @@ public:
          * powers. Hence the special-case above, so that we don't do a
          * division by 1 for all projective primes.
          */
-        int n = (F.maskI - (x & F.maskI));
-        x |= F.maskI;
+        int n = (mask - (x & mask));
+        x |= mask;
         return n;
     }
     plattice_x_t get_x() const {return x;}
