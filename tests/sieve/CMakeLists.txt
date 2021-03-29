@@ -47,7 +47,7 @@ cado_define_test(c90_21505_makefb
 
 cado_define_test(c90_21505_sieve
         ENVIRONMENT
-            I=11 poly=${c90_21505_poly} 
+            las_I=11 poly=${c90_21505_poly} 
             lim0=404327 lim1=811066 lpb0=23 lpb1=23 mfb0=46 mfb1=46 ncurves0=9
             ncurves1=10 fb1=${c90_21505_roots} sqside=1
             q0=375923 rho=119201
@@ -76,7 +76,7 @@ cado_define_test(c90_21553_makefb
 
 cado_define_test(c90_21553_sieve
         ENVIRONMENT
-            I=11 poly=${c90_21553_poly} 
+            las_I=11 poly=${c90_21553_poly} 
             lim0=404327 lim1=811066 lpb0=23 lpb1=23 mfb0=46 mfb1=46 ncurves0=9
             ncurves1=10 fb1=${c90_21553_roots} sqside=1
             q0=327127 rho=22938
@@ -121,7 +121,7 @@ set(c95_21684_poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly)
 # 
 # cado_define_test(c95_21684_sieve
 #         ENVIRONMENT
-#             I=13 poly=${c95_21684_poly} 
+#             las_I=13 poly=${c95_21684_poly} 
 #             lim0=600000 lim1=850000 lpb0=24 lpb1=25 mfb0=48 mfb1=50 ncurves0=11
 #             ncurves1=14 
 #             fb0=${c95_21684_roots0}
@@ -156,7 +156,7 @@ cado_define_test(F9_makefb
 
 cado_define_test(F9
         ENVIRONMENT ${F9_baseargs}
-            I=12
+            las_I=12
             lpb0=26 mfb0=52 lambda0=2.1
             lpb1=26 mfb1=52 lambda1=2.2
             q0=1200000 q1=1200200
@@ -291,7 +291,7 @@ set_tests_properties(F9_batch_try_to_reuse_foreign PROPERTIES WILL_FAIL 1)
 
 cado_divert_test(F9 sublat
         APPEND_ENVIRONMENT
-            I=10
+            las_I=10
             REL_COUNT=245
             REFERENCE_SHA1=11f0947fa83a200160ad934215c141917ca3074e
             REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -300,7 +300,7 @@ cado_divert_test(F9 sublat
 
 cado_divert_test(F9 skipped
         APPEND_ENVIRONMENT
-            I=10
+            las_I=10
             REL_COUNT=60
         APPEND_ARGUMENTS -skipped 100
         )
@@ -344,11 +344,11 @@ cado_divert_test(F9_quick lambda1
 
 set(c120_poly ${CMAKE_CURRENT_SOURCE_DIR}/c120.poly)
 set(c120_fb ${CMAKE_CURRENT_SOURCE_DIR}/c120.roots1.gz)
-set(c120_baseargs
+set(c120_base_env
         LAS_BINARY=${las_path}
         lim0=10000 lpb0=26 mfb0=28 powlim0=8000
         lim1=10000 lpb1=26 mfb1=28 powlim1=8000
-        I=12 q0=15350029 rho=14463285
+        las_I=12 q0=15350029 rho=14463285
         poly=${c120_poly}
         fb1=${c120_fb}
         t=2)
@@ -356,13 +356,77 @@ set(c120_baseargs
 # Try sieving I (see bug 18814)
 cado_define_test(sievetest_I
         SCRIPT
-            env ${c120_baseargs}
+            env ${c120_base_env}
             REFERENCE_SHA1=da39a3ee5e6b4b0d3255bfef95601890afd80709
             REFERENCE_REVISION=88ddb4f779defe692aed14a79ef8c952a4f68efa
             "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
         TARGET_DEPENDENCIES las
         )
+
+# Try bucket-sieving of projective roots
+set(c30_30012_base_env
+        las_I=9
+        lim0=30000
+        lim1=30000
+        lpb0=17
+        lpb1=17
+        mfb0=18
+        mfb1=18
+        poly=${CMAKE_CURRENT_SOURCE_DIR}/c30_30012.poly
+        fb1=${CMAKE_CURRENT_SOURCE_DIR}/c30_30012.roots1.gz
+        t=auto
+        adjust_strategy=2
+)
+
+cado_define_test(c30_30012
+    ENVIRONMENT
+        ${c30_30012_base_env}
+    SCRIPT
+        "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+        ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
+    NO_DEFAULT_RUN
+    )
+
+# This one doesn't test much. It only verifies that a projective root
+# gets bucket sieved. If this fails, it probably means that this
+# q-lattice ended up behaving differently, and not have I=256 as per
+# adjust-strategy 2.
+cado_divert_test(c30_30012 1
+    APPEND_ENVIRONMENT
+        LAS_BINARY=${las_tracek_path}
+        q0=52919 rho=35788 traceij=1,0 "TRACE_REGEX=Pushed.hit.*p=347"
+    TARGET_DEPENDENCIES las_tracek
+)
+
+# This one is the real business about issue 30012
+# Normally, we should sieve the given prime within
+# fill_in_buckets_toplevel
+cado_divert_test(c30_30012 2a
+    APPEND_ENVIRONMENT
+        LAS_BINARY=${las_tracek_path}
+        q0=52919 rho=35788 traceij=0,347 "TRACE_REGEX=Pushed.hit.*p=347"
+    TARGET_DEPENDENCIES las_tracek
+)
+cado_divert_test(c30_30012 2b
+    APPEND_ENVIRONMENT
+        LAS_BINARY=${las_tracek_path}
+        q0=52919 rho=35788 traceij=1,694 "TRACE_REGEX=Pushed.hit.*p=347"
+    TARGET_DEPENDENCIES las_tracek
+)
+
+# This is for the 2-level sieving case.
+# Normally, we should sieve the given prime within
+# fill_in_buckets_lowlevel (this works because we've restricted to very
+# small sieving regions with B=10
+cado_divert_test(c30_30012 3
+    APPEND_ENVIRONMENT
+        LAS_BINARY=${las_tracek_path}
+        q0=50707 rho=50345
+        las_A=23 las_I= las_B=10 bkthresh1=2048     # kill I explicitly
+        traceij=1,1153 "TRACE_REGEX=Pushed.hit.*p=1153"
+    TARGET_DEPENDENCIES las_tracek
+)
 
 # Try the todo-list mode of las
 cado_divert_test(F9 todo
@@ -393,7 +457,7 @@ cado_divert_test(F9 descent
 # different.
 cado_define_test(F9_dupsup
         ENVIRONMENT ${F9_baseargs}
-            I=12
+            las_I=12
             lpb0=28 mfb0=56 lambda0=2.1
             lpb1=28 mfb1=56 lambda1=2.1
             q0=250000000 nq=1

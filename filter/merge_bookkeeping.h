@@ -24,15 +24,10 @@ extern unsigned long cancel_cols[CANCEL_MAX];
 /* define DEBUG if printRow or copy_matrix is needed */
 // #define DEBUG
 
-/* CBOUND_INCR is the increment on the maximal cost of merges at each step.
+/* cbound_incr is the increment on the maximal cost of merges at each step.
    Setting it to 1 is optimal in terms of matrix size, but will take a very
-   long time (typically 10 times more than with CBOUND_INCR=10).
-   The following values were determined experimentally. */
-#ifndef FOR_DL
-#define CBOUND_INCR 13
-#else
-#define CBOUND_INCR 31
-#endif
+   long time (typically 10 times more than with cbound_incr=10). */
+#define CBOUND_INCR_DEFAULT 8
 
 
 /* Note about variables used in the code:

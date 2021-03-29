@@ -1640,3 +1640,5 @@ filter/merge_heap.c
 filter/merge_heap.h
 filter/merge_compute_weights.c
 filter/merge_compute_weights.h
+tests/sieve/c30_30012.poly
+tests/sieve/c30_30012.roots1.gz
