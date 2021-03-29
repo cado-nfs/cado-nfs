@@ -30,6 +30,9 @@ inline void apply_row_updates_for_one_bucket (unsigned char *S,
         bucket_array_t<LEVEL, HINT> const &BA, const int i,
         fb_factorbase::slicing::part const & fbp, where_am_I & w)
 {
+    if ((uint32_t) i >= BA.n_bucket)
+        return;
+
     /* p is logged at push_update, not at apply_update */
     WHERE_AM_I_UPDATE(w, p, 0);
     for(auto & ru : BA.row_updates[i]) {
