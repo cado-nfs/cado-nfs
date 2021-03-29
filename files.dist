@@ -1650,3 +1650,5 @@ tests/utils/buggy.poly
 misc/indexed_relations_to_density.cpp
 scripts/check_python_pathdetection_stub.sh
 config/source-location.txt.in
+sieve/plattice.sage
+tests/sieve/test-reduce-plattice.cpp
