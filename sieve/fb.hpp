@@ -60,6 +60,8 @@ struct cxx_param_list;
 template <int Nr_roots>
 class fb_entry_x_roots;
 
+class fb_entry_general;
+
 /* A root modulo a prime power q. q is specified externally */
 struct fb_general_root {
   /* exp and oldexp are maximal such that:
@@ -83,6 +85,8 @@ struct fb_general_root {
   static fb_general_root fb_linear_root (fbprime_t q, cxx_mpz_poly const & poly,
           const unsigned char nexp, const unsigned char oldexp);
 
+private:
+  friend class fb_entry_general;
   /* Constructor from the old format of storing projective roots, which has q
      added to the root if the root is projective */
   fb_general_root (const fb_root_p1 R,
@@ -137,6 +141,7 @@ public:
   fbroot_t get_r(const size_t i) const {return roots[i].r;};
   fbroot_t get_proj(const size_t i) const {return roots[i].proj;};
   void parse_line (const char *line, unsigned long linenr);
+  bool can_merge (const fb_entry_general &) const;
   void merge (const fb_entry_general &);
   void fprint(FILE *out) const;
   bool is_simple() const;

@@ -501,6 +501,22 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
       increment_counter_on_dtor<slice_offset_t> _dummy(i_entry);
       if (!Q.is_coprime_to(e.p))
         continue;
+#ifdef BUCKET_SIEVE_POWERS
+      /* the combination of bucket-sieving powers + sublattices means
+       * that powers of the primes that divide the sublattice determinant
+       * may be bucket-sieved. And of course, that leads to problems.
+       *
+       * technically, Q.sublat.m could be composite, in which case we
+       * would have a gcd to compute, here. The only really useful case
+       * at the moment is m=3 though.
+       */
+      if (Q.sublat.m == 3) {
+          if (e.p == 3)
+              continue;
+      } else if (gcd_ul(e.p, Q.sublat.m) > 1) {
+          continue;
+      }
+#endif
       if (discard_power_for_bucket_sieving(e))
           continue;
       e.transform_roots(transformed, Q);
@@ -656,14 +672,9 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
            * note that "something" might be large !
            */
           if (UNLIKELY(ple.is_projective_like(logI)) && first_reg && !ple.done(F)) {
-
               BA.push_update(ple.get_x(), p, hint, slice_index, w);
-#ifdef FIX_30012
               ple.advance_to_end_of_projective_first_line(F);
               ple.next(F);
-#else
-              continue;
-#endif
           }
           if (UNLIKELY(pli.is_vertical_line(logI))) {
             if (!ple.done(F)) {
@@ -740,18 +751,9 @@ fill_in_buckets_lowlevel(
         if (Q.sublat.m)
             continue;   /* XXX headaches ! */
 
-#ifdef FIX_30012
-        if (first_reg) {
-            /* same as in fill_in_bucket_toplevel */
-            BA.push_update(ple.get_x(), p, hint, slice_index, w);
-            ple.advance_to_end_of_projective_first_line(F);
-            ple.next(F);
-        }
-#else
-        if (first_reg)
-            BA.push_update(ple.get_x(), p, hint, slice_index, w);
-        continue;
-#endif
+        BA.push_update(ple.get_x(), p, hint, slice_index, w);
+        ple.advance_to_end_of_projective_first_line(F);
+        ple.next(F);
     }
     if (UNLIKELY(ple.is_vertical_line(logI))) {
         if (Q.sublat.m)

@@ -331,12 +331,28 @@ fb_entry_general::fprint(FILE *out) const
   fprintf(out, "\n");
 }
 
+bool
+fb_entry_general::can_merge (const fb_entry_general &other) const
+{
+  ASSERT_ALWAYS(nr_roots);
+  if (p != other.p) return false;
+  if (q != other.q) return false;
+  if (k != other.k) return false;
+#ifdef BUCKET_SIEVE_POWERS
+  for (unsigned char i_root = 0; i_root < other.nr_roots; i_root++) {
+    if (roots[0].exp != other.roots[i_root].exp) return false;
+    if (roots[0].oldexp != other.roots[i_root].oldexp) return false;
+  }
+#endif
+  return true;
+}
+
 void
 fb_entry_general::merge (const fb_entry_general &other)
 {
-  ASSERT_ALWAYS(p == other.p && q == other.q && k == other.k);
+  ASSERT_ALWAYS(can_merge(other));
+  ASSERT_ALWAYS(nr_roots + other.nr_roots < MAX_DEGREE);
   for (unsigned char i_root = 0; i_root < other.nr_roots; i_root++) {
-    ASSERT_ALWAYS(nr_roots < MAX_DEGREE);
     roots[nr_roots++] = other.roots[i_root];
   }
 }
@@ -469,6 +485,7 @@ fb_linear_root (cxx_mpz_poly const & poly, const fbprime_t q)
   modul_init_noset0 (r0, m);
   modul_init_noset0 (r1, m);
 
+  /* Set r0 = poly[0] % q, r1 = poly[1] (mod q) */
   modul_set_ul_reduced (r0, mpz_fdiv_ui (poly->coeff[0], q), m);
   modul_set_ul_reduced (r1, mpz_fdiv_ui (poly->coeff[1], q), m);
 
@@ -479,10 +496,8 @@ fb_linear_root (cxx_mpz_poly const & poly, const fbprime_t q)
   if (R.proj)
     {
       ASSERT_ALWAYS(mpz_gcd_ui(NULL, poly->coeff[1], q) > 1);
-      /* Set r1 = poly[0] % q, r0 = poly[1] (mod q) */
-      modul_set (r1, r0, m);
-      modul_set_ul_reduced (r0, mpz_fdiv_ui (poly->coeff[1], q), m);
-      int rc = modul_inv (r1, r1, m);
+      /* invert r0 instead. */
+      int rc = modul_inv (r0, r0, m);
       ASSERT_ALWAYS(rc != 0);
     }
 
@@ -1636,7 +1651,7 @@ fb_factorbase::read(const char * const filename)
 
         if (C.p > maxprime) maxprime = C.p;
 
-        if (pool.empty() || C.q != pool.back().q) {
+        if (pool.empty() || ! pool.back().can_merge(C)) {
             pool.push_back(std::move(C));
             pool_size++;
         } else {
