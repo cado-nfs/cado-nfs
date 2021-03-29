@@ -26,66 +26,22 @@ apply_one_update (unsigned char * const S,
 }
 
 template <int LEVEL, typename HINT>
-struct apply_row_updates_for_one_bucket {
-    inline void operator() (unsigned char *S,
-                bucket_array_t<LEVEL, HINT> const &BA, const int i,
-                fb_factorbase::slicing::part const & fbp, where_am_I & w)
-        {
-            /* p is logged at push_update, not at apply_update */
-            WHERE_AM_I_UPDATE(w, p, 0);
-            for(auto & ru : BA.row_updates[i]) {
-                bucket_update_t<LEVEL, HINT> u = ru;
-                const unsigned char logp = fbp[ru.slice_index].get_logp();
-                // WHERE_AM_I_UPDATE(w, p, fbp[ru.slice_index].get_prime(u.hint));
-                for(size_t n = ru.n + 1; n--; ) {
-                    apply_one_update<HINT> (S, u, logp, w);
-                    u.x += ru.inc;
-                }
-            }
-        }
-};
-
-#if 0
-template <int LEVEL>
-struct
-apply_row_updates_for_one_bucket<LEVEL, emptyhint_t> {
-    inline void operator()(unsigned char *S,
-            bucket_array_t<LEVEL, emptyhint_t> const &BA, const int i,
-            fb_factorbase::slicing::part const & fbp, where_am_I & w)
-    {
-        /* same, but we have no p */
-        WHERE_AM_I_UPDATE(w, p, 0);
-        for(auto & ru : BA.row_updates[i]) {
-            bucket_update_t<1, emptyhint_t> u = ru;
-            const unsigned char logp = fbp[ru.slice_index].get_logp();
-            for(size_t n = ru.n + 1; n--; ) {
-                apply_one_update<emptyhint_t> (S, u, logp, w);
-                u.x += ru.inc;
-            }
+inline void apply_row_updates_for_one_bucket (unsigned char *S,
+        bucket_array_t<LEVEL, HINT> const &BA, const int i,
+        fb_factorbase::slicing::part const & fbp, where_am_I & w)
+{
+    /* p is logged at push_update, not at apply_update */
+    WHERE_AM_I_UPDATE(w, p, 0);
+    for(auto & ru : BA.row_updates[i]) {
+        bucket_update_t<LEVEL, HINT> u = ru;
+        const unsigned char logp = fbp[ru.slice_index].get_logp();
+        // WHERE_AM_I_UPDATE(w, p, fbp[ru.slice_index].get_prime(u.hint));
+        for(size_t n = ru.n + 1; n--; ) {
+            apply_one_update<HINT> (S, u, logp, w);
+            u.x += ru.inc;
         }
     }
-};
-
-template <int LEVEL>
-struct
-apply_row_updates_for_one_bucket<LEVEL, logphint_t> {
-    inline void operator()(unsigned char *S,
-            bucket_array_t<LEVEL, logphint_t> const &BA, const int i,
-            fb_factorbase::slicing::part const & fbp, where_am_I & w)
-    {
-        /* same, but we have no p */
-        WHERE_AM_I_UPDATE(w, p, 0);
-        for(auto & ru : BA.row_updates[i]) {
-            bucket_update_t<1, logphint_t> u = ru;
-            const unsigned char logp = fbp[ru.slice_index].get_logp();
-            for(size_t n = ru.n + 1; n--; ) {
-                apply_one_update<logphint_t> (S, u, logp, w);
-                u.x += ru.inc;
-            }
-        }
-    }
-};
-#endif
+}
 
 template <typename HINT>
 #ifndef TRACE_K
@@ -179,7 +135,7 @@ apply_one_bucket (unsigned char *S,
     while (it != it_end)
       apply_one_update<HINT> (S, *it++, logp, w);
   }
-  apply_row_updates_for_one_bucket<1, HINT>()(S, BA, i, fbp, w);
+  apply_row_updates_for_one_bucket<1, HINT>(S, BA, i, fbp, w);
 }
 
 // Create the four instances, longhint_t and logphint_t are specialized.
@@ -206,7 +162,7 @@ void apply_one_bucket<longhint_t> (unsigned char *S,
         const unsigned char logp = fbp[it.slice_index].get_logp();
         apply_one_update<longhint_t> (S, it, logp, w);
     }
-    apply_row_updates_for_one_bucket<1, longhint_t>()(S, BA, i, fbp, w);
+    apply_row_updates_for_one_bucket<1, longhint_t>(S, BA, i, fbp, w);
 }
 
 template <>
@@ -221,7 +177,7 @@ void apply_one_bucket<logphint_t> (unsigned char *S,
     for(auto const & it : BA.slice_range(i, 0)) {
         apply_one_update<logphint_t> (S, it, it.logp, w);
     }
-    apply_row_updates_for_one_bucket<1, logphint_t>()(S, BA, i, fbp, w);
+    apply_row_updates_for_one_bucket<1, logphint_t>(S, BA, i, fbp, w);
 }
 /* }}} */
 

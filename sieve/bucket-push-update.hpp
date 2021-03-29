@@ -47,19 +47,4 @@ bucket_single<LEVEL, HINT>::get_next_update()
     return *read++;
 }
 
-template<int LEVEL, typename HINT>
-inline void
-bucket_array_t<LEVEL, HINT>::push_update(
-       const uint64_t offset, const fbprime_t p,
-       const slice_offset_t slice_offset, const slice_index_t slice_index,
-      where_am_I& w MAYBE_UNUSED)
-  {
-      int logB = LOG_BUCKET_REGIONS[LEVEL];
-      const uint64_t bucket_number = offset >> logB;
-      ASSERT_EXPENSIVE(bucket_number < n_bucket);
-      update_t update(offset & ((UINT64_C(1) << logB) - 1), p, slice_offset, slice_index);
-      WHERE_AM_I_UPDATE(w, i, slice_index);
-      push_update(bucket_number, update, w);
-  }
-
 #endif	/* BUCKET_PUSH_UPDATE_HPP_ */
