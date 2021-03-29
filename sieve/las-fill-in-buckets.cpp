@@ -618,7 +618,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 
   ASSERT_ALWAYS(!Q.sublat.m);
 
-  bool first_reg = true;
+  // bool first_reg = true;
   bucket_array_t<LEVEL, TARGET_HINT> BA;  /* local copy. Gain a register + use stack */
   BA.move(orig_BA);
 
@@ -726,7 +726,7 @@ fill_in_buckets_lowlevel(
     bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
     nfs_work & ws,
     plattices_vector_t<LEVEL> & plattices_vector,
-    bool first_reg,
+    bool first_reg MAYBE_UNUSED,
     where_am_I & w)
 {
     int logI = ws.conf.logI;
@@ -773,47 +773,52 @@ fill_in_buckets_lowlevel(
 
     // Handle the rare special cases
     /* see fill_in_bucket_toplevel. */
-    if (UNLIKELY(ple.is_projective_like(logI)) && first_reg && !ple.done(F)) {
+    if (UNLIKELY(ple.is_projective_like(logI))) {
         if (Q.sublat.m)
             continue;   /* XXX headaches ! */
 
-        u.set_x(ple.get_x() & bmask);
-        BA.push_update(ple.get_x() >> logB, u, w);
-
-        ple.advance_to_end_of_projective_first_line(F);
-        ple.next(F);
-    }
-    if (UNLIKELY(ple.is_vertical_line(logI))) {
+        while (!ple.done(F)) {
+            u.set_x(ple.get_x() & bmask);
+            int N = ple.get_x() >> logB;
+            int n = ple.advance_to_end_of_row(F);
+            BA.push_row_update(slice_index, ple.get_inc_step(), N, n, u, w);
+            ple.advance_to_end_of_row(F);
+            ple.next(F);
+        }
+        /* we now do the end of loop normally: store x into ple_orig, and
+         * then advance to the next area. This is because more rows can
+         * be interesting as we go towards increasing j's
+         */
+    } else if (UNLIKELY(ple.is_vertical_line(logI))) {
         if (Q.sublat.m)
             continue;   /* XXX headaches ! */
 
         if (!ple.done(F)) {
             u.set_x(ple.get_x() & bmask);
             BA.push_update(ple.get_x() >> logB, u, w);
-            ple.next(F);
-        }
-        continue;
-    }
-
-    /* Now, do the real work: the filling of the buckets */
-    // Without sublattices, we test (very basic) coprimality,
-    // otherwise not atm. FIXME!
-    if (!Q.sublat.m) {
-        while (!ple.done(F)) {
-            if (LIKELY(ple.probably_coprime(F))) {
-              u.set_x(ple.get_x() & bmask);
-              BA.push_update(ple.get_x() >> logB, u, w);
-            }
-            ple.next(F);
+            // ple.next(F);
+            ple.finish();
         }
     } else {
-        while (!ple.done(F)) {
-            u.set_x(ple.get_x() & bmask);
-            BA.push_update(ple.get_x() >> logB, u, w);
-            ple.next(F);
+        /* Now, do the real work: the filling of the buckets */
+        // Without sublattices, we test (very basic) coprimality,
+        // otherwise not atm. FIXME!
+        if (!Q.sublat.m) {
+            while (!ple.done(F)) {
+                if (LIKELY(ple.probably_coprime(F))) {
+                  u.set_x(ple.get_x() & bmask);
+                  BA.push_update(ple.get_x() >> logB, u, w);
+                }
+                ple.next(F);
+            }
+        } else {
+            while (!ple.done(F)) {
+                u.set_x(ple.get_x() & bmask);
+                BA.push_update(ple.get_x() >> logB, u, w);
+                ple.next(F);
+            }
         }
     }
-
     // save current position, and prepare for next area.
     ple_orig.set_x(ple.get_x());
     ple_orig.advance_to_next_area(F);

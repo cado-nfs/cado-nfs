@@ -391,7 +391,7 @@ cado_define_test(c30_30012
 
 # This one doesn't test much. It only verifies that a projective root
 # gets bucket sieved. If this fails, it probably means that this
-# q-lattice ended up behaving differently, and not have I=256 as per
+# q-lattice ends up behaving differently, and does not have I=256 as per
 # adjust-strategy 2.
 cado_divert_test(c30_30012 1
     APPEND_ENVIRONMENT
