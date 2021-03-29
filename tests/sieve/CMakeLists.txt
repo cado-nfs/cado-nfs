@@ -172,9 +172,9 @@ cado_define_test(F9
 
 cado_divert_test(F9 sieve
         APPEND_ENVIRONMENT
-            REL_COUNT=431
-            REFERENCE_SHA1=e04ae591795ff30af703a2235a4f9fd09d17b380
-            REFERENCE_REVISION=ede066464ba58b2d6127fa256cef01706282e0ed
+            REL_COUNT=432
+            REFERENCE_SHA1=ffe3f2036e7b80b2a7a56bc397f665506430f386
+            REFERENCE_REVISION=2c5ac2cff
         )
 
 cado_define_test(bogus_fbc_is_consistent
@@ -292,9 +292,9 @@ set_tests_properties(F9_batch_try_to_reuse_foreign PROPERTIES WILL_FAIL 1)
 cado_divert_test(F9 sublat
         APPEND_ENVIRONMENT
             las_I=10
-            REL_COUNT=245
-            REFERENCE_SHA1=11f0947fa83a200160ad934215c141917ca3074e
-            REFERENCE_REVISION=xxxxxxxxxxxxxxxxxxxxxxxxxx
+            REL_COUNT=246
+            REFERENCE_SHA1=f35a27aa4d96918a087cf8169071985c3992e659
+            REFERENCE_REVISION=2c5ac2cff
         APPEND_ARGUMENTS -sublat 3
         )
 
@@ -431,8 +431,9 @@ cado_divert_test(c30_30012 3
 # Try the todo-list mode of las
 cado_divert_test(F9 todo
         APPEND_ENVIRONMENT
-            REFERENCE_SHA1=451406185eca205ee28990c7381f85a1c4942c5f
-            REFERENCE_REVISION=88ddb4f779defe692aed14a79ef8c952a4f68efa
+            REFERENCE_SHA1=39f6c2f198f1bbd7a65558c28f8ed696ebe2d1f1
+            REFERENCE_REVISION=2c5ac2cff
+            REL_COUNT=426
             CHECKSUM_FILE=
             todo=${CADO_NFS_SOURCE_DIR}/tests/sieve/F9.todo
         )
@@ -464,7 +465,7 @@ cado_define_test(F9_dupsup
             ncurves0=10 ncurves1=10
             CHECKSUM_FILE=
             DUPSUP_BINARY=${dupsup_path}
-            DUPE_COUNT=12
+            DUPE_COUNT=13
         SCRIPT
             "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/F9.dupsup.sh
