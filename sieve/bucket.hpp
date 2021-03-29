@@ -196,6 +196,7 @@ template <int LEVEL> struct bare_bucket_update_t {
     br_index_t x;
     bare_bucket_update_t() = default;
     bare_bucket_update_t(const uint64_t x) : x(limit_cast<br_index_t>(x)) {}
+    inline void set_x(br_index_t xx) { x = xx; }
 };
 
 
@@ -347,7 +348,7 @@ private:
   }
   void free_slice_start();
   void realloc_slice_start(size_t);
-  void log_this_update (const update_t update, uint64_t offset,
+  void log_this_update (const update_t update,
                         uint64_t bucket_number, where_am_I & w) const;
 public:
   size_t nb_of_updates(const int i) const {
@@ -441,10 +442,14 @@ public:
   double average_full () const;
   /* Push an update to the designated bucket. Also check for overflow, if
      SAFE_BUCKET_ARRAYS is defined. */
-  inline void push_update(const int i, const update_t &update);
+  inline void push_update(const int i, const update_t &update, where_am_I& w MAYBE_UNUSED);
 
   /* Create an update for a hit at location offset and push it to the
-     coresponding bucket */
+   * coresponding bucket
+   * This is used during downsort, but beyond that, in cases where the
+   * update_t is mostly constant across nearby calls, the interface above
+   * should be preferred.
+   */
   inline void push_update(const uint64_t offset, const fbprime_t p,
       const slice_offset_t slice_offset, const slice_index_t slice_index,
       where_am_I & w);
@@ -463,13 +468,13 @@ public:
   template<typename hh = HINT>
   inline
   typename std::enable_if<std::is_same<hh,logphint_t>::value, void>::type
-  push_update(const uint64_t offset, logphint_t const & logp, where_am_I & w MAYBE_UNUSED)
+  push_update_logp(const uint64_t offset, logphint_t const & logp, where_am_I & w MAYBE_UNUSED)
   {
       int logB = LOG_BUCKET_REGIONS[LEVEL];
       const uint64_t bucket_number = offset >> logB;
       ASSERT_EXPENSIVE(bucket_number < n_bucket);
       update_t update(offset & ((UINT64_C(1) << logB) - 1), logp);
-      push_update(bucket_number, update);
+      push_update(bucket_number, update, w);
   }
 };
 

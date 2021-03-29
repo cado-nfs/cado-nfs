@@ -494,6 +494,9 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
   /* top level: the fence we care about is the one defined by J */
   typename plattice_enumerator<LEVEL>::fence F(ws.conf.logI, ws.J);
 
+  int logB = LOG_BUCKET_REGIONS[LEVEL];
+  typename bucket_array_t<LEVEL, TARGET_HINT>::update_t::br_index_t bmask = (1UL << logB) - 1;
+
   // FIXME: A LOT OF DUPLICATED CODE, HERE!!!
   if (first_sublat) {
     slice_offset_t i_entry = 0;
@@ -542,6 +545,9 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 #else
             const fbprime_t p = 0;
 #endif
+
+            typename bucket_array_t<LEVEL, TARGET_HINT>::update_t u(0, p, hint, slice_index);
+
             // Handle the rare special cases
             // XXX Here, we're not bucket-sieving projective primes at
             // all, and neither do we bucket-sieve primes with root equal
@@ -552,7 +558,8 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
             /* Now, do the real work: the filling of the buckets */
             // Without sublattices, we test (very basic) coprimality,
             while (!ple.done(F)) {
-              BA.push_update(ple.get_x(), p, hint, slice_index, w);
+              u.set_x(ple.get_x() & bmask);
+              BA.push_update(ple.get_x() >> logB, u, w);
               ple.next(F);
             }
       }
@@ -577,6 +584,8 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
         const fbprime_t p = 0;
 #endif
 
+        typename bucket_array_t<LEVEL, TARGET_HINT>::update_t u(0, p, hint, slice_index);
+
         // Handle (well, do not handle, in fact) the rare special cases
         if (UNLIKELY(pli.is_vertical_line(logI) || pli.is_projective_like(logI)))
           continue;
@@ -585,7 +594,8 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
         // Without sublattices, we test (very basic) coprimality,
         // otherwise not atm. FIXME!
         while (!ple.done(F)) {
-          BA.push_update(ple.get_x(), p, hint, slice_index, w);
+          u.set_x(ple.get_x() & bmask);
+          BA.push_update(ple.get_x() >> logB, u, w);
           ple.next(F);
         }
     }
@@ -616,6 +626,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 
   /* Write new set of pointers for the new slice */
   BA.add_slice_index(slice_index);
+  WHERE_AM_I_UPDATE(w, i, slice_index);
 
   typename FB_ENTRY_TYPE::transformed_entry_t transformed;
 
@@ -623,6 +634,9 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
   typename plattice_enumerator<LEVEL>::fence F(ws.conf.logI, ws.J);
 
   slice_offset_t i_entry = 0;
+
+  int logB = LOG_BUCKET_REGIONS[LEVEL];
+  typename bucket_array_t<LEVEL, TARGET_HINT>::update_t::br_index_t bmask = (1UL << logB) - 1;
 
   for (auto const & e : slice) {
     increment_counter_on_dtor<slice_offset_t> _dummy(i_entry);
@@ -653,6 +667,8 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
           const fbprime_t p = 0;
 #endif
 
+          typename bucket_array_t<LEVEL, TARGET_HINT>::update_t u(0, p, hint, slice_index);
+
           // Handle the rare special cases
           /* projective-like:
            *
@@ -672,13 +688,15 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
            * note that "something" might be large !
            */
           if (UNLIKELY(ple.is_projective_like(logI)) && first_reg && !ple.done(F)) {
-              BA.push_update(ple.get_x(), p, hint, slice_index, w);
+              u.set_x(ple.get_x() & bmask);
+              BA.push_update(ple.get_x() >> logB, u, w);
               ple.advance_to_end_of_projective_first_line(F);
               ple.next(F);
           }
           if (UNLIKELY(pli.is_vertical_line(logI))) {
             if (!ple.done(F)) {
-                BA.push_update(ple.get_x(), p, hint, slice_index, w);
+                u.set_x(ple.get_x() & bmask);
+                BA.push_update(ple.get_x() >> logB, u, w);
                 ple.next(F);
             }
             continue;
@@ -686,8 +704,10 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 
           /* Now, do the real work: the filling of the buckets */
           while (!ple.done(F)) {
-            if (LIKELY(ple.probably_coprime(F)))
-              BA.push_update(ple.get_x(), p, hint, slice_index, w);
+            if (LIKELY(ple.probably_coprime(F))) {
+              u.set_x(ple.get_x() & bmask);
+              BA.push_update(ple.get_x() >> logB, u, w);
+            }
             ple.next(F);
           }
     }
@@ -719,11 +739,15 @@ fill_in_buckets_lowlevel(
 
   /* Write new set of pointers for the new slice */
   BA.add_slice_index(slice_index);
+  WHERE_AM_I_UPDATE(w, i, slice_index);
 
   /* top level: the fence we care about is the one defined by the number
    * of bucket regions at this level, most probably (but J might
    * conceivably give a lower bound) */
   typename plattice_enumerator<LEVEL>::fence F(ws.conf.logI, ws.J, BUCKET_REGIONS[LEVEL+1]);
+
+  int logB = LOG_BUCKET_REGIONS[LEVEL];
+  typename bucket_array_t<LEVEL, TARGET_HINT>::update_t::br_index_t bmask = (1UL << logB) - 1;
 
   for (auto & ple_orig : plattices_vector) {
     // Work with a copy, otherwise we don't get all optimizations.
@@ -745,13 +769,17 @@ fill_in_buckets_lowlevel(
     const fbprime_t p = 0;
 #endif
 
+    typename bucket_array_t<LEVEL, TARGET_HINT>::update_t u(0, p, hint, slice_index);
+
     // Handle the rare special cases
     /* see fill_in_bucket_toplevel. */
     if (UNLIKELY(ple.is_projective_like(logI)) && first_reg && !ple.done(F)) {
         if (Q.sublat.m)
             continue;   /* XXX headaches ! */
 
-        BA.push_update(ple.get_x(), p, hint, slice_index, w);
+        u.set_x(ple.get_x() & bmask);
+        BA.push_update(ple.get_x() >> logB, u, w);
+
         ple.advance_to_end_of_projective_first_line(F);
         ple.next(F);
     }
@@ -760,7 +788,8 @@ fill_in_buckets_lowlevel(
             continue;   /* XXX headaches ! */
 
         if (!ple.done(F)) {
-            BA.push_update(ple.get_x(), p, hint, slice_index, w);
+            u.set_x(ple.get_x() & bmask);
+            BA.push_update(ple.get_x() >> logB, u, w);
             ple.next(F);
         }
         continue;
@@ -771,13 +800,16 @@ fill_in_buckets_lowlevel(
     // otherwise not atm. FIXME!
     if (!Q.sublat.m) {
         while (!ple.done(F)) {
-            if (LIKELY(ple.probably_coprime(F)))
-                BA.push_update(ple.get_x(), p, hint, slice_index, w);
+            if (LIKELY(ple.probably_coprime(F))) {
+              u.set_x(ple.get_x() & bmask);
+              BA.push_update(ple.get_x() >> logB, u, w);
+            }
             ple.next(F);
         }
     } else {
         while (!ple.done(F)) {
-            BA.push_update(ple.get_x(), p, hint, slice_index, w);
+            u.set_x(ple.get_x() & bmask);
+            BA.push_update(ple.get_x() >> logB, u, w);
             ple.next(F);
         }
     }

@@ -290,7 +290,6 @@ template <int LEVEL, typename HINT>
 void
 bucket_array_t<LEVEL, HINT>::log_this_update (
     const update_t update MAYBE_UNUSED,
-    const uint64_t offset MAYBE_UNUSED,
     const uint64_t bucket_number MAYBE_UNUSED,
     where_am_I & w MAYBE_UNUSED) const
 {
@@ -524,7 +523,7 @@ downsort(fb_factorbase::slicing const & fbs,
     // WHERE_AM_I_UPDATE(w, i, slice_index);
     for (auto const & it : BA_in.slice_range(bucket_number, i_slice)) {
         logphint_t h = fbs[slice_index].get_logp();
-        BA_out.push_update(it.x, h, w);
+        BA_out.push_update_logp(it.x, h, w);
     }
   }
 }
@@ -540,7 +539,7 @@ downsort(fb_factorbase::slicing const & /* unused */,
        exactly 1 slice per bucket */
     ASSERT_ALWAYS(BA_in.get_nr_slices() == 1);
     for (auto const & it : BA_in.slice_range(bucket_number, 0)) {
-        BA_out.push_update(it.x, it, w);
+        BA_out.push_update_logp(it.x, it, w);
     }
 }
 
