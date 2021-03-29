@@ -39,6 +39,9 @@ void las_display_config_flags()
 #ifdef SAFE_BUCKETS
     verbose_output_print(0, 1, " SAFE_BUCKETS");
 #endif
+#ifdef BUCKET_SIEVE_POWERS
+    verbose_output_print(0, 1, " BUCKET_SIEVE_POWERS");
+#endif
 #ifdef PROFILE
     verbose_output_print(0, 1, " PROFILE");
 #endif

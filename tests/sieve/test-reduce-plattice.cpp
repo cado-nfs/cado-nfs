@@ -11,6 +11,7 @@
 #include "macros.h"
 #include "getprime.h"
 #include "fb-types.h"
+#include "las-plattice.hpp"
 
 /* see plattice.sage */
 
@@ -28,31 +29,17 @@
  * reference2_asm # 5.9573
  */
 
-struct plattice {
-    uint32_t mi0;
-    uint32_t j0;
-    uint32_t i1;
-    uint32_t j1;
-
-    void lattice_with_vertical_vector(uint32_t I) {
-        /* At this point, (mi0,j0) represents itself, i.e. a vector with
-         * two positive coordinates.
-         */
-        uint32_t a = (I-1) % mi0;
-        uint32_t mi2 = (I-1) - a - i1;
-        uint32_t j2 = j1;
-        if (mi0 + mi2 < I)
-            mi2 += mi0;
-        i1 = mi0;
-        j1 = j0;
-        mi0 = mi2;
-        j0 = j2;
-    }
-
+struct plattice : public plattice_info {
     /* use this default ctor only for the comparison with the reference
      * routines.
      */
     plattice () = default;
+
+    using plattice_info::mi0;
+    using plattice_info::j0;
+    using plattice_info::i1;
+    using plattice_info::j1;
+    using plattice_info::check_post_conditions;
 
     void simplistic(uint32_t I) {
         /* This is the main reduce_plattice loop */
@@ -85,63 +72,6 @@ struct plattice {
                 j1 += a * j0;
                 return;
             }
-            {
-                int k = i1 / mi0; i1 -= k * mi0; j1 += k * j0;
-            }
-        }
-    }
-
-    void two_legs(uint32_t I) {
-        /* This is the main reduce_plattice loop */
-        for( ;; ) {
-            if (i1 < I) {
-                /* an "UNLIKELY" macro here actually has an adverse
-                 * effect...  */
-                if (i1 == 0) {
-                    // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
-                    j0 = j1 - j0;
-                    lattice_with_vertical_vector(I);
-                    return;
-                }
-                int a = (mi0 + i1 - I) / i1;
-                mi0 -= a * i1;
-                j0  += a * j1;
-                return;
-            }
-            /* do partial unrolling for the frequent case where the
-             * quotient is either 1 or 2 */
-#if 1
-            if (mi0 < i1 * 3) {
-                               { mi0 -= i1; j0 += j1; }
-                if (mi0 >= i1) { mi0 -= i1; j0 += j1; }
-            } else
-#endif
-            {
-                int k = mi0 / i1; mi0 -= k * i1; j0 += k * j1;
-            }
-            if (mi0 < I) {
-                /* an "UNLIKELY" macro here actually has an adverse
-                 * effect...  */
-                if (mi0 == 0) {
-                    mi0 = i1;
-                    i1 = j0 ; j0 = j1 ; j1 = i1;
-                    i1 = 0;
-                    lattice_with_vertical_vector(I);
-                    return;
-                }
-                int a = (mi0 + i1 - I) / mi0;
-                i1 -= a * mi0;
-                j1 += a * j0;
-                return;
-            }
-            /* do partial unrolling for the frequent case where the
-             * quotient is either 1 or 2 */
-#if 1
-            if (i1 < mi0 * 3) {
-                               { i1 -= mi0; j1 += j0; }
-                if (i1 >= mi0) { i1 -= mi0; j1 += j0; }
-            } else
-#endif
             {
                 int k = i1 / mi0; i1 -= k * mi0; j1 += k * j0;
             }
@@ -187,60 +117,28 @@ struct plattice {
         }
     }
 
-    plattice (const unsigned long q, const unsigned long r, uint32_t I)
+    /* XXX
+     * beware: this constructor takes I, but it shadows a constructor in
+     * the production code which takes only logI !!!
+     */
+    plattice(const unsigned long q, const unsigned long r, bool proj, uint32_t I) : plattice_info()
     {
-        if (r < q) {
-            mi0 = q;
-            j0 = 0;
-            i1 = r;
-            j1 = 1;
-        } else {
-            unsigned long gs = r - q;
-            unsigned long t; // , h;
-            unsigned long g = xgcd_ul(&t, gs, q);
-            mi0 = q/g;
-            j0 = 0;
-            i1 = mi0 - t;
-            j1 = g;
-        }
+        initial_basis(q, r, proj);
         /* At this point, (mi0,j0) represents itself, i.e. a vector with
          * two positive coordinates.
          * Note that j0==0
          */
-        ASSERT_ALWAYS(check_pre_conditions(I));
+        // ASSERT_ALWAYS(check_pre_conditions(I));
         bool needs_special_treatment = (i1 == 0 || (j1 > 1 && mi0 < I));
         if (needs_special_treatment) {
             lattice_with_vertical_vector(I);
             return;
         }
-        // two_legs(I);
+        two_legs(I);
         // simplistic(I);
-        swapping_loop(I);
+        // swapping_loop(I);
     }
 
-    bool check_pre_conditions(uint32_t I)
-    {
-        if (!(j0 == 0)) return false;
-        if (!(mi0 > 0)) return false;
-        if (!(j1 > 0)) return false;
-        // if (!(i1 >= 0)) return false;
-        if (!(mi0 * j1 >= I)) return false;
-        return true;
-    }
-    bool check_post_conditions(uint32_t I)
-    {
-        if (!(mi0 < I)) return false;
-        if (!(j0 > 0)) return false;
-        // since we want to handle the projective case, j1 may be zero
-        // if (!(j1 >= 0)) return false;
-        // this is an empty condition because of the type
-        // if (!(0 <= i1)) return false;
-        // This assertion is possibly violated for vertical lattices
-        // i1 < I
-        if (!(i1 < I || mi0 == 0)) return false;
-        if (!(i1 + mi0 >= I)) return false;
-        return true;
-    }
 };
 
 int
@@ -576,7 +474,7 @@ int main(int argc, char * argv[])
                 desc += "+even";
         }
         try {
-            plattice L(q, r, I);
+            plattice L(q, proj ? (r - q) : r, proj, I);
             // plattice L; reference(&L, q, r, I);
             // plattice L; reference2(&L, q, r, I);
             // plattice L; reference2_asm(&L, q, r, I);

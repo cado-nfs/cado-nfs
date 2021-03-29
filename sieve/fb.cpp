@@ -91,7 +91,7 @@ fb_log_delta (const fbprime_t p, const unsigned long newexp,
 }
 /* }}} */
 
-static bool fb_linear_root (fbroot_t & root, cxx_mpz_poly const & poly, const fbprime_t q);
+static void fb_linear_root (fbroot_t & root, bool & proj, cxx_mpz_poly const & poly, const fbprime_t q);
 
 // Adapted from utils/ularith.h
 // TODO: this function should go somewhere else...
@@ -159,7 +159,7 @@ fb_general_root::fb_general_root (fbprime_t q, cxx_mpz_poly const & poly,
   const unsigned char nexp, const unsigned char oldexp)
   : exp(nexp), oldexp(oldexp)
 {
-  proj = fb_linear_root (r, poly, q);
+  fb_linear_root (r, proj, poly, q);
 }
 
 
@@ -341,12 +341,28 @@ fb_entry_general::fprint(FILE *out) const
   fprintf(out, "\n");
 }
 
+bool
+fb_entry_general::can_merge (const fb_entry_general &other) const
+{
+  ASSERT_ALWAYS(nr_roots);
+  if (p != other.p) return false;
+  if (q != other.q) return false;
+  if (k != other.k) return false;
+#ifdef BUCKET_SIEVE_POWERS
+  for (unsigned char i_root = 0; i_root < other.nr_roots; i_root++) {
+    if (roots[0].exp != other.roots[i_root].exp) return false;
+    if (roots[0].oldexp != other.roots[i_root].oldexp) return false;
+  }
+#endif
+  return true;
+}
+
 void
 fb_entry_general::merge (const fb_entry_general &other)
 {
-  ASSERT_ALWAYS(p == other.p && q == other.q && k == other.k);
+  ASSERT_ALWAYS(can_merge(other));
+  ASSERT_ALWAYS(nr_roots + other.nr_roots < MAX_DEGREE);
   for (unsigned char i_root = 0; i_root < other.nr_roots; i_root++) {
-    ASSERT_ALWAYS(nr_roots < MAX_DEGREE);
     roots[nr_roots++] = other.roots[i_root];
   }
 }
@@ -420,51 +436,50 @@ fb_entry_x_roots<Nr_roots>::fprint(FILE *out) const
 }
 
 /* Make one factor base entry for a linear polynomial poly[1] * x + poly[0]
-   and the prime (power) q. We assume that poly[0] and poly[1] are coprime.
-   Non-projective roots a/b such that poly[1] * a + poly[0] * b == 0 (mod q)
-   with gcd(poly[1], q) = 1 are stored as a/b mod q.
-   If do_projective != 0, also stores projective roots with gcd(q, f_1) > 1,
-   but stores the reciprocal root.
-   Returns true if the roots was projective, and false otherwise. */
+ * and the prime (power) q. We assume that poly[0] and poly[1] are coprime.
+ * Non-projective roots a/b such that poly[1] * a + poly[0] * b == 0 (mod q)
+ * with gcd(poly[1], q) = 1 are stored as a/b mod q.
+ * projective roots (with b and q not coprime) are stored as q + (b/a mod q)
+ */
 
-static bool
-fb_linear_root (fbroot_t & root, cxx_mpz_poly const & poly, const fbprime_t q)
+static void
+fb_linear_root (fbroot_t & root, bool & proj, cxx_mpz_poly const & poly, const fbprime_t q)
 {
   modulusul_t m;
   residueul_t r0, r1;
-  bool is_projective;
 
   modul_initmod_ul (m, q);
   modul_init_noset0 (r0, m);
   modul_init_noset0 (r1, m);
 
+  /* Set r0 = poly[0] % q, r1 = poly[1] (mod q) */
   modul_set_ul_reduced (r0, mpz_fdiv_ui (poly->coeff[0], q), m);
   modul_set_ul_reduced (r1, mpz_fdiv_ui (poly->coeff[1], q), m);
 
   /* We want poly[1] * a + poly[0] * b == 0 <=>
      a/b == - poly[0] / poly[1] */
-  is_projective = (modul_inv (r1, r1, m) == 0); /* r1 = 1 / poly[1] */
 
-  if (is_projective)
-    {
+  if ((proj = (modul_inv (r1, r1, m) == 0))) { /* can't invert ! */
       ASSERT_ALWAYS(mpz_gcd_ui(NULL, poly->coeff[1], q) > 1);
-      /* Set r1 = poly[0] % q, r0 = poly[1] (mod q) */
-      modul_set (r1, r0, m);
-      modul_set_ul_reduced (r0, mpz_fdiv_ui (poly->coeff[1], q), m);
-      int rc = modul_inv (r1, r1, m);
+      /* invert r0 instead. */
+      int rc = modul_inv (r0, r0, m);
       ASSERT_ALWAYS(rc != 0);
-    }
-
-  modul_mul (r1, r0, r1, m); /* r1 = poly[0] / poly[1] */
-  modul_neg (r1, r1, m); /* r1 = - poly[0] / poly[1] */
-
-  root = modul_get_ul (r1, m);
+      modul_mul (r0, r0, r1, m);
+      modul_neg (r0, r0, m);
+      /* This encodes the projective root. */
+      /* Note that we can't handle projective roots of 32-bit primes and
+       * prime powers this way. Is it a problem ?
+       */
+      root = q + modul_get_ul (r0, m);
+  } else {
+      modul_mul (r1, r0, r1, m); /* r1 = poly[0] / poly[1] */
+      modul_neg (r1, r1, m); /* r1 = - poly[0] / poly[1] */
+      root = modul_get_ul (r1, m);
+  }
 
   modul_clear (r0, m);
   modul_clear (r1, m);
   modul_clearmod (m);
-
-  return is_projective;
 }
 
 std::ostream& operator<<(std::ostream& o, fb_factorbase::key_type const & k)
@@ -1274,9 +1289,10 @@ void fb_factorbase::make_linear ()
             next_prime = getprime_mt(pi);
         }
         fb_cur.nr_roots = 1;
-        fb_cur.roots[0].exp = fb_cur.k;
-        fb_cur.roots[0].oldexp = fb_cur.k - 1U;
-        fb_cur.roots[0].proj = fb_linear_root (fb_cur.roots[0].r, poly, fb_cur.q);
+        fb_general_root & R = fb_cur.roots[0];
+        R.exp = fb_cur.k;
+        R.oldexp = fb_cur.k - 1U;
+        fb_linear_root (R.r, R.proj, poly, fb_cur.q);
         fb_cur.invq = compute_invq(fb_cur.q);
         pool.push_back(fb_cur);
         if (++pool_size >= 1024) {
@@ -1341,7 +1357,7 @@ static task_result * process_one_task(worker_thread *, task_parameters *_param, 
         static_cast<make_linear_thread_param *>(_param);
     task_info_t *T = param->T;
     for (unsigned int i = 0; i < T->n; ++i) {
-        T->proj[i] = fb_linear_root (T->r[i], T->poly, T->q[i]);
+        fb_linear_root (T->r[i], T->proj[i], T->poly, T->q[i]);
         T->invq[i] = compute_invq(T->q[i]);
     }
     return new make_linear_thread_result(T, param);
@@ -1601,7 +1617,7 @@ fb_factorbase::read(const char * const filename)
 
         if (C.p > maxprime) maxprime = C.p;
 
-        if (pool.empty() || C.q != pool.back().q) {
+        if (pool.empty() || ! pool.back().can_merge(C)) {
             pool.push_back(std::move(C));
             pool_size++;
         } else {

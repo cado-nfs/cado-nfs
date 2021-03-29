@@ -60,6 +60,8 @@ struct cxx_param_list;
 template <int Nr_roots>
 class fb_entry_x_roots;
 
+class fb_entry_general;
+
 /* A root modulo a prime power q. q is specified externally */
 struct fb_general_root {
   /* exp and oldexp are maximal such that:
@@ -71,19 +73,24 @@ struct fb_general_root {
   unsigned char exp, oldexp;
 
   fb_general_root (){}
-  fb_general_root (const fbroot_t r, const unsigned char nexp=1,
-                   const unsigned char oldexp=0, const bool proj=false) :
+  fb_general_root (const fbroot_t r, const unsigned char nexp,
+                   const unsigned char oldexp, const bool proj) :
                    r(r), proj(proj), exp(nexp), oldexp(oldexp) {}
   /* Create a root from a linear polynomial */
   fb_general_root (fbprime_t q, cxx_mpz_poly const & poly, const unsigned char nexp=1,
                    const unsigned char oldexp=0);
 
+private:
+  friend class fb_entry_general;
+  fb_general_root (const fbroot_t r) : fb_general_root(r, 1, 0, false) {}
   /* Constructor from the old format of storing projective roots, which has q
      added to the root if the root is projective */
+  /* used in transform() --- should go away at some point */
   fb_general_root (const unsigned long long old_r, const fbprime_t q,
-                   const unsigned char nexp=1, const unsigned char oldexp=0) :
+                   const unsigned char nexp, const unsigned char oldexp) :
                    r((old_r >= q) ? (old_r - q) : old_r),
                    proj(old_r >= q), exp(nexp), oldexp(oldexp) {}
+public:
 
   /* A root is simple if it is not projective and the exp goes from 0 to 1 */
   bool is_simple() const {return exp == 1 && oldexp == 0 && !proj;}
@@ -132,6 +139,7 @@ public:
   fbroot_t get_r(const size_t i) const {return roots[i].r;};
   fbroot_t get_proj(const size_t i) const {return roots[i].proj;};
   void parse_line (const char *line, unsigned long linenr);
+  bool can_merge (const fb_entry_general &) const;
   void merge (const fb_entry_general &);
   void fprint(FILE *out) const;
   bool is_simple() const;

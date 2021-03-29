@@ -51,7 +51,7 @@ extern int las_production_mode;
 #endif
 
 #ifndef BUCKET_SIEVE_POWERS
-#define xxxBUCKET_SIEVE_POWERS
+#define BUCKET_SIEVE_POWERS
 #endif
 
 /* Define SKIP_GCD3 to skip updates where 3 divides gcd(i,j) in the
