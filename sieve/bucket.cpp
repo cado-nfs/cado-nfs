@@ -569,7 +569,7 @@ downsort(fb_factorbase::slicing const & fbs,
     for (auto const & it : BA_in.slice_range(bucket_number, i_slice)) {
         logphint_t h = fbs[slice_index].get_logp();
         lower_update_t u_low(it.x & maskB, h);
-        BA_out.push_update_logp(it.x >> logB, u_low, w);
+        BA_out.push_update(it.x >> logB, u_low, w);
     }
   }
   for(auto const & ru : BA_in.row_updates[bucket_number]) {
