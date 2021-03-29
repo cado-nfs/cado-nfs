@@ -343,6 +343,11 @@ p15:
     return 1;
 }
 
+#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && !(defined(__APPLE_CC__) && defined(__llvm__) && __APPLE_CC__ == 5621)
+#define TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
+#endif
+
+#ifdef TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
     int
 reference2_asm (plattice *pli, const fbprime_t p, const fbroot_t r, const uint32_t I)
 {
@@ -478,6 +483,7 @@ reference2_asm (plattice *pli, const fbprime_t p, const fbroot_t r, const uint32
     pli->mi0 = -(int32_t) i0; pli->j0 = (uint32_t) j0; pli->i1 = (int32_t) i1; pli->j1 = (uint32_t) j1;
     return 1;
 }
+#endif
 
 int main(int argc, char * argv[])
 {
@@ -579,7 +585,9 @@ int main(int argc, char * argv[])
             plattice L(q, r, I);
             // plattice L; reference(&L, q, r, I);
             // plattice L; reference2(&L, q, r, I);
+#ifdef TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
             // plattice L; reference2_asm(&L, q, r, I);
+#endif
             when = "post";
             ASSERT_ALWAYS(L.check_post_conditions(I));
             if (!quiet)
