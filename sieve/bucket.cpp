@@ -371,6 +371,21 @@ bucket_primes_t::purge (const bucket_array_t<1, shorthint_t> &BA,
             }
         }
     }
+    /* read the projective updates, and put the surviving ones to the
+     * main array.
+     */
+    for(auto const & ru : BA.row_updates[i]) {
+        fbprime_t p = fb[ru.slice_index].get_prime(ru.hint);
+        // longhint_t h(0, ru.hint, ru.slice_index);
+        /* have to walk the updates to see the ones that match */
+        bucket_update_t<1, shorthint_t> u = ru;
+        for(int nx = ru.n + 1 ; nx-- ; ) {
+            if (UNLIKELY(S[u.x] != 255)) {
+                push_update(bucket_update_t<1, primehint_t>(u.x, p, 0, 0));
+            }
+            u.x += ru.inc;
+        }
+    }
 }
 
 /*
@@ -407,6 +422,19 @@ bucket_array_complete::purge(
         for(auto const & it : BA.slice_range(i, i_slice)) {
             if (UNLIKELY(S[it.x] != 255)) {
                 push_update(to_longhint(it, slice_index));
+            }
+        }
+    }
+    if ((uint32_t) i < BA.n_bucket) {
+        for(auto const & ru : BA.row_updates[i]) {
+            // longhint_t h(0, ru.hint, ru.slice_index);
+            /* have to walk the updates to see the ones that match */
+            bucket_update_t<1, HINT> u = ru;
+            for(int nx = ru.n + 1 ; nx-- ; ) {
+                if (UNLIKELY(S[u.x] != 255)) {
+                    push_update(to_longhint(u, ru.slice_index));
+                }
+                u.x += ru.inc;
             }
         }
     }
