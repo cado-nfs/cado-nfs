@@ -103,17 +103,19 @@ public:
    index and offset. */
 class longhint_t {
 public:
-  slice_index_t index;
+    /* variable name must be consistent with add_slice_index_if_missing
+     */
+  slice_index_t slice_index;
   slice_offset_t hint;
   slice_offset_t hint_for_where_am_i() const { return hint; }
   longhint_t(){}
   longhint_t(const slice_offset_t slice_offset,
              const slice_index_t slice_index)
-    : index(slice_index), hint(slice_offset) {}
+    : slice_index(slice_index), hint(slice_offset) {}
   longhint_t(const fbprime_t p MAYBE_UNUSED,
              const slice_offset_t slice_offset,
              const slice_index_t slice_index)
-    : index(slice_index), hint(slice_offset) {}
+    : slice_index(slice_index), hint(slice_offset) {}
   static constexpr char const * rtti = "longhint_t";
 };
 
@@ -300,6 +302,49 @@ struct bucket_slice_alloc_defaults<LEVEL, logphint_t> {
         static const slice_index_t increase = 1;
 };
 
+/* {{{ bucket_row_update_t<LEVEL, HINT> is for projective primes */
+template <int LEVEL, typename HINT>
+struct bucket_row_update_t;
+
+template<typename T>
+struct add_slice_index_if_missing {
+    slice_index_t slice_index;
+    add_slice_index_if_missing(const slice_index_t slice_index)
+        : slice_index(slice_index)
+    {}
+};
+
+template<>
+struct add_slice_index_if_missing<longhint_t> {
+    add_slice_index_if_missing(const slice_index_t) {}
+};
+
+template <int LEVEL, typename HINT>
+struct bucket_row_update_t
+    : public bucket_update_t<LEVEL, HINT>
+    , public add_slice_index_if_missing<HINT>
+{
+    size_t inc;
+    int n;
+    /* update_t::x is the starting point, and slice_index and inc are
+     * used to recover the exact prime that hits there */
+    bucket_row_update_t(bucket_update_t<LEVEL, HINT> const & u,
+            slice_index_t slice_index,
+            size_t inc,
+            int n)
+        : bucket_update_t<LEVEL, HINT>(u)
+          , add_slice_index_if_missing<HINT>(slice_index)
+          , inc(inc)
+          , n(n)
+    {}
+    /*
+    bucket_row_update_t(bucket_row_update_t<LEVEL+1, longhint_t> const & u)
+        : bucket_update_t<LEVEL, HINT>(u)
+        , add_slice_index_if_missing<HINT>(u.slice_index)
+    {}
+    */
+};
+/* }}} */
 
 template <int LEVEL, typename HINT>
 class bucket_array_t : private NonCopyable {
@@ -310,6 +355,7 @@ class bucket_array_t : private NonCopyable {
     public:
   static const int level = LEVEL;
   typedef bucket_update_t<LEVEL, HINT> update_t;
+  typedef bucket_row_update_t<LEVEL, HINT> row_update_t;
     private:
   update_t *big_data = 0;
   size_t big_size = 0;                  // size of bucket update memory
@@ -328,6 +374,12 @@ class bucket_array_t : private NonCopyable {
                                         // corresponding bucket the
                                         // updates from that slice start
 public:
+  /* This is for projective primes only. We expect these to be rare, so
+   * that an std::vector is appropriate (TBH, we should use vectors for
+   * some of the fields above as well.
+   */
+  std::vector<std::vector<row_update_t>> row_updates;
+
   uint32_t n_bucket = 0;                // Number of buckets
 private:
   size_t   size_b_align = 0;            // cacheline-aligned room for a
@@ -442,7 +494,7 @@ public:
   double average_full () const;
   /* Push an update to the designated bucket. Also check for overflow, if
      SAFE_BUCKET_ARRAYS is defined. */
-  inline void push_update(const int i, const update_t &update, where_am_I& w MAYBE_UNUSED);
+  inline void push_update(const int bucket_number, const update_t &update, where_am_I& w MAYBE_UNUSED);
 
   /* Create an update for a hit at location offset and push it to the
    * coresponding bucket
@@ -465,6 +517,7 @@ public:
       update_t update(offset & ((UINT64_C(1) << logB) - 1));
       push_update(bucket_number, update);
   }
+
   template<typename hh = HINT>
   inline
   typename std::enable_if<std::is_same<hh,logphint_t>::value, void>::type
@@ -476,6 +529,29 @@ public:
       update_t update(offset & ((UINT64_C(1) << logB) - 1), logp);
       push_update(bucket_number, update, w);
   }
+
+
+  inline void push_row_update(slice_index_t slice_index,
+          size_t increment,
+          const int bucket_number,
+          int n,
+          const update_t & u,
+          where_am_I& w MAYBE_UNUSED)
+  {
+#if defined(TRACE_K)
+      update_t ux = u;
+      for(int nx = n + 1 ; nx-- ; ) {
+          log_this_update(ux, bucket_number, w);
+          ux.x += increment;
+      }
+#endif
+      row_updates[bucket_number].push_back(
+            row_update_t(u,
+                      slice_index,
+                      increment,
+                      n));
+  }
+
 };
 
 /* Downsort sorts the updates in the bucket_index-th bucket of a level-n
