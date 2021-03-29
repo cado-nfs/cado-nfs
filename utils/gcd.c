@@ -68,9 +68,13 @@ xgcd_ul (unsigned long * xa, unsigned long a, unsigned long b)
     if (!xa) return gcd_ul(a, b);
 
     /* b == 0 isn't well defined anyway */
-    if (b == 0 || b == a) {
+    if (b == 0) {
         *xa = 1;
-        return b;
+        return a;
+    }
+    if (b == a) {
+        *xa = 0;
+        return a;
     }
 
     unsigned long r0 = b;
@@ -81,9 +85,11 @@ xgcd_ul (unsigned long * xa, unsigned long a, unsigned long b)
     // unsigned long v1 = 0; /*  u1 * a - v1 * b = r1 */
     int i = 0;
     for( ; r1 > 0 ; i++) {
-        ASSERT((i & 1) ? ((u0 * a - r0) % b == 0) : ((u0 * a + r0) % b == 0));
-        ASSERT(r0 * u0 <= b);
-        ASSERT(r1 * u1 <= b);
+        // this invariant works, but of course it can't be checked when
+        // u0*a overflows !
+        // ASSERT((i & 1) ? ((u0 * a - r0) % b == 0) : ((u0 * a + r0) % b == 0));
+        // (bogus?) ASSERT(r0 * u0 <= b);
+        // (bogus?) ASSERT(r1 * u1 <= b);
         unsigned long q = r0 / r1;
         unsigned long r2 = r0 - q * r1;
         unsigned long u2 = u0 + q * u1;
@@ -130,7 +136,7 @@ xgcd_ul (unsigned long * xa, unsigned long a, unsigned long b)
      * essential.
      */
     // ASSERT(r0 * v1 == b);
-    if (i & 1) {
+    if ((i & 1) == 0 && u0) {
         u0 = b/r0 - u0;
     }
     ASSERT((unsigned long) u0 < b/r0);
