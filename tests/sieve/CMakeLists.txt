@@ -645,5 +645,12 @@ cado_define_test(torture-redc.cpp LIBRARIES utils)
 
 cado_define_test(test_fb_root.cpp LIBRARIES utils)
 
+cado_define_test(test-reduce-plattice.cpp LIBRARIES utils ARGUMENTS
+    -I 256
+    -B 100000
+    -ntests 100000
+    )
+cado_divert_test(test-reduce-plattice seed APPEND_ARGUMENTS -seed 1)
+
 add_subdirectory (ecm)
 add_subdirectory (strategies)
