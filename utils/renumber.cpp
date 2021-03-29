@@ -361,7 +361,7 @@ renumber_t::p_r_side renumber_t::compute_p_r_side_from_p_vr (p_r_values_t p, p_r
  * tests/utils. This code is actually slow in most cases, and clearly
  * outperformed by the code in iqsort.h
  */
-inline void renumber_sort_ul (unsigned long *r, size_t n)
+inline void renumber_sort_ul (std::vector<unsigned long>::iterator r, size_t n)
 {
     unsigned long rmin;
 
@@ -412,7 +412,7 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
 
     if (format != format_flat) {
         for (unsigned int i = 0; i < get_nb_polys() ; i++)
-            renumber_sort_ul (&roots[i][0], roots[i].size());
+            renumber_sort_ul (roots[i].begin(), roots[i].size());
 
         /* With the traditional format, the root on ratside side becomes vp.
          * If there is no ratside side or not root on ratside side for this
@@ -509,7 +509,7 @@ renumber_t::traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const
         }
 
         auto roots = mpz_poly_roots(cpoly->pols[side], (unsigned long) p);
-        renumber_sort_ul (&roots[0], roots.size()); /* sort in decreasing order */
+        renumber_sort_ul (roots.begin(), roots.size()); /* sort in decreasing order */
         for (auto r : roots) {
             if (!is_bad ({ (p_r_values_t) p, (p_r_values_t) r, side})) {
                 x.r = r;

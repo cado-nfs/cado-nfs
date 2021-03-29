@@ -271,7 +271,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             if (roots.empty()) nb_no_roots++;
 
             if (galois) {
-                size_t nroots = skip_galois_roots(roots.size(), q, (mpz_t*)&roots[0], galois);
+                size_t nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
                 roots.erase(roots.begin() + nroots, roots.end());
             }
 
@@ -332,7 +332,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             }
             spin = 0;
             if (galois) {
-                size_t nroots = skip_galois_roots(roots.size(), q, (mpz_t*)&roots[0], galois);
+                size_t nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
                 roots.erase(roots.begin() + nroots, roots.end());
             }
             nq_pushed++;

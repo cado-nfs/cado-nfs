@@ -282,12 +282,12 @@ template<typename T> cachefile& operator>>(cachefile & c, vector<T>&v)
     uint64_t size;
     c >> size;
     v.insert(v.end(), size, T());
-    return cachefile::seq<T>().in(c, &(v[0]), v.size());
+    return cachefile::seq<T>().in(c, v.data(), v.size());
 }
 template<typename T> cachefile& operator<<(cachefile & c, vector<T> const &v)
 {
     c << (uint64_t) v.size();
-    return cachefile::seq<T>().out(c, &(v[0]), v.size());
+    return cachefile::seq<T>().out(c, v.data(), v.size());
 }
 template<typename T> inline cachefile& operator>>(cachefile& c, T& z) { return z.cachefile_load(c); }
 template<typename T> inline cachefile& operator<<(cachefile& c, T const & z) { return z.cachefile_save(c); }
@@ -988,8 +988,8 @@ void matmul_zone_data<gfp, fast_gfp>::mul(void * xdst, void const * xsrc, int d)
         const elt * begin = (const elt *) xsrc;
         const elt * end = begin + nsrc;
         alternate[d].assign(begin, end);
-        src = &alternate[d].front();
-        dst = &alternate[!d].front();
+        src = alternate[d].data();
+        dst = alternate[!d].data();
     }
 
 

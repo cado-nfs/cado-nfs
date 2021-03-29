@@ -510,8 +510,8 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
         pi = bigmatpoly(ab, model, b, b, 0);
         pi.scatter_mat(spi);
         MPI_Bcast(&bm.done, 1, MPI_INT, 0, bm.com[0]);
-        MPI_Bcast(&bm.delta[0], b, MPI_UNSIGNED, 0, bm.com[0]);
-        MPI_Bcast(&bm.lucky[0], b, MPI_UNSIGNED, 0, bm.com[0]);
+        MPI_Bcast(bm.delta.data(), b, MPI_UNSIGNED, 0, bm.com[0]);
+        MPI_Bcast(bm.lucky.data(), b, MPI_UNSIGNED, 0, bm.com[0]);
         MPI_Bcast(&(bm.t), 1, MPI_UNSIGNED, 0, bm.com[0]);
         /* Don't forget to broadcast delta from root node to others ! */
         bm.stats.end_smallstep();
@@ -537,7 +537,7 @@ unsigned int count_lucky_columns(bmstatus & bm)/*{{{*/
     unsigned int n = d.n;
     unsigned int b = m + n;
     int luck_mini = expected_pi_length(d);
-    MPI_Bcast(&bm.lucky[0], b, MPI_UNSIGNED, 0, bm.com[0]);
+    MPI_Bcast(bm.lucky.data(), b, MPI_UNSIGNED, 0, bm.com[0]);
     unsigned int nlucky = 0;
     for(unsigned int j = 0 ; j < b ; nlucky += bm.lucky[j++] >= luck_mini) ;
     return nlucky;

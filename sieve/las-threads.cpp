@@ -115,9 +115,9 @@ happy:
 template <typename T>
 void reservation_array<T>::release(T &BA) {
   enter();
-  ASSERT_ALWAYS(&BA >= &BAs.front());
-  ASSERT_ALWAYS(&BA < &BAs.front() + BAs.size());
-  size_t i = &BA - &BAs[0];
+  ASSERT_ALWAYS(&BA >= BAs.data());
+  ASSERT_ALWAYS(&BA < BAs.data() + BAs.size());
+  size_t i = &BA - BAs.data();
   in_use[i] = false;
   signal(cv);
   leave();

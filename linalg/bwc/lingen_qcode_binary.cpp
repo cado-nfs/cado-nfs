@@ -716,7 +716,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
     ASSERT_ALWAYS(mX == m);
     ASSERT_ALWAYS(bX == b);
 
-    binary_matpoly_transpose_to_polmat(&E[0],
+    binary_matpoly_transpose_to_polmat(E.data(),
             (unsigned long const *) mp_E.data_area(),
             mX, bX, LX);
 

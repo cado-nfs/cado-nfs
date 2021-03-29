@@ -1837,9 +1837,9 @@ static fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_
         std::vector<char> area(fbc_header::header_block_size);
         off_t rc = lseek(fbc, header_offset, SEEK_SET);
         ASSERT_ALWAYS(rc >= 0);
-        ssize_t nr = ::read(fbc, &area.front(), area.size());
+        ssize_t nr = ::read(fbc, area.data(), area.size());
         ASSERT_ALWAYS(nr >= 0 && (size_t) nr == area.size());
-        imemstream is(&area.front(), area.size());
+        imemstream is(area.data(), area.size());
         fbc_header hdr;
         ASSERT_ALWAYS(is >> hdr);
         hdr.adjust_header_offset(header_offset);
@@ -1963,7 +1963,7 @@ struct helper_functor_write_to_fbc_file {
             size_t n = sizeof(FB_ENTRY_TYPE) * x.size();
             size_t written = 0;
             while (n > 0) {
-                ssize_t m = ::write(fbc, (char *)(&x.front())+written, n);
+                ssize_t m = ::write(fbc, (char *)(x.data())+written, n);
                 ASSERT_ALWAYS (m != -1);
                 ASSERT_ALWAYS (m <= (ssize_t)n);
                 n -= m;

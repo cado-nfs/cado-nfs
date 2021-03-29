@@ -134,11 +134,14 @@ int main(int argc, char * argv[])
         for(auto & x : blah)
             x = rand() % 1000;
         t0 = clock();
+
+        auto beg = blah.begin();
+
         for(unsigned int i = 0 ; i + v <= blah.size() ; i += v)
-            std::sort(&(blah[i]), &(blah[i+v]), std::greater<unsigned long>());
+            std::sort(beg + i, beg + i+v, std::greater<unsigned long>());
         d = clock() - t0;
         for(unsigned int i = 0 ; i + v <= blah.size() ; i += v)
-            if (!std::is_sorted(&(blah[i]), &(blah[i+v]), std::greater<unsigned long>()))
+            if (!std::is_sorted(beg + i, beg + i+v, std::greater<unsigned long>()))
                 abort();
         record.emplace_back(d, s);
         if (verbose) printf(" %s %.3g", s.c_str(), d / (double) CLOCKS_PER_SEC * v / blah.size());
@@ -149,7 +152,7 @@ int main(int argc, char * argv[])
             qsort(&(blah[i]), v, sizeof(unsigned long), gcmp);
         d = clock() - t0;
         for(unsigned int i = 0 ; i + v <= blah.size() ; i += v)
-            if (!std::is_sorted(&(blah[i]), &(blah[i+v]), std::greater<unsigned long>()))
+            if (!std::is_sorted(beg+i, beg+i+v, std::greater<unsigned long>()))
                 abort();
         record.emplace_back(d, s);
         if (verbose) printf(" %s %.3g", s.c_str(), d / (double) CLOCKS_PER_SEC * v / blah.size());
@@ -163,7 +166,7 @@ int main(int argc, char * argv[])
         }
         d = clock() - t0;
         for(unsigned int i = 0 ; i + v <= blah.size() ; i += v)
-            if (!std::is_sorted(&(blah[i]), &(blah[i+v]), std::greater<unsigned long>()))
+            if (!std::is_sorted(beg+i, beg+i+v, std::greater<unsigned long>()))
                 abort();
         record.emplace_back(d, s);
         if (verbose) printf(" %s %.3g", s.c_str(), d / (double) CLOCKS_PER_SEC * v / blah.size());
@@ -176,7 +179,7 @@ int main(int argc, char * argv[])
             renumber_sort_ul(&(blah[i]), v);
         d = clock() - t0;
         for(unsigned int i = 0 ; i + v <= blah.size() ; i += v)
-            if (!std::is_sorted(&(blah[i]), &(blah[i+v]), std::greater<unsigned long>()))
+            if (!std::is_sorted(beg+i, beg+i+v, std::greater<unsigned long>()))
                 abort();
         record.emplace_back(d, s);
         if (verbose) printf(" %s %.3g", s.c_str(), d / (double) CLOCKS_PER_SEC * v / blah.size());
@@ -189,7 +192,7 @@ int main(int argc, char * argv[])
             hard_mergesort(&(blah[i]), v);
         d = clock() - t0;
         for(unsigned int i = 0 ; i + v <= blah.size() ; i += v)
-            if (!std::is_sorted(&(blah[i]), &(blah[i+v]), std::greater<unsigned long>()))
+            if (!std::is_sorted(beg+i, beg+i+v, std::greater<unsigned long>()))
                 abort();
         record.emplace_back(d, s);
         if (verbose) printf(" %s %.3g", s.c_str(), d / (double) CLOCKS_PER_SEC * v / blah.size());

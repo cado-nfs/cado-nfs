@@ -146,6 +146,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         add_bwc_test(modp_inhomogeneous_${gfp_layer} bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra})
         add_dependencies(test_bwc_modp_inhomogeneous_${gfp_layer}_dependencies
             lingen_pz lingen_${gfp_layer})
+
         if(gfp_layer STREQUAL "p_1")
             set(mextra)
             # Only try to enable magma if CHECKS_EXPENSIVE is set.
@@ -217,7 +218,10 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     # context, this triggers the mpi portions of the code (actually the
     # test gets run twice, once with the threads, once without. Both have
     # to succeed, of course).
-    if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p_1")
+
+    # Note that we're only enabling the p_1 tests because the checksums
+    # below were obtained for p=1009 specifically.
+    if(gfp_layer STREQUAL "p_1")
         # The --ascii here is annoying. It gets in the way of our
         # automatic guess of the input sequence length.
         #
@@ -309,6 +313,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 00a481d0e0e2ee7403fa234b7f8b818dc2ec8db4 3 3 1000
                 1532495540865888858358347027150309183618739122183602191 1111
                 thr=3x3
+                lingen_program=lingen_${gfp_layer}
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT

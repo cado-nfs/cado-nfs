@@ -133,13 +133,13 @@ struct slice * shuffle_rtable(
      * bucket into slices[0]...slices[nslices-1]
      */
     for(i = 0 ; i < n ; i++) {
-        int j = heap[0].i;
-        int pos = slices[j].nrows-heap[0].room;
-        ASSERT(heap[0].room);
-        slices[j].r[pos] = rt[2*i+1];
-        heap[0].s += rt[2*i];
-        heap[0].room--;
         pop_heap(heap, heap + ns);
+        int j = heap[ns-1].i;
+        int pos = slices[j].nrows-heap[ns-1].room;
+        ASSERT(heap[ns-1].room);
+        slices[j].r[pos] = rt[2*i+1];
+        heap[ns-1].s += rt[2*i];
+        heap[ns-1].room--;
         push_heap(heap, heap + ns);
     }
 
