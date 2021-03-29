@@ -420,8 +420,8 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
         return false;
     }
     MPI_Bcast(&Xsize, 1, CADO_MPI_SIZE_T, 0, bm.com[0]);
-    MPI_Bcast(&bm.delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
-    MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
+    MPI_Bcast(bm.delta.data(), m + n, MPI_UNSIGNED, 0, bm.com[0]);
+    MPI_Bcast(bm.lucky.data(), m + n, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&bm.done, 1, MPI_INT, 0, bm.com[0]);
     int commsize;
     MPI_Comm_size(bm.com[0], &commsize);
@@ -508,8 +508,8 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
          */
         return false;
     MPI_Bcast(&Xsize, 1, CADO_MPI_SIZE_T, 0, bm.com[0]);
-    MPI_Bcast(&bm.delta[0], m + n, MPI_UNSIGNED, 0, bm.com[0]);
-    MPI_Bcast(&bm.lucky[0], m + n, MPI_INT, 0, bm.com[0]);
+    MPI_Bcast(bm.delta.data(), m + n, MPI_UNSIGNED, 0, bm.com[0]);
+    MPI_Bcast(bm.lucky.data(), m + n, MPI_INT, 0, bm.com[0]);
     MPI_Bcast(&bm.done, 1, MPI_INT, 0, bm.com[0]);
     logline_begin(stdout, SIZE_MAX, "Reading %s (MPI, gathered)",
             cp.datafile.c_str());

@@ -319,7 +319,7 @@ int MATMUL_NAME(reload_cache)(matmul_ptr mm0)
     MATMUL_COMMON_READ_ONE32(n, f);
 
     mm->data.resize(n);
-    MATMUL_COMMON_READ_MANY16(&(mm->data.front()), n, f);
+    MATMUL_COMMON_READ_MANY16(mm->data.data(), n, f);
 
     fclose(f);
 
@@ -338,7 +338,7 @@ void MATMUL_NAME(save_cache)(matmul_ptr mm0)
 
     size_t n = mm->data.size();
     MATMUL_COMMON_WRITE_ONE32(n, f);
-    MATMUL_COMMON_WRITE_MANY16(&(mm->data.front()), n, f);
+    MATMUL_COMMON_WRITE_MANY16(mm->data.data(), n, f);
 
     fclose(f);
 }
@@ -347,7 +347,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
 {
     struct matmul_sliced_data_s * mm = (struct matmul_sliced_data_s *) mm0;
     ASM_COMMENT("multiplication code");
-    const uint16_t * q = &(mm->data.front());
+    const uint16_t * q = mm->data.data();
 
     uint16_t nhstrips = *q++;
     q++;        // alignment.

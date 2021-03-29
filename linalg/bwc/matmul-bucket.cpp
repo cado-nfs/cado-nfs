@@ -280,10 +280,10 @@ using namespace std;
 /* see matmul-basic.c */
 #define MM_DIR0_PREFERS_TRANSP_MULT   1
 
-template<typename T> inline T * ptrbegin(vector<T>& v) { return &v.front(); }
-template<typename T> inline T const * ptrbegin(vector<T> const & v) { return &v.front(); }
-template<typename T> inline T * ptrend(vector<T>& v) { return v.size() + &v.front(); }
-template<typename T> inline T const * ptrend(vector<T> const & v) { return v.size() + &v.front(); }
+template<typename T> inline T * ptrbegin(vector<T>& v) { return v.data(); }
+template<typename T> inline T const * ptrbegin(vector<T> const & v) { return v.data(); }
+template<typename T> inline T * ptrend(vector<T>& v) { return v.size() + ptrbegin(v); }
+template<typename T> inline T const * ptrend(vector<T> const & v) { return v.size() + ptrbegin(v); }
 
 #if 0
 static unsigned int idiotic_sum(void * p, unsigned int nbytes)
