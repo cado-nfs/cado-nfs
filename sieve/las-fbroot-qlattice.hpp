@@ -11,17 +11,17 @@
 
 static inline fbprime_t
 fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
-        const uint32_t invp, const qlattice_basis &basis);
+        const redc_invp_t invp, const qlattice_basis &basis);
 static inline fbprime_t
 fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
-        const uint64_t invp, const qlattice_basis &basis);
+        const redc_invp_t invp, const qlattice_basis &basis);
 static inline bool
 fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
-        const fbroot_t *r_ab, const uint32_t invp,
+        const fbroot_t *r_ab, const redc_invp_t invp,
         const qlattice_basis &basis, const size_t n_roots);
 static inline bool
 fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
-        const fbroot_t *r_ab, const uint64_t invp, const qlattice_basis &basis,
+        const fbroot_t *r_ab, const redc_invp_t invp, const qlattice_basis &basis,
         const size_t n_roots);
 
 
@@ -43,7 +43,7 @@ fb_root_in_qlattice(const fbprime_t p, const fbprime_t R,
 }
 static inline bool
 fb_root_in_qlattice_batch (fbroot_t *r_ij, const fbprime_t p,
-        const fbroot_t *r_ab, const uint32_t invp, const qlattice_basis &basis,
+        const fbroot_t *r_ab, const redc_invp_t invp, const qlattice_basis &basis,
         const size_t n_roots)
 {
     return fb_root_in_qlattice_127bits_batch (r_ij, p, r_ab, invp, basis,
@@ -63,7 +63,7 @@ fb_root_in_qlattice(const fbprime_t p, const fbprime_t R,
 }
 static inline bool
 fb_root_in_qlattice_batch (fbroot_t *r_ij, const fbprime_t p,
-        const fbroot_t *r_ab, const uint32_t invp, const qlattice_basis &basis,
+        const fbroot_t *r_ab, const redc_invp_t invp, const qlattice_basis &basis,
         const size_t n_roots)
 {
     return fb_root_in_qlattice_31bits_batch (r_ij, p, r_ab, invp, basis,
@@ -83,7 +83,7 @@ fb_root_in_qlattice_po2 (const fbprime_t p, const fbprime_t R,
  */
 static inline fbprime_t
 fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
-        const uint32_t invp, const qlattice_basis &basis)
+        const redc_invp_t invp, const qlattice_basis &basis)
 {
   int64_t aux1, aux2;
   uint32_t u, v;
@@ -175,7 +175,7 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
 
 static inline bool
 fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p, 
-        const fbroot_t *r_ab, const uint32_t invp, const qlattice_basis &basis,
+        const fbroot_t *r_ab, const redc_invp_t invp, const qlattice_basis &basis,
         const size_t n_roots)
 {
   /* p must be odd for REDC to work */
@@ -227,7 +227,7 @@ fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
  */
 static inline fbprime_t
 fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
-        const uint64_t invp, const qlattice_basis &basis)
+        const redc_invp_t invp, const qlattice_basis &basis)
 {
   int64_t aux1, aux2;
   uint64_t u, v;
@@ -364,7 +364,7 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
  */
 static inline bool
 fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
-        const fbroot_t *r_ab, const uint64_t invp, const qlattice_basis &basis,
+        const fbroot_t *r_ab, const redc_invp_t invp, const qlattice_basis &basis,
         const size_t n_roots)
 {
     ASSERT(p % 2 == 1);

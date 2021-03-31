@@ -30,7 +30,7 @@
 */
 
 static inline uint32_t // NO_INLINE
-redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
+redc_u32(const uint64_t x, const uint32_t p, const redc_invp_t invp)
 {
   uint32_t t = (uint32_t) x * invp;   /* t = x * invp mod 2^32 */
   /* x + t*p is bounded by 2^32*p-1+(2^32-1)*p < 2*2^32*p
@@ -88,7 +88,7 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
  *   \return x/2^s mod p as an integer in [0, p[
 */
 static inline uint32_t // NO_INLINE
-varredc_u32(const uint32_t x, const uint32_t p, const uint32_t invp, const uint8_t s)
+varredc_u32(const uint32_t x, const uint32_t p, const redc_invp_t invp, const uint8_t s)
 {
   ASSERT(s < 32); /* shift by word width is undefined. caller should use
                      redc_u32() instead. */
@@ -113,7 +113,7 @@ varredc_u32(const uint32_t x, const uint32_t p, const uint32_t invp, const uint8
 */
 
 static inline uint32_t
-mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const uint32_t invp)
+mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const redc_invp_t invp)
 {
   uint64_t x = (uint64_t) a * (uint64_t) b;
   return redc_u32(x, p, invp);
@@ -126,7 +126,7 @@ mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const uint3
  *   \return x/2^32 mod p as an integer in [0, p[
 */
 static inline uint32_t // NO_INLINE
-redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
+redc_32(const int64_t x, const uint32_t p, const redc_invp_t invp)
 {
   uint32_t t = (uint32_t)x * invp;
   uint64_t tp = (uint64_t)t * (uint64_t)p;
@@ -338,7 +338,7 @@ done:
 
 static inline bool
 batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
-              const uint32_t p, const uint32_t invp)
+              const uint32_t p, const redc_invp_t invp)
 {
   uint32_t R;
 
