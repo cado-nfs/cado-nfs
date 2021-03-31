@@ -20,8 +20,12 @@ test_batchinvredc_u32(const uint32_t *a, const uint32_t p, const uint32_t invp, 
 {
     const uint32_t two32 = UINT32_MAX % p + 1; /* 2^32 % p */
     uint32_t r[n];
+    bool worked;
     
-    bool worked = batchinvredc_u32 (r, a, n, p, invp);
+    if (redc_no_carry(p))
+        worked = batchinvredc_u32<false> (r, a, n, p, invp);
+    else
+        worked = batchinvredc_u32<true> (r, a, n, p, invp);
 
     if (worked != should_work) {
         fprintf (stderr, "Inverse should %shave worked but %s\n",

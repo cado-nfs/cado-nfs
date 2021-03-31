@@ -22,16 +22,31 @@
    redc_32 */
 // #define STAT
 
+/** Returns true if p is small enough so that the first carry in our redc_*()
+ *  functions cannot occur, and false otherwise.
+ *
+ *   If redc_no_carry(p) is true, then redc_*<false>() functions may be used
+ *   which are slightly faster, otherwise redc_*<true>() functions must be used.
+ *
+ *   \param [in] p, the modulus for REDC to check
+*/
+static inline bool redc_no_carry(const uint32_t p) {
+    return p < (UINT32_C(1) << 31);
+}
+
 /** Unsigned Redc_32 based on 64-bit arithmetic
  *   \param [in] x unsigned 64-bit integer, we require x < 2^32 * p
- *   \param [in] p is an odd number < 2^32.
+ *   \param [in] p is an odd number < 2^32. If CARRYCHECK is false, we require
+ *               that p satisfies redc_no_carry(p).
  *   \param [in] invp is -1/p mod 2^32.
  *   \return x/2^32 mod p as an integer in [0, p[
 */
 
+template <bool CARRYCHECK>
 static inline uint32_t // NO_INLINE
 redc_u32(const uint64_t x, const uint32_t p, const redc_invp_t invp)
 {
+  ASSERT_EXPENSIVE(CARRYCHECK || redc_no_carry(p));
   uint32_t t = (uint32_t) x * invp;   /* t = x * invp mod 2^32 */
   /* x + t*p is bounded by 2^32*p-1+(2^32-1)*p < 2*2^32*p
    * therefore, we must pay attention to the carry flag while doing the
@@ -44,15 +59,16 @@ redc_u32(const uint64_t x, const uint32_t p, const redc_invp_t invp)
    * and t = 0 otherwise */
 
   t = 0;
+  if (CARRYCHECK) {
 #if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__("addq %[tp],%[xtp]\n" 
           "cmovc %[p], %[t]\n"
           : [xtp]"+r"(xtp), [t]"+r"(t) : [tp]"r"(tp), [p] "r" (p)
           : "cc");
 #else
-  /* This conditional branch is rarely taken unless p is close to 2^32.
+  /* This conditional branch is never taken unless p > 2^31.
      In sieving tests, the branch was a little faster than the asm CMOV.
-     With factor base primes close to 2^32, this may change. */
+     With factor base primes > 2^31, this may change. */
   xtp += tp;
   if (xtp < tp) t = p;
 #endif
@@ -63,6 +79,9 @@ redc_u32(const uint64_t x, const uint32_t p, const redc_invp_t invp)
   if ((count % 1000000) == 0)
     printf ("redc_u32: count=%d carry=%d\n", count, carry);
 #endif
+  } else {
+    xtp += tp;
+  }
   uint32_t u = xtp >> 32;
   // by construction, xtp is divisible by 2^32. u is such that
   // 0 <= u < 2*p ; however the representative that we have is capped to
@@ -76,6 +95,7 @@ redc_u32(const uint64_t x, const uint32_t p, const redc_invp_t invp)
    * chain also has length 3 but with one MOV. Turned out to be slightly slower
    * on i3-6100. */
 
+  /* With -O3, gcc turns this into a conditional branch. :( */
   if (u >= p) t = p;
   return u - t;
 }
@@ -112,22 +132,26 @@ varredc_u32(const uint32_t x, const uint32_t p, const redc_invp_t invp, const ui
  *   \return (a*b)/2^32 mod p as an integer in [0, p[
 */
 
+template <bool CARRYCHECK>
 static inline uint32_t
 mulmodredc_u32(const uint32_t a, const uint32_t b, const uint32_t p, const redc_invp_t invp)
 {
   uint64_t x = (uint64_t) a * (uint64_t) b;
-  return redc_u32(x, p, invp);
+  return redc_u32<CARRYCHECK>(x, p, invp);
 }
 
 /** Signed redc_32 based on 64-bit arithmetic
  *   \param [in] x is some signed integer in ]-2^32*p, 2^32*p[ (fitting in int64_t)
- *   \param [in] p is an odd number, 0 < p < 2^32.
+ *   \param [in] p is an odd number < 2^32. If CARRYCHECK is false, we require
+ *               that p satisfies redc_no_carry(p).
  *   \param [in] invp is -1/p mod 2^32.
  *   \return x/2^32 mod p as an integer in [0, p[
 */
+template <bool CARRYCHECK>
 static inline uint32_t // NO_INLINE
 redc_32(const int64_t x, const uint32_t p, const redc_invp_t invp)
 {
+  ASSERT_EXPENSIVE(CARRYCHECK || redc_no_carry(p));
   uint32_t t = (uint32_t)x * invp;
   uint64_t tp = (uint64_t)t * (uint64_t)p;
 #if 1
@@ -141,6 +165,7 @@ redc_32(const int64_t x, const uint32_t p, const redc_invp_t invp)
   /* now xtp >= 0, and we are in the same case as redc_u32,
      thus the same analysis as redc_u32 applies here */
   t = 0;
+  if (CARRYCHECK) {
 #if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
   __asm__("addq %[tp],%[xtp]\n" 
           "cmovc %[p], %[t]\n"
@@ -151,6 +176,9 @@ redc_32(const int64_t x, const uint32_t p, const redc_invp_t invp)
   xtp += tp;
   if (xtp < tp) t = p;
 #endif
+  } else {
+    xtp += tp;
+  }
   /* Timings with revision 8de5fc9
      on Intel i5-4590 at 3.3Ghz with turbo-boost disabled:
      torture-redc 10000000:
@@ -336,6 +364,7 @@ done:
  * \return true if all inverses exist, false otherwise returns
  */
 
+template <bool CARRYCHECK>
 static inline bool
 batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
               const uint32_t p, const redc_invp_t invp)
@@ -359,7 +388,7 @@ batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
   r[0] = (a[0] >= p) ? a[0] % p : a[0];
 
   for (size_t i = 1; i < n; i++) {
-    r[i] = mulmodredc_u32(r[i - 1], a[i], p, invp);
+    r[i] = mulmodredc_u32<CARRYCHECK>(r[i - 1], a[i], p, invp);
   }
 
   /* Here, $r_i = (\beta^{-i} P_i ) \pmod{p}$, for $0 \leq i < n$,
@@ -375,11 +404,11 @@ batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
 
   for (size_t i = n - 1; i > 0; i--) {
     /* Invariant here: $R = P_i^{-1} * \beta^{i+1} \pmod{p}$ */
-    r[i] = mulmodredc_u32(R, r[i-1], p, invp);
+    r[i] = mulmodredc_u32<CARRYCHECK>(R, r[i-1], p, invp);
     /* $r_i := R * r_{i-1} * beta^{-1}
              = (P_i^{-1} * \beta^{i+1}) * (\beta^{-i+1} P_{i-1}) * \beta^{-1}
              = \beta * a_i^{-1}$. */
-    R = mulmodredc_u32(R, a[i], p, invp);
+    R = mulmodredc_u32<CARRYCHECK>(R, a[i], p, invp);
     /* Here, $R = R * a_i * \beta^{-1} \pmod{p} = 
        P_{i-1}^{-1} * \beta^{i} \pmod{p}$. */
   }
@@ -387,7 +416,7 @@ batchinvredc_u32 (uint32_t *r, const uint32_t *a, const size_t n,
 //#define LAS_ARITH_COMPARE_BATCHINV 1
 #ifdef LAS_ARITH_COMPARE_BATCHINV
   for (size_t i = 0; i < n; i++) {
-    uint32_t product = mulmodredc_u32(r[i], a[i], p, invp);
+    uint32_t product = mulmodredc_u32<CARRYCHECK>(r[i], a[i], p, invp);
     if (product != 1) {
       verbose_output_print(1, 0, "batchinv_u32: 1/%" PRIu32 " (mod %" PRIu32
         ") wrong: %" PRIu32 "\n", a[i], p, r[i]);

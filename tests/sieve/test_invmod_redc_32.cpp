@@ -63,7 +63,7 @@ int main(int argc, const char **argv) {
                         exit(EXIT_FAILURE);
                     }
                 } else {
-                    uint32_t one = mulmodredc_u32(to_invert, inverse, m, invm);
+                    uint32_t one = mulmodredc_u32<true>(to_invert, inverse, m, invm);
                     if (one != 1) {
                         fprintf (stderr, "Error: invmod_redc_32(%" PRIu32 ", %" PRIu32
                                  ") = %" PRIu32 " is wrong.\n", to_invert, m, inverse);
