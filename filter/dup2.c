@@ -766,12 +766,15 @@ main (int argc, char *argv[])
 
           fclose_maybe_compressed(output, oname_tmp);
 
+          int rc;
+
 #ifdef HAVE_MINGW /* For MinGW, rename cannot overwrite an existing file */
-          remove (oname);
+          rc = remove (oname);
 #endif
-          if (rename(oname_tmp, oname))
-          {
-              fprintf(stderr, "Error while renaming %s into %s\n", oname_tmp, oname);
+          rc = rename(oname_tmp, oname);
+          if (rc < 0) {
+              fprintf(stderr, "rename(%s -> %s): %s\n",
+                      oname_tmp, oname, strerror(errno));
               abort();
           }
 
