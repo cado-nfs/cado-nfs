@@ -136,7 +136,11 @@ main (int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     
-    param_list_parse_uint(pl, "shrink-threshold", &A.shrink_threshold);
+    {
+        unsigned int thresh = 0;
+        param_list_parse_uint(pl, "shrink-threshold", &thresh);
+        A.shrink_threshold = thresh;
+    }
     
     unsigned long seed;
 
