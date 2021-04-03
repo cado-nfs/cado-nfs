@@ -59,7 +59,6 @@ set(las_core_b_sources
         las-arith.cpp
         las-descent-trees.cpp
         las-plattice.cpp
-        las-sighandlers.cpp
 )
 add_library(las_core_a OBJECT ${las_core_a_sources})
 add_library(las_core_b OBJECT ${las_core_b_sources})

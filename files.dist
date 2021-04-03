@@ -1548,8 +1548,8 @@ sieve/las-multiobj-globals.hpp
 sieve/las-multiobj-globals.cpp
 sieve/las-cofac-standalone.cpp
 sieve/las-cofac-standalone.hpp
-sieve/las-sighandlers.cpp
-sieve/las-sighandlers.hpp
+utils/cado-sighandlers.cpp
+utils/cado-sighandlers.h
 utils/cado_pipe_streambuf.cpp
 utils/cado_pipe_streambuf.hpp
 utils/fd_streambuf.cpp
