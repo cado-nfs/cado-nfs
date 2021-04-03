@@ -124,35 +124,79 @@ else
 fi
 echo "Working directory is $wdir"
 
-has_file_already() {
+test_if_has_file() {
+    var="$1"
+    shift
     filename="$1"
     shift
+    has_file_reuse=
+    has_file_command="$*"
     if ! [ -f "$filename" ] ; then
-        echo "$*" > "$filename.cmd"
-        return 1
+        has_file_explain=""
     elif [ "$force_redo" ] ; then
-        echo "# rebuilding $filename since \$force_redo is set (either because of -f or because of outdated earlier files)"
-        echo "$*" > "$filename.cmd"
-        return 1
+        has_file_explain="# rebuilding $filename since \$force_redo is set (either because of -f or because of outdated earlier files)"
     elif ! [ -f "$filename.cmd" ] ; then
-        echo "# file $filename already in wdir, but creating command not found. not reusing file."
-        echo "$*" > "$filename.cmd"
-        return 1
+        has_file_explain="# file $filename already in wdir, but creating command not found. not reusing file."
     elif ! diff -q "$filename.cmd" <(echo "$*") ; then
-        echo "# file $filename already in wdir, but created with another command. not reusing it."
-        echo "$*" > "$filename.cmd"
-        return 1
+        has_file_explain="# file $filename already in wdir, but created with another command. not reusing it."
     else
-        echo "# file $filename already in wdir, created with same command. reusing it."
-        true
+        has_file_reuse=1
+        has_file_command=:
+        has_file_explain="# file $filename already in wdir, created with same command. reusing it."
     fi
+    eval "${var}_rebuild=\$has_file_rebuild"
+    eval "${var}_command=\$has_file_command"
+    eval "${var}_explain=\$has_file_explain"
+    if [ "$has_file_reuse" ] ; then
+        true
+    else
+        return 1
+    fi
+}
+
+has_file_already() {
+    testgz=1
+    if [ "$1" = "-nogz" ] ; then
+        testgz=
+        shift
+    fi
+    filename="$1"
+    shift
+
+    test_if_has_file plain "$filename" "$@"
+
+    if [ "$testgz" ] ; then
+        cmdz=()
+        for x in "$@" ; do
+            if [ "$x" = "$filename" ] ; then
+                x="$filename.gz"
+            fi
+            let cmdz+=("$x")
+        done
+        test_if_has_file compressed "$filename.gz" "${cmdz[@]}"
+    else
+        compressed_reuse=
+    fi
+
+    reused_compressed=
+    if [ "$plain_reuse" ] ; then
+        echo "$plain_explain"
+        return 0
+    fi
+    if [ "$compressed_reuse" ] ; then
+        echo "$compressed_explain"
+        reused_compressed=1
+        return 0
+    fi
+    echo "$plain_explain"
+    return 1
 }
 
 # Set maxbits if it is empty.
 : ${maxbits:=$(((A+1)/2))}
 
 ## if wdir does not contain a rootfile, build it
-rootfile0="$wdir/roots0.gz"
+rootfile0="$wdir/roots0"
 cmd=("$CADO_BUILD/sieve/makefb"
         -poly "$polyfile"
         -lim "$lim0"
@@ -162,9 +206,11 @@ cmd=("$CADO_BUILD/sieve/makefb"
         -out "$rootfile0")
 if ! has_file_already $rootfile0 "${cmd[@]}" ; then
     "${cmd[@]}"
+elif [ "$reused_compressed" ] ; then
+    rootfile0="$rootfile0.gz"
 fi
 
-rootfile1="$wdir/roots1.gz"
+rootfile1="$wdir/roots1"
 cmd=("$CADO_BUILD/sieve/makefb"
         -poly "$polyfile"
         -lim "$lim1"
@@ -174,15 +220,19 @@ cmd=("$CADO_BUILD/sieve/makefb"
         -out "$rootfile1")
 if ! has_file_already $rootfile1 "${cmd[@]}" ; then
     "${cmd[@]}"
+elif [ "$reused_compressed" ] ; then
+    rootfile1="$rootfile1.gz"
 fi
 
 ## if wdir does not contain a renumber table, build it
-renumberfile=$wdir/renumber.gz
+renumberfile=$wdir/renumber
 cmd=("$CADO_BUILD/sieve/freerel" -poly "$polyfile" -renumber
     "$renumberfile" -pmax 1 -lpb0 "$lpb0" -lpb1 "$lpb1" -t
     "$threads")
 if ! has_file_already $renumberfile "${cmd[@]}" ; then
     "${cmd[@]}"
+elif [ "$reused_compressed" ] ; then
+    renumberfile="$renumberfile.gz"
 fi
 
 ## deal with composite special-q's
@@ -265,7 +315,7 @@ for i in `seq 0 $((nsides-1))`; do
                     generate=("${cmd0[@]}" -print-todo-list)
                     completelist=$samplebase.completelist
                     todolist=$samplebase.todolist
-                    if ! has_file_already "$completelist" "${generate[@]}" ; then
+                    if ! has_file_already -nogz "$completelist" "${generate[@]}" ; then
                         echo "Preparing complete list of special-q in $completelist"
                         echo "${generate[@]}"
                         "${generate[@]}" | grep '^[0-9]' > "$completelist"
