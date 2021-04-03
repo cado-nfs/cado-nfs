@@ -589,6 +589,7 @@ cado_define_test(full_c30
             tasks.sieve.rels_wanted=1500
             TARGET_DEPENDENCIES
             full_dependencies_base
+            bwc_full_gfp
             lingen_pz sm sm_simple las_descent reconstructlog-dl
             dlpolyselect merge-dl replay-dl badideals
             AVOID_CONCURRENT
