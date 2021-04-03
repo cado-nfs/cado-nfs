@@ -115,7 +115,7 @@ class streambase_maybe_compressed : virtual public std::ios {
     std::unique_ptr<cado_pipe_streambuf> pbuf;
     std::unique_ptr<std::filebuf> fbuf;
     std::streambuf * buf;
-    const char * orig_name;
+    std::string orig_name;
     std::string tempname;
     public:
     /* I don't think that we need a default ctor, do we ? */
@@ -125,7 +125,7 @@ class streambase_maybe_compressed : virtual public std::ios {
      * temp name to the final location.
      * (this behaviour might be system-dependent).
      */
-    ~streambase_maybe_compressed();
+    ~streambase_maybe_compressed() override;
     void open(const char * name, std::ios_base::openmode mode);
     void close();
     bool is_pipe() const { return pipe; }
