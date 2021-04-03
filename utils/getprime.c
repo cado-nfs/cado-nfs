@@ -24,7 +24,7 @@
 /* compile with -DMAIN to use as a standalone program */
 
 #ifndef MAIN
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"		// IWYU pragma: keep
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,197 +51,293 @@
          }
 
       prime_info_clear (pi);
+
+  If you prefer to have 2 returned as well, you may use the
+  prime_info_init_seek call as follows:
+
+  prime_info pi;
+  prime_info_init_seek(pi, 2);  // depart from default lower bound, 3
+  for (unsigned long p; (p = getprime_mt (pi)) <= B1; ) {
+    ...
+  }
+  prime_info_clear (pi);
+
 */
 
-void
-prime_info_init (prime_info i)
+void prime_info_init(prime_info_ptr pi)
 {
-  i->offset = 0;
-  i->current = -1;
-  i->primes = NULL;
-  i->nprimes = 0;
-  i->sieve = NULL;
-  i->len = 0;
-  i->moduli = NULL;
+    /* pi->offset must always be odd */
+    pi->offset = 3;
+    pi->current = 0;
+    pi->primes = NULL;
+    pi->nprimes = 0;
+    pi->sieve = NULL;
+    pi->len = 0;
+    pi->moduli = NULL;
 }
 
-void
-prime_info_clear (prime_info i)
+void prime_info_init_seek(prime_info_ptr pi, unsigned long lower_bound)
 {
-  free (i->primes);
-  free (i->sieve);
-  free (i->moduli);
+    prime_info_init(pi);
+    prime_info_seek(pi, lower_bound);
+}
+
+void prime_info_clear(prime_info_ptr pi)
+{
+    free(pi->primes);
+    free(pi->sieve);
+    free(pi->moduli);
 }
 
 /* this function is not thread-safe, as it uses a global state */
-unsigned long
-getprime (unsigned long p)
+unsigned long getprime(unsigned long p)
 {
-  static prime_info pi;
-  static int initialized = 0;
+    static prime_info pi;
+    static int initialized = 0;
 
-  if (p == 0)
-    {
-      prime_info_clear (pi);
-      initialized = 0;
-      return p;
+    if (p == 0) {
+	prime_info_clear(pi);
+	initialized = 0;
+	return p;
     }
 
-  if (initialized == 0)
-    {
-      prime_info_init (pi);
-      initialized = 1;
+    if (initialized == 0) {
+	prime_info_init(pi);
+	initialized = 1;
     }
 
-  return getprime_mt (pi);
+    return getprime_mt(pi);
+}
+
+
+/*
+  unsigned long offset;  // offset for current primes
+  long current;          // index of previous prime
+  unsigned int *primes;  // small primes up to sqrt(p)
+  unsigned long nprimes; // length of primes[]
+  unsigned char *sieve;  // sieving table
+  long len;              // length of sieving table
+  unsigned int *moduli;  // offset for small primes
+ */
+
+void prime_info_seek(prime_info_ptr pi, unsigned long lower_bound)
+{
+    /* note that pi->offset must be odd
+     */
+    if (lower_bound >= 3 && !(lower_bound & 1))
+	lower_bound++;
+    pi->offset = lower_bound;
+
+    /* Setting pi->len and pi->primes to zero will trigger
+     * reinitialization of the sieve array and prime list
+     */
+    pi->len = 0;
+    pi->nprimes = 0;
+}
+
+/* This initializes only the list of small primes to something minimal.
+ *
+ * The list of moduli is initialized according to pi->offset.
+ *
+ * This does not touch the sieve table
+ */
+void prime_info_small_primes_table_bootstrap(prime_info_ptr pi)
+{
+    pi->nprimes = 1;
+
+    pi->primes =
+	(unsigned int *) realloc(pi->primes,
+				 pi->nprimes * sizeof(unsigned int));
+    /* assume this "small" malloc will not fail in normal usage */
+    ASSERT(pi->primes != NULL);
+
+    pi->moduli =
+	(unsigned int *) realloc(pi->moduli,
+				 pi->nprimes * sizeof(unsigned int));
+    /* assume this "small" malloc will not fail in normal usage */
+    ASSERT(pi->moduli != NULL);
+
+    if (pi->offset <= 3)
+	pi->offset = 3;
+
+    pi->primes[0] = 3;
+    unsigned int p = 3;
+    unsigned int j = pi->offset % p;
+    j = (j == 0) ? j : p - j;	/* -offset mod p */
+    if ((j % 2) != 0)
+	j += p;			/* ensure j is even */
+    pi->moduli[0] = j / 2;
+    if (pi->offset == 3)
+	pi->moduli[0] += 3;
+
+}
+
+unsigned long prime_info_sieving_max_reach(prime_info_srcptr pi)
+{
+    unsigned long p = pi->primes[pi->nprimes - 1];
+    return p * p;
+}
+
+/* This doubles (possibly several times, if we used prime_info_seek) the
+ * size of the small primes, and adjust the moduli according to
+ * pi->offset
+ */
+void prime_info_small_primes_table_expand(prime_info_ptr pi)
+{
+    for (; prime_info_sieving_max_reach(pi) < pi->offset + 2 * pi->len;) {
+	unsigned int k, p, j, ok;
+	k = pi->nprimes;
+	pi->nprimes *= 2;
+	pi->primes = (unsigned int *) realloc(pi->primes, pi->nprimes *
+					      sizeof(unsigned int));
+	pi->moduli = (unsigned int *) realloc(pi->moduli, pi->nprimes *
+					      sizeof(unsigned int));
+	/* assume those "small" realloc's will not fail in normal usage */
+	ASSERT(pi->primes != NULL && pi->moduli != NULL);
+	for (p = pi->primes[k - 1]; k < pi->nprimes; k++) {
+	    /* find next (odd) prime > p ; trial divide by all smaller
+	     * primes, which is sub-optimal, but shouldn't hurt too much. */
+	    do {
+		for (p += 2, ok = 1, j = 0; (ok != 0) && (j < k); j++)
+		    ok = p % pi->primes[j];
+	    }
+	    while (ok == 0);
+	    pi->primes[k] = p;
+	    /* moduli[k] is the smallest m such that
+	     * offset + 2*m = 0 mod primes[k] */
+	    j = pi->offset % p;
+	    j = (j == 0) ? j : p - j;	/* -offset mod p */
+	    if ((j % 2) != 0)
+		j += p;		/* ensure j is even */
+	    pi->moduli[k] = j / 2;
+	}
+    }
+}
+
+/* we want to enforce:
+ *    len >= 1,
+ *    len^2 >= offset,
+ *    pi->sieve allocated of size len+1, with an end mark
+ *
+ * note that this is a no-op if post-conditions are already met.
+ */
+void prime_info_sieving_table_expand(prime_info_ptr pi)
+{
+    /* enlarge sieving table if too small */
+    if (pi->len && (unsigned long) pi->len * pi->len >= pi->offset)
+	return;
+
+    pi->len += pi->len == 0;
+    for (; (unsigned long) pi->len * pi->len < pi->offset; pi->len *= 2);
+
+    pi->sieve = (unsigned char *) realloc(pi->sieve, pi->len + 1);
+    /* assume this "small" malloc will not fail in normal usage */
+    ASSERT(pi->sieve != NULL);
+
+    pi->sieve[pi->len] = 1;	/* End mark */
+}
+
+void prime_info_sieve_more(prime_info_ptr pi)
+{
+    /* now sieve for new primes */
+    long k;
+    unsigned long j, p;
+
+    memset(pi->sieve, 1, sizeof(unsigned char) * (pi->len + 1));
+    for (j = 0; j < pi->nprimes; j++) {
+	p = pi->primes[j];
+	for (k = pi->moduli[j]; k < pi->len; k += p)
+	    pi->sieve[k] = 0;
+	pi->moduli[j] = k - pi->len;	/* for next sieving array */
+    }
+}
+
+unsigned long prime_info_sieve_find(prime_info_ptr pi)
+{
+    for (; pi->current < pi->len; pi->current++) {
+	if (pi->sieve[pi->current]) {
+	    unsigned long p = pi->offset + 2 * pi->current;
+	    /* for next call */
+	    pi->current++;
+	    /* most calls will end here */
+	    return p;
+	}
+    }
+    return 0;
 }
 
 /* this function is thread-safe, provided of course that no two threads
  * tinker with the same prime_info data. */
-unsigned long
-getprime_mt (prime_info i)
+unsigned long getprime_mt(prime_info_ptr pi)
 {
-  if (i->len)
-    {
-      unsigned char *ptr = i->sieve + i->current;
-      while (!*++ptr);
-      i->current = ptr - i->sieve;
-    }
-  else
-    i->current = 0;
+    unsigned long p;
+    p = prime_info_sieve_find(pi);
+    if (p)
+	return p;
 
-  if (i->current < i->len) /* most calls will end here */
-    return i->offset + 2 * i->current;
-
-  /* otherwise we have to sieve */
-  i->offset += 2 * i->len;
-
-  /* first enlarge sieving table if too small */
-  if ((unsigned long) i->len * i->len < i->offset)
-    {
-      free (i->sieve);
-      i->len *= 2;
-      i->sieve = (unsigned char *) malloc ((i->len + 1 )
-                                           * sizeof (unsigned char));
-      /* assume this "small" malloc will not fail in normal usage */
-      ASSERT(i->sieve != NULL);
-      i->sieve[i->len] = 1; /* End mark */
+    if (pi->offset <= 2) {
+	pi->offset = 3;
+	return 2;
     }
 
-  /* now enlarge small prime table if too small */
-  if ((i->nprimes == 0) ||
-      ((unsigned long) i->primes[i->nprimes - 1] * (unsigned long)
-       i->primes[i->nprimes - 1] < i->offset + i->len))
-      {
-	if (i->nprimes == 0) /* initialization */
-	  {
-	    i->nprimes = 1;
-	    i->primes = (unsigned int*) malloc (i->nprimes
-                                                * sizeof(unsigned int));
-	    /* assume this "small" malloc will not fail in normal usage */
-	    ASSERT(i->primes != NULL);
-	    i->moduli = (unsigned int*) malloc (i->nprimes
-                                                * sizeof(unsigned int));
-	    /* assume this "small" malloc will not fail in normal usage */
-	    ASSERT(i->moduli != NULL);
-	    i->len = 1;
-	    i->sieve = (unsigned char *) malloc((i->len + 1) *
-                                       sizeof(unsigned char)); /* len=1 here */
-	    /* assume this "small" malloc will not fail in normal usage */
-	    ASSERT(i->sieve != NULL);
-	    i->sieve[i->len] = 1; /* End mark */
-	    i->offset = 5;
-	    i->sieve[0] = 1; /* corresponding to 5 */
-	    i->primes[0] = 3;
-	    i->moduli[0] = 1; /* next odd multiple of 3 is 7, i.e. next to 5 */
-	    i->current = -1;
-	    return 3;
-	  }
-	else
-	  {
-	    unsigned int k, p, j, ok;
+    /* otherwise we have to sieve, and maybe find new primes first. */
 
-	    k = i->nprimes;
-	    i->nprimes *= 2;
-	    i->primes = (unsigned int*) realloc (i->primes, i->nprimes *
-                                                 sizeof(unsigned int));
-	    i->moduli = (unsigned int*) realloc (i->moduli, i->nprimes *
-                                                 sizeof(unsigned int));
-	    /* assume those "small" realloc's will not fail in normal usage */
-	    ASSERT(i->primes != NULL && i->moduli != NULL);
-	    for (p = i->primes[k-1]; k < i->nprimes; k++)
-	      {
-		/* find next (odd) prime > p */
-		do
-		  {
-		    for (p += 2, ok = 1, j = 0; (ok != 0) && (j < k); j++)
-		      ok = p % i->primes[j];
-		  }
-		while (ok == 0);
-		i->primes[k] = p;
-		/* moduli[k] is the smallest m such that offset + 2*m = k*p */
-		j = i->offset % p;
-		j = (j == 0) ? j : p - j; /* -offset mod p */
-		if ((j % 2) != 0)
-		  j += p; /* ensure j is even */
-		i->moduli[k] = j / 2;
-	      }
-	  }
-      }
+    pi->offset += 2 * pi->len;
 
-  /* now sieve for new primes */
-  {
-    long k;
-    unsigned long j, p;
-    
-    memset (i->sieve, 1, sizeof(unsigned char) * (i->len + 1));
-    for (j = 0; j < i->nprimes; j++)
-      {
-	p = i->primes[j];
-	for (k = i->moduli[j]; k < i->len; k += p)
-	  i->sieve[k] = 0;
-	i->moduli[j] = k - i->len; /* for next sieving array */
-      }
-  }
+    /* we want to enforce:
+     *    len >= 1,
+     *    len^2 >= offset,
+     *    last_prime^2 >= offset+2*len
+     */
 
-  unsigned char *ptr = i->sieve - 1;
-  while (!*++ptr);
-  i->current = ptr - i->sieve;
+    if (pi->nprimes == 0)
+	prime_info_small_primes_table_bootstrap(pi);
 
-  ASSERT(i->current < i->len); /* otherwise we found a prime gap >= sqrt(x)
-                                  around x */
-  return i->offset + 2 * i->current;
+    prime_info_sieving_table_expand(pi);
+
+    prime_info_small_primes_table_expand(pi);
+
+    prime_info_sieve_more(pi);
+
+    pi->current = 0;
+
+    p = prime_info_sieve_find(pi);
+    if (p)
+	return p;
+
+    /* otherwise we found a prime gap >= sqrt(x) around x */
+    ASSERT_ALWAYS(0);
+
+    return 0;
 }
 
 #ifdef MAIN
-int
-main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-  unsigned long p, B;
-  unsigned long pi = 0;
-  int diff = 0;
-  prime_info i;
+    unsigned long p, B;
+    unsigned long ii = 0;
+    int diff = 0;
+    prime_info pi;
 
-  if (argc != 2)
-    {
-      fprintf (stderr, "Usage: getprime <bound>\n");
-      exit (EXIT_FAILURE);
+    if (argc != 2) {
+	fprintf(stderr, "Usage: getprime <bound>\n");
+	exit(EXIT_FAILURE);
     }
 
-  B = strtoul (argv[1], NULL, 0);
-  
-  prime_info_init (i);
+    B = strtoul(argv[1], NULL, 0);
 
-  for (pi = 0, p = 2; p <= B; pi++) {
-      unsigned long newp = getprime_mt (i);
-      if (newp - p > diff)
-        printf ("firstdiff(%d)=%lu\n", diff = newp - p, p);
-      p = newp;
-  }
-  printf ("pi(%lu)=%lu, maxdiff=%d\n", B, pi, diff);
+    prime_info_init(pi);
 
-  prime_info_clear (i); /* free the tables */
+    for (ii = 0, p = 2; p <= B; ii++) {
+	unsigned long newp = getprime_mt(pi);
+	if (newp - p > diff)
+	    printf("firstdiff(%d)=%lu\n", diff = newp - p, p);
+	p = newp;
+    }
+    printf("pi(%lu)=%lu, maxdiff=%d\n", B, ii, diff);
 
-  return 0;
+    prime_info_clear(pi);	/* free the tables */
+
+    return 0;
 }
 #endif
