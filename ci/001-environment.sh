@@ -56,7 +56,7 @@ if ! [ "$CI_BUILD_NAME" ] ; then
     $ECHO_E "${CSI_RED}This set of scripts really really expect that CI_BUILD_NAME is set to something!${CSI_RESET}"
 fi
 
-if ! [ "$CI_COMMIT_SHORT_SHA" ] && [ -d .git ] ; then
+if ! [ "$CI_COMMIT_SHORT_SHA" ] && [ -d .git ] && type -p git > /dev/null 2>&1 ; then
     CI_COMMIT_SHORT_SHA="$(git rev-parse --short HEAD)"
     $ECHO_E "${CSI_BLUE}Setting CI_COMMIT_SHORT_SHA=\"$CI_COMMIT_SHORT_SHA\"${CSI_RESET}"
 fi
