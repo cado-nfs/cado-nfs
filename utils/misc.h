@@ -7,6 +7,7 @@
 #ifdef __cplusplus
 #include <type_traits>
 #include <string>
+#include <vector>
 #endif
 #include <gmp.h>
 #include "macros.h"
@@ -241,6 +242,12 @@ safe_abs64(const int64_t n) {
 
 const char *size_disp_fine(size_t s, char buf[16], double cutoff);
 const char *size_disp(size_t s, char buf[16]);
+
+/* see below. The C++ code is the first-class citizen, but this proxy can
+ * be used in C as well.
+ */
+void subdivide_primes_interval_proxy(unsigned long * r, unsigned long p0, unsigned long p1, size_t n);
+
 #ifdef __cplusplus
 }
 #endif
@@ -269,7 +276,10 @@ static inline T next_power_of_2(T x)
     }
     return x;
 }
+
+std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned long p1, size_t n);
 #endif
+
 
 #else
 #if 0

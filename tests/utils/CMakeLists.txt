@@ -74,4 +74,6 @@ cado_define_test(
         badideals
     )
 
+cado_define_test(test_subdivide_primes_interval.cpp LIBRARIES utils)
+
 add_subdirectory(numbertheory)
