@@ -1707,3 +1707,4 @@ tests/sieve/reduce-plattice/plattice-proxy.hpp
 tests/sieve/reduce-plattice/simd-avx2.hpp
 tests/sieve/reduce-plattice/simd-avx512.hpp
 tests/sieve/reduce-plattice/simd-base.hpp
+tests/utils/test_subdivide_primes_interval.cpp
