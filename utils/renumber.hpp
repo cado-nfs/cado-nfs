@@ -230,7 +230,7 @@ public:
     };
 
     struct hook {
-        virtual void operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) = 0;
+        virtual void operator()(renumber_t const & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) = 0;
         virtual ~hook() = default;
     };
 
@@ -298,7 +298,7 @@ private:/*{{{ more implementation-level stuff. */
      */
     cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> &) const;
     void use_cooked(p_r_values_t p, cooked & C);
-    index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked & C);
+    index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked & C) const;
 
     struct builder; // IWYU pragma: keep
     friend struct builder;

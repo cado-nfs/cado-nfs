@@ -28,6 +28,7 @@
 #include "rootfinder.h" // mpz_poly_roots
 #include "stats.h"      // for the builder process
 #include "macros.h"
+#include "misc.h"
 
 /* Some documentation on the internal encoding of the renumber table...
  *
@@ -1450,7 +1451,7 @@ void renumber_t::use_cooked(p_r_values_t p, cooked & C)
         above_cache = above_all;
     }
 }
-index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, cooked & C)
+index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, cooked & C) const
 {
     if (C.empty()) return n0;
     index_t pos_logical = n0 - above_bad;
@@ -1771,35 +1772,69 @@ struct renumber_t::builder{/*{{{*/
         prime_chunk() = default;
     };/*}}}*/
 
-    renumber_t & R;
     std::ostream * os_p;
     renumber_t::hook * hook;
     stats_data_t stats;
     uint64_t nprimes = 0; // sigh... *must* be ulong for stats().
     index_t R_max_index; // we *MUST* follow it externally, since we're not storing the table in memory.
-    builder(renumber_t & R, std::ostream * os_p, renumber_t::hook * hook)
-        : R(R)
-        , os_p(os_p)
+    /* In multi-I/O mode, and *ONLY* in multi-I/O mode (a.k.a. we're
+     * running over MPI, and each job, possibly even each openmp thread
+     * for each job, writes to its very own file), this determines the
+     * specific [p0,p1) range that this process looks into. This range
+     * may be subdivided further if we're doing MPI+OpenMP. Note that
+     * both p0_multi and p1_multi are dereferencable.
+     */
+    const unsigned long * p0_multi = nullptr;
+    const unsigned long * p1_multi = nullptr;
+    int rank_multi = 0;
+    int size_multi = 1;
+    builder(renumber_t const & R, std::ostream * os_p, renumber_t::hook * hook)
+        : os_p(os_p)
         , hook(hook)
         , R_max_index(R.get_max_index())
     {
         /* will print report at 2^10, 2^11, ... 2^23 computed primes
          * and every 2^23 primes after that */
-        stats_init(stats, stdout, &nprimes, 23, "Processed", "primes", "", "p");
+        if (rank_multi == 0)
+            stats_init(stats, stdout, &nprimes, 23, "Processed", "primes", "", "p");
+    }
+    builder(renumber_t const & R,
+            const unsigned long * p0_multi,
+            const unsigned long * p1_multi,
+            int rank_multi,
+            int size_multi,
+            std::ostream * os_p, renumber_t::hook * hook)
+        : os_p(os_p)
+        , hook(hook)
+        , R_max_index(R.get_max_index())
+        , p0_multi(p0_multi)
+        , p1_multi(p1_multi)
+        , rank_multi(rank_multi)
+        , size_multi(size_multi)
+    {
+        if (rank_multi == 0)
+            stats_init(stats, stdout, &nprimes, 23, "Processed", "primes", "", "p");
     }
     void progress() {
-        if (stats_test_progress(stats))
-            stats_print_progress(stats, nprimes, 0, 0, 0);
+        /* This stats thing is a bit of a lie, because multi mode is
+         * totally desynchronized. We can't even add a barrier point at
+         * stats_test_progress, since the test may wake up a different
+         * number of times depending on the job.
+         */
+        if (stats_test_progress(stats) && rank_multi == 0)
+            stats_print_progress(stats, nprimes * size_multi, 0, 0, 0);
     }
     ~builder() {
-        stats_print_progress(stats, nprimes, 0, 0, 1);
+        if (rank_multi == 0)
+            stats_print_progress(stats, nprimes * size_multi, 0, 0, 1);
     }
-    index_t operator()();
-    void preprocess(prime_chunk & P);
-    void postprocess(prime_chunk & P);
+    index_t operator()(renumber_t & R);
+    void preprocess(renumber_t const & R, prime_chunk & P);
+    void postprocess(renumber_t & R, prime_chunk & P);
+    void postprocess_multi(renumber_t const & R, prime_chunk & P);
 };/*}}}*/
 
-void renumber_t::builder::preprocess(prime_chunk & P)/*{{{*/
+void renumber_t::builder::preprocess(renumber_t const & R, prime_chunk & P)/*{{{*/
 {
     ASSERT_ALWAYS(!P.preprocess_done);
     /* change x (list of input primes) into the list of integers that go
@@ -1853,7 +1888,7 @@ void renumber_t::builder::preprocess(prime_chunk & P)/*{{{*/
     P.preprocess_done = true;
 }/*}}}*/
 
-void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
+void renumber_t::builder::postprocess(renumber_t & R, prime_chunk & P)/*{{{*/
 {
     ASSERT_ALWAYS(P.preprocess_done);
     /* put all entries from x into the renumber table, and also print
@@ -1885,53 +1920,121 @@ void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
     progress();
 }/*}}}*/
 
-index_t renumber_t::builder::operator()()/*{{{*/
+void renumber_t::builder::postprocess_multi(renumber_t const & R, prime_chunk & P)/*{{{*/
 {
+    ASSERT_ALWAYS(P.preprocess_done);
+    /* put all entries from x into the renumber table, and also print
+     * to freerel_file any free relation encountered. This is done
+     * synchronously.
+     *
+     * (if freerel_file is NULL, store only into the renumber table)
+     */
+    ASSERT_ALWAYS(os_p);
+    for(size_t i = 0; i < P.primes.size() ; i++) {
+        p_r_values_t p = P.primes[i];
+        renumber_t::cooked & C = P.C[i];
+
+        if (hook) (*hook)(R, p, R_max_index, C);
+
+        R_max_index = R.use_cooked_nostore(R_max_index, p, C);
+        (*os_p) << C.text;
+
+        nprimes++;
+    }
+    /* free memory ! */
+    P.primes.clear();
+    P.C.clear();
+    progress();
+}/*}}}*/
+
+index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
+{
+    renumber_t const & Rc = R;
+
     /* Generate the renumbering table. */
 
-    constexpr const unsigned int granularity = 1024;
+    /* At this point we don't know how to to multi construction in
+     * memory. We need a way to merge two tables, for that
+     */
+    bool is_multi_mode = p0_multi != nullptr && os_p;
 
-#pragma omp parallel default(none)
-    {
-#pragma omp single
+    if (!is_multi_mode) {
+        constexpr const unsigned int granularity = 1024;
+
+#pragma omp parallel default(none) shared(Rc,R)
         {
-            prime_info pi;
-            prime_info_init(pi);
-            std::list<prime_chunk> inflight;
-            unsigned long lpbmax = 1UL << R.get_max_lpb();
-            unsigned long p = 2;
-            for (; p <= lpbmax || !inflight.empty() ;) {
-                if (p <= lpbmax) {
-                    std::vector<unsigned long> pp;
-                    pp.reserve(granularity);
-                    for (; p <= lpbmax && pp.size() < granularity;) {
-                        pp.push_back(p);
-                        p = getprime_mt(pi); /* get next prime */
-                    }
-                    inflight.emplace_back(std::move(pp));
-                    /* do not use a c++ reference for the omp
-                     * firstprivate construct. It does not do what we
-                     * want. (I saw a _copy_ !)
-                     */
-                    prime_chunk * latest(&inflight.back());
-#pragma omp task firstprivate(latest) default(none)
-                    {
-                        preprocess(*latest);
-                    }
-                } else {
+#pragma omp single
+            {
+                prime_info pi;
+                prime_info_init(pi);
+                std::list<prime_chunk> inflight;
+                unsigned long lpbmax = 1UL << Rc.get_max_lpb();
+                unsigned long p = 2;
+                for (; p <= lpbmax || !inflight.empty() ;) {
+                    if (p <= lpbmax) {
+                        std::vector<unsigned long> pp;
+                        pp.reserve(granularity);
+                        for (; p <= lpbmax && pp.size() < granularity;) {
+                            pp.push_back(p);
+                            p = getprime_mt(pi); /* get next prime */
+                        }
+                        inflight.emplace_back(std::move(pp));
+                        /* do not use a c++ reference for the omp
+                         * firstprivate construct. It does not do what we
+                         * want. (I saw a _copy_ !)
+                         */
+                        prime_chunk * latest(&inflight.back());
+#pragma omp task firstprivate(latest) default(none) shared(Rc)
+                        {
+                            preprocess(Rc, *latest);
+                        }
+                    } else {
 #pragma omp taskwait
-                }
+                    }
 
-                for ( ; !inflight.empty() ; ) {
-                    bool ready;
-                    prime_chunk & next(inflight.front());
+                    for ( ; !inflight.empty() ; ) {
+                        bool ready;
+                        prime_chunk & next(inflight.front());
 #pragma omp atomic read
-                    ready = next.preprocess_done;
-                    if (!ready)
-                        break;
-                    postprocess(next);
-                    inflight.pop_front();
+                        ready = next.preprocess_done;
+                        if (!ready)
+                            break;
+                        /* This is the only write access to R -- and it's
+                         * actually a write _only_ if we're not printing
+                         * the data */
+                        postprocess(R, next);
+                        inflight.pop_front();
+                    }
                 }
+                prime_info_clear(pi);
+            }
+        }
+    } else {
+        unsigned long p0 = *p0_multi;
+        unsigned long p1 = *p1_multi;
+
+        std::vector<unsigned long> splits;
+#pragma omp parallel
+        {
+            constexpr const unsigned int granularity = 1024;
+            prime_info pi;
+#pragma omp single
+            splits = subdivide_primes_interval(p0, p1, omp_get_num_threads());
+#pragma omp barrier
+            unsigned long q0 = splits[omp_get_thread_num()];
+            unsigned long q1 = splits[omp_get_thread_num()+1];
+
+            prime_info_init_seek(pi, q0);
+
+
+            for (unsigned long p = 0 ; p < q1 ; ) {
+                std::vector<unsigned long> pp;
+                pp.reserve(granularity);
+                for( ; pp.size() < granularity && (p = getprime_mt(pi)) <= q1 ; )
+                    pp.push_back(p);
+                prime_chunk C(std::move(pp));
+                preprocess(R, C);
+                postprocess_multi(R, C);
             }
             prime_info_clear(pi);
         }
@@ -1996,7 +2099,7 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
         write_bad_ideals(*out);
     }
 
-    index_t ret = builder(*this, out.get(), f)();
+    index_t ret = builder(*this, out.get(), f)(*this);
 
     more_info(std::cout);
 

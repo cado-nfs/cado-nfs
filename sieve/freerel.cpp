@@ -40,6 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "verbose.h"    // verbose_interpret_parameters
 #include "fmt/core.h"
 #include "fmt/format.h"
+#include "select_mpi.h"
 
 char * argv0;
 
@@ -59,7 +60,7 @@ struct freerel_data_t : public renumber_t::hook {
         return pmin <= p && p <= pmax;
     }
     freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb);
-    void operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) override;
+    void operator()(renumber_t const & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) override;
     static void declare_usage(cxx_param_list & pl) {
         param_list_decl_usage(pl, "out", "output file for free relations");
         param_list_decl_usage(pl, "pmin", "do not create freerel below this bound");
@@ -88,7 +89,7 @@ freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly,
     }
 }
 
-void freerel_data_t::operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C)
+void freerel_data_t::operator()(renumber_t const & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C)
 {
     std::vector<std::pair<int, index_t>> full_sides;
 
