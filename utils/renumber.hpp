@@ -71,7 +71,7 @@ struct renumber_t {
      * implementation-only.
      */
     static constexpr const int format_traditional = 20130603;
-    static constexpr const int format_flat = 20200515;
+    static constexpr const int format_flat = 20210405;
 
 private:/*{{{ internal data fields*/
 
@@ -286,7 +286,7 @@ private:/*{{{ more implementation-level stuff. */
      * track of the above_all index, which is done by the input and
      * output index_t values.
      */
-    cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> &) const;
+    cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> const &) const;
     void use_cooked(p_r_values_t p, cooked & C);
     index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked & C) const;
 

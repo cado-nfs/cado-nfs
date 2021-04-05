@@ -29,6 +29,10 @@
 #include "stats.h"      // for the builder process
 #include "macros.h"
 #include "misc.h"
+#include "select_mpi.h"
+#include "fmt/format.h"
+#include "json.hpp"
+#include "mpi_proxies.hpp"
 
 /* Some documentation on the internal encoding of the renumber table...
  *
@@ -317,47 +321,7 @@ renumber_t::p_r_side renumber_t::compute_p_r_side_from_p_vr (p_r_values_t p, p_r
 }/*}}}*/
 /* }}} */
 
-/* sort in decreasing order. Faster than qsort for ~ < 15 values in r[] */
-/* only used for format == format_{traditional} */
-/* XXX This is total legacy, and should go away soon (we only temporarily
- * keep it for measurement). See test-sort in
- * tests/utils. This code is actually slow in most cases, and clearly
- * outperformed by the code in iqsort.h
- */
-inline void renumber_sort_ul (std::vector<unsigned long>::iterator r, size_t n)
-{
-    unsigned long rmin;
-
-    if (UNLIKELY (n < 2))
-        return;
-
-    if (UNLIKELY (n == 2)) {
-        if (r[0] < r[1]) {
-            rmin = r[0];
-            r[0] = r[1];
-            r[1] = rmin;
-        }
-        return;
-    }
-
-    for (size_t i = n; --i;) {
-        size_t min = i;
-        rmin = r[min];
-        for (size_t j = i; j--;) {
-            unsigned long rj = r[j];
-            if (UNLIKELY (rj < rmin)) {
-                min = j;
-                rmin = rj;
-            }
-        }
-        if (LIKELY (min != i)) {
-            r[min] = r[i];
-            r[i] = rmin;
-        }
-    }
-}
-
-renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<unsigned long>> & roots) const
+renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<unsigned long>> const & roots) const
 {
     cooked C;
 
@@ -378,8 +342,6 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
     }
 
     if (format != format_flat) {
-        for (unsigned int i = 0; i < get_nb_polys() ; i++)
-            renumber_sort_ul (roots[i].begin(), roots[i].size());
 
         /* With the traditional format, the root on ratside side becomes vp.
          * If there is no ratside side or not root on ratside side for this
@@ -398,7 +360,8 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
             if (side == get_rational_side())
                 continue;
 
-            for (auto r : roots[side]) {
+            for (auto it = roots[side].rbegin() ; it != roots[side].rend() ; ++it) {
+                auto const & r = *it;
                 if (print_it++) {
                     p_r_side x { (p_r_values_t) p, (p_r_values_t) r, side };
                     C.traditional.push_back(compute_vr_from_p_r_side (x));
@@ -412,10 +375,18 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
             os << x << "\n";
         C.text = os.str();
     } else {
-        /* reverse the ordering, because our goal is to remain compatible
-         * with the old-format indexing
+        /* reverse the root ordering, because our goal is to remain
+         * compatible with the old-format indexing.
+         * We also want to make sure that the rational side goes first.
          */
+        std::vector<int> sides;
+        if (get_rational_side() >= 0) sides.push_back(get_rational_side());
         for (int side = get_nb_polys(); side--; ) {
+            if (side == get_rational_side())
+                continue;
+            sides.push_back(side);
+        }
+        for(int side : sides) {
             for (auto it = roots[side].rbegin() ; it != roots[side].rend() ; ++it) {
                 p_r_side x { (p_r_values_t) p, (p_r_values_t) *it, side };
                 C.flat.emplace_back(
@@ -426,6 +397,7 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
             }
         }
         std::ostringstream os;
+        os << std::hex;
         for(auto x : C.flat)
             os << x[0] << " " << x[1] << "\n";
         C.text = os.str();
@@ -443,7 +415,8 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
 bool
 renumber_t::traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const
 {
-    for(x.side = get_nb_polys(); x.side--; ) {
+    bool found = false;
+    for(x.side = get_nb_polys(); !found && x.side--; ) {
         mpz_poly_srcptr f = cpoly->pols[x.side];
         mpz_srcptr lc = f->coeff[f->deg];
         p_r_values_t p = x.p;
@@ -456,15 +429,15 @@ renumber_t::traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const
         }
 
         auto roots = mpz_poly_roots(cpoly->pols[side], (unsigned long) p);
-        renumber_sort_ul (roots.begin(), roots.size()); /* sort in decreasing order */
+        x.r = 0;
         for (auto r : roots) {
-            if (!is_bad ({ (p_r_values_t) p, (p_r_values_t) r, side})) {
+            if (!is_bad ({ (p_r_values_t) p, (p_r_values_t) r, side}) && r >= x.r) {
                 x.r = r;
-                return true;
+                found = true;
             }
         }
     }
-    return false;
+    return found;
 }
 
 /* return j such that min <= j <= i, and j maximal, with
@@ -926,7 +899,6 @@ void renumber_t::set_format(int f)
 
 void renumber_t::compute_bad_ideals_from_dot_badideals_hint(std::istream & is, unsigned int n)
 {
-    ASSERT_ALWAYS (format == format_traditional);
     ASSERT_ALWAYS (above_all == above_bad);
     ASSERT_ALWAYS (above_cache == above_bad);
     above_bad = above_add;
@@ -975,8 +947,18 @@ void renumber_t::read_header(std::istream& is)
     getline(is, s);
     std::istringstream iss(s);
     int f;
-    if (iss >> f && (f == format_flat)) {
-        format = f;
+    if (iss >> f) {
+        if (f == format_flat) {
+            format = f;
+        } else if (f == format_traditional) {
+            format = format_traditional;
+        } else if (f < 100) {
+            /* This is a priori typical of the traditional format */
+            format = format_traditional;
+            iss.str(s);
+        } else {
+            throw parse_error("header, bad format for renumber table");
+        }
     } else {
         format = format_traditional;
         /* We'll re-parse this line according to the rules of the
@@ -1007,9 +989,12 @@ void renumber_t::read_header(std::istream& is)
             throw std::runtime_error("incompatible renumber table -- mismatch in number of additional columns");
         compute_bad_ideals_from_dot_badideals_hint(is, nbad);
     } else {
-        // we only have to parse the large prime bounds
+        // we only have to parse the large prime bounds, and number of
+        // additional columns.
         for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
         for(auto & x : lpb) is >> x;
+        for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
+        is >> above_add;
         if (!is) throw parse_error("header");
         read_bad_ideals(is);
     }
@@ -1111,6 +1096,8 @@ void renumber_t::write_header(std::ostream& os) const
     if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2)
         os << " (combined for both sides)";
     os << "\n";
+    if (format != format_traditional)
+        os << above_add << "\n";
     os.flags(ff);
 }
 
@@ -1247,6 +1234,7 @@ void renumber_t::read_table(std::istream& is)
     stats_init(stats, stdout, &nprimes, 23, "Read", "primes", "", "p");
     for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
     if (format == format_flat) {
+        is >> std::hex;
         for(p_r_values_t p, r ; is >> p >> r ; ) {
             flat_data.emplace_back(std::array<p_r_values_t, 2> {{ p, r }});
             above_all++;
@@ -1401,7 +1389,7 @@ std::string renumber_t::debug_data(index_t i) const
         os << std::hex;
         if (format == format_flat) {
             os << " tab[i]=";
-            os << " (0x" << flat_data[i][0] << ",0x" << flat_data[i][1] << ")";
+            os << "(0x" << flat_data[i][0] << ",0x" << flat_data[i][1] << ")";
         } else {
             os << " tab[i]=";
             os << "0x" << traditional_data[i];
@@ -1795,7 +1783,7 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
     const char * format_string = param_list_lookup_string(pl, "renumber_format");
 
     if (format_string == NULL) {
-        set_format(format_traditional);
+        set_format(format_flat);
     } else if (strcmp(format_string, "traditional") == 0) {
         format = format_traditional;
     } else if (strcmp(format_string, "flat") == 0) {
@@ -1908,12 +1896,13 @@ renumber_t::p_r_side renumber_t::const_iterator::operator*() const {
     if (i < table.above_bad) {
         /* annoying. we don't exactly have the pointer to the bad
          * ideal, we have to recover it. */
-        index_t ii0 = i0 - table.above_add;
+        index_t ii = i - table.above_add;
         for(auto const & I : table.bad_ideals) {
-            if (ii0 == 0)
+            if (ii < (unsigned int) I.second.nbad)
                 return I.first;
-            ii0 -= I.second.nbad;
+            ii -= I.second.nbad;
         }
+        throw corrupted_table("bad bad ideals");
     }
     if (i == table.get_max_index()) {
         return p_r_side {
