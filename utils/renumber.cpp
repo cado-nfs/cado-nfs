@@ -119,38 +119,6 @@ constexpr const int renumber_t::format_traditional; /*{{{*/
  */
 /*}}}*/
 
-constexpr const int renumber_t::format_variant; /*{{{*/
-/* Variations around the previous scheme may be tried: we may try to
- * store _all_ roots on non-rational sides.
- * (The rational root is still implicit, if there is a rational side).
- * Basically, we define vp and vr as above, but we include all vr's. This
- * avoids the overhead of recomputing the roots when doing the
- * p_r_from_index lookup.
- * There are two disadvantages.
- *  - First, storage is slightly larger. Instead of one integer per
- *  ideal, we store approximately 1.4 integers. The density of ideals
- *  in either side is given by D, and the number of integers that we
- *  store is given by F, with the following magma code -- assuming
- *  generic Galois groups on both sides:
-      D:=func<d1,d2|&+[m+n eq 0 select 0 else m+n where m is #Fix(s) where n is #Fix(t): s in S, t in T] * 1.0/#S/#T where S is SymmetricGroup(d1) where T is SymmetricGroup(d2)>;
-      F:=func<d1,d2|&+[m+n eq 0 select 0 else 1+m+n where m is #Fix(s) where n is #Fix(t): s in S, t in T] * 1.0/#S/#T where S is SymmetricGroup(d1) where T is SymmetricGroup(d2)>;
-      F(3,4)/D(3,4) is 1.4375 (on the first thought)
- *  - But the real problem is not storage. The index_from_p_r lookup is
- *  destroyed by this layout, since by making p explicit, we have data in
- *  the table that does not correspond to an ideal. This means that we
- *  need to store _more_ stuff to find the consecutive index, once we've
- *  found the position of vr in the table. We may, right after vp, store
- *  vp+I, with I the consecutive index of the first ideal above p. This
- *  means that we have in the table increasing sequences of length 2 at
- *  each p. This keeps the synchronization property. Note that the
- *  p_r_from_index lookup is now _also_ impacted, since we moved from
- *  O(1) to a mildly logarithmic cost (amortized O(1) for forward
- *  iterators). This extra info costs somewhat more. By modifying F
- *  above, we reach:
-      F(3,4)/D(3,4) is 1.875 
- */
-/*}}}*/
-
 constexpr const int renumber_t::format_flat; /*{{{*/
 /* My personal preference would be to bite the bullet and allow for two
  * integers per ideal, always storing both p and r explicitly:
@@ -183,12 +151,6 @@ static renumber_t::corrupted_table cannot_find_p(p_r_values_t p) {/*{{{*/
 }/*}}}*/
 #endif
 
-static renumber_t::corrupted_table cannot_find_i(index_t i) {/*{{{*/
-    std::ostringstream os;
-    os << std::hex;
-    os << "cannot find data with index 0x" << i;
-    return renumber_t::corrupted_table(os.str());
-}/*}}}*/
 static renumber_t::corrupted_table wrong_entry(p_r_values_t p, p_r_values_t vr) {/*{{{*/
     std::ostringstream os;
     os << std::hex;
@@ -274,8 +236,8 @@ static renumber_t::corrupted_table parse_error(std::string const & what)/*{{{*/
 }/*}}}*/
 /* }}} */
 
-/* {{{ helper functions relative to the "traditional" and "variant"
- * formats
+/* {{{ helper functions relative to the "traditional"
+ * format
  */
 
 /* This one is a helper only, because we use it for both T ==
@@ -287,7 +249,7 @@ template<typename T> inline T vp_from_p(T p, int n, int c, int format)
     return (n - c) * (p + 1) + d;
 }
 
-/* only used for format == format_{traditional,variant} */
+/* only used for format == format_{traditional} */
 p_r_values_t renumber_t::compute_vp_from_p (p_r_values_t p) const/*{{{*/
 {
     int n = get_nb_polys();
@@ -296,7 +258,7 @@ p_r_values_t renumber_t::compute_vp_from_p (p_r_values_t p) const/*{{{*/
 }/*}}}*/
 
 /* Inverse function of compute_vp_from_p */
-/* only used for format == format_{traditional,variant} */
+/* only used for format == format_{traditional} */
 p_r_values_t renumber_t::compute_p_from_vp (p_r_values_t vp) const/*{{{*/
 {
     int n = get_nb_polys();
@@ -305,7 +267,7 @@ p_r_values_t renumber_t::compute_p_from_vp (p_r_values_t vp) const/*{{{*/
     return (vp - d) / (n - c) - 1;
 }/*}}}*/
 
-/* only used for format == format_{traditional,variant} */
+/* only used for format == format_{traditional} */
 p_r_values_t renumber_t::compute_vr_from_p_r_side (renumber_t::p_r_side x) const/*{{{*/
 {
     if (x.side == get_rational_side()) {
@@ -321,7 +283,7 @@ p_r_values_t renumber_t::compute_vr_from_p_r_side (renumber_t::p_r_side x) const
     return vr;
 }/*}}}*/
 
-/* only used for format == format_{traditional,variant} */
+/* only used for format == format_{traditional} */
 renumber_t::p_r_side renumber_t::compute_p_r_side_from_p_vr (p_r_values_t p, p_r_values_t vr) const/*{{{*/
 {
     /* Note that vr is only used for the encoding of non-rational ideals.
@@ -356,7 +318,7 @@ renumber_t::p_r_side renumber_t::compute_p_r_side_from_p_vr (p_r_values_t p, p_r
 /* }}} */
 
 /* sort in decreasing order. Faster than qsort for ~ < 15 values in r[] */
-/* only used for format == format_{traditional,variant} */
+/* only used for format == format_{traditional} */
 /* XXX This is total legacy, and should go away soon (we only temporarily
  * keep it for measurement). See test-sort in
  * tests/utils. This code is actually slow in most cases, and clearly
@@ -411,6 +373,10 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
 
     if (total_nroots == 0) return C;
 
+    for (int side = get_nb_polys(); side--; ) {
+        ASSERT_ALWAYS(std::is_sorted(roots[side].begin(), roots[side].end()));
+    }
+
     if (format != format_flat) {
         for (unsigned int i = 0; i < get_nb_polys() ; i++)
             renumber_sort_ul (roots[i].begin(), roots[i].size());
@@ -421,49 +387,29 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
          */
         p_r_values_t vp = compute_vp_from_p (p);
 
-        if (format == format_variant) {
-            /* The "variant" has the advantage of being fairly simple */
-            C.traditional.push_back(vp);
-            /* except that we'll need to tweak this field */
-            C.traditional.push_back(vp);
-            for (int side = get_nb_polys(); side--; ) {
-                if (side == get_rational_side())
-                    continue;
-                for (auto r : roots[side]) {
+        C.traditional.push_back(vp);
+        /* if there _is_ a rational side, then it's an obvious
+         * candidate for which root is going to be explicit. This
+         * does not work if the lpb on the rational side is too
+         * small, however.
+         */
+        int print_it = get_rational_side() >= 0 && !(p >> get_lpb(get_rational_side()));
+        for (int side = get_nb_polys(); side--; ) {
+            if (side == get_rational_side())
+                continue;
+
+            for (auto r : roots[side]) {
+                if (print_it++) {
                     p_r_side x { (p_r_values_t) p, (p_r_values_t) r, side };
                     C.traditional.push_back(compute_vr_from_p_r_side (x));
                 }
             }
-        } else {
-            C.traditional.push_back(vp);
-            /* if there _is_ a rational side, then it's an obvious
-             * candidate for which root is going to be explicit. This
-             * does not work if the lpb on the rational side is too
-             * small, however.
-             */
-            int print_it = get_rational_side() >= 0 && !(p >> get_lpb(get_rational_side()));
-            for (int side = get_nb_polys(); side--; ) {
-                if (side == get_rational_side())
-                    continue;
-
-                for (auto r : roots[side]) {
-                    if (print_it++) {
-                        p_r_side x { (p_r_values_t) p, (p_r_values_t) r, side };
-                        C.traditional.push_back(compute_vr_from_p_r_side (x));
-                    }
-                }
-            }
         }
+
         std::ostringstream os;
         os << std::hex;
-        if (format == format_variant) {
-            ASSERT_ALWAYS(C.traditional.size() >= 2);
-            for(auto it = C.traditional.begin() + 2 ; it != C.traditional.end() ; ++it)
-                os << *it << "\n";
-        } else {
-            for(auto x : C.traditional)
-                os << x << "\n";
-        }
+        for(auto x : C.traditional)
+            os << x << "\n";
         C.text = os.str();
     } else {
         /* reverse the ordering, because our goal is to remain compatible
@@ -524,56 +470,10 @@ renumber_t::traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const
 /* return j such that min <= j <= i, and j maximal, with
  * traditional_data[j] pointing to a vp value (i.e. one of the rare
  * values j such that traditional_data[j-1] <= traditional_data[j]
- * (in the traditional_variant mode, such increases always come in pairs.
  */
-index_t renumber_t::traditional_backtrack_until_vp(index_t i, index_t min, index_t max) const
+index_t renumber_t::traditional_backtrack_until_vp(index_t i, index_t min, index_t /* max */) const
 {
-    if (format == format_variant) {
-        if (max == std::numeric_limits<index_t>::max())
-            max = traditional_data.size();
-        /* we have conspicuous vp markers are at the positions before all
-         * local maxima of the traditional_data array. But in presence of
-         * large prime gaps, there might be _more_ vp markers.
-         *
-         * If we write - or + depending on whether traditional_data[]
-         * increases (>=) or decreases (<), we have
-         *
-         *  - + + -      Typical case ; previous prime has a non-implicit
-         *     ^         root, and gap with next prime is small.
-         *    - + -      Degenerate case ; previous prime has a no root, and
-         *     ^         gap with previous and next primes are small.
-         *  - + + + + -  These two cases happen when we have one or
-         *     ^   ^     several consecutive large prime gaps.
-         *    - + + + -
-         *     ^   ^
-         */
-        // index_t i0 = i;
-        /* move i to somewhere within an increasing sequence */
-        for( ; i > min && (i + 1 >= max || traditional_data[i+1] < traditional_data[i]) ; --i);
-        /* find the end of the increasing sequence where i was found. */
-        index_t rise_end = i + 1;
-        for( ; rise_end < max ; rise_end++) {
-            if (traditional_data[rise_end] < traditional_data[rise_end - 1])
-                break;
-        }
-        /* Now find the beginning of the increasing sequence where i was
-         * found.
-         */
-        index_t rise_begin = i;
-        for( ; rise_begin > min ; --rise_begin) {
-            if (traditional_data[rise_begin] < traditional_data[rise_begin-1])
-                break;
-        }
-        if (((rise_end - rise_begin) & 1) && i == rise_begin) {
-            /* Can occur at most once. */
-            return traditional_backtrack_until_vp(i-1, min, max);
-        }
-        index_t j = rise_end - 2;
-        for( ; j > i ; j -= 2);
-        return j;
-    } else {
-        for( ; i > min && traditional_data[i] < traditional_data[i-1] ; --i);
-    }
+    for( ; i > min && traditional_data[i] < traditional_data[i-1] ; --i);
     return i;
 }
 
@@ -624,9 +524,6 @@ bool renumber_t::traditional_is_vp_marker(index_t i) const
     if (i == 0) return true;
     if (format == format_traditional)
         return traditional_data[i] > traditional_data[i-1];
-    /* regarding the variant case, see the long comment in
-     * traditional_backtrack_until_vp()
-     */
     return traditional_backtrack_until_vp(i) == i;
 }
 
@@ -704,13 +601,9 @@ index_t renumber_t::get_first_index_from_p(p_r_values_t p) const
         index_t i = it - flat_data.begin();
         return i;
     } else {
-        /* A priori, traditional_data has exactly above_all-above_bad
-         * entries. Except that it holds _only_ in the
-         * format_traditional case, since we insert extra data
-         * in the format_variant case
-         */
-        if (format == format_traditional)
-            ASSERT_ALWAYS(above_all == above_bad + traditional_data.size());
+        ASSERT_ALWAYS (format == format_traditional);
+        ASSERT_ALWAYS(above_all == above_bad + traditional_data.size());
+
         index_t max = traditional_data.size();
         index_t min = above_cache - above_bad;
         p_r_values_t vp = compute_vp_from_p (p);
@@ -784,18 +677,11 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
     p_r_values_t vp = traditional_data[i];
     /* Now i points to the beginning of data for p.
      *  tab[i] is vp.
-     *  in variant format: then comes j such that the first ideal above p
-     *  actually has index j
      *  then come the descriptors for all roots mod p
      */
 
     index_t outer_idx;
-    if (format == format_variant) {
-        /* This is the special thing about the "variant" format */
-        outer_idx = above_bad + traditional_data[++i] - vp;
-    } else {
-        outer_idx = above_bad + i;
-    }
+    outer_idx = above_bad + i;
 
     /* get first vr in the sequence, once we've skipped vp. Note that
      * if there's no vr at all, i might actually be the next vp already.
@@ -813,15 +699,10 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
      *  - if the sequence contains only one value
      *  - if the first sequence element is less than vr
      */
-    // this first case probably makes no sense in the variant format, as
-    // we'll never use it when there is a rational side.
     if (x.side == get_rational_side())
         return outer_idx;
     if (i == traditional_data.size())
         return outer_idx;
-    // likewise, in the variant format, vp is not used to store something
-    // implicit, so there's no reason for the sequence that begins with
-    // vp to be empty.
     if (vp < traditional_data[i])
         return outer_idx;
     if (vr > traditional_data[i])
@@ -954,94 +835,6 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
     throw cannot_lookup_p_a_b_in_bad_ideals(x, a, b);
 }
 
-/* Scan data[i0..i0+run-1] for a location which encodes precisely index
- * target_i. the boolean c indicates whether we have a rational side.
- * i0 is modified by this call, to point to the beginning of the range
- * where the location was found.
- */
-static bool variant_scan_small_range_forward(std::vector<p_r_values_t> const & data, index_t & i0, index_t target_i, index_t run, bool c)
-{
-    for( ; run ; ) {
-        index_t delta = data[i0 + 1] - data[i0];
-        if (delta == target_i) {
-            /* whether or not we have a rational side, we're
-             * definitely spot on.
-             * (if the sequence is a short one, then it makes no sense if
-             * we happen to have a rational side)
-             */
-            ASSERT_ALWAYS(c || run >= 3);
-            return true;
-        }
-        if (run < 2) return false;
-        run -= 2;
-        for(index_t j = i0 + 2 ; run ; j++, run--) {
-            if (data[j] > data[i0]) {
-                /* Then we have a new vp marker. */
-                i0 = j;
-                delta = data[i0 + 1] - data[i0];
-                break;
-            }
-            /* The delta that is attached to this i depends on
-             * the presence of a rational side.
-             */
-            if (delta + (j-(i0 + 2)) + c == target_i)
-                return true;
-        }
-    }
-    return false;
-}
-
-/* This takes an index i in the range [0, above_all-above_bad[, and returns
- * in ii the actual position of the i-th interesting data element in the
- * traditional_data[] array. i0 is the index of the corresponding vp
- * marker.
- */
-void renumber_t::variant_translate_index(index_t & i0, index_t & ii, index_t i) const
-{
-    index_t max = traditional_data.size();
-    index_t min = 0;
-    index_t maxroots = 0;
-    for(int side = 0 ; side < (int) get_nb_polys() ; side++) {
-        maxroots += get_poly(side)->deg;
-    }
-    /* We have to look for i0 and i1 two consecutive vp markers
-     * (possibly with i1==max) such that
-     * traditional_data[i0 + 1] <= i < traditional_data[i1 + 1]
-     */
-    for( ; max > min ; ) {
-        index_t middle = min + (max - min) / 2; /* avoids overflow */
-        middle = traditional_backtrack_until_vp(middle, min, max);
-        index_t delta = traditional_data[middle + 1] - traditional_data[middle];
-        if (middle == min || (delta <= i && delta + maxroots > i)) {
-            /* got it, probably. need to adjust a little, but that
-             * will be quick */
-            i0 = middle;
-            index_t run = std::min(3 * maxroots, max - i0);
-            if (variant_scan_small_range_forward(traditional_data,
-                        i0, i, run, get_rational_side() >= 0))
-                break;
-            throw cannot_find_i(above_bad + i);
-        } else if (delta < i) {
-            min = middle;
-        } else {
-            max = middle;
-        }
-    }
-    if (min >= max)
-        throw cannot_find_i(above_bad + i);
-    index_t vp = traditional_data[i0];
-    unsigned int di = i - (traditional_data[i0 + 1] - vp);
-    /* Note that there is no point in using the "variant" format when we
-     * have a rational side.
-     */
-    if (get_rational_side() >= 0) {
-        ii = di ? i0 + 1 + di : i0;
-    } else {
-        ii = i0 + 2 + di;
-    }
-}
-
-
 /* additional columns _must_ be handled differently at this point */
 renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
 {
@@ -1087,15 +880,6 @@ renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
         }
         return compute_p_r_side_from_p_vr(p, vr);
     }
-    if (format == format_variant) {
-        /* That is the annoying part. lookup at i is probably not right. */
-        index_t i0, ii;
-        variant_translate_index(i0, ii, i);
-        p_r_values_t vp = traditional_data[i0];
-        p_r_values_t vr = traditional_data[ii];
-        index_t p  = compute_p_from_vp(vp);
-        return compute_p_r_side_from_p_vr(p, vr);
-    }
     ASSERT_ALWAYS(0);   // cannot reach here.
 }
 
@@ -1136,7 +920,7 @@ void renumber_t::set_format(int f)
 {
     ASSERT_ALWAYS (above_all == above_bad);
     ASSERT_ALWAYS (above_cache == above_bad);
-    ASSERT_ALWAYS(f == format_flat || f == format_traditional || f == format_variant);
+    ASSERT_ALWAYS(f == format_flat || f == format_traditional);
     format = f;
 }
 
@@ -1191,7 +975,7 @@ void renumber_t::read_header(std::istream& is)
     getline(is, s);
     std::istringstream iss(s);
     int f;
-    if (iss >> f && (f == format_flat || f == format_variant)) {
+    if (iss >> f && (f == format_flat)) {
         format = f;
     } else {
         format = format_traditional;
@@ -1434,10 +1218,7 @@ void renumber_t::compute_bad_ideals()
 void renumber_t::use_cooked(p_r_values_t p, cooked & C)
 {
     if (C.empty()) return;
-    /* We must really use above_all - above_bad, and not
-     * traditional_data.size() + flat_data.size() -- in the
-     * format_variant case, they're different !
-     */
+    ASSERT_ALWAYS(traditional_data.size() + flat_data.size() == above_all - above_bad);
     index_t pos_hard = traditional_data.size() + flat_data.size();
     above_all = use_cooked_nostore(above_all, p, C);
     traditional_data.insert(traditional_data.end(), C.traditional.begin(), C.traditional.end());
@@ -1454,19 +1235,6 @@ void renumber_t::use_cooked(p_r_values_t p, cooked & C)
 index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, cooked & C) const
 {
     if (C.empty()) return n0;
-    index_t pos_logical = n0 - above_bad;
-    if (format == format_variant) {
-        /* This fixup is required by the "variant" format. Well, it's
-         * actually the whole point... */
-        ASSERT_ALWAYS(C.traditional.size() >= 2);
-        C.traditional[1] += pos_logical;
-        std::ostringstream os;
-        os << std::hex
-            << C.traditional[0] << "\n"
-            << C.traditional[1] << "\n"
-            << C.text;
-        C.text = os.str();
-    }
     for(auto n : C.nroots) n0 += n;
     return n0;
 }
@@ -1494,24 +1262,12 @@ void renumber_t::read_table(std::istream& is)
                 if (stats_test_progress(stats))
                     stats_print_progress(stats, nprimes, 0, 0, 0);
             }
-        } else if (format == format_variant) {
-            for(p_r_values_t v, vp = 0 ; is >> v ; ) {
-                if (v > vp) {
-                    above_all -= 2;
-                    vp = v;
-                }
-                traditional_data.push_back(v);
-                above_all++;
-                nprimes = above_all;
-                if (stats_test_progress(stats))
-                    stats_print_progress(stats, nprimes, 0, 0, 0);
-            }
         }
         is.flags(ff);
     }
     stats_print_progress(stats, nprimes, 0, 0, 1);
 
-    if (format == format_traditional || format == format_variant) {
+    if (format == format_traditional) {
         p_r_values_t vp = 0;
         index_t i = 0;
         index_t logical_adjust = 0;
@@ -1527,10 +1283,6 @@ void renumber_t::read_table(std::istream& is)
                     std::numeric_limits<index_t>::max());
             ASSERT_ALWAYS(index_from_p_cache.size() == p);
             index_from_p_cache.push_back(i);
-            if (format == format_variant) {
-                i++;
-                logical_adjust += 2;
-            }
         }
         above_cache = above_bad + i - logical_adjust;
     } else {
@@ -1650,17 +1402,6 @@ std::string renumber_t::debug_data(index_t i) const
         if (format == format_flat) {
             os << " tab[i]=";
             os << " (0x" << flat_data[i][0] << ",0x" << flat_data[i][1] << ")";
-        } else if (format == format_variant) {
-            index_t i0, ii;
-            variant_translate_index(i0, ii, i);
-            if (i0 == ii) {
-                os << " tab[0x" << i0 << "]=";
-            } else {
-                os << " tab[0x" << i0 << "+1+"
-                    << std::dec << (ii-(i0+1)) << "]="
-                    << std::hex;
-            }
-            os << "0x" << traditional_data[ii];
         } else {
             os << " tab[i]=";
             os << "0x" << traditional_data[i];
@@ -1690,8 +1431,6 @@ void renumber_t::info(std::ostream & os) const
 
     if (format == format_traditional)
         format_string = "traditional";
-    else if (format == format_variant)
-        format_string = "variant";
     else if (format == format_flat)
         format_string = "flat";
 
@@ -1743,7 +1482,7 @@ void renumber_t::builder_configure_switches(cxx_param_list & pl)
 void renumber_t::builder_declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "renumber", "output file for renumbering table");
-    param_list_decl_usage(pl, "renumber_format", "format of the renumbering table (\"traditional\", \"variant\", \"flat\")");
+    param_list_decl_usage(pl, "renumber_format", "format of the renumbering table (\"traditional\", \"flat\")");
     param_list_decl_usage(pl, "badideals", "file describing bad ideals (for DL). Only the primes are used, most of the data is recomputed anyway.");
     param_list_decl_usage(pl,
                           "lcideals",
@@ -2059,8 +1798,6 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
         set_format(format_traditional);
     } else if (strcmp(format_string, "traditional") == 0) {
         format = format_traditional;
-    } else if (strcmp(format_string, "variant") == 0) {
-        format = format_variant;
     } else if (strcmp(format_string, "flat") == 0) {
         format = format_flat;
     } else {
@@ -2150,8 +1887,6 @@ void renumber_t::const_iterator::reseat(index_t new_i)
             i0 = i;
         } else {
             i0 = table.above_bad + table.traditional_backtrack_until_vp(i - table.above_bad);
-            if (table.format == format_variant && table.get_rational_side() < 0 && i == i0)
-                i += 2;
         }
     } else {
         /* flat format doesn't give shit about keeping track of the
@@ -2214,8 +1949,6 @@ renumber_t::const_iterator& renumber_t::const_iterator::operator++()
         ++i;
         if (i == table.above_bad) {
             i0 = i;
-            if (table.format == format_variant && table.get_rational_side() < 0)
-                i += 2;
             return *this;
         } else if (table.is_bad(i0, i)) {
             // fine
@@ -2234,16 +1967,8 @@ renumber_t::const_iterator& renumber_t::const_iterator::operator++()
         return *this;
     }
     p_r_values_t vp = table.traditional_data[i0-table.above_bad];
-    if (table.format == format_variant && i == i0 + 1) {
-        // can only happen if we've been crazy enough to test
-        // the variant format with a rational side defined.
-        i++;
-    }
     p_r_values_t vr = table.traditional_data[i-table.above_bad];
-    if (vr > vp) {
+    if (vr > vp)
         i0 = i;
-        if (table.format == format_variant && table.get_rational_side() < 0)
-            i += 2;
-    }
     return *this;
 }

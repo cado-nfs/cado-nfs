@@ -71,7 +71,6 @@ struct renumber_t {
      * implementation-only.
      */
     static constexpr const int format_traditional = 20130603;
-    static constexpr const int format_variant = 20199999;
     static constexpr const int format_flat = 20200515;
 
 private:/*{{{ internal data fields*/
@@ -104,7 +103,6 @@ private:/*{{{ internal data fields*/
      * on the renumber format that is is use (see renumber.cpp).
      *
      * traditional: traditional_data.size() == above_all - above_bad
-     * variant: traditional_data.size() == above_all - above_bad + nprimes
      * flat: flat_data.size() == above_all - above_bad
      */
     index_t above_add = 0;
@@ -265,9 +263,7 @@ private:/*{{{ more implementation-level stuff. */
 
     unsigned int needed_bits() const;
     /* this returns an index i such that data[i - above_bad] points to
-     * the beginning of data for p. Note that in the
-     * renumber_format_variant case, this does not mean that i is the
-     * index of the first prime above p !
+     * the beginning of data for p.
      */
     index_t get_first_index_from_p(p_r_values_t p) const;
 
@@ -279,7 +275,6 @@ private:/*{{{ more implementation-level stuff. */
     bool traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const;
     index_t traditional_backtrack_until_vp(index_t i, index_t min = 0, index_t max = std::numeric_limits<index_t>::max()) const;
     bool traditional_is_vp_marker(index_t i) const;
-    void variant_translate_index(index_t & i0, index_t & ii, index_t i) const;
 
 
     /* The "cook" function can be used asynchronously to prepare the
@@ -290,11 +285,6 @@ private:/*{{{ more implementation-level stuff. */
      * the renumber table itself. The only thing that matters is keeping
      * track of the above_all index, which is done by the input and
      * output index_t values.
-     *
-     * In the "variant" format, the cooked data is position-dependent, as
-     * it encodes the logical position, which is known only in
-     * synchronous context. This is the reason why C is passed as a
-     * non-const reference. (and we do play dirty tricks with it...)
      */
     cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> &) const;
     void use_cooked(p_r_values_t p, cooked & C);
