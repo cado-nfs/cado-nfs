@@ -58,6 +58,15 @@ cado_divert_test(test_renumber_file mnfs5
     -lpbs 11,10,10,10,10
     )
 
+cado_divert_test(test_renumber_file_mnfs5 multi
+    APPEND_ARGUMENTS
+    -check-multi)
+cado_divert_test(test_renumber_file_mnfs5_multi smallcache
+    APPEND_ARGUMENTS
+    -renumber_cache_bits 7
+    )
+
+
 if(DEFINED ENV{CHECKS_EXPENSIVE})
 cado_define_test(test_renumber_on_the_fly_c105_30003
     PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber

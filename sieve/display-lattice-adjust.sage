@@ -294,7 +294,7 @@ if __name__ == "__main__":
             continue
         print("# Analyzing %s" % filename)
         if re.match(".*\.gz$", filename):
-            process_one_file(os.popen("zcat " + filename, "r"), dict0, dict2)
+            process_one_file(os.popen("gzip -dc " + filename, "r"), dict0, dict2)
         else:
             process_one_file(open(filename, "r"), dict0, dict2)
 

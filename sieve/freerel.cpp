@@ -249,6 +249,13 @@ main(int argc, char* argv[])
     cxx_param_list pl;
     cxx_cado_poly cpoly;
 
+    MPI_Init(&argc, & argv);
+
+    int mpi_size = 1;
+    int mpi_rank = 0;
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
     /* {{{ parse cmdline */
     declare_usage(pl);
     freerel_data_t::declare_usage(pl);
@@ -274,7 +281,8 @@ main(int argc, char* argv[])
     }
     /* print command-line arguments */
     verbose_interpret_parameters(pl);
-    param_list_print_command_line(stdout, pl);
+    if (!mpi_rank)
+        param_list_print_command_line(stdout, pl);
     fflush(stdout);
     /* }}} */
     /* {{{ interpret cmdline parameters and catch errors */
@@ -290,7 +298,8 @@ main(int argc, char* argv[])
 
     int nthreads = 0;
     if (param_list_parse_int (pl, "t", &nthreads)) {
-        fprintf(stderr, "Warning: the -t argument to freerel is kept for compatibility, but you should rather take it out and let openmp deal with it\n");
+        if (!mpi_rank)
+            fprintf(stderr, "Warning: the -t argument to freerel is kept for compatibility, but you should rather take it out and let openmp deal with it\n");
         omp_set_num_threads(nthreads);
     }
 
@@ -301,19 +310,23 @@ main(int argc, char* argv[])
         usage(pl, argv0);
 
     if (polyfilename == NULL) {
-        fprintf(stderr, "Error, missing -poly command line argument\n");
+        if (!mpi_rank)
+            fprintf(stderr, "Error, missing -poly command line argument\n");
         usage(pl, argv0);
     }
     if (param_list_lookup_string(pl, "renumber") == NULL) {
-        fprintf(stderr, "Error, missing -renumber command line argument\n");
+        if (!mpi_rank)
+            fprintf(stderr, "Error, missing -renumber command line argument\n");
         usage(pl, argv0);
     }
     if (!cado_poly_read(cpoly, polyfilename)) {
-        fprintf(stderr, "Error reading polynomial file\n");
+        if (!mpi_rank)
+            fprintf(stderr, "Error reading polynomial file\n");
         exit(EXIT_FAILURE);
     }
     if (has_nlpbs && has_lpb01) {
-        fprintf(stderr, "Error, lpb[01] and lpbs are incompatible\n");
+        if (!mpi_rank)
+            fprintf(stderr, "Error, lpb[01] and lpbs are incompatible\n");
         exit(EXIT_FAILURE);
     }
 
@@ -322,13 +335,15 @@ main(int argc, char* argv[])
         has_nlpbs = 2;
         if (cpoly->nb_polys > 2) /* With more than 2 polys, must use -lpbs. */
         {
-            fprintf(stderr, "Error, missing -lpbs command line argument\n");
+            if (!mpi_rank)
+                fprintf(stderr, "Error, missing -lpbs command line argument\n");
             usage(pl, argv0);
         }
     }
 
     if (has_nlpbs != cpoly->nb_polys) {
-        fprintf(stderr,
+        if (!mpi_rank)
+            fprintf(stderr,
                 "Error, the number of values given in -lpbs does not "
                 "correspond to the number of polynomials\n");
         usage(pl, argv0);
@@ -336,7 +351,8 @@ main(int argc, char* argv[])
     lpb.assign(&lpb_arg[0], &lpb_arg[has_nlpbs]);
     for (auto l : lpb) {
         if (l <= 0) {
-            fprintf(stderr,
+            if (!mpi_rank)
+                fprintf(stderr,
                     "Error, -lpbs command line argument cannot contain "
                     "non-positive values\n");
             usage(pl, argv0);
@@ -349,7 +365,8 @@ main(int argc, char* argv[])
     if (param_list_lookup_string(pl, "out")) {
         F.reset(new freerel_data_t(pl, cpoly, lpb));
 
-        printf("Considering freerels for %lu <= p <= %lu\n", 
+        if (!mpi_rank)
+            printf("Considering freerels for %lu <= p <= %lu\n", 
                 F->pmin,
                 F->pmax);
         fflush(stdout);
@@ -358,8 +375,8 @@ main(int argc, char* argv[])
     renumber_t renumber_table(cpoly);
     renumber_table.set_lpb(lpb);
 
-    unsigned long lpbmax = 1UL << renumber_table.get_max_lpb();
-    printf("Generating renumber table for 2 <= p <= %lu\n", lpbmax);
+    if (!mpi_rank)
+        printf("Generating renumber table for 2 <= p <= %lu\n", (unsigned long) renumber_table.upperbound());
 
     /* This reads the options:
      *
@@ -375,17 +392,23 @@ main(int argc, char* argv[])
         F->dump(renumber_table, sink, 0);
 
         /* /!\ Needed by the Python script. /!\ */
-        fprintf(stderr, "# Free relations: %lu\n", F->nfree);
+        if (!mpi_rank)
+            fprintf(stderr, "# Free relations: %lu\n", F->nfree);
     }
-    fprintf(stderr, "Renumbering struct: nprimes=%lu\n", (unsigned long) R_max_index);
+    if (!mpi_rank)
+        fprintf(stderr, "Renumbering struct: nprimes=%lu\n", (unsigned long) R_max_index);
 
 
     /* produce an error when index_t is too small to represent all ideals */
     if ((SIZEOF_INDEX < 8) && renumber_table.get_size() >> (8 * SIZEOF_INDEX)) {
-        fprintf(stderr, "Error, please increase SIZEOF_INDEX\n");
-        fprintf(stderr, "(see local.sh.example)\n");
+        if (!mpi_rank) {
+            fprintf(stderr, "Error, please increase SIZEOF_INDEX\n");
+            fprintf(stderr, "(see local.sh.example)\n");
+        }
         exit(1);
     }
+
+    MPI_Finalize();
 
     return 0;
 }

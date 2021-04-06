@@ -74,8 +74,6 @@ struct renumber_t {
     static constexpr const int format_traditional = 20130603;
     static constexpr const int format_flat = 20210405;
 
-    int get_cache_bits() const { return cache_bits; }
-
 private:/*{{{ internal data fields*/
 
     int cache_bits = RENUMBER_MAX_LOG_CACHED_DEFAULT;
@@ -121,22 +119,19 @@ private:/*{{{ internal data fields*/
     renumber_t& operator=(renumber_t const & other) = default;
     renumber_t& operator=(renumber_t && other) = default;
 
-    index_t uncached_lowerbound() const {
-        unsigned int lpbmax = *std::max_element(lpb.begin(), lpb.end());
-        return index_t(1) << std::min(lpbmax, (unsigned int) cache_bits);
-    }
-    index_t upperbound() const {
-        unsigned int lpbmax = *std::max_element(lpb.begin(), lpb.end());
-        return index_t(1) << lpbmax;
-    }
-
 public:
     /* various accessors {{{*/
     inline int get_format() const { return format; }
+    int get_cache_bits() const { return cache_bits; }
     inline unsigned int get_lpb(unsigned int i) const { return lpb[i]; }
     inline unsigned int get_max_lpb() const { return *std::max_element(lpb.begin(), lpb.end()); }
     inline unsigned int get_min_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
     inline uint64_t get_size() const { return above_all; }
+    index_t uncached_lowerbound() const {
+        return index_t(1) << std::min(get_max_lpb(), (unsigned int) cache_bits);
+    }
+    index_t upperbound() const { return index_t(1) << get_max_lpb(); }
+
     inline unsigned int get_nb_polys() const { return cpoly->nb_polys; }
     inline mpz_poly_srcptr get_poly(int side) const { return cpoly->pols[side]; }
     inline int get_poly_deg(int side) const { return get_poly(side)->deg; }

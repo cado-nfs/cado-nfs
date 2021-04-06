@@ -53,7 +53,7 @@ from_matrix_row_to_relation_set () {
     else
       echo -n "  rel ${__i_dec} (coeff=${__coeff}): "
     fi
-    zcat ${PURGEDFILE} | head -n ${__ip2} | tail -n 1
+    gzip -dc ${PURGEDFILE} | head -n ${__ip2} | tail -n 1
   done
 }
 

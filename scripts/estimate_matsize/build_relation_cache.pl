@@ -154,7 +154,7 @@ for my $filename (@ARGV) {
     my $openpath = $filename;
 
     if ($filename =~ /\.gz$/) {
-        $openpath = "zcat $filename |";
+        $openpath = "gzip -dc $filename |";
     } elsif ($filename =~ /\.bz2$/) {
         $openpath = "bzcat $filename |";
     } elsif ($filename =~ /\.xz$/) {

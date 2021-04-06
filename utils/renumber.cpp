@@ -1255,7 +1255,7 @@ void renumber_t::mpi_send(int mpi_root) {
 void renumber_t::read_table(std::istream& is)
 {
     stats_data_t stats;
-    uint64_t nprimes = 0; // sigh... *must* be ulong for stats().
+    uint64_t nprimes = 0; // sigh... *must* be uint64_t for stats().
     stats_init(stats, stdout, &nprimes, 23, "Read", "primes", "", "p");
     for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
     if (format == format_flat) {
@@ -1436,6 +1436,11 @@ std::string renumber_t::debug_data(index_t i) const
 /* can be called rather early, in fact (after the bad ideals computation) */
 void renumber_t::info(std::ostream & os) const
 {
+    int mpi_size = 1;
+    int mpi_rank = 0;
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    if (mpi_rank) return;
     const char * P = "# INFO: ";
     os << "# Information on renumber table:\n";
 
@@ -1480,6 +1485,11 @@ void renumber_t::info(std::ostream & os) const
 }
 void renumber_t::more_info(std::ostream & os) const
 {
+    int mpi_size = 1;
+    int mpi_rank = 0;
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    if (mpi_rank) return;
     const char * P = "# INFO: ";
     os << "# Extra information on renumber table:\n";
     os << P << "size = " << get_size() << "\n";
@@ -1531,62 +1541,49 @@ struct renumber_t::builder{/*{{{*/
     int io_threads_per_rank;
     renumber_t::hook * hook;
     stats_data_t stats;
-    uint64_t nprimes = 0; // sigh... *must* be ulong for stats().
-    inline unsigned long mpi_p0() const { return mpi_splits[mpi_rank]; }
-    inline unsigned long mpi_p1() const { return mpi_splits[mpi_rank+1]; }
+    uint64_t nprimes = 0; // sigh... *must* be uint64_t for stats().
     int mpi_rank = 0;
     int mpi_size = 1;
 
-    /* This has size mpi_size+1 */
-    std::vector<unsigned long> mpi_splits;
-    void prepare_mpi_splits(index_t uncached_lowerbound, index_t upperbound)/*{{{*/
+    /* This has size mpi_size*io_threads_per_rank+1 */
+    std::vector<unsigned long> splits;
+    void prepare_splits(index_t uncached_lowerbound, index_t upperbound)/*{{{*/
     {
+        int N = mpi_size * io_threads_per_rank;
         /* Make sure that no matter what, rank 0 is the only one that deals
          * with the cached primes */
-        std::vector<unsigned long> splits = subdivide_primes_interval(
+        splits = subdivide_primes_interval(
                 0,
-                upperbound, mpi_size);
+                upperbound, N);
         splits[0] = 0;
-        if (mpi_size > 1 && splits[1] < uncached_lowerbound) {
+        if (N > 1 && splits[1] < uncached_lowerbound) {
             /* need to cheat. */
             splits = subdivide_primes_interval(
                 uncached_lowerbound,
                 upperbound,
-                mpi_size - 1);
+                N - 1);
             splits.insert(splits.begin(), 0);
         }
-        mpi_splits = splits;
     }
     /*}}}*/
 
-    /* This has size io_threads_per_rank+1 only */
-    std::vector<unsigned long> openmp_io_splits;
-    void prepare_openmp_splits(index_t uncached_lowerbound)/*{{{*/
-    {
-        unsigned long p0 = mpi_p0();
-        unsigned long p1 = mpi_p1();
-
-        /* Make sure that no matter what, thread 0 on rank 0 is
-         * the only one that deals with the cached primes */
-        ASSERT_ALWAYS(mpi_rank == 0 || p1 >= uncached_lowerbound);
-
-        std::vector<unsigned long> splits = subdivide_primes_interval(
-                p0, p1, io_threads_per_rank);
-
-        if (splits[1] < uncached_lowerbound) {
-            ASSERT_ALWAYS(mpi_rank == 0 && io_threads_per_rank > 1 && splits[0] == 0);
-            /* need to cheat. */
-            splits = subdivide_primes_interval(
-                    uncached_lowerbound,
-                    p1,
-                    io_threads_per_rank - 1);
-            splits.insert(splits.begin(), 0);
-        }
-        openmp_io_splits = splits;
-    }/*}}}*/
-
-    /* This has size exactly io_threads_per_rank */
+    /* This has size exactly io_threads_per_rank at each rank if we're
+     * using multi-I/O.
+     * If we're not using multi-I/O, then only common_sink is perhaps set
+     * to something.
+     * */
     std::vector<std::unique_ptr<std::ostream>> sinks;
+    std::unique_ptr<std::ostream> common_sink;
+    inline unsigned int sequence_number(int t) const
+    {
+        /* try to interleave, just for fun. It might be good to level
+         * load across nodes. (note that output files are also affected)
+         */
+        return t * mpi_size + mpi_rank;
+ 
+        // return mpi_rank * io_threads_per_rank + t;
+    }
+
     void prepare_output_sinks()
     {
         if (!renumberfilename) return;
@@ -1614,15 +1611,21 @@ struct renumber_t::builder{/*{{{*/
 
             for(int i = 0 ; i < io_threads_per_rank ; i++) {
                 std::string subfile = fmt::format(FMT_STRING("{}/{}.{:0{}}"),
-                        renumberfilename, basename, mpi_rank * io_threads_per_rank + i, digits);
+                        renumberfilename, basename,
+                        sequence_number(i),
+                        digits);
                 sinks.emplace_back(new ofstream_maybe_compressed(subfile.c_str()));
             }
 
         } else {
+            /* multi-I/O now degrades to single I/O but distributed
+             * creation of the table. Everything goes through memory at
+             * the leader node.
+             */
             if (mpi_size > 1 || io_threads_per_rank > 1)
-                throw std::runtime_error("In multi-I/O mode, the renumber table filename must end in .multi");
-
-            sinks.emplace_back(new ofstream_maybe_compressed(renumberfilename));
+                common_sink.reset(new ofstream_maybe_compressed(renumberfilename));
+            else
+                sinks.emplace_back(new ofstream_maybe_compressed(renumberfilename));
         }
     }
     builder(renumber_t const & R,
@@ -1636,8 +1639,29 @@ struct renumber_t::builder{/*{{{*/
         MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
         MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-        prepare_mpi_splits(R.uncached_lowerbound(), R.upperbound());
-        prepare_openmp_splits(R.uncached_lowerbound());
+        /* define a default for the number of I/O threads. This does not
+         * prevent openmp to tick in even if our I/O is single-threaded !
+         */
+        if (renumberfilename && has_suffix(renumberfilename, ".multi")) {
+            if (io_threads_per_rank == 0) {
+                this->io_threads_per_rank = omp_get_max_threads();
+            }
+        } else {
+            if (io_threads_per_rank != 0 && !mpi_rank) {
+                fprintf(stderr, "# number of I/O threads per rank is implicitly limited to 1 since the output file name does not end in .multi\n");
+            }
+            this->io_threads_per_rank = 1;
+        }
+
+        prepare_splits(R.uncached_lowerbound(), R.upperbound());
+
+        if (mpi_rank == 0 && (mpi_size > 1 || this->io_threads_per_rank > 1)) {
+            if (renumberfilename) {
+                printf("# Building renumber table with %d nodes, %d i/o threads per node\n", mpi_size, this->io_threads_per_rank);
+            } else {
+                printf("# Building renumber table with %d nodes\n", mpi_size);
+            }
+        }
 
         if (mpi_rank == 0)
             stats_init(stats, stdout, &nprimes, 23, "Processed", "primes", "", "p");
@@ -1759,9 +1783,15 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
      *  cat foo/bar/file.multi/file.multi.* 
      * should be exactly equivalent to a "normal" file.
      */
-    if (mpi_rank == 0 && !sinks.empty()) {
-        R.write_header(*sinks[0]);
-        R.write_bad_ideals(*sinks[0]);
+    if (mpi_rank == 0) {
+        if (!sinks.empty()) {
+            R.write_header(*sinks[0]);
+            R.write_bad_ideals(*sinks[0]);
+        } else if (common_sink.get()) {
+            R.write_header(*common_sink);
+            R.write_bad_ideals(*common_sink);
+            *common_sink << std::hex;
+        }
     }
 
     renumber_t const & Rc = R;
@@ -1771,7 +1801,7 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
     index_t nentries = 0;
     index_t i00 = R.get_max_index(); 
     index_t i0 = i00;
-    
+
     /* i00 should really be constant at all ranks */
 
     int threads = std::max(io_threads_per_rank, omp_get_max_threads());
@@ -1779,53 +1809,63 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
     std::vector<json_hash> metadata(io_threads_per_rank, json_hash());
     std::vector<index_t> per_file_entries(threads, 0);
     std::vector<index_t> per_file_entries_global(io_threads_per_rank * mpi_size, 0);
+    std::vector<renumber_t> Rlocs(io_threads_per_rank);
+    std::vector<std::unique_ptr<renumber_t::hook>> hooklocs(io_threads_per_rank);
 
-#pragma omp parallel num_threads(threads) reduction(+:nentries)
-    {
+    /*
+     * Some performance measurements (grvingt, openmpi
+     * 4.1.0) -- see git blame for actual commit on 20210406
+     *
+     * nnodes | io_threads_per_rank | kprimes/s (after 30s)
+     *      1 |                   1 |   766
+     *      1 |                   4 |   703
+     *      1 |                   8 |   764
+     *      1 |                  16 |   673
+     *      1 |                  32 |   578
+     *      1 |                  64 |   437 (oversubscribed)
+     *      8 |                   8 |  6691
+     *      8 |                  64 |  4293 (oversubscribed)
+     *     16 |                   8 | 14105
+     *     16 |                  64 | 10071 (oversubscribed)
+     *
+     * having proc_bind(close) in the inner parallel region is mildly
+     * beneficial when we have few I/O threads compared to the number of
+     * virtual cores, and has the opposite effect when oversubscribing.
+     *
+     * Note that this scales well enough to several nodes, but we're not
+     * very fast. In a parallel setting, this apparently amounts to
+     * roughly 30MB/s/node, which isn't great, for sure.  But it's not a
+     * filesystem scaling issue, in fact: even when writing to /tmp, we
+     * don't process data significantly faster.
+     *
+     */
+
+    omp_set_nested(1);
+
+#pragma omp parallel for proc_bind(spread) reduction(+:nentries)
+    for(int t = 0 ; t < io_threads_per_rank ; t++) {
         constexpr const unsigned int granularity = 1024;
 
-        /* This is a local copy. We'll be using it only to
-         * temporarily store data before the final gather.
-         */
-        renumber_t Rloc = R;
-        std::unique_ptr<renumber_t::hook> hookloc;
-        if (hook) hookloc = hook->clone();
+        if (hook) hooklocs[t] = hook->clone();
+        Rlocs[t] = R;
+        renumber_t & Rloc = Rlocs[t];
+        std::unique_ptr<renumber_t::hook> & hookloc = hooklocs[t];
 
-#pragma omp for
-        for(int t = 0 ; t < io_threads_per_rank ; t++) {
-            unsigned long q0 = openmp_io_splits[t];
-            unsigned long q1 = openmp_io_splits[t+1];
-            metadata[t].emplace("q0", json_number(q0));
-            metadata[t].emplace("q1", json_number(q1));
-#if 0
-            /* This version does not allow nested threads. Maybe we
-             * should choose to run it nevertheless if we are not going
-             * to spawn more threads ? */
-            prime_info pi;
-            prime_info_init_seek(pi, q0);
-            for (unsigned long p = 0 ; p < q1 ; ) {
-                std::vector<unsigned long> pp;
-                pp.reserve(granularity);
-                for( ; pp.size() < granularity && (p = getprime_mt(pi)) <= q1 ; )
-                    pp.push_back(p);
-
-                prime_chunk C(std::move(pp));
-                preprocess(Rc, C);
-                nentries += postprocess(Rloc, 0, C, hookloc);
-            }
-            prime_info_clear(pi);
-#else
-            /* This version takes inspiration from the old code, where
-             * several threads contribute to a unique renumber table.
-             */
-#pragma omp parallel
-            {
+        unsigned long q0 = splits[sequence_number(t)];
+        unsigned long q1 = splits[sequence_number(t)+1];
+        metadata[t].emplace("q0", json_number(q0));
+        metadata[t].emplace("q1", json_number(q1));
+#pragma omp parallel proc_bind(close)
+        {
 #pragma omp single
-                {
-                    std::list<prime_chunk> inflight;
-                    prime_info pi;
-                    prime_info_init_seek(pi, q0);
-                    for (unsigned long p = 0 ; p < q1 ; ) {
+            {
+                std::list<prime_chunk> inflight;
+                index_t index_base = Rloc.get_max_index();
+                prime_info pi;
+                prime_info_init_seek(pi, q0);
+                for (unsigned long p = 0 ; p < q1 || !inflight.empty() ; ) {
+                    bool wait_for_tasks = (p >= q1 || inflight.size() >= (size_t) (16 * omp_get_num_threads()));
+                    if (!wait_for_tasks) {
                         std::vector<unsigned long> pp;
                         pp.reserve(granularity);
                         for( ; pp.size() < granularity && (p = getprime_mt(pi)) < q1 ; )
@@ -1841,9 +1881,9 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
                         {
                             preprocess(Rc, *latest);
                         }
-                    }
-                    index_t index_base = Rloc.get_max_index();
+                    } else {
 #pragma omp taskwait
+                    }
                     for ( ; !inflight.empty() ; ) {
                         bool ready;
                         prime_chunk & next(inflight.front());
@@ -1859,72 +1899,78 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
                         index_base += new_entries;
                         inflight.pop_front();
                     }
-                } /* end of omp single section */
-            } /* end of omp parallel section */
-#endif
-            per_file_entries[t] = nentries;
-            metadata[t].emplace("entries", json_number(nentries));
-        } /* end of omp for */
-
-#pragma omp single
-        {
-            /* collect the per-file counts globally */
-            static_assert(std::is_same<decltype(per_file_entries)::value_type,
-                    decltype(per_file_entries_global)::value_type>::value, "");
-
-            cado_mpi::allgather(per_file_entries, per_file_entries_global, MPI_COMM_WORLD);
-
-            /* Compute i0, which is the first index of the data of our
-             * first thread. It's the prefix sum of all the previous mpi
-             * ranks.
-             */
-            for(int i = 0 ; i < mpi_rank * io_threads_per_rank ; i++) {
-                i0 += per_file_entries_global[i];
-            }
-        } /* end of omp single -- barrier is implicit */
-
-        /* Now store everything in the main renumber table. This is an
-         * almost no-op if we only care about printing the data, since
-         * the tables are still empty at this point.
-         *
-         * However:
-         *  - we do keep track of the number of indices per local table
-         *  - and it turns out that we need it in order to meet our
-         *    promise of informing the hook of the offset that must be
-         *    applied to the different entries.
-         */
-#pragma omp for ordered schedule(static,1)
-        for(int t = 0 ; t < io_threads_per_rank ; t++) {
-#pragma omp ordered
-            {
-                int i1 = i0 + per_file_entries[t];
-                metadata[t].emplace("i0", json_number(i0));
-                metadata[t].emplace("i1", json_number(i1));
-
-                if (t == 0) {
-                    R = std::move(Rloc);
-                    if (hook) {
-                        hook->import_foreign_and_shift(*hookloc, i0 - i00);
-                    }
-                } else {
-                    R.import_foreign(Rloc);
-                    if (hook) {
-                        hook->import_foreign_and_shift(*hookloc, i0 - i00);
-                    }
                 }
-                i0 += per_file_entries[t];
-                /* TODO: do the finalization for the hook: write to the
-                 * final file. This can quite probably be merged with
-                 * import_foreign_and_shift
-                 */
+                prime_info_clear(pi);
+            } /* end of omp single section */
+        } /* end of omp parallel section */
+        per_file_entries[t] = nentries;
+        metadata[t].emplace("entries", json_number(nentries));
+        // } /* end of omp for */
+    }
 
-                /* free memory as soon as we can.
-                 */
-                renumber_t phony;
-                Rloc = std::move(phony);
+    {
+        /* collect the per-file counts globally */
+        static_assert(std::is_same<decltype(per_file_entries)::value_type,
+                decltype(per_file_entries_global)::value_type>::value, "");
+
+        cado_mpi::allgather(per_file_entries, per_file_entries_global, MPI_COMM_WORLD);
+
+        /* Compute i0, which is the first index of the data of our
+         * first thread. It's the prefix sum of all the previous mpi
+         * ranks.
+         */
+        for(int i = 0 ; i < mpi_rank * io_threads_per_rank ; i++) {
+            i0 += per_file_entries_global[i];
+        }
+    } /* end of omp single -- barrier is implicit */
+
+    /* Now store everything in the main renumber table. This is an
+     * almost no-op if we only care about printing the data, since
+     * the tables are still empty at this point.
+     *
+     * However:
+     *  - we do keep track of the number of indices per local table
+     *  - and it turns out that we need it in order to meet our
+     *    promise of informing the hook of the offset that must be
+     *    applied to the different entries.
+     */
+
+#pragma omp for ordered schedule(static,1)
+    for(int t = 0 ; t < io_threads_per_rank ; t++) {
+#pragma omp ordered
+        {
+            renumber_t & Rloc = Rlocs[t];
+            std::unique_ptr<renumber_t::hook> & hookloc = hooklocs[t];
+
+            int i1 = i0 + per_file_entries[t];
+            metadata[t].emplace("i0", json_number(i0));
+            metadata[t].emplace("i1", json_number(i1));
+
+            if (t == 0) {
+                R = std::move(Rloc);
+                if (hook) {
+                    hook->import_foreign_and_shift(*hookloc, i0 - i00);
+                }
+            } else {
+                R.import_foreign(Rloc);
+                if (hook) {
+                    hook->import_foreign_and_shift(*hookloc, i0 - i00);
+                }
             }
+            i0 += per_file_entries[t];
+            /* TODO: do the finalization for the hook: write to the
+             * final file. This can quite probably be merged with
+             * import_foreign_and_shift
+             */
+
+            /* free memory as soon as we can.
+            */
+            renumber_t phony;
+            Rloc = std::move(phony);
         }
     }
+
+    renumber_t Rbase = R;
 
     if (mpi_rank == 0) {
         for(int mpi_peer = 1 ; mpi_peer < mpi_size ; mpi_peer++) {
@@ -1937,6 +1983,15 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
              * (see initialization of i0) */
             if (hook)
                 hook->mpi_recv(mpi_peer);
+
+            if (common_sink.get()) {
+                /* print the contents that we have gathered so far, and
+                 * reset to an almost empty table to save memory */
+                for(auto const & x : R.traditional_data)
+                    *common_sink << x << "\n";
+                for(auto const & x : R.flat_data)
+                    *common_sink << x[0] << " " << x[1] << "\n";
+            }
         }
     } else {
         MPI_Send(&nentries, 1, cado_mpi::type_tag<index_t>::value,
@@ -1962,17 +2017,7 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
     const char * format_string = param_list_lookup_string(pl, "renumber_format");
     int io_threads_per_rank = 0;
     param_list_parse_int(pl, "io_threads_per_rank", &io_threads_per_rank);
-
     param_list_parse_int(pl, "renumber_cache_bits", &cache_bits);
-
-    /* define a default for the number of I/O threads. This does not
-     * prevent openmp to tick in even if our I/O is single-threaded !
-     */
-    if (renumberfilename && has_suffix(renumberfilename, ".multi") && io_threads_per_rank == 0) {
-        io_threads_per_rank = omp_get_max_threads();
-    } else {
-        io_threads_per_rank = 1;
-    }
 
     if (format_string == NULL) {
         set_format(format_flat);

@@ -306,7 +306,7 @@ Here is an example of how to produce such files:
 ```
 #!/usr/bin/env bash
 find $workdir/*.upload/ -name '*.gz' | while read f ; do
-   zcat $f | tail -n 1 > $f.stats.txt
+   gzip -dc $f | tail -n 1 > $f.stats.txt
 done
 ```
 
