@@ -1213,7 +1213,7 @@ void renumber_t::use_cooked(p_r_values_t p, cooked const & C)
     above_all += C.nentries();
     traditional_data.insert(traditional_data.end(), C.traditional.begin(), C.traditional.end());
     flat_data.insert(flat_data.end(), C.flat.begin(), C.flat.end());
-    if (!(p >> RENUMBER_MAX_LOG_CACHED) && p >= index_from_p_cache.size()) {
+    if (!(p >> cache_bits) && p >= index_from_p_cache.size()) {
         index_from_p_cache.insert(index_from_p_cache.end(),
                 p - index_from_p_cache.size(),
                 std::numeric_limits<index_t>::max());
@@ -1289,7 +1289,7 @@ void renumber_t::read_table(std::istream& is)
             if (v <= vp) continue;
             vp = v;
             p_r_values_t p = compute_p_from_vp(vp);
-            if (p >> RENUMBER_MAX_LOG_CACHED)
+            if (p >> cache_bits)
                 break;
             index_from_p_cache.insert(index_from_p_cache.end(),
                     p - index_from_p_cache.size(),
@@ -1303,7 +1303,7 @@ void renumber_t::read_table(std::istream& is)
         for( ; i < flat_data.size() ; i++)  {
             auto pvr = flat_data[i];
             p_r_values_t p = pvr[0];
-            if (p >> RENUMBER_MAX_LOG_CACHED)
+            if (p >> cache_bits)
                 break;
             if (p < index_from_p_cache.size())
                 continue;
@@ -1496,6 +1496,7 @@ void renumber_t::builder_declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "renumber", "output file for renumbering table");
     param_list_decl_usage(pl, "renumber_format", "format of the renumbering table (\"traditional\", \"flat\")");
+    param_list_decl_usage(pl, "renumber_cache_bits", "max bitsize of primes that end up in the quick access cache (default: " CPP_STRINGIFY(RENUMBER_MAX_LOG_CACHED_DEFAULT) ")");
     param_list_decl_usage(pl, "badideals", "file describing bad ideals (for DL). Only the primes are used, most of the data is recomputed anyway.");
     param_list_decl_usage(pl, "io_threads_per_rank", "number of I/O threads per MPI process. Defaults to OMP_NUM_THREADS if renumberfilename ends in .multi ; otherwise defaults to 1");
     param_list_decl_usage(pl,
@@ -1508,6 +1509,7 @@ void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
 {
     param_list_lookup_string(pl, "renumber");
     param_list_lookup_string(pl, "renumber_format");
+    param_list_lookup_string(pl, "renumber_cache_bits");
     param_list_lookup_string(pl, "io_threads_per_rank");
     param_list_lookup_string(pl, "badideals");
     param_list_lookup_string(pl, "lcideals");
@@ -1538,19 +1540,19 @@ struct renumber_t::builder{/*{{{*/
 
     /* This has size mpi_size+1 */
     std::vector<unsigned long> mpi_splits;
-    void prepare_mpi_splits(unsigned int lpbmax)/*{{{*/
+    void prepare_mpi_splits(index_t uncached_lowerbound, index_t upperbound)/*{{{*/
     {
         /* Make sure that no matter what, rank 0 is the only one that deals
          * with the cached primes */
         std::vector<unsigned long> splits = subdivide_primes_interval(
                 0,
-                1UL << lpbmax, mpi_size);
+                upperbound, mpi_size);
         splits[0] = 0;
-        if (mpi_size > 1 && !(splits[1] >> RENUMBER_MAX_LOG_CACHED)) {
+        if (mpi_size > 1 && splits[1] < uncached_lowerbound) {
             /* need to cheat. */
             splits = subdivide_primes_interval(
-                1UL << std::min(lpbmax, (unsigned int) RENUMBER_MAX_LOG_CACHED),
-                1UL << lpbmax,
+                uncached_lowerbound,
+                upperbound,
                 mpi_size - 1);
             splits.insert(splits.begin(), 0);
         }
@@ -1560,23 +1562,23 @@ struct renumber_t::builder{/*{{{*/
 
     /* This has size io_threads_per_rank+1 only */
     std::vector<unsigned long> openmp_io_splits;
-    void prepare_openmp_splits()/*{{{*/
+    void prepare_openmp_splits(index_t uncached_lowerbound)/*{{{*/
     {
         unsigned long p0 = mpi_p0();
         unsigned long p1 = mpi_p1();
 
         /* Make sure that no matter what, thread 0 on rank 0 is
          * the only one that deals with the cached primes */
-        ASSERT_ALWAYS(mpi_rank == 0 || (p1 >> RENUMBER_MAX_LOG_CACHED));
+        ASSERT_ALWAYS(mpi_rank == 0 || p1 >= uncached_lowerbound);
 
         std::vector<unsigned long> splits = subdivide_primes_interval(
                 p0, p1, io_threads_per_rank);
 
-        if (splits[1] < std::min(p1, 1UL << (unsigned int) RENUMBER_MAX_LOG_CACHED)) {
+        if (splits[1] < uncached_lowerbound) {
             ASSERT_ALWAYS(mpi_rank == 0 && io_threads_per_rank > 1 && splits[0] == 0);
             /* need to cheat. */
             splits = subdivide_primes_interval(
-                    std::min(p1, 1UL << (unsigned int) RENUMBER_MAX_LOG_CACHED),
+                    uncached_lowerbound,
                     p1,
                     io_threads_per_rank - 1);
             splits.insert(splits.begin(), 0);
@@ -1635,10 +1637,8 @@ struct renumber_t::builder{/*{{{*/
         MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
         MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-        unsigned int lpbmax = *std::max_element(R.lpb.begin(), R.lpb.end());
-
-        prepare_mpi_splits(lpbmax);
-        prepare_openmp_splits();
+        prepare_mpi_splits(R.uncached_lowerbound(), R.upperbound());
+        prepare_openmp_splits(R.uncached_lowerbound());
 
         if (mpi_rank == 0)
             stats_init(stats, stdout, &nprimes, 23, "Processed", "primes", "", "p");
@@ -1963,6 +1963,8 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
     const char * format_string = param_list_lookup_string(pl, "renumber_format");
     int io_threads_per_rank = 0;
     param_list_parse_int(pl, "io_threads_per_rank", &io_threads_per_rank);
+
+    param_list_parse_int(pl, "renumber_cache_bits", &cache_bits);
 
     /* define a default for the number of I/O threads. This does not
      * prevent openmp to tick in even if our I/O is single-threaded !

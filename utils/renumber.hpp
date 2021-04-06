@@ -45,7 +45,7 @@ struct cxx_param_list; // IWYU pragma: keep
 
 */
 
-#define RENUMBER_MAX_LOG_CACHED 20
+#define RENUMBER_MAX_LOG_CACHED_DEFAULT 20
 
 struct renumber_t {
     struct corrupted_table : public std::runtime_error {/*{{{*/
@@ -74,7 +74,11 @@ struct renumber_t {
     static constexpr const int format_traditional = 20130603;
     static constexpr const int format_flat = 20210405;
 
+    int get_cache_bits() const { return cache_bits; }
+
 private:/*{{{ internal data fields*/
+
+    int cache_bits = RENUMBER_MAX_LOG_CACHED_DEFAULT;
 
     int format = format_traditional;
 
@@ -116,6 +120,15 @@ private:/*{{{ internal data fields*/
     renumber_t(renumber_t && other) = default;
     renumber_t& operator=(renumber_t const & other) = default;
     renumber_t& operator=(renumber_t && other) = default;
+
+    index_t uncached_lowerbound() const {
+        unsigned int lpbmax = *std::max_element(lpb.begin(), lpb.end());
+        return index_t(1) << std::min(lpbmax, (unsigned int) cache_bits);
+    }
+    index_t upperbound() const {
+        unsigned int lpbmax = *std::max_element(lpb.begin(), lpb.end());
+        return index_t(1) << lpbmax;
+    }
 
 public:
     /* various accessors {{{*/

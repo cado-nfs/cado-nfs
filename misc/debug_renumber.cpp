@@ -224,7 +224,7 @@ main (int argc, char *argv[])
         tt = seconds();
         std::vector<renumber_t::p_r_side> sample_cached;
         for(auto const & x : sample) {
-            if (x.p >> RENUMBER_MAX_LOG_CACHED) continue;
+            if (x.p >> tab.get_cache_bits()) continue;
             sample_cached.push_back(x);
         }
 
