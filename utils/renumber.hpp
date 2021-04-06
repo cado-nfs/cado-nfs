@@ -10,6 +10,7 @@
 #include <vector>
 #include <stdexcept>
 #include <iterator>
+#include <memory>
 #include <climits>     // for UINT_MAX
 #include <iosfwd>       // for istream, ostream, ptrdiff_t
 #include <utility>      // for pair
@@ -111,6 +112,11 @@ private:/*{{{ internal data fields*/
     index_t above_all = 0;
 /*}}}*/
 
+    renumber_t(renumber_t const & other) = default;
+    renumber_t(renumber_t && other) = default;
+    renumber_t& operator=(renumber_t const & other) = default;
+    renumber_t& operator=(renumber_t && other) = default;
+
 public:
     /* various accessors {{{*/
     inline int get_format() const { return format; }
@@ -140,11 +146,6 @@ public:
 
     /*{{{ default ctors */
     renumber_t() = default;
-    // ~renumber_t() = default;
-    renumber_t(renumber_t const &) = delete;
-    renumber_t& operator=(renumber_t const &) = delete;
-    renumber_t(renumber_t &&) = default;
-    renumber_t& operator=(renumber_t &&) = default;
     /*}}}*/
 
     renumber_t(cxx_cado_poly const & cpoly) : cpoly(cpoly), lpb(cpoly->nb_polys, 0) {}
@@ -225,10 +226,22 @@ public:
         std::vector<std::array<p_r_values_t, 2>> flat;
         std::string text;
         bool empty() const { return traditional.empty() && flat.empty(); }
+        unsigned int nentries() const {
+            unsigned int n = 0;
+            if (empty()) return 0;
+            for(auto const & x : nroots) n += x;
+            return n;
+        }
     };
 
+    /* This is only used when we want to generate free relations on
+     * the fly */
     struct hook {
         virtual void operator()(renumber_t const & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) = 0;
+        virtual std::unique_ptr<renumber_t::hook> clone() = 0;
+        virtual void import_foreign_and_shift(renumber_t::hook const & foreign, index_t offset) = 0;
+        virtual void mpi_recv(int mpi_peer, index_t shift = 0) = 0;
+        virtual void mpi_send(int mpi_root) = 0;
         virtual ~hook() = default;
     };
 
@@ -280,15 +293,13 @@ private:/*{{{ more implementation-level stuff. */
     /* The "cook" function can be used asynchronously to prepare the
      * fragments of the renumber table in parallel. use_cooked must use
      * the same data, but synchronously -- and stores it to the table, of
-     * course. use_cooked_nostore does the same, except that it is made
-     * for the situation where we have no interest in keeping track of
-     * the renumber table itself. The only thing that matters is keeping
-     * track of the above_all index, which is done by the input and
-     * output index_t values.
+     * course.
      */
     cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> const &) const;
-    void use_cooked(p_r_values_t p, cooked & C);
-    index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked & C) const;
+    void use_cooked(p_r_values_t p, cooked const & C);
+    void import_foreign(renumber_t & Rloc);
+    void mpi_send(int mpi_root);
+    void mpi_recv(int mpi_peer);
 
     struct builder; // IWYU pragma: keep
     friend struct builder;

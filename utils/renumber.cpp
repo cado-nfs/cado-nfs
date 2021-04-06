@@ -1,5 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
+#include <cmath>
 #include <algorithm>
 #include <fstream>      // std::ifstream // IWYU pragma: keep
 #include <iomanip>      // std::hex // IWYU pragma: keep
@@ -15,6 +16,8 @@
 #include <cstdio> // stdout // IWYU pragma: keep
 #include <climits> // UINT_MAX // IWYU pragma: keep
 #include <gmp.h>               // for mpz_get_ui, mpz_divisible_ui_p, mpz_t
+#include <sys/stat.h>          // mkdir
+#include <sys/types.h>
 #include "badideals.hpp"
 #include "cxx_mpz.hpp"         // for cxx_mpz
 #include "getprime.h"          // for getprime_mt, prime_info_clear, prime_i...
@@ -1202,12 +1205,12 @@ void renumber_t::compute_bad_ideals()
     above_all = above_cache = above_bad;
 }
 
-void renumber_t::use_cooked(p_r_values_t p, cooked & C)
+void renumber_t::use_cooked(p_r_values_t p, cooked const & C)
 {
     if (C.empty()) return;
     ASSERT_ALWAYS(traditional_data.size() + flat_data.size() == above_all - above_bad);
     index_t pos_hard = traditional_data.size() + flat_data.size();
-    above_all = use_cooked_nostore(above_all, p, C);
+    above_all += C.nentries();
     traditional_data.insert(traditional_data.end(), C.traditional.begin(), C.traditional.end());
     flat_data.insert(flat_data.end(), C.flat.begin(), C.flat.end());
     if (!(p >> RENUMBER_MAX_LOG_CACHED) && p >= index_from_p_cache.size()) {
@@ -1219,13 +1222,35 @@ void renumber_t::use_cooked(p_r_values_t p, cooked & C)
         above_cache = above_all;
     }
 }
-index_t renumber_t::use_cooked_nostore(index_t n0, p_r_values_t p MAYBE_UNUSED, cooked & C) const
+
+void renumber_t::import_foreign(renumber_t & Rloc)
 {
-    if (C.empty()) return n0;
-    for(auto n : C.nroots) n0 += n;
-    return n0;
+    /* We don't share the computation of the primes below the cache
+     * bound, for the moment.
+     */
+    ASSERT_ALWAYS(Rloc.above_cache == above_bad);
+
+    std::copy(Rloc.traditional_data.begin(),
+            Rloc.traditional_data.end(),
+            traditional_data.begin());
+    above_all += Rloc.traditional_data.size();
+
+    std::copy(Rloc.flat_data.begin(),
+            Rloc.flat_data.end(),
+            flat_data.begin());
+    above_all += Rloc.flat_data.size();
 }
 
+void renumber_t::mpi_recv(int mpi_peer)
+{
+    cado_mpi::recv(traditional_data, mpi_peer, 0, MPI_COMM_WORLD);
+    cado_mpi::recv(flat_data, mpi_peer, 0, MPI_COMM_WORLD);
+}
+
+void renumber_t::mpi_send(int mpi_root) {
+    cado_mpi::send(traditional_data, mpi_root, 0, MPI_COMM_WORLD);
+    cado_mpi::send(flat_data, mpi_root, 0, MPI_COMM_WORLD);
+}
 
 void renumber_t::read_table(std::istream& is)
 {
@@ -1472,6 +1497,7 @@ void renumber_t::builder_declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "renumber", "output file for renumbering table");
     param_list_decl_usage(pl, "renumber_format", "format of the renumbering table (\"traditional\", \"flat\")");
     param_list_decl_usage(pl, "badideals", "file describing bad ideals (for DL). Only the primes are used, most of the data is recomputed anyway.");
+    param_list_decl_usage(pl, "io_threads_per_rank", "number of I/O threads per MPI process. Defaults to OMP_NUM_THREADS if renumberfilename ends in .multi ; otherwise defaults to 1");
     param_list_decl_usage(pl,
                           "lcideals",
                           "Add ideals for the leading "
@@ -1482,6 +1508,7 @@ void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
 {
     param_list_lookup_string(pl, "renumber");
     param_list_lookup_string(pl, "renumber_format");
+    param_list_lookup_string(pl, "io_threads_per_rank");
     param_list_lookup_string(pl, "badideals");
     param_list_lookup_string(pl, "lcideals");
 }
@@ -1499,47 +1526,121 @@ struct renumber_t::builder{/*{{{*/
         prime_chunk() = default;
     };/*}}}*/
 
-    std::ostream * os_p;
+    const char * renumberfilename;
+    int io_threads_per_rank;
     renumber_t::hook * hook;
     stats_data_t stats;
     uint64_t nprimes = 0; // sigh... *must* be ulong for stats().
-    index_t R_max_index; // we *MUST* follow it externally, since we're not storing the table in memory.
-    /* In multi-I/O mode, and *ONLY* in multi-I/O mode (a.k.a. we're
-     * running over MPI, and each job, possibly even each openmp thread
-     * for each job, writes to its very own file), this determines the
-     * specific [p0,p1) range that this process looks into. This range
-     * may be subdivided further if we're doing MPI+OpenMP. Note that
-     * both p0_multi and p1_multi are dereferencable.
-     */
-    const unsigned long * p0_multi = nullptr;
-    const unsigned long * p1_multi = nullptr;
-    int rank_multi = 0;
-    int size_multi = 1;
-    builder(renumber_t const & R, std::ostream * os_p, renumber_t::hook * hook)
-        : os_p(os_p)
-        , hook(hook)
-        , R_max_index(R.get_max_index())
+    inline unsigned long mpi_p0() const { return mpi_splits[mpi_rank]; }
+    inline unsigned long mpi_p1() const { return mpi_splits[mpi_rank+1]; }
+    int mpi_rank = 0;
+    int mpi_size = 1;
+
+    /* This has size mpi_size+1 */
+    std::vector<unsigned long> mpi_splits;
+    void prepare_mpi_splits(unsigned int lpbmax)/*{{{*/
     {
-        /* will print report at 2^10, 2^11, ... 2^23 computed primes
-         * and every 2^23 primes after that */
-        if (rank_multi == 0)
-            stats_init(stats, stdout, &nprimes, 23, "Processed", "primes", "", "p");
+        /* Make sure that no matter what, rank 0 is the only one that deals
+         * with the cached primes */
+        std::vector<unsigned long> splits = subdivide_primes_interval(
+                0,
+                1UL << lpbmax, mpi_size);
+        splits[0] = 0;
+        if (mpi_size > 1 && !(splits[1] >> RENUMBER_MAX_LOG_CACHED)) {
+            /* need to cheat. */
+            splits = subdivide_primes_interval(
+                1UL << std::min(lpbmax, (unsigned int) RENUMBER_MAX_LOG_CACHED),
+                1UL << lpbmax,
+                mpi_size - 1);
+            splits.insert(splits.begin(), 0);
+        }
+        mpi_splits = splits;
+    }
+    /*}}}*/
+
+    /* This has size io_threads_per_rank+1 only */
+    std::vector<unsigned long> openmp_io_splits;
+    void prepare_openmp_splits()/*{{{*/
+    {
+        unsigned long p0 = mpi_p0();
+        unsigned long p1 = mpi_p1();
+
+        /* Make sure that no matter what, thread 0 on rank 0 is
+         * the only one that deals with the cached primes */
+        ASSERT_ALWAYS(mpi_rank == 0 || (p1 >> RENUMBER_MAX_LOG_CACHED));
+
+        std::vector<unsigned long> splits = subdivide_primes_interval(
+                p0, p1, io_threads_per_rank);
+
+        if (splits[1] < std::min(p1, 1UL << (unsigned int) RENUMBER_MAX_LOG_CACHED)) {
+            ASSERT_ALWAYS(mpi_rank == 0 && io_threads_per_rank > 1 && splits[0] == 0);
+            /* need to cheat. */
+            splits = subdivide_primes_interval(
+                    std::min(p1, 1UL << (unsigned int) RENUMBER_MAX_LOG_CACHED),
+                    p1,
+                    io_threads_per_rank - 1);
+            splits.insert(splits.begin(), 0);
+        }
+        openmp_io_splits = splits;
+    }/*}}}*/
+
+    /* This has size exactly io_threads_per_rank */
+    std::vector<std::unique_ptr<std::ostream>> sinks;
+    void prepare_output_sinks()
+    {
+        if (!renumberfilename) return;
+
+        /* In multi-I/O mode, the very first thread deals with everything
+         * that is header-related.
+         */
+        if (has_suffix(renumberfilename, ".multi")) {
+            if (mpi_rank == 0) {
+                int rc = mkdir(renumberfilename, 0777);
+                bool failed = rc != 0 && errno != EEXIST;
+                DIE_ERRNO_DIAG(failed, "mkdir", renumberfilename);
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+
+            /* one output file per MPI node */
+            const char * basename = strrchr(renumberfilename, '/');
+            if (basename == NULL)
+                basename = renumberfilename;
+            else
+                basename++;
+            int digits = 1;
+            int maxnodes = 10;
+            for( ; mpi_size * io_threads_per_rank >= maxnodes ; digits++, maxnodes*=10) ;
+
+            for(int i = 0 ; i < io_threads_per_rank ; i++) {
+                std::string subfile = fmt::format(FMT_STRING("{}/{}.{:0{}}"),
+                        renumberfilename, basename, mpi_rank * io_threads_per_rank + i, digits);
+                sinks.emplace_back(new ofstream_maybe_compressed(subfile.c_str()));
+            }
+
+        } else {
+            if (mpi_size > 1 || io_threads_per_rank > 1)
+                throw std::runtime_error("In multi-I/O mode, the renumber table filename must end in .multi");
+
+            sinks.emplace_back(new ofstream_maybe_compressed(renumberfilename));
+        }
     }
     builder(renumber_t const & R,
-            const unsigned long * p0_multi,
-            const unsigned long * p1_multi,
-            int rank_multi,
-            int size_multi,
-            std::ostream * os_p, renumber_t::hook * hook)
-        : os_p(os_p)
+            const char * renumberfilename,
+            int io_threads_per_rank,
+            renumber_t::hook * hook)
+        : renumberfilename(renumberfilename)
+        , io_threads_per_rank(io_threads_per_rank)
         , hook(hook)
-        , R_max_index(R.get_max_index())
-        , p0_multi(p0_multi)
-        , p1_multi(p1_multi)
-        , rank_multi(rank_multi)
-        , size_multi(size_multi)
     {
-        if (rank_multi == 0)
+        MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+        MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+        unsigned int lpbmax = *std::max_element(R.lpb.begin(), R.lpb.end());
+
+        prepare_mpi_splits(lpbmax);
+        prepare_openmp_splits();
+
+        if (mpi_rank == 0)
             stats_init(stats, stdout, &nprimes, 23, "Processed", "primes", "", "p");
     }
     void progress() {
@@ -1548,17 +1649,17 @@ struct renumber_t::builder{/*{{{*/
          * stats_test_progress, since the test may wake up a different
          * number of times depending on the job.
          */
-        if (stats_test_progress(stats) && rank_multi == 0)
-            stats_print_progress(stats, nprimes * size_multi, 0, 0, 0);
+        if (stats_test_progress(stats) && mpi_rank == 0)
+            stats_print_progress(stats, nprimes * mpi_size, 0, 0, 0);
     }
     ~builder() {
-        if (rank_multi == 0)
-            stats_print_progress(stats, nprimes * size_multi, 0, 0, 1);
+        if (mpi_rank == 0)
+            stats_print_progress(stats, nprimes * mpi_size, 0, 0, 1);
     }
     index_t operator()(renumber_t & R);
     void preprocess(renumber_t const & R, prime_chunk & P);
-    void postprocess(renumber_t & R, prime_chunk & P);
-    void postprocess_multi(renumber_t const & R, prime_chunk & P);
+    /* returns the number of entries that have been added to the table */
+    index_t postprocess(renumber_t & R, index_t index_base, int t, prime_chunk & P, renumber_t::hook *);
 };/*}}}*/
 
 void renumber_t::builder::preprocess(renumber_t const & R, prime_chunk & P)/*{{{*/
@@ -1615,8 +1716,9 @@ void renumber_t::builder::preprocess(renumber_t const & R, prime_chunk & P)/*{{{
     P.preprocess_done = true;
 }/*}}}*/
 
-void renumber_t::builder::postprocess(renumber_t & R, prime_chunk & P)/*{{{*/
+index_t renumber_t::builder::postprocess(renumber_t & R, index_t index_base, int t, prime_chunk & P, renumber_t::hook * hook)/*{{{*/
 {
+    index_t nentries = 0;
     ASSERT_ALWAYS(P.preprocess_done);
     /* put all entries from x into the renumber table, and also print
      * to freerel_file any free relation encountered. This is done
@@ -1626,85 +1728,110 @@ void renumber_t::builder::postprocess(renumber_t & R, prime_chunk & P)/*{{{*/
      */
     for(size_t i = 0; i < P.primes.size() ; i++) {
         p_r_values_t p = P.primes[i];
-        renumber_t::cooked & C = P.C[i];
+        renumber_t::cooked const & C = P.C[i];
 
-        if (hook) (*hook)(R, p, R_max_index, C);
+        if (hook) (*hook)(R, p, index_base + nentries, C);
 
-        if (os_p) {
-            R_max_index = R.use_cooked_nostore(R_max_index, p, C);
-            (*os_p) << C.text;
+        nentries += C.nentries();
+        if (!sinks.empty()) {
+            (*sinks[t]) << C.text;
         } else {
-            ASSERT_ALWAYS(R_max_index == R.get_max_index());
             R.use_cooked(p, C);
-            R_max_index = R.get_max_index();
         }
-
-        nprimes++;
     }
+
+#pragma omp atomic update
+    nprimes += P.primes.size();
+
     /* free memory ! */
     P.primes.clear();
     P.C.clear();
     progress();
-}/*}}}*/
 
-void renumber_t::builder::postprocess_multi(renumber_t const & R, prime_chunk & P)/*{{{*/
-{
-    ASSERT_ALWAYS(P.preprocess_done);
-    /* put all entries from x into the renumber table, and also print
-     * to freerel_file any free relation encountered. This is done
-     * synchronously.
-     *
-     * (if freerel_file is NULL, store only into the renumber table)
-     */
-    ASSERT_ALWAYS(os_p);
-    for(size_t i = 0; i < P.primes.size() ; i++) {
-        p_r_values_t p = P.primes[i];
-        renumber_t::cooked & C = P.C[i];
-
-        if (hook) (*hook)(R, p, R_max_index, C);
-
-        R_max_index = R.use_cooked_nostore(R_max_index, p, C);
-        (*os_p) << C.text;
-
-        nprimes++;
-    }
-    /* free memory ! */
-    P.primes.clear();
-    P.C.clear();
-    progress();
+    return nentries;
 }/*}}}*/
 
 index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
 {
+    prepare_output_sinks();
+
+    /* only the leader node writes the header to its file. The
+     * idea is that
+     *  cat foo/bar/file.multi/file.multi.* 
+     * should be exactly equivalent to a "normal" file.
+     */
+    if (mpi_rank == 0 && !sinks.empty()) {
+        R.write_header(*sinks[0]);
+        R.write_bad_ideals(*sinks[0]);
+    }
+
     renumber_t const & Rc = R;
 
     /* Generate the renumbering table. */
 
-    /* At this point we don't know how to to multi construction in
-     * memory. We need a way to merge two tables, for that
-     */
-    bool is_multi_mode = p0_multi != nullptr && os_p;
+    index_t nentries = 0;
+    index_t i00 = R.get_max_index(); 
+    index_t i0 = i00;
+    
+    /* i00 should really be constant at all ranks */
 
-    if (!is_multi_mode) {
+    int threads = std::max(io_threads_per_rank, omp_get_max_threads());
+
+    std::vector<json_hash> metadata(io_threads_per_rank, json_hash());
+    std::vector<index_t> per_file_entries(threads, 0);
+    std::vector<index_t> per_file_entries_global(io_threads_per_rank * mpi_size, 0);
+
+#pragma omp parallel num_threads(threads) reduction(+:nentries)
+    {
         constexpr const unsigned int granularity = 1024;
 
-#pragma omp parallel default(none) shared(Rc,R)
-        {
-#pragma omp single
+        /* This is a local copy. We'll be using it only to
+         * temporarily store data before the final gather.
+         */
+        renumber_t Rloc = R;
+        std::unique_ptr<renumber_t::hook> hookloc;
+        if (hook) hookloc = hook->clone();
+
+#pragma omp for
+        for(int t = 0 ; t < io_threads_per_rank ; t++) {
+            unsigned long q0 = openmp_io_splits[t];
+            unsigned long q1 = openmp_io_splits[t+1];
+            metadata[t].emplace("q0", json_number(q0));
+            metadata[t].emplace("q1", json_number(q1));
+#if 0
+            /* This version does not allow nested threads. Maybe we
+             * should choose to run it nevertheless if we are not going
+             * to spawn more threads ? */
+            prime_info pi;
+            prime_info_init_seek(pi, q0);
+            for (unsigned long p = 0 ; p < q1 ; ) {
+                std::vector<unsigned long> pp;
+                pp.reserve(granularity);
+                for( ; pp.size() < granularity && (p = getprime_mt(pi)) <= q1 ; )
+                    pp.push_back(p);
+
+                prime_chunk C(std::move(pp));
+                preprocess(Rc, C);
+                nentries += postprocess(Rloc, 0, C, hookloc);
+            }
+            prime_info_clear(pi);
+#else
+            /* This version takes inspiration from the old code, where
+             * several threads contribute to a unique renumber table.
+             */
+#pragma omp parallel
             {
-                prime_info pi;
-                prime_info_init(pi);
-                std::list<prime_chunk> inflight;
-                unsigned long lpbmax = 1UL << Rc.get_max_lpb();
-                unsigned long p = 2;
-                for (; p <= lpbmax || !inflight.empty() ;) {
-                    if (p <= lpbmax) {
+#pragma omp single
+                {
+                    std::list<prime_chunk> inflight;
+                    prime_info pi;
+                    prime_info_init_seek(pi, q0);
+                    for (unsigned long p = 0 ; p < q1 ; ) {
                         std::vector<unsigned long> pp;
                         pp.reserve(granularity);
-                        for (; p <= lpbmax && pp.size() < granularity;) {
+                        for( ; pp.size() < granularity && (p = getprime_mt(pi)) < q1 ; )
                             pp.push_back(p);
-                            p = getprime_mt(pi); /* get next prime */
-                        }
+
                         inflight.emplace_back(std::move(pp));
                         /* do not use a c++ reference for the omp
                          * firstprivate construct. It does not do what we
@@ -1715,10 +1842,9 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
                         {
                             preprocess(Rc, *latest);
                         }
-                    } else {
-#pragma omp taskwait
                     }
-
+                    index_t index_base = Rloc.get_max_index();
+#pragma omp taskwait
                     for ( ; !inflight.empty() ; ) {
                         bool ready;
                         prime_chunk & next(inflight.front());
@@ -1729,45 +1855,99 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
                         /* This is the only write access to R -- and it's
                          * actually a write _only_ if we're not printing
                          * the data */
-                        postprocess(R, next);
+                        index_t new_entries = postprocess(Rloc, index_base, t, next, hookloc.get());
+                        nentries += new_entries;
+                        index_base += new_entries;
                         inflight.pop_front();
                     }
-                }
-                prime_info_clear(pi);
-            }
-        }
-    } else {
-        unsigned long p0 = *p0_multi;
-        unsigned long p1 = *p1_multi;
+                } /* end of omp single section */
+            } /* end of omp parallel section */
+#endif
+            per_file_entries[t] = nentries;
+            metadata[t].emplace("entries", json_number(nentries));
+        } /* end of omp for */
 
-        std::vector<unsigned long> splits;
-#pragma omp parallel
-        {
-            constexpr const unsigned int granularity = 1024;
-            prime_info pi;
 #pragma omp single
-            splits = subdivide_primes_interval(p0, p1, omp_get_num_threads());
-#pragma omp barrier
-            unsigned long q0 = splits[omp_get_thread_num()];
-            unsigned long q1 = splits[omp_get_thread_num()+1];
+        {
+            /* collect the per-file counts globally */
+            static_assert(std::is_same<decltype(per_file_entries)::value_type,
+                    decltype(per_file_entries_global)::value_type>::value, "");
 
-            prime_info_init_seek(pi, q0);
+            cado_mpi::allgather(per_file_entries, per_file_entries_global, MPI_COMM_WORLD);
 
-
-            for (unsigned long p = 0 ; p < q1 ; ) {
-                std::vector<unsigned long> pp;
-                pp.reserve(granularity);
-                for( ; pp.size() < granularity && (p = getprime_mt(pi)) <= q1 ; )
-                    pp.push_back(p);
-                prime_chunk C(std::move(pp));
-                preprocess(R, C);
-                postprocess_multi(R, C);
+            /* Compute i0, which is the first index of the data of our
+             * first thread. It's the prefix sum of all the previous mpi
+             * ranks.
+             */
+            for(int i = 0 ; i < mpi_rank * io_threads_per_rank ; i++) {
+                i0 += per_file_entries_global[i];
             }
-            prime_info_clear(pi);
+        } /* end of omp single -- barrier is implicit */
+
+        /* Now store everything in the main renumber table. This is an
+         * almost no-op if we only care about printing the data, since
+         * the tables are still empty at this point.
+         *
+         * However:
+         *  - we do keep track of the number of indices per local table
+         *  - and it turns out that we need it in order to meet our
+         *    promise of informing the hook of the offset that must be
+         *    applied to the different entries.
+         */
+#pragma omp for ordered schedule(static,1)
+        for(int t = 0 ; t < io_threads_per_rank ; t++) {
+#pragma omp ordered
+            {
+                int i1 = i0 + per_file_entries[t];
+                metadata[t].emplace("i0", json_number(i0));
+                metadata[t].emplace("i1", json_number(i1));
+
+                if (t == 0) {
+                    R = std::move(Rloc);
+                    if (hook) {
+                        hook->import_foreign_and_shift(*hookloc, i0 - i00);
+                    }
+                } else {
+                    R.import_foreign(Rloc);
+                    if (hook) {
+                        hook->import_foreign_and_shift(*hookloc, i0 - i00);
+                    }
+                }
+                i0 += per_file_entries[t];
+                /* TODO: do the finalization for the hook: write to the
+                 * final file. This can quite probably be merged with
+                 * import_foreign_and_shift
+                 */
+
+                /* free memory as soon as we can.
+                 */
+                renumber_t phony;
+                Rloc = std::move(phony);
+            }
         }
     }
 
-    return R_max_index;
+    if (mpi_rank == 0) {
+        for(int mpi_peer = 1 ; mpi_peer < mpi_size ; mpi_peer++) {
+            index_t peer_nentries;
+            MPI_Recv(&peer_nentries, 1, cado_mpi::type_tag<index_t>::value,
+                    mpi_peer, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            nentries += peer_nentries;
+            R.mpi_recv(mpi_peer);
+            /* we don't have to shift, since shifting was done already
+             * (see initialization of i0) */
+            if (hook)
+                hook->mpi_recv(mpi_peer);
+        }
+    } else {
+        MPI_Send(&nentries, 1, cado_mpi::type_tag<index_t>::value,
+                0, 0, MPI_COMM_WORLD);
+        R.mpi_send(0);
+        if (hook)
+            hook->mpi_send(0);
+    }
+
+    return i00 + nentries;
 }/*}}}*/
 
 index_t renumber_t::build(hook * f)
@@ -1781,6 +1961,17 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
     const char * badidealsfilename = param_list_lookup_string(pl, "badideals");
     const char * renumberfilename = param_list_lookup_string(pl, "renumber");
     const char * format_string = param_list_lookup_string(pl, "renumber_format");
+    int io_threads_per_rank = 0;
+    param_list_parse_int(pl, "io_threads_per_rank", &io_threads_per_rank);
+
+    /* define a default for the number of I/O threads. This does not
+     * prevent openmp to tick in even if our I/O is single-threaded !
+     */
+    if (renumberfilename && has_suffix(renumberfilename, ".multi") && io_threads_per_rank == 0) {
+        io_threads_per_rank = omp_get_max_threads();
+    } else {
+        io_threads_per_rank = 1;
+    }
 
     if (format_string == NULL) {
         set_format(format_flat);
@@ -1815,16 +2006,7 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
 
     check_needed_bits(needed_bits());
 
-    std::unique_ptr<std::ostream> out;
-
-    if (renumberfilename) {
-        out.reset(new ofstream_maybe_compressed(renumberfilename));
-
-        write_header(*out);
-        write_bad_ideals(*out);
-    }
-
-    index_t ret = builder(*this, out.get(), f)(*this);
+    index_t ret = builder(*this, renumberfilename, io_threads_per_rank, f)(*this);
 
     more_info(std::cout);
 

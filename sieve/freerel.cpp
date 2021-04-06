@@ -3,7 +3,6 @@
  * Original author : F. Morain
  * Purpose: creating free relations in a suitable format
  * Modified / rewritten by C. Bouvier (and others)
- * Multi-thread code by A. Filbois
 
 This file is part of CADO-NFS.
 
@@ -25,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "cado.h" // IWYU pragma: keep
 #include <algorithm>
 #include <vector>
+#include <map>
 #include <memory>        // for unique_ptr, allocator_traits<>::value_type
 #include <utility>       // for pair
 #include <cstdio>       // fprintf
@@ -41,6 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "fmt/core.h"
 #include "fmt/format.h"
 #include "select_mpi.h"
+#include "mpi_proxies.hpp"
 
 char * argv0;
 
@@ -52,10 +53,10 @@ usage(cxx_param_list & pl, char* argv0)
 }
 
 struct freerel_data_t : public renumber_t::hook {
-    ofstream_maybe_compressed sink;
     unsigned long pmin = 2;
     unsigned long pmax = 0;
     unsigned long nfree = 0;
+    std::map<p_r_values_t, std::vector<std::pair<int, index_t>>> freerels;
     bool print_this_p(unsigned long p) const {
         return pmin <= p && p <= pmax;
     }
@@ -71,10 +72,20 @@ struct freerel_data_t : public renumber_t::hook {
         param_list_lookup_string(pl, "pmin");
         param_list_lookup_string(pl, "pmax");
     }
+    std::unique_ptr<renumber_t::hook> clone() override { 
+        return std::unique_ptr<renumber_t::hook>(new freerel_data_t(*this));
+    }
+    void import_foreign_and_shift(renumber_t::hook const & foreign, index_t offset) override;
+    void mpi_recv(int mpi_peer, index_t offset = 0) override;
+    void mpi_send(int mpi_root) override;
     ~freerel_data_t() override { }
+    void dump(renumber_t const & R, std::ostream& sink, index_t offset) const;
+private:
+    freerel_data_t(freerel_data_t const &) = default;
+    std::vector<std::pair<int, index_t>> find_full_sides(renumber_t const & R, index_t idx, renumber_t::cooked const & C) const;
 };
 
-freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb) : sink(param_list_lookup_string(pl, "out"))
+freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb)
 {
     param_list_parse_ulong(pl, "pmin", &pmin);
     param_list_parse_ulong(pl, "pmax", &pmax);
@@ -89,12 +100,67 @@ freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly,
     }
 }
 
-void freerel_data_t::operator()(renumber_t const & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C)
+void freerel_data_t::import_foreign_and_shift(renumber_t::hook const & foreign0, index_t offset)
+{
+    freerel_data_t const & foreign = dynamic_cast<freerel_data_t const &>(foreign0);
+    for(auto x : foreign.freerels) {
+        for(auto & y : x.second) {
+            y.second += offset;
+        }
+        freerels.emplace(x);
+        nfree += x.second.size() - 1;
+    }
+}
+
+void freerel_data_t::mpi_recv(int mpi_peer, index_t shift)
+{
+    std::vector<p_r_values_t> ps;
+    std::vector<size_t> sizes;
+    std::vector<int> sides;
+    std::vector<index_t> indices;
+    cado_mpi::recv(ps, mpi_peer, 0, MPI_COMM_WORLD);
+    cado_mpi::recv(sizes, mpi_peer, 0, MPI_COMM_WORLD);
+    cado_mpi::recv(sides, mpi_peer, 0, MPI_COMM_WORLD);
+    cado_mpi::recv(indices, mpi_peer, 0, MPI_COMM_WORLD);
+    auto next_p = ps.begin();
+    auto next_size = sizes.begin();
+    auto next_side = sides.begin();
+    auto next_index = indices.begin();
+    for( ; next_p < ps.end() ; ) {
+        p_r_values_t p = *next_p++;
+        size_t size = *next_size++;
+        std::vector<std::pair<int, index_t>> full_sides;
+        full_sides.reserve(size);
+        for( ; size-- ; )
+            full_sides.emplace_back(*next_side++, shift + *next_index++);
+        freerels.emplace(p, full_sides);
+        nfree += full_sides.size() - 1;
+    }
+}
+
+void freerel_data_t::mpi_send(int mpi_root)
+{
+    std::vector<p_r_values_t> ps;
+    std::vector<size_t> sizes;
+    std::vector<int> sides;
+    std::vector<index_t> indices;
+    for(auto const & x : freerels) {
+        ps.push_back(x.first);
+        sizes.push_back(x.second.size());
+        for(auto const & y : x.second) {
+            sides.push_back(y.first);
+            indices.push_back(y.second);
+        }
+    }
+    cado_mpi::send(ps, mpi_root, 0, MPI_COMM_WORLD);
+    cado_mpi::send(sizes, mpi_root, 0, MPI_COMM_WORLD);
+    cado_mpi::send(sides, mpi_root, 0, MPI_COMM_WORLD);
+    cado_mpi::send(indices, mpi_root, 0, MPI_COMM_WORLD);
+}
+
+std::vector<std::pair<int, index_t>> freerel_data_t::find_full_sides(renumber_t const & R, index_t idx, renumber_t::cooked const & C) const
 {
     std::vector<std::pair<int, index_t>> full_sides;
-
-    if (!print_this_p(p)) return;
-
     for(unsigned int side = 0 ; side < R.get_nb_polys() ; ++side) {
         mpz_poly_srcptr f = R.get_poly(side);
         /* Check if p corresponds to free relations.
@@ -107,35 +173,59 @@ void freerel_data_t::operator()(renumber_t const & R, p_r_values_t p, index_t id
            with the Number Field Sieve") */
         if ((int) C.nroots[side] == f->deg)
             full_sides.emplace_back(side, idx);
-
         idx += C.nroots[side];
     }
+    return full_sides;
+}
 
-    if (full_sides.size() > 1) {
+/* Note: when we create the freerel data in parallel, idx is a relative
+ * offset
+ */
+void freerel_data_t::operator()(renumber_t const & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C)
+{
+    if (!print_this_p(p)) return;
+
+    std::vector<std::pair<int, index_t>> full_sides = find_full_sides(R, idx, C);
+
+    if (full_sides.size() <= 1) 
+        return;
+
+    nfree += full_sides.size() - 1;
+    freerels.emplace(p, full_sides);
+}
+
+void freerel_data_t::dump(renumber_t const & R, std::ostream& sink, index_t offset) const
+{
+    for(auto const & fr : freerels) {
+        p_r_values_t p = fr.first;
+        auto const & full_sides = fr.second;
         for(size_t i = 1 ; i < full_sides.size() ; i++) {
             /* print a new free relation */
             sink << fmt::format(FMT_STRING("{:x},0:"), p);
+            sink << std::hex;
+            bool first = true;
+
             int side0 = full_sides[i-1].first;
             index_t i0 = full_sides[i-1].second;
-            unsigned int n0 = C.nroots[side0];
-            int side1 = full_sides[i].first;
-            index_t i1 = full_sides[i].second;
-            unsigned int n1 = C.nroots[side1];
-            bool first = true;
-            sink << std::hex;
+            unsigned int n0 = R.get_poly(side0)->deg;
             for(unsigned int k = 0 ; k < n0 ; k++, first=false) {
                 if (!first) sink << ',';
-                sink << i0 + k;
+                sink << i0 + k + offset;
             }
+
+            int side1 = full_sides[i].first;
+            index_t i1 = full_sides[i].second;
+            unsigned int n1 = R.get_poly(side1)->deg;
             for(unsigned int k = 0 ; k < n1 ; k++, first=false) {
                 if (!first) sink << ',';
-                sink << i1 + k;
+                sink << i1 + k + offset;
             }
+
             sink << '\n';
-            nfree++;
         }
     }
 }
+
 
 static void
 declare_usage(param_list pl)
@@ -281,6 +371,9 @@ main(int argc, char* argv[])
     index_t R_max_index = renumber_table.build(pl, F.get());
 
     if (F.get()) {
+        ofstream_maybe_compressed sink(param_list_lookup_string(pl, "out"));
+        F->dump(renumber_table, sink, 0);
+
         /* /!\ Needed by the Python script. /!\ */
         fprintf(stderr, "# Free relations: %lu\n", F->nfree);
     }
