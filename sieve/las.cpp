@@ -638,7 +638,7 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
     memory += base_memory;
 
     verbose_output_print(0, 0 + hush,
-            "# Expected memory use for %d binding zones and %d %d-threaded jobs per zone, counting %zu MB of base footprint: %s\n",
+            "# Expected memory use for %d binding zone(s) and %d %d-threaded jobs per zone, counting %zu MB of base footprint: %s\n",
             las.number_of_memory_binding_zones(),
             las.number_of_subjobs_per_memory_binding_zone(),
             las.number_of_threads_per_subjob(),     /* per subjob, always */
