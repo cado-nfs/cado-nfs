@@ -10,13 +10,9 @@ link_directories (${CMAKE_CURRENT_BINARY_DIR}/ecm)
 # ugly (copied from linalg/bwc/CMakeLists.txt...)
 add_executable (makefb makefb.c)
 target_link_libraries (makefb utils)
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(makefb)
 
 add_library (trialdiv OBJECT trialdiv.cpp)
-
-add_executable(freerel freerel.cpp fb.cpp)
-target_link_libraries(freerel utils)
-set_target_properties(freerel PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
-set_target_properties(freerel PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
 # las_core_a consists of all the object files that are necessary to build
 # a las_info object. It is probably more than what would be strictly
@@ -90,7 +86,7 @@ add_executable(las
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries (las facul utils)
-set_target_properties(las PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(las)
 
 add_executable(las_tracek
     las-where-am-i-debug.cpp
@@ -101,8 +97,8 @@ add_executable(las_tracek
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries (las_tracek facul utils)
-set_target_properties(las_tracek PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
-set_property(TARGET las_tracek PROPERTY COMPILE_DEFINITIONS TRACE_K=1)
+CADO_MARK_OPENMP_CAPABLE_TARGET(las_tracek)
+set_property(TARGET las_tracek APPEND PROPERTY COMPILE_DEFINITIONS TRACE_K=1)
 
 add_executable(las_descent
     las-where-am-i-prod.cpp
@@ -113,8 +109,8 @@ add_executable(las_descent
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries (las_descent facul utils)
-set_target_properties(las_descent PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
-set_property(TARGET las_descent PROPERTY COMPILE_DEFINITIONS DLP_DESCENT SUPPORT_LARGE_Q)
+CADO_MARK_OPENMP_CAPABLE_TARGET(las_descent)
+set_property(TARGET las_descent APPEND PROPERTY COMPILE_DEFINITIONS DLP_DESCENT SUPPORT_LARGE_Q)
 
 add_executable (fb_test EXCLUDE_FROM_ALL fb.cpp)
 set_property(TARGET fb_test PROPERTY COMPILE_DEFINITIONS TESTDRIVE=1)
@@ -130,14 +126,23 @@ add_executable(dupsup dupsup.cpp
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries(dupsup facul)
-set_target_properties(dupsup PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(dupsup)
 
 add_executable(fake_rels EXCLUDE_FROM_ALL fake_rels.cpp
     # I don't like this situation where there's a single object file that
     # I want to pull from a greater compound.
     las-todo-entry.cpp)
 target_link_libraries(fake_rels utils_with_io)
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(fake_rels)
+
+add_executable(freerel freerel.cpp fb.cpp)
+target_link_libraries(freerel utils_mpi)
+CADO_MARK_OPENMP_CAPABLE_TARGET(freerel)
+CADO_MARK_MPI_CAPABLE_TARGET(freerel)
 
 install(TARGETS makefb las las_descent freerel RUNTIME DESTINATION ${LIBSUFFIX}/sieve) 
+
+
+
 
 include(CMakeLists-nodist.txt OPTIONAL)

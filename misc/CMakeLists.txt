@@ -1,6 +1,7 @@
 add_executable(check_rels check_rels.c)
 target_link_libraries(check_rels utils_with_io)
 install(TARGETS check_rels RUNTIME DESTINATION ${LIBSUFFIX}/misc)
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(check_rels)
 
 if (HAVE_GMPECM)
 add_executable(descent_init_Fp descent_init_Fp.c smooth_detect.c)
@@ -18,7 +19,10 @@ target_link_libraries(renumber_convert utils_with_io)
 
 add_executable(indexed_relations_to_density EXCLUDE_FROM_ALL indexed_relations_to_density.cpp)
 target_link_libraries(indexed_relations_to_density utils_with_io)
-set_target_properties(indexed_relations_to_density PROPERTIES
-  COMPILE_FLAGS "${OpenMP_CXX_FLAGS}" LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+
+CADO_MARK_OPENMP_CAPABLE_TARGET(indexed_relations_to_density)
+
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(debug_renumber)
+
 
 include(CMakeLists-nodist.txt OPTIONAL)

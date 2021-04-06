@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <vector>
 #include <type_traits>
+#include "omp_proxy.h" // IWYU pragma: keep
 
 #define LINGEN_QCODE_BINARY_TRAMPOLINE_INTERFACE
 #include "lingen_qcode_binary.hpp"

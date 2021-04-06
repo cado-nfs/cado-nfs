@@ -2,13 +2,6 @@
 include_directories(. .. ../bblas)
 # include_directories(mpfq)
 
-# Use with care. Normally, binaries not needing MPI for real should not
-# emit MPI symbols since they don't do anything depending on this config
-# variable. However this mechanism is somewhat fragile.
-if (${WITH_MPI})
-add_definitions(-DWITH_MPI)
-endif()
-
 ### bwc-specific configuration.
 
 # unset(BUILD_DYNAMICALLY_LINKABLE_BWC)
@@ -51,26 +44,8 @@ endif()
 ### end bwc-specific configuration.
 
 
-# These are just shorthands. Some targets also like to define compile and
-# link flags for their own, so it's really messy, because I don't know
-# how to have cmake *append* to the target's link flags.
-
 # Note that whenever a target (at least very certainly an executable)
 # links an mpi compiled library, it must be marked as mpi as well.
-
-macro(mark_mpi_target target)
-    set_target_properties(${target} PROPERTIES
-        COMPILE_FLAGS "--mpi"
-        LINK_FLAGS "--mpi")
-endmacro()
-macro(mpi_add_library target)
-    add_library(${target} ${ARGN})
-    mark_mpi_target(${target})
-endmacro()
-macro(mpi_add_executable target)
-    add_executable(${target} ${ARGN})
-    mark_mpi_target(${target})
-endmacro()
 
 ### bwc_base
 
@@ -98,7 +73,7 @@ set(bwc_base_sources
     )
 endif()
 
-mpi_add_library(bwc_base ${CADO_SHARED} ${bwc_base_sources})
+CADO_ADD_MPI_CAPABLE_LIBRARY(bwc_base ${CADO_SHARED} ${bwc_base_sources})
 
 target_link_libraries(bwc_base ${gmp_libname})
 if (HAVE_CURL)
@@ -116,44 +91,43 @@ endif()
 
 ### end bwc_base
 
-mpi_add_executable(mf_scan ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan.c)
+CADO_ADD_MPI_CAPABLE_EXECUTABLE(mf_scan ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan.c)
 target_link_libraries(mf_scan bwc_base)
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(mf_scan)
 if (HAVE_OPENMP)
-mpi_add_executable(mf_scan2 ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan2.cpp)
+    CADO_ADD_MPI_CAPABLE_EXECUTABLE(mf_scan2 ${EXCLUDE_FROM_RELEASE_BUILD} mf_scan2.cpp)
 target_link_libraries(mf_scan2 bwc_base)
-set_target_properties(mf_scan2 PROPERTIES
-    COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
-    LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(mf_scan2)
+CADO_MARK_MPI_CAPABLE_TARGET(mf_scan2)
 endif()
 
 
 include_directories(${CADO_NFS_SOURCE_DIR}/linalg)
 
-mpi_add_executable(mf_bal mf_bal_main.c)
+CADO_ADD_MPI_CAPABLE_EXECUTABLE(mf_bal mf_bal_main.c)
 target_link_libraries(mf_bal bwc_base m)
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(mf_bal)
 install(TARGETS mf_bal RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
-
 
 configure_file(bwc.pl ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl ESCAPE_QUOTES @ONLY)
 
 add_executable(random_matrix ${EXCLUDE_FROM_RELEASE_BUILD} random_matrix.c)
 set_property(TARGET random_matrix PROPERTY COMPILE_DEFINITIONS WANT_MAIN)
 target_link_libraries(random_matrix utils m)
-set_target_properties(random_matrix PROPERTIES
-        COMPILE_FLAGS "--mpi"
-        LINK_FLAGS "--mpi")
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(random_matrix)
+CADO_MARK_MPI_CAPABLE_TARGET(random_matrix)
 
 ### bwc_mpfq
 
 set(bwc_mpfq_sources mpfq/mpfq_vbase.c)
-set(bwc_mpfq_flags)
+set(bwc_mpfq_definitions)
 foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
     if (v STREQUAL "m128" AND (NOT HAVE_SSE41 OR NOT HAVE_POPCNT))
         message(STATUS "GF(2) arithmetic backend m128 not compiled in, sse-4.1 or popcnt support missing")
     else()
         set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}.cpp mpfq/mpfq_${v}_t.c)
         set(COMPILE_MPFQ_BINARY_FIELD_${v} 1 CACHE INTERNAL "${v} is compiled in")
-        set(bwc_mpfq_flags "${bwc_mpfq_flags} -DCOMPILE_MPFQ_BINARY_FIELD_${v}")
+        set(bwc_mpfq_definitions ${bwc_mpfq_definitions} COMPILE_MPFQ_BINARY_FIELD_${v})
         message(STATUS "GF(2) arithmetic backend enabled for factoring linear algebra: ${v}")
     endif()
 endforeach(v)
@@ -161,7 +135,7 @@ endforeach(v)
 foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
     set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}.cpp mpfq/mpfq_${v}_t.c)
     set(COMPILE_MPFQ_PRIME_FIELD_${v} 1 CACHE INTERNAL "${v} is compiled in")
-    set(bwc_mpfq_flags "${bwc_mpfq_flags} -DCOMPILE_MPFQ_PRIME_FIELD_${v}")
+    set(bwc_mpfq_definitions ${bwc_mpfq_definitions} COMPILE_MPFQ_PRIME_FIELD_${v})
     message(STATUS "GF(p) arithmetic backend enabled for DL linear algebra: ${v}")
 endforeach(v)
 
@@ -173,8 +147,9 @@ endif()
 
 target_link_libraries(bwc_mpfq ${gmp_libname} utils)
 
-set_target_properties(bwc_mpfq PROPERTIES COMPILE_FLAGS "--mpi ${bwc_mpfq_flags}")
-set_target_properties(bwc_mpfq PROPERTIES LINK_FLAGS "--mpi")
+CADO_MARK_MPI_CAPABLE_TARGET(bwc_mpfq)
+set_property(TARGET bwc_mpfq
+    APPEND PROPERTY COMPILE_DEFINITIONS ${bwc_mpfq_definitions})
 
 ### end bwc_mpfq
 
@@ -202,7 +177,7 @@ ENDIF()
 # shared, as embarking the code within the impl-specific .so is fine.
 # Unfortunately, we do want matmul_common to be compiled with -fPIC,
 # then. Which is easiest to trigger by making it a shared object.
-mpi_add_library(matmul_common ${CADO_SHARED} matmul-common.c)
+CADO_ADD_MPI_CAPABLE_LIBRARY(matmul_common ${CADO_SHARED} matmul-common.c)
 if(ENABLE_SHARED)
     install(TARGETS matmul_common DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endif()
@@ -245,9 +220,13 @@ macro(CONFIGURE_MATMUL_LIB v i)
 
         add_library(matmul_${v}_${i} ${CADO_SHARED} ${sources})
         target_link_libraries(matmul_${v}_${i} matmul_common bwc_mpfq)
-        set_target_properties(matmul_${v}_${i} PROPERTIES
-            COMPILE_FLAGS "--mpi -DSELECT_MPFQ_LAYER_${v} -DMM_IMPL=${i} -DMM_MPFQ_LAYER=${v}"
-                LINK_FLAGS "--mpi")
+        set_property(TARGET matmul_${v}_${i}
+            APPEND PROPERTY COMPILE_DEFINITIONS
+                SELECT_MPFQ_LAYER_${v}
+                MM_IMPL=${i}
+                MM_MPFQ_LAYER=${v}
+            )
+        CADO_MARK_MPI_CAPABLE_TARGET(matmul_${v}_${i})
         if(ENABLE_SHARED)
             install(TARGETS matmul_${v}_${i} DESTINATION ${LIBSUFFIX}/linalg/bwc)
         endif()
@@ -313,7 +292,7 @@ target_link_libraries(bwc_base ${all_matmul_gf2_libs} ${all_matmul_gfp_libs})
 endif()
 
 ### matmul_mf
-mpi_add_library(matmul_mf ${CADO_SHARED} matmul-mf.c)
+CADO_ADD_MPI_CAPABLE_LIBRARY(matmul_mf ${CADO_SHARED} matmul-mf.c)
 target_link_libraries(matmul_mf bwc_base)
 if(ENABLE_SHARED)
     install(TARGETS matmul_mf DESTINATION ${LIBSUFFIX}/linalg/bwc)
@@ -321,10 +300,11 @@ endif()
 ### end matmul_mf
 
 macro(bwc_program_base v)
-    mpi_add_executable(${v} ${ARGN})
+    CADO_ADD_MPI_CAPABLE_EXECUTABLE(${v} ${ARGN})
     set_target_properties(${v} PROPERTIES
             LINKER_LANGUAGE CXX)
         # -Wl,-rpath,${CMAKE_CURRENT_BINARY_DIR}")
+    CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(${v})
     target_link_libraries(${v} bwc_base)
 endmacro()
 
@@ -350,7 +330,6 @@ bwc_program(gather gather.cpp)
 bwc_program(secure secure.cpp)
 bwc_program(blocklanczos blocklanczos.cpp)
 target_link_libraries(blocklanczos bitlinalg)
-
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl DESTINATION
     ${LIBSUFFIX}/linalg/bwc)
 
@@ -362,12 +341,11 @@ link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
 include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
 # This **MUST** match the #define in gf2x/Makefile.am
-set_source_files_properties(lingen_qcode_binary.cpp COMPILE_FLAGS
-    "-DCANTOR_BASE_FIELD_SIZE=128")
+set_source_files_properties(lingen_qcode_binary.cpp COMPILE_FLAGS "-DCANTOR_BASE_FIELD_SIZE=128")
 
 add_executable(cleanup cleanup.cpp)
 target_link_libraries(cleanup bitlinalg utils m)
-
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(cleanup)
 install(TARGETS cleanup RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
 if(BWC_GFP_ARITHMETIC_BACKENDS)
@@ -375,13 +353,13 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
     # so there's absolutely no point in making it shared.
     file(GLOB flint_fft_files flint-fft/*.c)
     add_library(flint-fft ${flint_fft_files})
-    set_target_properties(flint-fft PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
-        LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
+    CADO_MARK_OPENMP_CAPABLE_TARGET(flint-fft)
+    # CADO_MARK_MPI_CAPABLE_TARGET(flint-fft) # really ???
     add_library(flint-fft-debug EXCLUDE_FROM_ALL ${flint_fft_files})
-    set_target_properties(flint-fft-debug PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DDEBUG_FFT"
-        LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
+    CADO_MARK_OPENMP_CAPABLE_TARGET(flint-fft-debug)
+    # CADO_MARK_MPI_CAPABLE_TARGET(flint-fft-debug) # really ???
+    set_property(TARGET flint-fft-debug
+        APPEND PROPERTY COMPILE_DEFINITIONS DEBUG_FFT)
 endif()
 
 # These files are not dependent on the mpfq layer, therefore it's ok to
@@ -398,10 +376,8 @@ add_library(lingen_common_support
     lingen_call_companion.cpp
     )
 target_link_libraries(lingen_common_support ${gmp_libname} utils)
-set_target_properties(lingen_common_support PROPERTIES
-    COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
-    LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
-    )
+CADO_MARK_OPENMP_CAPABLE_TARGET(lingen_common_support)
+CADO_MARK_MPI_CAPABLE_TARGET(lingen_common_support)
 
 foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     set(lingen_${v}_support_sources
@@ -457,9 +433,10 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     add_executable(lingen_verify_checkpoints_${v}
         lingen_verify_checkpoints.cpp
         )
-    set_target_properties(lingen_verify_checkpoints_${v} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+    CADO_MARK_OPENMP_CAPABLE_TARGET(lingen_verify_checkpoints_${v})
+    CADO_MARK_MPI_CAPABLE_TARGET(lingen_verify_checkpoints_${v})
+    set_property(TARGET lingen_verify_checkpoints_${v}
+        APPEND PROPERTY COMPILE_DEFINITIONS SELECT_MPFQ_LAYER_${v})
     target_link_libraries(lingen_verify_checkpoints_${v} utils ${gmp_libname})
 
 
@@ -491,15 +468,15 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     # we also need link flags, and config/openmp.cmake won't provide them
     # separately.
 
-    # set_source_files_properties(lingen.cpp PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
-    set_target_properties(lingen_${v}_support PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
-        )
-    set_target_properties(lingen_${v} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
-        )
+    CADO_MARK_MPI_CAPABLE_TARGET(lingen_${v}_support)
+    CADO_MARK_OPENMP_CAPABLE_TARGET(lingen_${v}_support)
+    set_property(TARGET lingen_${v}_support
+        APPEND PROPERTY COMPILE_DEFINITIONS SELECT_MPFQ_LAYER_${v})
+
+    CADO_MARK_MPI_CAPABLE_TARGET(lingen_${v})
+    CADO_MARK_OPENMP_CAPABLE_TARGET(lingen_${v})
+    set_property(TARGET lingen_${v}
+        APPEND PROPERTY COMPILE_DEFINITIONS SELECT_MPFQ_LAYER_${v})
 endforeach(v)
 
 add_custom_target(bwc_matmul_gf2)
@@ -529,6 +506,8 @@ bwc_program_extra(build_matcache build_matcache.c)
 target_link_libraries(build_matcache matmul_mf)
 bwc_program_extra(bench_matcache bench_matcache.c worker-threads.c)
 target_link_libraries(bench_matcache matmul_mf)
+
+
 
 
 include(CMakeLists-nodist.txt OPTIONAL)

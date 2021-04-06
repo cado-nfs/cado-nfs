@@ -11,9 +11,13 @@ set (LIB_EXEC m facul utils)
 
 add_executable(gfm gfm_exec.cpp generate_factoring_method.cpp ${SRC_UTILS})
 target_link_libraries(gfm ${LIB_EXEC})
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(gfm)
+
 
 add_executable(benchfm benchfm_exec.cpp generate_factoring_method.cpp ${SRC_UTILS})
 target_link_libraries(benchfm ${LIB_EXEC})
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(benchfm)
+
 
 add_executable(gst 
   gst_exec.cpp
@@ -24,6 +28,8 @@ add_executable(gst
   ${SRC_UTILS})
 
 target_link_libraries(gst ${LIB_EXEC})
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(gst)
+
 
 add_executable(finalst 
   final_exec.c
@@ -31,6 +37,7 @@ add_executable(finalst
   ${SRC_UTILS})
 
 target_link_libraries(finalst ${LIB_EXEC})
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(finalst)
 
 add_executable(gen_decomp
   test_gen_decomp.c

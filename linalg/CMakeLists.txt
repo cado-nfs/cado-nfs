@@ -15,6 +15,7 @@ add_dependencies(bitlinalg gf2x-build)
 add_executable(characters characters.cpp bwc/worker-threads.c)
 target_link_libraries(characters bitlinalg utils_with_io pthread)
 install(TARGETS characters RUNTIME DESTINATION ${LIBSUFFIX}/linalg)
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(characters)
 
 if(HAVE_M4RI)
     set(M4RI_C_FLAGS ${CMAKE_C_FLAGS})

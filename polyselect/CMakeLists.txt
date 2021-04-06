@@ -10,17 +10,16 @@ set (ropt_sources
 
 add_library(polyselect_common ${CADO_SHARED} auxiliary.c murphyE.c area.c size_optimization.c)
 add_executable (polyselect polyselect.c polyselect_str.c polyselect_arith.c ${ropt_sources})
-set_target_properties(polyselect PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(polyselect)
 
 add_executable (polyselect_ropt ropt_main.c ${ropt_sources})
-set_target_properties(polyselect_ropt PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(polyselect_ropt)
 add_executable (polyselect_gfpn polyselect_gfpn.c gfpkdlpolyselect.c ${ropt_sources})
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(polyselect_gfpn)
+
 
 add_executable (polyselect3 polyselect3.c)
-set_target_properties(polyselect3 PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(polyselect3)
 
 # the utils library already includes -lgmp and -lm
 target_link_libraries (polyselect_gfpn  polyselect_common utils)
@@ -39,6 +38,5 @@ include(CMakeLists-nodist.txt OPTIONAL)
 
 # dlpolyselect
 add_executable (dlpolyselect dlpolyselect.c ${ropt_sources})
-set_target_properties(dlpolyselect PROPERTIES
-  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(dlpolyselect)
 target_link_libraries (dlpolyselect polyselect_common utils)

@@ -3,6 +3,7 @@ include_directories(${CADO_NFS_SOURCE_DIR}/numbertheory)
 
 add_executable(test-ant test-ant.cpp)
 target_link_libraries(test-ant utils)
+CADO_MARK_OPENMP_CAPABLE_TARGET(test-ant)
 
 cado_define_test(
     numbertheory-p-maximal-order
@@ -57,5 +58,4 @@ cado_define_test(
     test-ant
     )
 endif()
-
 

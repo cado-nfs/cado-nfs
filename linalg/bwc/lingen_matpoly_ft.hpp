@@ -7,6 +7,7 @@
 #include <algorithm>                  // for min
 #include <array>                      // for array
 #include <gmp.h>                      // for mp_limb_t
+#include "omp_proxy.h"
 #include "lingen_abfield.hpp"        // for abdst_field
 #include "lingen_call_companion.hpp"
 #include "lingen_fft_select.hpp" // IWYU pragma: keep
@@ -14,7 +15,6 @@
 #include "lingen_memory_pool.hpp"     // for memory_pool_wrapper
 #include "macros.h"                   // for ASSERT_ALWAYS, ASSERT
 #include "misc.h"
-#include "omp_proxy.h"
 #include "submatrix_range.hpp"        // for submatrix_range
 class tree_stats;
 

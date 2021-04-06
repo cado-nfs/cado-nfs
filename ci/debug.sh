@@ -82,6 +82,7 @@
 
 set -e
 export DOCKER_SCRIPT=1
+unset DOCKER_SCRIPT
 export CI_BUILD_NAME="$1"
 tmp=$(mktemp -d /tmp/XXXXXXXXXXXXXX)
 trap "rm -rf $tmp" EXIT

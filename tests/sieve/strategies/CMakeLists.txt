@@ -18,22 +18,26 @@ if (HAVE_REGEX_H)
 cado_define_test(test_generate_composite_numbers.cpp
   ${SUF_SRC}/generate_factoring_method.cpp ${SRC_UTILS}
   LIBRARIES ${LIB_EXEC})
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(test_generate_composite_numbers)
 
 cado_define_test(test_generate_strategies.cpp
   ${SUF_SRC}/generate_factoring_method.cpp
   ${SUF_SRC}/generate_strategies.cpp
   ${SRC_UTILS}
   LIBRARIES ${LIB_EXEC})
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(test_generate_strategies)
 
 cado_define_test(test_filtering.cpp
   ${SUF_SRC}/generate_factoring_method.cpp
   ${SRC_UTILS}
   LIBRARIES ${LIB_EXEC})
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(test_filtering)
 
 cado_define_test(test_benchfm.cpp
   ${SUF_SRC}/generate_factoring_method.cpp
   ${SRC_UTILS}
   LIBRARIES ${LIB_EXEC})
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(test_benchfm)
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})
     cado_define_test(SCRIPT
@@ -42,5 +46,6 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES gfm benchfm gst finalst las makefb)
 endif()
 endif()
+
 
 add_subdirectory (utils_st)

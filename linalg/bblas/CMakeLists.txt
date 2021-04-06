@@ -23,7 +23,6 @@ add_library(bblas
         bblas_mat64.cpp
 )
 
-set_target_properties(bblas PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
-target_link_libraries(bblas "${OpenMP_CXX_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(bblas)
 
 add_dependencies(bblas gf2x-build)

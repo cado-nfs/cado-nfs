@@ -9,7 +9,6 @@ set (sources
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
         barrier.c usp.c fix-endianness.c memusage.c
         cachesize_cpuid.c cachesize_guess.c roots_mod.c mod_mpz.c
-        renumber.cpp
         renumber_proxy.cpp
         ringbuf.c sm_utils.c galois_utils.c memalloc.c 
 	mpz_vector.c memory.c stats.c lll.c
@@ -31,6 +30,9 @@ set (sources
         indexed_relation.cpp
         cado-sighandlers.cpp
 )
+set (sources_optionally_mpi
+        renumber.cpp
+        )
 if (HAVE_GLIBC_VECTOR_INTERNALS)
     set(sources ${sources} mmap_allocator.cpp)
 endif()
@@ -65,14 +67,24 @@ set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/version_info.c" PROPERT
 
 # the utils library is used by some shared objects (prominently the
 # matmul shared libs in bwc), and therefore must be shared.
-add_library (utils ${CADO_SHARED} ${sources})
+add_library (utils_base OBJECT ${sources})
 set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/modified_files.c" PROPERTIES GENERATED TRUE)
-add_dependencies(utils list_modified_files)
-set_target_properties(utils PROPERTIES COMPILE_FLAGS "${OpenMP_C_FLAGS}")
-target_link_libraries(utils pthread ${gmp_libname} m "${OpenMP_C_FLAGS}")
+add_dependencies(utils_base list_modified_files)
+CADO_MARK_OPENMP_CAPABLE_TARGET(utils_base)
+
+if (CADO_SHARED)
+    set_property(TARGET utils_base PROPERTY POSITION_INDEPENDENT_CODE ON)
+endif()
+
+add_library (utils ${CADO_SHARED} $<TARGET_OBJECTS:utils_base>
+    ${sources_optionally_mpi})
+CADO_MARK_OPENMP_CAPABLE_TARGET(utils)
+
+target_link_libraries(utils pthread ${gmp_libname} m)
 if(HAVE_HWLOC)
 target_link_libraries(utils hwloc)
 endif()
+
 
 add_library (utils_with_io ${CADO_SHARED} ${sources_io})
 target_link_libraries(utils_with_io utils)
@@ -93,8 +105,18 @@ endif()
 
 add_executable(badideals badideals_main.cpp)
 target_link_libraries (badideals utils)
+CADO_MARK_OPENMP_CAPABLE_TARGET(badideals)
 
 install(TARGETS badideals RUNTIME DESTINATION ${LIBSUFFIX}/utils)
+
+add_library (utils_mpi ${CADO_SHARED} $<TARGET_OBJECTS:utils_base>
+    ${sources_optionally_mpi})
+CADO_MARK_OPENMP_CAPABLE_TARGET(utils_mpi)
+CADO_MARK_MPI_CAPABLE_TARGET(utils_mpi)
+target_link_libraries(utils_mpi pthread ${gmp_libname} m)
+if(HAVE_HWLOC)
+target_link_libraries(utils_mpi hwloc)
+endif()
 
 include(CMakeLists-nodist.txt OPTIONAL)
 

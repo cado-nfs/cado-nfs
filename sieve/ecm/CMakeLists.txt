@@ -62,24 +62,26 @@ add_library(facul
         batch.cpp
         ec_arith_Weierstrass_new.cpp)
 
-set_target_properties(facul PROPERTIES COMPILE_FLAGS "${OpenMP_C_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(facul)
 
 target_link_libraries(facul utils ${gmp_libname})
 
 add_executable(testbench testbench.cpp)
 target_link_libraries(testbench facul utils m)
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(testbench)
 
 
 add_executable(finishbatch finishbatch.cpp)
 target_link_libraries(finishbatch facul utils m)
-set_target_properties(finishbatch PROPERTIES LINK_FLAGS "${OpenMP_C_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(finishbatch)
 
 add_executable(finishecm finishecm.cpp)
 target_link_libraries(finishecm facul utils m)
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(finishecm)
 
 add_executable(precompbatch precompbatch.cpp)
 target_link_libraries(precompbatch facul utils m)
-set_target_properties(precompbatch PROPERTIES LINK_FLAGS "${OpenMP_C_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(precompbatch)
 
 
 

@@ -512,6 +512,7 @@ add_trialdiv_test(6)
 cado_define_test(test_logapprox.cpp 
     ${PROJECT_SOURCE_DIR}/sieve/logapprox.cpp
     LIBRARIES utils tests)
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(test_logapprox)
 
 # This one is a different test, meant to check speed and correctness, and
 # yet allow a run to simulate real polynomials because well, I can't be
@@ -527,9 +528,8 @@ cado_define_test(test_init_norms.cpp
     NO_DEFAULT_RUN
     LIBRARIES utils tests
 )
-set_target_properties(test_init_norms PROPERTIES 
-    COMPILE_FLAGS "${OpenMP_C_FLAGS}"
-    LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+
+CADO_MARK_OPENMP_CAPABLE_TARGET(test_init_norms)
 
 
 cado_divert_test(test_init_norms c120_basic
@@ -621,14 +621,18 @@ cado_divert_test(test_init_norms bug21684b
 # we have no pretense to have optimized code for these cases, so don't
 # bother.
 if(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-cado_define_test(test-smallsieve.cpp 
-                ${PROJECT_SOURCE_DIR}/sieve/las-where-am-i-prod.cpp
-                LIBRARIES utils ${gmplib}
-    ARGUMENTS -q -C -A 18 -I 14 -B 14)
-cado_divert_test(test-smallsieve line_fragments1 # bucket region = half line
-    ARGUMENTS -q -C -A 18 -I 14 -B 13)
-cado_divert_test(test-smallsieve line_fragments2 # bucket region = quarter line
-    ARGUMENTS -q -C -A 18 -I 15 -B 13)
+    cado_define_test(test-smallsieve.cpp 
+                    ${PROJECT_SOURCE_DIR}/sieve/las-where-am-i-prod.cpp
+                    LIBRARIES utils ${gmplib}
+                    ARGUMENTS -q -C -A 18 -I 14 -B 14)
+    CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(test-smallsieve)
+
+    # bucket region = half line
+    cado_divert_test(test-smallsieve line_fragments1
+                    ARGUMENTS -q -C -A 18 -I 14 -B 13)
+    # bucket region = quarter line
+    cado_divert_test(test-smallsieve line_fragments2
+                    ARGUMENTS -q -C -A 18 -I 15 -B 13)
 endif()
 
 if(HAVE_JEVENTS)
@@ -644,6 +648,8 @@ cado_define_test(test-sieve2357.cpp
 cado_define_test(torture-redc.cpp LIBRARIES utils)
 
 cado_define_test(test_fb_root.cpp LIBRARIES utils)
+
+
 
 add_subdirectory (ecm)
 add_subdirectory (strategies)

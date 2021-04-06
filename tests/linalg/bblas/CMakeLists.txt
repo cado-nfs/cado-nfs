@@ -36,8 +36,7 @@ if(HAVE_M4RIE)
 add_dependencies(test_bblas m4rie-build)
 target_link_libraries(test_bblas m4rie)
 endif()
-set_target_properties(test_bblas PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
-target_link_libraries(test_bblas "${OpenMP_CXX_FLAGS}")
+CADO_MARK_OPENMP_CAPABLE_TARGET(test_bblas)
 
 cado_define_test(test_bblas_level2 PROGRAM
     ${CMAKE_CURRENT_BINARY_DIR}/test_bblas --tests l2

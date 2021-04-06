@@ -4,6 +4,7 @@
 #include <cstdlib>                       // for exit, qsort, EXIT_FAILURE
 #include <tuple>                          // for tie, tuple
 #include <vector>                         // for vector
+#include "omp_proxy.h" // IWYU pragma: keep
 #include "cxx_mpz.hpp"
 #include "lingen_abfield.hpp" // IWYU pragma: keep
 #include "lingen_bmstatus.hpp"            // for bmstatus

@@ -345,18 +345,22 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         ARGUMENTS --prime ${p}
         LIBRARIES lingen_${gfp_layer}_support)
 
-    set_target_properties(test_matpoly_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+    CADO_MARK_OPENMP_CAPABLE_TARGET(test_matpoly_${gfp_layer})
+    CADO_MARK_MPI_CAPABLE_TARGET(test_matpoly_${gfp_layer})
+
+    set_property(TARGET test_matpoly_${gfp_layer} APPEND PROPERTY
+        COMPILE_DEFINITIONS SELECT_MPFQ_LAYER_${gfp_layer}
+        )
 
     add_executable(time_matpoly_ft_parallel_${gfp_layer} EXCLUDE_FROM_ALL
         time_matpoly_ft_parallel.cpp)
     target_link_libraries(time_matpoly_ft_parallel_${gfp_layer}
         lingen_${gfp_layer}_support)
 
-    set_target_properties(time_matpoly_ft_parallel_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+    CADO_MARK_MPI_CAPABLE_TARGET(time_matpoly_ft_parallel_${gfp_layer})
+    set_property(TARGET time_matpoly_ft_parallel_${gfp_layer} APPEND PROPERTY
+        COMPILE_DEFINITIONS SELECT_MPFQ_LAYER_${gfp_layer}
+        )
 endforeach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
 
 foreach(gfp_layer u64k1)
@@ -371,17 +375,20 @@ foreach(gfp_layer u64k1)
         LIBRARIES lingen_${gfp_layer}_support)
     # (unused for p=2 anyway)
     # ARGUMENTS --prime 2
-    set_target_properties(test_matpoly_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+    CADO_MARK_OPENMP_CAPABLE_TARGET(test_matpoly_${gfp_layer})
+    CADO_MARK_MPI_CAPABLE_TARGET(test_matpoly_${gfp_layer})
+
+    set_property(TARGET test_matpoly_${gfp_layer} APPEND PROPERTY
+        COMPILE_DEFINITIONS SELECT_MPFQ_LAYER_${gfp_layer}
+        )
     add_executable(time_matpoly_ft_parallel_${gfp_layer} EXCLUDE_FROM_ALL
         time_matpoly_ft_parallel.cpp)
     target_link_libraries(time_matpoly_ft_parallel_${gfp_layer}
         lingen_${gfp_layer}_support)
-    set_target_properties(time_matpoly_ft_parallel_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
-        LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
-
+    CADO_MARK_MPI_CAPABLE_TARGET(time_matpoly_ft_parallel_${gfp_layer})
+    set_property(TARGET time_matpoly_ft_parallel_${gfp_layer} APPEND PROPERTY
+        COMPILE_DEFINITIONS SELECT_MPFQ_LAYER_${gfp_layer}
+        )
     cado_define_test(TEST_NAME test_matpoly_basecase_${gfp_layer}
         PROGRAM
         ${CMAKE_CURRENT_BINARY_DIR}/test_matpoly_${gfp_layer}
@@ -392,9 +399,10 @@ endforeach()
 
 add_executable(check_mpi_problems EXCLUDE_FROM_ALL
         ${CADO_NFS_SOURCE_DIR}/linalg/bwc/check_mpi_problems.c)
-set_target_properties(check_mpi_problems PROPERTIES
-    COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DWANT_MAIN"
-    LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
+
+CADO_MARK_MPI_CAPABLE_TARGET(check_mpi_problems)
+set_property(TARGET check_mpi_problems APPEND PROPERTY
+    COMPILE_DEFINITIONS WANT_MAIN)
 
 
 set(mod2_plain_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
@@ -442,15 +450,15 @@ if(HAVE_CXX11 AND HAVE_HWLOC)
         ARGUMENTS
         --cpubinding ${CMAKE_CURRENT_SOURCE_DIR}/cpubind_config_file_for_tests.conf
         LIBRARIES utils bwc_base)
+    CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(test_cpubinding)
 endif()
 
 #########################################################################
 
 add_executable(test-parallelizing_info test-parallelizing_info.cpp)
 target_link_libraries(test-parallelizing_info utils bwc_base)
-set_target_properties(test-parallelizing_info PROPERTIES
-    COMPILE_FLAGS "--mpi"
-    LINK_FLAGS "--mpi")
+CADO_MARK_MPI_CAPABLE_TARGET(test-parallelizing_info)
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(test-parallelizing_info)
 set(mpiconfs mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
 if (NOT HAVE_MPI OR CMAKE_VERSION VERSION_LESS 3.9)
     set(mpiconfs)
@@ -493,17 +501,11 @@ endforeach()
 
 #########################################################################
 
-if (WITH_MPI)
-add_definitions(-DWITH_MPI)
-endif()
-
 #########################################################################
 
 add_executable(spmv_test EXCLUDE_FROM_ALL spmv_test.c)
-set_target_properties(spmv_test PROPERTIES
-            LINKER_LANGUAGE CXX
-            COMPILE_FLAGS "--mpi"
-            LINK_FLAGS "--mpi")
+CADO_MARK_MPI_CAPABLE_TARGET(spmv_test)
+set_target_properties(spmv_test PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(spmv_test bwc_base)
 
 add_executable(short_matmul short_matmul.c)
@@ -633,10 +635,8 @@ include_directories(${PROJECT_BINARY_DIR}/linalg/bwc)
 
 add_executable(test_hello test_hello.c)
 target_link_libraries(test_hello bwc_base)
-set_target_properties(test_hello PROPERTIES
-    LINKER_LANGUAGE CXX
-    COMPILE_FLAGS "--mpi"
-    LINK_FLAGS "--mpi")
+CADO_MARK_MPI_CAPABLE_TARGET(test_hello)
+set_target_properties(test_hello PROPERTIES LINKER_LANGUAGE CXX)
 set(mpiconfs mpi_rect1 mpi_square1)
 if(DEFINED ENV{CHECKS_EXPENSIVE})
     set(mpiconfs ${mpiconfs} mpi_rect2 mpi_square2)
@@ -665,10 +665,9 @@ foreach(mpiconf nompi ${mpiconfs})
 endforeach()
 
 cado_define_test(test_bl_extraction.cpp LIBRARIES bwc_base bitlinalg)
-set_target_properties(test_bl_extraction PROPERTIES
-                LINKER_LANGUAGE CXX
-                COMPILE_FLAGS "--mpi"
-                LINK_FLAGS "--mpi")
+CADO_MARK_MPI_CAPABLE_TARGET(test_bl_extraction)
+set_target_properties(test_bl_extraction PROPERTIES LINKER_LANGUAGE CXX)
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(test_bl_extraction)
 
 #########################################################################
 
@@ -720,5 +719,7 @@ cado_define_test(TEST_NAME test-blocklanczos-staged
 #########################################################################
 
 cado_define_test(test-arith-modp.cpp LIBRARIES tests utils)
+
+CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY(test_hello)
 
 add_subdirectory (flint-fft)

@@ -451,6 +451,69 @@ add_custom_target(gf2x-build ALL
     COMMENT "Building gf2x"
 )
 
+macro(CADO_MARK_OPENMP_CAPABLE_TARGET target)
+    set_property(TARGET ${target} APPEND PROPERTY COMPILE_OPTIONS
+        $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>
+        $<$<COMPILE_LANGUAGE:C>:${OpenMP_C_FLAGS}>
+        )
+    if (CMAKE_VERSION VERSION_LESS 3.13)
+        set_property(TARGET ${target} APPEND PROPERTY LINK_FLAGS
+            ${OpenMP_CXX_FLAGS}
+            # $<$<LINKER_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>
+            # $<$<LINKER_LANGUAGE:C>:${OpenMP_C_FLAGS}>
+            )
+    else()
+        set_property(TARGET ${target} APPEND PROPERTY INTERFACE_LINK_OPTIONS
+            ${OpenMP_CXX_FLAGS}
+            # $<$<LINKER_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>
+            # $<$<LINKER_LANGUAGE:C>:${OpenMP_C_FLAGS}>
+            )
+        set_property(TARGET ${target} APPEND PROPERTY LINK_OPTIONS
+            ${OpenMP_CXX_FLAGS}
+            # $<$<LINKER_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>
+            # $<$<LINKER_LANGUAGE:C>:${OpenMP_C_FLAGS}>
+            )
+    endif()
+    set_property(TARGET ${target} APPEND PROPERTY LINK_LIBRARIES
+        ${OpenMP_CXX_LIBRARIES}
+        # $<$<LINKER_LANGUAGE:CXX>:${OpenMP_CXX_LIBRARIES}>
+        # $<$<LINKER_LANGUAGE:C>:${OpenMP_C_LIBRARIES}>
+        )
+endmacro()
+macro(CADO_MARK_TARGET_USING_OPENMP_CODE_INDIRECTLY target)
+    if(CMAKE_VERSION VERSION_LESS 3.13)
+        # cmake v3.13+ has INTERFACE_LINK_OPTIONS, but without that, if we
+        # link with static libraries, we must propagate the fact that the
+        # code in utils require some special link flags.
+        CADO_MARK_OPENMP_CAPABLE_TARGET(${target})
+    endif()
+endmacro()
+
+
+macro(CADO_MARK_MPI_CAPABLE_TARGET target)
+    # We do not want to add mpi compilation directives if WITH_MPI is not
+    # set.
+    if (WITH_MPI)
+        set_property(TARGET ${target} APPEND PROPERTY COMPILE_OPTIONS --mpi)
+        set_property(TARGET ${target} APPEND PROPERTY COMPILE_DEFINITIONS WITH_MPI)
+        if (CMAKE_VERSION VERSION_LESS 3.13)
+            set_property(TARGET ${target} APPEND PROPERTY LINK_FLAGS --mpi)
+        else()
+            set_property(TARGET ${target} APPEND PROPERTY INTERFACE_LINK_OPTIONS --mpi)
+            set_property(TARGET ${target} APPEND PROPERTY LINK_OPTIONS --mpi)
+        endif()
+    endif()
+endmacro()
+macro(CADO_ADD_MPI_CAPABLE_LIBRARY target)
+    add_library(${target} ${ARGN})
+    CADO_MARK_MPI_CAPABLE_TARGET(${target})
+endmacro()
+macro(CADO_ADD_MPI_CAPABLE_EXECUTABLE target)
+    add_executable(${target} ${ARGN})
+    CADO_MARK_MPI_CAPABLE_TARGET(${target})
+endmacro()
+
+
 # add_subdirectory (gf2x-fft)
 add_subdirectory (utils)
 add_subdirectory (polyselect)
