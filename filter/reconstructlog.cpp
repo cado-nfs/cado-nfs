@@ -852,8 +852,7 @@ read_log_format_LA (logtab & log, const char *logfile, const char *idealsfile,
     ASSERT_ALWAYS (col == i);
     log[h] = tmp_log;
     i++;
-    if (stats_test_progress (stats))
-      stats_print_progress (stats, i, 0, 0, 0);
+    stats_print_progress (stats, i, 0, 0, 0);
   }
   stats_print_progress (stats, i, 0, 0, 1);
   ASSERT_ALWAYS (feof(fid));
@@ -922,8 +921,7 @@ read_log_format_reconstruct (logtab & log, MAYBE_UNUSED renumber_t const & renum
   {
     nread++;
     log[h] = tmp_log;
-    if (stats_test_progress (stats))
-      stats_print_progress (stats, nread, 0, 0, 0);
+    stats_print_progress (stats, nread, 0, 0, 0);
   }
   stats_print_progress (stats, nread, 0, 0, 1);
 
@@ -1016,8 +1014,7 @@ write_log (const char *filename, logtab & log, renumber_t const & tab,
       else
           gmp_fprintf (f, "%" PRid " %" PRpr " %d rat %Zd\n",
                   i, x.p, x.side, (mpz_srcptr) log[i]);
-      if (stats_test_progress (stats))
-          stats_print_progress (stats, nknown, i+1, 0, 0);
+      stats_print_progress (stats, nknown, i+1, 0, 0);
   }
   stats_print_progress (stats, nknown, tab.get_size(), 0, 1);
   for (unsigned int nsm = 0, i = tab.get_size(); nsm < log.nbsm; nsm++)

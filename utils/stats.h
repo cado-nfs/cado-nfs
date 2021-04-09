@@ -12,6 +12,7 @@ struct stats_struct_s {
   double t0;
   uint8_t log_report;
   uint8_t max_log_report;
+  int end_done;
   FILE *out;
   const char *name;
   const char *abbrv;
@@ -27,8 +28,12 @@ extern "C" {
 #endif
 void stats_init (stats_data_t, FILE *, uint64_t *, uint8_t, const char *,
                  const char *, const char *, const char *);
-int stats_test_progress (stats_data_t);
+
+/* The last argument can be used to "force" the print */
 void stats_print_progress (stats_data_t, uint64_t, uint64_t, size_t, int);
+
+void stats_clear (stats_data_t);
+
 #ifdef __cplusplus
 }
 #endif

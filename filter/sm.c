@@ -120,8 +120,7 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
     sm_relset_init (&rels[i], dF, nb_polys);
     sm_build_one_relset (&rels[i], r, e, len_relset, pairs, F, nb_polys, ell2);
 
-    if (stats_test_progress(stats))
-      stats_print_progress (stats, i, 0, 0, 0);
+    stats_print_progress (stats, i, 0, 0, 0);
   }
   stats_print_progress (stats, *small_nrows, 0, 0, 1);
   fclose_maybe_compressed(ix, indexname);
@@ -519,8 +518,7 @@ int main (int argc, char **argv)
               /* Static schedule, all threads can reasonably be expected
                * to progress at the same speed */
               count_processed_sm+=thnb;
-              if (stats_test_progress(stats))
-                  stats_print_progress (stats, count_processed_sm, 0, 0, 0);
+              stats_print_progress (stats, count_processed_sm, 0, 0, 0);
           }
       }
   }

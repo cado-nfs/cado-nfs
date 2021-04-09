@@ -479,8 +479,7 @@ build_newrows_from_file(typerow_t **newrows, FILE *hisfile,
 
       addread++;
 
-      if (stats_test_progress(stats))
-        stats_print_progress (stats, addread, 0, 0, 0);
+      stats_print_progress (stats, addread, 0, 0, 0);
 
       if(str[strlen(str)-1] != '\n')
       {

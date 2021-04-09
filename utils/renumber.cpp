@@ -1272,8 +1272,7 @@ void renumber_t::read_table(std::istream& is)
                 traditional_data.push_back(v);
                 above_all++;
                 nprimes = above_all;
-                if (stats_test_progress(stats))
-                    stats_print_progress(stats, nprimes, 0, 0, 0);
+                stats_print_progress(stats, nprimes, 0, 0, 0);
             }
         }
         is.flags(ff);
@@ -1649,7 +1648,7 @@ struct renumber_t::builder{/*{{{*/
          * stats_test_progress, since the test may wake up a different
          * number of times depending on the job.
          */
-        if (stats_test_progress(stats) && mpi_rank == 0)
+        if (mpi_rank == 0)
             stats_print_progress(stats, nprimes * mpi_size, 0, 0, 0);
     }
     ~builder() {

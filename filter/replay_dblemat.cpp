@@ -215,8 +215,7 @@ apply_hisfile(matrix_t MM, matrix_t M1, matrix_t M2, uint64_t nr,
   while(fgets(str, STRLENMAX, hisfile)) {
     if (str[0] == '#') continue;
     addread++;
-    if (stats_test_progress(stats))
-      stats_print_progress (stats, addread, 0, 0, 0);
+    stats_print_progress (stats, addread, 0, 0, 0);
     /* If incomplete line, there is a bug somewhere. Let's crash. */
     ASSERT_ALWAYS(str[strlen(str)-1] == '\n'); 
 

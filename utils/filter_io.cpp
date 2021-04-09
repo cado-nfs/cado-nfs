@@ -1121,13 +1121,7 @@ uint64_t filter_rels2_inner(char ** input_files,
             ringbuf_skip_get(rb, nl);
             avail_seen -= nl;
             avail_offset += nl;
-            if (stats_test_progress(infostats))
-            {
-              if (!active)
-                stats_print_progress (infostats, nrels, 0, nB, 0);
-              else
-                stats_print_progress (infostats, nactive, nrels, nB, 0);
-            }
+            stats_print_progress (infostats, active ? nactive : nrels, active ? nrels : 0, nB, 0);
         }
     }
     inflight->drain();
@@ -1145,10 +1139,7 @@ uint64_t filter_rels2_inner(char ** input_files,
 
     /* NOTE: the inflight dtor is called automatically */
 
-    if (!active)
-      stats_print_progress (infostats, nrels, 0, nB, 1);
-    else
-      stats_print_progress (infostats, nactive, nrels, nB, 1);
+    stats_print_progress (infostats, active ? nactive : nrels, active ? nrels : 0, nB, 1);
 
     /* clean producer stuff */
     ringbuf_clear(rb);

@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <pthread.h>
+#include "macros.h"
 #include "stats.h"
 #include "timing.h"     // wct_seconds
 
@@ -24,6 +26,12 @@ stats_init (stats_data_t r, FILE *f, uint64_t *followed_var,
   r->abbrv = abbrv;
   r->verb = verb;
   r->outofname = outofname;
+  r->end_done = 0;
+}
+
+void stats_clear(stats_data_t S MAYBE_UNUSED)
+{
+    /* no-op, in fact */
 }
 
 /* Return 1 if more than 2^r->log_report relations were read since last
@@ -32,7 +40,16 @@ stats_init (stats_data_t r, FILE *f, uint64_t *followed_var,
 int
 stats_test_progress (stats_data_t r)
 {
-  if ((*(r->followed_var) >> r->log_report) != r->last_report)
+  uint64_t v;
+  uint64_t w;
+  int l;
+#pragma omp atomic read
+  v = *(r->followed_var);
+#pragma omp atomic read
+  l = r->log_report;
+#pragma omp atomic read
+  w = r->last_report;
+  if ((v >> l) != w)
     return 1;
   else
     return 0;
@@ -53,6 +70,20 @@ stats_print_progress (stats_data_t r, uint64_t i, uint64_t outof, size_t nByte,
   char MBpart[32] = "";
   char outofpart[64] = "";
   double t, dt, speed;
+
+  if (!end && !stats_test_progress(r)) {
+      return;
+  }
+
+  static pthread_mutex_t mm = PTHREAD_MUTEX_INITIALIZER;
+  pthread_mutex_lock(&mm);
+  if (!(end && !r->end_done) && !stats_test_progress(r)) {
+      pthread_mutex_unlock(&mm);
+      return;
+  }
+  if (end)
+      r->end_done = 1;
+
   t = wct_seconds();
   dt = t - r->t0;
   speed = dt > 0.01 ? i/dt : INFINITY;
@@ -67,7 +98,22 @@ stats_print_progress (stats_data_t r, uint64_t i, uint64_t outof, size_t nByte,
   fprintf(r->out, "%s%s %" PRIu64 " %s %sin %.1fs %s-- %.1f %s/s\n",
           prefix, r->verb, i, r->name, outofpart, dt, MBpart, speed, r->abbrv);
   fflush(r->out);
-  if (r->log_report < r->max_log_report)
-    r->log_report++;
-  r->last_report = (*(r->followed_var) >> r->log_report);
+
+  /* We only want to ensure that the reads are always consistent. We're
+   * the only place doing writes anyway.
+   */
+  int l;
+  int ml = r->max_log_report;
+  uint64_t v;
+#pragma omp atomic read
+  l = r->log_report;
+#pragma omp atomic update
+  r->log_report += l < ml;
+  l += l < ml;
+#pragma omp atomic read
+  v = *(r->followed_var);
+#pragma omp atomic write
+  r->last_report = v >> l;
+
+  pthread_mutex_unlock(&mm);
 }
