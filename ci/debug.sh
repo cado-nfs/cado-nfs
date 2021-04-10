@@ -129,16 +129,9 @@ EOF
     )
     tanker vm run "${DARGS[@]}" -t $myimage "${commands[@]}"
 else
-    # TODO what is this imagename business about ??? Seems to me that the
-    # whole command line, beyond CI_BUILD_NAME, is interpreted in a
-    # fairly weird way.
-    imagename="$1"
+    # remove CI_BUILD_NAME from the args!
     shift
     : ${imagename=docker-image-$RANDOM}
-    imagename="${imagename// /_}"
-    imagename="${imagename//:/_}"
-    imagename="${imagename//-/_}"
-    imagename="debug_$imagename"
     # run with bash instead of sh. the "docker" docker image has a
     # /bin/sh shell that groks "set -o pipefail", which appears in
     # ci/00-docker-build.sh ; such is not the case of /bin/sh on debian,
@@ -146,5 +139,6 @@ else
     bash ci/00-docker-build.sh "$imagename"
     echo "# NOTE: docker image is $imagename"
     echo "# NOTE: this image contains a few extra debug tools"
+    # CI_BUILD_NAME is passed to the script via 00-dockerfile.sh
     docker run "${DARGS[@]}" -ti --hostname docker-script-$RANDOM --volume $PWD:/host "$imagename" /host/ci/999-debug.sh "$@"
 fi

@@ -1,6 +1,6 @@
 /* merge --- new merge program
 
-Copyright 2019-2020 Charles Bouillaguet and Paul Zimmermann.
+Copyright 2019-2021 Charles Bouillaguet and Paul Zimmermann.
 
 This file is part of CADO-NFS.
 
@@ -1390,7 +1390,7 @@ main (int argc, char *argv[])
     filter_matrix_t mat[1];
     FILE * history;
 
-    int nthreads = 1;
+    int nthreads = 1, cbound_incr;
     uint32_t skip = DEFAULT_MERGE_SKIP;
     uint32_t shrink = 1; /* default = no shrink */
     double target_density = DEFAULT_MERGE_TARGET_DENSITY;
@@ -1435,6 +1435,9 @@ main (int argc, char *argv[])
 #ifdef HAVE_OPENMP
     omp_set_num_threads (nthreads);
 #endif
+
+    if (param_list_parse_int (pl, "incr", &cbound_incr) == 0)
+      cbound_incr = CBOUND_INCR_DEFAULT;
 
     param_list_parse_uint (pl, "skip", &skip);
 
@@ -1525,8 +1528,8 @@ main (int argc, char *argv[])
     memset(touched_columns, 0, mat->ncols * sizeof(*touched_columns));
 #endif
 
-    printf ("Using MERGE_LEVEL_MAX=%d, CBOUND_INCR=%d",
-	    MERGE_LEVEL_MAX, CBOUND_INCR);
+    printf ("Using MERGE_LEVEL_MAX=%d, cbound_incr=%d",
+	    MERGE_LEVEL_MAX, cbound_incr);
 #ifdef USE_ARENAS
     printf (", M_ARENA_MAX=%d", arenas);
 #endif
@@ -1588,12 +1591,12 @@ main (int argc, char *argv[])
                 full_garbage_collection(mat);
 
 	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
-	   merges. If one decreases CBOUND_INCR, the final matrix will be
+	   merges. If one decreases cbound_incr, the final matrix will be
 	   smaller, but merge will take more time.
-	   If one increases CBOUND_INCR, merge will be faster, but the final
+	   If one increases cbound_incr, merge will be faster, but the final
 	   matrix will be larger. */
 	if (mat->cwmax > 2)
-		cbound += CBOUND_INCR;
+		cbound += cbound_incr;
 
 	lastN = mat->rem_nrows;
 	lastW = mat->tot_weight;
@@ -1679,7 +1682,12 @@ main (int argc, char *argv[])
 	if (density >= target_density)
 		break;
 
-	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX)
+        /* With small cbound_incr, in particular cbound_incr=1,
+           we might have zero potential merge when cbound is small,
+           thus we stop only when cbound > cwmax^2 (the cost of a
+           merge being proportional to the square of the column weight). */
+	if (nmerges == 0 && mat->cwmax == MERGE_LEVEL_MAX &&
+            cbound > mat->cwmax * mat->cwmax)
 		break;
     }
     /****** end main loop ******/

@@ -230,7 +230,7 @@ macro(cado_define_test)
             SET(SCRIPT ${x})
             list(LENGTH SCRIPT nSCRIPT)
         else()
-            message(WARNING "too many script names, retaining only first")
+            message(WARNING "Cannot have both SCRIPT and ARGUMENTS")
             LIST(GET SCRIPT 0 x)
             SET(SCRIPT ${x})
             list(LENGTH SCRIPT nSCRIPT)
@@ -589,6 +589,7 @@ cado_define_test(full_c30
             tasks.sieve.rels_wanted=1500
             TARGET_DEPENDENCIES
             full_dependencies_base
+            bwc_full_gfp
             lingen_pz sm sm_simple las_descent reconstructlog-dl
             dlpolyselect merge-dl replay-dl badideals
             AVOID_CONCURRENT

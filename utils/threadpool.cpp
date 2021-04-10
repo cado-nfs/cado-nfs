@@ -46,7 +46,7 @@ worker_thread::~worker_thread() {
   ASSERT_ALWAYS_NOTHROW(rc == 0);
 }
 
-int worker_thread::rank() const { return this - &pool.threads.front(); }
+int worker_thread::rank() const { return this - pool.threads.data(); }
 int worker_thread::nthreads() const { return pool.threads.size(); }
 bool worker_thread::is_synchronous() const { return pool.is_synchronous(); }
 
@@ -186,7 +186,7 @@ thread_pool::add_task(task_function_t func, task_parameters * params,
          * secondary thread fetching it from the task queue */
         created[queue]++;
         try {
-            task_result *result = func(&threads.front(), params, id);
+            task_result *result = func(threads.data(), params, id);
             if (result != NULL)
                 results[queue].push(result);
         } catch (clonable_exception const& e) {

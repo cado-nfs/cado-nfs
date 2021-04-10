@@ -64,7 +64,7 @@
 #include "las-qlattice.hpp"               // for qlattice_basis, operator<<
 #include "las-report-stats.hpp"           // for las_report, coarse_las_timers
 #include "las-siever-config.hpp"          // for siever_config::side_config
-#include "las-sighandlers.hpp"
+#include "cado-sighandlers.h"
 #include "las-smallsieve.hpp"             // for small_sieve_activate_many_s...
 #include "las-threads-work-data.hpp"      // for nfs_work, nfs_work::side_data
 #include "las-todo-entry.hpp"             // for las_todo_entry
@@ -1466,7 +1466,7 @@ int main (int argc0, char *argv0[])/*{{{*/
     setbuf(stderr, NULL);
 
     cxx_param_list pl;
-    las_sighandlers_install();
+    cado_sighandlers_install();
 
     declare_usage(pl);
     configure_switches(pl);

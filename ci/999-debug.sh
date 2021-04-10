@@ -57,9 +57,23 @@ echo "# NOTE: cado-nfs build tree has just been set to $force_build_tree"
 echo "# NOTE: cado-nfs source tree is under /host"
 EOF
 
-cat >> ~hostuser/.bashrc <<EOF
+# Do we want hooks in .bashrc or .bash_profile ? alpine linux doesn't
+# seem to honour .bashrc for some reason.
+
+cat >> ~hostuser/.bash_profile <<EOF
 cd /host
 EOF
+
+if [ "$CI_BUILD_NAME" ] ; then
+cat >> ~hostuser/.bash_profile <<EOF
+CI_BUILD_NAME="$CI_BUILD_NAME"
+. ci/000-functions.sh
+. ci/001-environment.sh
+EOF
+fi
+
+chown hostuser ~hostuser/.bash_profile
+chgrp hostgroup ~hostuser/.bash_profile
 
 if [ "$*" ] ; then
     echo "# WARNING: script runs with \$PWD set to " ~hostuser

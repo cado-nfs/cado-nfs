@@ -638,6 +638,25 @@ public:
 
     inline bool done(fence const & F) { return x >= F.end; }
     void advance_to_next_area(fence const & F) { x -= F.end; }
+
+    inline void advance_to_end_of_projective_first_line(fence const & F)
+    {
+        /* This function is not critical at all. We want the last
+         * matching position on the line (i,0). This depends on the
+         * (b0,b1) vector, and works **ONLY** in the projective case, and
+         * **ONLY** while we're on the first line !
+         *
+         * for projective non-powers, we should have (b0,b1)=(1,0),
+         * inc_c=1, and bound1=I-1. However we might have something
+         * different for projective powers. Presently, powers are not
+         * bucket-sieved anyway, so there's little point in bothering.
+         * (see "Shall we enable bucket-sieving for powers" in
+         * las-fill-in-buckets.cpp)
+         */
+        x = F.maskI;
+        ASSERT(inc_c == 1);
+        ASSERT(bound1 == F.maskI);
+    }
     plattice_x_t get_x() const {return x;}
     void set_x(plattice_x_t xx) {x = xx;}
     plattice_x_t get_bound1() const {return bound1;}
