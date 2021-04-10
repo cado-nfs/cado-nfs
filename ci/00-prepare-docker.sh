@@ -130,8 +130,9 @@ elif is_alpine ; then
     # hwloc-dev still in alpine testing.
     cat >> /etc/apk/repositories <<EOF
 http://dl-cdn.alpinelinux.org/alpine/edge/testing
-http://dl-cdn.alpinelinux.org/alpine/edge/community
 EOF
+    # is the community repo useful ?
+    #http://dl-cdn.alpinelinux.org/alpine/edge/community
     apk update
     apk add $alpine_packages
 elif is_freebsd ; then
