@@ -93,7 +93,7 @@ freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly,
     /* open freerel_file */
     if (filename) {
         sink = fopen_maybe_compressed(filename, "w");
-        ASSERT_ALWAYS(sink != NULL);
+        DIE_ERRNO_DIAG(sink == NULL, "fopen", filename);
     }
 }
 
