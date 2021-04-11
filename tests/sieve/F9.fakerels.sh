@@ -20,7 +20,7 @@ echo $cmd
 $cmd > $TMPSAMPLE
 
 cmd="${FREEREL} -poly ${SRCDIR}/parameters/polynomials/F9.poly \
-    -renumber $TMPRENUMBER -out /dev/null -lpb0 23 -lpb1 23 -pmax 1"
+    -renumber $TMPRENUMBER -lpb0 23 -lpb1 23 -pmax 1"
 echo $cmd
 $cmd
 

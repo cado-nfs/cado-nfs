@@ -65,7 +65,7 @@ cp "$RELS" "$WORK_RELS"
 
 common=(-poly "$POLY" -renumber "${RENUMBER}")
 
-"${BUILD_DIR}/sieve/freerel" "${common[@]}" -out /dev/null \
+"${BUILD_DIR}/sieve/freerel" "${common[@]}" \
                            -lpbs "$LPBS" "${LC[@]}"
 # bail out early if debug_renumber sees an inconsistency.
 "${BUILD_DIR}/misc/debug_renumber" "${common[@]}" -check -quiet

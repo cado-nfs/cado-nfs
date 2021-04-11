@@ -179,7 +179,7 @@ fi
 ## if wdir does not contain a renumber table, build it
 renumberfile=$wdir/renumber.gz
 cmd=("$CADO_BUILD/sieve/freerel" -poly "$polyfile" -renumber
-    "$renumberfile" -out /dev/null -pmax 1 -lpb0 "$lpb0" -lpb1 "$lpb1" -t
+    "$renumberfile" -pmax 1 -lpb0 "$lpb0" -lpb1 "$lpb1" -t
     "$threads")
 if ! has_file_already $renumberfile "${cmd[@]}" ; then
     "${cmd[@]}"
