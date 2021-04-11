@@ -1573,6 +1573,7 @@ struct renumber_t::builder{/*{{{*/
      * to something.
      * */
     std::vector<std::unique_ptr<std::ostream>> sinks;
+    std::vector<json_hash> metadata;
     std::unique_ptr<std::ostream> common_sink;
     inline unsigned int sequence_number(int t) const
     {
@@ -1584,7 +1585,34 @@ struct renumber_t::builder{/*{{{*/
         // return mpi_rank * io_threads_per_rank + t;
     }
 
-    void prepare_output_sinks()
+    const char * get_renumberfilename_basename() const {/*{{{*/
+        ASSERT_ALWAYS(renumberfilename != NULL);
+        /* one output file per MPI node */
+        const char * basename = strrchr(renumberfilename, '/');
+        if (basename == NULL)
+            basename = renumberfilename;
+        else
+            basename++;
+        return basename;
+    }/*}}}*/
+    int get_multifile_digits() const {/*{{{*/
+        int digits = 1;
+        int maxnodes = 10;
+        for( ; mpi_size * io_threads_per_rank >= maxnodes ; digits++, maxnodes*=10) ;
+        return digits;
+    }/*}}}*/
+    std::string get_multifile_subfile(int t) const {/*{{{*/
+        ASSERT_ALWAYS(renumberfilename != NULL);
+        if (!has_suffix(renumberfilename, ".multi"))
+            return renumberfilename;
+        return fmt::format(FMT_STRING("{}/{}.{:0{}}"),
+                        renumberfilename,
+                        get_renumberfilename_basename(),
+                        sequence_number(t),
+                        get_multifile_digits());
+    }/*}}}*/
+
+    void prepare_output_sinks()/*{{{*/
     {
         if (!renumberfilename) return;
 
@@ -1600,23 +1628,12 @@ struct renumber_t::builder{/*{{{*/
             MPI_Barrier(MPI_COMM_WORLD);
 
             /* one output file per MPI node */
-            const char * basename = strrchr(renumberfilename, '/');
-            if (basename == NULL)
-                basename = renumberfilename;
-            else
-                basename++;
-            int digits = 1;
-            int maxnodes = 10;
-            for( ; mpi_size * io_threads_per_rank >= maxnodes ; digits++, maxnodes*=10) ;
-
             for(int i = 0 ; i < io_threads_per_rank ; i++) {
-                std::string subfile = fmt::format(FMT_STRING("{}/{}.{:0{}}"),
-                        renumberfilename, basename,
-                        sequence_number(i),
-                        digits);
+                std::string subfile = get_multifile_subfile(i);
                 sinks.emplace_back(new ofstream_maybe_compressed(subfile.c_str()));
-            }
 
+            }
+            metadata.assign(io_threads_per_rank, json_hash());
         } else {
             /* multi-I/O now degrades to single I/O but distributed
              * creation of the table. Everything goes through memory at
@@ -1626,7 +1643,17 @@ struct renumber_t::builder{/*{{{*/
                 common_sink.reset(new ofstream_maybe_compressed(renumberfilename));
             else
                 sinks.emplace_back(new ofstream_maybe_compressed(renumberfilename));
+            metadata.emplace_back(json_hash());
         }
+    }/*}}}*/
+    void write_metadata() {
+        if (!renumberfilename)
+            return;
+        int nt = io_threads_per_rank;
+        if (!has_suffix(renumberfilename, ".multi"))
+            nt = 1;
+        for(int i = 0 ; i < nt ; i++)
+            std::ofstream(get_multifile_subfile(i) + ".json") << metadata[i] << std::endl;
     }
     builder(renumber_t const & R,
             const char * renumberfilename,
@@ -1678,6 +1705,8 @@ struct renumber_t::builder{/*{{{*/
     ~builder() {
         if (mpi_rank == 0)
             stats_print_progress(stats, nprimes * mpi_size, 0, 0, 1);
+
+        write_metadata();
     }
     index_t operator()(renumber_t & R);
     void preprocess(renumber_t const & R, prime_chunk & P);
@@ -1792,6 +1821,13 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
             R.write_bad_ideals(*common_sink);
             *common_sink << std::hex;
         }
+        if (!metadata.empty()) {
+            metadata[0].emplace("header", json_bool(true));
+            metadata[0].emplace("above_add", json_number(R.above_add));
+            metadata[0].emplace("above_bad", json_number(R.above_bad));
+            metadata[0].emplace("entries", json_number(R.above_bad));
+            metadata[0].emplace("header_entries", json_number(R.above_bad));
+        }
     }
 
     renumber_t const & Rc = R;
@@ -1806,7 +1842,6 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
 
     int threads = std::max(io_threads_per_rank, omp_get_max_threads());
 
-    std::vector<json_hash> metadata(io_threads_per_rank, json_hash());
     std::vector<index_t> per_file_entries(threads, 0);
     std::vector<index_t> per_file_entries_global(io_threads_per_rank * mpi_size, 0);
     std::vector<renumber_t> Rlocs(io_threads_per_rank);
@@ -1853,8 +1888,6 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
 
         unsigned long q0 = splits[sequence_number(t)];
         unsigned long q1 = splits[sequence_number(t)+1];
-        metadata[t].emplace("q0", json_number(q0));
-        metadata[t].emplace("q1", json_number(q1));
 #pragma omp parallel proc_bind(close)
         {
 #pragma omp single
@@ -1904,7 +1937,6 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
             } /* end of omp single section */
         } /* end of omp parallel section */
         per_file_entries[t] = nentries;
-        metadata[t].emplace("entries", json_number(nentries));
         // } /* end of omp for */
     }
 
@@ -1943,8 +1975,22 @@ index_t renumber_t::builder::operator()(renumber_t & R)/*{{{*/
             std::unique_ptr<renumber_t::hook> & hookloc = hooklocs[t];
 
             int i1 = i0 + per_file_entries[t];
-            metadata[t].emplace("i0", json_number(i0));
-            metadata[t].emplace("i1", json_number(i1));
+
+            if (!metadata.empty()) {
+                /* This happens only if we have an output file locally
+                 * defined. This array will be the auxiliary data that
+                 * will get written alongside the output file
+                 */
+                ASSERT_ALWAYS((size_t) t < metadata.size());
+                json_hash & m = metadata[t];
+                m.emplace("q0", json_number(splits[sequence_number(t)]));
+                m.emplace("q1", json_number(splits[sequence_number(t)+1]));
+                /* yes, it's complicated. */
+                auto it = m.emplace("entries", json_number(0)).first;
+                dynamic_cast<json_number&>(*it->second.get()).data += per_file_entries[t];
+                m.emplace("i0", json_number(i0));
+                m.emplace("i1", json_number(i1));
+            }
 
             if (t == 0) {
                 R = std::move(Rloc);

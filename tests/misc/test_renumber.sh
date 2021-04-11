@@ -67,7 +67,7 @@ if [ "$CHECK_MULTI" ] ; then
     ${BUILD_DIR}/sieve/freerel -poly ${POLY} -renumber ${RENUMBER}.multi \
                                -lpbs "$LPBS" "${FREERELS_EXTRA[@]}"
     hash_reference=`gzip -dc "$RENUMBER" | $SHA1BIN`
-    hash_multi=`cat "${RENUMBER}.multi"/* | $SHA1BIN`
+    hash_multi=`cat "${RENUMBER}.multi"/*[0-9] | $SHA1BIN`
     if [ "$hash_reference" != "$hash_multi" ] ; then
         echo "multi-I/O and single-end I/O do not give consistent results" >&2
         exit 1

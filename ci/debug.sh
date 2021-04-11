@@ -141,5 +141,5 @@ else
     echo "# NOTE: docker image is $imagename"
     echo "# NOTE: this image contains a few extra debug tools"
     # CI_BUILD_NAME is passed to the script via 00-dockerfile.sh
-    docker run "${DARGS[@]}" -ti --hostname docker-script-$RANDOM --volume $PWD:/host "$imagename" /host/ci/999-debug.sh "$@"
+    docker run --pull always "${DARGS[@]}" -ti --hostname docker-script-$RANDOM --volume $PWD:/host "$imagename" /host/ci/999-debug.sh "$@"
 fi
