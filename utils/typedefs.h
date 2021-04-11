@@ -29,10 +29,12 @@
 
 #if SIZEOF_P_R_VALUES == 4
 typedef uint32_t p_r_values_t;
+#define CADO_MPI_P_R_VALUES_T CADO_MPI_UINT32_T
 #define PRpr PRIx32
 #define SCNpr SCNx32
 #else /* SIZEOF_P_R_VALUES == 8 */
 typedef uint64_t p_r_values_t;
+#define CADO_MPI_P_R_VALUES_T CADO_MPI_UINT64_T
 #define PRpr PRIx64
 #define SCNpr SCNx64
 #endif

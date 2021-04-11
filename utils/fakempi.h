@@ -108,25 +108,25 @@ static inline int MPI_Query_thread(int * prov) { *prov=MPI_THREAD_MULTIPLE; retu
 static inline int MPI_Finalize() {return 0;}
 static inline int MPI_Op_create( MPI_User_function *function MAYBE_UNUSED, int commute MAYBE_UNUSED, MPI_Op *op MAYBE_UNUSED ){return 0;}
 static inline int MPI_Op_free(MPI_Op *op MAYBE_UNUSED ){return 0;}
-static inline int MPI_Send( void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int dest MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED){return 0;}
+static inline int MPI_Send(const void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int dest MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED){return 0;}
 static inline int MPI_Sendrecv( void *sbuf MAYBE_UNUSED, int scount MAYBE_UNUSED, MPI_Datatype sdatatype MAYBE_UNUSED, int sdest MAYBE_UNUSED,int stag MAYBE_UNUSED,  void *rbuf MAYBE_UNUSED, int rcount MAYBE_UNUSED, MPI_Datatype rdatatype MAYBE_UNUSED, int rdest MAYBE_UNUSED,int rtag MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED){return 0;}
-static inline int MPI_Isend( void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int dest MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED, MPI_Request * zz){*zz=0; return 0;}
+static inline int MPI_Isend(const void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int dest MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED, MPI_Request * zz){*zz=0; return 0;}
 static inline int MPI_Recv( void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int source MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, MPI_Status *status MAYBE_UNUSED ){ abort(); return 0;}
 static inline int MPI_Irecv( void *buf MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int source MAYBE_UNUSED,int tag MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED, MPI_Request * zz){ abort(); *zz=0; return 0;}
 static inline int MPI_Bcast( void *buffer MAYBE_UNUSED, int count MAYBE_UNUSED, MPI_Datatype datatype MAYBE_UNUSED, int root MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED){return 0;}
-static inline int MPI_Reduce ( void *sendbuf, void *recvbuf, int count,MPI_Datatype datatype, MPI_Op op MAYBE_UNUSED, int root MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED)
+static inline int MPI_Reduce (const void *sendbuf, void *recvbuf, int count,MPI_Datatype datatype, MPI_Op op MAYBE_UNUSED, int root MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED)
 {
     if (sendbuf) memcpy(recvbuf, sendbuf, count * fakempi_sizeof_type(datatype));
     return 0;
 }
 
-static inline int MPI_Reduce_scatter(void *sendbuf, void *recvbuf, int *recvcounts,
+static inline int MPI_Reduce_scatter(const void *sendbuf, void *recvbuf, int *recvcounts,
                     MPI_Datatype datatype, MPI_Op op MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED)
 {
     if (sendbuf) memcpy(recvbuf, sendbuf, recvcounts[0] * fakempi_sizeof_type(datatype));
     return 0;
 }
-static inline int MPI_Allreduce ( void *sendbuf, void *recvbuf, int count,MPI_Datatype datatype, MPI_Op op MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED)
+static inline int MPI_Allreduce (const void *sendbuf, void *recvbuf, int count,MPI_Datatype datatype, MPI_Op op MAYBE_UNUSED, MPI_Comm comm  MAYBE_UNUSED)
 {
     if (sendbuf) memcpy(recvbuf, sendbuf, count * fakempi_sizeof_type(datatype));
     return 0;
@@ -144,13 +144,13 @@ static inline int MPI_Comm_free (MPI_Comm * x MAYBE_UNUSED) { return 0; }
 static inline int MPI_Comm_dup (MPI_Comm y, MPI_Comm * x) { *x = y; return 0; }
 static inline int MPI_Comm_set_name(MPI_Comm comm MAYBE_UNUSED, char *comm_name MAYBE_UNUSED) { return 0;}
 static inline int MPI_Comm_get_name(MPI_Comm comm MAYBE_UNUSED, char *comm_name MAYBE_UNUSED, int * rlen) { *comm_name='\0'; *rlen=0; return 0;}
-static inline int MPI_Scatterv(void * sendbuf, int * sendcounts, int * displs,  MPI_Datatype st, void * recvbuf, int recvcount, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
+static inline int MPI_Scatterv(const void * sendbuf, int * sendcounts, int * displs,  MPI_Datatype st, void * recvbuf, int recvcount, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
     ASSERT_ALWAYS(sendcounts[0] * fakempi_sizeof_type(st) == recvcount * fakempi_sizeof_type(rt));
-    memcpy(recvbuf, ((char *)sendbuf) + displs[0] * fakempi_sizeof_type(st), recvcount * fakempi_sizeof_type(rt));
+    memcpy(recvbuf, ((const char *)sendbuf) + displs[0] * fakempi_sizeof_type(st), recvcount * fakempi_sizeof_type(rt));
     return 0;
 }
 
-static inline int MPI_Scatter(void * sendbuf, int sendcount, MPI_Datatype st, void * recvbuf, int recvcount, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
+static inline int MPI_Scatter(const void * sendbuf, int sendcount, MPI_Datatype st, void * recvbuf, int recvcount, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
     ASSERT_ALWAYS(sendcount * fakempi_sizeof_type(st) == recvcount * fakempi_sizeof_type(rt));
     if (recvbuf && sendbuf)
         memcpy(recvbuf, sendbuf, recvcount * fakempi_sizeof_type(rt));
@@ -159,29 +159,29 @@ static inline int MPI_Scatter(void * sendbuf, int sendcount, MPI_Datatype st, vo
 
 static inline int MPI_Barrier (MPI_Comm x MAYBE_UNUSED) { return 0; }
 
-static inline int MPI_Gather(void * sendbuf, int sendcount,  MPI_Datatype st, void * recvbuf, int recvcount MAYBE_UNUSED, MPI_Datatype rt MAYBE_UNUSED, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
+static inline int MPI_Gather(const void * sendbuf, int sendcount,  MPI_Datatype st, void * recvbuf, int recvcount MAYBE_UNUSED, MPI_Datatype rt MAYBE_UNUSED, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
     if (sendbuf == MPI_IN_PLACE) return 0;
-    memcpy(((char *)recvbuf), (char*) sendbuf, sendcount * fakempi_sizeof_type(st));
+    memcpy(((char *)recvbuf), (const char*) sendbuf, sendcount * fakempi_sizeof_type(st));
     return 0;
 }
-static inline int MPI_Gatherv(void * sendbuf, int sendcount,  MPI_Datatype st, void * recvbuf, int * recvcounts, int * displs, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
+static inline int MPI_Gatherv(const void * sendbuf, int sendcount,  MPI_Datatype st, void * recvbuf, int * recvcounts, int * displs, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
     ASSERT_ALWAYS(sendcount * fakempi_sizeof_type(st) == recvcounts[0] * fakempi_sizeof_type(rt));
     memcpy(((char *)recvbuf) + displs[0] * fakempi_sizeof_type(rt), sendbuf, sendcount * fakempi_sizeof_type(st));
     return 0;
 }
-static inline int MPI_Allgather(void * sendbuf MAYBE_UNUSED, int sendcount MAYBE_UNUSED,  MPI_Datatype st MAYBE_UNUSED, void * recvbuf MAYBE_UNUSED, int recvcount MAYBE_UNUSED, MPI_Datatype rt MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
+static inline int MPI_Allgather(const void * sendbuf MAYBE_UNUSED, int sendcount MAYBE_UNUSED,  MPI_Datatype st MAYBE_UNUSED, void * recvbuf MAYBE_UNUSED, int recvcount MAYBE_UNUSED, MPI_Datatype rt MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
     ASSERT_ALWAYS(sendbuf == MPI_IN_PLACE || sendcount * fakempi_sizeof_type(st) == recvcount * fakempi_sizeof_type(rt));
     if (sendbuf) memcpy(recvbuf, sendbuf, sendcount * fakempi_sizeof_type(st));
     return 0;
 }
 
-static inline int MPI_Iallgather(void *sendbuf, int  sendcount, MPI_Datatype st, void *recvbuf, int recvcount, MPI_Datatype rt, MPI_Comm comm, MPI_Request *request)
+static inline int MPI_Iallgather(const void *sendbuf, int  sendcount, MPI_Datatype st, void *recvbuf, int recvcount, MPI_Datatype rt, MPI_Comm comm, MPI_Request *request)
 {
     *request=0;
     return MPI_Allgather(sendbuf, sendcount, st, recvbuf, recvcount, rt, comm);
 }
 
-static inline int MPI_Allgatherv(void *sendbuf, int sendcount MAYBE_UNUSED,
+static inline int MPI_Allgatherv(const void *sendbuf, int sendcount MAYBE_UNUSED,
             MPI_Datatype sendtype MAYBE_UNUSED, void *recvbuf MAYBE_UNUSED, int *recvcount MAYBE_UNUSED,
             int *displs MAYBE_UNUSED, MPI_Datatype recvtype MAYBE_UNUSED, MPI_Comm comm MAYBE_UNUSED)
 {
