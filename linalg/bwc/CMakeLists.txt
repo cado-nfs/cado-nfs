@@ -206,6 +206,7 @@ mpi_add_library(matmul_common ${CADO_SHARED} matmul-common.c)
 if(ENABLE_SHARED)
     install(TARGETS matmul_common DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endif()
+target_link_libraries(matmul_common utils)
 
 
 set(matmul_basic_sources    matmul-basic.c)
