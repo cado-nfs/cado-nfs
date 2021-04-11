@@ -11,7 +11,7 @@ FAKERELS=${BINDIR}/sieve/fake_rels
 TMPRENUMBER="${WORKDIR:?missing}/cadotest.fakerel.renumber"
 
 cmd="${FREEREL} -poly ${SRCDIR}/parameters/polynomials/c60.poly \
-    -renumber $TMPRENUMBER -out /dev/null -lpb0 18 -lpb1 19 -pmax 1"
+    -renumber $TMPRENUMBER -lpb0 18 -lpb1 19 -pmax 1"
 echo $cmd
 $cmd
 
