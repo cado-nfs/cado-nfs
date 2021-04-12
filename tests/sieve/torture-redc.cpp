@@ -148,6 +148,9 @@ oldbuggy_redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
   return u;
 }
 
+#if defined(GENUINE_GNUC)
+#pragma GCC optimize ("no-tree-loop-vectorize")
+#endif
 int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = true)
 {
     constexpr unsigned int loops = 1024;
