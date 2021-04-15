@@ -149,6 +149,28 @@ invmod_32 (uint32_t *pa, uint32_t b)
   return rc;
 }
 
+/* Requires a < m and b <= m, then r == a+b (mod m) and r < m */
+static inline uint32_t
+addmod_u32 (const uint32_t a, const uint32_t b, const uint32_t m)
+{
+#if (defined(__i386__) && defined(__GNUC__)) || defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+  {
+    uint32_t t = a + b, tr = a - m;
+
+    __asm__ __VOLATILE (
+      "add %2, %0\n\t"   /* tr += b */
+      "cmovnc %1, %0\n\t"  /* if (!cy) tr = t */
+      : "+&r" (tr)
+      : "rm" (t), "g" (b)
+      : "cc"
+    );
+    return tr;
+  }
+#else
+  return (b >= m - a) ? (b - (m - a)) : (a + b);
+#endif
+}
+
 /* TODO: this is a close cousin of modredcul_inv, but the latter does
  * 64-bit redc */
 
@@ -222,7 +244,7 @@ invmod_redc_32(uint32_t a, uint32_t b) {
   
   // Here, the inverse of a is u/2^t mod b.  
 #define T3 do { uint8_t sig = (uint8_t) u; u >>= 1; if (sig & 1) u += fix; } while (0)
-#define T4 do { u <<= 1; if (u >= p) u -= p; } while (0)
+#define T4 do { u = addmod_u32(u, u, p); } while (0)
 #if 1 /* Original code */
   if (t > 32)
     do T3; while (--t > 32);
