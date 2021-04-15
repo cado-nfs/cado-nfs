@@ -33,6 +33,10 @@ int main(int argc, const char **argv) {
     }
 
     if (test_correctness) {
+
+        /* a few quick checks */
+        ASSERT_ALWAYS(invmod_redc_32(1, 2315500393, 1575713575) != 0);
+
         uint32_t to_invert = 0;
         uint32_t m = (uint32_t) random_uint64() | 1;
         uint32_t invm = -invmod_po2(m);
