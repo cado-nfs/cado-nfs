@@ -214,7 +214,6 @@ struct lingen_tuner {
     gmp_randstate_t rstate;
     const char * timing_cache_filename = NULL;
     const char * schedule_filename = NULL;
-    std::ostream& os;
 
     /* stop measuring the time taken by the basecase when it is
      * more than this number times the time taken by the other
@@ -350,7 +349,7 @@ struct lingen_tuner {
 
     lingen_tuner(std::ostream& os, bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :/*{{{*/
         ab(d.ab), 
-        m(d.m), n(d.n), L(L), P(comm, pl), os(os),
+        m(d.m), n(d.n), L(L), P(comm, pl),
         tuning_thresholds(pl, os, P)
     {
 #ifdef SELECT_MPFQ_LAYER_u64k1
@@ -400,21 +399,28 @@ struct lingen_tuner {
         std::tuple<size_t, double> vv { 2 * data0, 2 * data0 / P.mpi_xput};
         return vv;
     }/*}}}*/
-    double compute_and_report_basecase(size_t length) { /*{{{*/
+    double compute_and_report_basecase(std::ostream& os, size_t length, bool do_timings) { /*{{{*/
         double tt;
 
         lingen_tuning_cache::basecase_key K { mpz_sizeinbase(p, 2), m, n, length, P.openmp_threads };
 
         os << fmt::format("# basecase (@{}): ", length);
+
+        if (!do_timings) {
+            C[K] = { 0 };
+            os << "not timed\n";
+            return C[K];
+        }
+
         if (!C.has(K)) {
             os << std::flush;
             tt = wct_seconds();
             test_basecase(ab, m, n, length, rstate);
             tt = wct_seconds() - tt;
             C[K] = { tt };
-            os << fmt::sprintf("%.2f [from cache]\n", tt);
+            os << fmt::sprintf("%.2f\n", tt);
         } else {
-            os << fmt::sprintf("%.2f\n", C[K]);
+            os << fmt::sprintf("%.2f [from cache]\n", C[K]);
         }
         return C[K];
     }/*}}}*/
@@ -552,6 +558,7 @@ struct lingen_tuner {
         }
     };/*}}}*/
     lingen_call_companion::mul_or_mp_times tune_local_at_depth_mp_or_mul(
+            std::ostream& os,
             tuner_persistent_data & persist,
             weighted_call_t cw,
             int depth,
@@ -681,8 +688,7 @@ struct lingen_tuner {
             ffts.push_back(lingen_substep_schedule::FFT_CANTOR);
 #endif
         }
-        bool from_stored_hints(lingen_tuner & tuner, tuner_persistent_data & persist, lingen_call_companion::key const & K) {/*{{{*/
-            std::ostream& os(tuner.os);
+        bool from_stored_hints(std::ostream& os, lingen_tuner & tuner, tuner_persistent_data & persist, lingen_call_companion::key const & K) {/*{{{*/
             lingen_hints const & stored_hints(persist.stored_hints);
             lingen_platform const & P(tuner.P);
 
@@ -726,8 +732,7 @@ struct lingen_tuner {
             }
         }
         typedef tuning_thresholds_t T_t;
-        bool from_thresholds_mesh_level(lingen_tuner & tuner, tuner_persistent_data & persist, lingen_call_companion::key const & K) {/*{{{*/
-            std::ostream& os(tuner.os);
+        bool from_thresholds_mesh_level(std::ostream& os, lingen_tuner & tuner, tuner_persistent_data & persist, lingen_call_companion::key const & K) {/*{{{*/
             T_t const & T(tuner.tuning_thresholds);
             lingen_platform const & P(tuner.P);
             unsigned int L = K.L;
@@ -799,8 +804,7 @@ struct lingen_tuner {
                 << "\n";
             return done;
         }/*}}}*/
-        bool from_thresholds_fft_level(lingen_tuner & tuner, lingen_call_companion::key const & K) {/*{{{*/
-            std::ostream& os(tuner.os);
+        bool from_thresholds_fft_level(std::ostream& os, lingen_tuner & tuner, lingen_call_companion::key const & K) {/*{{{*/
             T_t const & T(tuner.tuning_thresholds);
             /* second decision: should we restrict the set of ffts ? */
             /* In the following, we rely on the fact that the asymptotic
@@ -918,7 +922,7 @@ struct lingen_tuner {
         configurations_to_test C;
         bool impose_hints(persist.impose_hints);
 
-        if (C.from_stored_hints(*this, persist, K))
+        if (C.from_stored_hints(os, *this, persist, K))
             return C;
 
         if (L >= tuning_thresholds[tuning_thresholds_t::notiming])
@@ -936,18 +940,18 @@ struct lingen_tuner {
         }
         /* Try with the tuning_thresholds */
 
-        if (C.from_thresholds_mesh_level(*this, persist, K)) {
+        if (C.from_thresholds_mesh_level(os, *this, persist, K)) {
             /* then the decision was trivial because lingen_thresholds
              * told us nothing. No need to bother with fft types either.
              */
             return C;
         }
 
-        C.from_thresholds_fft_level(*this, K);
+        C.from_thresholds_fft_level(os, *this, K);
         return C;
     }/*}}}*/
 
-    void tune_local_at_depth(tuner_persistent_data & persist, int depth)/*{{{*/
+    bool tune_local_at_depth(std::ostream& os, tuner_persistent_data & persist, int depth)/*{{{*/
     {
         tuner_persistent_data::level_strategy_map & best(persist.best);
         unsigned int & minimum_mesh(persist.minimum_mesh);
@@ -955,7 +959,13 @@ struct lingen_tuner {
 
         auto cws = calls_and_weights_at_depth(depth);
 
-        os << fmt::format("####################### Measuring time at depth {} #######################\n", depth);
+        // output first goes to a temp string until we're sure that we're
+        // doing timings.
+        
+        std::ostringstream os_pre;
+        bool timed_something = false;
+
+        os_pre << fmt::format("####################### Measuring time at depth {} #######################\n", depth);
 
         ASSERT_ALWAYS(cws.size() <= 2);
 
@@ -973,14 +983,19 @@ struct lingen_tuner {
             std::tie(L, Lleft, Lright, weight) = cw;
             if (!L) continue;
             double ratio = weight / (double) (1U << depth);
-            os << fmt::sprintf("# input size %zu, %u times [%.1f%%]\n",
+            os_pre << fmt::sprintf("# input size %zu, %u times [%.1f%%]\n",
                     L, weight, 100*ratio);
         }
-        os << "#\n";
+        os_pre << "#\n";
 
         bool do_all_timings = true;
 
         unsigned int ncalls_at_depth = 0;
+
+        /* This goes to the "preliminary" buffer until we're sure that
+         * there's timing to print!
+         */
+        std::ostream * p_talk = &os_pre;
 
         for(size_t idx = 0 ; idx < cws.size() ; idx++) {
             auto const & cw(cws[idx]);
@@ -1026,7 +1041,7 @@ struct lingen_tuner {
                 continue;
             }
 
-            configurations_to_test CF = find_configurations_to_test(os, persist, K);
+            configurations_to_test CF = find_configurations_to_test(os_pre, persist, K);
 
             std::map<unsigned int, lingen_call_companion> mesh_res;
             std::map<unsigned int, double> mesh_tt;
@@ -1037,11 +1052,18 @@ struct lingen_tuner {
             if (!CF.do_timings && CF.mesh_sizes.size() != 1)
                 throw std::invalid_argument("Cannot have \"notiming\" in tuning_thresholds without specified thresholds for all choices");
 
+            if (CF.do_timings && !timed_something) {
+                os << os_pre.str();
+                os_pre.str();
+                p_talk = &os;
+                timed_something = true;
+            }
+
             for(auto mesh : CF.mesh_sizes) {
                 lingen_call_companion U;
                 U.mesh = mesh;
                 if (mesh == 0) {
-                    U.ttb = compute_and_report_basecase(L);
+                    U.ttb = compute_and_report_basecase(*p_talk, L, CF.do_timings);
                     mesh_res[mesh] = U;
                     if (!CF.do_timings) continue;
                     mesh_tt[mesh] = U.ttb;
@@ -1049,10 +1071,12 @@ struct lingen_tuner {
                     mesh_tt_weighted[mesh].second += mesh_tt[mesh] * weight;
                 } else {
                     U.mp = tune_local_at_depth_mp_or_mul(
+                            *p_talk,
                             persist, cw, depth, mesh,
                             CF.ffts, CF.do_timings,
                             op_mul_or_mp_base::OP_MP);
                     U.mul = tune_local_at_depth_mp_or_mul(
+                            *p_talk,
                             persist, cw, depth, mesh,
                             CF.ffts, CF.do_timings,
                             op_mul_or_mp_base::OP_MUL);
@@ -1098,7 +1122,7 @@ struct lingen_tuner {
                     if (x.first == meshbest || x.first > meshbest)
                         continue;
                     if (x.second >= basecase_keep_until * mesh_tt[meshbest]) {
-                        os << fmt::sprintf("# Discarding %s from now on\n",
+                        (*p_talk) << fmt::sprintf("# Discarding %s from now on\n",
                                 strat_name[x.first]);
                         minimum_mesh = x.first + 1;
                     }
@@ -1115,6 +1139,7 @@ struct lingen_tuner {
 
             hints[K].total_ncalls += weight;
             ncalls_at_depth += weight;
+
         }
 
         /* Now give a summary at this level */
@@ -1136,7 +1161,7 @@ struct lingen_tuner {
                         // rescaled = fmt::sprintf("[rescaled from %.1f%%] ", 100*ratio);
                         tt /= ratio;
                     }
-                    os << fmt::sprintf("# %s (%u calls): %.2f [%.1fd]\n",
+                    (*p_talk) << fmt::sprintf("# %s (%u calls): %.2f [%.1fd]\n",
                             strat_name[mesh],
                             ncalls_at_depth,
                             // rescaled,
@@ -1148,11 +1173,11 @@ struct lingen_tuner {
                             + best[L1].second * std::get<3>(cws.back());
 
             if (mesh0 == mesh1) {
-                os << fmt::sprintf("# BEST: %s: %.2f [%.1fd]\n",
+                (*p_talk) << fmt::sprintf("# BEST: %s: %.2f [%.1fd]\n",
                         strat_name[mesh0],
                         tt_total, tt_total / 86400);
             } else {
-                os << fmt::sprintf("# BEST: mix of %s and %s: %.2f [%.1fd]\n",
+                (*p_talk) << fmt::sprintf("# BEST: mix of %s and %s: %.2f [%.1fd]\n",
                         strat_name[mesh0],
                         strat_name[mesh1],
                         tt_total, tt_total / 86400);
@@ -1162,21 +1187,31 @@ struct lingen_tuner {
         if (mesh0 || mesh1) {
             lingen_call_companion U = U_typical;
             if (U.mp.ram_total() > U.mul.ram_total()) {
-                os << fmt::sprintf("#   (memory(MP): %s, incl %s reserved)\n",
+                (*p_talk) << fmt::sprintf("#   (memory(MP): %s, incl %s reserved)\n",
                         size_disp(U.mp.ram_total()),
                         size_disp(U.mp.reserved_ram));
             } else {
-                os << fmt::sprintf("#   (memory(MUL): %s, incl %s reserved)\n",
+                (*p_talk) << fmt::sprintf("#   (memory(MUL): %s, incl %s reserved)\n",
                         size_disp(U.mul.ram_total()),
                         size_disp(U.mul.reserved_ram));
             }
 
         }
+        return timed_something;
     }/*}}}*/
-    lingen_hints tune_local(lingen_hints & stored_hints) {/*{{{*/
+    lingen_hints tune_local(std::ostream& os, lingen_hints & stored_hints) {/*{{{*/
         size_t N = m*n*L/(m+n);
         char buf[20];
-        os << fmt::sprintf("# Measuring lingen data"
+
+        /* same mechanism in tune_local_at_depth ; output goes to a
+         * separate stringstream until we're sure that there's
+         * interesting output somewhere.
+         */
+        std::ostringstream os_pre;
+        bool timed_something = false;
+        std::ostream * p_talk = &os_pre;
+
+        (*p_talk) << fmt::sprintf("# Measuring lingen data"
                 " for N ~ %zu m=%u n=%u"
                 " for a %zu-bit prime p,"
                 " using a %u*%u grid of %u-thread nodes"
@@ -1185,7 +1220,7 @@ struct lingen_tuner {
                 P.r, P.r, P.T,
                 size_disp(P.available_ram, buf));
 #ifdef HAVE_OPENMP
-        os << fmt::sprintf("# Note: non-cached basecase measurements"
+        (*p_talk) << fmt::sprintf("# Note: non-cached basecase measurements"
                 " are done using openmp as it is configured"
                 " for the running code, that is, with %d threads\n",
                 P.openmp_threads);
@@ -1207,13 +1242,20 @@ struct lingen_tuner {
             persist.minimum_mesh = 1;
 
         if (persist.impose_hints) {
-            os << fmt::sprintf("# While we are doing timings here,"
+            (*p_talk) << fmt::sprintf("# While we are doing timings here,"
                     " we'll take schedule decisions based on the hints"
                     " found in %s when they apply\n", schedule_filename);
         }
 
-        for(int i = fl ; i>=0 ; i--)
-            tune_local_at_depth(persist, i);
+        for(int i = fl ; i>=0 ; i--) {
+            bool timed_here = tune_local_at_depth((*p_talk), persist, i);
+            if (timed_here && !timed_something) {
+                os << os_pre.str();
+                os_pre.str();
+                p_talk = &os;
+                timed_something = true;
+            }
+        }
 
         tuner_persistent_data::level_strategy_map & best(persist.best);
         lingen_hints & hints(persist.hints);
@@ -1236,14 +1278,14 @@ struct lingen_tuner {
             for(auto const & y : max_win_per_mesh) {
                 if (y.first) continue;  // see above
                 if (x.second.mesh > y.first && x.first < y.second) {
-                    std::cout << fmt::format("## forcing %s at ({}) since it is known to win at ({})\n", strat_name[y.first],
+                    (*p_talk) << fmt::format("## forcing %s at ({}) since it is known to win at ({})\n", strat_name[y.first],
                             y.first, y.second);
                     x.second.mesh = y.first;
                 }
             }
         }
 
-        os << ("################################# Total ##################################\n");
+        os << ("#########################  Summary of timing data  #######################\n");
         if (!tuning_thresholds.empty()) {
             std::ostringstream ss;
             for(auto const & x : tuning_thresholds) {
@@ -1252,6 +1294,11 @@ struct lingen_tuner {
             }
             os << fmt::sprintf("# Using explicit tuning_thresholds=%s (from command-line)\n", ss.str());
         }
+        if (!timed_something) {
+            os << "# note: no real timing data is reported, since the notiming\n"
+               << "#       threshold has explicitly prevented all measurements\n";
+        }
+
         size_t size_com0;
         double tt_com0;
         std::tie(size_com0, tt_com0) = mpi_threshold_comm_and_time();
@@ -1271,7 +1318,7 @@ struct lingen_tuner {
 
         return hints;
     }/*}}}*/
-    lingen_hints tune() {/*{{{*/
+    lingen_hints tune(std::ostream& os) {/*{{{*/
         int rank;
         MPI_Comm_rank(P.comm, &rank);
         lingen_hints hints;
@@ -1287,7 +1334,7 @@ struct lingen_tuner {
                     std::cerr << fmt::sprintf("# Failed to read tuning schedule from %s\n", schedule_filename);
                 }
             }
-            hints = tune_local(stored_hints);
+            hints = tune_local(os, stored_hints);
             if (schedule_filename && stored_hints.empty()) {
                 std::ofstream os(schedule_filename);
                 if (os && os << hints) {
@@ -1351,12 +1398,12 @@ lingen_hints lingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param
     lingen_tuner::output_info O(pl);
     if (O.quiet) {
         std::ostringstream os;
-        return lingen_tuner(os, d, L, comm, pl).tune();
+        return lingen_tuner(os, d, L, comm, pl).tune(os);
     } else if (O.tuning_log_filename) {
         std::ofstream os(O.tuning_log_filename, std::ios_base::out);
-        return lingen_tuner(os, d, L, comm, pl).tune();
+        return lingen_tuner(os, d, L, comm, pl).tune(os);
     } else {
-        return lingen_tuner(std::cout, d, L, comm, pl).tune();
+        return lingen_tuner(std::cout, d, L, comm, pl).tune(std::cout);
     }
 }
 

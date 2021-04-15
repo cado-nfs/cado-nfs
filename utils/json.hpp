@@ -15,18 +15,6 @@
  * better someday if the need arises.
  */
 
-struct json_base;
-
-struct json: public std::unique_ptr<json_base> {
-    /* proxy the things that we like to have, and delegate that to the
-     * subobject.
-     */
-    json() = default;
-    json(json_base * p) : std::unique_ptr<json_base>(p) {}
-    template<typename T> inline json_base const & operator[](T const &x) const { return (*get())[x]; }
-    template<typename T> inline json_base & operator[](T const &x) { return (*get())[x]; }
-};
-
 struct json_base {
     struct error: public std::exception {
         std::string m;
@@ -52,17 +40,35 @@ struct json_base {
     virtual operator long() const { throw error("type"); }
     virtual size_t size() const { throw error("type"); } 
     virtual ~json_base() {}
+    virtual json_base * clone() const { throw error("type"); }
+};
+
+struct json: public std::unique_ptr<json_base> {
+    /* proxy the things that we like to have, and delegate that to the
+     * subobject.
+     */
+    json() = default;
+    json(json const & x) : std::unique_ptr<json_base>(x->clone()) {}
+    json& operator=(json const & x) { reset(x->clone()); return *this; }
+    json(json_base * p) : std::unique_ptr<json_base>(p) {}
+    template<typename T> inline json_base const & operator[](T const &x) const { return (*get())[x]; }
+    template<typename T> inline json_base & operator[](T const &x) { return (*get())[x]; }
 };
 
 struct json_hash : public json_base {
     std::map<std::string, json> data;
     json_hash() : json_base(HASH) {}
     virtual json_base & operator[](std::string const & x) override { return *data[x]; }
+    std::pair<std::map<std::string, json>::iterator, bool> emplace(std::string const & x, json_base const & c) {
+        return data.emplace(x, json(c.clone()));
+    }
     virtual json_base const & operator[](std::string const & x) const override {
         return *data.find(x)->second;
     }
     virtual std::string flatten() const override;
     virtual ~json_hash() override {}
+    virtual json_base * clone() const override { return new json_hash(*this); }
+
 };
 
 struct json_array : public json_base {
@@ -73,6 +79,7 @@ struct json_array : public json_base {
     virtual std::string flatten() const override;
     virtual ~json_array() override {}
     virtual size_t size() const override { return data.size(); }
+    virtual json_base * clone() const override { return new json_array(*this); }
 };
 
 struct json_string : public json_base {
@@ -82,6 +89,7 @@ struct json_string : public json_base {
     virtual operator std::string() const override { return data; }
     virtual std::string flatten() const override;
     virtual ~json_string() override {}
+    virtual json_base * clone() const override { return new json_string(*this); }
 };
 
 struct json_number : public json_base {
@@ -92,6 +100,7 @@ struct json_number : public json_base {
     virtual operator long() const override { return data; }
     virtual std::string flatten() const override;
     virtual ~json_number() override {}
+    virtual json_base * clone() const override { return new json_number(*this); }
 };
 
 struct json_bool : public json_base {
@@ -101,12 +110,14 @@ struct json_bool : public json_base {
     virtual operator long() const override { return data; }
     virtual std::string flatten() const override;
     virtual ~json_bool() override {}
+    virtual json_base * clone() const override { return new json_bool(*this); }
 };
 
 struct json_null : public json_base {
     json_null() : json_base(STRING) {}
     virtual std::string flatten() const override { return "null"; }
     virtual ~json_null() override {}
+    virtual json_base * clone() const override { return new json_null(); }
 };
 
 std::ostream& operator<<(std::ostream& o, json const & f);

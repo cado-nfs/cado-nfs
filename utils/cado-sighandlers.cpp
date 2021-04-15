@@ -13,7 +13,7 @@
 #else
 #include "verbose.h"    // verbose_output_print
 #endif
-#include "las-sighandlers.hpp"
+#include "cado-sighandlers.h"
 
 #ifdef HAVE_GLIBC
 static void signal_handling (int signum)/*{{{*/
@@ -36,13 +36,13 @@ static void signal_handling (int signum)/*{{{*/
 }/*}}}*/
 #endif
 
-void las_sighandlers_install()
+void cado_sighandlers_install()
 {
 #ifdef HAVE_GLIBC
     signal (SIGABRT, signal_handling);
     signal (SIGSEGV, signal_handling);
 #else
-    verbose_output_print(0, 0, "# Cannot catch signals, lack glibc support\n");
+    verbose_output_print(0, 0, "# Cannot catch signals in an interesting way, lack glibc support\n");
 #endif
 }
 

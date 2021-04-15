@@ -18,6 +18,7 @@
 #include "macros.h"     // ASSERT_ALWAYS // IWYU pragma: keep
 #include "misc.h"       // mkdir_with_parents next_power_of_2 integer_sqrt
 #include "params.h"
+#include "cado-sighandlers.h"
 
 struct bw_params bw[1];
 
@@ -276,6 +277,8 @@ int bw_common_init(struct bw_params * bw, int * p_argc, char *** p_argv)/*{{{*/
     char * mpiinit_diag = NULL;
     int init_done = 0;
     
+    cado_sighandlers_install();
+
     // init_done = init_done || doinit(p_argc, p_argv, &mpiinit_diag, MPI_THREAD_MULTIPLE, "MPI_THREAD_MULTIPLE");
     init_done = init_done || doinit(p_argc, p_argv, &mpiinit_diag, MPI_THREAD_SERIALIZED, "MPI_THREAD_SERIALIZED");
 
