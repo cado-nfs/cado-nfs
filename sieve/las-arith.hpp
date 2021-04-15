@@ -293,8 +293,23 @@ done:
     u = varredc_u32(u, orig_b, invb, t - 32);
   } else {
     while (t++ < 32) {
-      u <<= 1; /* FIXME: is overflow possible here? */
-      if (u >= p) u -= p;
+#if 1 && (defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) || defined(__i386__) && defined(__GNUC__))
+        uint32_t diff = 0;
+        __asm__(
+            "shl %[u]\n"
+            "cmovc %[p], %[diff]\n"  /* if u overflowed, diff = p */
+            "cmp %[p], %[u]\n"
+            "cmovnb %[p], %[diff]\n" /* if u >= p, diff = p */
+            "sub %[diff], %[u]\n"
+            : [u] "+r"(u), [diff] "+r" (diff)
+            : [p] "r" (p)
+            : "cc"
+        );
+#else
+      uint32_t u0 = u;
+      u <<= 1; /* overflow _can_ occur here */
+      if (u0 > u || u >= p) u -= p;
+#endif
     }
   }
 #undef T3
