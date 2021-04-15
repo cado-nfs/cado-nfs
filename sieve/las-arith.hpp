@@ -219,6 +219,28 @@ static inline void t_hist(uint8_t t) {
   }
 }
 
+/* Requires a < m and b <= m, then r == a+b (mod m) and r < m */
+static inline uint32_t
+addmod_u32 (const uint32_t a, const uint32_t b, const uint32_t m)
+{
+#if (defined(__i386__) && defined(__GNUC__)) || defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM)
+  {
+    uint32_t t = a + b, tr = a - m;
+
+    __asm__ __VOLATILE (
+      "add %2, %0\n\t"   /* tr += b */
+      "cmovnc %1, %0\n\t"  /* if (!cy) tr = t */
+      : "+&r" (tr)
+      : "rm" (t), "g" (b)
+      : "cc"
+    );
+    return tr;
+  }
+#else
+  return (b >= m - a) ? (b - (m - a)) : (a + b);
+#endif
+}
+
 /* TODO: this is a close cousin of modredcul_inv, but the latter does
  * 64-bit redc */
 
@@ -293,23 +315,7 @@ done:
     u = varredc_u32(u, orig_b, invb, t - 32);
   } else {
     while (t++ < 32) {
-#if 1 && (defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) || defined(__i386__) && defined(__GNUC__))
-        uint32_t diff = 0;
-        __asm__(
-            "shl %[u]\n"
-            "cmovc %[p], %[diff]\n"  /* if u overflowed, diff = p */
-            "cmp %[p], %[u]\n"
-            "cmovnb %[p], %[diff]\n" /* if u >= p, diff = p */
-            "sub %[diff], %[u]\n"
-            : [u] "+r"(u), [diff] "+r" (diff)
-            : [p] "r" (p)
-            : "cc"
-        );
-#else
-      uint32_t u0 = u;
-      u <<= 1; /* overflow _can_ occur here */
-      if (u0 > u || u >= p) u -= p;
-#endif
+        u = addmod_u32(u, u, p);
     }
   }
 #undef T3
