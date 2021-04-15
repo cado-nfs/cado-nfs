@@ -37,7 +37,7 @@ piecewise_linear_function& piecewise_linear_function::merge_right(piecewise_line
 
 piecewise_linear_approximator::piecewise_linear_approximator(cxx_double_poly const & f, double scale) : f(f), scale(scale) {/*{{{*/
     f_roots.assign(f->deg, 0);
-    unsigned int n = double_poly_compute_all_roots(&f_roots[0], f);
+    unsigned int n = double_poly_compute_all_roots(f_roots.data(), f);
     f_roots.erase(f_roots.begin() + n, f_roots.end());
     sort(begin(f_roots), end(f_roots));
 
@@ -45,7 +45,7 @@ piecewise_linear_approximator::piecewise_linear_approximator(cxx_double_poly con
 
     double_poly_derivative(f1, f);
     f1_roots.assign(f1->deg, 0);
-    n = double_poly_compute_all_roots(&f1_roots[0], f1);
+    n = double_poly_compute_all_roots(f1_roots.data(), f1);
     f1_roots.erase(f1_roots.begin() + n, f1_roots.end());
     sort(begin(f1_roots), end(f1_roots));
 }/*}}}*/
@@ -60,7 +60,7 @@ std::vector<double> piecewise_linear_approximator::roots_off_course(cxx_double_p
         if (divide_root)
             double_poly_div_linear(d, d, r);
         std::vector<double> roots(d->deg, 0);
-        unsigned int n = double_poly_compute_all_roots(&roots[0], d);
+        unsigned int n = double_poly_compute_all_roots(roots.data(), d);
         res.insert(res.end(), roots.begin(), roots.begin() + n);
     }
     return res;

@@ -43,7 +43,7 @@ public:
   // typename std::vector<T>::const_iterator cend() const {return BAs.cend();}
   // std::vector<T>& arrays() { return BAs; }
   std::vector<T> const& bucket_arrays() const { return BAs; }
-  inline int rank(T const & BA) const { return &BA - &BAs.front(); }
+  inline int rank(T const & BA) const { return &BA - BAs.data(); }
 
   void reset_all_pointers() { for(auto & A : BAs) A.reset_pointers(); }
 

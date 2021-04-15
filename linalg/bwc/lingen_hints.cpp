@@ -21,7 +21,7 @@ share(T & m, int root, MPI_Comm comm)
     unsigned long ns = serial.size();
     MPI_Bcast(&ns, 1, MPI_UNSIGNED_LONG, root, comm);
     if (rank) serial.assign(ns, V());
-    MPI_Bcast(&serial.front(), ns * sizeof(V), MPI_BYTE, 0, comm);
+    MPI_Bcast(serial.data(), ns * sizeof(V), MPI_BYTE, 0, comm);
     if (rank) m.insert(serial.begin(), serial.end());
 }
 

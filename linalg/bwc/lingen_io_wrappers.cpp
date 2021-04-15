@@ -285,7 +285,7 @@ lingen_F0::share(int root, MPI_Comm comm)
     if (mpi_rank() != root)
         fdesc.assign(fsize, {{ 0, 0 }});
     if (fsize)
-        MPI_Bcast(&fdesc.front(), 2 * fsize, MPI_UNSIGNED, root, comm);
+        MPI_Bcast(fdesc.data(), 2 * fsize, MPI_UNSIGNED, root, comm);
 }
 
 /* It's a bit tricky. F0 is the _reversal_ of what we get here. (with
@@ -939,7 +939,7 @@ lingen_F_from_PI::lingen_F_from_PI(bmstatus const & bm,
         rhs = recompute_rhs();
         reorder_solutions();
     }
-    MPI_Bcast(&sols.front(), 2 * n, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    MPI_Bcast(sols.data(), 2 * n, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
     /* recompute rhs. Same algorithm as above. */
     if (!mpi_rank())

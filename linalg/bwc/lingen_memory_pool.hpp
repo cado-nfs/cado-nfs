@@ -5,6 +5,7 @@
 #include <new>               // for bad_alloc
 #include <mutex>
 #include <cstdlib>
+#include <cstdio>
 #include <exception> // std::exception // IWYU pragma: keep
 #include <string>
 
@@ -70,6 +71,7 @@ struct memory_pool : public memory_pool_details::inaccuracy_handler<loose> {
         allocated += ns;
         void * x = ::realloc(p, ns);
         if (!x) {
+            fprintf(stderr, "Throwing std::bad_alloc after realloc %zu -> %zu\n", s, ns);
             // should we do that or not ? realloc itself won't, on
             // failure. And we're going to die anyway, so...
             // free(p);

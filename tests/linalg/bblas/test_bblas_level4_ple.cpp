@@ -392,9 +392,9 @@ void test_bblas_level4::meta_ple()
 
         if (m + n >= 10 * B) {
             randomize();
-            TIME1(2, do_ple, &X[0], m/B, n/B);
+            TIME1(2, do_ple, X.data(), m/B, n/B);
         } else {
-            bblas_timer(4, what).time1n_classify(n, randomize, do_ple, &X[0], m/B, n/B);
+            bblas_timer(4, what).time1n_classify(n, randomize, do_ple, X.data(), m/B, n/B);
         }
 #ifdef TIME_PLE
         PLE<T>::print_and_flush_stats();

@@ -47,80 +47,6 @@ workflow:
      - when: always
 
 ############################################################################
-# The containers.
-#
-# First, a generic rule that we use to build containers.
-#
-# Note that an important alter ego of this config bit is in the file
-# ci/00-dockerfile.sh, which is in shared between this file and ci/debug.sh
-
-.container-template: &container-template
-  image: docker
-  stage: build
-  script:
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker pull $IMAGE:latest || true
-    # the command below is almost the same as:
-    #  ci/00-dockerfile.sh | docker build -t $IMAGE --cache-from $IMAGE:latest -f - ci
-    # but with the specificity that the context is trimmed down
-    - ci/00-docker-build.sh $IMAGE
-    - docker push $IMAGE
-    - T=`date +%Y%m%d%H%M`-$CI_COMMIT_SHA ; docker tag $IMAGE:latest $IMAGE:$T ; docker push $IMAGE:$T
-
-container for checks with gcc:
-  variables:
-    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
-  <<: *common-template
-  <<: *container-template
-
-container for checks on alpine system with gcc:
-  variables:
-    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/alpine-gcc
-  <<: *common-template
-  <<: *container-template
-
-container for checks on debian system with 32-bit gcc:
-  variables:
-    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian-32-bit-gcc
-  <<: *common-template
-  <<: *container-template
-
-container for checks on debian10 system with gcc:
-  variables:
-    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian10-gcc
-  <<: *common-template
-  <<: *container-template
-
-container for checks on debian9 system with gcc:
-  variables:
-    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian9-gcc
-  <<: *common-template
-  <<: *container-template
-
-container for checks with icc:
-  variables:
-    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc
-  tags:
-    - icc
-  <<: *common-template
-  <<: *container-template
-
-container for checks with clang:
-  variables:
-    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang
-  <<: *common-template
-  <<: *container-template
-
-# need gcov 4.2 or later, the 'container for checks with gcc' box doesn't have it
-# since it's based on debian stable.
-# TODO: find a more stable image !
-container for coverage tests on checks with gcc:
-  variables:
-    IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
-  <<: *common-template
-  <<: *container-template
-
-############################################################################
 # The jobs that do checks.
 #
 # Basically, much of the work is done in shell scripts for convenience,
@@ -140,9 +66,9 @@ container for coverage tests on checks with gcc:
 checks with gcc:
   <<: *common-template
   stage: early
-  needs:
-    - container for checks with gcc
-  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
+  image: gcc:latest
+  before_script:
+    - ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -150,9 +76,9 @@ checks with gcc:
 checks on alpine system with gcc:
   <<: *common-template
   stage: early
-  needs:
-    - container for checks on alpine system with gcc
-  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/alpine-gcc
+  image: alpine:latest
+  before_script:
+    - ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -160,9 +86,9 @@ checks on alpine system with gcc:
 checks on debian system with 32-bit gcc:
   <<: *common-template
   stage: early
-  needs:
-    - container for checks on debian system with 32-bit gcc
-  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian-32-bit-gcc
+  image: debian
+  before_script:
+    - ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -170,9 +96,9 @@ checks on debian system with 32-bit gcc:
 checks on debian10 system with gcc:
   <<: *common-template
   stage: early
-  needs:
-    - container for checks on debian10 system with gcc
-  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian10-gcc
+  image: debian:10
+  before_script:
+    - ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -180,32 +106,31 @@ checks on debian10 system with gcc:
 checks on debian9 system with gcc:
   <<: *common-template
   stage: early
-  needs:
-    - container for checks on debian9 system with gcc
-  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/debian9-gcc
+  image: debian:9
+  before_script:
+    - ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
 
 checks with clang:
   <<: *common-template
-  # use very latest
-  needs:
-    - container for checks with clang
-  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang
+  image: debian:testing
   stage: early
+  before_script:
+    - ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
 
 checks with icc:
   <<: *common-template
-  needs:
-    - container for checks with icc
-  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/icc
+  image: intel/oneapi-hpckit:latest
   stage: early
   tags:
     - icc
+  before_script:
+    - ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -214,9 +139,9 @@ expensive checks with gcc:
   <<: *common-template
   stage: thorough
   # do not start it prematurely, in case previous jobs failed
-  # needs:
-  #   - container for checks with gcc
-  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc
+  image: gcc:latest
+  before_script:
+    - ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -229,9 +154,9 @@ coverage tests on checks with gcc:
   <<: *common-template
   stage: thorough
   # do not start it prematurely, in case previous jobs failed
-  # needs:
-  #   - container for coverage tests on checks with gcc
-  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
+  image: alpine:latest
+  before_script:
+    - ci/00-prepare-docker.sh
   script:
     - *checks-script
   artifacts:
@@ -268,7 +193,9 @@ merge coverage tests:
       artifacts: true
     # list more of these...
   # This image has gcovr installed
-  image: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/coverage
+  image: alpine:latest
+  before_script:
+    - ci/00-prepare-docker.sh
   script:
     - ci/09-merge-coverage.sh
   artifacts:

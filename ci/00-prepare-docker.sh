@@ -130,8 +130,9 @@ elif is_alpine ; then
     # hwloc-dev still in alpine testing.
     cat >> /etc/apk/repositories <<EOF
 http://dl-cdn.alpinelinux.org/alpine/edge/testing
-http://dl-cdn.alpinelinux.org/alpine/edge/community
 EOF
+    # is the community repo useful ?
+    #http://dl-cdn.alpinelinux.org/alpine/edge/community
     apk update
     apk add $alpine_packages
 elif is_freebsd ; then
@@ -139,13 +140,13 @@ elif is_freebsd ; then
 fi
 
 if [ "$gcc32" ] ; then
+    NCPUS=`"$(dirname $0)/utilities/ncpus.sh"`
     cd /tmp/
     curl -O https://gmplib.org/download/gmp/gmp-6.2.1.tar.lz
     tar xf gmp-6.2.1.tar.lz
     cd gmp-6.2.1
     # $GMP is set in ci/001-environment.sh
     ./configure --prefix=$GMP ABI=32
-    NCPUS=`"$(dirname $0)/utilities/ncpus.sh"`
     make -j$NCPUS
     make install
 fi

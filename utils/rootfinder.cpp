@@ -636,7 +636,7 @@ template<>
 std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz>(cxx_mpz_poly const & f, cxx_mpz const & q)
 {
     std::vector<cxx_mpz> tmp(f.degree());
-    int n = mpz_poly_roots_mpz((mpz_t*) &tmp.front(), f, q);
+    int n = mpz_poly_roots_mpz((mpz_t*) tmp.data(), f, q);
     tmp.erase(tmp.begin() + n, tmp.end());
     return tmp;
 }
@@ -644,7 +644,7 @@ template<>
 std::vector<unsigned long> mpz_poly_roots<unsigned long>(cxx_mpz_poly const & f, unsigned long const & q)
 {
     std::vector<unsigned long> tmp(f.degree());
-    int n = mpz_poly_roots_ulong(&tmp.front(), f, q);
+    int n = mpz_poly_roots_ulong(tmp.data(), f, q);
     tmp.erase(tmp.begin() + n, tmp.end());
     return tmp;
 }
@@ -653,7 +653,7 @@ template<>
 std::vector<uint64_t> mpz_poly_roots<uint64_t>(cxx_mpz_poly const & f, uint64_t const & q)
 {
     std::vector<uint64_t> tmp(f.degree());
-    int n = mpz_poly_roots_uint64(&tmp.front(), f, q);
+    int n = mpz_poly_roots_uint64(tmp.data(), f, q);
     tmp.erase(tmp.begin() + n, tmp.end());
     return tmp;
 }

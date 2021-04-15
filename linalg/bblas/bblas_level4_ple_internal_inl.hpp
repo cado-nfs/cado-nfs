@@ -29,8 +29,8 @@ PLE<T>::PLE(bpack_view<T> b) : bpack_view<T>(b), weights(std::vector<unsigned in
     prio_to_data.reserve(b.nrows());
     data_to_prio.reserve(b.nrows());
     for(unsigned int ii = 0 ; ii < b.nrows() ; ii++) {
-        data_to_prio[ii] = ii;
-        prio_to_data[ii] = ii;
+        data_to_prio.push_back(ii);
+        prio_to_data.push_back(ii);
     }
 }
 

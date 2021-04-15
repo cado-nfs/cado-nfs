@@ -108,7 +108,7 @@ main (int argc, char *argv[])
         double wtt = wct_seconds();
         double tt = seconds();
         std::vector<unsigned int> lpb(tab.get_nb_polys(),0);
-        param_list_parse_uint_list(pl, "lpbs", &lpb[0], tab.get_nb_polys(), ",");
+        param_list_parse_uint_list(pl, "lpbs", lpb.data(), tab.get_nb_polys(), ",");
         tab.set_lpb(lpb);
         tab.build(pl);
 
