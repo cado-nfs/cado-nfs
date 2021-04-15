@@ -108,11 +108,9 @@ nfs_aux::~nfs_aux()
     auto D = rt.timer.filter_by_category();
     timetree_t::timer_data_type qtcpu = rt.timer.total_counted_time();
 
-    verbose_output_vfprint (0, 1, gmp_vfprintf,
-            "# Time for side-%d q=%Zd r=%Zd:",
-            doing.side,
-            (mpz_srcptr) doing.p, (mpz_srcptr) doing.r
-            );
+    std::ostringstream os;
+    os << doing;
+    verbose_output_print (0, 1, "# Time for %s: (%.1f elapsed)", os.str().c_str(), wct_qt0);
     if (las_production_mode) {
         verbose_output_print (0, 1, " [-production mode, no timings]");
     } else {
