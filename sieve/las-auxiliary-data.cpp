@@ -110,7 +110,7 @@ nfs_aux::~nfs_aux()
 
     std::ostringstream os;
     os << doing;
-    verbose_output_print (0, 1, "# Time for %s:", os.str().c_str());
+    verbose_output_print (0, 1, "# Time for %s: (%.1f elapsed)", os.str().c_str(), wct_qt0);
     if (las_production_mode) {
         verbose_output_print (0, 1, " [-production mode, no timings]");
     } else {
