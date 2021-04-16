@@ -29,6 +29,14 @@ debian_packages="$debian_packages     libgmp-dev"
 # debian_packages="$debian_packages     perl"
 debian_packages="$debian_packages     python3"
 
+opensuse_packages="$opensuse_packages     bc"
+opensuse_packages="$opensuse_packages     which"  # is type -p more portable?
+opensuse_packages="$opensuse_packages     hostname"
+opensuse_packages="$opensuse_packages     cmake"
+opensuse_packages="$opensuse_packages     hwloc-devel"
+opensuse_packages="$opensuse_packages     gmp-devel"
+opensuse_packages="$opensuse_packages     python3"
+
 fedora_packages="$fedora_packages     bc"
 fedora_packages="$fedora_packages     cmake"
 fedora_packages="$fedora_packages     hwloc-devel"
@@ -68,6 +76,7 @@ done
 if [ "$coverage" ] ; then
     # vim is needed because we have a bit of ex scripting...
     debian_packages="$debian_packages     lcov gcovr vim-nox"
+    opensuse_packages="$opensuse_packages lcov gcovr vim"
     fedora_packages="$fedora_packages     lcov gcovr vim"
     alpine_packages="$alpine_packages     lcov gcovr vim"
     if is_freebsd ; then
@@ -82,10 +91,11 @@ fi
 
 if [ "$gcc32" ] ; then
     if ! is_debian ; then
-        echo "multlib -> only debian (fedora:IDK ; alpine:no-go)" >&2
+        echo "multlib -> only debian (fedora,opensuse:IDK ; alpine:no-go)" >&2
         # didn't even check freebsd
         exit 1
     fi
+    # note that opensuse has gmp-devel-32bit
     debian_packages="$debian_packages     g++-multilib"
     debian_packages="$debian_packages     curl"
     debian_packages="$debian_packages     lzip"
@@ -95,6 +105,7 @@ fi
 
 if [ "$gcc" ] ; then
     debian_packages="$debian_packages     g++"
+    opensuse_packages="$opensuse_packages gcc gcc-c++"
     fedora_packages="$fedora_packages     g++"
     alpine_packages="$alpine_packages     g++"
     freebsd_packages="$freebsd_packages   gcc"  # this pulls g++ too
@@ -102,6 +113,7 @@ fi
 
 if [ "$clang" ] ; then
     debian_packages="$debian_packages     clang"
+    opensuse_packages="$opensuse_packages clang"
     fedora_packages="$fedora_packages     clang"
     alpine_packages="$alpine_packages     clang"
     freebsd_packages="$freebsd_packages   llvm"
@@ -109,13 +121,15 @@ fi
 
 if [ "$checks" ] ; then
     debian_packages="$debian_packages     xsltproc"
+    opensuse_packages="$opensuse_packages libxslt-tools"
     fedora_packages="$fedora_packages     libxslt"
     alpine_packages="$alpine_packages     libxslt"
-    freebsd_packages="$freebsd_packages     libxslt"
+    freebsd_packages="$freebsd_packages   libxslt"
 fi
 
 if [ "$DOCKER_SCRIPT" ] ; then
-    debian_packages="$debian_packages sudo git vim gdb"
+    debian_packages="$debian_packages sudo git vim-nox gdb"
+    opensuse_packages="$opensuse_packages sudo git vim gdb"
     fedora_packages="$fedora_packages sudo git vim gdb"
     alpine_packages="$alpine_packages sudo git vim gdb"
     freebsd_packages="$freebsd_packages sudo git vim-console gdb"
@@ -124,6 +138,8 @@ fi
 if is_debian ; then
     DEBIAN_FRONTEND=noninteractive apt-get -y update
     DEBIAN_FRONTEND=noninteractive apt-get -y install $debian_packages
+elif is_opensuse ; then
+    zypper -n install $opensuse_packages
 elif is_fedora ; then
     dnf -y install $fedora_packages
 elif is_alpine ; then
