@@ -36,6 +36,7 @@ opensuse_packages="$opensuse_packages     cmake"
 opensuse_packages="$opensuse_packages     hwloc-devel"
 opensuse_packages="$opensuse_packages     gmp-devel"
 opensuse_packages="$opensuse_packages     python3"
+opensuse_packages="$opensuse_packages     gzip"
 
 fedora_packages="$fedora_packages     bc"
 fedora_packages="$fedora_packages     cmake"
