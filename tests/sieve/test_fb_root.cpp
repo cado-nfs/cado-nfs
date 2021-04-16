@@ -17,35 +17,62 @@
 #include "las-fbroot-qlattice.hpp"
 #include "timing.h"  // seconds
 
-/* return (R*b1-a1)/(a0-R*b0) % p */
-static fbprime_t
+/*
+ * R encodes (p:1) if R<p, or (1:R-p) if R >= p
+ *
+ * when R < p (affine root),
+ *      return num/den%p with num=R*b1-a1 den=a0-R*b0
+ * when R >= p (projective root), 
+ *      return num/den%p with num=b1-(R-p)*a1 den=(R-p)*a0-b0
+ *
+ * It is assumed that R*b1-a1 and a0-R*b0 cannot be both multiples of p,
+ * since the matrix (a0,b0,a1,b1) has determinant coprime to p, and
+ * gcd(1,R) == 1
+ *
+ * if den in either expression is divisile by p, then the
+ * resulting root is projective. Therefore, we return p + den/num
+ * */
+static cxx_mpz
 ref_fb_root_in_qlattice (fbprime_t p, fbprime_t R, qlattice_basis basis)
 {
-  mpz_t t, P;
-  fbprime_t r;
-  unsigned long tt;
+  cxx_mpz num, den;
 
-  mpz_init_set_int64 (t, -basis.b0);
-  mpz_mul_ui (t, t, R);
-  mpz_add_int64 (t, t, basis.a0);
-  mpz_init_set_ui (P, p);
-  mpz_invert (t, t, P);
-  tt = mpz_get_ui (t);
-  mpz_set_int64 (t, basis.b1);
-  mpz_mul_ui (t, t, R);
-  mpz_sub_int64 (t, t, basis.a1);
-  mpz_mul_ui (t, t, tt);
-  mpz_mod (t, t, P);
-  r = mpz_get_ui (t);
-  mpz_clear (t);
-  mpz_clear (P);
-  return r;
+  if (R < p) {
+      den = -basis.b0;
+      mpz_mul_ui (den, den, R);
+      mpz_add_int64 (den, den, basis.a0);
+
+      num = basis.b1;
+      mpz_mul_ui (num, num, R);
+      mpz_sub_int64 (num, num, basis.a1);
+  } else {
+      den = basis.a0;
+      mpz_mul_ui (den, den, R-p);
+      mpz_sub_int64 (den, den, basis.b0);
+
+      num = -basis.a1;
+      mpz_mul_ui (num, num, R-p);
+      mpz_add_int64 (num, num, basis.b1);
+  }
+
+  if (mpz_gcd_ui(NULL, den, p) != 1) {
+      /* root is projective */
+      mpz_invert (num, num, cxx_mpz(p));
+      mpz_mul(num, num, den);
+      mpz_mod_ui(num, num, p);
+      mpz_add_ui(num, num, p);
+  } else {
+      mpz_invert (den, den, cxx_mpz(p));
+      mpz_mul(num, num, den);
+      mpz_mod_ui(num, num, p);
+  }
+  return num;
 }
 
 static void
 test_fb_root_in_qlattice_31bits (gmp_randstate_t rstate, int test_speed, unsigned long N)
 {
-  fbprime_t *p, *R, r, rref;
+  fbprime_t *p, *R, r;
   uint32_t *invp;
   unsigned long i, j;
   mpz_t t, u;
@@ -116,13 +143,13 @@ test_fb_root_in_qlattice_31bits (gmp_randstate_t rstate, int test_speed, unsigne
           for (j = 0; j < N; j++)
           {
               r = fb_root_in_qlattice_31bits (p[i], R[i], invp[i], basis[j]);
-              rref = ref_fb_root_in_qlattice (p[i], R[i], basis[j]);
-              if (r != rref)
+              cxx_mpz rref = ref_fb_root_in_qlattice (p[i], R[i], basis[j]);
+              if (mpz_cmp_ui(rref, r) != 0)
               {
                   fprintf (stderr, "Error for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
                           p[i], R[i], basis[j].a0, basis[j].b0, basis[j].a1, basis[j].b1);
                   fprintf (stderr, "fb_root_in_qlattice_31bits gives %" FBPRIME_FORMAT "\n", r);
-                  fprintf (stderr, "ref_fb_root_in_qlattice gives %" FBPRIME_FORMAT "\n", rref);
+                  gmp_fprintf (stderr, "ref_fb_root_in_qlattice gives %Zd\n", mpz_srcptr(rref));
                   exit (1);
               }
           }
@@ -139,7 +166,7 @@ test_fb_root_in_qlattice_31bits (gmp_randstate_t rstate, int test_speed, unsigne
 static void
 test_fb_root_in_qlattice_127bits (gmp_randstate_t rstate, int test_speed, unsigned long N)
 {
-  fbprime_t *p, *R, r, r31, rref;
+  fbprime_t *p, *R, r, r31;
   uint32_t *invp32;
   uint64_t *invp64;
   unsigned long i, j;
@@ -224,13 +251,13 @@ test_fb_root_in_qlattice_127bits (gmp_randstate_t rstate, int test_speed, unsign
                   fprintf (stderr, "fb_root_in_qlattice_31bits  gives %" FBPRIME_FORMAT "\n", r31);
                   exit (1);
               }
-              rref = ref_fb_root_in_qlattice (p[i], R[i], basis[j]);
-              if (r != rref)
+              cxx_mpz rref = ref_fb_root_in_qlattice (p[i], R[i], basis[j]);
+              if (mpz_cmp_ui(rref, r) != 0)
               {
                   fprintf (stderr, "Error for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
                           p[i], R[i], basis[j].a0, basis[j].b0, basis[j].a1, basis[j].b1);
                   fprintf (stderr, "fb_root_in_qlattice_127bits gives %" FBPRIME_FORMAT "\n", r);
-                  fprintf (stderr, "ref_fb_root_in_qlattice gives %" FBPRIME_FORMAT "\n", rref);
+                  gmp_fprintf (stderr, "ref_fb_root_in_qlattice gives %Zd\n", mpz_srcptr(rref));
                   exit (1);
               }
           }
@@ -249,7 +276,8 @@ test_fb_root_in_qlattice_127bits (gmp_randstate_t rstate, int test_speed, unsign
 static void
 bug20200225 (void)
 {
-  uint64_t got, expected;
+  uint64_t got;
+  cxx_mpz expected;
   fbprime_t p, R;
   uint64_t invp;
   unsigned long a, b;
@@ -260,10 +288,10 @@ bug20200225 (void)
   b = 2163105767;
   expected = 2062858318;
   got = invmod_redc_32 (a, b);
-  if (got != expected)
+  if (mpz_cmp_ui(expected, got) != 0)
     {
       fprintf (stderr, "Error in invmod_redc_32 for a=%lu b=%lu\n", a, b);
-      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
+      gmp_fprintf (stderr, "Expected %Zd\n", mpz_srcptr(expected));
       fprintf (stderr, "Got      %" PRIu64 "\n", got);
       exit (1);
     }
@@ -272,11 +300,11 @@ bug20200225 (void)
   b = 2353808591;
   expected = 2102979166;
   got = invmod_redc_32(a, b);
-  if (got != expected)
+  if (mpz_cmp_ui(expected, got) != 0)
     {
       fprintf (stderr, "Error in invmod_redc_32 for a:=%lu; b:=%lu;\n",
 	       a, b);
-      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
+      gmp_fprintf (stderr, "Expected %Zd\n", mpz_srcptr(expected));
       fprintf (stderr, "Got      %" PRIu64 "\n", got);
       exit (1);
     }
@@ -291,12 +319,12 @@ bug20200225 (void)
   basis[0].b1 = 766395543;
   expected = 987485779;
   got = fb_root_in_qlattice_127bits (p, R, invp, basis[0]);
-  if (got != expected)
+  if (mpz_cmp_ui(expected, got) != 0)
     {
       fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; "
 	       "a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
 	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
-      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
+      gmp_fprintf (stderr, "Expected %Zd\n", mpz_srcptr(expected));
       fprintf (stderr, "Got      %" PRIu64 "\n", got);
       exit (1);
     }
@@ -311,12 +339,12 @@ bug20200225 (void)
   basis[0].b1 = 443074848;
   expected = 1879080852;
   got = fb_root_in_qlattice_31bits (p, R, invp, basis[0]);
-  if (got != expected)
+  if (mpz_cmp_ui(expected, got) != 0)
     {
       fprintf (stderr, "Error in fb_root_in_qlattice_31bits for p=%" FBPRIME_FORMAT " R=%" FBPRIME_FORMAT " "
 	       "a0=%" PRId64 " b0=%" PRId64 " a1=%" PRId64 " b1=%" PRId64 "\n",
 	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
-      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
+      gmp_fprintf (stderr, "Expected %Zd\n", mpz_srcptr(expected));
       fprintf (stderr, "Got      %" PRIu64 "\n", got);
       exit (1);
     }
@@ -330,12 +358,32 @@ bug20200225 (void)
   basis[0].b1 = 932375769;
   expected = 2956728450;
   got = fb_root_in_qlattice_127bits (p, R, invp, basis[0]);
-  if (got != expected)
+  if (mpz_cmp_ui(expected, got) != 0)
     {
       fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; "
 	       "a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
 	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
-      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
+      gmp_fprintf (stderr, "Expected %Zd\n", mpz_srcptr(expected));
+      fprintf (stderr, "Got      %" PRIu64 "\n", got);
+      exit (1);
+    }
+
+  /* This is playing with the 32-bit limit */
+  p = 3486784401;       // 3^20
+  R = 2009510725;
+  invp = 898235023;
+  basis[0].a0=-1353180941;
+  basis[0].b0=-5;
+  basis[0].a1=-223660881;
+  basis[0].b1=8;
+  expected = ref_fb_root_in_qlattice (p, R, basis[0]);
+  got = fb_root_in_qlattice_127bits (p, R, invp, basis[0]);
+  if (mpz_cmp_ui(expected, got) != 0)
+    {
+      fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; "
+	       "a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
+	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
+      gmp_fprintf (stderr, "Expected %Zd\n", mpz_srcptr(expected));
       fprintf (stderr, "Got      %" PRIu64 "\n", got);
       exit (1);
     }
