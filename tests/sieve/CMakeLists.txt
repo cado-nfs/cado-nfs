@@ -644,7 +644,10 @@ cado_define_test(test-sieve2357.cpp
 
 cado_define_test(torture-redc.cpp LIBRARIES utils)
 
-cado_define_test(test_fb_root.cpp LIBRARIES utils)
+cado_define_test(test_fb_root.cpp
+    $<TARGET_OBJECTS:las_core_a>
+    LIBRARIES utils tests)
+
 
 cado_define_test(test-reduce-plattice.cpp LIBRARIES utils ARGUMENTS
     -I 256

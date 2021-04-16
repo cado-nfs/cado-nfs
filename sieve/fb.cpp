@@ -91,7 +91,7 @@ fb_log_delta (const fbprime_t p, const unsigned long newexp,
 }
 /* }}} */
 
-static void fb_linear_root (fbroot_t & root, bool & proj, cxx_mpz_poly const & poly, const fbprime_t q);
+static fb_root_p1 fb_linear_root (cxx_mpz_poly const & poly, const fbprime_t q);
 
 // Adapted from utils/ularith.h
 // TODO: this function should go somewhere else...
@@ -155,20 +155,24 @@ fb_is_power (fbprime_t q, unsigned long *final_k)
 
 
 /* Allow construction of a root from a linear polynomial and a prime (power) */
-fb_general_root::fb_general_root (fbprime_t q, cxx_mpz_poly const & poly,
-  const unsigned char nexp, const unsigned char oldexp)
-  : exp(nexp), oldexp(oldexp)
+fb_general_root fb_general_root::fb_linear_root (fbprime_t q, cxx_mpz_poly const & poly,
+        const unsigned char nexp, const unsigned char oldexp)
 {
-  fb_linear_root (r, proj, poly, q);
+    fb_general_root R;
+    R.exp = nexp;
+    R.oldexp = oldexp;
+    auto L = ::fb_linear_root (poly, q);
+    R.proj = L.proj;
+    R.r = L.r;
+    return R;
 }
 
 
 void fb_general_root::transform(fb_general_root &result, const fbprime_t q,
         const redc_invp_t invq,
         const qlattice_basis &basis) const {
-    unsigned long long t = to_old_format(q);
-    t = fb_root_in_qlattice(q, t, invq, basis);
-    result = fb_general_root(t, q, exp, oldexp);
+    auto R = fb_root_in_qlattice(q, fb_root_p1 { r, proj }, invq, basis);
+    result = fb_general_root(R, exp, oldexp);
 }
 
 /* Allow assignment-construction of general entries from simple entries */
@@ -230,7 +234,9 @@ fb_entry_general::read_roots (const char *lineptr, const unsigned char nexp,
         }
         last_t = t;
 
-        roots[nr_roots++] = fb_general_root(t, q, nexp, oldexp);
+        fb_root_p1 R = fb_root_p1::from_old_format(t, q);
+
+        roots[nr_roots++] = fb_general_root(R, nexp, oldexp);
         if (*lineptr != '\0' && *lineptr != ',') {
             verbose_output_print (1, 0,
                     "# Incorrect format in factor base file line %lu\n",
@@ -389,9 +395,10 @@ fb_entry_x_roots<Nr_roots>::transform_roots(fb_entry_x_roots<Nr_roots>::transfor
   result.p = p;
   /* TODO: Use batch-inversion here */
   for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
-    const unsigned long long t = fb_root_in_qlattice(p, roots[i_root], invq, basis);
-    result.proj[i_root] = (t >= p);
-    result.roots[i_root] = (t < p) ? t : (t - p);
+      fb_root_p1 r { roots[i_root], false };
+      auto R = fb_root_in_qlattice(p, r, invq, basis);
+      result.proj[i_root] = R.proj;
+      result.roots[i_root] = R.r;
   }
 }
 
@@ -436,17 +443,19 @@ fb_entry_x_roots<Nr_roots>::fprint(FILE *out) const
 }
 
 /* Make one factor base entry for a linear polynomial poly[1] * x + poly[0]
- * and the prime (power) q. We assume that poly[0] and poly[1] are coprime.
- * Non-projective roots a/b such that poly[1] * a + poly[0] * b == 0 (mod q)
- * with gcd(poly[1], q) = 1 are stored as a/b mod q.
- * projective roots (with b and q not coprime) are stored as q + (b/a mod q)
- */
+   and the prime (power) q. We assume that poly[0] and poly[1] are coprime.
+   Non-projective roots a/b such that poly[1] * a + poly[0] * b == 0 (mod q)
+   with gcd(poly[1], q) = 1 are stored as a/b mod q.
+   If do_projective != 0, also stores projective roots with gcd(q, f_1) > 1,
+   but stores the reciprocal root.
+   Returns true if the roots was projective, and false otherwise. */
 
-static void
-fb_linear_root (fbroot_t & root, bool & proj, cxx_mpz_poly const & poly, const fbprime_t q)
+static fb_root_p1
+fb_linear_root (cxx_mpz_poly const & poly, const fbprime_t q)
 {
   modulusul_t m;
   residueul_t r0, r1;
+  fb_root_p1 R = 0;
 
   modul_initmod_ul (m, q);
   modul_init_noset0 (r0, m);
@@ -458,28 +467,26 @@ fb_linear_root (fbroot_t & root, bool & proj, cxx_mpz_poly const & poly, const f
 
   /* We want poly[1] * a + poly[0] * b == 0 <=>
      a/b == - poly[0] / poly[1] */
+  R.proj = (modul_inv (r1, r1, m) == 0); /* r1 = 1 / poly[1] */
 
-  if ((proj = (modul_inv (r1, r1, m) == 0))) { /* can't invert ! */
+  if (R.proj)
+    {
       ASSERT_ALWAYS(mpz_gcd_ui(NULL, poly->coeff[1], q) > 1);
       /* invert r0 instead. */
       int rc = modul_inv (r0, r0, m);
       ASSERT_ALWAYS(rc != 0);
-      modul_mul (r0, r0, r1, m);
-      modul_neg (r0, r0, m);
-      /* This encodes the projective root. */
-      /* Note that we can't handle projective roots of 32-bit primes and
-       * prime powers this way. Is it a problem ?
-       */
-      root = q + modul_get_ul (r0, m);
-  } else {
-      modul_mul (r1, r0, r1, m); /* r1 = poly[0] / poly[1] */
-      modul_neg (r1, r1, m); /* r1 = - poly[0] / poly[1] */
-      root = modul_get_ul (r1, m);
-  }
+    }
+
+  modul_mul (r1, r0, r1, m); /* r1 = poly[0] / poly[1] */
+  modul_neg (r1, r1, m); /* r1 = - poly[0] / poly[1] */
+
+  R.r = modul_get_ul (r1, m);
 
   modul_clear (r0, m);
   modul_clear (r1, m);
   modul_clearmod (m);
+
+  return R;
 }
 
 std::ostream& operator<<(std::ostream& o, fb_factorbase::key_type const & k)
@@ -1289,10 +1296,11 @@ void fb_factorbase::make_linear ()
             next_prime = getprime_mt(pi);
         }
         fb_cur.nr_roots = 1;
-        fb_general_root & R = fb_cur.roots[0];
-        R.exp = fb_cur.k;
-        R.oldexp = fb_cur.k - 1U;
-        fb_linear_root (R.r, R.proj, poly, fb_cur.q);
+        auto R = fb_linear_root (poly, fb_cur.q);
+        fb_cur.roots[0].exp = fb_cur.k;
+        fb_cur.roots[0].oldexp = fb_cur.k - 1U;
+        fb_cur.roots[0].proj = R.proj;
+        fb_cur.roots[0].r = R.r;
         fb_cur.invq = compute_invq(fb_cur.q);
         pool.push_back(fb_cur);
         if (++pool_size >= 1024) {
@@ -1357,7 +1365,9 @@ static task_result * process_one_task(worker_thread *, task_parameters *_param, 
         static_cast<make_linear_thread_param *>(_param);
     task_info_t *T = param->T;
     for (unsigned int i = 0; i < T->n; ++i) {
-        fb_linear_root (T->r[i], T->proj[i], T->poly, T->q[i]);
+        auto R = fb_linear_root (T->poly, T->q[i]);
+        T->proj[i] = R.proj;
+        T->r[i] = R.r;
         T->invq[i] = compute_invq(T->q[i]);
     }
     return new make_linear_thread_result(T, param);

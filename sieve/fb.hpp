@@ -74,23 +74,23 @@ struct fb_general_root {
 
   fb_general_root (){}
   fb_general_root (const fbroot_t r, const unsigned char nexp,
-                   const unsigned char oldexp, const bool proj) :
+                   const unsigned char oldexp, const bool proj=false) :
                    r(r), proj(proj), exp(nexp), oldexp(oldexp) {}
+  fb_general_root (const fbroot_t r)
+                   : r(r)
+                   , proj(false)
+                   , exp(1)
+                   , oldexp(0) {}
   /* Create a root from a linear polynomial */
-  fb_general_root (fbprime_t q, cxx_mpz_poly const & poly, const unsigned char nexp=1,
-                   const unsigned char oldexp=0);
+  static fb_general_root fb_linear_root (fbprime_t q, cxx_mpz_poly const & poly,
+          const unsigned char nexp, const unsigned char oldexp);
 
 private:
   friend class fb_entry_general;
-  fb_general_root (const fbroot_t r) : fb_general_root(r, 1, 0, false) {}
-  /* Constructor from the old format of storing projective roots, which has q
-     added to the root if the root is projective */
-  /* used in transform() --- should go away at some point */
-  fb_general_root (const unsigned long long old_r, const fbprime_t q,
-                   const unsigned char nexp, const unsigned char oldexp) :
-                   r((old_r >= q) ? (old_r - q) : old_r),
-                   proj(old_r >= q), exp(nexp), oldexp(oldexp) {}
-public:
+  fb_general_root (const fb_root_p1 R,
+                   const unsigned char nexp=1, const unsigned char oldexp=0) :
+                   r(R.r), proj(R.proj),
+                   exp(nexp), oldexp(oldexp) {}
 
   /* A root is simple if it is not projective and the exp goes from 0 to 1 */
   bool is_simple() const {return exp == 1 && oldexp == 0 && !proj;}
