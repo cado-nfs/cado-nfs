@@ -10,6 +10,13 @@ void las_todo_entry::find_prime_factors()
 {
     prime_factors.clear();
 
+    /* It sometimes happens that we're only dealing with the basis, not
+     * the special-q itself. This is a sign of the fact that we should
+     * detach q and the basis, really.
+     */
+    if (mpz_cmp_ui(p, 0) == 0)
+        return;
+
     /* We really do not want composites to be considered as primes... */
     if (mpz_probab_prime_p(p, 10)) {
         /* This is rubbish if p does not fit in 64 bits */
