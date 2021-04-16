@@ -8,6 +8,9 @@
 #include <cstdlib>
 #include <memory>                   // for allocator_traits<>::value_type
 #include <vector>
+#include <array>
+#include <iostream>
+#include <sstream>
 #include <gmp.h>
 #include "fb-types.h"               // for fbprime_t, FBPRIME_FORMAT
 #include "gmp_aux.h"                // for mpz_add_int64, mpz_init_set_int64
@@ -17,51 +20,97 @@
 #include "las-fbroot-qlattice.hpp"
 #include "fb.hpp"
 #include "timing.h"  // seconds
+#include "fmt/format.h"
 #include "tests_common.h"
 
-typedef std::vector<qlattice_basis>::const_iterator basis_citer_t;
+/*
+ * R encodes (p:1) if R<p, or (1:R-p) if R >= p
+ *
+ * when R < p (affine root),
+ *      return num/den%p with num=R*b1-a1 den=a0-R*b0
+ * when R >= p (projective root), 
+ *      return num/den%p with num=b1-(R-p)*a1 den=(R-p)*a0-b0
+ *
+ * It is assumed that R*b1-a1 and a0-R*b0 cannot be both multiples of p,
+ * since the matrix (a0,b0,a1,b1) has determinant coprime to p, and
+ * gcd(1,R) == 1
+ *
+ * if den in either expression is divisile by p, then the
+ * resulting root is projective. Therefore, we return p + den/num
+ * */
 
-/* return (R*b1-a1)/(a0-R*b0) % p */
-static fb_general_root
-ref_fb_root_in_qlattice (const fbprime_t p, const fbroot_t R,
-                         const qlattice_basis &basis)
+template<typename T>
+std::ostream& operator<<(std::ostream& os, fb_root_p1_t<T> const & R)
 {
-    mpz_t t, num, den, P;
-    fb_general_root result;
-
-    mpz_init (t);
-
-    /* num = R*b1 - a1 */
-    mpz_init_set_int64 (num, basis.b1);
-    mpz_mul_ui (num, num, R);
-    mpz_sub_int64 (num, num, basis.a1);
-
-    /* den = a0 - R*b0 */
-    mpz_init_set_int64 (den, basis.b0);
-    mpz_neg (den, den);
-    mpz_mul_ui (den, den, R);
-    mpz_add_int64 (den, den, basis.a0);
-
-    mpz_init_set_ui (P, p);
-    if (mpz_invert (t, den, P) != 0) {
-        mpz_mul (num, num, t);
-        result.proj = false;
-    } else {
-        if (mpz_invert (t, num, P) == 0) {
-            abort();
-        }
-        mpz_mul (num, t, den);
-        result.proj = true;
-    }
-
-    mpz_mod (num, num, P);
-    result.r = mpz_get_ui (num);
-    mpz_clear (den);
-    mpz_clear (num);
-    mpz_clear (t);
-    mpz_clear (P);
-    return result;
+    if (R.proj)
+        os << "(1:" << R.r << ")";
+    else
+        os << "(" << R.r << ":1)";
+    return os;
 }
+
+/* declare these in the fmt namespace to work around a bug in g++-6
+ * https://stackoverflow.com/questions/25594644/warning-specialization-of-template-in-different-namespace
+ */
+namespace fmt {
+template <typename T> struct /* fmt:: */ formatter<fb_root_p1_t<T>>: formatter<string_view> {
+    template <typename FormatContext>
+        auto format(fb_root_p1_t<T> const & c, FormatContext& ctx) -> decltype(ctx.out()) {
+            std::ostringstream os;
+            os << c;
+            return formatter<string_view>::format( string_view(os.str()), ctx);
+        }
+};
+
+template <> struct /* fmt:: */ formatter<qlattice_basis>: formatter<string_view> {
+    template <typename FormatContext>
+        auto format(qlattice_basis const & c, FormatContext& ctx) -> decltype(ctx.out()) {
+            std::ostringstream os;
+            os << c;
+            return formatter<string_view>::format( string_view(os.str()), ctx);
+        }
+};
+}
+
+
+static fb_root_p1_t<cxx_mpz>
+ref_fb_root_in_qlattice (fbprime_t p, fb_root_p1 R, qlattice_basis basis)
+{
+  cxx_mpz num, den;
+
+  if (R.is_affine()) {
+      den = -basis.b0;
+      mpz_mul_ui (den, den, R.r);
+      mpz_add_int64 (den, den, basis.a0);
+
+      num = basis.b1;
+      mpz_mul_ui (num, num, R.r);
+      mpz_sub_int64 (num, num, basis.a1);
+  } else {
+      den = basis.a0;
+      mpz_mul_ui (den, den, R.r);
+      mpz_sub_int64 (den, den, basis.b0);
+
+      num = -basis.a1;
+      mpz_mul_ui (num, num, R.r);
+      mpz_add_int64 (num, num, basis.b1);
+  }
+
+  if (mpz_gcd_ui(NULL, den, p) != 1) {
+      /* root is projective */
+      mpz_invert (num, num, cxx_mpz(p));
+      mpz_mul(num, num, den);
+      mpz_mod_ui(num, num, p);
+      return { num, true };
+  } else {
+      mpz_invert (den, den, cxx_mpz(p));
+      mpz_mul(num, num, den);
+      mpz_mod_ui(num, num, p);
+      return { num, false };
+  }
+}
+
+typedef std::vector<qlattice_basis>::const_iterator basis_citer_t;
 
 /* Make a random prime in the interval [2^(FBPRIME_BITS-1), 2^FBPRIME_BITS].
  * t is a temp variable that will get clobbered. */
@@ -144,13 +193,12 @@ make_extremal_basis (qlattice_basis &basis, const int bits, const unsigned int c
 }
 
 static void
-print_error_and_exit(const fbprime_t p, const fbroot_t r, const fbroot_t rt, const fbroot_t rref, const bool proj_ref, const qlattice_basis &basis, const int bits)
+print_error_and_exit(const fbprime_t p, fb_root_p1 const & Rab, fb_root_p1 const & rt, fb_root_p1_t<cxx_mpz> const & rref, const qlattice_basis &basis, const int bits)
 {
-    fprintf (stderr, "Error for p=%" FBPRIME_FORMAT "; R=%" FBPRIME_FORMAT "; a0=%" PRId64 "; b0=%" PRId64 "; a1=%" PRId64 "; b1=%" PRId64 ";\n",
-             p, r, basis.a0, basis.b0, basis.a1, basis.b1);
-    fprintf (stderr, "Result should be (R*b1-a1)/(a0-R*b0) %% p\n");
-    fprintf (stderr, "fb_root_in_qlattice_%dbits gives %" FBPRIME_FORMAT "\n", bits, rt);
-    fprintf (stderr, "ref_fb_root_in_qlattice gives %s%" FBPRIME_FORMAT "\n", proj_ref ? "1/" : "", rref);
+    std::cerr
+        << fmt::format(FMT_STRING("Error for p={}; R={}; {};\n"), p, Rab, basis)
+        << fmt::format(FMT_STRING("fb_root_in_qlattice_{}bits gives {}\n"), bits, rt)
+        << fmt::format(FMT_STRING("ref_fb_root_in_qlattice gives {}\n"), rref);
     abort();
 }
 
@@ -222,18 +270,16 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
         for (basis_citer_t basis_iter = basis_begin;
                 basis_iter != basis_end; basis_iter++) {
             for (unsigned long i_fb = 0; i_fb < N; i_fb++) {
-                typename fb_entry_x_roots<Nr_roots>::transformed_entry_t fbt, fbt_ref;
+                typename fb_entry_x_roots<Nr_roots>::transformed_entry_t fbt;
+                std::array<fb_root_p1_t<cxx_mpz>, Nr_roots> fbt_ref;
                 const fbprime_t p = fbv[i_fb].get_q();
 
                 /* Compute reference roots */
-                fbt_ref.p = p;
                 bool had_any_proj = false;
                 for (unsigned char i_root = 0; i_root + 1 < Nr_roots + 1; i_root++) {
                     const fbroot_t original_root = fbv[i_fb].get_r(i_root);
-                    fb_general_root t = ref_fb_root_in_qlattice (p, original_root, *basis_iter);
-                    fbt_ref.roots[i_root] = t.r;
-                    fbt_ref.proj[i_root] = t.proj;
-                    had_any_proj |= t.proj;
+                    fbt_ref[i_root] = ref_fb_root_in_qlattice (p, original_root, *basis_iter);
+                    had_any_proj |= fbt_ref[i_root].is_projective();
                 }
 
                 /* Compute batch transform of roots */
@@ -259,8 +305,10 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
                                        p, fbt.get_q());
                     }
                     for (unsigned char i_root = 0; i_root + 1 < Nr_roots + 1; i_root++) {
-                        if (fbt_ref.get_r(i_root) != fbt.get_r(i_root) || fbt_ref.get_proj(i_root)) {
-                            print_error_and_exit(p, fbv[i_fb].get_r(i_root), fbt.get_r(i_root), fbt_ref.get_r(i_root), fbt_ref.get_proj(i_root), *basis_iter, bits);
+                        if (fbt_ref[i_root].r != fbt.get_r(i_root) || fbt_ref[i_root].is_projective()) {
+                            print_error_and_exit(p, fbv[i_fb].get_r(i_root), fbt.get_r(i_root),
+                                    fbt_ref[i_root],
+                                    *basis_iter, bits);
                         }
                     }
                 }
@@ -286,13 +334,13 @@ test_chain_fb_root_in_qlattice_batch<-1>(basis_citer_t basis_begin MAYBE_UNUSED,
     return;
 }
 
-void test_one_root_31bits(const fbprime_t p, const fbroot_t R, const uint32_t invp,
+void test_one_root_31bits(const fbprime_t p, fb_root_p1 const & Rab, const uint32_t invp,
                      const qlattice_basis &basis)
 {
-    fbroot_t r = fb_root_in_qlattice_31bits (p, R, invp, basis);
-    fb_general_root rref = ref_fb_root_in_qlattice (p, R, basis);
-    if (r != rref.r || rref.proj) {
-        print_error_and_exit(p, R, r, rref.r, rref.proj, basis, 31);
+    fb_root_p1 r31 = fb_root_in_qlattice_31bits (p, Rab, invp, basis);
+    auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
+    if (rref != r31) {
+        print_error_and_exit(p, Rab, r31, rref, basis, 31);
     }
 }
 
@@ -350,8 +398,11 @@ test_fb_root_in_qlattice_31bits (const bool test_timing,
       st = seconds ();
       r = 0;
       for (j = 0; j < N; j++)
-          for (i = 0; i < N; i++)
-              r += fb_root_in_qlattice_31bits (p[i], R[i], invp[i], basis[j]);
+          for (i = 0; i < N; i++) {
+              fb_root_p1 Rab { R[i], false };
+              auto Rij = fb_root_in_qlattice_31bits (p[i], Rab, invp[i], basis[j]);
+              r += Rij.r;
+          }
       st = seconds () - st;
       printf ("fb_root_in_qlattice_31bits: %lu tests took %.2fs (r=%" FBPRIME_FORMAT ")\n",
               N * N, st, r);
@@ -422,8 +473,11 @@ test_fb_root_in_qlattice_127bits (const bool test_timing,
       st = seconds ();
       r = 0;
       for (j = 0; j < N; j++)
-          for (i = 0; i < N; i++)
-              r += fb_root_in_qlattice_127bits (p[i], R[i], invp64[i], basis[j]);
+          for (i = 0; i < N; i++) {
+              fb_root_p1 Rab = R[i];
+              auto Rij = fb_root_in_qlattice_127bits (p[i], Rab, invp64[i], basis[j]);
+              r += Rij.r;
+          }
       st = seconds () - st;
       printf ("fb_root_in_qlattice_127bits: %lu tests took %.2fs (r=%" FBPRIME_FORMAT ")\n",
               N * N, st, r);
@@ -433,12 +487,11 @@ test_fb_root_in_qlattice_127bits (const bool test_timing,
       /* correctness test */
       for (i = 0; i < N; i++) {
           for (j = 0; j < N; j++) {
-              fb_general_root rref;
-              r = fb_root_in_qlattice_127bits (p[i], R[i], invp64[i], basis[j]);
-              rref = ref_fb_root_in_qlattice (p[i], R[i], basis[j]);
-              if (r != rref.r) {
-                  print_error_and_exit(p[i], R[i], r, rref.r, rref.proj, basis[j], 127);
-              }
+              fb_root_p1 Rab = R[i];
+              fb_root_p1 r127 = fb_root_in_qlattice_127bits (p[i], R[i], invp64[i], basis[j]);
+              auto rref = ref_fb_root_in_qlattice (p[i], R[i], basis[j]);
+              if (rref != r127)
+                  print_error_and_exit(p[i], Rab, r127, rref, basis[j], 127);
           }
       }
   }
@@ -456,97 +509,94 @@ test_fb_root_in_qlattice_127bits (const bool test_timing,
 static void
 bug20200225 (void)
 {
-  uint64_t got, expected;
-  fbprime_t p, R;
-  uint64_t invp;
-  unsigned long a, b, invb;
-
-  /* exercises bug in assembly part of invmod_redc_32 (starting around line
-     326 with 2nd #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM) */
-  a = 8088625;
-  b = 2163105767;
-  invb = -invmod_po2(b);
-  expected = 2062858318;
-  got = invmod_redc_32 (a, b, invb);
-  if (got != expected)
     {
-      fprintf (stderr, "Error in invmod_redc_32 for a=%lu b=%lu\n", a, b);
-      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
-      fprintf (stderr, "Got      %" PRIu64 "\n", got);
-      exit (1);
+        /* exercises bug in assembly part of invmod_redc_32 (starting
+         * around line 326 with 2nd #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM) */
+        unsigned long a = 8088625;
+        unsigned long b = 2163105767;
+        uint64_t expected = 2062858318;
+        uint64_t got = invmod_redc_32 (a, b, -invmod_po2(b));
+        if (expected != got) {
+            fprintf (stderr, "Error in invmod_redc_32 for a=%lu b=%lu\n", a, b);
+            gmp_fprintf (stderr, "Expected %Zd\n", mpz_srcptr(expected));
+            fprintf (stderr, "Got      %" PRIu64 "\n", got);
+            exit (1);
+        }
     }
 
-  a = 76285;
-  b = 2353808591;
-  invb = -invmod_po2(b);
-  expected = 2102979166;
-  got = invmod_redc_32(a, b, invb);
-  if (got != expected)
     {
-      fprintf (stderr, "Error in invmod_redc_32 for a:=%lu; b:=%lu;\n",
-	       a, b);
-      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
-      fprintf (stderr, "Got      %" PRIu64 "\n", got);
-      exit (1);
+        unsigned long a = 76285;
+        unsigned long b = 2353808591;
+        uint64_t expected = 2102979166;
+        uint64_t got = invmod_redc_32(a, b, -invmod_po2(b));
+        if (expected != got) {
+            fprintf (stderr, "Error in invmod_redc_32 for a:=%lu; b:=%lu;\n",
+                    a, b);
+            gmp_fprintf (stderr, "Expected %Zd\n", mpz_srcptr(expected));
+            fprintf (stderr, "Got      %" PRIu64 "\n", got);
+            exit (1);
+        }
     }
 
-  p = 3628762957;
-  R = 1702941053;
-  invp = 5839589727713490555UL;
-  qlattice_basis basis[1];
-  basis[0].a0 = -2503835703516628395L;
-  basis[0].b0 = 238650852;
-  basis[0].a1 = -3992552824749287692L;
-  basis[0].b1 = 766395543;
-  expected = 987485779;
-  got = fb_root_in_qlattice_127bits (p, R, invp, basis[0]);
-  if (got != expected)
     {
-      fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; "
-	       "a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
-	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
-      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
-      fprintf (stderr, "Got      %" PRIu64 "\n", got);
-      exit (1);
+        fbprime_t p = 3628762957;
+        fb_root_p1 Rab { 1702941053 };
+        uint64_t invp = 5839589727713490555UL;
+        qlattice_basis basis { 
+            -2503835703516628395L, 238650852,
+                -3992552824749287692L, 766395543
+        };
+        auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
+        fb_root_p1 r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        if (rref != r127)
+            print_error_and_exit(p, Rab, r127, rref, basis, 127);
     }
 
-  /* exercises bug in invmod_redc_32, already tested directly above */
-  p = 2163105767;
-  R = 1743312141;
-  invp = 3235101737;
-  basis[0].a0 = -30118114923155082L;
-  basis[0].b0 = 749622022;
-  basis[0].a1 = 2851499432479966615L;
-  basis[0].b1 = 443074848;
-  expected = 1879080852;
-  got = fb_root_in_qlattice_31bits (p, R, invp, basis[0]);
-  if (got != expected)
     {
-      fprintf (stderr, "Error in fb_root_in_qlattice_31bits for p=%" FBPRIME_FORMAT " R=%" FBPRIME_FORMAT " "
-	       "a0=%" PRId64 " b0=%" PRId64 " a1=%" PRId64 " b1=%" PRId64 "\n",
-	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
-      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
-      fprintf (stderr, "Got      %" PRIu64 "\n", got);
-      exit (1);
+        /* exercises bug in invmod_redc_32, already tested directly above */
+        fbprime_t p = 2163105767;
+        fb_root_p1 Rab = 1743312141;
+        uint64_t invp = 3235101737;
+        qlattice_basis basis {
+            -30118114923155082L, -749622022,
+                -2851499432479966615L, -443074848,
+        };
+        auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
+
+        fb_root_p1 r31 = fb_root_in_qlattice_31bits (p, Rab, invp, basis);
+        if (rref != r31)
+            print_error_and_exit(p, Rab, r31, rref, basis, 31);
     }
 
-  p = 3725310689;
-  R = 2661839516;
-  invp = 1066179678986106591UL;
-  basis[0].a0 = 3008222006914909739L;
-  basis[0].b0 = 877054135;
-  basis[0].a1 = 3170231873717741170L;
-  basis[0].b1 = 932375769;
-  expected = 2956728450;
-  got = fb_root_in_qlattice_127bits (p, R, invp, basis[0]);
-  if (got != expected)
     {
-      fprintf (stderr, "Error in fb_root_in_qlattice_127bits for p:=%" FBPRIME_FORMAT "; R:=%" FBPRIME_FORMAT "; "
-	       "a0:=%" PRId64 "; b0:=%" PRId64 "; a1:=%" PRId64 "; b1:=%" PRId64 ";\n",
-	       p, R, basis[0].a0, basis[0].b0, basis[0].a1, basis[0].b1);
-      fprintf (stderr, "Expected %" PRIu64 "\n", expected);
-      fprintf (stderr, "Got      %" PRIu64 "\n", got);
-      exit (1);
+        fbprime_t p = 3725310689;
+        fb_root_p1 Rab = 2661839516;
+        uint64_t invp = 1066179678986106591UL;
+        qlattice_basis basis {
+            3008222006914909739L, 877054135,
+            3170231873717741170L, 932375769,
+        };
+        auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
+        fb_root_p1 r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        if (rref != r127)
+            print_error_and_exit(p, Rab, r127, rref, basis, 127);
+    }
+
+    {
+        /* This is playing with the 32-bit limit */
+        fbprime_t p = 3486784401;       // 3^20
+        fb_root_p1 Rab = 2009510725;
+        uint64_t invp = 898235023;
+        qlattice_basis basis {
+            -1353180941,
+                -5,
+                -223660881,
+                8,
+        };
+        auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
+        fb_root_p1 r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        if (rref != r127)
+            print_error_and_exit(p, Rab, r127, rref, basis, 127);
     }
 }
 

@@ -13,13 +13,15 @@
    check, and 2 means that the function should choose the value of CARRYCHECK
    depending on the value of p. */
 template <int CARRYCHECK = 2>
-static inline fbprime_t
-fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
+static inline fb_root_p1
+fb_root_in_qlattice_31bits (const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis);
 template <int CARRYCHECK = 2>
-static inline fbprime_t
-fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
+static inline fb_root_p1
+fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis);
+
+/* batch calls expect affine inputs and affine outputs */
 template <int CARRYCHECK = 2>
 static inline bool
 fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
@@ -33,8 +35,8 @@ fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
 
 /* Specialize the case CARRYCHECK=2 and call the template instance
    with CARRYCHECK=0 or 1, depending on the value of p. */
-template<> inline fbprime_t
-fb_root_in_qlattice_31bits<2>(const fbprime_t p, const fbprime_t R,
+template<> inline fb_root_p1
+fb_root_in_qlattice_31bits<2>(const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis)
 {
     if (redc_no_carry(p))
@@ -56,8 +58,8 @@ fb_root_in_qlattice_31bits_batch<2> (fbroot_t *r_ij, const fbprime_t p,
                                                  n_roots);
 }
 
-template<> inline fbprime_t
-fb_root_in_qlattice_127bits<2>(const fbprime_t p, const fbprime_t R,
+template<> inline fb_root_p1
+fb_root_in_qlattice_127bits<2>(const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis)
 {
     if (redc_no_carry(p))
@@ -86,11 +88,11 @@ fb_root_in_qlattice_127bits_batch<2> (fbroot_t *r_ij, const fbprime_t p,
  * it does not seem to be exactly 31 or 127 bits. This should be
  * investigated */
 #define MAX_SPECIALQ_BITSIZE    126
-static inline fbprime_t
-fb_root_in_qlattice(const fbprime_t p, const fbprime_t R,
+static inline fb_root_p1
+fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis);
-static inline fbprime_t
-fb_root_in_qlattice(const fbprime_t p, const fbprime_t R,
+static inline fb_root_p1
+fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis)
 {
     return fb_root_in_qlattice_127bits(p, R, invp, basis);
@@ -106,11 +108,11 @@ fb_root_in_qlattice_batch (fbroot_t *r_ij, const fbprime_t p,
 #else
 
 #define MAX_SPECIALQ_BITSIZE    30
-static inline fbprime_t
-fb_root_in_qlattice(const fbprime_t p, const fbprime_t R,
+static inline fb_root_p1
+fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis);
-static inline fbprime_t
-fb_root_in_qlattice(const fbprime_t p, const fbprime_t R,
+static inline fb_root_p1
+fb_root_in_qlattice(const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis)
 {
     return fb_root_in_qlattice_31bits(p, R, invp, basis);
@@ -126,8 +128,8 @@ fb_root_in_qlattice_batch (fbroot_t *r_ij, const fbprime_t p,
 #endif
 
 /* This helper function is used for powers of 2. See below */
-static inline fbprime_t
-fb_root_in_qlattice_po2 (const fbprime_t p, const fbprime_t R,
+static inline fb_root_p1
+fb_root_in_qlattice_po2 (const fbprime_t p, const fb_root_p1 R,
         const qlattice_basis &basis);
 
 /* This version fb_root_in_qlattice_31bits mandates that the coordinates
@@ -137,8 +139,8 @@ fb_root_in_qlattice_po2 (const fbprime_t p, const fbprime_t R,
  * If CARRYCHECK is 0, we require that p satisfies redc_no_carry(p).
  */
 template <int CARRYCHECK>
-static inline fbprime_t
-fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
+static inline fb_root_p1
+fb_root_in_qlattice_31bits (const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis)
 {
   int64_t aux1, aux2;
@@ -155,25 +157,24 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
     // Numerator and denominator will get divided by 2^32, but this does
     // not matter, since we take their quotient.
 
-  if (LIKELY(R < p)) /* Root in a,b-plane is affine */
-    {
+  if (R.is_affine()) {
       /* With 0 <= R <= 2^32-1, -2^31 <= a1, b1 <= 2^31-1, we have
        * -2^63 + 1 <= aux1 <= 2^63 - 2^32 + 1
        * With 0 <= R <= p-1, -2^31 <= a1, b1 <= 2^31-1, we have
        * -2^31*p + 1 <= aux1 <= (p-1)*2^31 + 1, thus -2^32*p < aux1 < 2^32*p
        */
-      aux1 = (int64_t)R * basis.b1 - basis.a1;
+      aux1 = (int64_t)R.r * basis.b1 - basis.a1;
       /* With 0 <= R <= 2^32-1, -2^31 <= a0, b0 <= 2^31-1, we have
        * -2^63 + 2^32 - 1 <= aux2 <= 2^63 - 1
        * With 0 <= R <= p-1, -2^31 <= a0, b0 <= 2^31-1, we have
        * -p(2^31 - 1) - 1 <= aux2 <= p*2^31 - 1, thus -2^32*p < aux2 < 2^32*p
        */
-      aux2 = basis.a0 - (int64_t)R *basis.b0;
+      aux2 = basis.a0 - (int64_t)R.r *basis.b0;
     }
   else /* Root in a,b-plane is projective */
     {
-      aux1 = basis.b1 - (int64_t)(R - p) * basis.a1;
-      aux2 = (int64_t)(R - p) * basis.a0 - basis.b0;
+      aux1 = basis.b1 - (int64_t)(R.r) * basis.a1;
+      aux2 = (int64_t)(R.r) * basis.a0 - basis.b0;
     }
   /* USE_NATIVE_MOD is slightly slower on Intel i5-4590 with gcc 9.2.1:
    * test_fb_root 10000 reports 14.49s instead of 13.26s
@@ -190,24 +191,19 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fbprime_t R,
 
   aux2 = invmod_redc_32(v, p, invp);
   if (LIKELY(aux2)) {
-    aux1 = 0;
-    aux2 *= u;
-  }
-  else 
-    {
+      return fb_root_p1::affine_root(redc_u32<CARRYCHECK> (aux2 * u, p, invp));
+  } else {
       /* root in i,j-plane is projective */
       aux2 = invmod_redc_32(u, p, invp);
       if (UNLIKELY(!aux2))
 	{
 	  fprintf (stderr, "fb_root_in_qlattice_31bits(%" FBPRIME_FORMAT ", %"
                    FBROOT_FORMAT ", %" PRIu32 "): Error, root %" PRIu32 "/%"
-                   PRIu32 " in (i,j)-plane is projective\n", p, R, invp, u, v);
+                   PRIu32 " in (i,j)-plane is projective\n", p, R.to_old_format(p), invp, u, v);
           ASSERT_ALWAYS(0);
 	}
-      aux1 = p;
-      aux2 *= v;
-    }
-  return (fbprime_t) (redc_u32<CARRYCHECK> (aux2, p, invp) + aux1);
+      return fb_root_p1::projective_root(redc_u32<CARRYCHECK> (aux2 * v, p, invp));
+  }
 }
 
 /** Transforms roots r_ab (mod p) according to a lattice basis.
@@ -285,8 +281,8 @@ fb_root_in_qlattice_31bits_batch (fbroot_t *r_ij, const fbprime_t p,
  * of 3 for fb_root_in_qlattice_31bits.
  */
 template <int CARRYCHECK>
-static inline fbprime_t
-fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
+static inline fb_root_p1
+fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
         const redc_invp_t invp, const qlattice_basis &basis)
 {
   int64_t aux1, aux2;
@@ -297,14 +293,13 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
   if (UNLIKELY(!(p & 1 )))
     return fb_root_in_qlattice_po2(p, R, basis);
   
-  if (LIKELY(R < p)) /* Root in a,b-plane is affine */
-    {
+  if (R.is_affine()) {
         /* The products R*redc(b1) must not overflow. Therefore we must
          * be extra careful when p exceeds NextPrime(Floor(2^31.5))==3037000507
       aux1 = ((int64_t)R)*(int64_t) redc_32(basis.b1, p, invp) - (int64_t) redc_32(basis.a1, p, invp);
       aux2 = (int64_t) redc_32(basis.a0, p, invp) - ((int64_t)R)*(int64_t) redc_32(basis.b0, p, invp);
          */
-        uint64_t Rl = R;
+        uint64_t Rl = R.r;
         uint64_t b1l = redc_32<CARRYCHECK>(basis.b1, p, invp);
         uint64_t b0l = redc_32<CARRYCHECK>(basis.b0, p, invp);
         aux1 = Rl*b1l;
@@ -350,7 +345,7 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
       aux1 = (int64_t) redc_32(basis.b1, p, invp) - ((int64_t)(R - p))*(int64_t) redc_32(basis.a1, p, invp);
       aux2 = ((int64_t)(R - p))*(int64_t) redc_32(basis.a0, p, invp) - (int64_t) redc_32(basis.b0, p, invp);
       */
-        uint64_t Rpl = R - p;
+        uint64_t Rpl = R.r;
         uint64_t a1l = redc_32<CARRYCHECK>(basis.a1, p, invp);
         uint64_t a0l = redc_32<CARRYCHECK>(basis.a0, p, invp);
         aux1 = Rpl*a1l;
@@ -379,17 +374,21 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
   
   aux2 = invmod_redc_32(v, p, invp);
   if (LIKELY(aux2)) {
-    aux1 = 0;
     /* Warning: since 0 <= u < p and 0 <= aux2 < p, we have
        0 <= aux2 < p^2, which might overflow the int64_t range
        if p >= 3037000507. To avoid this, we subtract p if aux2 >= 2^31:
        * if aux2 < 2^31, then aux2 * u < 2^31*p < 2^63
        * if aux2 >= 2^31, this implies that p >= 2^31 since aux2 < p,
        then (aux2 - p) * u > (2^31-p) * u > -2^31*p > -2^63 */
-    aux2 = (aux2 < 2147483648L) ? aux2 * u : (aux2 - p) * u;
-  }
-  else 
-    {
+
+      /* gcc-10.2.1 turns this into a cmov:
+          db4a:       48 3d ff ff ff 7f       cmp    $0x7fffffff,%rax
+          db50:       48 0f 4f c2             cmovg  %rdx,%rax
+       */
+      if (aux2 >= 2147483648L)
+          aux2 -= p;
+      return fb_root_p1::affine_root(redc_32<CARRYCHECK> (aux2 * u, p, invp));
+  } else {
       /* root in i,j-plane is projective */
       aux2 = invmod_redc_32(u, p, invp);
       if (UNLIKELY(!aux2))
@@ -397,11 +396,9 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fbprime_t R,
 	  fprintf (stderr, "Error, root in (i,j)-plane is projective\n");
 	  ASSERT_ALWAYS(0);
 	}
-      aux1 = p;
       /* Warning: we have the same overflow problem as above. */
-      aux2 *= v;
+      return fb_root_p1::projective_root(redc_32<CARRYCHECK> (aux2 * v, p, invp));
     }
-  return (fbprime_t) (redc_32<CARRYCHECK>(aux2, p, invp) + aux1);
 }
 
 /** Transforms roots r_ab (mod p) according to a lattice basis.
@@ -477,33 +474,27 @@ fb_root_in_qlattice_127bits_batch (fbroot_t *r_ij, const fbprime_t p,
 
 /* This is just for powers of 2, and is used by both versions above */
 
-static inline fbprime_t fb_root_in_qlattice_po2 (const fbprime_t p, const fbprime_t R, const qlattice_basis &basis)
+static inline fb_root_p1 fb_root_in_qlattice_po2 (const fbprime_t p, const fb_root_p1 R, const qlattice_basis &basis)
 {
     fbprime_t u, v;
     ASSERT(p == (p & -p)); /* Test that p is power of 2 */
-    if (R < p) /* Root in a,b-plane is non-projective */
-      {
-	u = (int64_t)R * (basis.b1 % p) - basis.a1;
-	v = basis.a0 - (int64_t)R * (basis.b0 % p);
-      }
-    else /* Root in a,b-plane is projective */
-      {
-        u = basis.b1 - (int64_t)(R - p) * (basis.a1 % p);
-        v = (int64_t)(R - p) * (basis.a0 % p) - basis.b0;
-      }
+    if (R.is_affine()) {
+	u = (int64_t)R.r * (basis.b1 % p) - basis.a1;
+	v = basis.a0 - (int64_t)R.r * (basis.b0 % p);
+    } else {
+        u = basis.b1 - (int64_t)(R.r) * (basis.a1 % p);
+        v = (int64_t)(R.r) * (basis.a0 % p) - basis.b0;
+    }
     
-    if (v & 1)
-      {
+    if (v & 1) {
         /* root in i,j-plane is non-projective */
         v = invmod_po2 (v);
-        return (u * v) & (p - 1);
-      }
-    else
-      {
+        return fb_root_p1::affine_root((u * v) & (p - 1));
+    } else {
         /* root in i,j-plane is projective */
         u = invmod_po2 (u);
-        return p + ((u * v) & (p - 1));
-      }
+        return fb_root_p1::projective_root((u * v) & (p - 1));
+    }
 }
 
 #endif	/* LAS_FBROOT_QLATTICE_HPP_ */
