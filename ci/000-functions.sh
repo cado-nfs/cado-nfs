@@ -12,6 +12,7 @@ set -e
 is_debian() { [ -f /etc/debian_version ] ; }
 is_fedora() { [ -f /etc/fedora-release ] ; }
 is_alpine() { [ -f /etc/alpine-release ] ; }
+is_opensuse() { type -p zypper >/dev/null 2>&1 ; }
 is_osx() { case "`uname -s`" in Darwin) true;; *)false;; esac; }
 is_freebsd() {
     if [ -f /var/run/os-release ] ; then

@@ -38,6 +38,7 @@ case "$CI_BUILD_NAME" in
     *"alpine system"*) FROM=alpine:latest;;
     *"alpine-edge system"*) FROM=alpine:edge;;
     *"debian system"*) FROM=debian;;
+    *"opensuse system"*) FROM=opensuse/leap;;
     *"debian8 system"*) FROM=debian:8;;
     *"debian9 system"*) FROM=debian:9;;
     *"debian10 system"*) FROM=debian:10;;
