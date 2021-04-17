@@ -598,6 +598,18 @@ bug20200225 (void)
         if (rref != r127)
             print_error_and_exit(p, Rab, r127, rref, basis, 127);
     }
+    {
+        fbprime_t p = 3;
+        fb_root_p1 Rab = 2;
+        uint64_t invp = 1431655765;
+        qlattice_basis basis {
+            -14730287151, 11, -6528529, -2,
+        };
+        auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
+        fb_root_p1 r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        if (rref != r127)
+            print_error_and_exit(p, Rab, r127, rref, basis, 127);
+    }
 }
 
 /* The usual tests command line parameters "-seed" and "-iter" are accepted.
