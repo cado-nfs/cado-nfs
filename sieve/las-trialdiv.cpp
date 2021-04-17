@@ -91,7 +91,11 @@ trialdiv_data const * sieve_shared_data::side_data::get_trialdiv_data(fb_factorb
     ASSERT(std::is_sorted(trialdiv_primes.begin(), trialdiv_primes.end()));
     // std::sort(trialdiv_primes.begin(), trialdiv_primes.end());
     
-    size_t skip2 = !trialdiv_primes.empty() && trialdiv_primes[0] == 2;
+    /* note that we might have several "2"'s in the factor base because
+     * of powers: when bucket-sieving powers, we separate factor base
+     * entries that lead to distinct exponents */
+    size_t skip2 = 0;
+    for( ; skip2 < trialdiv_primes.size() && trialdiv_primes[skip2] == 2 ; skip2++);
 
     trialdiv_data td(trialdiv_primes, skip2);
     trialdiv_data_cache[fbK];
