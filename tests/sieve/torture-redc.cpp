@@ -148,6 +148,7 @@ oldbuggy_redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
   return u;
 }
 
+template<bool CARRY>
 int test_redc_32(gmp_randstate_t rstate, size_t N, bool signed_x = true)
 {
     std::vector<uint32_t> ps;
@@ -209,10 +210,10 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool signed_x = true)
 
     if (signed_x) {
         for(size_t i = 0 ; i < N ; i++)
-            us.push_back(redc_32(xs[i], ps[i], ips[i]));
+            us.push_back(redc_32<CARRY>(xs[i], ps[i], ips[i]));
     } else {
         for(size_t i = 0 ; i < N ; i++)
-            us.push_back(redc_u32(xs[i], ps[i], ips[i]));
+            us.push_back(redc_u32<CARRY>(xs[i], ps[i], ips[i]));
     }
 
     clock_t clk1 = clock();
@@ -258,9 +259,10 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool signed_x = true)
     return 0;
 }
 
+template <bool CARRY>
 int test_redc_u32(gmp_randstate_t rstate, size_t N)
 {
-    return test_redc_32(rstate, N, false);
+    return test_redc_32<CARRY>(rstate, N, false);
 }
 
 int main(int argc, char * argv[])
@@ -285,8 +287,10 @@ int main(int argc, char * argv[])
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
     for(size_t N = 1 ; N < Nmax ; N *= 2) {
-        test_redc_32(rstate, N);
-        test_redc_u32(rstate, N);
+        test_redc_32<false>(rstate, N);
+        test_redc_u32<false>(rstate, N);
+        test_redc_32<true>(rstate, N);
+        test_redc_u32<true>(rstate, N);
     }
     gmp_randclear(rstate);
 }

@@ -9,14 +9,39 @@
 #include "las-qlattice.hpp"
 #include "macros.h"            // for LIKELY, UNLIKELY, ASSERT_ALWAYS, ASSERT
 
+/* CARRYCHECK is a ternary value here: 0 means no carry check, 1 means carry
+   check, and 2 means that the function should choose the value of CARRYCHECK
+   depending on the value of p. */
+template <int CARRYCHECK = 2>
 static inline fb_root_p1
 fb_root_in_qlattice_31bits (const fbprime_t p, const fb_root_p1 R,
-        const uint32_t invp, const qlattice_basis &basis);
-
+        const redc_invp_t invp, const qlattice_basis &basis);
+template <int CARRYCHECK = 2>
 static inline fb_root_p1
 fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
-        const uint64_t invp, const qlattice_basis &basis);
+        const redc_invp_t invp, const qlattice_basis &basis);
 
+/* Specialize the case CARRYCHECK=2 and call the template instance
+   with CARRYCHECK=0 or 1, depending on the value of p. */
+template<> inline fb_root_p1
+fb_root_in_qlattice_31bits<2>(const fbprime_t p, const fb_root_p1 R,
+        const redc_invp_t invp, const qlattice_basis &basis)
+{
+    if (redc_no_carry(p))
+        return fb_root_in_qlattice_31bits<0>(p, R, invp, basis);
+    else
+        return fb_root_in_qlattice_31bits<1>(p, R, invp, basis);
+}
+
+template<> inline fb_root_p1
+fb_root_in_qlattice_127bits<2>(const fbprime_t p, const fb_root_p1 R,
+        const redc_invp_t invp, const qlattice_basis &basis)
+{
+    if (redc_no_carry(p))
+        return fb_root_in_qlattice_127bits<0>(p, R, invp, basis);
+    else
+        return fb_root_in_qlattice_127bits<1>(p, R, invp, basis);
+}
 
 /* fb_root_in_qlattice returns (R*b1-a1)/(a0-R*b0) mod p */
 #if defined(SUPPORT_LARGE_Q)
@@ -58,12 +83,15 @@ fb_root_in_qlattice_po2 (const fbprime_t p, const fb_root_p1 R,
  * Rb1-a1 always fit within the interval ]-2^32p, +2^32p[.
  * It makes 3 calls to redc_32 and 1 to invmod_redc_32.
  */
+template <int CARRYCHECK>
 static inline fb_root_p1
 fb_root_in_qlattice_31bits (const fbprime_t p, const fb_root_p1 R,
-        const uint32_t invp, const qlattice_basis &basis)
+        const redc_invp_t invp, const qlattice_basis &basis)
 {
   int64_t aux1, aux2;
   uint32_t u, v;
+
+  static_assert (CARRYCHECK == 0 || CARRYCHECK == 1 , "Invalid CARRYCHECK value" );
 
     /* Handle powers of 2 separately, REDC doesn't like them */
   if (UNLIKELY(!(p & 1)))
@@ -91,13 +119,13 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fb_root_p1 R,
   u = (aux1 >= 0) ? aux1 % p : p - ((-aux1) % p);
   v = (aux2 >= 0) ? aux2 % p : p - ((-aux2) % p);
 #else
-  u = redc_32(aux1, p, invp); /* 0 <= u < p */
-  v = redc_32(aux2, p, invp); /* 0 <= v < p */
+  u = redc_32<CARRYCHECK>(aux1, p, invp); /* 0 <= u < p */
+  v = redc_32<CARRYCHECK>(aux2, p, invp); /* 0 <= v < p */
 #endif
 
   aux2 = invmod_redc_32(v, p);
   if (LIKELY(aux2)) {
-      return fb_root_p1::affine_root(redc_u32 (aux2 * u, p, invp));
+      return fb_root_p1::affine_root(redc_u32<CARRYCHECK> (aux2 * u, p, invp));
   } else {
       /* root in i,j-plane is projective */
       aux2 = invmod_redc_32(u, p);
@@ -106,7 +134,7 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fb_root_p1 R,
 	  fprintf (stderr, "Error, root in (i,j)-plane is projective\n");
           ASSERT_ALWAYS(0);
 	}
-      return fb_root_p1::projective_root(redc_u32 (aux2 * v, p, invp));
+      return fb_root_p1::projective_root(redc_u32<CARRYCHECK> (aux2 * v, p, invp));
   }
 }
 
@@ -115,13 +143,16 @@ fb_root_in_qlattice_31bits (const fbprime_t p, const fb_root_p1 R,
  * Q-lattice can be as large as 63 bits. We call redc 7 times here, instead
  * of 3 for fb_root_in_qlattice_31bits.
  */
+template <int CARRYCHECK>
 static inline fb_root_p1
 fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
-        const uint64_t invp, const qlattice_basis &basis)
+        const redc_invp_t invp, const qlattice_basis &basis)
 {
   int64_t aux1, aux2;
   uint64_t u, v;
   
+  static_assert (CARRYCHECK == 0 || CARRYCHECK == 1 , "Invalid CARRYCHECK value" );
+
     /* Handle powers of 2 separately, REDC doesn't like them */
   if (UNLIKELY(!(p & 1 )))
     return fb_root_in_qlattice_po2(p, R, basis);
@@ -133,8 +164,8 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
       aux2 = (int64_t) redc_32(basis.a0, p, invp) - ((int64_t)R)*(int64_t) redc_32(basis.b0, p, invp);
          */
         uint64_t Rl = R.r;
-        uint64_t b1l = redc_32(basis.b1, p, invp);
-        uint64_t b0l = redc_32(basis.b0, p, invp);
+        uint64_t b1l = redc_32<CARRYCHECK>(basis.b1, p, invp);
+        uint64_t b0l = redc_32<CARRYCHECK>(basis.b0, p, invp);
         aux1 = Rl*b1l;
         aux2 = Rl*b0l;
         /* If we have an overflow in the products above, replace by
@@ -169,8 +200,8 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
          * well, since aux1 is positive in that case, and the range
          * [0..2^63-1[ is safe for both subtractions below.
          */
-        aux1 = aux1 - redc_32(basis.a1, p, invp);
-        aux2 = redc_32(basis.a0, p, invp) - aux2;
+        aux1 = aux1 - redc_32<CARRYCHECK>(basis.a1, p, invp);
+        aux2 = redc_32<CARRYCHECK>(basis.a0, p, invp) - aux2;
     }
   else /* Root in a,b-plane is projective */
     {
@@ -179,15 +210,15 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
       aux2 = ((int64_t)(R - p))*(int64_t) redc_32(basis.a0, p, invp) - (int64_t) redc_32(basis.b0, p, invp);
       */
         uint64_t Rpl = R.r;
-        uint64_t a1l = redc_32(basis.a1, p, invp);
-        uint64_t a0l = redc_32(basis.a0, p, invp);
+        uint64_t a1l = redc_32<CARRYCHECK>(basis.a1, p, invp);
+        uint64_t a0l = redc_32<CARRYCHECK>(basis.a0, p, invp);
         aux1 = Rpl*a1l;
         aux2 = Rpl*a0l;
         /* same analysis as above */
         if (aux1 < 0) aux1 -= ((uint64_t)p)<<32;
         if (aux2 < 0) aux2 -= ((uint64_t)p)<<32;
-        aux1 = aux1 - redc_32(basis.b1, p, invp);
-        aux2 = redc_32(basis.b0, p, invp) - aux2;
+        aux1 = aux1 - redc_32<CARRYCHECK>(basis.b1, p, invp);
+        aux2 = redc_32<CARRYCHECK>(basis.b0, p, invp) - aux2;
     }
   
   /* The root in the (i,j) plane is (aux1:aux2). Now let's put it
@@ -201,8 +232,8 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
   u = (aux1 >= 0) ? aux1 % p : p - ((-aux1) % p);
   v = (aux2 >= 0) ? aux2 % p : p - ((-aux2) % p);
 #else
-  u = redc_32(aux1, p, invp); /* 0 <= u < p */
-  v = redc_32(aux2, p, invp); /* 0 <= v < p */
+  u = redc_32<CARRYCHECK>(aux1, p, invp); /* 0 <= u < p */
+  v = redc_32<CARRYCHECK>(aux2, p, invp); /* 0 <= v < p */
 #endif
   
   aux2 = invmod_redc_32(v, p);
@@ -220,7 +251,7 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
        */
       if (aux2 >= 2147483648L)
           aux2 -= p;
-      return fb_root_p1::affine_root(redc_32 (aux2 * u, p, invp));
+      return fb_root_p1::affine_root(redc_32<CARRYCHECK> (aux2 * u, p, invp));
   } else {
       /* root in i,j-plane is projective */
       aux2 = invmod_redc_32(u, p);
@@ -230,7 +261,7 @@ fb_root_in_qlattice_127bits (const fbprime_t p, const fb_root_p1 R,
 	  ASSERT_ALWAYS(0);
 	}
       /* Warning: we have the same overflow problem as above. */
-      return fb_root_p1::projective_root(redc_32 (aux2 * v, p, invp));
+      return fb_root_p1::projective_root(redc_32<CARRYCHECK> (aux2 * v, p, invp));
     }
 }
 

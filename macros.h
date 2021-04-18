@@ -59,7 +59,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
                 (x),__func__,__FILE__,__LINE__,(y));			\
     } while (0)
 
-#define ASSERT_ALWAYS(x)						\
+#define ASSERT_ALWAYS(x)					\
     do {								\
         if (!(x)) {							\
             croak__("code BUG() : condition " #x " failed",		\
@@ -67,6 +67,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
             abort();							\
         }								\
     } while (0)
+
+#if defined(__cplusplus) && __cplusplus >= 201701L
+#define IF_CONSTEXPR constexpr
+#else
+#define IF_CONSTEXPR /**/
+#endif
+
+/* never throw exceptions in that case, just exit */
 #define FATAL_ERROR_CHECK(cond, msg)					\
     do {								\
       if (UNLIKELY((cond))) {                                           \
