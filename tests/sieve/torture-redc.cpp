@@ -237,13 +237,14 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
     if (check && signed_x) {
         for(size_t i = 0 ; i < N ; i++) {
             if (!redc_32_postconditions(us[i], xs[i], ps[i], ips[i])) {
-                fprintf(stderr, "ERROR: redc_32("
+                fprintf(stderr, "ERROR: redc_32<%s>("
                         "%" PRId64 ", "
                         "%" PRIu32 ", "
                         "%" PRIu32 ") "
                         "returns "
                         "%" PRIu32
                         " instead of expected %" PRIu32 "\n",
+                        CARRY ? "true" : "false",
                         xs[i], ps[i], ips[i], us[i],
                         redc_32_reference(xs[i], ps[i])
                        );
@@ -253,13 +254,14 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
     } else if (check) {
         for(size_t i = 0 ; i < N ; i++) {
             if (!redc_u32_postconditions(us[i], xs[i], ps[i], ips[i])) {
-                fprintf(stderr, "ERROR: redc_u32("
+                fprintf(stderr, "ERROR: redc_u32<%s>("
                         "%" PRIu64 ", "
                         "%" PRIu32 ", "
                         "%" PRIu32 ") "
                         "returns "
                         "%" PRIu32
                         " instead of expected %" PRIu32 "\n",
+                        CARRY ? "true" : "false",
                         (uint64_t) xs[i], ps[i], ips[i], us[i],
                         redc_32_reference(xs[i], ps[i])
                        );
@@ -306,8 +308,8 @@ int main(int argc, char * argv[])
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
     for(size_t N = 1 ; N < Nmax ; N *= 2) {
-        test_redc_32<false>(rstate, N, check);
-        test_redc_u32<false>(rstate, N, check);
+        // test_redc_32<false>(rstate, N, check);
+        // test_redc_u32<false>(rstate, N, check);
         test_redc_32<true>(rstate, N, check);
         test_redc_u32<true>(rstate, N, check);
     }
