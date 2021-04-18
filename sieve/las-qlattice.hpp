@@ -38,15 +38,12 @@ struct qlattice_basis {
     }
 
     inline bool fits_31bits() const {
+        constexpr int64_t t31 = INT64_C(1) << 31;
         return !(
-                 a0 <= INT64_C(-2147483648) ||
-                 a0 >= INT64_C( 2147483648) ||
-                 a1 <= INT64_C(-2147483648) ||
-                 a1 >= INT64_C( 2147483648) ||
-                 b0 <= INT64_C(-2147483648) ||
-                 b0 >= INT64_C( 2147483648) ||
-                 b1 <= INT64_C(-2147483648) ||
-                 b1 >= INT64_C( 2147483648)
+                 a0 <  -t31 || a0 >= t31 ||
+                 a1 <  -t31 || a1 >= t31 ||
+                 b0 <  -t31 || b0 >= t31 ||
+                 b1 <  -t31 || b1 >= t31
                  );
     }
 
