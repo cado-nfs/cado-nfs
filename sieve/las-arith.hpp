@@ -20,6 +20,18 @@
    redc_32 */
 // #define STAT
 
+/** Returns true if p is small enough so that the first carry in our redc_*()
+ *  functions cannot occur, and false otherwise.
+ *
+ *   If redc_no_carry(p) is true, then redc_*<false>() functions may be used
+ *   which are slightly faster, otherwise redc_*<true>() functions must be used.
+ *
+ *   \param [in] p, the modulus for REDC to check
+*/
+static inline bool redc_no_carry(const uint32_t p) {
+    return p < (UINT32_C(1) << 31);
+}
+
 // Redc_32 based on 64-bit arithmetic
 // Assume:
 //   * p is an odd number < 2^32.
@@ -27,9 +39,11 @@
 //   * x is some integer in [0, 2^32*p[
 // Compute:
 //   * x/2^32 mod p as an integer in [0, p[
+template <bool CARRYCHECK>
 static inline uint32_t
 redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 {
+  ASSERT_EXPENSIVE(CARRYCHECK || redc_no_carry(p));
   uint32_t t = (uint32_t) x * invp;   /* t = x * invp mod 2^32 */
   /* x + t*p is bounded by 2^32*p-1+(2^32-1)*p < 2*2^32*p
    * therefore, we must pay attention to the carry flag while doing the
@@ -37,28 +51,36 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
    */
   uint64_t tp = (uint64_t)t * (uint64_t)p;
   uint64_t xtp = x;
-  int cf;
+
   /* do xtp += tp, get carry out in cf */
+
+  t = 0;
+  if IF_CONSTEXPR (CARRYCHECK) {
 #if defined(GENUINE_GNUC) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
-  asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
+      int cf;
+      asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
+      if (cf) t = p;
 #else
-  /* With GCC 9.2.1 the following code is as fast as the above assembly code.
-     Example on Intel i5-4590 at 3.3Ghz with turbo-boost disabled
-     (revision 8de5fc9):
-     torture-redc 10000000:
-     assembly: redc_u32: 8388608 tests in 0.0659s
-     C code  : redc_u32: 8388608 tests in 0.0658s
-  */
-  xtp += tp;
-  cf = xtp < tp;
+      /* With GCC 9.2.1 the following code is as fast as the above assembly code.
+         Example on Intel i5-4590 at 3.3Ghz with turbo-boost disabled
+         (revision 8de5fc9):
+         torture-redc 10000000:
+assembly: redc_u32: 8388608 tests in 0.0659s
+C code  : redc_u32: 8388608 tests in 0.0658s
+*/
+      xtp += tp;
+      if (xtp < tp) t = p;
 #endif
 #ifdef STAT
-  static int count = 0, carry = 0;
-  count ++;
-  carry += cf != 0;
-  if ((count % 1000000) == 0)
-    printf ("redc_u32: count=%d carry=%d\n", count, carry);
+      static int count = 0, carry = 0;
+      count ++;
+      carry += cf != 0;
+      if ((count % 1000000) == 0)
+          printf ("redc_u32: count=%d carry=%d\n", count, carry);
 #endif
+  } else {
+      xtp += tp;
+  }
   uint32_t u = xtp >> 32;
   // by construction, xtp is divisible by 2^32. u is such that
   // 0 <= u < 2*p ; however the representative that we have is capped to
@@ -68,7 +90,8 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
    * subtraction u - p, which will compensate for the carry in x + t*p,
    * and (2) the final result will be < p as wanted */
 
-  return (cf || u >= p) ? u - p : u;
+  if (u >= p) t = p;
+  return u - t;
 }
 
 // Signed redc_32 based on 64-bit arithmetic
@@ -78,27 +101,36 @@ redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 //   * x is some signed integer in ]-2^32*p, 2^32*p[ (fitting in int64_t)
 // Compute:
 //   * x/2^32 mod p as an integer in [0, p[
+template <bool CARRYCHECK>
 static inline uint32_t
 redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
 {
+  ASSERT_EXPENSIVE(CARRYCHECK || redc_no_carry(p));
   uint32_t t = (uint32_t)x * invp;
   uint64_t tp = (uint64_t)t * (uint64_t)p;
-#if 0
+#if 1
   uint64_t xtp = (x >= 0) ? x : x + ((uint64_t) p << 32);
   /* the following does the same without any branch, but seems slightly
      worse with GCC 9.2.1. */
 #else
   uint64_t xtp = x + (uint64_t) p * (uint64_t) ((x & 0x8000000000000000) >> 31);
 #endif
+  t = 0;
+  if IF_CONSTEXPR (CARRYCHECK) {
   /* now xtp >= 0, and we are in the same case as redc_u32,
      thus the same analysis as redc_u32 applies here */
-  int cf;
+    t = 0;
 #if defined(GENUINE_GNUC) && defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && GNUC_VERSION_ATLEAST(6,0,0)
-  asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
+    int cf;
+    asm("addq %[tp],%[xtp]\n" : [xtp]"+r"(xtp), "=@ccc"(cf) : [tp]"r"(tp));
+    if (cf) t = p;
 #else
   xtp += tp;
-  cf = xtp < tp;
+  if (xtp < tp) t = p;
 #endif
+  } else {
+      xtp += tp;
+  }
   /* Timings with revision 8de5fc9
      on Intel i5-4590 at 3.3Ghz with turbo-boost disabled:
      torture-redc 10000000:
@@ -106,7 +138,8 @@ redc_32(const int64_t x, const uint32_t p, const uint32_t invp)
      C code  : redc_32: 8388608 tests in 0.0679s
      assembly+(if 0 instead of if 1): redc_32: 8388608 tests in 0.0680s */
   uint32_t u = xtp >> 32;
-  return (cf || u >= p) ? u - p : u;
+  if (u >= p) t = p;
+  return u - t;
 }
 
 /* NOTE: we used to have redc_64, invmod_redc_64, and invmod_64 ; actually we

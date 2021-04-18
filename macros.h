@@ -84,6 +84,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define ASSERT_ALWAYS(x) ASSERT_ALWAYS_NOTHROW(x)
 #endif
 
+#if defined(__cplusplus) && __cplusplus >= 201701L
+#define IF_CONSTEXPR constexpr
+#else
+#define IF_CONSTEXPR /**/
+#endif
+
 /* never throw exceptions in that case, just exit */
 #define FATAL_ERROR_CHECK(cond, msg)					\
     do {								\
