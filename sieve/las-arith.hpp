@@ -13,6 +13,11 @@
 #include "mod_ul.h"        // for modul_clear, modul_clearmod, modul_get_ul
 #include "verbose.h"
 
+// #define LAS_ARITH_INVMOD_HISTOGRAM 1
+#ifdef LAS_ARITH_INVMOD_HISTOGRAM
+#include <utils_cxx.hpp>
+#endif
+
 /* This header file is also #include'd by tests/sieve/torture-redc.cpp,
  * which (as its name says) checks that redc_32 and redc_u32 hold to
  * their promises.
@@ -230,23 +235,6 @@ invmod_32 (uint32_t *pa, uint32_t b)
   return rc;
 }
 
-/* Gather and print histogram of t values */
-static inline void t_hist(uint8_t t) {
-  static uint64_t t_hist[256] = {0};
-  static uint64_t total_calls = 0;
-  t_hist[t]++;
-  total_calls++;
-  if (total_calls > 0 && total_calls % (1 << 25) == 0) {
-      printf("# Histogram of t values: ");
-      for (unsigned int i = 0; i < 256; i++) {
-        if (t_hist[i] != 0) {
-          printf("%s%u:%" PRIu64, i==0 ? "" : ", ", i, t_hist[i]);
-        }
-      }
-      printf("\n");
-  }
-}
-
 /* Requires a < m and b <= m, then r == a+b (mod m) and r < m */
 static inline uint32_t
 addmod_u32 (const uint32_t a, const uint32_t b, const uint32_t m)
@@ -334,8 +322,12 @@ done:
 
   if (UNLIKELY(a != 1)) return 0;
   
-#if 0
-  t_hist(t);
+#ifdef LAS_ARITH_INVMOD_HISTOGRAM
+/* Gather and print histogram of t values */
+  static StaticHistogram t_hist(256, "# Histogram of t values", true);
+  static StaticHistogram calls(1, "# invmod_redc_32 calls");
+  t_hist.inc(t);
+  calls.inc();
 #endif
   // Here, the inverse of a is u/2^t mod b. We want the result to be
   // u/2^32 mod b and divide or multiply by a power of 2 accordingly.
