@@ -28,6 +28,7 @@
 
 #define Kfield	Kcommon_name_(field)
 #define Kdst_field	Kcommon_name_(dst_field)
+#define Ksrc_field	Kcommon_name_(src_field)
 
 #define Kelt	Kcommon_name_(elt)
 #define Kdst_elt	Kcommon_name_(dst_elt)
@@ -59,9 +60,12 @@
 #define Kimpl_max_degree()	Kcommon_name_(impl_max_degree) ()
 
 
+
 #define Kfield_characteristic(a0)	Kcommon_name_(field_characteristic) (K,a0)
+#define Kfield_characteristic_srcptr()	Kcommon_name_(field_characteristic_srcptr) (K)
 #define Kfield_characteristic_bits()	Kcommon_name_(field_characteristic_bits) (K)
 #define Kfield_degree()	Kcommon_name_(field_degree) (K)
+
 #define Kfield_init()	Kcommon_name_(field_init) (K)
 #define Kfield_clear()	Kcommon_name_(field_clear) (K)
 #define Kfield_specify(a0,a1)	Kcommon_name_(field_specify) (K,a0,a1)
@@ -139,9 +143,11 @@
 
 #define Kasprint(a0,a1)	Kcommon_name_(asprint) (K,a0,a1)
 #define Kfprint(a0,a1)	Kcommon_name_(fprint) (K,a0,a1)
+#define Kcxx_out(a0,a1)	Kcommon_name_(cxx_out) (K,a0,a1)
 #define Kprint(a0)	Kcommon_name_(print) (K,a0)
 #define Ksscan(a0,a1)	Kcommon_name_(sscan) (K,a0,a1)
 #define Kfscan(a0,a1)	Kcommon_name_(fscan) (K,a0,a1)
+#define Kcxx_in(a0,a1)	Kcommon_name_(cxx_in) (K,a0,a1)
 #define Kscan(a0)	Kcommon_name_(scan) (K,a0)
 #define Kread(a0,a1)	Kcommon_name_(read) (K,a0,a1)
 #define Kimportdata(a0,a1,a2,a3)	Kcommon_name_(importdata) (K,a0,a1,a2,a3)
@@ -180,6 +186,8 @@
 #define Kvec_sscan(a0,a1,a2)	Kcommon_name_(vec_sscan) (K,a0,a1,a2)
 #define Kvec_fscan(a0,a1,a2)	Kcommon_name_(vec_fscan) (K,a0,a1,a2)
 #define Kvec_scan(a0,a1)	Kcommon_name_(vec_scan) (K,a0,a1)
+#define Kvec_cxx_out(a0,a1,a2)	Kcommon_name_(vec_cxx_out) (K,a0,a1,a2)
+#define Kvec_cxx_in(a0,a1,a2)	Kcommon_name_(vec_cxx_in) (K,a0,a1,a2)
 #define Kvec_read(a0,a1,a2)	Kcommon_name_(vec_read) (K,a0,a1,a2)
 #define Kvec_write(a0,a1,a2)	Kcommon_name_(vec_write) (K,a0,a1,a2)
 #define Kvec_import(a0,a1,a2,a3)	Kcommon_name_(vec_import) (K,a0,a1,a2,a3)
@@ -248,6 +256,8 @@
 #define Kpoly_sscan(a0,a1)	Kcommon_name_(poly_sscan) (K,a0,a1)
 #define Kpoly_fscan(a0,a1)	Kcommon_name_(poly_fscan) (K,a0,a1)
 #define Kpoly_scan(a0)	Kcommon_name_(poly_scan) (K,a0)
+#define Kpoly_cxx_out(a0,a1)	Kcommon_name_(poly_cxx_out) (K,a0,a1)
+#define Kpoly_cxx_in(a0,a1)	Kcommon_name_(poly_cxx_in) (K,a0,a1)
 
 
 

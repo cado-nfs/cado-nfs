@@ -1,7 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stddef.h>     /* ptrdiff_t */
 #include <stdint.h>
-#include <algorithm>
+#include <queue>          // for make_heap, pop_heap, push_heap
 #include "rowset_heap.h"
 
 int heap_index_compare(const struct bucket * a, const struct bucket * b)

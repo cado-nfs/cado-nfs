@@ -64,7 +64,6 @@ set(las_core_c_sources
         las-arith.cpp
         las-descent-trees.cpp
         las-plattice.cpp
-        las-sighandlers.cpp
 )
 add_library(las_core_a OBJECT ${las_core_a_sources})
 add_library(las_core_b OBJECT ${las_core_b_sources})
@@ -143,7 +142,10 @@ add_executable(dupsup dupsup.cpp
 target_link_libraries(dupsup facul)
 set_target_properties(dupsup PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
-add_executable(fake_rels EXCLUDE_FROM_ALL fake_rels.cpp)
+add_executable(fake_rels EXCLUDE_FROM_ALL fake_rels.cpp
+    # I don't like this situation where there's a single object file that
+    # I want to pull from a greater compound.
+    las-todo-entry.cpp)
 target_link_libraries(fake_rels utils_with_io)
 
 install(TARGETS makefb las las_descent freerel RUNTIME DESTINATION ${LIBSUFFIX}/sieve) 

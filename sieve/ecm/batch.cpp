@@ -9,11 +9,9 @@
 
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
-
 #include <cmath>               // for ceil, pow, log2
 #include <cstdio>              // for fprintf, snprintf, fflush, stderr, FILE
 #include <cstdlib>             // for free, malloc, exit, abort, realloc
-
 #include <iterator>            // for begin, end
 #include <list>                // for list, operator!=, _List_iterator, list...
 #include <memory>              // for allocator_traits<>::value_type
@@ -23,7 +21,7 @@
 #include <vector>              // for vector
 #include <gmp.h>
 
-#include "omp_proxy.h"
+#include "omp_proxy.h" // IWYU pragma: keep
 #include "batch.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul_doit.hpp"      // for facul_doit_onefm
@@ -812,7 +810,8 @@ factor_one (
         int lpb[2],
         FILE *out,
         facul_method_t *methods,
-        std::vector<unsigned long> (&SP)[2])
+        std::vector<unsigned long> (&SP)[2],
+        int recomp_norm)
 {
     int64_t a = C.a;
     uint64_t b = C.b;
@@ -821,7 +820,15 @@ factor_one (
     cxx_mpz norm, cofac;
     for(int side = 0 ; side < 2 ; side++) {
         mpz_set(cofac, C.cofactor[side]);
-        mpz_poly_homogeneous_eval_siui (norm, pol->pols[side], a, b);
+        if (recomp_norm) {
+            mpz_poly_homogeneous_eval_siui (norm, pol->pols[side], a, b);
+        } else {
+            if (C.doing_p->side == side) {
+                mpz_mul(norm, cofac, C.doing_p->p);
+            } else {
+                mpz_set(norm, cofac);
+            }
+        }
         std::vector<uint64_t> empty;
         bool smooth = factor_simple_minded (factors[side], norm, methods,
                 lpb[side], (double) lim[side], SP[side],
@@ -833,7 +840,7 @@ factor_one (
              * have non-smooth values after all.
              */
             if (batchlpb[side] == lpb[side]) {
-#ifdef  HAVE_OPENMP
+#ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
                 {
@@ -874,7 +881,8 @@ factor (cofac_list const & L,
         int batchlpb[2],
         int lpb[2],
         int ncurves,
-        FILE *out, int nthreads MAYBE_UNUSED, double& extra_time)
+        FILE *out, int nthreads MAYBE_UNUSED, double& extra_time,
+        int recomp_norm)
 {
   unsigned long B[2];
   int nb_methods;
@@ -891,7 +899,13 @@ factor (cofac_list const & L,
   for(int side = 0 ; side < 2 ; side++) {
       prime_info_init (pi);
       B[side] = (unsigned long) ceil (pow (2.0, (double) lpb[side] / 2.0));
-      prime_list_poly (SP[side], pi, B[side], pol->pols[side]);
+      if (!recomp_norm) {
+          // If not recomp_norm, then the poly file might be fake...
+          // This list of primes is rather small anyway.
+          prime_list (SP[side], pi, B[side]);
+      } else {
+          prime_list_poly (SP[side], pi, B[side], pol->pols[side]);
+      }
       prime_info_clear (pi);
   }
 
@@ -920,7 +934,8 @@ factor (cofac_list const & L,
 #ifdef HAVE_OPENMP
 #pragma omp single nowait
 #endif
-          factor_one (smooth_local, *it, pol, B, batchlpb, lpb, out, methods, SP);
+          factor_one (smooth_local, *it, pol, B, batchlpb, lpb, out, methods,
+                  SP, recomp_norm);
       }
 #ifdef HAVE_OPENMP
 #pragma omp critical
@@ -954,7 +969,10 @@ create_batch_product (mpz_t P, unsigned long L, cxx_mpz_poly const & pol, double
    2) the large prime bound L
    3) the polynomial, in the form "f0 f1 ... fd"
    Then the integer P is written using mpz_out_raw.
-   The header can be read by a human with head -3 batch_file. */
+   The header can be read by a human with head -3 batch_file.
+
+   XXX This must be kept in sync with sieve/inspect-batch-file.pl
+*/
 static void
 output_batch (FILE *fp, unsigned long B, unsigned long L,
               cxx_mpz_poly const & pol, cxx_mpz const & P, const char *f)

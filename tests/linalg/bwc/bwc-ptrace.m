@@ -347,10 +347,14 @@ end if;
 
 load "Cr.m";
 if Category(var) ne RngIntElt then
-    Cr:=[g(var[j..j+nchecks*plimbs-1]) : j in [1..#var by nchecks*plimbs]];
-    if p ne 2 then
+    if p ne 2 and assigned plimbs then
+        Cr:=[g(var[j..j+nchecks*plimbs-1]) : j in [1..#var by nchecks*plimbs]];
         assert #Eltseq(Cr[1]) eq 1;
         Cr:=[x[1]:x in Cr];
+    else
+        Cr:=[g(var[j..j+nchecks*1-1]) : j in [1..#var by nchecks*1]];
+        assert Nrows(Cr[1]) eq nchecks;
+        assert Ncols(Cr[1]) eq nchecks;
     end if;
 elif assigned Cr then
     delete Cr;
@@ -421,10 +425,13 @@ mval:=func<M|Minimum([Valuation(x):x in Eltseq(M)])>;
 mdeg:=func<M|Maximum([Degree(x):x in Eltseq(M)])>;
 mcol:=func<M,j|Transpose(M)[j]>;
 mrow:=func<M,i|M[i]>;
+mrows:=func<M,L|Matrix(BaseRing(M),#L,Ncols(M),[mrow(M,i):i in L])>;
+mcols:=func<M,L|Transpose(mrows(Transpose(M),L))>;
 function reciprocal(P,k)
     assert k ge Degree(P);
     return Parent(P)![Coefficient(P, k-i):i in [0..k]];
 end function;
+mrev:=func<M,k|Parent(M)![reciprocal(x,k):x in Eltseq(M)]>;
 
 function mpol_eval(y,M,P)
     /* compute y * P(M) */
@@ -520,7 +527,7 @@ degA:=mdeg(A);
 coldegs:=[mdeg(mcol(Fr,j)):j in [1..n]];
 
 /* At this point, in the case where no "nrhs" argument has been passed to
- * plingen, the computed matrix F should be such that the following predicates
+ * lingen, the computed matrix F should be such that the following predicates
  * hold.
  */
 
@@ -556,17 +563,21 @@ else
     assert Fx0 eq rhscoeffs + X*Submatrix(F, 1, 1, r, n);
     assert Fx1 eq Submatrix(F, r+1, 1, n-r, n);
 
-    Frx :=Parent(Fx)![reciprocal(x,degF):x in Eltseq(Fx)];
-    Frx0:=Parent(Fx0)![reciprocal(x,degF):x in Eltseq(Fx0)];
+    // we're a bit lazy here. The top coefficient in Fx0 (and then in Fx)
+    // actually only affects the RHS vectors. Therefore we should separate it
+    // in the equation AxFx.
+    Frx :=Parent(Fx)![reciprocal(x,1+degF):x in Eltseq(Fx)];
+    Frx0:=Parent(Fx0)![reciprocal(x,1+degF):x in Eltseq(Fx0)];
     Frx1:=Parent(Fx1)![reciprocal(x,degF):x in Eltseq(Fx1)];
     /* A has an inherent O(X^(degA+1)). Since we've shifted a few columns,
      * it's even O(X^degA).
      */
     AxFx:=mmod(Ax*Frx,degA);
     assert exists(e) { e : e in [0..4] | &and[IsZero(mdiv(mcol(AxFx,j),e+coldegs[j])):j in [1..n]]};
+    // when #RHS gt 0, we should always have e==1
     print "Degree offset for generator is", e;
 end if;
-print "Checking generator computed by plingen: done";
+print "Checking generator computed by lingen: done";
 
 /* ok. Now think about this a bit more. This means we have many zeroes. So
  * something ought to be the null vector, right ?

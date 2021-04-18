@@ -32,9 +32,9 @@ pass_bwcpl_args=("$@")
 : ${m=8}
 : ${n=4}
 : ${prime=4148386731260605647525186547488842396461625774241327567978137}
-: ${mpi=1x1}
-: ${lingen_mpi=1x1}
-: ${thr=2x2}
+: ${mpi:=1x1}
+: ${lingen_mpi:=1x1}
+: ${thr:=2x2}
 # Set the "matrix" variable in order to work on a real matrix.
 : ${matrix=}
 # Set the "bindir" variable to use pre-built binaries (must point to the
@@ -370,7 +370,9 @@ if ! [ "$magma" ] ; then
     if [[ $script_steps =~ bwc\.pl/([a-z:/]*) ]] ; then
         IFS=/ read -a bwcpl_steps <<< "${BASH_REMATCH[1]}"
         for s in "${bwcpl_steps}" ; do
-            if ! $bindir/bwc.pl "$s" "${common[@]}" "${pass_bwcpl_args[@]}" ; then
+            if $bindir/bwc.pl "$s" "${common[@]}" "${pass_bwcpl_args[@]}" ; then
+                :
+            else
                 rc=$?
                 break
             fi
@@ -387,7 +389,9 @@ else
     if [[ $script_steps =~ bwc\.pl/([a-z:/]*) ]] ; then
         IFS=/ read -a bwcpl_steps <<< "${BASH_REMATCH[1]}"
         for s in "${bwcpl_steps}" ; do
-            if ! $bindir/bwc.pl "$s" "${common[@]}" "${pass_bwcpl_args[@]}" ; then
+            if $bindir/bwc.pl "$s" "${common[@]}" "${pass_bwcpl_args[@]}" ; then
+                :
+            else
                 rc=$?
                 break
             fi
@@ -452,7 +456,6 @@ Nv=$((${BASH_REMATCH[2]}*${BASH_REMATCH[4]}))
 
 bfile="`basename $matrix .bin`.${Nh}x${Nv}/`basename $matrix .bin`.${Nh}x${Nv}.bin"
 
-
 # This is for the **unbalanced** matrix !!
 
 if [ "$prime" = 2 ] ; then
@@ -476,6 +479,10 @@ if [ "$prime" = 2 ] ; then
     (echo "nc_orig:=$ncols;nr_orig:=$nrows;" ; $cmd bmatrix < $matrix) > $mdir/t.m
 else
     $cmd bpmatrix_${nrows}_${ncols} < $matrix > $mdir/t.m
+fi
+if ! [ -f "$wdir/$bfile" ] ; then
+    echo "no balancing file found $wdir/$bfile" >&2
+    exit $rc
 fi
 $cmd balancing < "$wdir/$bfile" > $mdir/b.m
 checksum=$(perl -ne '/checksum (\w+)/ && print "$1\n";' < $mdir/b.m)

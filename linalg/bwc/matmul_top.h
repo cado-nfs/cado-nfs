@@ -140,7 +140,7 @@ extern void matmul_top_init(matmul_top_data_ptr mmt,
 
 extern void matmul_top_decl_usage(param_list_ptr pl);
 extern void matmul_top_lookup_parameters(param_list_ptr pl);
-extern void matmul_top_report(matmul_top_data_ptr mmt, double scale);
+extern void matmul_top_report(matmul_top_data_ptr mmt, double scale, int full);
 extern void matmul_top_clear(matmul_top_data_ptr mmt);
 extern unsigned int matmul_top_rank_upper_bound(matmul_top_data_ptr mmt);
 #if 0

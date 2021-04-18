@@ -9,6 +9,9 @@
  * the __mpiexec__ command has been found. */
 
 #cmakedefine    HAVE_MPI "@HAVE_MPI@"
+#cmakedefine    MPI_C_COMPILER "@MPI_C_COMPILER@"
+#cmakedefine    MPI_CXX_COMPILER "@MPI_CXX_COMPILER@"
+#cmakedefine    MPIEXEC "@MPIEXEC@"
 
 
 #endif	/* CADO_MPI_CONFIG_H_IN */

@@ -1,5 +1,5 @@
-#ifndef RELATION_H_
-#define RELATION_H_
+#ifndef RELATION_HPP_
+#define RELATION_HPP_
 
 #ifndef __cplusplus
 #error "This is C++-only"
@@ -68,7 +68,7 @@ struct relation : public relation_ab {
         pr& operator=(const pr&) = default;
     };
     int rational_side = -1;    /* index of the rational side, if any */
-    int nb_polys = 0;         /* number of polynoms, default = 2 */
+    int nb_polys = 0;         /* number of polynomials, default = 2 */
     std::vector<pr> sides[NB_POLYS_MAX]; /* pr's are stored w.r.t. side */
 
     relation() {}
@@ -114,4 +114,4 @@ struct pr_cmp {
     }
 };
 
-#endif	/* RELATION_H_ */
+#endif	/* RELATION_HPP_ */

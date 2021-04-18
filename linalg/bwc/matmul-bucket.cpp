@@ -38,7 +38,7 @@ using namespace std;
 
 /* Make sure that the assembly function is only called if it matches
  * correctly the abase header !! */
-#if defined(HAVE_GAS_SYNTAX_ASSEMBLY_SOURCES) && (defined(SELECT_MPFQ_LAYER_u64k1) || defined(SELECT_MPFQ_LAYER_u64))
+#if defined(HAVE_GAS_SYNTAX_ASSEMBLY_SOURCES) && defined(SELECT_MPFQ_LAYER_u64k1)
 // disabling one particular assembly code is done by simply disabling the
 // header file (and optionally removing the assembly file from the link
 // list is the CMakeLists.txt file, but in reality it's not needed. This
@@ -280,10 +280,10 @@ using namespace std;
 /* see matmul-basic.c */
 #define MM_DIR0_PREFERS_TRANSP_MULT   1
 
-template<typename T> inline T * ptrbegin(vector<T>& v) { return &v.front(); }
-template<typename T> inline T const * ptrbegin(vector<T> const & v) { return &v.front(); }
-template<typename T> inline T * ptrend(vector<T>& v) { return v.size() + &v.front(); }
-template<typename T> inline T const * ptrend(vector<T> const & v) { return v.size() + &v.front(); }
+template<typename T> inline T * ptrbegin(vector<T>& v) { return v.data(); }
+template<typename T> inline T const * ptrbegin(vector<T> const & v) { return v.data(); }
+template<typename T> inline T * ptrend(vector<T>& v) { return v.size() + ptrbegin(v); }
+template<typename T> inline T const * ptrend(vector<T> const & v) { return v.size() + ptrbegin(v); }
 
 #if 0
 static unsigned int idiotic_sum(void * p, unsigned int nbytes)

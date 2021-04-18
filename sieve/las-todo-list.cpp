@@ -9,6 +9,8 @@
 #include <algorithm>       // for find, min
 #include <memory>          // for allocator_traits<>::value_type
 #include <vector>          // for vector, vector<>::iterator
+#include <sstream>
+#include <thread>                         // for thread
 #include <gmp.h>           // for mpz_set, mpz_cmp_ui, mpz_t, mpz_cmp, gmp_r...
 #include "gmp_aux.h"
 #include "las-todo-list.hpp"
@@ -130,7 +132,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         exit(EXIT_FAILURE);
     }
 
-    print_todo_list = param_list_parse_switch(pl, "-print-todo-list");
+    print_todo_list_flag = param_list_parse_switch(pl, "-print-todo-list");
 
     /* It's not forbidden to miss -q0 */
     param_list_parse_mpz(pl, "q0", q0);
@@ -269,7 +271,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             if (roots.empty()) nb_no_roots++;
 
             if (galois) {
-                size_t nroots = skip_galois_roots(roots.size(), q, (mpz_t*)&roots[0], galois);
+                size_t nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
                 roots.erase(roots.begin() + nroots, roots.end());
             }
 
@@ -301,6 +303,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
         mpz_sub(diff, q1, q0);
         ASSERT_ALWAYS(nq_pushed == 0 || nq_pushed == nq_max);
 	unsigned long n = nq_max;
+        unsigned int spin = 0;
         for ( ; nq_pushed < n ; ) {
             /* try in [q0 + k * (q1-q0) / n, q0 + (k+1) * (q1-q0) / n[ */
             cxx_mpz q0l, q1l;
@@ -319,9 +322,17 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             mpz_add(q, q, q0l);
             next_legitimate_specialq(q, fac_q, q, 0, *this);
             std::vector<cxx_mpz> roots = mpz_poly_roots(f, q, fac_q);
-            if (roots.empty()) continue;
+            if (roots.empty()) {
+                spin++;
+                if (spin >= 1000) {
+                    fprintf(stderr, "Error: cannot find primes with roots in one of the sub-ranges for random sampling\n");
+                    exit(EXIT_FAILURE);
+                }
+                continue;
+            }
+            spin = 0;
             if (galois) {
-                size_t nroots = skip_galois_roots(roots.size(), q, (mpz_t*)&roots[0], galois);
+                size_t nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
                 roots.erase(roots.begin() + nroots, roots.end());
             }
             nq_pushed++;
@@ -447,3 +458,76 @@ las_todo_entry * las_todo_list::feed_and_pop(gmp_randstate_t rstate)
 }
 /* }}} */
 
+void las_todo_list::print_todo_list(cxx_param_list & pl, gmp_randstate_ptr rstate, int nthreads) const
+{
+
+    if (random_sampling) {
+        /* Then we cannot print the todo list in a multithreaded way
+         * without breaking the randomness predictability. It's a bit
+         * annoying, yes. On the other hand, it's highly likely in this
+         * case that the number of q's to pick is small enough anyway !
+         */
+        nthreads = 1;
+    }
+
+    std::vector<std::vector<las_todo_entry>> lists(nthreads);
+    std::vector<std::thread> subjobs;
+
+    auto segment = [&, this](unsigned int i) {
+        cxx_param_list pl2 = pl;
+        cxx_mpz tmp;
+        mpz_sub(tmp, q1, q0);
+        mpz_mul_ui(tmp, tmp, i);
+        mpz_fdiv_q_ui(tmp, tmp, nthreads);
+        mpz_add(tmp, q0, tmp);
+        {
+            std::ostringstream os;
+            os << tmp;
+            param_list_add_key(pl2, "q0", os.str().c_str(), PARAMETER_FROM_CMDLINE);
+        }
+
+        mpz_sub(tmp, q1, q0);
+        mpz_mul_ui(tmp, tmp, i + 1);
+        mpz_fdiv_q_ui(tmp, tmp, nthreads);
+        mpz_add(tmp, q0, tmp);
+        {
+            std::ostringstream os;
+            os << tmp;
+            param_list_add_key(pl2, "q1", os.str().c_str(), PARAMETER_FROM_CMDLINE);
+        }
+        las_todo_list todo2(cpoly, pl2);
+        for(;;) {
+            las_todo_entry * doing_p = todo2.feed_and_pop(rstate);
+            if (!doing_p) break;
+            las_todo_entry& doing(*doing_p);
+            if (nthreads == 1) {
+                verbose_output_vfprint(0, 1, gmp_vfprintf,
+                        "%d %Zd %Zd\n",
+                        doing.side,
+                        (mpz_srcptr) doing.p,
+                        (mpz_srcptr) doing.r);
+            } else {
+                lists[i].push_back(doing);
+            }
+        }
+    };
+
+    if (nthreads > 1) {
+        verbose_output_vfprint(0, 1, gmp_vfprintf,
+                "# Collecting the todo list in memory from q0=%Zd to q1=%Zd using %d threads\n",
+                (mpz_srcptr) q0, (mpz_srcptr) q1, nthreads);
+    }
+
+    for(int subjob = 0 ; subjob < nthreads ; ++subjob)
+        subjobs.push_back(std::thread(segment, subjob));
+    for(auto & t : subjobs) t.join();
+    for(auto const & v : lists) {
+        for(auto const & doing : v) {
+            verbose_output_vfprint(0, 1, gmp_vfprintf,
+                    "%d %Zd %Zd\n",
+                    doing.side,
+                    (mpz_srcptr) doing.p,
+                    (mpz_srcptr) doing.r);
+        }
+    }
+}

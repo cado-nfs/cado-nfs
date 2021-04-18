@@ -15,8 +15,8 @@ typedef struct {
 extern "C" {
 #endif
 
-int numberOfRealRoots (mpz_t *p, int n, double T, int verbose, usp_root_data *R);
-double rootRefine (usp_root_data *r, mpz_t *p, int n, double precision);
+int numberOfRealRoots (const mpz_t *p, int n, double T, int verbose, usp_root_data *R);
+double rootRefine (usp_root_data *r, const mpz_t *p, int n, double precision);
 void usp_root_data_init (usp_root_data *R);
 void usp_root_data_clear (usp_root_data *R);
 

@@ -115,9 +115,16 @@ class streambase_maybe_compressed : virtual public std::ios {
     std::unique_ptr<cado_pipe_streambuf> pbuf;
     std::unique_ptr<std::filebuf> fbuf;
     std::streambuf * buf;
+    const char * orig_name;
+    std::string tempname;
     public:
     /* I don't think that we need a default ctor, do we ? */
     streambase_maybe_compressed(const char * name, std::ios_base::openmode mode);
+    /* Note that in output mode, the file will first be created with a
+     * temp name, and eventually only the dtor will move it from that
+     * temp name to the final location.
+     * (this behaviour might be system-dependent).
+     */
     ~streambase_maybe_compressed();
     void open(const char * name, std::ios_base::openmode mode);
     void close();

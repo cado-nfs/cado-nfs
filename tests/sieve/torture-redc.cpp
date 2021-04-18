@@ -11,7 +11,7 @@
 #include <sys/time.h>
 #include <gmp.h>               // for gmp_randstate_t, gmp_urandomb_ui, mpz_...
 #include "gmp_aux.h"           // for mpz_get_uint64, mpz_fits_sint64_p, mpz...
-#include "utils/cxx_mpz.hpp"
+#include "cxx_mpz.hpp"
 #include "las-arith.hpp"
 
 /* smaller p bits are good to spot some corner cases that happen only with
@@ -149,8 +149,9 @@ oldbuggy_redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
 }
 
 template<bool CARRY>
-int test_redc_32(gmp_randstate_t rstate, size_t N, bool signed_x = true)
+int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = true)
 {
+    constexpr unsigned int loops = 1024;
     std::vector<uint32_t> ps;
     std::vector<int64_t> xs;
     std::vector<uint32_t> ips;
@@ -208,17 +209,32 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool signed_x = true)
 
     clock_t clk0 = clock();
 
-    if (signed_x) {
-        for(size_t i = 0 ; i < N ; i++)
-            us.push_back(redc_32<CARRY>(xs[i], ps[i], ips[i]));
+    if (check) {
+        if (signed_x) {
+            for(size_t i = 0 ; i < N ; i++)
+                us.push_back(redc_32<CARRY>(xs[i], ps[i], ips[i]));
+        } else {
+            for(size_t i = 0 ; i < N ; i++)
+                us.push_back(redc_u32<CARRY>(xs[i], ps[i], ips[i]));
+        }
     } else {
-        for(size_t i = 0 ; i < N ; i++)
-            us.push_back(redc_u32<CARRY>(xs[i], ps[i], ips[i]));
+        uint32_t fake_sum = 0;
+        for (unsigned int loop = 0; loop < loops; loop++) {
+            if (signed_x) {
+                for(size_t i = 0 ; i < N ; i++)
+                    fake_sum += redc_32<CARRY>(xs[i], ps[i], ips[i]);
+            } else {
+                for(size_t i = 0 ; i < N ; i++)
+                    fake_sum += redc_u32<CARRY>(xs[i], ps[i], ips[i]);
+            }
+        }
+        volatile uint32_t fake_sum_vol = fake_sum;
+        if (fake_sum_vol) {}
     }
 
     clock_t clk1 = clock();
 
-    if (signed_x) {
+    if (check && signed_x) {
         for(size_t i = 0 ; i < N ; i++) {
             if (!redc_32_postconditions(us[i], xs[i], ps[i], ips[i])) {
                 fprintf(stderr, "ERROR: redc_32<%s>("
@@ -235,7 +251,7 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool signed_x = true)
                 exit(EXIT_FAILURE);
             }
         }
-    } else {
+    } else if (check) {
         for(size_t i = 0 ; i < N ; i++) {
             if (!redc_u32_postconditions(us[i], xs[i], ps[i], ips[i])) {
                 fprintf(stderr, "ERROR: redc_u32<%s>("
@@ -256,15 +272,15 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool signed_x = true)
 
     const char * fname[2] = { "redc_u32", "redc_32" };
     printf("%s: %zu tests in %.4fs\n",
-            fname[signed_x], N, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+            fname[signed_x], (check) ? N : N*(size_t)loops, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
 
     return 0;
 }
 
 template <bool CARRY>
-int test_redc_u32(gmp_randstate_t rstate, size_t N)
+int test_redc_u32(gmp_randstate_t rstate, size_t N, bool check)
 {
-    return test_redc_32<CARRY>(rstate, N, false);
+    return test_redc_32<CARRY>(rstate, N, check, false);
 }
 
 int main(int argc, char * argv[])
@@ -273,10 +289,13 @@ int main(int argc, char * argv[])
     setbuf(stderr, NULL);
 
     size_t Nmax = 1e5;
+    bool check = true;
     for( ; argc > 1 ; argv++,argc--) {
         if (strcmp(argv[1], "--minimum-p-bits") == 0) {
             argv++,argc--;
             minimum_p_bits = atoi(argv[1]);
+        } else if (strcmp(argv[1], "-t") == 0) {
+            check = false;
         } else {
             Nmax = atol(argv[1]);
         }
@@ -289,10 +308,10 @@ int main(int argc, char * argv[])
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
     for(size_t N = 1 ; N < Nmax ; N *= 2) {
-        // test_redc_32<false>(rstate, N);
-        // test_redc_u32<false>(rstate, N);
-        test_redc_32<true>(rstate, N);
-        test_redc_u32<true>(rstate, N);
+        // test_redc_32<false>(rstate, N, check);
+        // test_redc_u32<false>(rstate, N, check);
+        test_redc_32<true>(rstate, N, check);
+        test_redc_u32<true>(rstate, N, check);
     }
     gmp_randclear(rstate);
 }

@@ -10,10 +10,22 @@
 #include <memory>            // for allocator_traits<>::value_type
 #include <pthread.h>
 #include <gmp.h>             // for gmp_randstate_t, gmp_randclear, gmp_rand...
+#include <set>
+#include <map>
+#include <iterator>
+#include <sstream>
+#include <mutex>
+#include <thread>
+#include <iostream>
+#include <algorithm>
+#include "fmt/format.h"       // for cxx_cado_poly, cado_poly_read, cado_poly_s
 #include "cado_poly.h"       // for cxx_cado_poly, cado_poly_read, cado_poly_s
 #include "mpz_poly.h"        // for mpz_poly
+#include "renumber_proxy.h"
 #include "typedefs.h"   // index_t p_r_values_t
 #include "renumber.hpp" // renumber_t
+#include "relation.hpp"
+#include "las-todo-entry.hpp"
 #include "relation-tools.h"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gzip.h"       // fopen_maybe_compressed
@@ -22,6 +34,10 @@
 #include "verbose.h"    // verbose_decl_usage
 #include "macros.h"
 #include "params.h"
+#include "misc.h"
+#include "indexed_relation.hpp"
+
+static int verbose = 0; /* verbosity level */
 
 /*
  * The goal of this binary is to produce relations that try to be good
@@ -30,9 +46,10 @@
  * relations to get an idea of the final matrix that will come out of the
  * sieving step for a given set of parameters.
  *
- * The shell script cado-nfs/misc/estimate_matsize.sh is an attempt to
- * run all the required steps for such a simulation: sampling with las,
- * fake relation generation with this binary, and filter.
+ * The shell script cado-nfs/scripts/estimate_matsize/estimate_matsize.sh
+ * is an attempt to run all the required steps for such a simulation:
+ * sampling with las, fake relation generation with this binary, and
+ * filter.
  *
  * The binary takes as input:
  *   - poly file
@@ -49,30 +66,11 @@
  *
  */
 
-using namespace std;
-
 // A global mutex for I/O
-static pthread_mutex_t io_mutex = PTHREAD_MUTEX_INITIALIZER;
+static std::mutex io_mutex;
 
 // A global variable for the number of relations printed
 static unsigned long rels_printed = 0;
-
-// We need a re-entrant random. Let's take GMP.
-static inline uint64_t long_random(gmp_randstate_t buf) {
-#if ULONG_BITS == 64
-    return gmp_urandomb_ui(buf, 64);
-#elif ULONG_BITS == 32
-    cxx_mpz z;
-    mpz_urandomb(z, buf, 64);
-    return mpz_get_uint64(z);
-#endif
-}
-
-static gmp_randstate_t global_rstate_non_mt;
-
-static long myrandom_non_mt() {
-    return long_random(global_rstate_non_mt);
-}
 
 // Structure that contains indices (in the sense of renumber.[ch]) for
 // one side, with the possibility to get a randomized ideal on the same
@@ -82,12 +80,12 @@ static long myrandom_non_mt() {
 //  - do many append() (increasing order of indices) and append_prime()
 //  - finalize()
 //  - can call random_index()
-//  - can call iterator_from_index()
+//  - can call iterator_from_index()    (XXX unused code !)
 //  - can call pos_from_p() and p_from_pos() if append_prime() has been done
 
 struct indexrange {
-    vector <index_t>ind;
-    vector <p_r_values_t>prime;
+    std::vector <index_t>ind;
+    std::vector <p_r_values_t>prime;
 
     void init() { }
     void finalize() { }
@@ -99,7 +97,7 @@ struct indexrange {
         prime.push_back(p);
     }
 
-    index_t random_index(index_t z, gmp_randstate_t buf) {
+    index_t random_index(index_t z, gmp_randstate_t buf) const {
         // Find position of z
         // Exact version:
         //  vector<index_t>::iterator it;
@@ -112,486 +110,380 @@ struct indexrange {
         uint64_t high = MIN(position + range, ind.size());
         if (high == low)
             high++;
-        return ind[low + uint64_t(long_random(buf)%(high-low))];
+        return ind[low + uint64_t(u64_random(buf)%(high-low))];
     }
 
-    p_r_values_t p_from_pos(uint64_t position) {
+    p_r_values_t p_from_pos(uint64_t position) const {
         return prime[position];
     }
 
-    // Compute one position corresponding to the given p. In the case where
-    // there are several positions, the choice is arbitrary.
-    // If p is not in the table, compute a position with a close-enough
-    // prime.
-    uint64_t pos_from_p(p_r_values_t p) {
-        uint64_t low, high;
-        p_r_values_t pp;
-        low = 0; high = prime.size()-1;
-        pp = prime[low];
-        if (pp == p)
-            return low;
-        pp = prime[high];
-        if (pp == p)
-            return high;
-        do {
-            uint64_t middle = (low+high)>>1;
-            pp = prime[middle];
-            if (p == pp)
-                return middle;
-            if (p < pp)
-                high = middle;
-            else
-                low = middle;
-        } while (high > low+1);
-        return low;
+    size_t pos_from_p(p_r_values_t p) const {
+        return std::lower_bound(prime.begin(), prime.end(), p) - prime.begin();
     }
- 
-    vector <index_t>::iterator iterator_from_index(index_t z) {
-        vector<index_t>::iterator it;
-        it = lower_bound(ind.begin(), ind.end(), z);
+
+    /* XXX unused ! */
+    std::vector<index_t>::const_iterator iterator_from_index(index_t z) const {
+        std::vector<index_t>::const_iterator it;
+        it = std::lower_bound(ind.begin(), ind.end(), z);
         return it;
     }
+
+    std::vector<index_t> all_composites(
+            uint64_t q0,
+            uint64_t q1,
+            uint64_t qfac_min,
+            uint64_t qfac_max,
+            int nfactors) const;
+    std::vector<std::vector<index_t>> all_composites(
+            uint64_t q0,
+            uint64_t q1,
+            uint64_t qfac_min,
+            uint64_t qfac_max) const;
 };
 
 // Fill in the indexrange data structure from the renumber table,
 // gathering indices in two arrays, one for each side.
 // In case of composite special-qs, also fill-in the list of the
 // corresponding primes on the sqside.
-static void prepare_indexrange(indexrange *Ind, renumber_t const & ren_tab, 
+static std::vector<indexrange> prepare_indexrange(renumber_t const & ren_tab, 
         int sqside, int compsq) {
-    Ind[0].init();
-    Ind[1].init();
-    for (index_t i = 0; i < ren_tab.get_size(); i++) {
+    std::vector<indexrange> Ind(ren_tab.get_nb_polys());
+    for(unsigned int side = 0 ; side < ren_tab.get_nb_polys() ; side++)
+        Ind[side].init();
+    index_t i = 0;
+    for (auto it = ren_tab.begin() ; it != ren_tab.end() ; ++it, ++i) {
         if (ren_tab.is_additional_column(i))
             continue;
-        renumber_t::p_r_side x = ren_tab.p_r_from_index(i); // XXX forward iterator, really
+        renumber_t::p_r_side x = *it;
         Ind[x.side].append(i);
         if (compsq && (x.side == sqside)) {
             Ind[sqside].append_prime(x.p);
         }
     }
-    Ind[0].finalize();
-    Ind[1].finalize();
+    for(unsigned int side = 0 ; side < ren_tab.get_nb_polys() ; side++)
+        Ind[side].finalize();
+
+    return Ind;
 }
 
-#define MAXFACTORS 50  // on each side. Should be enough?
+void remove_special_q(relation & rel, las_todo_entry const & Q)
+{
+    typedef std::vector<relation::pr> V_t;
+    V_t & V = rel.sides[Q.side];
+    typedef V_t::iterator it_t;
+    it_t nn = V.begin();
+    for(auto const & pr : V) {
+        if (!Q.is_coprime_to(mpz_get_ui(pr.p)))
+            continue;
+        *nn++ = pr;
+    }
+    V.erase(nn, V.end());
+}
 
-struct fake_rel {
-    index_t ind[2][MAXFACTORS];
-    int nb_ind[2];
-    /* only used while reading, so that we get a stable sort */
-    int64_t a;
-    uint64_t b;
+#include "misc.h"
+
+
+struct model_relation : public indexed_relation_byside {
+    template<typename... Args> model_relation(Args&&... args) : indexed_relation_byside(std::forward<Args>(args)...) {}
+    model_relation perturb(std::vector<indexrange> const & Ind, gmp_randstate_t buf) const
+    {
+        auto R = [buf]() { return u64_random(buf); };
+        relation_ab ab(R(), R());
+        model_relation rel(ab);
+
+        rel.set_nsides(get_nsides());
+        for(size_t side = 0 ; side < sides.size() ; side++) {
+            for(auto i : sides[side]) {
+                rel[side].push_back(Ind[side].random_index(i, buf));
+            }
+        }
+        return rel;
+    }
 };
 
-bool operator<(fake_rel const& x, fake_rel const& y) {
-    if (x.a < y.a) return true;
-    if (x.a > y.a) return false;
-    return x.b < y.b;
-}
+// static std::map<las_todo_entry, std::vector<model_relation> >
+static std::pair<std::vector<size_t>, std::vector<model_relation>>
+read_sample_file(int sqside, const char *filename, renumber_t & ren_tab)
+{
+    ifstream_maybe_compressed in(filename);
 
-static int p_coprimeto_q(uint64_t p, uint64_t q, vector<uint64_t> facq) {
-    if (facq.size() == 0) {
-        return q != p;
-    } else {
-        for (auto f : facq) {
-            if (f == p)
-                return 0;
-        }
-        return 1;
-    }
-}
+    ASSERT_ALWAYS (in);
 
+    std::set<las_todo_entry> current;
+    std::map<las_todo_entry, std::vector<model_relation> > sample;
 
-static void read_rel(fake_rel& rel, uint64_t q, vector<uint64_t> facq,
-        int sqside, const char *str, renumber_t const & ren_tab) {
-    rel.nb_ind[0] = 0;
-    rel.nb_ind[1] = 0;
-    int side = 0;
-    // read a and b
-    int64_t a;
-    uint64_t b;
-    const char *pstr = str;
-    {
-        char *endpstr = NULL;
-        rel.a = a = strtoll(pstr, &endpstr, 10);
-        ASSERT_ALWAYS (endpstr != pstr);
-        pstr = endpstr;
-        ASSERT_ALWAYS (pstr[0]==',');
-        pstr++;
-        rel.b = b = strtoull(pstr, &endpstr, 10);
-        ASSERT_ALWAYS (endpstr != pstr);
-        pstr = endpstr;
-        // skip ':'
-        ASSERT_ALWAYS (pstr[0]==':');
-        pstr++;
-    }
-    while (pstr[0] != '\0' && pstr[0] != '\n') {
-        if (pstr[0] == ':') {
-            // change side
-            side++;
-            pstr++;
+    int nbegin = 0, nend = 0, maxdepth = 0;
+
+    for(std::string line ; std::getline(in, line) ; ) {
+        if (line.rfind("# Now sieving side-", 0) != std::string::npos) {
+            std::istringstream is(line.c_str() + 14);
+            las_todo_entry Q;
+            is >> Q;
+            if (!is)
+                throw std::runtime_error(fmt::format(FMT_STRING("parse error at line: {}"), line));
+            ASSERT_ALWAYS(sqside == Q.side);
+            sample[Q];  // auto-vivify
+            if (current.insert(Q).second) {
+                /* When we start over, there's a "second" beginning. */
+                nbegin++;
+                if (nbegin - nend > maxdepth) 
+                    maxdepth = nbegin - nend;
+            }
+        } else if (line.rfind("# Time for side-", 0) != std::string::npos) {
+            nend++;
+            for(auto & x : line) if (x == ':') x = ' ';
+            std::istringstream is(line.c_str() + 11);
+            las_todo_entry Q;
+            is >> Q;
+            if (!is)
+                throw std::runtime_error(fmt::format(FMT_STRING("parse error at line: {}"), line));
+            current.erase(Q);
+        } else if (line[0] == '#') {
             continue;
-        }
-        if (pstr[0] == ',') {
-            pstr++;
-            continue;
-        }
-        char *endpstr = NULL;
-        uint64_t p = strtoull(pstr, &endpstr, 16);
-        ASSERT_ALWAYS (endpstr != pstr);
-        if (side != sqside || p_coprimeto_q(p, q, facq)) {
-            p_r_values_t r = relation_compute_r(a, b, p);
-            index_t index;
-            int nb = ren_tab.is_bad (index, p, r, side);
-            if (nb) {
-                // bad ideal: just pick a random ideal above this prime
-                index += (myrandom_non_mt() % nb);
+        } else {
+            relation rel;
+            std::istringstream(line) >> rel;
+            if (current.size() == 1) {
+                las_todo_entry const & Q = *current.begin();
+                remove_special_q(rel, Q);
+                sample[Q].emplace_back(rel, ren_tab);
             } else {
-                index = ren_tab.index_from_p_r(p, r, side);
-            }
-            rel.ind[side][rel.nb_ind[side]] = index;
-            rel.nb_ind[side]++;
-            ASSERT_ALWAYS (rel.nb_ind[side] <= MAXFACTORS);
-        }
-        pstr = endpstr;
-    }
-}
-
-static void read_sample_file(vector<unsigned int> &nrels, vector<fake_rel> &rels,
-        int sqside, const char *filename, renumber_t & ren_tab, int compsq)
-{
-    FILE * file;
-    file = fopen_maybe_compressed(filename, "r");
-    ASSERT_ALWAYS (file != NULL);
-    uint64_t q = 0;
-    vector<uint64_t> facq;
-    unsigned int nr = 0;
-
-    char line[8192];
-
-    do {
-        char * ret = fgets(line, 8192, file);
-        if (ret == NULL) {
-            nrels.push_back(nr);
-            break;
-        }
-        if (line[0] == '#') {
-            char *ptr;
-            ptr = strstr(line, "# Sieving side-");
-            if (ptr != NULL) {
-                // starting a new special-q
-                ASSERT_ALWAYS (sqside == (ptr[15] - '0'));
-                ptr += 19; // skip "# Sieving side-0 q="
-                uint64_t nq = strtoull(ptr, &ptr, 10);
-                if (compsq) {
-                    // read also the factorization of q
-                    facq.clear();
-                    ASSERT_ALWAYS(ptr[0] == '=');
-                    do {
-                        ptr++;
-                        uint64_t fac = strtoull(ptr, &ptr, 10);
-                        facq.push_back(fac);
-                    } while (ptr[0] == '*');
-                }
-                if (nq != q) {
-                    nrels.push_back(nr);
-                    nr = 0;
-                    q = nq;
+                /* Then it's more difficult, as have to look up which Q
+                 * is the good one. There may even be more than one, but
+                 * we consider this unlikely here, since we don't expect
+                 * more than a few "active" special-Qs to choose from
+                 */
+                for(las_todo_entry const & Q : current) {
+                    /* do we have a-br = 0 mod p, with the usual
+                     * conventions ? Those are actually quite annoying
+                     * conventions in general. r represents a point in
+                     * P1(Z/p), and we want to check if a:b matches r.
+                     *
+                     * In practice,
+                     *  - Q is always square-free
+                     *  - unless allow_compsq is set, Q is prime
+                     *  - projective roots above special-q's are not
+                     *  used (and this is true even for "partially
+                     *  projective" roots over divisors of Q).
+                     *
+                     * So that it's actually easy, we just have to check
+                     * that a-br = 0 mod p
+                     */
+                    cxx_mpz z;
+                    mpz_mul(z, rel.bz, Q.r);
+                    mpz_sub(z, rel.az, z);
+                    mpz_mod(z, z, Q.p);
+                    if (mpz_sgn(z) != 0)
+                        continue;
+                    remove_special_q(rel, Q);
+                    sample[Q].emplace_back(rel, ren_tab);
+                    break;
                 }
             }
-        } else {
-            fake_rel rel;
-            read_rel(rel, q, facq, sqside, line, ren_tab);
-            rels.push_back(rel);
-            nr++;
-        }
-    } while(1);
-
-    size_t s = 0;
-    for(auto const & n : nrels) {
-        ASSERT_ALWAYS((s + n) <= rels.size());
-        std::sort(rels.begin() + s, rels.begin() + s + n);
-        s += n;
-    }
-
-    fclose(file);
-}
-
-static
-int index_cmp(const void *p1, const void *p2)
-{
-    index_t pp1 = ((index_t *)(p1))[0];
-    index_t pp2 = ((index_t *)(p2))[0];
-    if (pp1 == pp2)
-        return 0;
-    if (pp1 < pp2)
-        return -1;
-    return 1;
-}
-
-static void reduce_mod_2(index_t *frel, int *nf) {
-    int i = 1;
-    index_t curr = frel[0];
-    int nb = 1;
-    int j = 0;
-    while (i < *nf) {
-        if (frel[i] != curr) {
-            if (nb & 1) {
-                frel[j++] = curr;
-            }
-            curr = frel[i];
-            nb = 1;
-        } else {
-            nb++;
-        }
-        i++;
-    }
-    if (nb & 1) {
-        frel[j++] = curr;
-    }
-    *nf = j;
-}
-
-static void shrink_indices(index_t *frel, int nf, int shrink_factor) {
-    // Indices below this threshold are not shrunk
-    // FIXME: I am not sure we should keep the heavy weight columns
-    // un-shrinked. The answer might be different in DL and in facto...
-    const index_t noshrink_threshold = 0;
-    for (int i = 0; i < nf; ++i) {
-//        if (frel[i] >= noshrink_threshold) {
-        if (1) {
-            frel[i] = noshrink_threshold +
-                (frel[i] - noshrink_threshold) / shrink_factor;
         }
     }
+
+    for(auto & S : sample)
+        std::sort(S.second.begin(), S.second.end());
+
+    if (nbegin == 0) {
+        fprintf(stderr, "# The sample file %s was apparently"
+                " created without -v, but -v is mandatory"
+                " for fake_rels\n", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    size_t nq = 0;
+    size_t nr = 0;
+
+    // return sample;
+    std::pair<std::vector<size_t>, std::vector<model_relation>> ret;
+    for(auto const & x : sample) {
+        nq++;
+        nr+=x.second.size();
+        ret.first.push_back(x.second.size());
+        std::copy(x.second.begin(), x.second.end(), std::back_inserter(ret.second));
+    }
+
+    printf("# %s: %zu special-q's, %zu relations, max %d concurrent special-q's\b",
+            filename, nq, nr, maxdepth);
+    return ret;
 }
 
-static void print_fake_rel_manyq(
-        vector<index_t>::iterator list_q, int nfacq, uint64_t nq,
-        vector<fake_rel> *rels, vector<unsigned int> *nrels,
-        indexrange *Ind, int dl, int shrink_factor,
+static unsigned long print_fake_rel_manyq(
+        std::ostream& os,
+        std::vector<index_t>::const_iterator qbegin,
+        std::vector<index_t>::const_iterator qend,
+        int nq,
+        // std::vector<std::pair<las_todo_entry, std::vector<model_relation> > > const & sample,
+        std::pair<std::vector<size_t>, std::vector<model_relation>> const & sample,
+        std::vector<indexrange> const & Ind,
+        int dl, int shrink_factor,
         gmp_randstate_t buf)
 {
-    index_t frel[2*MAXFACTORS];
-#define BUF_SIZE 100 // buffer containing several relations
-#define MAX_STR 256  // string containing a printable relation.
-    char str[BUF_SIZE*MAX_STR];
-    char *pstr;
-    int len = MAX_STR;
-    int size = 0; // number of relations in buffer
+    /* There's a question of whether we print at each special-q, or only
+     * once at the end. The former has the advantage of avoiding user
+     * boredom.
+     */
     unsigned long nrels_thread = 0;
-    pstr = str; // initialize buffer
-    for (uint64_t ii = 0; ii < nfacq*nq; ii += nfacq) {
+
+    auto R = [buf](unsigned long n) { return u64_random(buf) % n; };
+
+    ASSERT_ALWAYS((qend - qbegin) % nq == 0);
+
+    for (auto it = qbegin ; it != qend ; ) {
+        std::ostringstream oss;
+        /* This is the part that will go in _all_ relations */
+        std::vector<index_t> qpart;
+        for(int n = nq ; n-- ; )
+            qpart.push_back(*it++);
+
+        auto const & model_nrels = sample.first[R(sample.first.size())];
+        // las_todo_entry const & model_q = model.first;
+        // auto const & model_nrels = model.second.size();
+
         int nr;
         if (shrink_factor == 1) {
-            nr = int((*nrels)[long_random(buf)%nrels->size()]);
+            nr = model_nrels;
         } else {
-            double nr_dble = double((*nrels)[long_random(buf)%nrels->size()])
-                / double(shrink_factor);
+            double nr_dble = double(model_nrels) / double(shrink_factor);
             // Do probabilistic rounding, in case nr_dble is small (maybe < 1)
             double trunc_part = trunc(nr_dble);
             double frac_part = nr_dble - trunc_part;
-            double rnd = double(long_random(buf)) / double(UINT64_MAX);
+            double rnd = double(u64_random(buf)) / double(UINT64_MAX);
             nr = int(trunc_part) + int(rnd < frac_part);
         }
-        //        fprintf(stdout, "%u, %u\n", list_q[ii], list_q[ii+1]);
-	nrels_thread += nr; /* we will output nr fake relations */
-        for (; nr > 0; --nr) {
-            len = MAX_STR;
-            // pick fake a,b
-            int nc = snprintf(pstr, len, "%lx,%lx:",
-                    (unsigned long)long_random(buf),
-                    (unsigned long)long_random(buf));
-            pstr += nc;
-            len -= nc;
-            // pick a random relation as a model and prepare a string to
-            // be printed.
-            int i = long_random(buf) % rels->size();
-            int nf = 0;
-            for (int j = 0; j < nfacq; j++) {
-                frel[nf] = list_q[ii + j];
-                nf++;
-            }
-            for (int side = 0; side < 2; ++side) {
-                int np = (*rels)[i].nb_ind[side];
-                for (int j = 0; j < np; ++j) {
-                    index_t ind = Ind[side].random_index((*rels)[i].ind[side][j], buf);
-                    ASSERT(nf < 2*MAXFACTORS);
-                    frel[nf] = ind;
-                    nf++;
-                }
-            }
-            qsort(frel, nf, sizeof(index_t), index_cmp);
-            if (!dl) {
-                reduce_mod_2(frel, &nf); // update nf
-            }
-            if (shrink_factor > 1) {
-                shrink_indices(frel, nf, shrink_factor);
-                if (!dl) {
-                    reduce_mod_2(frel, &nf);
-                }
-            }
-            for (int i = 0; i < nf; ++i) {
-                nc = snprintf(pstr, len, "%" PRid, frel[i]);
-                pstr += nc;
-                len -= nc;
-                if (i != nf-1) {
-                    snprintf(pstr, len, ",");
-                    pstr++; len--;
-                }
 
-            }
-            snprintf(pstr, len, "\n");
-	    pstr++;
-	    size++;
-	    if (size == BUF_SIZE)
-	      {
-		// Get the mutex and print
-		pthread_mutex_lock(&io_mutex);
-		printf("%s", str);
-		pthread_mutex_unlock(&io_mutex);
-		pstr = str;
-		size = 0;
-	      }
+        for( ; nr-- ; ) {
+            // auto const & model_rel = model.second[R(model_nrels)];
+            auto const & model_rel = sample.second[R(sample.second.size())];
+
+            model_relation rel = model_rel.perturb(Ind, buf);
+
+            /* Note that we always add the indices that correspond to q
+             * to the **END** of the relation, irrespective of which side
+             * q is on ! This is because:
+             *   - it doesn't make any difference * down the line,
+             *   - and keeping track of the proper side for q (or,
+             *   conceivably, for the sides of all divisors of q !) would
+             *   be a bit annoying here.
+             */
+            std::copy(qpart.begin(), qpart.end(), std::back_inserter(rel.sides.back()));
+
+            if (shrink_factor > 1)
+                rel.shrink(shrink_factor);
+            rel.sort();
+            rel.compress(dl);
+
+            oss << rel << "\n";
+            nrels_thread++;
+            // rels_printed++;
         }
+        std::lock_guard<std::mutex> dummy(io_mutex);
+        os << oss.str();
     }
-    pthread_mutex_lock(&io_mutex);
-    if (size > 0) // print leftover relations if any
-      printf("%s", str);
-    rels_printed += nrels_thread;
-    pthread_mutex_unlock(&io_mutex);
-#undef MAX_STR
-#undef BUF_SIZE
+    return nrels_thread;
 }
 
-struct th_args {
-    vector<index_t>::iterator list_q_prime;
-    uint64_t nq;
-    vector<index_t>::iterator list_q_comp2;
-    uint64_t nq2;
-    vector<index_t>::iterator list_q_comp3;
-    uint64_t nq3;
-    vector<fake_rel> *rels;
-    vector<unsigned int> *nrels;
-    indexrange *Ind;
-    int dl;
-    int shrink_factor;
-    gmp_randstate_t rstate;
-};
-
-
-static void * do_thread(void * rgs) {
-    struct th_args * args = (struct th_args *) rgs;
-    if (args->nq > 0)
-        print_fake_rel_manyq(args->list_q_prime, 1, args->nq, args->rels,
-                args->nrels, args->Ind, args->dl, args->shrink_factor,
-                args->rstate);
-    
-    if (args->nq2 > 0)
-        print_fake_rel_manyq(args->list_q_comp2, 2, args->nq2, args->rels,
-                args->nrels, args->Ind, args->dl, args->shrink_factor,
-                args->rstate);
-
-    if (args->nq3 > 0)
-        print_fake_rel_manyq(args->list_q_comp3, 3, args->nq3, args->rels,
-                args->nrels, args->Ind, args->dl, args->shrink_factor,
-                args->rstate);
-
-    return NULL;
-}
-
-static void advance_prime_in_fb(int *mult, uint64_t *q, uint64_t *roots,
-        cado_poly cpoly, int sqside, prime_info pdata)
+std::vector<index_t> indexrange::all_composites(uint64_t q0, uint64_t q1,
+        uint64_t qfac_min,
+        uint64_t qfac_max,
+        int n) const
 {
-    int nr;
-    unsigned long newp;
-    do {
-        newp = getprime_mt (pdata);
-        ASSERT_ALWAYS (newp > *q);
-        nr = mpz_poly_roots_uint64(roots, cpoly->pols[sqside], newp);
-    } while (nr == 0);
+    std::vector<index_t> ret;
 
-    *mult = nr;
-    *q = newp;
-}
+    if (n == 0)
+        return ret;
 
-// All composite special-q in [q0, q1] with 2 prime factors in the range
-// [qfac_min, qfac_max] in Ind.
-static vector<index_t> all_comp_sq_2(uint64_t q0, uint64_t q1, uint64_t qfac_min,
-        uint64_t qfac_max, indexrange &Ind)
-{
-    vector<index_t> list;
+    auto jt = std::back_inserter(ret);
 
-    uint64_t l1min = MAX(q0/qfac_max, qfac_min);
-    uint64_t pos_l1min = Ind.pos_from_p(l1min);
-    uint64_t l1max = MIN(qfac_max, round(sqrt(q1)));
-    uint64_t pos_l1max = Ind.pos_from_p(l1max);
+    /* primes divisors of n-factor composite special-qs can never be
+     * smaller than this:
+     */
+    uint64_t l1min = MAX(q0/pow(qfac_max, n-1), qfac_min);
+    /* XXX prime at this position might be below l1min ! */
+    uint64_t pos_l1min = pos_from_p(l1min);
+    for( ; p_from_pos(pos_l1min) < l1min ; pos_l1min++);
+    l1min = p_from_pos(pos_l1min);
+
+    /* and never bigger than this: */
+    uint64_t l1max = MIN(qfac_max, round(pow(q1, 1/(double) n)));
+    uint64_t pos_l1max = pos_from_p(l1max);
 
     for (uint64_t pos1 = pos_l1min; pos1 < pos_l1max; ++pos1) {
-        uint64_t l1 = Ind.p_from_pos(pos1);
-        uint64_t l2min = MAX(l1, q0/l1);
-        uint64_t pos_l2min = Ind.pos_from_p(l2min);
-        uint64_t l2max = MIN(qfac_max, q1/l1);
-        uint64_t pos_l2max = Ind.pos_from_p(l2max);
-        for (uint64_t pos2 = pos_l2min; pos2 < pos_l2max; ++pos2) {
-            uint64_t l2 = Ind.p_from_pos(pos2);
-            uint64_t L = l1*l2;
-            if (L >= q0 && L <= q1) {
-                list.push_back(Ind.ind[pos1]);
-                list.push_back(Ind.ind[pos2]);
-//                fprintf(stderr, "%lu*%lu : (%u, %u)\n",
-//                        l1, l2, Ind.ind[pos1], Ind.ind[pos2]);
-            } else {
-//                fprintf(stderr, "Wooops !!!\n");
+        /* look for cases where _this_ prime is the smallest one */
+        uint64_t l1 = p_from_pos(pos1);
+        /* q0 <= l1 * x < q1
+         * implies q0/l1 <= x < q1/l1
+         * the left part is easy, but for the right part, we rewrite as:
+         * l1 * x <= q1-1
+         * x <= (q1-1)/l1 ---> x <= floor((q1-1)/l1)  --> x < ceil(q1/l1)
+         */
+        if (n == 1) {
+            /* no point in recursing to determine a list of zero-length
+             * continuations.
+             */
+            *jt++ = pos1;
+        } else {
+            auto tail = all_composites(iceildiv(q0,l1), iceildiv(q1,l1), l1, qfac_max, n-1);
+            for(auto it = tail.begin() ; it != tail.end() ; ) {
+                *jt++ = pos1;
+                for(int j=n-1 ; j-- ; )
+                    *jt++ = *it++;
             }
         }
     }
-    fprintf(stderr, "Got %zu 2-composite sq\n", (size_t)(list.size()>>1));
+
+    return ret;
+}
+
+std::vector<std::vector<index_t>> indexrange::all_composites(uint64_t q0, uint64_t q1,
+        uint64_t qfac_min,
+        uint64_t qfac_max) const
+{
+    std::vector<std::vector<index_t>> list;
+    list.emplace_back();
+    list.emplace_back();
+    for(int n = 2 ; ; n++) {
+        list.emplace_back(all_composites(q0, q1, qfac_min, qfac_max, n));
+        if (list.back().empty()) {
+            list.pop_back();
+            break;
+        }
+        printf("# Got %zu %d-composite sq\n",
+                (size_t)(list.back().size()/n), n);
+    }
     return list;
 }
 
-// All composite special-q in [q0, q1] with 3 prime factors in the range
-// [qfac_min, qfac_max] in Ind.
-static vector<index_t> all_comp_sq_3(uint64_t q0, uint64_t q1, uint64_t qfac_min,
-        uint64_t qfac_max, indexrange &Ind)
+void worker(int tnum, int nt,
+        std::vector<indexrange> const & Ind,
+        // std::vector<std::pair<las_todo_entry, std::vector<model_relation>>> const & sample,
+        std::pair<std::vector<size_t>, std::vector<model_relation>> const & sample,
+        std::vector<std::vector<index_t>> const & qs,
+        int shrink_factor, int dl, unsigned long seed)
 {
-    vector<index_t> list;
-
-    uint64_t l1min = MAX(q0/(qfac_max*qfac_max), qfac_min);
-    uint64_t pos_l1min = Ind.pos_from_p(l1min);
-    uint64_t l1max = MIN(qfac_max, round(pow(q1, 0.333333333333)));
-    uint64_t pos_l1max = Ind.pos_from_p(l1max);
-
-    for (uint64_t pos1 = pos_l1min; pos1 < pos_l1max; ++pos1) {
-        uint64_t l1 = Ind.p_from_pos(pos1);
-        uint64_t l2min = MAX(l1, q0/(l1*qfac_max));
-        uint64_t pos_l2min = Ind.pos_from_p(l2min);
-        uint64_t l2max = MIN(qfac_max, round(sqrt(q1/l1)));
-        uint64_t pos_l2max = Ind.pos_from_p(l2max);
-        for (uint64_t pos2 = pos_l2min; pos2 < pos_l2max; ++pos2) {
-            uint64_t l2 = Ind.p_from_pos(pos2);
-            uint64_t l3min = MAX(l2, q0/(l1*l2));
-            uint64_t pos_l3min = Ind.pos_from_p(l3min);
-            uint64_t l3max = MIN(qfac_max, q1/(l1*l2));
-            uint64_t pos_l3max = Ind.pos_from_p(l3max);
-            for (uint64_t pos3 = pos_l3min; pos3 < pos_l3max; ++pos3) {
-                uint64_t l3 = Ind.p_from_pos(pos3);
-                uint64_t L = l1*l2*l3;
-                if (L >= q0 && L <= q1) {
-                    list.push_back(Ind.ind[pos1]);
-                    list.push_back(Ind.ind[pos2]);
-                    list.push_back(Ind.ind[pos3]);
-                } else {
-              //      fprintf(stderr, "Wooops !!!\n");
-                }
-            }
-        }
+    gmp_randstate_t buf;
+    gmp_randinit_default(buf);
+    gmp_randseed_ui(buf, seed + tnum);
+    unsigned long ret = 0;
+    for(size_t n = 1 ; n < qs.size() ; n++) {
+        ASSERT_ALWAYS(qs[n].size() % n == 0);
+        auto it0 = qs[n].begin() + n * ((tnum * qs[n].size() / n) / nt);
+        auto it1 = qs[n].begin() + n * (((tnum + 1) * qs[n].size() / n) / nt);
+        ret += print_fake_rel_manyq(
+                std::cout,
+                it0, it1,
+                n,
+                sample,
+                Ind,
+                dl, shrink_factor,
+                buf);
     }
-    fprintf(stderr, "Got %zu 3-composite sq\n", (size_t)(list.size()/3));
-    return list;
+    gmp_randclear(buf);
+    std::lock_guard<std::mutex> dummy(io_mutex);
+    rels_printed += ret;
 }
-
 
 static void declare_usage(param_list pl)
 {
@@ -608,7 +500,9 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "allow-compsq", "(switch) allows composite sq");
     param_list_decl_usage(pl, "qfac-min", "factors of q must be at least that");
     param_list_decl_usage(pl, "qfac-max", "factors of q must be at most that");
+    param_list_decl_usage(pl, "seed", "random seed");
     param_list_decl_usage(pl, "t", "number of threads to use");
+    param_list_decl_usage(pl, "v", "verbose mode");
     verbose_decl_usage(pl);
 }
 
@@ -630,6 +524,7 @@ main (int argc, char *argv[])
   int shrink_factor = 1; // by default, no shrink
 
   declare_usage(pl);
+  param_list_configure_switch (pl, "-v", &verbose);
   param_list_configure_switch(pl, "-dl", &dl);
   param_list_configure_switch(pl, "-allow-compsq", &compsq);
 
@@ -698,6 +593,9 @@ main (int argc, char *argv[])
   param_list_parse_uint64(pl, "qfac-min", &qfac_min);
   param_list_parse_uint64(pl, "qfac-max", &qfac_max);
 
+  unsigned long seed = 171717;
+  param_list_parse_ulong(pl, "seed", &seed);
+
   if (!cado_poly_read(cpoly, filename))
     {
       fprintf (stderr, "Error reading polynomial file %s\n", filename);
@@ -732,145 +630,96 @@ main (int argc, char *argv[])
   }
 
   // read sample file
-  const char * sample;
-  if ((sample = param_list_lookup_string(pl, "sample")) == NULL) {
+  const char * samplefile;
+  if ((samplefile = param_list_lookup_string(pl, "sample")) == NULL) {
       fprintf(stderr, "Error: parameter -sample is mandatory\n");
       param_list_print_usage(pl, argv0, stderr);
       exit(EXIT_FAILURE);
   }
 
-  gmp_randinit_default(global_rstate_non_mt);
-  gmp_randseed_ui(global_rstate_non_mt, 0);
-
-
-  vector<fake_rel> rels;
-  vector<unsigned int> nrels;
   printf ("# Start reading sample file\n");
   fflush (stdout);
-  read_sample_file(nrels, rels, sqside, sample, ren_table, compsq);
+
+  std::pair<std::vector<size_t>, std::vector<model_relation>> sample = read_sample_file(sqside, samplefile, ren_table);
+
+  /*
+  std::vector<std::pair<las_todo_entry, std::vector<model_relation>>>
+      sample;
+  for(auto& x : read_sample_file(sqside, samplefile, ren_table))
+      sample.emplace_back(std::move(x));
+  if (verbose) {
+      for(auto const & x : sample) {
+          std::cout << "# " << x.first << ": " << x.second.size() << " relations\n";
+      }
+  }
+  */
+
   printf ("# Done reading sample file\n");
   fflush (stdout);
 
   param_list_warn_unused(pl);
 
   // Two index ranges, one for each side
-  indexrange Ind[2];
   printf ("# Start preparing index ranges\n");
   fflush (stdout);
-  prepare_indexrange(Ind, ren_table, sqside, compsq);
+  std::vector<indexrange> Ind = prepare_indexrange(ren_table, sqside, compsq);
   printf ("# Done preparing index ranges\n");
   fflush (stdout);
 
+  std::vector<std::vector<index_t>> qs;
 
-  /****** Prime special-q ******/
-  vector<index_t>::iterator first_indq, last_indq;
+  /* the indexranges contain the prime-to-index conversion functionality
+   * only if compsq holds. In the non-composite case, we fill qs[1]
+   * differently, because we don't want to 
+   */
   if (!compsq) {
-      // Precompute ideals in [q0-q1]
-      prime_info pdata;
-      prime_info_init(pdata);
-      // fast forward until we reach q0
-      uint64_t q = 2;
-      while (q < q0) {
-          q = getprime_mt(pdata);
+      qs.emplace_back(); /* 0 -- placeholder */
+      qs.emplace_back(); /* 1 */
+
+      /* jump-start in the renumber table, and enumerate the large primes
+       * from there.
+       */
+      index_t i = ren_table.index_from_p(q0, sqside);
+      renumber_t::const_iterator it(ren_table, i);
+      for( ; it != ren_table.end() && (*it).p < q1 ; ++it, ++i) {
+          if ((*it).side == sqside)
+              qs[1].push_back(i);
       }
-      uint64_t roots[MAX_DEGREE];
-      int mult = mpz_poly_roots_uint64(roots, cpoly->pols[sqside], q); 
-      while (mult == 0) {
-          advance_prime_in_fb(&mult, &q, roots, cpoly, sqside, pdata);
-      }
-      index_t indq = ren_table.index_from_p_r(q, roots[0], sqside);
-      first_indq = Ind[sqside].iterator_from_index(indq);
-      // Same for q1:
-      while (q < q1) {
-          q = getprime_mt(pdata);
-      }
-      mult = mpz_poly_roots_uint64(roots, cpoly->pols[sqside], q); 
-      while (mult == 0) {
-          advance_prime_in_fb(&mult, &q, roots, cpoly, sqside, pdata);
-      }
-      indq = ren_table.index_from_p_r(q, roots[0], sqside);
-      last_indq = Ind[sqside].iterator_from_index(indq);
-      prime_info_clear(pdata);
   } else {
-      // TODO: we might want to implement this, one day.
-      ASSERT_ALWAYS(q0 > qfac_max);
+      /* In theory, this is overkill. We don't _really_ need the prime[]
+       * cache in the indexrange type. Except that the renumber
+       * "traditional" format has expensive *_from_index lookups, and
+       * that would get in the way if we want to do away with
+       * indexrange::prime[]. Also, we don't have bidirectional iterators
+       * on the renumber table, so it's not really practical to use only
+       * the renumber table.
+       */
+      qs = Ind[sqside].all_composites(q0, q1, qfac_min, qfac_max);
   }
 
-  /****** Composite special-q ******/
-  vector<index_t>::iterator first_indq2, last_indq2;
-  vector<index_t>::iterator first_indq3, last_indq3;
-  vector<index_t> comp2, comp3;
-  
-  if (compsq) {
-      comp2 = all_comp_sq_2(q0, q1, qfac_min, qfac_max, Ind[sqside]);
-      first_indq2 = comp2.begin();
-      last_indq2 = comp2.end();
-      comp3 = all_comp_sq_3(q0, q1, qfac_min, qfac_max, Ind[sqside]);
-      first_indq3 = comp3.begin();
-      last_indq3 = comp3.end();
-  }
 
-  /****** go multi-thread ******/
-  uint64_t block = (last_indq - first_indq) / mt;
-  uint64_t block2 = (last_indq2 - first_indq2) / (2*mt);
-  uint64_t block3 = (last_indq3 - first_indq3) / (3*mt);
+  std::vector<std::thread> threads;
 
   double t0 = seconds ();
   double wct_t0 = wct_seconds ();
 
-  pthread_t * thid = (pthread_t *)malloc(mt*sizeof(pthread_t));
-  struct th_args * args = (struct th_args *)malloc(mt*sizeof(struct th_args));
-  for (int i = 0; i < mt; ++i) {
-      args[i].nq = 0;
-      args[i].nq2 = 0;
-      args[i].nq3 = 0;
-      if (compsq) {
-          args[i].list_q_comp2 = first_indq2 + 2*block2*i;
-          args[i].list_q_comp3 = first_indq3 + 3*block3*i;
-      } else {
-          args[i].list_q_prime = first_indq + block*i;
-      }
-      if (i < mt-1) {
-          if (compsq) {
-              args[i].nq2 = block2;
-              args[i].nq3 = block3;
-          } else {
-              args[i].nq = block;
-          }
-      } else {
-          if (compsq) {
-              args[i].nq2 = (last_indq2 - args[i].list_q_comp2)/2;
-              args[i].nq3 = (last_indq3 - args[i].list_q_comp3)/3;
-          } else {
-              args[i].nq = last_indq - args[i].list_q_prime;
-          }
-      }
-      args[i].rels = &rels;
-      args[i].nrels = &nrels;
-      args[i].Ind = &Ind[0];
-      args[i].dl = dl;
-      args[i].shrink_factor = shrink_factor;
-      gmp_randinit_default(args[i].rstate);
-      gmp_randseed_ui(args[i].rstate, 171717+i);
+  for(int i = 0 ; i < mt ; i++)
+      threads.emplace_back(worker, i, mt, 
+              Ind, sample, qs,
+              shrink_factor, dl, seed);
+  for(auto & t : threads)
+      t.join();
 
-      pthread_create(&thid[i], NULL, do_thread, (void *)(&args[i]));
-  }
-  for (int i = 0; i < mt; ++i) {
-      pthread_join(thid[i], NULL);
-      gmp_randclear(args[i].rstate);
-  }
+
+  t0 = seconds () - t0;
+  wct_t0 = wct_seconds () - wct_t0;
 
   /* print statistics */
-  t0 = seconds () - t0;
+
   printf ("# Output %lu relations in %.2fs cpu (%.0f rels/s)\n",
 	  rels_printed, t0, (double) rels_printed / t0);
-  wct_t0 = wct_seconds () - wct_t0;
   printf ("# Output %lu relations in %.2fs wct (%.0f rels/s)\n",
 	  rels_printed, wct_t0, (double) rels_printed / wct_t0);
-
-  gmp_randclear(global_rstate_non_mt);
-  free(thid);
-  free(args);
 
   return 0;
 }

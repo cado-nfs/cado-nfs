@@ -39,6 +39,7 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "batch0", "file of product of primes on side 0");
     param_list_decl_usage(pl, "batch1", "file of product of primes on side 1");
     param_list_decl_usage(pl, "doecm", "finish with ECM [default = no]");
+    param_list_decl_usage(pl, "no_recomp_norm", "given integers are the norms themselves (w/ sq) [default = no]");
     param_list_decl_usage(pl, "ncurves", "number of curves to be used in ECM [default = 50]");
 
     verbose_decl_usage(pl);
@@ -52,11 +53,13 @@ main (int argc, char *argv[])
   char *argv0 = argv[0];
   unsigned long nb_threads = 1;
   int doecm = 0;
+  int no_recomp_norm = 0;
   int ncurves = 50;
 
   declare_usage(pl);
 
   param_list_configure_switch(pl, "-doecm", &doecm);
+  param_list_configure_switch(pl, "-no_recomp_norm", &no_recomp_norm);
 
   argv++, argc--;
   for( ; argc ; ) {
@@ -189,7 +192,7 @@ main (int argc, char *argv[])
   find_smooth(List, batchP, batchlpb, lpb, batchmfb, stdout, nb_threads, extra_time);
   
   if (doecm) {
-      std::list<relation> smooth = factor(List, cpoly, batchlpb, lpb, ncurves, stdout, nb_threads, extra_time);
+      std::list<relation> smooth = factor(List, cpoly, batchlpb, lpb, ncurves, stdout, nb_threads, extra_time, !no_recomp_norm);
       for(auto const & rel : smooth) {
           std::ostringstream os;
           os << rel << "\n";

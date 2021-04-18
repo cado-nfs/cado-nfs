@@ -69,7 +69,7 @@ int cado_poly_set_plist(cado_poly_ptr poly, param_list pl)
    * by coefficients. */
   for(int i = 0; i < NB_POLYS_MAX; i++)
   {
-    char tag[6], buf[BUF_MAX];
+    char tag[15], buf[BUF_MAX];
     snprintf(tag, sizeof(tag), "poly%d", i);
     if(param_list_parse_string(pl, tag, buf, BUF_MAX))
     {

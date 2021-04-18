@@ -72,7 +72,7 @@ skew: 1.37
 #include <gmp.h>         // for mpz_t, mpz_clear, mpz_init, gmp_printf, mpz_...
 #include "cado_poly.h"   // for cado_poly_fprintf_MurphyE, cado_poly
 #include "macros.h"      // for ASSERT_ALWAYS, ASSERT
-#include "omp_proxy.h"
+#include "omp_proxy.h" // IWYU pragma: keep
 #include "auxiliary.h"
 #include "gcd.h"        // gcd_uint64
 #include "lll.h"        // mat_Z, LLL
@@ -259,10 +259,10 @@ print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
 	  gmp_printf ("Y%u %Zd\n", i, g[i]);
       }
       printf ("skew: %1.2f\n", skew);
-      int nr = numberOfRealRoots (f, df, 0, 0, NULL);
+      int nr = numberOfRealRoots ((const mpz_t *) f, df, 0, 0, NULL);
       printf ("# f lognorm %1.2f, alpha %1.2f, score %1.2f, %d rroot(s)\n",
 	      logmu[0], alpha_f, logmu[0] + alpha_f, nr);
-      nr = numberOfRealRoots (g, dg, 0, 0, NULL);
+      nr = numberOfRealRoots ((const mpz_t *) g, dg, 0, 0, NULL);
       printf ("# g lognorm %1.2f, alpha %1.2f, score %1.2f, %d rroot(s)\n",
 	      logmu[1], alpha_g, logmu[1] + alpha_g, nr);
       printf ("# f+g score %1.2f\n", score);
@@ -471,7 +471,7 @@ polygen_JL_f (int d, unsigned int bound, mpz_t *f, unsigned long idx)
         /* check number of real roots */
         if (ok && (easySM || rrf != -1))
           {
-            int nr = numberOfRealRoots (ff->coeff, ff->deg, 0.0, 0, NULL);
+            int nr = numberOfRealRoots ((const mpz_t *) ff->coeff, ff->deg, 0.0, 0, NULL);
             if (easySM)
               /* check that the number of real roots is minimal */
               ok = nr == (ff->deg & 1);
@@ -663,7 +663,7 @@ polygen_JL2 (mpz_t n,
             /* check the number of real roots of g */
             if (easySM || rrg != -1)
               {
-                int nr = numberOfRealRoots (u->coeff, u->deg, 0.0, 0, NULL);
+                int nr = numberOfRealRoots ((const mpz_t *) u->coeff, u->deg, 0.0, 0, NULL);
                 int ok;
                 if (easySM)
                   ok = nr == (u->deg & 1);

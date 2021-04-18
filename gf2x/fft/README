@@ -1,2 +1,15 @@
 This sub-package provides a generic FFT API for multiplication of
 polynomials over GF(2), and an implementation of Cantor's algorithm.
+
+Three different FFT types are defined. They define similar interfaces. In
+the documentation below, XXX may be one of
+    gf2x_fake_fft -- just a proxy implementation that actually calls the
+                     normal multiplication operations. Don't use, as it
+                     incurs extra copies.
+    gf2x_cantor_fft -- use Cantor's additive FFT
+    gf2x_ternary_fft -- use Schönhage's ternary FFT
+
+Other FFT modules can conceivably be added.
+
+The actual documentation of the api can be found in the template.h
+(pseudo-) header.

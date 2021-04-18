@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 
-use Data::Dumper;
+# do not include Data::Dumper except for debugging.
+# use Data::Dumper;
 
 my $current = undef;
 my $all = {};

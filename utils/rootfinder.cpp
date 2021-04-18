@@ -15,8 +15,7 @@
 
 /* Entry point for rootfind routines, for prime p.
    Assume r is an array of deg(F) entries, which are mpz_init'ed. */
-int
-mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
+int mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
 {
     int d = F->deg;
 
@@ -87,6 +86,8 @@ mpz_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, unsigned long p)
 
 
 
+/* Note that parallelizing this makes no sense. The payload is too small.
+ */
 int
 mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p)
 {
@@ -258,7 +259,7 @@ mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p)
   /* FIXME: instead of computing x^p-x, we could compute x^(p-1) - 1 while
      saving the value of h = x^((p-1)/2). If several roots, gcd(h-1, f)
      might help to split them. */
-  mpz_poly_sub (h, h, g);
+  mpz_poly_sub(h, h, g);
   /* g = gcd (mpz_poly_fp, h) */
   mpz_poly_gcd_mpz (fp, fp, h, p);
   /* fp contains gcd(x^p-x, f) */
@@ -432,7 +433,7 @@ struct poly_roots_impl_details<unsigned long> {
     static inline unsigned long get_from_cxx_mpz(cxx_mpz const & x) { return mpz_get_ui(x); }
 };
 
-#ifndef UINT64_T_IS_UNSIGNED_LONG
+#ifndef UINT64_T_IS_EXACTLY_UNSIGNED_LONG
 template<>
 struct poly_roots_impl_details<uint64_t> {
     static inline void mul(uint64_t& a, uint64_t const & b, uint64_t const &c) { a = b * c; }
@@ -477,7 +478,7 @@ struct poly_roots_impl_details<cxx_mpz> {
     static inline void mul(cxx_mpz& a, cxx_mpz const & b, unsigned long const &c) {
         mpz_mul_ui(a, b, c);
     }
-#ifndef UINT64_T_IS_UNSIGNED_LONG
+#ifndef UINT64_T_IS_EXACTLY_UNSIGNED_LONG
     static inline void mul(cxx_mpz& a, cxx_mpz const & b, uint64_t const &c) {
         mpz_mul_uint64(a, b, c);
     }
@@ -622,16 +623,20 @@ std::vector<T> mpz_poly_roots(cxx_mpz_poly const & f, T const & q, std::vector<F
 template std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz, cxx_mpz>(cxx_mpz_poly const & f, cxx_mpz const & q, std::vector<cxx_mpz> const & qfac);
 template std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz, unsigned long>(cxx_mpz_poly const & f, cxx_mpz const & q, std::vector<unsigned long> const & qfac);
 template std::vector<unsigned long> mpz_poly_roots<unsigned long, unsigned long>(cxx_mpz_poly const & f, unsigned long const & q, std::vector<unsigned long> const & qfac);
-#ifndef UINT64_T_IS_UNSIGNED_LONG
+#ifndef UINT64_T_IS_EXACTLY_UNSIGNED_LONG
 template std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz, uint64_t>(cxx_mpz_poly const & f, cxx_mpz const & q, std::vector<uint64_t> const & qfac);
 template std::vector<uint64_t> mpz_poly_roots<uint64_t, uint64_t>(cxx_mpz_poly const & f, uint64_t const & q, std::vector<uint64_t> const & qfac);
 #endif
 
+/* TODO: we'd like to expose the parallelized version via this interface
+ * as well. However, the overloading approach show its limitations here.
+ * The pinf handles would pollute the code all over the place...
+ */
 template<>
 std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz>(cxx_mpz_poly const & f, cxx_mpz const & q)
 {
     std::vector<cxx_mpz> tmp(f.degree());
-    int n = mpz_poly_roots_mpz((mpz_t*) &tmp.front(), f, q);
+    int n = mpz_poly_roots_mpz((mpz_t*) tmp.data(), f, q);
     tmp.erase(tmp.begin() + n, tmp.end());
     return tmp;
 }
@@ -639,16 +644,16 @@ template<>
 std::vector<unsigned long> mpz_poly_roots<unsigned long>(cxx_mpz_poly const & f, unsigned long const & q)
 {
     std::vector<unsigned long> tmp(f.degree());
-    int n = mpz_poly_roots_ulong(&tmp.front(), f, q);
+    int n = mpz_poly_roots_ulong(tmp.data(), f, q);
     tmp.erase(tmp.begin() + n, tmp.end());
     return tmp;
 }
-#ifndef UINT64_T_IS_UNSIGNED_LONG
+#ifndef UINT64_T_IS_EXACTLY_UNSIGNED_LONG
 template<>
 std::vector<uint64_t> mpz_poly_roots<uint64_t>(cxx_mpz_poly const & f, uint64_t const & q)
 {
     std::vector<uint64_t> tmp(f.degree());
-    int n = mpz_poly_roots_uint64(&tmp.front(), f, q);
+    int n = mpz_poly_roots_uint64(tmp.data(), f, q);
     tmp.erase(tmp.begin() + n, tmp.end());
     return tmp;
 }

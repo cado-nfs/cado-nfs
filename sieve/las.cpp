@@ -1,5 +1,3 @@
-#define __STDCPP_MATH_SPEC_FUNCS__ 201003L
-#define __STDCPP_WANT_MATH_SPEC_FUNCS__ 1       /* for expint() */
 /* the macro above is for #include <cmath> -- however it must happen
  * first, because it may well be that one of the intermediary headers
  * pull stuff that is dependent on this flag.
@@ -30,6 +28,8 @@
 #include <memory>                         // for allocator, shared_ptr, make...
 #include <mutex>                          // for mutex, lock_guard, unique_lock
 #include <ostream>                        // for operator<<, ostringstream
+#include <istream>                        // for operator>>
+#include <fstream>                        // for ifstream
 #include <string>                         // for string, basic_string, opera...
 #include <thread>                         // for thread
 #include <type_traits>                    // for remove_reference<>::type
@@ -64,7 +64,7 @@
 #include "las-qlattice.hpp"               // for qlattice_basis, operator<<
 #include "las-report-stats.hpp"           // for las_report, coarse_las_timers
 #include "las-siever-config.hpp"          // for siever_config::side_config
-#include "las-sighandlers.hpp"
+#include "cado-sighandlers.h"
 #include "las-smallsieve.hpp"             // for small_sieve_activate_many_s...
 #include "las-threads-work-data.hpp"      // for nfs_work, nfs_work::side_data
 #include "las-todo-entry.hpp"             // for las_todo_entry
@@ -84,6 +84,12 @@
 #include "timing.h"             // for seconds
 #include "utils_cxx.hpp"
 #include "verbose.h"
+#include "json.hpp"
+#include "fmt/format.h"
+#include <sys/types.h>
+#include <dirent.h>
+#include "las-duplicate.hpp"
+
 
 
 
@@ -157,21 +163,6 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "production", "Sort of an opposite to -v. Disable all diagnostics except the cheap or critical ones. See #21688 and #21825.");
     verbose_decl_usage(pl);
 }/*}}}*/
-
-static double nprimes_interval(double p0, double p1)
-{
-#ifdef HAVE_STDCPP_MATH_SPEC_FUNCS
-    return std::expint(log(p1)) - std::expint(log(p0));
-#else
-    /* that can't be sooo wrong... */
-    double l0 = log(p0);
-    double l1 = log(p1);
-    double s1 = p1*(1/l1+1/pow(l1,2)+2/pow(l1,3)+6/pow(l1,4));
-    double s0 = p0*(1/l0+1/pow(l0,2)+2/pow(l0,3)+6/pow(l0,4));
-    return s1 - s0;
-#endif
-}
-
 
 /* Our fetching of the siever_config fields is definitely wrong here. We
  * should only use logA, logI, and the siever thresholds.
@@ -304,6 +295,8 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
         if (m > toplevel)
             toplevel = m;
     }
+
+    if (toplevel == 0) toplevel++;
 
     ASSERT_ALWAYS(toplevel == 1 || toplevel == 2);
 
@@ -645,7 +638,7 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
     memory += base_memory;
 
     verbose_output_print(0, 0 + hush,
-            "# Expected memory use for %d binding zones and %d %d-threaded jobs per zone, counting %zu MB of base footprint: %s\n",
+            "# Expected memory use for %d binding zone(s) and %d %d-threaded jobs per zone, counting %zu MB of base footprint: %s\n",
             las.number_of_memory_binding_zones(),
             las.number_of_subjobs_per_memory_binding_zone(),
             las.number_of_threads_per_subjob(),     /* per subjob, always */
@@ -656,7 +649,48 @@ static size_t expected_memory_usage(siever_config const & sc,/*{{{*/
 
 }/*}}}*/
 
+void check_whether_q_above_lare_prime_bound(siever_config const & conf, las_todo_entry const & doing)/*{{{*/
+{
+    /* Check whether q is larger than the large prime bound.
+     * This can create some problems, for instance in characters.
+     * By default, this is not allowed, but the parameter
+     * -allow-largesq is a by-pass to this test.
+     */
+    if (allow_largesq) return;
 
+    if ((int)mpz_sizeinbase(doing.p, 2) >
+            conf.sides[doing.side].lpb) {
+        fprintf(stderr, "ERROR: The special q (%d bits) is larger than the "
+                "large prime bound on side %d (%d bits).\n",
+                (int) mpz_sizeinbase(doing.p, 2),
+                doing.side,
+                conf.sides[doing.side].lpb);
+        fprintf(stderr, "       You can disable this check with "
+                "the -allow-largesq argument,\n");
+        fprintf(stderr, "       It is for instance useful for the "
+                "descent.\n");
+        fprintf(stderr, "       Use tasks.sieve.allow_largesq=true.\n");
+        exit(EXIT_FAILURE);
+    }
+}
+/*}}}*/
+
+void check_whether_special_q_is_root(cado_poly_srcptr cpoly, las_todo_entry const & doing)/*{{{*/
+{
+    cxx_mpz const & p(doing.p);
+    cxx_mpz const & r(doing.r);
+    ASSERT_ALWAYS(mpz_poly_is_root(cpoly->pols[doing.side], r, p));
+}
+/*}}}*/
+void per_special_q_banner(las_todo_entry const & doing)
+{
+    // arrange so that we don't have the same header line as the one
+    // which prints the q-lattice basis
+    verbose_output_print(0, 2, "#\n");
+    std::ostringstream os;
+    os << doing;
+    verbose_output_print(0, 1, "# Now sieving %s\n", os.str().c_str());
+}
 
 /* This is the core of the sieving routine. We do fill-in-buckets,
  * downsort, apply-buckets, lognorm computation, small sieve computation,
@@ -805,23 +839,13 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
 {
     nfs_aux & aux(*aux_p);
     ws.Q.doing = aux.doing;     /* will be set by choose_sieve_area anyway */
-    cxx_mpz const & p(aux.doing.p);
-    cxx_mpz const & r(aux.doing.r);
 
-    ASSERT_ALWAYS(mpz_poly_is_root(las.cpoly->pols[aux.doing.side], r, p));
+    check_whether_special_q_is_root(las.cpoly, aux.doing);
 
     timetree_t& timer_special_q(aux.rt.timer);
     las_report& rep(aux.rt.rep);
 
-    // arrange so that we don't have the same header line as the one
-    // which prints the q-lattice basis
-    verbose_output_print(0, 2, "#\n");
-    verbose_output_vfprint(0, 1, gmp_vfprintf,
-                         "# "
-                         "Now sieving side-%d q=%Zd; rho=%Zd\n",
-                         aux.doing.side,
-                         (mpz_srcptr) aux.doing.p,
-                         (mpz_srcptr) aux.doing.r);
+    per_special_q_banner(aux.doing);
 
     SIBLING_TIMER(timer_special_q, "skew Gauss");
     TIMER_CATEGORY(timer_special_q, bookkeeping());
@@ -832,27 +856,7 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
     if (!choose_sieve_area(las, aux_p, aux.doing, ws.conf, ws.Q, ws.J))
         return false;
 
-    /* Check whether q is larger than the large prime bound.
-     * This can create some problems, for instance in characters.
-     * By default, this is not allowed, but the parameter
-     * -allow-largesq is a by-pass to this test.
-     */
-    if (!allow_largesq) {
-        if ((int)mpz_sizeinbase(aux.doing.p, 2) >
-                ws.conf.sides[aux.doing.side].lpb) {
-            fprintf(stderr, "ERROR: The special q (%d bits) is larger than the "
-                    "large prime bound on side %d (%d bits).\n",
-                    (int) mpz_sizeinbase(aux.doing.p, 2),
-                    aux.doing.side,
-                    ws.conf.sides[aux.doing.side].lpb);
-            fprintf(stderr, "       You can disable this check with "
-                    "the -allow-largesq argument,\n");
-            fprintf(stderr, "       It is for instance useful for the "
-                    "descent.\n");
-	    fprintf(stderr, "       Use tasks.sieve.allow_largesq=true.\n");
-            exit(EXIT_FAILURE);
-        }
-    }
+    check_whether_q_above_lare_prime_bound(ws.conf, aux.doing);
 
     BOOKKEEPING_TIMER(timer_special_q);
 
@@ -1005,6 +1009,8 @@ static void print_survivors_job(las_info & las)
     las.batch_print_survivors.doit();
 }
 
+
+
 static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_and_timer & global_rt)/*{{{*/
 {
     where_am_I w MAYBE_UNUSED;
@@ -1087,6 +1093,8 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
             /* (non-blocking) join results from detached cofac */
             for(task_result * r ; (r = pool.get_result(1, false)) ; delete r);
 
+            nq++;
+
             /* We'll convert that to a shared_ptr later on, because this is
              * to be kept by the cofactoring tasks that will linger on quite
              * late.
@@ -1095,8 +1103,6 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
              * for this q.
              */
             auto rel_hash_p = std::make_shared<nfs_aux::rel_hash_t>();
-
-            nq++;
 
             for(;;) {
                 /*
@@ -1268,6 +1274,188 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
     verbose_output_print(0, 1, "# subjob %d done (%d special-q's), now waiting for other jobs\n", subjob, nq);
 }/*}}}*/
 
+static std::string relation_cache_subdir_name(std::vector<unsigned long> const & splits, std::vector<unsigned long> const & split_q)/*{{{*/
+{
+    std::string d;
+    /* find the file */
+    for(unsigned int i = 0 ; i + 1 < split_q.size() ; i++) {
+        int l = 0;
+        for(unsigned long s = 1 ; splits[i] > s ; s*=10, l++);
+        d += fmt::format("/{:0{}}", split_q[i], l);
+    }
+    return d;
+}/*}}}*/
+
+static std::string relation_cache_find_filepath_inner(std::string const & d, unsigned long qq)/*{{{*/
+{
+    std::string filepath;
+    DIR * dir = opendir(d.c_str());
+    DIE_ERRNO_DIAG(dir == NULL, "opendir", d.c_str());
+    for(struct dirent * ent ; (ent = readdir(dir)) != NULL ; ) {
+        unsigned long q0, q1;
+        if (sscanf(ent->d_name, "%lu-%lu", &q0, &q1) != 2) continue;
+        if (qq < q0 || qq >= q1) continue;
+        filepath = d + "/" + ent->d_name;
+        break;
+    }
+    closedir(dir);
+
+    return filepath;
+}/*}}}*/
+
+static std::string relation_cache_find_filepath(std::string const & cache_path, std::vector<unsigned long> const & splits, cxx_mpz q)/*{{{*/
+{
+    std::vector<std::string> searched;
+
+    /* write q in the variable basis given by the splits */
+    cxx_mpz oq = q;
+    std::vector<unsigned long> split_q = splits;
+    for(unsigned int i = splits.size() ; i-- ; ) {
+        split_q[i] = mpz_fdiv_ui(q, splits[i]);
+        mpz_fdiv_q_ui(q, q, splits[i]);
+    }
+    if (mpz_cmp_ui(q, 0) != 0) {
+        gmp_fprintf(stderr, "# q is too large for relation cache\n",
+                (mpz_srcptr) oq);
+        exit(EXIT_FAILURE);
+    }
+
+    std::string d = cache_path + relation_cache_subdir_name(splits, split_q);
+
+    std::string filepath = relation_cache_find_filepath_inner(d, split_q.back());
+
+    if (filepath.empty() && split_q.size() > 1) {
+        searched.push_back(d);
+
+        /* Try the previous directory, if qranges cross the
+         * boundaries at powers of ten */
+        split_q[split_q.size() - 2] -= 1;
+        split_q[split_q.size() - 1] += splits[splits.size() - 1];
+        d = cache_path + relation_cache_subdir_name(splits, split_q);
+        filepath = relation_cache_find_filepath_inner(d, split_q.back());
+    }
+
+    if (filepath.empty()) {
+        searched.push_back(d);
+        std::ostringstream os;
+        for(auto const & s : searched) os << " " << s;
+        gmp_fprintf(stderr, "# no file found in relation cache for q=%Zd (searched directories:%s)\n", (mpz_srcptr) q, os.str().c_str());
+        exit(EXIT_FAILURE);
+    }
+
+    return filepath;
+}
+/*}}}*/
+
+static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/*{{{*/
+{
+    std::vector<unsigned long> splits;
+
+    try {
+        /* recover the list of splits from the config file */
+        json dirinfo;
+        if (!(std::ifstream(las.relation_cache + "/dirinfo.json") >> dirinfo))
+            throw std::exception();
+        for(size_t i = 0 ; i < dirinfo["splits"].size() ; i++) {
+            splits.push_back((long) dirinfo["splits"][i]);
+        }
+    } catch (std::exception const & e) {
+        fprintf(stderr, "# Cannot read relation cache, or dirinfo.json in relation cache\n");
+        exit(EXIT_FAILURE);
+    }
+
+    /* the inner mechanism of the descent loop entails breaking early on
+     * when a relation is found. This doesn't interact well with what
+     * we're doing here.
+     */
+    ASSERT_ALWAYS(!dlp_descent);
+
+    double ct0 = seconds();
+    double wt0 = wct_seconds();
+    unsigned long nreports = 0;
+    int nq = 0;
+
+    for(;; nq++) {
+        main_output.fflush();
+        las_todo_entry * doing_p = todo.feed_and_pop(las.rstate);
+        if (!doing_p) break;
+
+        nq++;
+
+        // auto rel_hash_p = std::make_shared<nfs_aux::rel_hash_t>();
+        // nfs_aux aux(las, *doing_p, rel_hash_p, 1);
+        struct { las_todo_entry doing; } aux;
+        aux.doing = *doing_p;
+
+        siever_config conf;
+        qlattice_basis Q;
+        uint32_t J;
+
+        check_whether_special_q_is_root(las.cpoly, aux.doing);
+        per_special_q_banner(aux.doing);
+        if (!choose_sieve_area(las, aux.doing, conf, Q, J)) continue;
+        check_whether_q_above_lare_prime_bound(conf, aux.doing);
+
+        {
+            std::ostringstream os;
+            os << Q;
+            verbose_output_vfprint(0, 2, gmp_vfprintf,
+                    "# "
+                    "Sieving %s; I=%u; J=%u;\n",
+                    os.str().c_str(),
+                    1u << conf.logI, J);
+        }
+
+        std::string filepath = relation_cache_find_filepath(las.relation_cache, splits, aux.doing.p);
+
+        std::ifstream rf(filepath);
+        DIE_ERRNO_DIAG(!rf, "open", filepath.c_str());
+        for(std::string line ; getline(rf, line) ; ) {
+            if (line.empty()) continue;
+            if (line[0] == '#') continue;
+            std::istringstream is(line);
+            relation rel;
+            if (!(is >> rel)) {
+                gmp_fprintf(stderr, "# parse error in relation\n");
+                exit(EXIT_FAILURE);
+            }
+            if (!sq_finds_relation(las, aux.doing, conf, Q, J, rel))
+                continue;
+            std::ostringstream os;
+
+            nreports++;
+
+            if (las.suppress_duplicates) {
+                if (relation_is_duplicate(rel, aux.doing, las)) {
+                    os << "# DUPE ";
+                    nreports--;
+                }
+            }
+            os << rel << "\n";
+
+            verbose_output_start_batch();     /* unlock I/O */
+            verbose_output_print(0, 1, "%s", os.str().c_str());
+            verbose_output_end_batch();     /* unlock I/O */
+        }
+        
+        {
+            std::ostringstream os;
+            os << Q.doing;
+            verbose_output_print (0, 1, "# Time for %s: [not reported in relation-cache mode]\n", os.str().c_str());
+        }
+    }
+
+    ct0 = seconds() - ct0;
+    wt0 = wct_seconds() - wt0;
+    verbose_output_print (2, 1, "# Total %lu reports [%1.3gs/r, %1.1fr/sq] in %1.3g elapsed s [%.1f%% CPU]\n",
+            nreports,
+            nreports ? ct0 / nreports : -1,
+            (double) (nq ? nreports / nq: -1),
+            wt0,
+            100.0 * ct0/wt0);
+
+}/*}}}*/
+
 int main (int argc0, char *argv0[])/*{{{*/
 {
     double t0, wct;
@@ -1278,7 +1466,7 @@ int main (int argc0, char *argv0[])/*{{{*/
     setbuf(stderr, NULL);
 
     cxx_param_list pl;
-    las_sighandlers_install();
+    cado_sighandlers_install();
 
     declare_usage(pl);
     configure_switches(pl);
@@ -1323,21 +1511,6 @@ int main (int argc0, char *argv0[])/*{{{*/
 
     las_todo_list todo(las.cpoly, pl);
 
-    if (todo.print_todo_list) {
-        for(;;) {
-            las_todo_entry * doing_p = todo.feed_and_pop(las.rstate);
-            if (!doing_p) break;
-            las_todo_entry& doing(*doing_p);
-            verbose_output_vfprint(0, 1, gmp_vfprintf,
-                    "%d %Zd %Zd\n",
-                    doing.side,
-                    (mpz_srcptr) doing.p,
-                    (mpz_srcptr) doing.r);
-        }
-        main_output.release();
-        return EXIT_SUCCESS;
-    }
-
     /* If qmin is not given, use lim on the special-q side by default.
      * This makes sense only if the relevant fields have been filled from
      * the command line.
@@ -1350,6 +1523,18 @@ int main (int argc0, char *argv0[])/*{{{*/
     where_am_I::interpret_parameters(pl);
 
     base_memory = Memusage() << 10;
+
+    if (todo.print_todo_list_flag) {
+        /* printing the todo list takes only a very small amount of ram.
+         * In all likelihood, nsubjobs will be total number of cores (or
+         * the number of threads that were requested on command line)
+         */
+        las.set_parallel(pl, base_memory / (double) (1 << 30));
+        todo.print_todo_list(pl, las.rstate, las.number_of_threads_total());
+        main_output.release();
+        return EXIT_SUCCESS;
+
+    }
 
     /* First have a guess at our memory usage in single-threaded mode,
      * and see how many threads must be together. This means more memory
@@ -1400,6 +1585,23 @@ int main (int argc0, char *argv0[])/*{{{*/
         }
     }
 
+    /* In the random-sample + relation cache case, we're going to proceed
+     * through a special case, as this will spare us the need to load the
+     * factor base.
+     * The computation of the needed memory (which in itself is cheap)
+     * also seems overkill, but we have a slight difficulty: if doing
+     * duplicate checking, we need cofac strategies. And these are placed
+     * in a cache, which is accessed depending on the memory binding.
+     * Note that building strategies is done only when needed.
+     * Nevertheless, this strategies stuff can easily become the dominant
+     * factor in cached relations processing.
+     */
+    if (!las.relation_cache.empty()) {
+        quick_subjob_loop_using_cache(las, todo);
+        main_output.release();
+        return EXIT_SUCCESS;
+    }
+
     ASSERT_ALWAYS(las.number_of_threads_total() > 0);
 
     las.display_binding_info();
@@ -1409,7 +1611,6 @@ int main (int argc0, char *argv0[])/*{{{*/
     // already done below set_parallel
     // las.prepare_sieve_shared_data(pl);
     las.load_factor_base(pl);
-
 
     /* The global timer and global report structures are not active for
      * now.  Most of the accounting is done per special_q, and this will
@@ -1530,7 +1731,8 @@ int main (int argc0, char *argv0[])/*{{{*/
                 ncurves,
 		main_output.output,
                 las.number_of_threads_loose(),
-                extra_time);
+                extra_time,
+                1);
         verbose_output_print (0, 1, "# batch reported time for additional threads: %.2f\n", extra_time);
         batch_timer.add_foreign_time(extra_time);
 

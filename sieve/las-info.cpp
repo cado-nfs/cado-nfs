@@ -65,7 +65,7 @@ void las_info::declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "batch-print-survivors-filesize", "write that many survivors per file");
     param_list_decl_usage(pl, "batch-print-survivors-number-of-printers", "use this number of I/O threads to write survivor files. defaults to 1, and should not be changed except in very unusual cases");
 
-
+    param_list_decl_usage(pl, "relation_cache", "Directory with cache of collected relation for sampling within a known data set. Useful only with --random-sample\n");
     param_list_decl_usage(pl, "dumpfile", "Dump entire sieve region to file for debugging.");
 }
 
@@ -162,6 +162,8 @@ las_info::las_info(cxx_param_list & pl)
         param_list_parse_uint64(pl, "qfac-min", &qfac_min);
         param_list_parse_uint64(pl, "qfac-max", &qfac_max);
     }
+
+    param_list_parse_string(pl, "relation_cache", relation_cache);
 
     // ----- stuff roughly related to the descent {{{
     descent_helper = NULL;

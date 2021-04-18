@@ -6,7 +6,8 @@ use POSIX qw/getcwd/;
 use File::Basename;
 use File::Temp qw/tempdir tempfile mktemp/;
 use List::Util qw/max/;
-use Data::Dumper;
+# do not include Data::Dumper except for debugging.
+# use Data::Dumper;
 use Fcntl;
 use Carp;
 
@@ -50,7 +51,7 @@ solutions            same meaning as for bwc programs (mksol, gather)
 simd                 SIMD width to be used for krylov (ys=) and mksol,
                      gather (solutions=) programs. Defaults to 64 if
                      prime=2 or 1 otherwise
-lingen_mpi           like mpi, but for plingen only (and someday lingen).
+lingen_mpi           like mpi, but for lingen only
 
 matrix               input matrix file. Must be a complete path. Binary, 32-b LE
 rhs                  rhs file for inhomogeneous systems (ascii with header)
@@ -557,7 +558,7 @@ if (!defined($random_matrix) && !-d $wdir) {        # create $wdir on script nod
 #    --> Simply put, the former is prepended before all important
 #    mpi-level programs (secure krylov mksol gather), while the
 #    other is of course for leader-node-only programs.
-#  - @mpi_precmd_lingen (currently this is only for *plingen*)
+#  - @mpi_precmd_lingen
 #    --> use lingen_mpi (no lingen_thr exists at this point)
 #  - $mpi_needed
 #    --> to be used to check whether we want mpi. This is important
@@ -932,7 +933,7 @@ if ($mpi_needed) {
         # on the list of nodes.
         push @mpi_precmd, "$mpi/mpiexec";
 
-        my $auto_hostfile_pattern="/tmp/hosts_XXXXXXXX";
+        my $auto_hostfile_pattern="/tmp/cado-nfs.hosts_XXXXXXXX";
 
         # Need hosts. Put that to the list @hosts first.
         if ($main =~ /^:srun/) {
@@ -940,11 +941,11 @@ if ($mpi_needed) {
         } elsif (exists($ENV{'OAR_JOBID'}) && !defined($hostfile) && !scalar @hosts) {
             print STDERR "OAR environment detected, setting hostfile.\n";
             get_mpi_hosts_oar;
-            $auto_hostfile_pattern="/tmp/hosts.$ENV{'OAR_JOBID'}.XXXXXXX";
+            $auto_hostfile_pattern="/tmp/cado-nfs.hosts.$ENV{'OAR_JOBID'}.XXXXXXX";
         } elsif (exists($ENV{'PBS_JOBID'}) && !defined($hostfile) && !scalar @hosts ) {
             print STDERR "Torque/OpenPBS environment detected, setting hostfile.\n";
             get_mpi_hosts_torque;
-            $auto_hostfile_pattern="/tmp/hosts.$ENV{'PBS_JOBID'}.XXXXXXX";
+            $auto_hostfile_pattern="/tmp/cado-nfs.hosts.$ENV{'PBS_JOBID'}.XXXXXXX";
         } elsif (exists($ENV{'PE_HOSTFILE'}) && exists($ENV{'NSLOTS'}) && !defined($hostfile) && !scalar @hosts) {
             print STDERR "Oracle/SGE environment detected, setting hostfile.\n";
             get_mpi_hosts_sge;
@@ -1011,7 +1012,11 @@ if ($mpi_needed) {
                     # which doesn't work too well.
                     if (!$param->{'only_mpi'}) {
                         # with only_mpi=1, the default policy works fine.
-                        push @mpi_precmd, qw/--mca rmaps_base_mapping_policy/, 'node';
+                        push @mpi_precmd, qw/--map-by node/;
+
+                        # I don't exactly when the --bind-to argument
+                        # appeared.
+                        push @mpi_precmd, qw/--bind-to none/;
                     }
                 }
             } elsif ($mpi_ver =~ /^mpich2/ || $mpi_ver =~ /^mvapich2/) {
@@ -1023,7 +1028,23 @@ if ($mpi_needed) {
         # that mpiexec reaches the desired nodes correctly.
     }
     if (defined($mpi_extra_args)) {
-        push @mpi_precmd, split(' ', $mpi_extra_args);
+        my @a = split(' ', $mpi_extra_args);
+        my @b;
+        while (defined($_=shift(@a))) {
+            if (/^(--map-by|bind-to)$/) {
+                shift @a;
+                next;
+            }
+            if (/^plm_rsh_agent$/) {
+                pop @b;
+                shift @a;
+                next;
+            }
+            push @b, $_;
+        }
+        # filter out stuff that we already provide (there are cases where
+        # we supply this information redundantly).
+        push @mpi_precmd, @b;
     }
     push @mpi_precmd, split(' ', $mpiexec_extra_stanzas);
     push @mpi_precmd, split(' ', $ENV{'MPI_EXTRA_ARGS'}) if $ENV{'MPI_EXTRA_ARGS'};
@@ -1488,20 +1509,19 @@ sub task_common_run {
     # take out the ones we don't need (and acollect shares some
     # peculiarities).
     @_ = grep !/^(skip_bw_early_rank_check|rebuild_cache|cpubinding|balancing.*|interleaving|matrix|mm_impl|mpi|thr)?=/, @_ if $program =~ /(lingen|acollect$)/;
-    if ($program =~ /plingen/) {
+    if ($program =~ /lingen/) {
         @_ = map { s/^lingen_mpi\b/mpi/; $_; } @_;
     } else {
         @_ = grep !/^lingen_mpi?=/, @_;
     }
-    @_ = grep !/cantor_threshold/, @_ unless $program =~ /lingen/ && $prime == 2;
-    @_ = grep !/lingen_threshold/, @_ unless $program =~ /lingen/;
-    @_ = grep !/lingen_mpi_threshold/, @_ unless $program =~ /lingen/;
-    @_ = grep !/allow_zero_on_rhs/, @_ unless $program =~ /^plingen/;
+    # @_ = grep !/lingen_threshold/, @_ unless $program =~ /lingen/;
+    # @_ = grep !/lingen_mpi_threshold/, @_ unless $program =~ /lingen/;
+    @_ = grep !/allow_zero_on_rhs/, @_ unless $program =~ /^lingen/;
     @_ = grep !/^save_submatrices?=/, @_ unless $program =~ /^(prep|krylov|mksol|gather)$/;
     # are we absolutely sure that lingen needs no matrix ?
     @_ = grep !/^ys=/, @_ unless $program =~ /(krylov|dispatch)$/;
     @_ = grep !/^solutions=/, @_ unless $program =~ /(?:mksol|gather)$/;
-    @_ = grep !/^rhs=/, @_ unless $program =~ /(?:prep|gather|plingen.*|mksol)$/;
+    @_ = grep !/^rhs=/, @_ unless $program =~ /(?:prep|gather|lingen.*|mksol)$/;
     @_ = grep !/(?:precmd|tolerate_failure)/, @_;
 
     $program="$bindir/$program";
@@ -1512,7 +1532,7 @@ sub task_common_run {
     }
 
     if ($mpi_needed) {
-        if ($program =~ /\/plingen[^\/]*$/) {
+        if ($program =~ /\/lingen[^\/]*$/) {
             unshift @_, @mpi_precmd_lingen;
         } elsif ($program =~ /\/(?:split|acollect|lingen|cleanup)$/) {
             unshift @_, @mpi_precmd_single;
@@ -1521,7 +1541,10 @@ sub task_common_run {
         } else {
             die "Don't know the parallel status of program $program ... ?";
         }
+    } else {
+        @_ = grep { !/^(mpi)=/ } @_;
     }
+
     eval { dosystem @_; };
 
     if ($@) {
@@ -1938,34 +1961,29 @@ sub task_lingen {
     task_check_message 'missing', "lingen has not run yet. Running now.";
     # Now run lingen itself. Which binary we'll run is not totally
     # obvious though.
-    if ($prime == 2) {
-        my @args = @main_args;
-        push @args, "split-output-file=1";
-        my $t = $thr_split[0]*$thr_split[1];
-        push @args, "t=$t";
-        task_common_run("lingen", @args);
-    } else {
-        # NOTE: It may be worthwhile to run specifically this step, but
-        # with adapted mpi and thr parameters.
-        my @args;
-        my $lt = $param->{'lingen_threshold'} || 10;
-        my $lmt = $param->{'lingen_mpi_threshold'} || 100;
-        push @args, "lingen_threshold=$lt";
-        push @args, "lingen_mpi_threshold=$lt";
-        push @args, "split-output-file=1";
-        push @args, "afile=$concatenated_A";
-        push @args, "ffile=F";
-        push @args, grep { /^(?:mn|m|n|wdir|prime|rhs|lingen_mpi)=/ || /allow_zero_on_rhs/ } @main_args;
-        if (!$mpi_needed && ($thr_split[0]*$thr_split[1] != 1)) {
-            print "## non-MPI build, avoiding multithreaded plingen\n";
-            @args = grep { !/^(mpi|thr)=/ } @args;
-        }
-        push @args, grep { /^verbose_flags=/ } @main_args;
-        if (! -f "$wdir/$concatenated_A.gen") {
-            task_common_run("plingen_pz", @args);
+    # NOTE: It may be worthwhile to run specifically this step, but
+    # with adapted mpi and thr parameters.
+    my @args;
+    push @args, "split-output-file=1";
+    push @args, "afile=$concatenated_A";
+    push @args, "ffile=F";
+    push @args, grep { /^(?:mn|m|n|wdir|prime|rhs)=/ || /allow_zero_on_rhs/ } @main_args;
+    if (!$mpi_needed && ($lingen_mpi_split[0]*$lingen_mpi_split[1] != 1)) {
+        print "## non-MPI build, avoiding multi-node lingen\n";
+        # We keep thr=
+        @args = grep { !/^(mpi)=/ } @args;
+    }
+    push @args, grep { /^verbose_flags=/ } @main_args;
+    if (! -f "$wdir/$concatenated_A.gen") {
+        if ($prime == 2) {
+            push @args, "tuning_thresholds=recursive:128,ternary:6400,cantor:6400,notiming:0";
+            task_common_run("lingen_u64k1", @args);
         } else {
-            task_check_message 'ok', "lingen already has .gen file, good.";
+            push @args, "tuning_thresholds=recursive:10,flint:10,notiming:0";
+            task_common_run("lingen_pz", @args);
         }
+    } else {
+        task_check_message 'ok', "lingen already has .gen file, good.";
     }
 }
 # }}}

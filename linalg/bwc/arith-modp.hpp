@@ -32,6 +32,10 @@ namespace details {
         mp_limb_t x[n];
         mpn() { memset(x, 0, n * sizeof(mp_limb_t)); }
         mpn(mpn const& a) { memcpy(x, a.x, n * sizeof(mp_limb_t)); }
+        mpn& operator=(mpn const& a) {
+                memcpy(x, a.x, n * sizeof(mp_limb_t));
+                return *this;
+        }
         mpn(mpz_srcptr a) { MPN_SET_MPZ(x, n, a); }
         self& operator=(mpz_srcptr a) { MPN_SET_MPZ(x, n, a); return *this; }
         void zero() { memset(x, 0, n * sizeof(mp_limb_t)); }

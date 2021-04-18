@@ -13,6 +13,7 @@ typedef struct {
 } mpfq_2_field_struct;
 
 typedef mpfq_2_field_struct mpfq_2_field[1];
+typedef const mpfq_2_field_struct * mpfq_2_src_field;
 typedef mpfq_2_field_struct * mpfq_2_dst_field;
 
 #if GNUC_VERSION(4,3,0) || GNUC_VERSION(4,3,1)

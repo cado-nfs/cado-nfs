@@ -7,6 +7,9 @@
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #else
+#ifdef  __GNUC__
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#endif
 /* minimal stub */
 #ifdef __cplusplus
 extern "C" {

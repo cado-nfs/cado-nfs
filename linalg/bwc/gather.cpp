@@ -145,7 +145,7 @@ std::vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
     pi_bcast(&s, 1, BWC_PI_UNSIGNED_LONG, 0, 0, pi->m);
     if (!leader)
         res.assign(s, sfile_info());
-    pi_bcast(&(res[0]), s * sizeof(sfile_info), BWC_PI_BYTE, 0, 0, pi->m);
+    pi_bcast(res.data(), s * sizeof(sfile_info), BWC_PI_BYTE, 0, 0, pi->m);
     serialize(pi->m);
     return res;
 }/*}}}*/
@@ -193,13 +193,13 @@ void allgather(std::vector<unsigned int>& v, pi_comm_ptr wr)/*{{{*/
         MPI_Allreduce(MPI_IN_PLACE, &total, 1, MPI_INT, MPI_SUM,
                 wr->pals);
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                &sizes[0], 1, MPI_INT, wr->pals);
+                sizes.data(), 1, MPI_INT, wr->pals);
         for(unsigned int i = 1 ; i < wr->njobs ; i++)
             displs[i] = displs[i-1] + sizes[i-1];
         allv.assign(total, 0);
         std::copy(v.begin(), v.end(), allv.begin() + displs[wr->jrank]);
         MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                &allv[0], &sizes[0], &displs[0], MPI_UNSIGNED,
+                allv.data(), sizes.data(), displs.data(), MPI_UNSIGNED,
                 wr->pals);
         std::swap(v, allv);
     }
@@ -214,7 +214,7 @@ void broadcast(std::vector<unsigned int>& v, pi_comm_ptr wr)/*{{{*/
     int total = v.size();
     pi_bcast(&total, 1, BWC_PI_INT, 0, 0, wr);
     if (wr->jrank || wr->trank) v.assign(total, 0);
-    pi_bcast(&v[0], total, BWC_PI_UNSIGNED, 0, 0, wr);
+    pi_bcast(v.data(), total, BWC_PI_UNSIGNED, 0, 0, wr);
     serialize(wr);
 }/*}}}*/
 
@@ -1311,7 +1311,8 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                             pad_is_zero ? "also" : "NOT");
                 if (tcan_print && !pad_is_zero) {
                     char * tmp2;
-                    asprintf(&tmp2, tmp, solutions[0], solutions[1]);
+                    int rc = asprintf(&tmp2, tmp, solutions[0], solutions[1]);
+                    ASSERT_ALWAYS(rc >= 0);
                     fprintf(stderr,
                             "For reference, this useless vector (non-zero out, zero in) is stored in %s."
                             "\n",

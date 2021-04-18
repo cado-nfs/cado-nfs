@@ -38,7 +38,6 @@
 
 /* We need gf2x_addmul_1_n */
 #include "gf2x/gf2x-small.h"
-#include "macros.h"
 
 #if GPL_CODE_PRESENT
 short best_tab[GF2X_TOOM_TUNING_LIMIT] = GF2X_BEST_TOOM_TABLE;
@@ -71,8 +70,15 @@ short gf2x_best_toom(unsigned long n GF2X_MAYBE_UNUSED)
       return GF2X_SELECT_TC4;		// Toom4Mul
 
     /* now n <= GF2X_TOOM_TUNING_LIMIT */
+    /* In case the tuning table was built only with a pretty low
+     * TOOM_TUNING_LIMIT, then best_tab[n-1] might be -1; we should
+     * interpret that as meaning the default, asymptotic behaviour. Even
+     * if that doesn't seem right.
+     */
+    if (best_tab[n-1] < 0)
+        return GF2X_SELECT_TC4;
 
-    return best_tab[n - 1];	// Return table entry
+    return best_tab[n-1];	// Return table entry
 #else /* GPL_CODE_PRESENT */
     return GF2X_SELECT_KARA;
 #endif /* GPL_CODE_PRESENT */
@@ -91,12 +97,16 @@ short gf2x_best_utoom(unsigned long n GF2X_MAYBE_UNUSED)
 	return GF2X_SELECT_UNB_DFLT;		// Default
 
     if (n >= GF2X_MUL_TOOMU_ALWAYS_THRESHOLD)
-	    return GF2X_SELECT_UNB_TC3U;
+        return GF2X_SELECT_UNB_TC3U;
 
     /* This would be a tuning bug */
     ASSERT (n <= GF2X_TOOM_TUNING_LIMIT);
 
-    return best_utab[n - 1];	// Return table entry
+    /* same as above */
+    if (best_utab[n-1] < 0)
+        return GF2X_SELECT_UNB_TC3U;
+
+    return best_utab[n-1];	// Return table entry
 #else /* GPL_CODE_PRESENT */
     return GF2X_SELECT_UNB_DFLT;
 #endif /* GPL_CODE_PRESENT */
@@ -176,32 +186,40 @@ void gf2x_mul_toom(unsigned long *c, const unsigned long *a,
     switch (gf2x_best_toom(n)) {
     case GF2X_SELECT_KARA:
 	gf2x_mul_kara(c, a, b, n, stk);
-	break;
+        return;
 #ifdef HAVE_KARAX
         /* gf2x_mul_karax is LGPL, but for simplicity we put it only here */
     case GF2X_SELECT_KARAX:
 	gf2x_mul_karax(c, a, b, n, stk);
-	break;
+        return;
         /* gf2x_mul_tc3x is copied from gf2x_mul_tc3, thus GPL only */
     case GF2X_SELECT_TC3X:
 	gf2x_mul_tc3x(c, a, b, n, stk);
-	break;
+        return;
+#else
+    case GF2X_SELECT_KARAX:
+    case GF2X_SELECT_TC3X:
+        fprintf (stderr, "We should never reach here. gf2x_best_toom(%ld)=%d, while this method is not supported with the present code. Please report.\n",
+                 n, gf2x_best_toom(n));
+	gf2x_mul_kara(c, a, b, n, stk);
+        return;
 #endif
         /* TC3, TC3W, TC4 are GPL'ed code */
     case GF2X_SELECT_TC3:
 	gf2x_mul_tc3(c, a, b, n, stk);
-	break;
+        return;
     case GF2X_SELECT_TC3W:
 	gf2x_mul_tc3w(c, a, b, n, stk);
-	break;
+        return;
     case GF2X_SELECT_TC4:
 	gf2x_mul_tc4(c, a, b, n, stk);
-	break;
+        return;
     default:
       {
-        fprintf (stderr, "Unhandled case %d in gf2x_mul_toom\n",
-                 gf2x_best_toom(n));
-        abort();
+        fprintf (stderr, "Unhandled case gf2x_best_toom(%ld)=%d in gf2x_mul_toom\n",
+                 n, gf2x_best_toom(n));
+	gf2x_mul_kara(c, a, b, n, stk);
+        return;
       }
     }
 #else /* GPL_CODE_PRESENT */
@@ -235,7 +253,7 @@ void gf2x_mul_kara(unsigned long * c, const unsigned long * a, const unsigned lo
 
     if (n < GF2X_MUL_KARA_THRESHOLD) {
 	gf2x_mul_basecase(c, a, n, b, n);
-	return;
+        return;
     }
 
     n2 = (n + 1) / 2;		/* ceil(n/2) */
@@ -253,7 +271,6 @@ void gf2x_mul_kara(unsigned long * c, const unsigned long * a, const unsigned lo
     unsigned long *c3 = c2 + n2;	/* c[3*n2] */
 
     gf2x_mul_kara(c, a, b, n2, stk);	/* Low */
-
     gf2x_mul_kara(c2, a1, b1, n2 - d, stk);	/* High */
 
     for (j = 0; j < n2 - d; j++) {

@@ -41,7 +41,7 @@ class las_todo_list : private std::stack<las_todo_entry> {
     /* For composite special-q: note present both in las_info and
      * las_todo_list */
     bool allow_composite_q = false;
-    bool print_todo_list = false;
+    bool print_todo_list_flag = false;
     uint64_t qfac_min = 1024;
     uint64_t qfac_max = UINT64_MAX;
 
@@ -81,6 +81,8 @@ class las_todo_list : private std::stack<las_todo_entry> {
         return (p >= qfac_min) && (p >= qfac_max);
     }
 
+    bool is_random() const { return random_sampling != 0; }
+
     bool feed(gmp_randstate_t rstate);
     las_todo_entry * feed_and_pop(gmp_randstate_t rstate);
 
@@ -98,6 +100,8 @@ class las_todo_list : private std::stack<las_todo_entry> {
 
     static void configure_switches(cxx_param_list & pl);
     static void declare_usage(cxx_param_list & pl);
+
+    void print_todo_list(cxx_param_list & pl, gmp_randstate_ptr, int nthreads = 1) const;
 };
 
 

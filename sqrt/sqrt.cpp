@@ -26,7 +26,6 @@
 #include <sys/stat.h>
 #include <pthread.h>
 #include <gmp.h>
-#include "omp_proxy.h"
 #include <mutex>
 #include <string>
 #include <vector>
@@ -43,12 +42,17 @@
 #include "memusage.h"   // PeakMemusage
 #include "modul_poly.h" // modul_poly
 #include "mpz_poly.h"   // mpz_poly
+#include "mpz_poly_parallel.hpp"
+#include "omp_proxy.h"
 #include "purgedfile.h" // purgedfile_read_firstline
 #include "version_info.h" // cado_revision_string
 #include "portability.h" // strndup // IWYU pragma: keep
 #include "macros.h"
 #include "params.h"
 #include "timing.h"
+
+/* define to check the result of cxx_mpz_polymod_scaled_sqrt */
+// #define DEBUG
 
 /* frequency of messages "read xxx (a,b) pairs" */
 #define REPORT 10000000
@@ -63,9 +67,10 @@ std::mutex stdio_guard;
 
 struct cxx_mpz_polymod_scaled {
   cxx_mpz_poly p;
-  int v;
+  unsigned long v;
   cxx_mpz_polymod_scaled(int deg) : p(deg), v(0) {}
   cxx_mpz_polymod_scaled() = default;
+  cxx_mpz_polymod_scaled(cxx_mpz_poly const & p, unsigned long v = 0) : p(p), v(v) {}
   cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled const &) = delete;
   cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled &&) = default;
   cxx_mpz_polymod_scaled& operator=(cxx_mpz_polymod_scaled const &) = delete;
@@ -78,7 +83,7 @@ struct cxx_mpz_polymod_scaled {
    WARNING: this function destroys its input p !!! */
 static void
 cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_mpz_poly const & F) {
-  int v = 0;
+  unsigned long v = 0;
 
   if (p->deg < F->deg) {
     mpz_poly_set(P.p, p);
@@ -121,8 +126,8 @@ cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_
 /* Set Q=P1*P2 (mod F). Warning: Q might equal P1 (or P2). */
 void
 cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled const & P1, cxx_mpz_polymod_scaled const & P2,
-                   cxx_mpz_poly const & F) {
-  int v;
+                   cxx_mpz_poly const & F, mpz_poly_parallel_info * pinf) {
+  unsigned long v;
 
   /* beware: if P1 and P2 are zero, P1.p->deg + P2.p->deg = -2 */
   cxx_mpz_poly prd ((P1.p->deg == -1) ? -1 : P1.p->deg + P2.p->deg);
@@ -130,11 +135,13 @@ cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled c
   ASSERT_ALWAYS(mpz_poly_normalized_p (P1.p));
   ASSERT_ALWAYS(mpz_poly_normalized_p (P2.p));
 
-  mpz_poly_mul (prd, P1.p, P2.p);
+  pinf->mpz_poly_mul(prd, P1.p, P2.p);
   v = P1.v + P2.v;
+  ASSERT_ALWAYS(v >= P1.v); /* no overflow */
 
   cxx_mpz_polymod_scaled_reduce (Q, prd, F);
   Q.v += v;
+  ASSERT_ALWAYS(Q.v >= v); /* no overflow */
 }
 
 static char*
@@ -244,7 +251,7 @@ template<typename M>
 void accumulate(std::vector<typename M::T> & A, typename std::vector<typename M::T>::iterator vb, typename std::vector<typename M::T>::iterator ve, M const & m)
 {
     /* This is a single-threaded routine. We put the result in *vb, and
-     * the caller is reponsible of freeeing the range [vb+1,ve[
+     * the caller is reponsible of freeing the range [vb+1,ve[
      */
     if (ve - vb < 16) {
         /* Don't bother with very small vectors. Here we have a vector of
@@ -666,7 +673,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   {
       cxx_mpz_functions M(F);
 
-      std::string message = fmt::format("Rat({})", numdep);
+      std::string message = fmt::format(FMT_STRING("Rat({})"), numdep);
       char * depname = get_depname (prefix, "", numdep);
       std::vector<cxx_mpz> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
       free(depname);
@@ -787,17 +794,6 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
   return 0;
 }
 
-typedef struct
-{
-  const char *prefix;
-  int task;            /* 0:ratsqrt 1:algsqrt 2:gcd */
-  int numdep;
-  cado_poly_ptr pol;
-  int side;
-  mpz_ptr Np;
-} __tab_struct;
-typedef __tab_struct tab_t[1];
-
 /********** ALGSQRT **********/
 static cxx_mpz_polymod_scaled
 cxx_mpz_polymod_scaled_from_ab (cxx_mpz const & a, cxx_mpz const & b)
@@ -840,7 +836,8 @@ void cxx_mpz_polymod_scaled_set(cxx_mpz_polymod_scaled & y, cxx_mpz_polymod_scal
 struct cxx_mpz_polymod_scaled_functions {
     typedef cxx_mpz_polymod_scaled T;
     cxx_mpz_poly const & F;
-    cxx_mpz_polymod_scaled_functions(cxx_mpz_poly & F) : F(F) {}
+    mpz_poly_parallel_info * pinf;
+    cxx_mpz_polymod_scaled_functions(cxx_mpz_poly & F, mpz_poly_parallel_info * pinf = NULL) : F(F), pinf(pinf) {}
     T from_ab(cxx_mpz const & a, cxx_mpz const & b) const {
         return cxx_mpz_polymod_scaled_from_ab(a, b);
     }
@@ -854,7 +851,7 @@ struct cxx_mpz_polymod_scaled_functions {
         cxx_mpz_polymod_scaled_set_ui(res, 1);
     }
     void operator()(T &res, T const & a, T const & b) const {
-        cxx_mpz_polymod_scaled_mul(res, a, b, F);
+        cxx_mpz_polymod_scaled_mul(res, a, b, F, pinf);
     }
 };
 
@@ -985,12 +982,13 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
 }
 
 // res <- Sqrt(AA) mod F, using p-adic lifting, at prime p.
-void
+unsigned long
 cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scaled & AA, cxx_mpz_poly const & F, unsigned long p,
-	       int numdep)
+	       int numdep,
+               mpz_poly_parallel_info * pinf)
 {
   mpz_poly A, *P;
-  int v;
+  unsigned long v;
   int d = F->deg;
   unsigned long k, target_k;
   unsigned long K[65];
@@ -1008,6 +1006,16 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
      the coefficients. */
   target_size = mpz_poly_sizeinbase (AA.p, 2);
   target_size = target_size / 2;
+
+  /* note that we scale by the derivative of f_hat, which might increase
+   * the coefficient a little bit. I suppose that the bitsize of the
+   * discriminant is a safe bet. Better take into account */
+  {
+      cxx_mpz disc;
+      mpz_poly_discriminant(disc, F);
+      target_size += mpz_sizeinbase(disc, 2);
+  }
+
   target_size += target_size / 10;
 #pragma omp critical
   {
@@ -1024,7 +1032,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     v = AA.v / 2;
   } else {
     v = (1+AA.v) / 2;
-    mpz_poly_mul_mpz(A, A, F->coeff[d]);
+    pinf->mpz_poly_mul_mpz(A, A, F->coeff[d]);
   }
 
   // Now, we just have to take the square root of A (without denom) and
@@ -1050,7 +1058,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
       mpz_mul_ui (pk, pk, p);
       target_k ++;
     }
-  mpz_poly_mod_mpz (A, A, pk, NULL);
+  pinf->mpz_poly_mod_mpz (A, A, pk, NULL);
   for (k = target_k, logk = 0; k > 1; k = (k + 1) / 2, logk ++)
     K[logk] = k;
   K[logk] = 1;
@@ -1067,7 +1075,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   lk = 0; /* k = 2^lk */
   st = seconds ();
   wct = wct_seconds ();
-  P = mpz_poly_base_modp_init (A, p, K, logk0 = logk);
+  P = pinf->mpz_poly_base_modp_init (A, p, K, logk0 = logk);
 #pragma omp critical
   {
     fprintf (stderr, "Alg(%d): mpz_poly_base_modp_init took %.2fs (wct %.2fs)\n",
@@ -1129,7 +1137,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     st = seconds ();
     wct = wct_seconds ();
     /* a <- a + pk*P[lk] */
-    mpz_poly_base_modp_lift (a, P, lk, pk);
+    pinf->mpz_poly_base_modp_lift (a, P, lk, pk);
     /* free P[lk] which is no longer needed */
     mpz_poly_clear (P[lk]);
     if (verbose)
@@ -1141,10 +1149,8 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
 	fflush (stderr);
       }
 
-    /* invariant: k = K[logk] */
-    ASSERT_ALWAYS(k == K[logk]);
-
     mpz_mul (pk, pk, pk);   // double the current precision
+    k = k + k;
     logk --;
     if (K[logk] & 1)
       {
@@ -1152,7 +1158,10 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
         k --;
       }
     barrett_precompute_inverse (invpk, pk);
-    k = K[logk];
+
+    /* check the invariant k = K[logk] */
+    ASSERT_ALWAYS(k == K[logk]);
+
 #pragma omp critical
     {
       fprintf (stderr, "Alg(%d): start lifting mod p^%lu (%lu bits) at %.2fs (wct %.2fs)\n",
@@ -1164,7 +1173,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
     // now, do the Newton operation x <- 1/2(3*x-a*x^3)
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_sqr_mod_f_mod_mpz (tmp, invsqrtA, F, pk, NULL, invpk); /* tmp = invsqrtA^2 */
+    pinf->mpz_poly_sqr_mod_f_mod_mpz (tmp, invsqrtA, F, pk, NULL, invpk); /* tmp = invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
@@ -1179,7 +1188,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
        if 1-a*x^2 are divisible by p^(k/2). */
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, a, F, pk, NULL, invpk); /* tmp=a*invsqrtA^2 */
+    pinf->mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, a, F, pk, NULL, invpk); /* tmp=a*invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
@@ -1189,10 +1198,10 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
         fflush (stderr);
       }
     mpz_poly_sub_ui (tmp, tmp, 1); /* a*invsqrtA^2-1 */
-    mpz_poly_div_2_mod_mpz (tmp, tmp, pk); /* (a*invsqrtA^2-1)/2 */
+    pinf->mpz_poly_div_2_mod_mpz (tmp, tmp, pk); /* (a*invsqrtA^2-1)/2 */
     st = seconds ();
     wct = wct_seconds ();
-    mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, invsqrtA, F, pk, NULL, invpk);
+    pinf->mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, invsqrtA, F, pk, NULL, invpk);
     if (verbose)
 #pragma omp critical
       {
@@ -1202,15 +1211,13 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
         fflush (stderr);
       }
     /* tmp = invsqrtA/2 * (a*invsqrtA^2-1) */
-    mpz_poly_sub_mod_mpz (invsqrtA, invsqrtA, tmp, pk);
-
-
+    pinf->mpz_poly_sub_mod_mpz (invsqrtA, invsqrtA, tmp, pk);
   } while (k < target_k);
 
   /* multiply by a to get an approximation of the square root */
   st = seconds ();
   wct = wct_seconds ();
-  mpz_poly_mul_mod_f_mod_mpz (tmp, invsqrtA, a, F, pk, NULL, invpk);
+  pinf->mpz_poly_mul_mod_f_mod_mpz (tmp, invsqrtA, a, F, pk, NULL, invpk);
   mpz_clear (invpk);
   if (verbose)
 #pragma omp critical
@@ -1239,6 +1246,8 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
 	     numdep, sqrt_size, 100.0 * (double) sqrt_size / target_size);
     fflush (stderr);
   }
+
+  return target_k;
 }
 
 static unsigned long
@@ -1290,7 +1299,8 @@ FindSuitableModP (mpz_poly F, mpz_t N)
 */
 int
 calculateSqrtAlg (const char *prefix, int numdep,
-                  cado_poly_ptr pol, int side, mpz_t Np)
+                  cado_poly_ptr pol, int side, mpz_t Np,
+                  mpz_poly_parallel_info * pinf)
 {
   FILE *resfile;
   unsigned long p;
@@ -1302,16 +1312,44 @@ calculateSqrtAlg (const char *prefix, int numdep,
 
   // Init F to be the corresponding polynomial
   cxx_mpz_poly F(pol->pols[side]);
+  cxx_mpz_poly F_hat(F->deg);
   cxx_mpz_polymod_scaled prod;
+
+  /* {{{ create F_hat, the minimal polynomial of alpha_hat = lc(F) *
+   * alpha */
+  {
+      cxx_mpz tmp;
+      mpz_init_set_ui(tmp, 1);
+      mpz_set_ui(F_hat->coeff[F->deg], 1);
+      for(int i = F->deg - 1 ; i >= 0 ; i--) {
+          mpz_mul(F_hat->coeff[i], tmp, F->coeff[i]);
+          mpz_mul(tmp, tmp, F->coeff[F->deg]);
+      }
+      mpz_poly_cleandeg(F_hat, F->deg);
+  }
+  /* }}} */
 
   // Accumulate product with a subproduct tree
   {
-      cxx_mpz_polymod_scaled_functions M(F);
+      cxx_mpz_polymod_scaled_functions M(F, pinf);
 
-      std::string message = fmt::format("Alg({})", numdep);
+      std::string message = fmt::format(FMT_STRING("Alg({})"), numdep);
       char * depname = get_depname (prefix, "", numdep);
       std::vector<cxx_mpz_polymod_scaled> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
       free(depname);
+
+      {
+          cxx_mpz_poly scale, alpha_hat;
+          mpz_poly_set_xi(alpha_hat, 1);
+          mpz_poly_mul_mpz(alpha_hat, alpha_hat, mpz_poly_lc(F));
+          mpz_poly_eval_diff_poly(scale, F_hat, alpha_hat);
+          /* Add these two to the subproduct tree. ok, they're slightly
+           * larger than the other elements, but it won't make a big
+           * difference in the long run, and is certainly not worse than
+           * doing the full unbalanced mul after the accumulation */
+          prd.emplace_back(scale,0);
+          prd.emplace_back(scale,0);
+      }
 
       ASSERT_ALWAYS ((nab & 1) == 0);
       ASSERT_ALWAYS ((nfree & 1) == 0);
@@ -1344,7 +1382,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
     {
       fprintf (stderr, "Alg(%d): finished accumulating product at %.2fs (wct %.2fs)\n",
 	       numdep, seconds(), wct_seconds () - wct0);
-      fprintf (stderr, "Alg(%d): nab = %lu, nfree = %lu, v = %d\n", numdep,
+      fprintf (stderr, "Alg(%d): nab = %lu, nfree = %lu, v = %lu\n", numdep,
 	       nab, nfree, prod.v);
       fprintf (stderr, "Alg(%d): maximal polynomial bit-size = %lu\n", numdep,
 	       (unsigned long) mpz_poly_sizeinbase (prod.p, 2));
@@ -1352,7 +1390,45 @@ calculateSqrtAlg (const char *prefix, int numdep,
       fflush (stderr);
     }
 
-    cxx_mpz_polymod_scaled_sqrt (prod, prod, F, p, numdep);
+
+#ifdef DEBUG
+    mpz_poly prod0;
+    unsigned long v0 = prod.v;
+    ASSERT_ALWAYS(prod.p->deg == F->deg - 1);
+    mpz_poly_init (prod0, F->deg - 1);
+    mpz_poly_set (prod0, prod.p);
+#endif
+    unsigned long target_k MAYBE_UNUSED;
+    target_k = cxx_mpz_polymod_scaled_sqrt (prod, prod, F, p, numdep, pinf);
+#ifdef DEBUG
+    unsigned long v = prod.v;
+    /* we should have prod.p/fd^v = sqrt(prod0/fd^v0) mod (F,p^k)
+       thus prod.p^2/fd^(2v) = prod0/fd^v0 mod (F,p^k)
+       thus fd^v0*prod.p^2 = fd^(2v)*prod0 mod (F,p^k) */
+    mpz_poly q;
+    mpz_t pk, fdv0, fd2v;
+    mpz_poly_init (q, F->deg - 1);
+    mpz_init (pk);
+    mpz_ui_pow_ui (pk, p, target_k);
+    mpz_poly_sqr_mod_f_mod_mpz (q, prod.p, F, pk, NULL, NULL);
+    /* we should have fd^v0*q = fd^(2v)*prod0 mod p^k */
+    mpz_init (fdv0);
+    mpz_powm_ui (fdv0, F->coeff[F->deg], v0, pk);
+    mpz_poly_mul_mpz (q, q, fdv0);
+    mpz_poly_mod_mpz (q, q, pk, NULL);
+    /* now we should have q = fd^(2v)*prod0 mod p^k */
+    mpz_init (fd2v);
+    mpz_powm_ui (fd2v, F->coeff[F->deg], 2 * v, pk);
+    mpz_poly_mul_mpz (prod0, prod0, fd2v);
+    mpz_poly_mod_mpz (prod0, prod0, pk, NULL);
+    /* now we should have q = prod0 */
+    ASSERT_ALWAYS(mpz_poly_cmp (q, prod0) == 0);
+    mpz_poly_clear (prod0);
+    mpz_clear (pk);
+    mpz_clear (fdv0);
+    mpz_clear (fd2v);
+#endif
+
 #pragma omp critical
     {
       fprintf (stderr, "Alg(%d): square root lifted at %.2fs (wct %.2fs)\n",
@@ -1374,7 +1450,20 @@ calculateSqrtAlg (const char *prefix, int numdep,
         }
     } while (!ret);
     mpz_poly_eval_mod_mpz(algsqrt, prod.p, m, Np);
+
+    /* now divide by f'(alpha_hat), but mod N. alpha_hat mod N is lc*m
+     */
+    {
+        cxx_mpz scale_modN, alpha_hat_modN;
+        mpz_mul(alpha_hat_modN, mpz_poly_lc(F), m);
+        mpz_poly_eval_diff(scale_modN, F_hat, alpha_hat_modN);
+        mpz_invert(scale_modN, scale_modN, Np);
+        mpz_mul(algsqrt, algsqrt, scale_modN);
+        mpz_mod(algsqrt, algsqrt, Np);
+    }
+
     mpz_clear(m);
+
     mpz_invert(aux, F->coeff[F->deg], Np);  // 1/fd mod n
     mpz_powm_ui(aux, aux, prod.v, Np);      // 1/fd^v mod n
     mpz_mul(algsqrt, algsqrt, aux);
@@ -1660,23 +1749,37 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     free (abs);
 }
 
+
+struct sqrt_thread_args
+{
+  const char *prefix;
+  int task;            /* 0:ratsqrt 1:algsqrt 2:gcd */
+  int numdep;
+  cado_poly_ptr pol;
+  int side;
+  mpz_ptr Np;
+  mpz_poly_parallel_info * pinf;
+};
+typedef struct sqrt_thread_args * sqrt_thread_ptr;
+typedef struct sqrt_thread_args sqrt_thread[1];
+
 #define TASK_SQRT 0
 #define TASK_GCD  2
 /* perform one task (rat or alg or gcd) on one dependency */
 void*
 one_thread (void* args)
 {
-  tab_t *tab = (tab_t*) args;
-  if (tab[0]->task == TASK_SQRT) {
-      if (tab[0]->pol->pols[tab[0]->side]->deg == 1) {
-          calculateSqrtRat (tab[0]->prefix, tab[0]->numdep, tab[0]->pol,
-                  tab[0]->side, tab[0]->Np);
+  sqrt_thread_ptr tab = (sqrt_thread_ptr) args;
+  if (tab->task == TASK_SQRT) {
+      if (tab->pol->pols[tab->side]->deg == 1) {
+          calculateSqrtRat (tab->prefix, tab->numdep, tab->pol,
+                  tab->side, tab->Np);
       } else {
-          calculateSqrtAlg (tab[0]->prefix, tab[0]->numdep, tab[0]->pol,
-                  tab[0]->side, tab[0]->Np);
+          calculateSqrtAlg (tab->prefix, tab->numdep, tab->pol,
+                  tab->side, tab->Np, tab->pinf);
       }
   } else /* gcd */
-    calculateGcd (tab[0]->prefix, tab[0]->numdep, tab[0]->Np);
+    calculateGcd (tab->prefix, tab->numdep, tab->Np);
   return NULL;
 }
 
@@ -1687,14 +1790,22 @@ calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
                 cado_poly pol, int side, mpz_t Np)
 {
   pthread_t *tid;
-  tab_t *T;
+  sqrt_thread *T;
   int j;
+
+  /* This descriptor will hold info about "how" we parallelize the
+   * mpz_poly operations. For the moment, there's not a lot in there.
+   * Only the fact that the pointer that we pass is not NULL is
+   * significant! But eventually, we may find it useful to add more
+   * stuff.
+   */
+  mpz_poly_parallel_info pinf[1];
 
   omp_set_num_threads(iceildiv(omp_get_max_threads(), nthreads));
 
   tid = (pthread_t*) malloc (nthreads * sizeof (pthread_t));
   ASSERT_ALWAYS(tid != NULL);
-  T = (tab_t*) malloc (nthreads * sizeof (tab_t));
+  T = (sqrt_thread*) malloc (nthreads * sizeof (sqrt_thread));
   ASSERT_ALWAYS(T != NULL);
   for (j = 0; j < nthreads; j++)
     {
@@ -1704,10 +1815,15 @@ calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
       T[j]->pol = pol;
       T[j]->side = side;
       T[j]->Np = Np;
+      T[j]->pinf = pinf;
     }
-#ifdef __OpenBSD__
+#if defined(__OpenBSD__) || defined(HAVE_MUSL)
   /* On openbsd, we have obscure failures that seem to be triggered
    * by multithreading. So let's play it simple.
+   *
+   * We seem to experience exactly a similar problem with musl libc (used
+   * by alpine linux). Note that HAVE_MUSL is a custom flag that we define
+   * ourselves.
    */
   for (j = 0; j < nthreads; j++)
       (*one_thread)((void*)(T+j));

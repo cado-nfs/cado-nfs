@@ -62,9 +62,11 @@ static void my_sm(const char *outfile, const char *infile,
 	    mpz_poly_setcoeff(pol, i, zbuf);
 	}
 	mpz_clear(zbuf);
-	fprintf(stderr, "Poly read: ");
-	mpz_poly_fprintf(stderr, pol);
-	fprintf(stderr, "\n");
+        if (0) {
+            fprintf(stderr, "Poly read: ");
+            mpz_poly_fprintf(stderr, pol);
+            fprintf(stderr, "\n");
+        }
     }
     else{
 	// we read a relation

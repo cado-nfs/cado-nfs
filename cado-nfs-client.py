@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # pylint: disable=too-many-lines
 # pylint: disable=deprecated-module
@@ -11,6 +11,7 @@
 
 # {{{ libs
 import sys
+import io
 import os
 import random
 import errno
@@ -57,6 +58,15 @@ if not re.search("^/", CADO_PYTHON_LIBS_PATH):
 sys.path.append(CADO_PYTHON_LIBS_PATH)
 from workunit import Workunit
 # }}}
+
+
+def pid_exists(pid):
+    try:
+        os.kill(pid, 0)
+    except OSError as e:
+        return e.errno == errno.EPERM
+    else:
+        return True
 
 # {{{ locking plumbing.
 # File locking functions are specific to Unix/Windows/MacOS platforms.
@@ -353,7 +363,7 @@ if sys.version_info[0] == 2:
 
 # }}}
 
-def create_daemon(workdir=None, umask=None, keepfd=None):# {{{
+def create_daemon(workdir=None, umask=None, logfile=None):# {{{
     """Run a sub-process, detach it from the control tty.
 
     This is a simplified version of the code found there.
@@ -411,10 +421,18 @@ def create_daemon(workdir=None, umask=None, keepfd=None):# {{{
     if maxfd == resource.RLIM_INFINITY:
         maxfd = maxfd_default
 
+    if logfile is not None:
+        # must remove the intermediary handlers that the logging system
+        # uses, otherwise we get inconsistent file position and python
+        # gets nuts.
+        logger = logging.getLogger()
+        for handler in list(logger.handlers): #Remove old handlers
+            logger.removeHandler(handler)
+
     # Iterate through and close all file descriptors.
     for fd in range(0, maxfd):
         try:
-            if keepfd is None or not fd in keepfd:
+            if logfile is not None and fd != logfile.fileno():
                 os.close(fd)
         except OSError:	# ERROR, fd wasn't open to begin with (ignored)
             pass
@@ -426,13 +444,25 @@ def create_daemon(workdir=None, umask=None, keepfd=None):# {{{
 
     # This call to open is guaranteed to return the lowest file descriptor,
     # which will be 0 (stdin), since it was closed above.
-    os.open(redirect_to, os.O_RDWR)	# standard input (0)
+    fd0 = os.open(redirect_to, os.O_RDWR)	# standard input (0)
+
+    fd12 = fd0
+    if logfile is not None:
+        fd12 = logfile.fileno()
 
     # Duplicate standard input to standard output and standard error.
-    os.dup2(0, 1)			# standard output (1)
-    os.dup2(0, 2)			# standard error (2)
+    os.dup2(fd12, 1)			# standard output (1)
+    os.dup2(fd12, 2)			# standard error (2)
 
-    return 0
+    if logfile is None:
+        return
+
+    # Now re-plug the logging system to the same file descriptor as
+    # stderr. we have three file descriptors open to the same file, by
+    # the way. We might as well decide to do away with one of them
+    # (e.g., logfile.fileno())
+    logger.addHandler(logging.StreamHandler(sys.stderr))
+    # os.close(logfile.fileno())
 # }}}
 
 class WuMIMEMultipart(MIMEMultipart):# {{{
@@ -716,13 +746,15 @@ class HTTP_connector(object):
                 # Python 3 implements HTTPS certificate checks, we can just
                 # let urllib do the work for us
 
-                # To skip the hostname check under Python 3, I'll have to
-                # override # HTTPSConnection.__init__() and register that
-                # with the urlopen director
-                if not check_hostname:
-                    raise Exception("Error, not checking hostname not "
-                                    "implemented for Python 3 yet")
-                return urllib_request.urlopen(request, cafile=cafile)
+                context = ssl.SSLContext()
+                if check_hostname:
+                    context.verify_mode = ssl.CERT_REQUIRED
+                else:
+                    context.verify_mode = ssl.CERT_NONE
+                context.check_hostname = bool(check_hostname)
+                context.load_verify_locations(cafile=cafile)
+
+                return urllib_request.urlopen(request, context=context)
             # For the time being, we just use HTTPS without check.
             # We should never get here, as we use wget or curl as
             # fall-backs under Python 2, and if neither is available,
@@ -1531,7 +1563,12 @@ class InputDownloader(object):
             return filesum
         return filesum.lower() == checksum.lower()
 
-    def get_file(self, urlpath, dlpath=None, options=None, is_wu=False, mandatory_server=None):
+    def get_file(self, urlpath,
+            dlpath=None,
+            options=None,
+            is_wu=False,
+            executable=False,
+            mandatory_server=None):
         """ gets a file from the server (of from one of the failover
         servers, for WUs), and wait until we succeed.
 
@@ -1643,6 +1680,13 @@ class InputDownloader(object):
             logging.info("Opened URL %s after %s seconds wait",
                          url, waiting_since)
 
+        if executable:
+            m = dlpath_tmp if dlpath_tmp is not None else dlpath
+            mode = os.stat(m).st_mode
+            if mode & stat.S_IXUSR == 0:
+                logging.info("Setting executable flag for %s", dlpath)
+                os.chmod(m, mode | stat.S_IXUSR)
+
         if dlpath_tmp is not None:
             # We can't atomically rename-unless-dst-does-not-exist-yet.
             os.rename(dlpath_tmp, dlpath)
@@ -1653,6 +1697,7 @@ class InputDownloader(object):
                          checksum=None,
                          options=None,
                          is_wu=False,
+                         executable=False,
                          mandatory_server=None
                          ):
         """ Downloads a file if it does not exist already, from one of
@@ -1723,6 +1768,7 @@ class InputDownloader(object):
             # we were catching HTTPError here previously. Useless now ?
             peer = self.get_file(urlpath, filename, options=options,
                                  is_wu=is_wu,
+                                 executable=executable,
                                  mandatory_server=mandatory_server)
             if peer is None:
                 if is_wu:
@@ -1764,20 +1810,17 @@ class InputDownloader(object):
                 checksum = None
             # If we fail to download the file, we'll deal with it at the
             # level above
+
+            executable = os.name != "nt" and \
+                    filename in dict(wu.get("EXECFILE", []))
             self.get_missing_file(archname, dlpath, checksum,
+                                  executable=executable,
                                   mandatory_server=server)
             # Try to lock the file once to be sure that download has finished
             # if another cado-nfs-client is doing the downloading
             with open(dlpath) as file_to_lock:
                 FileLock.lock(file_to_lock)
                 FileLock.unlock(file_to_lock)
-
-            if os.name != "nt" and \
-                    filename in dict(wu.get("EXECFILE", [])):
-                mode = os.stat(dlpath).st_mode
-                if mode & stat.S_IXUSR == 0:
-                    logging.info("Setting executable flag for %s", dlpath)
-                    os.chmod(dlpath, mode | stat.S_IXUSR)
         return True
 
     # }}}
@@ -2133,6 +2176,15 @@ def merge_two_dicts(x, y):
     z.update(y)
     return z
 
+def abort_on_python2():
+    if int(sys.version_info[0]) < 3:
+        logging.error("You are running cado-nfs-client with Python%d.  "
+                "Python2 *used to be* supported, but no longer is.  "
+                "You can try to remove the explicit sys.exit(1) in "
+                "cado-nfs-client.py, abort_on_python2(), "
+                "but you're on your own." % int(sys.version[0]))
+        sys.exit(1)
+
 # This syntax is weird, but { a:b for [....] } won't work with python 2.6
 # -- which I'm not sure we really strive to support, though.
 SETTINGS = dict([(a,b) for (a, (b,c)) in
@@ -2164,6 +2216,8 @@ if __name__ == '__main__':
                 parser.add_option('--' + arg.lower(), help=default[1])
         parser.add_option("-d", "--daemon", action="store_true", dest="daemon",
                           help="Daemonize the client")
+        parser.add_option("--ping", type="int", dest="ping",
+                          help="Checks health of existing client.  Requires clientid")
         parser.add_option("--keepoldresult", default=False, action="store_true",
                           help="Keep and upload old results when client starts")
         parser.add_option("--nosha1check", default=False, action="store_true",
@@ -2221,6 +2275,11 @@ if __name__ == '__main__':
 
     options = parse_cmdline()
 
+    if options.ping != None:
+        if SETTINGS["CLIENTID"] is None:
+                raise ValueError("--ping requires --clientid")
+        if not options.daemon and SETTINGS["LOGFILE"] is None:
+                raise ValueError("--ping requires --daemon or --logfile")
     # If no client id is given, we use <hostname>.<randomstr>
     if SETTINGS["CLIENTID"] is None:
         import random
@@ -2263,6 +2322,19 @@ if __name__ == '__main__':
     if options.daemon and logfilename is None:
         logfilename = "%s/%s.log" % (SETTINGS["WORKDIR"], SETTINGS["CLIENTID"])
         SETTINGS["LOGFILE"] = logfilename
+
+    if options.ping != None:
+        if pid_exists(options.ping):
+            sys.exit(0)
+        with open(logfilename, "r") as f:
+            size = os.stat(f.fileno()).st_size
+            if size >= 8192:
+                f.seek(size-8192,io.SEEK_SET)
+            lines=f.readlines()
+            for l in lines[-20:]:
+                sys.stderr.write("CLIENT ERROR: " + l)
+        sys.exit(1)
+
     logfile = None if logfilename is None else open(logfilename, "a")
     logging.basicConfig(level=loglevel)
     if options.logdate:
@@ -2275,6 +2347,8 @@ if __name__ == '__main__':
         logging.getLogger().addHandler(logging.StreamHandler(logfile))
     logging.info("Starting client %s", SETTINGS["CLIENTID"])
     logging.info("Python version is %d.%d.%d", *sys.version_info[0:3])
+
+    abort_on_python2()
 
     if FixedBytesGenerator != candidates_for_BytesGenerator[0]:
         logging.info("Using work-around %s for buggy BytesGenerator",
@@ -2292,7 +2366,9 @@ if __name__ == '__main__':
         connector.test_can_download_https()
 
     if options.daemon:
-        create_daemon(keepfd=None if logfile is None else [logfile.fileno()])
+        # in fact, logfile can never be None, since we force a logfile no
+        # matter what.
+        create_daemon(logfile = logfile)
 
 
     # main control loop.

@@ -119,12 +119,14 @@ wct_seconds (void)
     return (double)tv->tv_sec + (double)tv->tv_usec*1.0e-6;
 }
 
-/* print timings (cpu/wct) and memory usage since cpu0/wct0 */
+/* Print timings (cpu/wct) and memory usage since cpu0/wct0.
+   The memory is expressed in MiB (2^20 bytes).
+*/
 void
 print_timing_and_memory (FILE*fp, double cpu0, double wct0)
 {
   fprintf (fp, "Total usage: time %1.0fs (cpu), %1.0fs (wct) ; "
-           "memory %luM, peak %luM\n",
+           "memory %luMiB, peak %luMiB\n",
            seconds () - cpu0, wct_seconds () - wct0,
            Memusage () >> 10, PeakMemusage () >> 10);
 }

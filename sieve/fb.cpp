@@ -1096,6 +1096,8 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb, fb_factorbase::key_typ
     helper_functor_count_weight_parts D { local_thresholds };
     toplevel = multityped_array_fold(D, 0, fb.entries);
 
+    if (toplevel == 0) toplevel++;
+
     double total_weight = 0;
 
     for (int i = 0; i <= toplevel; i++) {
@@ -1609,6 +1611,9 @@ fb_factorbase::read(const char * const filename)
 /* (desired) structure of the factor base cache header block (ascii, 4096
  * bytes).
  *
+ * No comments are supported in the header blocks (yes, it is a bit
+ * unfortunate. yes, it's possible to fix it, of course).
+ *
  * version (integer)
  * size in bytes of header + data (integer, aligned to page size)
  *      [note: other descriptors might follow at this position !]
@@ -1637,6 +1642,8 @@ fb_factorbase::read(const char * const filename)
  *      size in bytes per entries with deg(f) roots (integer)
  *
  * Multiple cache files can be concatenated one after another.
+ *
+ * XXX please make some effort to keep this in sync with sieve/inspect-fbc-file.pl
  */
 
 struct fbc_header {
@@ -1781,9 +1788,9 @@ static fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_
         std::vector<char> area(fbc_header::header_block_size);
         off_t rc = lseek(fbc, header_offset, SEEK_SET);
         ASSERT_ALWAYS(rc >= 0);
-        ssize_t nr = ::read(fbc, &area.front(), area.size());
+        ssize_t nr = ::read(fbc, area.data(), area.size());
         ASSERT_ALWAYS(nr >= 0 && (size_t) nr == area.size());
-        imemstream is(&area.front(), area.size());
+        imemstream is(area.data(), area.size());
         fbc_header hdr;
         ASSERT_ALWAYS(is >> hdr);
         hdr.adjust_header_offset(header_offset);
@@ -1907,7 +1914,7 @@ struct helper_functor_write_to_fbc_file {
             size_t n = sizeof(FB_ENTRY_TYPE) * x.size();
             size_t written = 0;
             while (n > 0) {
-                ssize_t m = ::write(fbc, (char *)(&x.front())+written, n);
+                ssize_t m = ::write(fbc, (char *)(x.data())+written, n);
                 ASSERT_ALWAYS (m != -1);
                 ASSERT_ALWAYS (m <= (ssize_t)n);
                 n -= m;

@@ -850,7 +850,7 @@ class DescentUpperClass(object):
             try:
                 i,line = q.get_nowait()
             except Empty:
-                if all([not t.isAlive() for t in threads]):
+                if all([not t.is_alive() for t in threads]):
                     if q.empty():
                         break
                     else:

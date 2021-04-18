@@ -33,6 +33,14 @@ struct las_todo_entry {
 
     las_todo_entry() : side(0), depth(0), iteration(0) {}
 
+    bool operator<(las_todo_entry const & o) const {
+        int c = mpz_cmp(p, o.p);
+        if (c) return c < 0;
+        c = mpz_cmp(r, o.r);
+        if (c) return c < 0;
+        return false;
+    }
+
     /* Empty p, r is used for "closing brace" */
     las_todo_entry(const int side, const int depth) : side(side), depth(depth), iteration(0) { }
 
@@ -67,9 +75,11 @@ struct las_todo_entry {
         }
     }
 private:
+    friend std::istream& operator>>(std::istream&, las_todo_entry &);
     void find_prime_factors();
 };
 
 std::ostream& operator<<(std::ostream&, las_todo_entry const &);
+std::istream& operator>>(std::istream&, las_todo_entry &);
 
 #endif	/* LAS_TODO_ENTRY_HPP_ */

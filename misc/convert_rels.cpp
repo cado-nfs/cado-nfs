@@ -34,8 +34,9 @@ command line is faster than the current code:
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
-#include <sys/syscall.h>
 #include <unistd.h>
+#include <sys/syscall.h>
+
 #include <gmp.h>
 #include "cado_poly.h"
 #include "renumber.hpp"
@@ -1054,7 +1055,7 @@ read_relation_renumbered (FILE *fp, relation_t *rel, relation_data_t* data)
   std::vector<unsigned int> lpb;
   for(int side = 0 ; side < (int) renumber_table->get_nb_polys() ; side++)
       lpb.push_back(renumber_table->get_lpb(side));
-  fix_relation(rel, poly, &lpb[0]);
+  fix_relation(rel, poly, lpb.data());
 
   return 1;
 }
