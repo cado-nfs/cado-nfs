@@ -428,6 +428,25 @@ bug20200225 (void)
             exit (1);
         }
     }
+
+    {
+        fbprime_t p = 3;
+        fb_root_p1 Rab = 2;
+        uint64_t invp = 1431655765;
+        qlattice_basis basis {
+            -14730287151, 11, -6528529, -2,
+        };
+        auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
+        fb_root_p1 r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        if (rref != r127) {
+            std::cerr
+                << fmt::format(FMT_STRING("Error for p:={}; R:={}; {};\n"),
+                        p, Rab, basis)
+                << fmt::format(FMT_STRING("fb_root_in_qlattice_127bits gives {}\n"), r127)
+                << fmt::format(FMT_STRING("ref_fb_root_in_qlattice gives {}\n"), rref);
+            exit (1);
+        }
+    }
 }
 
 int
