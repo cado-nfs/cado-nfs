@@ -57,6 +57,7 @@ struct fb_root_p1_t {
     fb_root_p1_t(T const & r, bool proj = false) : r(r), proj(proj) {}
     fb_root_p1_t(fb_root_p1_t const &) = default;
     fb_root_p1_t(fb_root_p1_t &&) = default;
+    fb_root_p1_t() = default;
     fb_root_p1_t& operator=(fb_root_p1_t const &) = default;
     fb_root_p1_t& operator=(fb_root_p1_t &&) = default;
     static fb_root_p1_t affine_root(fbprime_t r) { return r; }

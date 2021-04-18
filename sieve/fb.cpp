@@ -40,6 +40,7 @@
 #include "threadpool.hpp"  // for thread_pool, task_result, task_parameters
 #include "timing.h"                 // for seconds, wct_seconds
 #include "ularith.h"       // for ularith_invmod
+#include "u64arith.h"       // for u64arith_invmod
 #include "verbose.h"             // verbose_output_print
 struct qlattice_basis; // IWYU pragma: keep
 
@@ -93,23 +94,6 @@ fb_log_delta (const fbprime_t p, const unsigned long newexp,
 
 static fb_root_p1 fb_linear_root (cxx_mpz_poly const & poly, const fbprime_t q);
 
-// Adapted from utils/ularith.h
-// TODO: this function should go somewhere else...
-static inline uint64_t
-uint64_invmod(const uint64_t n)
-{
-    uint64_t r;
-    ASSERT (n % UINT64_C(2) != UINT64_C(0));
-    r = (UINT64_C(3) * n) ^ UINT64_C(2);
-    r = UINT64_C(2) * r - (uint32_t) r * (uint32_t) r * (uint32_t) n;
-    r = UINT64_C(2) * r - (uint32_t) r * (uint32_t) r * (uint32_t) n;
-    r = UINT64_C(2) * r - (uint32_t) r * (uint32_t) r * (uint32_t) n;
-    uint32_t k = (uint32_t)(r * n >> 32);
-    k *= (uint32_t) r;
-    r = r - ((uint64_t)k << 32);
-    return r;
-}
-
 static inline redc_invp_t
 compute_invq(fbprime_t q)
 {
@@ -120,7 +104,7 @@ compute_invq(fbprime_t q)
         return (redc_invp_t) (- ularith_invmod (q));
     } else {
         ASSERT(sizeof(redc_invp_t) == 8);
-        return (redc_invp_t) (- uint64_invmod (q));
+        return (redc_invp_t) (- u64arith_invmod (q));
     }
   } else {
     return 0;
@@ -377,22 +361,62 @@ void
 fb_entry_x_roots<Nr_roots>::transform_roots(fb_entry_x_roots<Nr_roots>::transformed_entry_t &result, const qlattice_basis &basis) const
 {
   result.p = p;
-  /* TODO: Use batch-inversion here */
-  for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
-      fb_root_p1 r { roots[i_root], false };
-      auto R = fb_root_in_qlattice(p, r, invq, basis);
+  /* Try batch transform; if that fails because any root is projective, do
+   * the roots one at a time. */
+  if (fb_root_in_qlattice_batch (result.roots, p, roots, invq, basis,
+      Nr_roots)) {
+    /* If the batch transform worked, mark all roots as affine */
+    for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
+      result.proj[i_root] = false;
+    }
+//#define COMPARE_BATCH_ROOTS_TRANSFORM 1
+#ifdef COMPARE_BATCH_ROOTS_TRANSFORM
+    for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
+      const unsigned long long t = fb_root_in_qlattice(p, roots[i_root], invq, basis);
+      if (t >= p || t != result.roots[i_root]) {
+          verbose_output_print(1, 0, "%hhu-th batch transformed root modulo %" FBPRIME_FORMAT 
+              " is wrong: %" FBROOT_FORMAT ", correct: %llu\n",
+              i_root, p, result.roots[i_root], t);
+          verbose_output_print(1, 0,
+            "Root in a,b-plane: %" FBROOT_FORMAT " modulo %" FBPRIME_FORMAT "\n"
+            "Lattice basis: a0=%" PRId64 ", b0=%" PRId64 ", a1=%" PRId64 ", b1=%" PRId64 "\n",
+            roots[i_root], p, basis.a0, basis.b0, basis.a1, basis.b1);
+          ASSERT(0);
+      }
+    }
+#endif
+  } else {
+    // Batch transform failed: do roots one at a time.
+    for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
+      auto R = fb_root_in_qlattice(p, roots[i_root], invq, basis);
       result.proj[i_root] = R.proj;
       result.roots[i_root] = R.r;
+    }
   }
+}
+
+template<>
+void
+fb_entry_x_roots<0>::transform_roots(fb_entry_x_roots<0>::transformed_entry_t &result, const qlattice_basis &basis MAYBE_UNUSED) const
+{
+  result.p = p;
+}
+
+/* With only one root, batch transform does not save anything and just adds
+ * a little overhead */
+template<>
+void
+fb_entry_x_roots<1>::transform_roots(fb_entry_x_roots<1>::transformed_entry_t &result, const qlattice_basis &basis) const
+{
+  result.p = p;
+  auto R = fb_root_in_qlattice(p, roots[0], invq, basis);
+  result.proj[0] = R.proj;
+  result.roots[0] = R.r;
 }
 
 // FIXME: why do I have to make those instances explicit???
 // If someone knows how to avoid that...
 
-template void
-fb_entry_x_roots<0>::transform_roots(fb_transformed_entry_x_roots<0> &, qlattice_basis const&) const; 
-template void 
-fb_entry_x_roots<1>::transform_roots(fb_transformed_entry_x_roots<1> &, qlattice_basis const&) const; 
 template void 
 fb_entry_x_roots<2>::transform_roots(fb_transformed_entry_x_roots<2> &, qlattice_basis const&) const; 
 template void 

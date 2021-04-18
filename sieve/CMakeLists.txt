@@ -23,6 +23,7 @@ set_target_properties(freerel PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 set(las_core_a_sources
         las-todo-entry.cpp
         las-qlattice.cpp
+        fb.cpp
         )
 
 # las_core_b consists of all the object files that are necessary to build
@@ -34,7 +35,6 @@ set(las_core_b_sources
         las-memory.cpp
         las-parallel.cpp
         las-sieve-shared-data.cpp
-        fb.cpp
         las-choose-sieve-area.cpp
         las-dlog-base.cpp
         las-cofactor.cpp

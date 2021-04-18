@@ -44,8 +44,8 @@ public:
         return os;
     }
 
-    bool is_same(const ECWeierstrass &other) const {
-        return this == &other;
+    bool is_same(const ECWeierstrass<MODULUS> &other) const {
+        return &m == &other.m && m.equal(a, other.a);
     }
 
     class AffinePoint
