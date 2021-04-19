@@ -379,6 +379,7 @@ set(c30_30012_base_env
         adjust_strategy=2
 )
 
+if(0)
 cado_define_test(c30_30012
     ENVIRONMENT
         ${c30_30012_base_env}
@@ -427,6 +428,7 @@ cado_divert_test(c30_30012 3
         traceij=1,1153 "TRACE_REGEX=Pushed.hit.*p=1153"
     TARGET_DEPENDENCIES las_tracek
 )
+endif()
 
 # Try the todo-list mode of las
 cado_divert_test(F9 todo

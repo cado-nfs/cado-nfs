@@ -654,8 +654,12 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
                * won't skip over the first line for us.
                */
               BA.push_update(ple.get_x(), p, hint, slice_index, w);
+#ifdef FIX_30012
               ple.advance_to_end_of_projective_first_line(F);
               ple.next(F);
+#else
+              continue;
+#endif
             }
             /* We no longer do "continue" here. The classical loop should
              * do the trick! */
@@ -738,11 +742,18 @@ fill_in_buckets_lowlevel(
         if (Q.sublat.m)
             continue;   /* headaches ! */
 
+#ifdef FIX_30012
         if (first_reg) {
             /* same as in fill_in_bucket_toplevel */
             BA.push_update(ple.get_x(), p, hint, slice_index, w);
             ple.advance_to_end_of_projective_first_line(F);
+            ple.next(F);
         }
+#else
+        if (first_reg)
+            BA.push_update(ple.get_x(), p, hint, slice_index, w);
+        continue;
+#endif
     }
     if (UNLIKELY(ple.get_inc_c() == I && ple.get_bound1() == I)) {
         // Root=0: only update is at (0,1).
