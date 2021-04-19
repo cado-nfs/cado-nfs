@@ -364,6 +364,21 @@ verbose_output_print(const size_t channel, const int verbose,
     return rc;
 }
 
+void verbose_output_flush(const size_t channel, const int verbose)
+{
+    if (_channel_outputs == NULL) {
+        if (verbose > 1)
+            return;
+        FILE *out = (channel == 0) ? stdout : stderr;
+        fflush(out);
+    } else {
+        for (size_t i = 0; i < _channel_outputs[channel].nr_outputs; i++) {
+            if (_channel_outputs[channel].verbosity[i] >= verbose)
+                fflush(_channel_outputs[channel].outputs[i]);
+        }
+    }
+}
+
 FILE *
 verbose_output_get(const size_t channel, const int verbose, const size_t index)
 {
