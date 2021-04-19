@@ -50,6 +50,17 @@ extern int las_production_mode;
 #define xxxSUPPORT_LARGE_Q
 #endif
 
+/* See bug #30012. The fix actually has a very adverse effect in some
+ * cases, and we do not want to make this regression stick in the master
+ * branch until we merge
+ * https://gitlab.inria.fr/cado-nfs/cado-nfs/-/merge_requests/29
+ * (which, among other things, has the "right" fix for this bug).
+ */
+
+#ifndef FIX_30012
+#define xxxFIX_30012
+#endif
+
 /* Define SKIP_GCD3 to skip updates where 3 divides gcd(i,j) in the
    bucket sieving phase. Slightly slower than not skipping them
    in single-thread mode, but might be useful for multi-threading,
