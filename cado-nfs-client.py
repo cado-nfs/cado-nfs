@@ -1039,7 +1039,7 @@ class ServerPool(object): # {{{
 
         for ss in settings["SERVER"]:
             scheme, netloc = urlparse(ss)[0:2]
-            self.has_https = scheme == "https"
+            self.has_https |= scheme == "https"
 
         # self.servers is a list of tuples. Each tuple contains:
         #
@@ -2362,8 +2362,7 @@ if __name__ == '__main__':
     connector = HTTPConnector(SETTINGS)
 
     if serv_pool.has_https:
-        if not options.externdl:
-            sys.version_info[0] == 2
+        if not options.externdl and sys.version_info[0] == 2:
             logging.info("Implicitly setting --externdl to use https fallbacks")
             # test_can_download_https forces external tools for python2
         connector.test_can_download_https()
