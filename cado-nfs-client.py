@@ -652,6 +652,7 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
     # Thus we install the signal handler of SIGINT for SIGTERM as well,
     # so that SIGTERM likewise raises a KeyboardInterrupt exception.
 
+    old_sigterm_handler = signal.getsignal(signal.SIGTERM)
     sigint_handler = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGTERM, sigint_handler)
 
@@ -668,8 +669,8 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
                       time.asctime(), child.returncode)
         raise # Re-raise KeyboardInterrupt to terminate cado-nfs-client.py
 
-    # Un-install our handler and revert to the default handler
-    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    # Un-install our handler and revert to the previous handler
+    signal.signal(signal.SIGTERM, old_sigterm_handler)
 
     if print_error and child.returncode != 0:
         logging.error("Command resulted in exit code %d", child.returncode)
