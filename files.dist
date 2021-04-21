@@ -1652,3 +1652,7 @@ scripts/check_python_pathdetection_stub.sh
 config/source-location.txt.in
 sieve/plattice.sage
 tests/sieve/test-reduce-plattice.cpp
+config/avx512f.c
+config/avx512f.cmake
+config/avx512vl.c
+config/avx512vl.cmake

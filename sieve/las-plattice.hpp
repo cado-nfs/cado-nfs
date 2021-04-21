@@ -289,6 +289,7 @@ class plattice_info {
             }
         }
 
+    public:
         bool check_pre_conditions(uint32_t I) const
         {
             if (!(j0 == 0)) return false;

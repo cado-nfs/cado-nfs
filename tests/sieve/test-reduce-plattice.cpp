@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <vector>
+#include <array>
 #include <tuple>
 #include <string>
 #include <map>
@@ -12,6 +13,10 @@
 #include "getprime.h"
 #include "fb-types.h"
 #include "las-plattice.hpp"
+#include <algorithm>
+#ifdef HAVE_AVX512F
+#include <immintrin.h>
+#endif
 
 /* see plattice.sage */
 
@@ -41,9 +46,162 @@ struct plattice : public plattice_info {
     using plattice_info::j1;
     using plattice_info::check_post_conditions;
 
+#ifndef NDEBUG
+#define ASSERT_THROW(e, c) do { if (!(c)) throw (e)(#c); } while (0)
+#else
+#define ASSERT_THROW(e, c)
+#endif
+    struct error : public std::runtime_error {
+        error(const char * s) : std::runtime_error(s) {}
+    };
+#define ASSERT_PLATTICE(c) ASSERT_THROW(error, c)
+
+    /* The idea is tempting, but the cost of the full-width 64-bit
+     * multiplication is really killing us.
+     *
+     * Also note that there are several nasty corner cases here and there
+     * that force us to keep track of mi0 and i1 almost all the time
+     * anyway.
+     *
+     * This code has many asserts that check that the 64-bit
+     * representatives are kept in sync with the (-mi0,j0) and (i1,j1)
+     * vectors. Only the debug code checks that. The non-debug code skips
+     * this bookkeeping.
+     */
+    void using_64bit_mul(uint32_t I) {
+        uint64_t Ix = uint64_t(I) << 32;
+        constexpr uint64_t M = uint64_t(-1) << 32;
+        constexpr uint64_t L MAYBE_UNUSED = uint32_t(-1);
+        uint64_t ij0 = (uint64_t(-mi0) << 32) | j0;
+        uint64_t ij1 = (uint64_t(i1) << 32) | j1;
+        uint64_t t;
+#define ASSERT_CONSISTENCY() do {					\
+            ASSERT_PLATTICE(mi0 == -((uint32_t)(ij0>>32)));		\
+            ASSERT_PLATTICE(i1 == ij1 >> 32);				\
+            ASSERT_PLATTICE(j0 == (ij0 & L));				\
+            ASSERT_PLATTICE(j1 == (ij1 & L));				\
+} while (0)
+
+        for( ;; ) {
+            ASSERT_PLATTICE(j0 <= j1);
+            ASSERT_CONSISTENCY();
+            t = ij1 - Ix;
+            i1 = ij1 >> 32;
+            ASSERT_PLATTICE((i1 < I) == (t >= ij1));
+            mi0 = -((uint32_t)(ij0>>32));
+            if (t >= ij1) { // i1 < I) {
+                j1 = ij1;
+                if (!i1) {
+                    j0 = ij1 - ij0;
+                    lattice_with_vertical_vector(I);
+                    return;
+                }
+                ASSERT_PLATTICE(mi0 + i1 >= I);
+
+                int a = (mi0 + i1 - I) / i1;
+                ij0 += a * ij1;
+#ifndef NDEBUG
+                mi0 -= a * i1;
+                j0  += a * j1;
+#endif
+                ASSERT_CONSISTENCY();
+                mi0 = -((uint32_t)(ij0>>32));
+                j0 = ij0;
+                return;
+            }
+            if (mi0 < i1 * 3) {
+                {
+                    ij0 += ij1;
+                    mi0 -= i1; // see below
+#ifndef NDEBUG
+                    j0 += j1;
+#endif
+                }
+                /* what we really want to test is mi0 >= i1. However the
+                 * j coordinates come into play when comparing -ij0 with
+                 * ij1. 
+                 */
+                if (mi0 >= i1) { // if (-ij0 >= ij1) {
+                    ij0 += ij1;
+#ifndef NDEBUG
+                    mi0 -= i1; j0 += j1;
+#endif
+                }
+            } else
+            {
+                int k = mi0 / i1;
+                // int k = (-(ij0 & M)) / (ij1 & M);
+                ASSERT_PLATTICE(k);
+                ij0 += k * ij1;
+#ifndef NDEBUG
+                mi0 -= k * i1;
+                j0 += k * j1;
+#endif
+                ASSERT_CONSISTENCY();
+            }
+
+            ASSERT_PLATTICE(j1 <= j0);
+
+            ASSERT_CONSISTENCY();
+            t = (ij0&M) + Ix;
+            ASSERT_PLATTICE((mi0 < I) == ((-(ij0&M)) < Ix));
+            ASSERT_PLATTICE((mi0 < I) == (t != 0 && t <= Ix));
+            mi0 = -((uint32_t)(ij0>>32));
+            i1 = ij1 >> 32;
+            if (t != 0 && t <= Ix) { // mi0 < I) {
+                if (!mi0) {
+                    mi0 = i1;
+                    j0 = ij1;
+                    j1 = ij0;
+                    i1 = 0;
+                    lattice_with_vertical_vector(I);
+                    return;
+                }
+                int a = (mi0 + i1 - I) / mi0;
+                ij1 += a * ij0;
+#ifndef NDEBUG
+                i1 -= a * mi0;
+                j1 += a * j0;
+#endif
+                ASSERT_CONSISTENCY();
+                i1 = ij1 >> 32;
+                j1 = ij1;
+                j0 = ij0;
+                return;
+            }
+            if (i1 < 3 * mi0) {
+                {
+                    ij1 += ij0;
+                    i1 -= mi0; // see below
+#ifndef NDEBUG
+                    j1 += j0;
+#endif
+                }
+                // same remark as above
+                if (i1 >= mi0) { // if (ij1 >= -ij0) {
+                    ij1 += ij0;
+#ifndef NDEBUG
+                    i1 -= mi0; j1 += j0;
+#endif
+                }
+            } else
+            {
+                int k = i1 / mi0;
+                ASSERT(k);
+                ij1 += k * ij0;
+#ifndef NDEBUG
+                i1 -= k * mi0; j1 += k * j0;
+#endif
+                ASSERT_CONSISTENCY();
+            }
+        }
+#undef ASSERT_CONSISTENCY
+    }
+
     void simplistic(uint32_t I) {
         /* This is the main reduce_plattice loop */
         for( ;; ) {
+            ASSERT(j0 <= j1);
             if (i1 < I) {
                 if (i1 == 0) {
                     // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
@@ -51,6 +209,7 @@ struct plattice : public plattice_info {
                     lattice_with_vertical_vector(I);
                     return;
                 }
+                ASSERT(mi0 + i1 >= I);
                 int a = (mi0 + i1 - I) / i1;
                 mi0 -= a * i1;
                 j0  += a * j1;
@@ -58,7 +217,10 @@ struct plattice : public plattice_info {
             }
             {
                 int k = mi0 / i1; mi0 -= k * i1; j0 += k * j1;
+                ASSERT(k);
             }
+
+            ASSERT(j1 <= j0);
             if (mi0 < I) {
                 if (mi0 == 0) {
                     mi0 = i1;
@@ -67,6 +229,7 @@ struct plattice : public plattice_info {
                     lattice_with_vertical_vector(I);
                     return;
                 }
+                ASSERT(mi0 + i1 >= I);
                 int a = (mi0 + i1 - I) / mi0;
                 i1 -= a * mi0;
                 j1 += a * j0;
@@ -74,6 +237,7 @@ struct plattice : public plattice_info {
             }
             {
                 int k = i1 / mi0; i1 -= k * mi0; j1 += k * j0;
+                ASSERT(k);
             }
         }
     }
@@ -87,7 +251,7 @@ struct plattice : public plattice_info {
              * quotient is either 1 or 2.
              * this has a significant overall impact
              */
-#if 1
+#if 0
             if (mi0 < i1 * 3) {
                 { mi0 -= i1; j0 += j1; }
                 if (mi0 >= i1) { mi0 -= i1; j0 += j1; }
@@ -102,18 +266,59 @@ struct plattice : public plattice_info {
         /* an "UNLIKELY" macro here actually has an adverse
          * effect...  */
         if (i1 == 0) {
-            if (!flip) {
+            if (!flip)
                 // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
                 j0 = j1 - j0;
-            } else {
-                std::swap(mi0, i1);
-                std::swap(j0, j1);
-            }
             lattice_with_vertical_vector(I);
         } else {
             int a = (mi0 + i1 - I) / i1;
             mi0 -= a * i1;
             j0  += a * j1;
+        }
+    }
+
+    void instrumented_two_legs(uint32_t I, std::map<int, unsigned long> & T) {
+        /* This is the main reduce_plattice loop */
+        for( ;; ) {
+            if (i1 < I) {
+                /* an "UNLIKELY" macro here actually has an adverse
+                 * effect...  */
+                if (i1 == 0) {
+                    // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
+                    j0 = j1 - j0;
+                    lattice_with_vertical_vector(I);
+                    return;
+                }
+                ASSERT(mi0 + i1 >= I);
+                int a = (mi0 + i1 - I) / i1;
+                mi0 -= a * i1;
+                j0  += a * j1;
+                return;
+            }
+            {
+                int k = mi0 / i1; mi0 -= k * i1; j0 += k * j1;
+                T[k]++;
+            }
+            if (mi0 < I) {
+                /* an "UNLIKELY" macro here actually has an adverse
+                 * effect...  */
+                if (mi0 == 0) {
+                    mi0 = i1;
+                    i1 = j0 ; j0 = j1 ; j1 = i1;
+                    i1 = 0;
+                    lattice_with_vertical_vector(I);
+                    return;
+                }
+                ASSERT(mi0 + i1 >= I);
+                int a = (mi0 + i1 - I) / mi0;
+                i1 -= a * mi0;
+                j1 += a * j0;
+                return;
+            }
+            {
+                int k = i1 / mi0; i1 -= k * mi0; j1 += k * j0;
+                T[k]++;
+            }
         }
     }
 
@@ -136,10 +341,385 @@ struct plattice : public plattice_info {
         }
         two_legs(I);
         // simplistic(I);
+        // using_64bit_mul(I);
         // swapping_loop(I);
     }
 
+    bool early(uint32_t I) {
+        bool needs_special_treatment = (i1 == 0 || (j1 > 1 && mi0 < I));
+        if (needs_special_treatment)
+            lattice_with_vertical_vector(I);
+        return needs_special_treatment;
+    }
+
+    public:
+    using plattice_info::initial_basis;
+    using plattice_info::two_legs;
+    using plattice_info::lattice_with_vertical_vector;
+
+    // friend void instrumented_two_legs(plattice *pli, const unsigned long q, const unsigned long r, bool proj, uint32_t I, std::map<int, unsigned long> & T);
 };
+
+/* This simd class is functionally equivalent to the Intel simd
+ * intrinsics, and can be replaced by explicit instantiations. For
+ * debugging, it is nice to have the C++ code, of course !
+ */
+template<typename T, int N>
+struct simd_helper {
+    typedef std::array<T, N> type;
+    static_assert(N <= 64, "masks cannot be larger than 64 bits");
+    static constexpr const size_t store_alignment = sizeof(T);
+    typedef uint64_t mask;
+    static inline type load(T const * p) { type r; std::copy_n(p, N, r.begin()); return r; }
+    static inline type mask_load(type const & src, mask m, T const * p) {
+        type r = src;
+        for(size_t i = 0 ; i < N ; i++, m>>=1)
+            if (m&1)
+                r[i] = p[i];
+        return r;
+    }
+    static inline void store(T * p, type const a) { std::copy_n(a.begin(), N, p); }
+    static inline type set1(T const x) {
+        type r;
+        std::fill_n(r.begin(), N, x);
+        return r;
+    }
+    static inline mask int2mask(int x) { return x; }
+    static inline int mask2int(mask x) { return x; }
+    static inline mask cmpneq(type const & a, type const & b) {
+        mask m = 0;
+        for(size_t i = 0 ; i < N ; i++) m |= mask(a[i] != b[i]) << i;
+        return m;
+    }
+    static inline mask cmpeq(type const & a, type const & b) {
+        mask m = 0;
+        for(size_t i = 0 ; i < N ; i++) m |= mask(a[i] == b[i]) << i;
+        return m;
+    }
+    static inline mask cmpge(type const & a, type const & b) {
+        mask m = 0;
+        for(size_t i = 0 ; i < N ; i++) m |= mask(a[i] >= b[i]) << i;
+        return m;
+    }
+    static inline mask mask_cmpge(mask const m, type const a, type const b) { return m & cmpge(a, b); }
+    static inline mask mask_cmpeq(mask const m, type const a, type const b) { return m & cmpeq(a, b); }
+    static inline mask mask_cmpneq(mask const m, type const a, type const b) { return m & cmpneq(a, b); }
+    static inline mask cmplt(type const & a, type const & b) {
+        mask m = 0;
+        for(size_t i = 0 ; i < N ; i++) m |= mask(a[i] < b[i]) << i;
+        return m;
+    }
+    static inline mask mask_cmplt(mask const m, type const a, type const b) { return m & cmplt(a, b); }
+    static inline type sub(type const & a, type const & b) {
+        type r;
+        for(size_t i = 0 ; i < N ; i++) r[i] = a[i] - b[i];
+        return r;
+    }
+    static inline type add(type const & a, type const & b) {
+        type r;
+        for(size_t i = 0 ; i < N ; i++) r[i] = a[i] + b[i];
+        return r;
+    }
+    static inline type mask_sub(type const & src, mask m, type const & a, type const & b) {
+        type r = src;
+        for(size_t i = 0 ; i < N ; i++, m>>=1) if (m&1) r[i] = a[i] - b[i];
+        return r;
+    }
+    static inline type mask_add(type const & src, mask m, type const & a, type const & b) {
+        type r = src;
+        for(size_t i = 0 ; i < N ; i++, m>>=1) if (m&1) r[i] = a[i] + b[i];
+        return r;
+    }
+    static inline type mask_bxor(type const & src, mask m, type const & a, type const & b) {
+        type r = src;
+        for(size_t i = 0 ; i < N ; i++, m>>=1) if (m&1) r[i] = a[i] ^ b[i];
+        return r;
+    }
+    static inline type mullo(type const & a, type const & b) {
+        type r;
+        for(size_t i = 0 ; i < N ; i++) r[i] = a[i] * b[i];
+        return r;
+    }
+    static inline type bxor(type const & a, type const & b) {
+        type r;
+        for(size_t i = 0 ; i < N ; i++) r[i] = a[i] ^ b[i];
+        return r;
+    }
+    static inline type setzero() { return set1(0); }
+    static inline type slli(type const a, unsigned int imm) {
+        type r = a;
+        for(size_t i = 0 ; i < N ; i++) r[i] <<= imm;
+        return r;
+    }
+    static inline type div(type const & a, type const & b) {
+        type r;
+        for(size_t i = 0 ; i < N ; i++) r[i] = a[i] / b[i];
+        return r;
+    }
+    static inline type mask_div(type const & src, mask m, type const & a, type const & b) {
+        type r = src;
+        for(size_t i = 0 ; i < N ; i++, m>>=1) if (m&1) r[i] = a[i] / b[i];
+        return r;
+    }
+    static inline mask knot(mask const a) { return ((mask(1) << N)-1) ^ a; }
+    static inline mask kxor(mask const a, mask const b) { return a ^ b; }
+    static inline mask kand(mask const a, mask const b) { return a & b; }
+    static inline mask kor(mask const a, mask const b) { return a | b; }
+};
+
+#ifdef HAVE_AVX512F
+template<>
+struct simd_helper<uint32_t, 16>
+{
+    typedef uint32_t T;
+    static constexpr const size_t N = 16;
+    static constexpr const size_t store_alignment = 64;
+    typedef __m512i type;
+    typedef __mmask16 mask;
+    static inline type load(T const * p) { return _mm512_load_epi32(p); }
+    static inline type mask_load(type const & src, mask m, T const * p) { return _mm512_mask_load_epi32(src, m, p); }
+    static inline void store(T * p, type const a) { _mm512_store_epi32(p, a); }
+    static inline type set1(T const x) { return _mm512_set1_epi32(x); }
+    static inline mask int2mask(int x) { return _mm512_int2mask(x); }
+    static inline int mask2int(mask x) { return _mm512_mask2int(x); }
+    static inline mask cmpeq(type const a, type const b) { return _mm512_cmpeq_epu32_mask(a, b); }
+    static inline mask cmpneq(type const a, type const b) { return _mm512_cmpneq_epu32_mask(a, b); }
+    static inline mask cmpge(type const a, type const b) { return _mm512_cmpge_epu32_mask(a, b); }
+    static inline mask mask_cmpge(mask const m, type const a, type const b) { return _mm512_mask_cmpge_epu32_mask(m, a, b); }
+    static inline mask mask_cmpeq(mask const m, type const a, type const b) { return _mm512_mask_cmpeq_epu32_mask(m, a, b); }
+    static inline mask mask_cmpneq(mask const m, type const a, type const b) { return _mm512_mask_cmpneq_epu32_mask(m, a, b); }
+    static inline mask cmplt(type const a, type const b) { return _mm512_cmplt_epu32_mask(a, b); }
+    static inline mask mask_cmplt(mask const m, type const a, type const b) { return _mm512_mask_cmplt_epu32_mask(m, a, b); }
+    static inline type sub(type const a, type const b) { return _mm512_sub_epi32(a, b); }
+    static inline type add(type const a, type const b) { return _mm512_add_epi32(a, b); }
+    static inline type mask_sub(type const src, mask const m, type const a, type const b) { return _mm512_mask_sub_epi32(src, m, a, b); }
+    static inline type mask_add(type const src, mask const m, type const a, type const b) { return _mm512_mask_add_epi32(src, m, a, b); }
+    static inline type mask_bxor(type const src, mask const m, type const a, type const b) { return _mm512_mask_xor_epi32(src, m, a, b); }
+    static inline type bxor(type const a, type const b) { return _mm512_xor_epi32(a, b); }
+    static inline type mullo(type const a, type const b) { return _mm512_mullo_epi32(a, b); }
+    static inline type setzero() { return _mm512_setzero_epi32(); }
+    static inline type slli(type const a, unsigned int imm) { return _mm512_slli_epi32(a, imm); }
+    static inline type div(type const & a, type const & b) {
+        /* Unfortunately, _mm512_div_epu32 is a synthetic library
+         * function, so we can't use it, lacking a proper library that can do
+         * it. We have to cook our own...
+         */
+#if 0
+        __m512i k = _mm512_div_epu32(a, b);
+#else
+        /* of course it's slow like hell */
+        uint32_t explode_a[16] ATTR_ALIGNED(store_alignment);
+        uint32_t explode_b[16] ATTR_ALIGNED(store_alignment);
+        store(explode_a, a);
+        store(explode_b, b);
+        for(int i = 0 ; i < 16 ; i++)
+            explode_a[i] = explode_a[i] / explode_b[i];
+        return load(explode_a);
+#endif
+    }
+    static inline type mask_div(type const & src, mask mm, type const & a, type const & b) {
+        /* Unfortunately, _mm512_mask_div_epu32 is a synthetic library
+         * function, so we can't use it, lacking a proper library that can do
+         * it. We have to cook our own...
+         */
+#if 0
+        __m512i k = _mm512_mask_div_epu32(src, mask, a, b);
+#else
+        /* of course it's slow like hell */
+        uint32_t explode_a[16] ATTR_ALIGNED(store_alignment);
+        uint32_t explode_b[16] ATTR_ALIGNED(store_alignment);
+        store(explode_a, a);
+        store(explode_b, b);
+        for(int i = 0, m = mask2int(mm) ; m ; i++,m>>=1)
+            if (m&1)
+                explode_a[i] = explode_a[i] / explode_b[i];
+        return mask_load(src, mm, explode_a);
+#endif
+    }
+    static inline mask knot(mask const a) { return _knot_mask16(a); }
+    static inline mask kxor(mask const a, mask const b) { return _kxor_mask16(a, b); }
+    static inline mask kand(mask const a, mask const b) { return _kand_mask16(a, b); }
+    static inline mask kor(mask const a, mask const b) { return _kor_mask16(a, b); }
+};
+#endif
+
+
+
+/* This does N instances of reduce_plattice in parallel, using avx-512
+ * intrinsics */
+template<size_t N>
+bool simd(plattice * pli, uint32_t I)
+{
+    typedef simd_helper<uint32_t, N> A;
+    typedef typename A::mask mask;
+    typedef typename A::type data;
+
+    /* This is the main reduce_plattice loop */
+    data zI = A::set1(I);
+    /* This is just for fun, yes, we're doing N times the same
+     * thing.
+     */
+    uint32_t explode[N] ATTR_ALIGNED(A::store_alignment);
+    for(size_t j = 0 ; j < N ; j++) explode[j] = pli[j].mi0;
+    data zmi0 = A::load(explode);
+    for(size_t j = 0 ; j < N ; j++) explode[j] = pli[j].i1;
+    data zi1 = A::load(explode);
+    for(size_t j = 0 ; j < N ; j++) explode[j] = pli[j].j0;
+    data zj0 = A::load(explode);
+    for(size_t j = 0 ; j < N ; j++) explode[j] = pli[j].j1;
+    data zj1 = A::load(explode);
+
+    mask proceed = A::kor(
+                        A::cmpneq(zj0, A::setzero()),
+                        A::cmpneq(zj1, A::setzero()));
+
+    mask flip;
+    for(flip = A::int2mask(0) ; ; ) {
+        /* as long as i1 >= I, proceed */
+        proceed = A::mask_cmpge(proceed, zi1, zI);
+
+        if (!A::mask2int(proceed)) break;
+
+        mask toobig = A::mask_cmpge(proceed, zmi0, A::slli(zi1, 5));
+        if (UNLIKELY(A::mask2int(toobig))) {
+            /* Some quotient is larger than 32. We must do a full
+             * division.
+             */
+            data k = A::mask_div(A::setzero(), proceed, zmi0, zi1);
+            /* note that A::mullo has a 10-cycle latency on
+             * skylake... */
+            zmi0 = A::sub(zmi0, A::mullo(k, zi1));
+            zj0  = A::add(zj0,  A::mullo(k, zj1));
+        } else {
+            /* if mi0 >= i1, do a subtraction */
+            mask subtract = A::mask_cmpge(proceed, zmi0, zi1);
+            /* XXX in fact, it seems that subtract == proceed, right ? */
+            zmi0 = A::mask_sub(zmi0, subtract, zmi0, zi1);
+            zj0  = A::mask_add(zj0,  subtract, zj0,  zj1);
+        }
+        /* Any zmi0[j] which is now < zi1[j] deserves a swap */
+        mask swap = A::cmplt(zmi0, zi1);
+        data swapper;
+        swapper = A::mask_bxor(A::setzero(), swap, zmi0, zi1);
+        zmi0 = A::bxor(zmi0, swapper);
+        zi1 = A::bxor(zi1, swapper);
+        swapper = A::mask_bxor(A::setzero(), swap, zj0, zj1);
+        zj0 = A::bxor(zj0, swapper);
+        zj1 = A::bxor(zj1, swapper);
+        flip = A::kxor(flip, swap);
+    }
+
+    proceed = A::kor(   A::cmpneq(zj0, A::setzero()),
+                        A::cmpneq(zj1, A::setzero()));
+
+    mask haszero = A::mask_cmpeq(proceed, zi1, A::setzero());
+
+    if (A::mask2int(haszero)) {
+        /* This is exceptional. Explode back to single case */
+        A::store(explode,  zmi0);
+        for(size_t j = 0 ; j < N ; j++) pli[j].mi0 = explode[j];
+        A::store(explode,  zi1);  
+        for(size_t j = 0 ; j < N ; j++) pli[j].i1  = explode[j];
+        A::store(explode,  zj0);  
+        for(size_t j = 0 ; j < N ; j++) pli[j].j0  = explode[j];
+        A::store(explode,  zj1);  
+        for(size_t j = 0 ; j < N ; j++) pli[j].j1  = explode[j];
+
+        int p = A::mask2int(proceed);
+
+        for(size_t j = 0, m = A::mask2int(flip) ; j < N ; j++, m>>=1, p>>=1) {
+            if (!(p & 1)) continue;
+            if (pli[j].i1 == 0) {
+                if (!(m&1))
+                    pli[j].j0 = pli[j].j1 - pli[j].j0;
+                pli[j].lattice_with_vertical_vector(I);
+            } else {
+                int a = (pli[j].mi0 + pli[j].i1 - I) / pli[j].i1;
+                pli[j].mi0 -= a * pli[j].i1;
+                pli[j].j0  += a * pli[j].j1;
+            }
+        }
+    } else {
+        /* proceed with the normal scenario */
+        data sum = A::sub(A::add(zmi0, zi1), zI);
+        mask toobig = A::cmpge(sum, A::slli(zi1, 5));
+        if (UNLIKELY(A::mask2int(toobig))) {
+            data k = A::mask_div(A::setzero(), proceed, sum, zi1);
+            /* note that A::mullo has a 10-cycle latency on
+             * skylake... */
+            zmi0 = A::sub(zmi0, A::mullo(k, zi1));
+            zj0  = A::add(zj0,  A::mullo(k, zj1));
+        } else {
+            for(mask q ; q = A::cmpge(sum, zi1), A::mask2int(q) ; ) {
+                zmi0 = A::mask_sub(zmi0, q, zmi0, zi1);
+                sum = A::mask_sub(sum, q, sum, zi1);
+                zj0 = A::mask_add(zj0, q, zj0, zj1);
+            }
+        }
+        A::store(explode,  zmi0);
+        for(size_t j = 0 ; j < N ; j++) pli[j].mi0 = explode[j];
+        A::store(explode,  zi1);  
+        for(size_t j = 0 ; j < N ; j++) pli[j].i1  = explode[j];
+        A::store(explode,  zj0);  
+        for(size_t j = 0 ; j < N ; j++) pli[j].j0  = explode[j];
+        A::store(explode,  zj1);  
+        for(size_t j = 0 ; j < N ; j++) pli[j].j1  = explode[j];
+    }
+    return true;
+}
+
+void swapping_loop2(plattice * pli, uint32_t I)
+{
+    uint32_t mi0 = pli->mi0;
+    uint32_t i1 = pli->i1;
+    uint32_t j0 = pli->j0;
+    uint32_t j1 = pli->j1;
+    /* This is the main reduce_plattice loop */
+    int flip;
+    for(flip = 0 ; ; ) {
+        int proceed = i1 >= I;
+        if (!proceed) break;
+        int toobig = proceed & (mi0 >= (i1 << 5));
+        if (UNLIKELY(toobig)) {
+            /* Some quotient is larger than 32. We must do a full
+             * division.
+             */
+            uint32_t k = proceed ? (mi0 / i1) : 0;
+            mi0 -= k * i1; j0 += k * j1;
+        } else {
+            int subtract = mi0 >= i1;
+            mi0 = subtract ? (mi0 - i1) : mi0;
+            j0  = subtract ? ( j0 + j1) : j0;
+        }
+        /* Any zmi0[j] which is now < zi1[j] deserves a swap */
+        int swap = mi0 < i1;
+        uint32_t swapper;
+        swapper = swap ? (mi0 ^ i1) : 0; mi0 = mi0 ^ swapper; i1 = i1 ^ swapper;
+        swapper = swap ?  (j0 ^ j1) : 0;  j0 =  j0 ^ swapper; j1 = j1 ^ swapper;
+        flip = flip ^ swap;
+    }
+    /* an "UNLIKELY" macro here actually has an adverse
+     * effect...  */
+    if (i1 == 0) {
+        if (!flip)
+            // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
+            j0 = j1 - j0;
+        pli->mi0 = mi0;
+        pli->i1 = i1;
+        pli->j0 = j0;
+        pli->j1 = j1;
+        pli->lattice_with_vertical_vector(I);
+        return;
+    } else {
+        int a = (mi0 + i1 - I) / i1;
+        mi0 -= a * i1;
+        j0  += a * j1;
+    }
+    pli->mi0 = mi0;
+    pli->i1 = i1;
+    pli->j0 = j0;
+    pli->j1 = j1;
+}
 
 int
 reference (plattice *pli, const fbprime_t p, const fbroot_t r, uint32_t I)
@@ -383,6 +963,8 @@ reference2_asm (plattice *pli, const fbprime_t p, const fbroot_t r, const uint32
 }
 #endif
 
+struct post_condition_error : public std::exception {};
+
 int main(int argc, char * argv[])
 {
     setbuf(stdout, NULL);
@@ -451,6 +1033,9 @@ int main(int argc, char * argv[])
     /* interesting with I=0x20000 */
     tests.emplace_back(a_test { 5, 390625, 771795, 8 });
 
+    /* we have sporadic failures with this one */
+    tests.emplace_back(a_test { 1579, 1579, 1579, 1 });
+
     for(int i = 0 ; i < ntests ; i++) {
         unsigned long j = gmp_urandomm_ui(rstate, prime_powers.size());
         unsigned long p;
@@ -465,45 +1050,331 @@ int main(int argc, char * argv[])
         tests.emplace_back(a_test { p, q, r, k });
     }
 
-    clock_t clk0 = clock();
-
+    auto jt = tests.begin();
     for(auto const & aa : tests) {
-        unsigned long p = aa.p;
-        unsigned long q = aa.q;
-        unsigned long r = aa.r;
-        int k = aa.k;
-        bool proj = r > q;
-        const char * when = "pre";
-
-        // if (proj || k > 1 || r == 0) continue;
-
-        std::string desc;
-        if (!quiet) {
-            desc = proj ? "proj" : "affine";
-            if (p == 2)
-                desc += "+even";
+        plattice L;
+        bool proj = aa.r > aa.q;
+        L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
+        if (L.check_pre_conditions(I)) {
+            *jt++ = aa;
+        } else {
+            fprintf(stderr, "skipping out-of-range test for p^k=%lu^%d r=%lu\n", aa.p, aa.k, aa.r);
         }
+    }
+    tests.erase(jt, tests.end());
+
+    std::map<int, unsigned long> T;
+
+    if (!quiet) {
+        for(auto const & aa : tests) {
+            std::string desc = aa.r > aa.q ? "proj" : "affine";
+            if (aa.p == 2) desc += "+even";
+            stats[aa.k][desc]++;
+        }
+    }
+
+    clock_t clk0, clk1;
+    const char * what;
+        
+    
+    clk0 = clock();
+    what = "production (two_legs)";
+    for(auto const & aa : tests) {
+        const char * when = "pre";
         try {
-            plattice L(q, proj ? (r - q) : r, proj, I);
-            // plattice L; reference(&L, q, r, I);
-            // plattice L; reference2(&L, q, r, I);
-#ifdef TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
-            // plattice L; reference2_asm(&L, q, r, I);
-#endif
+            plattice L;
+            bool proj = aa.r > aa.q;
+            L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
+            if (!L.early(I))
+                L.two_legs(I);
             when = "post";
-            ASSERT_ALWAYS(L.check_post_conditions(I));
-            if (!quiet)
-                stats[k][desc]++;
-        } catch (std::runtime_error const & e) {
-            fprintf(stderr, "Failed check (%s) for p^k=%lu^%d r=%lu\n", when, p, k, r);
+            if (!L.check_post_conditions(I))
+                throw post_condition_error();
+        } catch (plattice::error const & e) {
+            fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
+            failed = true;
+        } catch (post_condition_error const & e) {
+            fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
             failed = true;
         }
     }
-    clock_t clk1 = clock();
+    clk1 = clock();
     if (timing) {
-        printf("# %d tests in %.4fs\n",
-                ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+        printf("# %s: %d tests in %.4fs\n",
+                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
     }
+
+    clk0 = clock();
+    what = "simplistic";
+    for(auto const & aa : tests) {
+        const char * when = "pre";
+        try {
+            plattice L;
+            bool proj = aa.r > aa.q;
+            L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
+            if (!L.early(I))
+                L.simplistic(I);
+            when = "post";
+            if (!L.check_post_conditions(I))
+                throw post_condition_error();
+        } catch (plattice::error const & e) {
+            fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
+            failed = true;
+        } catch (post_condition_error const & e) {
+            fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+            failed = true;
+        }
+    }
+    clk1 = clock();
+    if (timing) {
+        printf("# %s: %d tests in %.4fs\n",
+                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+    }
+
+    clk0 = clock();
+    what = "using_64bit_mul";
+    for(auto const & aa : tests) {
+        const char * when = "pre";
+        try {
+            plattice L;
+            bool proj = aa.r > aa.q;
+            L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
+            if (!L.early(I))
+                L.using_64bit_mul(I);
+            when = "post";
+            if (!L.check_post_conditions(I))
+                throw post_condition_error();
+        } catch (plattice::error const & e) {
+            fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
+            failed = true;
+        } catch (post_condition_error const & e) {
+            fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+            failed = true;
+        }
+    }
+    clk1 = clock();
+    if (timing) {
+        printf("# %s: %d tests in %.4fs\n",
+                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+    }
+
+#if 1
+    clk0 = clock();
+    what = "swapping_loop";
+    for(auto const & aa : tests) {
+        const char * when = "pre";
+        try {
+            plattice L;
+            bool proj = aa.r > aa.q;
+            L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
+            if (!L.early(I))
+                L.swapping_loop(I);
+            when = "post";
+            if (!L.check_post_conditions(I))
+                throw post_condition_error();
+        } catch (plattice::error const & e) {
+            fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
+            failed = true;
+        } catch (post_condition_error const & e) {
+            fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+            failed = true;
+        }
+    }
+    clk1 = clock();
+    if (timing) {
+        printf("# %s: %d tests in %.4fs\n",
+                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+    }
+#endif
+
+
+#if 1
+    clk0 = clock();
+    what = "swapping_loop2";
+    for(auto const & aa : tests) {
+        const char * when = "pre";
+        try {
+            plattice L;
+            bool proj = aa.r > aa.q;
+            L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
+            if (!L.early(I))
+                swapping_loop2(&L, I);
+            when = "post";
+            if (!L.check_post_conditions(I))
+                throw post_condition_error();
+        } catch (plattice::error const & e) {
+            fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
+            failed = true;
+        } catch (post_condition_error const & e) {
+            fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+            failed = true;
+        }
+    }
+    clk1 = clock();
+    if (timing) {
+        printf("# %s: %d tests in %.4fs\n",
+                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+    }
+#endif
+
+    {
+        /* as far as correctness is concerned, we're not interested in
+         * this code. We *know* that it is buggy. But when we report
+         * timings, we want to know how it fares !
+         */
+        clk0 = clock();
+        what = "old_reference";
+        int nfailed = 0;
+        for(auto const & aa : tests) {
+            const char * when = "pre";
+
+            try {
+                plattice L; reference(&L, aa.q, aa.r, I);
+                when = "post";
+                if (!L.check_post_conditions(I))
+                    throw post_condition_error();
+            } catch (post_condition_error const & e) {
+                if (nfailed++ < 4)
+                    fprintf(stderr, "(known bugs) %s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+                else if (nfailed == 5)
+                    fprintf(stderr, "(known bugs) %s: not reporting more bugs\n", what);
+            }
+        }
+        clk1 = clock();
+        if (timing) {
+            printf("# %s: %d tests in %.4fs\n",
+                    what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+        }
+    }
+
+    {
+        // same remark as above
+        clk0 = clock();
+        what = "reference2";
+        int nfailed = 0;
+        for(auto const & aa : tests) {
+            const char * when = "pre";
+
+            try {
+                plattice L; reference2(&L, aa.q, aa.r, I);
+                when = "post";
+                if (!L.check_post_conditions(I))
+                    throw post_condition_error();
+            } catch (post_condition_error const & e) {
+                if (nfailed++ < 4)
+                    fprintf(stderr, "(known bugs) %s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+                else if (nfailed == 5)
+                    fprintf(stderr, "(known bugs) %s: not reporting more bugs\n", what);
+            }
+        }
+        clk1 = clock();
+        if (timing) {
+            printf("# %s: %d tests in %.4fs\n",
+                    what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+        }
+    }
+
+#ifdef TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
+    {
+        // same remark as above
+        clk0 = clock();
+        what = "reference2_asm";
+        int nfailed = 0;
+        for(auto const & aa : tests) {
+            const char * when = "pre";
+
+            try {
+                plattice L; reference2_asm(&L, aa.q, aa.r, I);
+                when = "post";
+                if (!L.check_post_conditions(I))
+                    throw post_condition_error();
+            } catch (post_condition_error const & e) {
+                if (nfailed++ < 4)
+                    fprintf(stderr, "(known bugs) %s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+                else if (nfailed == 5)
+                    fprintf(stderr, "(known bugs) %s: not reporting more bugs\n", what);
+            }
+        }
+        clk1 = clock();
+        if (timing) {
+            printf("# %s: %d tests in %.4fs\n",
+                    what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+        }
+    }
+#endif
+
+    clk0 = clock();
+    {
+#ifdef HAVE_AVX512F
+        what = "simd-avx512";
+        constexpr size_t N = 16;
+        /*
+#elif defined(HAVE_AVX2)
+        what = "simd-avx2-believer";
+        constexpr size_t N = 8;
+#elif defined(HAVE_SSE41)
+        what = "simd-sse41-believer";
+        constexpr size_t N = 4;
+        */
+#else
+        what = "simd-synthetic";
+        constexpr size_t N = 2;
+#endif
+        for(size_t i = 0 ; i < tests.size() ; i+=N) {
+            plattice L[N];
+            size_t j;
+            const char * when = "pre";
+            try {
+                bool normal = true;
+                for(j = 0 ; j < N && i + j < tests.size() ; j++) {
+                    // unsigned long p = tests[j].p;
+                    unsigned long q = tests[i+j].q;
+                    unsigned long r = tests[i+j].r;
+                    bool proj = r > q;
+                    L[j].initial_basis(q, proj ? (r-q) : r, proj);
+                    if (L[j].early(I))
+                        normal = false;
+                }
+                if (normal) {
+                    simd<N>(L, I);
+                } else {
+                    for(j = 0 ; j < N && i + j < tests.size() ; j++)
+                        L[j].two_legs(I);
+                }
+                when = "post";
+                for(j = 0 ; j < N && i + j < tests.size() ; j++) {
+                    if (!L[j].check_post_conditions(I))
+                        throw post_condition_error();
+                }
+            } catch (plattice::error const & e) {
+                fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, tests[i+j].p, tests[i+j].k, tests[i+j].r);
+                failed = true;
+            } catch (post_condition_error const & e) {
+                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, tests[i+j].p, tests[i+j].k, tests[i+j].r);
+                failed = true;
+            }
+        }
+    }
+    clk1 = clock();
+    if (timing) {
+        printf("# %s: %d tests in %.4fs\n",
+                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+    }
+
+
+
+
+    /* Finish with that one, but here we don't care about the
+     * correctness.
+     */
+    for(auto const & aa : tests) {
+        bool proj = aa.r > aa.q;
+        plattice L;
+        L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
+        if (!L.early(I))
+            L.instrumented_two_legs(I, T);
+    }
+
     if (!quiet) {
         for(auto & kv : stats) {
             int k = kv.first;
@@ -512,6 +1383,14 @@ int main(int argc, char * argv[])
                 printf(" %s:%d", dn.first.c_str(), dn.second);
             }
             printf("\n");
+        }
+        unsigned long sumT = 0;
+        for(auto const & x : T) {
+            sumT += x.second;
+        }
+        for(auto const & x : T) {
+            printf("%d: %lu (%.1f%%)\n", x.first, x.second, 100.0 * x.second / sumT);
+            if (x.first >= 16) break;
         }
     }
     gmp_randclear(rstate);
