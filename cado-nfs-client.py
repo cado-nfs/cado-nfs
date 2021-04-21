@@ -8,6 +8,7 @@
 # pylint: disable=too-few-public-methods
 # pylint: disable=import-error
 # pylint: disable=wrong-import-position
+# pylint: disable=missing-docstring
 
 # {{{ libs
 import sys
@@ -164,6 +165,7 @@ else:
     candidates_for_BytesGenerator.append(Version1FixedBytesGenerator)
 
     if tuple(sys.version_info)[0:2] == (3, 2):
+        # pylint: disable=no-name-in-module
         from email.message import _has_surrogates
     else:
         from email.utils import _has_surrogates
@@ -505,6 +507,10 @@ class WuMIMEMultipart(MIMEMultipart):  # {{{
         logging.debug("Adding result file %s to upload", filepath)
         try:
             with open(filepath, "rb") as infile:
+                # This reads the entire file into memory. This could be a
+                # problem with very large files. Can/should we stream the
+                # encoded data right onto the network, without buffering
+                # everything in memory?
                 filedata = infile.read()
         except IOError as err:
             logging.error("Could not read file %s: %s", filepath, str(err))
@@ -742,6 +748,7 @@ class HTTPConnector(object):
                 scheme = request.type.lower()
         else:
             # Assume it's a URL string
+            # FIXME: should we use urlparse here?
             scheme = request.split(":")[0].lower()
         if scheme == "https":
             if sys.version_info[0] == 3:
@@ -785,7 +792,6 @@ class HTTPConnector(object):
             # geturl(), info(), getcode()
             return conn, None, None
         except urllib_error.HTTPError as error:
-            current_error = error.code
             if error.code == 410:
                 # We interpret error code 410 as the work unit server
                 # being gone for good. This instructs us to terminate
@@ -797,7 +803,6 @@ class HTTPConnector(object):
                           error.errno == errno.ECONNRESET)
         except urllib_error.URLError as error:
             error_str = "URL error: %s" % str(error)
-            current_error = error.errno
             hard_error = (error.errno == errno.ECONNREFUSED or \
                           error.errno == errno.ECONNRESET)
         except BadStatusLine as error:
@@ -1053,12 +1058,17 @@ class ServerPool(object): # {{{
         if not self.has_https:
             if settings["CERTSHA1"] is not None:
                 logging.warning("Option --certsha1 makes sense only with"
-                                " https URLs,"
-                                " ignoring it.")
+                                " https URLs, ignoring it.")
             for ss in settings["SERVER"]:
                 ServerPool.Server.register(self.servers, ss)
             return
 
+        # This is a pretty big security flaw. Default behaviour here should
+        # be to exit with error. We could add a "--no-check-certificate"
+        # (like wget has) that lets the user specifically disable certificate
+        # checks, but such unsafe operation should occur only if the user
+        # explicitly requests it via a command line argument, and not
+        # merely because a required command line argument is missing.
         if settings["CERTSHA1"] is None:
             logging.warning("https URLs were given"
                             " but no --certsha1 option,"
@@ -1077,12 +1087,12 @@ class ServerPool(object): # {{{
             ss = settings["SERVER"][server_index]
             certsha1 = settings["CERTSHA1"][server_index]
             (scheme, netloc) = urlparse(ss)[0:2]
-            cafile = None
-            needcert = True
             if scheme == "https":
                 cafile = os.path.join(settings["DLDIR"],
                                       "server.%s.pem" % certsha1)
+                needcert = True
             else:
+                cafile = None
                 needcert = False
             ServerPool.Server.register(self.servers,
                                        ss,
@@ -1135,14 +1145,14 @@ class ServerPool(object): # {{{
         self.current_index = (self.current_index + 1) % self.nservers
         while not self._try_download_certificate(self.current_index):
             self.current_index = (self.current_index + 1) % self.nservers
-        S = self.servers[self.current_index]
-        logging.error("Going to next backup server: %s", S)
-        return S
+        server = self.servers[self.current_index]
+        logging.error("Going to next backup server: %s", server)
+        return server
 
     def disable_server(self, S):
         """ Multiple errors with this server, disable it permanently.
         Raises an exception if all servers are dead."""
-        self.servers[S.get_index()].enable = False
+        S.enable = False
         self.ndisabled += 1
         if self.ndisabled == self.nservers:
             raise NoMoreServers()
@@ -1155,15 +1165,6 @@ class ServerPool(object): # {{{
     def get_unique_server(self):
         assert self.nservers == 1
         return self.servers[0]
-
-#    def get_server(self, server_index):
-#        url, certfilename, certsha1, needcert = self.servers[server_index]
-#        return ss, certfilename
-#
-#    def get(self, server_index):
-#        url, certfilename, certsha1, needcert = self.servers[server_index]
-#        assert not needcert
-#        return server_index, url, certfilename, certsha1
 # }}}
 
 # {{{ WorkunitProcessor: this object processes one workunit, and owns
@@ -2057,6 +2058,7 @@ class ResultUploader(object):
                 response = conn.read()
                 encoding = self.get_content_charset(conn)
                 if sys.version_info[0] == 2:
+                    # pylint: disable=undefined-variable
                     response_str = unicode(response, encoding=encoding)
                 else:
                     response_str = response.decode(encoding=encoding)
@@ -2372,7 +2374,6 @@ if __name__ == '__main__':
         # in fact, logfile can never be None, since we force a logfile no
         # matter what.
         create_daemon(logfile=logfile)
-
 
     # main control loop.
     client_ok = True
