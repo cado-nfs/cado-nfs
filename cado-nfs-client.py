@@ -806,7 +806,7 @@ class HTTPConnector(object):
             error_str = "Connection error: %s" % str(error)
         return None, error_str, hard_error
 
-    def _wget_file(self, url, dlpath, cafile=None, wait=None):
+    def _wget_file(self, url, dlpath, cafile=None, timeout=None):
         """ Download via wget
 
         Returns (None, None) on success, (error string, boolean)
@@ -820,8 +820,8 @@ class HTTPConnector(object):
         command = ["env", "LC_ALL=C", "wget", "-O", dlpath]
         if cafile:
             command.append("--ca-certificate=%s" % cafile)
-        if wait is not None:
-            command.append("--timeout=%d" % wait)
+        if timeout is not None:
+            command.append("--timeout=%d" % timeout)
         # this is to avoid clutter with wget-log files...
         # https://savannah.gnu.org/bugs/?51181
         command += ["-o", "/dev/stderr"]
@@ -840,7 +840,7 @@ class HTTPConnector(object):
                 hard_error = True
         return stderr, hard_error
 
-    def _curl_get_file(self, url, dlpath, cafile=None, wait=None):
+    def _curl_get_file(self, url, dlpath, cafile=None, timeout=None):
         """ Download via curl
 
         Returns (None, None) on success, (error string, boolean)
@@ -854,8 +854,8 @@ class HTTPConnector(object):
                    "--fail", "--output", dlpath]
         if cafile:
             command += ["--cacert", cafile]
-        if wait is not None:
-            command += ["--connect-timeout", "%d" % int(wait)]
+        if timeout is not None:
+            command += ["--connect-timeout", "%d" % int(timeout)]
         command.append(url)
         (rc, stdout, stderr) = run_command(command)
         if rc == 0:
@@ -868,8 +868,8 @@ class HTTPConnector(object):
                 hard_error = True
         return stderr, hard_error
 
-    def _native_get_file(self, url, dlpath, cafile=None, wait=None):
-        # NOTE: the "wait" argument is not used by this method
+    def _native_get_file(self, url, dlpath, cafile=None, timeout=None):
+        # NOTE: the "timeout" argument is not used by this method
         request, error_str, hard_error = self._urlopen(url, cafile=cafile)
         if request is None:
             return error_str, hard_error
@@ -1626,7 +1626,7 @@ class InputDownloader(object):
             error_str, hard_error = self.connector.get_file(url,
                                                             dlpath_tmp,
                                                             cafile=cafile,
-                                                            wait=wait)
+                                                            timeout=wait)
             if error_str is None:
                 break
             # otherwise we enter the wait loop
