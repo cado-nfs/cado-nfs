@@ -937,6 +937,12 @@ class HTTPConnector(object):
 # }}}
 
 
+class NoMoreServers(Exception):
+    def __init__(self):
+        Exception.__init__(self)
+    def __str__(self):
+        return "All servers dropped the connection (connection reset or refused)"
+
 class ExponentialBackoff(object):
     def __init__(self, _cap=None):
         self.cap = _cap
@@ -973,121 +979,138 @@ class ExponentialBackoff(object):
             time.sleep(wait_time)
 
 # {{{ ssl certificate stuff
-def get_ssl_certificate(server, port=443, retry=False, retrytime=0):
-    """ Download the SSL certificate from the server.
+class Server(object):
+    def __init__(self, url, cafile, certsha1, needcert, connector, wait_cap=None):
+        self.index = None
+        self.url = url
+        self.cafile = cafile
+        self.certsha1 = None if certsha1 is None else certsha1.lower()
+        self.needcert = needcert
+        self.enable = True
+        self.connector = connector
+        self.wait = ExponentialBackoff(wait_cap)
+    def set_index(self, index):
+        assert self.index is None
+        assert index is not None
+        self.index = index
+    def get_url(self):
+        return self.url
+    def __str__(self):
+        return self.url
+    def get_cafile(self):
+        return self.cafile
+    def get_index(self):
+        return self.index
 
-    In case of connection refused error, if retry is True, retry
-    indefinitely waiting retrytime seconds between tries, and if
-    retry is False, return None.
-    """
-    while True:
+    def _download_certificate(self):
+        parsed = urlparse(self.get_url())
+        # parsed.port, if not None, is an int
+        (hostname, port) = (parsed.hostname, parsed.port)
+        if port is None:
+            port = 443
+        logging.info("Downloading certificate from %s:%d", hostname, port)
         try:
-            cert = ssl.get_server_certificate((server, int(port)),
+            cert = ssl.get_server_certificate((hostname, port),
                                               ssl_version=ssl.PROTOCOL_SSLv23,
                                               ca_certs=None)
-            return cert
         except socket.error as err:
             if err.errno != errno.ECONNREFUSED:
                 raise
-            if not retry:
-                return None
-        wait = float(retrytime)
-        logging.error("Waiting %s seconds before retrying", wait)
-        time.sleep(wait)
+            return None
+        return cert
 
+    @staticmethod
+    def _compute_certificate_fingerprint(cert):
+        """ Compute the SHA1 fingerprint for the certificate cert """
+        bin_cert = ssl.PEM_cert_to_DER_cert(cert)
+        sha1hash = hashlib.sha1()
+        sha1hash.update(bin_cert)
+        return sha1hash.hexdigest().lower()
 
-def get_missing_certificate(certfilename,
-                            netloc,
-                            fingerprint,
-                            retry=False,
-                            retrytime=0):
-    """ Download the certificate if it is missing and check its fingerprint
+    def _compare_certificate_fingerprint(self, cert):
+        """ Tests whether the SHA1 fingerprint of the certificate cert matches
+        the known fingerprint (in self.certsha1) for this server """
+        cert_sha1 = self._compute_certificate_fingerprint(cert)
+        logging.debug("Certificate has SHA1 fingerprint %s", cert_sha1)
+        return cert_sha1 == self.certsha1
 
-    If the file 'certfilename' already exists, the certificate does not
-    get downloaded.
-    If the certificate existed or could be downloaded and the fingerprint
-    matches, returns True. If the fingerprint check fails, exits with error.
-    If the server refuses connections and retry is False, returns False;
-    if retry is True, it keeps trying indefinitely.
-    """
-    certfile_exists = os.path.isfile(certfilename)
-    if certfile_exists:
-        logging.info("Using certificate stored in file %s", certfilename)
-        with open(certfilename, 'r') as certfile:
-            cert = certfile.read()
-    else:
-        logging.info("Downloading certificate from %s", netloc)
-        address_port = netloc.split(":")
-        cert = get_ssl_certificate(*address_port,
-                                   retry=retry,
-                                   retrytime=retrytime)
-        if cert is None:
+    def get_certificate(self):
+        """ Download the certificate if it is missing and check its fingerprint
+
+        If the file 'self.cafile' already exists, the certificate does not
+        get downloaded.
+        If the certificate existed or could be downloaded and the fingerprint
+        matches, returns True. If the fingerprint check fails, exits with error.
+        Waits if this server has wait time remaining.
+        """
+        if not self.enable:
             return False
-    bin_cert = ssl.PEM_cert_to_DER_cert(cert)
-    sha1hash = hashlib.sha1()
-    sha1hash.update(bin_cert)
-    cert_sha1 = sha1hash.hexdigest()
-    logging.debug("Certificate has SHA1 fingerprint %s", cert_sha1)
-    if not cert_sha1.lower() == fingerprint.lower():
-        logging.critical("Server certificate's SHA1 fingerprint (%s) differs "
-                         "from fingerprint specified on command line (%s). "
-                         "Aborting.", cert_sha1, fingerprint)
-        logging.critical("Possible reason: several factorizations with "
-                         "same download directory.")
-        sys.exit(1)
-    logging.info("Certificate SHA1 hash matches")
-    if not certfile_exists:
-        logging.info("Writing certificate to file %s", certfilename)
-        # FIXME: Set umask first?
-        with open(certfilename, 'w') as certfile:
-            certfile.write(cert)
-    return True
+        self.wait.wait(logger_function=logging.info)
+        if not self.needcert:
+            return True
+
+        certfile_exists = os.path.isfile(self.cafile)
+        if certfile_exists:
+            logging.info("Using certificate stored in file %s", self.cafile)
+            with open(self.cafile, 'r') as certfile:
+                cert = certfile.read()
+        else:
+            cert = self._download_certificate()
+            if cert is None:
+                self.wait.signal_error()
+                return False
+
+        if not self._compare_certificate_fingerprint(cert):
+            cert_sha1 = self._compute_certificate_fingerprint(cert)
+            logging.critical("Server certificate's SHA1 fingerprint (%s) differs "
+                             "from fingerprint specified on command line (%s). "
+                             "Aborting.", cert_sha1, self.certsha1)
+            logging.critical("Possible reason: several factorizations with "
+                             "same download directory.")
+            sys.exit(1)
+        logging.info("Certificate SHA1 hash matches")
+
+        if not certfile_exists:
+            logging.info("Writing certificate to file %s", self.cafile)
+            # FIXME: Set umask first?
+            with open(self.cafile, 'w') as certfile:
+                certfile.write(cert)
+        self.needcert = False
+        self.wait.signal_success()
+        return True
+
+    def download_file(self, urlpath, dlpath, timeout=None):
+        assert self.enable
+        if not self.get_certificate():  # This also waits if necessary
+            return ("Error downloading certificate", False)
+        cafile = self.get_cafile()
+        url = self.get_url().rstrip("/") + "/" + urlpath
+        logging.info("Downloading %s to %s (cafile = %s)",
+                     url, dlpath, cafile)
+        error_str, hard_error = \
+            self.connector.get_file(url, dlpath, cafile=cafile,
+                                    timeout=timeout)
+        if not error_str:
+            self.wait.signal_success()
+        else:
+            self.wait.signal_error()
+        return error_str, hard_error
+
 # }}}
 
-class NoMoreServers(Exception):
-    def __init__(self):
-        Exception.__init__(self)
-    def  __str__(self):
-        return "All servers dropped the connection (connection reset or refused)"
-
-class ServerPool(object): # {{{
-    class Server(object):
-        def __init__(self, index, url, cafile, certsha1, needcert):
-            self.index = index
-            self.url = url
-            self.cafile = cafile
-            self.certsha1 = certsha1
-            self.needcert = needcert
-            self.enable = True
-        def get_url(self):
-            return self.url
-        def __str__(self):
-            return self.url
-        def get_cafile(self):
-            return self.cafile
-        def get_index(self):
-            return self.index
-        @staticmethod
-        def register(servers, url, cafile=None, certsha1=None, needcert=False):
-            servers.append(ServerPool.Server(len(servers), url, cafile, certsha1, needcert))
-
-    def __init__(self, settings):
+class ServerPool(object):  # {{{
+    def __init__(self, settings, connector):
         self.nservers = len(settings["SERVER"])
         self.ndisabled = 0
         self.has_https = False
         self.current_index = 0
-        self.wait = float(settings["DOWNLOADRETRY"])
+        wait_cap = float(settings["WAITCAP"])
 
         for ss in settings["SERVER"]:
             scheme, netloc = urlparse(ss)[0:2]
             self.has_https |= scheme == "https"
 
-        # self.servers is a list of tuples. Each tuple contains:
-        #
-        # url
-        # certfilename (or None)
-        # sha1 (or None)
-        # need_cert (boolean)
+        # self.servers is a list of Server objects
         self.servers = []
 
         if not self.has_https:
@@ -1095,7 +1118,7 @@ class ServerPool(object): # {{{
                 logging.warning("Option --certsha1 makes sense only with"
                                 " https URLs, ignoring it.")
             for ss in settings["SERVER"]:
-                ServerPool.Server.register(self.servers, ss)
+                self.register(Server(ss, None, None, False, connector, wait_cap=wait_cap))
             return
 
         # This is a pretty big security flaw. Default behaviour here should
@@ -1109,7 +1132,7 @@ class ServerPool(object): # {{{
                             " but no --certsha1 option,"
                             " NO SSL VALIDATION WILL BE PERFORMED.")
             for ss in settings["SERVER"]:
-                ServerPool.Server.register(self.servers, ss)
+                self.register(Server(ss, None, None, False, connector, wait_cap=wait_cap))
             return
 
         if len(settings["CERTSHA1"]) != len(settings["SERVER"]):
@@ -1129,15 +1152,11 @@ class ServerPool(object): # {{{
             else:
                 cafile = None
                 needcert = False
-            ServerPool.Server.register(self.servers,
-                                       ss,
-                                       cafile,
-                                       certsha1,
-                                       needcert)
+            self.register(Server(ss, cafile, certsha1, needcert, connector, wait_cap=wait_cap))
             # Try downloading the certificate once. If connection is
             # refused, proceed to daemonizing - hopefully server will
             # come up later
-            if not self._try_download_certificate(server_index):
+            if not self.servers[server_index].get_certificate():
                 logging.info("Could not download SSL certificate:"
                              " The connection was refused.")
                 logging.info("Assuming the server will come up later.")
@@ -1146,31 +1165,50 @@ class ServerPool(object): # {{{
                 else:
                     logging.info("Will keep trying after daemonizing.")
 
+    def register(self, server):
+        """ Adds a Server object to the list of active servers
+
+        Also sets the Server's index value
+        """
+        self.servers.append(server)
+        server.set_index(len(self.servers) - 1)
+
     def number_of_active_servers(self):
         return self.nservers - self.ndisabled
 
-    def _try_download_certificate(self, server_index):
-        S = self.servers[server_index]
-        if not S.enable:
-            return False
-        if not S.needcert:
-            return True
-        (scheme, netloc) = urlparse(S.get_url())[0:2]
-        if get_missing_certificate(S.cafile, netloc, S.certsha1):
-            self.servers[server_index].needcert = False
-            return True
-        logging.error("Waiting %s seconds before retrying", self.wait)
-        time.sleep(self.wait)
-        return False
+    def find_shortest_waittime(self):
+        """ Find the server with the least remaining wait time
 
-    def get_default_server(self):
+        Servers with enable=False are not considered. Servers with
+        need_cert=True are considered.
+        """
+
+        # Init these variables with the current_index server so that this
+        # one wins in case of any draw
+        min_idx = self.current_index
+        min_wait = self.servers[min_idx].wait.get_remaining_wait_time()
+        for server in self.servers:
+            if not server.enable:
+                continue
+            if server.wait.get_remaining_wait_time() < min_wait:
+                min_wait = server.wait.get_remaining_wait_time()
+                min_idx = server.get_index()
+        return min_idx
+
+    def get_available_server(self):
         """ returns an arbitrary server in the list, really. We have a
         preference towards keeping the server we've been using in the
         recent past.  At any rate, we return a server only if we
         succeeded in downloading the ssl certificate !
         """
-        while not self._try_download_certificate(self.current_index):
-            self.current_index = (self.current_index + 1) % self.nservers
+
+        min_idx = self.find_shortest_waittime()
+
+        # The call to get_certificate() waits if necessary and updates the
+        # wait time in case of failure
+        while not self.servers[min_idx].get_certificate():
+            min_idx = self.find_shortest_waittime()
+        self.current_index = min_idx
         return self.servers[self.current_index]
 
     def change_server(self):
@@ -1178,7 +1216,7 @@ class ServerPool(object): # {{{
         return a new one
         """
         self.current_index = (self.current_index + 1) % self.nservers
-        while not self._try_download_certificate(self.current_index):
+        while not self.servers[self.current_index].get_certificate():
             self.current_index = (self.current_index + 1) % self.nservers
         server = self.servers[self.current_index]
         logging.error("Going to next backup server: %s", server)
@@ -1565,10 +1603,9 @@ class WorkunitWrapper(Workunit):
 # Half-downloaded WUs are saved in memory, and downloads of companion
 # files are retried later on if the peer goes off at the wrong time.
 class InputDownloader(object):
-    def __init__(self, settings, server_pool, connector):
+    def __init__(self, settings, server_pool):
         self.settings = settings
         self.server_pool = server_pool
-        self.connector = connector
         self.wu_filename = os.path.join(self.settings["DLDIR"],
                                         self.settings["WU_FILENAME"])
         self.wu_backlog = []
@@ -1576,10 +1613,8 @@ class InputDownloader(object):
 
     # {{{ download -- this goes through several steps.
     @staticmethod
-    def do_checksum(filename, checksum=None):
-        """ Computes the SHA1 checksum for a file. If checksum is None, returns
-            the computed checksum. If checksum is not None, return whether the
-            computed SHA1 sum and checksum agree """
+    def do_checksum(filename):
+        """ Computes the SHA1 checksum for a file. """
         blocksize = 65536
         sha1hash = hashlib.sha1()  # pylint: disable=E1101
         # Like when downloading, we wait until the file has positive size, to
@@ -1595,10 +1630,16 @@ class InputDownloader(object):
             data = infile.read(blocksize)
         FileLock.unlock(infile)
         infile.close()
-        filesum = sha1hash.hexdigest()
+        return sha1hash.hexdigest().lower()
+
+    @staticmethod
+    def cmp_checksum(filename, checksum):
+        """ If checksum is None, return True. Otherwise return whether the
+        checksum of file "filename" agrees with the checksum parameter.
+        """
         if checksum is None:
-            return filesum
-        return filesum.lower() == checksum.lower()
+            return True
+        return InputDownloader.do_checksum(filename) == checksum.lower()
 
     def get_file(self, urlpath,
                  dlpath=None,
@@ -1619,6 +1660,8 @@ class InputDownloader(object):
         """
         assert is_wu or dlpath is not None
         if dlpath is None:
+            # This implies is_wu is True. Do we want to generate a filename
+            # from the URL path in this case?
             filename = urlpath.split("/")[-1]
             dlpath = os.path.join(self.settings["DLDIR"], filename)
         urlpath = urlpath.lstrip("/")
@@ -1637,11 +1680,19 @@ class InputDownloader(object):
 
         current_server = mandatory_server
         if current_server is None:
-            current_server = self.server_pool.get_default_server()
+            # Companion files are downloaded from mandatory server, so this
+            # branch implies is_wu is True
+            current_server = self.server_pool.get_available_server()
 
+        # If we are trying to download a WU, and there are leftover WUs in the
+        # backlog, then we'll try at most max_loops times to download a fresh
+        # WU before falling back to the old ones
         max_loops = self.server_pool.number_of_active_servers()
         cap = is_wu and (self.wu_backlog or self.wu_backlog_alt)
-        spin = 0
+        spin = 0  # Counter to check whether we've reach max_loops tries yet
+        # Set dlpath_tmp to a temporary file name. Presumably so that multiple
+        # clients which share a download directory don't overwrite each other's
+        # data while downloading?
         if dlpath is None:
             dlpath_tmp = None
         else:
@@ -1650,19 +1701,15 @@ class InputDownloader(object):
             logging.info("spin=%d is_wu=%s blog=%d", spin, is_wu,
                          len(self.wu_backlog)+len(self.wu_backlog_alt))
             if cap and spin > max_loops:
+                # We are trying to download a WU and we've tried each enabled
+                # server once.
                 # we've had enough. Out of despair, we'll try our old
                 # WUs, but there seems to be veeery little we can do, to
                 # be honest. We'll quickly return back here.
                 logging.error("Cannot get a fresh WU. Trying our old backlog")
                 return None
-            url = current_server.get_url().rstrip("/") + "/" + urlpath
-            cafile = current_server.get_cafile()
-            logging.info("Downloading %s to %s (cafile = %s)",
-                         url, dlpath_tmp, cafile)
-            error_str, hard_error = self.connector.get_file(url,
-                                                            dlpath_tmp,
-                                                            cafile=cafile,
-                                                            timeout=wait)
+            error_str, hard_error = current_server.download_file(
+                urlpath, dlpath_tmp, timeout=wait)
             if error_str is None:
                 break
             # otherwise we enter the wait loop
@@ -1677,11 +1724,8 @@ class InputDownloader(object):
                               " with hard error" if hard_error else "",
                               error_str)
                 if waiting_since > 0:
-                    logging.error("Waiting %s seconds before retrying"
-                                  " (I have been waiting for %s seconds)",
-                                  wait, waiting_since)
-                else:
-                    logging.error("Waiting %s seconds before retrying", wait)
+                    logging.error(" (I have been waiting for %s seconds)",
+                                  waiting_since)
             last_error = error_str
 
             if connfailed > maxconnfailed:
@@ -1714,8 +1758,8 @@ class InputDownloader(object):
                 waiting_since += wait
 
         if waiting_since > 0:
-            logging.info("Opened URL %s after %s seconds wait",
-                         url, waiting_since)
+            logging.info("Downloaded %s from %s after %s seconds wait",
+                         urlpath, current_server, waiting_since)
 
         if executable:
             m = dlpath_tmp if dlpath_tmp is not None else dlpath
@@ -1779,19 +1823,13 @@ class InputDownloader(object):
                              filename)
                 os.remove(filename)
             else:
-                if checksum is None:
+                if self.cmp_checksum(filename, checksum):
                     logging.info("%s already exists, not downloading",
                                  filename)
                     if is_wu:
                         return self.server_pool.get_unique_server()
                     return None
                 filesum = self.do_checksum(filename)
-                if filesum.lower() == checksum.lower():
-                    logging.info("%s already exists, not downloading",
-                                 filename)
-                    if is_wu:
-                        return self.server_pool.get_unique_server()
-                    return None
                 logging.error("Existing file %s has wrong checksum %s, "
                               "workunit specified %s. Deleting file.",
                               filename, filesum, checksum)
@@ -1816,12 +1854,10 @@ class InputDownloader(object):
                                   filename)
                     os.remove(filename)
                 raise WorkunitClientHalfDownload(filename)
-            if checksum is None:
-                return peer
-            filesum = self.do_checksum(filename)
-            if filesum.lower() == checksum.lower():
+            if self.cmp_checksum(filename, checksum):
                 return peer
             os.remove(filename)
+            filesum = self.do_checksum(filename)
             if last_filesum is not None and filesum == last_filesum:
                 u = peer.get_url()
                 raise WorkunitClientWrongChecksum(filename, u, filesum)
@@ -2395,9 +2431,9 @@ if __name__ == '__main__':
         logging.info("Using work-around %s for buggy BytesGenerator",
                      FixedBytesGenerator)
 
-    serv_pool = ServerPool(SETTINGS)
-
     connector = HTTPConnector(SETTINGS)
+
+    serv_pool = ServerPool(SETTINGS, connector)
 
     if serv_pool.has_https:
         if not options.externdl and sys.version_info[0] == 2:
@@ -2414,7 +2450,7 @@ if __name__ == '__main__':
     client_ok = True
     bad_wu_counter = 0
 
-    downloader = InputDownloader(SETTINGS, serv_pool, connector)
+    downloader = InputDownloader(SETTINGS, serv_pool)
 
     uploader = ResultUploader(SETTINGS, serv_pool, connector)
 
