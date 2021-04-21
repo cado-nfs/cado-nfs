@@ -27,6 +27,7 @@ import socket
 import signal
 import re
 import base64
+import datetime
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -936,6 +937,40 @@ class HTTPConnector(object):
 # }}}
 
 
+class ExponentialBackoff(object):
+    def __init__(self, _cap=None):
+        self.cap = _cap
+        self.nr_errors = 0
+        self.next_try_not_before = None
+    def signal_error(self):
+        if self.cap is None or self.nr_errors < self.cap:
+            self.nr_errors += 1
+        next_wait = 2**self.nr_errors * random.random()
+        # Don't try this one again until at least delta seconds have passed
+        # Other things can be done in the meantime
+        delta = datetime.timedelta(seconds=next_wait)
+        self.next_try_not_before = datetime.datetime.now() + delta
+    def signal_success(self):
+        self.nr_errors = 0
+        self.next_try_not_before = None
+    def get_remaining_wait_time(self) -> float:
+        # If this is our very first try, or if the previous try was
+        # successful, don't wait at all
+        if self.next_try_not_before is None:
+            return 0.
+        delta = self.next_try_not_before - datetime.datetime.now()
+        # If the required wait time has already passed, don't wait
+        # at all
+        return max(delta.total_seconds(), 0.)
+    # logger_function is a function reference, not an object of the
+    # logging class!
+    def wait(self, logger_function=None):
+        wait_time = self.get_remaining_wait_time()
+        if wait_time:
+            if logger_function is not None:
+                logger_function("Waiting %.2f seconds before retrying",
+                                wait_time)
+            time.sleep(wait_time)
 
 # {{{ ssl certificate stuff
 def get_ssl_certificate(server, port=443, retry=False, retrytime=0):
