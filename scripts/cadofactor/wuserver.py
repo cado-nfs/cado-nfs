@@ -927,7 +927,7 @@ if __name__ == '__main__':
     parser.add_argument("-uploaddir", help="Upload directory", 
                         default="upload/")
     parser.add_argument("-nrsubdir", help="Number of upload subdirectories",
-                        default="1")
+                        default="0")
     parser.add_argument("-dburi", help="Database URI", required=True)
     parser.add_argument("-cafile", help="Certificate file name", required=False)
     parser.add_argument("-threaded", help="Use threaded server", 
