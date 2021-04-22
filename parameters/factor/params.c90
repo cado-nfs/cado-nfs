@@ -440,6 +440,14 @@ server.port = 8001
 
 # server.whitelist = 192.168.0.0/24,localhost
 
+# nrsubdir: a non-negative integer that specifies into how many sub-
+# directories the upload directory should be split. For large computations
+# with thousands of files it can improve file access time to distribute
+# the uploaded files over multiple subdirectories. Default is 0, which means
+# no subdirectory is used at all. With nrsubdir > 0, subdirectories
+# 0/, 1/, ..., [nrsubdir-1]/ are used.
+# server.nrsubdir = 0
+
 
 ###########################################################################
 # Worker slaves

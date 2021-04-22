@@ -5376,7 +5376,7 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
         return {"name": str, "workdir": None, "address": None, "port": 0,
                 "threaded": False, "ssl": True, "whitelist": None,
                 "only_registered": True, "forgetport": False,
-                "timeout_hint": None}
+                "timeout_hint": None, "nrsubdir": 0}
     @property
     def param_nodename(self):
         return self.name
@@ -5394,6 +5394,7 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
         basedir = self.params.get("workdir", default_workdir).rstrip(os.sep) + os.sep
         uploaddir = basedir + self.params["name"] + ".upload/"
         threaded = self.params["threaded"]
+        nrsubdir = self.params["nrsubdir"]
         # By default, allow access only to files explicitly registered by tasks,
         # i.e., those files required by clients when downloading input files for
         # their workunits. By setting only_registered=False, access to all files
@@ -5448,7 +5449,7 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
         self.registered_filenames = self.make_db_dict('server_registered_filenames')
         self.server = wuserver.ServerLauncher(serveraddress, serverport,
             threaded, db, self.registered_filenames,
-            uploaddir, bg=True, only_registered=only_registered, cafile=cafilename,
+            uploaddir, nrsubdir, bg=True, only_registered=only_registered, cafile=cafilename,
             whitelist=server_whitelist,
             timeout_hint=servertimeout_hint)
         self.state["port"] = self.server.get_port()

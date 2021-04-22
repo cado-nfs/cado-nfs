@@ -129,6 +129,21 @@ class ThreadedHTTPServer(socketserver.ThreadingMixIn, FixedHTTPServer):
     """Handle requests in a separate thread."""
 
 
+def make_uploaddir_i_name(uploaddir_base, nrsubdir, i):
+    """ Generate name of desired upload subdirectory
+    
+    If nrsubdir == 0, then the base upload directory is used.
+    If nrsubdir > 0 (incl. when nrsubdir == 1), subdirectories numbered
+    uploaddir_base + "/0/", uploaddir_base + "/1/" etc are used, where
+    variable i determines the subdirectory. 
+    """
+    assert (nrsubdir == 0 and i == 0) or i < nrsubdir
+    if nrsubdir == 0:
+        return uploaddir_base
+    else:
+        # Empty final segment to make the path end in a directory separator
+        return os.path.join(uploaddir_base, "%d" % i, "")
+
 if HAVE_SSL:
     class HTTPSServer(FixedHTTPServer):
         def __init__(self, server_address, HandlerClass, *args, certfile=None,
@@ -252,6 +267,10 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
     # See http://bugs.python.org/issue19435
     assert urllib.parse.urlsplit("http://foo//a").path == "//a"
     
+    # Class variable (similar to a "static" variable in C++) that cycles
+    # through the upload subdirectory numbers
+    next_upload_directory = 0
+
     def __init__(self, *args, **kwargs):
         self.no_work_available = False
         super().__init__(*args, **kwargs)
@@ -312,7 +331,7 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
     
     def do_GET(self):
         """Generates a workunit if request is cgi-bin/getwu, generates a status
-        page is requested, otherwise calls parent class' do_GET()"""
+        page if requested, otherwise calls parent class' do_GET()"""
         if self.is_cgi():
             if self.is_getwu():
                 self.send_WU()
@@ -364,11 +383,14 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
             # not work with SSL because the SSL-wrapper around the socket
             # is missing proper file descriptors for dup(), etc.
             # This does not work if rbufsize != 0.
+            os.environ[upload.UPLOADDIRKEY] = make_uploaddir_i_name(
+                self.uploaddir, self.nrsubdir,
+                self.__class__.next_upload_directory)
             super().do_POST()
         else:
             # This uses the imported do_upload() function directly, without
             # spawning a subprocess, so that do_upload() can use the file-
-            # like objects provided by the SSL wrapper. I should be faster,
+            # like objects provided by the SSL wrapper. It should be faster,
             # too, by not having to execute a new Python interpreter and
             # script for each upload.
             # The CGI parsing code used in upload.py requires some shell
@@ -376,8 +398,14 @@ class MyHandler(http.server.CGIHTTPRequestHandler):
             # specificaton, such as CONTENT_LENGTH.
             # This is really slow if rbufsize == 0.
             env = self.create_env("cgi-bin/upload.py")
-            upload.do_upload(self.dbdata, self.uploaddir, 
+            uploaddir = make_uploaddir_i_name(self.uploaddir, self.nrsubdir,
+                                              self.__class__.next_upload_directory)
+            upload.do_upload(self.dbdata, uploaddir,
                     inputfp=self.rfile, output=self.wfile, environ=env)
+        if self.nrsubdir > 0:
+            # Cycle through upload subdirectories
+            self.__class__.next_upload_directory += 1
+            self.__class__.next_upload_directory %= self.nrsubdir
 
     def create_env(self, scriptname, source_env=os.environ, query=None):
         """ Create a set of shell environment variables according to the CGI
@@ -616,7 +644,7 @@ subjectAltName=@altnames
 {SAN:s}
 """
     def __init__(self, address, port, threaded, dbdata,
-                registered_filenames, uploaddir, *, bg = False,
+                registered_filenames, uploaddir, nrsubdir, *, bg = False,
                 use_db_pool = True, scriptdir = None, only_registered=False,
                 cafile=None, whitelist=None, timeout_hint=None):
         
@@ -690,12 +718,15 @@ subjectAltName=@altnames
             "dbdata": dbdata,
             "db_pool": self.db_pool, 
             "uploaddir": uploaddir,
+            "nrsubdir": nrsubdir,
             "cgi_directories" : ['/cgi-bin'],
             "upload_path": upload_url_path,
             "only_registered": only_registered,
             "serving_wus": self.serving_wus,
             "timeout_hint": self.timeout_hint
         }
+        # The entries in handler_params become class variables of the class
+        # MyHandlerWithParams
         MyHandlerWithParams = type("MyHandlerWithParams", (MyHandler, ), handler_params)
         
         # Find the upload.py script
@@ -709,9 +740,16 @@ subjectAltName=@altnames
         # Set shell environment variables which the upload.py script needs if
         # spawned as subprocess
         os.environ[upload.DBURIKEY] = dbdata.uri
-        os.environ[upload.UPLOADDIRKEY] = uploaddir
+        # Create base upload directory
         if not os.path.isdir(uploaddir):
+            self.logger.debug("Creating upload directory %s" % uploaddir)
             os.mkdir(uploaddir)
+        # Create any upload subdirectories
+        for i in range(nrsubdir):
+            uploaddir_i = make_uploaddir_i_name(uploaddir, nrsubdir, i)
+            if not os.path.isdir(uploaddir_i):
+                self.logger.debug("Creating upload subdirectory %s" % uploaddir_i)
+                os.mkdir(uploaddir_i)
 
         # See if we can use HTTPS
         scheme = "http"
@@ -888,12 +926,16 @@ if __name__ == '__main__':
     parser.add_argument("-port", help="Listen port", default="8001")
     parser.add_argument("-uploaddir", help="Upload directory", 
                         default="upload/")
+    parser.add_argument("-nrsubdir", help="Number of upload subdirectories",
+                        default="0")
     parser.add_argument("-dburi", help="Database URI", required=True)
     parser.add_argument("-cafile", help="Certificate file name", required=False)
     parser.add_argument("-threaded", help="Use threaded server", 
                         action="store_true", default=False)
     parser.add_argument("-onlyreg", help="Allow access only to registered files", 
                         action="store_true", default=False)
+    parser.add_argument("-whitelist", help="Allow access from given host", 
+                        default=None)
     args = parser.parse_args()
 
     PORT = int(args.port)
@@ -905,9 +947,10 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     logger.setLevel(logging.NOTSET)
 
-    httpd = ServerLauncher(HTTP, PORT, args.threaded, dbdata, 
-                           registered_filenames, args.uploaddir,
-                           only_registered=args.onlyreg, cafile=cafile)
+    httpd = ServerLauncher(HTTP, PORT, args.threaded, dbdata,
+                           registered_filenames, args.uploaddir, int(args.nrsubdir),
+                           only_registered=args.onlyreg, cafile=cafile,
+                           whitelist=[args.whitelist])
     
     try:
         httpd.serve()
