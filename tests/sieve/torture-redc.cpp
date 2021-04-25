@@ -148,9 +148,14 @@ oldbuggy_redc_u32(const uint64_t x, const uint32_t p, const uint32_t invp)
   return u;
 }
 
+#if defined(GENUINE_GNUC)
+#pragma GCC optimize ("no-tree-loop-vectorize")
+#endif
+template <bool CARRY>
 int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = true)
 {
     constexpr unsigned int loops = 1024;
+    constexpr int maximum_p_bits = CARRY ? 32 : 31;
     std::vector<uint32_t> ps;
     std::vector<int64_t> xs;
     std::vector<uint32_t> ips;
@@ -162,7 +167,7 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
 
     for(size_t i = 0 ; i < N ; i++) {
         /* number of bits in [minimum_p_bits..32] */
-        size_t pbits = minimum_p_bits + gmp_urandomb_ui(rstate, minimum_p_bits) % (32+1-minimum_p_bits);
+        size_t pbits = minimum_p_bits + gmp_urandomb_ui(rstate, minimum_p_bits) % (maximum_p_bits+1-minimum_p_bits);
         cxx_mpz p;
         mpz_rrandomb(p, rstate, pbits);
         uint64_t pi = mpz_get_uint64(p);
@@ -210,21 +215,39 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
 
     if (check) {
         if (signed_x) {
+#if defined(__clang__)
+#pragma clang loop vectorize(disable)
+#endif
             for(size_t i = 0 ; i < N ; i++)
-                us.push_back(redc_32(xs[i], ps[i], ips[i]));
+                us.push_back(redc_32<CARRY>(xs[i], ps[i], ips[i]));
         } else {
+#if defined(__clang__)
+#pragma clang loop vectorize(disable)
+#endif
             for(size_t i = 0 ; i < N ; i++)
-                us.push_back(redc_u32(xs[i], ps[i], ips[i]));
+                us.push_back(redc_u32<CARRY>(xs[i], ps[i], ips[i]));
         }
     } else {
         uint32_t fake_sum = 0;
         for (unsigned int loop = 0; loop < loops; loop++) {
             if (signed_x) {
+#if defined(ALIGN_LOOP_32)
+                __asm__ volatile (".p2align 5");
+#endif
+#if defined(__clang__)
+#pragma clang loop vectorize(disable)
+#endif
                 for(size_t i = 0 ; i < N ; i++)
-                    fake_sum += redc_32(xs[i], ps[i], ips[i]);
+                    fake_sum += redc_32<CARRY>(xs[i], ps[i], ips[i]);
             } else {
+#if defined(ALIGN_LOOP_32)
+                __asm__ volatile (".p2align 5");
+#endif
+#if defined(__clang__)
+#pragma clang loop vectorize(disable)
+#endif
                 for(size_t i = 0 ; i < N ; i++)
-                    fake_sum += redc_u32(xs[i], ps[i], ips[i]);
+                    fake_sum += redc_u32<CARRY>(xs[i], ps[i], ips[i]);
             }
         }
         volatile uint32_t fake_sum_vol = fake_sum;
@@ -236,13 +259,14 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
     if (check && signed_x) {
         for(size_t i = 0 ; i < N ; i++) {
             if (!redc_32_postconditions(us[i], xs[i], ps[i], ips[i])) {
-                fprintf(stderr, "ERROR: redc_32("
+                fprintf(stderr, "ERROR: redc_32<%s>("
                         "%" PRId64 ", "
                         "%" PRIu32 ", "
                         "%" PRIu32 ") "
                         "returns "
                         "%" PRIu32
                         " instead of expected %" PRIu32 "\n",
+                        CARRY ? "true" : "false",
                         xs[i], ps[i], ips[i], us[i],
                         redc_32_reference(xs[i], ps[i])
                        );
@@ -252,13 +276,14 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
     } else if (check) {
         for(size_t i = 0 ; i < N ; i++) {
             if (!redc_u32_postconditions(us[i], xs[i], ps[i], ips[i])) {
-                fprintf(stderr, "ERROR: redc_u32("
+                fprintf(stderr, "ERROR: redc_u32<%s>("
                         "%" PRIu64 ", "
                         "%" PRIu32 ", "
                         "%" PRIu32 ") "
                         "returns "
                         "%" PRIu32
                         " instead of expected %" PRIu32 "\n",
+                        CARRY ? "true" : "false",
                         (uint64_t) xs[i], ps[i], ips[i], us[i],
                         redc_32_reference(xs[i], ps[i])
                        );
@@ -268,15 +293,16 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
     }
 
     const char * fname[2] = { "redc_u32", "redc_32" };
-    printf("%s: %zu tests in %.4fs\n",
-            fname[signed_x], (check) ? N : N*(size_t)loops, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+    printf("%s<%s>: %zu tests in %.4fs\n",
+            fname[signed_x], CARRY ? "true" : "false", (check) ? N : N*(size_t)loops, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
 
     return 0;
 }
 
+template <bool CARRY>
 int test_redc_u32(gmp_randstate_t rstate, size_t N, bool check)
 {
-    return test_redc_32(rstate, N, check, false);
+    return test_redc_32<CARRY>(rstate, N, check, false);
 }
 
 int main(int argc, char * argv[])
@@ -304,8 +330,10 @@ int main(int argc, char * argv[])
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
     for(size_t N = 1 ; N < Nmax ; N *= 2) {
-        test_redc_32(rstate, N, check);
-        test_redc_u32(rstate, N, check);
+        test_redc_32<false>(rstate, N, check);
+        test_redc_u32<false>(rstate, N, check);
+        test_redc_32<true>(rstate, N, check);
+        test_redc_u32<true>(rstate, N, check);
     }
     gmp_randclear(rstate);
 }

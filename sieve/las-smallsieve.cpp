@@ -310,9 +310,7 @@ void small_sieve_init(small_sieve_data_t & ssd,
 
             for (int nr = 0; nr < e.nr_roots; nr++) {
                 const fb_general_root &root = e.roots[nr];
-                /* Convert into old format for projective roots by adding p if projective.
-                   FIXME, this sucks. */
-                const fbroot_t r = root.r + (root.proj ? p : 0);
+                fb_root_p1 Rab { root.r, root.proj };
 
                 if (!Q.doing.is_coprime_to(pp)) {
                     continue;
@@ -331,17 +329,17 @@ void small_sieve_init(small_sieve_data_t & ssd,
 
                 const unsigned char logp = fb_log_delta (pp, root.exp, root.oldexp, scale);
 
-                WHERE_AM_I_UPDATE(w, r, r);
-                fbroot_t r_q = fb_root_in_qlattice(p, r, e.invq, Q);
+                WHERE_AM_I_UPDATE(w, r, Rab.to_old_format(p));
+                auto Rq = fb_root_in_qlattice(p, Rab, e.invq, Q);
+                fbroot_t r_q = Rq.r;
+                bool is_proj_in_ij = Rq.is_projective();
                 /* If this root is somehow interesting (projective in (a,b) or
                    in (i,j) plane), print a message */
-                const bool is_proj_in_ij = r_q >= p;
-                if (is_proj_in_ij) r_q -= p;
-                if (verbose && (r > p || is_proj_in_ij))
+                if (verbose && (Rab.is_projective() || is_proj_in_ij))
                     verbose_output_print(0, 1, "# small_sieve_init: side %d, prime %"
                             FBPRIME_FORMAT " root %s%" FBROOT_FORMAT " (logp %hhu) "
                             " -> %s%" FBROOT_FORMAT "\n", side, p,
-                            r >= p ? "1/" : "", r % p, logp,
+                            Rab.is_projective() ? "1/" : "", Rab.r % p, logp,
                             is_proj_in_ij ? "1/" : "", r_q);
 
                 ssp_t new_ssp(p, r_q, logp, is_proj_in_ij);

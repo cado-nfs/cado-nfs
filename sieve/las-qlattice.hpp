@@ -38,21 +38,27 @@ struct qlattice_basis {
     }
 
     inline bool fits_31bits() const {
+        constexpr int64_t t31 = INT64_C(1) << 31;
         return !(
-                 a0 <= INT64_C(-2147483648) ||
-                 a0 >= INT64_C( 2147483648) ||
-                 a1 <= INT64_C(-2147483648) ||
-                 a1 >= INT64_C( 2147483648) ||
-                 b0 <= INT64_C(-2147483648) ||
-                 b0 >= INT64_C( 2147483648) ||
-                 b1 <= INT64_C(-2147483648) ||
-                 b1 >= INT64_C( 2147483648)
+                 a0 <  -t31 || a0 >= t31 ||
+                 a1 <  -t31 || a1 >= t31 ||
+                 b0 <  -t31 || b0 >= t31 ||
+                 b1 <  -t31 || b1 >= t31
                  );
     }
 
     struct too_skewed : public std::exception { };
 
     qlattice_basis(las_todo_entry const & doing, double skew);
+
+    /* This is handy sometimes */
+    qlattice_basis(int64_t a0, int64_t b0, int64_t a1, int64_t b1)
+        : doing(0,0,0)
+        , a0(a0)
+        , b0(b0)
+        , a1(a1)
+        , b1(b1)
+    {}
 };
 
 std::ostream& operator<<(std::ostream& os, qlattice_basis const & Q);

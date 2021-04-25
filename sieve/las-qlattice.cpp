@@ -153,12 +153,12 @@ qlattice_basis::qlattice_basis(las_todo_entry const & doing, double skew) :
 
 std::ostream& operator<<(std::ostream& os, qlattice_basis const & Q)
 {
-    os << Q.doing << ";"
-        << " a0=" << Q.a0 << ";"
+    if (mpz_cmp_ui(Q.doing.p, 0) != 0)
+        os << Q.doing << ";";
+
+    os  << " a0=" << Q.a0 << ";"
         << " b0=" << Q.b0 << ";"
         << " a1=" << Q.a1 << ";"
         << " b1=" << Q.b1;
     return os;
 }
-
-

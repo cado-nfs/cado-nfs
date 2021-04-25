@@ -40,6 +40,7 @@
 #include "threadpool.hpp"  // for thread_pool, task_result, task_parameters
 #include "timing.h"                 // for seconds, wct_seconds
 #include "ularith.h"       // for ularith_invmod
+#include "u64arith.h"       // for u64arith_invmod
 #include "verbose.h"             // verbose_output_print
 struct qlattice_basis; // IWYU pragma: keep
 
@@ -91,24 +92,7 @@ fb_log_delta (const fbprime_t p, const unsigned long newexp,
 }
 /* }}} */
 
-static bool fb_linear_root (fbroot_t & root, cxx_mpz_poly const & poly, const fbprime_t q);
-
-// Adapted from utils/ularith.h
-// TODO: this function should go somewhere else...
-static inline uint64_t
-uint64_invmod(const uint64_t n)
-{
-    uint64_t r;
-    ASSERT (n % UINT64_C(2) != UINT64_C(0));
-    r = (UINT64_C(3) * n) ^ UINT64_C(2);
-    r = UINT64_C(2) * r - (uint32_t) r * (uint32_t) r * (uint32_t) n;
-    r = UINT64_C(2) * r - (uint32_t) r * (uint32_t) r * (uint32_t) n;
-    r = UINT64_C(2) * r - (uint32_t) r * (uint32_t) r * (uint32_t) n;
-    uint32_t k = (uint32_t)(r * n >> 32);
-    k *= (uint32_t) r;
-    r = r - ((uint64_t)k << 32);
-    return r;
-}
+static fb_root_p1 fb_linear_root (cxx_mpz_poly const & poly, const fbprime_t q);
 
 static inline redc_invp_t
 compute_invq(fbprime_t q)
@@ -120,7 +104,7 @@ compute_invq(fbprime_t q)
         return (redc_invp_t) (- ularith_invmod (q));
     } else {
         ASSERT(sizeof(redc_invp_t) == 8);
-        return (redc_invp_t) (- uint64_invmod (q));
+        return (redc_invp_t) (- u64arith_invmod (q));
     }
   } else {
     return 0;
@@ -155,20 +139,24 @@ fb_is_power (fbprime_t q, unsigned long *final_k)
 
 
 /* Allow construction of a root from a linear polynomial and a prime (power) */
-fb_general_root::fb_general_root (fbprime_t q, cxx_mpz_poly const & poly,
-  const unsigned char nexp, const unsigned char oldexp)
-  : exp(nexp), oldexp(oldexp)
+fb_general_root fb_general_root::fb_linear_root (fbprime_t q, cxx_mpz_poly const & poly,
+        const unsigned char nexp, const unsigned char oldexp)
 {
-  proj = fb_linear_root (r, poly, q);
+    fb_general_root R;
+    R.exp = nexp;
+    R.oldexp = oldexp;
+    auto L = ::fb_linear_root (poly, q);
+    R.proj = L.proj;
+    R.r = L.r;
+    return R;
 }
 
 
 void fb_general_root::transform(fb_general_root &result, const fbprime_t q,
         const redc_invp_t invq,
         const qlattice_basis &basis) const {
-    unsigned long long t = to_old_format(q);
-    t = fb_root_in_qlattice(q, t, invq, basis);
-    result = fb_general_root(t, q, exp, oldexp);
+    auto R = fb_root_in_qlattice(q, fb_root_p1 { r, proj }, invq, basis);
+    result = fb_general_root(R, exp, oldexp);
 }
 
 /* Allow assignment-construction of general entries from simple entries */
@@ -230,7 +218,9 @@ fb_entry_general::read_roots (const char *lineptr, const unsigned char nexp,
         }
         last_t = t;
 
-        roots[nr_roots++] = fb_general_root(t, q, nexp, oldexp);
+        fb_root_p1 R = fb_root_p1::from_old_format(t, q);
+
+        roots[nr_roots++] = fb_general_root(R, nexp, oldexp);
         if (*lineptr != '\0' && *lineptr != ',') {
             verbose_output_print (1, 0,
                     "# Incorrect format in factor base file line %lu\n",
@@ -371,21 +361,62 @@ void
 fb_entry_x_roots<Nr_roots>::transform_roots(fb_entry_x_roots<Nr_roots>::transformed_entry_t &result, const qlattice_basis &basis) const
 {
   result.p = p;
-  /* TODO: Use batch-inversion here */
-  for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
-    const unsigned long long t = fb_root_in_qlattice(p, roots[i_root], invq, basis);
-    result.proj[i_root] = (t >= p);
-    result.roots[i_root] = (t < p) ? t : (t - p);
+  /* Try batch transform; if that fails because any root is projective, do
+   * the roots one at a time. */
+  if (fb_root_in_qlattice_batch (result.roots, p, roots, invq, basis,
+      Nr_roots)) {
+    /* If the batch transform worked, mark all roots as affine */
+    for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
+      result.proj[i_root] = false;
+    }
+//#define COMPARE_BATCH_ROOTS_TRANSFORM 1
+#ifdef COMPARE_BATCH_ROOTS_TRANSFORM
+    for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
+      const unsigned long long t = fb_root_in_qlattice(p, roots[i_root], invq, basis);
+      if (t >= p || t != result.roots[i_root]) {
+          verbose_output_print(1, 0, "%hhu-th batch transformed root modulo %" FBPRIME_FORMAT 
+              " is wrong: %" FBROOT_FORMAT ", correct: %llu\n",
+              i_root, p, result.roots[i_root], t);
+          verbose_output_print(1, 0,
+            "Root in a,b-plane: %" FBROOT_FORMAT " modulo %" FBPRIME_FORMAT "\n"
+            "Lattice basis: a0=%" PRId64 ", b0=%" PRId64 ", a1=%" PRId64 ", b1=%" PRId64 "\n",
+            roots[i_root], p, basis.a0, basis.b0, basis.a1, basis.b1);
+          ASSERT(0);
+      }
+    }
+#endif
+  } else {
+    // Batch transform failed: do roots one at a time.
+    for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {
+      auto R = fb_root_in_qlattice(p, roots[i_root], invq, basis);
+      result.proj[i_root] = R.proj;
+      result.roots[i_root] = R.r;
+    }
   }
+}
+
+template<>
+void
+fb_entry_x_roots<0>::transform_roots(fb_entry_x_roots<0>::transformed_entry_t &result, const qlattice_basis &basis MAYBE_UNUSED) const
+{
+  result.p = p;
+}
+
+/* With only one root, batch transform does not save anything and just adds
+ * a little overhead */
+template<>
+void
+fb_entry_x_roots<1>::transform_roots(fb_entry_x_roots<1>::transformed_entry_t &result, const qlattice_basis &basis) const
+{
+  result.p = p;
+  auto R = fb_root_in_qlattice(p, roots[0], invq, basis);
+  result.proj[0] = R.proj;
+  result.roots[0] = R.r;
 }
 
 // FIXME: why do I have to make those instances explicit???
 // If someone knows how to avoid that...
 
-template void
-fb_entry_x_roots<0>::transform_roots(fb_transformed_entry_x_roots<0> &, qlattice_basis const&) const; 
-template void 
-fb_entry_x_roots<1>::transform_roots(fb_transformed_entry_x_roots<1> &, qlattice_basis const&) const; 
 template void 
 fb_entry_x_roots<2>::transform_roots(fb_transformed_entry_x_roots<2> &, qlattice_basis const&) const; 
 template void 
@@ -427,12 +458,12 @@ fb_entry_x_roots<Nr_roots>::fprint(FILE *out) const
    but stores the reciprocal root.
    Returns true if the roots was projective, and false otherwise. */
 
-static bool
-fb_linear_root (fbroot_t & root, cxx_mpz_poly const & poly, const fbprime_t q)
+static fb_root_p1
+fb_linear_root (cxx_mpz_poly const & poly, const fbprime_t q)
 {
   modulusul_t m;
   residueul_t r0, r1;
-  bool is_projective;
+  fb_root_p1 R = 0;
 
   modul_initmod_ul (m, q);
   modul_init_noset0 (r0, m);
@@ -443,9 +474,9 @@ fb_linear_root (fbroot_t & root, cxx_mpz_poly const & poly, const fbprime_t q)
 
   /* We want poly[1] * a + poly[0] * b == 0 <=>
      a/b == - poly[0] / poly[1] */
-  is_projective = (modul_inv (r1, r1, m) == 0); /* r1 = 1 / poly[1] */
+  R.proj = (modul_inv (r1, r1, m) == 0); /* r1 = 1 / poly[1] */
 
-  if (is_projective)
+  if (R.proj)
     {
       ASSERT_ALWAYS(mpz_gcd_ui(NULL, poly->coeff[1], q) > 1);
       /* Set r1 = poly[0] % q, r0 = poly[1] (mod q) */
@@ -458,13 +489,13 @@ fb_linear_root (fbroot_t & root, cxx_mpz_poly const & poly, const fbprime_t q)
   modul_mul (r1, r0, r1, m); /* r1 = poly[0] / poly[1] */
   modul_neg (r1, r1, m); /* r1 = - poly[0] / poly[1] */
 
-  root = modul_get_ul (r1, m);
+  R.r = modul_get_ul (r1, m);
 
   modul_clear (r0, m);
   modul_clear (r1, m);
   modul_clearmod (m);
 
-  return is_projective;
+  return R;
 }
 
 std::ostream& operator<<(std::ostream& o, fb_factorbase::key_type const & k)
@@ -1230,9 +1261,11 @@ void fb_factorbase::make_linear ()
             next_prime = getprime_mt(pi);
         }
         fb_cur.nr_roots = 1;
+        auto R = fb_linear_root (poly, fb_cur.q);
         fb_cur.roots[0].exp = fb_cur.k;
         fb_cur.roots[0].oldexp = fb_cur.k - 1U;
-        fb_cur.roots[0].proj = fb_linear_root (fb_cur.roots[0].r, poly, fb_cur.q);
+        fb_cur.roots[0].proj = R.proj;
+        fb_cur.roots[0].r = R.r;
         fb_cur.invq = compute_invq(fb_cur.q);
         pool.push_back(fb_cur);
         if (++pool_size >= 1024) {
@@ -1297,7 +1330,9 @@ static task_result * process_one_task(worker_thread *, task_parameters *_param, 
         static_cast<make_linear_thread_param *>(_param);
     task_info_t *T = param->T;
     for (unsigned int i = 0; i < T->n; ++i) {
-        T->proj[i] = fb_linear_root (T->r[i], T->poly, T->q[i]);
+        auto R = fb_linear_root (T->poly, T->q[i]);
+        T->proj[i] = R.proj;
+        T->r[i] = R.r;
         T->invq[i] = compute_invq(T->q[i]);
     }
     return new make_linear_thread_result(T, param);

@@ -72,6 +72,55 @@ struct increment_counter_on_dtor {
  */
 
 
+/* A class that can be used to instrument functions to count events.
+
+The final counts are printed at dtor time; if the counter object is static,
+it gets printed at program exit.
+Example:
+
+void foo(int x) {
+  static StaticHistogram calls(1, "Nr of times foo() was called");
+  static StaticHistogram hist(100, "Histogram of values foo() was called with", true);
+  calls.inc();
+  if (0 <= x && x < 100) hist.inc(x);
+  [... rest of foo() ...]
+}
+*/
+
+class StaticHistogram : private NonCopyable {
+    const char *name; /* Non-owning reference, caller must preserve pointed-to data */
+    const size_t len;
+    bool print_indices;
+    unsigned long *c;
+public:
+    StaticHistogram(const size_t _len, const char *_name = NULL, const bool _print_indices = false)
+    : name(_name), len(_len), print_indices(_print_indices) {
+        c = new unsigned long[_len];
+        for (size_t i = 0; i < len; i++)
+            c[i] = 0;
+    }
+    ~StaticHistogram() {
+        if (name != NULL) {
+            printf("%s: ", name);
+        }
+        if (print_indices) {
+            for (size_t i = 0; i < len; i++)
+                if (c[i] > 0)
+                    printf("%s%zu:%lu", (i > 0) ? " " : "", i, c[i]);
+        } else {
+            for (size_t i = 0; i < len; i++)
+                printf("%s%lu", (i > 0) ? " " : "", c[i]);
+        }
+        printf("\n");
+        delete[] c;
+    }
+    void inc(const size_t i = 0) {
+        ASSERT_ALWAYS(i < len);
+        c[i]++;
+    }
+};
+
+
 #if __cplusplus < 201402L
 namespace std {
 template <bool B, typename T = void>
