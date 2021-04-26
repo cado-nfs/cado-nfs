@@ -198,7 +198,7 @@ int cado_poly_getm(mpz_ptr m, cado_poly_srcptr cpoly, mpz_ptr N)
        we assume N divides the resultant */
 
     if (m == NULL) {
-        if (f[0]->deg != 1)
+      if (f[0]->deg < 1 || (cpoly->nb_polys == 2 && f[0]->deg != 1))
           {
             fprintf (stderr, "Error, N does not divide resultant of given polynomials, or there are multiplicities.\n");
             ASSERT_ALWAYS(0);
