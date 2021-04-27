@@ -247,14 +247,20 @@ int cado_poly_check_mapping(mpz_poly_ptr G, cado_poly_srcptr cpoly,
          */
     }
 
-    if (mpz_cmp_ui(factors_of_N, 1) != 0) {
-        gmp_fprintf(stderr, "Warning: non-trivial factors (%Zd) of N were found while checking the poly file. This should not happen. It might be harmless neverthess, we don't know.\n", factors_of_N);
-    }
-
     int found_mapping = G_loc->deg >= 1;
 
     if (G)
         mpz_poly_set(G, G_loc);
+
+    if (mpz_cmp_ui(factors_of_N, 1) != 0) {
+        /* I don't think that there's any reason to have a situation
+         * where N has non-trivial factors. If such a situation arises,
+         * it's easy enough to turn the error below into a warning./
+         */
+        gmp_fprintf(stderr, "Error, non-trivial factors (%Zd) of N were found while checking the poly file. This should not happen.\n", factors_of_N);
+        found_mapping = 0;
+    }
+
 
     mpz_clear(Nsmall);
     mpz_clear(ftmp);
