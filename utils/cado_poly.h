@@ -52,6 +52,9 @@ void cado_poly_fprintf_MurphyE (FILE *, double, double, double, double,
 extern void cado_poly_init (cado_poly_ptr);
 extern void cado_poly_clear (cado_poly_ptr);
 
+extern int cado_poly_check_mapping(mpz_poly_ptr G, cado_poly_srcptr cpoly,
+        mpz_srcptr N);
+
 // Compute m as the common root of f and g mod N.
 // N is taken as a third argument; it can be a strict factor of the N
 // stored in the polynomial.
@@ -59,7 +62,7 @@ extern void cado_poly_clear (cado_poly_ptr);
 // that is given instead of m.
 // The return value tells whether it worked (and then m is the common
 // root) or it failed (and then m is a factor of N).
-extern int cado_poly_getm(mpz_ptr, cado_poly_srcptr, mpz_ptr);
+extern int cado_poly_getm(mpz_ptr, cado_poly_srcptr, mpz_srcptr);
 
 /* Return the rational side or -1 if two algebraic side */
 extern int cado_poly_get_ratside (cado_poly_srcptr);

@@ -339,7 +339,7 @@ int paramcmp(const struct sorting_data * a, const struct sorting_data * b)
 }
 
 /* Sort (for searching), and remove duplicates. */
-static void param_list_consolidate(param_list_ptr pl)
+void param_list_consolidate(param_list_ptr pl)
 {
     if (pl->consolidated) {
         return;
@@ -448,7 +448,10 @@ int param_list_read_stream(param_list_ptr pl, FILE *f, int stop_on_empty_line)
             continue;
         }
 
-        // look for a left-hand-side.
+        // look for a left-hand-side. We grok anything that *BEGINS WITH
+        // A DIGIT* as something that goes with the "NULL" token in the
+        // pl dictionary. That looks like a pretty obscure hack, in fact.
+        // Do we ever use it ?
         l = 0;
         if (!(isalpha((int)(unsigned char)p[l]) || p[l] == '_' || p[l] == '-')) {
             param_list_add_key(pl, NULL, line, PARAMETER_FROM_FILE);
