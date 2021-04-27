@@ -55,8 +55,7 @@ cado_poly_swap (cado_poly_ptr p, cado_poly_ptr q)
 #define BUF_MAX 10000
 
 // returns 0 on failure, 1 on success.
-static
-int cado_poly_set_plist(cado_poly_ptr poly, param_list pl)
+int cado_poly_set_plist(cado_poly_ptr poly, param_list_ptr pl)
 {
   int ret = 1;
 
@@ -125,8 +124,8 @@ int cado_poly_set_plist(cado_poly_ptr poly, param_list pl)
       ret = 0;
     }
 
-  /* check that N divides the resultant */
-  cado_poly_getm (NULL, poly, poly->n);
+  /* check that N divides the resultant*/
+  ASSERT_ALWAYS(cado_poly_check_mapping(NULL, poly, poly->n));
 
   return ret;
 }
@@ -173,79 +172,176 @@ int cado_poly_read(cado_poly_ptr poly, const char *filename)
     return r;
 }
 
+/* check that there is a mapping from Z[x] to the target ring (Z/N,
+ * GF(p), GF(p^k)) that factors through each of the polynomials.
+ *
+ * If we have only two sides, rational or not, this is clearly something
+ * that we want, for NFS to make any sort of sense.
+ *
+ * The question of how to generalize this check to multiple polynomials
+ * is not entirely clear.
+ *
+ * If there is a rational side (only one, see cado_poly_get_ratside),
+ * having a resultant with the rational polynomial that is a multiple of
+ * N is actually a transitive relation, so that it suffices to check the
+ * condition with the rational side only.
+ *
+ * If we have multiple nonlinear polynomials, we have to make sure that
+ * there is a compatible mapping. This is done by checking the pseudo-gcd
+ * of the set of polynomials in cado_poly
+ *
+ * => The conclusion of all that is that what we really care about is the
+ * computation of the gcd, and this gcd is returned in the polynomial G.
+ * Note that if G is null, then we don't store it, but we do the check
+ * nevertheless.
+ *
+ * This returns true (1) on success, and false (0) on error, after an
+ * error message is printed to stderr.
+ */
+int cado_poly_check_mapping(mpz_poly_ptr G, cado_poly_srcptr cpoly,
+        mpz_srcptr N)
+{
+    /* scratch space for mpz_poly_pseudogcd_mpz, which destroys its
+     * input.
+     */
+    mpz_poly S[2];
+    mpz_poly_init(S[0], -1);
+    mpz_poly_init(S[1], -1);
+
+    /* a polynomial for the gcd */
+    mpz_poly G_loc;
+    mpz_poly_init(G_loc, -1);
+    mpz_poly_set_xi(G_loc, -1);
+
+    /* factors of N, if any. This should never happen */
+    mpz_t factors_of_N, ftmp;
+    mpz_init_set_ui(factors_of_N, 1);
+    mpz_init_set_ui(ftmp, 0);
+
+    /* A copy of N with all trivial factors removed */
+    mpz_t Nsmall;
+    mpz_init(Nsmall);
+
+    for(int ret = 0 ; ret == 0; ) {
+        mpz_divexact(Nsmall, N, factors_of_N);
+
+        /* compute all pseudo-gcds */
+        for(int i = 1 ; i < cpoly->nb_polys ; i++) {
+            mpz_poly_set(S[0], cpoly->pols[0]);
+            mpz_poly_set(S[1], cpoly->pols[i]);
+            ret = mpz_poly_pseudogcd_mpz (S[0], S[1], Nsmall, ftmp);
+            if (ret == 0) {
+                mpz_mul(factors_of_N, factors_of_N, ftmp);
+                break;
+            }
+            ret = mpz_poly_pseudogcd_mpz (G_loc, S[0], Nsmall, ftmp);
+            if (ret == 0) {
+                mpz_mul(factors_of_N, factors_of_N, ftmp);
+                break;
+            }
+        }
+
+        /* If a factor was found, start over, otherwise we're done with
+         * this silly "restart if small factors pop up" loop (which will
+         * presumably never be activated anyway...)
+         */
+    }
+
+    int found_mapping = G_loc->deg >= 1;
+
+    if (G)
+        mpz_poly_set(G, G_loc);
+
+    if (mpz_cmp_ui(factors_of_N, 1) != 0) {
+        /* I don't think that there's any reason to have a situation
+         * where N has non-trivial factors. If such a situation arises,
+         * it's easy enough to turn the error below into a warning./
+         */
+        gmp_fprintf(stderr, "Error, non-trivial factors (%Zd) of N were found while checking the poly file. This should not happen.\n", factors_of_N);
+        found_mapping = 0;
+    }
+
+
+    mpz_clear(Nsmall);
+    mpz_clear(ftmp);
+    mpz_clear(factors_of_N);
+    mpz_poly_clear(G_loc);
+    mpz_poly_clear(S[0]);
+    mpz_poly_clear(S[1]);
+
+    if (!found_mapping) {
+        fprintf (stderr, "Error, we found no compatible mapping that factors through the given number fields. Your poly file is most probably wrong.\n");
+    }
+
+    return found_mapping;
+}
+
 
 /* If NULL is passed for m, then, just check that N divides the resultant.
  * Assume there at least two polynomials.
- * TODO: adapt for more than 2 polynomials:
- *    compute for each pair (0,i) the corresponding common root m_i
- *    check all m_i are equal
  */
-int cado_poly_getm(mpz_ptr m, cado_poly_srcptr cpoly, mpz_ptr N)
+int cado_poly_getm(mpz_ptr m, cado_poly_srcptr cpoly, mpz_srcptr N)
 {
-    // have to work with copies, because pseudo_gcd destroys its input
-    mpz_poly f[2];
+    mpz_poly G;
+    mpz_poly_init(G, -1);
 
-    ASSERT_ALWAYS(cpoly->nb_polys >= 2);
+    ASSERT_ALWAYS(cado_poly_check_mapping(G, cpoly, N));
 
-    for (int i = 0; i < 2; ++i) {
-        mpz_poly_init(f[i], cpoly->pols[i]->alloc);
-        mpz_poly_set(f[i], cpoly->pols[i]);
-    }
-    int ret;
-    ret = mpz_poly_pseudogcd_mpz (f[0], f[1], N, m);
+    /* It doesn't make sense to ask for m when the mapping goes to a
+     * larger structure. Note that this is not necessarily equivalent to
+     * having no rational side: Two algebraic sides may well have only a
+     * rational mapping in common (case of Joux-Lercier polynomial
+     * selection).
+     */
 
-    /* if ret=0, a factor of N was found during the pseudo-gcd,
-       we assume N divides the resultant */
-
-    if (m == NULL) {
-        if (f[0]->deg < 1) {
-            fprintf (stderr, "Error, N does not divide resultant of given polynomials\n");
-            ASSERT_ALWAYS(0);
-        }
-        goto clear_and_return;
+    if (m != NULL && mpz_poly_degree(G) != 1) {
+        fprintf(stderr, "Error, cannot determine m given that the common mapping is not linear\n");
+        exit (EXIT_FAILURE);
     }
 
-    if (ret) /* pseudo-gcd was successful */
-      {
-        if (f[0]->deg != 1)
-          {
-            fprintf (stderr, "Error, N does not divide resultant of given polynomials, or there are multiplicities.\n");
-            fprintf (stderr, "Can not compute m.\n");
-            exit (EXIT_FAILURE);
-          }
-
+    if (m != NULL) {
         mpz_t inv;
         mpz_init(inv);
-        int ret2 = mpz_invert(inv, f[0]->coeff[1], N);
+        int ret2 = mpz_invert(inv, G->coeff[1], N);
         // This inversion should always work.
         // If not, it means that N has a small factor (not sure we want
-        // to be robust against that...)
+        // to be robust against that...). This should have been reported,
+        // at least as a warning, by cado_poly_check_mapping.
         // Or maybe the polynomial selection was really bogus!
         ASSERT_ALWAYS(ret2);
-        mpz_mul(inv, inv, f[0]->coeff[0]);
+        mpz_mul(inv, inv, G->coeff[0]);
         mpz_neg(inv, inv);
         mpz_mod(m, inv, N);
         mpz_clear(inv);
       }
 
- clear_and_return:
-    for (int i = 0; i < 2; ++i)
-        mpz_poly_clear(f[i]);
-    return ret;
+    mpz_poly_clear(G);
+
+    return 1;
 }
 
 /* Return the rational side or -1 if only algebraic sides */
 /* Assume that there is at most 1 rational side (renumber.cpp does the same
  * assumption).
- * XXX: Is there a case where more than 1 rational side is needed ??
+ *
+ * Note that several distinct rational sides would not really make sense.
+ * A rational side prescribes the mapping from the indeterminate (the X
+ * in a-b*X) to the underlying ring (Z/N, GF(p), ...). So if we have
+ * distinct rational sides, we would have distinct mappings, and I don't
+ * think that we could do something useful in such a situation.
  */
 int
 cado_poly_get_ratside (cado_poly_srcptr pol)
 {
+  int number_of_rational_sides = 0;
+  int ratside = -1;
   for(int side = 0; side < pol->nb_polys; side++)
-    if(pol->pols[side]->deg == 1)
-      return side;
-  return -1;
+    if(pol->pols[side]->deg == 1) {
+        ratside = side;
+        number_of_rational_sides++;
+    }
+  ASSERT_ALWAYS(number_of_rational_sides <= 1);
+  return ratside;
 }
 
 void

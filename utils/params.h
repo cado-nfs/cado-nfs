@@ -222,6 +222,9 @@ extern void param_list_print_command_line(FILE * stream, param_list_ptr);
 #endif
 
 #ifdef __cplusplus
+#include <istream>
+extern int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_line = false);
+
 #include <string>
 static inline int param_list_parse_string(param_list_ptr pl, const char * key, std::string & s)
 {

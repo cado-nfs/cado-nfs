@@ -19,7 +19,13 @@ cado_define_test(test_mpz_poly_parsing.cpp LIBRARIES utils tests)
 cado_define_test(test_json_parsing.cpp LIBRARIES utils tests)
 cado_define_test(test_cxx_mpz_mat.cpp LIBRARIES utils tests)
 cado_define_test(test_cxx_mpz_poly.cpp LIBRARIES utils tests)
-cado_define_test(test_cado_poly.c LIBRARIES utils tests)
+cado_define_test(test_cado_poly.cpp LIBRARIES utils tests)
+cado_divert_test(test_cado_poly mnfs5 APPEND_ARGUMENTS
+    ${CADO_NFS_SOURCE_DIR}/tests/misc/test_renumber.data/mnfs5.poly)
+cado_divert_test(test_cado_poly c105_30003 APPEND_ARGUMENTS
+    ${CADO_NFS_SOURCE_DIR}/tests/misc/test_renumber.data/c105_30003.poly)
+cado_divert_test(test_cado_poly buggy EXPECT_FAIL APPEND_ARGUMENTS
+    ${CADO_NFS_SOURCE_DIR}/tests/utils/buggy.poly)
 cado_define_test(test_relation.cpp LIBRARIES utils tests)
 cado_define_test(test_cache.c LIBRARIES utils)
 cado_define_test(test_usp.c LIBRARIES utils tests)

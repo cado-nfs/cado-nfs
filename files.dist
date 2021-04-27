@@ -472,7 +472,7 @@ tests/README
 tests/utils/test_double_poly.c
 tests/utils/test_gmp_aux.c
 tests/utils/test_gcd.c
-tests/utils/test_cado_poly.c
+tests/utils/test_cado_poly.cpp
 tests/utils/test_getprime.c
 tests/utils/test_memusage.c
 tests/utils/test_mpz_poly.cpp
@@ -621,6 +621,7 @@ utils/modredc64.hpp
 utils/modul_poly.c
 utils/modul_poly.h
 utils/params.c
+utils/params-extra.cpp
 utils/params.h
 utils/mpz_poly.cpp
 utils/mpz_poly.h
@@ -1638,3 +1639,4 @@ ci/00-docker-build.sh
 tests/sieve/c30_30012.poly
 tests/sieve/c30_30012.roots1.gz
 utils/mpi_proxies.hpp
+tests/utils/buggy.poly

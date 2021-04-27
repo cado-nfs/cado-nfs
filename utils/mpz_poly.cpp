@@ -1547,6 +1547,9 @@ void mpz_poly_rotation_int64 (mpz_poly_ptr fr, mpz_poly_srcptr f,
 /* Coefficients of f must be reduced mod N
  * Coefficients of h need not be reduced mod N on input, but are reduced
  * on output.
+ *
+ * If division fails, stores a non-trivial factor of N in factor. This is
+ * not done if factor==NULL.
  */
 static int
 mpz_poly_pseudodiv_r (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr N, mpz_ptr factor)
@@ -2874,6 +2877,10 @@ mpz_poly_gcd_mpz (mpz_poly_ptr f, mpz_poly_srcptr a, mpz_poly_srcptr b,
  * of N that is put in the corresponding argument.
  * The return value tells whether the process was successful (1 means
  * that no inversion failed, 0 means that a factor was found).
+ *
+ * If a factor is found, and if the parameter "factor" is not NULL, then
+ * the encountered factored is stored there.
+ *
  * WARNING: this function destroys its input.
  */
 /* Coefficients of f and g need not be reduced mod p on input.
