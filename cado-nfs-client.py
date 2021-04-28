@@ -980,12 +980,12 @@ class ExponentialBackoff(object):
 
 # {{{ ssl certificate stuff
 class Server(object):
-    def __init__(self, url, cafile, certsha1, needcert, connector, wait_cap=None):
+    def __init__(self, url, cafile, certsha1, connector, wait_cap=None):
         self.index = None
         self.url = url
         self.cafile = cafile
         self.certsha1 = None if certsha1 is None else certsha1.lower()
-        self.needcert = needcert
+        self._needcert = urlparse(url)[0] == "https"
         self.enable = True
         self.connector = connector
         self.wait = ExponentialBackoff(wait_cap)
@@ -1046,7 +1046,7 @@ class Server(object):
         if not self.enable:
             return False
         self.wait.wait(logger_function=logging.info)
-        if not self.needcert:
+        if not self._needcert:
             return True
 
         certfile_exists = os.path.isfile(self.cafile)
@@ -1075,7 +1075,7 @@ class Server(object):
             # FIXME: Set umask first?
             with open(self.cafile, 'w') as certfile:
                 certfile.write(cert)
-        self.needcert = False
+        self._needcert = False
         self.wait.signal_success()
         return True
 
@@ -1118,7 +1118,7 @@ class ServerPool(object):  # {{{
                 logging.warning("Option --certsha1 makes sense only with"
                                 " https URLs, ignoring it.")
             for ss in settings["SERVER"]:
-                self.register(Server(ss, None, None, False, connector, wait_cap=wait_cap))
+                self.register(Server(ss, None, None, connector, wait_cap))
             return
 
         # This is a pretty big security flaw. Default behaviour here should
@@ -1132,7 +1132,7 @@ class ServerPool(object):  # {{{
                             " but no --certsha1 option,"
                             " NO SSL VALIDATION WILL BE PERFORMED.")
             for ss in settings["SERVER"]:
-                self.register(Server(ss, None, None, False, connector, wait_cap=wait_cap))
+                self.register(Server(ss, None, None, connector, wait_cap))
             return
 
         if len(settings["CERTSHA1"]) != len(settings["SERVER"]):
@@ -1148,11 +1148,9 @@ class ServerPool(object):  # {{{
             if scheme == "https":
                 cafile = os.path.join(settings["DLDIR"],
                                       "server.%s.pem" % certsha1)
-                needcert = True
             else:
                 cafile = None
-                needcert = False
-            self.register(Server(ss, cafile, certsha1, needcert, connector, wait_cap=wait_cap))
+            self.register(Server(ss, cafile, certsha1, connector, wait_cap))
             # Try downloading the certificate once. If connection is
             # refused, proceed to daemonizing - hopefully server will
             # come up later
