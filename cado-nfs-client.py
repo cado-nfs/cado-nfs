@@ -949,6 +949,7 @@ class ExponentialBackoff(object):
         self.cap = _cap
         self.nr_errors = 0
         self.next_try_not_before = None
+        self.total_wait_time = 0
     def signal_error(self):
         if self.cap is None or self.nr_errors < self.cap:
             self.nr_errors += 1
@@ -962,6 +963,7 @@ class ExponentialBackoff(object):
     def signal_success(self):
         self.nr_errors = 0
         self.next_try_not_before = None
+        self.total_wait_time = 0
     def get_remaining_wait_time(self) -> float:
         # If this is our very first try, or if the previous try was
         # successful, don't wait at all
@@ -973,13 +975,21 @@ class ExponentialBackoff(object):
         return max(delta.total_seconds(), 0.)
     # logger_function is a function reference, not an object of the
     # logging class!
-    def wait(self, logger_function=None):
+    def wait(self, logger_function=None, print_total=False):
         wait_time = self.get_remaining_wait_time()
-        if wait_time:
-            if logger_function is not None:
+        if not wait_time:
+            return
+        if logger_function is not None:
+            if print_total and self.total_wait_time > 0:
+                logger_function(
+                    "Waiting %.2f seconds before retrying (I have been waiting "
+                    "for %.2f seconds in total so far)",
+                    wait_time, self.total_wait_time)
+            else:
                 logger_function("Waiting %.2f seconds before retrying",
                                 wait_time)
-            time.sleep(wait_time)
+        time.sleep(wait_time)
+        self.total_wait_time += wait_time
 
 # {{{ ssl certificate stuff
 class Server(object):
