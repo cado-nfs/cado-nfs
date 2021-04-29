@@ -76,7 +76,6 @@ filter/purge.c
 filter/README.fileformat
 filter/reconstructlog.cpp
 filter/replay.c
-filter/report.h
 filter/sparse.c
 filter/sparse.h
 filter/sm.c
@@ -1636,6 +1635,14 @@ ci/002-tanker.bash
 ci/003-trap-add.bash
 ci/004-disksize-watchdog.bash
 ci/00-docker-build.sh
+filter/merge_bookkeeping.h
+filter/read_purgedfile_in_parallel.c
+filter/read_purgedfile_in_parallel.h
+filter/merge_bookkeeping.c
+filter/merge_heap.c
+filter/merge_heap.h
+filter/merge_compute_weights.c
+filter/merge_compute_weights.h
 tests/sieve/c30_30012.poly
 tests/sieve/c30_30012.roots1.gz
 utils/mpi_proxies.hpp

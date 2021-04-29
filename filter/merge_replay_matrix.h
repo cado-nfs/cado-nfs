@@ -4,6 +4,7 @@
 #include <stddef.h>    // for NULL
 #include <stdint.h>    // for uint64_t, uint32_t
 #include "typedefs.h"
+#include "filter_config.h"
 
 #define TRACE_COL -1 // 253224 // 231 // put to -1 if not...!
 #define TRACE_ROW -1 // 59496 // put to -1 if not...!
