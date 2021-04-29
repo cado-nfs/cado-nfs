@@ -2261,7 +2261,7 @@ def abort_on_python2():
                       "Python2 *used to be* supported, but no longer is.  "
                       "You can try to remove the explicit sys.exit(1) in "
                       "cado-nfs-client.py, abort_on_python2(), "
-                      "but you're on your own." % int(sys.version[0]))
+                      "but you're on your own.", int(sys.version[0]))
         sys.exit(1)
 
 # This syntax is weird, but { a:b for [....] } won't work with python 2.6
