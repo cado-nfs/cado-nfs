@@ -1698,7 +1698,9 @@ class InputDownloader(object):
             dlpath_tmp = None
         else:
             dlpath_tmp = "%s%d" % (dlpath, random.randint(0, 2**30)^os.getpid())
+        attempt = 0
         while True:
+            attempt += 1
             logging.info("spin=%d is_wu=%s blog=%d", spin, is_wu,
                          len(self.wu_backlog)+len(self.wu_backlog_alt))
             if cap and spin > max_loops:
@@ -1714,7 +1716,7 @@ class InputDownloader(object):
             if error_str is None:
                 break
             # otherwise we enter the wait loop
-            if not silent_wait or waiting_since == 0 or error_str != last_error:
+            if not silent_wait or attempt == 1 or error_str != last_error:
                 givemsg = True
             if hard_error:
                 connfailed += 1
@@ -1725,7 +1727,7 @@ class InputDownloader(object):
                               " with hard error" if hard_error else "",
                               error_str)
                 if waiting_since > 0:
-                    logging.error(" (I have been waiting for %s seconds)",
+                    logging.error(" (I have been waiting for %.2f seconds)",
                                   waiting_since)
             last_error = error_str
 
@@ -1736,27 +1738,26 @@ class InputDownloader(object):
                 spin += 1
                 current_server = self.server_pool.get_current_server()
                 waiting_since = 0
+                attempt = 0
                 last_error = ""
                 connfailed = 0
                 continue
 
-            # 4 means that we'll try 5 times.
-            if waiting_since >= 4 * wait:
+            if attempt == 5:
                 if mandatory_server is None:
                     current_server = self.server_pool.change_server()
                     spin += 1
                     waiting_since = 0
+                    attempt += 1
                     last_error = ""
                     connfailed = 0
                 else:
                     # we failed to download from the mandatory server,
                     # too bad.
                     current_server = self.server_pool.change_server()
-                    spin += 1
                     return None
             else:
-                time.sleep(wait)
-                waiting_since += wait
+                waiting_since += current_server.wait.get_remaining_wait_time()
 
         if waiting_since > 0:
             logging.info("Downloaded %s from %s after %s seconds wait",
