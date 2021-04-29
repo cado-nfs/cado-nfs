@@ -19,6 +19,18 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
+/* This code implements the algorithm described in reference [1].
+   Reference [2] might be useful too.
+
+   [1] Parallel Structured Gaussian Elimination for the Number Field Sieve,
+       Charles Bouillaguet and Paul Zimmermann, Mathematical Cryptology,
+       volume 0, number 1, pages 22-39, 2020.
+   [2] Design and Implementation of a Parallel Markowitz Threshold Algorithm,
+       Timothy A. Davis, Iain S. Duff, and Stojce Nakov
+       SIAM Journal on Matrix Analysis and Applications
+       Volume 41, Issue 2, 2020, https://doi.org/10.1137/19M1245815.
+*/
+
 #include "cado.h" // IWYU pragma: keep
 /* the following should come after cado.h, which sets -Werror=all */
 #ifdef  __GNUC__
