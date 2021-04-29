@@ -2082,7 +2082,6 @@ class ResultUploader(object):
                              p.workunit.get_peer())
         mention_each = self.backlog_size > 1
 
-        wait = float(self.settings["DOWNLOADRETRY"])
         # Now try to purge our backlog, starting from the server we've
         # just got this WU from.
         did_progress = False
@@ -2104,23 +2103,21 @@ class ResultUploader(object):
                 request, cafile = p.get_answer()
                 url = request.get_full_url()
                 conn = None
-                waiting_since = 0
+                attempt = 0
                 while True:
+                    attempt += 1
+                    # Find the server that belongs to this request
+                    server = p.workunit.get_peer()
+                    # Wait if necessary
+                    server.wait.wait(logging.info, True)
                     conn, error_str, hard_error = self.connector._urlopen(
                         request, cafile=cafile)
                     if conn:
+                        server.wait.signal_success()
                         break
+                    server.wait.signal_error()
                     logging.error("Upload failed, %s", error_str)
-                    if waiting_since > 0:
-                        logging.error("Waiting %s seconds before retrying"
-                                      " (I have been waiting for %s seconds)",
-                                      wait, waiting_since)
-                    else:
-                        logging.error("Waiting %s seconds before retrying",
-                                      wait)
-                    time.sleep(wait)
-                    waiting_since += wait
-                    if waiting_since >= 4 * wait:
+                    if attempt > 5:
                         logging.error("Giving up on this upload,"
                                       " will retry later")
                         new_backlog.append(p)
@@ -2135,9 +2132,6 @@ class ResultUploader(object):
                     p.cleanup()
                     conn.close()
                     continue
-                if waiting_since > 0:
-                    logging.info("Opened URL %s after %s seconds wait",
-                                 url, waiting_since)
                 response = conn.read()
                 encoding = self.get_content_charset(conn)
                 if sys.version_info[0] == 2:
