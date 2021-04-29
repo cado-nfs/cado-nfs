@@ -945,13 +945,16 @@ class NoMoreServers(Exception):
 
 class ExponentialBackoff(object):
     def __init__(self, _cap=None):
+        assert _cap is None or _cap >= 1
         self.cap = _cap
         self.nr_errors = 0
         self.next_try_not_before = None
     def signal_error(self):
         if self.cap is None or self.nr_errors < self.cap:
             self.nr_errors += 1
-        next_wait = 2**self.nr_errors * random.random()
+        # With n errors, n > 0, we choose a random wait time between
+        # 2^(n-1) and 2^n seconds. E.g., with two errors, between 2 and 4s.
+        next_wait = 2**(self.nr_errors - 1) * (1. + random.random())
         # Don't try this one again until at least delta seconds have passed
         # Other things can be done in the meantime
         delta = datetime.timedelta(seconds=next_wait)
