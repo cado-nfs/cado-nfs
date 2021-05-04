@@ -176,7 +176,7 @@ int mpfq_m128_asprint(mpfq_m128_dst_field K MAYBE_UNUSED, char * * ps, mpfq_m128
 {
         /* Hmm, this has never been tested, right ? Attempting a quick fix... */
         const uint64_t * y = (const uint64_t *) x;
-        const unsigned int stride = mpfq_m128_elt_stride(K)/sizeof(uint64_t);
+        const unsigned int stride = mpfq_m128_elt_stride(K)/(sizeof(uint64_t));
         *ps = mpfq_malloc_check(stride * 16 + 1);
         memset(*ps, ' ', stride * 16);
         int n;
@@ -204,7 +204,7 @@ int mpfq_m128_sscan(mpfq_m128_dst_field k MAYBE_UNUSED, mpfq_m128_dst_elt z, con
 {
         char tmp[17];
         uint64_t * y = (uint64_t *) z;
-        const unsigned int stride = mpfq_m128_elt_stride(K)/sizeof(uint64_t);
+        const unsigned int stride = mpfq_m128_elt_stride(K)/(sizeof(uint64_t));
         assert(strlen(str) >= 1 * 16);
         int r = 0;
         for(unsigned int i = 0 ; i < stride ; i++) {

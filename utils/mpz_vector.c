@@ -15,7 +15,7 @@
 
 
 void
-mpz_vector_init (mpz_vector_t v, unsigned int d)
+mpz_vector_init (mpz_vector_ptr v, unsigned int d)
 {
   ASSERT_ALWAYS (d > 0);
   v->dim = d;
@@ -26,7 +26,7 @@ mpz_vector_init (mpz_vector_t v, unsigned int d)
 }
 
 void
-mpz_vector_clear(mpz_vector_t v)
+mpz_vector_clear(mpz_vector_ptr v)
 {
   for (unsigned int i = 0; i < v->dim; i++)
     mpz_clear (v->c[i]);
@@ -34,7 +34,7 @@ mpz_vector_clear(mpz_vector_t v)
 }
 
 void
-mpz_vector_swap (mpz_vector_t v1, mpz_vector_t v2)
+mpz_vector_swap (mpz_vector_ptr v1, mpz_vector_ptr v2)
 {
   ASSERT_ALWAYS (v1->dim == v2->dim);
   mpz_t *tmp = v1->c;
@@ -43,7 +43,7 @@ mpz_vector_swap (mpz_vector_t v1, mpz_vector_t v2)
 }
 
 void
-mpz_vector_set (mpz_vector_t v, mpz_vector_t s)
+mpz_vector_set (mpz_vector_ptr v, mpz_vector_srcptr s)
 {
   ASSERT_ALWAYS (v->dim == s->dim);
   for (unsigned int i = 0; i < v->dim; i++)
@@ -51,14 +51,14 @@ mpz_vector_set (mpz_vector_t v, mpz_vector_t s)
 }
 
 void
-mpz_vector_setcoordinate (mpz_vector_t v, unsigned int i, mpz_t z)
+mpz_vector_setcoordinate (mpz_vector_ptr v, unsigned int i, mpz_srcptr z)
 {
   ASSERT_ALWAYS (i < v->dim);
   mpz_set(v->c[i], z);
 }
 
 void
-mpz_vector_setcoordinate_ui (mpz_vector_t v, unsigned int i, unsigned int z)
+mpz_vector_setcoordinate_ui (mpz_vector_ptr v, unsigned int i, unsigned int z)
 {
   ASSERT_ALWAYS (i < v->dim);
   mpz_set_ui (v->c[i], z);
@@ -72,28 +72,28 @@ mpz_vector_setcoordinate_si (mpz_vector_ptr v, unsigned int i, int z)
 }
 
 void
-mpz_vector_setcoordinate_uint64 (mpz_vector_t v, unsigned int i, uint64_t z)
+mpz_vector_setcoordinate_uint64 (mpz_vector_ptr v, unsigned int i, uint64_t z)
 {
   ASSERT_ALWAYS (i < v->dim);
   mpz_set_uint64 (v->c[i], z);
 }
 
 void
-mpz_vector_setcoordinate_int64 (mpz_vector_t v, unsigned int i, int64_t z)
+mpz_vector_setcoordinate_int64 (mpz_vector_ptr v, unsigned int i, int64_t z)
 {
   ASSERT_ALWAYS (i < v->dim);
   mpz_set_int64 (v->c[i], z);
 }
 
 int
-mpz_vector_is_coordinate_zero (mpz_vector_t v, unsigned int i)
+mpz_vector_is_coordinate_zero (mpz_vector_srcptr v, unsigned int i)
 {
   ASSERT_ALWAYS (i < v->dim);
   return (mpz_sgn (v->c[i]) == 0);
 }
 
 void
-mpz_vector_get_mpz_poly (mpz_poly p, mpz_vector_t v)
+mpz_vector_get_mpz_poly (mpz_poly_ptr p, mpz_vector_srcptr v)
 {
   for (unsigned int i = 0; i < v->dim; i++)
     mpz_poly_setcoeff (p, i, v->c[i]);
@@ -119,7 +119,7 @@ void mpz_vector_fprintf(FILE * file, mpz_vector_srcptr v)
 }
 
 void
-mpz_vector_dot_product (mpz_t res, mpz_vector_t a, mpz_vector_t b)
+mpz_vector_dot_product (mpz_ptr res, mpz_vector_srcptr a, mpz_vector_srcptr b)
 {
   ASSERT_ALWAYS (a->dim == b->dim);
   mpz_mul(res, a->c[0], b->c[0]);
@@ -128,14 +128,14 @@ mpz_vector_dot_product (mpz_t res, mpz_vector_t a, mpz_vector_t b)
 }
 
 void
-mpz_vector_norm (mpz_t res, mpz_vector_t a)
+mpz_vector_norm (mpz_ptr res, mpz_vector_srcptr a)
 {
   mpz_vector_dot_product (res, a, a);
 }
 
 void
-mpz_vector_skew_dot_product (mpz_t res, mpz_vector_t a, mpz_vector_t b,
-                             mpz_t skewness)
+mpz_vector_skew_dot_product (mpz_ptr res, mpz_vector_srcptr a, mpz_vector_srcptr b,
+                             mpz_srcptr skewness)
 {
   ASSERT_ALWAYS (a->dim == b->dim);
   mpz_t tmp, s, s2;
@@ -158,7 +158,7 @@ mpz_vector_skew_dot_product (mpz_t res, mpz_vector_t a, mpz_vector_t b,
 }
 
 void
-mpz_vector_skew_norm (mpz_t res, mpz_vector_t a, mpz_t skewness)
+mpz_vector_skew_norm (mpz_ptr res, mpz_vector_srcptr a, mpz_srcptr skewness)
 {
   mpz_vector_skew_dot_product (res, a, a, skewness);
 }
@@ -166,7 +166,7 @@ mpz_vector_skew_norm (mpz_t res, mpz_vector_t a, mpz_t skewness)
 
 /* compute r <- r - q*v */
 void
-mpz_vector_submul (mpz_vector_t r, mpz_t q, mpz_vector_t v)
+mpz_vector_submul (mpz_vector_ptr r, mpz_srcptr q, mpz_vector_srcptr v)
 {
   ASSERT_ALWAYS (r->dim == v->dim);
   for (unsigned int i = 0; i < r->dim; i++)
@@ -182,8 +182,8 @@ mpz_vector_submul (mpz_vector_t r, mpz_t q, mpz_vector_t v)
    mpz_vector_norm and mpz_vector_dot_product is used.
    */
 void
-mpz_vector_Lagrange (mpz_vector_t a, mpz_vector_t b,
-                     mpz_vector_t u, mpz_vector_t v, mpz_t skewness)
+mpz_vector_Lagrange (mpz_vector_ptr a, mpz_vector_ptr b,
+                     mpz_vector_srcptr u, mpz_vector_srcptr v, mpz_srcptr skewness)
 {
   mpz_t norm_a, norm_b, q, r, tmp;
   mpz_init (norm_a);
@@ -249,9 +249,9 @@ mpz_vector_Lagrange (mpz_vector_t a, mpz_vector_t b,
 */
 
 void
-mpz_vector_reduce_with_max_skew (mpz_vector_t reduced_a, mpz_vector_t reduced_b,
-                                 mpz_t skew_used, mpz_vector_t a,
-                                 mpz_vector_t b, mpz_t max_skewness, int d)
+mpz_vector_reduce_with_max_skew (mpz_vector_ptr reduced_a, mpz_vector_ptr reduced_b,
+                                 mpz_ptr skew_used, mpz_vector_srcptr a,
+                                 mpz_vector_srcptr b, mpz_srcptr max_skewness, int d)
 {
   mpz_t max_skew, min_skew, tmp;
 

@@ -161,7 +161,7 @@ mod_div13 (residue_t r, const residue_t a, const modulus_t m)
 
 
 void
-mod_gcd (unsigned long *r, const residue_t A, const modulus_t m)
+mod_gcd (modint_t r, const residue_t A, const modulus_t m)
 {
   unsigned long a[2], b[2];
   int sh;

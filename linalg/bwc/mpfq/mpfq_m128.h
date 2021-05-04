@@ -421,8 +421,8 @@ void mpfq_m128_random(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt r, g
 {
         mpz_t ugly;
         ugly->_mp_d = (mp_limb_t *) r;
-        ugly->_mp_alloc = sizeof(mpfq_m128_elt) / sizeof(mp_limb_t);
-        ugly->_mp_size = sizeof(mpfq_m128_elt) / sizeof(mp_limb_t);
+        ugly->_mp_alloc = sizeof(mpfq_m128_elt) / (sizeof(mp_limb_t));
+        ugly->_mp_size = sizeof(mpfq_m128_elt) / (sizeof(mp_limb_t));
         mpz_urandomb(ugly, state, mpfq_m128_simd_groupsize(K));
 }
 
@@ -432,8 +432,8 @@ void mpfq_m128_random2(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt r, 
 {
         mpz_t ugly;
         ugly->_mp_d = (mp_limb_t *) r;
-        ugly->_mp_alloc = sizeof(mpfq_m128_elt) / sizeof(mp_limb_t);
-        ugly->_mp_size = sizeof(mpfq_m128_elt) / sizeof(mp_limb_t);
+        ugly->_mp_alloc = sizeof(mpfq_m128_elt) / (sizeof(mp_limb_t));
+        ugly->_mp_size = sizeof(mpfq_m128_elt) / (sizeof(mp_limb_t));
         mpz_rrandomb(ugly, state, mpfq_m128_simd_groupsize(K));
 }
 
