@@ -318,7 +318,7 @@ static unsigned long print_fake_rel_manyq(
         // std::vector<std::pair<las_todo_entry, std::vector<model_relation> > > const & sample,
         std::pair<std::vector<size_t>, std::vector<model_relation>> const & sample,
         std::vector<indexrange> const & Ind,
-        int dl, int shrink_factor,
+        int dl, double shrink_factor,
         gmp_randstate_t buf)
 {
     /* There's a question of whether we print at each special-q, or only
@@ -461,7 +461,7 @@ void worker(int tnum, int nt,
         // std::vector<std::pair<las_todo_entry, std::vector<model_relation>>> const & sample,
         std::pair<std::vector<size_t>, std::vector<model_relation>> const & sample,
         std::vector<std::vector<index_t>> const & qs,
-        int shrink_factor, int dl, unsigned long seed)
+        double shrink_factor, int dl, unsigned long seed)
 {
     gmp_randstate_t buf;
     gmp_randinit_default(buf);
@@ -521,7 +521,7 @@ main (int argc, char *argv[])
   int compsq = 0;
   uint64_t qfac_min = 1024;
   uint64_t qfac_max = UINT64_MAX;
-  int shrink_factor = 1; // by default, no shrink
+  double shrink_factor = 1; // by default, no shrink
 
   declare_usage(pl);
   param_list_configure_switch (pl, "-v", &verbose);
@@ -582,7 +582,7 @@ main (int argc, char *argv[])
       exit(EXIT_FAILURE);
   }
   
-  param_list_parse_int(pl, "shrink-factor", &shrink_factor);
+  param_list_parse_double(pl, "shrink-factor", &shrink_factor);
   if (shrink_factor < 1) {
       fprintf(stderr, "Error: shrink factor must be an integer >= 1\n");
       param_list_print_usage(pl, argv0, stderr);

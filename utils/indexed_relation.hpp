@@ -84,7 +84,7 @@ struct indexed_relation_tmpl
     void sort();
     void compress(bool dl);
     /* This is used by shrink_rels and fake_rels */
-    void shrink(int shrink_factor, index_t noshrink_threshold = 0);
+    void shrink(double shrink_factor, index_t shrink_threshold = 0);
     template<typename T>
     friend std::ostream& operator<<(std::ostream&, indexed_relation_tmpl<T> const&);
     template<typename T>

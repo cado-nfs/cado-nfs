@@ -5,6 +5,7 @@
 #include <cstdio> // FILE // IWYU pragma: keep
 #include <cstring>
 #include <sys/types.h>  // pid_t
+#include <sys/wait.h>  // WIFEXITED WEXITSTATUS (on freebsd at least)
 #include <unistd.h>     // close getpid
 #include <sys/stat.h> // stat // IWYU pragma: keep
 #ifdef HAVE_GETRUSAGE
@@ -322,11 +323,22 @@ fopen_maybe_compressed2 (const char * name, const char * mode, int* p_pipeflag, 
         if (!has_suffix(name, r->suffix)) continue;
         if (suf) *suf = r->suffix;
         char * command = NULL;
+        char * tempname = NULL;
+        int ret;
+
+        /* Just *any* file that we write to will get a .tmp.$PID suffix
+         */
+        if (strchr(mode, 'w')) {
+            ret = asprintf(&tempname, "%s.tmp.%d", name, getpid());
+            ASSERT_ALWAYS(ret >= 0);
+            name = tempname;
+        }
+
         if (strchr(mode, 'r') && r->pfmt_in) {
             int ret = asprintf(&command, r->pfmt_in, name);
             ASSERT_ALWAYS(ret >= 0);
         } else if (strchr(mode, 'w') && r->pfmt_out) {
-            int ret = asprintf(&command, r->pfmt_out, name);
+            ret = asprintf(&command, r->pfmt_out, name);
             ASSERT_ALWAYS(ret >= 0);
         }
 
@@ -347,6 +359,8 @@ fopen_maybe_compressed2 (const char * name, const char * mode, int* p_pipeflag, 
             f = fopen(name, mode);
             if (p_pipeflag) *p_pipeflag = 0;
         }
+        if (tempname)
+            free(tempname);
         return f;
     }
     /* If we arrive here, it's because "" is not among the suffixes */
@@ -379,31 +393,51 @@ fclose_maybe_compressed2 (FILE * f, const char * name, void * rr MAYBE_UNUSED)
         /* It doesn't really make sense to imagine that one of these two
          * may exist and not the other */
         ASSERT_ALWAYS((r->pfmt_out == NULL) == (r->pfmt_in == NULL));
+
+        char * tempname;
+        int ret = asprintf(&tempname, "%s.tmp.%d", name, getpid());
+        struct stat sbuf[1];
+        ASSERT_ALWAYS(ret >= 0);
+
         if (r->pfmt_in || r->pfmt_out) {
-            int status;
 #ifdef  HAVE_GETRUSAGE
             if (rr)
-                status = cado_pclose2(f, rr);
+                ret = cado_pclose2(f, rr);
             else
 #endif
-                status = cado_pclose(f);
+                ret = cado_pclose(f);
+
 #if defined(WIFEXITED) && defined(WEXITSTATUS)
-            /* Unless child process finished normally and with exit status 0,
+            /* Unless child process finished normally and with exit ret 0,
                we return an error */
-            if (status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+            if (ret == -1 || !WIFEXITED(ret) || WEXITSTATUS(ret) != 0)
                 return EOF;
 #else
             /* What do under MinGW? -1 definitely means an error, but how do
-               we parse the other possible status codes? */
-            return (status == -1) ? EOF : 0;
+               we parse the other possible ret codes? */
+            if (ret == -1)
+                return EOF;
 #endif
-            return 0;
+
         } else {
 #ifdef  HAVE_GETRUSAGE
             if (rr) memset(rr, 0, sizeof(*rr));
 #endif
-            return fclose(f);
+            ret = fclose(f);
+            if (ret != 0)
+                return ret;
         }
+
+        /* do the rename only if the child completed successfully */
+
+        if (stat(tempname, sbuf) == 0) {
+            ret = rename(tempname, name);
+            if (ret != 0) return EOF;
+            ret = unlink(tempname);
+            if (ret != 0) return EOF;
+        }
+
+        return 0;
     }
     /* If we arrive here, it's because "" is not among the suffixes */
     abort();
@@ -443,7 +477,7 @@ void streambase_maybe_compressed::open(const char * name, std::ios_base::openmod
         throw std::runtime_error("cannot open file for writing");
      */
     for( ; r->suffix ; r++) {
-        if (!has_suffix(orig_name, r->suffix)) continue;
+        if (!has_suffix(orig_name.c_str(), r->suffix)) continue;
         char * command = NULL;
         if (mode & std::ios_base::in && r->pfmt_in) {
             int ret = asprintf(&command, r->pfmt_in, name);
@@ -476,7 +510,7 @@ void streambase_maybe_compressed::close()
     if (pipe) pbuf->close();
     else fbuf->close();
     if (!tempname.empty()) {
-        rename(tempname.c_str(), orig_name);
+        rename(tempname.c_str(), orig_name.c_str());
     }
 }
 

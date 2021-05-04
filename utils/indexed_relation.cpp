@@ -40,16 +40,15 @@ void indexed_relation_tmpl<Storage>::sort() {
 
 template<typename Storage>
 void 
-indexed_relation_tmpl<Storage>::shrink(int shrink_factor, index_t noshrink_threshold) {
-    // Indices below noshrink_threshold are not shrunk
+indexed_relation_tmpl<Storage>::shrink(double shrink_factor, index_t shrink_threshold) {
+    // Indices below shrink_threshold are not shrunk
     // FIXME: I am not sure we should keep the heavy weight columns
     // un-shrunk. The answer might be different in DL and in facto...
     for(auto & s : Storage::containers()) {
         for(auto & i : s) {
-            //        if (i >= noshrink_threshold)
-            if (1) {
-                i = noshrink_threshold +
-                    (i - noshrink_threshold) / shrink_factor;
+            if (i >= shrink_threshold) {
+                i = shrink_threshold + (index_t)
+                    ((i - shrink_threshold) / shrink_factor);
             }
         }
     }

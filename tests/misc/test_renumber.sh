@@ -37,7 +37,7 @@ done
 
 RENUMBER="${WORKDIR}/renumber.gz"
 
-${BUILD_DIR}/sieve/freerel -poly ${POLY} -renumber ${RENUMBER} -out /dev/null \
+${BUILD_DIR}/sieve/freerel -poly ${POLY} -renumber ${RENUMBER} \
                            -lpbs "$LPBS" "${LC[@]}"
 
 ${BUILD_DIR}/misc/debug_renumber -poly ${POLY} -renumber ${RENUMBER} -check -quiet

@@ -30,7 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <cstdio>       // fprintf
 #include <cstdlib>       // exit
 #include "cado_poly.h"   // for cxx_cado_poly, cado_poly_s, cado_poly_read
-#include "gzip.h"       // fopen_maybe_compressed
+#include "gzip.h"       // ofstream_maybe_compressed
 #include "macros.h"      // for ASSERT_ALWAYS
 #include "mpz_poly.h"   // mpz_poly_srcptr
 #include "omp_proxy.h"
@@ -38,6 +38,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "renumber.hpp" // renumber_t
 #include "typedefs.h"    // for index_t, p_r_values_t, PRid, SIZEOF_INDEX, PRpr
 #include "verbose.h"    // verbose_interpret_parameters
+#include "fmt/core.h"
+#include "fmt/format.h"
 
 char * argv0;
 
@@ -49,13 +51,12 @@ usage(cxx_param_list & pl, char* argv0)
 }
 
 struct freerel_data_t : public renumber_t::hook {
-    FILE * sink = NULL;
-    const char * filename = NULL;
+    ofstream_maybe_compressed sink;
     unsigned long pmin = 2;
     unsigned long pmax = 0;
     unsigned long nfree = 0;
     bool print_this_p(unsigned long p) const {
-        return sink != NULL && pmin <= p && p <= pmax;
+        return pmin <= p && p <= pmax;
     }
     freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb);
     void operator()(renumber_t & R, p_r_values_t p, index_t idx, renumber_t::cooked const & C) override;
@@ -69,16 +70,11 @@ struct freerel_data_t : public renumber_t::hook {
         param_list_lookup_string(pl, "pmin");
         param_list_lookup_string(pl, "pmax");
     }
-    ~freerel_data_t() override { if (filename) fclose_maybe_compressed(sink, filename); }
+    ~freerel_data_t() override { }
 };
 
-freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb)
+freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly, std::vector<unsigned int> const & lpb) : sink(param_list_lookup_string(pl, "out"))
 {
-    filename = param_list_lookup_string(pl, "out");
-    if (filename == NULL) {
-        fprintf(stderr, "Error, missing -out command line argument\n");
-        usage(pl, argv0);
-    }
     param_list_parse_ulong(pl, "pmin", &pmin);
     param_list_parse_ulong(pl, "pmax", &pmax);
     /* if pmax is not equal to 0 (i.e., was not given on the command line),
@@ -89,11 +85,6 @@ freerel_data_t::freerel_data_t(cxx_param_list & pl, cxx_cado_poly const & cpoly,
         std::vector<unsigned int> lpb_copy = lpb;
         std::sort(lpb_copy.begin(), lpb_copy.end());
         pmax = 1UL << lpb_copy[cpoly->nb_polys-2];
-    }
-    /* open freerel_file */
-    if (filename) {
-        sink = fopen_maybe_compressed(filename, "w");
-        ASSERT_ALWAYS(sink != NULL);
     }
 }
 
@@ -122,7 +113,7 @@ void freerel_data_t::operator()(renumber_t & R, p_r_values_t p, index_t idx, ren
     if (full_sides.size() > 1) {
         for(size_t i = 1 ; i < full_sides.size() ; i++) {
             /* print a new free relation */
-            fprintf(sink, "%" PRpr ",0:", (p_r_values_t) p);
+            sink << fmt::format(FMT_STRING("{:x},0:"), p);
             int side0 = full_sides[i-1].first;
             index_t i0 = full_sides[i-1].second;
             unsigned int n0 = C.nroots[side0];
@@ -130,12 +121,16 @@ void freerel_data_t::operator()(renumber_t & R, p_r_values_t p, index_t idx, ren
             index_t i1 = full_sides[i].second;
             unsigned int n1 = C.nroots[side1];
             bool first = true;
-            for(unsigned int k = 0 ; k < n0 ; k++, first=false)
-                fprintf(sink, "%s%" PRid, first ? "" : ",", i0 + k);
-            for(unsigned int k = 0 ; k < n1 ; k++, first=false)
-                fprintf(sink, "%s%" PRid, first ? "" : ",", i1 + k);
-            fputc('\n', sink);
-
+            sink << std::hex;
+            for(unsigned int k = 0 ; k < n0 ; k++, first=false) {
+                if (!first) sink << ',';
+                sink << i0 + k;
+            }
+            for(unsigned int k = 0 ; k < n1 ; k++, first=false) {
+                if (!first) sink << ',';
+                sink << i1 + k;
+            }
+            sink << '\n';
             nfree++;
         }
     }
