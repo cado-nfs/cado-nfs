@@ -516,12 +516,30 @@ BEGIN_FOBJ(manual_oldloop, true);
 while (UNLIKELY(pi + p_or_2p * 12 <= S1))
 { T; T; T; T; T; T; T; T; T; T; T; T; }
 do {
-    if (pi >= S1) break; T; if (pi >= S1) break; T;
-    if (pi >= S1) break; T; if (pi >= S1) break; T;
-    if (pi >= S1) break; T; if (pi >= S1) break; T;
-    if (pi >= S1) break; T; if (pi >= S1) break; T;
-    if (pi >= S1) break; T; if (pi >= S1) break; T;
-    if (pi >= S1) break; T; if (pi >= S1) break; T;
+    if (pi >= S1) break;
+    T;
+    if (pi >= S1) break;
+    T;
+    if (pi >= S1) break;
+    T;
+    if (pi >= S1) break;
+    T;
+    if (pi >= S1) break;
+    T;
+    if (pi >= S1) break;
+    T;
+    if (pi >= S1) break;
+    T;
+    if (pi >= S1) break;
+    T;
+    if (pi >= S1) break;
+    T;
+    if (pi >= S1) break;
+    T;
+    if (pi >= S1) break;
+    T;
+    if (pi >= S1) break;
+    T;
 } while (0);
 #undef T
 END_FOBJ();
