@@ -348,8 +348,8 @@ void cachefile_close(cachefile_ptr c)
 /* }}} */
 
 void
-polymodF_mul_monic (mpz_poly Q, const mpz_poly P1, const mpz_poly P2,
-        const mpz_poly F);
+polymodF_mul_monic (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
+        mpz_poly_srcptr F);
 
 /* {{{ mpi-gmp helpers */
 static int mpi_data_agrees(void *buffer, int count, MPI_Datatype datatype,/*{{{*/
