@@ -42,3 +42,4 @@ add_executable (dlpolyselect dlpolyselect.c ${ropt_sources})
 set_target_properties(dlpolyselect PROPERTIES
   COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 target_link_libraries (dlpolyselect polyselect_common utils)
+install(TARGETS dlpolyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
