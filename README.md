@@ -289,7 +289,7 @@ three modes as follows.
    This is called the `--server` mode (see
    [`scripts/cadofactor/README.md`](scripts/cadofactor/README.md) and
    [`scripts/cadofactor/parameters`](scripts/cadofactor/parameters)).
-   See also [this thread](https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-March/001168.html) on the `cado-nfs-discuss` list. If you want to use cado-nfs even to a little extent, we recomment that you familiarize with this mode of operation.
+   See also [this thread](https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-March/001168.html) on the old `cado-nfs-discuss` list (it's been [replaced](#contact-links)). If you want to use cado-nfs even to a little extent, we recomment that you familiarize with this mode of operation.
 
  * For much larger computations, the `cado-nfs.py` is only of moderate
    use. The individual cado-nfs binaries and internal scripts are the
@@ -588,12 +588,10 @@ git clone git@gitlab.inria.fr:cado-nfs/cado-nfs.git
 (use the latter if you have an account on Inria gitlab, and commit access
 to cado-nfs)
 
-There are two mailing-lists associated to Cado-nfs:
-  * [cado-nfs-commits](https://lists.gforge.inria.fr/mailman/listinfo/cado-nfs-commits):
-    if you want to receive an email each time a modification to the
-    development version is committed to the repository. (Alternatively,
-    you can set a watch on gitlab if you have an account.)
-  * [cado-nfs-discuss](https://lists.gforge.inria.fr/mailman/listinfo/cado-nfs-discuss): for general discussions about cado-nfs.
+There is now a unique mailing-list associated to Cado-nfs
+[cado-nfs@inria.fr](https://sympa.inria.fr/sympa/info/cado-nfs). Please
+do not use the old `cado-nfs-discuss` mailing list, the infrastructure
+that hosts this mailing list is set for removal in 2021.
 
 If you find a bug, if you have a problem compiling cado-nfs, if you want to
 factor a large number and seek for advice for tuning the parameters, then
