@@ -1164,6 +1164,7 @@ static void mpfq_pz_poly_preinv(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_po
     // Assume p != q (no alias)
     mpfq_pz_elt temp;	/* spurious uninit warning sometimes */
     mpfq_pz_init(K, &temp);
+    mpfq_pz_set_zero(K, temp); // silence spurious gcc11 warning :-(
     mpfq_pz_poly_getcoeff(K, temp, p, 0);//Should be in the assert
     assert( mpfq_pz_cmp_ui(K, temp, 1) == 0);
     assert (p != q);
