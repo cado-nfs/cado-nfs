@@ -29,7 +29,7 @@
 #include "las-bkmult.hpp"                 // for buckets_are_full
 #include "las-config.h"                   // for FB_MAX_PARTS, BUCKET_REGIONS
 #include "las-where-am-i.hpp"             // for where_am_I, WHERE_AM_I_UPDATE
-#include "las-plattice.hpp"               // for plattice_info_t, plattice_e...
+#include "las-plattice.hpp"               // for plattice_info, plattice_e...
 #include "las-process-bucket-region.hpp"  // for process_many_bucket_regions
 #include "las-qlattice.hpp"               // for qlattice_basis
 #include "las-report-stats.hpp"           // for TIMER_CATEGORY
@@ -374,14 +374,13 @@ make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
     for (unsigned char i_root = 0; i_root != transformed.nr_roots; i_root++) {
       const fbroot_t r = transformed.get_r(i_root);
       const bool proj = transformed.get_proj(i_root);
-        plattice_info_t pli = plattice_info_t(transformed.get_q(), r, proj, logI);
+        plattice_info pli = plattice_info(transformed.get_q(), r, proj, logI);
         plattice_enumerator<LEVEL> ple(pli, i_entry, logI, sublat);
         // Skip (0,0) unless we have sublattices.
         if (!sublat.m)
           ple.next(F);
-        if (LIKELY(pli.a0 != 0)) {
+        if (LIKELY(!pli.is_discarded()))
           result.push_back(ple);
-        }
     }
   }
   /* This is moved, not copied. Note that V is a reference. */
@@ -506,7 +505,7 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
       for (unsigned char i_root = 0; i_root != transformed.nr_roots; i_root++) {
         const fbroot_t r = transformed.get_r(i_root);
         const bool proj = transformed.get_proj(i_root);
-          plattice_info_t pli = plattice_info_t(transformed.get_q(), r, proj, logI);
+          plattice_info pli(transformed.get_q(), r, proj, logI);
           // In sublat mode, save it for later use
           precomp_slice.push_back(plattice_info_dense_t<LEVEL>(pli, i_entry));
 
@@ -514,7 +513,8 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 
           if (ple.done(F))
             continue;
-          if (LIKELY(pli.a0 != 0)) {
+          if (pli.is_discarded())
+              continue;
             const slice_offset_t hint = ple.get_hint();
             ASSERT(hint == i_entry);
             WHERE_AM_I_UPDATE(w, h, hint);
@@ -528,12 +528,8 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
             // XXX Here, we're not bucket-sieving projective primes at
             // all, and neither do we bucket-sieve primes with root equal
             // to zero.
-            const uint32_t I = 1 << logI;
-            if ((UNLIKELY(ple.get_inc_c() == 1 && ple.get_bound1() == I - 1))
-                ||
-                (UNLIKELY(ple.get_inc_c() == I && ple.get_bound1() == I))) {
-              continue;
-            }
+            if (UNLIKELY(pli.is_vertical_line(logI) || pli.is_projective_like(logI)))
+                continue;
 
             /* Now, do the real work: the filling of the buckets */
             // Without sublattices, we test (very basic) coprimality,
@@ -541,19 +537,19 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
               BA.push_update(ple.get_x(), p, hint, slice_index, w);
               ple.next(F);
             }
-          } 
       }
     }
   } else { // Use precomputed FK-basis
     for (unsigned int i = 0; i < precomp_slice.size(); ++i) {
-      plattice_info_t pli = precomp_slice[i].unpack(logI);
+      plattice_info pli(precomp_slice[i].unpack(logI));
       slice_offset_t i_entry = precomp_slice[i].get_hint();
 
       plattice_enumerator<LEVEL> ple(pli, i_entry, logI, Q.sublat);
 
       if (ple.done(F))
         continue;
-      if (LIKELY(pli.a0 != 0)) {
+          if (pli.is_discarded())
+              continue;
         const slice_offset_t hint = ple.get_hint();
         WHERE_AM_I_UPDATE(w, h, hint);
 #ifdef TRACE_K
@@ -563,13 +559,9 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
         const fbprime_t p = 0;
 #endif
 
-        // Handle the rare special cases
-        const uint32_t I = 1 << logI;
-        if ((UNLIKELY(ple.get_inc_c() == 1 && ple.get_bound1() == I - 1))
-            ||
-            (UNLIKELY(ple.get_inc_c() == I && ple.get_bound1() == I))) {
+        // Handle (well, do not handle, in fact) the rare special cases
+        if (UNLIKELY(pli.is_vertical_line(logI) || pli.is_projective_like(logI)))
           continue;
-        }
 
         /* Now, do the real work: the filling of the buckets */
         // Without sublattices, we test (very basic) coprimality,
@@ -578,7 +570,6 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
           BA.push_update(ple.get_x(), p, hint, slice_index, w);
           ple.next(F);
         }
-      } 
     }
   }
   // printf("%.3f\n", BA.max_full());
@@ -625,15 +616,16 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
     for (unsigned char i_root = 0; i_root != transformed.nr_roots; i_root++) {
       const fbroot_t r = transformed.get_r(i_root);
       const bool proj = transformed.get_proj(i_root);
-        plattice_info_t pli = plattice_info_t(transformed.get_q(), r, proj, logI);
+        plattice_info pli(transformed.get_q(), r, proj, logI);
   
         plattice_enumerator<LEVEL> ple(pli, i_entry, logI);
 
         // Skip (i,j)=(0,0)
         ple.next(F);
 
-        // what does pli.a0 == 0 correspond to ?
-        if (LIKELY(pli.a0 != 0)) {
+        if (pli.is_discarded())
+            continue;
+
           const slice_offset_t hint = ple.get_hint();
           WHERE_AM_I_UPDATE(w, h, hint);
 #ifdef TRACE_K
@@ -644,15 +636,25 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 #endif
 
           // Handle the rare special cases
-          const uint32_t I = 1 << logI;
-          if (UNLIKELY(ple.get_inc_c() == 1 && ple.get_bound1() == I - 1)) {
-            if (first_reg) {
-              /* ple sets its first position in the (i,j) plane to (1,0),
-               * which will typically be the _only_ hit in the normal
-               * case.
-               * We have to do a special-case though, because ple.next()
-               * won't skip over the first line for us.
-               */
+          /* projective-like:
+           *
+           * ple sets its first position in the (i,j) plane to (1,0),
+           * which will typically be the _only_ hit in the normal case.
+           *
+           * there are more subtle cases that can show up though, because
+           * of projective powers, and the combination with
+           * adjust-strategy 2 (see bug 30012).
+           *
+           * the first hit (and only hit on the first line) can be (g,0)
+           * for any g. but other lines may hit.
+           */
+          /* vertical:
+           *
+           * Root=0: only update is at (0,something).
+           * note that "something" might be large !
+           */
+          if (UNLIKELY(ple.is_projective_like(logI)) && first_reg && !ple.done(F)) {
+
               BA.push_update(ple.get_x(), p, hint, slice_index, w);
 #ifdef FIX_30012
               ple.advance_to_end_of_projective_first_line(F);
@@ -660,15 +662,11 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 #else
               continue;
 #endif
-            }
-            /* We no longer do "continue" here. The classical loop should
-             * do the trick! */
           }
-          if (UNLIKELY(ple.get_inc_c() == I && ple.get_bound1() == I)) {
-            // Root=0: only update is at (0,1).
-            if (first_reg) {
-              uint64_t x = I + (I >> 1);
-              BA.push_update(x, p, hint, slice_index, w);
+          if (UNLIKELY(pli.is_vertical_line(logI))) {
+            if (!ple.done(F)) {
+                BA.push_update(ple.get_x(), p, hint, slice_index, w);
+                ple.next(F);
             }
             continue;
           }
@@ -679,7 +677,6 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
               BA.push_update(ple.get_x(), p, hint, slice_index, w);
             ple.next(F);
           }
-        }
     }
   }
   // printf("%.3f\n", BA.max_full());
@@ -736,11 +733,10 @@ fill_in_buckets_lowlevel(
 #endif
 
     // Handle the rare special cases
-    const uint32_t I = 1 << logI;
-    if (UNLIKELY(ple.get_inc_c() == 1 && ple.get_bound1() == I - 1)) {
-        // Projective root: only update is at (1,0).
+    /* see fill_in_bucket_toplevel. */
+    if (UNLIKELY(ple.is_projective_like(logI)) && first_reg && !ple.done(F)) {
         if (Q.sublat.m)
-            continue;   /* headaches ! */
+            continue;   /* XXX headaches ! */
 
 #ifdef FIX_30012
         if (first_reg) {
@@ -755,11 +751,13 @@ fill_in_buckets_lowlevel(
         continue;
 #endif
     }
-    if (UNLIKELY(ple.get_inc_c() == I && ple.get_bound1() == I)) {
-        // Root=0: only update is at (0,1).
-        if (!Q.sublat.m && first_reg) {
-            uint64_t x = I + (I >> 1);
-            BA.push_update(x, p, hint, slice_index, w);
+    if (UNLIKELY(ple.is_vertical_line(logI))) {
+        if (Q.sublat.m)
+            continue;   /* XXX headaches ! */
+
+        if (!ple.done(F)) {
+            BA.push_update(ple.get_x(), p, hint, slice_index, w);
+            ple.next(F);
         }
         continue;
     }

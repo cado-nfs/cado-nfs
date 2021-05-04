@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <limits>
 
 #include "macros.h"
 
@@ -16,7 +17,7 @@
 
 /*  p-lattice stuff */
 
-
+#if 0   // this comment belongs somewhere else
 // Compute the root r describing the lattice inside the q-lattice
 // corresponding to the factor base prime (p,R).
 // Formula: r = - (a1-R*b1)/(a0-R*b0) mod p
@@ -31,7 +32,7 @@
    So projective roots are stored as their reciprocal, and have p added
    to signal the fact that it's a reciprocal value.
 */
-
+#endif
 
 /*
  * Algorithm by Franke and Kleinjung for lattice sieving of largish
@@ -41,16 +42,16 @@
  */
 
 // Proposition 1 of [FrKl05]:
-// Compute a basis <(a0, a1), (b0, b1)> of the p-lattice
+// Compute a basis <(i0, j0), (i1, j1)> of the p-lattice
 // inside the q-lattice, such that
-//    a1, b1 > 0
-//    -I < a0 <= 0 <= b0 < I
-//    b0-a0 >= I
+//    j0, j1 > 0
+//    -I < i0 <= 0 <= i1 < I
+//    i1-i0 >= I
 //
 // Sizes:
 //    p is less than 32 bits and I fits easily in 32 bits.
-//    So, a0 and a1 fit easily in 32 bits, since they are less than I
-//    Now, b0 and b1 are also bounded by p, so 32 bits is enough
+//    So, i0 and j0 fit easily in 32 bits, since they are less than I
+//    Now, i1 and j1 are also bounded by p, so 32 bits is enough
 //    However: a and c can be as large as p*I (not both ?).
 //    We still store them in 32 bits, since if they are larger, it means
 //    that as soon as they are added to the offset for S, the index will
@@ -71,157 +72,268 @@
 //    cost, sure, but not terribly expensive). For consistency, we make
 //    all data types for x, a, and c 64-bit in this case, and choose the
 //    overflow constants as UINT32_MAX.
-//
-
-// OBSOLETE: the large value is now UINT64MAX>>2. So, plattice_x_t must
-// be 64 bits. We could deal until logI <= 31 when logJ = logI -1.
-
-
-// Return value:
-// * non-zero if everything worked ok
-// * zero when the algorithm failed. This can happen when p is a prime power,
-//   and g, gcd(p,r) >= I, since then the subtractive Euclidean algorithm will
-//   yield (a0=g, b0=0) at some point --- or the converse --- and the loop
-//   while (|a0| >= I) a0 += b0 will loop forever.
-//
-// Note that on a c166 example, this code alone accounts for almost 20%
-// of the computation time.
-
 
 typedef uint64_t plattice_x_t;
 
-struct plattice_info_t;  // IWYU pragma: keep
-static int reduce_plattice (plattice_info_t *, fbprime_t, fbroot_t, uint32_t);
+class plattice_info;  // IWYU pragma: keep
 
+template<int /* LEVEL */>
+struct plattice_info_dense_t;
+template<int LEVEL>
+class plattice_enumerator;
 
 /* Information on a p-lattice: lattice basis coordinates, and auxiliary
    values that can be derived directly from them, such as the constants
    used by the Franke-Kleinjung algorithm */
-struct plattice_info_t {
-  static const int shift = 0;
+class plattice_info {
+    // vectors are (-mi0,j0) (the "warp" vector) 
+    //         and (i1,j1) (the "step" vector)
+    friend struct plattice_info_dense_t<1>;
+    friend struct plattice_info_dense_t<2>;
+    friend struct plattice_info_dense_t<3>;
+    friend class plattice_enumerator<1>;
+    friend class plattice_enumerator<2>;
+    friend class plattice_enumerator<3>;
+    protected:
 
-  // vectors are a=(a0,a1) and b=(b0,b1)
-  int32_t a0;
-  uint32_t a1;
-  int32_t b0;
-  uint32_t b1;
+        uint32_t mi0;  /* This encodes i0 = -mi0 */
+        uint32_t j0;
+        uint32_t i1;
+        uint32_t j1;
 
-  plattice_info_t(const fbprime_t p, const fbroot_t r, const bool proj, const int logI) {
-    /* placate compiler. Sure, we shouldn't need it really, but
-     * admittedly the control flow through reduce_plattice is contrived.
-     */
-    a0 = a1 = b0 = b1 = 0;
-    if (UNLIKELY(proj && r == 0)) {
-      /* This lattice basis might work in principle, but it generates hits in
-         all locations i=1, ..., I/2-1, j = 0, all of which are useless except
-         i=1, j=0.  */
-      // Note: if J>p, we are missing some hits, here.
-      a1 = p;
-      a0 = -((int32_t)1 << logI) + 1;
-      b1 = 0;
-      b0 = 1;
-    } else if (UNLIKELY(!proj && r == 0)) {
-      a1 = ((int32_t)1 << logI) + 1;
-      a0 = -p; /* Thus bound0 = p > I, inc_c is always added */
-      b1 = 1;
-      b0 = 0; /* Thus bound1 = I - b0 = I, inc_a is never added */
-    } else {
-      ASSERT_ALWAYS(!proj);
-      /* One essential condition of proposition 1 in FrKl05 is that p >= I */
-      ASSERT(p >> logI);
-      int rc = reduce_plattice (this, p, r, 1U << logI);
-      /* These are the constraints that reduce_plattice should meet */
-      ASSERT(-(INT32_C(1) << logI) < a0);
-      ASSERT(a0 <= 0);
-      ASSERT(b0 >= 0);
-      ASSERT(b0 < (INT32_C(1) << logI));
-      ASSERT((b0-a0) >= (INT32_C(1) << logI));
-      ASSERT(a1 > 0);
-      ASSERT(b1 > 0);
-      if (UNLIKELY(rc == 0)) {
-        /* gcd(r, p) > I. We currently can't handle this case. Set everything
-           to zero to signal to calling code that this is not a valid basis.
-           Is there a better way? Exception, maybe? */
-        a0 = a1 = b0 = b1 = 0;
-      }
-    }
-  }
+    public:
+        int32_t get_i0() const { return -(int32_t) mi0; }
+        int32_t get_i1() const { return i1; }
+        uint32_t get_j0() const { return j0; }
+        uint32_t get_j1() const { return j1; }
 
-  plattice_info_t(int32_t aa0, uint32_t aa1, int32_t bb0, uint32_t bb1) {
-      a0 = aa0;
-      a1 = aa1;
-      b0 = bb0;
-      b1 = bb1;
-  }
+        /* the rule for advancing from (i,j) to the next is
+         * (here imin = -I/2 )
+         *
+         * add the warp vector if (i - imin) >= mi0
+         * add the step vector if (i - imin) < I - i1
+         * add both in between.
+         *
+         * or, equivalenty:
+         * add the warp vector if (i - imin) >= I - i1
+         * add the step vector if (i - imin) < mi0
+         *
+         * Now in terms of x enconding:
+         *
+         * (i,j) is encoded as x = (i + I/2) + (j << logI)
+         *
+          if (i >= bound_warp)
+            x += inc_warp;
+          if (i < bound_step)
+            x += inc_step;
+         */
+    protected:
+        uint32_t get_bound_step(const int logI MAYBE_UNUSED) const {
+            /* Note that if we're a vertical line, we have mi0 = 0, and
+             * therefore we'll never have (i - imin) < mi0 and we'll
+             * never add the step vector */
+            return mi0;
+        }
 
-  /* Return the four coordinates, but multiplied by 2 if we use mod 2 classes */
-  int32_t get_a0() const {return a0 << shift;}
-  uint32_t get_a1() const {return a1 << shift;}
-  int32_t get_b0() const {return b0 << shift;}
-  uint32_t get_b1() const {return b1 << shift;}
+        uint32_t get_bound_warp(const int logI) const {
+            if (i1 >> logI)
+                return 0;
+            return (1U << logI) - get_i1();
+        }
 
-  uint32_t get_bound0(const int logI MAYBE_UNUSED) const {
-      return -get_a0();
-  }
+        plattice_x_t get_inc_warp(const int logI) const {
+            /* the warp step will add a negative integer to the i
+             * coordinate, but that will often compensate with what is
+             * present in x. At least, after adding warp or warp + step,
+             * we won't get a carry.
+             *
+             */
+            return ((uint64_t)get_j0() << logI) + (int64_t)get_i0();
+        }
 
-  uint32_t get_bound1(const int logI) const {
-      return (1U << logI) - get_b0();
-  }
+        plattice_x_t get_inc_step(const int logI) const {
+            /* The case when i1 >= I can happen for vertical lines. This
+             * implies mi0=0, and therefore we'll never ever trigger the
+             * addition of the step vector. Bottom line: it's fine if we
+             * put junk in here. We may even use that as a marker.
+             */
+            if (i1 >> logI) return UINT64_MAX;
+            return ((uint64_t)get_j1() << logI) + (int64_t)get_i1();
+        }
 
-  plattice_x_t get_inc_a(const int logI) const {
-      return ((uint64_t)get_a1() << logI) + (int64_t)get_a0();
-  }
+    public:
+        uint32_t determinant() const { return mi0*j1 + j0*i1; };
 
-  plattice_x_t get_inc_c(const int logI) const {
-    return ((uint64_t)get_b1() << logI) + (int64_t)get_b0();
-  }
+        /* it seems that we no longer discard any vector, in fact */
+        bool is_discarded() const { return mi0 == 0 && j0 == 0; }
 
-  uint32_t det() const {return (-a0)*b1 + a1*b0;};
+        bool is_vertical_line(const int logI) const {
+            // there are several possible shapes of vertical lines. the
+            // most classical is
+            // [ 0  1 ]
+            // [ p  0 ] with p >= I ; IOW, root=0
+            //
+            // but more generally, any lattice that comes out of
+            // reduce_plattice as:
+            //
+            // [ 0  p/g ]
+            // [ g  *   ] with g >= I
+            // 
+            // in this case, the "step" vector (g, *) will never be used,
+            // and we'll only use the "warp" vector (0, p/g) 
+            return i1 >> logI;  // the post-conditions imply mi0=0
+            // another way to write it:
+            // return get_inc_step() == UINT64_MAX;
+        }
+
+        bool is_projective_like(const int logI) const {
+            // a projective root has a step vector of the form (*, 0).
+            // here, we slightly extend this definition to also recognize
+            // as "projective-like" a lattice whose step vector is (<I, 0)
+            return j1 == 0 && ! (i1 >> logI);
+            // another way to write it:
+            // return !(get_inc_step() >> logI);
+        }
+
+    protected:
+        plattice_info() : mi0(0), j0(0), i1(0), j1(0) {}
+
+        void lattice_with_vertical_vector(uint32_t I) {
+            /* At this point, (mi0,j0) represents itself, i.e. a vector with
+             * two positive coordinates.
+             */
+            uint32_t a = (I-1) % mi0;
+            uint32_t mi2 = (I-1) - a - i1;
+            uint32_t j2 = j1;
+            if (mi0 + mi2 < I)
+                mi2 += mi0;
+            i1 = mi0;
+            j1 = j0;
+            mi0 = mi2;
+            j0 = j2;
+        }
+
+        void two_legs(uint32_t I) {
+            /* This is the main reduce_plattice loop */
+            for( ;; ) {
+                if (i1 < I) {
+                    /* an "UNLIKELY" macro here actually has an adverse
+                     * effect...  */
+                    if (i1 == 0) {
+                        // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
+                        j0 = j1 - j0;
+                        lattice_with_vertical_vector(I);
+                        return;
+                    }
+                    int a = (mi0 + i1 - I) / i1;
+                    mi0 -= a * i1;
+                    j0  += a * j1;
+                    return;
+                }
+                /* do partial unrolling for the frequent case where the
+                 * quotient is either 1 or 2 */
+#if 1
+                if (mi0 < i1 * 3) {
+                    { mi0 -= i1; j0 += j1; }
+                    if (mi0 >= i1) { mi0 -= i1; j0 += j1; }
+                } else
+#endif
+                {
+                    int k = mi0 / i1; mi0 -= k * i1; j0 += k * j1;
+                }
+                if (mi0 < I) {
+                    /* an "UNLIKELY" macro here actually has an adverse
+                     * effect...  */
+                    if (mi0 == 0) {
+                        mi0 = i1;
+                        i1 = j0 ; j0 = j1 ; j1 = i1;
+                        i1 = 0;
+                        lattice_with_vertical_vector(I);
+                        return;
+                    }
+                    int a = (mi0 + i1 - I) / mi0;
+                    i1 -= a * mi0;
+                    j1 += a * j0;
+                    return;
+                }
+                /* do partial unrolling for the frequent case where the
+                 * quotient is either 1 or 2 */
+#if 1
+                if (i1 < mi0 * 3) {
+                    { i1 -= mi0; j1 += j0; }
+                    if (i1 >= mi0) { i1 -= mi0; j1 += j0; }
+                } else
+#endif
+                {
+                    int k = i1 / mi0; i1 -= k * mi0; j1 += k * j0;
+                }
+            }
+        }
+
+        void initial_basis(const unsigned long q, const unsigned long r, bool proj) {
+            if (!proj) {
+                mi0 = q;
+                j0 = 0;
+                i1 = r;
+                j1 = 1;
+            } else {
+                unsigned long gs = r;
+                unsigned long t; // , h;
+                unsigned long g = xgcd_ul(&t, gs, q);
+                mi0 = q/g;
+                j0 = 0;
+                i1 = mi0 - t;
+                j1 = g;
+            }
+        }
+
+        bool check_pre_conditions(uint32_t I) const
+        {
+            if (!(j0 == 0)) return false;
+            if (!(mi0 > 0)) return false;
+            if (!(j1 > 0)) return false;
+            // if (!(i1 >= 0)) return false;
+            if (!(mi0 * j1 >= I)) return false;
+            return true;
+        }
+        bool check_post_conditions(uint32_t I) const
+        {
+            if (!(mi0 < I)) return false;
+            if (!(j0 > 0)) return false;
+            // since we want to handle the projective case, j1 may be zero
+            // if (!(j1 >= 0)) return false;
+            // this is an empty condition because of the type
+            // if (!(0 <= i1)) return false;
+            // This assertion is possibly violated for vertical lattices
+            // i1 < I
+            if (!(i1 < I || mi0 == 0)) return false;
+            if (!(i1 + mi0 >= I)) return false;
+            return true;
+        }
+    public:
+        plattice_info (const unsigned long q, const unsigned long r, bool proj, const int logI)
+        {
+            initial_basis(q, r, proj);
+            /* At this point, (mi0,j0) represents itself, i.e. a vector with
+             * two positive coordinates.
+             * Note that j0==0
+             */
+            uint32_t I = UINT32_C(1) << logI;
+            if (i1 == 0 || (j1 > 1 && mi0 < I)) {
+                lattice_with_vertical_vector(I);
+            } else {
+                two_legs(I);
+            }
+        }
 };
 
-// Original version of reduce_plattice, always with a division for each step.
-// This version is pretty fast on new powerful processors, but slow on others.
-// I keep it because in fews years, if the int32_t division is faster, it's
-// possible this code might be the fastest.
-NOPROFILE_INLINE int
-reduce_plattice (plattice_info_t *pli, const fbprime_t p, const fbroot_t r, uint32_t I)
-{
-  int32_t a0 = -((int32_t) p), b0 = (int32_t) r, a1 = 0, b1 = 1, k;
-  const int32_t hI = (int32_t) I;
-  const int32_t mhI = -hI;
-  while (LIKELY(b0 >= hI)) {
-    k = a0 / b0; a0 %= b0; a1 -= k * b1;
-    if (UNLIKELY(a0 > mhI)) break;
-    k = b0 / a0; b0 %= a0; b1 -= k * a1;
-    /* We may conceivably unroll a bit more, or a bit less, here. Just
-     * tuck in as many copies of the following block as you wish. */
-#if 1
-    if (UNLIKELY(b0 < hI )) break;
-    k = a0 / b0; a0 %= b0; a1 -= k * b1;
-    if (UNLIKELY(a0 > mhI)) break;
-    k = b0 / a0; b0 %= a0; b1 -= k * a1;
-#endif
-  }
-  k = b0 - hI - a0;
-  if (b0 > -a0) {
-    if (UNLIKELY(!a0)) return 0;
-    k /= a0; b0 -= k * a0; b1 -= k * a1;
-  } else {
-    if (UNLIKELY(!b0)) return 0;
-    k /= b0; a0 += k * b0; a1 += k * b1;
-  }
-  pli->a0 = (int32_t) a0; pli->a1 = (uint32_t) a1; pli->b0 = (int32_t) b0; pli->b1 = (uint32_t) b1;
-  return 1;
-}
-
-
-/* Like plattice_info_t, but remembers the offset of the factor base entry
+/* Like plattice_info, but remembers the offset of the factor base entry
    that generated each lattice basis. This offset becomes the "prime hint"
    in the bucket updates. */
-struct plattice_sieve_entry : public plattice_info_t {
+struct plattice_sieve_entry : public plattice_info {
   slice_offset_t hint;
-  plattice_sieve_entry(const fbprime_t p, const fbroot_t r, const bool proj, const int logI, const slice_offset_t hint)
-     : plattice_info_t(p, r, proj, logI), hint(hint) {};
+  plattice_sieve_entry(const fbprime_t p, const fbroot_t r, bool proj, const int logI, const slice_offset_t hint)
+     : plattice_info(p, r, proj, logI), hint(hint) {};
 };
 
 // Compute 1/x mod m
@@ -245,89 +357,87 @@ static inline uint32_t invmod(uint32_t x, uint32_t m) {
  * based on plattice_x_t).
  */
 struct plattice_enumerator_base {
-static plattice_x_t starting_point(const plattice_info_t &pli,
-        const int logI, const sublat_t &sublat) {
-    int64_t I = int64_t(1)<<logI;
-    uint32_t m  = sublat.m;
-    uint32_t i0 = sublat.i0;
-    uint32_t j0 = sublat.j0;
+    static plattice_x_t starting_point(const plattice_info &pli,
+            const int logI, const sublat_t &sublat) {
+        int64_t I = int64_t(1)<<logI;
+        uint32_t m  = sublat.m;
 
-    // first FK vector a
-    int64_t a0 = pli.get_a0();
-    int64_t a1 = pli.get_a1();
-    // second FK vector b
-    int64_t b0 = pli.get_b0();
-    int64_t b1 = pli.get_b1();
+        // first FK vector a
+        int64_t i0 = pli.get_i0();
+        int64_t j0 = pli.get_j0();
+        // second FK vector b
+        int64_t i1 = pli.get_i1();
+        int64_t j1 = pli.get_j1();
 
-    // FIXME: should have a better understanding of those cases
-    // (and not only in the sublat case, to be honest)
-    // Right now, we desactivate them, but putting a starting point
-    // higher than the limit.
-    if ((b0 == 0) || (b1 == 0)) {
-        return plattice_x_t(UMAX(plattice_x_t));
-    }
-
-    // If a1 or b1 reaches 20 bits, then it was saturated during the
-    // dense storage. Let's skip this prime for which the FK basis is
-    // very skewed. (only a few hits are missed)
-    if ((a1 == ((1<<20)-1)) || (b1 == ((1<<20)-1))) {
-        return plattice_x_t(UMAX(plattice_x_t));
-    }
-
-    // Look for alpha and beta such that
-    //   alpha*a + beta*b == (i0,j0) mod m
-    // This is a 2x2 system of determinant p, coprime to m.
-    int64_t det = pli.det(); // det() returns the opposite of what we want
-    det = (-det) % m;
-    if (det < 0)
-        det += m;
-    det = invmod(det, m);
-    int64_t al = ( b1*i0 - b0*j0) % m;
-    int64_t be = (-a1*i0 + a0*j0) % m;
-    al = (al*det) % m;
-    be = (be*det) % m;
-    if (al < 0)
-        al += m;
-    if (be < 0)
-        be += m;
-
-    // Now, compute this potential starting point:
-    int64_t ii = (al*a0 + be*b0 - i0) / m; // exact divisions
-    int64_t jj = (al*a1 + be*b1 - j0) / m;
-
-    // But here, ii might be beyond the bounds. So, let's fix.
-    // It should be enough to subtract one of the FK vectors.
-    // Note that a is the vector with negative abscissa.
-    if (ii < -I/2) {
-        ASSERT(ii - a0 >= 0);
-        ii -= a0;
-        jj -= a1;
-    } else if (ii > I/2-1) {
-        ASSERT(ii - b0 <= 0);
-        ii -= b0;
-        jj -= b1;
-    }
-    ASSERT ((ii >= -I/2) && (ii < I/2));
-
-    // But now, jj might be negative! So let's start the FK walk until we
-    // go positive.
-    while (jj < 0) {
-        int64_t aux = ii;
-        if (aux >= I/2 - b0) {
-            ii += a0;
-            jj += a1;
+        // FIXME: should have a better understanding of those cases
+        // (and not only in the sublat case, to be honest)
+        // Right now, we desactivate them, by putting a starting point
+        // above the limit.
+        if ((i1 == 0) || (j1 == 0)) {
+            return plattice_x_t(UMAX(plattice_x_t));
         }
-        if (aux < -I/2 - a0) {
-            ii += b0;
-            jj += b1;
-        }
-    }
 
-    // Now, (ii,jj) is the starting point we are looking for. Let's
-    // convert it to the plattice_x_t type.
-    plattice_x_t res = (ii+I/2) + (jj<<logI);
-    return res;
-}
+        // If j0 or j1 reaches 20 bits, then it was saturated during the
+        // dense storage. Let's skip this prime for which the FK basis is
+        // very skewed. (only a few hits are missed)
+        if ((j0 == ((1<<20)-1)) || (j1 == ((1<<20)-1))) {
+            return plattice_x_t(UMAX(plattice_x_t));
+        }
+
+        // Look for alpha and beta such that
+        //   alpha*a + beta*b == (sublat.i0,sublat.j0) mod m
+        // This is a 2x2 system of determinant p, coprime to m.
+        int64_t det = pli.determinant(); // det() returns the opposite of what we want
+        det = (-det) % m;
+        if (det < 0)
+            det += m;
+        det = invmod(det, m);
+        int64_t al = ( j1*sublat.i0 - i1*sublat.j0) % m;
+        int64_t be = (-j0*sublat.i0 + i0*sublat.j0) % m;
+        al = (al*det) % m;
+        be = (be*det) % m;
+        if (al < 0)
+            al += m;
+        if (be < 0)
+            be += m;
+
+        // Now, compute this potential starting point:
+        int64_t ii = (al*i0 + be*i1 - sublat.i0) / m; // exact divisions
+        int64_t jj = (al*j0 + be*j1 - sublat.j0) / m;
+
+        // But here, ii might be beyond the bounds. So, let's fix.
+        // It should be enough to subtract one of the FK vectors.
+        // Note that a is the vector with negative abscissa.
+        if (ii < -I/2) {
+            ASSERT(ii - i0 >= 0);
+            ii -= i0;
+            jj -= j0;
+        } else if (ii > I/2-1) {
+            ASSERT(ii - i1 <= 0);
+            ii -= i1;
+            jj -= j1;
+        }
+        ASSERT ((ii >= -I/2) && (ii < I/2));
+
+        // But now, jj might be negative! So let's start the FK walk until we
+        // go positive.
+        while (jj < 0) {
+            int64_t aux = ii;
+            if (aux >= I/2 - i1) {
+                ii += i0;
+                jj += j0;
+            }
+            if (aux < -I/2 - i0) {
+                ii += i1;
+                jj += j1;
+            }
+        }
+
+        // Now, (ii,jj) is the starting point we are looking for. Let's
+        // convert it to the plattice_x_t type.
+        plattice_x_t res = (ii+I/2) + (jj<<logI);
+        return res;
+    }
 };
 
 /* Class for enumerating lattice points with the Franke-Kleinjung algorithm */
@@ -336,8 +446,8 @@ class plattice_enumerator : public plattice_enumerator_base {
 protected:
     // Maybe at some point, the plattice_x_t type could be templated in
     // order to have it 32 bits for non-top levels.
-    plattice_x_t inc_a, inc_c;
-    uint32_t bound0, bound1;
+    plattice_x_t inc_warp, inc_step;
+    uint32_t bound_step, bound_warp;
     slice_offset_t hint;
     plattice_x_t x;
 
@@ -357,14 +467,14 @@ public:
         }
     };
 
-    plattice_enumerator(const plattice_info_t &basis,
+    plattice_enumerator(const plattice_info &basis,
             const slice_offset_t hint, const int logI, const sublat_t &sublat)
         : hint(hint)
     {
-        inc_a = basis.get_inc_a(logI);
-        inc_c = basis.get_inc_c(logI);
-        bound0 = basis.get_bound0(logI);
-        bound1 = basis.get_bound1(logI);
+        inc_warp = basis.get_inc_warp(logI);
+        inc_step = basis.get_inc_step(logI);
+        bound_step = basis.get_bound_step(logI);
+        bound_warp = basis.get_bound_warp(logI);
         if (!sublat.m) 
             x = plattice_x_t(1) << (logI-1);
         else {
@@ -372,14 +482,14 @@ public:
         }
     }
 
-    plattice_enumerator(const plattice_info_t &basis,
+    plattice_enumerator(const plattice_info &basis,
             const slice_offset_t hint, const int logI)
         : hint(hint)
     {
-        inc_a = basis.get_inc_a(logI);
-        inc_c = basis.get_inc_c(logI);
-        bound0 = basis.get_bound0(logI);
-        bound1 = basis.get_bound1(logI);
+        inc_warp = basis.get_inc_warp(logI);
+        inc_step = basis.get_inc_step(logI);
+        bound_step = basis.get_bound_step(logI);
+        bound_warp = basis.get_bound_warp(logI);
         x = plattice_x_t(1) << (logI-1);
     }
 
@@ -389,41 +499,59 @@ public:
     /* This function is quite critical */
     void next(fence const & F) {
       uint32_t i = x & F.maskI;
-      if (i >= bound1)
-        x += inc_a;
-      if (i < bound0)
-        x += inc_c;
+      if (i >= bound_warp)
+        x += inc_warp;
+      if (i < bound_step)
+        x += inc_step;
     }
 
     /* Currently merely checks that not both are even */
     bool probably_coprime(fence const & F) const {return (x & F.even_mask) != 0;}
 
     inline bool done(fence const & F) { return x >= F.end; }
-    void advance_to_next_area(fence const & F) { x -= F.end; }
+
+    void advance_to_next_area(fence const & F) {
+        if (x != std::numeric_limits<plattice_x_t>::max())
+            x -= F.end;
+    }
 
     inline void advance_to_end_of_projective_first_line(fence const & F)
     {
-        /* This function is not critical at all. We want the last
+        /* This function shouldn't be critical. We want the last
          * matching position on the line (i,0). This depends on the
-         * (b0,b1) vector, and works **ONLY** in the projective case, and
-         * **ONLY** while we're on the first line !
+         * "step" vector (i1,j1), and works **ONLY** in the projective
+         * case, and **ONLY** while we're on the first line !
          *
-         * for projective non-powers, we should have (b0,b1)=(1,0),
-         * inc_c=1, and bound1=I-1. However we might have something
-         * different for projective powers. Presently, powers are not
-         * bucket-sieved anyway, so there's little point in bothering.
-         * (see "Shall we enable bucket-sieving for powers" in
-         * las-fill-in-buckets.cpp)
+         * for projective non-powers, we should have (i1,j1)=(1,0),
+         * inc_step=1, and bound_warp=I-1. However we might have something
+         * different for projective powers.
          */
-        x = F.maskI;
-        ASSERT(inc_c == 1);
-        ASSERT(bound1 == F.maskI);
+        /* the corresponding plattice has i1>0 and j1==0 */
+        ASSERT(inc_step < F.maskI);
+        if (x <= F.maskI) {
+            /* do nothing if we're not on the first line. After all it
+             * can happen, if inc_step is (I/2,0) : there's no hit point
+             * on the first line in this case. Too bad, but that's life.
+             */
+            x = F.maskI - F.maskI % inc_step;
+        }
     }
     plattice_x_t get_x() const {return x;}
     void set_x(plattice_x_t xx) {x = xx;}
-    plattice_x_t get_bound1() const {return bound1;}
-    plattice_x_t get_inc_c() const {return inc_c;}
     slice_offset_t get_hint() const {return hint;}
+
+    void finish() {
+        x = std::numeric_limits<plattice_x_t>::max();
+    }
+    bool is_projective_like(const int logI) const {
+        // see plattice_info::is_projective_like : step vector (<I, 0)
+        return !(inc_step >> logI);
+    }
+
+    bool is_vertical_line(const int logI MAYBE_UNUSED) const {
+        return inc_step == UINT64_MAX;
+    }
+
 };
 
 /* Also enumerates lattice points, but probably_coprime() does a full gcd()
@@ -435,13 +563,13 @@ class plattice_enumerator_coprime : public plattice_enumerator<LEVEL> {
   typedef plattice_enumerator<LEVEL> super;
   typedef typename super::fence fence;
 public:
-  plattice_enumerator_coprime(const plattice_info_t &basis,
+  plattice_enumerator_coprime(const plattice_info &basis,
           const slice_offset_t hint, const int logI, const sublat_t &sublat)
     : plattice_enumerator<LEVEL>(basis, hint, logI, sublat), u(0), v(0) {}
   void next(fence const & F) {
     uint32_t i = super::x & F.maskI;
-    if (i >= super::bound1) { super::x += super::inc_a; u++; }
-    if (i < super::bound0) { super::x += super::inc_c; v++; }
+    if (i >= super::bound_warp) { super::x += super::inc_warp; u++; }
+    if (i < super::bound_step) { super::x += super::inc_step; v++; }
   }
   bool probably_coprime(typename plattice_enumerator<LEVEL>::fence const & F) const {
     return (super::x & F.even_mask) != 0 && gcd_ul(u, v) == 1;
@@ -462,7 +590,7 @@ public:
     slice_index_t get_weight() const {return weight;};
 };
 
-/* Dense version of plattice_info_t and friends for long-term storage in
+/* Dense version of plattice_info and friends for long-term storage in
  * sublat mode. */
 
 /* This can now be a template. We don't use it, so far.
@@ -471,81 +599,73 @@ template<int /* LEVEL */>
 struct plattice_info_dense_t {
     uint32_t pack[3];
     // This pack of 96 bits is enough to contain
-    //   minus_a0, b0, a1, b1
+    //   mi0, i1, j0, j1
     // as 20-bit unsigned integers and
     //   hint
     // as a 16-bit integer.
     //
-    // Note that minus_a0 and b0 are less than I, so this is ok, but
-    // a1 and b1 could be larger. However, this is for very skewed
+    // Note that mi0 and i1 are less than I, so this is ok, but
+    // j0 and j1 could be larger. However, this is for very skewed
     // plattices, and we lose only a few hits by skipping those primes.
     // So we saturate them at 2^20-1 for later detection.
     //
     // uint16_t hint; // FIXME: this could be recovered for free...
 
-    plattice_info_dense_t(const plattice_info_t & pli, uint16_t _hint) {
-        uint32_t minus_a0;
-        uint32_t b0; 
-        uint32_t a1;
-        uint32_t b1;
+    plattice_info_dense_t(const plattice_info & pli, uint16_t _hint) {
+        uint32_t mi0;
+        uint32_t i1; 
+        uint32_t j0;
+        uint32_t j1;
         uint16_t hint;
         hint = _hint;
         // Handle orthogonal lattices (proj and r=0 cases)
-        if (pli.b0 == 1 && pli.b1 == 0) {
-            b0 = 1;
-            b1 = 0;
-            minus_a0 = UMAX(uint32_t);
-            a1 = pli.a1;
-        } else if (pli.b0 == 0 && pli.b1 == 1) {
-            b0 = 0;
-            b1 = 1;
-            minus_a0 = UMAX(uint32_t);
-            a1 = pli.a1;
+        if (pli.i1 == 1 && pli.j1 == 0) {
+            i1 = 1;
+            j1 = 0;
+            mi0 = UMAX(uint32_t);
+            j0 = pli.j0;
+        } else if (pli.i1 == 0 && pli.j1 == 1) {
+            i1 = 0;
+            j1 = 1;
+            mi0 = UMAX(uint32_t);
+            j0 = pli.j0;
         } else {
             // generic case: true FK-basis
-            ASSERT(pli.b0 >= 0);
-            ASSERT(pli.a0 <= 0);
-            minus_a0 = -pli.a0;
-            a1 = pli.a1;
-            b0 = pli.b0;
-            b1 = pli.b1;
+            mi0 = pli.mi0;
+            j0 = pli.j0;
+            i1 = pli.i1;
+            j1 = pli.j1;
         }
         uint32_t mask8  = (1<<8)-1;
         uint32_t mask16 = (1<<16)-1;
         uint32_t mask20 = (1<<20)-1;
 
         // Saturate skewed lattices, for later detection and skipping.
-        if (a1 > mask20)
-            a1 = mask20;
-        if (b1 > mask20)
-            b1 = mask20;
+        if (j0 > mask20)
+            j0 = mask20;
+        if (j1 > mask20)
+            j1 = mask20;
 
-        pack[0] = (minus_a0 & mask20) | (b0 << 20);
-        pack[1] = ((b0 >> 12) & mask8 ) | ((a1 & mask20) << 8) | (b1 << 28);
-        pack[2] = ((b1 >> 4) & mask16) | (hint << 16);
+        pack[0] = (mi0 & mask20) | (i1 << 20);
+        pack[1] = ((i1 >> 12) & mask8 ) | ((j0 & mask20) << 8) | (j1 << 28);
+        pack[2] = ((j1 >> 4) & mask16) | (hint << 16);
     }
 
-    plattice_info_t unpack(const int logI) const {
-        uint32_t minus_a0;
-        uint32_t b0; 
-        uint32_t a1;
-        uint32_t b1;
-        
+    plattice_info unpack(const int logI) const {
+        plattice_info pli;
         uint32_t mask8 = (1<<8)-1;
         uint32_t mask16 = (1<<16)-1;
         uint32_t mask20 = (1<<20)-1;
-        minus_a0 = pack[0] & mask20;
-        b0 = (pack[0] >> 20) | ((pack[1] & mask8) << 12);
-        a1 = (pack[1] >> 8) & mask20;
-        b1 = (pack[1] >> 28) | ((pack[2] & mask16) << 4);
+        pli.mi0 = pack[0] & mask20;
+        pli.i1 = (pack[0] >> 20) | ((pack[1] & mask8) << 12);
+        pli.j0 = (pack[1] >> 8) & mask20;
+        pli.j1 = (pack[1] >> 28) | ((pack[2] & mask16) << 4);
 
-        plattice_info_t pli(-int32_t(minus_a0), uint32_t(a1),
-        int32_t(b0), uint32_t(b1));
         // Orthogonal bases
-        if (pli.b0 == 1 && pli.b1 == 0) {
-            pli.a0 = -((int32_t)1 << logI) + 1;
-        } else if (pli.b0 == 0 && pli.b1 == 1) {
-            pli.a1 = ((int32_t)1 << logI) + 1;
+        if (pli.i1 == 1 && pli.j1 == 0) {
+            pli.mi0 = ((int32_t)1 << logI) - 1;
+        } else if (pli.i1 == 0 && pli.j1 == 1) {
+            pli.j0 = ((int32_t)1 << logI) + 1;
         }
         return pli;
     }
@@ -587,17 +707,17 @@ struct precomp_plattice_dense_t {
 extern template class plattice_enumerator<1>;
 extern template class plattice_enumerator_coprime<1>;
 extern template class plattices_vector_t<1>;
-extern template struct plattice_info_dense_t<1>;
 extern template class plattices_dense_vector_t<1>;
 extern template struct precomp_plattice_dense_t<1>;
 extern template class plattice_enumerator<2>;
 extern template class plattice_enumerator_coprime<2>;
 extern template class plattices_vector_t<2>;
-extern template struct plattice_info_dense_t<2>;
 extern template class plattices_dense_vector_t<2>;
 extern template struct precomp_plattice_dense_t<2>;
 extern template class plattice_enumerator<3>;
 extern template class plattice_enumerator_coprime<3>;
+extern template struct plattice_info_dense_t<1>;
+extern template struct plattice_info_dense_t<2>;
 extern template class plattices_vector_t<3>;
 extern template struct plattice_info_dense_t<3>;
 extern template class plattices_dense_vector_t<3>;
