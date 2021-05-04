@@ -7,7 +7,7 @@
  * through an LFSR over GF(2^32) with a suitable defining polynomial.
  */
 
-uint32_t cado_crc_lfsr_turn1(cado_crc_lfsr l, uint32_t c)
+uint32_t cado_crc_lfsr_turn1(cado_crc_lfsr_ptr l, uint32_t c)
 {
     static uint32_t const twist = 3486328325;
 
@@ -35,7 +35,7 @@ uint32_t cado_crc_lfsr_turn1(cado_crc_lfsr l, uint32_t c)
     return w;
 }
 
-void cado_crc_lfsr_init(cado_crc_lfsr l)
+void cado_crc_lfsr_init(cado_crc_lfsr_ptr l)
 {
     l->i = 0;
     l->r = 0;
@@ -45,9 +45,9 @@ void cado_crc_lfsr_init(cado_crc_lfsr l)
     }
 }
 
-void cado_crc_lfsr_clear(cado_crc_lfsr l MAYBE_UNUSED) { }
+void cado_crc_lfsr_clear(cado_crc_lfsr_ptr l MAYBE_UNUSED) { }
 
-uint32_t cado_crc_lfsr_turn(cado_crc_lfsr l, const void * data, size_t count)
+uint32_t cado_crc_lfsr_turn(cado_crc_lfsr_ptr l, const void * data, size_t count)
 {
     const uint8_t * ptr = (const uint8_t *) data;
     uint32_t w = 0;
@@ -59,7 +59,7 @@ uint32_t cado_crc_lfsr_turn(cado_crc_lfsr l, const void * data, size_t count)
 }
 
 /* This version yields the same checksum regardless of the endianness */
-uint32_t cado_crc_lfsr_turn32_little(cado_crc_lfsr l, const uint32_t * data, size_t count)
+uint32_t cado_crc_lfsr_turn32_little(cado_crc_lfsr_ptr l, const uint32_t * data, size_t count)
 {
     ASSERT_ALWAYS(sizeof(uint32_t) == 4);
     ASSERT_ALWAYS(count % 4 == 0);
