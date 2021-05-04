@@ -1412,15 +1412,23 @@ if __name__ == '__main__':
         has_hwloc = True
 
     general = GeneralClass(args)
-    init = DescentUpperClass(general, args)
-    middle = DescentMiddleClass(general, args)
-    lower = DescentLowerClass(general, args)
 
-    todofile, initial_split, firstrelsfile = init.do_descent(general.target())
-    relsfile = middle.do_descent(todofile)
-    if firstrelsfile:
-        lower.do_descent([firstrelsfile, relsfile], initial_split)
+    if general.target() == 1:
+        # the re-randomization does not work for target=1
+        print("# p=%d" % general.p())
+        print("# ell=%d" % general.ell())
+        print("# target=%s" % args.target)
+        print("log(target)=0")
     else:
-        lower.do_descent([relsfile], initial_split)
+        init = DescentUpperClass(general, args)
+        middle = DescentMiddleClass(general, args)
+        lower = DescentLowerClass(general, args)
+
+        todofile, initial_split, firstrelsfile = init.do_descent(general.target())
+        relsfile = middle.do_descent(todofile)
+        if firstrelsfile:
+            lower.do_descent([firstrelsfile, relsfile], initial_split)
+        else:
+            lower.do_descent([relsfile], initial_split)
 
     general.cleanup()
