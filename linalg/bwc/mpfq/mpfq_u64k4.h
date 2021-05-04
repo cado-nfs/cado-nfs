@@ -803,7 +803,7 @@ int mpfq_u64k4_simd_hamming_weight(mpfq_u64k4_dst_field K MAYBE_UNUSED, mpfq_u64
 static inline
 int mpfq_u64k4_simd_find_first_set(mpfq_u64k4_dst_field K MAYBE_UNUSED, mpfq_u64k4_src_elt p)
 {
-        size_t bmax = mpfq_u64k4_elt_stride(K) / sizeof(mpfq_u64k4_elt);
+        size_t bmax = mpfq_u64k4_elt_stride(K) / (sizeof(mpfq_u64k4_elt));
         assert(mpfq_u64k4_simd_groupsize(K) % bmax == 0);
         int g = mpfq_u64k4_simd_groupsize(K) / bmax;
         int f = 0;

@@ -1099,6 +1099,7 @@ int mpfq_pz_poly_divmod(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_poly q, mp
     mpfq_pz_init(K, &ilb);
     mpfq_pz_elt temp;
     mpfq_pz_init(K, &temp);
+    mpfq_pz_set_zero(K, temp);
     mpfq_pz_poly_getcoeff(K, temp, b, degb);
     if (mpfq_pz_cmp_ui(K, temp, 1) == 0) {
         mpfq_pz_set_ui(K, ilb, 1);
