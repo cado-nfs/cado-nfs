@@ -196,7 +196,7 @@ extern int param_list_all_consumed(param_list_ptr, char ** extraneous);
 // warns against unused command-line parameters. This normally indicates
 // a user error. parameters ignored from config files are considered
 // normal (although note that in some cases, it could be bad as well).
-extern int param_list_warn_unused(param_list pl);
+extern int param_list_warn_unused(param_list_ptr pl);
 
 // this one is the ``joker'' call. Return type is for internal use.
 extern int param_list_add_key(param_list_ptr,
