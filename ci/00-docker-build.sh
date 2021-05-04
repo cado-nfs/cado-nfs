@@ -35,4 +35,4 @@ EOF
 
 ci/00-dockerfile.sh > "$tmp/context/Dockerfile"
 
-docker build -t $IMAGE --cache-from $IMAGE:latest $tmp/context
+docker build --pull -t $IMAGE --cache-from $IMAGE:latest $tmp/context
