@@ -212,6 +212,9 @@ test_modredcul_batch_Q_to_Fp(const unsigned long num, const unsigned long den,
 {
   unsigned long r[n], p[n];
   
+  /* gcc-11 likes to emit spurious warnings here... */
+  memset(p, 0, n * sizeof(unsigned long));
+  memset(r, 0, n * sizeof(unsigned long));
 
   /* Try small p values */
   unsigned long m = 1;
