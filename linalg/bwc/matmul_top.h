@@ -134,7 +134,7 @@ extern "C" {
 extern void matmul_top_init(matmul_top_data_ptr mmt,
         mpfq_vbase_ptr abase,
         parallelizing_info_ptr pi,
-        param_list pl,
+        param_list_ptr pl,
         int optimized_direction);
 
 
