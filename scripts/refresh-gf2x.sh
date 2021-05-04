@@ -36,4 +36,5 @@ sed -e "/^AM_MAINTAINER_MODE/ s/enable/disable/" -i gf2x/configure.ac
 (cd gf2x/ ; xargs -r rm -f < no-distribute.txt)
 # find gf2x/ -type f | xargs -r git add
 rm -rf gf2x/jenkins
+rm -f gf2x/.mailmap || :
 git add gf2x/

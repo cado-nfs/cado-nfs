@@ -498,7 +498,7 @@ extern "C" {
 #endif
 
 static inline int gf2x_ternary_fft_info_order(gf2x_ternary_fft_info_srcptr o) { return ((o)->K * ((o)->split ? -1 : 1)); }
-static inline void gf2x_ternary_fft_info_init_empty(gf2x_ternary_fft_info_t t)
+static inline void gf2x_ternary_fft_info_init_empty(gf2x_ternary_fft_info_ptr t)
 { 
     t->bits_a = 0;
     t->bits_b = 0;

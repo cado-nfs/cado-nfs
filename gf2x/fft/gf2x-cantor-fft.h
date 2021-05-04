@@ -540,8 +540,8 @@ static inline int gf2x_cantor_fft_info_adjust(
         long val GF2X_MAYBE_UNUSED)
 { return 0; }
 
-static inline void gf2x_cantor_fft_info_clear(gf2x_cantor_fft_info_t t GF2X_MAYBE_UNUSED) { }
-static inline void gf2x_cantor_fft_info_init_empty(gf2x_cantor_fft_info_t t) { 
+static inline void gf2x_cantor_fft_info_clear(gf2x_cantor_fft_info_ptr t GF2X_MAYBE_UNUSED) { }
+static inline void gf2x_cantor_fft_info_init_empty(gf2x_cantor_fft_info_ptr t) { 
     t->k = t->n = t->mp_shift = 0;
 }
 
