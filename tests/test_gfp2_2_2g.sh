@@ -96,4 +96,4 @@ cleanup() {
     fi
 }
 
-${CADO_NFS_SOURCE_DIR}/cado-nfs.py $PARAMFILE && cleanup
+${CADO_NFS_BINARY_DIR}/cado-nfs.py $PARAMFILE && cleanup
