@@ -1648,3 +1648,4 @@ tests/sieve/c30_30012.roots1.gz
 utils/mpi_proxies.hpp
 tests/utils/buggy.poly
 misc/indexed_relations_to_density.cpp
+scripts/check_python_pathdetection_stub.sh

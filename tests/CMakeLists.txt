@@ -564,7 +564,7 @@ if(NOT MINGW AND NOT HAVE_MPI)
 
 cado_define_test(full_c30
     SCRIPT
-        ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 999073468111577057576445816581
+    ${CADO_NFS_BINARY_DIR}/cado-nfs.py 999073468111577057576445816581
         --server-threads 2
     TARGET_DEPENDENCIES
         full_dependencies_base
@@ -583,7 +583,7 @@ cado_define_test(full_c30
             cado_define_test(full_p30
                 SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
-                ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
+                ${CADO_NFS_BINARY_DIR}/cado-nfs.py
                 -dlp -ell 445257213376519703258944813
                 -t 2 -dlp-no-keep
                 target=92800609832959449330691138186
@@ -599,7 +599,7 @@ cado_define_test(full_c30
         cado_define_test(full_p30_JL
             SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
-            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
+            ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             -dlp -ell 350586976534485556208993720963
             -t 2 -dlp-no-keep
             701173953068971112417987441927
@@ -635,7 +635,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
     cado_define_test(full_c59
         SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
-            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
+            ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             90377629292003121684002147101760858109247336549001090677693
             --server-threads 2
         TARGET_DEPENDENCIES
@@ -645,7 +645,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
     cado_define_test(full_c65_128
         SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
-            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
+            ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             22381151342911794563007770625342242843893411711318155026160427871
             tasks.linalg.m=128 tasks.linalg.n=128 --server-threads 2
         TARGET_DEPENDENCIES
@@ -655,7 +655,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
     cado_define_test(full_c59_nonlinear
         SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
-            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
+            ${CADO_NFS_BINARY_DIR}/cado-nfs.py
             --server-threads 2
             71641520761751435455133616475667090434063332228247871795429
             tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/c59_nonlinear.poly
@@ -668,7 +668,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
 #        (quicker) tests cover everything covered by this test.
 #        cado_define_test(full_p59
 #            SCRIPT
-#               ${CADO_NFS_SOURCE_DIR}/cado-nfs.py
+#               ${CADO_NFS_BINARY_DIR}/cado-nfs.py
 #               43341748620473677010074177283795146221310971425909898235183
 #               -dlp -t 2 -s auto -dlpnokeep
 #                ${CADO_NFS_SOURCE_DIR}
@@ -686,7 +686,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         cado_define_test(full_gfp2
             SCRIPT
             ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg --workdir
-            ${CADO_NFS_SOURCE_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
+            ${CADO_NFS_BINARY_DIR}/cado-nfs.py 100000000000000000039 -dlp -gfpext 2 -t 2 -ell 164354743277891 -dlp-no-keep
             TARGET_DEPENDENCIES full_p30_dependencies
             filter_galois polyselect_gfpn
         AVOID_CONCURRENT
