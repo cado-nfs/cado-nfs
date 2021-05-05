@@ -6,7 +6,10 @@
 NCPUS=`"$(dirname $0)/utilities/ncpus.sh"`
 export NCPUS
 export OMP_DYNAMIC=true STATS_PARSING_ERRORS_ARE_FATAL=1
-eval $("${MAKE}" show)
+
+if ! [ "$using_cmake_directly" ] ; then
+    eval $("${MAKE}" show)
+fi
 
 if [ "$coverage" ] ; then
     # The "base" coverage file has zero coverage for every instrumented
@@ -31,7 +34,20 @@ fi
 set +e
 # --no-compress-output is perhaps better for test uploading, as ctest
 # likes to store as zlib but headerless, which is a bit of a pain
-"${MAKE}" check ARGS="-j$NCPUS -T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144"
+
+ctest_args=(
+    -T Test
+    --no-compress-output
+    --test-output-size-passed 4096
+    --test-output-size-failed 262144
+)
+
+if [ "$using_cmake_directly" ] ; then
+    set -o pipefail
+    (cd "$build_tree" ; ctest -j$NCPUS "${ctest_args[@]}") | "$source_tree"/scripts/filter-ctest.pl
+else
+    "${MAKE}" check ARGS="-j$NCPUS ${ctest_args[*]}"
+fi
 rc=$?
 set -e
 leave_section # test (or xtest)

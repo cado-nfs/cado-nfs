@@ -111,6 +111,32 @@ case "$CI_BUILD_NAME" in
     ;;
 esac
 case "$CI_BUILD_NAME" in
+    *"using cmake directly"*)
+        using_cmake_directly=1
+        # use build_tree in this case, which matches the variable that
+        # call_cmake.sh uses, by the way.
+        source_tree="$PWD"
+        export source_tree
+        if [ "$BASH_VERSION" ] ; then
+            if ! [ "$build_tree" ] ; then
+                build_tree="/tmp/$CI_BUILD_NAME"
+                # spaces in dir names don't work, mostly because of libtool
+                # (look at gf2x/fft/libgf2x-fft.la)
+                # This substitution is bash-only, but this should be fine to 
+                # have in a conditional that non-bash skips over
+                build_tree="${build_tree// /_}"
+                export build_tree
+            fi
+            if ! [ -d "$build_tree" ] ; then
+                mkdir "$build_tree"
+            fi
+        else
+            # just a safeguard
+            build_tree=/no/build_tree/set/because/we/require/bash/for/that
+        fi
+    ;;
+esac
+case "$CI_BUILD_NAME" in
     *"expensive checks"*)
         export CHECKS_EXPENSIVE=1
     ;;
