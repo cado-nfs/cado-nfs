@@ -71,4 +71,4 @@ tasks.reconstructlog.partial = true
 checkdlp = false
 EOF
 
-${CADO_NFS_BINARY_DIR}/cado-nfs.py $PARAMFILE
+${CADO_NFS_SOURCE_DIR}/cado-nfs.py $PARAMFILE
