@@ -67,6 +67,7 @@ EOF
 if [ "$CI_BUILD_NAME" ] ; then
 cat >> ~hostuser/.bash_profile <<EOF
 CI_BUILD_NAME="$CI_BUILD_NAME"
+export CI_BUILD_NAME
 . ci/000-functions.sh
 . ci/001-environment.sh
 set +e
