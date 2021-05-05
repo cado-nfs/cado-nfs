@@ -473,7 +473,11 @@ add_custom_target(dist
 install(DIRECTORY parameters/ DESTINATION ${DATASUFFIX})
 
 configure_file(cado-nfs.py cado-nfs.py ESCAPE_QUOTES @ONLY)
-file(CONFIGURE OUTPUT source-location.txt CONTENT "@CADO_NFS_SOURCE_DIR@" @ONLY)
+
+# file(CONFIGURE  is only for cmake 3.18 or later :-( ; this should work
+# just the same
+configure_file(config/source-location.txt.in source-location.txt ESCAPE_QUOTES @ONLY)
+# file(CONFIGURE OUTPUT source-location.txt CONTENT "@CADO_NFS_SOURCE_DIR@" @ONLY)
 configure_file(cado-nfs-client.py cado-nfs-client.py ESCAPE_QUOTES @ONLY)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs.py DESTINATION ${BINSUFFIX})
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs-client.py DESTINATION ${BINSUFFIX})
