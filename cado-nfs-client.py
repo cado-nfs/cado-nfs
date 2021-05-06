@@ -60,6 +60,9 @@ elif sys.version_info[0] == 2:
 # The source tree. We call the ./scripts/build_environment.sh script to
 # determine where the binaries are being put.
 
+import subprocess
+import locale
+
 pathdict=dict()
 
 one_pyfile_example_subpath = "scripts/cadofactor/workunit.py"
