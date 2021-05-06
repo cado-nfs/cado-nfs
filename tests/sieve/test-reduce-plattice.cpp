@@ -447,6 +447,10 @@ int main(int argc, char * argv[])
         int k;
     };
     std::vector<a_test> tests;
+
+    /* interesting with I=0x20000 */
+    tests.emplace_back(a_test { 5, 390625, 771795, 8 });
+
     for(int i = 0 ; i < ntests ; i++) {
         unsigned long j = gmp_urandomm_ui(rstate, prime_powers.size());
         unsigned long p;
@@ -458,7 +462,7 @@ int main(int argc, char * argv[])
         bool proj = r > q;
         if (proj)
             r = q + p * (r - q);
-        tests.emplace_back(a_test { p, q, r, k } );
+        tests.emplace_back(a_test { p, q, r, k });
     }
 
     clock_t clk0 = clock();
@@ -471,7 +475,7 @@ int main(int argc, char * argv[])
         bool proj = r > q;
         const char * when = "pre";
 
-        if (proj || k > 1 || r == 0) continue;
+        // if (proj || k > 1 || r == 0) continue;
 
         std::string desc;
         if (!quiet) {

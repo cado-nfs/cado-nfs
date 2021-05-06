@@ -225,6 +225,7 @@ class plattice_info {
                         lattice_with_vertical_vector(I);
                         return;
                     }
+                    ASSERT(mi0 + i1 >= I);
                     int a = (mi0 + i1 - I) / i1;
                     mi0 -= a * i1;
                     j0  += a * j1;
@@ -251,6 +252,7 @@ class plattice_info {
                         lattice_with_vertical_vector(I);
                         return;
                     }
+                    ASSERT(mi0 + i1 >= I);
                     int a = (mi0 + i1 - I) / mi0;
                     i1 -= a * mi0;
                     j1 += a * j0;
@@ -282,7 +284,7 @@ class plattice_info {
                 unsigned long g = xgcd_ul(&t, gs, q);
                 mi0 = q/g;
                 j0 = 0;
-                i1 = mi0 - t;
+                i1 = t;
                 j1 = g;
             }
         }
