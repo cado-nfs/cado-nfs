@@ -93,6 +93,16 @@ checks on debian system with 32-bit gcc:
     - *checks-script
   <<: *checks-junit-report
 
+checks using cmake directly with gcc:
+  <<: *common-template
+  stage: early
+  image: alpine
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
 checks on debian10 system with gcc:
   <<: *common-template
   stage: early

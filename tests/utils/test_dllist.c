@@ -2,11 +2,20 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "tests_common.h"
+#include "macros.h"
+/* This test triggers a diagnostic with gcc-11.1, which I seem is
+ * spurious.
+ * (when we dll_delete nodes in random order, free(node) in dll_delete is
+ * reported as freeing something not on the heap.
+ */
+#if GNUC_VERSION_ATLEAST(11,1,0)
+#pragma GCC diagnostic ignored "-Wfree-nonheap-object"
+#endif
 #include "dllist.h"
 #include "portability.h" // lrand48 // IWYU pragma: keep
 
 void
-test_dllist(size_t len)
+test_dllist(size_t len MAYBE_UNUSED)
 {
   dllist head;
   dllist_ptr node;

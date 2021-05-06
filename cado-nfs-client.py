@@ -46,16 +46,121 @@ elif sys.version_info[0] == 2:
     import urllib2 as urllib_error
     from httplib import BadStatusLine
     from urlparse import urlparse
-CADO_PYTHON_LIBS_PATH = "@CMAKE_INSTALL_PREFIX@/@LIBSUFFIX@/scripts/cadofactor"
-if not re.search("^/", CADO_PYTHON_LIBS_PATH):
-    CADO_PYTHON_LIBS_PATH = os.path.join(os.path.dirname(sys.argv[0]),
-                                         "scripts",
-                                         "cadofactor")
 
-# note that even though we do have cado-nfs.py and cado-nfs-client.py in
-# the build tree, we make *NO PROMISE* as to whether calling these
-# scripts works.
-sys.path.append(CADO_PYTHON_LIBS_PATH)
+# THIS PART MUST BE EXACTLY IDENTICAL IN cado-nfs.py and cado-nfs-client.py
+
+# Three possible locations for this script
+#
+# The installed path. Then we should rely on the @-escaped paths, and
+# determine the location of all our utility stuff based on that.
+#
+# The build directory. We rely on the presence of a magic file called
+# source-location.txt, and we fetch the python source code from there
+#
+# The source tree. We call the ./scripts/build_environment.sh script to
+# determine where the binaries are being put.
+
+import subprocess
+import locale
+
+pathdict=dict()
+
+one_pyfile_example_subpath = "scripts/cadofactor/workunit.py"
+
+def detect_installed_tree(pathdict):
+    mydir = os.path.normpath(os.path.dirname(sys.argv[0]))
+    md = mydir.split(os.path.sep)
+    install_tree = mydir
+    bd = "@BINSUFFIX@".split(os.path.sep)
+    while md and bd and md[-1] == bd[-1]:
+        md.pop()
+        bd.pop()
+        install_tree = os.path.normpath(os.path.join(install_tree, ".."))
+    if bd:
+        if os.environ.get("CADO_NFS_DEBUG_PATHDETECT"):
+            print("{} does not end in @BINSUFFIX@".format(mydir))
+        return False
+    example = os.path.join(install_tree, "@LIBSUFFIX@", one_pyfile_example_subpath)
+    t = os.path.exists(example)
+    if not t:
+        if os.environ.get("CADO_NFS_DEBUG_PATHDETECT"):
+            print("{} does not exist".format(example))
+        return False
+
+    # make all this relocatable, it doesn't cost us much.
+    # (note though that the rpaths in the binaries are likely to still
+    # contain absolute paths)
+    pathdict["pylib"] = os.path.join(install_tree, "@LIBSUFFIX@/scripts/cadofactor")
+    pathdict["data"]  = os.path.join(install_tree, "@DATASUFFIX@")
+    pathdict["lib"]   = os.path.join(install_tree, "@LIBSUFFIX@")
+    pathdict["bin"]   = os.path.join(install_tree, "@BINSUFFIX@")
+
+    if os.environ.get("CADO_NFS_DEBUG_PATHDETECT"):
+        print("cado-nfs running in installed tree")
+    return True
+
+def detect_build_tree(pathdict):
+    # source-location.txt is created by our build system, and can be used
+    # *ONLY* when we call this script from the build directory. We don't
+    # want this to perspire in any installed file, of course.
+    mydir = os.path.normpath(os.path.dirname(sys.argv[0]))
+    source_location_subpath = "source-location.txt"
+    source_location_file = os.path.join(mydir, source_location_subpath)
+    if not os.path.exists(source_location_file):
+        if os.environ.get("CADO_NFS_DEBUG_PATHDETECT"):
+            print("{} does not exist".format(source_location_file))
+        return False
+
+    # ok, we're in the build tree, apparently
+    source_tree = open(source_location_file, "r").read().strip()
+
+    pathdict["pylib"] = os.path.join(source_tree, "scripts/cadofactor")
+    pathdict["data"] = os.path.join(source_tree, "parameters")
+    pathdict["lib"] = mydir
+    pathdict["bin"] = mydir
+
+    if os.environ.get("CADO_NFS_DEBUG_PATHDETECT"):
+        print("cado-nfs running in build tree")
+    return True
+
+def detect_source_tree(pathdict):
+    mydir = os.path.normpath(os.path.dirname(sys.argv[0]))
+    t = os.path.exists(os.path.join(mydir, one_pyfile_example_subpath))
+    helper = os.path.join(mydir, "scripts/build_environment.sh")
+    if not os.path.exists(helper):
+        if os.environ.get("CADO_NFS_DEBUG_PATHDETECT"):
+            print("{} does not exist".format(helper))
+        return False
+    pipe = subprocess.Popen([helper, "--show"], stdout=subprocess.PIPE)
+    loc = locale.getdefaultlocale()[1]
+    if not loc:
+        loc="ascii"
+    output = pipe.communicate()[0].decode(loc)
+    cado_bin_path = [x.split("=",2)[1] for x in output.split("\n") if re.match("^build_tree",x)][0]
+    cado_bin_path = re.sub("^\"(.*)\"$", "\\1", cado_bin_path)
+
+    pathdict["pylib"] = os.path.join(mydir, "scripts/cadofactor")
+    pathdict["data"] = os.path.join(mydir, "parameters")
+    pathdict["lib"] = cado_bin_path
+    pathdict["bin"] = cado_bin_path
+
+    if os.environ.get("CADO_NFS_DEBUG_PATHDETECT"):
+        print("cado-nfs running in source tree")
+    return True
+
+if detect_installed_tree(pathdict):
+    pass
+elif detect_build_tree(pathdict):
+    pass
+elif detect_source_tree(pathdict):
+    pass
+else:
+    raise RuntimeError("We're unable to determine the location of the cado-nfs binaries and python files")
+
+sys.path.append(pathdict["pylib"])
+
+# END OF THE PART THAT MUST BE EXACTLY IDENTICAL IN cado-nfs.py and cado-nfs-client.py
+
 from workunit import Workunit
 # }}}
 

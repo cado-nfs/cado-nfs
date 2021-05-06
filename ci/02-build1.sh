@@ -5,5 +5,10 @@
 
 NCPUS=`"$(dirname $0)/utilities/ncpus.sh"`
 enter_section build Building
-"${MAKE}" -j$NCPUS
+if [ "$using_cmake_directly" ] ; then
+    SOURCEDIR="$PWD"
+    (cd "$build_tree" ; "${MAKE}" -j$NCPUS)
+else
+    "${MAKE}" -j$NCPUS
+fi
 leave_section

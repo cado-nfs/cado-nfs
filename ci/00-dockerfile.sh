@@ -31,7 +31,7 @@ fi
 # it's important that these come after the per-compiler selection of
 # "ideal" images, of course.
 #
-# note that we're on matching the "on " in "on debian9 system", so that
+# note that we're not matching the "on " in "on debian9 system", so that
 # an argument "debian9 system with clang" should just work, which sounds
 # a bit more natural than keeping "checks on " in the argument.
 case "$CI_BUILD_NAME" in
