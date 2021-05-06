@@ -14,24 +14,61 @@
 #include "fb-types.h"
 #include "las-plattice.hpp"
 #include <algorithm>
-#ifdef HAVE_AVX512F
-#include <immintrin.h>
+#if defined(HAVE_AVX512F) || defined(HAVE_AVX2) || defined(HAVE_AVX) || defined(HAVE_SSE41)
+#include <x86intrin.h>
 #endif
 
 /* see plattice.sage */
 
-/* This new c code is at very least not slower, and possibly even mildly
- * faster than the old assembly or C code. However the measurement is not
- * easy. Note also that this code covers many more cases.
+/* The c code that is currently in production is at very least not
+ * slower, and possibly even mildly faster than the old assembly or C
+ * code. However the measurement is not easy. Note also that the new code
+ * covers many more cases.
  *
- * make -j8 test-reduce-plattice && for i in {1..10} ; do ./build/houblon/tests/sieve/test-reduce-plattice -I 65536 -ntests 10000000 -B $((2**25)) -T -seed 255775 ; done
+ * This file contains several different implementations of
+ * reduce_plattice, including experimntal SIMD code. The fastest code is
+ * the AVX-512 variant, but AVX-2 isn't bad. Note that the performance
+ * depends a lot on the prime size, because that controls the loop
+ * length. Both seem to uniformly beat the single data implementations.
  *
- * new code / two_legs # 5.8378
- * new code / simplistic # 6.0189
- * new code / swapping_loop # 5.9685
- * reference # 6.3625 
- * reference2 # 5.8297
- * reference2_asm # 5.9573
+ * avx-2 machine  i5-7500 CPU @ 3.40GHz
+ *
+ * test-reduce-plattice -I 65536 -ntests 100000000 -B $((2**25)) -T -seed 1 -N
+ *
+ * production (two_legs): 100000000 tests in 3.8461s
+ * simplistic: 100000000 tests in 3.8710s
+ * using_64bit_mul: 100000000 tests in 3.8622s
+ * swapping_loop: 100000000 tests in 4.0930s
+ * swapping_loop2: 100000000 tests in 6.2752s
+ * old_reference: 100000000 tests in 4.2740s [ BUGGY, MANY ERRORS REPORTED ]
+ * reference2: 100000000 tests in 4.0639s [ BUGGY, MANY ERRORS REPORTED ]
+ * reference2_asm: 100000000 tests in 3.9035s [ BUGGY, MANY ERRORS REPORTED ]
+ * simd-avx2: 100000000 tests in 3.2203s
+ *
+ * test-reduce-plattice -I 65536 -ntests 100000000 -B $((2**32-1)) -T -seed 1 -N
+ *
+ * production (two_legs): 100000000 tests in 7.3322s
+ * simplistic: 100000000 tests in 7.1406s
+ * using_64bit_mul: 100000000 tests in 7.4497s
+ * swapping_loop: 100000000 tests in 7.4919s
+ * swapping_loop2: 100000000 tests in 11.9772s
+ * old_reference: 100000000 tests in 4.4743s [ BUGGY, MANY ERRORS REPORTED ]
+ * reference2: 100000000 tests in 4.3514s [ BUGGY, MANY ERRORS REPORTED ]
+ * reference2_asm: 100000000 tests in 4.2292s [ BUGGY, MANY ERRORS REPORTED ]
+ * simd-avx2: 100000000 tests in 5.1874s
+ *
+ * avx-512 machine Xeon(R) Gold 6130 CPU @ 2.10GHz
+ *
+ * production (two_legs): 100000000 tests in 7.6957s
+ * simplistic: 100000000 tests in 7.5916s
+ * using_64bit_mul: 100000000 tests in 7.9518s
+ * swapping_loop: 100000000 tests in 8.6450s
+ * swapping_loop2: 100000000 tests in 12.1884s
+ * old_reference: 100000000 tests in 4.5391s [ BUGGY, MANY ERRORS REPORTED ]
+ * reference2: 100000000 tests in 4.5022s [ BUGGY, MANY ERRORS REPORTED ]
+ * reference2_asm: 100000000 tests in 4.4340s [ BUGGY, MANY ERRORS REPORTED ]
+ * simd-avx512: 100000000 tests in 3.7655s
+ *
  */
 
 struct plattice : public plattice_info {
@@ -370,6 +407,8 @@ struct simd_helper {
     static_assert(N <= 64, "masks cannot be larger than 64 bits");
     static constexpr const size_t store_alignment = sizeof(T);
     typedef uint64_t mask;
+    static inline mask zeromask() { return 0; }
+    static inline mask onemask() { return (mask(1) << N) - 1; }
     static inline type load(T const * p) { type r; std::copy_n(p, N, r.begin()); return r; }
     static inline type mask_load(type const & src, mask m, T const * p) {
         type r = src;
@@ -384,7 +423,6 @@ struct simd_helper {
         std::fill_n(r.begin(), N, x);
         return r;
     }
-    static inline mask int2mask(int x) { return x; }
     static inline int mask2int(mask x) { return x; }
     static inline mask cmpneq(type const & a, type const & b) {
         mask m = 0;
@@ -461,11 +499,152 @@ struct simd_helper {
         for(size_t i = 0 ; i < N ; i++, m>>=1) if (m&1) r[i] = a[i] / b[i];
         return r;
     }
-    static inline mask knot(mask const a) { return ((mask(1) << N)-1) ^ a; }
+    static inline mask knot(mask const a) { return onemask() ^ a; }
     static inline mask kxor(mask const a, mask const b) { return a ^ b; }
     static inline mask kand(mask const a, mask const b) { return a & b; }
     static inline mask kor(mask const a, mask const b) { return a | b; }
 };
+
+#ifdef HAVE_AVX2
+/* This one is a bit complicated because we want to take the occasion to
+ * use the avx512 mask registers if we happen to have avx512f available.
+ */
+template<>
+struct simd_helper<uint32_t, 8>
+{
+    typedef uint32_t T;
+    static constexpr const size_t N = 8;
+    static constexpr const size_t store_alignment = 32;
+    typedef __m256i type;
+#if defined(HAVE_AVX512F) && defined(HAVE_AVX512DQ)
+    typedef __mmask8 mask;
+    static inline mask zeromask() { return _cvtu32_mask8(0); }
+    static inline mask onemask() { return _cvtu32_mask8(~0); }
+    static inline int mask2int(mask x) { return _cvtmask8_u32(x); }
+    static inline mask knot(mask const a) { return _knot_mask8(a); }
+    static inline mask kxor(mask const a, mask const b) { return _kxor_mask8(a, b); }
+    static inline mask kand(mask const a, mask const b) { return _kand_mask8(a, b); }
+    static inline mask kor(mask const a, mask const b) { return _kor_mask8(a, b); }
+
+
+
+    static inline mask cmpeq(type const a, type const b) { return _mm256_cmpeq_epu32_mask(a, b); }
+    static inline mask cmpneq(type const a, type const b) { return _mm256_cmpneq_epu32_mask(a, b); }
+    static inline mask cmpge(type const a, type const b) { return _mm256_cmpge_epu32_mask(a, b); }
+    static inline mask cmplt(type const a, type const b) { return _mm256_cmplt_epu32_mask(a, b); }
+
+    static inline mask mask_cmpge(mask const m, type const a, type const b) { return _mm256_mask_cmpge_epu32_mask(m, a, b); }
+    static inline mask mask_cmpeq(mask const m, type const a, type const b) { return _mm256_mask_cmpeq_epu32_mask(m, a, b); }
+    static inline mask mask_cmpneq(mask const m, type const a, type const b) { return _mm256_mask_cmpneq_epu32_mask(m, a, b); }
+    static inline mask mask_cmplt(mask const m, type const a, type const b) { return _mm256_mask_cmplt_epu32_mask(m, a, b); }
+    static inline type mask_sub(type const src, mask const m, type const a, type const b) { return _mm256_mask_sub_epi32(src, m, a, b); }
+    static inline type mask_add(type const src, mask const m, type const a, type const b) { return _mm256_mask_add_epi32(src, m, a, b); }
+    static inline type mask_bxor(type const src, mask const m, type const a, type const b) { return _mm256_mask_xor_epi32(src, m, a, b); }
+#else
+    typedef __m256i mask;
+    static inline mask zeromask() { return _mm256_setzero_si256(); }
+    static inline mask onemask() { return _mm256_set1_epi32(~0); }
+    static inline int mask2int(mask x) { return _mm256_movemask_ps(_mm256_castsi256_ps(x)); }
+    static inline mask knot(mask const a) { return kxor(a, onemask()); }
+    static inline mask kxor(mask const a, mask const b) { return _mm256_xor_si256(a, b); }
+    static inline mask kand(mask const a, mask const b) { return _mm256_and_si256(a, b); }
+    static inline mask kor(mask const a, mask const b) { return _mm256_or_si256(a, b); }
+
+
+    static inline mask cmpeq(type const a, type const b) { return _mm256_cmpeq_epi32(a, b); }
+    static inline mask cmpneq(type const a, type const b) { return knot(_mm256_cmpeq_epi32(a, b)); }
+
+    private:
+    static inline type blendv(type const a, type const b, mask m)
+    {
+         return _mm256_castps_si256(
+                 _mm256_blendv_ps(
+                     _mm256_castsi256_ps(a),
+                     _mm256_castsi256_ps(b),
+                     _mm256_castsi256_ps(m)));
+    }
+    public:
+    static inline mask cmpgt(type const a, type const b) {
+        /* must convert signed comparison to unsigned */
+        type opposite_sign = bxor(a, b);
+        type m = _mm256_cmpgt_epi32(a,b);
+        return blendv(zeromask(), onemask(), bxor(m, opposite_sign));
+    }
+    static inline mask cmpge(type const a, type const b) {
+        /* must convert signed comparison to unsigned */
+        type opposite_sign = bxor(a, b);
+        /* compute b > a first */
+        type m = _mm256_cmpgt_epi32(b, a);
+        /* then a >= b  is  !(b > a) */
+        return blendv(onemask(), zeromask(), bxor(m, opposite_sign));
+    }
+    static inline mask cmplt(type const a, type const b) { return knot(cmpge(a, b)); }
+    static inline mask mask_cmpge(mask const m, type const a, type const b) { return kand(m, cmpge(a, b)); }
+    static inline mask mask_cmpeq(mask const m, type const a, type const b) { return kand(m, cmpeq(a, b)); }
+    static inline mask mask_cmpneq(mask const m, type const a, type const b) { return kand(m, cmpneq(a, b)); }
+    static inline mask mask_cmplt(mask const m, type const a, type const b) { return kand(m, cmplt(a, b)); }
+    static inline type mask_sub(type const src, mask const m, type const a, type const b) { return blendv(src, sub(a, b), m); }
+    static inline type mask_add(type const src, mask const m, type const a, type const b) { return blendv(src, add(a, b), m); }
+    static inline type mask_bxor(type const src, mask const m, type const a, type const b) { return blendv(src, bxor(a, b), m); }
+#endif
+    static inline type load(T const * p) { return _mm256_load_si256((type const *) p); }
+    static inline void store(T * p, type const a) { _mm256_store_si256((type *) p, a); }
+    static inline type set1(T const x) { return _mm256_set1_epi32(x); }
+
+    static inline type sub(type const a, type const b) { return _mm256_sub_epi32(a, b); }
+    static inline type add(type const a, type const b) { return _mm256_add_epi32(a, b); }
+    static inline type bxor(type const a, type const b) { return _mm256_xor_si256(a, b); }
+    static inline type mullo(type const a, type const b) { return _mm256_mullo_epi32(a, b); }
+    static inline type setzero() { return _mm256_setzero_si256(); }
+    static inline type slli(type const a, unsigned int imm) { return _mm256_slli_epi32(a, imm); }
+    static inline type div(type const & a, type const & b) {
+        /* Unfortunately, _mm256_div_epu32 is a synthetic library
+         * function, so we can't use it, lacking a proper library that can do
+         * it. We have to cook our own...
+         */
+#if 0
+        __m256i k = _mm256_div_epu32(a, b);
+#else
+        /* of course it's slow like hell */
+        uint32_t explode_a[8] ATTR_ALIGNED(store_alignment);
+        uint32_t explode_b[8] ATTR_ALIGNED(store_alignment);
+        store(explode_a, a);
+        store(explode_b, b);
+        for(int i = 0 ; i < 8 ; i++)
+            explode_a[i] = explode_a[i] / explode_b[i];
+        return load(explode_a);
+#endif
+    }
+    static inline type mask_div(type const & src, mask mm, type const & a, type const & b) {
+        /* Unfortunately, _mm256_mask_div_epu32 is a synthetic library
+         * function, so we can't use it, lacking a proper library that can do
+         * it. We have to cook our own...
+         */
+#if 0
+        __m256i k = _mm256_mask_div_epu32(src, mask, a, b);
+#else
+        /* of course it's slow like hell */
+        uint32_t explode_a[8] ATTR_ALIGNED(store_alignment);
+        uint32_t explode_b[8] ATTR_ALIGNED(store_alignment);
+        store(explode_a, a);
+        store(explode_b, b);
+        for(int i = 0, m = mask2int(mm) ; m ; i++,m>>=1)
+            if (m&1)
+                explode_a[i] = explode_a[i] / explode_b[i];
+#if defined(HAVE_AVX512F) && defined(HAVE_AVX512DQ)
+#ifdef HAVE_AVX512VL
+        static_assert(std::is_same<__mmask8, mask>::value);
+        return _mm256_mask_blend_epi32(mm, src, load(explode_a));
+#else
+        return _mm256_blend_epi32(src, load(explode_a), mask2int(mm));
+#endif
+#else
+        return blendv(src, load(explode_a), mm);
+#endif
+#endif
+    }
+};
+#endif
 
 #ifdef HAVE_AVX512F
 template<>
@@ -476,11 +655,12 @@ struct simd_helper<uint32_t, 16>
     static constexpr const size_t store_alignment = 64;
     typedef __m512i type;
     typedef __mmask16 mask;
+    static inline mask zeromask() { return _mm512_int2mask(0); }
+    static inline mask onemask() { return _mm512_int2mask(~0); }
     static inline type load(T const * p) { return _mm512_load_epi32(p); }
     static inline type mask_load(type const & src, mask m, T const * p) { return _mm512_mask_load_epi32(src, m, p); }
     static inline void store(T * p, type const a) { _mm512_store_epi32(p, a); }
     static inline type set1(T const x) { return _mm512_set1_epi32(x); }
-    static inline mask int2mask(int x) { return _mm512_int2mask(x); }
     static inline int mask2int(mask x) { return _mm512_mask2int(x); }
     static inline mask cmpeq(type const a, type const b) { return _mm512_cmpeq_epu32_mask(a, b); }
     static inline mask cmpneq(type const a, type const b) { return _mm512_cmpneq_epu32_mask(a, b); }
@@ -544,6 +724,30 @@ struct simd_helper<uint32_t, 16>
 #endif
 
 
+/* We have to balance the probability of getting a large quotient with
+ * the number of items that we're using simultaneously. The relative cost
+ * of the full division versus the subtractive algorithm matters, too.
+ * The thresholds in the specific instantiations have been determined
+ * based on quick testing.
+ */
+template<typename T>
+struct simd_div_threshold {
+    static constexpr const int value = 4;
+};
+
+template<>
+struct simd_div_threshold<simd_helper<uint32_t, 8>> {
+    static constexpr const int value = 4;
+};
+
+#ifdef HAVE_AVX512F
+template<>
+struct simd_div_threshold<simd_helper<uint32_t, 16>> {
+    static constexpr const int value = 5;
+};
+#endif
+
+
 
 /* This does N instances of reduce_plattice in parallel, using avx-512
  * intrinsics */
@@ -574,13 +778,13 @@ bool simd(plattice * pli, uint32_t I)
                         A::cmpneq(zj1, A::setzero()));
 
     mask flip;
-    for(flip = A::int2mask(0) ; ; ) {
+    for(flip = A::zeromask() ; ; ) {
         /* as long as i1 >= I, proceed */
         proceed = A::mask_cmpge(proceed, zi1, zI);
 
         if (!A::mask2int(proceed)) break;
 
-        mask toobig = A::mask_cmpge(proceed, zmi0, A::slli(zi1, 5));
+        mask toobig = A::mask_cmpge(proceed, zmi0, A::slli(zi1, simd_div_threshold<A>::value));
         if (UNLIKELY(A::mask2int(toobig))) {
             /* Some quotient is larger than 32. We must do a full
              * division.
@@ -642,10 +846,10 @@ bool simd(plattice * pli, uint32_t I)
     } else {
         /* proceed with the normal scenario */
         data sum = A::sub(A::add(zmi0, zi1), zI);
-        mask toobig = A::cmpge(sum, A::slli(zi1, 5));
+        mask toobig = A::cmpge(sum, A::slli(zi1, simd_div_threshold<A>::value));
         if (UNLIKELY(A::mask2int(toobig))) {
             data k = A::mask_div(A::setzero(), proceed, sum, zi1);
-            /* note that A::mullo has a 10-cycle latency on
+            /* note that the avx512 A::mullo has a 10-cycle latency on
              * skylake... */
             zmi0 = A::sub(zmi0, A::mullo(k, zi1));
             zj0  = A::add(zj0,  A::mullo(k, zj1));
@@ -977,6 +1181,7 @@ int main(int argc, char * argv[])
     bool failed = false;
     bool quiet = false;
     bool timing = false;
+    bool nocheck = false;
 
     for( ; argc > 1 ; argv++,argc--) {
         if (strcmp(argv[1], "-B") == 0) {
@@ -993,6 +1198,8 @@ int main(int argc, char * argv[])
             seed = atol(argv[1]);
         } else if (strcmp(argv[1], "-q") == 0) {
             quiet = true;
+        } else if (strcmp(argv[1], "-N") == 0) {
+            nocheck = true;
         } else if (strcmp(argv[1], "-T") == 0) {
             timing = true;
         }
@@ -1075,10 +1282,11 @@ int main(int argc, char * argv[])
 
     clock_t clk0, clk1;
     const char * what;
-        
-    
+    int nfailed;
+
     clk0 = clock();
     what = "production (two_legs)";
+    nfailed = 0;
     for(auto const & aa : tests) {
         const char * when = "pre";
         try {
@@ -1088,14 +1296,18 @@ int main(int argc, char * argv[])
             if (!L.early(I))
                 L.two_legs(I);
             when = "post";
-            if (!L.check_post_conditions(I))
+            if (!nocheck && !L.check_post_conditions(I))
                 throw post_condition_error();
         } catch (plattice::error const & e) {
             fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
             failed = true;
         } catch (post_condition_error const & e) {
-            fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-            failed = true;
+            if (nfailed < 16) {
+                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+                failed = true;
+                if (++nfailed >= 16)
+                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
+            }
         }
     }
     clk1 = clock();
@@ -1106,6 +1318,7 @@ int main(int argc, char * argv[])
 
     clk0 = clock();
     what = "simplistic";
+    nfailed = 0;
     for(auto const & aa : tests) {
         const char * when = "pre";
         try {
@@ -1115,14 +1328,18 @@ int main(int argc, char * argv[])
             if (!L.early(I))
                 L.simplistic(I);
             when = "post";
-            if (!L.check_post_conditions(I))
+            if (!nocheck && !L.check_post_conditions(I))
                 throw post_condition_error();
         } catch (plattice::error const & e) {
             fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
             failed = true;
         } catch (post_condition_error const & e) {
-            fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-            failed = true;
+            if (nfailed < 16) {
+                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+                failed = true;
+                if (++nfailed >= 16)
+                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
+            }
         }
     }
     clk1 = clock();
@@ -1133,6 +1350,7 @@ int main(int argc, char * argv[])
 
     clk0 = clock();
     what = "using_64bit_mul";
+    nfailed = 0;
     for(auto const & aa : tests) {
         const char * when = "pre";
         try {
@@ -1142,14 +1360,18 @@ int main(int argc, char * argv[])
             if (!L.early(I))
                 L.using_64bit_mul(I);
             when = "post";
-            if (!L.check_post_conditions(I))
+            if (!nocheck && !L.check_post_conditions(I))
                 throw post_condition_error();
         } catch (plattice::error const & e) {
             fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
             failed = true;
         } catch (post_condition_error const & e) {
-            fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-            failed = true;
+            if (nfailed < 16) {
+                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+                failed = true;
+                if (++nfailed >= 16)
+                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
+            }
         }
     }
     clk1 = clock();
@@ -1161,6 +1383,7 @@ int main(int argc, char * argv[])
 #if 1
     clk0 = clock();
     what = "swapping_loop";
+    nfailed = 0;
     for(auto const & aa : tests) {
         const char * when = "pre";
         try {
@@ -1170,14 +1393,18 @@ int main(int argc, char * argv[])
             if (!L.early(I))
                 L.swapping_loop(I);
             when = "post";
-            if (!L.check_post_conditions(I))
+            if (!nocheck && !L.check_post_conditions(I))
                 throw post_condition_error();
         } catch (plattice::error const & e) {
             fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
             failed = true;
         } catch (post_condition_error const & e) {
-            fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-            failed = true;
+            if (nfailed < 16) {
+                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+                failed = true;
+                if (++nfailed >= 16)
+                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
+            }
         }
     }
     clk1 = clock();
@@ -1191,6 +1418,7 @@ int main(int argc, char * argv[])
 #if 1
     clk0 = clock();
     what = "swapping_loop2";
+    nfailed = 0;
     for(auto const & aa : tests) {
         const char * when = "pre";
         try {
@@ -1200,14 +1428,18 @@ int main(int argc, char * argv[])
             if (!L.early(I))
                 swapping_loop2(&L, I);
             when = "post";
-            if (!L.check_post_conditions(I))
+            if (!nocheck && !L.check_post_conditions(I))
                 throw post_condition_error();
         } catch (plattice::error const & e) {
             fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
             failed = true;
         } catch (post_condition_error const & e) {
-            fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-            failed = true;
+            if (nfailed < 16) {
+                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+                failed = true;
+                if (++nfailed >= 16)
+                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
+            }
         }
     }
     clk1 = clock();
@@ -1217,27 +1449,28 @@ int main(int argc, char * argv[])
     }
 #endif
 
-    {
+    if (timing) {
         /* as far as correctness is concerned, we're not interested in
          * this code. We *know* that it is buggy. But when we report
          * timings, we want to know how it fares !
          */
         clk0 = clock();
         what = "old_reference";
-        int nfailed = 0;
+        nfailed = 0;
         for(auto const & aa : tests) {
             const char * when = "pre";
 
             try {
                 plattice L; reference(&L, aa.q, aa.r, I);
                 when = "post";
-                if (!L.check_post_conditions(I))
+                if (!nocheck && !L.check_post_conditions(I))
                     throw post_condition_error();
             } catch (post_condition_error const & e) {
-                if (nfailed++ < 4)
-                    fprintf(stderr, "(known bugs) %s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-                else if (nfailed == 5)
-                    fprintf(stderr, "(known bugs) %s: not reporting more bugs\n", what);
+                if (nfailed < 4) {
+                    fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+                    if (++nfailed >= 4)
+                        fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
+                }
             }
         }
         clk1 = clock();
@@ -1247,24 +1480,25 @@ int main(int argc, char * argv[])
         }
     }
 
-    {
+    if (timing) {
         // same remark as above
         clk0 = clock();
         what = "reference2";
-        int nfailed = 0;
+        nfailed = 0;
         for(auto const & aa : tests) {
             const char * when = "pre";
 
             try {
                 plattice L; reference2(&L, aa.q, aa.r, I);
                 when = "post";
-                if (!L.check_post_conditions(I))
+                if (!nocheck && !L.check_post_conditions(I))
                     throw post_condition_error();
             } catch (post_condition_error const & e) {
-                if (nfailed++ < 4)
-                    fprintf(stderr, "(known bugs) %s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-                else if (nfailed == 5)
-                    fprintf(stderr, "(known bugs) %s: not reporting more bugs\n", what);
+                if (nfailed < 4) {
+                    fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+                    if (++nfailed >= 4)
+                        fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
+                }
             }
         }
         clk1 = clock();
@@ -1275,24 +1509,25 @@ int main(int argc, char * argv[])
     }
 
 #ifdef TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
-    {
+    if (timing) {
         // same remark as above
         clk0 = clock();
         what = "reference2_asm";
-        int nfailed = 0;
+        nfailed = 0;
         for(auto const & aa : tests) {
             const char * when = "pre";
 
             try {
                 plattice L; reference2_asm(&L, aa.q, aa.r, I);
                 when = "post";
-                if (!L.check_post_conditions(I))
+                if (!nocheck && !L.check_post_conditions(I))
                     throw post_condition_error();
             } catch (post_condition_error const & e) {
-                if (nfailed++ < 4)
-                    fprintf(stderr, "(known bugs) %s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-                else if (nfailed == 5)
-                    fprintf(stderr, "(known bugs) %s: not reporting more bugs\n", what);
+                if (nfailed < 4) {
+                    fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
+                    if (++nfailed >= 4)
+                        fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
+                }
             }
         }
         clk1 = clock();
@@ -1308,18 +1543,17 @@ int main(int argc, char * argv[])
 #ifdef HAVE_AVX512F
         what = "simd-avx512";
         constexpr size_t N = 16;
-        /*
 #elif defined(HAVE_AVX2)
-        what = "simd-avx2-believer";
+        what = "simd-avx2";
         constexpr size_t N = 8;
 #elif defined(HAVE_SSE41)
         what = "simd-sse41-believer";
         constexpr size_t N = 4;
-        */
 #else
         what = "simd-synthetic";
         constexpr size_t N = 2;
 #endif
+        nfailed = 0;
         for(size_t i = 0 ; i < tests.size() ; i+=N) {
             plattice L[N];
             size_t j;
@@ -1350,8 +1584,12 @@ int main(int argc, char * argv[])
                 fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, tests[i+j].p, tests[i+j].k, tests[i+j].r);
                 failed = true;
             } catch (post_condition_error const & e) {
-                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, tests[i+j].p, tests[i+j].k, tests[i+j].r);
-                failed = true;
+                if (nfailed < 16) {
+                    fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, tests[i+j].p, tests[i+j].k, tests[i+j].r);
+                    failed = true;
+                    if (++nfailed >= 16)
+                        fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
+                }
             }
         }
     }
@@ -1360,8 +1598,6 @@ int main(int argc, char * argv[])
         printf("# %s: %d tests in %.4fs\n",
                 what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
     }
-
-
 
 
     /* Finish with that one, but here we don't care about the
@@ -1388,12 +1624,12 @@ int main(int argc, char * argv[])
         for(auto const & x : T) {
             sumT += x.second;
         }
+        unsigned long cumulative = 0;
         for(auto const & x : T) {
-            printf("%d: %lu (%.1f%%)\n", x.first, x.second, 100.0 * x.second / sumT);
+            printf("%d: %lu (%.1f%%) (%.1f%%)\n", x.first, x.second, 100.0 * x.second / sumT, 100.0 * (cumulative += x.second) / sumT);
             if (x.first >= 16) break;
         }
     }
     gmp_randclear(rstate);
     return failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }
-

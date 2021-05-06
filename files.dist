@@ -1656,3 +1656,5 @@ config/avx512f.c
 config/avx512f.cmake
 config/avx512vl.c
 config/avx512vl.cmake
+config/avx512dq.c
+config/avx512dq.cmake
