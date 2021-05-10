@@ -13,6 +13,7 @@
 #include "getprime.h"
 #include "fb-types.h"
 #include "las-plattice.hpp"
+#include "fmt/format.h"
 #include <algorithm>
 #if defined(HAVE_AVX512F) || defined(HAVE_AVX2) || defined(HAVE_AVX) || defined(HAVE_SSE41)
 #include <x86intrin.h>
@@ -1251,6 +1252,7 @@ struct call_reference2 {
     }
 };
 
+#ifdef TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
 struct call_reference2_asm {
     static constexpr const size_t batch_count = 1;
     static constexpr const char * what = "reference2_asm";
@@ -1260,6 +1262,7 @@ struct call_reference2_asm {
         reference2_asm(&L, aa.q, aa.r, I);
     }
 };
+#endif
 
 template<size_t N>
 struct call_simd_base {
@@ -1293,33 +1296,30 @@ struct call_simd<2> : public call_simd_base<2> {
 template<typename T>
 inline 
 typename std::enable_if<T::old_interface, unsigned long>::type
-test_inner(test_wrap const & tw, a_test const * aa)
+test_inner(plattice * L, test_wrap const & tw, a_test const * aa)
 {
-    plattice L;
-    T::call(L, tw.I, *aa);
-    return L.mi0;
+    T::call(*L, tw.I, *aa);
+    return L->mi0;
 }
 
 template<typename T>
 inline
 typename std::enable_if<!T::old_interface && T::batch_count == 1, unsigned long>::type
-test_inner(test_wrap const & tw, a_test const * aa)
+test_inner(plattice * L, test_wrap const & tw, a_test const * aa)
 {
-    plattice L;
     bool proj = aa->r > aa->q;
-    L.initial_basis(aa->q, proj ? (aa->r - aa->q) : aa->r, proj);
-    if (!L.early(tw.I))
-        T::call(L, tw.I);
-    return L.mi0;
+    L->initial_basis(aa->q, proj ? (aa->r - aa->q) : aa->r, proj);
+    if (!L->early(tw.I))
+        T::call(*L, tw.I);
+    return L->mi0;
 }
 
 template<typename T>
 inline
 typename std::enable_if<!T::old_interface && T::batch_count != 1, unsigned long>::type
-test_inner(test_wrap const & tw, a_test const * aa)
+test_inner(plattice * L, test_wrap const & tw, a_test const * aa)
 {
     constexpr size_t N = T::batch_count;
-    plattice L[N];
     size_t j = 0;
     bool normal = true;
     /* prepare the lattices for all calls. */
@@ -1344,29 +1344,46 @@ test_inner(test_wrap const & tw, a_test const * aa)
 template<typename T>
 void test_correctness(test_wrap & tw)
 {
+    if (tw.nocheck) return;
     constexpr size_t N = T::batch_count;
     int nfailed = 0;
     std::vector<a_test> const & tests = tw.tests;
+    std::string thiscode = T::what;
+    if (T::has_known_bugs)
+        thiscode += " (known buggy)";
+
     for(size_t i = 0 ; i < tests.size() ; i += N) {
         plattice L[N];
         size_t j = 0;
         const char * when = "pre";
         try {
-            test_inner<T>(tw, &(tests[i]));
+            test_inner<T>(L, tw, &(tests[i]));
             when = "post";
-            for(j = 0 ; !tw.nocheck && j < N && i + j < tests.size() ; j++) {
+            for(j = 0 ; j < N && i + j < tests.size() ; j++) {
                 if (!L[j].check_post_conditions(tw.I))
                     throw post_condition_error();
             }
         } catch (plattice::error const & e) {
-            fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", T::what, tests[i+j].p, tests[i+j].k, tests[i+j].r);
+            a_test const & aa = tests[i+j];
+            std::string c = "failed in-algorithm check";
+            std::string t = fmt::format(
+                    FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
+            std::string msg = fmt::format(FMT_STRING("{}: {} check for {}\n"),
+                    thiscode, c, t);
+            fputs(msg.c_str(), stderr);
             if (!T::has_known_bugs) tw.failed = true;
         } catch (post_condition_error const & e) {
             if (nfailed < 16) {
-                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", T::what, when, tests[i+j].p, tests[i+j].k, tests[i+j].r);
+                a_test const & aa = tests[i+j];
+                std::string c = fmt::format("failed check ({})", when);
+                std::string t = fmt::format(
+                        FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
+                std::string msg = fmt::format(
+                        FMT_STRING("{}: {} check for {}\n"), thiscode, c, t);
+                fputs(msg.c_str(), stderr);
                 if (!T::has_known_bugs) tw.failed = true;
                 if (++nfailed >= 16)
-                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", T::what);
+                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", thiscode.c_str());
             }
         }
     }
@@ -1377,12 +1394,13 @@ inline
 typename std::enable_if<T::batch_count != 1, unsigned long>::type
 test_speed(test_wrap & tw)
 {
-    if (!tw.nocheck) test_correctness<T>(tw);
+    test_correctness<T>(tw);
     if (!tw.timing) return 0;
     clock_t clk0 = clock();
     unsigned long dummy_local = 0;
     for(size_t i = 0 ; i < tw.tests.size() ; i += T::batch_count) {
-        dummy_local += test_inner<T>(tw, &tw.tests[i]);
+        plattice L[T::batch_count];
+        dummy_local += test_inner<T>(L, tw, &tw.tests[i]);
     }
     clock_t clk1 = clock();
     if (tw.timing) {
@@ -1397,12 +1415,14 @@ inline
 typename std::enable_if<T::batch_count == 1, unsigned long>::type
 test_speed(test_wrap & tw)
 {
-    if (!tw.nocheck) test_correctness<T>(tw);
+    test_correctness<T>(tw);
     if (!tw.timing) return 0;
     clock_t clk0 = clock();
     unsigned long dummy_local = 0;
-    for(a_test const & aa : tw.tests)
-        dummy_local += test_inner<T>(tw, &aa);
+    for(a_test const & aa : tw.tests) {
+        plattice L[T::batch_count];
+        dummy_local += test_inner<T>(L, tw, &aa);
+    }
     clock_t clk1 = clock();
     if (tw.timing) {
         printf("# %s: %zu tests in %.4fs\n",
@@ -1488,10 +1508,6 @@ int main(int argc, char * argv[])
         bool proj = r > q;
         if (proj)
             r = q + p * (r - q);
-        plattice L;
-        L.initial_basis(q, proj ? (r - q) : r, proj);
-        if (!L.check_pre_conditions(tw.I))
-            continue;
 
         a_test aa { p, q, r, k };
 
@@ -1503,6 +1519,23 @@ int main(int argc, char * argv[])
             stats[aa.k][desc]++;
         }
     }
+
+    {
+        /* verify that all tests are in range */
+        auto jt = tests.begin();
+        for(auto const & aa : tests) {
+            plattice L;
+            bool proj = aa.r > aa.q;
+            L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
+            if (L.check_pre_conditions(tw.I)) {
+                *jt++ = aa;
+            } else {
+                fprintf(stderr, "skipping out-of-range test for p^k=%lu^%d r=%lu\n", aa.p, aa.k, aa.r);
+            }
+        }
+        tests.erase(jt, tests.end());
+    }
+
 
     /* declare it as volatile so that the compiler doesn't outsmart us.
      */
@@ -1528,8 +1561,13 @@ int main(int argc, char * argv[])
 #endif
     }
 
+#if ! INTEL_CC_VERSION_ATLEAST(19,0,0)
+    /* see
+     * https://community.intel.com/t5/Intel-C-Compiler/asm-callq-and-kand-mask8-intrinsic-generate-vkmovb-quot-no-such/m-p/1140906
+     */
 #ifdef HAVE_AVX512F
     dummy += test_speed<call_simd_avx512>(tw);
+#endif
 #endif
 
 #ifdef HAVE_AVX2

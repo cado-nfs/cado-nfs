@@ -163,6 +163,41 @@ LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
 #endif
 #endif
 
+#ifndef INTEL_CC_VERSION
+#ifndef __INTEL_COMPILER
+#define INTEL_CC_VERSION(X, Y, Z) 0
+#else
+#define INTEL_CC_VERSION(X, Y, Z) \
+    (__INTEL_COMPILER == (X) && __INTEL_COMPILER_UPDATE == (Y) && \
+        __INTEL_COMPILER_BUILD_DATE == (Z))
+#endif
+#endif
+
+#ifndef INTEL_CC_VERSION_ATLEAST
+#ifndef __INTEL_COMPILER
+#define INTEL_CC_VERSION_ATLEAST(X, Y, Z) 0
+#else
+#define INTEL_CC_VERSION_ATLEAST(X, Y, Z) \
+    LEXGE3(__INTEL_COMPILER,    \
+            __INTEL_COMPILER_UPDATE,    \
+            __INTEL_COMPILER_BUILD_DATE,        \
+            X,Y,Z)
+#endif
+#endif
+
+#ifndef INTEL_CC_VERSION_ATMOST
+#ifndef __INTEL_COMPILER
+#define INTEL_CC_VERSION_ATMOST(X, Y, Z) 0
+#else
+#define INTEL_CC_VERSION_ATMOST(X, Y, Z) \
+    LEXGE3(__INTEL_COMPILER,    \
+            __INTEL_COMPILER_UPDATE,    \
+            __INTEL_COMPILER_BUILD_DATE,        \
+            X,Y,Z)
+#endif
+#endif
+
+
 #ifndef GMP_VERSION_ATLEAST
 #ifndef __GNU_MP_VERSION
 #define GMP_VERSION_ATLEAST(X,Y,Z) 0
