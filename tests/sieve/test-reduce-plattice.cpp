@@ -1022,7 +1022,10 @@ p15:
     return 1;
 }
 
-#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && !(defined(__APPLE_CC__) && defined(__llvm__) && __APPLE_CC__ == 5621)
+#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && !(defined(__APPLE_CC__) && defined(__llvm__) && __APPLE_CC__ == 5621) && !defined(__INTEL_COMPILER)
+/* icc can't compile the avx512 code if we happen to enable this code.
+ * https://community.intel.com/t5/Intel-C-Compiler/asm-callq-and-kand-mask8-intrinsic-generate-vkmovb-quot-no-such/m-p/1140906
+ */
 #define TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
 #endif
 
@@ -1561,13 +1564,8 @@ int main(int argc, char * argv[])
 #endif
     }
 
-#if ! INTEL_CC_VERSION_ATLEAST(19,0,0)
-    /* see
-     * https://community.intel.com/t5/Intel-C-Compiler/asm-callq-and-kand-mask8-intrinsic-generate-vkmovb-quot-no-such/m-p/1140906
-     */
 #ifdef HAVE_AVX512F
     dummy += test_speed<call_simd_avx512>(tw);
-#endif
 #endif
 
 #ifdef HAVE_AVX2
