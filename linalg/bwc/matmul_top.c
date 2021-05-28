@@ -1814,7 +1814,7 @@ void mmt_apply_identity(mmt_vec_ptr w, mmt_vec_ptr v)
     /* output: inconsistent ! 
      * Need mmt_vec_allreduce or mmt_vec_reduce_sameside, or
      * matmul_top_mul_comm, depending on what we want to do. */
-    ASSERT_ALWAYS(v->consistency = 2);
+    ASSERT_ALWAYS(v->consistency == 2);
     ASSERT_ALWAYS(w->abase == v->abase);
     ASSERT_ALWAYS(v->d != w->d);
     ASSERT_ALWAYS(v->n == w->n);
