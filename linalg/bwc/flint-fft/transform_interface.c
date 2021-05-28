@@ -302,6 +302,7 @@ void fft_transform_info_set_first_guess(struct fft_transform_info * fti)
 {
     mp_bitcnt_t b1 = MIN(fti->bits1, fti->bits2);
     mp_bitcnt_t b2 = MAX(fti->bits1, fti->bits2);
+    ASSERT_ALWAYS(b2 >= 1);
     unsigned int m = fti->nacc;
     mp_bitcnt_t minwrap = fti->minwrap;
 
@@ -548,6 +549,10 @@ void fft_transform_info_init_mulmod(struct fft_transform_info * fti MAYBE_UNUSED
 void fft_transform_info_init_mulmod_inner(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc, mp_bitcnt_t minwrap)
 {
     memset(fti, 0, sizeof(*fti));
+    /* It doesn't make sense to use sizes that small. Here we're mostly
+     * guarding against static analysis failures */
+    ASSERT_ALWAYS(bits1 >= 1);
+    ASSERT_ALWAYS(bits2 >= 1);
     fti->bits1 = bits1;
     fti->bits2 = bits2;
     fti->nacc = nacc;
