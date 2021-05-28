@@ -1,4 +1,4 @@
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"
 /* MPFQ generated file -- do not edit */
 
 #include "mpfq_m128.h"
@@ -181,7 +181,7 @@ int mpfq_m128_asprint(mpfq_m128_dst_field K MAYBE_UNUSED, char * * ps, mpfq_m128
         memset(*ps, ' ', stride * 16);
         int n;
         for(unsigned int i = 0 ; i < stride ; i++) {
-            n = snprintf((*ps) + i * 16, 17, "%" PRIx64, y[i]);
+            n = snprintf((*ps) + i * 16, 17, "%016" PRIx64, y[i]);
             (*ps)[i*16 + n]=',';
         }
         (*ps)[(stride-1) * 16 + n]='\0';

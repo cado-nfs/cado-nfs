@@ -1,4 +1,4 @@
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"
 /* MPFQ generated file -- do not edit */
 
 #include "mpfq_p_2.h"
@@ -861,6 +861,7 @@ int mpfq_p_2_poly_divmod(mpfq_p_2_dst_field K MAYBE_UNUSED, mpfq_p_2_dst_poly q,
     mpfq_p_2_init(K, &ilb);
     mpfq_p_2_elt temp;
     mpfq_p_2_init(K, &temp);
+    mpfq_p_2_set_zero(K, temp); // silence spurious gcc11 warning :-(
     mpfq_p_2_poly_getcoeff(K, temp, b, degb);
     if (mpfq_p_2_cmp_ui(K, temp, 1) == 0) {
         mpfq_p_2_set_ui(K, ilb, 1);
@@ -925,6 +926,7 @@ static void mpfq_p_2_poly_preinv(mpfq_p_2_dst_field K MAYBE_UNUSED, mpfq_p_2_dst
     // Assume p != q (no alias)
     mpfq_p_2_elt temp;	/* spurious uninit warning sometimes */
     mpfq_p_2_init(K, &temp);
+    mpfq_p_2_set_zero(K, temp); // silence spurious gcc11 warning :-(
     mpfq_p_2_poly_getcoeff(K, temp, p, 0);//Should be in the assert
     assert( mpfq_p_2_cmp_ui(K, temp, 1) == 0);
     assert (p != q);

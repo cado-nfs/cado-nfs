@@ -182,6 +182,17 @@ static inline int mpfq_parityl(unsigned long x)
 #define	MPFQ_LIKELY(x)	MPFQ_EXPECT(x, 1)
 #endif
 
+/* This macro is used to guard against some trivial false positives
+ * returned by static analyzer */
+#if defined(__COVERITY__)
+#define ASSERT_FOR_STATIC_ANALYZER(x) do {				\
+    if (!(x)) {								\
+        abort();							\
+    }									\
+} while (0)
+#else
+#define ASSERT_FOR_STATIC_ANALYZER(x)
+#endif
 
 
 static inline int mpfq_clzlx(unsigned long * x, int n)

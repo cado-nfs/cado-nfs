@@ -1037,6 +1037,7 @@ void mpfq_pz_poly_xgcd(mpfq_pz_dst_field k MAYBE_UNUSED, mpfq_pz_dst_poly g, mpf
       mpfq_pz_poly_set(k,x,r);
      }
      dega=mpfq_pz_poly_deg(k,a);
+     ASSERT_FOR_STATIC_ANALYZER(dega >= 0);
      mpfq_pz_poly_getcoeff(k,c,a,dega);
      mpfq_pz_inv(k,c,c);
      mpfq_pz_poly_scal_mul(k,g,a,c);

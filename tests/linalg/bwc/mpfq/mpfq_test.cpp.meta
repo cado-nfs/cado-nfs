@@ -6,7 +6,7 @@
 #define _BSD_SOURCE     /* asprintf sometimes (I think) */
 #define _POSIX_C_SOURCE 200809L
 //#define _DEFAULT_SOURCE /* asprintf in last versions */
-#line 7 "PATH_TO_SRC_TEST_DIRECTORYmpfq_test.cpp.meta"
+#line 9 "PATH_TO_SRC_TEST_DIRECTORYmpfq_test.cpp.meta"
 /* test_TAG.c is sed- generated from test.cpp.meta */
 
 /* croaks if we -Werror, of course.
@@ -435,6 +435,113 @@ int main(int argc, char * argv[])
 #ifdef RNS
 	if (loop_i % 2==0) {
 #endif
+        DO_ONE_TEST("x^3 == x^2 * x", {
+                Krandom2 (a0, rstate);
+                Ksqr(r1, a0);
+#ifdef RNS
+		Knormalize(r1);
+#endif
+                Kmul(r2, a0, r1);
+#ifdef RNS
+		Knormalize(r2);
+#endif
+                mpz_t z;
+                mpz_init_set_ui(z, 3);
+                Kpowz(r1, a0, z);
+#ifdef RNS
+		Knormalize(r1);
+#endif
+                mpz_clear(z);
+                });
+        DO_ONE_TEST("x^(13) == x^8 * x^4 * x", {
+                Krandom2 (a0, rstate);
+                Ksqr(r1, a0);
+#ifdef RNS
+		Knormalize(r1);
+#endif
+                Ksqr(r1, r1);
+#ifdef RNS
+		Knormalize(r1);
+#endif
+                Kmul(r2, a0, r1);
+#ifdef RNS
+		Knormalize(r2);
+#endif
+                Ksqr(r1, r1);
+#ifdef RNS
+		Knormalize(r1);
+#endif
+                Kmul(r2, r2, r1);
+#ifdef RNS
+		Knormalize(r2);
+#endif
+                mpz_t z;
+                mpz_init_set_ui(z, 13);
+                Kpowz(r1, a0, z);
+#ifdef RNS
+		Knormalize(r1);
+		Knormalize(r2);
+#endif
+                mpz_clear(z);
+                });
+        DO_ONE_TEST("x^0 == 1", {
+                Krandom2 (a0, rstate);
+                mpz_t z;
+                mpz_init_set_ui(z, 0);
+                Kpowz(r1, a0, z);
+                Kset_ui(r2, 1);
+                mpz_clear(z);
+                });
+        DO_ONE_TEST("x^(-1) == 1/x", {
+                do { Krandom2(a0, rstate); } while (Kcmp_ui(a0,0) == 0);
+                mpz_t z;
+                mpz_init_set_si(z, -1);
+                Kpowz(r1, a0, z);
+                Kinv(r2, a0);
+#ifdef RNS
+		Knormalize(r2);
+#endif
+                mpz_clear(z);
+                });
+        DO_ONE_TEST("x^(#K) == x", {
+                Krandom2 (a0, rstate);
+                mpz_t z;
+                mpz_init(z);
+                Kfield_characteristic(z);
+                mpz_pow_ui(z, z, Kfield_degree());
+                Kpowz(r1, a0, z);
+                Kset(r2, a0);
+                mpz_clear(z);
+                });
+        DO_ONE_TEST("x^(#K^2) == x", {
+                Krandom2 (a0, rstate);
+                mpz_t z;
+                mpz_init(z);
+                Kfield_characteristic(z);
+                mpz_pow_ui(z, z, Kfield_degree() * 2);
+                Kpowz(r1, a0, z);
+                Kset(r2, a0);
+                mpz_clear(z);
+                });
+#ifndef CHAR2
+        DO_ONE_TEST("x^((q-1)/2) == +1 or -1", {
+                Krandom2 (a0, rstate);
+                mpz_t z;
+                mpz_init(z);
+                Kfield_characteristic(z);
+                mpz_pow_ui(z, z, Kfield_degree());
+                mpz_sub_ui(z, z, 1);
+                mpz_div_ui(z, z, 2);
+                Kpowz(r1, a0, z);
+                /* verify that result^2=1 */
+                Ksqr(r1, r1);
+#ifdef RNS
+		Knormalize(r1);
+#endif
+                Kset_ui(r2, 1);
+                mpz_clear(z);
+                });
+#endif
 #if !defined(VARIABLE_SIZE_PRIME) && !defined(EXTENSION_OF_GFP)
         /* pz has no Tonelli Shanks for now */
         /* As for extensions of GF(p), we can't test is_sqr, nor sqrt,
@@ -462,35 +569,6 @@ int main(int argc, char * argv[])
 #endif
                 });
 #endif
-        DO_ONE_TEST("x^(q-1) == 1/x", {
-                do { Krandom2(a0, rstate); } while (Kcmp_ui(a0,0) == 0);
-                mpz_t z;
-                mpz_init_set_si(z, -1);
-                Kpowz(r1, a0, z);
-                Kinv(r2, a0);
-#ifdef RNS
-		Knormalize(r2);
-#endif
-                mpz_clear(z);
-                });
-        DO_ONE_TEST("x^0 == 1", {
-                Krandom2 (a0, rstate);
-                mpz_t z;
-                mpz_init_set_ui(z, 0);
-                Kpowz(r1, a0, z);
-                Kset_ui(r2, 1);
-                mpz_clear(z);
-                });
-        DO_ONE_TEST("x^(#K^2) == x", {
-                Krandom2 (a0, rstate);
-                mpz_t z;
-                mpz_init(z);
-                Kfield_characteristic(z);
-                mpz_pow_ui(z, z, Kfield_degree() * 2);
-                Kpowz(r1, a0, z);
-                Kset(r2, a0);
-                mpz_clear(z);
-                });
 #ifdef RNS
 	}
 #endif
@@ -1376,7 +1454,7 @@ int main(int argc, char * argv[])
                     });
             DO_ONE_TEST_POLY("poly_divmod(a, larger than a) returns 0+a", {
                     Kpoly_random(p1, deg-1, rstate);
-                    do { Kpoly_random(q2, deg, rstate); } while (Kpoly_deg(q2) < 0);
+                    do { Kpoly_random(q2, deg, rstate); } while (Kpoly_deg(q2) < deg);
                     Kpoly_divmod(q3, p2, p1, q2);
                     });
 
