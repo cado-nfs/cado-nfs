@@ -183,7 +183,6 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
                 next_noderivativeroot--;
         } else {
             std::list<double> newsplits;
-            bool ready = false;
 #ifdef DEBUG_LOGAPPROX
             printf("Conflict\n");
 #endif
@@ -214,7 +213,6 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
                 next_noderivativeroot--;
                 next_noderivativeroot+=2;
             }
-            // printf "%o new stop points to consider in this interval, giving %o new piece\n", #r-1, ready;
 #ifdef DEBUG_LOGAPPROX
             printf("Set of new stop points is:\n");
             for(auto x : newsplits) printf(" %f\n", x);
@@ -223,16 +221,13 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
             piecewise_linear_function G = C0_from_points(newsplits);
             G.endpoints.pop_front();
             todo.endpoints.pop_front();
-            if (ready) {
-                done.endpoints.splice(done.endpoints.end(), G.endpoints, G.endpoints.begin());
-                done.equations.splice(done.equations.end(), G.equations, G.equations.begin());
-                next_noderivativeroot--;
-            }
+            done.endpoints.splice(done.endpoints.end(), G.endpoints, G.endpoints.begin());
+            done.equations.splice(done.equations.end(), G.equations, G.equations.begin());
+            next_noderivativeroot--;
             todo.endpoints.splice(todo.endpoints.begin(), G.endpoints);
             todo.equations.splice(todo.equations.begin(), G.equations);
             /* need to add r0 */
             todo.endpoints.push_front(done.endpoints.back());
-            // printf "Enqueuing %o new sub-intervals before the remaining %o. Next derivative root check is for interval %o\n", #nuvs-ready-1, #todo_uvs - (i+1) + 1, next_noderivativeroot;
         }
     }
     return done;
