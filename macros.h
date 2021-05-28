@@ -101,6 +101,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
     }							        	\
 } while (0)
 
+/* This macro is used to guard against some trivial false positives
+ * returned by static analyzer */
+#if defined(__COVERITY__)
+#define ASSERT_FOR_STATIC_ANALYZER(x) do {                             \
+    if (!(x)) {                                                        \
+        abort();                                                       \
+    }                                                                  \
+} while (0)
+#else
+#define ASSERT_FOR_STATIC_ANALYZER(x)
+#endif
+
 /*********************************************************************/
 /* Helper macros */
 /* See README.macro_usage */
