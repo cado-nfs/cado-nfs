@@ -1614,8 +1614,7 @@ ci/00-prepare-docker.sh
 ci/00-prepare-shell.sh
 ci/000-functions.sh
 ci/01-conf.sh
-ci/02-build1.sh
-ci/02-build2.sh
+ci/02-build.sh
 ci/03-check.sh
 ci/utilities/ncpus.sh
 ci/001-environment.sh

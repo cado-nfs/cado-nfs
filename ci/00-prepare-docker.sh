@@ -128,6 +128,16 @@ if [ "$checks" ] ; then
     freebsd_packages="$freebsd_packages   libxslt"
 fi
 
+if [ "$coverity" ] ; then
+    # nothing special at this point. Note that we've tested it on debian
+    # only.
+    debian_packages="$debian_packages     curl git"
+    opensuse_packages="$opensuse_packages curl git"
+    fedora_packages="$fedora_packages     curl git"
+    alpine_packages="$alpine_packages     curl git"
+    freebsd_packages="$freebsd_packages   curl git"
+fi
+
 if [ "$DOCKER_SCRIPT" ] ; then
     debian_packages="$debian_packages sudo git vim-nox gdb"
     opensuse_packages="$opensuse_packages sudo git vim gdb"
