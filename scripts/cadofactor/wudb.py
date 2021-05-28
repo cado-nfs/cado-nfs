@@ -1849,10 +1849,12 @@ if __name__ == '__main__': # {
         prio = int(args["prio"][0])
     limit = args["limit"]
 
+    db = DBFactory('db:sqlite3://%s' % dbname)
+
     if use_pool:
-        db_pool = DbThreadPool(dbname)
+        db_pool = DbThreadPool(db)
     else:
-        db_pool = WuAccess(dbname)
+        db_pool = WuAccess(db)
 
     if args["create"]:
         db_pool.create_tables()
