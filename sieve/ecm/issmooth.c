@@ -119,6 +119,10 @@ main (int argc, char **argv)
       else if (argc > 2 && argv[1][1] == 'd')
         {
           d = strtoul (argv[2], NULL, 10);
+          if (d == 0) {
+              fprintf (stderr, "d == 0 does not make sense\n");
+              exit (EXIT_FAILURE);
+          }
           argc -= 2;
           argv += 2;
         }
