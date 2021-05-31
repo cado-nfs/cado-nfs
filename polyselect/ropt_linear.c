@@ -889,7 +889,13 @@ ropt_linear_deg5 ( ropt_poly_t poly,
   r = ropt_stage1 (poly, bound, s1param, param, alpha_pqueue, 0);
   remove_rep_alpha (alpha_pqueue);
   t1 = seconds_thread () - t1;
-  if (r == -1) return;
+  if (r == -1) {
+#if TUNE_LOGNORM_INCR
+      free_alpha_pq (&tune_E_pqueue);
+#endif
+      return;
+  }
+
   
   /* [Step 3] rank/tune above found sublattices by short sieving */
   t3 = seconds_thread ();
