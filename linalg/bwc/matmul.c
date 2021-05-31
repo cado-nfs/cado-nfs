@@ -317,6 +317,7 @@ int matmul_reload_cache(matmul_ptr mm)
     }
     int local_is_ok = mm->local_cache_copy != NULL;
     if (local_is_ok) {
+        /* coverity[toctou] */
         rc = stat(mm->local_cache_copy, sbuf[1]);
         local_is_ok = rc == 0;
     }
