@@ -194,7 +194,7 @@ void
 ropt_quadratic ( ropt_poly_t poly,
                  ropt_bestpoly_t bestpoly,
                  ropt_param_t param,
-                 ropt_info_t info )
+                 ropt_info_t info)
 {
   double t1, t2, t3;
   ropt_bound_t bound;

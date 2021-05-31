@@ -44,7 +44,7 @@
 #include "timing.h"             // for seconds
 #include "usp.h"        // usp_root_data
 #include "verbose.h"             // verbose_output_print
-#include "portability.h"        // lrand48      // IWYU pragma: keep
+#include "portability.h"
 #include "cado_poly.h"
 #include "auxiliary.h"
 #include "polyselect_str.h"
@@ -171,6 +171,18 @@ estimate_weibull_moments (double *beta, double *eta, polyselect_data_srcptr s)
   *eta = m * (1.0 + y * (0.57721566490153 - 0.655878071520 * y));
 }
 
+static gmp_randstate_ptr weibull_rstate;
+
+void weibull_rstate_init()
+{
+    gmp_randinit_default(weibull_rstate);
+}
+
+void weibull_rstate_clear()
+{
+    gmp_randclear(weibull_rstate);
+}
+
 /* Estimation via extreme values: we cut the total n values into samples of k
    values, and for each sample we keep only the minimum. If the series of
    minimum values satisfies a Weilbull distribution with parameters beta and eta,
@@ -194,9 +206,15 @@ estimate_weibull_moments2 (double *beta, double *eta, polyselect_data_srcptr s)
      at each call to avoid side effects due to the particular order of
      elements. In practice instead of considering s[j] we consider
      s[(p*j) % n] where p is random with gcd(p,n)=1. */
-  do
-    p = lrand48 () % n;
-  while (gcd_uint64 (p, n) != 1);
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+  {
+      do
+          p = gmp_urandomm_ui(weibull_rstate, n);
+      while (gcd_uint64 (p, n) != 1);
+  }
+
   for (i = 0; i + k <= n; i += k)
     {
       for (j = i, min = DBL_MAX; j < i + k; j++)
@@ -919,7 +937,8 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
 static inline unsigned long
 collision_on_p (polyselect_poly_header_srcptr header,
         polyselect_proots_ptr R,
-        polyselect_shash_ptr H)
+        polyselect_shash_ptr H,
+        gmp_randstate_ptr rstate)
 {
   unsigned long j, nprimes, p, nrp, c = 0, tot_roots = 0;
   uint64_t *rp;
@@ -953,7 +972,7 @@ collision_on_p (polyselect_poly_header_srcptr header,
         }
 
       nrp = roots_mod_uint64 (rp, mpz_fdiv_ui (header->Ntilde, p), header->d,
-                              p);
+                              p, rstate);
       tot_roots += nrp;
       nrp = roots_lift (rp, header->Ntilde, header->d, header->m0, p, nrp);
       polyselect_proots_add (R, nrp, rp, nprimes);
@@ -964,7 +983,7 @@ collision_on_p (polyselect_poly_header_srcptr header,
               for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
                 polyselect_shash_add (H, -u);
             }
-        }
+    }
   found = polyselect_shash_find_collision (H);
   free (rp);
   st = milliseconds () - st;
@@ -1544,14 +1563,14 @@ find_suitable_lq (polyselect_poly_header_srcptr header, polyselect_qroots_srcptr
 
 /* collision on special-q, call collision_on_batch_sq */
 static inline void
-collision_on_sq (polyselect_poly_header_srcptr header, polyselect_proots_srcptr R, unsigned long c, polyselect_shash_ptr H)
+collision_on_sq (polyselect_poly_header_srcptr header, polyselect_proots_srcptr R, unsigned long c, polyselect_shash_ptr H, gmp_randstate_ptr rstate)
 {
   unsigned long k, lq;
   polyselect_qroots_t SQ_R;
 
   /* init special-q roots */
   polyselect_qroots_init (SQ_R);
-  comp_sq_roots (header, SQ_R);
+  comp_sq_roots (header, SQ_R, rstate);
   //polyselect_qroots_print (SQ_R);
 
   /* find a suitable lq */
@@ -1581,7 +1600,8 @@ collision_on_sq (polyselect_poly_header_srcptr header, polyselect_proots_srcptr 
 static inline unsigned long
 gmp_collision_on_p (
         polyselect_poly_header_srcptr header,
-        polyselect_proots_ptr R )
+        polyselect_proots_ptr R,
+        gmp_randstate_ptr rstate)
 {
   unsigned long j, nprimes, p, nrp, c = 0;
   uint64_t *rp;
@@ -1619,7 +1639,7 @@ gmp_collision_on_p (
 
     /* we want p^2 | N - (m0 + i)^d, thus
        (m0 + i)^d = N (mod p^2) or m0 + i = N^(1/d) mod p^2 */
-    nrp = roots_mod_uint64 (rp, mpz_fdiv_ui (header->Ntilde, p), header->d, p);
+    nrp = roots_mod_uint64 (rp, mpz_fdiv_ui (header->Ntilde, p), header->d, p, rstate);
     roots_lift (rp, header->Ntilde, header->d, header->m0, p, nrp);
     polyselect_proots_add (R, nrp, rp, nprimes);
     for (j = 0; j < nrp; j++, c++) {
@@ -1631,6 +1651,8 @@ gmp_collision_on_p (
                       header->d, header->N, 1, zero);
     }
   }
+
+  gmp_randclear(rstate);
 
 #ifdef DEBUG_POLYSELECT
   fprintf (stderr, "# collision_on_p took %lums\n", milliseconds () - st);
@@ -1822,13 +1844,14 @@ gmp_collision_on_batch_sq ( polyselect_poly_header_srcptr header,
 static inline void
 gmp_collision_on_sq ( polyselect_poly_header_srcptr header,
 		      polyselect_proots_srcptr R,
-		      unsigned long c )
+		      unsigned long c,
+                      gmp_randstate_ptr rstate)
 {
   // init special-q roots
   unsigned long K, lq;
   polyselect_qroots_t SQ_R;
   polyselect_qroots_init (SQ_R);
-  comp_sq_roots (header, SQ_R);
+  comp_sq_roots (header, SQ_R, rstate);
   // polyselect_qroots_print (SQ_R);
 
   /* find a suitable lq */
@@ -1942,19 +1965,28 @@ newAlgo (mpz_ptr N, unsigned long d, unsigned long idx)
   polyselect_poly_header_init (header, N, d, ad);
   polyselect_proots_init (R, lenPrimes);
 
+  /* Even in the c59 case, P is 420, we can be confident that a random
+   * state initialization is negligible compared to the work we're about
+   * to do for several dozens of primes.
+   */
+  gmp_randstate_t rstate;
+  gmp_randinit_default(rstate);
+
   if (sizeof (unsigned long int) == 8) {
     polyselect_shash_t H;
     polyselect_shash_init (H, 4 * lenPrimes);
-    c = collision_on_p (header, R, H);
+    c = collision_on_p (header, R, H, rstate);
     if (nq > 0)
-      collision_on_sq (header, R, c, H);
+      collision_on_sq (header, R, c, H,rstate);
     polyselect_shash_clear (H);
   }
   else {
-    c = gmp_collision_on_p (header, R);
+    c = gmp_collision_on_p (header, R, rstate);
     if (nq > 0)
-      gmp_collision_on_sq (header, R, c);
+      gmp_collision_on_sq (header, R, c, rstate);
   }
+
+  gmp_randclear(rstate);
 
   polyselect_proots_clear (R, lenPrimes);
   polyselect_poly_header_clear (header);
@@ -2157,6 +2189,9 @@ main (int argc, char *argv[])
       exit (1);
     }
 
+
+  weibull_rstate_init();
+
   st = milliseconds ();
   lenPrimes = initPrimes (P, &Primes);
 
@@ -2290,6 +2325,7 @@ main (int argc, char *argv[])
 #endif
     printf ("# Stat: size-optimization took %.2fs\n", optimize_time);
 
+  weibull_rstate_clear();
   mpz_clear (N);
   mpz_clear (admin);
   mpz_clear (admax);

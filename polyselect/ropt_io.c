@@ -53,7 +53,7 @@ ropt_L1_cachesize ()
 static void
 ropt_common ( ropt_poly_t poly,
               ropt_param_t param,
-              int fm )
+              int fm)
 {
   /* bestpoly, info */
   ropt_info_t info;

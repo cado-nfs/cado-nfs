@@ -837,7 +837,7 @@ void
 ropt_linear_deg5 ( ropt_poly_t poly,
                    ropt_bestpoly_t bestpoly,
                    ropt_param_t param,
-                   ropt_info_t info )
+                   ropt_info_t info)
 {
 
   /* setup bound, s1param, alpha_pqueue, global_E_pqueue */
@@ -945,7 +945,7 @@ void
 ropt_linear_deg34 ( ropt_poly_t poly,
                     ropt_bestpoly_t bestpoly,
                     ropt_param_t param,
-                    ropt_info_t info )
+                    ropt_info_t info)
 {
   unsigned long ub, vb;
   ropt_bound_t bound;
@@ -998,7 +998,7 @@ void
 ropt_linear ( ropt_poly_t poly,
               ropt_bestpoly_t bestpoly,
               ropt_param_t param,
-              ropt_info_t info )
+              ropt_info_t info)
 {
   if (poly->d == 3)
     ropt_linear_deg34 (poly, bestpoly, param, info);

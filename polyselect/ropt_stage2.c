@@ -869,7 +869,7 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
                            ropt_s2param_t s2param,
                            ropt_param_t param,
                            ropt_info_t info,
-                           MurphyE_pq *global_E_pqueue )
+                           MurphyE_pq *global_E_pqueue)
 {
   int i;
   unsigned long j, len_A, len_B, size_array_mem, size_B_block;
@@ -1116,7 +1116,7 @@ ropt_stage2 ( ropt_poly_t poly,
               ropt_param_t param,
               ropt_info_t info,
               MurphyE_pq *global_E_pqueue,
-              int w ) // enforce w explicitly.
+              int w) // enforce w explicitly.
 {
   int i;
 

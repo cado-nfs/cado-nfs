@@ -774,10 +774,18 @@ main_basic (int argc, char **argv)
 #pragma omp parallel
 #pragma omp master
   printf ("# Info: Using OpenMP with %u thread(s)\n", omp_get_num_threads ());
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel
 #endif
-  for (unsigned int i = 0; i < nb_input_polys; i++)
-    ropt_wrapper (input_polys[i], i, tott);
+  {
+      gmp_randstate_t rstate;
+      gmp_randinit_default(rstate);
+#ifdef HAVE_OPENMP
+#pragma omp for schedule(dynamic)
+#endif
+      for (unsigned int i = 0; i < nb_input_polys; i++)
+          ropt_wrapper (input_polys[i], i, tott);
+      gmp_randclear(rstate);
+  }
 
   /* print total time and rootsieve time.
      These two lines gets parsed by the script. */

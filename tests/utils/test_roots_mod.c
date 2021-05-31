@@ -11,7 +11,7 @@
 #include "rootfinder.h"
 
 int
-roots_mod_uint64 (uint64_t *r, uint64_t a, int d, uint64_t p);
+roots_mod_uint64 (uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr rstate);
 
 /* sort the roots r[0], ..., r[n-1] in increasing order */
 static void
@@ -30,7 +30,7 @@ sort_roots (uint64_t *r, int n)
 }
 
 int 
-roots_mod_mpz(uint64_t *r, uint64_t a, int d, uint64_t p)
+roots_mod_mpz(uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr rstate)
 {
   mpz_t *f;
   int n, i;
@@ -43,7 +43,7 @@ roots_mod_mpz(uint64_t *r, uint64_t a, int d, uint64_t p)
   mpz_set_uint64 (f[0], p - a);
   F->coeff = f;
   F->deg = d;
-  n = mpz_poly_roots_uint64 (r, F, p);
+  n = mpz_poly_roots_uint64 (r, F, p, rstate);
   for (i = 0; i <= d; i++)
     mpz_clear (f[i]);
   free (f);
@@ -88,12 +88,15 @@ int main(int argc, char **argv) {
   prime_info_init (pi);
   for (p = 2; p < minp; p = getprime_mt (pi));
 
+  gmp_randstate_t rstate;
+  gmp_randinit_default(rstate);
+
   while (p <= maxp) {
     for (a = mina; a <= maxa && a < p; a++) {
       for (d = mind; d <= maxd; d++) {
-        n1 = roots_mod_uint64 (r1, a, d, p);
+        n1 = roots_mod_uint64 (r1, a, d, p, rstate);
         if (check) {
-          n2 = roots_mod_mpz (r2, a, d, p);
+          n2 = roots_mod_mpz (r2, a, d, p, rstate);
           if (n1 != n2) {
             fprintf (stderr, "Error: for a=%lu, d=%lu, p=%lu, roots_mod_uint64()"
                      " reports %d roots, roots_mod_mpz() reports %d\n", 
@@ -117,6 +120,7 @@ int main(int argc, char **argv) {
     }
     p = getprime_mt (pi);
   }
+  gmp_randclear(rstate);
   prime_info_clear (pi);
   free (r1);
   free (r2);

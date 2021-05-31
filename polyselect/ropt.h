@@ -4,6 +4,7 @@
 #include "cado_poly.h"
 #include "ropt_str.h"
 #include "ropt_tree.h"  // MurphyE_pq
+#include "gmp_aux.h"           // for gmp_randstate_ptr
 
 
 /* timing structure for ropt */
@@ -24,11 +25,11 @@ extern "C" {
 void ropt ( ropt_poly_t poly,
             ropt_bestpoly_t bestpoly,
             ropt_param_t param,
-            ropt_info_t info );
+            ropt_info_t info);
 
 void ropt_get_bestpoly ( ropt_poly_t poly,
                          MurphyE_pq *global_E_pqueue,
-                         ropt_bestpoly_t bestpoly );
+                         ropt_bestpoly_t bestpoly);
 
 void ropt_polyselect (cado_poly_ptr output_poly, cado_poly_ptr input_poly,
                       ropt_param_t param, ropt_time_t thr);

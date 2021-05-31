@@ -261,6 +261,8 @@ static alg_prime_t * create_characters(int nchars[2],
      * option inserts some */
     /* we want some prime beyond the (rational) large prime bound */
 
+    cxx_gmp_randstate rstate;
+
     int i = nspecchar;
     for (int side = 0; side < 2; ++side) {
         if (nchars[side] == 0)
@@ -271,7 +273,7 @@ static alg_prime_t * create_characters(int nchars[2],
         do {
             mpz_nextprime(pp, pp);
             p = mpz_get_ui(pp);
-            ret = mpz_poly_roots_ulong (roots, pol->pols[side], p);
+            ret = mpz_poly_roots_ulong (roots, pol->pols[side], p, rstate);
             for (int k = 0; k < ret; ++k) {
                 if (i == nchars[0] + nchars[1])
                     break;

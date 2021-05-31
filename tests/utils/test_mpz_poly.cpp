@@ -8,7 +8,7 @@
 #include "mpz_poly.h"
 #include "mpz_poly_parallel.hpp"
 #include "tests_common.h"
-#include "portability.h" // lrand48 // IWYU pragma: keep
+#include "portability.h" //  IWYU pragma: keep
 
 /* Put random coefficients of k bits in a polynomial (already initialized).
    Ensure the coefficient of degree d is not zero. */
@@ -153,7 +153,7 @@ test_polymodF_mul ()
   int d1, d2, d;
   mpz_poly F, T, U;
   polymodF_t P1, P2, Q, P1_saved;
-  int k = 2 + (lrand48 () % 128), count = 0;
+  int k = 2 + gmp_urandomm_ui(state, 127), count = 0;
   mpz_t c;
 
   mpz_poly_init (T, -1);
@@ -276,13 +276,13 @@ test_polymodF_mul ()
 /*   /\* try random polynomials *\/ */
 /*   for (i = 0; i < iter; i++) */
 /*     { */
-/*       d = 1 + (lrand48 () % 7); */
+/*       d = 1 + gmp_urandomm_ui(state, 7);
 /*       for (n = 0; n <= d; n++) */
-/*         mpz_set_si (f[n], mrand48 ()); */
+/*         mpz_set_si (f[n], INT_MIN + gmp_urandomb_ui(state, 32)); */
 /*       mpz_urandomb (p, state, 128); */
 /*       mpz_nextprime (p, p); */
 /*       while (mpz_divisible_p (f[d], p)) */
-/*         mpz_set_si (f[d], mrand48 ()); */
+/*         mpz_set_si (f[d], INT_MIN + gmp_urandomb_ui(state, 32)); */
 /*       F->coeff = f; */
 /*       F->deg = d; */
 /*       n = mpz_poly_roots_mpz (r, F, p); */
@@ -311,8 +311,8 @@ test_mpz_poly_sqr_mod_f_mod_mpz (unsigned long iter)
     {
       mpz_poly Q, P, f;
       mpz_t m, invm;
-      int k = 2 + (lrand48 () % 127);
-      int d = 1 + (lrand48 () % 7);
+      int k = 2 + gmp_urandomm_ui(state, 127);
+      int d = 1 + gmp_urandomm_ui(state, 7);
 
       mpz_init (m);
       do mpz_urandomb (m, state, k); while (mpz_tstbit (m, 0) == 0);
@@ -604,15 +604,15 @@ test_mpz_poly_base_modp_init (unsigned long iter)
   mpz_init (pk);
   while (iter--)
     {
-      p = lrand48 ();
+      p = gmp_urandomb_ui(state, 31);
       if (p < 2)
         p = 2;
-      k = lrand48 () % 1024;
+      k = gmp_urandomb_ui(state, 10);
       if (k < 2)
         k = 2; /* ensures l > 0 */
       for (K[0] = k, l = 0; K[l] > 1; K[l+1] = (K[l] + 1) >> 1, l++);
-      d = lrand48 () % 10;
-      int m = (1 + (lrand48 () % 9)) * k;
+      d = gmp_urandomm_ui(state, 10);
+      int m = (1 + gmp_urandomm_ui(state, 9)) * k;
       if (iter == 0) /* exercise bug found on 32-bit MinGW */
         {
           p = 2048;
@@ -1081,12 +1081,12 @@ test_mpz_poly_discriminant (unsigned long iter)
     while (iter--)
     {
         int N = 10;
-        int d = 1 + (lrand48 () % (N-1));
+        int d = 1 + gmp_urandomm_ui(state, N-1);
         mpz_poly_set_zero(f);
         for (int i = 0; i <= d; i++) {
             long c;
             do {
-                c = (lrand48 () % 5) - 2;
+                c = gmp_urandomm_ui(state, 5) - 2;
             } while (i == d && c == 0);
             mpz_poly_setcoeff_si(f, i, c);
         }

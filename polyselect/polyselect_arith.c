@@ -179,7 +179,9 @@ binom ( unsigned long n,
 /* prepare special-q's roots */
 void
 comp_sq_roots ( polyselect_poly_header_srcptr header,
-                polyselect_qroots_ptr SQ_R )
+                polyselect_qroots_ptr SQ_R,
+                gmp_randstate_ptr rstate
+                )
 {
   unsigned long i, q, nrq;
   uint64_t *rq;
@@ -200,7 +202,7 @@ comp_sq_roots ( polyselect_poly_header_srcptr header,
     if ( mpz_fdiv_ui (header->Ntilde, q) == 0 )
       continue;
 
-    nrq = roots_mod_uint64 (rq, mpz_fdiv_ui (header->Ntilde, q), header->d, q);
+    nrq = roots_mod_uint64 (rq, mpz_fdiv_ui (header->Ntilde, q), header->d, q, rstate);
     roots_lift (rq, header->Ntilde, header->d, header->m0, q, nrq);
 
 #ifdef DEBUG_POLYSELECT

@@ -1470,12 +1470,15 @@ struct prime_data * suitable_crt_primes()
         fprintf(stderr, "# [%2.2lf] Searching for CRT primes\n", WCT);
     // fprintf(stderr, "# [%2.2lf] p0=%lu\n", WCT, p0);
 
+    gmp_randstate_t rstate;
+    gmp_randinit_default(rstate);
+
     for( ; i < m ; ) {
         p = ulong_nextprime(p);
         modulusul_t q;
         modul_initmod_ul(q, p);
         memset(roots, 0, glob.n * sizeof(unsigned long));
-        int nr = modul_poly_roots_ulong(roots, glob.pol->pols[1], q);
+        int nr = modul_poly_roots_ulong(roots, glob.pol->pols[1], q, rstate);
         if (nr != glob.n) continue;
         memset(&(res[i]), 0, sizeof(struct prime_data));
         res[i].r = malloc(glob.n * sizeof(unsigned long));
@@ -1503,6 +1506,8 @@ struct prime_data * suitable_crt_primes()
         // fprintf(stderr, "\n");
         i++;
     }
+    gmp_randclear(rstate);
+
     if (glob.rank == 0)
         fprintf(stderr, "# [%2.2lf] Found all CRT primes\n", WCT);
     free(roots);

@@ -23,7 +23,7 @@
 
 template<typename T>
 static unsigned long
-append_prime_list (T inserter, prime_info pi, unsigned long pmax, cxx_mpz_poly const & f, int minroots = 1)
+append_prime_list (T inserter, prime_info pi, unsigned long pmax, cxx_mpz_poly const & f, gmp_randstate_ptr rstate, int minroots = 1)
 {
     unsigned long p;
     ASSERT_ALWAYS(minroots <= f->deg);
@@ -33,7 +33,7 @@ append_prime_list (T inserter, prime_info pi, unsigned long pmax, cxx_mpz_poly c
     } else {
         for (; (p = getprime_mt (pi)) < pmax; )
             if (mpz_divisible_ui_p (f->coeff[f->deg], p) ||
-                    mpz_poly_roots_ulong (NULL, f, p) >= minroots)
+                    mpz_poly_roots_ulong (NULL, f, p, rstate) >= minroots)
                 *inserter++ = p;
     }
     return p;
@@ -47,6 +47,10 @@ trialdiv_data const * sieve_shared_data::side_data::get_trialdiv_data(fb_factorb
     if (it != trialdiv_data_cache.end()) {
         return &it->second;
     }
+
+    /* Note that since we have trialdiv_data_cache.mutex() unlock, we may
+     * safely access the random state in this->rstate
+     */
 
     /* Now compute the trialdiv data for these thresholds. */
 
@@ -83,7 +87,7 @@ trialdiv_data const * sieve_shared_data::side_data::get_trialdiv_data(fb_factorb
 
         for(int minroots = 1 ; minroots <= f->deg ; minroots++) {
             p = append_prime_list(std::back_inserter(trialdiv_primes),
-                    pi, MIN(pmax, minroots * fbK.td_thresh), f, minroots);
+                    pi, MIN(pmax, minroots * fbK.td_thresh), f, rstate, minroots);
         }
         prime_info_clear (pi);
     }

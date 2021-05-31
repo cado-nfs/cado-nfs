@@ -39,6 +39,10 @@ uint64_t u64_random(gmp_randstate_t buf) {
 #endif
 }
 
+int64_t i64_random(gmp_randstate_t buf) {
+    return (int64_t) u64_random(buf);
+}
+
 /* Wrapper around sysconf(ARG_MAX) that deals with availability of sysconf()
    and additional constraints on command line length */
 long get_arg_max(void)

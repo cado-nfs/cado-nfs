@@ -3395,8 +3395,11 @@ int mpz_poly_is_irreducible_z (mpz_poly_srcptr f)
   size_t normf;
   int ret = 0; // init
   mat_Z g;
+  gmp_randstate_t rstate;
 
   mpz_init (p);
+  gmp_randinit_default(rstate);
+
   mpz_poly_infinity_norm (p, f);
   normf = mpz_sizeinbase (p, 2);
   /* The following table might be useful to optimize the value of MARGIN:
@@ -3415,7 +3418,7 @@ int mpz_poly_is_irreducible_z (mpz_poly_srcptr f)
 
   do {
     mpz_nextprime (p, p);
-    nr = mpz_poly_roots_mpz(roots, f, p);
+    nr = mpz_poly_roots_mpz(roots, f, p, rstate);
     /* If f has no root mod p and degree <= 3, it is irreducible,
        since a degree 2 polynomial can only factor into 1+1 or 2,
        and a degree 3 polynomial can only factor into 1+2 or 3. */
@@ -3495,6 +3498,8 @@ int mpz_poly_is_irreducible_z (mpz_poly_srcptr f)
   for (i = 0; i < d; i++)
     mpz_clear (roots[i]);
   free (roots);
+
+  gmp_randclear(rstate);
   mpz_clear (p);
 
   return ret;

@@ -459,6 +459,9 @@ bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_
   mpz_poly phiy; // phi evaluated at a given y
   mpz_poly Pyi_mpz_poly;// Py with mpz_t coeffs
 
+  gmp_randstate_t rstate;
+  gmp_randinit_default(rstate);
+
   if(ff != NULL){
     // Now, find an appropriate poly f in that table.
     // start with the first one, etc because the polynomials are sorted in 
@@ -484,7 +487,7 @@ bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_
 	// 1st arg: tab of roots (ptr)
 	// 2nd: the poly to find the roots
 	// 3rd: p (prime)
-	nb_roots_y = mpz_poly_roots(y, Pyi_mpz_poly, p);
+	nb_roots_y = mpz_poly_roots(y, Pyi_mpz_poly, p, rstate);
 	// this function calls either a ulong version or an mpz_t version.
 	// nb_roots_y = mpz_poly_roots_ulong (y, Pyi_mpz_poly, p);
 	// nb_roots_y = mpz_poly_roots_mpz   (y, Pyi_mpz_poly, p);
@@ -514,6 +517,7 @@ bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_
     }
     free(y);
   }
+  gmp_randclear(rstate);
   if (found_good_f){
     *f_id = i-1;
   }else{

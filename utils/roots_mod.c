@@ -871,7 +871,7 @@ sort_roots (uint64_t *r, int n)
    Assumes 0 <= a < p.
 */
 int
-roots_mod_uint64 (uint64_t *r, uint64_t a, int d, uint64_t p)
+roots_mod_uint64 (uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr rstate)
 {
   int n = -1, i;
 
@@ -922,7 +922,7 @@ roots_mod_uint64 (uint64_t *r, uint64_t a, int d, uint64_t p)
       mpz_poly_init(f, d);
       mpz_poly_setcoeff_int64 (f, d, 1);
       mpz_poly_setcoeff_int64 (f, 0, p-a);
-      n = mpz_poly_roots_uint64 (r, f, p);
+      n = mpz_poly_roots_uint64 (r, f, p, rstate);
       mpz_poly_clear(f);
       sort_roots (r, n);
     }

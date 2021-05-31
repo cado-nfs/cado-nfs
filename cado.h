@@ -63,7 +63,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define _POSIX_C_SOURCE 200112L /* strtoumax */
 /* POSIX: popen/pclose with -std=c99, -pedantic or -ansi (requires
  * _POSIX_C_SOURCE==2 ?) fileno */
-#define _XOPEN_SOURCE   700     /* posix_memalign lrand48 strndup */
+#define _XOPEN_SOURCE   700     /* posix_memalign strndup */
 
 /* This #define _FILE_OFFSET_BITS is useless, really: we never made the
  * effort to use off_t in cado-nfs code, and we always lived on the

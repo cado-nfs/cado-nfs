@@ -6,6 +6,7 @@
 #include "macros.h"
 #include "tests_common.h"
 #include "utils/u64arith.h"
+#include "misc.h"
 
 void
 test_one_u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
@@ -206,7 +207,7 @@ test_u64arith_reciprocal_for_div() {
     test_one_u64arith_reciprocal_for_div(msb + i);
     test_one_u64arith_reciprocal_for_div(UINT64_MAX - 1);
     test_one_u64arith_reciprocal_for_div(msb + UINT64_MAX / 2 / iter);
-    test_one_u64arith_reciprocal_for_div(msb | random_uint64());
+    test_one_u64arith_reciprocal_for_div(msb | u64_random(state));
   }
 }
 
@@ -281,11 +282,11 @@ void test_u64arith_reciprocal_for_div_3by2(const unsigned long iter) {
     test_one_u64arith_reciprocal_for_div_3by2(0, UINT64_MAX);
     test_one_u64arith_reciprocal_for_div_3by2(UINT64_MAX, UINT64_MAX);
     for (unsigned long i = 0; i < iter; i++) {
-        test_one_u64arith_reciprocal_for_div_3by2(random_uint64(), msb);
-        test_one_u64arith_reciprocal_for_div_3by2(random_uint64(), UINT64_MAX);
-        test_one_u64arith_reciprocal_for_div_3by2(0, random_uint64() | msb);
-        test_one_u64arith_reciprocal_for_div_3by2(UINT64_MAX, random_uint64() | msb);
-        test_one_u64arith_reciprocal_for_div_3by2(random_uint64(), random_uint64() | msb);
+        test_one_u64arith_reciprocal_for_div_3by2(u64_random(state), msb);
+        test_one_u64arith_reciprocal_for_div_3by2(u64_random(state), UINT64_MAX);
+        test_one_u64arith_reciprocal_for_div_3by2(0, u64_random(state) | msb);
+        test_one_u64arith_reciprocal_for_div_3by2(UINT64_MAX, u64_random(state) | msb);
+        test_one_u64arith_reciprocal_for_div_3by2(u64_random(state), u64_random(state) | msb);
     }
 }
 
@@ -322,11 +323,11 @@ void test_one_u64arith_divqr_3_2_1_recip_precomp(
 void test_u64arith_divqr_3_2_1_recip_precomp(const unsigned long iter) {
     test_one_u64arith_divqr_3_2_1_recip_precomp(1, 1, 1, 0, 1);
     for (unsigned long i = 0; i < iter; i++) {
-        const uint64_t q = random_uint64(),
-                       d0 = random_uint64();
-        uint64_t d1 = random_uint64(),
-                 r0 = random_uint64(),
-                 r1 = random_uint64();
+        const uint64_t q = u64_random(state),
+                       d0 = u64_random(state);
+        uint64_t d1 = u64_random(state),
+                 r0 = u64_random(state),
+                 r1 = u64_random(state);
         if (d1 == 0)
             d1 = 1;
         r1 %= d1;
@@ -347,8 +348,8 @@ static void test_one_u64arith_div2mod(const uint64_t a, const uint64_t m) {
 
 void test_u64arith_div2mod(unsigned long iter) {
     for (unsigned long i = 0; i < iter; i++) {
-        const uint64_t a = random_uint64();
-        const uint64_t m = random_uint64() | 1;
+        const uint64_t a = u64_random(state);
+        const uint64_t m = u64_random(state) | 1;
         test_one_u64arith_div2mod(a % m, m);
     }
 }

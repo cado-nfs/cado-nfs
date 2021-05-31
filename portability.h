@@ -406,12 +406,6 @@ asprintf( char ** const sptr, const char * const fmt, ... )
 #endif
 #endif  /* HAVE_ASPRINTF *//*}}}*/
 
-#ifndef HAVE_LRAND48/*{{{*/
-#include <stdlib.h>
-#define lrand48 rand
-#define mrand48() (rand() - RAND_MAX/2)
-#endif/*}}}*/
-
 #if defined(HAVE_MINGW) && !defined(HAVE_REALPATH)/*{{{*/
 #include <io.h>
 #include <stdlib.h>

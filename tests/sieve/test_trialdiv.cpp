@@ -8,7 +8,7 @@
 #include "gmp_aux.h"           // for ulong_nextprime
 #include "sieve/trialdiv.hpp"
 #include "tests_common.h"
-#include "portability.h" // lrand48  // IWYU pragma: keep
+#include "portability.h" // IWYU pragma: keep
 #include "cxx_mpz.hpp"  // cxx_mpz
 #include "getprime.h"   // prime_info
 #include "timing.h"     // microseconds
@@ -87,7 +87,7 @@ test_trialdiv (int n, unsigned long iter)
         for (r = pmax, p = 0; p == 0 || p > pmax; r -= 2)
           p = ulong_nextprime (r);
       } else {
-          do p = ulong_nextprime (lrand48 () % pmax); while (p > pmax || p < 3);
+          do p = ulong_nextprime (gmp_urandomm_ui(state, pmax)); while (p > pmax || p < 3);
       }
       trialdiv_data d(std::vector<unsigned long>(1, p));
 

@@ -4,7 +4,7 @@
 #include "bit_vector.h"
 #include "tests_common.h"
 #include "macros.h"
-#include "portability.h" // lrand48 // IWYU pragma: keep
+#include "portability.h" // IWYU pragma: keep
 
 void
 test_bit_vector (unsigned long iter)
@@ -15,7 +15,7 @@ test_bit_vector (unsigned long iter)
 
   while (iter--)
     {
-      n = 1 + (lrand48 () %  (3 * BV_BITS));
+      n = 1 + gmp_urandomm_ui(state, 3 * BV_BITS);
       w = (n + BV_BITS - 1) / BV_BITS;
       bit_vector_init (b, n);
       ASSERT_ALWAYS(bit_vector_memory_footprint (b) == w * sizeof (bv_t));
@@ -45,7 +45,7 @@ test_bit_vector (unsigned long iter)
           ASSERT_ALWAYS(bit_vector_getbit (b, i) == 0);
           ASSERT_ALWAYS(bit_vector_getbit (c, i) == 0);
         }
-      i = lrand48 () % n;
+      i = gmp_urandomm_ui(state, n);
       bit_vector_setbit (b, i);
       ASSERT_ALWAYS(bit_vector_getbit (b, i) == 1);
       ret = bit_vector_clearbit (b, i);
@@ -55,7 +55,7 @@ test_bit_vector (unsigned long iter)
       ASSERT_ALWAYS(bit_vector_getbit (b, i) == 1);
       ASSERT_ALWAYS(ret == 0);
       for (i = 0; i < n; i++)
-        bit_vector_flipbit (b, lrand48 () % n);
+        bit_vector_flipbit (b, gmp_urandomm_ui(state, n));
       for (w = 0, i = 0; i < n; i++)
         w += bit_vector_getbit (b, i);
       ASSERT_ALWAYS(w == bit_vector_popcount (b));
@@ -70,10 +70,10 @@ test_bit_vector_read_from_file (void)
   size_t n, i;
 
   /* create a random bit vector */
-  n = 1 + (lrand48 () %  (3 * BV_BITS));
+  n = 1 + gmp_urandomm_ui(state, 3 * BV_BITS);
   bit_vector_init_set (b, n, 0);
   for (i = 0; i < n; i++)
-    if (lrand48 () & 1)
+    if (gmp_urandomb_ui(state, 1))
       bit_vector_flipbit (b, i);
 
 

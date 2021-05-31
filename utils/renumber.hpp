@@ -78,6 +78,11 @@ private:/*{{{ internal data fields*/
 
     int format = format_traditional;
 
+    /* a random state is needed for the traditional format (and _only_
+     * for the traditional format), since rootfinding is needed at times
+     * for some lookups */
+    mutable cxx_gmp_randstate rstate;
+
     /* all the (p,r,side) description of the bad ideals */
     std::vector<std::pair<p_r_side, badideal> > bad_ideals;
 

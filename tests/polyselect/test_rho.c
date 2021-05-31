@@ -5,6 +5,7 @@
 #include "tests_common.h"
 #include "macros.h"
 #include "rho.h"
+#include "misc.h"
 
 /* check relative error is less than emax */
 static int
@@ -45,7 +46,7 @@ test_rho (void)
   y = dickman_rho (0.0);
   ASSERT_ALWAYS (y == 1.0);
 
-  x = ldexp(random_uint64(), -64);
+  x = ldexp(u64_random(state), -64);
   ASSERT_ALWAYS (0 <= x && x < 1.0);
   y = dickman_rho (x);
   ASSERT_ALWAYS (y == 1.0);
