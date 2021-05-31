@@ -1445,6 +1445,7 @@ void vsc_fill_buffers(builder * mb, struct vsc_slice_t * V)
 {
     unsigned int nvstrips = V->dispatch.size();
     uint32_t width = iceildiv(V->hdr->j1 - V->hdr->j0, nvstrips);
+    ASSERT_ALWAYS(width > 0);
     uint32_t * ptr = mb->rowhead;
     uint32_t i = V->hdr->i0;
     V->tbuf_space = 0;
