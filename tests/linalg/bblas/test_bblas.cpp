@@ -86,7 +86,7 @@ main(int argc, char* argv[])
         tests.emplace_back("all");
 
     if (!seed)
-        seed = rand();
+        seed = time(NULL);
 
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
