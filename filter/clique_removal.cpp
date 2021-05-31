@@ -487,9 +487,9 @@ clique_removal_core_mt (purge_matrix_ptr mat, int64_t target_excess,
   size_t *next_clique = NULL;
   std::vector<uint64_t> buf;
   float weight_last_comp_rem = 0.0;
-  next_clique = (size_t *) malloc (nthreads * sizeof (next_clique));
+  next_clique = (size_t *) malloc (nthreads * sizeof (size_t));
   ASSERT_ALWAYS (next_clique != NULL);
-  memset (next_clique, 0, nthreads * sizeof (next_clique));
+  memset (next_clique, 0, nthreads * sizeof (size_t));
 
   while (mat->nrows > target_excess + mat->ncols)
   {
