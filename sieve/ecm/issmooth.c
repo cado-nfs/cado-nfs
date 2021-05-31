@@ -133,6 +133,10 @@ main (int argc, char **argv)
               fprintf (stderr, "m == 0 does not make sense\n");
               exit (EXIT_FAILURE);
           }
+#ifdef __COVERITY__
+          /* any non-zero value will do */
+          __coverity_mark_pointee_as_sanitized__(&m, GENERIC); // allocation, divisor, loop bound
+#endif
           argc -= 2;
           argv += 2;
         }
