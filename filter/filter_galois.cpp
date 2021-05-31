@@ -583,6 +583,10 @@ main (int argc, char *argv[])
 
   /* Renumbering table to convert from (p,r) to an index */
   renumber_t renumber_tab(cpoly);
+  // this can throw renumber_table::corrupted_table
+  // this can throw std::runtime_error
+  // this can throw fmt::v7::format_error (well actually no it can't)
+  // coverity[root_function]
   renumber_tab.read_from_file(renumberfilename);
 
   fprintf(stderr, "Computing Galois action %s on ideals\n", action);
