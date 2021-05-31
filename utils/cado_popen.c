@@ -39,6 +39,7 @@ int cado_fd_popen(const char * command, const char * mode)
         imode = 1;
     } else {
         fprintf(stderr, "Please fix %s\n", __func__);
+        abort();
     }
     int pipefd[2];
     if (pipe(pipefd) < 0) {
