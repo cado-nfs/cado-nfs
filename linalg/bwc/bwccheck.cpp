@@ -616,6 +616,9 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
     for(int i = 0 ; i < argc ; i++) {
         try {
             const char * p = my_basename(argv[i]);
+#ifdef __COVERITY__
+            __coverity_mark_pointee_as_sanitized__(p, PATH);
+#endif
             if (*p && p[strlen(p)-1] == '~')
                 continue;
             switch(*p) {
