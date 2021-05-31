@@ -8,6 +8,7 @@
 #include "tests_common.h"
 #include ARITHMETIC
 #include "macros.h"
+#include "misc.h"
 
 
 /* Mask the (possibly multi-word) integer m so that only the
@@ -54,8 +55,7 @@ random_modulus (modint_t m)
   mod_intset_ul (m, 0UL);
   for (i = 0; i < MOD_SIZE; i++)
     {
-      m[i] = (unsigned long) rand () +
-	(RAND_MAX + 1UL) * (unsigned long) rand ();
+      m[i] = u64_random(state);
     }
   m[0] |= 1UL;
 
