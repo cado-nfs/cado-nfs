@@ -93,14 +93,8 @@ int main(int argc, char *argv[])
 	}
 
     gmp_randstate_t state;
-    /* Initializing radom generator */
-    mpz_t seedtest;
-    srand(time(NULL));
-
     gmp_randinit_default(state);
-
-    mpz_init_set_ui(seedtest, rand());
-    gmp_randseed(state, seedtest);
+    gmp_randseed_ui(state, time(NULL));
 
     FILE *file_in = fopen(pathname_in, "r");
     tabular_fm_t *c = tabular_fm_fscan(file_in);
@@ -144,7 +138,6 @@ int main(int argc, char *argv[])
     param_list_clear(pl);
     tabular_fm_free(c);
 
-    mpz_clear(seedtest);
     gmp_randclear(state);
 
     return EXIT_SUCCESS;
