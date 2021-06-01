@@ -171,7 +171,7 @@ estimate_weibull_moments (double *beta, double *eta, polyselect_data_srcptr s)
   *eta = m * (1.0 + y * (0.57721566490153 - 0.655878071520 * y));
 }
 
-static gmp_randstate_ptr weibull_rstate;
+static gmp_randstate_t weibull_rstate;
 
 void weibull_rstate_init()
 {
@@ -185,7 +185,7 @@ void weibull_rstate_clear()
 
 /* Estimation via extreme values: we cut the total n values into samples of k
    values, and for each sample we keep only the minimum. If the series of
-   minimum values satisfies a Weilbull distribution with parameters beta and eta,
+   minimum values satisfies a Weibull distribution with parameters beta and eta,
    then the original one has parameters beta (identical) and eta*k^(1/beta).
    Here we choose k near sqrt(n). */
 static void
