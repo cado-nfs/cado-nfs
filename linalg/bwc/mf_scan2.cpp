@@ -276,7 +276,7 @@ void maincode(ringbuf_ptr R, int consumers, FILE * f_in, FILE * f_rw, FILE * f_c
     write_column_weights(T, consumers, f_cw);
 }
 
-
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     char * argv0 = argv[0];
