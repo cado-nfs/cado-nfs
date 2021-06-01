@@ -951,6 +951,8 @@ read_log_format_reconstruct (logtab & log, MAYBE_UNUSED renumber_t const & renum
 }
 
 /* Write values of the known logarithms. */
+/* TODO: use the fact that we now have a way to iterate through the
+ * renumber table!!! */
 static void
 write_log (const char *filename, logtab & log, renumber_t const & tab, 
 	   sm_side_info *sm_info)
@@ -1539,6 +1541,7 @@ main(int argc, char *argv[])
 
   /* Writing all the logs in outfile */
   printf ("\n###### Writing logarithms in a file ######\n");
+  // coverity[root_function]
   write_log (outfilename, log, renumber_table, sm_info);
 
   /* freeing and closing */
