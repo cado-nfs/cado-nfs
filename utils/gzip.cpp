@@ -514,10 +514,14 @@ void streambase_maybe_compressed::close()
     if (pipe) pbuf->close();
     else fbuf->close();
     if (!tempname.empty()) {
-        rename(tempname.c_str(), orig_name.c_str());
+        int rc = rename(tempname.c_str(), orig_name.c_str());
+        ASSERT_ALWAYS(rc == 0);
     }
 }
 
+// we're in a dtor, exceptions can turn your computer into a coconut.
+// yet we have an ASSERT_ALWAYS in close()
+// coverity[exn_spec_violation]
 streambase_maybe_compressed::~streambase_maybe_compressed()
 {
     sync();
