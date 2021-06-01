@@ -541,8 +541,7 @@ next_mpz_with_factor_constraints(mpz_ptr r,
                             prime_info_clear(pi);
                             return nf;
                         } else {
-                            // Force p=pmax to break the loop.
-                            p = pmax;
+                            break;
                         }
                     }
                 }
