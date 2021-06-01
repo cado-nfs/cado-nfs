@@ -447,6 +447,7 @@ void declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "test-basecase", "test (and bench) the lingen basecase operation");
 }
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     MPI_Init(&argc, &argv);

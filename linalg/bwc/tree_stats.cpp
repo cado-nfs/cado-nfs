@@ -436,6 +436,8 @@ void tree_stats::begin_plan_smallstep_microsteps(std::string const & func)
 
     } catch (std::runtime_error const & e) {
         std::stringstream os;
+        // see above
+        // coverity[fun_call_w_exception]
         os << fmt::format(FMT_STRING("Exception at {}\n"), __func__);
         os << "State of *this\n";
         debug_print(os);
@@ -483,6 +485,8 @@ void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)
         S.heat_up();
     } catch (std::runtime_error const & e) {
         std::stringstream os;
+        // see above
+        // coverity[fun_call_w_exception]
         os << fmt::format(FMT_STRING("Exception at {}({},{})\n"), __func__, func, ncalls);
         os << "State of *this\n";
         debug_print(os);
@@ -509,6 +513,8 @@ void tree_stats::end_smallstep()
         s.nested_substeps.pop_back();
     } catch (std::runtime_error const & e) {
         std::stringstream os;
+        // see above
+        // coverity[fun_call_w_exception]
         os << fmt::format(FMT_STRING("Exception at {}()\n"), __func__);
         os << "State of *this\n";
         debug_print(os);
@@ -541,6 +547,8 @@ void tree_stats::skip_smallstep(std::string const & func, unsigned int ncalls)
         s.nested_substeps.pop_back();
     } catch (std::runtime_error const & e) {
         std::stringstream os;
+        // see above
+        // coverity[fun_call_w_exception]
         os << fmt::format(FMT_STRING("Exception at {}({}, {})\n"), __func__, func, ncalls);
         os << "State of *this\n";
         debug_print(os);
@@ -571,6 +579,8 @@ bool tree_stats::local_smallsteps_done(bool compulsory) const
         return true;
     } catch (std::runtime_error const & e) {
         std::stringstream os;
+        // see above
+        // coverity[fun_call_w_exception]
         os << fmt::format(FMT_STRING("Exception at {}()\n"), __func__);
         os << "State of *this\n";
         debug_print(os);

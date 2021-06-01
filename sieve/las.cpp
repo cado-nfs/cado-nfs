@@ -1456,6 +1456,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
 
 }/*}}}*/
 
+// coverity[root_function]
 int main (int argc0, char *argv0[])/*{{{*/
 {
     double t0, wct;

@@ -5,7 +5,7 @@
 #include "fm.h"                           // for fm_create, fm_free, fm_set_...
 #include "tab_fm.h"                       // for tabular_fm_add_fm, tabular_...
 
-
+// coverity[root_function]
 int main ()
 {
     gmp_randstate_t state;

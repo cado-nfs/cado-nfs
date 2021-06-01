@@ -16,6 +16,7 @@ void usage()
 {
     fprintf(stderr, "Usage: ./cleanup -ncols <N> -out <file> <file.0> <file.1> ...\n");
 }
+// coverity[root_function]
 int main(int argc, char **argv)
 {
     param_list pl;

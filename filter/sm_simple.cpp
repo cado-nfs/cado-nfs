@@ -117,6 +117,7 @@ static void usage (const char *argv, const char * missing, param_list pl)
 
 /* -------------------------------------------------------------------------- */
 
+// coverity[root_function]
 int main (int argc, char **argv)
 {
   char *argv0 = argv[0];
@@ -206,7 +207,6 @@ int main (int argc, char **argv)
 
   t0 = seconds();
 
-  // coverity[fun_call_w_exception]
   my_sm(outfile, infile, sm_info, pol->nb_polys);
 
   fprintf(stdout, "\n# sm completed in %2.2lf seconds\n", seconds() - t0);

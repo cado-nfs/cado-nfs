@@ -113,6 +113,7 @@ test_trialdiv (int n, unsigned long iter)
     }
 }
 
+// coverity[root_function]
 int main (int argc, const char **argv)
 {
   int i, len = 1, nr_primes = 1000, nr_N = 100000;

@@ -781,6 +781,7 @@ void tests_sprp()
 }
 
 
+// coverity[root_function]
 int main(int argc, const char **argv)
 {
   unsigned long iter = 10000;

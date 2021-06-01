@@ -47,6 +47,7 @@ void * test_code(parallelizing_info_ptr pi, param_list_ptr pl MAYBE_UNUSED, void
     return NULL;
 }
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     char ** argv0 = argv;

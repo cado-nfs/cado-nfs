@@ -282,6 +282,7 @@ void bench_proba_mini(gmp_randstate_t state, tabular_fm_t * fm, int* val_p,
 /************************************************************************/
 
 
+// coverity[root_function]
 int main()
 {
     gmp_randstate_t state;

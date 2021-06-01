@@ -729,6 +729,7 @@ int sanity_check(std::string filename)
     }
 }
 
+// coverity[root_function]
 int
 main(int argc, char* argv[])
 {

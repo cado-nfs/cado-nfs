@@ -372,6 +372,7 @@ struct lingen_tuner {
         if (rank == 0)
             C.load(timing_cache_filename);
     }/*}}}*/
+    // coverity[exn_spec_violation]
     ~lingen_tuner() {/*{{{*/
         int rank;
         MPI_Comm_rank(P.comm, &rank);

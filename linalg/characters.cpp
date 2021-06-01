@@ -617,6 +617,7 @@ declare_usage (param_list pl)
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
 }
 
+// coverity[root_function]
 int main(int argc, char **argv)
 {
     const char * heavyblockname = NULL;

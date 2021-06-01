@@ -175,7 +175,6 @@ main (int argc, char *argv[])
         ptr_out = p_out.get();
     }
 
-    // coverity[fun_call_w_exception]
     A.process(*ptr_out, *ptr_in);
 
     return 0;

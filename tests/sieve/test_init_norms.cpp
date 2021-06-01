@@ -129,6 +129,7 @@ static void declare_usage(param_list pl)/*{{{*/
   verbose_decl_usage(pl);
 }/*}}}*/
 
+// coverity[root_function]
 int main (int argc0, char *argv0[])/*{{{*/
 {
     int argc = argc0;

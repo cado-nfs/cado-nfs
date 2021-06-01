@@ -673,6 +673,7 @@ int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
     return 1;
 }/*}}}*/
 
+// coverity[root_function]
 int main(int argc, char *argv[]) /*{{{ */
 {
     param_list pl;

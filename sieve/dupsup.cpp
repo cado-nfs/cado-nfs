@@ -98,7 +98,7 @@ usage (param_list_ptr pl, char *argv0)
     exit(EXIT_FAILURE);
 }
 
-
+// coverity[root_function]
 int
 main (int argc, char * argv[])
 {

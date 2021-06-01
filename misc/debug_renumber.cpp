@@ -34,6 +34,7 @@ usage (cxx_param_list & pl, char *argv0)
     exit(EXIT_FAILURE);
 }
 
+// coverity[root_function]
 int
 main (int argc, char *argv[])
 {

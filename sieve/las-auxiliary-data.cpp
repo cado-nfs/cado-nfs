@@ -82,6 +82,9 @@ nfs_aux::~nfs_aux()
         verbose_output_print (0, 1, "# total counted time: %s\n", os.str().c_str());
     }
 
+    // we're in a dtor, exceptions can turn your computer into a coconut.
+    // Well, we do have ASSERT_ALWAYS down below...
+    // coverity[fun_call_w_exception]
     rt.rep.display_survivor_counters();
 
     verbose_output_print(0, 2,
