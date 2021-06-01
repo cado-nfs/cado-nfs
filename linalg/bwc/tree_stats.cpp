@@ -404,6 +404,9 @@ void tree_stats::end_plan_smallstep()
         s.nested_substeps.pop_back();
     } catch (std::runtime_error const & e) {
         std::stringstream os;
+        // now that we have compile-time checking of format strings, at
+        // least with c++17, we can safely silence this false positive.
+        // coverity[fun_call_w_exception]
         os << fmt::format(FMT_STRING("Exception at {}()\n"), __func__);
         os << "State of *this\n";
         debug_print(os);
