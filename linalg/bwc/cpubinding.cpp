@@ -795,7 +795,9 @@ class cpubinder {
 
     /* filled by ::read_param_list */
     conf_file cf;
-    bool fake;
+    
+    /* This is set by read_param_list */
+    bool fake = false;
 
     /* filled by ::find and ::force */
     synthetic_topology stopo;
