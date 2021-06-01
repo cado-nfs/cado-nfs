@@ -581,6 +581,8 @@ struct lingen_substep_characteristics {
             tc_t & C,
             bool do_timings) const
     { /* {{{ */
+        ASSERT_FOR_STATIC_ANALYZER(mesh != 0);
+
         /* XXX Any change here must also be reflected in the mp_or_mul
          * structure in lingen_matpoly_bigmatpoly_ft_common.hpp
          */
