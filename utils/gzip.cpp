@@ -466,6 +466,10 @@ void streambase_maybe_compressed::open(const char * name, std::ios_base::openmod
     orig_name = name;
     const struct suffix_handler * r = supported_compression_formats;
     if (mode & std::ios_base::out && r->pfmt_out) {
+        // fmtlib's fmt::format oddly mentions that it can throw a format
+        // error, while its constexpr nature should be able to mark it as
+        // impossible.
+        // coverity[exception_thrown]
         tempname = fmt::format(FMT_STRING("{}.tmp.{}"), name, getpid());
         name = tempname.c_str();
     }
