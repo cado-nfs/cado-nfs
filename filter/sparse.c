@@ -158,7 +158,6 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
         rows[i2][l].e /= e1;
 #endif
 
- update_index_data:
     // Now, deal with the index_data.
     if (index_data != NULL) {
         k = k1 = k2 = 0;   // in index_data_t, we count from 0...
