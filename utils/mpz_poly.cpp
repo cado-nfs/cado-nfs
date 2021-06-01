@@ -1032,7 +1032,8 @@ int mpz_poly_asprintf(char ** res, mpz_poly_srcptr f)
 #undef SNPRINTF_FRAGMENT
 #undef PUTS_FRAGMENT
 oom:
-    free(res);
+    free(*res);
+    *res = NULL;
     return -1;
 }
 
