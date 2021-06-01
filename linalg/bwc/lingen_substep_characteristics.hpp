@@ -298,7 +298,7 @@ struct lingen_substep_characteristics {
         if (th - tl <= 0.1 * tl) return;
         unsigned int k = (kl + kh) / 2;
         double tk = F(k);
-        os << fmt::format(" {}:{:.2g}", k, tk);
+        os << fmt::format(FMT_STRING(" {}:{:.2g}"), k, tk);
         os.flush();
         tvec[k] = tk;
         double linfit_tk = tl + (th-tl)*(k-kl)/(kh-kl);
@@ -336,13 +336,13 @@ struct lingen_substep_characteristics {
 
         if (F.max_parallel() < TMAX) {
             TMAX = F.max_parallel();
-            os << fmt::format(" [capped to {}]", TMAX);
+            os << fmt::format(FMT_STRING(" [capped to {}]"), TMAX);
         }
 
         unsigned int kl = 1;
         double tl = F(kl);
         tvec[kl] = tl;
-        os << fmt::format(" {}:{:.2g}", kl, tl);
+        os << fmt::format(FMT_STRING(" {}:{:.2g}"), kl, tl);
         os.flush();
 
 
@@ -350,7 +350,7 @@ struct lingen_substep_characteristics {
         if (kh > 1) {
             double th = F(kh);
             tvec[kh] = th;
-            os << fmt::format(" {}:{:.2g}", kh, th);
+            os << fmt::format(FMT_STRING(" {}:{:.2g}"), kh, th);
             os.flush();
         }
 
@@ -384,7 +384,7 @@ struct lingen_substep_characteristics {
                 }
                 return parallelizable_timing(tvec);
             }
-            os << fmt::format("# ignoring cached entry, computed for up to {} threads (here {} max)\n", th_cache, F.max_parallel());
+            os << fmt::format(FMT_STRING("# ignoring cached entry, computed for up to {} threads (here {} max)\n"), th_cache, F.max_parallel());
             store.clear();
         }
 

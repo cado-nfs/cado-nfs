@@ -164,7 +164,17 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if(MINGW)
         set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
     else()
-        set (CMAKE_CXX_FLAGS "-std=c++11 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
+        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+            # we only require c++11, not c++17. However c++17 adds the
+            # possibility to benefit from some compile-time checks, of
+            # format strings notably. Therefore we choose to enable it
+            # sporadically. This has the downside that some
+            # c++17-specific constructs may appear to be valid on my
+            # machine. This will be caught by CI after the fact anyway.
+            set (CMAKE_CXX_FLAGS "-std=c++17 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
+        else()
+            set (CMAKE_CXX_FLAGS "-std=c++11 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
+        endif()
     endif()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
     if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0 AND

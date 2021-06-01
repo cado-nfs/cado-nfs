@@ -124,7 +124,7 @@ struct matrix_reader
         int nij = k * i + j;
         std::string filename;
         if (k > 1) {
-            filename = stem + fmt::format(".{}.data", nij);
+            filename = stem + fmt::format(FMT_STRING(".{}.data"), nij);
         } else {
             filename = stem + ".single.data";
         }
