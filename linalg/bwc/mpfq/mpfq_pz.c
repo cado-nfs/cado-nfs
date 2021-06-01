@@ -1208,6 +1208,10 @@ void mpfq_pz_poly_precomp_mod(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_poly
 {
     assert(p != q);
     int N = mpfq_pz_poly_deg(K, p);
+    if (N < 0) {
+        mpfq_pz_poly_set(K, q, p);
+        return;
+    }
     mpfq_pz_poly rp;
     mpfq_pz_poly_init(K, rp, N+1);
     mpfq_pz_vec_rev(K, rp->c, p->c, N+1);
