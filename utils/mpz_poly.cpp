@@ -4250,6 +4250,8 @@ int mpz_poly_factor_list_lift(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, m
 
 int mpz_poly_factor_and_lift_padically(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, mpz_srcptr ell, int prec, gmp_randstate_t rstate)
 {
+    // this is a false positive
+    // coverity[exception_thrown]
     ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
 
     mpz_poly_factor(fac, f, ell, rstate);
