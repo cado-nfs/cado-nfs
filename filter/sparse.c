@@ -291,7 +291,6 @@ reallocRow (typerow_t *row, uint32_t n)
   row = (typerow_t*) realloc (row, n * SIZEOF_INDEX);
 #endif
   FATAL_ERROR_CHECK(row == NULL, "Cannot allocate memory");
-  if (n * SIZEOF_INDEX == 50) printf ("row=%lx\n", (unsigned long) row);
   return row;
 }
 
