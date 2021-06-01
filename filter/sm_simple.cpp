@@ -54,6 +54,9 @@ static void my_sm(const char *outfile, const char *infile,
 	int deg;
 	char *tmp = buf+2;
 	sscanf(tmp, "%d", &deg);
+#ifdef __COVERITY__
+        __coverity_mark_pointee_as_sanitized__(&deg, LOOP_BOUND);
+#endif
 	mpz_t zbuf;
 	mpz_init(zbuf);
 	for(int i = 0; i <= deg; i++){
