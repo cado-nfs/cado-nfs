@@ -164,7 +164,7 @@ static void next_elem(FILE * file, int *current_char)
     while (*current_char != EOF && !is_elem(*current_char)) {
 	*current_char = fgetc(file);
     }
-    fseek(file, -1, SEEK_CUR);
+    ungetc(*current_char, file);
 }
 
 static fm_t *sub_routine_fm_fscanf(FILE * file, int *current_char)
