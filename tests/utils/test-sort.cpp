@@ -93,6 +93,8 @@ int main(int argc, char * argv[])
     bool verbose = false;
     size_t logsize = 18;
     size_t maxspan = 1 << 9;
+    gmp_randstate_t state;
+
     argv++, argc--;
     for( ; argc ; argc--,argv++) {
         std::string s = *argv;
@@ -118,6 +120,7 @@ int main(int argc, char * argv[])
         fprintf(stderr, "Unexpected argument %s\n", s.c_str());
         exit(EXIT_FAILURE);
     }
+    gmp_randinit_default (state);
 
     std::vector<std::pair<unsigned int, std::string>> best;
     std::string last_best = "none";
@@ -132,7 +135,7 @@ int main(int argc, char * argv[])
 
         s = "std::sort";
         for(auto & x : blah)
-            x = rand() % 1000;
+            x = gmp_urandomm_ui(state, 1000);
         t0 = clock();
 
         auto beg = blah.begin();
@@ -173,7 +176,7 @@ int main(int argc, char * argv[])
 
         s = "custom-insert";
         for(auto & x : blah)
-            x = rand() % 1000;
+            x = gmp_urandomm_ui(state, 1000);
         t0 = clock();
         for(unsigned int i = 0 ; i + v <= blah.size() ; i += v)
             renumber_sort_ul(&(blah[i]), v);
@@ -186,7 +189,7 @@ int main(int argc, char * argv[])
 
         s = "custom-merge";
         for(auto & x : blah)
-            x = rand() % 1000;
+            x = gmp_urandomm_ui(state, 1000);
         t0 = clock();
         for(unsigned int i = 0 ; i + v <= blah.size() ; i += v)
             hard_mergesort(&(blah[i]), v);
@@ -207,5 +210,6 @@ int main(int argc, char * argv[])
     }
     for(auto x : best)
         printf("n >= %u : %s\n", x.first, x.second.c_str());
+    gmp_randclear (state);
     return 0;
 }
