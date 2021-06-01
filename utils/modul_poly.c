@@ -679,7 +679,7 @@ static int coeff_cmp(
    which has lower degree? Warning: if f has root -a, we might miss it.]
 */
 int
-modul_poly_roots(residueul_t *r, mpz_poly_srcptr F, modulusul_t p, gmp_randstate_t rstate)
+modul_poly_roots(residueul_t *r, mpz_poly_srcptr F, modulusul_t p, gmp_randstate_ptr rstate)
 {
   modul_poly_t fp, g, h;
   int df;
@@ -756,7 +756,7 @@ modul_poly_roots(residueul_t *r, mpz_poly_srcptr F, modulusul_t p, gmp_randstate
 }
 
 int
-modul_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, modulusul_t p, gmp_randstate_t rstate)
+modul_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, modulusul_t p, gmp_randstate_ptr rstate)
 {
     residueul_t * pr;
     int i, n;
