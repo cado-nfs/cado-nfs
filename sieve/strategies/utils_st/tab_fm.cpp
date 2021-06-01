@@ -222,7 +222,8 @@ tabular_fm_t* tabular_fm_fscan(FILE * file)
 	return NULL;
     tabular_fm_t * res = tabular_fm_create ();
     int current_char = fgetc(file);
-    fseek(file, -1, SEEK_CUR);
+    int rc = ungetc(current_char, file);
+    ASSERT_ALWAYS(rc != EOF);
     while (current_char != EOF) {
 	fm_t *fm = sub_routine_fm_fscanf(file, &current_char);
 	tabular_fm_add_fm(res, fm);
