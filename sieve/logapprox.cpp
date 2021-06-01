@@ -221,9 +221,6 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
             piecewise_linear_function G = C0_from_points(newsplits);
             G.endpoints.pop_front();
             todo.endpoints.pop_front();
-            done.endpoints.splice(done.endpoints.end(), G.endpoints, G.endpoints.begin());
-            done.equations.splice(done.equations.end(), G.equations, G.equations.begin());
-            next_noderivativeroot--;
             todo.endpoints.splice(todo.endpoints.begin(), G.endpoints);
             todo.equations.splice(todo.equations.begin(), G.equations);
             /* need to add r0 */
