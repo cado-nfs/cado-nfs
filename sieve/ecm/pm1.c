@@ -74,6 +74,11 @@ pm1 (modint_t f, const modulus_t m, const pm1_plan_t *plan)
   
   /* Compute X = x + 1/x */
   mod_init_noset0 (X, m);
+  /* I think that we have the guarantee that m is odd, so that x is
+   * necessarily coprime to all prime factors of m, and is thus in
+   * (Z/mZ)^*. Whence 1/x cannot go bananas.
+   */
+  // coverity[check_return]
   mod_inv (X, x, m);
   mod_add (X, X, x, m);
   
