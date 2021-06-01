@@ -97,9 +97,6 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
 
 #endif
 
-    if (rows == NULL)
-      goto update_index_data;
-
     len = 1 + rowLength(rows, i1) + rowLength(rows, i2);
     tmp = (typerow_t *) malloc (len * sizeof(typerow_t));
 
