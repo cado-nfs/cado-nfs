@@ -269,7 +269,7 @@ flushSparse(const char *sparsename, typerow_t **sparsemat, index_t small_nrows,
     if (skip) {
         printf("%lu coeffs (out of %lu total) put into %s (%.1f%%)\n",
                 DW, DW+W, dmatname,
-                100.0 * (double) DW / (DW+W));
+                100.0 * (double) DW / (DW+W+(DW==0&&W==0)));
         fflush(stdout);
 
         fclose_maybe_compressed (dmatfile, dmatname);
