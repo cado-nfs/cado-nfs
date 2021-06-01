@@ -656,7 +656,7 @@ tabular_fm_t *generate_factoring_methods(gmp_randstate_t state, int len_p_min,
     int ind_curve = 0;
     ec_parameterization_t curve[3] = {MONTY12, MONTY16, BRENT12};
     int method[4] = {PM1_METHOD, PP1_27_METHOD, PP1_65_METHOD, EC_METHOD};
-    while (ind_method <= 4 && ind_curve < 3) {
+    while (ind_method < 4 && ind_curve < 3) {
 
 	printf("method = %d, curve = %d\n",
 	       method[ind_method], curve[ind_curve]);
