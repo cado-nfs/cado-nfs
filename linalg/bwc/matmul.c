@@ -132,6 +132,8 @@ void (*get_rebinder(const char * impl, const char * dimpl))(matmul_ptr mm)
 
 matmul_ptr matmul_init(mpfq_vbase_ptr x, unsigned int nr, unsigned int nc, const char * locfile, const char * impl, param_list pl, int optimized_direction)
 {
+    ASSERT_ALWAYS(pl);
+
     struct matmul_public_s fake[1];
     memset(fake, 0, sizeof(fake));
 
@@ -210,9 +212,6 @@ matmul_ptr matmul_init(mpfq_vbase_ptr x, unsigned int nr, unsigned int nc, const
     }
 
     mm->local_cache_copy = NULL;
-
-    if (!pl)
-        return mm;
 
     const char * local_cache_copy_dir = param_list_lookup_string(pl, "local_cache_copy_dir");
     if (local_cache_copy_dir && mm->cachefile_name) {
