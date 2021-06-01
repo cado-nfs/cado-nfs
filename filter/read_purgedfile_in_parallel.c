@@ -276,6 +276,7 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
 
     {
 	FILE * f = fopen(filename, "r");
+        DIE_ERRNO_DIAG(f == NULL, "fopen", filename);
 	fseek(f, 0, SEEK_END);
         endpos = ftell(f);
         fclose(f);
@@ -301,6 +302,8 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
         char buffer[1 << 16];
 
         fi = fopen(filename, "r");
+        DIE_ERRNO_DIAG(fi == NULL, "fopen", filename);
+
         setbuffer(fi, buffer, sizeof(buffer));
 
         fseek(fi, spos_tab[i], SEEK_SET);
