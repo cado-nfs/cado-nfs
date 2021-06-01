@@ -156,10 +156,10 @@ void check_large_allgather_or_abort(const char * prefix)
     int err = check_if_large_allgather_is_ok(MPI_COMM_WORLD);
     if (!rank) {
         printf("%schecking if large MPI_Allgather (>4GB) works: %s\n", prefix,
-            err == 0 ? "ok" : "NOK");
+                ok_NOK(err == 0));
         if (err != 0)
             fprintf(stderr, "%schecking if large MPI_Allgather (>4GB) works: %s\n", prefix,
-                    err == 0 ? "ok" : "NOK");
+                    ok_NOK(err == 0));
     }
     if (err == 0) return;
 
@@ -262,10 +262,10 @@ void check_large_mpi_send_or_abort(const char * prefix)
     int err = check_if_large_mpi_send_is_ok(MPI_COMM_WORLD);
     if (!rank) {
         printf("%schecking if large MPI_Send (>1GB) works: %s\n", prefix,
-            err == 0 ? "ok" : "NOK");
+                ok_NOK(err == 0));
         if (err != 0)
             fprintf(stderr, "%schecking if large MPI_Send (>1GB) works: %s\n", prefix,
-                    err == 0 ? "ok" : "NOK");
+                    ok_NOK(err == 0));
     }
     if (err == 0) return;
 

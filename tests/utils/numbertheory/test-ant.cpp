@@ -23,6 +23,7 @@
 #include "params.h"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "timing.h"     // seconds
+#include "misc.h"
 
 using namespace std;
 static char ** original_argv;
@@ -257,7 +258,7 @@ int do_p_maximal_order_batch(param_list_ptr pl) /*{{{*/
 
         bool ok = sl_equivalent_matrices(O, my_O, p);
 
-        cout << (ok ? "ok" : "NOK") << " test " << test
+        cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
             << endl;
         test++;
@@ -358,7 +359,7 @@ int do_factorization_of_prime_batch(param_list_ptr pl) /*{{{*/
         for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
             ok = (ideals[k] == my_ideals[k]);
         }
-        cout << (ok ? "ok" : "NOK") << " test " << test
+        cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
             << endl;
         test++;
@@ -593,7 +594,7 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
         }
 
 
-        cout << (ok ? "ok" : "NOK") << " test " << test
+        cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
             << endl;
         test++;
