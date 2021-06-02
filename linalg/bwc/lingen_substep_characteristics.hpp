@@ -747,7 +747,7 @@ struct lingen_substep_characteristics {
 
     public:
 
-    lingen_call_companion::mul_or_mp_times get_companion(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const { /* {{{ */
+    lingen_call_companion::mul_or_mp_times get_companion(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, size_t reserved_ram, bool do_timings) const { /* {{{ */
         lingen_call_companion::mul_or_mp_times D { op_type };
         D.S = S;
         auto A = get_call_time_backend(os, P, mesh, S, C, do_timings); 
@@ -764,6 +764,7 @@ struct lingen_substep_characteristics {
         D.asize = asize;
         D.bsize = bsize;
         D.csize = csize;
+        D.reserved_ram = reserved_ram;
         return D;
     }/*}}}*/
     double get_call_time(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const {/*{{{*/

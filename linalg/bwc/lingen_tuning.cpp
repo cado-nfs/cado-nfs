@@ -655,8 +655,7 @@ struct lingen_tuner {
             }
         }
 
-        U = step.get_companion(os, P, mesh, S, C, do_timings);
-        U.reserved_ram = reserved;
+        U = step.get_companion(os, P, mesh, S, C, reserved, do_timings);
         os << "#\n";
 
         size_t mm = U.ram_total();
