@@ -438,10 +438,6 @@ static void pi_init_mpilevel(parallelizing_info_ptr pi, param_list pl)
         if (cpubinding_messages)
             msgsize = strlen(cpubinding_messages);
         MPI_Allreduce(MPI_IN_PLACE, &msgsize, 1, MPI_INT, MPI_MAX, pi->m->pals);
-        if (msgsize == 0) {
-            if (cpubinding_messages)
-                free(cpubinding_messages);
-        }
         msgsize++;
         int chunksize = PI_NAMELEN + msgsize;
         char * big_pool = malloc(pi->m->njobs * chunksize);
