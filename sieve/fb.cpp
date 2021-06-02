@@ -1456,6 +1456,10 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
             store_task_result(*this, *curr_T);
             completed_tasks++;
         } else {
+            // coverity doesn't see that the "comp" member of the
+            // priority queue can sometimes be a trivial object that
+            // doesn't really require initialization...
+            // coverity[uninit_use_in_call]
             pending.push(std::make_pair(just_finished, new task_info_t(*curr_T)));
         }
         delete result;
