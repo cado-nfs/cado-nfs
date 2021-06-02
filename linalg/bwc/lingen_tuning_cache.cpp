@@ -179,17 +179,22 @@ void lingen_tuning_cache::load(const char * timing_cache_filename)/*{{{*/
                 basecase_cache[K] = V;
         } else {
             mul_or_mp_key K;
+            bool good = false;
             if (step == op_mul_or_mp_base::op_name(op_mul_or_mp_base::OP_MP)) {
                 K.op_type = op_mul_or_mp_base::OP_MP;
+                good = true;
             } else if (step == op_mul_or_mp_base::op_name(op_mul_or_mp_base::OP_MUL)) {
                 K.op_type = op_mul_or_mp_base::OP_MUL;
+                good = true;
             } else {
                 is.setstate(std::ios_base::failbit);
             }
-            lingen_substep_schedule::fft_type_unserialize(is, K.fft_type);
-            mul_or_mp_value V;
-            if (is >> K.np >> K.na >> K.nb >> V) {
-                mul_or_mp_cache[K] = V;
+            if (good) {
+                lingen_substep_schedule::fft_type_unserialize(is, K.fft_type);
+                mul_or_mp_value V;
+                if (is >> K.np >> K.na >> K.nb >> V) {
+                    mul_or_mp_cache[K] = V;
+                }
             }
         }
         if (!is) {
