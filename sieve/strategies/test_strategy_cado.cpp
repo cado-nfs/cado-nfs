@@ -1312,6 +1312,7 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
     }
     weighted_success res2(nb_success, time, nb_test);
     printf ("interL: proba = %lf, time = %lf\n", res2.prob, res2.time);
+    facul_clear_strategies(facul_st);
 #endif
 
     gmp_randclear(state_copy);
