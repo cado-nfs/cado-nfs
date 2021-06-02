@@ -48,12 +48,13 @@ tabular_strategy_t ***extract_matrix_strat(const char *pathname_st,
 	    snprintf(name_file, sizeof(name_file), "%s/strategies_%d_%d", pathname_st, r0, r1);
 	    FILE *file = fopen(name_file, "r");
 	    matrix[r0][r1] = tabular_strategy_fscan(file);
+	    fclose(file);
 	    if (matrix[r0][r1] == NULL) {
+                free(matrix);
 		fprintf(stderr,
 			"Impossible to read the file '%s'\n", name_file);
 		return NULL;
 	    }
-	    fclose(file);
 	}
     }
     return matrix;
