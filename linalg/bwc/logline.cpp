@@ -169,7 +169,6 @@ int logline_begin(FILE * f, size_t size, const char * fmt, ...)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank && !logline_print_all_mpi_nodes) return 0;
-    va_start(ap, fmt);
     ASSERT_ALWAYS(!current);
     if (size < logline_thresholds[0]) return 0;
     int level;
@@ -182,6 +181,7 @@ int logline_begin(FILE * f, size_t size, const char * fmt, ...)
     current->f = f;
     current->start = logline_timer();
     char * tmp;
+    va_start(ap, fmt);
     int rc = vasprintf(&(tmp), fmt, ap);
     ASSERT_ALWAYS(rc >= 0);
     current->header = tmp;
