@@ -209,11 +209,11 @@ int vec_read(mpfq_vbase_ptr A, void * z, string const & v, size_t vsize, const c
     FILE * f;
     if ((f = fopen(v.c_str(), "rb")) != NULL) {
         int rc = fread(z, A->elt_stride(A), vsize, f);
+        fclose(f);
         if (rc >= 0 && (size_t) rc == vsize) {
             fmt::print(FMT_STRING("{}"), " done\n");
             return rc;
         }
-        fclose(f);
     }
     fmt::print(FMT_STRING("{}"), " failed\n");
     return -1;
