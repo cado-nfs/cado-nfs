@@ -890,6 +890,7 @@ ropt_linear_deg5 ( ropt_poly_t poly,
   remove_rep_alpha (alpha_pqueue);
   t1 = seconds_thread () - t1;
   if (r == -1) {
+      free_MurphyE_pq (&global_E_pqueue);
 #if TUNE_LOGNORM_INCR
       free_alpha_pq (&tune_E_pqueue);
 #endif
