@@ -1428,6 +1428,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                 }
                 free(data);
                 R.fprint_rhs_coeffs(f2);
+                fclose(f);
                 fclose(f2);
             }
 
