@@ -314,8 +314,7 @@ struct lingen_substep_characteristics {
          * the terminal, or stow it in a string first...
          */
 
-        /* does that count as non-odr-use ? */
-        constexpr const char * Fname = F.name;
+        constexpr const char * Fname = T::name;
 
         unsigned int TMAX = max_threads();
 
