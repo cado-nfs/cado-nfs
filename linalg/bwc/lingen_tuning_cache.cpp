@@ -61,7 +61,7 @@ template<typename T, typename U>
 std::istream& operator>>(std::istream& is, std::pair<T,U> & x)
 {
     is >> x.first;
-    char c = is.get();
+    int c = is.get();
     if (!is || c != ',') {
         /* since c++11, unget clears eofbit */
         is.setstate(std::ios_base::failbit);
