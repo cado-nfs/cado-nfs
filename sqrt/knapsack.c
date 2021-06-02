@@ -196,6 +196,10 @@ int knapsack_solve(knapsack_object_ptr ks)
 	    res += cb(cb_arg, v, x - bound);
 	}
     }
+
+    free(s1);
+    free(s2);
+
     return res;
 }
 
