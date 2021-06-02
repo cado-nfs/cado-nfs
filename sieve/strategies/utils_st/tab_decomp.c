@@ -139,10 +139,10 @@ static decomp_t *analyse_line(char *line)
  */
 tabular_decomp_t *tabular_decomp_fscan(FILE * file)
 {
-    tabular_decomp_t *res = tabular_decomp_create();
-
     if (file == NULL)
 	return NULL;
+
+    tabular_decomp_t *res = tabular_decomp_create();
 
     const int len_line = 1000;
     char line[len_line];
