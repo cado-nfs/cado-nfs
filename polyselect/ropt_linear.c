@@ -893,6 +893,7 @@ ropt_linear_deg5 ( ropt_poly_t poly,
 #if TUNE_LOGNORM_INCR
       free_alpha_pq (&tune_E_pqueue);
 #endif
+      free_alpha_pq (&alpha_pqueue);
       return;
   }
 
