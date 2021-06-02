@@ -558,6 +558,10 @@ void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
             free(qt);
         }
 
+        abvec_clear(ab, &A, k);
+        abvec_clear(ab, &B, k);
+        abvec_clear(ab, &C, 2*k-1);
+        
         mpz_clear(p);
 
         cout << input_length
