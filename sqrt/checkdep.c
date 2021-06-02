@@ -180,6 +180,8 @@ checkWithIndex (FILE *purgedfile, FILE *indexfile, FILE *kerfile, int verbose,
 		vec[k]++;
 	}
     }
+    free(small_row_used);
+    free(rel_used);
     return 1;
 }
 
