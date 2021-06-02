@@ -93,12 +93,12 @@ struct generic_poly_test {
     }
     generic_poly_test(generic_poly_test const&) = delete;
     ~generic_poly_test() {
-        Kinit(&a0);
-        Kinit(&a1);
-        Kinit(&a2);
-        Kinit(&a3);
-        Kinit(&a4);
-        Kinit(&a5);
+        Kclear(&a0);
+        Kclear(&a1);
+        Kclear(&a2);
+        Kclear(&a3);
+        Kclear(&a4);
+        Kclear(&a5);
         Kpoly_clear(p1);
         Kpoly_clear(p2);
         Kpoly_clear(q1);
