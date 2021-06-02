@@ -516,6 +516,7 @@ void streambase_maybe_compressed::close()
     if (!tempname.empty()) {
         int rc = rename(tempname.c_str(), orig_name.c_str());
         ASSERT_ALWAYS(rc == 0);
+        tempname.clear();
     }
 }
 
