@@ -578,6 +578,7 @@ mpz_poly_sqr_tc (inf& /* unused */, mpz_t *f, mpz_t *g, int r)
 	mpz_mul (f[t], g[r], g[r]);
       else
 	{
+          ASSERT_FOR_STATIC_ANALYZER(i < t);
 	  /* f[i] <- g(i) */
 	  mpz_poly_mul_eval_si (f[i], g, r, tc_points[i]);
 	  mpz_mul (f[i], f[i], f[i]);
