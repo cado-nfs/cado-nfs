@@ -795,6 +795,16 @@ void mpz_poly_fprintf_cado_format_line (FILE *fp, mpz_poly f, const int j, const
   }
 }
 
+#if 0
+
+/* This code is unused, and deserves a close look. What is the semantics
+ * of deg_Py exactly ? Is it 2 ? Is it a **degree** ? Is it a length
+ * (degree-1) ? The loop that goes up to deg_Py-1 below is suspicious,
+ * unless deg_Py is actually only a length. And the simultaneous info
+ * DEG_PY // deg_Py is a source for confusion, too. Do we have the
+ * implicit assert that deg_Py <= DEG_PY ? (then it should probably be an
+ * ASSERT_ALWAYS */
+
 static void print_coeff_Y_phi(FILE *fp, const long int phi_coeff_y[DEG_PY], unsigned int deg_Py){
   fprintf (fp, "(");
   fprintf (fp, "%ld", phi_coeff_y[0]);
@@ -831,7 +841,7 @@ void mpz_phi_poly_fprintf_cado_format_line (FILE *fp, const long int phi_coeff[M
   }
   fprintf(fp, "\n");
 }
-
+#endif
 
 void
 fprintf_gfpn_poly_info ( FILE* fp, mpz_poly f, const char *label_poly)
