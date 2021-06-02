@@ -171,10 +171,10 @@ std::vector<lingen_substep_schedule> optimize(
             << size_disp(reserved, buf)
             << " for reserved memory at upper levels";
         os << " [with shrink="
-            << fmt::format("({},{})",
+            << fmt::format(FMT_STRING("({},{})"),
                     S_lean.shrink0, S_lean.shrink2)
             << ", batch="
-            << fmt::format("({},{},{})",
+            << fmt::format(FMT_STRING("({},{},{})"),
                     S_lean.batch[0], S_lean.batch[1], S_lean.batch[2])
             << "]\n";
         fputs(os.str().c_str(), stderr);
@@ -372,6 +372,7 @@ struct lingen_tuner {
         if (rank == 0)
             C.load(timing_cache_filename);
     }/*}}}*/
+    // coverity[exn_spec_violation]
     ~lingen_tuner() {/*{{{*/
         int rank;
         MPI_Comm_rank(P.comm, &rank);
@@ -404,7 +405,7 @@ struct lingen_tuner {
 
         lingen_tuning_cache::basecase_key K { mpz_sizeinbase(p, 2), m, n, length, P.openmp_threads };
 
-        os << fmt::format("# basecase (@{}): ", length);
+        os << fmt::format(FMT_STRING("# basecase (@{}): "), length);
 
         if (!do_timings) {
             C[K] = { 0 };
@@ -599,7 +600,7 @@ struct lingen_tuner {
 
         size_t reserved = op_type == op_mul_or_mp_base::OP_MP ? reserved_mp : reserved_mul;
 
-        os << fmt::format("# {} reserved storage = {}\n",
+        os << fmt::format(FMT_STRING("# {} reserved storage = {}\n"),
                 op_mul_or_mp_base::op_name(op_type),
                 size_disp(reserved));
 
@@ -719,16 +720,16 @@ struct lingen_tuner {
             }
 
             mesh_sizes = { mesh };
-            os << fmt::format("# Forcing {} at depth {} L={}\n",
+            os << fmt::format(FMT_STRING("# Forcing {} at depth {} L={}\n"),
                     tuner.strat_name[mesh], K.depth, K.L);
 
             return true;
         }/* }}} */
         std::string explain(tuning_thresholds_t const & T, std::string const & k) {
             if (T.has(k)) {
-                return fmt::format(" tuning_threshold[{}]={}", k, T[k]);
+                return fmt::format(FMT_STRING(" tuning_threshold[{}]={}"), k, T[k]);
             } else {
-                return fmt::format(" tuning_threshold[{}]=undef", k);
+                return fmt::format(FMT_STRING(" tuning_threshold[{}]=undef"), k);
             }
         }
         typedef tuning_thresholds_t T_t;
@@ -799,7 +800,7 @@ struct lingen_tuner {
             os << "# Testing only";
             for(auto mesh : mesh_sizes)
                 os << " " << tuner.strat_name[mesh];
-            os << fmt::format(" at depth {} L={} since", K.depth, K.L)
+            os << fmt::format(FMT_STRING(" at depth {} L={} since"), K.depth, K.L)
                 << explanation.str()
                 << "\n";
             return done;
@@ -905,7 +906,7 @@ struct lingen_tuner {
             os << "# Testing only";
             for(auto fft : ffts)
                 os << " " << lingen_substep_schedule::fft_name(fft);
-            os << fmt::format(" at depth {} L={} since", K.depth, K.L)
+            os << fmt::format(FMT_STRING(" at depth {} L={} since"), K.depth, K.L)
                 << explanation.str()
                 << "\n";
             return true;
@@ -965,7 +966,7 @@ struct lingen_tuner {
         std::ostringstream os_pre;
         bool timed_something = false;
 
-        os_pre << fmt::format("####################### Measuring time at depth {} #######################\n", depth);
+        os_pre << fmt::format(FMT_STRING("####################### Measuring time at depth {} #######################\n"), depth);
 
         ASSERT_ALWAYS(cws.size() <= 2);
 
@@ -1278,7 +1279,7 @@ struct lingen_tuner {
             for(auto const & y : max_win_per_mesh) {
                 if (y.first) continue;  // see above
                 if (x.second.mesh > y.first && x.first < y.second) {
-                    (*p_talk) << fmt::format("## forcing %s at ({}) since it is known to win at ({})\n", strat_name[y.first],
+                    (*p_talk) << fmt::format(FMT_STRING("## forcing %s at ({}) since it is known to win at ({})\n"), strat_name[y.first],
                             y.first, y.second);
                     x.second.mesh = y.first;
                 }

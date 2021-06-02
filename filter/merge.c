@@ -184,7 +184,7 @@ void check_invariant(filter_matrix_t *mat)
         tot_weight2 += mat->wt[i];
     }
     printf("invariant %s: tw = %" PRIu64 " tw2=%" PRIu64 "\n",
-            mat->tot_weight == tot_weight2 ? "ok" : "NOK",
+            ok_NOK(mat->tot_weight == tot_weight2),
             mat->tot_weight, tot_weight2);
     
     ASSERT_ALWAYS(mat->tot_weight == tot_weight2);

@@ -1281,7 +1281,7 @@ static std::string relation_cache_subdir_name(std::vector<unsigned long> const &
     for(unsigned int i = 0 ; i + 1 < split_q.size() ; i++) {
         int l = 0;
         for(unsigned long s = 1 ; splits[i] > s ; s*=10, l++);
-        d += fmt::format("/{:0{}}", split_q[i], l);
+        d += fmt::format(FMT_STRING("/{:0{}}"), split_q[i], l);
     }
     return d;
 }/*}}}*/
@@ -1456,6 +1456,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
 
 }/*}}}*/
 
+// coverity[root_function]
 int main (int argc0, char *argv0[])/*{{{*/
 {
     double t0, wct;

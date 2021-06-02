@@ -246,6 +246,16 @@ const char *size_disp(size_t s, char buf[16]);
 }
 #endif
 
+static inline const char * ok_NOK(int t)
+{
+    return t ? "ok" : "NOK";
+}
+
+static inline const char * ok_NOKNOK(int t)
+{
+    return t ? "ok" : "NOK NOK NOK NOK";
+}
+
 #ifdef __cplusplus
 static inline std::string size_disp(size_t s) {
     char buf[16];

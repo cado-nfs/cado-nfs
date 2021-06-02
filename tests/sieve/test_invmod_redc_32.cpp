@@ -11,7 +11,7 @@
 #include "tests_common.h"
 #include "misc.h"
 
-
+// coverity[root_function]
 int main(int argc, const char **argv) {
     unsigned long N = 1000000;
     int test_correctness = 1, test_timing = 1;

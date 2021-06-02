@@ -1285,6 +1285,7 @@ usage (param_list pl, char *argv0)
 }
 
 
+// coverity[root_function]
 int
 main(int argc, char *argv[])
 {
@@ -1541,7 +1542,6 @@ main(int argc, char *argv[])
 
   /* Writing all the logs in outfile */
   printf ("\n###### Writing logarithms in a file ######\n");
-  // coverity[root_function]
   write_log (outfilename, log, renumber_table, sm_info);
 
   /* freeing and closing */

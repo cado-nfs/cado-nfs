@@ -109,6 +109,8 @@ thread_pool::thread_pool(const size_t nr_threads, double & store_wait_time, cons
         threads.emplace_back(*this, 0, !is_synchronous());
 };
 
+// ok, if an exception is raised we'll die abruptly.
+// coverity[exn_spec_violation]
 thread_pool::~thread_pool() {
   drain_all_queues();
   enter();

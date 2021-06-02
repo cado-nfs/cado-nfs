@@ -1127,6 +1127,7 @@ void test_mpz_poly_infinity_norm()
   mpz_poly_clear(f);
 }
 
+// coverity[root_function]
 int
 main (int argc, const char *argv[])
 {

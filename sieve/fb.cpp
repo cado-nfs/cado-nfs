@@ -1933,7 +1933,8 @@ struct helper_functor_write_to_fbc_file {
             if (next == chunks.end()) return;
             ASSERT_ALWAYS(sizeof(FB_ENTRY_TYPE) == next->entry_size);
 
-            lseek(fbc, header_block_offset + next->offset, SEEK_SET);
+            off_t rc = lseek(fbc, header_block_offset + next->offset, SEEK_SET);
+            ASSERT_ALWAYS(rc != (off_t) -1);
             ASSERT_ALWAYS(x.size() == next->nentries);
             size_t n = sizeof(FB_ENTRY_TYPE) * x.size();
             size_t written = 0;

@@ -554,6 +554,8 @@ void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
             free(tA);
             free(tB);
             free(tC);
+            free(tt);
+            free(qt);
         }
 
         mpz_clear(p);

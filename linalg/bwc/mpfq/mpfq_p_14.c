@@ -970,6 +970,10 @@ void mpfq_p_14_poly_precomp_mod(mpfq_p_14_dst_field K MAYBE_UNUSED, mpfq_p_14_ds
 {
     assert(p != q);
     int N = mpfq_p_14_poly_deg(K, p);
+    if (N < 0) {
+        mpfq_p_14_poly_set(K, q, p);
+        return;
+    }
     mpfq_p_14_poly rp;
     mpfq_p_14_poly_init(K, rp, N+1);
     mpfq_p_14_vec_rev(K, rp->c, p->c, N+1);

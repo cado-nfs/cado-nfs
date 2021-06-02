@@ -279,6 +279,7 @@ void test_allocate_0_bytes(void) /* shouldn't segfault */
     }
 }
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     if (argc == 3 && std::string(argv[1]) == "--tmpdir") {

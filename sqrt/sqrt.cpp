@@ -1865,6 +1865,7 @@ void usage(param_list pl, const char * argv0, FILE *f)
     exit(EXIT_FAILURE);
 }
 
+// coverity[root_function]
 int main(int argc, char *argv[])
 {
     cado_poly pol;

@@ -616,6 +616,7 @@ bug20200225 (void)
    Giving the "-check" parameter does only correctness tests but not timing.
    Giving only "-time" does only timing. Giving neither or both does both. */
 
+// coverity[root_function]
 int
 main (int argc, const char *argv[])
 {

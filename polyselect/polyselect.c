@@ -1652,8 +1652,6 @@ gmp_collision_on_p (
     }
   }
 
-  gmp_randclear(rstate);
-
 #ifdef DEBUG_POLYSELECT
   fprintf (stderr, "# collision_on_p took %lums\n", milliseconds () - st);
   gmp_fprintf (stderr, "# p polyselect_hash_size: %u for ad = %Zd\n", H->size,

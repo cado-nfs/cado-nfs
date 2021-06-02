@@ -1573,6 +1573,7 @@ tests/filter/c105_30003.rels.gz
 tests/filter/test_dup2.sh
 tests/filter/p40_30004.poly
 tests/filter/p40_30004.rels.gz
+utils/fmt/ChangeLog.rst
 utils/fmt/LICENSE.rst
 utils/fmt/README.rst
 utils/fmt/chrono.h
@@ -1649,3 +1650,4 @@ tests/utils/buggy.poly
 misc/indexed_relations_to_density.cpp
 scripts/check_python_pathdetection_stub.sh
 config/source-location.txt.in
+scripts/refresh-fmtlib.sh

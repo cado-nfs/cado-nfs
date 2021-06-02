@@ -434,6 +434,7 @@ leave_prep_prog_gfp:
     return NULL;
 }
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     param_list pl;

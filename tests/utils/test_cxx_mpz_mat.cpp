@@ -10,6 +10,7 @@
 
 using namespace std;
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     if (argc > 1) {

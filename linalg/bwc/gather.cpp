@@ -1454,7 +1454,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     return NULL;
 }
 
-
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     param_list pl;

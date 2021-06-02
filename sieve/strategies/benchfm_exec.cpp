@@ -33,6 +33,7 @@ static void declare_usage(param_list pl)
 /*                      MAIN */
 /************************************************************************/
 
+// coverity[root_function]
 int main(int argc, char *argv[])
 {
     int nb_test = 0;

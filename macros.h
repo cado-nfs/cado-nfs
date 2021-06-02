@@ -58,8 +58,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
         fprintf(stderr,"%s in %s at %s:%d -- %s\n",			\
                 (x),__func__,__FILE__,__LINE__,(y));			\
     } while (0)
-#define croak_throw__(x) do {						\
-        throw std::runtime_error("code BUG() : condition " x            \
+#define croak_throw__(e, x) do {					\
+        throw e("code BUG() : condition " x            \
                 " failed at " __FILE__ ":" CPP_STRINGIFY(__LINE__));    \
     } while (0)
 
@@ -75,11 +75,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
     } while (0)
 #ifdef __cplusplus
 #include <stdexcept>
-#define ASSERT_ALWAYS(x)						\
+#define ASSERT_ALWAYS_OR_THROW(x, e)                                   \
     do {								\
         if (!(x)) 							\
-            croak_throw__(#x);                                          \
+            croak_throw__(e, #x);                                       \
     } while (0)
+#define ASSERT_ALWAYS(x) ASSERT_ALWAYS_OR_THROW(x, std::runtime_error)
 #else
 #define ASSERT_ALWAYS(x) ASSERT_ALWAYS_NOTHROW(x)
 #endif

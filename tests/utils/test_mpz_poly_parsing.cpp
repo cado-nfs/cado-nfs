@@ -33,6 +33,8 @@ std::vector<std::string> expected_failures {
     "x+y",
     "x+y-y",
 };
+
+// coverity[root_function]
 int main()
 {
     for(auto const & example : examples) {

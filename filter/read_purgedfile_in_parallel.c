@@ -277,7 +277,8 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
     {
 	FILE * f = fopen(filename, "r");
         DIE_ERRNO_DIAG(f == NULL, "fopen", filename);
-	fseek(f, 0, SEEK_END);
+	int rc = fseek(f, 0, SEEK_END);
+        DIE_ERRNO_DIAG(rc < 0, "fseek", filename);
         endpos = ftell(f);
         fclose(f);
     }
@@ -306,7 +307,8 @@ uint64_t read_purgedfile_in_parallel(filter_matrix_t * mat,
 
         setbuffer(fi, buffer, sizeof(buffer));
 
-        fseek(fi, spos_tab[i], SEEK_SET);
+	int rc = fseek(fi, spos_tab[i], SEEK_SET);
+        DIE_ERRNO_DIAG(rc < 0, "fseek", filename);
 
         /* Except when we're at the beginning of the stream, read until
          * we get a newline */

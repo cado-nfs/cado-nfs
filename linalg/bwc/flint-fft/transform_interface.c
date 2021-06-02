@@ -1256,6 +1256,8 @@ static void fft_dft_backend(const struct fft_transform_info * fti, void * y, voi
                 for (mp_size_t s = 0; s < trunc2; s++) {
                     /* Truncation apparently appears only with bitrev semantics */
                     mp_limb_t ** row = ptrs + 2*n + n_revbin(s, depth2) * n1;
+                    // nah, it's fine... (CID 1453341)
+                    // coverity[copy_paste_error]
                     fft_radix2(row, n1 / 2, fti->w * n2, tslot0 + k, tslot1 + k);
                     for (mp_size_t j = 0; j < n1; j++)    /* normalize right now */
                         mpn_normmod_2expp1(row[j], rsize0);

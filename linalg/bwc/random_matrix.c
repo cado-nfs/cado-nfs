@@ -613,7 +613,7 @@ void random_matrix_ddata_adjust_force_kernel(random_matrix_ddata_ptr f, random_m
         /* Compute n0, which is used to generate coefficients. It
          * essentially counts, in the heaviest column, the number of
          * coefficients equal to 1 */
-        double n0 = f->nrows / 2;
+        double n0 = f->nrows / 2.0;
         double old_n0 = INFINITY;
         for(int spin = 0 ; n0 != old_n0 && spin < 100  ; spin++) {
             /* How many rows in total would be fit for that n0 ? */

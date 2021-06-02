@@ -40,6 +40,7 @@ test_one_type()
   test_smallset<5, ELEMENTTYPE>();
 }
 
+// coverity[root_function]
 int main()
 {
   test_one_type<unsigned char>();

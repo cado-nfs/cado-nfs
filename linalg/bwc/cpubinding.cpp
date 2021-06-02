@@ -795,7 +795,9 @@ class cpubinder {
 
     /* filled by ::read_param_list */
     conf_file cf;
-    bool fake;
+    
+    /* This is set by read_param_list */
+    bool fake = false;
 
     /* filled by ::find and ::force */
     synthetic_topology stopo;
@@ -860,7 +862,7 @@ void cpubinder::read_param_list(param_list_ptr pl, int want_conf_file)
     /* {{{ retrieve the topology */
     if (topology_file) {
         int rc = hwloc_topology_set_xml(topology, topology_file);
-        ASSERT_ALWAYS(rc >= 0);
+        ASSERT_ALWAYS_OR_THROW(rc >= 0, std::invalid_argument);
         fake = true;
     } else if (topology_string) {
         /* hwloc-1.4.1 does not seem to understand "NUMANode" when

@@ -171,6 +171,7 @@ next_prime (unsigned long start)
   return start;
 }
 
+// coverity[root_function]
 int main (int argc, char **argv)
 {
   char *argv0 = argv[0];

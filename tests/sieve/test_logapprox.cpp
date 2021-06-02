@@ -54,6 +54,7 @@ int original_test(bool display)
     return 0;
 }
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     bool display = false;
