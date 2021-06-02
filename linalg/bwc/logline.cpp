@@ -197,21 +197,21 @@ int logline_end(double * rr, const char * fmt, ...)
     if (!current) return 0;
     va_list ap;
     va_start(ap, fmt);
-    char * text;
     char * text2;
-    int rc;
+    double tt = logline_timer() - current->start;
     if (fmt) {
+        char * text;
+        int rc;
         rc = vasprintf(&text, fmt, ap);
         ASSERT_ALWAYS(rc >= 0);
-    }
-    double tt = logline_timer() - current->start;
-    if (fmt && *text) {
         rc = asprintf(&text2, "%s [%.2f]\n", text, tt);
+        ASSERT_ALWAYS(rc >= 0);
+        free(text);
     } else {
+        int rc;
         rc = asprintf(&text2, "[%.2f]\n", tt);
+        ASSERT_ALWAYS(rc >= 0);
     }
-    ASSERT_ALWAYS(rc >= 0);
-    free(text);
     if (current->nnl)
         logline_puts_raw(0, current->header.c_str());
     logline_puts_raw(0, text2);
