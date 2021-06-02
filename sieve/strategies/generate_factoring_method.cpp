@@ -697,8 +697,10 @@ tabular_fm_t *convex_hull_from_file(FILE * file_in, FILE * file_out)
     tabular_fm_free(all_st);
 
     int err = tabular_fm_fprint(file_out, res);
-    if (err < 0)
+    if (err < 0) {
+        tabular_fm_free(res);
 	return NULL;
+    }
 
     return res;
 }
