@@ -1162,11 +1162,6 @@ static void mpfq_pz_poly_preinv(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_po
     // Newton iteration: x_{n+1} = x_n + x_n(1 - a*x_n)
     // Requires p(0) = 1
     // Assume p != q (no alias)
-    mpfq_pz_elt temp;	/* spurious uninit warning sometimes */
-    mpfq_pz_init(K, &temp);
-    mpfq_pz_set_zero(K, temp); // silence spurious gcc11 warning :-(
-    mpfq_pz_poly_getcoeff(K, temp, p, 0);//Should be in the assert
-    assert( mpfq_pz_cmp_ui(K, temp, 1) == 0);
     assert (p != q);
     int m;
     if (n <= 2) {
@@ -1180,6 +1175,11 @@ static void mpfq_pz_poly_preinv(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_po
         m = 1 + ((n-1)/2);
         mpfq_pz_poly_preinv(K, q, p, m);
     }
+    mpfq_pz_elt temp;	/* spurious uninit warning sometimes */
+    mpfq_pz_init(K, &temp);
+    mpfq_pz_set_zero(K, temp); // silence spurious gcc11 warning :-(
+    mpfq_pz_poly_getcoeff(K, temp, p, 0);//Should be in the assert
+    assert( mpfq_pz_cmp_ui(K, temp, 1) == 0);
     // enlarge q if necessary
     if (q->alloc < n) {
         mpfq_pz_vec_reinit(K, &(q->c), q->alloc, n);
