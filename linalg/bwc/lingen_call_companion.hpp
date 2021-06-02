@@ -35,7 +35,7 @@ struct lingen_call_companion {
      * addition of the number of calls for two possibly different input
      * lengths.
      */
-    size_t total_ncalls;
+    size_t total_ncalls = 0;
     struct mul_or_mp_times {/*{{{*/
         op_mul_or_mp_base::op_type_t op_type;
         /* XXX This must be trivially copyable because we share it via
