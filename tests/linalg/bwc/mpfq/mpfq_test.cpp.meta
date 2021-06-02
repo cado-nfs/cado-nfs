@@ -1305,7 +1305,7 @@ int main(int argc, char * argv[])
                 Kpoly_random(p1, deg, rstate);
                 do {
                     Kpoly_random(q2, deg, rstate);
-                } while (Kpoly_deg(q2) == 0);
+                } while (Kpoly_deg(q2) <= 0);
                 if (test_i < 10) Kpoly_setmonic(q2, q2);
                 Kpoly_divmod(q3, q4, p1, q2);
                 Kpoly_mul(q1, q2, q3);
@@ -1396,8 +1396,13 @@ int main(int argc, char * argv[])
                 });
 #endif
         DO_ONE_TEST_POLY("poly_mod_pre", {
-                do { Kpoly_random(q2, deg, rstate); } while (Kpoly_deg(q2) < 0);
-                Kpoly_random(q1, test_i==0 ? (deg/2) : (2*Kpoly_deg(q2)-2), rstate);
+                do { Kpoly_random(q2, deg, rstate); } while (Kpoly_deg(q2) <= 0);
+
+                unsigned int q1len = 2*Kpoly_deg(q2)-2;
+                if (test_i == 0 && deg/2 <= q1len)
+                    q1len = deg/2;
+                /* Kpoly_random takes a length argument. */
+                Kpoly_random(q1, q1len, rstate);
 
                 Kpoly_setmonic(q2, q2);
                 if (test_i&1) {
