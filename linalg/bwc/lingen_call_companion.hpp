@@ -27,7 +27,7 @@ struct lingen_call_companion {
     bool recurse() const { return mesh > 0; }
     bool go_mpi() const { return mesh > 1; }
 
-    double ttb;
+    double ttb = 0;
     /* total_ncalls is a priori a power of two, but not always.
      * It is the number of calls that correspond to identical
      * lingen_call_companion::key keys.  In particular, since comparison
