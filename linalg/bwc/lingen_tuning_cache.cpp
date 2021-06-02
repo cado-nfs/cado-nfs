@@ -40,8 +40,9 @@ template <size_t n, typename... T>
 typename std::enable_if<(n < sizeof...(T)), std::istream&>::type
     parse_tuple(std::istream& is, std::tuple<T...>& tup)
 {
+    if (!is) return is;
     if (n) {
-        char c = is.get();
+        int c = is.get();
         if (c != ';' && c != ' ') {
             is.setstate(std::ios_base::failbit);
             return is;
