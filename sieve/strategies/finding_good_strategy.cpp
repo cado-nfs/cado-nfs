@@ -86,8 +86,10 @@ unsigned long **extract_matrix_C(FILE * file, int len_abs, int len_ord)
     int i, j;
     unsigned long c, unused_s;
     while (!feof(file)) {
-	if (fscanf(file, "%d %d %lu %lu\n", &i, &j, &c, &unused_s) != 4)
+	if (fscanf(file, "%d %d %lu %lu\n", &i, &j, &c, &unused_s) != 4) {
+            free(matrix_call);
 	    return NULL;
+        }
 	if (i < len_abs && j < len_ord)
 	    matrix_call[i][j] = c;
     }
