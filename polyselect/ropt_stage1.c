@@ -517,6 +517,8 @@ return_combined_sublattice ( ropt_poly_t poly,
       t_e_sl[j++] = s1param->e_sl[i];
     }
   }
+  /* j should equal the true length here */
+  ASSERT_ALWAYS (j == s1param->tlen_e_sl);
 
   /* decide the number of top individual sublattices. Note that
      the s1param->tlen_e_sl must be already set */
@@ -526,7 +528,7 @@ return_combined_sublattice ( ropt_poly_t poly,
     ropt_s1param_setup_individual_nbest_sl_tune (s1param);
 
   /* for each prime[i], lift the roots */
-  for (i = 0; i < s1param->tlen_e_sl; i ++) {
+  for (i = 0; i < j; i ++) {
 
     new_single_sublattice_pq (&top, s1param->individual_nbest_sl[i]);
 
