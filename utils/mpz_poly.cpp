@@ -376,6 +376,7 @@ mpz_poly_mul_tc(inf& inf_arg, mpz_t *f, mpz_t *g, int r, mpz_t *h, int s)
 	mpz_mul (f[t], g[r], h[s]);
       else
 	{
+          ASSERT_FOR_STATIC_ANALYZER(i < t);
 	  mpz_t tmp;
 	  mpz_init (tmp);
 	  /* f[i] <- g(i) */
