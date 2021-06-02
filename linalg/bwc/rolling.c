@@ -92,5 +92,6 @@ void keep_rolling_checkpoints(const char * stem, unsigned int v)
         free(v);
     }
     free(spat);
+    free(vs);
 }
 
