@@ -421,8 +421,9 @@ polyselect_shash_reset (polyselect_shash_ptr H)
   for (int j = 1; j <= polyselect_SHASH_NBUCKETS; j++)
     H->base[j] = H->current[j] = H->base[j-1] + H->balloc;
   /* Trick for prefetch T in polyselect_shash_find_collision after the end
-     of the last bucket. */
-  memset (H->base[polyselect_SHASH_NBUCKETS], 0, sizeof(**(H->base) * 8));
+     of the last bucket. Each H->base[j] has balloc entries of type uint64_t,
+     where balloc >= 128. */
+  memset (H->base[polyselect_SHASH_NBUCKETS], 0, sizeof(uint64_t) * 8);
 }
 
 
