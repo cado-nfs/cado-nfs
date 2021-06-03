@@ -421,8 +421,25 @@ polyselect_shash_reset (polyselect_shash_ptr H)
   for (int j = 1; j <= polyselect_SHASH_NBUCKETS; j++)
     H->base[j] = H->current[j] = H->base[j-1] + H->balloc;
   /* Trick for prefetch T in polyselect_shash_find_collision after the end
-     of the last bucket. */
-  memset (H->base[polyselect_SHASH_NBUCKETS], 0, sizeof(**(H->base)) * 8);
+     of the last bucket. Each H->base[j] has balloc entries of type uint64_t,
+     where balloc >= 128.
+
+     XXX several things are odd here
+     What is "the last bucket" ?
+     Is it [polyselect_SHASH_NBUCKETS-1] ?
+     Is it [polyselect_SHASH_NBUCKETS] ?
+     If the latter, then "the end of the last bucket" would be at position
+     H->base[polyselect_SHASH_NBUCKETS] + balloc, and the reason why this
+     doesn't overflow is that we have a +8 in H->alloc in the function
+     above.
+     If the former, then the place where we're doing the memset agrees
+     with the description "after the end of the last bucket". There are
+     several ways to argue that this memset doesn't overrun the buffer,
+     including the one above, or the aforementioned +8. But then, the
+     fact of allocating H->alloc with (polyselect_SHASH_NBUCKETS + 1)
+     times the init_size would probably be a bug.
+   */
+  memset (H->base[polyselect_SHASH_NBUCKETS], 0, sizeof(**H->base) * 8);
 }
 
 
