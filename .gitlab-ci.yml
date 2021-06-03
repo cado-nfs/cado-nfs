@@ -33,10 +33,6 @@ image: gcc
     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
       when: manual
       allow_failure: false
-    - if: $CI_COMMIT_BRANCH && $CI_BUILD_NAME == "coverity" && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "coverity")
-      when: always
-    - if: $CI_BUILD_NAME == "coverity"
-      when: never
     - when: on_success
   retry:
     max: 2
@@ -295,7 +291,14 @@ checks on freebsd13.0 system with gcc:
     - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
 
 coverity on debian10 system with gcc:
-  <<: *common-template
+  # override the common template.
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
+    - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "coverity")
+      when: always
+    - when: never
   stage: early
   image: debian:10
   before_script:
