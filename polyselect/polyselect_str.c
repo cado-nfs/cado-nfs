@@ -422,7 +422,7 @@ polyselect_shash_reset (polyselect_shash_ptr H)
     H->base[j] = H->current[j] = H->base[j-1] + H->balloc;
   /* Trick for prefetch T in polyselect_shash_find_collision after the end
      of the last bucket. */
-  memset (H->base[polyselect_SHASH_NBUCKETS], 0, sizeof(**(H->base) * 8));
+  memset (H->base[polyselect_SHASH_NBUCKETS], 0, sizeof(**(H->base)) * 8);
 }
 
 
