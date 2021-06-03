@@ -164,6 +164,7 @@ int main(int argc, char * argv[])
         t0 = clock();
         for(unsigned int i = 0 ; i + v <= blah.size() ; i += v) {
 #define islt(a,b) (*(a) > *(b))
+            // coverity[escape]
             QSORT(unsigned long, &(blah[i]), v, islt);
 #undef islt  
         }
