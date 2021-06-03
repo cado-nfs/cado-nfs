@@ -45,6 +45,7 @@ workflow:
      - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
        when: never
      - if: $CI_BUILD_NAME == 'coverity' && ($CI_COMMIT_BRANCH != 'master' && $CI_COMMIT_BRANCH != 'coverity')
+       when: never
      - when: always
 
 ############################################################################
