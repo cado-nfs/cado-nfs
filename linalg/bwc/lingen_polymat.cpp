@@ -187,7 +187,7 @@ void polymat::zero() {
     abvec_set_zero(ab, x, m*n*alloc);
 }
 polymat::~polymat() {
-    abvec_clear(ab, &x, m*n*alloc);
+    if (ab) abvec_clear(ab, &x, m*n*alloc);
 }
 polymat::polymat(polymat && a)
     : ab(a.ab), m(a.m), n(a.n), alloc(a.alloc)
