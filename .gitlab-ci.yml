@@ -33,6 +33,10 @@ image: gcc
     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
       when: manual
       allow_failure: false
+    - if: $CI_COMMIT_BRANCH && $CI_BUILD_NAME == "coverity" && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "coverity")
+      when: always
+    - if: $CI_BUILD_NAME == "coverity"
+      when: never
     - when: on_success
   retry:
     max: 2
@@ -43,8 +47,6 @@ image: gcc
 workflow:
    rules:
      - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-       when: never
-     - if: $CI_BUILD_NAME == 'coverity' && ($CI_COMMIT_BRANCH != 'master' && $CI_COMMIT_BRANCH != 'coverity')
        when: never
      - when: always
 
