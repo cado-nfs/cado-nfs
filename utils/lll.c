@@ -427,6 +427,7 @@ long LLL ( mpz_t det, mat_Z B, mat_Z* U, mpz_srcptr a, mpz_srcptr b )
    ASSERT_ALWAYS(n >= m);
 
    P = (long*) malloc((m+1) * sizeof(long));
+   memset(P, 0, (m+1) * sizeof(long));
 
    D = (mpz_t*) malloc((m+1) * sizeof(mpz_t));
    for (j=0; j<=m; j++)
