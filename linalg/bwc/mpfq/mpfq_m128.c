@@ -9,6 +9,7 @@
 /* Automatically generated code  */
 /* Active handler: Mpfq::defaults */
 /* Active handler: Mpfq::defaults::vec */
+/* Active handler: simd_char2 */
 /* Active handler: simd_dotprod */
 /* Active handler: io */
 /* Active handler: trivialities */
@@ -136,7 +137,7 @@
 
 
 /* Functions operating on the field structure */
-/* *simd_m128::code_for_field_characteristic_srcptr */
+/* *simd_char2::code_for_field_characteristic_srcptr */
 mpz_srcptr mpfq_m128_field_characteristic_srcptr(mpfq_m128_src_field K MAYBE_UNUSED)
 {
         /* yes, this is ugly */

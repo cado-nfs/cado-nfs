@@ -8,6 +8,7 @@
 /* Automatically generated code  */
 /* Active handler: Mpfq::defaults */
 /* Active handler: Mpfq::defaults::vec */
+/* Active handler: simd_char2 */
 /* Active handler: simd_dotprod */
 /* Active handler: io */
 /* Active handler: trivialities */
