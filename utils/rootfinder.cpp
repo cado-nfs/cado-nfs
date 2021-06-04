@@ -98,6 +98,32 @@ mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstat
     int i, n;
     int d = F->deg;
 
+    if (p > (uint64_t) ULONG_MAX)
+      {
+        mpz_t pp;
+        mpz_init (pp);
+        mpz_set_uint64 (pp, p);
+        if (r == NULL)
+          n = mpz_poly_roots_mpz (NULL, F, pp, rstate);
+        else
+          {
+            mpz_t *rr;
+            rr = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
+            for (i = 0; i <= d; i++)
+              mpz_init (rr[i]);
+            n = mpz_poly_roots_mpz (NULL, F, pp, rstate);
+            for (i = 0; i <= d; i++)
+              {
+                if (i < n)
+                  r[i] = mpz_get_uint64 (rr[i]);
+                mpz_clear (rr[i]);
+              }
+            free (rr);
+          }
+        mpz_clear (pp);
+        return n;
+      }
+
     if (r == NULL)
       return mpz_poly_roots_ulong (NULL, F, p, rstate);
 
