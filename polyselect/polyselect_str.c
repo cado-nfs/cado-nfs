@@ -541,9 +541,13 @@ polyselect_shash_find_collision (polyselect_shash_srcptr H)
       Hj += 5;
     }
     switch (Hj - Hjm) { /* no break: it's NOT an error! */
+    // coverity[unterminated_case]
     case 0: polyselect_SHASH_RESEARCH(Th4, i4); no_break();
+    // coverity[unterminated_case]
     case 1: polyselect_SHASH_RESEARCH(Th3, i3); no_break();
+    // coverity[unterminated_case]
     case 2: polyselect_SHASH_RESEARCH(Th2, i2); no_break();
+    // coverity[unterminated_case]
     case 3: polyselect_SHASH_RESEARCH(Th1, i1); no_break();
     case 4: polyselect_SHASH_RESEARCH(Th0, i0); // no_break();
     }

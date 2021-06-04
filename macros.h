@@ -388,6 +388,11 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 #endif /* if defined(__GNUC__) */
 
+/* These warnings are a nuisance, really. Not only do we have now to
+ * add no_break() statements when we want switch cases fall through one
+ * another, but on top of that, coverity wants the corresponding lines to
+ * be preceded by a coverity[unterminated_case] comment...
+ */
 #if GNUC_VERSION_ATLEAST(7,0,0) && !defined(__ICC)
 #define no_break() __attribute__ ((fallthrough))
 #else

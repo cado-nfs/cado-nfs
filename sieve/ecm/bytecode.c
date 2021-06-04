@@ -1054,6 +1054,7 @@ bytecode_prac_cost (bytecode_const bc, bytecode_const *endptr,
       case PRAC_SUBBLOCK_INIT:
         cost += opcost->DBL;
         break;
+      // coverity[unterminated_case]
       case PRAC_BLOCK_FINAL:
         finished = 1;
         no_break();
