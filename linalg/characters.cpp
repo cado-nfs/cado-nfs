@@ -575,7 +575,7 @@ void blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_conside
     blockmatrix::copy_transpose_to_flat(tiny, tiny_limbs_per_row, t);
 
     uint64_t * sdata = (uint64_t *) malloc(tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t));
-    memset(sdata, 0, tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t *));
+    memset(sdata, 0, tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t));
     unsigned int sdata_64bit_words = tiny_nrows * tiny_limbs_per_col;
 
     blockmatrix::swap_words_if_needed (tiny, tiny_nlimbs);
