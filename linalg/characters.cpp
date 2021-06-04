@@ -162,11 +162,9 @@ uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr 
             modul_init(rb, mp);
             modul_init(rr, mp);
             if (a < 0) {
-                ASSERT((uint64_t)(-a) <= ULONG_MAX);
                 modul_set_ul(ra, (unsigned long)(-a), mp);
                 modul_neg(ra, ra, mp);
             } else {
-                ASSERT((uint64_t)a <= ULONG_MAX);
                 modul_set_ul(ra, a, mp);
             }
             ASSERT(b <= ULONG_MAX);
