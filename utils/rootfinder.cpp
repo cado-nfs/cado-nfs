@@ -98,6 +98,7 @@ mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstat
     int i, n;
     int d = F->deg;
 
+#if ULONG_BITS < 64
     if (p > (uint64_t) ULONG_MAX)
       {
         mpz_t pp;
@@ -123,6 +124,7 @@ mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstat
         mpz_clear (pp);
         return n;
       }
+#endif
 
     if (r == NULL)
       return mpz_poly_roots_ulong (NULL, F, p, rstate);
