@@ -460,8 +460,9 @@ void MATMUL_NAME(clear)(matmul_ptr mm0)
 
 static void mm_finish_init(struct matmul_bucket_data_s * mm);
 
-matmul_ptr MATMUL_NAME(init)(abdst_field xx, param_list pl, int optimized_direction)
+matmul_ptr MATMUL_NAME(init)(void * pxx, param_list pl, int optimized_direction)
 {
+    abdst_field xx = (abdst_field) pxx;
     struct matmul_bucket_data_s * mm;
     mm = new matmul_bucket_data_s;
 

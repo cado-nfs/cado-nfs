@@ -125,6 +125,9 @@ static tabular_strategy_t *generate_strategy_cado(tabular_fm_t * methods,
     strategy_t *strat = strategy_create();
 
     int lim = 2 * fbb - 1;
+
+    ASSERT_ALWAYS((tab_dec == NULL) == (r < lim));
+
     if (r < lim) {
 	fm_t *zero = fm_create();
 	unsigned long method[4] = { PM1_METHOD, 0, 0, 0 };
