@@ -2131,7 +2131,7 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
              */
             size_t n = os.str().size();
             ssize_t m = ::write(fbc, os.str().c_str(), n);
-            ASSERT_ALWAYS(m = (ssize_t) n);
+            ASSERT_ALWAYS(m == (ssize_t) n);
 
             helper_functor_write_to_fbc_file W1 { fbc, fbc_size, S.entries, S.entries.begin() };
             multityped_array_foreach(W1, entries);
