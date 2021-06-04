@@ -1891,6 +1891,7 @@ ssize_t pi_file_read(pi_file_handle_ptr f, void * buf, size_t size, size_t total
  */
 ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t totalsize, size_t chunksize, size_t spos, size_t epos)
 {
+    // coverity[result_independent_of_operands]
     ASSERT_ALWAYS(size <= ULONG_MAX);
     ASSERT_ALWAYS(spos <= chunksize);
     ASSERT_ALWAYS(spos <= epos);
