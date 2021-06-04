@@ -184,12 +184,14 @@ ropt_parse_param ( int argc,
         else if (argc >= 3 && strcmp (argv[1], "-bmax") == 0)
         {
           param->s2_Amax = atol (argv[2]);
+          ASSERT_ALWAYS(param->s2_Amax > 0);
           argv += 2;
           argc -= 2;
         }
         else if (argc >= 3 && strcmp (argv[1], "-cmax") == 0)
         {
           param->s2_Bmax = atol (argv[2]);
+          ASSERT_ALWAYS(param->s2_Bmax > 0);
           argv += 2;
           argc -= 2;
         }
