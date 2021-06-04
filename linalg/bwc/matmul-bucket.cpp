@@ -1146,6 +1146,11 @@ static void split_huge_slice_in_vblocks(builder * mb, huge_slice_t * H, huge_sli
 
         transfer(&(H->vbl), &V);
     }
+    if (!vblocknum) {
+        verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
+                " 0 vblocks\n");
+        return;
+    }
     double vbl_ncols_mean = mb->ncols_t;
     vbl_ncols_mean /= vblocknum;
     vbl_ncols_variance /= vblocknum;
