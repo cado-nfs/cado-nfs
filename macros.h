@@ -102,6 +102,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
     }							        	\
 } while (0)
 
+/* Note that string.h must be #included in order to use this macro */
+#define WARN_ERRNO_DIAG(tst, fmt, ...) do {				\
+    if (UNLIKELY(tst)) {				        	\
+        fprintf(stderr, fmt ": %s\n", __VA_ARGS__, strerror(errno));    \
+    }							        	\
+} while (0)
+
 /* This macro is used to guard against some trivial false positives
  * returned by static analyzer */
 #if defined(__COVERITY__)

@@ -997,7 +997,8 @@ void las_info::batch_print_survivors_t::doit()
                         (mpz_srcptr) s.cofactor[1]);
             }
             fclose(out);
-            rename(f_part.c_str(), f.c_str());
+            int rc = rename(f_part.c_str(), f.c_str());
+            WARN_ERRNO_DIAG(rc != 0, "rename(%s, %s)", f_part.c_str(), f.c_str());
 
             foo.lock();
         }
