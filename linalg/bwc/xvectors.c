@@ -71,12 +71,14 @@ void load_x(uint32_t ** xs, unsigned int m, unsigned int *pnx,
     pi_bcast(pnx, 1, BWC_PI_UNSIGNED, 0, 0, pi->m);
     *xs = malloc(*pnx * m * sizeof(unsigned int));
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
-        for (unsigned int i = 0 ; i < *pnx * m; i++) {
-            rc = fscanf(f, "%" SCNu32, &((*xs)[i]));
-            if (rc != 1) {
-                fprintf(stderr, "Short read in X, after reading data for %u rows (compared to expected %u)\n",
-                        i / *pnx, m);
-                abort();
+        for (unsigned int i = 0, k = 0 ; i < m; i++) {
+            for (unsigned int j = 0 ; j < *pnx; j++, k++) {
+                rc = fscanf(f, "%" SCNu32, &((*xs)[k]));
+                if (rc != 1) {
+                    fprintf(stderr, "Short read in X, after reading data for %u rows (compared to expected %u)\n",
+                            i, m);
+                    abort();
+                }
             }
         }
         fclose(f);
