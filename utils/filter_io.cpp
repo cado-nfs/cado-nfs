@@ -311,6 +311,7 @@ earlyparsed_relation_ptr
 inflight_rels_buffer<locking, n>::schedule(int k)
 {
     int prev = k ? (k-1) : (n-1);
+    // coverity[result_independent_of_operands]
     ASSERT(active[k] <= locking::max_supported_concurrent);
     size_t s;
     size_t a = k ? 0 : SIZE_BUF_REL;
