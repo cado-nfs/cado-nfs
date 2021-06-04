@@ -151,12 +151,6 @@ int main (int argc, const char **argv)
 
   if (argc > 3)
     nr_primes = atoi (argv[3]);
-  
-  if (input) {
-    /* First parameter is pmax, and is stored in len */
-    trialdiv_stdinput (len, verbose);
-    exit (EXIT_SUCCESS);
-  }
 
   if (len > TRIALDIV_MAXLEN)
     {
@@ -164,6 +158,12 @@ int main (int argc, const char **argv)
 	      "%d words\n", TRIALDIV_MAXLEN);
       exit (EXIT_FAILURE);
     }
+
+  if (input) {
+    /* First parameter is pmax, and is stored in len */
+    trialdiv_stdinput (len, verbose);
+    exit (EXIT_SUCCESS);
+  }
 
   mpz_set_ui (N, 1UL);
   mpz_mul_2exp (N, N, 8 * sizeof(unsigned long) * len);
