@@ -54,7 +54,11 @@ int cado_fd_popen(const char * command, const char * mode)
     popenlist->n++;
 
     pid_t child = fork();
-    if (child < 0) { perror("fork"); return -1; }
+    if (child < 0) {
+        pthread_mutex_unlock(popenlist->m);
+        perror("fork");
+        return -1;
+    }
     if (child) {
         /* I'm the father. I only want to use pipefd[imode]. */
         close(pipefd[!imode]);
