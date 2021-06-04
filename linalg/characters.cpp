@@ -167,6 +167,7 @@ uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr 
             } else {
                 modul_set_ul(ra, a, mp);
             }
+            // coverity[result_independent_of_operands]
             ASSERT(b <= ULONG_MAX);
             modul_set_ul(rb, (unsigned long)b, mp);
             modul_set_ul_reduced(rr, ch->r, mp);
