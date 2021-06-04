@@ -608,7 +608,7 @@ struct las_parallel_desc::helper {
            int x;
            bool t = parse_number(divisor_string, x);
            ASSERT_ALWAYS(t);
-           if (objsize % x) {
+           if (!x || (objsize % x)) {
                std::ostringstream os;
                os << base_object << sub(3);
                fprintf(stderr, "ERROR: specifier binding specifier is invalid. Cannot divide %s (=%d) into %d parts\n", os.str().c_str(), objsize, x);
