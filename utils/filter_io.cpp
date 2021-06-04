@@ -361,6 +361,7 @@ void
 inflight_rels_buffer<locking, n>::complete(int k,
         earlyparsed_relation_srcptr rel)
 {
+    // coverity[result_independent_of_operands]
     ASSERT(active[k] <= locking::max_supported_concurrent);
     int slot = rel - (earlyparsed_relation_srcptr) rels;
 
