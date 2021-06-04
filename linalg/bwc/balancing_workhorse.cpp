@@ -483,6 +483,7 @@ void dispatcher::reader_thread()/*{{{*/
         // Readers read full lines from the matrix.
         uint32_t w;
         rc = fread(&w, sizeof(uint32_t), 1, f);
+        ASSERT_ALWAYS(w <= (1 + withcoeffs) * fw_colperm.size());
         if (rc != 1) {
             fprintf(stderr, "%s: short read\n", mfile.c_str());
             exit(EXIT_FAILURE);
