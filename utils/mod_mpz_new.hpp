@@ -43,6 +43,14 @@ public:
         Residue(Residue &&s) : r(s.r) {
             s.r = NULL;
         }
+        Residue(Residue const & s) = delete;
+        Residue& operator=(Residue &&s) {
+            delete[] r;
+            r = s.r;
+            s.r = NULL;
+            return *this;
+        }
+        Residue& operator=(Residue const & s) = delete;
     };
 
     typedef ResidueStdOp<Residue> ResidueOp;
