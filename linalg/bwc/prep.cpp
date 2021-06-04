@@ -98,6 +98,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         rhs = fopen(rhs_name, "r");
         get_rhs_file_header_stream(rhs, NULL, &nrhs, NULL);
         ASSERT_ALWAYS(rhs != NULL);
+        ASSERT_ALWAYS(nrhs <= mmt->n[!bw->dir]);
     }
 
     mmt_vec ymy[2];
