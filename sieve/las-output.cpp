@@ -39,7 +39,7 @@ static void las_verbose_enter(cxx_param_list & pl, FILE * output, int verbose)
     FILE *trace_file = stderr;
     if (trace_file_name != NULL) {
         trace_file = fopen(trace_file_name, "w");
-        DIE_ERRNO_DIAG(trace_file == NULL, "fopen", trace_file_name);
+        DIE_ERRNO_DIAG(trace_file == NULL, "fopen(%s)", trace_file_name);
     }
     verbose_output_add(TRACE_CHANNEL, trace_file, 1);
 #endif

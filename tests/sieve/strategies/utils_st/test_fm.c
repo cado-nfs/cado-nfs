@@ -136,7 +136,7 @@ int main ()
 	}  
     //test fprint fscan
     FILE* file = tmpfile();
-    DIE_ERRNO_DIAG(file == NULL, "tmpfile", "");
+    DIE_ERRNO_DIAG(file == NULL, "tmpfile(%s)", "");
     int errf = (tabular_fm_fprint (file, tab1) == -1);
     if (errf)
 	{

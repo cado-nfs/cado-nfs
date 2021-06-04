@@ -71,7 +71,7 @@ int main()
 	}  
     //fprint fscan
     FILE* file = tmpfile();
-    DIE_ERRNO_DIAG(file == NULL, "tmpfile", "");
+    DIE_ERRNO_DIAG(file == NULL, "tmpfile(%s)", "");
     int errf = tabular_decomp_fprint (file, t) ;
     if (errf < 0)
 	{

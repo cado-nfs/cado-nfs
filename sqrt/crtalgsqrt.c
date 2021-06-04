@@ -688,9 +688,9 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
         if (rank == root) {
             FILE * f = fopen(fname, "r");
             char * xx = fgets(line, sizeof(line), f);
-            DIE_ERRNO_DIAG(xx == NULL, "fgets", fname);
+            DIE_ERRNO_DIAG(xx == NULL, "fgets(%s)", fname);
             rc = sscanf(line, "AB %zu %zu", &ab->nab, &dummy);
-            DIE_ERRNO_DIAG(rc != 2, "parse", fname);
+            DIE_ERRNO_DIAG(rc != 2, "parse(%s)", fname);
             hdrbytes = ftell(f);
             fclose(f);
         }
@@ -782,7 +782,7 @@ int ab_openfile_internal(ab_source_ptr ab)
     }
     ab->cpos = ftell(ab->f);
     ab->tpos += ab->cpos;
-    DIE_ERRNO_DIAG(ab->f == NULL, "fopen", s);
+    DIE_ERRNO_DIAG(ab->f == NULL, "fopen(%s)", s);
     return 1;
 }
 
@@ -865,7 +865,7 @@ void ab_source_move_afterpos(ab_source_ptr ab, size_t offset)
     }
     char line[ABFILE_MAX_LINE_LENGTH];
     char * xx = fgets(line, sizeof(line), ab->f);
-    DIE_ERRNO_DIAG(xx == NULL, "fgets", ab->nfiles ? ab->sname : ab->fname0);
+    DIE_ERRNO_DIAG(xx == NULL, "fgets(%s)", ab->nfiles ? ab->sname : ab->fname0);
     size_t cpos = ftell(ab->f);
     ab->tpos += cpos - ab->cpos;
     ab->cpos = cpos;

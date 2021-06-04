@@ -332,7 +332,7 @@ int random_matrix_process_data_set_from_args(random_matrix_process_data_ptr r,
             exit(1);
         }
         r->rhs->f = fopen(rhsname, "w");
-        DIE_ERRNO_DIAG(r->rhs->f == NULL, "fopen", rhsname);
+        DIE_ERRNO_DIAG(r->rhs->f == NULL, "fopen(%s)", rhsname);
         // rhs file is now always in ascii
         // if (r->ascii)
             gmp_fprintf(r->rhs->f, "%lu %d %Zd\n", r->nrows, r->rhs->n, r->rhs->p);
@@ -345,7 +345,7 @@ int random_matrix_process_data_set_from_args(random_matrix_process_data_ptr r,
 
     if ((ofilename = param_list_lookup_string(pl, "output")) != NULL) {
         r->out = fopen(ofilename, binary ? "wb" : "w");
-        DIE_ERRNO_DIAG(r->out == NULL, "fopen", ofilename);
+        DIE_ERRNO_DIAG(r->out == NULL, "fopen(%s)", ofilename);
     } else {
         if (binary) {
             fprintf(stderr, "Error: --binary requires --output\n");
@@ -360,12 +360,12 @@ int random_matrix_process_data_set_from_args(random_matrix_process_data_ptr r,
     if (freq) {
         char * cwname = derived_filename(ofilename, "cw", binary ? ".bin" : ".txt");
         r->freq->cw = fopen(cwname, binary ? "wb" : "w");
-        DIE_ERRNO_DIAG(r->freq->cw == NULL, "fopen", cwname);
+        DIE_ERRNO_DIAG(r->freq->cw == NULL, "fopen(%s)", cwname);
         free(cwname);
 
         char * rwname = derived_filename(ofilename, "rw", binary ? ".bin" : ".txt");
         r->freq->rw = fopen(rwname, binary ? "wb" : "w");
-        DIE_ERRNO_DIAG(r->freq->rw == NULL, "fopen", rwname);
+        DIE_ERRNO_DIAG(r->freq->rw == NULL, "fopen(%s)", rwname);
         free(rwname);
     }
 

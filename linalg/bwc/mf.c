@@ -59,14 +59,14 @@ int matrix_autodetect_input(struct mf_io_file * m_in, const char * mfile)
         ASSERT_ALWAYS(m_in->f);
         struct stat sbuf[1];
         int rc = fstat(fileno(m_in->f), sbuf);
-        DIE_ERRNO_DIAG(rc < 0, "fstat", mfile);
+        DIE_ERRNO_DIAG(rc < 0, "fstat(%s)", mfile);
         if (!S_ISREG(sbuf->st_mode)) {
             // guard against tricks like /dev/fd/ to unseekable fd's.
             return -1;
         }
         char test[1024];
         int n = fread(test, 1, 1024, m_in->f);
-        DIE_ERRNO_DIAG(n < 1024 && !feof(m_in->f), "fread", mfile);
+        DIE_ERRNO_DIAG(n < 1024 && !feof(m_in->f), "fread(%s)", mfile);
         int k;
         for(k = 0 ; k < n && (isdigit((int)(unsigned char)test[k]) || isspace((int)(unsigned char)test[k])) ; k++);
         if (k < n) {
@@ -76,7 +76,7 @@ int matrix_autodetect_input(struct mf_io_file * m_in, const char * mfile)
             m_in->ascii = 1;
         }
         rc = fseek(m_in->f, 0L, SEEK_SET);
-        DIE_ERRNO_DIAG(rc < 0, "rewind", mfile);
+        DIE_ERRNO_DIAG(rc < 0, "rewind(%s)", mfile);
         fprintf(stderr, "auto-detected %s as %s based on contents\n",
                 mfile, m_in->ascii ? "ascii" : "binary");
     }

@@ -2947,7 +2947,7 @@ static int export_cache_list_if_requested(matmul_top_matrix_ptr Mloc, paralleliz
                 pi->m->pals);
         if (pi->m->jrank == 0) {
             FILE * f = fopen(cachelist, "wb");
-            DIE_ERRNO_DIAG(f == NULL, "fopen", cachelist);
+            DIE_ERRNO_DIAG(f == NULL, "fopen(%s)", cachelist);
             for(unsigned int j = 0 ; j < pi->m->njobs ; j++) {
                 unsigned int j0 = j * pi->m->ncores;
                 fprintf(f, "get-cache ");

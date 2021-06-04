@@ -1291,7 +1291,7 @@ static std::string relation_cache_find_filepath_inner(std::string const & d, uns
 {
     std::string filepath;
     DIR * dir = opendir(d.c_str());
-    DIE_ERRNO_DIAG(dir == NULL, "opendir", d.c_str());
+    DIE_ERRNO_DIAG(dir == NULL, "opendir(%s)", d.c_str());
     for(struct dirent * ent ; (ent = readdir(dir)) != NULL ; ) {
         unsigned long q0, q1;
         if (sscanf(ent->d_name, "%lu-%lu", &q0, &q1) != 2) continue;
@@ -1410,7 +1410,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
         std::string filepath = relation_cache_find_filepath(las.relation_cache, splits, aux.doing.p);
 
         std::ifstream rf(filepath);
-        DIE_ERRNO_DIAG(!rf, "open", filepath.c_str());
+        DIE_ERRNO_DIAG(!rf, "open(%s)", filepath.c_str());
         for(std::string line ; getline(rf, line) ; ) {
             if (line.empty()) continue;
             if (line[0] == '#') continue;
