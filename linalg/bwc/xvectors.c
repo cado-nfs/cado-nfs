@@ -69,6 +69,9 @@ void load_x(uint32_t ** xs, unsigned int m, unsigned int *pnx,
         FATAL_ERROR_CHECK(rc != 1, "short read in file X");
     }
     pi_bcast(pnx, 1, BWC_PI_UNSIGNED, 0, 0, pi->m);
+#ifdef __COVERITY__
+    __coverity_mark_pointee_as_sanitized__(pnx, LOOP_BOUND);
+#endif
     *xs = malloc(*pnx * m * sizeof(unsigned int));
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
         for (unsigned int i = 0, k = 0 ; i < m; i++) {
