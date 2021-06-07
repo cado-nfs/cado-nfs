@@ -153,6 +153,7 @@ void mpfq_pz_field_specify(mpfq_pz_dst_field k, unsigned long dummy MAYBE_UNUSED
         } else if (dummy == MPFQ_PRIME_MPZ) {
             mpz_srcptr p = (mpz_srcptr) vp;
             mpz_set(k->p, p);
+            if (!(mpz_size(k->p) > 0)) abort();
             {
                 /* precompute bigmul_p = largest multiple of p that fits in an
                  * elt_ur: p*Floor( (2^((2*mpz_size(k->p) + 1)*64)-1)/p )
