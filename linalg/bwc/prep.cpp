@@ -326,6 +326,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         rhs = fopen(rhs_name, "r");
         get_rhs_file_header_stream(rhs, NULL, &nrhs, NULL);
         ASSERT_ALWAYS(rhs != NULL);
+        ASSERT_ALWAYS(nrhs <= mmt->n[!bw->dir]);
     }
 
     /* First create all RHS vectors -- these are just splits of the big
