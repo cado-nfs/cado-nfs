@@ -88,8 +88,9 @@ namespace tdict {
      */
     class key {
         int magic;
-        public:
+        friend class slot_base;
         key(){}
+        public:
         int dict_key() const { return magic >> 16; }
         int parameter() const { return magic & 65535; }
         key encode(int arg) const { key res; res.magic = magic + arg; return res;}
@@ -99,7 +100,7 @@ namespace tdict {
     inline bool operator<(key const& o1, key const& o2) { return o1.magic < o2.magic; }
     class slot_base {
 
-        slot_base(slot_base const&) {} /* prevent copy */
+        slot_base(slot_base const&) = delete;
         public:
         typedef std::map<key, const tdict::slot_base*> dict_t;
         protected:
