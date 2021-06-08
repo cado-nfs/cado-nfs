@@ -64,11 +64,13 @@ struct matpoly_checker_base {
         , dummy(SIZE_MAX)
         , seed(o.seed)
     {
-        cxx_mpz p;
         abfield_init(ab);
         abfield_specify(ab, MPFQ_PRIME_MPZ, abfield_characteristic_srcptr(o.ab));
         gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, seed);
+        // ab might be left uninit, depending on the mpfq layer. This is
+        // harmless.
+        // coverity[uninit_member]
     }
     ~matpoly_checker_base() {
         gmp_randclear(rstate);
