@@ -618,7 +618,7 @@ test_mpz_poly_base_modp_init (unsigned long iter)
       if (iter == 0) /* exercise bug found on 32-bit MinGW */
         {
           p = 2048;
-          k = 119;
+          // k = 119;
           d = 1;
           m = 833;
         }
