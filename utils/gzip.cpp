@@ -316,6 +316,7 @@ fopen_maybe_compressed2 (const char * name, const char * mode, int* p_pipeflag, 
     const struct suffix_handler * r = supported_compression_formats;
     FILE * f;
 
+    // coverity[fs_check_call]
     if (strchr(mode, 'r') && access(name, R_OK) != 0)
         return NULL;
 
