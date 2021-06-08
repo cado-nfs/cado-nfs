@@ -314,6 +314,7 @@ void fft_transform_info_set_first_guess(struct fft_transform_info * fti)
     ASSERT_ALWAYS(minwrap == 0 || minwrap >= b2 + clogm);
 
     if (minwrap) {      /* MP case */
+        ASSERT_FOR_STATIC_ANALYZER(FLINT_CLOG2(minwrap) >= 1);
         unsigned int e = FLINT_CLOG2(minwrap) - 1;
         depth = e / 2;
         n = 1 << depth;
