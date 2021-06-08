@@ -3987,6 +3987,8 @@ static void mpz_poly_factor_edf_pre(mpz_poly g[2], mpz_poly_srcptr f, int k,
     mpz_poly_set_xi(g[0], 0);
     mpz_poly_set_xi(g[1], 0);
 
+    ASSERT_ALWAYS(mpz_cmp_ui(p, 0) > 0);
+
     ASSERT_ALWAYS (f->deg > k);
 
     mpz_poly xplusa;
@@ -4006,6 +4008,7 @@ static void mpz_poly_factor_edf_pre(mpz_poly g[2], mpz_poly_srcptr f, int k,
          * enough legroom).
          */
         if (mpz_fits_ulong_p(p)) {
+            // coverity[zero_return]
             unsigned long pz = mpz_get_ui(p);
             if (a == 0) {
                 /* special case, really */
