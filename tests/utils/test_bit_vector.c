@@ -77,6 +77,9 @@ test_bit_vector_read_from_file (void)
       bit_vector_flipbit (b, i);
 
 
+  // coverity complains about insecure temp files. For tests, I don't
+  // think it's a problem, really.
+  // coverity[secure_temp]
   FILE * f = tmpfile();
   bit_vector_write_to_stream (b, f);
   fseek(f, 0L, SEEK_SET);

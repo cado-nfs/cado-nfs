@@ -146,6 +146,10 @@ int main()
 	}
 
     //test print and scan
+
+    // coverity complains about insecure temp files. For tests, I don't
+    // think it's a problem, really.
+    // coverity[secure_temp]
     FILE* file = tmpfile();
     DIE_ERRNO_DIAG(file == NULL, "tmpfile(%s)", "");
     int errf = (tabular_strategy_fprint (file, tab) == -1);

@@ -70,6 +70,10 @@ int main()
 	    return EXIT_FAILURE;
 	}  
     //fprint fscan
+ 
+    // coverity complains about insecure temp files. For tests, I don't
+    // think it's a problem, really.
+    // coverity[secure_temp]
     FILE* file = tmpfile();
     DIE_ERRNO_DIAG(file == NULL, "tmpfile(%s)", "");
     int errf = tabular_decomp_fprint (file, t) ;
