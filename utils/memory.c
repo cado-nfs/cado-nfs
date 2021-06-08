@@ -129,7 +129,9 @@ aligned_alloc (size_t alignment, size_t size)
 
 void *malloc_pagealigned(size_t sz)
 {
-    void *p = malloc_aligned (sz, pagesize ());
+    long ps = pagesize();
+    ASSERT_ALWAYS(ps > 0);
+    void *p = malloc_aligned (sz, ps);
     ASSERT_ALWAYS(p != NULL);
     return p;
 }
