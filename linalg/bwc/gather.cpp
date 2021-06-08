@@ -459,6 +459,8 @@ struct rhs /*{{{*/ {
         cheating_vec_init(A, &rhscoeffs, nrhs);
 
         if (leader) {
+            // yeah, we asserted that we're GF(p) at this point anyway.
+            // coverity[dead_error_line]
             int splitwidth = char2 ? 64 : 1;
             ASSERT_ALWAYS(Av->simd_groupsize(Av) == splitwidth);
 
