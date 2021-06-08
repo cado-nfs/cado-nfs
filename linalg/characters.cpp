@@ -387,6 +387,7 @@ static blockmatrix small_character_matrix(blockmatrix & bcmat, const char * inde
 
     for(uint64_t i = 0 ; i < small_nrows ; i++) {
         int nc;
+        // coverity[tainted_argument]
         ret = fscanf(ix, "%d", &nc); ASSERT_ALWAYS(ret == 1);
         for(unsigned int cg = 0 ; cg < nchars2 ; cg+=64) {
             res[i][cg] = 0;
