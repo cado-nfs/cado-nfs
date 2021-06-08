@@ -183,7 +183,7 @@ static void
 modul_poly_set_linear (modul_poly_t f, residueul_t a, residueul_t b, modulusul_t p)
 {
   modul_poly_realloc (f, 2);
-  f->degree = a ? 1 : (b ? 0 : -1);
+  f->degree = modul_is0(a, p) ? (modul_is0(b, p) ? -1 : 0) : 0;
   modul_set(f->coeff[1], a, p);
   modul_set(f->coeff[0], b, p);
 }
