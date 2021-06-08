@@ -206,13 +206,14 @@ static inline int MPI_Type_set_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYB
      */
     return 0;
 }
-static inline int MPI_Type_get_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYBE_UNUSED, void *value MAYBE_UNUSED, int * flag)
+static inline int MPI_Type_get_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYBE_UNUSED, void *value MAYBE_UNUSED, int * flag MAYBE_UNUSED)
 {
     /* Same as above. Yes, it's a bit counter-intuitive, but any path
      * that calls a fake MPI_Type_get_attr is surely bogus. */
+    abort();
     // *(void**)value = NULL;
     // memset(value, 0, sizeof(void*));
-    *flag=1;
+    // *flag=1;
     return 0;
 }
 static inline int MPI_Type_delete_attr(MPI_Datatype type MAYBE_UNUSED, int key MAYBE_UNUSED) { return 0; }
