@@ -60,6 +60,7 @@ test_sm (FILE * datafile)
 
     ret = fscanf(datafile, " %d", &nb_ab);
     ASSERT_ALWAYS (ret == 1);
+    ASSERT_ALWAYS (nb_ab <= TEST_MAX_AB);
 
     for (int i = 0; i < nb_ab; i++)
     {
@@ -70,6 +71,7 @@ test_sm (FILE * datafile)
 
     ret = fscanf(datafile, " %" SCNu64 "", &len_relset);
     ASSERT_ALWAYS (ret == 1);
+    ASSERT_ALWAYS (len_relset <= MAX_LEN_RELSET);
 
     for (uint64_t i = 0; i < len_relset; i++)
     {
@@ -99,6 +101,7 @@ test_sm (FILE * datafile)
     
     ret = fscanf(datafile, " %d", &nbSM);
     ASSERT_ALWAYS (ret == 1);
+    ASSERT_ALWAYS (nbSM <= degF);
     mpz_poly_init (SM, nbSM-1);
 
     for (int i = 0; i < nbSM; i++)
