@@ -50,6 +50,7 @@ int main(int argc, const char **argv)
   for (unsigned long i = 0; i < iter; i++) {
     size_t queue = i % 2;
     print_result *result = dynamic_cast<print_result *>(pool->get_result(queue));
+    ASSERT_ALWAYS(result != NULL);
     printf("Queue %zu: I've printed %d characters\n", queue, result->printed);
     delete result;
   }
