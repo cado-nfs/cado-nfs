@@ -302,6 +302,7 @@ void fft_transform_info_set_first_guess(struct fft_transform_info * fti)
 {
     mp_bitcnt_t b1 = MIN(fti->bits1, fti->bits2);
     mp_bitcnt_t b2 = MAX(fti->bits1, fti->bits2);
+    ASSERT_ALWAYS(b1 >= 1);
     ASSERT_ALWAYS(b2 >= 1);
     unsigned int m = fti->nacc;
     mp_bitcnt_t minwrap = fti->minwrap;
