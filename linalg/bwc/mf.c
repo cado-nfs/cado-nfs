@@ -137,7 +137,8 @@ void matrix_read_pass(
         // data, we can't compute cw precisely. Therefore, and I admit
         // it's quite odd, we have a behaviour which diverges depending
         // on whether we're ascii or not.
-        cw_out->size = exp_nc;
+        if (cw_out)
+            cw_out->size = exp_nc;
     } else {
         if (cw_out && cw_out->p == NULL)  {
             expand(cw_out, 1000 * 1000);
