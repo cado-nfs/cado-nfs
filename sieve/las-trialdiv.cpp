@@ -48,6 +48,8 @@ trialdiv_data const * sieve_shared_data::side_data::get_trialdiv_data(fb_factorb
         return &it->second;
     }
 
+    ASSERT_ALWAYS(fbs != NULL);
+
     /* Note that since we have trialdiv_data_cache.mutex() unlock, we may
      * safely access the random state in this->rstate
      */
@@ -66,17 +68,17 @@ trialdiv_data const * sieve_shared_data::side_data::get_trialdiv_data(fb_factorb
 
     /* Maybe we can use the factor base. If we have one, of course ! */
     unsigned long pmax_sofar = 0;
-    if (fbs) {
-        for(auto const & pp : fbs->small_sieve_entries.rest) {
-            if (pp.k > 1) continue;
-            trialdiv_primes.push_back(pp.p);
-        }
-        if (!trialdiv_primes.empty()) {
-            cxx_mpz zz(trialdiv_primes.back());
-            mpz_nextprime(zz, zz);
-            pmax_sofar = MIN(pmax, mpz_get_ui(zz));
-        }
+
+    for(auto const & pp : fbs->small_sieve_entries.rest) {
+        if (pp.k > 1) continue;
+        trialdiv_primes.push_back(pp.p);
     }
+    if (!trialdiv_primes.empty()) {
+        cxx_mpz zz(trialdiv_primes.back());
+        mpz_nextprime(zz, zz);
+        pmax_sofar = MIN(pmax, mpz_get_ui(zz));
+    }
+
     if (pmax_sofar < pmax) {
         /* we need some more. */
         prime_info pi;
