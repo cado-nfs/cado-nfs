@@ -22,6 +22,8 @@ task_result *print_something(worker_thread * worker MAYBE_UNUSED, task_parameter
 {
   const print_parameter *param = dynamic_cast<const print_parameter *>(t_param);
 
+  ASSERT_ALWAYS(param != NULL);
+
   pthread_t tid = pthread_self();
   unsigned int tid_u = 0;
   memcpy(&tid_u, &tid, MIN(sizeof(tid), sizeof(tid_u)));
