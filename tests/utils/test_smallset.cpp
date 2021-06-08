@@ -29,7 +29,7 @@ template <typename ELEMENTTYPE>
 void
 test_smallset<0, ELEMENTTYPE>()
 {
-    smallset<SIZE, ELEMENTTYPE> set(items, 0);
+    smallset<0, ELEMENTTYPE> set(items, 0);
     ASSERT(!set.contains(0));
 }
 
