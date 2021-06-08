@@ -170,9 +170,9 @@ std::istream& operator>>(std::istream& is, thread_split& t) {
 class topology_level {
 public:
     std::string object;
-    int n;
+    int n = -1;
     bool has_memory = false;
-    topology_level() {}
+    topology_level() = default;
     topology_level(std::string const& s, int n, bool has_memory = false)
         : object(s)
         , n(n)
