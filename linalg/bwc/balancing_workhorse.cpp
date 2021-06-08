@@ -152,6 +152,11 @@ struct dispatcher {/*{{{*/
         rows_chunk_small = bal->trows / bal->h->nh;
         cols_chunk_small = bal->tcols / bal->h->nv;
 
+        /* these are set in other member functions. The values here are
+         * just silly placeholders
+         */
+        pass_number = -1;
+        row0 = row1 = UINT_MAX;
     }/*}}}*/
     ~dispatcher() {/*{{{*/
         MPI_Comm_free(&reader_comm);
