@@ -420,6 +420,7 @@ struct rhs /*{{{*/ {
     {
         nrhs = 0;
         rhscoeffs = NULL;
+        Av = NULL;
 
         if (!rhs_name) return;
 
