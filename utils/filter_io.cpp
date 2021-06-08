@@ -731,19 +731,17 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
 {
     const char *p = r->rhead;
 
-    /* c is always the first-after-parsed-data byte */
-    int c;
     if (parseab) {
-        c = earlyparser_inner_read_ab_hexa(r, &p, rel);
+        earlyparser_inner_read_ab_hexa(r, &p, rel);
     } else {
-        c = earlyparser_inner_skip_ab(r, &p);
+        earlyparser_inner_skip_ab(r, &p);
     }
     
     unsigned int n = 0;
     int is_sorted = 1;
 
     char next_delim = parsesm ? ':' : '\n';
-    c='\0';
+    int c = '\0';
     for( ; ; ) {
         uint64_t pr;
         int sgn = 1;
