@@ -114,6 +114,10 @@ int main(int argc, char * argv[])
         }
         if (s == "--max-span") {
             maxspan = atol(argv[1]);
+            ASSERT_ALWAYS(maxspan > 0);
+#ifdef __COVERITY__
+            __coverity_mark_pointee_as_sanitized__(&maxspan, LOOP_BOUND);
+#endif
             argc--,argv++;
             continue;
         }
