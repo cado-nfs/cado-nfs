@@ -346,8 +346,7 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
         if (nonzero.size() == 1)
             continue;
 
-        badideal b(p,roots[i]);
-        b.nbad = nonzero.size();
+        badideal b(p,roots[i], nonzero.size());
 
         vector<badideal::branch> lifts = lift_root(A, 1, roots[i], vals);
 
