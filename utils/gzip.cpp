@@ -431,6 +431,7 @@ fclose_maybe_compressed2 (FILE * f, const char * name, void * rr MAYBE_UNUSED)
 
         /* do the rename only if the child completed successfully */
 
+        // coverity[fs_check_call]
         if (stat(tempname, sbuf) == 0) {
             ret = rename(tempname, name);
             if (ret != 0) return EOF;
