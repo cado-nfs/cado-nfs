@@ -1961,7 +1961,8 @@ struct helper_functor_write_to_fbc_file_weight_part {
     template<typename T>
         void operator()(T & x) {
             if (next == chunks.end()) return;
-            lseek(fbc, header_block_offset + next->weight_offset, SEEK_SET);
+            off_t rc = lseek(fbc, header_block_offset + next->weight_offset, SEEK_SET);
+            DIE_ERRNO_DIAG(rc == (off_t) -1, "seek(%s)", "[fbc file]");
             size_t n = sizeof(double) * (x.size() + 1);
             size_t written = 0;
             while (n > 0) {
