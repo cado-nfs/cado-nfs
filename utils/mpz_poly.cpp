@@ -2622,6 +2622,8 @@ mpz_poly_parallel_interface<inf>::mpz_poly_pow_mod_f_mod_mpz (mpz_poly_ptr Q, mp
     if (k < 0)
       break;
     j = mpz_scan1 (a, (k >= l) ? k - (l - 1) : 0);
+    /* if l is 1 then j==k*/
+    ASSERT_ALWAYS(l > 1 || j == k);
     /* new window starts at bit k, and ends at bit j <= k */
     int e = 0;
     while (k >= j)
@@ -2630,6 +2632,8 @@ mpz_poly_parallel_interface<inf>::mpz_poly_pow_mod_f_mod_mpz (mpz_poly_ptr Q, mp
 	e = 2 * e + mpz_tstbit (a, k);
 	k --;
       }
+    /* if l is 1 then e == 1 */
+    ASSERT_ALWAYS(l > 1 || e == 1);
     mpz_poly_mul_mod_f_mod_mpz (R, R, (e == 1) ? P : T[e/2], f, p, invf, NULL);
   }
 
