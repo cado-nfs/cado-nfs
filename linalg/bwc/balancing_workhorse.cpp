@@ -651,8 +651,11 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
                 ix = (i * nv + j) * elem;
                 iy = (j * nh + i) * elem;
                 for(uint32_t k = 0 ; k < elem ; k++) {
-                    ASSERT(fw_rowperm[xr[iy+k]] == UINT32_MAX);
-                    fw_rowperm[xr[iy+k]] = ix+k;
+                    ASSERT_ALWAYS(iy + k < xbal->trows);
+                    uint32_t r = xr[iy+k];
+                    ASSERT_ALWAYS(r < xbal->trows);
+                    ASSERT_ALWAYS(fw_rowperm[r] == UINT32_MAX);
+                    fw_rowperm[r] = ix+k;
                 }
             }
         }
