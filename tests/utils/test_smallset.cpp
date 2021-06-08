@@ -9,15 +9,12 @@ template <int SIZE, typename ELEMENTTYPE>
 void
 test_smallset()
 {
+  ASSERT_ALWAYS(SIZE != 0);
+
   const size_t nr_items = smallset<SIZE, ELEMENTTYPE>::nr_items;
   ELEMENTTYPE items[nr_items];
   for (size_t i = 0; i < nr_items; i++)
     items[i] = i;
-
-  if (SIZE == 0) {
-    smallset<SIZE, ELEMENTTYPE> set(items, 0);
-    ASSERT(!set.contains(0));
-  }
 
   for (size_t i = 1; i <= nr_items; i++) {
     smallset<SIZE, ELEMENTTYPE> set(items, i);
@@ -26,6 +23,14 @@ test_smallset()
     ASSERT(!set.contains(i));
     ASSERT(set.contains(2) == (i > 2));
   }
+}
+
+template <typename ELEMENTTYPE>
+void
+test_smallset<0, ELEMENTTYPE>()
+{
+    smallset<SIZE, ELEMENTTYPE> set(items, 0);
+    ASSERT(!set.contains(0));
 }
 
 template <typename ELEMENTTYPE>
