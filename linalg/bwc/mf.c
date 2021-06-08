@@ -18,6 +18,7 @@
 static inline void expand(struct mf_io_file * m, uint64_t nn)
 {
     m->p = realloc(m->p, nn * sizeof(uint32_t));
+    ASSERT_ALWAYS(m->p);
     if (nn > m->alloc)
         memset(m->p + m->alloc, 0, (nn - m->alloc) * sizeof(uint32_t));
     m->alloc = nn;
@@ -128,6 +129,10 @@ void matrix_read_pass(
         rc = fscanf(m_in->f, "%u %u", &exp_nr, &exp_nc);
         if (rc == EOF) abort_unexpected_eof();
         if (cw_out && cw_out->p == NULL)  {
+            ASSERT_ALWAYS(exp_nc >= cskip);
+#ifdef __COVERITY__
+            __coverity_mark_pointee_as_sanitized(&exp_nc, ALLOCATION);
+#endif
             expand(cw_out, exp_nc - cskip);
             drop_cw_p=1;
         }
