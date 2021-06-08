@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     residue_t o, b, pow;
     unsigned long k;
 
-    if (p > 3 && p % 3 == 0)
+    if (p <= 1 || (p > 3 && p % 3 == 0))
       continue;
     
     mod_initmod_ul (pp, p);
