@@ -349,7 +349,6 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         rwfile = tmp;
         free(tmp);
     }
-    bool can_read_rw = access(rwfile.c_str(), R_OK) == 0;
 
     bytes_per_reader.assign(nreaders, 0);
 
@@ -359,7 +358,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
     subdivision readers_rows(bal->h->nrows, nreaders);
     unsigned int row0 = readers_rows.nth_block_start(ridx);
     unsigned int row1 = readers_rows.nth_block_end(ridx);
-    ASSERT_ALWAYS(!is_reader() || can_read_rw);
+    ASSERT_ALWAYS(!is_reader());
     FILE * frw = fopen(rwfile.c_str(), "rb");
     ASSERT_ALWAYS(frw);
     fseek(frw, row0 * sizeof(uint32_t), SEEK_SET);
@@ -388,7 +387,6 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         rc = stat(mfile.c_str(), sbuf);
         ASSERT_ALWAYS(rc == 0);
         size_t matsize = sbuf->st_size;
-        ASSERT_ALWAYS(can_read_rw);
         FILE * frw = fopen(rwfile.c_str(), "rb");
         ASSERT_ALWAYS(frw);
         rc = fseek(frw, 0, SEEK_END);
