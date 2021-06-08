@@ -27,7 +27,7 @@ test_modredcul_intinv (unsigned long iter)
         {
           g = x;
           x = y;
-          y = x;
+          y = g;
         }
       if ((x & 1) == 0)
         x ++; /* x should be odd */
