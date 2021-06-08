@@ -91,6 +91,12 @@ int main(int argc, char **argv) {
   gmp_randstate_t rstate;
   gmp_randinit_default(rstate);
 
+#ifdef __COVERITY__
+  __coverity_mark_pointee_as_sanitized__(&maxp, LOOP_BOUND);
+  __coverity_mark_pointee_as_sanitized__(&maxa, LOOP_BOUND);
+  __coverity_mark_pointee_as_sanitized__(&maxd, LOOP_BOUND);
+#endif
+
   while (p <= maxp) {
     for (a = mina; a <= maxa && a < p; a++) {
       for (d = mind; d <= maxd; d++) {
