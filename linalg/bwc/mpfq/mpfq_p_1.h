@@ -556,6 +556,7 @@ void mpfq_p_1_set(mpfq_p_1_dst_field K MAYBE_UNUSED, mpfq_p_1_dst_elt r, mpfq_p_
 static inline
 void mpfq_p_1_set_ui(mpfq_p_1_dst_field k MAYBE_UNUSED, mpfq_p_1_dst_elt r, unsigned long x)
 {
+    ASSERT_FOR_STATIC_ANALYZER(mpz_getlimbn(k->p, 0) != 0);
     r[0] = x % mpz_getlimbn(k->p, 0);
 }
 
@@ -761,6 +762,7 @@ void mpfq_p_1_pow(mpfq_p_1_dst_field k, mpfq_p_1_dst_elt res, mpfq_p_1_src_elt r
 static inline
 void mpfq_p_1_add_ui(mpfq_p_1_dst_field k, mpfq_p_1_dst_elt z, mpfq_p_1_src_elt x, unsigned long y)
 {
+    ASSERT_FOR_STATIC_ANALYZER(mpz_getlimbn(k->p, 0) != 0);
     y %= mpz_getlimbn(k->p, 0);
     mp_limb_t cy;
     cy = mpfq_fixmp_1_add_ui(z, x, y);
@@ -772,6 +774,7 @@ void mpfq_p_1_add_ui(mpfq_p_1_dst_field k, mpfq_p_1_dst_elt z, mpfq_p_1_src_elt 
 static inline
 void mpfq_p_1_sub_ui(mpfq_p_1_dst_field k, mpfq_p_1_dst_elt z, mpfq_p_1_src_elt x, unsigned long y)
 {
+    ASSERT_FOR_STATIC_ANALYZER(mpz_getlimbn(k->p, 0) != 0);
     y %= mpz_getlimbn(k->p, 0);
     mp_limb_t cy;
     cy = mpfq_fixmp_1_sub_ui(z, x, y);
