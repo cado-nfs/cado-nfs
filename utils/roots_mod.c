@@ -358,7 +358,7 @@ one_root2_V (residue_t rr, const residue_t aa, const modulus_t pp)
   mod_sub (xx, aa, two, pp); /* x = a - 2 */
   mod_sqr (discr, xx, pp);
   mod_sub (discr, discr, two, pp); /* discr = x^2 - 2 */
-  mod_sub (discr, discr, two, pp); /* discr = x^2 - 4 */
+  mod_sub (discr, discr, two, pp); /* discr = x^2 - 4 = (a-2)^2-4 = a^2-4a */
 
   if (mod_jacobi(discr, pp) == -1) {
     mod_V_eval_ul (rr, NULL, xx, (p+3)/4, pp);
@@ -372,9 +372,9 @@ one_root2_V (residue_t rr, const residue_t aa, const modulus_t pp)
       mod_sqr (xx, cc, pp);
       mod_mul (xx, xx, aa, pp);
       mod_sub (xx, xx, two, pp);
-      mod_sqr (discr, xx, pp);
+      mod_sqr (discr, xx, pp);  /* (ac^2-2)^2 */
       mod_sub (discr, discr, two, pp); /* discr = x^2 - 2 */
-      mod_sub (discr, discr, two, pp); /* discr = x^2 - 4 */
+      mod_sub (discr, discr, two, pp); /* discr = x^2 - 4 = (ac^2-2)^2-4 */
       if (mod_jacobi(discr, pp) == -1)
         break;
     }
@@ -405,6 +405,8 @@ one_root2_V (residue_t rr, const residue_t aa, const modulus_t pp)
     }
     if (c > 1) {
       /* About 1/2^11 + 1/2^13 + 1/2^17 + ... ~= 0.06% of cases get here */
+      /* we know that 1 < c < p, so the inverse must succeed */
+      // coverity[check_return]
       mod_inv (cc, cc, pp);
       mod_mul (xx, xx, cc, pp);
     }
