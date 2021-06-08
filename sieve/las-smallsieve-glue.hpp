@@ -533,7 +533,7 @@ struct small_sieve : public small_sieve_base {/*{{{*/
     template<typename even_code, typename odd_code, int bits_off>
     bool handle_nice_prime(ssp_simple_t const & ssp, spos_t pos, where_am_I & w) {/*{{{*/
         const fbprime_t p = ssp.get_p();
-        if (bits_off && (p >> (super::min_logI_logB + 1 - bits_off))) {
+        if (bits_off != 0 && (p >> (super::min_logI_logB + 1 - bits_off))) {
             /* time to move on to the next bit size; */
             return false;
         }
