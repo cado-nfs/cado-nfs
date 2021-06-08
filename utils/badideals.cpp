@@ -79,14 +79,17 @@ badideal::badideal(std::istream& is)
 {
     for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
     size_t nbranches;
+    // coverity[tainted_argument]
     is >> p >> r >> nbad >> nbranches;
     if (!is) return;
     for(unsigned int j = 0 ; j < nbranches ; j++) {
         badideal::branch br;
         is >> p >> br.k >> br.r;
+        ASSERT_ALWAYS_OR_THROW(is, std::invalid_argument);
         br.v.assign(nbad, 0);
         for(unsigned int k = 0 ; k < br.v.size() ; k++) {
             is >> br.v[k];
+            ASSERT_ALWAYS_OR_THROW(is, std::invalid_argument);
         }
         branches.emplace_back(std::move(br));
     }
