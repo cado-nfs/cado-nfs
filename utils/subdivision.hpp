@@ -40,6 +40,7 @@ class subdivision {
         return (idx * q + std::min(idx, r)) * scale + pos;
     }
     static subdivision by_block_size(unsigned int n, unsigned int b) {
+        ASSERT_ALWAYS(n >= b);
         return subdivision(n, iceildiv(n, b));
     }
     subdivision operator*(unsigned int x) const {
