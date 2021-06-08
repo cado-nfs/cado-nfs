@@ -321,9 +321,13 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
     test_chain_fb_root_in_qlattice_batch<Nr_roots - 1>(basis_begin, basis_end, N, t, u, do_speed, do_test, bits);
 }
 
-/* Specialize the test for length -1 to terminate the recursion. */
+/* Specialize the test for length 0 to terminate the recursion.
+ *
+ * (we used to specialize for length -1, but length 0 actually doesn't do
+ * anything either)
+ */
 template<> void
-test_chain_fb_root_in_qlattice_batch<-1>(basis_citer_t basis_begin MAYBE_UNUSED,
+test_chain_fb_root_in_qlattice_batch<0>(basis_citer_t basis_begin MAYBE_UNUSED,
                                          basis_citer_t basis_end MAYBE_UNUSED,
                                          const unsigned long N MAYBE_UNUSED,
                                          mpz_t t MAYBE_UNUSED, 
