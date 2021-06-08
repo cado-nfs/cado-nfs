@@ -203,6 +203,7 @@ int mkdir_with_parents(const char * dir, int fatal)
             pos = n;
         }
         struct stat sbuf[1];
+        // coverity[fs_check_call]
         int rc = stat(tmp, sbuf);
         if (rc < 0) {
             if (errno != ENOENT) {
