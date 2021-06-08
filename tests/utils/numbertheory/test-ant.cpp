@@ -567,7 +567,7 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
             string keyword;
             if (!(is1 >> keyword) || keyword != "composite") throw exc;
             int ngens;
-            // coverity[tainted_argument]
+            // coverity[-taint_source]
             if (!(is1 >> ngens)) throw exc;
             if (ngens < 0) throw exc;
             if (ngens == 0) break;
