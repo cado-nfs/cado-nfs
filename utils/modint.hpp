@@ -449,24 +449,27 @@ public:
             return out << s.v[0];
         }
 
-        {
-            IoStreamFlagsRestorer dummy(out);
+        IoStreamFlagsRestorer dummy(out);
 
-            constexpr uint64_t ten19 = UINT64_C(10000000000000000000);
-            Integer128 t{s};
-            const uint64_t lower19 = t % ten19;
-            t -= lower19;
+        constexpr uint64_t ten19 = UINT64_C(10000000000000000000);
+        Integer128 t{s};
+        const uint64_t lower19 = t % ten19;
+        t -= lower19;
+        t /= ten19;
+        const uint64_t upper19 = t % ten19;
+        t -= upper19;
+
+        if (t != 0) {
             t /= ten19;
-            const uint64_t upper19 = t % ten19;
-            t -= upper19;
-
-            if (t != 0) {
-                t /= ten19;
-                ASSERT_ALWAYS(t < 4);
-                out << t.v[0] << std::setfill('0') << std::setw(19) << upper19 << std::setfill('0') << std::setw(19) << lower19;
-            } else {
-                out << upper19 << std::setfill('0') << std::setw(19) << lower19;
-            }
+            ASSERT_ALWAYS(t < 4);
+            out << t.v[0] << std::setfill('0') << std::setw(19) << upper19 << std::setfill('0') << std::setw(19) << lower19;
+        } else {
+            // This is apparently a bug in coverity. The
+            // IoStreamFlagsRestorer *does* properly restore the stream
+            // cflags. It's just odd that coverity doesn't seem to see
+            // it.
+            // coverity[format_changed]
+            out << upper19 << std::setfill('0') << std::setw(19) << lower19;
         }
         return out;
     }
