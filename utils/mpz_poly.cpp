@@ -3660,6 +3660,8 @@ int mpz_poly_factor_sqf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f0,
     /* factoring 0 doesn't make sense, really */
     ASSERT(f0->deg >= 0);
 
+    ASSERT_ALWAYS(mpz_cmp_ui(p, 0) > 0);
+
     /* We'll call mpz_poly_factor_sqf_inner, possibly several times if
      * we are in small characteristic.
      */
@@ -3669,6 +3671,7 @@ int mpz_poly_factor_sqf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f0,
     ASSERT(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
 
     int m = 0;
+    // coverity[zero_return]
     int pu = mpz_get_ui(p);  // see below
     /* reset the factor list completely */
     mpz_poly_factor_list_flush(lf);
