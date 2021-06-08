@@ -622,10 +622,8 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
             fprintf(stderr, "The current code expects a column permutation replicated on rows, not the converse. There is little adaptation work, but yet to be done. Maybe you could pass \"--reorder columns\" to mf_bal ?\n");
             abort();
         }
-        ASSERT_ALWAYS(xc);
-        ASSERT_ALWAYS(!xr);
-        if (!xc) xc = xr;
-        if (!xr) xr = xc;
+        ASSERT_ALWAYS(xc && !xr);
+        xr = xc;
         for (uint32_t i = 0; i < xbal->tcols; i++) {
             ASSERT_ALWAYS(xc[i] < xbal->tcols);
             uint32_t q = balancing_pre_unshuffle(bal, xc[i]);
