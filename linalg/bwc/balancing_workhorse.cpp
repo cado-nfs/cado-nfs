@@ -294,7 +294,7 @@ void dispatcher::progress(bool wait)/*{{{*/
     /* If we're supposed to deal with progress by ourselves, then it's
      * handled in the caller */
     ASSERT_ALWAYS(!wait);
-#endif
+#else
     if (wait) {
         MPI_Waitall(n_in, outstanding.data(), MPI_STATUSES_IGNORE);
         outstanding.clear();
@@ -302,6 +302,7 @@ void dispatcher::progress(bool wait)/*{{{*/
         avail_queues.clear();
         return;
     }
+#endif
     indices.assign(n_in, 0);
     // statuses.assign(n_in, 0);
     int err = MPI_Testsome(n_in, outstanding.data(),
