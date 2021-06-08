@@ -103,7 +103,7 @@ struct Tfile : public string {
 
 struct Vfile : public string {
     unsigned int j0, j1, n;
-    int checks;
+    int checks = 0;
     std::pair<unsigned int, unsigned int> seq_id() const {
         return make_pair(j0, j1);
     }
@@ -121,7 +121,7 @@ struct Vfile : public string {
 
 struct Afile : public string {
     unsigned int j0, j1, n0, n1;
-    int checks;
+    int checks = 0;
     std::pair<unsigned int, unsigned int> seq_id() const {
         return make_pair(j0, j1);
     }
@@ -144,7 +144,7 @@ struct Afile : public string {
 #if 0
 struct Ffile : public string {
     unsigned int s0, s1, j0, j1;
-    int checks;
+    int checks = 0;
     std::pair<unsigned int, unsigned int> seq_id() const {
         return make_pair(j0, j1);
     }
@@ -166,7 +166,7 @@ struct Ffile : public string {
 
 struct Sfile : public string {
     int s0, s1, j0, j1, n0, n1;
-    int checks;
+    int checks = 0;
     std::pair<unsigned int, unsigned int> seq_id() const {
         return make_pair(j0, j1);
     }
