@@ -621,7 +621,7 @@ static int builder_do_small_slice(builder * mb, struct small_slice_t * S, uint32
 
     /* Convert all j indices to differences */
     S->dj_max = 0;
-    S->dj_avg = mb->ncols_t / (double) S->ncoeffs;
+    S->dj_avg = mb->ncols_t / (double) (S->ncoeffs + !S->ncoeffs);
 
     typedef small_slice_t::Lui_t Lui_t;
     typedef small_slice_t::Lvci_t Lvci_t;
