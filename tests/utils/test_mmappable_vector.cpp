@@ -40,7 +40,8 @@ void test_test_file(int count, const char * fname, bool expect_zeros)
     FILE * f = fopen(fname, "r");
     for (int i=0;i<count;i++) {
         int j;
-        fread(&j, 1, sizeof(j), f);
+        int n = fread(&j, 1, sizeof(j), f);
+        ASSERT_ALWAYS(n == (int) sizeof(j));
         ASSERT_ALWAYS(j == (expect_zeros ? 0 : i));
     }
     fclose(f);
