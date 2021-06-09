@@ -320,6 +320,7 @@ int main(int argc, char * argv[])
         } else if (strcmp(argv[1], "-t") == 0) {
             check = false;
         } else {
+            // coverity[tainted_argument]
             Nmax = atol(argv[1]);
         }
     }
