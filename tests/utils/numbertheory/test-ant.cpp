@@ -199,6 +199,7 @@ vector<pair<cxx_mpz_mat, int> > batch_read_prime_factorization(istream & in, uns
     string keyword;
     if (!(in >> keyword) || keyword != "ideals") throw exc;
     unsigned int nideals;
+    // coverity[tainted_argument]
     if (!(in >> nideals))
         throw exc;
     for(unsigned int k = 0 ; k < nideals ; k++) {
