@@ -13,12 +13,12 @@
  */
 struct bblas_timer {
     clock_t measuring_time;
-    clock_t t0, t1;
-    int j;
+    clock_t t0=0, t1=0;
+    int j=0;
     double maxtime;
     std::string const & name;
     double t;
-    const char * unit;
+    const char * unit="s";
     bblas_timer(double maxtime, std::string const & name)
         : maxtime(maxtime)
           , name(name)
