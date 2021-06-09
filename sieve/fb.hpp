@@ -182,7 +182,11 @@ public:
   static const bool is_general_type = false;
   static const unsigned char fixed_nr_roots = Nr_roots;
   inline int get_nr_roots() const { return Nr_roots; }
-  fb_entry_x_roots() {};
+  // fb_entry_x_roots() {};
+  fb_entry_x_roots(fbprime_t p, redc_invp_t invq, fbroot_t * roots) : p(p), invq(invq) {
+    for (int i = 0; i < Nr_roots; i++)
+      this->roots[i] = roots[i];
+  }
   /* Allow assignment-construction from general entries */
   fb_entry_x_roots(const fb_entry_general &e) : p(e.p), invq(e.invq) {
     ASSERT_ALWAYS(Nr_roots == e.nr_roots);
