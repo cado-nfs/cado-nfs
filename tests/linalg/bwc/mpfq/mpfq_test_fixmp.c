@@ -6778,8 +6778,10 @@ void do_test(int N, int k, int hw, void (*func)())
 int main(int argc, char **argv) {
   int k=100;
 
-  if (argc==2)
+  if (argc==2) {
+    // coverity[tainted_data_transitive]
     k = atoi(argv[1]);
+  }
 
   do_test(k, 1, 0, &test_fixmp_1);
   do_test(k, 2, 0, &test_fixmp_2);
