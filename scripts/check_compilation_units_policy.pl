@@ -42,6 +42,7 @@ my @path_exceptions=qw|
         config/
         misc/
         utils/fmt/
+        ci/coverity_model.c
         |;
 
 my @header_guard_check_skip_patterns = (
