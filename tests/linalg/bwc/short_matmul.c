@@ -183,6 +183,7 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
         for( ; ; ) {
             uint32_t x;
             int32_t c;
+            // coverity[tainted_argument]
             int k = fread(&x, sizeof(uint32_t), 1, m);
             uint32_t rowlen = x;
             if (k != 1) {
