@@ -498,8 +498,7 @@ class fb_factorbase {
                 const fb_slice_interface * res = multityped_array_locate<helper_functor_get>()(slices, idx);
                 ASSERT_ALWAYS(res);
                 ASSERT_ALWAYS(res->get_index() == index);
-                if (res) return res;
-                return NULL;
+                return res;
             }
 
             /* {{{ use caching for the number of slices, as it's a handy
