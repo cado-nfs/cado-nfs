@@ -514,6 +514,7 @@ main_adv (int argc, char **argv)
 
     FILE *file = NULL;
     char *filename = NULL;
+    // coverity[parm_assign]
     filename = argv[2];
     argv += 2;
     argc -= 2;
