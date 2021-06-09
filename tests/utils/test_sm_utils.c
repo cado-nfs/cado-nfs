@@ -81,6 +81,10 @@ test_sm (FILE * datafile)
 
     ret = fscanf(datafile, "\nout %d", &degN);
     ASSERT_ALWAYS (ret == 1);
+    ASSERT_ALWAYS (degN >= -1);
+#ifdef __COVERITY__
+    __coverity_mark_pointee_as_sanitized(&degN, GENERIC);
+#endif
     mpz_poly_init (N, degN);
 
     for (int i = 0; i <= degN; i++)
