@@ -13,6 +13,8 @@ if (HAVE_SSE41)
             message(STATUS "Testing whether pclmul code can be used -- Yes")
             set (HAVE_PCLMUL 1)
         endif()
+    elseif(CMAKE_C_FLAGS MATCHES "-march")
+       message(STATUS "Testing whether pclmul code can be used -- No (not testing -mpclmul because -march is already present)")
     else()
         try_run(pclmul_runs pclmul_compiles
             ${PROJECT_BINARY_DIR}/config
