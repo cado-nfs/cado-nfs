@@ -13,6 +13,8 @@ if (HAVE_AVX)
             message(STATUS "Testing whether avx2 code can be used -- Yes")
             set (HAVE_AVX2 1)
         endif()
+    elseif(CMAKE_C_FLAGS MATCHES "-march")
+       message(STATUS "Testing whether avx2 code can be used -- No (not testing -mavx2 because -march is already present)")
     else()
         try_run(avx2_runs avx2_compiles
             ${PROJECT_BINARY_DIR}/config

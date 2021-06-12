@@ -12,6 +12,8 @@ if(mmx_compiles)
         message(STATUS "Testing whether mmx code can be used -- Yes")
         set (HAVE_MMX 1)
     endif()
+elseif(CMAKE_C_FLAGS MATCHES "-march")
+   message(STATUS "Testing whether mmx code can be used -- No (not testing -mmmx because -march is already present)")
 else()
     try_run(mmx_runs mmx_compiles
         ${PROJECT_BINARY_DIR}/config

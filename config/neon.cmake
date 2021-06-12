@@ -12,6 +12,8 @@ if(neon_compiles)
         message(STATUS "Testing whether ARM NEON code can be used -- Yes")
         set (HAVE_ARM_NEON 1)
     endif()
+elseif(CMAKE_C_FLAGS MATCHES "-march")
+    message(STATUS "Testing whether ARM NEON code can be used -- No (not testing -mfpu=neon because -march is already present)")
 else()
     try_run(neon_runs neon_compiles
         ${PROJECT_BINARY_DIR}/config
