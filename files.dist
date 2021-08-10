@@ -1163,6 +1163,7 @@ tests/linalg/bwc/test_hello.c
 tests/ncpus.sh
 tests/scripts/CMakeLists.txt
 tests/scripts/cadofactor/CMakeLists.txt
+tests/scripts/cadofactor/test_wudb_cmdline.sh
 tests/provide-wdir.sh
 tests/utils/test_mpz_vector.c
 linalg/bwc/blocklanczos.cpp

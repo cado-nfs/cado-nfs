@@ -435,8 +435,6 @@ fclose_maybe_compressed2 (FILE * f, const char * name, void * rr MAYBE_UNUSED)
         if (stat(tempname, sbuf) == 0) {
             ret = rename(tempname, name);
             if (ret != 0) return EOF;
-            ret = unlink(tempname);
-            if (ret != 0) return EOF;
         }
 
         return 0;
