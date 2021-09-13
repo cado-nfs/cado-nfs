@@ -1678,3 +1678,7 @@ tests/utils/buggy.poly
 misc/indexed_relations_to_density.cpp
 scripts/check_python_pathdetection_stub.sh
 config/source-location.txt.in
+ci/phony-packages/clang-usrlocal-0.0/build.sh
+ci/phony-packages/clang-usrlocal-0.0/control
+ci/phony-packages/clang-usrlocal-0.0/postinst
+ci/phony-packages/clang-usrlocal-0.0/prerm

@@ -135,7 +135,7 @@ checks on opensuse system with gcc:
 
 checks with clang:
   <<: *common-template
-  image: debian:testing
+  image: silkeh/clang:latest
   stage: early
   before_script:
     - ci/00-prepare-docker.sh
