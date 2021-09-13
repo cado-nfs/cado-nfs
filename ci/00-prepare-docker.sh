@@ -104,7 +104,8 @@ if [ "$gcc32" ] ; then
     # alpine_packages="$alpine_packages     g++"
 fi
 
-if [ "$gcc" ] ; then
+# The gcc image actually contains a base g++ installation that is in /usr
+if [ "$gcc" ] && ! [ -x /usr/local/bin/g++ ] ; then
     debian_packages="$debian_packages     g++"
     opensuse_packages="$opensuse_packages gcc gcc-c++"
     fedora_packages="$fedora_packages     g++"
@@ -112,7 +113,7 @@ if [ "$gcc" ] ; then
     freebsd_packages="$freebsd_packages   gcc"  # this pulls g++ too
 fi
 
-if [ "$clang" ] ; then
+if [ "$clang" ] && ! [ -x /usr/local/bin/clang ] ; then
     debian_packages="$debian_packages     clang"
     opensuse_packages="$opensuse_packages clang"
     fedora_packages="$fedora_packages     clang"
@@ -137,6 +138,12 @@ if [ "$DOCKER_SCRIPT" ] ; then
 fi
 
 if is_debian ; then
+    if [ -x /usr/local/bin/clang ] && ! [ -x /usr/bin/cc ] ; then
+        T=$(mktemp -d /tmp/XXXXXXXX)
+        F=$($(dirname $0)/phony-packages/clang-usrlocal-0.0/build.sh "$T")
+        dpkg -i "$F"
+        rm -rf "$T"
+    fi
     DEBIAN_FRONTEND=noninteractive apt-get -y update
     DEBIAN_FRONTEND=noninteractive apt-get -y install $debian_packages
 elif is_opensuse ; then

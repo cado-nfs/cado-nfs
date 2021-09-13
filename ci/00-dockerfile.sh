@@ -14,7 +14,10 @@ FROM=alpine:latest
 if [ "$clang" ] ; then
     # difficult. fedora:rawhide, debian:testing are ok and seem to bring
     # us the latest clang. But they're both quite heavy!
-    FROM=debian:testing
+    # FROM=debian:testing
+    # This is just as heavy (if not worse), but does bring the benefit
+    # that we have the latest clang, as is the case with gcc.
+    FROM=silkeh/clang:latest
 fi
 if [ "$gcc" ] && ! [ "$coverage" ] ; then
     # coverage tests need gcc, but also need recent gcov. We can get by

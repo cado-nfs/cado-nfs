@@ -1,0 +1,11 @@
+Package: clang-usrlocal
+Version: 0.0
+Architecture: all
+Maintainer: Emmanuel Thomé <Emmanuel.Thome@inria.fr>
+Provides: c++-compiler, c-compiler, cpp
+Section: devel
+Priority: optional
+Description: LLVM Clang in /usr/local
+ This is the LLVM Clang compiler
+ .
+ This package just lets the debian packaging system know that an LLVM Clang install is present in /usr/local
