@@ -1,0 +1,11 @@
+#! /bin/sh
+
+set -e
+
+if [ "$1" != upgrade ]; then
+    update-alternatives --quiet --remove cpp /usr/local/bin/clang-cpp
+    update-alternatives --quiet --remove c++ /usr/local/bin/clang++
+    update-alternatives --quiet --remove cc /usr/local/bin/clang
+fi
+
+exit 0
