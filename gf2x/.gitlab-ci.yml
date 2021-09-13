@@ -1,0 +1,253 @@
+# see also ci/debug.sh
+
+stages:
+  - early
+  - thorough
+#  - publish
+
+image: gcc
+
+# mostly copied from cado-nfs
+  
+############################################################################
+# This template is used so that if the magic words "skip some ci" are
+# found in the git commit, then the whole pipeline becomes manual.
+.common-template: &common-template
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
+    - when: on_success
+  retry:
+    max: 2
+    when: runner_system_failure
+  
+# see also https://gitlab.com/gitlab-org/gitlab/-/issues/201845 regarding
+# the pipeline deduplication
+workflow:
+   rules:
+     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+       when: never
+     - when: always
+
+############################################################################
+# The jobs that do checks.
+#
+# Basically, much of the work is done in shell scripts for convenience,
+# and they're grouped in the template below.
+
+checks with gcc:
+  <<: *common-template
+  stage: early
+  image: gcc:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks LGPL code with gcc:
+  <<: *common-template
+  stage: early
+  image: gcc:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks make-dist tarball with gcc:
+  <<: *common-template
+  stage: early
+  image: gcc:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks out-of-source make-dist tarball with gcc:
+  <<: *common-template
+  stage: early
+  image: gcc:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks make-dist LGPL tarball with gcc:
+  <<: *common-template
+  stage: early
+  image: gcc:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks with gcc and architecture x86-64:
+  <<: *common-template
+  stage: early
+  image: gcc:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks with gcc and architecture nocona:
+  <<: *common-template
+  stage: early
+  image: gcc:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks with gcc and architecture core2:
+  <<: *common-template
+  stage: early
+  image: gcc:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks with gcc and architecture westmere:
+  <<: *common-template
+  stage: early
+  image: gcc:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks on alpine system with gcc:
+  <<: *common-template
+  stage: early
+  image: alpine:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks on debian system with 32-bit gcc:
+  <<: *common-template
+  stage: early
+  image: debian
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks out-of-source with gcc:
+  <<: *common-template
+  stage: early
+  image: alpine
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks on debian10 system with gcc:
+  <<: *common-template
+  stage: early
+  image: debian:10
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks on debian9 system with gcc:
+  <<: *common-template
+  stage: early
+  image: debian:9
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks on opensuse system with gcc:
+  <<: *common-template
+  stage: early
+  image: opensuse/leap
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+# We might consider testing various architectures with clang and gcc too.
+checks with clang:
+  <<: *common-template
+  image: silkeh/clang:latest
+  stage: early
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+checks with icc:
+  <<: *common-template
+  image: intel/oneapi-hpckit:latest
+  stage: early
+  tags:
+    - icc
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - ci/40-testsuite.sh
+
+#  expensive checks with gcc:
+#    <<: *common-template
+#    stage: thorough
+#    # do not start it prematurely, in case previous jobs failed
+#    image: gcc:latest
+#    before_script:
+#      - ci/00-prepare-docker.sh
+#    script:
+#      - ci/40-testsuite.sh
+#  
+############################################################################
+# Tests on slow machines and/or shell executors. They depend on nothing.
+
+# # It would be possible to run the following test on arm64 as well, but my
+# # only runner is an allwinner CPU with 2G of RAM, and it takes more than
+# # two hours :-(. I think I would have to reduce the test surface first.
+# #    - arm64
+# #
+# # # very slow machines run with the shell executor anyway.
+# # # 00-prepare-shell.sh can only check if software is present.
+run on very slow machines:
+  <<: *common-template
+  stage: early
+  needs: []
+  tags:
+    - raspberry
+  before_script:
+    - ci/00-prepare-shell.sh
+  script:
+    - ci/40-testsuite.sh
+ 
+# in fact, this one should be quick !
+checks on osx system:
+  <<: *common-template
+  # do it early. It's one of our quickest runners.
+  stage: early
+  needs: []
+  tags:
+    - osx
+  before_script:
+    - ci/00-prepare-shell.sh
+  script:
+    - ci/40-testsuite.sh
+ 
+# freebsd has clang by default, I see no compelling reason to test
+# primarily gcc. Sure, we may want to do both.
+checks on freebsd13.0 system with clang:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  <<: *common-template
+  stage: thorough
+  # do not start it prematurely, in case previous jobs failed
+  # needs: []
+  tags:
+    - freebsd-tanker
+  script:
+    - make -C ci/utilities/tanker
+    - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
+
