@@ -34,18 +34,10 @@ import email.generator
 from string import Template
 from io import BytesIO
 import ssl
-if sys.version_info[0] == 3:
-    # pylint: disable=E0611
-    # pylint: disable=F0401
-    import urllib.request as urllib_request
-    import urllib.error as urllib_error
-    from http.client import BadStatusLine
-    from urllib.parse import urlparse
-elif sys.version_info[0] == 2:
-    import urllib2 as urllib_request
-    import urllib2 as urllib_error
-    from httplib import BadStatusLine
-    from urlparse import urlparse
+import urllib.request as urllib_request
+import urllib.error as urllib_error
+from http.client import BadStatusLine
+from urllib.parse import urlparse
 
 # THIS PART MUST BE EXACTLY IDENTICAL IN cado-nfs.py and cado-nfs-client.py
 
@@ -242,11 +234,7 @@ else:
 
 candidates_for_BytesGenerator = []
 
-if sys.version_info[0] == 2:
-    # We're not using the list for python2 anyway, but let's keep the
-    # "default" version here.
-    candidates_for_BytesGenerator.append(email.generator.Generator)
-else:
+if True:
     candidates_for_BytesGenerator.append(email.generator.BytesGenerator)
     class Version1FixedBytesGenerator(email.generator.BytesGenerator):
         # pylint: disable=W0232
@@ -326,9 +314,6 @@ def find_working_bytesgenerator():
     Otherwise return None.
     """
 
-    if tuple(sys.version_info)[0] == 2:
-        return email.generator.Generator
-
     # We use several test strings.
     # 32-byte string, so that it displays nicely in hex dumps.
     test_strings = []
@@ -391,81 +376,6 @@ def find_working_bytesgenerator():
     sys.exit(1)
 
 FixedBytesGenerator = find_working_bytesgenerator()
-# }}}
-
-# {{{ urllib plumbing
-# Under Python 2, subclass urllib2.HTTPSHandler and httplib.HTTPSConnection
-# and check the certificate and server subject identity when opening a HTTPS
-# connection
-
-HAVE_WGET = False
-HAVE_CURL = False
-
-if sys.version_info[0] == 2:
-    import httplib
-    class MyHTTPSConnection(httplib.HTTPSConnection):
-        """ HTTPS connections with certificate subject identity check """
-        ca_file = None
-        check_hostname = True
-
-        def connect(self):
-            """ Open a connection, then wrap the socket with SSL, verify the
-            server certificate, and the the server certificate's subject.
-            """
-            # Python 2.6 does not have the source_address attribute
-            if sys.version_info[0:2] == (2, 7):
-                sock = socket.create_connection((self.host, self.port),
-                                                self.timeout, self.source_address)
-            else:
-                sock = socket.create_connection((self.host, self.port),
-                                                self.timeout)
-
-            if self._tunnel_host:
-                self.sock = sock
-                self._tunnel()
-            self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file,
-                                        ca_certs=self.ca_file,
-                                        cert_reqs=ssl.CERT_REQUIRED)
-
-            cert = self.sock.getpeercert()
-            host = self.host.split(":")[0]
-
-            if not self.check_hostname:
-                return
-
-            had_DNS_name = False
-            certhost = ""
-            if "subjectAltName" in cert:
-                # print(cert["subjectAltName"])
-                for (typeid, value) in cert["subjectAltName"]:
-                    # Wildcard "*" not implemented, but we don't use it anyhow
-                    assert not "*" in value
-                    if typeid == "DNS" and value == host:
-                        return
-                    if typeid == "DNS":
-                        had_DNS_name = True
-                    if typeid == "IP Address" and value == host:
-                        return
-            for field in cert['subject']:
-                if field[0][0] == 'commonName':
-                    certhost = field[0][1]
-            # Check common name only if there was no SAN DNS entry
-            if not had_DNS_name and certhost == host:
-                return
-
-            raise ssl.SSLError("Host name '%s' doesn't match certificate host '%s'"
-                               % (host, certhost))
-
-    class MyHTTPSHandler(urllib_request.HTTPSHandler):
-        """ HTTPS handler that uses MyHTTPSConnection for verifying the
-        certificate's subject identity
-        """
-        def https_open(self, req):
-            return self.do_open(MyHTTPSConnection, req)
-
-    myOpenerDirector = urllib_request.build_opener(MyHTTPSHandler)
-    urllib_request.install_opener(myOpenerDirector)
-
 # }}}
 
 def create_daemon(workdir=None, umask=None, logfile=None):# {{{
@@ -781,7 +691,7 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
 # }}}
 
 
-# {{{ wrap around python urllib, fall back on wget or curl if needed.
+# {{{ wrap around python urllib
 class HTTP_connector(object):
     @staticmethod
     def wait_until_positive_filesize(filename, timeout=60):
@@ -793,42 +703,6 @@ class HTTP_connector(object):
         if slept == timeout:
             logging.warning("Slept %d seconds, %s still has no data",
                             timeout, filename)
-
-    @staticmethod
-    def _try_wget():
-        try:
-            return run_command(["wget", "-V"])[0] == 0
-        except OSError:
-            logging.warning("Cannot find wget")
-            return False
-
-    @staticmethod
-    def _try_curl():
-        try:
-            rc, stdout, stderr = run_command(["curl", "-V"])
-        except OSError:
-            return False
-        if rc != 0:
-            return False
-        match = False
-        version_lines = stdout.splitlines()
-        if version_lines:
-            match = re.match(r"curl (?:\d+.\d+)", version_lines[0])
-        if not match:
-            logging.error("curl did not print its version with -V")
-            logging.error("Stdout: %s", stdout)
-            logging.error("Stderr: %s", stderr)
-            return False
-
-        if re.search("SecureTransport", version_lines[0]):
-            logging.error("Found Apple version of curl"
-                          " with SecureTransport SSL backend")
-            logging.error("SecureTransport doesn't allow"
-                          " self-signed certificates provided in files."
-                          " Please see the SSL section in"
-                          " README.Python for details.")
-            return False
-        return True
 
     @staticmethod
     def _urlopen_maybe_https(request, cafile=None, check_hostname=True):
@@ -847,30 +721,20 @@ class HTTP_connector(object):
             # Assume it's a URL string
             scheme = request.split(":")[0].lower()
         if scheme == "https":
-            if sys.version_info[0] == 3:
-                # Python 3 implements HTTPS certificate checks, we can just
-                # let urllib do the work for us
+            # Python 3 implements HTTPS certificate checks, we can just
+            # let urllib do the work for us
 
-                context = ssl.SSLContext()
-                if check_hostname:
-                    context.verify_mode = ssl.CERT_REQUIRED
-                else:
-                    context.verify_mode = ssl.CERT_NONE
-                context.check_hostname = bool(check_hostname)
-                context.load_verify_locations(cafile=cafile)
+            context = ssl.SSLContext()
+            if check_hostname:
+                context.verify_mode = ssl.CERT_REQUIRED
+            else:
+                context.verify_mode = ssl.CERT_NONE
+            context.check_hostname = bool(check_hostname)
+            context.load_verify_locations(cafile=cafile)
 
-                return urllib_request.urlopen(request, context=context)
-            # For the time being, we just use HTTPS without check.
-            # We should never get here, as we use wget or curl as
-            # fall-backs under Python 2, and if neither is available,
-            # cado-nfs-client.py aborts in the initialisation phase.
+            logging.info ("urllib_request.urlopen")
+            return urllib_request.urlopen(request, context=context)
 
-            # Ugly hack: urllib2 does not provide for parameter passing
-            # to HTTPSConnection, so we modify the class variable
-            # default_cert_file of MyHTTPSConnection. YUCK.
-            MyHTTPSConnection.ca_file = cafile
-            MyHTTPSConnection.check_hostname = check_hostname
-            return urllib_request.urlopen(request)
         # If we are not using HTTPS, we can just let urllib do it,
         # and there is no need for a cafile parameter (which Python 2
         # urlopen() does not accept)
@@ -882,8 +746,10 @@ class HTTP_connector(object):
         hard_error = False
         check_hostname = not self.no_cn_check
         try:
+            logging.info("_urlopen_maybe_https")
             conn = HTTP_connector._urlopen_maybe_https(request, cafile=cafile,
                                                        check_hostname=check_hostname)
+            logging.info("_urlopen_maybe_https returns")
             # conn is a file-like object with additional methods:
             # geturl(), info(), getcode()
             return conn, None, None
@@ -909,68 +775,6 @@ class HTTP_connector(object):
             error_str = "Connection error: %s" % str(error)
         return None, error_str, hard_error
 
-    def _wget_file(self, url, dlpath, cafile=None, wait=None):
-        """ Download via wget
-
-        Returns (None, None) on success, (error string, boolean)
-        otherwise. The boolean is True if we know the error is really
-        fatal.
-
-        This is used as a fall-back for doing HTTPS downloads when running
-        under Python 2, whose ssl module does not implement SSL certificate
-        checks.
-        """
-        command = ["env", "LC_ALL=C", "wget", "-O", dlpath]
-        if cafile:
-            command.append("--ca-certificate=%s" % cafile)
-        if wait is not None:
-            command.append("--timeout=%d" % wait)
-        # this is to avoid clutter with wget-log files...
-        # https://savannah.gnu.org/bugs/?51181
-        command += ["-o", "/dev/stderr"]
-        command.append("--tries=1")
-        command.append(url)
-        (rc, stdout, stderr) = run_command(command)
-        if rc == 0:
-            return None, None
-        # Try to recognize common errors in stderr. Hmm, localization may
-        # kill us.
-        match = re.match(r".*\.\.\. failed: (.*)", stderr.splitlines()[-1])
-        hard_error = False
-        if match:
-            stderr = match.groups()[0]
-            if re.match("Connection refused\.", stderr):
-                hard_error = True
-        return stderr, hard_error
-
-    def _curl_get_file(self, url, dlpath, cafile=None, wait=None):
-        """ Download via curl
-
-        Returns (None, None) on success, (error string, boolean)
-        otherwise. The boolean is True if we know the error is really
-        fatal.
-
-        Like wget_file(), this is used as a fall-back.
-        """
-        command = ["env", "LC_ALL=C", "curl",
-                   "--silent", "--show-error",
-                   "--fail", "--output", dlpath]
-        if cafile:
-            command += ["--cacert", cafile]
-        if wait is not None:
-            command += ["--connect-timeout", "%d" % int(wait)]
-        command.append(url)
-        (rc, stdout, stderr) = run_command(command)
-        if rc == 0:
-            return None, None
-        match = re.match(r".*Failed to connect to (.*) port (\d+): (.*)", stderr.splitlines()[-1])
-        hard_error = False
-        if match:
-            stderr = match.groups()[2]
-            if re.match("Connection refused", stderr):
-                hard_error = True
-        return stderr, hard_error
-
     def _native_get_file(self, url, dlpath, cafile=None, wait=None):
         # NOTE: the "wait" argument is not used by this method
         request, error_str, hard_error = self._urlopen(url, cafile=cafile)
@@ -994,10 +798,18 @@ class HTTP_connector(object):
                 HTTP_connector.wait_until_positive_filesize(dlpath)
                 return None, None
             raise
+        logging.info("_native_get_file(%s) -> %s" % (url, dlpath))
+        logging.info("fd = %d" % fd)
         outfile = os.fdopen(fd, "wb")
         FileLock.lock(outfile, exclusive=True)
+        logging.info("lock acquired")
         shutil.copyfileobj(request, outfile)
-        FileLock.unlock(outfile)
+        logging.info("copy done")
+        try:
+            FileLock.unlock(outfile)
+            logging.info("lock release")
+        except OSError as err:
+            logging.info("unlock error: %s" % err)
         outfile.close() # This should also close the fd
         request.close()
         return None, None
@@ -1005,31 +817,7 @@ class HTTP_connector(object):
     def __init__(self, settings):
         # can be overridden below
         self.get_file = self._native_get_file
-        self.use_external_dl = settings["USE_EXTERNAL_DL"]
         self.no_cn_check = settings["NO_CN_CHECK"]
-
-    def test_can_download_https(self):
-        # Can we download with HTTPS at all?
-        #
-        # If we want HTTPS and are running under Python 2, we use wget to do
-        # the actual download, as the Python 2 urllib does not implement
-        # actually checking the certificate
-        # This is a rather ugly hack. It would be nicer to copy the required
-        # parts from a fully functional SSL library. TODO.
-        if sys.version_info[0] == 2 or self.use_external_dl:
-            if self._try_curl():
-                self.get_file = self._curl_get_file
-            elif self._try_wget():
-                self.get_file = self._wget_file
-            else:
-                if sys.version_info[0] == 2:
-                    why = "HTTPS requested, but not implemented in Python 2"
-                else:
-                    why = "External tools requested for HTTPS"
-                logging.critical("%s"
-                                 " and can't find working wget or curl"
-                                 " as fall-back. Aborting.", why)
-                sys.exit(1)
 
 # }}}
 
@@ -1417,19 +1205,17 @@ class WorkunitProcessor(object):
                 with open(files[my_stdin_filename], "r") as f:
                     stdin=f.read()
 
-            if sys.version_info[0] == 3:
-                if stdin is not None:
-                    stdin=stdin.encode()
+            if stdin is not None:
+                stdin=stdin.encode()
 
             rc, stdout, stderr = run_command(command,
                                             stdin=stdin,
                                             preexec_fn=renice_func)
 
-            if sys.version_info[0] == 3:
-                if stdout is not None:
-                    stdout=stdout.decode()
-                if stderr is not None:
-                    stderr=stderr.decode()
+            if stdout is not None:
+                stdout=stdout.decode()
+            if stderr is not None:
+                stderr=stderr.decode()
 
             # steal stdout/stderr, put them to files.
             if my_stdout_filename in files:
@@ -2077,16 +1863,9 @@ class ResultUploader(object):
         The encoding may matter if the path names for the uploaded files
         contain special characters, like accents.
         """
-        if sys.version_info[0] == 3:
-            charset = conn.info().get_content_charset()
-            if charset is None:
-                charset = "latin-1"
-        else:
-            charset = "latin-1" # Default value
-            for item in conn.info().getplist():
-                pair = item.split("=")
-                if len(pair) == 2 and pair[0].strip() == "charset":
-                    charset = pair[1].strip()
+        charset = conn.info().get_content_charset()
+        if charset is None:
+            charset = "latin-1"
         return charset
 
     def process_uploads(self):
@@ -2160,10 +1939,7 @@ class ResultUploader(object):
                                  url, waiting_since)
                 response = conn.read()
                 encoding = self.get_content_charset(conn)
-                if sys.version_info[0] == 2:
-                    response_str = unicode(response, encoding=encoding)
-                else:
-                    response_str = response.decode(encoding=encoding)
+                response_str = response.decode(encoding=encoding)
                 logging.debug("Server response:\n%s", response_str)
                 conn.close()
                 did_progress = True
@@ -2284,10 +2060,7 @@ def merge_two_dicts(x, y):
 def abort_on_python2():
     if int(sys.version_info[0]) < 3:
         logging.error("You are running cado-nfs-client with Python%d.  "
-                "Python2 *used to be* supported, but no longer is.  "
-                "You can try to remove the explicit sys.exit(1) in "
-                "cado-nfs-client.py, abort_on_python2(), "
-                "but you're on your own." % int(sys.version[0]))
+                "Python2 *used to be* supported, but no longer is.  " % int(sys.version[0]))
         sys.exit(1)
 
 # This syntax is weird, but { a:b for [....] } won't work with python 2.6
@@ -2330,10 +2103,7 @@ if __name__ == '__main__':
         parser.add_option("--single", default=False, action="store_true",
                           help="process only a single WU, then exit")
         parser.add_option("--nocncheck", default=False, action="store_true",
-                          help="Don't check common name/SAN of certificate. "
-                          "Currently works only under Python 2.")
-        parser.add_option("--externdl", default=False, action="store_true",
-                          help="Use wget or curl for HTTPS downloads")
+                          help="Don't check common name/SAN of certificate. ")
         parser.add_option("--override", nargs=2, action='append',
                           metavar=('REGEXP', 'VALUE'),
                           help="Modify command-line arguments which match "
@@ -2407,7 +2177,6 @@ if __name__ == '__main__':
 
     SETTINGS["KEEPOLDRESULT"] = options.keepoldresult
     SETTINGS["NOSHA1CHECK"] = options.nosha1check
-    SETTINGS["USE_EXTERNAL_DL"] = options.externdl
     SETTINGS["NO_CN_CHECK"] = options.nocncheck
     SETTINGS["OVERRIDE"] = options.override
     SETTINGS["SINGLE"] = options.single
@@ -2462,13 +2231,6 @@ if __name__ == '__main__':
     serv_pool = ServerPool(SETTINGS)
 
     connector = HTTP_connector(SETTINGS)
-
-    if serv_pool.has_https:
-        if not options.externdl:
-            sys.version_info[0] == 2
-            logging.info("Implicitly setting --externdl to use https fallbacks")
-            # test_can_download_https forces external tools for python2
-        connector.test_can_download_https()
 
     if options.daemon:
         # in fact, logfile can never be None, since we force a logfile no
