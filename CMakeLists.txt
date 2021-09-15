@@ -146,7 +146,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
     # prevents the definition of __STRICT_ANSI__
     #
     # Ditto for C++, with the c++98/gnu++98 subtlety.
-    set (CMAKE_C_FLAGS "-g -W -Wall ${CMAKE_C_FLAGS}")
+    set (CMAKE_C_FLAGS "-W -Wall ${CMAKE_C_FLAGS}")
     if (MINGW)
         set (CMAKE_C_FLAGS "-std=gnu99 ${CMAKE_C_FLAGS}")
     else()
@@ -156,7 +156,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set (CMAKE_CXX_FLAGS "-g -W -Wall ${CMAKE_CXX_FLAGS}")
+    set (CMAKE_CXX_FLAGS "-W -Wall ${CMAKE_CXX_FLAGS}")
     if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
         message(FATAL_ERROR "cado-nfs requires gcc version 5 or greater")
     endif()
@@ -177,8 +177,8 @@ endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "Intel")
     message(STATUS "Applying flags for icc")
-    set (CMAKE_C_FLAGS   "-g -W -Wall -wd13200,13203 ${CMAKE_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "-g -W -Wall -wd13200,13203,3058 ${CMAKE_CXX_FLAGS}")
+    set (CMAKE_C_FLAGS   "-W -Wall -wd13200,13203 ${CMAKE_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "-W -Wall -wd13200,13203,3058 ${CMAKE_CXX_FLAGS}")
     set (CMAKE_C_FLAGS   "-std=c99 ${CMAKE_C_FLAGS}")
 
     # only icc>=15 is full c++11 compliant, it seems. But 14 will do.
@@ -190,13 +190,13 @@ if(CMAKE_C_COMPILER_ID MATCHES "Intel")
         message(STATUS "Not enabling C++11 support for ICC 14, see bug #21416")
     else()
         # don't set standard flags explicitly. The default seems fine.
-        # set (CMAKE_CXX_FLAGS   "-std=gnu++98 -g -W -Wall ${CMAKE_CXX_FLAGS}")
+        # set (CMAKE_CXX_FLAGS   "-std=gnu++98 -W -Wall ${CMAKE_CXX_FLAGS}")
     endif()
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
         STREQUAL "Darwin" AND CMAKE_C_COMPILER_ID MATCHES "Clang" )
-    set (CMAKE_C_FLAGS   "-std=c99 -g -W -Wall ${CMAKE_C_FLAGS}")
+    set (CMAKE_C_FLAGS   "-std=c99 -W -Wall ${CMAKE_C_FLAGS}")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
@@ -216,7 +216,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
         set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
         set (HAVE_CXX11 1)
         message(STATUS "Enabling C++11 support")
-        set (CMAKE_CXX_FLAGS "-std=c++11 -g -W -Wall ${CMAKE_CXX_FLAGS}")
+        set (CMAKE_CXX_FLAGS "-std=c++11 -W -Wall ${CMAKE_CXX_FLAGS}")
     endif()
 endif()
 message(STATUS "CFLAGS=${CMAKE_C_FLAGS} (synthetized)")

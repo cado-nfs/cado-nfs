@@ -1,4 +1,9 @@
 
+The main page of the Cado-NFS source code is
+[https://gitlab.inria.fr/cado-nfs/cado-nfs](https://gitlab.inria.fr/cado-nfs/cado-nfs).
+If you're accessing the cado-nfs source from a different link, it may be
+an outdated fork.
+
 [![pipeline status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/pipelines?ref=master)
 [![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/index.html?job=merge+coverage+tests)
 
@@ -23,7 +28,7 @@ Documented example parameter files are in
 Supported platforms
 ===================
 
-The primary development platform is x86_64 linux with gcc 5 or newer,
+The primary development platform is `x86_64` linux with gcc 5 or newer,
 the most common processor being Intel core2-like or more recent.
 
 Other architectures are checked regularly, and should work. Please refer

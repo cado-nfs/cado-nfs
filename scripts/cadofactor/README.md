@@ -139,6 +139,8 @@ tasks.polyselect.import=xxx.poly
 ```
 
 where `xxx.poly` is the name of the polynomial file (in CADO-NFS format).
+You have to make sure that imported polynomials are irreducible and in
+particular have content 1.
 
 This imports the polynomial and prevents any additional polynomial selection
 from running, i.e., the imported polynomial is used unconditionally.

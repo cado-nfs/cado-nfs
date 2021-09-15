@@ -27,7 +27,7 @@
    compiler */
 #undef GF2X_HAVE_SSE41_SUPPORT
 
-/* Define if ssse3 code as present in the source tree is supported by the
+/* Define if ssse-3 code as present in the source tree is supported by the
    compiler */
 #undef GF2X_HAVE_SSSE3_SUPPORT
 

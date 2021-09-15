@@ -129,22 +129,11 @@ Cautious users follow steps 1 to 5 below. Urged users follow only 1 and 5.
     ```
       ./configure && make
     ```
-   A special case: your hardware platform may support several ABIs
-   (Application Binary Interfaces), corresponding to the type `unsigned
-   long` being either 32-bit or 64-bit wide. The `gf2x` package
-   accomodates for this under the assumption that ABI selection is
-   covered by the selection of the appropriate compiler options. In order
-   to compile for an ABI different from the default one, you have to pass
-   additional parameters to the configure script:
-    ```
-      ./configure ABI=<bit width of unsigned long> CFLAGS=<corresponding CFLAGS> && make
-    ```
-   For example on a Mac OS X computer with an Intel Core 2 processor
-   using gcc, one may use: `./configure ABI=64 CFLAGS="-O2 -m64" && make`
 
-   (equivalently, one may also use `ABI=64 CC='gcc -m64'`)
+   See also the notes for specific systems below, regarding ABI selection
+   or instruction set selection.
 
-   Several other flags and arguments can be passed to `./configure` (or set
+   Several flags and arguments can be passed to `./configure` (or set
    as environment variables) ; see `./configure --help`
 
 2) Highly recommended ; run
@@ -201,13 +190,52 @@ Cautious users follow steps 1 to 5 below. Urged users follow only 1 and 5.
 Notes for specific systems:
 ===========================
 
-- ABI selection is  sometimes tricky. Be sure that you select the proper
-  combination of ABI= and CFLAGS= parameters. You must also make sure
-  that those correspond to the CFLAGS that were used by any other binary
-  object you're linking `gf2x` with. That applies, in particular, to the
-  GMP library if you intend to compile the files in [`apps/`](apps/)
+ABI selection
+-------------
 
-- under AIX the following might be required to build the `gf2x` binaries:
+Your hardware platform may support several ABIs (Application Binary
+Interfaces), corresponding to the type `unsigned long` being either
+32-bit or 64-bit wide. The `gf2x` package accomodates for this under the
+assumption that ABI selection is covered by the selection of the
+appropriate compiler options. In order to compile for an ABI different
+from the default one, you have to pass additional parameters to the
+configure script:
+```
+  ./configure ABI=<bit width of unsigned long> CFLAGS=<corresponding CFLAGS> && make
+```
+For example on a Mac OS X computer with an Intel Core 2 processor using
+gcc, one may use: `./configure ABI=64 CFLAGS="-O2 -m64" && make`
+
+(equivalently, one may also use `ABI=64 CC='gcc -m64'`)
+
+Note that ABI selection is sometimes tricky. Be sure that you select the
+proper combination of ABI= and CFLAGS= parameters. You must also make
+sure that those correspond to the CFLAGS that were used by any other
+binary object you're linking `gf2x` with. That applies, in particular, to
+the GMP library if you intend to compile the files in [`apps/`](apps/)
+
+Instruction set selection
+-------------------------
+
+In order to select a specific instruction set, you should pass a `-march`
+flag to the compiler (this implicitly means that we are using a compiler
+that understands `-march`). For example something like `-march=x86-64` to
+compile for generic x86-64 hardware.
+
+When you do that, gf2x will **NOT** try to enable instruction sets that
+are outside the instruction set that you selected. Otherwise, gf2x's
+default behaviour is to go out of its way to enable all possible
+instruction sets.
+
+Note also that in some rare circumstances (some virtual machine setups),
+it may be relevant to set `-march=native` explicitly. This will trust the
+compiler's feature detection as the ultimate authority, and not try to
+guess what runs and what does not run.
+
+Other
+-----
+
+Under AIX the following might be required to build the `gf2x` binaries:
 
 ```
   $ export OBJECT_MODE=64
