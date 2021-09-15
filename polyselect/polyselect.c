@@ -56,6 +56,7 @@
 #define INIT_FACTOR 8UL
 #define PREFIX_HASH
 //#define DEBUG_POLYSELECT
+//#define DEBUG_POLYSELECT2
 
 #ifdef PREFIX_HASH
 char *phash = "# ";
@@ -1009,10 +1010,10 @@ collision_on_p (polyselect_poly_header_srcptr header,
             {
               for (u = (int64_t) rp[j]; u < umax; u += ppl)
                 polyselect_hash_add (H, p, u, header->m0, header->ad, header->d,
-                          header->N, 1, zero);
+                                     header->N, 1, zero);
               for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
                 polyselect_hash_add (H, p, -u, header->m0, header->ad,
-                          header->d, header->N, 1, zero);
+                                     header->d, header->N, 1, zero);
             }
         }
 #ifdef DEBUG_POLYSELECT
@@ -1056,7 +1057,7 @@ collision_on_each_sq ( polyselect_poly_header_srcptr header,
   uint32_t *pprimes, i;
   int found;
 
-#ifdef DEBUG_POLYSELECT
+#ifdef DEBUG_POLYSELECT2
   int st = milliseconds();
 #endif
 #if polyselect_SHASH_NBUCKETS == 256
@@ -1219,16 +1220,17 @@ collision_on_each_sq ( polyselect_poly_header_srcptr header,
               v1 = (long) inv_qq[c];
               for (v2 = v1; v2 < umax; v2 += ppl)
                 polyselect_hash_add (H, p, v2, header->m0, header->ad, header->d,
-                          header->N, q, rqqz);
+                                     header->N, q, rqqz);
               for (v2 = ppl - v1; v2 < umax; v2 += ppl)
                 polyselect_hash_add (H, p, -v2, header->m0, header->ad, header->d,
-                          header->N, q, rqqz);
+                                     header->N, q, rqqz);
             }
         }
       polyselect_hash_clear (H);
     }
 
-#ifdef DEBUG_POLYSELECT
+  /* use DEBUG_POLYSELECT2 since this is too verbose */
+#ifdef DEBUG_POLYSELECT2
   fprintf (stderr, "# inner collision_on_each_sq took %lums\n", milliseconds () - st);
   fprintf (stderr, "# - q polyselect_hash_alloc (q=%lu): %u\n", q, H->alloc);
 #endif
@@ -1576,7 +1578,7 @@ collision_on_sq (polyselect_poly_header_srcptr header, polyselect_proots_srcptr 
   /* find a suitable lq */
   lq = find_suitable_lq (header, SQ_R, &k);
 
-  unsigned long q, idx_q[lq], curr_nq = 0;
+  unsigned long q, idx_q[lq], curr_nq = 0, ret;
 
   first_comb (k, idx_q);
   while (curr_nq < nq)
@@ -1585,7 +1587,9 @@ collision_on_sq (polyselect_poly_header_srcptr header, polyselect_proots_srcptr 
 
       /* collision batch */
       collision_on_batch_sq (header, R, SQ_R, q, idx_q, c, k, &curr_nq, H);
-      next_comb (lq, k, idx_q);
+      ret = next_comb (lq, k, idx_q);
+      if (ret == k) /* binomial(lq, k) < nq */
+        break;
     }
 
   /* clean */

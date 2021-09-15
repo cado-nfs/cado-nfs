@@ -118,18 +118,18 @@ next_comb ( unsigned long n,
   unsigned long j;
 
   /* if the last combination */
-  if (r[0] == (n - k)) /* we have n-k, n-k+1, ..., n-1 */
+  if (r[0] == n - k) /* we have n-k, n-k+1, ..., n-1 */
     return k;
 
-  /* r[k-1] is not equal to n-1, just increase it */
+  /* if r[k-1] is not equal to n-1, just increase it */
   j = k - 1;
-  if (r[j] < (n-1)) {
+  if (r[j] < n - 1) {
     r[j] ++;
     return j;
   }
 
   /* find which one we should increase */
-  while ( (r[j] - r[j-1]) == 1)
+  while ( r[j] - r[j-1] == 1)
     j --;
 
   unsigned long ret = j - 1;
