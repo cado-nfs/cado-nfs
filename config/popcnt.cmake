@@ -14,6 +14,8 @@ if (HAVE_SSSE3)
             message(STATUS "Testing whether popcnt code can be used -- Yes")
             set (HAVE_POPCNT 1)
         endif()
+    elseif(CMAKE_C_FLAGS MATCHES "-march")
+       message(STATUS "Testing whether popcnt code can be used -- No (not testing -mpopcnt because -march is already present)")
     else()
         try_run(popcnt_runs popcnt_compiles
             ${PROJECT_BINARY_DIR}/config

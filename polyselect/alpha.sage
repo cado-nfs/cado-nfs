@@ -20,7 +20,7 @@ def number_of_roots(f,p):
     else:
         # f reducing to zero mod p is a degenerate case. Not clear what
         # we should return...
-        print "Warning, counting roots of zero polynomial\n"
+        print ("Warning, counting roots of zero polynomial\n")
         s=f.degree()
     return s
 
@@ -117,7 +117,7 @@ def average_valuation_homogeneous_coprime(f,p):
 
 # same as average_valuation_homogeneous_coprime, but for a/b = r/s mod p
 def average_valuation_homogeneous_coprime_sub(f,p,r,s):
-    if s <> 0:
+    if s != 0:
         return average_valuation_affine_sub (f, p, (r/s) % p)
     else: # projective class
        x = f.parent().gen()
@@ -125,7 +125,7 @@ def average_valuation_homogeneous_coprime_sub(f,p,r,s):
 
 # same as average_valuation_homogeneous_coprime, but for a/b = r/s mod p^e
 def average_valuation_homogeneous_coprime_sub2(f,p,e,r,s):
-    if s % p <> 0:
+    if s % p != 0:
         return average_valuation_affine_sub2 (f, p, e, (r/s) % p)
     else: # projective class
        x = f.parent().gen()
@@ -178,7 +178,7 @@ def alpha_p_projective(f,disc,p):
         s = float((-e)*log(p))
     else:
         fp= GF(p)['x'](f)
-        assert fp != 0, "fp <> 0"
+        assert fp != 0, "fp != 0"
         assert(f.degree()-fp.degree() <= 1)
         s = float((-(f.degree()-fp.degree())*p/(p+1))*log(p)/(p-1))
     return s
@@ -253,7 +253,7 @@ def average_alpha_projective(ad,degree,K,verbose=true):
       for p in lp:
          k = ad.valuation(p)
          t -= log(p)*sum(1/p^i for i in [1..k])
-      print "got", n(s/K,24), "expected", n(t,24)
+      print ("got", n(s/K,24), "expected", n(t,24))
    else:
       return s/K
 
@@ -268,7 +268,7 @@ def stats_alpha_projective_records(degree,K,conjecture=false,bias=false):
    d = degree
    if bias:
       e = 2*(d-1)/(d^3-d^2+2*d)
-      print "bias exponent:", e
+      print ("bias exponent:", e)
    L = [1]
    delta_incr = 1
    while true:
@@ -288,7 +288,7 @@ def stats_alpha_projective_records(degree,K,conjecture=false,bias=false):
          s += T[p^k]
       if s < best:
          best = s
-         print incr, s
+         print (incr, s)
          L.append(incr)
          # conjecture: the next records are multiples of the gcd of the last
          # 7 records
@@ -384,7 +384,7 @@ def estimate_alpha_p(f, p, nt):
            a=randrange(0,nt^2)
            b=randrange(0,nt^2)
            c=randrange(0,nt^2)
-           if gcd(a,b)==1 and c<>0:
+           if gcd(a,b)==1 and c!=0:
               break
         s+=valuation(c,p)-valuation(f.resultant(a*x-b), p)
         n+=1
@@ -411,7 +411,7 @@ def estimate_alpha_p_2(f, p, nt, r, s):
            a=randrange(r,nt^2,p)
            b=randrange(s,nt^2,p)
            c=randrange(0,nt^2)
-           if gcd(a,b)==1 and c<>0:
+           if gcd(a,b)==1 and c!=0:
               break
         S+=valuation(c,p)-valuation(F(x=a,y=b), p)
         n+=1
@@ -440,7 +440,7 @@ def special_valuation_2(F, p, max_depth):
    F = F//c
    Rp.<xx,yy> = GF(p)[]
    Fp = Rp(F)
-   if Fp.degree(xx)==0 and Fp.degree(yy)==0 and Fp<>0:
+   if Fp.degree(xx)==0 and Fp.degree(yy)==0 and Fp!=0:
       # Fp is a non-zero constant polynomial: valuation is zero
       return e
    if max_depth==0:
@@ -482,7 +482,7 @@ def special_val0 (f, p):
     while c % p == 0:
         v += 1
         c = c // p
-    if v <> 0:
+    if v != 0:
         g = f // p^v
     else:
         g = f
@@ -495,7 +495,7 @@ def special_val0 (f, p):
         r = roots[i][0]
         fp = f.derivative()
         c = fp(r)
-        if c % p <> 0:
+        if c % p != 0:
             v += 1.0 / (p - 1)
         else:
             h = h(x+ZZ(r)/p)
@@ -506,7 +506,7 @@ def special_val0 (f, p):
 	    # are invariant under x -> p*x+r, which means that x = r/(1-p),
 	    # thus f has one single root of multiplicity d, i.e.,
 	    # f = lc(f) * (x + r/(p-1))^d
-	    if h <> f: # avoid infinite loop
+            if h != f: # avoid infinite loop
                v += special_val0 (h, p) / p
     return v
 
@@ -549,7 +549,7 @@ def check_alpha_projective(f,B):
         a2 = alpha_p_projective2 (f, p)
         s += a
         s2 += a2
-        print p, a, a2, s, s2
+        print (p, a, a2, s, s2)
 
 # given a rootsieve space of n points, estimate the best alpha value
 # see http://maths-people.anu.edu.au/~brent/pd/Bai-thesis.pdf 
@@ -569,7 +569,7 @@ def expected_alpha_est(bound=150):
         c = c + 1
         E = expected_alpha(2^k)
         if (c % 5 == 0):
-            print
+            print()
         print('%8.3f,' % E),
 
 # compute some kind of "combined" alpha-value for two polynomials:

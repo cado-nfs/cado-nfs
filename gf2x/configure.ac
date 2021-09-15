@@ -24,7 +24,7 @@
 #  Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #  02110-1301, USA.
 
-AC_INIT([gf2x], [1.3.1dev])
+AC_INIT([gf2x],[1.3.1dev])
 AC_SUBST([GF2X_VERSION_MAJOR],
 [regexp(AC_PACKAGE_VERSION,[\([0-9]+\)\.\([0-9]+\)\.\([0-9]+\)],[\1])])
 AC_SUBST([GF2X_VERSION_MINOR],
@@ -35,15 +35,10 @@ AC_SUBST([GF2X_FFT_VERSION_MAJOR],[GF2X_VERSION_MAJOR])
 AC_SUBST([GF2X_FFT_VERSION_MINOR],[GF2X_VERSION_MINOR])
 AC_SUBST([GF2X_FFT_VERSION_PATCHLEVEL],[GF2X_VERSION_PATCHLEVEL])
 
-if test "x$CFLAGS" != x ; then
- has_CFLAGS_from_env=yes
-else
- has_CFLAGS_from_env=no
-fi
-
 : ${CFLAGS=-g -O4}
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_MACRO_DIR([config])
+m4_include([config/features.m4])
 AC_CANONICAL_TARGET
 
 AC_LANG([C])
@@ -105,6 +100,9 @@ AM_CONDITIONAL([ENABLE_FFT_INTERFACE],[test "x$enable_fft_interface" = xyes])
 AC_PROG_CC
 AC_PROG_CXX
 AC_COMPILE_WARNINGS
+# We used to call AC_PROG_CC_C99, but this is now obsolete with
+# autoconf-2.71 (which is not in debian testing though -- so this
+# obsolete directive is still here)
 AC_PROG_CC_C99
 AC_PROG_CPP
 
@@ -135,19 +133,15 @@ else
  CHECK_SSSE3_SUPPORT()
  CHECK_SSE41_SUPPORT()
  CHECK_PCLMUL_SUPPORT()
- # The undocumented environment variable DISABLE_MARCH_NATIVE_TEST can be
- # used to avoid any attempt to add -march=native flag to gcc. This is
- # unfortunately mandatory on some virtual machines for which the cpuid
- # capabilities are incorrectly reported (leading to i386 guests with
- # BMI2, or other similar absurdities).
- if test "x$DISABLE_MARCH_NATIVE_TEST" = x ; then
-  if test "x$has_CFLAGS_from_env" = xno ; then
-   CHECK_MARCH_NATIVE_SUPPORT()
-   CHECK_MTUNE_NATIVE_SUPPORT()
-  fi
- else
-   echo "Not doing test for -march=native as per environment variable $DISABLE_MARCH_NATIVE_TEST"
-  fi
+  case "x$CFLAGS" in #((
+    *-march=*)
+      AS_ECHO(["Not doing test for -march=native or -mtune=native, since a -march flag was found in the command line"])
+      ;;
+    *)
+      CHECK_MARCH_NATIVE_SUPPORT()
+      CHECK_MTUNE_NATIVE_SUPPORT()
+      ;;
+  esac
 fi
 
 : ${ABI='default'}

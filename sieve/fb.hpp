@@ -159,8 +159,8 @@ template <int Nr_roots>
 class fb_transformed_entry_x_roots {
 public:
   fbprime_t p;
-  fbroot_t roots[Nr_roots];
-  bool proj[Nr_roots];
+  std::array<fbroot_t, Nr_roots> roots;
+  std::array<bool, Nr_roots> proj;
   static const unsigned char k = 1, nr_roots = Nr_roots;
   /* Static class members to allow fb_vector<> to distinguish between and
      operate on both kind of entries */
@@ -180,7 +180,7 @@ public:
   fbprime_t p;
   redc_invp_t invq; /* invq = -1/q (mod 2^32), or (mod 2^64), depending on
 		       the size of redc_invp_t */
-  fbroot_t roots[Nr_roots];
+  std::array<fbroot_t, Nr_roots> roots;
   /* Static class members to allow fb_vector<> to distinguish between and
      operate on both kind of entries */
   static const unsigned char k = 1, nr_roots = Nr_roots;

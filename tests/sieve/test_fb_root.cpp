@@ -250,9 +250,9 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
                 const fbprime_t p = fbv[i_fb].get_q();
                 // fbv->transform_roots(fbt, *basis_iter);
                 if (bits == 31) {
-                    fb_root_in_qlattice_31bits_batch (fbt.roots, p, fbv[i_fb].roots, fbv[i_fb].invq, *basis_iter, Nr_roots);
+                    fb_root_in_qlattice_31bits_batch (fbt.roots.data(), p, fbv[i_fb].roots.data(), fbv[i_fb].invq, *basis_iter, Nr_roots);
                 } else {
-                    fb_root_in_qlattice_127bits_batch (fbt.roots, p, fbv[i_fb].roots, fbv[i_fb].invq, *basis_iter, Nr_roots);
+                    fb_root_in_qlattice_127bits_batch (fbt.roots.data(), p, fbv[i_fb].roots.data(), fbv[i_fb].invq, *basis_iter, Nr_roots);
                 }
                 for (unsigned long i_root = 0; i_root + 1 < Nr_roots + 1; i_root++)
                     fake_sum += fbt.get_r(i_root);
@@ -284,8 +284,8 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
 
                 /* Compute batch transform of roots */
                 fbt.p = p;
-                const bool batch_worked = (bits == 31) ? fb_root_in_qlattice_31bits_batch (fbt.roots, p, fbv[i_fb].roots, fbv[i_fb].invq, *basis_iter, Nr_roots)
-                                                       : fb_root_in_qlattice_127bits_batch (fbt.roots, p, fbv[i_fb].roots, fbv[i_fb].invq, *basis_iter, Nr_roots);
+                const bool batch_worked = (bits == 31) ? fb_root_in_qlattice_31bits_batch (fbt.roots.data(), p, fbv[i_fb].roots.data(), fbv[i_fb].invq, *basis_iter, Nr_roots)
+                                                       : fb_root_in_qlattice_127bits_batch (fbt.roots.data(), p, fbv[i_fb].roots.data(), fbv[i_fb].invq, *basis_iter, Nr_roots);
 
                 /* If the batch transform did not work, verify that at least
                  * one transformed root is projective */

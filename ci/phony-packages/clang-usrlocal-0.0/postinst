@@ -1,0 +1,11 @@
+#! /bin/sh
+
+set -e
+
+if [ "$1" != upgrade ]; then
+    update-alternatives --quiet --install /lib/cpp cpp /usr/local/bin/clang-cpp 10
+    update-alternatives --quiet --install /usr/bin/c++ c++ /usr/local/bin/clang++ 10
+    update-alternatives --quiet --install /usr/bin/cc cc /usr/local/bin/clang 10
+fi
+
+exit 0

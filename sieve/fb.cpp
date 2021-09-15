@@ -172,7 +172,6 @@ fb_entry_general::fb_entry_general (const fb_entry_x_roots<Nr_roots> &e) {
   nr_roots = Nr_roots;
 }
 
-
 /* Return whether this is a simple factor base prime.
    It is simple if it is a prime (not a power) and all its roots are simple. */
 bool
@@ -379,7 +378,7 @@ fb_entry_x_roots<Nr_roots>::transform_roots(fb_entry_x_roots<Nr_roots>::transfor
   result.p = p;
   /* Try batch transform; if that fails because any root is projective, do
    * the roots one at a time. */
-  if (fb_root_in_qlattice_batch (result.roots, p, roots, invq, basis,
+  if (fb_root_in_qlattice_batch (result.roots.data(), p, roots.data(), invq, basis,
       Nr_roots)) {
     /* If the batch transform worked, mark all roots as affine */
     for (unsigned char i_root = 0; i_root != nr_roots; i_root++) {

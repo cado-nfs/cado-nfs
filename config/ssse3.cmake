@@ -13,6 +13,8 @@ if (HAVE_SSE3)
             message(STATUS "Testing whether ssse-3 code can be used -- Yes")
             set (HAVE_SSSE3 1)
         endif()
+    elseif(CMAKE_C_FLAGS MATCHES "-march")
+       message(STATUS "Testing whether ssse-3 code can be used -- No (not testing -mssse3 because -march is already present)")
     else()
         try_run(ssse3_runs ssse3_compiles
             ${PROJECT_BINARY_DIR}/config

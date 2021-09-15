@@ -123,9 +123,9 @@ const char * error_explanation_mpi[] = {
     "Compile openmpi-4.0.1 (I only tested this version):",
     "  tar xf openmpi-4.0.1.tar.bz2",
     "  cd openmpi-4.0.1",
-    "  ./configure --prefix=/opt"
-        // " --with-ucx=/opt/ucx-1.5.1"
-        " \\",
+    "  ./configure --prefix=/opt",
+        // " --with-ucx=/opt/ucx-1.5.1",
+    " \\",
     "    --disable-mpi-fortran --without-cuda --disable-opencl \\",
     "    && make -j64 && make install",
     "Compile using the software above (set all PATHs correctly first).",

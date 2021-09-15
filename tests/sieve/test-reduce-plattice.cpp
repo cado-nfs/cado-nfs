@@ -13,6 +13,7 @@
 #include "getprime.h"
 #include "fb-types.h"
 #include "las-plattice.hpp"
+#include "fmt/format.h"
 #include <algorithm>
 #if defined(HAVE_AVX512F) || defined(HAVE_AVX2) || defined(HAVE_AVX) || defined(HAVE_SSE41)
 #include <x86intrin.h>
@@ -747,12 +748,9 @@ struct simd_div_threshold<simd_helper<uint32_t, 16>> {
 };
 #endif
 
-
-
-/* This does N instances of reduce_plattice in parallel, using avx-512
- * intrinsics */
 template<size_t N>
-bool simd(plattice * pli, uint32_t I)
+/* This does N instances of reduce_plattice in parallel */
+void simd(plattice * pli, uint32_t I)
 {
     typedef simd_helper<uint32_t, N> A;
     typedef typename A::mask mask;
@@ -774,8 +772,8 @@ bool simd(plattice * pli, uint32_t I)
     data zj1 = A::load(explode);
 
     mask proceed = A::kor(
-                        A::cmpneq(zj0, A::setzero()),
-                        A::cmpneq(zj1, A::setzero()));
+            A::cmpneq(zj0, A::setzero()),
+            A::cmpneq(zj1, A::setzero()));
 
     mask flip;
     for(flip = A::zeromask() ; ; ) {
@@ -814,7 +812,7 @@ bool simd(plattice * pli, uint32_t I)
     }
 
     proceed = A::kor(   A::cmpneq(zj0, A::setzero()),
-                        A::cmpneq(zj1, A::setzero()));
+            A::cmpneq(zj1, A::setzero()));
 
     mask haszero = A::mask_cmpeq(proceed, zi1, A::setzero());
 
@@ -869,15 +867,14 @@ bool simd(plattice * pli, uint32_t I)
         A::store(explode,  zj1);  
         for(size_t j = 0 ; j < N ; j++) pli[j].j1  = explode[j];
     }
-    return true;
 }
 
-void swapping_loop2(plattice * pli, uint32_t I)
+void swapping_loop2(plattice & pli, uint32_t I)
 {
-    uint32_t mi0 = pli->mi0;
-    uint32_t i1 = pli->i1;
-    uint32_t j0 = pli->j0;
-    uint32_t j1 = pli->j1;
+    uint32_t mi0 = pli.mi0;
+    uint32_t i1 = pli.i1;
+    uint32_t j0 = pli.j0;
+    uint32_t j1 = pli.j1;
     /* This is the main reduce_plattice loop */
     int flip;
     for(flip = 0 ; ; ) {
@@ -908,21 +905,21 @@ void swapping_loop2(plattice * pli, uint32_t I)
         if (!flip)
             // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
             j0 = j1 - j0;
-        pli->mi0 = mi0;
-        pli->i1 = i1;
-        pli->j0 = j0;
-        pli->j1 = j1;
-        pli->lattice_with_vertical_vector(I);
+        pli.mi0 = mi0;
+        pli.i1 = i1;
+        pli.j0 = j0;
+        pli.j1 = j1;
+        pli.lattice_with_vertical_vector(I);
         return;
     } else {
         int a = (mi0 + i1 - I) / i1;
         mi0 -= a * i1;
         j0  += a * j1;
     }
-    pli->mi0 = mi0;
-    pli->i1 = i1;
-    pli->j0 = j0;
-    pli->j1 = j1;
+    pli.mi0 = mi0;
+    pli.i1 = i1;
+    pli.j0 = j0;
+    pli.j1 = j1;
 }
 
 int
@@ -1025,7 +1022,10 @@ p15:
     return 1;
 }
 
-#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && !(defined(__APPLE_CC__) && defined(__llvm__) && __APPLE_CC__ == 5621)
+#if defined(HAVE_GCC_STYLE_AMD64_INLINE_ASM) && !(defined(__APPLE_CC__) && defined(__llvm__) && __APPLE_CC__ == 5621) && !defined(__INTEL_COMPILER)
+/* icc can't compile the avx512 code if we happen to enable this code.
+ * https://community.intel.com/t5/Intel-C-Compiler/asm-callq-and-kand-mask8-intrinsic-generate-vkmovb-quot-no-such/m-p/1140906
+ */
 #define TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
 #endif
 
@@ -1169,19 +1169,282 @@ reference2_asm (plattice *pli, const fbprime_t p, const fbroot_t r, const uint32
 
 struct post_condition_error : public std::exception {};
 
+struct a_test {
+    unsigned long p;
+    unsigned long q;
+    unsigned long r;
+    int k;
+};
+
+struct test_wrap {
+    uint32_t I = 512;
+    bool nocheck = false;
+    bool timing = false;
+    bool failed = false;
+    std::vector<a_test> tests;
+};
+
+struct call_production {
+    static constexpr const size_t batch_count = 1;
+    static constexpr const bool has_known_bugs = false;
+    static constexpr const bool old_interface = false;
+    static constexpr const char * what = "production (two_legs)";
+    static inline void call(plattice & L, uint32_t I, a_test = a_test()) {
+        L.two_legs(I);
+    }
+};
+
+struct call_simplistic {
+    static constexpr const size_t batch_count = 1;
+    static constexpr const char * what = "simplistic";
+    static constexpr const bool has_known_bugs = false;
+    static constexpr const bool old_interface = false;
+    static inline void call(plattice & L, uint32_t I, a_test = a_test()) {
+        L.simplistic(I);
+    }
+};
+
+
+struct call_using_64bit_mul {
+    static constexpr const size_t batch_count = 1;
+    static constexpr const char * what = "using_64bit_mul";
+    static constexpr const bool has_known_bugs = false;
+    static constexpr const bool old_interface = false;
+    static inline void call(plattice & L, uint32_t I, a_test = a_test()) {
+        L.using_64bit_mul(I);
+    }
+};
+
+struct call_swapping_loop {
+    static constexpr const size_t batch_count = 1;
+    static constexpr const char * what = "swapping_loop";
+    static constexpr const bool has_known_bugs = false;
+    static constexpr const bool old_interface = false;
+    static inline void call(plattice & L, uint32_t I, a_test = a_test()) {
+        L.swapping_loop(I);
+    }
+};
+
+struct call_swapping_loop2 {
+    static constexpr const size_t batch_count = 1;
+    static constexpr const char * what = "swapping_loop2";
+    static constexpr const bool has_known_bugs = false;
+    static constexpr const bool old_interface = false;
+    static inline void call(plattice & L, uint32_t I, a_test = a_test()) {
+        swapping_loop2(L, I);
+    }
+};
+
+struct call_old_reference {
+    static constexpr const size_t batch_count = 1;
+    static constexpr const char * what = "old_reference";
+    static constexpr const bool has_known_bugs = true;
+    static constexpr const bool old_interface = true;
+    static inline void call(plattice & L, uint32_t I, a_test const & aa) {
+        reference(&L, aa.q, aa.r, I);
+    }
+};
+
+struct call_reference2 {
+    static constexpr const size_t batch_count = 1;
+    static constexpr const char * what = "reference2";
+    static constexpr const bool has_known_bugs = true;
+    static constexpr const bool old_interface = true;
+    static inline void call(plattice & L, uint32_t I, a_test const & aa) {
+        reference2(&L, aa.q, aa.r, I);
+    }
+};
+
+#ifdef TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
+struct call_reference2_asm {
+    static constexpr const size_t batch_count = 1;
+    static constexpr const char * what = "reference2_asm";
+    static constexpr const bool has_known_bugs = true;
+    static constexpr const bool old_interface = true;
+    static inline void call(plattice & L, uint32_t I, a_test const & aa) {
+        reference2_asm(&L, aa.q, aa.r, I);
+    }
+};
+#endif
+
+template<size_t N>
+struct call_simd_base {
+    static constexpr const size_t batch_count = N;
+    static constexpr const bool has_known_bugs = false;
+    static constexpr const bool old_interface = false;
+    static inline void call(plattice * pL, uint32_t I) {
+        simd<N>(pL, I);
+    }
+};
+
+struct call_simd_avx512 : public call_simd_base<16> {
+    static constexpr const char * what = "simd-avx512";
+};
+
+struct call_simd_avx2 : public call_simd_base<8> {
+    static constexpr const char * what = "simd-avx2";
+};
+
+template<size_t N>
+struct call_simd : public call_simd_base<N> {};
+template<>
+struct call_simd<4> : public call_simd_base<4> {
+    static constexpr const char * what = "simd-synthetic<4> (sse-4.1, maybe)";
+};
+template<>
+struct call_simd<2> : public call_simd_base<2> {
+    static constexpr const char * what = "simd-synthetic<2>";
+};
+
+template<typename T>
+inline 
+typename std::enable_if<T::old_interface, unsigned long>::type
+test_inner(plattice * L, test_wrap const & tw, a_test const * aa)
+{
+    T::call(*L, tw.I, *aa);
+    return L->mi0;
+}
+
+template<typename T>
+inline
+typename std::enable_if<!T::old_interface && T::batch_count == 1, unsigned long>::type
+test_inner(plattice * L, test_wrap const & tw, a_test const * aa)
+{
+    bool proj = aa->r > aa->q;
+    L->initial_basis(aa->q, proj ? (aa->r - aa->q) : aa->r, proj);
+    if (!L->early(tw.I))
+        T::call(*L, tw.I);
+    return L->mi0;
+}
+
+template<typename T>
+inline
+typename std::enable_if<!T::old_interface && T::batch_count != 1, unsigned long>::type
+test_inner(plattice * L, test_wrap const & tw, a_test const * aa)
+{
+    constexpr size_t N = T::batch_count;
+    size_t j = 0;
+    bool normal = true;
+    /* prepare the lattices for all calls. */
+    for(j = 0 ; j < N ; j++) {
+        // unsigned long p = tests[j].p;
+        unsigned long q = aa[j].q;
+        unsigned long r = aa[j].r;
+        bool proj = r > q;
+        L[j].initial_basis(q, proj ? (r-q) : r, proj);
+        if (L[j].early(tw.I))
+            normal = false;
+    }
+    if (normal) {
+        T::call(L, tw.I);
+    } else {
+        for(j = 0 ; j < N ; j++)
+            L[j].two_legs(tw.I);
+    }
+    return L[0].mi0;
+}
+
+template<typename T>
+void test_correctness(test_wrap & tw)
+{
+    if (tw.nocheck) return;
+    constexpr size_t N = T::batch_count;
+    int nfailed = 0;
+    std::vector<a_test> const & tests = tw.tests;
+    std::string thiscode = T::what;
+    if (T::has_known_bugs)
+        thiscode += " (known buggy)";
+
+    for(size_t i = 0 ; i < tests.size() ; i += N) {
+        plattice L[N];
+        size_t j = 0;
+        const char * when = "pre";
+        try {
+            test_inner<T>(L, tw, &(tests[i]));
+            when = "post";
+            for(j = 0 ; j < N && i + j < tests.size() ; j++) {
+                if (!L[j].check_post_conditions(tw.I))
+                    throw post_condition_error();
+            }
+        } catch (plattice::error const & e) {
+            a_test const & aa = tests[i+j];
+            std::string c = "failed in-algorithm check";
+            std::string t = fmt::format(
+                    FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
+            std::string msg = fmt::format(FMT_STRING("{}: {} check for {}\n"),
+                    thiscode, c, t);
+            fputs(msg.c_str(), stderr);
+            if (!T::has_known_bugs) tw.failed = true;
+        } catch (post_condition_error const & e) {
+            if (nfailed < 16) {
+                a_test const & aa = tests[i+j];
+                std::string c = fmt::format("failed check ({})", when);
+                std::string t = fmt::format(
+                        FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
+                std::string msg = fmt::format(
+                        FMT_STRING("{}: {} check for {}\n"), thiscode, c, t);
+                fputs(msg.c_str(), stderr);
+                if (!T::has_known_bugs) tw.failed = true;
+                if (++nfailed >= 16)
+                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", thiscode.c_str());
+            }
+        }
+    }
+}
+
+template<typename T>
+inline
+typename std::enable_if<T::batch_count != 1, unsigned long>::type
+test_speed(test_wrap & tw)
+{
+    test_correctness<T>(tw);
+    if (!tw.timing) return 0;
+    clock_t clk0 = clock();
+    unsigned long dummy_local = 0;
+    for(size_t i = 0 ; i < tw.tests.size() ; i += T::batch_count) {
+        plattice L[T::batch_count];
+        dummy_local += test_inner<T>(L, tw, &tw.tests[i]);
+    }
+    clock_t clk1 = clock();
+    if (tw.timing) {
+        printf("# %s: %zu tests in %.4fs\n",
+                T::what, tw.tests.size(), ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+    }
+    return dummy_local;
+}
+
+template<typename T>
+inline
+typename std::enable_if<T::batch_count == 1, unsigned long>::type
+test_speed(test_wrap & tw)
+{
+    test_correctness<T>(tw);
+    if (!tw.timing) return 0;
+    clock_t clk0 = clock();
+    unsigned long dummy_local = 0;
+    for(a_test const & aa : tw.tests) {
+        plattice L[T::batch_count];
+        dummy_local += test_inner<T>(L, tw, &aa);
+    }
+    clock_t clk1 = clock();
+    if (tw.timing) {
+        printf("# %s: %zu tests in %.4fs\n",
+                T::what, tw.tests.size(), ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+    }
+    return dummy_local;
+}
+
 int main(int argc, char * argv[])
 {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
 
-    uint32_t I = 512;
+    test_wrap tw;
+
     uint32_t B = 1e6;
-    int ntests = 1000;
+    size_t ntests = 1000;
     unsigned long seed = 0;
-    bool failed = false;
     bool quiet = false;
-    bool timing = false;
-    bool nocheck = false;
 
     for( ; argc > 1 ; argv++,argc--) {
         if (strcmp(argv[1], "-B") == 0) {
@@ -1189,7 +1452,7 @@ int main(int argc, char * argv[])
             B = atoi(argv[1]);
         } else if (strcmp(argv[1], "-I") == 0) {
             argv++,argc--;
-            I = atoi(argv[1]);
+            tw.I = atoi(argv[1]);
         } else if (strcmp(argv[1], "-ntests") == 0) {
             argv++,argc--;
             ntests = atoi(argv[1]);
@@ -1199,9 +1462,9 @@ int main(int argc, char * argv[])
         } else if (strcmp(argv[1], "-q") == 0) {
             quiet = true;
         } else if (strcmp(argv[1], "-N") == 0) {
-            nocheck = true;
+            tw.nocheck = true;
         } else if (strcmp(argv[1], "-T") == 0) {
-            timing = true;
+            tw.timing = true;
         }
     }
 
@@ -1213,7 +1476,7 @@ int main(int argc, char * argv[])
         int k = 1;
         unsigned long q = p;
         for( ; q < B ; q*=p, k++) {
-            if (q < I) continue;
+            if (q < tw.I) continue;
             prime_powers.emplace_back(p, k);
         }
     }
@@ -1229,13 +1492,7 @@ int main(int argc, char * argv[])
     }
     gmp_randseed_ui(rstate, seed);
 
-    struct a_test {
-        unsigned long p;
-        unsigned long q;
-        unsigned long r;
-        int k;
-    };
-    std::vector<a_test> tests;
+    std::vector<a_test> & tests = tw.tests;
 
     /* interesting with I=0x20000 */
     tests.emplace_back(a_test { 5, 390625, 771795, 8 });
@@ -1243,7 +1500,7 @@ int main(int argc, char * argv[])
     /* we have sporadic failures with this one */
     tests.emplace_back(a_test { 1579, 1579, 1579, 1 });
 
-    for(int i = 0 ; i < ntests ; i++) {
+    for( ; tw.tests.size() < ntests ; ) {
         unsigned long j = gmp_urandomm_ui(rstate, prime_powers.size());
         unsigned long p;
         int k;
@@ -1254,364 +1511,82 @@ int main(int argc, char * argv[])
         bool proj = r > q;
         if (proj)
             r = q + p * (r - q);
-        tests.emplace_back(a_test { p, q, r, k });
-    }
 
-    auto jt = tests.begin();
-    for(auto const & aa : tests) {
-        plattice L;
-        bool proj = aa.r > aa.q;
-        L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
-        if (L.check_pre_conditions(I)) {
-            *jt++ = aa;
-        } else {
-            fprintf(stderr, "skipping out-of-range test for p^k=%lu^%d r=%lu\n", aa.p, aa.k, aa.r);
-        }
-    }
-    tests.erase(jt, tests.end());
+        a_test aa { p, q, r, k };
 
-    std::map<int, unsigned long> T;
+        tests.emplace_back(aa);
 
-    if (!quiet) {
-        for(auto const & aa : tests) {
+        if (!quiet) {
             std::string desc = aa.r > aa.q ? "proj" : "affine";
             if (aa.p == 2) desc += "+even";
             stats[aa.k][desc]++;
         }
     }
 
-    clock_t clk0, clk1;
-    const char * what;
-    int nfailed;
-
-    clk0 = clock();
-    what = "production (two_legs)";
-    nfailed = 0;
-    for(auto const & aa : tests) {
-        const char * when = "pre";
-        try {
+    {
+        /* verify that all tests are in range */
+        auto jt = tests.begin();
+        for(auto const & aa : tests) {
             plattice L;
             bool proj = aa.r > aa.q;
             L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
-            if (!L.early(I))
-                L.two_legs(I);
-            when = "post";
-            if (!nocheck && !L.check_post_conditions(I))
-                throw post_condition_error();
-        } catch (plattice::error const & e) {
-            fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
-            failed = true;
-        } catch (post_condition_error const & e) {
-            if (nfailed < 16) {
-                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-                failed = true;
-                if (++nfailed >= 16)
-                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
+            if (L.check_pre_conditions(tw.I)) {
+                *jt++ = aa;
+            } else {
+                fprintf(stderr, "skipping out-of-range test for p^k=%lu^%d r=%lu\n", aa.p, aa.k, aa.r);
             }
         }
-    }
-    clk1 = clock();
-    if (timing) {
-        printf("# %s: %d tests in %.4fs\n",
-                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
+        tests.erase(jt, tests.end());
     }
 
-    clk0 = clock();
-    what = "simplistic";
-    nfailed = 0;
-    for(auto const & aa : tests) {
-        const char * when = "pre";
-        try {
-            plattice L;
-            bool proj = aa.r > aa.q;
-            L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
-            if (!L.early(I))
-                L.simplistic(I);
-            when = "post";
-            if (!nocheck && !L.check_post_conditions(I))
-                throw post_condition_error();
-        } catch (plattice::error const & e) {
-            fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
-            failed = true;
-        } catch (post_condition_error const & e) {
-            if (nfailed < 16) {
-                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-                failed = true;
-                if (++nfailed >= 16)
-                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
-            }
-        }
-    }
-    clk1 = clock();
-    if (timing) {
-        printf("# %s: %d tests in %.4fs\n",
-                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
-    }
 
-    clk0 = clock();
-    what = "using_64bit_mul";
-    nfailed = 0;
-    for(auto const & aa : tests) {
-        const char * when = "pre";
-        try {
-            plattice L;
-            bool proj = aa.r > aa.q;
-            L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
-            if (!L.early(I))
-                L.using_64bit_mul(I);
-            when = "post";
-            if (!nocheck && !L.check_post_conditions(I))
-                throw post_condition_error();
-        } catch (plattice::error const & e) {
-            fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
-            failed = true;
-        } catch (post_condition_error const & e) {
-            if (nfailed < 16) {
-                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-                failed = true;
-                if (++nfailed >= 16)
-                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
-            }
-        }
-    }
-    clk1 = clock();
-    if (timing) {
-        printf("# %s: %d tests in %.4fs\n",
-                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
-    }
+    /* declare it as volatile so that the compiler doesn't outsmart us.
+     */
+    volatile unsigned long dummy = 0;
 
-#if 1
-    clk0 = clock();
-    what = "swapping_loop";
-    nfailed = 0;
-    for(auto const & aa : tests) {
-        const char * when = "pre";
-        try {
-            plattice L;
-            bool proj = aa.r > aa.q;
-            L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
-            if (!L.early(I))
-                L.swapping_loop(I);
-            when = "post";
-            if (!nocheck && !L.check_post_conditions(I))
-                throw post_condition_error();
-        } catch (plattice::error const & e) {
-            fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
-            failed = true;
-        } catch (post_condition_error const & e) {
-            if (nfailed < 16) {
-                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-                failed = true;
-                if (++nfailed >= 16)
-                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
-            }
-        }
-    }
-    clk1 = clock();
-    if (timing) {
-        printf("# %s: %d tests in %.4fs\n",
-                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
-    }
-#endif
+    dummy += test_speed<call_production>(tw);
+
+    dummy += test_speed<call_simplistic>(tw);
+    dummy += test_speed<call_using_64bit_mul>(tw);
+    dummy += test_speed<call_swapping_loop>(tw);
+    dummy += test_speed<call_swapping_loop2>(tw);
 
 
-#if 1
-    clk0 = clock();
-    what = "swapping_loop2";
-    nfailed = 0;
-    for(auto const & aa : tests) {
-        const char * when = "pre";
-        try {
-            plattice L;
-            bool proj = aa.r > aa.q;
-            L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
-            if (!L.early(I))
-                swapping_loop2(&L, I);
-            when = "post";
-            if (!nocheck && !L.check_post_conditions(I))
-                throw post_condition_error();
-        } catch (plattice::error const & e) {
-            fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, aa.p, aa.k, aa.r);
-            failed = true;
-        } catch (post_condition_error const & e) {
-            if (nfailed < 16) {
-                fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-                failed = true;
-                if (++nfailed >= 16)
-                    fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
-            }
-        }
-    }
-    clk1 = clock();
-    if (timing) {
-        printf("# %s: %d tests in %.4fs\n",
-                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
-    }
-#endif
-
-    if (timing) {
+    if (tw.timing) {
         /* as far as correctness is concerned, we're not interested in
          * this code. We *know* that it is buggy. But when we report
          * timings, we want to know how it fares !
          */
-        clk0 = clock();
-        what = "old_reference";
-        nfailed = 0;
-        for(auto const & aa : tests) {
-            const char * when = "pre";
-
-            try {
-                plattice L; reference(&L, aa.q, aa.r, I);
-                when = "post";
-                if (!nocheck && !L.check_post_conditions(I))
-                    throw post_condition_error();
-            } catch (post_condition_error const & e) {
-                if (nfailed < 4) {
-                    fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-                    if (++nfailed >= 4)
-                        fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
-                }
-            }
-        }
-        clk1 = clock();
-        if (timing) {
-            printf("# %s: %d tests in %.4fs\n",
-                    what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
-        }
-    }
-
-    if (timing) {
-        // same remark as above
-        clk0 = clock();
-        what = "reference2";
-        nfailed = 0;
-        for(auto const & aa : tests) {
-            const char * when = "pre";
-
-            try {
-                plattice L; reference2(&L, aa.q, aa.r, I);
-                when = "post";
-                if (!nocheck && !L.check_post_conditions(I))
-                    throw post_condition_error();
-            } catch (post_condition_error const & e) {
-                if (nfailed < 4) {
-                    fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-                    if (++nfailed >= 4)
-                        fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
-                }
-            }
-        }
-        clk1 = clock();
-        if (timing) {
-            printf("# %s: %d tests in %.4fs\n",
-                    what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
-        }
-    }
-
+        dummy += test_speed<call_old_reference>(tw);
+        dummy += test_speed<call_reference2>(tw);
 #ifdef TEST_ASSEMBLY_CODE_DELETED_BY_5f258ce8b
-    if (timing) {
-        // same remark as above
-        clk0 = clock();
-        what = "reference2_asm";
-        nfailed = 0;
-        for(auto const & aa : tests) {
-            const char * when = "pre";
-
-            try {
-                plattice L; reference2_asm(&L, aa.q, aa.r, I);
-                when = "post";
-                if (!nocheck && !L.check_post_conditions(I))
-                    throw post_condition_error();
-            } catch (post_condition_error const & e) {
-                if (nfailed < 4) {
-                    fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, aa.p, aa.k, aa.r);
-                    if (++nfailed >= 4)
-                        fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
-                }
-            }
-        }
-        clk1 = clock();
-        if (timing) {
-            printf("# %s: %d tests in %.4fs\n",
-                    what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
-        }
-    }
+        dummy += test_speed<call_reference2_asm>(tw);
 #endif
+    }
 
-    clk0 = clock();
-    {
 #ifdef HAVE_AVX512F
-        what = "simd-avx512";
-        constexpr size_t N = 16;
-#elif defined(HAVE_AVX2)
-        what = "simd-avx2";
-        constexpr size_t N = 8;
-#elif defined(HAVE_SSE41)
-        what = "simd-sse41-believer";
-        constexpr size_t N = 4;
-#else
-        what = "simd-synthetic";
-        constexpr size_t N = 2;
+    dummy += test_speed<call_simd_avx512>(tw);
 #endif
-        nfailed = 0;
-        for(size_t i = 0 ; i < tests.size() ; i+=N) {
-            plattice L[N];
-            size_t j;
-            const char * when = "pre";
-            try {
-                bool normal = true;
-                for(j = 0 ; j < N && i + j < tests.size() ; j++) {
-                    // unsigned long p = tests[j].p;
-                    unsigned long q = tests[i+j].q;
-                    unsigned long r = tests[i+j].r;
-                    bool proj = r > q;
-                    L[j].initial_basis(q, proj ? (r-q) : r, proj);
-                    if (L[j].early(I))
-                        normal = false;
-                }
-                if (normal) {
-                    simd<N>(L, I);
-                } else {
-                    for(j = 0 ; j < N && i + j < tests.size() ; j++)
-                        L[j].two_legs(I);
-                }
-                when = "post";
-                for(j = 0 ; j < N && i + j < tests.size() ; j++) {
-                    if (!L[j].check_post_conditions(I))
-                        throw post_condition_error();
-                }
-            } catch (plattice::error const & e) {
-                fprintf(stderr, "%s: failed in-algorithm check for p^k=%lu^%d r=%lu\n", what, tests[i+j].p, tests[i+j].k, tests[i+j].r);
-                failed = true;
-            } catch (post_condition_error const & e) {
-                if (nfailed < 16) {
-                    fprintf(stderr, "%s: failed check (%s) for p^k=%lu^%d r=%lu\n", what, when, tests[i+j].p, tests[i+j].k, tests[i+j].r);
-                    failed = true;
-                    if (++nfailed >= 16)
-                        fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", what);
-                }
-            }
-        }
-    }
-    clk1 = clock();
-    if (timing) {
-        printf("# %s: %d tests in %.4fs\n",
-                what, ntests, ((double)(clk1-clk0))/CLOCKS_PER_SEC);
-    }
 
+#ifdef HAVE_AVX2
+    dummy += test_speed<call_simd_avx2>(tw);
+#endif
 
-    /* Finish with that one, but here we don't care about the
-     * correctness.
-     */
-    for(auto const & aa : tests) {
-        bool proj = aa.r > aa.q;
-        plattice L;
-        L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
-        if (!L.early(I))
-            L.instrumented_two_legs(I, T);
-    }
+    dummy += test_speed<call_simd<4>>(tw);
+    dummy += test_speed<call_simd<2>>(tw);
 
     if (!quiet) {
+        /* Finish with that one, but here we don't care about the
+         * correctness, we only want to do the frequency table of quotients.
+         */
+        std::map<int, unsigned long> T;
+        for(auto const & aa : tests) {
+            bool proj = aa.r > aa.q;
+            plattice L;
+            L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
+            if (!L.early(tw.I))
+                L.instrumented_two_legs(tw.I, T);
+        }
         for(auto & kv : stats) {
             int k = kv.first;
             printf("%d:", k);
@@ -1631,5 +1606,5 @@ int main(int argc, char * argv[])
         }
     }
     gmp_randclear(rstate);
-    return failed ? EXIT_FAILURE : EXIT_SUCCESS;
+    return tw.failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }
