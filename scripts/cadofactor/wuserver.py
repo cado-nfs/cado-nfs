@@ -154,7 +154,7 @@ if HAVE_SSL:
                     bind_and_activate=False, **kwargs)
             # Create an SSL wrapper around the network socket in self.socket
             # First init an SSL context with the key
-            ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
             ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
             # Now replace our orginal network socket with the SSL wrapper
             self.socket = ctx.wrap_socket(self.socket, server_side=True)

@@ -834,7 +834,7 @@ def get_ssl_certificate(server, port=443, retry=False, retrytime=0):
     while True:
         try:
             cert = ssl.get_server_certificate((server, int(port)),
-                                              ssl_version=ssl.PROTOCOL_SSLv23,
+                                              ssl_version=ssl.PROTOCOL_TLSv1_2,
                                               ca_certs=None)
             return cert
         except socket.error as err:
