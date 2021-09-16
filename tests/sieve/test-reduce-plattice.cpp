@@ -634,7 +634,7 @@ struct simd_helper<uint32_t, 8>
                 explode_a[i] = explode_a[i] / explode_b[i];
 #if defined(HAVE_AVX512F) && defined(HAVE_AVX512DQ)
 #ifdef HAVE_AVX512VL
-        static_assert(std::is_same<__mmask8, mask>::value);
+        static_assert(std::is_same<__mmask8, mask>::value, "");
         return _mm256_mask_blend_epi32(mm, src, load(explode_a));
 #else
         return _mm256_blend_epi32(src, load(explode_a), mask2int(mm));
