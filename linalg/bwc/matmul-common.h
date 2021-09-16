@@ -79,40 +79,40 @@ extern const char * rowcol[2];  // [0] = "row" [1] = "col"
     size_t rc;								\
     uint64_t storage_v__ = final_v__;					\
     rc = fwrite(&storage_v__, sizeof(storage_v__), 1, file__);		\
-    DIE_ERRNO_DIAG(rc < 1, "write", "cached matrix file");	        \
+    DIE_ERRNO_DIAG(rc < 1, "write(%s)", "cached matrix file");	        \
 } while (0)
 #define MATMUL_COMMON_WRITE_ONE32(final_v__, file__)  do {              \
     size_t rc;								\
     uint32_t storage_v__ = final_v__;					\
     rc = fwrite(&storage_v__, sizeof(storage_v__), 1, file__);		\
-    DIE_ERRNO_DIAG(rc < 1, "write", "cached matrix file");	        \
+    DIE_ERRNO_DIAG(rc < 1, "write(%s)", "cached matrix file");	        \
 } while (0)
 #define MATMUL_COMMON_WRITE_ONE8(final_v__, file__)  do {              \
     size_t rc;								\
     uint8_t storage_v__ = final_v__;					\
     rc = fwrite(&storage_v__, sizeof(storage_v__), 1, file__);		\
-    DIE_ERRNO_DIAG(rc < 1, "write", "cached matrix file");	        \
+    DIE_ERRNO_DIAG(rc < 1, "write(%s)", "cached matrix file");	        \
 } while (0)
 #define MATMUL_COMMON_WRITE_ONE16(final_v__, file__)  do {              \
     size_t rc;								\
     uint16_t storage_v__ = final_v__;					\
     rc = fwrite(&storage_v__, sizeof(storage_v__), 1, file__);		\
-    DIE_ERRNO_DIAG(rc < 1, "write", "cached matrix file");	        \
+    DIE_ERRNO_DIAG(rc < 1, "write(%s)", "cached matrix file");	        \
 } while (0)
 #define MATMUL_COMMON_WRITE_MANY32(ptr__, n__, f__) do {         	\
     size_t rc;								\
     rc = fwrite(ptr__, sizeof(uint32_t), n__, f__);			\
-    DIE_ERRNO_DIAG(rc < n__, "write", "cached matrix file");	        \
+    DIE_ERRNO_DIAG(rc < n__, "write(%s)", "cached matrix file");	        \
 } while (0)
 #define MATMUL_COMMON_WRITE_MANY16(ptr__, n__, f__) do {         	\
     size_t rc;								\
     rc = fwrite(ptr__, sizeof(uint16_t), n__, f__);			\
-    DIE_ERRNO_DIAG(rc < n__, "write", "cached matrix file");	        \
+    DIE_ERRNO_DIAG(rc < n__, "write(%s)", "cached matrix file");	        \
 } while (0)
 #define MATMUL_COMMON_WRITE_MANY8(ptr__, n__, f__) do {         	\
     size_t rc;								\
     rc = fwrite(ptr__, sizeof(uint8_t), n__, f__);			\
-    DIE_ERRNO_DIAG(rc < n__, "write", "cached matrix file");	        \
+    DIE_ERRNO_DIAG(rc < n__, "write(%s)", "cached matrix file");	        \
 } while (0)
 
 

@@ -166,6 +166,7 @@ bool test_all(const unsigned long iter, const size_t arraysize,
   return ok;
 }
 
+// coverity[root_function]
 int main(int argc, const char **argv)
 {
   unsigned long iter = 1;

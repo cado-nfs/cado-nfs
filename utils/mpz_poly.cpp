@@ -376,6 +376,7 @@ mpz_poly_mul_tc(inf& inf_arg, mpz_t *f, mpz_t *g, int r, mpz_t *h, int s)
 	mpz_mul (f[t], g[r], h[s]);
       else
 	{
+          ASSERT_FOR_STATIC_ANALYZER(i < t);
 	  mpz_t tmp;
 	  mpz_init (tmp);
 	  /* f[i] <- g(i) */
@@ -578,6 +579,7 @@ mpz_poly_sqr_tc (inf& /* unused */, mpz_t *f, mpz_t *g, int r)
 	mpz_mul (f[t], g[r], g[r]);
       else
 	{
+          ASSERT_FOR_STATIC_ANALYZER(i < t);
 	  /* f[i] <- g(i) */
 	  mpz_poly_mul_eval_si (f[i], g, r, tc_points[i]);
 	  mpz_mul (f[i], f[i], f[i]);
@@ -1032,7 +1034,8 @@ int mpz_poly_asprintf(char ** res, mpz_poly_srcptr f)
 #undef SNPRINTF_FRAGMENT
 #undef PUTS_FRAGMENT
 oom:
-    free(res);
+    free(*res);
+    *res = NULL;
     return -1;
 }
 
@@ -2619,6 +2622,8 @@ mpz_poly_parallel_interface<inf>::mpz_poly_pow_mod_f_mod_mpz (mpz_poly_ptr Q, mp
     if (k < 0)
       break;
     j = mpz_scan1 (a, (k >= l) ? k - (l - 1) : 0);
+    /* if l is 1 then j==k*/
+    ASSERT_ALWAYS(l > 1 || j == k);
     /* new window starts at bit k, and ends at bit j <= k */
     int e = 0;
     while (k >= j)
@@ -2627,6 +2632,8 @@ mpz_poly_parallel_interface<inf>::mpz_poly_pow_mod_f_mod_mpz (mpz_poly_ptr Q, mp
 	e = 2 * e + mpz_tstbit (a, k);
 	k --;
       }
+    /* if l is 1 then e == 1 */
+    ASSERT_ALWAYS(l > 1 || e == 1);
     mpz_poly_mul_mod_f_mod_mpz (R, R, (e == 1) ? P : T[e/2], f, p, invf, NULL);
   }
 
@@ -3395,8 +3402,11 @@ int mpz_poly_is_irreducible_z (mpz_poly_srcptr f)
   size_t normf;
   int ret = 0; // init
   mat_Z g;
+  gmp_randstate_t rstate;
 
   mpz_init (p);
+  gmp_randinit_default(rstate);
+
   mpz_poly_infinity_norm (p, f);
   normf = mpz_sizeinbase (p, 2);
   /* The following table might be useful to optimize the value of MARGIN:
@@ -3415,7 +3425,7 @@ int mpz_poly_is_irreducible_z (mpz_poly_srcptr f)
 
   do {
     mpz_nextprime (p, p);
-    nr = mpz_poly_roots_mpz(roots, f, p);
+    nr = mpz_poly_roots_mpz(roots, f, p, rstate);
     /* If f has no root mod p and degree <= 3, it is irreducible,
        since a degree 2 polynomial can only factor into 1+1 or 2,
        and a degree 3 polynomial can only factor into 1+2 or 3. */
@@ -3495,6 +3505,8 @@ int mpz_poly_is_irreducible_z (mpz_poly_srcptr f)
   for (i = 0; i < d; i++)
     mpz_clear (roots[i]);
   free (roots);
+
+  gmp_randclear(rstate);
   mpz_clear (p);
 
   return ret;
@@ -3652,6 +3664,8 @@ int mpz_poly_factor_sqf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f0,
     /* factoring 0 doesn't make sense, really */
     ASSERT(f0->deg >= 0);
 
+    ASSERT_ALWAYS(mpz_cmp_ui(p, 0) > 0);
+
     /* We'll call mpz_poly_factor_sqf_inner, possibly several times if
      * we are in small characteristic.
      */
@@ -3661,6 +3675,7 @@ int mpz_poly_factor_sqf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f0,
     ASSERT(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
 
     int m = 0;
+    // coverity[zero_return]
     int pu = mpz_get_ui(p);  // see below
     /* reset the factor list completely */
     mpz_poly_factor_list_flush(lf);
@@ -3979,6 +3994,8 @@ static void mpz_poly_factor_edf_pre(mpz_poly g[2], mpz_poly_srcptr f, int k,
     mpz_poly_set_xi(g[0], 0);
     mpz_poly_set_xi(g[1], 0);
 
+    ASSERT_ALWAYS(mpz_cmp_ui(p, 0) > 0);
+
     ASSERT_ALWAYS (f->deg > k);
 
     mpz_poly xplusa;
@@ -3998,6 +4015,7 @@ static void mpz_poly_factor_edf_pre(mpz_poly g[2], mpz_poly_srcptr f, int k,
          * enough legroom).
          */
         if (mpz_fits_ulong_p(p)) {
+            // coverity[zero_return]
             unsigned long pz = mpz_get_ui(p);
             if (a == 0) {
                 /* special case, really */
@@ -4245,6 +4263,8 @@ int mpz_poly_factor_list_lift(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, m
 
 int mpz_poly_factor_and_lift_padically(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, mpz_srcptr ell, int prec, gmp_randstate_t rstate)
 {
+    // this is a false positive
+    // coverity[exception_thrown]
     ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
 
     mpz_poly_factor(fac, f, ell, rstate);

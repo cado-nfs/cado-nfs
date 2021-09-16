@@ -105,7 +105,7 @@ if [ "$gcc32" ] ; then
 fi
 
 # The gcc image actually contains a base g++ installation that is in /usr
-if [ "$gcc" ] && ! [ -x /usr/local/bin/g++ ] ; then
+if [ "$gcc" ] && ! type g++ > /dev/null 2>&1 ; then
     debian_packages="$debian_packages     g++"
     opensuse_packages="$opensuse_packages gcc gcc-c++"
     fedora_packages="$fedora_packages     g++"
@@ -113,7 +113,7 @@ if [ "$gcc" ] && ! [ -x /usr/local/bin/g++ ] ; then
     freebsd_packages="$freebsd_packages   gcc"  # this pulls g++ too
 fi
 
-if [ "$clang" ] && ! [ -x /usr/local/bin/clang ] ; then
+if [ "$clang" ] && ! type clang++ > /dev/null 2>&1 ; then
     debian_packages="$debian_packages     clang"
     opensuse_packages="$opensuse_packages clang"
     fedora_packages="$fedora_packages     clang"
@@ -127,6 +127,16 @@ if [ "$checks" ] ; then
     fedora_packages="$fedora_packages     libxslt"
     alpine_packages="$alpine_packages     libxslt"
     freebsd_packages="$freebsd_packages   libxslt"
+fi
+
+if [ "$coverity" ] ; then
+    # nothing special at this point. Note that we've tested it on debian
+    # only.
+    debian_packages="$debian_packages     curl git"
+    opensuse_packages="$opensuse_packages curl git"
+    fedora_packages="$fedora_packages     curl git"
+    alpine_packages="$alpine_packages     curl git"
+    freebsd_packages="$freebsd_packages   curl git"
 fi
 
 if [ "$DOCKER_SCRIPT" ] ; then

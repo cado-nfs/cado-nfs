@@ -1,6 +1,6 @@
 
 # You can force a path to hwloc.h using the environment variables HWLOC, or
-# HWLOC_INCDIR and HWLOC_LIBDIR (note that curl/curl.h is also searched)
+# HWLOC_INCDIR and HWLOC_LIBDIR
 
 if (DEFINED ENV{HWLOC})
     message(STATUS "Adding $ENV{HWLOC} to the search path for hwloc")
@@ -74,7 +74,7 @@ CHECK_C_SOURCE_COMPILES("
     #endif
     int main(void)
     {
-      return hwloc_get_api_version();
+        return hwloc_get_api_version() == HWLOC_API_VERSION ? EXIT_SUCCESS : EXIT_FAILURE;
     }
 " HAVE_HWLOC)
 endif()

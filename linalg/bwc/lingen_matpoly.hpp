@@ -34,6 +34,9 @@ class matpoly {
 public:
     struct memory_guard : private memory_pool_type::guard_base {
         memory_guard(size_t s) : memory_pool_type::guard_base(memory, s) {}
+        // we're in a dtor, hence nothrow, yet we have
+        // ASSERT_ALWAYS...
+        // coverity[exn_spec_violation]
         ~memory_guard() { memory_pool_type::guard_base::pre_dtor(memory); }
     };
 

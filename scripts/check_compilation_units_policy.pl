@@ -41,7 +41,8 @@ my @path_exceptions=qw|
         linalg/bwc/flint-fft/
         config/
         misc/
-        utils/fmt/
+        utils/embedded/fmt/
+        ci/coverity_model.c
         |;
 
 my @header_guard_check_skip_patterns = (
@@ -110,7 +111,7 @@ FILE: for my $f (@all_files) {
                 if (/.*cado\.h/) { push @include_cado, $aa; }
                 if (/.*portability\.h/) { $portability_score++; }
             }
-            for my $func (qw/strlcat strlcpy asprintf realpath pagesize lrand48 sleep strdup strndup/) {
+            for my $func (qw/strlcat strlcpy asprintf realpath pagesize sleep strdup strndup/) {
                 last if @needs_portability_h;
                 if (/\b$func\b/) { push @needs_portability_h, [@$aa, $func]; }
             }

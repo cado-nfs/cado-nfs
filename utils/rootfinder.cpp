@@ -11,11 +11,12 @@
 #include "mod_ul.h"      // for residueul_t, modul_clear, modul_clearmod
 #include "modul_poly.h"
 #include "rootfinder.h"
-#include "portability.h" // lrand48 (TODO: remove) // IWYU pragma: keep
+#include "portability.h" // IWYU pragma: keep
+#include "gmp_aux.h"
 
 /* Entry point for rootfind routines, for prime p.
    Assume r is an array of deg(F) entries, which are mpz_init'ed. */
-int mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
+int mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p, gmp_randstate_ptr rstate)
 {
     int d = F->deg;
 
@@ -27,10 +28,10 @@ int mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
         int n;
 	
         if (r == NULL)
-            return mpz_poly_roots_ulong (NULL, F, pp);
+            return mpz_poly_roots_ulong (NULL, F, pp, rstate);
 
         rr = (unsigned long *) malloc(d * sizeof(unsigned long));
-        n = mpz_poly_roots_ulong (rr, F, pp);
+        n = mpz_poly_roots_ulong (rr, F, pp, rstate);
 
         for(i = 0 ; i < n ; i++) {
             /* The assumption is that p fits within an unsigned long
@@ -42,7 +43,7 @@ int mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
         return n;
     } else {
       int n;
-      n = mpz_poly_roots_mpz (r, F, p);
+      n = mpz_poly_roots_mpz (r, F, p, rstate);
       return n;
     }
 }
@@ -51,7 +52,7 @@ int mpz_poly_roots (mpz_t *r, mpz_poly_srcptr F, mpz_srcptr p)
 /* put in r[0], ..., r[n-1] the roots of F modulo p, where p is prime,
    and the return value n is the number of roots (without multiplicities) */
 int
-mpz_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, unsigned long p)
+mpz_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, unsigned long p, gmp_randstate_ptr rstate)
 {
     int n;
 
@@ -62,13 +63,13 @@ mpz_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, unsigned long p)
     int d = F->deg;
 
     if (r == NULL)
-      return modul_poly_roots(NULL, F, pp);
+      return modul_poly_roots(NULL, F, pp, rstate);
 
     rr = (residueul_t *) malloc(d * sizeof(residueul_t));
     for(i = 0 ; i < d ; i++) {
       modul_init_noset0(rr[i], pp);
     }
-    n = modul_poly_roots(rr, F, pp);
+    n = modul_poly_roots(rr, F, pp, rstate);
     for(int i = 0 ; i < n ; i++) {
       /* The assumption is that p fits within an unsigned long
        * anyway. So the roots do as well.
@@ -89,7 +90,7 @@ mpz_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, unsigned long p)
 /* Note that parallelizing this makes no sense. The payload is too small.
  */
 int
-mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p)
+mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstate_ptr rstate)
 {
     /* This is glue around poly_roots_ulong, nothing more. When uint64
        is larger than ulong, we call mpz_poly_roots_mpz as a fallback */
@@ -97,20 +98,21 @@ mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p)
     int i, n;
     int d = F->deg;
 
+#if ULONG_BITS < 64
     if (p > (uint64_t) ULONG_MAX)
       {
         mpz_t pp;
         mpz_init (pp);
         mpz_set_uint64 (pp, p);
         if (r == NULL)
-          n = mpz_poly_roots_mpz (NULL, F, pp);
+          n = mpz_poly_roots_mpz (NULL, F, pp, rstate);
         else
           {
             mpz_t *rr;
             rr = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
             for (i = 0; i <= d; i++)
               mpz_init (rr[i]);
-            n = mpz_poly_roots_mpz (NULL, F, pp);
+            n = mpz_poly_roots_mpz (NULL, F, pp, rstate);
             for (i = 0; i <= d; i++)
               {
                 if (i < n)
@@ -122,15 +124,16 @@ mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p)
         mpz_clear (pp);
         return n;
       }
+#endif
 
     if (r == NULL)
-      return mpz_poly_roots_ulong (NULL, F, p);
+      return mpz_poly_roots_ulong (NULL, F, p, rstate);
 
     if (sizeof (unsigned long) != sizeof (uint64_t))
       rr = (unsigned long *) malloc(d * sizeof(unsigned long));
     else
       rr = (unsigned long *) r;
-    n = mpz_poly_roots_ulong (rr, F, p);
+    n = mpz_poly_roots_ulong (rr, F, p, rstate);
     if (sizeof (unsigned long) != sizeof (uint64_t))
       {
         for(i = 0 ; i < n ; i++)
@@ -154,7 +157,7 @@ static int mpz_poly_coeff_cmp(const mpz_t *a, const mpz_t *b) {
    which should be degree of f. Assumes p is odd, and deg(f) >= 1. */
 static int
 mpz_poly_cantor_zassenhaus (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p,
-                            int depth)
+                            int depth, gmp_randstate_ptr rstate)
 {
   mpz_t a, aux;
   mpz_poly q, h;
@@ -179,8 +182,7 @@ mpz_poly_cantor_zassenhaus (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p,
   mpz_poly_init (h, 2 * d - 2);
 
   /* random polynomial by a */
-  mpz_set_ui (a, lrand48());
-  mpz_fdiv_r (a, a, p);
+  mpz_urandomm(a, rstate, p);
   for (;;)
   {
     /* q=x+a */
@@ -203,11 +205,11 @@ mpz_poly_cantor_zassenhaus (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p,
     /* recursion-split */
     if (0 < dq && dq < d)
     {
-      n = mpz_poly_cantor_zassenhaus (r, q, p, depth + 1);
+      n = mpz_poly_cantor_zassenhaus (r, q, p, depth + 1, rstate);
       ASSERT (n == dq);
 
       mpz_poly_divexact (h, f, q, p);
-      m = mpz_poly_cantor_zassenhaus (r + n, h, p, depth + 1);
+      m = mpz_poly_cantor_zassenhaus (r + n, h, p, depth + 1, rstate);
       ASSERT (m == h->deg);
       n += m;
       break;
@@ -231,7 +233,7 @@ clear_a:
    Assume d (the degree of f) is at least 1.
  */
 int
-mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p)
+mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_ptr rstate)
 {
   int nr = 0;
   mpz_poly fp, g, h;
@@ -269,7 +271,7 @@ mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p)
   /* If r is NULL, we only return the number of roots. */
   if (r != NULL && nr > 0)
   {
-    int n MAYBE_UNUSED = mpz_poly_cantor_zassenhaus (r, fp, p, 0);
+    int n MAYBE_UNUSED = mpz_poly_cantor_zassenhaus (r, fp, p, 0, rstate);
     ASSERT (n == nr);
   }
 
@@ -295,7 +297,7 @@ mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p)
    array r also.
 */
 unsigned long
-mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, mpz_srcptr n)
+mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, mpz_srcptr n, gmp_randstate_ptr rstate)
 {
   unsigned long k, i, j, d = F->deg;
   mpz_t Q, nn, p;
@@ -307,7 +309,7 @@ mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, mpz_srcptr n)
       rp[0] = (mpz_t*) malloc (d * sizeof (mpz_t));
       for (i = 0; i < d; i++)
         mpz_init (rp[0][i]);
-      k = mpz_poly_roots (rp[0], F, n);
+      k = mpz_poly_roots (rp[0], F, n, rstate);
       /* free the unused roots */
       for (i = k; i < d; i++)
         mpz_clear (rp[0][i]);
@@ -337,7 +339,7 @@ mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, mpz_srcptr n)
       if (mpz_divisible_p (nn, p))
         {
           unsigned long kp;
-          kp = mpz_poly_roots (roots_p, F, p);
+          kp = mpz_poly_roots (roots_p, F, p, rstate);
           mpz_divexact (nn, nn, p);
           /* lift roots mod p^j if needed */
           mpz_set (q, p);
@@ -520,22 +522,22 @@ struct poly_roots_impl : public poly_roots_impl_details<T>
     using super::fits;
     using super::probab_prime_p;
     using super::get_from_cxx_mpz;
-    std::vector<T> operator()(cxx_mpz_poly const & f, T const & q, std::vector<F> const & qfac);
+    std::vector<T> operator()(cxx_mpz_poly const & f, T const & q, std::vector<F> const & qfac, gmp_randstate_ptr rstate);
 };
 
 /* Compute the roots of f modulo q, where q is a square-free number whose
  * factorization is given. */
 template<typename T, typename F>
-std::vector<T> poly_roots_impl<T,F>::operator()(cxx_mpz_poly const & f, T const & q, std::vector<F> const & qfac)
+std::vector<T> poly_roots_impl<T,F>::operator()(cxx_mpz_poly const & f, T const & q, std::vector<F> const & qfac, gmp_randstate_ptr rstate)
 {
     std::vector<T> res;
 
     if (probab_prime_p(q))
-        return mpz_poly_roots (f, q);
+        return mpz_poly_roots (f, q, rstate);
 
     if (qfac.size() <= 1) {
         /* weird. Then we simply use the prime version, right ? */
-        return mpz_poly_roots(f, q);
+        return mpz_poly_roots(f, q, rstate);
     }
 
     if (!std::is_same<T, cxx_mpz>::value) {
@@ -546,7 +548,7 @@ std::vector<T> poly_roots_impl<T,F>::operator()(cxx_mpz_poly const & f, T const 
         mpz_mul_ui(test, cxx_mpz(q), qfac.size());
         if (!fits(test)) {
             /* compute with type cxx_mpz instead */
-            std::vector<cxx_mpz> tr = mpz_poly_roots(f, cxx_mpz(q), qfac);
+            std::vector<cxx_mpz> tr = mpz_poly_roots(f, cxx_mpz(q), qfac, rstate);
             /* convert back to type T */
             std::vector<T> res;
             res.reserve(tr.size());
@@ -588,7 +590,7 @@ std::vector<T> poly_roots_impl<T,F>::operator()(cxx_mpz_poly const & f, T const 
     /* compute the roots individually mod all prime factors. */
     std::vector<std::vector<F>> roots;
     for(size_t i = 0 ; i < qfac.size() ; ++i) {
-        roots.push_back(mpz_poly_roots(f, qfac[i]));
+        roots.push_back(mpz_poly_roots(f, qfac[i], rstate));
         if (roots.back().empty()) return res;
     }
 
@@ -615,17 +617,17 @@ std::vector<T> poly_roots_impl<T,F>::operator()(cxx_mpz_poly const & f, T const 
 }
 
 template<typename T, typename F>
-std::vector<T> mpz_poly_roots(cxx_mpz_poly const & f, T const & q, std::vector<F> const & qfac)
+std::vector<T> mpz_poly_roots(cxx_mpz_poly const & f, T const & q, std::vector<F> const & qfac, gmp_randstate_ptr rstate)
 {
-    return poly_roots_impl<T,F>()(f, q, qfac);
+    return poly_roots_impl<T,F>()(f, q, qfac, rstate);
 }
 
-template std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz, cxx_mpz>(cxx_mpz_poly const & f, cxx_mpz const & q, std::vector<cxx_mpz> const & qfac);
-template std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz, unsigned long>(cxx_mpz_poly const & f, cxx_mpz const & q, std::vector<unsigned long> const & qfac);
-template std::vector<unsigned long> mpz_poly_roots<unsigned long, unsigned long>(cxx_mpz_poly const & f, unsigned long const & q, std::vector<unsigned long> const & qfac);
+template std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz, cxx_mpz>(cxx_mpz_poly const & f, cxx_mpz const & q, std::vector<cxx_mpz> const & qfac, gmp_randstate_ptr rstate);
+template std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz, unsigned long>(cxx_mpz_poly const & f, cxx_mpz const & q, std::vector<unsigned long> const & qfac, gmp_randstate_ptr rstate);
+template std::vector<unsigned long> mpz_poly_roots<unsigned long, unsigned long>(cxx_mpz_poly const & f, unsigned long const & q, std::vector<unsigned long> const & qfac, gmp_randstate_ptr rstate);
 #ifndef UINT64_T_IS_EXACTLY_UNSIGNED_LONG
-template std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz, uint64_t>(cxx_mpz_poly const & f, cxx_mpz const & q, std::vector<uint64_t> const & qfac);
-template std::vector<uint64_t> mpz_poly_roots<uint64_t, uint64_t>(cxx_mpz_poly const & f, uint64_t const & q, std::vector<uint64_t> const & qfac);
+template std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz, uint64_t>(cxx_mpz_poly const & f, cxx_mpz const & q, std::vector<uint64_t> const & qfac, gmp_randstate_ptr rstate);
+template std::vector<uint64_t> mpz_poly_roots<uint64_t, uint64_t>(cxx_mpz_poly const & f, uint64_t const & q, std::vector<uint64_t> const & qfac, gmp_randstate_ptr rstate);
 #endif
 
 /* TODO: we'd like to expose the parallelized version via this interface
@@ -633,27 +635,27 @@ template std::vector<uint64_t> mpz_poly_roots<uint64_t, uint64_t>(cxx_mpz_poly c
  * The pinf handles would pollute the code all over the place...
  */
 template<>
-std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz>(cxx_mpz_poly const & f, cxx_mpz const & q)
+std::vector<cxx_mpz> mpz_poly_roots<cxx_mpz>(cxx_mpz_poly const & f, cxx_mpz const & q, gmp_randstate_ptr rstate)
 {
     std::vector<cxx_mpz> tmp(f.degree());
-    int n = mpz_poly_roots_mpz((mpz_t*) tmp.data(), f, q);
+    int n = mpz_poly_roots_mpz((mpz_t*) tmp.data(), f, q, rstate);
     tmp.erase(tmp.begin() + n, tmp.end());
     return tmp;
 }
 template<>
-std::vector<unsigned long> mpz_poly_roots<unsigned long>(cxx_mpz_poly const & f, unsigned long const & q)
+std::vector<unsigned long> mpz_poly_roots<unsigned long>(cxx_mpz_poly const & f, unsigned long const & q, gmp_randstate_ptr rstate)
 {
     std::vector<unsigned long> tmp(f.degree());
-    int n = mpz_poly_roots_ulong(tmp.data(), f, q);
+    int n = mpz_poly_roots_ulong(tmp.data(), f, q, rstate);
     tmp.erase(tmp.begin() + n, tmp.end());
     return tmp;
 }
 #ifndef UINT64_T_IS_EXACTLY_UNSIGNED_LONG
 template<>
-std::vector<uint64_t> mpz_poly_roots<uint64_t>(cxx_mpz_poly const & f, uint64_t const & q)
+std::vector<uint64_t> mpz_poly_roots<uint64_t>(cxx_mpz_poly const & f, uint64_t const & q, gmp_randstate_ptr rstate)
 {
     std::vector<uint64_t> tmp(f.degree());
-    int n = mpz_poly_roots_uint64(tmp.data(), f, q);
+    int n = mpz_poly_roots_uint64(tmp.data(), f, q, rstate);
     tmp.erase(tmp.begin() + n, tmp.end());
     return tmp;
 }

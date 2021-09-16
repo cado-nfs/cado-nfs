@@ -9,6 +9,7 @@
 
 #include "mod_ul.h"
 #include "mpz_poly.h"
+#include "gmp_aux.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,9 +29,9 @@ typedef __modul_poly_struct modul_poly_t[1];
  * the stored values */
 
 /* [LI] Do we want these functions here or in rootfinder? */
-int modul_poly_roots (residueul_t*, mpz_poly_srcptr, modulusul_t);
-int modul_poly_roots_ulong  (unsigned long*, mpz_poly_srcptr, modulusul_t);
-int modul_poly_cantor_zassenhaus (residueul_t*, modul_poly_t, modulusul_t);
+int modul_poly_roots (residueul_t*, mpz_poly_srcptr, modulusul_t, gmp_randstate_ptr rstate);
+int modul_poly_roots_ulong  (unsigned long*, mpz_poly_srcptr, modulusul_t, gmp_randstate_ptr rstate);
+int modul_poly_cantor_zassenhaus (residueul_t*, modul_poly_t, modulusul_t, gmp_randstate_ptr rstate);
 
 
 void modul_poly_init (modul_poly_t, int);

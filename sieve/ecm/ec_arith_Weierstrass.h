@@ -419,6 +419,10 @@ found_inf:
   if (weierstrass_aff_smul_ui (Pi, i, a, m) != 0)
     {
       modint_t tx1, ty1;
+      for (i = 0; i < giant_step; i++)
+          ec_point_clear (baby[i], m);
+      free (baby);
+      baby = NULL;
       mod_intinit (tx1);
       mod_intinit (ty1);
       mod_get_int (tx1, P[0].x, m);

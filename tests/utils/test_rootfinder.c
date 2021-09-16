@@ -8,7 +8,7 @@
 #include "mpz_poly.h"
 #include "macros.h"
 #include "gmp_aux.h"
-#include "portability.h" // lrand48 // IWYU pragma: keep
+#include "portability.h" // IWYU pragma: keep
 
 int cmp(mpz_t * a, mpz_t * b)
 {
@@ -61,10 +61,10 @@ test (int d, const char *pp, const char *ff[], int nroots)
       else
         goto retry;
     }
-  n = mpz_poly_roots_gen (&r, F, p);
+  n = mpz_poly_roots_gen (&r, F, p, state);
   if (mpz_probab_prime_p (p, 5) && mpz_sizeinbase (p, 2) <= 64)
     {
-      n1 = mpz_poly_roots_uint64 (NULL, F, mpz_get_uint64 (p));
+      n1 = mpz_poly_roots_uint64 (NULL, F, mpz_get_uint64 (p), state);
       ASSERT_ALWAYS(n1 == n);
     }
   if (nroots != -1)
@@ -113,7 +113,7 @@ main (int argc, const char *argv[])
 
     while (iter--)
       {
-        d = 1 + (lrand48 () % 7);
+        d = 1 + gmp_urandomm_ui(state, 7);
         test (d, "", test0 + 1, -1);
       }
 

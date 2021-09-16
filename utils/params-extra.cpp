@@ -54,6 +54,13 @@ int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_lin
          */
         for( ; q != line.end() && isspace((int)(unsigned char)*q) ; ++q);
 
+        /* should we actually allow it, after all ? */
+        if (q == line.end()) {
+            fprintf(stderr, "Parse error, key with no value in config:\n%s\n",
+                    line.c_str());
+            continue;
+        }
+
         /* match separator, which is one of : = := */
         if (*q == '=') {
             q++;

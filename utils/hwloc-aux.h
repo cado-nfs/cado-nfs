@@ -22,6 +22,15 @@ struct cxx_hwloc_bitmap {
     cxx_hwloc_bitmap(hwloc_const_bitmap_t o) {
         x = hwloc_bitmap_dup(o);
     }
+    cxx_hwloc_bitmap(cxx_hwloc_bitmap && o) {
+        x = o.x;
+        o.x = NULL;
+    }
+    cxx_hwloc_bitmap& operator=(cxx_hwloc_bitmap && o) {
+        x = o.x;
+        o.x = NULL;
+        return *this;
+    }
     cxx_hwloc_bitmap(cxx_hwloc_bitmap const & o) {
         x = hwloc_bitmap_dup(o.x);
     }

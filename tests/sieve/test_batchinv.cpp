@@ -61,7 +61,7 @@ main (int argc, const char *argv[])
   tests_common_get_iter(&N);
   
   for (size_t n = 0; all_ok && n < N; n++) {
-      const uint32_t p = (uint64_t) random_uint64 () | 1;
+      const uint32_t p = (uint64_t) u64_random (state) | 1;
       const uint32_t invp = -invmod_po2 (p);
       bool should_work = true;
       
@@ -69,7 +69,7 @@ main (int argc, const char *argv[])
       /* Try one that may or may not work, depending on which residues RNG
        * gives us */
       for (size_t i = 0; i < n; i++) {
-          a[i] = (uint64_t) random_uint64 ();
+          a[i] = (uint64_t) u64_random(state);
           should_work &= gcd_ul(a[i], p) == 1;
       }
       

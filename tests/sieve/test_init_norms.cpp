@@ -56,13 +56,15 @@ void ensure_qrange_has_prime_ideals(cxx_mpz const & q0, cxx_mpz & q1, mpz_poly_s
      * this is the case.
      */
     cxx_mpz q, q1_orig = q1;
+    gmp_randstate_t rstate;
+    gmp_randinit_default(rstate);
     /* we need to know the limit of the q range */
     for(unsigned long i = 1 ; ; i++) {
         mpz_sub_ui(q, q1, i);
         next_legitimate_specialq(q, q, 0);
         if (mpz_cmp(q, q1) >= 0)
             continue;
-        if (mpz_poly_roots(NULL, f, q) > 0)
+        if (mpz_poly_roots(NULL, f, q, rstate) > 0)
             break;
         /* small optimization: avoid redoing root finding
          * several times (for all i such that nextprime(q1-i) is
@@ -70,6 +72,7 @@ void ensure_qrange_has_prime_ideals(cxx_mpz const & q0, cxx_mpz & q1, mpz_poly_s
         q1 = q;
         i = 1;
     }
+    gmp_randclear(rstate);
     /* now q is the largest prime < q1 with f having roots mod q */
     mpz_add_ui (q1, q, 1);
     /* so now if we pick an integer in [q0, q1[, then its nextprime()
@@ -126,6 +129,7 @@ static void declare_usage(param_list pl)/*{{{*/
   verbose_decl_usage(pl);
 }/*}}}*/
 
+// coverity[root_function]
 int main (int argc0, char *argv0[])/*{{{*/
 {
     int argc = argc0;
@@ -288,7 +292,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                 mpz_add(q, q, q0);
                 next_legitimate_specialq(q, q, 0);
                 cxx_mpz roots[MAX_DEGREE];
-                int nroots = mpz_poly_roots ((mpz_t*)roots, cpoly->pols[sqside], q);
+                int nroots = mpz_poly_roots ((mpz_t*)roots, cpoly->pols[sqside], q, rstate);
                 if (nroots) {
                     unsigned long i = gmp_urandomm_ui(rstate, nroots);
                     rho = roots[i];

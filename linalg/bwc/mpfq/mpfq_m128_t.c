@@ -1,4 +1,4 @@
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"
 /* MPFQ generated file -- do not edit */
 
 #include "mpfq_m128_t.h"
@@ -8,6 +8,7 @@
 /* Automatically generated code  */
 /* Active handler: Mpfq::defaults */
 /* Active handler: Mpfq::defaults::vec */
+/* Active handler: simd_char2 */
 /* Active handler: simd_dotprod */
 /* Active handler: io */
 /* Active handler: trivialities */

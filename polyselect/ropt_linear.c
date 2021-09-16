@@ -837,7 +837,7 @@ void
 ropt_linear_deg5 ( ropt_poly_t poly,
                    ropt_bestpoly_t bestpoly,
                    ropt_param_t param,
-                   ropt_info_t info )
+                   ropt_info_t info)
 {
 
   /* setup bound, s1param, alpha_pqueue, global_E_pqueue */
@@ -889,7 +889,15 @@ ropt_linear_deg5 ( ropt_poly_t poly,
   r = ropt_stage1 (poly, bound, s1param, param, alpha_pqueue, 0);
   remove_rep_alpha (alpha_pqueue);
   t1 = seconds_thread () - t1;
-  if (r == -1) return;
+  if (r == -1) {
+      free_MurphyE_pq (&global_E_pqueue);
+#if TUNE_LOGNORM_INCR
+      free_alpha_pq (&tune_E_pqueue);
+#endif
+      free_alpha_pq (&alpha_pqueue);
+      return;
+  }
+
   
   /* [Step 3] rank/tune above found sublattices by short sieving */
   t3 = seconds_thread ();
@@ -939,7 +947,7 @@ void
 ropt_linear_deg34 ( ropt_poly_t poly,
                     ropt_bestpoly_t bestpoly,
                     ropt_param_t param,
-                    ropt_info_t info )
+                    ropt_info_t info)
 {
   unsigned long ub, vb;
   ropt_bound_t bound;
@@ -992,7 +1000,7 @@ void
 ropt_linear ( ropt_poly_t poly,
               ropt_bestpoly_t bestpoly,
               ropt_param_t param,
-              ropt_info_t info )
+              ropt_info_t info)
 {
   if (poly->d == 3)
     ropt_linear_deg34 (poly, bestpoly, param, info);

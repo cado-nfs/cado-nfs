@@ -12,7 +12,7 @@
 #pragma GCC diagnostic ignored "-Wfree-nonheap-object"
 #endif
 #include "dllist.h"
-#include "portability.h" // lrand48 // IWYU pragma: keep
+#include "portability.h" // IWYU pragma: keep
 
 void
 test_dllist(size_t len MAYBE_UNUSED)
@@ -67,7 +67,7 @@ test_dllist(size_t len MAYBE_UNUSED)
 
   /* Delete nodes again, in random order */
   for (size_t i = 0; i < len + 1; i++) {
-    size_t index = lrand48() % (len + 1 - i);
+    size_t index = gmp_urandomm_ui(state, len + 1 - i);
     node = dll_get_nth(head, index);
     dll_delete(node);
   }

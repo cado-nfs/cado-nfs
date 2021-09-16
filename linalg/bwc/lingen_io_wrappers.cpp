@@ -104,7 +104,7 @@ void lingen_file_input::open_file()
 {
     if (mpi_rank()) return;
     f = fopen(filename.c_str(), ascii ? "r" : "rb");
-    DIE_ERRNO_DIAG(!f, "open", filename.c_str());
+    DIE_ERRNO_DIAG(!f, "open(%s)", filename.c_str());
 }
 
 void lingen_file_input::close_file()
@@ -1341,7 +1341,7 @@ void lingen_output_to_splitfile::open_file()
                         i, i+splitwidth,
                         j, j+splitwidth);
                 fw.emplace_back(std::ofstream { s, mode });
-                DIE_ERRNO_DIAG(!fw.back(), "open", s.c_str());
+                DIE_ERRNO_DIAG(!fw.back(), "open(%s)", s.c_str());
             }
         }
     }

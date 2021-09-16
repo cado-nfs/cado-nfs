@@ -29,8 +29,13 @@
 worker_thread::worker_thread(thread_pool &_pool, const size_t _preferred_queue, bool several_threads)
   : pool(_pool), preferred_queue(several_threads ? _preferred_queue : SIZE_MAX)
 {
-    if (!several_threads)
+    if (!several_threads) {
+        // the "pthread" member is uninitialized, but that is fine since
+        // it's only used in the dtor anyway, under the condition that
+        // preferred_queue != SIZE_MAX.
+        // coverity[uninit_member]
         return;
+    }
     int rc = pthread_create(&thread, NULL, pool.thread_work_on_tasks_static, this);
     ASSERT_ALWAYS(rc == 0);
 }
@@ -109,6 +114,8 @@ thread_pool::thread_pool(const size_t nr_threads, double & store_wait_time, cons
         threads.emplace_back(*this, 0, !is_synchronous());
 };
 
+// ok, if an exception is raised we'll die abruptly.
+// coverity[exn_spec_violation]
 thread_pool::~thread_pool() {
   drain_all_queues();
   enter();

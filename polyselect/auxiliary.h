@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <gmp.h>
 #include "cado_poly.h"
 #include "mpz_poly.h"
+#include "gmp_aux.h"
 
 /* The polynomial selection algorithms that use a linear polynomial will
  * put it on the side given by the following. */
@@ -66,16 +67,16 @@ double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g, int prec);
 double L2_skew_lognorm (mpz_poly_srcptr, int);
 
 /* alpha */
-double special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_t disc);
-double special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc);
+double special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_srcptr disc, gmp_randstate_ptr rstate);
+double special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_srcptr disc, gmp_randstate_ptr rstate);
 double get_alpha (mpz_poly_srcptr, unsigned long);
 double get_alpha_projective (mpz_poly_srcptr f, unsigned long B);
 double get_alpha_affine (mpz_poly_srcptr f, unsigned long B);
-double get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p);
+double get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr rstate);
 
 /* poly info, being called in order */
-void print_cadopoly_fg (FILE*, mpz_t*, int, mpz_t*, int, mpz_t);
-double print_cadopoly (FILE*, cado_poly);
+void print_cadopoly_fg (FILE*, mpz_t*, int, mpz_t*, int, mpz_srcptr);
+double print_cadopoly (FILE*, cado_poly_srcptr);
 void print_cadopoly_extra (FILE*, cado_poly, int, char**, double);
 double print_poly_fg (mpz_poly_srcptr, mpz_t*, mpz_t, int);
 long rotate_aux (mpz_t *f, mpz_t b, mpz_t m, long k0, long k, unsigned int t);

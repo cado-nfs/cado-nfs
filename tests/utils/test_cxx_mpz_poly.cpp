@@ -12,6 +12,7 @@ bool operator<(cxx_mpz_poly const& a, cxx_mpz_poly const& b) {
     return mpz_poly_cmp(a, b) < 0;
 }
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     if (argc > 1) {

@@ -12,15 +12,15 @@
 
 struct bmstatus {
     bw_dimensions d;
-    unsigned int t;
+    unsigned int t = 0;
     std::vector<int> lucky;
     std::vector<unsigned int> delta;
     int done = 0;
 
-    double t_basecase;
-    double t_mp;
-    double t_mul;
-    double t_cp_io;
+    double t_basecase = 0;
+    double t_mp = 0;
+    double t_mul = 0;
+    double t_cp_io = 0;
 
     // unsigned int lingen_threshold;
     // unsigned int lingen_mpi_threshold;

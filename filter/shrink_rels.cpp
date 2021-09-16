@@ -96,6 +96,7 @@ static void declare_usage(param_list pl)
     param_list_decl_usage(pl, "dl", "DL mode (do not reduce valuations mod 2)");
 }
 
+// coverity[root_function]
 int
 main (int argc, char *argv[])
 {

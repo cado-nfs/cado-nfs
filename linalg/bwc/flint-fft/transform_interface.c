@@ -302,6 +302,8 @@ void fft_transform_info_set_first_guess(struct fft_transform_info * fti)
 {
     mp_bitcnt_t b1 = MIN(fti->bits1, fti->bits2);
     mp_bitcnt_t b2 = MAX(fti->bits1, fti->bits2);
+    ASSERT_ALWAYS(b1 >= 1);
+    ASSERT_ALWAYS(b2 >= 1);
     unsigned int m = fti->nacc;
     mp_bitcnt_t minwrap = fti->minwrap;
 
@@ -313,6 +315,7 @@ void fft_transform_info_set_first_guess(struct fft_transform_info * fti)
     ASSERT_ALWAYS(minwrap == 0 || minwrap >= b2 + clogm);
 
     if (minwrap) {      /* MP case */
+        ASSERT_FOR_STATIC_ANALYZER(FLINT_CLOG2(minwrap) >= 1);
         unsigned int e = FLINT_CLOG2(minwrap) - 1;
         depth = e / 2;
         n = 1 << depth;
@@ -548,6 +551,10 @@ void fft_transform_info_init_mulmod(struct fft_transform_info * fti MAYBE_UNUSED
 void fft_transform_info_init_mulmod_inner(struct fft_transform_info * fti, mp_bitcnt_t bits1, mp_bitcnt_t bits2, unsigned int nacc, mp_bitcnt_t minwrap)
 {
     memset(fti, 0, sizeof(*fti));
+    /* It doesn't make sense to use sizes that small. Here we're mostly
+     * guarding against static analysis failures */
+    ASSERT_ALWAYS(bits1 >= 1);
+    ASSERT_ALWAYS(bits2 >= 1);
     fti->bits1 = bits1;
     fti->bits2 = bits2;
     fti->nacc = nacc;
@@ -1251,6 +1258,8 @@ static void fft_dft_backend(const struct fft_transform_info * fti, void * y, voi
                 for (mp_size_t s = 0; s < trunc2; s++) {
                     /* Truncation apparently appears only with bitrev semantics */
                     mp_limb_t ** row = ptrs + 2*n + n_revbin(s, depth2) * n1;
+                    // nah, it's fine... (CID 1453341)
+                    // coverity[copy_paste_error]
                     fft_radix2(row, n1 / 2, fti->w * n2, tslot0 + k, tslot1 + k);
                     for (mp_size_t j = 0; j < n1; j++)    /* normalize right now */
                         mpn_normmod_2expp1(row[j], rsize0);
@@ -1339,6 +1348,8 @@ static void fft_ift_backend(const struct fft_transform_info * fti, void * y, voi
             for (mp_size_t s = 0; s < trunc2; s++) {
                 /* Truncation apparently appears only with bitrev semantics */
                 mp_limb_t ** row = ptrs + 2*n + n_revbin(s, depth2) * n1;
+                // nah, it's fine... (CID 1453409)
+                // coverity[copy_paste_error]
                 ifft_radix2(row, n1 / 2, fti->w * n2, tslot0 + k, tslot1 + k);
             }
         }

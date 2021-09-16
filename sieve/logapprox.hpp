@@ -11,6 +11,10 @@ struct piecewise_linear_function {
     std::list<std::pair<double,double>> equations;
     piecewise_linear_function() = default;
     piecewise_linear_function(double r) : endpoints(1, r) {}
+    piecewise_linear_function(piecewise_linear_function const &) = default;
+    piecewise_linear_function(piecewise_linear_function &&) = default;
+    piecewise_linear_function & operator=(piecewise_linear_function const &) = default;
+    piecewise_linear_function & operator=(piecewise_linear_function &&) = default;
     /* modify our left end to include the approximation which is provided
      * on argument.
      * Warning: this is made constant time by using splice(), so that the

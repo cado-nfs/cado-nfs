@@ -173,7 +173,11 @@ struct lingen_F0 : protected bw_dimensions
     public:
     // pairs are (exponent, column number)
     std::vector<std::array<unsigned int, 2>> fdesc;
-    unsigned int t0;
+    /* This is initialized by lingen_E_from_A::initial_read
+     * The default value that we put here is only for static analysis
+     * whinings, really.
+     */
+    unsigned int t0 = UINT_MAX;
     void share(int root, MPI_Comm comm);
     lingen_F0(bw_dimensions const & d)
         : bw_dimensions(d)

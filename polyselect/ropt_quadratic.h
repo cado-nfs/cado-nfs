@@ -2,6 +2,7 @@
 #define ROPT_QUADRATIC_H
 
 #include "ropt_str.h"   // ropt_bestpoly_t ropt_poly_t ropt_param_t ropt_info_t
+#include "gmp_aux.h"           // for gmp_randstate_ptr
 
 /* -- declarations -- */
 
@@ -12,7 +13,7 @@ extern "C" {
 void ropt_quadratic ( ropt_poly_t rs,
                       ropt_bestpoly_t bestpoly,
                       ropt_param_t param,
-                      ropt_info_t info );
+                      ropt_info_t info);
 
 #ifdef __cplusplus
 }

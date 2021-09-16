@@ -424,7 +424,12 @@ public:
         sentinel(tree_stats & stats,
                 std::string const & func, unsigned int inputsize, unsigned int total_ncalls, bool leaf = false)
             : stats(stats) { stats.enter(func, inputsize, total_ncalls, leaf); }
-        ~sentinel() { stats.leave(); }
+        // we're in a dtor, hence nothrow, yet we have
+        // ASSERT_ALWAYS...
+        // coverity[exn_spec_violation]
+        ~sentinel() {
+            stats.leave();
+        }
     };
     struct transition_sentinel {
         tree_stats & stats;
@@ -432,7 +437,13 @@ public:
         transition_sentinel(tree_stats & stats,
                 std::string const & func, unsigned int inputsize, unsigned int total_ncalls, bool leaf = false)
             : stats(stats) { stats.transition_levels_in_depth++; stats.enter(func, inputsize, -total_ncalls, leaf); }
-        ~transition_sentinel() { stats.leave(); stats.transition_levels_in_depth--; }
+        // we're in a dtor, hence nothrow, yet we have
+        // ASSERT_ALWAYS...
+        // coverity[exn_spec_violation]
+        ~transition_sentinel() {
+            stats.leave();
+            stats.transition_levels_in_depth--;
+        }
     };
 
     void begin_smallstep(std::string const & func, unsigned int ncalls=1);
@@ -445,6 +456,7 @@ public:
         smallstep_sentinel(tree_stats & stats,
                 std::string const & func, unsigned int ncalls=1)
             : stats(stats) { stats.begin_smallstep(func, ncalls); }
+        // coverity[exn_spec_violation]
         ~smallstep_sentinel() { stats.end_smallstep(); }
     };
     bool local_smallsteps_done(bool compulsory = false) const;
@@ -459,6 +471,7 @@ public:
         plan_smallstep_sentinel(tree_stats & stats,
                 std::string const & func, weighted_double const & theory)
             : stats(stats) { stats.begin_plan_smallstep(func, theory); }
+        // coverity[exn_spec_violation]
         ~plan_smallstep_sentinel() { stats.end_plan_smallstep(); }
     };
     inline void plan_smallstep(std::string const & func, weighted_double const & theory)

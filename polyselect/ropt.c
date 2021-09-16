@@ -32,7 +32,8 @@
 void
 ropt_get_bestpoly ( ropt_poly_t poly,
                     MurphyE_pq *global_E_pqueue,
-                    ropt_bestpoly_t bestpoly )
+                    ropt_bestpoly_t bestpoly
+                    )
 {
   double ave_MurphyE = 0.0, best_E = 0.0;
   int i, old_i, k;
@@ -104,7 +105,7 @@ static void
 ropt_do_stage2 (ropt_poly_t poly,
                 ropt_bestpoly_t bestpoly,
                 ropt_param_t param,
-                ropt_info_t info )
+                ropt_info_t info)
 {
 
   int i, old_i;
@@ -190,7 +191,7 @@ static void
 ropt_do_both_stages ( ropt_poly_t poly,
                       ropt_bestpoly_t bestpoly,
                       ropt_param_t param,
-                      ropt_info_t info )
+                      ropt_info_t info)
 {
   if (poly->d == 5 || poly->d == 4 || poly->d == 3)
     ropt_linear (poly, bestpoly, param, info);
@@ -213,7 +214,7 @@ void
 ropt ( ropt_poly_t poly,
        ropt_bestpoly_t bestpoly,
        ropt_param_t param,
-       ropt_info_t info )
+       ropt_info_t info)
 {
 
   /* print cache size */

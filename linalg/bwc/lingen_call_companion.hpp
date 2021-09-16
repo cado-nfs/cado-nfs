@@ -27,7 +27,7 @@ struct lingen_call_companion {
     bool recurse() const { return mesh > 0; }
     bool go_mpi() const { return mesh > 1; }
 
-    double ttb;
+    double ttb = 0;
     /* total_ncalls is a priori a power of two, but not always.
      * It is the number of calls that correspond to identical
      * lingen_call_companion::key keys.  In particular, since comparison
@@ -35,7 +35,7 @@ struct lingen_call_companion {
      * addition of the number of calls for two possibly different input
      * lengths.
      */
-    size_t total_ncalls;
+    size_t total_ncalls = 0;
     struct mul_or_mp_times {/*{{{*/
         op_mul_or_mp_base::op_type_t op_type;
         /* XXX This must be trivially copyable because we share it via

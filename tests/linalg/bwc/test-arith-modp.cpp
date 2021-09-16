@@ -47,15 +47,15 @@ void do_tests(unsigned long iter)
             if (coeffs[i] > cbound) coeffs[i]=1;
             if (coeffs[i] < -cbound) coeffs[i]=-1;
         }
-        /* Take a random modulus which is not a power of 2, and fits
-         * within m bits */
+        /* Take a random modulus that is not a power of 2, and fits
+         * within m bits. We insist on having the right number of words,
+         * but we're happy if the number of bits varies, which is why we
+         * won't content ourselves with just the output of mpz_rrandomb
+         * */
         do {
-            mpz_rrandomb(pz, state, m);
-            mp_limb_t u = pz->_mp_d[F::n-1];
-            mp_limb_t v = pz->_mp_d[0];
-            pz->_mp_d[F::n-1] = v;
-            pz->_mp_d[0] = u;
-        } while (pz->_mp_d[F::n-1] == 0 || mpz_scan1(pz, 0) == mpz_sizeinbase(pz, 2) - 1);
+            mpz_rrandomb(pz, state, m + mp_bits_per_limb);
+            mpz_fdiv_r_2exp(pz, pz, m);
+        } while (pz->_mp_d[F::n-1] == 0 || mpz_size(pz) == 0 || mpz_scan1(pz, 0) == mpz_sizeinbase(pz, 2) - 1);
         for(int i = 0 ; i < summands ; i++) {
             mpz_urandomm(xz[i], state, pz);
         }
@@ -115,6 +115,7 @@ void do_tests(unsigned long iter)
     }
 }
 
+// coverity[root_function]
 int main(int argc, const char * argv[])
 {
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER | PARSE_VERBOSE);

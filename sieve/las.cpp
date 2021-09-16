@@ -997,7 +997,8 @@ void las_info::batch_print_survivors_t::doit()
                         (mpz_srcptr) s.cofactor[1]);
             }
             fclose(out);
-            rename(f_part.c_str(), f.c_str());
+            int rc = rename(f_part.c_str(), f.c_str());
+            WARN_ERRNO_DIAG(rc != 0, "rename(%s, %s)", f_part.c_str(), f.c_str());
 
             foo.lock();
         }
@@ -1281,7 +1282,7 @@ static std::string relation_cache_subdir_name(std::vector<unsigned long> const &
     for(unsigned int i = 0 ; i + 1 < split_q.size() ; i++) {
         int l = 0;
         for(unsigned long s = 1 ; splits[i] > s ; s*=10, l++);
-        d += fmt::format("/{:0{}}", split_q[i], l);
+        d += fmt::format(FMT_STRING("/{:0{}}"), split_q[i], l);
     }
     return d;
 }/*}}}*/
@@ -1290,7 +1291,7 @@ static std::string relation_cache_find_filepath_inner(std::string const & d, uns
 {
     std::string filepath;
     DIR * dir = opendir(d.c_str());
-    DIE_ERRNO_DIAG(dir == NULL, "opendir", d.c_str());
+    DIE_ERRNO_DIAG(dir == NULL, "opendir(%s)", d.c_str());
     for(struct dirent * ent ; (ent = readdir(dir)) != NULL ; ) {
         unsigned long q0, q1;
         if (sscanf(ent->d_name, "%lu-%lu", &q0, &q1) != 2) continue;
@@ -1409,7 +1410,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
         std::string filepath = relation_cache_find_filepath(las.relation_cache, splits, aux.doing.p);
 
         std::ifstream rf(filepath);
-        DIE_ERRNO_DIAG(!rf, "open", filepath.c_str());
+        DIE_ERRNO_DIAG(!rf, "open(%s)", filepath.c_str());
         for(std::string line ; getline(rf, line) ; ) {
             if (line.empty()) continue;
             if (line[0] == '#') continue;
@@ -1456,6 +1457,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
 
 }/*}}}*/
 
+// coverity[root_function]
 int main (int argc0, char *argv0[])/*{{{*/
 {
     double t0, wct;

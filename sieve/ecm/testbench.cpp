@@ -171,6 +171,7 @@ next_prime (unsigned long start)
   return start;
 }
 
+// coverity[root_function]
 int main (int argc, char **argv)
 {
   char *argv0 = argv[0];
@@ -563,8 +564,8 @@ int main (int argc, char **argv)
     {
       double usrtime = endtime - starttime;
       printf ("Total time: %.2f s, per call: %f usec, per factor: %f usec\n",
-              usrtime / 1000000., usrtime / (double) total, 
-              usrtime / (double) hits);
+              usrtime / 1000000., usrtime / (double) (total + !total), 
+              usrtime / (double) (hits + !hits));
     }
     
   if (!quiet && mod > 0)

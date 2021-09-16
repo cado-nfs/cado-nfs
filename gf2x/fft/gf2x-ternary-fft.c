@@ -93,6 +93,12 @@ static void Lshift(unsigned long *a, unsigned long *b, uint64_t k, size_t N)
     if (k == 0) {
 	if (a != b)
 	    Copy(a, b, n);
+        /* mask high bits of result */
+        r = R(2 * N);
+        if (r > 0)
+            /* Because of a!=b above, a is always initialized. */
+            // coverity[read_parm]
+            a[n - 1] &= MASK(r);
     } else if (k <= N) {
 	/*  ------------------------------------------
 	   |  L0  |      L1      |  L2  |      H      |
@@ -141,6 +147,10 @@ static void Lshift(unsigned long *a, unsigned long *b, uint64_t k, size_t N)
 		a[I(N)] ^=
 		    (b[I(N + l)] & MASK(R(N + l))) >> (R(N + l) - R(N));
 	}
+        /* mask high bits of result */
+        r = R(2 * N);
+        if (r > 0)
+            a[n - 1] &= MASK(r);
     } else if (k <= 2 * N) {
 	/*  ------------------------------------------
 	   |  L   |      H0      |  H1  |     H2      |
@@ -186,6 +196,10 @@ static void Lshift(unsigned long *a, unsigned long *b, uint64_t k, size_t N)
 	   then s1 contains R(N+h)-R2(l) bits from L */
 	if (R(N + h) > R2(l))
 	    a[I(N + h) + W(l)] ^= s1 & MASK(R(N + h) - R2(l));
+        /* mask high bits of result */
+        r = R(2 * N);
+        if (r > 0)
+            a[n - 1] &= MASK(r);
     } else {			/* 2*N < k < 3*N */
 
 	/*  ------------------------------------------
@@ -223,11 +237,11 @@ static void Lshift(unsigned long *a, unsigned long *b, uint64_t k, size_t N)
 	    a[ih + W(l)] = s1 & MASK(R(N + h) - R2(l));
 	if (R(N + h) > 0)
 	    a[ih] ^= s2;
+        /* mask high bits of result */
+        r = R(2 * N);
+        if (r > 0)
+            a[n - 1] &= MASK(r);
     }
-    /* mask high bits of result */
-    r = R(2 * N);
-    if (r > 0)
-	a[n - 1] &= MASK(r);
 #ifdef DEBUG_LSHIFT
     printf("a:=");
     dump(a, n);
@@ -1244,6 +1258,17 @@ int gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
         if (rc < 0) return rc;
     }
 
+    if (o->K == 0) {
+	printf("gf2x_mul_fft: arguments (%zu, %zu) too small\n", an, bn);
+        /* Note that actually the routines below do work, because they're
+         * specified for working. However, this contradicts the fact that
+         * via this entry point, we have explicitly asked to _not_
+         * fall back to standard gf2x routines. So it's a caller bug
+         */
+        gf2x_ternary_fft_info_clear(o);
+        return -1;
+    }
+
     size_t sizes[3];
     gf2x_ternary_fft_info_get_alloc_sizes(o, sizes);
     gf2x_ternary_fft_ptr temp = malloc(MAX(sizes[1], sizes[2]));
@@ -1252,15 +1277,6 @@ int gf2x_mul_fft(unsigned long *c, const unsigned long *a, size_t an,
         return GF2X_ERROR_OUT_OF_MEMORY;
     }
 
-    if (o->K == 0) {
-	printf("gf2x_mul_fft: arguments (%zu, %zu) too small\n", an, bn);
-        /* Note that actually the routines below do work, because they're
-         * specified for working. However, this contradicts the fact that
-         * via this entry point, we have explicitly asked to _not_
-         * fall back to standard gf2x routines. So it's a caller bug
-         */
-        return -1;
-    }
     gf2x_ternary_fft_ptr ta = gf2x_ternary_fft_alloc(o, 1);
     if (ta == NULL) {
         free(temp);

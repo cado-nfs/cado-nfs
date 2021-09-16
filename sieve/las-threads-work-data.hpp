@@ -81,10 +81,9 @@ class nfs_work {
 
     /* These are fetched from the sieve_shared_data structure, which
      * caches them */
-    j_divisibility_helper const * jd;
-    unsieve_data const * us;
-
-    uint32_t J;
+    j_divisibility_helper const * jd = NULL;
+    unsieve_data const * us = NULL;
+    uint32_t J = 0;
 
     /* This is used only in batch mode. The list of cofactorization
      * candidates will be transfered to the main list when we're done

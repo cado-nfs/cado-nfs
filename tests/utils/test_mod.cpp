@@ -12,27 +12,28 @@
 #include "mod_mpz_new.hpp"
 #include "modint.hpp"
 #include "macros.h"
+#include "misc.h"
 
 template <typename T>
 T randomInteger();
 
 template<>
 Integer64 randomInteger<Integer64>() {
-    return Integer64(random_uint64());
+    return Integer64(u64_random(state));
 }
 
 template<>
 Integer128 randomInteger<Integer128>() {
-    return Integer128(random_uint64(), random_uint64());
+    return Integer128(u64_random(state), u64_random(state));
 }
 
 template<>
 cxx_mpz randomInteger<cxx_mpz>() {
     cxx_mpz r;
     uint64_t randomWords[10];
-    size_t len = random_uint64() % 10 + 1;
+    size_t len = u64_random(state) % 10 + 1;
     for (size_t i = 0; i < len; i++)
-        randomWords[i] = random_uint64();
+        randomWords[i] = u64_random(state);
     const bool ok = r.set(randomWords, len);
     ASSERT_ALWAYS(ok);
     return r;
@@ -362,9 +363,9 @@ public:
             
             const size_t maxlen = 10;
             uint64_t e2[maxlen];
-            size_t len = random_uint64() % (maxlen - 1) + 1;
+            size_t len = u64_random(state) % (maxlen - 1) + 1;
             for (size_t i = 0; i < len; i++)
-                e2[i] = random_uint64();
+                e2[i] = u64_random(state);
             ok &= test_one_pow(Integer(2), e2, 1, n);
             ok &= test_one_pow(b, e2, 1, n);
             if (len >= 2) {
@@ -701,17 +702,17 @@ public:
 
 template<>
 Modulus64 Tests<Modulus64>::randomModulus(const bool odd) const {
-    return Modulus64(random_uint64() | (odd ? 1 : 0));
+    return Modulus64(u64_random(state) | (odd ? 1 : 0));
 }
 
 template<>
 ModulusREDC64 Tests<ModulusREDC64>::randomModulus(const bool odd MAYBE_UNUSED) const {
-    return ModulusREDC64(random_uint64() | 1);
+    return ModulusREDC64(u64_random(state) | 1);
 }
 
 template<>
 ModulusREDC126 Tests<ModulusREDC126>::randomModulus(const bool odd MAYBE_UNUSED) const {
-    Integer128 m(random_uint64() | 1, random_uint64() & (UINT64_MAX >> 2));
+    Integer128 m(u64_random(state) | 1, u64_random(state) & (UINT64_MAX >> 2));
     return ModulusREDC126(m);
 }
 

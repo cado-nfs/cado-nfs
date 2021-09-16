@@ -115,7 +115,7 @@ typedef std::vector<qlattice_basis>::const_iterator basis_citer_t;
 /* Make a random prime in the interval [2^(FBPRIME_BITS-1), 2^FBPRIME_BITS].
  * t is a temp variable that will get clobbered. */
 static fbprime_t
-make_random_fb_prime(mpz_t t)
+make_random_fb_prime(mpz_ptr t)
 {
     do {
         tests_common_urandomb (t, FBPRIME_BITS);
@@ -127,7 +127,7 @@ make_random_fb_prime(mpz_t t)
 /* Make a random root mod p.
  * t is a temp variable that will get clobbered. */
 static fbroot_t
-make_random_fb_root(const fbprime_t p, mpz_t t)
+make_random_fb_root(const fbprime_t p, mpz_ptr t)
 {
     mpz_set_ui (t, p);
     tests_common_urandomm (t, t);
@@ -139,7 +139,7 @@ make_random_fb_root(const fbprime_t p, mpz_t t)
 /* Compute -1/p[i] mod 2^32.
  * t and u are temp variables that will get clobbered. */
 static uint32_t
-make_invp32 (const fbprime_t p, mpz_t t, mpz_t u)
+make_invp32 (const fbprime_t p, mpz_ptr t, mpz_ptr u)
 {
     mpz_ui_pow_ui (u, 2, 32);
     mpz_set_ui (t, p);
@@ -203,14 +203,17 @@ print_error_and_exit(const fbprime_t p, fb_root_p1 const & Rab, fb_root_p1 const
 }
 
 template<int Nr_roots>
-static void
-make_random_fb_entry_x_roots(fb_entry_x_roots<Nr_roots> &fbp, mpz_t t, mpz_t u)
+static 
+fb_entry_x_roots<Nr_roots> make_random_fb_entry_x_roots(
+        mpz_ptr t, mpz_ptr u)
 {
-    fbp.p = make_random_fb_prime(t);
-    fbp.invq = make_invp32(fbp.p, t, u);
-    for (int i_root = 0; i_root + 1 < Nr_roots + 1; i_root++) {
-        fbp.roots[i_root] = make_random_fb_root(fbp.p, t);
+    fbprime_t p = make_random_fb_prime(t);
+    redc_invp_t invq = make_invp32(p, t, u);
+    fbroot_t rr[Nr_roots];
+    for (int i_root = 0; i_root < Nr_roots; i_root++) {
+        rr[i_root] = make_random_fb_root(p, t);
     }
+    return fb_entry_x_roots<Nr_roots>(p, invq, rr);
 }
 
 template<int Nr_roots>
@@ -233,11 +236,12 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
      * then this test code can be adapted accordingly.
     */
 
-    fb_entry_x_roots<Nr_roots> *fbv = new fb_entry_x_roots<Nr_roots>[N];
+    std::vector<fb_entry_x_roots<Nr_roots>> fbv;
+    fbv.reserve(N);
 
     /* Make N random factor base entries */
     for (unsigned long i = 0; i < N; i++)
-        make_random_fb_entry_x_roots<Nr_roots>(fbv[i], t, u);
+        fbv.emplace_back(make_random_fb_entry_x_roots<Nr_roots>(t, u));
 
     if (do_speed) {
         double st = seconds ();
@@ -315,15 +319,18 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
             }
         }
     }
-    delete[] fbv;
 
     /* Repeat the test with factor base entries that have one fewer root each */
     test_chain_fb_root_in_qlattice_batch<Nr_roots - 1>(basis_begin, basis_end, N, t, u, do_speed, do_test, bits);
 }
 
-/* Specialize the test for length -1 to terminate the recursion. */
+/* Specialize the test for length 0 to terminate the recursion.
+ *
+ * (we used to specialize for length -1, but length 0 actually doesn't do
+ * anything either)
+ */
 template<> void
-test_chain_fb_root_in_qlattice_batch<-1>(basis_citer_t basis_begin MAYBE_UNUSED,
+test_chain_fb_root_in_qlattice_batch<0>(basis_citer_t basis_begin MAYBE_UNUSED,
                                          basis_citer_t basis_end MAYBE_UNUSED,
                                          const unsigned long N MAYBE_UNUSED,
                                          mpz_t t MAYBE_UNUSED, 
@@ -616,6 +623,7 @@ bug20200225 (void)
    Giving the "-check" parameter does only correctness tests but not timing.
    Giving only "-time" does only timing. Giving neither or both does both. */
 
+// coverity[root_function]
 int
 main (int argc, const char *argv[])
 {

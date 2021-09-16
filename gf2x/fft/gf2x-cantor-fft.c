@@ -1655,6 +1655,7 @@ int gf2x_cantor_fft_addcompose_n(gf2x_cantor_fft_info_srcptr p, gf2x_cantor_fft_
             Kelt_ur_set_zero(s);
             for(size_t r = 0 ; r < SIMULTANEOUS ; r++) {
                 Kelt_ur e;
+                // coverity[index_bounded_by_const]
                 Kmul_ur(e, x1[r][j], x2[r][j]);
                 Kelt_ur_add(s, s, e);
             }

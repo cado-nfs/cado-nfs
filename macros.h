@@ -58,8 +58,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
         fprintf(stderr,"%s in %s at %s:%d -- %s\n",			\
                 (x),__func__,__FILE__,__LINE__,(y));			\
     } while (0)
-#define croak_throw__(x) do {						\
-        throw std::runtime_error("code BUG() : condition " x            \
+#define croak_throw__(e, x) do {					\
+        throw e("code BUG() : condition " x            \
                 " failed at " __FILE__ ":" CPP_STRINGIFY(__LINE__));    \
     } while (0)
 
@@ -75,31 +75,51 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
     } while (0)
 #ifdef __cplusplus
 #include <stdexcept>
-#define ASSERT_ALWAYS(x)						\
+#define ASSERT_ALWAYS_OR_THROW(x, e)                                   \
     do {								\
         if (!(x)) 							\
-            croak_throw__(#x);                                          \
+            croak_throw__(e, #x);                                       \
     } while (0)
+#define ASSERT_ALWAYS(x) ASSERT_ALWAYS_OR_THROW(x, std::runtime_error)
 #else
 #define ASSERT_ALWAYS(x) ASSERT_ALWAYS_NOTHROW(x)
 #endif
 
 /* never throw exceptions in that case, just exit */
-#define FATAL_ERROR_CHECK(cond, msg)					\
+#define FATAL_ERROR_CHECK(cond, msg)		        		\
     do {								\
       if (UNLIKELY((cond))) {                                           \
-            croak__("Fatal error", msg);				\
+          croak__("Fatal error: ", msg);        			\
           abort();                                                      \
         }								\
     } while (0)
 
 /* Note that string.h must be #included in order to use this macro */
-#define DIE_ERRNO_DIAG(tst, func, arg) do {				\
+#define DIE_ERRNO_DIAG(tst, fmt, ...) do {				\
     if (UNLIKELY(tst)) {				        	\
-        fprintf(stderr, func "(%s): %s\n", arg, strerror(errno));       \
+        fprintf(stderr, fmt ": %s\n", __VA_ARGS__, strerror(errno));    \
         exit(1);					        	\
     }							        	\
 } while (0)
+
+/* Note that string.h must be #included in order to use this macro */
+#define WARN_ERRNO_DIAG(tst, fmt, ...) do {				\
+    if (UNLIKELY(tst)) {				        	\
+        fprintf(stderr, fmt ": %s\n", __VA_ARGS__, strerror(errno));    \
+    }							        	\
+} while (0)
+
+/* This macro is used to guard against some trivial false positives
+ * returned by static analyzer */
+#if defined(__COVERITY__)
+#define ASSERT_FOR_STATIC_ANALYZER(x) do {                             \
+    if (!(x)) {                                                        \
+        abort();                                                       \
+    }                                                                  \
+} while (0)
+#else
+#define ASSERT_FOR_STATIC_ANALYZER(x)
+#endif
 
 /*********************************************************************/
 /* Helper macros */
@@ -375,6 +395,11 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 #endif /* if defined(__GNUC__) */
 
+/* These warnings are a nuisance, really. Not only do we have now to
+ * add no_break() statements when we want switch cases fall through one
+ * another, but on top of that, coverity wants the corresponding lines to
+ * be preceded by a coverity[unterminated_case] comment...
+ */
 #if GNUC_VERSION_ATLEAST(7,0,0) && !defined(__ICC)
 #define no_break() __attribute__ ((fallthrough))
 #else

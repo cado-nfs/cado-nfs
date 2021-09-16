@@ -862,6 +862,7 @@ void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED
  * expose main()
  */
 #ifndef BL_TESTING
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     param_list pl;

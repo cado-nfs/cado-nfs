@@ -16,6 +16,7 @@ void usage()
 {
     fprintf(stderr, "Usage: ./cleanup -ncols <N> -out <file> <file.0> <file.1> ...\n");
 }
+// coverity[root_function]
 int main(int argc, char **argv)
 {
     param_list pl;
@@ -95,6 +96,7 @@ int main(int argc, char **argv)
         blockmatrix::mul_smallb(k, S);
 
         blockmatrix::copy_transpose_to_flat(zone, limbs_per_col, k);
+        // coverity[swapped_arguments]
         int rank = spanned_basis(
                 (mp_limb_t *) kzone,
                 (mp_limb_t *) zone,

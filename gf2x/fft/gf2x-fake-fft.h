@@ -369,7 +369,7 @@ extern int gf2x_fake_fft_addcompose(
 
 
 struct gf2x_fake_fft_info {
-    size_t n1,n2,n3;
+    size_t n1,n2;
     size_t size;
     size_t mp_shift;
 
@@ -511,7 +511,7 @@ static inline void gf2x_fake_fft_info_clear(
 static inline void gf2x_fake_fft_info_init_empty(
         gf2x_fake_fft_info_ptr p)
 {
-    p->n1 = p->n2 = p->n3 = p->size = 0;
+    p->n1 = p->n2 = p->size = 0;
 }
 static inline int gf2x_fake_fft_info_copy(
         gf2x_fake_fft_info_ptr o,

@@ -162,13 +162,12 @@ uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr 
             modul_init(rb, mp);
             modul_init(rr, mp);
             if (a < 0) {
-                ASSERT((uint64_t)(-a) <= ULONG_MAX);
                 modul_set_ul(ra, (unsigned long)(-a), mp);
                 modul_neg(ra, ra, mp);
             } else {
-                ASSERT((uint64_t)a <= ULONG_MAX);
                 modul_set_ul(ra, a, mp);
             }
+            // coverity[result_independent_of_operands]
             ASSERT(b <= ULONG_MAX);
             modul_set_ul(rb, (unsigned long)b, mp);
             modul_set_ul_reduced(rr, ch->r, mp);
@@ -261,6 +260,8 @@ static alg_prime_t * create_characters(int nchars[2],
      * option inserts some */
     /* we want some prime beyond the (rational) large prime bound */
 
+    cxx_gmp_randstate rstate;
+
     int i = nspecchar;
     for (int side = 0; side < 2; ++side) {
         if (nchars[side] == 0)
@@ -271,7 +272,7 @@ static alg_prime_t * create_characters(int nchars[2],
         do {
             mpz_nextprime(pp, pp);
             p = mpz_get_ui(pp);
-            ret = mpz_poly_roots_ulong (roots, pol->pols[side], p);
+            ret = mpz_poly_roots_ulong (roots, pol->pols[side], p, rstate);
             for (int k = 0; k < ret; ++k) {
                 if (i == nchars[0] + nchars[1])
                     break;
@@ -386,6 +387,7 @@ static blockmatrix small_character_matrix(blockmatrix & bcmat, const char * inde
 
     for(uint64_t i = 0 ; i < small_nrows ; i++) {
         int nc;
+        // coverity[tainted_argument]
         ret = fscanf(ix, "%d", &nc); ASSERT_ALWAYS(ret == 1);
         for(unsigned int cg = 0 ; cg < nchars2 ; cg+=64) {
             res[i][cg] = 0;
@@ -574,7 +576,7 @@ void blockmatrix_column_reduce(blockmatrix & m, unsigned int max_rows_to_conside
     blockmatrix::copy_transpose_to_flat(tiny, tiny_limbs_per_row, t);
 
     uint64_t * sdata = (uint64_t *) malloc(tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t));
-    memset(sdata, 0, tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t *));
+    memset(sdata, 0, tiny_nrows * tiny_limbs_per_col * sizeof(uint64_t));
     unsigned int sdata_64bit_words = tiny_nrows * tiny_limbs_per_col;
 
     blockmatrix::swap_words_if_needed (tiny, tiny_nlimbs);
@@ -615,6 +617,7 @@ declare_usage (param_list pl)
   param_list_decl_usage(pl, "force-posix-threads", "force the use of posix threads, do not rely on platform memory semantics");
 }
 
+// coverity[root_function]
 int main(int argc, char **argv)
 {
     const char * heavyblockname = NULL;

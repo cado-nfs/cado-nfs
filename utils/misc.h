@@ -26,6 +26,7 @@ extern "C" {
 double nprimes_interval(double p0, double p1);
 
 uint64_t u64_random(gmp_randstate_t buf);
+int64_t i64_random(gmp_randstate_t buf);
 
 #define UMAX(A) (0xffffffffffffffffULL >>((8-sizeof(A))<<3))
 #define SMAX(A) (0x7fffffffffffffffLL  >>((8-sizeof(A))<<3))
@@ -245,6 +246,16 @@ const char *size_disp(size_t s, char buf[16]);
 }
 #endif
 
+static inline const char * ok_NOK(int t)
+{
+    return t ? "ok" : "NOK";
+}
+
+static inline const char * ok_NOKNOK(int t)
+{
+    return t ? "ok" : "NOK NOK NOK NOK";
+}
+
 #ifdef __cplusplus
 static inline std::string size_disp(size_t s) {
     char buf[16];
@@ -271,7 +282,32 @@ static inline T next_power_of_2(T x)
 }
 #endif
 
-#else
+#ifdef __cplusplus
+/* Use in any function that uses iomanip temporarily.
+ */
+#include <ios>
+
+class IoStreamFlagsRestorer
+{
+public:
+    IoStreamFlagsRestorer(std::ios_base & ioStream)
+        : ioStream_(ioStream)
+        , flags_(ioStream_.flags())
+    {
+    }
+
+    ~IoStreamFlagsRestorer()
+    {
+        ioStream_.flags(flags_);
+    }
+
+private:
+    std::ios_base & ioStream_;
+    std::ios_base::fmtflags const flags_;
+};
+#endif
+
+
 #if 0
 #ifdef __cplusplus
 // declare c++ containers as vector<T,pagealigned_allocator<T>>

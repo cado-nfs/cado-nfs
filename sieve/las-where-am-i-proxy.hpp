@@ -27,7 +27,9 @@ struct where_am_I {
     where_am_I & operator=(where_am_I const &);
     ~where_am_I();
 #else
+    // coverity[uninit_member]
     where_am_I() {}
+    // coverity[uninit_member]
     where_am_I(where_am_I const &) {}
     where_am_I & operator=(where_am_I const &) { return *this; }
     ~where_am_I() {}

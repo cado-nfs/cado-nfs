@@ -184,12 +184,14 @@ ropt_parse_param ( int argc,
         else if (argc >= 3 && strcmp (argv[1], "-bmax") == 0)
         {
           param->s2_Amax = atol (argv[2]);
+          ASSERT_ALWAYS(param->s2_Amax > 0);
           argv += 2;
           argc -= 2;
         }
         else if (argc >= 3 && strcmp (argv[1], "-cmax") == 0)
         {
           param->s2_Bmax = atol (argv[2]);
+          ASSERT_ALWAYS(param->s2_Bmax > 0);
           argv += 2;
           argc -= 2;
         }
@@ -512,6 +514,7 @@ main_adv (int argc, char **argv)
 
     FILE *file = NULL;
     char *filename = NULL;
+    // coverity[parm_assign]
     filename = argv[2];
     argv += 2;
     argc -= 2;
@@ -774,10 +777,18 @@ main_basic (int argc, char **argv)
 #pragma omp parallel
 #pragma omp master
   printf ("# Info: Using OpenMP with %u thread(s)\n", omp_get_num_threads ());
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel
 #endif
-  for (unsigned int i = 0; i < nb_input_polys; i++)
-    ropt_wrapper (input_polys[i], i, tott);
+  {
+      gmp_randstate_t rstate;
+      gmp_randinit_default(rstate);
+#ifdef HAVE_OPENMP
+#pragma omp for schedule(dynamic)
+#endif
+      for (unsigned int i = 0; i < nb_input_polys; i++)
+          ropt_wrapper (input_polys[i], i, tott);
+      gmp_randclear(rstate);
+  }
 
   /* print total time and rootsieve time.
      These two lines gets parsed by the script. */

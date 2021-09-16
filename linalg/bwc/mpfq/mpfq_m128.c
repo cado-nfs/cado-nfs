@@ -1,4 +1,4 @@
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"
 /* MPFQ generated file -- do not edit */
 
 #include "mpfq_m128.h"
@@ -9,6 +9,7 @@
 /* Automatically generated code  */
 /* Active handler: Mpfq::defaults */
 /* Active handler: Mpfq::defaults::vec */
+/* Active handler: simd_char2 */
 /* Active handler: simd_dotprod */
 /* Active handler: io */
 /* Active handler: trivialities */
@@ -136,7 +137,7 @@
 
 
 /* Functions operating on the field structure */
-/* *simd_m128::code_for_field_characteristic_srcptr */
+/* *simd_char2::code_for_field_characteristic_srcptr */
 mpz_srcptr mpfq_m128_field_characteristic_srcptr(mpfq_m128_src_field K MAYBE_UNUSED)
 {
         /* yes, this is ugly */
@@ -181,7 +182,7 @@ int mpfq_m128_asprint(mpfq_m128_dst_field K MAYBE_UNUSED, char * * ps, mpfq_m128
         memset(*ps, ' ', stride * 16);
         int n;
         for(unsigned int i = 0 ; i < stride ; i++) {
-            n = snprintf((*ps) + i * 16, 17, "%" PRIx64, y[i]);
+            n = snprintf((*ps) + i * 16, 17, "%016" PRIx64, y[i]);
             (*ps)[i*16 + n]=',';
         }
         (*ps)[(stride-1) * 16 + n]='\0';

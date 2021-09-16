@@ -52,6 +52,7 @@ int main(int argc, char **argv) {
 
   argc--,argv++;
   for( ; argc ; argc--,argv++) {
+      // coverity[tainted_data_transitive]
       int u = atoi(*argv);
       if (u) {
           if (nrows == 0) {

@@ -27,6 +27,7 @@
 #include <limits.h>
 #include <gmp.h>
 #include "macros.h"
+#include "gcd.h"
 
 #define NR_EXPONENTS 8
 #define EXP_PRIMES {2,3,5,7,11,13,17,19}
@@ -40,24 +41,6 @@ isprime (const unsigned long N, mpz_t t)
   return mpz_probab_prime_p (t, 1);
 }
 
-
-static unsigned long
-gcd (unsigned long a, unsigned long b)
-{
-  unsigned long t;
-
-  if (a >= b)
-    a %= b;
-
-  while (a > 0)
-    {
-      t = b % a;
-      b = a;
-      a = t;
-    }
-
-  return b;
-}
 
 static unsigned int
 valuation (const unsigned long n, const unsigned long p)
@@ -119,12 +102,24 @@ main (int argc, char **argv)
       else if (argc > 2 && argv[1][1] == 'd')
         {
           d = strtoul (argv[2], NULL, 10);
+          if (d == 0) {
+              fprintf (stderr, "d == 0 does not make sense\n");
+              exit (EXIT_FAILURE);
+          }
           argc -= 2;
           argv += 2;
         }
       else if (argc > 2 && argv[1][1] == 'm')
         {
           m = strtoul (argv[2], NULL, 10);
+          if (m == 0) {
+              fprintf (stderr, "m == 0 does not make sense\n");
+              exit (EXIT_FAILURE);
+          }
+#ifdef __COVERITY__
+          /* any non-zero value will do */
+          __coverity_mark_pointee_as_sanitized__(&m, GENERIC); // allocation, divisor, loop bound
+#endif
           argc -= 2;
           argv += 2;
         }
@@ -166,7 +161,7 @@ main (int argc, char **argv)
 
   d_coprime = malloc (d * sizeof(char));
   for (i = 1; i < d; i++)
-    d_coprime[i] = (gcd(i,d) == 1) ? 1 : 0;
+    d_coprime[i] = (gcd_ul(i,d) == 1) ? 1 : 0;
   if (d > 1)
     {
       imin = (B1 + d / 2) / d;
@@ -229,7 +224,7 @@ main (int argc, char **argv)
           stats[r].input++;
 
           c = N / mpz_gcd_ui (NULL, E, N);
-          c_gcdiv_d = c / gcd (c, d);
+          c_gcdiv_d = c / gcd_ul (c, d);
           ispr = (B1 < c && c <= maxB2 && isprime(c, m_c));
 
           for (i = 0; i < nr_B2; i++)

@@ -508,7 +508,7 @@ renumber_t::traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const
             return true;
         }
 
-        auto roots = mpz_poly_roots(cpoly->pols[side], (unsigned long) p);
+        auto roots = mpz_poly_roots(cpoly->pols[side], (unsigned long) p, rstate);
         renumber_sort_ul (roots.begin(), roots.size()); /* sort in decreasing order */
         for (auto r : roots) {
             if (!is_bad ({ (p_r_values_t) p, (p_r_values_t) r, side})) {
@@ -1795,11 +1795,11 @@ struct renumber_t::builder{/*{{{*/
         stats_print_progress(stats, nprimes, 0, 0, 1);
     }
     index_t operator()();
-    void preprocess(prime_chunk & P);
+    void preprocess(prime_chunk & P, gmp_randstate_ptr rstate);
     void postprocess(prime_chunk & P);
 };/*}}}*/
 
-void renumber_t::builder::preprocess(prime_chunk & P)/*{{{*/
+void renumber_t::builder::preprocess(prime_chunk & P, gmp_randstate_ptr rstate)/*{{{*/
 {
     ASSERT_ALWAYS(!P.preprocess_done);
     /* change x (list of input primes) into the list of integers that go
@@ -1819,7 +1819,7 @@ void renumber_t::builder::preprocess(prime_chunk & P)/*{{{*/
                 roots.assign(1, 0);
             } else {
                 /* Note that roots are sorted */
-                roots = mpz_poly_roots(f, p);
+                roots = mpz_poly_roots(f, p, rstate);
             }
 
             /* Check for a projective root ; append it (so that the list of roots
@@ -1891,7 +1891,8 @@ index_t renumber_t::builder::operator()()/*{{{*/
 
     constexpr const unsigned int granularity = 1024;
 
-#pragma omp parallel default(none)
+    std::vector<cxx_gmp_randstate> rstate_per_thread(omp_get_max_threads());
+#pragma omp parallel default(none) shared(rstate_per_thread)
     {
 #pragma omp single
         {
@@ -1914,9 +1915,9 @@ index_t renumber_t::builder::operator()()/*{{{*/
                      * want. (I saw a _copy_ !)
                      */
                     prime_chunk * latest(&inflight.back());
-#pragma omp task firstprivate(latest) default(none)
+#pragma omp task firstprivate(latest) default(none) shared(rstate_per_thread)
                     {
-                        preprocess(*latest);
+                        preprocess(*latest, rstate_per_thread[omp_get_thread_num()]);
                     }
                 } else {
 #pragma omp taskwait

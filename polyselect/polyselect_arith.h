@@ -4,6 +4,7 @@
 #include <gmp.h>
 #include <stdint.h> // uint64_t
 #include "polyselect_str.h"
+#include "gmp_aux.h"
 
 /* declarations */
 
@@ -26,7 +27,7 @@ unsigned long number_comb (polyselect_qroots_srcptr SQ_R, unsigned long k, unsig
 
 unsigned long binom (unsigned long, unsigned long);
 
-void comp_sq_roots (polyselect_poly_header_srcptr, polyselect_qroots_ptr);
+void comp_sq_roots (polyselect_poly_header_srcptr, polyselect_qroots_ptr, gmp_randstate_ptr);
 
 void crt_sq (mpz_ptr, mpz_ptr, unsigned long *, unsigned long *, unsigned long);
 

@@ -688,9 +688,9 @@ void ab_source_init(ab_source_ptr ab, const char * fname, int rank, int root, MP
         if (rank == root) {
             FILE * f = fopen(fname, "r");
             char * xx = fgets(line, sizeof(line), f);
-            DIE_ERRNO_DIAG(xx == NULL, "fgets", fname);
+            DIE_ERRNO_DIAG(xx == NULL, "fgets(%s)", fname);
             rc = sscanf(line, "AB %zu %zu", &ab->nab, &dummy);
-            DIE_ERRNO_DIAG(rc != 2, "parse", fname);
+            DIE_ERRNO_DIAG(rc != 2, "parse(%s)", fname);
             hdrbytes = ftell(f);
             fclose(f);
         }
@@ -782,7 +782,7 @@ int ab_openfile_internal(ab_source_ptr ab)
     }
     ab->cpos = ftell(ab->f);
     ab->tpos += ab->cpos;
-    DIE_ERRNO_DIAG(ab->f == NULL, "fopen", s);
+    DIE_ERRNO_DIAG(ab->f == NULL, "fopen(%s)", s);
     return 1;
 }
 
@@ -865,7 +865,7 @@ void ab_source_move_afterpos(ab_source_ptr ab, size_t offset)
     }
     char line[ABFILE_MAX_LINE_LENGTH];
     char * xx = fgets(line, sizeof(line), ab->f);
-    DIE_ERRNO_DIAG(xx == NULL, "fgets", ab->nfiles ? ab->sname : ab->fname0);
+    DIE_ERRNO_DIAG(xx == NULL, "fgets(%s)", ab->nfiles ? ab->sname : ab->fname0);
     size_t cpos = ftell(ab->f);
     ab->tpos += cpos - ab->cpos;
     ab->cpos = cpos;
@@ -1470,12 +1470,15 @@ struct prime_data * suitable_crt_primes()
         fprintf(stderr, "# [%2.2lf] Searching for CRT primes\n", WCT);
     // fprintf(stderr, "# [%2.2lf] p0=%lu\n", WCT, p0);
 
+    gmp_randstate_t rstate;
+    gmp_randinit_default(rstate);
+
     for( ; i < m ; ) {
         p = ulong_nextprime(p);
         modulusul_t q;
         modul_initmod_ul(q, p);
         memset(roots, 0, glob.n * sizeof(unsigned long));
-        int nr = modul_poly_roots_ulong(roots, glob.pol->pols[1], q);
+        int nr = modul_poly_roots_ulong(roots, glob.pol->pols[1], q, rstate);
         if (nr != glob.n) continue;
         memset(&(res[i]), 0, sizeof(struct prime_data));
         res[i].r = malloc(glob.n * sizeof(unsigned long));
@@ -1503,6 +1506,8 @@ struct prime_data * suitable_crt_primes()
         // fprintf(stderr, "\n");
         i++;
     }
+    gmp_randclear(rstate);
+
     if (glob.rank == 0)
         fprintf(stderr, "# [%2.2lf] Found all CRT primes\n", WCT);
     free(roots);

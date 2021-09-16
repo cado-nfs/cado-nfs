@@ -9,6 +9,7 @@
 #include "gmp_aux.h"
 #include "test_iter.h"
 #include "tests_common.h"
+#include "misc.h"
 
 static void
 cmp_mpz_gcd_i64(const int64_t a, const int64_t b, const uint64_t g)
@@ -69,8 +70,8 @@ test_gcd_int64 (const unsigned long iter)
   
   for (i = 0; i < iter; i++)
     {
-      a = (i == 0 || i == 1) ? 0 : random_int64 ();
-      b = (i == 0 || i == 2) ? 0 : random_int64 ();
+      a = (i == 0 || i == 1) ? 0 : u64_random (state);
+      b = (i == 0 || i == 2) ? 0 : u64_random (state);
       g = gcd_int64 (a, b);
       cmp_mpz_gcd_i64(a, b, g);
     }
@@ -84,8 +85,8 @@ test_gcd_uint64 (const unsigned long iter)
   
   for (i = 0; i < iter; i++)
     {
-      a = (i == 0 || i == 1) ? 0 : random_uint64 ();
-      b = (i == 0 || i == 2) ? 0 : random_uint64 ();
+      a = (i == 0 || i == 1) ? 0 : u64_random (state);
+      b = (i == 0 || i == 2) ? 0 : u64_random (state);
       g = gcd_uint64 (a, b);
       cmp_mpz_gcd_ui64(a, b, g);
     }
@@ -100,8 +101,8 @@ test_gcd_ul (const unsigned long iter)
   ASSERT_ALWAYS (sizeof(unsigned long) <= sizeof(uint64_t));
   for (i = 0; i < iter; i++)
     {
-      a = (unsigned long) (i == 0 || i == 1) ? 0 : random_uint64 ();
-      b = (unsigned long) (i == 0 || i == 2) ? 0 : random_uint64 ();
+      a = (unsigned long) (i == 0 || i == 1) ? 0 : u64_random (state);
+      b = (unsigned long) (i == 0 || i == 2) ? 0 : u64_random (state);
       g = gcd_ul (a, b);
       ASSERT_ALWAYS(sizeof(unsigned long) <= sizeof(uint64_t));
       cmp_mpz_gcd_ui64(a, b, g);
@@ -135,8 +136,8 @@ test_bin_gcd_int64_safe (const unsigned long iter)
 
   for (i = 0; i < iter; i++)
     {
-      int64_t a = (i == 0 || i == 1) ? 0 : random_int64 ();
-      int64_t b = (i == 0 || i == 2) ? 0 : random_int64 ();
+      int64_t a = (i == 0 || i == 1) ? 0 : u64_random (state);
+      int64_t b = (i == 0 || i == 2) ? 0 : u64_random (state);
       test_bin_gcd_int64_safe_ab(a,b);
     }
 }

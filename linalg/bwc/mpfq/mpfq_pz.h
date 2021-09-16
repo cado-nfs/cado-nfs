@@ -492,6 +492,7 @@ void mpfq_pz_set(mpfq_pz_dst_field k, mpfq_pz_dst_elt z, mpfq_pz_src_elt x)
 static inline
 void mpfq_pz_set_ui(mpfq_pz_dst_field k, mpfq_pz_dst_elt z, unsigned long x0)
 {
+        ASSERT_FOR_STATIC_ANALYZER(mpz_size(k->p) > 1 || mpz_getlimbn(k->p, 0) > 0);
         z[0] = mpz_size(k->p) == 1 ? x0 % mpz_getlimbn(k->p, 0) : x0;
         mpfq_zero(z + 1, (mpz_size(k->p) - 1));
 }
@@ -644,14 +645,14 @@ mpfq_pz_src_vec mpfq_pz_vec_subvec_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_
 static inline
 mpfq_pz_dst_elt mpfq_pz_vec_coeff_ptr(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec v, long i)
 {
-    return v + i*mpz_size(K->p);
+    return v + i * mpz_size(K->p);
 }
 
 /* *pz::code_for_vec_coeff_ptr_const */
 static inline
 mpfq_pz_src_elt mpfq_pz_vec_coeff_ptr_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_vec v, long i)
 {
-    return v + i*mpz_size(K->p);
+    return v + i * mpz_size(K->p);
 }
 
 /* *Mpfq::defaults::vec::mul::code_for_vec_scal_mul_ur, pz */
@@ -684,14 +685,14 @@ mpfq_pz_src_vec_ur mpfq_pz_vec_ur_subvec_const(mpfq_pz_dst_field K MAYBE_UNUSED,
 static inline
 mpfq_pz_dst_elt mpfq_pz_vec_ur_coeff_ptr(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_vec_ur v, long i)
 {
-    return v + i*mpz_size(K->bigmul_p);
+    return v + i * mpz_size(K->bigmul_p);
 }
 
 /* *pz::code_for_vec_ur_coeff_ptr_const */
 static inline
 mpfq_pz_src_elt mpfq_pz_vec_ur_coeff_ptr_const(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_src_vec_ur v, long i)
 {
-    return v + i*mpz_size(K->bigmul_p);
+    return v + i * mpz_size(K->bigmul_p);
 }
 
 /* *Mpfq::defaults::poly::code_for_poly_init, pz */
@@ -1037,6 +1038,7 @@ void mpfq_pz_poly_xgcd(mpfq_pz_dst_field k MAYBE_UNUSED, mpfq_pz_dst_poly g, mpf
       mpfq_pz_poly_set(k,x,r);
      }
      dega=mpfq_pz_poly_deg(k,a);
+     ASSERT_FOR_STATIC_ANALYZER(dega >= 0);
      mpfq_pz_poly_getcoeff(k,c,a,dega);
      mpfq_pz_inv(k,c,c);
      mpfq_pz_poly_scal_mul(k,g,a,c);

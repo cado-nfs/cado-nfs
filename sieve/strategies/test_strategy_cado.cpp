@@ -26,6 +26,7 @@
 #include "modredc_ul.h" // MODREDCUL_MAXBITS
 #include "stage2.h" // stage2_plan_t
 #include "strategy.h"                     // for strategy_t, strategy_add_fm
+#include "misc.h"   // u64_random  // IWYU: keep
 
 int CONST_TEST_R = 55;
 
@@ -38,9 +39,14 @@ int CONST_TEST_R = 55;
   real value, we could detect if a problem exists in our procedure.
 */
 
+/* There's some dead code in here, which is never called. If we ever come
+ * back to this strategy business, there might be something to look at in
+ * here, but the odds are low.
+ */
+#define COMPILE_DEAD_CODE
 
-
-tabular_fm_t *generate_methods_cado(const int lpb)
+#ifdef COMPILE_DEAD_CODE
+static MAYBE_UNUSED tabular_fm_t *generate_methods_cado(const int lpb)
 {
     /* we set mfb = 3*lpb to avoid the special case of 2 large primes */
     int n = nb_curves (lpb, 3 * lpb);
@@ -103,6 +109,7 @@ tabular_fm_t *generate_methods_cado(const int lpb)
     fm_free(fm);
     return res;
 }
+#endif  /* COMPILE_DEAD_CODE */
 
 /*
 This function generates the strategy of cado and computes the
@@ -110,7 +117,7 @@ This function generates the strategy of cado and computes the
   'r' bits with the bound fbb and lpb.  This strategy is the
   concatenation of all methods in 'methods'.
 */
-tabular_strategy_t *generate_strategy_cado(tabular_fm_t * methods,
+static tabular_strategy_t *generate_strategy_cado(tabular_fm_t * methods,
 					   tabular_decomp_t * tab_dec, int fbb,
 					   int lpb, int r)
 {
@@ -118,6 +125,9 @@ tabular_strategy_t *generate_strategy_cado(tabular_fm_t * methods,
     strategy_t *strat = strategy_create();
 
     int lim = 2 * fbb - 1;
+
+    ASSERT_ALWAYS((tab_dec == NULL) == (r < lim));
+
     if (r < lim) {
 	fm_t *zero = fm_create();
 	unsigned long method[4] = { PM1_METHOD, 0, 0, 0 };
@@ -163,7 +173,7 @@ tabular_strategy_t *generate_strategy_cado(tabular_fm_t * methods,
   generate the matrix with the strategy of CADO.
 */
 
-tabular_strategy_t ***generate_matrix_cado(const char *name_directory_decomp,
+static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_decomp,
 					   tabular_fm_t * methods,
 					   unsigned long lim0, int lpb0, int mfb0,
 					   unsigned long lim1, int lpb1, int mfb1)
@@ -266,7 +276,7 @@ tabular_strategy_t ***generate_matrix_cado(const char *name_directory_decomp,
 /************************************************************************/
 /*                  To interleave our strategies                        */
 /************************************************************************/
-MAYBE_UNUSED int is_good_decomp(decomp_t * dec, int len_p_min, int len_p_max)
+static MAYBE_UNUSED int is_good_decomp(decomp_t * dec, int len_p_min, int len_p_max)
 {
     int len = dec->len;
     for (int i = 0; i < len; i++)
@@ -276,7 +286,7 @@ MAYBE_UNUSED int is_good_decomp(decomp_t * dec, int len_p_min, int len_p_max)
 }
 
 //problem if tab_edc == NULL;
-double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy_t * strat,
+static double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy_t * strat,
 				   int* fbb, int* lpb, int* r)
 {
     int nb_fm = tabular_fm_get_index(strat->tab_fm);
@@ -407,7 +417,7 @@ double compute_time_strategy_ileav(tabular_decomp_t ** init_tab, strategy_t * st
 }
 
 
-strategy_t*
+static strategy_t*
 gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
 			      strategy_t * strat_r1, int index_r1,
 			      tabular_decomp_t ** init_tab,
@@ -541,7 +551,7 @@ gen_strat_r0_r1_ileav_st_rec (strategy_t * strat_r0, int index_r0,
     }
 }
 			      
-MAYBE_UNUSED strategy_t*
+static MAYBE_UNUSED strategy_t*
 gen_strat_r0_r1_ileav_st(strategy_t * strat_r0,
 			 strategy_t * strat_r1,
 			 tabular_decomp_t ** init_tab,
@@ -583,7 +593,7 @@ gen_strat_r0_r1_ileav_st(strategy_t * strat_r0,
   return st;
 }
 
-tabular_strategy_t *gen_strat_r0_r1_ileav(tabular_strategy_t * strat_r0,
+static tabular_strategy_t *gen_strat_r0_r1_ileav(tabular_strategy_t * strat_r0,
 					  tabular_strategy_t * strat_r1,
 					  tabular_decomp_t ** init_tab,
 					  int* fbb, int* lpb, int* r)
@@ -630,15 +640,15 @@ tabular_strategy_t *gen_strat_r0_r1_ileav(tabular_strategy_t * strat_r0,
   return res;
 }
 
+#ifdef COMPILE_DEAD_CODE
 /*
   Test an interleaving with cado!!
  */
-tabular_strategy_t ***generate_matrix_cado_ileav(const char *name_directory_decomp,
-						 tabular_fm_t * methods,
-						 unsigned long lim0, int lpb0,
-						 int mfb0,
-						 unsigned long lim1, int lpb1,
-						 int mfb1)
+static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
+        const char *name_directory_decomp,
+        tabular_fm_t * methods,
+        unsigned long lim0, int lpb0, int mfb0,
+        unsigned long lim1, int lpb1, int mfb1)
 {
     /*
        allocates the matrix which contains all optimal strategies for
@@ -759,8 +769,9 @@ tabular_strategy_t ***generate_matrix_cado_ileav(const char *name_directory_deco
     fm_free(zero);
     return matrix;
 }
+#endif  /* COMPILE_DEAD_CODE */
 
-tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_decomp,
+static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_decomp,
 					    const char *name_directory_str,
 					    unsigned long lim0, int lpb0,
 					    int mfb0,
@@ -901,12 +912,12 @@ tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_decomp,
 /*                  To bench our strategies                             */
 /************************************************************************/
 
-
-int
-select_random_index_dec(double sum_nb_elem, tabular_decomp_t* t)
+#ifdef COMPILE_DEAD_CODE
+static int
+select_random_index_dec(double sum_nb_elem, tabular_decomp_t* t, gmp_randstate_ptr state)
 {
     //100000 to consider approximation of distribution
-    double alea = rand() % 10000;
+    double alea = gmp_urandomm_ui(state, 10000);
     int i = 0;
     double bound = (t->tab[0]->nb_elem/sum_nb_elem) * 10000;
     int len = t->index;
@@ -916,6 +927,7 @@ select_random_index_dec(double sum_nb_elem, tabular_decomp_t* t)
     }
     return i;
 }
+#endif  /* COMPILE_DEAD_CODE */
 
 
 /*
@@ -924,7 +936,8 @@ select_random_index_dec(double sum_nb_elem, tabular_decomp_t* t)
 
 TODO: a function of the same name, yet behaving somewhat differently, exists in tests/sieve/strategies/test_generate_strategies.cpp
  */
-weighted_success
+#ifdef COMPILE_DEAD_CODE
+static MAYBE_UNUSED weighted_success
 bench_proba_time_st(gmp_randstate_t state, facul_strategy_t* strategy,
 		    tabular_decomp_t* init_tab, int r, MAYBE_UNUSED int lpb)
 {
@@ -945,7 +958,7 @@ bench_proba_time_st(gmp_randstate_t state, facul_strategy_t* strategy,
 	       found.  Note that N is composed by two prime factors by the
 	       previous function.
 	    */
-            int index = select_random_index_dec(sum_dec, init_tab);
+            int index = select_random_index_dec(sum_dec, init_tab, state);
             int len_p = init_tab->tab[index]->tab[0];
 
             cxx_mpz N = generate_composite_integer(state, len_p, r);
@@ -960,9 +973,11 @@ bench_proba_time_st(gmp_randstate_t state, facul_strategy_t* strategy,
     
     return weighted_success(nb_success, time, nb_test);
 }
+#endif  /* COMPILE_DEAD_CODE */
 
+#ifdef COMPILE_DEAD_CODE
 //convert type: from strategy_t to facul_strategy_t.
-facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t, unsigned long lim,
+static facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t, unsigned long lim,
 						      int lpb, int side)
 {
     tabular_fm_t* tab_fm = strategy_get_tab_fm (t);
@@ -1016,6 +1031,9 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t, unsigned lo
 
     return strategy;
 }
+#endif  /* COMPILE_DEAD_CODE */
+
+#ifdef COMPILE_DEAD_CODE
 /*
  * If the plan is already precomputed and stored at the index i, return
  * i. Otherwise return the last index of tab to compute and add this new
@@ -1065,10 +1083,13 @@ get_index_method (facul_method_t* tab, unsigned int B1, unsigned int B2,
   }
   return i;
 }
+#endif  /* COMPILE_DEAD_CODE */
 
-facul_strategies_t* convert_strategy_to_facul_strategies (strategy_t* t, int* r,
+#ifdef COMPILE_DEAD_CODE
+static facul_strategies_t* convert_strategy_to_facul_strategies (strategy_t* t, int* r,
 							  unsigned long*fbb,
-							  int*lpb, int*mfb)
+							  int*lpb, int*mfb,
+                                                          gmp_randstate_ptr rstate)
 {
   int verbose = 0;
     facul_strategies_t* strategies = (facul_strategies_t*) malloc (sizeof(facul_strategies_t));
@@ -1117,7 +1138,12 @@ facul_strategies_t* convert_strategy_to_facul_strategies (strategy_t* t, int* r,
 	unsigned long B1 = fm->method[2];
 	unsigned long B2 = fm->method[3];
 	int side = (t->side != NULL)?t->side[i]:0;
-	unsigned long parameter = (curve == MONTY16)?1:rand()+2;
+	unsigned long parameter;
+        if (curve == MONTY16) {
+            parameter = 1;
+        } else {
+            for( ; (parameter = u64_random(rstate)) < 2 ; );
+        }
 	//check if the method is already computed!
 	int index_prec_fm = 
 	  get_index_method(strategies->precomputed_methods, B1, B2,
@@ -1186,8 +1212,10 @@ facul_strategies_t* convert_strategy_to_facul_strategies (strategy_t* t, int* r,
 
     return strategies;
 }
+#endif  /* COMPILE_DEAD_CODE */
 
-weighted_success
+#ifdef COMPILE_DEAD_CODE
+static MAYBE_UNUSED weighted_success
 bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
 			 tabular_decomp_t** init_tab,
 			 int* r, int* fbb, int* lpb, int* mfb)
@@ -1221,7 +1249,7 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
         {
             cxx_mpz N[2];
             for(int side = 0 ; side < 2 ; side++) {
-                int index = select_random_index_dec(sum_dec[side], init_tab[side]);
+                int index = select_random_index_dec(sum_dec[side], init_tab[side], state);
                 int len_p = init_tab[side]->tab[index]->tab[1];
                 N[side] = generate_composite_integer(state, len_p, r[side]);
             }
@@ -1249,7 +1277,7 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
 
 #if 1
     printf ("interl\n");
-    facul_strategies_t* facul_st = convert_strategy_to_facul_strategies (t,r,lim,lpb, mfb);
+    facul_strategies_t* facul_st = convert_strategy_to_facul_strategies (t,r,lim,lpb, mfb, state);
 
     nb_success = 0;
     nb_test = 0;
@@ -1261,7 +1289,7 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
         {
             std::array<cxx_mpz, 2> N;
             for(int side = 0 ; side < 2 ; side++) {
-                int index = select_random_index_dec(sum_dec[side], init_tab[side]);
+                int index = select_random_index_dec(sum_dec[side], init_tab[side], state);
                 int len_p = init_tab[side]->tab[index]->tab[1];
                 N[side] = generate_composite_integer(state_copy, len_p, r[side]);
             }
@@ -1287,12 +1315,14 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
     }
     weighted_success res2(nb_success, time, nb_test);
     printf ("interL: proba = %lf, time = %lf\n", res2.prob, res2.time);
+    facul_clear_strategies(facul_st);
 #endif
 
     gmp_randclear(state_copy);
 
     return res;
 }
+#endif  /* COMPILE_DEAD_CODE */
 
 
 /************************************************************************/
@@ -1336,6 +1366,7 @@ static void declare_usage(param_list pl)
 /*     MAIN                                                             */
 /************************************************************************/
 
+// coverity[root_function]
 int main(int argc, char *argv[])
 {
     param_list pl;
@@ -1390,7 +1421,7 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
 
-    //{{just to optain our matrix
+    //{{just to obtain our matrix
     /* tabular_fm_t* methods = generate_methods_cado(lpb0); */
     /* tabular_strategy_t* tab = tabular_strategy_create (); */
     /* strategy_t* st = strategy_create (); */
