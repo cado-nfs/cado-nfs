@@ -138,7 +138,7 @@ bounded_pow(const unsigned long b, const unsigned long e, const unsigned long li
   if (e == 0) {
     return 1;
   }
-  if (b > lim) {
+  if (b == 0 || b > lim) {
     return b;
   }
   unsigned long r = b;
