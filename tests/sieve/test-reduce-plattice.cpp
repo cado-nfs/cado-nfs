@@ -27,7 +27,7 @@
  * covers many more cases.
  *
  * This file contains several different implementations of
- * reduce_plattice, including experimntal SIMD code. The fastest code is
+ * reduce_plattice, including experimental SIMD code. The fastest code is
  * the AVX-512 variant, but AVX-2 isn't bad. Note that the performance
  * depends a lot on the prime size, because that controls the loop
  * length. Both seem to uniformly beat the single data implementations.
@@ -648,6 +648,7 @@ struct simd_helper<uint32_t, 8>
 #endif
 
 #ifdef HAVE_AVX512F
+
 template<>
 struct simd_helper<uint32_t, 16>
 {
@@ -717,10 +718,28 @@ struct simd_helper<uint32_t, 16>
         return mask_load(src, mm, explode_a);
 #endif
     }
+
+// intel documents both the _kXXX_mask16 and the _mm512_kXXX versions.
+// gcc has both via the following #defines, but clang (at least clang7)
+// seems to only have th eformer.
+//
+// #define _kand_mask16 _mm512_kand
+// #define _kandn_mask16 _mm512_kandn
+// #define _knot_mask16 _mm512_knot
+// #define _kor_mask16 _mm512_kor
+// #define _kxnor_mask16 _mm512_kxnor
+// #define _kxor_mask16 _mm512_kxor
+#if 0
     static inline mask knot(mask const a) { return _knot_mask16(a); }
     static inline mask kxor(mask const a, mask const b) { return _kxor_mask16(a, b); }
     static inline mask kand(mask const a, mask const b) { return _kand_mask16(a, b); }
     static inline mask kor(mask const a, mask const b) { return _kor_mask16(a, b); }
+#endif
+
+    static inline mask knot(mask const a) { return _mm512_knot(a); }
+    static inline mask kxor(mask const a, mask const b) { return _mm512_kxor(a, b); }
+    static inline mask kand(mask const a, mask const b) { return _mm512_kand(a, b); }
+    static inline mask kor(mask const a, mask const b) { return _mm512_kor(a, b); }
 };
 #endif
 
