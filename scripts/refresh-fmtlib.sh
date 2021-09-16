@@ -6,6 +6,6 @@ URL=$(curl -sL "$GH_CATALOG" | python3 -c "$PY_PARSER")
 tmp=$(mktemp -d /tmp/XXXXXXX)
 trap "rm -rf $tmp" EXIT
 curl -sL "$URL" | (cd $tmp ; tar xzf -)
-rm -rf utils/fmt/*
-cp $tmp/*/*.rst $tmp/*/include/fmt/* $tmp/*/src/* utils/fmt
-git add utils/fmt/*
+rm -rf utils/embedded/fmt/*
+cp $tmp/*/*.rst $tmp/*/include/fmt/* $tmp/*/src/* utils/embedded/fmt
+git add utils/embedded/fmt/*

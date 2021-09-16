@@ -21,8 +21,6 @@ set (sources
         gmpxx.cpp
         rho.c gpf.cpp
         sha1.c
-        fmt/format.cc
-        fmt/os.cc
         fd_streambuf.cpp
         cado_pipe_streambuf.cpp
         numbertheory.cpp
@@ -31,6 +29,13 @@ set (sources
         indexed_relation.cpp
         cado-sighandlers.cpp
 )
+
+if(NOT HAVE_FMT)
+    set(sources ${sources}
+        embedded/fmt/format.cc
+        embedded/fmt/os.cc
+        )
+endif()
 if (HAVE_GLIBC_VECTOR_INTERNALS)
     set(sources ${sources} mmap_allocator.cpp)
 endif()
@@ -72,6 +77,9 @@ set_target_properties(utils PROPERTIES COMPILE_FLAGS "${OpenMP_C_FLAGS}")
 target_link_libraries(utils pthread ${gmp_libname} m "${OpenMP_C_FLAGS}")
 if(HAVE_HWLOC)
 target_link_libraries(utils hwloc)
+endif()
+if(HAVE_FMT)
+target_link_libraries(utils fmt)
 endif()
 
 add_library (utils_with_io ${CADO_SHARED} ${sources_io})

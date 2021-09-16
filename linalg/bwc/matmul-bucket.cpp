@@ -3262,14 +3262,14 @@ static std::ostream& matmul_bucket_report_vsc(std::ostream& os, struct matmul_bu
         t = dtime[l].second / scale0;
         a = 1.0e9 * t / nc;
         *p_t_total += t;
-        fmt::fprintf(os, "defer\t%.2fs         ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
+        os << fmt::sprintf("defer\t%.2fs         ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
             " scaled*%.2f : %5.2f/c\n",
             t, nc, a, scale, a * scale);
         nc = ctime[l].first;
         t = ctime[l].second / scale0;
         a = 1.0e9 * t / nc;
         *p_t_total += t;
-        fmt::fprintf(os, "      + %.2fs [%.2fs] ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
+        os << fmt::sprintf("      + %.2fs [%.2fs] ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
             " scaled*%.2f : %5.2f/c\n",
             t, *p_t_total, nc, a, scale, a * scale);
     }
@@ -3288,7 +3288,7 @@ void MATMUL_NAME(report)(matmul_ptr mm0, double scale)
 
     vector<slice_header_t>::iterator hdr;
 
-    fmt::fprintf(os, "n %" PRIu64 " %.3fs/iter (wct of cpu-bound loop)\n",
+    os << fmt::sprintf("n %" PRIu64 " %.3fs/iter (wct of cpu-bound loop)\n",
             mm->public_->ncoeffs,
             mm->main_timing.t / scale0
             );
@@ -3305,7 +3305,7 @@ void MATMUL_NAME(report)(matmul_ptr mm0, double scale)
         t /= scale0;
         t_total += t;
         double a = 1.0e9 * t / nc;
-        fmt::fprintf(os, "%s\t%.2fs [%.2fs] ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
+        os << fmt::sprintf("%s\t%.2fs [%.2fs] ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
             " scaled*%.2f : %5.2f/c\n",
             slice_name(hdr->t), t, t_total,
             nc, a, scale, a * scale);
@@ -3324,7 +3324,7 @@ void MATMUL_NAME(report)(matmul_ptr mm0, double scale)
         if (nc == 0) continue;
         t /= scale0;
         double a = 1.0e9 * t / nc;
-        fmt::fprintf(os, "%s\t%.2fs ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
+        os << fmt::sprintf("%s\t%.2fs ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
             " scaled*%.2f : %5.2f/c\n",
             slice_name(i), t,
             nc, a, scale, a * scale);

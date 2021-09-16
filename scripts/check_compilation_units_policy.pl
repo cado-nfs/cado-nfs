@@ -41,7 +41,7 @@ my @path_exceptions=qw|
         linalg/bwc/flint-fft/
         config/
         misc/
-        utils/fmt/
+        utils/embedded/fmt/
         ci/coverity_model.c
         |;
 

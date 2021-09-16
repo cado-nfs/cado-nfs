@@ -105,7 +105,7 @@ if [ "$gcc32" ] ; then
 fi
 
 # The gcc image actually contains a base g++ installation that is in /usr
-if [ "$gcc" ] && ! [ -x /usr/local/bin/g++ ] ; then
+if [ "$gcc" ] && ! type g++ > /dev/null 2>&1 ; then
     debian_packages="$debian_packages     g++"
     opensuse_packages="$opensuse_packages gcc gcc-c++"
     fedora_packages="$fedora_packages     g++"
@@ -113,7 +113,7 @@ if [ "$gcc" ] && ! [ -x /usr/local/bin/g++ ] ; then
     freebsd_packages="$freebsd_packages   gcc"  # this pulls g++ too
 fi
 
-if [ "$clang" ] && ! [ -x /usr/local/bin/clang ] ; then
+if [ "$clang" ] && ! type clang++ > /dev/null 2>&1 ; then
     debian_packages="$debian_packages     clang"
     opensuse_packages="$opensuse_packages clang"
     fedora_packages="$fedora_packages     clang"
