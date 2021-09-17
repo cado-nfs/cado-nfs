@@ -315,6 +315,128 @@ struct plattice : public plattice_info {
         }
     }
 
+
+    void two_legs_asm(uint32_t I) {
+        /* This is the main reduce_plattice loop */
+        int branch;
+        asm volatile(
+                "# two_legs asm code\n"
+                ".p2align 4,0x90\n"
+                "# first branch\n"
+                "0:\n"
+                "xorl %[branch], %[branch]\n"
+                "cmpl %[i1], %[I]\n"
+                "ja 9f\n"       /* exit */
+                /* compare mi0 to 4*i1 */
+                "movl %[i1], %%edx\n"
+                "shl $0x2 ,%%edx\n"
+                "cmpl %[mi0], %%edx\n"
+                "jbe 2f\n"      /* needs division */
+
+                /* We'll try to subtract i1 to mi0. We know that once
+                 * will pass, and that no more tha three will. cmovc will
+                 * cancel all overflowing subtractions.
+                 */
+                "subl %[i1], %[mi0]\n"
+                "addl %[j1], %[j0]\n"
+
+                /* subtract, and back off if that overflows */
+                "movl %[mi0], %%esi\n"
+                "movl %[j0], %%edi\n"
+                "leal (%[j1], %[j0]), %[j0]\n"
+                "subl %[i1], %[mi0]\n"
+                "cmovc %%esi, %[mi0]\n"
+                "cmovc %%edi, %[j0]\n"
+
+                /* same */
+                "movl %[mi0], %%esi\n"
+                "movl %[j0], %%edi\n"
+                "leal (%[j1], %[j0]), %[j0]\n"
+                "subl %[i1], %[mi0]\n"
+                "cmovc %%esi, %[mi0]\n"
+                "cmovc %%edi, %[j0]\n"
+
+                /* other branch now */
+                "# second branch\n"
+                "1:\n"
+                "movl %[I], %[branch]\n"
+                "cmpl %[mi0], %[I]\n"
+                "ja 9f\n"       /* exit */
+                /* compare i1 to 3*mi0 */
+                "movl %[mi0], %%edx\n"
+                "shl $0x2 ,%%edx\n"
+                "cmpl %[i1], %%edx\n"
+                "jbe 3f\n"      /* needs division */
+
+                /* same strategy as in the other branch */
+                "subl %[mi0], %[i1]\n"
+                "addl %[j0], %[j1]\n"
+
+                "movl %[i1], %%esi\n"
+                "movl %[j1], %%edi\n"
+                "leal (%[j0], %[j1]), %[j1]\n"
+                "subl %[mi0], %[i1]\n"
+                "cmovc %%esi, %[i1]\n"
+                "cmovc %%edi, %[j1]\n"
+
+                "movl %[i1], %%esi\n"
+                "movl %[j1], %%edi\n"
+                "leal (%[j0], %[j1]), %[j1]\n"
+                "subl %[mi0], %[i1]\n"
+                "cmovc %%esi, %[i1]\n"
+                "cmovc %%edi, %[j1]\n"
+
+                "jmp 0b\n"
+                "3:\n"
+                "xorl %%edx, %%edx\n"
+                "movl %[i1], %%eax\n"
+                "divl %[mi0]\n"
+                "movl %%edx, %[i1]\n"
+                "imull %[j0]\n"
+                "addl %%eax, %[j1]\n"
+                "jmp 0b\n"
+                "2:\n"
+                "xorl %%edx, %%edx\n"
+                "movl %[mi0], %%eax\n"
+                "divl %[i1]\n"
+                "movl %%edx, %[mi0]\n"
+                "imull %[j1]\n"
+                "addl %%eax, %[j0]\n"
+                "jmp 1b\n"
+                "9:\n"
+                :   [branch]"=r"(branch),
+                    [mi0]"+r"(mi0),
+                    [i1]"+r"(i1),
+                    [j0]"+r"(j0),
+                    [j1]"+r"(j1)
+                :   [I]"r"(I)
+                : "eax", "edx", "esi", "edi");
+        if (branch) {
+            if (mi0 == 0) {
+                mi0 = i1;
+                i1 = j0 ; j0 = j1 ; j1 = i1;
+                i1 = 0;
+                lattice_with_vertical_vector(I);
+                return;
+            }
+            ASSERT(mi0 + i1 >= I);
+            int a = (mi0 + i1 - I) / mi0;
+            i1 -= a * mi0;
+            j1 += a * j0;
+        } else {
+            if (i1 == 0) {
+                // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
+                j0 = j1 - j0;
+                lattice_with_vertical_vector(I);
+                return;
+            }
+            ASSERT(mi0 + i1 >= I);
+            int a = (mi0 + i1 - I) / i1;
+            mi0 -= a * i1;
+            j0  += a * j1;
+        }
+    }
+
     void instrumented_two_legs(uint32_t I, std::map<int, unsigned long> & T) {
         /* This is the main reduce_plattice loop */
         for( ;; ) {
@@ -1209,7 +1331,19 @@ struct call_production {
     static constexpr const bool old_interface = false;
     static constexpr const char * what = "production (two_legs)";
     static inline void call(plattice & L, uint32_t I, a_test = a_test()) {
+        asm volatile("");
         L.two_legs(I);
+        asm volatile("");
+    }
+};
+
+struct call_two_legs_asm {
+    static constexpr const size_t batch_count = 1;
+    static constexpr const bool has_known_bugs = false;
+    static constexpr const bool old_interface = false;
+    static constexpr const char * what = "two_legs_asm";
+    static inline void call(plattice & L, uint32_t I, a_test = a_test()) {
+        L.two_legs_asm(I);
     }
 };
 
@@ -1566,6 +1700,7 @@ int main(int argc, char * argv[])
     dummy += test_speed<call_production>(tw);
 
     dummy += test_speed<call_simplistic>(tw);
+    dummy += test_speed<call_two_legs_asm>(tw);
     dummy += test_speed<call_using_64bit_mul>(tw);
     dummy += test_speed<call_swapping_loop>(tw);
     dummy += test_speed<call_swapping_loop2>(tw);
