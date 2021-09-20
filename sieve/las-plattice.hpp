@@ -102,6 +102,16 @@ class plattice_info {
         uint32_t j1;
 
     public:
+        inline bool operator==(plattice_info const& o) {
+            return mi0 == o.mi0
+                && i1 == o.i1
+                && j0 == o.j0
+                && j1 == o.j1;
+        }
+        inline bool operator!=(plattice_info const& o) {
+            return !operator==(o);
+        }
+    public:
         int32_t get_i0() const { return -(int32_t) mi0; }
         int32_t get_i1() const { return i1; }
         uint32_t get_j0() const { return j0; }
@@ -213,64 +223,11 @@ class plattice_info {
             j0 = j2;
         }
 
-        void two_legs(uint32_t I) {
-            /* This is the main reduce_plattice loop */
-            for( ;; ) {
-                if (i1 < I) {
-                    /* an "UNLIKELY" macro here actually has an adverse
-                     * effect...  */
-                    if (i1 == 0) {
-                        // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
-                        j0 = j1 - j0;
-                        lattice_with_vertical_vector(I);
-                        return;
-                    }
-                    ASSERT(mi0 + i1 >= I);
-                    int a = (mi0 + i1 - I) / i1;
-                    mi0 -= a * i1;
-                    j0  += a * j1;
-                    return;
-                }
-                /* do partial unrolling for the frequent case where the
-                 * quotient is either 1 or 2 */
-#if 1
-                if (mi0 < i1 * 3) {
-                    { mi0 -= i1; j0 += j1; }
-                    if (mi0 >= i1) { mi0 -= i1; j0 += j1; }
-                } else
-#endif
-                {
-                    int k = mi0 / i1; mi0 -= k * i1; j0 += k * j1;
-                }
-                if (mi0 < I) {
-                    /* an "UNLIKELY" macro here actually has an adverse
-                     * effect...  */
-                    if (mi0 == 0) {
-                        mi0 = i1;
-                        i1 = j0 ; j0 = j1 ; j1 = i1;
-                        i1 = 0;
-                        lattice_with_vertical_vector(I);
-                        return;
-                    }
-                    ASSERT(mi0 + i1 >= I);
-                    int a = (mi0 + i1 - I) / mi0;
-                    i1 -= a * mi0;
-                    j1 += a * j0;
-                    return;
-                }
-                /* do partial unrolling for the frequent case where the
-                 * quotient is either 1 or 2 */
-#if 1
-                if (i1 < mi0 * 3) {
-                    { i1 -= mi0; j1 += j0; }
-                    if (i1 >= mi0) { i1 -= mi0; j1 += j0; }
-                } else
-#endif
-                {
-                    int k = i1 / mi0; i1 -= k * mi0; j1 += k * j0;
-                }
-            }
-        }
+#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
+#include "las-reduce-plattice-production-asm.hpp"
+#else
+#include "las-reduce-plattice-simplistic.hpp"
+#endif /* HAVE_GCC_STYLE_AMD64_INLINE_ASM */
 
         void initial_basis(const unsigned long q, const unsigned long r, bool proj) {
             if (!proj) {
@@ -325,7 +282,17 @@ class plattice_info {
             if (i1 == 0 || (j1 > 1 && mi0 < I)) {
                 lattice_with_vertical_vector(I);
             } else {
-                two_legs(I);
+                /* We tried many different versions. See
+                 * https://gitlab.inria.fr/cado-nfs/cado-nfs/-/merge_requests/43
+                 * as well as tests/sieve/test-reduce-plattice.cpp and
+                 * the various contender implementations in
+                 * tests/sieve/reduce-plattice/
+                 */
+#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
+                reduce_plattice_asm(I);
+#else
+                reduce_plattice_simplistic(I);
+#endif
             }
         }
 };
