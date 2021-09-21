@@ -115,6 +115,9 @@ struct plattice_proxy : public plattice_info {
     public:
     using plattice_info::initial_basis;
     using plattice_info::reduce;
+#ifndef HAVE_GCC_STYLE_AMD64_INLINE_ASM
+    using plattice_info::reduce_plattice_simplistic;
+#endif
     using plattice_info::reduce_with_vertical_vector;
     using plattice_info::needs_special_treatment;
 
