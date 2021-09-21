@@ -46,7 +46,7 @@ struct trialdiv_data; // IWYU pragma: keep
 #define HILIGHT_END   ""
 
 
-/* {{{ las_info
+/*  las_info
  *
  * las_info holds general data, mostly unrelated to what is actually
  * computed within a sieve. las_info also contains outer data, which
@@ -133,14 +133,24 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     mutable std::mutex mm;
 
     public:
-    void grow_bk_multiplier(bkmult_specifier::key_type const& key, double d) {
+    bool grow_bk_multiplier(bkmult_specifier::key_type const& key, double& ratio, double & new_value, double& old_value) {/*{{{*/
         std::lock_guard<std::mutex> foo(mm);
-        bk_multiplier.grow(key, d);
-    }
-    bkmult_specifier get_bk_multiplier() const {
+        old_value = bk_multiplier.get(key);
+        if (old_value > new_value) {
+            return false;
+        } else {
+            /* no point in growing a lot more than new_value! */
+            if (ratio * old_value > new_value) {
+                ratio = new_value / old_value;
+            }
+            new_value = bk_multiplier.grow(key, ratio);
+            return true;
+        }
+    }/*}}}*/
+    bkmult_specifier get_bk_multiplier() const {/*{{{*/
         std::lock_guard<std::mutex> foo(mm);
         return bk_multiplier;
-    }
+    }/*}}}*/
 
     /* For composite special-q: note present both in las_info and
      * las_todo_list */
@@ -232,7 +242,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     static void configure_switches(cxx_param_list & pl);
     static void configure_aliases(cxx_param_list & pl);
 };
-/* }}} */
+/*  */
 
 
 #endif	/* LAS_INFO_HPP_ */
