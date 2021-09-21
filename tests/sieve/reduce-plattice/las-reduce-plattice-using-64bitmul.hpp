@@ -15,7 +15,8 @@ struct mock_plattice_info {
         uint32_t j0;
         uint32_t i1;
         uint32_t j1;
-        void lattice_with_vertical_vector(uint32_t I);
+        void reduce_with_vertical_vector(uint32_t I);
+        bool needs_special_treatment(uint32_t I) const;
 #endif
 
 /* The idea is tempting, but the cost of the full-width 64-bit
@@ -31,6 +32,11 @@ struct mock_plattice_info {
  * this bookkeeping.
  */
 void using_64bit_mul(uint32_t I) {
+    if (needs_special_treatment(I)) {
+        reduce_with_vertical_vector(I);
+        return;
+    }
+
     uint64_t Ix = uint64_t(I) << 32;
     constexpr uint64_t M = uint64_t(-1) << 32;
     constexpr uint64_t L MAYBE_UNUSED = uint32_t(-1);
@@ -55,7 +61,7 @@ void using_64bit_mul(uint32_t I) {
             j1 = ij1;
             if (!i1) {
                 j0 = ij1 - ij0;
-                lattice_with_vertical_vector(I);
+                reduce_with_vertical_vector(I);
                 return;
             }
             ASSERT_PLATTICE(mi0 + i1 >= I);
@@ -116,7 +122,7 @@ void using_64bit_mul(uint32_t I) {
                 j0 = ij1;
                 j1 = ij0;
                 i1 = 0;
-                lattice_with_vertical_vector(I);
+                reduce_with_vertical_vector(I);
                 return;
             }
             int a = (mi0 + i1 - I) / mi0;

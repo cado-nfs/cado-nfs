@@ -15,10 +15,16 @@ struct mock_plattice_info {
         uint32_t j0;
         uint32_t i1;
         uint32_t j1;
-        void lattice_with_vertical_vector(uint32_t I);
+        void reduce_with_vertical_vector(uint32_t I);
+        bool needs_special_treatment(uint32_t) const;
 #endif
 
 void reduce_plattice_asm(uint32_t I) {
+    if (needs_special_treatment(I)) {
+        reduce_with_vertical_vector(I);
+        return;
+    }
+
     /* This is the main reduce_plattice loop */
 
     /* This version of the code tries to maintain the vectors
@@ -213,7 +219,7 @@ void reduce_plattice_asm(uint32_t I) {
             mi0 = i1;
             i1 = j0 ; j0 = j1 ; j1 = i1;
             i1 = 0;
-            lattice_with_vertical_vector(I);
+            reduce_with_vertical_vector(I);
             return;
         }
         ASSERT(mi0 + i1 >= I);
@@ -224,7 +230,7 @@ void reduce_plattice_asm(uint32_t I) {
         if (i1 == 0) {
             // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
             j0 = j1 - j0;
-            lattice_with_vertical_vector(I);
+            reduce_with_vertical_vector(I);
             return;
         }
         ASSERT(mi0 + i1 >= I);

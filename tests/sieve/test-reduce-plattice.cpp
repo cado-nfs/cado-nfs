@@ -93,7 +93,7 @@ struct call_production {
     static constexpr const char * what = "production";
     static inline void call(plattice_proxy & L, uint32_t I, a_test = a_test()) {
         asm volatile("");
-        L.reduce_plattice_asm(I);
+        L.reduce(I);
         asm volatile("");
     }
 };
@@ -247,10 +247,9 @@ inline
 typename std::enable_if<!T::old_interface && T::batch_count == 1, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa)
 {
-    bool proj = aa->r > aa->q;
+    bool proj = aa->r >= aa->q;
     L->initial_basis(aa->q, proj ? (aa->r - aa->q) : aa->r, proj);
-    if (!L->early(tw.I))
-        T::call(*L, tw.I);
+    T::call(*L, tw.I);
     return L->mi0;
 }
 
@@ -277,16 +276,16 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, size_t N
         // unsigned long p = tests[j].p;
         unsigned long q = aa[j].q;
         unsigned long r = aa[j].r;
-        bool proj = r > q;
+        bool proj = r >= q;
         L[j].initial_basis(q, proj ? (r-q) : r, proj);
-        if (L[j].early(tw.I))
+        if (L[j].needs_special_treatment(tw.I))
             normal = false;
     }
     if (normal) {
         T::call(L, tw.I);
     } else {
         for(j = 0 ; j < N ; j++)
-            L[j].reduce_plattice_two_legs(tw.I);
+            L[j].reduce(tw.I);
     }
     return L[0].mi0;
 }
@@ -309,11 +308,11 @@ void test_correctness(test_wrap & tw)
         const char * when = "pre";
         try {
             if (i + N <= tests.size()) {
-                test_inner<call_two_legs>(Lref, tw, &(tests[i]), N);
+                test_inner<call_simplistic>(Lref, tw, &(tests[i]), N);
                 test_inner<T>(L, tw, &(tests[i]), N);
             } else {
                 size_t M = tests.size() - i;
-                test_inner<call_two_legs>(Lref, tw, &(tests[i]), M);
+                test_inner<call_simplistic>(Lref, tw, &(tests[i]), M);
                 test_inner<T>(L, tw, &(tests[i]), M);
             }
             when = "post";
@@ -351,9 +350,9 @@ void test_correctness(test_wrap & tw)
                 std::string t = fmt::format(
                         FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
                 std::string msg = fmt::format(
-                        FMT_STRING("{}: disagreement with two_legs on {}\n"), thiscode, t);
+                        FMT_STRING("{}: disagreement with simplistic on {}\n"), thiscode, t);
                 msg += fmt::format(
-                        FMT_STRING("two_legs: [({}, {}), ({}, {})]\n"),
+                        FMT_STRING("simplistic: [({}, {}), ({}, {})]\n"),
                             Lref[j].get_i0(),
                             Lref[j].get_j0(),
                             Lref[j].get_i1(),
@@ -495,7 +494,7 @@ int main(int argc, char * argv[])
         unsigned long q = 1;
         for(int s = k ; s-- ; q*=p) ;
         unsigned long r = gmp_urandomm_ui(rstate, q + q / p);
-        bool proj = r > q;
+        bool proj = r >= q;
         if (proj)
             r = q + p * (r - q);
 
@@ -515,7 +514,7 @@ int main(int argc, char * argv[])
         auto jt = tests.begin();
         for(auto const & aa : tests) {
             plattice_proxy L;
-            bool proj = aa.r > aa.q;
+            bool proj = aa.r >= aa.q;
             L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
             if (L.check_pre_conditions(tw.I)) {
                 *jt++ = aa;
@@ -570,11 +569,15 @@ int main(int argc, char * argv[])
          */
         std::map<int, unsigned long> T;
         for(auto const & aa : tests) {
-            bool proj = aa.r > aa.q;
+            bool proj = aa.r >= aa.q;
             plattice_proxy L;
             L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
-            if (!L.early(tw.I))
+            if (L.needs_special_treatment(tw.I)) {
+                T[-1]++;
+                L.reduce_with_vertical_vector(tw.I);
+            } else {
                 L.instrumented_two_legs(tw.I, T);
+            }
         }
         for(auto & kv : stats) {
             int k = kv.first;

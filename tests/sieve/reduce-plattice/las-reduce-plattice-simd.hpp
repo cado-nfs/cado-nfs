@@ -120,7 +120,7 @@ void simd(plattice_proxy * pli, uint32_t I)
             if (pli[j].i1 == 0) {
                 if (!(m&1))
                     pli[j].j0 = pli[j].j1 - pli[j].j0;
-                pli[j].lattice_with_vertical_vector(I);
+                pli[j].reduce_with_vertical_vector(I);
             } else {
                 int a = (pli[j].mi0 + pli[j].i1 - I) / pli[j].i1;
                 pli[j].mi0 -= a * pli[j].i1;

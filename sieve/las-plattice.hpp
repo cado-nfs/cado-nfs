@@ -208,7 +208,7 @@ class plattice_info {
     protected:
         plattice_info() : mi0(0), j0(0), i1(0), j1(0) {}
 
-        void lattice_with_vertical_vector(uint32_t I) {
+        void reduce_with_vertical_vector(uint32_t I) {
             /* At this point, (mi0,j0) represents itself, i.e. a vector with
              * two positive coordinates.
              */
@@ -222,12 +222,6 @@ class plattice_info {
             mi0 = mi2;
             j0 = j2;
         }
-
-#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-#include "las-reduce-plattice-production-asm.hpp"
-#else
-#include "las-reduce-plattice-simplistic.hpp"
-#endif /* HAVE_GCC_STYLE_AMD64_INLINE_ASM */
 
         void initial_basis(const unsigned long q, const unsigned long r, bool proj) {
             if (!proj) {
@@ -246,6 +240,37 @@ class plattice_info {
             }
         }
 
+        /* If a lattice satisfies this condition, then its reduced form is
+         * given by calling reduce_with_vertical_vector(I). Note that
+         * calling reduce() works in all cases, though.
+         *
+         * Note also that this check is only valid for the initial basis
+         * lattice.
+         */
+        bool needs_special_treatment(uint32_t I) const {
+            return (i1 == 0 || (j1 > 1 && mi0 < I));
+        }
+
+#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
+#include "las-reduce-plattice-production-asm.hpp"
+#else
+#include "las-reduce-plattice-simplistic.hpp"
+#endif /* HAVE_GCC_STYLE_AMD64_INLINE_ASM */
+
+        inline void reduce(uint32_t I) {
+            /* We tried many different versions. See
+             * https://gitlab.inria.fr/cado-nfs/cado-nfs/-/merge_requests/43
+             * as well as tests/sieve/test-reduce-plattice.cpp and
+             * the various contender implementations in
+             * tests/sieve/reduce-plattice/
+             */
+#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
+            reduce_plattice_asm(I);
+#else
+            reduce_plattice_simplistic(I);
+#endif
+        }
+
     public:
         bool check_pre_conditions(uint32_t I) const
         {
@@ -256,6 +281,7 @@ class plattice_info {
             if (!(mi0 * j1 >= I)) return false;
             return true;
         }
+
         bool check_post_conditions(uint32_t I) const
         {
             if (!(mi0 < I)) return false;
@@ -270,7 +296,7 @@ class plattice_info {
             if (!(i1 + mi0 >= I)) return false;
             return true;
         }
-    public:
+
         plattice_info (const unsigned long q, const unsigned long r, bool proj, const int logI)
         {
             initial_basis(q, r, proj);
@@ -279,21 +305,7 @@ class plattice_info {
              * Note that j0==0
              */
             uint32_t I = UINT32_C(1) << logI;
-            if (i1 == 0 || (j1 > 1 && mi0 < I)) {
-                lattice_with_vertical_vector(I);
-            } else {
-                /* We tried many different versions. See
-                 * https://gitlab.inria.fr/cado-nfs/cado-nfs/-/merge_requests/43
-                 * as well as tests/sieve/test-reduce-plattice.cpp and
-                 * the various contender implementations in
-                 * tests/sieve/reduce-plattice/
-                 */
-#ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-                reduce_plattice_asm(I);
-#else
-                reduce_plattice_simplistic(I);
-#endif
-            }
+            reduce(I);
         }
 };
 

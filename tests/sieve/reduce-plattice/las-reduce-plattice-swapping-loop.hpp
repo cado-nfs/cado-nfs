@@ -15,11 +15,17 @@ struct mock_plattice_info {
         uint32_t j0;
         uint32_t i1;
         uint32_t j1;
-        void lattice_with_vertical_vector(uint32_t I);
+        void reduce_with_vertical_vector(uint32_t I);
+        bool needs_special_treatment(uint32_t I) const;
 #endif
 
 void swapping_loop(uint32_t I)
 {
+    if (needs_special_treatment(I)) {
+        reduce_with_vertical_vector(I);
+        return;
+    }
+
     /* This is the main reduce_plattice loop */
     int flip;
     for(flip = 0 ; i1 >= I; flip ^= 1 ) {
@@ -45,7 +51,7 @@ void swapping_loop(uint32_t I)
         if (!flip)
             // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
             j0 = j1 - j0;
-        lattice_with_vertical_vector(I);
+        reduce_with_vertical_vector(I);
     } else {
         int a = (mi0 + i1 - I) / i1;
         mi0 -= a * i1;

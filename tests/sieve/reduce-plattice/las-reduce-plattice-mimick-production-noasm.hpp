@@ -15,7 +15,8 @@ struct mock_plattice_info {
         uint32_t j0;
         uint32_t i1;
         uint32_t j1;
-        void lattice_with_vertical_vector(uint32_t I);
+        void reduce_with_vertical_vector(uint32_t I);
+        bool needs_special_treatment(uint32_t I) const;
 #endif
 
 /* This is a C version of the production asm code. In fact, we don't
@@ -23,6 +24,11 @@ struct mock_plattice_info {
  * with by the compiler.
  */
 void mimick_production_noasm(uint32_t I) {
+    if (needs_special_treatment(I)) {
+        reduce_with_vertical_vector(I);
+        return;
+    }
+
     uint64_t u0 = (((uint64_t)-j0)<<32) | (uint64_t) mi0;
     uint64_t u1 = (((uint64_t) j1)<<32) | (uint64_t) i1;
     int branch;
@@ -87,7 +93,7 @@ void mimick_production_noasm(uint32_t I) {
             mi0 = i1;
             i1 = j0 ; j0 = j1 ; j1 = i1;
             i1 = 0;
-            lattice_with_vertical_vector(I);
+            reduce_with_vertical_vector(I);
             return;
         }
         ASSERT(mi0 + i1 >= I);
@@ -98,7 +104,7 @@ void mimick_production_noasm(uint32_t I) {
         if (i1 == 0) {
             // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
             j0 = j1 - j0;
-            lattice_with_vertical_vector(I);
+            reduce_with_vertical_vector(I);
             return;
         }
         ASSERT(mi0 + i1 >= I);

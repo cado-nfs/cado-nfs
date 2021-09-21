@@ -53,7 +53,7 @@ struct plattice_proxy : public plattice_info {
                 if (i1 == 0) {
                     // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
                     j0 = j1 - j0;
-                    lattice_with_vertical_vector(I);
+                    reduce_with_vertical_vector(I);
                     return;
                 }
                 ASSERT(mi0 + i1 >= I);
@@ -73,7 +73,7 @@ struct plattice_proxy : public plattice_info {
                     mi0 = i1;
                     i1 = j0 ; j0 = j1 ; j1 = i1;
                     i1 = 0;
-                    lattice_with_vertical_vector(I);
+                    reduce_with_vertical_vector(I);
                     return;
                 }
                 ASSERT(mi0 + i1 >= I);
@@ -103,26 +103,20 @@ struct plattice_proxy : public plattice_info {
         // ASSERT_ALWAYS(check_pre_conditions(I));
         bool needs_special_treatment = (i1 == 0 || (j1 > 1 && mi0 < I));
         if (needs_special_treatment) {
-            lattice_with_vertical_vector(I);
+            reduce_with_vertical_vector(I);
             return;
         }
-        reduce_plattice_simplistic(I);
+        reduce(I);
         // simplistic(I);
         // using_64bit_mul(I);
         // swapping_loop(I);
     }
 
-    bool early(uint32_t I) {
-        bool needs_special_treatment = (i1 == 0 || (j1 > 1 && mi0 < I));
-        if (needs_special_treatment)
-            lattice_with_vertical_vector(I);
-        return needs_special_treatment;
-    }
-
     public:
     using plattice_info::initial_basis;
-    using plattice_info::reduce_plattice_asm;
-    using plattice_info::lattice_with_vertical_vector;
+    using plattice_info::reduce;
+    using plattice_info::reduce_with_vertical_vector;
+    using plattice_info::needs_special_treatment;
 
     // friend void instrumented_two_legs(plattice *pli, const unsigned long q, const unsigned long r, bool proj, uint32_t I, std::map<int, unsigned long> & T);
 };
