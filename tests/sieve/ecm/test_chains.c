@@ -7,6 +7,7 @@
 #include "tests_common.h"
 #include "getprime.h"   // prime_info
 #include "macros.h"
+#include "misc.h"
 
 void
 mpz_prod_primes_below_B1 (mpz_t E, unsigned int B1)
@@ -96,8 +97,8 @@ int main (int argc, const char **argv)
   { /* PRAC test */
     /* Random opcost (between 0 and 16) [ 0x1p60 == double 2^60 ] */
     prac_cost_t cost;
-    cost.DBL = (double) random_uint64 () / 0x1p60;
-    cost.dADD = (double) random_uint64 () / 0x1p60;
+    cost.DBL = (double) u64_random(state) / 0x1p60;
+    cost.dADD = (double) u64_random(state) / 0x1p60;
     printf ("PRAC cost: DBL = %f; dADD = %f\n", cost.DBL, cost.dADD);
 
     /* compress prac chains */
@@ -113,15 +114,15 @@ int main (int argc, const char **argv)
     precomp_cost_t precomp_cost;
     memset (&precomp_cost, 0, sizeof (precomp_cost_t));
     mishmash_cost_t cost;
-    cost.DBL = (double) random_uint64 () / 0x1p60;
-    cost.DBLa = (double) random_uint64 () / 0x1p60;
-    cost.TPL = (double) random_uint64 () / 0x1p60;
-    cost.TPLa = (double) random_uint64 () / 0x1p60;
-    cost.ADD = (double) random_uint64 () / 0x1p60;
-    cost.ADDa = (double) random_uint64 () / 0x1p60;
-    cost.ADDd = (double) random_uint64 () / 0x1p60;
-    cost.dDBL = (double) random_uint64 () / 0x1p60;
-    cost.dADD = (double) random_uint64 () / 0x1p60;
+    cost.DBL = (double) u64_random(state) / 0x1p60;
+    cost.DBLa = (double) u64_random(state) / 0x1p60;
+    cost.TPL = (double) u64_random(state) / 0x1p60;
+    cost.TPLa = (double) u64_random(state) / 0x1p60;
+    cost.ADD = (double) u64_random(state) / 0x1p60;
+    cost.ADDa = (double) u64_random(state) / 0x1p60;
+    cost.ADDd = (double) u64_random(state) / 0x1p60;
+    cost.dDBL = (double) u64_random(state) / 0x1p60;
+    cost.dADD = (double) u64_random(state) / 0x1p60;
     printf ("MISHMASH PRAC cost: DBL = %f ; DBLa = %f ; TPL = %f ; TPLa = %f ; "
             "ADD = %f ; ADDa = %f ; ADDd = %f ; dDBL = %f ; dADD = %f\n",
             cost.DBL, cost.DBLa, cost.TPL, cost.TPLa, cost.ADD, cost.ADDa,

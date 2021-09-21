@@ -199,7 +199,7 @@ int cmp_entry(const void *A, const void *B) {
 
 /* see makefb.sage for the meaning of this function and its parameters */
 void all_roots_affine(entry_list *L, mpz_t *f, int d, unsigned long p,
-        int kmax, int k0, int m, unsigned long phi1, unsigned long phi0) {
+        int kmax, int k0, int m, unsigned long phi1, unsigned long phi0, gmp_randstate_ptr rstate) {
     int nroots;
     unsigned long *roots;
     mpz_t aux;
@@ -214,7 +214,7 @@ void all_roots_affine(entry_list *L, mpz_t *f, int d, unsigned long p,
     roots = (unsigned long*) malloc(d * sizeof(unsigned long));
     mpz_init(aux);
 
-    nroots = mpz_poly_roots_ulong (roots, F, p);
+    nroots = mpz_poly_roots_ulong (roots, F, p, rstate);
     for (int i = 0; i < nroots; ++i) {
         unsigned long r = roots[i];
         {
@@ -269,7 +269,7 @@ void all_roots_affine(entry_list *L, mpz_t *f, int d, unsigned long p,
                     mpz_tdiv_q(ff[j], ff[j], pv);
                 mpz_clear(pv);
             }
-            all_roots_affine(L, ff, d, p, kmax, k0+val, m+1, nphi1, nphi0);
+            all_roots_affine(L, ff, d, p, kmax, k0+val, m+1, nphi1, nphi0, rstate);
             for (int j = 0; j <= d; ++j)
                 mpz_clear(ff[j]);
             free(ff);
@@ -292,7 +292,7 @@ void all_roots_affine(entry_list *L, mpz_t *f, int d, unsigned long p,
  * See makefb.sage for details on this function
  */
 
-entry_list all_roots(mpz_t *f, int d, unsigned long p, int maxbits) {
+entry_list all_roots(mpz_t *f, int d, unsigned long p, int maxbits, gmp_randstate_ptr rstate) {
     int kmax;
     entry_list L;
     entry_list_init(&L);
@@ -327,7 +327,7 @@ entry_list all_roots(mpz_t *f, int d, unsigned long p, int maxbits) {
             for (int i = 0; i <= d; ++i)
                 mpz_tdiv_q(fh[i], fh[i], pk);
 
-            all_roots_affine(&L, fh, d, p, kmax-1, 0, 0, 1, 0);
+            all_roots_affine(&L, fh, d, p, kmax-1, 0, 0, 1, 0, rstate);
             // convert back the roots
             for (int i = 1; i < L.len; ++i) {
                 entry E = L.list[i];
@@ -344,7 +344,7 @@ entry_list all_roots(mpz_t *f, int d, unsigned long p, int maxbits) {
         free(fh);
     }
     // affine roots are easier.
-    all_roots_affine(&L, f, d, p, kmax, 0, 0, 1, 0);
+    all_roots_affine(&L, f, d, p, kmax, 0, 0, 1, 0, rstate);
 
     qsort((void *)(&L.list[0]), L.len, sizeof(entry), cmp_entry);
     return L;
@@ -372,9 +372,12 @@ one_thread (void* args)
 {
   int k;
   tab_t *tab = (tab_t*) args;
+  gmp_randstate_t rstate;
+  gmp_randinit_default(rstate);
   for (k = 0; k < tab[0]->n; k++)
     tab[0]->L[k] = all_roots (tab[0]->f, tab[0]->d, tab[0]->p[k],
-                              tab[0]->maxbits);
+                              tab[0]->maxbits, rstate);
+  gmp_randclear(rstate);
   return NULL;
 }
 

@@ -517,6 +517,8 @@ return_combined_sublattice ( ropt_poly_t poly,
       t_e_sl[j++] = s1param->e_sl[i];
     }
   }
+  /* j should equal the true length here */
+  ASSERT_ALWAYS (j == s1param->tlen_e_sl);
 
   /* decide the number of top individual sublattices. Note that
      the s1param->tlen_e_sl must be already set */

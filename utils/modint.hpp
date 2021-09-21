@@ -8,6 +8,7 @@
 #include "macros.h"
 #include "u64arith.h"
 #include "cxx_mpz.hpp"
+#include "misc.h"
 
 /* Integers of 64 bits. We want additional conversion function from/to
    arrays of uint64_t and mpz_ts. Unfortunately, we can't inherit from
@@ -441,11 +442,15 @@ public:
         return u64arith_ctz(v[0]);
     }
     friend std::ostream & operator << (std::ostream &out, const Integer128 &s) {
+
         if (s == 0) {
             return out << "0";
         } else if (s.v[1] == 0) {
             return out << s.v[0];
         }
+
+        IoStreamFlagsRestorer dummy(out);
+
         constexpr uint64_t ten19 = UINT64_C(10000000000000000000);
         Integer128 t{s};
         const uint64_t lower19 = t % ten19;
@@ -457,10 +462,16 @@ public:
         if (t != 0) {
             t /= ten19;
             ASSERT_ALWAYS(t < 4);
-            return out << t.v[0] << std::setfill('0') << std::setw(19) << upper19 << std::setfill('0') << std::setw(19) << lower19;
+            out << t.v[0] << std::setfill('0') << std::setw(19) << upper19 << std::setfill('0') << std::setw(19) << lower19;
         } else {
-            return out << upper19 << std::setfill('0') << std::setw(19) << lower19;
+            // This is apparently a bug in coverity. The
+            // IoStreamFlagsRestorer *does* properly restore the stream
+            // cflags. It's just odd that coverity doesn't seem to see
+            // it.
+            // coverity[format_changed]
+            out << upper19 << std::setfill('0') << std::setw(19) << lower19;
         }
+        return out;
     }
     
 };

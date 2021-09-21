@@ -28,6 +28,7 @@ int check_filt (tabular_fm_t* res, int init_nb_method)
     return 1;
 }
 
+// coverity[root_function]
 int main ()
 {
     unsigned int nb_fm = 10;

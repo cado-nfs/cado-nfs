@@ -372,6 +372,12 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
   unsigned long pp;
   double one_over_pm1, logp, average_alpha = 0.0;
 
+  /* The code with multi polynomials is here, but not covered at all.
+   * Remove this assert in order to test, and fix the caller which
+   * definitely wants to stick to single-polynomial stuff.
+   */
+  ASSERT_ALWAYS(multi == 0 || multi == 1);
+
   /* allocate best_E, to store the best (lognorm+alpha) in multi mode */
   if (multi > 1)
     {

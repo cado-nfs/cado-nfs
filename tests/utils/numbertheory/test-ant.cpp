@@ -23,6 +23,7 @@
 #include "params.h"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "timing.h"     // seconds
+#include "misc.h"
 
 using namespace std;
 static char ** original_argv;
@@ -198,6 +199,7 @@ vector<pair<cxx_mpz_mat, int> > batch_read_prime_factorization(istream & in, uns
     string keyword;
     if (!(in >> keyword) || keyword != "ideals") throw exc;
     unsigned int nideals;
+    // coverity[tainted_argument]
     if (!(in >> nideals))
         throw exc;
     for(unsigned int k = 0 ; k < nideals ; k++) {
@@ -257,7 +259,7 @@ int do_p_maximal_order_batch(param_list_ptr pl) /*{{{*/
 
         bool ok = sl_equivalent_matrices(O, my_O, p);
 
-        cout << (ok ? "ok" : "NOK") << " test " << test
+        cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
             << endl;
         test++;
@@ -358,7 +360,7 @@ int do_factorization_of_prime_batch(param_list_ptr pl) /*{{{*/
         for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
             ok = (ideals[k] == my_ideals[k]);
         }
-        cout << (ok ? "ok" : "NOK") << " test " << test
+        cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
             << endl;
         test++;
@@ -566,7 +568,9 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
             string keyword;
             if (!(is1 >> keyword) || keyword != "composite") throw exc;
             int ngens;
+            // coverity[-taint_source]
             if (!(is1 >> ngens)) throw exc;
+            if (ngens < 0) throw exc;
             if (ngens == 0) break;
             cxx_mpz_mat gens(ngens, f->deg);
             for(unsigned int i = 0 ; i < gens->m ; i++) {
@@ -593,7 +597,7 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
         }
 
 
-        cout << (ok ? "ok" : "NOK") << " test " << test
+        cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
             << endl;
         test++;
@@ -672,6 +676,7 @@ int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
     return 1;
 }/*}}}*/
 
+// coverity[root_function]
 int main(int argc, char *argv[]) /*{{{ */
 {
     param_list pl;

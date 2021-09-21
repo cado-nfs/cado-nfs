@@ -11,7 +11,8 @@
 #include "mod_ul.h"
 #include "modul_poly.h"
 #include "gmp_aux.h"
-#include "portability.h" // lrand48 // IWYU pragma: keep
+#include "misc.h"
+#include "portability.h" // IWYU pragma: keep
 
 static void modul_poly_normalize (modul_poly_t, modulusul_t);
 
@@ -182,7 +183,7 @@ static void
 modul_poly_set_linear (modul_poly_t f, residueul_t a, residueul_t b, modulusul_t p)
 {
   modul_poly_realloc (f, 2);
-  f->degree = a ? 1 : (b ? 0 : -1);
+  f->degree = modul_is0(a, p) ? (modul_is0(b, p) ? -1 : 0) : 1;
   modul_set(f->coeff[1], a, p);
   modul_set(f->coeff[0], b, p);
 }
@@ -596,7 +597,7 @@ modul_poly_powmod_ui (modul_poly_t g, modul_poly_t a,
    Assumes p is odd, and deg(f) >= 1.
 */
 int
-modul_poly_cantor_zassenhaus (residueul_t *r, modul_poly_t f, modulusul_t p)
+modul_poly_cantor_zassenhaus (residueul_t *r, modul_poly_t f, modulusul_t p, gmp_randstate_ptr rstate)
 {
   residueul_t a;
   modul_poly_t q, h;
@@ -618,7 +619,7 @@ modul_poly_cantor_zassenhaus (residueul_t *r, modul_poly_t f, modulusul_t p)
      algorithm */
   modul_poly_init (q, 2 * d - 1);
   modul_poly_init (h, 2 * d - 1);
-  modul_set_ul(a, lrand48(), p);
+  modul_set_ul(a, u64_random(rstate), p);
   for (;;)
     {
       modul_poly_xpowmod_ui (q, a, (modul_getmod_ul(p) - 1) / 2, f, p);
@@ -628,10 +629,10 @@ modul_poly_cantor_zassenhaus (residueul_t *r, modul_poly_t f, modulusul_t p)
       ASSERT (dq >= 0);
       if (0 < dq && dq < d)
 	{
-	  n = modul_poly_cantor_zassenhaus (r, q, p);
+	  n = modul_poly_cantor_zassenhaus (r, q, p, rstate);
 	  ASSERT (n == dq);
 	  modul_poly_divexact (h, f, q, p);
-	  m = modul_poly_cantor_zassenhaus (r + n, h, p);
+	  m = modul_poly_cantor_zassenhaus (r + n, h, p, rstate);
 	  ASSERT (m == h->degree);
 	  n += m;
           break;
@@ -678,7 +679,7 @@ static int coeff_cmp(
    which has lower degree? Warning: if f has root -a, we might miss it.]
 */
 int
-modul_poly_roots(residueul_t *r, mpz_poly_srcptr F, modulusul_t p)
+modul_poly_roots(residueul_t *r, mpz_poly_srcptr F, modulusul_t p, gmp_randstate_ptr rstate)
 {
   modul_poly_t fp, g, h;
   int df;
@@ -737,7 +738,7 @@ modul_poly_roots(residueul_t *r, mpz_poly_srcptr F, modulusul_t p)
    */
   if (r != NULL && df > 0)
     {
-      int n MAYBE_UNUSED = modul_poly_cantor_zassenhaus (r, fp, p);
+      int n MAYBE_UNUSED = modul_poly_cantor_zassenhaus (r, fp, p, rstate);
       ASSERT (n == df);
     }
 
@@ -755,7 +756,7 @@ modul_poly_roots(residueul_t *r, mpz_poly_srcptr F, modulusul_t p)
 }
 
 int
-modul_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, modulusul_t p)
+modul_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, modulusul_t p, gmp_randstate_ptr rstate)
 {
     residueul_t * pr;
     int i, n;
@@ -764,7 +765,7 @@ modul_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, modulusul_t p)
     ASSERT_ALWAYS(d > 0);
     pr = malloc (d * sizeof(residueul_t));
     FATAL_ERROR_CHECK (pr == NULL, "not enough memory");
-    n = modul_poly_roots(pr, F, p);
+    n = modul_poly_roots(pr, F, p, rstate);
     for(i = 0 ; i < n ; i++) {
         r[i] = modul_getmod_ul (pr[i]);
     }

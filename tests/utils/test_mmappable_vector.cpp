@@ -40,7 +40,8 @@ void test_test_file(int count, const char * fname, bool expect_zeros)
     FILE * f = fopen(fname, "r");
     for (int i=0;i<count;i++) {
         int j;
-        fread(&j, 1, sizeof(j), f);
+        int n = fread(&j, 1, sizeof(j), f);
+        ASSERT_ALWAYS(n == (int) sizeof(j));
         ASSERT_ALWAYS(j == (expect_zeros ? 0 : i));
     }
     fclose(f);
@@ -279,6 +280,7 @@ void test_allocate_0_bytes(void) /* shouldn't segfault */
     }
 }
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     if (argc == 3 && std::string(argv[1]) == "--tmpdir") {

@@ -97,7 +97,7 @@ void test_cado_poly_sanitycheck_file(const char * file)
     test_cado_poly_sanitycheck_stream(is);
 }
 
-
+// coverity[root_function]
 int
 main (int argc, const char *argv[])
 {

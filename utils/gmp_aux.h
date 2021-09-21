@@ -205,4 +205,33 @@ typedef const __gmp_randstate_struct * gmp_randstate_srcptr;
 }
 #endif
 
+#ifdef __cplusplus
+/* Same idea as for cxx_mpz and friends */
+struct cxx_gmp_randstate {
+    gmp_randstate_t x;
+    cxx_gmp_randstate() { gmp_randinit_default(x); }
+    cxx_gmp_randstate(gmp_randstate_srcptr f) { gmp_randinit_set(x, f); }
+    ~cxx_gmp_randstate() { gmp_randclear(x); }
+    cxx_gmp_randstate(cxx_gmp_randstate const & o) {
+        gmp_randinit_set(x, o.x);
+    }
+    cxx_gmp_randstate & operator=(cxx_gmp_randstate const & o) {
+        gmp_randclear(x);
+        gmp_randinit_set(x, o.x);
+        return *this;
+    }
+    operator gmp_randstate_ptr() { return x; }
+    operator gmp_randstate_srcptr() const { return x; }
+    gmp_randstate_ptr operator->() { return x; }
+    gmp_randstate_srcptr operator->() const { return x; }
+};
+
+#if GNUC_VERSION_ATLEAST(4,3,0)
+extern void gmp_randinit_default(cxx_gmp_randstate & pl) __attribute__((error("gmp_randinit_default must not be called on a cxx_gmp_randstate reference -- it is the caller's business (via a ctor)")));
+extern void gmp_randclear(cxx_gmp_randstate & pl) __attribute__((error("gmp_randclear must not be called on a cxx_gmp_randstate reference -- it is the caller's business (via a dtor)")));
+#endif
+
+#endif
+
+
 #endif	/* CADO_UTILS_GMP_AUX_H_ */

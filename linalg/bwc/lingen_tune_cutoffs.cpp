@@ -554,8 +554,14 @@ void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
             free(tA);
             free(tB);
             free(tC);
+            free(tt);
+            free(qt);
         }
 
+        abvec_clear(ab, &A, k);
+        abvec_clear(ab, &B, k);
+        abvec_clear(ab, &C, 2*k-1);
+        
         mpz_clear(p);
 
         cout << input_length
@@ -654,9 +660,9 @@ void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cu
         abvec_init(ab, &B, k);
         abvec_init(ab, &C, input_length);
         
-        abvec_random(ab, A, k, rstate);
+        abvec_random(ab, A, E_length, rstate);
         abvec_random(ab, B, k, rstate);
-        abvec_set_zero(ab, C, k);
+        abvec_set_zero(ab, C, input_length);
 
         ostringstream extra_info;
 
@@ -725,9 +731,14 @@ void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cu
             free(tA);
             free(tB);
             free(tC);
+            free(tt);
+            free(qt);
         }
 
-        mpz_clear(p);
+        abvec_clear(ab, &A, E_length);
+        abvec_clear(ab, &B, k);
+        abvec_clear(ab, &C, input_length);
+        
 
         cout << input_length
             << " " << finder.summarize_for_this_length(k)

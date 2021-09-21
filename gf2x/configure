@@ -5312,7 +5312,7 @@ fi
 # actually released, so we retain the version number 3:0:0.
 gf2x_lib_version=3:0:0
 
-gf2x_fft_lib_version=3:0:0
+gf2x_fft_lib_version=3:1:0
 
 
 am__api_version='1.16'

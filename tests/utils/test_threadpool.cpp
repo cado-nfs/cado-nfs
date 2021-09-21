@@ -22,6 +22,8 @@ task_result *print_something(worker_thread * worker MAYBE_UNUSED, task_parameter
 {
   const print_parameter *param = dynamic_cast<const print_parameter *>(t_param);
 
+  ASSERT_ALWAYS(param != NULL);
+
   pthread_t tid = pthread_self();
   unsigned int tid_u = 0;
   memcpy(&tid_u, &tid, MIN(sizeof(tid), sizeof(tid_u)));
@@ -30,6 +32,7 @@ task_result *print_something(worker_thread * worker MAYBE_UNUSED, task_parameter
   return new print_result(rc);
 }
 
+// coverity[root_function]
 int main(int argc, const char **argv)
 {
   tests_common_cmdline(&argc, &argv, PARSE_ITER);
@@ -49,6 +52,7 @@ int main(int argc, const char **argv)
   for (unsigned long i = 0; i < iter; i++) {
     size_t queue = i % 2;
     print_result *result = dynamic_cast<print_result *>(pool->get_result(queue));
+    ASSERT_ALWAYS(result != NULL);
     printf("Queue %zu: I've printed %d characters\n", queue, result->printed);
     delete result;
   }

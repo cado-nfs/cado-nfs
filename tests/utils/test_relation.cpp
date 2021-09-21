@@ -9,11 +9,12 @@
 #include <gmp.h>
 #include "cxx_mpz.hpp"       // for cxx_mpz
 #include "gmp_aux.h"         // for mpz_set_int64, mpz_set_uint64
-#include "portability.h" // lrand48 // IWYU pragma: keep
+#include "portability.h" // IWYU pragma: keep
 #include "relation-tools.h"
 #include "relation.hpp"
 #include "tests_common.h"
 #include "typedefs.h"        // for PRpr
+#include "misc.h"        // for PRpr
 
 unsigned long
 mpz_compute_r (mpz_t a, mpz_t b, mpz_t p)
@@ -47,27 +48,29 @@ test_compute_r (unsigned int nb)
     /* 5% of tests are for the case where p = 2^k */
     if (i % 20 == 0)
     {
-      unsigned int exp = (lrand48() & 0x0000001FUL);
+      unsigned int exp = gmp_urandomb_ui(state, 5);
       exp = (exp == 0) ? 1 : exp;
       p = 1UL << exp;
       mpz_set_ui (tp, p);
     }
     else
     {
-      mpz_set_ui (tp, lrand48());
+      mpz_set_ui (tp, gmp_urandomb_ui(state, 31));
       mpz_nextprime(tp, tp);
       p = mpz_get_ui (tp);
     }
 
-    a = random_int64 ();
+    a = i64_random (state);
     /* 5% of tests are for the case where b = 0 mod p (with b > 0)
      * We do not need to test for free relations as they never go throught
      * relation_compute_r
      */
     if (i < (nb / 20))
-      b = lrand48() * p;
-    else
-      b = random_uint64 () + 1; /* b > 0 */
+      b = gmp_urandomb_ui(state, 31) * p;
+    else {
+      b = u64_random (state);
+      b += !b;
+    }
     mpz_set_int64 (ta, a);
     mpz_set_uint64 (tb, b);
 
@@ -97,17 +100,19 @@ int test_compute_all_r (unsigned int nb)
 
   for (unsigned int i = 0; i < nb; i++)
   {
-    relation t1(random_int64(), random_uint64 () + 1); // b > 0
+      int64_t a = i64_random(state);
+      uint64_t b = u64_random(state); b += !b;
+      relation t1(a, b);
 
-    for (uint8_t k = 0; k <= lrand48() % 5; k++)
+    for (uint8_t k = 0; k <= gmp_urandomm_ui(state, 5); k++)
     {
-      mpz_set_ui (tp, lrand48());
+      mpz_set_ui (tp, gmp_urandomb_ui(state, 31));
       mpz_nextprime(tp, tp);
       t1.add(0, tp, NULL);
     }
-    for (uint8_t k = 0; k <= lrand48() % 5; k++)
+    for (uint8_t k = 0; k <= gmp_urandomm_ui(state, 5); k++)
     {
-      mpz_set_ui (tp, lrand48());
+      mpz_set_ui (tp, gmp_urandomb_ui(state, 31));
       mpz_nextprime(tp, tp);
       t1.add(1, tp, NULL);
     }
@@ -167,8 +172,8 @@ test_conversion (unsigned int nb)
 
   for (unsigned int i = 0; i < nb; i++)
   {
-    uint64_t a = random_uint64 ();
-    uint64_t b = random_int64 ();
+    uint64_t a = u64_random(state);
+    int64_t b = i64_random(state);
 
     mpz_set_uint64 (t, a);
 

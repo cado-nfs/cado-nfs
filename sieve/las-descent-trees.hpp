@@ -115,7 +115,7 @@ struct descent_tree {
     };
     struct tree {
         tree_label label;
-        double spent;
+        double spent = 0;
         candidate_relation contender;
         std::list<tree *> children;
         int try_again;

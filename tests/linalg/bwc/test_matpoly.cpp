@@ -52,6 +52,9 @@ struct matpoly_checker_base {
         abfield_specify(ab, MPFQ_PRIME_MPZ, (mpz_srcptr) p);
         gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, seed);
+        // ab might be left uninit, depending on the mpfq layer. This is
+        // harmless.
+        // coverity[uninit_member]
     }
     matpoly_checker_base(matpoly_checker_base const & o)
         : m(o.m)
@@ -61,11 +64,13 @@ struct matpoly_checker_base {
         , dummy(SIZE_MAX)
         , seed(o.seed)
     {
-        cxx_mpz p;
         abfield_init(ab);
         abfield_specify(ab, MPFQ_PRIME_MPZ, abfield_characteristic_srcptr(o.ab));
         gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, seed);
+        // ab might be left uninit, depending on the mpfq layer. This is
+        // harmless.
+        // coverity[uninit_member]
     }
     ~matpoly_checker_base() {
         gmp_randclear(rstate);
@@ -447,6 +452,7 @@ void declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "test-basecase", "test (and bench) the lingen basecase operation");
 }
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     MPI_Init(&argc, &argv);

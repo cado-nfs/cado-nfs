@@ -6,6 +6,7 @@ an outdated fork.
 
 [![pipeline status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/pipelines?ref=master)
 [![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/index.html?job=merge+coverage+tests)
+[![coverity scan](https://scan.coverity.com/projects/23184/badge.svg)](https://scan.coverity.com/projects/cado-nfs)
 
 Quick install:
 ==============
@@ -121,6 +122,8 @@ Optionally, cado-nfs can use the following additional software.
 * Support for hwloc (see [`parameters/misc/cpubinding.conf`](parameters/misc/cpubinding.conf))
 * Support for GMP-ECM. Define the environment variable GMPECM if it is
   installed in a non-standard place.
+* A system [`fmt`](https://fmt.dev/) is used is found, otherwise a
+  snapshot is embedded in the cado-nfs code anyway.
 
 Configure
 =========

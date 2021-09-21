@@ -459,6 +459,9 @@ bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_
   mpz_poly phiy; // phi evaluated at a given y
   mpz_poly Pyi_mpz_poly;// Py with mpz_t coeffs
 
+  gmp_randstate_t rstate;
+  gmp_randinit_default(rstate);
+
   if(ff != NULL){
     // Now, find an appropriate poly f in that table.
     // start with the first one, etc because the polynomials are sorted in 
@@ -484,7 +487,7 @@ bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_
 	// 1st arg: tab of roots (ptr)
 	// 2nd: the poly to find the roots
 	// 3rd: p (prime)
-	nb_roots_y = mpz_poly_roots(y, Pyi_mpz_poly, p);
+	nb_roots_y = mpz_poly_roots(y, Pyi_mpz_poly, p, rstate);
 	// this function calls either a ulong version or an mpz_t version.
 	// nb_roots_y = mpz_poly_roots_ulong (y, Pyi_mpz_poly, p);
 	// nb_roots_y = mpz_poly_roots_mpz   (y, Pyi_mpz_poly, p);
@@ -514,6 +517,7 @@ bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_
     }
     free(y);
   }
+  gmp_randclear(rstate);
   if (found_good_f){
     *f_id = i-1;
   }else{
@@ -791,6 +795,16 @@ void mpz_poly_fprintf_cado_format_line (FILE *fp, mpz_poly f, const int j, const
   }
 }
 
+#if 0
+
+/* This code is unused, and deserves a close look. What is the semantics
+ * of deg_Py exactly ? Is it 2 ? Is it a **degree** ? Is it a length
+ * (degree-1) ? The loop that goes up to deg_Py-1 below is suspicious,
+ * unless deg_Py is actually only a length. And the simultaneous info
+ * DEG_PY // deg_Py is a source for confusion, too. Do we have the
+ * implicit assert that deg_Py <= DEG_PY ? (then it should probably be an
+ * ASSERT_ALWAYS */
+
 static void print_coeff_Y_phi(FILE *fp, const long int phi_coeff_y[DEG_PY], unsigned int deg_Py){
   fprintf (fp, "(");
   fprintf (fp, "%ld", phi_coeff_y[0]);
@@ -827,7 +841,7 @@ void mpz_phi_poly_fprintf_cado_format_line (FILE *fp, const long int phi_coeff[M
   }
   fprintf(fp, "\n");
 }
-
+#endif
 
 void
 fprintf_gfpn_poly_info ( FILE* fp, mpz_poly f, const char *label_poly)

@@ -391,11 +391,17 @@ search_survivors_in_line1(unsigned char * const SS[2],
         const unsigned int i = abs (i0 + x);
         int divides = 0;
         switch (nr_div) {
+            // coverity[unterminated_case]
             case 6: divides |= (i * div[5][0] <= div[5][1]);no_break();
+            // coverity[unterminated_case]
             case 5: divides |= (i * div[4][0] <= div[4][1]);no_break();
+            // coverity[unterminated_case]
             case 4: divides |= (i * div[3][0] <= div[3][1]);no_break();
+            // coverity[unterminated_case]
             case 3: divides |= (i * div[2][0] <= div[2][1]);no_break();
+            // coverity[unterminated_case]
             case 2: divides |= (i * div[1][0] <= div[1][1]);no_break();
+            // coverity[unterminated_case]
             case 1: divides |= (i * div[0][0] <= div[0][1]);no_break();
             case 0: break;
         }

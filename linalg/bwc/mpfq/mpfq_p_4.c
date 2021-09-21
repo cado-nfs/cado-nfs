@@ -1,4 +1,4 @@
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"
 /* MPFQ generated file -- do not edit */
 
 #include "mpfq_p_4.h"
@@ -861,6 +861,7 @@ int mpfq_p_4_poly_divmod(mpfq_p_4_dst_field K MAYBE_UNUSED, mpfq_p_4_dst_poly q,
     mpfq_p_4_init(K, &ilb);
     mpfq_p_4_elt temp;
     mpfq_p_4_init(K, &temp);
+    mpfq_p_4_set_zero(K, temp); // silence spurious gcc11 warning :-(
     mpfq_p_4_poly_getcoeff(K, temp, b, degb);
     if (mpfq_p_4_cmp_ui(K, temp, 1) == 0) {
         mpfq_p_4_set_ui(K, ilb, 1);
@@ -923,10 +924,6 @@ static void mpfq_p_4_poly_preinv(mpfq_p_4_dst_field K MAYBE_UNUSED, mpfq_p_4_dst
     // Newton iteration: x_{n+1} = x_n + x_n(1 - a*x_n)
     // Requires p(0) = 1
     // Assume p != q (no alias)
-    mpfq_p_4_elt temp;	/* spurious uninit warning sometimes */
-    mpfq_p_4_init(K, &temp);
-    mpfq_p_4_poly_getcoeff(K, temp, p, 0);//Should be in the assert
-    assert( mpfq_p_4_cmp_ui(K, temp, 1) == 0);
     assert (p != q);
     int m;
     if (n <= 2) {
@@ -940,6 +937,11 @@ static void mpfq_p_4_poly_preinv(mpfq_p_4_dst_field K MAYBE_UNUSED, mpfq_p_4_dst
         m = 1 + ((n-1)/2);
         mpfq_p_4_poly_preinv(K, q, p, m);
     }
+    mpfq_p_4_elt temp;	/* spurious uninit warning sometimes */
+    mpfq_p_4_init(K, &temp);
+    mpfq_p_4_set_zero(K, temp); // silence spurious gcc11 warning :-(
+    mpfq_p_4_poly_getcoeff(K, temp, p, 0);//Should be in the assert
+    assert( mpfq_p_4_cmp_ui(K, temp, 1) == 0);
     // enlarge q if necessary
     if (q->alloc < n) {
         mpfq_p_4_vec_reinit(K, &(q->c), q->alloc, n);
@@ -968,6 +970,10 @@ void mpfq_p_4_poly_precomp_mod(mpfq_p_4_dst_field K MAYBE_UNUSED, mpfq_p_4_dst_p
 {
     assert(p != q);
     int N = mpfq_p_4_poly_deg(K, p);
+    if (N < 0) {
+        mpfq_p_4_poly_set(K, q, p);
+        return;
+    }
     mpfq_p_4_poly rp;
     mpfq_p_4_poly_init(K, rp, N+1);
     mpfq_p_4_vec_rev(K, rp->c, p->c, N+1);

@@ -583,8 +583,8 @@ template<int LEVEL>
 class plattices_vector_t:
         public std::vector<plattice_enumerator<LEVEL>> {
     /* The index here is the global index, across all fb parts */
-    slice_index_t index;
-    double weight;
+    slice_index_t index = -1;
+    double weight = 0;
 public:
     plattices_vector_t() = default;
     plattices_vector_t(slice_index_t index, double weight) : index(index), weight(weight) {}

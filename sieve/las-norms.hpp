@@ -95,6 +95,8 @@ struct lognorm_smart : public lognorm_base {/*{{{*/
     lognorm_smart() = default;
     lognorm_smart(lognorm_smart const &) = default;
     lognorm_smart& operator=(lognorm_smart const &) = default;
+    lognorm_smart(lognorm_smart &&) = default;
+    lognorm_smart & operator=(lognorm_smart &&) = default;
     lognorm_smart(siever_config const & sc, cxx_cado_poly const & cpoly, int side, qlattice_basis const & Q, int logI, int J);
     virtual ~lognorm_smart() {}
     virtual void fill(unsigned char * S, int N) const;

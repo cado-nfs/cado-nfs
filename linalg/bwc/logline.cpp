@@ -169,7 +169,6 @@ int logline_begin(FILE * f, size_t size, const char * fmt, ...)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank && !logline_print_all_mpi_nodes) return 0;
-    va_start(ap, fmt);
     ASSERT_ALWAYS(!current);
     if (size < logline_thresholds[0]) return 0;
     int level;
@@ -182,6 +181,7 @@ int logline_begin(FILE * f, size_t size, const char * fmt, ...)
     current->f = f;
     current->start = logline_timer();
     char * tmp;
+    va_start(ap, fmt);
     int rc = vasprintf(&(tmp), fmt, ap);
     ASSERT_ALWAYS(rc >= 0);
     current->header = tmp;
@@ -197,21 +197,21 @@ int logline_end(double * rr, const char * fmt, ...)
     if (!current) return 0;
     va_list ap;
     va_start(ap, fmt);
-    char * text;
     char * text2;
-    int rc;
+    double tt = logline_timer() - current->start;
     if (fmt) {
+        char * text;
+        int rc;
         rc = vasprintf(&text, fmt, ap);
         ASSERT_ALWAYS(rc >= 0);
-    }
-    double tt = logline_timer() - current->start;
-    if (fmt && *text) {
         rc = asprintf(&text2, "%s [%.2f]\n", text, tt);
+        ASSERT_ALWAYS(rc >= 0);
+        free(text);
     } else {
+        int rc;
         rc = asprintf(&text2, "[%.2f]\n", tt);
+        ASSERT_ALWAYS(rc >= 0);
     }
-    ASSERT_ALWAYS(rc >= 0);
-    free(text);
     if (current->nnl)
         logline_puts_raw(0, current->header.c_str());
     logline_puts_raw(0, text2);

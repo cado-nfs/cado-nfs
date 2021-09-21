@@ -98,6 +98,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         rhs = fopen(rhs_name, "r");
         get_rhs_file_header_stream(rhs, NULL, &nrhs, NULL);
         ASSERT_ALWAYS(rhs != NULL);
+        ASSERT_ALWAYS(nrhs <= mmt->n[!bw->dir]);
     }
 
     mmt_vec ymy[2];
@@ -325,6 +326,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         rhs = fopen(rhs_name, "r");
         get_rhs_file_header_stream(rhs, NULL, &nrhs, NULL);
         ASSERT_ALWAYS(rhs != NULL);
+        ASSERT_ALWAYS(nrhs <= mmt->n[!bw->dir]);
     }
 
     /* First create all RHS vectors -- these are just splits of the big
@@ -434,6 +436,7 @@ leave_prep_prog_gfp:
     return NULL;
 }
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     param_list pl;

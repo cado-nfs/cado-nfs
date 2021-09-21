@@ -151,7 +151,10 @@ check_SM (mpz_poly ff, mpz_t ell)
     }
     // in degree 3 and 4, the minimum number of SMs is 1. We
     // check that we have at least one root mod ell.
-    int nr = mpz_poly_roots_mpz(NULL, ff, ell);
+    gmp_randstate_t rstate;
+    gmp_randinit_default(rstate);
+    int nr = mpz_poly_roots_mpz(NULL, ff, ell, rstate);
+    gmp_randclear(rstate);
     return (nr >= 1);
 }
 
@@ -567,6 +570,8 @@ polygen_JL2 (mpz_t n,
     mpz_poly *v, u;
     long *a;
     double alpha_f;
+    gmp_randstate_t rstate;
+    gmp_randinit_default(rstate);
 
     ASSERT_ALWAYS (df >= 3);
     mpz_init (c);
@@ -593,7 +598,7 @@ polygen_JL2 (mpz_t n,
 
     /* compute roots of the polynomial f */
     START_TIMER;
-    nr = mpz_poly_roots_mpz (rf, f, n);
+    nr = mpz_poly_roots_mpz (rf, f, n, rstate);
     END_TIMER (TIMER_ROOTS);
     ASSERT(nr <= df);
 
@@ -685,6 +690,7 @@ polygen_JL2 (mpz_t n,
     }
 
     /* clear */
+    gmp_randclear(rstate);
     free (a);
     mpz_poly_clear (u);
     free (v);

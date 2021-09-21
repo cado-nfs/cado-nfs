@@ -24,6 +24,7 @@
 /* Automatically generated code  */
 /* Active handler: Mpfq::defaults */
 /* Active handler: Mpfq::defaults::vec */
+/* Active handler: simd_char2 */
 /* Active handler: simd_dotprod */
 /* Active handler: io */
 /* Active handler: trivialities */
@@ -149,9 +150,13 @@
    w=64,
    } */
 
-typedef void * mpfq_m128_field[1];
-typedef void * mpfq_m128_dst_field;
-typedef const void * mpfq_m128_src_field;
+typedef struct {
+    /* empty struct is not allowed in C. No, really it's not allowed. */
+    char c;
+} mpfq_m128_field_struct;
+typedef mpfq_m128_field_struct mpfq_m128_field [1];
+typedef mpfq_m128_field_struct * mpfq_m128_dst_field;
+typedef const mpfq_m128_field_struct * mpfq_m128_src_field;
 
 typedef __m128i mpfq_m128_elt[1];
 typedef __m128i * mpfq_m128_dst_elt;
@@ -176,38 +181,38 @@ typedef struct {
 } mpfq_m128_poly_struct;
 typedef mpfq_m128_poly_struct mpfq_m128_poly [1];
 typedef mpfq_m128_poly_struct * mpfq_m128_dst_poly;
-typedef mpfq_m128_poly_struct * mpfq_m128_src_poly;
+typedef const mpfq_m128_poly_struct * mpfq_m128_src_poly;
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 /* *Mpfq::defaults::code_for_impl_name */
 #define mpfq_m128_impl_name()	"m128"
-/* *simd_m128::code_for_impl_max_characteristic_bits */
+/* *simd_char2::code_for_impl_max_characteristic_bits */
 #define mpfq_m128_impl_max_characteristic_bits()	2
-/* *simd_m128::code_for_impl_max_degree */
+/* *simd_char2::code_for_impl_max_degree */
 #define mpfq_m128_impl_max_degree()	1
 
 /* Functions operating on the field structure */
-static inline
-void mpfq_m128_field_characteristic(mpfq_m128_src_field, mpz_ptr);
+/* *simd_char2::code_for_field_characteristic */
+#define mpfq_m128_field_characteristic(K, z)	mpz_set_ui(z,2)
 mpz_srcptr mpfq_m128_field_characteristic_srcptr(mpfq_m128_src_field);
-/* *simd_m128::code_for_field_degree */
-#define mpfq_m128_field_degree(K)	1
-static inline
-void mpfq_m128_field_init(mpfq_m128_dst_field);
-/* *simd_m128::code_for_field_clear */
+/* *simd_char2::code_for_field_degree */
+#define mpfq_m128_field_degree(f)	1
+/* *simd_char2::code_for_field_init */
+#define mpfq_m128_field_init(f)	((mpfq_m128_dst_field) (f))->c=0
+/* *simd_char2::code_for_field_clear */
 #define mpfq_m128_field_clear(K)	/**/
 void mpfq_m128_field_specify(mpfq_m128_dst_field, unsigned long, const void *);
-/* *simd_m128::code_for_field_setopt */
+/* *simd_char2::code_for_field_setopt */
 #define mpfq_m128_field_setopt(f, x, y)	/**/
 
 /* Element allocation functions */
-/* *Mpfq::defaults::flatdata::code_for_init, simd_flat */
+/* *Mpfq::defaults::flatdata::code_for_init, simd_flat, simd_char2 */
 #define mpfq_m128_init(f, px)	/**/
-/* *Mpfq::defaults::flatdata::code_for_clear, simd_flat */
+/* *Mpfq::defaults::flatdata::code_for_clear, simd_flat, simd_char2 */
 #define mpfq_m128_clear(f, px)	/**/
-/* *Mpfq::defaults::flatdata::code_for_elt_stride, simd_flat */
+/* *Mpfq::defaults::flatdata::code_for_elt_stride, simd_flat, simd_char2 */
 #define mpfq_m128_elt_stride(k)	sizeof(mpfq_m128_elt)
 
 /* Elementary assignment functions */
@@ -235,11 +240,11 @@ static inline
 int mpfq_m128_inv(mpfq_m128_dst_field, mpfq_m128_dst_elt, mpfq_m128_src_elt);
 
 /* Operations involving unreduced elements */
-/* *Mpfq::defaults::flatdata::code_for_elt_ur_init, simd_flat */
+/* *Mpfq::defaults::flatdata::code_for_elt_ur_init, simd_flat, simd_char2 */
 #define mpfq_m128_elt_ur_init(f, px)	/**/
-/* *Mpfq::defaults::flatdata::code_for_elt_ur_clear, simd_flat */
+/* *Mpfq::defaults::flatdata::code_for_elt_ur_clear, simd_flat, simd_char2 */
 #define mpfq_m128_elt_ur_clear(f, px)	/**/
-/* *Mpfq::defaults::flatdata::code_for_elt_ur_stride, simd_flat */
+/* *Mpfq::defaults::flatdata::code_for_elt_ur_stride, simd_flat, simd_char2 */
 #define mpfq_m128_elt_ur_stride(k)	sizeof(mpfq_m128_elt_ur)
 static inline
 void mpfq_m128_elt_ur_set(mpfq_m128_dst_field, mpfq_m128_dst_elt_ur, mpfq_m128_src_elt_ur);
@@ -353,9 +358,9 @@ static inline
 mpfq_m128_dst_elt mpfq_m128_vec_ur_coeff_ptr(mpfq_m128_dst_field, mpfq_m128_dst_vec_ur, long);
 static inline
 mpfq_m128_src_elt mpfq_m128_vec_ur_coeff_ptr_const(mpfq_m128_dst_field, mpfq_m128_src_vec_ur, long);
-/* *Mpfq::defaults::flatdata::code_for_vec_elt_stride, simd_flat */
+/* *Mpfq::defaults::flatdata::code_for_vec_elt_stride, simd_flat, simd_char2 */
 #define mpfq_m128_vec_elt_stride(k, n)	((n) * mpfq_m128_elt_stride((k)))
-/* *Mpfq::defaults::flatdata::code_for_vec_ur_elt_stride, simd_flat */
+/* *Mpfq::defaults::flatdata::code_for_vec_ur_elt_stride, simd_flat, simd_char2 */
 #define mpfq_m128_vec_ur_elt_stride(k, n)	((n) * mpfq_m128_elt_ur_stride((k)))
 
 /* Polynomial functions */
@@ -388,19 +393,6 @@ void mpfq_m128_oo_field_init(mpfq_vbase_ptr);
 #endif
 
 /* Implementations for inlines */
-/* *simd_m128::code_for_field_characteristic */
-static inline
-void mpfq_m128_field_characteristic(mpfq_m128_src_field K MAYBE_UNUSED, mpz_ptr z)
-{
-    mpz_set_ui(z,2);
-}
-
-/* *simd_m128::code_for_field_init */
-static inline
-void mpfq_m128_field_init(mpfq_m128_dst_field f MAYBE_UNUSED)
-{
-}
-
 /* *simd_m128::code_for_set */
 static inline
 void mpfq_m128_set(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt r, mpfq_m128_src_elt s)
@@ -415,7 +407,7 @@ void mpfq_m128_set_zero(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt r)
     *r=_mm_setzero_si128();
 }
 
-/* *simd_flat::code_for_random */
+/* *simd_flat::code_for_random, simd_char2 */
 static inline
 void mpfq_m128_random(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt r, gmp_randstate_t state)
 {
@@ -426,7 +418,7 @@ void mpfq_m128_random(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt r, g
         mpz_urandomb(ugly, state, mpfq_m128_simd_groupsize(K));
 }
 
-/* *simd_flat::code_for_random2 */
+/* *simd_flat::code_for_random2, simd_char2 */
 static inline
 void mpfq_m128_random2(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt r, gmp_randstate_t state)
 {
@@ -480,14 +472,14 @@ void mpfq_m128_elt_ur_set(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt_
     *r=*s;
 }
 
-/* *Mpfq::defaults::flatdata::code_for_elt_ur_set_elt, simd_flat */
+/* *Mpfq::defaults::flatdata::code_for_elt_ur_set_elt, simd_flat, simd_char2 */
 static inline
 void mpfq_m128_elt_ur_set_elt(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt_ur r, mpfq_m128_src_elt s)
 {
     memset(r, 0, sizeof(mpfq_m128_elt_ur)); memcpy(r,s,sizeof(mpfq_m128_elt));
 }
 
-/* *Mpfq::defaults::flatdata::code_for_elt_ur_set_zero, simd_flat */
+/* *Mpfq::defaults::flatdata::code_for_elt_ur_set_zero, simd_flat, simd_char2 */
 static inline
 void mpfq_m128_elt_ur_set_zero(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt_ur r)
 {
@@ -529,7 +521,7 @@ void mpfq_m128_reduce(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt r, m
     *r=*s;
 }
 
-/* *Mpfq::defaults::flatdata::code_for_cmp, simd_flat */
+/* *Mpfq::defaults::flatdata::code_for_cmp, simd_flat, simd_char2 */
 static inline
 int mpfq_m128_cmp(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_src_elt r, mpfq_m128_src_elt s)
 {
@@ -544,14 +536,14 @@ int mpfq_m128_is_zero(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_src_elt r)
                    _mm_extract_epi64(*r, 1) == 0;
 }
 
-/* *Mpfq::defaults::vec::flatdata::code_for_vec_set, Mpfq::defaults::flatdata, simd_flat */
+/* *Mpfq::defaults::vec::flatdata::code_for_vec_set, Mpfq::defaults::flatdata, simd_flat, simd_char2 */
 static inline
 void mpfq_m128_vec_set(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_vec r, mpfq_m128_src_vec s, unsigned long n)
 {
     if (r != s) memmove(r, s, n*sizeof(mpfq_m128_elt));
 }
 
-/* *Mpfq::defaults::vec::flatdata::code_for_vec_set_zero, Mpfq::defaults::flatdata, simd_flat */
+/* *Mpfq::defaults::vec::flatdata::code_for_vec_set_zero, Mpfq::defaults::flatdata, simd_flat, simd_char2 */
 static inline
 void mpfq_m128_vec_set_zero(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_vec r, unsigned long n)
 {
@@ -659,7 +651,7 @@ mpfq_m128_src_elt mpfq_m128_vec_coeff_ptr_const(mpfq_m128_dst_field K MAYBE_UNUS
     return v[i];
 }
 
-/* *Mpfq::defaults::vec::flatdata::code_for_vec_ur_set_zero, Mpfq::defaults::flatdata, simd_flat */
+/* *Mpfq::defaults::vec::flatdata::code_for_vec_ur_set_zero, Mpfq::defaults::flatdata, simd_flat, simd_char2 */
 static inline
 void mpfq_m128_vec_ur_set_zero(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_vec_ur r, unsigned long n)
 {
@@ -678,7 +670,7 @@ void mpfq_m128_vec_ur_set_vec(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_
             }
 }
 
-/* *Mpfq::defaults::vec::flatdata::code_for_vec_ur_set, Mpfq::defaults::flatdata, simd_flat */
+/* *Mpfq::defaults::vec::flatdata::code_for_vec_ur_set, Mpfq::defaults::flatdata, simd_flat, simd_char2 */
 static inline
 void mpfq_m128_vec_ur_set(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_vec_ur r, mpfq_m128_src_vec_ur s, unsigned long n)
 {
@@ -829,7 +821,7 @@ int mpfq_m128_simd_find_first_set(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_
         return -1;
 }
 
-/* *simd_flat::code_for_simd_get_ui_at */
+/* *simd_flat::code_for_simd_get_ui_at, simd_char2 */
 static inline
 unsigned long mpfq_m128_simd_get_ui_at(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_src_elt p, int k)
 {
@@ -839,7 +831,7 @@ unsigned long mpfq_m128_simd_get_ui_at(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_
         return (xp[k/64] & mask) != 0;
 }
 
-/* *simd_flat::code_for_simd_set_ui_at */
+/* *simd_flat::code_for_simd_set_ui_at, simd_char2 */
 static inline
 void mpfq_m128_simd_set_ui_at(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt p, int k, unsigned long v)
 {
@@ -849,7 +841,7 @@ void mpfq_m128_simd_set_ui_at(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_
         xp[k/64] = (xp[k/64] & ~mask) | ((((uint64_t)v) << (k%64))&mask);
 }
 
-/* *simd_flat::code_for_simd_add_ui_at */
+/* *simd_flat::code_for_simd_add_ui_at, simd_char2 */
 static inline
 void mpfq_m128_simd_add_ui_at(mpfq_m128_dst_field K MAYBE_UNUSED, mpfq_m128_dst_elt p, mpfq_m128_src_elt p0, int k, unsigned long v)
 {

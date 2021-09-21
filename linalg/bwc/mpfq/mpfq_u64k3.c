@@ -1,4 +1,4 @@
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"
 /* MPFQ generated file -- do not edit */
 
 #include "mpfq_u64k3.h"
@@ -177,12 +177,12 @@ int mpfq_u64k3_asprint(mpfq_u64k3_dst_field K MAYBE_UNUSED, char * * ps, mpfq_u6
 {
         /* Hmm, this has never been tested, right ? Attempting a quick fix... */
         const uint64_t * y = (const uint64_t *) x;
-        const unsigned int stride = mpfq_u64k3_elt_stride(K)/sizeof(uint64_t);
+        const unsigned int stride = mpfq_u64k3_elt_stride(K)/(sizeof(uint64_t));
         *ps = mpfq_malloc_check(stride * 16 + 1);
         memset(*ps, ' ', stride * 16);
         int n;
         for(unsigned int i = 0 ; i < stride ; i++) {
-            n = snprintf((*ps) + i * 16, 17, "%" PRIx64, y[i]);
+            n = snprintf((*ps) + i * 16, 17, "%016" PRIx64, y[i]);
             (*ps)[i*16 + n]=',';
         }
         (*ps)[(stride-1) * 16 + n]='\0';
@@ -205,7 +205,7 @@ int mpfq_u64k3_sscan(mpfq_u64k3_dst_field k MAYBE_UNUSED, mpfq_u64k3_dst_elt z, 
 {
         char tmp[17];
         uint64_t * y = (uint64_t *) z;
-        const unsigned int stride = mpfq_u64k3_elt_stride(K)/sizeof(uint64_t);
+        const unsigned int stride = mpfq_u64k3_elt_stride(K)/(sizeof(uint64_t));
         assert(strlen(str) >= 1 * 16);
         int r = 0;
         for(unsigned int i = 0 ; i < stride ; i++) {

@@ -27,12 +27,14 @@ FILE * matmul_common_reload_cache_fopen(size_t stride, struct matmul_public_s * 
     
     if (magic_check != magic) {
         fprintf(stderr, "Wrong magic in cached matrix file\n");
+        fclose(f);
         return NULL;
     }   
     
     MATMUL_COMMON_READ_ONE32(magic_check, f);
     if (magic_check != MM_COMMON_MAGIC) {
         fprintf(stderr, "Wrong magic in cached matrix file\n");
+        fclose(f);
         return NULL;
     }   
 

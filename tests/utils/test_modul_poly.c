@@ -9,7 +9,7 @@
 #include "gmp_aux.h"
 #include "tests_common.h"
 #include "cado_poly.h"
-#include "portability.h" // lrand48 // IWYU pragma: keep
+#include "portability.h" // IWYU pragma: keep
 
 void
 test_modul_poly_is_irreducible (unsigned long iter)
@@ -66,16 +66,16 @@ test_modul_poly_is_irreducible (unsigned long iter)
 
   while (iter--)
     {
-      d = 1 + lrand48 () % (MAX_DEGREE - 1);
-      q = lrand48 ();
+      d = 1 + gmp_urandomm_ui(state, MAX_DEGREE - 1);
+      q = gmp_urandomb_ui(state, 31);
       q = ulong_nextprime (q);
       /* modul_poly_cantor_zassenhaus only works for odd primes */
       q += (q == 2);
       modul_initmod_ul (p, q);
       for (i = 0; i <= d; i++)
-        modul_set_ul (f->coeff[i], lrand48 (), p);
+        modul_set_ul (f->coeff[i], gmp_urandomb_ui(state, 31), p);
       while (modul_is0 (f->coeff[d], p))
-        modul_set_ul (f->coeff[d], lrand48 (), p);
+        modul_set_ul (f->coeff[d], gmp_urandomb_ui(state, 31), p);
       f->degree = d;
       irred = modul_poly_is_irreducible (f, p);
       int squarefree = modul_poly_is_squarefree (f, p);
@@ -88,7 +88,7 @@ test_modul_poly_is_irreducible (unsigned long iter)
       }
       if (d == 1 || (d == 2 && irred == 0 && squarefree))
         {
-          n = modul_poly_cantor_zassenhaus (r, f, p);
+          n = modul_poly_cantor_zassenhaus (r, f, p, state);
           ASSERT_ALWAYS(n == d);
         }
       modul_clearmod (p);
@@ -118,7 +118,7 @@ test_modul_poly_roots_ulong (unsigned long iter)
   F->coeff =  f;
   F->deg = d;
   modul_initmod_ul (p, 113);
-  n = modul_poly_roots_ulong (r, F, p);
+  n = modul_poly_roots_ulong (r, F, p, state);
   ASSERT_ALWAYS(n == 1 && r[0] == 0);
   modul_clearmod (p);
 
@@ -131,19 +131,19 @@ test_modul_poly_roots_ulong (unsigned long iter)
   mpz_set_ui (f[5], 3);
   mpz_set_ui (f[6], 1);
   F->deg = 6;
-  n = modul_poly_roots (NULL, F, p);
+  n = modul_poly_roots (NULL, F, p, state);
   ASSERT_ALWAYS (n == 5);
 
   while (iter--)
     {
-      d = 1 + lrand48 () % (MAX_DEGREE - 1);
+      d = 1 + gmp_urandomm_ui(state, MAX_DEGREE - 1);
       F->deg = d;
       for (i = 0; i <= d; i++)
         mpz_urandomb (f[i], state, 64);
-      modul_initmod_ul (p, ulong_nextprime (lrand48 ()));
+      modul_initmod_ul (p, ulong_nextprime (gmp_urandomb_ui(state, 31)));
       while (mpz_divisible_ui_p (f[d], modul_getmod_ul (p)))
         mpz_urandomb (f[d], state, 64);
-      n = modul_poly_roots_ulong (r, F, p);
+      n = modul_poly_roots_ulong (r, F, p, state);
       ASSERT_ALWAYS(0 <= n && n <= d);
       modul_poly_init (fp, d);
       modul_poly_set_mod (fp, F, p);

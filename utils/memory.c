@@ -52,7 +52,7 @@ void *malloc_aligned(size_t size, size_t alignment)
     void *res = NULL;
     int rc = posix_memalign(&res, alignment, size);
     // ASSERT_ALWAYS(rc == 0);
-    DIE_ERRNO_DIAG(rc != 0, "malloc_aligned", "");
+    DIE_ERRNO_DIAG(rc != 0, "malloc_aligned(%s)", "");
     return res;
 #else
     char * res;
@@ -129,7 +129,9 @@ aligned_alloc (size_t alignment, size_t size)
 
 void *malloc_pagealigned(size_t sz)
 {
-    void *p = malloc_aligned (sz, pagesize ());
+    long ps = pagesize();
+    ASSERT_ALWAYS(ps > 0);
+    void *p = malloc_aligned (sz, ps);
     ASSERT_ALWAYS(p != NULL);
     return p;
 }

@@ -43,6 +43,14 @@ public:
         Residue(Residue &&s) : r(s.r) {
             s.r = NULL;
         }
+        Residue(Residue const & s) = delete;
+        Residue& operator=(Residue &&s) {
+            delete[] r;
+            r = s.r;
+            s.r = NULL;
+            return *this;
+        }
+        Residue& operator=(Residue const & s) = delete;
     };
 
     typedef ResidueStdOp<Residue> ResidueOp;
@@ -90,7 +98,11 @@ protected:
         if (bits > 64 || mpz_cmp_uint64(m, s) > 0)
             return s;
         /* m <= s, thus m fits in uint64_t */
-        return s % mpz_get_uint64(m);
+        uint64_t m64 = mpz_get_uint64(m);
+        /* We always make sure that the modulus in non-zero in the ctor
+         */
+        ASSERT_FOR_STATIC_ANALYZER(m64 != 0);
+        return s % m64;
     }
     void set_residue_u64(Residue &r, const uint64_t s) const {
         ASSERT(mpz_cmp_uint64(m, s) > 0);

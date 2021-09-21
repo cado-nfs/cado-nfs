@@ -1588,6 +1588,7 @@ int param_list_save_parameter(param_list_ptr pl, enum parameter_origin o,
     rc = vasprintf(&tmp, format, ap);
     param_list_add_key(pl, key, tmp, o);
     free(tmp);
+    va_end(ap);
 
     return rc;
 }

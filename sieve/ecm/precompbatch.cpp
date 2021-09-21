@@ -25,6 +25,7 @@ static void declare_usage(param_list pl)
     verbose_decl_usage(pl);
 }
 
+// coverity[root_function]
 int
 main (int argc, char *argv[])
 {

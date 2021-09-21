@@ -269,6 +269,9 @@ tabular_strategy_t *generate_strategies_oneside(tabular_decomp_t * init_tab,
     //{{
     int fbb = ceil (log2 ((double) (lim + 1)));
     int lim_is_prime = 2 * fbb - 1;
+
+    ASSERT_ALWAYS((init_tab != NULL) == (r >= lim_is_prime));
+
     /*
       In this case, r is already a prime number!
       We define two zero strategies to manage:

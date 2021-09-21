@@ -5,6 +5,7 @@
 #include <gmp.h>
 #include "tests_common.h"
 #include "sieve/ecm/mpqs_doit.h"
+#include "misc.h"
 
 /* Set N to a crude approximation to 2^(b/2) */
 void
@@ -41,7 +42,7 @@ main (int argc, const char *argv[])
   else
     /* generate a random size between one and two words */
 #define BITS_PER_ULONG (8 * sizeof(unsigned long))
-    bits = BITS_PER_ULONG + (random_uint64() % (BITS_PER_ULONG + 1));
+    bits = BITS_PER_ULONG + gmp_urandomm_ui(state, BITS_PER_ULONG + 1);
   if (!quiet)
     printf ("bits=%lu iter=%lu\n", bits, iter);
 

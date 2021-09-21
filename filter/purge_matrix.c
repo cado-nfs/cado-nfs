@@ -325,8 +325,8 @@ print_stats_uint64 (FILE *out, uint64_t *w, uint64_t len,
     }
   }
 
-  double av_f = ((double) av) / ((double) nb_nzero);
-  double std_f = sqrt(((double) std) / ((double) nb_nzero) - av_f*av_f);
+  double av_f = ((double) av) / ((double) (nb_nzero+!nb_nzero));
+  double std_f = sqrt(((double) std) / ((double) (nb_nzero+!nb_nzero)) - av_f*av_f);
 
   fprintf (out, "# STATS on %s: #%s = %" PRIu64 "\n", name, name, nb_nzero);
   fprintf (out, "# STATS on %s: min %s = %" PRIu64 "\n", name, unit, min);

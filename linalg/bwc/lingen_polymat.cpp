@@ -172,7 +172,7 @@ polymat::polymat(abdst_field ab, unsigned int m, unsigned int n, int len)
 }
 
 void polymat::realloc(size_t newalloc) {
-    check_pre_init();
+    ASSERT_ALWAYS(!check_pre_init());
     abvec_reinit(ab, &x, m*n*alloc, m*n*newalloc);
     /* zero out the newly added data */
     if (newalloc > alloc) {
@@ -187,7 +187,7 @@ void polymat::zero() {
     abvec_set_zero(ab, x, m*n*alloc);
 }
 polymat::~polymat() {
-    abvec_clear(ab, &x, m*n*alloc);
+    if (ab) abvec_clear(ab, &x, m*n*alloc);
 }
 polymat::polymat(polymat && a)
     : ab(a.ab), m(a.m), n(a.n), alloc(a.alloc)

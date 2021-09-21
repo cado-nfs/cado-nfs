@@ -9,8 +9,9 @@
 #include "las-arith.hpp"           // for invmod_redc_32
 #include "gcd.h"
 #include "tests_common.h"
+#include "misc.h"
 
-
+// coverity[root_function]
 int main(int argc, const char **argv) {
     unsigned long N = 1000000;
     int test_correctness = 1, test_timing = 1;
@@ -38,9 +39,9 @@ int main(int argc, const char **argv) {
         ASSERT_ALWAYS(invmod_redc_32(1, 2315500393, 1575713575) != 0);
 
         uint32_t to_invert = 0;
-        uint32_t m = (uint32_t) random_uint64() | 1;
+        uint32_t m = (uint32_t) u64_random(state) | 1;
         uint32_t invm = -invmod_po2(m);
-        uint32_t to_add = ((uint32_t) random_uint64()) % m;
+        uint32_t to_add = gmp_urandomm_ui(state, m);
 
         while (gcd_uint64(to_add, m) > 1) {
             to_add++;

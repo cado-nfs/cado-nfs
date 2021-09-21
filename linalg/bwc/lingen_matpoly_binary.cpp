@@ -100,9 +100,11 @@ void matpoly::realloc(size_t new_ncoeffs) {
     /* zero out the newly added data */
     if (newalloc_words > alloc_words) {
         newalloc_words = MAX(newalloc_words, alloc_words + alloc_words / 8);
+#if ULONG_BITS < 64
         if (newalloc_words % (64 / ULONG_BITS)) {
             newalloc_words = b2w_x(newalloc_words * ULONG_BITS);
         }
+#endif
         /* allocate new space, then inflate */
         x = (unsigned long *) memory.realloc(x, oldmem, newmem);
         const unsigned long * rhead = x + m * n * alloc_words;

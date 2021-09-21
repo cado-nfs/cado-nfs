@@ -149,9 +149,13 @@
    w=64,
    } */
 
-typedef void * mpfq_u64k2_field[1];
-typedef void * mpfq_u64k2_dst_field;
-typedef const void * mpfq_u64k2_src_field;
+typedef struct {
+    /* empty struct is not allowed in C. No, really it's not allowed. */
+    char c;
+} mpfq_u64k2_field_struct;
+typedef mpfq_u64k2_field_struct mpfq_u64k2_field [1];
+typedef mpfq_u64k2_field_struct * mpfq_u64k2_dst_field;
+typedef const mpfq_u64k2_field_struct * mpfq_u64k2_src_field;
 
 typedef uint64_t mpfq_u64k2_elt[2];
 typedef uint64_t * mpfq_u64k2_dst_elt;
@@ -176,7 +180,7 @@ typedef struct {
 } mpfq_u64k2_poly_struct;
 typedef mpfq_u64k2_poly_struct mpfq_u64k2_poly [1];
 typedef mpfq_u64k2_poly_struct * mpfq_u64k2_dst_poly;
-typedef mpfq_u64k2_poly_struct * mpfq_u64k2_src_poly;
+typedef const mpfq_u64k2_poly_struct * mpfq_u64k2_src_poly;
 
 #ifdef  __cplusplus
 extern "C" {
@@ -192,14 +196,14 @@ extern "C" {
 /* *simd_char2::code_for_field_characteristic */
 #define mpfq_u64k2_field_characteristic(K, z)	mpz_set_ui(z,2)
 mpz_srcptr mpfq_u64k2_field_characteristic_srcptr(mpfq_u64k2_src_field);
-/* *simd_u64k::code_for_field_degree */
+/* *simd_char2::code_for_field_degree */
 #define mpfq_u64k2_field_degree(f)	1
-static inline
-void mpfq_u64k2_field_init(mpfq_u64k2_dst_field);
-/* *simd_u64k::code_for_field_clear */
+/* *simd_char2::code_for_field_init */
+#define mpfq_u64k2_field_init(f)	((mpfq_u64k2_dst_field) (f))->c=0
+/* *simd_char2::code_for_field_clear */
 #define mpfq_u64k2_field_clear(K)	/**/
 void mpfq_u64k2_field_specify(mpfq_u64k2_dst_field, unsigned long, const void *);
-/* *simd_u64k::code_for_field_setopt */
+/* *simd_char2::code_for_field_setopt */
 #define mpfq_u64k2_field_setopt(f, x, y)	/**/
 
 /* Element allocation functions */
@@ -388,12 +392,6 @@ void mpfq_u64k2_oo_field_init(mpfq_vbase_ptr);
 #endif
 
 /* Implementations for inlines */
-/* *simd_u64k::code_for_field_init */
-static inline
-void mpfq_u64k2_field_init(mpfq_u64k2_dst_field f MAYBE_UNUSED)
-{
-}
-
 /* *simd_flat::code_for_set, simd_char2 */
 static inline
 void mpfq_u64k2_set(mpfq_u64k2_dst_field K MAYBE_UNUSED, mpfq_u64k2_dst_elt r, mpfq_u64k2_src_elt s)
@@ -414,8 +412,8 @@ void mpfq_u64k2_random(mpfq_u64k2_dst_field K MAYBE_UNUSED, mpfq_u64k2_dst_elt r
 {
         mpz_t ugly;
         ugly->_mp_d = (mp_limb_t *) r;
-        ugly->_mp_alloc = sizeof(mpfq_u64k2_elt) / sizeof(mp_limb_t);
-        ugly->_mp_size = sizeof(mpfq_u64k2_elt) / sizeof(mp_limb_t);
+        ugly->_mp_alloc = sizeof(mpfq_u64k2_elt) / (sizeof(mp_limb_t));
+        ugly->_mp_size = sizeof(mpfq_u64k2_elt) / (sizeof(mp_limb_t));
         mpz_urandomb(ugly, state, mpfq_u64k2_simd_groupsize(K));
 }
 
@@ -425,8 +423,8 @@ void mpfq_u64k2_random2(mpfq_u64k2_dst_field K MAYBE_UNUSED, mpfq_u64k2_dst_elt 
 {
         mpz_t ugly;
         ugly->_mp_d = (mp_limb_t *) r;
-        ugly->_mp_alloc = sizeof(mpfq_u64k2_elt) / sizeof(mp_limb_t);
-        ugly->_mp_size = sizeof(mpfq_u64k2_elt) / sizeof(mp_limb_t);
+        ugly->_mp_alloc = sizeof(mpfq_u64k2_elt) / (sizeof(mp_limb_t));
+        ugly->_mp_size = sizeof(mpfq_u64k2_elt) / (sizeof(mp_limb_t));
         mpz_rrandomb(ugly, state, mpfq_u64k2_simd_groupsize(K));
 }
 

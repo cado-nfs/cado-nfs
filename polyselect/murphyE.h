@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
 #include "cado_poly.h"
+#include "gmp_aux.h"
 
 #ifdef __cplusplus
 extern "C" {

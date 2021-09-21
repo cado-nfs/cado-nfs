@@ -1104,6 +1104,7 @@ int wrapped_main(int argc, char *argv[])
 /* We do this so that the dtors of the data that gets allocated within
  * main are allowed to use MPI_Comm_rank.
  */
+// coverity[root_function]
 int main(int argc, char *argv[])
 {
     bw_common_init(bw, &argc, &argv);

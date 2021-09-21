@@ -18,8 +18,6 @@ extern "C" {
 #endif
 
 int cmp_double(double, double, double);
-int64_t random_int64 ();
-uint64_t random_uint64 ();
 /** Generate a uniformly distributed random integer in the range 0 to
  *  2^N-1, inclusive. (Copied from GMP info page) */
 void tests_common_urandomb (mpz_t R, mp_bitcnt_t N);

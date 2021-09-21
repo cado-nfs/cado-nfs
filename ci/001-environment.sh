@@ -111,6 +111,11 @@ case "$CI_BUILD_NAME" in
     ;;
 esac
 case "$CI_BUILD_NAME" in
+    *"coverity"*)
+        coverity=1
+    ;;
+esac
+case "$CI_BUILD_NAME" in
     *"using cmake directly"*)
         using_cmake_directly=1
         # use build_tree in this case, which matches the variable that

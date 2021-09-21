@@ -7,7 +7,8 @@
 #include "gmp_aux.h"
 #include "macros.h"
 #include "tests_common.h"
-#include "portability.h" // lrand48 // IWYU pragma: keep
+#include "portability.h" // IWYU pragma: keep
+#include "misc.h" // IWYU pragma: keep
 
 static void
 test_mpz_set_uint64 ()
@@ -97,9 +98,7 @@ test_mpz_get_uint64 (const unsigned long iter)
   mpz_init (z);
   for (i = 0; i < iter; i++)
     {
-      q = i & 3; /* two bits */
-      q = (q << 31) + lrand48 (); /* 33 bits */
-      q = (q << 31) + lrand48 (); /* 64 bits */
+      q = u64_random(state);
       mpz_set_uint64 (z, q);
       r = mpz_get_uint64 (z);
       if (r != q)
@@ -144,8 +143,7 @@ test_mpz_get_int64 (const unsigned long iter)
   
   for (i = 0; i < iter; i++)
     {
-      q = mrand48 (); /* [-2^31, 2^31] */
-      q = (q << 32) + mrand48 (); /* 63 bits */
+      q = i64_random(state);
       mpz_set_int64 (z, q);
       r = mpz_get_int64 (z);
       if (r != q)
@@ -194,9 +192,7 @@ test_mpz_mul_uint64 (const unsigned long iter)
   for (i = 0; i < iter; i++)
     {
       mpz_urandomb (b, state, 128);
-      c = i & 3;
-      c = (c << 31) + lrand48 ();
-      c = (c << 31) + lrand48 ();
+      c = u64_random(state);
       mpz_mul_uint64 (a, b, c);
       mpz_set_uint64 (cc, c);
       mpz_mul (aa, b, cc);
@@ -223,8 +219,7 @@ test_mpz_mul_int64 (const unsigned long iter)
   for (i = 0; i < iter; i++)
     {
       mpz_urandomb (b, state, 128);
-      c = mrand48 ();
-      c = (c << 32) + mrand48 ();
+      c = i64_random(state);
       mpz_mul_int64 (a, b, c);
       mpz_set_int64 (cc, c);
       mpz_mul (aa, b, cc);
@@ -251,8 +246,7 @@ test_mpz_addmul_int64 (const unsigned long iter)
   for (i = 0; i < iter; i++)
     {
       mpz_urandomb (b, state, 128);
-      c = mrand48 ();
-      c = (c << 32) + mrand48 ();
+      c = i64_random(state);
       mpz_addmul_int64 (a, b, c);
       mpz_set_int64 (cc, c);
       mpz_addmul (aa, b, cc);
@@ -272,7 +266,7 @@ test_ulong_nextprime (const unsigned long iter)
   unsigned long q, r, s;
   unsigned long i;
 
-  q = lrand48 () % 300000000;
+  q = gmp_urandomm_ui(state, 300000000);
   for (i = 0; i < iter && q < 300000000; i++)
     {
       for (s = q + 1; s != 0 && ulong_isprime (s) == 0; s++);

@@ -88,11 +88,10 @@ facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t)
     return strategy;
 }
 
-int
-select_random_index_dec(double sum_nb_elem, tabular_decomp_t* t)
+static int
+select_random_index_dec(double sum_nb_elem, tabular_decomp_t* t, gmp_randstate_ptr rstate)
 {
-    //100000 to consider approximation of distribution
-    double alea = rand() % (unsigned long)sum_nb_elem;
+    double alea = gmp_urandomm_ui(rstate, (unsigned long)sum_nb_elem);
     int i = 0;
     double bound = t->tab[0]->nb_elem;
     int len = t->index;
@@ -127,7 +126,7 @@ bench_proba_time_st(gmp_randstate_t state, facul_strategy_t* strategy,
 
     while (nb_succes < nb_succes_max && (nb_test<nb_test_max))
 	{
-	    int index = select_random_index_dec(sum_dec, init_tab);
+	    int index = select_random_index_dec(sum_dec, init_tab, state);
 	    int len_p = init_tab->tab[index]->tab[0];
 
 	    cxx_mpz N = generate_composite_integer(state, len_p, r);
@@ -283,6 +282,7 @@ void bench_proba_mini(gmp_randstate_t state, tabular_fm_t * fm, int* val_p,
 /************************************************************************/
 
 
+// coverity[root_function]
 int main()
 {
     gmp_randstate_t state;

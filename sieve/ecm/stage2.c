@@ -262,6 +262,8 @@ stage2_one_w (stage2_plan_t *plan, const unsigned int B1, const unsigned int B2,
     if (gcd_ul ((unsigned long) j, (unsigned long) w) == 1UL)
       U[i++] = j;
   ASSERT_ALWAYS (i == U_len);
+  /* There _are_ invertibles mod w ! */
+  ASSERT_FOR_STATIC_ANALYZER (U_len > 0);
   if (verbose)
   {
     printf ("# %s: U = { %u", __func__, U[0]);

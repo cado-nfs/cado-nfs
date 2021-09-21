@@ -37,6 +37,7 @@
 #include <gmp.h>
 #include "ecm.h"
 #include "macros.h"
+#include "misc.h"
 #include "portability.h"
 
 #define KEEP 10 /* minimal number of elements in pool */
@@ -469,7 +470,9 @@ main (int argc, char *argv[])
   gmp_printf ("z=%Zd\n", z);
   if (seed == 0)
     seed = getpid ();
-  srand48 (seed);
+  gmp_randstate_t rstate;
+  gmp_randinit_default(rstate);
+  gmp_randseed_ui(rstate, seed);
   printf ("Using seed %lu\n", seed);
   mpz_init (ze);
   mpz_init (t);
@@ -481,7 +484,7 @@ main (int argc, char *argv[])
   L = mpz_sizeinbase (p, 2);
   while (L > target)
     {
-      e = lrand48 ();
+      e = u64_random (rstate);
       mpz_powm_ui (u, z, e, p);
       mpz_set (t, p);
       HalfGcd (u, t, v);
@@ -588,6 +591,7 @@ main (int argc, char *argv[])
         }
       Smax += sqrt (Smax);
     }
+  gmp_reandclear(rstate);
   mpz_clear (p);
   mpz_clear (z);
   mpz_clear (ze);

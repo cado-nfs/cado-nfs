@@ -1455,6 +1455,10 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
             store_task_result(*this, *curr_T);
             completed_tasks++;
         } else {
+            // coverity doesn't see that the "comp" member of the
+            // priority queue can sometimes be a trivial object that
+            // doesn't really require initialization...
+            // coverity[uninit_use_in_call]
             pending.push(std::make_pair(just_finished, new task_info_t(*curr_T)));
         }
         delete result;
@@ -1932,7 +1936,8 @@ struct helper_functor_write_to_fbc_file {
             if (next == chunks.end()) return;
             ASSERT_ALWAYS(sizeof(FB_ENTRY_TYPE) == next->entry_size);
 
-            lseek(fbc, header_block_offset + next->offset, SEEK_SET);
+            off_t rc = lseek(fbc, header_block_offset + next->offset, SEEK_SET);
+            ASSERT_ALWAYS(rc != (off_t) -1);
             ASSERT_ALWAYS(x.size() == next->nentries);
             size_t n = sizeof(FB_ENTRY_TYPE) * x.size();
             size_t written = 0;
@@ -1955,7 +1960,8 @@ struct helper_functor_write_to_fbc_file_weight_part {
     template<typename T>
         void operator()(T & x) {
             if (next == chunks.end()) return;
-            lseek(fbc, header_block_offset + next->weight_offset, SEEK_SET);
+            off_t rc = lseek(fbc, header_block_offset + next->weight_offset, SEEK_SET);
+            DIE_ERRNO_DIAG(rc == (off_t) -1, "seek(%s)", "[fbc file]");
             size_t n = sizeof(double) * (x.size() + 1);
             size_t written = 0;
             while (n > 0) {
@@ -2125,7 +2131,7 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
              */
             size_t n = os.str().size();
             ssize_t m = ::write(fbc, os.str().c_str(), n);
-            ASSERT_ALWAYS(m = (ssize_t) n);
+            ASSERT_ALWAYS(m == (ssize_t) n);
 
             helper_functor_write_to_fbc_file W1 { fbc, fbc_size, S.entries, S.entries.begin() };
             multityped_array_foreach(W1, entries);

@@ -1158,6 +1158,8 @@ facul_aux (std::vector<cxx_mpz> & factors, const FaculModulusBase *m,
   Remarks: - the values of factors found are stored in 'factors'.
            - the variable 'is_smooth' allows to know if a cofactor
              is already factored.
+
+ XXX this is a mess. Cleanup needed.
 */
 
 static std::array<int, 2>
@@ -1262,6 +1264,15 @@ facul_both_src (std::array<std::vector<cxx_mpz>, 2> & factors, const FaculModulu
 	    // factor f[side][0] or/and f[side][1]
 	    if (f[side][ind_cof] != NULL)
 	      {
+                // **IF** we reach here, then some is_smooth[side] was
+                // set to FACUL_AUX somehow, and this can only happen if
+                // we passed through last_i = side in the loop above
+                // (because we *never* set to FACUL_AUX elsewhere).
+                //
+                // XXX honestly, this can be understood as a sign that
+                // this code deserves some long overdue cleanup.
+                //
+                // coverity[uninit_use]
 		int found2 = facul_aux (factors[side],
 					f[side][ind_cof], strategies,
 					methods, last_i[side] + 1, side);

@@ -14,6 +14,7 @@
 #include "las-siever-config.hpp"       // for siever_config, siever_config::...
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
 #include "trialdiv.hpp"                // for trialdiv_data
+#include "gmp_aux.h"
 
 struct j_divisibility_helper; // IWYU pragma: keep
 struct unsieve_data; // IWYU pragma: keep
@@ -85,6 +86,7 @@ struct sieve_shared_data {
                 equivalent_fbK_for_td
             >
         > trialdiv_data_cache;
+        cxx_gmp_randstate rstate;       /* use is protected by trialdiv_data_cache.mutex() */
         public:
         /* in las-trialdiv.cpp */
         trialdiv_data const * get_trialdiv_data(fb_factorbase::key_type fbK, fb_factorbase::slicing const * fbs);

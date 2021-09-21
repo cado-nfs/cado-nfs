@@ -1,4 +1,4 @@
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"
 /* MPFQ generated file -- do not edit */
 
 #include "mpfq_pz.h"
@@ -153,6 +153,7 @@ void mpfq_pz_field_specify(mpfq_pz_dst_field k, unsigned long dummy MAYBE_UNUSED
         } else if (dummy == MPFQ_PRIME_MPZ) {
             mpz_srcptr p = (mpz_srcptr) vp;
             mpz_set(k->p, p);
+            if (!(mpz_size(k->p) > 0)) abort();
             {
                 /* precompute bigmul_p = largest multiple of p that fits in an
                  * elt_ur: p*Floor( (2^((2*mpz_size(k->p) + 1)*64)-1)/p )
@@ -1099,7 +1100,7 @@ int mpfq_pz_poly_divmod(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_poly q, mp
     mpfq_pz_init(K, &ilb);
     mpfq_pz_elt temp;
     mpfq_pz_init(K, &temp);
-    mpfq_pz_set_zero(K, temp);
+    mpfq_pz_set_zero(K, temp); // silence spurious gcc11 warning :-(
     mpfq_pz_poly_getcoeff(K, temp, b, degb);
     if (mpfq_pz_cmp_ui(K, temp, 1) == 0) {
         mpfq_pz_set_ui(K, ilb, 1);
@@ -1162,11 +1163,6 @@ static void mpfq_pz_poly_preinv(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_po
     // Newton iteration: x_{n+1} = x_n + x_n(1 - a*x_n)
     // Requires p(0) = 1
     // Assume p != q (no alias)
-    mpfq_pz_elt temp;	/* spurious uninit warning sometimes */
-    mpfq_pz_init(K, &temp);
-    mpfq_pz_set_zero(K, temp); // silence spurious gcc11 warning :-(
-    mpfq_pz_poly_getcoeff(K, temp, p, 0);//Should be in the assert
-    assert( mpfq_pz_cmp_ui(K, temp, 1) == 0);
     assert (p != q);
     int m;
     if (n <= 2) {
@@ -1180,6 +1176,11 @@ static void mpfq_pz_poly_preinv(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_po
         m = 1 + ((n-1)/2);
         mpfq_pz_poly_preinv(K, q, p, m);
     }
+    mpfq_pz_elt temp;	/* spurious uninit warning sometimes */
+    mpfq_pz_init(K, &temp);
+    mpfq_pz_set_zero(K, temp); // silence spurious gcc11 warning :-(
+    mpfq_pz_poly_getcoeff(K, temp, p, 0);//Should be in the assert
+    assert( mpfq_pz_cmp_ui(K, temp, 1) == 0);
     // enlarge q if necessary
     if (q->alloc < n) {
         mpfq_pz_vec_reinit(K, &(q->c), q->alloc, n);
@@ -1208,6 +1209,10 @@ void mpfq_pz_poly_precomp_mod(mpfq_pz_dst_field K MAYBE_UNUSED, mpfq_pz_dst_poly
 {
     assert(p != q);
     int N = mpfq_pz_poly_deg(K, p);
+    if (N < 0) {
+        mpfq_pz_poly_set(K, q, p);
+        return;
+    }
     mpfq_pz_poly rp;
     mpfq_pz_poly_init(K, rp, N+1);
     mpfq_pz_vec_rev(K, rp->c, p->c, N+1);
