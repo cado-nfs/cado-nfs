@@ -151,8 +151,8 @@ test_xgcd_ul (const unsigned long iter)
   ASSERT_ALWAYS (sizeof(unsigned long) <= sizeof(uint64_t));
   for (i = 0; i < iter; i++)
     {
-      a = (unsigned long) (i == 0 || i == 1) ? 0 : r ();
-      b = (unsigned long) (i == 0 || i == 2) ? 0 : r ();
+      a = (unsigned long) (i == 0 || i == 1) ? 0 : u64_random (state);
+      b = (unsigned long) (i == 0 || i == 2) ? 0 : u64_random (state);
       unsigned long u;
       g = xgcd_ul (&u, a, b);
       ASSERT_ALWAYS(sizeof(unsigned long) <= sizeof(uint64_t));
