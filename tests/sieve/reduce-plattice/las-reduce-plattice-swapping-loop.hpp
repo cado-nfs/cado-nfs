@@ -52,6 +52,7 @@ void swapping_loop(uint32_t I)
             // Lo=matrix([ (mi0, j1-j0), (i1, j1)])
             j0 = j1 - j0;
         reduce_with_vertical_vector(I);
+        return;
     } else {
         int a = (mi0 + i1 - I) / i1;
         mi0 -= a * i1;
