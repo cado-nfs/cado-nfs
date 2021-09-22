@@ -290,15 +290,17 @@ void test_bblas_level3::m8()
     mat8 & R = * (mat8 *) r;
     mat8 & XR = * (mat8 *) xr;
     mat8 & A = * (mat8 *) a;
-    mat8 & w = * (mat8 *) &this->w;
-    TIME1(1, mat8::add, R, A, w);
+    mat8 w8;
+
+    mat8::fill_random(w8, rstate);
+    TIME1(1, mat8::add, R, A, w8);
 
     mat8::transpose(R, A);
     mat8::transpose(XR, R);
     ASSERT_ALWAYS(XR == A);
     TIME1(1, mat8::transpose, R, A);
 
-    TIME1(1, mat8::mul, R, A, w);
+    TIME1(1, mat8::mul, R, A, w8);
 
     mat8 L, U0, U1;
 

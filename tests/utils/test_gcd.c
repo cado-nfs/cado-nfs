@@ -11,6 +11,8 @@
 #include "tests_common.h"
 #include "misc.h"
 
+uint64_t B = 0;
+
 static void
 cmp_mpz_gcd_i64(const int64_t a, const int64_t b, const uint64_t g)
 {
@@ -59,6 +61,37 @@ cmp_mpz_gcd_ui64(const uint64_t a, const uint64_t b, const uint64_t g)
   mpz_clear (ma);
   mpz_clear (mb);
   mpz_clear (mg);
+}
+
+static void
+cmp_mpz_xgcd_ui64(const uint64_t u, const uint64_t a, const uint64_t b, const uint64_t g)
+{
+    cmp_mpz_gcd_ui64(a, b, g);
+
+    if (g == 0) return;
+
+    mpz_t ma, mb, mu;
+    mpz_init (ma);
+    mpz_init (mb);
+    mpz_init (mu);
+
+    mpz_set_uint64 (ma, a);
+    mpz_set_uint64 (mb, b);
+    mpz_divexact_uint64(mb, mb, g);
+    mpz_divexact_uint64(ma, ma, g);
+    mpz_invert(mu, ma, mb);
+
+    if (mpz_cmp_uint64(mu, u) != 0) {
+        fprintf (stderr, "GCD(a=%" PRIu64 ", b=%" PRIu64 ") = g=%" PRIu64
+                " but u=%" PRIu64 " is not an inverse of a/g mod b/g"
+                ", GMP has %" PRIu64 "\n",
+                a, b, g, u, mpz_get_uint64 (mu));
+        abort();
+    }
+
+    mpz_clear (ma);
+    mpz_clear (mb);
+    mpz_clear (mu);
 }
 
 void
@@ -110,6 +143,24 @@ test_gcd_ul (const unsigned long iter)
 }
 
 void
+test_xgcd_ul (const unsigned long iter)
+{
+  unsigned long a, b, g;
+  unsigned long i;
+
+  ASSERT_ALWAYS (sizeof(unsigned long) <= sizeof(uint64_t));
+  for (i = 0; i < iter; i++)
+    {
+      a = (unsigned long) (i == 0 || i == 1) ? 0 : u64_random (state);
+      b = (unsigned long) (i == 0 || i == 2) ? 0 : u64_random (state);
+      unsigned long u;
+      g = xgcd_ul (&u, a, b);
+      ASSERT_ALWAYS(sizeof(unsigned long) <= sizeof(uint64_t));
+      cmp_mpz_xgcd_ui64(u, a, b, g);
+    }
+}
+
+void
 test_bin_gcd_int64_safe_ab (const int64_t a, const int64_t b)
 {
   const uint64_t g = bin_gcd_int64_safe (a, b);
@@ -151,6 +202,7 @@ main (int argc, const char *argv[])
   test_gcd_int64 (iter);
   test_gcd_uint64 (iter);
   test_gcd_ul (iter);
+  test_xgcd_ul (iter);
   test_bin_gcd_int64_safe (iter);
   tests_common_clear();
   exit (EXIT_SUCCESS);
