@@ -941,7 +941,7 @@ collision_on_p (polyselect_poly_header_srcptr header,
         polyselect_shash_ptr H,
         gmp_randstate_ptr rstate)
 {
-  unsigned long j, nprimes, p, nrp, c = 0, tot_roots = 0;
+  unsigned long j, nprimes, p, nrp, tot_roots = 0;
   uint64_t *rp;
   int64_t ppl = 0, u, umax;
   mpz_t zero;
@@ -957,6 +957,11 @@ collision_on_p (polyselect_poly_header_srcptr header,
     exit (1);
   }
 
+  /* We first store only i's (and not p's), and look for collisions,
+   * which occur very rarely.
+   * if we find out that there is a collision on i, we run the search
+   * again for the p's.
+   */
   polyselect_shash_reset (H);
   umax = (int64_t) Primes[lenPrimes - 1] * (int64_t) Primes[lenPrimes - 1];
   for (nprimes = 0; nprimes < lenPrimes; nprimes ++)
@@ -977,7 +982,7 @@ collision_on_p (polyselect_poly_header_srcptr header,
       tot_roots += nrp;
       nrp = roots_lift (rp, header->Ntilde, header->d, header->m0, p, nrp);
       polyselect_proots_add (R, nrp, rp, nprimes);
-      for (j = 0; j < nrp; j++, c++)
+      for (j = 0; j < nrp; j++)
             {
               for (u = (int64_t) rp[j]; u < umax; u += ppl)
                 polyselect_shash_add (H, u);
@@ -1035,7 +1040,7 @@ collision_on_p (polyselect_poly_header_srcptr header,
 #pragma	omp atomic update
 #endif
   potential_collisions ++;
-  return c;
+  return tot_roots;
 }
 
 
