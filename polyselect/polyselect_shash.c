@@ -44,7 +44,6 @@
  * application I think that this can't happen.
  */
 
-static pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER;
 /* init_size is an approximation of the number of entries */
 void
 polyselect_shash_init (polyselect_shash_ptr H, unsigned int init_size)
@@ -104,12 +103,17 @@ polyselect_shash_reset (polyselect_shash_ptr H)
   memset (H->base[polyselect_SHASH_NBUCKETS], 0, sizeof(**H->base) * 8);
 }
 
+size_t polyselect_shash_secondary_table_size(polyselect_shash_srcptr H)
+{
+    size_t size = next_power_of_2(H->balloc) << 2;
+    ASSERT_ALWAYS((size & (size - 1)) == 0);
+    return size;
+}
 
 /* return non-zero iff there is a collision */
 int
 polyselect_shash_find_collision (polyselect_shash_srcptr H)
 {
-  static uint32_t size = 0, mask;
   uint64_t *Hj, *Hjm;
   uint32_t *T;
   uint32_t k;
@@ -134,20 +138,10 @@ polyselect_shash_find_collision (polyselect_shash_srcptr H)
     __builtin_prefetch(TH, 1, 3);		\
   } while (0)					\
 
-  pthread_mutex_lock (&lock);
-  if (!size) {
-    size = H->balloc << 1;
-    /* round up to power of 2 */
-    size --;
-    while (size & (size - 1))
-      size &= size - 1;
-    size <<= 2;
-    ASSERT_ALWAYS((size & (size - 1)) == 0);
-    mask = size - 1;
-    size += 16; /* Guard to avoid to test the end of polyselect_hash_table when ++TH */
-  }
+  uint32_t size = polyselect_shash_secondary_table_size(H);
+  uint32_t mask = size - 1;
+  size += 16; /* Guard to avoid to test the end of polyselect_hash_table when ++TH */
 
-  pthread_mutex_unlock (&lock);
   T = (uint32_t*) malloc (size * sizeof(*T));
   for (k = 0; k < polyselect_SHASH_NBUCKETS; k++) {
     Hj = H->base[k];
@@ -199,7 +193,6 @@ polyselect_shash_find_collision (polyselect_shash_srcptr H)
 int
 MAYBE_UNUSED polyselect_shash_find_collision_old (polyselect_shash_t H)
 {
-  static uint32_t size = 0, mask;
   uint64_t data[PREFETCH], *pdata, *edata, *ldata;
   uint32_t *Th;
   uint32_t key;
@@ -208,17 +201,11 @@ MAYBE_UNUSED polyselect_shash_find_collision_old (polyselect_shash_t H)
   uint64_t i;
   unsigned int j, k, l;
 
-  if (!size) {
-    size = H->balloc << 1;
-    /* round up to power of 2 */
-    size --;
-    while (size & (size - 1))
-      size &= size - 1;
-    size <<= 2;
-    ASSERT_ALWAYS((size & (size - 1)) == 0);
-    mask = (size - 1);
-    size += 16;
-  }
+  uint32_t size = polyselect_shash_secondary_table_size(H);
+  uint32_t mask = size - 1;
+  size += 16; /* Guard to avoid to test the end of polyselect_hash_table when ++TH */
+
+
   T = (uint32_t*) malloc (size * sizeof(*T));
   edata = data + PREFETCH;
   for (k = 0; k < polyselect_SHASH_NBUCKETS; k++) {
