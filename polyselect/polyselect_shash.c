@@ -188,6 +188,54 @@ polyselect_shash_find_collision (polyselect_shash_srcptr H)
 #undef polyselect_SHASH_TH_I
 #undef polyselect_SHASH_RESEARCH
 
+static inline uint64_t transform(uint64_t i, uint32_t mask)
+{
+    uint32_t bnum = (i >> LN2SHASH_NBUCKETS) & mask;
+    uint32_t key = (uint32_t) ((i >> 32) + i);
+    // uint32_t key = (i >> LN2SHASH_NBUCKETS) / (mask + 1);
+    return ((uint64_t) bnum << 32) + key;
+}
+
+/* return non-zero iff there is a collision */
+int
+MAYBE_UNUSED polyselect_shash_find_collision_simple(polyselect_shash_srcptr H)
+{
+    // uint64_t data0;
+    uint32_t *Th;
+    const uint64_t *Hj;
+    const uint64_t *Hjm;
+    uint32_t *T;
+    uint64_t i;
+    unsigned int k;
+
+    uint32_t size = polyselect_shash_secondary_table_size(H);
+    uint32_t mask = size - 1;
+    size += 16; /* Guard to avoid to test the end of polyselect_hash_table when ++TH */
+
+    T = (uint32_t*) malloc (size * sizeof(*T));
+    for (k = 0; k < polyselect_SHASH_NBUCKETS; k++) {
+        Hj = H->base[k];
+        Hjm = H->current[k];
+        if (Hj == Hjm) continue;
+        memset (T, 0, size * sizeof(*T));
+
+        for( ; Hj != Hjm ; Hj++) {
+            i = transform(*Hj, mask);
+
+            Th = T + (i >> 32);
+            for( ; *Th ; Th++) {
+                if (*Th == (uint32_t) i) {
+                    free (T);
+                    return 1;
+                }
+            }
+            *Th = i;
+        }
+    }
+    free (T);
+    return 0;
+}
+
 /* return non-zero iff there is a collision */
 #define PREFETCH 256
 int
