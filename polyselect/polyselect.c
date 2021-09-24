@@ -936,6 +936,20 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
 }
 
 
+static inline size_t
+polyselect_hash_expected_entries(uint32_t P, uint64_t M)
+{
+    /* We add 2*M/p^2 entries to the hash table for each p that has
+     * roots, and for each root. Since on average we have one root per p,
+     * this means that we want the sum of 2M/p^2, for p prime ranging from P
+     * to 2P. The sum of 1/(i^2*log(i)) over this same range is
+     * 1/log(P)*(1/P-1/(2*P)), hence 1/(2*P*log(P)).
+     *
+     * The result is therefore 2M/(2*P*log(P)) = M/P/log(P).
+     */
+    return (size_t) ((uint64_t) M)/(double) P/log(P);
+}
+
 /* find collisions between "P" primes, return number of loops */
 static inline unsigned long
 collision_on_p (polyselect_poly_header_srcptr header,
