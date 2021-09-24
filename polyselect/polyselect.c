@@ -1007,12 +1007,23 @@ collision_on_p (polyselect_poly_header_srcptr header,
                 polyselect_shash_add (H, -u);
             }
     }
-  found = polyselect_shash_find_collision (H);
-  free (rp);
   st = milliseconds () - st;
 
-  if (verbose > 2)
+  if (verbose > 2) {
     fprintf (stderr, "# computing %lu p-roots took %dms\n", tot_roots, st);
+    fprintf (stderr, "# polyselect_shash_size (umax = %" PRId64 ", P = %" PRId32 "): %zu\n", umax, Primes[0], polyselect_shash_size(H));
+    fprintf (stderr, "# expected number of entries: %zu\n", polyselect_hash_expected_entries(Primes[0], umax));
+  }
+
+  st = milliseconds ();
+  found = polyselect_shash_find_collision (H);
+  free (rp);
+
+  if (verbose > 2) {
+      fprintf(stderr, "# collision found in shash: %d (probability = 1 / %.1f) [took %dms]\n",
+              found, 4*log(Primes[0])*log(Primes[0]), st);
+  }
+
 
   if (found) /* do the real work */
     {
