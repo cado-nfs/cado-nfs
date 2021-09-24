@@ -7,6 +7,7 @@
 #include <cmath>
 #include <type_traits>
 #include <sstream>
+#define EMIT_ADDRESSABLE_shash_add
 #include "polyselect_shash.h"
 #include "misc.h"
 

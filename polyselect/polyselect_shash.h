@@ -38,16 +38,12 @@ typedef struct polyselect_shash_s polyselect_shash_t[1];
 typedef struct polyselect_shash_s * polyselect_shash_ptr;
 typedef const struct polyselect_shash_s * polyselect_shash_srcptr;
 
-#ifndef INLINE
-# if __GNUC__ && !__GNUC_STDC_INLINE__
-#  define INLINE extern inline
-# else
-#  define INLINE inline
-# endif
-#endif
-
 #ifndef EMIT_ADDRESSABLE_shash_add
-INLINE
+# if __GNUC__ && !__GNUC_STDC_INLINE__
+extern inline
+# else
+inline
+# endif
 #endif
 void
 polyselect_shash_add (polyselect_shash_t H, uint64_t i)
@@ -61,11 +57,11 @@ polyselect_shash_add (polyselect_shash_t H, uint64_t i)
     }
 }
 
-void polyselect_shash_init (polyselect_shash_ptr, unsigned int);
-void polyselect_shash_reset (polyselect_shash_ptr);
-size_t polyselect_shash_size(polyselect_shash_srcptr);
-int polyselect_shash_find_collision (polyselect_shash_srcptr);
-void polyselect_shash_clear (polyselect_shash_ptr);
+extern void polyselect_shash_init (polyselect_shash_ptr, unsigned int);
+extern void polyselect_shash_reset (polyselect_shash_ptr);
+extern size_t polyselect_shash_size(polyselect_shash_srcptr);
+extern int polyselect_shash_find_collision (polyselect_shash_srcptr);
+extern void polyselect_shash_clear (polyselect_shash_ptr);
 
 #ifdef __cplusplus
 }
