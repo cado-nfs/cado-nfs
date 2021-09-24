@@ -2131,6 +2131,10 @@ main (int argc, char *argv[])
   param_list_parse_int (pl, "t", &nthreads);
 #ifdef HAVE_OPENMP
   omp_set_num_threads (nthreads);
+#else
+  if (nthreads > 1) {
+      fprintf(stderr, "Warning, -t %d ignored because openmp support is missing\n", nthreads);
+  }
 #endif
   param_list_parse_ulong (pl, "nq", &nq);
   param_list_parse_uint (pl, "degree", &d);
