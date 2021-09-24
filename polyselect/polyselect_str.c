@@ -66,6 +66,7 @@ size_t expected_memory_usage_for_primes(unsigned long P)
 }
     
 /* init prime array */
+/* initialize primes in [P,2*P] */
 unsigned long
 initPrimes ( unsigned long P,
              uint32_t **primes )
@@ -85,9 +86,14 @@ initPrimes ( unsigned long P,
 
   prime_info pi;
   prime_info_init (pi);
-  for (p = 2; p < P; p = getprime_mt (pi));
 
-  while (p <= Pmax) {
+  /* It's now fairly trivial to parallelize this prime search if we want
+   * to, but I think that it's a trivial computation anyway, and most
+   * probably not worth the work.
+   */
+  prime_info_seek(pi, P);
+
+  for (p = P, nprimes = 0; (p = getprime_mt (pi)) <= Pmax; nprimes++) {
     if (nprimes + 1 >= maxprimes) {
       maxprimes += maxprimes / 10;
       *primes = (uint32_t*) realloc (*primes, maxprimes * sizeof (uint32_t));
@@ -96,8 +102,7 @@ initPrimes ( unsigned long P,
         exit (1);
       }
     }
-    (*primes)[nprimes++] = p;
-    p = getprime_mt (pi);
+    (*primes)[nprimes] = p;
   }
 
   prime_info_clear (pi);
