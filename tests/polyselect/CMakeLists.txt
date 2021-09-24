@@ -30,3 +30,5 @@ endif()
 
 cado_define_test(test_auxiliary.c LIBRARIES utils tests polyselect_common)
 cado_define_test(test_rho.c LIBRARIES polyselect_common tests)
+cado_define_test(test_polyselect_shash.cpp
+    ${PROJECT_SOURCE_DIR}/polyselect/polyselect_shash.c LIBRARIES polyselect_common tests)

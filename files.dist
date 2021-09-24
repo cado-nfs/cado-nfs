@@ -1710,3 +1710,4 @@ tests/sieve/reduce-plattice/simd-base.hpp
 tests/utils/test_subdivide_primes_interval.cpp
 polyselect/polyselect_shash.c
 polyselect/polyselect_shash.h
+tests/polyselect/test_polyselect_shash.cpp
