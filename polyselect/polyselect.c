@@ -2196,6 +2196,7 @@ main (int argc, char *argv[])
   /* since for each prime p in [P,2P], we convert p^2 to int64_t, we need
      (2P)^2 < 2^63, thus P < 2^30.5 */
   /* XXX In fact there is a bug in collision_on_p which limit P to 2^30 */
+  /* TODO: investigate, document. */
   if (P >= 1073741824UL)
     {
       fprintf (stderr, "Error, too large value of P\n");
