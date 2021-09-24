@@ -3,6 +3,47 @@
 #include "polyselect_shash.h"
 #include "misc.h"
 
+/*
+ * This is an implementation of a quick hash table with integer entries
+ * that is meant to look for collisions among its integer entries. The
+ * expected usage range is for integers up to about 50 bits, with at most
+ * about 2^25 integers pushed to the hash table.
+ *
+ */
+
+/* Entries are first pushed to buckets based on their low bits.
+ *
+ * Then buckets are examined one by one to look for collisions in them.
+ *
+ * For each integer i that went to a bucket, we know that i is in the
+ * bucket that we're currently examining, so it has all its
+ * LN2SHASH_NBUCKETS low bits in common with others in the same bucket.
+ * We're going to do a secondary in-memory dispatch of this i into an
+ * open hash table, with plentiful storage that should be sufficient to
+ * keep long runs to a minimum.  The starting point in that open hash
+ * table is given by the bits that follow the LN2SHASH_NBUCKETS low bits
+ * (sufficiently many of these bits so that on average, we expect only
+ * very few contiguous entries).
+ *
+ * The key that gets actually stored in the open hash table is used as a
+ * tie-breaker for match that end up being inserted nearby. nearby values
+ * share their low LN2SHASH_NBUCKETS bits as well as the high bits of
+ * their insert location in the open hash table (not the low bits, since
+ * overruns _may_ happen). This leaves a few different bits (typically
+ * something like 32-(LN2SHASH_NBUCKETS=8)-(log2(open hash table
+ * size)=approx 16) = less than 8 in the low part, plus something like
+ * log2(2*4*P^2/2^32) = up to approx 20 bits in the high part.
+ *
+ * A "sure" tie breaker would arrange these bits so that there's no
+ * overlap. But on the other hand (and because false positives are
+ * actually _not_ a problem), we can go along with the simpler addition
+ * of the low and high part of i, and hope for the best.
+ *
+ * Note that this algorithm does not correctly deal with the situation
+ * where the integer 0 is added to the hash table. Fortunately, for our
+ * application I think that this can't happen.
+ */
+
 static pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER;
 /* init_size is an approximation of the number of entries */
 void
@@ -152,41 +193,6 @@ polyselect_shash_find_collision (polyselect_shash_srcptr H)
 }
 #undef polyselect_SHASH_TH_I
 #undef polyselect_SHASH_RESEARCH
-
-/* we know that i is in the bucket that we're currently examining, so it
- * has all its LN2SHASH_NBUCKETS low bits in common with others in the
- * same bucket. We're going to do a secondary in-memory dispatch of this
- * i into an open hash table, with plentiful storage that should be
- * sufficient to keep long runs to a minimum.  The starting point in that
- * open hash table is given by the bits that follow the LN2SHASH_NBUCKETS
- * low bits (sufficiently many of these bits so that on average, we
- * expect only very few contiguous entries).
- *
- * The key that gets actually stored in the open hash table is used as a
- * tie-breaker for match that end up being inserted nearby. nearby values
- * share their low LN2SHASH_NBUCKETS bits as well as the high bits of
- * their insert location in the open hash table (not the low bits, since
- * overruns _may_ happen). This leaves a few different bits (typically
- * something like 32-(LN2SHASH_NBUCKETS=8)-(log2(open hash table
- * size)=approx 16) = less than 8 in the low part, plus something like
- * log2(2*4*P^2/2^32) = up to approx 20 bits in the high part.
- *
- * A "sure" tie breaker would arrange these bits so that there's no
- * overlap. But on the other hand (and because false positives are
- * actually _not_ a problem), we can go along with the simpler addition
- * of the low and high part of i, and hope for the best.
- *
- * Note that this algorithm does not correctly deal with the situation
- * where the integer 0 is added to the hash table. Fortunately, for our
- * application I think that this can't happen.
- */
-static inline uint64_t transform(uint64_t i, uint32_t mask)
-{
-    uint32_t bnum = (i >> LN2SHASH_NBUCKETS) & mask;
-    uint32_t key = (uint32_t) ((i >> 32) + i);
-    // uint32_t key = (i >> LN2SHASH_NBUCKETS) / (mask + 1);
-    return ((uint64_t) bnum << 32) + key;
-}
 
 /* return non-zero iff there is a collision */
 #define PREFETCH 256
