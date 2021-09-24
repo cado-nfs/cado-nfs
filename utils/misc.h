@@ -275,6 +275,14 @@ static inline std::string size_disp(size_t s) {
 template<typename T>
 static inline T next_power_of_2(T x)
 {
+    /* it's a bit crazy. why not just do:
+     *
+     * previous_power_of_two(x) {
+     *   for(T c ; (c = x & (x-1)) != 0 ; x = c);
+     *   return x;
+     * }
+     * next_power_of_2(x) { return previous_power_of_two(x-1)<<1; }
+     */
     static_assert(
             std::is_same<T, unsigned long>::value ||
             std::is_same<T, unsigned int>::value ||
