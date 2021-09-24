@@ -16,26 +16,6 @@
 #endif
 //#define DEBUG_HASH_TABLE
 
-#ifndef INLINE
-# if __GNUC__ && !__GNUC_STDC_INLINE__
-#  define INLINE extern inline
-# else
-#  define INLINE inline
-# endif
-#endif
-
-/* For the moment, this value is static. But it's highly critical for
-   performance in the polyselect_shash table cribble:
-   * 10 (or 9) seems the best for an Intel nehalem (?).
-   * 6 seems the best for Intel Core2 (?).
-   * 7 seems the best for AMD (?).
-   So, the next optimization will include real time tests to
-   evaluate the best value.
-   NOTA: The good range is between 6 and 10. Don't use values <= 4!
-   Values >= 12 are not interesting.
-*/
-#define LN2SHASH_NBUCKETS 8
-
 /* hash table slots */
 struct polyselect_hash_slot_s
 {
@@ -58,20 +38,6 @@ struct polyselect_hash_s
 typedef struct polyselect_hash_s polyselect_hash_t[1];
 typedef struct polyselect_hash_s * polyselect_hash_ptr;
 typedef const struct polyselect_hash_s * polyselect_hash_srcptr;
-
-#define polyselect_SHASH_NBUCKETS (1<<LN2SHASH_NBUCKETS)
-
-struct polyselect_shash_s
-{
-  uint64_t *current[polyselect_SHASH_NBUCKETS+1]; /* +1 for guard */
-  uint64_t *base[polyselect_SHASH_NBUCKETS+1];    /* +1 for guard */
-  uint64_t *mem;
-  uint32_t alloc;      /* total allocated size */
-  uint32_t balloc;     /* allocated size for each bucket */
-};
-typedef struct polyselect_shash_s polyselect_shash_t[1];
-typedef struct polyselect_shash_s * polyselect_shash_ptr;
-typedef const struct polyselect_shash_s * polyselect_shash_srcptr;
 
 /* thread structure */
 struct polyselect_thread_tab_s
@@ -134,21 +100,6 @@ typedef const struct polyselect_data_s * polyselect_data_srcptr;
 
 /* inline functions */
 
-#ifndef EMIT_ADDRESSABLE_shash_add
-INLINE
-#endif
-void
-polyselect_shash_add (polyselect_shash_t H, uint64_t i)
-{
-  *(H->current[i & (polyselect_SHASH_NBUCKETS - 1)])++ = i;
-  if (UNLIKELY(H->current[i & (polyselect_SHASH_NBUCKETS - 1)] >= H->base[(i & (polyselect_SHASH_NBUCKETS - 1)) + 1]))
-    {
-      fprintf (stderr, "polyselect_Shash bucket %" PRIu64 " is full.\n",
-               i & (polyselect_SHASH_NBUCKETS - 1));
-      exit (1);
-    }
-}
-
 /* declarations */
 
 extern const unsigned int SPECIAL_Q[];
@@ -179,17 +130,13 @@ void polyselect_qroots_rearrange (polyselect_qroots_ptr R);
 void polyselect_qroots_clear (polyselect_qroots_ptr);
 
 void polyselect_hash_init (polyselect_hash_ptr, unsigned int);
-void polyselect_shash_init (polyselect_shash_ptr, unsigned int);
-void polyselect_shash_reset (polyselect_shash_ptr);
 
 /* FIXME: what's the difference, really ? */
 void polyselect_hash_add (polyselect_hash_ptr, unsigned long, int64_t, mpz_srcptr, mpz_srcptr, unsigned long, mpz_srcptr, unsigned long, mpz_srcptr);
 void polyselect_hash_add_gmp (polyselect_hash_ptr, uint32_t, int64_t, mpz_srcptr, mpz_srcptr, unsigned long, mpz_srcptr, uint64_t, mpz_srcptr);
 
-int polyselect_shash_find_collision (polyselect_shash_srcptr);
 void polyselect_hash_grow (polyselect_hash_ptr);
 void polyselect_hash_clear (polyselect_hash_ptr);
-void polyselect_shash_clear (polyselect_shash_ptr);
 
 void polyselect_data_init (polyselect_data_ptr);
 void polyselect_data_clear (polyselect_data_ptr);

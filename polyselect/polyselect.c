@@ -50,6 +50,7 @@
 #include "cado_poly.h"
 #include "auxiliary.h"
 #include "polyselect_str.h"
+#include "polyselect_shash.h"
 #include "polyselect_arith.h"
 #include "modredc_ul.h"
 #include "macros.h" // ASSERT
