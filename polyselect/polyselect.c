@@ -38,6 +38,8 @@
 #include "gcd.h"       // for gcd_ul
 #include "getprime.h"   // getprime
 #include "gmp_aux.h"       // mpz_set_uint64
+#include "misc.h"
+#include "memusage.h"
 #include "mpz_poly.h"
 #include "roots_mod.h"
 #include "size_optimization.h"
@@ -2335,6 +2337,11 @@ main (int argc, char *argv[])
   if (nthreads == 1)
 #endif
     printf ("# Stat: size-optimization took %.2fs\n", optimize_time);
+
+  {
+      char buf[16];
+      printf("# Stat: peak mem usage %s\n", size_disp(PeakMemusage()<<10, buf));
+  }
 
   weibull_rstate_clear();
   mpz_clear (N);
