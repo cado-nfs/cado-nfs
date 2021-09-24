@@ -2271,6 +2271,10 @@ main (int argc, char *argv[])
       mpz_clear (t);
     }
 
+  if (idx_max < (unsigned long) nthreads) {
+      fprintf(stderr, "# Warning: the current admin, admax, incr settings only make it possible to run %lu jobs in parallel, so that we won't be able to do %d-thread parallelism as requested\n", idx_max, nthreads);
+  }
+
 #ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(dynamic,1)
 #endif
