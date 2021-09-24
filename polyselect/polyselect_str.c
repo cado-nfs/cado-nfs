@@ -539,3 +539,4 @@ polyselect_data_var (polyselect_data_srcptr s)
   double m = polyselect_data_mean (s);
   return s->var / (double) s->size - m * m;
 }
+
