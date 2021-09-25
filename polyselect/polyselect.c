@@ -103,6 +103,60 @@ double target_E = 0.0; /* target E-value, 0.0 if not given */
 
 /* -- functions starts here -- */
 
+/* This returns the bound on i in the algorithm. We choose to set it to
+ * the square of the max prime (this is also a suggestion in the slides)
+ */
+int64_t polyselect_get_M()
+{
+    return (int64_t) Primes[lenPrimes - 1] * (int64_t) Primes[lenPrimes - 1];
+}
+
+static inline size_t
+expected_number_of_pairs()
+{
+    uint32_t P = Primes[0];
+    int64_t M = polyselect_get_M();
+    /* We add 2*M/p^2 entries to the hash table for each p that has
+     * roots, and for each root. Since on average we have one root per p,
+     * this means that we want the sum of 2M/p^2, for p prime ranging from P
+     * to 2P. The sum of 1/(i^2*log(i)) over this same range is
+     * 1/log(P)*(1/P-1/(2*P)), hence 1/(2*P*log(P)).
+     *
+     * The result is therefore 2M/(2*P*log(P)) = M/P/log(P).
+     */
+    return (size_t) ((uint64_t) M)/(double) P/log(P);
+}
+
+/* the number of expected collisions is 8*lenPrimes^2/2/(2P)^2 */
+static double
+expected_collisions ()
+{
+#if 0
+    uint32_t twoP = Primes[lenPrimes - 1];
+    double m = (lenPrimes << 1) / (double) twoP;
+    /* we multiply by 0.5 because we discard collisions with f[d] * f[d-2] > 0 */
+    return 0.5 * m * m;
+#else
+    /* make it dependent on how M gets chosen above */
+    double d = expected_number_of_pairs(Primes[0], polyselect_get_M());
+    /* we multiply by 0.5 because we discard collisions with f[d] * f[d-2] > 0 */
+    return d * d / 2 / polyselect_get_M() * 0.5;
+#endif
+}
+
+/* check that l <= m0/P^2 where l = p1 * p2 * q with P <= p1, p2 <= 2P
+   and q is the product of special-q primes.
+   This will ensure that we can do rotation by x^(d-3)*g(x), since the
+   expected value of a[d-2] is m0/P^2, and x^(d-3)*g(x) has coefficient
+   l for degree d-2. */
+static int
+check_parameters (mpz_srcptr m0, double q)
+{
+  return pow ((double) Primes[lenPrimes - 1], 4.0) * q < mpz_get_d (m0);
+}
+
+
+
 /* crt, set r and qqz */
 /* this routine is called from polyselect_arith.c and twocubics.c */
 void
@@ -145,17 +199,6 @@ crt_sq ( mpz_ptr qqz,
   mpz_clear (mod);
   mpz_clear (inv);
   mpz_clear (sum);
-}
-
-/* check that l <= m0/P^2 where l = p1 * p2 * q with P <= p1, p2 <= 2P
-   and q is the product of special-q primes.
-   This will ensure that we can do rotation by x^(d-3)*g(x), since the
-   expected value of a[d-2] is m0/P^2, and x^(d-3)*g(x) has coefficient
-   l for degree d-2. */
-static int
-check_parameters (mpz_srcptr m0, double q)
-{
-  return pow ((double) Primes[lenPrimes - 1], 4.0) * q < mpz_get_d (m0);
 }
 
 /* given a distribution with mean m and variance v, estimate the parameters
@@ -244,9 +287,8 @@ get_ad_double (unsigned long idx)
 static void
 print_poly_info ( char *buf,
                   size_t size,
-                  const mpz_t *f,
-                  const unsigned int d,
-                  const mpz_t g[2],
+                  mpz_poly_srcptr f,
+                  mpz_poly_srcptr g,
                   mpz_srcptr n,
                   const int raw,
                   const char *prefix,
@@ -256,15 +298,6 @@ print_poly_info ( char *buf,
   unsigned int i, nroots;
   double skew, logmu, exp_E;
 
-  /* ugly hack ! make sure we access these only via const functions. */
-  mpz_poly cheat_F, cheat_G;
-  cheat_F->coeff = (mpz_t *) f;
-  cheat_F->deg = d;
-  cheat_G->coeff = (mpz_t *) g;
-  cheat_G->deg = 1;
-  mpz_poly_srcptr F = cheat_F;
-  mpz_poly_srcptr G = cheat_G;
-
   size_t np = 0;
 
   if (raw_option)
@@ -273,7 +306,7 @@ print_poly_info ( char *buf,
 #ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
-      polyselect_data_add (raw_proj_alpha, get_alpha_projective (F, get_alpha_bound ()));
+      polyselect_data_add (raw_proj_alpha, get_alpha_projective (f, get_alpha_bound ()));
     }
   else
     {
@@ -281,17 +314,18 @@ print_poly_info ( char *buf,
 #ifdef HAVE_OPENMP
 #pragma	omp critical
 #endif
-      polyselect_data_add (opt_proj_alpha, get_alpha_projective (F, get_alpha_bound ()));
+      polyselect_data_add (opt_proj_alpha, get_alpha_projective (f, get_alpha_bound ()));
     }
 
   np += gmp_snprintf (buf + np, size - np, "%sn: %Zd\n", prefix, n);
-  np += gmp_snprintf (buf + np, size - np, "%sY1: %Zd\n%sY0: %Zd\n", prefix, g[1], prefix, g[0]);
-  for (i = d + 1; i -- != 0; )
-    np += gmp_snprintf (buf + np, size - np, "%sc%u: %Zd\n", prefix, i, f[i]);
-  skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
-  nroots = numberOfRealRoots (f, d, 0, 0, NULL);
-  logmu = L2_lognorm (F, skew);
-  exp_E = logmu + expected_rotation_gain (F, G);
+  for (i = mpz_poly_degree(g) + 1; i -- != 0; )
+    np += gmp_snprintf (buf + np, size - np, "%sY%u: %Zd\n", prefix, i, g->coeff[i]);
+  for (i = mpz_poly_degree(f) + 1; i -- != 0; )
+    np += gmp_snprintf (buf + np, size - np, "%sc%u: %Zd\n", prefix, i, f->coeff[i]);
+  skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
+  nroots = mpz_poly_number_of_real_roots (f);
+  logmu = L2_lognorm (f, skew);
+  exp_E = logmu + expected_rotation_gain (f, g);
   if (raw == 1)
     np += snprintf (buf + np, size - np, "# raw exp_E");
   else
@@ -355,15 +389,6 @@ print_poly_info ( char *buf,
 }
 
 
-/* the number of expected collisions is 8*lenPrimes^2/2/(2P)^2 */
-static double
-expected_collisions (uint32_t twoP)
-{
-  double m = (lenPrimes << 1) / (double) twoP;
-  /* we multiply by 0.5 because we discard collisions with f[d] * f[d-2] > 0 */
-  return 0.5 * m * m;
-}
-
 static void
 check_divexact_ui(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED,
                   const unsigned long q, const char *q_name MAYBE_UNUSED)
@@ -397,8 +422,9 @@ check_divexact(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED, const m
 /* idx is the index of the raw (non-optimized) polynomial,
    with ad = admin + idx * incr */
 static void
-output_polynomials (const mpz_t * f_old, const unsigned long d, const mpz_t * g_old,
-                    const mpz_t N, const mpz_t *f, const mpz_t *g, unsigned long idx)
+output_polynomials (mpz_poly_srcptr f_old, mpz_poly_srcptr g_old,
+                    const mpz_t N,
+                    mpz_poly_srcptr f, mpz_poly_srcptr g, unsigned long idx)
 {
   size_t sz = mpz_sizeinbase (N, 10);
   int length = sz*12;
@@ -406,10 +432,10 @@ output_polynomials (const mpz_t * f_old, const unsigned long d, const mpz_t * g_
   char *str = malloc(length);
   if (f_old != NULL && g_old != NULL) {
     if (str_old != NULL)
-      print_poly_info (str_old, length, f_old, d, g_old, N, 1, phash, 1, idx);
+      print_poly_info (str_old, length, f_old, g_old, N, 1, phash, 1, idx);
   }
   if (str != NULL)
-    print_poly_info (str, length, f, d, g, N, 0, "", 0, idx);
+    print_poly_info (str, length, f, g, N, 0, "", 0, idx);
 
 #ifdef HAVE_OPENMP
 #pragma omp critical
@@ -456,7 +482,7 @@ sorted_insert_double(double *array, const size_t len, const double value)
    This modifies both F and g
 */
 static int
-optimize_raw_poly (mpz_poly F, mpz_t * g)
+optimize_raw_poly (mpz_poly_ptr f, mpz_poly_ptr g)
 {
   double skew;
   mpz_t t;
@@ -464,7 +490,7 @@ optimize_raw_poly (mpz_poly F, mpz_t * g)
 
   /* check that the algebraic polynomial has content 1, otherwise skip it */
   mpz_init (t);
-  mpz_poly_content (t, F);
+  mpz_poly_content (t, f);
   if (mpz_cmp_ui (t, 1) != 0)
     {
       mpz_clear (t);
@@ -473,13 +499,9 @@ optimize_raw_poly (mpz_poly F, mpz_t * g)
   mpz_clear (t);
 
   /* optimize size */
-  mpz_poly G;
-  G->deg = 1;
-  G->alloc = 2;
-  G->coeff = g;
 
   st = seconds_thread ();
-  size_optimization (F, G, F, G, sopt_effort, verbose);
+  size_optimization (f, g, f, g, sopt_effort, verbose);
   st = seconds_thread () - st;
 #ifdef HAVE_OPENMP
 #pragma omp atomic update
@@ -492,8 +514,8 @@ optimize_raw_poly (mpz_poly F, mpz_t * g)
 
   /* polynomials with f[d-1] * f[d-3] > 0 *after* size-optimization
      give worse exp_E values */
-  int d = F->deg;
-  if (mpz_sgn (F->coeff[d-1]) * mpz_sgn (F->coeff[d-3]) > 0)
+  int d = f->deg;
+  if (mpz_sgn (f->coeff[d-1]) * mpz_sgn (f->coeff[d-3]) > 0)
     {
 #ifdef HAVE_OPENMP
 #pragma omp atomic update
@@ -502,10 +524,10 @@ optimize_raw_poly (mpz_poly F, mpz_t * g)
       return 0;
     }
 
-  skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
-  logmu = L2_lognorm (F, skew);
+  skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
+  logmu = L2_lognorm (f, skew);
   /* expected_rotation_gain() takes into account the projective alpha */
-  exp_E = logmu + expected_rotation_gain ((mpz_poly_ptr) F, (mpz_poly_ptr) G);
+  exp_E = logmu + expected_rotation_gain (f, g);
 
   sorted_insert_double (best_opt_logmu, keep, logmu);
   sorted_insert_double (best_exp_E, keep, exp_E);
@@ -541,10 +563,10 @@ void
 match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
        mpz_srcptr ad, unsigned long d, mpz_srcptr N, uint64_t q, mpz_srcptr rq)
 {
-  mpz_t l, mtilde, m, adm1, t, k, *f, g[2], *f_old, g_old[2];
+  mpz_t l, mtilde, m, adm1, t, k;
+  mpz_poly f, g, f_old, g_old;
   int cmp, did_optimize;
   double skew, logmu;
-  mpz_poly F;
 
   /* the expected rotation space is S^5 for degree 6 */
 #ifdef DEBUG_POLYSELECT
@@ -561,21 +583,11 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
   mpz_init (k);
   mpz_init (adm1);
   mpz_init (mtilde);
-  mpz_init (g[0]);
-  mpz_init (g[1]);
-  mpz_init (g_old[0]);
-  mpz_init (g_old[1]);
-  mpz_poly_init (F, d);
-  F->deg = d;
-  f = F->coeff;
-  f_old = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
-  if (f_old == NULL)
-  {
-    fprintf (stderr, "Error, cannot allocate memory in match\n");
-    exit (1);
-  }
-  for (unsigned long j = 0; j <= d; j++)
-    mpz_init (f_old[j]);
+
+  mpz_poly_init(f, d);
+  mpz_poly_init(g, 1);
+  mpz_poly_init(f_old, d);
+  mpz_poly_init(g_old, 1);
   /* we have l = p1*p2*q */
   mpz_set_ui (l, p1);
   mpz_mul_ui (l, l, p2);
@@ -659,13 +671,13 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
   check_divexact_ui (m, m, "m-a_{d-1}*l", d, "d");
 
   check_divexact (m, m, "(m-a_{d-1}*l)/d", ad, "ad");
-  mpz_set (g[1], l);
-  mpz_neg (g[0], m);
-  mpz_set (f[d], ad);
+  mpz_set (g->coeff[1], l);
+  mpz_neg (g->coeff[0], m);
+  mpz_set (f->coeff[d], ad);
   mpz_pow_ui (t, m, d);
   mpz_mul (t, t, ad);
   mpz_sub (t, N, t);
-  mpz_set (f[d-1], adm1);
+  mpz_set (f->coeff[d-1], adm1);
   check_divexact (t, t, "t", l, "l");
   mpz_pow_ui (mtilde, m, d-1);
   mpz_mul (mtilde, mtilde, adm1);
@@ -689,12 +701,12 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
     if (cmp >= 0)
       mpz_sub (k, k, l);
     mpz_add (adm1, adm1, k);
-    mpz_set (f[j], adm1);
+    mpz_set (f->coeff[j], adm1);
     /* subtract adm1*m^j */
     mpz_submul (t, mtilde, adm1);
   }
   check_divexact (t, t, "t", l, "l");
-  mpz_set (f[0], t);
+  mpz_set (f->coeff[0], t);
 
   /* As noticed by Min Yang, Qingshu Meng, Zhangyi Wang, Lina Wang and
      Huanguo Zhang in "Polynomial Selection for the Number Field Sieve in an
@@ -702,7 +714,7 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
      if the coefficient of degree d-2 is of the same sign as the leading
      coefficient, the size optimization will not work well, thus we simply
      discard those polynomials. */
-  if (mpz_sgn (f[d]) * mpz_sgn (f[d-2]) > 0)
+  if (mpz_sgn (f->coeff[d]) * mpz_sgn (f->coeff[d-2]) > 0)
     {
 #ifdef HAVE_OPENMP
 #pragma omp atomic update
@@ -711,15 +723,18 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
       goto end;
     }
 
-  /* save unoptimized polynomial to f_old */
-  for (unsigned long j = d + 1; j -- != 0; )
-    mpz_set (f_old[j], f[j]);
-  mpz_set (g_old[1], g[1]);
-  mpz_set (g_old[0], g[0]);
 
+  mpz_poly_cleandeg(f, d);
+  ASSERT_ALWAYS(mpz_poly_degree(f) == (int) d);
+  mpz_poly_cleandeg(g, 1);
+  ASSERT_ALWAYS(mpz_poly_degree(g) == (int) 1);
+
+  mpz_poly_set(g_old, g);
+  mpz_poly_set(f_old, f);
+  
   /* _old lognorm */
-  skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
-  logmu = L2_lognorm (F, skew);
+  skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
+  logmu = L2_lognorm (f, skew);
 
 #ifdef HAVE_OPENMP
 #pragma omp critical
@@ -737,16 +752,13 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
   }
 
   /* if the polynomial has small norm, we optimize it */
-  did_optimize = optimize_raw_poly (F, g);
+  did_optimize = optimize_raw_poly (f, g);
 
   /* print optimized (maybe size- or size-root- optimized) polynomial */
   if (did_optimize && verbose >= 0)
     {
       unsigned long idx = get_idx (ad);
-      output_polynomials ((const mpz_t *) f_old, d,
-		      (const mpz_t *) g_old, N,
-		      (const mpz_t *) F->coeff,
-		      (const mpz_t *) g, idx);
+      output_polynomials (f_old, g_old, N, f, g, idx);
     }
 
  end:
@@ -756,14 +768,10 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
   mpz_clear (k);
   mpz_clear (adm1);
   mpz_clear (mtilde);
-  mpz_clear (g[0]);
-  mpz_clear (g[1]);
-  mpz_clear (g_old[0]);
-  mpz_clear (g_old[1]);
-  mpz_poly_clear (F);
-  for (unsigned long j = 0; j <= d; j++)
-    mpz_clear (f_old[j]);
-  free (f_old);
+  mpz_poly_clear(f);
+  mpz_poly_clear(g);
+  mpz_poly_clear(f_old);
+  mpz_poly_clear(g_old);
 }
 
 
@@ -773,10 +781,10 @@ void
 gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
 	   mpz_srcptr ad, unsigned long d, mpz_srcptr N, uint64_t q, mpz_srcptr rq)
 {
-  mpz_t l, mtilde, m, adm1, t, k, *f, g[2], *f_old, g_old[2], qq, tmp;
+  mpz_t l, mtilde, m, adm1, t, k, qq, tmp;
+  mpz_poly f, g, f_old, g_old;
   int cmp, did_optimize;
   double skew, logmu;
-  mpz_poly F;
 
 #ifdef DEBUG_POLYSELECT
   gmp_printf ("Found match: (%" PRIu32 ",%lld) (%" PRIu32 ",%lld) for "
@@ -793,21 +801,12 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
   mpz_init (qq);
   mpz_init (adm1);
   mpz_init (mtilde);
-  mpz_init (g[0]);
-  mpz_init (g[1]);
-  mpz_init (g_old[0]);
-  mpz_init (g_old[1]);
-  mpz_poly_init (F, d);
-  F->deg = d;
-  f = F->coeff;
-  f_old = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
-  if (f_old == NULL)
-  {
-    fprintf (stderr, "Error, cannot allocate memory in match\n");
-    exit (1);
-  }
-  for (unsigned long j = 0; j <= d; j++)
-    mpz_init (f_old[j]);
+
+  mpz_poly_init(f, d);
+  mpz_poly_init(g, 1);
+  mpz_poly_init(f_old, d);
+  mpz_poly_init(g_old, 1);
+
   /* we have l = p1*p2*q */
   mpz_set_ui (l, p1);
   mpz_mul_ui (l, l, p2);
@@ -844,13 +843,13 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
   mpz_sub (m, mtilde, m);
   check_divexact_ui (m, m, "m-a_{d-1}*l", d, "d");
   check_divexact (m, m, "(m-a_{d-1}*l)/d", ad, "ad");
-  mpz_set (g[1], l);
-  mpz_neg (g[0], m);
-  mpz_set (f[d], ad);
+  mpz_set (g->coeff[1], l);
+  mpz_neg (g->coeff[0], m);
+  mpz_set (f->coeff[d], ad);
   mpz_pow_ui (t, m, d);
   mpz_mul (t, t, ad);
   mpz_sub (t, N, t);
-  mpz_set (f[d-1], adm1);
+  mpz_set (f->coeff[d-1], adm1);
   check_divexact (t, t, "t", l, "l");
   mpz_pow_ui (mtilde, m, d-1);
   mpz_mul (mtilde, mtilde, adm1);
@@ -872,23 +871,25 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
     if (cmp >= 0)
       mpz_sub (k, k, l);
     mpz_add (adm1, adm1, k);
-    mpz_set (f[j], adm1);
+    mpz_set (f->coeff[j], adm1);
     /* subtract adm1*m^j */
     mpz_submul (t, mtilde, adm1);
   }
 
   check_divexact (t, t, "t", l, "l");
-  mpz_set (f[0], t);
+  mpz_set (f->coeff[0], t);
 
-  /* save unoptimized polynomial to f_old */
-  for (i = d + 1; i -- != 0; )
-    mpz_set (f_old[i], f[i]);
-  mpz_set (g_old[1], g[1]);
-  mpz_set (g_old[0], g[0]);
+  mpz_poly_cleandeg(f, d);
+  ASSERT_ALWAYS(mpz_poly_degree(f) == (int) d);
+  mpz_poly_cleandeg(g, 1);
+  ASSERT_ALWAYS(mpz_poly_degree(g) == (int) 1);
 
+  mpz_poly_set(g_old, g);
+  mpz_poly_set(f_old, f);
+  
   /* _old lognorm */
-  skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
-  logmu = L2_lognorm (F, skew);
+  skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
+  logmu = L2_lognorm (f, skew);
 
 #ifdef HAVE_OPENMP
 #pragma	omp critical
@@ -906,16 +907,13 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
   }
 
   /* if the polynomial has small norm, we optimize it */
-  did_optimize = optimize_raw_poly (F, g);
+  did_optimize = optimize_raw_poly (f, g);
 
   /* print optimized (maybe size- or size-root- optimized) polynomial */
   if (did_optimize && verbose >= 0)
     {
       unsigned long idx = get_idx (ad);
-      output_polynomials ((const mpz_t *) f_old, d,
-		      (const mpz_t *) g_old, N,
-		      (const mpz_t *) F->coeff, 
-		      (const mpz_t *) g, idx);
+      output_polynomials (f_old, g_old, N, f, g, idx);
     }
 
   mpz_clear (tmp);
@@ -926,30 +924,12 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
   mpz_clear (qq);
   mpz_clear (adm1);
   mpz_clear (mtilde);
-  mpz_clear (g[0]);
-  mpz_clear (g[1]);
-  mpz_clear (g_old[0]);
-  mpz_clear (g_old[1]);
-  mpz_poly_clear (F);
-  for (unsigned long j = 0; j <= d; j++)
-    mpz_clear (f_old[j]);
-  free (f_old);
+  mpz_poly_clear(f);
+  mpz_poly_clear(g);
+  mpz_poly_clear(f_old);
+  mpz_poly_clear(g_old);
 }
 
-
-static inline size_t
-polyselect_hash_expected_entries(uint32_t P, uint64_t M)
-{
-    /* We add 2*M/p^2 entries to the hash table for each p that has
-     * roots, and for each root. Since on average we have one root per p,
-     * this means that we want the sum of 2M/p^2, for p prime ranging from P
-     * to 2P. The sum of 1/(i^2*log(i)) over this same range is
-     * 1/log(P)*(1/P-1/(2*P)), hence 1/(2*P*log(P)).
-     *
-     * The result is therefore 2M/(2*P*log(P)) = M/P/log(P).
-     */
-    return (size_t) ((uint64_t) M)/(double) P/log(P);
-}
 
 /* find collisions between "P" primes, return number of loops */
 static inline unsigned long
@@ -980,7 +960,7 @@ collision_on_p (polyselect_poly_header_srcptr header,
    * again for the p's.
    */
   polyselect_shash_reset (H);
-  umax = (int64_t) Primes[lenPrimes - 1] * (int64_t) Primes[lenPrimes - 1];
+  umax = polyselect_get_M();
   for (nprimes = 0; nprimes < lenPrimes; nprimes ++)
     {
       p = Primes[nprimes];
@@ -1012,7 +992,7 @@ collision_on_p (polyselect_poly_header_srcptr header,
   if (verbose > 2) {
     fprintf (stderr, "# computing %lu p-roots took %dms\n", tot_roots, st);
     fprintf (stderr, "# polyselect_shash_size (umax = %" PRId64 ", P = %" PRId32 "): %zu\n", umax, Primes[0], polyselect_shash_size(H));
-    fprintf (stderr, "# expected number of entries: %zu\n", polyselect_hash_expected_entries(Primes[0], umax));
+    fprintf (stderr, "# expected number of pairs: %zu\n", expected_number_of_pairs());
   }
 
   st = milliseconds ();
@@ -1106,8 +1086,7 @@ collision_on_each_sq ( polyselect_poly_header_srcptr header,
   pprimes = Primes - 1;
   pnr = R->nr;
   R->nr[R->size] = 0xff; /* I use guard to end */
-  umax = Primes[lenPrimes - 1];
-  umax *= umax;
+  umax = polyselect_get_M();
   neg_umax = -umax;
 
   /* This define inserts 2 values v1 and v2 with a interlace.
@@ -1239,7 +1218,7 @@ collision_on_each_sq ( polyselect_poly_header_srcptr header,
 
       polyselect_hash_init (H, INIT_FACTOR * lenPrimes);
 
-      umax = (int64_t) Primes[lenPrimes - 1] * (int64_t) Primes[lenPrimes - 1];
+      umax = polyselect_get_M();
       for (nprimes = c = 0; nprimes < lenPrimes; nprimes ++)
         {
           p = Primes[nprimes];
@@ -1662,7 +1641,8 @@ gmp_collision_on_p (
   int st = milliseconds();
 #endif
 
-  umax = (int64_t) Primes[lenPrimes - 1] * (int64_t) Primes[lenPrimes - 1];
+  umax = polyselect_get_M();
+
   for (nprimes = 0; nprimes < lenPrimes; nprimes ++) {
     p = Primes[nprimes];
     ppl = (int64_t) p * (int64_t) p;
@@ -1729,7 +1709,8 @@ gmp_collision_on_each_sq ( polyselect_poly_header_srcptr header,
 
   polyselect_hash_init (H, INIT_FACTOR * lenPrimes);
 
-  umax = (int64_t) Primes[lenPrimes - 1] * (int64_t) Primes[lenPrimes - 1];
+  umax = polyselect_get_M();
+
   for (nprimes = 0; nprimes < lenPrimes; nprimes ++) {
 
     p = Primes[nprimes];
@@ -2307,7 +2288,7 @@ main (int argc, char *argv[])
   /* finishing up statistics */
   if (verbose >= 0)
     {
-      potential_collisions *= expected_collisions (Primes[lenPrimes - 1]);
+      potential_collisions *= expected_collisions ();
       printf ("# Stat: potential collisions=%1.2f (%1.2e/s)\n",
               potential_collisions, 1000.0 * potential_collisions
               / (double) milliseconds ());

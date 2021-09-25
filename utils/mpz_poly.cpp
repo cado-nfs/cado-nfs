@@ -668,7 +668,7 @@ void mpz_poly_init(mpz_poly_ptr f, int d)
     f->coeff = (mpz_t *) malloc ((d+1)*sizeof(mpz_t));
     FATAL_ERROR_CHECK (f->coeff == NULL, "not enough memory");
     for (i = 0; i <= d; ++i)
-      mpz_init (f->coeff[i]);
+      mpz_init_set_ui (f->coeff[i], 0);
   }
 }
 
