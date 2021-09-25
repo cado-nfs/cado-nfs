@@ -557,6 +557,41 @@ get_idx (mpz_srcptr ad)
   return idx;
 }
 
+/* find suitable values of lq and k, where the special-q part in the degree-1
+   coefficient of the linear polynomial is made from k small primes among lq */
+static unsigned long
+find_suitable_lq (polyselect_poly_header_srcptr header, polyselect_qroots_srcptr SQ_R, unsigned long *k)
+{
+  unsigned long prod = 1;
+  unsigned int i;
+  double sq = 1.0;
+  unsigned long lq;
+
+  for (i = 0, *k = 0; prod < nq && i < SQ_R->size; i++) {
+    if (!check_parameters (header->m0, sq * (double) SQ_R->q[i]))
+      break;
+    prod *= header->d; /* We multiply by d instead of SQ_R->nr[i] to limit
+                          the number of primes and thus the Y1 value. */
+    sq *= (double) SQ_R->q[i];
+    *k += 1;
+  }
+
+  /* We force k <= 4 on a 32-bit machine, and k <= 8 on a 64-bit machine,
+     to ensure q fits on an "unsigned long". */
+  if (*k > (sizeof (unsigned long) * CHAR_BIT) / 8)
+    *k = (sizeof (unsigned long) * CHAR_BIT) / 8;
+  if (*k < 1)
+    *k = 1;
+
+  /* If all factors in sq have d roots, then a single special-q is enough.
+     Otherwise, we consider special-q's from combinations of k primes among lq,
+     so that the total number of combinations is at least nq. */
+  for (lq = *k; number_comb (SQ_R, *k, lq) < nq && lq < SQ_R->size; lq++);
+
+  return lq;
+}
+
+
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
 /* this routine is called from polyselect_str.c */
 void
@@ -669,7 +704,6 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
   mpz_mul (m, adm1, l);
   mpz_sub (m, mtilde, m);
   check_divexact_ui (m, m, "m-a_{d-1}*l", d, "d");
-
   check_divexact (m, m, "(m-a_{d-1}*l)/d", ad, "ad");
   mpz_set (g->coeff[1], l);
   mpz_neg (g->coeff[0], m);
@@ -774,163 +808,6 @@ match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
   mpz_poly_clear(g_old);
 }
 
-
-/* rq is a root of N = (m0 + rq)^d mod (q^2) */
-/* this routine is called from polyselect_str.c */
-void
-gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
-	   mpz_srcptr ad, unsigned long d, mpz_srcptr N, uint64_t q, mpz_srcptr rq)
-{
-  mpz_t l, mtilde, m, adm1, t, k, qq, tmp;
-  mpz_poly f, g, f_old, g_old;
-  int cmp, did_optimize;
-  double skew, logmu;
-
-#ifdef DEBUG_POLYSELECT
-  gmp_printf ("Found match: (%" PRIu32 ",%lld) (%" PRIu32 ",%lld) for "
-	      "ad=%Zd, q=%llu, rq=%Zd\n",
-              p1, (long long) i, p2, (long long) i, ad,
-              (unsigned long long) q, rq);
-  gmp_printf ("m0=%Zd\n", m0);
-#endif
-  mpz_init (tmp);
-  mpz_init (l);
-  mpz_init (m);
-  mpz_init (t);
-  mpz_init (k);
-  mpz_init (qq);
-  mpz_init (adm1);
-  mpz_init (mtilde);
-
-  mpz_poly_init(f, d);
-  mpz_poly_init(g, 1);
-  mpz_poly_init(f_old, d);
-  mpz_poly_init(g_old, 1);
-
-  /* we have l = p1*p2*q */
-  mpz_set_ui (l, p1);
-  mpz_mul_ui (l, l, p2);
-  mpz_set_uint64 (tmp, q);
-  mpz_mul (l, l, tmp);
-  /* mtilde = m0 + rq + i*q^2 */
-  mpz_set (qq, tmp); // qq = q
-  mpz_mul (qq, qq, tmp); // qq = q^2
-  if (i >= 0)
-    mpz_set_uint64 (tmp, (uint64_t) i);
-  else {
-    mpz_set_uint64 (tmp, (uint64_t) (-i));
-    mpz_neg (tmp, tmp);
-  }
-  mpz_set (mtilde, tmp);
-  mpz_mul (mtilde, mtilde, qq);
-  mpz_add (mtilde, mtilde, rq);
-  mpz_add (mtilde, mtilde, m0);
-  /* we want mtilde = d*ad*m + a_{d-1}*l with 0 <= a_{d-1} < d*ad.
-     We have a_{d-1} = mtilde/l mod (d*ad). */
-  mpz_mul_ui (m, ad, d);
-  if (mpz_invert (adm1, l, m) == 0)
-  {
-    fprintf (stderr, "Error in 1/l mod (d*ad)\n");
-    exit (1);
-  }
-  mpz_mul (adm1, adm1, mtilde);
-  mpz_mod (adm1, adm1, m); /* m is d*ad here */
-  /* we make -d*ad/2 <= adm1 < d*ad/2 */
-  mpz_mul_2exp (t, adm1, 1);
-  if (mpz_cmp (t, m) >= 0)
-    mpz_sub (adm1, adm1, m);
-  mpz_mul (m, adm1, l);
-  mpz_sub (m, mtilde, m);
-  check_divexact_ui (m, m, "m-a_{d-1}*l", d, "d");
-  check_divexact (m, m, "(m-a_{d-1}*l)/d", ad, "ad");
-  mpz_set (g->coeff[1], l);
-  mpz_neg (g->coeff[0], m);
-  mpz_set (f->coeff[d], ad);
-  mpz_pow_ui (t, m, d);
-  mpz_mul (t, t, ad);
-  mpz_sub (t, N, t);
-  mpz_set (f->coeff[d-1], adm1);
-  check_divexact (t, t, "t", l, "l");
-  mpz_pow_ui (mtilde, m, d-1);
-  mpz_mul (mtilde, mtilde, adm1);
-  mpz_sub (t, t, mtilde);
-  for (unsigned long j = d - 2; j > 0; j--)
-  {
-    check_divexact (t, t, "t", l, "l");
-    /* t = a_j*m^j + l*R thus a_j = t/m^j mod l */
-    mpz_pow_ui (mtilde, m, j);
-    mpz_fdiv_q (adm1, t, mtilde); /* t -> adm1 * mtilde + t */
-    mpz_invert (k, mtilde, l); /* search adm1 + k such that
-                                  t = (adm1 + k) * m^j mod l */
-    mpz_mul (k, k, t);
-    mpz_sub (k, k, adm1);
-    mpz_mod (k, k, l);
-    mpz_mul_2exp (k, k, 1);
-    cmp = mpz_cmp (k, l);
-    mpz_div_2exp (k, k, 1);
-    if (cmp >= 0)
-      mpz_sub (k, k, l);
-    mpz_add (adm1, adm1, k);
-    mpz_set (f->coeff[j], adm1);
-    /* subtract adm1*m^j */
-    mpz_submul (t, mtilde, adm1);
-  }
-
-  check_divexact (t, t, "t", l, "l");
-  mpz_set (f->coeff[0], t);
-
-  mpz_poly_cleandeg(f, d);
-  ASSERT_ALWAYS(mpz_poly_degree(f) == (int) d);
-  mpz_poly_cleandeg(g, 1);
-  ASSERT_ALWAYS(mpz_poly_degree(g) == (int) 1);
-
-  mpz_poly_set(g_old, g);
-  mpz_poly_set(f_old, f);
-  
-  /* _old lognorm */
-  skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
-  logmu = L2_lognorm (f, skew);
-
-#ifdef HAVE_OPENMP
-#pragma	omp critical
-#endif
-  {
-    /* information on all polynomials */
-    collisions ++;
-    tot_found ++;
-    aver_raw_lognorm += logmu;
-    var_raw_lognorm += logmu * logmu;
-    if (logmu < min_raw_lognorm)
-      min_raw_lognorm = logmu;
-    if (logmu > max_raw_lognorm)
-      max_raw_lognorm = logmu;
-  }
-
-  /* if the polynomial has small norm, we optimize it */
-  did_optimize = optimize_raw_poly (f, g);
-
-  /* print optimized (maybe size- or size-root- optimized) polynomial */
-  if (did_optimize && verbose >= 0)
-    {
-      unsigned long idx = get_idx (ad);
-      output_polynomials (f_old, g_old, N, f, g, idx);
-    }
-
-  mpz_clear (tmp);
-  mpz_clear (l);
-  mpz_clear (m);
-  mpz_clear (t);
-  mpz_clear (k);
-  mpz_clear (qq);
-  mpz_clear (adm1);
-  mpz_clear (mtilde);
-  mpz_poly_clear(f);
-  mpz_poly_clear(g);
-  mpz_poly_clear(f_old);
-  mpz_poly_clear(g_old);
-}
-
-
 /* find collisions between "P" primes, return number of loops */
 static inline unsigned long
 collision_on_p (polyselect_poly_header_srcptr header,
@@ -941,12 +818,8 @@ collision_on_p (polyselect_poly_header_srcptr header,
   unsigned long j, nprimes, p, nrp, tot_roots = 0;
   uint64_t *rp;
   int64_t ppl = 0, u, umax;
-  mpz_t zero;
   int found = 0;
   int st = milliseconds ();
-
-  /* init zero */
-  mpz_init_set_ui (zero, 0);
 
   rp = (uint64_t*) malloc (header->d * sizeof (uint64_t));
   if (rp == NULL) {
@@ -1007,6 +880,10 @@ collision_on_p (polyselect_poly_header_srcptr header,
 
   if (found) /* do the real work */
     {
+  /* init zero */
+  mpz_t zero;
+  mpz_init_set_ui (zero, 0);
+
       polyselect_hash_t H;
 
       polyselect_hash_init (H, INIT_FACTOR * lenPrimes);
@@ -1040,10 +917,13 @@ collision_on_p (polyselect_poly_header_srcptr header,
       fprintf (stderr, "# hash table coll: %lu, all_coll: %lu\n", H->coll, H->coll_all);
 #endif
       polyselect_hash_clear (H);
+      mpz_clear (zero);
     }
 
-  mpz_clear (zero);
 
+  /* This looks totally bogus. Why would we unconditionally increase
+   * potential_collisions, after all?
+   */
 #ifdef HAVE_OPENMP
 #pragma	omp atomic update
 #endif
@@ -1354,263 +1234,170 @@ collision_on_each_sq_r ( polyselect_poly_header_srcptr header,
 }
 
 
-/* Next combination */
-static inline unsigned int
-aux_nextcomb ( unsigned int *ind,
-               unsigned int len_q,
-               unsigned int *len_nr )
+
+/* rq is a root of N = (m0 + rq)^d mod (q^2) */
+/* this routine is called from polyselect_str.c */
+void
+gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_srcptr m0,
+	   mpz_srcptr ad, unsigned long d, mpz_srcptr N, uint64_t q, mpz_srcptr rq)
 {
-  unsigned int i;
+  mpz_t l, mtilde, m, adm1, t, k, qq, tmp;
+  mpz_poly f, g, f_old, g_old;
+  int cmp, did_optimize;
+  double skew, logmu;
 
-  /* bottom change first */
-  for (i = len_q - 1; ; i--) {
-    if (ind[i] < (len_nr[i] - 1)) {
-      ind[i]++;
-      return 1;
-    }
-    else {
-      if (i == 0)
-        break;
-      ind[i] = 0;
-    }
-  }
-  return 0;
-}
-
-
-/* Compute crt-ed rq (qqz,rqqz) = (q_1 * ... * q_k,
-                                   CRT([r_1, ..., r_k], [q_1, ..., q_k])) */
-static inline void
-aux_return_rq ( polyselect_qroots_srcptr SQ_R,
-                unsigned long *idx_q,
-                unsigned int *idx_nr,
-                unsigned long k,
-                mpz_ptr qqz,
-                mpz_ptr rqqz)
-{
-  unsigned long i, q[k], rq[k];
-
-  /* q and roots */
-  for (i = 0; i < k; i ++) {
-    q[i] = SQ_R->q[idx_q[i]];
-    rq[i] = SQ_R->roots[idx_q[i]][idx_nr[i]];
-  }
-
-  /* crt roots */
-  crt_sq (qqz, rqqz, q, rq, k);
-
-  return;
-}
-
-
-/* Consider each rq which is the product of k pairs (q,r).
-   In this routine the q[i] are fixed, only the roots mod q[i] change. */
-static inline void
-collision_on_batch_sq_r ( polyselect_poly_header_srcptr header,
-                          polyselect_proots_srcptr R,
-                          polyselect_qroots_srcptr SQ_R,
-                          unsigned long q,
-                          unsigned long *idx_q,
-                          unsigned long *inv_qq,
-                          unsigned long number_pr,
-                          unsigned long *curr_nq,
-                          unsigned long k,
-                          polyselect_shash_ptr H)
-{
-  int count;
-  unsigned int ind_qr[k]; /* indices of roots for each small q */
-  unsigned int len_qnr[k]; /* for each small q, number of roots */
-  unsigned long i;
-  mpz_t qqz, rqqz[BATCH_SIZE];
-
-  mpz_init (qqz);
-  for (i = 0; i < BATCH_SIZE; i ++)
-    mpz_init (rqqz[i]);
-
-  /* initialization indices */
-  for (i = 0; i < k; i ++) {
-    ind_qr[i] = 0;
-    len_qnr[i] = SQ_R->nr[idx_q[i]];
-  }
-
-#if 0
-  fprintf (stderr, "q: %lu, ", q);
-  for (i = 0; i < k; i ++)
-    fprintf (stderr, "%u ", SQ_R->q[idx_q[i]]);
-  fprintf (stderr, ", ");
-  for (i = 0; i < k; i ++)
-    fprintf (stderr, "%u ", SQ_R->nr[idx_q[i]]);
-  fprintf (stderr, "\n");
+#ifdef DEBUG_POLYSELECT
+  gmp_printf ("Found match: (%" PRIu32 ",%lld) (%" PRIu32 ",%lld) for "
+	      "ad=%Zd, q=%llu, rq=%Zd\n",
+              p1, (long long) i, p2, (long long) i, ad,
+              (unsigned long long) q, rq);
+  gmp_printf ("m0=%Zd\n", m0);
 #endif
+  mpz_init (tmp);
+  mpz_init (l);
+  mpz_init (m);
+  mpz_init (t);
+  mpz_init (k);
+  mpz_init (qq);
+  mpz_init (adm1);
+  mpz_init (mtilde);
 
-  /* we proceed with BATCH_SIZE many rq for each time */
-  int re = 1, num_rq;
-  while (re) {
-    /* compute BATCH_SIZE such many rqqz[] */
-    num_rq = 0;
-    for (count = 0; count < BATCH_SIZE; count ++)
-    {
-        aux_return_rq (SQ_R, idx_q, ind_qr, k, qqz, rqqz[count]);
-        re = aux_nextcomb (ind_qr, k, len_qnr);
-        (*curr_nq)++;
-        num_rq ++;
-        if ((*curr_nq) >= nq)
-          re = 0;
-        if (!re)
-          break;
-    }
+  mpz_poly_init(f, d);
+  mpz_poly_init(g, 1);
+  mpz_poly_init(f_old, d);
+  mpz_poly_init(g_old, 1);
 
-    /* core function for a fixed qq and several rqqz[] */
-    collision_on_each_sq_r (header, R, q, (const mpz_t *) rqqz, inv_qq, number_pr, num_rq, H);
+  /* we have l = p1*p2*q */
+  mpz_set_ui (l, p1);
+  mpz_mul_ui (l, l, p2);
+  mpz_set_uint64 (tmp, q);
+  mpz_mul (l, l, tmp);
+  /* mtilde = m0 + rq + i*q^2 */
+  mpz_set (qq, tmp); // qq = q
+  mpz_mul (qq, qq, tmp); // qq = q^2
+  if (i >= 0)
+    mpz_set_uint64 (tmp, (uint64_t) i);
+  else {
+    mpz_set_uint64 (tmp, (uint64_t) (-i));
+    mpz_neg (tmp, tmp);
   }
-
-  mpz_clear (qqz);
-  for (i = 0; i < BATCH_SIZE; i ++)
-    mpz_clear (rqqz[i]);
-}
-
-
-/* SQ inversion, write 1/q^2 (mod p_i^2) to invqq[i].
-   In this routine the q[i] are fixed, corresponding to indices idx_q[0], ...,
-   idx_q[k-1] */
-static inline void
-collision_on_batch_sq (polyselect_poly_header_srcptr header,
-                       polyselect_proots_srcptr R,
-                       polyselect_qroots_srcptr SQ_R,
-                       unsigned long q,
-                       unsigned long *idx_q,
-                       unsigned long number_pr,
-                       unsigned long k,
-                       unsigned long *curr_nq,
-                       polyselect_shash_ptr H)
-{
-  unsigned nr;
-  uint64_t pp;
-  unsigned long nprimes, p;
-  unsigned long *invqq = malloc (lenPrimes * sizeof (unsigned long));
-  if (!invqq) {
-    fprintf (stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
+  mpz_set (mtilde, tmp);
+  mpz_mul (mtilde, mtilde, qq);
+  mpz_add (mtilde, mtilde, rq);
+  mpz_add (mtilde, mtilde, m0);
+  /* we want mtilde = d*ad*m + a_{d-1}*l with 0 <= a_{d-1} < d*ad.
+     We have a_{d-1} = mtilde/l mod (d*ad). */
+  mpz_mul_ui (m, ad, d);
+  if (mpz_invert (adm1, l, m) == 0)
+  {
+    fprintf (stderr, "Error in 1/l mod (d*ad)\n");
     exit (1);
   }
+  mpz_mul (adm1, adm1, mtilde);
+  mpz_mod (adm1, adm1, m); /* m is d*ad here */
 
-  int st = milliseconds();
+  /* we make -d*ad/2 <= adm1 < d*ad/2 */
+  mpz_mul_2exp (t, adm1, 1);
+  if (mpz_cmp (t, m) >= 0)
+    mpz_sub (adm1, adm1, m);
 
-  /* Step 1: inversion */
-  for (nprimes = 0; nprimes < lenPrimes; nprimes ++) {
-
-    p = Primes[nprimes];
-    if (polyselect_poly_header_skip (header, p))
-      continue;
-    nr = R->nr[nprimes];
-    if (nr == 0)
-      continue;
-    pp = p * p;
-
-    modulusredcul_t modpp;
-    residueredcul_t qq, tmp;
-    modredcul_initmod_ul (modpp, pp);
-    modredcul_init (qq, modpp);
-    modredcul_init (tmp, modpp);
-
-    /* q^2/B (mod pp). Warning: for large nq, we might have q > p^2, therefore
-       we must first reduce q mod p^2 before calling modredcul_intset_ul. */
-    modredcul_intset_ul (tmp, q % pp);
-    modredcul_sqr (qq, tmp, modpp);
-    /* B/q^2 (mod pp) */
-    modredcul_intinv (tmp, qq, modpp);
-    invqq[nprimes] = modredcul_intget_ul (tmp);
-
-    modredcul_clear (tmp, modpp);
-    modredcul_clear (qq, modpp);
-    modredcul_clearmod (modpp);
+  mpz_mul (m, adm1, l);
+  mpz_sub (m, mtilde, m);
+  check_divexact_ui (m, m, "m-a_{d-1}*l", d, "d");
+  check_divexact (m, m, "(m-a_{d-1}*l)/d", ad, "ad");
+  mpz_set (g->coeff[1], l);
+  mpz_neg (g->coeff[0], m);
+  mpz_set (f->coeff[d], ad);
+  mpz_pow_ui (t, m, d);
+  mpz_mul (t, t, ad);
+  mpz_sub (t, N, t);
+  mpz_set (f->coeff[d-1], adm1);
+  check_divexact (t, t, "t", l, "l");
+  mpz_pow_ui (mtilde, m, d-1);
+  mpz_mul (mtilde, mtilde, adm1);
+  mpz_sub (t, t, mtilde);
+  for (unsigned long j = d - 2; j > 0; j--)
+  {
+    check_divexact (t, t, "t", l, "l");
+    /* t = a_j*m^j + l*R thus a_j = t/m^j mod l */
+    mpz_pow_ui (mtilde, m, j);
+    mpz_fdiv_q (adm1, t, mtilde); /* t -> adm1 * mtilde + t */
+    mpz_invert (k, mtilde, l); /* search adm1 + k such that
+                                  t = (adm1 + k) * m^j mod l */
+    mpz_mul (k, k, t);
+    mpz_sub (k, k, adm1);
+    mpz_mod (k, k, l);
+    mpz_mul_2exp (k, k, 1);
+    cmp = mpz_cmp (k, l);
+    mpz_div_2exp (k, k, 1);
+    if (cmp >= 0)
+      mpz_sub (k, k, l);
+    mpz_add (adm1, adm1, k);
+    mpz_set (f->coeff[j], adm1);
+    /* subtract adm1*m^j */
+    mpz_submul (t, mtilde, adm1);
   }
 
-  if (verbose > 2)
-    fprintf (stderr, "# stage (1/q^2 inversion) for %lu primes took %lums\n",
-             lenPrimes, milliseconds () - st);
+  check_divexact (t, t, "t", l, "l");
+  mpz_set (f->coeff[0], t);
 
-  /* Step 2: find collisions on q. */
-  int st2 = milliseconds();
+  mpz_poly_cleandeg(f, d);
+  ASSERT_ALWAYS(mpz_poly_degree(f) == (int) d);
+  mpz_poly_cleandeg(g, 1);
+  ASSERT_ALWAYS(mpz_poly_degree(g) == (int) 1);
 
-  collision_on_batch_sq_r (header, R, SQ_R, q, idx_q, invqq, number_pr,
-                           curr_nq, k, H);
-  if (verbose > 2)
-    fprintf (stderr, "#  stage (special-q) for %lu special-q's took %lums\n",
-             *curr_nq, milliseconds() - st2);
+  mpz_poly_set(g_old, g);
+  mpz_poly_set(f_old, f);
+  
+  /* _old lognorm */
+  skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
+  logmu = L2_lognorm (f, skew);
 
-  free (invqq);
-}
-
-/* find suitable values of lq and k, where the special-q part in the degree-1
-   coefficient of the linear polynomial is made from k small primes among lq */
-static unsigned long
-find_suitable_lq (polyselect_poly_header_srcptr header, polyselect_qroots_srcptr SQ_R, unsigned long *k)
-{
-  unsigned long prod = 1;
-  unsigned int i;
-  double sq = 1.0;
-  unsigned long lq;
-
-  for (i = 0, *k = 0; prod < nq && i < SQ_R->size; i++) {
-    if (!check_parameters (header->m0, sq * (double) SQ_R->q[i]))
-      break;
-    prod *= header->d; /* We multiply by d instead of SQ_R->nr[i] to limit
-                          the number of primes and thus the Y1 value. */
-    sq *= (double) SQ_R->q[i];
-    *k += 1;
+#ifdef HAVE_OPENMP
+#pragma	omp critical
+#endif
+  {
+    /* information on all polynomials */
+    collisions ++;
+    tot_found ++;
+    aver_raw_lognorm += logmu;
+    var_raw_lognorm += logmu * logmu;
+    if (logmu < min_raw_lognorm)
+      min_raw_lognorm = logmu;
+    if (logmu > max_raw_lognorm)
+      max_raw_lognorm = logmu;
   }
 
-  /* We force k <= 4 on a 32-bit machine, and k <= 8 on a 64-bit machine,
-     to ensure q fits on an "unsigned long". */
-  if (*k > (sizeof (unsigned long) * CHAR_BIT) / 8)
-    *k = (sizeof (unsigned long) * CHAR_BIT) / 8;
-  if (*k < 1)
-    *k = 1;
+  /* if the polynomial has small norm, we optimize it */
+  did_optimize = optimize_raw_poly (f, g);
 
-  /* If all factors in sq have d roots, then a single special-q is enough.
-     Otherwise, we consider special-q's from combinations of k primes among lq,
-     so that the total number of combinations is at least nq. */
-  for (lq = *k; number_comb (SQ_R, *k, lq) < nq && lq < SQ_R->size; lq++);
-
-  return lq;
-}
-
-/* collision on special-q, call collision_on_batch_sq */
-static inline void
-collision_on_sq (polyselect_poly_header_srcptr header, polyselect_proots_srcptr R, unsigned long c, polyselect_shash_ptr H, gmp_randstate_ptr rstate)
-{
-  unsigned long k, lq;
-  polyselect_qroots_t SQ_R;
-
-  /* init special-q roots */
-  polyselect_qroots_init (SQ_R);
-  comp_sq_roots (header, SQ_R, rstate);
-  //polyselect_qroots_print (SQ_R);
-
-  /* find a suitable lq */
-  lq = find_suitable_lq (header, SQ_R, &k);
-
-  unsigned long q, idx_q[lq], curr_nq = 0, ret;
-
-  first_comb (k, idx_q);
-  while (curr_nq < nq)
+  /* print optimized (maybe size- or size-root- optimized) polynomial */
+  if (did_optimize && verbose >= 0)
     {
-      q = return_q_norq (SQ_R, idx_q, k);
-
-      /* collision batch */
-      collision_on_batch_sq (header, R, SQ_R, q, idx_q, c, k, &curr_nq, H);
-      ret = next_comb (lq, k, idx_q);
-      if (ret == k) /* binomial(lq, k) < nq */
-        break;
+      unsigned long idx = get_idx (ad);
+      output_polynomials (f_old, g_old, N, f, g, idx);
     }
 
-  /* clean */
-  polyselect_qroots_clear (SQ_R);
+  mpz_clear (tmp);
+  mpz_clear (l);
+  mpz_clear (m);
+  mpz_clear (t);
+  mpz_clear (k);
+  mpz_clear (qq);
+  mpz_clear (adm1);
+  mpz_clear (mtilde);
+  mpz_poly_clear(f);
+  mpz_poly_clear(g);
+  mpz_poly_clear(f_old);
+  mpz_poly_clear(g_old);
 }
 
-
-// separator between modredc_ul and gmp
-
+/* compared to the integer code (not gmp), this code is practically
+ * identical, except that it doesn't do the shash trick.
+ *
+ * Note the relevance of the _gmp layer is dubious at best, since root
+ * finding is done with the uint64_t routines here...
+ */
 
 /* find collisions between "P" primes, return number of loops */
 static inline unsigned long
@@ -1643,30 +1430,33 @@ gmp_collision_on_p (
 
   umax = polyselect_get_M();
 
-  for (nprimes = 0; nprimes < lenPrimes; nprimes ++) {
-    p = Primes[nprimes];
-    ppl = (int64_t) p * (int64_t) p;
+  for (nprimes = 0; nprimes < lenPrimes; nprimes ++)
+    {
+        p = Primes[nprimes];
+        ppl = (int64_t) p * (int64_t) p;
 
-    /* add fake roots to keep indices */
-    if (polyselect_poly_header_skip (header, p)) {
-      R->nr[nprimes] = 0; // nr = 0.
-      R->roots[nprimes] = NULL;
-      continue;
-    }
+        /* XXX This is special to the _gmp code. Why do we need this?
+         */
+        /* add fake roots to keep indices */
+        if (polyselect_poly_header_skip (header, p)) {
+            R->nr[nprimes] = 0; // nr = 0.
+            R->roots[nprimes] = NULL;
+            continue;
+        }
 
-    /* we want p^2 | N - (m0 + i)^d, thus
-       (m0 + i)^d = N (mod p^2) or m0 + i = N^(1/d) mod p^2 */
-    nrp = roots_mod_uint64 (rp, mpz_fdiv_ui (header->Ntilde, p), header->d, p, rstate);
-    roots_lift (rp, header->Ntilde, header->d, header->m0, p, nrp);
-    polyselect_proots_add (R, nrp, rp, nprimes);
-    for (j = 0; j < nrp; j++, c++) {
-      for (u = (int64_t) rp[j]; u < umax; u += ppl)
-        polyselect_hash_add_gmp (H, p, u, header->m0, header->ad,
-                      header->d, header->N, 1, zero);
-      for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
-        polyselect_hash_add_gmp (H, p, -u, header->m0, header->ad,
-                      header->d, header->N, 1, zero);
-    }
+        /* we want p^2 | N - (m0 + i)^d, thus
+           (m0 + i)^d = N (mod p^2) or m0 + i = N^(1/d) mod p^2 */
+        nrp = roots_mod_uint64 (rp, mpz_fdiv_ui (header->Ntilde, p), header->d, p, rstate);
+        roots_lift (rp, header->Ntilde, header->d, header->m0, p, nrp);
+        polyselect_proots_add (R, nrp, rp, nprimes);
+        for (j = 0; j < nrp; j++, c++) {
+            for (u = (int64_t) rp[j]; u < umax; u += ppl)
+                polyselect_hash_add_gmp (H, p, u, header->m0, header->ad,
+                        header->d, header->N, 1, zero);
+            for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
+                polyselect_hash_add_gmp (H, p, -u, header->m0, header->ad,
+                        header->d, header->N, 1, zero);
+        }
   }
 
 #ifdef DEBUG_POLYSELECT
@@ -1688,6 +1478,13 @@ gmp_collision_on_p (
 }
 
 
+/* as before, this _gmp variant does not do the shash trick, which is
+ * particularly ugly and disgusting in the integer version.
+ * 
+ * Note that inv_qq is an array of uint64_t's anyway. It's a set of
+ * inverses mod p^2. If that is constrained to uint64_t, why not
+ * constrain q to it as well??
+ */
 /* collision on each special-q, call collision_on_batch_p() */
 static inline void
 gmp_collision_on_each_sq ( polyselect_poly_header_srcptr header,
@@ -1967,6 +1764,232 @@ gmp_collision_on_sq ( polyselect_poly_header_srcptr header,
   polyselect_qroots_clear (SQ_R);
 }
 
+
+
+/* Next combination */
+static inline unsigned int
+aux_nextcomb ( unsigned int *ind,
+               unsigned int len_q,
+               unsigned int *len_nr )
+{
+  unsigned int i;
+
+  /* bottom change first */
+  for (i = len_q - 1; ; i--) {
+    if (ind[i] < (len_nr[i] - 1)) {
+      ind[i]++;
+      return 1;
+    }
+    else {
+      if (i == 0)
+        break;
+      ind[i] = 0;
+    }
+  }
+  return 0;
+}
+
+
+/* Compute crt-ed rq (qqz,rqqz) = (q_1 * ... * q_k,
+                                   CRT([r_1, ..., r_k], [q_1, ..., q_k])) */
+static inline void
+aux_return_rq ( polyselect_qroots_srcptr SQ_R,
+                unsigned long *idx_q,
+                unsigned int *idx_nr,
+                unsigned long k,
+                mpz_ptr qqz,
+                mpz_ptr rqqz)
+{
+  unsigned long i, q[k], rq[k];
+
+  /* q and roots */
+  for (i = 0; i < k; i ++) {
+    q[i] = SQ_R->q[idx_q[i]];
+    rq[i] = SQ_R->roots[idx_q[i]][idx_nr[i]];
+  }
+
+  /* crt roots */
+  crt_sq (qqz, rqqz, q, rq, k);
+
+  return;
+}
+
+
+/* Consider each rq which is the product of k pairs (q,r).
+   In this routine the q[i] are fixed, only the roots mod q[i] change. */
+static inline void
+collision_on_batch_sq_r ( polyselect_poly_header_srcptr header,
+                          polyselect_proots_srcptr R,
+                          polyselect_qroots_srcptr SQ_R,
+                          unsigned long q,
+                          unsigned long *idx_q,
+                          unsigned long *inv_qq,
+                          unsigned long number_pr,
+                          unsigned long *curr_nq,
+                          unsigned long k,
+                          polyselect_shash_ptr H)
+{
+  int count;
+  unsigned int ind_qr[k]; /* indices of roots for each small q */
+  unsigned int len_qnr[k]; /* for each small q, number of roots */
+  unsigned long i;
+  mpz_t qqz, rqqz[BATCH_SIZE];
+
+  mpz_init (qqz);
+  for (i = 0; i < BATCH_SIZE; i ++)
+    mpz_init (rqqz[i]);
+
+  /* initialization indices */
+  for (i = 0; i < k; i ++) {
+    ind_qr[i] = 0;
+    len_qnr[i] = SQ_R->nr[idx_q[i]];
+  }
+
+#if 0
+  fprintf (stderr, "q: %lu, ", q);
+  for (i = 0; i < k; i ++)
+    fprintf (stderr, "%u ", SQ_R->q[idx_q[i]]);
+  fprintf (stderr, ", ");
+  for (i = 0; i < k; i ++)
+    fprintf (stderr, "%u ", SQ_R->nr[idx_q[i]]);
+  fprintf (stderr, "\n");
+#endif
+
+  /* we proceed with BATCH_SIZE many rq for each time */
+  int re = 1, num_rq;
+  while (re) {
+    /* compute BATCH_SIZE such many rqqz[] */
+    num_rq = 0;
+    for (count = 0; count < BATCH_SIZE; count ++)
+    {
+        aux_return_rq (SQ_R, idx_q, ind_qr, k, qqz, rqqz[count]);
+        re = aux_nextcomb (ind_qr, k, len_qnr);
+        (*curr_nq)++;
+        num_rq ++;
+        if ((*curr_nq) >= nq)
+          re = 0;
+        if (!re)
+          break;
+    }
+
+    /* core function for a fixed qq and several rqqz[] */
+    collision_on_each_sq_r (header, R, q, (const mpz_t *) rqqz, inv_qq, number_pr, num_rq, H);
+  }
+
+  mpz_clear (qqz);
+  for (i = 0; i < BATCH_SIZE; i ++)
+    mpz_clear (rqqz[i]);
+}
+
+
+/* SQ inversion, write 1/q^2 (mod p_i^2) to invqq[i].
+   In this routine the q[i] are fixed, corresponding to indices idx_q[0], ...,
+   idx_q[k-1] */
+static inline void
+collision_on_batch_sq (polyselect_poly_header_srcptr header,
+                       polyselect_proots_srcptr R,
+                       polyselect_qroots_srcptr SQ_R,
+                       unsigned long q,
+                       unsigned long *idx_q,
+                       unsigned long number_pr,
+                       unsigned long k,
+                       unsigned long *curr_nq,
+                       polyselect_shash_ptr H)
+{
+  unsigned nr;
+  uint64_t pp;
+  unsigned long nprimes, p;
+  unsigned long *invqq = malloc (lenPrimes * sizeof (unsigned long));
+  if (!invqq) {
+    fprintf (stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
+    exit (1);
+  }
+
+  int st = milliseconds();
+
+  /* Step 1: inversion */
+  for (nprimes = 0; nprimes < lenPrimes; nprimes ++) {
+
+    p = Primes[nprimes];
+    if (polyselect_poly_header_skip (header, p))
+      continue;
+    nr = R->nr[nprimes];
+    if (nr == 0)
+      continue;
+    pp = p * p;
+
+    modulusredcul_t modpp;
+    residueredcul_t qq, tmp;
+    modredcul_initmod_ul (modpp, pp);
+    modredcul_init (qq, modpp);
+    modredcul_init (tmp, modpp);
+
+    /* q^2/B (mod pp). Warning: for large nq, we might have q > p^2, therefore
+       we must first reduce q mod p^2 before calling modredcul_intset_ul. */
+    modredcul_intset_ul (tmp, q % pp);
+    modredcul_sqr (qq, tmp, modpp);
+    /* B/q^2 (mod pp) */
+    modredcul_intinv (tmp, qq, modpp);
+    invqq[nprimes] = modredcul_intget_ul (tmp);
+
+    modredcul_clear (tmp, modpp);
+    modredcul_clear (qq, modpp);
+    modredcul_clearmod (modpp);
+  }
+
+  if (verbose > 2)
+    fprintf (stderr, "# stage (1/q^2 inversion) for %lu primes took %lums\n",
+             lenPrimes, milliseconds () - st);
+
+  /* Step 2: find collisions on q. */
+  int st2 = milliseconds();
+
+  collision_on_batch_sq_r (header, R, SQ_R, q, idx_q, invqq, number_pr,
+                           curr_nq, k, H);
+  if (verbose > 2)
+    fprintf (stderr, "#  stage (special-q) for %lu special-q's took %lums\n",
+             *curr_nq, milliseconds() - st2);
+
+  free (invqq);
+}
+
+/* collision on special-q, call collision_on_batch_sq */
+static inline void
+collision_on_sq (polyselect_poly_header_srcptr header, polyselect_proots_srcptr R, unsigned long c, polyselect_shash_ptr H, gmp_randstate_ptr rstate)
+{
+  unsigned long k, lq;
+  polyselect_qroots_t SQ_R;
+
+  /* init special-q roots */
+  polyselect_qroots_init (SQ_R);
+  comp_sq_roots (header, SQ_R, rstate);
+  //polyselect_qroots_print (SQ_R);
+
+  /* find a suitable lq */
+  lq = find_suitable_lq (header, SQ_R, &k);
+
+  unsigned long q, idx_q[lq], curr_nq = 0, ret;
+
+  first_comb (k, idx_q);
+  while (curr_nq < nq)
+    {
+      q = return_q_norq (SQ_R, idx_q, k);
+
+      /* collision batch */
+      collision_on_batch_sq (header, R, SQ_R, q, idx_q, c, k, &curr_nq, H);
+      ret = next_comb (lq, k, idx_q);
+      if (ret == k) /* binomial(lq, k) < nq */
+        break;
+    }
+
+  /* clean */
+  polyselect_qroots_clear (SQ_R);
+}
+
+
+// separator between modredc_ul and gmp
+
+
 static void
 newAlgo (mpz_ptr N, unsigned long d, unsigned long idx)
 {
@@ -1997,6 +2020,11 @@ newAlgo (mpz_ptr N, unsigned long d, unsigned long idx)
     polyselect_shash_clear (H);
   }
   else {
+    /* This code is used on 32-bit machines. Do we _really_ have to go
+     * through this trouble? Why not use uint64_t's all over the place?
+     *
+     * (OTOH, it's perhaps good practice to have some gmp code around).
+     */
     c = gmp_collision_on_p (header, R, rstate);
     if (nq > 0)
       gmp_collision_on_sq (header, R, c, rstate);
