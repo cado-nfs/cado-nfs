@@ -22,6 +22,8 @@
 #include "cachesize_cpuid.h" // cachesize_cpuid
 #include "auxiliary.h" // print_poly_fg ALG_SIDE ALPHA_BOUND
 #include "ropt_arith.h" // Lemma21
+#include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 
 /**
  * Get L1 cache size in the beginning.
@@ -539,7 +541,7 @@ print_poly_info_short ( mpz_t *f,
           alpha_proj,
           logmu + alpha,
           nroots,
-          logmu + exp_alpha(exp_rot[d]*log(skew)),
+          logmu + expected_alpha(exp_rot[d]*log(skew)),
           e );
 
   fflush( stdout );

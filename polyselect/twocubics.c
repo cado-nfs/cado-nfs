@@ -24,8 +24,9 @@
 #include <math.h> // pow
 #include "mpz_poly.h"
 #include "area.h"
-#include "polyselect_str.h"
+#include "polyselect_hash.h"
 #include "polyselect_arith.h"
+#include "polyselect_norms.h"
 #include "modredc_ul.h"
 #include "mpz_vector.h"
 #include "roots_mod.h"  // roots_mod_uint64
@@ -36,7 +37,6 @@
 #define TARGET_TIME 10000000 /* print stats every TARGET_TIME milliseconds */
 #define NEW_ROOTSIEVE
 #define INIT_FACTOR 8UL
-#define PREFIX_HASH
 //#define DEBUG_POLYSELECT
 
 #ifdef NEW_ROOTSIEVE
@@ -45,13 +45,7 @@
 #include "params.h"
 #endif
 
-#ifdef PREFIX_HASH
 char *phash = "# ";
-#else
-char *phash = "";
-#endif
-
-#define BATCH_SIZE 20 /* number of special (q, r) per batch */
 
 /* Read-Only */
 uint32_t *Primes = NULL;
@@ -64,77 +58,13 @@ double best_E = DBL_MAX; /* combined score E (the smaller the better) */
 double aver_E = 0.0;
 unsigned long found = 0; /* number of polynomials found so far */
 
-/* read-write global variables */
-static pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
-                                                   lock for those variables */
-
 mpz_t maxS; /* maximun skewness. O for default max */
-
-/* inline function */
-extern void shash_add (shash_t, uint64_t);
-
-/* -- functions starts here -- */
-
-static void
-mutex_lock(pthread_mutex_t *lock)
-{
-  pthread_mutex_lock (lock);
-}
-
-static void
-mutex_unlock(pthread_mutex_t *lock)
-{
-  pthread_mutex_unlock (lock);
-}
-
-/* crt, set r and qqz */
-void
-crt_sq ( mpz_t qqz,
-         mpz_t r,
-         unsigned long *q,
-         unsigned long *rq,
-         unsigned long lq )
-{
-  mpz_t prod, pprod, mod, inv, sum;
-  unsigned long i;
-  unsigned long qq[lq];
-
-  mpz_init_set_ui (prod, 1);
-  mpz_init (pprod);
-  mpz_init (mod);
-  mpz_init (inv);
-  mpz_init_set_ui (sum, 0);
-
-  for (i = 0; i < lq; i ++) {
-    qq[i] = q[i] * q[i]; // q small
-    mpz_mul_ui (prod, prod, qq[i]);
-  }
-
-  for (i = 0; i < lq; i ++) {
-    mpz_divexact_ui (pprod, prod, qq[i]);
-    mpz_set_ui (mod, qq[i]);
-    mpz_invert (inv, pprod, mod);
-    mpz_mul_ui (inv, inv, rq[i]);
-    mpz_mul (inv, inv, pprod);
-    mpz_add (sum, sum, inv);
-  }
-
-  mpz_mod (sum, sum, prod);
-  mpz_set (r, sum);
-  mpz_set (qqz, prod);
-
-  mpz_clear (prod);
-  mpz_clear (pprod);
-  mpz_clear (mod);
-  mpz_clear (inv);
-  mpz_clear (sum);
-}
 
 /* check that l/2 <= d*m0/P^2, where l = p1 * p2 * q with P <= p1, p2 <= 2P
    q is the product of special-q primes. It suffices to check that
    q <= d*m0/(2P^4). */
 static int
-check_parameters (mpz_t m0, unsigned long d, unsigned long lq)
+twocubics_check_parameters (mpz_t m0, unsigned long d, unsigned long lq)
 {
   double maxq = 1.0, maxP;
   int k = lq;
@@ -1050,7 +980,7 @@ collision_on_sq ( header_t header,
   /* find a suitable lq */
   for (i = 0; i < SQ_R->size; i++) {
     if (prod < nq) {
-      if (!check_parameters (header->m0, header->d, lq))
+      if (!twocubics_check_parameters (header->m0, header->d, lq))
         break;
       prod *= SQ_R->nr[i];
       lq ++;
@@ -1161,6 +1091,10 @@ main (int argc, char *argv[])
     target_time = TARGET_TIME;
   tab_t *T;
   pthread_t *tid;
+
+  polyselect_main_data main_data;
+
+  polyselect_main_data_init_defaults(main_data);
 
   mpz_init (N);
   mpz_init (maxS);
@@ -1388,6 +1322,8 @@ main (int argc, char *argv[])
   cado_poly_clear (curr_poly);
   param_list_clear (pl);
   free (tid);
+
+  polyselect_main_data_clear(main_data);
 
   return 0;
 }

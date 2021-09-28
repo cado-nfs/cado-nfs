@@ -20,6 +20,7 @@
 #include "area.h"
 #include "auxiliary.h"  // L2_skew_lognorm // IWYU pragma: keep
 #include "size_optimization.h"
+#include "polyselect_norms.h"
 
 
 /* -----------------*/

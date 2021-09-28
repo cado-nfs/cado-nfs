@@ -38,6 +38,8 @@
 #include "mpz_poly.h"
 #include "murphyE.h"
 #include "params.h"           // for param_list_decl_usage, param_list
+#include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 #include "ropt.h"
 #include "ropt_param.h"    // L1_cachesize
 #include "ropt_str.h"    // ropt_param_t

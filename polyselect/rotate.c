@@ -4,6 +4,8 @@
 #include <string.h>
 #include <math.h>
 #include <gmp.h>
+#include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 #include "auxiliary.h" /* for common routines with polyselect.c */
 #include "area.h"
 #include "cado_poly.h"

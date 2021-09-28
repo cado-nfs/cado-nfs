@@ -597,8 +597,8 @@ static int param_list_update_cmdline_alias(param_list_ptr pl,
         int * p_argc, char *** p_argv)
 {
     if (!pl->cmdline_argv0) {
-        pl->cmdline_argv0 = *p_argv;
-        pl->cmdline_argc0 = *p_argc;
+        pl->cmdline_argv0 = (*p_argv)-1;
+        pl->cmdline_argc0 = (*p_argc)+1;
     }
     const char * a = (*p_argv[0]);
     if (al->alias[strlen(al->alias)-1] == '=') {
@@ -648,8 +648,8 @@ static int param_list_update_cmdline_switch(param_list_ptr pl,
         int * p_argc, char *** p_argv)
 {
     if (!pl->cmdline_argv0) {
-        pl->cmdline_argv0 = *p_argv;
-        pl->cmdline_argc0 = *p_argc;
+        pl->cmdline_argv0 = (*p_argv)-1;
+        pl->cmdline_argc0 = (*p_argc)+1;
     }
     const char * a = (*p_argv[0]);
     if (param_strcmp_collate(a, switchpar->switchname) == 0) {
@@ -680,8 +680,8 @@ int param_list_update_cmdline(param_list_ptr pl,
         int * p_argc, char *** p_argv)
 {
     if (!pl->cmdline_argv0) {
-        pl->cmdline_argv0 = *p_argv;
-        pl->cmdline_argc0 = *p_argc;
+        pl->cmdline_argv0 = (*p_argv)-1;
+        pl->cmdline_argc0 = (*p_argc)+1;
     }
     if (*p_argc == 0)
         return 0;
@@ -1596,13 +1596,11 @@ int param_list_save_parameter(param_list_ptr pl, enum parameter_origin o,
 
 void param_list_print_command_line(FILE * stream, param_list_ptr pl)
 {
-    /* remember that the API for calling param_list functions mandates
-     * that the binary name $0 is stripped from the provided lists */
     if (pl->cmdline_argv0 == NULL)
         return;
 
-    char **argv = pl->cmdline_argv0-1;
-    int argc = pl->cmdline_argc0+1;
+    char **argv = pl->cmdline_argv0;
+    int argc = pl->cmdline_argc0;
 
     if (verbose_enabled(CADO_VERBOSE_PRINT_CMDLINE)) {
         /* print command line */
@@ -1654,4 +1652,16 @@ void param_list_print_command_line(FILE * stream, param_list_ptr pl)
         fprintf(stream, "# Compilation flags (C) " CFLAGS "\n");
         fprintf(stream, "# Compilation flags (C++) " CXXFLAGS "\n");
     }
+}
+
+void param_list_generic_failure(param_list_ptr pl, const char *missing)
+{
+  if (missing)
+    {
+      fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
+	      missing);
+    }
+  param_list_print_usage(pl, pl->cmdline_argv0[0], stderr);
+  param_list_clear(pl);
+  exit(EXIT_FAILURE);
 }

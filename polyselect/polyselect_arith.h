@@ -3,7 +3,8 @@
 
 #include <gmp.h>
 #include <stdint.h> // uint64_t
-#include "polyselect_str.h"
+#include "polyselect_qroots.h"
+#include "polyselect_poly_header.h"
 #include "gmp_aux.h"
 
 /* declarations */

@@ -3,7 +3,7 @@
 #include <stdlib.h>     // exit free malloc
 #include <gmp.h>
 #include "polyselect_arith.h"
-#include "polyselect_str.h"
+#include "polyselect_hash.h"    // only for SPECIAL_Q...
 #include "roots_mod.h"
 #include "gcd.h"       // for invert_ul
 #include "gmp_aux.h"       // mpz_set_uint64
@@ -263,6 +263,53 @@ number_comb (polyselect_qroots_srcptr SQ_R, unsigned long k, unsigned long lq)
         break;
     }
   return s;
+}
+
+/* This does the reconstruction from a set of residues. An integer r is
+ * implicitly given by its residues rq[i] modulo q[i]^2 for a set of
+ * primes p in q[0]...q[len-1], and this routines computes r, as well as
+ * the product of the q[i]^2's.
+ *
+ * Note that the q[i] must not be larger than half an unsigned long.
+ */
+void
+crt_sq(mpz_ptr qqz,
+       mpz_ptr r, unsigned long *q, unsigned long *rq, unsigned long lq)
+{
+  mpz_t prod, pprod, mod, inv, sum;
+  unsigned long qq[lq];
+
+  mpz_init_set_ui(prod, 1);
+  mpz_init(pprod);
+  mpz_init(mod);
+  mpz_init(inv);
+  mpz_init_set_ui(sum, 0);
+
+  for (unsigned long i = 0; i < lq; i++)
+    {
+      qq[i] = q[i] * q[i];	// q small
+      mpz_mul_ui(prod, prod, qq[i]);
+    }
+
+  for (unsigned long i = 0; i < lq; i++)
+    {
+      mpz_divexact_ui(pprod, prod, qq[i]);
+      mpz_set_ui(mod, qq[i]);
+      mpz_invert(inv, pprod, mod);
+      mpz_mul_ui(inv, inv, rq[i]);
+      mpz_mul(inv, inv, pprod);
+      mpz_add(sum, sum, inv);
+    }
+
+  mpz_mod(sum, sum, prod);
+  mpz_set(r, sum);
+  mpz_set(qqz, prod);
+
+  mpz_clear(prod);
+  mpz_clear(pprod);
+  mpz_clear(mod);
+  mpz_clear(inv);
+  mpz_clear(sum);
 }
 
 /* given individual q's, return crted rq */

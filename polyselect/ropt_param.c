@@ -199,16 +199,4 @@ const unsigned char next_prime_idx[] = {
 };
 
 
-/**
- * Asymptotic estimate of minimum order statistics
- * for 2^K many rotations where 0 <= K <= 149.
- * function expected_alpha_est() in alpha.sage
- */
-double exp_alpha (double logK) 
-{
-  if (logK < 0.999)
-    return 0.0;
-  return MU - SIGMA * (sqrt(2*logK)-(log(logK)+1.3766)/(2*sqrt(2*logK)));
-}
-
 

@@ -1,14 +1,16 @@
 add_executable (rotate rotate.c)
+target_link_libraries (rotate polyselect_common utils)
+
 add_executable (rotate_all rotate_all.c)
-add_executable (sopt sopt.c)
+target_link_libraries (rotate_all polyselect_common utils)
+
 add_executable (twoquadratics EXCLUDE_FROM_ALL twoquadratics.c)
 target_link_libraries (twoquadratics polyselect_common utils)
 
-target_link_libraries (rotate polyselect_common utils)
-target_link_libraries (rotate_all polyselect_common utils)
+add_executable (sopt sopt.c)
 target_link_libraries (sopt polyselect_common utils)
 
-add_executable (twocubics EXCLUDE_FROM_ALL twocubics.c polyselect_str.c polyselect_arith.c ${ropt_sources})
+add_executable (twocubics EXCLUDE_FROM_ALL twocubics.c polyselect_hash.c polyselect_arith.c ${ropt_sources})
 target_link_libraries (twocubics polyselect_common utils ${pthread_libs})
 
 add_executable (rootsieve1 EXCLUDE_FROM_ALL rootsieve1.c ${ropt_sources})
