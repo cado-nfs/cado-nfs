@@ -155,9 +155,12 @@ print_comb ( unsigned long k,
 }
 
 
-/* return number of n choose k */
+/* return number of n choose k
+ *
+ * [unused anywhere, it seems]
+ */
 unsigned long
-binom ( unsigned long n,
+binomial ( unsigned long n,
         unsigned long k )
 {
   if (k > n)
@@ -319,42 +322,6 @@ crt_sq(mpz_ptr qqz,
   mpz_clear(inv);
   mpz_clear(sum);
 }
-
-/* given individual q's, return crted rq
- *
- * XXX WTF ??!? this function uses random data ??? What ?
- */
-uint64_t
-return_q_rq ( polyselect_qroots_srcptr SQ_R,
-              unsigned long *idx_q,
-              unsigned long k,
-              mpz_ptr qqz,
-              mpz_ptr rqqz )
-{
-  unsigned long i, j, idv_q[k], idv_rq[k];
-  uint64_t q = 1;
-
-  /* q and roots */
-  for (i = 0; i < k; i ++) {
-    idv_q[i] = SQ_R->q[idx_q[i]];
-    q = q * idv_q[i];
-    j = rand() % SQ_R->nr[idx_q[i]];
-    idv_rq[i] = SQ_R->roots[idx_q[i]][j];
-  }
-
-#if 0
-  for (i = 0; i < k; i ++) {
-    fprintf (stderr, "(%lu:%lu) ", idv_q[i], idv_rq[i]);
-  }
-  //gmp_fprintf (stderr, "%Zd\n", rqqz);
-#endif
-
-  /* crt roots */
-  crt_sq (qqz, rqqz, idv_q, idv_rq, k);
-
-  return q;
-}
-
 
 /* given individual q's, return \product q, no rq
  *

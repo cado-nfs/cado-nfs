@@ -37,7 +37,6 @@
 #include "params.h"
 #include "polyselect_main_queue.h"
 #include "polyselect_collisions.h"
-#include "polyselect_collisions_gmp.h"
 #include "polyselect_shash.h"
 #include "portability.h"
 #include "roots_mod.h"
@@ -51,28 +50,13 @@ static void newAlgo(polyselect_thread_locals_ptr loc)
 
   loc->stats->number_of_ad_values++;
 
-  if (sizeof(unsigned long int) == 8)
-    {
-      polyselect_shash_t H;
-      polyselect_shash_init(H, 4 * loc->main->lenPrimes);
-      c = collision_on_p(H, loc);
-      if (loc->main->nq > 0)
-	collision_on_sq(c, H, loc);
-      polyselect_shash_clear(H);
-  } else
-    {
-      /* This code is used on 32-bit machines. Do we _really_ have to go
-       * through this trouble? Why not use uint64_t's all over the place?
-       *
-       * (OTOH, it's perhaps good practice to have some gmp code around).
-       */
-      c = gmp_collision_on_p(loc);
-      if (loc->main->nq > 0)
-	gmp_collision_on_sq(c, loc);
-    }
-
+  polyselect_shash_t H;
+  polyselect_shash_init(H, 4 * loc->main->lenPrimes);
+  c = collision_on_p(H, loc);
+  if (loc->main->nq > 0)
+      collision_on_sq(c, H, loc);
+  polyselect_shash_clear(H);
 }
-
 
 static void display_expected_memory_usage(polyselect_main_data_srcptr main, int nthreads)
 {

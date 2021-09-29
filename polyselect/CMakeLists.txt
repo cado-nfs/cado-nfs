@@ -20,7 +20,6 @@ add_library(polyselect_middle
     OBJECT
     polyselect_arith.c
     polyselect_collisions.c
-    polyselect_collisions_gmp.c
     polyselect_data_series.c
     polyselect_hash.c
     polyselect_locals.c

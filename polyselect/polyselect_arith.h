@@ -13,29 +13,30 @@
 extern "C" {
 #endif
 
-unsigned long invert (unsigned long, unsigned long);
+extern unsigned long invert (unsigned long, unsigned long);
 
-unsigned long roots_lift (uint64_t*, mpz_srcptr, unsigned long, mpz_srcptr,
+extern unsigned long roots_lift (uint64_t*, mpz_srcptr, unsigned long, mpz_srcptr,
                           unsigned long, unsigned long int);
 
-void first_comb (unsigned long, unsigned long *);
 
-unsigned long next_comb (unsigned long, unsigned long, unsigned long *);
+/* These functions don't really belong here. These are basic
+ * combinatorics computations, we should expose them as such.
+ */
+extern void first_comb (unsigned long, unsigned long *);
 
-void print_comb (unsigned long, unsigned long *);
+extern unsigned long next_comb (unsigned long, unsigned long, unsigned long *);
 
-unsigned long number_comb (polyselect_qroots_srcptr SQ_R, unsigned long k, unsigned long lq);
+extern void print_comb (unsigned long, unsigned long *);
 
-unsigned long binom (unsigned long, unsigned long);
+extern unsigned long number_comb (polyselect_qroots_srcptr SQ_R, unsigned long k, unsigned long lq);
 
-void comp_sq_roots (polyselect_poly_header_srcptr, polyselect_qroots_ptr, gmp_randstate_ptr);
+extern unsigned long binomial (unsigned long, unsigned long);
 
-void crt_sq (mpz_ptr, mpz_ptr, unsigned long *, unsigned long *, unsigned long);
+extern void comp_sq_roots (polyselect_poly_header_srcptr, polyselect_qroots_ptr, gmp_randstate_ptr);
 
-uint64_t return_q_rq (polyselect_qroots_srcptr, unsigned long *, unsigned long,
-                      mpz_ptr, mpz_ptr);
+extern void crt_sq (mpz_ptr, mpz_ptr, unsigned long *, unsigned long *, unsigned long);
 
-uint64_t return_q_norq (polyselect_qroots_srcptr, unsigned long *, unsigned long);
+extern uint64_t return_q_norq (polyselect_qroots_srcptr, unsigned long *, unsigned long);
 
 #ifdef __cplusplus
 }

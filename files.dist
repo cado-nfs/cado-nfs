@@ -272,8 +272,6 @@ polyselect/polyselect_arith.c
 polyselect/polyselect_arith.h
 polyselect/polyselect_collisions.c
 polyselect/polyselect_collisions.h
-polyselect/polyselect_collisions_gmp.c
-polyselect/polyselect_collisions_gmp.h
 polyselect/polyselect_data_series.c
 polyselect/polyselect_data_series.h
 polyselect/polyselect_hash.c
