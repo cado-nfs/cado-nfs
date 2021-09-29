@@ -92,7 +92,7 @@ compute_default_max_skew (mpz_t skew, mpz_t N, int d)
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
 void
 twocubics_match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
-       mpz_srcptr ad, unsigned long d, mpz_srcptr N, unsigned long q, mpz_srcptr rq,
+       mpz_srcptr ad, unsigned long d, mpz_srcptr N, uint64_t q, mpz_srcptr rq,
        polyselect_thread_locals_ptr loc MAYBE_UNUSED)
 {
 #if 0
