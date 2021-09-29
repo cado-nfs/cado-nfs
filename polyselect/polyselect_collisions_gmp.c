@@ -228,11 +228,9 @@ gmp_collision_on_p(polyselect_thread_locals_ptr loc)
       exit(1);
     }
 
-  polyselect_main_data_ptr main = loc->main;
-
   polyselect_hash_t H;
 
-  polyselect_hash_init(H, INIT_FACTOR * main->lenPrimes, gmp_match);
+  polyselect_hash_init(H, INIT_FACTOR * loc->main->lenPrimes, gmp_match);
 
 #ifdef DEBUG_POLYSELECT
   int st = milliseconds();
@@ -240,9 +238,9 @@ gmp_collision_on_p(polyselect_thread_locals_ptr loc)
 
   umax = polyselect_main_data_get_M(loc->main);
 
-  for (unsigned long nprimes = 0; nprimes < main->lenPrimes; nprimes++)
+  for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
     {
-      p = main->Primes[nprimes];
+      p = loc->main->Primes[nprimes];
       ppl = (int64_t) p *(int64_t) p;
 
       /* XXX This is special to the _gmp code. Why do we need this?
@@ -318,17 +316,15 @@ gmp_collision_on_each_sq(polyselect_poly_header_srcptr header,
   int st = milliseconds();
 #endif
 
-  polyselect_main_data_ptr main = loc->main;
   polyselect_hash_t H;
 
-  polyselect_hash_init(H, INIT_FACTOR * main->lenPrimes, gmp_match);
+  polyselect_hash_init(H, INIT_FACTOR * loc->main->lenPrimes, gmp_match);
 
-  umax = polyselect_main_data_get_M(main);
+  umax = polyselect_main_data_get_M(loc->main);
 
-  for (nprimes = 0; nprimes < main->lenPrimes; nprimes++)
+  for (nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
     {
-
-      p = main->Primes[nprimes];
+      p = loc->main->Primes[nprimes];
       if (polyselect_poly_header_skip(header, p))
 	continue;
 
@@ -405,13 +401,11 @@ gmp_collision_on_batch_sq(uint64_t * q,
   for (i = 1; i < size; i++)
     mpz_mul(qprod[i], qqz[i], qprod[i - 1]);
 
-  polyselect_main_data_ptr main = loc->main;
-
   /* Step 1: batch inversion */
-  for (unsigned long nprimes = 0; nprimes < main->lenPrimes; nprimes++)
+  for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
     {
 
-      p = main->Primes[nprimes];
+      p = loc->main->Primes[nprimes];
       pp = (uint64_t) p;
       pp *= (uint64_t) p;
       if (polyselect_poly_header_skip(loc->header, p))

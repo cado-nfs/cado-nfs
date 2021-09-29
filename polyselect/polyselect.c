@@ -255,7 +255,7 @@ int main(int argc, char *argv[])
                                    RUSAGE_THREAD works or in mono-thread
                                    mode */
   if (nthreads == 1)
-      stats->optimize_time = -1;
+      main_data->stats->optimize_time = -1;
 #endif
 
 
