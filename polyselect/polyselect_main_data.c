@@ -3,6 +3,8 @@
 #include <pthread.h>
 #include <math.h>
 #include <float.h>
+#include <stdio.h>
+#include <gmp.h>
 #include "polyselect_main_data.h"
 #include "polyselect_main_queue.h"      // some useful defaults
 #include "polyselect_arith.h"
@@ -325,6 +327,18 @@ void polyselect_main_data_parse_P(polyselect_main_data_ptr main, param_list_ptr 
         fprintf(stderr, "Error, too large value of P\n");
         exit(1);
     }
+
+    if (4.0 * Pd * Pd >= (double) ULONG_MAX)
+    {
+        mpz_t tmp;
+        mpz_init_set_ui (tmp, ULONG_MAX >> 2);
+        mpz_sqrt (tmp, tmp);
+        gmp_fprintf (stderr, "Error, too large value of P, maximum is %Zd\n",
+                tmp);
+        mpz_clear(tmp);
+        exit (1);
+    }
+
     if (P <= (unsigned long) SPECIAL_Q[LEN_SPECIAL_Q - 2])
     {
         fprintf(stderr, "Error, too small value of P, need P > %u\n",

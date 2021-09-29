@@ -166,19 +166,11 @@ int main(int argc, char *argv[])
       usage(argv0[0], NULL, pl);
     }
 
-  /* size optimization effort that passed to size_optimization */
-  param_list_parse_uint(pl, "sopteffort", &main_data->sopt_effort);
-
-  {
-      int keep = DEFAULT_POLYSELECT_KEEP;
-      param_list_parse_int(pl, "keep", &keep);
-      polyselect_stats_setup_keep_best(main_data->stats, keep);
-  }
-
 
   polyselect_main_data_parse_Nd(main_data, pl);
-
+  polyselect_main_data_parse_ad_range(main_data, pl);
   polyselect_main_data_parse_P(main_data, pl);
+  param_list_parse_ulong(pl, "nq", &main_data->nq);
 
   param_list_parse_int(pl, "t", &nthreads);
 #ifdef HAVE_OPENMP
@@ -192,9 +184,14 @@ int main(int argc, char *argv[])
     }
 #endif
 
-  param_list_parse_ulong(pl, "nq", &main_data->nq);
+  /* size optimization effort that passed to size_optimization */
+  param_list_parse_uint(pl, "sopteffort", &main_data->sopt_effort);
 
-  polyselect_main_data_parse_ad_range(main_data, pl);
+  {
+      int keep = DEFAULT_POLYSELECT_KEEP;
+      param_list_parse_int(pl, "keep", &keep);
+      polyselect_stats_setup_keep_best(main_data->stats, keep);
+  }
 
   polyselect_main_data_parse_maxtime_or_target(main_data, pl);
 

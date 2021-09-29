@@ -11,6 +11,7 @@
 #include "gmp_aux.h"
 #include "params.h"
 #include "verbose.h"
+#include "polyselect_norms.h"
 
 typedef struct {
   cado_poly poly;

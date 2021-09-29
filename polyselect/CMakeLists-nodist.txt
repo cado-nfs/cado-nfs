@@ -4,18 +4,22 @@ target_link_libraries (rotate polyselect_common utils)
 add_executable (rotate_all rotate_all.c)
 target_link_libraries (rotate_all polyselect_common utils)
 
-add_executable (twoquadratics EXCLUDE_FROM_ALL twoquadratics.c)
+add_executable (twoquadratics twoquadratics.c)
 target_link_libraries (twoquadratics polyselect_common utils)
 
 add_executable (sopt sopt.c)
 target_link_libraries (sopt polyselect_common utils)
 
-add_executable (twocubics EXCLUDE_FROM_ALL twocubics.c polyselect_hash.c polyselect_arith.c ${ropt_sources})
+add_executable (twocubics twocubics.c
+    $<TARGET_OBJECTS:polyselect_middle>
+    )
 target_link_libraries (twocubics polyselect_common utils ${pthread_libs})
+set_target_properties(twocubics PROPERTIES
+  COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 
-add_executable (rootsieve1 EXCLUDE_FROM_ALL rootsieve1.c ${ropt_sources})
+add_executable (rootsieve1 rootsieve1.c)
 set_target_properties(rootsieve1 PROPERTIES
   COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
-target_link_libraries (rootsieve1 polyselect_common utils)
+target_link_libraries (rootsieve1 polyselect_common)
 
 # vim: set ft=cmake:

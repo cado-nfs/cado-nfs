@@ -24,9 +24,9 @@ endif()
 
 ## we disable the following test since twocubics is not in "make dist"
 ## test also the twocubics binary
-# cado_define_test(twocubics PROGRAM
-#    ${CADO_NFS_BINARY_DIR}/polyselect/twocubics -n 999073468111577057576445816581 -P 500 -incr 30 -admax 1000
-#    TARGET_DEPENDENCIES twocubics)
+ cado_define_test(twocubics PROGRAM
+    ${CADO_NFS_BINARY_DIR}/polyselect/twocubics -n 999073468111577057576445816581 -P 500 -incr 30 -admax 1000
+    TARGET_DEPENDENCIES twocubics)
 
 cado_define_test(test_auxiliary.c LIBRARIES utils tests polyselect_common)
 cado_define_test(test_rho.c LIBRARIES polyselect_common tests)

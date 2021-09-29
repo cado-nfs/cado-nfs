@@ -1,32 +1,30 @@
-#include <gmp.h>
+#include "cado.h"
+
 /*
-  Polynomial selection using Kleinjung's algorithm (cf slides presented
-  at the CADO Workshop in October 2008, Nancy, France).
-
-  [1. Run and parameters]
-
-  The parameters are similar to those in polyselect2.c, except the following,
-
-  "-nq xxx" denotes the number of special-q's trials for each ad;
-
-  Please report bugs to the Bug Tracking System on:
-  https://gforge.inria.fr/tracker/?atid=7442&group_id=2065&func=browse
-*/
+ * TODO: describe the algorithm being used.
+ *
+ * TODO: there's a huge lot of duplicated code here. This must go.
+ */
 
 #define EMIT_ADDRESSABLE_shash_add
 
-#include "cado.h" // IWYU pragma: keep
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <pthread.h>
 #include <float.h>      // DBL_MAX
 #include <math.h> // pow
+#include <gmp.h>
 #include "mpz_poly.h"
 #include "area.h"
+#include "omp_proxy.h"
 #include "polyselect_hash.h"
 #include "polyselect_arith.h"
 #include "polyselect_norms.h"
+#include "polyselect_alpha.h"
+#include "polyselect_shash.h"
+#include "polyselect_locals.h"
+#include "polyselect_poly_header.h"
 #include "modredc_ul.h"
 #include "mpz_vector.h"
 #include "roots_mod.h"  // roots_mod_uint64
@@ -34,10 +32,11 @@
 #include "verbose.h"    // verbose_decl_usage
 #include "auxiliary.h"  // DEFAULT_INCR
 
-#define TARGET_TIME 10000000 /* print stats every TARGET_TIME milliseconds */
 #define NEW_ROOTSIEVE
 #define INIT_FACTOR 8UL
 //#define DEBUG_POLYSELECT
+
+#define BATCH_SIZE 20
 
 #ifdef NEW_ROOTSIEVE
 #include "ropt.h"
@@ -45,15 +44,6 @@
 #include "params.h"
 #endif
 
-char *phash = "# ";
-
-/* Read-Only */
-uint32_t *Primes = NULL;
-unsigned long lenPrimes = 1; // length of Primes[]
-int nq = INT_MAX;
-static int verbose = 0;
-static unsigned long incr = DEFAULT_INCR;
-cado_poly best_poly, curr_poly;
 double best_E = DBL_MAX; /* combined score E (the smaller the better) */
 double aver_E = 0.0;
 unsigned long found = 0; /* number of polynomials found so far */
@@ -62,9 +52,12 @@ mpz_t maxS; /* maximun skewness. O for default max */
 
 /* check that l/2 <= d*m0/P^2, where l = p1 * p2 * q with P <= p1, p2 <= 2P
    q is the product of special-q primes. It suffices to check that
-   q <= d*m0/(2P^4). */
+   q <= d*m0/(2P^4).
+
+   Is it really different here from what we have in polyselect ?
+*/
 static int
-twocubics_check_parameters (mpz_t m0, unsigned long d, unsigned long lq)
+twocubics_check_parameters (polyselect_main_data_ptr main, mpz_t m0, unsigned long d, unsigned long lq)
 {
   double maxq = 1.0, maxP;
   int k = lq;
@@ -72,7 +65,7 @@ twocubics_check_parameters (mpz_t m0, unsigned long d, unsigned long lq)
   while (k > 0)
     maxq *= (double) SPECIAL_Q[LEN_SPECIAL_Q - 1 - (k--)];
 
-  maxP = (double) Primes[lenPrimes - 1];
+  maxP = (double) main->Primes[main->lenPrimes - 1];
   if (2.0 * pow (maxP, 4.0) * maxq >= (double) d * mpz_get_d (m0))
     return 0;
 
@@ -91,10 +84,16 @@ compute_default_max_skew (mpz_t skew, mpz_t N, int d)
 }
 
 
+/* what do we do if we encounter a match in the sense of Kleinjung's 2008
+ * algorithm. I guess that this is where the algorithm in this file
+ * differs from polyselect.c
+ */
+
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
 void
-match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
-       mpz_t ad, unsigned long d, mpz_t N, unsigned long q, mpz_t rq)
+twocubics_match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
+       mpz_srcptr ad, unsigned long d, mpz_srcptr N, unsigned long q, mpz_srcptr rq,
+       polyselect_thread_locals_ptr loc MAYBE_UNUSED)
 {
 #if 0
   unsigned long j;
@@ -304,12 +303,14 @@ match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
   alpha[1] = get_alpha (f, ALPHA_BOUND_SMALL);
   E = logmu[1] + alpha[1] + logmu[0] + alpha[0];
 
+    {
+      static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+      pthread_mutex_lock (&lock);
   found ++;
   aver_E += E;
 
   if (E < best_E)
     {
-      mutex_lock (&lock);
       best_E = E;
       gmp_printf("n: %Zd\n", N);
       for (int i = 0; i <= f->deg; i++)
@@ -329,8 +330,9 @@ match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
 #else
       printf ("\n");
 #endif
-      mutex_unlock (&lock);
     }
+    pthread_mutex_unlock (&lock);
+  }
   
   mpz_clear (root);
   mpz_clear (skew);
@@ -357,102 +359,101 @@ match (unsigned long p1, unsigned long p2, int64_t i, mpz_t m0,
   mpz_vector_clear (reduced_b);
 }
 
+#if 0
 void
 gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_t m0,
 	   mpz_t ad, unsigned long d, mpz_t N, uint64_t q, mpz_t rq)
 {
   match (p1, p2, i, m0, ad, d, N, q, rq);
 }
+#endif
 
 
 /* find collisions between "P" primes, return number of loops */
 static inline unsigned long
-collision_on_p ( header_t header,
-                 proots_t R )
+collision_on_p (polyselect_thread_locals_ptr loc)
 {
-  unsigned long i, j, nprimes, p, nrp, c = 0, tot_roots = 0;
+  unsigned long j, p, nrp, c = 0, tot_roots = 0;
   uint64_t *rp;
-  int64_t ppl = 0, u, umax;
-  mpz_t *f, tmp;
+  int64_t ppl = 0, u;
+  mpz_t tmp;
   int found = 0;
-  shash_t H;
+  polyselect_shash_t H;
   int st = milliseconds ();
+  mpz_poly f;
 
   /* init f for roots computation */
   mpz_init_set_ui (tmp, 0);
-  f = (mpz_t*) malloc ((header->d + 1) * sizeof (mpz_t));
-  if (f == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in collision_on_p\n");
-    exit (1);
-  }
-  for (i = 0; i <= header->d; i++)
-    mpz_init (f[i]);
-  mpz_set_ui (f[header->d], 1);
+  mpz_poly_init(f, loc->header->d);
+  mpz_set_ui (f->coeff[loc->header->d], 1);
 
-  rp = (uint64_t*) malloc (header->d * sizeof (uint64_t));
+  rp = (uint64_t*) malloc (loc->header->d * sizeof (uint64_t));
   if (rp == NULL) {
     fprintf (stderr, "Error, cannot allocate memory in collision_on_p\n");
     exit (1);
   }
 
-  shash_init (H, 4 * lenPrimes);
-  shash_reset (H);
-  umax = (int64_t) Primes[lenPrimes - 1] * (int64_t) Primes[lenPrimes - 1];
-  for (nprimes = 0; nprimes < lenPrimes; nprimes ++)
+  polyselect_shash_init (H, 4 * loc->main->lenPrimes);
+  polyselect_shash_reset (H);
+
+  int64_t umax = polyselect_main_data_get_M(loc->main);
+
+  for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes ++)
     {
-      p = Primes[nprimes];
+      p = loc->main->Primes[nprimes];
       ppl = (int64_t) p * (int64_t) p;
 
       /* add fake roots to keep indices */
-      if (header_skip (header, p))
+      if (polyselect_poly_header_skip (loc->header, p))
         {
-          R->nr[nprimes] = 0; // nr = 0.
-          R->roots[nprimes] = NULL;
+          loc->R->nr[nprimes] = 0; // nr = 0.
+          loc->R->roots[nprimes] = NULL;
           continue;
         }
 
-      nrp = roots_mod_uint64 (rp, mpz_fdiv_ui (header->Ntilde, p), header->d,
-                              p);
+      nrp = roots_mod_uint64 (rp, mpz_fdiv_ui (loc->header->Ntilde, p), loc->header->d,
+                              p, loc->rstate);
       tot_roots += nrp;
-      roots_lift (rp, header->Ntilde, header->d, header->m0, p, nrp);
-      proots_add (R, nrp, rp, nprimes);
+      roots_lift (rp, loc->header->Ntilde, loc->header->d, loc->header->m0, p, nrp);
+      polyselect_proots_add (loc->R, nrp, rp, nprimes);
       for (j = 0; j < nrp; j++, c++)
             {
               for (u = (int64_t) rp[j]; u < umax; u += ppl)
-                shash_add (H, u);
+                polyselect_shash_add (H, u);
               for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
-                shash_add (H, -u);
+                polyselect_shash_add (H, -u);
             }
         }
-  found = shash_find_collision (H);
-  shash_clear (H);
+  found = polyselect_shash_find_collision (H);
+  polyselect_shash_clear (H);
   free (rp);
 
-  if (verbose > 2)
+  if (loc->main->verbose > 2)
     printf ("# computing %lu p-roots took %dms\n", tot_roots, st);
 
   if (found) /* do the real work */
     {
-      hash_t H;
+      polyselect_hash_t H;
 
-      hash_init (H, INIT_FACTOR * lenPrimes);
-      for (nprimes = 0; nprimes < lenPrimes; nprimes ++)
+      polyselect_hash_init (H, INIT_FACTOR * loc->main->lenPrimes, twocubics_match);
+
+      for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes ++)
         {
-          nrp = R->nr[nprimes];
+          nrp = loc->R->nr[nprimes];
           if (nrp == 0)
             continue;
-          p = Primes[nprimes];
+          p = loc->main->Primes[nprimes];
           ppl = (int64_t) p * (int64_t) p;
-          rp = R->roots[nprimes];
+          rp = loc->R->roots[nprimes];
 
           for (j = 0; j < nrp; j++)
             {
               for (u = (int64_t) rp[j]; u < umax; u += ppl)
-                hash_add (H, p, u, header->m0, header->ad, header->d,
-                          header->N, 1, tmp);
+                polyselect_hash_add (H, p, u, loc->header->m0, loc->header->ad, loc->header->d,
+                          loc->header->N, 1, tmp, loc);
               for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
-                hash_add (H, p, -u, header->m0, header->ad,
-                          header->d, header->N, 1, tmp);
+                polyselect_hash_add (H, p, -u, loc->header->m0, loc->header->ad,
+                          loc->header->d, loc->header->N, 1, tmp, loc);
             }
         }
 #ifdef DEBUG_POLYSELECT
@@ -464,12 +465,10 @@ collision_on_p ( header_t header,
       printf ("# p hash_size: %u, hash_alloc: %u\n", H->size, H->alloc);
       printf ("# hash table coll: %lu, all_coll: %lu\n", H->coll, H->coll_all);
 #endif
-      hash_clear (H);
+      polyselect_hash_clear (H);
     }
 
-  for (i = 0; i <= header->d; i++)
-    mpz_clear (f[i]);
-  free (f);
+  mpz_poly_clear(f);
   mpz_clear (tmp);
 
   return c;
@@ -478,18 +477,17 @@ collision_on_p ( header_t header,
 
 /* collision on each special-q, call collision_on_batch_p() */
 static inline void
-collision_on_each_sq ( header_t header,
-                       proots_t R,
-                       unsigned long q,
+collision_on_each_sq ( unsigned long q,
                        mpz_t rqqz,
-                       unsigned long *inv_qq )
+                       unsigned long *inv_qq,
+                       polyselect_thread_locals_ptr loc)
 {
-  shash_t H;
+  polyselect_shash_t H;
   uint64_t **cur1, **cur2, *ccur1, *ccur2;
   long *pc, *epc;
   uint64_t pp;
-  int64_t ppl, neg_umax, umax, v1, v2, nv;
-  unsigned long p, nprimes, c;
+  int64_t ppl, v1, v2, nv;
+  unsigned long p, c;
   uint8_t vpnr, *pnr, nr, j;
   uint32_t *pprimes, i;
   int found;
@@ -497,27 +495,27 @@ collision_on_each_sq ( header_t header,
 #ifdef DEBUG_POLYSELECT
   int st = milliseconds();
 #endif
-#if SHASH_NBUCKETS == 256
+#if polyselect_SHASH_NBUCKETS == 256
 #define CURRENT(V) (H->current + (uint8_t) (V))
 #else
-#define CURRENT(V) (H->current + ((V) & (SHASH_NBUCKETS - 1)))
+#define CURRENT(V) (H->current + ((V) & (polyselect_SHASH_NBUCKETS - 1)))
 #endif
   /*
   uint64_t t1, t2;
   static uint64_t sum1 = 0, sum2 = 0;
   */
 
-  shash_init (H, 4 * lenPrimes);
-  shash_reset (H);
+  polyselect_shash_init (H, 4 * loc->main->lenPrimes);
+  polyselect_shash_reset (H);
 
   pc = (long *) inv_qq;
   nv = *pc;
-  pprimes = Primes - 1;
-  pnr = R->nr;
-  R->nr[R->size] = 0xff; /* I use guard to end */
-  umax = Primes[lenPrimes - 1];
-  umax *= umax;
-  neg_umax = -umax;
+  pprimes = loc->main->Primes - 1;
+  pnr = loc->R->nr;
+  loc->R->nr[loc->R->copy_size] = 0xff; /* I use guard to end */
+
+  int64_t umax = polyselect_main_data_get_M(loc->main);
+  int64_t neg_umax = -umax;
 
   /* This define inserts 2 values v1 and v2 with a interlace.
      The goal is to have a little time to read ccurX from L0
@@ -638,38 +636,40 @@ collision_on_each_sq ( header_t header,
 #undef INSERT_2I
 #undef INSERT_I
 
-  for (i = 0; i < SHASH_NBUCKETS; i++) ASSERT (H->current[i] <= H->base[i+1]);
+  for (i = 0; i < polyselect_SHASH_NBUCKETS; i++) ASSERT (H->current[i] <= H->base[i+1]);
 
-  found = shash_find_collision (H);
-  shash_clear (H);
+  found = polyselect_shash_find_collision (H);
+  polyselect_shash_clear (H);
 
   if (found) /* do the real work */
     {
-      hash_t H;
+      polyselect_hash_t H;
 
-      hash_init (H, INIT_FACTOR * lenPrimes);
+      polyselect_hash_init (H, INIT_FACTOR * loc->main->lenPrimes, twocubics_match);
 
-      umax = (int64_t) Primes[lenPrimes - 1] * (int64_t) Primes[lenPrimes - 1];
-      for (nprimes = c = 0; nprimes < lenPrimes; nprimes ++)
+      int64_t umax = polyselect_main_data_get_M(loc->main);
+      for (unsigned long nprimes = c = 0; nprimes < loc->main->lenPrimes; nprimes ++)
         {
-          p = Primes[nprimes];
-          if (header_skip (header, p))
+          p = loc->main->Primes[nprimes];
+          if (polyselect_poly_header_skip (loc->header, p))
             continue;
           pp = p * p;
           ppl = (long) pp;
-          nr = R->nr[nprimes];
+          nr = loc->R->nr[nprimes];
           for (j = 0; j < nr; j++, c++)
             {
               v1 = (long) inv_qq[c];
               for (v2 = v1; v2 < umax; v2 += ppl)
-                hash_add (H, p, v2, header->m0, header->ad, header->d,
-                          header->N, q, rqqz);
+                polyselect_hash_add (H, p, v2, loc->header->m0, loc->header->ad, loc->header->d,
+                          loc->header->N, q, rqqz,
+                          loc);
               for (v2 = ppl - v1; v2 < umax; v2 += ppl)
-                hash_add (H, p, -v2, header->m0, header->ad, header->d,
-                          header->N, q, rqqz);
+                polyselect_hash_add (H, p, -v2, loc->header->m0, loc->header->ad, loc->header->d,
+                          loc->header->N, q, rqqz,
+                          loc);
             }
         }
-      hash_clear (H);
+      polyselect_hash_clear (H);
     }
 
 #ifdef DEBUG_POLYSELECT
@@ -686,19 +686,18 @@ collision_on_each_sq ( header_t header,
 
 /* Given p, rp, q, invqq[], for each rq of q, compute (rp - rq) / q^2 */
 static inline void
-collision_on_each_sq_r ( header_t header,
-                         proots_t R,
-                         unsigned long q,
+collision_on_each_sq_r ( unsigned long q,
                          mpz_t *rqqz,
                          unsigned long *inv_qq,
                          unsigned long number_pr,
-                         int count )
+                         int count,
+                         polyselect_thread_locals_ptr loc)
 {
   if (count == 0)
     return;
 
-  uint8_t i, nr, *pnr;
-  unsigned long nprimes, p, c = 0, rp, rqi;
+  uint8_t i, nr;
+  unsigned long p, c = 0, rp, rqi;
   int k;
   uint64_t pp;
   unsigned long **tinv_qq = malloc (count * sizeof (unsigned long*));
@@ -715,14 +714,13 @@ collision_on_each_sq_r ( header_t header,
   }
 
   int st = milliseconds();
-  pnr = R->nr;
 
   /* for each rp, compute (rp-rq)*1/q^2 (mod p^2) */
-  for (nprimes = 0; nprimes < lenPrimes; nprimes ++)
+  for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes ++)
   {
-    if (!pnr[nprimes]) continue;
-    nr = pnr[nprimes];
-    p = Primes[nprimes];
+    if (!loc->R->nr[nprimes]) continue;
+    nr = loc->R->nr[nprimes];
+    p = loc->main->Primes[nprimes];
     pp = p*p;
 
     modulusredcul_t modpp;
@@ -739,7 +737,7 @@ collision_on_each_sq_r ( header_t header,
       modredcul_intset_ul (res_tmp, inv_qq[nprimes]);
       for (i = 0; i < nr; i ++, c++)
       {
-        rp = R->roots[nprimes][i];
+        rp = loc->R->roots[nprimes][i];
         modredcul_intset_ul (res_rp, rp);
         /* rp - rq */
         modredcul_sub (res_rp, res_rp, res_rqi, modpp);
@@ -757,7 +755,7 @@ collision_on_each_sq_r ( header_t header,
     modredcul_clearmod (modpp);
   }
 
-  if (verbose > 2) {
+  if (loc->main->verbose > 2) {
     printf ("#  substage: batch %d many (rp-rq)*1/q^2 took %lums\n",
             count, milliseconds () - st);
     st = milliseconds();
@@ -765,10 +763,10 @@ collision_on_each_sq_r ( header_t header,
 
   /* core function to find collisions */
   for (k = 0; k < count; k ++) {
-    collision_on_each_sq (header, R, q, rqqz[k], tinv_qq[k]);
+    collision_on_each_sq (q, rqqz[k], tinv_qq[k], loc);
   }
 
-  if (verbose > 2)
+  if (loc->main->verbose > 2)
     printf ("#  substage: collision-detection %d many rq took %lums\n",
             count, milliseconds () - st);
 
@@ -804,12 +802,12 @@ aux_nextcomb ( unsigned int *ind,
 
 /* Compute crted rq */
 static inline void
-aux_return_rq ( qroots_t SQ_R,
+aux_return_rq ( polyselect_qroots_t SQ_R,
                 unsigned long *idx_q,
                 unsigned int *idx_nr,
                 unsigned long k,
-                mpz_t qqz,
-                mpz_t rqqz,
+                mpz_ptr qqz,
+                mpz_ptr rqqz,
                 unsigned long lq )
 {
   unsigned long i, q[k], rq[k];
@@ -829,15 +827,14 @@ aux_return_rq ( qroots_t SQ_R,
 
 /* Consider each rq */
 static inline void
-collision_on_batch_sq_r ( header_t header,
-                          proots_t R,
-                          qroots_t SQ_R,
+collision_on_batch_sq_r ( polyselect_qroots_t SQ_R,
                           unsigned long q,
                           unsigned long *idx_q,
                           unsigned long *inv_qq,
                           unsigned long number_pr,
-                          int *curr_nq,
-                          unsigned long lq )
+                          unsigned long *curr_nq,
+                          unsigned long lq,
+                          polyselect_thread_locals_ptr loc)
 {
   int count;
   unsigned int ind_qr[lq]; /* indices of roots for each small q */
@@ -877,14 +874,14 @@ collision_on_batch_sq_r ( header_t header,
         re = aux_nextcomb (ind_qr, lq, len_qnr);
         (*curr_nq)++;
         num_rq ++;
-        if ((*curr_nq) >= nq)
+        if ((*curr_nq) >= loc->main->nq)
           re = 0;
         if (!re)
           break;
     }
 
     /* core function for a fixed qq and several rqqz[] */
-    collision_on_each_sq_r (header, R, q, rqqz, inv_qq, number_pr, num_rq);
+    collision_on_each_sq_r (q, rqqz, inv_qq, number_pr, num_rq, loc);
   }
 
   mpz_clear (qqz);
@@ -895,19 +892,17 @@ collision_on_batch_sq_r ( header_t header,
 
 /* SQ inversion, write 1/q^2 (mod p_i^2) to invqq[i] */
 static inline void
-collision_on_batch_sq ( header_t header,
-                        proots_t R,
-                        qroots_t SQ_R,
+collision_on_batch_sq ( polyselect_qroots_t SQ_R,
                         unsigned long q,
                         unsigned long *idx_q,
                         unsigned long number_pr,
-                        unsigned long lq )
+                        unsigned long lq, polyselect_thread_locals_ptr loc )
 {
   unsigned nr;
-  int curr_nq = 0;
+  unsigned long curr_nq = 0;
   uint64_t pp;
-  unsigned long nprimes, p;
-  unsigned long *invqq = malloc (lenPrimes * sizeof (unsigned long));
+  unsigned long p;
+  unsigned long *invqq = malloc (loc->main->lenPrimes * sizeof (unsigned long));
   if (!invqq) {
     fprintf (stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
     exit (1);
@@ -916,12 +911,12 @@ collision_on_batch_sq ( header_t header,
   int st = milliseconds();
 
   /* Step 1: inversion */
-  for (nprimes = 0; nprimes < lenPrimes; nprimes ++) {
+  for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes ++) {
 
-    p = Primes[nprimes];
-    if (header_skip (header, p))
+    p = loc->main->Primes[nprimes];
+    if (polyselect_poly_header_skip (loc->header, p))
       continue;
-    nr = R->nr[nprimes];
+    nr = loc->R->nr[nprimes];
     if (nr == 0)
       continue;
     pp = p * p;
@@ -944,17 +939,17 @@ collision_on_batch_sq ( header_t header,
     modredcul_clearmod (modpp);
   }
 
-  if (verbose > 2)
+  if (loc->main->verbose > 2)
     printf ("# stage (1/q^2 inversion) for %lu primes took %lums\n",
-            lenPrimes, milliseconds () - st);
+            loc->main->lenPrimes, milliseconds () - st);
 
   /* Step 2: find collisions on q. */
   int st2 = milliseconds();
 
-  collision_on_batch_sq_r ( header, R, SQ_R, q, idx_q, invqq, number_pr,
-                            &curr_nq, lq );
-  if (verbose > 2)
-    printf ("#  stage (special-q) for %d special-q's took %lums\n",
+  collision_on_batch_sq_r (SQ_R, q, idx_q, invqq, number_pr,
+                           &curr_nq, lq, loc);
+  if (loc->main->verbose > 2)
+    printf ("#  stage (special-q) for %lu special-q's took %lums\n",
             curr_nq, milliseconds() - st2);
 
   free (invqq);
@@ -963,24 +958,22 @@ collision_on_batch_sq ( header_t header,
 
 /* collision on special-q, call collision_on_batch_sq */
 static inline void
-collision_on_sq ( header_t header,
-                  proots_t R,
-                  unsigned long c )
+collision_on_sq ( unsigned long c, polyselect_thread_locals_ptr loc)
 {
-  int prod = 1;
+  unsigned long prod = 1;
   unsigned int i;
   unsigned long j, lq = 0UL;
-  qroots_t SQ_R;
+  polyselect_qroots_t SQ_R;
 
   /* init special-q roots */
-  qroots_init (SQ_R);
-  comp_sq_roots (header, SQ_R);
+  polyselect_qroots_init (SQ_R);
+  comp_sq_roots (loc->header, SQ_R, loc->rstate);
   //qroots_print (SQ_R);
 
   /* find a suitable lq */
   for (i = 0; i < SQ_R->size; i++) {
-    if (prod < nq) {
-      if (!twocubics_check_parameters (header->m0, header->d, lq))
+    if (prod < loc->main->nq) {
+      if (!twocubics_check_parameters (loc->main, loc->header->m0, loc->header->d, lq))
         break;
       prod *= SQ_R->nr[i];
       lq ++;
@@ -1000,38 +993,24 @@ collision_on_sq ( header_t header,
   q = return_q_norq (SQ_R, idx_q, lq);
 
   /* collision batch */
-  collision_on_batch_sq (header, R, SQ_R, q, idx_q, c, lq);
+  collision_on_batch_sq (SQ_R, q, idx_q, c, lq, loc);
 
   /* clean */
-  qroots_clear (SQ_R);
+  polyselect_qroots_clear (SQ_R);
   return;
 }
 
 
 static void
-newAlgo (mpz_t N, unsigned long d, mpz_t ad)
+newAlgo (polyselect_thread_locals_ptr loc)
 {
   unsigned long c = 0;
-  header_t header;
-  proots_t R;
 
-  header_init (header, N, d, ad);
-  proots_init (R, lenPrimes);
+  loc->stats->number_of_ad_values++;
 
-  c = collision_on_p (header, R);
-  if (nq > 0)
-    collision_on_sq (header, R, c);
-
-  proots_clear (R, lenPrimes);
-  header_clear (header);
-}
-
-void*
-one_thread (void* args)
-{
-  tab_t *tab = (tab_t*) args;
-  newAlgo (tab[0]->N, tab[0]->d, tab[0]->ad);
-  return NULL;
+  c = collision_on_p (loc);
+  if (loc->main->nq > 0)
+    collision_on_sq (c, loc);
 }
 
 static void
@@ -1054,8 +1033,6 @@ declare_usage(param_list pl)
             "               for each ad (default %d)", INT_MAX);
   param_list_decl_usage(pl, "nq", str);
   param_list_decl_usage(pl, "keep", "number of polynomials kept (default 10)");
-  snprintf(str, 200, "time interval (seconds) for printing statistics (default %d)", TARGET_TIME / 1000);
-  param_list_decl_usage(pl, "s", str);
   param_list_decl_usage(pl, "t", "number of threads to use (default 1)");
   param_list_decl_usage(pl, "v", "verbose mode");
   param_list_decl_usage(pl, "q", "quiet mode");
@@ -1083,23 +1060,13 @@ int
 main (int argc, char *argv[])
 {
   char **argv0 = argv;
-  double st0 = seconds (), maxtime = DBL_MAX;
-  mpz_t N, admin, admax;
-  unsigned int d = 3;
-  unsigned long P = 0;
-  int quiet = 0, tries = 0, i, nthreads = 1, st,
-    target_time = TARGET_TIME;
-  tab_t *T;
-  pthread_t *tid;
+  int quiet = 0, nthreads = 1;
 
   polyselect_main_data main_data;
 
   polyselect_main_data_init_defaults(main_data);
 
-  mpz_init (N);
   mpz_init (maxS);
-  cado_poly_init (best_poly);
-  cado_poly_init (curr_poly);
 
   /* read params */
   param_list pl;
@@ -1107,14 +1074,17 @@ main (int argc, char *argv[])
 
   declare_usage(pl);
 
-  param_list_configure_switch (pl, "-v", &verbose);
+  param_list_configure_switch (pl, "-v", &main_data->verbose);
   param_list_configure_switch (pl, "-q", &quiet);
+  param_list_configure_alias(pl, "degree", "-d");
   param_list_configure_alias(pl, "incr", "-i");
   param_list_configure_alias(pl, "n", "-N");
-  param_list_configure_alias(pl, "degree", "-d");
 
   if (argc == 1)
     usage (argv0[0], NULL, pl);
+
+  /* Add this as a default */
+  param_list_add_key(pl, "degree", "3", PARAMETER_FROM_FILE);
 
   argv++, argc--;
   for ( ; argc; ) {
@@ -1123,30 +1093,27 @@ main (int argc, char *argv[])
     usage (argv0[0], NULL, pl);
   }
 
-  /* parse and check N in the first place */
-  int have_n = param_list_parse_mpz(pl, "n", N);
-
-  if (!have_n) {
-    printf ("# Reading n from stdin\n");
-    param_list_read_stream(pl, stdin, 0);
-    have_n = param_list_parse_mpz(pl, "n", N);
-  }
-
-  if (!have_n) {
-      fprintf(stderr, "No n defined ; sorry.\n");
-      exit(1);
-  }
-
-  if (mpz_cmp_ui (N, 0) <= 0) usage(argv0[0], "n", pl);
-
-  param_list_parse_ulong(pl, "P", &P);
-  if (P == 0) usage(argv0[0], "P", pl);
+  polyselect_main_data_parse_Nd(main_data, pl);
+  ASSERT_ALWAYS (2 <= main_data->d && main_data->d <= 3);
+  polyselect_main_data_parse_ad_range(main_data, pl);
+  polyselect_main_data_parse_P(main_data, pl);
+  param_list_parse_ulong(pl, "nq", &main_data->nq);
 
   param_list_parse_int (pl, "t", &nthreads);
-  param_list_parse_int (pl, "nq", &nq);
-  param_list_parse_int (pl, "s", &target_time);
-  param_list_parse_uint (pl, "degree", &d);
-  ASSERT_ALWAYS (2 <= d && d <= 3);
+#ifdef HAVE_OPENMP
+  omp_set_num_threads(nthreads);
+#else
+  if (nthreads > 1)
+    {
+      fprintf(stderr,
+              "Warning, -t %d ignored because openmp support is missing\n",
+              nthreads);
+    }
+#endif
+
+  /* XXX we have no sopt parameter here */
+
+  /* used for computation of E */
   if (param_list_parse_double (pl, "area", &area) == 0) /* no -area */
     area = AREA;
   if (param_list_parse_double (pl, "Bf", &bound_f) == 0) /* no -Bf */
@@ -1154,15 +1121,7 @@ main (int argc, char *argv[])
   if (param_list_parse_double (pl, "Bg", &bound_g) == 0) /* no -Bg */
     bound_g = BOUND_G;
 
-  mpz_init (admin);
-  param_list_parse_mpz (pl, "admin", admin);
 
-  mpz_init (admax);
-  if (param_list_parse_mpz (pl, "admax", admax) == 0) /* no -admax */
-    mpz_set (admax, N);
-
-  param_list_parse_ulong (pl, "incr", &incr);
-  param_list_parse_double (pl, "maxtime", &maxtime);
 
   if (!param_list_parse_mpz(pl, "skewness", maxS))
     mpz_set_ui (maxS, 0);
@@ -1180,148 +1139,73 @@ main (int argc, char *argv[])
   verbose_interpret_parameters(pl);
   param_list_print_command_line (stdout, pl);
 
-  /* check lq and nq */
-  if (nq < 0) {
-    fprintf (stderr, "Error, number of special-q's should >= 0\n");
-    exit (1);
-  }
-
-  /* allocate threads */
-  tid = malloc (nthreads * sizeof (pthread_t));
-  ASSERT_ALWAYS(tid != NULL);
-
   /* quiet mode */
   if (quiet == 1)
-    verbose = -1;
-
-  /* set cpoly */
-  mpz_set (best_poly->n, N);
-  mpz_set (curr_poly->n, N);
-  best_poly->pols[ALG_SIDE]->deg = d;
-  best_poly->pols[RAT_SIDE]->deg = d;
-  curr_poly->pols[ALG_SIDE]->deg = d;
-  curr_poly->pols[RAT_SIDE]->deg = d;
+    main_data->verbose = -1;
 
   /* Compute maxS: use maxS if maxS argument is greater than 0 and lesser than
      default value */
-  mpz_t tmp;
-  mpz_init (tmp);
-  compute_default_max_skew (tmp, N, 2);
-  if (mpz_cmp_ui(maxS, 0) == 0 || mpz_cmp(maxS, tmp) > 0)
-    mpz_set (maxS, tmp);
-
-  /* Initialize primes. Since we use modredc to perform computations mod p^2
-     for p < 2P, we need that 4P^2 fits in an unsigned long. */
-  double Pd;
-  Pd = (double) P;
-  if (4.0 * Pd * Pd >= (double) ULONG_MAX)
-    {
-      mpz_set_ui (tmp, ULONG_MAX >> 2);
-      mpz_sqrt (tmp, tmp);
-      gmp_fprintf (stderr, "Error, too large value of P, maximum is %Zd\n",
-                   tmp);
-      exit (1);
-    }
-  mpz_clear (tmp);
-  if (P <= (unsigned long) SPECIAL_Q[LEN_SPECIAL_Q - 2]) {
-    fprintf (stderr, "Error, too small value of P, need P > %u\n",
-             SPECIAL_Q[LEN_SPECIAL_Q - 2]);
-    exit (1);
-  }
-
-  /* detect L1 cache size */
-  ropt_L1_cachesize ();
-
-  st = milliseconds ();
-  lenPrimes = initPrimes (P, &Primes);
-
-  printf ( "# Info: initializing %lu P primes took %lums,"
-           " nq=%d, target_time=%d\n",
-           lenPrimes, milliseconds () - st, nq, target_time / 1000 );
-
-
-  printf ( "# Info: estimated peak memory=%.2fMB (%d thread(s),"
-           " batch %d inversions on SQ)\n",
-           (double) (nthreads * (BATCH_SIZE * 2 + INIT_FACTOR) * lenPrimes
-           * (sizeof(uint32_t) + sizeof(uint64_t)) / 1024 / 1024),
-           nthreads, BATCH_SIZE );
-
-  //printPrimes (Primes, lenPrimes);
-
-  /* init tabs_t for threads */
-  T = malloc (nthreads * sizeof (tab_t));
-  if (T == NULL)
   {
-    fprintf (stderr, "Error, cannot allocate memory in main\n");
-    exit (1);
+      mpz_t tmp;
+      mpz_init (tmp);
+      compute_default_max_skew (tmp, main_data->N, 2);
+      if (mpz_cmp_ui(maxS, 0) == 0 || mpz_cmp(maxS, tmp) > 0)
+          mpz_set (maxS, tmp);
+      mpz_clear(tmp);
   }
-  for (i = 0; i < nthreads ; i++)
+
+  polyselect_main_data_prepare_primes(main_data);
+
+  unsigned long idx_max = polyselect_main_data_number_of_ad_tasks(main_data);
+
+  if (idx_max < (unsigned long) nthreads)
   {
-    mpz_init_set (T[i]->N, N);
-    mpz_init (T[i]->ad);
-    T[i]->d = d;
-    T[i]->thread = i;
+      fprintf(stderr,
+              "# Warning: the current admin, admax, incr settings only make it possible to run %lu jobs in parallel, so that we won't be able to do %d-thread parallelism as requested\n",
+              idx_max, nthreads);
   }
 
-  if (incr <= 0)
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for schedule(dynamic,1)
+#endif
+  for (unsigned long idx = 0; idx < idx_max; idx++)
   {
-    fprintf (stderr, "Error, incr should be positive\n");
-    exit (1);
+      polyselect_thread_locals loc;
+      polyselect_thread_locals_init(loc, main_data, idx);
+
+      newAlgo(loc);
+
+      if (main_data->verbose > 0)
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+      {
+          printf("# thread %d completed ad=%.0f at time=%.2fs\n",
+                  omp_get_thread_num(),
+                  mpz_get_d(loc->ad),
+                  wct_seconds() - loc->stats->wct0);
+          fflush(stdout);
+      }
+
+      polyselect_main_data_commit_stats(main_data, loc->stats);
+
+      polyselect_thread_locals_clear(loc);
   }
 
-  /* admin should be nonnegative */
-  if (mpz_cmp_ui (admin, 0) < 0)
-    {
-      fprintf (stderr, "Error, admin should be nonnegative\n");
-      exit (1);
-    }
 
-  /* ensure admin > 0 and admin is a multiple of incr */
-  if (mpz_cmp_ui (admin, 0) == 0)
-    mpz_set_ui (admin, incr);
-  else if (mpz_fdiv_ui (admin, incr) != 0)
-    mpz_add_ui (admin, admin, incr - mpz_fdiv_ui (admin, incr));
-
-  while (mpz_cmp (admin, admax) < 0 && seconds () - st0 <= maxtime)
-  {
-    for (i = 0; i < nthreads ; i++)
-    {
-      tries ++;
-      if (verbose >= 1)
-        gmp_printf ("# %d ad=%Zd\n", tries, admin);
-      mpz_set (T[i]->ad, admin);
-      pthread_create (&tid[i], NULL, one_thread, (void *) (T+i));
-      mpz_add_ui (admin, admin, incr);
-    }
-    for (i = 0 ; i < nthreads ; i++)
-      pthread_join(tid[i], NULL);
-  }
-
-  printf ("# Stat: tried %d ad-value(s), found %lu polynomial(s)\n", tries,
+  printf ("# Stat: tried %lu ad-value(s), found %lu polynomial(s)\n",
+          main_data->stats->number_of_ad_values,
           found);
 
-  /* print total time (this gets parsed by the scripts) */
-  printf ("# Stat: total phase took %.2fs\n", seconds () - st0);
+  polyselect_stats_display_final(main_data->stats, main_data->verbose);
 
   if (best_E == DBL_MAX)
     /* This line is required by the script: */
     printf ("# No polynomial found, please increase the ad range or decrease P\n");
 
-  for (i = 0; i < nthreads ; i++)
-    {
-      mpz_clear (T[i]->N);
-      mpz_clear (T[i]->ad);
-    }
-  free (T);
-  mpz_clear (N);
-  mpz_clear (admin);
-  mpz_clear (admax);
   mpz_clear (maxS);
-  clearPrimes (&Primes);
-  cado_poly_clear (best_poly);
-  cado_poly_clear (curr_poly);
   param_list_clear (pl);
-  free (tid);
 
   polyselect_main_data_clear(main_data);
 
