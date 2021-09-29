@@ -814,7 +814,9 @@ aux_nextcomb(unsigned int *ind, unsigned int len_q, unsigned int *len_nr)
 
 
 /* Compute crt-ed rq (qqz,rqqz) = (q_1 * ... * q_k,
-                                   CRT([r_1, ..., r_k], [q_1, ..., q_k])) */
+                                   CRT([r_1, ..., r_k], [q_1, ..., q_k]))
+   Well, almost. I think that it's all modulo the q_i^2 (squared!)
+ */
 static inline void
 aux_return_rq(polyselect_qroots_srcptr SQ_R,
 	      unsigned long *idx_q,
@@ -837,7 +839,11 @@ aux_return_rq(polyselect_qroots_srcptr SQ_R,
 }
 
 /* Consider each rq which is the product of k pairs (q,r).
-   In this routine the q[i] are fixed, only the roots mod q[i] change. */
+ * In this routine the q[i] are fixed, only the roots mod q[i] change.
+ *
+ * The name is misleading. There is nothing about reentrancy here, this
+ * function is just a component of collision_on_batch_sq
+ */
 static inline void
 collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
 			unsigned long q,
@@ -884,6 +890,10 @@ collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
       num_rq = 0;
       for (count = 0; count < BATCH_SIZE; count++)
 	{
+          /* FIXME: this is gravely inefficient, as we do multiple
+           * inversions over and over again, including when the set of
+           * q's doesn't change...
+           */
 	  aux_return_rq(SQ_R, idx_q, ind_qr, k, qqz, rqqz[count]);
 	  re = aux_nextcomb(ind_qr, k, len_qnr);
 	  (*curr_nq)++;

@@ -245,7 +245,15 @@ comp_sq_roots ( polyselect_poly_header_srcptr header,
   polyselect_qroots_realloc (SQ_R, SQ_R->size); /* free unused space */
 }
 
-/* return the maximal number of special-q's with k elements among lq */
+/* return the maximal number of special-q's with k elements among lq
+ *
+ * This is the same as the degree k coefficient of the product
+ * \prod_{i=1}^{lq} (1-a_i x)
+ * with a_i = SQ_R->nr[i]
+ * but it is slightly unsatisfactory that we're apparently unable to
+ * compute the result in less time than O(binomial(n,k)*k)... (well, to
+ * be honest, it's not a big source of trouble either).
+ */
 unsigned long
 number_comb (polyselect_qroots_srcptr SQ_R, unsigned long k, unsigned long lq)
 {
@@ -312,7 +320,10 @@ crt_sq(mpz_ptr qqz,
   mpz_clear(sum);
 }
 
-/* given individual q's, return crted rq */
+/* given individual q's, return crted rq
+ *
+ * XXX WTF ??!? this function uses random data ??? What ?
+ */
 uint64_t
 return_q_rq ( polyselect_qroots_srcptr SQ_R,
               unsigned long *idx_q,
@@ -345,7 +356,14 @@ return_q_rq ( polyselect_qroots_srcptr SQ_R,
 }
 
 
-/* given individual q's, return \product q, no rq */
+/* given individual q's, return \product q, no rq
+ *
+ * In plain English: returns the products of the k prime numbers that are
+ * indexed by idx_q, and picked from the list of primes that are present
+ * in polyselect_qroots_srcptr
+ *
+ * XXX This function belongs to polyselect_qroots.[ch], IMHO
+ */
 uint64_t
 return_q_norq (polyselect_qroots_srcptr SQ_R, unsigned long *idx_q, unsigned long k)
 {

@@ -328,10 +328,10 @@ void polyselect_main_data_parse_P(polyselect_main_data_ptr main, param_list_ptr 
         exit(1);
     }
 
-    if (4.0 * Pd * Pd >= (double) ULONG_MAX)
+    if (4.0 * Pd * Pd >= (double) UINT64_MAX)
     {
         mpz_t tmp;
-        mpz_init_set_ui (tmp, ULONG_MAX >> 2);
+        mpz_init_set_uint64 (tmp, UINT64_MAX >> 2);
         mpz_sqrt (tmp, tmp);
         gmp_fprintf (stderr, "Error, too large value of P, maximum is %Zd\n",
                 tmp);

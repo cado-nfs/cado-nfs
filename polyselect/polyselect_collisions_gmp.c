@@ -2,14 +2,15 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <gmp.h>
-#include "mpz_poly.h"
 #include "gmp_aux.h"
-#include "polyselect_norms.h"
-#include "polyselect_locals.h"
-#include "polyselect_main_queue.h"
-#include "polyselect_hash.h"
+#include "mpz_poly.h"
+#include "polyselect_alpha.h"
 #include "polyselect_arith.h"
 #include "polyselect_collisions_gmp.h"
+#include "polyselect_hash.h"
+#include "polyselect_locals.h"
+#include "polyselect_main_queue.h"
+#include "polyselect_norms.h"
 #include "roots_mod.h"
 
 /* XXX
@@ -177,6 +178,8 @@ gmp_match(unsigned long p1, unsigned long p2, int64_t i, mpz_srcptr m0,
     loc->stats->collisions++;
     loc->stats->tot_found++;
     polyselect_data_series_add(loc->stats->raw_lognorm, logmu);
+    polyselect_data_series_add(loc->stats->raw_proj_alpha,
+				 get_alpha_projective(f, get_alpha_bound()));
   }
 
   /* if the polynomial has small norm, we optimize it */
@@ -301,9 +304,7 @@ gmp_collision_on_p(polyselect_thread_locals_ptr loc)
  */
 /* collision on each special-q, call collision_on_batch_p() */
 static inline void
-gmp_collision_on_each_sq(polyselect_poly_header_srcptr header,
-			 polyselect_proots_srcptr R,
-			 uint64_t q, mpz_srcptr rqqz,
+gmp_collision_on_each_sq(uint64_t q, mpz_srcptr rqqz,
                          uint64_t * inv_qq,
                          polyselect_thread_locals_ptr loc)
 {
@@ -325,26 +326,26 @@ gmp_collision_on_each_sq(polyselect_poly_header_srcptr header,
   for (nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
     {
       p = loc->main->Primes[nprimes];
-      if (polyselect_poly_header_skip(header, p))
+      if (polyselect_poly_header_skip(loc->header, p))
 	continue;
 
       /* set p, p^2, ppl */
       pp = (uint64_t) p;
       pp *= (uint64_t) p;
       ppl = (int64_t) pp;
-      nr = R->nr[nprimes];
+      nr = loc->R->nr[nprimes];
 
       for (j = 0; j < nr; j++, c++)
 	{
 	  u = (int64_t) inv_qq[c];
 
 	  for (v = u; v < umax; v += ppl)
-	    polyselect_hash_add(H, p, v, header->m0, header->ad,
-				    header->d, header->N, q, rqqz,
+	    polyselect_hash_add(H, p, v, loc->header->m0, loc->header->ad,
+				    loc->header->d, loc->header->N, q, rqqz,
                                     loc);
 	  for (v = ppl - u; v < umax; v += ppl)
-	    polyselect_hash_add(H, p, -v, header->m0, header->ad,
-				    header->d, header->N, q, rqqz,
+	    polyselect_hash_add(H, p, -v, loc->header->m0, loc->header->ad,
+				    loc->header->d, loc->header->N, q, rqqz,
                                     loc);
 
 	}			// next rp
@@ -453,7 +454,7 @@ gmp_collision_on_batch_sq(uint64_t * q,
   for (i = 0; i < size; i++)
     {
       //int st2 = milliseconds();
-      gmp_collision_on_each_sq(loc->header, loc->R, q[i], rqqz[i], invqq[i], loc);
+      gmp_collision_on_each_sq(q[i], rqqz[i], invqq[i], loc);
       //printf ("# outer collision_on_each_sq took %dms\n", milliseconds () - st2);
     }
 
