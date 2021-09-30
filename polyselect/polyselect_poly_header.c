@@ -11,11 +11,11 @@ polyselect_poly_header_init (polyselect_poly_header_ptr header,
               mpz_ptr ad )
 {
   /* compute Ntilde, m0 */
-  mpz_init_set (header->N, N);
+  header->N = N;
   mpz_init (header->Ntilde);
   mpz_init (header->m0);
   header->d = d;
-  mpz_init_set (header->ad, ad);
+  header->ad = ad;
 
   /* compute Ntilde, ... from N, ... */
   mpz_set (header->Ntilde, header->ad);
@@ -33,8 +33,6 @@ polyselect_poly_header_clear (polyselect_poly_header_ptr header )
 {
   mpz_clear (header->m0);
   mpz_clear (header->Ntilde);
-  mpz_clear (header->N);
-  mpz_clear (header->ad);
 }
 
 int

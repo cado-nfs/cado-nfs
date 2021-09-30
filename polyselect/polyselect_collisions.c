@@ -59,12 +59,17 @@ check_divexact(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED,
 }
 
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
-/* this routine is called from polyselect_str.c */
+/* This is called by polyselect_hash_add
+ *
+ * If rq is NULL, then q is 1, and we simply have a (p1,p2) match
+ */
 void
-match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
-      mpz_srcptr ad, unsigned long d, mpz_srcptr N, uint64_t q, mpz_srcptr rq,
+match(unsigned long p1, unsigned long p2, const int64_t i,
+      uint64_t q, 
+      mpz_srcptr rq,
       polyselect_thread_locals_ptr loc)
 {
+  polyselect_poly_header_srcptr header = loc->header;
   mpz_t l, mtilde, m, adm1, t, k;
   mpz_poly f, g, f_raw, g_raw;
   int cmp, did_optimize;
@@ -74,9 +79,9 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
 #ifdef DEBUG_POLYSELECT
   gmp_printf("Found match: (%lu,%lld) (%lu,%lld) for "
 	     "ad=%Zd, q=%llu, rq=%Zd\n",
-	     p1, (long long) i, p2, (long long) i, ad,
+	     p1, (long long) i, p2, (long long) i, header->ad,
 	     (unsigned long long) q, rq);
-  gmp_printf("m0=%Zd\n", m0);
+  gmp_printf("m0=%Zd\n", header->m0);
 #endif
 
   mpz_init(l);
@@ -86,20 +91,22 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
   mpz_init(adm1);
   mpz_init(mtilde);
 
-  mpz_poly_init(f, d);
+  mpz_poly_init(f, header->d);
   mpz_poly_init(g, 1);
-  mpz_poly_init(f_raw, d);
+  mpz_poly_init(f_raw, header->d);
   mpz_poly_init(g_raw, 1);
   /* we have l = p1*p2*q */
   mpz_set_ui(l, p1);
   mpz_mul_ui(l, l, p2);
   mpz_mul_ui(l, l, q);
-  /* mtilde = m0 + rq + i*q^2 */
+  /* mtilde = header->m0 + rq + i*q^2 */
   mpz_set_si(mtilde, i);
-  mpz_mul_ui(mtilde, mtilde, q);
-  mpz_mul_ui(mtilde, mtilde, q);
-  mpz_add(mtilde, mtilde, rq);
-  mpz_add(mtilde, mtilde, m0);
+  if (rq) {
+      mpz_mul_ui(mtilde, mtilde, q);
+      mpz_mul_ui(mtilde, mtilde, q);
+      mpz_add(mtilde, mtilde, rq);
+  }
+  mpz_add(mtilde, mtilde, header->m0);
   /* we should have Ntilde - mtilde^d = 0 mod {p1^2,p2^2,q^2} */
 
   /* Small improvement: we have Ntilde = mtilde^d + l^2*R with R small.
@@ -122,15 +129,16 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
     if ((q % SPECIAL_Q[j]) == 0)
       qmax = SPECIAL_Q[j];
 
-  mpz_mul_ui(m, ad, d);
-  mpz_pow_ui(m, m, d);
-  mpz_divexact(m, m, ad);
-  mpz_mul(m, m, N);		/* m := Ntilde = d^d*ad^(d-1)*N */
-  mpz_pow_ui(t, mtilde, d);
+  mpz_mul_ui(m, header->ad, header->d);
+  mpz_pow_ui(m, m, header->d);
+  mpz_divexact(m, m, header->ad);
+  mpz_mul(m, m, header->N);		/* m := Ntilde = d^d*ad^(d-1)*N */
+  mpz_pow_ui(t, mtilde, header->d);
   mpz_sub(t, m, t);
   mpz_divexact(t, t, l);
   mpz_divexact(t, t, l);
   unsigned long p;
+
   prime_info pi;
   prime_info_init(pi);
   /* Note: we could find p^2 dividing t in a much more efficient way, for
@@ -141,7 +149,7 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
      overhead will be small too. */
   for (p = 2; p <= loc->main->Primes[loc->main->lenPrimes - 1]; p = getprime_mt(pi))
     {
-      if (p <= qmax || d % p == 0 || mpz_divisible_ui_p(ad, p))
+      if (p <= qmax || polyselect_poly_header_skip(header, p))
 	continue;
       while (mpz_divisible_ui_p(t, p * p))
 	{
@@ -154,7 +162,7 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
 
   /* we want mtilde = d*ad*m + a_{d-1}*l with -d*ad/2 <= a_{d-1} < d*ad/2.
      We have a_{d-1} = mtilde/l mod (d*ad). */
-  mpz_mul_ui(m, ad, d);
+  mpz_mul_ui(m, header->ad, header->d);
   if (mpz_invert(adm1, l, m) == 0)
     {
       fprintf(stderr, "Error in 1/l mod (d*ad)\n");
@@ -170,20 +178,20 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
 
   mpz_mul(m, adm1, l);
   mpz_sub(m, mtilde, m);
-  check_divexact_ui(m, m, "m-a_{d-1}*l", d, "d");
-  check_divexact(m, m, "(m-a_{d-1}*l)/d", ad, "ad");
+  check_divexact_ui(m, m, "m-a_{d-1}*l", header->d, "d");
+  check_divexact(m, m, "(m-a_{d-1}*l)/d", header->ad, "ad");
   mpz_set(g->coeff[1], l);
   mpz_neg(g->coeff[0], m);
-  mpz_set(f->coeff[d], ad);
-  mpz_pow_ui(t, m, d);
-  mpz_mul(t, t, ad);
-  mpz_sub(t, N, t);
-  mpz_set(f->coeff[d - 1], adm1);
+  mpz_set(f->coeff[header->d], header->ad);
+  mpz_pow_ui(t, m, header->d);
+  mpz_mul(t, t, header->ad);
+  mpz_sub(t, header->N, t);
+  mpz_set(f->coeff[header->d - 1], adm1);
   check_divexact(t, t, "t", l, "l");
-  mpz_pow_ui(mtilde, m, d - 1);
+  mpz_pow_ui(mtilde, m, header->d - 1);
   mpz_mul(mtilde, mtilde, adm1);
   mpz_sub(t, t, mtilde);
-  for (unsigned long j = d - 2; j > 0; j--)
+  for (unsigned long j = header->d - 2; j > 0; j--)
     {
       check_divexact(t, t, "t", l, "l");
       /* t = a_j*m^j + l*R thus a_j = t/m^j mod l */
@@ -215,15 +223,15 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
      if the coefficient of degree d-2 is of the same sign as the leading
      coefficient, the size optimization will not work well, thus we simply
      discard those polynomials. */
-  if (mpz_sgn(f->coeff[d]) * mpz_sgn(f->coeff[d - 2]) > 0)
+  if (mpz_sgn(f->coeff[header->d]) * mpz_sgn(f->coeff[header->d - 2]) > 0)
     {
       loc->stats->discarded1++;
       goto end;
     }
 
 
-  mpz_poly_cleandeg(f, d);
-  ASSERT_ALWAYS(mpz_poly_degree(f) == (int) d);
+  mpz_poly_cleandeg(f, header->d);
+  ASSERT_ALWAYS(mpz_poly_degree(f) == (int) header->d);
   mpz_poly_cleandeg(g, 1);
   ASSERT_ALWAYS(mpz_poly_degree(g) == (int) 1);
 
@@ -248,7 +256,7 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
 
   /* print optimized (maybe size- or size-root- optimized) polynomial */
   if (did_optimize && loc->main->verbose >= 0)
-      output_polynomials(f_raw, g_raw, N, f, g, loc);
+      output_polynomials(f_raw, g_raw, header->N, f, g, loc);
 
 end:
   mpz_clear(l);
@@ -263,155 +271,36 @@ end:
   mpz_poly_clear(g_raw);
 }
 
-/* find collisions between "P" primes, return number of loops */
-unsigned long
-collision_on_p(polyselect_shash_ptr H, polyselect_thread_locals_ptr loc)
-{
-  unsigned long j, p, nrp, tot_roots = 0;
-  uint64_t *rp;
-  int64_t ppl = 0, u, umax;
-  int found = 0;
-  int st = milliseconds();
 
-  rp = (uint64_t *) malloc(loc->header->d * sizeof(uint64_t));
-  if (rp == NULL)
-    {
-      fprintf(stderr, "Error, cannot allocate memory in collision_on_p\n");
-      exit(1);
-    }
+/*{{{ polyselect_proots_dispatch_to_shash_flat_ugly */
 
-  /* We first store only i's (and not p's), and look for collisions,
-   * which occur very rarely.
-   * if we find out that there is a collision on i, we run the search
-   * again for the p's.
-   */
-  polyselect_shash_reset(H);
-  umax = polyselect_main_data_get_M(loc->main);
-  for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
-    {
-      p = loc->main->Primes[nprimes];
-      ppl = (int64_t) p *(int64_t) p;
-
-      /* add fake roots to keep indices */
-      if (polyselect_poly_header_skip(loc->header, p))
-	{
-	  loc->R->nr[nprimes] = 0;	// nr = 0.
-	  loc->R->roots[nprimes] = NULL;
-	  continue;
-	}
-
-      nrp = roots_mod_uint64(rp, mpz_fdiv_ui(loc->header->Ntilde, p), loc->header->d,
-			     p, loc->rstate);
-      tot_roots += nrp;
-      nrp = roots_lift(rp, loc->header->Ntilde, loc->header->d, loc->header->m0, p, nrp);
-      polyselect_proots_add(loc->R, nrp, rp, nprimes);
-      for (j = 0; j < nrp; j++)
-	{
-	  for (u = (int64_t) rp[j]; u < umax; u += ppl)
-	    polyselect_shash_add(H, u);
-	  for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
-	    polyselect_shash_add(H, -u);
-	}
-    }
-  st = milliseconds() - st;
-
-  if (loc->main->verbose > 2)
-    {
-      fprintf(stderr, "# computing %lu p-roots took %dms\n", tot_roots, st);
-      fprintf(stderr,
-	      "# polyselect_shash_size (umax = %" PRId64 ", P = %lu"
-	      "): %zu\n", umax, loc->main->P, polyselect_shash_size(H));
-      fprintf(stderr, "# expected number of pairs: %zu\n",
-	      polyselect_main_data_expected_number_of_pairs(loc->main));
-    }
-
-  st = milliseconds();
-  found = polyselect_shash_find_collision(H);
-  free(rp);
-
-  if (loc->main->verbose > 2)
-    {
-      fprintf(stderr,
-	      "# collision found in shash: %d (probability = 1 / %.1f) [took %dms]\n",
-	      found, 4 * log(loc->main->P) * log(loc->main->P), st);
-    }
-
-
-  if (found)
-    {				/* do the real work */
-      /* init zero */
-      mpz_t zero;
-      mpz_init_set_ui(zero, 0);
-
-      polyselect_hash_t H;
-
-      polyselect_hash_init(H, INIT_FACTOR * loc->main->lenPrimes, match);
-      for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
-	{
-	  nrp = loc->R->nr[nprimes];
-	  if (nrp == 0)
-	    continue;
-	  p = loc->main->Primes[nprimes];
-	  ppl = (int64_t) p *(int64_t) p;
-	  rp = loc->R->roots[nprimes];
-
-	  for (j = 0; j < nrp; j++)
-	    {
-	      for (u = (int64_t) rp[j]; u < umax; u += ppl)
-		polyselect_hash_add(H, p, u,
-                                    loc->header->m0, loc->header->ad,
-				    loc->header->d, loc->header->N, 1, zero,
-                                    loc);
-	      for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
-		polyselect_hash_add(H, p, -u,
-                                    loc->header->m0, loc->header->ad,
-				    loc->header->d, loc->header->N, 1, zero,
-                                    loc);
-	    }
-	}
-#ifdef DEBUG_POLYSELECT
-      fprintf(stderr, "# collision_on_p took %lums\n", milliseconds() - st);
-      gmp_fprintf(stderr, "# p polyselect_hash_size: %u for ad = %Zd\n",
-		  H->size, header->ad);
-#endif
-
-#ifdef DEBUG_HASH_TABLE
-      fprintf(stderr,
-	      "# p polyselect_hash_size: %u, polyselect_hash_alloc: %u\n",
-	      H->size, H->alloc);
-      fprintf(stderr, "# hash table coll: %lu, all_coll: %lu\n", H->coll,
-	      H->coll_all);
-#endif
-      polyselect_hash_clear(H);
-      mpz_clear(zero);
-    }
-
-
-  loc->stats->potential_collisions++;
-  return tot_roots;
-}
-
-
-/* collision on each special-q, call collision_on_batch_p() */
-static inline void
-collision_on_each_sq(unsigned long q,
-		     mpz_srcptr rqqz,
-		     unsigned long *inv_qq,
-                     polyselect_shash_ptr H,
-                     polyselect_thread_locals_ptr loc)
+/* This code dispatches congruence classes of the roots_per_prime[] table,
+ * modulo the primes that are listed in Primes, within the range
+ * [-umax...umax], into the quick hash table H.
+ *
+ * This overly complicated code provides some tiny performance gain, but
+ * the simpler version below is fine too.
+ *
+ * the value number_of_roots_per_prime[(number of primes)] must be 0xff
+ *
+ * This means that the following must typically appear before the call to
+ * this function.
+ *
+ * loc->R->nr[loc->R->size] = 0xff;
+ *
+ */
+void polyselect_proots_dispatch_to_shash_flat_ugly(
+        polyselect_shash_ptr H,
+        const uint32_t * Primes,
+        const unsigned long * roots_per_prime,
+        const uint8_t * number_of_roots_per_prime,
+        int64_t umax)
 {
   uint64_t **cur1, **cur2, *ccur1, *ccur2;
   long *pc, *epc;
-  uint64_t pp;
-  int64_t ppl, neg_umax, umax, v1, v2, nv;
-  unsigned long p, c;
-  uint8_t vpnr, *pnr, nr, j;
-  uint32_t *pprimes, i;
-  int found;
+  int64_t ppl, neg_umax, v1, v2, nv;
+  uint8_t vpnr;
 
-#ifdef DEBUG_POLYSELECT2
-  int st = milliseconds();
-#endif
 #if polyselect_SHASH_NBUCKETS == 256
 #define CURRENT(V) (H->current + (uint8_t) (V))
 #else
@@ -420,12 +309,10 @@ collision_on_each_sq(unsigned long q,
 
   polyselect_shash_reset(H);
 
-  pc = (long *) inv_qq;
+  pc = (long *) roots_per_prime;
   nv = *pc;
-  pprimes = loc->main->Primes - 1;
-  pnr = loc->R->nr;
-  loc->R->nr[loc->R->copy_size] = 0xff;	/* I use guard to end */
-  umax = polyselect_main_data_get_M(loc->main);
+  const uint32_t * pprimes = Primes - 1;
+  const uint8_t * pnr = number_of_roots_per_prime;
   neg_umax = -umax;
 
   /* This define inserts 2 values v1 and v2 with a interlace.
@@ -636,8 +523,282 @@ bend:
 #undef INSERT_2I
 #undef INSERT_I
 
-  for (i = 0; i < polyselect_SHASH_NBUCKETS; i++)
-    ASSERT(H->current[i] <= H->base[i + 1]);
+  ;
+}
+
+/*}}}*/
+
+/*{{{ polyselect_proots_dispatch_to_shash_flat */
+void polyselect_proots_dispatch_to_shash_flat(
+        polyselect_shash_ptr H,
+        const uint32_t * Primes,
+        size_t lenPrimes,
+        const unsigned long * roots_per_prime,
+        const uint8_t * number_of_roots_per_prime,
+        int64_t umax)
+{
+    polyselect_shash_reset(H);
+    unsigned long c = 0;
+    for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
+    {
+        unsigned long p = Primes[nprimes];
+        int64_t ppl = (int64_t) p *(int64_t) p;
+        unsigned long nr = number_of_roots_per_prime[nprimes];
+        for (unsigned long j = 0; j < nr; j++, c++)
+        {
+            // int64_t u0 = (((int64_t) roots_per_prime[c] + umax) % ppl) - umax;
+            int64_t u0 = roots_per_prime[c];
+            for(int64_t u = u0 ; u < umax ; u += ppl)
+                polyselect_shash_add(H, u);
+            for(int64_t u = u0 - ppl ; u + umax >= 0; u -= ppl)
+                polyselect_shash_add(H, u);
+        }
+    }
+
+    for (int i = 0; i < polyselect_SHASH_NBUCKETS; i++)
+        ASSERT(H->current[i] <= H->base[i + 1]);
+}
+/*}}}*/
+
+/*{{{ polyselect_proots_dispatch_to_shash_notflat */
+/* This is a slight variation around the previous implementation. Here,
+ * we expect the roots to be organized into several different tables per
+ * prime.
+ */
+void polyselect_proots_dispatch_to_shash_notflat(
+        polyselect_shash_ptr H,
+        const uint32_t * Primes,
+        size_t lenPrimes,
+        uint64_t * const * roots_per_prime,
+        const uint8_t * number_of_roots_per_prime,
+        int64_t umax)
+{
+      for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
+	{
+	  unsigned long p = Primes[nprimes];
+          int64_t ppl = (int64_t) p *(int64_t) p;
+	  unsigned long nr = number_of_roots_per_prime[nprimes];
+	  for (unsigned long j = 0; j < nr; j++)
+	    {
+                // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
+                int64_t u0 = roots_per_prime[nprimes][j];
+                for(int64_t u = u0 ; u < umax ; u += ppl)
+                    polyselect_shash_add(H, u);
+                for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
+                    polyselect_shash_add(H, u);
+            }
+        }
+
+      for (int i = 0; i < polyselect_SHASH_NBUCKETS; i++)
+          ASSERT(H->current[i] <= H->base[i + 1]);
+}/*}}}*/
+
+/*{{{ polyselect_proots_dispatch_to_hash_notflat */
+/* same as above, but for a hash (not shash) table */
+void polyselect_proots_dispatch_to_hash_notflat(
+        polyselect_hash_ptr H,
+        const uint32_t * Primes,
+        size_t lenPrimes,
+        uint64_t * const * roots_per_prime,
+        const uint8_t * number_of_roots_per_prime,
+        int64_t umax,
+        unsigned long q,
+        mpz_srcptr rq,
+        polyselect_thread_locals_ptr loc
+        )
+{
+      for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
+	{
+	  unsigned long p = Primes[nprimes];
+          int64_t ppl = (int64_t) p *(int64_t) p;
+	  unsigned long nr = number_of_roots_per_prime[nprimes];
+	  for (unsigned long j = 0; j < nr; j++)
+	    {
+                // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
+                int64_t u0 = roots_per_prime[nprimes][j];
+                for(int64_t u = u0 ; u < umax ; u += ppl)
+                    polyselect_hash_add(H, p, u, q, rq, loc);
+                for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
+                    polyselect_hash_add(H, p, u, q, rq, loc);
+            }
+        }
+}/*}}}*/
+
+/*{{{ polyselect_proots_dispatch_to_hash_flat */
+void polyselect_proots_dispatch_to_hash_flat(
+        polyselect_hash_ptr H,
+        const uint32_t * Primes,
+        size_t lenPrimes,
+        const unsigned long * roots_per_prime,
+        const uint8_t * number_of_roots_per_prime,
+        int64_t umax,
+        unsigned long q,
+        mpz_srcptr rq,
+        polyselect_thread_locals_ptr loc
+        )
+{
+    unsigned long c = 0;
+    for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
+    {
+        unsigned long p = Primes[nprimes];
+        int64_t ppl = (int64_t) p *(int64_t) p;
+        unsigned long nr = number_of_roots_per_prime[nprimes];
+        for (unsigned long j = 0; j < nr; j++, c++)
+        {
+            // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
+            int64_t u0 = roots_per_prime[c];
+            for(int64_t u = u0 ; u < umax ; u += ppl)
+                polyselect_hash_add(H, p, u, q, rq, loc);
+            for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
+                polyselect_hash_add(H, p, u, q, rq, loc);
+        }
+    }
+}/*}}}*/
+
+static unsigned long compute_and_lift_proots(polyselect_thread_locals_ptr loc)/*{{{*/
+{
+    polyselect_proots_ptr R = loc->R;
+    polyselect_poly_header_srcptr header = loc->header;
+    gmp_randstate_ptr rstate = loc->rstate;
+
+    unsigned long tot_roots = 0;
+    uint64_t *
+        rp = (uint64_t *) malloc(header->d * sizeof(uint64_t));
+    if (rp == NULL)
+    {
+        fprintf(stderr, "Error, cannot allocate memory in collision_on_p\n");
+        exit(1);
+    }
+
+    for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
+    {
+        unsigned long p = loc->main->Primes[nprimes];
+
+        /* add fake roots to keep indices */
+        if (polyselect_poly_header_skip(header, p))
+        {
+            R->nr[nprimes] = 0;	// nr = 0.
+            R->roots[nprimes] = NULL;
+            continue;
+        }
+
+        unsigned long nrp = roots_mod_uint64(rp,
+                mpz_fdiv_ui(header->Ntilde, p),
+                header->d,
+                p, rstate);
+        tot_roots += nrp;
+        nrp = roots_lift(rp, header->Ntilde, header->d, header->m0, p, nrp);
+        polyselect_proots_add(R, nrp, rp, nprimes);
+    }
+    free(rp);
+    return tot_roots;
+}/*}}}*/
+
+/* find collisions between "P" primes, return number of loops */
+unsigned long
+collision_on_p(polyselect_shash_ptr H, polyselect_thread_locals_ptr loc)
+{
+  int found = 0;
+  int st = milliseconds();
+
+  int64_t umax = polyselect_main_data_get_M(loc->main);
+
+  /* first compute and lift all roots modulo the primes in
+   * loc->main->Primes ; we store that in loc->R
+   */
+  unsigned long tot_roots = compute_and_lift_proots(loc);
+
+  /* We first store only i's (and not p's), and look for collisions,
+   * which occur very rarely.
+   * if we find out that there is a collision on i, we run the search
+   * again for the p's.
+   */
+
+  polyselect_shash_reset(H);
+  polyselect_proots_dispatch_to_shash_notflat(H,
+          loc->main->Primes,
+          loc->main->lenPrimes,
+          loc->R->roots,
+          loc->R->nr,
+          umax);
+
+  st = milliseconds() - st;
+
+  if (loc->main->verbose > 2)
+    {
+      fprintf(stderr, "# computing %lu p-roots took %dms\n", tot_roots, st);
+    }
+
+  st = milliseconds();
+  found = polyselect_shash_find_collision(H);
+
+
+  if (found)
+    {				/* do the real work */
+      polyselect_hash_t H;
+
+      polyselect_hash_init(H, INIT_FACTOR * loc->main->lenPrimes, match);
+
+      polyselect_proots_dispatch_to_hash_notflat(H,
+              loc->main->Primes,
+              loc->main->lenPrimes,
+              loc->R->roots,
+              loc->R->nr,
+              umax,
+              1, NULL, loc);
+
+#ifdef DEBUG_POLYSELECT
+      fprintf(stderr, "# collision_on_p took %lums\n", milliseconds() - st);
+      gmp_fprintf(stderr, "# p polyselect_hash_size: %u for ad = %Zd\n",
+		  H->size, header->ad);
+#endif
+
+#ifdef DEBUG_HASH_TABLE
+      fprintf(stderr,
+	      "# p polyselect_hash_size: %u, polyselect_hash_alloc: %u\n",
+	      H->size, H->alloc);
+      fprintf(stderr, "# hash table coll: %lu, all_coll: %lu\n", H->coll,
+	      H->coll_all);
+#endif
+      polyselect_hash_clear(H);
+    }
+
+  loc->stats->potential_collisions++;
+
+  return tot_roots;
+}
+
+static inline void
+collision_on_each_sq(unsigned long q,
+		     mpz_srcptr rqqz,
+		     unsigned long *inv_qq,
+                     polyselect_shash_ptr H,
+                     polyselect_thread_locals_ptr loc)
+{
+  int found;
+
+#ifdef DEBUG_POLYSELECT2
+  int st = milliseconds();
+#endif
+
+  int64_t umax = polyselect_main_data_get_M(loc->main);
+
+#if 0
+  loc->R->nr[loc->R->size] = 0xff;	/* use guard to end */
+  polyselect_proots_dispatch_to_shash_flat_ugly(H,
+          loc->main->Primes,
+          inv_qq,
+          loc->R->nr,
+          umax);
+#else
+  /* inv_qq is created by the caller as a flat list.  */
+  polyselect_proots_dispatch_to_shash_flat(H,
+          loc->main->Primes,
+          loc->main->lenPrimes,
+          inv_qq,
+          loc->R->nr,
+          umax);
+#endif
 
   found = polyselect_shash_find_collision(H);
 
@@ -647,28 +808,14 @@ bend:
 
       polyselect_hash_init(H, INIT_FACTOR * loc->main->lenPrimes, match);
 
-      umax = polyselect_main_data_get_M(loc->main);
-      for (unsigned long nprimes = c = 0; nprimes < loc->main->lenPrimes; nprimes++)
-	{
-	  p = loc->main->Primes[nprimes];
-	  if (polyselect_poly_header_skip(loc->header, p))
-	    continue;
-	  pp = p * p;
-	  ppl = (long) pp;
-	  nr = loc->R->nr[nprimes];
-	  for (j = 0; j < nr; j++, c++)
-	    {
-	      v1 = (long) inv_qq[c];
-	      for (v2 = v1; v2 < umax; v2 += ppl)
-		polyselect_hash_add(H, p, v2, loc->header->m0, loc->header->ad,
-				    loc->header->d, loc->header->N, q, rqqz,
-                                    loc);
-	      for (v2 = ppl - v1; v2 < umax; v2 += ppl)
-		polyselect_hash_add(H, p, -v2, loc->header->m0, loc->header->ad,
-				    loc->header->d, loc->header->N, q, rqqz,
-                                    loc);
-	    }
-	}
+      polyselect_proots_dispatch_to_hash_flat(H,
+              loc->main->Primes,
+              loc->main->lenPrimes,
+              inv_qq,
+              loc->R->nr,
+              umax,
+              q, rqqz, loc);
+
       polyselect_hash_clear(H);
     }
 
@@ -704,10 +851,7 @@ collision_on_each_sq_r(unsigned long q,
   if (count == 0)
     return;
 
-  uint8_t i, nr, *pnr;
-  unsigned long p, c = 0, rp, rqi;
-  int k;
-  uint64_t pp;
+  unsigned long c = 0;
   unsigned long **tinv_qq = malloc(count * sizeof(unsigned long *));
 
   if (!tinv_qq)
@@ -715,24 +859,25 @@ collision_on_each_sq_r(unsigned long q,
       fprintf(stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
       exit(1);
     }
-  for (k = 0; k < count; k++)
+  tinv_qq[0] = malloc((number_pr + 1) * count * sizeof(unsigned long));
+  for (int k = 0; k < count; k++)
     {
       /* number_pr + 1 for guard for pre-load in collision_on_each_sq (nv) */
-      tinv_qq[k] = malloc((number_pr + 1) * sizeof(unsigned long));
+      if (k)
+          tinv_qq[k] = tinv_qq[k-1] + number_pr + 1;
       tinv_qq[k][number_pr] = 0;
     }
 
   int st = milliseconds();
-  pnr = loc->R->nr;
 
   /* for each rp, compute (rp-rq)*1/q^2 (mod p^2) */
   for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
     {
-      if (!pnr[nprimes])
+      if (!loc->R->nr[nprimes])
 	continue;
-      nr = pnr[nprimes];
-      p = loc->main->Primes[nprimes];
-      pp = p * p;
+      uint8_t nr = loc->R->nr[nprimes];
+      unsigned long p = loc->main->Primes[nprimes];
+      uint64_t pp = ((uint64_t) p) * ((uint64_t) p);
 
       modulusredcul_t modpp;
       residueredcul_t res_rqi, res_rp, res_tmp;
@@ -741,14 +886,14 @@ collision_on_each_sq_r(unsigned long q,
       modredcul_init(res_rp, modpp);
       modredcul_init(res_tmp, modpp);
 
-      for (k = 0; k < count; k++)
+      for (int k = 0; k < count; k++)
 	{
-	  rqi = mpz_fdiv_ui(rqqz[k], pp);
+	  unsigned long rqi = mpz_fdiv_ui(rqqz[k], pp);
 	  modredcul_intset_ul(res_rqi, rqi);
 	  modredcul_intset_ul(res_tmp, inv_qq[nprimes]);
-	  for (i = 0; i < nr; i++, c++)
+	  for (uint8_t i = 0; i < nr; i++, c++)
 	    {
-	      rp = loc->R->roots[nprimes][i];
+	      unsigned long rp = loc->R->roots[nprimes][i];
 	      modredcul_intset_ul(res_rp, rp);
 	      /* rp - rq */
 	      modredcul_sub(res_rp, res_rp, res_rqi, modpp);
@@ -775,8 +920,7 @@ collision_on_each_sq_r(unsigned long q,
     }
 
   /* core function to find collisions */
-  polyselect_shash_reset(H);
-  for (k = 0; k < count; k++)
+  for (int k = 0; k < count; k++)
     collision_on_each_sq(q, rqqz[k], tinv_qq[k], H, loc);
 
   if (loc->main->verbose > 2)
@@ -784,8 +928,7 @@ collision_on_each_sq_r(unsigned long q,
 	    "#  substage: collision-detection %d many rq took %lums\n",
 	    count, milliseconds() - st);
 
-  for (k = 0; k < count; k++)
-    free(tinv_qq[k]);
+  free(tinv_qq[0]);
   free(tinv_qq);
 }
 
@@ -819,8 +962,8 @@ aux_nextcomb(unsigned int *ind, unsigned int len_q, unsigned int *len_nr)
  */
 static inline void
 aux_return_rq(polyselect_qroots_srcptr SQ_R,
-	      unsigned long *idx_q,
-	      unsigned int *idx_nr,
+	      const unsigned long *idx_q,
+	      const unsigned int *idx_nr,
 	      unsigned long k, mpz_ptr qqz, mpz_ptr rqqz)
 {
   unsigned long i, q[k], rq[k];
@@ -842,12 +985,12 @@ aux_return_rq(polyselect_qroots_srcptr SQ_R,
  * In this routine the q[i] are fixed, only the roots mod q[i] change.
  *
  * The name is misleading. There is nothing about reentrancy here, this
- * function is just a component of collision_on_batch_sq
+ * function is just a component of collision_on_sq
  */
 static inline void
 collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
 			unsigned long q,
-			unsigned long *idx_q,
+			const unsigned long *idx_q,
 			unsigned long *inv_qq,
 			unsigned long number_pr,
 			unsigned long *curr_nq,
@@ -865,13 +1008,6 @@ collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
   for (i = 0; i < BATCH_SIZE; i++)
     mpz_init(rqqz[i]);
 
-  /* initialization indices */
-  for (i = 0; i < k; i++)
-    {
-      ind_qr[i] = 0;
-      len_qnr[i] = SQ_R->nr[idx_q[i]];
-    }
-
 #if 0
   fprintf(stderr, "q: %lu, ", q);
   for (i = 0; i < k; i++)
@@ -883,16 +1019,20 @@ collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
 #endif
 
   /* we proceed with BATCH_SIZE many rq for each time */
-  int re = 1, num_rq;
-  while (re)
+  for (i = 0; i < k; i++)
+    {
+      ind_qr[i] = 0;
+      len_qnr[i] = SQ_R->nr[idx_q[i]];
+    }
+  for(int re = 1 ; re ; )
     {
       /* compute BATCH_SIZE such many rqqz[] */
-      num_rq = 0;
-      for (count = 0; count < BATCH_SIZE; count++)
+      int num_rq = 0;
+      for (count = 0; re && count < BATCH_SIZE; count++)
 	{
-          /* FIXME: this is gravely inefficient, as we do multiple
-           * inversions over and over again, including when the set of
-           * q's doesn't change...
+          /* We do multiple inversions over and over again (in crt_sq),
+           * even though the set of q's doesn't change... This has no
+           * noticeable impact on the running time, though.
            */
 	  aux_return_rq(SQ_R, idx_q, ind_qr, k, qqz, rqqz[count]);
 	  re = aux_nextcomb(ind_qr, k, len_qnr);
@@ -900,8 +1040,6 @@ collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
 	  num_rq++;
 	  if ((*curr_nq) >= loc->main->nq)
 	    re = 0;
-	  if (!re)
-	    break;
 	}
 
       /* core function for a fixed qq and several rqqz[] */
@@ -914,42 +1052,24 @@ collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
     mpz_clear(rqqz[i]);
 }
 
-/* SQ inversion, write 1/q^2 (mod p_i^2) to invqq[i].
-   In this routine the q[i] are fixed, corresponding to indices idx_q[0], ...,
-   idx_q[k-1] */
-static inline void
-collision_on_batch_sq(polyselect_qroots_srcptr SQ_R,
-		      unsigned long q,
-		      unsigned long *idx_q,
-		      unsigned long number_pr,
-		      unsigned long k,
-		      unsigned long *curr_nq,
-                      polyselect_shash_ptr H,
-                      polyselect_thread_locals_ptr loc)
+static inline void invert_q2_mod_all_p2(/*{{{*/
+        unsigned long *invqq,
+        unsigned long q,
+        const uint32_t * Primes,
+        unsigned long lenPrimes,
+        polyselect_poly_header_srcptr header,
+        const uint8_t * number_of_roots_per_prime)
 {
-  unsigned nr;
-  uint64_t pp;
-  unsigned long p;
-  unsigned long *invqq = malloc(loc->main->lenPrimes * sizeof(unsigned long));
-  if (!invqq)
+  /* Step 1: inversion; compute 1/q^2 (mod p_i^2) to invqq[i] */
+  for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
     {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
-      exit(1);
-    }
-
-  int st = milliseconds();
-
-  /* Step 1: inversion */
-  for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
-    {
-
-      p = loc->main->Primes[nprimes];
-      if (polyselect_poly_header_skip(loc->header, p))
+      unsigned long p = Primes[nprimes];
+      if (polyselect_poly_header_skip(header, p))
 	continue;
-      nr = loc->R->nr[nprimes];
+      unsigned int nr = number_of_roots_per_prime[nprimes];
       if (nr == 0)
 	continue;
-      pp = p * p;
+      uint64_t pp = ((uint64_t) p) * (uint64_t) p;
 
       modulusredcul_t modpp;
       residueredcul_t qq, tmp;
@@ -970,52 +1090,72 @@ collision_on_batch_sq(polyselect_qroots_srcptr SQ_R,
       modredcul_clearmod(modpp);
     }
 
-  if (loc->main->verbose > 2)
-    fprintf(stderr,
-	    "# stage (1/q^2 inversion) for %lu primes took %lums\n",
-	    loc->main->lenPrimes, milliseconds() - st);
-
-  /* Step 2: find collisions on q. */
-  int st2 = milliseconds();
-
-  collision_on_batch_sq_r(SQ_R, q, idx_q, invqq, number_pr,
-			  curr_nq, k, H, loc);
-  if (loc->main->verbose > 2)
-    fprintf(stderr,
-	    "#  stage (special-q) for %lu special-q's took %lums\n",
-	    *curr_nq, milliseconds() - st2);
-
-  free(invqq);
-}
+}/*}}}*/
 
 /* collision on special-q, call collision_on_batch_sq */
 void
 collision_on_sq(unsigned long c, polyselect_shash_ptr H, polyselect_thread_locals_ptr loc)
 {
-  unsigned long k, lq;
-  polyselect_qroots_t SQ_R;
+  unsigned long *invqq = malloc(loc->main->lenPrimes * sizeof(unsigned long));
+  if (!invqq)
+    {
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
+      exit(1);
+    }
 
   /* init special-q roots */
+  polyselect_qroots_t SQ_R;
+
   polyselect_qroots_init(SQ_R);
   comp_sq_roots(loc->header, SQ_R, loc->rstate);
   //polyselect_qroots_print (SQ_R);
 
-  /* find a suitable lq */
-  lq = find_suitable_lq(loc->header, SQ_R, &k, loc->main);
 
-  unsigned long q, idx_q[lq], curr_nq = 0, ret;
+  /* find a suitable lq */
+  unsigned long k;
+  unsigned long lq = find_suitable_lq(loc->header, SQ_R, &k, loc->main);
+
+  unsigned long q, idx_q[lq], curr_nq = 0;
 
   first_comb(k, idx_q);
-  while (curr_nq < loc->main->nq)
+
+  for ( ; curr_nq < loc->main->nq ; )
     {
       q = return_q_norq(SQ_R, idx_q, k);
 
       /* collision batch */
-      collision_on_batch_sq(SQ_R, q, idx_q, c, k, &curr_nq, H, loc);
-      ret = next_comb(lq, k, idx_q);
-      if (ret == k)		/* binomial(lq, k) < nq */
+      {
+          int st = milliseconds();
+
+          /* Step 1: inversion; compute 1/q^2 (mod p_i^2) to invqq[i] */
+          invert_q2_mod_all_p2(invqq, q,
+                  loc->main->Primes, loc->main->lenPrimes,
+                  loc->header, loc->R->nr);
+
+          if (loc->main->verbose > 2)
+              fprintf(stderr,
+                      "# stage (1/q^2 inversion) for %lu primes took %lums\n",
+                      loc->main->lenPrimes, milliseconds() - st);
+      }
+
+      {
+          /* Step 2: find collisions on q. */
+          int st2 = milliseconds();
+
+          collision_on_batch_sq_r(SQ_R, q, idx_q, invqq, c,
+                  &curr_nq, k, H, loc);
+          if (loc->main->verbose > 2)
+              fprintf(stderr,
+                      "#  stage (special-q) for %lu special-q's took %lums\n",
+                      curr_nq, milliseconds() - st2);
+      }
+
+      unsigned long ret = next_comb(lq, k, idx_q);
+      if (ret == k)		/* in case binomial(lq, k) < nq */
 	break;
     }
+
+  free(invqq);
 
   /* clean */
   polyselect_qroots_clear(SQ_R);

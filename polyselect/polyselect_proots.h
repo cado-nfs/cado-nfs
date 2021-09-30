@@ -9,7 +9,7 @@ extern "C" {
 
 /* structure to store P roots */
 struct polyselect_proots_s {
-  unsigned long copy_size;    /* used size */
+  unsigned long size;    /* used size -- this is the same as main->lenPrimes */
   uint8_t *nr;     /* number of roots of x^d = N (mod p) */
   uint64_t **roots; /* roots of (m0+x)^d = N (mod p^2) */
 };

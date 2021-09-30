@@ -91,9 +91,9 @@ compute_default_max_skew (mpz_t skew, mpz_t N, int d)
 
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
 void
-twocubics_match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
-       mpz_srcptr ad, unsigned long d, mpz_srcptr N, uint64_t q, mpz_srcptr rq,
-       polyselect_thread_locals_ptr loc MAYBE_UNUSED)
+twocubics_match (unsigned long p1, unsigned long p2, const int64_t i,
+        uint64_t q, mpz_srcptr rq,
+        polyselect_thread_locals_ptr loc)
 {
 #if 0
   unsigned long j;
@@ -101,6 +101,8 @@ twocubics_match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr
   double skew, logmu, E;
   mpz_poly F;
 #endif
+
+  polyselect_poly_header_srcptr header = loc->header;
 
   mpz_t l, r, k, mprime, Nprime, C, l2, tmp, r1, r0, t, adm1, m, skew, root;
   mpz_vector_t a, b, reduced_a, reduced_b;
@@ -122,18 +124,18 @@ twocubics_match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr
   mpz_init (r0);
   mpz_init (skew);
 
-  mpz_vector_init (a, d+1);
-  mpz_vector_init (b, d+1);
-  mpz_vector_init (reduced_a, d+1);
-  mpz_vector_init (reduced_b, d+1);
+  mpz_vector_init (a, header->d+1);
+  mpz_vector_init (b, header->d+1);
+  mpz_vector_init (reduced_a, header->d+1);
+  mpz_vector_init (reduced_b, header->d+1);
 
-  mpz_poly_init (f, d);
-  mpz_poly_init (g, d);
+  mpz_poly_init (f, header->d);
+  mpz_poly_init (g, header->d);
 
 #ifdef DEBUG_POLYSELECT
   gmp_printf ("#### MATCH ######\nN = %Zd\nd = %d\nad = %Zd\n"
               "p1 = %lu\np2 = %lu\nq = %lu\ni = %" PRId64 "\n"
-              "rq = %Zd\n", N, d, ad, p1, p2, q, i, rq);
+              "rq = %Zd\n", header->N, header->d, header->ad, p1, p2, q, i, rq);
 #endif
 
   /* l = p1*p2*q */
@@ -148,45 +150,47 @@ twocubics_match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr
 
   /* r = rq + i*q^2 */
   mpz_set_si (r, i);
-  mpz_mul_ui (r, r, q);
-  mpz_mul_ui (r, r, q);
-  mpz_add (r, r, rq);
+  if (rq) {
+      mpz_mul_ui (r, r, q);
+      mpz_mul_ui (r, r, q);
+      mpz_add (r, r, rq);
+  }
 #ifdef DEBUG_POLYSELECT
   gmp_printf ("r = rq + i * q^2 \nr == %Zd # has %lu bits\n", r,
               mpz_sizeinbase(r, 2));
 #endif
 
-  /* k = d^d * ad^(d-1) */
-  mpz_mul_ui (k, ad, d);
-  mpz_pow_ui (k, k, d-1);
-  mpz_mul_ui (k, k, d);
+  /* k = header->d^header->d * header->ad^(header->d-1) */
+  mpz_mul_ui (k, header->ad, header->d);
+  mpz_pow_ui (k, k, header->d-1);
+  mpz_mul_ui (k, k, header->d);
 #ifdef DEBUG_POLYSELECT
   gmp_printf ("k = d^d * ad^(d-1)\nk == %Zd\n", k);
 #endif
 
-  /* Nprime = k * N */
-  mpz_mul (Nprime, k, N);
+  /* Nprime = k * header->N */
+  mpz_mul (Nprime, k, header->N);
 #ifdef DEBUG_POLYSELECT
   gmp_printf ("Nprime = k * N\nNprime == %Zd\n", Nprime);
 #endif
 
-  /* mprime = m0 + r */
-  mpz_add (mprime, m0, r);
+  /* mprime = header->m0 + r */
+  mpz_add (mprime, header->m0, r);
 #ifdef DEBUG_POLYSELECT
-  gmp_printf ("m0 = %Zd\nmprime = m0 + r\nmprime == %Zd\n", m0, mprime);
+  gmp_printf ("m0 = %Zd\nmprime = m0 + r\nmprime == %Zd\n", header->m0, mprime);
 #endif
 
-  /* C = mprime^d - Nprime */
-  mpz_pow_ui (C, mprime, d);
+  /* C = mprime^header->d - Nprime */
+  mpz_pow_ui (C, mprime, header->d);
   mpz_sub (C, C, Nprime);
   ASSERT_ALWAYS (mpz_divisible_p (C, l2));
 #ifdef DEBUG_POLYSELECT
   gmp_printf ("(mprime^d - Nprime) %% l^2 == 0\n");
 #endif
 
-  /* adm1 is such that mprime = d*ad*m + adm1*l and -d*ad/2 <= adm1 < d*ad/2
-     We have adm1 = mprime/l mod (d*ad). */
-  mpz_mul_ui (tmp, ad, d); /* tmp = d*ad */
+  /* adm1 is such that mprime = header->d*header->ad*m + adm1*l and -header->d*header->ad/2 <= adm1 < header->d*header->ad/2
+     We have adm1 = mprime/l mod (header->d*header->ad). */
+  mpz_mul_ui (tmp, header->ad, header->d); /* tmp = header->d*header->ad */
   if (mpz_invert (adm1, l, tmp) == 0)
   {
     fprintf (stderr, "Error in 1/l mod (d*ad)\n");
@@ -201,13 +205,13 @@ twocubics_match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr
   gmp_printf ("adm1 = %Zd\n", adm1);
 #endif
 
-  /* m = (mprime - adm1 * l)/ (d * ad) */
+  /* m = (mprime - adm1 * l)/ (header->d * header->ad) */
   mpz_mul (m, adm1, l);
   mpz_sub (m, mprime, m);
-  ASSERT_ALWAYS (mpz_divisible_ui_p (m, d));
-  mpz_divexact_ui (m, m, d);
-  ASSERT_ALWAYS (mpz_divisible_p (m, ad));
-  mpz_divexact (m, m, ad);
+  ASSERT_ALWAYS (mpz_divisible_ui_p (m, header->d));
+  mpz_divexact_ui (m, m, header->d);
+  ASSERT_ALWAYS (mpz_divisible_p (m, header->ad));
+  mpz_divexact (m, m, header->ad);
 #ifdef DEBUG_POLYSELECT
   gmp_printf ("m = (mprime - adm1*l) / (d*ad)\nm == %Zd\n", m);
 #endif
@@ -216,26 +220,26 @@ twocubics_match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr
   mpz_neg (tmp, m);
   mpz_vector_setcoordinate (a, 0, tmp); /* a[0] = -m */
   mpz_vector_setcoordinate (a, 1, l); /* a[1] = -l */
-  for (unsigned int j = 2; j <= d; j++)
+  for (unsigned int j = 2; j <= header->d; j++)
     mpz_vector_setcoordinate_ui (a, j, 0); /* a[j] = 0 */
 
-  /* Set vector b = (a0, a1, ..., ai, ..., adm1, ad) */
-  mpz_vector_setcoordinate (b, d, ad);  /* b[d] = ad */
-  mpz_vector_setcoordinate (b, d-1, adm1); /* b[d-1] = adm1 */
+  /* Set vector b = (a0, a1, ..., ai, ..., adm1, header->ad) */
+  mpz_vector_setcoordinate (b, header->d, header->ad);  /* b[header->d] = header->ad */
+  mpz_vector_setcoordinate (b, header->d-1, adm1); /* b[header->d-1] = adm1 */
 
 
 
 
-  mpz_pow_ui (t, m, d);
-  mpz_mul (t, t, ad);
-  mpz_sub (t, N, t);
+  mpz_pow_ui (t, m, header->d);
+  mpz_mul (t, t, header->ad);
+  mpz_sub (t, header->N, t);
   ASSERT_ALWAYS (mpz_divisible_p (t, l));
 
   mpz_divexact (t, t, l);
-  mpz_pow_ui (tmp, m, d-1);
+  mpz_pow_ui (tmp, m, header->d-1);
   mpz_mul (tmp, tmp, adm1);
   mpz_sub (t, t, tmp);
-  for (int j = d - 2; j > 0; j--)
+  for (int j = header->d - 2; j > 0; j--)
   {
     ASSERT_ALWAYS (mpz_divisible_p (t, l));
     mpz_divexact (t, t, l);
@@ -273,7 +277,7 @@ twocubics_match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr
   mpz_poly_fprintf (stdout, g);
 #endif
 
-  mpz_vector_reduce_with_max_skew (reduced_a, reduced_b, skew, a, b, maxS, d);
+  mpz_vector_reduce_with_max_skew (reduced_a, reduced_b, skew, a, b, maxS, header->d);
 
   mpz_vector_get_mpz_poly(f, reduced_a);
   mpz_vector_get_mpz_poly(g, reduced_b);
@@ -285,13 +289,13 @@ twocubics_match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr
   mpz_poly_fprintf (stdout, g);
 #endif
 
-  mpz_invert (root, l, N);
+  mpz_invert (root, l, header->N);
   mpz_mul (root, root, m);
-  mpz_mod (root, root, N);
+  mpz_mod (root, root, header->N);
 #ifdef DEBUG_POLYSELECT
   gmp_printf ("root = (m / l) %% N\nroot == %Zd\n", root);
 
-  gmp_printf ("## Begin poly file for ad = %Zd and l = %Zd\n", ad, l);
+  gmp_printf ("## Begin poly file for ad = %Zd and l = %Zd\n", header->ad, l);
 #endif
 
   double skewness, logmu[2], alpha[2], E;
@@ -312,7 +316,7 @@ twocubics_match (unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr
   if (E < best_E)
     {
       best_E = E;
-      gmp_printf("n: %Zd\n", N);
+      gmp_printf("n: %Zd\n", header->N);
       for (int i = 0; i <= f->deg; i++)
         gmp_printf ("c%d: %Zd\n", i, f->coeff[i]);
       for (int i = 0; i <= g->deg; i++)
@@ -373,9 +377,7 @@ gmp_match (uint32_t p1, uint32_t p2, int64_t i, mpz_t m0,
 static inline unsigned long
 collision_on_p (polyselect_thread_locals_ptr loc)
 {
-  unsigned long j, p, nrp, c = 0, tot_roots = 0;
-  uint64_t *rp;
-  int64_t ppl = 0, u;
+  unsigned long nrp, c = 0, tot_roots = 0;
   mpz_t tmp;
   int found = 0;
   polyselect_shash_t H;
@@ -387,11 +389,6 @@ collision_on_p (polyselect_thread_locals_ptr loc)
   mpz_poly_init(f, loc->header->d);
   mpz_set_ui (f->coeff[loc->header->d], 1);
 
-  rp = (uint64_t*) malloc (loc->header->d * sizeof (uint64_t));
-  if (rp == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in collision_on_p\n");
-    exit (1);
-  }
 
   polyselect_shash_init (H, 4 * loc->main->lenPrimes);
   polyselect_shash_reset (H);
@@ -400,8 +397,8 @@ collision_on_p (polyselect_thread_locals_ptr loc)
 
   for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes ++)
     {
-      p = loc->main->Primes[nprimes];
-      ppl = (int64_t) p * (int64_t) p;
+      unsigned long p = loc->main->Primes[nprimes];
+      int64_t ppl = (int64_t) p * (int64_t) p;
 
       /* add fake roots to keep indices */
       if (polyselect_poly_header_skip (loc->header, p))
@@ -411,22 +408,29 @@ collision_on_p (polyselect_thread_locals_ptr loc)
           continue;
         }
 
-      nrp = roots_mod_uint64 (rp, mpz_fdiv_ui (loc->header->Ntilde, p), loc->header->d,
+      uint64_t * rp = (uint64_t*) malloc (loc->header->d * sizeof (uint64_t));
+      if (rp == NULL) {
+          fprintf (stderr, "Error, cannot allocate memory in collision_on_p\n");
+          exit (1);
+      }
+      unsigned long nrp = roots_mod_uint64 (rp,
+                              mpz_fdiv_ui (loc->header->Ntilde, p),
+                              loc->header->d,
                               p, loc->rstate);
       tot_roots += nrp;
       roots_lift (rp, loc->header->Ntilde, loc->header->d, loc->header->m0, p, nrp);
       polyselect_proots_add (loc->R, nrp, rp, nprimes);
-      for (j = 0; j < nrp; j++, c++)
+      free(rp);
+
+      for (unsigned long j = 0; j < nrp; j++, c++)
             {
-              for (u = (int64_t) rp[j]; u < umax; u += ppl)
-                polyselect_shash_add (H, u);
-              for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
-                polyselect_shash_add (H, -u);
+                int64_t u0 = (((int64_t) loc->R->roots[nprimes] + umax) % ppl) - umax;
+                for(int64_t u = u0 ; u < umax ; u += ppl)
+                    polyselect_shash_add (H, u);
             }
-        }
+    }
   found = polyselect_shash_find_collision (H);
   polyselect_shash_clear (H);
-  free (rp);
 
   if (loc->main->verbose > 2)
     printf ("# computing %lu p-roots took %dms\n", tot_roots, st);
@@ -442,18 +446,15 @@ collision_on_p (polyselect_thread_locals_ptr loc)
           nrp = loc->R->nr[nprimes];
           if (nrp == 0)
             continue;
-          p = loc->main->Primes[nprimes];
-          ppl = (int64_t) p * (int64_t) p;
-          rp = loc->R->roots[nprimes];
+          unsigned long p = loc->main->Primes[nprimes];
+          int64_t ppl = (int64_t) p * (int64_t) p;
+          const uint64_t * rp = loc->R->roots[nprimes];
 
-          for (j = 0; j < nrp; j++)
+          for (unsigned long j = 0; j < nrp; j++)
             {
-              for (u = (int64_t) rp[j]; u < umax; u += ppl)
-                polyselect_hash_add (H, p, u, loc->header->m0, loc->header->ad, loc->header->d,
-                          loc->header->N, 1, tmp, loc);
-              for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
-                polyselect_hash_add (H, p, -u, loc->header->m0, loc->header->ad,
-                          loc->header->d, loc->header->N, 1, tmp, loc);
+                int64_t u0 = (((int64_t) rp[j] + umax) % ppl) - umax;
+                for(int64_t u = u0 ; u < umax ; u += ppl)
+                    polyselect_hash_add (H, p, u, 1, tmp, loc);
             }
         }
 #ifdef DEBUG_POLYSELECT
@@ -512,7 +513,7 @@ collision_on_each_sq ( unsigned long q,
   nv = *pc;
   pprimes = loc->main->Primes - 1;
   pnr = loc->R->nr;
-  loc->R->nr[loc->R->copy_size] = 0xff; /* I use guard to end */
+  loc->R->nr[loc->R->size] = 0xff; /* I use guard to end */
 
   int64_t umax = polyselect_main_data_get_M(loc->main);
   int64_t neg_umax = -umax;
@@ -658,15 +659,9 @@ collision_on_each_sq ( unsigned long q,
           nr = loc->R->nr[nprimes];
           for (j = 0; j < nr; j++, c++)
             {
-              v1 = (long) inv_qq[c];
-              for (v2 = v1; v2 < umax; v2 += ppl)
-                polyselect_hash_add (H, p, v2, loc->header->m0, loc->header->ad, loc->header->d,
-                          loc->header->N, q, rqqz,
-                          loc);
-              for (v2 = ppl - v1; v2 < umax; v2 += ppl)
-                polyselect_hash_add (H, p, -v2, loc->header->m0, loc->header->ad, loc->header->d,
-                          loc->header->N, q, rqqz,
-                          loc);
+              v1 = ((int64_t) (inv_qq[c] + umax) % ppl) - ppl;
+              for (; v1 < umax; v1 += ppl)
+                polyselect_hash_add (H, p, v1, q, rqqz, loc);
             }
         }
       polyselect_hash_clear (H);

@@ -84,13 +84,12 @@ polyselect_hash_init (polyselect_hash_ptr H, unsigned int init_size,
 
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
 void
-polyselect_hash_add (polyselect_hash_ptr H, unsigned long p, int64_t i, mpz_srcptr m0, mpz_srcptr ad,
-          unsigned long d, mpz_srcptr N, unsigned long q, mpz_srcptr rq,
+polyselect_hash_add (polyselect_hash_ptr H, unsigned long p, int64_t i,
+          unsigned long q, mpz_srcptr rq,
           polyselect_thread_locals_ptr loc)
 {
   uint32_t h;
 
-  ASSERT(m0 != NULL);
   ASSERT(H->size < H->alloc);
 
   h = (uint32_t) i % H->alloc;
@@ -103,7 +102,7 @@ polyselect_hash_add (polyselect_hash_ptr H, unsigned long p, int64_t i, mpz_srcp
   {
     if (H->slot[h].i == i) /* we cannot have H->slot[h].p = p, since for a
                        given prime p, all (p,i) values entered are different */
-      (*H->match) (H->slot[h].p, p, i, m0, ad, d, N, q, rq, loc);
+      (*H->match) (H->slot[h].p, p, i, q, rq, loc);
     if (UNLIKELY(++h == H->alloc))
       h = 0;
 #ifdef DEBUG_HASH_TABLE

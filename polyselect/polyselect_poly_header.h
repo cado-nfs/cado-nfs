@@ -9,9 +9,9 @@ extern "C" {
 
 /* structure to store information on N, d, ad, etc... */
 struct polyselect_poly_header_s {
-  mpz_t N;
+  mpz_srcptr N;         // a copy (const pointer), for convenience
   unsigned long d;
-  mpz_t ad;
+  mpz_srcptr ad;        // a copy (const pointer), for convenience
   mpz_t Ntilde;
   mpz_t m0;
 };
