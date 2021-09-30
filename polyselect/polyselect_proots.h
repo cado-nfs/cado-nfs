@@ -2,7 +2,6 @@
 #define POLYSELECT_PROOTS_H_
 
 #include <stdint.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,7 +20,6 @@ void polyselect_proots_init (polyselect_proots_ptr, unsigned long);
 void polyselect_proots_add (polyselect_proots_ptr, unsigned long, uint64_t*, unsigned long);
 void polyselect_proots_print (polyselect_proots_srcptr);
 void polyselect_proots_clear (polyselect_proots_ptr);
-
 
 #ifdef __cplusplus
 }

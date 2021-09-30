@@ -38,11 +38,258 @@
 #include "polyselect_main_queue.h"
 #include "polyselect_collisions.h"
 #include "polyselect_shash.h"
+#include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 #include "portability.h"
 #include "roots_mod.h"
 #include "size_optimization.h"
 #include "timing.h"		// for seconds
 #include "verbose.h"		// verbose_output_print
+#include "getprime.h"
+
+static void
+check_divexact_ui(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED,
+		  const unsigned long q, const char *q_name MAYBE_UNUSED)
+{
+#ifdef DEBUG_POLYSELECT
+  if (mpz_divisible_ui_p(d, q) == 0)
+    {
+      gmp_fprintf(stderr, "Error: %s=%Zd not divisible by %s=%lu\n",
+		  d_name, d, q_name, q);
+      exit(1);
+    }
+#endif
+  mpz_divexact_ui(r, d, q);
+}
+
+static void
+check_divexact(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED,
+	       const mpz_srcptr q, const char *q_name MAYBE_UNUSED)
+{
+#ifdef DEBUG_POLYSELECT
+  if (mpz_divisible_p(d, q) == 0)
+    {
+      gmp_fprintf(stderr, "Error: %s=%Zd not divisible by %s=%Zd\n",
+		  d_name, d, q_name, q);
+      exit(1);
+    }
+#endif
+  mpz_divexact(r, d, q);
+}
+
+
+/* rq is a root of N = (m0 + rq)^d mod (q^2) */
+/* This is called by polyselect_hash_add
+ *
+ * If rq is NULL, then q is 1, and we simply have a (p1,p2) match
+ */
+void
+polyselect_usual_match(unsigned long p1, unsigned long p2, const int64_t i,
+      uint64_t q, 
+      mpz_srcptr rq,
+      polyselect_thread_locals_ptr loc)
+{
+  polyselect_poly_header_srcptr header = loc->header;
+  mpz_t l, mtilde, m, adm1, t, k;
+  mpz_poly f, g, f_raw, g_raw;
+  int cmp, did_optimize;
+  double skew, logmu;
+
+  /* the expected rotation space is S^5 for degree 6 */
+#ifdef DEBUG_POLYSELECT
+  gmp_printf("Found match: (%lu,%lld) (%lu,%lld) for "
+	     "ad=%Zd, q=%llu, rq=%Zd\n",
+	     p1, (long long) i, p2, (long long) i, header->ad,
+	     (unsigned long long) q, rq);
+  gmp_printf("m0=%Zd\n", header->m0);
+#endif
+
+  mpz_init(l);
+  mpz_init(m);
+  mpz_init(t);
+  mpz_init(k);
+  mpz_init(adm1);
+  mpz_init(mtilde);
+
+  mpz_poly_init(f, header->d);
+  mpz_poly_init(g, 1);
+  mpz_poly_init(f_raw, header->d);
+  mpz_poly_init(g_raw, 1);
+  /* we have l = p1*p2*q */
+  mpz_set_ui(l, p1);
+  mpz_mul_ui(l, l, p2);
+  mpz_mul_ui(l, l, q);
+  /* mtilde = header->m0 + rq + i*q^2 */
+  mpz_set_si(mtilde, i);
+  if (rq) {
+      mpz_mul_ui(mtilde, mtilde, q);
+      mpz_mul_ui(mtilde, mtilde, q);
+      mpz_add(mtilde, mtilde, rq);
+  }
+  mpz_add(mtilde, mtilde, header->m0);
+  /* we should have Ntilde - mtilde^d = 0 mod {p1^2,p2^2,q^2} */
+
+  /* Small improvement: we have Ntilde = mtilde^d + l^2*R with R small.
+     If p^2 divides R, with p prime to d*ad, then we can accumulate p into l,
+     which will give an even smaller R' = R/p^2.
+     Note: this might produce duplicate polynomials, since a given p*l
+     might be found in different ways. For example with revision b5a1635 and
+     polyselect -P 60000 -N 12939597433839929710052817774007139127064894178566832462175875720079522272519444917218095639720802504629187785806903263303 -degree 5 -t 1 -admin 780 -admax 840 -incr 60 -nq 2317
+     the polynomial with Y1 = 35641965604484971 is found four times:
+     * once with q = 92537 = 37 * 41 * 61
+     * then with q = 182573 = 41 * 61 * 73
+     * then with q = 110741 = 37 * 41 * 73
+     * and finally with q = 164761 = 37 * 61 * 73
+     As a workaround, we only allow p > qmax, the largest prime factor of q.
+   */
+
+  /* compute the largest prime factor of q */
+  unsigned long qmax = 1;
+  for (unsigned long j = 0; j < LEN_SPECIAL_Q - 1; j++)
+    if ((q % SPECIAL_Q[j]) == 0)
+      qmax = SPECIAL_Q[j];
+
+  mpz_mul_ui(m, header->ad, header->d);
+  mpz_pow_ui(m, m, header->d);
+  mpz_divexact(m, m, header->ad);
+  mpz_mul(m, m, header->N);		/* m := Ntilde = d^d*ad^(d-1)*N */
+  mpz_pow_ui(t, mtilde, header->d);
+  mpz_sub(t, m, t);
+  mpz_divexact(t, t, l);
+  mpz_divexact(t, t, l);
+  unsigned long p;
+
+  prime_info pi;
+  prime_info_init(pi);
+  /* Note: we could find p^2 dividing t in a much more efficient way, for
+     example by precomputing the product of all primes < 2*P, then doing
+     a gcd with t, which gives say g, then computing gcd(t, t/g).
+     But if P is small, it would gain little with respect to the naive loop
+     below, and if P is large, we have only a few hits, thus the global
+     overhead will be small too. */
+  for (p = 2; p <= loc->main->Primes[loc->main->lenPrimes - 1]; p = getprime_mt(pi))
+    {
+      if (p <= qmax || polyselect_poly_header_skip(header, p))
+	continue;
+      while (mpz_divisible_ui_p(t, p * p))
+	{
+	  mpz_mul_ui(l, l, p);
+	  mpz_divexact_ui(t, t, p * p);
+	}
+    }
+  prime_info_clear(pi);
+  /* end of small improvement */
+
+  /* we want mtilde = d*ad*m + a_{d-1}*l with -d*ad/2 <= a_{d-1} < d*ad/2.
+     We have a_{d-1} = mtilde/l mod (d*ad). */
+  mpz_mul_ui(m, header->ad, header->d);
+  if (mpz_invert(adm1, l, m) == 0)
+    {
+      fprintf(stderr, "Error in 1/l mod (d*ad)\n");
+      exit(1);
+    }
+  mpz_mul(adm1, adm1, mtilde);
+  mpz_mod(adm1, adm1, m);	/* m is d*ad here */
+
+  /* we make -d*ad/2 <= adm1 < d*ad/2 */
+  mpz_mul_2exp(t, adm1, 1);
+  if (mpz_cmp(t, m) >= 0)
+    mpz_sub(adm1, adm1, m);
+
+  mpz_mul(m, adm1, l);
+  mpz_sub(m, mtilde, m);
+  check_divexact_ui(m, m, "m-a_{d-1}*l", header->d, "d");
+  check_divexact(m, m, "(m-a_{d-1}*l)/d", header->ad, "ad");
+  mpz_set(g->coeff[1], l);
+  mpz_neg(g->coeff[0], m);
+  mpz_set(f->coeff[header->d], header->ad);
+  mpz_pow_ui(t, m, header->d);
+  mpz_mul(t, t, header->ad);
+  mpz_sub(t, header->N, t);
+  mpz_set(f->coeff[header->d - 1], adm1);
+  check_divexact(t, t, "t", l, "l");
+  mpz_pow_ui(mtilde, m, header->d - 1);
+  mpz_mul(mtilde, mtilde, adm1);
+  mpz_sub(t, t, mtilde);
+  for (unsigned long j = header->d - 2; j > 0; j--)
+    {
+      check_divexact(t, t, "t", l, "l");
+      /* t = a_j*m^j + l*R thus a_j = t/m^j mod l */
+      mpz_pow_ui(mtilde, m, j);
+      /* fdiv rounds toward -infinity: adm1 = floor(t/mtilde) */
+      mpz_fdiv_q(adm1, t, mtilde);	/* t -> adm1 * mtilde + t */
+      mpz_invert(k, mtilde, l);	/* search adm1 + k such that
+				   t = (adm1 + k) * m^j mod l */
+      mpz_mul(k, k, t);
+      mpz_sub(k, k, adm1);
+      mpz_mod(k, k, l);
+
+      mpz_mul_2exp(k, k, 1);
+      cmp = mpz_cmp(k, l);
+      mpz_div_2exp(k, k, 1);
+      if (cmp >= 0)
+	mpz_sub(k, k, l);
+      mpz_add(adm1, adm1, k);
+      mpz_set(f->coeff[j], adm1);
+      /* subtract adm1*m^j */
+      mpz_submul(t, mtilde, adm1);
+    }
+  check_divexact(t, t, "t", l, "l");
+  mpz_set(f->coeff[0], t);
+
+  /* As noticed by Min Yang, Qingshu Meng, Zhangyi Wang, Lina Wang and
+     Huanguo Zhang in "Polynomial Selection for the Number Field Sieve in an
+     Elementary Geometric View" (https://eprint.iacr.org/2013/583),
+     if the coefficient of degree d-2 is of the same sign as the leading
+     coefficient, the size optimization will not work well, thus we simply
+     discard those polynomials. */
+  if (mpz_sgn(f->coeff[header->d]) * mpz_sgn(f->coeff[header->d - 2]) > 0)
+    {
+      loc->stats->discarded1++;
+      goto end;
+    }
+
+
+  mpz_poly_cleandeg(f, header->d);
+  ASSERT_ALWAYS(mpz_poly_degree(f) == (int) header->d);
+  mpz_poly_cleandeg(g, 1);
+  ASSERT_ALWAYS(mpz_poly_degree(g) == (int) 1);
+
+  mpz_poly_set(g_raw, g);
+  mpz_poly_set(f_raw, f);
+
+  /* _raw lognorm */
+  skew = L2_skewness(f, SKEWNESS_DEFAULT_PREC);
+  logmu = L2_lognorm(f, skew);
+
+  {
+    /* information on all polynomials */
+    loc->stats->collisions++;
+    loc->stats->tot_found++;
+    polyselect_data_series_add(loc->stats->raw_lognorm, logmu);
+    polyselect_data_series_add(loc->stats->raw_proj_alpha,
+				 get_alpha_projective(f, get_alpha_bound()));
+  }
+
+  /* if the polynomial has small norm, we optimize it */
+  did_optimize = optimize_raw_poly(f, g, loc->main);
+
+  /* print optimized (maybe size- or size-root- optimized) polynomial */
+  if (did_optimize && loc->main->verbose >= 0)
+      output_polynomials(f_raw, g_raw, header->N, f, g, loc);
+
+end:
+  mpz_clear(l);
+  mpz_clear(m);
+  mpz_clear(t);
+  mpz_clear(k);
+  mpz_clear(adm1);
+  mpz_clear(mtilde);
+  mpz_poly_clear(f);
+  mpz_poly_clear(g);
+  mpz_poly_clear(f_raw);
+  mpz_poly_clear(g_raw);
+}
 
 static void newAlgo(polyselect_thread_locals_ptr loc)
 {
@@ -52,9 +299,9 @@ static void newAlgo(polyselect_thread_locals_ptr loc)
 
   polyselect_shash_t H;
   polyselect_shash_init(H, 4 * loc->main->lenPrimes);
-  c = collision_on_p(H, loc);
+  c = collision_on_p(H, polyselect_usual_match, loc);
   if (loc->main->nq > 0)
-      collision_on_sq(c, H, loc);
+      collision_on_sq(c, H, polyselect_usual_match, loc);
   polyselect_shash_clear(H);
 }
 
