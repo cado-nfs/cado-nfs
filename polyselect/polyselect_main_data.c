@@ -32,11 +32,12 @@ void polyselect_main_data_init_defaults(polyselect_main_data_ptr main)
     main->Primes = NULL;
     main->lenPrimes = 0;
     pthread_mutex_init(&main->stats_lock, NULL);
-    polyselect_stats_init(main->stats);
     main->verbose = 0;
     main->sopt_effort = SOPT_DEFAULT_EFFORT;
     main->maxtime = DBL_MAX;
     main->target_E = 0;
+    main->keep = DEFAULT_POLYSELECT_KEEP;
+    polyselect_stats_init(main->stats, main->keep);
 }
 
 
@@ -111,7 +112,7 @@ unsigned long
 find_suitable_lq(polyselect_poly_header_srcptr header,
 		 polyselect_qroots_srcptr SQ_R,
                  unsigned long *k,
-                 polyselect_main_data_ptr main)
+                 polyselect_main_data_srcptr main)
 {
   unsigned long prod = 1;
   unsigned int i;
@@ -140,7 +141,7 @@ find_suitable_lq(polyselect_poly_header_srcptr header,
      so that the total number of combinations is at least nq. */
   for (lq = *k; number_comb(SQ_R, *k, lq) < main->nq && lq < SQ_R->size; lq++);
 
-  if (main->verbose) {
+  if (main->verbose > 0) {
     printf("# Info: nq=%lu leads to choosing k (k=%lu) primes among %lu (out of %u).\n",
             main->nq, *k, lq, SQ_R->size);
     printf("# Info: a combination of all %u possible primes leads to nq=%lu.\n",
@@ -150,10 +151,127 @@ find_suitable_lq(polyselect_poly_header_srcptr header,
   return lq;
 }
 
-void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect_stats_ptr stats)
+/* Given the current global state (on which we expect to have a lock!),
+ * print the expected time to reach the given target E.
+ *
+ * This uses the Weibull moments functions. Notet that the target_E
+ * option is incompatible with maxtime (which also uses the same
+ * things)
+ */
+static size_t snprintf_expected_time_target_E(
+        char * buf, size_t size,
+        polyselect_stats_ptr stats,
+        double target_E)
+{
+    size_t np = 0;
+    double beta, eta, prob;
+    polyselect_data_series_srcptr exp_E = stats->exp_E;
+
+    polyselect_data_series_estimate_weibull_moments2(&beta, &eta, exp_E);
+    unsigned long collisions_good = stats->collisions_good;
+
+    np += snprintf(buf + np, size - np, "# E:");
+    ASSERT_ALWAYS(np <= size);
+
+    np += polyselect_data_series_snprintf_summary(buf + np, size - np, exp_E);
+    ASSERT_ALWAYS(np <= size);
+
+    np += snprintf(buf + np, size - np, "\n");
+    ASSERT_ALWAYS(np <= size);
+
+    prob = 1.0 - exp(-pow(target_E / eta, beta));
+    if (prob == 0)	/* for x small, exp(x) ~ 1+x */
+        prob = pow(target_E / eta, beta);
+
+    np += snprintf(buf + np, size - np,
+            "# target_E=%.2f: collisions=%.2e, time=%.2e"
+            " (beta %.2f,eta %.2f)\n", target_E, 1.0 / prob,
+            seconds() / (prob * collisions_good), beta, eta);
+    ASSERT_ALWAYS(np <= size);
+
+    return np;
+}
+
+/* Given the current global state (on which we expect to have a lock!),
+ * print what we can expect to reach after maxtime. We also take the ad
+ * parameter, since it's handy to predict which ad we can expect to
+ * reach.
+ *
+ * This uses the Weibull moments functions. Notet that the maxtime
+ * option is incompatible with target_E (which also uses the same
+ * things)
+ */
+static size_t snprintf_expected_goal_maxtime(
+        char * buf, size_t size,
+        polyselect_stats_ptr stats,
+        double maxtime,
+        mpz_srcptr admin,
+        mpz_srcptr ad)
+{
+    size_t np = 0;
+    double beta, eta, prob;
+    polyselect_data_series_srcptr exp_E = stats->exp_E;
+
+    /* estimate the parameters of a Weibull distribution for E */
+    polyselect_data_series_estimate_weibull_moments2(&beta, &eta, exp_E);
+    unsigned long collisions_good = stats->collisions_good;
+
+    np += snprintf(buf + np, size - np, "# E:");
+    ASSERT_ALWAYS(np <= size);
+
+    np += polyselect_data_series_snprintf_summary(buf + np, size - np, exp_E);
+    ASSERT_ALWAYS(np <= size);
+
+    np += snprintf(buf + np, size - np, "\n");
+    ASSERT_ALWAYS(np <= size);
+
+    /* time = seconds () / (prob * collisions_good)
+       where  prob = 1 - exp (-(E/eta)^beta) */
+    unsigned long n = collisions_good;	/* #polynomials found so far */
+    double time_so_far = seconds();
+    double time_per_poly = time_so_far / n;	/* average time per poly */
+    double admin_d = mpz_get_d(admin);
+    double ad_d = mpz_get_d(ad);
+    double adrange = (ad_d - admin_d) * (maxtime / time_so_far);
+    /* WTF ??? I'm commenting that line, but what does it mean ???
+     * Is it a leftover from something?
+     */
+    // adrange = 2.00e+15 - 99900000000000.0;
+    prob = time_so_far / (maxtime * n);
+    double E = eta * pow(-log(1 - prob), 1.0 / beta);
+
+    polyselect_data_series_ptr best_exp_E_Weibull = stats->best_exp_E_Weibull;
+    polyselect_data_series_add(best_exp_E_Weibull, E);
+    /* since the values of (eta,beta) fluctuate a lot, because
+       they depend on the random samples in estimate_weibull_moments2,
+       we take the average value for best_exp_E */
+    E = polyselect_data_series_mean(best_exp_E_Weibull);
+
+    np += snprintf(buf + np, size - np,
+            "# %.2fs/poly, eta %.2f, beta %.3f, admax %.2e, best exp_E %.2f\n",
+            time_per_poly, eta, beta, admin_d + adrange, E);
+    return np;
+}
+
+void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad)
 {
     pthread_mutex_lock(&main->stats_lock);
     polyselect_stats_accumulate(main->stats, stats);
+
+    if (main->target_E != 0 && main->stats->exp_E->size) {
+        char buf[1024];
+        snprintf_expected_time_target_E(buf, sizeof(buf), main->stats, main->target_E);
+        fputs(buf, stdout);
+        fflush(stdout);
+    }
+
+    if (main->maxtime != DBL_MAX && main->stats->exp_E->size) {
+        char buf[1024];
+        snprintf_expected_goal_maxtime(buf, sizeof(buf), main->stats, main->maxtime, main->admin, ad);
+        fputs(buf, stdout);
+        fflush(stdout);
+    }
+
     pthread_mutex_unlock(&main->stats_lock);
 }
 

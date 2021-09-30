@@ -12,7 +12,7 @@ void polyselect_thread_locals_init(polyselect_thread_locals_ptr loc, polyselect_
     polyselect_poly_header_init(loc->header, main->N, main->d, loc->ad);
     polyselect_proots_init(loc->R, main->lenPrimes);
 
-    polyselect_stats_init(loc->stats);
+    polyselect_stats_init(loc->stats, main->keep);
     loc->rstate = loc->stats->rstate;
 }
 

@@ -29,26 +29,18 @@ extern "C" {
 #endif
 
 
-extern void
-sprintf_poly_info(char *buf,
-		size_t size,
-		mpz_poly_srcptr f,
-		mpz_poly_srcptr g,
-		mpz_srcptr n,
-		const int raw,
-                polyselect_thread_locals_ptr loc);
-
-
 /* This is one the functions through which a raw polynomial pair,
  * found from a collision in the tables, undergoes further processing.
+ *
+ * Note that the stats structure to be used is _not_ protected by locks,
+ * so that it's much better if it's a thread-local stats object. It will
+ * be pushed to the global stats with polyselect_main_data_commit_stats
  */
-extern int optimize_raw_poly(mpz_poly_ptr f, mpz_poly_ptr g, polyselect_main_data_ptr);
+extern int optimize_raw_poly(mpz_poly_ptr f, mpz_poly_ptr g,
+        polyselect_main_data_srcptr,
+        polyselect_stats_ptr stats);
 
-extern void
-output_polynomials(mpz_poly_srcptr f_old, mpz_poly_srcptr g_old,
-		   const mpz_t N,
-		   mpz_poly_srcptr f, mpz_poly_srcptr g,
-		   polyselect_thread_locals_ptr loc);
+extern void polyselect_fprintf_poly_pair(FILE * fp, mpz_srcptr N,                    mpz_poly_srcptr f, mpz_poly_srcptr g, int raw);
 
 #ifdef __cplusplus
 }

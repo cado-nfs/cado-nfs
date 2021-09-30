@@ -141,7 +141,7 @@ polyselect_data_series_estimate_weibull_moments2(double *beta, double *eta, poly
 /* Add the contents of the data series "from" to the data series "to".
  * The input data series is not changed.
  */
-void polyselect_data_series_combine(polyselect_data_series_ptr to, polyselect_data_series_srcptr from)
+void polyselect_data_series_merge(polyselect_data_series_ptr to, polyselect_data_series_srcptr from)
 {
   if (to->size + from->size >= to->alloc)
     {

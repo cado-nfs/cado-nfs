@@ -26,6 +26,7 @@ add_library(polyselect_middle
     polyselect_main_data.c
     polyselect_main_queue.c
     polyselect_poly_header.c
+    polyselect_priority_queue.c
     polyselect_proots.c
     polyselect_qroots.c
     polyselect_shash.c

@@ -48,7 +48,7 @@ extern double polyselect_data_series_std_dev (polyselect_data_series_srcptr);
 extern void polyselect_data_series_estimate_weibull_moments(double *, double *, polyselect_data_series_srcptr);
 extern void polyselect_data_series_estimate_weibull_moments2(double *, double *, polyselect_data_series_srcptr);
 extern int polyselect_data_series_snprintf_summary(char * tmp, size_t size, polyselect_data_series_srcptr s);
-extern void polyselect_data_series_combine(polyselect_data_series_ptr to, polyselect_data_series_srcptr from);
+extern void polyselect_data_series_merge(polyselect_data_series_ptr to, polyselect_data_series_srcptr from);
 
 
 #ifdef __cplusplus

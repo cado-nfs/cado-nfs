@@ -272,11 +272,22 @@ polyselect_usual_match(unsigned long p1, unsigned long p2, const int64_t i,
   }
 
   /* if the polynomial has small norm, we optimize it */
-  did_optimize = optimize_raw_poly(f, g, loc->main);
+  did_optimize = optimize_raw_poly(f, g, loc->main, loc->stats);
 
   /* print optimized (maybe size- or size-root- optimized) polynomial */
-  if (did_optimize && loc->main->verbose >= 0)
-      output_polynomials(f_raw, g_raw, header->N, f, g, loc);
+  if (did_optimize && loc->main->verbose >= 0) {
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+      {
+          polyselect_fprintf_poly_pair(stdout, header->N, f_raw, g_raw, 1);
+          puts("#");
+          polyselect_fprintf_poly_pair(stdout, header->N, f, g, 0);
+          /* There's a significant carriage return to print. */
+          puts("");
+      }
+  }
+
 
 end:
   mpz_clear(l);
@@ -419,9 +430,8 @@ int main(int argc, char *argv[])
   param_list_parse_uint(pl, "sopteffort", &main_data->sopt_effort);
 
   {
-      int keep = DEFAULT_POLYSELECT_KEEP;
-      param_list_parse_int(pl, "keep", &keep);
-      polyselect_stats_setup_keep_best(main_data->stats, keep);
+      param_list_parse_int(pl, "keep", &main_data->keep);
+      polyselect_stats_update_keep(main_data->stats, main_data->keep);
   }
 
   polyselect_main_data_parse_maxtime_or_target(main_data, pl);
@@ -477,7 +487,11 @@ int main(int argc, char *argv[])
           fflush(stdout);
       }
 
-      polyselect_main_data_commit_stats(main_data, loc->stats);
+      /* This also print the global progress statistics (e.g. related to
+       * maxtime, or target_E ; note that this is rarer than it used to
+       * be.)
+       */
+      polyselect_main_data_commit_stats(main_data, loc->stats, loc->ad);
 
       polyselect_thread_locals_clear(loc);
   }

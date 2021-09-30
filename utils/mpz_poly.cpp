@@ -1117,6 +1117,28 @@ mpz_poly_fprintf_cado_format (FILE *fp, mpz_poly_srcptr f, const char letter,
   }
 }
 
+void
+mpz_poly_asprintf_cado_format (char **pstr, mpz_poly_srcptr f, const char letter,
+                              const char *prefix)
+{
+    size_t size = 10;
+    char * str = (char *) malloc(size);
+    size_t p = 0;
+  for (int i = 0; i <= f->deg; i++)
+  {
+      for(size_t n = SIZE_MAX ; ; ) {
+          n = gmp_snprintf (str + p, size - p, "%s%c%d: %Zd\n", prefix ? prefix : "", letter, i, f->coeff[i]);
+          if (n < size - p) {
+              p += n;
+              break;
+          }
+          size *=2;
+          str = (char *) realloc(str, size);
+      }
+  }
+  *pstr = str;
+}
+
 void mpz_poly_print_raw(mpz_poly_srcptr f){
     cxx_mpz_poly F;
     mpz_poly_set(F, f);

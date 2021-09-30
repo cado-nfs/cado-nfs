@@ -408,45 +408,6 @@ static inline void polyselect_proots_dispatch_to_hash_flat(
     }
 }/*}}}*/
 
-static inline unsigned long compute_and_lift_proots(polyselect_thread_locals_ptr loc)/*{{{*/
-{
-    polyselect_proots_ptr R = loc->R;
-    polyselect_poly_header_srcptr header = loc->header;
-    gmp_randstate_ptr rstate = loc->rstate;
-
-    unsigned long tot_roots = 0;
-    uint64_t *
-        rp = (uint64_t *) malloc(header->d * sizeof(uint64_t));
-    if (rp == NULL)
-    {
-        fprintf(stderr, "Error, cannot allocate memory in collision_on_p\n");
-        exit(1);
-    }
-
-    for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
-    {
-        unsigned long p = loc->main->Primes[nprimes];
-
-        /* add fake roots to keep indices */
-        if (polyselect_poly_header_skip(header, p))
-        {
-            R->nr[nprimes] = 0;        // nr = 0.
-            R->roots[nprimes] = NULL;
-            continue;
-        }
-
-        unsigned long nrp = roots_mod_uint64(rp,
-                mpz_fdiv_ui(header->Ntilde, p),
-                header->d,
-                p, rstate);
-        tot_roots += nrp;
-        nrp = roots_lift(rp, header->Ntilde, header->d, header->m0, p, nrp);
-        polyselect_proots_add(R, nrp, rp, nprimes);
-    }
-    free(rp);
-    return tot_roots;
-}/*}}}*/
-
 /* find collisions between "P" primes, return number of loops */
 unsigned long
 collision_on_p(polyselect_shash_ptr H, polyselect_hash_match_t match, polyselect_thread_locals_ptr loc)
@@ -459,7 +420,7 @@ collision_on_p(polyselect_shash_ptr H, polyselect_hash_match_t match, polyselect
   /* first compute and lift all roots modulo the primes in
    * loc->main->Primes ; we store that in loc->R
    */
-  unsigned long tot_roots = compute_and_lift_proots(loc);
+  unsigned long tot_roots = polyselect_proots_compute(loc->R, loc->header, loc->main, loc->rstate);
 
   /* We first store only i's (and not p's), and look for collisions,
    * which occur very rarely.

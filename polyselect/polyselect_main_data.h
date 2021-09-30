@@ -44,6 +44,8 @@ struct polyselect_main_data_s {
     pthread_mutex_t stats_lock;
 
     int verbose;
+
+    int keep;
 };
 
 typedef struct polyselect_main_data_s polyselect_main_data[1];
@@ -66,9 +68,9 @@ extern unsigned long
 find_suitable_lq(polyselect_poly_header_srcptr header,
 		 polyselect_qroots_srcptr SQ_R,
                  unsigned long *k,
-                 polyselect_main_data_ptr main);
+                 polyselect_main_data_srcptr main);
 
-extern void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect_stats_ptr stats);
+extern void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad);
 
 
 extern void polyselect_main_data_prepare_primes(polyselect_main_data_ptr main);
