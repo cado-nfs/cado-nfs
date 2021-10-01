@@ -17,6 +17,7 @@
 #include "getprime.h"   // getprime
 #include "misc.h"   // nprimes_interval
 #include "macros.h"
+#include "polyselect_match.h"
 
 /* The following are primes used as factors in the special-q.
    Warning: if you add larger primes, you should ensure that any product
@@ -100,9 +101,21 @@ polyselect_hash_add (polyselect_hash_ptr H, unsigned long p, int64_t i,
 #endif
   while (H->slot[h].i != 0)
   {
-    if (H->slot[h].i == i) /* we cannot have H->slot[h].p = p, since for a
-                       given prime p, all (p,i) values entered are different */
-      (*H->match) (H->slot[h].p, p, i, q, rq, loc);
+      if (H->slot[h].i == i) {
+          /* we cannot have H->slot[h].p = p, since for a
+             given prime p, all (p,i) values entered are different */
+          if (H->match) {
+              (*H->match) (H->slot[h].p, p, i, q, rq, loc);
+          } else {
+              /* H->match == NULL means that we're going to do this
+               * asynchronously */
+              /* must be on the heap because of the dllist stuff */
+              polyselect_match_info_ptr job = malloc(sizeof(polyselect_match_info_t));
+              polyselect_match_info_init(job, H->slot[h].p, p, i, q, rq, loc);
+
+              dllist_push_back(&loc->async_jobs, &job->queue);
+          }
+      }
     if (UNLIKELY(++h == H->alloc))
       h = 0;
 #ifdef DEBUG_HASH_TABLE

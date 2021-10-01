@@ -14,6 +14,8 @@ void polyselect_thread_locals_init(polyselect_thread_locals_ptr loc, polyselect_
 
     polyselect_stats_init(loc->stats, main->keep);
     loc->rstate = loc->stats->rstate;
+
+    dllist_init_head(&loc->async_jobs);
 }
 
 void polyselect_thread_locals_clear(polyselect_thread_locals_ptr loc)

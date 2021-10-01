@@ -39,6 +39,7 @@
 #include "polyselect_main_queue.h"
 #include "polyselect_collisions.h"
 #include "polyselect_shash.h"
+#include "polyselect_match.h"
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
 #include "portability.h"
@@ -47,6 +48,7 @@
 #include "timing.h"		// for seconds
 #include "verbose.h"		// verbose_output_print
 #include "getprime.h"
+#include "dllist.h"
 
 static void
 check_divexact_ui(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED,
@@ -100,24 +102,22 @@ static inline void chat_chronogram(const char * fmt, ...)
     va_end(ap);
 }
 
-/* rq is a root of N = (m0 + rq)^d mod (q^2) */
-/* This is called by polyselect_hash_add
- *
- * If rq is NULL, then q is 1, and we simply have a (p1,p2) match
- */
+
 void
-polyselect_usual_match(unsigned long p1, unsigned long p2, const int64_t i,
-      uint64_t q, 
-      mpz_srcptr rq,
-      polyselect_thread_locals_ptr loc)
+polyselect_process_match_async(polyselect_main_data_srcptr main, polyselect_stats_ptr stats, polyselect_match_info_ptr job)
 {
-  polyselect_poly_header_srcptr header = loc->header;
+  polyselect_poly_header_srcptr header = job->header;
+  unsigned long p1 = job->p1;
+  unsigned long p2 = job->p2;
+  const int64_t i = job->i;
+  uint64_t q = job->q;
+  mpz_srcptr rq = job->rq;
+
+
   mpz_t l, mtilde, m, adm1, t, k;
   mpz_poly f, g, f_raw, g_raw;
   int cmp, did_optimize;
   double skew, logmu;
-
-  chat_chronogram("enter match");
 
   /* the expected rotation space is S^5 for degree 6 */
 #ifdef DEBUG_POLYSELECT
@@ -191,7 +191,7 @@ polyselect_usual_match(unsigned long p1, unsigned long p2, const int64_t i,
      But if P is small, it would gain little with respect to the naive loop
      below, and if P is large, we have only a few hits, thus the global
      overhead will be small too. */
-  for (p = 2; p <= loc->main->Primes[loc->main->lenPrimes - 1]; p = getprime_mt(pi))
+  for (p = 2; p <= main->Primes[main->lenPrimes - 1]; p = getprime_mt(pi))
     {
       if (p <= qmax || polyselect_poly_header_skip(header, p))
 	continue;
@@ -269,7 +269,7 @@ polyselect_usual_match(unsigned long p1, unsigned long p2, const int64_t i,
      discard those polynomials. */
   if (mpz_sgn(f->coeff[header->d]) * mpz_sgn(f->coeff[header->d - 2]) > 0)
     {
-      loc->stats->discarded1++;
+      stats->discarded1++;
       goto end;
     }
 
@@ -288,18 +288,18 @@ polyselect_usual_match(unsigned long p1, unsigned long p2, const int64_t i,
 
   {
     /* information on all polynomials */
-    loc->stats->collisions++;
-    loc->stats->tot_found++;
-    polyselect_data_series_add(loc->stats->raw_lognorm, logmu);
-    polyselect_data_series_add(loc->stats->raw_proj_alpha,
+    stats->collisions++;
+    stats->tot_found++;
+    polyselect_data_series_add(stats->raw_lognorm, logmu);
+    polyselect_data_series_add(stats->raw_proj_alpha,
 				 get_alpha_projective(f, get_alpha_bound()));
   }
 
   /* if the polynomial has small norm, we optimize it */
-  did_optimize = optimize_raw_poly(f, g, loc->main, loc->stats);
+  did_optimize = optimize_raw_poly(f, g, main, stats);
 
   /* print optimized (maybe size- or size-root- optimized) polynomial */
-  if (did_optimize && loc->main->verbose >= 0) {
+  if (did_optimize && main->verbose >= 0) {
 #ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
@@ -324,28 +324,6 @@ end:
   mpz_poly_clear(g);
   mpz_poly_clear(f_raw);
   mpz_poly_clear(g_raw);
-  chat_chronogram("leave match");
-}
-
-static void newAlgo(polyselect_thread_locals_ptr loc)
-{
-  unsigned long c = 0;
-
-  loc->stats->number_of_ad_values++;
-
-  chat_chronogram("enter ad");
-  polyselect_shash_t H;
-  polyselect_shash_init(H, 4 * loc->main->lenPrimes);
-  chat_chronogram("enter collision_on_p");
-  c = collision_on_p(H, polyselect_usual_match, loc);
-  chat_chronogram("leave collision_on_p");
-  if (loc->main->nq > 0) {
-      chat_chronogram("enter collision_on_sq");
-      collision_on_sq(c, H, polyselect_usual_match, loc);
-      chat_chronogram("leave collision_on_sq");
-  }
-  polyselect_shash_clear(H);
-  chat_chronogram("leave ad, %zu", loc->stats->collisions + loc->stats->discarded1);
 }
 
 static void display_expected_memory_usage(polyselect_main_data_srcptr main, int nthreads)
@@ -500,6 +478,9 @@ int main(int argc, char *argv[])
 	      idx_max, nthreads);
     }
 
+
+  unsigned long idx = 0;
+
   pthread_mutex_init(&chronogram_lock, NULL);
   if (chronogram_file) {
       chronogram = fopen(chronogram_file, "w");
@@ -510,46 +491,76 @@ int main(int argc, char *argv[])
 #pragma omp parallel
 #endif
   {
-#ifdef HAVE_OPENMP
-#pragma omp for schedule(dynamic,1)
-#endif
-      for (unsigned long idx = 0; idx < idx_max; idx++)
-      {
-          polyselect_thread_locals loc;
-          polyselect_thread_locals_init(loc, main_data, idx);
+      /* The loop starts with the mutex locked */
+      pthread_mutex_lock(&main_data->lock);
+      for(;;) {
+          if (!dllist_is_empty(&main_data->async_jobs)) {
+              struct dllist_head * ptr = main_data->async_jobs.next;
+              polyselect_match_info_ptr job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
+              dllist_pop(ptr);
+              pthread_mutex_unlock(&main_data->lock);
+              /********* BEGIN UNLOCKED SECTION **************/
+              chat_chronogram("enter match");
+              polyselect_stats stats;
+              polyselect_stats_init(stats, main_data->keep);
+              polyselect_process_match_async(main_data, stats, job);
+              polyselect_match_info_clear(job);
+              free(job);
+              chat_chronogram("leave match");
+              /********** END UNLOCKED SECTION ***************/
+              pthread_mutex_lock(&main_data->lock);
+              polyselect_main_data_commit_stats_unlocked(main_data, stats, NULL);
+              polyselect_stats_clear(stats);
+          } else if (idx < idx_max) {
+              unsigned long i = idx++;
+              pthread_mutex_unlock(&main_data->lock);
+              /********* BEGIN UNLOCKED SECTION **************/
+              chat_chronogram("enter ad");
 
-          newAlgo(loc);
+              polyselect_thread_locals loc;
+              polyselect_thread_locals_init(loc, main_data, i);
 
-          if (main_data->verbose > 0)
-#ifdef HAVE_OPENMP
-#pragma omp critical
-#endif
-          {
-              printf("# thread %d completed ad=%.0f at time=%.2fs ; ad: %.2fs\n",
-                      omp_get_thread_num(),
-                      mpz_get_d(loc->ad),
-                      wct_seconds() - main_data->stats->wct0,
-                      wct_seconds() - loc->stats->wct0);
-              fflush(stdout);
+              unsigned long c = 0;
+
+              loc->stats->number_of_ad_values++;
+
+              polyselect_shash_t H;
+              polyselect_shash_init(H, 4 * loc->main->lenPrimes);
+              c = collision_on_p(H, NULL, loc);
+              if (loc->main->nq > 0)
+                  collision_on_sq(c, H, NULL, loc);
+              polyselect_shash_clear(H);
+
+              {
+                  printf("# thread %d completed ad=%.0f at time=%.2fs ; ad: %.2fs\n",
+                          omp_get_thread_num(),
+                          mpz_get_d(loc->ad),
+                          wct_seconds() - main_data->stats->wct0,
+                          wct_seconds() - loc->stats->wct0);
+                  fflush(stdout);
+              }
+
+              chat_chronogram("leave ad, %zu", dllist_length(&loc->async_jobs));
+              /********** END UNLOCKED SECTION ***************/
+              pthread_mutex_lock(&main_data->lock);
+
+              polyselect_main_data_commit_stats_unlocked(main_data, loc->stats, loc->ad);
+
+              dllist_bulk_move_back(&main_data->async_jobs, &loc->async_jobs);
+          } else {
+              /* we're done! */
+              break;
           }
-
-          /* This also print the global progress statistics (e.g. related to
-           * maxtime, or target_E ; note that this is rarer than it used to
-           * be.)
-           */
-          polyselect_main_data_commit_stats(main_data, loc->stats, loc->ad);
-
-          polyselect_thread_locals_clear(loc);
       }
-#ifdef HAVE_OPENMP
-#pragma omp critical
-#endif
+
       {
           printf("# thread %d exits at time=%.2fs\n",
                   omp_get_thread_num(),
                   wct_seconds() - main_data->stats->wct0);
           fflush(stdout);
       }
+
+      pthread_mutex_unlock(&main_data->lock);
   }
 
   if (chronogram_file)

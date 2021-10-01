@@ -11,6 +11,7 @@
 extern "C" {
 #endif
 
+
 /* find collisions between "P" primes, return number of loops */
 extern unsigned long
 collision_on_p(polyselect_shash_ptr H,

@@ -46,6 +46,7 @@ struct polyselect_hash_s
   unsigned long coll;
   unsigned long coll_all;
 #endif
+  /* This is non-NULL only if the matching job is done synchronously */
   polyselect_hash_match_t match;
 };
 typedef struct polyselect_hash_s polyselect_hash_t[1];

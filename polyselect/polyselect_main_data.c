@@ -31,13 +31,14 @@ void polyselect_main_data_init_defaults(polyselect_main_data_ptr main)
     cado_poly_init(main->curr_poly);
     main->Primes = NULL;
     main->lenPrimes = 0;
-    pthread_mutex_init(&main->stats_lock, NULL);
+    pthread_mutex_init(&main->lock, NULL);
     main->verbose = 0;
     main->sopt_effort = SOPT_DEFAULT_EFFORT;
     main->maxtime = DBL_MAX;
     main->target_E = 0;
     main->keep = DEFAULT_POLYSELECT_KEEP;
     polyselect_stats_init(main->stats, main->keep);
+    dllist_init_head(&main->async_jobs);
 }
 
 
@@ -49,7 +50,7 @@ void polyselect_main_data_clear(polyselect_main_data_ptr main)
     cado_poly_clear(main->best_poly);
     cado_poly_clear(main->curr_poly);
     free(main->Primes);
-    pthread_mutex_destroy(&main->stats_lock);
+    pthread_mutex_destroy(&main->lock);
     polyselect_stats_clear(main->stats);
 }
 
@@ -253,10 +254,17 @@ static size_t snprintf_expected_goal_maxtime(
     return np;
 }
 
-void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad)
+void polyselect_main_data_commit_stats_unlocked(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad)
 {
-    pthread_mutex_lock(&main->stats_lock);
     polyselect_stats_accumulate(main->stats, stats);
+
+    if (!ad) {
+        /* if ad==NULL, we're committing stats for an asynchronous job,
+         * meaning that we're not interested in the time projection stuff
+         * below
+         */
+        return;
+    }
 
     if (main->target_E != 0 && main->stats->exp_E->size) {
         char buf[1024];
@@ -271,8 +279,14 @@ void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect
         fputs(buf, stdout);
         fflush(stdout);
     }
+}
 
-    pthread_mutex_unlock(&main->stats_lock);
+
+void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad)
+{
+    pthread_mutex_lock(&main->lock);
+    polyselect_main_data_commit_stats_unlocked(main, stats, ad);
+    pthread_mutex_unlock(&main->lock);
 }
 
 /* init prime array */

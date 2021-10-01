@@ -11,7 +11,11 @@ extern "C" {
 struct polyselect_poly_header_s {
   mpz_srcptr N;         // a copy (const pointer), for convenience
   unsigned long d;
-  mpz_srcptr ad;        // a copy (const pointer), for convenience
+  /* ad could be made a const pointer to the polyselect_thread_locals
+   * structure, but this is incompatible with doing the match processsing
+   * asynchronously.
+   */
+  mpz_t ad;
   mpz_t Ntilde;
   mpz_t m0;
 };
@@ -20,6 +24,7 @@ typedef struct polyselect_poly_header_s * polyselect_poly_header_ptr;
 typedef const struct polyselect_poly_header_s * polyselect_poly_header_srcptr;
 
 void polyselect_poly_header_init (polyselect_poly_header_ptr, mpz_ptr, unsigned long, mpz_ptr);
+void polyselect_poly_header_set (polyselect_poly_header_ptr, polyselect_poly_header_srcptr);
 void polyselect_poly_header_clear (polyselect_poly_header_ptr);
 int polyselect_poly_header_skip (polyselect_poly_header_srcptr, unsigned long);
 

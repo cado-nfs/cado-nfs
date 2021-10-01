@@ -7,6 +7,7 @@
 #include "polyselect_poly_header.h"
 #include "polyselect_proots.h"
 #include "polyselect_stats.h"
+#include "dllist.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,6 +41,12 @@ struct polyselect_thread_locals_s {
      * probably live on the stack somehere in the collisions_ functions
      * now */
     polyselect_proots_t R;
+
+    /* Are there any asynchronous tasks that this local thread in
+     * particular has set aside, and that should be picked up for further
+     * processing ?
+     */
+    struct dllist_head async_jobs;
 };
 
 typedef struct polyselect_thread_locals_s polyselect_thread_locals[1];
