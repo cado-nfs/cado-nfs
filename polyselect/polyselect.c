@@ -35,6 +35,9 @@
 #include "macros.h"		// ASSERT
 #include "misc.h"
 #include "omp_proxy.h"
+#ifdef HAVE_HWLOC
+#include "hwloc-aux.h"
+#endif
 #include "params.h"
 #include "polyselect_main_queue.h"
 #include "polyselect_collisions.h"
@@ -116,7 +119,7 @@ polyselect_process_match_async(polyselect_main_data_srcptr main, polyselect_stat
 
   mpz_t l, mtilde, m, adm1, t, k;
   mpz_poly f, g, f_raw, g_raw;
-  int cmp, did_optimize;
+  int cmp, did_optimize = 0;
   double skew, logmu;
 
   /* the expected rotation space is S^5 for degree 6 */
@@ -300,15 +303,15 @@ polyselect_process_match_async(polyselect_main_data_srcptr main, polyselect_stat
 
   /* print optimized (maybe size- or size-root- optimized) polynomial */
   if (did_optimize && main->verbose >= 0) {
-#ifdef HAVE_OPENMP
-#pragma omp critical
-#endif
       {
+          static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
+          pthread_mutex_lock(&iolock);
           polyselect_fprintf_poly_pair(stdout, header->N, f_raw, g_raw, 1);
           puts("#");
           polyselect_fprintf_poly_pair(stdout, header->N, f, g, 0);
           /* There's a significant carriage return to print. */
           puts("");
+          pthread_mutex_unlock(&iolock);
       }
   }
 
@@ -387,11 +390,144 @@ static void usage(const char *argv, const char *missing, param_list_ptr pl)
   exit(EXIT_FAILURE);
 }
 
+struct polyselect_thread_common_descriptor_s {
+    unsigned int idx;
+    unsigned int idx_max;
+    polyselect_main_data_ptr main;
+    pthread_mutex_t lock;
+#ifdef HAVE_HWLOC
+    hwloc_topology_t topology;
+#endif
+};
+typedef struct polyselect_thread_common_descriptor_s polyselect_thread_common_descriptor[1];
+typedef struct polyselect_thread_common_descriptor_s * polyselect_thread_common_descriptor_ptr;
+typedef const struct polyselect_thread_common_descriptor_s * polyselect_thread_common_descriptor_srcptr;
+
+struct polyselect_thread_descriptor_s {
+    int i;
+#ifdef HAVE_HWLOC
+    hwloc_cpuset_t cpubind;
+#endif
+    pthread_t tid;
+    polyselect_thread_common_descriptor_ptr common;
+};
+typedef struct polyselect_thread_descriptor_s polyselect_thread_descriptor[1];
+typedef struct polyselect_thread_descriptor_s * polyselect_thread_descriptor_ptr;
+typedef const struct polyselect_thread_descriptor_s * polyselect_thread_descriptor_srcptr;
+
+void * toplevel_thread_loop(polyselect_thread_descriptor_ptr arg)
+{
+#ifdef HAVE_HWLOC
+    if (arg->cpubind) {
+        char * str;
+        int rc = hwloc_bitmap_asprintf(&str, arg->cpubind);
+        ASSERT_ALWAYS(rc >= 0);
+        pthread_mutex_lock(&arg->common->lock);
+        hwloc_set_cpubind(arg->common->topology, arg->cpubind, HWLOC_CPUBIND_THREAD | HWLOC_CPUBIND_STRICT);
+        hwloc_set_membind(arg->common->topology, arg->cpubind, HWLOC_MEMBIND_BIND,
+            HWLOC_MEMBIND_THREAD |
+            HWLOC_MEMBIND_STRICT |
+            HWLOC_MEMBIND_BYNODESET);
+        printf("# binding thread %d to [%s]\n", arg->i, str);
+        pthread_mutex_unlock(&arg->common->lock);
+        free(str);
+    }
+#endif
+    unsigned int * pidx = &(arg->common->idx);
+    unsigned int idx_max = arg->common->idx_max;
+    polyselect_main_data_ptr main_data = arg->common->main;
+
+    polyselect_thread_locals loc;
+    polyselect_thread_locals_init(loc, main_data);
+    polyselect_thread_locals_provision_job_slots(loc, 32);
+
+    /* The loop starts with the mutex locked */
+    pthread_mutex_lock(&main_data->lock);
+    for(;;) {
+        if (!dllist_is_empty(&main_data->async_jobs)) {
+            struct dllist_head * ptr = dllist_get_first_node(&main_data->async_jobs);
+            polyselect_match_info_ptr job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
+            dllist_pop(ptr);
+            pthread_mutex_unlock(&main_data->lock);
+            /********* BEGIN UNLOCKED SECTION **************/
+            chat_chronogram("enter match");
+            polyselect_stats stats;
+            polyselect_stats_init(stats, main_data->keep);
+            polyselect_process_match_async(main_data, stats, job);
+
+            dllist_push_back(&loc->empty_job_slots, &job->queue);
+            // polyselect_match_info_clear(job);
+            // free(job);
+            chat_chronogram("leave match");
+            /********** END UNLOCKED SECTION ***************/
+            pthread_mutex_lock(&main_data->lock);
+            polyselect_main_data_commit_stats_unlocked(main_data, stats, NULL);
+            polyselect_stats_clear(stats);
+        } else if (*pidx < idx_max) {
+            unsigned long i = (*pidx)++;
+            pthread_mutex_unlock(&main_data->lock);
+            /********* BEGIN UNLOCKED SECTION **************/
+            chat_chronogram("enter ad");
+
+            polyselect_thread_locals_set_idx(loc, i);
+
+            unsigned long c = 0;
+
+            loc->stats->number_of_ad_values++;
+
+            polyselect_shash_t H;
+            polyselect_shash_init(H, 4 * loc->main->lenPrimes);
+
+            chat_chronogram("enter collision_on_p");
+            c = collision_on_p(H, NULL, loc);
+            chat_chronogram("leave collision_on_p");
+            if (loc->main->nq > 0) {
+                chat_chronogram("enter collision_on_sq");
+                collision_on_sq(c, H, NULL, loc);
+                chat_chronogram("leave collision_on_sq");
+            }
+            polyselect_shash_clear(H);
+
+            {
+                printf("# thread %d completed ad=%.0f at time=%.2fs ; ad: %.2fs\n",
+                        omp_get_thread_num(),
+                        mpz_get_d(loc->ad),
+                        wct_seconds() - main_data->stats->wct0,
+                        wct_seconds() - loc->stats->wct0);
+                fflush(stdout);
+            }
+
+            chat_chronogram("leave ad, %zu", dllist_length(&loc->async_jobs));
+            /********** END UNLOCKED SECTION ***************/
+            pthread_mutex_lock(&main_data->lock);
+
+            polyselect_main_data_commit_stats_unlocked(main_data, loc->stats, loc->ad);
+
+            dllist_bulk_move_back(&main_data->async_jobs, &loc->async_jobs);
+        } else {
+            /* we're done! */
+            break;
+        }
+    }
+
+    {
+        printf("# thread %d exits at time=%.2fs\n",
+                omp_get_thread_num(),
+                wct_seconds() - main_data->stats->wct0);
+        fflush(stdout);
+    }
+
+    pthread_mutex_unlock(&main_data->lock);
+
+    polyselect_thread_locals_clear(loc);
+    return NULL;
+}
+
 
 int main(int argc, char *argv[])
 {
   char **argv0 = argv;
-  int quiet = 0, nthreads = 1;
+  int quiet = 0, nthreads = 1, pthreads = 0;
   const char * chronogram_file = NULL;
 
   polyselect_main_data main_data;
@@ -405,6 +541,7 @@ int main(int argc, char *argv[])
 
   param_list_configure_switch(pl, "-v", &main_data->verbose);
   param_list_configure_switch(pl, "-q", &quiet);
+  param_list_configure_switch(pl, "-T", &pthreads);
   param_list_configure_alias(pl, "degree", "-d");
   param_list_configure_alias(pl, "incr", "-i");
   param_list_configure_alias(pl, "n", "-N");
@@ -430,7 +567,8 @@ int main(int argc, char *argv[])
 
   param_list_parse_int(pl, "t", &nthreads);
 #ifdef HAVE_OPENMP
-  omp_set_num_threads(nthreads);
+  if (!pthreads)
+      omp_set_num_threads(nthreads);
 #else
   if (nthreads > 1)
     {
@@ -479,102 +617,91 @@ int main(int argc, char *argv[])
     }
 
 
-  unsigned long idx = 0;
-
   pthread_mutex_init(&chronogram_lock, NULL);
   if (chronogram_file) {
       chronogram = fopen(chronogram_file, "w");
       setbuf(chronogram, NULL);
   }
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel
-#endif
-  {
-      polyselect_thread_locals loc;
-      polyselect_thread_locals_init(loc, main_data);
-      polyselect_thread_locals_provision_job_slots(loc, 32);
+  polyselect_thread_common_descriptor cdesc = {
+      {   .idx = 0,
+          .idx_max = idx_max,
+          .main = main_data,
+          .lock = PTHREAD_MUTEX_INITIALIZER,
+      } };
 
-      /* The loop starts with the mutex locked */
-      pthread_mutex_lock(&main_data->lock);
-      for(;;) {
-          if (!dllist_is_empty(&main_data->async_jobs)) {
-              struct dllist_head * ptr = dllist_get_first_node(&main_data->async_jobs);
-              polyselect_match_info_ptr job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
-              dllist_pop(ptr);
-              pthread_mutex_unlock(&main_data->lock);
-              /********* BEGIN UNLOCKED SECTION **************/
-              chat_chronogram("enter match");
-              polyselect_stats stats;
-              polyselect_stats_init(stats, main_data->keep);
-              polyselect_process_match_async(main_data, stats, job);
+  polyselect_thread_descriptor * threads = malloc(nthreads * sizeof(polyselect_thread_descriptor));
 
-              dllist_push_back(&loc->empty_job_slots, &job->queue);
-              // polyselect_match_info_clear(job);
-              // free(job);
-              chat_chronogram("leave match");
-              /********** END UNLOCKED SECTION ***************/
-              pthread_mutex_lock(&main_data->lock);
-              polyselect_main_data_commit_stats_unlocked(main_data, stats, NULL);
-              polyselect_stats_clear(stats);
-          } else if (idx < idx_max) {
-              unsigned long i = idx++;
-              pthread_mutex_unlock(&main_data->lock);
-              /********* BEGIN UNLOCKED SECTION **************/
-              chat_chronogram("enter ad");
-
-              polyselect_thread_locals_set_idx(loc, i);
-
-              unsigned long c = 0;
-
-              loc->stats->number_of_ad_values++;
-
-              polyselect_shash_t H;
-              polyselect_shash_init(H, 4 * loc->main->lenPrimes);
-
-              chat_chronogram("enter collision_on_p");
-              c = collision_on_p(H, NULL, loc);
-              chat_chronogram("leave collision_on_p");
-              if (loc->main->nq > 0) {
-                  chat_chronogram("enter collision_on_sq");
-                  collision_on_sq(c, H, NULL, loc);
-                  chat_chronogram("leave collision_on_sq");
-              }
-              polyselect_shash_clear(H);
-
-              {
-                  printf("# thread %d completed ad=%.0f at time=%.2fs ; ad: %.2fs\n",
-                          omp_get_thread_num(),
-                          mpz_get_d(loc->ad),
-                          wct_seconds() - main_data->stats->wct0,
-                          wct_seconds() - loc->stats->wct0);
-                  fflush(stdout);
-              }
-
-              chat_chronogram("leave ad, %zu", dllist_length(&loc->async_jobs));
-              /********** END UNLOCKED SECTION ***************/
-              pthread_mutex_lock(&main_data->lock);
-
-              polyselect_main_data_commit_stats_unlocked(main_data, loc->stats, loc->ad);
-
-              dllist_bulk_move_back(&main_data->async_jobs, &loc->async_jobs);
-          } else {
-              /* we're done! */
-              break;
-          }
-      }
-
-      {
-          printf("# thread %d exits at time=%.2fs\n",
-                  omp_get_thread_num(),
-                  wct_seconds() - main_data->stats->wct0);
-          fflush(stdout);
-      }
-
-      pthread_mutex_unlock(&main_data->lock);
-
-      polyselect_thread_locals_clear(loc);
+  for(int i = 0 ; i < nthreads ; i++) {
+      threads[i]->i = i;
+      threads[i]->common = cdesc;
+      // threads[i]->tid will be set only in pthread context
+      threads[i]->cpubind = NULL;
   }
+#ifdef HAVE_HWLOC
+  hwloc_topology_init(&cdesc->topology);
+  hwloc_topology_load(cdesc->topology);
+  int depth = hwloc_topology_get_depth(cdesc->topology);
+
+  int good_depth = -1;
+  for(int d = 0 ; d <= depth ; d++) {
+      int x = hwloc_get_nbobjs_by_depth(cdesc->topology, d);
+      if (x % nthreads == 0) {
+          good_depth = d;
+          break;
+      } else if (nthreads % x) {
+          /* then it's pretty bad.  */
+          break;
+      }
+  }
+  if (good_depth < 0) {
+      fprintf(stderr, "Warning, the number of threads is not compatible with this topology, we will not bind threads\n");
+  } else {
+      for(int i = 0 ; i < nthreads ; i++) {
+          threads[i]->cpubind = hwloc_bitmap_alloc();
+      }
+      int nk = hwloc_get_nbobjs_by_depth(cdesc->topology, good_depth);
+      int w = nk / nthreads;
+      for(int i = 0 ; i < nk ; i++) {
+          hwloc_bitmap_or(threads[i/w]->cpubind, threads[i/w]->cpubind, hwloc_get_obj_by_depth(cdesc->topology, good_depth, i)->cpuset);
+      }
+  }
+#endif
+
+  if (pthreads) {
+      for(int i = 0 ; i < nthreads ; i++) {
+          pthread_create(&threads[i]->tid, NULL, (void * (*)(void*)) toplevel_thread_loop, &threads[i]);
+      }
+      for(int i = 0 ; i < nthreads ; i++) {
+          pthread_join(threads[i]->tid, NULL);
+      }
+  } else {
+#ifdef HAVE_OPENMP
+      omp_set_num_threads(nthreads);
+#pragma omp parallel
+#else
+      if (nthreads > 1) {
+          fprintf(stderr,
+                  "# Warning: setting for number of threads ignored, as we have no support for openmp\n");
+      }
+#endif
+      {
+          ASSERT_ALWAYS(omp_get_thread_num() < nthreads);
+          toplevel_thread_loop(threads[omp_get_thread_num()]);
+      }
+  }
+
+#ifdef HAVE_HWLOC
+  for(int i = 0 ; i < nthreads ; i++) {
+      if(threads[i]->cpubind)
+          hwloc_bitmap_free(threads[i]->cpubind);
+  }
+  hwloc_topology_destroy(cdesc->topology);
+#endif
+
+  free(threads);
+
+
 
   if (chronogram_file)
       fclose(chronogram);
