@@ -59,12 +59,17 @@ check_divexact(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED,
 }
 
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
-/* this routine is called from polyselect_str.c */
+/* This is called by polyselect_hash_add
+ *
+ * If rq is NULL, then q is 1, and we simply have a (p1,p2) match
+ */
 void
-match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
-      mpz_srcptr ad, unsigned long d, mpz_srcptr N, uint64_t q, mpz_srcptr rq,
+match(unsigned long p1, unsigned long p2, const int64_t i,
+      uint64_t q, 
+      mpz_srcptr rq,
       polyselect_thread_locals_ptr loc)
 {
+  polyselect_poly_header_srcptr header = loc->header;
   mpz_t l, mtilde, m, adm1, t, k;
   mpz_poly f, g, f_raw, g_raw;
   int cmp, did_optimize;
@@ -74,9 +79,9 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
 #ifdef DEBUG_POLYSELECT
   gmp_printf("Found match: (%lu,%lld) (%lu,%lld) for "
 	     "ad=%Zd, q=%llu, rq=%Zd\n",
-	     p1, (long long) i, p2, (long long) i, ad,
+	     p1, (long long) i, p2, (long long) i, header->ad,
 	     (unsigned long long) q, rq);
-  gmp_printf("m0=%Zd\n", m0);
+  gmp_printf("m0=%Zd\n", header->m0);
 #endif
 
   mpz_init(l);
@@ -86,20 +91,22 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
   mpz_init(adm1);
   mpz_init(mtilde);
 
-  mpz_poly_init(f, d);
+  mpz_poly_init(f, header->d);
   mpz_poly_init(g, 1);
-  mpz_poly_init(f_raw, d);
+  mpz_poly_init(f_raw, header->d);
   mpz_poly_init(g_raw, 1);
   /* we have l = p1*p2*q */
   mpz_set_ui(l, p1);
   mpz_mul_ui(l, l, p2);
   mpz_mul_ui(l, l, q);
-  /* mtilde = m0 + rq + i*q^2 */
+  /* mtilde = header->m0 + rq + i*q^2 */
   mpz_set_si(mtilde, i);
-  mpz_mul_ui(mtilde, mtilde, q);
-  mpz_mul_ui(mtilde, mtilde, q);
-  mpz_add(mtilde, mtilde, rq);
-  mpz_add(mtilde, mtilde, m0);
+  if (rq) {
+      mpz_mul_ui(mtilde, mtilde, q);
+      mpz_mul_ui(mtilde, mtilde, q);
+      mpz_add(mtilde, mtilde, rq);
+  }
+  mpz_add(mtilde, mtilde, header->m0);
   /* we should have Ntilde - mtilde^d = 0 mod {p1^2,p2^2,q^2} */
 
   /* Small improvement: we have Ntilde = mtilde^d + l^2*R with R small.
@@ -122,15 +129,16 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
     if ((q % SPECIAL_Q[j]) == 0)
       qmax = SPECIAL_Q[j];
 
-  mpz_mul_ui(m, ad, d);
-  mpz_pow_ui(m, m, d);
-  mpz_divexact(m, m, ad);
-  mpz_mul(m, m, N);		/* m := Ntilde = d^d*ad^(d-1)*N */
-  mpz_pow_ui(t, mtilde, d);
+  mpz_mul_ui(m, header->ad, header->d);
+  mpz_pow_ui(m, m, header->d);
+  mpz_divexact(m, m, header->ad);
+  mpz_mul(m, m, header->N);		/* m := Ntilde = d^d*ad^(d-1)*N */
+  mpz_pow_ui(t, mtilde, header->d);
   mpz_sub(t, m, t);
   mpz_divexact(t, t, l);
   mpz_divexact(t, t, l);
   unsigned long p;
+
   prime_info pi;
   prime_info_init(pi);
   /* Note: we could find p^2 dividing t in a much more efficient way, for
@@ -141,7 +149,7 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
      overhead will be small too. */
   for (p = 2; p <= loc->main->Primes[loc->main->lenPrimes - 1]; p = getprime_mt(pi))
     {
-      if (p <= qmax || d % p == 0 || mpz_divisible_ui_p(ad, p))
+      if (p <= qmax || polyselect_poly_header_skip(header, p))
 	continue;
       while (mpz_divisible_ui_p(t, p * p))
 	{
@@ -154,7 +162,7 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
 
   /* we want mtilde = d*ad*m + a_{d-1}*l with -d*ad/2 <= a_{d-1} < d*ad/2.
      We have a_{d-1} = mtilde/l mod (d*ad). */
-  mpz_mul_ui(m, ad, d);
+  mpz_mul_ui(m, header->ad, header->d);
   if (mpz_invert(adm1, l, m) == 0)
     {
       fprintf(stderr, "Error in 1/l mod (d*ad)\n");
@@ -170,20 +178,20 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
 
   mpz_mul(m, adm1, l);
   mpz_sub(m, mtilde, m);
-  check_divexact_ui(m, m, "m-a_{d-1}*l", d, "d");
-  check_divexact(m, m, "(m-a_{d-1}*l)/d", ad, "ad");
+  check_divexact_ui(m, m, "m-a_{d-1}*l", header->d, "d");
+  check_divexact(m, m, "(m-a_{d-1}*l)/d", header->ad, "ad");
   mpz_set(g->coeff[1], l);
   mpz_neg(g->coeff[0], m);
-  mpz_set(f->coeff[d], ad);
-  mpz_pow_ui(t, m, d);
-  mpz_mul(t, t, ad);
-  mpz_sub(t, N, t);
-  mpz_set(f->coeff[d - 1], adm1);
+  mpz_set(f->coeff[header->d], header->ad);
+  mpz_pow_ui(t, m, header->d);
+  mpz_mul(t, t, header->ad);
+  mpz_sub(t, header->N, t);
+  mpz_set(f->coeff[header->d - 1], adm1);
   check_divexact(t, t, "t", l, "l");
-  mpz_pow_ui(mtilde, m, d - 1);
+  mpz_pow_ui(mtilde, m, header->d - 1);
   mpz_mul(mtilde, mtilde, adm1);
   mpz_sub(t, t, mtilde);
-  for (unsigned long j = d - 2; j > 0; j--)
+  for (unsigned long j = header->d - 2; j > 0; j--)
     {
       check_divexact(t, t, "t", l, "l");
       /* t = a_j*m^j + l*R thus a_j = t/m^j mod l */
@@ -215,15 +223,15 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
      if the coefficient of degree d-2 is of the same sign as the leading
      coefficient, the size optimization will not work well, thus we simply
      discard those polynomials. */
-  if (mpz_sgn(f->coeff[d]) * mpz_sgn(f->coeff[d - 2]) > 0)
+  if (mpz_sgn(f->coeff[header->d]) * mpz_sgn(f->coeff[header->d - 2]) > 0)
     {
       loc->stats->discarded1++;
       goto end;
     }
 
 
-  mpz_poly_cleandeg(f, d);
-  ASSERT_ALWAYS(mpz_poly_degree(f) == (int) d);
+  mpz_poly_cleandeg(f, header->d);
+  ASSERT_ALWAYS(mpz_poly_degree(f) == (int) header->d);
   mpz_poly_cleandeg(g, 1);
   ASSERT_ALWAYS(mpz_poly_degree(g) == (int) 1);
 
@@ -248,7 +256,7 @@ match(unsigned long p1, unsigned long p2, const int64_t i, mpz_srcptr m0,
 
   /* print optimized (maybe size- or size-root- optimized) polynomial */
   if (did_optimize && loc->main->verbose >= 0)
-      output_polynomials(f_raw, g_raw, N, f, g, loc);
+      output_polynomials(f_raw, g_raw, header->N, f, g, loc);
 
 end:
   mpz_clear(l);
@@ -358,15 +366,9 @@ collision_on_p(polyselect_shash_ptr H, polyselect_thread_locals_ptr loc)
 	  for (j = 0; j < nrp; j++)
 	    {
 	      for (u = (int64_t) rp[j]; u < umax; u += ppl)
-		polyselect_hash_add(H, p, u,
-                                    loc->header->m0, loc->header->ad,
-				    loc->header->d, loc->header->N, 1, zero,
-                                    loc);
+		polyselect_hash_add(H, p, u, 1, zero, loc);
 	      for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
-		polyselect_hash_add(H, p, -u,
-                                    loc->header->m0, loc->header->ad,
-				    loc->header->d, loc->header->N, 1, zero,
-                                    loc);
+		polyselect_hash_add(H, p, -u, 1, zero, loc);
 	    }
 	}
 #ifdef DEBUG_POLYSELECT
@@ -424,7 +426,7 @@ collision_on_each_sq(unsigned long q,
   nv = *pc;
   pprimes = loc->main->Primes - 1;
   pnr = loc->R->nr;
-  loc->R->nr[loc->R->copy_size] = 0xff;	/* I use guard to end */
+  loc->R->nr[loc->R->size] = 0xff;	/* I use guard to end */
   umax = polyselect_main_data_get_M(loc->main);
   neg_umax = -umax;
 
@@ -660,13 +662,9 @@ bend:
 	    {
 	      v1 = (long) inv_qq[c];
 	      for (v2 = v1; v2 < umax; v2 += ppl)
-		polyselect_hash_add(H, p, v2, loc->header->m0, loc->header->ad,
-				    loc->header->d, loc->header->N, q, rqqz,
-                                    loc);
+		polyselect_hash_add(H, p, v2, q, rqqz, loc);
 	      for (v2 = ppl - v1; v2 < umax; v2 += ppl)
-		polyselect_hash_add(H, p, -v2, loc->header->m0, loc->header->ad,
-				    loc->header->d, loc->header->N, q, rqqz,
-                                    loc);
+		polyselect_hash_add(H, p, -v2, q, rqqz, loc);
 	    }
 	}
       polyselect_hash_clear(H);

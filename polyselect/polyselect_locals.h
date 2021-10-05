@@ -20,8 +20,8 @@ struct polyselect_thread_locals_s {
     polyselect_stats stats;
     polyselect_main_data_ptr main;
     
-    /* This is just a copy of stats->rstate. Since we have a random state
-     * there, let's just use it...
+    /* This is just a copy (const pointer) of stats->rstate. Since we
+     * have a random state there, let's just use it...
      */
     gmp_randstate_ptr rstate;
 

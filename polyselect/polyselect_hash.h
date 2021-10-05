@@ -33,7 +33,6 @@ struct polyselect_hash_slot_s
  */
 typedef void (*polyselect_hash_match_t)(
               unsigned long p1, unsigned long p2, const int64_t i,
-              mpz_srcptr m0, mpz_srcptr ad, unsigned long d, mpz_srcptr N,
               uint64_t q, mpz_srcptr rq,
               polyselect_thread_locals_ptr loc);
 
@@ -63,15 +62,16 @@ extern const unsigned int SPECIAL_Q[];
 extern "C" {
 #endif
 
-size_t expected_memory_usage_for_primes(unsigned long P);
+extern size_t expected_memory_usage_for_primes(unsigned long P);
 
-void polyselect_hash_init (polyselect_hash_ptr, unsigned int,
+extern void polyselect_hash_init (polyselect_hash_ptr, unsigned int,
         polyselect_hash_match_t);
 
-void polyselect_hash_add (polyselect_hash_ptr, unsigned long, int64_t, mpz_srcptr, mpz_srcptr, unsigned long, mpz_srcptr, unsigned long, mpz_srcptr,
+extern void polyselect_hash_add (polyselect_hash_ptr, unsigned long, int64_t,
+              unsigned long, mpz_srcptr,
               polyselect_thread_locals_ptr loc);
 
-void polyselect_hash_clear (polyselect_hash_ptr);
+extern void polyselect_hash_clear (polyselect_hash_ptr);
 
 
 #ifdef __cplusplus

@@ -10,7 +10,7 @@ void
 polyselect_proots_init (polyselect_proots_ptr R,
               unsigned long size )
 {
-  R->copy_size = size;
+  R->size = size;
 
   /* length of nr&roots is known now. lengths of roots[i] are TBD. */
   /* +1 for R->nr for end guard in collision_on_each_sq */
@@ -54,7 +54,7 @@ void
 polyselect_proots_print (polyselect_proots_srcptr R)
 {
   unsigned int i, j;
-  for (i = 0; i < R->copy_size; i++) {
+  for (i = 0; i < R->size; i++) {
     if (R->nr[i] == 0) {
       fprintf (stderr, "NULL\n");
     }
@@ -74,7 +74,7 @@ polyselect_proots_clear (polyselect_proots_ptr R)
   unsigned int i;
 
   free (R->nr);
-  for (i = 0; i < R->copy_size; i++)
+  for (i = 0; i < R->size; i++)
     free (R->roots[i]);
   free (R->roots);
 }
