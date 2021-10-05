@@ -817,8 +817,8 @@ aux_nextcomb(unsigned int *ind, unsigned int len_q, unsigned int *len_nr)
  */
 static inline void
 aux_return_rq(polyselect_qroots_srcptr SQ_R,
-	      unsigned long *idx_q,
-	      unsigned int *idx_nr,
+	      const unsigned long *idx_q,
+	      const unsigned int *idx_nr,
 	      unsigned long k, mpz_ptr qqz, mpz_ptr rqqz)
 {
   unsigned long i, q[k], rq[k];
@@ -840,12 +840,12 @@ aux_return_rq(polyselect_qroots_srcptr SQ_R,
  * In this routine the q[i] are fixed, only the roots mod q[i] change.
  *
  * The name is misleading. There is nothing about reentrancy here, this
- * function is just a component of collision_on_batch_sq
+ * function is just a component of collision_on_sq
  */
 static inline void
 collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
 			unsigned long q,
-			unsigned long *idx_q,
+			const unsigned long *idx_q,
 			unsigned long *inv_qq,
 			unsigned long number_pr,
 			unsigned long *curr_nq,
@@ -863,13 +863,6 @@ collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
   for (i = 0; i < BATCH_SIZE; i++)
     mpz_init(rqqz[i]);
 
-  /* initialization indices */
-  for (i = 0; i < k; i++)
-    {
-      ind_qr[i] = 0;
-      len_qnr[i] = SQ_R->nr[idx_q[i]];
-    }
-
 #if 0
   fprintf(stderr, "q: %lu, ", q);
   for (i = 0; i < k; i++)
@@ -881,16 +874,20 @@ collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
 #endif
 
   /* we proceed with BATCH_SIZE many rq for each time */
-  int re = 1, num_rq;
-  while (re)
+  for (i = 0; i < k; i++)
+    {
+      ind_qr[i] = 0;
+      len_qnr[i] = SQ_R->nr[idx_q[i]];
+    }
+  for(int re = 1 ; re ; )
     {
       /* compute BATCH_SIZE such many rqqz[] */
-      num_rq = 0;
-      for (count = 0; count < BATCH_SIZE; count++)
+      int num_rq = 0;
+      for (count = 0; re && count < BATCH_SIZE; count++)
 	{
-          /* FIXME: this is gravely inefficient, as we do multiple
-           * inversions over and over again, including when the set of
-           * q's doesn't change...
+          /* We do multiple inversions over and over again (in crt_sq),
+           * even though the set of q's doesn't change... This has no
+           * noticeable impact on the running time, though.
            */
 	  aux_return_rq(SQ_R, idx_q, ind_qr, k, qqz, rqqz[count]);
 	  re = aux_nextcomb(ind_qr, k, len_qnr);
@@ -898,8 +895,6 @@ collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
 	  num_rq++;
 	  if ((*curr_nq) >= loc->main->nq)
 	    re = 0;
-	  if (!re)
-	    break;
 	}
 
       /* core function for a fixed qq and several rqqz[] */
@@ -912,42 +907,24 @@ collision_on_batch_sq_r(polyselect_qroots_srcptr SQ_R,
     mpz_clear(rqqz[i]);
 }
 
-/* SQ inversion, write 1/q^2 (mod p_i^2) to invqq[i].
-   In this routine the q[i] are fixed, corresponding to indices idx_q[0], ...,
-   idx_q[k-1] */
-static inline void
-collision_on_batch_sq(polyselect_qroots_srcptr SQ_R,
-		      unsigned long q,
-		      unsigned long *idx_q,
-		      unsigned long number_pr,
-		      unsigned long k,
-		      unsigned long *curr_nq,
-                      polyselect_shash_ptr H,
-                      polyselect_thread_locals_ptr loc)
+static inline void invert_q2_mod_all_p2(/*{{{*/
+        unsigned long *invqq,
+        unsigned long q,
+        const uint32_t * Primes,
+        unsigned long lenPrimes,
+        polyselect_poly_header_srcptr header,
+        const uint8_t * number_of_roots_per_prime)
 {
-  unsigned nr;
-  uint64_t pp;
-  unsigned long p;
-  unsigned long *invqq = malloc(loc->main->lenPrimes * sizeof(unsigned long));
-  if (!invqq)
+  /* Step 1: inversion; compute 1/q^2 (mod p_i^2) to invqq[i] */
+  for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
     {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
-      exit(1);
-    }
-
-  int st = milliseconds();
-
-  /* Step 1: inversion */
-  for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
-    {
-
-      p = loc->main->Primes[nprimes];
-      if (polyselect_poly_header_skip(loc->header, p))
+      unsigned long p = Primes[nprimes];
+      if (polyselect_poly_header_skip(header, p))
 	continue;
-      nr = loc->R->nr[nprimes];
+      unsigned int nr = number_of_roots_per_prime[nprimes];
       if (nr == 0)
 	continue;
-      pp = p * p;
+      uint64_t pp = ((uint64_t) p) * (uint64_t) p;
 
       modulusredcul_t modpp;
       residueredcul_t qq, tmp;
@@ -968,52 +945,72 @@ collision_on_batch_sq(polyselect_qroots_srcptr SQ_R,
       modredcul_clearmod(modpp);
     }
 
-  if (loc->main->verbose > 2)
-    fprintf(stderr,
-	    "# stage (1/q^2 inversion) for %lu primes took %lums\n",
-	    loc->main->lenPrimes, milliseconds() - st);
-
-  /* Step 2: find collisions on q. */
-  int st2 = milliseconds();
-
-  collision_on_batch_sq_r(SQ_R, q, idx_q, invqq, number_pr,
-			  curr_nq, k, H, loc);
-  if (loc->main->verbose > 2)
-    fprintf(stderr,
-	    "#  stage (special-q) for %lu special-q's took %lums\n",
-	    *curr_nq, milliseconds() - st2);
-
-  free(invqq);
-}
+}/*}}}*/
 
 /* collision on special-q, call collision_on_batch_sq */
 void
 collision_on_sq(unsigned long c, polyselect_shash_ptr H, polyselect_thread_locals_ptr loc)
 {
-  unsigned long k, lq;
-  polyselect_qroots_t SQ_R;
+  unsigned long *invqq = malloc(loc->main->lenPrimes * sizeof(unsigned long));
+  if (!invqq)
+    {
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
+      exit(1);
+    }
 
   /* init special-q roots */
+  polyselect_qroots_t SQ_R;
+
   polyselect_qroots_init(SQ_R);
   comp_sq_roots(loc->header, SQ_R, loc->rstate);
   //polyselect_qroots_print (SQ_R);
 
-  /* find a suitable lq */
-  lq = find_suitable_lq(loc->header, SQ_R, &k, loc->main);
 
-  unsigned long q, idx_q[lq], curr_nq = 0, ret;
+  /* find a suitable lq */
+  unsigned long k;
+  unsigned long lq = find_suitable_lq(loc->header, SQ_R, &k, loc->main);
+
+  unsigned long q, idx_q[lq], curr_nq = 0;
 
   first_comb(k, idx_q);
-  while (curr_nq < loc->main->nq)
+
+  for ( ; curr_nq < loc->main->nq ; )
     {
       q = return_q_norq(SQ_R, idx_q, k);
 
       /* collision batch */
-      collision_on_batch_sq(SQ_R, q, idx_q, c, k, &curr_nq, H, loc);
-      ret = next_comb(lq, k, idx_q);
-      if (ret == k)		/* binomial(lq, k) < nq */
+      {
+          int st = milliseconds();
+
+          /* Step 1: inversion; compute 1/q^2 (mod p_i^2) to invqq[i] */
+          invert_q2_mod_all_p2(invqq, q,
+                  loc->main->Primes, loc->main->lenPrimes,
+                  loc->header, loc->R->nr);
+
+          if (loc->main->verbose > 2)
+              fprintf(stderr,
+                      "# stage (1/q^2 inversion) for %lu primes took %lums\n",
+                      loc->main->lenPrimes, milliseconds() - st);
+      }
+
+      {
+          /* Step 2: find collisions on q. */
+          int st2 = milliseconds();
+
+          collision_on_batch_sq_r(SQ_R, q, idx_q, invqq, c,
+                  &curr_nq, k, H, loc);
+          if (loc->main->verbose > 2)
+              fprintf(stderr,
+                      "#  stage (special-q) for %lu special-q's took %lums\n",
+                      curr_nq, milliseconds() - st2);
+      }
+
+      unsigned long ret = next_comb(lq, k, idx_q);
+      if (ret == k)		/* in case binomial(lq, k) < nq */
 	break;
     }
+
+  free(invqq);
 
   /* clean */
   polyselect_qroots_clear(SQ_R);
