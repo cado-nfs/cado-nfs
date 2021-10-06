@@ -393,23 +393,33 @@ collision_on_p(polyselect_shash_ptr H, polyselect_thread_locals_ptr loc)
   return tot_roots;
 }
 
-
-/* collision on each special-q, call collision_on_batch_p() */
-static inline void
-collision_on_each_sq(unsigned long q,
-		     mpz_srcptr rqqz,
-		     unsigned long *inv_qq,
-                     polyselect_shash_ptr H,
-                     polyselect_thread_locals_ptr loc)
+/*{{{ polyselect_proots_dispatch_to_shash_flat_ugly */
+/* This code dispatches congruence classes of the roots_per_prime[] table,
+ * modulo the primes that are listed in Primes, within the range
+ * [-umax...umax], into the quick hash table H.
+ *
+ * This overly complicated code provides some tiny performance gain, but
+ * the simpler version below is fine too.
+ *
+ * the value number_of_roots_per_prime[(number of primes)] must be 0xff
+ *
+ * This means that the following must typically appear before the call to
+ * this function.
+ *
+ * loc->R->nr[loc->R->size] = 0xff;
+ *
+ */
+void polyselect_proots_dispatch_to_shash_flat_ugly(
+        polyselect_shash_ptr H,
+        const uint32_t * Primes,
+        const unsigned long * roots_per_prime,
+        const uint8_t * number_of_roots_per_prime,
+        int64_t umax)
 {
   uint64_t **cur1, **cur2, *ccur1, *ccur2;
   long *pc, *epc;
-  uint64_t pp;
-  int64_t ppl, neg_umax, umax, v1, v2, nv;
-  unsigned long p, c;
-  uint8_t vpnr, *pnr, nr, j;
-  uint32_t *pprimes, i;
-  int found;
+  int64_t ppl, neg_umax, v1, v2, nv;
+  uint8_t vpnr;
 
 #ifdef DEBUG_POLYSELECT2
   int st = milliseconds();
@@ -422,12 +432,10 @@ collision_on_each_sq(unsigned long q,
 
   polyselect_shash_reset(H);
 
-  pc = (long *) inv_qq;
+  pc = (long *) roots_per_prime;
   nv = *pc;
-  pprimes = loc->main->Primes - 1;
-  pnr = loc->R->nr;
-  loc->R->nr[loc->R->size] = 0xff;	/* I use guard to end */
-  umax = polyselect_main_data_get_M(loc->main);
+  const uint32_t * pprimes = Primes - 1;
+  const uint8_t * pnr = number_of_roots_per_prime;
   neg_umax = -umax;
 
   /* This define inserts 2 values v1 and v2 with a interlace.
@@ -638,8 +646,46 @@ bend:
 #undef INSERT_2I
 #undef INSERT_I
 
-  for (i = 0; i < polyselect_SHASH_NBUCKETS; i++)
-    ASSERT(H->current[i] <= H->base[i + 1]);
+  ;
+}
+/* }}} */
+
+/* collision on each special-q, call collision_on_batch_p() */
+static inline void
+collision_on_each_sq(unsigned long q,
+		     mpz_srcptr rqqz,
+		     unsigned long *inv_qq,
+                     polyselect_shash_ptr H,
+                     polyselect_thread_locals_ptr loc)
+{
+  unsigned long p, c;
+  uint64_t pp;
+  int64_t ppl, v1, v2;
+  uint8_t nr, j;
+  int found;
+
+#ifdef DEBUG_POLYSELECT2
+  int st = milliseconds();
+#endif
+
+  int64_t umax = polyselect_main_data_get_M(loc->main);
+
+#if 1
+  loc->R->nr[loc->R->size] = 0xff;     /* use guard to end */
+  polyselect_proots_dispatch_to_shash_flat_ugly(H,
+          loc->main->Primes,
+          inv_qq,
+          loc->R->nr,
+          umax);
+#else
+  /* inv_qq is created by the caller as a flat list.  */
+  polyselect_proots_dispatch_to_shash_flat(H,
+          loc->main->Primes,
+          loc->main->lenPrimes,
+          inv_qq,
+          loc->R->nr,
+          umax);
+#endif
 
   found = polyselect_shash_find_collision(H);
 
