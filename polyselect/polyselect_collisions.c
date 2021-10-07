@@ -595,7 +595,7 @@ void polyselect_proots_dispatch_to_shash_notflat(
 
 /*{{{ polyselect_proots_dispatch_to_hash_notflat */
 /* same as above, but for a hash (not shash) table */
-void polyselect_proots_dispatch_to_hash_notflat(
+static inline void polyselect_proots_dispatch_to_hash_notflat(
         polyselect_hash_ptr H,
         const uint32_t * Primes,
         size_t lenPrimes,
@@ -625,7 +625,7 @@ void polyselect_proots_dispatch_to_hash_notflat(
 }/*}}}*/
 
 /*{{{ polyselect_proots_dispatch_to_hash_flat */
-void polyselect_proots_dispatch_to_hash_flat(
+static inline void polyselect_proots_dispatch_to_hash_flat(
         polyselect_hash_ptr H,
         const uint32_t * Primes,
         size_t lenPrimes,
