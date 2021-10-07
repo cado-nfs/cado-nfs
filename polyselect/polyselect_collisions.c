@@ -560,6 +560,141 @@ void polyselect_proots_dispatch_to_shash_flat(
 }
 /*}}}*/
 
+/*{{{ polyselect_proots_dispatch_to_shash_notflat */
+/* This is a slight variation around the previous implementation. Here,
+ * we expect the roots to be organized into several different tables per
+ * prime.
+ */
+void polyselect_proots_dispatch_to_shash_notflat(
+        polyselect_shash_ptr H,
+        const uint32_t * Primes,
+        size_t lenPrimes,
+        uint64_t * const * roots_per_prime,
+        const uint8_t * number_of_roots_per_prime,
+        int64_t umax)
+{
+      for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
+       {
+         unsigned long p = Primes[nprimes];
+          int64_t ppl = (int64_t) p *(int64_t) p;
+         unsigned long nr = number_of_roots_per_prime[nprimes];
+         for (unsigned long j = 0; j < nr; j++)
+           {
+                // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
+                int64_t u0 = roots_per_prime[nprimes][j];
+                for(int64_t u = u0 ; u < umax ; u += ppl)
+                    polyselect_shash_add(H, u);
+                for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
+                    polyselect_shash_add(H, u);
+            }
+        }
+
+      for (int i = 0; i < polyselect_SHASH_NBUCKETS; i++)
+          ASSERT(H->current[i] <= H->base[i + 1]);
+}/*}}}*/
+
+/*{{{ polyselect_proots_dispatch_to_hash_notflat */
+/* same as above, but for a hash (not shash) table */
+void polyselect_proots_dispatch_to_hash_notflat(
+        polyselect_hash_ptr H,
+        const uint32_t * Primes,
+        size_t lenPrimes,
+        uint64_t * const * roots_per_prime,
+        const uint8_t * number_of_roots_per_prime,
+        int64_t umax,
+        unsigned long q,
+        mpz_srcptr rq,
+        polyselect_thread_locals_ptr loc
+        )
+{
+      for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
+       {
+         unsigned long p = Primes[nprimes];
+          int64_t ppl = (int64_t) p *(int64_t) p;
+         unsigned long nr = number_of_roots_per_prime[nprimes];
+         for (unsigned long j = 0; j < nr; j++)
+           {
+                // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
+                int64_t u0 = roots_per_prime[nprimes][j];
+                for(int64_t u = u0 ; u < umax ; u += ppl)
+                    polyselect_hash_add(H, p, u, q, rq, loc);
+                for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
+                    polyselect_hash_add(H, p, u, q, rq, loc);
+            }
+        }
+}/*}}}*/
+
+/*{{{ polyselect_proots_dispatch_to_hash_flat */
+void polyselect_proots_dispatch_to_hash_flat(
+        polyselect_hash_ptr H,
+        const uint32_t * Primes,
+        size_t lenPrimes,
+        const unsigned long * roots_per_prime,
+        const uint8_t * number_of_roots_per_prime,
+        int64_t umax,
+        unsigned long q,
+        mpz_srcptr rq,
+        polyselect_thread_locals_ptr loc
+        )
+{
+    unsigned long c = 0;
+    for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
+    {
+        unsigned long p = Primes[nprimes];
+        int64_t ppl = (int64_t) p *(int64_t) p;
+        unsigned long nr = number_of_roots_per_prime[nprimes];
+        for (unsigned long j = 0; j < nr; j++, c++)
+        {
+            // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
+            int64_t u0 = roots_per_prime[c];
+            for(int64_t u = u0 ; u < umax ; u += ppl)
+                polyselect_hash_add(H, p, u, q, rq, loc);
+            for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
+                polyselect_hash_add(H, p, u, q, rq, loc);
+        }
+    }
+}/*}}}*/
+
+unsigned long compute_and_lift_proots(polyselect_thread_locals_ptr loc)/*{{{*/
+{
+    polyselect_proots_ptr R = loc->R;
+    polyselect_poly_header_srcptr header = loc->header;
+    gmp_randstate_ptr rstate = loc->rstate;
+
+    unsigned long tot_roots = 0;
+    uint64_t *
+        rp = (uint64_t *) malloc(header->d * sizeof(uint64_t));
+    if (rp == NULL)
+    {
+        fprintf(stderr, "Error, cannot allocate memory in collision_on_p\n");
+        exit(1);
+    }
+
+    for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
+    {
+        unsigned long p = loc->main->Primes[nprimes];
+
+        /* add fake roots to keep indices */
+        if (polyselect_poly_header_skip(header, p))
+        {
+            R->nr[nprimes] = 0;        // nr = 0.
+            R->roots[nprimes] = NULL;
+            continue;
+        }
+
+        unsigned long nrp = roots_mod_uint64(rp,
+                mpz_fdiv_ui(header->Ntilde, p),
+                header->d,
+                p, rstate);
+        tot_roots += nrp;
+        nrp = roots_lift(rp, header->Ntilde, header->d, header->m0, p, nrp);
+        polyselect_proots_add(R, nrp, rp, nprimes);
+    }
+    free(rp);
+    return tot_roots;
+}/*}}}*/
+
+
 /* collision on each special-q, call collision_on_batch_p() */
 static inline void
 collision_on_each_sq(unsigned long q,
