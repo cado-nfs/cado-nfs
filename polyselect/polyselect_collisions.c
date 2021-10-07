@@ -811,10 +811,6 @@ collision_on_each_sq(unsigned long q,
                      polyselect_shash_ptr H,
                      polyselect_thread_locals_ptr loc)
 {
-  unsigned long p, c;
-  uint64_t pp;
-  int64_t ppl, v1, v2;
-  uint8_t nr, j;
   int found;
 
 #ifdef DEBUG_POLYSELECT2
@@ -848,24 +844,14 @@ collision_on_each_sq(unsigned long q,
 
       polyselect_hash_init(H, INIT_FACTOR * loc->main->lenPrimes, match);
 
-      umax = polyselect_main_data_get_M(loc->main);
-      for (unsigned long nprimes = c = 0; nprimes < loc->main->lenPrimes; nprimes++)
-	{
-	  p = loc->main->Primes[nprimes];
-	  if (polyselect_poly_header_skip(loc->header, p))
-	    continue;
-	  pp = p * p;
-	  ppl = (long) pp;
-	  nr = loc->R->nr[nprimes];
-	  for (j = 0; j < nr; j++, c++)
-	    {
-	      v1 = (long) inv_qq[c];
-	      for (v2 = v1; v2 < umax; v2 += ppl)
-		polyselect_hash_add(H, p, v2, q, rqqz, loc);
-	      for (v2 = ppl - v1; v2 < umax; v2 += ppl)
-		polyselect_hash_add(H, p, -v2, q, rqqz, loc);
-	    }
-	}
+      polyselect_proots_dispatch_to_hash_flat(H,
+              loc->main->Primes,
+              loc->main->lenPrimes,
+              inv_qq,
+              loc->R->nr,
+              umax,
+              q, rqqz, loc);
+
       polyselect_hash_clear(H);
     }
 
