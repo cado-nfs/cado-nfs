@@ -770,30 +770,17 @@ collision_on_p(polyselect_shash_ptr H, polyselect_thread_locals_ptr loc)
 
   if (found)
     {				/* do the real work */
-      /* init zero */
-      mpz_t zero;
-      mpz_init_set_ui(zero, 0);
-
       polyselect_hash_t H;
 
       polyselect_hash_init(H, INIT_FACTOR * loc->main->lenPrimes, match);
-      for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
-	{
-	  nrp = loc->R->nr[nprimes];
-	  if (nrp == 0)
-	    continue;
-	  p = loc->main->Primes[nprimes];
-	  ppl = (int64_t) p *(int64_t) p;
-	  rp = loc->R->roots[nprimes];
+      polyselect_proots_dispatch_to_hash_notflat(H,
+              loc->main->Primes,
+              loc->main->lenPrimes,
+              loc->R->roots,
+              loc->R->nr,
+              umax,
+              1, NULL, loc);
 
-	  for (j = 0; j < nrp; j++)
-	    {
-	      for (u = (int64_t) rp[j]; u < umax; u += ppl)
-		polyselect_hash_add(H, p, u, 1, zero, loc);
-	      for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
-		polyselect_hash_add(H, p, -u, 1, zero, loc);
-	    }
-	}
 #ifdef DEBUG_POLYSELECT
       fprintf(stderr, "# collision_on_p took %lums\n", milliseconds() - st);
       gmp_fprintf(stderr, "# p polyselect_hash_size: %u for ad = %Zd\n",
@@ -808,7 +795,6 @@ collision_on_p(polyselect_shash_ptr H, polyselect_thread_locals_ptr loc)
 	      H->coll_all);
 #endif
       polyselect_hash_clear(H);
-      mpz_clear(zero);
     }
 
 
