@@ -408,7 +408,7 @@ static inline void polyselect_proots_dispatch_to_hash_flat(
     }
 }/*}}}*/
 
-unsigned long compute_and_lift_proots(polyselect_thread_locals_ptr loc)/*{{{*/
+static inline unsigned long compute_and_lift_proots(polyselect_thread_locals_ptr loc)/*{{{*/
 {
     polyselect_proots_ptr R = loc->R;
     polyselect_poly_header_srcptr header = loc->header;
