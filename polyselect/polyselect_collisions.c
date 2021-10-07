@@ -273,6 +273,7 @@ end:
 
 
 /*{{{ polyselect_proots_dispatch_to_shash_flat_ugly */
+
 /* This code dispatches congruence classes of the roots_per_prime[] table,
  * modulo the primes that are listed in Primes, within the range
  * [-umax...umax], into the quick hash table H.
@@ -300,9 +301,6 @@ void polyselect_proots_dispatch_to_shash_flat_ugly(
   int64_t ppl, neg_umax, v1, v2, nv;
   uint8_t vpnr;
 
-#ifdef DEBUG_POLYSELECT2
-  int st = milliseconds();
-#endif
 #if polyselect_SHASH_NBUCKETS == 256
 #define CURRENT(V) (H->current + (uint8_t) (V))
 #else
@@ -527,7 +525,40 @@ bend:
 
   ;
 }
-/* }}} */
+
+/*}}}*/
+
+/*{{{ polyselect_proots_dispatch_to_shash_flat */
+void polyselect_proots_dispatch_to_shash_flat(
+        polyselect_shash_ptr H,
+        const uint32_t * Primes,
+        size_t lenPrimes,
+        const unsigned long * roots_per_prime,
+        const uint8_t * number_of_roots_per_prime,
+        int64_t umax)
+{
+    polyselect_shash_reset(H);
+    unsigned long c = 0;
+    for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
+    {
+        unsigned long p = Primes[nprimes];
+        int64_t ppl = (int64_t) p *(int64_t) p;
+        unsigned long nr = number_of_roots_per_prime[nprimes];
+        for (unsigned long j = 0; j < nr; j++, c++)
+        {
+            // int64_t u0 = (((int64_t) roots_per_prime[c] + umax) % ppl) - umax;
+            int64_t u0 = roots_per_prime[c];
+            for(int64_t u = u0 ; u < umax ; u += ppl)
+                polyselect_shash_add(H, u);
+            for(int64_t u = u0 - ppl ; u + umax >= 0; u -= ppl)
+                polyselect_shash_add(H, u);
+        }
+    }
+
+    for (int i = 0; i < polyselect_SHASH_NBUCKETS; i++)
+        ASSERT(H->current[i] <= H->base[i + 1]);
+}
+/*}}}*/
 
 /* collision on each special-q, call collision_on_batch_p() */
 static inline void
