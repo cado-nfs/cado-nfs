@@ -31,6 +31,7 @@
 #include <stdlib.h>		// malloc ...
 #include <stdint.h>		// uint64_t
 #include <gmp.h>
+#include <sys/time.h>
 #include "macros.h"		// ASSERT
 #include "misc.h"
 #include "omp_proxy.h"
@@ -78,6 +79,27 @@ check_divexact(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED,
 }
 
 
+FILE * chronogram = NULL;
+pthread_mutex_t chronogram_lock;
+
+static inline void chat_chronogram(const char * fmt, ...)
+{
+    if (!chronogram) return;
+
+    va_list ap;
+    va_start(ap, fmt);
+    char * msg;
+    int rc = vasprintf(&msg, fmt, ap);
+    ASSERT_ALWAYS(rc >= 0);
+    struct timeval tv[1];
+    gettimeofday(tv, NULL);
+    pthread_mutex_lock(&chronogram_lock);
+    fprintf(chronogram, "%lu.%06lu %d %s\n", tv->tv_sec, tv->tv_usec, omp_get_thread_num(), msg);
+    pthread_mutex_unlock(&chronogram_lock);
+    free(msg);
+    va_end(ap);
+}
+
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
 /* This is called by polyselect_hash_add
  *
@@ -94,6 +116,8 @@ polyselect_usual_match(unsigned long p1, unsigned long p2, const int64_t i,
   mpz_poly f, g, f_raw, g_raw;
   int cmp, did_optimize;
   double skew, logmu;
+
+  chat_chronogram("enter match");
 
   /* the expected rotation space is S^5 for degree 6 */
 #ifdef DEBUG_POLYSELECT
@@ -300,6 +324,7 @@ end:
   mpz_poly_clear(g);
   mpz_poly_clear(f_raw);
   mpz_poly_clear(g_raw);
+  chat_chronogram("leave match");
 }
 
 static void newAlgo(polyselect_thread_locals_ptr loc)
@@ -308,12 +333,14 @@ static void newAlgo(polyselect_thread_locals_ptr loc)
 
   loc->stats->number_of_ad_values++;
 
+  chat_chronogram("enter ad");
   polyselect_shash_t H;
   polyselect_shash_init(H, 4 * loc->main->lenPrimes);
   c = collision_on_p(H, polyselect_usual_match, loc);
   if (loc->main->nq > 0)
       collision_on_sq(c, H, polyselect_usual_match, loc);
   polyselect_shash_clear(H);
+  chat_chronogram("leave ad, %zu", loc->stats->collisions + loc->stats->discarded1);
 }
 
 static void display_expected_memory_usage(polyselect_main_data_srcptr main, int nthreads)
@@ -361,6 +388,7 @@ static void declare_usage(param_list_ptr pl)
   param_list_decl_usage(pl, "v", "verbose mode");
   param_list_decl_usage(pl, "q", "quiet mode");
   param_list_decl_usage(pl, "target_E", "target E-value\n");
+  param_list_decl_usage(pl, "chronogram", "store chronogram raw data to this file\n");
   verbose_decl_usage(pl);
 }
 
@@ -376,10 +404,12 @@ static void usage(const char *argv, const char *missing, param_list_ptr pl)
   exit(EXIT_FAILURE);
 }
 
+
 int main(int argc, char *argv[])
 {
   char **argv0 = argv;
   int quiet = 0, nthreads = 1;
+  const char * chronogram_file = NULL;
 
   polyselect_main_data main_data;
   polyselect_main_data_init_defaults(main_data);
@@ -413,6 +443,7 @@ int main(int argc, char *argv[])
   polyselect_main_data_parse_ad_range(main_data, pl);
   polyselect_main_data_parse_P(main_data, pl);
   param_list_parse_ulong(pl, "nq", &main_data->nq);
+  chronogram_file = param_list_lookup_string(pl, "chronogram");
 
   param_list_parse_int(pl, "t", &nthreads);
 #ifdef HAVE_OPENMP
@@ -464,6 +495,11 @@ int main(int argc, char *argv[])
 	      idx_max, nthreads);
     }
 
+  pthread_mutex_init(&chronogram_lock, NULL);
+  if (chronogram_file) {
+      chronogram = fopen(chronogram_file, "w");
+      setbuf(chronogram, NULL);
+  }
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for schedule(dynamic,1)
@@ -495,6 +531,11 @@ int main(int argc, char *argv[])
 
       polyselect_thread_locals_clear(loc);
   }
+
+  if (chronogram_file)
+      fclose(chronogram);
+
+  pthread_mutex_destroy(&chronogram_lock);
 
 #ifndef HAVE_RUSAGE_THREAD	/* optimize_time is correct only if
                                    RUSAGE_THREAD works or in mono-thread
