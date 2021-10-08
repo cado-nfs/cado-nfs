@@ -110,8 +110,18 @@ polyselect_hash_add (polyselect_hash_ptr H, unsigned long p, int64_t i,
               /* H->match == NULL means that we're going to do this
                * asynchronously */
               /* must be on the heap because of the dllist stuff */
-              polyselect_match_info_ptr job = malloc(sizeof(polyselect_match_info_t));
-              polyselect_match_info_init(job, H->slot[h].p, p, i, q, rq, loc);
+
+              polyselect_match_info_ptr job;
+              if (dllist_is_empty(&loc->empty_job_slots)) {
+                  job = malloc(sizeof(polyselect_match_info_t));
+                  polyselect_match_info_init(job, H->slot[h].p, p, i, q, rq, loc);
+              } else {
+                  /* recycle an old one ! */
+                  struct dllist_head * ptr = dllist_get_first_node(&loc->empty_job_slots);
+                  dllist_pop(ptr);
+                  job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
+                  polyselect_match_info_set(job, H->slot[h].p, p, i, q, rq, loc);
+              }
 
               dllist_push_back(&loc->async_jobs, &job->queue);
           }

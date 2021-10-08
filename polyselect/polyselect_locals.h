@@ -47,6 +47,18 @@ struct polyselect_thread_locals_s {
      * processing ?
      */
     struct dllist_head async_jobs;
+
+    /* This points to a pool of available polyselect_match_info_t ' s that
+     * can be reused if needed, and put into the async_jobs list.
+     *
+     * Whenever a new match must be processed, poluselect_hash_add can
+     * take the opportunity to reuse data from this list, or allocate a
+     * new one if it is empty.
+     *
+     * Conversely, the matching function has the choice to dispose the
+     * structure right away (with free), or to put it aside in this list
+     */
+    struct dllist_head empty_job_slots;
 };
 
 typedef struct polyselect_thread_locals_s polyselect_thread_locals[1];
@@ -54,9 +66,12 @@ typedef struct polyselect_thread_locals_s * polyselect_thread_locals_ptr;
 typedef const struct polyselect_thread_locals_s * polyselect_thread_locals_srcptr;
 
 
-extern void polyselect_thread_locals_init(polyselect_thread_locals_ptr loc, polyselect_main_data_ptr main, int idx);
+extern void polyselect_thread_locals_init(polyselect_thread_locals_ptr loc, polyselect_main_data_srcptr main);
+extern void polyselect_thread_locals_set_idx(polyselect_thread_locals_ptr loc, int idx);
 extern void polyselect_thread_locals_clear(polyselect_thread_locals_ptr loc);
 
+extern void polyselect_thread_locals_provision_job_slots(polyselect_thread_locals_ptr loc, size_t n);
+extern void polyselect_thread_locals_unprovision_job_slots(polyselect_thread_locals_ptr loc);
 
 #ifdef __cplusplus
 }

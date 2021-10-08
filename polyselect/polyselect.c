@@ -491,11 +491,15 @@ int main(int argc, char *argv[])
 #pragma omp parallel
 #endif
   {
+      polyselect_thread_locals loc;
+      polyselect_thread_locals_init(loc, main_data);
+      polyselect_thread_locals_provision_job_slots(loc, 32);
+
       /* The loop starts with the mutex locked */
       pthread_mutex_lock(&main_data->lock);
       for(;;) {
           if (!dllist_is_empty(&main_data->async_jobs)) {
-              struct dllist_head * ptr = main_data->async_jobs.next;
+              struct dllist_head * ptr = dllist_get_first_node(&main_data->async_jobs);
               polyselect_match_info_ptr job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
               dllist_pop(ptr);
               pthread_mutex_unlock(&main_data->lock);
@@ -504,8 +508,10 @@ int main(int argc, char *argv[])
               polyselect_stats stats;
               polyselect_stats_init(stats, main_data->keep);
               polyselect_process_match_async(main_data, stats, job);
-              polyselect_match_info_clear(job);
-              free(job);
+
+              dllist_push_back(&loc->empty_job_slots, &job->queue);
+              // polyselect_match_info_clear(job);
+              // free(job);
               chat_chronogram("leave match");
               /********** END UNLOCKED SECTION ***************/
               pthread_mutex_lock(&main_data->lock);
@@ -517,8 +523,7 @@ int main(int argc, char *argv[])
               /********* BEGIN UNLOCKED SECTION **************/
               chat_chronogram("enter ad");
 
-              polyselect_thread_locals loc;
-              polyselect_thread_locals_init(loc, main_data, i);
+              polyselect_thread_locals_set_idx(loc, i);
 
               unsigned long c = 0;
 
@@ -567,6 +572,8 @@ int main(int argc, char *argv[])
       }
 
       pthread_mutex_unlock(&main_data->lock);
+
+      polyselect_thread_locals_clear(loc);
   }
 
   if (chronogram_file)
