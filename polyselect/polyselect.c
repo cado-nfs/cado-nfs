@@ -507,34 +507,49 @@ int main(int argc, char *argv[])
   }
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for schedule(dynamic,1)
+#pragma omp parallel
 #endif
-  for (unsigned long idx = 0; idx < idx_max; idx++)
   {
-      polyselect_thread_locals loc;
-      polyselect_thread_locals_init(loc, main_data, idx);
+#ifdef HAVE_OPENMP
+#pragma omp for schedule(dynamic,1)
+#endif
+      for (unsigned long idx = 0; idx < idx_max; idx++)
+      {
+          polyselect_thread_locals loc;
+          polyselect_thread_locals_init(loc, main_data, idx);
 
-      newAlgo(loc);
+          newAlgo(loc);
 
-      if (main_data->verbose > 0)
+          if (main_data->verbose > 0)
+#ifdef HAVE_OPENMP
+#pragma omp critical
+#endif
+          {
+              printf("# thread %d completed ad=%.0f at time=%.2fs ; ad: %.2fs\n",
+                      omp_get_thread_num(),
+                      mpz_get_d(loc->ad),
+                      wct_seconds() - main_data->stats->wct0,
+                      wct_seconds() - loc->stats->wct0);
+              fflush(stdout);
+          }
+
+          /* This also print the global progress statistics (e.g. related to
+           * maxtime, or target_E ; note that this is rarer than it used to
+           * be.)
+           */
+          polyselect_main_data_commit_stats(main_data, loc->stats, loc->ad);
+
+          polyselect_thread_locals_clear(loc);
+      }
 #ifdef HAVE_OPENMP
 #pragma omp critical
 #endif
       {
-          printf("# thread %d completed ad=%.0f at time=%.2fs\n",
+          printf("# thread %d exits at time=%.2fs\n",
                   omp_get_thread_num(),
-                  mpz_get_d(loc->ad),
-                  wct_seconds() - loc->stats->wct0);
+                  wct_seconds() - main_data->stats->wct0);
           fflush(stdout);
       }
-
-      /* This also print the global progress statistics (e.g. related to
-       * maxtime, or target_E ; note that this is rarer than it used to
-       * be.)
-       */
-      polyselect_main_data_commit_stats(main_data, loc->stats, loc->ad);
-
-      polyselect_thread_locals_clear(loc);
   }
 
   if (chronogram_file)
