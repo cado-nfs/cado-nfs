@@ -526,9 +526,15 @@ int main(int argc, char *argv[])
 
               polyselect_shash_t H;
               polyselect_shash_init(H, 4 * loc->main->lenPrimes);
+
+              chat_chronogram("enter collision_on_p");
               c = collision_on_p(H, NULL, loc);
-              if (loc->main->nq > 0)
+              chat_chronogram("leave collision_on_p");
+              if (loc->main->nq > 0) {
+                  chat_chronogram("enter collision_on_sq");
                   collision_on_sq(c, H, NULL, loc);
+                  chat_chronogram("leave collision_on_sq");
+              }
               polyselect_shash_clear(H);
 
               {
