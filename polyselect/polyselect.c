@@ -336,9 +336,14 @@ static void newAlgo(polyselect_thread_locals_ptr loc)
   chat_chronogram("enter ad");
   polyselect_shash_t H;
   polyselect_shash_init(H, 4 * loc->main->lenPrimes);
+  chat_chronogram("enter collision_on_p");
   c = collision_on_p(H, polyselect_usual_match, loc);
-  if (loc->main->nq > 0)
+  chat_chronogram("leave collision_on_p");
+  if (loc->main->nq > 0) {
+      chat_chronogram("enter collision_on_sq");
       collision_on_sq(c, H, polyselect_usual_match, loc);
+      chat_chronogram("leave collision_on_sq");
+  }
   polyselect_shash_clear(H);
   chat_chronogram("leave ad, %zu", loc->stats->collisions + loc->stats->discarded1);
 }
