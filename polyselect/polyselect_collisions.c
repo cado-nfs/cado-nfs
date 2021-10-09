@@ -447,6 +447,8 @@ collision_on_p(polyselect_shash_ptr H, polyselect_hash_match_t match, polyselect
   st = milliseconds();
 #endif
 
+  found = polyselect_shash_find_collision(H);
+
   if (found)
     {				/* do the real work */
       polyselect_hash_t H;
