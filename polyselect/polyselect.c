@@ -82,7 +82,7 @@ check_divexact(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED,
 FILE * chronogram = NULL;
 pthread_mutex_t chronogram_lock;
 
-static inline void chat_chronogram(const char * fmt, ...)
+void chat_chronogram(const char * fmt, ...)
 {
     if (!chronogram) return;
 

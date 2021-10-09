@@ -408,6 +408,8 @@ static inline void polyselect_proots_dispatch_to_hash_flat(
     }
 }/*}}}*/
 
+extern void chat_chronogram(const char * fmt, ...);
+
 /* find collisions between "P" primes, return number of loops */
 unsigned long
 collision_on_p(polyselect_shash_ptr H, polyselect_hash_match_t match, polyselect_thread_locals_ptr loc)
@@ -417,10 +419,12 @@ collision_on_p(polyselect_shash_ptr H, polyselect_hash_match_t match, polyselect
 
   int64_t umax = polyselect_main_data_get_M(loc->main);
 
+  chat_chronogram("enter proots");
   /* first compute and lift all roots modulo the primes in
    * loc->main->Primes ; we store that in loc->R
    */
   unsigned long tot_roots = polyselect_proots_compute(loc->R, loc->header, loc->main, loc->rstate);
+  chat_chronogram("leave proots");
 
   /* We first store only i's (and not p's), and look for collisions,
    * which occur very rarely.
@@ -428,6 +432,7 @@ collision_on_p(polyselect_shash_ptr H, polyselect_hash_match_t match, polyselect
    * again for the p's.
    */
 
+  chat_chronogram("enter dispatch_shash_nf");
   polyselect_shash_reset(H);
   polyselect_proots_dispatch_to_shash_notflat(H,
           loc->main->Primes,
@@ -449,10 +454,13 @@ collision_on_p(polyselect_shash_ptr H, polyselect_hash_match_t match, polyselect
 
   found = polyselect_shash_find_collision(H);
 
+  chat_chronogram("leave dispatch_shash_nf");
+
   if (found)
     {				/* do the real work */
       polyselect_hash_t H;
 
+      chat_chronogram("enter dispatch_hash_nf");
       polyselect_hash_init(H, INIT_FACTOR * loc->main->lenPrimes, match);
       polyselect_proots_dispatch_to_hash_notflat(H,
               loc->main->Primes,
@@ -476,6 +484,7 @@ collision_on_p(polyselect_shash_ptr H, polyselect_hash_match_t match, polyselect
 	      H->coll_all);
 #endif
       polyselect_hash_clear(H);
+      chat_chronogram("leave dispatch_hash_nf");
     }
 
   loc->stats->potential_collisions++;
@@ -501,6 +510,7 @@ collision_on_each_sq(unsigned long q,
 
   int64_t umax = polyselect_main_data_get_M(loc->main);
 
+  chat_chronogram("enter dispatch_shash_f");
 #if 1
   loc->R->nr[loc->R->size] = 0xff;     /* use guard to end */
   polyselect_proots_dispatch_to_shash_flat_ugly(H,
@@ -520,10 +530,13 @@ collision_on_each_sq(unsigned long q,
 
   found = polyselect_shash_find_collision(H);
 
+  chat_chronogram("leave dispatch_shash_f");
+
   if (found)
-    {				/* do the real work */
+  {				/* do the real work */
       polyselect_hash_t H;
 
+      chat_chronogram("enter dispatch_hash_f");
       polyselect_hash_init(H, INIT_FACTOR * loc->main->lenPrimes, match);
 
       polyselect_proots_dispatch_to_hash_flat(H,
@@ -535,7 +548,8 @@ collision_on_each_sq(unsigned long q,
               q, rqqz, loc);
 
       polyselect_hash_clear(H);
-    }
+      chat_chronogram("leave dispatch_hash_f");
+  }
 
   /* use DEBUG_POLYSELECT2 since this is too verbose */
 #ifdef DEBUG_POLYSELECT2
