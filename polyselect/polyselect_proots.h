@@ -22,7 +22,7 @@ typedef struct polyselect_proots_s polyselect_proots_t[1];
 typedef struct polyselect_proots_s * polyselect_proots_ptr;
 typedef const struct polyselect_proots_s * polyselect_proots_srcptr;
 
-extern void polyselect_proots_init (polyselect_proots_ptr, unsigned long);
+extern void polyselect_proots_init (polyselect_proots_ptr, int, unsigned long);
 extern void polyselect_proots_add (polyselect_proots_ptr, unsigned long, uint64_t*, unsigned long);
 extern void polyselect_proots_print (polyselect_proots_srcptr);
 extern void polyselect_proots_clear (polyselect_proots_ptr);

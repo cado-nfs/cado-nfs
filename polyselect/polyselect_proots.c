@@ -10,6 +10,7 @@
 /* init polyselect_proots_t */
 void
 polyselect_proots_init (polyselect_proots_ptr R,
+              int d,
               unsigned long size )
 {
   R->size = size;
@@ -22,6 +23,10 @@ polyselect_proots_init (polyselect_proots_ptr R,
   if (R->nr == NULL || R->roots == NULL) {
     fprintf (stderr, "Error, cannot allocate memory in polyselect_proots_init().\n");
     exit (1);
+  }
+  for (unsigned int i = 0; i < R->size; i++) {
+      R->nr[i] = 0;
+      R->roots[i] = (uint64_t *) malloc(d * sizeof(uint64_t));
   }
 }
 
@@ -36,18 +41,8 @@ polyselect_proots_add ( polyselect_proots_ptr R,
   unsigned int i;
   R->nr[index] = nr;
 
-  if (nr != 0) {
-    R->roots[index] = (uint64_t *) malloc (nr * sizeof (uint64_t));
-    if (R->roots[index] == NULL) {
-      fprintf (stderr, "Error, cannot allocate memory in polyselect_proots_add\n");
-      exit (1);
-    }
-
-    for (i = 0; i < nr; i++)
+  for (i = 0; i < nr; i++)
       R->roots[index][i] = roots[i];
-  }
-  else
-    R->roots[index] = NULL;
 }
 
 

@@ -11,6 +11,7 @@
 #include "polyselect_poly_header.h"
 #include "polyselect_qroots.h"
 #include "params.h"
+#include "dllist.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,7 +42,13 @@ struct polyselect_main_data_s {
      * by the polyselect_main_data_commit_stats call */
     polyselect_stats stats;
 
-    pthread_mutex_t stats_lock;
+    /* used for stats, but not only. We also steal this for global state
+     * things (like task queues)
+     */
+    pthread_mutex_t lock;
+
+    /* list of async jobs. Not necessarily used. */
+    struct dllist_head async_jobs;
 
     int verbose;
 
@@ -71,7 +78,9 @@ find_suitable_lq(polyselect_poly_header_srcptr header,
                  polyselect_main_data_srcptr main);
 
 extern void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad);
+extern void polyselect_main_data_commit_stats_unlocked(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad);
 
+extern void polyselect_main_data_commit_stats_unlocked(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad);
 
 extern void polyselect_main_data_prepare_primes(polyselect_main_data_ptr main);
 

@@ -897,4 +897,3 @@ collision_on_sq(unsigned long c, polyselect_shash_ptr H, polyselect_hash_match_t
   /* clean */
   polyselect_qroots_clear(SQ_R);
 }
-

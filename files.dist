@@ -1735,3 +1735,5 @@ tests/utils/test_subdivide_primes_interval.cpp
 tests/polyselect/test_polyselect_shash.cpp
 polyselect/polyselect_priority_queue.c
 polyselect/polyselect_priority_queue.h
+polyselect/polyselect_match.c
+polyselect/polyselect_match.h
