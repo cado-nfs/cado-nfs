@@ -605,6 +605,7 @@ collision_on_each_sq_r(unsigned long q,
   int st = milliseconds();
   pnr = loc->R->nr;
 
+  chat_chronogram("enter modcalc");
   /* for each rp, compute (rp-rq)*1/q^2 (mod p^2) */
   for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
     {
@@ -653,6 +654,7 @@ collision_on_each_sq_r(unsigned long q,
 	      count, milliseconds() - st);
       st = milliseconds();
     }
+  chat_chronogram("leave modcalc");
 
   /* core function to find collisions */
   for (k = 0; k < count; k++)
@@ -844,7 +846,9 @@ collision_on_sq(unsigned long c, polyselect_shash_ptr H, polyselect_hash_match_t
   polyselect_qroots_t SQ_R;
 
   polyselect_qroots_init(SQ_R);
+  chat_chronogram("enter qroots");
   comp_sq_roots(loc->header, SQ_R, loc->rstate);
+  chat_chronogram("leave qroots");
   //polyselect_qroots_print (SQ_R);
 
 
@@ -864,10 +868,12 @@ collision_on_sq(unsigned long c, polyselect_shash_ptr H, polyselect_hash_match_t
       {
           int st = milliseconds();
 
+          chat_chronogram("enter invert_q2");
           /* Step 1: inversion; compute 1/q^2 (mod p_i^2) to invqq[i] */
           invert_q2_mod_all_p2(invqq, q,
                   loc->main->Primes, loc->main->lenPrimes,
                   loc->header, loc->R->nr);
+          chat_chronogram("leave invert_q2");
 
           if (loc->main->verbose > 2)
               fprintf(stderr,
