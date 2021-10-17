@@ -60,7 +60,8 @@ polyselect_shash_add (polyselect_shash_t H, uint64_t i)
     {
       fprintf (stderr, "polyselect_Shash bucket %" PRIu64 " is full.\n",
                i & (polyselect_SHASH_NBUCKETS - 1));
-      exit (1);
+      H->current[i & (polyselect_SHASH_NBUCKETS - 1)]--;
+      // exit (1);
     }
 }
 
@@ -79,21 +80,24 @@ polyselect_shash2_add (polyselect_shash_t H, uint64_t i, uint32_t p)
   *H->current[ib]++ = i;
   if (UNLIKELY(H->current[i & (polyselect_SHASH_NBUCKETS - 1)] >= H->base[(i & (polyselect_SHASH_NBUCKETS - 1)) + 1]))
     {
-      fprintf (stderr, "polyselect_Shash bucket %" PRIu64 " is full.\n",
+      fprintf (stderr, "polyselect_Shash2 bucket %" PRIu64 " is full.\n",
                i & (polyselect_SHASH_NBUCKETS - 1));
       exit (1);
     }
 }
 
 extern void polyselect_shash_init (polyselect_shash_ptr, unsigned int);
+extern void polyselect_shash_init_multi (polyselect_shash_t *, unsigned int, unsigned int);
 extern void polyselect_shash_reset (polyselect_shash_ptr);
 extern size_t polyselect_shash_size(polyselect_shash_srcptr);
 extern int polyselect_shash_find_collision (polyselect_shash_srcptr H) ATTRIBUTE_DEPRECATED;
 extern int polyselect_shash_find_collision_multi(const polyselect_shash_t * H, unsigned int multi, uint32_t k0, uint32_t k1);
 extern void polyselect_shash_clear (polyselect_shash_ptr);
-extern int
-polyselect_shash2_find_collision_multi(const polyselect_shash_t * H, unsigned int multi, uint32_t k0, uint32_t k1,
+extern void polyselect_shash_clear_multi (polyselect_shash_t * H, unsigned int multi);
+extern int polyselect_shash2_find_collision_multi(const polyselect_shash_t * H, unsigned int multi, uint32_t k0, uint32_t k1,
         unsigned long q, mpz_srcptr rq, struct polyselect_thread_s * thread);
+extern void
+polyselect_shash_reset_multi (polyselect_shash_t * H, unsigned int multi);
 
 #ifdef __cplusplus
 }

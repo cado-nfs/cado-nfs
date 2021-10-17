@@ -49,25 +49,116 @@
 void
 polyselect_shash_init (polyselect_shash_ptr H, unsigned int init_size)
 {
-  unsigned int init_size0 = init_size;
-
-  /* round up to multiple of polyselect_SHASH_NBUCKETS */
-  init_size = 1 + (init_size - 1) / polyselect_SHASH_NBUCKETS;
-  init_size += init_size / 8 + 128; /* use 12.5% margin */
-  if (init_size > init_size0)
-    init_size = init_size0;
-  H->alloc = init_size * (polyselect_SHASH_NBUCKETS + 1) + 8;
-  /* + init_size for guard for the last buckets to avoid seg fault */
-  /* + 8 for extreme guard (ASM X86 needs 8, C needs 5 when init_size is too small */
-  H->mem = (uint64_t*) malloc (H->alloc * sizeof (uint64_t));
-  H->pmem = (uint32_t*) malloc (H->alloc * sizeof (uint32_t));
-  if (!H->mem)
-    {
-      fprintf (stderr, "Error, cannot allocate memory in polyselect_shash_init\n");
-      exit (1);
-    }
-  H->balloc = init_size;
+    polyselect_shash_init_multi((polyselect_shash_t *) H, init_size, 1);
 }
+
+
+/* Same, but allocate several tables together. Such tables **MUST** be
+ * cleared with polyselect_shash_clear_multi ; intermediary resizing in
+ * order to reduce the "multi" parameter is possible, provided it never
+ * exceeds the origin
+ */
+
+/* We want an alloc size S so that for any integer k such that 1 <= k <=
+ * multi, we have (with N=polyselect_SHASH_NBUCKETS)
+ *
+ *  - S can be divided in k areas of size floor(S/k), aligned at an
+ *  address that is a multiple of [large_alignment_constraint]
+ */
+#define SHASH_LARGE_ALIGNMENT_CONSTRAINT        0x40
+/*
+ *  - Each of these areas has room for N+1 buckets, + 8 bytes
+ *  [ The +8 dates from 4778875a2 and is not explained ]
+ */
+#define SHASH_ALLOC_K_OFFSET    8
+/*
+ *  - each of the N+1 buckets has room for
+ *      o(init_size/k/N) entries, with o(x) >= 1.25*x+128.
+ *  [ The +1 buckets dates from ef98432867 (and 6b2a7998cf) and is not explained ]
+ */
+#define SHASH_BALLOC_CONSTANT_MARGIN    128
+#define SHASH_BALLOC_INVMUL_MARGIN      4 /* x means 1+1/x */
+/*
+ *  - (optional) Each bucket start is aligned to a certain value (which
+ *  can be 1.
+ */
+#define SHASH_SMALL_ALIGNMENT_CONSTRAINT        1
+/*
+ * The last condition is arranged by setting o(x) =
+ * iceildiv(1.25*x+128,0x40)*small_alignment_constraint, which is upper
+ * bounded by 1.25*x+8+small_alignment_constraint, which is sufficient to
+ * get an upper bound afterwards.  However it's easy enough to loop over
+ * the possible values of k as well.
+ */
+void
+polyselect_shash_init_multi (polyselect_shash_t * H, unsigned int init_size, unsigned int multi)
+{
+    size_t alloc = 0;
+    for(unsigned int k = 1 ; k <= multi ; k++) {
+        size_t balloc = iceildiv(init_size, polyselect_SHASH_NBUCKETS * k);
+        balloc += balloc / SHASH_BALLOC_INVMUL_MARGIN;
+        balloc += SHASH_BALLOC_CONSTANT_MARGIN;
+        balloc = next_multiple_of(balloc, SHASH_SMALL_ALIGNMENT_CONSTRAINT);
+        size_t alloc_k = balloc * (polyselect_SHASH_NBUCKETS+1);
+        alloc_k += SHASH_ALLOC_K_OFFSET;
+        alloc_k = next_multiple_of(alloc_k, SHASH_LARGE_ALIGNMENT_CONSTRAINT);
+        if (alloc_k * k >= alloc)
+            alloc = alloc_k * k;
+    }
+    H[0]->alloc = alloc;
+    H[0]->mem = (uint64_t*) malloc (H[0]->alloc * sizeof (uint64_t));
+    H[0]->pmem = (uint32_t*) malloc (H[0]->alloc * sizeof (uint32_t));
+    if (!H[0]->mem || H[0]->pmem)
+    {
+        fprintf (stderr, "Error, cannot allocate memory in polyselect_shash_init\n");
+        exit (1);
+    }
+
+    polyselect_shash_reset_multi(H, multi);
+}
+
+void
+polyselect_shash_reset_multi (polyselect_shash_t * H, unsigned int k)
+{
+    /* The alloc_k estimate that we had computed before is by
+     * construction less than the result of the computation below.
+     */
+    size_t alloc_k = H[0]->alloc / k;
+    alloc_k -= alloc_k & (SHASH_LARGE_ALIGNMENT_CONSTRAINT - 1);
+    size_t balloc = (alloc_k - SHASH_ALLOC_K_OFFSET) / (polyselect_SHASH_NBUCKETS+1);
+    balloc &= balloc & (SHASH_SMALL_ALIGNMENT_CONSTRAINT - 1);
+    for(unsigned int i = 0 ; i < k ; i++) {
+        H[i]->mem = H[0]->mem + i * alloc_k;
+        H[i]->pmem = H[0]->pmem + i * alloc_k;
+        H[i]->base[0] = H[i]->current[0] = H[0]->mem;
+        /* This is only used for the spacing of the pointers */
+        H[i]->balloc = balloc;
+        for (int j = 1; j <= polyselect_SHASH_NBUCKETS; j++)
+            H[i]->base[j] = H[i]->current[j] = H[i]->base[j-1] + H[i]->balloc;
+        /* Trick for prefetch T in polyselect_shash_find_collision after
+         * the end
+           of the last bucket. Each H->base[j] has balloc entries of type
+           uint64_t, where balloc >= 128.
+
+           XXX several things are odd here
+           What is "the last bucket" ?
+           Is it [polyselect_SHASH_NBUCKETS-1] ?
+           Is it [polyselect_SHASH_NBUCKETS] ?
+           If the latter, then "the end of the last bucket" would be at position
+           H->base[polyselect_SHASH_NBUCKETS] + balloc, and the reason why this
+           doesn't overflow is that we have a +8 in H->alloc in the function
+           above.
+           If the former, then the place where we're doing the memset agrees
+           with the description "after the end of the last bucket". There are
+           several ways to argue that this memset doesn't overrun the buffer,
+           including the one above, or the aforementioned +8. But then, the
+           fact of allocating H->alloc with (polyselect_SHASH_NBUCKETS + 1)
+           times the init_size would probably be a bug.
+           */
+        memset (H[i]->base[polyselect_SHASH_NBUCKETS], 0, sizeof(**H[0]->base) * 8);
+    }
+}
+
 
 size_t polyselect_shash_size(polyselect_shash_srcptr H)
 {
@@ -80,29 +171,8 @@ size_t polyselect_shash_size(polyselect_shash_srcptr H)
 void
 polyselect_shash_reset (polyselect_shash_ptr H)
 {
-  H->base[0] = H->current[0] = H->mem;
-  for (int j = 1; j <= polyselect_SHASH_NBUCKETS; j++)
-    H->base[j] = H->current[j] = H->base[j-1] + H->balloc;
-  /* Trick for prefetch T in polyselect_shash_find_collision after the end
-     of the last bucket. Each H->base[j] has balloc entries of type uint64_t,
-     where balloc >= 128.
-
-     XXX several things are odd here
-     What is "the last bucket" ?
-     Is it [polyselect_SHASH_NBUCKETS-1] ?
-     Is it [polyselect_SHASH_NBUCKETS] ?
-     If the latter, then "the end of the last bucket" would be at position
-     H->base[polyselect_SHASH_NBUCKETS] + balloc, and the reason why this
-     doesn't overflow is that we have a +8 in H->alloc in the function
-     above.
-     If the former, then the place where we're doing the memset agrees
-     with the description "after the end of the last bucket". There are
-     several ways to argue that this memset doesn't overrun the buffer,
-     including the one above, or the aforementioned +8. But then, the
-     fact of allocating H->alloc with (polyselect_SHASH_NBUCKETS + 1)
-     times the init_size would probably be a bug.
-   */
-  memset (H->base[polyselect_SHASH_NBUCKETS], 0, sizeof(**H->base) * 8);
+    ASSERT_ALWAYS(H->alloc);
+    polyselect_shash_reset_multi((polyselect_shash_t *) H, 1);
 }
 
 static inline size_t polyselect_shash_secondary_table_size(polyselect_shash_srcptr H, unsigned int multi)
@@ -400,8 +470,15 @@ polyselect_shash_find_collision_old (polyselect_shash_srcptr H)
 
 
 void
+polyselect_shash_clear_multi (polyselect_shash_t * H, unsigned int multi MAYBE_UNUSED)
+{
+  free (H[0]->mem);
+  free (H[0]->pmem);
+}
+void
 polyselect_shash_clear (polyselect_shash_ptr H)
 {
-  free (H->mem);
+    ASSERT_ALWAYS(H->alloc);
+    polyselect_shash_clear_multi((polyselect_shash_t *) H, 1);
 }
 

@@ -38,10 +38,8 @@ void polyselect_thread_team_late_init(polyselect_thread_team_ptr team)
     team->rstate = team->stats->rstate;
 
     team->SH = malloc(main->finer_grain_threads * sizeof(polyselect_shash_t));
-    for(unsigned int i = 0 ; i < main->finer_grain_threads ; i++) {
-        size_t size_hint = iceildiv(POLYSELECT_SHASH_ALLOC_RATIO * league->pt->lenPrimes, main->finer_grain_threads);
-        polyselect_shash_init(team->SH[i], size_hint);
-    }
+    size_t size_hint = POLYSELECT_SHASH_ALLOC_RATIO * league->pt->lenPrimes;
+    polyselect_shash_init_multi(team->SH, size_hint, main->finer_grain_threads);
 
     pthread_cond_init(&team->sync_task->wait_begintask, NULL);
     pthread_cond_init(&team->sync_task->wait_endtask, NULL);
@@ -62,15 +60,18 @@ void polyselect_thread_team_set_idx(polyselect_thread_team_ptr team, unsigned in
 void polyselect_thread_team_clear(polyselect_thread_team_ptr team)
 {
     barrier_destroy(&team->sync_task->barrier, &team->lock);
-    pthread_barrier_destroy(&team->barrier);
-    polyselect_stats_clear(team->stats);
-    polyselect_poly_header_clear(team->header);
-    polyselect_proots_clear(team->R);
-    mpz_clear(team->ad);
-
-    pthread_mutex_destroy(&team->lock);
     pthread_cond_destroy(&team->sync_task->wait_begintask);
     pthread_cond_destroy(&team->sync_task->wait_endtask);
+    polyselect_shash_clear_multi(team->SH, team->league->main->finer_grain_threads);
+   
+    polyselect_poly_header_clear(team->header);
+    polyselect_proots_clear(team->R);
+    polyselect_stats_clear(team->stats);
+    mpz_clear(team->ad);
+
+    pthread_barrier_destroy(&team->barrier);
+
+    pthread_mutex_destroy(&team->lock);
 
 }
 
@@ -116,6 +117,12 @@ void polyselect_thread_team_post_work_stop(polyselect_thread_team_ptr team, poly
     tk->arg = NULL;
     tk->done = 0;
     team->sync_busy = 0;
+    
+    // for performance reasons, we prefer if the caller takes care of
+    // making this call _when it is needed_, that is when the SH
+    // structure is used underneath.
+    //
+    // polyselect_shash_reset_multi(team->SH, tk->expected_participants);
 
     /* I think it's enough. */
     pthread_cond_broadcast(&tk->wait_begintask);

@@ -354,24 +354,25 @@ void polyselect_proots_dispatch_to_shash_notflat(
         const uint8_t * number_of_roots_per_prime,
         int64_t umax)
 {
-      for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
-       {
-         unsigned long p = Primes[nprimes];
-          int64_t ppl = (int64_t) p *(int64_t) p;
-         unsigned long nr = number_of_roots_per_prime[nprimes];
-         for (unsigned long j = 0; j < nr; j++)
-           {
-                // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
-                int64_t u0 = roots_per_prime[nprimes][j];
-                for(int64_t u = u0 ; u < umax ; u += ppl)
-                    polyselect_shash_add(H, u);
-                for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
-                    polyselect_shash_add(H, u);
-            }
+    polyselect_shash_reset(H);
+    for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
+    {
+        unsigned long p = Primes[nprimes];
+        int64_t ppl = (int64_t) p *(int64_t) p;
+        unsigned long nr = number_of_roots_per_prime[nprimes];
+        for (unsigned long j = 0; j < nr; j++)
+        {
+            // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
+            int64_t u0 = roots_per_prime[nprimes][j];
+            for(int64_t u = u0 ; u < umax ; u += ppl)
+                polyselect_shash_add(H, u);
+            for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
+                polyselect_shash_add(H, u);
         }
+    }
 
-      for (int i = 0; i < polyselect_SHASH_NBUCKETS; i++)
-          ASSERT(H->current[i] <= H->base[i + 1]);
+    for (int i = 0; i < polyselect_SHASH_NBUCKETS; i++)
+        ASSERT(H->current[i] <= H->base[i + 1]);
 }/*}}}*/
 
 /*{{{ polyselect_proots_dispatch_to_shash2_notflat
@@ -386,24 +387,25 @@ void polyselect_proots_dispatch_to_shash2_notflat(
         const uint8_t * number_of_roots_per_prime,
         int64_t umax)
 {
-      for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
-       {
-         unsigned long p = Primes[nprimes];
-          int64_t ppl = (int64_t) p *(int64_t) p;
-         unsigned long nr = number_of_roots_per_prime[nprimes];
-         for (unsigned long j = 0; j < nr; j++)
-           {
-                // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
-                int64_t u0 = roots_per_prime[nprimes][j];
-                for(int64_t u = u0 ; u < umax ; u += ppl)
-                    polyselect_shash2_add(H, u, p);
-                for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
-                    polyselect_shash2_add(H, u, p);
-            }
+    polyselect_shash_reset(H);
+    for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
+    {
+        unsigned long p = Primes[nprimes];
+        int64_t ppl = (int64_t) p *(int64_t) p;
+        unsigned long nr = number_of_roots_per_prime[nprimes];
+        for (unsigned long j = 0; j < nr; j++)
+        {
+            // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
+            int64_t u0 = roots_per_prime[nprimes][j];
+            for(int64_t u = u0 ; u < umax ; u += ppl)
+                polyselect_shash2_add(H, u, p);
+            for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
+                polyselect_shash2_add(H, u, p);
         }
+    }
 
-      for (int i = 0; i < polyselect_SHASH_NBUCKETS; i++)
-          ASSERT(H->current[i] <= H->base[i + 1]);
+    for (int i = 0; i < polyselect_SHASH_NBUCKETS; i++)
+        ASSERT(H->current[i] <= H->base[i + 1]);
 }/*}}}*/
 
 #if 0
@@ -629,11 +631,13 @@ collision_on_p_conductor(polyselect_thread_ptr thread)
 
   int found;
 
+  polyselect_shash_reset_multi(thread->team->SH, thread->team->sync_busy);
   polyselect_thread_team_post_work(thread->team, thread, polyselect_DCS_notflat_subtask, &found);
 
 
   if (found) {/* do the real work */
       struct polyselect_CCS_subtask_data arg[1] = {{ .q = 1, .rq = NULL }};
+      polyselect_shash_reset_multi(thread->team->SH, thread->team->sync_busy);
       polyselect_thread_team_post_work(thread->team, thread, polyselect_CCS_notflat_subtask, arg);
   }
 
@@ -790,11 +794,13 @@ collision_on_each_sq(unsigned long q,
         .found = 0
     }};
 
+    polyselect_shash_reset_multi(thread->team->SH, thread->team->sync_busy);
     polyselect_thread_team_post_work(thread->team, thread, polyselect_DCS_flat_subtask, arg);
 
     if (arg->found) {/* do the real work */
       struct polyselect_CCS_subtask_data arg[1] = {{
           .q = q, .rq = rq, .invq_roots_per_prime = invq_roots_per_prime }};
+      polyselect_shash_reset_multi(thread->team->SH, thread->team->sync_busy);
       polyselect_thread_team_post_work(thread->team, thread, polyselect_CCS_flat_subtask, arg);
   }
 
