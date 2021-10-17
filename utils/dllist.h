@@ -178,7 +178,8 @@ dllist_get_nth (struct dllist_head * L, size_t n) {
  */
 static inline struct dllist_head *
 dllist_get_first_node (struct dllist_head * L) {
-    return L->next;
+    struct dllist_head * x = L->next;
+    return x == L ? NULL : x;
 }
 
 /* move the entire contents of L0 to the back of L. L0 is made empty.

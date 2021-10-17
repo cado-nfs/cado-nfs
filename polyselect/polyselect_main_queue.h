@@ -6,12 +6,13 @@
 
 #include "cado_poly.h"
 #include "polyselect_main_data.h"
-#include "polyselect_locals.h"
+
+/* XXX This catch-all header is almost empty and obsolete to a large
+ * extent now. Most of its content has gone to other places of the code.
+ */
 
 /* A few configuration flags first, which affect some specific points.
  */
-/* This is used in the collisions calls */
-#define INIT_FACTOR 8UL
 
 /* number of special (q, r) per batch */
 #define BATCH_SIZE 20
@@ -27,18 +28,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
-/* This is one the functions through which a raw polynomial pair,
- * found from a collision in the tables, undergoes further processing.
- *
- * Note that the stats structure to be used is _not_ protected by locks,
- * so that it's much better if it's a thread-local stats object. It will
- * be pushed to the global stats with polyselect_main_data_commit_stats
- */
-extern int optimize_raw_poly(mpz_poly_ptr f, mpz_poly_ptr g,
-        polyselect_main_data_srcptr,
-        polyselect_stats_ptr stats);
 
 extern void polyselect_fprintf_poly_pair(FILE * fp, mpz_srcptr N,                    mpz_poly_srcptr f, mpz_poly_srcptr g, int raw);
 

@@ -4,65 +4,95 @@
 #include <pthread.h>
 #include "barrier.h"
 
-int barrier_init (barrier_t *barrier, int count)
+int barrier_init (barrier_t *barrier, pthread_mutex_t * lock_reuse, int count)
 {
     int rc;
 
-    if (count == 0)
-        return -EINVAL;
+    /* count == 0 might be used to pre-initialize a barrier, meant to be
+     * re-tweaked at little cost later on with barrier_resize */
 
-    rc = pthread_mutex_init (&barrier->lock, NULL);
-    if (rc != 0) return rc;
+    if (lock_reuse) {
+        barrier->lock = lock_reuse;
+    } else {
+        rc = pthread_mutex_init (&barrier->lock_private, NULL);
+        if (rc != 0) return rc;
+        barrier->lock = &barrier->lock_private;
+    }
 
     barrier->left = barrier->count = count;
     barrier->event = 0;
 
     rc = pthread_cond_init (&barrier->cv, NULL);
-    if (rc != 0) {
-        pthread_mutex_destroy (&barrier->lock);
+    if (rc != 0 && !lock_reuse) {
+        pthread_mutex_destroy (&barrier->lock_private);
         return rc;
     }
 
     return 0;
 }
 
-int barrier_destroy (barrier_t *barrier)
+int barrier_destroy (barrier_t *barrier, pthread_mutex_t * lock_reuse)
 {
     int rc = EBUSY;
 
-    rc = pthread_mutex_lock (&barrier->lock);
+    rc = pthread_mutex_lock (barrier->lock);
     if (rc != 0) return rc;
 
     int ok = barrier->left == barrier->count;
-    rc = pthread_mutex_unlock (&barrier->lock);
+    rc = pthread_mutex_unlock (barrier->lock);
 
     if (!ok) return -EBUSY;
     if (rc != 0) return rc;
 
     int r = 0;
 
-    r = pthread_mutex_destroy (&barrier->lock);
+    if (!lock_reuse)
+        r = pthread_mutex_destroy (&barrier->lock_private);
     rc = pthread_cond_destroy (&barrier->cv);
     if (rc && !r) r = rc;
 
     return r;
 }
 
-int barrier_wait(barrier_t * barrier, 
-        void (*in)(int, void *),
-        void (*out)(int, void *), void * arg)
+int barrier_resize_unlocked(barrier_t * barrier, int count)
+{
+    int rc = 0;
+
+    for ( ; rc == 0 && (barrier->event & 1) ; ) {
+        rc = pthread_cond_wait (&barrier->cv, barrier->lock);
+    }
+    if (rc != 0) return rc;
+
+    barrier->left = barrier->count = count;
+
+    return 0;
+}
+
+int barrier_resize(barrier_t * barrier, int count)
 {
     int rc;
 
-    rc = pthread_mutex_lock (&barrier->lock);
+    rc = pthread_mutex_lock (barrier->lock);
     if (rc != 0) return rc;
+
+    barrier_resize_unlocked(barrier, count);
+
+    rc = pthread_mutex_unlock (barrier->lock);
+    return rc;
+}
+
+int barrier_wait_unlocked(barrier_t * barrier, 
+        void (*in)(int, void *),
+        void (*out)(int, void *), void * arg)
+{
+    int rc = 0;
 
     /* It could be that not all threads have exited the previous barrier. As
      * usual, only the contended case matters here. The uncontended case won't
      * even see this loop.
      */
     for ( ; rc == 0 && (barrier->event & 1) ; ) {
-        rc = pthread_cond_wait (&barrier->cv, &barrier->lock);
+        rc = pthread_cond_wait (&barrier->cv, barrier->lock);
     }
 
     --barrier->left;
@@ -76,7 +106,7 @@ int barrier_wait(barrier_t * barrier,
 
         /* protect against possible spurious wakeups */
         do {
-            rc = pthread_cond_wait (&barrier->cv, &barrier->lock);
+            rc = pthread_cond_wait (&barrier->cv, barrier->lock);
             /* Error codes are returned as negative numbers */
             if (rc != 0) break;
         } while (event == barrier->event);
@@ -100,10 +130,28 @@ int barrier_wait(barrier_t * barrier,
         barrier->event++;
         pthread_cond_broadcast (&barrier->cv);
     }
-    pthread_mutex_unlock (&barrier->lock);
 
     /* error: negative number, -(error code)
      * waker: return BARRIER_SERIAL_THREAD
      * other: return 0 */
     return rc;
 }
+
+int barrier_wait(barrier_t * barrier, 
+        void (*in)(int, void *),
+        void (*out)(int, void *), void * arg)
+{
+    int rc = 0;
+
+    rc = pthread_mutex_lock (barrier->lock);
+    if (rc != 0) return rc;
+
+    rc = barrier_wait_unlocked(barrier, in, out, arg);
+
+    pthread_mutex_unlock (barrier->lock);
+
+    return rc;
+}
+
+
+

@@ -3127,6 +3127,24 @@ mpz_poly_content (mpz_ptr c, mpz_poly_srcptr F)
   mpz_abs (c, c);
 }
 
+int
+mpz_poly_has_trivial_content (mpz_poly_srcptr F)
+{
+  int i;
+  mpz_t *f = F->coeff;
+  int d = F->deg;
+  mpz_t c;
+  mpz_init_set (c, f[0]);
+  mpz_abs (c, c);
+  for (i = 1; i <= d && mpz_cmp_ui(c, 1) > 0; i++) {
+    mpz_gcd (c, c, f[i]);
+    mpz_abs (c, c);
+  }
+  int res = mpz_cmp_ui(c, 1) == 0;
+  mpz_clear(c);
+  return res;
+}
+
 /*
  * Compute the pseudo division of a and b such that
  *  lc(b)^(deg(a) - deg(b) + 1) * a = b * q + r with deg(r) < deg(b).

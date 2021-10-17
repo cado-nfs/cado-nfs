@@ -8,6 +8,9 @@
 #include "polyselect_main_data.h"
 #include "polyselect_main_queue.h"      // some useful defaults
 #include "polyselect_arith.h"
+#include "polyselect_thread.h"
+#include "polyselect_thread_team.h"
+#include "polyselect_thread_league.h"
 #include "polyselect_hash.h"
 #include "size_optimization.h"          // SOPT_DEFAULT_EFFORT
 #include "timing.h"     // milliseconds
@@ -29,8 +32,6 @@ void polyselect_main_data_init_defaults(polyselect_main_data_ptr main)
     mpz_init(main->N);
     cado_poly_init(main->best_poly);
     cado_poly_init(main->curr_poly);
-    main->Primes = NULL;
-    main->lenPrimes = 0;
     pthread_mutex_init(&main->lock, NULL);
     main->verbose = 0;
     main->sopt_effort = SOPT_DEFAULT_EFFORT;
@@ -38,7 +39,13 @@ void polyselect_main_data_init_defaults(polyselect_main_data_ptr main)
     main->target_E = 0;
     main->keep = DEFAULT_POLYSELECT_KEEP;
     polyselect_stats_init(main->stats, main->keep);
-    dllist_init_head(&main->async_jobs);
+    main->idx = 0;
+#ifdef HAVE_HWLOC
+    hwloc_topology_init(&main->topology);
+    hwloc_topology_load(main->topology);
+#endif
+    main->nthreads = 0;
+    main->finer_grain_threads = 1;
 }
 
 
@@ -49,9 +56,11 @@ void polyselect_main_data_clear(polyselect_main_data_ptr main)
     mpz_clear(main->N);
     cado_poly_clear(main->best_poly);
     cado_poly_clear(main->curr_poly);
-    free(main->Primes);
     pthread_mutex_destroy(&main->lock);
     polyselect_stats_clear(main->stats);
+#ifdef HAVE_HWLOC
+    hwloc_topology_destroy(main->topology);
+#endif
 }
 
 /* This returns the bound on i in the algorithm. We choose to set it to
@@ -59,13 +68,13 @@ void polyselect_main_data_clear(polyselect_main_data_ptr main)
  */
 int64_t polyselect_main_data_get_M(polyselect_main_data_srcptr main)
 {
-    int64_t p = main->Primes[main->lenPrimes - 1];
+    int64_t p = 2 * main->P; // main->Primes[main->lenPrimes - 1];
     return p * p;
 }
 
 size_t polyselect_main_data_expected_number_of_pairs(polyselect_main_data_srcptr main)
 {
-  uint32_t P = main->Primes[0];
+  uint32_t P = main->P; // main->Primes[0];
   int64_t M = polyselect_main_data_get_M(main);
   /* We add 2*M/p^2 entries to the hash table for each p that has
    * roots, and for each root. Since on average we have one root per p,
@@ -103,7 +112,7 @@ double polyselect_main_data_expected_collisions(polyselect_main_data_srcptr main
    l for degree d-2. */
 int polyselect_main_data_check_parameters(polyselect_main_data_srcptr main, mpz_srcptr m0, double q)
 {
-    double p = main->Primes[main->lenPrimes-1];
+    double p = 2 * main->P; // main->Primes[main->lenPrimes-1];
     return pow(p, 4) * q < mpz_get_d(m0);
 }
 
@@ -257,6 +266,7 @@ static size_t snprintf_expected_goal_maxtime(
 void polyselect_main_data_commit_stats_unlocked(polyselect_main_data_ptr main, polyselect_stats_ptr stats, mpz_srcptr ad)
 {
     polyselect_stats_accumulate(main->stats, stats);
+    polyselect_stats_reset(stats);
 
     if (!ad) {
         /* if ad==NULL, we're committing stats for an asynchronous job,
@@ -289,82 +299,6 @@ void polyselect_main_data_commit_stats(polyselect_main_data_ptr main, polyselect
     pthread_mutex_unlock(&main->lock);
 }
 
-/* init prime array */
-/* initialize primes in [P,2*P] */
-static unsigned long
-initPrimes ( unsigned long P,
-             uint32_t **primes )
-{
-  unsigned long p, nprimes = 0;
-  unsigned long Pmax = 2*P;
-#ifdef LESS_P // if impatient for root finding
-  Pmax = P + P/2;
-#endif
-  unsigned long maxprimes = nprimes_interval(P, Pmax);
-
-  *primes = (uint32_t*) malloc (maxprimes * sizeof (uint32_t));
-  if ( (*primes) == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in initPrimes\n");
-    exit (1);
-  }
-
-  prime_info pi;
-  prime_info_init (pi);
-
-  /* It's now fairly trivial to parallelize this prime search if we want
-   * to, but I think that it's a trivial computation anyway, and most
-   * probably not worth the work.
-   */
-  prime_info_seek(pi, P);
-
-  for (p = P, nprimes = 0; (p = getprime_mt (pi)) <= Pmax; nprimes++) {
-    if (nprimes + 1 >= maxprimes) {
-      maxprimes += maxprimes / 10;
-      *primes = (uint32_t*) realloc (*primes, maxprimes * sizeof (uint32_t));
-      if ( (*primes) == NULL) {
-        fprintf (stderr, "Error, cannot reallocate memory in initPrimes\n");
-        exit (1);
-      }
-    }
-    (*primes)[nprimes] = p;
-  }
-
-  prime_info_clear (pi);
-
-  *primes = (uint32_t*) realloc (*primes, (nprimes) * sizeof (uint32_t));
-  if ( (*primes) == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in initPrimes\n");
-    exit (1);
-  }
-
-  return nprimes;
-}
-
-
-/* clear prime array */
-void
-polyselect_main_data_print_primes (polyselect_main_data_srcptr main)
-{
-    uint32_t *primes = main->Primes;
-    unsigned long size = main->lenPrimes;
-    unsigned long i;
-    for (i = 0; i < size; i++) {
-        fprintf (stderr, "(%lu, %" PRIu32 ") ", i, primes[i]);
-        if ((i+1) % 5 == 0)
-            fprintf (stderr, "\n");
-    }
-    fprintf (stderr, "\n");
-}
-
-void polyselect_main_data_prepare_primes(polyselect_main_data_ptr main)
-{
-    unsigned long st = milliseconds();
-
-    main->lenPrimes = initPrimes(main->P, &main->Primes);
-
-    printf("# Info: initializing %lu P primes took %lums, nq=%lu\n",
-            main->lenPrimes, milliseconds() - st, main->nq);
-}
 /* fetch N and d from the parameter list. It is of course necessary
  * before we can decide to setup many of the main_data parameters.
  */
@@ -496,7 +430,7 @@ void polyselect_main_data_parse_P(polyselect_main_data_ptr main, param_list_ptr 
     main->P = P;
 }
 
-unsigned long polyselect_main_data_number_of_ad_tasks(polyselect_main_data_ptr main)
+unsigned long polyselect_main_data_number_of_ad_tasks(polyselect_main_data_srcptr main)
 {
 
     if (mpz_cmp_ui(main->admax, 0) <= 0) {
@@ -520,5 +454,156 @@ unsigned long polyselect_main_data_number_of_ad_tasks(polyselect_main_data_ptr m
     mpz_clear(t);
 
     return idx_max;
+}
+
+
+static void 
+polyselect_main_data_auto_scale(polyselect_main_data_ptr main_data)
+{
+#ifdef HAVE_HWLOC
+    main_data->nthreads = hwloc_bitmap_weight(hwloc_get_root_obj(main_data->topology)->cpuset);
+#else
+    fprintf(stderr, "Warning: -t auto requires hwloc\n");
+    main_data->nthreads = 1;
+#endif
+}
+
+void polyselect_main_data_prepare_leagues(polyselect_main_data_ptr main_data)
+{
+#ifdef HAVE_HWLOC
+    main_data->nnodes = hwloc_get_nbobjs_by_depth(main_data->topology, hwloc_get_type_depth(main_data->topology, HWLOC_OBJ_NUMANODE));
+#endif
+
+    /* prepare groups */
+    main_data->leagues = malloc(main_data->nnodes * sizeof(polyselect_thread_league));
+
+    for(unsigned int i = 0 ; i < main_data->nnodes ; i++) {
+        /* This initializes the list of primes, one on each NUMA node */
+        polyselect_thread_league_init(&(main_data->leagues[i]), main_data, i);
+#ifdef HAVE_HWLOC
+        printf("node %u has %u cpus\n", i, hwloc_bitmap_weight(main_data->leagues[i].membind_set));
+#endif
+    }
+}
+
+void polyselect_main_data_dispose_leagues(polyselect_main_data_ptr main_data)
+{
+  for(unsigned int i = 0 ; i < main_data->nnodes ; i++) {
+      polyselect_thread_league_clear(&main_data->leagues[i]);
+  }
+  free(main_data->leagues);
+}
+
+void polyselect_main_data_prepare_teams(polyselect_main_data_ptr main_data)
+{
+    unsigned int nteams = main_data->nthreads / main_data->finer_grain_threads;
+    unsigned int w = nteams / main_data->nnodes;
+    main_data->teams = malloc(nteams * sizeof(polyselect_thread_team));
+
+    for(unsigned int i = 0 ; i < nteams ; i++) {
+        polyselect_thread_team_ptr team = &main_data->teams[i];
+        polyselect_thread_league_ptr league = &main_data->leagues[i / w];
+        polyselect_thread_team_init(team, league, main_data, i);
+    }
+}
+
+void polyselect_main_data_dispose_teams(polyselect_main_data_ptr main_data)
+{
+    unsigned int nteams = main_data->nthreads / main_data->finer_grain_threads;
+    for(unsigned int i = 0 ; i < nteams ; i++) {
+        polyselect_thread_team_ptr team = &main_data->teams[i];
+        polyselect_thread_team_clear(team);
+    }
+    free(main_data->teams);
+}
+
+void polyselect_main_data_prepare_threads(polyselect_main_data_ptr main_data)
+{
+    main_data->threads = malloc(main_data->nthreads * sizeof(polyselect_thread));
+
+    for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
+        polyselect_thread_ptr thread = &main_data->threads[i];
+        unsigned int ti = i / main_data->finer_grain_threads;
+        polyselect_thread_team_ptr team = &(main_data->teams[ti]);
+        polyselect_thread_init(thread, team, main_data, i);
+    }
+
+#ifdef HAVE_HWLOC
+    /*  prepare the cpu sets for binding */
+    if (hwloc_get_nbobjs_by_type(main_data->topology, HWLOC_OBJ_PU) % main_data->nthreads) {
+        fprintf(stderr, "Warning, the number of threads is not compatible with this topology, we will not bind threads\n");
+    } else {
+        for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
+            main_data->threads[i].cpubind_set = hwloc_bitmap_alloc();
+        }
+        int pu_depth = hwloc_get_type_depth(main_data->topology, HWLOC_OBJ_PU);
+        unsigned int nk = hwloc_get_nbobjs_by_type(main_data->topology, HWLOC_OBJ_PU);
+        int w = nk / main_data->nthreads;
+        for(unsigned int i = 0 ; i < nk ; i++) {
+            hwloc_bitmap_or(main_data->threads[i/w].cpubind_set, main_data->threads[i/w].cpubind_set, hwloc_get_obj_by_depth(main_data->topology,pu_depth, i)->cpuset);
+        }
+    }
+#endif
+}
+
+void polyselect_main_data_dispose_threads(polyselect_main_data_ptr main_data)
+{
+  for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
+      polyselect_thread_clear(&main_data->threads[i]);
+  }
+#ifdef HAVE_HWLOC
+  for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
+      if(main_data->threads[i].cpubind_set)
+          hwloc_bitmap_free(main_data->threads[i].cpubind_set);
+  }
+#endif
+  free(main_data->threads);
+}
+
+void polyselect_main_data_go_parallel(polyselect_main_data_ptr main_data, void * (*thread_loop)(polyselect_thread_ptr))
+{
+    unsigned long idx_max = polyselect_main_data_number_of_ad_tasks(main_data);
+
+    if (idx_max < main_data->nthreads)
+    {
+        fprintf(stderr,
+                "# Warning: the current admin, admax, incr settings only make it possible to run %lu jobs in parallel, so that we won't be able to do %d-thread parallelism as requested\n",
+                idx_max, main_data->nthreads);
+    }
+
+    for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
+        pthread_create(&main_data->threads[i].tid, NULL, (void * (*)(void*)) thread_loop, &main_data->threads[i]);
+    }
+    for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
+        pthread_join(main_data->threads[i].tid, NULL);
+    }
+}
+
+void polyselect_main_data_check_topology(polyselect_main_data_ptr main_data)
+{
+#ifdef HAVE_HWLOC
+    main_data->nnodes = hwloc_get_nbobjs_by_depth(main_data->topology, hwloc_get_type_depth(main_data->topology, HWLOC_OBJ_NUMANODE));
+#endif
+
+    if (main_data->nthreads == 0)
+        polyselect_main_data_auto_scale(main_data);
+
+    /*  sanity check nthreads / nnodes */
+    if (main_data->nthreads % main_data->nnodes) {
+        fprintf(stderr, "Error: the number of requested threads is incompatible with the number of nodes\n");
+        /* what should we do here ? */
+        /* perhaps restrict to one node and set loose binding ? */
+        /* or just abort ? */
+    }
+
+    unsigned int nthreads_per_group = main_data->nthreads / main_data->nnodes;
+
+    /*  sanity check nthreads_per_group / finer_grain_threads */
+    if (nthreads_per_group % main_data->finer_grain_threads) {
+        unsigned int f = main_data->finer_grain_threads;
+        for( ; nthreads_per_group % f ; f--) ;
+        main_data->finer_grain_threads = f;
+        fprintf(stderr, "Warning, the number of finer-grain threads is incompatible with the current number of threads. Reducing finer-grain threads to %u\n", main_data->finer_grain_threads);
+    }
 }
 

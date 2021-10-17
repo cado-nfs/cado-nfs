@@ -18,6 +18,15 @@ polyselect_data_series_init (polyselect_data_series_ptr s)
 }
 
 void
+polyselect_data_series_reset (polyselect_data_series_ptr s)
+{
+  s->size = 0;
+  s->sum = s->sum2 = 0.0;
+  s->min = DBL_MAX;
+  s->max = -DBL_MAX;
+}
+
+void
 polyselect_data_series_clear (polyselect_data_series_ptr s)
 {
   free (s->x);

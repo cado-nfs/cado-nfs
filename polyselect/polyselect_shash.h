@@ -8,13 +8,19 @@
 #include <limits.h> /* for ULONG_MAX */
 #include "macros.h"     // LIKELY
 
+#define POLYSELECT_SHASH_ALLOC_RATIO 4UL
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+struct polyselect_thread_s;
 
-/* For the moment, this value is static. But it's highly critical for
-   performance in the polyselect_shash table cribble:
+/* For the moment, this value is static. It's highly critical for
+   performance. A priori, the right choice is guided by the number of TLB
+   of the CPU being used. The values below are probably misleaded by
+   other aspects ; quoting lingering comment:
+
    * 10 (or 9) seems the best for an Intel nehalem (?).
    * 6 seems the best for Intel Core2 (?).
    * 7 seems the best for AMD (?).
@@ -31,6 +37,7 @@ struct polyselect_shash_s
   uint64_t *current[polyselect_SHASH_NBUCKETS+1]; /* +1 for guard */
   uint64_t *base[polyselect_SHASH_NBUCKETS+1];    /* +1 for guard */
   uint64_t *mem;
+  uint32_t *pmem;
   uint32_t alloc;      /* total allocated size */
   uint32_t balloc;     /* allocated size for each bucket */
 };
@@ -57,11 +64,36 @@ polyselect_shash_add (polyselect_shash_t H, uint64_t i)
     }
 }
 
+#ifndef EMIT_ADDRESSABLE_shash_add
+# if __GNUC__ && !__GNUC_STDC_INLINE__
+extern inline
+# else
+inline
+# endif
+#endif
+void
+polyselect_shash2_add (polyselect_shash_t H, uint64_t i, uint32_t p)
+{
+  unsigned int ib = i & (polyselect_SHASH_NBUCKETS - 1);
+  H->pmem[H->current[ib] - H->mem] = p;
+  *H->current[ib]++ = i;
+  if (UNLIKELY(H->current[i & (polyselect_SHASH_NBUCKETS - 1)] >= H->base[(i & (polyselect_SHASH_NBUCKETS - 1)) + 1]))
+    {
+      fprintf (stderr, "polyselect_Shash bucket %" PRIu64 " is full.\n",
+               i & (polyselect_SHASH_NBUCKETS - 1));
+      exit (1);
+    }
+}
+
 extern void polyselect_shash_init (polyselect_shash_ptr, unsigned int);
 extern void polyselect_shash_reset (polyselect_shash_ptr);
 extern size_t polyselect_shash_size(polyselect_shash_srcptr);
-extern int polyselect_shash_find_collision (polyselect_shash_srcptr);
+extern int polyselect_shash_find_collision (polyselect_shash_srcptr H) ATTRIBUTE_DEPRECATED;
+extern int polyselect_shash_find_collision_multi(const polyselect_shash_t * H, unsigned int multi, uint32_t k0, uint32_t k1);
 extern void polyselect_shash_clear (polyselect_shash_ptr);
+extern int
+polyselect_shash2_find_collision_multi(const polyselect_shash_t * H, unsigned int multi, uint32_t k0, uint32_t k1,
+        unsigned long q, mpz_srcptr rq, struct polyselect_thread_s * thread);
 
 #ifdef __cplusplus
 }

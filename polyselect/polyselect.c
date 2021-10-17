@@ -34,16 +34,17 @@
 #include <sys/time.h>
 #include "macros.h"		// ASSERT
 #include "misc.h"
-#include "omp_proxy.h"
 #ifdef HAVE_HWLOC
 #include "hwloc-aux.h"
 #endif
 #include "params.h"
 #include "polyselect_main_queue.h"
+#include "polyselect_thread_league.h"
 #include "polyselect_collisions.h"
 #include "polyselect_shash.h"
 #include "polyselect_match.h"
 #include "polyselect_norms.h"
+#include "polyselect_thread.h"
 #include "polyselect_alpha.h"
 #include "portability.h"
 #include "roots_mod.h"
@@ -52,6 +53,7 @@
 #include "verbose.h"		// verbose_output_print
 #include "getprime.h"
 #include "dllist.h"
+#include "auxiliary.h"
 
 static void
 check_divexact_ui(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED,
@@ -84,30 +86,8 @@ check_divexact(mpz_ptr r, mpz_srcptr d, const char *d_name MAYBE_UNUSED,
 }
 
 
-FILE * chronogram = NULL;
-pthread_mutex_t chronogram_lock;
-
-void chat_chronogram(const char * fmt, ...)
-{
-    if (!chronogram) return;
-
-    va_list ap;
-    va_start(ap, fmt);
-    char * msg;
-    int rc = vasprintf(&msg, fmt, ap);
-    ASSERT_ALWAYS(rc >= 0);
-    struct timeval tv[1];
-    gettimeofday(tv, NULL);
-    pthread_mutex_lock(&chronogram_lock);
-    fprintf(chronogram, "%lu.%06lu %d %s\n", tv->tv_sec, tv->tv_usec, omp_get_thread_num(), msg);
-    pthread_mutex_unlock(&chronogram_lock);
-    free(msg);
-    va_end(ap);
-}
-
-
 void
-polyselect_process_match_async(polyselect_main_data_srcptr main, polyselect_stats_ptr stats, polyselect_match_info_ptr job)
+polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselect_stats_ptr stats, polyselect_match_info_ptr job)
 {
   polyselect_poly_header_srcptr header = job->header;
   unsigned long p1 = job->p1;
@@ -119,8 +99,7 @@ polyselect_process_match_async(polyselect_main_data_srcptr main, polyselect_stat
 
   mpz_t l, mtilde, m, adm1, t, k;
   mpz_poly f, g, f_raw, g_raw;
-  int cmp, did_optimize = 0;
-  double skew, logmu;
+  int cmp;
 
   /* the expected rotation space is S^5 for degree 6 */
 #ifdef DEBUG_POLYSELECT
@@ -194,7 +173,7 @@ polyselect_process_match_async(polyselect_main_data_srcptr main, polyselect_stat
      But if P is small, it would gain little with respect to the naive loop
      below, and if P is large, we have only a few hits, thus the global
      overhead will be small too. */
-  for (p = 2; p <= main->Primes[main->lenPrimes - 1]; p = getprime_mt(pi))
+  for (p = 2; p <= league->pt->Primes[league->pt->lenPrimes - 1]; p = getprime_mt(pi))
     {
       if (p <= qmax || polyselect_poly_header_skip(header, p))
 	continue;
@@ -282,27 +261,67 @@ polyselect_process_match_async(polyselect_main_data_srcptr main, polyselect_stat
   mpz_poly_cleandeg(g, 1);
   ASSERT_ALWAYS(mpz_poly_degree(g) == (int) 1);
 
-  mpz_poly_set(g_raw, g);
-  mpz_poly_set(f_raw, f);
-
-  /* _raw lognorm */
-  skew = L2_skewness(f, SKEWNESS_DEFAULT_PREC);
-  logmu = L2_lognorm(f, skew);
-
   {
     /* information on all polynomials */
     stats->collisions++;
     stats->tot_found++;
+
+    /* _raw lognorm */
+    double skew = L2_skewness(f, SKEWNESS_DEFAULT_PREC);
+    double logmu = L2_lognorm(f, skew);
+
     polyselect_data_series_add(stats->raw_lognorm, logmu);
     polyselect_data_series_add(stats->raw_proj_alpha,
 				 get_alpha_projective(f, get_alpha_bound()));
   }
 
-  /* if the polynomial has small norm, we optimize it */
-  did_optimize = optimize_raw_poly(f, g, main, stats);
+  /* check that the algebraic polynomial has content 1, otherwise skip it */
 
-  /* print optimized (maybe size- or size-root- optimized) polynomial */
-  if (did_optimize && main->verbose >= 0) {
+  if (!mpz_poly_has_trivial_content(f)) 
+      goto end;
+
+  /* enter size optimization */
+
+  {
+      double st = seconds_thread();
+      mpz_poly_set(g_raw, g);
+      mpz_poly_set(f_raw, f);
+      size_optimization(f, g, f_raw, g_raw, league->main->sopt_effort, league->main->verbose);
+      stats->optimize_time += seconds_thread() - st;
+      stats->opt_found++;
+  }
+
+  /* polynomials with f[d-1] * f[d-3] > 0 *after* size-optimization
+     give worse exp_E values */
+  if (mpz_sgn(f->coeff[f->deg - 1]) * mpz_sgn(f->coeff[f->deg - 3]) > 0) {
+      stats->discarded2++;
+      goto end;
+  }
+
+  /* register all stat to the stats object. This is a local
+   * object, so no lock needed !
+   */
+  {
+      stats->collisions_good++;
+
+      double skew = L2_skewness(f, SKEWNESS_DEFAULT_PREC);
+      double logmu = L2_lognorm(f, skew);
+      /* expected_rotation_gain() takes into account the
+       * projective alpha */
+      double exp_E = logmu + expected_rotation_gain(f, g);
+
+      polyselect_priority_queue_push(stats->best_opt_logmu, logmu);
+      polyselect_priority_queue_push(stats->best_exp_E, exp_E);
+      polyselect_data_series_add(stats->opt_lognorm, logmu);
+      polyselect_data_series_add(stats->exp_E, exp_E);
+      polyselect_data_series_add(stats->opt_proj_alpha,
+              get_alpha_projective(f, get_alpha_bound()));
+  }
+
+  /* print optimized (maybe size- or size-root- optimized)
+   * polynomial */
+
+  if (league->main->verbose >= 0) {
       {
           static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
           pthread_mutex_lock(&iolock);
@@ -329,6 +348,7 @@ end:
   mpz_poly_clear(g_raw);
 }
 
+#if 0
 static void display_expected_memory_usage(polyselect_main_data_srcptr main, int nthreads)
 {
     char buf[16];
@@ -345,6 +365,7 @@ static void display_expected_memory_usage(polyselect_main_data_srcptr main, int 
             size_disp(exp_size, buf),
             nthreads, BATCH_SIZE);
 }
+#endif
 
 static void declare_usage(param_list_ptr pl)
 {
@@ -371,6 +392,7 @@ static void declare_usage(param_list_ptr pl)
   param_list_decl_usage(pl, "sopteffort", str);
   param_list_decl_usage(pl, "s", str);
   param_list_decl_usage(pl, "t", "number of threads to use (default 1)");
+  param_list_decl_usage(pl, "F", "number of finer-grain threads to use (default 1)");
   param_list_decl_usage(pl, "v", "verbose mode");
   param_list_decl_usage(pl, "q", "quiet mode");
   param_list_decl_usage(pl, "target_E", "target E-value\n");
@@ -390,136 +412,162 @@ static void usage(const char *argv, const char *missing, param_list_ptr pl)
   exit(EXIT_FAILURE);
 }
 
-struct polyselect_thread_common_descriptor_s {
-    unsigned int idx;
-    unsigned int idx_max;
-    polyselect_main_data_ptr main;
-    pthread_mutex_t lock;
-#ifdef HAVE_HWLOC
-    hwloc_topology_t topology;
-#endif
-};
-typedef struct polyselect_thread_common_descriptor_s polyselect_thread_common_descriptor[1];
-typedef struct polyselect_thread_common_descriptor_s * polyselect_thread_common_descriptor_ptr;
-typedef const struct polyselect_thread_common_descriptor_s * polyselect_thread_common_descriptor_srcptr;
-
-struct polyselect_thread_descriptor_s {
-    int i;
-#ifdef HAVE_HWLOC
-    hwloc_cpuset_t cpubind;
-#endif
-    pthread_t tid;
-    polyselect_thread_common_descriptor_ptr common;
-};
-typedef struct polyselect_thread_descriptor_s polyselect_thread_descriptor[1];
-typedef struct polyselect_thread_descriptor_s * polyselect_thread_descriptor_ptr;
-typedef const struct polyselect_thread_descriptor_s * polyselect_thread_descriptor_srcptr;
-
-void * toplevel_thread_loop(polyselect_thread_descriptor_ptr arg)
+/* This thread loop does not (should not) depend on the way the matches
+ * are acted upon. In a sense, we could have different match functions
+ * use this same loop.
+ */
+void * thread_loop(polyselect_thread_ptr thread)
 {
-#ifdef HAVE_HWLOC
-    if (arg->cpubind) {
-        char * str;
-        int rc = hwloc_bitmap_asprintf(&str, arg->cpubind);
-        ASSERT_ALWAYS(rc >= 0);
-        pthread_mutex_lock(&arg->common->lock);
-        hwloc_set_cpubind(arg->common->topology, arg->cpubind, HWLOC_CPUBIND_THREAD | HWLOC_CPUBIND_STRICT);
-        hwloc_set_membind(arg->common->topology, arg->cpubind, HWLOC_MEMBIND_BIND,
-            HWLOC_MEMBIND_THREAD |
-            HWLOC_MEMBIND_STRICT |
-            HWLOC_MEMBIND_BYNODESET);
-        printf("# binding thread %d to [%s]\n", arg->i, str);
-        pthread_mutex_unlock(&arg->common->lock);
-        free(str);
+    polyselect_thread_team_ptr team = thread->team;
+    polyselect_thread_league_ptr league = team->league;
+    polyselect_main_data_srcptr main_data = league->main;
+
+    polyselect_thread_bind(thread);
+
+    if (thread->thread_index % main_data->finer_grain_threads == 0) {
+        polyselect_thread_team_late_init(team);
     }
-#endif
-    unsigned int * pidx = &(arg->common->idx);
-    unsigned int idx_max = arg->common->idx_max;
-    polyselect_main_data_ptr main_data = arg->common->main;
+    
+    pthread_barrier_wait(&team->barrier);
 
-    polyselect_thread_locals loc;
-    polyselect_thread_locals_init(loc, main_data);
-    polyselect_thread_locals_provision_job_slots(loc, 32);
+    polyselect_thread_late_init(thread);
 
-    /* The loop starts with the mutex locked */
-    pthread_mutex_lock(&main_data->lock);
-    for(;;) {
-        if (!dllist_is_empty(&main_data->async_jobs)) {
-            struct dllist_head * ptr = dllist_get_first_node(&main_data->async_jobs);
-            polyselect_match_info_ptr job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
+    /* 
+     * Asynchronous processing is (currently) single-threaded. Processing
+     * an ad coefficient can be done collectively.
+     *
+     * All threads try to find an asynchronous job. When this fails, only
+     * one thread in each team will compete to find a new ad coefficient
+     * to process.
+     */
+    pthread_mutex_t * main_lock = thread->main_lock;
+    ASSERT_ALWAYS(main_lock == &main_data->lock);
+    pthread_mutex_t * team_lock = &team->lock;
+    pthread_mutex_t * league_lock = &league->lock;
+
+
+    /* a thread is either processing an async job, participating in the
+     * processing of a sync job (or attempting to), or holds the team
+     * lock
+     *
+     */
+    unsigned int idx_max = polyselect_main_data_number_of_ad_tasks(main_data);
+
+    pthread_mutex_lock(team_lock);
+    for( ; ; ) {
+        pthread_mutex_lock(league_lock);
+        /* is there an async job ready ? */
+        struct dllist_head * ptr = dllist_get_first_node(&league->async_jobs);
+        if (ptr) {
             dllist_pop(ptr);
-            pthread_mutex_unlock(&main_data->lock);
+            pthread_mutex_unlock(league_lock);
+            polyselect_match_info_ptr job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
+            pthread_mutex_unlock(team_lock);
             /********* BEGIN UNLOCKED SECTION **************/
-            chat_chronogram("enter match");
-            polyselect_stats stats;
-            polyselect_stats_init(stats, main_data->keep);
-            polyselect_process_match_async(main_data, stats, job);
+            polyselect_thread_chronogram_chat(thread, "enter match");
+            polyselect_process_match_async(league, thread->stats, job);
 
-            dllist_push_back(&loc->empty_job_slots, &job->queue);
-            // polyselect_match_info_clear(job);
-            // free(job);
-            chat_chronogram("leave match");
+            dllist_push_back(&thread->empty_job_slots, &job->queue);
+            polyselect_thread_chronogram_chat(thread, "leave match");
             /********** END UNLOCKED SECTION ***************/
-            pthread_mutex_lock(&main_data->lock);
-            polyselect_main_data_commit_stats_unlocked(main_data, stats, NULL);
-            polyselect_stats_clear(stats);
-        } else if (*pidx < idx_max) {
-            unsigned long i = (*pidx)++;
-            pthread_mutex_unlock(&main_data->lock);
-            /********* BEGIN UNLOCKED SECTION **************/
-            chat_chronogram("enter ad");
-
-            polyselect_thread_locals_set_idx(loc, i);
-
-            unsigned long c = 0;
-
-            loc->stats->number_of_ad_values++;
-
-            polyselect_shash_t H;
-            polyselect_shash_init(H, 4 * loc->main->lenPrimes);
-
-            chat_chronogram("enter collision_on_p");
-            c = collision_on_p(H, NULL, loc);
-            chat_chronogram("leave collision_on_p");
-            if (loc->main->nq > 0) {
-                chat_chronogram("enter collision_on_sq");
-                collision_on_sq(c, H, NULL, loc);
-                chat_chronogram("leave collision_on_sq");
-            }
-            polyselect_shash_clear(H);
-
-            {
-                printf("# thread %d completed ad=%.0f at time=%.2fs ; ad: %.2fs\n",
-                        omp_get_thread_num(),
-                        mpz_get_d(loc->ad),
-                        wct_seconds() - main_data->stats->wct0,
-                        wct_seconds() - loc->stats->wct0);
-                fflush(stdout);
-            }
-
-            chat_chronogram("leave ad, %zu", dllist_length(&loc->async_jobs));
-            /********** END UNLOCKED SECTION ***************/
-            pthread_mutex_lock(&main_data->lock);
-
-            polyselect_main_data_commit_stats_unlocked(main_data, loc->stats, loc->ad);
-
-            dllist_bulk_move_back(&main_data->async_jobs, &loc->async_jobs);
+            pthread_mutex_lock(team_lock);
         } else {
-            /* we're done! */
-            break;
-        }
-    }
+            pthread_mutex_unlock(league_lock);
+            /* Then we want to contribute to synchronous work. */
+            /* note that we have the team lock, at this point. */
+            thread->index_in_sync_team = team->sync_busy++;
+            if (thread->index_in_sync_team == 0) {
+                pthread_mutex_lock(main_lock);
+                unsigned long i = team->main_nonconst->idx;
+                team->main_nonconst->idx += (i < idx_max);
+                pthread_mutex_unlock(main_lock);
+                if (i == idx_max) {
+                    team->done = 1;
+                    break;
+                }
 
+
+                polyselect_thread_chronogram_chat(thread, "enter ad");
+
+                /* we're effectively the only one in the team, here, so
+                 * we can safely touch these unlocked.
+                 */
+                polyselect_thread_team_set_idx(team, i);
+
+                unsigned long c = 0;
+
+                thread->stats->number_of_ad_values++;
+
+                /* These calls will temporarily release the team lock */
+                c = collision_on_p_conductor(thread);
+                if (main_data->nq > 0) {
+                    collision_on_sq_conductor(c, thread);
+                }
+
+                polyselect_thread_team_post_work_stop(team, thread);
+
+                polyselect_thread_chronogram_chat(thread, "leave ad");
+
+                {
+                    /* Not absolutely certain that this printing makes
+                     * sense. First, it's unlocked, which sounds quite
+                     * dangerous. Also, the semantics of wct0 look quite
+                     * awkward. And finally, if we're really that
+                     * interested, why not go for the chronogram data
+                     * instead?
+                     */
+                    printf("# thread %u completed ad=%.0f at time=%.2fs ; ad: %.2fs\n",
+                            thread->thread_index,
+                            mpz_get_d(team->ad),
+                            wct_seconds() - main_data->stats->wct0,
+                            wct_seconds() - thread->stats->wct0);
+                    fflush(stdout);
+                }
+            } else {
+                if (team->done)
+                    break;
+
+                for( ; ; ) {
+                    /* wait for sync tasks to be posted. */
+                    pthread_cond_wait(&team->sync_task->wait_begintask, team_lock);
+
+                    if (team->sync_task->expected_participants == 0) {
+                        /* done with this a_d */
+                        break;
+                    }
+
+                    if (team->sync_task->expected_participants <= thread->index_in_sync_team) {
+                        /* there is a structural race condition here. We
+                         * arrived in the sync section after the leader
+                         * thread posted this task. Not much to be said,
+                         * we missed the train... All we have to do is
+                         * wait for the next one.
+                         */
+                        continue;
+                    }
+
+                    /* This call has the team lock held, but it is
+                     * expected that the lock be released during the
+                     * call.
+                     */
+                    (*team->sync_task->f)(thread);
+                }
+            }
+        }
+        pthread_mutex_lock(main_lock);
+        polyselect_main_data_commit_stats_unlocked(team->main_nonconst, thread->stats, team->header->ad);
+        dllist_bulk_move_back(&league->async_jobs, &thread->async_jobs);
+        pthread_mutex_unlock(main_lock);
+    }
     {
-        printf("# thread %d exits at time=%.2fs\n",
-                omp_get_thread_num(),
+        /* XXX TODO acquire a lock, probably main_lock */
+        printf("# thread %u exits at time=%.2fs\n",
+                thread->thread_index,
                 wct_seconds() - main_data->stats->wct0);
         fflush(stdout);
     }
+    pthread_mutex_unlock(team_lock);
 
-    pthread_mutex_unlock(&main_data->lock);
-
-    polyselect_thread_locals_clear(loc);
     return NULL;
 }
 
@@ -527,8 +575,11 @@ void * toplevel_thread_loop(polyselect_thread_descriptor_ptr arg)
 int main(int argc, char *argv[])
 {
   char **argv0 = argv;
-  int quiet = 0, nthreads = 1, pthreads = 0;
+  /* nthreads = 0 means: do something automatic */
+  int quiet = 0;
   const char * chronogram_file = NULL;
+
+
 
   polyselect_main_data main_data;
   polyselect_main_data_init_defaults(main_data);
@@ -541,7 +592,6 @@ int main(int argc, char *argv[])
 
   param_list_configure_switch(pl, "-v", &main_data->verbose);
   param_list_configure_switch(pl, "-q", &quiet);
-  param_list_configure_switch(pl, "-T", &pthreads);
   param_list_configure_alias(pl, "degree", "-d");
   param_list_configure_alias(pl, "incr", "-i");
   param_list_configure_alias(pl, "n", "-N");
@@ -565,18 +615,13 @@ int main(int argc, char *argv[])
   param_list_parse_ulong(pl, "nq", &main_data->nq);
   chronogram_file = param_list_lookup_string(pl, "chronogram");
 
-  param_list_parse_int(pl, "t", &nthreads);
-#ifdef HAVE_OPENMP
-  if (!pthreads)
-      omp_set_num_threads(nthreads);
-#else
-  if (nthreads > 1)
-    {
-      fprintf(stderr,
-	      "Warning, -t %d ignored because openmp support is missing\n",
-	      nthreads);
-    }
-#endif
+  const char * tmp;
+  if ((tmp = param_list_lookup_string(pl, "t")) && strcmp(tmp, "auto") == 0) {
+      main_data->nthreads = 0;
+  } else {
+      param_list_parse_uint(pl, "t", &main_data->nthreads);
+  }
+  param_list_parse_uint(pl, "F", &main_data->finer_grain_threads);
 
   /* size optimization effort that passed to size_optimization */
   param_list_parse_uint(pl, "sopteffort", &main_data->sopt_effort);
@@ -600,118 +645,34 @@ int main(int argc, char *argv[])
   if (quiet == 1)
     main_data->verbose = -1;
 
-
-  /* initialize primes in [P,2*P] */
-  polyselect_main_data_prepare_primes(main_data);
-
-  display_expected_memory_usage(main_data, nthreads);
-
-  unsigned long idx_max = polyselect_main_data_number_of_ad_tasks(main_data);
+  // display_expected_memory_usage(main_data, nthreads);
 
 
-  if (idx_max < (unsigned long) nthreads)
-    {
-      fprintf(stderr,
-	      "# Warning: the current admin, admax, incr settings only make it possible to run %lu jobs in parallel, so that we won't be able to do %d-thread parallelism as requested\n",
-	      idx_max, nthreads);
-    }
+  polyselect_thread_chronogram_init(chronogram_file);
+
+  /* Try to see if the number of threads that we've been passed makes any
+   * sort of sense */
+  polyselect_main_data_check_topology(main_data);
 
 
-  pthread_mutex_init(&chronogram_lock, NULL);
-  if (chronogram_file) {
-      chronogram = fopen(chronogram_file, "w");
-      setbuf(chronogram, NULL);
-  }
+  /* Start one league per NUMA node */
+  polyselect_main_data_prepare_leagues(main_data);
+  polyselect_main_data_prepare_teams(main_data);
+  polyselect_main_data_prepare_threads(main_data);
 
-  polyselect_thread_common_descriptor cdesc = {
-      {   .idx = 0,
-          .idx_max = idx_max,
-          .main = main_data,
-          .lock = PTHREAD_MUTEX_INITIALIZER,
-      } };
+  polyselect_thread_chronogram_init(chronogram_file);
 
-  polyselect_thread_descriptor * threads = malloc(nthreads * sizeof(polyselect_thread_descriptor));
+  polyselect_main_data_go_parallel(main_data, thread_loop);
 
-  for(int i = 0 ; i < nthreads ; i++) {
-      threads[i]->i = i;
-      threads[i]->common = cdesc;
-      // threads[i]->tid will be set only in pthread context
-      threads[i]->cpubind = NULL;
-  }
-#ifdef HAVE_HWLOC
-  hwloc_topology_init(&cdesc->topology);
-  hwloc_topology_load(cdesc->topology);
-  int depth = hwloc_topology_get_depth(cdesc->topology);
-
-  int good_depth = -1;
-  for(int d = 0 ; d <= depth ; d++) {
-      int x = hwloc_get_nbobjs_by_depth(cdesc->topology, d);
-      if (x % nthreads == 0) {
-          good_depth = d;
-          break;
-      } else if (nthreads % x) {
-          /* then it's pretty bad.  */
-          break;
-      }
-  }
-  if (good_depth < 0) {
-      fprintf(stderr, "Warning, the number of threads is not compatible with this topology, we will not bind threads\n");
-  } else {
-      for(int i = 0 ; i < nthreads ; i++) {
-          threads[i]->cpubind = hwloc_bitmap_alloc();
-      }
-      int nk = hwloc_get_nbobjs_by_depth(cdesc->topology, good_depth);
-      int w = nk / nthreads;
-      for(int i = 0 ; i < nk ; i++) {
-          hwloc_bitmap_or(threads[i/w]->cpubind, threads[i/w]->cpubind, hwloc_get_obj_by_depth(cdesc->topology, good_depth, i)->cpuset);
-      }
-  }
-#endif
-
-  if (pthreads) {
-      for(int i = 0 ; i < nthreads ; i++) {
-          pthread_create(&threads[i]->tid, NULL, (void * (*)(void*)) toplevel_thread_loop, &threads[i]);
-      }
-      for(int i = 0 ; i < nthreads ; i++) {
-          pthread_join(threads[i]->tid, NULL);
-      }
-  } else {
-#ifdef HAVE_OPENMP
-      omp_set_num_threads(nthreads);
-#pragma omp parallel
-#else
-      if (nthreads > 1) {
-          fprintf(stderr,
-                  "# Warning: setting for number of threads ignored, as we have no support for openmp\n");
-      }
-#endif
-      {
-          ASSERT_ALWAYS(omp_get_thread_num() < nthreads);
-          toplevel_thread_loop(threads[omp_get_thread_num()]);
-      }
-  }
-
-#ifdef HAVE_HWLOC
-  for(int i = 0 ; i < nthreads ; i++) {
-      if(threads[i]->cpubind)
-          hwloc_bitmap_free(threads[i]->cpubind);
-  }
-  hwloc_topology_destroy(cdesc->topology);
-#endif
-
-  free(threads);
-
-
-
-  if (chronogram_file)
-      fclose(chronogram);
-
-  pthread_mutex_destroy(&chronogram_lock);
+  polyselect_thread_chronogram_clear();
+  polyselect_main_data_dispose_threads(main_data);
+  polyselect_main_data_dispose_teams(main_data);
+  polyselect_main_data_dispose_leagues(main_data);
 
 #ifndef HAVE_RUSAGE_THREAD	/* optimize_time is correct only if
                                    RUSAGE_THREAD works or in mono-thread
                                    mode */
-  if (nthreads == 1)
+  if (main_data->nthreads != 1)
       main_data->stats->optimize_time = -1;
 #endif
 

@@ -16,6 +16,12 @@ void polyselect_priority_queue_clear(polyselect_priority_queue_ptr Q)
     free(Q->data);
 }
 
+void polyselect_priority_queue_reset(polyselect_priority_queue_ptr Q)
+{
+    for(size_t i = 0 ; i < Q->size ; i++) {
+        Q->data[i] = NAN;
+    }
+}
 void polyselect_priority_queue_resize(polyselect_priority_queue_ptr Q, size_t n)
 {
     Q->data = (double *) realloc(Q->data, n * sizeof(double));

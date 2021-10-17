@@ -12,13 +12,14 @@
 #include <stdlib.h>
 #include <gmp.h>
 #include "polyselect_hash.h"
-#include "polyselect_locals.h"
+#include "polyselect_thread.h"
 #include "cado_poly.h"
 #include "getprime.h"   // getprime
 #include "misc.h"   // nprimes_interval
 #include "macros.h"
 #include "polyselect_match.h"
 
+/* XXX this does not belong here! */
 /* The following are primes used as factors in the special-q.
    Warning: if you add larger primes, you should ensure that any product
    still fits in an "unsigned long" (cf routine collision_on_sq).
@@ -60,8 +61,7 @@ size_t expected_memory_usage_for_primes(unsigned long P)
 
 /* init hash table */
 void
-polyselect_hash_init (polyselect_hash_ptr H, unsigned int init_size,
-        polyselect_hash_match_t match)
+polyselect_hash_init (polyselect_hash_ptr H, unsigned int init_size)
 {
   memset(H, 0, sizeof(*H));
   H->alloc = init_size;
@@ -80,14 +80,13 @@ polyselect_hash_init (polyselect_hash_ptr H, unsigned int init_size,
   H->coll = 0;
   H->coll_all = 0;
 #endif
-  H->match = match;
 }
 
 /* rq is a root of N = (m0 + rq)^d mod (q^2) */
 void
 polyselect_hash_add (polyselect_hash_ptr H, unsigned long p, int64_t i,
           unsigned long q, mpz_srcptr rq,
-          polyselect_thread_locals_ptr loc)
+          polyselect_thread_ptr loc)
 {
   uint32_t h;
 
@@ -102,29 +101,19 @@ polyselect_hash_add (polyselect_hash_ptr H, unsigned long p, int64_t i,
   while (H->slot[h].i != 0)
   {
       if (H->slot[h].i == i) {
-          /* we cannot have H->slot[h].p = p, since for a
-             given prime p, all (p,i) values entered are different */
-          if (H->match) {
-              (*H->match) (H->slot[h].p, p, i, q, rq, loc);
+          polyselect_match_info_ptr job;
+          if (dllist_is_empty(&loc->empty_job_slots)) {
+              job = malloc(sizeof(polyselect_match_info_t));
+              polyselect_match_info_init(job, H->slot[h].p, p, i, q, rq, loc);
           } else {
-              /* H->match == NULL means that we're going to do this
-               * asynchronously */
-              /* must be on the heap because of the dllist stuff */
-
-              polyselect_match_info_ptr job;
-              if (dllist_is_empty(&loc->empty_job_slots)) {
-                  job = malloc(sizeof(polyselect_match_info_t));
-                  polyselect_match_info_init(job, H->slot[h].p, p, i, q, rq, loc);
-              } else {
-                  /* recycle an old one ! */
-                  struct dllist_head * ptr = dllist_get_first_node(&loc->empty_job_slots);
-                  dllist_pop(ptr);
-                  job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
-                  polyselect_match_info_set(job, H->slot[h].p, p, i, q, rq, loc);
-              }
-
-              dllist_push_back(&loc->async_jobs, &job->queue);
+              /* recycle an old one ! */
+              struct dllist_head * ptr = dllist_get_first_node(&loc->empty_job_slots);
+              dllist_pop(ptr);
+              job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
+              polyselect_match_info_set(job, H->slot[h].p, p, i, q, rq, loc);
           }
+
+          dllist_push_back(&loc->async_jobs, &job->queue);
       }
     if (UNLIKELY(++h == H->alloc))
       h = 0;
@@ -136,6 +125,22 @@ polyselect_hash_add (polyselect_hash_ptr H, unsigned long p, int64_t i,
   H->slot[h].i = i;
   H->size ++;
 }
+
+#if 0
+void
+polyselect_hash_find_collision_multi (const polyselect_hash_t * H, unsigned long p, int64_t i,
+          unsigned long q, mpz_srcptr rq,
+          polyselect_thread_ptr loc)
+{
+    /* XXX This sounds really really hard to code indeed. Not sure we'll
+     * find a way that doesn't reimplement everything.
+     *
+     * Piggy-backing on top of the shash code is likely more robust than
+     * to try to invent a reduction step for open hash tables (which
+     * doesn't really seem to work, I'm afraid...)
+     */
+}
+#endif
 
 #if 0
 /* no longer needed. But there seem to be some subtle differences. Do we

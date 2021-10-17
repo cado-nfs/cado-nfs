@@ -4,6 +4,7 @@
 #include <inttypes.h>
 
 #include "polyselect_proots.h"
+#include "polyselect_thread.h"
 #include "gcd.h"
 #include "roots_mod.h"
 
@@ -165,33 +166,64 @@ roots_lift (uint64_t *r, mpz_srcptr N, unsigned long d, mpz_srcptr m0,
   return i;
 }
 
-unsigned long polyselect_proots_compute(polyselect_proots_ptr R, polyselect_poly_header_srcptr header, polyselect_main_data_srcptr main, gmp_randstate_ptr rstate)/*{{{*/
+void polyselect_proots_compute_subtask(polyselect_thread_ptr thread)/*{{{*/
 {
+    polyselect_primes_table_srcptr pt = thread->team->league->pt;
+    unsigned int nt = thread->team->sync_task->expected_participants;
+    unsigned int it = thread->index_in_sync_team;
+
+    pthread_mutex_unlock(&thread->team->lock);
+    /********* BEGIN UNLOCKED SECTION **************/
+    polyselect_thread_chronogram_chat(thread, "enter proots");
+
     unsigned long tot_roots = 0;
-    uint64_t * rp = (uint64_t *) malloc(header->d * sizeof(uint64_t));
+    size_t qt = pt->lenPrimes / nt;
+    size_t rt = pt->lenPrimes % nt;
+    unsigned long i0 = qt * it + MIN(it, rt);
+    unsigned long i1 = i0 + qt + (it < rt);
+
+    uint64_t * rp = (uint64_t *) malloc(thread->team->header->d * sizeof(uint64_t));
     FATAL_ERROR_CHECK(!rp, "cannot allocate memory");
 
-    for (unsigned long nprimes = 0; nprimes < main->lenPrimes; nprimes++)
-    {
-        unsigned long p = main->Primes[nprimes];
+    for (unsigned long i = i0; i < i1; i++) {
+        unsigned long p = pt->Primes[i];
 
         /* add fake roots to keep indices */
-        if (polyselect_poly_header_skip(header, p))
+        if (polyselect_poly_header_skip(thread->team->header, p))
         {
-            R->nr[nprimes] = 0;	// nr = 0.
-            R->roots[nprimes] = NULL;
+            thread->team->R->nr[i] = 0;	// nr = 0.
+            thread->team->R->roots[i] = NULL;
             continue;
         }
 
         unsigned long nrp = roots_mod_uint64(rp,
-                mpz_fdiv_ui(header->Ntilde, p),
-                header->d,
-                p, rstate);
+                mpz_fdiv_ui(thread->team->header->Ntilde, p),
+                thread->team->header->d,
+                p, thread->rstate);
         tot_roots += nrp;
-        nrp = roots_lift(rp, header->Ntilde, header->d, header->m0, p, nrp);
-        polyselect_proots_add(R, nrp, rp, nprimes);
+        nrp = roots_lift(rp,
+                thread->team->header->Ntilde,
+                thread->team->header->d,
+                thread->team->header->m0, p, nrp);
+        polyselect_proots_add(thread->team->R, nrp, rp, i);
     }
+
+    polyselect_thread_chronogram_chat(thread, "leave proots");
     free(rp);
+    /********** END UNLOCKED SECTION ***************/
+    pthread_mutex_lock(&thread->team->lock);
+    *((unsigned long*)thread->team->sync_task->arg) += tot_roots;
+
+    polyselect_thread_team_end_subtask(thread->team);
+}/*}}}*/
+
+unsigned long polyselect_proots_compute_conductor(polyselect_thread_ptr thread)
+{
+    /* This is called with the team lock held ! */
+    unsigned long tot_roots = 0;
+
+    polyselect_thread_team_post_work(thread->team, thread, polyselect_proots_compute_subtask, &tot_roots);
+
     return tot_roots;
 }/*}}}*/
 

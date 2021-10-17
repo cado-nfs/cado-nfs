@@ -24,6 +24,31 @@ void polyselect_stats_init(polyselect_stats_ptr stats, size_t keep)
   polyselect_priority_queue_init(stats->best_exp_E, keep);
 }
 
+void polyselect_stats_reset(polyselect_stats_ptr stats)
+{
+  polyselect_data_series_reset(stats->raw_lognorm);
+  polyselect_data_series_reset(stats->opt_lognorm);
+  polyselect_data_series_reset(stats->exp_E);
+  polyselect_data_series_reset(stats->beta);
+  polyselect_data_series_reset(stats->eta);
+  polyselect_data_series_reset(stats->best_exp_E_Weibull);
+  polyselect_data_series_reset(stats->raw_proj_alpha);
+  polyselect_data_series_reset(stats->opt_proj_alpha);
+  stats->st0 = seconds();
+  stats->wct0 = wct_seconds();
+  polyselect_priority_queue_reset(stats->best_opt_logmu);
+  polyselect_priority_queue_reset(stats->best_exp_E);
+  stats->number_of_ad_values = 0;
+  stats->tot_found = 0;
+  stats->potential_collisions = 0;
+  stats->discarded1 = 0;
+  stats->collisions = 0;
+  stats->discarded2 = 0;
+  stats->collisions_good = 0;
+  stats->opt_found = 0;
+  stats->optimize_time = 0;
+}
+
 void polyselect_stats_clear(polyselect_stats_ptr stats)
 {
   polyselect_data_series_clear(stats->raw_lognorm);

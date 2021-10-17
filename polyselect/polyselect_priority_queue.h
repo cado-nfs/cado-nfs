@@ -16,6 +16,7 @@ typedef struct polyselect_priority_queue_s * polyselect_priority_queue_ptr;
 typedef const struct polyselect_priority_queue_s * polyselect_priority_queue_srcptr;
 
 extern void polyselect_priority_queue_init(polyselect_priority_queue_ptr, size_t);
+extern void polyselect_priority_queue_reset(polyselect_priority_queue_ptr Q);
 extern void polyselect_priority_queue_resize(polyselect_priority_queue_ptr Q, size_t n);
 extern void polyselect_priority_queue_clear(polyselect_priority_queue_ptr);
 extern int polyselect_priority_queue_push(polyselect_priority_queue_ptr, double x);
