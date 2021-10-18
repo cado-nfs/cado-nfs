@@ -58,7 +58,8 @@ void polyselect_proots_dispatch_to_shash_flat_ugly(
 #define CURRENT(V) (H->current + ((V) & (polyselect_SHASH_NBUCKETS - 1)))
 #endif
 
-  polyselect_shash_reset(H);
+  // reset has been done by the caller with polyselect_shash_reset_multi
+  // polyselect_shash_reset(H);
 
   pc = (long *) roots_per_prime;
   nv = *pc;
@@ -286,7 +287,8 @@ void polyselect_proots_dispatch_to_shash_flat(
         const uint8_t * number_of_roots_per_prime,
         int64_t umax)
 {
-    polyselect_shash_reset(H);
+    // reset has been done by the caller with polyselect_shash_reset_multi
+    // polyselect_shash_reset(H);
     unsigned long c = 0;
     for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
     {
@@ -318,7 +320,8 @@ void polyselect_proots_dispatch_to_shash2_flat(
         const uint8_t * number_of_roots_per_prime,
         int64_t umax)
 {
-    polyselect_shash_reset(H);
+    // reset has been done by the caller with polyselect_shash_reset_multi
+    // polyselect_shash_reset(H);
     unsigned long c = 0;
     for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
     {
@@ -354,7 +357,8 @@ void polyselect_proots_dispatch_to_shash_notflat(
         const uint8_t * number_of_roots_per_prime,
         int64_t umax)
 {
-    polyselect_shash_reset(H);
+    // reset has been done by the caller with polyselect_shash_reset_multi
+    // polyselect_shash_reset(H);
     for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
     {
         unsigned long p = Primes[nprimes];
@@ -387,7 +391,8 @@ void polyselect_proots_dispatch_to_shash2_notflat(
         const uint8_t * number_of_roots_per_prime,
         int64_t umax)
 {
-    polyselect_shash_reset(H);
+    // reset has been done by the caller with polyselect_shash_reset_multi
+    // polyselect_shash_reset(H);
     for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
     {
         unsigned long p = Primes[nprimes];
@@ -502,7 +507,8 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter dispatch_shash2_nf");
 
-    polyselect_shash_reset(SH);
+    // reset has been done by the caller with polyselect_shash_reset_multi
+    // polyselect_shash_reset(H);
     {
         size_t qt = pt->lenPrimes / nt;
         size_t rt = pt->lenPrimes % nt;
@@ -511,8 +517,8 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
         polyselect_proots_dispatch_to_shash2_notflat(SH,
                 thread->team->league->pt->Primes + i0,
                 i1 - i0,
-                thread->team->R->roots,
-                thread->team->R->nr,
+                thread->team->R->roots + i0,
+                thread->team->R->nr + i0,
                 polyselect_main_data_get_M(thread->team->league->main));
     }
 
@@ -564,7 +570,8 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter dispatch_shash_nf");
 
-    polyselect_shash_reset(SH);
+    // reset has been done by the caller with polyselect_shash_reset_multi
+    // polyselect_shash_reset(H);
     {
         size_t qt = pt->lenPrimes / nt;
         size_t rt = pt->lenPrimes % nt;
@@ -573,8 +580,8 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
         polyselect_proots_dispatch_to_shash_notflat(SH,
                 thread->team->league->pt->Primes + i0,
                 i1 - i0,
-                thread->team->R->roots,
-                thread->team->R->nr,
+                thread->team->R->roots + i0,
+                thread->team->R->nr + i0,
                 polyselect_main_data_get_M(thread->team->league->main));
     }
 
@@ -679,17 +686,23 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter dispatch_shash_f");
 
-    polyselect_shash_reset(SH);
+    // reset has been done by the caller with polyselect_shash_reset_multi
+    // polyselect_shash_reset(SH);
     {
         size_t qt = pt->lenPrimes / nt;
         size_t rt = pt->lenPrimes % nt;
         unsigned long i0 = qt * it + MIN(it, rt);
         unsigned long i1 = i0 + qt + (it < rt);
+        /* This is unfortunate. It's caused by the "flat" layout. */
+        unsigned int z = 0;
+        for(unsigned int i = 0 ; i < i0 ; i++) {
+            z += thread->team->R->nr[i];
+        }
         polyselect_proots_dispatch_to_shash_flat_ugly(SH,
                 thread->team->league->pt->Primes + i0,
                 i1 - i0,
-                invq_roots_per_prime,
-                thread->team->R->nr,
+                invq_roots_per_prime + z,
+                thread->team->R->nr + i0,
                 polyselect_main_data_get_M(thread->team->league->main));
     }
 
@@ -744,17 +757,23 @@ void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter dispatch_shash2_nf");
 
-    polyselect_shash_reset(SH);
+    // reset has been done by the caller with polyselect_shash_reset_multi
+    // polyselect_shash_reset(SH);
     {
         size_t qt = pt->lenPrimes / nt;
         size_t rt = pt->lenPrimes % nt;
         unsigned long i0 = qt * it + MIN(it, rt);
         unsigned long i1 = i0 + qt + (it < rt);
+        /* This is unfortunate. It's caused by the "flat" layout. */
+        unsigned int z = 0;
+        for(unsigned int i = 0 ; i < i0 ; i++) {
+            z += thread->team->R->nr[i];
+        }
         polyselect_proots_dispatch_to_shash2_flat(SH,
                 thread->team->league->pt->Primes + i0,
                 i1 - i0,
-                invq_roots_per_prime,
-                thread->team->R->nr,
+                invq_roots_per_prime + z,
+                thread->team->R->nr + i0,
                 polyselect_main_data_get_M(thread->team->league->main));
     }
 
@@ -836,6 +855,11 @@ void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
     unsigned long i0 = qt * it + MIN(it, rt);
     unsigned long i1 = i0 + qt + (it < rt);
 
+    /* This is unfortunate. It's caused by the "flat" layout. */
+    for (unsigned long i = 0; i < i0; i++) {
+        uint8_t nr = thread->team->R->nr[i];
+        c += nr;
+    }
     for (unsigned long i = i0; i < i1; i++) {
         uint8_t nr = thread->team->R->nr[i];
         if (!nr)

@@ -64,6 +64,7 @@ extern int barrier_wait (barrier_t *,
 extern int barrier_resize_unlocked(barrier_t * barrier, int count);
 extern int barrier_wait_unlocked (barrier_t *,
         void (*)(int, void*), void (*)(int, void*), void *);
+extern int barrier_finish_unlocked(barrier_t * barrier);
 
 #ifdef	__cplusplus
 }

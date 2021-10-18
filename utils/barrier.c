@@ -81,9 +81,7 @@ int barrier_resize(barrier_t * barrier, int count)
     return rc;
 }
 
-int barrier_wait_unlocked(barrier_t * barrier, 
-        void (*in)(int, void *),
-        void (*out)(int, void *), void * arg)
+int barrier_finish_unlocked(barrier_t * barrier)
 {
     int rc = 0;
 
@@ -94,6 +92,17 @@ int barrier_wait_unlocked(barrier_t * barrier,
     for ( ; rc == 0 && (barrier->event & 1) ; ) {
         rc = pthread_cond_wait (&barrier->cv, barrier->lock);
     }
+
+    return rc;
+}
+
+int barrier_wait_unlocked(barrier_t * barrier, 
+        void (*in)(int, void *),
+        void (*out)(int, void *), void * arg)
+{
+    int rc = 0;
+
+    rc = barrier_finish_unlocked(barrier);
 
     --barrier->left;
 

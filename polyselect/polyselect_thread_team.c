@@ -63,6 +63,7 @@ void polyselect_thread_team_clear(polyselect_thread_team_ptr team)
     pthread_cond_destroy(&team->sync_task->wait_begintask);
     pthread_cond_destroy(&team->sync_task->wait_endtask);
     polyselect_shash_clear_multi(team->SH, team->league->main->finer_grain_threads);
+    free(team->SH);
    
     polyselect_poly_header_clear(team->header);
     polyselect_proots_clear(team->R);
@@ -88,6 +89,13 @@ void polyselect_thread_team_post_work(polyselect_thread_team_ptr team, polyselec
     tk->arg = arg;
     tk->done = 0;
     barrier_resize_unlocked(&tk->barrier, tk->expected_participants);
+ 
+    // for performance reasons, we prefer if the caller takes care of
+    // making this call _when it is needed_, that is when the SH
+    // structure is used underneath.
+    //
+    // polyselect_shash_reset_multi(team->SH, tk->expected_participants);
+
 
     /* Important: the only moment when a thread of this team releases
      * the team lock after having increased sync_busy is when waiting on
@@ -112,18 +120,14 @@ void polyselect_thread_team_post_work_stop(polyselect_thread_team_ptr team, poly
 
     struct polyselect_thread_team_sync_task * tk = team->sync_task;
 
+    barrier_finish_unlocked(&tk->barrier);
+
     tk->expected_participants = 0;
     tk->f = NULL;
     tk->arg = NULL;
     tk->done = 0;
     team->sync_busy = 0;
     
-    // for performance reasons, we prefer if the caller takes care of
-    // making this call _when it is needed_, that is when the SH
-    // structure is used underneath.
-    //
-    // polyselect_shash_reset_multi(team->SH, tk->expected_participants);
-
     /* I think it's enough. */
     pthread_cond_broadcast(&tk->wait_begintask);
 }

@@ -108,7 +108,7 @@ polyselect_shash_init_multi (polyselect_shash_t * H, unsigned int init_size, uns
     H[0]->alloc = alloc;
     H[0]->mem = (uint64_t*) malloc (H[0]->alloc * sizeof (uint64_t));
     H[0]->pmem = (uint32_t*) malloc (H[0]->alloc * sizeof (uint32_t));
-    if (!H[0]->mem || H[0]->pmem)
+    if (!H[0]->mem || !H[0]->pmem)
     {
         fprintf (stderr, "Error, cannot allocate memory in polyselect_shash_init\n");
         exit (1);
@@ -126,35 +126,36 @@ polyselect_shash_reset_multi (polyselect_shash_t * H, unsigned int k)
     size_t alloc_k = H[0]->alloc / k;
     alloc_k -= alloc_k & (SHASH_LARGE_ALIGNMENT_CONSTRAINT - 1);
     size_t balloc = (alloc_k - SHASH_ALLOC_K_OFFSET) / (polyselect_SHASH_NBUCKETS+1);
-    balloc &= balloc & (SHASH_SMALL_ALIGNMENT_CONSTRAINT - 1);
+    balloc -= balloc & (SHASH_SMALL_ALIGNMENT_CONSTRAINT - 1);
     for(unsigned int i = 0 ; i < k ; i++) {
         H[i]->mem = H[0]->mem + i * alloc_k;
         H[i]->pmem = H[0]->pmem + i * alloc_k;
-        H[i]->base[0] = H[i]->current[0] = H[0]->mem;
+        H[i]->base[0] = H[i]->current[0] = H[i]->mem;
         /* This is only used for the spacing of the pointers */
         H[i]->balloc = balloc;
         for (int j = 1; j <= polyselect_SHASH_NBUCKETS; j++)
             H[i]->base[j] = H[i]->current[j] = H[i]->base[j-1] + H[i]->balloc;
-        /* Trick for prefetch T in polyselect_shash_find_collision after
-         * the end
-           of the last bucket. Each H->base[j] has balloc entries of type
-           uint64_t, where balloc >= 128.
-
-           XXX several things are odd here
-           What is "the last bucket" ?
-           Is it [polyselect_SHASH_NBUCKETS-1] ?
-           Is it [polyselect_SHASH_NBUCKETS] ?
-           If the latter, then "the end of the last bucket" would be at position
-           H->base[polyselect_SHASH_NBUCKETS] + balloc, and the reason why this
-           doesn't overflow is that we have a +8 in H->alloc in the function
-           above.
-           If the former, then the place where we're doing the memset agrees
-           with the description "after the end of the last bucket". There are
-           several ways to argue that this memset doesn't overrun the buffer,
-           including the one above, or the aforementioned +8. But then, the
-           fact of allocating H->alloc with (polyselect_SHASH_NBUCKETS + 1)
-           times the init_size would probably be a bug.
-           */
+        /*
+         * Trick for prefetch T in polyselect_shash_find_collision after
+         * the end of the last bucket. Each H->base[j] has balloc entries
+         * of type uint64_t, where balloc >= 128.
+         *
+         * XXX several things are odd here
+         * What is "the last bucket" ?
+         * Is it [polyselect_SHASH_NBUCKETS-1] ?
+         * Is it [polyselect_SHASH_NBUCKETS] ?
+         * If the latter, then "the end of the last bucket" would be at position
+         * H->base[polyselect_SHASH_NBUCKETS] + balloc, and the reason why this
+         * doesn't overflow is that we have a +8 in H->alloc in the function
+         * above.
+         * If the former, then the place where we're doing the memset agrees
+         * with the description "after the end of the last bucket". There are
+         * several ways to argue that this memset doesn't overrun the buffer,
+         * including the one above, or the aforementioned +8. But then, the
+         * fact of allocating H->alloc with (polyselect_SHASH_NBUCKETS + 1)
+         * times the init_size would probably be a bug.
+         *
+         */
         memset (H[i]->base[polyselect_SHASH_NBUCKETS], 0, sizeof(**H[0]->base) * 8);
     }
 }
@@ -164,6 +165,14 @@ size_t polyselect_shash_size(polyselect_shash_srcptr H)
 {
     size_t r = 0;
     for(size_t i = 0 ; i < polyselect_SHASH_NBUCKETS ; i++)
+        r += H->current[i] - H->base[i];
+    return r;
+}
+
+size_t polyselect_shash_size_fragment(polyselect_shash_srcptr H, size_t i0, size_t i1)
+{
+    size_t r = 0;
+    for(size_t i = i0 ; i < i1 ; i++)
         r += H->current[i] - H->base[i];
     return r;
 }
@@ -339,37 +348,37 @@ polyselect_shash2_find_collision_multi(const polyselect_shash_t * H, unsigned in
     for (uint32_t k = k0; k < k1; k++) {
         memset (T, 0, 2*size * sizeof(*T));
         for(unsigned int j = 0 ; j < multi ; j++) {
-        const uint64_t * Hj = H[j]->base[k];
-        const uint64_t * Hjm = H[j]->current[k];
-        if (Hj == Hjm) continue;
+            const uint64_t * Hj = H[j]->base[k];
+            const uint64_t * Hjm = H[j]->current[k];
+            if (Hj == Hjm) continue;
 
-        for( ; Hj != Hjm ; Hj++) {
-            uint64_t ix = transform(*Hj, mask);
+            for( ; Hj != Hjm ; Hj++) {
+                uint64_t ix = transform(*Hj, mask);
 
-            Th = T + ((ix >> 32) << 1);
-            for( ; Th[0] ; Th+=2) {
-                if (Th[0] == (uint32_t) ix) {
-                    /* This is a collision */
-                  polyselect_match_info_ptr job;
-                  uint64_t i = *Hj;
-                  uint32_t p2 = H[j]->pmem[Hj - H[j]->mem];
-                  uint32_t p1 = Th[1];
-                  if (dllist_is_empty(&thread->empty_job_slots)) {
-                      job = malloc(sizeof(polyselect_match_info_t));
-                      polyselect_match_info_init(job, p1, p2, i, q, rq, thread);
-                  } else {
-                      /* recycle an old one ! */
-                      struct dllist_head * ptr = dllist_get_first_node(&thread->empty_job_slots);
-                      dllist_pop(ptr);
-                      job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
-                      polyselect_match_info_set(job, p1, p2, i, q, rq, thread);
-                  }
-                  dllist_push_back(&thread->async_jobs, &job->queue);
+                Th = T + ((ix >> 32) << 1);
+                for( ; Th[0] ; Th+=2) {
+                    if (Th[0] == (uint32_t) ix) {
+                        /* This is a collision */
+                        polyselect_match_info_ptr job;
+                        uint64_t i = *Hj;
+                        uint32_t p2 = H[j]->pmem[Hj - H[j]->mem];
+                        uint32_t p1 = Th[1];
+                        if (dllist_is_empty(&thread->empty_job_slots)) {
+                            job = malloc(sizeof(polyselect_match_info_t));
+                            polyselect_match_info_init(job, p1, p2, i, q, rq, thread);
+                        } else {
+                            /* recycle an old one ! */
+                            struct dllist_head * ptr = dllist_get_first_node(&thread->empty_job_slots);
+                            dllist_pop(ptr);
+                            job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
+                            polyselect_match_info_set(job, p1, p2, i, q, rq, thread);
+                        }
+                        dllist_push_back(&thread->async_jobs, &job->queue);
+                    }
                 }
+                Th[0] = ix;
+                Th[1] = H[j]->pmem[Hj - H[j]->mem];
             }
-            Th[0] = ix;
-            Th[1] = H[j]->pmem[Hj - H[j]->mem];
-        }
         }
     }
     free (T);
@@ -480,5 +489,18 @@ polyselect_shash_clear (polyselect_shash_ptr H)
 {
     ASSERT_ALWAYS(H->alloc);
     polyselect_shash_clear_multi((polyselect_shash_t *) H, 1);
+}
+
+void polyselect_shash2_print_fragment(polyselect_shash_srcptr H, size_t i0, size_t i1)
+{
+    for(size_t i = i0 ; i < i1 ; i++) {
+        fprintf(stderr, "%zu:", i);
+        for(const uint64_t * p = H->base[i] ; p != H->current[i] ; p++) {
+            fprintf(stderr, " (%" PRId64 ",%" PRIu32 ")",
+                    (int64_t) *p,
+                    H->pmem[p-H->mem]);
+        }
+        fprintf(stderr, "\n");
+    }
 }
 

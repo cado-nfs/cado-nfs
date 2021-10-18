@@ -483,6 +483,7 @@ void * thread_loop(polyselect_thread_ptr thread)
                 pthread_mutex_unlock(main_lock);
                 if (i == idx_max) {
                     team->done = 1;
+                    polyselect_thread_team_post_work_stop(team, thread);
                     break;
                 }
 
@@ -556,8 +557,13 @@ void * thread_loop(polyselect_thread_ptr thread)
         }
         pthread_mutex_lock(main_lock);
         polyselect_main_data_commit_stats_unlocked(team->main_nonconst, thread->stats, team->header->ad);
-        dllist_bulk_move_back(&league->async_jobs, &thread->async_jobs);
         pthread_mutex_unlock(main_lock);
+        pthread_mutex_lock(league_lock);
+        fprintf(stderr, "thread %d moves %zu jobs to async queue (current size: %zu)\n", thread->thread_index,
+                dllist_length(&thread->async_jobs),
+                dllist_length(&league->async_jobs));
+        dllist_bulk_move_back(&league->async_jobs, &thread->async_jobs);
+        pthread_mutex_unlock(league_lock);
     }
     {
         /* XXX TODO acquire a lock, probably main_lock */

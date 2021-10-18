@@ -49,11 +49,22 @@ initPrimes ( unsigned long P,
 
   prime_info_clear (pi);
 
-  *primes = (uint32_t*) realloc (*primes, (nprimes) * sizeof (uint32_t));
-  if ( (*primes) == NULL) {
+  uint32_t * p2 = (uint32_t*) malloc (nprimes * sizeof (uint32_t));
+  if ( p2 == NULL) {
     fprintf (stderr, "Error, cannot allocate memory in initPrimes\n");
     exit (1);
   }
+  /* rearrange so that when we subdivide into threads, the local density
+   * is more constant. We're talking of the sum of 1/p^2 here.
+   */
+  for(unsigned long i = 0 ; i < nprimes ; i++) {
+      if ((i & 1) == 0)
+          p2[i] = (*primes)[i/2];
+      else
+          p2[i] = (*primes)[nprimes-1-i/2];
+  }
+  free(*primes);
+  *primes = p2;
 
   return nprimes;
 }
