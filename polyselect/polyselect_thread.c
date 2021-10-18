@@ -13,9 +13,9 @@ void polyselect_thread_bind(polyselect_thread_ptr thread MAYBE_UNUSED)
 {
     polyselect_thread_team_ptr team = thread->team;
     polyselect_thread_league_ptr league = team->league;
-    polyselect_main_data_srcptr main = league->main;
+    polyselect_main_data_srcptr main_data = league->main;
     pthread_mutex_t * mlock = thread->main_lock;
-    /* Do the binding. Temporarily acquire the main lock in order to do
+    /* Do the binding. Temporarily acquire the main_data lock in order to do
      * so */
 #ifdef HAVE_HWLOC
     char * cstr = NULL;
@@ -31,11 +31,11 @@ void polyselect_thread_bind(polyselect_thread_ptr thread MAYBE_UNUSED)
 
     pthread_mutex_lock(mlock);
     if (thread->cpubind_set) {
-        hwloc_set_cpubind(main->topology, thread->cpubind_set, HWLOC_CPUBIND_THREAD | HWLOC_CPUBIND_STRICT);
+        hwloc_set_cpubind(main_data->topology, thread->cpubind_set, HWLOC_CPUBIND_THREAD | HWLOC_CPUBIND_STRICT);
         printf("# cpu-binding thread %d to [%s]\n", thread->thread_index, cstr);
     }
     if (league->membind_set) {
-        hwloc_set_membind(main->topology, league->membind_set, HWLOC_MEMBIND_BIND,
+        hwloc_set_membind(main_data->topology, league->membind_set, HWLOC_MEMBIND_BIND,
                 HWLOC_MEMBIND_THREAD |
                 HWLOC_MEMBIND_STRICT |
                 HWLOC_MEMBIND_BYNODESET);
@@ -126,9 +126,9 @@ void polyselect_thread_late_init(polyselect_thread_ptr thread)
 {
     polyselect_thread_team_ptr team = thread->team;
     polyselect_thread_league_ptr league = team->league;
-    polyselect_main_data_srcptr main = league->main;
+    polyselect_main_data_srcptr main_data = league->main;
 
-    polyselect_stats_init(thread->stats, main->keep);
+    polyselect_stats_init(thread->stats, main_data->keep);
     dllist_init_head(&thread->async_jobs);
     dllist_init_head(&thread->empty_job_slots);
 

@@ -30,16 +30,16 @@ void polyselect_thread_team_init(polyselect_thread_team_ptr team, polyselect_thr
 void polyselect_thread_team_late_init(polyselect_thread_team_ptr team)
 {
     polyselect_thread_league_ptr league = team->league;
-    polyselect_main_data_srcptr main = league->main;
+    polyselect_main_data_srcptr main_data = league->main;
     mpz_init(team->ad);
     polyselect_poly_header_init(team->header);
-    polyselect_proots_init(team->R, main->d, league->pt->lenPrimes);
-    polyselect_stats_init(team->stats, main->keep);
+    polyselect_proots_init(team->R, main_data->d, league->pt->lenPrimes);
+    polyselect_stats_init(team->stats, main_data->keep);
     team->rstate = team->stats->rstate;
 
-    team->SH = malloc(main->finer_grain_threads * sizeof(polyselect_shash_t));
+    team->SH = malloc(main_data->finer_grain_threads * sizeof(polyselect_shash_t));
     size_t size_hint = POLYSELECT_SHASH_ALLOC_RATIO * league->pt->lenPrimes;
-    polyselect_shash_init_multi(team->SH, size_hint, main->finer_grain_threads);
+    polyselect_shash_init_multi(team->SH, size_hint, main_data->finer_grain_threads);
 
     pthread_cond_init(&team->sync_task->wait_begintask, NULL);
     pthread_cond_init(&team->sync_task->wait_endtask, NULL);
@@ -49,11 +49,11 @@ void polyselect_thread_team_late_init(polyselect_thread_team_ptr team)
 void polyselect_thread_team_set_idx(polyselect_thread_team_ptr team, unsigned int idx)
 {
     polyselect_thread_league_ptr league = team->league;
-    polyselect_main_data_srcptr main = league->main;
-    mpz_set_ui(team->ad, main->incr);
+    polyselect_main_data_srcptr main_data = league->main;
+    mpz_set_ui(team->ad, main_data->incr);
     mpz_mul_si(team->ad, team->ad, idx);
-    mpz_add(team->ad, team->ad, main->admin);
-    polyselect_poly_header_set_Nd(team->header, main->N, main->d);
+    mpz_add(team->ad, team->ad, main_data->admin);
+    polyselect_poly_header_set_Nd(team->header, main_data->N, main_data->d);
     polyselect_poly_header_set_ad(team->header, team->ad);
 }
 

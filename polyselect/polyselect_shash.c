@@ -504,3 +504,15 @@ void polyselect_shash2_print_fragment(polyselect_shash_srcptr H, size_t i0, size
     }
 }
 
+void polyselect_shash_print_fragment(polyselect_shash_srcptr H, size_t i0, size_t i1)
+{
+    for(size_t i = i0 ; i < i1 ; i++) {
+        fprintf(stderr, "%zu:", i);
+        for(const uint64_t * p = H->base[i] ; p != H->current[i] ; p++) {
+            fprintf(stderr, " (%" PRId64 ",*)",
+                    (int64_t) *p);
+        }
+        fprintf(stderr, "\n");
+    }
+}
+
