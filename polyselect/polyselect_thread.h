@@ -35,6 +35,10 @@ struct polyselect_thread_s {
     // polyselect_main_data_ptr main_nonconst_use_rarely;
     pthread_mutex_t * main_lock;
 
+    enum wait_cause why_wait;
+    int is_in_sync_group;
+    int is_unlocked;
+
     unsigned int index_in_sync_team;
 
     /*******************************************

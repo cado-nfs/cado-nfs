@@ -52,12 +52,15 @@ void polyselect_thread_bind(polyselect_thread_ptr thread MAYBE_UNUSED)
 
 void polyselect_thread_init(polyselect_thread_ptr thread, polyselect_thread_team_ptr team, polyselect_main_data_ptr main, unsigned int thread_index)
 {
-        thread->thread_index = thread_index;
-        thread->team = team;
-        thread->tid = pthread_self();
-        thread->cpubind_set = NULL;
-        thread->main_lock = &main->lock;
-        thread->index_in_sync_team = UINT_MAX;
+    thread->thread_index = thread_index;
+    thread->team = team;
+    thread->tid = pthread_self();
+    thread->cpubind_set = NULL;
+    thread->main_lock = &main->lock;
+    thread->index_in_sync_team = UINT_MAX;
+    thread->why_wait = W_NONE;
+    thread->is_in_sync_group = 0;
+    thread->is_unlocked = 1;
 }
 
 FILE * chronogram = NULL;

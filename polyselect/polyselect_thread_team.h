@@ -28,18 +28,40 @@ struct polyselect_thread_team_sync_task {
      * entry. If it chooses to release it (which it should), it must
      * re-take it before exiting.
      */
-    unsigned int expected_participants;
+    unsigned int expected;
+    unsigned int in_barrier;
     unsigned int done;
     void (*f)(struct polyselect_thread_s *);
     /* This is passed on a case-by-case basis depending on the function.
      * Type-punning is deliberately the way to go here.
      */
     void * arg;
-    pthread_cond_t wait_begintask;
-    pthread_cond_t wait_endtask;
+    // pthread_cond_t wait_begintask;
+    // pthread_cond_t wait_endtask;
 
-    barrier_t barrier;
+    // barrier_t barrier;
 };
+
+enum signal_cause {
+    S_NONE,
+    S_NEW_JOB,
+    S_LEAVING_BARRIER,
+    S_PLEASE_ENTER_BARRIER,
+    S_LEFT_BARRIER,
+    S_REACHED_BARRIER,
+    S_NO_ROAMING,
+};
+
+
+enum wait_cause {
+    W_NONE,
+    W_NEW_JOB,
+    W_NO_ROAMING_AND_NO_BARRIER_TAIL,
+    W_LEAVING_BARRIER,
+    W_REACHING_BARRIER,
+};
+
+
 
 /* threads in a given team engage **collectively** in operations,
  * notably in the collision_on_p and collision_on_sq passes.
@@ -70,7 +92,9 @@ struct polyselect_thread_team_s {
     polyselect_proots_t R;
 
     unsigned int size;          /* number of threads below */
-    unsigned int sync_busy;     /* 0 <= sync_busy <= size */
+    // unsigned int sync_busy;     /* 0 <= sync_busy <= size */
+
+    // int shutting_down;
 
     pthread_barrier_t barrier;  /* for timely initialization, that's all */
 
@@ -86,6 +110,14 @@ struct polyselect_thread_team_s {
     polyselect_main_data_ptr main_nonconst;
 
     pthread_mutex_t lock;
+    pthread_cond_t wait;
+
+    enum signal_cause why_signal;
+
+    unsigned int sync_ready;
+    unsigned int sync_roaming;
+    unsigned int leaving_barrier;
+
 
     /* sync_task->expected_participants is zero when there is no task.
      * Note that a thread may have to _wait_ even though it's ready,
@@ -116,8 +148,23 @@ extern void polyselect_thread_team_set_idx(polyselect_thread_team_ptr team, unsi
 /* Yes, this takes the thread pointer as well, because this is posted
  * only from the leader */
 extern void polyselect_thread_team_post_work(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread, void (*f)(struct polyselect_thread_s *), void * arg);
-extern void polyselect_thread_team_end_subtask(polyselect_thread_team_ptr team);
+extern void polyselect_thread_team_end_subtask(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
 extern void polyselect_thread_team_post_work_stop(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+
+
+extern void polyselect_thread_team_end_subtask(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+extern void polyselect_thread_team_sync_group_enter(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+extern void polyselect_thread_team_sync_group_leave(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+extern void polyselect_thread_team_sync_group_roaming_barrier(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+extern void polyselect_thread_team_sync_group_begin_roaming(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+extern void polyselect_thread_team_sync_group_end_roaming(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+
+/* temporary helpers */
+extern void cond_helper_broadcast(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread, enum signal_cause s, int ignore_async, ...);
+extern void cond_helper_wait(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread, enum wait_cause w, ...);
+
+
+
 
 #ifdef __cplusplus
 }
