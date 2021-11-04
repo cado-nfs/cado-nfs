@@ -57,7 +57,7 @@ void polyselect_thread_init(polyselect_thread_ptr thread, polyselect_thread_team
     thread->tid = pthread_self();
     thread->cpubind_set = NULL;
     thread->main_lock = &main->lock;
-    thread->index_in_sync_team = UINT_MAX;
+    thread->index_in_sync_zone = UINT_MAX;
     thread->why_wait = W_NONE;
     thread->is_in_sync_group = 0;
     thread->is_unlocked = 1;

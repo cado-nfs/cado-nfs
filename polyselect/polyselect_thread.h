@@ -39,7 +39,7 @@ struct polyselect_thread_s {
     int is_in_sync_group;
     int is_unlocked;
 
-    unsigned int index_in_sync_team;
+    unsigned int index_in_sync_zone;
 
     /*******************************************
      * THE FIELDS BELOW ARE INITIALIZED LATE ! *

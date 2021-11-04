@@ -428,8 +428,6 @@ void * thread_loop(polyselect_thread_ptr thread)
         polyselect_thread_team_late_init(team);
     }
     
-    pthread_barrier_wait(&team->barrier);
-
     polyselect_thread_late_init(thread);
 
     /* 
@@ -454,6 +452,9 @@ void * thread_loop(polyselect_thread_ptr thread)
     unsigned int idx_max = polyselect_main_data_number_of_ad_tasks(main_data);
 
     pthread_mutex_lock(team_lock);
+
+    polyselect_thread_team_i_am_ready(team, thread);
+
     for( ; ; ) {
         pthread_mutex_lock(league_lock);
         /* is there an async job ready ? */
@@ -462,29 +463,33 @@ void * thread_loop(polyselect_thread_ptr thread)
             dllist_pop(ptr);
             pthread_mutex_unlock(league_lock);
             polyselect_match_info_ptr job = dllist_entry(ptr, struct polyselect_match_info_s, queue);
+
+            polyselect_thread_team_enter_async(team, thread);
             pthread_mutex_unlock(team_lock);
             /********* BEGIN UNLOCKED SECTION **************/
             polyselect_thread_chronogram_chat(thread, "enter match");
             polyselect_process_match_async(league, thread->stats, job);
-
             dllist_push_back(&thread->empty_job_slots, &job->queue);
             polyselect_thread_chronogram_chat(thread, "leave match");
             /********** END UNLOCKED SECTION ***************/
             pthread_mutex_lock(team_lock);
+            polyselect_thread_team_leave_async(team, thread);
         } else {
             pthread_mutex_unlock(league_lock);
             /* Then we want to contribute to synchronous work. */
-            /* note that we have the team lock, at this point. */
-            thread->index_in_sync_team = team->sync_ready++;
+            /* note that we have the team lock, at this point.
+             * Furthermore, this call is a barrier.
+             */
+            polyselect_thread_team_enter_sync_zone(team, thread);
 
-            /*
             fprintf(stderr, "thread %d is %d-th sync thread in team %d\n",
                     thread->thread_index,
-                    thread->index_in_sync_team,
+                    thread->index_in_sync_zone,
                     thread->team->team_index);
+            /*
                     */
 
-            if (thread->index_in_sync_team == 0) {
+            if (thread->index_in_sync_zone == 0) {
                 pthread_mutex_lock(main_lock);
                 unsigned long i = team->main_nonconst->idx;
                 team->main_nonconst->idx += (i < idx_max);
@@ -496,12 +501,13 @@ void * thread_loop(polyselect_thread_ptr thread)
                 }
 
 
-                polyselect_thread_chronogram_chat(thread, "enter ad");
-
                 /* we're effectively the only one in the team, here, so
                  * we can safely touch these unlocked.
                  */
                 polyselect_thread_team_set_idx(team, i);
+
+                polyselect_thread_chronogram_chat(thread, "enter ad, %.0f", mpz_get_d(team->ad));
+
 
                 unsigned long c = 0;
 
@@ -515,7 +521,7 @@ void * thread_loop(polyselect_thread_ptr thread)
 
                 polyselect_thread_team_post_work_stop(team, thread);
 
-                polyselect_thread_chronogram_chat(thread, "leave ad");
+                polyselect_thread_chronogram_chat(thread, "leave ad, %.0f", mpz_get_d(thread->team->ad));
 
                 {
                     /* Not absolutely certain that this printing makes
@@ -538,28 +544,28 @@ void * thread_loop(polyselect_thread_ptr thread)
 
                 for( ; ; ) {
                     /* wait for sync tasks to be posted. */
-                    // pthread_cond_wait(&team->wait, &team->lock);
-                    cond_helper_wait(team, thread, W_NEW_JOB, S_NEW_JOB, S_NONE);
+                    pthread_cond_wait(&team->count->w_job, &team->lock);
 
+                    /*
                     fprintf(stderr, "thread %d (%d-th sync thread in team %d of size %d among %d sync threads) wakes up\n",
                             thread->thread_index,
-                            thread->index_in_sync_team,
+                            thread->index_in_sync_zone,
                             thread->team->team_index,
-                            thread->team->sync_task->expected,
-                            thread->team->sync_ready);
-                    /*
+                            thread->team->task->expected,
+                            thread->team->count->ready);
                             */
 
-                    if (team->sync_task->expected == 0) {
+                    if (team->task->expected == 0) {
+                        /*
                         fprintf(stderr, "thread %d (%d-th sync thread in team %d) leaves sync group\n",
                                 thread->thread_index,
-                                thread->index_in_sync_team,
+                                thread->index_in_sync_zone,
                                 thread->team->team_index);
-                        polyselect_thread_team_sync_group_leave(team, thread);
+                                */
                         break;
                     }
 
-                    if (team->sync_task->expected <= thread->index_in_sync_team) {
+                    if (team->task->expected <= thread->index_in_sync_zone) {
                         /* there is a structural race condition here. We
                          * arrived in the sync section after the leader
                          * thread posted this task. Not much to be said,
@@ -573,18 +579,20 @@ void * thread_loop(polyselect_thread_ptr thread)
                      * expected that the lock be released during the
                      * call.
                      */
-                    (*team->sync_task->f)(thread);
+                    polyselect_thread_team_enter_sync_task(team, thread);
+                    (*team->task->f)(thread);
+                    polyselect_thread_team_leave_sync_task(team, thread);
                 }
             }
-            // barrier_wait(&thread->team->sync_task->barrier, NULL, NULL, NULL);
-            // barrier_finish_unlocked(&thread->team->sync_task->barrier);
+
+            polyselect_thread_team_leave_sync_zone(team, thread);
+
+            /*
             fprintf(stderr, "thread %d (%d-th sync thread in team %d) moves on\n",
                     thread->thread_index,
-                    thread->index_in_sync_team,
+                    thread->index_in_sync_zone,
                     thread->team->team_index);
-            /*
                     */
-
         }
         pthread_mutex_lock(main_lock);
         polyselect_main_data_commit_stats_unlocked(team->main_nonconst, thread->stats, team->header->ad);

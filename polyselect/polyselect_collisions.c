@@ -493,17 +493,18 @@ struct polyselect_CCS_subtask_data {
  */
 void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
 {
-    struct polyselect_CCS_subtask_data * arg = thread->team->sync_task->arg;
+    struct polyselect_CCS_subtask_data * arg = thread->team->task->arg;
     unsigned long q = arg->q;
     mpz_srcptr rq = arg->rq;
 
-    unsigned int nt = thread->team->sync_task->expected;
-    unsigned int it = thread->index_in_sync_team;
+    unsigned int nt = thread->team->task->expected;
+    unsigned int it = thread->index_in_sync_zone;
     polyselect_primes_table_srcptr pt = thread->team->league->pt;
 
     polyselect_shash_ptr SH = thread->team->SH[it];
 
-    polyselect_thread_team_sync_group_begin_roaming(thread->team, thread);
+    polyselect_thread_team_enter_roaming(thread->team, thread);
+    pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter dispatch_shash2_nf");
 
@@ -524,7 +525,7 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
 
     polyselect_thread_chronogram_chat(thread, "leave dispatch_shash2_nf");
 
-    polyselect_thread_team_sync_group_roaming_barrier(thread->team, thread);
+    polyselect_thread_team_roaming_barrier(thread->team, thread);
     // barrier_wait(&thread->team->sync_task->barrier, NULL, NULL, NULL);
 
     polyselect_thread_chronogram_chat(thread, "enter transverse_shash2");
@@ -541,9 +542,8 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
 
     polyselect_thread_chronogram_chat(thread, "leave transverse_shash2");
     /********** END UNLOCKED SECTION ***************/
-    polyselect_thread_team_sync_group_end_roaming(thread->team, thread);
-
-    polyselect_thread_team_end_subtask(thread->team, thread);
+    pthread_mutex_lock(&thread->team->lock);
+    polyselect_thread_team_leave_roaming(thread->team, thread);
 }/*}}}*/
 
 /*{{{ polyselect_DCS_notflat_subtask
@@ -554,8 +554,8 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
  */
 void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
 {
-    unsigned int nt = thread->team->sync_task->expected;
-    unsigned int it = thread->index_in_sync_team;
+    unsigned int nt = thread->team->task->expected;
+    unsigned int it = thread->index_in_sync_zone;
     polyselect_primes_table_srcptr pt = thread->team->league->pt;
 
     /* thread->team->SH[it] might be different from one call to the next,
@@ -567,7 +567,8 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
      */
     polyselect_shash_ptr SH = thread->team->SH[it];
 
-    polyselect_thread_team_sync_group_begin_roaming(thread->team, thread);
+    polyselect_thread_team_enter_roaming(thread->team, thread);
+    pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter dispatch_shash_nf");
 
@@ -588,7 +589,7 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
 
     polyselect_thread_chronogram_chat(thread, "leave dispatch_shash_nf");
 
-    polyselect_thread_team_sync_group_roaming_barrier(thread->team, thread);
+    polyselect_thread_team_roaming_barrier(thread->team, thread);
     // barrier_wait(&thread->team->sync_task->barrier, NULL, NULL, NULL);
 
     polyselect_thread_chronogram_chat(thread, "enter transverse_shash");
@@ -606,13 +607,12 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
 
     polyselect_thread_chronogram_chat(thread, "leave transverse_shash");
     /********** END UNLOCKED SECTION ***************/
-    polyselect_thread_team_sync_group_end_roaming(thread->team, thread);
+    pthread_mutex_lock(&thread->team->lock);
+    polyselect_thread_team_leave_roaming(thread->team, thread);
 
     if (found) {
-        *((int*)thread->team->sync_task->arg) = 1;
+        *((int*)thread->team->task->arg) = 1;
     }
-
-    polyselect_thread_team_end_subtask(thread->team, thread);
 }
 /*}}}*/
 
@@ -622,7 +622,7 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
 unsigned long
 collision_on_p_conductor(polyselect_thread_ptr thread)
 {
-  ASSERT_ALWAYS(thread->index_in_sync_team == 0);
+  ASSERT_ALWAYS(thread->index_in_sync_zone == 0);
 
   /* first compute and lift all roots modulo the primes in
    * thread->main->Primes ; we store that in thread->team->R
@@ -642,13 +642,13 @@ collision_on_p_conductor(polyselect_thread_ptr thread)
 
   /* This is called with the team lock held ! */
 
-  polyselect_shash_reset_multi(thread->team->SH, thread->team->sync_ready);
+  polyselect_shash_reset_multi(thread->team->SH, thread->team->count->sync);
   polyselect_thread_team_post_work(thread->team, thread, polyselect_DCS_notflat_subtask, &found);
 
 
   if (found) {/* do the real work */
       struct polyselect_CCS_subtask_data arg[1] = {{ .q = 1, .rq = NULL }};
-      polyselect_shash_reset_multi(thread->team->SH, thread->team->sync_ready);
+      polyselect_shash_reset_multi(thread->team->SH, thread->team->count->sync);
       polyselect_thread_team_post_work(thread->team, thread, polyselect_CCS_notflat_subtask, arg);
   }
 
@@ -670,11 +670,11 @@ struct polyselect_DCS_flat_subtask_data {
  */
 void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
 {
-    struct polyselect_DCS_flat_subtask_data * arg = thread->team->sync_task->arg;
+    struct polyselect_DCS_flat_subtask_data * arg = thread->team->task->arg;
     unsigned long * invq_roots_per_prime = arg->invq_roots_per_prime;
 
-    unsigned int nt = thread->team->sync_task->expected;
-    unsigned int it = thread->index_in_sync_team;
+    unsigned int nt = thread->team->task->expected;
+    unsigned int it = thread->index_in_sync_zone;
     polyselect_primes_table_srcptr pt = thread->team->league->pt;
 
     /* thread->team->SH[it] might be different from one call to the next,
@@ -686,7 +686,8 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
      */
     polyselect_shash_ptr SH = thread->team->SH[it];
 
-    polyselect_thread_team_sync_group_begin_roaming(thread->team, thread);
+    polyselect_thread_team_enter_roaming(thread->team, thread);
+    pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter dispatch_shash_f");
 
@@ -715,7 +716,7 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
 
     polyselect_thread_chronogram_chat(thread, "leave dispatch_shash_f");
 
-    polyselect_thread_team_sync_group_roaming_barrier(thread->team, thread);
+    polyselect_thread_team_roaming_barrier(thread->team, thread);
     //// barrier_wait(&thread->team->sync_task->barrier, NULL, NULL, NULL);
 
     polyselect_thread_chronogram_chat(thread, "enter transverse_shash");
@@ -733,11 +734,11 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
 
     polyselect_thread_chronogram_chat(thread, "leave transverse_shash");
     /********** END UNLOCKED SECTION ***************/
-    polyselect_thread_team_sync_group_end_roaming(thread->team, thread);
+    pthread_mutex_lock(&thread->team->lock);
+    polyselect_thread_team_leave_roaming(thread->team, thread);
 
     if (found)
         arg->found = 1;
-    polyselect_thread_team_end_subtask(thread->team, thread);
 }
 /*}}}*/
 
@@ -750,20 +751,20 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
  */
 void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
 {
-    struct polyselect_CCS_subtask_data * arg = thread->team->sync_task->arg;
+    struct polyselect_CCS_subtask_data * arg = thread->team->task->arg;
     unsigned long q = arg->q;
     mpz_srcptr rq = arg->rq;
     unsigned long * invq_roots_per_prime = arg->invq_roots_per_prime;
 
-    unsigned int nt = thread->team->sync_task->expected;
-    unsigned int it = thread->index_in_sync_team;
+    unsigned int nt = thread->team->task->expected;
+    unsigned int it = thread->index_in_sync_zone;
     polyselect_primes_table_srcptr pt = thread->team->league->pt;
 
     polyselect_shash_ptr SH = thread->team->SH[it];
 
-    polyselect_thread_team_sync_group_begin_roaming(thread->team, thread);
+    polyselect_thread_team_enter_roaming(thread->team, thread);
+    pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
-
     polyselect_thread_chronogram_chat(thread, "enter dispatch_shash2_nf");
 
     // reset has been done by the caller with polyselect_shash_reset_multi
@@ -788,7 +789,7 @@ void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
 
     polyselect_thread_chronogram_chat(thread, "leave dispatch_shash2_nf");
 
-    polyselect_thread_team_sync_group_roaming_barrier(thread->team, thread);
+    polyselect_thread_team_roaming_barrier(thread->team, thread);
     // barrier_wait(&thread->team->sync_task->barrier, NULL, NULL, NULL);
 
     polyselect_thread_chronogram_chat(thread, "enter transverse_shash2");
@@ -805,9 +806,8 @@ void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
 
     polyselect_thread_chronogram_chat(thread, "leave transverse_shash2");
     /********** END UNLOCKED SECTION ***************/
-    polyselect_thread_team_sync_group_end_roaming(thread->team, thread);
-
-    polyselect_thread_team_end_subtask(thread->team, thread);
+    pthread_mutex_lock(&thread->team->lock);
+    polyselect_thread_team_leave_roaming(thread->team, thread);
 }/*}}}*/
 /* collision on each special-q, call collision_on_batch_p() */
 static inline void
@@ -816,25 +816,27 @@ collision_on_each_sq(unsigned long q,
 		     unsigned long * invq_roots_per_prime,
                      polyselect_thread_ptr thread)
 {
-    ASSERT_ALWAYS(thread->index_in_sync_team == 0);
+    ASSERT_ALWAYS(thread->index_in_sync_zone == 0);
 
     struct polyselect_DCS_flat_subtask_data arg[1] = {{
         .invq_roots_per_prime = invq_roots_per_prime,
         .found = 0
     }};
 
-    polyselect_shash_reset_multi(thread->team->SH, thread->team->sync_ready);
+    polyselect_shash_reset_multi(thread->team->SH, thread->team->count->sync);
     polyselect_thread_team_post_work(thread->team, thread, polyselect_DCS_flat_subtask, arg);
 
     if (arg->found) {/* do the real work */
       struct polyselect_CCS_subtask_data arg[1] = {{
           .q = q, .rq = rq, .invq_roots_per_prime = invq_roots_per_prime }};
-      polyselect_shash_reset_multi(thread->team->SH, thread->team->sync_ready);
+      polyselect_shash_reset_multi(thread->team->SH, thread->team->count->sync);
       polyselect_thread_team_post_work(thread->team, thread, polyselect_CCS_flat_subtask, arg);
   }
 
+    /*
     fprintf(stderr, "thread %d exits scope before STOP for %d sync thread in team %d\n",
-            thread->thread_index, thread->team->sync_ready, thread->team->team_index);
+            thread->thread_index, thread->team->count->sync, thread->team->team_index);
+            */
   thread->stats->potential_collisions++;
 }
 
@@ -847,18 +849,19 @@ struct modcalc_arg {
 
 void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
 {
-    struct modcalc_arg * arg = thread->team->sync_task->arg;
+    struct modcalc_arg * arg = thread->team->task->arg;
     int count = arg->count;
     const mpz_t * rqqz = arg->rqqz;
     const unsigned long *inv_qq = arg->inv_qq;
     unsigned long **tinv_qq = arg->tinv_qq;
     unsigned long c = 0;
 
-    unsigned int nt = thread->team->sync_task->expected;
-    unsigned int it = thread->index_in_sync_team;
+    unsigned int nt = thread->team->task->expected;
+    unsigned int it = thread->index_in_sync_zone;
     polyselect_primes_table_ptr pt = thread->team->league->pt;
 
-    polyselect_thread_team_sync_group_begin_roaming(thread->team, thread);
+    polyselect_thread_team_enter_roaming(thread->team, thread);
+    pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter modcalc");
 
@@ -912,9 +915,8 @@ void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
     }
     polyselect_thread_chronogram_chat(thread, "leave modcalc");
     /********** END UNLOCKED SECTION ***************/
-    polyselect_thread_team_sync_group_end_roaming(thread->team, thread);
-
-    polyselect_thread_team_end_subtask(thread->team, thread);
+    pthread_mutex_lock(&thread->team->lock);
+    polyselect_thread_team_leave_roaming(thread->team, thread);
 }/*}}}*/
 
 /* Given p, rp, q, invqq[], for each rq of q, compute (rp - rq) / q^2 */
@@ -1084,17 +1086,17 @@ struct invert_q2_mod_all_p2_data {
 
 static inline void invert_q2_mod_all_p2_subtask(polyselect_thread_ptr thread) /*{{{*/
 {
-    struct invert_q2_mod_all_p2_data * arg = thread->team->sync_task->arg;
+    struct invert_q2_mod_all_p2_data * arg = thread->team->task->arg;
     unsigned long q = arg->q;
     unsigned long *invqq = arg->invqq;
 
-    polyselect_thread_team_sync_group_begin_roaming(thread->team, thread);
+    polyselect_thread_team_enter_roaming(thread->team, thread);
+    pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter invert_q2");
-
     polyselect_primes_table_srcptr pt = thread->team->league->pt;
-    unsigned int nt = thread->team->sync_task->expected;
-    unsigned int it = thread->index_in_sync_team;
+    unsigned int nt = thread->team->task->expected;
+    unsigned int it = thread->index_in_sync_zone;
     size_t qt = pt->lenPrimes / nt;
     size_t rt = pt->lenPrimes % nt;
     unsigned long i0 = qt * it + MIN(it, rt);
@@ -1134,9 +1136,8 @@ static inline void invert_q2_mod_all_p2_subtask(polyselect_thread_ptr thread) /*
     }
     polyselect_thread_chronogram_chat(thread, "leave invert_q2");
     /********** END UNLOCKED SECTION ***************/
-    polyselect_thread_team_sync_group_end_roaming(thread->team, thread);
-
-    polyselect_thread_team_end_subtask(thread->team, thread);
+    pthread_mutex_lock(&thread->team->lock);
+    polyselect_thread_team_leave_roaming(thread->team, thread);
 }/*}}}*/
 
 /* collision on special-q, call collision_on_batch_sq */

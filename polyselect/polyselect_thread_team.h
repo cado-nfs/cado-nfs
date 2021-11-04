@@ -16,32 +16,6 @@ extern "C" {
 
 struct polyselect_thread_s;
 
-struct polyselect_thread_team_sync_task {
-    /* All access to this struct must be protected by the team lock */
-
-    /* This holds the info on the precise task that is to be done by the
-     * workers. Since we pass a pointer to the polyselect_thread
-     * structure, the called function f has access to all relevant
-     * information, and its prototype can remain quite lean.
-     *
-     * IMPORTANT: function f will always have the team lock held upon
-     * entry. If it chooses to release it (which it should), it must
-     * re-take it before exiting.
-     */
-    unsigned int expected;
-    unsigned int in_barrier;
-    unsigned int done;
-    void (*f)(struct polyselect_thread_s *);
-    /* This is passed on a case-by-case basis depending on the function.
-     * Type-punning is deliberately the way to go here.
-     */
-    void * arg;
-    // pthread_cond_t wait_begintask;
-    // pthread_cond_t wait_endtask;
-
-    // barrier_t barrier;
-};
-
 enum signal_cause {
     S_NONE,
     S_NEW_JOB,
@@ -94,10 +68,6 @@ struct polyselect_thread_team_s {
     unsigned int size;          /* number of threads below */
     // unsigned int sync_busy;     /* 0 <= sync_busy <= size */
 
-    // int shutting_down;
-
-    pthread_barrier_t barrier;  /* for timely initialization, that's all */
-
     int done;   /* when there's no further sync task to do */
 
     polyselect_thread_league_ptr league;
@@ -110,21 +80,75 @@ struct polyselect_thread_team_s {
     polyselect_main_data_ptr main_nonconst;
 
     pthread_mutex_t lock;
-    pthread_cond_t wait;
 
-    enum signal_cause why_signal;
+    struct {
+        /* At any point inside the main loop, we have the invariant:
+         *
+         * count.ready + count.sync + count.async == size
+         *
+         * However, this invariant does not hold at the beginning of the
+         * thread team setup.
+         *
+         * we always has roaming <= sync2 <= sync
+         *
+         * The only transitions that are allowed (and always with the
+         * lock held) are:
+         *
+         * (not in group) -> ready++
+         * ready-- -> async++ (when picking an async task)
+         * ready-- -> sync++ (when entering a group doing sync tasks)
+         * sync -> sync2++   (when entering a sync task)
+         * sync2 -> roaming++ (begin_roaming)
+         * roaming-- -> sync2 (end_roaming)
+         * sync2-- -> sync   (end_sync_task)
+         * sync-- -> ready   (leave_sync_group)
+         *
+         * transitions are only allowed with the team lock held and while
+         * waiting on the condition that is exactly matching the current
+         * state.
+         *
+         */
+        unsigned int ready;
+        unsigned int sync;
+        unsigned int async;
+        unsigned int sync2;
+        unsigned int roaming;
+        pthread_cond_t w_ready_full;
+        pthread_cond_t w_ready_empty;
+        pthread_cond_t w_sync_empty;
+        pthread_cond_t w_job;
+        pthread_cond_t w_async;
+        pthread_cond_t w_sync2;
+        pthread_cond_t w_roaming;
+        /* This reuses the team lock ! */
+        barrier_t roaming_barrier;
+    } count[1];
 
-    unsigned int sync_ready;
-    unsigned int sync_roaming;
-    unsigned int leaving_barrier;
+    struct {
+        /* All access to this struct must be protected by the team lock */
 
+        /* This holds the info on the precise task that is to be done by the
+         * workers. Since we pass a pointer to the polyselect_thread
+         * structure, the called function f has access to all relevant
+         * information, and its prototype can remain quite lean.
+         *
+         * IMPORTANT: function f will always have the team lock held upon
+         * entry. If it chooses to release it (which it should), it must
+         * re-take it before exiting.
+         */
+        unsigned int expected;
 
-    /* sync_task->expected_participants is zero when there is no task.
-     * Note that a thread may have to _wait_ even though it's ready,
-     * because it was not ready at the moment the team (sync) leader
-     * posted the task in the first place
-     */
-    struct polyselect_thread_team_sync_task sync_task[1];
+        void (*f)(struct polyselect_thread_s *);
+        /* This is passed on a case-by-case basis depending on the function.
+         * Type-punning is deliberately the way to go here.
+         */
+        void * arg;
+
+        /* This barrier is only used for synchronizations _within the
+         * synchronous task_ (and outside lockstep)
+         */
+        barrier_t barrier;
+    } task[1];
 
     /* This is used for rapid collision checking.
      *
@@ -148,16 +172,35 @@ extern void polyselect_thread_team_set_idx(polyselect_thread_team_ptr team, unsi
 /* Yes, this takes the thread pointer as well, because this is posted
  * only from the leader */
 extern void polyselect_thread_team_post_work(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread, void (*f)(struct polyselect_thread_s *), void * arg);
-extern void polyselect_thread_team_end_subtask(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
 extern void polyselect_thread_team_post_work_stop(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
 
+/* All these transitions must be called with team->lock held.
+ */
+//
 
-extern void polyselect_thread_team_end_subtask(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
-extern void polyselect_thread_team_sync_group_enter(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
-extern void polyselect_thread_team_sync_group_leave(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
-extern void polyselect_thread_team_sync_group_roaming_barrier(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
-extern void polyselect_thread_team_sync_group_begin_roaming(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
-extern void polyselect_thread_team_sync_group_end_roaming(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+// ready++
+extern void polyselect_thread_team_i_am_ready(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+
+// sync -> sync2++   (when entering a sync task)
+extern void polyselect_thread_team_enter_sync_task(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+// sync2-- -> sync   (end_sync_task)
+extern void polyselect_thread_team_leave_sync_task(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+
+// ready-- -> async++ (when picking an async task)
+extern void polyselect_thread_team_enter_async(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+extern void polyselect_thread_team_leave_async(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+
+// ready-- -> sync++ (when entering a group doing sync tasks)
+extern void polyselect_thread_team_enter_sync_zone(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+// sync-- -> ready   (leave_sync_zone)
+extern void polyselect_thread_team_leave_sync_zone(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+
+// sync2 -> roaming++ (begin_roaming)
+extern void polyselect_thread_team_enter_roaming(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+// roaming-- -> sync2 (end_roaming)
+extern void polyselect_thread_team_leave_roaming(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
+
+extern void polyselect_thread_team_roaming_barrier(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread);
 
 /* temporary helpers */
 extern void cond_helper_broadcast(polyselect_thread_team_ptr team, struct polyselect_thread_s * thread, enum signal_cause s, int ignore_async, ...);

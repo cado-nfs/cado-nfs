@@ -169,10 +169,11 @@ roots_lift (uint64_t *r, mpz_srcptr N, unsigned long d, mpz_srcptr m0,
 void polyselect_proots_compute_subtask(polyselect_thread_ptr thread)/*{{{*/
 {
     polyselect_primes_table_srcptr pt = thread->team->league->pt;
-    unsigned int nt = thread->team->sync_task->expected;
-    unsigned int it = thread->index_in_sync_team;
+    unsigned int nt = thread->team->task->expected;
+    unsigned int it = thread->index_in_sync_zone;
 
-    polyselect_thread_team_sync_group_begin_roaming(thread->team, thread);
+    polyselect_thread_team_enter_roaming(thread->team, thread);
+    pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter proots");
 
@@ -211,10 +212,9 @@ void polyselect_proots_compute_subtask(polyselect_thread_ptr thread)/*{{{*/
     polyselect_thread_chronogram_chat(thread, "leave proots");
     free(rp);
     /********** END UNLOCKED SECTION ***************/
-    polyselect_thread_team_sync_group_end_roaming(thread->team, thread);
-    *((unsigned long*)thread->team->sync_task->arg) += tot_roots;
-
-    polyselect_thread_team_end_subtask(thread->team, thread);
+    pthread_mutex_lock(&thread->team->lock);
+    polyselect_thread_team_leave_roaming(thread->team, thread);
+    *((unsigned long*)thread->team->task->arg) += tot_roots;
 }/*}}}*/
 
 unsigned long polyselect_proots_compute_conductor(polyselect_thread_ptr thread)

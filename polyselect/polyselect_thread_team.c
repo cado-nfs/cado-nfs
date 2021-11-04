@@ -14,19 +14,21 @@ void polyselect_thread_team_init(polyselect_thread_team_ptr team, polyselect_thr
     team->main_nonconst = main;
     team->done = 0;
     pthread_mutex_init(&team->lock, NULL);
-    pthread_cond_init(&team->wait, NULL);
-    team->sync_ready = 0;
-    team->sync_roaming = 0;
-    team->leaving_barrier = 0;
-    team->sync_task->expected = 0;
-    team->sync_task->in_barrier = 0;
-    team->sync_task->f = NULL;
-    team->why_signal = S_NONE;
-
-    /* This is not the whole story. We defer some of the initialization
-     * to polyselect_thread_team_late_init
-     */
-    pthread_barrier_init(&team->barrier, NULL, team->size);
+    pthread_cond_init(&team->count->w_ready_full, NULL);
+    pthread_cond_init(&team->count->w_ready_empty, NULL);
+    pthread_cond_init(&team->count->w_sync_empty, NULL);
+    pthread_cond_init(&team->count->w_job, NULL);
+    pthread_cond_init(&team->count->w_async, NULL);
+    pthread_cond_init(&team->count->w_sync2, NULL);
+    pthread_cond_init(&team->count->w_roaming, NULL);
+    team->count->async = 0;
+    team->count->sync = 0;
+    team->count->sync2 = 0;
+    team->count->roaming = 0;
+    team->count->ready = 0;
+    team->task->expected = 0;
+    team->task->f = NULL;
+    barrier_init(&team->count->roaming_barrier, &team->lock, 0);
 }
 
 /* polyselect_thread_team_late_init is called _after_ thread
@@ -76,9 +78,14 @@ void polyselect_thread_team_clear(polyselect_thread_team_ptr team)
     polyselect_stats_clear(team->stats);
     mpz_clear(team->ad);
 
-    pthread_barrier_destroy(&team->barrier);
-
-    pthread_cond_destroy(&team->wait);
+    pthread_cond_destroy(&team->count->w_ready_full);
+    pthread_cond_destroy(&team->count->w_ready_empty);
+    pthread_cond_destroy(&team->count->w_sync_empty);
+    pthread_cond_destroy(&team->count->w_job);
+    pthread_cond_destroy(&team->count->w_async);
+    pthread_cond_destroy(&team->count->w_sync2);
+    pthread_cond_destroy(&team->count->w_roaming);
+    barrier_destroy(&team->count->roaming_barrier, &team->lock);
     pthread_mutex_destroy(&team->lock);
 
 }
@@ -142,6 +149,7 @@ const char * wait_string[] = {
     [W_NO_ROAMING_AND_NO_BARRIER_TAIL] = "end of roaming and barrier tail",
 };
 
+#if 0
 void cond_helper_broadcast(polyselect_thread_team_ptr team, polyselect_thread_ptr thread, enum signal_cause s, int ignore_async, ...)
 {
     fprintf(stderr, "thread %d signals %s\n", thread->thread_index,
@@ -177,7 +185,6 @@ void cond_helper_broadcast(polyselect_thread_team_ptr team, polyselect_thread_pt
     pthread_cond_broadcast(&team->wait);
 }
 
-
 void cond_helper_wait(polyselect_thread_team_ptr team, polyselect_thread_ptr thread, enum wait_cause w, ...)
 {
     fprintf(stderr, "thread %d waits for %s\n", thread->thread_index,
@@ -204,24 +211,25 @@ void cond_helper_wait(polyselect_thread_team_ptr team, polyselect_thread_ptr thr
     va_end(ap);
     va_end(aq);
 }
+#endif
 
 void polyselect_thread_team_post_work(polyselect_thread_team_ptr team, polyselect_thread_ptr thread, void (*f)(polyselect_thread_ptr), void * arg)
 {
     /* This is called with the team lock held ! */
-    ASSERT_ALWAYS(thread->index_in_sync_team == 0);
+    ASSERT_ALWAYS(thread->index_in_sync_zone == 0);
     ASSERT_ALWAYS(team == thread->team);
 
-    struct polyselect_thread_team_sync_task * tk = team->sync_task;
-
+    /*
     fprintf(stderr, "thread %d posts work for %d sync thread in team %d\n",
-            thread->thread_index, team->sync_ready, team->team_index);
+            thread->thread_index, team->count->sync, team->team_index);
+            */
 
-    tk->expected = team->sync_ready;
-    tk->f = f;
-    tk->arg = arg;
-    tk->done = 0;
+    team->task->expected = team->count->sync;
+    team->task->f = f;
+    team->task->arg = arg;
+    // team->task->done = 0;
     
-    // barrier_resize_unlocked(&tk->barrier, tk->expected);
+    barrier_resize_unlocked(&team->count->roaming_barrier, team->task->expected);
  
     // for performance reasons, we prefer if the caller takes care of
     // making this call _when it is needed_, that is when the SH
@@ -229,36 +237,35 @@ void polyselect_thread_team_post_work(polyselect_thread_team_ptr team, polyselec
     //
     // polyselect_shash_reset_multi(team->SH, tk->expected);
 
-
-    cond_helper_broadcast(team, thread, S_NEW_JOB, 1, W_NEW_JOB, W_NONE);
+    pthread_cond_broadcast(&team->count->w_job);
 
     /* do my share ! */
+    polyselect_thread_team_enter_sync_task(team, thread);
     (*f)(thread);
+    /* same as polyselect_thread_team_leave_sync_task, but we're the one
+     * that is interested in the result, so we want to make sure that
+     * everyone's done.
+     */
+    for(team->count->sync2-- ; team->count->sync2 ; )
+        pthread_cond_wait(&team->count->w_sync2, &team->lock);
 }
 
 void polyselect_thread_team_post_work_stop(polyselect_thread_team_ptr team, polyselect_thread_ptr thread)
 {
-    /* This is called with the team lock held !
-     *
-     * We're **NOT** going to release the team lock, so that any team
-     * member that enters it anew will have a fresh situation to decide
-     * upon
-     */
-    ASSERT_ALWAYS(thread->index_in_sync_team == 0);
+    ASSERT_ALWAYS(thread->index_in_sync_zone == 0);
     ASSERT_ALWAYS(team == thread->team);
 
-    struct polyselect_thread_team_sync_task * tk = team->sync_task;
-
-    /* Wait until the previous barrier is cleared by everyone */
-    /* XXX or could we / should we check on team->sync_task->in_barrier <
-     * team->sync_task->expected  instead?
+    /* We want to make sure that there's no thread in sync2 state at
+     * the moment.
      */
-    for( ; team->sync_roaming || team->leaving_barrier ; ) {
-        cond_helper_wait(team, thread, W_NO_ROAMING_AND_NO_BARRIER_TAIL, S_LEFT_BARRIER,S_NO_ROAMING, S_NONE);
+    for( ; team->count->sync2 ; ) {
+        pthread_cond_wait(&team->count->w_sync2, &team->lock);
     }
 
     fprintf(stderr, "thread %d posts STOP for %d sync thread in team %d\n",
-            thread->thread_index, team->sync_ready, team->team_index);
+            thread->thread_index, team->count->sync, team->team_index);
+    /*
+            */
 
     /* At this point no thread is reading the barrier state, we may
      * modify its characteristics.
@@ -268,116 +275,123 @@ void polyselect_thread_team_post_work_stop(polyselect_thread_team_ptr team, poly
      * after the cond_wait).
      */
 
-    tk->expected = 0;
-    // tk->f = NULL;
-    // tk->arg = NULL;
-    tk->done = 0;
+    team->task->expected = 0;
+    // team->task->f = NULL;
+    // team->task->arg = NULL;
+    // team->task->done = 0;
 
-    polyselect_thread_team_sync_group_leave(team, thread);
+    pthread_cond_broadcast(&team->count->w_job);
 }
 
-/* This must be called with the lock acquired ! */
-void polyselect_thread_team_sync_group_leave(polyselect_thread_team_ptr team, polyselect_thread_ptr thread)
-{
-    /* This is really just a barrier wait */
-    struct polyselect_thread_team_sync_task * tk = team->sync_task;
-    /* wait on the previous barrier */
-    for( ; team->sync_roaming || team->leaving_barrier ; ) {
-        cond_helper_wait(team, thread, W_NO_ROAMING_AND_NO_BARRIER_TAIL, S_LEFT_BARRIER,S_NO_ROAMING, S_NONE);
-    }
-    if (++tk->in_barrier == team->sync_ready) {
-        team->leaving_barrier = 1;
-        cond_helper_broadcast(team, thread, S_REACHED_BARRIER, 1, W_REACHING_BARRIER, W_NONE);
+void polyselect_thread_team_i_am_ready(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED) {
+    if (++team->count->ready == team->size) {
+        pthread_cond_broadcast(&team->count->w_ready_full);
     } else {
-        /* This call is slightly special. Not all threads are poised to
-         * enter the barrier from this call, since they might be simply
-         * waiting on a new task. It seems really clumsy, I'm pretty sure
-         * it's possible to do better, but presently my impression is
-         * that I have to try and signal them once, so that there's
-         * necessarily going to enter the barrier.
-         */
-        cond_helper_broadcast(team, thread, S_PLEASE_ENTER_BARRIER, 1, W_NEW_JOB, W_NONE);
-        do {
-            cond_helper_wait(team, thread, W_REACHING_BARRIER, S_REACHED_BARRIER,S_NO_ROAMING, S_NONE);
-        } while (!team->leaving_barrier);
-    }
-    team->sync_ready--;
-    if (--tk->in_barrier == 0) {
-        team->leaving_barrier = 0;
-        cond_helper_broadcast(team, thread, S_LEFT_BARRIER, 1, W_LEAVING_BARRIER, W_NONE);
+        pthread_cond_wait(&team->count->w_ready_full, &team->lock);
     }
 }
 
-static void common_barrier_wait_lockstep(polyselect_thread_team_ptr team, polyselect_thread_ptr thread)
+/* called with team lock held.
+ *
+ * as all transition functions, this function must be called with the
+ * team lock held
+ */
+void polyselect_thread_team_enter_async(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
 {
-    /* This is really just a barrier wait */
-    struct polyselect_thread_team_sync_task * tk = team->sync_task;
-    /* wait on the previous barrier */
-    for( ; team->sync_roaming || team->leaving_barrier ; ) {
-        cond_helper_wait(team, thread, W_NO_ROAMING_AND_NO_BARRIER_TAIL, S_LEFT_BARRIER,S_NO_ROAMING, S_NONE);
-    }
-    if (++tk->in_barrier == tk->expected) {
-        team->leaving_barrier = 1;
-        cond_helper_broadcast(team, thread, S_REACHED_BARRIER, 1, W_REACHING_BARRIER, W_NONE);
-    } else {
-        do {
-            cond_helper_wait(team, thread, W_REACHING_BARRIER, S_REACHED_BARRIER,S_NO_ROAMING, S_NONE);
-        } while (!team->leaving_barrier);
-    }
-    if (--tk->in_barrier == 0) {
-        team->leaving_barrier = 0;
-        cond_helper_broadcast(team, thread, S_LEFT_BARRIER, 1, W_LEAVING_BARRIER, W_NONE);
-    }
+    team->count->async++;
+    if (--team->count->ready == 0)
+        pthread_cond_broadcast(&team->count->w_ready_empty);
+}
+
+/* called with team lock held.
+ *
+ * as all transition functions, this function must be called with the
+ * team lock held
+ */
+void polyselect_thread_team_leave_async(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
+{
+    team->count->ready++;
+    /* Do we expect to have waiters on the number of ready tasks at this
+     * point ? I think not. */
+    --team->count->async;
+}
+
+/* called with team lock held.
+ */
+void polyselect_thread_team_enter_sync_zone(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
+{
+    fprintf(stderr, "thread %d wants to enter sync group (current: sync=%d ready=%d\n",
+            thread->thread_index, team->count->sync, team->count->ready);
+    /* If all threads have taken a decision as to what they're going to
+     * do, allow the first thread in the sync zone to orchestrate the
+     * work.
+     */
+    if (--team->count->ready == 0)
+        pthread_cond_broadcast(&team->count->w_ready_empty);
+    else
+        pthread_cond_wait(&team->count->w_ready_empty, &team->lock);
+
+    /* I think that it's important to time it now, and not before.
+     */
+    thread->index_in_sync_zone = team->count->sync++;
+    fprintf(stderr, "thread %d has entered sync group (current: sync=%d ready=%d\n",
+            thread->thread_index, team->count->sync, team->count->ready);
+}
+
+/* called with team lock held.
+ *
+ * This is the terminal call for the sync workers. The workers goes from
+ * state "sync" to state "ready".
+ */
+void polyselect_thread_team_leave_sync_zone(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
+{
+    fprintf(stderr, "thread %d leaves sync group (current: sync=%d ready=%d\n",
+            thread->thread_index, team->count->sync, team->count->ready);
+    team->count->ready++;
+    /*
+     * There's a subtle catch here, since we want the full
+     * wind-down sequence to terminate before we can start entering
+     * threads in a sync zone again for a new ad.
+     */
+    if (--team->count->sync == 0)
+        pthread_cond_broadcast(&team->count->w_sync_empty);
+    else
+        pthread_cond_wait(&team->count->w_sync_empty, &team->lock);
+
+}
+
+/* called with team lock held.
+ *
+ * This is called after each sync task, and in particular before the
+ * leave_sync_group call.
+ */
+void polyselect_thread_team_leave_sync_task(polyselect_thread_team_ptr team MAYBE_UNUSED, polyselect_thread_ptr thread MAYBE_UNUSED)
+{
+    if (--team->count->sync2 == 0)
+        pthread_cond_broadcast(&team->count->w_sync2);
+}
+
+void polyselect_thread_team_enter_sync_task(polyselect_thread_team_ptr team MAYBE_UNUSED, polyselect_thread_ptr thread MAYBE_UNUSED)
+{
+    ++team->count->sync2;
 }
 
 /* This must be called with the lock acquired ! */
-void polyselect_thread_team_end_subtask(polyselect_thread_team_ptr team, polyselect_thread_ptr thread)
+void polyselect_thread_team_enter_roaming(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
 {
-    fprintf(stderr, "team %d reaches end_subtask with roaming=%d leaving_barrier=%d in_barrier=%d sync_ready=%d\n",
-            team->team_index,
-            team->sync_roaming,
-            team->leaving_barrier,
-            team->sync_task->in_barrier,
-            team->sync_ready);
-    common_barrier_wait_lockstep(team, thread);
-    fprintf(stderr, "team %d completes end_subtask with roaming=%d leaving_barrier=%d in_barrier=%d sync_ready=%d\n",
-            team->team_index,
-            team->sync_roaming,
-            team->leaving_barrier,
-            team->sync_task->in_barrier,
-            team->sync_ready);
-}
-
-/* This must be called with the lock acquired ! */
-void polyselect_thread_team_sync_group_enter(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
-{
-    team->sync_ready++;
-}
-
-/* This must be called with the lock acquired ! */
-void polyselect_thread_team_sync_group_begin_roaming(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
-{
-    team->sync_roaming++;
-    pthread_mutex_unlock(&team->lock);
+    team->count->roaming++;
 }
 
 /* This must be called with the lock released ! */
-void polyselect_thread_team_sync_group_end_roaming(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
+void polyselect_thread_team_leave_roaming(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
 {
-    pthread_mutex_lock(&team->lock);
-    if (--team->sync_roaming == 0) {
-        cond_helper_broadcast(team, thread, S_NO_ROAMING, 1, W_NO_ROAMING_AND_NO_BARRIER_TAIL, W_NONE);
-    }
+    if (--team->count->roaming == 0)
+        pthread_cond_broadcast(&team->count->w_roaming);
 }
 
-void polyselect_thread_team_sync_group_roaming_barrier(polyselect_thread_team_ptr team, polyselect_thread_ptr thread)
+void polyselect_thread_team_roaming_barrier(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
 {
-    pthread_mutex_lock(&team->lock);
-    if (--team->sync_roaming == 0) {
-        cond_helper_broadcast(team, thread, S_NO_ROAMING, 1, W_NO_ROAMING_AND_NO_BARRIER_TAIL, W_NONE);
-    }
-    common_barrier_wait_lockstep(team, thread);
-    team->sync_roaming++;
-    pthread_mutex_unlock(&team->lock);
+    /* This acquires team->lock */
+    barrier_wait(&team->count->roaming_barrier, NULL, NULL, NULL);
 }
 
