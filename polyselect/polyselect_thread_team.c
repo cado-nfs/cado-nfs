@@ -18,7 +18,7 @@ void polyselect_thread_team_init(polyselect_thread_team_ptr team, polyselect_thr
     pthread_cond_init(&team->count->w_ready_empty, NULL);
     pthread_cond_init(&team->count->w_sync_empty, NULL);
     pthread_cond_init(&team->count->w_job, NULL);
-    pthread_cond_init(&team->count->w_async, NULL);
+    pthread_cond_init(&team->count->w_async_empty, NULL);
     pthread_cond_init(&team->count->w_sync2, NULL);
     pthread_cond_init(&team->count->w_roaming, NULL);
     team->count->async = 0;
@@ -82,7 +82,7 @@ void polyselect_thread_team_clear(polyselect_thread_team_ptr team)
     pthread_cond_destroy(&team->count->w_ready_empty);
     pthread_cond_destroy(&team->count->w_sync_empty);
     pthread_cond_destroy(&team->count->w_job);
-    pthread_cond_destroy(&team->count->w_async);
+    pthread_cond_destroy(&team->count->w_async_empty);
     pthread_cond_destroy(&team->count->w_sync2);
     pthread_cond_destroy(&team->count->w_roaming);
     barrier_destroy(&team->count->roaming_barrier, &team->lock);
@@ -216,7 +216,6 @@ void cond_helper_wait(polyselect_thread_team_ptr team, polyselect_thread_ptr thr
 void polyselect_thread_team_post_work(polyselect_thread_team_ptr team, polyselect_thread_ptr thread, void (*f)(polyselect_thread_ptr), void * arg)
 {
     /* This is called with the team lock held ! */
-    ASSERT_ALWAYS(thread->index_in_sync_zone == 0);
     ASSERT_ALWAYS(team == thread->team);
 
     /*
@@ -252,7 +251,6 @@ void polyselect_thread_team_post_work(polyselect_thread_team_ptr team, polyselec
 
 void polyselect_thread_team_post_work_stop(polyselect_thread_team_ptr team, polyselect_thread_ptr thread)
 {
-    ASSERT_ALWAYS(thread->index_in_sync_zone == 0);
     ASSERT_ALWAYS(team == thread->team);
 
     /* We want to make sure that there's no thread in sync2 state at
@@ -299,8 +297,13 @@ void polyselect_thread_team_i_am_ready(polyselect_thread_team_ptr team, polysele
 void polyselect_thread_team_enter_async(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
 {
     team->count->async++;
-    if (--team->count->ready == 0)
+    --team->count->ready;
+    if (team->count->ready == 0)
         pthread_cond_broadcast(&team->count->w_ready_empty);
+    /*
+        */
+    fprintf(stderr, "thread %d has entered async group (current: sync=%d async=%d ready=%d\n",
+            thread->thread_index, team->count->sync, team->count->async, team->count->ready);
 }
 
 /* called with team lock held.
@@ -311,35 +314,57 @@ void polyselect_thread_team_enter_async(polyselect_thread_team_ptr team, polysel
 void polyselect_thread_team_leave_async(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
 {
     team->count->ready++;
-    /* Do we expect to have waiters on the number of ready tasks at this
-     * point ? I think not. */
-    --team->count->async;
+    if (--team->count->async == 0)
+        pthread_cond_broadcast(&team->count->w_async_empty);
 }
 
 /* called with team lock held.
  */
 void polyselect_thread_team_enter_sync_zone(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
 {
-    /*
     fprintf(stderr, "thread %d wants to enter sync group (current: sync=%d ready=%d\n",
             thread->thread_index, team->count->sync, team->count->ready);
+    /*
+            */
+    --team->count->ready;
+    /*
             */
     /* If all threads have taken a decision as to what they're going to
      * do, allow the first thread in the sync zone to orchestrate the
      * work.
      */
-    if (--team->count->ready == 0)
+
+    /* If we don't wait, this can happen:
+     *
+# thread 5 completed ad=9005760 at time=53.70s ; ad: 21.28s
+thread 5 leaves sync group (current: sync=4 ready=0
+thread 6 leaves sync group (current: sync=3 ready=1
+thread 7 leaves sync group (current: sync=2 ready=2
+thread 4 leaves sync group (current: sync=1 ready=3
+thread 4 wants to enter sync group (current: sync=0 ready=4
+thread 4 has entered sync group (current: sync=1 ready=3
+thread 4 is 0-th sync thread in team 1
+thread 5 wants to enter sync group (current: sync=1 ready=3
+thread 5 has entered sync group (current: sync=2 ready=2
+thread 5 is 1-th sync thread in team 1
+thread 6 has entered async group (current: sync=2 async=1 ready=1
+1636062335.338436 6 enter match
+thread 7 has entered async group (current: sync=2 async=2 ready=0
+1636062335.338457 7 enter match
+
+    if (team->count->ready == 0)
         pthread_cond_broadcast(&team->count->w_ready_empty);
     else
         pthread_cond_wait(&team->count->w_ready_empty, &team->lock);
-
-    /* I think that it's important to time it now, and not before.
      */
+
+
+    /* If we do sync++ before the wait, we'll violate our promise that a
+     * thread in sync is necessarily waiting on w_job */
     thread->index_in_sync_zone = team->count->sync++;
-    /*
     fprintf(stderr, "thread %d has entered sync group (current: sync=%d ready=%d\n",
             thread->thread_index, team->count->sync, team->count->ready);
-            */
+
 }
 
 /* called with team lock held.
@@ -349,9 +374,9 @@ void polyselect_thread_team_enter_sync_zone(polyselect_thread_team_ptr team, pol
  */
 void polyselect_thread_team_leave_sync_zone(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
 {
-    /*
     fprintf(stderr, "thread %d leaves sync group (current: sync=%d ready=%d\n",
             thread->thread_index, team->count->sync, team->count->ready);
+    /*
             */
     team->count->ready++;
     /*

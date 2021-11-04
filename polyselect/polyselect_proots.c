@@ -183,6 +183,8 @@ void polyselect_proots_compute_subtask(polyselect_thread_ptr thread)/*{{{*/
     unsigned long i0 = qt * it + MIN(it, rt);
     unsigned long i1 = i0 + qt + (it < rt);
 
+    fprintf(stderr, "thread %d (%d-th in sync group) enters proots with %d threads [%lu .. %lu)\n", thread->thread_index, it, nt, i0, i1);
+
     uint64_t * rp = (uint64_t *) malloc(thread->team->header->d * sizeof(uint64_t));
     FATAL_ERROR_CHECK(!rp, "cannot allocate memory");
 

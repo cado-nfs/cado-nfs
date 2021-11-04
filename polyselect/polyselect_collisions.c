@@ -622,8 +622,6 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
 unsigned long
 collision_on_p_conductor(polyselect_thread_ptr thread)
 {
-  ASSERT_ALWAYS(thread->index_in_sync_zone == 0);
-
   /* first compute and lift all roots modulo the primes in
    * thread->main->Primes ; we store that in thread->team->R
    */
@@ -816,8 +814,6 @@ collision_on_each_sq(unsigned long q,
 		     unsigned long * invq_roots_per_prime,
                      polyselect_thread_ptr thread)
 {
-    ASSERT_ALWAYS(thread->index_in_sync_zone == 0);
-
     struct polyselect_DCS_flat_subtask_data arg[1] = {{
         .invq_roots_per_prime = invq_roots_per_prime,
         .found = 0
@@ -847,6 +843,14 @@ struct modcalc_arg {
     unsigned long ** tinv_qq;
 };
 
+unsigned long modcalc_nroots_interval(polyselect_proots_srcptr R, unsigned long i0, unsigned long i1)
+{
+    unsigned long c = 0;
+    for (unsigned long i = i0; i < i1; i++)
+        c += R->nr[i];
+    return c;
+}
+
 void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
 {
     struct modcalc_arg * arg = thread->team->task->arg;
@@ -864,6 +868,8 @@ void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
     pthread_mutex_unlock(&thread->team->lock);
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter modcalc");
+
+    fprintf(stderr, "enter modcalc with %d threads\n", nt);
 
     size_t qt = pt->lenPrimes / nt;
     size_t rt = pt->lenPrimes % nt;

@@ -117,7 +117,7 @@ struct polyselect_thread_team_s {
         pthread_cond_t w_ready_empty;
         pthread_cond_t w_sync_empty;
         pthread_cond_t w_job;
-        pthread_cond_t w_async;
+        pthread_cond_t w_async_empty;
         pthread_cond_t w_sync2;
         pthread_cond_t w_roaming;
         /* This reuses the team lock ! */

@@ -455,6 +455,13 @@ void * thread_loop(polyselect_thread_ptr thread)
 
     polyselect_thread_team_i_am_ready(team, thread);
 
+    fprintf(stderr, "thread %d (in team %d of size %d) wants to work\n",
+            thread->thread_index,
+            thread->team->team_index,
+            thread->team->size);
+    /*
+    */
+
     for( ; ; ) {
         pthread_mutex_lock(league_lock);
         /* is there an async job ready ? */
@@ -482,21 +489,44 @@ void * thread_loop(polyselect_thread_ptr thread)
              */
             polyselect_thread_team_enter_sync_zone(team, thread);
 
-            /*
             fprintf(stderr, "thread %d is %d-th sync thread in team %d\n",
                     thread->thread_index,
                     thread->index_in_sync_zone,
                     thread->team->team_index);
-                    */
+            /*
+             * This is important because when async jobs come back, we
+             * want them to notice that the main crowd has called it a
+             * day.
+             */
 
-            if (thread->index_in_sync_zone == 0) {
+            if (team->done)
+                break;
+
+            /* important change. schedule work only when we're __last__
+             * to enter this state */
+            if (thread->team->count->ready == 0 && thread->team->count->sync2 == 0) {
                 pthread_mutex_lock(main_lock);
                 unsigned long i = team->main_nonconst->idx;
                 team->main_nonconst->idx += (i < idx_max);
                 pthread_mutex_unlock(main_lock);
+
                 if (i == idx_max) {
+                    fprintf(stderr, "thread %d wants to call it off (sync=%d sync2=%d ready=%d async=%d\n",
+                            thread->thread_index,
+                            thread->team->count->sync,
+                            thread->team->count->sync2,
+                            thread->team->count->ready,
+                            thread->team->count->async);
+                    /*
+                    for( ; team->count->async || !dllist_is_empty(&league->async_jobs) ; ) {
+                        pthread_cond_wait(&team->count->w_async_empty, &team->lock);
+                    }
+                    */
+
                     team->done = 1;
+
                     polyselect_thread_team_post_work_stop(team, thread);
+                    polyselect_thread_team_leave_sync_zone(team, thread);
                     break;
                 }
 
@@ -515,6 +545,8 @@ void * thread_loop(polyselect_thread_ptr thread)
 
                 /* These calls will temporarily release the team lock */
                 c = collision_on_p_conductor(thread);
+
+                fprintf(stderr, "c=%lu\n", c);
                 if (main_data->nq > 0) {
                     collision_on_sq_conductor(c, thread);
                 }
@@ -539,9 +571,6 @@ void * thread_loop(polyselect_thread_ptr thread)
                     fflush(stdout);
                 }
             } else {
-                if (team->done)
-                    break;
-
                 for( ; ; ) {
                     /* wait for sync tasks to be posted. */
                     pthread_cond_wait(&team->count->w_job, &team->lock);
@@ -585,6 +614,14 @@ void * thread_loop(polyselect_thread_ptr thread)
                 }
             }
 
+            pthread_mutex_lock(league_lock);
+            /*
+            fprintf(stderr, "thread %d moves %zu jobs to async queue (current size: %zu)\n", thread->thread_index,
+                    dllist_length(&thread->async_jobs),
+                    dllist_length(&league->async_jobs));
+                    */
+            dllist_bulk_move_back(&league->async_jobs, &thread->async_jobs);
+            pthread_mutex_unlock(league_lock);
             polyselect_thread_team_leave_sync_zone(team, thread);
 
             /*
@@ -597,14 +634,6 @@ void * thread_loop(polyselect_thread_ptr thread)
         pthread_mutex_lock(main_lock);
         polyselect_main_data_commit_stats_unlocked(team->main_nonconst, thread->stats, team->header->ad);
         pthread_mutex_unlock(main_lock);
-        pthread_mutex_lock(league_lock);
-        /*
-        fprintf(stderr, "thread %d moves %zu jobs to async queue (current size: %zu)\n", thread->thread_index,
-                dllist_length(&thread->async_jobs),
-                dllist_length(&league->async_jobs));
-                */
-        dllist_bulk_move_back(&league->async_jobs, &thread->async_jobs);
-        pthread_mutex_unlock(league_lock);
     }
     {
         /* XXX TODO acquire a lock, probably main_lock */
