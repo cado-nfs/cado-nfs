@@ -704,7 +704,7 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
         /* XXX for some reason, the ugly code does not work with this
          * version. It's annoying.
          */
-        polyselect_proots_dispatch_to_shash_flat(SH,
+        polyselect_proots_dispatch_to_shash_flat_ugly(SH,
                 thread->team->league->pt->Primes + i0,
                 i1 - i0,
                 invq_roots_per_prime + z,
