@@ -939,6 +939,8 @@ collision_on_each_sq_r(unsigned long q,
   if (count == 0)
     return;
 
+  polyselect_thread_chronogram_chat(thread, "enter malloc");
+
   unsigned long **tinv_qq = malloc(count * sizeof(unsigned long *));
 
   if (!tinv_qq)
@@ -959,6 +961,7 @@ collision_on_each_sq_r(unsigned long q,
           .inv_qq = inv_qq,
           .tinv_qq = tinv_qq
   }};
+  polyselect_thread_chronogram_chat(thread, "leave malloc");
   polyselect_thread_team_post_work(thread->team, thread, modcalc_subtask, arg);
 
   /* core function to find collisions */
