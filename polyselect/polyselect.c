@@ -482,11 +482,11 @@ void * thread_loop(polyselect_thread_ptr thread)
              */
             polyselect_thread_team_enter_sync_zone(team, thread);
 
+            /*
             fprintf(stderr, "thread %d is %d-th sync thread in team %d\n",
                     thread->thread_index,
                     thread->index_in_sync_zone,
                     thread->team->team_index);
-            /*
                     */
 
             if (thread->index_in_sync_zone == 0) {

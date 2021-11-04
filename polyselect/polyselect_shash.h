@@ -56,6 +56,7 @@ void
 polyselect_shash_add (polyselect_shash_t H, uint64_t i)
 {
   *(H->current[i & (polyselect_SHASH_NBUCKETS - 1)])++ = i;
+#if 0
   if (UNLIKELY(H->current[i & (polyselect_SHASH_NBUCKETS - 1)] >= H->base[(i & (polyselect_SHASH_NBUCKETS - 1)) + 1]))
     {
       fprintf (stderr, "polyselect_Shash bucket %" PRIu64 " is full.\n",
@@ -63,6 +64,7 @@ polyselect_shash_add (polyselect_shash_t H, uint64_t i)
       H->current[i & (polyselect_SHASH_NBUCKETS - 1)]--;
       // exit (1);
     }
+#endif
 }
 
 #ifndef EMIT_ADDRESSABLE_shash_add
@@ -78,12 +80,14 @@ polyselect_shash2_add (polyselect_shash_t H, uint64_t i, uint32_t p)
   unsigned int ib = i & (polyselect_SHASH_NBUCKETS - 1);
   H->pmem[H->current[ib] - H->mem] = p;
   *H->current[ib]++ = i;
+#if 0
   if (UNLIKELY(H->current[i & (polyselect_SHASH_NBUCKETS - 1)] >= H->base[(i & (polyselect_SHASH_NBUCKETS - 1)) + 1]))
     {
       fprintf (stderr, "polyselect_Shash2 bucket %" PRIu64 " is full.\n",
                i & (polyselect_SHASH_NBUCKETS - 1));
       exit (1);
     }
+#endif
 }
 
 extern void polyselect_shash_init (polyselect_shash_ptr, unsigned int);

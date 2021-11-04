@@ -262,9 +262,9 @@ void polyselect_thread_team_post_work_stop(polyselect_thread_team_ptr team, poly
         pthread_cond_wait(&team->count->w_sync2, &team->lock);
     }
 
+    /*
     fprintf(stderr, "thread %d posts STOP for %d sync thread in team %d\n",
             thread->thread_index, team->count->sync, team->team_index);
-    /*
             */
 
     /* At this point no thread is reading the barrier state, we may
@@ -320,8 +320,10 @@ void polyselect_thread_team_leave_async(polyselect_thread_team_ptr team, polysel
  */
 void polyselect_thread_team_enter_sync_zone(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
 {
+    /*
     fprintf(stderr, "thread %d wants to enter sync group (current: sync=%d ready=%d\n",
             thread->thread_index, team->count->sync, team->count->ready);
+            */
     /* If all threads have taken a decision as to what they're going to
      * do, allow the first thread in the sync zone to orchestrate the
      * work.
@@ -334,8 +336,10 @@ void polyselect_thread_team_enter_sync_zone(polyselect_thread_team_ptr team, pol
     /* I think that it's important to time it now, and not before.
      */
     thread->index_in_sync_zone = team->count->sync++;
+    /*
     fprintf(stderr, "thread %d has entered sync group (current: sync=%d ready=%d\n",
             thread->thread_index, team->count->sync, team->count->ready);
+            */
 }
 
 /* called with team lock held.
@@ -345,8 +349,10 @@ void polyselect_thread_team_enter_sync_zone(polyselect_thread_team_ptr team, pol
  */
 void polyselect_thread_team_leave_sync_zone(polyselect_thread_team_ptr team, polyselect_thread_ptr thread MAYBE_UNUSED)
 {
+    /*
     fprintf(stderr, "thread %d leaves sync group (current: sync=%d ready=%d\n",
             thread->thread_index, team->count->sync, team->count->ready);
+            */
     team->count->ready++;
     /*
      * There's a subtle catch here, since we want the full
