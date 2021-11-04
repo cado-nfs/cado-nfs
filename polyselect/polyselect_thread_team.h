@@ -10,6 +10,8 @@
 #include "polyselect_hash.h"
 #include "barrier.h"
 
+#define xxxDEBUG_POLYSELECT_THREADS
+
 #ifdef __cplusplus
 extern "C" {
 #endif

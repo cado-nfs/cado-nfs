@@ -869,7 +869,9 @@ void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
     /********* BEGIN UNLOCKED SECTION **************/
     polyselect_thread_chronogram_chat(thread, "enter modcalc");
 
+#ifdef DEBUG_POLYSELECT_THREADS
     fprintf(stderr, "enter modcalc with %d threads\n", nt);
+#endif
 
     size_t qt = pt->lenPrimes / nt;
     size_t rt = pt->lenPrimes % nt;

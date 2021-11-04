@@ -455,12 +455,12 @@ void * thread_loop(polyselect_thread_ptr thread)
 
     polyselect_thread_team_i_am_ready(team, thread);
 
+#ifdef DEBUG_POLYSELECT_THREADS
     fprintf(stderr, "thread %d (in team %d of size %d) wants to work\n",
             thread->thread_index,
             thread->team->team_index,
             thread->team->size);
-    /*
-    */
+#endif
 
     for( ; ; ) {
         pthread_mutex_lock(league_lock);
@@ -489,10 +489,12 @@ void * thread_loop(polyselect_thread_ptr thread)
              */
             polyselect_thread_team_enter_sync_zone(team, thread);
 
+#ifdef DEBUG_POLYSELECT_THREADS
             fprintf(stderr, "thread %d is %d-th sync thread in team %d\n",
                     thread->thread_index,
                     thread->index_in_sync_zone,
                     thread->team->team_index);
+#endif
             /*
              * This is important because when async jobs come back, we
              * want them to notice that the main crowd has called it a
@@ -511,12 +513,14 @@ void * thread_loop(polyselect_thread_ptr thread)
                 pthread_mutex_unlock(main_lock);
 
                 if (i == idx_max) {
+#ifdef DEBUG_POLYSELECT_THREADS
                     fprintf(stderr, "thread %d wants to call it off (sync=%d sync2=%d ready=%d async=%d\n",
                             thread->thread_index,
                             thread->team->count->sync,
                             thread->team->count->sync2,
                             thread->team->count->ready,
                             thread->team->count->async);
+#endif
                     /*
                     for( ; team->count->async || !dllist_is_empty(&league->async_jobs) ; ) {
                         pthread_cond_wait(&team->count->w_async_empty, &team->lock);
@@ -546,7 +550,6 @@ void * thread_loop(polyselect_thread_ptr thread)
                 /* These calls will temporarily release the team lock */
                 c = collision_on_p_conductor(thread);
 
-                fprintf(stderr, "c=%lu\n", c);
                 if (main_data->nq > 0) {
                     collision_on_sq_conductor(c, thread);
                 }
