@@ -108,6 +108,7 @@ void polyselect_stats_display_final(polyselect_stats_ptr stats, int verbose)
 
   /* print total time (this gets parsed by the scripts) */
   printf("# Stat: total phase took %.2fs\n", seconds() - stats->st0);
+  printf("# Stat: total phase took (WCT) %.2fs\n", wct_seconds() - stats->wct0);
 
   /* If we can't time this because of multithreading and missing
    * RUSAGE_THREAD, it gets set to -1, so don't print it in that case.
