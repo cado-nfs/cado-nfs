@@ -734,7 +734,7 @@ fill_in_buckets_lowlevel(
 
     // Handle the rare special cases
     /* see fill_in_bucket_toplevel. */
-    if (UNLIKELY(ple.is_projective_like(logI)) && first_reg && !ple.done(F)) {
+    if (UNLIKELY(ple.is_projective_like(logI)) && !ple.done(F)) {
         if (Q.sublat.m)
             continue;   /* XXX headaches ! */
 
