@@ -290,6 +290,20 @@ checks on freebsd13.0 system with gcc:
     - make -C ci/utilities/tanker
     - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
 
+checks on 32-bit freebsd13.0 system with gcc:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    FREEBSD_ARCH: i386
+  <<: *common-template
+  stage: thorough
+  # do not start it prematurely, in case previous jobs failed
+  # needs: []
+  tags:
+    - freebsd-tanker
+  script:
+    - make -C ci/utilities/tanker
+    - ci/50-libvirt-wrap-tests.sh freebsd:13.0@arch=i386 ci/40-testsuite.sh
+
 # checks with the default shipped compiler as well (which is clang)
 checks on freebsd13.0 system with clang:
   variables:
