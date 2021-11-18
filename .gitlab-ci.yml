@@ -302,7 +302,7 @@ checks on 32-bit freebsd13.0 system with gcc:
     - freebsd-tanker
   script:
     - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:13.0@arch=i386 ci/40-testsuite.sh
+    - ci/50-libvirt-wrap-tests.sh freebsd:13.0?arch=i386 ci/40-testsuite.sh
 
 # checks with the default shipped compiler as well (which is clang)
 checks on freebsd13.0 system with clang:
