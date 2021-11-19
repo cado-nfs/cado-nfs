@@ -32,19 +32,10 @@ else
     HOSTNAME="[[placeholder]]"
 fi
 case "$HOSTNAME" in
-    # docker runners (gitlab ones) are apparently called "runner-*"
-    runner-*) ;;
-    docker-script-*) ;;
-    cado-*) ;;
-    raclette|fondue|tartiflette|berthoud) ;;
-    plafrim|fcatrel|fnancy|catrel-*|miriel*|mistral*|bora*) ;;
-    gcc*) ;;
-    poire*) ;;
-    macintosh*home) ;;
-    fedora*|debian*|ubuntu*|centos*|freebsd*|openbsd*|netbsd*) ;;
     # some of our very slow machines have so little ram that clearly, we
     # must not tax them too much.
     genepi|calva|pine64) export NCPUS_FAKE=1;;
+    *) : ;;
 esac
 
 if ! [ "$CI_BUILD_NAME" ] && [ "$1" ] ; then

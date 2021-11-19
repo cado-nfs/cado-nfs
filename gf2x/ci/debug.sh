@@ -96,6 +96,9 @@ fi
 if [[ "$CI_BUILD_NAME" =~ freebsd([0-9]+\.[0-9]+) ]] ; then
     # use tanker script instead
     IMAGE_NAME=freebsd:"${BASH_REMATCH[1]}"
+    if [[ "$CI_BUILD_NAME" =~ '32-bit freebsd' ]] ; then
+        IMAGE_NAME+="?arch=i386"
+    fi
     . "$(dirname $0)/002-tanker.bash"
     # create base image. As in the current gitlab-ci case, we have no
     # caching, which is a pity.
