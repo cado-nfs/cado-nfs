@@ -171,6 +171,15 @@ EOF
     apk add $alpine_packages
 elif is_freebsd ; then
     env ASSUME_ALWAYS_YES=yes pkg install $freebsd_packages
+    if [ "$gcc" ] ; then
+        # oh, it's really ugly.
+        # with gcc, there's a version clash between the _system_
+        # /lib/libgcc_s.so, and the one of the gcc port.
+        # https://forums.freebsd.org/threads/freebsd-11-2-libgcc_s-so-1-error.67031/
+        # https://wiki.freebsd.org/Ports/libgcc_linking_problem
+        mkdir /usr/local/etc/libmap.d
+        find /usr/local/lib/gcc* -name '*.so' -o -name '*.so.[0-9]*' | while read xx ; do if [ -e "/lib/$(basename $xx)" ] ; then echo "$(basename "$xx") $xx" ; fi ; done > /usr/local/etc/libmap.d/gcc.conf
+    fi
 fi
 
 if [ "$gcc32" ] ; then
