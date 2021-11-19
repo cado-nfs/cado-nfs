@@ -99,6 +99,7 @@ if [[ "$CI_BUILD_NAME" =~ freebsd([0-9]+\.[0-9]+) ]] ; then
     if [[ "$CI_BUILD_NAME" =~ '32-bit freebsd' ]] ; then
         IMAGE_NAME+="?arch=i386"
     fi
+    # This sets exports=()
     . "$(dirname $0)/002-tanker.bash"
     # create base image. As in the current gitlab-ci case, we have no
     # caching, which is a pity.
@@ -121,14 +122,20 @@ EOF
     force_build_tree=/tmp/b
     exports+=(force_build_tree=$force_build_tree)
     echo "# NOTE: cado-nfs build tree has just been set to $force_build_tree"
+    # TODO: we must create a .bash_profile file in the user's home
+    # directory. Otherwise the environment that is normally set by
+    # 001-environment.sh is completely missing !
+
     commands=(
         @guest root@ env ASSUME_ALWAYS_YES=yes pkg install fusefs-sshfs \;
                      kldload fusefs \;
-                     sysctl vfs.usermount=1 --
+                     sysctl vfs.usermount=1 \;
+                     ln -s /tmp/$random /host \;
+                     chsh -s /usr/local/bin/bash user --
         @guest user@ mkdir /tmp/$random \;
                      sshfs -o idmap=user,StrictHostkeyChecking=no $(id -u -n)@$libvirt_host:$PWD /tmp/$random \;
                      cd /tmp/$random \;
-                     env "${exports[@]}" bash
+                     env "${exports[@]}" ./ci/999-debug-freebsd-user.sh
     )
     tanker vm run "${DARGS[@]}" -t $myimage "${commands[@]}"
 else
