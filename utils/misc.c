@@ -75,9 +75,9 @@ long get_arg_max(void)
     arg_max = MAX_ARG_STRLEN;
 #endif
   /* as discussed on
-     https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2019-October/001100.html
-     one should subtract from arg_max the length of the environment, but even this
-     seems not enough, so we divide arg_max by 2 */
+   * https://sympa.inria.fr/sympa/arc/cado-nfs/2019-10/msg00000.html
+   * one should subtract from arg_max the length of the environment, but
+   * even this seems not enough, so we divide arg_max by 2 */
   return arg_max / 2;
 }
 

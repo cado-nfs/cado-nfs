@@ -174,8 +174,13 @@ def pid_exists(pid):
 
 # could replace "posix" by "xxx" here if os.name is "posix" but you still get
 # the error message "IOError: [Errno 37] No locks available"
-# https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2016-May/000634.html
-# https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2016-May/000636.html
+# See this thread on the mailing list.
+# https://sympa.inria.fr/sympa/arc/cado-nfs/2016-05/msg00010.html
+
+# Note however that in the absence of proper file locking, any
+# computation that puts some load on the work unit server is bound to
+# fail.
+
 if os.name == "posix":
     import fcntl
     class FileLock(object):
