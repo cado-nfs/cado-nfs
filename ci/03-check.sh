@@ -54,7 +54,7 @@ leave_section # test (or xtest)
 
 if [ "$coverage" ] ; then
     enter_section "coverage" "extracting coverage data"
-    gcovr --json . > ${C}-app.json
+    gcovr --json ./ > ${C}-app.json
     set -x
     geninfo --ignore-errors gcov,source -q --output-filename ${C}-app.info -b . $build_tree --no-external
     $(dirname $0)/utilities/coverage_local_infofile_modifications.pl -d $build_tree ${C}-app.info
