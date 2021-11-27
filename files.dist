@@ -1733,3 +1733,4 @@ tests/sieve/reduce-plattice/simd-avx512.hpp
 tests/sieve/reduce-plattice/simd-base.hpp
 tests/utils/test_subdivide_primes_interval.cpp
 tests/polyselect/test_polyselect_shash.cpp
+ci/999-debug-freebsd-user.sh

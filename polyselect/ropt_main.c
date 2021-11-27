@@ -19,7 +19,7 @@
    Output polynomials are in "CADO" format.
 
    Please report bugs to the public mailing list
-       cado-nfs-discuss@lists.gforge.inria.fr
+       cado-nfs@inria.fr
 */
 
 

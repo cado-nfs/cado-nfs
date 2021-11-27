@@ -34,8 +34,9 @@ end.
 Important note: the logarithms are given in an arbitrary (unknown) base.
 If you want to define them with respect to a specific generator g, then
 you'll have to compute the logarithm of g and then divide all the logs by
-this value. See https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2018-November/000939.html and
-https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2018-November/000942.html.
+this value. See https://sympa.inria.fr/sympa/arc/cado-nfs/2018-11/msg00001.html
+and
+https://sympa.inria.fr/sympa/arc/cado-nfs/2018-11/msg00003.html .
 
 **** Using Joux-Lercier polynomial selection
 

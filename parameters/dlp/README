@@ -1,5 +1,6 @@
 The meaning of hint files is explained in
-https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-April/001205.html
+
+https://sympa.inria.fr/sympa/arc/cado-nfs/2020-04/msg00019.html
 
 Here is the meaning of a hint file line :
 21@1 1 1 I=11 20000,18,36 20000,18,36

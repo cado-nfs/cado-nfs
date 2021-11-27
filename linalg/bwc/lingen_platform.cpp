@@ -60,7 +60,12 @@ lingen_platform::lingen_platform(MPI_Comm comm, cxx_param_list & pl) : comm(comm
         abort();
     }
 
-    double dtmp = 1;
+    /* default for the RAM amount is zero, which means: take everything.
+     * (see #30022)
+     * note that if hwloc is available, we could conceivably do a quick
+     * peek at the real RAM amount.
+     */
+    double dtmp = 0;
     param_list_parse_double(pl, "max_ram", &dtmp);
     available_ram = dtmp * (1 << 30);
 

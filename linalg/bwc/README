@@ -776,7 +776,7 @@ Using bwc.pl with MPI (updated 20160201)
     the MPI back-end which is used. This works sometimes rather
     awkwardly, so the relevant bits of the linalg/bwc/bwc.pl script may
     have to be edited to best suit your combination (please submit your
-    changes to the cado-nfs-discuss mailing list, if you do so).
+    changes to the cado-nfs mailing list, if you do so).
 
     Note: Some additional scheduler-specific bits and pieces (consider them as
     example documentation status only -- none are part of regular tests):
@@ -816,8 +816,8 @@ See parameters/misc/cpubinding.conf for more information.
 Using several sequences
 =======================
 
-See https://gforge.inria.fr/tracker/index.php?func=detail&aid=16857&group_id=2065&atid=7445 and
-https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2015-April/000389.html
+See https://sympa.inria.fr/sympa/arc/cado-nfs/2015-04/msg00000.html and
+https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/16857
 
 Notes:
 ======

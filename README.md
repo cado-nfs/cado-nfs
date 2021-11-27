@@ -297,7 +297,8 @@ three modes as follows.
    This is called the `--server` mode (see
    [`scripts/cadofactor/README.md`](scripts/cadofactor/README.md) and
    [`scripts/cadofactor/parameters`](scripts/cadofactor/parameters)).
-   See also [this thread](https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-March/001168.html) on the old `cado-nfs-discuss` list (it's been [replaced](#contact-links)). If you want to use cado-nfs even to a little extent, we recomment that you familiarize with this mode of operation.
+   See also [this thread](https://sympa.inria.fr/sympa/arc/cado-nfs/2020-03/msg00001.html)
+   on the old `cado-nfs` list. If you want to use cado-nfs even to a little extent, we recomment that you familiarize with this mode of operation.
 
  * For much larger computations, the `cado-nfs.py` is only of moderate
    use. The individual cado-nfs binaries and internal scripts are the
@@ -599,15 +600,17 @@ to cado-nfs)
 There is now a unique mailing-list associated to Cado-nfs
 [cado-nfs@inria.fr](https://sympa.inria.fr/sympa/info/cado-nfs). Please
 do not use the old `cado-nfs-discuss` mailing list, the infrastructure
-that hosts this mailing list is set for removal in 2021.
+that hosts this mailing list has been removed in september 2021. All
+mailing list content has been moved to the new mailing list, but links are
+broken.
 
 If you find a bug, if you have a problem compiling cado-nfs, if you want to
 factor a large number and seek for advice for tuning the parameters, then
-the cado-nfs-discuss list is the right place to ask.
+the cado-nfs list is the right place to ask.
 
 On the <https://gitlab.inria.fr/cado-nfs/cado-nfs> web page you can also
 find the cado-nfs bug tracker (a.k.a project issues). The bug tracker is
 an important piece of the cado-nfs development cycle.  Submitting bugs
 and merge requests there is welcome (you need an Inria gitlab account),
 although if you are unsure, it might be better to speak up on the
-cado-nfs-discuss mailing list first.
+cado-nfs mailing list first.

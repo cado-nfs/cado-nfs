@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# See cado-nfs-discuss/2020-September/001310.html
+# See https://sympa.inria.fr/sympa/arc/cado-nfs/2020-09/msg00020.html
 
 BINDIR="$1"
 SRCDIR="$2"

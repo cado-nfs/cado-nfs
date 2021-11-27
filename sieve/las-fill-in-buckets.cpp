@@ -590,7 +590,6 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 
   ASSERT_ALWAYS(!Q.sublat.m);
 
-  bool first_reg = true;
   bucket_array_t<LEVEL, TARGET_HINT> BA;  /* local copy. Gain a register + use stack */
   BA.move(orig_BA);
 
@@ -653,7 +652,9 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
            * Root=0: only update is at (0,something).
            * note that "something" might be large !
            */
-          if (UNLIKELY(ple.is_projective_like(logI)) && first_reg && !ple.done(F)) {
+          /* NOTE: we're at the top level here, so if we cared to write a
+           * "first_reg" condition, it would always be true here.  */
+          if (UNLIKELY(ple.is_projective_like(logI)) && !ple.done(F)) {
 
               BA.push_update(ple.get_x(), p, hint, slice_index, w);
 #ifdef FIX_30012
@@ -734,7 +735,7 @@ fill_in_buckets_lowlevel(
 
     // Handle the rare special cases
     /* see fill_in_bucket_toplevel. */
-    if (UNLIKELY(ple.is_projective_like(logI)) && first_reg && !ple.done(F)) {
+    if (UNLIKELY(ple.is_projective_like(logI)) && !ple.done(F)) {
         if (Q.sublat.m)
             continue;   /* XXX headaches ! */
 
