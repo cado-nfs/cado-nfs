@@ -24,6 +24,7 @@ collision_on_sq(unsigned long c, polyselect_shash_ptr H,
         polyselect_hash_match_t match,
         polyselect_thread_locals_ptr loc);
 
+#if 0
 extern void polyselect_proots_dispatch_to_shash_flat(
         polyselect_shash_ptr H,
         const uint32_t * Primes,
@@ -62,6 +63,7 @@ extern void polyselect_proots_dispatch_to_hash_notflat(
         mpz_srcptr rq,
         polyselect_thread_locals_ptr loc
         );
+#endif
 
 #ifdef __cplusplus
 }

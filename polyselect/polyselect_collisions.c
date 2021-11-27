@@ -327,12 +327,12 @@ void polyselect_proots_dispatch_to_shash_notflat(
         int64_t umax)
 {
       for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
-	{
-	  unsigned long p = Primes[nprimes];
+       {
+         unsigned long p = Primes[nprimes];
           int64_t ppl = (int64_t) p *(int64_t) p;
-	  unsigned long nr = number_of_roots_per_prime[nprimes];
-	  for (unsigned long j = 0; j < nr; j++)
-	    {
+         unsigned long nr = number_of_roots_per_prime[nprimes];
+         for (unsigned long j = 0; j < nr; j++)
+           {
                 // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
                 int64_t u0 = roots_per_prime[nprimes][j];
                 for(int64_t u = u0 ; u < umax ; u += ppl)
@@ -348,7 +348,7 @@ void polyselect_proots_dispatch_to_shash_notflat(
 
 /*{{{ polyselect_proots_dispatch_to_hash_notflat */
 /* same as above, but for a hash (not shash) table */
-void polyselect_proots_dispatch_to_hash_notflat(
+static inline void polyselect_proots_dispatch_to_hash_notflat(
         polyselect_hash_ptr H,
         const uint32_t * Primes,
         size_t lenPrimes,
@@ -361,12 +361,12 @@ void polyselect_proots_dispatch_to_hash_notflat(
         )
 {
       for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
-	{
-	  unsigned long p = Primes[nprimes];
+       {
+         unsigned long p = Primes[nprimes];
           int64_t ppl = (int64_t) p *(int64_t) p;
-	  unsigned long nr = number_of_roots_per_prime[nprimes];
-	  for (unsigned long j = 0; j < nr; j++)
-	    {
+         unsigned long nr = number_of_roots_per_prime[nprimes];
+         for (unsigned long j = 0; j < nr; j++)
+           {
                 // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
                 int64_t u0 = roots_per_prime[nprimes][j];
                 for(int64_t u = u0 ; u < umax ; u += ppl)
@@ -378,7 +378,7 @@ void polyselect_proots_dispatch_to_hash_notflat(
 }/*}}}*/
 
 /*{{{ polyselect_proots_dispatch_to_hash_flat */
-void polyselect_proots_dispatch_to_hash_flat(
+static inline void polyselect_proots_dispatch_to_hash_flat(
         polyselect_hash_ptr H,
         const uint32_t * Primes,
         size_t lenPrimes,
@@ -408,7 +408,7 @@ void polyselect_proots_dispatch_to_hash_flat(
     }
 }/*}}}*/
 
-static unsigned long compute_and_lift_proots(polyselect_thread_locals_ptr loc)/*{{{*/
+unsigned long compute_and_lift_proots(polyselect_thread_locals_ptr loc)/*{{{*/
 {
     polyselect_proots_ptr R = loc->R;
     polyselect_poly_header_srcptr header = loc->header;
@@ -430,7 +430,7 @@ static unsigned long compute_and_lift_proots(polyselect_thread_locals_ptr loc)/*
         /* add fake roots to keep indices */
         if (polyselect_poly_header_skip(header, p))
         {
-            R->nr[nprimes] = 0;	// nr = 0.
+            R->nr[nprimes] = 0;        // nr = 0.
             R->roots[nprimes] = NULL;
             continue;
         }
@@ -451,39 +451,75 @@ static unsigned long compute_and_lift_proots(polyselect_thread_locals_ptr loc)/*
 unsigned long
 collision_on_p(polyselect_shash_ptr H, polyselect_hash_match_t match, polyselect_thread_locals_ptr loc)
 {
+  unsigned long j, p, nrp, tot_roots = 0;
+  uint64_t *rp;
+  int64_t ppl = 0, u, umax;
   int found = 0;
   int st = milliseconds();
 
-  int64_t umax = polyselect_main_data_get_M(loc->main);
-
-  /* first compute and lift all roots modulo the primes in
-   * loc->main->Primes ; we store that in loc->R
-   */
-  unsigned long tot_roots = compute_and_lift_proots(loc);
+  rp = (uint64_t *) malloc(loc->header->d * sizeof(uint64_t));
+  if (rp == NULL)
+    {
+      fprintf(stderr, "Error, cannot allocate memory in collision_on_p\n");
+      exit(1);
+    }
 
   /* We first store only i's (and not p's), and look for collisions,
    * which occur very rarely.
    * if we find out that there is a collision on i, we run the search
    * again for the p's.
    */
-
   polyselect_shash_reset(H);
-  polyselect_proots_dispatch_to_shash_notflat(H,
-          loc->main->Primes,
-          loc->main->lenPrimes,
-          loc->R->roots,
-          loc->R->nr,
-          umax);
+  umax = polyselect_main_data_get_M(loc->main);
+  for (unsigned long nprimes = 0; nprimes < loc->main->lenPrimes; nprimes++)
+    {
+      p = loc->main->Primes[nprimes];
+      ppl = (int64_t) p *(int64_t) p;
 
+      /* add fake roots to keep indices */
+      if (polyselect_poly_header_skip(loc->header, p))
+	{
+	  loc->R->nr[nprimes] = 0;	// nr = 0.
+	  loc->R->roots[nprimes] = NULL;
+	  continue;
+	}
+
+      nrp = roots_mod_uint64(rp, mpz_fdiv_ui(loc->header->Ntilde, p), loc->header->d,
+			     p, loc->rstate);
+      tot_roots += nrp;
+      nrp = roots_lift(rp, loc->header->Ntilde, loc->header->d, loc->header->m0, p, nrp);
+      polyselect_proots_add(loc->R, nrp, rp, nprimes);
+      for (j = 0; j < nrp; j++)
+	{
+	  for (u = (int64_t) rp[j]; u < umax; u += ppl)
+	    polyselect_shash_add(H, u);
+	  for (u = ppl - (int64_t) rp[j]; u < umax; u += ppl)
+	    polyselect_shash_add(H, -u);
+	}
+    }
   st = milliseconds() - st;
 
   if (loc->main->verbose > 2)
     {
       fprintf(stderr, "# computing %lu p-roots took %dms\n", tot_roots, st);
+      fprintf(stderr,
+	      "# polyselect_shash_size (umax = %" PRId64 ", P = %lu"
+	      "): %zu\n", umax, loc->main->P, polyselect_shash_size(H));
+      fprintf(stderr, "# expected number of pairs: %zu\n",
+	      polyselect_main_data_expected_number_of_pairs(loc->main));
     }
 
   st = milliseconds();
   found = polyselect_shash_find_collision(H);
+  free(rp);
+
+  if (loc->main->verbose > 2)
+    {
+      fprintf(stderr,
+	      "# collision found in shash: %d (probability = 1 / %.1f) [took %dms]\n",
+	      found, 4 * log(loc->main->P) * log(loc->main->P), st);
+    }
+
 
 
   if (found)
@@ -491,7 +527,6 @@ collision_on_p(polyselect_shash_ptr H, polyselect_hash_match_t match, polyselect
       polyselect_hash_t H;
 
       polyselect_hash_init(H, INIT_FACTOR * loc->main->lenPrimes, match);
-
       polyselect_proots_dispatch_to_hash_notflat(H,
               loc->main->Primes,
               loc->main->lenPrimes,
@@ -516,11 +551,13 @@ collision_on_p(polyselect_shash_ptr H, polyselect_hash_match_t match, polyselect
       polyselect_hash_clear(H);
     }
 
-  loc->stats->potential_collisions++;
 
+  loc->stats->potential_collisions++;
   return tot_roots;
 }
 
+
+/* collision on each special-q, call collision_on_batch_p() */
 static inline void
 collision_on_each_sq(unsigned long q,
 		     mpz_srcptr rqqz,
@@ -537,8 +574,8 @@ collision_on_each_sq(unsigned long q,
 
   int64_t umax = polyselect_main_data_get_M(loc->main);
 
-#if 0
-  loc->R->nr[loc->R->size] = 0xff;	/* use guard to end */
+#if 1
+  loc->R->nr[loc->R->size] = 0xff;     /* use guard to end */
   polyselect_proots_dispatch_to_shash_flat_ugly(H,
           loc->main->Primes,
           inv_qq,
