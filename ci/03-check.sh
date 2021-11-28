@@ -69,7 +69,10 @@ if [ "$coverage" ] ; then
     # a more robust way to proceed.
     gcovr --json ${C}-app.json $build_tree/ -f . -f $build_tree
     set -x
-    geninfo --ignore-errors gcov,source -q --output-filename ${C}-app.info -b . $build_tree --no-external
+    # It _seems_ that in fact, we do **NOT** want --no-external, and -b
+    # is actually doing more harm than good.
+    geninfo --ignore-errors gcov,source -q --output-filename ${C}-app.info $build_tree
+    # geninfo --ignore-errors gcov,source -q --output-filename ${C}-app.info -b . $build_tree --no-external
     $(dirname $0)/utilities/coverage_local_infofile_modifications.pl -d $build_tree ${C}-app.info
     set +x
     leave_section
