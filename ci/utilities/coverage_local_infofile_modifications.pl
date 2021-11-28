@@ -37,20 +37,20 @@ while (defined($_=<F>)) {
     chomp($_);
     s,^SF:$pwd/,SF:,g;
     (my $file = $_) =~ s/^SF:(.*)$/$1/;
-# these gimmicks seem to no longer be needed, now that I've foudn a
-# proper lcov instantiation. (the trick is: avoid -b)
 #    if (defined($bdir) && ! -f $file && -l "$bdir/gf2x/$file" && -e "$bdir/gf2x/$file") {
 #        my $rpath = realpath("$bdir/gf2x/$file");
 #        $rpath =~ s,^$pwd/?,,;
 #        print STDERR "Rewrite path $file --> $bdir/gf2x/$file --> $rpath\n";
 #        $_="SF:$rpath"; # relative
 #    }
-#    # dereference symlinks found in build directory
-#    if (/^SF:(build\/.*)$/) {
-#        my $f = (-e $1) ? realpath($1) : $1;   # absolute
-#        $f =~ s,^$pwd/?,,;
-#        $_="SF:$f"; # relative
-#    }
+    # dereference symlinks found in build directory. We need that,
+    # otherwise the artifacts will point to runner-specific paths which
+    # we won't have on the runner that merges all results.
+    if (/^SF:(build\/.*)$/) {
+        my $f = (-e $1) ? realpath($1) : $1;   # absolute
+        $f =~ s,^$pwd/?,,;
+        $_="SF:$f"; # relative
+    }
     push @current, $_ . "\n";
     if (/end_of_record/) {
         print_record @current;

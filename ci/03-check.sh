@@ -74,6 +74,8 @@ if [ "$coverage" ] ; then
     # gcovr --json ${C}-app.json ./
     # when $build_tree is somewhere else, it seems that the following is
     # a more robust way to proceed.
+    # TODO: I doubt that gcovr correctly tracks the symlinks in the build
+    # tree.
     gcovr --json ${C}-app.json $build_tree/ -f . -f $build_tree
     set -x
     # It _seems_ that in fact, we do **NOT** want --no-external, and -b
@@ -84,6 +86,9 @@ if [ "$coverage" ] ; then
     # geninfo --ignore-errors gcov,source -q --output-filename ${C}-app.info $build_tree
     $(dirname $0)/utilities/coverage_local_infofile_modifications.pl -d $build_tree ${C}-app.info
     set +x
+    # well, no. Let's rather rewrite the references to the build tree
+    # sources in the info file directly.
+    # tar czf ${C}-generated-sources.tar.gz $(perl -ne "m,^SF:${build_tree#$PWD/}/, && s,^SF:,, && print;" ${C}-base.info  | sort -u)
     leave_section
 fi
 
