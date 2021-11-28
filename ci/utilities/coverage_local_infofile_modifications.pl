@@ -24,6 +24,8 @@ sub print_record {
     do { $discard++; return; } if $_[0] =~ m{^SF:/} ||  $_[1] =~ m{^SF:/};
     do { $discard++; return; } if $_[1] =~ m{^SF:.*<built-in>$};
     do { $discard++; return; } if $_[1] =~ m{^SF:.*CompilerId.c(?:pp)?$};
+    # filter the completely external projects
+    do { $discard++; return; } if $_[0] =~ m{^SF:utils/embedded/fmt};
     $kept++;
     print G $_ for @_;
 }
@@ -35,18 +37,20 @@ while (defined($_=<F>)) {
     chomp($_);
     s,^SF:$pwd/,SF:,g;
     (my $file = $_) =~ s/^SF:(.*)$/$1/;
-    if (defined($bdir) && ! -f $file && -l "$bdir/gf2x/$file" && -e "$bdir/gf2x/$file") {
-        my $rpath = realpath("$bdir/gf2x/$file");
-        $rpath =~ s,^$pwd/?,,;
-        print STDERR "Rewrite path $file --> $bdir/gf2x/$file --> $rpath\n";
-        $_="SF:$rpath"; # relative
-    }
-    # dereference symlinks found in build directory
-    if (/^SF:(build\/.*)$/) {
-        my $f = (-e $1) ? realpath($1) : $1;   # absolute
-        $f =~ s,^$pwd/?,,;
-        $_="SF:$f"; # relative
-    }
+# these gimmicks seem to no longer be needed, now that I've foudn a
+# proper lcov instantiation. (the trick is: avoid -b)
+#    if (defined($bdir) && ! -f $file && -l "$bdir/gf2x/$file" && -e "$bdir/gf2x/$file") {
+#        my $rpath = realpath("$bdir/gf2x/$file");
+#        $rpath =~ s,^$pwd/?,,;
+#        print STDERR "Rewrite path $file --> $bdir/gf2x/$file --> $rpath\n";
+#        $_="SF:$rpath"; # relative
+#    }
+#    # dereference symlinks found in build directory
+#    if (/^SF:(build\/.*)$/) {
+#        my $f = (-e $1) ? realpath($1) : $1;   # absolute
+#        $f =~ s,^$pwd/?,,;
+#        $_="SF:$f"; # relative
+#    }
     push @current, $_ . "\n";
     if (/end_of_record/) {
         print_record @current;
