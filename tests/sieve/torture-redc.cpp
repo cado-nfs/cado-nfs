@@ -64,7 +64,8 @@ int redc_32_reference(const T x, const uint32_t p)
     mpz_invert(iB, B, pp);
     xx = xx % pp;
     xx = xx * iB;
-    xx = xx % pp;
+    /* we want a nonnegative representative */
+    mpz_fdiv_r(xx, xx, pp);
     return mpz_get_uint64(xx);
 }
 
@@ -160,6 +161,7 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
     std::vector<int64_t> xs;
     std::vector<uint32_t> ips;
     std::vector<uint32_t> us;
+    std::vector<uint32_t> rs;
     ps.reserve(N);
     xs.reserve(N);
     ips.reserve(N);
@@ -220,12 +222,18 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
 #endif
             for(size_t i = 0 ; i < N ; i++)
                 us.push_back(redc_32<CARRY>(xs[i], ps[i], ips[i]));
+
+            for(size_t i = 0 ; i < N ; i++)
+                rs.push_back(redc_32_reference(xs[i], ps[i]));
         } else {
 #if defined(__clang__)
 #pragma clang loop vectorize(disable)
 #endif
             for(size_t i = 0 ; i < N ; i++)
                 us.push_back(redc_u32<CARRY>(xs[i], ps[i], ips[i]));
+
+            for(size_t i = 0 ; i < N ; i++)
+                rs.push_back(redc_32_reference((uint64_t) xs[i], ps[i]));
         }
     } else {
         uint32_t fake_sum = 0;
@@ -256,38 +264,40 @@ int test_redc_32(gmp_randstate_t rstate, size_t N, bool check, bool signed_x = t
 
     clock_t clk1 = clock();
 
-    if (check && signed_x) {
-        for(size_t i = 0 ; i < N ; i++) {
-            if (!redc_32_postconditions(us[i], xs[i], ps[i], ips[i])) {
-                fprintf(stderr, "ERROR: redc_32<%s>("
-                        "%" PRId64 ", "
-                        "%" PRIu32 ", "
-                        "%" PRIu32 ") "
-                        "returns "
-                        "%" PRIu32
-                        " instead of expected %" PRIu32 "\n",
-                        CARRY ? "true" : "false",
-                        xs[i], ps[i], ips[i], us[i],
-                        redc_32_reference(xs[i], ps[i])
-                       );
-                exit(EXIT_FAILURE);
+    if (check) {
+        if (signed_x) {
+            for(size_t i = 0 ; i < N ; i++) {
+                if (us[i] != rs[i] || !redc_32_postconditions(us[i], xs[i], ps[i], ips[i])) {
+                    fprintf(stderr, "ERROR: redc_32<%s>("
+                            "%" PRId64 ", "
+                            "%" PRIu32 ", "
+                            "%" PRIu32 ") "
+                            "returns "
+                            "%" PRIu32
+                            " instead of expected %" PRIu32 "\n",
+                            CARRY ? "true" : "false",
+                            xs[i], ps[i], ips[i], us[i],
+                            rs[i]
+                           );
+                    exit(EXIT_FAILURE);
+                }
             }
-        }
-    } else if (check) {
-        for(size_t i = 0 ; i < N ; i++) {
-            if (!redc_u32_postconditions(us[i], xs[i], ps[i], ips[i])) {
-                fprintf(stderr, "ERROR: redc_u32<%s>("
-                        "%" PRIu64 ", "
-                        "%" PRIu32 ", "
-                        "%" PRIu32 ") "
-                        "returns "
-                        "%" PRIu32
-                        " instead of expected %" PRIu32 "\n",
-                        CARRY ? "true" : "false",
-                        (uint64_t) xs[i], ps[i], ips[i], us[i],
-                        redc_32_reference(xs[i], ps[i])
-                       );
-                exit(EXIT_FAILURE);
+        } else {
+            for(size_t i = 0 ; i < N ; i++) {
+                if (us[i] != rs[i] || !redc_u32_postconditions(us[i], xs[i], ps[i], ips[i])) {
+                    fprintf(stderr, "ERROR: redc_u32<%s>("
+                            "%" PRIu64 ", "
+                            "%" PRIu32 ", "
+                            "%" PRIu32 ") "
+                            "returns "
+                            "%" PRIu32
+                            " instead of expected %" PRIu32 "\n",
+                            CARRY ? "true" : "false",
+                            (uint64_t) xs[i], ps[i], ips[i], us[i],
+                            rs[i]
+                           );
+                    exit(EXIT_FAILURE);
+                }
             }
         }
     }
