@@ -21,11 +21,19 @@ open F, $f or die "$f: $!";
 open G, ">$f.tmp" or die "$f.tmp: $!";
 
 sub print_record {
-    do { $discard++; return; } if $_[0] =~ m{^SF:/} ||  $_[1] =~ m{^SF:/};
-    do { $discard++; return; } if $_[1] =~ m{^SF:.*<built-in>$};
-    do { $discard++; return; } if $_[1] =~ m{^SF:.*CompilerId.c(?:pp)?$};
+    my $sf;
+    if ($_[0] =~ m{^SF:(.*)}) {
+        $sf = $1;
+    } elsif ($_[1] =~ m{^SF:(.*)}) {
+        $sf = $1;
+    } else {
+        die "record has no source file, really ?";
+    }
+    do { $discard++; return; } if $sf =~ m{^/};
+    do { $discard++; return; } if $sf =~ m{<built-in>$};
+    do { $discard++; return; } if $sf =~ m{CompilerId.c(?:pp)?$};
     # filter the completely external projects
-    do { $discard++; return; } if $_[0] =~ m{^SF:utils/embedded/fmt};
+    do { $discard++; return; } if $sf =~ m{^utils/embedded/fmt};
     $kept++;
     print G $_ for @_;
 }
