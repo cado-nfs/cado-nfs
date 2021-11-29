@@ -512,6 +512,17 @@ add_trialdiv_test(4)
 add_trialdiv_test(5)
 add_trialdiv_test(6)
 
+cado_define_test(test_trialdiv_stdin
+    SCRIPT
+    ${CADO_NFS_SOURCE_DIR}/tests/generic_test_sha1_output.sh
+    ${CMAKE_CURRENT_BINARY_DIR}/test_trialdiv_5 -seed 1 -i 1000
+    ENVIRONMENT
+    REFERENCE_SHA1=62ce4b010a4ecdaa4bacf977687748b5f82dc4c4
+    STDIN=${CMAKE_CURRENT_SOURCE_DIR}/test_trialdiv_example_stdin.txt
+    TARGET_DEPENDENCIES
+    test_trialdiv_5
+    )
+
 cado_define_test(test_logapprox.cpp 
     ${PROJECT_SOURCE_DIR}/sieve/logapprox.cpp
     LIBRARIES utils tests)
