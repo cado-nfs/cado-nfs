@@ -667,6 +667,7 @@ cado_define_test(test-reduce-plattice.cpp LIBRARIES utils ARGUMENTS
     -I 256
     -B 100000
     -ntests 100000
+    -T
     )
 cado_divert_test(test-reduce-plattice seed APPEND_ARGUMENTS -seed 1)
 
