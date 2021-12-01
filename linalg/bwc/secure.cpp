@@ -325,6 +325,11 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     int k = bw->start;
     for(int next : check_stops) {
         serialize(pi->m);
+        if (next == 0) {
+            /* if 0 is in check_stops, we don't want to create files such
+             * as Cd0-64.0 */
+            continue;
+        }
         if (next < k) {
             /* This may happen when start is passed and is beyond the
              * first check stop.
