@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <string>                // for string
 #include <algorithm>
+#include <vector>
 #include <sys/stat.h>
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
 #include "async.h"
@@ -280,26 +281,33 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     serialize_threads(pi->m);
     ASSERT_ALWAYS(bw->end % bw->interval == 0);
 
-    int interval_already_in_check_stops = 0;
-    for(int i = 0 ; i < bw->number_of_check_stops ; i++) {
-        if (bw->check_stops[i] == bw->interval) {
-            interval_already_in_check_stops = 1;
-            break;
+    /* easier to deal with a copy on the stack */
+    std::vector<int> check_stops(bw->check_stops, bw->check_stops + bw->number_of_check_stops);
+
+    /* see #30025 -- we want a sensible default */
+    if (check_stops.empty()) {
+        check_stops.push_back(0);
+        check_stops.push_back(bw->interval);
+        int a = std::min(16, bw->interval / 2);
+        if (a) {
+            /* if interval == 1, don't bother */
+            check_stops.push_back(a);
+            check_stops.push_back(bw->interval + a);
         }
     }
-    if (serialize_threads(pi->m)) {
-        if (!interval_already_in_check_stops) {
-            ASSERT_ALWAYS(bw->number_of_check_stops < MAX_NUMBER_OF_CHECK_STOPS - 1);
-            bw->check_stops[bw->number_of_check_stops++] = bw->interval;
-        }
-        std::sort(bw->check_stops, bw->check_stops + bw->number_of_check_stops);
+
+    /* if something was provided, make really sure that at least the
+     * interval value is within the list of check stops */
+    if (std::find(check_stops.begin(), check_stops.end(), bw->interval) == check_stops.end()) {
+        check_stops.push_back(bw->interval);
     }
+    std::sort(check_stops.begin(), check_stops.end());
     serialize_threads(pi->m);
 
     if (tcan_print) {
         printf("Computing trsp(x)*M^k for check stops k=");
-        for(int s = 0 ; s < bw->number_of_check_stops ; s++) {
-            int next = bw->check_stops[s];
+        for(unsigned int s = 0 ; s < check_stops.size() ; s++) {
+            int next = check_stops[s];
             if (s) printf(",");
             printf("%d", next);
         }
@@ -315,9 +323,8 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     // }}}
 
     int k = bw->start;
-    for(int s = 0 ; s < bw->number_of_check_stops ; s++) {
+    for(int next : check_stops) {
         serialize(pi->m);
-        int next = bw->check_stops[s];
         if (next < k) {
             /* This may happen when start is passed and is beyond the
              * first check stop.
