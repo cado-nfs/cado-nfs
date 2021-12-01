@@ -1499,6 +1499,16 @@ sub max_mksol_iteration {
     die "can't find any F file, cannot infer the mksol max iteration";
 } # }}}
 
+sub interval_default {
+    my $krylov_length = max_krylov_iteration;
+    my $interval = 1;
+    while($interval * $interval < $krylov_length) {
+        $interval *= 2;
+    }
+    if ($interval < 64) { $interval = 64; }
+    return $interval;
+}
+
 # {{{ task_common_run is just a handy proxy.
 sub task_common_run {
     my $program = shift @_;
@@ -1738,16 +1748,30 @@ sub task_prep {
 
 } # }}}
 
+
 # {{{ secure -- this is now just a subtask of krylov or mksol
 sub subtask_secure {
     return if $param->{'skip_online_checks'};
     my $wanted_stops={};
-    if (defined(my $x = $param->{'interval'})) {
-        $wanted_stops->{$x}=1;
-    }
     if (defined(my $x = $param->{'check_stops'})) {
         my @x = split(',', $x);
         $wanted_stops->{$_}=1 for @x;
+        if (defined(my $x = $param->{'interval'})) {
+            $wanted_stops->{$x} = 1;
+        }
+    } else {
+        # We're taking a pretty aggressive approach of always storing
+        # extra checkpoints that correspond to the interval value + a
+        # small offset See #30025
+        my $x = $param->{'interval'};
+        $x = interval_default unless defined $x;
+        $wanted_stops->{$x}=1;
+        my $a = int($x/2);
+        $a = 16 if $a > 16;
+        if ($a) {
+            $wanted_stops->{$x+$a}=1;
+            $wanted_stops->{$a}=1;
+        }
     }
     my $leader_files = get_cached_leadernode_filelist 'HASH';
 
@@ -1780,7 +1804,8 @@ sub subtask_secure {
         $mustrun = 1;
     }
     if ($mustrun) {
-        task_common_run('secure', @main_args);
+        my $cs = "check_stops=" . join(",", sort { $a <=> $b } keys %$wanted_stops);
+        task_common_run('secure', @main_args, $cs);
     } else {
         my $x = join(", ", sort { $a <=> $b } keys %$wanted_stops);
         task_check_message 'ok', "All auxiliary files for checkpointing are here, good (wanted: $x).\n";
