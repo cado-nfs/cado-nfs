@@ -879,6 +879,9 @@ def get_missing_certificate(certfilename,
                                    retrytime=retrytime)
         if cert is None:
             return False
+    # Note: if you want the sha1 just based on the cert file, it's rather
+    # easy:
+    # openssl x509 -in $wdir/c60.server.cert -outform DER -out - | sha1sum
     bin_cert = ssl.PEM_cert_to_DER_cert(cert)
     sha1hash = hashlib.sha1()
     sha1hash.update(bin_cert)
