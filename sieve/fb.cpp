@@ -1141,11 +1141,11 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb, fb_factorbase::key_typ
 
     if (toplevel == 0) toplevel++;
 
-    double total_weight = 0;
+    // commented out, as in fact we no longer need to keep track of
+    // total_weight
+    // double total_weight = 0;
 
-    for (int i = 0; i <= toplevel; i++) {
-        total_weight += D.weight[i];
-    }
+    // for (int i = 0; i <= toplevel; i++) total_weight += D.weight[i];
 
     /* D.weight[i] is now what used to be called max_bucket_fill_ratio. We
      * will now make sure that slices are small enough so that a single
@@ -1195,7 +1195,7 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb, fb_factorbase::key_typ
         size_t nr_primes = D.primes[i];
         size_t nr_roots = D.ideals[i];
         double weight = D.weight[i];
-        total_weight += weight;
+        // total_weight += weight;
         int side = fb.side;
         if (!nr_primes) continue;
 
