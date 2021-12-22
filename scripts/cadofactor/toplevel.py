@@ -184,7 +184,7 @@ class Cado_NFS_toplevel(object):
                 self.logger.info("Using default parameter file %s" % paramfile)
                 return paramfile
         raise RuntimeError("no parameter file found"
-                " for %s (tried %s)" % (attempts[0], ", ".join(attempts)))
+                " for %s (tried %s)\nFeel free to submit one!" % (attempts[0], ", ".join(attempts)))
 
     @staticmethod
     def number_of_physical_cores():
