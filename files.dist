@@ -30,6 +30,7 @@ config/gmp.cmake
 config/inline-assembly.c
 config/inline-assembly-arm.c
 config/math.cmake
+config/bsd.cmake
 config/posix.cmake
 config/mpi.cmake
 config/mpir.cmake
