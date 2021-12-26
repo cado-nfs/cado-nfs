@@ -528,7 +528,7 @@ int main(int argc, char * argv[])
 
     /* declare it as volatile so that the compiler doesn't outsmart us.
      */
-    volatile unsigned long dummy = 0;
+    volatile unsigned long dummy MAYBE_UNUSED = 0;
 
     dummy += test_speed<call_production>(tw);
     dummy += test_speed<call_production_noasm>(tw);

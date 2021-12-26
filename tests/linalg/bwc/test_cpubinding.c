@@ -36,7 +36,7 @@ int do_cpubinding_tests(const char * cpubinding_conf)
 
     char line[1024];
 
-    int nb_ok = 0;
+    // int nb_ok = 0;
     int nb_nok = 0;
     int idx = 0;
     for( ; fgets(line, sizeof(line), f) ; ) {
@@ -85,7 +85,7 @@ int do_cpubinding_tests(const char * cpubinding_conf)
         }
         int ok = want == (cc != NULL);
         if (verbose) printf("result: %s\n", ok_NOK(ok));
-        nb_ok += ok;
+        // nb_ok += ok;
         nb_nok += !ok;
 
         cpubinding_do_pinning(cc, 0, 0);
