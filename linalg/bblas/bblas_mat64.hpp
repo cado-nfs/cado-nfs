@@ -13,6 +13,10 @@
 /* The attribute seems to be really necessary, and actually abided by by
  * clang at least for stack-defined variables. On freebsd, this matters,
  * too.
+ *
+ * 20211226: added explicit alignas in the definition of bitmat. I
+ * _think_ that this is enough to make the extra alignment constraint
+ * here unnecessary.
  */
 typedef bitmat<uint64_t> mat64 ATTRIBUTE((aligned(64)));
 
