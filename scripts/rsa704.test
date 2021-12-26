@@ -6,7 +6,7 @@ M=`hostname`
 
 d=`mktemp -d`
 cd $d
-git clone git+ssh://scm.gforge.inria.fr/git/cado-nfs/cado-nfs.git
+git clone git://gitlab.inria.fr/cado-nfs/cado-nfs.git
 cd cado-nfs
 rev=`filename HEAD`
 echo 'CFLAGS="-O3 -funroll-loops -DNDEBUG"' > local.sh

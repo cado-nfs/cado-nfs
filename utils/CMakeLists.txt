@@ -87,7 +87,7 @@ target_link_libraries(utils_with_io utils)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     message(STATUS "Disabling antebuffer on ${CMAKE_SYSTEM_NAME}, see #21410")
-    # http://cado-nfs.gforge.inria.fr/bug.php?21410
+    # https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21410
 else()
     add_executable(antebuffer antebuffer.c timing.cpp memusage.c)
     target_link_libraries(antebuffer pthread)

@@ -225,7 +225,7 @@ else:
 # and we have to use a different work-around...
 #
 # Update:
-# http://cado-nfs.gforge.inria.fr/bug.php?21408
+# https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21408
 #
 #
 # Rather than keep a list of faulty versions, we'll try to auto-detect
@@ -364,7 +364,7 @@ def find_working_bytesgenerator():
 
     logging.error("None of our byte generators work")
     logging.error("See bug #21408")
-    logging.error("http://cado-nfs.gforge.inria.fr/bug.php?21408")
+    logging.error("https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21408")
     for gtp in wrong:
         byte_generator, test_bytes, postdata = gtp
         logging.error("Example of a failing test with %s:", byte_generator)

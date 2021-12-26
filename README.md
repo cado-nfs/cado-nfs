@@ -83,7 +83,7 @@ builds contain information related to the compiler versions being used.
 Required software tools
 =======================
 
- * [GMP](http://gmplib.org/), version 5 or newer: usually installed in
+ * [GMP](https://gmplib.org/), version 5 or newer: usually installed in
    most Linux distributions (on some Linux distributions you need to
    install the `libgmp*-dev` or `gmp-devel` package that includes
    `gmp.h`. It is often not installed by default). Note: make sure to
@@ -564,7 +564,7 @@ no longer supported by cado-nfs anyway)
   in GMP (<https://gmplib.org/list-archives/gmp-bugs/2015-March/003607.html>).
   Workaround: use tasks.sqrt.threads=1 or GMP >= 6.1.0.
 * GCC 4.1.2 is known to miscompile CADO-NFS (see
-  <http://cado-nfs.gforge.inria.fr/bug.php?14490>),
+  <https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/14490>),
   GCC 4.2.0, 4.2.1 and 4.2.2 are also affected.
 * under NetBSD 5.1 amd64, Pthreads in the linear algebra step seem not to
   work, please use `-t 1` option in `cado-nfs.py` or `tasks.linalg.threads=1x1`.
@@ -584,7 +584,7 @@ Contact, links:
 ===============
 
 The website of the project is hosted at:
-   <http://cado-nfs.gforge.inria.fr/>
+   <https://cado-nfs.inria.fr/>
 
 You can get the latest development version with:
 ```
