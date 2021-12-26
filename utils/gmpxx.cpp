@@ -16,9 +16,6 @@ using namespace std;
 
 static inline int getbase(ostream const& o)
 {
-    std::ios_base::fmtflags ff;
-    ff = o.flags();
-    ff &= std::ios_base::basefield;
     switch(o.flags() & std::ios_base::basefield) {
         case std::ios::hex:
             return 16;

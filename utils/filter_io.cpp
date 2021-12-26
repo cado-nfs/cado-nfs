@@ -1165,7 +1165,7 @@ uint64_t filter_rels2(char ** input_files,
 {
     int multi = 0;
     int n;      /* number of levels of the pipe */
-    int ncons = 0;      /* total number of consumers (levels >=1) */
+    // int ncons = 0;      /* total number of consumers (levels >=1) */
 
     for (unsigned int k = 0; input_files[k]; k++)
     {
@@ -1178,7 +1178,7 @@ uint64_t filter_rels2(char ** input_files,
     }
 
     for(n = 0 ; desc[n].f ; n++) {
-        ncons += desc[n].n;
+        // ncons += desc[n].n;
         multi += desc[n].n > 1;
     }
     n++;        /* match with the "number of levels" counter
