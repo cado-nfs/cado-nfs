@@ -87,6 +87,17 @@ case "$CI_BUILD_NAME" in
     : ${CC=clang}
     : ${CXX=clang++}
     clang=1
+    # We want to recognize "clangNN" or "clangdev" as monikers for
+    # specific versions of clang.
+    case "$CI_BUILD_NAME" in
+        *"with clangdev"*) clang=dev;;
+        *"with clang12"*) clang=12;;
+        *"with clang13"*) clang=13;;
+        *"with clang14"*) clang=14;;
+        *"with clang15"*) clang=15;;
+        *"with clang16"*) clang=16;;
+        *"with clang17"*) clang=17;;
+    esac
     ;;
 esac
 case "$CI_BUILD_NAME" in

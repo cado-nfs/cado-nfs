@@ -9,7 +9,7 @@ full_echelon_6464_imm(mat64& mm, mat64& e, mat64 const& m)
 {
     mm = m;
     uint64_t mask = 1;
-    uint64_t cancelled_cols = 0;
+    // uint64_t cancelled_cols = 0;
     int r = 0;
     for (int j = 0; j < 64; j++, mask <<= 1)
         e[j] = mask;
@@ -32,7 +32,7 @@ full_echelon_6464_imm(mat64& mm, mat64& e, mat64 const& m)
         e[k] = e[j];
         e[j] = z;
         r++;
-        cancelled_cols |= mask;
+        // cancelled_cols |= mask;
         uint64_t er = e[j];
         for (k = 0; k < 64; k++) {
             if (k == j)

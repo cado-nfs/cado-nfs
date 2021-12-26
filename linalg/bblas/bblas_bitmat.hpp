@@ -64,7 +64,9 @@ namespace bblas_bitmat_details {
 }
 
 template<typename T>
-class bitmat
+class
+    alignas(bblas_bitmat_details::bblas_bitmat_type_supported<T>::alignment)
+    bitmat
     : public bblas_bitmat_details::bitmat_ops<T>
 {
     typedef bblas_bitmat_details::bitmat_ops<T> ops;

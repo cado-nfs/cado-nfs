@@ -132,9 +132,20 @@ checks on opensuse system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
-checks with clang:
+# unfortunately silkeh/clang:latest is outdated...
+checks with clang13:
   <<: *common-template
-  image: silkeh/clang:latest
+  image: silkeh/clang:13
+  stage: early
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks with clangdev:
+  <<: *common-template
+  image: silkeh/clang:dev
   stage: early
   before_script:
     - ci/00-prepare-docker.sh

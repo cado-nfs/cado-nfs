@@ -76,7 +76,6 @@ public:
 #endif
     }
     las_parallel_desc();
-    las_parallel_desc(las_parallel_desc const &) = default;
     las_parallel_desc(cxx_param_list & pl, double jobram = -1);
     void display_binding_info() const;
     int set_loose_binding() const;

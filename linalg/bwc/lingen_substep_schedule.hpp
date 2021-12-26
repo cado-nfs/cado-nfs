@@ -49,7 +49,14 @@ struct lingen_substep_schedule {
     public:
 
     lingen_substep_schedule() : shrink0(1), shrink2(1), batch {{1,1,1}}  {}
+    /*
+     * well, defaults are fine, it's probably best to say nothing
+     *
     lingen_substep_schedule(lingen_substep_schedule const&) = default;
+    lingen_substep_schedule(lingen_substep_schedule &&) = default;
+    lingen_substep_schedule& operator=(lingen_substep_schedule const&) = default;
+    lingen_substep_schedule& operator=(lingen_substep_schedule &&) = default;
+    */
 
     static const char * fft_name(fft_type_t fft_type) {
         switch(fft_type) {

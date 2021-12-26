@@ -18,6 +18,10 @@ if [ "$clang" ] ; then
     # This is just as heavy (if not worse), but does bring the benefit
     # that we have the latest clang, as is the case with gcc.
     FROM=silkeh/clang:latest
+    case "$clang" in
+        dev) FROM=silkeh/clang:dev;;
+        [0-9][0-9]*) FROM=silkeh/clang:$clang;;
+    esac
 fi
 if [ "$gcc" ] && ! [ "$coverage" ] ; then
     # coverage tests need gcc, but also need recent gcov. We can get by
