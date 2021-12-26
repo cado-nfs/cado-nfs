@@ -69,7 +69,8 @@
    || defined(__amd64__) || defined(_M_AMD64) \
    || defined(__x86_64) || defined(__x86_64__) \
    || defined(__AARCH64EL__) \
-   || defined(_M_X64)
+   || defined(_M_X64) \
+   || defined(__LITTLE_ENDIAN__)
 # define CADO_LITTLE_ENDIAN
 # define CADO_BYTE_ORDER 1234
 #else
