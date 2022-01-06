@@ -106,6 +106,7 @@ tests/linalg/bwc/convert_magma.pl
 tests/linalg/bwc/bwc-ptrace.m
 tests/linalg/bwc/bwc-ptrace.sh
 tests/linalg/bwc/bwc-test-secure-continuation.sh
+tests/linalg/bwc/bwc-test-secure-consistent-defaults.sh
 linalg/bwc/bwc.pl
 linalg/bwc/bwc_config_h.in
 linalg/bwc/cleanup.cpp
