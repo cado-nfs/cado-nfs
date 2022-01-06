@@ -1686,6 +1686,7 @@ config/avx512vl.c
 config/avx512vl.cmake
 config/avx512dq.c
 config/avx512dq.cmake
+config/bug30027.cpp
 scripts/refresh-fmtlib.sh
 ci/coverity_model.c
 ci/phony-packages/clang-usrlocal-0.0/build.sh
