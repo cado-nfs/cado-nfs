@@ -54,9 +54,25 @@ leave_section # test (or xtest)
 
 if [ "$coverage" ] ; then
     enter_section "coverage" "extracting coverage data"
-    gcovr --json . > ${C}-app.json
+
+    # might be useful.
+    # find $build_tree -name '*conftest.gcno' | xargs -r rm
+    # find $build_tree -name 'CMake*.gcno' | xargs -r rm
+
+    # gcovr is terribly picky. There are countless ways to make it lose
+    # track of symlinked sources in an out-of-source build.
+    # Both versions below work in a fresh checkout with $build_tree
+    # somewhere below ./ ; the latter is simpler.
+    # gcovr --json ${C}-app.json ./ $build_tree/
+    # gcovr --json ${C}-app.json ./
+    # when $build_tree is somewhere else, it seems that the following is
+    # a more robust way to proceed.
+    gcovr --json ${C}-app.json $build_tree/ -f . -f $build_tree
     set -x
-    geninfo --ignore-errors gcov,source -q --output-filename ${C}-app.info -b . $build_tree --no-external
+    # It _seems_ that in fact, we do **NOT** want --no-external, and -b
+    # is actually doing more harm than good.
+    geninfo --ignore-errors gcov,source -q --output-filename ${C}-app.info $build_tree
+    # geninfo --ignore-errors gcov,source -q --output-filename ${C}-app.info -b . $build_tree --no-external
     $(dirname $0)/utilities/coverage_local_infofile_modifications.pl -d $build_tree ${C}-app.info
     set +x
     leave_section

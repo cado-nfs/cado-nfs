@@ -44,6 +44,15 @@ int main(int argc, char *argv[])
 
     w = atoi(argv[1]);
     K = atoi(argv[2]);
+    if (w <= 0 || (w & (w-1)) || w > 64 || K <= 0 || K >= w) {
+        fprintf(stderr, "Usage: %s <wordsize> k\n", argv[0]);
+        exit(1);
+    }
+    MASK = 1;
+    if ((MASK << K) < MASK) {
+        fprintf(stderr, "Usage: %s <wordsize> k\n", argv[0]);
+        exit(1);
+    }
 
     printf(
 "/* This file is part of the gf2x library.\n"

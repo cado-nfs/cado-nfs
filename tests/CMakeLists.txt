@@ -691,7 +691,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             filter_galois polyselect_gfpn
         AVOID_CONCURRENT
             )
-# see bug http://cado-nfs.gforge.inria.fr/bug.php?21767
+# see bug https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21767
 #         cado_define_test(full_gfp2_2_2g
 #             SCRIPT
 #                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp2_2_2g.sh

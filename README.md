@@ -6,6 +6,7 @@ an outdated fork.
 
 [![pipeline status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/pipelines?ref=master)
 [![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/index.html?job=merge+coverage+tests)
+[![coverity scan](https://scan.coverity.com/projects/23184/badge.svg)](https://scan.coverity.com/projects/cado-nfs)
 
 Quick install:
 ==============
@@ -82,7 +83,7 @@ builds contain information related to the compiler versions being used.
 Required software tools
 =======================
 
- * [GMP](http://gmplib.org/), version 5 or newer: usually installed in
+ * [GMP](https://gmplib.org/), version 5 or newer: usually installed in
    most Linux distributions (on some Linux distributions you need to
    install the `libgmp*-dev` or `gmp-devel` package that includes
    `gmp.h`. It is often not installed by default). Note: make sure to
@@ -121,6 +122,8 @@ Optionally, cado-nfs can use the following additional software.
 * Support for hwloc (see [`parameters/misc/cpubinding.conf`](parameters/misc/cpubinding.conf))
 * Support for GMP-ECM. Define the environment variable GMPECM if it is
   installed in a non-standard place.
+* A system [`fmt`](https://fmt.dev/) is used is found, otherwise a
+  snapshot is embedded in the cado-nfs code anyway.
 
 Configure
 =========
@@ -294,7 +297,8 @@ three modes as follows.
    This is called the `--server` mode (see
    [`scripts/cadofactor/README.md`](scripts/cadofactor/README.md) and
    [`scripts/cadofactor/parameters`](scripts/cadofactor/parameters)).
-   See also [this thread](https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2020-March/001168.html) on the old `cado-nfs-discuss` list (it's been [replaced](#contact-links)). If you want to use cado-nfs even to a little extent, we recomment that you familiarize with this mode of operation.
+   See also [this thread](https://sympa.inria.fr/sympa/arc/cado-nfs/2020-03/msg00001.html)
+   on the old `cado-nfs` list. If you want to use cado-nfs even to a little extent, we recomment that you familiarize with this mode of operation.
 
  * For much larger computations, the `cado-nfs.py` is only of moderate
    use. The individual cado-nfs binaries and internal scripts are the
@@ -560,7 +564,7 @@ no longer supported by cado-nfs anyway)
   in GMP (<https://gmplib.org/list-archives/gmp-bugs/2015-March/003607.html>).
   Workaround: use tasks.sqrt.threads=1 or GMP >= 6.1.0.
 * GCC 4.1.2 is known to miscompile CADO-NFS (see
-  <http://cado-nfs.gforge.inria.fr/bug.php?14490>),
+  <https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/14490>),
   GCC 4.2.0, 4.2.1 and 4.2.2 are also affected.
 * under NetBSD 5.1 amd64, Pthreads in the linear algebra step seem not to
   work, please use `-t 1` option in `cado-nfs.py` or `tasks.linalg.threads=1x1`.
@@ -580,7 +584,7 @@ Contact, links:
 ===============
 
 The website of the project is hosted at:
-   <http://cado-nfs.gforge.inria.fr/>
+   <https://cado-nfs.inria.fr/>
 
 You can get the latest development version with:
 ```
@@ -596,15 +600,17 @@ to cado-nfs)
 There is now a unique mailing-list associated to Cado-nfs
 [cado-nfs@inria.fr](https://sympa.inria.fr/sympa/info/cado-nfs). Please
 do not use the old `cado-nfs-discuss` mailing list, the infrastructure
-that hosts this mailing list is set for removal in 2021.
+that hosts this mailing list has been removed in september 2021. All
+mailing list content has been moved to the new mailing list, but links are
+broken.
 
 If you find a bug, if you have a problem compiling cado-nfs, if you want to
 factor a large number and seek for advice for tuning the parameters, then
-the cado-nfs-discuss list is the right place to ask.
+the cado-nfs list is the right place to ask.
 
 On the <https://gitlab.inria.fr/cado-nfs/cado-nfs> web page you can also
 find the cado-nfs bug tracker (a.k.a project issues). The bug tracker is
 an important piece of the cado-nfs development cycle.  Submitting bugs
 and merge requests there is welcome (you need an Inria gitlab account),
 although if you are unsure, it might be better to speak up on the
-cado-nfs-discuss mailing list first.
+cado-nfs mailing list first.

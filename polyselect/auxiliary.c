@@ -1110,7 +1110,7 @@ poly_shift_divp (mpz_t *h, unsigned int d, unsigned long r, unsigned long p)
    average p-valuation of the polynomial f. Works recursively.
    Assumes f is square-free, otherwise it will loop. */
 static double
-special_val0 (mpz_poly_srcptr f, unsigned long p)
+special_val0 (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr rstate)
 {
   double v;
   mpz_t c,  *h;
@@ -1150,7 +1150,7 @@ special_val0 (mpz_poly_srcptr f, unsigned long p)
   roots = (unsigned long*) malloc (d * sizeof (unsigned long));
   FATAL_ERROR_CHECK(roots == NULL, "not enough memory");
 
-  nroots = mpz_poly_roots_ulong (roots, g, p);
+  nroots = mpz_poly_roots_ulong (roots, g, p, rstate);
   ASSERT (nroots <= d);
   for (r0 = 0, i = 0; i < nroots; i++)
     {
@@ -1174,7 +1174,7 @@ special_val0 (mpz_poly_srcptr f, unsigned long p)
           ASSERT_ALWAYS (r >= r0); /* the roots are sorted */
           poly_shift_divp (h, d, r - r0, p);
           r0 = r;
-          v += special_val0 (H, p) / (double) p;
+          v += special_val0 (H, p, rstate) / (double) p;
         }
     }
   free (roots);
@@ -1220,7 +1220,7 @@ always returns 0 in val(f,p).
 Assumes p divides disc = disc(f), d is the degree of f.
 */
 double
-special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_t disc)
+special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_srcptr disc, gmp_randstate_ptr rstate)
 {
     double v;
     int p_divides_lc;
@@ -1243,7 +1243,7 @@ special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_t disc)
     if (pvaluation_disc == 0) {
   /* easy ! */
   int e;
-  e = mpz_poly_roots_ulong (NULL, f, p);
+  e = mpz_poly_roots_ulong (NULL, f, p, rstate);
   if (p_divides_lc) {
       /* Or the discriminant would have valuation 1 at least */
       ASSERT(mpz_divisible_ui_p(f->coeff[d - 1], p) == 0);
@@ -1253,13 +1253,13 @@ special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_t disc)
     } else if (pvaluation_disc == 1) {
       /* special case where p^2 does not divide disc */
   int e;
-  e = mpz_poly_roots_ulong (NULL, f, p);
+  e = mpz_poly_roots_ulong (NULL, f, p, rstate);
         if (p_divides_lc)
           e ++;
   /* something special here. */
   return (pd * e - 1) / (pd * pd - 1);
     } else {
-  v = special_val0(f, p) * pd;
+  v = special_val0(f, p, rstate) * pd;
   if (p_divides_lc) {
       /* compute g(x) = f(1/(px))*(px)^d, i.e., g[i] = f[d-i]*p^i */
       /* IOW, the reciprocal polynomial evaluated at px */
@@ -1276,7 +1276,7 @@ special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_t disc)
         mpz_mul(g[i], f->coeff[d - i], t);
         mpz_mul_ui(t, t, p);
       }
-      v += special_val0(G, p);
+      v += special_val0(G, p, rstate);
       mpz_poly_clear (G);
       mpz_clear(t);
   }
@@ -1308,6 +1308,18 @@ get_alpha (mpz_poly_srcptr f, unsigned long B)
   if (f->deg == 1)
     return 0.569959993064325;
 
+  /* a gmp_randstate init/clear cycle is about 10 times the cost of a
+   * one-word gmp random pick. Given that we assume that B is at least
+   * in the hundreds, the random picks alone would be a sufficient
+   * observation to conclude that it's relatively harmless to do a
+   * random initialization here, and present get_alpha as as something
+   * deterministic. (and of course, there's tons of arithmetic in there
+   * too.
+   */
+
+  gmp_randstate_t rstate;
+  gmp_randinit_default(rstate);
+
   mpz_init (disc);
   mpz_poly_discriminant (disc, f);
 
@@ -1316,23 +1328,24 @@ get_alpha (mpz_poly_srcptr f, unsigned long B)
      is (1/(p-1) - e) * log(p) */
 
   /* prime p=2 */
-  e = special_valuation (f, 2, disc);
+  e = special_valuation (f, 2, disc, rstate);
   alpha = (1.0 - e) * log (2.0);
 
   /* FIXME: generate all primes up to B and pass them to get_alpha */
   for (p = 3; p <= B; p += 2)
     if (ulong_isprime (p))
       {
-        e = special_valuation (f, p, disc);
+        e = special_valuation (f, p, disc, rstate);
         alpha += (1.0 / (double) (p - 1) - e) * log ((double) p);
       }
+  gmp_randclear(rstate);
   mpz_clear (disc);
   return alpha;
 }
 
 /* affine part of the special valution for polynomial f over p. */
 double
-special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc)
+special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_srcptr disc, gmp_randstate_ptr rstate)
 {
    double v;
    int pvaluation_disc = 0;
@@ -1351,7 +1364,7 @@ special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc)
    if (pvaluation_disc == 0) {
       /* case 1: root must be simple*/
       int e = 0;
-      e = mpz_poly_roots_ulong (NULL, f, p);
+      e = mpz_poly_roots_ulong (NULL, f, p, rstate);
 
       return (pd * e) / (pd * pd - 1);
    }
@@ -1365,7 +1378,7 @@ special_valuation_affine (mpz_poly_srcptr f, unsigned long p, mpz_t disc)
 
    /* } */
    else {
-      v = special_val0(f, p) * pd;
+      v = special_val0(f, p, rstate) * pd;
       v /= pd + 1.0;
       return v;
    }
@@ -1389,11 +1402,15 @@ get_alpha_projective (mpz_poly_srcptr f, unsigned long B)
    unsigned long p;
    mpz_t disc;
 
+   /* about random state: see comment in get_alpha */
+   gmp_randstate_t rstate;
+   gmp_randinit_default(rstate);
+
    mpz_init (disc);
    mpz_poly_discriminant (disc, f);
 
    /* prime p=2 */
-   e = special_valuation (f, 2, disc) - special_valuation_affine (f, 2, disc);
+   e = special_valuation (f, 2, disc, rstate) - special_valuation_affine (f, 2, disc, rstate);
 
    /* 1/(p-1) is counted in the affine part */
    alpha =  (- e) * log (2.0);
@@ -1401,10 +1418,11 @@ get_alpha_projective (mpz_poly_srcptr f, unsigned long B)
    /* FIXME: generate all primes up to B and pass them to get_alpha */
    for (p = 3; p <= B; p += 2)
       if (ulong_isprime (p)) {
-         e = special_valuation(f, p, disc) - special_valuation_affine (f, p, disc);
+         e = special_valuation(f, p, disc, rstate) - special_valuation_affine (f, p, disc, rstate);
          alpha += (- e) * log ((double) p);
       }
 
+   gmp_randclear(rstate);
    mpz_clear (disc);
 
    return alpha;
@@ -1420,11 +1438,15 @@ get_alpha_affine (mpz_poly_srcptr f, unsigned long B)
    unsigned long p;
    mpz_t disc;
 
+  /* about random state: see comment in get_alpha */
+  gmp_randstate_t rstate;
+  gmp_randinit_default(rstate);
+
    mpz_init (disc);
    mpz_poly_discriminant (disc, f);
 
    /* prime p=2 */
-   e = special_valuation_affine (f, 2, disc);
+   e = special_valuation_affine (f, 2, disc, rstate);
    alpha =  (1.0 - e) * log (2.0);
 
    //printf ("\np: %u, val: %f, alpha: %f\n", 2, e, alpha);
@@ -1432,12 +1454,13 @@ get_alpha_affine (mpz_poly_srcptr f, unsigned long B)
    /* FIXME: generate all primes up to B and pass them to get_alpha */
    for (p = 3; p <= B; p += 2)
       if (ulong_isprime (p)) {
-         e = special_valuation_affine (f, p, disc);
+         e = special_valuation_affine (f, p, disc, rstate);
          alpha += (1.0 / (double) (p - 1) - e) * log ((double) p);
          //printf ("\np: %u, val: %f, alpha: %f\n", p, e, alpha);
 
       }
    mpz_clear (disc);
+   gmp_randclear(rstate);
    return alpha;
 }
 
@@ -1445,7 +1468,7 @@ get_alpha_affine (mpz_poly_srcptr f, unsigned long B)
   Similar to above, but for a given prime p.
 */
 double
-get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p)
+get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr rstate)
 {
    double alpha, e;
    mpz_t disc;
@@ -1455,13 +1478,13 @@ get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p)
 
    if (p == 2)
      {
-       e = special_valuation_affine (f, 2, disc);
+       e = special_valuation_affine (f, 2, disc, rstate);
        alpha =  (1.0 - e) * log (2.0);
      }
    else
      {
        ASSERT (ulong_isprime (p));
-       e = special_valuation_affine (f, p, disc);
+       e = special_valuation_affine (f, p, disc, rstate);
        alpha = (1.0 / (double) (p - 1) - e) * log ((double) p);
      }
    mpz_clear (disc);
@@ -1574,7 +1597,7 @@ derotate_auxg_z (mpz_t *f, const mpz_t b, const mpz_t g0, const mpz_t k, unsigne
    Note: it's a backend for print_cadopoly().
 */
 void
-print_cadopoly_fg (FILE *fp, mpz_t *f, int df, mpz_t *g, int dg, mpz_t n )
+print_cadopoly_fg (FILE *fp, mpz_t *f, int df, mpz_t *g, int dg, mpz_srcptr n)
 {
    int i;
 
@@ -1596,7 +1619,7 @@ print_cadopoly_fg (FILE *fp, mpz_t *f, int df, mpz_t *g, int dg, mpz_t n )
    Note:  it's a backend for print_cadopoly_extra().
 */
 double
-print_cadopoly (FILE *fp, cado_poly p)
+print_cadopoly (FILE *fp, cado_poly_srcptr p)
 {
    unsigned int nroots = 0;
    double alpha, alpha_proj, logmu, e;

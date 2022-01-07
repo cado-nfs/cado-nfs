@@ -55,7 +55,7 @@ AC_FUNC_ALLOCA
 # the big changes to the fft interfaces (aug 2018) were done before gf2x-1.3 was
 # actually released, so we retain the version number 3:0:0.
 AC_SUBST([gf2x_lib_version], [3:0:0])
-AC_SUBST([gf2x_fft_lib_version], [3:0:0])
+AC_SUBST([gf2x_fft_lib_version], [3:1:0])
 
 AM_INIT_AUTOMAKE([1.13])
 
@@ -196,7 +196,11 @@ if test x$hwdir = x ; then
         if test "$gf2x_cv_cc_supports_sse2" = "no" ; then
          hwdir=generic$gf2x_wordsize
         else
-         hwdir=x86_sse2
+         if test "$gf2x_cv_cc_supports_sse2" = "no" ; then
+          hwdir=generic32
+         else
+          hwdir=x86_sse2
+         fi
         fi;;
       *)
        AC_MSG_ERROR([The default ABI for this compiler has $gf2x_wordsize-bit unsigned longs, this is not supported])

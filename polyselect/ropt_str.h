@@ -51,8 +51,8 @@ typedef struct ropt_bound_s ropt_bound_t[1];
  * Struct for stage 1 parameters.
  */
 struct ropt_s1param_s {
-  unsigned int len_e_sl;
-  unsigned int tlen_e_sl;
+  unsigned int len_e_sl;   /* length */
+  unsigned int tlen_e_sl;  /* true length (excluding zeros), <= len_e_sl */
 
   /* num of sublattices */
   unsigned int nbest_sl;

@@ -15,6 +15,7 @@
 #include "macros.h" /* for ASSERT_ALWAYS */
 #include "relation.hpp"
 #include "relation-tools.h"
+#include "misc.h"
 
 /*
  * Convention for I/O of rels:
@@ -89,16 +90,19 @@ void relation::print (FILE *file, const char *prefix) const
 
 std::ostream& operator<<(std::ostream& os, relation const &rel)
 {
-    os << rel.az << ',' << rel.bz;
-    os << std::hex;
-    for(int side = 0 ; side < rel.nb_polys ; side++) {
-        os << ':';
-        bool comma=false;
-        for(auto const& v : rel.sides[side]) {
-            for(int e = v.e ; e ; e--) {
-                if (comma) os << ',';
-                os << v.p;
-                comma = true;
+    IoStreamFlagsRestorer dummy(os);
+    {
+        os << rel.az << ',' << rel.bz;
+        os << std::hex;
+        for(int side = 0 ; side < rel.nb_polys ; side++) {
+            os << ':';
+            bool comma=false;
+            for(auto const& v : rel.sides[side]) {
+                for(int e = v.e ; e ; e--) {
+                    if (comma) os << ',';
+                    os << v.p;
+                    comma = true;
+                }
             }
         }
     }

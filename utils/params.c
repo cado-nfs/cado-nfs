@@ -1588,6 +1588,7 @@ int param_list_save_parameter(param_list_ptr pl, enum parameter_origin o,
     rc = vasprintf(&tmp, format, ap);
     param_list_add_key(pl, key, tmp, o);
     free(tmp);
+    va_end(ap);
 
     return rc;
 }
@@ -1647,7 +1648,7 @@ void param_list_print_command_line(FILE * stream, param_list_ptr pl)
 
 #if GNUC_VERSION_ATLEAST(4,1,2) && GNUC_VERSION_ATMOST(4,2,2) \
         && ! (__llvm__ || __clang__)
-        fprintf (stream, "# WARNING: this version of GCC is known to miscompile CADO-NFS. See https://gforge.inria.fr/tracker/index.php?func=detail&aid=14490\n");
+        fprintf (stream, "# WARNING: this version of GCC is known to miscompile CADO-NFS. See https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/14490\n");
 #endif
 #endif
         fprintf(stream, "# Compilation flags (C) " CFLAGS "\n");

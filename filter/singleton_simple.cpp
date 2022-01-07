@@ -76,6 +76,7 @@ usage (param_list pl, const char *argv0)
 
 /* -------------------------------------------------------------------------- */
 
+// coverity[root_function]
 int main (int argc, char **argv)
 {
   const char *argv0 = argv[0];

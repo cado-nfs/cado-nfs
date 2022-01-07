@@ -187,7 +187,11 @@ public:
   static const bool is_general_type = false;
   static const unsigned char fixed_nr_roots = Nr_roots;
   inline int get_nr_roots() const { return Nr_roots; }
-  fb_entry_x_roots() {};
+  // fb_entry_x_roots() {};
+  fb_entry_x_roots(fbprime_t p, redc_invp_t invq, fbroot_t * roots) : p(p), invq(invq) {
+    for (int i = 0; i < Nr_roots; i++)
+      this->roots[i] = roots[i];
+  }
   /* Allow assignment-construction from general entries */
   fb_entry_x_roots(const fb_entry_general &e) : p(e.p), invq(e.invq) {
     ASSERT_ALWAYS(Nr_roots == e.nr_roots);
@@ -499,8 +503,7 @@ class fb_factorbase {
                 const fb_slice_interface * res = multityped_array_locate<helper_functor_get>()(slices, idx);
                 ASSERT_ALWAYS(res);
                 ASSERT_ALWAYS(res->get_index() == index);
-                if (res) return res;
-                return NULL;
+                return res;
             }
 
             /* {{{ use caching for the number of slices, as it's a handy

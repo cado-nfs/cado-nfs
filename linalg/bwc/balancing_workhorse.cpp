@@ -152,6 +152,11 @@ struct dispatcher {/*{{{*/
         rows_chunk_small = bal->trows / bal->h->nh;
         cols_chunk_small = bal->tcols / bal->h->nv;
 
+        /* these are set in other member functions. The values here are
+         * just silly placeholders
+         */
+        pass_number = -1;
+        row0 = row1 = UINT_MAX;
     }/*}}}*/
     ~dispatcher() {/*{{{*/
         MPI_Comm_free(&reader_comm);
@@ -289,7 +294,7 @@ void dispatcher::progress(bool wait)/*{{{*/
     /* If we're supposed to deal with progress by ourselves, then it's
      * handled in the caller */
     ASSERT_ALWAYS(!wait);
-#endif
+#else
     if (wait) {
         MPI_Waitall(n_in, outstanding.data(), MPI_STATUSES_IGNORE);
         outstanding.clear();
@@ -297,6 +302,7 @@ void dispatcher::progress(bool wait)/*{{{*/
         avail_queues.clear();
         return;
     }
+#endif
     indices.assign(n_in, 0);
     // statuses.assign(n_in, 0);
     int err = MPI_Testsome(n_in, outstanding.data(),
@@ -343,7 +349,6 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         rwfile = tmp;
         free(tmp);
     }
-    bool can_read_rw = access(rwfile.c_str(), R_OK) == 0;
 
     bytes_per_reader.assign(nreaders, 0);
 
@@ -353,7 +358,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
     subdivision readers_rows(bal->h->nrows, nreaders);
     unsigned int row0 = readers_rows.nth_block_start(ridx);
     unsigned int row1 = readers_rows.nth_block_end(ridx);
-    ASSERT_ALWAYS(!is_reader() || can_read_rw);
+    ASSERT_ALWAYS(!is_reader());
     FILE * frw = fopen(rwfile.c_str(), "rb");
     ASSERT_ALWAYS(frw);
     fseek(frw, row0 * sizeof(uint32_t), SEEK_SET);
@@ -382,7 +387,6 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         rc = stat(mfile.c_str(), sbuf);
         ASSERT_ALWAYS(rc == 0);
         size_t matsize = sbuf->st_size;
-        ASSERT_ALWAYS(can_read_rw);
         FILE * frw = fopen(rwfile.c_str(), "rb");
         ASSERT_ALWAYS(frw);
         rc = fseek(frw, 0, SEEK_END);
@@ -483,6 +487,7 @@ void dispatcher::reader_thread()/*{{{*/
         // Readers read full lines from the matrix.
         uint32_t w;
         rc = fread(&w, sizeof(uint32_t), 1, f);
+        ASSERT_ALWAYS(w <= (1 + withcoeffs) * fw_colperm.size());
         if (rc != 1) {
             fprintf(stderr, "%s: short read\n", mfile.c_str());
             exit(EXIT_FAILURE);
@@ -615,41 +620,61 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
         uint32_t * xc = xbal->colperm;
         uint32_t * xr = xbal->rowperm;
         ASSERT_ALWAYS(xbal->tcols == xbal->trows);
-        /* currently we seem to be supporting this only in case the
-         * column permutation is authoritative. */
-        if (!xc) {
-            fprintf(stderr, "The current code expects a column permutation replicated on rows, not the converse. There is little adaptation work, but yet to be done. Maybe you could pass \"--reorder columns\" to mf_bal ?\n");
-            abort();
-        }
-        ASSERT_ALWAYS(xc);
-        ASSERT_ALWAYS(!xr);
-        if (!xc) xc = xr;
-        if (!xr) xr = xc;
-        for (uint32_t i = 0; i < xbal->tcols; i++) {
-            ASSERT_ALWAYS(xc[i] < xbal->tcols);
-            uint32_t q = balancing_pre_unshuffle(bal, xc[i]);
-            ASSERT_ALWAYS(fw_colperm[q] == UINT32_MAX);
-            fw_colperm[q] = i;
-        }
-        /* In this case we arrange so that the replicated permutation is so
-         * that eventually, we are still computing iterates of a matrix
-         * which is conjugate to the one we're interested in */
+        /* since we check that we don't simultaenously have FLAG_COLPERM,
+         * FLAG_ROWPERM, and FLAG_REPLICATE, then we should not have (xc
+         * && xr) here
+         */
+        ASSERT_ALWAYS(!(xc && xr));
+        ASSERT_ALWAYS(xbal->trows == xbal->tcols);
 
-        uint32_t nh = xbal->h->nh;
-        uint32_t nv = xbal->h->nv;
-        ASSERT_ALWAYS(xbal->trows % (nh * nv) == 0);
-        uint32_t elem = xbal->trows / (nh * nv);
-        uint32_t ix = 0;
-        uint32_t iy = 0;
-        for(uint32_t i = 0 ; i < nh ; i++) {
-            for(uint32_t j = 0 ; j < nv ; j++) {
-                ix = (i * nv + j) * elem;
-                iy = (j * nh + i) * elem;
-                for(uint32_t k = 0 ; k < elem ; k++) {
-                    ASSERT(fw_rowperm[xr[iy+k]] == UINT32_MAX);
-                    fw_rowperm[xr[iy+k]] = ix+k;
+        if (xc && !xr) {
+            /* This block is written with the case xc && !xr in mind.
+             * We want to populate fw_rowperm and fw_colperm suitably.
+             *
+             * While it would be ok to replace "xr = xc" below by "xc =
+             * xr" in order to address the case xr && !xc, it would not
+             * have the intended effect, since behind the scenes the
+             * permutation that is induced by nv and nh would have the
+             * effect that the rows would actually _not_ be permuted as
+             * we expect.
+             *
+             * TODO: I think that some text describing how this all works
+             * should appear here, or maybe it appears elsewhere and we
+             * need a pointer. (there is some stuff in balancing.h)
+             */
+            xr = xc;
+            for (uint32_t i = 0; i < xbal->tcols; i++) {
+                ASSERT_ALWAYS(xc[i] < xbal->tcols);
+                uint32_t q = balancing_pre_unshuffle(bal, xc[i]);
+                ASSERT_ALWAYS(fw_colperm[q] == UINT32_MAX);
+                fw_colperm[q] = i;
+            }
+            /* In this case we arrange so that the replicated permutation is so
+             * that eventually, we are still computing iterates of a matrix
+             * which is conjugate to the one we're interested in */
+
+            uint32_t nh = xbal->h->nh;
+            uint32_t nv = xbal->h->nv;
+            ASSERT_ALWAYS(xbal->trows % (nh * nv) == 0);
+            uint32_t elem = xbal->trows / (nh * nv);
+            uint32_t ix = 0;
+            uint32_t iy = 0;
+            for(uint32_t i = 0 ; i < nh ; i++) {
+                for(uint32_t j = 0 ; j < nv ; j++) {
+                    ix = (i * nv + j) * elem;
+                    iy = (j * nh + i) * elem;
+                    for(uint32_t k = 0 ; k < elem ; k++) {
+                        ASSERT_ALWAYS(iy + k < xbal->trows);
+                        uint32_t r = xr[iy+k];
+                        ASSERT_ALWAYS(r < xbal->trows);
+                        ASSERT_ALWAYS(fw_rowperm[r] == UINT32_MAX);
+                        fw_rowperm[r] = ix+k;
+                    }
                 }
             }
+        } else {
+            fprintf(stderr, "The current code expects a column permutation replicated on rows, not the converse. There is little adaptation work, but yet to be done. Maybe you could pass \"--reorder columns\" to mf_bal ?\n");
+            abort();
         }
     } else {
         /* In this case, because the row and column permutations depend

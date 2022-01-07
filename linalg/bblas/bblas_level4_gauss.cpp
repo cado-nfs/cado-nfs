@@ -21,7 +21,7 @@ int gauss_6464_imm(mat64 & mm, mat64 & e, mat64 const & m)
     mm = m;
     uint64_t mask=1;
     uint64_t taken=0;
-    uint64_t cancelled_cols=0;
+    // uint64_t cancelled_cols=0;
     int r = 0;
     for(int j = 0 ; j < 64 ; j++, mask<<=1) e[j]=mask;
     mask=1;
@@ -33,7 +33,7 @@ int gauss_6464_imm(mat64 & mm, mat64 & e, mat64 const & m)
         if (!z) continue;
         taken|=z;
         r++;
-        cancelled_cols|=mask;
+        // cancelled_cols|=mask;
         uint64_t er = e[k];
         for(k++ ; k < 64 ; k++) {
             uint64_t w = -((mm[k]&mask)!=0);

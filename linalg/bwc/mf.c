@@ -18,6 +18,7 @@
 static inline void expand(struct mf_io_file * m, uint64_t nn)
 {
     m->p = realloc(m->p, nn * sizeof(uint32_t));
+    ASSERT_ALWAYS(m->p);
     if (nn > m->alloc)
         memset(m->p + m->alloc, 0, (nn - m->alloc) * sizeof(uint32_t));
     m->alloc = nn;
@@ -59,14 +60,14 @@ int matrix_autodetect_input(struct mf_io_file * m_in, const char * mfile)
         ASSERT_ALWAYS(m_in->f);
         struct stat sbuf[1];
         int rc = fstat(fileno(m_in->f), sbuf);
-        DIE_ERRNO_DIAG(rc < 0, "fstat", mfile);
+        DIE_ERRNO_DIAG(rc < 0, "fstat(%s)", mfile);
         if (!S_ISREG(sbuf->st_mode)) {
             // guard against tricks like /dev/fd/ to unseekable fd's.
             return -1;
         }
         char test[1024];
         int n = fread(test, 1, 1024, m_in->f);
-        DIE_ERRNO_DIAG(n < 1024 && !feof(m_in->f), "fread", mfile);
+        DIE_ERRNO_DIAG(n < 1024 && !feof(m_in->f), "fread(%s)", mfile);
         int k;
         for(k = 0 ; k < n && (isdigit((int)(unsigned char)test[k]) || isspace((int)(unsigned char)test[k])) ; k++);
         if (k < n) {
@@ -76,7 +77,7 @@ int matrix_autodetect_input(struct mf_io_file * m_in, const char * mfile)
             m_in->ascii = 1;
         }
         rc = fseek(m_in->f, 0L, SEEK_SET);
-        DIE_ERRNO_DIAG(rc < 0, "rewind", mfile);
+        DIE_ERRNO_DIAG(rc < 0, "rewind(%s)", mfile);
         fprintf(stderr, "auto-detected %s as %s based on contents\n",
                 mfile, m_in->ascii ? "ascii" : "binary");
     }
@@ -128,6 +129,10 @@ void matrix_read_pass(
         rc = fscanf(m_in->f, "%u %u", &exp_nr, &exp_nc);
         if (rc == EOF) abort_unexpected_eof();
         if (cw_out && cw_out->p == NULL)  {
+            ASSERT_ALWAYS(exp_nc >= cskip);
+#ifdef __COVERITY__
+            __coverity_mark_pointee_as_sanitized(&exp_nc, ALLOCATION);
+#endif
             expand(cw_out, exp_nc - cskip);
             drop_cw_p=1;
         }
@@ -137,7 +142,8 @@ void matrix_read_pass(
         // data, we can't compute cw precisely. Therefore, and I admit
         // it's quite odd, we have a behaviour which diverges depending
         // on whether we're ascii or not.
-        cw_out->size = exp_nc;
+        if (cw_out)
+            cw_out->size = exp_nc;
     } else {
         if (cw_out && cw_out->p == NULL)  {
             expand(cw_out, 1000 * 1000);

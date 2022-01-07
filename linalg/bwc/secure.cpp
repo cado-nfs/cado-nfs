@@ -386,6 +386,10 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         }
     }
 
+    if (!legacy_check_mode && pi->m->jrank == 0 && pi->m->trank == 0) {
+        fclose(Rfile);
+    }
+
     cheating_vec_clear(A, &Tdata, bw->m);
 
     gmp_randclear(rstate);
@@ -400,7 +404,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     return NULL;
 }
 
-
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     param_list pl;

@@ -50,6 +50,7 @@ This README covers:
  - Caution regarding installation
  - Hooking `gf2x` into ntl
  - Using the library
+ - Contacting developers
 
 
 Package contents:
@@ -281,6 +282,18 @@ routines for small sizes, you may use
 [`gf2x/gf2x-small.h`](gf2x/gf2x-small.h).
 
 By default, `gf2x` creates both static and dynamic libraries.
+
+Contacting developers
+=====================
+
+The `gf2x` discussion mailing list can be reached at `gf2x@inria.fr` ;
+the list info page is [here](https://sympa.inria.fr/sympa/info/gf2x)
+
+Note that traffic on that mailing list is very small.
+
+It is also possible to post issues to the gitlab site, but please [read
+this
+first](https://sympa.inria.fr/sympa/arc/cado-nfs/2020-10/msg00006.html).
 
 (Very) Old versions
 ===================

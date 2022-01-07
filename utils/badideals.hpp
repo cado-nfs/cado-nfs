@@ -30,8 +30,7 @@ struct badideal {/*{{{*/
     };
     std::vector<branch> branches;
 
-    badideal() = default;
-    badideal(cxx_mpz const& p, cxx_mpz const& r) : p(p), r(r) {}
+    badideal(cxx_mpz const& p, cxx_mpz const& r, int nbad) : p(p), r(r), nbad(nbad) {}
     badideal(std::istream &);
 
     std::ostream& operator<<(std::ostream& o) const;

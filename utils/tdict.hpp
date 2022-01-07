@@ -88,18 +88,18 @@ namespace tdict {
      */
     class key {
         int magic;
+        friend class slot_base;
         public:
-        key(){}
         int dict_key() const { return magic >> 16; }
         int parameter() const { return magic & 65535; }
-        key encode(int arg) const { key res; res.magic = magic + arg; return res;}
+        key encode(int arg) const { key res(0); res.magic = magic + arg; return res;}
         key(int a) { magic = a << 16; }
         friend bool operator<(key const& o1, key const& o2);
     };
     inline bool operator<(key const& o1, key const& o2) { return o1.magic < o2.magic; }
     class slot_base {
 
-        slot_base(slot_base const&) {} /* prevent copy */
+        slot_base(slot_base const&) = delete;
         public:
         typedef std::map<key, const tdict::slot_base*> dict_t;
         protected:
@@ -144,7 +144,7 @@ namespace tdict {
         // helgrind complains, here. I think that helgrind is wrong.
         // key base_key() const { lock(); key ret = k; unlock(); return ret; }
         key const & base_key() const { return k; }
-        slot_base() {
+        slot_base() : k(0) {
             lock();
             dict_t& dict(get_dict(1));
             k = key(dict.size());

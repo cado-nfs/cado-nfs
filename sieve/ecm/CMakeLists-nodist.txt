@@ -1,6 +1,6 @@
 
 add_executable(issmooth issmooth.c)
-target_link_libraries(issmooth ${gmp_libname})
+target_link_libraries(issmooth utils)
 
 # vim: set ft=cmake:
 

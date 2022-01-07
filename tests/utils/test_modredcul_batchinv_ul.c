@@ -6,6 +6,7 @@
 #include "tests_common.h"
 #include "gcd.h"
 #include "modredc_ul.h"
+#include "misc.h"
 
 static int verbose = 0;
 
@@ -61,7 +62,7 @@ choose_odd_modulus_ul(const unsigned long i)
      case 1: return 5;
      case 2: return ULONG_MAX; 
      case 3: return ULONG_MAX - 2; 
-     default: return random_uint64() | 1;
+     default: return u64_random(state) | 1;
    }
 }
 
@@ -76,7 +77,7 @@ choose_constant(const unsigned long i, const unsigned long total)
   } else if (i < total / 2) {
     return ULONG_MAX - (i - 5);
   } else {
-    return random_uint64();
+    return u64_random(state);
   }
 }
 
@@ -91,7 +92,7 @@ test_modredc_batchinv_ul (const size_t len, const unsigned long c,
   r = (unsigned long *) malloc(len * sizeof(unsigned long));
   
   for (size_t i = 0; i < len; i++) {
-    a[i] = random_uint64() % modredcul_getmod_ul(m);
+    a[i] = u64_random(state) % modredcul_getmod_ul(m);
     if (a[i] == 0)
       a[i] = 1;
   }
@@ -230,7 +231,7 @@ test_modredcul_batch_Q_to_Fp(const unsigned long num, const unsigned long den,
   for (size_t i = 0; i < n; i++) {
     unsigned long m;
     do {
-      m = random_uint64();
+      m = u64_random(state);
     } while (m == 0 || (k > 0 && m % 2 == 0) || gcd_ul(m, den) > 1);
     p[i] = m;
   }

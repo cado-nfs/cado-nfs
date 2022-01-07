@@ -25,6 +25,10 @@ int main(int argc, char **argv) {
   if (argc > 2)
     maxp = strtoul (argv[2], NULL, 10);
 
+#ifdef __COVERITY__
+  __coverity_mark_pointee_as_sanitized(&maxp, LOOP_BOUND);
+#endif
+
   printf ("/* minp = %lu, maxp = %lu */\n", minp, maxp);
 
   for (p = minp; p <= maxp; p += 2UL) {
@@ -32,7 +36,7 @@ int main(int argc, char **argv) {
     residue_t o, b, pow;
     unsigned long k;
 
-    if (p > 3 && p % 3 == 0)
+    if (p <= 1 || (p > 3 && p % 3 == 0))
       continue;
     
     mod_initmod_ul (pp, p);

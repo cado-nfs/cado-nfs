@@ -316,6 +316,7 @@ fopen_maybe_compressed2 (const char * name, const char * mode, int* p_pipeflag, 
     const struct suffix_handler * r = supported_compression_formats;
     FILE * f;
 
+    // coverity[fs_check_call]
     if (strchr(mode, 'r') && access(name, R_OK) != 0)
         return NULL;
 
@@ -430,6 +431,7 @@ fclose_maybe_compressed2 (FILE * f, const char * name, void * rr MAYBE_UNUSED)
 
         /* do the rename only if the child completed successfully */
 
+        // coverity[fs_check_call]
         if (stat(tempname, sbuf) == 0) {
             ret = rename(tempname, name);
             if (ret != 0) return EOF;
@@ -464,6 +466,10 @@ void streambase_maybe_compressed::open(const char * name, std::ios_base::openmod
     orig_name = name;
     const struct suffix_handler * r = supported_compression_formats;
     if (mode & std::ios_base::out && r->pfmt_out) {
+        // fmtlib's fmt::format oddly mentions that it can throw a format
+        // error, while its constexpr nature should be able to mark it as
+        // impossible.
+        // coverity[exception_thrown]
         tempname = fmt::format(FMT_STRING("{}.tmp.{}"), name, getpid());
         name = tempname.c_str();
     }
@@ -508,10 +514,15 @@ void streambase_maybe_compressed::close()
     if (pipe) pbuf->close();
     else fbuf->close();
     if (!tempname.empty()) {
-        rename(tempname.c_str(), orig_name.c_str());
+        int rc = rename(tempname.c_str(), orig_name.c_str());
+        ASSERT_ALWAYS(rc == 0);
+        tempname.clear();
     }
 }
 
+// we're in a dtor, exceptions can turn your computer into a coconut.
+// yet we have an ASSERT_ALWAYS in close()
+// coverity[exn_spec_violation]
 streambase_maybe_compressed::~streambase_maybe_compressed()
 {
     sync();

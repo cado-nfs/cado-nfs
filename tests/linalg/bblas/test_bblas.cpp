@@ -53,6 +53,7 @@ declare_usage(cxx_param_list& pl) /*{{{*/
     param_list_decl_usage(pl, "tests", "list of tests to perform\n");
 } /*}}}*/
 
+// coverity[root_function]
 int
 main(int argc, char* argv[])
 {
@@ -86,7 +87,7 @@ main(int argc, char* argv[])
         tests.emplace_back("all");
 
     if (!seed)
-        seed = rand();
+        seed = time(NULL);
 
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);

@@ -8,13 +8,30 @@ ASSERT_ALWAYS(x)
         The condition x is always checked, whatever you define. In case
         of failure, it aborts, and gives the line, function, and so on
         information.
-FATAL_ERROR_CHECK(x, msg)
-        The condition x is always check. The program aborts if it does
-        not hold. It's a more gentle version of ASSERT_ALWAYS
-DIE_ERRNO_DIAG(tst, func, arg)
+        Note: C++ code throws std::runtime_error on error.
+FATAL_ERROR_CHECK(x, fmt, msg)
+        The condition x is always checked. The program aborts if it does
+        not hold. It's similar to ASSERT_ALWAYS, but gives you control
+        over the message msg.
+DIE_ERRNO_DIAG(tst, fmt, ...)
         This is yet another version, specific to system calls: tst is a
-        boolean that indicates if the call failed. func and arg are
-        strings giving the function call name and its arguments.
+        boolean that indicates if the call failed. fmt (which must be an
+        immediate string) and the variadic arguments are used to form the
+        error message, which is suffixed with strerror(errno)
+WARN_ERRNO_DIAG(tst, fmt, ...)
+        This is yet another version, specific to system calls: tst is a
+        boolean that indicates if the call failed. fmt (which must be an
+        immediate string) and the arguments are used to form the error
+        message, which is suffixed with strerror(errno)
+ASSERT_ALWAYS_OR_THROW(x, e)
+        (C++ only) like ASSERT_ALWAYS, but throw exception e on failure.
+ASSERT_ALWAYS_NOTHROW(x)
+        (C++ only) like ASSERT_ALWAYS. Never throw, just exit.
+ASSERT_FOR_STATIC_ANALYZER(x)
+        This expands to a no-op normally, but the coverity compilation
+        uses the contained expression as a guarantee (such as a bound) on
+        a variable.
+
 
 Usage of asserts:
         Put ASSERTs to checks things during a non-production mode. These

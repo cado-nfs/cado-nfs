@@ -79,14 +79,17 @@ badideal::badideal(std::istream& is)
 {
     for(std::string s; std::ws(is).peek() == '#' ; getline(is, s) ) ;
     size_t nbranches;
+    // coverity[tainted_argument]
     is >> p >> r >> nbad >> nbranches;
     if (!is) return;
     for(unsigned int j = 0 ; j < nbranches ; j++) {
         badideal::branch br;
         is >> p >> br.k >> br.r;
+        ASSERT_ALWAYS_OR_THROW(is, std::invalid_argument);
         br.v.assign(nbad, 0);
         for(unsigned int k = 0 ; k < br.v.size() ; k++) {
             is >> br.v[k];
+            ASSERT_ALWAYS_OR_THROW(is, std::invalid_argument);
         }
         branches.emplace_back(std::move(br));
     }
@@ -306,14 +309,14 @@ vector<badideal::branch> lift_root(all_valuations_above_p const& A, int k0, cxx_
     return res;
 }/*}}}*/
 
-vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p)/*{{{*/
+vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p, gmp_randstate_ptr rstate)/*{{{*/
 {
     /* p must be prime */
     vector<cxx_mpz> roots;
     mpz_t * rr = new mpz_t[f->deg];
     for(int i = 0 ; i < f->deg ; i++) mpz_init(rr[i]);
 
-    int d = mpz_poly_roots(rr, f, p);
+    int d = mpz_poly_roots(rr, f, p, rstate);
     for(int i = 0 ; i < d ; i++) {
         cxx_mpz a;
         mpz_set(a, rr[i]);
@@ -333,7 +336,7 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
 
     all_valuations_above_p A(f, p, state);
 
-    vector<cxx_mpz> roots = projective_roots_modp(f, p);
+    vector<cxx_mpz> roots = projective_roots_modp(f, p, state);
 
     for(unsigned int i = 0 ; i < roots.size() ; i++) {
         /* first try to decompose <p,(v*alpha-u)>*J */
@@ -346,8 +349,7 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
         if (nonzero.size() == 1)
             continue;
 
-        badideal b(p,roots[i]);
-        b.nbad = nonzero.size();
+        badideal b(p,roots[i], nonzero.size());
 
         vector<badideal::branch> lifts = lift_root(A, 1, roots[i], vals);
 

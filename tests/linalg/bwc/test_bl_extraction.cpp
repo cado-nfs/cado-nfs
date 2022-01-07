@@ -131,6 +131,7 @@ struct extraction_check_data data[] = {
     },
 };
 
+// coverity[root_function]
 int main()
 {
     int fail = 0;

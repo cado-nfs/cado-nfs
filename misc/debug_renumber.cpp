@@ -34,6 +34,7 @@ usage (cxx_param_list & pl, char *argv0)
     exit(EXIT_FAILURE);
 }
 
+// coverity[root_function]
 int
 main (int argc, char *argv[])
 {
@@ -204,7 +205,7 @@ main (int argc, char *argv[])
         gmp_randstate_t rstate;
         gmp_randinit_default(rstate);
         double tt;
-        volatile unsigned long sum_h =0;
+        volatile unsigned long sum_h MAYBE_UNUSED = 0;
         int nlookups = 1000 * 1000;
 
         std::vector<renumber_t::p_r_side> sample;

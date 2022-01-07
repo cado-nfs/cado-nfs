@@ -97,9 +97,6 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
 
 #endif
 
-    if (rows == NULL)
-      goto update_index_data;
-
     len = 1 + rowLength(rows, i1) + rowLength(rows, i2);
     tmp = (typerow_t *) malloc (len * sizeof(typerow_t));
 
@@ -161,7 +158,6 @@ addRowsUpdateIndex(typerow_t **rows, index_data_t index_data,
         rows[i2][l].e /= e1;
 #endif
 
- update_index_data:
     // Now, deal with the index_data.
     if (index_data != NULL) {
         k = k1 = k2 = 0;   // in index_data_t, we count from 0...
@@ -294,7 +290,6 @@ reallocRow (typerow_t *row, uint32_t n)
   row = (typerow_t*) realloc (row, n * SIZEOF_INDEX);
 #endif
   FATAL_ERROR_CHECK(row == NULL, "Cannot allocate memory");
-  if (n * SIZEOF_INDEX == 50) printf ("row=%lx\n", (unsigned long) row);
   return row;
 }
 

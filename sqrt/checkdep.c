@@ -23,14 +23,13 @@ checkSparse (FILE *matfile, FILE *kerfile, int ncols, int nlimbs, int *vec,
     long a;
     unsigned long w, b;
     int i, j, ret = 0, nc, cc, jj;
-    char c;
 
     memset(vec, 0, ncols * sizeof(int));
-    // get next dependance relation
+    // get next dependence relation
     rewind(matfile);
     ret = fscanf(matfile, "%d %d", &i, &j);
     ASSERT_ALWAYS(ret == 2);
-    while((c = getc(matfile)) != '\n');
+    for(int c ; c = getc(matfile), c != EOF && c != 'n' ; );
     for(i = 0; i < nlimbs; ++i){
 	ret = fscanf(kerfile, "%lx", &w);
 	if(ret == -1)
@@ -62,17 +61,13 @@ checkSparse (FILE *matfile, FILE *kerfile, int ncols, int nlimbs, int *vec,
 		}
 		if(verbose >= 2)
 		    printVec(vec, ncols);
-		while((c = getc(matfile)) != '\n')
-		    if(feof(matfile))
-			break;
-	    }
-	    else{
-		while((c = getc(matfile)) != '\n')
-		    if(feof(matfile))
-			break;
-	    }
-	    w >>= 1;
-	}
+                for(int c ; c = getc(matfile), c != EOF && c != 'n' ; );
+            }
+            else{
+                for(int c ; c = getc(matfile), c != EOF && c != 'n' ; );
+            }
+            w >>= 1;
+        }
     }
     return ret;
 }
@@ -185,6 +180,8 @@ checkWithIndex (FILE *purgedfile, FILE *indexfile, FILE *kerfile, int verbose,
 		vec[k]++;
 	}
     }
+    free(small_row_used);
+    free(rel_used);
     return 1;
 }
 

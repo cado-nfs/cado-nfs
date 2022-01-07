@@ -298,7 +298,7 @@ struct lingen_substep_characteristics {
         if (th - tl <= 0.1 * tl) return;
         unsigned int k = (kl + kh) / 2;
         double tk = F(k);
-        os << fmt::format(" {}:{:.2g}", k, tk);
+        os << fmt::format(FMT_STRING(" {}:{:.2g}"), k, tk);
         os.flush();
         tvec[k] = tk;
         double linfit_tk = tl + (th-tl)*(k-kl)/(kh-kl);
@@ -309,13 +309,12 @@ struct lingen_substep_characteristics {
 
     public:
     template<typename T>
-    std::vector<double> fill_tvec(std::ostream& os, T F) const {/*{{{*/
+    std::vector<double> fill_tvec(std::ostream& os, T const & F) const {/*{{{*/
         /* can't make my mind as to whether I should just output that to
          * the terminal, or stow it in a string first...
          */
 
-        /* does that count as non-odr-use ? */
-        constexpr const char * Fname = F.name;
+        constexpr const char * Fname = T::name;
 
         unsigned int TMAX = max_threads();
 
@@ -336,13 +335,13 @@ struct lingen_substep_characteristics {
 
         if (F.max_parallel() < TMAX) {
             TMAX = F.max_parallel();
-            os << fmt::format(" [capped to {}]", TMAX);
+            os << fmt::format(FMT_STRING(" [capped to {}]"), TMAX);
         }
 
         unsigned int kl = 1;
         double tl = F(kl);
         tvec[kl] = tl;
-        os << fmt::format(" {}:{:.2g}", kl, tl);
+        os << fmt::format(FMT_STRING(" {}:{:.2g}"), kl, tl);
         os.flush();
 
 
@@ -350,7 +349,7 @@ struct lingen_substep_characteristics {
         if (kh > 1) {
             double th = F(kh);
             tvec[kh] = th;
-            os << fmt::format(" {}:{:.2g}", kh, th);
+            os << fmt::format(FMT_STRING(" {}:{:.2g}"), kh, th);
             os.flush();
         }
 
@@ -362,7 +361,7 @@ struct lingen_substep_characteristics {
 
     private:
     template<typename T>
-    parallelizable_timing get_ft_time_from_cache_or_recompute(std::ostream& os, T F, tc_t::mul_or_mp_value::value_type & store) const
+    parallelizable_timing get_ft_time_from_cache_or_recompute(std::ostream& os, T const & F, tc_t::mul_or_mp_value::value_type & store) const
     {
         if (!store.empty()) {
             /* what do we have in cache, to start with ? We need to know how
@@ -384,7 +383,7 @@ struct lingen_substep_characteristics {
                 }
                 return parallelizable_timing(tvec);
             }
-            os << fmt::format("# ignoring cached entry, computed for up to {} threads (here {} max)\n", th_cache, F.max_parallel());
+            os << fmt::format(FMT_STRING("# ignoring cached entry, computed for up to {} threads (here {} max)\n"), th_cache, F.max_parallel());
             store.clear();
         }
 
@@ -581,6 +580,8 @@ struct lingen_substep_characteristics {
             tc_t & C,
             bool do_timings) const
     { /* {{{ */
+        ASSERT_FOR_STATIC_ANALYZER(mesh != 0);
+
         /* XXX Any change here must also be reflected in the mp_or_mul
          * structure in lingen_matpoly_bigmatpoly_ft_common.hpp
          */
@@ -746,7 +747,7 @@ struct lingen_substep_characteristics {
 
     public:
 
-    lingen_call_companion::mul_or_mp_times get_companion(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const { /* {{{ */
+    lingen_call_companion::mul_or_mp_times get_companion(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, size_t reserved_ram, bool do_timings) const { /* {{{ */
         lingen_call_companion::mul_or_mp_times D { op_type };
         D.S = S;
         auto A = get_call_time_backend(os, P, mesh, S, C, do_timings); 
@@ -763,6 +764,7 @@ struct lingen_substep_characteristics {
         D.asize = asize;
         D.bsize = bsize;
         D.csize = csize;
+        D.reserved_ram = reserved_ram;
         return D;
     }/*}}}*/
     double get_call_time(std::ostream& os, pc_t const & P, unsigned int mesh, sc_t const & S, tc_t & C, bool do_timings) const {/*{{{*/
@@ -877,7 +879,7 @@ struct microbench_dft { /*{{{*/
     ch_t const & U;
     static constexpr const char * name = "dft";
     microbench_dft(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
-    unsigned int max_parallel() {
+    unsigned int max_parallel() const {
         size_t R = 0;
         /* storage for one input coeff and one output transform */
         constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
@@ -885,13 +887,18 @@ struct microbench_dft { /*{{{*/
         R += op.get_alloc_sizes()[0];
         /* plus the temp memory for the dft operation */
         R += op.get_alloc_sizes()[1];
-        size_t n = P.available_ram / R;
-        /* TODO: we probably want to ask P about max_threads. */
-        n = std::min(n, (size_t) U.max_threads());
-        if (n == 0) throw std::runtime_error("not enough RAM");
+        size_t n;
+        if (P.available_ram) {
+            n = P.available_ram / R;
+            /* TODO: we probably want to ask P about max_threads. */
+            n = std::min(n, (size_t) U.max_threads());
+            if (n == 0) throw std::runtime_error("not enough RAM");
+        } else {
+            n = U.max_threads();
+        }
         return n;
     }
-    double operator()(unsigned int nparallel)
+    double operator()(unsigned int nparallel) const
     {
         matpoly a(U.ab, nparallel, 1, U.asize);
         a.zero_pad(U.asize);
@@ -913,7 +920,7 @@ struct microbench_ift { /*{{{*/
     ch_t const & U;
     static constexpr const char * name = "ift";
     microbench_ift(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
-    unsigned int max_parallel() {
+    unsigned int max_parallel() const {
         size_t R = 0;
         /* storage for one input transform and one output coeff */
         constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
@@ -921,13 +928,18 @@ struct microbench_ift { /*{{{*/
         R += op.get_alloc_sizes()[0];
         /* plus the temp memory for the ift operation */
         R += op.get_alloc_sizes()[1];
-        size_t n = P.available_ram / R;
-        /* TODO: we probably want to ask P about max_threads. */
-        n = std::min(n, (size_t) U.max_threads());
-        if (n == 0) throw std::runtime_error("not enough RAM");
+        size_t n;
+        if (P.available_ram) {
+            n = P.available_ram / R;
+            /* TODO: we probably want to ask P about max_threads. */
+            n = std::min(n, (size_t) U.max_threads());
+            if (n == 0) throw std::runtime_error("not enough RAM");
+        } else {
+            n = U.max_threads();
+        }
         return n;
     }
-    double operator()(unsigned int nparallel) {
+    double operator()(unsigned int nparallel) const {
         matpoly c(U.ab, nparallel, 1, U.csize);
         matpoly_ft<typename OP::FFT> tc(c.m, c.n, op.fti);
         /* This is important, since otherwise the inverse transform won't
@@ -950,7 +962,7 @@ struct microbench_conv { /*{{{*/
     ch_t const & U;
     static constexpr const char * name = "conv";
     microbench_conv(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
-    unsigned int max_parallel() {
+    unsigned int max_parallel() const {
         /* for k = nparallel, we need 2k+1 transforms in ram */
         size_t R = 0;
         /* storage for two input transform */
@@ -959,13 +971,19 @@ struct microbench_conv { /*{{{*/
         R += op.get_alloc_sizes()[1];
         R += op.get_alloc_sizes()[2];
         /* take into account the +1 transform */
-        size_t n = (P.available_ram - op.get_alloc_sizes()[0]) / R;
-        /* TODO: we probably want to ask P about max_threads. */
-        n = std::min(n, (size_t) U.max_threads());
-        if (n == 0) throw std::runtime_error("not enough RAM");
+        size_t n;
+        if (P.available_ram) {
+            n = (P.available_ram - op.get_alloc_sizes()[0]) / R;
+            /* TODO: we probably want to ask P about max_threads. */
+            n = std::min(n, (size_t) U.max_threads());
+            if (n == 0 || P.available_ram < op.get_alloc_sizes()[0])
+                throw std::runtime_error("not enough RAM");
+        } else {
+            n = U.max_threads();
+        }
         return n;
     }
-    double operator()(unsigned int nparallel) {
+    double operator()(unsigned int nparallel) const {
         matpoly_ft<typename OP::FFT> tc( nparallel, 1, op.fti);
         matpoly_ft<typename OP::FFT> tc0(nparallel, 1, op.fti);
         matpoly_ft<typename OP::FFT> tc1(1, 1, op.fti);
@@ -987,8 +1005,8 @@ struct microbench_dft<META_OP<void>> { /*{{{*/
     ch_t const & U;
     static constexpr const char * name = NULL;
     microbench_dft(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
-    unsigned int max_parallel() { return U.max_threads(); }
-    double operator()(unsigned int) { return 0; }
+    unsigned int max_parallel() const { return U.max_threads(); }
+    double operator()(unsigned int) const { return 0; }
 };/*}}}*/
 template<template<typename> class META_OP>
 struct microbench_ift<META_OP<void>> { /*{{{*/
@@ -1001,8 +1019,8 @@ struct microbench_ift<META_OP<void>> { /*{{{*/
     ch_t const & U;
     static constexpr const char * name = NULL;
     microbench_ift(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
-    unsigned int max_parallel() { return U.max_threads(); }
-    double operator()(unsigned int) { return 0; }
+    unsigned int max_parallel() const { return U.max_threads(); }
+    double operator()(unsigned int) const { return 0; }
 };/*}}}*/
 template<template<typename> class META_OP>
 struct microbench_conv<META_OP<void>> { /*{{{*/
@@ -1015,8 +1033,8 @@ struct microbench_conv<META_OP<void>> { /*{{{*/
     ch_t const & U;
     static constexpr const char * name = "product";
     microbench_conv(OP const & op, pc_t const& P, unsigned int mesh, ch_t const & U) : op(op), P(P), mesh(mesh), U(U) {}
-    unsigned int max_parallel() { return U.max_threads(); }
-    double operator()(unsigned int nparallel) {
+    unsigned int max_parallel() const { return U.max_threads(); }
+    double operator()(unsigned int nparallel) const {
         constexpr const unsigned int splitwidth = matpoly::over_gf2 ? 64 : 1;
         matpoly a(U.ab, nparallel, splitwidth, U.asize);
         matpoly b(U.ab, splitwidth, 1, U.asize);

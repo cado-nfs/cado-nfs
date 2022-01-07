@@ -79,6 +79,13 @@ int main(int argc, const char **argv)
         exit(1);
     }
     int N = atoi(argv[1]);
+
+    if (N <= 0)
+        return EXIT_FAILURE;
+
+#ifdef __COVERITY__
+    __coverity_mark_pointee_as_sanitized__(p, LOOP_BOUND);
+#endif
     
     unsigned long *f, *g, *h1, *h2;
     f = (unsigned long *) malloc(N * sizeof(unsigned long));

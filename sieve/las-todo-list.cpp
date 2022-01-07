@@ -146,6 +146,9 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
         return;
     }
 
+    gmp_randstate_t rstate;
+    gmp_randinit_default(rstate);
+
     if (mpz_cmp_ui(q1, 0) != 0) {
         next_legitimate_specialq(q0, q0, 0, *this);
     } else {
@@ -160,7 +163,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
                 fprintf(stderr, "Error: q0 is not a legitimate special-q\n");
                 exit(EXIT_FAILURE);
             }
-            std::vector<cxx_mpz> roots = mpz_poly_roots(cpoly->pols[sqside], q0, fac_q);
+            std::vector<cxx_mpz> roots = mpz_poly_roots(cpoly->pols[sqside], q0, fac_q, rstate);
             if (std::find(roots.begin(), roots.end(), t) == roots.end()) {
                 fprintf(stderr, "Error: rho is not a root modulo q0\n");
                 exit(EXIT_FAILURE);
@@ -197,7 +200,7 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
             next_legitimate_specialq(q, fac_q, q, 0, *this);
             if (mpz_cmp(q, q1) >= 0)
                 continue;
-            if (!mpz_poly_roots(cpoly->pols[sqside], q, fac_q).empty())
+            if (!mpz_poly_roots(cpoly->pols[sqside], q, fac_q, rstate).empty())
                 break;
             /* small optimization: avoid redoing root finding
              * several times */
@@ -218,6 +221,8 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
             exit(EXIT_FAILURE);
         }
     }
+
+    gmp_randclear(rstate);
 }
 
 /* {{{ Populating the todo list */
@@ -226,7 +231,10 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
 /* These functions return non-zero if the todo list is not empty.
  * Note: contrary to the qlist mode, here the q-range will be pushed at
  * once (but the caller doesn't need to know that).
- * */
+ *
+ * Note: the random state is used by both the random sampler **AND** the
+ * rootfinder.
+ */
 bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
 {
     /* If we still have entries in the stack, don't add more now */
@@ -265,7 +273,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
         for ( ; (nq_max < UINT_MAX || mpz_cmp(q, q1) < 0) &&
                 nq_pushed + my_list.size() < nq_max ; )
         {
-            std::vector<cxx_mpz> roots = mpz_poly_roots(f, q, fac_q);
+            std::vector<cxx_mpz> roots = mpz_poly_roots(f, q, fac_q, rstate);
 
             nb_rootfinding++;
             if (roots.empty()) nb_no_roots++;
@@ -321,7 +329,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             mpz_urandomm(q, rstate, q);
             mpz_add(q, q, q0l);
             next_legitimate_specialq(q, fac_q, q, 0, *this);
-            std::vector<cxx_mpz> roots = mpz_poly_roots(f, q, fac_q);
+            std::vector<cxx_mpz> roots = mpz_poly_roots(f, q, fac_q, rstate);
             if (roots.empty()) {
                 spin++;
                 if (spin >= 1000) {
@@ -401,6 +409,8 @@ bool las_todo_list::feed_qlist()
     int nread1 = 0;
     int nread2 = 0;
 
+    gmp_randstate_t rstate;
+    gmp_randinit_default(rstate);
     mpz_set_ui(r, 0);
     for( ; *x && !isdigit(*x) ; x++) ;
     rc = gmp_sscanf(x, "%Zi%n %Zi%n", (mpz_ptr) p, &nread1, (mpz_ptr) r, &nread2);
@@ -416,10 +426,11 @@ bool las_todo_list::feed_qlist()
             // For rational side, we can compute the root easily.
             ASSERT_ALWAYS(f->deg == 1);
             /* ugly cast, yes */
-            int nroots = mpz_poly_roots ((mpz_t*) &r, f, p);
+            int nroots = mpz_poly_roots ((mpz_t*) &r, f, p, rstate);
             ASSERT_ALWAYS(nroots == 1);
         }
     }
+    gmp_randclear(rstate);
 
     for( ; *x ; x++) ASSERT_ALWAYS(isspace(*x));
     push_unlocked(p, r, side);

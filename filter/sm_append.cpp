@@ -416,6 +416,7 @@ static void usage (const char *argv, const char * missing, param_list pl)
 
 /* -------------------------------------------------------------------------- */
 
+// coverity[root_function]
 int main (int argc, char **argv)
 {
     MPI_Init(&argc, & argv);

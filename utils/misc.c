@@ -39,6 +39,10 @@ uint64_t u64_random(gmp_randstate_t buf) {
 #endif
 }
 
+int64_t i64_random(gmp_randstate_t buf) {
+    return (int64_t) u64_random(buf);
+}
+
 /* Wrapper around sysconf(ARG_MAX) that deals with availability of sysconf()
    and additional constraints on command line length */
 long get_arg_max(void)
@@ -71,9 +75,9 @@ long get_arg_max(void)
     arg_max = MAX_ARG_STRLEN;
 #endif
   /* as discussed on
-     https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2019-October/001100.html
-     one should subtract from arg_max the length of the environment, but even this
-     seems not enough, so we divide arg_max by 2 */
+   * https://sympa.inria.fr/sympa/arc/cado-nfs/2019-10/msg00000.html
+   * one should subtract from arg_max the length of the environment, but
+   * even this seems not enough, so we divide arg_max by 2 */
   return arg_max / 2;
 }
 
@@ -199,6 +203,7 @@ int mkdir_with_parents(const char * dir, int fatal)
             pos = n;
         }
         struct stat sbuf[1];
+        // coverity[fs_check_call]
         int rc = stat(tmp, sbuf);
         if (rc < 0) {
             if (errno != ENOENT) {

@@ -311,6 +311,7 @@ earlyparsed_relation_ptr
 inflight_rels_buffer<locking, n>::schedule(int k)
 {
     int prev = k ? (k-1) : (n-1);
+    // coverity[result_independent_of_operands]
     ASSERT(active[k] <= locking::max_supported_concurrent);
     size_t s;
     size_t a = k ? 0 : SIZE_BUF_REL;
@@ -360,6 +361,7 @@ void
 inflight_rels_buffer<locking, n>::complete(int k,
         earlyparsed_relation_srcptr rel)
 {
+    // coverity[result_independent_of_operands]
     ASSERT(active[k] <= locking::max_supported_concurrent);
     int slot = rel - (earlyparsed_relation_srcptr) rels;
 
@@ -729,19 +731,17 @@ earlyparser_index_maybeabhexa(earlyparsed_relation_ptr rel, ringbuf_ptr r,
 {
     const char *p = r->rhead;
 
-    /* c is always the first-after-parsed-data byte */
-    int c;
     if (parseab) {
-        c = earlyparser_inner_read_ab_hexa(r, &p, rel);
+        earlyparser_inner_read_ab_hexa(r, &p, rel);
     } else {
-        c = earlyparser_inner_skip_ab(r, &p);
+        earlyparser_inner_skip_ab(r, &p);
     }
     
     unsigned int n = 0;
     int is_sorted = 1;
 
     char next_delim = parsesm ? ':' : '\n';
-    c='\0';
+    int c = '\0';
     for( ; ; ) {
         uint64_t pr;
         int sgn = 1;
@@ -1165,7 +1165,7 @@ uint64_t filter_rels2(char ** input_files,
 {
     int multi = 0;
     int n;      /* number of levels of the pipe */
-    int ncons = 0;      /* total number of consumers (levels >=1) */
+    // int ncons = 0;      /* total number of consumers (levels >=1) */
 
     for (unsigned int k = 0; input_files[k]; k++)
     {
@@ -1178,7 +1178,7 @@ uint64_t filter_rels2(char ** input_files,
     }
 
     for(n = 0 ; desc[n].f ; n++) {
-        ncons += desc[n].n;
+        // ncons += desc[n].n;
         multi += desc[n].n > 1;
     }
     n++;        /* match with the "number of levels" counter

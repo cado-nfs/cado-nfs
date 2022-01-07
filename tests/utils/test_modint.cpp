@@ -64,12 +64,17 @@ int main(int argc, const char **argv) {
   
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
 
-    Tests<Integer64> test1;
-    ok &= test1.runTests();
-    
-    Tests<Integer128> test2;
-    ok &= test2.runTests();
-  
+    try {
+        Tests<Integer64> test1;
+        ok &= test1.runTests();
+        
+        Tests<Integer128> test2;
+        ok &= test2.runTests();
+    } catch (std::runtime_error const & e) {
+        std::cerr << e.what();
+        ok = false;
+    }
+      
     tests_common_clear();
     exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }

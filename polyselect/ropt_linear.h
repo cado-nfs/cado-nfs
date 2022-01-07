@@ -4,6 +4,7 @@
 #include "ropt_str.h" // ropt_info_t
 #include "ropt_tree.h"  // MurphyE_pq alpha_pq
 #include "ropt_param.h" // TUNE_LOGNORM_INCR
+#include "gmp_aux.h"           // for gmp_randstate_ptr
 
 /* -- declarations -- */
 
@@ -14,7 +15,7 @@ extern "C" {
 void ropt_linear ( ropt_poly_t poly,
                    ropt_bestpoly_t bestpoly,
                    ropt_param_t param,
-                   ropt_info_t info );
+                   ropt_info_t info);
 
 double
 ropt_tune_stage2_fast ( ropt_poly_t poly,

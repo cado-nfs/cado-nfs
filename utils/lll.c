@@ -101,6 +101,7 @@ IncrementalGS (mat_Z B, long *P, mpz_t *D, mpz_t **lam, long *s, long k)
       InnerProduct (u, B.coeff[k], B.coeff[j], n);
       for (i = 1; i <= posj-1; i++) {
          mpz_mul (t1, D[i], u);
+         // coverity[copy_paste_error]
          mpz_submul (t1, lam[k][i], lam[j][i]);
          mpz_div (t1, t1, D[i-1]);
          mpz_set (u, t1);
@@ -427,6 +428,7 @@ long LLL ( mpz_t det, mat_Z B, mat_Z* U, mpz_srcptr a, mpz_srcptr b )
    ASSERT_ALWAYS(n >= m);
 
    P = (long*) malloc((m+1) * sizeof(long));
+   memset(P, 0, (m+1) * sizeof(long));
 
    D = (mpz_t*) malloc((m+1) * sizeof(mpz_t));
    for (j=0; j<=m; j++)

@@ -19,7 +19,7 @@
    Output polynomials are in "CADO" format.
 
    Please report bugs to the public mailing list
-       cado-nfs-discuss@lists.gforge.inria.fr
+       cado-nfs@inria.fr
 */
 
 
@@ -184,12 +184,14 @@ ropt_parse_param ( int argc,
         else if (argc >= 3 && strcmp (argv[1], "-bmax") == 0)
         {
           param->s2_Amax = atol (argv[2]);
+          ASSERT_ALWAYS(param->s2_Amax > 0);
           argv += 2;
           argc -= 2;
         }
         else if (argc >= 3 && strcmp (argv[1], "-cmax") == 0)
         {
           param->s2_Bmax = atol (argv[2]);
+          ASSERT_ALWAYS(param->s2_Bmax > 0);
           argv += 2;
           argc -= 2;
         }
@@ -512,6 +514,7 @@ main_adv (int argc, char **argv)
 
     FILE *file = NULL;
     char *filename = NULL;
+    // coverity[parm_assign]
     filename = argv[2];
     argv += 2;
     argc -= 2;
@@ -600,8 +603,8 @@ declare_usage_basic (param_list pl)
   param_list_decl_usage(pl, "t", "number of threads to use (default 1)");
   snprintf (str, 200, "sieving area (default %.2e)", AREA);
   param_list_decl_usage(pl, "area", str);
-  snprintf (str, 200, "I-value (alternative to -area)");
-  param_list_decl_usage(pl, "I", str);
+  param_list_decl_usage(pl, "I", "I-value (alternative to -area)");
+  param_list_decl_usage(pl, "A", "A-value (alternative to -area)");
   snprintf (str, 200, "algebraic smoothness bound (default %.2e)", BOUND_F);
   param_list_decl_usage(pl, "Bf", str);
   snprintf (str, 200, "rational smoothness bound (default %.2e)", BOUND_G);
@@ -663,6 +666,7 @@ main_basic (int argc, char **argv)
   param_list_init (pl);
   declare_usage_basic(pl);
   param_list_configure_switch (pl, "-v", &(ropt_param->verbose));
+  param_list_configure_alias(pl, "alpha_bound", "B");
 
   if (argc == 1)
     usage_basic (argv0[0], NULL, pl);
@@ -681,7 +685,7 @@ main_basic (int argc, char **argv)
   if (param_list_parse_double (pl, "Bg", &bound_g) == 0) /* no -Bg */
     bound_g = BOUND_G;
   int a;
-  if (param_list_parse_int (pl, "B", &a)) /* -B option */
+  if (param_list_parse_int (pl, "alpha_bound", &a)) /* -B option */
     set_alpha_bound (a);
   int has_area = param_list_parse_double (pl, "area", &area);
   int has_A_or_I = param_list_parse_int (pl, "A", &A);
@@ -774,10 +778,18 @@ main_basic (int argc, char **argv)
 #pragma omp parallel
 #pragma omp master
   printf ("# Info: Using OpenMP with %u thread(s)\n", omp_get_num_threads ());
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel
 #endif
-  for (unsigned int i = 0; i < nb_input_polys; i++)
-    ropt_wrapper (input_polys[i], i, tott);
+  {
+      gmp_randstate_t rstate;
+      gmp_randinit_default(rstate);
+#ifdef HAVE_OPENMP
+#pragma omp for schedule(dynamic)
+#endif
+      for (unsigned int i = 0; i < nb_input_polys; i++)
+          ropt_wrapper (input_polys[i], i, tott);
+      gmp_randclear(rstate);
+  }
 
   /* print total time and rootsieve time.
      These two lines gets parsed by the script. */

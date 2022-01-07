@@ -349,7 +349,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
 
                             // printf("[%d] reading from %s\n", pi->interleaved ? pi->interleaved->idx : -1, tmp);
                             FILE * f = fopen(f_name.c_str(), "rb");
-                            DIE_ERRNO_DIAG(f == NULL, "fopen", f_name.c_str());
+                            DIE_ERRNO_DIAG(f == NULL, "fopen(%s)", f_name.c_str());
                             rc = fseek(f, one_fcoeff / Af_multiplex * s0, SEEK_SET);
                             if (rc >= 0) {
                                 /* Read everything in one go. We might want to
@@ -553,6 +553,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     return NULL;
 }
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     param_list pl;

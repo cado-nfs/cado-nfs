@@ -869,7 +869,7 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
                            ropt_s2param_t s2param,
                            ropt_param_t param,
                            ropt_info_t info,
-                           MurphyE_pq *global_E_pqueue )
+                           MurphyE_pq *global_E_pqueue)
 {
   int i;
   unsigned long j, len_A, len_B, size_array_mem, size_B_block;
@@ -880,7 +880,7 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
   sievescore_pq *sievescore;
   sievearray_t sa; /* the rootsieve scores are recorded in sa->array[],
                       which is an array of int16_t,
-                      cf https://gforge.inria.fr/tracker/?aid=21542 */
+                      cf https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21542 */
 
   mpz_poly F, G;
   F->coeff = s2param->f;
@@ -1116,7 +1116,7 @@ ropt_stage2 ( ropt_poly_t poly,
               ropt_param_t param,
               ropt_info_t info,
               MurphyE_pq *global_E_pqueue,
-              int w ) // enforce w explicitly.
+              int w) // enforce w explicitly.
 {
   int i;
 

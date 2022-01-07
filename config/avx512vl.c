@@ -3,6 +3,11 @@
 #include <string.h>
 #include <x86intrin.h>
 
+__mmask8 foo(__m256i a, __m256i b)
+{
+    return _mm256_cmpneq_epu32_mask(a, b);
+}
+
 int main() {
     __m512i * x = _mm_malloc(120 * sizeof(__m512i), sizeof(__m512i));
     memset(x, 0, 120 * sizeof(__m512i));

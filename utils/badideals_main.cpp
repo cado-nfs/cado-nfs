@@ -166,6 +166,7 @@ void usage(param_list_ptr pl, char ** argv, const char * msg = NULL)/*{{{*/
     exit(EXIT_FAILURE);
 }/*}}}*/
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     cxx_param_list pl;

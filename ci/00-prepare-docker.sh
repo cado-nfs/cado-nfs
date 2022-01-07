@@ -82,7 +82,7 @@ if [ "$coverage" ] ; then
     alpine_packages="$alpine_packages     lcov gcovr vim"
     if is_freebsd ; then
         echo "coverage -> not on freebsd" >&2
-        freebsd_packages="$freebsd_packages   lcov vim-console"
+        freebsd_packages="$freebsd_packages   lcov vim"
         # freebsd has no gcovr at the moment, so it's a no-go for now. not
         # sure we expect much benefit in running coverage tests on fbsd as
         # well anyway
@@ -105,7 +105,7 @@ if [ "$gcc32" ] ; then
 fi
 
 # The gcc image actually contains a base g++ installation that is in /usr
-if [ "$gcc" ] && ! [ -x /usr/local/bin/g++ ] ; then
+if [ "$gcc" ] && ! type g++ > /dev/null 2>&1 ; then
     debian_packages="$debian_packages     g++"
     opensuse_packages="$opensuse_packages gcc gcc-c++"
     fedora_packages="$fedora_packages     g++"
@@ -113,7 +113,7 @@ if [ "$gcc" ] && ! [ -x /usr/local/bin/g++ ] ; then
     freebsd_packages="$freebsd_packages   gcc"  # this pulls g++ too
 fi
 
-if [ "$clang" ] && ! [ -x /usr/local/bin/clang ] ; then
+if [ "$clang" ] && ! type clang++ > /dev/null 2>&1 ; then
     debian_packages="$debian_packages     clang"
     opensuse_packages="$opensuse_packages clang"
     fedora_packages="$fedora_packages     clang"
@@ -129,12 +129,22 @@ if [ "$checks" ] ; then
     freebsd_packages="$freebsd_packages   libxslt"
 fi
 
+if [ "$coverity" ] ; then
+    # nothing special at this point. Note that we've tested it on debian
+    # only.
+    debian_packages="$debian_packages     curl git"
+    opensuse_packages="$opensuse_packages curl git"
+    fedora_packages="$fedora_packages     curl git"
+    alpine_packages="$alpine_packages     curl git"
+    freebsd_packages="$freebsd_packages   curl git"
+fi
+
 if [ "$DOCKER_SCRIPT" ] ; then
     debian_packages="$debian_packages sudo git vim-nox gdb"
     opensuse_packages="$opensuse_packages sudo git vim gdb"
     fedora_packages="$fedora_packages sudo git vim gdb"
     alpine_packages="$alpine_packages sudo git vim gdb"
-    freebsd_packages="$freebsd_packages sudo git vim-console gdb"
+    freebsd_packages="$freebsd_packages sudo git vim gdb"
 fi
 
 if is_debian ; then
@@ -161,6 +171,15 @@ EOF
     apk add $alpine_packages
 elif is_freebsd ; then
     env ASSUME_ALWAYS_YES=yes pkg install $freebsd_packages
+    if [ "$gcc" ] ; then
+        # oh, it's really ugly.
+        # with gcc, there's a version clash between the _system_
+        # /lib/libgcc_s.so, and the one of the gcc port.
+        # https://forums.freebsd.org/threads/freebsd-11-2-libgcc_s-so-1-error.67031/
+        # https://wiki.freebsd.org/Ports/libgcc_linking_problem
+        mkdir /usr/local/etc/libmap.d
+        find /usr/local/lib/gcc* -name '*.so' -o -name '*.so.[0-9]*' | while read xx ; do if [ -e "/lib/$(basename $xx)" ] ; then echo "$(basename "$xx") $xx" ; fi ; done > /usr/local/etc/libmap.d/gcc.conf
+    fi
 fi
 
 if [ "$gcc32" ] ; then

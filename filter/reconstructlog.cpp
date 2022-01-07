@@ -951,6 +951,8 @@ read_log_format_reconstruct (logtab & log, MAYBE_UNUSED renumber_t const & renum
 }
 
 /* Write values of the known logarithms. */
+/* TODO: use the fact that we now have a way to iterate through the
+ * renumber table!!! */
 static void
 write_log (const char *filename, logtab & log, renumber_t const & tab, 
 	   sm_side_info *sm_info)
@@ -1156,7 +1158,8 @@ compute_needed_rels (bit_vector needed_rels,
                      logtab & log, const char *wanted_filename, int nt)
 {
   double wct_tt0, wct_tt;
-  uint64_t total_computed = 0, iter = 0, computed;
+  // uint64_t total_computed = 0;
+  uint64_t iter = 0, computed;
   uint64_t nrels = nrels_purged + nrels_del;
   graph_dep_t dep_graph = graph_dep_init (log.nprimes);
   light_rels_t rels = light_rels_init (nrels);
@@ -1199,7 +1202,7 @@ compute_needed_rels (bit_vector needed_rels,
       computed = dep_do_one_iter_mt (data, needed_rels, nt, nrels);
     else
       computed = dep_do_one_iter_mono (data, needed_rels, nrels);
-    total_computed += computed;
+    // total_computed += computed;
 
     printf ("# Iteration %" PRIu64 ": %" PRIu64 " new dependencies computed\n",
             iter, computed);
@@ -1283,6 +1286,7 @@ usage (param_list pl, char *argv0)
 }
 
 
+// coverity[root_function]
 int
 main(int argc, char *argv[])
 {

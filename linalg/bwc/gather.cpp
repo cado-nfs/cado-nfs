@@ -420,6 +420,7 @@ struct rhs /*{{{*/ {
     {
         nrhs = 0;
         rhscoeffs = NULL;
+        Av = NULL;
 
         if (!rhs_name) return;
 
@@ -458,6 +459,8 @@ struct rhs /*{{{*/ {
         cheating_vec_init(A, &rhscoeffs, nrhs);
 
         if (leader) {
+            // yeah, we asserted that we're GF(p) at this point anyway.
+            // coverity[dead_error_line]
             int splitwidth = char2 ? 64 : 1;
             ASSERT_ALWAYS(Av->simd_groupsize(Av) == splitwidth);
 
@@ -1428,6 +1431,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                 }
                 free(data);
                 R.fprint_rhs_coeffs(f2);
+                fclose(f);
                 fclose(f2);
             }
 
@@ -1454,7 +1458,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     return NULL;
 }
 
-
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     param_list pl;

@@ -8,7 +8,7 @@
 #include "gmp_aux.h"           // for ulong_nextprime
 #include "sieve/trialdiv.hpp"
 #include "tests_common.h"
-#include "portability.h" // lrand48  // IWYU pragma: keep
+#include "portability.h" // IWYU pragma: keep
 #include "cxx_mpz.hpp"  // cxx_mpz
 #include "getprime.h"   // prime_info
 #include "timing.h"     // microseconds
@@ -87,7 +87,7 @@ test_trialdiv (int n, unsigned long iter)
         for (r = pmax, p = 0; p == 0 || p > pmax; r -= 2)
           p = ulong_nextprime (r);
       } else {
-          do p = ulong_nextprime (lrand48 () % pmax); while (p > pmax || p < 3);
+          do p = ulong_nextprime (gmp_urandomm_ui(state, pmax)); while (p > pmax || p < 3);
       }
       trialdiv_data d(std::vector<unsigned long>(1, p));
 
@@ -113,6 +113,7 @@ test_trialdiv (int n, unsigned long iter)
     }
 }
 
+// coverity[root_function]
 int main (int argc, const char **argv)
 {
   int i, len = 1, nr_primes = 1000, nr_N = 100000;
@@ -150,12 +151,6 @@ int main (int argc, const char **argv)
 
   if (argc > 3)
     nr_primes = atoi (argv[3]);
-  
-  if (input) {
-    /* First parameter is pmax, and is stored in len */
-    trialdiv_stdinput (len, verbose);
-    exit (EXIT_SUCCESS);
-  }
 
   if (len > TRIALDIV_MAXLEN)
     {
@@ -163,6 +158,12 @@ int main (int argc, const char **argv)
 	      "%d words\n", TRIALDIV_MAXLEN);
       exit (EXIT_FAILURE);
     }
+
+  if (input) {
+    /* First parameter is pmax, and is stored in len */
+    trialdiv_stdinput (len, verbose);
+    exit (EXIT_SUCCESS);
+  }
 
   mpz_set_ui (N, 1UL);
   mpz_mul_2exp (N, N, 8 * sizeof(unsigned long) * len);

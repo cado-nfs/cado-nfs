@@ -305,6 +305,7 @@ int test_redc_u32(gmp_randstate_t rstate, size_t N, bool check)
     return test_redc_32<CARRY>(rstate, N, check, false);
 }
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     setbuf(stdout, NULL);
@@ -319,6 +320,7 @@ int main(int argc, char * argv[])
         } else if (strcmp(argv[1], "-t") == 0) {
             check = false;
         } else {
+            // coverity[tainted_argument]
             Nmax = atol(argv[1]);
         }
     }

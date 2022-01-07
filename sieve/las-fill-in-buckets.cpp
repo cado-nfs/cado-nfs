@@ -618,7 +618,6 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
 
   ASSERT_ALWAYS(!Q.sublat.m);
 
-  // bool first_reg = true;
   bucket_array_t<LEVEL, TARGET_HINT> BA;  /* local copy. Gain a register + use stack */
   BA.move(orig_BA);
 
@@ -1003,9 +1002,11 @@ fill_in_buckets_toplevel_wrapper(worker_thread * worker MAYBE_UNUSED, task_param
         /* Get an unused bucket array that we can write to */
         bucket_array_t<LEVEL, TARGET_HINT> &BA = wss.reserve_BA<LEVEL, TARGET_HINT>(-1);
         ASSERT(param->slice);
+        fb_slice<FB_ENTRY_TYPE> const * sl = dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice);
+        ASSERT_ALWAYS(sl != NULL);
         fill_in_buckets_toplevel<LEVEL,FB_ENTRY_TYPE,TARGET_HINT>(BA,
                 ws,
-                *dynamic_cast<fb_slice<FB_ENTRY_TYPE> const *>(param->slice),
+                *sl,
                 param->plattices_dense_vector,
                 w);
         /* Release bucket array again */

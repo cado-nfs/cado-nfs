@@ -110,6 +110,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
                 exit(1);
             }
             for(uint32_t i = 0 ; i < rowlen ; i++) {
+                // coverity[tainted_argument]
                 k = fread(&x, sizeof(uint32_t), 1, m);
                 if (k != 1) {
                     fprintf(stderr, "matrix: short read\n");
@@ -183,6 +184,7 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
         for( ; ; ) {
             uint32_t x;
             int32_t c;
+            // coverity[tainted_argument]
             int k = fread(&x, sizeof(uint32_t), 1, m);
             uint32_t rowlen = x;
             if (k != 1) {

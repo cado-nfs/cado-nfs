@@ -10,7 +10,9 @@
   "-nq xxx" denotes the number of special-q's trials for each ad;
 
   Please report bugs to the Bug Tracking System on:
-  https://gforge.inria.fr/tracker/?atid=7442&group_id=2065&func=browse
+  https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues
+
+  [read this first](https://sympa.inria.fr/sympa/arc/cado-nfs/2020-10/msg00006.html).
 */
 
 #define EMIT_ADDRESSABLE_shash_add

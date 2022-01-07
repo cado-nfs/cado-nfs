@@ -205,4 +205,5 @@ void compute_weights_backend (filter_matrix_t *mat, index_t j0)
     free(all_buckets);
     for(size_t i = 0 ; i < number_of_slots ; i++)
         pthread_mutex_destroy(&locks[i]);
+    free(locks);
 }

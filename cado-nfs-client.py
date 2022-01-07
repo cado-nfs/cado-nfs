@@ -174,8 +174,13 @@ def pid_exists(pid):
 
 # could replace "posix" by "xxx" here if os.name is "posix" but you still get
 # the error message "IOError: [Errno 37] No locks available"
-# https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2016-May/000634.html
-# https://lists.gforge.inria.fr/pipermail/cado-nfs-discuss/2016-May/000636.html
+# See this thread on the mailing list.
+# https://sympa.inria.fr/sympa/arc/cado-nfs/2016-05/msg00010.html
+
+# Note however that in the absence of proper file locking, any
+# computation that puts some load on the work unit server is bound to
+# fail.
+
 if os.name == "posix":
     import fcntl
     class FileLock(object):
@@ -220,7 +225,7 @@ else:
 # and we have to use a different work-around...
 #
 # Update:
-# http://cado-nfs.gforge.inria.fr/bug.php?21408
+# https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21408
 #
 #
 # Rather than keep a list of faulty versions, we'll try to auto-detect
@@ -359,7 +364,7 @@ def find_working_bytesgenerator():
 
     logging.error("None of our byte generators work")
     logging.error("See bug #21408")
-    logging.error("http://cado-nfs.gforge.inria.fr/bug.php?21408")
+    logging.error("https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21408")
     for gtp in wrong:
         byte_generator, test_bytes, postdata = gtp
         logging.error("Example of a failing test with %s:", byte_generator)
@@ -874,6 +879,9 @@ def get_missing_certificate(certfilename,
                                    retrytime=retrytime)
         if cert is None:
             return False
+    # Note: if you want the sha1 just based on the cert file, it's rather
+    # easy:
+    # openssl x509 -in $wdir/c60.server.cert -outform DER -out - | sha1sum
     bin_cert = ssl.PEM_cert_to_DER_cert(cert)
     sha1hash = hashlib.sha1()
     sha1hash.update(bin_cert)

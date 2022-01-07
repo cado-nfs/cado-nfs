@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "tests_common.h"
 #include "modredc_ul.h"
+#include "misc.h"
 
 static int verbose = 0;
 
@@ -81,14 +82,14 @@ test_modredc_batchinv (const size_t len, unsigned long uc)
   int ok = 1;
   
   /* Random, odd modulus */
-  modredcul_initmod_ul(m, random_uint64() | 1);
+  modredcul_initmod_ul(m, u64_random(state) | 1);
   
   a = (residueredcul_t *) malloc(len * sizeof(residueredcul_t));
   r = (residueredcul_t *) malloc(len * sizeof(residueredcul_t));
   
   for (size_t i = 0; i < len; i++) {
     modredcul_init(a[i], m);
-    modredcul_set_ul(a[i], random_uint64(), m);
+    modredcul_set_ul(a[i], u64_random(state), m);
     if (modredcul_is0(a[i], m)) {
       modredcul_set1(a[i], m);
     }
@@ -188,7 +189,7 @@ main (int argc, const char *argv[])
   for (unsigned long i = 0; ok && i < iter; i++) {
     ok = test_modredc_batchinv(i, 0);
     ok = test_modredc_batchinv(i, 1);
-    ok = test_modredc_batchinv(i, random_uint64());
+    ok = test_modredc_batchinv(i, u64_random(state));
   }
   
   tests_common_clear();

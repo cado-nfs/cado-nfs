@@ -24,7 +24,7 @@ namespace bblas_bitmat_details {
     template<> struct bblas_bitmat_type_supported<uint8_t> {
         static constexpr const bool value = true;
         static constexpr const int width = 8;
-        static constexpr const int alignment = 64;  // in bytes
+        static constexpr const int alignment = 8;  // in bytes
     };
 
     /* warn the compiler that we have some specializations */

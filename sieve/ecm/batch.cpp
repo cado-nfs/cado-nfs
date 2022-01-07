@@ -175,10 +175,18 @@ prime_list_poly (std::vector<unsigned long> & L, prime_info pi,
   if (f->deg == 1)
     return prime_list (L, pi, pmax);
 
+  if (pmax < 2)
+      return;
+
+  gmp_randstate_t rstate;
+  gmp_randinit_default(rstate);
+
   for (unsigned long p = 2 ; p <= pmax ; p = getprime_mt(pi))
     if (mpz_divisible_ui_p (f->coeff[f->deg], p) ||
-        mpz_poly_roots_ulong (NULL, f, p) > 0)
+        mpz_poly_roots_ulong (NULL, f, p, rstate) > 0)
         L.push_back(p);
+
+  gmp_randclear(rstate);
 }
 
 /* add in the product tree L all primes pmin <= p < pmax.
@@ -213,6 +221,12 @@ prime_tree_poly (mpz_product_tree L, unsigned long pmax, cxx_mpz_poly const& f, 
   }
 
   int nthreads = 1;
+
+  /* TODO: there are (far) better ways to deal with the parallelization
+   * task.  My favorite would be to use subdivide_primes_interval and
+   * prime_info_seek (see 12186c0ab when it gets merged)
+   */
+
 #ifdef HAVE_OPENMP
 #pragma omp parallel
   nthreads = omp_get_num_threads ();
@@ -225,6 +239,9 @@ prime_tree_poly (mpz_product_tree L, unsigned long pmax, cxx_mpz_poly const& f, 
 
   prime_info pi;
   prime_info_init (pi);
+
+  std::vector<cxx_gmp_randstate> rstate_per_thread(omp_get_max_threads());
+
   for (unsigned long p = 2; p < pmax;)
     {
         int i;
@@ -238,7 +255,7 @@ prime_tree_poly (mpz_product_tree L, unsigned long pmax, cxx_mpz_poly const& f, 
 #endif
       for (int j = 0; j < i; j++)
         if (mpz_divisible_ui_p (f->coeff[f->deg], q[j]) == 0 &&
-            mpz_poly_roots_ulong (NULL, f, q[j]) == 0)
+            mpz_poly_roots_ulong (NULL, f, q[j], rstate_per_thread[omp_get_thread_num()]) == 0)
           q[j] = 0;
 
       /* sequential part: mpz_product_tree_add_ui is fast */

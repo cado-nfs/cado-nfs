@@ -15,7 +15,7 @@ struct lingen_platform {
     unsigned int T;     /* **PHYSICAL** cores, or we say rubbish  */
     int openmp_threads;
 
-    size_t available_ram;
+    size_t available_ram;       // zero means unlimited.
 
     /* Assume we output something like one gigabyte per second. This is
      * rather conservative for HPC networks */

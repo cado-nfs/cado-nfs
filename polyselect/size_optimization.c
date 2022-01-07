@@ -959,6 +959,8 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
   const int d = f_raw->deg;
   double best_lognorm =
       L2_skew_lognorm ((mpz_poly_ptr) f_raw, SKEWNESS_DEFAULT_PREC);
+  gmp_randstate_t rstate;
+  gmp_randinit_default(rstate);
   best_lognorm += expected_rotation_gain ((mpz_poly_ptr) f_raw,
 					  (mpz_poly_ptr) g_raw);
 
@@ -1107,6 +1109,7 @@ size_optimization_aux (mpz_poly_ptr f_opt, mpz_poly_ptr g_opt,
   mpz_poly_set (g_opt, gbest);
 
   /************************** Clear everything ***************************/
+  gmp_randclear(rstate);
   LLL_clear (&m);
   LLL_clear (&U);
   mpz_clear (skew);

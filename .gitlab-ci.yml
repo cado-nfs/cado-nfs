@@ -54,8 +54,7 @@ workflow:
 
 .checks-script: &checks-script
   - ci/01-conf.sh
-  - ci/02-build1.sh
-  - ci/02-build2.sh
+  - ci/02-build.sh
   - ci/03-check.sh
 
 .checks-junit-report: &checks-junit-report
@@ -133,9 +132,20 @@ checks on opensuse system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
-checks with clang:
+# unfortunately silkeh/clang:latest is outdated...
+checks with clang13:
   <<: *common-template
-  image: silkeh/clang:latest
+  image: silkeh/clang:13
+  stage: early
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks with clangdev:
+  <<: *common-template
+  image: silkeh/clang:dev
   stage: early
   before_script:
     - ci/00-prepare-docker.sh
@@ -262,7 +272,7 @@ checks on osx system:
     - *checks-script
   <<: *checks-junit-report
  
-checks on freebsd12.2 system with gcc:
+checks on freebsd12.3 system with gcc:
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
   <<: *common-template
@@ -273,7 +283,7 @@ checks on freebsd12.2 system with gcc:
     - freebsd-tanker
   script:
     - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:12.2 ci/40-testsuite.sh
+    - ci/50-libvirt-wrap-tests.sh freebsd:12.3 ci/40-testsuite.sh
   # https://gitlab.com/gitlab-org/gitlab/-/issues/15603 should be
   # implemented someday. We would like to have it, to make sure that the
   # cleanup sequence is called no matter what.
@@ -290,6 +300,63 @@ checks on freebsd13.0 system with gcc:
   script:
     - make -C ci/utilities/tanker
     - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
+
+checks on 32-bit freebsd13.0 system with gcc:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    FREEBSD_ARCH: i386
+  <<: *common-template
+  stage: thorough
+  # do not start it prematurely, in case previous jobs failed
+  # needs: []
+  tags:
+    - freebsd-tanker
+  script:
+    - make -C ci/utilities/tanker
+    - ci/50-libvirt-wrap-tests.sh freebsd:13.0?arch=i386 ci/40-testsuite.sh
+
+# checks with the default shipped compiler as well (which is clang)
+checks on freebsd13.0 system with clang:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  <<: *common-template
+  stage: thorough
+  # do not start it prematurely, in case previous jobs failed
+  # needs: []
+  tags:
+    - freebsd-tanker
+  script:
+    - make -C ci/utilities/tanker
+    - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
+
+coverity on debian10 system with gcc:
+  # override the common template.
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
+    - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "coverity")
+      when: always
+    - when: never
+  stage: early
+  image: debian:10
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+  - curl -o /tmp/cov-analysis-linux64.tgz
+    https://scan.coverity.com/download/linux64
+    --form project=$COVERITY_SCAN_PROJECT_NAME
+    --form token=$COVERITY_SCAN_TOKEN
+  - tar xfz /tmp/cov-analysis-linux64.tgz
+  - ci/01-conf.sh
+  - cov-analysis-linux64-*/bin/cov-build --dir cov-int ci/02-build.sh
+  - tar cfz cov-int.tar.gz cov-int
+  - curl https://scan.coverity.com/builds?project=$COVERITY_SCAN_PROJECT_NAME
+    --form token=$COVERITY_SCAN_TOKEN
+    --form email=$COVERITY_SCAN_USER_EMAIL
+    --form file=@cov-int.tar.gz
+    --form version="`git describe --tags`"
+    --form description="`git describe --tags` / $CI_COMMIT_TITLE / $CI_COMMIT_REF_NAME:$CI_PIPELINE_ID"
 
 # "cache" is only when the runners have a notion of available cache
 # server, it seems. Don't do that for now.

@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include "gzip.h"
 
+// coverity[root_function]
 int main(int argc, char * argv[])
 {
     const char * filename = "/tmp/test.gz";

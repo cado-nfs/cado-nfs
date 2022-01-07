@@ -460,8 +460,9 @@ void MATMUL_NAME(clear)(matmul_ptr mm0)
 
 static void mm_finish_init(struct matmul_bucket_data_s * mm);
 
-matmul_ptr MATMUL_NAME(init)(abdst_field xx, param_list pl, int optimized_direction)
+matmul_ptr MATMUL_NAME(init)(void * pxx, param_list pl, int optimized_direction)
 {
+    abdst_field xx = (abdst_field) pxx;
     struct matmul_bucket_data_s * mm;
     mm = new matmul_bucket_data_s;
 
@@ -620,7 +621,7 @@ static int builder_do_small_slice(builder * mb, struct small_slice_t * S, uint32
 
     /* Convert all j indices to differences */
     S->dj_max = 0;
-    S->dj_avg = mb->ncols_t / (double) S->ncoeffs;
+    S->dj_avg = mb->ncols_t / (double) (S->ncoeffs + !S->ncoeffs);
 
     typedef small_slice_t::Lui_t Lui_t;
     typedef small_slice_t::Lvci_t Lvci_t;
@@ -1145,6 +1146,11 @@ static void split_huge_slice_in_vblocks(builder * mb, huge_slice_t * H, huge_sli
 
         transfer(&(H->vbl), &V);
     }
+    if (!vblocknum) {
+        verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
+                " 0 vblocks\n");
+        return;
+    }
     double vbl_ncols_mean = mb->ncols_t;
     vbl_ncols_mean /= vblocknum;
     vbl_ncols_variance /= vblocknum;
@@ -1445,6 +1451,7 @@ void vsc_fill_buffers(builder * mb, struct vsc_slice_t * V)
 {
     unsigned int nvstrips = V->dispatch.size();
     uint32_t width = iceildiv(V->hdr->j1 - V->hdr->j0, nvstrips);
+    ASSERT_ALWAYS(width > 0);
     uint32_t * ptr = mb->rowhead;
     uint32_t i = V->hdr->i0;
     V->tbuf_space = 0;
@@ -1480,13 +1487,19 @@ void vsc_fill_buffers(builder * mb, struct vsc_slice_t * V)
                 }
             }
         */
+#ifndef NDEBUG
         unsigned int acc = 0;
+#endif
         for(unsigned int d = 0 ; d < nvstrips ; d++) {
+#ifndef NDEBUG
             acc += V->dispatch[d].sub[s].hdr->ncoeffs;
+#endif
             if (!flush_here(d,nvstrips,defer))
                 continue;
+#ifndef NDEBUG
             ASSERT(V->dispatch[d].sub[s].c.size() == acc + V->steps[s].nrows);
             acc = 0;
+#endif
         }
         unsigned long m = 0;
         unsigned long cm = 0;
@@ -3222,23 +3235,27 @@ static std::ostream& matmul_bucket_report_vsc(std::ostream& os, struct matmul_bu
             hdr++;
         }
     }
+    /*
     double total_from_defer_rows = 0;
     double total_from_defer_cmbs = 0;
+    */
     for(unsigned int l = 0 ; l < nsteps ; l++) {
         ASSERT_ALWAYS(hdr->t == SLICE_TYPE_DEFER_ROW);
         double t = mm->slice_timings[hdr - mm->headers.begin()].t;
         uint64_t nc = hdr->ncoeffs;
         ctime[l].first += nc;
         ctime[l].second += t;
-        total_from_defer_rows+=t;
+        // total_from_defer_rows+=t;
         hdr++;
     }
     /* Skip the combining blocks, because they're accounted for already
      * by the row blocks */
+    /*
     for( ; hdr != mm->headers.end() && hdr->t == SLICE_TYPE_DEFER_CMB ; hdr++) {
         double t = mm->slice_timings[hdr - mm->headers.begin()].t;
         total_from_defer_cmbs+=t;
     }
+    */
     /* Some jitter will appear if transposed mults are performed, because
      * for the moment transposed mults don't properly store timing info
      */
@@ -3255,14 +3272,14 @@ static std::ostream& matmul_bucket_report_vsc(std::ostream& os, struct matmul_bu
         t = dtime[l].second / scale0;
         a = 1.0e9 * t / nc;
         *p_t_total += t;
-        fmt::fprintf(os, "defer\t%.2fs         ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
+        os << fmt::sprintf("defer\t%.2fs         ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
             " scaled*%.2f : %5.2f/c\n",
             t, nc, a, scale, a * scale);
         nc = ctime[l].first;
         t = ctime[l].second / scale0;
         a = 1.0e9 * t / nc;
         *p_t_total += t;
-        fmt::fprintf(os, "      + %.2fs [%.2fs] ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
+        os << fmt::sprintf("      + %.2fs [%.2fs] ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
             " scaled*%.2f : %5.2f/c\n",
             t, *p_t_total, nc, a, scale, a * scale);
     }
@@ -3281,7 +3298,7 @@ void MATMUL_NAME(report)(matmul_ptr mm0, double scale)
 
     vector<slice_header_t>::iterator hdr;
 
-    fmt::fprintf(os, "n %" PRIu64 " %.3fs/iter (wct of cpu-bound loop)\n",
+    os << fmt::sprintf("n %" PRIu64 " %.3fs/iter (wct of cpu-bound loop)\n",
             mm->public_->ncoeffs,
             mm->main_timing.t / scale0
             );
@@ -3298,7 +3315,7 @@ void MATMUL_NAME(report)(matmul_ptr mm0, double scale)
         t /= scale0;
         t_total += t;
         double a = 1.0e9 * t / nc;
-        fmt::fprintf(os, "%s\t%.2fs [%.2fs] ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
+        os << fmt::sprintf("%s\t%.2fs [%.2fs] ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
             " scaled*%.2f : %5.2f/c\n",
             slice_name(hdr->t), t, t_total,
             nc, a, scale, a * scale);
@@ -3317,7 +3334,7 @@ void MATMUL_NAME(report)(matmul_ptr mm0, double scale)
         if (nc == 0) continue;
         t /= scale0;
         double a = 1.0e9 * t / nc;
-        fmt::fprintf(os, "%s\t%.2fs ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
+        os << fmt::sprintf("%s\t%.2fs ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
             " scaled*%.2f : %5.2f/c\n",
             slice_name(i), t,
             nc, a, scale, a * scale);

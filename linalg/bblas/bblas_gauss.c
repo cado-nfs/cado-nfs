@@ -201,7 +201,8 @@ void gaussian_elimination(struct gaussian_elimination_data * G)
 
   mp_limb_t **ptr_current;
   int j_current, col_current;
-  mp_limb_t mask1, mask2;
+  mp_limb_t mask1;
+  // mp_limb_t mask2;
 #ifdef VERBOSE
   double st0 = seconds();
   double st;
@@ -222,7 +223,7 @@ void gaussian_elimination(struct gaussian_elimination_data * G)
   /* Main Loop: for each column, find the pivot and eliminate */
   j_current = 0;
   mask1 = 1UL;
-  mask2 = (-(1UL)) ^ (1UL);
+  // mask2 = (-(1UL)) ^ (1UL);
   col_current = 0;
   while (col_current < NCOLS) {
     int pivot;
@@ -328,10 +329,10 @@ void gaussian_elimination(struct gaussian_elimination_data * G)
     /* increment */
     ++col_current;
     mask1 <<= 1;
-    mask2 <<= 1;
+    // mask2 <<= 1;
     if (!mask1) { /* we have done ULONG_BITS operations */
       mask1 = 1UL;
-      mask2 = (-(1UL)) ^ (1UL);
+      // mask2 = (-(1UL)) ^ (1UL);
       j_current++;
       ASSERT (j_current <= LIMBS_PER_ROW);
       for (i = 0; i < NROWS; ++i)

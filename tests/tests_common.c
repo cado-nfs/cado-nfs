@@ -6,7 +6,7 @@
 #include <time.h>
 #include <errno.h>
 #include "tests_common.h"
-#include "portability.h" // lrand48 // IWYU pragma: keep
+#include "portability.h" // IWYU pragma: keep
 
 static int rng_state_inited = 0;
 gmp_randstate_t state;
@@ -19,37 +19,6 @@ int
 cmp_double(const double d1, const double d2, const double err_margin)
 {
   return fabs(d1) * (1. - err_margin) <= fabs(d2) && fabs(d2) <= fabs(d1) * (1. + err_margin);
-}
-
-uint64_t
-random_uint64 ()
-{
-#ifdef HAVE_LRAND48
-  return ((uint64_t) lrand48 () << 33) + ((uint64_t) lrand48 () << 2) + ((uint64_t) lrand48 () & 3);
-#else
-  ASSERT_ALWAYS(RAND_MAX < UINT64_MAX - 1);
-  uint64_t r = rand(), q = UINT64_MAX, b = (uint64_t) RAND_MAX + 1;
-  /* +1 because range of rand() is [0, RAND_MAX] */
-  /* We want ceil(log_b(UINT64_MAX + 1)) iterations
-     = ceil(log_b(UINT64_MAX)) unless log_b(UINT64_MAX) is an integer, which it
-     is only if b = UINT64_MAX, but the return type of rand() is int. */
-  while (q > b) {
-    r = r * b + (uint64_t) rand();
-    q = (q - 1) / b + 1;
-  }
-  return r;
-#endif
-}
-
-
-int64_t
-random_int64 ()
-{
-#ifdef HAVE_LRAND48
-  return ((int64_t) mrand48 () << 32) + (int64_t) mrand48 ();
-#else
-  return random_uint64() + INT64_MIN;
-#endif
 }
 
 void tests_common_urandomb(mpz_t ROP, mp_bitcnt_t N)
@@ -220,14 +189,6 @@ tests_common_cmdline(int *argc, const char ***argv, const uint64_t flags)
 
   if ((flags & PARSE_SEED) != 0) {
     printf ("Using random seed=%ld\n", seed);
-#ifdef HAVE_LRAND48
-    srand48 (seed);
-#else
-    unsigned int s = labs(seed);
-    if (seed < 0 || s != (unsigned long) seed)
-      printf ("Warning, seed truncated to %u\n", s);
-    srand ((unsigned int) labs(seed));
-#endif
     fflush (stdout);
     gmp_randinit_default (state);
     gmp_randseed_ui (state, (unsigned long) labs(seed));

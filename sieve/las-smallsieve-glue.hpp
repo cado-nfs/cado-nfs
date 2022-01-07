@@ -533,7 +533,7 @@ struct small_sieve : public small_sieve_base {/*{{{*/
     template<typename even_code, typename odd_code, int bits_off>
     bool handle_nice_prime(ssp_simple_t const & ssp, spos_t pos, where_am_I & w) {/*{{{*/
         const fbprime_t p = ssp.get_p();
-        if (bits_off && (p >> (super::min_logI_logB + 1 - bits_off))) {
+        if (bits_off != 0 && (p >> (super::min_logI_logB + 1 - bits_off))) {
             /* time to move on to the next bit size; */
             return false;
         }
@@ -612,11 +612,11 @@ struct small_sieve : public small_sieve_base {/*{{{*/
                 const fbprime_t p2 = ssp2.get_p();
                 const fbprime_t p3 = ssp3.get_p();
 
-                if (bits_off && (p0 >> (super::min_logI_logB + 1 - bits_off))) {
+                if (bits_off != 0 && (p0 >> (super::min_logI_logB + 1 - bits_off))) {
                     /* time to move on to the next bit size; */
                     return;
                 }
-                if (bits_off && (p3 >> (super::min_logI_logB + 1 - bits_off))) {
+                if (bits_off != 0 && (p3 >> (super::min_logI_logB + 1 - bits_off))) {
                     break;
                 }
 
@@ -693,7 +693,7 @@ struct small_sieve : public small_sieve_base {/*{{{*/
                 ssp_simple_t const & ssp(primes[index]);
                 spos_t pos = positions[index];
                 const fbprime_t p = ssp.get_p();
-                if (bits_off && (p >> (super::min_logI_logB + 1 - bits_off))) {
+                if (bits_off != 0 && (p >> (super::min_logI_logB + 1 - bits_off))) {
                     /* time to move on to the next bit size; */
                     return;
                 }

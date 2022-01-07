@@ -6,6 +6,7 @@
 #include "gcd.h"
 #include "gmp_aux.h"
 #include "macros.h"
+#include "misc.h"
 
 static void
 test_modredcul_intinv (unsigned long iter)
@@ -20,13 +21,13 @@ test_modredcul_intinv (unsigned long iter)
   mpz_init (yy);
   while (iter--)
     {
-      x = random_uint64 ();
-      y = random_uint64 ();
+      x = u64_random(state);
+      y = u64_random(state);
       if (x < y)
         {
           g = x;
           x = y;
-          y = x;
+          y = g;
         }
       if ((x & 1) == 0)
         x ++; /* x should be odd */
