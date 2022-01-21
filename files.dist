@@ -1320,6 +1320,7 @@ utils/mmap_allocator.hpp
 utils/mmappable_vector.hpp
 tests/utils/test_mmappable_vector.cpp
 tests/utils/test_mpz_poly_parsing.cpp
+utils/cado_expression_parser.hpp
 tests/linalg/bwc/flint-fft/CMakeLists.txt
 tests/linalg/bwc/flint-fft/test_transform_length.cpp
 tests/linalg/bwc/test_matpoly.cpp

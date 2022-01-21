@@ -103,6 +103,8 @@ void mpz_poly_set_zero(mpz_poly_ptr f);
 void mpz_poly_set_xi(mpz_poly_ptr f, int i);
 void mpz_poly_set_mpz(mpz_poly_ptr f, mpz_srcptr z);
 void mpz_poly_set_double_poly(mpz_poly_ptr g, double_poly_srcptr f);
+/* returns 1 if parsing was successful */
+int mpz_poly_set_from_expression(mpz_poly_ptr f, const char * value);
 
 void mpz_poly_init_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b);
 void mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b);

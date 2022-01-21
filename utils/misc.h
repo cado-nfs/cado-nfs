@@ -242,6 +242,9 @@ safe_abs64(const int64_t n) {
 
 const char *size_disp_fine(size_t s, char buf[16], double cutoff);
 const char *size_disp(size_t s, char buf[16]);
+
+extern int mpz_set_from_expression(mpz_ptr f, const char * value);
+
 #ifdef __cplusplus
 }
 #endif
