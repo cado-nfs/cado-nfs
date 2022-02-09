@@ -141,6 +141,10 @@ class TaskException(Exception):
     """ Exception class for signaling errors during task execution """
     pass
 
+class EarlyStopException(Exception):
+    """ Exception class for cases like tasks.sieve.run=false"""
+    pass
+
 class Polynomials(object):
     r""" A class that represents a polynomial
     
@@ -1144,8 +1148,8 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
 
     def run(self):
         if not self.params["run"]:
-            self.logger.info("Stopping at %s", self.name)
-            raise TaskException("Job aborted because of a forcibly disabled task")
+            self.logger.error("Stopping at %s", self.name)
+            raise EarlyStopException("Job aborted because of a forcibly disabled task -- stopped at " + self.name)
         self.logger.info("Starting")
         self.logger.debug("%s.run(): Task state: %s", self.name, self.state)
         super().run()
@@ -5857,7 +5861,13 @@ class CompleteFactorization(HasState, wudb.DbAccess,
                 "target": ""}
     @property
     def title(self):
-        return "Complete Factorization / Discrete logarithm"
+        try:
+            if self.params["dlp"]:
+                return "Discrete logarithm"
+            else:
+                return "Complete Factorization"
+        except AttributeError:
+            return "Complete Factorization / Discrete logarithm"
     @property
     def programs(self):
         return []
@@ -6113,54 +6123,58 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.logger.info("Computing Discrete Logs in GF(%s)", self.params["N"])
         else:
             self.logger.info("Factoring %s", self.params["N"])
-        self.start_elapsed_time()
 
-        self.servertask.run()
+        class wrapme(object):
+            def __init__(self, s):
+                self.s = s
+                # we rely here on Task not having a weird comparison operator
+                self.tasks_that_have_run = set()
+            def __enter__(self):
+                self.s.start_elapsed_time()
+                self.s.servertask.run()
+                self.s.start_all_clients()
+                return self
+            def __exit__(self, type, value, tb):
+                # print everybody's stats before we exit.
+                for task in self.tasks_that_have_run:
+                    task.print_stats()
+                self.s.stop_all_clients()
+                self.s.servertask.shutdown()
+                self.s.elapsed = self.s.end_elapsed_time()
+                self.s.cputotal = self.s.get_sum_of_cpu_or_real_time(True)
+
         last_task = None
         last_status = True
         try:
-            self.start_all_clients()
-            # we rely here on Task not having a weird comparison operator
-            tasks_that_have_run = set()
-            i=0
-            while last_status:
-                task = self.next_task()
-                if task is None:
-                    break
-                last_task = task.title
-                last_status = task.run()
-                tasks_that_have_run.add(task)
-                task.print_stats()
-
-            # print everybody's stats before we exit.
-            for task in tasks_that_have_run:
-                task.print_stats()
+            with wrapme(self) as w:
+                while last_status:
+                    task = self.next_task()
+                    if task is None:
+                        break
+                    last_task = task.title
+                    last_status = task.run()
+                    w.tasks_that_have_run.add(task)
+                    task.print_stats()
 
         except KeyboardInterrupt:
             self.logger.fatal("Received KeyboardInterrupt. Terminating")
-            had_interrupt = True
-
-        except TaskException as e:
-           self.stop_all_clients()
-           raise e
-
-        self.stop_all_clients()
-        self.servertask.shutdown()
-        elapsed = self.end_elapsed_time()
-
-        if had_interrupt:
             return None
 
-        cputotal = self.get_sum_of_cpu_or_real_time(True)
+        except EarlyStopException as e:
+            self.logger.info("Total cpu/elapsed time for incomplete %s: %g/%g",
+                    self.title, self.cputotal, self.elapsed)
+            self.logger.info("Finishing early: " + str(e))
+            return None
+
         # Do we want the sum of real times over all sub-processes for
         # something?
         # realtotal = self.get_sum_of_cpu_or_real_time(False)
         if self.params["dlp"]:
-            self.logger.info("Total cpu/elapsed time for entire discrete log: %g/%g",
-                         cputotal, elapsed)
+            self.logger.info("Total cpu/elapsed time for entire %s: %g/%g",
+                         self.title, self.cputotal, self.elapsed)
         else:
-            self.logger.info("Total cpu/elapsed time for entire factorization: %g/%g",
-                         cputotal, elapsed)
+            self.logger.info("Total cpu/elapsed time for entire %s %g/%g",
+                         self.title, self.cputotal, self.elapsed)
 
         if last_task and not last_status:
             self.logger.fatal("Premature exit within %s. Bye.", last_task)
