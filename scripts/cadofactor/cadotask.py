@@ -5380,7 +5380,8 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
         return {"name": str, "workdir": None, "address": None, "port": 0,
                 "threaded": False, "ssl": True, "whitelist": None,
                 "only_registered": True, "forgetport": False,
-                "timeout_hint": None, "nrsubdir": 0}
+                "timeout_hint": None, "nrsubdir": 0,
+                "linger_before_quit": 0}
     @property
     def param_nodename(self):
         return self.name
@@ -5455,7 +5456,8 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
             threaded, db, self.registered_filenames,
             uploaddir, nrsubdir, bg=True, only_registered=only_registered, cafile=cafilename,
             whitelist=server_whitelist,
-            timeout_hint=servertimeout_hint)
+            timeout_hint=servertimeout_hint,
+            linger_before_quit=self.params["linger_before_quit"])
         self.state["port"] = self.server.get_port()
 
     def run(self):
@@ -5856,8 +5858,14 @@ class CompleteFactorization(HasState, wudb.DbAccess,
     def paramnames(self):
         # This isn't a Task subclass so we don't really need to define
         # paramnames, but we do it out of habit
-        return {"name": str, "workdir": str, "N": int, "ell": 0, "dlp": False,
-                "gfpext": 1, "jlpoly" : False, "trybadwu": False,
+        return {"name": str,
+                "workdir": str,
+                "N": int,
+                "ell": 0,
+                "dlp": False,
+                "gfpext": 1,
+                "jlpoly" : False,
+                "trybadwu": False,
                 "target": ""}
     @property
     def title(self):
@@ -6117,6 +6125,21 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.request_map[Request.GET_DEPENDENCY_FILENAME] = self.linalg.get_dependency_filename
             self.request_map[Request.GET_LINALG_PREFIX] = self.linalg.get_prefix
 
+    def enter_subtask_chain(self):
+        self.start_elapsed_time()
+        self.servertask.run()
+        self.start_all_clients()
+
+    def exit_subtask_chain(self):
+        self.servertask.stop_serving_wus()        
+        # print everybody's stats before we exit.
+        for task in self.tasks_that_have_run:
+            task.print_stats()
+        self.stop_all_clients()
+        self.elapsed = self.end_elapsed_time()
+        self.cputotal = self.get_sum_of_cpu_or_real_time(True)
+        self.servertask.shutdown()
+
     def run(self):
         had_interrupt = False
         if self.params["dlp"]:
@@ -6127,33 +6150,25 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         class wrapme(object):
             def __init__(self, s):
                 self.s = s
-                # we rely here on Task not having a weird comparison operator
-                self.tasks_that_have_run = set()
             def __enter__(self):
-                self.s.start_elapsed_time()
-                self.s.servertask.run()
-                self.s.start_all_clients()
+                self.s.enter_subtask_chain()
                 return self
-            def __exit__(self, type, value, tb):
-                # print everybody's stats before we exit.
-                for task in self.tasks_that_have_run:
-                    task.print_stats()
-                self.s.stop_all_clients()
-                self.s.servertask.shutdown()
-                self.s.elapsed = self.s.end_elapsed_time()
-                self.s.cputotal = self.s.get_sum_of_cpu_or_real_time(True)
+            def __exit__(self, *args):
+                self.s.exit_subtask_chain()
 
         last_task = None
         last_status = True
+        # we rely here on Task not having a weird comparison operator
+        self.tasks_that_have_run = set()
         try:
-            with wrapme(self) as w:
+            with wrapme(self):
                 while last_status:
                     task = self.next_task()
                     if task is None:
                         break
                     last_task = task.title
                     last_status = task.run()
-                    w.tasks_that_have_run.add(task)
+                    self.tasks_that_have_run.add(task)
                     task.print_stats()
 
         except KeyboardInterrupt:
@@ -6163,7 +6178,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         except EarlyStopException as e:
             self.logger.info("Total cpu/elapsed time for incomplete %s: %g/%g",
                     self.title, self.cputotal, self.elapsed)
-            self.logger.info("Finishing early: " + str(e))
+            self.logger.error("Finishing early: " + str(e))
             return None
 
         # Do we want the sum of real times over all sub-processes for

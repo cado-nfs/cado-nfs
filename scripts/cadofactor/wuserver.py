@@ -18,6 +18,7 @@ import wudb
 import upload
 import select
 import errno
+import time
 from subprocess import check_output, CalledProcessError, STDOUT
 
 try:
@@ -646,7 +647,8 @@ subjectAltName=@altnames
     def __init__(self, address, port, threaded, dbdata,
                 registered_filenames, uploaddir, nrsubdir, *, bg = False,
                 use_db_pool = True, scriptdir = None, only_registered=False,
-                cafile=None, whitelist=None, timeout_hint=None):
+                cafile=None, whitelist=None, timeout_hint=None,
+                linger_before_quit=0):
         
         self.name = "HTTP server"
         self.logger = logging.getLogger(self.name)
@@ -658,6 +660,7 @@ subjectAltName=@altnames
         upload_scriptname = "upload.py"
         self.serving_wus = [True]
         self.timeout_hint = timeout_hint
+        self.linger_before_quit = linger_before_quit
         # formatter = logging.Formatter(
         #    fmt='%(address_string)s - - [%(asctime)s] %(message)s')
         #self.ch = logging.StreamHandler()
@@ -894,6 +897,11 @@ subjectAltName=@altnames
         self.serving_wus[0] = False
     
     def shutdown(self):
+        t = self.linger_before_quit
+        if t:
+            self.logger.info("Waiting for %d seconds so that clients get a chance to receive 410", t)
+            time.sleep(t)
+            self.logger.info("Exiting now")
         self.logger.info("Shutting down HTTP server")
         self.httpd.shutdown()
         if self.bg:
