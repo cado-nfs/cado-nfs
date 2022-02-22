@@ -493,7 +493,7 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
     unsigned int n = d.n;
     lingen_checkpoint cp(bm, which, t0, t1, 1);
     cp.datafile = cp.gdatafile;
-    size_t Xsize;
+    size_t Xsize = 0;
     int ok = 1, error = 0;
     try {
         ok = cp.load_aux_file(Xsize);
