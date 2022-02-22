@@ -411,13 +411,17 @@ fclose_maybe_compressed2 (FILE * f, const char * name, void * rr MAYBE_UNUSED)
 #if defined(WIFEXITED) && defined(WEXITSTATUS)
             /* Unless child process finished normally and with exit ret 0,
                we return an error */
-            if (ret == -1 || !WIFEXITED(ret) || WEXITSTATUS(ret) != 0)
+            if (ret == -1 || !WIFEXITED(ret) || WEXITSTATUS(ret) != 0) {
+                free(tempname);
                 return EOF;
+            }
 #else
             /* What do under MinGW? -1 definitely means an error, but how do
                we parse the other possible ret codes? */
-            if (ret == -1)
+            if (ret == -1) {
+                free(tempname);
                 return EOF;
+            }
 #endif
 
         } else {
@@ -425,8 +429,10 @@ fclose_maybe_compressed2 (FILE * f, const char * name, void * rr MAYBE_UNUSED)
             if (rr) memset(rr, 0, sizeof(*rr));
 #endif
             ret = fclose(f);
-            if (ret != 0)
+            if (ret != 0) {
+                free(tempname);
                 return ret;
+            }
         }
 
         /* do the rename only if the child completed successfully */
