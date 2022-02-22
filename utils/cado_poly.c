@@ -254,11 +254,11 @@ int cado_poly_check_mapping(mpz_poly_ptr G, cado_poly_srcptr cpoly,
 
     if (mpz_cmp_ui(factors_of_N, 1) != 0) {
         /* I don't think that there's any reason to have a situation
-         * where N has non-trivial factors. If such a situation arises,
-         * it's easy enough to turn the error below into a warning./
+         * where N has non-trivial factors. Well, it happens if you feed
+         * random numbers to polyselect, though.
          */
-        gmp_fprintf(stderr, "Error, non-trivial factors (%Zd) of N were found while checking the poly file. This should not happen.\n", factors_of_N);
-        found_mapping = 0;
+        gmp_fprintf(stderr, "Warning: non-trivial factors (%Zd) of N were found while checking the poly file. This should not happen.\n", factors_of_N);
+        // found_mapping = 0;
     }
 
 

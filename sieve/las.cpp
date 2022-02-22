@@ -1228,26 +1228,25 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                     double old_value = workspaces.bk_multiplier.get(e.key);
                     double ratio = (double) e.reached_size / e.theoretical_max_size * 1.05;
                     double new_value = old_value * ratio;
-                    double fresh_value = las.get_bk_multiplier().get(e.key);
-                    if (fresh_value > new_value) {
+                    double las_value;
+                    if (!las.grow_bk_multiplier(e.key, ratio, new_value, las_value)) {
 
-                        verbose_output_print(0, 1, "# Global %s bucket multiplier has already grown to %.3f. Not updating, since this will cover %.3f*%d/%d*1.1=%.3f\n",
+                        verbose_output_print(0, 1, "# Global %s bucket multiplier has already grown to %.3f. Not updating, since this will cover %.3f*%d/%d*1.05=%.3f\n",
                                 bkmult_specifier::printkey(e.key).c_str(),
-                                fresh_value,
+                                las_value,
                                 old_value,
                                 e.reached_size,
                                 e.theoretical_max_size,
                                 new_value
                                 );
                     } else {
-                        verbose_output_print(0, 1, "# Updating %s bucket multiplier to %.3f*%d/%d*1.1=%.3f\n",
+                        verbose_output_print(0, 1, "# Updating %s bucket multiplier to %.3f*%d/%d*1.05, =%.3f\n",
                                 bkmult_specifier::printkey(e.key).c_str(),
                                 old_value,
                                 e.reached_size,
                                 e.theoretical_max_size,
                                 new_value
                                 );
-                        las.grow_bk_multiplier(e.key, ratio);
                     }
                     if (las.config_pool.default_config_ptr) {
                         expected_memory_usage(las.config_pool.base, las, true, base_memory);

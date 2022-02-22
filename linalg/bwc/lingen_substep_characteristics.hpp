@@ -887,10 +887,15 @@ struct microbench_dft { /*{{{*/
         R += op.get_alloc_sizes()[0];
         /* plus the temp memory for the dft operation */
         R += op.get_alloc_sizes()[1];
-        size_t n = P.available_ram / R;
-        /* TODO: we probably want to ask P about max_threads. */
-        n = std::min(n, (size_t) U.max_threads());
-        if (n == 0) throw std::runtime_error("not enough RAM");
+        size_t n;
+        if (P.available_ram) {
+            n = P.available_ram / R;
+            /* TODO: we probably want to ask P about max_threads. */
+            n = std::min(n, (size_t) U.max_threads());
+            if (n == 0) throw std::runtime_error("not enough RAM");
+        } else {
+            n = U.max_threads();
+        }
         return n;
     }
     double operator()(unsigned int nparallel) const
@@ -923,10 +928,15 @@ struct microbench_ift { /*{{{*/
         R += op.get_alloc_sizes()[0];
         /* plus the temp memory for the ift operation */
         R += op.get_alloc_sizes()[1];
-        size_t n = P.available_ram / R;
-        /* TODO: we probably want to ask P about max_threads. */
-        n = std::min(n, (size_t) U.max_threads());
-        if (n == 0) throw std::runtime_error("not enough RAM");
+        size_t n;
+        if (P.available_ram) {
+            n = P.available_ram / R;
+            /* TODO: we probably want to ask P about max_threads. */
+            n = std::min(n, (size_t) U.max_threads());
+            if (n == 0) throw std::runtime_error("not enough RAM");
+        } else {
+            n = U.max_threads();
+        }
         return n;
     }
     double operator()(unsigned int nparallel) const {
@@ -961,10 +971,16 @@ struct microbench_conv { /*{{{*/
         R += op.get_alloc_sizes()[1];
         R += op.get_alloc_sizes()[2];
         /* take into account the +1 transform */
-        size_t n = (P.available_ram - op.get_alloc_sizes()[0]) / R;
-        /* TODO: we probably want to ask P about max_threads. */
-        n = std::min(n, (size_t) U.max_threads());
-        if (n == 0) throw std::runtime_error("not enough RAM");
+        size_t n;
+        if (P.available_ram) {
+            n = (P.available_ram - op.get_alloc_sizes()[0]) / R;
+            /* TODO: we probably want to ask P about max_threads. */
+            n = std::min(n, (size_t) U.max_threads());
+            if (n == 0 || P.available_ram < op.get_alloc_sizes()[0])
+                throw std::runtime_error("not enough RAM");
+        } else {
+            n = U.max_threads();
+        }
         return n;
     }
     double operator()(unsigned int nparallel) const {

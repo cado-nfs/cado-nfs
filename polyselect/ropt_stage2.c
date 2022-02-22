@@ -880,7 +880,7 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
   sievescore_pq *sievescore;
   sievearray_t sa; /* the rootsieve scores are recorded in sa->array[],
                       which is an array of int16_t,
-                      cf https://gforge.inria.fr/tracker/?aid=21542 */
+                      cf https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21542 */
 
   mpz_poly F, G;
   F->coeff = s2param->f;

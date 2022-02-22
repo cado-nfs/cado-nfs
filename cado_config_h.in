@@ -41,6 +41,12 @@
 
 #cmakedefine    HAVE_AVX2
 
+#cmakedefine    HAVE_AVX512F
+
+#cmakedefine    HAVE_AVX512VL
+
+#cmakedefine    HAVE_AVX512DQ
+
 #cmakedefine    HAVE_PCLMUL
 
 #cmakedefine    HAVE_ARM_NEON

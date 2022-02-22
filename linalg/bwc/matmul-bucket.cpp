@@ -1487,13 +1487,19 @@ void vsc_fill_buffers(builder * mb, struct vsc_slice_t * V)
                 }
             }
         */
+#ifndef NDEBUG
         unsigned int acc = 0;
+#endif
         for(unsigned int d = 0 ; d < nvstrips ; d++) {
+#ifndef NDEBUG
             acc += V->dispatch[d].sub[s].hdr->ncoeffs;
+#endif
             if (!flush_here(d,nvstrips,defer))
                 continue;
+#ifndef NDEBUG
             ASSERT(V->dispatch[d].sub[s].c.size() == acc + V->steps[s].nrows);
             acc = 0;
+#endif
         }
         unsigned long m = 0;
         unsigned long cm = 0;
@@ -3229,23 +3235,27 @@ static std::ostream& matmul_bucket_report_vsc(std::ostream& os, struct matmul_bu
             hdr++;
         }
     }
+    /*
     double total_from_defer_rows = 0;
     double total_from_defer_cmbs = 0;
+    */
     for(unsigned int l = 0 ; l < nsteps ; l++) {
         ASSERT_ALWAYS(hdr->t == SLICE_TYPE_DEFER_ROW);
         double t = mm->slice_timings[hdr - mm->headers.begin()].t;
         uint64_t nc = hdr->ncoeffs;
         ctime[l].first += nc;
         ctime[l].second += t;
-        total_from_defer_rows+=t;
+        // total_from_defer_rows+=t;
         hdr++;
     }
     /* Skip the combining blocks, because they're accounted for already
      * by the row blocks */
+    /*
     for( ; hdr != mm->headers.end() && hdr->t == SLICE_TYPE_DEFER_CMB ; hdr++) {
         double t = mm->slice_timings[hdr - mm->headers.begin()].t;
         total_from_defer_cmbs+=t;
     }
+    */
     /* Some jitter will appear if transposed mults are performed, because
      * for the moment transposed mults don't properly store timing info
      */

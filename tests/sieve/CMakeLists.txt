@@ -2,6 +2,7 @@
 # to stay compatible with older versions
 
 # Build makefb and las before running check
+include_directories(.)
 include_directories(${PROJECT_SOURCE_DIR}/utils)
 include_directories(${PROJECT_SOURCE_DIR}/sieve)
 
@@ -661,6 +662,13 @@ cado_define_test(test_fb_root.cpp
 cado_define_test(test_batchinv.cpp LIBRARIES utils tests)
 
 cado_define_test(test_invmod_redc_32.cpp LIBRARIES utils tests)
+
+cado_define_test(test-reduce-plattice.cpp LIBRARIES utils ARGUMENTS
+    -I 256
+    -B 100000
+    -ntests 100000
+    )
+cado_divert_test(test-reduce-plattice seed APPEND_ARGUMENTS -seed 1)
 
 add_subdirectory (ecm)
 add_subdirectory (strategies)

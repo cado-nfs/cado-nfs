@@ -1,7 +1,7 @@
 CADO-NFS is the result of a collaborative effort involving many
 persons, over various periods of time. The current list of active
 contributors can be extracted from the git repository available at
-  git clone https://scm.gforge.inria.fr/anonscm/git/cado-nfs/cado-nfs.git
+  git clone https://gitlab.inria.fr/cado-nfs/cado-nfs.git
 (check the authors of recent commit, using 'git log').
 
 A tentative list of CADO-NFS authors is (alphabetical order):
@@ -35,7 +35,7 @@ The recommended way to cite CADO-NFS in a scientific publication
 is:
     The CADO-NFS Development Team.
     CADO-NFS, An Implementation of the Number Field Sieve Algorithm,
-    Release 2.3.0, 2017, http://cado-nfs.gforge.inria.fr/
+    Release 2.3.0, 2017, https://cado-nfs.inria.fr/
 where the release number and date should be changed to correspond to
 the version you actually used. If you used the development version, it is
 a good idea to give the git revision number.
@@ -48,5 +48,5 @@ Bibtex entry:
         Algorithm},
     note={Release 2.3.0},
     year={2017},
-    url={http://cado-nfs.gforge.inria.fr/}
+    url={https://cado-nfs.inria.fr/}
 }

@@ -288,6 +288,7 @@ while (<>) {
     } elsif (scalar @live == 0) {
         next;
     } else {
-        die "unexpected data from stdin:\n$_\n" . hexdump($_);
+        my $msg = "unexpected data from stdin:\n$_\n" . hexdump($_);
+        print "$csi->{'failure'}$msg$csi->{'normal'}\n"
     }
 }

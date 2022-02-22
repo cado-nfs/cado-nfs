@@ -234,7 +234,6 @@ void mf_bal_decl_usage(param_list_ptr pl)
    param_list_decl_usage(pl, "rwfile", "row weight file (defaults to <mfile>.rw)");
    param_list_decl_usage(pl, "cwfile", "col weight file (defaults to <mfile>.cw)");
    param_list_decl_usage(pl, "out", "output file name (defaults to stdout)");
-   param_list_decl_usage(pl, "ascii", "output in ascii");
    param_list_decl_usage(pl, "quiet", "be quiet");
    param_list_decl_usage(pl, "rectangular", "accept rectangular matrices (for block Lanczos)");
    param_list_decl_usage(pl, "withcoeffs", "expect a matrix with explicit coefficients (not just 1s)");

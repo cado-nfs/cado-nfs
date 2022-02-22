@@ -256,7 +256,7 @@ modredcul_batchinv_ul (unsigned long *restrict r_ul,
   residueredcul_t R;
   unsigned long t; /* Not using the temp var, and writing directly into r[i],
                       is slower, in spite of the restrict hint :( */
-  
+
   /* We simply don't convert to or from Montgomery representation, but we
      have to divide the big inverse by \beta twice.
      Strangely enough, it all turns out well. */

@@ -839,7 +839,7 @@ ropt_s1param_setup ( ropt_poly_t poly,
   if (s1param->nbest_sl < 4)
     s1param->nbest_sl = 4;
   if (param->verbose >= 1) {
-    printf ("# Info: s1param->nbest_sl: %u (= size_total_sublattices*ropteffort)\n", s1param->nbest_sl);
+    printf ("# Info: s1param->nbest_sl: %u (= size_total_sublattices)\n", s1param->nbest_sl);
     printf ("# Info: s1param->nbest_sieve: %u (for sieving)\n", s1param->nbest_sieve);
   }
 

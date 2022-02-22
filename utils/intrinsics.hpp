@@ -6,35 +6,35 @@
    element type. */
 
 #include <limits>
-#include "macros.h"
+#include <macros.h>
 
 #ifdef HAVE_SSE
-#include "xmmintrin.h"
+#include <xmmintrin.h>
 #endif
 
 #ifdef HAVE_SSE2
-#include "emmintrin.h"
+#include <emmintrin.h>
 #endif
 
 #ifdef HAVE_SSE3
-#include "pmmintrin.h"
+#include <pmmintrin.h>
 #endif
 
 #ifdef HAVE_SSSE3
-#include "tmmintrin.h"
+#include <tmmintrin.h>
 #endif
 
 #ifdef HAVE_SSE41
-#include "smmintrin.h"
+#include <smmintrin.h>
 #endif
 
 #ifdef HAVE_SSE42
-#include "nmmintrin.h"
+#include <nmmintrin.h>
 #endif
 
 #ifdef HAVE_AVX
 /* Also covers AVX2 */
-#include "immintrin.h"
+#include <immintrin.h>
 #endif
 #ifdef HAVE_ARM_NEON
 #include <arm_neon.h>

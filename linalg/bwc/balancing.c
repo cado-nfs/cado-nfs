@@ -35,6 +35,16 @@ void balancing_finalize(balancing_ptr bal)
     cado_crc_lfsr_init(l);
     uint32_t w = 0;
     balancing_set_row_col_count(bal);
+
+    /* It does not make sense to say that we want to replicate
+     * permutations if we have both a row and a column permutation in the
+     * file, right?
+     */
+    uint32_t c = bal->h->flags & FLAG_ROWPERM;
+    uint32_t r = bal->h->flags & FLAG_COLPERM;
+    uint32_t a = bal->h->flags & FLAG_REPLICATE;
+    ASSERT_ALWAYS(!(c && r && a));
+
     if (bal->h->flags & FLAG_ROWPERM) {
         w = cado_crc_lfsr_turn32_little(l, bal->rowperm, bal->trows * sizeof(uint32_t));
     }
@@ -155,6 +165,15 @@ void balancing_read_header_inner(balancing_ptr bal, FILE * pfile)
         fprintf(stderr, "Incompatible balancing file\n");
         exit(EXIT_FAILURE);
     }
+    /* It does not make sense to say that we want to replicate
+     * permutations if we have both a row and a column permutation in the
+     * file, right?
+     */
+    uint32_t c = bal->h->flags & FLAG_ROWPERM;
+    uint32_t r = bal->h->flags & FLAG_COLPERM;
+    uint32_t a = bal->h->flags & FLAG_REPLICATE;
+    ASSERT_ALWAYS(!(c && r && a));
+
 }
 
 void balancing_read_header(balancing_ptr bal, const char * filename)

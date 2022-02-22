@@ -1013,53 +1013,73 @@ struct helper_functor_subdivide_slices {
                             s.weight,
                             npieces_for_addressable_slices,
                             npieces_for_no_bulky_slice, max_slice_weight);
-                for(size_t npieces = std::max(npieces_for_no_bulky_slice, npieces_for_addressable_slices) ; ; npieces++) {
+                for(size_t npieces = std::max(npieces_for_no_bulky_slice, npieces_for_addressable_slices) ; ; ) {
                     /* Compute the split points for splitting into
                      * exactly npieces of roughly equal weight */
                     std::vector<it_t> ssplits;
-                    it_t it = s.begin();
+                    /* Note that we have more discrepancy for the larger
+                     * primes of the range, and hence the very last
+                     * slices. The most efficient strategy is probably to
+                     * try to build these at the beginning, and bail out
+                     * as soon as we can based on how much they overflow.
+                     * And if the large slices don't overflow, it's
+                     * probably a good sign.
+                     */
+                    it_t jt = s.end();
+                    ssplits.push_back(jt);
                     for(size_t k = 1 ; k <= npieces ; ++k) {
-                        double target = w0 + (k * s.weight) / npieces;
+                        double target = w0 + ((npieces-k) * s.weight) / npieces;
                         /* Find first position where the cdf is >= target */
-                        it_t jt;
+                        it_t it;
                         if (k == npieces) {
-                            jt = s.end();
+                            it = s.begin();
                         } else {
                             auto jw = std::lower_bound(swb, swe, target);
-                            jt = x.begin() + (jw - x.weight_begin());
-                            ASSERT(jt >= s.begin() && it <= s.end());
+                            it = x.begin() + (jw - x.weight_begin());
+                            ASSERT(it >= s.begin() && jt <= s.end());
                         }
                         if (jt - it > std::numeric_limits<slice_offset_t>::max()) {
                             /* overflow. Do not push the split point, we'll try
                              * with more pieces */
-                            verbose_output_print (0, 4, "# [side-%d part %d %s logp=%d; %zu entries, weight=%f]: slice %zu/%zu overflows. Trying %zu slices\n",
+                            size_t new_npieces = round(npieces * (double) (jt-it) / std::numeric_limits<slice_offset_t>::max());
+                            if (new_npieces == npieces)
+                                new_npieces++;
+                            verbose_output_print (0, 4, "# [side-%d part %d %s logp=%d; %zu entries, weight=%f]: slice %zu/%zu overflows (%zu/%zu entries). Trying %zu slices\n",
                                     side,
                                     part_index,
                                     n_eq.str().c_str(),
                                     (int) s.get_logp(),
                                     s.size(),
                                     s.get_weight(),
-                                    k-1,
+                                    npieces-k,
                                     npieces,
-                                    npieces + 1);
+                                    (size_t) (jt-it),
+                                    (size_t) std::numeric_limits<slice_offset_t>::max(),
+                                    new_npieces);
+                            npieces = new_npieces;
                             break;
+                        } else {
+                            /* we're pushing them in the reverse order.
+                             * No big deal, since we'll rescan all that
+                             * before pushing to the final list.
+                             */
+                            ssplits.push_back(it);
                         }
-                        ssplits.push_back(jt);
-                        it = jt;
+                        jt = it;
                     }
-                    if (ssplits.size() != npieces) {
-                        /* try one more piece */
+                    if (ssplits.size() < 1 + npieces) {
+                        /* try more pieces */
                         continue;
                     }
                     /* We're satisfied with those split points. Re-do the
                      * sub-slices, and push them to the final list. We
                      * can drop the list of split points afterwards */
-                    it = s.begin();
-                    for(it_t jt : ssplits) {
-                        slice_t s(it, jt, cur_logp);
-                        s.weight = x.weight_delta(it, jt);
-                        sdst.push_back(s);
-                        it = jt;
+                    for(size_t k = 0 ; k < npieces ; k++) {
+                        it_t it = ssplits[npieces-k];
+                        it_t jt = ssplits[npieces-k-1];
+                        slice_t ss(it, jt, cur_logp);
+                        ss.weight = x.weight_delta(it, jt);
+                        sdst.push_back(ss);
                     }
                     break;
                 }
@@ -1121,11 +1141,11 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb, fb_factorbase::key_typ
 
     if (toplevel == 0) toplevel++;
 
-    double total_weight = 0;
+    // commented out, as in fact we no longer need to keep track of
+    // total_weight
+    // double total_weight = 0;
 
-    for (int i = 0; i <= toplevel; i++) {
-        total_weight += D.weight[i];
-    }
+    // for (int i = 0; i <= toplevel; i++) total_weight += D.weight[i];
 
     /* D.weight[i] is now what used to be called max_bucket_fill_ratio. We
      * will now make sure that slices are small enough so that a single
@@ -1175,7 +1195,7 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb, fb_factorbase::key_typ
         size_t nr_primes = D.primes[i];
         size_t nr_roots = D.ideals[i];
         double weight = D.weight[i];
-        total_weight += weight;
+        // total_weight += weight;
         int side = fb.side;
         if (!nr_primes) continue;
 

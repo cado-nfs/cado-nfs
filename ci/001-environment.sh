@@ -32,19 +32,10 @@ else
     HOSTNAME="[[placeholder]]"
 fi
 case "$HOSTNAME" in
-    # docker runners (gitlab ones) are apparently called "runner-*"
-    runner-*) ;;
-    docker-script-*) ;;
-    cado-*) ;;
-    raclette|fondue|tartiflette|berthoud) ;;
-    plafrim|fcatrel|fnancy|catrel-*|miriel*|mistral*|bora*) ;;
-    gcc*) ;;
-    poire*) ;;
-    macintosh*home) ;;
-    fedora*|debian*|ubuntu*|centos*|freebsd*|openbsd*|netbsd*) ;;
     # some of our very slow machines have so little ram that clearly, we
     # must not tax them too much.
     genepi|calva|pine64) export NCPUS_FAKE=1;;
+    *) : ;;
 esac
 
 if ! [ "$CI_BUILD_NAME" ] && [ "$1" ] ; then
@@ -96,6 +87,17 @@ case "$CI_BUILD_NAME" in
     : ${CC=clang}
     : ${CXX=clang++}
     clang=1
+    # We want to recognize "clangNN" or "clangdev" as monikers for
+    # specific versions of clang.
+    case "$CI_BUILD_NAME" in
+        *"with clangdev"*) clang=dev;;
+        *"with clang12"*) clang=12;;
+        *"with clang13"*) clang=13;;
+        *"with clang14"*) clang=14;;
+        *"with clang15"*) clang=15;;
+        *"with clang16"*) clang=16;;
+        *"with clang17"*) clang=17;;
+    esac
     ;;
 esac
 case "$CI_BUILD_NAME" in

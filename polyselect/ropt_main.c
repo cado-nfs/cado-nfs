@@ -19,7 +19,7 @@
    Output polynomials are in "CADO" format.
 
    Please report bugs to the public mailing list
-       cado-nfs-discuss@lists.gforge.inria.fr
+       cado-nfs@inria.fr
 */
 
 
@@ -603,8 +603,8 @@ declare_usage_basic (param_list pl)
   param_list_decl_usage(pl, "t", "number of threads to use (default 1)");
   snprintf (str, 200, "sieving area (default %.2e)", AREA);
   param_list_decl_usage(pl, "area", str);
-  snprintf (str, 200, "I-value (alternative to -area)");
-  param_list_decl_usage(pl, "I", str);
+  param_list_decl_usage(pl, "I", "I-value (alternative to -area)");
+  param_list_decl_usage(pl, "A", "A-value (alternative to -area)");
   snprintf (str, 200, "algebraic smoothness bound (default %.2e)", BOUND_F);
   param_list_decl_usage(pl, "Bf", str);
   snprintf (str, 200, "rational smoothness bound (default %.2e)", BOUND_G);
@@ -666,6 +666,7 @@ main_basic (int argc, char **argv)
   param_list_init (pl);
   declare_usage_basic(pl);
   param_list_configure_switch (pl, "-v", &(ropt_param->verbose));
+  param_list_configure_alias(pl, "alpha_bound", "B");
 
   if (argc == 1)
     usage_basic (argv0[0], NULL, pl);
@@ -684,7 +685,7 @@ main_basic (int argc, char **argv)
   if (param_list_parse_double (pl, "Bg", &bound_g) == 0) /* no -Bg */
     bound_g = BOUND_G;
   int a;
-  if (param_list_parse_int (pl, "B", &a)) /* -B option */
+  if (param_list_parse_int (pl, "alpha_bound", &a)) /* -B option */
     set_alpha_bound (a);
   int has_area = param_list_parse_double (pl, "area", &area);
   int has_A_or_I = param_list_parse_int (pl, "A", &A);

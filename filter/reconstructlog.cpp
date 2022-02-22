@@ -1158,7 +1158,8 @@ compute_needed_rels (bit_vector needed_rels,
                      logtab & log, const char *wanted_filename, int nt)
 {
   double wct_tt0, wct_tt;
-  uint64_t total_computed = 0, iter = 0, computed;
+  // uint64_t total_computed = 0;
+  uint64_t iter = 0, computed;
   uint64_t nrels = nrels_purged + nrels_del;
   graph_dep_t dep_graph = graph_dep_init (log.nprimes);
   light_rels_t rels = light_rels_init (nrels);
@@ -1201,7 +1202,7 @@ compute_needed_rels (bit_vector needed_rels,
       computed = dep_do_one_iter_mt (data, needed_rels, nt, nrels);
     else
       computed = dep_do_one_iter_mono (data, needed_rels, nrels);
-    total_computed += computed;
+    // total_computed += computed;
 
     printf ("# Iteration %" PRIu64 ": %" PRIu64 " new dependencies computed\n",
             iter, computed);

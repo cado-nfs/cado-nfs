@@ -115,7 +115,7 @@ std::vector<lingen_substep_schedule> optimize(
                             S.shrink2 = shrink2;
                             S.batch = {{ b0, b1, b2 }};
                             size_t my_ram = U.get_peak_ram(mesh, S);
-                            if (reserved + my_ram <= P.available_ram) {
+                            if (reserved + my_ram <= P.available_ram || P.available_ram == 0) {
                                 all_schedules.push_back(S);
                             }
                             if (my_ram < min_my_ram) {
@@ -136,7 +136,7 @@ std::vector<lingen_substep_schedule> optimize(
                             S.shrink2 = shrink2;
                             S.batch = {{ b0, b1, b2 }};
                             size_t my_ram = U.get_peak_ram(mesh, S);
-                            if (reserved + my_ram <= P.available_ram) {
+                            if (reserved + my_ram <= P.available_ram || P.available_ram == 0) {
                                 all_schedules.push_back(S);
                             }
                             if (my_ram < min_my_ram) {
@@ -161,7 +161,7 @@ std::vector<lingen_substep_schedule> optimize(
         std::ostringstream os;
         os << "Fatal error:"
             << " it is not possible to complete this calculation with only "
-            << size_disp(P.available_ram, buf)
+            << (P.available_ram ? size_disp(P.available_ram, buf) : "+infinity (?)")
             << " of memory for intermediate transforms.\n";
         os << "Based on the cost for input length "
             << U.input_length

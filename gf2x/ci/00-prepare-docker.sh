@@ -60,7 +60,7 @@ if [ "$coverage" ] ; then
     alpine_packages="$alpine_packages     lcov gcovr vim"
     if is_freebsd ; then
         echo "coverage -> not on freebsd" >&2
-        freebsd_packages="$freebsd_packages   lcov vim-console"
+        freebsd_packages="$freebsd_packages   lcov vim"
         # freebsd has no gcovr at the moment, so it's a no-go for now. not
         # sure we expect much benefit in running coverage tests on fbsd as
         # well anyway
@@ -114,7 +114,7 @@ if [ "$DOCKER_SCRIPT" ] ; then
     opensuse_packages="$opensuse_packages sudo git vim gdb"
     fedora_packages="$fedora_packages sudo git vim gdb"
     alpine_packages="$alpine_packages sudo git vim gdb"
-    freebsd_packages="$freebsd_packages sudo git vim-console gdb"
+    freebsd_packages="$freebsd_packages sudo git vim gdb"
 fi
 
 if is_debian ; then

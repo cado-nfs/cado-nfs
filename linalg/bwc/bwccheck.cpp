@@ -23,6 +23,7 @@
 #include "fmt/core.h"           // for check_format_string
 #include "fmt/format.h"         // for basic_buffer::append, basic_parse_con...
 #include "macros.h"             // for ASSERT_ALWAYS, MAYBE_UNUSED
+#include "misc.h"               // ok_NOKNOK
 #include "mpfq/mpfq.h"          // for MPFQ_DONE, MPFQ_PRIME_MPZ, MPFQ_SIMD_...
 #include "mpfq/mpfq_vbase.h"    // for mpfq_vbase_s, mpfq_vbase_oo_field_ini...
 #include "params.h"             // for param_list_clear, param_list_init
@@ -428,6 +429,8 @@ void check_A_files(mpfq_vbase_ptr Ac, std::vector<Vfile> const & Vfiles, std::ve
     fclose(Rfile);
 
     for(auto & D : Dfiles) {
+        if (D.stretch == 0)
+            continue;
         if (D.stretch > rsize) {
             fmt::print(stderr, FMT_STRING("Cannot do checks using {}, too few items in R file\n"), R);
             continue;
