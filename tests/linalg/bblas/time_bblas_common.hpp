@@ -7,6 +7,7 @@
 #include <utility>
 #include <map>
 #include <string>
+#include <functional>
 
 /* We used to do this with C macros. It's not harder to do the same with
  * C++ templates.
@@ -40,9 +41,11 @@ struct bblas_timer {
     template<typename T, typename... Args>
         void time1_common(T const & f, Args&&... args)
         {
+            auto F = std::bind(f, args...);
+
             t0 = clock();
             for (j = 0; ; j++) {
-                f(std::forward<Args>(args)...);
+                F();
                 t1 = clock() - t0;
                 if (j && t1 > measuring_time)
                     break;
