@@ -544,7 +544,7 @@ struct las_parallel_desc::helper {
                throw bad_specification("hwloc detected asymmetric topology, the only accepted memory binding specifier is \"machine\"");
            return 0;
        }
-       int binding_size;
+       int binding_size = 0;
        /* and apply our different calculation rules to the provided
         * string (either memory_binding_specifier_string or
         * cpu_binding_specifier_string if there is one). */
