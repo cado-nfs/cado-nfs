@@ -497,8 +497,10 @@ uint32_t poly_roots_longdouble(double *poly, uint32_t degree, long double comple
 
         double complex * droots = malloc(degree * sizeof(double complex));
 
-	if (jenkins_traub(rev_dccoeffs, degree, droots) != degree)
+	if (jenkins_traub(rev_dccoeffs, degree, droots) != degree) {
+                free(droots);
 		return 1;
+        }
 
 	/* polish each root */
 
