@@ -73,10 +73,11 @@ class
     typedef bblas_bitmat_details::bblas_bitmat_type_supported<T> S;
     static_assert(S::value, "bblas bitmap must be built on uintX_t");
 
+    typedef aligned_allocator<bitmat, S::alignment> allocator_type;
     public:
     static constexpr const int width = S::width;
     typedef T datatype;
-    typedef std::vector<bitmat, aligned_allocator<bitmat, S::alignment>> vector_type;
+    typedef std::vector<bitmat, allocator_type> vector_type;
     // typedef std::vector<bitmat> vector_type;
 
     private:
@@ -84,10 +85,12 @@ class
 
     public:
     static inline bitmat * alloc(size_t n) {
-        return (bitmat *) malloc_aligned(n * sizeof(bitmat), S::alignment);
+        bitmat * p = allocator_type().allocate(n);
+        return new(p) bitmat[n];
     }
-    static inline void free(bitmat * p) {
-        free_aligned(p);
+    static inline void free(bitmat * p, size_t n) {
+        ::operator delete (p, p);
+        allocator_type().deallocate(p, n);
     }
 
     inline T* data() { return x; }
@@ -101,7 +104,7 @@ class
         return memcmp(x, a.x, sizeof(x)) == 0;
     }
     inline bool operator!=(bitmat const& a) const { return !operator==(a); }
-    bitmat() {}
+    bitmat() { memset(x, 0, sizeof(x)); }
     inline bitmat(bitmat const& a) { memcpy(x, a.x, sizeof(x)); }
     inline bitmat& operator=(bitmat const& a)
     {

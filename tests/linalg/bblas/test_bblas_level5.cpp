@@ -29,9 +29,9 @@ void test_bblas_level5::polmul() {
     printf("-- polynomials (N=%zu) --\n", n);
     TIME1(5, m64pol_mul, C,A,B,n,n);
     TIME1(5, m64pol_mul_kara, C,A,B,n,n);
-    mat64::free(A);
-    mat64::free(B);
-    mat64::free(C);
+    mat64::free(A, n);
+    mat64::free(B, n);
+    mat64::free(C, n);
 }/*}}}*/
 
 test_bblas_base::tags_t test_bblas_level5::polblockmul_tags { "polblockmul", "poly", "l5" };/*{{{*/
@@ -46,9 +46,9 @@ void test_bblas_level5::polblockmul() {
     printf("-- polynomials, larger matrices (K=%u, N=%zu) --\n", K, n);
     TIME1(5, m64polblock_mul, C,A,B,n,n,2);
     TIME1(5, m64polblock_mul_kara, C,A,B,n,n,K);
-    mat64::free(A);
-    mat64::free(B);
-    mat64::free(C);
+    mat64::free(A, K * K * n);
+    mat64::free(B, K * K * n);
+    mat64::free(C, K * K * 2 * n);
 }/*}}}*/
 
 test_bblas_base::tags_t test_bblas_level5::matpolmul_tags = { "matpolmul", "poly", "l5" };/*{{{*/
@@ -68,9 +68,9 @@ void test_bblas_level5::matpolmul() {
     printf("-- 64x64 matrices over GF(2^128) --\n");
     TIME1(5, m64pol_mul_gf2_128_bitslice, C,A,B);
     TIME1(5, m64pol_mul_gf2_128_nobitslice, Cl,Al,Bl);
-    mat64::free(A);
-    mat64::free(B);
-    mat64::free(C);
+    mat64::free(A, n);
+    mat64::free(B, n);
+    mat64::free(C, n);
     /* On Core i5 (magret), it's almost a tie between the two
      * options... */
 #if 0
@@ -141,8 +141,8 @@ void test_bblas_level5::matpolscale() {
     printf("-- 64x64 matrix over GF(2^128), multiplication by scalar --\n");
     TIME1(5, m64pol_scalmul_gf2_128_bitslice, B,A,scalar);
     TIME1(5, m64pol_scalmul_gf2_128_nobitslice, Bl,Al,scalar);
-    mat64::free(A);
-    mat64::free(B);
+    mat64::free(A, n);
+    mat64::free(B, n);
     /* The bitsliced version sucks. Really.
      * TODO: See if we can do something. Abandon L1 cache focus, and
      * be content with L2 ? */
