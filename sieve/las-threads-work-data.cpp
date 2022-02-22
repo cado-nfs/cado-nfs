@@ -111,13 +111,13 @@ nfs_work::nfs_work(las_info & _las, int nr_workspaces)
     nr_workspaces(nr_workspaces),
     sides {{ {nr_workspaces}, {nr_workspaces} }}
 {
+    zeroinit_defaults();
     // we cannot do this because thread_data has no copy ctor (on
     // purpose)
     // th(_las.number_of_threads_per_subjob(), thread_data(*this))
     th.reserve(_las.number_of_threads_per_subjob());
     for(int x = _las.number_of_threads_per_subjob() ; x-- ; )
         th.emplace_back(*this);
-    zeroinit_defaults();
     sides[0].dumpfile.open(las.dump_filename, Q.doing, 0);
     sides[1].dumpfile.open(las.dump_filename, Q.doing, 1);
 }
