@@ -5889,6 +5889,16 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         self.params = self.parameters.myparams(self.paramnames)
         self.db_listener = self.make_db_listener()
 
+        if self.params["dlp"]:
+            p = self.params["N"]
+            k = self.params["gfpext"]
+            ell = self.params["ell"]
+            if (p**k-1) % ell != 0:
+                if k==1:
+                    raise ValueError("ell must divide p-1")
+                else:
+                    raise ValueError("ell must divide p^%d-1" % k)
+
         # Init WU BD
         self.wuar = self.make_wu_access()
         self.wuar.create_tables()
