@@ -466,6 +466,8 @@ struct gf2x_cantor_fft_info {
     inline std::array<size_t, 3> get_alloc_sizes() const {
         std::array<size_t, 3> sizes;
         gf2x_cantor_fft_info_get_alloc_sizes(this, &sizes[0]);
+        // false positive
+        // coverity[uninit_use]
         return sizes;
     }
     /* This is equal to transform_size() * sizeof(elt) */
