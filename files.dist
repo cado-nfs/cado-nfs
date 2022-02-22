@@ -1605,10 +1605,12 @@ tests/filter/p40_30004.rels.gz
 utils/embedded/fmt/ChangeLog.rst
 utils/embedded/fmt/LICENSE.rst
 utils/embedded/fmt/README.rst
+utils/embedded/fmt/args.h
 utils/embedded/fmt/chrono.h
 utils/embedded/fmt/color.h
 utils/embedded/fmt/compile.h
 utils/embedded/fmt/core.h
+utils/embedded/fmt/fmt.cc
 utils/embedded/fmt/format-inl.h
 utils/embedded/fmt/format.cc
 utils/embedded/fmt/format.h
@@ -1616,9 +1618,9 @@ utils/embedded/fmt/locale.h
 utils/embedded/fmt/os.cc
 utils/embedded/fmt/os.h
 utils/embedded/fmt/ostream.h
-utils/embedded/fmt/posix.h
 utils/embedded/fmt/printf.h
 utils/embedded/fmt/ranges.h
+utils/embedded/fmt/xchar.h
 sieve/inspect-fbc-file.pl
 tests/sieve/bogus.fbc
 sieve/inspect-batch-file.pl
