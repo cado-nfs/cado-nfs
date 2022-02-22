@@ -222,7 +222,8 @@ bool lingen_checkpoint::load_aux_file(size_t & Xsize)/*{{{*/
         throw invalid_aux_file(fmt::sprintf("checkpoint file cannot be used (made for (m,n)=(%u,%u)", xm, xn));
     int xlevel;
     unsigned int xt0, xt1;
-    is >> xlevel >> xt0 >> xt1 >> target_t;
+    if (!(is >> xlevel >> xt0 >> xt1 >> target_t))
+        throw invalid_aux_file("checkpoint file cannot be used (parse error)");
     if (xlevel != level || t0 != xt0 || t1 != xt1)
         throw invalid_aux_file(fmt::sprintf("checkpoint file cannot be used (made for depth=%d t0=%u t1=%u", xlevel, xt0, xt1));
     ASSERT_ALWAYS(target_t <= t1);
