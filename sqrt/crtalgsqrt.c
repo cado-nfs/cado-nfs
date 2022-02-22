@@ -942,8 +942,8 @@ struct wq_task * wq_pop_wait(struct work_queue * wq)
     }
     t = wq->head;
     wq->head = t->next;
-    pthread_mutex_unlock(wq->m);
     t->next = NULL;
+    pthread_mutex_unlock(wq->m);
     return t;
 }
 
