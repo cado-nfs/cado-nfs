@@ -434,7 +434,10 @@ fclose_maybe_compressed2 (FILE * f, const char * name, void * rr MAYBE_UNUSED)
         // coverity[fs_check_call]
         if (stat(tempname, sbuf) == 0) {
             ret = rename(tempname, name);
+            free(tempname);
             if (ret != 0) return EOF;
+        } else {
+            free(tempname);
         }
 
         return 0;
