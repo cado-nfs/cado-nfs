@@ -37,8 +37,7 @@ static bool parse_number(std::string const & s, int & x, std::string::size_type 
     if (s.empty() || s.find_first_not_of(digits, pos) != std::string::npos)
         return false;
     std::istringstream is(s.substr(pos));
-    is >> x;
-    return true;
+    return bool(is >> x);
 }/*}}}*/
 
 /* used to help with some of the job achieved by the las_parallel ctor.
