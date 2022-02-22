@@ -279,7 +279,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
         serialize(pi->m);
         for(int i = 0 ; i < bw->n / splitwidth ; i++) {
             int ys[2] = { i * splitwidth, (i + 1) * splitwidth };
-            std::string v_name = "V%u-%u.{}"_format(s);
+            std::string v_name = fmt::format(FMT_STRING("V%u-%u.{}"), s);
             if (fake) {
                 mmt_vec_set_random_through_file(vi[i], v_name, unpadded, rstate, ys[0]);
             } else {
@@ -343,7 +343,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                             sol0 = (j * Af_multiplex + k) * Av_width;
                             sol0 += solutions[0];
                             sol1 = sol0 + Av_width;
-                            std::string f_name = "F.sols{}-{}.{}-{}"_format(
+                            std::string f_name = fmt::format(FMT_STRING("F.sols{}-{}.{}-{}"), 
                                     sol0, sol1,
                                     i * Av_width, (i + 1) * Av_width);
 
@@ -507,7 +507,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
              * really (and As_multiplex == 1)
              */
             int j = 0;
-            std::string s_name = "S.sols%u-%u.{}-{}"_format(s, s + bw->checkpoint_precious);
+            std::string s_name = fmt::format(FMT_STRING("S.sols%u-%u.{}-{}"), s, s + bw->checkpoint_precious);
             ASSERT_ALWAYS(ymy[0]->abase->simd_groupsize(ymy[0]->abase) == (int) As_width);
             mmt_vec_save(ymy[0], s_name, unpadded,
                     solutions[0] + j * As_width);
