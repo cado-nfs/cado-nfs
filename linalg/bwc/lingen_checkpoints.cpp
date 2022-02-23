@@ -363,6 +363,7 @@ int save_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly const &
     /* corresponding t is bm.t - E.size ! */
     if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
+    // coverity[tainted_data_transitive]
     lingen_checkpoint cp(bm, which, t0, t1, 0);
     if (cp.checkpoint_already_present())
         return 1;
