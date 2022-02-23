@@ -96,24 +96,38 @@ fi
 
 ########################################################################
 # Make sure we have cmake, by the way !
-:  ${cmake_path:="`which cmake 2>/dev/null`"}
-if [ "$?" != "0" ] ; then
-    :  ${cmake_path:="`type -p cmake 2>/dev/null`"}
+
+if [ "$cmake_path" ] ; then
+    if ! [ -x "$cmake_path" ] ; then
+        echo "cmake_path=$cmake_path points to non-existing (or non-executable) file" >&2
+        exit 1
+    fi
+else
+    # just try with the PATH.
+    cmake_path=cmake
 fi
 
-cmake_companion_install_location="$absolute_path_of_source/cmake-installed"
-if [ "$?" != "0" ] || ! [ -x "$cmake_path" ] ; then
+cmake_version=$("$cmake_path" --version)
+
+if [ $? != 0 ] ; then
     echo "CMake not found" >&2
     cmake_path=
 # Recall that (some versions of) bash do not want quoting for regex patterns.
-elif [[ "`"$cmake_path" --version`" =~ ^cmake\ version\ [012] ]] ; then
+elif [[ "$cmake_version" =~ ^cmake\ version\ [012] ]] ; then
     echo "CMake found, but not with version 3.4 or newer" >&2
     cmake_path=
-elif [[ "`"$cmake_path" --version`" =~ ^cmake\ version\ 3\.[0123]\. ]] ; then
+elif [[ "$cmake_version" =~ ^cmake\ version\ 3\.[0123]\. ]] ; then
     echo "CMake found, but not with version 3.4 or newer" >&2
     cmake_path=
 fi
+
+cmake_companion_install_location="$absolute_path_of_source/cmake-installed"
+
 if ! [ "$cmake_path" ] ; then
+    if [ "$CI_BUILD_NAME" ] ; then
+        echo "Refusing to auto-install cmake in CI builds" >&2
+        exit 1
+    fi
     cmake_path="$cmake_companion_install_location/bin/cmake"
     if [ -x "$cmake_path" ] ; then
         echo "Using custom cmake in $cmake_companion_install_location" >&2
@@ -137,6 +151,22 @@ if ! [ "$cmake_path" ] ; then
             exit 1
         fi
         cd "$called_from"
+    fi
+fi
+
+if [ "$cmake_path" ] ; then
+    # we want the absolute path to cmake_path, since cmake gets called in
+    # a directory which is not the cwd, and the current logic will fail
+    # if cmake_path is a relative path (or if cmake_path=cmake and a
+    # relative path is in the PATH)
+    absolute_cmake_path="$(type -p "$cmake_path" || which "$cmake_path" 2>/dev/null)"
+    if [ "$absolute_cmake_path" ] ; then
+        absolute_cmake_path="$(realpath $absolute_cmake_path)"
+    fi
+    if [ $? != 0 ] ; then
+        echo "Cannot find absolute path of $cmake_path" >&2
+    else
+        cmake_path="$absolute_cmake_path"
     fi
 fi
 
