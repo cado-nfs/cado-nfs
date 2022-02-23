@@ -92,10 +92,40 @@ checks on debian system with 32-bit gcc:
     - *checks-script
   <<: *checks-junit-report
 
+checks on debian-testing system with 32-bit gcc:
+  <<: *common-template
+  stage: early
+  image: debian:testing
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
 checks using cmake directly with gcc:
   <<: *common-template
   stage: early
   image: alpine
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on debian system with gcc:
+  <<: *common-template
+  stage: early
+  image: debian:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on debian-testing system with gcc:
+  <<: *common-template
+  stage: early
+  image: debian:testing
   before_script:
     - ci/00-prepare-docker.sh
   script:
@@ -126,6 +156,36 @@ checks on opensuse system with gcc:
   <<: *common-template
   stage: early
   image: opensuse/leap
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on fedora system with gcc:
+  <<: *common-template
+  stage: early
+  image: fedora:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on centos system with gcc:
+  <<: *common-template
+  stage: early
+  image: quay.io/centos/centos:stream
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on centos9 system with gcc:
+  <<: *common-template
+  stage: early
+  image: quay.io/centos/centos:stream9
   before_script:
     - ci/00-prepare-docker.sh
   script:
