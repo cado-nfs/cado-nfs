@@ -52,10 +52,12 @@ perhaps does not.
  * The primary development platform is `x86_64` Debian GNU/Linux, latest
    version, with gcc. If it doesn't work, we have a problem.
 
- * A few recent versions of Debian or Fedora are also tested. CentOS
-   distributions (or derivatives) that have been EOL'd for some time, or
-   are deemed to be shortly because they have vastly out-of-date
-   software, are not tested.
+ * A few recent versions of Debian, Alpine Linux, and OpenSuse are also
+   tested. CentOS distributions (or derivatives) that have been EOL'd for
+   some time, or are deemed to be shortly because they have vastly
+   out-of-date software, are not tested.
+
+ * Current FreeBSD is also routinely tested.
 
  * `x86_64` with icc 14, 15, 16, 17, and 18 did work once, but are not checked
    regularly (cado-nfs uses C++11, which is not available with icc <=
@@ -75,7 +77,8 @@ perhaps does not.
    some time now (see a longer note
    [there](#using-cado-nfs-under-windows) at the end of this file).
 
-Those machines, compared to the base install, are equipped with the
+These configurations are run within specific containers, or on specific
+machines. Compared to the base install, these are equipped with the
 necessary dependencies (see below). The console outputs for the different
 builds contain information related to the compiler versions being used.
 
@@ -85,7 +88,7 @@ Required software tools
 
  * [GMP](https://gmplib.org/), version 5 or newer: usually installed in
    most Linux distributions (on some Linux distributions you need to
-   install the `libgmp*-dev` or `gmp-devel` package that includes
+   install the `libgmp-dev` or `gmp-devel` package that includes
    `gmp.h`. It is often not installed by default). Note: make sure to
    configure GMP with `--enable-shared` so that a shared library is
    installed (`libgmp.so` under Linux) otherwise CADO-NFS might not
@@ -210,7 +213,7 @@ systems (which is mostly impacted by the shared library mechanism).
 * `$SRCDIR/cado-nfs.py`
   This deduces `$BUILDDIR` from the machine hostname, and amounts to
   calling binaries from there. Parameter files are obtained from
-  $SRCDIR/parameters/
+  `$SRCDIR/parameters/`
 
 * `$PREFIX/bin/cado-nfs.py`
   This calls binaries from `$PREFIX/bin`, and loads parameter files from
@@ -298,7 +301,8 @@ three modes as follows.
    [`scripts/cadofactor/README.md`](scripts/cadofactor/README.md) and
    [`scripts/cadofactor/parameters`](scripts/cadofactor/parameters)).
    See also [this thread](https://sympa.inria.fr/sympa/arc/cado-nfs/2020-03/msg00001.html)
-   on the old `cado-nfs` list. If you want to use cado-nfs even to a little extent, we recomment that you familiarize with this mode of operation.
+   on the `cado-nfs` list. If you want to use cado-nfs even to a little
+   extent, we recomment that you familiarize with this mode of operation.
 
  * For much larger computations, the `cado-nfs.py` is only of moderate
    use. The individual cado-nfs binaries and internal scripts are the
