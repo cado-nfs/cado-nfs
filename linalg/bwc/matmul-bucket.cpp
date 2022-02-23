@@ -2796,6 +2796,10 @@ static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vecto
     ASM_COMMENT("multiplication code -- vertical staircase");/*{{{*/
 
     /* now prepare pointers */
+    /* NOTE: we've been getting gcc warnings here for quite a while, and
+     * that is explained in the bug report below.
+     * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97222
+     */
     vector<abelt *> base_ptrs;
     vector<abelt *> cptrs;
     abelt * q0 = scratch;
