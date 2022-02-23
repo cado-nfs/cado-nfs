@@ -97,6 +97,10 @@ fi
 ########################################################################
 # Make sure we have cmake, by the way !
 :  ${cmake_path:="`which cmake 2>/dev/null`"}
+if [ "$?" != "0" ] ; then
+    :  ${cmake_path:="`type -p cmake 2>/dev/null`"}
+fi
+
 cmake_companion_install_location="$absolute_path_of_source/cmake-installed"
 if [ "$?" != "0" ] || ! [ -x "$cmake_path" ] ; then
     echo "CMake not found" >&2
