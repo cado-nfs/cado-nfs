@@ -343,7 +343,8 @@ void cachefile_close(cachefile_ptr c)
         return;
     snprintf(tname, sizeof(tname), CACHEDIR "/.pre." CACHEPREFIX "%s", c->basename);
     snprintf(fname, sizeof(fname), CACHEDIR "/" CACHEPREFIX "%s", c->basename);
-    rename(tname, fname);
+    if (rename(tname, fname) < 0)
+        fprintf(stderr, "Could not rename temporary cache file %s to %s\n", tname, fname);
 }
 /* }}} */
 
