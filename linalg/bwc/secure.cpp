@@ -221,6 +221,8 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             }
             /* }}} */
 
+            ASSERT_ALWAYS(Rfile != NULL);
+
             pi_bcast(Tdata, bw->m, A_pi, 0, 0, pi->m);
         } else {
             pi_bcast(&consistency, 1, BWC_PI_INT, 0, 0, pi->m);
