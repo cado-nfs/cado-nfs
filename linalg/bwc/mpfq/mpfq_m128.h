@@ -198,7 +198,7 @@ extern "C" {
 #define mpfq_m128_field_characteristic(K, z)	mpz_set_ui(z,2)
 mpz_srcptr mpfq_m128_field_characteristic_srcptr(mpfq_m128_src_field);
 /* *simd_char2::code_for_field_degree */
-#define mpfq_m128_field_degree(f)	1
+#define mpfq_m128_field_degree(K)	1
 /* *simd_char2::code_for_field_init */
 #define mpfq_m128_field_init(f)	((mpfq_m128_dst_field) (f))->c=0
 /* *simd_char2::code_for_field_clear */
