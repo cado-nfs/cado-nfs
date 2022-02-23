@@ -28,6 +28,8 @@ debian_packages="$debian_packages     libgmp-dev"
 # is full perl really needed ?
 # debian_packages="$debian_packages     perl"
 debian_packages="$debian_packages     python3"
+# we may consider using a system libfmt at some point.
+# debian_packages="$debian_packages     libfmt-dev"
 
 opensuse_packages="$opensuse_packages     bc"
 opensuse_packages="$opensuse_packages     which"  # is type -p more portable?
@@ -117,6 +119,9 @@ if [ "$gcc32" ] ; then
     debian_packages="$debian_packages     g++-multilib"
     debian_packages="$debian_packages     curl"
     debian_packages="$debian_packages     lzip"
+    debian_packages="$debian_packages     libhwloc-dev:i386"
+    # we may consider using a system libfmt at some point.
+    # debian_packages="$debian_packages     libfmt-dev:i386"
     # fedora_packages="$fedora_packages     g++"
     # centos_packages="$centos_packages     g++"
     # alpine_packages="$alpine_packages     g++"
