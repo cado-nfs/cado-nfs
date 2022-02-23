@@ -132,6 +132,40 @@ checks on opensuse system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
+checks on fedora system with gcc:
+  <<: *common-template
+  stage: early
+  image: fedora:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on centos system with gcc:
+  <<: *common-template
+  stage: early
+  image: quay.io/centos/centos:stream
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+# stream9 does not seem to work at all, at the time of this writing.
+# Maybe later.
+#
+# checks on centos9 system with gcc:
+#   <<: *common-template
+#   stage: early
+#   image: quay.io/centos/centos:stream9
+#   before_script:
+#     - ci/00-prepare-docker.sh
+#   script:
+#     - *checks-script
+#   <<: *checks-junit-report
+# 
+
 # unfortunately silkeh/clang:latest is outdated...
 checks with clang13:
   <<: *common-template

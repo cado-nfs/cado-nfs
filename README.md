@@ -52,10 +52,11 @@ perhaps does not.
  * The primary development platform is `x86_64` Debian GNU/Linux, latest
    version, with gcc. If it doesn't work, we have a problem.
 
- * A few recent versions of Debian, Alpine Linux, and OpenSuse are also
-   tested. CentOS distributions (or derivatives) that have been EOL'd for
-   some time, or are deemed to be shortly because they have vastly
-   out-of-date software, are not tested.
+ * The current version, as well as a few other versions of Debian, Alpine
+   Linux, Fedora, Centos Stream, and OpenSuse are also tested. CentOS
+   distributions (or derivatives) that have been EOL'd for some time, or
+   are deemed to be shortly because they have vastly out-of-date
+   software, are not tested.
 
  * Current FreeBSD is also routinely tested.
 
