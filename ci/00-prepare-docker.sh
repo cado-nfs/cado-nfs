@@ -45,7 +45,7 @@ fedora_packages="$fedora_packages     gmp-devel"
 fedora_packages="$fedora_packages     hostname"
 # is full perl really needed ? seems that perl-interpreter and the auto
 # dependencies that we pull already pull what we need.
-# fedora_packages="$fedora_packages     perl"
+fedora_packages="$fedora_packages     perl-interpreter"
 fedora_packages="$fedora_packages     python"
 fedora_packages="$fedora_packages     findutils diffutils"
 
@@ -59,6 +59,7 @@ if is_centos_above_8 ; then
 fi
 centos_packages="$centos_packages     gmp-devel"
 centos_packages="$centos_packages     hostname"
+centos_packages="$centos_packages     perl-interpreter"
 centos_packages="$centos_packages     python3"
 centos_packages="$centos_packages     findutils diffutils"
 
