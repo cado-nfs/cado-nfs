@@ -249,17 +249,20 @@ if __name__ == '__main__':
             assert (p-1) % ell == 0
             assert pow(3, log2*cof, p) == pow(2, log3*cof, p)
             logger.info("Checking that log(2) and log(3) are consistent... passed!")
+            # what do we have at our disposal in terms of sanity checks?
             g2, ilog2, foo = xgcd(log2, ell)
             if g2 == 1:
                 potential_generators.append((2, ilog2))
             g3, ilog3, foo = xgcd(log3, ell)
             if g3 == 1:
                 potential_generators.append((3, ilog3))
-            gt, ilogt, foo = xgcd(logtarget * cof, ell)
-            if gt == 1:
-                # then target^((p-1)/ell * ilogt) is a generator
-                opportunistic_generator = pow(int(target), ilogt*cof, p)
-                potential_generators.append((opportunistic_generator, 1))
+            if target != "":
+                gt, ilogt, foo = xgcd(logtarget * cof, ell)
+                if gt == 1:
+                    # then target^((p-1)/ell * ilogt) is a generator
+                    opportunistic_generator = pow(int(target), ilogt*cof, p)
+                    potential_generators.append((opportunistic_generator, 1))
+
             if target != "":
                 logger.info("Also check log(target) vs log(2) ...")
                 if target != "":
