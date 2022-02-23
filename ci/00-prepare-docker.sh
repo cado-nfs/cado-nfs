@@ -114,6 +114,8 @@ if [ "$gcc32" ] ; then
         echo "multlib -> only debian (fedora,opensuse:IDK ; alpine:no-go)" >&2
         # didn't even check freebsd
         exit 1
+    else
+        dpkg --add-architecture i386
     fi
     # note that opensuse has gmp-devel-32bit
     debian_packages="$debian_packages     g++-multilib"
