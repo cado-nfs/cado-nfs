@@ -82,8 +82,7 @@ random_integer (modint_t z)
 
   for (i = 0; i < MOD_SIZE; i++)
     {
-      z[i] = (unsigned long) rand () +
-	(RAND_MAX + 1UL) * (unsigned long) rand ();
+      z[i] = u64_random(state);
     }
 }
 
