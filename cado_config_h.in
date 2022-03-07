@@ -59,6 +59,8 @@
 
 #cmakedefine HAVE_GAS_SYNTAX_ASSEMBLY_SOURCES
 
+#cmakedefine STATIC_ANALYSIS
+
 #cmakedefine HAVE_GLIBC
 #cmakedefine HAVE_MUSL
 #cmakedefine MUSL_VERSION @MUSL_VERSION@

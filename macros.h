@@ -40,7 +40,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 /* Even simple assertions are relatively expensive in very simple functions.
    If we want them anyway to hunt a bug, define WANT_ASSERT_EXPENSIVE */
-#ifdef WANT_ASSERT_EXPENSIVE
+#if defined(WANT_ASSERT_EXPENSIVE) || defined(STATIC_ANALYSIS)
 #define ASSERT_EXPENSIVE(x) ASSERT(x)
 #else
 #define ASSERT_EXPENSIVE(x)
@@ -111,7 +111,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 /* This macro is used to guard against some trivial false positives
  * returned by static analyzer */
-#if defined(__COVERITY__)
+#if defined(__COVERITY__) || defined(STATIC_ANALYSIS)
 #define ASSERT_FOR_STATIC_ANALYZER(x) do {                             \
     if (!(x)) {                                                        \
         abort();                                                       \
