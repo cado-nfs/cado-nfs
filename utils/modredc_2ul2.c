@@ -332,6 +332,8 @@ modredc2ul2_batch_Q_to_Fp (unsigned long *r,
                            const unsigned long k, const int neg,
                            const unsigned long *p, const size_t n)
 {
+  ASSERT_ALWAYS(context != NULL);
+
   residue_t *tr;
   int rc = 1;
 
