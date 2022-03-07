@@ -356,6 +356,20 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 #endif
 
+#ifndef ATTRIBUTE_NONNULL
+#if GNUC_VERSION_ATLEAST(3,3,6)
+#define ATTRIBUTE_NONNULL(which) __attribute__ ((__nonnull__ which))
+#elif defined(__clang__)
+#if __has_attribute(nonnull)
+#define ATTRIBUTE_NONNULL(which) __attribute__((nonnull which))
+#else
+#define ATTRIBUTE_NONNULL(which)
+#endif
+#else
+#define ATTRIBUTE_NONNULL(which)
+#endif
+#endif
+
 #ifndef ATTRIBUTE_ALWAYS_INLINE
 #if GNUC_VERSION_ATLEAST(3,1,0)
 #define ATTRIBUTE_ALWAYS_INLINE __attribute__ ((__always_inline__))

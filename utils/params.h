@@ -104,7 +104,8 @@ extern int param_list_read_file(param_list_ptr pl, const char * name);
 // <key>=<value> ; configured switches and aliases for the param list are
 // also checked.
 extern int param_list_update_cmdline(param_list_ptr pl,
-        int * p_argc, char *** p_argv);
+        int * p_argc, char *** p_argv) ATTRIBUTE_NONNULL((2,3));
+
 
 #if 0
 // This one allows shorthands. Notice that the alias string has to
