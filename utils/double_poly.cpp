@@ -58,6 +58,7 @@ double_poly_init (double_poly_ptr p, int d)
         p->coeff = (double*) malloc ((d + 1) * sizeof (double));
         FATAL_ERROR_CHECK(p->coeff == NULL, "malloc failed");
     }
+    ASSERT_FOR_STATIC_ANALYZER((p->alloc == 0) == (p->coeff == NULL));
 }
 
 /* Clear a polynomial */
@@ -76,6 +77,8 @@ double_poly_realloc (double_poly_ptr p, int nc)
     if (p->alloc >= nc) return;
     p->alloc = nc;
     p->coeff = (double*) realloc(p->coeff, p->alloc * sizeof(double));
+    FATAL_ERROR_CHECK(p->coeff == NULL, "malloc failed");
+    ASSERT_FOR_STATIC_ANALYZER((p->alloc == 0) == (p->coeff == NULL));
 }
 
 
