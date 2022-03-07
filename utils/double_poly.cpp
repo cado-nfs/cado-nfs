@@ -850,6 +850,7 @@ static int double_poly_pseudo_division(double_poly_ptr q, double_poly_ptr r,
         e--;
         //TODO: is it necessary?
         if (double_poly_isnan_or_isinf(r) || r->deg == -1) {
+            double_poly_clear(s);
             return 0;
         }
     }
