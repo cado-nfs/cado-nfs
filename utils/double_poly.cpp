@@ -100,7 +100,9 @@ void double_poly_set_degree(double_poly_ptr f, int deg)
 void
 double_poly_set (double_poly_ptr r, double_poly_srcptr s)
 {
+    ASSERT_FOR_STATIC_ANALYZER(s->deg >= -1);
     if (r == s) return;
+    if (s->deg == -1) { r->deg = -1; return; }
     double_poly_realloc(r, s->deg + 1);
     memcpy(r->coeff, s->coeff, (s->deg+1) * sizeof(double));
     r->deg = s->deg;
