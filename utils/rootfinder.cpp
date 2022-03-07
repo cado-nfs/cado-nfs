@@ -96,7 +96,6 @@ mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstat
        is larger than ulong, we call mpz_poly_roots_mpz as a fallback */
     unsigned long *rr;
     int i, n;
-    int d = F->deg;
 
 #if ULONG_BITS < 64
     if (p > (uint64_t) ULONG_MAX)
@@ -109,11 +108,11 @@ mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstat
         else
           {
             mpz_t *rr;
-            rr = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
-            for (i = 0; i <= d; i++)
+            rr = (mpz_t*) malloc ((F->deg + 1) * sizeof (mpz_t));
+            for (i = 0; i <= F->deg; i++)
               mpz_init (rr[i]);
             n = mpz_poly_roots_mpz (NULL, F, pp, rstate);
-            for (i = 0; i <= d; i++)
+            for (i = 0; i <= F->deg; i++)
               {
                 if (i < n)
                   r[i] = mpz_get_uint64 (rr[i]);
@@ -130,7 +129,7 @@ mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstat
       return mpz_poly_roots_ulong (NULL, F, p, rstate);
 
     if (sizeof (unsigned long) != sizeof (uint64_t))
-      rr = (unsigned long *) malloc(d * sizeof(unsigned long));
+      rr = (unsigned long *) malloc(F->deg * sizeof(unsigned long));
     else
       rr = (unsigned long *) r;
     n = mpz_poly_roots_ulong (rr, F, p, rstate);
