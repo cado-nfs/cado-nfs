@@ -198,7 +198,9 @@ modredc2ul2_inv (residueredc2ul2_t r, const residueredc2ul2_t A,
 
       u[0] = s[0];
       u[1] = s[1];
+#if PARI
       t = 0;
+#endif
       MODINV_PRINT_PARI_INVARIANT_A;
     }
 

@@ -199,7 +199,9 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
 
       u[0] = s[0];
       u[1] = s[1];
+#if PARI
       t = 0;
+#endif
       MODINV_PRINT_PARI_INVARIANT_A;
     }
 
