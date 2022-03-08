@@ -9,6 +9,8 @@
 # DEBUG=1 CLANG=1 scan-build make cmake
 # DEBUG=1 CLANG=1 scan-build make -j8 utils
 #
+# We also know of the CodeChecker tool: https://codechecker.readthedocs.io/en/latest/
+#
 # In both cases, the STATIC_ANALYSIS config flag is set in cado_config.h,
 # so that asserts such that ASSERT_FOR_STATIC_ANALYZER are expanded.
 
@@ -24,6 +26,12 @@ if(NOT STATIC_ANALYSIS)
     " RUNNING_COVERITY)
     if (RUNNING_COVERITY)
         set(STATIC_ANALYSIS "coverity")
+    endif()
+endif()
+if(NOT STATIC_ANALYSIS)
+    string(COMPARE NOTEQUAL "$ENV{CC_DATA_FILES_DIR}" "" RUNNING_CODECHECKER)
+    if (RUNNING_CODECHECKER)
+        set(STATIC_ANALYSIS "CodeChecker")
     endif()
 endif()
 
