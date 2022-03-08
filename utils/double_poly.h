@@ -27,7 +27,7 @@ extern "C" {
 #endif
 
 struct double_poly_s {
-    int alloc;
+    unsigned int alloc;
     int deg;
     double *coeff;
 };
@@ -41,7 +41,7 @@ typedef const struct double_poly_s * double_poly_srcptr;
 
 /* double_poly.c */
 void double_poly_init (double_poly_ptr, int deg);
-void double_poly_realloc (double_poly_ptr, int nc);
+void double_poly_realloc (double_poly_ptr, unsigned int nc);
 void double_poly_clear (double_poly_ptr);
 void double_poly_swap(double_poly_ptr p, double_poly_ptr q);
 void double_poly_set (double_poly_ptr, double_poly_srcptr);
