@@ -46,7 +46,10 @@ fd_streambuf::~fd_streambuf()
 
 void fd_streambuf::close()
 {
-    sync();
+    /* sync() is virtual. We are only assuming that we're resolving at
+     * the current level, and we want to make that explicit.
+     */
+    fd_streambuf::sync();
     ::close(fd_);
 
     setg(0, 0, 0);
