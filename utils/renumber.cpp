@@ -977,7 +977,7 @@ static bool variant_scan_small_range_forward(std::vector<p_r_values_t> const & d
             if (data[j] > data[i0]) {
                 /* Then we have a new vp marker. */
                 i0 = j;
-                delta = data[i0 + 1] - data[i0];
+                // delta = data[i0 + 1] - data[i0];
                 break;
             }
             /* The delta that is attached to this i depends on
