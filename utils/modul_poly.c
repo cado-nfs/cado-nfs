@@ -62,8 +62,9 @@ modul_poly_clear (modul_poly_t f)
 
 /* realloc f to (at least) n coefficients */
 void
-modul_poly_realloc (modul_poly_t f, int n)
+modul_poly_realloc (modul_poly_t f, unsigned int n)
 {
+  ASSERT_ALWAYS(n <= (unsigned int) INT_MAX);
   if (f->alloc < n)
     {
       f->coeff = realloc_long_array (f->coeff, n);

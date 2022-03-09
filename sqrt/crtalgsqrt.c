@@ -550,7 +550,8 @@ void reduce_polymodF_mul_monic(mpz_poly P, int recv, MPI_Comm comm, mpz_poly F)/
 static void broadcast_poly(mpz_poly P, int maxdeg, int root, MPI_Comm comm) /*{{{*/
 {
     /* maxdeg must be <= all allocation degrees. */
-    ASSERT_ALWAYS(maxdeg + 1 <= P->alloc);
+    ASSERT_ALWAYS(maxdeg + 1 >= 0);
+    ASSERT_ALWAYS(((unsigned int) maxdeg + 1) <= P->alloc);
     for(int j = 0 ; j < maxdeg + 1 ; j++) {
         mpz_ptr z = P->coeff[j];
         if (j > P->deg)

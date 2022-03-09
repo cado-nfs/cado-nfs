@@ -80,6 +80,7 @@ double_poly_clear (double_poly_ptr p)
 void
 double_poly_realloc (double_poly_ptr p, unsigned int nc)
 {
+    ASSERT_ALWAYS(nc <= (unsigned int) INT_MAX);
     if (p->alloc < nc) {
         p->alloc = nc;
         p->coeff = (double*) realloc(p->coeff, p->alloc * sizeof(double));
