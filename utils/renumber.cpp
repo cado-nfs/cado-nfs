@@ -902,6 +902,7 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
             for(auto J : I.second.branches) {
                 int k = J.k;
                 p_r_values_t pk = x.p;
+                ASSERT_ALWAYS(pk);
                 for( ; --k ; ) {
                     p_r_values_t pk1 = pk * x.p;
                     /* we want to be sure that we don't wrap around ! */
