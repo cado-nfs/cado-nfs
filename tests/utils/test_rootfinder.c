@@ -33,7 +33,7 @@ test (int d, const char *pp, const char *ff[], int nroots)
     mpz_set_str (p, pp, 0);
   else
     {
-      do mpz_urandomb (p, state, MAX_BITS); while (mpz_sgn (p) == 0);
+      do mpz_urandomb (p, state, MAX_BITS); while (mpz_even_p (p));
     }
   mpz_init (v);
   f = (mpz_t *) malloc ((d + 1) * sizeof(mpz_t));
@@ -62,6 +62,13 @@ test (int d, const char *pp, const char *ff[], int nroots)
         goto retry;
     }
   n = mpz_poly_roots_gen (&r, F, p, state);
+
+  if (tests_common_get_verbose()) {
+      for(int i = 0 ; i < n ; i++) {
+          gmp_printf("%Zd\n", r[i]);
+      }
+  }
+
   if (mpz_probab_prime_p (p, 5) && mpz_sizeinbase (p, 2) <= 64)
     {
       n1 = mpz_poly_roots_uint64 (NULL, F, mpz_get_uint64 (p), state);
@@ -91,10 +98,11 @@ main (int argc, const char *argv[])
     const char* test0[] = {"4294967291", "1", "0", "-3"};
     const char* test1[] = {"18446744073709551557", "1", "2", "3", "5"};
     const char* test2[] = {"18446744073709551629", "1", "-1", "7", "-1"};
-    const char* test3[] = {"12", "1", "2", "3", "-4"};
+    const char* test3[] = {"246089", "1", "2", "3", "4"};
+    const char* test4[] = {"9", "1", "0", "0", "1"};
     unsigned long iter = 100;
 
-    tests_common_cmdline (&argc, &argv, PARSE_SEED | PARSE_ITER);
+    tests_common_cmdline (&argc, &argv, PARSE_SEED | PARSE_ITER | PARSE_VERBOSE);
     tests_common_get_iter (&iter);
 
     d = argc - 3;
@@ -104,18 +112,24 @@ main (int argc, const char *argv[])
 	exit(1);
     }
 
-    if (d >= 1)
+    if (d >= 1) {
       test (d, argv[1], argv + 2, -1);
-    test (2, test0[0], test0 + 1, 2);
-    test (3, test1[0], test1 + 1, 1);
-    test (3, test2[0], test2 + 1, 0);
-    test (3, test3[0], test3 + 1, 1);
+    } else {
+        test (2, test0[0], test0 + 1, 2);
+        test (3, test1[0], test1 + 1, 1);
+        test (3, test2[0], test2 + 1, 0);
+        test (3, test3[0], test3 + 1, 27);
+        test (3, test4[0], test4 + 1, 3);
 
-    while (iter--)
-      {
-        d = 1 + gmp_urandomm_ui(state, 7);
-        test (d, "", test0 + 1, -1);
-      }
+        while (iter--)
+          {
+            const char * foo[] = {
+                "10315", "28842", "29254", "36865",
+                "48751", "56362", "63592", "71203" };
+            d = 1 + gmp_urandomm_ui(state, 7);
+            test (d, "", foo, -1);
+          }
+    }
 
     tests_common_clear ();
     exit (EXIT_SUCCESS);

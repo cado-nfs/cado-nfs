@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <climits>
 #include <algorithm>
+#include <vector>
 #include <type_traits>   // for is_same
 #include <gmp.h>
 #include "cxx_mpz.hpp"   // for cxx_mpz
@@ -175,6 +176,8 @@ mpz_poly_cantor_zassenhaus (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p,
     goto clear_a;
   }
 
+  ASSERT_ALWAYS(mpz_odd_p(p));
+
   /* if f has degree d, then q,h may have up to degree 2d-2 in the
      powering algorithm */
   mpz_poly_init (q, 2 * d - 2);
@@ -286,117 +289,6 @@ mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_ptr
   return nr;
 }
 
-
-
-/* Entry point for rootfind routines, for an integer n0 not necessarily prime.
-   Since we cannot know in advance an easy bound on the number of
-   roots, we allocate them in the function: if r = rp[0] at exit,
-   the roots are r[0], r[1], ..., r[k-1] and the return value is k.
-   Note: the elements r[j] must be mpz_clear'ed by the caller, and the
-   array r also.
-*/
-unsigned long
-mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, mpz_srcptr n, gmp_randstate_ptr rstate)
-{
-  unsigned long k, i, j, d = F->deg;
-  mpz_t Q, nn, p;
-
-  ASSERT_ALWAYS (mpz_sgn (n) > 0);
-
-  if (mpz_probab_prime_p (n, 1))
-    {
-      rp[0] = (mpz_t*) malloc (d * sizeof (mpz_t));
-      for (i = 0; i < d; i++)
-        mpz_init (rp[0][i]);
-      k = mpz_poly_roots (rp[0], F, n, rstate);
-      /* free the unused roots */
-      for (i = k; i < d; i++)
-        mpz_clear (rp[0][i]);
-      if (k < d)
-        rp[0] = (mpz_t*) realloc (rp[0], k * sizeof (mpz_t));
-      return k;
-    }
-
-  rp[0] = (mpz_t*) malloc (sizeof (mpz_t));
-  mpz_init_set_ui (rp[0][0], 0);
-  mpz_init_set_ui (Q, 1);
-  mpz_init_set (nn, n);
-  k = 1;
-
-  /* now n is composite */
-  mpz_t v, q, x;
-  mpz_init (v);
-  mpz_init (q);
-  mpz_init (x);
-  mpz_t *roots_p = (mpz_t*) malloc (d * sizeof(mpz_t));
-  for (i = 0; i < d; i++)
-    mpz_init (roots_p[i]);
-  for (mpz_init_set_ui (p, 2); mpz_cmp_ui (nn, 1) > 0; mpz_nextprime (p, p))
-    {
-      if (mpz_probab_prime_p (nn, 1))
-        mpz_set (p, nn);
-      if (mpz_divisible_p (nn, p))
-        {
-          unsigned long kp;
-          kp = mpz_poly_roots (roots_p, F, p, rstate);
-          mpz_divexact (nn, nn, p);
-          /* lift roots mod p^j if needed */
-          mpz_set (q, p);
-          while (mpz_divisible_p (nn, p))
-            {
-              int ii;
-              mpz_mul (q, q, p);
-              mpz_divexact (nn, nn, p);
-              for (i = ii = 0; i < kp; i++)
-                {
-                  /* FIXME: replace this naive for-loop */
-                  mpz_set (roots_p[ii], roots_p[i]);
-                  for (mpz_set_ui (x, 0); mpz_cmp (x, p) < 0;
-                       mpz_add_ui (x, x, 1))
-                    {
-                      mpz_poly_eval (v, F, roots_p[ii]);
-                      if (mpz_divisible_p (v, q))
-                        break;
-                      mpz_add (roots_p[ii], roots_p[ii], p);
-                    }
-                  /* some roots might disappear, for example x^3+2*x^2+3*x-4
-                     has two roots mod 2 (0 and 1) but only one mod 4 (0) */
-                  ii += (mpz_cmp (x, p) < 0);
-                }
-              kp = ii;
-            }
-          /* do a CRT between r[0][0..k-1] mod Q and roots_p[0..kp-1] */
-          rp[0] = (mpz_t*) realloc (rp[0], k * kp * sizeof (mpz_t));
-          mpz_invert (x, Q, q); /* x = 1/Q mod q */
-          for (i = 0; i < k; i++)
-            for (j = kp; j-- > 0;)
-              {
-                if (j > 0)
-                  mpz_init (rp[0][j*k + i]);
-                /* x = rp[0][i] mod Q and x = roots_p[j] mod q,
-                   thus x = rp[0][i] + Q * t, where
-                   t = (roots_p[j] - rp[0][i])/Q mod q */
-                mpz_sub (v, roots_p[j], rp[0][i]);
-                mpz_mul (v, v, x);
-                mpz_mod (v, v, q);
-                mpz_mul (v, Q, v);
-                mpz_add (rp[0][j*k + i], rp[0][i], v);
-              }
-          k *= kp;
-          mpz_mul (Q, Q, q);
-        }
-    }
-  for (i = 0; i < d; i++)
-    mpz_clear (roots_p[i]);
-  free (roots_p);
-  mpz_clear (v);
-  mpz_clear (p);
-  mpz_clear (q);
-  mpz_clear (x);
-  mpz_clear (Q);
-  mpz_clear (nn);
-  return k;
-}
 
 
 template<typename T>
@@ -728,3 +620,113 @@ int roots_for_composite_q(mpz_t* roots, mpz_poly_srcptr f,
 }
 #endif
 
+/* Entry point for rootfind routines, for an integer n0 not necessarily prime.
+   Since we cannot know in advance an easy bound on the number of
+   roots, we allocate them in the function: if r = rp[0] at exit,
+   the roots are r[0], r[1], ..., r[k-1] and the return value is k.
+   Note: the elements r[j] must be mpz_clear'ed by the caller, and the
+   array r also.
+
+   TODO: this code is tested, but not used anywhere. I'm not sure that we want to keep it. Anyway it is wrong (roots of x^2-1 mod 4, for example). See test_rootfinder -v 4 1 0 -1
+
+*/
+unsigned long
+mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, mpz_srcptr n, gmp_randstate_ptr rstate)
+{
+    ASSERT_ALWAYS (mpz_sgn (n) > 0);
+    ASSERT_ALWAYS (F->deg >= 0);
+
+    if (mpz_probab_prime_p (n, 1))
+    {
+        cxx_mpz p;
+        mpz_set(p, n);
+        std::vector<cxx_mpz> roots_p = mpz_poly_roots(F, p, rstate);
+        *rp = (mpz_t *) malloc(roots_p.size() * sizeof(mpz_t));
+        for(unsigned int i = 0 ; i < roots_p.size() ; i++)
+            mpz_init_set((*rp)[i], roots_p[i]);
+        return roots_p.size();
+    }
+
+    std::vector<cxx_mpz> results {{0}};
+
+    /* now n is composite */
+
+    /* invariants: Q = product of all factors we've dealt with so far, nn
+     * = those that are still to be processed */
+    cxx_mpz Q = 1, nn;
+    mpz_set(nn, n);
+
+    for (cxx_mpz p = 2 ; nn > 1 ; mpz_nextprime (p, p)) {
+        if (mpz_probab_prime_p (nn, 1))
+            mpz_set (p, nn);
+        if (!mpz_divisible_p (nn, p))
+            continue;
+
+        std::vector<cxx_mpz> roots_p = mpz_poly_roots(F, p, rstate);
+        
+        /* Invariant: let nn0 = nn as it is here.
+         * We'll maintain nn * q = nn0.
+         */
+
+        mpz_divexact (nn, nn, p);
+        cxx_mpz q = p;
+
+        for ( ;  mpz_divisible_p (nn, p) ; ) {
+            mpz_mul (q, q, p);
+            mpz_divexact (nn, nn, p);
+            
+            /* Lift each of the roots. We're doing it in a completely
+             * stupid way for now. Of course we should compute the
+             * derivative and so on, and special-case the ramified
+             * situations.
+             */
+            std::vector<cxx_mpz> new_roots_p;
+
+            for(auto const & r : roots_p) {
+                cxx_mpz u = r;
+                for(cxx_mpz x = 0 ; x < p ; x += 1, u += p) {
+                    cxx_mpz v;
+                    mpz_poly_eval (v, F, u);
+                    if (mpz_divisible_p (v, q))
+                        new_roots_p.push_back(u);
+                }
+            }
+            roots_p = std::move(new_roots_p);
+        }
+
+        if (roots_p.empty()) {
+            results.clear();
+            break;
+        }
+
+        /* do a CRT between results[*] mod Q and roots_p[*] mod q */
+        cxx_mpz xQ, xq;
+        mpz_invert (xQ, Q, q); /* x = 1/Q mod q */
+        mpz_invert (xq, q, Q); /* x = 1/q mod Q */
+
+        cxx_mpz nQ = Q*q;
+
+        std::vector<cxx_mpz> new_results;
+        for(auto const & rQ : results) {
+            cxx_mpz w0 = ((rQ * xq) % Q) * q;
+            for(auto const & rq : roots_p) {
+                cxx_mpz w = w0 + ((rq * xQ) % q) * Q;
+                if (w >= nQ)
+                    w -= nQ;
+                new_results.push_back(w);
+            }
+        }
+        mpz_swap(Q, nQ);
+        results = std::move(new_results);
+    }
+
+    if (results.empty()) {
+        *rp = NULL;
+        return 0;
+    }
+    
+    *rp = (mpz_t *) malloc(results.size() * sizeof(mpz_t));
+    for(unsigned int i = 0 ; i < results.size() ; i++)
+        mpz_init_set((*rp)[i], results[i]);
+    return results.size();
+}
