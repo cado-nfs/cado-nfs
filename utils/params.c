@@ -211,7 +211,7 @@ void param_list_print_usage(param_list_ptr pl, const char * argv0, FILE *f)
     }
     qsort(all_switches, nswitches_kept, sizeof(const char*), (sortfunc_t) pointed_strcmp);
 
-    const char *(*all_aliases)[2] = malloc(pl->naliases * 2 * sizeof(char*));
+    const char *(*all_aliases)[2] = malloc(pl->naliases * sizeof(const char*[2]));
     int naliases_kept = 0;
     for(int i = 0 ; i < pl->naliases ; ++i) {
         if (strncmp(pl->aliases[i]->alias, "--", 2) == 0) continue;
@@ -594,8 +594,10 @@ int param_list_configure_switch(param_list_ptr pl, const char * switchname, int 
 
 static int param_list_update_cmdline_alias(param_list_ptr pl,
         param_list_alias al,
-        int * p_argc, char *** p_argv)
+        int * p_argc,
+        char *** p_argv)
 {
+    ASSERT_ALWAYS(*p_argv != NULL);
     if (!pl->cmdline_argv0) {
         pl->cmdline_argv0 = *p_argv;
         pl->cmdline_argc0 = *p_argc;
@@ -647,6 +649,7 @@ static int param_list_update_cmdline_switch(param_list_ptr pl,
         param_list_switch switchpar,
         int * p_argc, char *** p_argv)
 {
+    ASSERT_ALWAYS(*p_argv != NULL);
     if (!pl->cmdline_argv0) {
         pl->cmdline_argv0 = *p_argv;
         pl->cmdline_argc0 = *p_argc;
@@ -679,6 +682,7 @@ static int param_list_update_cmdline_switch(param_list_ptr pl,
 int param_list_update_cmdline(param_list_ptr pl,
         int * p_argc, char *** p_argv)
 {
+    ASSERT_ALWAYS(*p_argv != NULL);
     if (!pl->cmdline_argv0) {
         pl->cmdline_argv0 = *p_argv;
         pl->cmdline_argc0 = *p_argc;

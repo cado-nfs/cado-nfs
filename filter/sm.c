@@ -173,11 +173,17 @@ void MPI_Send_mpz_poly(mpz_poly_ptr poly, int dst) {
 
 void MPI_Recv_mpz_poly(mpz_poly_ptr poly, int src) {
   MPI_Recv(&poly->deg, 1, MPI_INT, src, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  if (poly->alloc < poly->deg+1) {
+  ASSERT_ALWAYS(poly->deg + 1 >= 0);
+  /* FIXME -- what about already allocated coefficients ? */
+  ASSERT_ALWAYS(poly->alloc == 0);
+  if (poly->alloc < ((unsigned int) poly->deg+1)) {
     poly->alloc = poly->deg+1;
     poly->coeff = (mpz_t *) realloc(poly->coeff, poly->alloc*sizeof(mpz_t));
     ASSERT_ALWAYS(poly->coeff != NULL);
   }
+  /* It pretty much seems that if poly->alloc is non zero on entry, then
+   * we have a leak here.
+   */
   for (int i = 0; i <= poly->deg; ++i)
     MPI_Recv_mpz(poly->coeff[i], src);
 }

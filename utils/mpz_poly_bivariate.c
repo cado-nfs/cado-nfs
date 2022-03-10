@@ -143,28 +143,27 @@ void mpz_poly_bivariate_init(mpz_poly_bivariate_ptr f, int d)
   mpz_poly_bivariate_init_y_x(f, d, MPZ_POLY_BIVARIATE_DEG_X);
 }
 
-void mpz_poly_bivariate_realloc_x(mpz_poly_bivariate_ptr f, int nc, int dx)
+void mpz_poly_bivariate_realloc_x(mpz_poly_bivariate_ptr f, unsigned int nc, int dx)
 {
-  int i;
+  ASSERT_ALWAYS(nc <= (unsigned int) INT_MAX);
   if (f->alloc < nc) {
     f->coeff = (mpz_poly*) realloc(f->coeff, nc * sizeof(mpz_poly));
     FATAL_ERROR_CHECK(f->coeff == NULL, "not enough memory");
-    for (i = f->alloc; i < nc; i++) {
+    for (unsigned int i = f->alloc; i < nc; i++) {
       mpz_poly_init(f->coeff[i], dx);
     }
     f->alloc = nc;
   }
 }
 
-void mpz_poly_bivariate_realloc(mpz_poly_bivariate_ptr f, int nc)
+void mpz_poly_bivariate_realloc(mpz_poly_bivariate_ptr f, unsigned int nc)
 {
   mpz_poly_bivariate_realloc_x(f, nc, MPZ_POLY_BIVARIATE_DEG_X);
 }
 
 void mpz_poly_bivariate_clear(mpz_poly_bivariate_ptr f) 
 {
-  int i;
-  for (i = 0; i < f->alloc; ++i) {
+  for (unsigned i = 0; i < f->alloc; ++i) {
     mpz_poly_clear(f->coeff[i]);
   }
   if (f->coeff != NULL) {

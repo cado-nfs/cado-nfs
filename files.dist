@@ -20,6 +20,7 @@ typecast.h
 config/asm_sample.c
 config/ccwrap.pl.in
 config/cxxwrap.pl.in
+config/detect-static-analysis.cmake
 config/gas-assembly.cmake
 config/gcc-inline-assembly.cmake
 config/gcc-ubuntu-bug.c

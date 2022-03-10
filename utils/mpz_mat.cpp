@@ -4,8 +4,11 @@
 #include <cstring>
 #include <climits>     /* for INT_MAX */
 #include <ostream>
+#include <algorithm>
+#include <vector>
 #include <gmp.h>
 #include "mpz_mat.h"
+#include "cxx_mpz.hpp"
 #include "gmpxx.hpp"
 #include "lll.h"        // mat_Z, LLL
 #include "macros.h"
@@ -639,6 +642,7 @@ void mpz_mat_permuterows(mpz_mat_ptr M, unsigned int * perm)/*{{{*/
     mpz_mat_init(Mx, M->m, M->n);
     for(unsigned int i = 0 ; i < M->m ; i++) {
         for(unsigned int j = 0 ; j < M->n ; j++) {
+            ASSERT_ALWAYS(perm[i] < M->m);
             mpz_swap(mpz_mat_entry(Mx, i, j),
                     mpz_mat_entry(M, perm[i], j));
         }
@@ -1478,9 +1482,10 @@ void mpq_mat_gauss_backend(mpq_mat_ptr M, mpq_mat_ptr T)
         }
         if (i1 == M->m) /* this column is zero */
             continue;
-        mpq_mat_swaprows(M, rank, i1);
-        mpq_mat_swaprows(T, rank, i1);
-        i1 = rank;
+        if (i1 > rank) {
+            mpq_mat_swaprows(M, rank, i1);
+            mpq_mat_swaprows(T, rank, i1);
+        }
         /* canonicalize this row */
         mpq_inv(tmp1, mpq_mat_entry(M, rank, j));
         mpq_mat_mulrow(M, rank, tmp1);
@@ -1538,9 +1543,11 @@ void mpz_mat_gauss_backend_mod_mpz(mpz_mat_ptr M, mpz_mat_ptr T, mpz_srcptr p)
         }
         if (i1 == M->m) /* this column is zero */
             continue;
-        mpz_mat_swaprows(M, rank, i1);
-        if (T) mpz_mat_swaprows(T, rank, i1);
-        i1 = rank;
+        if (i1 > rank) {
+            mpz_mat_swaprows(M, rank, i1);
+            if (T) mpz_mat_swaprows(T, rank, i1);
+        }
+        // i1 = rank;
         /* canonicalize this row */
         /* gcd is gcd(M[rank, j], p) */
         mpz_divexact(tmp2, mpz_mat_entry(M, rank, j), gcd);
@@ -1577,85 +1584,6 @@ void mpz_mat_gauss_backend_mod_ui(mpz_mat_ptr M, mpz_mat_ptr T, unsigned long p)
 }
 
 
-/* {{{ integer heap routines */
-/* input: heap[0..n-1[ a heap, and heap[n-1] unused.
- * output: heap[0..n[ a heap, includes x
- */
-typedef int (*cmp_t)(void *, unsigned int, unsigned int);
-
-static void push_heap(unsigned int * heap, unsigned int x, unsigned int n, cmp_t cmp, void * arg)
-{
-    unsigned int i = n - 1;
-    for(unsigned int i0; i; i = i0) {
-        i0 = (i-1) / 2;
-        if (cmp(arg, x, heap[i0]) > 0)
-            heap[i] = heap[i0];
-        else
-            break;
-    }
-    heap[i] = x;
-}
-
-/* put heap[0] in x, and keep the heap property on the resulting
- * heap[0..n-1[ ; heap[n-1] is unused on output.
- */
-static void pop_heap(unsigned int * x, unsigned int * heap, unsigned int n, cmp_t cmp, void * arg)
-{
-    *x = heap[0];
-    unsigned int y = heap[n-1];
-    /* make heap[0..n-1[ a heap, now */
-    /* couldn't there be various strategies here ? */
-    unsigned int i = 0;
-    for(unsigned int i1 ; 2*i+2 <  n - 1 ; i = i1) {
-        unsigned int left = 2*i + 1;
-        unsigned int right = 2*i + 2;
-        if (cmp(arg, heap[left], heap[right]) > 0)
-            i1 = left;
-        else
-            i1 = right;
-        if (cmp(arg, y, heap[i1]) > 0)
-            break;
-        heap[i] = heap[i1];
-    }
-    /* there we know that i has no right child, maybe even no left child.
-     */
-    if (2*i + 1 < n - 1 && cmp(arg, y, heap[2*i+1]) <= 0) {
-        heap[i] = heap[2*i+1];
-        i=2*i+1;
-    }
-    heap[i] = y;
-}
-
-/* make heap[0..n[ a heap. */
-static void make_heap(unsigned int * heap, unsigned int n, cmp_t cmp, void * arg)
-{
-    for(unsigned int i = 1 ; i <= n ; i++) {
-        unsigned int t = heap[i-1];
-        push_heap(heap, t, i, cmp, arg);
-    }
-}
-
-/* must be a heap already */
-static void sort_heap(unsigned int * heap, unsigned int n, cmp_t cmp, void * arg)
-{
-    for(unsigned int i = n ; i ; i--) {
-        unsigned int t;
-        pop_heap(&t, heap, i, cmp, arg);
-        heap[i-1] = t;
-    }
-}
-
-static void sort_heap_inverse(unsigned int * heap, unsigned int n, cmp_t cmp, void * arg)
-{
-    sort_heap(heap, n, cmp, arg);
-    for(unsigned int i = 0, j = n-1 ; i < j ; i++, j--) {
-        int a = heap[i];
-        int b = heap[j];
-        heap[i] = b;
-        heap[j] = a;
-    }
-}
-/* }}} */
 /* {{{ Hermite normal form over the integers
  * The algorithm here is randomly cooked from a stupid idea I had. The
  * transformation matrices produced seem to be reasonably good, somewhat
@@ -1666,32 +1594,61 @@ static void sort_heap_inverse(unsigned int * heap, unsigned int n, cmp_t cmp, vo
  * than 30*30, in which case it's sufficient.
  */
 /*{{{ hnf helper algorithm (for column matrices) */
-struct mpz_mat_hnf_helper_heap_aux {
-    double * dd;
-    mpz_mat_ptr A;
+
+struct mpz_mat_hnf_helper_cmp {
+    unsigned int n;
+    cxx_mpz_mat A;
+    std::vector<double> dd;
+    mpz_mat_hnf_helper_cmp(mpz_mat_srcptr T, std::vector<cxx_mpz> & a)
+        :
+        n(T->m),
+        A(n, 1),
+        dd(n, 0)
+        {
+            ASSERT_ALWAYS(a.size() == n);
+            mpz_mat_set_ui(A, 0);
+            unsigned int n = T->m;
+            for(unsigned int i = 0 ; i < n ; i++) {
+                mpz_ptr Ai = mpz_mat_entry(A, i, 0);
+                mpz_swap(Ai, a[i]);
+                dd[i] = 0;
+                for(unsigned int j = 0 ; j < n ; j++) {
+                    double d = mpz_get_d(mpz_mat_entry_const(T, i, j));
+                    dd[i] += d * d;
+                }
+            }
+        }
+
+    bool operator()(unsigned int a, unsigned int b) const {
+        /* The heap will have the largest elements on top according to this
+         * measure. Thus the comparison on the ->a field must be as per
+         * mpz_cmp
+         */
+        mpz_srcptr xa = mpz_mat_entry_const(A, a, 0);
+        mpz_srcptr xb = mpz_mat_entry_const(A, b, 0);
+
+        ASSERT(mpz_sgn(xa) >= 0);
+        ASSERT(mpz_sgn(xb) >= 0);
+        int r = mpz_cmp(xa, xb);
+        if (r) return r < 0;
+        /* among combinations giving the same result, we want the "best" to
+         * be the one with *smallest* norm. So instead of the sign of da-db,
+         * we want the sign of db-da, here.
+         */
+        double da = dd[a];
+        double db = dd[b];
+        return (db > da) < (da > db);
+    }
+
+    void result(std::vector<cxx_mpz> & a)
+    {
+        ASSERT_ALWAYS(a.size() == n);
+        for(unsigned int i = 0 ; i < n ; i++) {
+            mpz_ptr Ai = mpz_mat_entry(A, i, 0);
+            mpz_swap(Ai, a[i]);
+        }
+    }
 };
-
-static int mpz_mat_hnf_helper_heap_aux_cmp(struct mpz_mat_hnf_helper_heap_aux * data, unsigned int a, unsigned int b)
-{
-    /* The heap will have the largest elements on top according to this
-     * measure. Thus the comparison on the ->a field must be as per
-     * mpz_cmp
-     */
-    mpz_srcptr xa = mpz_mat_entry_const(data->A, a, 0);
-    mpz_srcptr xb = mpz_mat_entry_const(data->A, b, 0);
-
-    ASSERT(mpz_sgn(xa) >= 0);
-    ASSERT(mpz_sgn(xb) >= 0);
-    int r = mpz_cmp(xa, xb);
-    if (r) return r;
-    /* among combinations giving the same result, we want the "best" to
-     * be the one with *smallest* norm. So instead of the sign of da-db,
-     * we want the sign of db-da, here.
-     */
-    double da = data->dd[a];
-    double db = data->dd[b];
-    return (db > da) - (da > db);
-}
 
 /* this is quite the same as computing the hnf on a column matrix, with
  * the added functionality that entries in a[0..n0[ are reduced with
@@ -1704,38 +1661,26 @@ static int mpz_mat_hnf_helper_heap_aux_cmp(struct mpz_mat_hnf_helper_heap_aux * 
  *
  * return +1 or -1 which is the determinant of T.
  */
-static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, mpz_ptr * a, unsigned int n0, unsigned int n)
+static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, std::vector<cxx_mpz> & a, unsigned int n0)
 {
+    unsigned int n = a.size();
     int signdet=1;
     ASSERT_ALWAYS(dT != T);
     mpz_mat_realloc(dT, n, n);
     mpz_mat_set_ui(dT, 1);
 
+    ASSERT_ALWAYS(n0 <= n);
+
     if (n == n0) return signdet;
 
     mpz_t q, r2;
-    mpz_mat A;
-    mpz_mat_init(A, n, 1);
     mpz_init(q);
     mpz_init(r2);
-    unsigned int * heap = (unsigned int *) malloc(n * sizeof(unsigned int));
-    struct mpz_mat_hnf_helper_heap_aux cmpdata[1];
-    cmpdata->A = A;
-    cmpdata->dd = (double*) malloc(n * sizeof(double));
-    cmp_t cmp = (cmp_t) &mpz_mat_hnf_helper_heap_aux_cmp;
-    for(unsigned int i = 0 ; i < n ; i++) {
-        mpz_ptr Ai = mpz_mat_entry(A, i, 0);
-        mpz_set(Ai, a[i]);
-        cmpdata->dd[i] = 0;
-        for(unsigned int j = 0 ; j < n ; j++) {
-            double d = mpz_get_d(mpz_mat_entry(T, i, j));
-            cmpdata->dd[i] += d * d;
-        }
-        heap[i] = i;
-        if (i < n0)
-            continue;
-        if (mpz_sgn(Ai) == -1) {
-            mpz_neg(Ai, Ai);
+
+    /* fix signs */
+    for(unsigned int i = n0 ; i < n ; i++) {
+        if (mpz_sgn(a[i]) == -1) {
+            mpz_neg(a[i], a[i]);
             signdet = -signdet;
             mpz_set_si(mpz_mat_entry(dT, i, i), -1);
             for(unsigned int j = 0 ; j < n ; j++) {
@@ -1743,21 +1688,28 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, mpz_ptr * a, unsign
             }
         }
     }
-    make_heap(heap + n0, n - n0, cmp, cmpdata);
-    unsigned int head;
+
+    mpz_mat_hnf_helper_cmp cmp(T, a);
+    std::vector<unsigned int> heap(n, 0);
+
+    for(unsigned int i = 0 ; i < n ; i++)
+        heap[i] = i;
+
+    std::make_heap(heap.begin() + n0, heap.end(), cmp);
     for( ; ; ) {
         /* extract the head */
-        pop_heap(&head, heap + n0, n - n0, cmp, cmpdata);
-        mpz_ptr r0 = mpz_mat_entry(A, head, 0);
+        std::pop_heap(heap.begin() + n0, heap.end(), cmp);
+        const unsigned int head = heap.back();
+        mpz_ptr r0 = mpz_mat_entry(cmp.A, head, 0);
         if (mpz_cmp_ui(r0, 0) == 0) {
             /* we're done ! */
-            push_heap(heap + n0, head, n - n0, cmp, cmpdata);
+            std::push_heap(heap.begin() + n0, heap.end(), cmp);
             break;
         }
         /* reduce A[0..n0[ wrt r0 == A[head] */
         for(unsigned int i = 0 ; i < n0 ; i++) {
-            mpz_fdiv_qr(q, r2, mpz_mat_entry(A, i, 0), r0);
-            mpz_swap(r2, mpz_mat_entry(A, i, 0));
+            mpz_fdiv_qr(q, r2, mpz_mat_entry(cmp.A, i, 0), r0);
+            mpz_swap(r2, mpz_mat_entry(cmp.A, i, 0));
             mpz_mat_submulrow(T, i, head, q);
             mpz_mat_submulrow(dT, i, head, q);
         }
@@ -1765,13 +1717,13 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, mpz_ptr * a, unsign
             /* we're actually computing the gcd of one single integer.
              * That makes no sense of course.
              */
-            push_heap(heap + n0, head, n - n0, cmp, cmpdata);
+            std::push_heap(heap.begin() + n0, heap.end(), cmp);
             break;
         }
-        mpz_ptr r1 = mpz_mat_entry(A, heap[n0], 0);
+        mpz_ptr r1 = mpz_mat_entry(cmp.A, heap[n0], 0);
         if (mpz_cmp_ui(r1, 0) == 0) {
             /* we're done ! */
-            push_heap(heap + n0, head, n - n0, cmp, cmpdata);
+            std::push_heap(heap.begin() + n0, heap.end(), cmp);
             break;
         }
         mpz_fdiv_qr(q, r2, r0, r1);
@@ -1779,27 +1731,24 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, mpz_ptr * a, unsign
         mpz_mat_submulrow(T, head, heap[n0], q);
         mpz_mat_submulrow(dT, head, heap[n0], q);
         /* adjust the norm of the row in T */
-        cmpdata->dd[head] = 0;
+        cmp.dd[head] = 0;
         for(unsigned int j = 0 ; j < n ; j++) {
             double d = mpz_get_d(mpz_mat_entry(T, head, j));
-            cmpdata->dd[head] += d * d;
+            cmp.dd[head] += d * d;
         }
-        push_heap(heap + n0, head, n - n0, cmp, cmpdata);
+        std::push_heap(heap.begin() + n0, heap.end(), cmp);
     }
-    sort_heap_inverse(heap + n0, n - n0, cmp, cmpdata);
-    mpz_mat_permuterows(T, heap);
-    mpz_mat_permuterows(dT, heap);
-    mpz_mat_permuterows(A, heap);
-    signdet*= permutation_signature(heap, n);
-    for(unsigned int i = 0 ; i < n ; i++) {
-        mpz_ptr Ai = mpz_mat_entry(A, i, 0);
-        mpz_swap(a[i], Ai);
-    }
-    free(cmpdata->dd);
-    mpz_mat_clear(A);
+    std::sort_heap(heap.begin() + n0, heap.end(), cmp);
+    std::reverse(heap.begin() + n0, heap.end());
+    mpz_mat_permuterows(T, heap.data());
+    mpz_mat_permuterows(dT, heap.data());
+    mpz_mat_permuterows(cmp.A, heap.data());
+    signdet*= permutation_signature(heap.data(), n);
+
+    cmp.result(a);
+
     mpz_clear(q);
     mpz_clear(r2);
-    free(heap);
 
     return signdet;
 }
@@ -1808,12 +1757,13 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, mpz_ptr * a, unsign
  * matrix T such that C'=T*C is most interesting.  a is modified in
  * place.
  */
-void mpz_gcd_many(mpz_mat_ptr dT, mpz_ptr * a, unsigned int n)
+void mpz_gcd_many(mpz_mat_ptr dT, std::vector<cxx_mpz> & a)
 {
     mpz_mat T;
+    unsigned int n = a.size();
     mpz_mat_init(T, n, n);
     mpz_mat_set_ui(T, 1);
-    mpz_mat_hnf_helper(T, dT, a, 0, n);
+    mpz_mat_hnf_helper(T, dT, a, 0);
     mpz_mat_clear(T);
 }
 /*}}}*/
@@ -1837,32 +1787,33 @@ int mpz_mat_hnf_backend(mpz_mat_ptr M, mpz_mat_ptr T)
     mpz_mat_realloc(T, m, m);
     mpz_mat_set_ui(T, 1);
     unsigned int rank = 0;
-    mpz_t quo;
-    mpz_init(quo);
-    mpz_ptr * colm = (mpz_ptr *) malloc(m * sizeof(mpz_t));
+    std::vector<cxx_mpz> colm(m, 0);
     mpz_mat dT, Mx, My;
     mpz_mat_init(dT, 0, 0);
     mpz_mat_init(Mx, 0, 0);
     mpz_mat_init(My, 0, 0);
     for(unsigned int j = 0 ; j < n && rank < m; j++) {
-        for(unsigned int i = 0 ; i < m ; i++) {
-            colm[i] = mpz_mat_entry(M, i, j);
-        }
-        signdet *= mpz_mat_hnf_helper(T, dT, colm, rank, m);
+        for(unsigned int i = 0 ; i < m ; i++)
+            mpz_swap(colm[i], mpz_mat_entry(M, i, j));
 
-        /* apply dT to the submatrix of size m * (n - 1 - j) of M */
+        signdet *= mpz_mat_hnf_helper(T, dT, colm, rank);
+
+        rank += mpz_cmp_ui(colm[rank], 0) != 0;
+
+        for(unsigned int i = 0 ; i < m ; i++)
+            mpz_swap(colm[i], mpz_mat_entry(M, i, j));
+
+        /* apply dT to the right part. By construction, our
+         * transformation matrix dT ha already been applied to T itself,
+         * as well as to column j. We also know that it has trivial
+         * action on the left part (column of indices below j, which
+         * contain data only for i < rank <= j). So the only thing that
+         * is left is the right submatrix of size m * (n - 1 - j) of M */
         mpz_mat_realloc(Mx, m, n - 1 - j);
         mpz_mat_submat_swap(Mx, 0, 0, M, 0, j + 1, m, n - 1 - j);
         mpz_mat_mul(My, dT, Mx);
         mpz_mat_submat_swap(M, 0, j + 1, My, 0, 0, m, n - 1 - j);
-
-        mpz_srcptr gcd = colm[rank];
-        if (mpz_cmp_ui(gcd, 0) == 0) /* this column is zero -- nothing to do */
-            continue;
-        rank++;
     }
-    free(colm);
-    mpz_clear(quo);
     mpz_mat_clear(dT);
     mpz_mat_clear(Mx);
     mpz_mat_clear(My);

@@ -11,7 +11,7 @@
  */
 
 typedef struct {
-  int alloc;
+  unsigned int alloc;
   int deg_y;
   int deg_x;
   mpz_poly * coeff;
@@ -37,11 +37,11 @@ void mpz_poly_bivariate_init_y_x(mpz_poly_bivariate_ptr f, int dy, int dx);
 /*
  * Increase alloc.
  */
-void mpz_poly_bivariate_realloc(mpz_poly_bivariate_ptr f, int nc);
+void mpz_poly_bivariate_realloc(mpz_poly_bivariate_ptr f, unsigned int nc);
 /*
  * Increase alloc and set alloc of all mpz_poly equals dx + 1.
  */
-void mpz_poly_bivariate_realloc_x(mpz_poly_bivariate_ptr f, int nc, int dx);
+void mpz_poly_bivariate_realloc_x(mpz_poly_bivariate_ptr f, unsigned int nc, int dx);
 /*
  * Clear a mpz_poly_bivariate.
  */

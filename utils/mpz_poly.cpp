@@ -184,6 +184,7 @@ mpz_poly_mul_tc_interpolate (mpz_t *f, int t) {
 				  and similarly for all intermediate
 				  computations on M[i][j]. This avoids the
 				  use of mpz_t to store the M[i][j]. */
+  ASSERT_ALWAYS(t >= 0);
 
   /* initialize M[i][j] = tc_points[i]^j */
   for (i = 0; i <= t; i++)
@@ -674,14 +675,14 @@ void mpz_poly_init(mpz_poly_ptr f, int d)
 
 
 /* realloc f to (at least) nc coefficients */
-void mpz_poly_realloc (mpz_poly_ptr f, int nc)
+void mpz_poly_realloc (mpz_poly_ptr f, unsigned int nc)
 {
-  int i;
+  ASSERT_ALWAYS(nc <= (unsigned int) INT_MAX);
   if (f->alloc < nc)
     {
       f->coeff = (mpz_t*) realloc (f->coeff, nc * sizeof (mpz_t));
       FATAL_ERROR_CHECK (f->coeff == NULL, "not enough memory");
-      for (i = f->alloc; i < nc; i++)
+      for (unsigned int i = f->alloc; i < nc; i++)
         mpz_init (f->coeff[i]);
       f->alloc = nc;
     }
@@ -753,8 +754,7 @@ mpz_poly_swap (mpz_poly_ptr f, mpz_poly_ptr g)
 /* Free polynomial f in mpz_poly. */
 void mpz_poly_clear(mpz_poly_ptr f)
 {
-  int i;
-  for (i = 0; i < f->alloc; ++i)
+  for (unsigned i = 0; i < f->alloc; ++i)
     mpz_clear(f->coeff[i]);
   if (f->coeff != NULL)
     free(f->coeff);
@@ -764,16 +764,6 @@ void mpz_poly_clear(mpz_poly_ptr f)
   f->alloc = 0; /* to avoid a double-free */
 }
 
-/* Return 0 if f[i] is zero, -1 is f[i] is negative and +1 if f[i] is positive,
-   like mpz_sgn function. */
-static inline int mpz_poly_coeff_sgn (mpz_poly_srcptr f, int i)
-{
-  if (i >= f->alloc)
-    return 0;
-  else
-    return mpz_sgn (f->coeff[i]);
-}
-
 /* removed mpz_poly_set_deg, as for all purposes there is no reason to
  * not use the more robust mpz_poly_cleandeg */
 
@@ -781,7 +771,9 @@ static inline int mpz_poly_coeff_sgn (mpz_poly_srcptr f, int i)
 void mpz_poly_cleandeg(mpz_poly_ptr f, int deg)
 {
   ASSERT(deg >= -1);
-  while ((deg >= 0) && (mpz_poly_coeff_sgn (f, deg)==0))
+  if ((unsigned int)(deg+1) >= f->alloc)
+      deg = (int) f->alloc-1;
+  while ((deg >= 0) && mpz_sgn(f->coeff[deg])==0)
     deg--;
   f->deg = deg;
 }
@@ -3396,7 +3388,9 @@ int mpz_poly_is_irreducible_z (mpz_poly_srcptr f)
 {
   mpz_t p;
   int d = f->deg;
+  ASSERT_ALWAYS(d >= -1 && d < INT_MAX);
   int dg = d - 1;
+  ASSERT_ALWAYS(dg + 2 > 0);
   int i, j, nr;
   mpz_t a, b, det, r, *roots;
   size_t normf;

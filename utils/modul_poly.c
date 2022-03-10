@@ -48,6 +48,7 @@ modul_poly_init (modul_poly_t f, int d)
       f->coeff = NULL;
   }
   f->alloc = d + 1;
+  ASSERT_FOR_STATIC_ANALYZER((f->alloc == 0) == (f->coeff == NULL));
 }
 
 /* clear a polynomial */
@@ -61,13 +62,15 @@ modul_poly_clear (modul_poly_t f)
 
 /* realloc f to (at least) n coefficients */
 void
-modul_poly_realloc (modul_poly_t f, int n)
+modul_poly_realloc (modul_poly_t f, unsigned int n)
 {
+  ASSERT_ALWAYS(n <= (unsigned int) INT_MAX);
   if (f->alloc < n)
     {
       f->coeff = realloc_long_array (f->coeff, n);
       f->alloc = n;
     }
+  ASSERT_FOR_STATIC_ANALYZER((f->alloc == 0) == (f->coeff == NULL));
 }
 
 /* f <- g */
@@ -271,6 +274,8 @@ modul_poly_sqr (modul_poly_t h, const modul_poly_t g, modulusul_t p)
 static void
 modul_poly_normalize (modul_poly_t h, modulusul_t p)
 {
+  ASSERT_FOR_STATIC_ANALYZER(h->degree >= -1);
+
   int dh = h->degree;
 
   while (dh >= 0 && modul_is0(h->coeff[dh],p))
@@ -282,6 +287,8 @@ modul_poly_normalize (modul_poly_t h, modulusul_t p)
 static void
 modul_poly_mul_x (modul_poly_t h, residueul_t a, modulusul_t p)
 {
+  ASSERT_FOR_STATIC_ANALYZER(h->degree >= -1);
+
   int i, d = h->degree;
   residueul_t *hc;
   residueul_t aux;
@@ -306,6 +313,9 @@ modul_poly_mul_x (modul_poly_t h, residueul_t a, modulusul_t p)
 static void
 modul_poly_sub_x (modul_poly_t h, const modul_poly_t g, modulusul_t p)
 {
+  ASSERT_FOR_STATIC_ANALYZER(g->degree >= -1);
+  ASSERT_FOR_STATIC_ANALYZER(h->degree >= -1);
+
   int i, d = g->degree;
 
   /* if g has degree d >= 2, then g-x has degree d too;

@@ -682,6 +682,7 @@ ModulusREDC126::inv (Residue &r, const Residue &A) const
         u = Integer(s[0], s[1]);
         t = 0;
     }
+    ASSERT_FOR_STATIC_ANALYZER(t == 0); // consume t
 
     u.get(r.r, 2);
 #ifdef WANT_ASSERT_EXPENSIVE

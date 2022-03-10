@@ -184,7 +184,7 @@ static inline int mpfq_parityl(unsigned long x)
 
 /* This macro is used to guard against some trivial false positives
  * returned by static analyzer */
-#if defined(__COVERITY__)
+#if defined(__COVERITY__) || defined(STATIC_ANALYSIS)
 #define ASSERT_FOR_STATIC_ANALYZER(x) do {				\
     if (!(x)) {								\
         abort();							\

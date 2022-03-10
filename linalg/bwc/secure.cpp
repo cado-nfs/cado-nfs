@@ -149,6 +149,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                 ~file_guard() { if (f) fclose(f); }
                 file_guard(const char * filename, const char * mode) {
                     f = fopen(filename, mode);
+                    memset(sbuf, 0, sizeof(struct stat));
                     if (!f) return;
                     int rc = fstat(fileno(f), sbuf);
                     if (rc != 0) {
@@ -220,6 +221,8 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                 if (tcan_print) fmt::printf("loaded %s\n", Tfilename);
             }
             /* }}} */
+
+            ASSERT_ALWAYS(Rfile != NULL);
 
             pi_bcast(Tdata, bw->m, A_pi, 0, 0, pi->m);
         } else {
