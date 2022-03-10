@@ -8,7 +8,9 @@
 #include <gmp.h>
 #include <limits.h> /* for ULONG_MAX */
 #include "macros.h"     // LIKELY
-#include "polyselect_locals.h"
+
+/* This is used in the collisions calls */
+#define POLYSELECT_HASH_ALLOC_RATIO 8UL
 
 #if ULONG_MAX == 4294967295UL
 #define LEN_SPECIAL_Q 57
@@ -17,6 +19,8 @@
 #endif
 //#define DEBUG_HASH_TABLE
 extern const unsigned int SPECIAL_Q[LEN_SPECIAL_Q];
+
+struct polyselect_thread_s;
 
 /* hash table slots */
 struct polyselect_hash_slot_s
@@ -34,7 +38,7 @@ struct polyselect_hash_slot_s
 typedef void (*polyselect_hash_match_t)(
               unsigned long p1, unsigned long p2, const int64_t i,
               uint64_t q, mpz_srcptr rq,
-              polyselect_thread_locals_ptr loc);
+              struct polyselect_thread_s *);
 
 /* hash table structure */
 struct polyselect_hash_s
@@ -46,7 +50,6 @@ struct polyselect_hash_s
   unsigned long coll;
   unsigned long coll_all;
 #endif
-  polyselect_hash_match_t match;
 };
 typedef struct polyselect_hash_s polyselect_hash_t[1];
 typedef struct polyselect_hash_s * polyselect_hash_ptr;
@@ -64,12 +67,11 @@ extern "C" {
 
 extern size_t expected_memory_usage_for_primes(unsigned long P);
 
-extern void polyselect_hash_init (polyselect_hash_ptr, unsigned int,
-        polyselect_hash_match_t);
+extern void polyselect_hash_init (polyselect_hash_ptr, unsigned int);
 
 extern void polyselect_hash_add (polyselect_hash_ptr, unsigned long, int64_t,
               unsigned long, mpz_srcptr,
-              polyselect_thread_locals_ptr loc);
+              struct polyselect_thread_s * loc);
 
 extern void polyselect_hash_clear (polyselect_hash_ptr);
 

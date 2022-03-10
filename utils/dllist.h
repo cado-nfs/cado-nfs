@@ -35,6 +35,16 @@ struct dllist_head {
 #define dllist_for_each(L__, ptr__) \
     for(struct dllist_head * ptr__ = (L__)->next ; ptr__ != (L__) ; ptr__ = ptr__->next)
 
+#define dllist_for_each_safe(L__, ptr__) \
+    for(struct dllist_head * ptr__ = (L__)->next, * nptr__ ; nptr__ = ptr__->next, ptr__ != (L__) ; ptr__ = nptr__)
+
+#define list_for_each_entry_safe(pos, n, head, member)			\
+	for (pos = list_first_entry(head, typeof(*pos), member),	\
+		n = list_next_entry(pos, member);			\
+	     !list_entry_is_head(pos, head, member); 			\
+	     pos = n, n = list_next_entry(n, member))
+
+
 #define dllist_find(L__, node__, type__, member__, condition__) do {	\
         node__ = NULL;							\
         dllist_for_each((L__), ptr__) {					\
@@ -162,6 +172,14 @@ dllist_get_nth (struct dllist_head * L, size_t n) {
             return ptr;
     }
     return NULL;
+}
+
+/* Get the first node. The list must not be empty.
+ */
+static inline struct dllist_head *
+dllist_get_first_node (struct dllist_head * L) {
+    struct dllist_head * x = L->next;
+    return x == L ? NULL : x;
 }
 
 /* move the entire contents of L0 to the back of L. L0 is made empty.

@@ -41,39 +41,72 @@ polyselect_qroots_realloc (polyselect_qroots_ptr R, unsigned long newalloc)
   }
 }
 
-/* reorder by decreasing number of roots (nr) */
+/* reorder by decreasing number of roots (nr) 
+ */
+
+struct qr_flat {
+    unsigned int q;
+    unsigned int nr;
+    uint64_t * roots;
+};
+
+int qr_flat_compare_nroots(const struct qr_flat * a, const struct qr_flat * b)
+{
+    return (a->nr < b->nr) - (b->nr < a->nr);
+}
+
 void
 polyselect_qroots_rearrange (polyselect_qroots_ptr R)
 {
-  if (R->size > 1) {
+    if (R->size <= 1) return;
+#if 1
+    /* honestly, it's embarrassing to have an insertion sort. */
+    /* We'll keep it on just for debugging, since change in the ordering
+     * leads to a a change in the polynomials that are examined!
+     */
     unsigned int i, j, k, max, tmpq, tmpnr;
     uint64_t *tmpr = malloc (MAX_DEGREE * sizeof (uint64_t));
 
     for (i = 0; i < R->size; i ++) {
-      max = i;
-      for (j = i+1; j < R->size; j++) {
-        if (R->nr[j] > R->nr[max]) {
-          max = j;
+        max = i;
+        for (j = i+1; j < R->size; j++) {
+            if (R->nr[j] > R->nr[max]) {
+                max = j;
+            }
         }
-      }
 
-      tmpq = R->q[i];
-      tmpnr = R->nr[i];
-      for (k = 0; k < MAX_DEGREE; k ++)
-        tmpr[k] = R->roots[i][k];
+        tmpq = R->q[i];
+        tmpnr = R->nr[i];
+        for (k = 0; k < MAX_DEGREE; k ++)
+            tmpr[k] = R->roots[i][k];
 
-      R->q[i] = R->q[max];
-      R->nr[i] = R->nr[max];
-      for (k = 0; k < MAX_DEGREE; k ++)
-        R->roots[i][k] = R->roots[max][k];
+        R->q[i] = R->q[max];
+        R->nr[i] = R->nr[max];
+        for (k = 0; k < MAX_DEGREE; k ++)
+            R->roots[i][k] = R->roots[max][k];
 
-      R->q[max] = tmpq;
-      R->nr[max] = tmpnr;
-      for (k = 0; k < MAX_DEGREE; k ++)
-        R->roots[max][k] = tmpr[k];
+        R->q[max] = tmpq;
+        R->nr[max] = tmpnr;
+        for (k = 0; k < MAX_DEGREE; k ++)
+            R->roots[max][k] = tmpr[k];
     }
     free (tmpr);
-  }
+#else
+       struct qr_flat * tmp = malloc(R->size * sizeof(struct qr_flat));
+       for(unsigned int i = 0 ; i < R->size ; i++) {
+           tmp[i].q = R->q[i];
+           tmp[i].nr = R->nr[i];
+           tmp[i].roots = R->roots[i];
+       }
+       typedef int (*sortfunc_t) (const void *, const void *);
+       qsort(tmp, R->size, sizeof(struct qr_flat), (sortfunc_t) qr_flat_compare_nroots);
+       for(unsigned int i = 0 ; i < R->size ; i++) {
+           R->q[i] = tmp[i].q;
+           R->nr[i] = tmp[i].nr;
+           R->roots[i] = tmp[i].roots;
+       }
+       free(tmp);
+#endif
 }
 
 void

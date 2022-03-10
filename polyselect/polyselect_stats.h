@@ -54,6 +54,7 @@ typedef const struct polyselect_stats_s * polyselect_stats_srcptr;
 
 extern void polyselect_stats_init(polyselect_stats_ptr stats, size_t keep);
 extern void polyselect_stats_clear(polyselect_stats_ptr stats);
+extern void polyselect_stats_reset(polyselect_stats_ptr stats);
 
 extern void polyselect_stats_update_keep(polyselect_stats_ptr stats, size_t keep);
 

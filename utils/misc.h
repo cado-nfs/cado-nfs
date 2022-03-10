@@ -74,6 +74,11 @@ next_multiple_of_powerof2(unsigned long n, unsigned long k)
     ASSERT((k & (k-1)) == 0);
     return ((n-1)|(k-1)) + 1;
 }
+static inline unsigned long
+next_multiple_of(unsigned long n, unsigned long k)
+{
+    return iceildiv(n, k) * k;
+}
 static inline unsigned long integer_sqrt(unsigned long a)
 {
     /* returns 2 for a==3, otherwise returns floor(sqrt(a)) */

@@ -9,7 +9,6 @@
 #include "gcd.h"		// for gcd_ul
 #include "timing.h"		// for seconds
 #include "polyselect_main_queue.h"
-#include "polyselect_locals.h"
 #include "polyselect_norms.h"
 #include "portability.h"
 
@@ -71,7 +70,7 @@ snprintf_poly_info(char *buf,
   return np;
 }
 
-void polyselect_fprintf_poly_pair(FILE * fp, mpz_srcptr N,                    mpz_poly_srcptr f, mpz_poly_srcptr g, int raw)
+void polyselect_fprintf_poly_pair(FILE * fp, mpz_srcptr N, mpz_poly_srcptr f, mpz_poly_srcptr g, int raw)
 {
     if (!f && !g) return;
     size_t sz = mpz_sizeinbase(N, 10);
@@ -81,66 +80,4 @@ void polyselect_fprintf_poly_pair(FILE * fp, mpz_srcptr N,                    mp
     snprintf_poly_info(str, length, f, g, N, raw);
     fprintf(fp, "%s", str);
     free(str);
-}
-
-
-/* return 1 if the polynomial is ok and among the best ones,
-   otherwise return 0
-
-   This modifies both F and g
-*/
-int optimize_raw_poly(mpz_poly_ptr f, mpz_poly_ptr g,
-                        polyselect_main_data_srcptr main,
-                        polyselect_stats_ptr stats)
-{
-  double skew;
-  mpz_t t;
-  double st, logmu, exp_E;
-
-  /* check that the algebraic polynomial has content 1, otherwise skip it */
-  mpz_init(t);
-  mpz_poly_content(t, f);
-  if (mpz_cmp_ui(t, 1) != 0)
-    {
-      mpz_clear(t);
-      return 0;
-    }
-  mpz_clear(t);
-
-  /* optimize size */
-
-  st = seconds_thread();
-  size_optimization(f, g, f, g, main->sopt_effort, main->verbose);
-  st = seconds_thread() - st;
-  stats->optimize_time += st;
-  stats->opt_found++;
-
-  /* polynomials with f[d-1] * f[d-3] > 0 *after* size-optimization
-     give worse exp_E values */
-  int d = f->deg;
-  if (mpz_sgn(f->coeff[d - 1]) * mpz_sgn(f->coeff[d - 3]) > 0)
-    {
-      stats->discarded2++;
-      return 0;
-    }
-
-  skew = L2_skewness(f, SKEWNESS_DEFAULT_PREC);
-  logmu = L2_lognorm(f, skew);
-  /* expected_rotation_gain() takes into account the projective alpha */
-  exp_E = logmu + expected_rotation_gain(f, g);
-
-  /* register all stat to the stats object. This is a local object, so no
-   * lock needed !
-   */
-  {
-    stats->collisions_good++;
-    polyselect_priority_queue_push(stats->best_opt_logmu, logmu);
-    polyselect_priority_queue_push(stats->best_exp_E, exp_E);
-    polyselect_data_series_add(stats->opt_lognorm, logmu);
-    polyselect_data_series_add(stats->exp_E, exp_E);
-    polyselect_data_series_add(stats->opt_proj_alpha,
-            get_alpha_projective(f, get_alpha_bound()));
-  }
-
-  return 1;
 }

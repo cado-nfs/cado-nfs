@@ -242,7 +242,7 @@ inflight_rels_buffer<locking, n>::inflight_rels_buffer(int nthreads_total)
         locking::lock_init(m + i);
         locking::cond_init(bored + i);
     }
-    barrier_init(sync_point, nthreads_total);
+    barrier_init(sync_point, NULL, nthreads_total);
 }/*}}}*/
 /*{{{ ::drain() */
 /* This belongs to the buffer closing process.  The out condition of this
@@ -271,7 +271,7 @@ void inflight_rels_buffer<locking, n>::drain()
 template<typename locking, int n>
 inflight_rels_buffer<locking, n>::~inflight_rels_buffer()
 {
-    barrier_destroy(sync_point);
+    barrier_destroy(sync_point, NULL);
     for(int i = 0 ; i < n ; i++) {
         ASSERT_ALWAYS_NOTHROW(active[i] == 0);
     }

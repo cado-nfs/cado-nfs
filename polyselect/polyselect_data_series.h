@@ -40,6 +40,7 @@ typedef const struct polyselect_data_series_s * polyselect_data_series_srcptr;
 
 extern void polyselect_data_series_init (polyselect_data_series_ptr);
 extern void polyselect_data_series_clear (polyselect_data_series_ptr);
+extern void polyselect_data_series_reset (polyselect_data_series_ptr s);
 extern void polyselect_data_series_add (polyselect_data_series_ptr, double);
 extern double polyselect_data_series_mean (polyselect_data_series_srcptr);
 extern double polyselect_data_series_variance (polyselect_data_series_srcptr);
