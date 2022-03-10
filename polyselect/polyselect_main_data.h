@@ -60,6 +60,7 @@ struct polyselect_main_data_s {
 
 #ifdef HAVE_HWLOC
     hwloc_topology_t topology;
+    int bind;   /* 0 if we're not doing binding */
 #endif
 
     /* total number of threads */

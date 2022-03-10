@@ -10,11 +10,13 @@ void polyselect_thread_league_init(polyselect_thread_league_ptr league, polysele
     // league->main_nonconst = main;
     dllist_init_head(&league->async_jobs);
 #ifdef HAVE_HWLOC
-    hwloc_topology_t topo = main->topology;
-    int mdepth = hwloc_get_type_depth(topo, HWLOC_OBJ_NUMANODE);
-    hwloc_obj_t node = hwloc_get_obj_by_depth(topo, mdepth, league_index);
-    league->membind_set = hwloc_bitmap_alloc();
-    hwloc_bitmap_copy(league->membind_set, node->nodeset);
+    if (league->main->bind) {
+        hwloc_topology_t topo = main->topology;
+        int mdepth = hwloc_get_type_depth(topo, HWLOC_OBJ_NUMANODE);
+        hwloc_obj_t node = hwloc_get_obj_by_depth(topo, mdepth, league_index);
+        league->membind_set = hwloc_bitmap_alloc();
+        hwloc_bitmap_copy(league->membind_set, node->nodeset);
+    }
 #endif
     pthread_mutex_init(&league->lock, NULL);
 
@@ -24,6 +26,7 @@ void polyselect_thread_league_init(polyselect_thread_league_ptr league, polysele
 void polyselect_thread_league_clear(polyselect_thread_league_ptr league)
 {
     pthread_mutex_destroy(&league->lock);
-    hwloc_bitmap_free(league->membind_set);
+    if (league->main->bind)
+        hwloc_bitmap_free(league->membind_set);
     polyselect_primes_table_clear(league->pt);
 }

@@ -48,7 +48,6 @@ void polyselect_main_data_init_defaults(polyselect_main_data_ptr main)
     main->finer_grain_threads = 1;
 }
 
-
 void polyselect_main_data_clear(polyselect_main_data_ptr main)
 {
     mpz_clear(main->admin);
@@ -470,9 +469,8 @@ polyselect_main_data_auto_scale(polyselect_main_data_ptr main_data)
 
 void polyselect_main_data_prepare_leagues(polyselect_main_data_ptr main_data)
 {
-#ifdef HAVE_HWLOC
-    main_data->nnodes = hwloc_get_nbobjs_by_depth(main_data->topology, hwloc_get_type_depth(main_data->topology, HWLOC_OBJ_NUMANODE));
-#endif
+    /* main_data->nnodes is already set by
+     * polyselect_main_data_check_topology */
 
     /* prepare groups */
     main_data->leagues = malloc(main_data->nnodes * sizeof(polyselect_thread_league));
@@ -481,7 +479,8 @@ void polyselect_main_data_prepare_leagues(polyselect_main_data_ptr main_data)
         /* This initializes the list of primes, one on each NUMA node */
         polyselect_thread_league_init(&(main_data->leagues[i]), main_data, i);
 #ifdef HAVE_HWLOC
-        printf("node %u has %u cpus\n", i, hwloc_bitmap_weight(main_data->leagues[i].membind_set));
+        if (main_data->bind)
+            printf("node %u has %u cpus\n", i, hwloc_bitmap_weight(main_data->leagues[i].membind_set));
 #endif
     }
 }
@@ -530,17 +529,19 @@ void polyselect_main_data_prepare_threads(polyselect_main_data_ptr main_data)
 
 #ifdef HAVE_HWLOC
     /*  prepare the cpu sets for binding */
-    if (hwloc_get_nbobjs_by_type(main_data->topology, HWLOC_OBJ_PU) % main_data->nthreads) {
-        fprintf(stderr, "Warning, the number of threads is not compatible with this topology, we will not bind threads\n");
-    } else {
-        for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
-            main_data->threads[i].cpubind_set = hwloc_bitmap_alloc();
-        }
-        int pu_depth = hwloc_get_type_depth(main_data->topology, HWLOC_OBJ_PU);
-        unsigned int nk = hwloc_get_nbobjs_by_type(main_data->topology, HWLOC_OBJ_PU);
-        int w = nk / main_data->nthreads;
-        for(unsigned int i = 0 ; i < nk ; i++) {
-            hwloc_bitmap_or(main_data->threads[i/w].cpubind_set, main_data->threads[i/w].cpubind_set, hwloc_get_obj_by_depth(main_data->topology,pu_depth, i)->cpuset);
+    if (main_data->bind) {
+        if (hwloc_get_nbobjs_by_type(main_data->topology, HWLOC_OBJ_PU) % main_data->nthreads) {
+            fprintf(stderr, "Warning, the number of threads is not compatible with this topology, we will not bind threads\n");
+        } else {
+            for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
+                main_data->threads[i].cpubind_set = hwloc_bitmap_alloc();
+            }
+            int pu_depth = hwloc_get_type_depth(main_data->topology, HWLOC_OBJ_PU);
+            unsigned int nk = hwloc_get_nbobjs_by_type(main_data->topology, HWLOC_OBJ_PU);
+            int w = nk / main_data->nthreads;
+            for(unsigned int i = 0 ; i < nk ; i++) {
+                hwloc_bitmap_or(main_data->threads[i/w].cpubind_set, main_data->threads[i/w].cpubind_set, hwloc_get_obj_by_depth(main_data->topology,pu_depth, i)->cpuset);
+            }
         }
     }
 #endif
@@ -552,9 +553,11 @@ void polyselect_main_data_dispose_threads(polyselect_main_data_ptr main_data)
       polyselect_thread_clear(&main_data->threads[i]);
   }
 #ifdef HAVE_HWLOC
-  for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
-      if(main_data->threads[i].cpubind_set)
-          hwloc_bitmap_free(main_data->threads[i].cpubind_set);
+  if (main_data->bind) {
+    for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
+       if(main_data->bind && main_data->threads[i].cpubind_set)
+         hwloc_bitmap_free(main_data->threads[i].cpubind_set);
+    }
   }
 #endif
   free(main_data->threads);
@@ -581,12 +584,21 @@ void polyselect_main_data_go_parallel(polyselect_main_data_ptr main_data, void *
 
 void polyselect_main_data_check_topology(polyselect_main_data_ptr main_data)
 {
+    if (main_data->nthreads) {
+        /* if a number of threads was specified, this means that the job
+         * placement is not our responsibility */
+        main_data->nnodes = 1;
 #ifdef HAVE_HWLOC
+        main_data->bind = 0;
+#endif
+        return;
+    }
+#ifdef HAVE_HWLOC
+    main_data->bind = 1;
     main_data->nnodes = hwloc_get_nbobjs_by_depth(main_data->topology, hwloc_get_type_depth(main_data->topology, HWLOC_OBJ_NUMANODE));
 #endif
 
-    if (main_data->nthreads == 0)
-        polyselect_main_data_auto_scale(main_data);
+    polyselect_main_data_auto_scale(main_data);
 
     /*  sanity check nthreads / nnodes */
     if (main_data->nthreads % main_data->nnodes) {
