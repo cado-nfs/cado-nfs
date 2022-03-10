@@ -276,8 +276,8 @@ polyselect/polyselect_data_series.c
 polyselect/polyselect_data_series.h
 polyselect/polyselect_hash.c
 polyselect/polyselect_hash.h
-polyselect/polyselect_locals.c
-polyselect/polyselect_locals.h
+polyselect/polyselect_thread.c
+polyselect/polyselect_thread.h
 polyselect/polyselect_main_data.c
 polyselect/polyselect_main_data.h
 polyselect/polyselect_main_queue.c
@@ -1734,3 +1734,13 @@ tests/sieve/reduce-plattice/simd-base.hpp
 tests/utils/test_subdivide_primes_interval.cpp
 tests/polyselect/test_polyselect_shash.cpp
 ci/999-debug-freebsd-user.sh
+polyselect/polyselect_priority_queue.c
+polyselect/polyselect_priority_queue.h
+polyselect/polyselect_match.c
+polyselect/polyselect_match.h
+polyselect/polyselect_primes_table.c
+polyselect/polyselect_primes_table.h
+polyselect/polyselect_thread_league.c
+polyselect/polyselect_thread_league.h
+polyselect/polyselect_thread_team.c
+polyselect/polyselect_thread_team.h

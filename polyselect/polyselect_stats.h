@@ -2,6 +2,7 @@
 #define POLYSELECT_STATS_H_
 
 #include "polyselect_data_series.h"
+#include "polyselect_priority_queue.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,21 +44,19 @@ struct polyselect_stats_s {
     /* record the start times */
     double st0, wct0;
 
-    /* This is valid only at the global level, and gets initiated by
-     * polyselect_stats_setup_keep_best
-     * Values with no data are filled with NAN
-     */
-    int keep;
-    double *best_opt_logmu, *best_exp_E;
+    polyselect_priority_queue_t best_opt_logmu;
+    polyselect_priority_queue_t best_exp_E;
 };
 
 typedef struct polyselect_stats_s polyselect_stats[1];
 typedef struct polyselect_stats_s * polyselect_stats_ptr;
 typedef const struct polyselect_stats_s * polyselect_stats_srcptr;
 
-extern void polyselect_stats_init(polyselect_stats_ptr stats);
+extern void polyselect_stats_init(polyselect_stats_ptr stats, size_t keep);
 extern void polyselect_stats_clear(polyselect_stats_ptr stats);
-extern void polyselect_stats_setup_keep_best(polyselect_stats_ptr stats, int keep);
+extern void polyselect_stats_reset(polyselect_stats_ptr stats);
+
+extern void polyselect_stats_update_keep(polyselect_stats_ptr stats, size_t keep);
 
 extern void polyselect_stats_accumulate(polyselect_stats_ptr to, polyselect_stats_srcptr from);
 

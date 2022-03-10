@@ -92,7 +92,7 @@ twocubics_check_parameters (polyselect_main_data_ptr main, mpz_t m0, unsigned lo
  * min P and the max P. The version below tries to get this right.
  */
 int
-twocubics_check_parameters_withq (polyselect_main_data_ptr main, mpz_t m0, unsigned long d, unsigned long q)
+twocubics_check_parameters_withq (polyselect_main_data_srcptr main, mpz_t m0, unsigned long d, unsigned long q)
 {
   if (2.0 * pow (main->P, 4.0) * q >= (double) d * mpz_get_d (m0))
     return 0;
@@ -585,7 +585,7 @@ main (int argc, char *argv[])
           fflush(stdout);
       }
 
-      polyselect_main_data_commit_stats(main_data, loc->stats);
+      polyselect_main_data_commit_stats(main_data, loc->stats, loc->ad);
 
       polyselect_thread_locals_clear(loc);
   }

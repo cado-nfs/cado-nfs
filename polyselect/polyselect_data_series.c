@@ -18,6 +18,15 @@ polyselect_data_series_init (polyselect_data_series_ptr s)
 }
 
 void
+polyselect_data_series_reset (polyselect_data_series_ptr s)
+{
+  s->size = 0;
+  s->sum = s->sum2 = 0.0;
+  s->min = DBL_MAX;
+  s->max = -DBL_MAX;
+}
+
+void
 polyselect_data_series_clear (polyselect_data_series_ptr s)
 {
   free (s->x);
@@ -141,7 +150,7 @@ polyselect_data_series_estimate_weibull_moments2(double *beta, double *eta, poly
 /* Add the contents of the data series "from" to the data series "to".
  * The input data series is not changed.
  */
-void polyselect_data_series_combine(polyselect_data_series_ptr to, polyselect_data_series_srcptr from)
+void polyselect_data_series_merge(polyselect_data_series_ptr to, polyselect_data_series_srcptr from)
 {
   if (to->size + from->size >= to->alloc)
     {

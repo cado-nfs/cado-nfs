@@ -5,7 +5,7 @@
 #include "misc.h"
 #include "memusage.h"
 
-void polyselect_stats_init(polyselect_stats_ptr stats)
+void polyselect_stats_init(polyselect_stats_ptr stats, size_t keep)
 {
   memset(stats, 0, sizeof(polyselect_stats));
   polyselect_data_series_init(stats->raw_lognorm);
@@ -17,9 +17,36 @@ void polyselect_stats_init(polyselect_stats_ptr stats)
   polyselect_data_series_init(stats->raw_proj_alpha);
   polyselect_data_series_init(stats->opt_proj_alpha);
   gmp_randinit_default(stats->rstate);
-  stats->best_exp_E_Weibull->rstate = stats->rstate;
+  stats->exp_E->rstate = stats->rstate;
   stats->st0 = seconds();
   stats->wct0 = wct_seconds();
+  polyselect_priority_queue_init(stats->best_opt_logmu, keep);
+  polyselect_priority_queue_init(stats->best_exp_E, keep);
+}
+
+void polyselect_stats_reset(polyselect_stats_ptr stats)
+{
+  polyselect_data_series_reset(stats->raw_lognorm);
+  polyselect_data_series_reset(stats->opt_lognorm);
+  polyselect_data_series_reset(stats->exp_E);
+  polyselect_data_series_reset(stats->beta);
+  polyselect_data_series_reset(stats->eta);
+  polyselect_data_series_reset(stats->best_exp_E_Weibull);
+  polyselect_data_series_reset(stats->raw_proj_alpha);
+  polyselect_data_series_reset(stats->opt_proj_alpha);
+  stats->st0 = seconds();
+  stats->wct0 = wct_seconds();
+  polyselect_priority_queue_reset(stats->best_opt_logmu);
+  polyselect_priority_queue_reset(stats->best_exp_E);
+  stats->number_of_ad_values = 0;
+  stats->tot_found = 0;
+  stats->potential_collisions = 0;
+  stats->discarded1 = 0;
+  stats->collisions = 0;
+  stats->discarded2 = 0;
+  stats->collisions_good = 0;
+  stats->opt_found = 0;
+  stats->optimize_time = 0;
 }
 
 void polyselect_stats_clear(polyselect_stats_ptr stats)
@@ -32,22 +59,16 @@ void polyselect_stats_clear(polyselect_stats_ptr stats)
   polyselect_data_series_clear(stats->best_exp_E_Weibull);
   polyselect_data_series_clear(stats->raw_proj_alpha);
   polyselect_data_series_clear(stats->opt_proj_alpha);
+  polyselect_priority_queue_clear(stats->best_exp_E);
+  polyselect_priority_queue_clear(stats->best_opt_logmu);
   gmp_randclear(stats->rstate);
   memset(stats, 0, sizeof(polyselect_stats));
 }
 
-void polyselect_stats_setup_keep_best(polyselect_stats_ptr stats, int keep)
+void polyselect_stats_update_keep(polyselect_stats_ptr stats, size_t keep)
 {
-  stats->keep = keep;
-  stats->best_opt_logmu = (double *) malloc(keep * sizeof(double));
-  ASSERT_ALWAYS(stats->best_opt_logmu != NULL);
-  stats->best_exp_E = (double *) malloc(keep * sizeof(double));
-  ASSERT_ALWAYS(stats->best_exp_E != NULL);
-  for (int i = 0; i < keep; i++)
-    {
-      stats->best_opt_logmu[i] = NAN;	/* best logmu after size optimization */
-      stats->best_exp_E[i] = NAN;	/* best logmu after rootsieve */
-    }
+    polyselect_priority_queue_resize(stats->best_opt_logmu, keep);
+    polyselect_priority_queue_resize(stats->best_exp_E, keep);
 }
 
 void polyselect_stats_display_final(polyselect_stats_ptr stats, int verbose)
@@ -103,15 +124,16 @@ void polyselect_stats_display_final(polyselect_stats_ptr stats, int verbose)
   /* print best keep values of logmu */
   if (stats->collisions_good > 0)
     {
-      printf("# Stat: best exp_E after size optimization:");
-      for (int i = 0; i < stats->keep; i++)
-	if (!isnan(stats->best_exp_E[i]))
-	  printf(" %1.2f", stats->best_exp_E[i]);
-      printf("\n");
+      char qstr[8 * stats->best_exp_E->size];
+      qstr[0] = '\0';
+      polyselect_priority_queue_snprintf(stats->best_exp_E,
+              qstr, sizeof(qstr), "%1.2f", " ");
+      printf("# Stat: best exp_E after size optimization: %s\n", qstr);
     }
 
   /* print total time (this gets parsed by the scripts) */
   printf("# Stat: total phase took %.2fs\n", seconds() - stats->st0);
+  printf("# Stat: total phase took (WCT) %.2fs\n", wct_seconds() - stats->wct0);
 
   /* If we can't time this because of multithreading and missing
    * RUSAGE_THREAD, it gets set to -1, so don't print it in that case.
@@ -144,13 +166,18 @@ void polyselect_stats_accumulate(polyselect_stats_ptr to, polyselect_stats_srcpt
     to->opt_found += from->opt_found;
     to->optimize_time += from->optimize_time;
 
-    polyselect_data_series_combine(to->raw_lognorm, from->raw_lognorm);
-    polyselect_data_series_combine(to->opt_lognorm, from->opt_lognorm);
-    polyselect_data_series_combine(to->exp_E, from->exp_E);
-    polyselect_data_series_combine(to->beta, from->beta);
-    polyselect_data_series_combine(to->eta, from->eta);
-    polyselect_data_series_combine(to->best_exp_E_Weibull, from->best_exp_E_Weibull);
-    polyselect_data_series_combine(to->raw_proj_alpha, from->raw_proj_alpha);
-    polyselect_data_series_combine(to->opt_proj_alpha, from->opt_proj_alpha);
+    polyselect_data_series_merge(to->raw_lognorm, from->raw_lognorm);
+    polyselect_data_series_merge(to->opt_lognorm, from->opt_lognorm);
+    polyselect_data_series_merge(to->exp_E, from->exp_E);
+    polyselect_data_series_merge(to->beta, from->beta);
+    polyselect_data_series_merge(to->eta, from->eta);
+    polyselect_data_series_merge(to->best_exp_E_Weibull, from->best_exp_E_Weibull);
+    polyselect_data_series_merge(to->raw_proj_alpha, from->raw_proj_alpha);
+    polyselect_data_series_merge(to->opt_proj_alpha, from->opt_proj_alpha);
+
+    /* merge the priority queues */
+
+    polyselect_priority_queue_merge(to->best_opt_logmu, from->best_opt_logmu);
+    polyselect_priority_queue_merge(to->best_exp_E, from->best_exp_E);
 }
 

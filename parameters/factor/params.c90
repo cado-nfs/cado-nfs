@@ -160,7 +160,7 @@ tasks.maxtimedout = 100
 tasks.lim0 = 404327
 tasks.lim1 = 811066
 # The number of rational (resp. # algebraic) primes is roughly lim0/log(lim0)
-# (resp. lim1/log(lim0))
+# (resp. lim1/log(lim1))
 tasks.lpb0 = 23
 tasks.lpb1 = 23
 # lpb0/lpb1 is the (base 2 log of the) large prime bound
