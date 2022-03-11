@@ -11,13 +11,13 @@
 
 void polyselect_thread_bind(polyselect_thread_ptr thread MAYBE_UNUSED)
 {
+#ifdef HAVE_HWLOC
     polyselect_thread_team_ptr team = thread->team;
     polyselect_thread_league_ptr league = team->league;
     polyselect_main_data_srcptr main_data = league->main;
     pthread_mutex_t * mlock = thread->main_lock;
     /* Do the binding. Temporarily acquire the main_data lock in order to do
      * so */
-#ifdef HAVE_HWLOC
     char * cstr = NULL;
     char * mstr = NULL;
     if (thread->cpubind_set) {
@@ -55,7 +55,9 @@ void polyselect_thread_init(polyselect_thread_ptr thread, polyselect_thread_team
     thread->thread_index = thread_index;
     thread->team = team;
     thread->tid = pthread_self();
+#ifdef HAVE_HWLOC
     thread->cpubind_set = NULL;
+#endif
     thread->main_lock = &main->lock;
     thread->index_in_sync_zone = UINT_MAX;
     thread->why_wait = W_NONE;
