@@ -138,7 +138,7 @@ static int reap_fd(int fd)
     return kid;
 }
 
-#ifdef HAVE_GETRUSAGE
+#if defined(HAVE_GETRUSAGE) && defined(HAVE_WAIT4)
 int cado_fd_pclose2(int fd, struct rusage * nr)
 #else
 int cado_fd_pclose2(int fd, void * nr MAYBE_UNUSED)
@@ -152,11 +152,10 @@ int cado_fd_pclose2(int fd, void * nr MAYBE_UNUSED)
     close(fd);
     /* we must wait() for the kid now */
     int status, error;
-#ifdef HAVE_GETRUSAGE
+#if defined(HAVE_GETRUSAGE) && defined(HAVE_WAIT4)
     struct rusage r[1];
     error = wait4(kid, &status, 0, r);
 #else
-    /* if we have no getrusage(), we probably don't have wait4 either */
     error = waitpid(kid, &status, 0);
 #endif
     if (error == -1) {
@@ -181,7 +180,7 @@ int cado_fd_pclose2(int fd, void * nr MAYBE_UNUSED)
     fprintf(stderr, "Child process %d %s, having spent %.2fs+%.2fs on cpu\n",
             kid, long_status, u, s);
             */
-#ifdef HAVE_GETRUSAGE
+#if defined(HAVE_GETRUSAGE) && defined(HAVE_WAIT4)
     if (nr) memcpy(nr, r, sizeof(struct rusage));
 #endif
     /* Linux man page: 
@@ -190,7 +189,7 @@ int cado_fd_pclose2(int fd, void * nr MAYBE_UNUSED)
     return status;
 }
 
-#ifdef HAVE_GETRUSAGE
+#if defined(HAVE_GETRUSAGE) && defined(HAVE_WAIT4)
 int cado_pclose2(FILE * stream, struct rusage * nr)
 #else
 int cado_pclose2(FILE * stream, void * nr MAYBE_UNUSED)

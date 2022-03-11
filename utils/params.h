@@ -6,6 +6,7 @@
 #include <gmp.h>
 
 #include "macros.h"
+#include "misc.h"       // mpz_set_from_expression
 #include "mpz_poly.h" // TODO: modify this.
 
 struct param_list_doc_s {

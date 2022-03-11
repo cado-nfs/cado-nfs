@@ -252,7 +252,10 @@ const char *size_disp(size_t s, char buf[16]);
 /* see below. The C++ code is the first-class citizen, but this proxy can
  * be used in C as well.
  */
-void subdivide_primes_interval_proxy(unsigned long * r, unsigned long p0, unsigned long p1, size_t n);
+extern void subdivide_primes_interval_proxy(unsigned long * r, unsigned long p0, unsigned long p1, size_t n);
+
+extern int mpz_set_from_expression(mpz_ptr f, const char * value);
+
 
 #ifdef __cplusplus
 }

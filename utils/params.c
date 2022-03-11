@@ -1447,6 +1447,11 @@ int param_list_parse_mpz_poly(param_list_ptr pl, const char * key,
   char *value;
   if (!get_assoc(pl, key, &value, NULL))
     return 0;
+  if (strchr(value, ',') == NULL) {
+      /* There's no comma, most probably it's an algebraic expression
+       */
+      return mpz_poly_set_from_expression(f, value);
+  }
   char *tmp = value;
   mpz_t coeff;
   mpz_init(coeff);
@@ -1513,6 +1518,9 @@ int param_list_parse_mpz(param_list_ptr pl, const char * key, mpz_ptr r)
             mpf_clear(zf);
             if (rc) return seen;
         }
+
+        if (mpz_set_from_expression(r, value))
+            return seen;
 
         fprintf(stderr, "Parse error: parameter for key %s is not an mpz: %s\n",
                 key, value);
