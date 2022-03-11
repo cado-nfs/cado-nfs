@@ -35,11 +35,6 @@
 
 #define DEBUG 0
 
-/* mu and sigma in function exp_alpha() */
-#define MU 0.0
-
-#define SIGMA 0.824
-
 /* Don't change this. */
 #define NUM_SUBLATTICE_PRIMES 9
 
@@ -114,8 +109,6 @@ extern const unsigned int s1_size_each_sublattice[NUM_SUBLATTICE_PRIMES][NUM_SUB
 extern const unsigned int s1_size_each_sublattice_tune[NUM_SUBLATTICE_PRIMES];
 
 extern const unsigned int size_total_sublattices[NUM_DEFAULT_DIGITS][4];
-
-double exp_alpha (double logK);
 
 
 #ifdef __cplusplus

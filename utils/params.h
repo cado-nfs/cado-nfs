@@ -217,6 +217,8 @@ extern int param_list_save_parameter(param_list_ptr, enum parameter_origin o,
 // param lists, which remember their oldest argv, argc pair.
 extern void param_list_print_command_line(FILE * stream, param_list_ptr);
 
+extern void param_list_generic_failure(param_list_ptr pl, const char *missing);
+
 #ifdef __cplusplus
 }
 #endif

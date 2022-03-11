@@ -34,18 +34,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #define RAT_SIDE 0
 #define ALG_SIDE 1
 
-#define DEFAULT_INCR 60 /* we want a positive integer with many divisors,
-                           other values are 210, 2310, 30030, 510510, 9699690,
-                           223092870 */
-
-#define SKEWNESS_DEFAULT_PREC 10
-
-/* prime bounds for the computation of alpha */
-#define ALPHA_BOUND_SMALL  100
-#ifndef ALPHA_BOUND /* allows to define ALPHA_BOUND in local.sh */
-#define ALPHA_BOUND       2000
-#endif
-
 extern double bound_f, bound_g, area;
 
 /* The maximum degree supported is MAX_DEGREE, as defined in cado_poly.h */
@@ -60,11 +48,6 @@ typedef struct
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-double L2_lognorm (mpz_poly_srcptr, double);
-double L2_skewness (mpz_poly_srcptr, int);
-double L2_combined_skewness2 (mpz_poly_srcptr f, mpz_poly_srcptr g, int prec);
-double L2_skew_lognorm (mpz_poly_srcptr, int);
 
 /* alpha */
 double special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_srcptr disc, gmp_randstate_ptr rstate);

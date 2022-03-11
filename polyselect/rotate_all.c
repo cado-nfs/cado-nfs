@@ -14,6 +14,8 @@
 #include "mod_ul.h"     // modulusul_t
 #include "modul_poly.h"
 #include "size_optimization.h"
+#include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 #include "timing.h"             // for seconds
 
 /* for the rotation, we try (j*x+k) for |k| <= 2^MAX_k */

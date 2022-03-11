@@ -3,79 +3,105 @@
 #include <stdio.h>
 #include "tests_common.h"
 #include "macros.h"
-/* This test triggers a diagnostic with gcc-11.1, which I seem is
- * spurious.
- * (when we dll_delete nodes in random order, free(node) in dll_delete is
- * reported as freeing something not on the heap.
- */
-#if GNUC_VERSION_ATLEAST(11,1,0)
-#pragma GCC diagnostic ignored "-Wfree-nonheap-object"
-#endif
 #include "dllist.h"
 #include "portability.h" // IWYU pragma: keep
+
+struct junk {
+    size_t a;
+    struct dllist_head head;
+};
 
 void
 test_dllist(size_t len MAYBE_UNUSED)
 {
-  dllist head;
-  dllist_ptr node;
-  
-  dll_init(head);
-  for (size_t i = 0; i < len; i++) {
-    size_t cur_len = dll_length(head);
-    if (cur_len != i) {
-      fprintf(stderr, "i = %zu, but cur_len = %zu\n", i, cur_len);
-      exit(EXIT_FAILURE);
+    struct dllist_head all;
+
+    dllist_init_head(&all);
+
+    for (size_t i = 0; i < len; i++) {
+        size_t cur_len = dllist_length(&all);
+        if (cur_len != i) {
+            fprintf(stderr, "i = %zu, but cur_len = %zu\n", i, cur_len);
+            exit(EXIT_FAILURE);
+        }
+        for (size_t j = 0; j < i; j++) {
+            struct junk * node = NULL;
+            size_t pos = 0;
+            dllist_find_pos(&all, pos, node, struct junk, head, node->a == j);
+
+            /* Must be found */
+            if (node == NULL) {
+                fprintf(stderr, "i = %zu, j = %zu: dllist_find() did not find node\n", i, j);
+                exit(EXIT_FAILURE);
+            }
+
+            struct dllist_head * ptr = dllist_get_nth(&all, pos);
+            ASSERT_ALWAYS(ptr != NULL);
+            struct junk * node2 = dllist_entry(ptr, struct junk, head);
+
+            if (node2 == NULL || node2->a != node->a) {
+                fprintf(stderr, "i = %zu, j = %zu: dllist_get_nth() found wrong node\n", i, j);
+                exit(EXIT_FAILURE);
+            }
+
+            printf("Found i=%zu at position %zu\n", j, pos);
+        }
+
+        struct junk * node = NULL;
+        dllist_find(&all, node, struct junk, head, node->a == i);
+        /* Must not be found */
+        if (node != NULL) {
+            fprintf(stderr, "i = %zu: dllist_find() incorrectly found a node\n", i);
+            exit(EXIT_FAILURE);
+        }
+        struct junk * foo = malloc(sizeof(struct junk));
+        foo->a = i;
+        if ((i + rand()) % 2 == 0) {
+            dllist_push_front(&all, &foo->head);
+        } else {
+            dllist_push_back(&all, &foo->head);
+        }
     }
-    for (size_t j = 0; j < i; j++) {
-      node = dll_find(head, (void *) j);
-      /* Must be found */
-      if (node == NULL || node->data != (void *) j) {
-        fprintf(stderr, "i = %zu, j = %zu: dll_find() did not find node\n", i, j);
+
+    /* Insert a node at head */
+    {
+        struct junk * foo = malloc(sizeof(struct junk));
+        foo->a = len;
+        dllist_push_front(&all, &foo->head);
+    }
+    {
+        struct junk * node = NULL;
+        dllist_find(&all, node, struct junk, head, node->a == len);
+        if (!node || node->a != len) {
+            fprintf(stderr, "len = %zu: dllist_find() did not find node after head\n", len);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    {
+        struct dllist_head * ptr = dllist_get_nth(&all, 0);
+        ASSERT_ALWAYS(ptr != NULL);
+        struct junk * node = dllist_entry(ptr, struct junk, head);
+        if (!node || node->a != len) {
+            fprintf(stderr, "len = %zu: dllist_get_nth() did not find node after head\n", len);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    /* Delete nodes again, in random order */
+    for (size_t i = 0; i <= len; i++) {
+        size_t index = gmp_urandomm_ui(state, len + 1 - i);
+        struct dllist_head * ptr = dllist_get_nth(&all, index);
+        ASSERT_ALWAYS(ptr != NULL);
+        dllist_pop(ptr);
+        struct junk * node = dllist_entry(ptr, struct junk, head);
+        free(node);
+    }
+
+    if (!dllist_is_empty(&all)) {
+        fprintf(stderr, "len = %zu: dllist_is_empty() returned false, but list should be empty\n", len);
         exit(EXIT_FAILURE);
-      }
-
-      node = dll_get_nth(head, j);
-      if (node == NULL || node->data != (void *)j) {
-        fprintf(stderr, "i = %zu, j = %zu: dll_get_nth() found wrong node\n", i, j);
-        exit(EXIT_FAILURE);
-      }
     }
-
-    node = dll_find(head, (void *) i);
-    /* Must not be found */
-    if (node != NULL) {
-      fprintf(stderr, "i = %zu: dll_find() incorrectly found a node\n", i);
-      exit(EXIT_FAILURE);
-    }
-    dll_append(head, (void *) i);
-  }
-
-  /* Insert a node at head */
-  dll_insert(head, (void *) len);
-  node = dll_find(head, (void *) len);
-  if (node == NULL || node->data != (void *) len) {
-    fprintf(stderr, "len = %zu: dll_find() did not find node after head\n", len);
-    exit(EXIT_FAILURE);
-  }
-  
-  node = dll_get_nth(head, 0);
-  if (node == NULL || node->data != (void *) len) {
-    fprintf(stderr, "len = %zu: dll_get_nth() did not find node after head\n", len);
-    exit(EXIT_FAILURE);
-  }
-
-  /* Delete nodes again, in random order */
-  for (size_t i = 0; i < len + 1; i++) {
-    size_t index = gmp_urandomm_ui(state, len + 1 - i);
-    node = dll_get_nth(head, index);
-    dll_delete(node);
-  }
-  
-  if (!dll_is_empty(head)) {
-    fprintf(stderr, "len = %zu: dll_is_empty() returned false, but list should be empty\n", len);
-    exit(EXIT_FAILURE);
-  }
 }
 
 int

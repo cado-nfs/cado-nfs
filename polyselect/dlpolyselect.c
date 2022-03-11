@@ -79,6 +79,8 @@ skew: 1.37
 #include "mpz_poly.h"
 #include "murphyE.h"
 #include "rootfinder.h"
+#include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 #include "timing.h"             // for seconds
 #include "usp.h"        // numberOfRealRoots
 

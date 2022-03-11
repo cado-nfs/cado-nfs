@@ -11,6 +11,7 @@
 #include "lll.h"        // mat_Z, LLL
 #include "size_optimization.h"
 #include "double_poly.h"
+#include "polyselect_norms.h"
 #include "macros.h" // ASSERT_ALWAYS
 
 

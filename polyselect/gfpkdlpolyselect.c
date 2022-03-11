@@ -24,6 +24,8 @@
 #include "macros.h"     // ASSERT
 #include "rootfinder.h"
 #include "ropt_param.h"
+#include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 
 #include "table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h"
 // contains: fPyphi_poly_t ff4
@@ -859,7 +861,7 @@ fprintf_gfpn_poly_info ( FILE* fp, mpz_poly f, const char *label_poly)
     fprintf (fp, " lognorm %1.2f, skew %1.2f, alpha %1.2f, E %1.2f, " \
 	     "exp_E %1.2f\n",
              logmu, skew, alpha, logmu + alpha,
-             logmu + exp_alpha(exp_rot[f->deg] * log (skew)));
+             logmu + expected_alpha(exp_rot[f->deg] * log (skew)));
 }
 
 void gfpk_print_params(unsigned int n, mpz_srcptr p, mpz_srcptr ell){

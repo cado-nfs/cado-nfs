@@ -15,6 +15,8 @@
 #include "size_optimization.h"
 #include "usp.h"        // numberOfRealRoots
 #include "verbose.h"             // verbose_decl_usage
+#include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 
 
 static void
