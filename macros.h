@@ -89,7 +89,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define FATAL_ERROR_CHECK(cond, msg)		        		\
     do {								\
       if (UNLIKELY((cond))) {                                           \
-          croak__("Fatal error: ", msg);        			\
+          croak__("Fatal error: ", msg);               			\
           abort();                                                      \
         }								\
     } while (0)

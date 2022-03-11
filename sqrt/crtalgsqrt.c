@@ -3599,7 +3599,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "# [%2.2lf] starting %d worker threads on each node\n", WCT, glob.ncores);
     }
     wq_init(glob.wq, glob.ncores);
-    barrier_init(glob.barrier, glob.ncores);
+    barrier_init(glob.barrier, NULL, glob.ncores);
 
     int pgnum = glob.rank % t;
     int apnum = glob.rank / t;
@@ -3756,7 +3756,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "# [%2.2lf] clearing work queues\n", WCT);
     }
     wq_clear(glob.wq, glob.ncores);
-    barrier_destroy(glob.barrier);
+    barrier_destroy(glob.barrier, NULL);
 
     for(int i = i0 ; i < i1 ; i++) prime_cleanup(&(primes[i]));
     free(primes);

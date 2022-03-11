@@ -9,6 +9,7 @@
 #include "mpz_poly.h"                      // for mpz_poly_clear, mpz_poly_init
 #include "size_optimization.h"
 #include "tests_common.h"
+#include "polyselect_norms.h"
 
 static int
 check_num (double x, double y, double emax)

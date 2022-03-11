@@ -668,7 +668,7 @@ void mpz_poly_init(mpz_poly_ptr f, int d)
     f->coeff = (mpz_t *) malloc ((d+1)*sizeof(mpz_t));
     FATAL_ERROR_CHECK (f->coeff == NULL, "not enough memory");
     for (i = 0; i <= d; ++i)
-      mpz_init (f->coeff[i]);
+      mpz_init_set_ui (f->coeff[i], 0);
   }
 }
 
@@ -1106,6 +1106,28 @@ mpz_poly_fprintf_cado_format (FILE *fp, mpz_poly_srcptr f, const char letter,
       fputs (prefix, fp);
     gmp_fprintf (fp, "%c%d: %Zd\n", letter, i, f->coeff[i]);
   }
+}
+
+void
+mpz_poly_asprintf_cado_format (char **pstr, mpz_poly_srcptr f, const char letter,
+                              const char *prefix)
+{
+    size_t size = 10;
+    char * str = (char *) malloc(size);
+    size_t p = 0;
+  for (int i = 0; i <= f->deg; i++)
+  {
+      for(size_t n = SIZE_MAX ; ; ) {
+          n = gmp_snprintf (str + p, size - p, "%s%c%d: %Zd\n", prefix ? prefix : "", letter, i, f->coeff[i]);
+          if (n < size - p) {
+              p += n;
+              break;
+          }
+          size *=2;
+          str = (char *) realloc(str, size);
+      }
+  }
+  *pstr = str;
 }
 
 void mpz_poly_print_raw(mpz_poly_srcptr f){
@@ -3094,6 +3116,24 @@ mpz_poly_content (mpz_ptr c, mpz_poly_srcptr F)
   for (i = 1; i <= d; i++)
     mpz_gcd (c, c, f[i]);
   mpz_abs (c, c);
+}
+
+int
+mpz_poly_has_trivial_content (mpz_poly_srcptr F)
+{
+  int i;
+  mpz_t *f = F->coeff;
+  int d = F->deg;
+  mpz_t c;
+  mpz_init_set (c, f[0]);
+  mpz_abs (c, c);
+  for (i = 1; i <= d && mpz_cmp_ui(c, 1) > 0; i++) {
+    mpz_gcd (c, c, f[i]);
+    mpz_abs (c, c);
+  }
+  int res = mpz_cmp_ui(c, 1) == 0;
+  mpz_clear(c);
+  return res;
 }
 
 /*

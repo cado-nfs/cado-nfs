@@ -139,6 +139,8 @@ void mpz_poly_fprintf_coeffs (FILE *fp, mpz_poly_srcptr f, const char sep);
 void mpz_poly_fscanf_coeffs (FILE *fp, mpz_poly_ptr f, const char sep);
 void mpz_poly_fprintf_cado_format (FILE *fp, mpz_poly_srcptr f,
                                    const char letter, const char *pre);
+void mpz_poly_asprintf_cado_format (char **pstr, mpz_poly_srcptr f, const char letter,
+                              const char *prefix);
 void mpz_poly_print_raw(mpz_poly_srcptr f);
 #ifdef MPZ_POLY_TIMINGS
   void print_timings_pow_mod_f_mod_p();
@@ -219,6 +221,7 @@ void mpz_poly_xgcd_mpz(mpz_poly_ptr gcd, mpz_poly_srcptr f, mpz_poly_srcptr g, m
 void mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4]);
 void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, const int64_t i, const uint64_t j);
 void mpz_poly_content (mpz_ptr c, mpz_poly_srcptr F);
+int mpz_poly_has_trivial_content (mpz_poly_srcptr F);
 void mpz_poly_resultant(mpz_ptr res, mpz_poly_srcptr p, mpz_poly_srcptr q);
 void mpz_poly_discriminant(mpz_ptr res, mpz_poly_srcptr f);
 int mpz_poly_squarefree_p(mpz_poly_srcptr f);

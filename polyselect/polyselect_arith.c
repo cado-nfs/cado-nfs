@@ -3,99 +3,10 @@
 #include <stdlib.h>     // exit free malloc
 #include <gmp.h>
 #include "polyselect_arith.h"
-#include "polyselect_str.h"
+#include "polyselect_hash.h"    // only for SPECIAL_Q...
 #include "roots_mod.h"
 #include "gcd.h"       // for invert_ul
 #include "gmp_aux.h"       // mpz_set_uint64
-
-/* Lift the n roots r[0..n-1] of N = x^d (mod p) to roots of
-   N = (m0 + r)^d (mod p^2).
-   Return the number of lifted roots (might be less than n if some root is 0).
-*/
-unsigned long
-roots_lift (uint64_t *r, mpz_srcptr N, unsigned long d, mpz_srcptr m0,
-            unsigned long p, unsigned long n)
-{
-  uint64_t pp;
-  unsigned long i, j, inv;
-  mpz_t tmp, lambda;
-  mpz_init (tmp);
-  mpz_init (lambda);
-  pp = (uint64_t) p;
-  pp *= (uint64_t) p;
-
-  if (sizeof (unsigned long) == 8) {
-    for (i = j = 0; j < n; j++) {
-        if (r[j] == 0)
-           continue;
-	/* we have for r=r[j]: r^d = N (mod p), lift mod p^2:
-	   (r+lambda*p)^d = N (mod p^2) implies
-	   r^d + d*lambda*p*r^(d-1) = N (mod p^2)
-           lambda = (N - r^d)/(p*d*r^(d-1)) mod p */
-	mpz_ui_pow_ui (tmp, r[j], d - 1);
-	mpz_mul_ui (lambda, tmp, r[j]);    /* lambda = r^d */
-	mpz_sub (lambda, N, lambda);
-	mpz_divexact_ui (lambda, lambda, p);
-	mpz_mul_ui (tmp, tmp, d);         /* tmp = d*r^(d-1) */
-	inv = invert_ul (mpz_fdiv_ui (tmp, p), p);
-	mpz_mul_ui (lambda, lambda, inv * p); /* inv * p fits in 64 bits if
-						 p < 2^32 */
-	mpz_add_ui (lambda, lambda, r[j]); /* now lambda^d = N (mod p^2) */
-
-	/* subtract m0 to get roots of (m0+r)^d = N (mod p^2) */
-	mpz_sub (lambda, lambda, m0);
-	r[i++] = mpz_fdiv_ui (lambda, pp);
-      }
-  }
-  else {
-#if 0   
-    printf ("p: %lu, ppl %" PRId64 ": ", p, pp);
-#endif
-    uint64_t tmp1;
-    mpz_t ppz, *rz, tmpz;
-    rz = (mpz_t*) malloc (n * sizeof (mpz_t));
-    mpz_init (ppz);
-    mpz_init (tmpz);
-    for (j = 0; j < n; j++) {
-      mpz_init_set_ui (rz[j], 0UL);
-      mpz_set_uint64 (rz[j], r[j]);
-#if 0   
-      printf (" %" PRIu64 "", r[j]);
-#endif
-    }
-
-    for (i = j = 0; j < n; j++) {
-        if (rz[j] == 0)
-          continue;
-	mpz_pow_ui (tmp, rz[j], d - 1);
-	mpz_mul (lambda, tmp, rz[j]);    /* lambda = r^d */
-	mpz_sub (lambda, N, lambda);
-	mpz_divexact_ui (lambda, lambda, p);
-	mpz_mul_ui (tmp, tmp, d);         /* tmp = d*r^(d-1) */
-	inv = invert_ul (mpz_fdiv_ui (tmp, p), p);
-	tmp1 = (uint64_t) inv;
-	tmp1 *= (uint64_t) p;
-	mpz_set_uint64 (tmpz, tmp1);
-	mpz_mul (lambda, lambda, tmpz); 
-	mpz_add (lambda, lambda, rz[j]); /* now lambda^d = N (mod p^2) */
-	/* subtract m0 to get roots of (m0+r)^d = N (mod p^2) */
-	mpz_sub (lambda, lambda, m0);
-	mpz_set_uint64 (tmpz, pp);
-	mpz_fdiv_r (rz[j], lambda, tmpz);
-	r[i++] = mpz_get_uint64 (rz[j]);
-      }
-
-    for (j = 0; j < n; j++)
-      mpz_clear (rz[j]);
-    free (rz);
-    mpz_clear (ppz);
-    mpz_clear (tmpz);
-  }
-
-  mpz_clear (tmp);
-  mpz_clear (lambda);
-  return i;
-}
 
 
 /* first combination of k elements among 0, ..., n-1: 0, 1, 2, 3, \cdots */
@@ -155,9 +66,12 @@ print_comb ( unsigned long k,
 }
 
 
-/* return number of n choose k */
+/* return number of n choose k
+ *
+ * [unused anywhere, it seems]
+ */
 unsigned long
-binom ( unsigned long n,
+binomial ( unsigned long n,
         unsigned long k )
 {
   if (k > n)
@@ -245,7 +159,15 @@ comp_sq_roots ( polyselect_poly_header_srcptr header,
   polyselect_qroots_realloc (SQ_R, SQ_R->size); /* free unused space */
 }
 
-/* return the maximal number of special-q's with k elements among lq */
+/* return the maximal number of special-q's with k elements among lq
+ *
+ * This is the same as the degree k coefficient of the product
+ * \prod_{i=1}^{lq} (1-a_i x)
+ * with a_i = SQ_R->nr[i]
+ * but it is slightly unsatisfactory that we're apparently unable to
+ * compute the result in less time than O(binomial(n,k)*k)... (well, to
+ * be honest, it's not a big source of trouble either).
+ */
 unsigned long
 number_comb (polyselect_qroots_srcptr SQ_R, unsigned long k, unsigned long lq)
 {
@@ -265,40 +187,61 @@ number_comb (polyselect_qroots_srcptr SQ_R, unsigned long k, unsigned long lq)
   return s;
 }
 
-/* given individual q's, return crted rq */
-uint64_t
-return_q_rq ( polyselect_qroots_srcptr SQ_R,
-              unsigned long *idx_q,
-              unsigned long k,
-              mpz_ptr qqz,
-              mpz_ptr rqqz )
+/* This does the reconstruction from a set of residues. An integer r is
+ * implicitly given by its residues rq[i] modulo q[i]^2 for a set of
+ * primes p in q[0]...q[len-1], and this routines computes r, as well as
+ * the product of the q[i]^2's.
+ *
+ * Note that the q[i] must not be larger than half an unsigned long.
+ */
+void
+crt_sq(mpz_ptr qqz,
+       mpz_ptr r, unsigned long *q, unsigned long *rq, unsigned long lq)
 {
-  unsigned long i, j, idv_q[k], idv_rq[k];
-  uint64_t q = 1;
+  mpz_t prod, pprod, mod, inv, sum;
+  unsigned long qq[lq];
 
-  /* q and roots */
-  for (i = 0; i < k; i ++) {
-    idv_q[i] = SQ_R->q[idx_q[i]];
-    q = q * idv_q[i];
-    j = rand() % SQ_R->nr[idx_q[i]];
-    idv_rq[i] = SQ_R->roots[idx_q[i]][j];
-  }
+  mpz_init_set_ui(prod, 1);
+  mpz_init(pprod);
+  mpz_init(mod);
+  mpz_init(inv);
+  mpz_init_set_ui(sum, 0);
 
-#if 0
-  for (i = 0; i < k; i ++) {
-    fprintf (stderr, "(%lu:%lu) ", idv_q[i], idv_rq[i]);
-  }
-  //gmp_fprintf (stderr, "%Zd\n", rqqz);
-#endif
+  for (unsigned long i = 0; i < lq; i++)
+    {
+      qq[i] = q[i] * q[i];	// q small
+      mpz_mul_ui(prod, prod, qq[i]);
+    }
 
-  /* crt roots */
-  crt_sq (qqz, rqqz, idv_q, idv_rq, k);
+  for (unsigned long i = 0; i < lq; i++)
+    {
+      mpz_divexact_ui(pprod, prod, qq[i]);
+      mpz_set_ui(mod, qq[i]);
+      mpz_invert(inv, pprod, mod);
+      mpz_mul_ui(inv, inv, rq[i]);
+      mpz_mul(inv, inv, pprod);
+      mpz_add(sum, sum, inv);
+    }
 
-  return q;
+  mpz_mod(sum, sum, prod);
+  mpz_set(r, sum);
+  mpz_set(qqz, prod);
+
+  mpz_clear(prod);
+  mpz_clear(pprod);
+  mpz_clear(mod);
+  mpz_clear(inv);
+  mpz_clear(sum);
 }
 
-
-/* given individual q's, return \product q, no rq */
+/* given individual q's, return \product q, no rq
+ *
+ * In plain English: returns the products of the k prime numbers that are
+ * indexed by idx_q, and picked from the list of primes that are present
+ * in polyselect_qroots_srcptr
+ *
+ * XXX This function belongs to polyselect_qroots.[ch], IMHO
+ */
 uint64_t
 return_q_norq (polyselect_qroots_srcptr SQ_R, unsigned long *idx_q, unsigned long k)
 {

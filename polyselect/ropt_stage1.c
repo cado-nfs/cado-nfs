@@ -18,6 +18,7 @@
 #include "ropt_param.h" // TUNE_RATIO_STAGE1_FULL_ALPHA ...
 #include "mpz_poly.h"
 #include "timing.h"             // for milliseconds
+#include "polyselect_norms.h"
 
 
 /**

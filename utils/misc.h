@@ -7,6 +7,7 @@
 #ifdef __cplusplus
 #include <type_traits>
 #include <string>
+#include <vector>
 #endif
 #include <gmp.h>
 #include "macros.h"
@@ -72,6 +73,11 @@ next_multiple_of_powerof2(unsigned long n, unsigned long k)
 {
     ASSERT((k & (k-1)) == 0);
     return ((n-1)|(k-1)) + 1;
+}
+static inline unsigned long
+next_multiple_of(unsigned long n, unsigned long k)
+{
+    return iceildiv(n, k) * k;
 }
 static inline unsigned long integer_sqrt(unsigned long a)
 {
@@ -243,7 +249,13 @@ safe_abs64(const int64_t n) {
 const char *size_disp_fine(size_t s, char buf[16], double cutoff);
 const char *size_disp(size_t s, char buf[16]);
 
+/* see below. The C++ code is the first-class citizen, but this proxy can
+ * be used in C as well.
+ */
+extern void subdivide_primes_interval_proxy(unsigned long * r, unsigned long p0, unsigned long p1, size_t n);
+
 extern int mpz_set_from_expression(mpz_ptr f, const char * value);
+
 
 #ifdef __cplusplus
 }
@@ -271,6 +283,14 @@ static inline std::string size_disp(size_t s) {
 template<typename T>
 static inline T next_power_of_2(T x)
 {
+    /* it's a bit crazy. why not just do:
+     *
+     * previous_power_of_two(x) {
+     *   for(T c ; (c = x & (x-1)) != 0 ; x = c);
+     *   return x;
+     * }
+     * next_power_of_2(x) { return previous_power_of_two(x-1)<<1; }
+     */
     static_assert(
             std::is_same<T, unsigned long>::value ||
             std::is_same<T, unsigned int>::value ||
@@ -283,6 +303,8 @@ static inline T next_power_of_2(T x)
     }
     return x;
 }
+
+std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned long p1, size_t n);
 #endif
 
 #ifdef __cplusplus
