@@ -457,13 +457,10 @@ unsigned long polyselect_main_data_number_of_ad_tasks(polyselect_main_data_srcpt
 
 
 static void 
-polyselect_main_data_auto_scale(polyselect_main_data_ptr main_data)
+polyselect_main_data_auto_scale(polyselect_main_data_ptr main_data MAYBE_UNUSED)
 {
 #ifdef HAVE_HWLOC
     main_data->nthreads = hwloc_bitmap_weight(hwloc_get_root_obj(main_data->topology)->cpuset);
-#else
-    fprintf(stderr, "Warning: -t auto requires hwloc\n");
-    main_data->nthreads = 1;
 #endif
 }
 

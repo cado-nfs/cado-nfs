@@ -703,6 +703,12 @@ int main(int argc, char *argv[])
       param_list_parse_uint(pl, "t", &main_data->nthreads);
   }
   param_list_parse_uint(pl, "F", &main_data->finer_grain_threads);
+#ifndef HAVE_HWLOC
+  if (main_data->nthreads == 0) {
+      fprintf(stderr, "Warning: -t auto requires hwloc\n");
+      main_data->nthreads = 1;
+  }
+#endif
 
   /* size optimization effort that passed to size_optimization */
   param_list_parse_uint(pl, "sopteffort", &main_data->sopt_effort);
