@@ -91,7 +91,7 @@ void polyselect_primes_table_init(polyselect_primes_table_ptr pt, unsigned long 
 
     pt->lenPrimes = initPrimes(P, &pt->Primes);
 
-    printf("# Info: initializing %lu P primes took %lums\n",
+    printf("# Info: initializing %zu P primes took %lums\n",
             pt->lenPrimes, milliseconds() - st);
 }
 
