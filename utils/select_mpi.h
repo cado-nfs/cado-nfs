@@ -69,7 +69,7 @@ extern "C" {
 static inline int my_pthread_barrier_init(barrier_t * /* restrict */ barrier,
         const int * /* restrict */ attr MAYBE_UNUSED, unsigned count)
 {
-    return barrier_init(barrier, count);
+    return barrier_init(barrier, NULL, count);
 }
 static inline int my_pthread_barrier_wait(barrier_t * b)
 {
