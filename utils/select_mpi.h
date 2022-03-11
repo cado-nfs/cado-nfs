@@ -77,7 +77,7 @@ static inline int my_pthread_barrier_wait(barrier_t * b)
 }
 static inline int my_pthread_barrier_destroy(barrier_t * b)
 {
-    return barrier_destroy(b);
+    return barrier_destroy(b, NULL);
 }
 
 #ifdef __cplusplus
