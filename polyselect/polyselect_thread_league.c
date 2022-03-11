@@ -15,11 +15,13 @@ void polyselect_thread_league_init(polyselect_thread_league_ptr league, polysele
         int mdepth = hwloc_get_type_depth(topo, HWLOC_OBJ_NUMANODE);
         /* hwloc 2 will answer HWLOC_TYPE_DEPTH_NUMANODE but hwloc 1.x
          * will return something in the topology, or possibly UNKNOWN */
-        if (mdepth == HWLOC_TYPE_DEPTH_UNKNOWN)
-            mdepth = 0;
-        hwloc_obj_t node = hwloc_get_obj_by_depth(topo, mdepth, league_index);
-        league->membind_set = hwloc_bitmap_alloc();
-        hwloc_bitmap_copy(league->membind_set, node->nodeset);
+        if (mdepth == HWLOC_TYPE_DEPTH_UNKNOWN) {
+            league->membind_set = NULL;
+        } else {
+            hwloc_obj_t node = hwloc_get_obj_by_depth(topo, mdepth, league_index);
+            league->membind_set = hwloc_bitmap_alloc();
+            hwloc_bitmap_copy(league->membind_set, node->nodeset);
+        }
     }
 #endif
     pthread_mutex_init(&league->lock, NULL);
@@ -31,7 +33,7 @@ void polyselect_thread_league_clear(polyselect_thread_league_ptr league)
 {
     pthread_mutex_destroy(&league->lock);
 #ifdef HAVE_HWLOC
-    if (league->main->bind)
+    if (league->main->bind && league->membind_set)
         hwloc_bitmap_free(league->membind_set);
 #endif
     polyselect_primes_table_clear(league->pt);

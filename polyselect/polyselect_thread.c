@@ -15,6 +15,10 @@ void polyselect_thread_bind(polyselect_thread_ptr thread MAYBE_UNUSED)
     polyselect_thread_team_ptr team = thread->team;
     polyselect_thread_league_ptr league = team->league;
     polyselect_main_data_srcptr main_data = league->main;
+
+    if (!main_data->bind)
+        return;
+
     pthread_mutex_t * mlock = thread->main_lock;
     /* Do the binding. Temporarily acquire the main_data lock in order to do
      * so */
