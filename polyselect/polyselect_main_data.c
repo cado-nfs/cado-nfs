@@ -471,6 +471,7 @@ void polyselect_main_data_prepare_leagues(polyselect_main_data_ptr main_data)
 
     /* prepare groups */
     main_data->leagues = malloc(main_data->nnodes * sizeof(polyselect_thread_league));
+    printf("# %u nodes, 1 league on each\n", main_data->nnodes);
 
     for(unsigned int i = 0 ; i < main_data->nnodes ; i++) {
         /* This initializes the list of primes, one on each NUMA node */
@@ -496,6 +497,8 @@ void polyselect_main_data_prepare_teams(polyselect_main_data_ptr main_data)
     unsigned int w = nteams / main_data->nnodes;
     main_data->teams = malloc(nteams * sizeof(polyselect_thread_team));
 
+    printf("# %u teams per league, %u team(s) in total\n", w, nteams);
+
     for(unsigned int i = 0 ; i < nteams ; i++) {
         polyselect_thread_team_ptr team = &main_data->teams[i];
         polyselect_thread_league_ptr league = &main_data->leagues[i / w];
@@ -516,6 +519,7 @@ void polyselect_main_data_dispose_teams(polyselect_main_data_ptr main_data)
 void polyselect_main_data_prepare_threads(polyselect_main_data_ptr main_data)
 {
     main_data->threads = malloc(main_data->nthreads * sizeof(polyselect_thread));
+    printf("# %u threads per team, %u threads in total\n", main_data->finer_grain_threads, main_data->nthreads);
 
     for(unsigned int i = 0 ; i < main_data->nthreads ; i++) {
         polyselect_thread_ptr thread = &main_data->threads[i];
@@ -581,10 +585,11 @@ void polyselect_main_data_go_parallel(polyselect_main_data_ptr main_data, void *
 
 void polyselect_main_data_check_topology(polyselect_main_data_ptr main_data)
 {
+    /* start with that as a default */
+    main_data->nnodes = 1;
     if (main_data->nthreads) {
         /* if a number of threads was specified, this means that the job
          * placement is not our responsibility */
-        main_data->nnodes = 1;
 #ifdef HAVE_HWLOC
         main_data->bind = 0;
 #endif
@@ -592,7 +597,13 @@ void polyselect_main_data_check_topology(polyselect_main_data_ptr main_data)
     }
 #ifdef HAVE_HWLOC
     main_data->bind = 1;
-    main_data->nnodes = hwloc_get_nbobjs_by_depth(main_data->topology, hwloc_get_type_depth(main_data->topology, HWLOC_OBJ_NUMANODE));
+    int mdepth = hwloc_get_type_depth(main_data->topology, HWLOC_OBJ_NUMANODE);
+    /* hwloc 2 will answer HWLOC_TYPE_DEPTH_NUMANODE but hwloc 1.x
+     * will return something in the topology, or possibly UNKNOWN */
+    if (mdepth == HWLOC_TYPE_DEPTH_UNKNOWN)
+        mdepth = 0;
+    main_data->nnodes = hwloc_get_nbobjs_by_depth(main_data->topology, mdepth);
+    /* mdepth == -1 can happen in some VM settings */
 #endif
 
     polyselect_main_data_auto_scale(main_data);

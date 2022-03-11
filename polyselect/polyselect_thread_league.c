@@ -13,6 +13,10 @@ void polyselect_thread_league_init(polyselect_thread_league_ptr league, polysele
     if (league->main->bind) {
         hwloc_topology_t topo = main->topology;
         int mdepth = hwloc_get_type_depth(topo, HWLOC_OBJ_NUMANODE);
+        /* hwloc 2 will answer HWLOC_TYPE_DEPTH_NUMANODE but hwloc 1.x
+         * will return something in the topology, or possibly UNKNOWN */
+        if (mdepth == HWLOC_TYPE_DEPTH_UNKNOWN)
+            mdepth = 0;
         hwloc_obj_t node = hwloc_get_obj_by_depth(topo, mdepth, league_index);
         league->membind_set = hwloc_bitmap_alloc();
         hwloc_bitmap_copy(league->membind_set, node->nodeset);
