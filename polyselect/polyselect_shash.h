@@ -94,7 +94,18 @@ extern void polyselect_shash_init (polyselect_shash_ptr, unsigned int);
 extern void polyselect_shash_init_multi (polyselect_shash_t *, unsigned int, unsigned int);
 extern void polyselect_shash_reset (polyselect_shash_ptr);
 extern size_t polyselect_shash_size(polyselect_shash_srcptr);
-extern int polyselect_shash_find_collision (polyselect_shash_srcptr H) ATTRIBUTE_DEPRECATED;
+/* polyselect_shash_find_collision is deprecated because it should rather
+ * be replaced with calls such as
+ *
+ * polyselect_thread_team_post_work(thread->team, thread, polyselect_DCS_notflat
+_subtask, &found);
+ *
+ */
+extern int polyselect_shash_find_collision (polyselect_shash_srcptr H)
+#ifndef EXPOSE_DEPRECATED_polyselect_shash_find_collision
+    ATTRIBUTE_DEPRECATED
+#endif
+    ;
 extern int polyselect_shash_find_collision_multi(const polyselect_shash_t * H, unsigned int multi, uint32_t k0, uint32_t k1);
 extern void polyselect_shash_clear (polyselect_shash_ptr);
 extern void polyselect_shash_clear_multi (polyselect_shash_t * H, unsigned int multi);

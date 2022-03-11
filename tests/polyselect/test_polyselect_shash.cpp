@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <sstream>
 #define EMIT_ADDRESSABLE_shash_add
+#define EXPOSE_DEPRECATED_polyselect_shash_find_collision
 #include "polyselect_shash.h"
 #include "misc.h"
 
