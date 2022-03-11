@@ -101,7 +101,8 @@ void polyselect_thread_chronogram_chat(polyselect_thread_srcptr thread, const ch
     struct timeval tv[1];
     gettimeofday(tv, NULL);
     pthread_mutex_lock(&chronogram_lock);
-    fprintf(chronogram, "%lu.%06lu %d %s\n", tv->tv_sec, tv->tv_usec, thread->thread_index, msg);
+    // OSX has its special type for tv_usec...
+    fprintf(chronogram, "%lu.%06lu %d %s\n", tv->tv_sec, (unsigned long) tv->tv_usec, thread->thread_index, msg);
     pthread_mutex_unlock(&chronogram_lock);
     free(msg);
     va_end(ap);
