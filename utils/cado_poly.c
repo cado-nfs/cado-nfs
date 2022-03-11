@@ -6,6 +6,7 @@
 #include "macros.h"  // for ASSERT_ALWAYS, ASSERT
 #include "params.h"
 #include "cado_poly.h"
+#include "portability.h"
 
 /* Be conservative and allocate two polynomials by default. */
 void cado_poly_init(cado_poly_ptr poly)
@@ -161,14 +162,49 @@ int cado_poly_read(cado_poly_ptr poly, const char *filename)
 {
     FILE *file;
     int r;
-    file = fopen(filename, "r");
-    if (file == NULL)
-    {
-      fprintf(stderr, "Error, in cado_poly_read: could not open %s\n", filename);
-      return 0;
+    const char * magic = "inline-poly://";
+    if (strncmp(filename, magic, strlen(magic)) == 0) {
+        /* interpret the reset as param list items, and create the
+         * polynomial like this.
+         */
+        param_list pl;
+        param_list_init(pl);
+        const char * p = filename + strlen(magic);
+        for( ; *p ; ) {
+            const char * q = strchr(p, '/');
+            char * newitem;
+            if (q == NULL) {
+                newitem = strdup(p);
+                p += strlen(p);
+            } else {
+                newitem = strndup(p, q - p);
+                p = q + 1;
+            }
+            char * newkey;
+            char * newvalue;
+            q = strchr(newitem, '=');
+            if (q == NULL) {
+                fprintf(stderr, "wrong value in inline-poly file\n");
+                exit (EXIT_FAILURE);
+            }
+            newitem[q-newitem] = '\0';
+            newkey = newitem;
+            newvalue = newitem + (q-newitem+1);
+            param_list_add_key(pl, newkey, newvalue, PARAMETER_FROM_FILE);
+            free(newitem);
+        }
+        r = cado_poly_set_plist (poly, pl);
+        param_list_clear(pl);
+    } else {
+        file = fopen(filename, "r");
+        if (file == NULL)
+        {
+          fprintf(stderr, "Error, in cado_poly_read: could not open %s\n", filename);
+          return 0;
+        }
+        r = cado_poly_read_stream(poly, file);
+        fclose(file);
     }
-    r = cado_poly_read_stream(poly, file);
-    fclose(file);
     return r;
 }
 

@@ -476,7 +476,7 @@ public:
     }
 
 
-    plattice_enumerator(const plattice_enumerator&) = default;
+    // plattice_enumerator(const plattice_enumerator&) = default;
 
     /* This function is quite critical */
     void next(fence const & F) {
