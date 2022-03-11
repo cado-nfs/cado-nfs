@@ -427,7 +427,7 @@ usp (mpz_ptr a, mpz_ptr b, int m, int up, int va, int vb, int n, int *nroots,
 int
 numberOfRealRoots (const mpz_t *p, const int orig_n, double T, int verbose, usp_root_data *Roots)
 {
-  int i, nroots, n = orig_n;
+  int nroots, n = orig_n;
   mpz_t a, R, R1, *r;
   double pn, x;
   mpf_t aa;
@@ -439,7 +439,7 @@ numberOfRealRoots (const mpz_t *p, const int orig_n, double T, int verbose, usp_
 
   mpz_init (a);
   r = (mpz_t*) malloc ((n+1) * sizeof (mpz_t));
-  for (i = 0; i <= n; i++)
+  for (int i = 0; i <= n; i++)
     mpz_init (r[i]);
   ASSERT_ALWAYS(mpz_cmp_ui (p[n], 0) != 0);
   nroots = 0; /* initialize number of roots found */
@@ -464,7 +464,7 @@ numberOfRealRoots (const mpz_t *p, const int orig_n, double T, int verbose, usp_
       */
       pn = ln2 (p[n]); /* leading coefficient */
       T = 0.0;
-      for (i = 1; i <= n; i++)
+      for (int i = 1; i <= n; i++)
         {
           if (mpz_cmp_ui (p[n-i], 0))
             {
@@ -481,9 +481,8 @@ numberOfRealRoots (const mpz_t *p, const int orig_n, double T, int verbose, usp_
 #ifdef DEBUG
   printf ("root bound is 2^%f\n", T);
 #endif
-  i = 1 + (int) T;
   mpz_set_ui (a, 1);
-  mpz_mul_2exp (a, a, i);
+  mpz_mul_2exp (a, a, 1 + (int) T);
   mpz_init (R);
   mpz_set (R, a);
 
@@ -501,13 +500,13 @@ numberOfRealRoots (const mpz_t *p, const int orig_n, double T, int verbose, usp_
 
   mpz_init (R1);
   mpz_neg (R1, R);
-  i = usp (R1, R, 0, n, signValue (R1, 0, n, p), signValue (R, 0, n, p),
+  usp (R1, R, 0, n, signValue (R1, 0, n, p), signValue (R, 0, n, p),
            n, &nroots, p, r, verbose, Roots);
 
   mpz_clear (a);
   mpz_clear (R);
   mpz_clear (R1);
-  for (i = 0; i <= orig_n; i++)
+  for (int i = 0; i <= orig_n; i++)
     mpz_clear (r[i]);
   free (r);
 

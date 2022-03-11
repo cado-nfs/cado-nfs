@@ -343,7 +343,8 @@ void cachefile_close(cachefile_ptr c)
         return;
     snprintf(tname, sizeof(tname), CACHEDIR "/.pre." CACHEPREFIX "%s", c->basename);
     snprintf(fname, sizeof(fname), CACHEDIR "/" CACHEPREFIX "%s", c->basename);
-    rename(tname, fname);
+    if (rename(tname, fname) < 0)
+        fprintf(stderr, "Could not rename temporary cache file %s to %s\n", tname, fname);
 }
 /* }}} */
 
@@ -549,7 +550,8 @@ void reduce_polymodF_mul_monic(mpz_poly P, int recv, MPI_Comm comm, mpz_poly F)/
 static void broadcast_poly(mpz_poly P, int maxdeg, int root, MPI_Comm comm) /*{{{*/
 {
     /* maxdeg must be <= all allocation degrees. */
-    ASSERT_ALWAYS(maxdeg + 1 <= P->alloc);
+    ASSERT_ALWAYS(maxdeg + 1 >= 0);
+    ASSERT_ALWAYS(((unsigned int) maxdeg + 1) <= P->alloc);
     for(int j = 0 ; j < maxdeg + 1 ; j++) {
         mpz_ptr z = P->coeff[j];
         if (j > P->deg)
@@ -942,8 +944,8 @@ struct wq_task * wq_pop_wait(struct work_queue * wq)
     }
     t = wq->head;
     wq->head = t->next;
-    pthread_mutex_unlock(wq->m);
     t->next = NULL;
+    pthread_mutex_unlock(wq->m);
     return t;
 }
 
@@ -1019,7 +1021,7 @@ struct sqrt_globals {
     int s;      // number of shares of A
     int t;      // number of prime groups
     int r;      // number of primes in each prime group
-    int prec;
+    unsigned long prec;
     mpz_t P;    // prime product (not to the power prec)
     size_t nbits_sqrt;
     // size_t nbits_a;
@@ -2365,7 +2367,7 @@ void * precompute_powers_child(struct subtask_info_t * info)/* {{{ */
 {
     struct prime_data * p = info->p;
 
-    logprint("Precomputing p^%d, p=%lu\n", glob.prec, p->p);
+    logprint("Precomputing p^%lu, p=%lu\n", glob.prec, p->p);
     // this triggers the whole precomputation.
     power_lookup(p->powers, glob.prec);
 
@@ -3588,7 +3590,7 @@ int main(int argc, char **argv)
 
     if (glob.rank == 0) {
         char sbuf[32];
-        fprintf(stderr, "# [%2.2lf] Lifting to precision l=%d (p^l is approx %s)\n", WCT, glob.prec, size_disp(glob.prec * log(primes[0].p)/M_LN2 / 8, sbuf));
+        fprintf(stderr, "# [%2.2lf] Lifting to precision l=%lu (p^l is approx %s)\n", WCT, glob.prec, size_disp(glob.prec * log(primes[0].p)/M_LN2 / 8, sbuf));
     }
 
     mpi_set_communicators();

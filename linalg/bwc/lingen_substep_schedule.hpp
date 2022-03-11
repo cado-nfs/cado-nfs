@@ -48,7 +48,7 @@ struct lingen_substep_schedule {
     static constexpr const char * io_token_fft_ternary = "fft=ternary";
     public:
 
-    lingen_substep_schedule() : shrink0(1), shrink2(1), batch {{1,1,1}}  {}
+    lingen_substep_schedule() : fft_type(FFT_NONE), shrink0(1), shrink2(1), batch {{1,1,1}}  {}
     /*
      * well, defaults are fine, it's probably best to say nothing
      *

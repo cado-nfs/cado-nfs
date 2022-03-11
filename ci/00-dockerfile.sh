@@ -44,8 +44,11 @@ fi
 case "$CI_BUILD_NAME" in
     *"alpine system"*) FROM=alpine:latest;;
     *"alpine-edge system"*) FROM=alpine:edge;;
-    *"debian system"*) FROM=debian;;
+    *"debian system"*) FROM=debian:latest;;
     *"opensuse system"*) FROM=opensuse/leap;;
+    *"fedora system"*) FROM=fedora:latest;;
+    *"centos system"*) FROM=quay.io/centos/centos:stream;;
+    *"centos9 system"*) FROM=quay.io/centos/centos:stream9;;
     *"debian8 system"*) FROM=debian:8;;
     *"debian9 system"*) FROM=debian:9;;
     *"debian10 system"*) FROM=debian:10;;

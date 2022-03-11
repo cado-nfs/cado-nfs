@@ -1,6 +1,8 @@
 #include "cado.h" // IWYU pragma: keep
+#include "macros.h"
 #include <exception>
 #include <sstream>
+#include <limits.h>
 #include "json.hpp"
 
 
@@ -203,6 +205,15 @@ public:
             } else {
                 throw tokenizer_error(is);
             }
+            /* c is either a character, or EOF (but if it's EOF, then
+             * is.eof() is set). The thing is that we insist on the code
+             * pattern "is.get(), c=is.peek()", but that actually peeks
+             * twice in a row in the general case, and static analyzers
+             * don't like it. To fix that, we test c against INT_MAX, in
+             * cases where it is known to always be in the [0..255]
+             * range.
+             */
+            ASSERT_ALWAYS(is.eof() || c != INT_MAX);
         };
         ctok = tokens.begin();
         cnum = numbers.begin();

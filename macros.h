@@ -40,7 +40,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 /* Even simple assertions are relatively expensive in very simple functions.
    If we want them anyway to hunt a bug, define WANT_ASSERT_EXPENSIVE */
-#ifdef WANT_ASSERT_EXPENSIVE
+#if defined(WANT_ASSERT_EXPENSIVE) || defined(STATIC_ANALYSIS)
 #define ASSERT_EXPENSIVE(x) ASSERT(x)
 #else
 #define ASSERT_EXPENSIVE(x)
@@ -111,7 +111,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 /* This macro is used to guard against some trivial false positives
  * returned by static analyzer */
-#if defined(__COVERITY__)
+#if defined(__COVERITY__) || defined(STATIC_ANALYSIS)
 #define ASSERT_FOR_STATIC_ANALYZER(x) do {                             \
     if (!(x)) {                                                        \
         abort();                                                       \
@@ -353,6 +353,20 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 #else
 #define ATTRIBUTE_ARTIFICIAL
+#endif
+#endif
+
+#ifndef ATTRIBUTE_NONNULL
+#if GNUC_VERSION_ATLEAST(3,3,6)
+#define ATTRIBUTE_NONNULL(which) __attribute__ ((__nonnull__ which))
+#elif defined(__clang__)
+#if __has_attribute(nonnull)
+#define ATTRIBUTE_NONNULL(which) __attribute__((nonnull which))
+#else
+#define ATTRIBUTE_NONNULL(which)
+#endif
+#else
+#define ATTRIBUTE_NONNULL(which)
 #endif
 #endif
 

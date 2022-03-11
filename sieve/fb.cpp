@@ -167,6 +167,8 @@ fb_entry_general::fb_entry_general (const fb_entry_x_roots<Nr_roots> &e) {
   invq = e.invq;
   for (int i = 0; i != Nr_roots; i++) {
     /* Use simple constructor for root */
+    // with Nr_roots==0, coverity likes to complain
+    // coverity[dead_error_line]
     roots[i] = e.roots[i];
   }
   nr_roots = Nr_roots;

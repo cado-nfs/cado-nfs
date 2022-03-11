@@ -31,7 +31,7 @@ extern "C" {
    Warning: a polynomial of degree d needs d+1 allocation. */
 
 struct mpz_poly_s {
-  int alloc;
+  unsigned int alloc;
   int deg;
   mpz_t *coeff;
 };
@@ -91,7 +91,7 @@ typedef poly_base_struct_t poly_base_t[1];
 
 /* Management of the structure, set and print coefficients. */
 void mpz_poly_init(mpz_poly_ptr, int d);
-void mpz_poly_realloc (mpz_poly_ptr f, int nc);
+void mpz_poly_realloc (mpz_poly_ptr f, unsigned int nc);
 void mpz_poly_set(mpz_poly_ptr g, mpz_poly_srcptr f);
 void mpz_poly_swap (mpz_poly_ptr f, mpz_poly_ptr g);
 void mpz_poly_clear(mpz_poly_ptr f);

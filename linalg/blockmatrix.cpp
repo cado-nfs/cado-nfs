@@ -22,7 +22,7 @@ blockmatrix::blockmatrix(unsigned int _nrows, unsigned int _ncols)
 
 blockmatrix::~blockmatrix()
 {
-    if (mb) mat64::free(mb);
+    if (mb) mat64::free(mb, nrblocks * ncblocks);
     nrblocks = 0;
     ncblocks = 0;
     _nrows = 0;
@@ -388,7 +388,7 @@ void blockmatrix::read_transpose_from_flat_file(int i0, int j0, const char * nam
             mat64_transpose(getblock((s/64), (g/64)), tmp[s/64]);
         }
     }
-    mat64::free(tmp);
+    mat64::free(tmp, fncols/64);
     fclose(f);
 }
 #endif

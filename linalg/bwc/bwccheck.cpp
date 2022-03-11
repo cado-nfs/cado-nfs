@@ -429,6 +429,8 @@ void check_A_files(mpfq_vbase_ptr Ac, std::vector<Vfile> const & Vfiles, std::ve
     fclose(Rfile);
 
     for(auto & D : Dfiles) {
+        if (D.stretch == 0)
+            continue;
         if (D.stretch > rsize) {
             fmt::print(stderr, FMT_STRING("Cannot do checks using {}, too few items in R file\n"), R);
             continue;

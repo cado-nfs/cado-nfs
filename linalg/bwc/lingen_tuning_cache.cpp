@@ -78,7 +78,7 @@ std::istream& operator>>(std::istream& is, std::list<T> & L)
     L.clear();
     for(unsigned int item = 0 ; ; item++) {
         if (item) {
-            char c = is.get();
+            int c = is.get();
             if (!is || c != ',') {
                 /* since c++11, unget clears eofbit */
                 is.unget();

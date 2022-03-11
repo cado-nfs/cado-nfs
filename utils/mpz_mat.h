@@ -16,7 +16,8 @@ extern "C" {
 // a matric on mpz_t type
 struct mpz_mat_s {
     mpz_t *x;
-    unsigned int m,n;
+    unsigned int m;     // number of rows
+    unsigned int n;     // number of columns
 };
 typedef struct mpz_mat_s mpz_mat[1];
 typedef struct mpz_mat_s * mpz_mat_ptr;
@@ -25,7 +26,8 @@ typedef const struct mpz_mat_s * mpz_mat_srcptr;
 // same on mpq_t type
 struct mpq_mat_s {
     mpq_t *x;
-    unsigned int m,n;
+    unsigned int m;     // number of rows
+    unsigned int n;     // number of columns
 };
 typedef struct mpq_mat_s mpq_mat[1];
 typedef struct mpq_mat_s * mpq_mat_ptr;

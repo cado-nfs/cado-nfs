@@ -179,6 +179,7 @@ sm_build_one_relset (sm_relset_ptr rel, uint64_t *r, int64_t *e, int len,
   mpz_t ee;
   mpz_init(ee);  
   mpz_poly tmp[NB_POLYS_MAX];
+  memset(tmp, 0, NB_POLYS_MAX * sizeof(mpz_poly));
   for (int side = 0; side < nb_polys; side++) {
     if (F[side] == NULL) continue;
     mpz_poly_init(tmp[side], F[side]->deg);

@@ -618,14 +618,14 @@ is_cube (residue_t aa, modulus_t pp)
 static int
 roots3 (residue_t *rr, residue_t aa, int d, modulus_t pp)
 {
-  uint64_t i, n, k;
   const uint64_t p = mod_getmod_ul(pp);
 
   if (!is_cube (aa, pp))
     return 0;
 
   /* find the roots of x^(d/3) = a (mod p) */
-  n = mod_roots (rr + 2 * (d / 3), aa, d / 3, pp);
+  int k;
+  int n = mod_roots (rr + 2 * (d / 3), aa, d / 3, pp);
 
   ASSERT(n > 0);
 
@@ -636,9 +636,10 @@ roots3 (residue_t *rr, residue_t aa, int d, modulus_t pp)
       mod_init (zeta, pp);
       mod_init (t, pp);
       mod_set1 (t, pp);
-      i = 1;
 
-      for (i = k = 0; i < n; i++)
+      k = 0;
+
+      for (int i = 0; i < n; i++)
         {
           /* Note: if d is divisible by 9, then we must check again if each
              root of x^(d/3) = a (mod p) is a cube. For example for d = 9,
@@ -659,7 +660,7 @@ roots3 (residue_t *rr, residue_t aa, int d, modulus_t pp)
     }
   else /* p = 2 (mod 3): exactly one root each */
     {
-      for (i = 0; i < n; i++)
+      for (int i = 0; i < n; i++)
         one_cubic_root_2mod3 (rr[i], rr[2 * (d / 3) + i], pp);
       return n;
     }
@@ -765,7 +766,7 @@ is_rth_power (residue_t a, uint64_t r, modulus_t pp)
 static int
 roots (residue_t *rr, residue_t a, int d, modulus_t pp)
 {
-  uint64_t r, n, i, j, k;
+  uint64_t r, n, i, j;
   const uint64_t p = mod_getmod_ul (pp);
   residue_t z, *rr0;
 
@@ -801,7 +802,6 @@ roots (residue_t *rr, residue_t a, int d, modulus_t pp)
     }
 
   /* now p = 1 (mod r) */
-  k = 0;
   /* get a primitive r-th root of unity z */
   mod_init (z, pp);
   for (i = 2; i < p; i++)
@@ -811,7 +811,8 @@ roots (residue_t *rr, residue_t a, int d, modulus_t pp)
       if (mod_is1 (z, pp) == 0)
         break;
     }
-  for (i = k = 0; i < n; i++)
+  uint64_t k = 0;
+  for (i = 0; i < n; i++)
     {
 #ifndef NDEBUG
       /* check rr0[i] is a r-th power */

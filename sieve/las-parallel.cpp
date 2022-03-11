@@ -37,8 +37,7 @@ static bool parse_number(std::string const & s, int & x, std::string::size_type 
     if (s.empty() || s.find_first_not_of(digits, pos) != std::string::npos)
         return false;
     std::istringstream is(s.substr(pos));
-    is >> x;
-    return true;
+    return bool(is >> x);
 }/*}}}*/
 
 /* used to help with some of the job achieved by the las_parallel ctor.
@@ -193,7 +192,7 @@ struct las_parallel_desc::helper {
     }/*}}}*/
     void replace_aliases(std::string & desc) const {/*{{{*/
         using namespace std;
-        int k;
+        int k = 0;
         if (parse_number(desc, k)) {
             ostringstream os;
             os << "machine,1," << k; 
@@ -545,7 +544,7 @@ struct las_parallel_desc::helper {
                throw bad_specification("hwloc detected asymmetric topology, the only accepted memory binding specifier is \"machine\"");
            return 0;
        }
-       int binding_size;
+       int binding_size = 0;
        /* and apply our different calculation rules to the provided
         * string (either memory_binding_specifier_string or
         * cpu_binding_specifier_string if there is one). */
@@ -593,7 +592,7 @@ struct las_parallel_desc::helper {
        }
        std::string multiplier_string = sub(4);
        if (!multiplier_string.empty()) {
-           int x;
+           int x = 0;
            bool t = parse_number(multiplier_string, x);
            ASSERT_ALWAYS(t);
            objsize *= x;
@@ -605,7 +604,7 @@ struct las_parallel_desc::helper {
            objsize = acceptable_binding(objsize);
        std::string divisor_string = sub(6);
        if (!divisor_string.empty()) {
-           int x;
+           int x = 0;
            bool t = parse_number(divisor_string, x);
            ASSERT_ALWAYS(t);
            if (!x || (objsize % x)) {

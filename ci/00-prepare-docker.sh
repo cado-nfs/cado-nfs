@@ -28,6 +28,8 @@ debian_packages="$debian_packages     libgmp-dev"
 # is full perl really needed ?
 # debian_packages="$debian_packages     perl"
 debian_packages="$debian_packages     python3"
+# we may consider using a system libfmt at some point.
+# debian_packages="$debian_packages     libfmt-dev"
 
 opensuse_packages="$opensuse_packages     bc"
 opensuse_packages="$opensuse_packages     which"  # is type -p more portable?
@@ -38,6 +40,7 @@ opensuse_packages="$opensuse_packages     gmp-devel"
 opensuse_packages="$opensuse_packages     python3"
 opensuse_packages="$opensuse_packages     gzip"
 
+fedora_packages="$fedora_packages     util-linux-core"
 fedora_packages="$fedora_packages     bc"
 fedora_packages="$fedora_packages     cmake"
 fedora_packages="$fedora_packages     hwloc-devel"
@@ -45,8 +48,23 @@ fedora_packages="$fedora_packages     gmp-devel"
 fedora_packages="$fedora_packages     hostname"
 # is full perl really needed ? seems that perl-interpreter and the auto
 # dependencies that we pull already pull what we need.
-# fedora_packages="$fedora_packages     perl"
+fedora_packages="$fedora_packages     perl-interpreter"
 fedora_packages="$fedora_packages     python"
+fedora_packages="$fedora_packages     findutils diffutils"
+
+centos_packages="$centos_packages     bc"
+centos_packages="$centos_packages     cmake"
+centos_packages="$centos_packages     hwloc"
+if is_centos_above_8 ; then
+    # alright -- centos stream 8 does not have hwloc-devel. It's just
+    # weird...
+    centos_packages="$centos_packages     hwloc-devel"
+fi
+centos_packages="$centos_packages     gmp-devel"
+centos_packages="$centos_packages     hostname"
+centos_packages="$centos_packages     perl-interpreter"
+centos_packages="$centos_packages     python3"
+centos_packages="$centos_packages     findutils diffutils"
 
 alpine_packages="$alpine_packages     bc"
 alpine_packages="$alpine_packages     cmake"
@@ -79,6 +97,7 @@ if [ "$coverage" ] ; then
     debian_packages="$debian_packages     lcov gcovr vim-nox"
     opensuse_packages="$opensuse_packages lcov gcovr vim"
     fedora_packages="$fedora_packages     lcov gcovr vim"
+    centos_packages="$centos_packages     lcov gcovr vim"
     alpine_packages="$alpine_packages     lcov gcovr vim"
     if is_freebsd ; then
         echo "coverage -> not on freebsd" >&2
@@ -95,12 +114,18 @@ if [ "$gcc32" ] ; then
         echo "multlib -> only debian (fedora,opensuse:IDK ; alpine:no-go)" >&2
         # didn't even check freebsd
         exit 1
+    else
+        dpkg --add-architecture i386
     fi
     # note that opensuse has gmp-devel-32bit
     debian_packages="$debian_packages     g++-multilib"
     debian_packages="$debian_packages     curl"
     debian_packages="$debian_packages     lzip"
+    debian_packages="$debian_packages     libhwloc-dev:i386"
+    # we may consider using a system libfmt at some point.
+    # debian_packages="$debian_packages     libfmt-dev:i386"
     # fedora_packages="$fedora_packages     g++"
+    # centos_packages="$centos_packages     g++"
     # alpine_packages="$alpine_packages     g++"
 fi
 
@@ -109,6 +134,7 @@ if [ "$gcc" ] && ! type g++ > /dev/null 2>&1 ; then
     debian_packages="$debian_packages     g++"
     opensuse_packages="$opensuse_packages gcc gcc-c++"
     fedora_packages="$fedora_packages     g++"
+    centos_packages="$centos_packages     gcc-c++"
     alpine_packages="$alpine_packages     g++"
     freebsd_packages="$freebsd_packages   gcc"  # this pulls g++ too
 fi
@@ -117,6 +143,7 @@ if [ "$clang" ] && ! type clang++ > /dev/null 2>&1 ; then
     debian_packages="$debian_packages     clang"
     opensuse_packages="$opensuse_packages clang"
     fedora_packages="$fedora_packages     clang"
+    centos_packages="$centos_packages     clang"
     alpine_packages="$alpine_packages     clang"
     freebsd_packages="$freebsd_packages   llvm"
 fi
@@ -125,6 +152,7 @@ if [ "$checks" ] ; then
     debian_packages="$debian_packages     xsltproc"
     opensuse_packages="$opensuse_packages libxslt-tools"
     fedora_packages="$fedora_packages     libxslt"
+    centos_packages="$centos_packages     libxslt"
     alpine_packages="$alpine_packages     libxslt"
     freebsd_packages="$freebsd_packages   libxslt"
 fi
@@ -135,6 +163,7 @@ if [ "$coverity" ] ; then
     debian_packages="$debian_packages     curl git"
     opensuse_packages="$opensuse_packages curl git"
     fedora_packages="$fedora_packages     curl git"
+    centos_packages="$centos_packages     curl git"
     alpine_packages="$alpine_packages     curl git"
     freebsd_packages="$freebsd_packages   curl git"
 fi
@@ -143,6 +172,7 @@ if [ "$DOCKER_SCRIPT" ] ; then
     debian_packages="$debian_packages sudo git vim-nox gdb"
     opensuse_packages="$opensuse_packages sudo git vim gdb"
     fedora_packages="$fedora_packages sudo git vim gdb"
+    centos_packages="$centos_packages sudo git vim gdb"
     alpine_packages="$alpine_packages sudo git vim gdb"
     freebsd_packages="$freebsd_packages sudo git vim gdb"
 fi
@@ -160,6 +190,8 @@ elif is_opensuse ; then
     zypper -n install $opensuse_packages
 elif is_fedora ; then
     dnf -y install $fedora_packages
+elif is_centos ; then
+    dnf -y install $centos_packages
 elif is_alpine ; then
     # hwloc-dev still in alpine testing.
     cat >> /etc/apk/repositories <<EOF

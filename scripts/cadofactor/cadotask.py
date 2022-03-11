@@ -141,6 +141,10 @@ class TaskException(Exception):
     """ Exception class for signaling errors during task execution """
     pass
 
+class EarlyStopException(Exception):
+    """ Exception class for cases like tasks.sieve.run=false"""
+    pass
+
 class Polynomials(object):
     r""" A class that represents a polynomial
     
@@ -1144,8 +1148,8 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
 
     def run(self):
         if not self.params["run"]:
-            self.logger.info("Stopping at %s", self.name)
-            raise TaskException("Job aborted because of a forcibly disabled task")
+            self.logger.error("Stopping at %s", self.name)
+            raise EarlyStopException("Job aborted because of a forcibly disabled task -- stopped at " + self.name)
         self.logger.info("Starting")
         self.logger.debug("%s.run(): Task state: %s", self.name, self.state)
         super().run()
@@ -5376,7 +5380,8 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
         return {"name": str, "workdir": None, "address": None, "port": 0,
                 "threaded": False, "ssl": True, "whitelist": None,
                 "only_registered": True, "forgetport": False,
-                "timeout_hint": None, "nrsubdir": 0}
+                "timeout_hint": None, "nrsubdir": 0,
+                "linger_before_quit": 0}
     @property
     def param_nodename(self):
         return self.name
@@ -5451,7 +5456,8 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
             threaded, db, self.registered_filenames,
             uploaddir, nrsubdir, bg=True, only_registered=only_registered, cafile=cafilename,
             whitelist=server_whitelist,
-            timeout_hint=servertimeout_hint)
+            timeout_hint=servertimeout_hint,
+            linger_before_quit=self.params["linger_before_quit"])
         self.state["port"] = self.server.get_port()
 
     def run(self):
@@ -5852,12 +5858,24 @@ class CompleteFactorization(HasState, wudb.DbAccess,
     def paramnames(self):
         # This isn't a Task subclass so we don't really need to define
         # paramnames, but we do it out of habit
-        return {"name": str, "workdir": str, "N": int, "ell": 0, "dlp": False,
-                "gfpext": 1, "jlpoly" : False, "trybadwu": False,
+        return {"name": str,
+                "workdir": str,
+                "N": int,
+                "ell": 0,
+                "dlp": False,
+                "gfpext": 1,
+                "jlpoly" : False,
+                "trybadwu": False,
                 "target": ""}
     @property
     def title(self):
-        return "Complete Factorization / Discrete logarithm"
+        try:
+            if self.params["dlp"]:
+                return "Discrete logarithm"
+            else:
+                return "Complete Factorization"
+        except AttributeError:
+            return "Complete Factorization / Discrete logarithm"
     @property
     def programs(self):
         return []
@@ -5870,6 +5888,16 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         super().__init__(db=db, parameters=parameters, path_prefix=path_prefix)
         self.params = self.parameters.myparams(self.paramnames)
         self.db_listener = self.make_db_listener()
+
+        if self.params["dlp"]:
+            p = self.params["N"]
+            k = self.params["gfpext"]
+            ell = self.params["ell"]
+            if (p**k-1) % ell != 0:
+                if k==1:
+                    raise ValueError("ell must divide p-1")
+                else:
+                    raise ValueError("ell must divide p^%d-1" % k)
 
         # Init WU BD
         self.wuar = self.make_wu_access()
@@ -6107,60 +6135,71 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.request_map[Request.GET_DEPENDENCY_FILENAME] = self.linalg.get_dependency_filename
             self.request_map[Request.GET_LINALG_PREFIX] = self.linalg.get_prefix
 
+    def enter_subtask_chain(self):
+        self.start_elapsed_time()
+        self.servertask.run()
+        self.start_all_clients()
+
+    def exit_subtask_chain(self):
+        self.servertask.stop_serving_wus()        
+        # print everybody's stats before we exit.
+        for task in self.tasks_that_have_run:
+            task.print_stats()
+        self.stop_all_clients()
+        self.elapsed = self.end_elapsed_time()
+        self.cputotal = self.get_sum_of_cpu_or_real_time(True)
+        self.servertask.shutdown()
+
     def run(self):
         had_interrupt = False
         if self.params["dlp"]:
             self.logger.info("Computing Discrete Logs in GF(%s)", self.params["N"])
         else:
             self.logger.info("Factoring %s", self.params["N"])
-        self.start_elapsed_time()
 
-        self.servertask.run()
+        class wrapme(object):
+            def __init__(self, s):
+                self.s = s
+            def __enter__(self):
+                self.s.enter_subtask_chain()
+                return self
+            def __exit__(self, *args):
+                self.s.exit_subtask_chain()
+
         last_task = None
         last_status = True
+        # we rely here on Task not having a weird comparison operator
+        self.tasks_that_have_run = set()
         try:
-            self.start_all_clients()
-            # we rely here on Task not having a weird comparison operator
-            tasks_that_have_run = set()
-            i=0
-            while last_status:
-                task = self.next_task()
-                if task is None:
-                    break
-                last_task = task.title
-                last_status = task.run()
-                tasks_that_have_run.add(task)
-                task.print_stats()
-
-            # print everybody's stats before we exit.
-            for task in tasks_that_have_run:
-                task.print_stats()
+            with wrapme(self):
+                while last_status:
+                    task = self.next_task()
+                    if task is None:
+                        break
+                    last_task = task.title
+                    last_status = task.run()
+                    self.tasks_that_have_run.add(task)
+                    task.print_stats()
 
         except KeyboardInterrupt:
             self.logger.fatal("Received KeyboardInterrupt. Terminating")
-            had_interrupt = True
-
-        except TaskException as e:
-           self.stop_all_clients()
-           raise e
-
-        self.stop_all_clients()
-        self.servertask.shutdown()
-        elapsed = self.end_elapsed_time()
-
-        if had_interrupt:
             return None
 
-        cputotal = self.get_sum_of_cpu_or_real_time(True)
+        except EarlyStopException as e:
+            self.logger.info("Total cpu/elapsed time for incomplete %s: %g/%g",
+                    self.title, self.cputotal, self.elapsed)
+            self.logger.error("Finishing early: " + str(e))
+            return None
+
         # Do we want the sum of real times over all sub-processes for
         # something?
         # realtotal = self.get_sum_of_cpu_or_real_time(False)
         if self.params["dlp"]:
-            self.logger.info("Total cpu/elapsed time for entire discrete log: %g/%g",
-                         cputotal, elapsed)
+            self.logger.info("Total cpu/elapsed time for entire %s: %g/%g",
+                         self.title, self.cputotal, self.elapsed)
         else:
-            self.logger.info("Total cpu/elapsed time for entire factorization: %g/%g",
-                         cputotal, elapsed)
+            self.logger.info("Total cpu/elapsed time for entire %s %g/%g",
+                         self.title, self.cputotal, self.elapsed)
 
         if last_task and not last_status:
             self.logger.fatal("Premature exit within %s. Bye.", last_task)

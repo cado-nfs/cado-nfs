@@ -20,6 +20,7 @@ typecast.h
 config/asm_sample.c
 config/ccwrap.pl.in
 config/cxxwrap.pl.in
+config/detect-static-analysis.cmake
 config/gas-assembly.cmake
 config/gcc-inline-assembly.cmake
 config/gcc-ubuntu-bug.c
@@ -106,6 +107,7 @@ tests/linalg/bwc/convert_magma.pl
 tests/linalg/bwc/bwc-ptrace.m
 tests/linalg/bwc/bwc-ptrace.sh
 tests/linalg/bwc/bwc-test-secure-continuation.sh
+tests/linalg/bwc/bwc-test-secure-consistent-defaults.sh
 linalg/bwc/bwc.pl
 linalg/bwc/bwc_config_h.in
 linalg/bwc/cleanup.cpp
@@ -1628,10 +1630,12 @@ tests/filter/p40_30004.rels.gz
 utils/embedded/fmt/ChangeLog.rst
 utils/embedded/fmt/LICENSE.rst
 utils/embedded/fmt/README.rst
+utils/embedded/fmt/args.h
 utils/embedded/fmt/chrono.h
 utils/embedded/fmt/color.h
 utils/embedded/fmt/compile.h
 utils/embedded/fmt/core.h
+utils/embedded/fmt/fmt.cc
 utils/embedded/fmt/format-inl.h
 utils/embedded/fmt/format.cc
 utils/embedded/fmt/format.h
@@ -1639,9 +1643,9 @@ utils/embedded/fmt/locale.h
 utils/embedded/fmt/os.cc
 utils/embedded/fmt/os.h
 utils/embedded/fmt/ostream.h
-utils/embedded/fmt/posix.h
 utils/embedded/fmt/printf.h
 utils/embedded/fmt/ranges.h
+utils/embedded/fmt/xchar.h
 sieve/inspect-fbc-file.pl
 tests/sieve/bogus.fbc
 sieve/inspect-batch-file.pl

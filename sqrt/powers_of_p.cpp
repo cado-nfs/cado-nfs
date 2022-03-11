@@ -20,8 +20,8 @@ struct power_lookup_table {
     unsigned long p;
     typedef map<int, int> m_t;
     mpz_ptr * z;
-    int alloc;
-    int nz;
+    unsigned int alloc;
+    unsigned int nz;
     m_t m;
     int extra_power_swapstore(mpz_ptr w) {
         if (nz == alloc) {
@@ -39,7 +39,7 @@ struct power_lookup_table {
     }
     ~power_lookup_table() {
         pthread_mutex_destroy(mx);
-        for(int i = 0 ; i < nz ; i++) {
+        for(unsigned int i = 0 ; i < nz ; i++) {
             mpz_clear(z[i]);
             free(z[i]);
         }

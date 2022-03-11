@@ -28,7 +28,7 @@ struct simd_helper {
     static inline void store(T * p, type const a) { std::copy_n(a.begin(), N, p); }
     static inline type set1(T const x) {
         type r;
-        std::fill_n(r.begin(), N, x);
+        for(size_t i = 0 ; i < N ; i++) r[i] = x;
         return r;
     }
     static inline int mask2int(mask x) { return x; }

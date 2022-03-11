@@ -198,7 +198,9 @@ modredc2ul2_inv (residueredc2ul2_t r, const residueredc2ul2_t A,
 
       u[0] = s[0];
       u[1] = s[1];
+#if PARI
       t = 0;
+#endif
       MODINV_PRINT_PARI_INVARIANT_A;
     }
 
@@ -330,6 +332,8 @@ modredc2ul2_batch_Q_to_Fp (unsigned long *r,
                            const unsigned long k, const int neg,
                            const unsigned long *p, const size_t n)
 {
+  ASSERT_ALWAYS(context != NULL);
+
   residue_t *tr;
   int rc = 1;
 

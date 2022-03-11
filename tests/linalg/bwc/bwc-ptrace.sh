@@ -369,7 +369,7 @@ if ! [ "$magma" ] ; then
     rc=0
     if [[ $script_steps =~ bwc\.pl/([a-z:/]*) ]] ; then
         IFS=/ read -a bwcpl_steps <<< "${BASH_REMATCH[1]}"
-        for s in "${bwcpl_steps}" ; do
+        for s in "${bwcpl_steps[@]}" ; do
             if $bindir/bwc.pl "$s" "${common[@]}" "${pass_bwcpl_args[@]}" ; then
                 :
             else

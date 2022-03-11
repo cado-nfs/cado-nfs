@@ -902,6 +902,7 @@ std::pair<index_t, std::vector<int>> renumber_t::indices_from_p_a_b(p_r_side x, 
             for(auto J : I.second.branches) {
                 int k = J.k;
                 p_r_values_t pk = x.p;
+                ASSERT_ALWAYS(pk);
                 for( ; --k ; ) {
                     p_r_values_t pk1 = pk * x.p;
                     /* we want to be sure that we don't wrap around ! */
@@ -977,7 +978,7 @@ static bool variant_scan_small_range_forward(std::vector<p_r_values_t> const & d
             if (data[j] > data[i0]) {
                 /* Then we have a new vp marker. */
                 i0 = j;
-                delta = data[i0 + 1] - data[i0];
+                // delta = data[i0 + 1] - data[i0];
                 break;
             }
             /* The delta that is attached to this i depends on

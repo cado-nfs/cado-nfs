@@ -406,6 +406,10 @@ add_dependencies(test_bwc_mod2_padded_dependencies mf_scan)
 add_bwc_test(mod2_secure_continuation bwc-test-secure-continuation.sh
     prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64)
 add_dependencies(test_bwc_mod2_secure_continuation_dependencies mf_scan)
+add_bwc_test(mod2_secure_consistent-defaults
+    bwc-test-secure-consistent-defaults.sh
+    prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64)
+add_dependencies(test_bwc_mod2_secure_continuation_dependencies mf_scan)
 
 # Note: because of stop_at_step here, we're not verifying what we're
 # doing, which is a bit stupid.

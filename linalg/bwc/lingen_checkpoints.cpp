@@ -222,7 +222,8 @@ bool lingen_checkpoint::load_aux_file(size_t & Xsize)/*{{{*/
         throw invalid_aux_file(fmt::sprintf("checkpoint file cannot be used (made for (m,n)=(%u,%u)", xm, xn));
     int xlevel;
     unsigned int xt0, xt1;
-    is >> xlevel >> xt0 >> xt1 >> target_t;
+    if (!(is >> xlevel >> xt0 >> xt1 >> target_t))
+        throw invalid_aux_file("checkpoint file cannot be used (parse error)");
     if (xlevel != level || t0 != xt0 || t1 != xt1)
         throw invalid_aux_file(fmt::sprintf("checkpoint file cannot be used (made for depth=%d t0=%u t1=%u", xlevel, xt0, xt1));
     ASSERT_ALWAYS(target_t <= t1);
@@ -362,6 +363,7 @@ int save_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly const &
     /* corresponding t is bm.t - E.size ! */
     if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
+    // coverity[tainted_data_transitive]
     lingen_checkpoint cp(bm, which, t0, t1, 0);
     if (cp.checkpoint_already_present())
         return 1;
@@ -492,7 +494,7 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
     unsigned int n = d.n;
     lingen_checkpoint cp(bm, which, t0, t1, 1);
     cp.datafile = cp.gdatafile;
-    size_t Xsize;
+    size_t Xsize = 0;
     int ok = 1, error = 0;
     try {
         ok = cp.load_aux_file(Xsize);

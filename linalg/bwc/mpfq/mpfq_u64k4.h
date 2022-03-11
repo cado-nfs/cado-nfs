@@ -197,7 +197,7 @@ extern "C" {
 #define mpfq_u64k4_field_characteristic(K, z)	mpz_set_ui(z,2)
 mpz_srcptr mpfq_u64k4_field_characteristic_srcptr(mpfq_u64k4_src_field);
 /* *simd_char2::code_for_field_degree */
-#define mpfq_u64k4_field_degree(f)	1
+#define mpfq_u64k4_field_degree(K)	1
 /* *simd_char2::code_for_field_init */
 #define mpfq_u64k4_field_init(f)	((mpfq_u64k4_dst_field) (f))->c=0
 /* *simd_char2::code_for_field_clear */
@@ -396,7 +396,9 @@ void mpfq_u64k4_oo_field_init(mpfq_vbase_ptr);
 static inline
 void mpfq_u64k4_set(mpfq_u64k4_dst_field K MAYBE_UNUSED, mpfq_u64k4_dst_elt r, mpfq_u64k4_src_elt s)
 {
-    mpfq_copy((mp_limb_t*)r,(const mp_limb_t*)s,sizeof(mpfq_u64k4_elt)/sizeof(mp_limb_t));
+        for(unsigned int i = 0 ; i < sizeof(mpfq_u64k4_elt)/sizeof(*s) ; i++) {
+            r[i] = s[i];
+        }
 }
 
 /* *simd_flat::code_for_set_zero, simd_char2 */
@@ -462,7 +464,9 @@ int mpfq_u64k4_inv(mpfq_u64k4_dst_field K MAYBE_UNUSED, mpfq_u64k4_dst_elt r, mp
 static inline
 void mpfq_u64k4_elt_ur_set(mpfq_u64k4_dst_field K MAYBE_UNUSED, mpfq_u64k4_dst_elt_ur r, mpfq_u64k4_src_elt_ur s)
 {
-    mpfq_copy((mp_limb_t*)r,(const mp_limb_t*)s,sizeof(mpfq_u64k4_elt_ur)/sizeof(mp_limb_t));
+        for(unsigned int i = 0 ; i < sizeof(mpfq_u64k4_elt_ur)/sizeof(*s) ; i++) {
+            r[i] = s[i];
+        }
 }
 
 /* *Mpfq::defaults::flatdata::code_for_elt_ur_set_elt, simd_flat, simd_char2 */
@@ -501,7 +505,9 @@ void mpfq_u64k4_mul_ur(mpfq_u64k4_dst_field K MAYBE_UNUSED, mpfq_u64k4_dst_elt_u
 static inline
 void mpfq_u64k4_reduce(mpfq_u64k4_dst_field K MAYBE_UNUSED, mpfq_u64k4_dst_elt r, mpfq_u64k4_dst_elt_ur s)
 {
-    mpfq_copy((mp_limb_t*)r,(const mp_limb_t*)s,sizeof(mpfq_u64k4_elt)/sizeof(mp_limb_t));
+        for(unsigned int i = 0 ; i < sizeof(mpfq_u64k4_elt)/sizeof(*s) ; i++) {
+            r[i] = s[i];
+        }
 }
 
 /* *Mpfq::defaults::flatdata::code_for_cmp, simd_flat, simd_char2 */
@@ -784,7 +790,9 @@ int mpfq_u64k4_simd_hamming_weight(mpfq_u64k4_dst_field K MAYBE_UNUSED, mpfq_u64
 #if GNUC_VERSION_ATLEAST(3,4,0)
         unsigned long * xp = (unsigned long *) p;
         assert(mpfq_u64k4_elt_stride(K) % sizeof(unsigned long) == 0);
-        for(size_t b = 0 ; b < mpfq_u64k4_elt_stride(K) / sizeof(unsigned long) ; b++) {
+        // parentheses in the divisor are mandatory here, see
+        // https://gcc.gnu.org/pipermail/gcc-patches/2020-September/553888.html
+        for(size_t b = 0 ; b < mpfq_u64k4_elt_stride(K) / (sizeof(unsigned long)) ; b++) {
             w += __builtin_popcountl(xp[b]);
         }
 #else
@@ -809,7 +817,9 @@ int mpfq_u64k4_simd_find_first_set(mpfq_u64k4_dst_field K MAYBE_UNUSED, mpfq_u64
             if (!p[b]) continue;
 #if GNUC_VERSION_ATLEAST(3,4,0)
             unsigned long * xp = (unsigned long *) (p + b);
-            for(size_t c = 0 ; c < sizeof(mpfq_u64k4_elt) / sizeof(unsigned long) ; c++, f += 64) {
+            // parentheses in the divisor are mandatory here, see
+            // https://gcc.gnu.org/pipermail/gcc-patches/2020-September/553888.html
+            for(size_t c = 0 ; c < sizeof(mpfq_u64k4_elt) / (sizeof(unsigned long)) ; c++, f += 64) {
                 if (!xp[c]) continue;
                 return f + __builtin_ctzl(xp[c]);
             }

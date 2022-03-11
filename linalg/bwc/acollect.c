@@ -53,8 +53,8 @@ int afile_cmp(afile_ptr a, afile_ptr b)
 
 struct afile_list {
     afile * a;
-    int n;
-    int alloc;
+    unsigned int n;
+    unsigned int alloc;
 };
 
 int read_afiles(struct afile_list * a)
@@ -172,7 +172,7 @@ int main(int argc, char * argv[])
      * to have different [n0..n1[ ranges progress at different speeds.
      */
     int did_merge = 0;
-    for(int k0=0, k1 ; k0 < a->n ; k0 = k1) {
+    for(unsigned int k0=0, k1 ; k0 < a->n ; k0 = k1) {
         unsigned int j0 = a->a[k0]->j0;
         unsigned int j1 = a->a[k0]->j1;
         k1 = k0;
@@ -197,7 +197,7 @@ int main(int argc, char * argv[])
             continue;
         did_merge++;
         FILE * f = fopen("A.temp", "wb");
-        for(int k = k0 ; k < k1 ; k++) {
+        for(unsigned int k = k0 ; k < k1 ; k++) {
             char * tmp;
             int rc = asprintf(&tmp, "A%u-%u.%u-%u",
                     a->a[k]->n0,a->a[k]->n1,a->a[k]->j0,a->a[k]->j1);
@@ -267,7 +267,7 @@ int main(int argc, char * argv[])
     }
 
     FILE * f = fopen("A.temp", "wb");
-    for(int k0=0, k1 ; k0 < a->n ; k0 = k1) {
+    for(unsigned int k0 = 0, k1 ; k0 < a->n ; k0 = k1) {
         unsigned int j0 = a->a[k0]->j0;
         unsigned int j1 = a->a[k0]->j1;
         k1 = k0;
@@ -299,7 +299,7 @@ int main(int argc, char * argv[])
         }
 
         FILE ** rs = malloc((k1-k0) * sizeof(FILE *));
-        for(int k = k0 ; k < k1 ; k++) {
+        for(unsigned int k = k0 ; k < k1 ; k++) {
             char * tmp;
             int rc = asprintf(&tmp, "A%u-%u.%u-%u",
                     a->a[k]->n0,a->a[k]->n1,a->a[k]->j0,a->a[k]->j1);
@@ -321,7 +321,7 @@ int main(int argc, char * argv[])
                 char * ptr = buf;
                 size_t rz;
                 size_t sz;
-                for(int k = k0 ; k < k1 ; k++) {
+                for(unsigned int k = k0 ; k < k1 ; k++) {
                     sz = (a->a[k]->n1 - a->a[k]->n0) * bits_per_coeff/ CHAR_BIT;
                     rz = fread(ptr, 1, sz, rs[k-k0]);
                     if (rz < sz) {
@@ -354,7 +354,7 @@ int main(int argc, char * argv[])
 
         final->j1 = j1;
 
-        for(int k = k0 ; k < k1 ; k++) {
+        for(unsigned int k = k0 ; k < k1 ; k++) {
             fclose(rs[k-k0]);
             if (!remove_old) continue;
             char * tmp;

@@ -123,6 +123,8 @@ check_leftover_norm (cxx_mpz const & n, siever_config::side_config const & scs)
   unsigned int klpb;
   double nd, kB, B;
 
+  ASSERT_ALWAYS(mpz_cmp_ui(n, 0) != 0);
+
   if (s > mfb)
     return 0; /* n has more than mfb bits, which is the given limit */
 

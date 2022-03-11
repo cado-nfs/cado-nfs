@@ -113,7 +113,7 @@ tests_common_cmdline(int *argc, const char ***argv, const uint64_t flags)
 
   while (1) {
     const char *name = "-seed";
-    if ((flags & PARSE_SEED) != 0 && (*argc) > 1 && 
+    if ((flags & PARSE_SEED) != 0 && (*argc) > 1 &&
         strcmp(name, (*argv)[1]) == 0) {
       if ((*argc) <= 2) {
         fprintf (stderr, "No value given for %s parameter\n", name);
