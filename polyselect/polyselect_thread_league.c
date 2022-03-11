@@ -26,7 +26,9 @@ void polyselect_thread_league_init(polyselect_thread_league_ptr league, polysele
 void polyselect_thread_league_clear(polyselect_thread_league_ptr league)
 {
     pthread_mutex_destroy(&league->lock);
+#ifdef HAVE_HWLOC
     if (league->main->bind)
         hwloc_bitmap_free(league->membind_set);
+#endif
     polyselect_primes_table_clear(league->pt);
 }
