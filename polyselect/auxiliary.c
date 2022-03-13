@@ -232,22 +232,22 @@ do_detranslate_z (mpz_poly_ptr f, mpz_t *g, const mpz_t k)
    otherwise print the expected value of E. Return E or exp_E accordingly.
    TODO: adapt for more than 2 polynomials and two algebraic polynomials */
 double
-cado_poly_fprintf_with_info (FILE *fp, cado_poly_ptr poly, const char *prefix,
+cado_poly_fprintf_with_info (FILE *fp, cado_poly_ptr cpoly, const char *prefix,
                              int final)
 {
   unsigned int nrroots;
   double lognorm, alpha, alpha_proj, exp_E;
 
-  nrroots = numberOfRealRoots ((const mpz_t *) poly->pols[ALG_SIDE]->coeff, poly->pols[ALG_SIDE]->deg, 0, 0, NULL);
-  if (poly->skew <= 0.0) /* If skew is undefined, compute it. */
-    poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-  lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
-  alpha = get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ());
-  alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], get_alpha_bound ());
+  nrroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, cpoly->pols[ALG_SIDE]->deg, 0, 0, NULL);
+  if (cpoly->skew <= 0.0) /* If skew is undefined, compute it. */
+    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+  lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
+  alpha = get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ());
+  alpha_proj = get_alpha_projective (cpoly->pols[ALG_SIDE], get_alpha_bound ());
   exp_E = (final) ? 0.0 : lognorm
-    + expected_rotation_gain (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE]);
+    + expected_rotation_gain (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE]);
 
-  cado_poly_fprintf (stdout, poly, prefix);
+  cado_poly_fprintf (stdout, cpoly, prefix);
   cado_poly_fprintf_info (fp, lognorm, exp_E, alpha, alpha_proj, nrroots,
                           prefix);
   return (final) ? lognorm + alpha : exp_E;
@@ -255,13 +255,13 @@ cado_poly_fprintf_with_info (FILE *fp, cado_poly_ptr poly, const char *prefix,
 
 /* TODO: adapt for more than 2 polynomials and two algebraic polynomials */
 double
-cado_poly_fprintf_with_info_and_MurphyE (FILE *fp, cado_poly_ptr poly,
+cado_poly_fprintf_with_info_and_MurphyE (FILE *fp, cado_poly_ptr cpoly,
                                          double MurphyE, double bound_f,
                                          double bound_g, double area,
                                          const char *prefix)
 {
   double exp_E;
-  exp_E = cado_poly_fprintf_with_info (fp, poly, prefix, 1);
+  exp_E = cado_poly_fprintf_with_info (fp, cpoly, prefix, 1);
   cado_poly_fprintf_MurphyE (fp, MurphyE, bound_f, bound_g, area, prefix);
   return exp_E;
 }

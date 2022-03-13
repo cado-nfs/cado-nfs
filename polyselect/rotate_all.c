@@ -589,7 +589,7 @@ usage_and_die (char *argv0)
 int
 main (int argc, char **argv)
 {
-    cado_poly poly;
+    cado_poly cpoly;
     long kmax, jmin, kmin;
     unsigned long alim = 2000;
     mpz_t b, m;
@@ -607,46 +607,46 @@ main (int argc, char **argv)
     mpz_init(m);
     if (argc != 3)
         usage_and_die (argv0[0]);
-    cado_poly_init (poly);
-    if (!cado_poly_read(poly, argv[1])) {
+    cado_poly_init (cpoly);
+    if (!cado_poly_read(cpoly, argv[1])) {
         fprintf(stderr, "Problem when reading file %s\n", argv[1]);
         usage_and_die (argv0[0]);
     }
     kmax = strtol(argv[2], NULL, 10);
     MAX_k = kmax;
 
-    poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
 
     printf ("Initial polynomial:\n");
     if (verbose)
-      print_cadopoly_extra (stdout, poly, argc0, argv0, 0);
+      print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
     else
-      printf ("skewness=%1.2f, alpha=%1.2f\n", poly->skew,
-              get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ()));
-    size_optimization (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], poly->pols[ALG_SIDE], poly->pols[RAT_SIDE],
+      printf ("skewness=%1.2f, alpha=%1.2f\n", cpoly->skew,
+              get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ()));
+    size_optimization (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE],
                        SOPT_DEFAULT_EFFORT, verbose - 1);
-    poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
     
     printf ("After norm optimization:\n");
     if (verbose)
-      print_cadopoly_extra (stdout, poly, argc0, argv0, 0);
+      print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
     else
       printf ("skewness=%1.2f, alpha=%1.2f\n",
-              poly->skew, get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ()));
+              cpoly->skew, get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ()));
 
-    mpz_set (b, poly->pols[RAT_SIDE]->coeff[1]);
-    mpz_neg (m, poly->pols[RAT_SIDE]->coeff[0]);
-    rotate (poly->pols[ALG_SIDE], alim, m, b, &jmin, &kmin, 0, verbose - 1);
-    mpz_set (poly->pols[RAT_SIDE]->coeff[1], b);
-    mpz_neg (poly->pols[RAT_SIDE]->coeff[0], m);
+    mpz_set (b, cpoly->pols[RAT_SIDE]->coeff[1]);
+    mpz_neg (m, cpoly->pols[RAT_SIDE]->coeff[0]);
+    rotate (cpoly->pols[ALG_SIDE], alim, m, b, &jmin, &kmin, 0, verbose - 1);
+    mpz_set (cpoly->pols[RAT_SIDE]->coeff[1], b);
+    mpz_neg (cpoly->pols[RAT_SIDE]->coeff[0], m);
     /* optimize again, but only translation */
-    mpz_poly_fprintf (stdout, poly->pols[RAT_SIDE]);
-    sopt_local_descent (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], 1, -1,
+    mpz_poly_fprintf (stdout, cpoly->pols[RAT_SIDE]);
+    sopt_local_descent (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 1, -1,
                                           SOPT_DEFAULT_MAX_STEPS, verbose - 1);
-    poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
     mpz_clear(b);
     mpz_clear(m);
 
-    print_cadopoly_extra (stdout, poly, argc0, argv0, 0);
+    print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
     return 0;
 } 

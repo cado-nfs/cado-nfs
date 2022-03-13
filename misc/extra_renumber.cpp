@@ -84,7 +84,7 @@ main (int argc, char *argv[])
   argv0 = argv[0];
   std::vector<unsigned int> lpb_arg(2,0);
   uint64_t lpb[2] = {0, 0};
-  cado_poly poly;
+  cado_poly cpoly;
 
   param_list pl;
   param_list_init(pl);

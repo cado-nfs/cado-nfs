@@ -157,7 +157,7 @@ get_roots (unsigned long *roots, unsigned long f, unsigned long g,
 static double
 average_alpha (cado_poly_srcptr poly0, long modv, long modw, long q, gmp_randstate_ptr rstate)
 {
-  cado_poly poly;
+  cado_poly cpoly;
   double s = 0.0, alpha;
   long v0 = 0, w0 = 0, p, t;
 
@@ -277,7 +277,7 @@ best_classes (cado_poly poly0, long mod, int keep, long vmin, long vmax,
   class *c, *d, *e;
   int nd, ne;
   int i;
-  cado_poly poly;
+  cado_poly cpoly;
   long q, Q = 1;
 
   if (mod == 1)
@@ -401,7 +401,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
           long modw)
 {
   long w, wmin, wmax;
-  cado_poly poly;
+  cado_poly cpoly;
   long l;
 #define G1 poly->pols[RAT_SIDE]->coeff[1]
 #define G0 poly->pols[RAT_SIDE]->coeff[0]
@@ -678,7 +678,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
 }
 
 static void
-rotate (cado_poly poly, long B, double maxlognorm, double Bf, double Bg,
+rotate (cado_poly cpoly, long B, double maxlognorm, double Bf, double Bg,
         double area, long u, gmp_randstate_ptr rstate)
 {
   /* determine range [vmin,vmax] */
@@ -728,7 +728,7 @@ rotate (cado_poly poly, long B, double maxlognorm, double Bf, double Bg,
 /* don't modify poly, which is the size-optimized polynomial
    (poly0 is the initial polynomial) */
 static void
-print_transformation (cado_poly_ptr poly0, cado_poly_srcptr poly)
+print_transformation (cado_poly_ptr poly0, cado_poly_srcptr cpoly)
 {
   mpz_t k;
   int d = poly0->pols[ALG_SIDE]->deg;
@@ -783,7 +783,7 @@ print_transformation (cado_poly_ptr poly0, cado_poly_srcptr poly)
 double
 rotate_area_v (cado_poly_srcptr poly0, double maxlognorm, long v)
 {
-  cado_poly poly;
+  cado_poly cpoly;
   double area;
 
   cado_poly_init (poly);
@@ -804,7 +804,7 @@ rotate_area_u (cado_poly_srcptr poly0, double maxlognorm, long u)
 {
   double area, sum = 0.0;
   long h, vmin, vmax;
-  cado_poly poly;
+  cado_poly cpoly;
 
   cado_poly_init (poly);
   cado_poly_set (poly, poly0);
@@ -832,7 +832,7 @@ rotate_area_u (cado_poly_srcptr poly0, double maxlognorm, long u)
 
 /* estimate the rootsieve area for umin <= u <= umax */
 double
-rotate_area (cado_poly_srcptr poly, double maxlognorm, long umin, long umax)
+rotate_area (cado_poly_srcptr cpoly, double maxlognorm, long umin, long umax)
 {
   double area, sum = 0.0;
 
@@ -874,7 +874,7 @@ main (int argc, char **argv)
 {
     int argc0 = argc;
     char **argv0 = argv;
-    cado_poly poly;
+    cado_poly cpoly;
     int I = 0;
     double margin = NORM_MARGIN;
     long umin = LONG_MIN, umax = LONG_MAX;

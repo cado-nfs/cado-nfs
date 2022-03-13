@@ -52,7 +52,7 @@ int main (int argc, char **argv)
   FILE *polys_file = NULL;
   const char *polys_filename = NULL;
   unsigned int nb_input_polys = 0; /* number of input polynomials */
-  cado_poly poly;
+  cado_poly cpoly;
   /* For statistics */
   double ave_raw_lognorm = 0.0, ave_raw_alpha = 0.0;
   double min_raw_lognorm = DBL_MAX, max_raw_lognorm = 0.0;
@@ -102,23 +102,23 @@ int main (int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
-  cado_poly_init (poly);
+  cado_poly_init (cpoly);
 
   /* Main loop: read all polynomials from file and do size-optimization. */
-  while (cado_poly_read_next_poly_from_stream (poly, polys_file))
+  while (cado_poly_read_next_poly_from_stream (cpoly, polys_file))
   {
     unsigned int nrroots;
     double lognorm, alpha, alpha_proj, exp_E;
 
     printf ("\n### Input raw polynomial (%u) ###\n", nb_input_polys);
-    poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-    nrroots = numberOfRealRoots ((const mpz_t *) poly->pols[ALG_SIDE]->coeff, poly->pols[ALG_SIDE]->deg, 0, 0, NULL);
-    lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
-    alpha = get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ());
-    alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], get_alpha_bound ());
+    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+    nrroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, cpoly->pols[ALG_SIDE]->deg, 0, 0, NULL);
+    lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
+    alpha = get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ());
+    alpha_proj = get_alpha_projective (cpoly->pols[ALG_SIDE], get_alpha_bound ());
     exp_E = lognorm
-      + expected_rotation_gain (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE]);
-    cado_poly_fprintf (stdout, poly, "# ");
+      + expected_rotation_gain (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE]);
+    cado_poly_fprintf (stdout, cpoly, "# ");
     cado_poly_fprintf_info (stdout, lognorm, exp_E, alpha, alpha_proj, nrroots,
                             "# ");
 
@@ -129,21 +129,21 @@ int main (int argc, char **argv)
 
     /* Size-optimize */
     if (use_only_translation)
-      sopt_local_descent (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], 
+      sopt_local_descent (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 
                                       1, -1, SOPT_DEFAULT_MAX_STEPS, verbose);
     else
-      size_optimization (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE], poly->pols[ALG_SIDE], poly->pols[RAT_SIDE],
+      size_optimization (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE],
                                                         sopt_effort, verbose);
 
     printf ("### Size-optimized polynomial (%u) ###\n", nb_input_polys);
-    poly->skew = L2_skewness (poly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-    nrroots = numberOfRealRoots ((const mpz_t *) poly->pols[ALG_SIDE]->coeff, poly->pols[ALG_SIDE]->deg, 0, 0, NULL);
-    lognorm = L2_lognorm (poly->pols[ALG_SIDE], poly->skew);
-    alpha = get_alpha (poly->pols[ALG_SIDE], get_alpha_bound ());
-    alpha_proj = get_alpha_projective (poly->pols[ALG_SIDE], get_alpha_bound ());
+    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
+    nrroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, cpoly->pols[ALG_SIDE]->deg, 0, 0, NULL);
+    lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
+    alpha = get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ());
+    alpha_proj = get_alpha_projective (cpoly->pols[ALG_SIDE], get_alpha_bound ());
     exp_E = lognorm
-      + expected_rotation_gain (poly->pols[ALG_SIDE], poly->pols[RAT_SIDE]);
-    cado_poly_fprintf (stdout, poly, NULL);
+      + expected_rotation_gain (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE]);
+    cado_poly_fprintf (stdout, cpoly, NULL);
     cado_poly_fprintf_info (stdout, lognorm, exp_E, alpha, alpha_proj, nrroots,
                             NULL);
 
@@ -172,7 +172,7 @@ int main (int argc, char **argv)
   printf("# Maximum sopt lognorm: %3.3f\n", max_sopt_lognorm);
   printf("# Average sopt alpha value: %3.3f\n", ave_sopt_alpha / nb_input_polys);
 
-  cado_poly_clear (poly);
+  cado_poly_clear (cpoly);
   fclose (polys_file);
   param_list_clear (pl);
   return 0;

@@ -648,14 +648,14 @@ struct cxx_mpz_functions {
 
 
 int
-calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
+calculateSqrtRat (const char *prefix, int numdep, cado_poly cpoly,
         int side, mpz_t Np)
 {
   char * sidename = get_depsidename (prefix, numdep, side);
   FILE *resfile;
   unsigned long nab = 0, nfree = 0;
 
-  ASSERT_ALWAYS (pol->pols[side]->deg == 1);
+  ASSERT_ALWAYS (cpoly->pols[side]->deg == 1);
 
 #pragma omp critical
   {
@@ -667,7 +667,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly pol,
     fflush (stderr);
   }
 
-  cxx_mpz_poly F(pol->pols[side]);
+  cxx_mpz_poly F(cpoly->pols[side]);
   cxx_mpz prod;
 
   {
@@ -1299,7 +1299,7 @@ FindSuitableModP (mpz_poly F, mpz_t N)
 */
 int
 calculateSqrtAlg (const char *prefix, int numdep,
-                  cado_poly_ptr pol, int side, mpz_t Np,
+                  cado_poly_ptr cpoly, int side, mpz_t Np,
                   mpz_poly_parallel_info * pinf)
 {
   FILE *resfile;
@@ -1311,7 +1311,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
   char * sidename = get_depsidename (prefix, numdep, side);
 
   // Init F to be the corresponding polynomial
-  cxx_mpz_poly F(pol->pols[side]);
+  cxx_mpz_poly F(cpoly->pols[side]);
   cxx_mpz_poly F_hat(F->deg);
   cxx_mpz_polymod_scaled prod;
 
@@ -1443,7 +1443,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
     int ret;
     mpz_init(m);
     do {
-        ret = cado_poly_getm(m, pol, Np);
+        ret = cado_poly_getm(m, cpoly, Np);
         if (!ret) {
             gmp_fprintf(stderr, "When trying to compute m, got the factor %Zd\n", m);
             mpz_divexact(Np, Np, m);
@@ -1755,7 +1755,7 @@ struct sqrt_thread_args
   const char *prefix;
   int task;            /* 0:ratsqrt 1:algsqrt 2:gcd */
   int numdep;
-  cado_poly_ptr pol;
+  cado_poly_ptr cpoly;
   int side;
   mpz_ptr Np;
   mpz_poly_parallel_info * pinf;
@@ -1771,11 +1771,11 @@ one_thread (void* args)
 {
   sqrt_thread_ptr tab = (sqrt_thread_ptr) args;
   if (tab->task == TASK_SQRT) {
-      if (tab->pol->pols[tab->side]->deg == 1) {
-          calculateSqrtRat (tab->prefix, tab->numdep, tab->pol,
+      if (tab->cpoly->pols[tab->side]->deg == 1) {
+          calculateSqrtRat (tab->prefix, tab->numdep, tab->cpoly,
                   tab->side, tab->Np);
       } else {
-          calculateSqrtAlg (tab->prefix, tab->numdep, tab->pol,
+          calculateSqrtAlg (tab->prefix, tab->numdep, tab->cpoly,
                   tab->side, tab->Np, tab->pinf);
       }
   } else /* gcd */
@@ -1787,7 +1787,7 @@ one_thread (void* args)
    dependencies numdep to numdep + nthreads - 1 */
 void
 calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
-                cado_poly pol, int side, mpz_t Np)
+                cado_poly cpoly, int side, mpz_t Np)
 {
   pthread_t *tid;
   sqrt_thread *T;
@@ -1812,7 +1812,7 @@ calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
       T[j]->prefix = prefix;
       T[j]->task = task;
       T[j]->numdep = numdep + j;
-      T[j]->pol = pol;
+      T[j]->cpoly = cpoly;
       T[j]->side = side;
       T[j]->Np = Np;
       T[j]->pinf = pinf;
@@ -1868,7 +1868,7 @@ void usage(param_list pl, const char * argv0, FILE *f)
 // coverity[root_function]
 int main(int argc, char *argv[])
 {
-    cado_poly pol;
+    cado_poly cpoly;
     int numdep = -1, nthreads = 1, ret MAYBE_UNUSED, i;
 
     char * me = *argv;
@@ -1910,8 +1910,8 @@ int main(int argc, char *argv[])
         usage(pl, me, stderr);
         exit(1);
     }
-    cado_poly_init(pol);
-    ret = cado_poly_read(pol, tmp);
+    cado_poly_init(cpoly);
+    ret = cado_poly_read(cpoly, tmp);
     if (ret == 0) {
         fprintf(stderr, "Could not read polynomial file\n");
         exit(1);
@@ -1948,10 +1948,10 @@ int main(int argc, char *argv[])
     {
         mpz_t gg;
         mpz_init(gg);
-        mpz_set(Np, pol->n);
+        mpz_set(Np, cpoly->n);
         for (int side = 0; side < 2; ++side) {
             do {
-                mpz_gcd(gg, Np, pol->pols[side]->coeff[pol->pols[side]->deg]);
+                mpz_gcd(gg, Np, cpoly->pols[side]->coeff[cpoly->pols[side]->deg]);
                 if (mpz_cmp_ui(gg, 1) != 0) {
                     gmp_fprintf(stderr, "Warning: found the following factor of N as a factor of g: %Zd\n", gg);
                     print_factor(gg);
@@ -1973,11 +1973,11 @@ int main(int argc, char *argv[])
             }
             prime_info_clear (pi);
         }
-        if (mpz_cmp(pol->n, Np) != 0)
+        if (mpz_cmp(cpoly->n, Np) != 0)
             gmp_fprintf(stderr, "Now factoring N' = %Zd\n", Np);
         if (mpz_cmp_ui(Np, 1) == 0) {
             gmp_fprintf(stderr, "Hey N' is 1! Stopping\n");
-            cado_poly_clear (pol);
+            cado_poly_clear (cpoly);
             param_list_clear(pl);
             mpz_clear(Np);
             return 0;
@@ -1985,7 +1985,7 @@ int main(int argc, char *argv[])
         if (mpz_probab_prime_p(Np, 10) || mpz_perfect_power_p(Np)) {
             gmp_fprintf(stderr, "Hey N' is (power of) prime! Stopping\n");
             print_factor(Np);
-            cado_poly_clear (pol);
+            cado_poly_clear (cpoly);
             param_list_clear(pl);
             mpz_clear(Np);
             return 0;
@@ -2037,7 +2037,7 @@ int main(int argc, char *argv[])
     if (nthreads == 0)
       {
         fprintf (stderr, "Error, no more dependency\n");
-        cado_poly_clear (pol);
+        cado_poly_clear (cpoly);
         param_list_clear (pl);
         mpz_clear (Np);
         return 1;
@@ -2045,20 +2045,20 @@ int main(int argc, char *argv[])
 
     if (opt_side0) {
         ASSERT_ALWAYS(numdep != -1);
-        calculateTaskN(TASK_SQRT, prefix, numdep, nthreads, pol, 0, Np);
+        calculateTaskN(TASK_SQRT, prefix, numdep, nthreads, cpoly, 0, Np);
     }
 
     if (opt_side1) {
         ASSERT_ALWAYS(numdep != -1);
-        calculateTaskN(TASK_SQRT, prefix, numdep, nthreads, pol, 1, Np);
+        calculateTaskN(TASK_SQRT, prefix, numdep, nthreads, cpoly, 1, Np);
     }
 
     if (opt_gcd) {
         ASSERT_ALWAYS(numdep != -1);
-        calculateTaskN(TASK_GCD, prefix, numdep, nthreads, pol, 0, Np);
+        calculateTaskN(TASK_GCD, prefix, numdep, nthreads, cpoly, 0, Np);
     }
 
-    cado_poly_clear (pol);
+    cado_poly_clear (cpoly);
     param_list_clear (pl);
     mpz_clear (Np);
     print_timing_and_memory (stderr, cpu0, wct0);
