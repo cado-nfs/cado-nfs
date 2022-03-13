@@ -272,10 +272,10 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
 
     if (total_nroots == 0) return C;
 
-    /* reverse the ordering, because our goal is to remain compatible
-     * with the old-format indexing
-     */
-    for (int side = get_nb_polys(); side--; ) {
+    for (int side = 0 ; side < get_nb_polys(); side++) {
+        /* reverse the ordering of the *ROOTS* (not of the sides), because
+         * our goal is to remain compatible with the old-format indexing
+         */
         for (auto it = roots[side].rbegin() ; it != roots[side].rend() ; ++it) {
             p_r_side x { (p_r_values_t) p, (p_r_values_t) *it, side };
             C.flat.emplace_back(
@@ -556,7 +556,8 @@ renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
     if (i < above_add) {
         /* In the special case where we have two non-monic polynomials,
          * we have a single additional column, hence above_add=1 and i=0.
-         * We return {0,0,0} in that case.
+         * We return {0,0,(aribitrarily the first of the two sides)} in
+         * that case.
          */
         for(auto side : get_sides_of_additional_columns()) {
             if (i-- == 0)
@@ -855,6 +856,7 @@ void renumber_t::read_table(std::istream& is)
     for(p_r_values_t p, r ; is >> p >> r ; ) {
         flat_data.emplace_back(std::array<p_r_values_t, 2> {{ p, r }});
         above_all++;
+        nprimes++;
     }
     stats_print_progress(stats, nprimes, 0, 0, 1);
 
@@ -880,6 +882,7 @@ void renumber_t::read_table(std::istream& is)
 void renumber_t::read_from_file(const char * filename)
 {
     ifstream_maybe_compressed is(filename);
+    use_additional_columns_for_dl();
     read_header(is);
     info(std::cout);
     read_table(is);
