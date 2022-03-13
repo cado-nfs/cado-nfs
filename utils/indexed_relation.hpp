@@ -24,7 +24,7 @@
 #include "renumber.hpp"
 
 struct indexed_relation_storage_base {
-    // typedef void (*action_t)(unsigned int side, std::vector<index_t> &);
+    // typedef void (*action_t)(int side, std::vector<index_t> &);
 };
 
 struct indexed_relation_normal_storage : public indexed_relation_storage_base {
@@ -60,7 +60,7 @@ struct indexed_relation_byside_storage : public indexed_relation_storage_base {
         sides.assign(n, std::vector<index_t>());
     }
     unsigned int get_nsides() const { return sides.size(); }
-    std::vector<index_t> & operator[](unsigned int side) { return sides[side]; }
+    std::vector<index_t> & operator[](int side) { return sides[side]; }
     /* this is just for range-based for loops */
     std::vector<std::vector<index_t>> & containers() { return sides; }
     std::vector<std::vector<index_t>> const & containers() const { return sides; }

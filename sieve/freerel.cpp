@@ -94,7 +94,7 @@ void freerel_data_t::operator()(renumber_t & R, p_r_values_t p, index_t idx, ren
 
     if (!print_this_p(p)) return;
 
-    for(unsigned int side = 0 ; side < R.get_nb_polys() ; ++side) {
+    for(int side = 0 ; side < R.get_nb_polys() ; ++side) {
         mpz_poly_srcptr f = R.get_poly(side);
         /* Check if p corresponds to free relations.
            For 2 polynomials, this happens when the number of roots modulo p

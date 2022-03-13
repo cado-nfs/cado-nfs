@@ -403,7 +403,7 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
     /* Note that all_roots always a root on the rational side, even
      * though it's only a zero -- the root itself isn't computed.
      */
-    for (unsigned int i = 0; i < get_nb_polys() ; i++) {
+    for (int i = 0; i < get_nb_polys() ; i++) {
         C.nroots.push_back(roots[i].size());
         total_nroots += roots[i].size();
     }
@@ -411,7 +411,7 @@ renumber_t::cooked renumber_t::cook(unsigned long p, std::vector<std::vector<uns
     if (total_nroots == 0) return C;
 
     if (format != format_flat) {
-        for (unsigned int i = 0; i < get_nb_polys() ; i++)
+        for (int i = 0; i < get_nb_polys() ; i++)
             renumber_sort_ul (roots[i].begin(), roots[i].size());
 
         /* With the traditional format, the root on ratside side becomes vp.
@@ -1202,7 +1202,8 @@ void renumber_t::read_header(std::istream& is)
 
     ASSERT_ALWAYS(above_all == above_add);
     if (format == format_traditional) {
-        unsigned int nbits, nbad, nadd, nonmonic_bitmap, nbpol;
+        unsigned int nbits, nbad, nadd, nonmonic_bitmap;
+        int nbpol;
         int ratside;
         iss >> nbits >> ratside >> nbad >> nadd
             >> std::hex >> nonmonic_bitmap 
@@ -1283,7 +1284,7 @@ void renumber_t::write_header(std::ostream& os) const
     if (format == format_traditional) {
         // the first line
         unsigned long nonmonic_bitmap = 0;
-        for (unsigned int i = get_nb_polys(); i-- ; ) {
+        for (int i = get_nb_polys(); i-- ; ) {
             nonmonic_bitmap <<= 1;
             nonmonic_bitmap += !mpz_poly_is_monic(cpoly->pols[i]);
         }
@@ -1306,7 +1307,7 @@ void renumber_t::write_header(std::ostream& os) const
     os << "# Renumber file using format " << format << std::endl;
 
     /* Write the polynomials as comments */
-    for (unsigned int i = 0; i < get_nb_polys() ; i++) {
+    for (int i = 0; i < get_nb_polys() ; i++) {
         os << "# pol" << i << ": "
             << cxx_mpz_poly(cpoly->pols[i]).print_poly("x")
             << "\n";
@@ -1316,7 +1317,7 @@ void renumber_t::write_header(std::ostream& os) const
         os << format << "\n";
         // number of additional columns is implicit anyway.
         os << "# large prime bounds:\n";
-        for (unsigned int i = 0; i < get_nb_polys() ; i++) {
+        for (int i = 0; i < get_nb_polys() ; i++) {
             if (i) os << " ";
             os << lpb[i];
         }
@@ -1379,7 +1380,7 @@ void renumber_t::write_bad_ideals(std::ostream& os) const
 std::vector<int> renumber_t::get_sides_of_additional_columns() const
 {
     std::vector<int> res;
-    for(unsigned int side = 0 ; side < get_nb_polys() ; side++) {
+    for(int side = 0 ; side < get_nb_polys() ; side++) {
         mpz_poly_srcptr f = cpoly->pols[side];
         if (f->deg > 1 && !mpz_poly_is_monic(f))
             res.push_back(side);
@@ -1809,7 +1810,7 @@ void renumber_t::builder::preprocess(prime_chunk & P, gmp_randstate_ptr rstate)/
      */
     for(auto p : P.primes) {
         std::vector<std::vector<unsigned long>> all_roots;
-        for (unsigned int side = 0; side < R.get_nb_polys(); side++) {
+        for (int side = 0; side < R.get_nb_polys(); side++) {
             std::vector<unsigned long> roots;
             mpz_poly_srcptr f = R.get_poly(side);
 

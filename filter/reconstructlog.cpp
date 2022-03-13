@@ -103,7 +103,7 @@ struct logtab
 {
     uint64_t nprimes;
     uint64_t nknown;
-    unsigned int nbsm;
+    int nbsm;
     cxx_mpz ell;
     cado_poly_srcptr cpoly;
     sm_side_info *sm_info;
@@ -927,7 +927,7 @@ read_log_format_reconstruct (logtab & log, MAYBE_UNUSED renumber_t const & renum
   }
   stats_print_progress (stats, nread, 0, 0, 1);
 
-  for (unsigned int nsm = 0; nsm < log.nbsm; nsm++)
+  for (int nsm = 0; nsm < log.nbsm; nsm++)
   {
     unsigned int n, side;
     if (nsm == 0) /* h was already read by previous gmp_fscanf */
@@ -1022,7 +1022,7 @@ write_log (const char *filename, logtab & log, renumber_t const & tab,
           stats_print_progress (stats, nknown, i+1, 0, 0);
   }
   stats_print_progress (stats, nknown, tab.get_size(), 0, 1);
-  for (unsigned int nsm = 0, i = tab.get_size(); nsm < log.nbsm; nsm++)
+  for (int nsm = 0, i = tab.get_size(); nsm < log.nbsm; nsm++)
   {
     // compute side
     int side, nsm_tot = sm_info[0]->nsm, jnsm = nsm;

@@ -50,7 +50,7 @@ int fix_it = 0; /* By default, we just check the rels */
 timingstats_dict_t stats;
 
 void
-rel_add_prime (earlyparsed_relation_ptr rel, unsigned int side, p_r_values_t p,
+rel_add_prime (earlyparsed_relation_ptr rel, int side, p_r_values_t p,
                exponent_t e)
 {
   for(weight_t i = 0; i < rel->nb ; i++)
@@ -72,7 +72,7 @@ static inline void
 print_error_line (prime_t prime, mpz_t norm[],
                   unsigned long err_type, int will_be_fixed)
 {
-  unsigned int side = prime.side;
+  int side = prime.side;
   p_r_values_t p = prime.p;
   exponent_t e = prime.e;
   char *str = (will_be_fixed) ? "Warning" : "Error";
@@ -105,7 +105,7 @@ factor_nonprime_ideal (earlyparsed_relation_ptr rel, weight_t i)
 {
   exponent_t e = rel->primes[i].e;
   p_r_values_t p = rel->primes[i].p;
-  unsigned int side = rel->primes[i].side, pr = 2;
+  int side = rel->primes[i].side, pr = 2;
   modulusul_t m;
   prime_info pi;
   prime_info_init (pi);
@@ -136,9 +136,9 @@ factor_nonprime_ideal (earlyparsed_relation_ptr rel, weight_t i)
 }
 
 static int
-more_job (mpz_t norm[], unsigned int nb_poly)
+more_job (mpz_t norm[], int nb_poly)
 {
-  for(unsigned int side = 0; side < nb_poly; side++)
+  for(int side = 0; side < nb_poly; side++)
     if(mpz_cmp_ui (norm[side], 1) != 0)
       return 1;
   return 0;
@@ -208,7 +208,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
   /* check for correctness of the factorization of the norms */
   for(weight_t i = 0; i < rel->nb ; i++)
   {
-    unsigned int side = rel->primes[i].side;
+    int side = rel->primes[i].side;
     p_r_values_t p = rel->primes[i].p;
     exponent_t e = rel->primes[i].e;
     ASSERT_ALWAYS(p != 0); /* could reveal a problem in parsing */
@@ -314,7 +314,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
       for(weight_t i = 0; i < rel->nb ; i++)
       {
         p_r_values_t p = rel->primes[i].p;
-        unsigned int side = rel->primes[i].side;
+        int side = rel->primes[i].side;
         if (p > lpb[side])
         {
           err |= FACTOR_ABOVE_LPB;
@@ -362,7 +362,7 @@ print_relation (FILE *outfile, earlyparsed_relation_ptr rel)
     *p++ = ':';
   }
 
-  for(unsigned int side = 0 ; side < 2 ; side++)
+  for(int side = 0 ; side < 2 ; side++)
   {
     *(--p) = ':';
     p++;
