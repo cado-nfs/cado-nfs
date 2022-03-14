@@ -11,6 +11,7 @@
 #include <vector>
 #include <cstdio> // fprintf
 #include <cstdlib>        // exit
+#include <memory>
 #include <gmp.h>        // mpz_
 #include "badideals.hpp"
 #include "cxx_mpz.hpp"
@@ -227,27 +228,35 @@ int main(int argc, char * argv[])
         cado_poly cpoly;
         cado_poly_init(cpoly);
         cado_poly_read(cpoly, tmp);
+
+        /* We're no longer using this functionality, but it's still
+         * present.
+         */
         const char * fbname = param_list_lookup_string(pl, "badideals");
         const char * fbiname = param_list_lookup_string(pl, "badidealinfo");
-        if (!fbname || !fbiname)
-            usage(pl, original_argv, "-poly requires both -badideals and -badidealinfo");
 
-        ofstream fb(fbname);
-        ofstream fbi(fbiname);
+        std::unique_ptr<std::ofstream> fb;
+        std::unique_ptr<std::ofstream> fbi;
+
+        if (fbname)
+            fb = std::unique_ptr<std::ofstream>(new std::ofstream(fbname));
+        if (fbname)
+            fbi = std::unique_ptr<std::ofstream>(new std::ofstream(fbiname));
 
         for(int side = 0 ; side < cpoly->nb_polys ; side++) {
             cxx_mpz_poly f(cpoly->pols[side]);
             if (f->deg == 1) continue;
             vector<badideal> badideals = badideals_for_polynomial(f, side);
-            for(vbci_t it = badideals.begin() ; it != badideals.end() ; it++) {
-                badideal const& b(*it);
-                b.print_dot_badideals_file(fb, side);
+            if (fb) {
+                for(auto const & b : badideals) {
+                    b.print_dot_badideals_file(*fb, side);
+                }
             }
-
-            fbi << "# bad ideals for poly"<<side<<"=" << f.print_poly("x") << endl;
-            for(vbci_t it = badideals.begin() ; it != badideals.end() ; it++) {
-                badideal const& b(*it);
-                b.print_dot_badidealinfo_file(fbi, side);
+            if (fbi) {
+                *fbi << "# bad ideals for poly"<<side<<"=" << f.print_poly("x") << endl;
+                for(auto const & b : badideals) {
+                    b.print_dot_badidealinfo_file(*fbi, side);
+                }
             }
         }
         cxx_mpz ell;

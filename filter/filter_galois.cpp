@@ -460,6 +460,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "filelist", "file containing a list of input files");
   param_list_decl_usage(pl, "basepath", "path added to all file in filelist");
   param_list_decl_usage(pl, "poly", "input polynomial file");
+  param_list_decl_usage(pl, "dl", "for DL (untested)");
   param_list_decl_usage(pl, "renumber", "input file for renumbering table");
   param_list_decl_usage(pl, "outdir", "by default, input files are overwritten");
   param_list_decl_usage(pl, "outfmt",
@@ -485,6 +486,7 @@ main (int argc, char *argv[])
   argv0 = argv[0];
   cado_poly cpoly;
   unsigned long nrels_expected = 0;
+  int for_dl = 0;
 
   param_list pl;
   param_list_init(pl);
@@ -493,6 +495,7 @@ main (int argc, char *argv[])
 
   param_list_configure_switch(pl, "force-posix-threads",
       &filter_rels_force_posix_threads);
+  param_list_configure_switch(pl, "dl", &for_dl);
 
 #ifdef HAVE_MINGW
   _fmode = _O_BINARY;     /* Binary open for all files */
@@ -584,7 +587,7 @@ main (int argc, char *argv[])
 
   /* Renumbering table to convert from (p,r) to an index */
   renumber_t renumber_tab(cpoly);
-  renumber_tab.read_from_file(renumberfilename);
+  renumber_tab.read_from_file(renumberfilename, for_dl);
 
   fprintf(stderr, "Computing Galois action %s on ideals\n", action);
   compute_galois_action(renumber_tab, action);

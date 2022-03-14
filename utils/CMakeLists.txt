@@ -99,10 +99,10 @@ if(ENABLE_SHARED)
     install(TARGETS utils utils_with_io DESTINATION ${LIBSUFFIX}/utils)
 endif()
 
-add_executable(badideals badideals_main.cpp)
-target_link_libraries (badideals utils)
+add_executable(numbertheory_tool numbertheory_tool.cpp)
+target_link_libraries (numbertheory_tool utils)
 
-install(TARGETS badideals RUNTIME DESTINATION ${LIBSUFFIX}/utils)
+install(TARGETS numbertheory_tool RUNTIME DESTINATION ${LIBSUFFIX}/utils)
 
 include(CMakeLists-nodist.txt OPTIONAL)
 

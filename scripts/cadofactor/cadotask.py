@@ -3059,13 +3059,11 @@ class FreeRelTask(Task):
     @property
     def programs(self):
         input = {"poly": Request.GET_POLYNOMIAL_FILENAME}
-        if self.params["dlp"]:
-            input["badideals"] = Request.GET_BADIDEALS_FILENAME
         return ((cadoprograms.FreeRel, ("renumber", "out"), input),)
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                {"dlp": False, "gzip": True, "lcideals": None})
+                {"dlp": False, "gzip": True, "dl": None})
 
     wanted_regex = {
         'nfree': (r'# Free relations: (\d+)', int),
@@ -3076,8 +3074,7 @@ class FreeRelTask(Task):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
         if self.params["dlp"]:
-            # default for dlp is lcideals
-            self.progparams[0].setdefault("lcideals", True)
+            self.progparams[0].setdefault("dl", True)
         # Invariant: if we have a result (in self.state["freerelfilename"])
         # then we must also have a polynomial (in self.state["poly"]) and
         # the lpb0/lpb1 values used in self.state["lpb1"] / ["lpb0"]
@@ -4462,7 +4459,6 @@ class MergeTask(Task):
     def get_dense_filename(self):
         return self.get_state_filename("densefile")
 
-
 class NumberTheoryTask(Task):
     """ Number theory tasks for dlp"""
     @property
@@ -4473,7 +4469,8 @@ class NumberTheoryTask(Task):
         return "Number Theory for DLP"
     @property
     def programs(self):
-        return ((cadoprograms.NumberTheory, ("badidealinfo", "badideals"),
+        return ((cadoprograms.NumberTheory,
+                (),
                  {"poly": Request.GET_POLYNOMIAL_FILENAME}),)
     @property
     def paramnames(self):
@@ -4486,20 +4483,15 @@ class NumberTheoryTask(Task):
     def run(self):
         super().run()
 
-        # Check if we already compute the bad ideals (we check only
-        # one of the files, assuming everything was correct during the
-        # first run).
-        if "badidealsfile" in self.state:
+        # Check if the numbertheory program was run already.
+        if "nmaps0" in self.state:
             self.logger.info("NumberTheory task has already run, reusing the result.");
             return True
 
+
         # Create output files and start the computation
-        badidealsfile = self.workdir.make_filename("badideals")
-        badidealinfofile = self.workdir.make_filename("badidealinfo")
         (stdoutpath, stderrpath) = self.make_std_paths(cadoprograms.NumberTheory.name)
-        p = cadoprograms.NumberTheory(badidealinfo=badidealinfofile,
-                               badideals=badidealsfile,
-                               stdout=str(stdoutpath),
+        p = cadoprograms.NumberTheory(stdout=str(stdoutpath),
                                stderr=str(stderrpath),
                                **self.merged_args[0])
         message = self.submit_command(p, None, log_errors=True)
@@ -4520,38 +4512,26 @@ class NumberTheoryTask(Task):
             update["nmaps0"] = self.params["nsm0"]
         if self.params["nsm1"] != -1:
             update["nmaps1"] = self.params["nsm1"]
-        update["badidealinfofile"] = badidealinfofile.get_wdir_relative()
-        update["badidealsfile"] = badidealsfile.get_wdir_relative()
         
         if not "nmaps0" in update:
             raise Exception("Stdout does not give nmaps0")
         if not "nmaps1" in update:
             raise Exception("Stdout does not give nmaps1")
-        if not badidealsfile.isfile():
-            raise Exception("Output file %s does not exist" % badidealsfile)
-        if not badidealinfofile.isfile():
-            raise Exception("Output file %s does not exist" % badidealinfofile)
         # Update the state entries atomically
         self.state.update(update)
 
         self.logger.debug("Exit NumberTheoryTask.run(" + self.name + ")")
         return True
 
-    def get_badidealinfo_filename(self):
-        return self.get_state_filename("badidealinfofile")
-    
-    def get_badideals_filename(self):
-        return self.get_state_filename("badidealsfile")
-    
     def get_nmaps(self):
         return (self.state["nmaps0"], self.state["nmaps1"])
+
 
 class bwc_output_filter(RealTimeOutputFilter):
     def filter(self, data):
         super().filter(data)
         if ("ETA" or "Timings") in data:
             self.logger.info(data.rstrip())
-            
 
 # I've just ditched the statistics bit, cause I don't know to make its
 # despair cry a little bit more useful.
@@ -5835,9 +5815,6 @@ class Request(Message):
     GET_RELSDEL_FILENAME = object()
     GET_SM_FILENAME = object()
     GET_UNITS_DIRNAME = object()
-    GET_BADIDEALS_FILENAME = object()
-    GET_BADIDEALINFO_FILENAME = object()
-    GET_SMEXP = object()
     GET_NMAPS = object()
     GET_WU_RESULT = object()
     GET_WORKDIR_JOBNAME = object()
@@ -6122,8 +6099,6 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         if self.params["dlp"]:
             self.request_map[Request.GET_IDEAL_FILENAME] = self.merge.get_ideal_filename
             self.request_map[Request.GET_GAL_UNIQUE_RELCOUNT] = self.filtergalois.get_nrels
-            self.request_map[Request.GET_BADIDEALS_FILENAME] = self.numbertheory.get_badideals_filename
-            self.request_map[Request.GET_BADIDEALINFO_FILENAME] = self.numbertheory.get_badidealinfo_filename
             self.request_map[Request.GET_NMAPS] = self.numbertheory.get_nmaps
             self.request_map[Request.GET_SM_FILENAME] = self.sm.get_sm_filename
             self.request_map[Request.GET_RELSDEL_FILENAME] = self.purge.get_relsdel_filename

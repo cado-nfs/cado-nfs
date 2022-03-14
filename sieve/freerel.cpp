@@ -147,6 +147,11 @@ declare_usage(param_list pl)
                           "large primes bounds (comma-separated list) "
                           "(for MNFS)");
     param_list_decl_usage(pl, "t", "number of threads");
+    param_list_decl_usage(pl,
+                          "dl",
+                          "Add ideals for the leading "
+                          "coeffs of the polynomials (for DL)");
+
 }
 
 // coverity[root_function]
@@ -158,13 +163,14 @@ main(int argc, char* argv[])
     std::vector<unsigned int> lpb;
     cxx_param_list pl;
     cxx_cado_poly cpoly;
+    int for_dl = 0;
 
     /* {{{ parse cmdline */
     declare_usage(pl);
     freerel_data_t::declare_usage(pl);
     verbose_decl_usage(pl);
     renumber_t::builder_declare_usage(pl);
-    renumber_t::builder_configure_switches(pl);
+    param_list_configure_switch(pl, "dl", &for_dl);
 
     argv++, argc--;
     if (argc == 0)
@@ -278,7 +284,7 @@ main(int argc, char* argv[])
      * lcideals         // optional, for DL
      *
      */
-    index_t R_max_index = renumber_table.build(pl, F.get());
+    index_t R_max_index = renumber_table.build(pl, for_dl, F.get());
 
     if (F.get()) {
         /* /!\ Needed by the Python script. /!\ */

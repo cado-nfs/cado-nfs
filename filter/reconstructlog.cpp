@@ -1475,7 +1475,7 @@ main(int argc, char *argv[])
   /* XXX legacy format insists on getting the badidealinfo file */
   printf ("\n###### Reading renumber file ######\n");
   renumber_t renumber_table(cpoly);
-  renumber_table.read_from_file(renumberfilename);
+  renumber_table.read_from_file(renumberfilename, 1);
   nprimes = renumber_table.get_size();
 
   /* Read number of rows and cols on first line of purged file */

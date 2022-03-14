@@ -24,6 +24,7 @@ static void declare_usage(cxx_param_list & pl)
   param_list_decl_usage(pl, "build", "build the renumbering table on the fly, instead of loading it (requires --lpbs)");
   param_list_decl_usage(pl, "bench", "bench lookup performance in the renumbering table");
   param_list_decl_usage(pl, "quiet", "do not print the renumbering table contents");
+  param_list_decl_usage(pl, "dl", "interpret as DL-related data. Note: with --build, the flag --lcideals must ALSO be used for DL");
   verbose_decl_usage(pl);
 }
 
@@ -42,6 +43,7 @@ main (int argc, char *argv[])
     int build = 0;
     int quiet = 0;
     int bench = 0;
+    int for_dl = 0;
     char *argv0 = argv[0];
     cxx_cado_poly cpoly;
 
@@ -53,7 +55,7 @@ main (int argc, char *argv[])
     param_list_configure_switch(pl, "build", &build);
     param_list_configure_switch(pl, "quiet", &quiet);
     param_list_configure_switch(pl, "bench", &bench);
-    renumber_t::builder_configure_switches(pl);
+    param_list_configure_switch(pl, "dl", &for_dl);
 
     argv++, argc--;
     if (argc == 0)
@@ -111,7 +113,7 @@ main (int argc, char *argv[])
         std::vector<unsigned int> lpb(tab.get_nb_polys(),0);
         param_list_parse_uint_list(pl, "lpbs", lpb.data(), tab.get_nb_polys(), ",");
         tab.set_lpb(lpb);
-        tab.build(pl);
+        tab.build(pl, for_dl);
 
         if (bench) {
             printf("# Build time: %.2f (%.2f on cpu)\n",
@@ -123,7 +125,7 @@ main (int argc, char *argv[])
         double wtt = wct_seconds();
         double tt = seconds();
 
-        tab.read_from_file(renumberfilename);
+        tab.read_from_file(renumberfilename, for_dl);
 
         if (bench) {
             printf("# Read time: %.2f (%.2f on cpu)\n",

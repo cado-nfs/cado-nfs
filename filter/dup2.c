@@ -660,7 +660,7 @@ main (int argc, char *argv[])
     set_antebuffer_path (argv0, path_antebuffer);
 
     renumber_table_init(renumber_tab, cpoly);
-    renumber_table_read_from_file(renumber_tab, renumberfilename);
+    renumber_table_read_from_file(renumber_tab, renumberfilename, is_for_dl);
 
   /* sanity check: since we allocate two 64-bit words for each, instead of
      one 32-bit word for the hash table, taking K/100 will use 2.5% extra

@@ -879,10 +879,11 @@ void renumber_t::read_table(std::istream& is)
     }
 }
 
-void renumber_t::read_from_file(const char * filename)
+void renumber_t::read_from_file(const char * filename, int for_dl)
 {
     ifstream_maybe_compressed is(filename);
-    use_additional_columns_for_dl();
+    if (for_dl)
+        use_additional_columns_for_dl();
     read_header(is);
     info(std::cout);
     read_table(is);
@@ -988,27 +989,16 @@ void renumber_t::more_info(std::ostream & os) const
     os << P << "size = " << get_size() << "\n";
 }
 
-static int builder_switch_lcideals = 0;
-void renumber_t::builder_configure_switches(cxx_param_list & pl)
-{
-    param_list_configure_switch(pl, "-lcideals", &builder_switch_lcideals);
-}
-
 void renumber_t::builder_declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "renumber", "output file for renumbering table");
     param_list_decl_usage(pl, "renumber_format", "format of the renumbering table (\"flat\")");
-    param_list_decl_usage(pl,
-                          "lcideals",
-                          "Add ideals for the leading "
-                          "coeffs of the polynomials (for DL)");
 }
 
 void renumber_t::builder_lookup_parameters(cxx_param_list & pl)
 {
     param_list_lookup_string(pl, "renumber");
     param_list_lookup_string(pl, "renumber_format");
-    param_list_lookup_string(pl, "lcideals");
 }
 
 /* This is the core of the renumber table building routine. Part of this
@@ -1194,13 +1184,13 @@ index_t renumber_t::builder::operator()()/*{{{*/
     return R_max_index;
 }/*}}}*/
 
-index_t renumber_t::build(hook * f)
+index_t renumber_t::build(int for_dl, hook * f)
 {
     cxx_param_list pl;
-    return build(pl, f);
+    return build(pl, for_dl, f);
 }
 
-index_t renumber_t::build(cxx_param_list & pl, hook * f)
+index_t renumber_t::build(cxx_param_list & pl, int for_dl, hook * f)
 {
     const char * renumberfilename = param_list_lookup_string(pl, "renumber");
     const char * format_string = param_list_lookup_string(pl, "renumber_format");
@@ -1213,7 +1203,7 @@ index_t renumber_t::build(cxx_param_list & pl, hook * f)
         throw std::runtime_error("cannot use this renumber format");
     }
 
-    if (builder_switch_lcideals)
+    if (for_dl)
         use_additional_columns_for_dl();
     /* We can pass some hint primes as well, in a vector */
     compute_bad_ideals();

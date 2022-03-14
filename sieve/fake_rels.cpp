@@ -619,7 +619,7 @@ main (int argc, char *argv[])
   printf ("# Start reading renumber table\n");
   fflush (stdout);
   renumber_t ren_table(cpoly);
-  ren_table.read_from_file(renumberfile);
+  ren_table.read_from_file(renumberfile, dl);
   printf ("# Done reading renumber table\n");
   fflush (stdout);
 

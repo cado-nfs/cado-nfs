@@ -151,7 +151,7 @@ public:
     /*}}}*/
 
     /*{{{ reading the table */
-    void read_from_file(const char * filename);
+    void read_from_file(const char * filename, int for_dl);
     /*}}}*/
 
     /*{{{ most important outer-visible routines: lookups */
@@ -225,11 +225,10 @@ public:
         virtual ~hook() = default;
     };
 
-    static void builder_configure_switches(cxx_param_list &);
     static void builder_declare_usage(cxx_param_list &);
     static void builder_lookup_parameters(cxx_param_list &);
-    index_t build(cxx_param_list &, hook * = nullptr);
-    index_t build(hook * = nullptr);
+    index_t build(cxx_param_list &, int for_dl, hook * = nullptr);
+    index_t build(int for_dl, hook * = nullptr);
     /* }}} */
 
     /*{{{ debugging aids*/

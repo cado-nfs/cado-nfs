@@ -591,7 +591,7 @@ cado_define_test(full_c30
                 TARGET_DEPENDENCIES full_dependencies_base
                 bwc_full_gfp
                 lingen_pz sm sm_simple las_descent reconstructlog-dl
-                merge-dl replay-dl badideals
+                merge-dl replay-dl numbertheory_tool
                 AVOID_CONCURRENT
                 )
         endif()
@@ -619,7 +619,7 @@ cado_define_test(full_c30
             full_dependencies_base
             bwc_full_gfp
             lingen_pz sm sm_simple las_descent reconstructlog-dl
-            dlpolyselect merge-dl replay-dl badideals
+            dlpolyselect merge-dl replay-dl numbertheory_tool
             AVOID_CONCURRENT
             )
     endif()
@@ -680,7 +680,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
             TARGET_DEPENDENCIES full_p30_dependencies
-            lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
+            lingen_pz sm reconstructlog-dl merge-dl replay-dl numbertheory_tool
         AVOID_CONCURRENT
             )
         cado_define_test(full_gfp2
@@ -697,7 +697,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
 #                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp2_2_2g.sh
 #                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
 #             TARGET_DEPENDENCIES full_c30_dependencies
-#             plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
+#             plingen_pz sm reconstructlog-dl merge-dl replay-dl numbertheory_tool
 # 	    filter_galois)
     endif()
 endif()
