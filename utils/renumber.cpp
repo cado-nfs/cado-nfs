@@ -461,7 +461,7 @@ renumber_t::const_iterator renumber_t::iterator_from_p(p_r_values_t p0) const
         return end();
     const_iterator it = begin();
     if (p0 >= bad_ideals_max_p)
-        it.reseat(above_bad + get_first_index_from_p(p0));
+        it.i = (above_bad + get_first_index_from_p(p0));
     for( ; it != end() && (*it).p < p0 ; ++it);
     return it;
 }
@@ -1237,41 +1237,6 @@ renumber_t::const_iterator renumber_t::end() const
     return const_iterator(*this, above_bad + flat_data.size());
 }
 
-renumber_t::const_iterator::const_iterator(renumber_t const & table, index_t i)
-    : table(table)
-      , i(i)
-{
-    reseat(i);
-}
-
-/*
-void renumber_t::const_iterator::reseat(index_t new_i0, index_t new_i)
-{
-    i0 = new_i0;
-    i = new_i;
-}
-*/
-
-void renumber_t::const_iterator::reseat(index_t new_i)
-{
-    i = new_i;
-    if (i < table.above_bad) {
-        if (table.is_additional_column(i)) {
-            i0 = UINT_MAX;
-            return;
-        } else if (table.is_bad(i0, i)) {
-            // ok, fine. i0 is set to exactly what we want.
-        } else {
-            throw std::runtime_error("Cannot create iterator");
-        }
-    }
-    {
-        /* flat format doesn't give shit about keeping track of the
-         * full p range -- so that we _don't_ use i0. */
-        i0 = UINT_MAX;
-    }
-}
-
 renumber_t::p_r_side renumber_t::const_iterator::operator*() const {
     if (i < table.above_add) {
         /* See comment in p_r from index about the special case with 2
@@ -1285,9 +1250,9 @@ renumber_t::p_r_side renumber_t::const_iterator::operator*() const {
     if (i < table.above_bad) {
         /* annoying. we don't exactly have the pointer to the bad
          * ideal, we have to recover it. */
-        index_t ii0 = i0 - table.above_add;
+        index_t ii0 = i;
         for(auto const & I : table.bad_ideals) {
-            if (ii0 == 0)
+            if (ii0 < (index_t) I.second.nbad)
                 return I.first;
             ii0 -= I.second.nbad;
         }
@@ -1312,24 +1277,13 @@ renumber_t::const_iterator renumber_t::const_iterator::operator++(int)
 }
 renumber_t::const_iterator& renumber_t::const_iterator::operator++()
 {
-    if (i < table.above_add) {
-        ++i;
-        if (i == table.above_add)
-            i0 = i;
-        return *this;
-    } else if (i < table.above_bad) {
-        ++i;
-        if (i == table.above_bad) {
-            i0 = i;
-            return *this;
-        } else if (table.is_bad(i0, i)) {
-            // fine
-            return *this;
-        }
-        throw std::runtime_error("Cannot increase iterator");
-    }
-    /* general case */
+    /* We used to have quite fancy tests. It's now a lot simpler. The
+     * only thing that we used to check, and that we could still choose
+     * to check if we so wish (perhaps as an expensive assert) is the
+     * fact that if an ideal was a bad one AND not the last bad ideal
+     * with respect to the above_bad bound, then the resulting ideal
+     * should still be bad.
+     */
     i++;
-
     return *this;
 }

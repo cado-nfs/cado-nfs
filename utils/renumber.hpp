@@ -294,10 +294,7 @@ public:
              * above_bad + the inner index.  Subtract table.above_bad to get
              * inner table indices.
              */
-            index_t i0;
             index_t i;
-            // void reseat(index_t i0, index_t i);
-            void reseat(index_t i);
         public:
             typedef p_r_side                value_type;
             typedef std::ptrdiff_t          difference_type;
@@ -305,7 +302,10 @@ public:
             typedef p_r_side const &        const_reference;
             typedef std::input_iterator_tag iterator_category;
 
-            explicit const_iterator(renumber_t const & table, index_t i);
+            explicit const_iterator(renumber_t const & table, index_t i)
+                : table(table)
+                , i(i)
+            {}
 
             p_r_side operator*() const;
             bool operator==(const const_iterator& other) const { return i == other.i; }
