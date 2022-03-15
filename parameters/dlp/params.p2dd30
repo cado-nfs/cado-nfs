@@ -28,10 +28,6 @@ gfpext = 2
 # "_y" (for polynomials with only even powers).
 # tasks.galois = 1/y
 
-# If you don't want the "full column of 1", uncomment the following line.
-# In particular when both polynomials are not monic, this could help.
-# tasks.lcideals = false
-
 tasks.I = 11
 
 #######################

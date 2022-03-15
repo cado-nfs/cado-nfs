@@ -280,8 +280,6 @@ main(int argc, char* argv[])
     /* This reads the options:
      *
      * renumber
-     * badideals        // optional, used as a hint.
-     * lcideals         // optional, for DL
      *
      */
     index_t R_max_index = renumber_table.build(pl, for_dl, F.get());

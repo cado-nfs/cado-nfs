@@ -4,8 +4,6 @@ set -e
 
 : ${WORKDIR?missing}
 
-LC=(-lcideals)
-
 while [ $# -gt 0 ] ; do
     if [ "$1" = "-b" ] ; then
         shift
@@ -18,12 +16,6 @@ while [ $# -gt 0 ] ; do
     elif [ "$1" = "-lpbs" ] ; then
         shift
         LPBS="$1"
-        shift
-    elif [ "$1" = "-lcideals" ] ; then
-        LC=(-lcideals)
-        shift
-    elif [ "$1" = "-nolcideals" ] ; then
-        LC=()
         shift
     else
         echo "bad arg: $1" >&2
@@ -38,6 +30,6 @@ done
 RENUMBER="${WORKDIR}/renumber.gz"
 
 ${BUILD_DIR}/sieve/freerel -poly ${POLY} -renumber ${RENUMBER} \
-                           -lpbs "$LPBS" "${LC[@]}"
+                           -lpbs "$LPBS" 
 
 ${BUILD_DIR}/misc/debug_renumber -poly ${POLY} -renumber ${RENUMBER} -check -quiet

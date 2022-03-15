@@ -47,7 +47,6 @@ slaves.hostnames = localhost
 tasks.polyselect.import = $POLYFILE
 
 # for the record, the computations involve 1 unit on side 1, 1 SM on side 0
-tasks.lcideals = true
 
 tasks.I = 11
 tasks.polyselect.degree = 4

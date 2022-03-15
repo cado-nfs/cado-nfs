@@ -24,7 +24,7 @@ static void declare_usage(cxx_param_list & pl)
   param_list_decl_usage(pl, "build", "build the renumbering table on the fly, instead of loading it (requires --lpbs)");
   param_list_decl_usage(pl, "bench", "bench lookup performance in the renumbering table");
   param_list_decl_usage(pl, "quiet", "do not print the renumbering table contents");
-  param_list_decl_usage(pl, "dl", "interpret as DL-related data. Note: with --build, the flag --lcideals must ALSO be used for DL");
+  param_list_decl_usage(pl, "dl", "interpret as DL-related data.");
   verbose_decl_usage(pl);
 }
 

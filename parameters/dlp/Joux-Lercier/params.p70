@@ -21,10 +21,6 @@ name = p70
 # or you can compute it by using the following command :
 # ./cado-nfs.py -dlp -ell 2873698151299623975722344347191818368075800893364305331848648658486651 5747396302599247951444688694383636736151601786728610663697297316973303
 
-# If you don't want the "full column of 1", uncomment the following line.
-# In particular when both polynomials are not monic, this could help.
-# tasks.lcideals = false
-
 ## Standard stuff; uncomment and edit according to your config.
 #slaves.nrclients=2
 ##tasks.threads = 2

@@ -7,7 +7,6 @@ set -e
 
 : ${WORKDIR?missing}
 
-LC=(-lcideals)
 DL=()
 
 while [ $# -gt 0 ] ; do
@@ -35,12 +34,6 @@ while [ $# -gt 0 ] ; do
         shift
         RELS="$1"
         shift
-    elif [ "$1" = "-lcideals" ] ; then
-        LC=(-lcideals)
-        shift
-    elif [ "$1" = "-nolcideals" ] ; then
-        LC=()
-        shift
     elif [ "$1" = "-dl" ] ; then
         DL=(-dl)
         shift
@@ -66,7 +59,7 @@ cp "$RELS" "$WORK_RELS"
 common=(-poly "$POLY" -renumber "${RENUMBER}")
 
 "${BUILD_DIR}/sieve/freerel" "${common[@]}" \
-                           -lpbs "$LPBS" "${LC[@]}"
+                           -lpbs "$LPBS"
 # bail out early if debug_renumber sees an inconsistency.
 "${BUILD_DIR}/misc/debug_renumber" "${common[@]}" -check -quiet
 "${BUILD_DIR}/filter/dup2" "${common[@]}"       \
