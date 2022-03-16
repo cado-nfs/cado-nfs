@@ -191,9 +191,9 @@ void binary_polmat_to_matpoly_nested_transpositions(unsigned long * dst_u, mat64
     } else {
         for(unsigned int k = 0 ; k < m*N*L ; k++) {
             mat64 t;
-            memcpy(&t, dst + 64 * k, sizeof(mat64));
+            memcpy((void*) &t, dst + 64 * k, sizeof(mat64));
             mat64_transpose(t, t);
-            memcpy(dst + 64 * k, &t, sizeof(mat64));
+            memcpy(dst + 64 * k, (void*) &t, sizeof(mat64));
         }
     }
     /* We have 1*(M*64*N)*(L*64)*1 64-bit words */
@@ -268,9 +268,9 @@ void binary_polmat_to_matpoly_transpose_nested_transpositions(unsigned long * ds
     } else {
         for(unsigned int k = 0 ; k < m*N*L ; k++) {
             mat64 t;
-            memcpy(&t, dst + 64 * k, sizeof(mat64));
+            memcpy((void *) &t, dst + 64 * k, sizeof(mat64));
             mat64_transpose(t, t);
-            memcpy(dst + 64 * k, &t, sizeof(mat64));
+            memcpy(dst + 64 * k, (void *) &t, sizeof(mat64));
         }
     }
 
