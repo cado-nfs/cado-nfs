@@ -16,7 +16,7 @@
 #include <gmp.h>
 #include "cado_poly.h"   // cxx_cado_poly
 #include "ecm/batch.hpp"               // for cofac_list
-#include "ecm/facul.hpp"                   // for facul_strategies_t
+#include "ecm/facul.hpp"                   // for facul_strategies
 #include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
 #ifdef HAVE_HWLOC
 #include "hwloc-aux.h"
@@ -121,7 +121,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     j_divisibility_helper const * get_j_divisibility_helper(int J) {
         return local_cache().get_j_divisibility_helper(J);
     }
-    facul_strategies_t const * get_strategies(siever_config const & conf) const {
+    facul_strategies const * get_strategies(siever_config const & conf) const {
         return local_cache().get_strategies(conf);
     }
     bool no_fb(int side) const {

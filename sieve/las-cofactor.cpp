@@ -224,7 +224,7 @@ int factor_both_leftover_norms(
         std::array<cxx_mpz, 2> & n,
         std::array<std::vector<cxx_mpz>, 2> & factors,
         std::array<unsigned long, 2> const & Bs,
-        facul_strategies_t const * strat)
+        facul_strategies const & strat)
 {
     int is_smooth[2] = {FACUL_MAYBE, FACUL_MAYBE};
     /* To remember if a cofactor is already factored.*/

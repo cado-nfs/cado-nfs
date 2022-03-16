@@ -46,6 +46,7 @@ To test the mpz arithmetic on a 64-bit processor:
 #include <gmp.h>                 // for gmp_printf, mpz_srcptr, mpz_get_ui
 #include "cxx_mpz.hpp"
 #include "facul.hpp"             // for facul_strategy_t, facul, facul_clear...
+#include "facul_strategies_stats.hpp"  // for facul_strategy_t, facul, facul_clear...
 #include "facul_ecm.h"           // for ec_parameter_is_valid, BRENT12, ec_p...
 #include "facul_fwd.hpp"         // for facul_method_t
 #include "macros.h"              // for ASSERT
@@ -85,7 +86,7 @@ print_pointorder (const unsigned long p, const unsigned long parameter,
 
 
 static int
-tryfactor (cxx_mpz const & N, const facul_strategy_t *strategy, 
+tryfactor (cxx_mpz const & N, facul_strategy_oneside const & strategy, 
            const int verbose, const int printfactors, const int printnonfactors, 
            const int printcofactors)
 {
@@ -181,7 +182,6 @@ int main (int argc, char **argv)
   char *inp_fn = NULL;
   FILE *inp;
   cxx_mpz N, cof;
-  facul_strategy_t *strategy;
   int nr_methods = 0;
   int only_primes = 0, verbose = 0, quiet = 0;
   int printfactors = 0;
@@ -196,268 +196,177 @@ int main (int argc, char **argv)
   int ncurves = -1;
   unsigned long *primmod = NULL, *hitsmod = NULL;
   uint64_t starttime, endtime;
-
-  strategy = (facul_strategy_t*) malloc (sizeof(facul_strategy_t));
-  strategy->methods = (facul_method_t*) malloc ((MAX_METHODS + 1) * sizeof (facul_method_t));
-  strategy->assume_prime_thresh = 0.0;
+  std::vector<facul_method::parameters> method_params;
 
   /* Parse options */
   mpz_set_ui (cof, 1UL);
-  while (argc > 1 && argv[1][0] == '-')
-    {
-      if (argc > 1 && strcmp (argv[1], "-h") == 0)
-	{
+  for ( ; argc > 1 && argv[1][0] == '-' ; ) {
+      if (argc > 1 && strcmp (argv[1], "-h") == 0) {
 	  print_help (argv0);
 	  return 0;
-	}
-      else if (argc > 3 && strcmp (argv[1], "-pm1") == 0 && 
-	       nr_methods < MAX_METHODS)
-	{
+      } else if (argc > 3 && strcmp (argv[1], "-pm1") == 0) {
 	  unsigned long B1, B2;
 	  B1 = strtoul (argv[2], NULL, 10);
 	  B2 = strtoul (argv[3], NULL, 10);
-	  strategy->methods[nr_methods].method = PM1_METHOD;
-	  strategy->methods[nr_methods].plan = malloc (sizeof (pm1_plan_t));
-	  ASSERT (strategy->methods[nr_methods].plan != NULL);
-	  pm1_make_plan ((pm1_plan_t*) strategy->methods[nr_methods].plan, B1, B2, 
-			 (verbose / 3));
-	  nr_methods++;
+          method_params.emplace_back(PM1_METHOD, B1, B2);
 	  argc -= 3;
 	  argv += 3;
-	}
-      else if (argc > 3 && strcmp (argv[1], "-pp1_27") == 0 && 
-	       nr_methods < MAX_METHODS)
-	{
+      } else if (argc > 3 && strcmp (argv[1], "-pp1_27") == 0) {
 	  unsigned long B1, B2;
 	  B1 = strtoul (argv[2], NULL, 10);
 	  B2 = strtoul (argv[3], NULL, 10);
-	  strategy->methods[nr_methods].method = PP1_27_METHOD;
-	  strategy->methods[nr_methods].plan = malloc (sizeof (pp1_plan_t));
-	  ASSERT (strategy->methods[nr_methods].plan != NULL);
-	  pp1_make_plan ((pp1_plan_t*) strategy->methods[nr_methods].plan, B1, B2, 
-			 (verbose / 3));
-	  nr_methods++;
+          method_params.emplace_back(PP1_27_METHOD, B1, B2);
 	  argc -= 3;
 	  argv += 3;
-	}
-
-      else if (argc > 3 && strcmp (argv[1], "-pp1_65") == 0 && 
-	       nr_methods < MAX_METHODS)
-	{
+      } else if (argc > 3 && strcmp (argv[1], "-pp1_65") == 0) {
 	  unsigned long B1, B2;
 	  B1 = strtoul (argv[2], NULL, 10);
 	  B2 = strtoul (argv[3], NULL, 10);
-	  strategy->methods[nr_methods].method = PP1_65_METHOD;
-	  strategy->methods[nr_methods].plan = malloc (sizeof (pp1_plan_t));
-	  ASSERT (strategy->methods[nr_methods].plan != NULL);
-	  pp1_make_plan ((pp1_plan_t*) strategy->methods[nr_methods].plan, B1, B2, 
-			 (verbose / 3));
-	  nr_methods++;
+          method_params.emplace_back(PP1_65_METHOD, B1, B2);
 	  argc -= 3;
 	  argv += 3;
-	}
-      else if (argc > 4 && strncmp (argv[1], "-ecm", 4) == 0 && 
-	       nr_methods < MAX_METHODS)
-	{
+      } else if (argc > 4 && strncmp (argv[1], "-ecm", 4) == 0) {
 	  unsigned long B1, B2;
 	  unsigned long parameter;
 	  ec_parameterization_t parameterization;
 	  B1 = strtoul (argv[2], NULL, 10);
 	  B2 = strtoul (argv[3], NULL, 10);
 	  parameter = strtol (argv[4], NULL, 10);
-	  if (strcmp (argv[1], "-ecm") == 0)
+	  if (strcmp (argv[1], "-ecm") == 0) {
 	    parameterization = BRENT12;
-    else if (strcmp (argv[1], "-ecmm12") == 0)
-	    parameterization = MONTY12;
-    else if (strcmp (argv[1], "-ecmm16") == 0)
-	    parameterization = MONTY16;
-    else if (strcmp (argv[1], "-ecmem12") == 0)
-	    parameterization = MONTYTWED12;
-    else
-    {
-      fprintf (stderr, "Unrecognized option: %s\n", argv[1]);
-      exit (EXIT_FAILURE);
-    }
-
-    if (!ec_parameter_is_valid (parameterization, parameter))
-    {
-      fprintf (stderr, "Parameter %lu is not valid with parametrization '%s'\n",
-               parameter, argv[1]);
-      exit (EXIT_FAILURE);
-    }
-
-	  strategy->methods[nr_methods].method = EC_METHOD;
-	  strategy->methods[nr_methods].plan = malloc (sizeof (ecm_plan_t));
-	  ASSERT (strategy->methods[nr_methods].plan != NULL);
-	  ecm_make_plan ((ecm_plan_t*) strategy->methods[nr_methods].plan, B1, B2, 
-       parameterization, parameter, extra_primes, (verbose / 3));
-	  nr_methods++;
+          } else if (strcmp (argv[1], "-ecmm12") == 0) {
+              parameterization = MONTY12;
+          } else if (strcmp (argv[1], "-ecmm16") == 0) {
+              parameterization = MONTY16;
+          } else if (strcmp (argv[1], "-ecmem12") == 0) {
+              parameterization = MONTYTWED12;
+          } else {
+              fprintf (stderr, "Unrecognized option: %s\n", argv[1]);
+              exit (EXIT_FAILURE);
+          }
+          method_params.emplace_back(EC_METHOD, B1, B2,
+                  parameterization, parameter, extra_primes);
 	  argc -= 4;
 	  argv += 4;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-ncurves") == 0 &&
-	       nr_methods == 0)
-        {
+      } else if (argc > 2 && strcmp (argv[1], "-ncurves") == 0 && method_params.empty()) {
 	  ncurves = strtoul (argv[2], NULL, 10);
 	  argc -= 2;
 	  argv += 2;
-	}
-      else if (argc > 1 && strcmp (argv[1], "-strat") == 0 && 
-	       nr_methods == 0)
-        {
+      } else if (argc > 1 && strcmp (argv[1], "-strat") == 0 && method_params.empty()) {
 	  strat = 1;
 	  argc -= 1;
 	  argv += 1;
-	}
-     else if (argc > 2 && strncmp (argv[1], "-po", 3) == 0)
-	{
+      } else if (argc > 2 && strncmp (argv[1], "-po", 3) == 0) {
 	  do_pointorder = 1;
-    if (strcmp (argv[1], "-po") == 0)
-	    po_parameterization = BRENT12;
-    else if (strcmp (argv[1], "-pom12") == 0)
-	    po_parameterization = MONTY12;
-    else if (strcmp (argv[1], "-pom16") == 0)
-	    po_parameterization = MONTY16;
-    else if (strcmp (argv[1], "-poem12") == 0)
-	    po_parameterization = MONTYTWED12;
-    else
-    {
-      fprintf (stderr, "Unrecognized option: %s\n", argv[1]);
-      exit (EXIT_FAILURE);
-    }
-
+          if (strcmp (argv[1], "-po") == 0) {
+              po_parameterization = BRENT12;
+          } else if (strcmp (argv[1], "-pom12") == 0) {
+              po_parameterization = MONTY12;
+          } else if (strcmp (argv[1], "-pom16") == 0) {
+              po_parameterization = MONTY16;
+          } else if (strcmp (argv[1], "-poem12") == 0) {
+              po_parameterization = MONTYTWED12;
+          } else {
+              fprintf (stderr, "Unrecognized option: %s\n", argv[1]);
+              exit (EXIT_FAILURE);
+          }
 	  po_parameter = strtol (argv[2], NULL, 10);
 
-    if (!ec_parameter_is_valid (po_parameterization, po_parameter))
-    {
-      fprintf (stderr, "Parameter %lu is not valid with parametrization '%s'\n",
-               po_parameter, argv[1]);
-      exit (EXIT_FAILURE);
-    }
+          if (!ec_parameter_is_valid (po_parameterization, po_parameter))
+          {
+              fprintf (stderr, "Parameter %lu is not valid with parametrization '%s'\n",
+                      po_parameter, argv[1]);
+              exit (EXIT_FAILURE);
+          }
 
-	  argc -= 2;
-	  argv += 2;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-fbb") == 0)
-	{
-	  fbb = strtoul (argv[2], NULL, 10);
-          strategy->assume_prime_thresh = (double) fbb * (double) fbb;
-	  argc -= 2;
-	  argv += 2;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-lpb") == 0)
-	{
-	  lpb = strtoul (argv[2], NULL, 10);
-	  argc -= 2;
-	  argv += 2;
-	}
-     else if (argc > 1 && strcmp (argv[1], "-ep") == 0)
-	{
-	  extra_primes = 1;
-	  argc -= 1;
-	  argv += 1;
-	}
-     else if (argc > 1 && strcmp (argv[1], "-p") == 0)
-	{
-	  only_primes = 1;
-	  argc -= 1;
-	  argv += 1;
-	}
-      else if (argc > 1 && strcmp (argv[1], "-v") == 0)
-	{
-	  verbose++;
-	  argc -= 1;
-	  argv += 1;
-	}
-      else if (argc > 1 && strcmp (argv[1], "-q") == 0)
-	{
-	  quiet++;
-	  argc -= 1;
-	  argv += 1;
-	}
-      else if (argc > 1 && strcmp (argv[1], "-vf") == 0)
-	{
-	  printfactors = 1;
-	  argc -= 1;
-	  argv += 1;
-	}
-      else if (argc > 1 && strcmp (argv[1], "-vnf") == 0)
-	{
-	  printnonfactors = 1;
-	  argc -= 1;
-	  argv += 1;
-	}
-      else if (argc > 1 && strcmp (argv[1], "-vcf") == 0)
-	{
-	  printcofactors = 1;
-	  argc -= 1;
-	  argv += 1;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-inpstop") == 0)
-	{
-	  inpstop = strtoul (argv[2], NULL, 10);
-	  argc -= 2;
-	  argv += 2;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-m") == 0)
-	{
-	  mod= strtoul (argv[2], NULL, 10);
-	  hitsmod = (unsigned long *) malloc (mod * sizeof (unsigned long));
-	  primmod = (unsigned long *) malloc (mod * sizeof (unsigned long));
-	  for (i = 0; i < mod; i++)
-	    hitsmod[i] = primmod[i]= 0;
-	  argc -= 2;
-	  argv += 2;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-cof") == 0)
-	{
-	  mpz_set_str (cof, argv[2], 10);
-	  argc -= 2;
-	  argv += 2;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-inp") == 0)
-	{
-	  inp_fn = argv[2];
-	  argc -= 2;
-	  argv += 2;
-	}
-      else if (argc > 2 && strcmp (argv[1], "-inpraw") == 0)
-	{
-	  inp_fn = argv[2];
-	  inp_raw = 1;
-	  argc -= 2;
-	  argv += 2;
-	}
-      else
-        {
-	  printf ("Unrecognized option: %s\n", argv[1]);
-	  exit (EXIT_FAILURE);
-        }
-    }
+          argc -= 2;
+          argv += 2;
+      } else if (argc > 2 && strcmp (argv[1], "-fbb") == 0) {
+          fbb = strtoul (argv[2], NULL, 10);
+          argc -= 2;
+          argv += 2;
+      } else if (argc > 2 && strcmp (argv[1], "-lpb") == 0) {
+          lpb = strtoul (argv[2], NULL, 10);
+          argc -= 2;
+          argv += 2;
+      } else if (argc > 1 && strcmp (argv[1], "-ep") == 0 && method_params.empty()) {
+          extra_primes = 1;
+          argc -= 1;
+          argv += 1;
+      } else if (argc > 1 && strcmp (argv[1], "-p") == 0) {
+          only_primes = 1;
+          argc -= 1;
+          argv += 1;
+      } else if (argc > 1 && strcmp (argv[1], "-v") == 0) {
+          verbose++;
+          argc -= 1;
+          argv += 1;
+      } else if (argc > 1 && strcmp (argv[1], "-q") == 0) {
+          quiet++;
+          argc -= 1;
+          argv += 1;
+      } else if (argc > 1 && strcmp (argv[1], "-vf") == 0) {
+          printfactors = 1;
+          argc -= 1;
+          argv += 1;
+      } else if (argc > 1 && strcmp (argv[1], "-vnf") == 0) {
+          printnonfactors = 1;
+          argc -= 1;
+          argv += 1;
+      } else if (argc > 1 && strcmp (argv[1], "-vcf") == 0) {
+          printcofactors = 1;
+          argc -= 1;
+          argv += 1;
+      } else if (argc > 2 && strcmp (argv[1], "-inpstop") == 0) {
+          inpstop = strtoul (argv[2], NULL, 10);
+          argc -= 2;
+          argv += 2;
+      } else if (argc > 2 && strcmp (argv[1], "-m") == 0) {
+          mod= strtoul (argv[2], NULL, 10);
+          hitsmod = (unsigned long *) malloc (mod * sizeof (unsigned long));
+          primmod = (unsigned long *) malloc (mod * sizeof (unsigned long));
+          for (i = 0; i < mod; i++)
+              hitsmod[i] = primmod[i]= 0;
+          argc -= 2;
+          argv += 2;
+      } else if (argc > 2 && strcmp (argv[1], "-cof") == 0) {
+          mpz_set_str (cof, argv[2], 10);
+          argc -= 2;
+          argv += 2;
+      } else if (argc > 2 && strcmp (argv[1], "-inp") == 0) {
+          inp_fn = argv[2];
+          argc -= 2;
+          argv += 2;
+      } else if (argc > 2 && strcmp (argv[1], "-inpraw") == 0) {
+          inp_fn = argv[2];
+          inp_raw = 1;
+          argc -= 2;
+          argv += 2;
+      } else {
+          printf ("Unrecognized option: %s\n", argv[1]);
+          exit (EXIT_FAILURE);
+      }
+  }
   
-  if (strat && nr_methods != 0)
+  if (strat && !method_params.empty())
     {
       printf ("Don't use -strat with -pm1, -pp1 or -ecm\n");
       exit (EXIT_FAILURE);
     }
 
+  facul_strategy_oneside strategy;
+
   if (only_primes && inp_fn != NULL)
     fprintf (stderr, "-p has no effect with -inp or -inpraw\n");
 
-  if (strat)
-    {
-      free(strategy->methods);
-      free(strategy);
+  if (strat) {
       /* we set mfb = 3*lpb to avoid a huge number of curves if ncurves is not
          given (case of 2 large primes) */
-      strategy = facul_make_strategy (fbb, lpb, 3 * lpb, ncurves, (verbose / 3));
-    }
-  else
-    {
-      if (!quiet) printf ("Strategy has %d method(s)\n", nr_methods);
-      strategy->lpb = lpb;
-      strategy->methods[nr_methods].method = 0;
-    }
+      strategy = facul_strategy_oneside (fbb, lpb, 3 * lpb, ncurves, (verbose / 3));
+  } else {
+      strategy = facul_strategy_oneside (fbb, lpb, 3 * lpb, method_params, (verbose / 3));
+  }
+  if (!quiet) printf ("Strategy has %d method(s)\n", nr_methods);
 
   if (inp_fn == NULL)
     {
@@ -487,21 +396,17 @@ int main (int argc, char **argv)
 	    primmod[i % mod]++;
 	  
 	  total++;
-	  if (do_pointorder)
-	    {
+	  if (do_pointorder) {
 	      print_pointorder (i, po_parameter, po_parameterization, verbose+printfactors);
 	      /* TODO: check point order */
-	    }
-          else
-	    {
+          } else {
               mpz_mul_ui (N, cof, i);
-              if (tryfactor (N, strategy, verbose, printfactors, printnonfactors, printcofactors))
-                {
+              if (tryfactor (N, strategy, verbose, printfactors, printnonfactors, printcofactors)) {
                   hits++;
                   if (mod > 0)
                     hitsmod[i % mod]++;
-                }
-            }
+              }
+          }
 
 	  if (only_primes)
             i = next_prime (i + 1);
@@ -549,8 +454,6 @@ int main (int argc, char **argv)
     fclose (inp);
   }
   
-  facul_clear_strategy (strategy);
-
   endtime = microseconds();
 
   if (!quiet)

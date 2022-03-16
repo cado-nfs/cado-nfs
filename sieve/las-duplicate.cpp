@@ -323,8 +323,9 @@ sq_finds_relation(las_info const & las,
   }
 
   std::array<std::vector<cxx_mpz>, 2> f;
-  facul_strategies_t const * strategies = las.get_strategies(conf);
-  int pass = factor_both_leftover_norms(cof, f, {{conf.sides[0].lim, conf.sides[1].lim}}, strategies);
+  int pass = factor_both_leftover_norms(cof, f,
+          {{conf.sides[0].lim, conf.sides[1].lim}},
+          *las.get_strategies(conf));
 
   if (pass <= 0) {
     if (talk) verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,

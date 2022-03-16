@@ -6,31 +6,32 @@
 #include "modredc_2ul2.h"
 #include "mod_mpz.h"
 #include "facul.hpp"
+#include "modset.hpp"
 
 int facul_doit (std::vector<cxx_mpz> &, const modulusredcul_t, 
-		const facul_strategy_t *, const int);
+		facul_strategy_oneside const &, const int);
 int facul_doit (std::vector<cxx_mpz> &, const modulusredc15ul_t, 
-		const facul_strategy_t *, const int);
+		facul_strategy_oneside const &, const int);
 int facul_doit (std::vector<cxx_mpz> &, const modulusredc2ul2_t, 
-		const facul_strategy_t *, const int);
+		facul_strategy_oneside const &, const int);
 int facul_doit (std::vector<cxx_mpz> &, const modulusmpz_t, 
-		const facul_strategy_t *, const int);
+		facul_strategy_oneside const &, const int);
 
 int
 facul_doit_onefm (std::vector<cxx_mpz> &, const modulusredcul_t,
-		  const facul_method_t, const FaculModulusBase * &,
+		  facul_method const &, const FaculModulusBase * &,
 		  const FaculModulusBase * &, unsigned long, double, double);
 int
 facul_doit_onefm (std::vector<cxx_mpz> &, const modulusredc15ul_t,
-		  const facul_method_t, const FaculModulusBase * &,
+		  facul_method const &, const FaculModulusBase * &,
 		  const FaculModulusBase * &, unsigned long, double, double);
 int
 facul_doit_onefm (std::vector<cxx_mpz> &, const modulusredc2ul2_t,
-		  const facul_method_t, const FaculModulusBase * &,
+		  facul_method const &, const FaculModulusBase * &,
 		  const FaculModulusBase * &, unsigned long, double, double);
 int
 facul_doit_onefm (std::vector<cxx_mpz> &, const modulusmpz_t,
-		  const facul_method_t, const FaculModulusBase * &,
+		  facul_method const &, const FaculModulusBase * &,
 		  const FaculModulusBase * &, unsigned long, double, double);
 
 /* int* */

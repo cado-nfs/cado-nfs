@@ -85,6 +85,7 @@
 #include "utils_cxx.hpp"
 #include "verbose.h"
 #include "json.hpp"
+#include "ecm/facul_strategies_stats.hpp"
 #include "fmt/format.h"
 #include <sys/types.h>
 #include <dirent.h>

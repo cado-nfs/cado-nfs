@@ -89,14 +89,12 @@ main (int argc, char *argv[])
   B[0] = 1UL<<batchlpb[0];
   B[1] = 1UL<<batchlpb[1];
 
-  facul_strategy_t* strategy0 = facul_make_strategy(
-          B[0], lpb[0], 4*lpb[0],
-          30, 0);
-  strategy0->assume_prime_thresh = 0.0;
-  facul_strategy_t* strategy1 = facul_make_strategy(
-          B[1], lpb[1], 4*lpb[1],
-          30, 0);
-  strategy1->assume_prime_thresh = 0.0;
+  /* keep it simple: use 30 curves in both cases */
+  facul_strategy_oneside strategy0(B[0], lpb[0], 4*lpb[0], 30, 0);
+  strategy0.BB = 0.0;
+
+  facul_strategy_oneside strategy1(B[1], lpb[1], 4*lpb[1], 30, 0);
+  strategy1.BB = 0.0;
 
   // Read list from the input file.
   FILE * inp = fopen_maybe_compressed(infilename, "r");
@@ -130,8 +128,6 @@ main (int argc, char *argv[])
           nrels, seconds()-st, wct_seconds()-wct);
   
   fclose_maybe_compressed(inp, infilename);
-  facul_clear_strategy(strategy0);
-  facul_clear_strategy(strategy1);
   param_list_clear(pl);
 
   return EXIT_SUCCESS;

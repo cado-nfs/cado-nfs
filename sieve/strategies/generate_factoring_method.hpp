@@ -34,8 +34,13 @@ generate_composite_integer_interval(gmp_randstate_t state,
 /*                To model our factoring methods                        */
 /************************************************************************/
 
-facul_strategy_t *generate_fm (int method, ec_parameterization_t curve,
-                               unsigned long B1, unsigned long B2);
+/* This generate a 1-sided strategy with just one single method, and (for
+ * ECM) a randomly chosen parameter sigma. extra_primes is set to 1.
+ */
+facul_strategy_oneside generate_fm (int method,
+                               unsigned long B1, unsigned long B2,
+                               ec_parameterization_t curve
+                               );
 
 /************************************************************************/
 /*                      Create Factoring Methods */
@@ -61,7 +66,8 @@ tabular_fm_t *generate_factoring_methods_mc(gmp_randstate_t state,
 /*                      ANALYSE AND FILTER */
 /************************************************************************/
 
-double bench_proba_fm(facul_strategy_t * strategy, gmp_randstate_t state,
+double bench_proba_fm(facul_strategy_oneside const & strategy,
+        gmp_randstate_t state,
  		      unsigned long len_p, unsigned long len_n,
                       std::vector<cxx_mpz> & N,
 		      size_t nb_test_max);
@@ -70,7 +76,7 @@ void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
         int p_max, size_t nb_test_max);
 
 
-double bench_time_fm_onelength(facul_strategy_t * method,
+double bench_time_fm_onelength(facul_strategy_oneside const & method,
                                std::vector<cxx_mpz> & N,
 			       size_t nb_test);
 

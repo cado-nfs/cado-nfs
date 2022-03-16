@@ -123,13 +123,13 @@ FaculModulusBase::init_mpz (const modintmpz_t n)
 }
 
 int FaculModulusUl::facul_doit(std::vector<cxx_mpz> & factors,
-    const facul_strategy_t *strategy, const int method_start) const
+    facul_strategy_oneside const & strategy, const int method_start) const
 {
     return ::facul_doit (factors, m, strategy, method_start);
 }
 
 int FaculModulusUl::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    const facul_method_t method, const FaculModulusBase * &fm,
+    facul_method const & method, const FaculModulusBase * &fm,
     const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {
@@ -144,13 +144,13 @@ FaculModulusUl::get_z (mpz_t z) const
 }
 
 int FaculModulus15Ul::facul_doit(std::vector<cxx_mpz> & factors, 
-    const facul_strategy_t *strategy, const int method_start) const
+    facul_strategy_oneside const & strategy, const int method_start) const
 {
     return ::facul_doit (factors, m, strategy, method_start);
 }
 
 int FaculModulus15Ul::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    const facul_method_t method, const FaculModulusBase * &fm,
+    facul_method const & method, const FaculModulusBase * &fm,
     const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {
@@ -167,13 +167,13 @@ FaculModulus15Ul::get_z (mpz_t z) const
 }
 
 int FaculModulus2Ul2::facul_doit(std::vector<cxx_mpz> & factors, 
-    const facul_strategy_t *strategy, const int method_start) const
+    facul_strategy_oneside const & strategy, const int method_start) const
 {
     return ::facul_doit (factors, m, strategy, method_start);
 }
 
 int FaculModulus2Ul2::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    const facul_method_t method, const FaculModulusBase * &fm,
+    facul_method const & method, const FaculModulusBase * &fm,
     const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {
@@ -190,13 +190,13 @@ FaculModulus2Ul2::get_z (mpz_t z) const
 }
 
 int FaculModulusMpz::facul_doit(std::vector<cxx_mpz> & factors, 
-    const facul_strategy_t *strategy, const int method_start) const
+    facul_strategy_oneside const & strategy, const int method_start) const
 {
     return ::facul_doit (factors, m, strategy, method_start);
 }
 
 int FaculModulusMpz::facul_doit_onefm (std::vector<cxx_mpz> & factors,
-    const facul_method_t method, const FaculModulusBase * &fm,
+    facul_method const & method, const FaculModulusBase * &fm,
     const FaculModulusBase * &cfm, unsigned long lpb, double assume_prime_thresh,
     double BBB) const
 {

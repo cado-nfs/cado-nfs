@@ -375,6 +375,7 @@ sieve/ecm/ec_arith_Weierstrass_new.hpp
 sieve/ecm/ec_arith_Weierstrass_new.cpp
 sieve/ecm/ec_parameterization.h
 sieve/ecm/facul.cpp
+sieve/ecm/facul_strategies.cpp
 sieve/ecm/facul.hpp
 sieve/ecm/facul_fwd.hpp
 sieve/ecm/facul_doit.cpp
@@ -1751,3 +1752,8 @@ polyselect/polyselect_thread_league.c
 polyselect/polyselect_thread_league.h
 polyselect/polyselect_thread_team.c
 polyselect/polyselect_thread_team.h
+sieve/ecm/facul_method.cpp
+sieve/ecm/facul_method.hpp
+sieve/ecm/facul_strategies.hpp
+sieve/ecm/facul_strategies_stats.cpp
+sieve/ecm/facul_strategies_stats.hpp

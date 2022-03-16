@@ -681,4 +681,6 @@ cado_define_test(test-inline-polynomials-and-expressions
 )
 
 add_subdirectory (ecm)
-add_subdirectory (strategies)
+if(strategies_variant STREQUAL "strategies_old")
+add_subdirectory (${strategies_variant})
+endif()
