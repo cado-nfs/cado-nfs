@@ -21,6 +21,7 @@
  */
 
 #include <vector>
+#include <array>
 #include "typedefs.h"
 #include "relation.hpp"
 #include "renumber.hpp"
