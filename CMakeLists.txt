@@ -116,7 +116,6 @@ else()
     set(EXCLUDE_FROM_RELEASE_BUILD EXCLUDE_FROM_ALL)
 endif()
 
-
 set(package_basename ${CADO_DIST_ARCHIVE_NAME})
 set(BINSUFFIX bin CACHE STRING "subpath below PREFIX for storing the two main scripts")
 set(LIBSUFFIX lib/${package_basename} CACHE STRING "subpath below PREFIX for storing libraries and binaries")

@@ -148,6 +148,6 @@ int cofac_standalone::factor_both_leftover_norms(nfs_work_cofac & wc) {/*{{{*/
     return ::factor_both_leftover_norms(norm,
             lps,
             {{ wc.sc.sides[0].lim, wc.sc.sides[1].lim }},
-            wc.strategies);
+            *wc.strategies);
 }/*}}}*/
 

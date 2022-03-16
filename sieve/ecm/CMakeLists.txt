@@ -58,6 +58,9 @@ add_library(facul
         stage2.c
         bytecode.c
         makeplan.c facul.cpp modset.cpp
+        facul_method.cpp
+        facul_strategies_stats.cpp
+        facul_strategies.cpp
         mpqs_doit.c mpqs_ul.c mpqs_15ul.c mpqs_2ul2.c mpqs_mpz.c
         batch.cpp
         ec_arith_Weierstrass_new.cpp)

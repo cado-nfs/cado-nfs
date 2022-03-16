@@ -49,24 +49,44 @@ int factor_both_leftover_norms(
         std::array<cxx_mpz, 2> & norms,
         std::array<std::vector<cxx_mpz>, 2> &,
         std::array<unsigned long, 2> const &,
-        facul_strategies_t const *);
+        facul_strategies const &);
 
 /* handy shortcut. Can't have it defined at the facul.hpp level because
  * facul does not know about las stuff. */
-static inline facul_strategies_t* facul_make_strategies (siever_config const & conf, FILE* file, const int verbose);
-static inline facul_strategies_t* facul_make_strategies (siever_config const & conf, FILE* file, const int verbose)
+static inline facul_strategies * facul_make_strategies (siever_config const & conf, FILE* file, const int verbose);
+static inline facul_strategies * facul_make_strategies (siever_config const & conf, FILE* file, const int verbose)
 {
-    return facul_make_strategies(
-            conf.sides[0].lim,
-            conf.sides[0].lpb,
-            conf.sides[0].mfb,
-            conf.sides[1].lim,
-            conf.sides[1].lpb,
-            conf.sides[1].mfb,
-            (conf.sublat_bound == 0), // with sublat, some primes are skipped.
-            conf.sides[0].ncurves,
-            conf.sides[1].ncurves,
-            file, verbose);
+    std::array<unsigned long, 2> lim;
+    std::array<unsigned int, 2> lpb;
+    std::array<unsigned int, 2> mfb;
+    std::array<int, 2> ncurves;
+    auto plim = lim.begin();
+    auto plpb = lpb.begin();
+    auto pmfb = mfb.begin();
+    auto pncurves = ncurves.begin();
+    for(auto const & s : conf.sides) {
+        *plim++ = s.lim;
+        *plpb++ = s.lpb;
+        *pmfb++ = s.mfb;
+        *pncurves++ = s.ncurves;
+    }
+
+    if (file) {
+        return new facul_strategies(
+                lim,
+                lpb,
+                mfb,
+                (conf.sublat_bound == 0), // with sublat, some primes are skipped.
+                file, verbose);
+    } else {
+        return new facul_strategies(
+                lim,
+                lpb,
+                mfb,
+                ncurves,
+                (conf.sublat_bound == 0), // with sublat, some primes are skipped.
+                verbose);
+    }
 }
 
 #endif

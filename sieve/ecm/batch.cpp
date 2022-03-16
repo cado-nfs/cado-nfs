@@ -25,7 +25,7 @@
 #include "batch.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul.hpp"           // for facul_clear_methods, facul_make_defaul...
 #include "facul_doit.hpp"      // for facul_doit_onefm
-#include "facul_fwd.hpp"       // for facul_method_t
+#include "facul_method.hpp"       // for facul_method
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "gmp_aux.h"       // mpz_set_uint64
 #include "las-todo-entry.hpp"  // for las_todo_entry
@@ -672,7 +672,7 @@ trial_divide (std::vector<cxx_mpz>& factors, cxx_mpz & n, std::vector<unsigned l
 static bool
 factor_simple_minded (std::vector<cxx_mpz> &factors,
               cxx_mpz & n,
-              facul_method_t *methods,
+              std::vector<facul_method> const & methods,
               unsigned int lpb, double B,
               std::vector<unsigned long> const& SP,
               cxx_mpz& cofac,
@@ -712,17 +712,24 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
         trial_divide (factors, cofac, SP);
     }
 
-    std::list<std::pair<cxx_mpz, facul_method_t *>> composites;
+    std::list<std::pair<cxx_mpz, std::vector<facul_method>::const_iterator>> composites;
     if (mpz_cmp_ui(n, 1) > 0) 
-        composites.push_back(std::make_pair(std::move(n), methods));
+        composites.push_back(std::make_pair(std::move(n), methods.begin()));
     if (mpz_cmp_ui(cofac, 1) > 0)
-        composites.push_back(std::make_pair(std::move(cofac), methods));
+        composites.push_back(std::make_pair(std::move(cofac), methods.begin()));
 
     const FaculModulusBase *fm[2] = {NULL, NULL};
 
+    /* This calls facul_doit_onefm repeatedly,  until there's no work
+     * left.
+     *
+     *
+     * XXX I have the impression that the plain "facul" method does the
+     * same, in fact.
+     */
     for (; !composites.empty() ; ) {
         cxx_mpz & n0 = composites.front().first;
-        facul_method_t * pm = composites.front().second;
+        std::vector<facul_method>::const_iterator pm = composites.front().second;
         if (mpz_cmp_d (n0, BB) < 0) {
             if (mpz_cmp_ui(n0, 1) > 0)
                 factors.push_back(std::move(n0));
@@ -730,7 +737,7 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
             continue;
         }
 
-        if (!pm->method) {
+        if (pm == methods.end()) {
             mpz_set(cofac, n0);
             return false;
         }
@@ -826,7 +833,7 @@ factor_one (
         int batchlpb[2],
         int lpb[2],
         FILE *out,
-        facul_method_t *methods,
+        std::vector<facul_method> const & methods,
         std::vector<unsigned long> (&SP)[2],
         int recomp_norm)
 {
@@ -902,8 +909,7 @@ factor (cofac_list const & L,
         int recomp_norm)
 {
   unsigned long B[2];
-  int nb_methods;
-  facul_method_t *methods;
+  std::vector<facul_method> methods;
   std::vector<unsigned long> SP[2];
   prime_info pi;
   double s, st, e0, wct;
@@ -926,10 +932,8 @@ factor (cofac_list const & L,
       prime_info_clear (pi);
   }
 
-  nb_methods = ncurves;
-  if (nb_methods >= NB_MAX_METHODS)
-    nb_methods = NB_MAX_METHODS - 1;
-  methods = facul_make_default_strategy (nb_methods, 0);
+  for(auto const & mp : facul_strategy_oneside::default_strategy (ncurves))
+      methods.emplace_back(mp);
 
   std::list<relation> smooth;
   cofac_list::const_iterator it;
@@ -961,8 +965,6 @@ factor (cofac_list const & L,
 #endif
 
   add_openmp_subtimings(extra_time);
-
-  facul_clear_methods (methods);
 
   fprintf (out,
           "# batch: took %.2fs (%.2f + %.2f ; wct %.2fs) to factor %zu smooth relations (%zd final cofac misses)\n",

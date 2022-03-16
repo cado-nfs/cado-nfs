@@ -671,4 +671,6 @@ cado_define_test(test-reduce-plattice.cpp LIBRARIES utils ARGUMENTS
 cado_divert_test(test-reduce-plattice seed APPEND_ARGUMENTS -seed 1)
 
 add_subdirectory (ecm)
-add_subdirectory (strategies)
+if(strategies_variant STREQUAL "strategies_old")
+add_subdirectory (${strategies_variant})
+endif()

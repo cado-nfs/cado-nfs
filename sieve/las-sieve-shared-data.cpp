@@ -81,7 +81,7 @@ j_divisibility_helper const * sieve_shared_data::get_j_divisibility_helper(int J
     ASSERT(itb.second);
     return &(*itb.first).second;
 }/*}}}*/
-facul_strategies_t const * sieve_shared_data::get_strategies(siever_config const & conf) /* {{{ */
+facul_strategies const * sieve_shared_data::get_strategies(siever_config const & conf) /* {{{ */
 {
     std::lock_guard<std::mutex> dummy(facul_strategies_cache.mutex());
     auto it = facul_strategies_cache.find(conf);
@@ -89,40 +89,22 @@ facul_strategies_t const * sieve_shared_data::get_strategies(siever_config const
         return it->second.get();
     }
 
-
-#if 0
-    /* Temporary hack. We return *ALWAYS* the same cofactoring strategy.
-     * TODO: investigate, see how this behaves. (for the descent case)
-     */
-    /* Cannot work: the descent is _really_ allowed to have various mfb
-     * set up, so that multiple strategy tables are necessary.
-     */
-    if (!facul_strategies_cache.empty()) {
-        it = facul_strategies_cache.begin();
-        if (!siever_config::has_same_cofactoring(conf)(it->first)) {
-            verbose_output_print(0, 1, "# NOTE: using previously stored cofactoring strategy, although it was not necessarily meant for the current set of parameters.\n");
-        }
-        return it->second.get();
-    }
-#endif
+    double time_strat = seconds();
 
     FILE* file = NULL;
     if (cofactfilename != NULL) /* a file was given */
         file = fopen (cofactfilename, "r");
-    double time_strat = seconds();
 
     auto itb = facul_strategies_cache.insert(std::make_pair(conf,
-            std::shared_ptr<facul_strategies_t>(
-                facul_make_strategies (conf, file, 0),
-                facul_clear_strategies))
-            );
+            std::shared_ptr<facul_strategies>(
+                facul_make_strategies (conf, file, 0))));
+
+    if (file)
+        fclose (file);
 
     ASSERT_ALWAYS(itb.second);
     verbose_output_print(0, 1, "# Building/reading strategies took %1.1fs\n",
             seconds() - time_strat);
-
-    if (file)
-        fclose (file);
 
     if (!(*itb.first).second.get()) {
         fprintf (stderr, "impossible to read %s\n", cofactfilename);

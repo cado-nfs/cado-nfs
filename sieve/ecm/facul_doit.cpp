@@ -56,8 +56,11 @@ modset_init (modint_t m)
 
 int
 facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m, 
-	    const facul_strategy_t *strategy, const int method_start)
+	    facul_strategy_oneside const & strategy, const int method_start)
 {
+  if (method_start >= (int) strategy.methods.size())
+      return 0;
+
   modint_t n, f;
   const FaculModulusBase *fm = NULL, *cfm = NULL;
   int i, found = 0, bt, fprime, cfprime;
@@ -67,7 +70,7 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
   mod_getmod_int (n, m);
   mod_intset_ul (f, 1UL);
   
-  for (i = method_start; strategy->methods[i].method != 0; i++)
+  for (i = method_start; i < (int) strategy.methods.size() ; i++)
     {
       /* Simple-minded early abort for large input.
          Note: before the test was "mod_intbits (n) > LONG_BIT" which was
@@ -84,15 +87,15 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
 	stats_called[i]++;
 #endif
       
-      if (strategy->methods[i].method == PM1_METHOD)
-	bt = pm1 (f, m, (pm1_plan_t *) (strategy->methods[i].plan));
-      else if (strategy->methods[i].method == PP1_27_METHOD)
-	bt = pp1_27 (f, m, (pp1_plan_t *) (strategy->methods[i].plan));
-      else if (strategy->methods[i].method == PP1_65_METHOD)
-	bt = pp1_65 (f, m, (pp1_plan_t *) (strategy->methods[i].plan));
-      else if (strategy->methods[i].method == EC_METHOD)
-	bt = ecm (f, m, (ecm_plan_t *) (strategy->methods[i].plan));	
-      else if (strategy->methods[i].method == MPQS_METHOD)
+      if (strategy.methods[i].method == PM1_METHOD)
+	bt = pm1 (f, m, (pm1_plan_t *) (strategy.methods[i].plan));
+      else if (strategy.methods[i].method == PP1_27_METHOD)
+	bt = pp1_27 (f, m, (pp1_plan_t *) (strategy.methods[i].plan));
+      else if (strategy.methods[i].method == PP1_65_METHOD)
+	bt = pp1_65 (f, m, (pp1_plan_t *) (strategy.methods[i].plan));
+      else if (strategy.methods[i].method == EC_METHOD)
+	bt = ecm (f, m, (ecm_plan_t *) (strategy.methods[i].plan));	
+      else if (strategy.methods[i].method == MPQS_METHOD)
 	bt = mpqs (f, m);
       else 
 	{
@@ -186,15 +189,15 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
       
       /* A quick test if the factor is <= fbb^2 and >2^lpb */
       double f_dbl = mod_intget_double (f);
-      fprime = f_dbl < strategy->assume_prime_thresh;
-      if (fprime && mod_intbits (f) > strategy->lpb)
+      fprime = f_dbl < strategy.BB;
+      if (fprime && mod_intbits (f) > strategy.lpb)
 	{
 	  found = FACUL_NOT_SMOOTH; /* A prime > 2^lpb, not smooth */
 	  break;
 	}
 
       /* if L^2 < f < B^3, it cannot be smooth */
-      if (2 * strategy->lpb < mod_intbits (f) && f_dbl < strategy->BBB)
+      if (2 * strategy.lpb < mod_intbits (f) && f_dbl < strategy.BBB)
         {
           found = FACUL_NOT_SMOOTH;
           break;
@@ -205,15 +208,15 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
       
       /* See if cofactor is <= fbb^2 and > 2^lpb */
       double n_dbl = mod_intget_double (n);
-      cfprime = n_dbl < strategy->assume_prime_thresh;
-      if (cfprime && mod_intbits (n) > strategy->lpb)
+      cfprime = n_dbl < strategy.BB;
+      if (cfprime && mod_intbits (n) > strategy.lpb)
 	{
 	  found = FACUL_NOT_SMOOTH; /* A prime > 2^lpb, not smooth */
 	  break;
 	}
 
-      if (2 * strategy->lpb < mod_intbits (n) &&
-          n_dbl < strategy->BBB)
+      if (2 * strategy.lpb < mod_intbits (n) &&
+          n_dbl < strategy.BBB)
         {
           found = FACUL_NOT_SMOOTH;
           break;
@@ -228,7 +231,7 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
             delete fm;
             fm = NULL;
           }
-	  if (fprime && mod_intbits (f) > strategy->lpb)
+	  if (fprime && mod_intbits (f) > strategy.lpb)
 	    {
 	      found = FACUL_NOT_SMOOTH; /* A prime > 2^lpb, not smooth */
 	      break;
@@ -245,7 +248,7 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
             delete cfm;
             cfm = NULL;
           }
-	  if (cfprime && mod_intbits (n) > strategy->lpb)
+	  if (cfprime && mod_intbits (n) > strategy.lpb)
 	    {
 	      if (!fprime) {
 	        delete fm;
@@ -331,12 +334,14 @@ facul_doit (std::vector<cxx_mpz> & factors, const modulus_t m,
   Remark: if m has more than two factors, it's possible that 
   we need to try another factorization on f (or/and  m/f). So
   the values of our composite factor are stored in fm (or/and cfm).
+
+  Note: BB was renamed BB from previously chosen name "assume_prime_thresh". I think it's correct.
 */
 int
 facul_doit_onefm (std::vector<cxx_mpz> & factors, const modulus_t m,
-		  const facul_method_t method,
+		  facul_method const & method,
 		  const FaculModulusBase* &fm, const FaculModulusBase* &cfm,
-                  unsigned long lpb, double assume_prime_thresh, double BBB)
+                  unsigned long lpb, double BB, double BBB)
 {
   residue_t r;
   modint_t n, f;
@@ -454,7 +459,7 @@ facul_doit_onefm (std::vector<cxx_mpz> & factors, const modulus_t m,
   
   /* A quick test if the factor is <= fbb^2 and >2^lpb */
   f_dbl = mod_intget_double (f);
-  fprime = f_dbl < assume_prime_thresh;
+  fprime = f_dbl < BB;
   if (fprime && mod_intbits (f) > lpb)
     {
       found = FACUL_NOT_SMOOTH; /* A prime > 2^lpb, not smooth */
@@ -473,7 +478,7 @@ facul_doit_onefm (std::vector<cxx_mpz> & factors, const modulus_t m,
       
   /* See if cofactor is <= fbb^2 and > 2^lpb */
   n_dbl = mod_intget_double (n);
-  cfprime = n_dbl < assume_prime_thresh;
+  cfprime = n_dbl < BB;
   if (cfprime && mod_intbits (n) > lpb)
     {
       found = FACUL_NOT_SMOOTH; /* A prime > 2^lpb, not smooth */
