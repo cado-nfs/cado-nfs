@@ -670,5 +670,15 @@ cado_define_test(test-reduce-plattice.cpp LIBRARIES utils ARGUMENTS
     )
 cado_divert_test(test-reduce-plattice seed APPEND_ARGUMENTS -seed 1)
 
+cado_define_test(test-inline-polynomials-and-expressions
+    PROGRAM
+            ${makefb_path}
+            -poly "inline-poly://skew=1/poly0=x^3+2/poly1=x-2^43/n=2^128+1"
+            -lim 200
+            -t 2
+    TARGET_DEPENDENCIES
+        makefb
+)
+
 add_subdirectory (ecm)
 add_subdirectory (strategies)
