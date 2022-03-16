@@ -1,5 +1,7 @@
 cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/testsm.sh
     ${CADO_NFS_BINARY_DIR}/filter/sm
+    PRECOMMAND
+    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
     TARGET_DEPENDENCIES sm)
 
 cado_define_test(test_dup2
