@@ -56,6 +56,8 @@ void cofactorization_statistics::call(int bits0, int bits1)
         cof_success[bits0].insert(cof_success[bits0].end(), news1-s1, 0);
         s1 = news1;
     }
+    ASSERT_ALWAYS((size_t) bits0 < s0);
+    ASSERT_ALWAYS((size_t) bits1 < s1);
     /* no need to use a mutex here: either we use one thread only
        to compute the cofactorization data and if several threads
        the order is irrelevant. The only problem that can happen

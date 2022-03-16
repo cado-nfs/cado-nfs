@@ -97,7 +97,7 @@ void las_dlog_base::read()
 
     verbose_output_print(0, 1, "# Descent: will get list of known logs from %s, using also %s for mapping\n", logfilename, renumberfilename);
 
-    renumber_table.read_from_file(renumberfilename);
+    renumber_table.read_from_file(renumberfilename, 1);
 
     for(int side = 0 ; side < 2 ; side++) {
         if (lpb[side] != renumber_table.get_lpb(side)) {

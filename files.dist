@@ -1259,6 +1259,7 @@ linalg/bwc/bwccheck.cpp
 tests/linalg/bwc/test-lingen-crc.sh
 tests/utils/test_cxx_mpz_poly.cpp
 utils/numbertheory.cpp
+utils/numbertheory_tool.cpp
 tests/utils/numbertheory/CMakeLists.txt
 tests/utils/test_cxx_mpz_mat.cpp
 utils/mpz_mat.cpp
@@ -1614,7 +1615,6 @@ utils/fd_streambuf.cpp
 utils/fd_streambuf.hpp
 tests/utils/test_fstream_maybe_compressed.cpp
 utils/badideals.hpp
-utils/badideals_main.cpp
 tests/utils/test-sort.cpp
 utils/omp_proxy.h
 config/iwyu.pl.in

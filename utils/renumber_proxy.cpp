@@ -31,9 +31,9 @@ void renumber_table_set_lpb(renumber_proxy_ptr R, const unsigned int * lpb, size
     deref(R)->set_lpb(L);
 }
 
-void renumber_table_read_from_file(renumber_proxy_ptr R, const char * filename)
+void renumber_table_read_from_file(renumber_proxy_ptr R, const char * filename, int for_dl)
 {
-    deref(R)->read_from_file(filename);
+    deref(R)->read_from_file(filename, for_dl);
 }
 
 int renumber_table_get_format(renumber_proxy_srcptr R)

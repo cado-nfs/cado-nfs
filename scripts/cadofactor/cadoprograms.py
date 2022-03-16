@@ -796,9 +796,9 @@ class FreeRel(Program):
     >>> p = FreeRel(poly="foo.poly", renumber="foo.renumber", lpb0=1, lpb1=2, out="foo.freerel", skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
     'freerel -poly foo.poly -renumber foo.renumber -lpb0 1 -lpb1 2 -out foo.freerel'
-    >>> p = FreeRel(poly="foo.poly", renumber="foo.renumber", lpb0=1, lpb1=2, out="foo.freerel", badideals="foo.bad", pmin=123, pmax=234, skip_check_binary_exists=True)
+    >>> p = FreeRel(poly="foo.poly", renumber="foo.renumber", lpb0=1, lpb1=2, out="foo.freerel", pmin=123, pmax=234, skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
-    'freerel -poly foo.poly -renumber foo.renumber -lpb0 1 -lpb1 2 -out foo.freerel -badideals foo.bad -pmin 123 -pmax 234'
+    'freerel -poly foo.poly -renumber foo.renumber -lpb0 1 -lpb1 2 -out foo.freerel -pmin 123 -pmax 234'
     """
     binary = "freerel"
     name = binary
@@ -809,10 +809,9 @@ class FreeRel(Program):
                  lpb0: Parameter("lpb0", checktype=int),
                  lpb1: Parameter("lpb1", checktype=int),
                  out: Parameter(is_output_file=True),
-                 badideals: Parameter(is_output_file=True)=None,
                  pmin: Parameter(checktype=int)=None,
                  pmax: Parameter(checktype=int)=None,
-                 lcideals: Toggle() = None,
+                 dl: Toggle() = None,
                  threads: Parameter("t", checktype=int)=None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
@@ -1019,16 +1018,20 @@ class ReplayDLP(Program):
         super().__init__(locals(), **kwargs)
 
 class NumberTheory(Program):
-    binary = "badideals"
+    # This program used to be necessary for the computation of the
+    # bad ideals. It still has this functionality, but we no longer use
+    # it. The only thing that we are still leaving to this program is the
+    # computation of the unit rank, which is eventually used as a minimum
+    # bound on the number of excess relations to keep.
+    binary = "numbertheory_tool"
     name = binary
     subdir = "utils"
     def __init__(self,
                  poly: Parameter(),
                  ell: Parameter(),
-                 badidealinfo: Parameter(),
-                 badideals: Parameter(),
                  **kwargs):
         super().__init__(locals(), **kwargs)
+
 
 class BWC(Program):
     binary = "bwc.pl"

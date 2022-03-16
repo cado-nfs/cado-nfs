@@ -17,7 +17,7 @@ cado_define_test(test_renumber_on_the_fly_mnfsdl
     PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.data/mnfs5.poly
     -lpbs 11,10,10,10,10
-    -lcideals -check -build -quiet
+    -check -build -quiet
     TARGET_DEPENDENCIES debug_renumber)
 
 cado_define_test(test_renumber_on_the_fly_snfs
@@ -70,6 +70,5 @@ cado_divert_test(test_renumber_file c105_30003
     APPEND_ARGUMENTS
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.data/c105_30003.poly
     -lpbs 25,26
-    -nolcideals
     )
 endif()

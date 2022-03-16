@@ -17,7 +17,6 @@ cado_divert_test(test_dup2 c105_30003
     -poly ${CADO_NFS_SOURCE_DIR}/tests/misc/test_renumber.data/c105_30003.poly
     -rels ${CMAKE_CURRENT_SOURCE_DIR}/c105_30003.rels.gz
     -lpbs 25,26
-    -nolcideals
     )
 endif()
 
