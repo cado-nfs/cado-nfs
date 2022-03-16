@@ -144,7 +144,7 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
 
     bool do_resieve = conf.sides[0].lim && conf.sides[1].lim;
 
-    for (unsigned int side = 0; side < 2; side++) {
+    for (int side = 0; side < 2; side++) {
         side_data & wss(sides[side]);
         if (wss.no_fb()) continue;
         wss.group.allocate_buckets(

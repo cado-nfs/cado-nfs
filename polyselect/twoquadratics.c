@@ -14,7 +14,7 @@
 #include "polyselect_norms.h"
 
 typedef struct {
-  cado_poly poly;
+  cado_poly cpoly;
   mpz_t m;
   mpz_t p;  // common root is m/p mod N
   mpz_t skew;
@@ -45,7 +45,7 @@ cado_poly_extended_clear (cado_poly_extended poly)
 }
 
 void
-cado_poly_set2 (cado_poly poly, mpz_poly f, mpz_poly g, mpz_t N, 
+cado_poly_set2 (cado_poly cpoly, mpz_poly f, mpz_poly g, mpz_t N, 
                 mpz_t skew)
 {
   mpz_poly_set (poly->pols[0], f);

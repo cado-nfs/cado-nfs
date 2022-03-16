@@ -48,16 +48,16 @@ rotate_bounds_V_mpz ( mpz_t *f,
   mpz_poly_setcoeffs (G0, g, 1);
 
   mpz_poly_ptr fptr, gptr;
-  cado_poly poly;
-  cado_poly_init (poly);
-  fptr = poly->pols[ALG_SIDE];
+  cado_poly cpoly;
+  cado_poly_init (cpoly);
+  fptr = cpoly->pols[ALG_SIDE];
   fptr->deg = d;
-  gptr = poly->pols[RAT_SIDE];
+  gptr = cpoly->pols[RAT_SIDE];
   gptr->deg = 1;
   for (int i = 0; i < (d+1); i++)
-    mpz_set(poly->pols[ALG_SIDE]->coeff[i], f[i]);
+    mpz_set(cpoly->pols[ALG_SIDE]->coeff[i], f[i]);
   for (int i = 0; i < 2; i++)
-    mpz_set(poly->pols[RAT_SIDE]->coeff[i], g[i]);
+    mpz_set(cpoly->pols[RAT_SIDE]->coeff[i], g[i]);
 
   
   /* look for positive V: 2, 4, 8, ... */
@@ -105,7 +105,7 @@ rotate_bounds_V_mpz ( mpz_t *f,
   }
   mpz_set (bound->global_v_boundl, V);
   
-  cado_poly_clear (poly);
+  cado_poly_clear (cpoly);
   mpz_poly_clear (F0);
   mpz_poly_clear (F);
   mpz_poly_clear (G0);

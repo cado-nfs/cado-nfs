@@ -103,9 +103,9 @@ struct logtab
 {
     uint64_t nprimes;
     uint64_t nknown;
-    unsigned int nbsm;
+    int nbsm;
     cxx_mpz ell;
-    cado_poly_srcptr poly;
+    cado_poly_srcptr cpoly;
     sm_side_info *sm_info;
     private:
     mp_limb_t * data;
@@ -243,15 +243,15 @@ struct logtab
         mpn_copyi(p, v->_mp_d, mpz_size(v));
     }
 
-    logtab(cado_poly_srcptr poly, sm_side_info * sm_info, uint64_t nprimes, mpz_srcptr ell)
+    logtab(cado_poly_srcptr cpoly, sm_side_info * sm_info, uint64_t nprimes, mpz_srcptr ell)
         : nprimes(nprimes)
-          , poly(poly)
+          , cpoly(cpoly)
           , sm_info(sm_info)
     {
         mpz_set(this->ell, ell);
         nknown = 0;
         nbsm = 0;
-        for(int i = 0 ; i < poly->nb_polys ; i++) {
+        for(int i = 0 ; i < cpoly->nb_polys ; i++) {
             nbsm += sm_info[i]->nsm;
         }
         data = (mp_limb_t *) malloc((nprimes + nbsm) * mpz_size(ell) * sizeof(mp_limb_t));
@@ -269,15 +269,15 @@ struct read_data
   log_rel_t *rels;
   logtab & log;
   uint64_t nrels;
-  cado_poly_ptr poly;
+  cado_poly_ptr cpoly;
   sm_side_info *sm_info;
   renumber_t & renum_tab;
   read_data(logtab & log, uint64_t nrels,
-          cado_poly_ptr poly, sm_side_info *sm_info,
+          cado_poly_ptr cpoly, sm_side_info *sm_info,
           renumber_t & renum_tab)
       : log(log)
       , nrels(nrels)
-      , poly(poly)
+      , cpoly(cpoly)
       , sm_info(sm_info)
       , renum_tab(renum_tab)
   {
@@ -305,7 +305,7 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
     uint64_t b = rel->b;
 
     uint64_t nonvoidside = 0; /* bit vector of which sides appear in the rel */
-    if (data.poly->nb_polys > 2) {
+    if (data.cpoly->nb_polys > 2) {
         for (weight_t i = 0; i < rel->nb; i++) {
           index_t h = rel->primes[i].h;
           int side = data.renum_tab.p_r_from_index(h).side;
@@ -318,7 +318,7 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
          * for it. */
         ASSERT_ALWAYS(nonvoidside & (nonvoidside - 1));
         /* one thing we might do at this point is recompute the norm from
-         * a, b, and data.poly->pols[side], and see if we get \pm1.
+         * a, b, and data.cpoly->pols[side], and see if we get \pm1.
          */
     } else {
         nonvoidside = 3;
@@ -329,7 +329,7 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
          * because some goodwill computed them for us.
          */
         int c = 0;
-        for(int side = 0 ; side < data.poly->nb_polys ; side++) {
+        for(int side = 0 ; side < data.cpoly->nb_polys ; side++) {
             sm_side_info_srcptr S = data.sm_info[side];
             if (S->nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
 #define xxxDOUBLECHECK_SM
@@ -365,7 +365,7 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
         }
     } else {
         mpz_srcptr ell = data.log.ell;
-        for(int side = 0 ; side < data.poly->nb_polys ; side++) {
+        for(int side = 0 ; side < data.cpoly->nb_polys ; side++) {
             sm_side_info_srcptr S = data.sm_info[side];
             if (S->nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
                 mpz_poly u;
@@ -927,7 +927,7 @@ read_log_format_reconstruct (logtab & log, MAYBE_UNUSED renumber_t const & renum
   }
   stats_print_progress (stats, nread, 0, 0, 1);
 
-  for (unsigned int nsm = 0; nsm < log.nbsm; nsm++)
+  for (int nsm = 0; nsm < log.nbsm; nsm++)
   {
     unsigned int n, side;
     if (nsm == 0) /* h was already read by previous gmp_fscanf */
@@ -1022,7 +1022,7 @@ write_log (const char *filename, logtab & log, renumber_t const & tab,
           stats_print_progress (stats, nknown, i+1, 0, 0);
   }
   stats_print_progress (stats, nknown, tab.get_size(), 0, 1);
-  for (unsigned int nsm = 0, i = tab.get_size(); nsm < log.nbsm; nsm++)
+  for (int nsm = 0, i = tab.get_size(); nsm < log.nbsm; nsm++)
   {
     // compute side
     int side, nsm_tot = sm_info[0]->nsm, jnsm = nsm;
@@ -1304,7 +1304,7 @@ main(int argc, char *argv[])
     nsm_arg[side] = -1;
 
   mpz_t ell;
-  cxx_cado_poly poly;
+  cxx_cado_poly cpoly;
 
   param_list pl;
   param_list_init(pl);
@@ -1415,20 +1415,20 @@ main(int argc, char *argv[])
                     "-partial is not set\n");
   }
 
-  if (!cado_poly_read (poly, polyfilename))
+  if (!cado_poly_read (cpoly, polyfilename))
   {
     fprintf (stderr, "Error reading polynomial file\n");
     exit (EXIT_FAILURE);
   }
 
   /* Read number of sm to be printed from command line */
-  param_list_parse_int_list (pl, "nsm", nsm_arg, poly->nb_polys, ",");
-  for(int side = 0; side < poly->nb_polys; side++)
+  param_list_parse_int_list (pl, "nsm", nsm_arg, cpoly->nb_polys, ",");
+  for(int side = 0; side < cpoly->nb_polys; side++)
   {
-    if (nsm_arg[side] > poly->pols[side]->deg)
+    if (nsm_arg[side] > cpoly->pols[side]->deg)
     {
       fprintf(stderr, "Error: nsm%d=%d can not exceed the degree=%d\n",
-                      side, nsm_arg[side], poly->pols[side]->deg);
+                      side, nsm_arg[side], cpoly->pols[side]->deg);
       exit (EXIT_FAILURE);
     }
   }
@@ -1445,12 +1445,12 @@ main(int argc, char *argv[])
 
   /* Init data for computation of the SMs. */
   sm_side_info sm_info[NB_POLYS_MAX];
-  for (int side = 0; side < poly->nb_polys; side++)
+  for (int side = 0; side < cpoly->nb_polys; side++)
   {
-    sm_side_info_init(sm_info[side], poly->pols[side], ell);
+    sm_side_info_init(sm_info[side], cpoly->pols[side], ell);
     sm_side_info_set_mode(sm_info[side], sm_mode_string);
     fprintf(stdout, "\n# Polynomial on side %d:\n# F[%d] = ", side, side);
-    mpz_poly_fprintf(stdout, poly->pols[side]);
+    mpz_poly_fprintf(stdout, cpoly->pols[side]);
     printf("# SM info on side %d:\n", side);
     sm_side_info_print(stdout, sm_info[side]);
     if (nsm_arg[side] >= 0)
@@ -1474,7 +1474,7 @@ main(int argc, char *argv[])
   /* Reading renumber file */
   /* XXX legacy format insists on getting the badidealinfo file */
   printf ("\n###### Reading renumber file ######\n");
-  renumber_t renumber_table(poly);
+  renumber_t renumber_table(cpoly);
   renumber_table.read_from_file(renumberfilename);
   nprimes = renumber_table.get_size();
 
@@ -1489,11 +1489,11 @@ main(int argc, char *argv[])
   printf ("\n###### Reading known logarithms ######\n");
   fflush(stdout);
 
-  logtab log(poly, sm_info, nprimes, ell);
+  logtab log(cpoly, sm_info, nprimes, ell);
 
   if (logformat == NULL || strcmp(logformat, "LA") == 0)
       read_log_format_LA (log, logfilename, idealsfilename, sm_info,
-                                                            poly->nb_polys);
+                                                            cpoly->nb_polys);
   else
     read_log_format_reconstruct (log, renumber_table, logfilename);
 
@@ -1526,7 +1526,7 @@ main(int argc, char *argv[])
   printf ("\n###### Computing logarithms using rels ######\n");
   if (nrels_needed > 0)
   {
-      read_data data(log, nrels_purged + nrels_del, poly, sm_info,
+      read_data data(log, nrels_purged + nrels_del, cpoly, sm_info,
                       renumber_table);
 
       compute_log_from_rels (rels_to_process, relspfilename,
@@ -1548,7 +1548,7 @@ main(int argc, char *argv[])
   /* freeing and closing */
   mpz_clear(ell);
 
-  for (int side = 0 ; side < poly->nb_polys ; side++)
+  for (int side = 0 ; side < cpoly->nb_polys ; side++)
     sm_side_info_clear (sm_info[side]);
 
   bit_vector_clear(rels_to_process);

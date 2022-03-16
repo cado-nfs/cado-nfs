@@ -112,7 +112,7 @@ typedef struct {
 /* Calculates a 64-bit word with the values of the characters chi(a,b), where
  * chi ranges from chars to chars+64
  */
-uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr pol)
+uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr cpoly)
 {
     /* FIXME: do better. E.g. use 16-bit primes, and a look-up table. Could
      * beat this. */
@@ -129,10 +129,10 @@ uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr 
             } else if (ch->r == 2) {
                 /* Special: rational sign (sign of m1*a+m2*b) */
                 mpz_t tmp1, tmp2;
-                int ratside = cado_poly_get_ratside(pol);
+                int ratside = cado_poly_get_ratside(cpoly);
 		ASSERT_ALWAYS(ratside != -1);
 
-                mpz_poly_ptr po = pol->pols[ratside];
+                mpz_poly_ptr po = cpoly->pols[ratside];
 
                 /* first perform a quick check */
                 res = (a > 0) ? mpz_sgn(po->coeff[1]) : -mpz_sgn(po->coeff[1]);
@@ -206,7 +206,7 @@ struct charbatch {
     uint64_t *B;
     unsigned int n;
     alg_prime_t * chars;
-    cado_poly_ptr pol;
+    cado_poly_ptr cpoly;
 };
 void eval_64chars_batch_thread(struct worker_threads_group * g, int tnum, void * t)
 {
@@ -215,13 +215,13 @@ void eval_64chars_batch_thread(struct worker_threads_group * g, int tnum, void *
     for(unsigned int z = tnum * ss->n / g->n ; z < (tnum + 1) * ss->n / g->n ; z++) {
         int64_t a = ss->A[z];
         uint64_t b = ss->B[z];
-        ss->W[z] = eval_64chars(a,b,ss->chars,ss->pol);
+        ss->W[z] = eval_64chars(a,b,ss->chars,ss->cpoly);
     }
     return;
 }
 
 static alg_prime_t * create_characters(int nchars[2],
-        cado_poly pol, unsigned long *lpb)
+        cado_poly cpoly, unsigned long *lpb)
 {
     unsigned long p;
     int ret;
@@ -233,7 +233,7 @@ static alg_prime_t * create_characters(int nchars[2],
     int nchars2 = iceildiv(nchars[0] + nchars[1], 64) * 64;
 
     mpz_init (pp);
-    roots = (unsigned long *) malloc(MAX(pol->pols[0]->deg, pol->pols[1]->deg)
+    roots = (unsigned long *) malloc(MAX(cpoly->pols[0]->deg, cpoly->pols[1]->deg)
             * sizeof(unsigned long));
 
     alg_prime_t * chars = (alg_prime_t *) malloc(nchars2 * sizeof(alg_prime_t));
@@ -246,7 +246,7 @@ static alg_prime_t * create_characters(int nchars[2],
      * point, but nobody remembers the why and how. */
     chars[1] = (alg_prime_t) { .p = 0, .r = 3 };
     if (nchars[0] == 0 || nchars[1] == 0) {
-        ASSERT_ALWAYS(MIN(pol->pols[0]->deg, pol->pols[1]->deg) == 1);
+        ASSERT_ALWAYS(MIN(cpoly->pols[0]->deg, cpoly->pols[1]->deg) == 1);
         /* force rational sign */
         chars[2] = (alg_prime_t) { .p = 0, .r = 2 };
         nspecchar++;
@@ -272,7 +272,7 @@ static alg_prime_t * create_characters(int nchars[2],
         do {
             mpz_nextprime(pp, pp);
             p = mpz_get_ui(pp);
-            ret = mpz_poly_roots_ulong (roots, pol->pols[side], p, rstate);
+            ret = mpz_poly_roots_ulong (roots, cpoly->pols[side], p, rstate);
             for (int k = 0; k < ret; ++k) {
                 if (i == nchars[0] + nchars[1])
                     break;
@@ -320,7 +320,7 @@ thread_chars (void * context_data, earlyparsed_relation_ptr rel)
 // The big character matrix has (number of purged rels) rows, and (number of
 // characters) cols
 
-static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars2, const char * purgedname, cado_poly_ptr pol, struct worker_threads_group * g)
+static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars2, const char * purgedname, cado_poly_ptr cpoly, struct worker_threads_group * g)
 {
     uint64_t nrows, ncols;
     purgedfile_read_firstline (purgedname, &nrows, &ncols);
@@ -331,7 +331,7 @@ static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars
     blockmatrix res(nrows, nchars2);
     res.set_zero();
 
-    /* For each rel, read the a,b-pair and init the corresponding poly pairs[] */
+    /* For each rel, read the a,b-pair and init the corresponding cpoly pairs[] */
     fprintf(stderr, "Reading %" PRIu64 " (a,b) pairs from %s\n", nrows,
                      purgedname);
     chars_data_t data = {.a = all_A, .b=all_B};
@@ -353,7 +353,7 @@ static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars
             B[bs] = all_B[i+bs];
             bs++;
         }
-        struct charbatch ss = { .W=W,.A=A,.B=B,.n=bs,.chars=NULL,.pol=pol };
+        struct charbatch ss = { .W=W,.A=A,.B=B,.n=bs,.chars=NULL,.cpoly=cpoly };
         for(unsigned int cg = 0 ; cg < nchars2 ; cg+=64) {
             ss.chars = chars + cg;
             worker_threads_do(g, eval_64chars_batch_thread, &ss);
@@ -623,7 +623,7 @@ int main(int argc, char **argv)
     const char * heavyblockname = NULL;
     int nchars, nratchars = 0;
     alg_prime_t *chars;
-    cado_poly pol;
+    cado_poly cpoly;
     const char *purgedname = NULL;
     const char *indexname = NULL;
     const char *outname = NULL;
@@ -661,7 +661,7 @@ int main(int argc, char **argv)
     heavyblockname = param_list_lookup_string(pl, "heavyblock");
     bw_kernel_file = param_list_lookup_string(pl, "ker");
 
-    cado_poly_init (pol);
+    cado_poly_init (cpoly);
 
     const char * tmp;
 
@@ -671,7 +671,7 @@ int main(int argc, char **argv)
         param_list_print_usage (pl, argv0, stderr);
         exit (EXIT_FAILURE);
       }
-    cado_poly_read(pol, tmp);
+    cado_poly_read(cpoly, tmp);
 
     if (param_list_parse_int(pl, "nchar", &nchars) == 0)
       {
@@ -706,14 +706,14 @@ int main(int argc, char **argv)
     /* Put characters on all algebraic sides */
     int nch[2] = {nratchars, 0};
     for (int side = 0; side < 2; ++side) {
-        if (pol->pols[side]->deg > 1)
+        if (cpoly->pols[side]->deg > 1)
             nch[side] = nchars;
     }
 
     struct worker_threads_group * g = worker_threads_init (nthreads);
-    chars = create_characters (nch, pol, lpb);
+    chars = create_characters (nch, cpoly, lpb);
     int nchars2 = iceildiv(nch[0] + nch[1], 64) * 64;
-    blockmatrix bcmat = big_character_matrix(chars, nchars2, purgedname, pol, g);
+    blockmatrix bcmat = big_character_matrix(chars, nchars2, purgedname, cpoly, g);
     free(chars);
     worker_threads_clear(g);
 
@@ -817,7 +817,7 @@ int main(int argc, char **argv)
     }
     // blockmatrix_free(k);
 
-    cado_poly_clear(pol);
+    cado_poly_clear(cpoly);
     param_list_clear(pl);
 
     /* print total time and memory usage */

@@ -125,11 +125,11 @@ public:
     inline unsigned int get_max_lpb() const { return *std::max_element(lpb.begin(), lpb.end()); }
     inline unsigned int get_min_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
     inline uint64_t get_size() const { return above_all; }
-    inline unsigned int get_nb_polys() const { return cpoly->nb_polys; }
+    inline int get_nb_polys() const { return cpoly->nb_polys; }
     inline mpz_poly_srcptr get_poly(int side) const { return cpoly->pols[side]; }
     inline int get_poly_deg(int side) const { return get_poly(side)->deg; }
     inline int get_rational_side() const {
-        for(unsigned int side = 0 ; side < get_nb_polys() ; side++) {
+        for(int side = 0 ; side < get_nb_polys() ; side++) {
             if (get_poly_deg(side) == 1) return side;
         }
         return -1;
