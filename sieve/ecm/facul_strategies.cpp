@@ -188,6 +188,78 @@ struct strategy_file_parser {/*{{{*/
     typedef std::array<unsigned int, 2> key_type;;
     typedef std::vector<facul_method::parameters_with_side> value_type;
 private:
+    struct match_keyword {/*{{{*/
+        std::string keyword;
+        match_keyword(std::string const & keyword) : keyword(keyword) {}
+        bool operator()(const char * & str) const
+        {
+            for( ; *str && isspace(*str) ; str++);
+            if (strncmp(str, keyword.c_str(), keyword.size()) == 0) {
+                str += 3;
+                return true;
+            }
+            return false;
+        }
+    };/*}}}*/
+    match_keyword match_end { "end" };
+    class regexp_define_t {/*{{{*/
+        regex_t re;
+        public:
+        typedef std::string T;
+        regexp_define_t() {
+            const char * re_txt =
+                "^[[:space:]]*"
+                "define[[:space:]]+"
+                "([[:alnum:]_]+)";
+            regcomp (&re, re_txt, REG_ICASE|REG_EXTENDED);
+        }
+        ~regexp_define_t() {
+            regfree(&re);
+        }
+        bool operator()(T & name, const char * & str) const
+        {
+            constexpr const int nmatch = 2;
+            regmatch_t p[nmatch];
+            if (regexec (&re, str, nmatch, p, 0) == REG_NOMATCH)
+                return false;
+            if (p[0].rm_so == p[0].rm_eo)
+                return false;
+            name = std::string(str + p[1].rm_so, str + p[1].rm_eo);
+            str += p[0].rm_eo;
+            return true;
+        }
+    };/*}}}*/
+    regexp_define_t regexp_define;
+
+    class regexp_use_t {/*{{{*/
+        regex_t re;
+        public:
+        typedef std::string T;
+        regexp_use_t() {
+            const char * re_txt =
+                "^[[:space:]]*"
+                "use[[:space:]]+"
+                "([[:alnum:]_]+)";
+            regcomp (&re, re_txt, REG_ICASE|REG_EXTENDED);
+        }
+        ~regexp_use_t() {
+            regfree(&re);
+        }
+        bool operator()(T & name, const char * & str) const
+        {
+            constexpr const int nmatch = 2;
+            regmatch_t p[nmatch];
+            if (regexec (&re, str, nmatch, p, 0) == REG_NOMATCH)
+                return false;
+            if (p[0].rm_so == p[0].rm_eo)
+                return false;
+            name = std::string(str + p[1].rm_so, str + p[1].rm_eo);
+            str += p[0].rm_eo;
+            return true;
+        }
+    };/*}}}*/
+    regexp_use_t regexp_use;
+
     class regexp_index_t {/*{{{*/
         regex_t re;
         public:
@@ -265,7 +337,7 @@ private:
             const char *str_preg_fm =
                 "^\\[?[[:space:]]*"
                 "S([[:alnum:]]+):[[:space:]]*"  /* side, like "S0: " */
-                "([[:alnum:]-]+)"               /* method, like "PP1-65" or "ECM-M12" */
+                "([[:alnum:]_-]+)"               /* method, like "PP1-65" or "ECM-M12" */
                 ",[[:space:]]*([[:digit:]]+)"   /* B1, an integer */
                 ",[[:space:]]*([[:digit:]]+)"   /* B2, an integer */
                 "[[:space:]]*"
@@ -329,6 +401,9 @@ private:
         verbose_output_print(0, 2, "# Read the cofactorization strategy file\n");
         // first, read linearly.
         std::vector<std::pair<key_type, value_type>> pre_parse;
+        std::map<std::string, value_type> macros;
+
+        value_type * current = nullptr;
         
         fseek (file, 0, SEEK_SET);
         for(char line[10000]; fgets (line, sizeof(line), file) != NULL ; )
@@ -343,19 +418,51 @@ private:
 
                 key_type index_st;
                 value_type::value_type fm;
+                std::string macro;
 
                 if (regexp_index(index_st, str)) {
                     regexp_timing_comment_t::T p_and_t;
                     regexp_timing_comment(p_and_t, str);
 
                     pre_parse.emplace_back(index_st, value_type());
+                    current = &pre_parse.back().second;
+
                     continue;
-                } else if (regexp_fm(fm, str)) {
-                    if (pre_parse.empty()) {
+                } else if (match_end(str)) {
+                    if (current == nullptr) {
+                        fprintf(stderr, "# dangling \"end\" keyword in strategies file\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    current = nullptr;
+                } else if (regexp_define(macro, str)) {
+                    auto it = macros.emplace(macro, value_type());
+                    if (!it.second) {
+                        fprintf(stderr, "# macro %s redefined in strategies file\n", macro.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    current = &it.first->second;
+                } else if (regexp_use(macro, str)) {
+                    if (current == nullptr) {
                         fprintf(stderr, "# dangling methods in strategies file\n");
                         exit(EXIT_FAILURE);
                     }
-                    pre_parse.back().second.push_back(fm);
+                    auto it = macros.find(macro);
+                    if (it == macros.end()) {
+                        fprintf(stderr, "# macro %s unknown in strategies file\n", macro.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    auto const & M = it->second;
+                    if (current == &M) {
+                        fprintf(stderr, "# circular use of macro %s in strategies file\n", macro.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    current->insert(current->end(), M.begin(), M.end());
+                } else if (regexp_fm(fm, str)) {
+                    if (current == nullptr) {
+                        fprintf(stderr, "# dangling methods in strategies file\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    current->push_back(fm);
                 } else {
                     fprintf(stderr, "# parse error in strategies file\n");
                     fprintf(stderr, "# cannot parse: %s\n", str);
