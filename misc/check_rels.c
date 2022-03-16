@@ -27,19 +27,17 @@
 #include "verbose.h"         // for verbose_interpret_parameters
 
 
-#define FACTOR_DO_NOT_DIVIDE 1UL
+#define FACTOR_DOES_NOT_DIVIDE 1UL
 #define FACTOR_NOT_PRIME 2UL
 #define FACTORIZATION_NOT_COMPLETE 4UL
 #define FACTOR_ABOVE_LPB 8UL
 #define REL_FULLY_FIXED 16UL
-#define LESS_THAN_2_SIDES 32UL
 
 uint64_t nrels_read = 0, nrels_ok = 0, nrels_err = 0, nrels_fullyfixed = 0,
-         nrels_donotdivide = 0, nrels_notprime = 0, nrels_notcomplete = 0,
-         nrels_abovelpb = 0, nrels_fullycompleted = 0, nrels_fixednotprime = 0,
-         nrels_less2sides = 0;
+         nrels_doesnotdivide = 0, nrels_notprime = 0, nrels_notcomplete = 0,
+         nrels_abovelpb = 0, nrels_fullycompleted = 0, nrels_fixednotprime = 0;
 cado_poly cpoly;
-unsigned long lpb[NB_POLYS_MAX] = {0, 0, 0, 0, 0, 0, 0, 0};
+unsigned long * lpb;    // full bounds, with the 2^...
 unsigned long lpb_max = 0;
 int verbose = 0;
 int abhexa = 0;
@@ -77,7 +75,7 @@ print_error_line (prime_t prime, mpz_t norm[],
   exponent_t e = prime.e;
   char *str = (will_be_fixed) ? "Warning" : "Error";
 
-  if (err_type == FACTOR_DO_NOT_DIVIDE)
+  if (err_type == FACTOR_DOES_NOT_DIVIDE)
   {
     fprintf (stderr, "#   Error, given factor %" PRpr " with exponent %u does "
                      "not divide the norm on side %u\n", p, e, side);
@@ -136,12 +134,11 @@ factor_nonprime_ideal (earlyparsed_relation_ptr rel, weight_t i)
 }
 
 static int
-more_job (mpz_t norm[], int nb_poly)
+both_equal_to_1 (mpz_t norm[])
 {
-  for(int side = 0; side < nb_poly; side++)
-    if(mpz_cmp_ui (norm[side], 1) != 0)
-      return 1;
-  return 0;
+  if(mpz_cmp_ui (norm[0], 1) != 0) return 0;
+  if(mpz_cmp_ui (norm[1], 1) != 0) return 0;
+  return 1;
 }
 
 /* return 0 if everything is ok (factorization, primality, and complete)
@@ -157,11 +154,9 @@ more_job (mpz_t norm[], int nb_poly)
 unsigned long
 process_one_relation (earlyparsed_relation_ptr rel)
 {
-  mpz_t norm[NB_POLYS_MAX];
-  char used[NB_POLYS_MAX];
-  memset(used, 0, NB_POLYS_MAX); /* which sides are in use */
-  for(int side = 0 ; side < cpoly->nb_polys ; side++)
-    mpz_init (norm[side]);
+  mpz_t norm[2];
+  unsigned int * side_to_index = malloc(cpoly->nb_polys * sizeof(unsigned int));
+  memset(side_to_index, -1, cpoly->nb_polys * sizeof(unsigned int));
   unsigned long err = 0;
 
   if (verbose)
@@ -171,44 +166,26 @@ process_one_relation (earlyparsed_relation_ptr rel)
       fflush (stderr);
     }
 
-  /* Look for which sides are in use */
-  for(weight_t i = 0; i < rel->nb ; i++)
-    used[rel->primes[i].side] = 1;
-
-  int nb_side_used = 0;
-  for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-    if (used[side])
-       nb_side_used++;
-  }
-  if (nb_side_used < 2) {
-      if (verbose) {
-          fprintf(stderr, "   relation with less than 2 sides\n");
-          fflush(stderr);
-      }
-      err = LESS_THAN_2_SIDES;
-  }
-
-  /* compute the norm on alg and rat sides */
-  for(int side = 0 ; side < cpoly->nb_polys ; side++)
+  /* compute the norms */
+  for(unsigned int side_index = 0 ; side_index < 2 ; side_index++)
   {
-    if (used[side])
-    {
+      int side = rel->active_sides[side_index];
+      mpz_init (norm[side_index]);
+      side_to_index[side] = side_index;
       mpz_poly_ptr ps = cpoly->pols[side];
-      mpz_poly_homogeneous_eval_siui (norm[side], ps, rel->a, rel->b);
-      if (verbose)
-	{
-	  gmp_fprintf (stderr, "#   norm on side %d = %Zu\n", side, norm[side]);
-	  fflush (stderr);
-	}
-    }
-    else
-      mpz_set_ui (norm[side], 1);
+      mpz_poly_homogeneous_eval_siui (norm[side_index], ps, rel->a, rel->b);
+      if (verbose) {
+          gmp_fprintf (stderr, "#   norm on side %d = %Zu\n", side, norm[side_index]);
+          fflush (stderr);
+      }
   }
 
   /* check for correctness of the factorization of the norms */
-  for(weight_t i = 0; i < rel->nb ; i++)
-  {
+  for(weight_t i = 0; i < rel->nb ; i++) {
     int side = rel->primes[i].side;
+    unsigned int side_index = side_to_index[side];
+    /* otherwise the relation is bad */
+    ASSERT_ALWAYS(side_index < 2);
     p_r_values_t p = rel->primes[i].p;
     exponent_t e = rel->primes[i].e;
     ASSERT_ALWAYS(p != 0); /* could reveal a problem in parsing */
@@ -217,9 +194,9 @@ process_one_relation (earlyparsed_relation_ptr rel)
     {
       if (!mpz_divisible_ui_p (norm[side], p))
       {
-        err |= FACTOR_DO_NOT_DIVIDE;
+        err |= FACTOR_DOES_NOT_DIVIDE;
         if (verbose != 0)
-          print_error_line (rel->primes[i], norm, FACTOR_DO_NOT_DIVIDE, fix_it);
+          print_error_line (rel->primes[i], norm, FACTOR_DOES_NOT_DIVIDE, fix_it);
       }
       else
         mpz_divexact_ui (norm[side], norm[side], p);
@@ -250,9 +227,10 @@ process_one_relation (earlyparsed_relation_ptr rel)
     }
 
     /* Check that the product of the factors is equal to the norm. */
-    for(int side = 0 ; side < cpoly->nb_polys ; side++)
+    for(unsigned int side_index = 0 ; side_index < 2 ; side_index++)
     {
-      if (mpz_cmp_ui (norm[side], 1) != 0)
+      int side = rel->active_sides[side_index];
+      if (mpz_cmp_ui (norm[side_index], 1) != 0)
       {
         err |= FACTORIZATION_NOT_COMPLETE;
         if (verbose != 0)
@@ -271,16 +249,17 @@ process_one_relation (earlyparsed_relation_ptr rel)
       unsigned long max_p = MAX (lpb_max, 10000);
       prime_info pi;
       prime_info_init (pi);
-      for (unsigned long p = 2; more_job (norm, cpoly->nb_polys) && p < max_p ;
+      for (unsigned long p = 2; !both_equal_to_1 (norm) && p < max_p ;
            p = getprime_mt (pi))
       {
-        for(int side = 0 ; side < cpoly->nb_polys ; side++)
+        for(unsigned int side_index = 0 ; side_index < 2 ; side_index++)
         {
+          int side = rel->active_sides[side_index];
           exponent_t e = 0;
-          while (mpz_divisible_ui_p (norm[side], p))
+          while (mpz_divisible_ui_p (norm[side_index], p))
           {
             e++;
-            mpz_divexact_ui (norm[side], norm[side], p);
+            mpz_divexact_ui (norm[side_index], norm[side_index], p);
           }
           if (e != 0)
           {
@@ -297,7 +276,7 @@ process_one_relation (earlyparsed_relation_ptr rel)
       }
       prime_info_clear (pi);
 
-      if (more_job (norm, cpoly->nb_polys))
+      if (!both_equal_to_1 (norm))
 	{
 	  gmp_fprintf (stderr, "#   factorization of the norm is still not "
 		       "complete on at least one side\n");
@@ -306,11 +285,10 @@ process_one_relation (earlyparsed_relation_ptr rel)
     }
 
     /* check that ideals appearing in the relations are below the lpb. We
-     * skipped this check if all the primes dividing the norms are not known
+     * skip this check if all the primes dividing the norms are not known
      * (because we do not know if the missing primes are below or above the
      * lpbs). */
-    if (!more_job (norm, cpoly->nb_polys))
-    {
+    if (both_equal_to_1 (norm)) {
       for(weight_t i = 0; i < rel->nb ; i++)
       {
         p_r_values_t p = rel->primes[i].p;
@@ -325,12 +303,14 @@ process_one_relation (earlyparsed_relation_ptr rel)
     }
 
     if (fix_it && (err & FACTOR_NOT_PRIME || err & FACTORIZATION_NOT_COMPLETE))
-      if (!more_job (norm, cpoly->nb_polys))
+      if (both_equal_to_1 (norm))
         err |= REL_FULLY_FIXED;
   }
 
-  for(int side = 0 ; side < cpoly->nb_polys ; side++)
-    mpz_clear(norm[side]);
+  for(unsigned int side_index = 0 ; side_index < 2 ; side_index++)
+    mpz_clear(norm[side_index]);
+
+  free(side_to_index);
 
   if (verbose)
     {
@@ -411,8 +391,8 @@ thread_callback (void * context_data, earlyparsed_relation_ptr rel)
     is_printable = 0;
   }
 
-  if (ret & FACTOR_DO_NOT_DIVIDE)
-    nrels_donotdivide++;
+  if (ret & FACTOR_DOES_NOT_DIVIDE)
+    nrels_doesnotdivide++;
   if (ret & FACTOR_NOT_PRIME)
   {
     if (ret & REL_FULLY_FIXED && is_printable)
@@ -430,9 +410,6 @@ thread_callback (void * context_data, earlyparsed_relation_ptr rel)
   if (ret & FACTOR_ABOVE_LPB)
     nrels_abovelpb++;
   
-  if (ret & LESS_THAN_2_SIDES)
-    nrels_less2sides++;
-
   if (outfile && is_printable)
     print_relation (outfile, rel);
 
@@ -472,9 +449,6 @@ int
 main (int argc, char * argv[])
 {
     char * argv0 = argv[0];
-    int lpb_arg[NB_POLYS_MAX] = { 0 };
-    unsigned int lpb0_arg = 0;
-    unsigned int lpb1_arg = 0;
     FILE *outfile = NULL;
 
     param_list pl;
@@ -508,15 +482,15 @@ main (int argc, char * argv[])
     param_list_print_command_line (stdout, pl);
     fflush(stdout);
 
-    param_list_parse_uint (pl, "lpb0", &lpb0_arg);
-    param_list_parse_uint (pl, "lpb1", &lpb1_arg);
-    int narg = param_list_parse_int_list (pl, "lpbs", lpb_arg, NB_POLYS_MAX, ",");
-
     const char * polyfilename = param_list_lookup_string(pl, "poly");
     const char *outfilename = param_list_lookup_string(pl, "out");
     const char * filelist = param_list_lookup_string(pl, "filelist");
     const char * basepath = param_list_lookup_string(pl, "basepath");
     const char * path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
+    param_list_lookup_string(pl, "lpb0");
+    param_list_lookup_string(pl, "lpb1");
+    param_list_lookup_string(pl, "lpbs");
+
     set_antebuffer_path (argv0, path_antebuffer);
 
     if (param_list_warn_unused(pl))
@@ -547,51 +521,19 @@ main (int argc, char * argv[])
       exit (EXIT_FAILURE);
     }
 
-    if (narg == 0) /* lpbs were given as -lpb0 and -lpb1 */
+    lpb = malloc(cpoly->nb_polys * sizeof(unsigned long));
     {
-      if (cpoly->nb_polys > 2) /* With more than 2 polys, must use -lpbs. */
-      {
-        fprintf (stderr, "Error, missing -lpbs command line argument\n");
-        usage (pl, argv0);
-      }
-      if (lpb0_arg == 0 || lpb1_arg == 0)
-      {
-        fprintf (stderr, "Error, missing -lpb0 and/or -lpb1 command line "
-                         "argument\n");
-        usage (pl, argv0);
-      }
-      lpb[0] = 1UL << lpb0_arg;
-      lpb[1] = 1UL << lpb1_arg;
-    }
-    else /* lpbs were given as -lpbs x,x,x,... */
-    {
-      if (narg != cpoly->nb_polys)
-      {
-        fprintf (stderr, "Error, the number of values given in -lpbs does not "
-                         "correspond to the number of polynomials\n");
-        usage (pl, argv0);
-      }
-      if (lpb0_arg != 0)
-        fprintf (stderr, "Warning, the value given by -lpb0 will be ignored, "
-                         "the one given by -lpbs will be used\n");
-      if (lpb1_arg != 0)
-        fprintf (stderr, "Warning, the value given by -lpb1 will be ignored, "
-                         "the one given by -lpbs will be used\n");
-      for (int i = 0; i < cpoly->nb_polys; i++)
-      {
-        if (lpb_arg[i] <= 0)
-        {
-          fprintf (stderr, "Error, -lpbs command line argument cannot contain "
-                           "non-positive values\n");
-          usage (pl, argv0);
+        unsigned int * lpb_arg = malloc(cpoly->nb_polys * sizeof(unsigned int));
+        param_list_parse_uint_args_per_side(pl, "lpb",
+                lpb_arg, cpoly->nb_polys,
+                ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS);
+        lpb_max = 0;
+        for (int i = 1; i < cpoly->nb_polys; i++) {
+            lpb[i] = 1UL << lpb_arg[i];
+            lpb_max = MAX(lpb_max, lpb[i]);
         }
-        lpb[i] = 1UL << lpb_arg[i];
-      }
+        free(lpb_arg);
     }
-
-    lpb_max = lpb[0];
-    for (int i = 1; i < cpoly->nb_polys; i++)
-      lpb_max = MAX(lpb_max, lpb[i]);
 
     char ** files = filelist ? filelist_from_file(basepath, filelist, 0) : argv;
 
@@ -631,9 +573,8 @@ main (int argc, char * argv[])
       printf("Number of wrong relations: %" PRIu64 "\n", nrels_err);
       printf("   among which %" PRIu64 " had a factor not dividing the norm\n"
              "           and %" PRIu64 " could not be fully completed\n"
-             "           and %" PRIu64 " contained an ideal larger than a lpb\n"
-             "           and %" PRIu64 " contained less than 2 sides\n",
-             nrels_donotdivide, nrels_notcomplete, nrels_abovelpb, nrels_less2sides);
+             "           and %" PRIu64 " contained an ideal larger than a lpb\n",
+             nrels_doesnotdivide, nrels_notcomplete, nrels_abovelpb);
     }
     else
     {
@@ -641,10 +582,9 @@ main (int argc, char * argv[])
       printf("   among which %" PRIu64 " had a factor not dividing the norm\n"
              "           and %" PRIu64 " contained at least 1 non-prime factor\n"
              "           and %" PRIu64 " were not complete\n"
-             "           and %" PRIu64 " contained an ideal larger than a lpb\n"
-             "           and %" PRIu64 " contained less than 2 sides\n",
-             nrels_donotdivide, nrels_notprime, nrels_notcomplete,
-             nrels_abovelpb, nrels_less2sides);
+             "           and %" PRIu64 " contained an ideal larger than a lpb\n",
+             nrels_doesnotdivide, nrels_notprime, nrels_notcomplete,
+             nrels_abovelpb);
     }
 
     if (filelist)
@@ -655,6 +595,7 @@ main (int argc, char * argv[])
 
     param_list_clear(pl);
     cado_poly_clear (cpoly);
+    free(lpb);
 
     timingstats_dict_add_mythread(stats, "main");
     timingstats_dict_disp(stats);

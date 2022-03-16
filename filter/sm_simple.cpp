@@ -128,7 +128,6 @@ int main (int argc, char **argv)
 
   param_list pl;
   cado_poly cpoly;
-  mpz_poly_ptr F[NB_POLYS_MAX];
 
   mpz_t ell, ell2;
   double t0;
@@ -175,6 +174,9 @@ int main (int argc, char **argv)
   /* Init polynomial */
   cado_poly_init (cpoly);
   cado_poly_read(cpoly, polyfile);
+
+  std::vector<mpz_poly_srcptr> F(cpoly->nb_polys, NULL);
+
   for(int side = 0; side < cpoly->nb_polys; side++)
       F[side] = cpoly->pols[side];
 
@@ -188,7 +190,7 @@ int main (int argc, char **argv)
   mpz_init(ell2);
   mpz_mul(ell2, ell, ell);
 
-  sm_side_info sm_info[NB_POLYS_MAX];
+  sm_side_info * sm_info = new sm_side_info[cpoly->nb_polys];
 
   for(int side = 0 ; side < cpoly->nb_polys; side++) {
     sm_side_info_init(sm_info[side], F[side], ell);
@@ -215,6 +217,7 @@ int main (int argc, char **argv)
   for(int side = 0 ; side < cpoly->nb_polys ; side++) {
     sm_side_info_clear(sm_info[side]);
   }
+  delete[] sm_info;
 
   mpz_clear(ell);
   mpz_clear(ell2);

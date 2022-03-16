@@ -251,8 +251,8 @@ struct logtab
         mpz_set(this->ell, ell);
         nknown = 0;
         nbsm = 0;
-        for(int i = 0 ; i < cpoly->nb_polys ; i++) {
-            nbsm += sm_info[i]->nsm;
+        for(int side = 0 ; side < cpoly->nb_polys ; side++) {
+            nbsm += sm_info[side]->nsm;
         }
         data = (mp_limb_t *) malloc((nprimes + nbsm) * mpz_size(ell) * sizeof(mp_limb_t));
         FATAL_ERROR_CHECK(data == NULL, "Cannot allocate memory");
@@ -1296,12 +1296,6 @@ main(int argc, char *argv[])
   uint64_t nprimes;
   int mt = 1;
   int partial = 0;
-  int nsm_arg[NB_POLYS_MAX];
-
-  /* negative value means that the value that will be used is the value
-   * computed later by sm_side_info_init */
-  for (int side = 0; side < NB_POLYS_MAX; side++)
-    nsm_arg[side] = -1;
 
   mpz_t ell;
   cxx_cado_poly cpoly;
@@ -1422,15 +1416,19 @@ main(int argc, char *argv[])
   }
 
   /* Read number of sm to be printed from command line */
-  param_list_parse_int_list (pl, "nsm", nsm_arg, cpoly->nb_polys, ",");
-  for(int side = 0; side < cpoly->nb_polys; side++)
-  {
-    if (nsm_arg[side] > cpoly->pols[side]->deg)
-    {
-      fprintf(stderr, "Error: nsm%d=%d can not exceed the degree=%d\n",
-                      side, nsm_arg[side], cpoly->pols[side]->deg);
-      exit (EXIT_FAILURE);
-    }
+  std::vector<int> nsm_arg(cpoly->nb_polys, -1);
+  param_list_parse_int_args_per_side(pl, "nsm",
+          nsm_arg.data(), cpoly->nb_polys,
+          ARGS_PER_SIDE_DEFAULT_AS_IS);
+
+  for(int side = 0; side < cpoly->nb_polys; side++) {
+      if (nsm_arg[side] < 0)
+          continue;
+      if (nsm_arg[side] > cpoly->pols[side]->deg) {
+          fprintf(stderr, "Error: nsm%d=%d can not exceed the degree=%d\n",
+                  side, nsm_arg[side], cpoly->pols[side]->deg);
+          exit (EXIT_FAILURE);
+      }
   }
 
   const char * sm_mode_string = param_list_lookup_string(pl, "sm-mode");
@@ -1444,7 +1442,7 @@ main(int argc, char *argv[])
   set_antebuffer_path (argv0, path_antebuffer);
 
   /* Init data for computation of the SMs. */
-  sm_side_info sm_info[NB_POLYS_MAX];
+  sm_side_info * sm_info = new sm_side_info[cpoly->nb_polys];
   for (int side = 0; side < cpoly->nb_polys; side++)
   {
     sm_side_info_init(sm_info[side], cpoly->pols[side], ell);
@@ -1550,6 +1548,7 @@ main(int argc, char *argv[])
 
   for (int side = 0 ; side < cpoly->nb_polys ; side++)
     sm_side_info_clear (sm_info[side]);
+  delete[] sm_info;
 
   bit_vector_clear(rels_to_process);
   param_list_clear (pl);

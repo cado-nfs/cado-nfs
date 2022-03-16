@@ -13,14 +13,12 @@
    allocating storage (i.e. "mpz_t poly[MAX_DEGREE]") */
 #define MAX_DEGREE 10
 
-#define NB_POLYS_MAX 8 /* maximal number of polynomials in multiple fields */
-
 struct cado_poly_s {
   mpz_t n;        /* number to factor */
   double skew;    /* skewness from poly file, if given, otherwise 0. */
 
   int nb_polys;   /* number of polynomials used, 2 in most cases */
-  mpz_poly pols[NB_POLYS_MAX];
+  mpz_poly * pols;
 };
 typedef struct cado_poly_s cado_poly[1];
 typedef struct cado_poly_s * cado_poly_ptr;
@@ -50,6 +48,7 @@ void cado_poly_fprintf_MurphyE (FILE *, double, double, double, double,
  */
 
 extern void cado_poly_init (cado_poly_ptr);
+extern void cado_poly_provision_new_poly(cado_poly_ptr);
 extern void cado_poly_clear (cado_poly_ptr);
 
 extern int cado_poly_check_mapping(mpz_poly_ptr G, cado_poly_srcptr cpoly,

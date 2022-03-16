@@ -30,8 +30,6 @@ void polyselect_main_data_init_defaults(polyselect_main_data_ptr main)
     mpz_init(main->admin);
     mpz_init(main->admax);
     mpz_init(main->N);
-    cado_poly_init(main->best_poly);
-    cado_poly_init(main->curr_poly);
     pthread_mutex_init(&main->lock, NULL);
     main->verbose = 0;
     main->sopt_effort = SOPT_DEFAULT_EFFORT;
@@ -53,8 +51,6 @@ void polyselect_main_data_clear(polyselect_main_data_ptr main)
     mpz_clear(main->admin);
     mpz_clear(main->admax);
     mpz_clear(main->N);
-    cado_poly_clear(main->best_poly);
-    cado_poly_clear(main->curr_poly);
     pthread_mutex_destroy(&main->lock);
     polyselect_stats_clear(main->stats);
 #ifdef HAVE_HWLOC
@@ -326,16 +322,6 @@ void polyselect_main_data_parse_Nd(polyselect_main_data_ptr main, param_list_ptr
     /* check degree */
     if (main->d <= 0)
         param_list_generic_failure(pl, "degree");
-
-    /* set cpoly */
-    mpz_set(main->best_poly->n, main->N);
-    mpz_set(main->curr_poly->n, main->N);
-
-    /* do we have cado_poly_* interface calls for these? */
-    main->best_poly->pols[ALG_SIDE]->deg = main->d;
-    main->best_poly->pols[RAT_SIDE]->deg = 1;
-    main->curr_poly->pols[ALG_SIDE]->deg = main->d;
-    main->curr_poly->pols[RAT_SIDE]->deg = 1;
 }
 
 /*  parse incr, admin, admax */

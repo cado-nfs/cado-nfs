@@ -85,14 +85,27 @@ typedef struct sm_side_info_s * sm_side_info_ptr;
 typedef const struct sm_side_info_s * sm_side_info_srcptr;
 
 typedef struct {
-  mpz_poly num[NB_POLYS_MAX];
-  mpz_poly denom[NB_POLYS_MAX];
+  mpz_poly * num;
+  mpz_poly * denom;
   int nb_polys;
 } sm_relset_struct_t;
 
 typedef sm_relset_struct_t sm_relset_t[1];
 typedef sm_relset_struct_t * sm_relset_ptr;
 typedef const sm_relset_struct_t * sm_relset_srcptr;
+
+/* For MNFS, just "a,b" is not enough. We want to know the sides that are
+ * related to the pair.
+ * This is only used by thread_sm
+ */
+struct pair_and_sides_s {
+    /* mpz_poly because we might think of using higher degree */
+    mpz_poly ab;
+    unsigned int active_sides[2];
+};
+typedef struct pair_and_sides_s pair_and_sides[1];
+typedef struct pair_and_sides_s * pair_and_sides_ptr;
+typedef const struct pair_and_sides_s * pair_and_sides_srcptr;
 
 #ifdef __cplusplus
 extern "C" {
@@ -103,8 +116,8 @@ void sm_side_info_set_mode(sm_side_info_ptr sm, const char * mode_string);
 void sm_side_info_clear(sm_side_info_ptr sm);
 void sm_side_info_print(FILE * out, sm_side_info_srcptr sm);
 
-void sm_relset_init (sm_relset_t r, int *d, int nb_polys);
-void sm_relset_clear (sm_relset_t r, int nb_polys);
+void sm_relset_init (sm_relset_t r, const mpz_poly_srcptr * F, int nb_polys);
+void sm_relset_clear (sm_relset_t r);
 void sm_relset_copy (sm_relset_t r, sm_relset_srcptr s);
 
 // (a,b) -> a - b*x
@@ -114,9 +127,11 @@ void mpz_poly_init_set_ab (mpz_poly_ptr, int64_t, uint64_t);
 // combination of these rows, stored in a sm_relset structure.
 // If F[0] or F[1] is NULL, then no computation is done on the
 // corresponding side.
-void sm_build_one_relset (sm_relset_ptr rel, uint64_t *r, int64_t *e, int len,
-			  mpz_poly * abpolys, mpz_poly_ptr *F, int nb_polys, 
-			  const mpz_t ell2);
+void sm_build_one_relset (sm_relset_ptr rel,
+                    const uint64_t *r, const int64_t *e, int len,
+                    const pair_and_sides * ps,
+                    const mpz_poly_srcptr * F, int nb_polys,
+		    mpz_srcptr ell2);
 
 // Print coeffs of the SM polynomial
 void print_sm (FILE *f, sm_side_info_srcptr S, mpz_poly_srcptr SM);

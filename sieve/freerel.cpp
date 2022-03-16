@@ -159,8 +159,6 @@ int
 main(int argc, char* argv[])
 {
     argv0 = argv[0];
-    int lpb_arg[NB_POLYS_MAX] = { 0 };
-    std::vector<unsigned int> lpb;
     cxx_param_list pl;
     cxx_cado_poly cpoly;
     int for_dl = 0;
@@ -198,20 +196,18 @@ main(int argc, char* argv[])
 
     renumber_t::builder_lookup_parameters(pl);
 
-    int has_lpb01 = 0;
-    has_lpb01 += param_list_parse_int(pl, "lpb0", &(lpb_arg[0]));
-    has_lpb01 += param_list_parse_int(pl, "lpb1", &(lpb_arg[1]));
-    int has_nlpbs =
-      param_list_parse_int_list(pl, "lpbs", lpb_arg, NB_POLYS_MAX, ",");
-
     int nthreads = 0;
     if (param_list_parse_int (pl, "t", &nthreads)) {
         fprintf(stderr, "Warning: the -t argument to freerel is kept for compatibility, but you should rather take it out and let openmp deal with it\n");
         omp_set_num_threads(nthreads);
     }
 
-
     freerel_data_t::lookup_parameters(pl);
+
+    param_list_lookup_string(pl, "lpb0");
+    param_list_lookup_string(pl, "lpb1");
+    param_list_lookup_string(pl, "lpbs");
+
 
     if (param_list_warn_unused(pl))
         usage(pl, argv0);
@@ -228,36 +224,15 @@ main(int argc, char* argv[])
         fprintf(stderr, "Error reading polynomial file\n");
         exit(EXIT_FAILURE);
     }
-    if (has_nlpbs && has_lpb01) {
-        fprintf(stderr, "Error, lpb[01] and lpbs are incompatible\n");
-        exit(EXIT_FAILURE);
-    }
 
-    if (has_nlpbs == 0) /* lpbs were given as -lpb0 and -lpb1 */
-    {
-        has_nlpbs = 2;
-        if (cpoly->nb_polys > 2) /* With more than 2 polys, must use -lpbs. */
-        {
-            fprintf(stderr, "Error, missing -lpbs command line argument\n");
-            usage(pl, argv0);
-        }
-    }
+    std::vector<unsigned int> lpb(cpoly->nb_polys, 0);
 
-    if (has_nlpbs != cpoly->nb_polys) {
+    if (!param_list_parse_uint_args_per_side(pl, "lpb", lpb.data(), cpoly->nb_polys, ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS)) {
         fprintf(stderr,
-                "Error, the number of values given in -lpbs does not "
-                "correspond to the number of polynomials\n");
+                "Error, could not obtain values for the lpb bounds (or not for all polynomials)\n");
         usage(pl, argv0);
     }
-    lpb.assign(&lpb_arg[0], &lpb_arg[has_nlpbs]);
-    for (auto l : lpb) {
-        if (l <= 0) {
-            fprintf(stderr,
-                    "Error, -lpbs command line argument cannot contain "
-                    "non-positive values\n");
-            usage(pl, argv0);
-        }
-    }
+
     /* }}} */
 
     std::unique_ptr<freerel_data_t> F;

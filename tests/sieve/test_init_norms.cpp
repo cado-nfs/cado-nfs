@@ -221,9 +221,9 @@ int main (int argc0, char *argv0[])/*{{{*/
     sides.push_back(0);
     sides.push_back(1);
 
-    int * opt_sides;
+    unsigned int * opt_sides;
     unsigned int nopt_sides;
-    if (param_list_parse_int_list_size(pl, "norm-sides", &opt_sides, &nopt_sides)) {
+    if (param_list_parse_uint_list_size(pl, "norm-sides", &opt_sides, &nopt_sides)) {
         sides.clear();
         for(unsigned int i = 0 ; i < nopt_sides ; i++) {
             sides.push_back(opt_sides[i]);

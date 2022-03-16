@@ -177,6 +177,10 @@ compute_galois_action (renumber_t const & tab, const char *action)
     index_t ind[20];
     int nr;
     int j, ord, imat[4];
+    /* FIXME: I don't understand this code, and I'm pretty sure that it
+     * hasn't been exposed for ages. What's this placeholder value for
+     * the side (-1) ?
+     */
     renumber_t::p_r_side old { (p_r_values_t) 0, (p_r_values_t) 0, -1 };
     nr = 0;
 

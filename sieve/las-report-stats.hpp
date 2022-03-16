@@ -1,6 +1,7 @@
 #ifndef LAS_REPORT_STATS_HPP_
 #define LAS_REPORT_STATS_HPP_
 
+#include <exception>
 #include <stdint.h>      // for uint8_t
 #include <cstring>       // for memset, size_t
 #include <memory>        // for shared_ptr, allocator, make_shared, __shared...
@@ -88,31 +89,29 @@ struct las_report {
 struct coarse_las_timers {
     static int bookkeeping() { return 0; }
     static int search_survivors() { return 1; }
-    static int sieving(int side) { return 2 + side; }
-    static int sieving_mixed() { return 4; }
-    static int norms(int side) { return 5 + side; }
-    static int cofactoring(int side) { return 7 + side; }
-    static int cofactoring_mixed() { return 9; }
-    static int batch(int side) { return 10 + side; }
-    static int batch_mixed() { return 12; }
-    static int thread_wait() { return 13; }
+    static int sieving(int side) { return 2 + (side << 8); }
+    static int sieving_mixed() { return 3; }
+    static int norms(int side) { return 4 + (side << 8); }
+    static int cofactoring(int side) { return 5 + (side << 8); }
+    static int cofactoring_mixed() { return 6; }
+    static int batch(int side) { return 7 + (side << 8); }
+    static int batch_mixed() { return 8; }
+    static int thread_wait() { return 9; }
     static std::string explain_base(int x) {
+        int side = x >> 8;
+        x &= 255;
         switch(x) {
-            case -1: return "uncategorized (top-level bookkeeping)";
+            case 255: return "uncategorized (top-level bookkeeping)";
             case 0: return "bookkeeping (lower levels)";
             case 1: return "search_survivors";
-            case 2: return "sieving on side 0";
-            case 3: return "sieving on side 1";
-            case 4: return "sieving (not differentiated)";
-            case 5: return "norms on side 0";
-            case 6: return "norms on side 1";
-            case 7: return "cofactoring on side 0";
-            case 8: return "cofactoring on side 1";
-            case 9: return "cofactoring (not differentiated)";
-            case 10: return "product trees on side 0";
-            case 11: return "product trees on side 1";
-            case 12: return "product trees (not differentiated)";
-            case 13: return "worker thread wait";
+            case 2: return "sieving on side " + std::to_string(side);
+            case 3: return "sieving (not differentiated)";
+            case 4: return "norms on side " + std::to_string(side);
+            case 5: return "cofactoring on side " + std::to_string(side);
+            case 6: return "cofactoring (not differentiated)";
+            case 7: return "product trees on side " + std::to_string(side);
+            case 8: return "product trees (not differentiated)";
+            case 9: return "worker thread wait";
             default: ASSERT_ALWAYS(0);
         }
     }

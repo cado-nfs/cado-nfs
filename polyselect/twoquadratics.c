@@ -28,6 +28,8 @@ void
 cado_poly_extended_init (cado_poly_extended poly)
 {
   cado_poly_init (poly->poly);
+  cado_poly_provision_new_poly (poly->poly);
+  cado_poly_provision_new_poly (poly->poly);
   mpz_init (poly->m);
   mpz_init (poly->p);
   mpz_init (poly->skew);

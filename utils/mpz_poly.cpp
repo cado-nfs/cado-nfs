@@ -719,6 +719,14 @@ mpz_poly_init_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b)
     mpz_poly_setcoeff_int64(rel, 1, -b);
 }
 
+void
+mpz_poly_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b)
+{
+    mpz_poly_set_zero(rel);
+    mpz_poly_setcoeff_int64(rel, 0, a);
+    mpz_poly_setcoeff_int64(rel, 1, -b);
+}
+
 /* rel <- a-b*x */
 void
 mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b)

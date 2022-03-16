@@ -175,19 +175,15 @@ double
 print_poly_fg (mpz_poly_srcptr f, mpz_t *g, mpz_t N, int mode)
 {
    double e;
-   int i;
-   int d = f->deg;
 
    cado_poly cpoly;
-   cado_poly_init(cpoly);
-   for (i = 0; i < (d + 1); i++)
-      mpz_set(cpoly->pols[ALG_SIDE]->coeff[i], f->coeff[i]);
-   for (i = 0; i < 2; i++)
-      mpz_set(cpoly->pols[RAT_SIDE]->coeff[i], g[i]);
+   cado_poly_init (cpoly);
+   cado_poly_provision_new_poly(cpoly);
+   cado_poly_provision_new_poly(cpoly);
+   mpz_poly_set(cpoly->pols[ALG_SIDE], f);
+   mpz_poly_setcoeffs(cpoly->pols[RAT_SIDE], g, 1);
    mpz_set(cpoly->n, N);
    cpoly->skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
-   cpoly->pols[ALG_SIDE]->deg = d;
-   cpoly->pols[RAT_SIDE]->deg = 1;
 
    if (mode == 1)
      {
