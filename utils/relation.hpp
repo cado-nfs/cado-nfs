@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <vector>
+#include <array>
 #include <tuple>
 #include <istream> // std::istream // IWYU pragma: keep
 #include <ostream> // std::ostream // IWYU pragma: keep
