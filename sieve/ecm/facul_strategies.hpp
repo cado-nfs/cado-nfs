@@ -22,12 +22,16 @@ extern int nb_curves (const unsigned int lpb, const unsigned int mfb);
  */
 struct facul_strategy_oneside {
   unsigned long B;
-  unsigned int lpb;         /* Large prime bound 2^lpb */
-  double BB;                /* The factor base bound squared.
-                               We assume that primes <= fbb have already been 
-                               removed, thus any factor <= assume_prime_thresh 
-                               is assumed prime without further test. */
-  double BBB;               /* The factor base bound cubed. */
+  unsigned int lpb;  /* Large prime bound 2^lpb */
+  double BB;         /* The factor base bound squared.
+                      * We assume that primes <= fbb have already been
+                      * removed, thus any factor <= BB is assumed prime
+                      * without further test.
+                      * Note that BB is _only_ used for that, and that
+                      * setting BB=0 is an effective way to consider all
+                      * numbers as potential composites.
+                      */
+  double BBB;        /* The factor base bound cubed. */
   unsigned int mfb;
   std::vector<facul_method> methods;  /* List of methods to try */
 
