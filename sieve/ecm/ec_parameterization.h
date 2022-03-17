@@ -49,7 +49,6 @@ extern "C" {
       (4*A*(x3/z3)^3+3*(x3/z3)^4+6*(x3/z3)^2-1).is_zero() # P3 of order 3 ?
  */
 
-#define ec_parameterization_Brent_Suyama_is_valid MOD_APPEND_TYPE(ec_parameterization_Brent_Suyama_is_valid)
 static inline int
 ec_parameterization_Brent_Suyama_is_valid (const unsigned long sigma)
 {
@@ -57,6 +56,19 @@ ec_parameterization_Brent_Suyama_is_valid (const unsigned long sigma)
     return 0; /* invalid values */
   else
     return 1;
+}
+
+static inline unsigned long
+ec_parameterization_Brent_Suyama_valid_parameter_from_sequence(const unsigned long sequence_value)
+{
+    switch(sequence_value) {
+        case 0: return 11;
+        case 1: return 2;
+        case 3: return 4;
+    }
+    if (sequence_value <= 8)
+        return sequence_value + 2;
+    return sequence_value + 3;
 }
 
 /* Return 1 if it worked, 0 if a modular inverse failed.
@@ -166,7 +178,6 @@ ec_parameterization_Brent_Suyama (residue_t b, ec_point_t P0,
       # TODO check that 4*P12 is of order 3 and 3*P12 is of order 4
  */
 
-#define ec_parameterization_Montgomery12_is_valid MOD_APPEND_TYPE(ec_parameterization_Montgomery12_is_valid)
 static inline int
 ec_parameterization_Montgomery12_is_valid (const unsigned long k)
 {
@@ -174,6 +185,11 @@ ec_parameterization_Montgomery12_is_valid (const unsigned long k)
     return 0; /* invalid values */
   else
     return 1;
+}
+static inline unsigned long
+ec_parameterization_Montgomery12_valid_parameter_from_sequence (const unsigned long sequence_value)
+{
+    return sequence_value + 2;
 }
 
 /* Return 1 if it worked, 0 if a modular inverse failed.
@@ -291,13 +307,20 @@ ec_parameterization_Montgomery12 (residue_t b, ec_point_t P0,
  */
 
 
-#define ec_parameterization_Montgomery16_is_valid MOD_APPEND_TYPE(ec_parameterization_Montgomery16_is_valid)
 static inline int
 ec_parameterization_Montgomery16_is_valid (const unsigned long k)
 {
   if (k != 1)
     return 0; /* invalid values */
   else
+    return 1;
+}
+static inline unsigned long
+ec_parameterization_Montgomery16_valid_parameter_from_sequence (const unsigned long k MAYBE_UNUSED)
+{
+    /* there's only one curve. (well, it's more complicated, it seems)
+     * Is it best to always return the same curve, or to error out
+     * when k>0 ? */
     return 1;
 }
 
@@ -364,7 +387,6 @@ ec_parameterization_Montgomery16 (residue_t b, ec_point_t P0,
 /******************************************************************************/
 
 
-#define ec_parameterization_Z6_is_valid MOD_APPEND_TYPE(ec_parameterization_Z6_is_valid)
 static inline int
 ec_parameterization_Z6_is_valid (const unsigned long k)
 {
@@ -372,6 +394,12 @@ ec_parameterization_Z6_is_valid (const unsigned long k)
     return 0; /* invalid values */
   else
     return 1;
+}
+
+static inline unsigned long
+ec_parameterization_Z6_valid_parameter_from_sequence (const unsigned long k)
+{
+    return k + 1;
 }
 
 /* Produces curve

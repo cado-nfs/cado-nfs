@@ -1757,3 +1757,12 @@ sieve/ecm/facul_method.hpp
 sieve/ecm/facul_strategies.hpp
 sieve/ecm/facul_strategies_stats.cpp
 sieve/ecm/facul_strategies_stats.hpp
+tests/sieve/ecm/buggy1.st
+tests/sieve/ecm/buggy2.st
+tests/sieve/ecm/buggy3.st
+tests/sieve/ecm/buggy4.st
+tests/sieve/ecm/buggy5.st
+tests/sieve/ecm/buggy6.st
+tests/sieve/ecm/buggy7.st
+tests/sieve/ecm/test_strategy_file_parser.cpp
+tests/sieve/ecm/example1.st

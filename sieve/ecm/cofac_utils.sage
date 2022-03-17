@@ -60,8 +60,7 @@ def pp1_parameterization (P0, p):
 # Brent-Sumaya parameterization.
 # Given rational parameter sigma, compute an elliptic curve in Weierstrass
 # form together with a non torsion point.
-def BrentSuyama_parameterization (sigma, p) :
-  K = GF(p)
+def BrentSuyama_parameterization (sigma, K) :
   u = K(sigma^2 - 5)
   v = K(4*sigma)
   a = (v - u)^3 * (3*u + v)
@@ -79,18 +78,17 @@ def BrentSuyama_parameterization (sigma, p) :
 # Given integer parameter n, compute  an elliptic curve in Montgomery form
 # with torsion subgroup of order 12.
 # Returns an equivalent curve in short Weierstrass form.
-def Monty12_parameterization (n, p, verbose=false) :
-  K = GF(p)
+def Monty12_parameterization (n, K, verbose=false) :
   # v^2 = u^3 - 12u with generator (-2, 4)
   E = EllipticCurve (K, [0,0,0,-12,0])
   P0 = E.point([-2,4])
   [u,v,w] = n*P0
   if (verbose) :
-    print u, ":", v
-    t = v/(2*u)
-    t2 = t^2
-    a = (t2 - 1)/(t2 + 3)
-    # a != 0
+    print(u, ":", v)
+  t = v/(2*u)
+  t2 = t^2
+  a = (t2 - 1)/(t2 + 3)
+  # a != 0
   X0 = 3*a^2+1
   Z0 = 4*a
   A = -(3*a^4+6*a^2-1)/(4*a^3)
@@ -104,17 +102,24 @@ def Monty12_parameterization (n, p, verbose=false) :
   y = 2 * (u^2+12)/(4*u)  / ((t^2+3)*(4*a));
 
   if (verbose) :
-    print "t^2 = ", t2
-    print "a =   ", a
-    print "X0 =", X0, "is square (mod",p,")? ", X0.is_square()
-    print "A = ", A, ", B = ", B
-    print "x = ", x, ", y = ", y
-    print Ew
-    print "12 | order? ", Ew.order()%12 == 0
+    print("t^2 = ", t2)
+    print("a =   ", a)
+    if K.is_finite():
+        p = K.order()
+    else:
+        p = 1009
+        while E.has_bad_reduction(p):
+            p = p.next_prime()
+        print("example_p =", p, "(good reduction)")
+    print("X0 =", X0, "is square (mod",p,")? ", X0.is_square())
+    print("A = ", A, ", B = ", B)
+    print("x = ", x, ", y = ", y)
+    print(E)
+    print("12 | order? ", E.change_ring(GF(p)).order()%12 == 0)
     # (a,a) is a point of order 3
-    P3 = Ew([a*B,a*B^2])
-    print "P3 = ", P3
-    print "[3]P3 = ", 3*P3
+    P3 = E([a*B,a*B^2])
+    print("P3 = ", P3)
+    print("[3]P3 = ", 3*P3)
 
   return Weierstrass_from_Montgomery (A, B, [x, y])
 
@@ -122,10 +127,9 @@ def Monty12_parameterization (n, p, verbose=false) :
 # Montgomery elliptic parameterization with torsion group of order 16.
 # Only one curve with torsion 16 implemented so far (n = 1)
 # Returns the equivalent curve in short Weierstrass form.
-def Monty16_parameterization (n, p) :
+def Monty16_parameterization (n, K) :
   if n != 1:
     raise ValueError (sys._getframe().f_code.co_name + " requires n=1")
-  K = GF(p)
   A = K(54721/14400)
   x = K(8/15)
   y = K(1)
@@ -134,9 +138,7 @@ def Monty16_parameterization (n, p) :
   
         
 # Twisted Edwards parameterization with torsion group isomorphic to Z/6Z over Q
-# Computations are performed modulo p
-def Twed12_parameterization (n,p, verbose=false) :
-  K = GF(p)
+def Twed12_parameterization (n, K, verbose=false) :
   # Elliptic parameterization
   # E: y^2 = x^3 - 9747*x + 285714
   # rank = 1
@@ -217,18 +219,30 @@ def get_order_from_method(method, sigma, p) :
       o = p-1 if G == GF(p) else p+1
       po = x0.multiplicative_order()
       return (p, o, po, largest_prime_factor (po))
-    # ECM - Brent-Suyama
     elif (method == 2) :
-      T = BrentSuyama_parameterization (sigma, p)
-      # ECM - Monty12
+      # ECM - Brent-Suyama
+      E,P = BrentSuyama_parameterization (sigma, Rationals())
+      E=E.change_ring(GF(p))
+      P=E(P)
+      T=(E,P)
     elif (method == 3) :
-      T = Monty12_parameterization (sigma, p)
-      # ECM - Monty16
+      # ECM - Monty12
+      T = Monty12_parameterization (sigma, Rationals())
+      E=E.change_ring(GF(p))
+      P=E(P)
+      T=(E,P)
     elif (method == 4) :
-      T = Monty16_parameterization (sigma, p)
-      # ECM - Twed12
+      # ECM - Monty16
+      T = Monty16_parameterization (sigma, Rationals())
+      E=E.change_ring(GF(p))
+      P=E(P)
+      T=(E,P)
     elif (method == 5) :
-      T = Twed12_parameterization (sigma, p)
+      # ECM - Twed12
+      T = Twed12_parameterization (sigma, Rationals())
+      E=E.change_ring(GF(p))
+      P=E(P)
+      T=(E,P)
       
     o = T[0].order()
     po = T[-1].order()
