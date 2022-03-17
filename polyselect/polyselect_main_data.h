@@ -33,7 +33,6 @@ struct polyselect_main_data_s {
     unsigned long P;
 
     mpz_t admin, admax;
-    cado_poly best_poly, curr_poly;
 
     double maxtime;
     double target_E;		/* target E-value, 0.0 if not given */

@@ -159,8 +159,8 @@ int param_list_parse_double_list(param_list_ptr, const char * key,
   r: array with the integer value contained in the key.
   t: number of element in array.
 */
-extern int param_list_parse_int_list_size(param_list_ptr, const char * key,
-    int ** r, unsigned int * t);
+extern int param_list_parse_uint_list_size(param_list_ptr, const char * key,
+    unsigned int ** r, unsigned int * t);
 /*
   Return a mpz_poly f. The polynomial is initialised with the string separate by
   sep.
@@ -220,6 +220,13 @@ extern int param_list_save_parameter(param_list_ptr, enum parameter_origin o,
 extern void param_list_print_command_line(FILE * stream, param_list_ptr);
 
 extern void param_list_generic_failure(param_list_ptr pl, const char *missing);
+
+enum args_per_side_policy_t {
+    ARGS_PER_SIDE_DEFAULT_AS_IS,
+    ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS,
+};
+extern int param_list_parse_uint_args_per_side(param_list_ptr pl, const char * key, unsigned int * lpb_arg, unsigned int n, enum args_per_side_policy_t policy);
+extern int param_list_parse_int_args_per_side(param_list_ptr pl, const char * key, int * lpb_arg, unsigned int n, enum args_per_side_policy_t policy);
 
 #ifdef __cplusplus
 }

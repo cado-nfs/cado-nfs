@@ -189,7 +189,7 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
     ASSERT(matrix != NULL);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
+	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
 	ASSERT(matrix[r0] != NULL);
     }
 
@@ -205,7 +205,7 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
     unsigned long method_zero[4] = { 0, 0, 0, 0 };
     fm_set_method(zero, method_zero, 4);
 
-    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(*data_rat) * (mfb0 + 1));
+    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb0 + 1));
     ASSERT(data_rat);
 
     int lim = 2 * fbb0 - 1;
@@ -661,7 +661,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
     ASSERT(matrix != NULL);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
+	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
 	ASSERT(matrix[r0] != NULL);
     }
     
@@ -677,7 +677,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
     unsigned long method_zero[4] = { 0, 0, 0, 0 };
     fm_set_method(zero, method_zero, 4);
 
-    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(*data_rat) * (mfb0 + 1));
+    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb0 + 1));
     ASSERT(data_rat);
 
     int lim = 2 * fbb0 - 1;
@@ -789,7 +789,7 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
     ASSERT(matrix != NULL);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
+	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
 	ASSERT(matrix[r0] != NULL);
     }
     
@@ -805,7 +805,7 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
     unsigned long method_zero[4] = { 0, 0, 0, 0 };
     fm_set_method(zero, method_zero, 4);
 
-    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(*data_rat) * (mfb0 + 1));
+    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb0 + 1));
     ASSERT(data_rat);
 
     int lim = 2 * fbb0 - 1;

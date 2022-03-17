@@ -15,19 +15,28 @@ void cado_poly_init(cado_poly_ptr cpoly)
     memset(cpoly, 0, sizeof(cpoly[0]));
 
     /* By default allocate 2 polynomials */
-    cpoly->nb_polys = 2;
-    for(int side = 0 ; side < cpoly->nb_polys ; side++)
-      mpz_poly_init (cpoly->pols[side], MAX_DEGREE);
+    cpoly->nb_polys = 0;
+    cpoly->pols = NULL;
 
     mpz_init_set_ui(cpoly->n, 0);
 }
+
+void cado_poly_provision_new_poly(cado_poly_ptr cpoly)
+{
+    cpoly->nb_polys++;
+    cpoly->pols = realloc(cpoly->pols, cpoly->nb_polys * sizeof(mpz_poly));
+    mpz_poly_init(cpoly->pols[cpoly->nb_polys-1], -1);
+}
+
 
 void cado_poly_clear(cado_poly_ptr cpoly)
 {
     for(int side = 0 ; side < cpoly->nb_polys ; side++)
       mpz_poly_clear (cpoly->pols[side]);
 
+    free(cpoly->pols);
     mpz_clear(cpoly->n);
+
     memset(cpoly, 0, sizeof(cpoly[0]));
 }
 
@@ -35,21 +44,26 @@ void cado_poly_clear(cado_poly_ptr cpoly)
 void
 cado_poly_set (cado_poly_ptr p, cado_poly_srcptr q)
 {
+    if (p == q) return;
     mpz_set (p->n, q->n);
     p->skew = q->skew;
     p->nb_polys = q->nb_polys;
-    for(int side = 0 ; side < q->nb_polys ; side++)
-      mpz_poly_set (p->pols[side], q->pols[side]);
+    free(p->pols);
+    p->pols = malloc(p->nb_polys * sizeof(mpz_poly));
+    for(int side = 0 ; side < q->nb_polys ; side++) {
+        mpz_poly_init(p->pols[side], -1);
+        mpz_poly_set (p->pols[side], q->pols[side]);
+    }
 }
 
 void
 cado_poly_swap (cado_poly_ptr p, cado_poly_ptr q)
 {
+    if (p == q) return;
     mpz_swap (p->n, q->n);
-    p->skew = q->skew;
-    p->nb_polys = q->nb_polys;
-    for(int side = 0 ; side < q->nb_polys ; side++)
-      mpz_poly_swap (p->pols[side], q->pols[side]);
+    { double t = p->skew; p->skew = q->skew; q->skew = t; }
+    { unsigned int t = p->nb_polys; p->nb_polys = q->nb_polys; q->nb_polys = t; }
+    { mpz_poly * t = p->pols; p->pols = q->pols; q->pols = t; }
 }
 
 // This function is no longer exported
@@ -67,47 +81,44 @@ int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
 
   /* Parse polynomials. Either in line format (poly%d=%Zd,%Zd,...) either given
    * by coefficients. */
-  for(int i = 0; i < NB_POLYS_MAX; i++)
-  {
-    char tag[15], buf[BUF_MAX];
-    snprintf(tag, sizeof(tag), "poly%d", i);
-    if(param_list_parse_string(pl, tag, buf, BUF_MAX))
-    {
-      if(i >= 2) {
-        mpz_poly_init (cpoly->pols[i], MAX_DEGREE);
-      }
-      param_list_parse_mpz_poly(pl, tag, cpoly->pols[i]);
-      ASSERT(cpoly->pols[i]->deg <= MAX_DEGREE);
-    }
-    else
-    {
-      cpoly->nb_polys = i;
-      break;
-    }
+  for( ;; ) {
+      char tag[15];
+      snprintf(tag, sizeof(tag), "poly%d", cpoly->nb_polys);
+      if (!param_list_lookup_string(pl, tag))
+          break;
+      cado_poly_provision_new_poly(cpoly);
+      /* sure, we could probably use the result of the string lookup.
+       * Well, that's not how param_list_parse_mpz_poly works.
+       * Note that param_list_parse_mpz_poly in itself supports two
+       * distinct formats: comma-separated lists of coefficients, or
+       * algebraic expressions.
+       */
+      param_list_parse_mpz_poly(pl, tag, cpoly->pols[cpoly->nb_polys-1]);
   }
-  if (cpoly->nb_polys == 0) /* No polynomials so far. Try other format. */
+
+  if (cpoly->nb_polys == 0) /* No polynomials so far. Try legacy format. */
   /* Convention: c or X means side 1 (often algebraic)
    *             Y means side 0 (often rational) */
   {
-    cpoly->nb_polys = 2;
+    cado_poly_provision_new_poly(cpoly);
+    cado_poly_provision_new_poly(cpoly);
+    mpz_t coeff;
+    mpz_init(coeff);
     /* reading polynomials coefficient by coefficient */
     for (unsigned int i = 0; i <= MAX_DEGREE; i++)
     {
-      char tag[4];
-      snprintf(tag, sizeof(tag), "c%d", i);
-      int b = param_list_parse_mpz(pl, tag, cpoly->pols[1]->coeff[i]);
-      if (!b) 
-      {
-        snprintf(tag, sizeof(tag), "X%d", i);
-        param_list_parse_mpz(pl, tag, cpoly->pols[1]->coeff[i]);
-      }
-      snprintf(tag, sizeof(tag), "Y%d", i);
-      param_list_parse_mpz(pl, tag, cpoly->pols[0]->coeff[i]);
+      char tc[4]; snprintf(tc, sizeof(tc), "c%d", i);
+      char tX[4]; snprintf(tX, sizeof(tX), "X%d", i);
+      char tY[4]; snprintf(tY, sizeof(tY), "Y%d", i);
+      if (param_list_parse_mpz(pl, tc, coeff))
+          mpz_poly_setcoeff(cpoly->pols[1], i, coeff);
+      if (param_list_parse_mpz(pl, tX, coeff))
+          mpz_poly_setcoeff(cpoly->pols[1], i, coeff);
+      if (param_list_parse_mpz(pl, tY, coeff))
+          mpz_poly_setcoeff(cpoly->pols[0], i, coeff);
     }
+    mpz_clear(coeff);
   }
-  /* setting degrees */
-  for(int side = 0 ; side < cpoly->nb_polys ; side++)
-    mpz_poly_cleandeg(cpoly->pols[side], MAX_DEGREE);
 
   /* Parse value of N. Two keys possible: n or None. Return 0 if not found. */
   if (!param_list_parse_mpz(pl, "n", cpoly->n) &&
@@ -293,7 +304,7 @@ int cado_poly_check_mapping(mpz_poly_ptr G, cado_poly_srcptr cpoly,
          * where N has non-trivial factors. Well, it happens if you feed
          * random numbers to polyselect, though.
          */
-        gmp_fprintf(stderr, "Warning: non-trivial factors (%Zd) of N were found while checking the poly file. This should not happen.\n", factors_of_N);
+        gmp_fprintf(stderr, "Warning: non-trivial factors (%Zd) of N were found while checking the cpoly file. This should not happen.\n", factors_of_N);
         // found_mapping = 0;
     }
 
@@ -387,15 +398,11 @@ cado_poly_fprintf (FILE *fp, cado_poly_srcptr cpoly, const char *prefix)
     fputs (prefix, fp);
   gmp_fprintf (fp, "n: %Zd\n", cpoly->n);
 
-  if (cpoly->nb_polys == 2)
-  {
+  if (cpoly->nb_polys == 2) {
     mpz_poly_fprintf_cado_format (fp, cpoly->pols[0], 'Y', prefix);
     mpz_poly_fprintf_cado_format (fp, cpoly->pols[1], 'c', prefix);
-  }
-  else
-  {
-    for (int side = 0; side < cpoly->nb_polys; side++)
-    {
+  } else {
+    for (int side = 0; side < cpoly->nb_polys; side++) {
       if (prefix)
         fputs (prefix, fp);
       fprintf (fp, "poly%u=", side);

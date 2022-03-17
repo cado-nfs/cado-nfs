@@ -530,6 +530,40 @@ static int earlyparser_inner_skip_ab(ringbuf_ptr r, const char ** pp)
     return c;
 }
 
+static int
+earlyparser_inner_read_active_sides(ringbuf_ptr r, const char ** pp, earlyparsed_relation_ptr rel)
+{
+    const char * p = *pp;
+    if (*p == '@') {
+        p++;
+        uint64_t v,w;
+        int c;
+#define BASE 10
+        /* copy-paste code blob above */
+        RINGBUF_GET_ONE_BYTE(c, r, p);
+        for (w = 0; (v = ugly[c]) < BASE;) {
+            w = w * BASE + v;       /* *16 ought to be optimized */
+            RINGBUF_GET_ONE_BYTE(c, r, p);
+        }
+        rel->active_sides[0] = w;
+        PARSER_ASSERT_ALWAYS(c, ',', r->rhead, p);
+        p++;
+        RINGBUF_GET_ONE_BYTE(c, r, p);
+        for (w = 0; (v = ugly[c]) < BASE;) {
+            w = w * BASE + v;       /* *16 ought to be optimized */
+            RINGBUF_GET_ONE_BYTE(c, r, p);
+        }
+        rel->active_sides[1] = w;
+#undef BASE
+    } else {
+        rel->active_sides[0] = 0;
+        rel->active_sides[1] = 1;
+    }
+    *pp = p;
+    return 1;
+}
+
+
 static int prime_t_cmp(prime_t * a, prime_t * b)
 {
     int r = (a->side > b->side) - (b->side > a->side);
@@ -612,6 +646,8 @@ static inline int earlyparser_abp_withbase(earlyparsed_relation_ptr rel, ringbuf
 
     int c = earlyparser_inner_read_ab_withbase(r, &p, rel, base);
 
+    earlyparser_inner_read_active_sides(r, &p, rel);
+
     unsigned int n = 0;
 
     uint64_t last_prime = 0;
@@ -651,11 +687,15 @@ static inline int earlyparser_abp_withbase(earlyparsed_relation_ptr rel, ringbuf
     return 1;
 }
 
+
+
 static int
 earlyparser_ab(earlyparsed_relation_ptr rel, ringbuf_ptr r)
 {
     const char * p = r->rhead;
     earlyparser_inner_read_ab_hexa(r, &p, rel);
+    earlyparser_inner_read_active_sides(r, &p, rel);
+
     return 1;
 }
 

@@ -5186,7 +5186,7 @@ class SMTask(Task):
 
             (stdoutpath, stderrpath) = \
                     self.make_std_paths(cadoprograms.SM.name)
-            p = cadoprograms.SM(nsm=str(nmaps[0])+","+str(nmaps[1]),
+            p = cadoprograms.SM(nsms=str(nmaps[0])+","+str(nmaps[1]),
                     out=smfilename,
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
@@ -5246,7 +5246,7 @@ class ReconstructLogTask(Task):
                     self.make_std_paths(cadoprograms.ReconstructLog.name)
             p = cadoprograms.ReconstructLog(
                     dlog=dlogfilename,
-                    nsm=str(nmaps[0])+","+str(nmaps[1]),
+                    nsms=str(nmaps[0])+","+str(nmaps[1]),
                     nrels=nfree+nunique,
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),

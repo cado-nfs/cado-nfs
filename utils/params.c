@@ -1364,18 +1364,18 @@ int param_list_parse_uchar_list(param_list_ptr pl, const char * key,
     return parsed;
 }
 
-int param_list_parse_int_list_size(param_list_ptr pl, const char * key , int ** r ,
+int param_list_parse_uint_list_size(param_list_ptr pl, const char * key , unsigned int ** r ,
     unsigned int * t)
 {
   char *value;
   if (!get_assoc(pl, key, &value, NULL))
     return 0;
   char *tmp = value;
-  int i = 0;
-  * r = (int * ) malloc(sizeof(int) * 1);
+  unsigned int i = 0;
+  * r = (unsigned int * ) malloc(sizeof(unsigned int) * 1);
   * t = 1;
   for (;;) {
-    int ret = sscanf(tmp, "%d", &i);
+    int ret = sscanf(tmp, "%u", &i);
     if (ret != 1) {
       fprintf (stderr, "Error while parsing coefficient array %s[%d]\n", key, *t
           - 1);
@@ -1397,7 +1397,7 @@ int param_list_parse_int_list_size(param_list_ptr pl, const char * key , int ** 
     }
     tmp++;
     *t = *t + 1;
-    * r = realloc(* r, sizeof(int) * (*t));
+    * r = realloc(* r, sizeof(unsigned int) * (*t));
   }
   return *t;
 }
@@ -1462,6 +1462,7 @@ int param_list_parse_mpz_poly(param_list_ptr pl, const char * key,
           "of polynomial %s\n", j, key);
       exit(1);
     }
+    /* This also calls cleandeg() */
     mpz_poly_setcoeff(f, j, coeff);
     if (*tmp == '-') {
       tmp++;
@@ -1676,4 +1677,143 @@ void param_list_generic_failure(param_list_ptr pl, const char *missing)
   param_list_print_usage(pl, pl->cmdline_argv0[0], stderr);
   param_list_clear(pl);
   exit(EXIT_FAILURE);
+}
+
+int param_list_parse_uint_args_per_side(param_list_ptr pl, const char * key, unsigned int * lpb_arg, unsigned int n, enum args_per_side_policy_t policy)
+{
+    unsigned int has_lpb01 = 0;
+    for(unsigned int side = 0 ; side < n ; side++) {
+        char * keyi;
+        int rc = asprintf(&keyi, "%s%u", key, side);
+        ASSERT_ALWAYS(rc >= 0);
+        int gotit = param_list_parse_uint(pl, keyi, &(lpb_arg[side]));
+        free(keyi);
+        if (!gotit && side == 0)
+            break;
+        if (gotit)
+            has_lpb01 = side + 1;
+    }
+    if (has_lpb01 && policy == ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS) {
+        /* at this point we know that key0 has a value */
+        for(unsigned int side = 0 ; side < n ; side++) {
+            char * keyi;
+            int rc = asprintf(&keyi, "%s%u", key, side);
+            ASSERT_ALWAYS(rc >= 0);
+            if (side)
+                lpb_arg[side] = lpb_arg[side - 1];
+            int gotit = param_list_parse_uint(pl, keyi, &(lpb_arg[side]));
+            ASSERT_ALWAYS(side > 0 || gotit);
+            free(keyi);
+        }
+    }
+
+    unsigned int has_nlpbs;
+    {
+        char * keys;
+        int rc = asprintf(&keys, "%ss", key);
+        ASSERT_ALWAYS(rc >= 0);
+        has_nlpbs = param_list_parse_uint_list(pl, keys, lpb_arg, n, ",");
+        free(keys);
+    }
+
+    if (has_nlpbs && has_lpb01) {
+        fprintf(stderr, "Error, %s[01] and %sbs are incompatible\n",
+                key, key);
+        exit(EXIT_FAILURE);
+    }
+
+    if (!has_nlpbs && !has_lpb01) {
+        return 0;
+    }
+
+    has_nlpbs = has_lpb01 = has_nlpbs + has_lpb01;
+
+    if (policy == ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS) {
+        /* Default to the last explicitly given lpb */
+        for( ; has_nlpbs < n ; has_nlpbs++)
+            lpb_arg[has_nlpbs] = lpb_arg[has_lpb01-1];
+
+        if (has_nlpbs != n) {
+            fprintf(stderr,
+                    "Error, the number of values given for %ss does not "
+                    "correspond to the number of polynomials\n", key);
+        }
+    }
+
+    /* if the policy is to leave the unparsed parameters as is, then so
+     * be it. Pretend we're happy, in that case. (it's quite likely that
+     * we don't check the return value in this case anyway)
+     */
+
+    return n;
+}
+
+/* yes, it's (almost) a stupid copy */
+int param_list_parse_int_args_per_side(param_list_ptr pl, const char * key, int * lpb_arg, unsigned int n, enum args_per_side_policy_t policy)
+{
+    unsigned int has_lpb01 = 0;
+    for(unsigned int side = 0 ; side < n ; side++) {
+        char * keyi;
+        int rc = asprintf(&keyi, "%s%u", key, side);
+        ASSERT_ALWAYS(rc >= 0);
+        int gotit = param_list_parse_int(pl, keyi, &(lpb_arg[side]));
+        free(keyi);
+        if (!gotit && side == 0)
+            break;
+        if (gotit)
+            has_lpb01 = side + 1;
+    }
+    if (has_lpb01 && policy == ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS) {
+        /* at this point we know that key0 has a value */
+        for(unsigned int side = 0 ; side < n ; side++) {
+            char * keyi;
+            int rc = asprintf(&keyi, "%s%u", key, side);
+            ASSERT_ALWAYS(rc >= 0);
+            if (side)
+                lpb_arg[side] = lpb_arg[side - 1];
+            int gotit = param_list_parse_int(pl, keyi, &(lpb_arg[side]));
+            ASSERT_ALWAYS(side > 0 || gotit);
+            free(keyi);
+        }
+    }
+
+    unsigned int has_nlpbs;
+    {
+        char * keys;
+        int rc = asprintf(&keys, "%ss", key);
+        ASSERT_ALWAYS(rc >= 0);
+        has_nlpbs = param_list_parse_int_list(pl, keys, lpb_arg, n, ",");
+        free(keys);
+    }
+
+    if (has_nlpbs && has_lpb01) {
+        fprintf(stderr, "Error, %s[01] and %sbs are incompatible\n",
+                key, key);
+        exit(EXIT_FAILURE);
+    }
+
+    if (!has_nlpbs && !has_lpb01) {
+        return 0;
+    }
+
+    has_nlpbs = has_lpb01 = has_nlpbs + has_lpb01;
+
+    if (policy == ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS) {
+        /* Default to the last explicitly given lpb */
+        for( ; has_nlpbs < n ; has_nlpbs++)
+            lpb_arg[has_nlpbs] = lpb_arg[has_lpb01-1];
+
+        if (has_nlpbs != n) {
+            fprintf(stderr,
+                    "Error, the number of values given for %ss does not "
+                    "correspond to the number of polynomials\n", key);
+        }
+    }
+
+    /* if the policy is to leave the unparsed parameters as is, then so
+     * be it. Pretend we're happy, in that case. (it's quite likely that
+     * we don't check the return value in this case anyway)
+     */
+
+    return n;
 }

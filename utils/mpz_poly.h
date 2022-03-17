@@ -107,6 +107,7 @@ void mpz_poly_set_double_poly(mpz_poly_ptr g, double_poly_srcptr f);
 int mpz_poly_set_from_expression(mpz_poly_ptr f, const char * value);
 
 void mpz_poly_init_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b);
+void mpz_poly_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b);
 void mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b);
 
 void mpz_poly_setcoeff(mpz_poly_ptr f, int i, mpz_srcptr z);

@@ -191,7 +191,7 @@ struct model_relation : public indexed_relation_byside {
         relation_ab ab(R(), R());
         model_relation rel(ab);
 
-        rel.set_nsides(get_nsides());
+        rel.set_active_sides(get_active_sides());
         for(size_t side = 0 ; side < sides.size() ; side++) {
             for(auto i : sides[side]) {
                 rel[side].push_back(Ind[side].random_index(i, buf));

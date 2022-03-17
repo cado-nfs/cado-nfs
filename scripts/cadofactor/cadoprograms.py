@@ -1093,7 +1093,7 @@ class SM(Program):
                  index: Parameter(),
                  out: Parameter(),
                  ell: Parameter(),
-                 nsm: Parameter()=None,
+                 nsms: Parameter()=None,
                  sm_mode: Parameter("sm-mode")=None,
                  **kwargs):
         super().__init__(locals(), **kwargs)
@@ -1115,7 +1115,7 @@ class ReconstructLog(Program):
                  nrels: Parameter(),
                  partial: Toggle()=None,
                  sm_mode: Parameter("sm-mode")=None,
-                 nsm: Parameter(),
+                 nsms: Parameter(),
                  **kwargs):
         super().__init__(locals(), **kwargs)
 

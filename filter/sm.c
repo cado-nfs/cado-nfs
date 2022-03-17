@@ -1,4 +1,4 @@
-/* Shirokauer maps 
+/* Schirokauer maps 
    
 Input:
 
@@ -52,14 +52,16 @@ stats_data_t stats; /* struct for printing progress */
 void *
 thread_sm (void * context_data, earlyparsed_relation_ptr rel)
 {
-  mpz_poly * abpolys = (mpz_poly *) context_data;
-  mpz_poly_init_set_ab(abpolys[rel->num], rel->a, rel->b);
+  pair_and_sides * ps = (pair_and_sides *) context_data;
+  mpz_poly_set_ab(ps[rel->num]->ab, rel->a, rel->b);
+  ps[rel->num]->active_sides[0] = rel->active_sides[0];
+  ps[rel->num]->active_sides[1] = rel->active_sides[1];
 
   return NULL;
 }
 
 sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
-                             uint64_t * small_nrows, mpz_poly_ptr *F,
+                             uint64_t * small_nrows, const mpz_poly_srcptr * F,
 			     int nb_polys,
                              const mpz_t ell2)
 {
@@ -69,10 +71,13 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
   int ret;
 
   /* array of (a,b) pairs from (purgedname) file */
-  mpz_poly *pairs;
 
   purgedfile_read_firstline (purgedname, &nrows, &ncols);
-  pairs = (mpz_poly *) malloc (nrows * sizeof(mpz_poly));
+
+  pair_and_sides * pairs = (pair_and_sides *) malloc (nrows * sizeof(pair_and_sides));
+  for (uint64_t i = 0; i < nrows; i++)
+    mpz_poly_init (pairs[i]->ab, -1);
+
   ASSERT_ALWAYS (pairs != NULL);
   /* For each rel, read the a,b-pair and init the corresponding poly pairs[] */
   fprintf(stdout, "\n# Reading %" PRIu64 " (a,b) pairs\n", nrows);
@@ -110,14 +115,7 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
       ASSERT_ALWAYS(ret == 2);
     }
     
-    int dF[NB_POLYS_MAX];
-    for (int s = 0; s < nb_polys; ++s) {
-        if (F[s] == NULL)
-	    dF[s] = 0;
-	else
-	    dF[s] = F[s]->deg;
-    }
-    sm_relset_init (&rels[i], dF, nb_polys);
+    sm_relset_init (&rels[i], F, nb_polys);
     sm_build_one_relset (&rels[i], r, e, len_relset, pairs, F, nb_polys, ell2);
 
     if (stats_test_progress(stats))
@@ -127,7 +125,7 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
   fclose_maybe_compressed(ix, indexname);
 
   for (uint64_t i = 0; i < nrows; i++)
-    mpz_poly_clear (pairs[i]);
+    mpz_poly_clear (pairs[i]->ab);
   free (pairs);
   
   return rels;
@@ -233,7 +231,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "out", "output file (stdout if not given)");
   param_list_decl_usage(pl, "ell", "(required) group order");
   param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-portability.h)");
-  param_list_decl_usage(pl, "nsm", "number of SM on side 0,1,... (default is "
+  param_list_decl_usage(pl, "nsms", "number of SM on side 0,1,... (default is "
                                    "computed by the program)");
   param_list_decl_usage(pl, "t", "number of threads on each mpi job (default 1)");
   verbose_decl_usage(pl);
@@ -270,17 +268,10 @@ int main (int argc, char **argv)
 
   param_list pl;
   cado_poly cpoly;
-  mpz_poly_ptr F[NB_POLYS_MAX];
 
   sm_relset_ptr rels = NULL;
   uint64_t nb_relsets;
   mpz_t ell, ell2;
-  int nsm_arg[NB_POLYS_MAX];
-
-  /* negative value means that the value that will be used is the value
-   * computed later by sm_side_info_init */
-  for (int side = 0; side < NB_POLYS_MAX; side++)
-    nsm_arg[side] = -1;
 
   /* read params */
   param_list_init(pl);
@@ -351,14 +342,22 @@ int main (int argc, char **argv)
     exit (EXIT_FAILURE);
   }
 
+  int * nsm_arg = malloc(cpoly->nb_polys * sizeof(int));
+
+  /* negative value means that the value that will be used is the value
+   * computed later by sm_side_info_init */
+  for (int side = 0; side < cpoly->nb_polys; side++)
+    nsm_arg[side] = -1;
   /* Read number of sm to be printed from command line */
-  param_list_parse_int_list (pl, "nsm", nsm_arg, cpoly->nb_polys, ",");
+  param_list_parse_int_args_per_side(pl, "nsm", nsm_arg, cpoly->nb_polys,
+          ARGS_PER_SIDE_DEFAULT_AS_IS);
+
+  mpz_poly_srcptr * F = malloc(cpoly->nb_polys * sizeof(mpz_poly_srcptr));
 
   for(int side = 0; side < cpoly->nb_polys; side++)
   {
     F[side] = cpoly->pols[side];
-    if (nsm_arg[side] > F[side]->deg)
-    {
+    if (nsm_arg[side] > F[side]->deg) {
       if (idoio) {
         fprintf(stderr, "Error: nsm%d=%d can not exceed the degree=%d\n",
                       side, nsm_arg[side], F[side]->deg);
@@ -384,7 +383,7 @@ int main (int argc, char **argv)
     gmp_fprintf(stdout, "# Sub-group order:\nell = %Zi\n# Computation is done "
                       "modulo ell2 = ell^2:\nell2 = %Zi\n", ell, ell2);
 
-  sm_side_info sm_info[NB_POLYS_MAX];
+  sm_side_info * sm_info = malloc(cpoly->nb_polys * sizeof(sm_side_info));
 
   for(int side = 0 ; side < cpoly->nb_polys ; side++) {
       sm_side_info_init(sm_info[side], F[side], ell);
@@ -398,8 +397,11 @@ int main (int argc, char **argv)
       printf("# SM info on side %d:\n", side);
       sm_side_info_print(stdout, sm_info[side]);
     }
-    if (nsm_arg[side] >= 0)
+    if (nsm_arg[side] >= 0) {
+      if (idoio && nsm_arg[side] < sm_info[side]->nsm)
+        printf("# Warning: as per the command line parameters, we will only compute %d SMs instead of %d on side %d. Be sure to know what you are doing!\n", nsm_arg[side], sm_info[side]->nsm, side);
       sm_info[side]->nsm = nsm_arg[side]; /* command line wins */
+    }
     if (idoio)
       printf("# Will compute %d SMs on side %d\n", sm_info[side]->nsm, side);
 
@@ -417,17 +419,14 @@ int main (int argc, char **argv)
   }
   fflush(stdout);
 
-  // If nsm is 0 on one side, then set F[side] to NULL to desactivate the
-  // corresponding computations.
-  // TODO: this will go.
-  int dF[NB_POLYS_MAX];
+  // If nsm (or nsm_arg) is 0 on one side, then set F[side] to NULL to
+  // desactivate the corresponding computations.
+  // (note that it does not seem to be a good idea to forcibly deactivate
+  // the SMs on a given side, I think).
   for (int side = 0; side < cpoly->nb_polys; ++side) {
-    if (sm_info[side]->nsm == 0) {
-      F[side] = NULL;
-      dF[side] = 0;
-    } else {
-      dF[side] = F[side]->deg;
-    }
+      if (sm_info[side]->nsm == 0) {
+          F[side] = NULL;
+      }
   }
 
   ///////////////////////
@@ -451,7 +450,7 @@ int main (int argc, char **argv)
   sm_relset_ptr part_rels = (sm_relset_ptr)malloc(nb_parts*sizeof(sm_relset_t));
   ASSERT_ALWAYS(part_rels != NULL);
   for (uint64_t i = 0; i < nb_parts; ++i) {
-    sm_relset_init(&part_rels[i], dF, cpoly->nb_polys);
+    sm_relset_init(&part_rels[i], F, cpoly->nb_polys);
   }
   if (rank == 0) {
     for (uint64_t i = 0; i < nb_parts; ++i) {
@@ -471,7 +470,7 @@ int main (int argc, char **argv)
   // Can now free the original rels on process 0
   if (rank == 0) {
     for (uint64_t i = 0; i < nb_relsets; i++)
-      sm_relset_clear (&rels[i], cpoly->nb_polys);
+      sm_relset_clear (&rels[i]);
     free(rels);
   }
 
@@ -579,8 +578,12 @@ int main (int argc, char **argv)
   }
   free(dst);
 
+  free(F);
+  free(nsm_arg);
+
   for (int side = 0 ; side < cpoly->nb_polys ; side++)
     sm_side_info_clear(sm_info[side]);
+  free(sm_info);
 
   mpz_clear(ell);
   mpz_clear(ell2);

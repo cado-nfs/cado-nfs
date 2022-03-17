@@ -123,13 +123,6 @@ detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_co
             /* Not clear what gives when we have Galois relations.  */
         }
 
-        /* In some rare cases, the norm on one side is exactly 1, which
-         * creates undefined behaviour later on. (bug # 21707) */
-        if (rel.nb_polys > 2)
-            for (int i = 0; i < rel.nb_polys; ++i)
-                if (rel.sides[i].size() == 0)
-                    dup_comment = "# NORM1 ";
-
         if (!dup_comment) dup_comment = "";
 
         std::ostringstream os;

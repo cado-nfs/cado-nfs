@@ -396,7 +396,7 @@ bool las_todo_list::feed_qlist()
                    errno = 0;
                    side = strtoul(x, &x, 0);
                    ASSERT_ALWAYS(!errno);
-                   ASSERT_ALWAYS(side < 2);
+                   ASSERT_ALWAYS(side < cpoly->nb_polys);
                    break;
         default:
                    fprintf(stderr,
