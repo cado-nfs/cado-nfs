@@ -1,7 +1,8 @@
 #include "cado.h"
 #include <cstdio>
+#include <cstdlib>
 #include <array>
-#include "facul_strategies.hpp"
+#include "ecm/facul_strategies.hpp"
 
 int main(int argc, char * argv[])
 {
@@ -12,7 +13,6 @@ int main(int argc, char * argv[])
     std::array<unsigned int, 2> mfb { 50, 50 };
     FILE * f = fopen(argv[1], "r");
     ASSERT_ALWAYS(f != NULL);
-    auto F = facul_strategies(B, lpb, mfb, true, f);
+    auto F = facul_strategies(B, lpb, mfb, true, f, 0);
     fclose(f);
-
 }

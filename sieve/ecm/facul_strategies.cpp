@@ -188,20 +188,6 @@ struct strategy_file_parser {/*{{{*/
     typedef std::array<unsigned int, 2> key_type;;
     typedef std::vector<facul_method::parameters_with_side> value_type;
 private:
-    struct match_keyword {/*{{{*/
-        std::string keyword;
-        match_keyword(std::string const & keyword) : keyword(keyword) {}
-        bool operator()(const char * & str) const
-        {
-            for( ; *str && isspace(*str) ; str++);
-            if (strncmp(str, keyword.c_str(), keyword.size()) == 0) {
-                str += 3;
-                return true;
-            }
-            return false;
-        }
-    };/*}}}*/
-    match_keyword match_end { "end" };
     class regexp_define_t {/*{{{*/
         regex_t re;
         public:
@@ -221,8 +207,6 @@ private:
             constexpr const int nmatch = 2;
             regmatch_t p[nmatch];
             if (regexec (&re, str, nmatch, p, 0) == REG_NOMATCH)
-                return false;
-            if (p[0].rm_so == p[0].rm_eo)
                 return false;
             name = std::string(str + p[1].rm_so, str + p[1].rm_eo);
             str += p[0].rm_eo;
@@ -250,8 +234,6 @@ private:
             constexpr const int nmatch = 2;
             regmatch_t p[nmatch];
             if (regexec (&re, str, nmatch, p, 0) == REG_NOMATCH)
-                return false;
-            if (p[0].rm_so == p[0].rm_eo)
                 return false;
             name = std::string(str + p[1].rm_so, str + p[1].rm_eo);
             str += p[0].rm_eo;
@@ -281,8 +263,6 @@ private:
             constexpr const int nmatch = 3;
             regmatch_t p[nmatch];
             if (regexec (&re, str, nmatch, p, 0) == REG_NOMATCH)
-                return false;
-            if (p[0].rm_so == p[0].rm_eo)
                 return false;
             index[0] = std::stoi(std::string(str + p[1].rm_so, str + p[1].rm_eo));
             index[1] = std::stoi(std::string(str + p[2].rm_so, str + p[2].rm_eo));
@@ -317,8 +297,6 @@ private:
             constexpr const int nmatch = 3;
             regmatch_t p[nmatch];
             if (regexec (&re, str, nmatch, p, 0) == REG_NOMATCH)
-                return false;
-            if (p[0].rm_so == p[0].rm_eo)
                 return false;
             comment.p = std::stod(std::string(str + p[1].rm_so, str + p[1].rm_eo));
             comment.t = std::stod(std::string(str + p[2].rm_so, str + p[2].rm_eo));
@@ -428,12 +406,6 @@ private:
                     current = &pre_parse.back().second;
 
                     continue;
-                } else if (match_end(str)) {
-                    if (current == nullptr) {
-                        fprintf(stderr, "# dangling \"end\" keyword in strategies file\n");
-                        exit(EXIT_FAILURE);
-                    }
-                    current = nullptr;
                 } else if (regexp_define(macro, str)) {
                     auto it = macros.emplace(macro, value_type());
                     if (!it.second) {
@@ -484,21 +456,20 @@ private:
             if (c.second.empty())
                 continue;
 
-            unsigned int PARAMETER[2] = {2,2};
-            // todo: change it to add it in the parameters of our function.
-            // maybe unused if you use only one curve B12 by strategy.
-            int is_first_brent12[2] = {true, true};
+            std::map<unsigned int, std::array<unsigned long, 2>>
+                param_sequence {
+                    { BRENT12, { 0, 0 } },
+                    { MONTY12, { 0, 0 } },
+                    { MONTY16, { 0, 0 } },
+                    { MONTYTWED12, { 0, 0 } },
+                    /* we have no parameter_from_sequence for MONTY16
+                     * anyway. FIXME */
+                    { MONTYTWED16, { 0, 0 } },
+                };
 
             for(auto & fm : c.second) {
                 if (fm.method == EC_METHOD) {
-                    if (fm.parameterization == MONTY16)
-                        fm.parameter = 1;
-                    else if (fm.parameterization == BRENT12 && is_first_brent12[fm.side]) {
-                        fm.parameter = 11;
-                        is_first_brent12[fm.side] = false;
-                    }
-                    else
-                        fm.parameter = PARAMETER[fm.side]++;
+                    fm.parameter = ec_valid_parameter_from_sequence(fm.parameterization, param_sequence[fm.parameterization][fm.side]++);
 
                     /* it seems that we always have this on */
                     fm.extra_primes = 1;

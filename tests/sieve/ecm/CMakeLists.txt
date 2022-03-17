@@ -70,3 +70,27 @@ cado_define_test(test_chains.c LIBRARIES tests facul utils)
 
 cado_define_test(test_Weierstrass.cpp LIBRARIES tests facul utils
                  ARGUMENTS ${CADO_NFS_SOURCE_DIR}/tests/sieve/ecm/test_Weierstrass.input)
+
+cado_define_test(test_strategy_file_parser.cpp
+    LIBRARIES tests facul utils
+    NO_DEFAULT_RUN)
+
+cado_divert_test(test_strategy_file_parser 1
+    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/example1.st)
+
+cado_divert_test(test_strategy_file_parser buggy
+    EXPECT_FAIL
+    NO_DEFAULT_RUN)
+
+cado_divert_test(test_strategy_file_parser_buggy 1
+    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy1.st)
+cado_divert_test(test_strategy_file_parser_buggy 2
+    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy2.st)
+cado_divert_test(test_strategy_file_parser_buggy 3
+    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy3.st)
+cado_divert_test(test_strategy_file_parser_buggy 4
+    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy4.st)
+cado_divert_test(test_strategy_file_parser_buggy 5
+    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy5.st)
+cado_divert_test(test_strategy_file_parser_buggy 6
+    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy6.st)
