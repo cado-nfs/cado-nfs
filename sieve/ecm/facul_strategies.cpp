@@ -421,9 +421,9 @@ class parameter_sequence_tracker {/*{{{*/
      * and on this side.
      * If true, then our current record of which parameters have been
      * used is updated.
-     * If false, and we record the fact that we have
-     * broken the sequence. All further calls to this method, on this
-     * side and for this parameterization, will return false.
+     * If false, we record the fact that we have broken the sequence. All
+     * further calls to this method, on this side and for this
+     * parameterization, will return false.
      */
     bool follows_sequence(int side, ec_parameterization_t para, unsigned long p)
     {
@@ -792,23 +792,39 @@ facul_strategy_oneside::default_strategy (int n)
 
     chain.emplace_back(PM1_METHOD, 315, 2205);
     chain.emplace_back(PP1_27_METHOD, 525, 3255);
+
 #ifdef USE_LEGACY_DEFAULT_STRATEGY
     chain.emplace_back(EC_METHOD, 105, 3255, MONTY12, 2, 1);
 #else
-    chain.emplace_back(EC_METHOD, 105, 3255, MONTYTWED12, 1, 1);
+    // I'm not sure, but it seems that MONTY12 with param=2 (which has
+    // nothing special anyway) is not reached by the MONTYTWED12
+    // parameterization. Let's pick an arbitrary, other curve from the
+    // MONTYTWED12 family, then.
+    chain.emplace_back(EC_METHOD, 105, 3255, MONTYTWED12, 2, 1);
 #endif
 
+    /* See #30033 ; B1 is not monotonic here, but this is on purpose. The
+     * Brent-Suyama curve with sigma=11 (which is isomorphic to the
+     * MONTYTWED12 with parameter=1) is exceptional, and yields more
+     * primes. Let's put a little bit more effort into it.
+     *
+     *     sage: load("cofac_utils.sage")
+     *     sage: E0,P0=Twed12_parameterization(1, Rationals())
+     *     sage: E1,P1=BrentSuyama_parameterization(11, Rationals())
+     *     sage: E0.is_isomorphic(E1)
+     *     True
+     */
     if (n--) {
 #ifdef USE_LEGACY_DEFAULT_STRATEGY
         chain.emplace_back(EC_METHOD, 315, 5355, BRENT12, 11, 1);
 #else
-        chain.emplace_back(EC_METHOD, 315, 5355, MONTYTWED12, 2, 1);
+        chain.emplace_back(EC_METHOD, 315, 5355, MONTYTWED12, 1, 1);
 #endif
     }
 
     /* heuristic strategy where B1 is increased by c*sqrt(B1) at each curve
      *
-     * Note that only some addition chains were computed in
+     * Note that only some addition chains were precomputed in
      * sieve/ecm/bytecode_mishmash_B1_data.h ; those have fewer
      * arithmetic operations than the ones we compute automatically.
      *
