@@ -78,6 +78,18 @@ cado_define_test(test_strategy_file_parser.cpp
 cado_divert_test(test_strategy_file_parser 1
     ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/example1.st)
 
+# Something like parsing the output of the strategy file parser to itself
+# as standard input should work. But the way to do this with cmake is
+# really atrocious. (in particular, pay attention to tricky extraneous
+# newlines if you ever want to indent this nicely.)
+cado_define_test(test_strategy_file_parser_pipe_1
+     SCRIPT bash -c
+     "${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser ${CMAKE_CURRENT_SOURCE_DIR}/example1.st | ${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser"
+     TARGET_DEPENDENCIES test_strategy_file_parser)
+ cado_define_test(test_strategy_file_parser_pipe_F9
+     SCRIPT bash -c "${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser ${CMAKE_CURRENT_SOURCE_DIR}/../F9.st | ${CMAKE_CURRENT_BINARY_DIR}/test_strategy_file_parser"
+     TARGET_DEPENDENCIES test_strategy_file_parser)
+ 
 cado_divert_test(test_strategy_file_parser buggy
     EXPECT_FAIL
     NO_DEFAULT_RUN)
@@ -94,3 +106,5 @@ cado_divert_test(test_strategy_file_parser_buggy 5
     ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy5.st)
 cado_divert_test(test_strategy_file_parser_buggy 6
     ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy6.st)
+cado_divert_test(test_strategy_file_parser_buggy 7
+    ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/buggy7.st)

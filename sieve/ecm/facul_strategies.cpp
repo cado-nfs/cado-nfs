@@ -3,11 +3,13 @@
 #include <cstdlib>     // for malloc, free, atoi, calloc
 #include <cstring>     // for strcmp, strlen, strncpy
 #include <regex.h>      // for regmatch_t, regcomp, regexec, regfree, REG_EX...
+#include <stdexcept>
 #include "facul_strategies.hpp"
 #include "pm1.h"        // for pm1_plan_t, pm1_clear_plan, pm1_make_plan
 #include "pp1.h"        // for pp1_plan_t, pp1_clear_plan, pp1_make_plan
 #include "macros.h"
 #include "verbose.h"
+#include "fmt/format.h"
 
 //#define USE_LEGACY_DEFAULT_STRATEGY 1
 
@@ -184,6 +186,20 @@ nb_curves99 (const unsigned int lpb)
 #endif
 /*}}}*/
 
+/* TODO: move elsewhere. */
+const char * parameterization_name(ec_parameterization_t p)
+{
+    switch(p) {
+        case BRENT12:     return "ECM-B12";
+        case MONTY12:     return "ECM-M12";
+        case MONTY16:     return "ECM-M16";
+        case MONTYTWED12: return "ECM-TM12";
+        case MONTYTWED16: return "ECM-TM16";
+    }
+    ASSERT_ALWAYS(0);
+    return NULL;
+}
+
 struct strategy_file_parser {/*{{{*/
     typedef std::array<unsigned int, 2> key_type;;
     typedef std::vector<facul_method::parameters_with_side> value_type;
@@ -316,6 +332,7 @@ private:
                 "^\\[?[[:space:]]*"
                 "S([[:alnum:]]+):[[:space:]]*"  /* side, like "S0: " */
                 "([[:alnum:]_-]+)"               /* method, like "PP1-65" or "ECM-M12" */
+                "(\\(([[:digit:]]+)\\))?" /* optional parameter in parentheses */
                 ",[[:space:]]*([[:digit:]]+)"   /* B1, an integer */
                 ",[[:space:]]*([[:digit:]]+)"   /* B2, an integer */
                 "[[:space:]]*"
@@ -327,15 +344,18 @@ private:
         }
         bool operator()(T & res, const char * & str) const
         {
-            constexpr const int nmatch = 5;
+            constexpr const int nmatch = 7;
             regmatch_t p[nmatch];
             if (regexec (&preg_fm, str, nmatch, p, 0) == REG_NOMATCH)
                 return false;
             if (p[0].rm_so == p[0].rm_eo)
                 return false;
             res.side = std::stoi(std::string(str + p[1].rm_so, str + p[1].rm_eo));
-            res.B1 = std::stoi(std::string(str + p[3].rm_so, str + p[3].rm_eo));
-            res.B2 = std::stoi(std::string(str + p[4].rm_so, str + p[4].rm_eo));
+            res.parameter = ULONG_MAX;
+            if (p[4].rm_so != p[4].rm_eo)
+                res.parameter = std::stoi(std::string(str + p[4].rm_so, str + p[4].rm_eo));
+            res.B1 = std::stoi(std::string(str + p[5].rm_so, str + p[5].rm_eo));
+            res.B2 = std::stoi(std::string(str + p[6].rm_so, str + p[6].rm_eo));
             std::string mtoken(str + p[2].rm_so, str + p[2].rm_eo);
             if (mtoken == "PM1")
                 res.method = PM1_METHOD;
@@ -370,21 +390,95 @@ private:
 
     public:
 
+    struct error : public std::runtime_error {
+        error(std::string const & s) : std::runtime_error(s) {}
+    };
+
     /* This only returns the vector of descriptions. The methods are not
      * instantiated yet
      */
     facul_strategies::strategy_file
-        operator()(std::array<unsigned int, 2> const & mfb, FILE * file)
-    {
-        verbose_output_print(0, 2, "# Read the cofactorization strategy file\n");
-        // first, read linearly.
-        std::vector<std::pair<key_type, value_type>> pre_parse;
-        std::map<std::string, value_type> macros;
+        operator()(std::array<unsigned int, 2> const & mfb, FILE * file);
+};/*}}}*/
 
-        value_type * current = nullptr;
-        
-        fseek (file, 0, SEEK_SET);
-        for(char line[10000]; fgets (line, sizeof(line), file) != NULL ; )
+class parameter_sequence_tracker {/*{{{*/
+    std::map<unsigned int, std::array<std::pair<bool, unsigned long>, 2>> seq;
+    public:
+    parameter_sequence_tracker() {
+        decltype(seq)::mapped_type::value_type z { true, 0 };
+        decltype(seq)::mapped_type Z { z , z };
+        seq[BRENT12] = Z;
+        seq[MONTY12] = Z;
+        seq[MONTY16] = Z;
+        seq[MONTYTWED12] = Z;
+        /* we have no parameter_from_sequence for MONTY16
+         * anyway. FIXME */
+        seq[MONTYTWED16] = Z;
+    }
+
+    /* This returns true if p is actually the next "normal" parameter in
+     * our sequence, given our default choices, for this parameterization
+     * and on this side.
+     * If true, then our current record of which parameters have been
+     * used is updated.
+     * If false, and we record the fact that we have
+     * broken the sequence. All further calls to this method, on this
+     * side and for this parameterization, will return false.
+     */
+    bool follows_sequence(int side, ec_parameterization_t para, unsigned long p)
+    {
+        if (!seq[para][side].first) return false;
+        bool t = (p == ec_valid_parameter_from_sequence(para, seq[para][side].second));
+        if (t) seq[para][side].second++;
+        return t;
+    }
+    unsigned long next_in_sequence(int side, ec_parameterization_t para)
+    {
+        /* If the sequence has been broken, we can no longer give a
+         * "next" value. Of course we could improve this by recording the
+         * out-of-sequence parameters that have been chosen, and exclude
+         * them from the default choices.
+         */
+        if (!seq[para][side].first)
+            throw strategy_file_parser::error(fmt::format(FMT_STRING("cannot use a parameter from the default sequence for parameterization {} after a non-default one was set"), parameterization_name(para)));
+        return ec_valid_parameter_from_sequence(para, seq[para][side].second++);
+    }
+    void break_sequence(int side, ec_parameterization_t para)
+    {
+        seq[para][side].first = false;
+    }
+
+    static void fill_default_parameters(std::vector<facul_method::parameters_with_side> & v) {
+        parameter_sequence_tracker tracker;
+
+        for(auto & fm : v) {
+            if (fm.method == EC_METHOD) {
+                if (fm.parameter == ULONG_MAX) {
+                    fm.parameter = tracker.next_in_sequence(fm.side, fm.parameterization);
+                } else {
+                    tracker.break_sequence(fm.side, fm.parameterization);
+                }
+                /* it seems that we always have this on */
+                fm.extra_primes = 1;
+            }
+        }
+    }
+};/*}}}*/
+
+facul_strategies::strategy_file
+strategy_file_parser::operator()(std::array<unsigned int, 2> const & mfb, FILE * file)
+{
+    verbose_output_print(0, 2, "# Read the cofactorization strategy file\n");
+    // first, read linearly.
+    std::vector<std::pair<key_type, value_type>> pre_parse;
+    std::map<std::string, value_type> macros;
+
+    value_type * current = nullptr;
+
+    fseek (file, 0, SEEK_SET);
+    int lnum = 1;
+    try {
+        for(char line[10000]; fgets (line, sizeof(line), file) != NULL ; lnum++)
         {
             const char * str = line;
 
@@ -408,147 +502,161 @@ private:
                     continue;
                 } else if (regexp_define(macro, str)) {
                     auto it = macros.emplace(macro, value_type());
-                    if (!it.second) {
-                        fprintf(stderr, "# macro %s redefined in strategies file\n", macro.c_str());
-                        exit(EXIT_FAILURE);
-                    }
+                    if (!it.second)
+                        throw error(fmt::format(FMT_STRING("macro {} redefined"), macro));
                     current = &it.first->second;
                 } else if (regexp_use(macro, str)) {
-                    if (current == nullptr) {
-                        fprintf(stderr, "# dangling methods in strategies file\n");
-                        exit(EXIT_FAILURE);
-                    }
+                    if (current == nullptr)
+                        throw error("dangling macro use");
                     auto it = macros.find(macro);
-                    if (it == macros.end()) {
-                        fprintf(stderr, "# macro %s unknown in strategies file\n", macro.c_str());
-                        exit(EXIT_FAILURE);
-                    }
+                    if (it == macros.end())
+                        throw error(fmt::format(FMT_STRING("macro {} unknown"), macro));
                     auto const & M = it->second;
                     if (current == &M) {
-                        fprintf(stderr, "# circular use of macro %s in strategies file\n", macro.c_str());
-                        exit(EXIT_FAILURE);
+                        throw error(fmt::format(FMT_STRING("circular use of macro {} file"), macro));
                     }
                     current->insert(current->end(), M.begin(), M.end());
                 } else if (regexp_fm(fm, str)) {
-                    if (current == nullptr) {
-                        fprintf(stderr, "# dangling methods in strategies file\n");
-                        exit(EXIT_FAILURE);
-                    }
+                    if (current == nullptr)
+                        throw error("dangling methods");
                     current->push_back(fm);
                 } else {
-                    fprintf(stderr, "# parse error in strategies file\n");
-                    fprintf(stderr, "# cannot parse: %s\n", str);
-                    exit(EXIT_FAILURE);
-                }
-
-            }
-        }
-
-        std::map<key_type, value_type> parsed_file;
-
-        for(auto & c : pre_parse) {
-            key_type index_st = c.first;
-
-            if (index_st[0] > mfb[0])
-                continue;
-            if (index_st[1] > mfb[1])
-                continue;
-            if (c.second.empty())
-                continue;
-
-            std::map<unsigned int, std::array<unsigned long, 2>>
-                param_sequence {
-                    { BRENT12, { 0, 0 } },
-                    { MONTY12, { 0, 0 } },
-                    { MONTY16, { 0, 0 } },
-                    { MONTYTWED12, { 0, 0 } },
-                    /* we have no parameter_from_sequence for MONTY16
-                     * anyway. FIXME */
-                    { MONTYTWED16, { 0, 0 } },
-                };
-
-            for(auto & fm : c.second) {
-                if (fm.method == EC_METHOD) {
-                    fm.parameter = ec_valid_parameter_from_sequence(fm.parameterization, param_sequence[fm.parameterization][fm.side]++);
-
-                    /* it seems that we always have this on */
-                    fm.extra_primes = 1;
+                    throw error(fmt::format(FMT_STRING("cannot parse {}"), str));
                 }
             }
-
-            parsed_file.insert(c);
         }
-
-        return parsed_file;
+    } catch(error const & e) {
+        throw std::runtime_error(fmt::format(FMT_STRING(
+                        "Parse error on line {} of strategies file: {}"),
+                        lnum, e.what()));
     }
-};/*}}}*/
 
-/* TODO: refactor this closer to facul_method */
+    std::map<key_type, value_type> parsed_file;
+
+    for(auto & c : pre_parse) {
+        key_type index_st = c.first;
+
+        if (index_st[0] > mfb[0])
+            continue;
+        if (index_st[1] > mfb[1])
+            continue;
+        if (c.second.empty())
+            continue;
+
+        /* Note that we're now setting all parameters for the (r0,r1)
+         * pairs that are given in the file. This might, in effect, cause
+         * repeated checking of the same things over and over again.
+         */
+
+        try {
+            parameter_sequence_tracker::fill_default_parameters(c.second);
+        } catch(error const & e) {
+            throw std::runtime_error(fmt::format(FMT_STRING(
+                        "Parse error in strategies file while setting parameters for r0={},r1={}: {}"),
+                        index_st[0], index_st[1], e.what()));
+        }
+        parsed_file.insert(c);
+    }
+
+    return parsed_file;
+}
+
+void fprint_one_chain(FILE * file, std::vector<facul_method_side> const & v)
+{
+    parameter_sequence_tracker tracker;
+
+    /* TODO: refactor at least some of this closer to facul_method */
+    for(facul_method_side const & ms : v) {
+        int side = ms.side;
+        facul_method const & fm = * ms.method;
+        switch(fm.method) {
+            case PM1_METHOD:
+                fprintf (file, " S%d: PM1,%d,%d\n", side,
+                        ((pm1_plan_t*) fm.plan)->B1,
+                        ((pm1_plan_t*) fm.plan)->stage2.B2);
+                break;
+            case PP1_27_METHOD:
+                fprintf (file, " S%d: PP1-27,%d,%d\n", side,
+                        ((pp1_plan_t*) fm.plan)->B1,
+                        ((pp1_plan_t*) fm.plan)->stage2.B2);
+                break;
+            case PP1_65_METHOD:
+                fprintf (file, " S%d: PP1-65,%d,%d\n", side,
+                        ((pp1_plan_t*) fm.plan)->B1,
+                        ((pp1_plan_t*) fm.plan)->stage2.B2);
+                break;
+            case EC_METHOD:
+                {
+                    ecm_plan_t * e = (ecm_plan_t*) fm.plan;
+                    if (tracker.follows_sequence(ms.side, e->parameterization, e->parameter)) {
+                        fprintf (file, " S%d: %s,%d,%d\n", side,
+                                parameterization_name(e->parameterization),
+                                e->B1,
+                                e->stage2.B2);
+                    } else {
+                        fprintf (file, " S%d: %s(%lu),%d,%d\n", side,
+                                parameterization_name(e->parameterization),
+                                e->parameter,
+                                e->B1,
+                                e->stage2.B2);
+                    }
+                }
+                break;
+            default:
+                ASSERT_ALWAYS(0);
+        }
+    }
+}
+
 void facul_strategies::print(FILE * file) const/*{{{*/
 {
     if (file == NULL)
         return;
     // print info lpb ...
     fprintf (file,
-            "(lpb = [%u,%u], as...=[%lf, %lf], BBB = [%lf, %lf])\n",
+            "# (lpb = [%u,%u], as...=[%lf, %lf], BBB = [%lf, %lf])\n",
             lpb[0], lpb[1],
             BB[0], BB[1],
             BBB[0], BBB[1]);
-    fprintf (file, "mfb = [%d, %d]\n", mfb[0], mfb[1]);
+    fprintf (file, "# mfb = [%d, %d]\n", mfb[0], mfb[1]);
+
+    // operator() always returns a reference to things that are either in
+    // the structure's precomputed_strategies, uniform_strategies, or
+    // even static placeholder things in the code. We can be confident
+    // that successive calls will return the same pointers.
+
+    std::map<std::vector<facul_method_side> const *, unsigned int> popularity;
+
     for (unsigned int r = 0; r <= mfb[0]; r++) {
         for (unsigned int a = 0; a <= mfb[1]; a++) {
-            fprintf (file, "r0=%u, r1=%u", r, a);
+            popularity[&(*this)(r, a)]++;
+        }
+    }
 
-            for(facul_method_side const & ms : (*this)(r, a)) {
-                int side = ms.side;
-                facul_method const & fm = * ms.method;
-                switch(fm.method) {
-                    case PM1_METHOD:
-                        fprintf (file, " S%d PM1,%d,%d", side,
-                                ((pm1_plan_t*) fm.plan)->B1,
-                                ((pm1_plan_t*) fm.plan)->stage2.B2);
-                        break;
-                    case PP1_27_METHOD:
-                        fprintf (file, " S%d PP1-27,%d,%d", side,
-                                ((pp1_plan_t*) fm.plan)->B1,
-                                ((pp1_plan_t*) fm.plan)->stage2.B2);
-                        break;
-                    case PP1_65_METHOD:
-                        fprintf (file, " S%d PP1-65,%d,%d", side,
-                                ((pp1_plan_t*) fm.plan)->B1,
-                                ((pp1_plan_t*) fm.plan)->stage2.B2);
-                        break;
-                    case EC_METHOD:
-                        switch(((ecm_plan_t*) fm.plan)->parameterization) {
-                            case BRENT12:
-                                fprintf (file, " S%d ECM-B12,%d,%d", side,
-                                        ((ecm_plan_t*) fm.plan)->B1,
-                                        ((ecm_plan_t*) fm.plan)->stage2.B2);
-                                break;
-                            case MONTY12:
-                                fprintf (file, " S%d ECM-M12,%d,%d", side,
-                                        ((ecm_plan_t*) fm.plan)->B1,
-                                        ((ecm_plan_t*) fm.plan)->stage2.B2);
-                                break;
-                            case MONTY16:
-                                fprintf (file, " S%d ECM-M16,%d,%d", side,
-                                        ((ecm_plan_t*) fm.plan)->B1,
-                                        ((ecm_plan_t*) fm.plan)->stage2.B2);
-                                break;
-                            case MONTYTWED12:
-                                fprintf (file, " S%d ECM-TM12,%d,%d", side,
-                                        ((ecm_plan_t*) fm.plan)->B1,
-                                        ((ecm_plan_t*) fm.plan)->stage2.B2);
-                                break;
-                            case MONTYTWED16:
-                                fprintf (file, " S%d ECM-TM16,%d,%d", side,
-                                        ((ecm_plan_t*) fm.plan)->B1,
-                                        ((ecm_plan_t*) fm.plan)->stage2.B2);
-                                break;
-                        }
-                        break;
-                }
-                fprintf (file, "\n");
+    for (unsigned int r = 0; r <= mfb[0]; r++) {
+        for (unsigned int a = 0; a <= mfb[1]; a++) {
+            std::vector<facul_method_side> const & v = (*this)(r, a);
+            unsigned int p = popularity[&v];
+            ASSERT_ALWAYS(p > 0);       // see above.
+            if (p >= 2 && v.size() >= 2) {
+                fprintf(file, "define same_as_%u_%u\n", r, a);
+                fprint_one_chain(file, v);
+            }
+        }
+    }
+
+
+    for (unsigned int r = 0; r <= mfb[0]; r++) {
+        for (unsigned int a = 0; a <= mfb[1]; a++) {
+            std::vector<facul_method_side> const & v = (*this)(r, a);
+            if (v.empty()) continue;
+            fprintf (file, "r0=%u,r1=%u\n", r, a);
+            unsigned int p = popularity[&v];
+            ASSERT_ALWAYS(p > 0);       // see above.
+            if (p >= 2 && v.size() >= 2) {
+                fprintf(file, "  use same_as_%u_%u\n", r, a);
+            } else {
+                fprint_one_chain(file, v);
             }
         }
     }
@@ -787,15 +895,12 @@ facul_strategies::facul_strategies (
      */
     auto chain_parameters = facul_strategy_oneside::default_strategy(max_ncurves);
 
-    /* Add all methods to the cache */
-    for(facul_method::parameters const & mp: chain_parameters)
-        precompute_method(mp, verbose);
-
     /* We now need to truncate the list of strategies according to
      * ncurves[0] and ncurves[1]
      *
      * NOTE: This is incompatible with USE_MPQS
      */
+    std::vector<facul_method::parameters_with_side> w[2];
     for(int first = 0 ; first < 2 ; first++) {
         /* first == 0 means that r >= a: the rational side is largest.
          * Try to factor it first.
@@ -803,15 +908,39 @@ facul_strategies::facul_strategies (
          * Note that facul_strategies::operator() returns
          * uniform_strategy[r < a]
          */
-        std::vector<facul_method_side> & u(uniform_strategy[first]);
         for (int z = 0; z < 2; z++) {
             int side = first ^ z;
             int n = ncurves[side] + (chain_parameters.size() - max_ncurves);
             for(facul_method::parameters const & mp: chain_parameters) {
                 if (!n--)
                     break;
-                u.emplace_back(&precomputed_methods[mp], side);
+                w[first].emplace_back(side, mp);
             }
+        }
+
+        /* facul_strategy_oneside::default_strategy is allowed to use
+         * default parameters, of course. And it has to abide by the same
+         * rules as the strategy files. */
+        parameter_sequence_tracker::fill_default_parameters(w[first]);
+    }
+
+    /* Add all methods to the cache.
+     *
+     * Note that at least in the present setting, where the method cache
+     * is indexed by something that also contains the parameter and so
+     * on, we may end up computing an addition chain twice if it so
+     * happens that the same B1 is used with two different parameters, or
+     * two different EC parameterizations. That is slightly annoying.
+     */
+    for(int first = 0 ; first < 2 ; first++) {
+        for(facul_method::parameters const & mp: w[first])
+            precompute_method(mp, verbose);
+    }
+
+    for(int first = 0 ; first < 2 ; first++) {
+        std::vector<facul_method_side> & u(uniform_strategy[first]);
+        for(auto const & mps: w[first]) {
+            u.emplace_back(&precomputed_methods[mps], mps.side);
         }
     }
 }
