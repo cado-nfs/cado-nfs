@@ -31,6 +31,36 @@ ec_parameter_is_valid (ec_parameterization_t parameterization,
       return ec_parameterization_Montgomery16_is_valid (parameter);
     case MONTYTWED12:
       return ec_parameterization_Z6_is_valid (parameter);
+    // TODO MONTYTWED16 ???
+    default:
+      printf ("Fatal error in %s at %s:%d -- unknown parameterization %u\n",
+              __func__, __FILE__, __LINE__, parameterization);
+      abort ();
+  }
+}
+
+/* return a valid parameter for the given parameterization, based on any
+ * nonnegative integer. We make it so that:
+ *  - the exceptional values, if any, come first.
+ *  - all singular values are skipped.
+ * this will eventually yield a finite number of exceptions, so a
+ * finite-length code.
+ */
+unsigned long
+ec_valid_parameter_from_sequence (ec_parameterization_t parameterization,
+                       const unsigned long sequence_value)
+{
+  switch (parameterization)
+  {
+    case BRENT12:
+      return ec_parameterization_Brent_Suyama_valid_parameter_from_sequence(sequence_value);
+    case MONTY12:
+      return ec_parameterization_Montgomery12_valid_parameter_from_sequence(sequence_value);
+    case MONTY16:
+      return ec_parameterization_Montgomery16_valid_parameter_from_sequence(sequence_value);
+    case MONTYTWED12:
+      return ec_parameterization_Z6_valid_parameter_from_sequence(sequence_value);
+    // TODO MONTYTWED16 ???
     default:
       printf ("Fatal error in %s at %s:%d -- unknown parameterization %u\n",
               __func__, __FILE__, __LINE__, parameterization);
