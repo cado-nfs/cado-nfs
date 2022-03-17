@@ -253,6 +253,7 @@ coverage tests on checks with gcc:
     paths:
       - coverage-*.info
       - coverage-*.json
+    # - coverage-*-generated-sources.tar.gz
     expire_in: 1 week
 
 

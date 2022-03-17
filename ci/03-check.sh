@@ -18,9 +18,20 @@ if [ "$coverage" ] ; then
     # the percentage of total lines covered will always be correct, even
     # when not all source code files were loaded during the test(s).
     enter_section "coverage" "preparing base coverage data"
+
+    # might be useful.
+    find $build_tree -name '*conftest.gcno' | xargs -r rm
+    find $build_tree -name 'CMake*.gcno' | xargs -r rm
+
     C=coverage-$CI_COMMIT_SHORT_SHA-$CI_JOB_ID
     set -x
-    lcov -q -c -i -d $build_tree -b . -o ${C}-base.info --no-external
+    # avoid -b . --no-external ; -b is also used to rewrite symlinks,
+    # which we clearly don't want, and without it, --no-external is
+    # incapable of properly filtering file names.
+    # lcov -q -c -i -d $build_tree -b . -o ${C}-base.info --no-external
+    # These two are equivalent.
+    lcov -q -c -i -d $build_tree -o ${C}-base.info
+    # geninfo -q -i $build_tree -o ${C}-base.info
     $(dirname $0)/utilities/coverage_local_infofile_modifications.pl -d $build_tree ${C}-base.info
     set +x
     leave_section
@@ -55,10 +66,6 @@ leave_section # test (or xtest)
 if [ "$coverage" ] ; then
     enter_section "coverage" "extracting coverage data"
 
-    # might be useful.
-    # find $build_tree -name '*conftest.gcno' | xargs -r rm
-    # find $build_tree -name 'CMake*.gcno' | xargs -r rm
-
     # gcovr is terribly picky. There are countless ways to make it lose
     # track of symlinked sources in an out-of-source build.
     # Both versions below work in a fresh checkout with $build_tree
@@ -67,14 +74,21 @@ if [ "$coverage" ] ; then
     # gcovr --json ${C}-app.json ./
     # when $build_tree is somewhere else, it seems that the following is
     # a more robust way to proceed.
+    # TODO: I doubt that gcovr correctly tracks the symlinks in the build
+    # tree.
     gcovr --json ${C}-app.json $build_tree/ -f . -f $build_tree
     set -x
     # It _seems_ that in fact, we do **NOT** want --no-external, and -b
     # is actually doing more harm than good.
-    geninfo --ignore-errors gcov,source -q --output-filename ${C}-app.info $build_tree
     # geninfo --ignore-errors gcov,source -q --output-filename ${C}-app.info -b . $build_tree --no-external
+    # These two are equivalent
+    lcov -q -c -d $build_tree -o ${C}-app.info
+    # geninfo --ignore-errors gcov,source -q --output-filename ${C}-app.info $build_tree
     $(dirname $0)/utilities/coverage_local_infofile_modifications.pl -d $build_tree ${C}-app.info
     set +x
+    # well, no. Let's rather rewrite the references to the build tree
+    # sources in the info file directly.
+    # tar czf ${C}-generated-sources.tar.gz $(perl -ne "m,^SF:${build_tree#$PWD/}/, && s,^SF:,, && print;" ${C}-base.info  | sort -u)
     leave_section
 fi
 

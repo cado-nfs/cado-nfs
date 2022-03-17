@@ -534,6 +534,7 @@ tests/sieve/c120.poly
 tests/sieve/c120.roots1.gz
 tests/sieve/sievetest.sh
 tests/sieve/test_trialdiv.cpp
+tests/sieve/test_trialdiv_example_stdin.txt
 tests/sieve/ecm/CMakeLists.txt
 tests/sieve/ecm/test_factor_ecm_10_100_1000.inp
 tests/sieve/ecm/test_factor_ecm_11_100_1000.inp
@@ -1221,6 +1222,7 @@ tests/scripts/CMakeLists.txt
 tests/scripts/cadofactor/CMakeLists.txt
 tests/scripts/cadofactor/test_wudb_cmdline.sh
 tests/provide-wdir.sh
+tests/generic_test_sha1_output.sh
 tests/utils/test_mpz_vector.c
 linalg/bwc/blocklanczos.cpp
 tests/linalg/bwc/test-blocklanczos.sh

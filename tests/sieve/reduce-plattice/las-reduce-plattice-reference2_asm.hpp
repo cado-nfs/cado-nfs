@@ -4,6 +4,11 @@
 #include "las-plattice.hpp"
 #include "reduce-plattice/plattice-proxy.hpp"
 
+/* XXX This code is known to be buggy. It does not pass
+ * test_reduce_plattice.
+ * (It's not used beyond testing. And even then, this code should simply
+ * go away)
+ */
 int
 reference2_asm (plattice_proxy *pli, const fbprime_t p, const fbroot_t r, const uint32_t I)
 {
