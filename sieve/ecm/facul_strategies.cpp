@@ -698,8 +698,16 @@ facul_strategy_oneside::default_strategy (int n)
 #endif
     }
 
-    /* heuristic strategy where B1 is increased by c*sqrt(B1) at each curve */
-    unsigned long B1 = 105;
+    /* heuristic strategy where B1 is increased by c*sqrt(B1) at each curve
+     *
+     * Note that only some addition chains were computed in
+     * sieve/ecm/bytecode_mishmash_B1_data.h ; those have fewer
+     * arithmetic operations than the ones we compute automatically.
+     *
+     * For this reason, if the sequence of attained values for B1 is
+     * changed, the performance mught degrade a little bit.
+     */
+    double B1 = 105;
     for (int i = 3 ; n-- > 0 ; i++) {
         /* If the sequence of B1 values is modified, it may be a good thing to
          * regenerate bytecode_mishmash_B1_data.h to add precomputed chains for
