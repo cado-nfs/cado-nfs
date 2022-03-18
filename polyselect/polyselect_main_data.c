@@ -464,7 +464,7 @@ void polyselect_main_data_prepare_leagues(polyselect_main_data_ptr main_data)
         polyselect_thread_league_init(&(main_data->leagues[i]), main_data, i);
 #ifdef HAVE_HWLOC
         if (main_data->bind && main_data->leagues[i].membind_set)
-            printf("node %u has %u cpus\n", i, hwloc_bitmap_weight(main_data->leagues[i].membind_set));
+            printf("# node %u has %u cpus\n", i, hwloc_bitmap_weight(main_data->leagues[i].membind_set));
 #endif
     }
 }
