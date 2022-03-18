@@ -5443,8 +5443,8 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
     def run(self):
         self.server.serve()
 
-    def shutdown(self):
-        self.server.shutdown()        
+    def shutdown(self, *args):
+        self.server.shutdown(*args)
 
     def stop_serving_wus(self):
         self.server.stop_serving_wus()
@@ -6115,7 +6115,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         self.servertask.run()
         self.start_all_clients()
 
-    def exit_subtask_chain(self):
+    def exit_subtask_chain(self, exc):
         self.servertask.stop_serving_wus()        
         # print everybody's stats before we exit.
         for task in self.tasks_that_have_run:
@@ -6123,7 +6123,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         self.stop_all_clients()
         self.elapsed = self.end_elapsed_time()
         self.cputotal = self.get_sum_of_cpu_or_real_time(True)
-        self.servertask.shutdown()
+        self.servertask.shutdown(exc)
 
     def run(self):
         had_interrupt = False
@@ -6138,8 +6138,8 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             def __enter__(self):
                 self.s.enter_subtask_chain()
                 return self
-            def __exit__(self, *args):
-                self.s.exit_subtask_chain()
+            def __exit__(self, e_type, e_value, traceback):
+                self.s.exit_subtask_chain(e_value)
 
         last_task = None
         last_status = True

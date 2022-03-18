@@ -896,9 +896,11 @@ subjectAltName=@altnames
         self.logger.info("Got notification to stop serving Workunits")
         self.serving_wus[0] = False
     
-    def shutdown(self):
+    def shutdown(self, e):
         t = self.linger_before_quit
         if t:
+            if e is not None:
+                self.logger.critical("Stopping because of exception: " + repr(e))
             self.logger.info("Waiting for %d seconds so that clients get a chance to receive 410", t)
             time.sleep(t)
             self.logger.info("Exiting now")
