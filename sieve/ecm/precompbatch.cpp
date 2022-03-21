@@ -15,12 +15,12 @@ static void declare_usage(param_list pl)
 {
     param_list_decl_usage(pl, "poly", "poly file");
     param_list_decl_usage(pl, "t", "number of threads");
-    param_list_decl_usage(pl, "lim0", "sieved bound on side 0");
-    param_list_decl_usage(pl, "lim1", "sieved bound on side 1");
-    param_list_decl_usage(pl, "batchlpb0", "batch bound on side 0");
-    param_list_decl_usage(pl, "batchlpb1", "batch bound on side 1");
-    param_list_decl_usage(pl, "batch0", "file of product of primes on side 0");
-    param_list_decl_usage(pl, "batch1", "file of product of primes on side 1");
+    param_list_decl_usage(pl, "lim0", "sieving bound on side 0");
+    param_list_decl_usage(pl, "lim1", "sieving bound on side 1");
+    param_list_decl_usage(pl, "batchlpb0", "large prime bound on side 0 to be considered by batch cofactorization. Primes between lim0 and 2^batchlpb0 will be extracted by product trees. Defaults to lpb0.");
+    param_list_decl_usage(pl, "batchlpb1", "large prime bound on side 1 to be considered by batch cofactorization. Primes between lim1 and 2^batchlpb1 will be extracted by product trees. Defaults to lpb1.");
+    param_list_decl_usage(pl, "batch0", "file with product of primes on side 0");
+    param_list_decl_usage(pl, "batch1", "file with product of primes on side 1");
 
     verbose_decl_usage(pl);
 }

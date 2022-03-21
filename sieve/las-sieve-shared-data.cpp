@@ -20,7 +20,7 @@ void sieve_shared_data::declare_usage(cxx_param_list & pl)
     cxx_cado_poly::declare_usage(pl);
     param_list_decl_usage(pl, "fb0",   "factor base file on the rational side");
     param_list_decl_usage(pl, "fb1",   "factor base file on the algebraic side");
-    param_list_decl_usage(pl, "fbc",  "factor base cache file (not yet functional)");
+    param_list_decl_usage(pl, "fbc",  "factor base cache file");
 }
 
 sieve_shared_data::side_data::side_data(int side,
