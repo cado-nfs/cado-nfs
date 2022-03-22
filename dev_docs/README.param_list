@@ -254,10 +254,7 @@ The ``peculiar cases'' (case (4)) are to be handled in a way which
 depends exactly on how parameters are expected. Look into handling of
 amin amax bmin bmax within sieve/sieve.c for an example.
 
-Extra: parameters may have aliases. For the moment, aliases are better
-recognized before calling param_list_update_cmdline, by special calls to
-param_list_update_cmdline_alias (see polyselect/polyselect.c). But this
-may change.
+Extra: parameters may have aliases. See param_list_configure_alias
 
 ** PARSING VALUES **
 

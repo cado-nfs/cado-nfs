@@ -163,7 +163,7 @@ las_info::las_info(cxx_param_list & pl)
         param_list_parse_uint64(pl, "qfac-max", &qfac_max);
     }
 
-    param_list_parse_string(pl, "relation_cache", relation_cache);
+    param_list_parse(pl, "relation_cache", relation_cache);
 
     // ----- stuff roughly related to the descent {{{
     descent_helper = NULL;

@@ -645,6 +645,7 @@ linalg/bwc/matmul_facade.c
 linalg/bwc/matmul_facade.h
 linalg/bwc/matmul_top.c
 linalg/bwc/matmul_top.h
+linalg/bwc/matmul_top2.cpp
 linalg/bwc/mf.c
 linalg/bwc/mf.h
 linalg/bwc/mf_bal.c
@@ -1720,7 +1721,7 @@ utils/numbertheory.hpp
 utils/numbertheory_tool.cpp
 utils/omp_proxy.h
 utils/params-extra.cpp
-utils/params.c
+utils/params.cpp
 utils/params.h
 utils/polyroots.c
 utils/purgedfile.c

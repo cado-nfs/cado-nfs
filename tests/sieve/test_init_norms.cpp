@@ -218,32 +218,15 @@ int main (int argc0, char *argv0[])/*{{{*/
     gmp_randseed_ui(rstate, seed);
 
     std::vector<int> sides;
-    sides.push_back(0);
-    sides.push_back(1);
-
-    unsigned int * opt_sides;
-    unsigned int nopt_sides;
-    if (param_list_parse_uint_list_size(pl, "norm-sides", &opt_sides, &nopt_sides)) {
-        sides.clear();
-        for(unsigned int i = 0 ; i < nopt_sides ; i++) {
-            sides.push_back(opt_sides[i]);
-        }
-        free(opt_sides);
+    if (!param_list_parse(pl, "norm-sides", sides)) {
+        sides.push_back(0);
+        sides.push_back(1);
     }
 
     std::vector<std::string> impls;
-    impls.push_back("reference");
-    impls.push_back("smart");
-
-    char ** opt_impls;
-    int nopt_impls;
-    if (param_list_parse_string_list_alloc(pl, "norm-impls", &opt_impls, &nopt_impls, ",")) {
-        impls.clear();
-        for(int i = 0 ; i < nopt_impls ; i++) {
-            impls.push_back(opt_impls[i]);
-            free(opt_impls[i]);
-        }
-        free(opt_impls);
+    if (!param_list_parse(pl, "norm-impls", impls)) {
+        impls.push_back("reference");
+        impls.push_back("smart");
     }
 
     /* That's a maximum only. Currently we have only two lognorm
