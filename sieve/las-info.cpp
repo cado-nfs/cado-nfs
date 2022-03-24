@@ -119,15 +119,15 @@ void las_info::load_factor_base(cxx_param_list & pl)
 }
 
 las_info::las_info(cxx_param_list & pl)
-    : cpoly(pl),
-      config_pool(pl, cpoly->nb_polys),
+    : cpoly(pl)
+    , config_pool(pl, cpoly->nb_polys)
 #ifdef HAVE_HWLOC
-      shared_structure_cache(),
+    , shared_structure_cache()
 #else
-      shared_structure_private(cpoly, pl),
+    , shared_structure_private(cpoly, pl)
 #endif
-      dlog_base(cpoly, pl),
-      cofac_stats(pl)
+    , dlog_base(cpoly, pl)
+    , cofac_stats(pl)
       /*{{{*/
 {
     int nsides = cpoly->nb_polys;
