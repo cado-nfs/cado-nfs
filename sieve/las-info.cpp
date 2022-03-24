@@ -167,15 +167,17 @@ las_info::las_info(cxx_param_list & pl)
     // }}}
 
     /* {{{ duplicate suppression */
-    dupqmin = {{ 0, 0 }};
-    dupqmax = {{ ULONG_MAX, ULONG_MAX}};
-    if (!param_list_parse_ulong_and_ulong(pl, "dup-qmin", &dupqmin[0], ",") && suppress_duplicates) {
-        fprintf(stderr, "Error: -dup-qmin is mandatory with -dup\n");
-        exit(EXIT_FAILURE);
+    dupqmin.assign(nsides, ULONG_MAX);
+    dupqmax.assign(nsides, ULONG_MAX);
+    if (suppress_duplicates) {
+        if (!param_list_parse_per_side<unsigned long>(pl, "dup-qmin", dupqmin.data(), nsides, ARGS_PER_SIDE_DEFAULT_AS_IS)) {
+            fprintf(stderr, "Error: -dup-qmin is mandatory with -dup\n");
+            exit(EXIT_FAILURE);
+        }
+        param_list_parse_per_side<unsigned long>(pl, "dup-qmax", dupqmax.data(), nsides, ARGS_PER_SIDE_DEFAULT_AS_IS);
+        /* The command-line value 0 also means ULONG_MAX */
+        for (auto & x : dupqmin) if (x == 0) x = ULONG_MAX;
     }
-    param_list_parse_ulong_and_ulong(pl, "dup-qmax", &dupqmax[0], ",");
-    /* Change 0 (not initialized) into LONG_MAX */
-    for (auto & x : dupqmin) if (x == 0) x = ULONG_MAX;
 
     /* }}} */
 

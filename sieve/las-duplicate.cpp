@@ -499,6 +499,8 @@ relation_is_duplicate(relation const& rel,
             prime_list.push_back(p);
         }
 
+        /* FIXME: For hybrid special-q's, this must be changed! */
+
         for (auto const & sq : all_multiples(prime_list)) {
             // keep sq only if it was sieved before [doing]
             if (!sq_was_previously_sieved(las, sq.q, side, doing))
