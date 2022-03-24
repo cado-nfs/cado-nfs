@@ -698,6 +698,8 @@ void per_special_q_banner(las_todo_entry const & doing)
  */
 static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool)/*{{{*/
 {
+    int nsides = ws.sides.size();
+
     nfs_aux & aux(*aux_p);
     timetree_t & timer_special_q(aux.rt.timer);
     where_am_I & w(aux.w);
@@ -716,7 +718,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 
     /* TODO: is there a way to share this in sublat mode ? */
 
-    multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> precomp_plattice;
+    multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> precomp_plattice(nsides);
 
     {
         {

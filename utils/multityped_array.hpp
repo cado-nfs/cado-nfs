@@ -1,6 +1,8 @@
 #ifndef MULTITYPED_ARRAY_HPP_
 #define MULTITYPED_ARRAY_HPP_
 
+#include <utility>
+
 /* A multityped_array<F, 1, 4> is equivalent to
  *   struct foo {
  *      F<1>::type x1;
@@ -44,8 +46,14 @@ template<template<int> class F, int n0, int n1> struct multityped_array : public
         static_assert(n0 <= k && k < n1, "attempt to get member of multityped_array out of bounds");
         return multityped_array_details::dig<self, n1-1-k>::get(*this);
     }
+    template<typename... Args> multityped_array(Args&&... args)
+        : super(std::forward<Args>(args)...)
+        , x(std::forward<Args>(args)...)
+    {}
 };
-template<template<int> class F, int n0> struct multityped_array<F, n0, n0> { };
+template<template<int> class F, int n0> struct multityped_array<F, n0, n0> {
+    template<typename... Args> multityped_array(Args&&...) {}
+};
 
 /* Here's an example of how we can do a for-loop on this sort of things
  *
