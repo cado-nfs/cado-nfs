@@ -832,7 +832,9 @@ void sieve_range_adjust::prepare_fijd()/*{{{*/
      * done several times in the computation, but that's a trivial
      * computation anyway.
      */
-    for (int side = 0; side < 2; side++) {
+    int nsides = cpoly->nb_polys;
+    fijd.assign(nsides, {});
+    for (int side = 0; side < nsides; side++) {
         cxx_mpz_poly fz;
         mpz_poly_homography (fz, cpoly->pols[side], H);
         if (Q.doing.side == side) {
@@ -885,8 +887,9 @@ sieve_range_adjust::sieve_info_update_norm_data_Jmax (bool keep_logI)
   double Jmax = (1 << (logA - logI));
 
   prepare_fijd();
+  int nsides = cpoly->nb_polys;
 
-  for (int side = 0; side < 2; side++)
+  for (int side = 0; side < nsides; side++)
     {
       /* Compute the best possible maximum norm, i.e., assuming a nice
          circular sieve region in the a,b-plane */
@@ -964,7 +967,7 @@ qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis c
  */
 double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, int N)
 {
-    int lpbs[2] = { conf.sides[0].lpb, conf.sides[1].lpb };
+    int nsides = cpoly->nb_polys;
     int nx = 1 << (N - squeeze);
     int ny = 1 << (N + squeeze);
 
@@ -993,18 +996,22 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle,
             if (j == 0 || j == ny/2) weight /= 2;
             verbose_output_print(0, 4, "# %d %d (%.2f) %.1f %.1f", i, j, weight, xys[0], xys[1]);
 
-            double prod = 1;
-            for(int side = 0 ; side < 2 ; side++) {
+            double sprod = 0;
+            double p0 = 1;
+            for(int side = 0 ; side < nsides ; side++) {
                 double z = double_poly_eval_homogeneous(fijd[side], xys[0], xys[1]);
                 double a = log2(fabs(z));
-                double d = dickman_rho_local(a/lpbs[side], fabs(z));
+                double d = dickman_rho_local(a/conf.sides[side].lpb, fabs(z));
                 verbose_output_print(0, 4, " %d %e %e", side, z, d);
-                prod *= d;
+                if (side == 0)
+                    p0 = d;
+                else
+                    sprod += p0 * d;
             }
-            verbose_output_print(0, 4, " %e\n", prod);
+            verbose_output_print(0, 4, " %e\n", sprod);
 
             weightsum += weight;
-            sum += weight*prod;
+            sum += weight*sprod;
         }
     }
     sum /= weightsum;

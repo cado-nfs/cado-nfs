@@ -22,6 +22,11 @@ typedef struct param_list_s param_list[1];
 typedef struct param_list_s * param_list_ptr;
 typedef struct param_list_s const * param_list_srcptr;
 
+enum args_per_side_policy_t {
+    ARGS_PER_SIDE_DEFAULT_AS_IS,
+    ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS,
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -61,6 +66,9 @@ extern int param_list_update_cmdline(param_list_ptr pl,
 #ifdef __cplusplus
 template<typename T>
 int param_list_parse(param_list_ptr pl, const char * key, T & r);
+
+template<typename T>
+int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, int n, enum args_per_side_policy_t policy);
 
 /* We have all of these defined in params.cpp, and they can be used from
  * c++ code only.
@@ -171,10 +179,6 @@ extern void param_list_print_command_line(FILE * stream, param_list_srcptr);
 
 extern void param_list_generic_failure(param_list_srcptr pl, const char *missing);
 
-enum args_per_side_policy_t {
-    ARGS_PER_SIDE_DEFAULT_AS_IS,
-    ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS,
-};
 extern int param_list_parse_uint_args_per_side(param_list_ptr pl, const char * key, unsigned int * lpb_arg, int n, enum args_per_side_policy_t policy);
 extern int param_list_parse_int_args_per_side(param_list_ptr pl, const char * key, int * lpb_arg, int n, enum args_per_side_policy_t policy);
 

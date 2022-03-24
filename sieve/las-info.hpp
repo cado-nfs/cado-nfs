@@ -209,9 +209,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
         void doit();
     } batch_print_survivors;
 
-    const char *batch_file[2];
-    int batchlpb[2];
-    int batchmfb[2];
+    std::vector<batch_side_config> bsides;
 
     /* Would this rather go somewhere else ? In a global (not per-sq)
      * version of nfs_work_cofac perhaps ?

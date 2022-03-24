@@ -62,33 +62,14 @@ static void declare_usage(cxx_param_list & pl)
   param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J");
   param_list_decl_usage(pl, "A",    "set sieving region to 2^A");
   param_list_decl_usage(pl, "skew", "skewness");
-  param_list_decl_usage(pl, "lim0", "sieving bound on side 0");
-  param_list_decl_usage(pl, "lim1", "sieving bound on side 1");
-  param_list_decl_usage(pl, "lpb0", "large prime bound on side 0, in bits");
-  param_list_decl_usage(pl, "lpb1", "large prime bound on side 1, in bits");
-  param_list_decl_usage(pl, "mfb0", "post-sieve cofactor bound on side 0, in bits");
-  param_list_decl_usage(pl, "mfb1", "post-sieve cofactor bound on side 1, in bits");
-  param_list_decl_usage(pl, "ncurves0", "cofactoring effort (number of curves) on side 0");
-  param_list_decl_usage(pl, "ncurves1", "cofactoring effort (number of curves) on side 1");
-  param_list_decl_usage(pl, "lambda0", "post-sieve qualification multiplier on side 0");
-  param_list_decl_usage(pl, "lambda1", "post-sieve qualification multiplier on side 1");
-  param_list_decl_usage(pl, "powlim0", "limit on powers sieved on side 0");
-  param_list_decl_usage(pl, "powlim1", "limit on powers sieved on side 1");
-  param_list_decl_usage(pl, "lims", "sieving bound on side all sides (comma-separated)");
-  param_list_decl_usage(pl, "lpbs", "large prime bound on all sides (comma-separated), in bits");
-  param_list_decl_usage(pl, "mfbs", "post-sieve cofactor bound on all sides (comma-separated), in bits");
-  param_list_decl_usage(pl, "ncurvess", "cofactoring effort (number of curves) on all sides (comma-separated)");
-  param_list_decl_usage(pl, "lambdas", "post-sieve qualification multiplier on all sides (comma-separated)");
-  param_list_decl_usage(pl, "powlims", "limit on powers sieved on all sides (comma-separated)");
   param_list_decl_usage(pl, "dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
   param_list_decl_usage(pl, "dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
   param_list_decl_usage(pl, "sqside", "side of special-q (default=1)");
   /* those are typical from las invocations, we wish to keep them
    * accepted */
   param_list_decl_usage(pl, "out",  "filename where relations are written, instead of stdout");
-  param_list_decl_usage(pl, "fb0",   "(unused)");
-  param_list_decl_usage(pl, "fb1",   "(unused)");
-  param_list_decl_usage(pl, "fbs",   "(unused)");
+  siever_side_config::declare_usage(pl);
+  param_list_decl_usage(pl, "fb",   "(unused)");
   param_list_decl_usage(pl, "fbc",  "(unused)");
   param_list_decl_usage(pl, "q0",   "(unused)");
   param_list_decl_usage(pl, "q1",   "(unused)");

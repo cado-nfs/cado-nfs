@@ -1181,6 +1181,8 @@ sieve/las-reduce-plattice-production-asm.hpp
 sieve/las-reduce-plattice-simplistic.hpp
 sieve/las-report-stats.cpp
 sieve/las-report-stats.hpp
+sieve/las-side-config.cpp
+sieve/las-side-config.hpp
 sieve/las-sieve-shared-data.cpp
 sieve/las-sieve-shared-data.hpp
 sieve/las-sieve2357.cpp

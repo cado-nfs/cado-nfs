@@ -398,11 +398,11 @@ private:
      * instantiated yet
      */
     facul_strategies::strategy_file
-        operator()(std::array<unsigned int, 2> const & mfb, FILE * file);
+        operator()(std::vector<unsigned int> const & mfb, FILE * file);
 };/*}}}*/
 
 class parameter_sequence_tracker {/*{{{*/
-    std::map<unsigned int, std::array<std::pair<bool, unsigned long>, 2>> seq;
+    std::map<unsigned int, std::vector<std::pair<bool, unsigned long>>> seq;
     public:
     parameter_sequence_tracker() {
         decltype(seq)::mapped_type::value_type z { true, 0 };
@@ -466,7 +466,7 @@ class parameter_sequence_tracker {/*{{{*/
 };/*}}}*/
 
 facul_strategies::strategy_file
-strategy_file_parser::operator()(std::array<unsigned int, 2> const & mfb, FILE * file)
+strategy_file_parser::operator()(std::vector<unsigned int> const & mfb, FILE * file)
 {
     verbose_output_print(0, 2, "# Read the cofactorization strategy file\n");
     // first, read linearly.
@@ -610,6 +610,10 @@ void fprint_one_chain(FILE * file, std::vector<facul_method_side> const & v)
 
 void facul_strategies::print(FILE * file) const/*{{{*/
 {
+    /* There isn't such a thing as a strategy for more than 2 sides.
+     */
+    ASSERT_ALWAYS(B.size() == 2);
+
     if (file == NULL)
         return;
     // print info lpb ...
@@ -663,12 +667,14 @@ void facul_strategies::print(FILE * file) const/*{{{*/
 }/*}}}*/
 
 facul_strategies_base::facul_strategies_base (
-        std::array<unsigned long, 2> const & lim,
-        std::array<unsigned int, 2> const & lpb,
-        std::array<unsigned int, 2> const & mfb,
+        std::vector<unsigned long> const & lim,
+        std::vector<unsigned int> const & lpb,
+        std::vector<unsigned int> const & mfb,
         bool perfectly_sieved)
-    : B(lim), lpb(lpb), mfb(mfb)
+    : B(lim), lpb(lpb), BB(lim.size()), BBB(lim.size()), mfb(mfb)
 {
+    ASSERT_ALWAYS(lpb.size() == lim.size());
+    ASSERT_ALWAYS(mfb.size() == lim.size());
     auto pBB = BB.begin();
     auto pBBB = BBB.begin();
     for(double b: B) {
@@ -690,20 +696,21 @@ void facul_strategies::precompute_method(facul_method::parameters const & mp, in
 
 /* Create our strategy book from a file. */
 facul_strategies::facul_strategies(
-        std::array<unsigned long, 2> const & lim,
-        std::array<unsigned int, 2> const & lpb,
-        std::array<unsigned int, 2> const & mfb,
+        std::vector<unsigned long> const & lim,
+        std::vector<unsigned int> const & lpb,
+        std::vector<unsigned int> const & mfb,
         bool perfectly_sieved,
         FILE * file,
         const int verbose)
     : facul_strategies(lim, lpb, mfb, perfectly_sieved, strategy_file_parser()(mfb, file), verbose)
-{}
+{
+}
  
 /* Create our strategy book from an in-memory version of a file. */
 facul_strategies::facul_strategies(
-        std::array<unsigned long, 2> const & lim,
-        std::array<unsigned int, 2> const & lpb,
-        std::array<unsigned int, 2> const & mfb,
+        std::vector<unsigned long> const & lim,
+        std::vector<unsigned int> const & lpb,
+        std::vector<unsigned int> const & mfb,
         bool perfectly_sieved,
         facul_strategies::strategy_file const & parsed_file,
         const int verbose)
@@ -888,16 +895,18 @@ facul_strategy_oneside::facul_strategy_oneside (unsigned long fbb, unsigned int 
  * Create our strategy book with our default strategy.
  */
 facul_strategies::facul_strategies (
-        std::array<unsigned long, 2> const & lim,
-        std::array<unsigned int, 2> const & lpb,
-        std::array<unsigned int, 2> const & mfb,
-        std::array<int, 2> ncurves,
+        std::vector<unsigned long> const & lim,
+        std::vector<unsigned int> const & lpb,
+        std::vector<unsigned int> const & mfb,
+        std::vector<int> ncurves,
         bool perfectly_sieved,
 	const int verbose)
     : facul_strategies_base(lim, lpb, mfb, perfectly_sieved)
 {
+    int nsides = lim.size();
+
     int max_ncurves = -1;
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < nsides ; side++) {
         if (ncurves[side] < 0)
             ncurves[side] = nb_curves_with_fbb (B[side], lpb[side], mfb[side]);
         if (ncurves[side] > max_ncurves)
@@ -916,7 +925,7 @@ facul_strategies::facul_strategies (
      *
      * NOTE: This is incompatible with USE_MPQS
      */
-    std::vector<facul_method::parameters_with_side> w[2];
+    std::vector<std::vector<facul_method::parameters_with_side>> w(2);
     for(int first = 0 ; first < 2 ; first++) {
         /* first == 0 means that r >= a: the rational side is largest.
          * Try to factor it first.
@@ -948,12 +957,14 @@ facul_strategies::facul_strategies (
      * happens that the same B1 is used with two different parameters, or
      * two different EC parameterizations. That is slightly annoying.
      */
-    for(int first = 0 ; first < 2 ; first++) {
+    for(int first = 0 ; first < nsides ; first++) {
         for(facul_method::parameters const & mp: w[first])
             precompute_method(mp, verbose);
     }
 
-    for(int first = 0 ; first < 2 ; first++) {
+    uniform_strategy.assign(nsides, {});
+
+    for(int first = 0 ; first < nsides ; first++) {
         std::vector<facul_method_side> & u(uniform_strategy[first]);
         for(auto const & mps: w[first]) {
             u.emplace_back(&precomputed_methods[mps], mps.side);

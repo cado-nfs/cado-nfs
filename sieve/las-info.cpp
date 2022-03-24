@@ -34,6 +34,7 @@ void las_info::declare_usage(cxx_param_list & pl)
     sieve_shared_data::declare_usage(pl);
     las_dlog_base::declare_usage(pl);
     cofactorization_statistics::declare_usage(pl);
+    batch_side_config::declare_usage(pl);
 
 
     param_list_decl_usage(pl, "seed", "Use this seed for random state seeding (currently used only by --random-sample)");
@@ -55,12 +56,6 @@ void las_info::declare_usage(cxx_param_list & pl)
 
 
     param_list_decl_usage(pl, "batch", "use batch cofactorization");
-    param_list_decl_usage(pl, "batch0", "side-0 batch file");
-    param_list_decl_usage(pl, "batch1", "side-1 batch file");
-    param_list_decl_usage(pl, "batchmfb0", "cofactor bound on side 0 to be considered after batch cofactorization. After primes below 2^batchlpb0 have been extracted, cofactors below this bound will go through ecm. Defaults to lpb0.");
-    param_list_decl_usage(pl, "batchmfb1", "cofactor bound on side 1 to be considered after batch cofactorization. After primes below 2^batchlpb1 have been extracted, cofactors below this bound will go through ecm. Defaults to lpb1.");
-    param_list_decl_usage(pl, "batchlpb0", "large prime bound on side 0 to be considered by batch cofactorization. Primes between lim0 and 2^batchlpb0 will be extracted by product trees. Defaults to lpb0.");
-    param_list_decl_usage(pl, "batchlpb1", "large prime bound on side 1 to be considered by batch cofactorization. Primes between lim1 and 2^batchlpb1 will be extracted by product trees. Defaults to lpb1.");
     param_list_decl_usage(pl, "batch-print-survivors", "just print survivors to files with the given basename for an external cofactorization");
     param_list_decl_usage(pl, "batch-print-survivors-filesize", "write that many survivors per file");
     param_list_decl_usage(pl, "batch-print-survivors-number-of-printers", "use this number of I/O threads to write survivor files. defaults to 1, and should not be changed except in very unusual cases");
@@ -125,7 +120,7 @@ void las_info::load_factor_base(cxx_param_list & pl)
 
 las_info::las_info(cxx_param_list & pl)
     : cpoly(pl),
-      config_pool(pl),
+      config_pool(pl, cpoly->nb_polys),
 #ifdef HAVE_HWLOC
       shared_structure_cache(),
 #else
@@ -135,6 +130,8 @@ las_info::las_info(cxx_param_list & pl)
       cofac_stats(pl)
       /*{{{*/
 {
+    int nsides = cpoly->nb_polys;
+
     /* We strive to initialize things in the exact order they're written
      * in the struct */
     // ----- general operational flags {{{
@@ -186,27 +183,29 @@ las_info::las_info(cxx_param_list & pl)
     batch = param_list_parse_switch(pl, "-batch");
 
     if (batch) {
+        batch_side_config::parse(pl, bsides, nsides);
         ASSERT_ALWAYS(config_pool.default_config_ptr);
         siever_config const & sc0(*config_pool.default_config_ptr);
-	batchlpb[0] = sc0.sides[0].lpb;
-	batchlpb[1] = sc0.sides[1].lpb;
-	batchmfb[0] = sc0.sides[0].lpb;
-	batchmfb[1] = sc0.sides[1].lpb;
-        param_list_parse_int(pl, "batchlpb0", &(batchlpb[0]));
-        param_list_parse_int(pl, "batchlpb1", &(batchlpb[1]));
-        param_list_parse_int(pl, "batchmfb0", &(batchmfb[0]));
-        param_list_parse_int(pl, "batchmfb1", &(batchmfb[1]));
-	batch_file[0] = param_list_lookup_string (pl, "batch0");
-	batch_file[1] = param_list_lookup_string (pl, "batch1");
 
-        for(int side = 0 ; side < 2 ; side++) {
+        /* Set some defaults. I agree that this logic is a little bit
+         * quirky.
+         */
+        for(int side = 0 ; side < nsides ; side++) {
+            if (bsides[side].batchlpb == UINT_MAX)
+                bsides[side].batchlpb = sc0.sides[side].lpb;
+            if (bsides[side].batchmfb == UINT_MAX)
+                bsides[side].batchmfb = sc0.sides[side].lpb;
+        }
+
+        for(int side = 0 ; side < nsides ; side++) {
+            auto const & bS = bsides[side];
             // the product of primes up to B takes \log2(B)-\log\log 2 /
             // \log 2 bits. The added constant is 0.5287.
-            if (batchlpb[side] + 0.5287 >= 31 + log2(GMP_LIMB_BITS)) {
-                fprintf(stderr, "Gnu MP cannot deal with primes product that large (max 37 bits, asked for batchlpb%d=%d)\n", side, batchlpb[side]);
+            if (bS.batchlpb + 0.5287 >= 31 + log2(GMP_LIMB_BITS)) {
+                fprintf(stderr, "Gnu MP cannot deal with primes product that large (max 37 bits, asked for batchlpb%d=%d)\n", side, bS.batchlpb);
                 abort();
-            } else if (batchlpb[side] + 0.5287 >= 34) {
-                fprintf(stderr, "Gnu MP's mpz_inp_raw and mpz_out_raw functions are limited to integers of at most 34 bits (asked for batchlpb%d=%d)\n",side,batchlpb[side]);
+            } else if (bS.batchlpb + 0.5287 >= 34) {
+                fprintf(stderr, "Gnu MP's mpz_inp_raw and mpz_out_raw functions are limited to integers of at most 34 bits (asked for batchlpb%d=%d)\n",side,bS.batchlpb);
                 abort();
             }
         }

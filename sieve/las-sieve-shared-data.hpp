@@ -161,6 +161,7 @@ struct sieve_shared_data {
     sieve_shared_data(sieve_shared_data&&) = default;
     sieve_shared_data& operator=(sieve_shared_data&&) = default;
     static void declare_usage(cxx_param_list & pl);
+    static void lookup_parameters(cxx_param_list &, int nsides = 2);
 };
 
 #endif	/* LAS_SIEVE_SHARED_DATA_HPP_ */

@@ -168,13 +168,13 @@ facul_aux (std::vector<cxx_mpz> & factors, const FaculModulusBase *m,
  XXX this is a mess. Cleanup needed.
 */
 
-static std::array<int, 2>
-facul_both_src (std::array<std::vector<cxx_mpz>, 2> & factors, const FaculModulusBase** m,
+static std::vector<int>
+facul_both_src (std::vector<std::vector<cxx_mpz>> & factors, const FaculModulusBase** m,
 		facul_strategies const & strategies, int* cof,
 		int* is_smooth)
 {
-    std::array<int, 2> found;
-    found.fill(0);
+    int nsides = factors.size();
+    std::vector<int> found(nsides, 0);
 
     std::vector<facul_method_side> const & methods = strategies(cof[0],cof[1]);
 
@@ -309,15 +309,17 @@ clean_up:
   This function is like facul, but we will work with both norms
   together.  It returns the number of factors for each side.
 */
-std::array<int, 2>
-facul_both (std::array<std::vector<cxx_mpz>, 2> & factors,
-            std::array<cxx_mpz, 2> & N,
+std::vector<int>
+facul_both (std::vector<std::vector<cxx_mpz>> & factors,
+            std::vector<cxx_mpz> & N,
 	    facul_strategies const & strategies, int* is_smooth)
 {
+  int nsides = factors.size();
+  ASSERT_ALWAYS(factors.size() == (size_t) nsides);
+  ASSERT_ALWAYS(N.size() ==(size_t)  nsides);
   int cof[2];
   size_t bits;
-  std::array<int, 2> found;
-  found.fill(0);
+  std::vector<int> found(nsides, 0);
 
   const FaculModulusBase *n[2];
 

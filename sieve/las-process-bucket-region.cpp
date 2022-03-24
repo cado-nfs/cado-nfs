@@ -140,7 +140,7 @@ struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
     timetree_t & timer;
     int bucket_relative_index;
     las_report& rep;
-    unsigned char * S[2];
+    std::vector<unsigned char *> S;
     /* We will have this point to the thread's where_am_I data member.
      * (within nfs_aux::th). However it might be just as easy to let this
      * field be defined here, and drop the latter.
@@ -171,7 +171,7 @@ struct process_bucket_region_run : public process_bucket_region_spawn {/*{{{*/
         bucket_primes_t primes;         /* for resieving */
     };/*}}}*/
 
-    std::array<side_data, 2> sides;
+    std::vector<side_data> sides;
 
     process_bucket_region_run(process_bucket_region_spawn const & p, timetree_t & timer, worker_thread * worker, int id);
 
@@ -212,13 +212,17 @@ process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn
     timer(timer),
     bucket_relative_index(id),
     rep(taux.rep),
-    w(taux.w)
+    S(ws.las.cpoly->nb_polys),
+    w(taux.w),
+    sides(ws.las.cpoly->nb_polys)
 {
+    int nsides = sides.size();
+
     w = w_saved;
     WHERE_AM_I_UPDATE(w, N, first_region0_index + already_done + bucket_relative_index);
 
     /* This is local to this thread */
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < nsides ; side++) {
         nfs_work::side_data & wss(ws.sides[side]);
         if (wss.no_fb()) {
             S[side] = NULL;
@@ -497,6 +501,8 @@ void process_bucket_region_run::resieve(int side)/*{{{*/
 
 void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*/
 {
+    int nsides = sides.size();
+
     /* by declaring this timer "fuzzy", we make the child timers use only
      * userspace calls, and not system calls. This makes it possible to
      * be really fine-grain, at only little expense.
@@ -533,7 +539,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         SIBLING_TIMER(timer, "check_coprime");
 
         /* start building a new object. This is a swap operation */
-        cur = cofac_standalone(N, x, ws.conf.logI, ws.Q);
+        cur = cofac_standalone(nsides, N, x, ws.conf.logI, ws.Q);
 
         for(int side = 0 ; side < 2 ; side++) {
             if (ws.sides[side].no_fb()) continue;
@@ -756,6 +762,8 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 }/*}}}*/
 void process_bucket_region_run::operator()() {/*{{{*/
 
+    int nsides = sides.size();
+
     // This is too verbose.
     // fprintf(stderr, "=== entering PBR for report id %lu\n", rep.id);
 
@@ -775,7 +783,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
         }
     }
 
-    for (int side = 0; side < 2; side++) {
+    for (int side = 0; side < nsides; side++) {
         WHERE_AM_I_UPDATE(w, side, side);
         nfs_work::side_data & wss(ws.sides[side]);
         if (wss.no_fb()) {
@@ -817,7 +825,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
      */
 
     /* These two steps used to be called "prepare_cofactoring" */
-    for(int side = 0 ; !survivors.empty() && do_resieve && side < 2 ; side++) {
+    for(int side = 0 ; !survivors.empty() && do_resieve && side < nsides ; side++) {
         MARK_TIMER_FOR_SIDE(timer, side);
         sides[side].purged.allocate_memory(ws.local_memory, BUCKET_REGION);
         purge_buckets(side);
@@ -831,6 +839,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
 
 #ifdef TRACE_K
     int N = first_region0_index + already_done + bucket_relative_index;
+    /* FIXME FIXME FIXME MNFS -- what do we want to do here? */
     if (trace_on_spot_Nx(N, trace_Nx.x)) {
         unsigned char * Sx = S[0] ? S[0] : S[1];
         verbose_output_print(TRACE_CHANNEL, 0, "# Slot [%u] in bucket %u has value %u\n",

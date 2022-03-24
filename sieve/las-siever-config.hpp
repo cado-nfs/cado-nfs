@@ -8,6 +8,7 @@
 #include "fb.hpp"        // for fb_factorbase, fb_factorbase::key_type
 #include "las-base.hpp"  // for _padded_pod
 #include "params.h"     // param_list_ptr
+#include "las-side-config.hpp"
 
 struct las_todo_entry; // IWYU pragma: keep
 
@@ -18,7 +19,7 @@ struct las_todo_entry; // IWYU pragma: keep
  * Different values for these fields will correspond to different siever
  * structures.
  */
-struct siever_config : public _padded_pod<siever_config> {
+struct siever_config {
     /* The bit size of the special-q. Counting in bits is no necessity,
      * we could imagine being more accurate. This is set by
      * siever_config_pool::get_config_for_q  */
@@ -72,22 +73,12 @@ struct siever_config : public _padded_pod<siever_config> {
     /* unsieve threshold is not related to the factor base. */
     unsigned int unsieve_thresh = 100;
 
-    struct side_config {
-        unsigned long lim;    /* factor base bound */
-        unsigned long powlim; /* bound on powers in the factor base */
-
-        int lpb;              /* large prime bound is 2^lpb */
-        int mfb;              /* bound for residuals is 2^mfb */
-        int ncurves;          /* number of cofactorization curves */
-        double lambda;        /* lambda sieve parameter */
-        
-    };
-    side_config sides[2];
+    std::vector<siever_side_config> sides;
 
     void display(int side, unsigned int bitsize) const;
 
-    static void declare_usage(param_list_ptr pl);
-    static bool parse_default(siever_config & sc, param_list_ptr pl);
+    static void declare_usage(cxx_param_list & pl);
+    static bool parse_default(siever_config & sc, cxx_param_list & pl, int);
 
     /*{{{ has_same_config */
     bool operator==(siever_config const & o) const { return memcmp(this, &o, sizeof(*this)) == 0; }
@@ -228,7 +219,7 @@ struct siever_config_pool {
 
     siever_config get_config_for_q(las_todo_entry const& doing) const;
 
-    siever_config_pool(cxx_param_list& pl);
+    siever_config_pool(cxx_param_list& pl, int nb_polys);
 
     double hint_expected_time(key_type const &K) const {
         if (hints.find(K) == hints.end())

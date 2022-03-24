@@ -274,7 +274,7 @@ cado_divert_test(F9 sieve_bug_21480b
 cado_divert_test(F9 batch
         APPEND_ENVIRONMENT
             lpb1=24 mfb1=72 lambda1=2.9 lambda0=2.2
-            batch0=. batch1=.
+            batchfile0=. batchfile1=.
             REL_COUNT=272
             REFERENCE_SHA1=3aba8ade73e9e47dd76b0f85a2c681408f34a189
             REFERENCE_REVISION=5d9b68511102a957f941b272eb6d753526bcc3b1
@@ -286,7 +286,7 @@ cado_define_test(bogus_batch_is_consistent
     ${CMAKE_CURRENT_SOURCE_DIR}/bogus.batch0)
 cado_divert_test(F9_batch try_to_reuse_foreign
     APPEND_ENVIRONMENT
-    batch0=${CMAKE_CURRENT_SOURCE_DIR}/bogus.batch0)
+    batchfile0=${CMAKE_CURRENT_SOURCE_DIR}/bogus.batch0)
 set_tests_properties(F9_batch_try_to_reuse_foreign PROPERTIES WILL_FAIL 1)
 
 
@@ -531,13 +531,10 @@ cado_define_test(test_logapprox.cpp
 # yet allow a run to simulate real polynomials because well, I can't be
 # sure with the current code... */
 cado_define_test(test_init_norms.cpp
-    ${PROJECT_SOURCE_DIR}/sieve/las-norms.cpp
-    ${PROJECT_SOURCE_DIR}/sieve/las-config.c
-    ${PROJECT_SOURCE_DIR}/sieve/logapprox.cpp
-    ${PROJECT_SOURCE_DIR}/sieve/las-siever-config.cpp
-    ${PROJECT_SOURCE_DIR}/sieve/las-todo-entry.cpp
-    ${PROJECT_SOURCE_DIR}/sieve/las-qlattice.cpp
     ${PROJECT_SOURCE_DIR}/sieve/las-multiobj-globals.cpp
+    $<TARGET_OBJECTS:las_core_b0>
+    $<TARGET_OBJECTS:las_core_a>
+    $<TARGET_OBJECTS:las_core_0>
     NO_DEFAULT_RUN
     LIBRARIES utils tests
 )

@@ -9,18 +9,16 @@
 #include "mpz_poly.h"
 #include "verbose.h"    // verbose_decl_usage
 #include "params.h"
+#include "las-side-config.hpp"
 
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "poly", "poly file");
     param_list_decl_usage(pl, "t", "number of threads");
-    param_list_decl_usage(pl, "lim0", "sieving bound on side 0");
-    param_list_decl_usage(pl, "lim1", "sieving bound on side 1");
-    param_list_decl_usage(pl, "batchlpb0", "large prime bound on side 0 to be considered by batch cofactorization. Primes between lim0 and 2^batchlpb0 will be extracted by product trees. Defaults to lpb0.");
-    param_list_decl_usage(pl, "batchlpb1", "large prime bound on side 1 to be considered by batch cofactorization. Primes between lim1 and 2^batchlpb1 will be extracted by product trees. Defaults to lpb1.");
-    param_list_decl_usage(pl, "batch0", "file with product of primes on side 0");
-    param_list_decl_usage(pl, "batch1", "file with product of primes on side 1");
+
+    siever_side_config::declare_usage(pl);
+    batch_side_config::declare_usage(pl);
 
     verbose_decl_usage(pl);
 }
@@ -68,43 +66,23 @@ main (int argc, char *argv[])
   }
 
   param_list_parse_ulong(pl, "t"   , &nb_threads);
+
+  int nsides = cpoly->nb_polys;
+
+  std::vector<siever_side_config> sides;
+  siever_side_config::parse(pl, sides, nsides, { "lim" });
+
+  std::vector<batch_side_config> bsides;
+  batch_side_config::parse(pl, bsides, nsides, { "batchlpb", "batchfile" });
   
-  unsigned long lim[2] = {ULONG_MAX, ULONG_MAX};
-  param_list_parse_ulong(pl, "lim0", &lim[0]);
-  param_list_parse_ulong(pl, "lim1", &lim[1]);
-  if (lim[0] == ULONG_MAX || lim[1] == ULONG_MAX) {
-      fprintf(stderr,
-              "Error: parameters lim[01] are mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-
-  int batchlpb[2] = {0, 0};
-  param_list_parse_int(pl, "batchlpb0", &batchlpb[0]);
-  param_list_parse_int(pl, "batchlpb1", &batchlpb[1]);
-
-  if (batchlpb[0] * batchlpb[1] == 0) {
-      fprintf(stderr,
-              "Error: parameters batchlpb[01] are mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-
-  const char *batch_file[2];
-  batch_file[0] = param_list_lookup_string (pl, "batch0");
-  batch_file[1] = param_list_lookup_string (pl, "batch1");
-  if (batch_file[0] == NULL || batch_file[1] == NULL) {
-      fprintf(stderr, "Error: parameters batch[01] are mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-
   cxx_mpz batchP[2];
 
   double extra_time = 0;
-  for (int side = 0; side < 2; ++side) {
-      create_batch_file (batch_file[side], batchP[side], lim[side],
-              1UL << batchlpb[side], cpoly->pols[side], stdout, nb_threads, extra_time);
+  for (int side = 0; side < nsides; ++side) {
+      siever_side_config & S(sides[side]);
+      batch_side_config & bS(bsides[side]);
+      create_batch_file (bS.batchfilename, batchP[side], S.lim,
+              1UL << bS.batchlpb, cpoly->pols[side], stdout, nb_threads, extra_time);
   }
 
   return EXIT_SUCCESS;

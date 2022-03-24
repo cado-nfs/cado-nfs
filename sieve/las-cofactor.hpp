@@ -5,7 +5,6 @@
 
 #include <cstdint>               // for uint32_t
 #include <cstdio>                // for FILE, NULL
-#include <array>                  // for array, array<>::value_type
 #include <mutex>                  // for mutex
 #include <vector>                 // for vector
 #include <gmp.h>                  // for mpz_sizeinbase
@@ -15,6 +14,9 @@
 #include "params.h"     // param_list_ptr
 
 class cofactorization_statistics {
+    /* We rarely use this, if ever. Do we want to generalize this at all?
+     * How? For the moment we just bail out if more than two sides.
+     */
     FILE * file;
     std::vector<std::vector<uint32_t>> cof_call;
     std::vector<std::vector<uint32_t>> cof_success;
@@ -24,31 +26,34 @@ public:
     bool active() { return file != NULL; }
     void call(int bits0, int bits1);
     void print();
-    void call(std::array<cxx_mpz, 2> const & norm, std::array<int, 2> & cof_bitsize) {
+    void call(std::vector<cxx_mpz> const & norm, std::vector<int> & cof_bitsize) {
         if (!active()) return;
+        ASSERT_ALWAYS(norm.size() == 2);
+        cof_bitsize.assign(norm.size(), 0);
         cof_bitsize[0] = mpz_sizeinbase(norm[0], 2);
         cof_bitsize[1] = mpz_sizeinbase(norm[1], 2);
         call(cof_bitsize[0], cof_bitsize[1]);
     }
-    void success(std::array<int, 2> const & cof_bitsize) {
+    void success(std::vector<int> const & cof_bitsize) {
         if (!active()) return;
+        ASSERT_ALWAYS(cof_bitsize.size() == 2);
         cof_success[cof_bitsize[0]][cof_bitsize[1]]++;
     }
     void success(int bits0, int bits1)
     {
-        if (!file) return;
+        if (!active()) return;
         cof_success[bits0][bits1]++;
     }
     ~cofactorization_statistics();
     static void declare_usage(cxx_param_list & pl);
 };
 
-int check_leftover_norm (cxx_mpz const & n, siever_config::side_config const & sc);
+int check_leftover_norm (cxx_mpz const & n, siever_side_config const & sc);
 
 int factor_both_leftover_norms(
-        std::array<cxx_mpz, 2> & norms,
-        std::array<std::vector<cxx_mpz>, 2> &,
-        std::array<unsigned long, 2> const &,
+        std::vector<cxx_mpz> & norms,
+        std::vector<std::vector<cxx_mpz>> &,
+        std::vector<unsigned long> const &,
         facul_strategies const &);
 
 /* handy shortcut. Can't have it defined at the facul.hpp level because
@@ -56,10 +61,10 @@ int factor_both_leftover_norms(
 static inline facul_strategies * facul_make_strategies (siever_config const & conf, FILE* file, const int verbose);
 static inline facul_strategies * facul_make_strategies (siever_config const & conf, FILE* file, const int verbose)
 {
-    std::array<unsigned long, 2> lim;
-    std::array<unsigned int, 2> lpb;
-    std::array<unsigned int, 2> mfb;
-    std::array<int, 2> ncurves;
+    std::vector<unsigned long> lim(conf.sides.size());
+    std::vector<unsigned int> lpb(conf.sides.size());
+    std::vector<unsigned int> mfb(conf.sides.size());
+    std::vector<int> ncurves(conf.sides.size());
     auto plim = lim.begin();
     auto plpb = lpb.begin();
     auto pmfb = mfb.begin();

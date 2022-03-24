@@ -145,9 +145,10 @@ void param_list_add_key(param_list_impl & pli,
             /* ignore lower-priority parameers */
             return;
         } else if (it->second.origin == p.origin) {
-            if (pli.p[key].value == p.value)
+            if (pli.p[key].value == p.value) {
                 pli.p[key].seen += p.seen;
-            return;
+                return;
+            }
         }
     }
     pli.p[key] = p;
@@ -399,13 +400,13 @@ int param_list_update_cmdline(param_list_ptr pl,
    mutex locking to make look-ups thread safe; the caller must not access
    any param_list entries by itself. */
 static const char *
-get_assoc_ptr(param_list_ptr pl, const char * key, int * const seen = NULL)
+get_assoc_ptr(param_list_ptr pl, const char * key, bool stealth = false, int * const seen = NULL)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
     std::lock_guard<std::mutex> dummy(mutex);
     if (pli.use_doc) {
         for(int i = 0 ; i < 2 && *key == '-' ; key++, i++) ;
-        if (!is_documented_key(pl, key)) 
+        if (!stealth && !is_documented_key(pl, key)) 
             fprintf(stderr, "# Warning: parameter %s is checked by this program but is undocumented.\n", key);
     }
     auto it = pli.p.find(key);
@@ -418,9 +419,9 @@ get_assoc_ptr(param_list_ptr pl, const char * key, int * const seen = NULL)
 }
 
 static int
-get_assoc(param_list_ptr pl, const char * key, std::string & value, int * const seen = NULL)
+get_assoc(param_list_ptr pl, const char * key, std::string & value, bool stealth = false, int * const seen = NULL)
 {
-    const char * t = get_assoc_ptr(pl, key, seen);
+    const char * t = get_assoc_ptr(pl, key, stealth, seen);
     if (t)
         value = t;
     return t != NULL;
@@ -558,11 +559,11 @@ template<> struct parse<cxx_mpz> {
 
 template<typename T>
 int
-param_list_parse(param_list_ptr pl, const char * key, T & r)
+param_list_parse_inner(param_list_ptr pl, const char * key, T & r, bool stealth = false)
 {
     std::string value;
     std::string diagnostic;
-    if (!get_assoc(pl, key, value))
+    if (!get_assoc(pl, key, value, stealth))
         return 0;
     try {
         if (parse<T>()(value, r))
@@ -577,6 +578,14 @@ param_list_parse(param_list_ptr pl, const char * key, T & r)
         ss << ": " << diagnostic;
     throw parameter_exception(ss.str());
 }
+
+template<typename T>
+int
+param_list_parse(param_list_ptr pl, const char * key, T & r)
+{
+    return param_list_parse_inner<T>(pl, key, r);
+}
+
 
 template int param_list_parse<int>(param_list_ptr pl, const char * key, int & r);
 template int param_list_parse<unsigned int>(param_list_ptr pl, const char * key, unsigned int & r);
@@ -726,11 +735,11 @@ int param_list_parse_double_and_double(param_list_ptr pl, const char * key, doub
 
 
 template<typename T>
-int param_list_parse_list(param_list_ptr pl, const char * key, std::vector<T> & res, const char * sep)
+int param_list_parse_list(param_list_ptr pl, const char * key, std::vector<T> & res, const char * sep, bool stealth = false)
 {
     std::string value;
     std::string diagnostic;
-    if (!get_assoc(pl, key, value))
+    if (!get_assoc(pl, key, value, stealth))
         return 0;
     try {
         if (parse_list<T>(value, res, sep))
@@ -853,7 +862,7 @@ int param_list_parse_switch(param_list_ptr pl, const char * key)
     std::string value;
     int seen;
     for(int i = 0 ; i < 2 && *key == '-' ; key++, i++) ;
-    if (!get_assoc(pl, key, value, &seen))
+    if (!get_assoc(pl, key, value, false, &seen))
         return 0;
     if (!value.empty())
         throw parameter_exception(fmt::format(FMT_STRING("Parse error: option {} accepts no argument\n"), key));
@@ -1011,6 +1020,8 @@ void param_list_generic_failure(param_list_srcptr pl, const char *missing)
  *  - ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS: if lpb<n> missing and lpb<n-1>
  *    is set, use the latter as a default value.
  *
+ * RETURN VALUE: the number of sides for which data was left as is in the
+ * input vector.
  */
 template<typename T>
 int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, int n, enum args_per_side_policy_t policy)
@@ -1022,9 +1033,9 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
         char * keyi;
         int rc = asprintf(&keyi, "%s%u", key, side);
         ASSERT_ALWAYS(rc >= 0);
-        int gotit = param_list_parse<T>(pl, keyi, lpb_arg[side]);
+        int gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
         free(keyi);
-        if (!gotit && side == 0)
+        if (!gotit && side == 0 && policy == ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS)
             break;
         if (gotit)
             has_lpb01 = side + 1;
@@ -1037,7 +1048,7 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
             ASSERT_ALWAYS(rc >= 0);
             if (side)
                 lpb_arg[side] = lpb_arg[side - 1];
-            int gotit = param_list_parse<T>(pl, keyi, lpb_arg[side]);
+            int gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
             ASSERT_ALWAYS(side > 0 || gotit);
             free(keyi);
         }
@@ -1054,7 +1065,7 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
                 char * keys;
                 int rc = asprintf(&keys, "%ss", key);
                 ASSERT_ALWAYS(rc >= 0);
-                has_nlpbs = param_list_parse_list(pl, keys, temp, ",");
+                has_nlpbs = param_list_parse_list(pl, keys, temp, ",", true);
                 free(keys);
             }
         }
@@ -1111,3 +1122,9 @@ int param_list_parse_uint_args_per_side(param_list_ptr pl, const char * key, uns
     return param_list_parse_per_side(pl, key, lpb_arg, n, policy);
 }
 
+/* We're only using these from C++ code at the moment, so that it is
+ * sufficient to instantiate them here.
+ */
+template int param_list_parse_per_side<double>(param_list_ptr pl, const char * key, double * lpb_arg, int n, enum args_per_side_policy_t policy);
+template int param_list_parse_per_side<unsigned long>(param_list_ptr pl, const char * key, unsigned long * lpb_arg, int n, enum args_per_side_policy_t policy);
+template int param_list_parse_per_side<std::string>(param_list_ptr pl, const char * key, std::string * lpb_arg, int n, enum args_per_side_policy_t policy);

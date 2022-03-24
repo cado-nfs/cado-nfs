@@ -87,7 +87,7 @@ void ensure_qrange_has_prime_ideals(cxx_mpz const & q0, cxx_mpz & q1, mpz_poly_s
 
 /*}}}*/
 
-static void declare_usage(param_list pl)/*{{{*/
+static void declare_usage(cxx_param_list & pl)/*{{{*/
 {
   param_list_usage_header(pl,
   "In the names and in the descriptions of the parameters, below there are often\n"
@@ -207,7 +207,7 @@ int main (int argc0, char *argv0[])/*{{{*/
         param_list_add_key(pl, "lim1", "0", PARAMETER_FROM_FILE);
 
     siever_config config_base;
-    if (!siever_config::parse_default(config_base, pl)) {
+    if (!siever_config::parse_default(config_base, pl, cpoly->nb_polys)) {
         fprintf(stderr, "Error: please provide a full set of {lim,mfb,lpb}{0,1} parameters\n");
         param_list_print_usage(pl, NULL, stderr);
         exit(EXIT_FAILURE);
