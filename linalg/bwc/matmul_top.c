@@ -2801,7 +2801,7 @@ void matmul_top_init(matmul_top_data_ptr mmt,
 
     int nbals = param_list_get_list_count(pl, "balancing");
     int multimat = 0;
-    mmt->nmatrices = 1;
+    mmt->nmatrices = param_list_lookup_string(pl, "matrix") != NULL;
     param_list_parse_int(pl, "multi_matrix", &multimat);
     if (multimat)
         mmt->nmatrices = param_list_get_list_count(pl, "matrix");
