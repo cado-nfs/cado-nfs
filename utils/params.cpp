@@ -1126,5 +1126,9 @@ int param_list_parse_uint_args_per_side(param_list_ptr pl, const char * key, uns
  * sufficient to instantiate them here.
  */
 template int param_list_parse_per_side<double>(param_list_ptr pl, const char * key, double * lpb_arg, int n, enum args_per_side_policy_t policy);
+template int param_list_parse_per_side<int>(param_list_ptr pl, const char * key, int * lpb_arg, int n, enum args_per_side_policy_t policy);
+template int param_list_parse_per_side<unsigned int>(param_list_ptr pl, const char * key, unsigned int * lpb_arg, int n, enum args_per_side_policy_t policy);
+#ifndef UNSIGNED_LONG_IS_EXACTLY_UNSIGNED
 template int param_list_parse_per_side<unsigned long>(param_list_ptr pl, const char * key, unsigned long * lpb_arg, int n, enum args_per_side_policy_t policy);
+#endif
 template int param_list_parse_per_side<std::string>(param_list_ptr pl, const char * key, std::string * lpb_arg, int n, enum args_per_side_policy_t policy);
