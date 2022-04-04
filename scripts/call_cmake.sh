@@ -183,6 +183,7 @@ fi
 if [ "$1" = "cmake" ] || [ ! -f "$build_tree/Makefile" ] ; then
     mkdir -p "$build_tree"
     absolute_path_of_build_tree="`cd "$build_tree" ; $pwdP`"
+    CMAKE_GENERATOR_OPT=
     if [ ! "x$CMAKE_GENERATOR" == "x" ] ; then
       CMAKE_GENERATOR_OPT="-G$CMAKE_GENERATOR"
     fi
@@ -195,7 +196,7 @@ if [ "$1" = "cmake" ] || [ ! -f "$build_tree/Makefile" ] ; then
     if [ "$(bash -c 'echo ${MAKE}')" ] ; then
         cmake_overrides+=(-DCMAKE_MAKE_PROGRAM="$MAKE")
     fi
-    (cd "$absolute_path_of_build_tree" ; "$cmake_path" "$CMAKE_GENERATOR_OPT" $CMAKE_EXTRA_ARGS "${cmake_overrides[@]}" "$absolute_path_of_source")
+    (cd "$absolute_path_of_build_tree" ; "$cmake_path" $CMAKE_GENERATOR_OPT $CMAKE_EXTRA_ARGS "${cmake_overrides[@]}" "$absolute_path_of_source")
 fi
 
 if [ "$1" = "cmake" ] ; then
