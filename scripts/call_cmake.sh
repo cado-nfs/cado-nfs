@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # For debug, uncomment:
-set -x
+# set -x
 
 ########################################################################
 # This script is responsible of handing over the build process, in a
