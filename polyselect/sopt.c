@@ -107,25 +107,24 @@ int main (int argc, char **argv)
   /* Main loop: read all polynomials from file and do size-optimization. */
   while (cado_poly_read_next_poly_from_stream (cpoly, polys_file))
   {
-    unsigned int nrroots;
-    double lognorm, alpha, alpha_proj, exp_E;
+    {
+        cado_poly_stats raw_stats;
+        cado_poly_stats_init(raw_stats, cpoly);
 
-    printf ("\n### Input raw polynomial (%u) ###\n", nb_input_polys);
-    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-    nrroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, cpoly->pols[ALG_SIDE]->deg, 0, 0, NULL);
-    lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
-    alpha = get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ());
-    alpha_proj = get_alpha_projective (cpoly->pols[ALG_SIDE], get_alpha_bound ());
-    exp_E = lognorm
-      + expected_rotation_gain (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE]);
-    cado_poly_fprintf (stdout, cpoly, "# ");
-    cado_poly_fprintf_info (stdout, lognorm, exp_E, alpha, alpha_proj, nrroots,
-                            "# ");
+        printf ("\n### Input raw polynomial (%u) ###\n", nb_input_polys);
+        cado_poly_set_skewness_if_undefined(cpoly);
+        cado_poly_compute_expected_stats(raw_stats, cpoly);
+        cado_poly_fprintf (stdout, "# ", cpoly);
+        cado_poly_fprintf_stats(stdout, "# ", cpoly, raw_stats);
 
-    ave_raw_lognorm += lognorm;
-    min_raw_lognorm = (lognorm < min_raw_lognorm) ? lognorm : min_raw_lognorm;
-    max_raw_lognorm = (lognorm > max_raw_lognorm) ? lognorm : max_raw_lognorm;
-    ave_raw_alpha += alpha;
+        double lognorm = raw_stats->pols[ALG_SIDE]->lognorm;
+        ave_raw_lognorm += lognorm;
+        if (lognorm < min_raw_lognorm) min_raw_lognorm = lognorm;
+        if (lognorm > max_raw_lognorm) max_raw_lognorm = lognorm;
+        ave_raw_alpha += raw_stats->pols[ALG_SIDE]->alpha;
+
+        cado_poly_stats_clear(raw_stats);
+    }
 
     /* Size-optimize */
     if (use_only_translation)
@@ -135,23 +134,26 @@ int main (int argc, char **argv)
       size_optimization (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE],
                                                         sopt_effort, verbose);
 
-    printf ("### Size-optimized polynomial (%u) ###\n", nb_input_polys);
-    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-    nrroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, cpoly->pols[ALG_SIDE]->deg, 0, 0, NULL);
-    lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
-    alpha = get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ());
-    alpha_proj = get_alpha_projective (cpoly->pols[ALG_SIDE], get_alpha_bound ());
-    exp_E = lognorm
-      + expected_rotation_gain (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE]);
-    cado_poly_fprintf (stdout, cpoly, NULL);
-    cado_poly_fprintf_info (stdout, lognorm, exp_E, alpha, alpha_proj, nrroots,
-                            NULL);
+    {
+        cado_poly_stats sopt_stats;
+        cado_poly_stats_init(sopt_stats, cpoly);
 
+        printf ("### Size-optimized polynomial (%u) ###\n", nb_input_polys);
+        cado_poly_set_skewness_if_undefined(cpoly);
+        /* We're still talking of expected stats, because we've only done
+         * size-optimization at this point.  */
+        cado_poly_compute_expected_stats(sopt_stats, cpoly);
+        cado_poly_fprintf (stdout, NULL, cpoly);
+        cado_poly_fprintf_stats(stdout, NULL, cpoly, sopt_stats);
 
-    ave_sopt_lognorm += lognorm;
-    min_sopt_lognorm = (lognorm < min_sopt_lognorm) ? lognorm : min_sopt_lognorm;
-    max_sopt_lognorm = (lognorm > max_sopt_lognorm) ? lognorm : max_sopt_lognorm;
-    ave_sopt_alpha += alpha;
+        double lognorm = sopt_stats->pols[ALG_SIDE]->lognorm;
+        ave_sopt_lognorm += lognorm;
+        if (lognorm < min_sopt_lognorm) min_sopt_lognorm = lognorm;
+        if (lognorm > max_sopt_lognorm) max_sopt_lognorm = lognorm;
+        ave_sopt_alpha += sopt_stats->pols[ALG_SIDE]->alpha;
+
+        cado_poly_stats_clear(sopt_stats);
+    }
 
     nb_input_polys++;
   }

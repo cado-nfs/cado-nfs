@@ -425,16 +425,33 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   eacht->ropt_time_tuning = 0.0;
   eacht->ropt_time_stage2 = 0.0;
 
-  if (nthreads > 1)
-    pthread_mutex_lock (&lock);
-  printf ("\n### input polynomial %u ###\n", poly_id);
-  cado_poly_fprintf (stdout, "# ", input_poly);
-  total_exp_E += cado_poly_fprintf_expected_stats (stdout, "# ", input_poly);
 
-  nb_read += 1.0;
-  fflush (stdout);
-  if (nthreads > 1)
-    pthread_mutex_unlock (&lock);
+  {
+      cado_poly_stats input_stats;
+
+      cado_poly_stats_init(input_stats, input_poly);
+
+      cado_poly_set_skewness_if_undefined(input_poly);
+
+      if (nthreads > 1)
+          pthread_mutex_lock (&lock);
+
+      total_exp_E += cado_poly_compute_expected_stats(input_stats, input_poly);
+
+      printf ("\n### input polynomial %u ###\n", poly_id);
+      cado_poly_fprintf (stdout, "# ", input_poly);
+      cado_poly_fprintf_stats(stdout, "# ", input_poly, input_stats);
+      fflush (stdout);
+
+      /* why on earth is this thing a global ??? */
+      nb_read += 1.0;
+
+      if (nthreads > 1)
+          pthread_mutex_unlock (&lock);
+
+      cado_poly_stats_clear(input_stats);
+  }
+
 
   /* If the content of the algebraic polynomial has content <> 1, then print a
      warning (this should not be frequent) and divide all coefficients of the
@@ -476,12 +493,26 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
       best_MurphyE = curr_MurphyE;
       cado_poly_set (best_poly, ropt_poly);
     }
-  printf ("\n### root-optimized polynomial %u ###\n", poly_id);
-  cado_poly_fprintf (stdout, NULL, ropt_poly);
-  total_E += cado_poly_fprintf_stats (stdout, NULL, ropt_poly);
-  cado_poly_fprintf_MurphyE (stdout, NULL, ALG_SIDE, curr_MurphyE, bound_f, bound_g, area);
 
-  nb_optimized += 1.0;
+
+  {
+      cado_poly_stats ropt_stats;
+      cado_poly_stats_init(ropt_stats, ropt_poly);
+
+      cado_poly_set_skewness_if_undefined(ropt_poly);
+
+      total_E += cado_poly_compute_stats(ropt_stats, ropt_poly);
+
+      printf ("\n### root-optimized polynomial %u ###\n", poly_id);
+      cado_poly_fprintf (stdout, NULL, ropt_poly);
+      cado_poly_fprintf_stats(stdout, NULL, ropt_poly, ropt_stats);
+
+      nb_optimized += 1.0;
+
+      cado_poly_stats_clear(ropt_stats);
+      cado_poly_fprintf_MurphyE (stdout, NULL, ALG_SIDE, curr_MurphyE, bound_f, bound_g, area);
+  }
+
   printf ("### Best MurphyE so far is %.3e, av. exp_E %.2f, av. E %.2f\n",
           best_MurphyE, total_exp_E / nb_read, total_E / nb_optimized);
   fflush (stdout);
@@ -828,18 +859,29 @@ main_basic (int argc, char **argv)
       printf ("# WARNING: No polynomials were found in the input file %s\n",
               polys_filename);
     }
-  }
-  else
-  {
-    printf ("# Best polynomial found (revision %s):\n", cado_revision_string);
-    cado_poly_fprintf (stdout, "# ", best_poly);
-    cado_poly_fprintf_stats (stdout, "# ", best_poly);
-    cado_poly_fprintf_MurphyE (stdout, "# ", ALG_SIDE, best_MurphyE, bound_f, bound_g, area);
+  } else {
+      cado_poly_stats best_stats;
 
-    printf ("# Average exp_E: %.2f, average E: %.2f\n",
-            total_exp_E / (double) nb_input_polys,
-            total_E / (double) nb_input_polys);
+      cado_poly_stats_init(best_stats, best_poly);
+
+      cado_poly_set_skewness_if_undefined(best_poly);
+
+      cado_poly_compute_stats(best_stats, best_poly);
+
+      printf ("# Best polynomial found (revision %s):\n", cado_revision_string);
+
+      cado_poly_fprintf (stdout, "# ", best_poly);
+      cado_poly_fprintf_stats(stdout, "# ", best_poly, best_stats);
+      fflush (stdout);
+
+      cado_poly_stats_clear(best_stats);
+      cado_poly_fprintf_MurphyE (stdout, "# ", ALG_SIDE, best_MurphyE, bound_f, bound_g, area);
+
+      printf ("# Average exp_E: %.2f, average E: %.2f\n",
+              total_exp_E / (double) nb_input_polys,
+              total_E / (double) nb_input_polys);
   }
+
 
   ropt_param_free (ropt_param);
   cado_poly_clear (best_poly);

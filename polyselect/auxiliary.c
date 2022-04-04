@@ -239,69 +239,95 @@ void cado_poly_set_skewness_if_undefined(cado_poly_ptr cpoly)
         cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
 }
 
+
+void cado_poly_stats_init(cado_poly_stats_ptr spoly, cado_poly_srcptr cpoly)
+{
+    spoly->nb_polys = cpoly->nb_polys;
+    spoly->pols = malloc(spoly->nb_polys * sizeof(*spoly->pols));
+    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
+            spoly->pols[side]->nrroots = 0;
+            spoly->pols[side]->lognorm = 0;
+            spoly->pols[side]->alpha = 0;
+            spoly->pols[side]->alpha_proj = 0;
+            spoly->pols[side]->exp_E = 0;
+    }
+}
+
+void cado_poly_stats_clear(cado_poly_stats_ptr spoly)
+{
+    free(spoly->pols);
+}
+
 /* This is only valid for a poly pair that comes right from the first
  * stage of polyselect.
  *
  * The average of the exp_E values for the algebraic polynomial(s) is
  * returned.
  */
-double cado_poly_fprintf_expected_stats(FILE * fp, const char * prefix, cado_poly_srcptr cpoly)
+double cado_poly_compute_expected_stats(cado_poly_stats_ptr spoly, cado_poly_srcptr cpoly)
 {
     ASSERT_ALWAYS(cpoly->skew > 0);
     ASSERT_ALWAYS(mpz_poly_degree(cpoly->pols[RAT_SIDE]) == 1);
-    ASSERT_ALWAYS(cpoly->nb_polys == 2);
+
+    /* Use the routine for the "final" stats, which actually computes
+     * fewer things */
+    cado_poly_compute_stats(spoly, cpoly);
     double avg_E = 0;
     int nalg = 0;
     for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-        unsigned int nrroots = mpz_poly_number_of_real_roots(cpoly->pols[side]);
-        double lognorm = L2_lognorm (cpoly->pols[side], cpoly->skew);
-        double alpha = get_alpha (cpoly->pols[side], get_alpha_bound ());
-        double alpha_proj = get_alpha_projective (cpoly->pols[side], get_alpha_bound ());
-
-        double exp_E = lognorm
-            + expected_rotation_gain (cpoly->pols[side], cpoly->pols[RAT_SIDE]);
-        avg_E += exp_E;
-        nalg++;
-
-        fprintf (fp, "%s# side %d lognorm %1.2f, %s %1.2f, alpha %1.2f (proj %1.2f),"
-                " %u real root%s\n",
-                prefix ? prefix : "", side,
-                lognorm, "exp_E", exp_E, alpha, alpha_proj,
-                nrroots, (nrroots <= 1) ? "" : "s");
+        if (mpz_poly_degree(cpoly->pols[side]) > 1) {
+            spoly->pols[side]->exp_E = spoly->pols[side]->lognorm +
+                + expected_rotation_gain (cpoly->pols[side], cpoly->pols[RAT_SIDE]);
+            avg_E += spoly->pols[side]->exp_E;
+            nalg++;
+        }
     }
     return avg_E / nalg;
 }
 
-/* This is pretty much the same, except that we're dealing with an
- * optimized polynomial, so that E can be directly reported as
- * lognorm+alpha.
- *
- * The average of the exp_E values for the algebraic polynomial(s) is
- * returned.
- */
-double cado_poly_fprintf_stats(FILE * fp, const char * prefix, cado_poly_srcptr cpoly)
+double cado_poly_compute_stats(cado_poly_stats_ptr spoly, cado_poly_srcptr cpoly)
 {
     ASSERT_ALWAYS(cpoly->skew > 0);
     ASSERT_ALWAYS(mpz_poly_degree(cpoly->pols[RAT_SIDE]) == 1);
     double avg_E = 0;
     int nalg = 0;
     for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-        unsigned int nrroots = mpz_poly_number_of_real_roots(cpoly->pols[side]);
-        double lognorm = L2_lognorm (cpoly->pols[side], cpoly->skew);
-        double alpha = get_alpha (cpoly->pols[side], get_alpha_bound ());
-        double alpha_proj = get_alpha_projective (cpoly->pols[side], get_alpha_bound ());
+        if (mpz_poly_degree(cpoly->pols[side]) == 1) {
+            spoly->pols[side]->nrroots = 0;
+            spoly->pols[side]->lognorm = 0;
+            spoly->pols[side]->alpha = 0;
+            spoly->pols[side]->alpha_proj = 0;
+            spoly->pols[side]->exp_E = 0;
+        } else {
+            spoly->pols[side]->nrroots = mpz_poly_number_of_real_roots(cpoly->pols[side]);
+            spoly->pols[side]->lognorm = L2_lognorm (cpoly->pols[side], cpoly->skew);
+            spoly->pols[side]->alpha = get_alpha (cpoly->pols[side], get_alpha_bound ());
+            spoly->pols[side]->alpha_proj = get_alpha_projective (cpoly->pols[side], get_alpha_bound ());
+            spoly->pols[side]->exp_E = 0;
+            avg_E += spoly->pols[side]->lognorm + spoly->pols[side]->alpha;
+            nalg++;
+        }
+    }
+    return avg_E / nalg;
+}
 
-        double E = lognorm + alpha;
-        avg_E += E;
-        nalg++;
-
+void cado_poly_fprintf_stats(FILE * fp, const char * prefix, cado_poly_srcptr cpoly, cado_poly_stats_srcptr spoly)
+{
+    ASSERT_ALWAYS(cpoly->skew > 0);
+    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
+        if (mpz_poly_degree(cpoly->pols[side]) == 1)
+            continue;
         fprintf (fp, "%s# side %d lognorm %1.2f, %s %1.2f, alpha %1.2f (proj %1.2f),"
                 " %u real root%s\n",
                 prefix ? prefix : "", side,
-                lognorm, "E", E, alpha, alpha_proj,
-                nrroots, (nrroots <= 1) ? "" : "s");
+                spoly->pols[side]->lognorm,
+                spoly->pols[side]->exp_E <= 0 ? "E" : "exp_E",
+                spoly->pols[side]->exp_E <= 0 ? (spoly->pols[side]->lognorm + spoly->pols[side]->alpha) : spoly->pols[side]->exp_E,
+                spoly->pols[side]->alpha,
+                spoly->pols[side]->alpha_proj,
+                spoly->pols[side]->nrroots,
+                (spoly->pols[side]->nrroots <= 1) ? "" : "s");
     }
-    return avg_E / nalg;
 }
 
 /* compute largest interval kmin <= k <= kmax such that when we add k*x^i*g(x)
