@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # For debug, uncomment:
-# set -x
+set -x
 
 ########################################################################
 # This script is responsible of handing over the build process, in a
@@ -97,6 +97,8 @@ fi
 ########################################################################
 # Make sure we have cmake, by the way !
 
+set +e
+
 if [ "$cmake_path" ] ; then
     if ! [ -x "$cmake_path" ] ; then
         echo "cmake_path=$cmake_path points to non-existing (or non-executable) file" >&2
@@ -104,10 +106,10 @@ if [ "$cmake_path" ] ; then
     fi
 else
     # just try with the PATH.
-    cmake_path=cmake
+    : ${cmake_path="`type -p cmake 2>/dev/null`"}
 fi
 
-cmake_version=$("$cmake_path" --version)
+cmake_version=$("$cmake_path" --version || :)
 
 if [ $? != 0 ] ; then
     echo "CMake not found" >&2
@@ -120,6 +122,8 @@ elif [[ "$cmake_version" =~ ^cmake\ version\ 3\.[0123]\. ]] ; then
     echo "CMake found, but not with version 3.4 or newer" >&2
     cmake_path=
 fi
+
+set -e
 
 cmake_companion_install_location="$absolute_path_of_source/cmake-installed"
 
@@ -184,7 +188,7 @@ if [ "$1" = "cmake" ] || [ ! -f "$build_tree/Makefile" ] ; then
     mkdir -p "$build_tree"
     absolute_path_of_build_tree="`cd "$build_tree" ; $pwdP`"
     cmake_gen=()
-    if ! [ "$CMAKE_GENERATOR" ] ; then
+    if [ "$CMAKE_GENERATOR" ] ; then
         cmake_gen+=("-G$CMAKE_GENERATOR")
     fi
     if [ "$(bash -c 'echo ${CC}')" ] ; then
