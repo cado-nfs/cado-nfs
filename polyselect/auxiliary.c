@@ -144,10 +144,18 @@ print_cadopoly (FILE *fp, cado_poly_srcptr p)
                 "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
 
    int alpha_bound = get_alpha_bound ();
-   e = MurphyE (p, bound_f, bound_g, area, MURPHY_K, alpha_bound);
-   cado_poly_fprintf_MurphyE (fp, e, bound_f, bound_g, area, "");
 
-   return e;
+   double avg_e = 0;
+   int nalg = 0;
+   for(int side = 0 ; side < p->nb_polys ; side++) {
+       if (mpz_poly_degree(p->pols[side]) == 1) continue;
+       e = MurphyE (p, bound_f, bound_g, area, MURPHY_K, alpha_bound);
+       avg_e += e;
+       nalg++;
+       cado_poly_fprintf_MurphyE (fp, "", side, e, bound_f, bound_g, area);
+   }
+
+   return avg_e / nalg;
 }
 
 
@@ -169,8 +177,8 @@ print_cadopoly_extra (FILE *fp, cado_poly cpoly, int argc, char *argv[], double 
 
 
 /*
-  Call print_cadopoly, given f, g and return MurphyE.
-*/
+ * Call print_cadopoly, given f, g and return MurphyE.
+ */
 double
 print_poly_fg (mpz_poly_srcptr f, mpz_t *g, mpz_t N, int mode)
 {
@@ -223,43 +231,77 @@ do_detranslate_z (mpz_poly_ptr f, mpz_t *g, const mpz_t k)
   mpz_submul (g[0], g[1], k);
 }
 
-
-/* If final <> 0, print the real value of E (root-optimized polynomial),
-   otherwise print the expected value of E. Return E or exp_E accordingly.
-   TODO: adapt for more than 2 polynomials and two algebraic polynomials */
-double
-cado_poly_fprintf_with_info (FILE *fp, cado_poly_ptr cpoly, const char *prefix,
-                             int final)
+/* TODO: Does it make sense with multiple polynomials?
+ */
+void cado_poly_set_skewness_if_undefined(cado_poly_ptr cpoly)
 {
-  unsigned int nrroots;
-  double lognorm, alpha, alpha_proj, exp_E;
-
-  nrroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, cpoly->pols[ALG_SIDE]->deg, 0, 0, NULL);
-  if (cpoly->skew <= 0.0) /* If skew is undefined, compute it. */
-    cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-  lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
-  alpha = get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ());
-  alpha_proj = get_alpha_projective (cpoly->pols[ALG_SIDE], get_alpha_bound ());
-  exp_E = (final) ? 0.0 : lognorm
-    + expected_rotation_gain (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE]);
-
-  cado_poly_fprintf (stdout, cpoly, prefix);
-  cado_poly_fprintf_info (fp, lognorm, exp_E, alpha, alpha_proj, nrroots,
-                          prefix);
-  return (final) ? lognorm + alpha : exp_E;
+    if (cpoly->skew <= 0.0) /* If skew is undefined, compute it. */
+        cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
 }
 
-/* TODO: adapt for more than 2 polynomials and two algebraic polynomials */
-double
-cado_poly_fprintf_with_info_and_MurphyE (FILE *fp, cado_poly_ptr cpoly,
-                                         double MurphyE, double bound_f,
-                                         double bound_g, double area,
-                                         const char *prefix)
+/* This is only valid for a poly pair that comes right from the first
+ * stage of polyselect.
+ *
+ * The average of the exp_E values for the algebraic polynomial(s) is
+ * returned.
+ */
+double cado_poly_fprintf_expected_stats(FILE * fp, const char * prefix, cado_poly_srcptr cpoly)
 {
-  double exp_E;
-  exp_E = cado_poly_fprintf_with_info (fp, cpoly, prefix, 1);
-  cado_poly_fprintf_MurphyE (fp, MurphyE, bound_f, bound_g, area, prefix);
-  return exp_E;
+    ASSERT_ALWAYS(cpoly->skew > 0);
+    ASSERT_ALWAYS(mpz_poly_degree(cpoly->pols[RAT_SIDE]) == 1);
+    ASSERT_ALWAYS(cpoly->nb_polys == 2);
+    double avg_E = 0;
+    int nalg = 0;
+    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
+        unsigned int nrroots = mpz_poly_number_of_real_roots(cpoly->pols[side]);
+        double lognorm = L2_lognorm (cpoly->pols[side], cpoly->skew);
+        double alpha = get_alpha (cpoly->pols[side], get_alpha_bound ());
+        double alpha_proj = get_alpha_projective (cpoly->pols[side], get_alpha_bound ());
+
+        double exp_E = lognorm
+            + expected_rotation_gain (cpoly->pols[side], cpoly->pols[RAT_SIDE]);
+        avg_E += exp_E;
+        nalg++;
+
+        fprintf (fp, "%s# side %d lognorm %1.2f, %s %1.2f, alpha %1.2f (proj %1.2f),"
+                " %u real root%s\n",
+                prefix ? prefix : "", side,
+                lognorm, "exp_E", exp_E, alpha, alpha_proj,
+                nrroots, (nrroots <= 1) ? "" : "s");
+    }
+    return avg_E / nalg;
+}
+
+/* This is pretty much the same, except that we're dealing with an
+ * optimized polynomial, so that E can be directly reported as
+ * lognorm+alpha.
+ *
+ * The average of the exp_E values for the algebraic polynomial(s) is
+ * returned.
+ */
+double cado_poly_fprintf_stats(FILE * fp, const char * prefix, cado_poly_srcptr cpoly)
+{
+    ASSERT_ALWAYS(cpoly->skew > 0);
+    ASSERT_ALWAYS(mpz_poly_degree(cpoly->pols[RAT_SIDE]) == 1);
+    double avg_E = 0;
+    int nalg = 0;
+    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
+        unsigned int nrroots = mpz_poly_number_of_real_roots(cpoly->pols[side]);
+        double lognorm = L2_lognorm (cpoly->pols[side], cpoly->skew);
+        double alpha = get_alpha (cpoly->pols[side], get_alpha_bound ());
+        double alpha_proj = get_alpha_projective (cpoly->pols[side], get_alpha_bound ());
+
+        double E = lognorm + alpha;
+        avg_E += E;
+        nalg++;
+
+        fprintf (fp, "%s# side %d lognorm %1.2f, %s %1.2f, alpha %1.2f (proj %1.2f),"
+                " %u real root%s\n",
+                prefix ? prefix : "", side,
+                lognorm, "E", E, alpha, alpha_proj,
+                nrroots, (nrroots <= 1) ? "" : "s");
+    }
+    return avg_E / nalg;
 }
 
 /* compute largest interval kmin <= k <= kmax such that when we add k*x^i*g(x)

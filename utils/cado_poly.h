@@ -37,14 +37,15 @@ extern int cado_poly_read_next_poly_from_stream (cado_poly_ptr, FILE *);
 extern void cado_poly_set (cado_poly_ptr p, cado_poly_srcptr q);
 extern void cado_poly_swap (cado_poly_ptr p, cado_poly_ptr q);
 
-void cado_poly_fprintf (FILE *, cado_poly_srcptr, const char *);
-void cado_poly_fprintf_info (FILE *, double, double, double, double,
-                             unsigned int, const char *);
-void cado_poly_fprintf_MurphyE (FILE *, double, double, double, double,
-                                const char *);
+extern void cado_poly_fprintf (FILE *, const char * prefix, cado_poly_srcptr);
+
+extern void
+cado_poly_fprintf_MurphyE (FILE *fp, const char * prefix, int side,
+        double MurphyE, double bound_f, double bound_g, double area);
+
 /* More functions for printing cado_poly are defined in polyselect/ as only
-   binaries in polyselect/ used them and some functions (like L2_skewness, ...)
-   only defined in polyselect/ are needed.
+ * binaries in polyselect/ use them and some functions (like L2_skewness, ...)
+ * only defined in polyselect/ are needed.
  */
 
 extern void cado_poly_init (cado_poly_ptr);

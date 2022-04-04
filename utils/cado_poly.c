@@ -392,7 +392,7 @@ cado_poly_get_ratside (cado_poly_srcptr cpoly)
 }
 
 void
-cado_poly_fprintf (FILE *fp, cado_poly_srcptr cpoly, const char *prefix)
+cado_poly_fprintf (FILE *fp, const char * prefix, cado_poly_srcptr cpoly)
 {
   if (prefix)
     fputs (prefix, fp);
@@ -415,30 +415,13 @@ cado_poly_fprintf (FILE *fp, cado_poly_srcptr cpoly, const char *prefix)
   fprintf (fp, "skew: %1.3f\n", cpoly->skew);
 }
 
-/* if exp_E = 0, print E = lognorm + alpha (root-optimized polynomial),
-   otherwise print exp_E */
 void
-cado_poly_fprintf_info (FILE *fp, double lognorm, double exp_E, double alpha,
-                        double alpha_proj, unsigned int nrroots,
-                        const char *prefix)
-{
-  if (prefix)
-    fputs (prefix, fp);
-  /* Always print "# " after the prefix and before the info line. */
-  fprintf (fp, "# lognorm %1.2f, %s %1.2f, alpha %1.2f (proj %1.2f),"
-             " %u real root%s\n",
-             lognorm, (exp_E == 0) ? "E" : "exp_E",
-             (exp_E == 0) ? lognorm + alpha : exp_E, alpha, alpha_proj,
-             nrroots, (nrroots <= 1) ? "" : "s");
-}
-
-void
-cado_poly_fprintf_MurphyE (FILE *fp, double MurphyE, double bound_f,
-                           double bound_g, double area, const char *prefix)
+cado_poly_fprintf_MurphyE (FILE *fp, const char * prefix, int side,
+        double MurphyE, double bound_f, double bound_g, double area)
 {
   if (prefix)
     fputs (prefix, fp);
   /* Always print "# " after the prefix and before the MurphyE line. */
-  fprintf (fp, "# MurphyE(Bf=%.3e,Bg=%.3e,area=%.3e)=%.3e\n", bound_f, bound_g,
+  fprintf (fp, "# side %d MurphyE(Bf=%.3e,Bg=%.3e,area=%.3e)=%.3e\n", side, bound_f, bound_g,
                area, MurphyE);
 }

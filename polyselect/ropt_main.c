@@ -428,7 +428,9 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   if (nthreads > 1)
     pthread_mutex_lock (&lock);
   printf ("\n### input polynomial %u ###\n", poly_id);
-  total_exp_E += cado_poly_fprintf_with_info (stdout, input_poly, "# ", 0);
+  cado_poly_fprintf (stdout, "# ", input_poly);
+  total_exp_E += cado_poly_fprintf_expected_stats (stdout, "# ", input_poly);
+
   nb_read += 1.0;
   fflush (stdout);
   if (nthreads > 1)
@@ -475,10 +477,10 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
       cado_poly_set (best_poly, ropt_poly);
     }
   printf ("\n### root-optimized polynomial %u ###\n", poly_id);
-  total_E += cado_poly_fprintf_with_info_and_MurphyE (stdout, ropt_poly,
-                                                      curr_MurphyE,
-                                                      bound_f, bound_g, area,
-                                                      NULL);
+  cado_poly_fprintf (stdout, NULL, ropt_poly);
+  total_E += cado_poly_fprintf_stats (stdout, NULL, ropt_poly);
+  cado_poly_fprintf_MurphyE (stdout, NULL, ALG_SIDE, curr_MurphyE, bound_f, bound_g, area);
+
   nb_optimized += 1.0;
   printf ("### Best MurphyE so far is %.3e, av. exp_E %.2f, av. E %.2f\n",
           best_MurphyE, total_exp_E / nb_read, total_E / nb_optimized);
@@ -830,8 +832,10 @@ main_basic (int argc, char **argv)
   else
   {
     printf ("# Best polynomial found (revision %s):\n", cado_revision_string);
-    cado_poly_fprintf_with_info_and_MurphyE (stdout, best_poly, best_MurphyE,
-                                             bound_f, bound_g, area, "# ");
+    cado_poly_fprintf (stdout, "# ", best_poly);
+    cado_poly_fprintf_stats (stdout, "# ", best_poly);
+    cado_poly_fprintf_MurphyE (stdout, "# ", ALG_SIDE, best_MurphyE, bound_f, bound_g, area);
+
     printf ("# Average exp_E: %.2f, average E: %.2f\n",
             total_exp_E / (double) nb_input_polys,
             total_E / (double) nb_input_polys);

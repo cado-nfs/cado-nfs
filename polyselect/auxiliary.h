@@ -66,12 +66,11 @@ long rotate_aux (mpz_t *f, mpz_t b, mpz_t m, long k0, long k, unsigned int t);
 void rotate_auxg_z (mpz_t*, const mpz_t, const mpz_t, const mpz_t, unsigned int);
 void do_translate_z (mpz_poly_ptr f, mpz_t *g, const mpz_t k);
 
+double cado_poly_fprintf_expected_stats(FILE * fp, const char * prefix, cado_poly_srcptr cpoly);
+double cado_poly_fprintf_stats(FILE * fp, const char * prefix, cado_poly_srcptr cpoly);
 
-double cado_poly_fprintf_with_info (FILE *, cado_poly_ptr, const char *, int);
-double cado_poly_fprintf_with_info_and_MurphyE (FILE *fp, cado_poly_ptr,
-                                                double, double, double, double,
-                                                const char *);
 double expected_rotation_gain (mpz_poly_srcptr f, mpz_poly_srcptr g);
+
 void expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g,
                       int i, double maxlognorm, double skew);
 

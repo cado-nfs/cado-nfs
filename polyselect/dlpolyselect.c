@@ -274,7 +274,7 @@ print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
 	      logmu[1], alpha_g, logmu[1] + alpha_g, nr);
       printf ("# f+g score %1.2f\n", score);
       if (opt_flag)
-        cado_poly_fprintf_MurphyE (stdout, E, Bf, Bg, Area, "");
+        cado_poly_fprintf_MurphyE (stdout, NULL, 1, E, Bf, Bg, Area);
 
       printf ("\n");
       fflush (stdout);
