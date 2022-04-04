@@ -117,7 +117,7 @@ cofactorization_statistics::~cofactorization_statistics()
                         -> cannot yield a relation
 */
 int
-check_leftover_norm (cxx_mpz const & n, siever_config::side_config const & scs)
+check_leftover_norm (cxx_mpz const & n, siever_side_config const & scs)
 {
   size_t s = mpz_sizeinbase (n, 2);
   unsigned int lpb = scs.lpb;
@@ -221,11 +221,14 @@ check_leftover_norm (cxx_mpz const & n, siever_config::side_config const & scs)
 */
 
 int factor_both_leftover_norms(
-        std::array<cxx_mpz, 2> & n,
-        std::array<std::vector<cxx_mpz>, 2> & factors,
-        std::array<unsigned long, 2> const & Bs,
+        std::vector<cxx_mpz> & n,
+        std::vector<std::vector<cxx_mpz>> & factors,
+        std::vector<unsigned long> const & Bs,
         facul_strategies const & strat)
 {
+    ASSERT_ALWAYS(n.size() == 2);
+    ASSERT_ALWAYS(factors.size() == 2);
+    ASSERT_ALWAYS(Bs.size() == 2);
     int is_smooth[2] = {FACUL_MAYBE, FACUL_MAYBE};
     /* To remember if a cofactor is already factored.*/
 
@@ -239,7 +242,7 @@ int factor_both_leftover_norms(
     }
 
     /* call the facul library */
-    std::array<int, 2> facul_code = facul_both (factors, n, strat, is_smooth);
+    std::vector<int> facul_code = facul_both (factors, n, strat, is_smooth);
 
     if (is_smooth[0] != FACUL_SMOOTH || is_smooth[1] != FACUL_SMOOTH) {
         if (is_smooth[0] == FACUL_NOT_SMOOTH || is_smooth[1] == FACUL_NOT_SMOOTH)

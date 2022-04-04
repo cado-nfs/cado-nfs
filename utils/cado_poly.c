@@ -160,7 +160,7 @@ int cado_poly_read_next_poly_from_stream (cado_poly_ptr cpoly, FILE * f)
   param_list pl;
   param_list_init (pl);
   r = param_list_read_stream (pl, f, 1);
-  if (r && pl->size > 0)
+  if (r && !param_list_empty(pl))
     r = cado_poly_set_plist (cpoly, pl);
   else
     r = 0;

@@ -87,7 +87,7 @@ void ensure_qrange_has_prime_ideals(cxx_mpz const & q0, cxx_mpz & q1, mpz_poly_s
 
 /*}}}*/
 
-static void declare_usage(param_list pl)/*{{{*/
+static void declare_usage(cxx_param_list & pl)/*{{{*/
 {
   param_list_usage_header(pl,
   "In the names and in the descriptions of the parameters, below there are often\n"
@@ -207,7 +207,7 @@ int main (int argc0, char *argv0[])/*{{{*/
         param_list_add_key(pl, "lim1", "0", PARAMETER_FROM_FILE);
 
     siever_config config_base;
-    if (!siever_config::parse_default(config_base, pl)) {
+    if (!siever_config::parse_default(config_base, pl, cpoly->nb_polys)) {
         fprintf(stderr, "Error: please provide a full set of {lim,mfb,lpb}{0,1} parameters\n");
         param_list_print_usage(pl, NULL, stderr);
         exit(EXIT_FAILURE);
@@ -218,32 +218,15 @@ int main (int argc0, char *argv0[])/*{{{*/
     gmp_randseed_ui(rstate, seed);
 
     std::vector<int> sides;
-    sides.push_back(0);
-    sides.push_back(1);
-
-    unsigned int * opt_sides;
-    unsigned int nopt_sides;
-    if (param_list_parse_uint_list_size(pl, "norm-sides", &opt_sides, &nopt_sides)) {
-        sides.clear();
-        for(unsigned int i = 0 ; i < nopt_sides ; i++) {
-            sides.push_back(opt_sides[i]);
-        }
-        free(opt_sides);
+    if (!param_list_parse(pl, "norm-sides", sides)) {
+        sides.push_back(0);
+        sides.push_back(1);
     }
 
     std::vector<std::string> impls;
-    impls.push_back("reference");
-    impls.push_back("smart");
-
-    char ** opt_impls;
-    int nopt_impls;
-    if (param_list_parse_string_list_alloc(pl, "norm-impls", &opt_impls, &nopt_impls, ",")) {
-        impls.clear();
-        for(int i = 0 ; i < nopt_impls ; i++) {
-            impls.push_back(opt_impls[i]);
-            free(opt_impls[i]);
-        }
-        free(opt_impls);
+    if (!param_list_parse(pl, "norm-impls", impls)) {
+        impls.push_back("reference");
+        impls.push_back("smart");
     }
 
     /* That's a maximum only. Currently we have only two lognorm

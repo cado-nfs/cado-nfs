@@ -73,17 +73,9 @@ main(int argc, char* argv[])
     }
 
     param_list_parse_uint(pl, "n", &n);
-    char** tests_list;
-    int ntests;
-    param_list_parse_string_list_alloc(pl, "tests", &tests_list, &ntests, ",");
+
     std::vector<std::string> tests;
-    for (int i = 0; i < ntests; i++) {
-        tests.emplace_back(tests_list[i]);
-        free(tests_list[i]);
-    }
-    free(tests_list);
-    tests_list = NULL;
-    if (tests.empty())
+    if (!param_list_parse(pl, "tests", tests))
         tests.emplace_back("all");
 
     if (!seed)

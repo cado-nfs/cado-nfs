@@ -13,14 +13,23 @@
 #include "timing.h"             // for seconds
 #include "verbose.h"             // verbose_output_print
 #include "params.h"
+#include "las-side-config.hpp"
 
 
 void sieve_shared_data::declare_usage(cxx_param_list & pl)
 {
     cxx_cado_poly::declare_usage(pl);
-    param_list_decl_usage(pl, "fb0",   "factor base file on the rational side");
-    param_list_decl_usage(pl, "fb1",   "factor base file on the algebraic side");
-    param_list_decl_usage(pl, "fbc",  "factor base cache file (not yet functional)");
+    siever_side_config::declare_usage(pl);
+    param_list_decl_usage(pl, "fbc",  "factor base cache file");
+}
+
+void sieve_shared_data::lookup_parameters(cxx_param_list & pl, int nsides)
+{
+    /* We don't expect that cxx_cado_poly can be looked up late, so
+     * there's no reason to thaw it.
+     */
+    siever_side_config::lookup_parameters(pl, nsides);
+    param_list_lookup_string(pl, "fbc");
 }
 
 sieve_shared_data::side_data::side_data(int side,

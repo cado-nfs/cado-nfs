@@ -2500,26 +2500,8 @@ void mmt_vec_set_expanded_copy_of_local_data(mmt_vec_ptr y, const void * v, unsi
 /**********************************************************************/
 static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_list_ptr pl, int optimized_direction);
 
-/* returns an allocated string holding the name of the midx-th submatrix */
-static char * matrix_list_get_item(param_list_ptr pl, const char * key, int midx)
-{
-    char * res = NULL;
-    char ** mnames;
-    int nmatrices;
-    int rc = param_list_parse_string_list_alloc(pl, key, &mnames, &nmatrices, ",");
-    if (rc == 0)
-        return NULL;
-    ASSERT_ALWAYS(midx < nmatrices);
-    for(int i = 0 ; i < nmatrices ; i++) {
-        if (i == midx) {
-            res = mnames[i];
-        } else {
-            free(mnames[i]);
-        }
-    }
-    free(mnames);
-    return res;
-}
+/* see matmul_top2.cpp */
+extern char * matrix_list_get_item(param_list_ptr pl, const char * key, int midx);
 
 static char* matrix_get_derived_cache_subdir(const char * matrixname, parallelizing_info_ptr pi)
 {

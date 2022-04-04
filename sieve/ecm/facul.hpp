@@ -1,7 +1,6 @@
 #ifndef FACUL_HPP_
 #define FACUL_HPP_
 
-#include <array>
 #include <vector>
 #include <map>
 #include "facul_strategies.hpp"
@@ -17,9 +16,9 @@ struct cxx_mpz;
 
 #define STATS_LEN 128
 
-std::array<int,2>
-facul_both (std::array<std::vector<cxx_mpz>, 2>&,
-            std::array<cxx_mpz, 2> & ,
+std::vector<int>
+facul_both (std::vector<std::vector<cxx_mpz>>&,
+            std::vector<cxx_mpz> & ,
 	    facul_strategies const &,
             int *);
 

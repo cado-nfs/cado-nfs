@@ -126,17 +126,20 @@ class nfs_aux {/*{{{*/
     bool complete = false;
 
     /* This gets completed somewhat late */
-    std::array<sieve_checksum,2> checksum_post_sieve;
+    std::vector<sieve_checksum> checksum_post_sieve;
 
     struct thread_data {/*{{{*/
         //nfs_aux & common;
         /* each thread has its own, and we'll summarize at the end */
         las_report rep;
         timetree_t timer;
-        std::array<sieve_checksum,2> checksum_post_sieve;
+        std::vector<sieve_checksum> checksum_post_sieve;
         where_am_I w;
         //thread_data(nfs_aux & t) : common(t) {}
         void update_checksums(int side, const unsigned char *data, const size_t len) {
+            /* It's simpler to auto-vivify */
+            for( ; checksum_post_sieve.size() <= (size_t) side ; )
+                checksum_post_sieve.emplace_back();
             checksum_post_sieve[side].update(data, len);
         }
     };/*}}}*/
@@ -154,12 +157,13 @@ class nfs_aux {/*{{{*/
             las_todo_entry const & doing,
             std::shared_ptr<rel_hash_t> & rel_hash_p,
             int nthreads)
-        :
-            las(las),   /* shame... */
-            doing(doing),
-            rel_hash_p(rel_hash_p),
-            dest_rt(nullptr),
-            th(nthreads)//, thread_data(*this))
+        : las(las)   /* shame... */
+        , doing(doing)
+        , rel_hash_p(rel_hash_p)
+        , dest_rt(nullptr)
+        , checksum_post_sieve(las.cpoly->nb_polys)
+        , th(nthreads)
+          //, thread_data(*this))
     {
         wct_qt0 = wct_seconds();
         qt0 = seconds();

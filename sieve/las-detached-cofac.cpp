@@ -1,7 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cinttypes>                 // for PRId64, PRIu64
-#include <array>                      // for array, array<>::value_type
 #include <cstdint>                    // for uint8_t
 #include <cstdio>                     // for NULL
 #include <mutex>                      // for lock_guard, mutex
@@ -48,7 +47,9 @@ detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_co
 
     cofac_standalone & cur(*param);
 
-    std::array<int, 2> cof_bitsize {{ 0,0 }}; /* placate compiler */
+    int nsides = las.cpoly->nb_polys;
+
+    std::vector<int> cof_bitsize(nsides, 0);
     las.cofac_stats.call(cur.norm, cof_bitsize);
 
     SIBLING_TIMER(timer, "cofactoring"); // aka factor_both_leftover_norms

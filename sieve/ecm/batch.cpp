@@ -401,7 +401,7 @@ remainder_tree_aux (mpz_t **T, unsigned long **nbits, unsigned long i,
  * main thread.
  */
 static void
-remainder_tree (mpz_t **T, size_t *w, mpz_t P,
+remainder_tree (mpz_t **T, size_t *w, mpz_srcptr P,
         std::vector<cxx_mpz> & R,
         double & extra_time)
 {
@@ -499,7 +499,7 @@ clear_product_tree (mpz_t **T, unsigned long n, size_t *w)
  * main thread.
  */
 static void
-smoothness_test (std::vector<cxx_mpz> & R, mpz_ptr P, FILE *out, double& extra_time)
+smoothness_test (std::vector<cxx_mpz> & R, mpz_srcptr P, FILE *out, double& extra_time)
 {
   size_t w[MAX_DEPTH];
   mpz_t **T;
@@ -562,19 +562,35 @@ smoothness_test (std::vector<cxx_mpz> & R, mpz_ptr P, FILE *out, double& extra_t
 /* return the number n of smooth relations in l (same as l.size()) */
 size_t
 find_smooth (cofac_list & l,
-        std::array<cxx_mpz, 2> & batchP,
-        int batchlpb[2], int lpb[2], int batchmfb[2],
+        std::vector<cxx_mpz> const & batchP,
+        std::vector<unsigned int> const & batchlpb,
+        std::vector<unsigned int> const & lpb,
+        std::vector<unsigned int> const & batchmfb,
         FILE *out,
         int nthreads MAYBE_UNUSED, double & extra_time)
 {
+    int nsides = lpb.size();
+    ASSERT_ALWAYS(batchP.size() == (size_t) nsides);
+    ASSERT_ALWAYS(batchlpb.size() == (size_t) nsides);
+    ASSERT_ALWAYS(batchmfb.size() == (size_t) nsides);
 #ifdef HAVE_OPENMP
     omp_set_num_threads (nthreads);
 #endif
 
-    /* it seems faster to start from the algebraic side */
-    int first_smoothness_test_side = 1;
+    /* FIXME FIXME FIXME. We have some static side-decision logic here,
+     * and that doesn't make sense if we want to be really side-agnostic
+     * in the code. It doesn't make sense if the side of the largest 
+     */
+    int first_smoothness_test_side;
 
-    for (int xside = 0 ; xside < 2 ; ++xside)
+    if (nsides == 2) {
+        /* it seems faster to start from the algebraic side */
+        first_smoothness_test_side = 1;
+    } else {
+        first_smoothness_test_side = 0;
+    }
+
+    for (int xside = 0 ; xside < nsides ; ++xside)
     {
         double s, st, e0, wct;
 
@@ -603,13 +619,26 @@ find_smooth (cofac_list & l,
 
         std::vector<cxx_mpz> temp;
         temp.reserve(l.size());
-        for(auto const & x : l)
-            temp.push_back(x.cofactor[side]);
+        for(auto const & x : l) {
+            cxx_mpz const & c(x.cofactor[side]);
+            /* If a cofactor is marked as zero, it means "not smooth".
+             * This might be the case if the mfb check didn't succeed
+             * after sieving for one of the sides > 0 (hence only in an
+             * MNFS setting)
+             */
+            if (c == 0) continue;
+            temp.push_back(c);
+        }
 
         smoothness_test (temp, batchP[side], out, extra_time);
 
+        size_t smooth = 0;
         auto jt = begin(temp);
         for(auto it = begin(l) ; it != end(l) ; /* it++ within loop */) {
+            /* If we read a zero cofactor in the input set, then it did
+             * not enter the product tree. Therefore, we must skip it.
+             */
+            for( ; it->cofactor[side] == 0 ; ++it);
             /* check if the cofactor on the side we've just tested is
              * smooth. If it isn't, we put it at the end of the array,
              * and we free it.
@@ -631,10 +660,22 @@ find_smooth (cofac_list & l,
             {
                 /* cofactor is smooth, we keep it where it is.  */
                 ++it;
+                smooth++;
             } else {
-                /* cofactor is not smooth, get rid of it */
-                auto nit = it++;
-                l.erase(nit);
+                /* cofactor is not smooth. Get rid of it if we're dealing
+                 * with the first of the sides to consider, or if there
+                 * are more than two sides. but otherwise
+                 * just set it to 0, and use that as a marker for
+                 * "non-smooth". We do so because in an MNFS context,
+                 * further sides might be smooth, and match with the
+                 * first side.
+                 */
+                if (xside == 0 || nsides == 2) {
+                    auto nit = it++;
+                    l.erase(nit);
+                } else {
+                    it++->cofactor[side] = 0;
+                }
             }
         }
 
@@ -644,7 +685,7 @@ find_smooth (cofac_list & l,
                 seconds_thread () - st,
                 extra_time - e0,
                 wct_seconds () - wct,
-                l.size(), input_candidates);
+                smooth, input_candidates);
     }
 
     return l.size();
@@ -828,24 +869,29 @@ static bool
 factor_one (
         std::list<relation> & smooth,
         cofac_candidate const & C,
-        cxx_cado_poly const & pol,
-        unsigned long lim[2],
-        int batchlpb[2],
-        int lpb[2],
+        cxx_cado_poly const & cpoly,
+        std::vector<unsigned long> const & lim,
+        std::vector<unsigned int> const & batchlpb,
+        std::vector<unsigned int> const & lpb,
         FILE *out,
         std::vector<facul_method> const & methods,
-        std::vector<unsigned long> (&SP)[2],
+        std::vector<std::vector<unsigned long>> const & SP,
         int recomp_norm)
 {
     int64_t a = C.a;
     uint64_t b = C.b;
 
-    std::vector<cxx_mpz> factors[2];
+    int nsides = cpoly->nb_polys;
+
+    std::vector<std::vector<cxx_mpz>> factors;
+
+    factors.assign(nsides, {});
+
     cxx_mpz norm, cofac;
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < nsides ; side++) {
         mpz_set(cofac, C.cofactor[side]);
         if (recomp_norm) {
-            mpz_poly_homogeneous_eval_siui (norm, pol->pols[side], a, b);
+            mpz_poly_homogeneous_eval_siui (norm, cpoly->pols[side], a, b);
         } else {
             if (C.doing_p->side == side) {
                 mpz_mul(norm, cofac, C.doing_p->p);
@@ -901,16 +947,18 @@ factor_one (
  */
 std::list<relation>
 factor (cofac_list const & L,
-        cxx_cado_poly const & pol,
-        int batchlpb[2],
-        int lpb[2],
+        cxx_cado_poly const & cpoly,
+        std::vector<unsigned int> const & batchlpb,
+        std::vector<unsigned int> const & lpb,
         int ncurves,
         FILE *out, int nthreads MAYBE_UNUSED, double& extra_time,
         int recomp_norm)
 {
-  unsigned long B[2];
-  std::vector<facul_method> methods;
-  std::vector<unsigned long> SP[2];
+  int nsides = cpoly->nb_polys;
+  ASSERT_ALWAYS(batchlpb.size() == (size_t) nsides);
+  ASSERT_ALWAYS(lpb.size() == (size_t) nsides);
+  std::vector<unsigned long> B(nsides);
+  std::vector<std::vector<unsigned long>> SP(nsides);
   prime_info pi;
   double s, st, e0, wct;
 
@@ -919,19 +967,23 @@ factor (cofac_list const & L,
   e0 = extra_time;
   wct = wct_seconds ();
 
-  for(int side = 0 ; side < 2 ; side++) {
+  for(int side = 0 ; side < nsides ; side++) {
       prime_info_init (pi);
-      B[side] = (unsigned long) ceil (pow (2.0, (double) lpb[side] / 2.0));
+      B[side] = (ceil (pow (2.0, (double) lpb[side] / 2.0)));
       if (!recomp_norm) {
           // If not recomp_norm, then the poly file might be fake...
           // This list of primes is rather small anyway.
           prime_list (SP[side], pi, B[side]);
       } else {
-          prime_list_poly (SP[side], pi, B[side], pol->pols[side]);
+          prime_list_poly (SP[side], pi, B[side], cpoly->pols[side]);
       }
       prime_info_clear (pi);
   }
 
+  /* this creates the factoring methods (and B1-adapted addition chains)
+   * from the parameters that are given in the default strategy
+   */
+  std::vector<facul_method> methods;
   for(auto const & mp : facul_strategy_oneside::default_strategy (ncurves))
       methods.emplace_back(mp);
 
@@ -955,7 +1007,7 @@ factor (cofac_list const & L,
 #ifdef HAVE_OPENMP
 #pragma omp single nowait
 #endif
-          factor_one (smooth_local, *it, pol, B, batchlpb, lpb, out, methods,
+          factor_one (smooth_local, *it, cpoly, B, batchlpb, lpb, out, methods,
                   SP, recomp_norm);
       }
 #ifdef HAVE_OPENMP
@@ -978,9 +1030,9 @@ factor (cofac_list const & L,
 }
 
 static void
-create_batch_product (mpz_t P, unsigned long L, cxx_mpz_poly const & pol, double & extra_time)
+create_batch_product (mpz_t P, unsigned long L, cxx_mpz_poly const & cpoly, double & extra_time)
 {
-  prime_product_poly (P, L, pol, extra_time);
+  prime_product_poly (P, L, cpoly, extra_time);
 }
 
 /* output P in the batch file fp, with a header consisting of 3 lines:
@@ -994,7 +1046,7 @@ create_batch_product (mpz_t P, unsigned long L, cxx_mpz_poly const & pol, double
 */
 static void
 output_batch (FILE *fp, unsigned long B, unsigned long L,
-              cxx_mpz_poly const & pol, cxx_mpz const & P, const char *f)
+              cxx_mpz_poly const & cpoly, cxx_mpz const & P, const char *f)
 {
   int ret;
 
@@ -1002,7 +1054,7 @@ output_batch (FILE *fp, unsigned long B, unsigned long L,
   ASSERT_ALWAYS (ret > 0);
   ret = fprintf (fp, "%lu\n", L);
   ASSERT_ALWAYS (ret > 0);
-  mpz_poly_fprintf_coeffs (fp, pol, ' ');
+  mpz_poly_fprintf_coeffs (fp, cpoly, ' ');
   ret = mpz_out_raw (fp, P);
   if (ret == 0)
     {
@@ -1012,9 +1064,9 @@ output_batch (FILE *fp, unsigned long B, unsigned long L,
 }
 
 /* read a batch file from fp, and check the header is consistent with
-   B, L and pol. See #21459. */
+   B, L and cpoly. See #21459. */
 static void
-input_batch (FILE *fp, unsigned long B, unsigned long L, cxx_mpz_poly const & pol,
+input_batch (FILE *fp, unsigned long B, unsigned long L, cxx_mpz_poly const & cpoly,
              cxx_mpz & P, const char *f)
 {
   unsigned long Bread, Lread;
@@ -1041,14 +1093,14 @@ input_batch (FILE *fp, unsigned long B, unsigned long L, cxx_mpz_poly const & po
   ret = fscanf (fp, "%lu\n", &Lread);
   CHECK_Z(ret == 1, "Cannot read L\n");
   CHECK_2(Lread == L, "Inconsistent L: expected %lu, file has %lu\n", L, Lread);
-  mpz_poly_init (pol_read, pol->deg);
+  mpz_poly_init (pol_read, cpoly->deg);
   mpz_poly_fscanf_coeffs (fp, pol_read, ' ');
-  if (mpz_poly_cmp (pol_read, pol) != 0)
+  if (mpz_poly_cmp (pol_read, cpoly) != 0)
     {
       fprintf (stderr, "Error while reading batch product from %s:\n", f);
       fprintf (stderr, "Inconsistent polynomial in batch file\n");
       fprintf (stderr, "expected ");
-      mpz_poly_fprintf (stderr, pol);
+      mpz_poly_fprintf (stderr, cpoly);
       fprintf (stderr, "file has ");
       mpz_poly_fprintf (stderr, pol_read);
       exit (EXIT_FAILURE);
@@ -1071,11 +1123,12 @@ parse_error:
    3) if f != NULL and file is existing: P is read from file
 */
 void
-create_batch_file (const char *f, cxx_mpz & P, unsigned long B, unsigned long L,
-                   cxx_mpz_poly const & pol, FILE *out, int nthreads MAYBE_UNUSED, double & extra_time)
+create_batch_file (std::string const & fs, cxx_mpz & P, unsigned long B, unsigned long L,
+                   cxx_mpz_poly const & cpoly, FILE *out, int nthreads MAYBE_UNUSED, double & extra_time)
 {
   FILE *fp;
   double e0, s, st, wct;
+  const char * f = fs.empty() ? NULL : fs.c_str();
 
   if (L <= B) {
       /* We may be content with having a product tree on one side only.
@@ -1087,7 +1140,7 @@ create_batch_file (const char *f, cxx_mpz & P, unsigned long B, unsigned long L,
 
   // the product of primes up to B takes \log2(B)-\log\log 2 / \log 2
   // bits. The added constant is 0.5287.
-  if (log2(B/GMP_LIMB_BITS) + 0.5287 >= 31) {
+  if (log2(B) - log2(GMP_LIMB_BITS) + 0.5287 >= 31) {
     /* mpz_t "size" field is an int, thus can hold up to 2^31-1:
        on a 32-bit processor, this means up to 2^36 bits,
        on a 64-bit processor, this means up to 2^37 bits */
@@ -1111,7 +1164,7 @@ create_batch_file (const char *f, cxx_mpz & P, unsigned long B, unsigned long L,
     {
       fprintf (out, "# batch: creating large prime product");
       fflush (out);
-      create_batch_product (P, L, pol, extra_time);
+      create_batch_product (P, L, cpoly, extra_time);
       goto end;
     }
 
@@ -1120,19 +1173,19 @@ create_batch_file (const char *f, cxx_mpz & P, unsigned long B, unsigned long L,
     {
       fprintf (out, "# batch: reading large prime product");
       fflush (out);
-      input_batch (fp, B, L, pol, P, f);
+      input_batch (fp, B, L, cpoly, P, f);
       goto end;
     }
 
   /* case 2 */
   fprintf (out, "# batch: creating large prime product");
   fflush (out);
-  create_batch_product (P, L, pol, extra_time);
+  create_batch_product (P, L, cpoly, extra_time);
 
   fp = fopen (f, "w");
   ASSERT_ALWAYS(fp != NULL);
 
-  output_batch (fp, B, L, pol, P, f);
+  output_batch (fp, B, L, cpoly, P, f);
 
   fclose (fp);
 

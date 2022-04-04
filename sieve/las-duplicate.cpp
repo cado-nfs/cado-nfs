@@ -216,6 +216,7 @@ sq_finds_relation(las_info const & las,
         bool talk)
 {
   int logI = conf.logI;
+  int nsides = las.cpoly->nb_polys;
 
   if (talk) {   // Print some info
       verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
@@ -255,9 +256,9 @@ sq_finds_relation(las_info const & las,
     return false;
   }
 
-  uint8_t remaining_lognorm[2];
+  std::vector<uint8_t> remaining_lognorm(nsides);
   bool is_dupe = true;
-  for (int side = 0; side < 2; side++) {
+  for (int side = 0; side < nsides; side++) {
     lognorm_smart L(conf, las.cpoly, side, Q, conf.logI, J);
 
     /* This lognorm is the evaluation of fij(i,j)/q on the side with the
@@ -278,9 +279,14 @@ sq_finds_relation(las_info const & las,
       is_dupe = false;
     }
   }
-  if (talk) verbose_output_print(0, VERBOSE_LEVEL,
-      "# DUPECHECK relation had i=%d, j=%u, remaining lognorms %" PRId8 ", %" PRId8 "\n",
-      i, j, remaining_lognorm[0], remaining_lognorm[1]);
+  if (talk) {
+      std::ostringstream os;
+      for(auto r : remaining_lognorm) os << " " << r;
+      verbose_output_print(0, VERBOSE_LEVEL,
+      "# DUPECHECK relation had i=%d, j=%u, remaining lognorms%s\n",
+      i, j, os.str().c_str());
+  }
+
   if (!is_dupe) {
     return false;
   }
@@ -288,8 +294,8 @@ sq_finds_relation(las_info const & las,
   /* Compute the exact cofactor on each side. This is similar to what we
    * do in subtract_fb_log -- except that now we do the part *above* the
    * factor base. */
-  std::array<cxx_mpz, 2> cof;
-  for (int side = 0; side < 2; side++) {
+  std::vector<cxx_mpz> cof(nsides);
+  for (int side = 0; side < nsides; side++) {
     mpz_set_ui(cof[side], 1);
     unsigned long lim = conf.sides[side].lim;
 
@@ -313,7 +319,7 @@ sq_finds_relation(las_info const & las,
   }
 
   /* Check that the cofactors are within the mfb bound */
-  for (int side = 0; side < 2; ++side) {
+  for (int side = 0; side < nsides; ++side) {
     if (!check_leftover_norm (cof[side], conf.sides[side])) {
       verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
           "# DUPECHECK cofactor %Zd is outside bounds\n",
@@ -322,9 +328,9 @@ sq_finds_relation(las_info const & las,
     }
   }
 
-  std::array<std::vector<cxx_mpz>, 2> f;
+  std::vector<std::vector<cxx_mpz>> f(nsides);
   int pass = factor_both_leftover_norms(cof, f,
-          {{conf.sides[0].lim, conf.sides[1].lim}},
+          siever_side_config::collect_lim(conf.sides),
           *las.get_strategies(conf));
 
   if (pass <= 0) {
@@ -439,6 +445,8 @@ relation_is_duplicate(relation const& rel,
         las_todo_entry const & doing,
         las_info const& las)
 {
+    int nsides = las.cpoly->nb_polys;
+
     /* If the special-q does not fit in an unsigned long, we assume it's not a
        duplicate and just move on */
     if (doing.is_prime() && !mpz_fits_uint64_p(doing.p)) {
@@ -449,14 +457,14 @@ relation_is_duplicate(relation const& rel,
      * that we're doing the dlp desecent, in which case we couldn't care
      * less about duplicates check anyway.
      */
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < nsides ; side++) {
         for(unsigned int i = 0 ; i < rel.sides[side].size() ; i++) {
             if (!mpz_fits_uint64_p(rel.sides[side][i].p))
                 return false;
         }
     }
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < nsides ; side++) {
         /* It is allowed to have special-q on both sides, and we wish to
          * check "cross" special-q combinations.
          */
@@ -490,6 +498,8 @@ relation_is_duplicate(relation const& rel,
             // push it in the list of potential factors of sq
             prime_list.push_back(p);
         }
+
+        /* FIXME: For hybrid special-q's, this must be changed! */
 
         for (auto const & sq : all_multiples(prime_list)) {
             // keep sq only if it was sieved before [doing]

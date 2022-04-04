@@ -54,20 +54,20 @@ int facul (std::vector<cxx_mpz> &, cxx_mpz const &, facul_strategy_oneside const
 
 
 struct facul_strategies_base {
-    std::array<unsigned long, 2> B; /* The factor base bounds */
-    std::array<unsigned int, 2> lpb; /* Large prime bounds (in bits) */
-    std::array<double, 2> BB; /* The factor base bounds squared.
+    std::vector<unsigned long> B; /* The factor base bounds */
+    std::vector<unsigned int> lpb; /* Large prime bounds (in bits) */
+    std::vector<double> BB; /* The factor base bounds squared.
 				 We assume that primes <= fbb have
 				 already been removed, thus any
 				 factor <= assume_prime_thresh is
 				 assumed prime without further
 				 test. */
-    std::array<double, 2> BBB; /* The factor base bounds cubed. */
-    std::array<unsigned int, 2> mfb; /* The cofactor bounds (bits) */
+    std::vector<double> BBB; /* The factor base bounds cubed. */
+    std::vector<unsigned int> mfb; /* The cofactor bounds (bits) */
     facul_strategies_base(
-            std::array<unsigned long, 2> const & lim,
-            std::array<unsigned int, 2> const & lpb,
-            std::array<unsigned int, 2> const & mfb,
+            std::vector<unsigned long> const & lim,
+            std::vector<unsigned int> const & lpb,
+            std::vector<unsigned int> const & mfb,
             bool perfectly_sieved);
 };
 
@@ -88,7 +88,7 @@ private:
 
     /* two quick strategies as a default (when no strategy file is
      * provided) */
-    std::array<std::vector<facul_method_side>, 2> uniform_strategy;
+    std::vector<std::vector<facul_method_side>> uniform_strategy;
 
 public:
 
@@ -97,25 +97,25 @@ public:
         std::vector<facul_method::parameters_with_side>> strategy_file;
 
     facul_strategies(
-            std::array<unsigned long, 2> const & lim,
-            std::array<unsigned int, 2> const & lpb,
-            std::array<unsigned int, 2> const & mfb,
-            std::array<int, 2> ncurves,
+            std::vector<unsigned long> const & lim,
+            std::vector<unsigned int> const & lpb,
+            std::vector<unsigned int> const & mfb,
+            std::vector<int> ncurves,
             bool,
             const int);
 
     facul_strategies(
-            std::array<unsigned long, 2> const & lim,
-            std::array<unsigned int, 2> const & lpb,
-            std::array<unsigned int, 2> const & mfb,
+            std::vector<unsigned long> const & lim,
+            std::vector<unsigned int> const & lpb,
+            std::vector<unsigned int> const & mfb,
             bool,
             FILE *,
             const int);
 
     facul_strategies(
-            std::array<unsigned long, 2> const & lim,
-            std::array<unsigned int, 2> const & lpb,
-            std::array<unsigned int, 2> const & mfb,
+            std::vector<unsigned long> const & lim,
+            std::vector<unsigned int> const & lpb,
+            std::vector<unsigned int> const & mfb,
             bool,
             strategy_file const &,
             const int);

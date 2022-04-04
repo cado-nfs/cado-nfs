@@ -42,6 +42,7 @@
 #include "ularith.h"       // for ularith_invmod
 #include "u64arith.h"       // for u64arith_invmod
 #include "verbose.h"             // verbose_output_print
+#include "las-side-config.hpp"
 struct qlattice_basis; // IWYU pragma: keep
 
 /* {{{ fb_log fb_pow and friends */
@@ -2012,20 +2013,17 @@ struct helper_functor_put_first_0 {
 
 fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_list & pl, const char * fbc_filename, int nthreads) : f(cpoly->pols[side]), side(side)
 {
-    {
-        std::ostringstream os;
-        os << "lim" << side;
-        param_list_parse_ulong(pl, os.str().c_str(), &lim);
-    }
-    {
-        std::ostringstream os;
-        os << "powlim" << side;
-        if (!param_list_parse_ulong(pl, os.str().c_str(), &powlim)) {
-            powlim = ULONG_MAX;
-            verbose_output_print(0, 2,
-                    "# Using default value %s=ULONG_MAX\n",
-                    os.str().c_str());
-        }
+    /* It's a bit awkward to parse and re-parse these bits over and over
+     * again. Fortunately, it's cheap.
+     */
+    std::vector<siever_side_config> all_sides;
+    siever_side_config::parse(pl, all_sides, cpoly->nb_polys, { "lim" });
+    lim = all_sides[side].lim;
+    powlim = all_sides[side].powlim;
+    if (powlim == ULONG_MAX) {
+        verbose_output_print(0, 2,
+                "# Using default value powlim%d=ULONG_MAX\n",
+                side);
     }
 
     /* This initial 0 must be here in all cases, even for an empty factor
@@ -2074,15 +2072,13 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
 
     /* compute, or maybe read the factor base from the ascii file */
     {
-        char paramname[5];
-
         if (f->deg > 1) {
             verbose_output_print(0, 2,
                     "# Reading side-%d factor base from disk"
                     " for polynomial f%d(x) = %s\n",
                     side, side, polystring.c_str());
-            snprintf(paramname, sizeof(paramname), "fb%d", side);
-            const char * fbfilename = param_list_lookup_string(pl, paramname);
+            std::string const & s = all_sides[side].fbfilename;
+            const char * fbfilename = s.empty() ? NULL : s.c_str();
             if (!fbfilename) {
                 fprintf(stderr, "Error: factor base file for side %d is not given\n", side);
                 exit(EXIT_FAILURE);

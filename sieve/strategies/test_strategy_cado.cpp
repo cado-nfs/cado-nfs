@@ -1016,9 +1016,12 @@ facul_strategies convert_strategy_to_facul_strategies (strategy_t* t,
         const unsigned int * mfb,
         gmp_randstate_ptr rstate)
 {
-    std::array<unsigned long, 2> B;
-    std::array<unsigned int, 2> lpb_;
-    std::array<unsigned int, 2> mfb_;
+    /* This is dead code, and it probably doesn't make sense to think
+     * about strategies for >2 sides anyway.
+     */
+    std::vector<unsigned long> B(2);
+    std::vector<unsigned int> lpb_(2);
+    std::vector<unsigned int> mfb_(2);
     std::array<unsigned int, 2> r_;
     auto pB = B.begin();
     auto plpb = lpb_.begin();
@@ -1066,6 +1069,9 @@ bench_proba_time_st_both(gmp_randstate_t state,
                          const unsigned int * lpb,
                          const unsigned int * mfb)
 {
+    /* This is dead code, and it probably doesn't make sense to think
+     * about strategies for >2 sides anyway.
+     */
     unsigned long lim[2] = {1UL << (fbb[0]-1), 1UL << (fbb[1]-1) };
 
     int nb_test = 0, nb_success = 0;
@@ -1130,10 +1136,10 @@ bench_proba_time_st_both(gmp_randstate_t state,
     time = 0;
 
     {
-        std::array<std::vector<cxx_mpz>, 2> f;
+        std::vector<std::vector<cxx_mpz>> f(2);
         while (nb_test < nb_test_max)
         {
-            std::array<cxx_mpz, 2> N;
+            std::vector<cxx_mpz> N(2);
             for(int side = 0 ; side < 2 ; side++) {
                 int index = select_random_index_dec(sum_dec[side], init_tab[side], state);
                 int len_p = init_tab[side]->tab[index]->tab[1];

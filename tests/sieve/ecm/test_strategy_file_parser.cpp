@@ -8,9 +8,10 @@ int main(int argc, char * argv[])
 {
     if (argc > 2)
         exit(EXIT_FAILURE);
-    std::array<unsigned long, 2> B { 1ul<<20, 1ul<<20 };
-    std::array<unsigned int, 2> lpb { 25, 25 };
-    std::array<unsigned int, 2> mfb { 50, 50 };
+
+    std::vector<unsigned long> B { 1ul<<20, 1ul<<20 };
+    std::vector<unsigned int> lpb { 25, 25 };
+    std::vector<unsigned int> mfb { 50, 50 };
 
     FILE * f = stdin;
     if (argc == 2) {

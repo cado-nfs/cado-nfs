@@ -659,8 +659,7 @@ void check_whether_q_above_lare_prime_bound(siever_config const & conf, las_todo
      */
     if (allow_largesq) return;
 
-    if ((int)mpz_sizeinbase(doing.p, 2) >
-            conf.sides[doing.side].lpb) {
+    if (mpz_sizeinbase(doing.p, 2) > conf.sides[doing.side].lpb) {
         fprintf(stderr, "ERROR: The special q (%d bits) is larger than the "
                 "large prime bound on side %d (%d bits).\n",
                 (int) mpz_sizeinbase(doing.p, 2),
@@ -699,6 +698,8 @@ void per_special_q_banner(las_todo_entry const & doing)
  */
 static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofac> wc_p, std::shared_ptr<nfs_aux> aux_p, thread_pool & pool)/*{{{*/
 {
+    int nsides = ws.sides.size();
+
     nfs_aux & aux(*aux_p);
     timetree_t & timer_special_q(aux.rt.timer);
     where_am_I & w(aux.w);
@@ -717,7 +718,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
 
     /* TODO: is there a way to share this in sublat mode ? */
 
-    multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> precomp_plattice;
+    multityped_array<precomp_plattice_t, 1, FB_MAX_PARTS> precomp_plattice(nsides);
 
     {
         {
@@ -1587,6 +1588,12 @@ int main (int argc0, char *argv0[])/*{{{*/
         }
     }
 
+    /* These are sometimes looked up a bit late in the process */
+    sieve_shared_data::lookup_parameters(pl, las.cpoly->nb_polys);
+    batch_side_config::lookup_parameters(pl, las.cpoly->nb_polys);
+
+    param_list_warn_unused(pl);
+
     /* In the random-sample + relation cache case, we're going to proceed
      * through a special case, as this will spare us the need to load the
      * factor base.
@@ -1670,6 +1677,8 @@ int main (int argc0, char *argv0[])/*{{{*/
 
     if (las.batch)
       {
+          int nsides = las.cpoly->nb_polys;
+
           timetree_t batch_timer;
           auto z = call_dtor([&]() {
                   std::lock_guard<std::mutex> lock(global_rt.mm);
@@ -1683,14 +1692,16 @@ int main (int argc0, char *argv0[])/*{{{*/
         TIMER_CATEGORY(batch_timer, batch_mixed());
         double extra_time = 0;
 
-        std::array<cxx_mpz, 2> batchP;
-        int lpb[2] = { sc0.sides[0].lpb, sc0.sides[1].lpb };
-
-        for(int side = 0 ; side < 2 ; side++) {
-            create_batch_file (las.batch_file[side],
+        std::vector<cxx_mpz> batchP(nsides);
+        auto lpb = siever_side_config::collect_lpb(sc0.sides);
+        auto batchlpb = batch_side_config::collect_batchlpb(las.bsides);
+        auto batchmfb = batch_side_config::collect_batchmfb(las.bsides);
+        auto batchfilename = batch_side_config::collect_batchfilename(las.bsides);
+        for(int side = 0 ; side < nsides ; side++) {
+            create_batch_file (batchfilename[side],
                     batchP[side],
                     sc0.sides[side].lim,
-                    1UL << las.batchlpb[side],
+                    1UL << batchlpb[side],
                     las.cpoly->pols[side],
                     main_output.output,
                     las.number_of_threads_loose(),
@@ -1705,7 +1716,7 @@ int main (int argc0, char *argv0[])/*{{{*/
          * the first pragma omp statement.)
          */
 	find_smooth (las.L,
-                batchP, las.batchlpb, lpb, las.batchmfb,
+                batchP, batchlpb, lpb, batchmfb,
                 main_output.output,
                 las.number_of_threads_loose(),
                 extra_time);
@@ -1713,22 +1724,23 @@ int main (int argc0, char *argv0[])/*{{{*/
         /* We may go back to our general thread placement at this point.
          * Currently the code below still uses openmp */
 
-        int ncurves = MAX(sc0.sides[0].ncurves, sc0.sides[1].ncurves);
-
-        // Possible issue: if lpb=batchlp, ECM is still used for finding
-        // the sieved primes in order to print the smooth relations.
-        // In that case, we need enough curves to find them.
-        if (las.batchlpb[0] == lpb[0] || las.batchlpb[1] == lpb[1]) {
-            ncurves = MAX(ncurves, 30);
+        int ncurves = 0;
+        for(int side = 0 ; side < nsides ; side++) {
+            ncurves = MAX(ncurves, sc0.sides[side].ncurves);
+            // Possible issue: if lpb=batchlp, ECM is still used for finding
+            // the sieved primes in order to print the smooth relations.
+            // In that case, we need enough curves to find them.
+            if (sc0.sides[side].lpb == las.bsides[side].batchlpb)
+                ncurves = MAX(ncurves, 30);
         }
 
-        if (ncurves <= 0) {
+
+        if (ncurves <= 0)
             ncurves = 50; // use the same default as finishbatch
-        }
 
         std::list<relation> rels = factor (las.L,
                 las.cpoly,
-                las.batchlpb,
+                batchlpb,
                 lpb,
                 ncurves,
 		main_output.output,

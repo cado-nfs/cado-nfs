@@ -22,22 +22,15 @@
 #include "relation.hpp"        // for operator<<, relation
 #include "verbose.h"    // verbose_decl_usage
 #include "params.h"
+#include "las-side-config.hpp"
 
-static void declare_usage(param_list pl)
+static void declare_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "in", "input file");
     param_list_decl_usage(pl, "poly", "poly file");
     param_list_decl_usage(pl, "t", "number of threads");
-    param_list_decl_usage(pl, "lim0", "sieved bound on side 0");
-    param_list_decl_usage(pl, "lim1", "sieved bound on side 1");
-    param_list_decl_usage(pl, "lpb0", "large prime bound on side 0");
-    param_list_decl_usage(pl, "lpb1", "large prime bound on side 1");
-    param_list_decl_usage(pl, "batchmfb0", "threshold after batch on side 0");
-    param_list_decl_usage(pl, "batchmfb1", "threshold after batch on side 1");
-    param_list_decl_usage(pl, "batchlpb0", "batch bound on side 0");
-    param_list_decl_usage(pl, "batchlpb1", "batch bound on side 1");
-    param_list_decl_usage(pl, "batch0", "file of product of primes on side 0");
-    param_list_decl_usage(pl, "batch1", "file of product of primes on side 1");
+    siever_side_config::declare_usage(pl);
+    batch_side_config::declare_usage(pl);
     param_list_decl_usage(pl, "doecm", "finish with ECM [default = no]");
     param_list_decl_usage(pl, "no_recomp_norm", "given integers are the norms themselves (w/ sq) [default = no]");
     param_list_decl_usage(pl, "ncurves", "number of curves to be used in ECM [default = 50]");
@@ -101,50 +94,30 @@ main (int argc, char *argv[])
   }
   param_list_parse_ulong(pl, "t"   , &nb_threads);
   
-  unsigned long lim[2] = {ULONG_MAX, ULONG_MAX};
-  param_list_parse_ulong(pl, "lim0", &lim[0]);
-  param_list_parse_ulong(pl, "lim1", &lim[1]);
-  if (lim[0] == ULONG_MAX || lim[1] == ULONG_MAX) {
-      fprintf(stderr, "Error: parameters lim[01] are mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
+  int nsides = cpoly->nb_polys;
 
-  int lpb[2] = {0, 0};
-  param_list_parse_int(pl, "lpb0", &lpb[0]);
-  param_list_parse_int(pl, "lpb1", &lpb[1]);
+  std::vector<siever_side_config> sides;
+  siever_side_config::parse(pl, sides, nsides, { "lpb", "mfb" });
 
-  if (lpb[0] * lpb[1] == 0) {
-      fprintf(stderr, "Error: parameters lpb[01] are mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
+  std::vector<batch_side_config> bsides;
+  batch_side_config::parse(pl, bsides, nsides, { "batchlpb", "batchmfb" });
 
-
-  const char *batch_file[2];
-  int batchlpb[2] = {0, 0};
-  int batchmfb[2] = {0, 0};
-  batch_file[0] = param_list_lookup_string (pl, "batch0");
-  batch_file[1] = param_list_lookup_string (pl, "batch1");
-  param_list_parse_int(pl, "batchlpb0", &(batchlpb[0]));
-  param_list_parse_int(pl, "batchlpb1", &(batchlpb[1]));
-  param_list_parse_int(pl, "batchmfb0", &(batchmfb[0]));
-  param_list_parse_int(pl, "batchmfb1", &(batchmfb[1]));
-  if (batchlpb[0] * batchlpb[1] * batchmfb[0] * batchmfb[1] == 0) {
-      fprintf(stderr, "Error: parameters batchlpb[01] and batchmfb[01] are mandatory\n");
-      param_list_print_usage(pl, argv0, stderr);
-      exit(EXIT_FAILURE);
-  }
-
-  param_list_parse_int(pl, "ncurves", &ncurves);
-
-  std::array<cxx_mpz, 2> batchP;
+  std::vector<cxx_mpz> batchP;
 
   double extra_time = 0;
 
+  auto lpb = siever_side_config::collect_lpb(sides);
+  auto batchlpb = batch_side_config::collect_batchlpb(bsides);
+  auto batchmfb = batch_side_config::collect_batchmfb(bsides);
+
   for (int side = 0; side < 2; ++side) {
-      create_batch_file (batch_file[side], batchP[side], lim[side],
-              1UL << batchlpb[side], cpoly->pols[side], stdout, nb_threads,
+      create_batch_file (bsides[side].batchfilename,
+              batchP[side],
+              sides[side].lim,
+              1UL << bsides[side].batchlpb,
+              cpoly->pols[side],
+              stdout,
+              nb_threads,
               extra_time);
   }
 
@@ -155,7 +128,7 @@ main (int argc, char *argv[])
 
 #define MAX_SIZE 2048
   char str[MAX_SIZE];
-  std::array<cxx_mpz, 2> norms;
+  std::vector<cxx_mpz> norms(nsides, 0);
   cxx_mpz q;
   mpz_set_ui(q, 1);
   // Create a fake special-q
@@ -170,7 +143,7 @@ main (int argc, char *argv[])
 
   long a;
   unsigned long b;
-  while (fgets(str, MAX_SIZE, inp)) {
+  for(int lnum = 0; fgets(str, MAX_SIZE, inp) ; lnum++) {
       if (str[0] == '#') {
           cxx_mpz r;
           int side;
@@ -185,7 +158,14 @@ main (int argc, char *argv[])
           }
           continue;
       }
-      gmp_sscanf(str, "%ld %lu %Zd %Zd\n", &a, &b, (mpz_ptr) norms[0], (mpz_ptr) norms[1]);
+      std::istringstream ss(str);
+      ss >> a >> b;
+      for(int side = 0 ; side < nsides ; side++)
+          ss >> norms[side];
+      if (!ss) {
+          fprintf(stderr, "parse error at line %d in cofactor input file\n", lnum);
+          exit(EXIT_FAILURE);
+      }
       List.emplace_back(a, b, norms, &list_q.back());
   }
   fclose_maybe_compressed(inp, infilename);
