@@ -170,7 +170,7 @@ class Polynomials(object):
     re_pol_f = re.compile(r"c(\d+)\s*:\s*(-?\d+)")
     re_pol_g = re.compile(r"Y(\d+)\s*:\s*(-?\d+)")
     re_polys = re.compile(r"poly(\d+)\s*:") # FIXME: do better?
-    re_Murphy = re.compile(re_cap_n_fp(r"\s*#\s*MurphyE\s*\((.*)\)\s*=", 1))
+    re_Murphy = re.compile(re_cap_n_fp(r"\s*#\s*(side\s+\d+\s+)?MurphyE\s*\((.*)\)\s*=", 1))
     # MurphyF is the refined value of MurphyE produced by polyselect3
     re_MurphyF = re.compile(re_cap_n_fp(r"\s*#\s*MurphyF\s*\((.*)\)\s*=", 1))
     re_skew = re.compile(re_cap_n_fp(r"skew:", 1))
@@ -239,8 +239,8 @@ class Polynomials(object):
                 if self.MurphyParams or self.MurphyE:
                     raise PolynomialParseException(
                         "Line '%s' redefines Murphy E value" % line)
-                self.MurphyParams = match.group(1)
-                self.MurphyE = float(match.group(2))
+                self.MurphyParams = match.group(2)
+                self.MurphyE = float(match.group(3))
                 continue
             match = self.re_MurphyF.match(line)
             if match:
