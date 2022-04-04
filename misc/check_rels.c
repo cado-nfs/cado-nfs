@@ -528,7 +528,7 @@ main (int argc, char * argv[])
                 lpb_arg, cpoly->nb_polys,
                 ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS);
         lpb_max = 0;
-        for (int i = 1; i < cpoly->nb_polys; i++) {
+        for (int i = 0; i < cpoly->nb_polys; i++) {
             lpb[i] = 1UL << lpb_arg[i];
             lpb_max = MAX(lpb_max, lpb[i]);
         }
