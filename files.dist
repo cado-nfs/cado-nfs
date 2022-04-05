@@ -1362,6 +1362,7 @@ tests/misc/testcheck_rels.sh
 tests/ncpus.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
+tests/polyselect/c80msieve.sample
 tests/polyselect/test_auxiliary.c
 tests/polyselect/test_polyselect_shash.cpp
 tests/polyselect/test_rho.c

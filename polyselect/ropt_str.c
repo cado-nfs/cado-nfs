@@ -324,7 +324,7 @@ ropt_poly_setup_check (ropt_poly_ptr poly )
   mpz_mod (poly->m, poly->m, poly->n);
 
   /* check if m is a root of f mod n */
-  mpz_poly_eval(t, poly->pols[1], poly->m);
+  mpz_poly_eval_mod_mpz(t, poly->pols[1], poly->m, poly->n);
 
   int ok = mpz_cmp_ui (t, 0) == 0;
   mpz_clear (t);
@@ -341,7 +341,7 @@ void
 ropt_poly_setup ( ropt_poly_ptr poly )
 {
   if (!ropt_poly_setup_check (poly)) {
-    fprintf (stderr, "ERROR: The following polynomial have no common"
+    fprintf (stderr, "ERROR: The following polynomials have no common"
              " root. \n");
     print_cadopoly_fg (stderr, poly->pols[1], poly->pols[0], poly->n);
     exit (1);

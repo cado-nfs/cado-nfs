@@ -996,7 +996,8 @@ rootsieve_one_sublattice ( ropt_poly_srcptr poly,
       compute_fuv_mp (s2param->f, poly->pols[1], poly->pols[0], tmpu, tmpv);
 
       /* translation-only optimize */
-      mpz_poly_set (s2param->f, poly->pols[0]);
+      mpz_poly_set (s2param->g, poly->pols[0]);
+
       sopt_local_descent (s2param->f, s2param->g, s2param->f, s2param->g, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
 
 #if 1

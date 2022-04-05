@@ -48,3 +48,10 @@ foreach(example c60 c65 c70 c75 c80)
         APPEND_ARGUMENTS
         -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/${example}.poly)
 endforeach()
+
+cado_divert_test(test_ropt_adv c80msieve
+    APPEND_ARGUMENTS
+    -fm ${CMAKE_CURRENT_SOURCE_DIR}/c80msieve.sample
+    -d 4
+    -n 12022203778835263712651529862414424087010841660557141141978630366614660861225497
+    -v -v -amin -16 -amax 16 -e 2 2 1 -bmax 10 -cmax 10000)

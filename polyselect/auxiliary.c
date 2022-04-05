@@ -95,11 +95,11 @@ print_cadopoly_fg (FILE *fp, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr n)
 
    /* Y[i] */
    for (i = mpz_poly_degree(g); i >= 0; i--)
-     gmp_fprintf (fp, "Y%d: %Zd\n", i, g[i]);
+     gmp_fprintf (fp, "Y%d: %Zd\n", i, g->coeff[i]);
 
    /* c[i] */
    for (i = mpz_poly_degree(f); i >= 0; i--)
-     gmp_fprintf (fp, "c%d: %Zd\n", i, f[i]);
+     gmp_fprintf (fp, "c%d: %Zd\n", i, f->coeff[i]);
 }
 
 
@@ -110,12 +110,8 @@ print_cadopoly_fg (FILE *fp, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr n)
 double
 print_cadopoly (FILE *fp, cado_poly_srcptr cpoly)
 {
-   mpz_poly F, G;
-
-   F->coeff = cpoly->pols[ALG_SIDE]->coeff;
-   F->deg = cpoly->pols[ALG_SIDE]->deg;
-   G->coeff = cpoly->pols[RAT_SIDE]->coeff;
-   G->deg = cpoly->pols[RAT_SIDE]->deg;
+   mpz_poly_srcptr F = cpoly->pols[ALG_SIDE];
+   mpz_poly_srcptr G = cpoly->pols[RAT_SIDE];
 
    /* print f, g only*/
    print_cadopoly_fg (fp, F, G, cpoly->n);

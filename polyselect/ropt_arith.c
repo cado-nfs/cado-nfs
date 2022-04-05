@@ -354,7 +354,6 @@ Lemma21 ( mpz_poly_ptr F,
 
   ASSERT_ALWAYS(mpz_poly_degree(G) == 1);
   ASSERT_ALWAYS(mpz_sgn(G->coeff[1]) > 0);
-  ASSERT_ALWAYS(mpz_sgn(G->coeff[0]) < 0);
 
   mpz_srcptr p = G->coeff[1];
 
