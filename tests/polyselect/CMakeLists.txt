@@ -35,3 +35,16 @@ cado_define_test(test_polyselect_shash.cpp
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_poly_header.c
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_match.c
     LIBRARIES polyselect_common tests)
+
+
+cado_define_test(test_ropt_adv
+    PROGRAM ${CADO_NFS_BINARY_DIR}/polyselect/polyselect_ropt --adv
+    TARGET_DEPENDENCIES polyselect_ropt
+    NO_DEFAULT_RUN
+    )
+
+foreach(example c60 c65 c70 c75 c80)
+    cado_divert_test(test_ropt_adv ${example}
+        APPEND_ARGUMENTS
+        -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/${example}.poly)
+endforeach()

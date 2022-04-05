@@ -175,6 +175,9 @@ ropt_on_cadopoly ( FILE *file,
 
   for(int count = 0; cado_poly_read_next_poly_from_stream(cpoly, file); count++) {
       ropt_poly_refresh (poly);
+      mpz_poly_swap(poly->pols[0], cpoly->pols[0]);
+      mpz_poly_swap(poly->pols[1], cpoly->pols[1]);
+      mpz_swap(poly->n, cpoly->n);
 
       if (!ropt_poly_setup_check (poly)) 
           continue;
