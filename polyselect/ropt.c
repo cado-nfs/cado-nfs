@@ -55,7 +55,8 @@ ropt_get_bestpoly ( ropt_poly_srcptr poly,
       compute_fuv_mp (Fuv, poly->pols[1], poly->pols[0],
               global_E_pqueue->u[i], global_E_pqueue->v[i]);
 
-      rotate_aux (Fuv, Guv, 0, global_E_pqueue->w[i], 2);
+      if (global_E_pqueue->w[i])
+          rotate_aux (Fuv, Guv, 0, global_E_pqueue->w[i], 2);
 
       /* This modifies Fuv and Guv */
       sopt_local_descent (Fuv, Guv, Fuv, Guv, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
