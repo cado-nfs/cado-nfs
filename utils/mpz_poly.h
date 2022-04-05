@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <gmp.h>
 #include "macros.h"
+#include "gmp_aux.h"      // for gmp_randstate_ptr
 
 #define xxxMPZ_POLY_TIMINGS
 // for timings of roots mod p (beware, this is not thread-safe)
@@ -110,6 +111,10 @@ void mpz_poly_init_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b);
 void mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b);
 void mpz_poly_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b);
 void mpz_poly_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b);
+void mpz_poly_set_rrandomb (mpz_poly_ptr f, int d, unsigned int k, gmp_randstate_ptr state);
+void mpz_poly_set_urandomm_ui (mpz_poly_ptr f, int d, unsigned long m, gmp_randstate_ptr state);
+void mpz_poly_set_urandomm (mpz_poly_ptr f, int d, mpz_srcptr m, gmp_randstate_ptr state);
+
 
 void mpz_poly_setcoeff(mpz_poly_ptr f, int i, mpz_srcptr z);
 void mpz_poly_setcoeff_si(mpz_poly_ptr f, int i, long z);

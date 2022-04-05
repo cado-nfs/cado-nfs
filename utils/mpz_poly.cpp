@@ -887,6 +887,59 @@ void mpz_poly_set_mpz(mpz_poly_ptr f, mpz_srcptr z)
     mpz_poly_cleandeg(f, 0);
 }
 
+void
+/* Put random coefficients of k bits in a polynomial (already initialized).
+   Ensure the coefficient of degree d is not zero. */
+mpz_poly_set_rrandomb (mpz_poly_ptr f, int d, unsigned int k, gmp_randstate_ptr state)
+{
+  int i;
+  mpz_t u;
+
+  ASSERT_ALWAYS (k > 0);
+  mpz_poly_realloc (f, d + 1);
+  mpz_init_set_ui (u, 1);
+  mpz_mul_2exp (u, u, k - 1); /* u = 2^(k-1) */
+  for (i = 0; i <= d; i++)
+    do
+      {
+        mpz_rrandomb (f->coeff[i], state, k); /* 0 to 2^k-1 */
+        mpz_sub (f->coeff[i], f->coeff[i], u); /* -2^(k-1) to 2^(k-1)-1 */
+      }
+    while (i == d && mpz_cmp_ui (f->coeff[i], 0) == 0);
+  mpz_clear (u);
+  f->deg = d;
+}
+
+void mpz_poly_set_urandomm_ui(mpz_poly_ptr f, int d, unsigned long m, gmp_randstate_ptr state)
+{
+    mpz_poly_set_zero(f);
+    for (int i = 0; i <= d; i++) {
+        long c;
+        do {
+            c = gmp_urandomm_ui(state, m);
+        } while (i == d && c == 0);
+        mpz_poly_setcoeff_si(f, i, c);
+        if (gmp_urandomm_ui(state, 2))
+            mpz_neg(f->coeff[i], f->coeff[i]);
+    }
+    mpz_poly_cleandeg(f, d);
+}
+
+void mpz_poly_set_urandomm(mpz_poly_ptr f, int d, mpz_srcptr m, gmp_randstate_ptr state)
+{
+    mpz_poly_set_zero(f);
+    for (int i = 0; i <= d; i++) {
+        cxx_mpz c;
+        do {
+            mpz_urandomm(c, state, m);
+        } while (i == d && c == 0);
+        mpz_poly_setcoeff(f, i, c);
+        if (gmp_urandomm_ui(state, 2))
+            mpz_neg(f->coeff[i], f->coeff[i]);
+    }
+    mpz_poly_cleandeg(f, d);
+}
+
 /* g <- quo (f, x^i) */
 void mpz_poly_div_xi(mpz_poly_ptr g, mpz_poly_srcptr f, int i)
 {

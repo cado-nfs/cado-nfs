@@ -60,7 +60,7 @@ rotate_aux (mpz_poly_ptr f, mpz_poly_srcptr g, long k0, long k, unsigned int t)
   else
     {
       for(int d = 0 ; d <= mpz_poly_degree(g) ; d++)
-          mpz_submul_ui (f->coeff[t + d], g->coeff[d], k-k0);
+          mpz_submul_ui (f->coeff[t + d], g->coeff[d], k0-k);
     }
   return k;
 }

@@ -1363,9 +1363,9 @@ tests/ncpus.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
 tests/polyselect/c80msieve.sample
-tests/polyselect/test_auxiliary.c
 tests/polyselect/test_polyselect_shash.cpp
 tests/polyselect/test_rho.c
+tests/polyselect/test_ropt_auxiliary.cpp
 tests/provide-wdir.sh
 tests/scripts/CMakeLists.txt
 tests/scripts/cadofactor/CMakeLists.txt

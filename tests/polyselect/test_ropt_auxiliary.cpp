@@ -1,14 +1,15 @@
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <gmp.h>                           // for mpz_t, mpz_set_si, mpz_set_ui
+#include <gmp.h>
+#include "mpz_poly.h"
+#include "cxx_mpz.hpp"
 #include "auxiliary.h"
+#include "tests_common.h"
 #include "cado_poly.h"                     // for MAX_DEGREE
 #include "macros.h"
-#include "mpz_poly.h"                      // for mpz_poly_clear, mpz_poly_init
 #include "size_optimization.h"
-#include "tests_common.h"
 #include "polyselect_norms.h"
 
 static int
@@ -232,15 +233,46 @@ test_size_optimization (void)
   mpz_poly_clear (g_opt);
 }
 
-int
-main (int argc, const char *argv[])
+void test_rotate_aux(unsigned long iter)
 {
-  tests_common_cmdline (&argc, &argv, PARSE_SEED | PARSE_ITER);
-  test_L2_lognorm ();
-  test_L2_skewness (0);
-  test_L2_skewness (1);
-  test_L2_skewness (2);
-  test_size_optimization ();
-  tests_common_clear ();
-  exit (EXIT_SUCCESS);
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        cxx_mpz_poly F0, F, G, R, H;
+        cxx_mpz m;
+        mpz_urandomb(m, state, 200);
+        mpz_poly_set_urandomm(F, 4 + gmp_urandomm_ui(state, 4), m, state);
+        mpz_poly_set_urandomm(G, mpz_poly_degree(F)-3, m, state);
+        mpz_poly_set_urandomm_ui(R, 2, 1000, state);
+
+        mpz_poly_set(F0, F);
+        mpz_poly_mul(H, G, R);
+        mpz_poly_add(H, H, F);
+
+        for(int i = 0 ; i <= 2 ; i++)
+            rotate_aux(F, G, 0, mpz_get_si(R->coeff[i]), i);
+
+        ASSERT_ALWAYS(mpz_poly_cmp(H, F) == 0);
+
+        for(int i = 0 ; i <= 2 ; i++)
+            rotate_aux(F, G, mpz_get_si(R->coeff[i]), 0, i);
+
+        ASSERT_ALWAYS(mpz_poly_cmp(F0, F) == 0);
+    }
 }
+
+int main(int argc, const char * argv[])
+{
+    unsigned long iter = 50;
+    tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
+    tests_common_get_iter(&iter);
+
+    test_L2_lognorm ();
+    test_L2_skewness (0);
+    test_L2_skewness (1);
+    test_L2_skewness (2);
+    test_size_optimization ();
+    test_rotate_aux(iter);
+    tests_common_clear ();
+
+    return 0;
+}
+
