@@ -82,40 +82,42 @@ special_update (double *A, long K0, long K1, const residueul_t gpn,
 }
 
 /* f(x) of degree d is the polynomial f0(x) + j*x*g(x)
-   where g(x) = b*x-m.
    A is a table of K1-K0+1 entries, where A[k-K0] corresponds to the alpha
    contribution for f(x) + k*g(x)
    p is the current prime, we consider pn = p^n here */
 void
-update_table (mpz_t *f, int d, mpz_t m, mpz_t b, double *A, long K0, long K1,
+update_table (mpz_poly_srcptr f, mpz_poly_srcptr g, double *A, long K0, long K1,
 	      unsigned long pn, double alpha_p)
 {
   long k, k0;
   modul_poly_t fpn; /* f mod p^n */
   modulusul_t Pn;
-  residueul_t l, gpn, bpn, r, v;
+  residueul_t gpn, bpn, r, v;
   int ret;
 
   modul_initmod_ul (Pn, pn);
   modul_init (gpn, Pn);
   modul_init (bpn, Pn);
   modul_init (r, Pn);
-  modul_init (l, Pn);
   modul_init (v, Pn);
 
-  modul_poly_init (fpn, d);
+  modul_poly_init (fpn, mpz_poly_degree(f));
 
   /* first reduce f(x) and g(x) mod p^n */
-  mpz_poly F;
-  F->coeff = f;
-  F->deg = d;
-  modul_poly_set_mod_raw (fpn, F, Pn);
+  modul_poly_set_mod_raw (fpn, f, Pn);
 
-  modul_set_ul (gpn, mpz_fdiv_ui (m, pn), Pn);
+  ASSERT_ALWAYS(mpz_poly_degree(g) == 1);
+
+  /* compute -g(0) */
+  modul_set_ul (gpn, mpz_fdiv_ui (g->coeff[0], pn), Pn);
+  modul_neg(gpn, gpn, Pn);
+
   /* invariant: gpn = -g(l) */
-  modul_set_ul (bpn, mpz_fdiv_ui (b, pn), Pn);
-  modul_set_ul (l, 0, Pn);
+  modul_set_ul (bpn, mpz_fdiv_ui (g->coeff[1], pn), Pn);
 
+  residueul_t l;
+  modul_init (l, Pn);
+  modul_set_ul (l, 0, Pn);
   for (;;)
     {
       modul_poly_eval (r, fpn, l, Pn);
@@ -170,74 +172,6 @@ update_table (mpz_t *f, int d, mpz_t m, mpz_t b, double *A, long K0, long K1,
   modul_poly_clear (fpn);
 }
 
-/* D <- discriminant (f+k*g), which has degree d */
-static void
-discriminant_k (mpz_t *D, mpz_poly_ptr f, mpz_t m, mpz_t b)
-{
-  int i, j, k;
-  uint32_t **M, pivot;
-  int d = f->deg;
-
-  ASSERT_ALWAYS(d <= 9);
-
-  /* we first put in D[i] the value of disc(f + i*g) for 0 <= i <= d,
-     thus if disc(f + k*g) = a[d]*k^d + ... + a[0], then
-          D[0] = a[0]
-          D[1] = a[0] + a[1] + ... + a[d]
-          ...
-          D[d] = a[0] + a[1]*d + ... + a[d]*d^d */
-
-  mpz_poly_discriminant (D[0], f);
-  for (i = 1; i <= d; i++)
-    {
-      /* add b*x - m */
-      mpz_add (f->coeff[1], f->coeff[1], b);
-      mpz_sub (f->coeff[0], f->coeff[0], m);
-      mpz_poly_discriminant (D[i], f);
-    }
-
-  /* initialize matrix coefficients */
-  M = (uint32_t**) malloc ((d + 1) * sizeof(uint32_t*));
-  for (i = 0; i <= d; i++)
-    {
-      M[i] = (uint32_t*) malloc ((d + 1) * sizeof(uint32_t));
-      M[i][0] = 1;
-      for (j = 1; j <= d; j++)
-        M[i][j] = i * M[i][j-1];
-    }
-
-  for (j = 0; j < d; j++)
-    {
-      /* invariant: D[i] = M[i][0] * a[0] + ... + M[i][d] * a[d]
-         with M[i][k] = 0 for k < j and k < i */
-      for (i = j + 1; i <= d; i++)
-        {
-          /* eliminate M[i][j] */
-          pivot = M[i][j] / M[j][j];
-          mpz_submul_ui (D[i], D[j], pivot);
-          for (k = j; k <= d; k++)
-            M[i][k] -= pivot * M[j][k];
-        }
-    }
-
-  /* now we have an upper triangular matrix */
-  for (j = d; j > 0; j--)
-    {
-      for (k = j + 1; k <= d; k++)
-        mpz_submul_ui (D[j], D[k], M[j][k]);
-      ASSERT_ALWAYS(mpz_divisible_ui_p (D[j], M[j][j]));
-      mpz_divexact_ui (D[j], D[j], M[j][j]);
-    }
-
-  /* restore the original f[] */
-  mpz_submul_ui (f->coeff[1], b, d);
-  mpz_addmul_ui (f->coeff[0], m, d);
-
-  for (i = 0; i <= d; i++)
-    free (M[i]);
-  free (M);
-}
-
 unsigned long
 rotate_area (long K0, long K1, long J0, long J1)
 {
@@ -256,8 +190,10 @@ rotate_area (long K0, long K1, long J0, long J1)
    increasing, then the optimal K corresponds to the minimum of that function.
 */
 void
-rotate_bounds (mpz_poly_ptr f, mpz_t b, mpz_t m, long *K0, long *K1,
-               long *J0, long *J1, int verbose)
+rotate_bounds (mpz_poly_ptr f, mpz_poly_srcptr g,
+        long *K0, long *K1,
+        long *J0, long *J1,
+        int verbose)
 {
   /* exp_alpha[i] corresponds to K=2^i polynomials for m=0, s=1
      f := x -> 1/2*(1 - erf(x/sqrt(2)));
@@ -299,7 +235,7 @@ rotate_bounds (mpz_poly_ptr f, mpz_t b, mpz_t m, long *K0, long *K1,
   best_E = E0;
   for (i = 1; rotate_area (*K0, -*K0, *J0, *J1) < max_area; i++, *K0 *= 2)
     {
-      k0 = rotate_aux (f->coeff, b, m, k0, *K0, 0);
+      k0 = rotate_aux (f, g, k0, *K0, 0);
       lognorm = L2_skew_lognorm (f, SKEWNESS_DEFAULT_PREC);
       alpha = exp_alpha[i];
       E = lognorm + alpha;
@@ -312,13 +248,13 @@ rotate_bounds (mpz_poly_ptr f, mpz_t b, mpz_t m, long *K0, long *K1,
         break;
     }
   /* go back to k=0 */
-  k0 = rotate_aux (f->coeff, b, m, k0, 0, 0);
+  k0 = rotate_aux (f, g, k0, 0, 0);
   *K1 = -*K0;
 
   /* now try negative j: -1, -3, -7, ... */
   for (i++; exp_alpha[i] != DBL_MAX && rotate_area (*K0, *K1, *J0, -*J0) < max_area; i++, *J0 = 2 * *J0 - 1)
     {
-      j0 = rotate_aux (f->coeff, b, m, j0, *J0, 1);
+      j0 = rotate_aux (f, g, j0, *J0, 1);
       lognorm = L2_skew_lognorm (f, SKEWNESS_DEFAULT_PREC);
       alpha = exp_alpha[i];
       E = lognorm + alpha;
@@ -339,8 +275,8 @@ rotate_bounds (mpz_poly_ptr f, mpz_t b, mpz_t m, long *K0, long *K1,
              *J0, *J1, *K0, *K1);
 
   /* rotate back to j=k=0 */
-  rotate_aux (f->coeff, b, m, k0, 0, 0);
-  rotate_aux (f->coeff, b, m, j0, 0, 1);
+  rotate_aux (f, g, k0, 0, 0);
+  rotate_aux (f, g, j0, 0, 1);
 }
 
 /* Return the smallest value of lognorm + alpha(f + (j*x+k)*(b*x-m)) for
@@ -359,10 +295,11 @@ rotate_bounds (mpz_poly_ptr f, mpz_t b, mpz_t m, long *K0, long *K1,
    b and m.
    */
 double
-rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
+rotate (mpz_poly_ptr f, unsigned long alim,
+        mpz_poly_srcptr g, /* b*x-m */
         long *jmin, long *kmin, int multi, int verbose)
 {
-    mpz_t *D;
+    // mpz_poly D;
     long K0, K1, J0, J1, k0, k, i, j, j0, bestk;
     double *A, alpha, lognorm, best_alpha = DBL_MAX, best_lognorm = DBL_MAX;
     double corr = 0.0;
@@ -390,14 +327,10 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
             best_E[i] = DBL_MAX;
     }
 
-    /* allocate D(k) = disc(f + (j*x+k)*g, x) */
-    D = (mpz_t*) malloc((d+1) * sizeof(mpz_t));
-    for(int i = 0 ; i <= d ; i++)
-        mpz_init(D[i]);
-
+    // mpz_poly_init(D, -1);
 
     /* compute range for k */
-    rotate_bounds (f, b, m, &K0, &K1, &J0, &J1, verbose);
+    rotate_bounds (f, g, &K0, &K1, &J0, &J1, verbose);
     ASSERT_ALWAYS(K0 <= 0 && 0 <= K1);
 
     /* allocate sieving zone for computing alpha */
@@ -412,11 +345,11 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
     for (j = 0;;)
     {
         /* we consider j=0, 1, ..., J1, then J0, J0+1, ..., -1 */
-        j0 = rotate_aux (f->coeff, b, m, j0, j, 1);
+        j0 = rotate_aux (f, g, j0, j, 1);
         /* go back to k=0 for the discriminant */
-        k0 = rotate_aux (f->coeff, b, m, k0, 0, 0);
+        k0 = rotate_aux (f, g, k0, 0, 0);
         /* D(k) = disc(f + (j*x+k)*g, x) (j is now fixed) */
-        discriminant_k (D, f, m, b);
+        // mpz_poly_discriminantal (D, f, g);
 
         for (k = K0; k <= K1; k++)
             A[k - K0] = 0.0; /* A[k - K0] will store the value alpha(f + k*g) */
@@ -433,7 +366,7 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
                     continue;
 
                 if (k0 != 0)
-                    k0 = rotate_aux (f->coeff, b, m, k0, 0, 0);
+                    k0 = rotate_aux (f, g, k0, 0, 0);
 
                 time_alpha -= seconds ();
 
@@ -453,7 +386,7 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
                        corresponding correction will be considered separately for each
                        row below */
                     /* + alpha_p_projective (f, d, (D->data)[0], p); */
-                    update_table (f->coeff, d, m, b, A, K0, K1, pp, alpha);
+                    update_table (f, g, A, K0, K1, pp, alpha);
                 }
 
                 time_alpha += seconds ();
@@ -468,7 +401,7 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
         /* Correction to apply to the current row (takes into account the
          * projective roots). FIXME: we are lazy here, we should only
          * consider the contribution from the projective roots. */
-        k0 = rotate_aux (f->coeff, b, m, k0, bestk, 0);
+        k0 = rotate_aux (f, g, k0, bestk, 0);
         corr = get_alpha (f, alim) - A[bestk - K0];
 
         if (verbose > 1)
@@ -485,7 +418,7 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
                 /* check lognorm + alpha < best_lognorm + best_alpha */
 
                 /* translate from k0 to k */
-                k0 = rotate_aux (f->coeff, b, m, k0, k, 0);
+                k0 = rotate_aux (f, g, k0, k, 0);
                 lognorm = L2_skew_lognorm (f, SKEWNESS_DEFAULT_PREC);
                 if (multi <= 1) {
                     if (lognorm + alpha < best_lognorm + best_alpha) {
@@ -532,8 +465,8 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
     /* we now have f + (j0*x+k0)*(bx-m) and we want f + (jmin*x+kmin)*(bx-m),
        thus we have to add ((jmin-j0)*x+(kmin-k0)*(bx-m) */
     /* if you are in multi-mode, we use the best polynomial */
-    rotate_aux (f->coeff, b, m, k0, *kmin, 0);
-    rotate_aux (f->coeff, b, m, j0, *jmin, 1);
+    rotate_aux (f, g, k0, *kmin, 0);
+    rotate_aux (f, g, j0, *jmin, 1);
 
     if ((verbose > 0) && (multi <= 1))
     {
@@ -560,9 +493,7 @@ rotate (mpz_poly_ptr f, unsigned long alim, mpz_t m, mpz_t b,
 
     free (A);
 
-    for(int i = 0 ; i <= d ; i++)
-        mpz_clear(D[i]);
-    free(D);
+    // mpz_poly_clear(D);
 
     {
         double ret_val = best_lognorm + best_alpha;
@@ -592,7 +523,6 @@ main (int argc, char **argv)
     cado_poly cpoly;
     long kmax, jmin, kmin;
     unsigned long alim = 2000;
-    mpz_t b, m;
     int argc0 = argc, verbose = 0;
     char **argv0 = argv;
 
@@ -603,8 +533,6 @@ main (int argc, char **argv)
         verbose ++;
       }
 
-    mpz_init(b);
-    mpz_init(m);
     if (argc != 3)
         usage_and_die (argv0[0]);
     cado_poly_init (cpoly);
@@ -634,18 +562,12 @@ main (int argc, char **argv)
       printf ("skewness=%1.2f, alpha=%1.2f\n",
               cpoly->skew, get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ()));
 
-    mpz_set (b, cpoly->pols[RAT_SIDE]->coeff[1]);
-    mpz_neg (m, cpoly->pols[RAT_SIDE]->coeff[0]);
-    rotate (cpoly->pols[ALG_SIDE], alim, m, b, &jmin, &kmin, 0, verbose - 1);
-    mpz_set (cpoly->pols[RAT_SIDE]->coeff[1], b);
-    mpz_neg (cpoly->pols[RAT_SIDE]->coeff[0], m);
+    rotate (cpoly->pols[ALG_SIDE], alim, cpoly->pols[RAT_SIDE], &jmin, &kmin, 0, verbose - 1);
     /* optimize again, but only translation */
     mpz_poly_fprintf (stdout, cpoly->pols[RAT_SIDE]);
     sopt_local_descent (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 1, -1,
                                           SOPT_DEFAULT_MAX_STEPS, verbose - 1);
     cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-    mpz_clear(b);
-    mpz_clear(m);
 
     print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
     return 0;

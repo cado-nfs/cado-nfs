@@ -3436,6 +3436,104 @@ mpz_poly_squarefree_p (mpz_poly_srcptr f)
   return ret;
 }
 
+/* D <- discriminant (f+k*g), which is a polynomial in k of degree
+ * deg(f) + deg(g) - 1 */
+void
+mpz_poly_discriminantal (mpz_poly_ptr D, mpz_poly_srcptr f, mpz_poly_srcptr g)
+{
+  uint32_t **M, pivot;
+  int d = mpz_poly_degree(f) + mpz_poly_degree(g) - 1;
+
+  ASSERT_ALWAYS(d <= 9); // otherwise d^d exceeds 32 bits and we'll overflow.
+                         // Note that of course it would be pretty
+                         // trivial to extend. However, the current
+                         // approach is probably not ideal when d becomes
+                         // larger.
+  // note that amusingly, 16^16 is exactly 2^64, and so we would be able
+  // to complete with the exact same algorithm, since the tiny weeny
+  // wraparound that we get for the last coefficient will not be a
+  // problem.
+
+  mpz_poly h;
+  mpz_poly_init(h, -1);
+  mpz_poly_set(h, f);
+
+  mpz_t t;
+  mpz_init(t);
+
+  mpz_poly_set_zero(D);
+
+  /* we first put in D[i] the value of disc(f + i*g) for 0 <= i <= d,
+     thus if disc(f + k*g) = a[d]*k^d + ... + a[0], then
+          D[0] = a[0]
+          D[1] = a[0] + a[1] + ... + a[d]
+          ...
+          D[d] = a[0] + a[1]*d + ... + a[d]*d^d */
+
+  for (int i = 0; i <= d; i++)
+    {
+      mpz_poly_discriminant (t, h);
+      mpz_poly_setcoeff(D, i, t);
+      mpz_poly_add(h, h, g);
+    }
+
+  /* initialize matrix coefficients. This is a Vandermonde matrix with
+   * evaluation points at 0,...,d
+   */
+  M = (uint32_t**) malloc ((d + 1) * sizeof(uint32_t*));
+  for (int i = 0; i <= d; i++)
+    {
+      M[i] = (uint32_t*) malloc ((d + 1) * sizeof(uint32_t));
+      M[i][0] = 1;
+      for (int j = 1; j <= d; j++)
+        M[i][j] = i * M[i][j-1];
+    }
+
+  /* So, at this point we have D = M * A
+   * We want to find A. We need to inverse M.
+   */
+
+  /* Note that we can't rule out the possibility that the leading
+   * coefficient of D is not zero at this point. We'll compute with it
+   * nevertheless, and get the occasion to set the degree correctly
+   * afterwards.
+   */
+
+  for (int j = 0; j < d; j++)
+    {
+      /* invariant: D[i] = M[i][0] * a[0] + ... + M[i][d] * a[d]
+         with M[i][k] = 0 for k < j and k < i */
+      for (int i = j + 1; i <= d; i++)
+        {
+          /* eliminate M[i][j] */
+          ASSERT_ALWAYS(M[i][j] % M[j][j] == 0);
+          pivot = M[i][j] / M[j][j];
+          mpz_submul_ui (D->coeff[i], D->coeff[j], pivot);
+          for (int k = j; k <= d; k++)
+            M[i][k] -= pivot * M[j][k];
+        }
+    }
+
+  /* now we have an upper triangular matrix */
+  for (int j = d; j > 0; j--)
+    {
+      for (int k = j + 1; k <= d; k++)
+        mpz_submul_ui (D->coeff[j], D->coeff[k], M[j][k]);
+      ASSERT_ALWAYS(mpz_divisible_ui_p (D->coeff[j], M[j][j]));
+      mpz_divexact_ui (D->coeff[j], D->coeff[j], M[j][j]);
+    }
+
+  /* Last chance to change the degree of D */
+  mpz_poly_cleandeg(D, d);
+
+  mpz_poly_clear(h);
+  mpz_clear(t);
+
+  for (int i = 0; i <= d; i++)
+    free (M[i]);
+  free (M);
+}
+
 /**
  * Quick-and-dirty test if the polynomial f is irreducible over Z.
  * This function is extracted from dlpolyselect.c written by PZ

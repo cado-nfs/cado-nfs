@@ -1,11 +1,14 @@
 #include "cado.h" // IWYU pragma: keep
 #include "macros.h"
+#include <iostream>
+#include <sstream>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <gmp.h>
 #include "mpz_poly.h"
+#include "cxx_mpz.hpp"
 #include "mpz_poly_parallel.hpp"
 #include "tests_common.h"
 #include "portability.h" //  IWYU pragma: keep
@@ -1100,6 +1103,62 @@ test_mpz_poly_discriminant (unsigned long iter)
     mpz_clear (D);
 }
 
+void
+test_mpz_poly_discriminantal (unsigned long iter)
+{
+    cxx_mpz_poly f, g;
+    cxx_mpz_poly D;
+    cxx_mpz k, disc;
+
+    for ( ; iter-- ; ) {
+        int N = 7;
+        int d = 2 + gmp_urandomm_ui(state, N-2+1);
+        mpz_poly_set_zero(f);
+        for (int i = 0; i <= d; i++) {
+            long c;
+            do {
+                c = gmp_urandomm_ui(state, 5) - 2;
+            } while (i == d && c == 0);
+            mpz_poly_setcoeff_si(f, i, c);
+        }
+
+        for (int i = 0; i <= 1; i++) {
+            long c;
+            do {
+                c = gmp_urandomm_ui(state, 5) - 2;
+            } while (i == 1 && c == 0);
+            mpz_poly_setcoeff_si(g, i, c);
+        }
+
+        std::ostringstream diag;
+
+        mpz_poly_discriminantal (D, f, g);
+        diag << "f=" << f << "\n";
+        diag << "g=" << g << "\n";
+        diag << "D=" << D << "\n";
+        diag << "k=" << k << "\n";
+        diag << "compdisc=" << disc << "\n";
+
+        mpz_urandomb(k, state, GMP_LIMB_BITS);
+
+        mpz_poly_eval(disc, D, k);
+        mpz_poly_mul_mpz(g, g, k);
+        mpz_poly_add(f, f, g);
+        mpz_poly_discriminant(k, f);
+
+        if (mpz_cmp(k, disc) != 0) {
+            std::cout << "ZP.<x,y>=ZZ['x,y']\n";
+            diag << "gooddisc=" << k << "\n";
+            diag << "h=f+y*g; hx=h.derivative(x)\n";
+            diag << "h.resultant(hx,x)\n";
+            std::cout << diag.str();
+
+        }
+
+        ASSERT_ALWAYS(mpz_cmp(k, disc) == 0);
+    }
+}
+
 void test_mpz_poly_infinity_norm()
 {
   mpz_poly f;
@@ -1149,7 +1208,8 @@ main (int argc, const char *argv[])
   test_mpz_poly_factor(iter / 5);
   test_mpz_poly_trivialities ();
   test_mpz_poly_resultant();
-  test_mpz_poly_discriminant(20000);
+  test_mpz_poly_discriminant(iter);
+  test_mpz_poly_discriminantal(iter);
   test_mpz_poly_infinity_norm();
   tests_common_clear ();
   exit (EXIT_SUCCESS);

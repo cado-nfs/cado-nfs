@@ -91,12 +91,9 @@ int main(int argc, char **argv) {
       cpoly->skew = L2_combined_skewness2 (cpoly->pols[0], cpoly->pols[1],
                                           SKEWNESS_DEFAULT_PREC);
 
-    mpz_set (b, cpoly->pols[RAT_SIDE]->coeff[1]);
-    mpz_neg (m, cpoly->pols[RAT_SIDE]->coeff[0]);
-    rotate_aux (cpoly->pols[ALG_SIDE]->coeff, b, m, 0, k, 0);
-    rotate_aux (cpoly->pols[ALG_SIDE]->coeff, b, m, 0, j, 1);
-    mpz_clear(b);
-    mpz_clear(m);
+    /* TODO: parse k and j as mpz, and use compute_fuv_mp !! */
+    rotate_aux (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 0, k, 0);
+    rotate_aux (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 0, j, 1);
 
     print_cadopoly_extra (stdout, cpoly, argc, argv, 0);
     return 0;

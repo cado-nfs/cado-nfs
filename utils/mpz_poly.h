@@ -227,6 +227,7 @@ int mpz_poly_has_trivial_content (mpz_poly_srcptr F);
 void mpz_poly_make_trivial_content (mpz_poly_ptr F);
 void mpz_poly_resultant(mpz_ptr res, mpz_poly_srcptr p, mpz_poly_srcptr q);
 void mpz_poly_discriminant(mpz_ptr res, mpz_poly_srcptr f);
+void mpz_poly_discriminantal (mpz_poly_ptr D, mpz_poly_srcptr f, mpz_poly_srcptr g);
 int mpz_poly_squarefree_p(mpz_poly_srcptr f);
 int mpz_poly_is_irreducible_z(mpz_poly_srcptr f);
 
