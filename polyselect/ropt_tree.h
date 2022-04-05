@@ -186,9 +186,9 @@ void new_MurphyE_pq ( MurphyE_pq **ppqueue,
 
 void insert_MurphyE_pq ( MurphyE_pq *pqueue,
                          int w,
-                         mpz_t u,
-                         mpz_t v,
-                         mpz_t modulus,
+                         mpz_srcptr u,
+                         mpz_srcptr v,
+                         mpz_srcptr modulus,
                          double E );
 
 void extract_MurphyE_pq ( MurphyE_pq *pqueue,

@@ -1159,9 +1159,9 @@ free_MurphyE_pq ( MurphyE_pq **ppqueue )
 static inline void
 insert_MurphyE_pq_up ( MurphyE_pq *pqueue,
                        int w,
-                       mpz_t u,
-                       mpz_t v,
-                       mpz_t modulus,
+                       mpz_srcptr u,
+                       mpz_srcptr v,
+                       mpz_srcptr modulus,
                        double E )
 {
   int k;
@@ -1193,9 +1193,9 @@ insert_MurphyE_pq_up ( MurphyE_pq *pqueue,
 static inline void
 insert_MurphyE_pq_down ( MurphyE_pq *pqueue,
                          int w,
-                         mpz_t u,
-                         mpz_t v,
-                         mpz_t modulus,
+                         mpz_srcptr u,
+                         mpz_srcptr v,
+                         mpz_srcptr modulus,
                          double E )
 {
   int k, l;
@@ -1265,9 +1265,9 @@ extract_MurphyE_pq ( MurphyE_pq *pqueue,
 void
 insert_MurphyE_pq ( MurphyE_pq *pqueue,
                     int w,
-                    mpz_t u,
-                    mpz_t v,
-                    mpz_t modulus,
+                    mpz_srcptr u,
+                    mpz_srcptr v,
+                    mpz_srcptr modulus,
                     double E )
 {
 

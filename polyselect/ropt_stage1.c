@@ -220,7 +220,7 @@ find_sublattice_lift ( node *firstchild,
  */
 static inline void
 find_sublattice ( single_sublattice_pq *top,
-                  ropt_poly_t poly,
+                  ropt_poly_srcptr poly,
                   unsigned int p,
                   char e )
 {
@@ -328,12 +328,10 @@ find_sublattice ( single_sublattice_pq *top,
 
     /* data struct for the lift */
     unsigned int *f_ui, *g_ui, *fuv_ui;
-    f_ui = (unsigned int*) malloc (
-      (poly->d + 1) * sizeof (unsigned int) );
-    fuv_ui = (unsigned int*) malloc (
-      (poly->d + 1) * sizeof (unsigned int) );
-    g_ui = (unsigned int*) malloc (
-      2 * sizeof (unsigned int) );
+    int d = mpz_poly_degree(poly->pols[1]);
+    f_ui = (unsigned int*) malloc ( (d + 1) * sizeof (unsigned int) );
+    fuv_ui = (unsigned int*) malloc ( (d + 1) * sizeof (unsigned int) );
+    g_ui = (unsigned int*) malloc ( 2 * sizeof (unsigned int) );
 
     if ( (f_ui == NULL) ||
          (g_ui == NULL) ||
@@ -344,15 +342,15 @@ find_sublattice ( single_sublattice_pq *top,
     }
 
     /* compute f (mod pe) */
-    reduce_poly_ul (f_ui, poly->f, poly->d, pe);
-    reduce_poly_ul (g_ui, poly->g, 1, pe);
+    reduce_poly_ul (f_ui, poly->pols[1], pe);
+    reduce_poly_ul (g_ui, poly->pols[0], pe);
 
     find_sublattice_lift ( root->firstchild,
                            top,
                            f_ui,
                            g_ui,
                            fuv_ui,
-                           poly->d,
+                           d,
                            p,
                            e,
                            2 );
@@ -371,8 +369,8 @@ find_sublattice ( single_sublattice_pq *top,
  * Compute crt and add (u, v) to queue.
  */
 static inline void
-return_combined_sublattice_crt ( ropt_s1param_t s1param,
-                                 ropt_bound_t bound,
+return_combined_sublattice_crt ( ropt_s1param_ptr s1param,
+                                 ropt_bound_srcptr bound,
                                  unsigned int *ind,
                                  unsigned int ***individual_sublattices,
                                  float **individual_sublattices_weighted_val,
@@ -453,7 +451,7 @@ return_combined_sublattice_crt ( ropt_s1param_t s1param,
  * Actual length check function.
  */
 static inline void
-return_combined_sublattice_check_tlen ( ropt_s1param_t s1param )
+return_combined_sublattice_check_tlen ( ropt_s1param_ptr s1param )
 {
   unsigned int i;
   
@@ -478,9 +476,9 @@ return_combined_sublattice_check_tlen ( ropt_s1param_t s1param )
  * the seperate (mod p) valuations are the best ones.
  */
 static inline int
-return_combined_sublattice ( ropt_poly_t poly,
-                             ropt_s1param_t s1param,
-                             ropt_bound_t bound,
+return_combined_sublattice ( ropt_poly_srcptr poly,
+                             ropt_s1param_ptr s1param,
+                             ropt_bound_srcptr bound,
                              sublattice_pq *pqueue,
                              int verbose )
 {
@@ -801,9 +799,9 @@ return_combined_sublattice ( ropt_poly_t poly,
  * by the size of u.
  */
 static inline int
-return_best_sublattice ( ropt_poly_t poly,
-                         ropt_s1param_t s1param,
-                         ropt_bound_t bound,
+return_best_sublattice ( ropt_poly_srcptr poly,
+                         ropt_s1param_ptr s1param,
+                         ropt_bound_ptr bound,
                          sublattice_pq *pqueue,
                          int verbose )
 {
@@ -863,17 +861,15 @@ return_best_sublattice ( ropt_poly_t poly,
  * Stage 1: record good sublattices to "alpha_pqueue".
  */
 int
-ropt_stage1 ( ropt_poly_t poly,
-              ropt_bound_t bound,
-              ropt_s1param_t s1param,
-              ropt_param_t param,
+ropt_stage1 ( ropt_poly_srcptr poly,
+              ropt_bound_ptr bound,
+              ropt_s1param_ptr s1param,
+              ropt_param_srcptr param,
               alpha_pq *alpha_pqueue,
               int current_w )
 {
   int st = 0, i, re;
   double alpha_lat;
-  mpz_t *fuv;
-  mpz_poly Fuv;
   sublattice_pq *pqueue;
   unsigned long len_part_alpha = s1param->nbest_sl *
     TUNE_RATIO_STAGE1_PART_ALPHA * param->effort;
@@ -913,19 +909,15 @@ ropt_stage1 ( ropt_poly_t poly,
   }
 
   /* fuv is f+(u*x+v)*g */
-  mpz_poly_init (Fuv, poly->d);
-  Fuv->deg = poly->d;
-  fuv = Fuv->coeff;
-  for (i = 0; i <= poly->d; i++)
-    mpz_set (fuv[i], poly->f[i]);
+  mpz_poly Fuv;
+  mpz_poly_init (Fuv, -1);
 
   if (param->verbose >= 2)
     st = milliseconds ();
   
   /* put pqueue into the global alpha_pqueue ranked by parial alpha */
   for (i = 1; i < pqueue->used; i ++) {
-
-    compute_fuv_mp ( fuv, poly->f, poly->g, poly->d,
+    compute_fuv_mp ( Fuv, poly->pols[1], poly->pols[0],
                      pqueue->u[i], pqueue->v[i] );
 
 

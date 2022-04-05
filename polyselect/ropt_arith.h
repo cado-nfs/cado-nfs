@@ -2,6 +2,7 @@
 #define ROPT_ARITH_H
 
 #include <gmp.h>
+#include "mpz_poly.h"
 
 #define ROPT_NPRIMES 46
 
@@ -10,12 +11,12 @@
 extern "C" {
 #endif
 
-void compute_fuv_mp ( mpz_t *fuv,
-                      mpz_t *f,
-                      mpz_t *g,
-                      int d,
-                      mpz_t u,
-                      mpz_t v );
+void
+compute_fuv_mp (mpz_poly_ptr fuv,
+                mpz_poly_srcptr f,
+                mpz_poly_srcptr g,
+                mpz_srcptr u,
+                mpz_srcptr v );
 
 void compute_fuv_ui ( unsigned int *fuv_ui,
                       unsigned int *f_ui,
@@ -30,12 +31,10 @@ unsigned int eval_poly_ui_mod ( unsigned int *f,
                                 unsigned int r,
                                 unsigned int pe );
 
-void Lemma21 ( mpz_t *a,
-               mpz_t N,
-               int d,
-               mpz_t p,
-               mpz_t m,
-               mpz_t res );
+void Lemma21 ( mpz_poly_ptr F,
+               mpz_srcptr N,
+               mpz_poly_srcptr G,
+               mpz_ptr res );
 
 void eval_polys ( mpz_t *f,
                   mpz_t *g,
@@ -59,8 +58,7 @@ unsigned int compute_v_ui ( unsigned int fx,
 
 
 void reduce_poly_ul ( unsigned int *f_ui,
-                      mpz_t *f,
-                      int d,
+                      mpz_poly_srcptr,
                       unsigned int pe );
 
 
@@ -71,26 +69,18 @@ void crt_pair_mp ( mpz_t a,
                    mpz_t re );
 
 
-void ab2uv ( mpz_t A,
-             mpz_t MOD,
-             long a,
-             mpz_t u );
+void ab2uv ( mpz_srcptr A, mpz_srcptr MOD, long a, mpz_ptr u );
 
 
-long ab2ij ( long Amin,
-             long a );
+long ab2ij ( long Amin, long a );
 
 
-void ij2uv ( mpz_t A,
-             mpz_t MOD,
-             long Amin,
-             long i,
-             mpz_t u );
+void ij2uv ( mpz_srcptr A, mpz_srcptr MOD, long Amin, long i, mpz_ptr u );
 
 
-long uv2ij_mod ( mpz_t A,
+long uv2ij_mod ( mpz_srcptr A,
                  long Amin,
-                 mpz_t MOD,
+                 mpz_srcptr MOD,
                  unsigned int U,
                  unsigned int p );
 

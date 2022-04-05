@@ -48,7 +48,7 @@ struct bucket_s {
 };
 typedef struct bucket_s bucket[1];
 typedef struct bucket_s * bucket_ptr;
-typedef struct bucket_s * bucket_srcptr;
+typedef const struct bucket_s * bucket_srcptr;
 
 void bucket_init(bucket_ptr bu)
 {

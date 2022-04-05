@@ -145,8 +145,8 @@ rootsieve_run_line ( int16_t *sa,
 static inline long
 rootsieve_run_multroot_lift_idx ( unsigned int v,
                                   long Bmin,
-                                  mpz_t B,
-                                  mpz_t MOD,
+                                  mpz_srcptr B,
+                                  mpz_srcptr MOD,
                                   unsigned int pl,
                                   unsigned int pe )
 {
@@ -188,7 +188,7 @@ rootsieve_run_multroot_lift ( node *currnode,
                               unsigned int *g_ui,
                               unsigned int *fuv_ui,
                               int d,
-                              ropt_s2param_t s2param,
+                              ropt_s2param_srcptr s2param,
                               unsigned int p,
                               unsigned int max_e,
                               unsigned int curr_e,
@@ -505,8 +505,8 @@ rootsieve_run_multroot_lift ( node *currnode,
  */
 static inline void
 rootsieve_run_multroot ( sievearray_t sa,
-                         ropt_poly_t rs,
-                         ropt_s2param_t s2param,
+                         ropt_poly_srcptr rs,
+                         ropt_s2param_srcptr s2param,
                          unsigned int u,
                          unsigned int i,
                          long j,
@@ -550,17 +550,19 @@ rootsieve_run_multroot ( sievearray_t sa,
   for (v = 0; v < e ; v ++)
     pe = pe * p;
 
+  int d = mpz_poly_degree(rs->pols[1]);
+
   /* use s.p instead of m.p */
-  f_ui = (unsigned int*) malloc ((rs->d + 1) * sizeof (unsigned int));
-  fuv_ui = (unsigned int*) malloc ((rs->d + 1) * sizeof (unsigned int));
+  f_ui = (unsigned int*) malloc ((d + 1) * sizeof (unsigned int));
+  fuv_ui = (unsigned int*) malloc ((d + 1) * sizeof (unsigned int));
   g_ui = (unsigned int*) malloc ((2) * sizeof (unsigned int));
   if ((f_ui == NULL) || (g_ui == NULL) || (fuv_ui == NULL)) {
     fprintf (stderr, "Error, cannot allocate memory in "
              "rootsieve_run_multroot(). \n");
     exit (1);
   }
-  reduce_poly_ul (f_ui, rs->f, rs->d, pe);
-  reduce_poly_ul (g_ui, rs->g, 1, pe);
+  reduce_poly_ul (f_ui, rs->pols[1], pe);
+  reduce_poly_ul (g_ui, rs->pols[0], pe);
 
   /* j -> v (mod p) */
   ij2uv (s2param->B, s2param->MOD, s2param->Bmin, j, tmpz);
@@ -580,7 +582,7 @@ rootsieve_run_multroot ( sievearray_t sa,
 
   /* lift to higher p^e */
   rootsieve_run_multroot_lift ( root->firstchild, sa, f_ui, g_ui,
-                                fuv_ui, rs->d, s2param, p,
+                                fuv_ui, d, s2param, p,
                                 e, 2, sub );
 
   /* free, either root itself or root with a level 1 node.
@@ -604,8 +606,8 @@ rootsieve_run_multroot ( sievearray_t sa,
  */
 static inline void
 rootsieve_one_block ( sievearray_t sa,
-                      ropt_poly_t poly,
-                      ropt_s2param_t s2param )
+                      ropt_poly_srcptr poly,
+                      ropt_s2param_srcptr s2param )
 {
   char *roottype_flag;
   unsigned int p, r, u, v, k, np, nbb, max_e, totnbb, fr_ui, gr_ui, pe = 1;
@@ -865,10 +867,10 @@ rootsieve_one_block ( sievearray_t sa,
  * Rootsieve for f + (u*x +v)*g for each sublattice
  */
 static inline void
-rootsieve_one_sublattice ( ropt_poly_t poly,
-                           ropt_s2param_t s2param,
-                           ropt_param_t param,
-                           ropt_info_t info,
+rootsieve_one_sublattice ( ropt_poly_srcptr poly,
+                           ropt_s2param_ptr s2param,
+                           ropt_param_srcptr param,
+                           ropt_info_ptr info,
                            MurphyE_pq *global_E_pqueue)
 {
   int i;
@@ -881,14 +883,6 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
   sievearray_t sa; /* the rootsieve scores are recorded in sa->array[],
                       which is an array of int16_t,
                       cf https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21542 */
-
-  mpz_poly F, G;
-  F->coeff = s2param->f;
-  G->coeff = s2param->g;
-  F->deg = poly->d;
-  G->deg = 1;
-  F->alloc = F->deg + 1;
-  G->alloc = 2;
 
   /* sieving length */
   len_A = (unsigned long) (s2param->Amax - s2param->Amin + 1);
@@ -999,18 +993,15 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
                    tmpu, tmpv, sievescore->alpha[i]);
 #endif
 
-      compute_fuv_mp (s2param->f, poly->f, poly->g, poly->d, tmpu, tmpv);
+      compute_fuv_mp (s2param->f, poly->pols[1], poly->pols[0], tmpu, tmpv);
 
       /* translation-only optimize */
-      mpz_set (s2param->g[0], poly->g[0]);
-      mpz_set (s2param->g[1], poly->g[1]);
-      sopt_local_descent (F, G, F, G, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
-      s2param->f = F->coeff;
-      s2param->g = G->coeff;
+      mpz_poly_set (s2param->f, poly->pols[0]);
+      sopt_local_descent (s2param->f, s2param->g, s2param->f, s2param->g, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
 
 #if 1
       /* use MurphyE for ranking in the priority queue (default) */
-      MurphyE = print_poly_fg (F, s2param->g, poly->n, 0);
+      MurphyE = print_poly_fg (s2param->f, s2param->g, poly->n, 0);
       insert_MurphyE_pq (local_E_pqueue, info->w, tmpu, tmpv,
                          s2param->MOD, MurphyE);
 #else
@@ -1057,10 +1048,10 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
 
       if (param->verbose >= 4) {
 
-        compute_fuv_mp (s2param->f, poly->f, poly->g, poly->d,
+        compute_fuv_mp (s2param->f, poly->pols[1], poly->pols[0],
                         local_E_pqueue->u[i], local_E_pqueue->v[i]);
 
-        print_poly_fg (F, s2param->g, poly->n, 1);
+        print_poly_fg (s2param->f, s2param->g, poly->n, 1);
 
         fprintf (stderr, "\n");
       }
@@ -1111,26 +1102,20 @@ rootsieve_one_sublattice ( ropt_poly_t poly,
  * Call rootsieve_uv().
  */
 void
-ropt_stage2 ( ropt_poly_t poly,
-              ropt_s2param_t s2param,
-              ropt_param_t param,
-              ropt_info_t info,
+ropt_stage2 ( ropt_poly_srcptr poly,
+              ropt_s2param_ptr s2param,
+              ropt_param_srcptr param,
+              ropt_info_ptr info,
               MurphyE_pq *global_E_pqueue,
               int w) // enforce w explicitly.
 {
-  int i;
-
   if (param->verbose >= 3 && info->mode == ROPT_MODE_INIT)
     ropt_s2param_print (s2param);
 
-  for (i = 0; i <= poly->d; i++)
-    mpz_set (s2param->f[i], poly->f[i]);
-
   info->w = w;
-  compute_fuv_mp (s2param->f, poly->f, poly->g, poly->d,
+  compute_fuv_mp (s2param->f, poly->pols[1], poly->pols[0],
                   s2param->A, s2param->B);
 
   /* sieve fuv */
-  rootsieve_one_sublattice (poly, s2param, param, info,
-                            global_E_pqueue);
+  rootsieve_one_sublattice (poly, s2param, param, info, global_E_pqueue);
 }

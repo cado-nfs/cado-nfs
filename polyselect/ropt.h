@@ -14,7 +14,9 @@ struct ropt_sime_struct {
   double ropt_time_tuning;
   double ropt_time_stage2;
 };
-typedef struct ropt_sime_struct ropt_time_t[1];
+typedef struct ropt_sime_struct ropt_time[1];
+typedef struct ropt_sime_struct * ropt_time_ptr;
+typedef const struct ropt_sime_struct * ropt_time_srcptr;
 
 
 /* -- declarations -- */
@@ -22,17 +24,17 @@ typedef struct ropt_sime_struct ropt_time_t[1];
 extern "C" {
 #endif
 
-void ropt ( ropt_poly_t poly,
-            ropt_bestpoly_t bestpoly,
-            ropt_param_t param,
-            ropt_info_t info);
+void ropt ( ropt_poly_ptr poly,
+            ropt_bestpoly_ptr bestpoly,
+            ropt_param_ptr param,
+            ropt_info_ptr info);
 
-void ropt_get_bestpoly ( ropt_poly_t poly,
+void ropt_get_bestpoly ( ropt_poly_srcptr poly,
                          MurphyE_pq *global_E_pqueue,
-                         ropt_bestpoly_t bestpoly);
+                         ropt_bestpoly_ptr bestpoly);
 
-void ropt_polyselect (cado_poly_ptr output_poly, cado_poly_ptr input_poly,
-                      ropt_param_t param, ropt_time_t thr);
+void ropt_polyselect (cado_poly_ptr output_poly, cado_poly_srcptr input_poly,
+                      ropt_param_ptr param, ropt_time_ptr thr);
 
 #ifdef __cplusplus
 }

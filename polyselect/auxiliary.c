@@ -39,23 +39,28 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 /**************************** rotation ***************************************/
 
-/* replace f + k0 * x^t * (b*x + m) by f + k * x^t * (b*x + m), and return k */
+/* replace f + k0 * x^t * g by f + k * x^t * g, and return k */
 long
-rotate_aux (mpz_t *f, mpz_t b, mpz_t m, long k0, long k, unsigned int t)
+rotate_aux (mpz_poly_ptr f, mpz_poly_srcptr g, long k0, long k, unsigned int t)
 {
-  /* Warning: k - k0 might not be representable in a long! */
-  unsigned long diff;
+  /* I think that there's absolutely no use case for rotation which
+   * touches the leading coefficient of f, so let's forbid if. If we want
+   * to allow it, we want to make sure that the leading coefficient does
+   * not become zero.
+   */
+  ASSERT_ALWAYS((int) t + mpz_poly_degree(g) < mpz_poly_degree(f));
+  /* Warning: k - k0 might not be representable in a long! This is the
+   * reason why we do two cases depending on the sign.
+   */
   if (k >= k0)
     {
-      diff = k - k0; /* k - k0 always fits in an unsigned long */
-      mpz_addmul_ui (f[t + 1], b, diff);
-      mpz_addmul_ui (f[t], m, diff);
+      for(int d = 0 ; d <= mpz_poly_degree(g) ; d++)
+          mpz_addmul_ui (f->coeff[t + d], g->coeff[d], k-k0);
     }
   else
     {
-      diff = k0 - k;
-      mpz_submul_ui (f[t + 1], b, diff);
-      mpz_submul_ui (f[t], m, diff);
+      for(int d = 0 ; d <= mpz_poly_degree(g) ; d++)
+          mpz_submul_ui (f->coeff[t + d], g->coeff[d], k-k0);
     }
   return k;
 }
@@ -81,7 +86,7 @@ derotate_auxg_z (mpz_t *f, const mpz_t b, const mpz_t g0, const mpz_t k, unsigne
    Note: it's a backend for print_cadopoly().
 */
 void
-print_cadopoly_fg (FILE *fp, mpz_t *f, int df, mpz_t *g, int dg, mpz_srcptr n)
+print_cadopoly_fg (FILE *fp, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr n)
 {
    int i;
 
@@ -89,11 +94,11 @@ print_cadopoly_fg (FILE *fp, mpz_t *f, int df, mpz_t *g, int dg, mpz_srcptr n)
    gmp_fprintf (fp, "\nn: %Zd\n", n);
 
    /* Y[i] */
-   for (i = dg; i >= 0; i--)
+   for (i = mpz_poly_degree(g); i >= 0; i--)
      gmp_fprintf (fp, "Y%d: %Zd\n", i, g[i]);
 
    /* c[i] */
-   for (i = df; i >= 0; i--)
+   for (i = mpz_poly_degree(f); i >= 0; i--)
      gmp_fprintf (fp, "c%d: %Zd\n", i, f[i]);
 }
 
@@ -103,53 +108,33 @@ print_cadopoly_fg (FILE *fp, mpz_t *f, int df, mpz_t *g, int dg, mpz_srcptr n)
    Note:  it's a backend for print_cadopoly_extra().
 */
 double
-print_cadopoly (FILE *fp, cado_poly_srcptr p)
+print_cadopoly (FILE *fp, cado_poly_srcptr cpoly)
 {
-   unsigned int nroots = 0;
-   double alpha, alpha_proj, logmu, e;
    mpz_poly F, G;
 
-   F->coeff = p->pols[ALG_SIDE]->coeff;
-   F->deg = p->pols[ALG_SIDE]->deg;
-   G->coeff = p->pols[RAT_SIDE]->coeff;
-   G->deg = p->pols[RAT_SIDE]->deg;
+   F->coeff = cpoly->pols[ALG_SIDE]->coeff;
+   F->deg = cpoly->pols[ALG_SIDE]->deg;
+   G->coeff = cpoly->pols[RAT_SIDE]->coeff;
+   G->deg = cpoly->pols[RAT_SIDE]->deg;
 
    /* print f, g only*/
-   print_cadopoly_fg (fp, F->coeff, F->deg, G->coeff, G->deg, p->n);
+   print_cadopoly_fg (fp, F, G, cpoly->n);
 
-#ifdef DEBUG
-   fprintf (fp, "# ");
-   fprint_polynomial (fp, F->coeff, F->deg);
-   fprintf (fp, "# ");
-   fprint_polynomial (fp, G->coeff, G->deg);
-#endif
+   fprintf (fp, "skew: %1.3f\n", cpoly->skew);
 
-   fprintf (fp, "skew: %1.3f\n", p->skew);
-
-   if (G->deg > 1)
-   {
-    logmu = L2_lognorm (G, p->skew);
-    alpha = get_alpha (G, get_alpha_bound ());
-    alpha_proj = get_alpha_projective (G, get_alpha_bound ());
-    nroots = numberOfRealRoots ((const mpz_t *) G->coeff, G->deg, 0, 0, NULL);
-    fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
-                 "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
-   }
-
-   logmu = L2_lognorm (F, p->skew);
-   alpha = get_alpha (F, get_alpha_bound ());
-   alpha_proj = get_alpha_projective (F, get_alpha_bound ());
-   nroots = numberOfRealRoots ((const mpz_t *) F->coeff, F->deg, 0, 0, NULL);
-   fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
-                "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
+   cado_poly_stats spoly;
+   cado_poly_stats_init(spoly, cpoly);
+   cado_poly_compute_stats(spoly, cpoly);
+   cado_poly_fprintf_stats(fp, NULL, cpoly, spoly);
+   cado_poly_stats_clear(spoly);
 
    int alpha_bound = get_alpha_bound ();
 
    double avg_e = 0;
    int nalg = 0;
-   for(int side = 0 ; side < p->nb_polys ; side++) {
-       if (mpz_poly_degree(p->pols[side]) == 1) continue;
-       e = MurphyE (p, bound_f, bound_g, area, MURPHY_K, alpha_bound);
+   for(int side = 0 ; side < cpoly->nb_polys ; side++) {
+       if (mpz_poly_degree(cpoly->pols[side]) == 1) continue;
+       double e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K, alpha_bound);
        avg_e += e;
        nalg++;
        cado_poly_fprintf_MurphyE (fp, "", side, e, bound_f, bound_g, area);
@@ -180,7 +165,7 @@ print_cadopoly_extra (FILE *fp, cado_poly cpoly, int argc, char *argv[], double 
  * Call print_cadopoly, given f, g and return MurphyE.
  */
 double
-print_poly_fg (mpz_poly_srcptr f, mpz_t *g, mpz_t N, int mode)
+print_poly_fg (mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr N, int mode)
 {
    double e;
 
@@ -189,9 +174,9 @@ print_poly_fg (mpz_poly_srcptr f, mpz_t *g, mpz_t N, int mode)
    cado_poly_provision_new_poly(cpoly);
    cado_poly_provision_new_poly(cpoly);
    mpz_poly_set(cpoly->pols[ALG_SIDE], f);
-   mpz_poly_setcoeffs(cpoly->pols[RAT_SIDE], g, 1);
+   mpz_poly_set(cpoly->pols[RAT_SIDE], g);
    mpz_set(cpoly->n, N);
-   cpoly->skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
+   cado_poly_set_skewness_if_undefined(cpoly);
 
    if (mode == 1)
      {

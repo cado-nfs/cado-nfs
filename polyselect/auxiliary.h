@@ -99,11 +99,11 @@ double get_alpha_affine (mpz_poly_srcptr f, unsigned long B);
 double get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr rstate);
 
 /* poly info, being called in order */
-void print_cadopoly_fg (FILE*, mpz_t*, int, mpz_t*, int, mpz_srcptr);
+void print_cadopoly_fg (FILE*, mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr);
 double print_cadopoly (FILE*, cado_poly_srcptr);
 void print_cadopoly_extra (FILE*, cado_poly, int, char**, double);
-double print_poly_fg (mpz_poly_srcptr, mpz_t*, mpz_t, int);
-long rotate_aux (mpz_t *f, mpz_t b, mpz_t m, long k0, long k, unsigned int t);
+double print_poly_fg (mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr, int);
+long rotate_aux (mpz_poly_ptr f, mpz_poly_srcptr g, long k0, long k, unsigned int t);
 void rotate_auxg_z (mpz_t*, const mpz_t, const mpz_t, const mpz_t, unsigned int);
 void do_translate_z (mpz_poly_ptr f, mpz_t *g, const mpz_t k);
 

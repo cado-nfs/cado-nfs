@@ -715,8 +715,7 @@ void
 mpz_poly_init_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b)
 {
     mpz_poly_init(rel, 1);
-    mpz_poly_setcoeff_int64(rel, 0, a);
-    mpz_poly_setcoeff_int64(rel, 1, -b);
+    mpz_poly_set_ab(rel, a, b);
 }
 
 void
@@ -732,6 +731,13 @@ void
 mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b)
 {
     mpz_poly_init(rel, 1);
+    mpz_poly_set_mpz_ab (rel, a, b);
+}
+
+void
+mpz_poly_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b)
+{
+    mpz_poly_set_zero(rel);
     mpz_poly_setcoeff(rel, 0, a);
     mpz_t mb;
     mpz_init(mb);
@@ -3142,6 +3148,20 @@ mpz_poly_has_trivial_content (mpz_poly_srcptr F)
   int res = mpz_cmp_ui(c, 1) == 0;
   mpz_clear(c);
   return res;
+}
+
+void
+mpz_poly_make_trivial_content (mpz_poly_ptr F)
+{
+    mpz_t c;
+    mpz_init(c);
+    mpz_poly_content(c, F);
+    if (mpz_cmp_ui(c, 1) != 0) {
+        for(int i = 0 ; i <= F->deg ; i++) {
+            mpz_divexact(F->coeff[i], F->coeff[i], c);
+        }
+        mpz_clear(c);
+    }
 }
 
 /*

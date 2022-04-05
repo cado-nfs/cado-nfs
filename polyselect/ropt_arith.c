@@ -56,10 +56,10 @@ solve_lineq ( unsigned long a,
  * where A + MOD*a = u.
  */
 void
-ab2uv ( mpz_t A,
-        mpz_t MOD,
+ab2uv ( mpz_srcptr A,
+        mpz_srcptr MOD,
         long a,
-        mpz_t u )
+        mpz_ptr u )
 {
   mpz_mul_si (u, MOD, a);
   mpz_add (u, u, A);
@@ -94,11 +94,11 @@ ij2ab ( long Amin,
  * Change coordinate from (i, j) to (u, v).
  */
 void
-ij2uv ( mpz_t A,
-        mpz_t MOD,
+ij2uv ( mpz_srcptr A,
+        mpz_srcptr MOD,
         long Amin,
         long i,
-        mpz_t u )
+        mpz_ptr u )
 {
   ab2uv(A, MOD, ij2ab(Amin, i), u);
 }
@@ -108,9 +108,9 @@ ij2uv ( mpz_t A,
  * Find coordinate a such that
  * A + MOD*a = u (mod p).
  */
-unsigned int
-uv2ab_mod ( mpz_t A,
-            mpz_t MOD,
+static unsigned int
+uv2ab_mod ( mpz_srcptr A,
+            mpz_srcptr MOD,
             unsigned int U,
             unsigned int p )
 {
@@ -127,9 +127,9 @@ uv2ab_mod ( mpz_t A,
  * position of a in the array.
  */
 long
-uv2ij_mod ( mpz_t A,
+uv2ij_mod ( mpz_srcptr A,
             long Amin,
-            mpz_t MOD,
+            mpz_srcptr MOD,
             unsigned int U,
             unsigned int p )
 {
@@ -146,6 +146,19 @@ uv2ij_mod ( mpz_t A,
   return i;
 }
 
+/* replace f by f + k * x^t * g, and return k */
+void
+rotate_aux_mp (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr k, unsigned int t)
+{
+  /* I think that there's absolutely no use case for rotation which
+   * touches the leading coefficient of f, so let's forbid if. If we want
+   * to allow it, we want to make sure that the leading coefficient does
+   * not become zero.
+   */
+  ASSERT_ALWAYS((int) t + mpz_poly_degree(g) < mpz_poly_degree(f));
+  for(int d = 0 ; d <= mpz_poly_degree(g) ; d++)
+      mpz_addmul (f->coeff[t + d], g->coeff[d], k);
+}
 
 /**
  * Compute fuv = f+(u*x+v)*g,
@@ -153,42 +166,15 @@ uv2ij_mod ( mpz_t A,
  * The inputs for f and g are mpz.
  */
 void
-compute_fuv_mp ( mpz_t *fuv,
-                 mpz_t *f,
-                 mpz_t *g,
-                 int d,
-                 mpz_t u,
-                 mpz_t v )
+compute_fuv_mp (mpz_poly_ptr fuv,
+                mpz_poly_srcptr f,
+                mpz_poly_srcptr g,
+                mpz_srcptr u,
+                mpz_srcptr v )
 {
-  mpz_t tmp, tmp1;
-  mpz_init (tmp);
-  mpz_init (tmp1);
-  int i = 0;
-
-  for (i = 3; i <= d; i ++)
-    mpz_set (fuv[i], f[i]);
-
-  /* f + u*g1*x^2
-     + (g0*u* + v*g1)*x
-     + v*g0 */
-
-  /* Note, u, v are signed long! */
-  /* u*g1*x^2 */
-  mpz_mul (tmp, g[1], u);
-  mpz_add (fuv[2], f[2], tmp);
-
-  /* (g0*u* + v*g1)*x */
-  mpz_mul (tmp, g[0], u);
-  mpz_mul (tmp1, g[1], v);
-  mpz_add (tmp, tmp, tmp1);
-  mpz_add (fuv[1], f[1], tmp);
-
-  /* v*g0 */
-  mpz_mul (tmp, g[0], v);
-  mpz_add (fuv[0], f[0], tmp);
-
-  mpz_clear (tmp);
-  mpz_clear (tmp1);
+    mpz_poly_set(fuv, f);
+    rotate_aux_mp(fuv, g, u, 1);
+    rotate_aux_mp(fuv, g, v, 0);
 }
 
 
@@ -337,13 +323,12 @@ eval_poly_ui_mod ( unsigned int *f,
  */
 inline void
 reduce_poly_ul ( unsigned int *f_ui,
-                 mpz_t *f,
-                 int d,
+                 mpz_poly_srcptr F,
                  unsigned int pe )
 {
   int i;
-  for (i = 0; i <= d; i ++) {
-    f_ui[i] = (unsigned int) mpz_fdiv_ui (f[i], pe);
+  for (i = 0; i <= mpz_poly_degree(F); i ++) {
+    f_ui[i] = (unsigned int) mpz_fdiv_ui (F->coeff[i], pe);
   }
 }
 
@@ -355,21 +340,31 @@ reduce_poly_ul ( unsigned int *f_ui,
  * determined as a[d] = N/m^d (mod p).
  */
 void
-Lemma21 ( mpz_t *a,
-          mpz_t N,
-          int d,
-          mpz_t p,
-          mpz_t m,
-          mpz_t res )
+Lemma21 ( mpz_poly_ptr F,
+          mpz_srcptr N,
+          mpz_poly_srcptr G,
+          mpz_ptr res )
 {
   mpz_t r, mi, invp, l, ln;
+  mpz_t m;
   int i;
+
+  mpz_t * a = F->coeff;
+  int d = mpz_poly_degree(F);
+
+  ASSERT_ALWAYS(mpz_poly_degree(G) == 1);
+  ASSERT_ALWAYS(mpz_sgn(G->coeff[1]) > 0);
+  ASSERT_ALWAYS(mpz_sgn(G->coeff[0]) < 0);
+
+  mpz_srcptr p = G->coeff[1];
 
   mpz_init (r);
   mpz_init_set_ui (l, 1);
   mpz_init (ln);
   mpz_init (mi);
   mpz_init (invp);
+  mpz_init (m);
+  mpz_neg(m, G->coeff[0]);
   mpz_pow_ui (mi, m, d);
 
   if (mpz_cmp_ui (a[d], 0) < 0)
@@ -428,4 +423,5 @@ Lemma21 ( mpz_t *a,
   mpz_clear (ln);
   mpz_clear (mi);
   mpz_clear (invp);
+  mpz_clear (m);
 }

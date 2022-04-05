@@ -32,20 +32,19 @@
  * Find bound V for constant rotation.
  */
 static inline double
-rotate_bounds_V_mpz ( mpz_t *f,
-                      mpz_t *g,
-                      int d,
-                      ropt_bound_t bound )
+rotate_bounds_V_mpz(mpz_poly_srcptr f,
+                    mpz_poly_srcptr g,
+                    ropt_bound_ptr bound )
 {
   mpz_t V;
   mpz_poly F0, G0, F, G;
   double lognorm, exp_E = DBL_MAX, min_exp_E = DBL_MAX;
-  mpz_poly_init (F0, d);
-  mpz_poly_init (F, d);
-  mpz_poly_init (G0, 1);
-  mpz_poly_init (G, 1);
-  mpz_poly_setcoeffs (F0, f, d);
-  mpz_poly_setcoeffs (G0, g, 1);
+  mpz_poly_init (F0, -1);
+  mpz_poly_init (F, -1);
+  mpz_poly_init (G0, -1);
+  mpz_poly_init (G, -1);
+  mpz_poly_set(F0, f);
+  mpz_poly_set(G0, g);
 
   
   /* look for positive V: 2, 4, 8, ... */
@@ -106,19 +105,18 @@ rotate_bounds_V_mpz ( mpz_t *f,
  * Find bound U for linear rotation.
  */
 static inline double
-rotate_bounds_U_lu ( mpz_t *f,
-                     mpz_t *g,
-                     int d,
-                     ropt_bound_t bound )
+rotate_bounds_U_lu (mpz_poly_srcptr f,
+                    mpz_poly_srcptr g,
+                    ropt_bound_ptr bound )
 {
   mpz_poly F0, G0, F, G;
   double lognorm, exp_E = DBL_MAX, min_exp_E = DBL_MAX;
-  mpz_poly_init (F0, d);
-  mpz_poly_init (F, d);
-  mpz_poly_init (G0, 1);
-  mpz_poly_init (G, 1);
-  mpz_poly_setcoeffs (F0, f, d);
-  mpz_poly_setcoeffs (G0, g, 1);
+  mpz_poly_init (F0, -1);
+  mpz_poly_init (F, -1);
+  mpz_poly_init (G0, -1);
+  mpz_poly_init (G, -1);
+  mpz_poly_set(F0, f);
+  mpz_poly_set(G0, g);
 
   /* Look for positive u: 1, 2, 4, 8, ... */
   int64_t u = 1;
@@ -177,17 +175,17 @@ rotate_bounds_U_lu ( mpz_t *f,
  * Find bound W for quadratic rotation.
  */
 static inline void
-rotate_bounds_W_lu ( ropt_poly_t poly,
-                     ropt_bound_t bound )
+rotate_bounds_W_lu ( ropt_poly_srcptr poly,
+                     ropt_bound_ptr bound )
 {
   mpz_poly F0, G0, F, G;
 
-  mpz_poly_init (F0, poly->d);
-  mpz_poly_init (F, poly->d);
-  mpz_poly_init (G0, 1);
-  mpz_poly_init (G, 1);
-  mpz_poly_setcoeffs (F0, poly->f, poly->d);
-  mpz_poly_setcoeffs (G0, poly->g, 1);
+  mpz_poly_init (F0, -1);
+  mpz_poly_init (F, -1);
+  mpz_poly_init (G0, -1);
+  mpz_poly_init (G, -1);
+  mpz_poly_set (F0, poly->pols[1]);
+  mpz_poly_set (G0, poly->pols[0]);
 
   /* look for positive w: 0, 1, 2, ... */
   int64_t w = 0;
@@ -235,30 +233,25 @@ rotate_bounds_W_lu ( ropt_poly_t poly,
  * Init ropt_poly_t.
  */
 void
-ropt_poly_init ( ropt_poly_t poly )
+ropt_poly_init ( ropt_poly_ptr poly )
 {
   unsigned int i;
   mpz_init (poly->n);
   mpz_init (poly->m);
 
+  mpz_poly_init(poly->pols[0], -1);
+  mpz_poly_init(poly->pols[1], -1);
+
   /* fx, gx holds pre-computed values f(r), g(r) where 0 <= r < p. */
-  poly->f = (mpz_t*) malloc ((MAX_DEGREE + 1) * sizeof (mpz_t));
-  poly->g = (mpz_t*) malloc ((MAX_DEGREE + 1) * sizeof (mpz_t));
   (poly->fx) = (mpz_t *) malloc ((primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
   (poly->gx) = (mpz_t *) malloc ((primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
   (poly->numerator) = (mpz_t *) malloc ((primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
 
-  if ( (poly->f == NULL) || (poly->g == NULL) ||
-       ((poly->fx) == NULL) || ((poly->gx) == NULL) ||
+  if ( ((poly->fx) == NULL) || ((poly->gx) == NULL) ||
        ((poly->numerator) == NULL) ) {
     fprintf (stderr, "Error, cannot allocate memory for polynomial"
              " coefficients in ropt_poly_init().\n");
     exit(1);
-  }
-
-  for (i = 0; i <= MAX_DEGREE; i++) {
-    mpz_init (poly->f[i]);
-    mpz_init (poly->g[i]);
   }
 
   for (i = 0; i <= primes[ROPT_NPRIMES-1]; i++) {
@@ -273,15 +266,13 @@ ropt_poly_init ( ropt_poly_t poly )
  * clean coefficients
  */
 void
-ropt_poly_refresh ( ropt_poly_t poly )
+ropt_poly_refresh ( ropt_poly_ptr poly )
 {
   unsigned int i;
   mpz_set_ui (poly->n, 0);
   mpz_set_ui (poly->m, 0);
-  for (i = 0; i <= MAX_DEGREE; i++) {
-    mpz_set_ui (poly->f[i], 0);
-    mpz_set_ui (poly->g[i], 0);
-  }
+  mpz_poly_set_zero(poly->pols[1]);
+  mpz_poly_set_zero(poly->pols[0]);
   for (i = 0; i <= primes[ROPT_NPRIMES-1]; i++) {
     mpz_set_ui (poly->fx[i], 0);
     mpz_set_ui (poly->gx[i], 0);
@@ -321,37 +312,23 @@ ropt_poly_setup_eval (mpz_t *fr, mpz_t *gr, mpz_t *numerator, mpz_poly_srcptr f,
  * check if g[0]/g[1] is a root of f (mod n)
  */
 bool
-ropt_poly_setup_check ( ropt_poly_t poly )
+ropt_poly_setup_check (ropt_poly_ptr poly )
 {
-  int i;
   mpz_t t;
   mpz_init (t);
 
-  /* degree */
-  for ( (poly->d) = MAX_DEGREE;
-        (poly->d) > 0 && mpz_cmp_ui ((poly->f[poly->d]), 0) == 0;
-        poly->d -- );
-
   /* m = -Y0/Y1 mod n */
-  mpz_invert (poly->m, poly->g[1], poly->n);
+  mpz_invert (poly->m, poly->pols[0]->coeff[1], poly->n);
   mpz_neg (poly->m, poly->m);
-  mpz_mul (poly->m, poly->m, poly->g[0]);
+  mpz_mul (poly->m, poly->m, poly->pols[0]->coeff[0]);
   mpz_mod (poly->m, poly->m, poly->n);
 
   /* check if m is a root of f mod n */
-  mpz_set (t, poly->f[poly->d]);
-  for (i = poly->d - 1; i >= 0; i --) {
-    mpz_mul (t, t, poly->m);
-    mpz_add (t, t, poly->f[i]);
-    mpz_mod (t, t, poly->n);
-  }
+  mpz_poly_eval(t, poly->pols[1], poly->m);
 
-  if (mpz_cmp_ui (t, 0) != 0) {
-    mpz_clear (t);
-    return 0;
-  }
+  int ok = mpz_cmp_ui (t, 0) == 0;
   mpz_clear (t);
-  return 1;
+  return ok;
 }
 
 
@@ -361,26 +338,21 @@ ropt_poly_setup_check ( ropt_poly_t poly )
  * This function can be called to reset poly after rotation.
  */
 void
-ropt_poly_setup ( ropt_poly_t poly )
+ropt_poly_setup ( ropt_poly_ptr poly )
 {
   if (!ropt_poly_setup_check (poly)) {
     fprintf (stderr, "ERROR: The following polynomial have no common"
              " root. \n");
-    print_cadopoly_fg (stderr, poly->f, poly->d, poly->g, 1, poly->n);
+    print_cadopoly_fg (stderr, poly->pols[1], poly->pols[0], poly->n);
     exit (1);
   }
 
-  mpz_poly F, G;
-  F->coeff = poly->f;
-  F->deg = poly->d;
-  G->coeff = poly->g;
-  G->deg = 1;
-
   /* pre-compute f(r) for all r < B */
   ropt_poly_setup_eval (poly->fx, poly->gx, poly->numerator,
-                        F, G, primes);
+                        poly->pols[1], poly->pols[0], primes);
+
   /* projective alpha */
-  poly->alpha_proj = get_alpha_projective (F, get_alpha_bound ());
+  poly->alpha_proj = get_alpha_projective (poly->pols[1], get_alpha_bound ());
 }
 
 
@@ -388,7 +360,7 @@ ropt_poly_setup ( ropt_poly_t poly )
  * Free ropt_poly_t.
  */
 void
-ropt_poly_free ( ropt_poly_t poly )
+ropt_poly_clear ( ropt_poly_ptr poly )
 {
   unsigned int i;
 
@@ -398,10 +370,8 @@ ropt_poly_free ( ropt_poly_t poly )
     mpz_clear(poly->numerator[i]);
   }
 
-  for (i = 0; i <= MAX_DEGREE; i++) {
-    mpz_clear (poly->f[i]);
-    mpz_clear (poly->g[i]);
-  }
+  mpz_poly_clear(poly->pols[0]);
+  mpz_poly_clear(poly->pols[1]);
 
   mpz_clear (poly->n);
   mpz_clear (poly->m);
@@ -409,8 +379,6 @@ ropt_poly_free ( ropt_poly_t poly )
   free (poly->fx);
   free (poly->gx);
   free (poly->numerator);
-  free (poly->f);
-  free (poly->g);
 }
 
 
@@ -418,7 +386,7 @@ ropt_poly_free ( ropt_poly_t poly )
  * Init ropt_bound_t.
  */
 void
-ropt_bound_init ( ropt_bound_t bound )
+ropt_bound_init ( ropt_bound_ptr bound )
 {
   bound->global_w_boundl = 0;
   bound->global_w_boundr = 0;
@@ -437,17 +405,18 @@ ropt_bound_init ( ropt_bound_t bound )
  * Subroutine for ropt_bound_setup().
  */
 static inline void
-ropt_bound_setup_normbound ( ropt_poly_t poly,
-                             ropt_bound_t bound,
-                             ropt_param_t param,
+ropt_bound_setup_normbound ( ropt_poly_srcptr poly,
+                             ropt_bound_ptr bound,
+                             ropt_param_srcptr param,
                              double incr )
 {
-  mpz_poly F, G;
+  /* XXX when we put a cpoly inside ropt_poly, we can reuse the
+   * cado_poly_stats type. Except that cado_poly_stats always compute
+   * alpha, whieh here we don't really care. Not sure it's a problem
+   */
+  mpz_poly_srcptr F = poly->pols[1];
+  mpz_poly_srcptr G = poly->pols[0];
   double skewness;
-  F->coeff = poly->f;
-  F->deg = poly->d;
-  G->coeff = poly->g;
-  G->deg = 1;
   skewness = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   bound->init_lognorm = L2_lognorm (F, skewness);
   bound->bound_E = (bound->init_lognorm + expected_rotation_gain (F, G))
@@ -488,12 +457,12 @@ ropt_bound_expected_E (mpz_poly F, mpz_poly G)
  * Subroutine for ropt_bound_setup().
  */
 static inline void
-ropt_bound_setup_globalbound ( ropt_poly_t poly,
-                               ropt_bound_t bound,
-                               ropt_param_t param )
+ropt_bound_setup_globalbound ( ropt_poly_srcptr poly,
+                               ropt_bound_ptr bound,
+                               ropt_param_ptr param )
 {
   /* w bound */
-  if (poly->d == 6) {
+  if (mpz_poly_degree(poly->pols[1]) == 6) {
     if (param->w_length > 0) {
       bound->global_w_boundl = param->w_left_bound;
       bound->global_w_boundr = param->w_left_bound + param->w_length - 1;
@@ -509,10 +478,10 @@ ropt_bound_setup_globalbound ( ropt_poly_t poly,
   }
 
   /* u bound */
-  rotate_bounds_U_lu (poly->f, poly->g, poly->d, bound);
+  rotate_bounds_U_lu (poly->pols[1], poly->pols[0], bound);
 
   /* v bound */
-  rotate_bounds_V_mpz (poly->f, poly->g, poly->d, bound);
+  rotate_bounds_V_mpz (poly->pols[1], poly->pols[0], bound);
 }
 
 
@@ -520,17 +489,12 @@ ropt_bound_setup_globalbound ( ropt_poly_t poly,
  * Subroutine for ropt_bound_setup().
  */
 static inline void
-ropt_bound_setup_others ( ropt_poly_t poly,
-                          ropt_bound_t bound )
+ropt_bound_setup_others ( ropt_poly_srcptr poly,
+                          ropt_bound_ptr bound )
 {
-  mpz_poly F, G;
-  mpz_poly_init (F, poly->d);
-  mpz_poly_init (G, 1);
-  mpz_poly_setcoeffs (F, poly->f, poly->d);
-  mpz_poly_setcoeffs (G, poly->g, 1);
+  mpz_poly_srcptr G = poly->pols[0];
+  mpz_poly_srcptr F = poly->pols[1];
   bound->exp_min_alpha = expected_rotation_gain (F, G);
-  mpz_poly_clear (F);
-  mpz_poly_clear (G);
 }
 
 
@@ -541,9 +505,9 @@ ropt_bound_setup_others ( ropt_poly_t poly,
  * will be set to decide the rotation range in the rest.
  */
 void
-ropt_bound_setup ( ropt_poly_t poly,
-                   ropt_bound_t bound,
-                   ropt_param_t param,
+ropt_bound_setup ( ropt_poly_srcptr poly,
+                   ropt_bound_ptr bound,
+                   ropt_param_ptr param,
                    double incr )
 {
   /* set bound->bound_lognorm */
@@ -587,9 +551,9 @@ ropt_bound_setup ( ropt_poly_t poly,
  * This is for tuning function 
  */
 void
-ropt_bound_setup_incr ( ropt_poly_t poly,
-                        ropt_bound_t bound,
-                        ropt_param_t param,
+ropt_bound_setup_incr ( ropt_poly_srcptr poly,
+                        ropt_bound_ptr bound,
+                        ropt_param_ptr param,
                         double incr )
 {
   ropt_bound_setup_normbound (poly, bound, param, incr);
@@ -611,16 +575,16 @@ ropt_bound_setup_incr ( ropt_poly_t poly,
  * For existing rsparam and when rs is changed,
  */
 void
-ropt_bound_reset ( ropt_poly_t poly,
-                   ropt_bound_t bound,
-                   ropt_param_t param )
+ropt_bound_reset ( ropt_poly_srcptr poly,
+                   ropt_bound_ptr bound,
+                   ropt_param_srcptr param )
 {
 
   /* u bound */
-  rotate_bounds_U_lu (poly->f, poly->g, poly->d, bound);
+  rotate_bounds_U_lu (poly->pols[1], poly->pols[0], bound);
 
   /* v bound */
-  rotate_bounds_V_mpz (poly->f, poly->g, poly->d, bound);
+  rotate_bounds_V_mpz (poly->pols[1], poly->pols[0], bound);
 
   /* set exp_min_alpha */
   ropt_bound_setup_others (poly, bound);
@@ -648,7 +612,7 @@ ropt_bound_reset ( ropt_poly_t poly,
  * Free ropt_bound_t.
  */
 void
-ropt_bound_free ( ropt_bound_t bound )
+ropt_bound_clear ( ropt_bound_ptr bound )
 {
   mpz_clear (bound->global_v_boundl);
   mpz_clear (bound->global_v_boundr);
@@ -660,7 +624,7 @@ ropt_bound_free ( ropt_bound_t bound )
  * happens in ropt_s1param_setup().
  */
 void
-ropt_s1param_init ( ropt_s1param_t s1param )
+ropt_s1param_init ( ropt_s1param_ptr s1param )
 {
   int i;
 
@@ -704,10 +668,10 @@ ropt_s1param_init ( ropt_s1param_t s1param )
  * which is better in practice.
  */
 static inline void
-ropt_s1param_setup_e_sl ( ropt_poly_t poly,
-                          ropt_s1param_t s1param,
-                          ropt_bound_t bound,
-                          ropt_param_t param )
+ropt_s1param_setup_e_sl ( ropt_poly_srcptr poly,
+                          ropt_s1param_ptr s1param,
+                          ropt_bound_srcptr bound,
+                          ropt_param_srcptr param )
 {
   unsigned int i, j;
   unsigned long modbound;
@@ -733,10 +697,7 @@ ropt_s1param_setup_e_sl ( ropt_poly_t poly,
     modbound = bound_by_u / 8;
 
   /* adjust for small skewness but large bound (not sure if this is good) */
-  mpz_poly F;
-  F->coeff = poly->f;
-  F->deg = poly->d;
-  double skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
+  double skew = L2_skewness (poly->pols[1], SKEWNESS_DEFAULT_PREC);
   if ((double) modbound > skew)
     modbound = (unsigned long) skew;
 
@@ -774,7 +735,7 @@ ropt_s1param_setup_e_sl ( ropt_poly_t poly,
  *  Function to setup "individual_nbest_sl[]".
  */
 void
-ropt_s1param_setup_individual_nbest_sl (ropt_s1param_t s1param)
+ropt_s1param_setup_individual_nbest_sl (ropt_s1param_ptr s1param)
 {
   unsigned int i;
   for (i = 0; i < s1param->len_e_sl; i ++)
@@ -787,7 +748,7 @@ ropt_s1param_setup_individual_nbest_sl (ropt_s1param_t s1param)
  *  Function to setup shorter "individual_nbest_sl[]".
  */
 void
-ropt_s1param_setup_individual_nbest_sl_tune (ropt_s1param_t s1param)
+ropt_s1param_setup_individual_nbest_sl_tune (ropt_s1param_ptr s1param)
 {
   unsigned int i;
   for (i = 0; i < s1param->len_e_sl; i ++)
@@ -800,10 +761,10 @@ ropt_s1param_setup_individual_nbest_sl_tune (ropt_s1param_t s1param)
  * Setup s1param by default parameters and/or param (stdin).
  */
 void
-ropt_s1param_setup ( ropt_poly_t poly,
-                     ropt_s1param_t s1param,
-                     ropt_bound_t bound,
-                     ropt_param_t param )
+ropt_s1param_setup ( ropt_poly_srcptr poly,
+                     ropt_s1param_ptr s1param,
+                     ropt_bound_srcptr bound,
+                     ropt_param_srcptr param )
 {
   unsigned int i, j;
 
@@ -844,10 +805,10 @@ ropt_s1param_setup ( ropt_poly_t poly,
  * Setup s1param by default parameters and/or param (stdin).
  */
 void
-ropt_s1param_resetup ( ropt_poly_t poly,
-                       ropt_s1param_t s1param,
-                       ropt_bound_t bound,
-                       ropt_param_t param,
+ropt_s1param_resetup ( ropt_poly_srcptr poly,
+                       ropt_s1param_ptr s1param,
+                       ropt_bound_srcptr bound,
+                       ropt_param_srcptr param,
                        unsigned int nbest )
 {
   unsigned int i, j;
@@ -875,10 +836,10 @@ ropt_s1param_resetup ( ropt_poly_t poly,
  * Setup s1param with modbound as extra input
  */
 void
-ropt_s1param_resetup_modbound ( ropt_poly_t poly,
-                                ropt_s1param_t s1param,
-                                ropt_bound_t bound,
-                                ropt_param_t param,
+ropt_s1param_resetup_modbound ( ropt_poly_srcptr poly,
+                                ropt_s1param_ptr s1param,
+                                ropt_bound_srcptr bound,
+                                ropt_param_srcptr param,
                                 unsigned int nbest,
                                 unsigned long modbound)
 {
@@ -909,7 +870,7 @@ ropt_s1param_resetup_modbound ( ropt_poly_t poly,
  * Free s1param.
  */
 void
-ropt_s1param_free ( ropt_s1param_t s1param )
+ropt_s1param_clear ( ropt_s1param_ptr s1param )
 {
   free(s1param->e_sl);
   free(s1param->individual_nbest_sl);
@@ -921,10 +882,8 @@ ropt_s1param_free ( ropt_s1param_t s1param )
  * Init ropt_s2param.
  */
 void
-ropt_s2param_init ( ropt_poly_t poly,
-                    ropt_s2param_t s2param )
+ropt_s2param_init ( ropt_s2param_ptr s2param )
 {
-  int i;
   s2param->len_p_rs = ROPT_NPRIMES - 1;
   s2param->Amax = s2param->Amin = 0;
   s2param->Bmax = s2param->Bmin = 0;
@@ -937,18 +896,8 @@ ropt_s2param_init ( ropt_poly_t poly,
   mpz_init_set_ui (s2param->B, 0UL);
   mpz_init_set_ui (s2param->MOD, 0UL);
 
-  s2param->f = (mpz_t*) malloc ((poly->d + 1) * sizeof (mpz_t));
-  s2param->g = (mpz_t*) malloc (2 * sizeof (mpz_t));
-  if (s2param->f == NULL || s2param->g == NULL) {
-    fprintf ( stderr, "Error, cannot allocate memory in "
-              "ropt_s2param_init().\n" );
-    exit (1);
-  }
-
-  for (i = 0; i <= poly->d; i++)
-    mpz_init (s2param->f[i]);
-  mpz_init (s2param->g[0]);
-  mpz_init (s2param->g[1]);
+  mpz_poly_init(s2param->f, -1);
+  mpz_poly_init(s2param->g, -1);
 }
 
 
@@ -956,11 +905,8 @@ ropt_s2param_init ( ropt_poly_t poly,
  * Free ropt_s2param.
  */
 void
-ropt_s2param_free ( ropt_poly_t poly,
-                    ropt_s2param_t s2param )
+ropt_s2param_clear( ropt_s2param_ptr s2param )
 {
-  int i;
-
   mpz_clear (s2param->Umax);
   mpz_clear (s2param->Umin);
   mpz_clear (s2param->Vmax);
@@ -968,12 +914,8 @@ ropt_s2param_free ( ropt_poly_t poly,
   mpz_clear (s2param->A);
   mpz_clear (s2param->B);
   mpz_clear (s2param->MOD);
-  for (i = 0; i <= poly->d; i++)
-    mpz_clear (s2param->f[i]);
-  mpz_clear (s2param->g[0]);
-  mpz_clear (s2param->g[1]);
-  free (s2param->f);
-  free (s2param->g);
+  mpz_poly_clear (s2param->f);
+  mpz_poly_clear (s2param->g);
 }
 
 
@@ -981,10 +923,10 @@ ropt_s2param_free ( ropt_poly_t poly,
  * Setup sublattice (u, v), mod and Umax, Umin, Vmax, Vmin.
  */
 static inline void
-ropt_s2param_setup_sublattice ( ropt_s2param_t s2param,
-                                mpz_t A,
-                                mpz_t B,
-                                mpz_t MOD )
+ropt_s2param_setup_sublattice ( ropt_s2param_ptr s2param,
+                                mpz_srcptr A,
+                                mpz_srcptr B,
+                                mpz_srcptr MOD )
 {
   mpz_set (s2param->A, A);
   mpz_set (s2param->B, B);
@@ -1003,10 +945,10 @@ ropt_s2param_setup_sublattice ( ropt_s2param_t s2param,
  * Set sieving region for s2param -> Amax, Amin, Amax, Amin.
  */
 static inline void
-ropt_s2param_setup_range ( ropt_bound_t bound,
-                           ropt_s2param_t s2param,
-                           ropt_param_t param,
-                           mpz_t mod )
+ropt_s2param_setup_range ( ropt_bound_srcptr bound,
+                           ropt_s2param_ptr s2param,
+                           ropt_param_srcptr param,
+                           mpz_srcptr mod )
 {
   /* read sieve length from param (stdin) */
   if (param->s2_Amax >= 0 && param->s2_Bmax > 0) {
@@ -1042,13 +984,13 @@ ropt_s2param_setup_range ( ropt_bound_t bound,
  * Set up sieving length and sublattice for s2param.
  */
 void
-ropt_s2param_setup ( ropt_bound_t bound,
-                     ropt_s1param_t s1param,
-                     ropt_s2param_t s2param,
-                     ropt_param_t param,
-                     mpz_t A,
-                     mpz_t B,
-                     mpz_t MOD )
+ropt_s2param_setup ( ropt_bound_srcptr bound,
+                     ropt_s1param_srcptr s1param,
+                     ropt_s2param_ptr s2param,
+                     ropt_param_srcptr param,
+                     mpz_srcptr A,
+                     mpz_srcptr B,
+                     mpz_srcptr MOD )
 {
   /* normally we should have more primes than those in the sublattice */
   if (s2param->len_p_rs < s1param->len_e_sl) {
@@ -1069,12 +1011,12 @@ ropt_s2param_setup ( ropt_bound_t bound,
  * Set up s2param without s1param.
  */
 void
-ropt_s2param_setup_stage2_only ( ropt_bound_t bound,
-                                 ropt_s2param_t s2param,
-                                 ropt_param_t param,
-                                 mpz_t A,
-                                 mpz_t B,
-                                 mpz_t MOD )
+ropt_s2param_setup_stage2_only ( ropt_bound_srcptr bound,
+                                 ropt_s2param_ptr s2param,
+                                 ropt_param_srcptr param,
+                                 mpz_srcptr A,
+                                 mpz_srcptr B,
+                                 mpz_srcptr MOD )
 {
   s2param->len_p_rs = ROPT_NPRIMES - 1;
 
@@ -1090,7 +1032,7 @@ ropt_s2param_setup_stage2_only ( ropt_bound_t bound,
  * Set tune (short) sieving region for s2param -> Amax, Amin, Amax, Amin.
  */
 static inline void
-ropt_s2param_setup_tune_range  ( ropt_s2param_t s2param,
+ropt_s2param_setup_tune_range  ( ropt_s2param_ptr s2param,
                                  unsigned long Amax,
                                  unsigned long Bmax )
 {
@@ -1105,11 +1047,11 @@ ropt_s2param_setup_tune_range  ( ropt_s2param_t s2param,
  * Set up tune sieving length and sublattice for s2param.
  */
 void
-ropt_s2param_setup_tune ( ropt_s1param_t s1param,
-                          ropt_s2param_t s2param,
-                          mpz_t A,
-                          mpz_t B,
-                          mpz_t MOD,
+ropt_s2param_setup_tune ( ropt_s1param_srcptr s1param,
+                          ropt_s2param_ptr s2param,
+                          mpz_srcptr A,
+                          mpz_srcptr B,
+                          mpz_srcptr MOD,
                           unsigned long Amax,
                           unsigned long Bmax,
                           unsigned int len_p_rs )
@@ -1135,7 +1077,7 @@ ropt_s2param_setup_tune ( ropt_s1param_t s1param,
  * Print s2param.
  */
 void
-ropt_s2param_print ( ropt_s2param_t s2param )
+ropt_s2param_print ( ropt_s2param_srcptr s2param )
 {
   fprintf ( stderr, "# Info: sieving matrix: "
             "[%ld, %ld] x [%ld, %ld], len. prime = %d.\n",
@@ -1166,23 +1108,12 @@ ropt_s2param_print ( ropt_s2param_t s2param )
  * Init bestpoly.
  */
 void
-ropt_bestpoly_init ( ropt_bestpoly_t bestpoly,
-                     int d )
+ropt_bestpoly_init (ropt_bestpoly_ptr bestpoly)
 {
-  int i;
-  bestpoly->f = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
-  bestpoly->g = (mpz_t*) malloc (2 * sizeof (mpz_t));
-
-  if ((bestpoly->f == NULL) || (bestpoly->g == NULL)) {
-    fprintf ( stderr, "Error, cannot allocate memory for"
-              " ropt_bestpoly_init()\n" );
-    exit (1);
-  }
-
-  for (i = 0; i <= d; i++)
-    mpz_init (bestpoly->f[i]);
-  mpz_init (bestpoly->g[0]);
-  mpz_init (bestpoly->g[1]);
+    bestpoly->nb_polys = 2;
+    bestpoly->pols = malloc(bestpoly->nb_polys * sizeof(mpz_poly));
+    for(int side = 0 ; side < bestpoly->nb_polys ; side++)
+        mpz_poly_init(bestpoly->pols[side], -1);
 }
 
 
@@ -1190,16 +1121,13 @@ ropt_bestpoly_init ( ropt_bestpoly_t bestpoly,
  * Setup bestpoly.
  */
 void
-ropt_bestpoly_setup ( ropt_bestpoly_t bestpoly,
-                      mpz_t *f,
-                      mpz_t *g,
-                      int d )
+ropt_bestpoly_setup ( ropt_bestpoly_ptr bestpoly,
+                      mpz_poly_srcptr f,
+                      mpz_poly_srcptr g)
 {
-  int i;
-  for (i = 0; i <= d; i++)
-    mpz_set (bestpoly->f[i], f[i]);
-  mpz_set (bestpoly->g[0], g[0]);
-  mpz_set (bestpoly->g[1], g[1]);
+    ASSERT_ALWAYS(bestpoly->nb_polys == 2);
+    mpz_poly_set(bestpoly->pols[1], f);
+    mpz_poly_set(bestpoly->pols[0], g);
 }
 
 
@@ -1207,17 +1135,11 @@ ropt_bestpoly_setup ( ropt_bestpoly_t bestpoly,
  * Free bestpoly.
  */
 void
-ropt_bestpoly_free ( ropt_bestpoly_t bestpoly,
-                     int d )
+ropt_bestpoly_clear ( ropt_bestpoly_ptr bestpoly)
 {
-  int i;
-  for (i = 0; i <= d; i++)
-    mpz_clear (bestpoly->f[i]);
-
-  mpz_clear (bestpoly->g[0]);
-  mpz_clear (bestpoly->g[1]);
-  free (bestpoly->f);
-  free (bestpoly->g);
+    for(int side = 0 ; side < bestpoly->nb_polys ; side++)
+        mpz_poly_clear(bestpoly->pols[side]);
+    free(bestpoly->pols);
 }
 
 
@@ -1225,7 +1147,7 @@ ropt_bestpoly_free ( ropt_bestpoly_t bestpoly,
  * Init param.
  */
 void
-ropt_param_init ( ropt_param_t param )
+ropt_param_init ( ropt_param_ptr param )
 {
   mpz_init (param->s2_u);
   mpz_init (param->s2_v);
@@ -1260,7 +1182,7 @@ ropt_param_init ( ropt_param_t param )
  * Free param.
  */
 void
-ropt_param_free ( ropt_param_t param )
+ropt_param_clear ( ropt_param_ptr param )
 {
   mpz_clear (param->s2_u);
   mpz_clear (param->s2_v);
@@ -1274,7 +1196,7 @@ ropt_param_free ( ropt_param_t param )
  * Init info.
  */
 void
-ropt_info_init ( ropt_info_t info )
+ropt_info_init ( ropt_info_ptr info )
 {
   info->ave_MurphyE = 0.0;
   info->best_MurphyE = 0.0;
@@ -1290,7 +1212,7 @@ ropt_info_init ( ropt_info_t info )
  * Free info.
  */
 void
-ropt_info_free ( ropt_info_t info )
+ropt_info_clear ( ropt_info_ptr info )
 {
   info->ave_MurphyE = 0.0;
   info->best_MurphyE = 0.0;
