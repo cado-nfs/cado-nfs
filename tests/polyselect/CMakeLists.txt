@@ -56,15 +56,22 @@ cado_divert_test(test_ropt_adv c80msieve
     -n 12022203778835263712651529862414424087010841660557141141978630366614660861225497
     -v -v -amin -16 -amax 16 -e 2 2 1 -bmax 10 -cmax 10000)
 
+# This should take only a few seconds.
+cado_divert_test(test_ropt_adv deg6
+    APPEND_ARGUMENTS
+    -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/rsa768.poly
+    -v -v -d 6   -amin -4 -amax 4 -e 1 1 -bmax 6 -cmax 12
+    )
+
 if(DEFINED ENV{CHECKS_EXPENSIVE})
     # We need this to cover the ropt_quadratic code. It takes a minute or
     # so.
-    cado_divert_test(test_ropt_adv deg6
+    cado_divert_test(test_ropt_adv deg6large
         APPEND_ARGUMENTS
         -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/rsa768.poly
         -v -v
         -amin -16 -amax 16 -bmax 10 -cmax 10000
-        -e 2 2 1)
+        -e 3 5 2 1)
 endif()
 
 cado_define_test(gfpkdlpolyselect_test.c
