@@ -1573,7 +1573,6 @@ tests/utils/test_usp.c
 tests/utils/test_verbose.c
 tests/utils/testbase-rootfinder.quick
 tests/utils/testmpz-rootfinder.quick
-typecast.h
 utils/CMakeLists.txt
 utils/Makefile
 utils/alloc_proxy.h
