@@ -126,8 +126,15 @@ EOF
     # directory. Otherwise the environment that is normally set by
     # 001-environment.sh is completely missing !
 
+    # have to add this extra "dhclient restart" thing because it seems
+    # that there is a race condition in the cloud-init startup, which
+    # does both "dhclient restart em0" and "routing restart" at the same
+    # time.
     commands=(
-        @guest root@ env ASSUME_ALWAYS_YES=yes pkg install fusefs-sshfs \;
+        @guest root@
+                    set -e \;
+                    env ASSUME_ALWAYS_YES=yes pkg install fusefs-sshfs
+                    \|\| \( route get 8.8.8.8 \|\| service dhclient restart em0 \; env ASSUME_ALWAYS_YES=yes pkg install fusefs-sshfs \) \;
                      kldload fusefs \;
                      sysctl vfs.usermount=1 \;
                      ln -s /tmp/$random /host \;
