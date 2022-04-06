@@ -240,7 +240,7 @@ expensive checks with gcc:
 # coverage. Actually, this is not really dependent on checks, after all.
 # It does depend on the availability of the coverage images, though!
 #
-coverage tests on expensive checks with gcc:
+coverage tests on checks with gcc:
   <<: *common-template
   stage: thorough
   # do not start it prematurely, in case previous jobs failed
@@ -280,7 +280,7 @@ merge coverage tests:
   <<: *common-template
   stage: publish
   needs:
-    - job: coverage tests on expensive checks with gcc
+    - job: coverage tests on checks with gcc
       artifacts: true
     # list more of these...
   # This image has gcovr installed
