@@ -78,3 +78,16 @@ cado_divert_test(gfpkdlpolyselect_test 1 -p 10000000019 -k 2 -label test01)
 cado_divert_test(gfpkdlpolyselect_test 2 -p 10000000019 -k 2 -label test02)
 cado_divert_test(gfpkdlpolyselect_test 3 -p 10000000019 -k 2 -label test03)
 
+cado_define_test(test_polyselect_gfpn
+        PROGRAM
+        ${CADO_NFS_BINARY_DIR}/polyselect/polyselect_gfpn
+        ARGUMENTS
+        -n 2 -p
+        TARGET_DEPENDENCIES polyselect_gfpn
+        NO_DEFAULT_RUN
+        )
+cado_divert_test(test_polyselect_gfpn 0 APPEND_ARGUMENTS 750955589968013246993551)
+cado_divert_test(test_polyselect_gfpn 1 APPEND_ARGUMENTS 325296040168596930710621)
+cado_divert_test(test_polyselect_gfpn 2 APPEND_ARGUMENTS 584064835518808197191269)
+cado_divert_test(test_polyselect_gfpn 3 APPEND_ARGUMENTS 45086221481123679612257)
+
