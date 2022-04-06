@@ -76,7 +76,10 @@ alpine_packages="$alpine_packages     perl"
 alpine_packages="$alpine_packages     python3"
 
 freebsd_packages="$freebsd_packages     cmake"
-freebsd_packages="$freebsd_packages     hwloc"
+case "$CI_BUILD_NAME" in
+    *"32-bit freebsd"*) : ;;
+    *) freebsd_packages="$freebsd_packages     hwloc" ;;
+esac
 freebsd_packages="$freebsd_packages     gmp"
 freebsd_packages="$freebsd_packages     gmake"
 freebsd_packages="$freebsd_packages     bash"
