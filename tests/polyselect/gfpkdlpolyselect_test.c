@@ -22,9 +22,9 @@
 #include "cado_poly.h"
 #include "gfpkdlpolyselect.h"
 
-extern const row_f_poly_t tab_t_Py_f_deg4_type0_h1[26];
+extern const tPyf_t tab_t_Py_f_deg4_type0_h1[26];
 extern const unsigned int table_f4_size;
-extern const table_f_poly_t table_f4;
+extern const tPyf_poly_t table_f4;
 
 // maybe: in a separate file.
 // gfpkdlpolyselect_utils.c --> with all the auxiliary functions
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
   // then, compute the two polynomials (f,g)
   int i, k = 0;
   int label_size_max = 48;
-  char label[48];
+  char label[49];
   label[0] = '\0';
   mpz_t p;
   mpz_init (p);
@@ -111,6 +111,13 @@ int main(int argc, char* argv[])
         usage ();
     }
 
-    gfpkdlpolyselect(p, k, label);
+    mpz_t ell;
+    mpz_init(ell);
+    mpz_pow_ui(ell, p, k);
+    mpz_sub_ui(ell, ell, 1);    // don't care if it isn't prime, for tests.
+
+    gfpkdlpolyselect(k, p, ell, 0, label);
+
+    mpz_clear(ell);
     mpz_clear (p);
 }

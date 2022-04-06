@@ -66,3 +66,15 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         -amin -16 -amax 16 -bmax 10 -cmax 10000
         -e 2 2 1)
 endif()
+
+cado_define_test(gfpkdlpolyselect_test.c
+    table_t_Py_f_deg4_type0_h1_t-200--200.c
+    ${PROJECT_SOURCE_DIR}/polyselect/gfpkdlpolyselect.c
+    LIBRARIES polyselect_common utils
+    NO_DEFAULT_RUN
+    )
+    
+cado_divert_test(gfpkdlpolyselect_test 1 -p 10000000019 -k 2 -label test01)
+cado_divert_test(gfpkdlpolyselect_test 2 -p 10000000019 -k 2 -label test02)
+cado_divert_test(gfpkdlpolyselect_test 3 -p 10000000019 -k 2 -label test03)
+

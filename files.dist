@@ -998,7 +998,6 @@ polyselect/ropt_tree.h
 polyselect/size_optimization.c
 polyselect/size_optimization.h
 polyselect/table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h
-polyselect/table_t_Py_f_deg4_type0_h1_t-200--200.h
 portability.h
 scripts/build_environment.sh
 scripts/cadofactor/CMakeLists.txt
@@ -1363,6 +1362,8 @@ tests/ncpus.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
 tests/polyselect/c80msieve.sample
+tests/polyselect/gfpkdlpolyselect_test.c
+tests/polyselect/table_t_Py_f_deg4_type0_h1_t-200--200.c
 tests/polyselect/test_polyselect_shash.cpp
 tests/polyselect/test_rho.c
 tests/polyselect/test_ropt_auxiliary.cpp
