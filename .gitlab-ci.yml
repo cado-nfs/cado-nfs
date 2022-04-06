@@ -362,7 +362,7 @@ checks on freebsd13.0 system with gcc:
     - make -C ci/utilities/tanker
     - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
 
-checks on 32-bit freebsd13.0 system with gcc:
+checks on 32-bit freebsd13.0 system with clang:
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
     FREEBSD_ARCH: i386
