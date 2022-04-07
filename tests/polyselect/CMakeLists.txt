@@ -98,3 +98,4 @@ cado_divert_test(test_polyselect_gfpn 1 APPEND_ARGUMENTS 32529604016859693071062
 cado_divert_test(test_polyselect_gfpn 2 APPEND_ARGUMENTS 584064835518808197191269)
 cado_divert_test(test_polyselect_gfpn 3 APPEND_ARGUMENTS 45086221481123679612257)
 
+include(CMakeLists-nodist.txt OPTIONAL)

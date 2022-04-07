@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <ctype.h>
 #include <gmp.h>
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
@@ -10,78 +11,104 @@
 #include "area.h"
 #include "cado_poly.h"
 #include "mpz_poly.h"
+#include "params.h"
 
-static void usage_and_die(char *argv0) {
-    fprintf(stderr, "usage: %s [-area a] [-I nnn] [-Bf b] [-Bg c] [-skew s] [-B b] poly j k\n", argv0);
-    fprintf(stderr, "  apply rotation f += (j*x+k)*g to poly.\n");
-    fprintf(stderr, "  poly: filename of polynomial\n");
-    fprintf(stderr, "  j,k : integers\n");
-    exit(1);
+/* This simplistic binary just computes the rotation f+k*g, starting from a
+ * polynomial pair (f,g), and a rotation polynomial k (given least
+ * coefficient first).
+ */
+
+static void usage(const char *argv, const char *missing, param_list_ptr pl)
+{
+    fprintf(stderr, "usage: %s [parameters] <polynomial file> [<rotation coefficients> ...]\n", argv);
+    if (missing)
+    {
+        fprintf(stderr, "\nError: missing or invalid parameter \"-%s\"\n",
+                missing);
+    }
+    param_list_print_usage(pl, argv, stderr);
+    param_list_clear(pl);
+    exit(EXIT_FAILURE);
 }
 
-int main(int argc, char **argv) {
+void declare_usage(param_list_ptr pl)
+{
+    param_list_decl_usage(pl, "area", "sieving area (bound on a,b?) used for the computation of MurphyE");
+    param_list_decl_usage(pl, "I", "width of the I,J rectangle used for the computation of MurphyE");
+    param_list_decl_usage(pl, "Bf", "smoothness bound on side 1, used for the computation of MurphyE");
+    param_list_decl_usage(pl, "Bg", "smoothness bound on side 0, used for the computation of MurphyE");
+    param_list_decl_usage(pl, "skew", "skewness (default to automatic)\n");
+    param_list_decl_usage(pl, "B", "alpha bound used for the computation of alpha");
+}
+
+
+int main(int argc, char *argv[])
+{
+    char ** argv0 = argv;
+    int argc0 = argc;
     cado_poly cpoly;
-    long j, k;
     int I = 0;
     mpz_t b, m;
     double skew = 0.0;
+    param_list pl;
+    mpz_poly rot;
+    mpz_t tmp;
 
     mpz_init(b);
     mpz_init(m);
-    while (argc >= 2 && argv[1][0] == '-')
-      {
-        if (strcmp (argv[1], "-area") == 0)
-          {
-            area = atof (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-Bf") == 0)
-          {
-            bound_f = atof (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-I") == 0)
-          {
-            I = atoi (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-Bg") == 0)
-          {
-            bound_g = atof (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-skew") == 0)
-          {
-            skew = atof (argv [2]);
-            argv += 2;
-            argc -= 2;
-          }
-        else if (strcmp (argv[1], "-B") == 0)
-          {
-            set_alpha_bound (strtoul (argv [2], NULL, 10));
-            argv += 2;
-            argc -= 2;
-          }
-        else
-          break;
-      }
-    if (argc != 4)
-        usage_and_die(argv[0]);
+    mpz_init(tmp);
+    mpz_poly_init(rot, -1);
+
+    const char * polyfilename = NULL;
+
+    param_list_init(pl);
+
+    declare_usage(pl);
+
+    argv++, argc--;
+    for (int wild = 0; argc; )
+    {
+        if (param_list_update_cmdline(pl, &argc, &argv))
+            continue;
+        if (wild == 0) {
+            polyfilename = *argv;
+            argc--,argv++,wild++;
+        } else if (isdigit(argv[0][0]) || (argv[0][0] == '-' && isdigit(argv[0][1]))) {
+            int ok = mpz_set_str(tmp, *argv, 0) == 0;
+            if (!ok) {
+                fprintf(stderr, "Error, %s is not an integer\n", argv[0]);
+                usage(argv0[0], NULL, pl);
+            }
+            mpz_poly_setcoeff(rot, wild-1, tmp);
+            argc--,argv++,wild++;
+        } else {
+            fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
+            usage(argv0[0], NULL, pl);
+        }
+    }
+
+    param_list_parse_double(pl, "area", &area);
+    param_list_parse_double(pl, "Bf", &bound_f);
+    param_list_parse_double(pl, "Bg", &bound_g);
+    param_list_parse_double(pl, "skew", &skew);
+    param_list_parse_int(pl, "I", &I);
+    {
+        unsigned long B;
+        if (param_list_parse_ulong(pl, "B", &B))
+            set_alpha_bound (B);
+    }
+
+    if (param_list_warn_unused(pl))
+        usage (argv0[0], NULL, pl);
 
     if (I != 0)
       area = bound_f * pow (2.0, (double) (2 * I - 1));
 
     cado_poly_init (cpoly);
-    if (!cado_poly_read(cpoly, argv[1])) {
+    if (!cado_poly_read(cpoly, polyfilename)) {
         fprintf(stderr, "Problem when reading file %s\n", argv[1]);
-        usage_and_die(argv[0]);
+        usage(argv[0], NULL, pl);
     }
-    j = strtol(argv[2], NULL, 10);
-    k = strtol(argv[3], NULL, 10);
 
     if (skew != 0.0)
       cpoly->skew = skew; /* command-line overrides skewness given in file (if any) */
@@ -91,10 +118,16 @@ int main(int argc, char **argv) {
       cpoly->skew = L2_combined_skewness2 (cpoly->pols[0], cpoly->pols[1],
                                           SKEWNESS_DEFAULT_PREC);
 
-    /* TODO: parse k and j as mpz, and use compute_fuv_mp !! */
-    rotate_aux (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 0, k, 0);
-    rotate_aux (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 0, j, 1);
+    /* Well, it's really very simple. */
 
-    print_cadopoly_extra (stdout, cpoly, argc, argv, 0);
+    mpz_poly_mul(rot, rot, cpoly->pols[RAT_SIDE]);
+    mpz_poly_add(cpoly->pols[ALG_SIDE], cpoly->pols[ALG_SIDE], rot);
+
+    print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
+
+    param_list_clear(pl);
+    mpz_clear(tmp);
+    mpz_poly_clear(rot);
+
     return 0;
 } 
