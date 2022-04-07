@@ -636,7 +636,7 @@ collision_on_p_conductor(polyselect_thread_ptr thread)
    * again for the p's.
    */
 
-  int found;
+  int found = 0;
 
   /* This is called with the team lock held ! */
 
