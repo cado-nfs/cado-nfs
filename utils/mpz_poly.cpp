@@ -2693,7 +2693,6 @@ mpz_poly*
 mpz_poly_parallel_interface<inf>::mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l)
 {
   mpz_poly *P;
-  int k, i, j;
   mpz_t *pk;
 
   ASSERT_ALWAYS (l > 0);
@@ -2704,7 +2703,7 @@ mpz_poly_parallel_interface<inf>::mpz_poly_base_modp_init (mpz_poly_srcptr P0, i
   FATAL_ERROR_CHECK (pk == NULL, "not enough memory");
   mpz_init_set_ui (pk[0], p);
   /* this loop cannot be parallelized, since pk[i] depends on pk[i-1] */
-  for (i = 1; i < l; i++)
+  for (int i = 1; i < l; i++)
   {
     mpz_init (pk[i]);
     mpz_mul (pk[i], pk[i-1], pk[i-1]);
@@ -2725,27 +2724,25 @@ mpz_poly_parallel_interface<inf>::mpz_poly_base_modp_init (mpz_poly_srcptr P0, i
 #ifdef HAVE_OPENMP
 #pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
-  for (i = 0; i < l + 2; i++)
+  for (int i = 0; i < l + 2; i++)
     mpz_poly_init (P[i], P0->deg);
   /* P[l+1] is initialized to 0 by mpz_poly_init */
 
-  /* initialize P[k], and put remainder in P[k-1] */
-  k = l;
 #ifdef HAVE_OPENMP
 #pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
-  for (i = 0; i <= P0->deg; i++)
-    mpz_tdiv_qr (P[k]->coeff[i], P[k-1]->coeff[i], P0->coeff[i], pk[k-1]);
-  mpz_poly_cleandeg (P[k], P0->deg);
+  for (int i = 0; i <= P0->deg; i++)
+    mpz_tdiv_qr (P[l]->coeff[i], P[l-1]->coeff[i], P0->coeff[i], pk[l-1]);
+  mpz_poly_cleandeg (P[l], P0->deg);
 
   /* now go down */
-  for (j = l-1; j >= 1; j--)
+  for (int j = l-1; j >= 1; j--)
   {
     /* reduce P[j] into P[j] and P[j-1] */
 #ifdef HAVE_OPENMP
 #pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
-    for (i = 0; i <= P0->deg; i++)
+    for (int i = 0; i <= P0->deg; i++)
       mpz_tdiv_qr (P[j]->coeff[i], P[j-1]->coeff[i], P[j]->coeff[i],
                    pk[j-1]);
     mpz_poly_cleandeg (P[j], P0->deg);
@@ -2755,7 +2752,7 @@ mpz_poly_parallel_interface<inf>::mpz_poly_base_modp_init (mpz_poly_srcptr P0, i
 #ifdef HAVE_OPENMP
 #pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
-  for (i = 0; i < l; i++)
+  for (int i = 0; i < l; i++)
     mpz_clear (pk[i]);
   free (pk);
 
