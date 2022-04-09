@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "select_mpi.h"
+#include "misc.h"
 
 long failed_offset = 0;
 
