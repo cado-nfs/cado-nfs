@@ -1269,6 +1269,7 @@ sqrt/powers_of_p.h
 sqrt/sqrt.cpp
 tests/CMakeLists.txt
 tests/README
+tests/do_n_times.sh
 tests/do_with_mpi.sh
 tests/estimate_matsize/CMakeLists.txt
 tests/estimate_matsize/p30.ems.params

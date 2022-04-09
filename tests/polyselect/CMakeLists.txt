@@ -22,6 +22,15 @@ set(example_N 412023436986659543855531365332575948179811699844327982845455626433
 polyselect_test(8 -N ${example_N} degree=6 P=1000000 admin=3720 admax=3721 nq=7776)
 endif()
 
+cado_define_test(threading_30037
+    SCRIPT
+    ${PROJECT_SOURCE_DIR}/tests/do_n_times.sh 50
+    ${PROJECT_BINARY_DIR}/polyselect/dlpolyselect
+    -N 701173953068971112417987441927 -easySM 350586976534485556208993720963 -df 3 -dg 2 -area 367001600.0 -Bf 2048.0 -Bg 4096.0 -bound 3 -modm 5 -modr 0 -t 2
+    TARGET_DEPENDENCIES
+    dlpolyselect
+    )
+
 ## we disable the following test since twocubics is not in "make dist"
 ## test also the twocubics binary
 # cado_define_test(twocubics PROGRAM
