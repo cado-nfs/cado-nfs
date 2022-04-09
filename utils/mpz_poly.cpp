@@ -2165,14 +2165,24 @@ mpz_poly_parallel_interface<inf>::mpz_poly_mod_mpz (mpz_poly_ptr R, mpz_poly_src
 {
   /* reduce lower coefficients */
   mpz_poly_realloc(R, A->deg + 1);
+  if (!std::is_same<inf, mpz_poly_notparallel_info>::value) {
+      /* yes, this construct doesn't make sense at all. See #30037
+       */
 #ifdef HAVE_OPENMP
 #pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
-  for (int i = 0; i <= A->deg; ++i)
-    if (invm == NULL)
-      mpz_mod (R->coeff[i], A->coeff[i], m);
-    else
-      mpz_mod_barrett (R->coeff[i], A->coeff[i], m, invm);
+      for (int i = 0; i <= A->deg; ++i)
+          if (invm == NULL)
+              mpz_mod (R->coeff[i], A->coeff[i], m);
+          else
+              mpz_mod_barrett (R->coeff[i], A->coeff[i], m, invm);
+  } else {
+      for (int i = 0; i <= A->deg; ++i)
+          if (invm == NULL)
+              mpz_mod (R->coeff[i], A->coeff[i], m);
+          else
+              mpz_mod_barrett (R->coeff[i], A->coeff[i], m, invm);
+  }
 
   mpz_poly_cleandeg(R, A->deg);
   return R->deg;
@@ -2262,11 +2272,18 @@ mpz_poly_parallel_interface<inf>::mpz_poly_mod_f_mod_mpz (mpz_poly_ptr R, mpz_po
       size_t size_c = mpz_size (c);
       if (size_c + size_f > (3 * size_R) / 2)
 	mpz_mod (c, c, m);
+      if (!std::is_same<inf, mpz_poly_notparallel_info>::value) {
+          /* yes, this construct doesn't make sense at all. See #30037
+          */
 #ifdef HAVE_OPENMP
 #pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
 #endif
-      for (int i = R->deg - 1; i >= R->deg - f->deg; --i)
-	mpz_submul (R->coeff[i], c, f->coeff[f->deg - R->deg + i]);
+          for (int i = R->deg - 1; i >= R->deg - f->deg; --i)
+              mpz_submul (R->coeff[i], c, f->coeff[f->deg - R->deg + i]);
+      } else {
+          for (int i = R->deg - 1; i >= R->deg - f->deg; --i)
+              mpz_submul (R->coeff[i], c, f->coeff[f->deg - R->deg + i]);
+      }
       R->deg--;
     }
 
