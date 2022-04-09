@@ -969,17 +969,11 @@ main (int argc, char *argv[])
     printf ("# will generate about %lu polynomials\n", maxtries / modm);
 
 #ifdef HAVE_OPENMP
-#ifdef __FreeBSD__
-    if (nthreads > 1) {
-        fprintf(stderr, "# dlpolyselect seems to trigger an openmp bug under freebsd. This might deserve investigation. Disabling threads for now.\n");
-        nthreads = 1;
-    }
-#endif
     omp_set_num_threads (nthreads);
 #pragma omp parallel for schedule(dynamic)
 #else
     if (nthreads > 1) {
-        fprintf(stderr, "# Warning: openmp unavailable, -t ignored\n");
+        fprintf(stderr, "Warning: openmp unavailable, -t ignored\n");
     }
 #endif
     for (unsigned long c = modr; c < maxtries; c += modm)
