@@ -1098,7 +1098,11 @@ void renumber_t::builder::preprocess(prime_chunk & P, gmp_randstate_ptr rstate)/
 
 void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
 {
-    ASSERT_ALWAYS(P.preprocess_done);
+    bool preprocess_done;
+#pragma omp atomic read
+    preprocess_done = P.preprocess_done;
+    ASSERT_ALWAYS(preprocess_done);
+
     /* put all entries from x into the renumber table, and also print
      * to freerel_file any free relation encountered. This is done
      * synchronously.
