@@ -142,7 +142,7 @@ add_timer (int flag, double t)
 
 
 static int
-check_SM (mpz_poly ff, mpz_t ell)
+check_SM (mpz_poly_srcptr ff, mpz_srcptr ell)
 {
     if (ff->deg <= 2) {
         return 1;
@@ -165,8 +165,8 @@ check_SM (mpz_poly ff, mpz_t ell)
   Print two nonlinear poly info. Return non-zero for record polynomials.
 */
 static int
-print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
-                           int format,  mpz_t n, mpz_t ell)
+print_nonlinear_poly_info (mpz_poly_srcptr ff, double alpha_f, mpz_poly_srcptr gg,
+                           int format,  mpz_srcptr n, mpz_srcptr ell)
 {
     unsigned int i;
     double skew, logmu[2], alpha_g_approx, alpha_g, score, score_approx;
