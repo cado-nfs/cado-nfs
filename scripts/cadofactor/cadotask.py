@@ -5430,15 +5430,19 @@ class LogQueryTask(Task):
                 self.logbase = pow(int(target), ilogt*self.cof, self.p)
                 self.state.update({"logbase": self.logbase}, commit=True)
                 context = "log(%d)=%d" % (target, logtarget)
-                conclusion = "logarithms are given to base %d" % self.logbase
+                conclusion = "logarithms are given in base %d" % self.logbase
 
                 self.logger.info("Based on %s, we expect that %s" % (context, conclusion))
                 just_deduced_gen = True
         if not just_deduced_gen:
             msg = "Checking that log(%d)=%d is correct in base %d..." % (target, logtarget, self.logbase)
             self.logger.info(msg)
-            assert pow(self.logbase, logtarget*self.cof, self.p) == pow(target, self.cof, self.p)
-            self.logger.info(msg + " passed")
+            check = pow(self.logbase, logtarget*self.cof, self.p) == pow(target, self.cof, self.p)
+            if check:
+                self.logger.info(msg + " passed")
+            else:
+                self.logger.critical(msg + " FAILED")
+                raise ValueError("Failed log check, log(%d)=%d seems wrong in base %d\n" % (target, logtarget, self.logbase))
         else:
             self.logger.info("Check skipped for this log, as it is the only known log value at this point")
 
