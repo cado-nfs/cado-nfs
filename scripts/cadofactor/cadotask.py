@@ -5425,6 +5425,7 @@ class LogQueryTask(Task):
         just_deduced_gen = False
         if self.logbase is None:
             gt, ilogt, foo = self.xgcd(logtarget * self.cof, self.ell)
+            ilogt = ilogt % self.ell
             if gt == 1:
                 # then target^((p-1)/ell * ilogt) is a generator
                 self.logbase = pow(int(target), ilogt*self.cof, self.p)
