@@ -67,8 +67,11 @@ struct renumber_t {
 
     /* As of 20220311, I'm killing the old and transitional formats. Only
      * the "flat" format is being used now.
+     *
+     * 20220411 is the same as 20200515, but with some hex/bin mess
+     * cleaned up
      */
-    static constexpr const int format_flat = 20200515;
+    static constexpr const int format_flat = 20220411;
 
 private:/*{{{ internal data fields*/
 

@@ -28,6 +28,7 @@
 #include "rootfinder.h" // mpz_poly_roots
 #include "stats.h"      // for the builder process
 #include "macros.h"
+#include "fmt/format.h"
 
 /* Some documentation on the internal encoding of the renumber table...
  *
@@ -632,11 +633,13 @@ void renumber_t::read_header(std::istream& is)
     std::string s;
     getline(is, s);
     std::istringstream iss(s);
-    int f;
+    int f = 0;
     if (iss >> f && (f == format_flat)) {
         format = f;
     } else {
-        ASSERT_ALWAYS(0);
+        throw std::runtime_error(fmt::format(FMT_STRING(
+                        "Renumber format error. Got {}, expected {} instead. You must regenerate the renumber table with the freerel tool."),
+                    f, format_flat));
     }
 
     ASSERT_ALWAYS(above_all == above_add);
@@ -671,12 +674,6 @@ void renumber_t::read_bad_ideals(std::istream& is)
         is >> x >> n;
         ASSERT_ALWAYS(x == side);
         for( ; n-- ; ) {
-            /* The "p, r", for consistency with the rest of the renumber
-             * file, are in hex, while the rest of the bad ideal
-             * description is parsed in decimal. This is enforced by the
-             * badideal(std::istream &) ctor.
-             */
-            is >> std::hex;
             badideal b(is);
             p_r_side x { (p_r_values_t) mpz_get_ui(b.p), (p_r_values_t) mpz_get_ui(b.r), side };
             bad_ideals.emplace_back(x, b);
@@ -754,10 +751,7 @@ void renumber_t::write_bad_ideals(std::ostream& os) const
         os << side << " " << n << std::endl;
         for(auto const & b : bad_ideals) {
             if (b.first.side == side) {
-                // we print p,r in hexa at the beginning of the line,
-                // but the rest of the bad ideal information is in
-                // decimal.
-                os << std::hex << b.second;
+                os << b.second;
             }
         }
     }
