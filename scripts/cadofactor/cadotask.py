@@ -5379,9 +5379,10 @@ class LogQueryTask(Task):
             self.logbase = None
         self.p = self.params["N"]
         self.ell = self.params["ell"]
+        self.gfpext = self.params["gfpext"]
         # TODO gfpext
-        assert (self.p-1) % self.ell == 0
-        self.cof = (self.p-1) // self.ell
+        assert (self.p ** self.gfpext - 1) % self.ell == 0
+        self.cof = (self.p ** self.gfpext - 1) // self.ell
     
         if "logquery" not in self.state:
             logquery_filename = self.workdir.make_filename("logquery")
