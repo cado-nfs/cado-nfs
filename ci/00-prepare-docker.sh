@@ -25,6 +25,9 @@ debian_packages="$debian_packages     locales"
 debian_packages="$debian_packages     cmake"
 debian_packages="$debian_packages     libhwloc-dev"
 debian_packages="$debian_packages     libgmp-dev"
+# debian has gmp-ecm. Let's use it in our debian tests, that will give
+# some extra coverage.
+debian_packages="$debian_packages     libecm-dev"
 # is full perl really needed ?
 # debian_packages="$debian_packages     perl"
 debian_packages="$debian_packages     python3"

@@ -440,6 +440,7 @@ int smooth_detect_one_step(cand_t winner, context_t ctx) {
           break;
       }
     }
+
     // if both gain are below average, then abort this candidate
     if (stats_is_below_average(ctx->stats, gain_u, cpt) &&
         stats_is_below_average(ctx->stats, gain_v, cpt)) {

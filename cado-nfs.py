@@ -201,90 +201,33 @@ if __name__ == '__main__':
 
     factors = factorjob.run()
     
-    dlp_param = parameters.myparams({"dlp": False,}, "")
-    dlp = dlp_param["dlp"]
-    checkdlp_param = parameters.myparams({"checkdlp": True ,}, "")
-    checkdlp = checkdlp_param["checkdlp"]
-    target_param = parameters.myparams({"target": "",}, "")
-    target = target_param["target"]
     if factors is None:
         toplevel_params.purge_temp_files(nopurge=True)
         sys.exit("Error occurred, terminating")
     else:
         toplevel_params.purge_temp_files()
 
+    dlp_param = parameters.myparams({"dlp": False,}, "")
+    dlp = dlp_param["dlp"]
+    target_param = parameters.myparams({"target": "",}, "")
+    target = target_param["target"]
+
     if not dlp:
         print(" ".join(factors))
     else:
-        def xgcd(a, b):
-            u0 = 1; v0 = 0; r0 = a
-            u1 = 0; v1 = 1; r1 = b
-            while r1 != 0:
-                q = r0 // r1
-                r0, r1 = [r1, r0 - q * r1];
-                u0, u1 = [u1, u0 - q * u1];
-                v0, v1 = [v1, v0 - q * v1];
-            if r0 < 0:
-                r0 = -r0; u0 = -u0; v0 = -v0
-            return r0, u0, v0
-        logbase = None
-        scale_log = None
-        potential_generators = []
+        logger.info("If you want to compute one or several new target(s), run %s %s target=<target>[,<target>,...]", sys.argv[0], snapshot_filename)
+        base = factors[0]
         if target != "":
-            logtarget = int(factors[4])
-        if checkdlp:
-            p = int(factors[0])
-            ell = int(factors[1])
-            cof = (p-1) // ell
-
-            logger.info("  p = " + str(p))
-            logger.info("  ell = " + str(ell))
-
-            log2 = int(factors[2])
-            log3 = int(factors[3])
-
-            logger.info("Checking that log(2) and log(3) are consistent...")
-            logger.info("  unscaled_log2 = " + str(log2) + " mod ell")
-            logger.info("  unscaled_log3 = " + str(log3) + " mod ell")
-            assert (p-1) % ell == 0
-            assert pow(3, log2*cof, p) == pow(2, log3*cof, p)
-            logger.info("Checking that log(2) and log(3) are consistent... passed!")
-            # what do we have at our disposal in terms of sanity checks?
-            g2, ilog2, foo = xgcd(log2, ell)
-            if g2 == 1:
-                potential_generators.append((2, ilog2))
-            g3, ilog3, foo = xgcd(log3, ell)
-            if g3 == 1:
-                potential_generators.append((3, ilog3))
-            if target != "":
-                gt, ilogt, foo = xgcd(logtarget * cof, ell)
-                if gt == 1:
-                    # then target^((p-1)/ell * ilogt) is a generator
-                    opportunistic_generator = pow(int(target), ilogt*cof, p)
-                    potential_generators.append((opportunistic_generator, 1))
-
-            if target != "":
-                logger.info("Also check log(target) vs log(2) ...")
-                if target != "":
-                    logger.info("  target = " + str(target))
-                    logger.info("  unscaled_log(target) = " + str(logtarget) + " mod ell")
-                assert pow(int(target), log2*cof, p) == pow(2, logtarget*cof, p)
-                logger.info("Also check log(target) vs log(2) ... passed!")
-
-            if potential_generators:
-                logbase, scale_log = potential_generators[0]
-                logger.info("Using g=%s as a generator" % str(logbase))
-                log2 = (log2 * scale_log) % ell
-                log3 = (log3 * scale_log) % ell
-                logtarget = (logtarget * scale_log) % ell
-                logger.info("  log2 = " + str(log2) + " mod ell")
-                logger.info("  log3 = " + str(log3) + " mod ell")
-
-        else:
-            logger.info("No check was performed. Logarithms of the factor base elements are in %s" % factorjob.request_map[cadotask.Request.GET_DLOG_FILENAME]())
-        if target != "":
-            logger.info("target = " + str(target))
-            logger.info("log(target) = " + str(logtarget) + " mod ell")
-            print(str(logtarget))
-        logger.info("If you want to compute a new target, run %s %s target=<target>", sys.argv[0], snapshot_filename)
+            logtargets = factors[1:]
+            targets = [ int(ts) for ts in target.split(",") ]
+            logger.info("logbase = " + str(base))
+            for i in range(min(len(targets), len(logtargets))):
+                t = targets[i]
+                logt = logtargets[i]
+                logger.info("target = " + str(t))
+                logger.info("log(target) = " + str(logt) + " mod ell")
+            for i in range(len(logtargets), len(targets)):
+                t = targets[i]
+                logger.warning("NO LOG FOUND for target = " + str(t))
+            print(",".join([str(l) for l in logtargets]))
 

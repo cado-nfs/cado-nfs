@@ -185,21 +185,26 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
    *    we add the columns i if and only if the polynomial on side i is non
    *    monic and the relation contains at least one prime on side i.
    *
-   *    if nb_polys == 2, this was previously claimed to reduce to "we
-   *    add the column 0 (in this case there is always 1 additional column
-   *      and it is always necessary)", which I think is wrong.
+   * nb_polys==2 is special (see also  renumber_t::index_from_p_r) ; in
+   * that case, we only use a single combined additional column. (except
+   * for free relations, of course).
    */
   size_t n = renumber_table_get_nb_polys(renumber_tab);
-  int * sides = malloc(n * sizeof(int));
-  renumber_table_get_sides_of_additional_columns(renumber_tab, sides, &n);
-  for(index_t idx = 0; idx < n ; idx++) {
-      int side = sides[idx];
-      if ((nonvoidside & (((uint64_t) 1) << side))) {
-          p = u64toa16(p, (uint64_t) idx);
-          *p++ = ',';
+  if (n == 2) {
+      p = u64toa16(p, (uint64_t) 0);
+      *p++ = ',';
+  } else {
+      int * sides = malloc(n * sizeof(int));
+      renumber_table_get_sides_of_additional_columns(renumber_tab, sides, &n);
+      for(index_t idx = 0; idx < n ; idx++) {
+          int side = sides[idx];
+          if ((nonvoidside & (((uint64_t) 1) << side))) {
+              p = u64toa16(p, (uint64_t) idx);
+              *p++ = ',';
+          }
       }
+      free(sides);
   }
-  free(sides);
 
   *(--p) = '\n';
   p[1] = '\0';

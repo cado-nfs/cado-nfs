@@ -591,7 +591,7 @@ main (int argc, char *argv[])
         }
       Smax += sqrt (Smax);
     }
-  gmp_reandclear(rstate);
+  gmp_randclear(rstate);
   mpz_clear (p);
   mpz_clear (z);
   mpz_clear (ze);
