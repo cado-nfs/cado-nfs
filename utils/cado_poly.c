@@ -72,8 +72,6 @@ cado_poly_swap (cado_poly_ptr p, cado_poly_ptr q)
 // returns 0 on failure, 1 on success.
 int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
 {
-  int ret = 1;
-
   /* Parse skew value. Set to 0.0 to ensure that we get an invalid skewness
      in case it is not given */
   cpoly->skew = 0.0;
@@ -122,10 +120,11 @@ int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
 
   /* Parse value of N. Two keys possible: n or None. Return 0 if not found. */
   if (!param_list_parse_mpz(pl, "n", cpoly->n) &&
+      !param_list_parse_mpz(pl, "N", cpoly->n) &&
       !param_list_parse_mpz(pl, NULL, cpoly->n))
   {
     fprintf (stderr, "Error, no value for N in cado_poly_set_plist\n");
-    ret = 0;
+    return 0;
   }
 
   for (int side = 0; side < cpoly->nb_polys; side++)
@@ -133,13 +132,16 @@ int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
     {
       fprintf (stderr, "Error, polynomial on side %u has degree < 0 in "
                        "cado_poly_set_plist\n", side);
-      ret = 0;
+      return 0;
     }
 
   /* check that N divides the resultant*/
-  ASSERT_ALWAYS(cado_poly_check_mapping(NULL, cpoly, cpoly->n));
+  if (!cado_poly_check_mapping(NULL, cpoly, cpoly->n)) {
+      fprintf (stderr, "Error, polynomial file is inconsisent (no common mapping to target ring)\n");
+      return 0;
+  }
 
-  return ret;
+  return 1;
 }
 
 // returns 0 on failure, 1 on success.
