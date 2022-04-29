@@ -433,7 +433,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
 
       cado_poly_set_skewness_if_undefined(input_poly);
 
-      if (nthreads > 1)
+      if (nthreads != 1)
           pthread_mutex_lock (&lock);
 
       total_exp_E += cado_poly_compute_expected_stats(input_stats, input_poly);
@@ -446,7 +446,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
       /* why on earth is this thing a global ??? */
       nb_read += 1.0;
 
-      if (nthreads > 1)
+      if (nthreads != 1)
           pthread_mutex_unlock (&lock);
 
       cado_poly_stats_clear(input_stats);
@@ -479,7 +479,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   curr_MurphyE = MurphyE (ropt_poly, bound_f, bound_g, area, MURPHY_K,
                           get_alpha_bound ());
 
-  if (nthreads > 1)
+  if (nthreads != 1)
     pthread_mutex_lock (&lock);
 
   /* update time */
@@ -517,7 +517,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
           best_MurphyE, total_exp_E / nb_read, total_E / nb_optimized);
   fflush (stdout);
 
-  if (nthreads > 1)
+  if (nthreads != 1)
     pthread_mutex_unlock (&lock);
 
   cado_poly_clear (ropt_poly);
@@ -713,7 +713,15 @@ main_basic (int argc, char **argv)
     usage_basic (argv0[0], NULL, pl);
   }
 
-  param_list_parse_uint (pl, "t", &nthreads);
+  {
+      /* parse -t. Set nthreads to zero (automatic) if -t is "auto" */
+      const char * tmp;
+      if ((tmp = param_list_lookup_string(pl, "t")) && strcmp(tmp, "auto") == 0) {
+          nthreads = 0;
+      } else {
+          param_list_parse_uint(pl, "t", &nthreads);
+      }
+  }
 
   if (param_list_parse_double (pl, "Bf", &bound_f) == 0) /* no -Bf */
     bound_f = BOUND_F;
@@ -750,18 +758,15 @@ main_basic (int argc, char **argv)
   verbose_interpret_parameters(pl);
   param_list_print_command_line (stdout, pl);
 
-  /* Check that nthreads is >= 1 */
-  if (nthreads == 0)
-  {
-    fprintf (stderr, "Error, -t must be non-zero.\n");
-    usage_basic (argv0[0], NULL, pl);
-  }
-
   if (polys_filename == NULL)
     usage_basic (argv0[0], "inputpolys", pl);
 
-  printf ("# Info: Will use %u thread%s\n# Info: ropteffort = %.0f\n", nthreads,
-          (nthreads > 1) ? "s": "", rparam->effort);
+  if (nthreads) {
+      printf ("# Info: Will use %u thread%s\n", nthreads, (nthreads > 1) ? "s": "");
+  } else {
+      printf ("# Info: Will use an automatic number of threads\n");
+  }
+  printf("# Info: ropteffort = %.0f\n", rparam->effort);
 
   printf ("# Info: L1_cachesize = %u, size_tune_sievearray = %u\n",
           L1_cachesize, size_tune_sievearray);
@@ -809,7 +814,9 @@ main_basic (int argc, char **argv)
 
   /* Main loop: do root-optimization on input_polys. */
 #ifdef HAVE_OPENMP
-  omp_set_num_threads (nthreads);
+  if (nthreads)
+      omp_set_num_threads (nthreads);
+  /* if nthreads is zero, we use an automatic number of threads */
 #pragma omp parallel
 #pragma omp master
   printf ("# Info: Using OpenMP with %u thread(s)\n", omp_get_num_threads ());
