@@ -214,7 +214,7 @@ heap_clear ()
 
 
 /* Returns a pointer to allocated space holding a size-s array of typerow_t.
-   This function is thread-safe thanks to the threadprivate directive above. */
+   Thread-safe. */
 static inline typerow_t * heap_malloc (size_t s)
 {
   ASSERT(s <= PAGE_DATA_SIZE);
