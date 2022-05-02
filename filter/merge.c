@@ -388,12 +388,11 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
             } /* end parallel section */
         }
 
-        #ifdef FOR_DL
-        /* For the discrete logarithm, we keep the inverse of p, to print the
-	original columns in the history file.
-	Warning: for a column j of weight 0, we have p[j] = p[j'] where
-	j' is the smallest column > j of positive weight, thus we only consider
-	j such that p[j] < p[j+1], or j = ncols-1. */
+        /* We keep the inverse of p, to print the
+	   original columns in the history file.
+	   Warning: for a column j of weight 0, we have p[j] = p[j'] where
+	   j' is the smallest column > j of positive weight, thus we only consider
+	   j such that p[j] < p[j+1], or j = ncols-1. */
         if (mat->p == NULL) {
         	mat->p = malloc(mat->rem_ncols * sizeof (index_t));
                 /* We must pay attention to the case of empty columns at the
@@ -424,8 +423,7 @@ https://cado-nfs-ci.loria.fr/ci/job/future-parallel-merge/job/compile-debian-tes
 		free(mat->p);
 		mat->p = new_p;
         }
-        #endif
-
+        
 	free(mat->wt);
 	mat->wt = nwt;
 
@@ -945,11 +943,7 @@ merge_cost (filter_matrix_t *mat, index_t id)
    Return the number of characters written, except the final \0
    (or that would have been written if that number >= size) */
 static int
-#ifndef FOR_DL
-sreportn (char *str, size_t size, index_signed_t *ind, int n)
-#else
 sreportn (char *str, size_t size, index_signed_t *ind, int n, index_t j)
-#endif
 {
   size_t m = 0; /* number of characters written */
 
@@ -963,9 +957,7 @@ sreportn (char *str, size_t size, index_signed_t *ind, int n, index_t j)
 	  ASSERT(m < size);
 	}
     }
-#ifdef FOR_DL
   m += snprintf (str + m, size - m, " #%lu", (unsigned long) j);
-#endif
   m += snprintf (str + m, size - m, "\n");
   ASSERT(m < size);
   return m;
@@ -1015,11 +1007,7 @@ merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
       char s[MERGE_CHAR_MAX];
       int n MAYBE_UNUSED;
       index_signed_t i = mat->Ri[t]; /* only row containing j */
-#ifndef FOR_DL
-      n = sreportn (s, MERGE_CHAR_MAX, &i, 1);
-#else
       n = sreportn (s, MERGE_CHAR_MAX, &i, 1, mat->p[j]);
-#endif
       ASSERT(n < MERGE_CHAR_MAX);
       buffer_add (buf, s);
       remove_row (mat, i);
@@ -1043,14 +1031,9 @@ merge_do (filter_matrix_t *mat, index_t id, buffer_struct_t *buf)
   int hmax = addFatherToSons (history, mat, w, ind, j, start, end);
   for (int i = hmax; i >= 0; i--)
     {
-#ifndef FOR_DL
-      n += sreportn (s + n, MERGE_CHAR_MAX - n,
-		     (index_signed_t*) (history[i]+1), history[i][0]);
-#else
       n += sreportn (s + n, MERGE_CHAR_MAX - n,
 		     (index_signed_t*) (history[i]+1), history[i][0],
 		     mat->p[j]);
-#endif
       ASSERT(n < MERGE_CHAR_MAX);
     }
   buffer_add (buf, s);
@@ -1465,10 +1448,8 @@ main (int argc, char *argv[])
     fprintf (history, "is added to i2, ..., ik, and row i1\n");
     fprintf (history, "# is removed afterwards ");
     fprintf (history, "(where row 0 is the first line in *.purged.gz).\n");
-#ifdef FOR_DL
     fprintf (history, "# A line ending with #j ");
     fprintf (history, "means that ideal of index j should be merged.\n");
-#endif
 
     /* Read number of rows and cols on first line of purged file */
     purgedfile_read_firstline (purgedname, &(mat->nrows), &(mat->ncols));
@@ -1482,10 +1463,6 @@ main (int argc, char *argv[])
     tt = seconds ();
     filter_matrix_read (mat, purgedname);
     printf ("Time for filter_matrix_read: %2.2lfs\n", seconds () - tt);
-
-
-
-
 
     check_matrix (mat);
 
@@ -1729,9 +1706,7 @@ main (int argc, char *argv[])
 
     heap_clear ();
 
-#ifdef FOR_DL
     free (mat->p);
-#endif
     free (mat->Rp);
     free (mat->Rq);
     free (mat->Rqinv);
