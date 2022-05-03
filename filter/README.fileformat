@@ -125,7 +125,7 @@ Otherwise here is the format (taken from a comment in replay.c):
    If i < 0 then
        row[-i-1] is to be added to rows i1...ik and NOT destroyed.
 
-For DL, the line ends with an additional "#j" entry, where j
+The line ends with an additional "#j" entry, where j
 is the index of the column that is used for pivoting.
 
 File XXX.ideal
