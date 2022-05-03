@@ -1,5 +1,5 @@
 set (bin_list
-        dup1 dup2 purge merge merge-dl replay replay-dl sm sm_simple reconstructlog-dl
+        dup1 dup2 purge merge merge-dl replay replay-dl replay-dblemat sm sm_simple reconstructlog-dl
 )
 
 set (purge_sources purge_matrix.c singleton_removal.c
@@ -39,6 +39,9 @@ target_link_libraries(replay utils_with_io)
 add_executable(replay-dl replay.c sparse.c)
 target_link_libraries(replay-dl utils_with_io)
 set_target_properties(replay-dl PROPERTIES COMPILE_FLAGS "-DFOR_DL")
+
+add_executable(replay-dblemat replay_dblemat.c sparse.c)
+target_link_libraries(replay-dblemat utils_with_io)
 
 add_executable(reconstructlog-dl reconstructlog.cpp)
 target_link_libraries(reconstructlog-dl utils_with_io)
