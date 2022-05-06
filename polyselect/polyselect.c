@@ -136,6 +136,7 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
       mpz_add(mtilde, mtilde, rq);
   }
   mpz_add(mtilde, mtilde, header->m0);
+
   /* we should have Ntilde - mtilde^d = 0 mod {p1^2,p2^2,q^2} */
 #ifndef NDEBUG
   {
@@ -146,7 +147,10 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
       mpz_sub(s, header->Ntilde, s);
       ASSERT_ALWAYS(mpz_tdiv_r_uint64(r, s, p1 * p1) == 0);
       ASSERT_ALWAYS(mpz_tdiv_r_uint64(r, s, p2 * p2) == 0);
-      ASSERT_ALWAYS(mpz_tdiv_r_uint64(r, s, q * q) == 0);
+      mpz_set_uint64(r, q);
+      mpz_mul(r, r, r);
+      mpz_tdiv_r(r, s, r);
+      ASSERT_ALWAYS(mpz_cmp_ui(r, 0) == 0);
       mpz_clear(s);
       mpz_clear(r);
   }
