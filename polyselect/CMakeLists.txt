@@ -21,7 +21,7 @@ add_library(polyselect_middle
     polyselect_arith.c
     polyselect_collisions.c
     polyselect_data_series.c
-    polyselect_hash.c
+    polyselect_special_q.c
     polyselect_thread.c
     polyselect_thread_team.c
     polyselect_thread_league.c

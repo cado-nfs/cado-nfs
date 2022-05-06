@@ -197,7 +197,9 @@ void polyselect_proots_compute_subtask(polyselect_thread_ptr thread)/*{{{*/
         if (polyselect_poly_header_skip(thread->team->header, p))
         {
             thread->team->R->nr[i] = 0;	// nr = 0.
-            thread->team->R->roots[i] = NULL;
+            // well, no, don't touch that! It's used later on. And in the
+            // non-flat model, it's definitely pre-allocated!
+            // thread->team->R->roots[i] = NULL;
             continue;
         }
 
