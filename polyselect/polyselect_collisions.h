@@ -4,7 +4,6 @@
 #include <gmp.h>
 #include "gmp_aux.h"
 #include "polyselect_thread.h"
-#include "polyselect_hash.h"
 #include "polyselect_shash.h"
 
 #ifdef __cplusplus

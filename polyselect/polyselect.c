@@ -48,6 +48,7 @@
 #include "polyselect_norms.h"
 #include "polyselect_thread.h"
 #include "polyselect_alpha.h"
+#include "polyselect_special_q.h"
 #include "portability.h"
 #include "roots_mod.h"
 #include "size_optimization.h"

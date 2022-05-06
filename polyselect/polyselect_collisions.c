@@ -15,7 +15,6 @@
 #include "mpz_poly.h"
 #include "polyselect_arith.h"
 #include "polyselect_shash.h"
-#include "polyselect_hash.h"
 #include "polyselect_main_queue.h"
 #include "portability.h"
 #include "roots_mod.h"
@@ -412,70 +411,6 @@ void polyselect_proots_dispatch_to_shash2_notflat(
     for (int i = 0; i < polyselect_SHASH_NBUCKETS; i++)
         ASSERT(H->current[i] <= H->base[i + 1]);
 }/*}}}*/
-
-#if 0
-/*{{{ polyselect_proots_dispatch_to_hash_notflat */
-/* same as above, but for a hash (not shash) table */
-static inline void polyselect_proots_dispatch_to_hash_notflat(
-        polyselect_hash_ptr H,
-        const uint32_t * Primes,
-        size_t lenPrimes,
-        uint64_t * const * roots_per_prime,
-        const uint8_t * number_of_roots_per_prime,
-        int64_t umax,
-        unsigned long q,
-        mpz_srcptr rq,
-        polyselect_thread_ptr thread
-        )
-{
-      for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
-       {
-         unsigned long p = Primes[nprimes];
-          int64_t ppl = (int64_t) p *(int64_t) p;
-         unsigned long nr = number_of_roots_per_prime[nprimes];
-         for (unsigned long j = 0; j < nr; j++)
-           {
-                // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
-                int64_t u0 = roots_per_prime[nprimes][j];
-                for(int64_t u = u0 ; u < umax ; u += ppl)
-                    polyselect_hash_add(H, p, u, q, rq, thread);
-                for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
-                    polyselect_hash_add(H, p, u, q, rq, thread);
-            }
-        }
-}/*}}}*/
-
-/*{{{ polyselect_proots_dispatch_to_hash_flat */
-static inline void polyselect_proots_dispatch_to_hash_flat(
-        polyselect_hash_ptr H,
-        const uint32_t * Primes,
-        size_t lenPrimes,
-        const unsigned long * roots_per_prime,
-        const uint8_t * number_of_roots_per_prime,
-        int64_t umax,
-        unsigned long q,
-        mpz_srcptr rq,
-        polyselect_thread_ptr thread
-        )
-{
-    unsigned long c = 0;
-    for (unsigned long nprimes = 0; nprimes < lenPrimes; nprimes++)
-    {
-        unsigned long p = Primes[nprimes];
-        int64_t ppl = (int64_t) p *(int64_t) p;
-        unsigned long nr = number_of_roots_per_prime[nprimes];
-        for (unsigned long j = 0; j < nr; j++, c++)
-        {
-            // int64_t u0 = (((int64_t) roots_per_prime[nprimes][j] + umax) % ppl) - umax;
-            int64_t u0 = roots_per_prime[c];
-            for(int64_t u = u0 ; u < umax ; u += ppl)
-                polyselect_hash_add(H, p, u, q, rq, thread);
-            for(int64_t u = u0 - ppl ; u + umax >= 0 ; u -= ppl)
-                polyselect_hash_add(H, p, u, q, rq, thread);
-        }
-    }
-}/*}}}*/
-#endif
 
 struct polyselect_CCS_subtask_data {
     unsigned long q;
