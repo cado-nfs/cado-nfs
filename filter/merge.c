@@ -1568,6 +1568,7 @@ main (int argc, char *argv[])
     unsigned long lastN, lastW;
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
+    int merge_pass = 0;
 
     /****** begin main loop ******/
     while (1) {
