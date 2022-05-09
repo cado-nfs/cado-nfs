@@ -3,15 +3,14 @@
 #include <stdlib.h>
 #include "typedefs.h"
 #include "merge_heap.h"
-#include "merge_bookkeeping.h"
-#include "sparse.h"
+#include "merge_replay_matrix.h"  // typerow_t, index_t, 
+#include "sparse.h" // rowCell
 #include "omp_proxy.h"
 #include "timing.h"  // seconds
 
 /*************************** heap structures *********************************/
 
-/* Allocates and garbage-collects relations (i.e. arrays of typerow_t).
-
+/* 
   Threads allocate PAGES of memory of a fixed size to store rows, and each
   thread has a single ACTIVE page in which it writes new rows. When the active
   page is FULL, the thread grabs an EMPTY page that becomes its new active page.
@@ -28,7 +27,7 @@
   procedure in parallel, while possible: grab a full page that was not created
   during this pass; copy all non-deleted rows to the current active page; mark the
   old full page as "empty". Note that moving row $i$ to a different address
-  in memory requires an update to the ``row pointer'' in [[mat]]; this is
+  in memory requires an update to the ``row pointer'' in [[rows]]; this is
   why rows are stored along with their number. When they need a new page, threads
   first try to grab an existing empty page. If there is none, a new page is
   allocated from the OS. There are global doubly-linked lists of full and empty
@@ -58,12 +57,12 @@ int heap_config_get_PAGE_DATA_SIZE()
     return PAGE_DATA_SIZE;
 }
 
-int n_pages, n_full_pages, n_empty_pages;
-struct pagelist_t headnode;                  // dummy node for the list of full pages
-struct pagelist_t *full_pages, *empty_pages; // head of the page linked lists
-
-struct page_t **active_page; /* active page of each thread */
-long long *heap_waste;       /* space wasted, per-thread. Can be negative! The sum over all threads is correct. */
+static int n_pages, n_full_pages, n_empty_pages;
+static struct pagelist_t headnode;                  // dummy node for the list of full pages
+static struct pagelist_t *full_pages, *empty_pages; // head of the page linked lists
+static struct page_t **active_page; /* active page of each thread */
+static long long *heap_waste;       /* space wasted, per-thread. Can be negative! The sum over all threads is correct. */
+static int current_generation;
 
 
 /* provide an empty page */
@@ -91,21 +90,21 @@ heap_get_free_page()
                 page->i = n_pages;
         }
         page->ptr = 0;
-        page->generation = merge_pass;
+        page->generation = current_generation;
         return page;
 }
 
-/* provide the oldest full page with generation < max_generation, or NULL if none is available,
+/* Provide the oldest full page with generation < current_generation, or NULL if none is available,
    and remove it from the doubly-linked list of full pages */
 static struct page_t *
-heap_get_full_page(int max_generation)
+heap_get_full_page()
 {
         struct pagelist_t *item = NULL;
         struct page_t *page = NULL;
         #pragma omp critical(pagelist)
         {
                 item = full_pages->next;
-                if (item->page != NULL && item->page->generation < max_generation) {
+                if (item->page != NULL && item->page->generation < current_generation) {
                         page = item->page;
                         item->next->prev = item->prev;
                         item->prev->next = item->next;
@@ -153,6 +152,8 @@ heap_release_page(struct page_t *page)
 void
 heap_setup()
 {
+        current_generation = 0;
+
         // setup the doubly-linked list of full pages.
         full_pages = &headnode;
         full_pages->page = NULL;
@@ -171,11 +172,6 @@ heap_setup()
         }
 }
 
-/* release all memory. This is technically not necessary, because the "malloc"
-   allocations are internal to the process, and all space allocated to the
-   process is reclaimed by the OS on termination. However, doing this enables
-   valgrind to check the absence of leaks.
-*/
 void
 heap_clear ()
 {
@@ -214,7 +210,7 @@ heap_clear ()
 
 
 /* Returns a pointer to allocated space holding a size-s array of typerow_t.
-   This function is thread-safe thanks to the threadprivate directive above. */
+   This function is thread-safe. */
 static inline typerow_t * heap_malloc (size_t s)
 {
   ASSERT(s <= PAGE_DATA_SIZE);
@@ -232,9 +228,7 @@ static inline typerow_t * heap_malloc (size_t s)
   return alloc;
 }
 
-/* Allocate space for row i, holding s coefficients in row[1:s+1] (row[0] == s).
-   This writes s in row[0]. The size of the row must not change afterwards. Thread-safe.
-*/
+
 typerow_t *
 heap_alloc_row (index_t i, size_t s)
 {
@@ -244,8 +238,6 @@ heap_alloc_row (index_t i, size_t s)
   return alloc + 1;
 }
 
-/* Shrinks the row. It must be the last one allocated by this thread. Thread-safe. */
-/* XXX was inline. check if performance hit when dropping inline */
 void
 heap_resize_last_row (typerow_t *row, index_t new_size)
 {
@@ -259,11 +251,9 @@ heap_resize_last_row (typerow_t *row, index_t new_size)
 }
 
 
-/* given the pointer provided by heap_alloc_row, mark the row as deleted.
-   Thread-safe */
-/* XXX was inline. check if performance hit when dropping inline */
+
 void
-heap_destroy_row (typerow_t *row)
+heap_destroy_row(typerow_t *row)
 {
   int t = omp_get_thread_num();
   rowCell(row, -1) = (index_signed_t) -1;
@@ -274,7 +264,7 @@ heap_destroy_row (typerow_t *row)
    return the page to the freelist. Thread-safe.
    Warning: this may fill the current active page and release it. */
 static int
-collect_page(filter_matrix_t *mat, struct page_t *page)
+collect_page(typerow_t **rows, struct page_t *page)
 {
         int garbage = 0;
         int bot = 0;
@@ -287,11 +277,11 @@ collect_page(filter_matrix_t *mat, struct page_t *page)
                 if (i == (index_signed_t) -1) {
                         garbage += size + 2;
                 } else {
-                        ASSERT(mat->rows[i] == old);
+                        ASSERT(rows[i] == old);
                         typerow_t * new = heap_alloc_row(i, size);
                         memcpy(new, old, (size + 1) * sizeof(typerow_t));
                         setCell(new, -1, rowCell(old, -1), 0);
-                        mat->rows[i] = new;
+                        rows[i] = new;
                 }
                 bot += size + 2;
         }
@@ -312,38 +302,30 @@ heap_waste_ratio()
         return waste;
 }
 
-/* examine every full pages not created during the current pass and reclaim all lost space */
 void
-full_garbage_collection(filter_matrix_t *mat)
+heap_garbage_collection(typerow_t **rows)
 {
-        double cpu8 = seconds (), wct8 = wct_seconds ();
         double waste = heap_waste_ratio();
         printf("Starting collection with %.0f%% of waste...", 100 * waste);
         fflush(stdout);
 
         // I don't want to collect pages just filled during the collection
-        int max_generation = merge_pass;
+        current_generation++;
 
         int i = 0;
         int initial_full_pages = n_full_pages;
         struct page_t *page;
         long long collected_garbage = 0;
         #pragma omp parallel reduction(+:i, collected_garbage) private(page)
-        while ((page = heap_get_full_page(max_generation)) != NULL) {
-                collected_garbage += collect_page(mat, page);
+        while ((page = heap_get_full_page()) != NULL) {
+                collected_garbage += collect_page(rows, page);
                 i++;
         }
 
         double page_ratio = (double) i / initial_full_pages;
         double recycling = 1 - heap_waste_ratio() / waste;
-        i += !i; // avoid division by zero
+        if (i == 0)
+                i = 1; // avoid division by zero
         printf("Examined %.0f%% of full pages, recycled %.0f%% of waste. %.0f%% of examined data was garbage\n",
         	100 * page_ratio, 100 * recycling, 100.0 * collected_garbage / i / PAGE_DATA_SIZE);
-
-        cpu8 = seconds () - cpu8;
-        wct8 = wct_seconds () - wct8;
-        print_timings ("   GC took", cpu8, wct8);
-        cpu_t[GC] += cpu8;
-        wct_t[GC] += wct8;
 }
-

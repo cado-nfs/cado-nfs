@@ -1574,8 +1574,15 @@ main (int argc, char *argv[])
 	double cpu1 = seconds (), wct1 = wct_seconds ();
 	merge_pass++;
 
-        if (merge_pass == 2 || mat->cwmax > 2)
-                full_garbage_collection(mat);
+        if (merge_pass == 2 || mat->cwmax > 2) {
+                double cpu8 = seconds (), wct8 = wct_seconds ();
+                heap_garbage_collection(mat->rows);
+                 cpu8 = seconds () - cpu8;
+                wct8 = wct_seconds () - wct8;
+                print_timings ("   GC took", cpu8, wct8);
+                cpu_t[GC] += cpu8;
+                wct_t[GC] += wct8;
+        }
 
 	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
 	   merges. If one decreases cbound_incr, the final matrix will be
