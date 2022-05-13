@@ -494,7 +494,8 @@ void mpfq_pz_set_ui(mpfq_pz_dst_field k, mpfq_pz_dst_elt z, unsigned long x0)
 {
         ASSERT_FOR_STATIC_ANALYZER(mpz_size(k->p) > 1 || mpz_getlimbn(k->p, 0) > 0);
         z[0] = mpz_size(k->p) == 1 ? x0 % mpz_getlimbn(k->p, 0) : x0;
-        mpfq_zero(z + 1, (mpz_size(k->p) - 1));
+        if (mpz_size(k->p) >= 1)
+            mpfq_zero(z + 1, (mpz_size(k->p) - 1));
 }
 
 /* *pz::code_for_set_zero */
