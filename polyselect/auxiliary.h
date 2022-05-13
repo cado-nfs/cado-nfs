@@ -65,7 +65,7 @@ typedef struct cado_poly_stats_s cado_poly_stats[1];
 typedef struct cado_poly_stats_s * cado_poly_stats_ptr;
 typedef const struct cado_poly_stats_s * cado_poly_stats_srcptr;
 
-extern void cado_poly_stats_init(cado_poly_stats_ptr spoly, cado_poly_srcptr cpoly);
+extern void cado_poly_stats_init(cado_poly_stats_ptr spoly, int nb_polys);
 extern void cado_poly_stats_clear(cado_poly_stats_ptr spoly);
 
 /* returns the average exp_E for nonlinear polynomials */

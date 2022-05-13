@@ -109,7 +109,7 @@ int main (int argc, char **argv)
   {
     {
         cado_poly_stats raw_stats;
-        cado_poly_stats_init(raw_stats, cpoly);
+        cado_poly_stats_init(raw_stats, 2);
 
         printf ("\n### Input raw polynomial (%u) ###\n", nb_input_polys);
         cado_poly_set_skewness_if_undefined(cpoly);
@@ -136,7 +136,7 @@ int main (int argc, char **argv)
 
     {
         cado_poly_stats sopt_stats;
-        cado_poly_stats_init(sopt_stats, cpoly);
+        cado_poly_stats_init(sopt_stats, 2);
 
         printf ("### Size-optimized polynomial (%u) ###\n", nb_input_polys);
         cado_poly_set_skewness_if_undefined(cpoly);

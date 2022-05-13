@@ -119,7 +119,7 @@ print_cadopoly (FILE *fp, cado_poly_srcptr cpoly)
    fprintf (fp, "skew: %1.3f\n", cpoly->skew);
 
    cado_poly_stats spoly;
-   cado_poly_stats_init(spoly, cpoly);
+   cado_poly_stats_init(spoly, 2);
    cado_poly_compute_stats(spoly, cpoly);
    cado_poly_fprintf_stats(fp, NULL, cpoly, spoly);
    cado_poly_stats_clear(spoly);
@@ -221,11 +221,11 @@ void cado_poly_set_skewness_if_undefined(cado_poly_ptr cpoly)
 }
 
 
-void cado_poly_stats_init(cado_poly_stats_ptr spoly, cado_poly_srcptr cpoly)
+void cado_poly_stats_init(cado_poly_stats_ptr spoly, int nb_polys)
 {
-    spoly->nb_polys = cpoly->nb_polys;
+    spoly->nb_polys = nb_polys;
     spoly->pols = malloc(spoly->nb_polys * sizeof(*spoly->pols));
-    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
+    for(int side = 0 ; side < nb_polys ; side++) {
             spoly->pols[side]->nrroots = 0;
             spoly->pols[side]->lognorm = 0;
             spoly->pols[side]->alpha = 0;

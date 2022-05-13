@@ -928,6 +928,8 @@ polyselect/area.c
 polyselect/area.h
 polyselect/auxiliary.c
 polyselect/auxiliary.h
+polyselect/best_polynomials_queue.cpp
+polyselect/best_polynomials_queue.h
 polyselect/dlpolyselect.c
 polyselect/gfpkdlpolyselect.c
 polyselect/gfpkdlpolyselect.h
@@ -1539,6 +1541,7 @@ tests/utils/test_gpf.c
 tests/utils/test_intinv.c
 tests/utils/test_json_parsing.cpp
 tests/utils/test_memusage.c
+tests/utils/test_min_max_heap.cpp
 tests/utils/test_mmappable_vector.cpp
 tests/utils/test_mod.c
 tests/utils/test_mod.cpp
@@ -1669,6 +1672,7 @@ utils/memory.c
 utils/memory.h
 utils/memusage.c
 utils/memusage.h
+utils/min_max_heap.hpp
 utils/misc.c
 utils/misc.h
 utils/misc2.cpp

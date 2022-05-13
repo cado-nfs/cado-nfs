@@ -47,18 +47,19 @@
 #include "timing.h"             // for seconds_thread
 #include "verbose.h"             // verbose_output_print
 #include "version_info.h"        // cado_revision_string
+#include "best_polynomials_queue.h"        // cado_revision_string
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
                                                      lock for output */
 unsigned int nthreads = 1;
 int tot_found = 0; /* total number of polynomials */
-cado_poly best_poly;
-double best_MurphyE = 0.0; /* Murphy's E (the larger the better) */
 ropt_param rparam; /* params for ropt algorithms */
 double total_exp_E = 0.0; /* cumulated expected E for input polynomials */
 double total_E = 0.0; /* cumulated E-value for input polynomials */
 double nb_read = 0.0; /* number of read polynomials so far */
 double nb_optimized = 0.0; /* number of optimized polynomials so far */
+
+best_polynomials_queue best_polys;
 
 /**
  * Usage
@@ -429,7 +430,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   {
       cado_poly_stats input_stats;
 
-      cado_poly_stats_init(input_stats, input_poly);
+      cado_poly_stats_init(input_stats, 2);
 
       cado_poly_set_skewness_if_undefined(input_poly);
 
@@ -488,16 +489,11 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   tott->ropt_time_tuning += eacht->ropt_time_tuning;
   tott->ropt_time_stage2 += eacht->ropt_time_stage2;
 
-  if (curr_MurphyE > best_MurphyE)
-    {
-      best_MurphyE = curr_MurphyE;
-      cado_poly_set (best_poly, ropt_poly);
-    }
-
+  best_polynomials_queue_try_push(best_polys, ropt_poly, curr_MurphyE);
 
   {
       cado_poly_stats ropt_stats;
-      cado_poly_stats_init(ropt_stats, ropt_poly);
+      cado_poly_stats_init(ropt_stats, 2);
 
       cado_poly_set_skewness_if_undefined(ropt_poly);
 
@@ -514,7 +510,8 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   }
 
   printf ("### Best MurphyE so far is %.3e, av. exp_E %.2f, av. E %.2f\n",
-          best_MurphyE, total_exp_E / nb_read, total_E / nb_optimized);
+          best_polynomials_queue_get_best_score(best_polys),
+          total_exp_E / nb_read, total_E / nb_optimized);
   fflush (stdout);
 
   if (nthreads != 1)
@@ -666,6 +663,23 @@ usage_basic (const char *argv, const char * missing, param_list pl)
   exit (EXIT_FAILURE);
 }
 
+void cado_poly_ropt_printer(int i, double score, cado_poly_ptr best_poly, void * arg)
+{
+    cado_poly_stats_ptr best_stats = arg;
+
+    cado_poly_set_skewness_if_undefined(best_poly);
+
+    cado_poly_compute_stats(best_stats, best_poly);
+
+    printf ("# %d-th best polynomial found (revision %s):\n", i, cado_revision_string);
+
+    cado_poly_fprintf (stdout, "# ", best_poly);
+    cado_poly_fprintf_stats(stdout, "# ", best_poly, best_stats);
+    fflush (stdout);
+
+    cado_poly_fprintf_MurphyE (stdout, "# ", ALG_SIDE, score, bound_f, bound_g, area);
+
+}
 
 /**
  * Interface main_basic()
@@ -688,7 +702,8 @@ main_basic (int argc, char **argv)
   tott->ropt_time_tuning = 0.0;
   tott->ropt_time_stage2 = 0.0;
 
-  cado_poly_init (best_poly);
+  best_polynomials_queue_init(best_polys, 1);
+
   input_polys = (cado_poly *) malloc (size_input_polys * sizeof (cado_poly));
   ASSERT_ALWAYS (input_polys != NULL);
   for (unsigned int i = 0; i < size_input_polys; i++)
@@ -851,7 +866,7 @@ main_basic (int argc, char **argv)
     printf ("# Stat: rootsieve took 0s (fake placeholder, we lack RUSAGE_THREAD)\n");
   }
 
-  if (best_MurphyE == 0.0)
+  if (best_polynomials_queue_get_count(best_polys) == 0)
   {
     if (nb_input_polys > 0)
     {
@@ -869,21 +884,10 @@ main_basic (int argc, char **argv)
   } else {
       cado_poly_stats best_stats;
 
-      cado_poly_stats_init(best_stats, best_poly);
+      cado_poly_stats_init(best_stats, 2);
 
-      cado_poly_set_skewness_if_undefined(best_poly);
-
-      cado_poly_compute_stats(best_stats, best_poly);
-
-      printf ("# Best polynomial found (revision %s):\n", cado_revision_string);
-
-      cado_poly_fprintf (stdout, "# ", best_poly);
-      cado_poly_fprintf_stats(stdout, "# ", best_poly, best_stats);
-      fflush (stdout);
-
+      best_polynomials_queue_do(best_polys, cado_poly_ropt_printer, best_stats);
       cado_poly_stats_clear(best_stats);
-      cado_poly_fprintf_MurphyE (stdout, "# ", ALG_SIDE, best_MurphyE, bound_f, bound_g, area);
-
       printf ("# Average exp_E: %.2f, average E: %.2f\n",
               total_exp_E / (double) nb_input_polys,
               total_E / (double) nb_input_polys);
@@ -891,7 +895,7 @@ main_basic (int argc, char **argv)
 
 
   ropt_param_clear (rparam);
-  cado_poly_clear (best_poly);
+  best_polynomials_queue_clear(best_polys);
   for (unsigned int i = 0; i < size_input_polys; i++)
     cado_poly_clear (input_polys[i]);
   free (input_polys);
