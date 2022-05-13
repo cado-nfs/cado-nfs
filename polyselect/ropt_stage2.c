@@ -200,7 +200,7 @@ rootsieve_run_multroot_lift ( node *currnode,
 
   /* variables */
   int16_t subtmp;
-  unsigned int i, j, k, l, nroots, pe, pl, pem1, fr, gr, step;
+  unsigned int i, j, k, nroots, pe, pl, pem1, fr, gr, step;
   node *tmpnode = NULL, *tmpnode2 = NULL;
   long i_idx, j_idx;
 
@@ -211,12 +211,10 @@ rootsieve_run_multroot_lift ( node *currnode,
   pe = pem1 * p;
 
   /* val of p in MOD */
-  l = 0;
   pl = p;
   while (mpz_divisible_ui_p(s2param->MOD, pl) != 0) {
-    l ++;
     pl *= p;
-  } // pl is p^{l+1}
+  }
   pl /= p;
 
   /* loop until all siblings are checked. */
