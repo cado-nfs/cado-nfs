@@ -22,7 +22,7 @@ typedef struct
 extern "C" {
 #endif
 
-void SHA1Transform(uint32_t state[5], const unsigned char buffer[64]);
+void SHA1Transform(uint32_t * state, const unsigned char * buffer);
 void SHA1Init(SHA1_CTX * context); 
 void SHA1Update(SHA1_CTX * context, const unsigned char *data, uint32_t len);
 void SHA1Final(unsigned char digest[20], SHA1_CTX * context);
