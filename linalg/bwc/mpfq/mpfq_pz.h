@@ -494,8 +494,20 @@ void mpfq_pz_set_ui(mpfq_pz_dst_field k, mpfq_pz_dst_elt z, unsigned long x0)
 {
         ASSERT_FOR_STATIC_ANALYZER(mpz_size(k->p) > 1 || mpz_getlimbn(k->p, 0) > 0);
         z[0] = mpz_size(k->p) == 1 ? x0 % mpz_getlimbn(k->p, 0) : x0;
-        if (mpz_size(k->p) >= 1)
+        if (mpz_size(k->p) >= 1) {
+            /* Sigh. mpz_size(k->p) is a size_t. As such, it is bounded by
+             * SIZE_MAX, and gcc 12+ sees it as such. It is apparently not
+             * possible to use this bound in a memset directly.
+             */
+#if GNUC_VERSION_ATLEAST(7,1,0)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
             mpfq_zero(z + 1, (mpz_size(k->p) - 1));
+#if GNUC_VERSION_ATLEAST(7,1,0)
+#pragma GCC diagnostic pop
+#endif
+        }
 }
 
 /* *pz::code_for_set_zero */
