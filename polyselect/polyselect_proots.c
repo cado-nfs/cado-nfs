@@ -134,8 +134,6 @@ roots_lift (uint64_t *r, mpz_srcptr N, unsigned long d, mpz_srcptr m0,
     }
 
     for (i = j = 0; j < n; j++) {
-        if (rz[j] == 0)
-          continue;
 	mpz_pow_ui (tmp, rz[j], d - 1);
 	mpz_mul (lambda, tmp, rz[j]);    /* lambda = r^d */
 	mpz_sub (lambda, N, lambda);
