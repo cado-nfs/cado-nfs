@@ -480,11 +480,9 @@ L2_skewness_deg6 (mpz_poly_ptr f MAYBE_UNUSED, double_poly_srcptr ff,
 
   df->deg = 6;
   k = numberOfRealRoots ((const mpz_t *) df->coeff, 6, 0.0, 0, Roots);
-  int kpos = 0;
   for (i = 0; i < k; i++)
     if (mpz_sgn (Roots[i].b) > 0)
       {
-        kpos ++;
         s = rootRefine (Roots + i, (const mpz_t *) df->coeff, 6, ldexp (1.0, -prec));
         s = sqrt (s);
         logmu = L2_lognorm_d (ff, s);
