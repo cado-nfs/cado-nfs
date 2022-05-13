@@ -173,11 +173,7 @@ int main(int argc, char * argv[])
     if ((tmp = param_list_lookup_string(pl, "polystr")) != NULL) {
         int side = 0;
         cxx_mpz_poly f;
-        string stmp(tmp);
-        for(unsigned int i = 0 ; i < stmp.size() ; i++) {
-            if (stmp[i]==',') stmp[i]=' ';
-        }
-        istringstream is(stmp);
+        istringstream is(tmp);
         if (!(is >> f))
             usage(pl, original_argv, "cannot parse polynomial");
 
