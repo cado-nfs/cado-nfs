@@ -91,7 +91,7 @@ ropt_quadratic_tune_stage1 ( ropt_poly_ptr poly,
   for (i = bound->global_w_boundl; i <= bound->global_w_boundr; i++) {
     if (old_verbose >= 2 && k % 10 == 0)
       fprintf (stderr, "# Info: quadratic rotation range %d*x^2\n", i);
-    old_i = rotate_aux (poly->pols[1], poly->pols[0], old_i, i, 2);
+    old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, i, 2);
     ropt_poly_setup (poly);
     r = ropt_stage1 (poly, bound, s1param, param, alpha_pqueue_all_w, i);
     k ++;
@@ -99,7 +99,7 @@ ropt_quadratic_tune_stage1 ( ropt_poly_ptr poly,
 
   /* get/rotate back */
   param->verbose = old_verbose;
-  old_i = rotate_aux (poly->pols[1], poly->pols[0], old_i, 0, 2);
+  old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
   ropt_poly_setup (poly);
 
   /* fetch all w */
@@ -153,7 +153,7 @@ ropt_quadratic_tune_stage1 ( ropt_poly_ptr poly,
                "by %d*x^2\n", w);
 
     /* quadratic rotation and setup */
-    old_i = rotate_aux (poly->pols[1], poly->pols[0], old_i, w, 2);
+    old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, w, 2);
     ropt_poly_setup (poly);
 
     /* tune incr */
@@ -173,7 +173,7 @@ ropt_quadratic_tune_stage1 ( ropt_poly_ptr poly,
     fprintf (stderr, "\n");
 
   /* rotate back */
-  old_i = rotate_aux (poly->pols[1], poly->pols[0], old_i, 0, 2);
+  old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
   ropt_poly_setup (poly);
 
   /* clear */

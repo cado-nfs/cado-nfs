@@ -19,6 +19,7 @@
 #include "mpz_poly.h"
 #include "timing.h"             // for milliseconds
 #include "polyselect_norms.h"
+#include "ropt_sublattice_priority_queue.h"
 
 
 /**
@@ -328,7 +329,7 @@ find_sublattice ( single_sublattice_pq *top,
 
     /* data struct for the lift */
     unsigned int *f_ui, *g_ui, *fuv_ui;
-    int d = mpz_poly_degree(poly->pols[1]);
+    int d = mpz_poly_degree(poly->cpoly->pols[1]);
     f_ui = (unsigned int*) malloc ( (d + 1) * sizeof (unsigned int) );
     fuv_ui = (unsigned int*) malloc ( (d + 1) * sizeof (unsigned int) );
     g_ui = (unsigned int*) malloc ( 2 * sizeof (unsigned int) );
@@ -342,8 +343,8 @@ find_sublattice ( single_sublattice_pq *top,
     }
 
     /* compute f (mod pe) */
-    reduce_poly_ul (f_ui, poly->pols[1], pe);
-    reduce_poly_ul (g_ui, poly->pols[0], pe);
+    reduce_poly_ul (f_ui, poly->cpoly->pols[1], pe);
+    reduce_poly_ul (g_ui, poly->cpoly->pols[0], pe);
 
     find_sublattice_lift ( root->firstchild,
                            top,
@@ -375,7 +376,7 @@ return_combined_sublattice_crt ( ropt_s1param_ptr s1param,
                                  unsigned int ***individual_sublattices,
                                  float **individual_sublattices_weighted_val,
                                  unsigned int *tprimes,
-                                 sublattice_pq *pqueue )
+                                 sublattice_priority_queue_ptr pqueue )
 {
   unsigned int i, e, pe[s1param->tlen_e_sl];
   mpz_t sum, inv, re, pe_z, tmpu1, tmpu2;
@@ -435,7 +436,7 @@ return_combined_sublattice_crt ( ropt_s1param_ptr s1param,
     mpz_mod (tmpu2, sum, s1param->modulus);
 
     /* insert this node */
-    insert_sublattice_pq ( pqueue, tmpu1, tmpu2, s1param->modulus, val );
+    sublattice_priority_queue_push(pqueue, tmpu1, tmpu2, s1param->modulus, val );
   }
 
   mpz_clear (sum);
@@ -479,7 +480,7 @@ static inline int
 return_combined_sublattice ( ropt_poly_srcptr poly,
                              ropt_s1param_ptr s1param,
                              ropt_bound_srcptr bound,
-                             sublattice_pq *pqueue,
+                             sublattice_priority_queue_ptr pqueue,
                              int verbose )
 {
   /* get s1param->tlen_e_sl */
@@ -802,7 +803,7 @@ static inline int
 return_best_sublattice ( ropt_poly_srcptr poly,
                          ropt_s1param_ptr s1param,
                          ropt_bound_ptr bound,
-                         sublattice_pq *pqueue,
+                         sublattice_priority_queue_ptr pqueue,
                          int verbose )
 {
   unsigned long tmp = bound->global_u_boundr;
@@ -821,7 +822,7 @@ return_best_sublattice ( ropt_poly_srcptr poly,
   /* If no sublattice is found with u < bound->global_u_bound,
      then we try to enlarge u bound. */
   int count = 1;
-  while (pqueue->used == 1) {
+  while (sublattice_priority_queue_empty(pqueue)) {
     if (bound->global_u_boundr < (LONG_MAX>>1)) {
       bound->global_u_boundr *= 2;
       if (verbose >= 2) {
@@ -845,9 +846,9 @@ return_best_sublattice ( ropt_poly_srcptr poly,
   /* info */
   if (verbose >= 2) {
     fprintf ( stderr,
-              "# Info: found    %8d lat (\"size_total_sublattices\") "
+              "# Info: found    %8zu lat (\"size_total_sublattices\") "
               "where |u| < %lu\n",
-              pqueue->used - 1, bound->global_u_boundr);
+              sublattice_priority_queue_size(pqueue), bound->global_u_boundr);
   }
 
   /* recover, for deg 6 poly */
@@ -856,70 +857,25 @@ return_best_sublattice ( ropt_poly_srcptr poly,
   return 1;
 }
 
-
-/**
- * Stage 1: record good sublattices to "alpha_pqueue".
+/* This is used by sublattice_priority_queue_do()
  */
-int
-ropt_stage1 ( ropt_poly_srcptr poly,
-              ropt_bound_ptr bound,
-              ropt_s1param_ptr s1param,
-              ropt_param_srcptr param,
-              alpha_pq *alpha_pqueue,
-              int current_w )
+struct transfer_to_alpha_priority_queue_arg {
+    alpha_pq * alpha_pqueue;
+    cado_poly_srcptr cpoly;
+    int current_w;
+};
+
+void transfer_to_alpha_priority_queue(mpz_srcptr u, mpz_srcptr v, mpz_srcptr modulus, void * arg)
 {
-  int st = 0, i, re;
-  double alpha_lat;
-  sublattice_pq *pqueue;
-  unsigned long len_part_alpha = s1param->nbest_sl *
-    TUNE_RATIO_STAGE1_PART_ALPHA * param->effort;
-  unsigned long len_full_alpha = s1param->nbest_sl *
-    TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort;
+    struct transfer_to_alpha_priority_queue_arg * A = arg;
 
-  if (len_part_alpha < 2)
-    len_part_alpha = 2; /* required by new_sublattice_pq() */
+    /* fuv is f+(u*x+v)*g */
+    mpz_poly Fuv;
+    mpz_poly_init (Fuv, -1);
 
-  /* size-cutoff of top sublattices based on partial alpha */
-  new_sublattice_pq (&pqueue, len_part_alpha);
-  
-  /* return the nbest sublattices to pqueue ranked by the size of u */
-  if (param->verbose >= 2)
-    st = milliseconds ();
+    compute_fuv_mp ( Fuv, A->cpoly->pols[1], A->cpoly->pols[0], u, v);
 
-  re = return_best_sublattice ( poly,
-                                s1param,
-                                bound,
-                                pqueue,
-                                param->verbose );
-
-  if (re == -1) {
-    free_sublattice_pq (&pqueue);
-    return -1;
-  }
-
-  if (param->verbose >= 2) {
-    gmp_fprintf ( stderr, "# Info: found    %8lu lat with part alpha\n",
-                  pqueue->used-1);
-    if ((long) len_full_alpha > pqueue->used-1)
-      len_full_alpha = pqueue->used-1;
-    gmp_fprintf ( stderr, "# Info: ranked   %8lu lat with full alpha\n",
-                  len_full_alpha);
-    gmp_fprintf ( stderr, "# Info: find best lat took %lums\n",
-                  milliseconds () - st );
-  }
-
-  /* fuv is f+(u*x+v)*g */
-  mpz_poly Fuv;
-  mpz_poly_init (Fuv, -1);
-
-  if (param->verbose >= 2)
-    st = milliseconds ();
-  
-  /* put pqueue into the global alpha_pqueue ranked by parial alpha */
-  for (i = 1; i < pqueue->used; i ++) {
-    compute_fuv_mp ( Fuv, poly->pols[1], poly->pols[0],
-                     pqueue->u[i], pqueue->v[i] );
-
+    double alpha_lat;
 
 #if RANK_SUBLATTICE_BY_E
     /* use exp_E as benchmark instead of alpha. */
@@ -935,33 +891,86 @@ ropt_stage1 ( ropt_poly_srcptr poly,
     skew = L2_skewness (Fuv, SKEWNESS_DEFAULT_PREC);
     double logmu = L2_lognorm (Fuv, skew);
     gmp_fprintf ( stderr, "# Info: insert lat #%4d, (w, u, v): "
-                  "(%d, %Zd, %Zd) (mod %Zd), partial_alpha: %.2f,"
-                  "lognorm: %.2f\n",
-                  i,
-                  current_w,
-                  pqueue->u[i],
-                  pqueue->v[i],
-                  pqueue->modulus[i],
-                  alpha_lat,
-                  logmu );
+            "(%d, %Zd, %Zd) (mod %Zd), partial_alpha: %.2f,"
+            "lognorm: %.2f\n",
+            i,
+            current_w,
+            pqueue->u[i],
+            pqueue->v[i],
+            pqueue->modulus[i],
+            alpha_lat,
+            logmu );
 #endif
 
     /* insert to a global priority queue */
-    insert_alpha_pq ( alpha_pqueue,
-                      current_w,
-                      pqueue->u[i],
-                      pqueue->v[i],
-                      pqueue->modulus[i],
-                      alpha_lat );
+    insert_alpha_pq (A->alpha_pqueue,
+            A->current_w,
+            u, v, modulus, alpha_lat);
+    mpz_poly_clear (Fuv);
+}
+
+
+/**
+ * Stage 1: record good sublattices to "alpha_pqueue".
+ */
+int
+ropt_stage1 ( ropt_poly_srcptr poly,
+              ropt_bound_ptr bound,
+              ropt_s1param_ptr s1param,
+              ropt_param_srcptr param,
+              alpha_pq *alpha_pqueue,
+              int current_w )
+{
+  int st = 0, re;
+  sublattice_priority_queue pqueue;
+  size_t len_part_alpha = s1param->nbest_sl *
+    TUNE_RATIO_STAGE1_PART_ALPHA * param->effort;
+  size_t len_full_alpha = s1param->nbest_sl *
+    TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort;
+
+  /* size-cutoff of top sublattices based on partial alpha */
+  sublattice_priority_queue_init (pqueue, len_part_alpha);
+  
+  /* return the nbest sublattices to pqueue ranked by the size of u */
+  if (param->verbose >= 2)
+    st = milliseconds ();
+
+  re = return_best_sublattice ( poly,
+                                s1param,
+                                bound,
+                                pqueue,
+                                param->verbose );
+
+  if (re == -1) {
+    sublattice_priority_queue_clear (pqueue);
+    return -1;
   }
+
+  if (param->verbose >= 2) {
+    gmp_fprintf ( stderr, "# Info: found    %8lu lat with part alpha\n",
+            sublattice_priority_queue_size(pqueue));
+    gmp_fprintf ( stderr, "# Info: ranked   %8zu lat with full alpha\n",
+                  MIN(len_full_alpha, sublattice_priority_queue_size(pqueue)));
+    gmp_fprintf ( stderr, "# Info: find best lat took %lums\n",
+                  milliseconds () - st );
+  }
+
+  if (param->verbose >= 2)
+    st = milliseconds ();
+  
+  struct transfer_to_alpha_priority_queue_arg arg[1];
+  arg->alpha_pqueue = alpha_pqueue;
+  arg->cpoly = poly->cpoly;
+  arg->current_w = current_w;
+
+  sublattice_priority_queue_do(pqueue, transfer_to_alpha_priority_queue, arg);
  
   if (param->verbose >= 2)
     gmp_fprintf ( stderr, "# Info: rank lat took %lums\n",
                   milliseconds () - st );
 
   /* free priority queue */
-  free_sublattice_pq (&pqueue);
-  mpz_poly_clear (Fuv);
+  sublattice_priority_queue_clear(pqueue);
 
   return 0;
 }

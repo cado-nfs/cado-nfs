@@ -36,18 +36,6 @@ typedef struct single_sublattice_pq_t {
 } single_sublattice_pq;
 
 
-/**
- * Priority queue for sublattices over a product of p^e.
- */
-typedef struct sublattice_pq_t {
-  mpz_t *u;
-  mpz_t *v;
-  mpz_t *modulus;
-  float *val;
-  int len;
-  int used;
-} sublattice_pq;
-
 
 /**
  * Priority queue to record sublattices (w, u, v)'s alpha's.
@@ -113,18 +101,6 @@ void insert_node ( node *parent,
 
 void free_node ( node **ptr );
 
-/* sublattice_pq, used in ropt_stage1.c */
-void new_sublattice_pq ( sublattice_pq **ppqueue,
-                         unsigned long len );
-
-void insert_sublattice_pq ( sublattice_pq *pqueue,
-                            mpz_t u,
-                            mpz_t v,
-                            mpz_t mod, 
-                            float val );
-
-void free_sublattice_pq ( sublattice_pq **ppqueue );
-
 /* single_sublattice_pq, used in ropt_stage1.c */
 void new_single_sublattice_pq ( single_sublattice_pq **top,
                                 unsigned long len );
@@ -149,16 +125,16 @@ void new_alpha_pq ( alpha_pq **ppqueue,
 
 void insert_alpha_pq ( alpha_pq *pqueue, 
                        int w,
-                       mpz_t u,
-                       mpz_t v,
-                       mpz_t modulus,
+                       mpz_srcptr u,
+                       mpz_srcptr v,
+                       mpz_srcptr modulus,
                        double alpha );
 
 void extract_alpha_pq ( alpha_pq *pqueue,
                         int *w,
-                        mpz_t u,
-                        mpz_t v,
-                        mpz_t modulus,
+                        mpz_ptr u,
+                        mpz_ptr v,
+                        mpz_ptr modulus,
                         double *alpha );
 
 void reset_alpha_pq ( alpha_pq *pqueue );
@@ -193,9 +169,9 @@ void insert_MurphyE_pq ( MurphyE_pq *pqueue,
 
 void extract_MurphyE_pq ( MurphyE_pq *pqueue,
                           int *w,
-                          mpz_t u,
-                          mpz_t v,
-                          mpz_t modulus,
+                          mpz_ptr u,
+                          mpz_ptr v,
+                          mpz_ptr modulus,
                           double *E );
 
 void free_MurphyE_pq ( MurphyE_pq **ppqueue );

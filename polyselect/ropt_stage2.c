@@ -550,7 +550,7 @@ rootsieve_run_multroot ( sievearray_t sa,
   for (v = 0; v < e ; v ++)
     pe = pe * p;
 
-  int d = mpz_poly_degree(rs->pols[1]);
+  int d = mpz_poly_degree(rs->cpoly->pols[1]);
 
   /* use s.p instead of m.p */
   f_ui = (unsigned int*) malloc ((d + 1) * sizeof (unsigned int));
@@ -561,8 +561,8 @@ rootsieve_run_multroot ( sievearray_t sa,
              "rootsieve_run_multroot(). \n");
     exit (1);
   }
-  reduce_poly_ul (f_ui, rs->pols[1], pe);
-  reduce_poly_ul (g_ui, rs->pols[0], pe);
+  reduce_poly_ul (f_ui, rs->cpoly->pols[1], pe);
+  reduce_poly_ul (g_ui, rs->cpoly->pols[0], pe);
 
   /* j -> v (mod p) */
   ij2uv (s2param->B, s2param->MOD, s2param->Bmin, j, tmpz);
@@ -993,16 +993,16 @@ rootsieve_one_sublattice ( ropt_poly_srcptr poly,
                    tmpu, tmpv, sievescore->alpha[i]);
 #endif
 
-      compute_fuv_mp (s2param->f, poly->pols[1], poly->pols[0], tmpu, tmpv);
+      compute_fuv_mp (s2param->f, poly->cpoly->pols[1], poly->cpoly->pols[0], tmpu, tmpv);
 
       /* translation-only optimize */
-      mpz_poly_set (s2param->g, poly->pols[0]);
+      mpz_poly_set (s2param->g, poly->cpoly->pols[0]);
 
       sopt_local_descent (s2param->f, s2param->g, s2param->f, s2param->g, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
 
 #if 1
       /* use MurphyE for ranking in the priority queue (default) */
-      MurphyE = print_poly_fg (s2param->f, s2param->g, poly->n, 0);
+      MurphyE = print_poly_fg (s2param->f, s2param->g, poly->cpoly->n, 0);
       insert_MurphyE_pq (local_E_pqueue, info->w, tmpu, tmpv,
                          s2param->MOD, MurphyE);
 #else
@@ -1049,10 +1049,10 @@ rootsieve_one_sublattice ( ropt_poly_srcptr poly,
 
       if (param->verbose >= 4) {
 
-        compute_fuv_mp (s2param->f, poly->pols[1], poly->pols[0],
+        compute_fuv_mp (s2param->f, poly->cpoly->pols[1], poly->cpoly->pols[0],
                         local_E_pqueue->u[i], local_E_pqueue->v[i]);
 
-        print_poly_fg (s2param->f, s2param->g, poly->n, 1);
+        print_poly_fg (s2param->f, s2param->g, poly->cpoly->n, 1);
 
         fprintf (stderr, "\n");
       }
@@ -1114,7 +1114,7 @@ ropt_stage2 ( ropt_poly_srcptr poly,
     ropt_s2param_print (s2param);
 
   info->w = w;
-  compute_fuv_mp (s2param->f, poly->pols[1], poly->pols[0],
+  compute_fuv_mp (s2param->f, poly->cpoly->pols[1], poly->cpoly->pols[0],
                   s2param->A, s2param->B);
 
   /* sieve fuv */

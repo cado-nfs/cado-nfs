@@ -45,14 +45,14 @@ ropt_get_bestpoly ( ropt_poly_srcptr poly,
   /* output all polys in the global queue */
   /* WTF starting with 1? Why? XXX */
   for (int i = 1; i < global_E_pqueue->used; i ++) {
-      mpz_poly_set(Fuv, poly->pols[1]);
-      mpz_poly_set(Guv, poly->pols[0]);
+      mpz_poly_set(Fuv, poly->cpoly->pols[1]);
+      mpz_poly_set(Guv, poly->cpoly->pols[0]);
 
       /* rotation is by u*x+v+w*x^2 (yes, interesting naming...)
        * Note that u, v, w have different types, and interestingly we
        * have different functions to do this...
        */
-      compute_fuv_mp (Fuv, poly->pols[1], poly->pols[0],
+      compute_fuv_mp (Fuv, poly->cpoly->pols[1], poly->cpoly->pols[0],
               global_E_pqueue->u[i], global_E_pqueue->v[i]);
 
       if (global_E_pqueue->w[i])
@@ -61,7 +61,7 @@ ropt_get_bestpoly ( ropt_poly_srcptr poly,
       /* This modifies Fuv and Guv */
       sopt_local_descent (Fuv, Guv, Fuv, Guv, 1, -1, SOPT_DEFAULT_MAX_STEPS, 0);
 
-      ave_MurphyE = print_poly_fg (Fuv, Guv, poly->n, 0);
+      ave_MurphyE = print_poly_fg (Fuv, Guv, poly->cpoly->n, 0);
 
       mpz_poly_make_trivial_content (Fuv);
 
@@ -98,8 +98,8 @@ ropt_do_stage2 (ropt_poly_ptr poly,
   MurphyE_pq *global_E_pqueue;
   new_MurphyE_pq (&global_E_pqueue, 4);
 
-  mpz_poly_set(Fuv, poly->pols[1]);
-  mpz_poly_set(Guv, poly->pols[0]);
+  mpz_poly_set(Fuv, poly->cpoly->pols[1]);
+  mpz_poly_set(Guv, poly->cpoly->pols[0]);
 
   /* rotate polynomial by f + rot*x^2 */
   rotate_aux (Fuv, Guv, 0, param->s2_w, 2);
@@ -155,7 +155,7 @@ ropt_do_both_stages ( ropt_poly_ptr poly,
         ropt_param_ptr param,
         ropt_info_ptr info)
 {
-    int d = mpz_poly_degree(poly->pols[1]);
+    int d = mpz_poly_degree(poly->cpoly->pols[1]);
     if (d == 5 || d == 4 || d == 3)
         ropt_linear (poly, bestpoly, param, info);
     else if (d == 6 || d == 7)
@@ -207,10 +207,7 @@ ropt_polyselect (cado_poly_ptr output_poly, cado_poly_srcptr input_poly,
   ASSERT_ALWAYS(input_poly->nb_polys == 2);
   /* setup poly */
 
-  ASSERT_ALWAYS(input_poly->nb_polys == 2);
-  mpz_poly_set(poly->pols[0], input_poly->pols[0]);
-  mpz_poly_set(poly->pols[1], input_poly->pols[1]);
-  mpz_set (poly->n, input_poly->n);
+  cado_poly_set(poly->cpoly, input_poly);
 
   ropt_poly_setup (poly);
 
@@ -220,7 +217,7 @@ ropt_polyselect (cado_poly_ptr output_poly, cado_poly_srcptr input_poly,
 
   ropt_bestpoly bestpoly;
   ropt_bestpoly_init (bestpoly);
-  ropt_bestpoly_setup (bestpoly, poly->pols[1], poly->pols[0]);
+  ropt_bestpoly_setup (bestpoly, poly->cpoly->pols[1], poly->cpoly->pols[0]);
 
   /* call main function */
   ropt_do_both_stages (poly, bestpoly, param, info);

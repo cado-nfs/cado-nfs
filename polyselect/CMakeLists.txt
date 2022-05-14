@@ -60,6 +60,7 @@ add_executable (polyselect_ropt
     ropt_stage2.c
     ropt_str.c
     ropt_tree.c
+    ropt_sublattice_priority_queue.cpp
 )
 target_link_libraries (polyselect_ropt polyselect_common ${pthread_libs})
 set_target_properties(polyselect_ropt PROPERTIES

@@ -2,7 +2,7 @@
 #define ROPT_STR_H
 #include <gmp.h>
 #include <stdbool.h>    // for bool (in C)
-#include "mpz_poly.h"
+#include "cado_poly.h"
 
 /* --- structs for ropt --- */
 
@@ -14,11 +14,9 @@
  */
 struct ropt_poly_s {
   /* polynomial */
-  double skew;
   double alpha_proj;
-  mpz_t n;
   mpz_t m;
-  mpz_poly pols[2];
+  cado_poly cpoly;
 
   /* polynomial values */
   mpz_t *fx;

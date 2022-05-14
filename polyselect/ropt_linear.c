@@ -245,7 +245,7 @@ ropt_tune_stage2_fast ( ropt_poly_ptr poly,
 
     /* sublattice in w, u, v */
     extract_alpha_pq (alpha_pqueue, &w, u, v, mod, &score);
-    old_i = rotate_aux (poly->pols[1], poly->pols[0], old_i, w, 2);
+    old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, w, 2);
     ropt_poly_setup (poly);
     //ropt_bound_reset (poly, bound, param); // not really necessary
 
@@ -266,7 +266,7 @@ ropt_tune_stage2_fast ( ropt_poly_ptr poly,
 
   }
   /* rotate back */
-  old_i = rotate_aux (poly->pols[1], poly->pols[0], old_i, 0, 2);
+  old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
   ropt_poly_setup (poly);
 
   /* save result to alpha_pqueue */
@@ -353,7 +353,7 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
 
     /* sublattice in w, u, v */
     extract_alpha_pq (alpha_pqueue, &w, u, v, mod, &score);
-    old_i = rotate_aux (poly->pols[1], poly->pols[0], old_i, w, 2);
+    old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, w, 2);
     ropt_poly_setup (poly);
     // ropt_bound_reset (poly, bound, param); // not necessary
 #if RANK_SUBLATTICE_BY_E
@@ -549,7 +549,7 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
   }
 
   /* rotate back */
-  old_i = rotate_aux (poly->pols[1], poly->pols[0], old_i, 0, 2);
+  old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
   ropt_poly_setup (poly);
 
   /* Step 2: slight larger range sieve on best sublattices */
@@ -558,7 +558,7 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
 
     extract_alpha_pq (tmp_alpha_pqueue, &w, u, v, mod, &score);
 
-    old_i = rotate_aux (poly->pols[1], poly->pols[0], old_i, w, 2);
+    old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, w, 2);
 
     ropt_poly_setup (poly);
 
@@ -592,7 +592,7 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
   }
 
   /* rotate back */
-  rotate_aux (poly->pols[1], poly->pols[0], old_i, 0, 2);
+  rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
   ropt_poly_setup (poly);
   old_i = 0;
 
@@ -787,7 +787,7 @@ ropt_call_sieve ( ropt_poly_ptr poly,
                         &score);
 
     /* rotate */
-    old_i = rotate_aux (poly->pols[1], poly->pols[0], old_i, w, 2);
+    old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, w, 2);
     ropt_poly_setup (poly);
 
     if (param->verbose >= 2) {
@@ -815,7 +815,7 @@ ropt_call_sieve ( ropt_poly_ptr poly,
     }
   }
   /* rotate back */
-  old_i = rotate_aux (poly->pols[1], poly->pols[0], old_i, 0, 2);
+  old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
   ropt_poly_setup (poly);
 
   /* free */
@@ -999,7 +999,7 @@ ropt_linear ( ropt_poly_ptr poly,
         ropt_param_ptr param,
         ropt_info_ptr info)
 {
-    int d = mpz_poly_degree(poly->pols[1]);
+    int d = mpz_poly_degree(poly->cpoly->pols[1]);
     if (d == 3)
         ropt_linear_deg34 (poly, bestpoly, param, info);
     else if (d == 5 || d == 4)
