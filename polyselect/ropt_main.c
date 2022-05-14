@@ -145,6 +145,8 @@ ropt_parse_param ( int argc,
                      1 when -area is given
                      2 when -I or -A is given */
 
+  param->stage_flag = 1;
+
   /* filename only */
   if (argc > 1) {
     /* stage 2 (root sieve) parameters only */

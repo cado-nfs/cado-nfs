@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-unsigned int ropt_sublattice_combine_all_crt(unsigned int nprimes, unsigned int * primes, single_sublattice_priority_queue * tops, ropt_bound_srcptr bound, sublattice_priority_queue_ptr pqueue);
+unsigned int ropt_sublattice_combine_all_crt(unsigned int nprimes, const unsigned int * primes, single_sublattice_priority_queue const * tops, ropt_bound_srcptr bound, sublattice_priority_queue_ptr pqueue);
 
 #ifdef __cplusplus
 }
