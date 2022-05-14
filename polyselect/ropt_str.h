@@ -76,7 +76,7 @@ struct ropt_s1param_s {
   /* upper bound for e_i */
   unsigned int *e_sl;
 
-  mpz_t modulus;
+  // mpz_t modulus;
 
   unsigned long modbound;
 };

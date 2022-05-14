@@ -50,6 +50,9 @@ set_target_properties(polyselect PROPERTIES
 add_executable (polyselect_ropt
     ropt_main.c
     best_polynomials_queue.cpp
+    ropt_single_sublattice_priority_queue.cpp
+    ropt_sublattice_priority_queue.cpp
+    ropt_sublattice_crt.cpp
     ropt.c
     ropt_arith.c
     ropt_io.c

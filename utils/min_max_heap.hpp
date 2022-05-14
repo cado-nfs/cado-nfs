@@ -458,6 +458,10 @@ public:
         zout << std::endl;
     }
 #endif
+    typename Container::iterator begin() { return heap_.begin(); }
+    typename Container::iterator end() { return heap_.end(); }
+    typename Container::const_iterator begin() const { return heap_.begin(); }
+    typename Container::const_iterator end() const { return heap_.end(); }
 };
 
 #endif	/* MIN_MAX_HEAP_HPP_ */

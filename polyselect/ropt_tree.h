@@ -9,7 +9,7 @@
  * Struct for the nodes in the lift.
  */
 typedef struct node_t {
-  char e;
+  // char e;
   float val;
   unsigned int nr;
   unsigned int u;
@@ -21,20 +21,6 @@ typedef struct node_t {
   struct node_t *nextsibling;
   struct node_t *parent;
 } node; // sizeof = 64
-
-
-/**
- * Priority queue for sublattices over a single p^e.
- */
-typedef struct single_sublattice_pq_t {
-  unsigned int *u;
-  unsigned int *v;
-  char *e;
-  float *val;
-  int used;
-  int len;
-} single_sublattice_pq;
-
 
 
 /**
@@ -100,24 +86,6 @@ void insert_node ( node *parent,
                    char k );
 
 void free_node ( node **ptr );
-
-/* single_sublattice_pq, used in ropt_stage1.c */
-void new_single_sublattice_pq ( single_sublattice_pq **top,
-                                unsigned long len );
-
-void insert_single_sublattice_pq ( single_sublattice_pq *top,
-                                   unsigned int u,
-                                   unsigned int v,
-                                   float val,
-                                   char e );
-
-void extract_single_sublattice_pq ( single_sublattice_pq *pqueue,
-                                    unsigned int *u,
-                                    unsigned int *v,
-                                    float *val,
-                                    char *e );
-
-void free_single_sublattice_pq ( single_sublattice_pq **top );
 
 /* alpha_pq, used in ropt_stage1.c */
 void new_alpha_pq ( alpha_pq **ppqueue,

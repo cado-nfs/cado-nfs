@@ -989,12 +989,17 @@ polyselect/ropt_param.c
 polyselect/ropt_param.h
 polyselect/ropt_quadratic.c
 polyselect/ropt_quadratic.h
+polyselect/ropt_single_sublattice_priority_queue.cpp
+polyselect/ropt_single_sublattice_priority_queue.h
+polyselect/ropt_single_sublattice_priority_queue_impl.hpp
 polyselect/ropt_stage1.c
 polyselect/ropt_stage1.h
 polyselect/ropt_stage2.c
 polyselect/ropt_stage2.h
 polyselect/ropt_str.c
 polyselect/ropt_str.h
+polyselect/ropt_sublattice_crt.cpp
+polyselect/ropt_sublattice_crt.h
 polyselect/ropt_sublattice_priority_queue.cpp
 polyselect/ropt_sublattice_priority_queue.h
 polyselect/ropt_tree.c

@@ -243,9 +243,9 @@ ropt_poly_init ( ropt_poly_ptr poly )
   cado_poly_provision_new_poly(poly->cpoly);
 
   /* fx, gx holds pre-computed values f(r), g(r) where 0 <= r < p. */
-  (poly->fx) = (mpz_t *) malloc ((primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
-  (poly->gx) = (mpz_t *) malloc ((primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
-  (poly->numerator) = (mpz_t *) malloc ((primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
+  (poly->fx) = (mpz_t *) malloc ((ropt_primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
+  (poly->gx) = (mpz_t *) malloc ((ropt_primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
+  (poly->numerator) = (mpz_t *) malloc ((ropt_primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
 
   if ( ((poly->fx) == NULL) || ((poly->gx) == NULL) ||
        ((poly->numerator) == NULL) ) {
@@ -254,7 +254,7 @@ ropt_poly_init ( ropt_poly_ptr poly )
     exit(1);
   }
 
-  for (i = 0; i <= primes[ROPT_NPRIMES-1]; i++) {
+  for (i = 0; i <= ropt_primes[ROPT_NPRIMES-1]; i++) {
     mpz_init (poly->fx[i]);
     mpz_init (poly->gx[i]);
     mpz_init (poly->numerator[i]);
@@ -273,7 +273,7 @@ ropt_poly_refresh ( ropt_poly_ptr poly )
   mpz_set_ui (poly->m, 0);
   mpz_poly_set_zero(poly->cpoly->pols[1]);
   mpz_poly_set_zero(poly->cpoly->pols[0]);
-  for (i = 0; i <= primes[ROPT_NPRIMES-1]; i++) {
+  for (i = 0; i <= ropt_primes[ROPT_NPRIMES-1]; i++) {
     mpz_set_ui (poly->fx[i], 0);
     mpz_set_ui (poly->gx[i], 0);
     mpz_set_ui (poly->numerator[i], 0);
@@ -349,7 +349,7 @@ ropt_poly_setup ( ropt_poly_ptr poly )
 
   /* pre-compute f(r) for all r < B */
   ropt_poly_setup_eval (poly->fx, poly->gx, poly->numerator,
-                        poly->cpoly->pols[1], poly->cpoly->pols[0], primes);
+                        poly->cpoly->pols[1], poly->cpoly->pols[0], ropt_primes);
 
   /* projective alpha */
   poly->alpha_proj = get_alpha_projective (poly->cpoly->pols[1], get_alpha_bound ());
@@ -364,7 +364,7 @@ ropt_poly_clear ( ropt_poly_ptr poly )
 {
   unsigned int i;
 
-  for (i = 0; i <= primes[ROPT_NPRIMES-1]; i ++) {
+  for (i = 0; i <= ropt_primes[ROPT_NPRIMES-1]; i ++) {
     mpz_clear(poly->fx[i]);
     mpz_clear(poly->gx[i]);
     mpz_clear(poly->numerator[i]);
@@ -637,8 +637,6 @@ ropt_s1param_init ( ropt_s1param_ptr s1param )
      sublattices */
   s1param->nbest_sl_tunemode = 0;
 
-  mpz_init_set_ui (s1param->modulus, 1UL);
-
   s1param->e_sl = (unsigned int*)
     malloc ( NUM_SUBLATTICE_PRIMES * sizeof (unsigned int) );
 
@@ -871,7 +869,6 @@ ropt_s1param_clear ( ropt_s1param_ptr s1param )
 {
   free(s1param->e_sl);
   free(s1param->individual_nbest_sl);
-  mpz_clear (s1param->modulus);
 }
 
 

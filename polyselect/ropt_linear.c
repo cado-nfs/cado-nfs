@@ -574,7 +574,7 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
     old_MurphyE = -score;
     while (j < TUNE_BOUND_ON_MOD_TRIALS) {
 
-      mpz_mul_ui (mod, mod, primes[s1param->tlen_e_sl + j]);
+      mpz_mul_ui (mod, mod, ropt_primes[s1param->tlen_e_sl + j]);
 
       ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
                                0, curr_size_tune, 20);

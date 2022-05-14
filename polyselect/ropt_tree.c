@@ -152,7 +152,7 @@ new_node ( void )
   pnode->firstchild = pnode->nextsibling = pnode->parent = NULL;
   pnode->r = NULL;
   pnode->roottype = NULL;
-  pnode->u = pnode->v = pnode->nr = pnode->e = 0;
+  pnode->u = pnode->v = pnode->nr = 0; // pnode->e = 0;
   pnode->val = 0.0;
   return pnode;
 }
@@ -243,7 +243,7 @@ insert_node ( node *parent,
     (*currnode)->r[0] = r;
     (*currnode)->roottype[0] = k;
     (*currnode)->nr += 1;
-    (*currnode)->e = curr_e;
+    // (*currnode)->e = curr_e;
     /* such (u, v) is new, hence we inheritate the val from its parent. */
     if (k == 2)
       (*currnode)->val += 1.0 / (double) pe + (*currnode)->parent->val;
@@ -281,187 +281,6 @@ free_node ( node **ptr )
     free (*ptr);
   }
 }
-
-
-/**
- * Create priority queue for sublattices over a single p^e.
- */
-void
-new_single_sublattice_pq ( single_sublattice_pq **ppqueue,
-                           unsigned long len )
-{
-  if ( len < 1 ) {
-    fprintf(stderr,"Error: len < 1 in new_single_sublattice_pq()\n");
-    exit(1);
-  }
-
-  (*ppqueue) = (single_sublattice_pq *) malloc (
-    sizeof(single_sublattice_pq) );
-  if ( (*ppqueue) == NULL) {
-    fprintf(stderr,"Error: malloc failed in new_single_sublattice_pq()\n");
-    exit(1);
-  }
-
-  (*ppqueue)->len = len;
-  (*ppqueue)->u = (unsigned int *) malloc (len * sizeof (unsigned int));
-  (*ppqueue)->v = (unsigned int *) malloc (len * sizeof (unsigned int));
-  (*ppqueue)->e = (char *) malloc (len * sizeof (char));
-  (*ppqueue)->val = (float *) malloc (len * sizeof (float));
-
-  if ( (*ppqueue)->u == NULL ||
-       (*ppqueue)->v == NULL ||
-       (*ppqueue)->e == NULL ||
-       (*ppqueue)->val == NULL ) {
-    fprintf(stderr,"Error: malloc failed in new_single_sublattice_pq()\n");
-    exit(1);
-  }
-
-  /* u[0] and v[0] are null elements */
-  (*ppqueue)->u[0] = 0;
-  (*ppqueue)->v[0] = 0;
-  (*ppqueue)->e[0] = 0;
-  (*ppqueue)->val[0] = -FLT_MAX;
-  (*ppqueue)->used = 1;
-}
-
-
-/**
- * Free
- */
-void
-free_single_sublattice_pq ( single_sublattice_pq **ppqueue )
-{
-  free ( (*ppqueue)->u );
-  free ( (*ppqueue)->v );
-  free ( (*ppqueue)->e );
-  free ( (*ppqueue)->val );
-  free ( *ppqueue );
-}
-
-
-/**
- * Sift-up to add, if the queue is not full.
- */
-static inline void
-insert_single_sublattice_pq_up ( single_sublattice_pq *pqueue,
-                                 unsigned int u,
-                                 unsigned int v,
-                                 float val,
-                                 char e )
-{
-  int k;
-
-  for ( k = pqueue->used;
-        val < pqueue->val[pq_parent(k)];
-        k /= 2 )
-  {
-    pqueue->u[k] = pqueue->u[pq_parent(k)];
-    pqueue->v[k] = pqueue->v[pq_parent(k)];
-    pqueue->e[k] = pqueue->e[pq_parent(k)];
-    pqueue->val[k] = pqueue->val[pq_parent(k)];
-  }
-
-  pqueue->u[k] = u;
-  pqueue->v[k] = v;
-  pqueue->e[k] = e;
-  pqueue->val[k] = val;
-
-  pqueue->used ++;
-}
-
-
-/**
- * Sift-down, if the heap is full.
- */
-static inline void
-insert_single_sublattice_pq_down ( single_sublattice_pq *pqueue,
-                                   unsigned int u,
-                                   unsigned int v,
-                                   float val,
-                                   char e )
-{
-  int k, l;
-
-  for (k = 1; k*2 < pqueue->used; k = l) {
-
-    l = (k << 1);
-
-    /* right < left ? */
-    if ( (l+1) < pqueue->used &&
-         (pqueue->val[l+1] < pqueue->val[l]) )
-      l ++;
-
-    /* switch smaller child with parent */
-    if ( pqueue->val[l] < val ) {
-
-      pqueue->u[k] = pqueue->u[l];
-      pqueue->v[k] = pqueue->v[l];
-      pqueue->e[k] = pqueue->e[l];
-      pqueue->val[k] = pqueue->val[l];
-    }
-    else
-      break;
-  }
-  pqueue->u[k] = u;
-  pqueue->v[k] = v;
-  pqueue->e[k] = e;
-  pqueue->val[k] = val;
-}
-
-
-/**
- * Insert to the priority queue.
- */
-void
-insert_single_sublattice_pq ( single_sublattice_pq *pqueue,
-                              unsigned int u,
-                              unsigned int v,
-                              float val,
-                              char e )
-{
-
-  /* queue is full,  */
-  if (pqueue->len == pqueue->used) {
-    if ( val > pqueue->val[1] ) {
-      insert_single_sublattice_pq_down (pqueue, u, v, val, e);
-    }
-  }
-  /* queue is not full, sift-up */
-  else if (pqueue->len > pqueue->used) {
-    insert_single_sublattice_pq_up (pqueue, u, v, val, e);
-  }
-  else {
-    fprintf (stderr, "Error: error (pqueue->len < pqueue->used) "
-             "in insert_single_sublattice_pq()\n");
-    exit(1);
-  }
-}
-
-
-/**
- * Extract the max of the priority queue.
- */
-void
-extract_single_sublattice_pq ( single_sublattice_pq *pqueue,
-                               unsigned int *u,
-                               unsigned int *v,
-                               float *val,
-                               char *e )
-{
-  /* don't extract u[0] since it is just a placeholder. */
-  pqueue->used --;
-  (*u) = pqueue->u[1];
-  (*v) = pqueue->v[1];
-  (*val) = pqueue->val[1];
-  (*e) = pqueue->e[1];
-
-  insert_single_sublattice_pq_down ( pqueue,
-                                     pqueue->u[pqueue->used],
-                                     pqueue->v[pqueue->used],
-                                     pqueue->val[pqueue->used],
-                                     pqueue->e[pqueue->used] );
-}
-
 
 /**
  * Create priority queue for sublattices with best alpha.

@@ -619,9 +619,9 @@ rootsieve_one_block ( sievearray_t sa,
   mpz_init (tmp);
   subsgl = (int16_t *) malloc (s2param->len_p_rs * sizeof(int16_t));
   submul = (int16_t *) malloc (s2param->len_p_rs * sizeof(int16_t));
-  j_idx = (long *) malloc (primes[s2param->len_p_rs] * sizeof(long));
-  j_idx_i0 = (long *) malloc (primes[s2param->len_p_rs] * sizeof(long));
-  roottype_flag = (char *) malloc (primes[s2param->len_p_rs]
+  j_idx = (long *) malloc (ropt_primes[s2param->len_p_rs] * sizeof(long));
+  j_idx_i0 = (long *) malloc (ropt_primes[s2param->len_p_rs] * sizeof(long));
+  roottype_flag = (char *) malloc (ropt_primes[s2param->len_p_rs]
                                    * sizeof(char));
 
   if ( subsgl == NULL || submul == NULL || j_idx == NULL ||
@@ -646,7 +646,7 @@ rootsieve_one_block ( sievearray_t sa,
 
   /* Init index array */
   for ( np = 0; np < s2param->len_p_rs; np ++ ) {
-    p = primes[np];
+    p = ropt_primes[np];
     subf = (float) p * log ( (float) p) / ((float) p * (float) p - 1.0);
     subsgl[np] = (int16_t) ceil (subf * 1000.0);
     subf = log ( (float) p) / ( (float) p + 1.0);
@@ -655,7 +655,7 @@ rootsieve_one_block ( sievearray_t sa,
   }
 
   /* Idx holders for each r < B */
-  for ( r = 0; r < primes[s2param->len_p_rs]; r ++ ) {
+  for ( r = 0; r < ropt_primes[s2param->len_p_rs]; r ++ ) {
     j_idx[r] = 0;
     j_idx_i0[r] = 0;
   }
@@ -663,7 +663,7 @@ rootsieve_one_block ( sievearray_t sa,
   /* For each p < p_bound*/
   for (np = 0; np < s2param->len_p_rs; np ++) {
 
-    p = primes[np];
+    p = ropt_primes[np];
 
     /* e depends on p */
     max_e = (unsigned int) (log (200.0) / log ((double) p));
