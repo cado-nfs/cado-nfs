@@ -98,8 +98,6 @@ extern unsigned int size_tune_sievearray;
 
 extern const unsigned int ropt_primes[];
 
-extern const unsigned char next_prime_idx[];
-
 extern const unsigned int default_sublattice_pe[NUM_DEFAULT_SUBLATTICE][NUM_SUBLATTICE_PRIMES];
 
 extern const unsigned long default_sublattice_prod[NUM_DEFAULT_SUBLATTICE];
