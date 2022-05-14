@@ -75,7 +75,8 @@ struct ropt_sublattice_crt_combiner {
      * infos[i]: lattice modulo tprimes[i], to power infos[i]->e
      */
     unsigned int combine () {
-        cxx_mpz sum, tmpu1, tmpu2;
+        cxx_mpz sum, tmp;
+        cxx_mpz u_crt, v_crt;
 
         finalize_multipliers();
 
@@ -84,8 +85,8 @@ struct ropt_sublattice_crt_combiner {
         for (size_t i = 0; i < nprimes; i ++) {
             mpz_addmul_ui(sum, multipliers[i], infos[i]->u);
         }
-        mpz_mod (tmpu1, sum, modulus);
-        mpz_sub (tmpu2, modulus, tmpu1); // tmpu2 > 0
+        mpz_mod (u_crt, sum, modulus);
+        mpz_sub (tmp, modulus, u_crt); // tmp > 0
 
         unsigned int count = 0;
 
@@ -93,8 +94,8 @@ struct ropt_sublattice_crt_combiner {
          * global_u_boundl .. global_u_boundr
          */
         /* if u is good, compute v */
-        if ( mpz_cmp_si (tmpu1, bound->global_u_boundr) <= 0 ||
-                mpz_cmp_si (tmpu2, -bound->global_u_boundl) <= 0 ) {
+        if ( mpz_cmp_si (u_crt, bound->global_u_boundr) <= 0 ||
+                mpz_cmp_si (tmp, -bound->global_u_boundl) <= 0 ) {
 
             /* compute v */
             float val = 0.0;
@@ -103,11 +104,17 @@ struct ropt_sublattice_crt_combiner {
                 mpz_addmul_ui(sum, multipliers[i], infos[i]->v);
                 val += logp[i] * infos[i]->val;
             }
-            mpz_mod (tmpu2, sum, modulus);
+            mpz_mod (v_crt, sum, modulus);
 
-            /* insert this node */
-            sublattice_priority_queue_push(pqueue, tmpu1, tmpu2, modulus, val );
-            count = 1;
+            mpz_add(tmp, bound->global_v_boundl, modulus);
+
+            if (mpz_cmp(v_crt, bound->global_v_boundr) <= 0 ||
+                    mpz_cmp(v_crt, tmp) >= 0 ) {
+
+                /* insert this node */
+                sublattice_priority_queue_push(pqueue, u_crt, v_crt, modulus, val );
+                count = 1;
+            }
         }
 
         return count;
