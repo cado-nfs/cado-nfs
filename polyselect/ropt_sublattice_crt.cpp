@@ -46,6 +46,9 @@ struct ropt_sublattice_crt_combiner {
     }
 
     void finalize_multipliers() {
+        /* I wonder whether it is costly to recompute the modulus each
+         * time around. I would guess not, but haven't checked.
+         */
         mpz_set_ui(modulus, 1);
 
         for(size_t i = 0 ; i < nprimes ; i++) {
@@ -55,7 +58,8 @@ struct ropt_sublattice_crt_combiner {
             mpz_mul_ui(modulus, modulus, pe[i]);
         }
         /* It's fine with very small sets of primes, but this approach is
-         * sub-par when nprimes becomes large */
+         * sub-par when nprimes becomes large (which is not the case here
+         * anyway) */
         cxx_mpz tmp;
         for (size_t i = 0; i < nprimes; i ++) {
             mpz_divexact_ui (multipliers[i], modulus, pe[i]);
