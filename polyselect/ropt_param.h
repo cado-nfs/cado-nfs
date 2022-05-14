@@ -33,8 +33,6 @@
 /* number of rows for size_total_sublattices */
 #define NUM_DEFAULT_DIGITS 20
 
-#define DEBUG 0
-
 /* Don't change this. */
 #define NUM_SUBLATTICE_PRIMES 9
 

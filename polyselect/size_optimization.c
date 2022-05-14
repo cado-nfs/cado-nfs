@@ -20,10 +20,15 @@
 /******************************************************************************/
 
 /***************** List of mpz_t, to handle list of translations **************/
+// I've been fighting for years against these countless ad-hoc lists that
+// we have here and there in the code. This one has the at least the good
+// thing of not being used outside this compilation unit (and I
+// definitely do not want it to be exposed outside).
+
 static inline void
 list_mpz_realloc (list_mpz_ptr l, uint64_t newalloc)
 {
-#if DEBUG >= 2
+#ifdef DEBUG_LIST_MPZ
   fprintf (stderr, "debug: %s in %s: l->alloc = %" PRIu64 ", l->len = "
                    "%" PRIu64 ", will be reallocated to newalloc = %" PRIu64
                    "\n", __FILE__, __func__, l->alloc, l->len, newalloc);

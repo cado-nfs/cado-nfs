@@ -31,17 +31,6 @@ ropt_stage2 ( ropt_poly_srcptr poly,
               MurphyE_pq *global_E_pqueue,
               int w );
 
-#if DEBUG
-void print_sievearray ( double **A,
-                        long A0,
-                        long A1,
-                        long B0,
-                        long B1,
-                        unsigned long K_ST,
-                        unsigned long J_ST,
-                        unsigned long MOD );
-#endif
-
 #ifdef __cplusplus
 }
 #endif
