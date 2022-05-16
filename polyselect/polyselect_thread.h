@@ -56,7 +56,8 @@ struct polyselect_thread_s {
     /* This points to a pool of available polyselect_match_info_t ' s that
      * can be reused if needed, and put into the async_jobs list.
      *
-     * Whenever a new match must be processed, polyselect_hash_add can
+     * Whenever a new match must be processed,
+     * polyselect_shash2_find_collision_multi can
      * take the opportunity to reuse data from this list, or allocate a
      * new one if it is empty.
      *

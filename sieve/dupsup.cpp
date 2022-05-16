@@ -161,7 +161,7 @@ main (int argc, char * argv[])
           perror(argv[argi]);
           abort();
       }
-      for (int row = 0 ; !feof(f) ; row++) {
+      for (; !feof(f) ;) {
         char line[1024];
         if (fgets(line, sizeof(line), f) == NULL)
           break;

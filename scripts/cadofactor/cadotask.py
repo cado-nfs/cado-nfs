@@ -954,6 +954,8 @@ class SimpleStatistics(BaseStatistics, HasState, DoesLogging,
         """ Return tuple with number of seconds of cpu and real time spent
         by all programs of this Task
         """
+        if not self.programs:
+            return 0
         times = [self.get_cpu_real_time(p) for p, o, i in self.programs]
         times = tuple(map(sum, zip(*times)))
         return times[0 if is_cpu else 1]
@@ -1155,7 +1157,10 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         super().run()
         # Make set of requests so multiply listed requests are sent only once
         # The input_file dict maps key -> Request. Make set union of requests
-        requests = set.union(*[set(i.values()) for p, o, i in self.programs])
+        if self.programs:
+            requests = set.union(*[set(i.values()) for p, o, i in self.programs])
+        else:
+            requests = set()
         # Make dict mapping Request -> answer (i.e., FileName object)
         answers = self.batch_request(dict(zip(requests, requests)))
         # Make list of dicts mapping key -> answer
@@ -5226,7 +5231,7 @@ class ReconstructLogTask(Task):
         return ((cadoprograms.ReconstructLog, override, input),)
     @property
     def paramnames(self):
-        return self.join_params(super().paramnames, {"checkdlp": True})
+        return self.join_params(super().paramnames, {"checkdlp": True, "jlpoly": False})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -5264,28 +5269,6 @@ class ReconstructLogTask(Task):
     def get_dlog_filename(self):
         return self.get_state_filename("dlog")
     
-    def get_log2log3(self):
-        if self.params["checkdlp"]:
-            filename = self.get_state_filename("dlog").get_wdir_relative()
-            fullfile = self.params["workdir"].rstrip(os.sep) + os.sep + filename
-            log2 = None
-            log3 = None
-            myfile = open(fullfile, "rb")
-            data = myfile.read()
-            for line in data.splitlines():
-                match = re.match(br'(\w+) 2 0 rat (\d+)', line)
-                if match:
-                    log2 = match.group(2)
-                match = re.match(br'(\w+) 3 0 rat (\d+)', line)
-                if match:
-                    log3 = match.group(2)
-                if log2 != None and log3 != None:
-                    myfile.close()
-                    return [ log2, log3 ]
-            raise Exception("Could not find log2 and log3 in %s" % filename)
-        else:
-            return [ 0, 0 ]
-
 # TODO: This is a bit ugly. We're leaning on the functionality that
 # descent.py infers the complete set of file names from the prefix (or
 # from the database, if it so wishes). However, the cadofactor way would
@@ -5304,7 +5287,7 @@ class DescentTask(Task):
                 "prefix": Request.GET_WORKDIR_JOBNAME,
                 "datadir": Request.GET_WORKDIR_PATH,
                 }
-        override = ("cadobindir",)
+        override = ("cadobindir","target")
         return ((cadoprograms.Descent, override, input),)
     @property
     def paramnames(self):
@@ -5314,6 +5297,7 @@ class DescentTask(Task):
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
+        self.logtargets = []
     
     def run(self):
         super().run()
@@ -5322,31 +5306,174 @@ class DescentTask(Task):
             self.logger.info("Skipping descent, as no target= argument was passed");
             return
 
-        (stdoutpath, stderrpath) = \
-                self.make_std_paths(cadoprograms.Descent.name)
-        p = cadoprograms.Descent(
-                cadobindir=self.params["execpath"],
-                stdout=str(stdoutpath),
-                stderr=str(stderrpath),
-                **self.merged_args[0])
-        message = self.submit_command(p, None, log_errors=True)
-        if message.get_exitcode(0) != 0:
-            raise Exception("Program failed")
+        for ts in self.params["target"].split(","):
+            target = int(ts)
 
-        stdout = message.read_stdout(0).decode("utf-8")
-        for line in stdout.splitlines():
-            match = re.match(r'log\(target\)=(\d+)', line)
-            if match:
-                self.state["logtarget"] = match.group(1)
-                break
+            self.logger.info("Now doing descent for target=%s" % target)
+
+            (stdoutpath, stderrpath) = \
+                    self.make_std_paths(cadoprograms.Descent.name)
+            p = cadoprograms.Descent(
+                    cadobindir=self.params["execpath"],
+                    stdout=str(stdoutpath),
+                    stderr=str(stderrpath),
+                    target=target,
+                    **self.merged_args[0])
+            message = self.submit_command(p, None, log_errors=True)
+            if message.get_exitcode(0) != 0:
+                raise Exception("Program failed")
+
+            stdout = message.read_stdout(0).decode("utf-8")
+            for line in stdout.splitlines():
+                match = re.match(r'log\(target\)=(\d+)', line)
+                if match:
+                    logtarget = int(match.group(1))
+                    self.logger.info("Descent yields log(%s)=%s" % (target,logtarget))
+                    self.logtargets.append(logtarget)
+
+                    self.send_request(Request.GET_LOGQUERY_CHECKER).check_new_log(target, logtarget)
+                    break
+        return True
+    
+    def get_logtargets(self):
+        return self.logtargets
+
+# This simple task is here to collect in one single file the logarithms
+# that we've queried, and check their consistency.
+class LogQueryTask(Task):
+    """ Log Query Task """
+    @property
+    def name(self):
+        return "logquery"
+    @property
+    def title(self):
+        return "Log queries"
+
+    @property
+    def programs(self):
+        return ()
+
+    @property
+    def paramnames(self):
+        return self.join_params(super().paramnames,
+                {"checkdlp": True, "jlpoly": False, "gfpext": [int,1],
+                "N": int, "ell": 0})
+
+    def get_logquery_filename(self):
+        return self.get_state_filename("logquery")
+    
+    def get_logquery_checker(self):
+        return self
+    
+    def get_logbase(self):
+        return self.logbase
+
+    def __init__(self, *, mediator, db, parameters, path_prefix):
+        super().__init__(mediator=mediator, db=db, parameters=parameters,
+                         path_prefix=path_prefix)
+
+        self.history = dict()
+        if "logbase" in self.state:
+            self.logbase = self.state["logbase"]
+        else:
+            self.logbase = None
+        self.p = self.params["N"]
+        self.ell = self.params["ell"]
+        self.gfpext = self.params["gfpext"]
+        # TODO gfpext
+        assert (self.p ** self.gfpext - 1) % self.ell == 0
+        self.cof = (self.p ** self.gfpext - 1) // self.ell
+    
+        if "logquery" not in self.state:
+            logquery_filename = self.workdir.make_filename("logquery")
+            update = {"logquery": logquery_filename.get_wdir_relative() }
+            self.state.update(update, commit=True)
+
+    def get_small_logs(self, bound=20):
+        small_logs=dict()
+        with open(str(self.send_request(Request.GET_DLOG_FILENAME)), "r") as f:
+            for line in f:
+                mm = re.match(r'(\w+) (\w+) \d+ rat (\d+)', line)
+                if mm:
+                    target = int(mm.group(2), 16)
+                    logtarget = int(mm.group(3))
+                    if target > bound:
+                        break
+                    small_logs[target] = logtarget
+        return small_logs
+
+    def xgcd(self, a, b):
+        u0 = 1; v0 = 0; r0 = a
+        u1 = 0; v1 = 1; r1 = b
+        while r1 != 0:
+            q = r0 // r1
+            r0, r1 = [r1, r0 - q * r1];
+            u0, u1 = [u1, u0 - q * u1];
+            v0, v1 = [v1, v0 - q * v1];
+        if r0 < 0:
+            r0 = -r0; u0 = -u0; v0 = -v0
+        return r0, u0, v0
+
+    def commit_logs(self, *args):
+        with open(str(self.get_logquery_filename()), "a") as f:
+            for x in args:
+                target, logtarget = x
+                f.write("%d %d\n" % (target, logtarget))
+
+    def check_new_log(self, target, logtarget, commit=True):
+        if target in self.history:
+            return
+        just_deduced_gen = False
+        if self.logbase is None:
+            gt, ilogt, foo = self.xgcd(logtarget * self.cof, self.ell)
+            ilogt = ilogt % self.ell
+            if gt == 1:
+                # then target^((p-1)/ell * ilogt) is a generator
+                self.logbase = pow(int(target), ilogt*self.cof, self.p)
+                self.state.update({"logbase": self.logbase}, commit=True)
+                context = "log(%d)=%d" % (target, logtarget)
+                conclusion = "logarithms are given in base %d" % self.logbase
+
+                self.logger.info("Based on %s, we expect that %s" % (context, conclusion))
+                just_deduced_gen = True
+        if not just_deduced_gen:
+            msg = "Checking that log(%d)=%d is correct in base %d..." % (target, logtarget, self.logbase)
+            self.logger.info(msg)
+            check = pow(self.logbase, logtarget*self.cof, self.p) == pow(target, self.cof, self.p)
+            if check:
+                self.logger.info(msg + " passed")
+            else:
+                self.logger.critical(msg + " FAILED")
+                raise ValueError("Failed log check, log(%d)=%d seems wrong in base %d\n" % (target, logtarget, self.logbase))
+        else:
+            self.logger.info("Check skipped for this log, as it is the only known log value at this point")
+
+        self.history[target] = logtarget
+        if commit:
+            self.commit_logs((target, logtarget))
+
+    def run(self):
+        super().run()
+
+        # read the logs that we already queried.
+        if self.get_logquery_filename().isfile():
+            with open(str(self.get_logquery_filename()), "r") as f:
+                for line in f:
+                    if re.match(r'^#', line):
+                        continue
+                    mm = re.match(r"(\d+) (\d+)", line)
+                    if not mm:
+                        self.logger.warning("Unparsed line in %s: " % self.get_logquery_filename(), line)
+                    target = int(mm.group(1))
+                    logtarget = int(mm.group(2))
+                    self.check_new_log(target, logtarget, commit=False)
+
+        for target,logtarget in self.get_small_logs().items():
+                self.check_new_log(target, logtarget)
+
         return True
 
-    # XXX I'm not sure that self.state really is the place to store
-    # logtarget. Especially given that we're storing it detached from the
-    # target, which surely looks odd.
-    def get_logtarget(self):
-        return self.state["logtarget"]
-    
+
 class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
     """ Starts HTTP server """
     @property
@@ -5820,6 +5947,8 @@ class Request(Message):
     GET_WORKDIR_JOBNAME = object()
     GET_WORKDIR_PATH = object()
     GET_DLOG_FILENAME = object()
+    GET_LOGQUERY_FILENAME = object()
+    GET_LOGQUERY_CHECKER = object()
     GET_CLIENTS = object()
 
 class CompleteFactorization(HasState, wudb.DbAccess, 
@@ -5911,6 +6040,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         filterpath = parampath + ['filter']
         linalgpath = parampath + ['linalg']
         reconstructlogpath = parampath + ['reconstructlog']
+        logquerypath = parampath + ['logquery']
         descentpath = parampath + ['descent']
         sqrtpath = parampath + ['sqrt']
         numbertheorypath = parampath + ['numbertheory']
@@ -5993,6 +6123,14 @@ class CompleteFactorization(HasState, wudb.DbAccess,
                                      db=db,
                                      parameters=self.parameters,
                                      path_prefix=descentpath)
+
+            # By specifying a single endpoint, we make it easier to do
+            # consistency checks.
+            self.logquery = LogQueryTask(mediator=self,
+                                     db=db,
+                                     parameters=self.parameters,
+                                     path_prefix=logquerypath)
+
         else:
             ## Tasks specific to factorization
             self.merge = MergeTask(mediator=self,
@@ -6027,6 +6165,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
                           self.dup1, self.dup2,
                           self.filtergalois, self.purge, self.merge,
                           self.sm, self.linalg, self.reconstructlog)
+            self.tasks = self.tasks + (self.logquery,)
             if self.params["target"]:
                 self.tasks = self.tasks + (self.descent,)
         else:
@@ -6103,6 +6242,8 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.request_map[Request.GET_SM_FILENAME] = self.sm.get_sm_filename
             self.request_map[Request.GET_RELSDEL_FILENAME] = self.purge.get_relsdel_filename
             self.request_map[Request.GET_DLOG_FILENAME] = self.reconstructlog.get_dlog_filename
+            self.request_map[Request.GET_LOGQUERY_FILENAME] = self.logquery.get_logquery_filename
+            self.request_map[Request.GET_LOGQUERY_CHECKER] = self.logquery.get_logquery_checker
             self.request_map[Request.GET_KERNEL_FILENAME] = self.linalg.get_virtual_logs_filename
             self.request_map[Request.GET_VIRTUAL_LOGS_FILENAME] = self.linalg.get_virtual_logs_filename
         else:
@@ -6154,6 +6295,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
                     last_task = task.title
                     last_status = task.run()
                     self.tasks_that_have_run.add(task)
+                    self.logger.info(task.title)
                     task.print_stats()
 
         except KeyboardInterrupt:
@@ -6194,10 +6336,12 @@ class CompleteFactorization(HasState, wudb.DbAccess,
                 self.logger.info("The polynomial defining the finite field is %s", s)
 
         if self.params["dlp"]:
-            ret = [ self.params["N"], self.params["ell"]] + self.reconstructlog.get_log2log3()
             if self.params["target"]:
-                ret = ret + [self.descent.get_logtarget()]
-            return ret
+                logt = self.descent.get_logtargets()
+                base = self.logquery.get_logbase()
+                return [ base ] + logt
+            else:
+                return [ 0 ]
         else:
             return self.sqrt.get_factors()
     

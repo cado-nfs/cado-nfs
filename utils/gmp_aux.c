@@ -426,6 +426,9 @@ ulong_nextprime (unsigned long q)
                       898547205403, and no other <= 10^12).
    See also https://en.wikipedia.org/wiki/Miller–Rabin_primality_test
    and http://www.trnicely.net/misc/mpzspsp.html.
+   GMP 6.2.1:
+   This implementation of the Baillie-PSW test was checked up to 31*2^46
+   (https://gmplib.org/repo/gmp-6.2/file/tip/mpz/millerrabin.c#l11)
 */
 int
 ulong_isprime (unsigned long p)

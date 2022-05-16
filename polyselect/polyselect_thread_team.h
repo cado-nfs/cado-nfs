@@ -7,7 +7,6 @@
 #include "polyselect_thread_league.h"
 #include "polyselect_proots.h"
 #include "polyselect_shash.h"
-#include "polyselect_hash.h"
 #include "barrier.h"
 
 #define xxxDEBUG_POLYSELECT_THREADS

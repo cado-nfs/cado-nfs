@@ -11,7 +11,7 @@
 #include "polyselect_thread.h"
 #include "polyselect_thread_team.h"
 #include "polyselect_thread_league.h"
-#include "polyselect_hash.h"
+#include "polyselect_special_q.h"
 #include "size_optimization.h"          // SOPT_DEFAULT_EFFORT
 #include "timing.h"     // milliseconds
 #include "getprime.h"   // getprime

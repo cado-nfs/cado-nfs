@@ -546,9 +546,15 @@ class ideals_above_p(object):
             return log
 
 class important_file(object):
-    def __init__(self, outfile, call_that):
+    def __init__(self, outfile, call_that, temporary_is_reusable=False):
         self.child = None
         print("command line:\n" + " ".join(call_that))
+        self.outfile = outfile
+        if temporary_is_reusable:
+            self.outfile_tmp = outfile
+        else:
+            self.outfile_tmp = outfile + ".tmp"
+
         if os.path.exists(outfile):
             print("reusing file %s" % outfile)
             self.reader = open(outfile,'r')
@@ -557,7 +563,7 @@ class important_file(object):
             print("running program, saving output to %s" % outfile)
             self.child = subprocess.Popen(call_that, stdout=subprocess.PIPE)
             self.reader = io.TextIOWrapper(self.child.stdout, 'utf-8')
-            self.writer = open(outfile, 'w')
+            self.writer = open(self.outfile_tmp, 'w')
 
     def streams(self):
         return self.reader, self.writer
@@ -586,6 +592,8 @@ class important_file(object):
                 self.writer.flush()
             self.reader.close()
             self.writer.close()
+            if self.outfile != self.outfile_tmp:
+                os.rename(self.outfile_tmp, self.outfile)
             print("ok, done")
         else:
             self.reader.close()
@@ -843,7 +851,7 @@ class DescentUpperClass(object):
             # Whether or not the output files are already present, this
             # will do the right thing and run the new processes only if
             # needed.
-            processes = [important_file(outfile, construct_call(q0,q1)) for (outfile,q0,q1) in call_params]
+            processes = [important_file(outfile, construct_call(q0,q1), temporary_is_reusable=True) for (outfile,q0,q1) in call_params]
 
         q = Queue()
         def enqueue_output(i,out,q):
@@ -963,11 +971,14 @@ class DescentUpperClass(object):
                 p ] + zz
         call_that = [str(x) for x in call_that]
         initfilename = os.path.join(general.datadir(), prefix + "init")
+        has_winner = False
+
         with important_file(initfilename, call_that) as f:
             for line in f:
                 line = line.strip()
                 foo = re.match("^Youpi: e = (\d+) is a winner", line)
                 if foo:
+                    has_winner = True
                     general.initrandomizer = int(foo.groups()[0])
                 foo = re.match("^U = ([0-9\-,]+)", line)
                 if foo:
@@ -987,6 +998,9 @@ class DescentUpperClass(object):
                 foo = re.match("^fac_v = ([, 0-9]+)", line)
                 if foo:
                     general.initfacv = [ [ int(y) for y in x.split(',') ] for x in foo.groups()[0].split(' ') ]
+
+        if not has_winner:
+            raise ValueError("initial descent failed for target %s" % zz)
 
         todofilename = os.path.join(general.datadir(), prefix + "todo")
         print(general.initfacu)

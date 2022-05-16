@@ -25,6 +25,9 @@ debian_packages="$debian_packages     locales"
 debian_packages="$debian_packages     cmake"
 debian_packages="$debian_packages     libhwloc-dev"
 debian_packages="$debian_packages     libgmp-dev"
+# debian has gmp-ecm. Let's use it in our debian tests, that will give
+# some extra coverage.
+debian_packages="$debian_packages     libecm-dev"
 # is full perl really needed ?
 # debian_packages="$debian_packages     perl"
 debian_packages="$debian_packages     python3"
@@ -76,10 +79,13 @@ alpine_packages="$alpine_packages     perl"
 alpine_packages="$alpine_packages     python3"
 
 freebsd_packages="$freebsd_packages     cmake"
-case "$CI_BUILD_NAME" in
-    *"32-bit freebsd"*) : ;;
-    *) freebsd_packages="$freebsd_packages     hwloc" ;;
-esac
+# See #30036. We NEVER want to include hwloc under freebsd.
+# 	hwloc: 1.11.13_1 seems to be the troublemaker. I haven't
+# 	investigated further
+# case "$CI_BUILD_NAME" in
+#     *"32-bit freebsd"*) : ;;
+#     *) freebsd_packages="$freebsd_packages     hwloc" ;;
+# esac
 freebsd_packages="$freebsd_packages     gmp"
 freebsd_packages="$freebsd_packages     gmake"
 freebsd_packages="$freebsd_packages     bash"

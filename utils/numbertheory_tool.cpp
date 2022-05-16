@@ -118,36 +118,6 @@ gmp_randstate_t state;
  *    prime ideals.
  */ 
 
-namespace straightforward_poly_io {
-istream& operator>>(istream& is, cxx_mpz_poly& f)/*{{{*/
-{
-    vector<cxx_mpz> v;
-    cxx_mpz a;
-    for( ; is >> a ; v.push_back(a)) ;
-    mpz_poly_realloc(f, v.size());
-    for(unsigned int i = 0 ; i < v.size() ; i++) {
-        mpz_set(f->coeff[i], v[i]);
-    }
-    mpz_poly_cleandeg(f, v.size()-1);
-    is.clear();
-    return is;
-}
-/*}}}*/
-
-ostream& operator<<(ostream& o, cxx_mpz_poly const& v)/*{{{*/
-{
-    /* note that we can't cheat and use cxx_mpz here */
-    ostream_iterator<mpz_t> it(o, " ");
-    if (v->deg>=0) {
-        copy(v->coeff, v->coeff + v->deg, it);
-        o << v->coeff[v->deg];
-    } else {
-        o << "0";
-    }
-    return o;
-}/*}}}*/
-}
-
 void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
 {
     param_list_decl_usage(pl, "badideals", "badideals file");
@@ -203,12 +173,8 @@ int main(int argc, char * argv[])
     if ((tmp = param_list_lookup_string(pl, "polystr")) != NULL) {
         int side = 0;
         cxx_mpz_poly f;
-        string stmp(tmp);
-        for(unsigned int i = 0 ; i < stmp.size() ; i++) {
-            if (stmp[i]==',') stmp[i]=' ';
-        }
-        istringstream is(stmp);
-        if (!(straightforward_poly_io::operator>>(is, f)))
+        istringstream is(tmp);
+        if (!(is >> f))
             usage(pl, original_argv, "cannot parse polynomial");
 
         vector<badideal> badideals = badideals_for_polynomial(f, side);

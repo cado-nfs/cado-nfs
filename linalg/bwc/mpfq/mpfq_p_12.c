@@ -196,10 +196,8 @@ static void mpfq_p_12_init_ts(mpfq_p_12_dst_field k)
     mp_limb_t s[12];
     mpfq_fixmp_12_sub_ui_nc(pp, k->p->_mp_d, 1);
     int e = 0;
-    while (*ptr == 0) {
-        ptr++;
-        e += 64;
-    }
+    for( ; e < 12*64 && *ptr == 0 ; e+=64, ptr++) ;
+    if (e >= 12*64) abort();
     int ee;
     ee = mpfq_ctzl(*ptr);
     e += ee;

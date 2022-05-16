@@ -311,22 +311,22 @@ polyselect_shash_find_collision_simple_multi(const polyselect_shash_t * H, unsig
     for (uint32_t k = k0; k < k1; k++) {
         memset (T, 0, size * sizeof(*T));
         for(unsigned int j = 0 ; j < multi ; j++) {
-        const uint64_t * Hj = H[j]->base[k];
-        const uint64_t * Hjm = H[j]->current[k];
-        if (Hj == Hjm) continue;
+            const uint64_t * Hj = H[j]->base[k];
+            const uint64_t * Hjm = H[j]->current[k];
+            if (Hj == Hjm) continue;
 
-        for( ; Hj != Hjm ; Hj++) {
-            uint64_t ix = transform(*Hj, mask);
+            for( ; Hj != Hjm ; Hj++) {
+                uint64_t ix = transform(*Hj, mask);
 
-            Th = T + (ix >> 32);
-            for( ; *Th ; Th++) {
-                if (*Th == (uint32_t) ix) {
-                    free (T);
-                    return 1;
+                Th = T + (ix >> 32);
+                for( ; *Th ; Th++) {
+                    if (*Th == (uint32_t) ix) {
+                        free (T);
+                        return 1;
+                    }
                 }
+                *Th = ix;
             }
-            *Th = ix;
-        }
         }
     }
     free (T);
@@ -338,31 +338,36 @@ polyselect_shash2_find_collision_multi(const polyselect_shash_t * H, unsigned in
         unsigned long q, mpz_srcptr rq, polyselect_thread_ptr thread)
 {
     // uint64_t data0;
-    uint32_t *Th;
 
     uint32_t size = polyselect_shash_secondary_table_size(H[0], multi);
     uint32_t mask = size - 1;
     size += 16; /* Guard to avoid to test the end of polyselect_hash_table when ++TH */
 
-    uint32_t * T = (uint32_t*) malloc (2*size * sizeof(*T));
+    struct slot {
+        int64_t i;
+        uint32_t p;
+    };
+    struct slot * T = (struct slot*) malloc (size * sizeof(struct slot));
+
     for (uint32_t k = k0; k < k1; k++) {
-        memset (T, 0, 2*size * sizeof(*T));
+        memset (T, 0, size * sizeof(struct slot));
         for(unsigned int j = 0 ; j < multi ; j++) {
             const uint64_t * Hj = H[j]->base[k];
             const uint64_t * Hjm = H[j]->current[k];
             if (Hj == Hjm) continue;
 
             for( ; Hj != Hjm ; Hj++) {
-                uint64_t ix = transform(*Hj, mask);
+                int64_t i = *Hj;
+                uint32_t p2 = H[j]->pmem[Hj - H[j]->mem];
+                uint64_t ix = transform(i, mask);
 
-                Th = T + ((ix >> 32) << 1);
-                for( ; Th[0] ; Th+=2) {
-                    if (Th[0] == (uint32_t) ix) {
+                struct slot * Th = T + (ix >> 32);
+
+                for( ; Th->i ; Th ++) {
+                    if (Th->i == i) {
                         /* This is a collision */
                         polyselect_match_info_ptr job;
-                        uint64_t i = *Hj;
-                        uint32_t p2 = H[j]->pmem[Hj - H[j]->mem];
-                        uint32_t p1 = Th[1];
+                        uint32_t p1 = Th->p;
                         if (dllist_is_empty(&thread->empty_job_slots)) {
                             job = malloc(sizeof(polyselect_match_info_t));
                             polyselect_match_info_init(job, p1, p2, i, q, rq, thread);
@@ -376,8 +381,8 @@ polyselect_shash2_find_collision_multi(const polyselect_shash_t * H, unsigned in
                         dllist_push_back(&thread->async_jobs, &job->queue);
                     }
                 }
-                Th[0] = ix;
-                Th[1] = H[j]->pmem[Hj - H[j]->mem];
+                Th->i = i;
+                Th->p = p2;
             }
         }
     }

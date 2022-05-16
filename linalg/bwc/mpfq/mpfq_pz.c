@@ -725,14 +725,7 @@ long mpfq_pz_vec_asprint(mpfq_pz_dst_field k, char * * pstr, mpfq_pz_src_vec v, 
             alloc = len + ltmp + 100;
             *pstr = (char *) realloc(*pstr, alloc);
         }
-#if GNUC_VERSION_ATLEAST(7,1,0)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
-#endif
-        strncpy(*pstr + len, tmp, ltmp + 4);
-#if GNUC_VERSION_ATLEAST(7,1,0)
-#pragma GCC diagnostic pop
-#endif
+            strncpy(*pstr+len, tmp, alloc-len);
         len += ltmp;
         free(tmp);
         }

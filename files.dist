@@ -946,8 +946,6 @@ polyselect/polyselect_collisions.h
 polyselect/polyselect_data_series.c
 polyselect/polyselect_data_series.h
 polyselect/polyselect_gfpn.c
-polyselect/polyselect_hash.c
-polyselect/polyselect_hash.h
 polyselect/polyselect_main_data.c
 polyselect/polyselect_main_data.h
 polyselect/polyselect_main_queue.c
@@ -968,6 +966,8 @@ polyselect/polyselect_qroots.c
 polyselect/polyselect_qroots.h
 polyselect/polyselect_shash.c
 polyselect/polyselect_shash.h
+polyselect/polyselect_special_q.c
+polyselect/polyselect_special_q.h
 polyselect/polyselect_stats.c
 polyselect/polyselect_stats.h
 polyselect/polyselect_thread.c

@@ -3,7 +3,7 @@
 #include <stdlib.h>     // exit free malloc
 #include <gmp.h>
 #include "polyselect_arith.h"
-#include "polyselect_hash.h"    // only for SPECIAL_Q...
+#include "polyselect_special_q.h"    // SPECIAL_Q...
 #include "roots_mod.h"
 #include "gcd.h"       // for invert_ul
 #include "gmp_aux.h"       // mpz_set_uint64
