@@ -598,10 +598,7 @@ main (int argc, char *argv[])
 
   fprintf(stderr, "Rewriting relations files\n");
   char ** files;
-  unsigned int nb_files = 0;
   files = filelist ? filelist_from_file (basepath, filelist, 0) : argv;
-  for (char ** p = files; *p; p++)
-    nb_files++;
 
   struct filter_rels_description desc[2] = {
     { .f = thread_galois_2_1, .arg=0, .n=1, },
