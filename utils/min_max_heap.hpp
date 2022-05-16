@@ -387,8 +387,7 @@ public:
     }
 
     /**
-   100 14048  100 14048    0     0   106k      0 --:--:-- --:--:-- --:--:--  107k
-  * @brief Removes the element with the greatest value from the heap and
+     * @brief Removes the element with the greatest value from the heap and
      *        returns its value.
      *
      * @exception std::underflow_error
