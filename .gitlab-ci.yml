@@ -351,7 +351,7 @@ checks on freebsd12.3 system with gcc:
 
 # See #30036: it seems that testing with gcc on freebsd is
 # definitely too much pain now.
-checks on freebsd13.0 system with clang:
+checks on freebsd13.1 system with clang:
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
   <<: *common-template
@@ -362,9 +362,9 @@ checks on freebsd13.0 system with clang:
     - freebsd-tanker
   script:
     - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
+    - ci/50-libvirt-wrap-tests.sh freebsd:13.1 ci/40-testsuite.sh
 
-checks on 32-bit freebsd13.0 system with clang:
+checks on 32-bit freebsd13.1 system with clang:
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
     FREEBSD_ARCH: i386
@@ -376,7 +376,7 @@ checks on 32-bit freebsd13.0 system with clang:
     - freebsd-tanker
   script:
     - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:13.0?arch=i386 ci/40-testsuite.sh
+    - ci/50-libvirt-wrap-tests.sh freebsd:13.1?arch=i386 ci/40-testsuite.sh
 
 coverity on debian10 system with gcc:
   # override the common template.
