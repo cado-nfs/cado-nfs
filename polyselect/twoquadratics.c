@@ -50,6 +50,8 @@ void
 cado_poly_set2 (cado_poly_ptr cpoly, mpz_poly f, mpz_poly g, mpz_t N, 
                 mpz_t skew)
 {
+  for( ; cpoly->nb_polys < 2 ; )
+      cado_poly_provision_new_poly(cpoly);
   mpz_poly_set (cpoly->pols[0], f);
   mpz_poly_set (cpoly->pols[1], g);
   mpz_set (cpoly->n, N);
