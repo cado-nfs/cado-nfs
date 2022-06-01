@@ -32,7 +32,7 @@ static void declare_usage(cxx_param_list & pl)
     siever_side_config::declare_usage(pl);
     batch_side_config::declare_usage(pl);
     param_list_decl_usage(pl, "doecm", "finish with ECM [default = no]");
-    param_list_decl_usage(pl, "no_recomp_norm", "given integers are the norms themselves (w/ sq) [default = no]");
+    param_list_decl_usage(pl, "dont_recomp_norm", "given integers are the norms themselves (w/ sq) [default = no]");
     param_list_decl_usage(pl, "ncurves", "number of curves to be used in ECM [default = 50]");
 
     verbose_decl_usage(pl);
@@ -53,7 +53,7 @@ main (int argc, char *argv[])
   declare_usage(pl);
 
   param_list_configure_switch(pl, "-doecm", &doecm);
-  param_list_configure_switch(pl, "-no_recomp_norm", &no_recomp_norm);
+  param_list_configure_switch(pl, "-dont_recomp_norm", &no_recomp_norm);
 
   argv++, argc--;
   for( ; argc ; ) {
