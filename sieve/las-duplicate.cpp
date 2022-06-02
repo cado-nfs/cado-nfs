@@ -281,7 +281,7 @@ sq_finds_relation(las_info const & las,
   }
   if (talk) {
       std::ostringstream os;
-      for(auto r : remaining_lognorm) os << " " << r;
+      for(auto r : remaining_lognorm) os << " " << (int) r;
       verbose_output_print(0, VERBOSE_LEVEL,
       "# DUPECHECK relation had i=%d, j=%u, remaining lognorms%s\n",
       i, j, os.str().c_str());
