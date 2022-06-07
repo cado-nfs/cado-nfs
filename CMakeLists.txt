@@ -8,10 +8,12 @@
 # overrides.
 
 macro(get_override extname intname)
-string(COMPARE NOTEQUAL "$ENV{${extname}}" "" HAS_${intname}_OVERRIDE)
-if(HAS_${intname}_OVERRIDE)
+if(DEFINED ENV{${extname}})
+    set(HAS_${intname}_OVERRIDE 1)
     set(${intname} "$ENV{${extname}}" CACHE STRING "" FORCE)
     message(STATUS "${extname}=${${intname}} (from environment)")
+else()
+    set(HAS_${intname}_OVERRIDE 0)
 endif()
 endmacro()
 

@@ -11,6 +11,9 @@ an outdated fork.
 Quick install:
 ==============
 
+(see also the section about [running cado-nfs in a
+container](#containers))
+
 in most cases the following should work to factor the number 903...693
 using all cores on the local machine
 
@@ -443,6 +446,22 @@ Importing polynomials or relations:
 If you have already computed a good polynomial and/or relations, you can
 tell CADO-NFS to use them, see
 [`scripts/cadofactor/README.md`](scripts/cadofactor/README.md).
+
+Containers
+==========
+
+As a current work in progress, cado-nfs now ships pre-prepared containers
+which should be enough to do some quick tests. For example, the following
+command line should pull pre-compiled cado-nfs binaries, and run them in
+a docker container (assuming you are using an `x86_64` CPU, haswell or
+later).
+
+```
+docker run --rm registry.gitlab.inria.fr/cado-nfs/cado-nfs/factoring-full cado-nfs.py 90377629292003121684002147101760858109247336549001090677693
+```
+
+Again, this is work in progress.
+
 
 Using CADO-NFS under Windows:
 =============================
