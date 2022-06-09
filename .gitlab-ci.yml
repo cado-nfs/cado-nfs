@@ -92,6 +92,16 @@ checks on debian system with 32-bit gcc:
     - *checks-script
   <<: *checks-junit-report
 
+checks on ubuntu system with gcc:
+  <<: *common-template
+  stage: early
+  image: ubuntu:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
 checks on debian-testing system with 32-bit gcc:
   <<: *common-template
   stage: early
@@ -406,6 +416,16 @@ coverity on debian10 system with gcc:
     --form file=@cov-int.tar.gz
     --form version="`git describe --tags`"
     --form description="`git describe --tags` / $CI_COMMIT_TITLE / $CI_COMMIT_REF_NAME:$CI_PIPELINE_ID"
+
+containers:
+  stage: publish
+  image: docker
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - apk update
+    - apk add make bash git
+    - make -f docker/Makefile PUSH=yes NOW=$(date +%Y%m%d%H%M-$CI_COMMIT_SHA)
+
 
 # "cache" is only when the runners have a notion of available cache
 # server, it seems. Don't do that for now.

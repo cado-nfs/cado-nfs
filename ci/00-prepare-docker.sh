@@ -198,7 +198,7 @@ if [ "$DOCKER_SCRIPT" ] ; then
     freebsd_packages="$freebsd_packages sudo git vim gdb"
 fi
 
-if is_debian ; then
+if is_debian || is_ubuntu ; then
     if [ -x /usr/local/bin/clang ] && ! [ -x /usr/bin/cc ] ; then
         T=$(mktemp -d /tmp/XXXXXXXX)
         F=$($(dirname $0)/phony-packages/clang-usrlocal-0.0/build.sh "$T")

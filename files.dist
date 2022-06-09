@@ -147,6 +147,14 @@ config/test-srand-deterministic.c
 config/utilities.cmake
 config/variables.cmake
 config/xcode.cmake
+docker/Makefile
+docker/base
+docker/dispatch-files.sh
+docker/factoring-client
+docker/factoring-full
+docker/factoring-linalg
+docker/factoring-server
+docker/local.sh
 filter/CMakeLists.txt
 filter/Makefile
 filter/README.fileformat
