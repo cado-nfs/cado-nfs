@@ -111,6 +111,7 @@ main (int argc, char *argv[])
   auto batchmfb = batch_side_config::collect_batchmfb(bsides);
 
   for (int side = 0; side < 2; ++side) {
+      batchP.push_back(0);
       create_batch_file (bsides[side].batchfilename,
               batchP[side],
               sides[side].lim,
@@ -128,7 +129,6 @@ main (int argc, char *argv[])
 
 #define MAX_SIZE 2048
   char str[MAX_SIZE];
-  std::vector<cxx_mpz> norms(nsides, 0);
   cxx_mpz q;
   mpz_set_ui(q, 1);
   // Create a fake special-q
@@ -158,6 +158,7 @@ main (int argc, char *argv[])
           }
           continue;
       }
+      std::vector<cxx_mpz> norms(nsides, 0);
       std::istringstream ss(str);
       ss >> a >> b;
       for(int side = 0 ; side < nsides ; side++)
