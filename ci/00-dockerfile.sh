@@ -66,6 +66,7 @@ case "$CI_BUILD_NAME" in
     *"fedora33 system"*) FROM=fedora:33;;
     *"fedora34 system"*) FROM=fedora:34;;
     *"fedora-rawhide system"*) FROM=fedora:rawhide;;
+    *"containers"*) FROM=docker;;
 esac
 
 cat <<EOF
