@@ -33,9 +33,10 @@ endif()
 # Check that importing the sqlite3 module works. Some distros don't have the
 # sqlite3 librarby installed, and some omit the Python sqlite3 module... :-(
 
-file(WRITE "${CMAKE_BINARY_DIR}python_sqlite3_test.py" "import sqlite3\n")
-execute_process(COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_BINARY_DIR}python_sqlite3_test.py" RESULT_VARIABLE _returncode OUTPUT_QUIET ERROR_QUIET)
-file(REMOVE "${CMAKE_BINARY_DIR}python_sqlite3_test.py")
+file(WRITE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/python_sqlite3_test.py" "import sqlite3\n")
+execute_process(COMMAND "${PYTHON_EXECUTABLE}"
+    "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/python_sqlite3_test.py" RESULT_VARIABLE _returncode OUTPUT_QUIET ERROR_QUIET)
+file(REMOVE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/python_sqlite3_test.py")
 if (NOT _returncode EQUAL 0)
   message(FATAL_ERROR "Importing the sqlite3 Python module failed. "
 "This may be caused by the sqlite3 library package missing on your system. "
