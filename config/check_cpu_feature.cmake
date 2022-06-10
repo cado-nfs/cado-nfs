@@ -35,25 +35,30 @@ macro(check_cpu_feature archfeature)
     message(STATUS "Testing whether ${archfeaturename} code can be used")
 
     if (${prerequisites})
-        try_run(${archfeaturevar}_runs ${archfeaturevar}_compiles
+        # Try with the system as it is configured, with the default
+        # compiler behaviour. This may include tweaks by the used, we
+        # don't care. If it compiles, we're happy. And we do __NOT__ run
+        # the code in that case, because it's the user's business to pass
+        # a compiler that creates runnable code. Or maybe not runnable
+        # code, there could be use cases for that (compiling for a
+        # different microarchitecture for instance).
+
+        try_compile(${archfeaturevar}_compiles
             ${PROJECT_BINARY_DIR}/config
-            ${testfile}
-            )
+            ${testfile})
         if(${archfeaturevar}_compiles)
-            if (${archfeaturevar}_runs MATCHES FAILED_TO_RUN)
-                message(STATUS "Testing whether ${archfeaturename} code can be used -- No")
-                set (HAVE_${ARCHFEATUREVAR} 0)
-            else()
-                message(STATUS "Testing whether ${archfeaturename} code can be used -- Yes")
-                set (HAVE_${ARCHFEATUREVAR} 1)
-            endif()
+            message(STATUS "Testing whether ${archfeaturename} code can be used -- Yes")
+            set (HAVE_${ARCHFEATUREVAR} 1)
         elseif(CMAKE_C_FLAGS MATCHES "-march")
             message(STATUS "Testing whether ${archfeaturename} code can be used -- No (not testing ${compilerflag} because -march is already present)")
         else()
+            # We're going to _try_ to add the feature with an explicit
+            # compiler flag, but noting that it makes sense to do this
+            # _only_ if we can check that the resulting binary can run.
             try_run(${archfeaturevar}_runs ${archfeaturevar}_compiles
-                ${PROJECT_BINARY_DIR}/config
-                ${testfile}
-                COMPILE_DEFINITIONS ${compilerflag})
+              ${PROJECT_BINARY_DIR}/config
+              ${testfile}
+              COMPILE_DEFINITIONS ${compilerflag})
             if(${archfeaturevar}_compiles)
                 if (${archfeaturevar}_runs MATCHES FAILED_TO_RUN)
                     message(STATUS "Testing whether ${archfeaturename} code can be used -- No")
