@@ -43,10 +43,29 @@ macro(check_cpu_feature archfeature)
         # code, there could be use cases for that (compiling for a
         # different microarchitecture for instance).
 
-        try_compile(${archfeaturevar}_compiles
-            ${PROJECT_BINARY_DIR}/config
-            ${testfile})
-        if(${archfeaturevar}_compiles)
+
+        # We have a problem with icc, which by default seems to compile
+        # to the latest instruction set, without consideration of the
+        # host machine. I know that this sounds totally bogus, but it's
+        # apparently the way it is. Flags such as -xhost don't have any
+        # impact. Apparently, any call to the intel intrinsics emits the
+        # corresponding assembly instruction, regardless of the host
+        # machine. So for ICC, short of knowing how to deal with this, we
+        # have to effectively disable cross-microarchitecture
+        # compilation and use try_run instead of try_compile
+
+        if(CMAKE_C_COMPILER_ID MATCHES "Intel")
+            try_run(${archfeaturevar}_runs ${archfeaturevar}_compiles
+                ${PROJECT_BINARY_DIR}/config
+                ${testfile})
+            set(happy ${${archfeaturevar}_runs})
+        else()
+            try_compile(${archfeaturevar}_compiles
+                ${PROJECT_BINARY_DIR}/config
+                ${testfile})
+            set(happy ${${archfeaturevar}_compiles})
+        endif()
+        if(${happy})
             message(STATUS "Testing whether ${archfeaturename} code can be used -- Yes")
             set (HAVE_${ARCHFEATUREVAR} 1)
         elseif(CMAKE_C_FLAGS MATCHES "-march")
