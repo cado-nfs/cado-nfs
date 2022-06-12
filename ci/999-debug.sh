@@ -11,6 +11,23 @@ else
     groupadd -g $gid hostgroup
     useradd -s /bin/bash -m -g $gid -u $uid hostuser
 fi
+if [ -e /var/run/docker.sock ] ; then
+    hostdockergid=$(stat -c '%g' /var/run/docker.sock)
+    guestdockergroup=`(getent group $hostdockergid || :) | cut -d: -f1`
+    if ! "$guestdockergroup" ; then
+        guestdockergroup=hostdocker
+        if [ -f /etc/alpine-release ] ; then
+            addgroup -g $hostdockergid $guestdockergroup
+        else
+            groupadd -g $hostdockergid $guestdockergroup
+        fi
+    fi
+    if [ -f /etc/alpine-release ] ; then
+        addgroup hostuser $guestdockergroup
+    else
+        usermod -a -G hostdocker $guestdockergroup
+    fi
+fi
 
 
 ## touch /tmp/trampoline.sh
