@@ -356,12 +356,18 @@ if("$ENV{ENABLE_SHARED}")
     endif()
     set(CADO_SHARED SHARED)
     message(STATUS "Building with dynamic libraries (ENABLE_SHARED=$ENV{ENABLE_SHARED})")
+
+    # https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
+    set(CMAKE_SKIP_BUILD_RPATH FALSE)
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
     string_join(rpath ":"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/utils"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/polyselect"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/linalg/bwc"
     )
     set(CMAKE_INSTALL_RPATH ${rpath})
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 else()
     message(STATUS "Building with static libraries (ENABLE_SHARED=\"$ENV{ENABLE_SHARED}\")")
 endif()

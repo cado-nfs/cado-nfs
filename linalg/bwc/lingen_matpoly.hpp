@@ -6,7 +6,7 @@
 #include "lingen_call_companion.hpp"
 #include "lingen_memory_pool.hpp"
 #include "macros.h"                   // for ASSERT_ALWAYS, ATTRIBUTE_WARN_U...
-#include "mpfq_layer.h"
+#include "arith-hard.hpp"
 #include "submatrix_range.hpp"
 #include "tree_stats.hpp"
 
@@ -27,10 +27,16 @@ class matpoly {
      */
     friend class bigmatpoly;
 
-    typedef absrc_vec srcptr;
-    typedef abdst_vec ptr;
+public:
+    typedef ::arith_hard arith_hard;
+    typedef arith_hard::elt elt;
+    typedef elt * ptr;
+    typedef elt const * srcptr;
+
+private:
     typedef memory_pool_wrapper<ptr, true> memory_pool_type;
     static memory_pool_type memory;
+
 public:
     struct memory_guard : private memory_pool_type::guard_base {
         memory_guard(size_t s) : memory_pool_type::guard_base(memory, s) {}
@@ -52,13 +58,13 @@ public:
     void make_sure_not_pre_init() const { if (!check_pre_init()) throw must_be_pre_init(); }
     */
     // static void add_to_main_memory_pool(size_t s);
-    abdst_field ab = NULL;
+    arith_hard * ab = NULL;
     unsigned int m = 0;
     unsigned int n = 0;
 private:
     size_t size = 0;
     size_t alloc = 0;
-    abvec x = NULL;
+    ptr x = NULL;
 public:
     inline size_t capacity() const { return alloc; }
     inline size_t get_size() const { return size; }
@@ -68,10 +74,10 @@ public:
     inline unsigned int nrows() const { return m; }
     inline unsigned int ncols() const { return n; }
     const void * data_area() const { return x; }
-    size_t data_entry_size_in_bytes() const { return abvec_elt_stride(ab, size); }
+    size_t data_entry_size_in_bytes() const { return ab->vec_elt_stride(size); }
     size_t data_size_in_bytes() const { return m * n * data_entry_size_in_bytes(); }
 private:
-    size_t data_entry_alloc_size_in_bytes(size_t a) const { return abvec_elt_stride(ab, a); }
+    size_t data_entry_alloc_size_in_bytes(size_t a) const { return ab->vec_elt_stride(a); }
     size_t data_alloc_size_in_bytes(size_t a) const { return m * n * data_entry_alloc_size_in_bytes(a); }
 public:
     size_t data_entry_alloc_size_in_bytes() const { return data_entry_alloc_size_in_bytes(alloc); }
@@ -79,7 +85,7 @@ public:
     bool is_tight() const { return alloc == size; }
 
     matpoly() { m=n=0; size=alloc=0; ab=NULL; x=NULL; }
-    matpoly(abdst_field ab, unsigned int m, unsigned int n, int len);
+    matpoly(arith_hard * ab, unsigned int m, unsigned int n, int len);
     matpoly(matpoly const&) = delete;
     matpoly& operator=(matpoly const&) = delete;
     matpoly& set(matpoly const&);
@@ -99,43 +105,43 @@ public:
     /* part_head does not _promise_ to point to coefficient k exactly. In
      * the simd case (lingen_matpoly_binary.hpp) it points to the word
      * where coefficient k can be found */
-    inline abdst_vec part(unsigned int i, unsigned int j) {
-        return abvec_subvec(ab, x, (i*n+j)*alloc);
+    inline ptr part(unsigned int i, unsigned int j) {
+        return ab->vec_subvec(x, (i*n+j)*alloc);
     }
-    inline abdst_vec part_head(unsigned int i, unsigned int j, unsigned int k) {
-        return abvec_subvec(ab, part(i, j), k);
+    inline ptr part_head(unsigned int i, unsigned int j, unsigned int k) {
+        return ab->vec_subvec(part(i, j), k);
     }
-    inline abdst_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) {
-        return abvec_coeff_ptr(ab, part(i, j), k);
+    inline elt & coeff(unsigned int i, unsigned int j, unsigned int k=0) {
+        return ab->vec_item(part(i, j), k);
     }
     struct coeff_accessor_proxy {
-        abdst_field ab;
-        abdst_elt p;
+        arith_hard * ab;
+        arith_hard::elt * p;
         coeff_accessor_proxy(matpoly& F, unsigned int i,
                 unsigned int j, unsigned int k)
-            : ab(F.ab), p(F.coeff(i, j, k))
+            : ab(F.ab), p(F.part_head(i, j, k))
         {
         }
-        coeff_accessor_proxy& operator+=(absrc_elt x) {
-            abadd(ab, p, p, x);
+        coeff_accessor_proxy& operator+=(elt const & x) {
+            ab->add_and_reduce(*p, x);
             return *this;
         }
     };
     inline coeff_accessor_proxy coeff_accessor(unsigned int i, unsigned int j, unsigned int k = 0) {
         return coeff_accessor_proxy(*this, i, j, k);
     }
-    inline absrc_vec part(unsigned int i, unsigned int j) const {
-        return abvec_subvec_const(ab, x, (i*n+j)*alloc);
+    inline srcptr part(unsigned int i, unsigned int j) const {
+        return ab->vec_subvec(x, (i*n+j)*alloc);
     }
-    inline absrc_vec part_head(unsigned int i, unsigned int j, unsigned int k) const {
-        return abvec_subvec_const(ab, part(i, j), k);
+    inline srcptr part_head(unsigned int i, unsigned int j, unsigned int k) const {
+        return ab->vec_subvec(part(i, j), k);
     }
-    inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k=0) const {
-        return abvec_coeff_ptr_const(ab, part(i, j), k);
+    inline elt const & coeff(unsigned int i, unsigned int j, unsigned int k=0) const {
+        return ab->vec_item(part(i, j), k);
     }
     /* }}} */
     void set_constant_ui(unsigned long e);
-    void set_constant(absrc_elt e);
+    void set_constant(elt const & e);
     /* Note that this method does not change the size field */
     void fill_random(unsigned int k0, unsigned int k1, gmp_randstate_t rstate);
     void clear_and_set_random(unsigned int len, gmp_randstate_t rstate)
@@ -213,10 +219,10 @@ public:
         matpoly & M;
         view_t(matpoly & M, submatrix_range S) : submatrix_range(S), M(M) {}
         view_t(matpoly & M) : submatrix_range(M), M(M) {}
-        inline abdst_vec part(unsigned int i, unsigned int j) {
+        inline ptr part(unsigned int i, unsigned int j) {
             return M.part(i0+i, j0+j);
         }
-        inline absrc_vec part(unsigned int i, unsigned int j) const {
+        inline srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
         void zero();
@@ -227,7 +233,7 @@ public:
         const_view_t(matpoly const & M, submatrix_range S) : submatrix_range(S), M(M) {}
         const_view_t(matpoly const & M) : submatrix_range(M), M(M) {}
         const_view_t(view_t const & V) : submatrix_range(V), M(V.M) {}
-        inline absrc_vec part(unsigned int i, unsigned int j) const {
+        inline srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
     };

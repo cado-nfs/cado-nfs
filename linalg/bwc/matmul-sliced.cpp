@@ -16,10 +16,10 @@
 
 using namespace std;
 
-#include "matmul.h"         // for matmul_ptr, matmul_public_s
-#include "mpfq_layer.h"
-#include "matmul-common.h"
-#include "matmul_facade.h"
+#include "matmul.hpp"         // for matmul_ptr, matmul_public_s
+#include "arith-hard.hpp"
+#include "matmul-common.hpp"
+#include "matmul_facade.hpp"
 #include "macros.h"
 #include "params.h"
 
@@ -29,7 +29,7 @@ using namespace std;
 // #define L1_CACHE_SIZE   32768
 // take only 3/4 of the L1 cache.
 #define L1_CACHE_SIZE   24576
-// for 8-bytes abelt values, this gives 3072 items.
+// for 8-bytes arith_hard::elt values, this gives 3072 items.
 
 /* Here is how the matrix is stored in memory, in the
  * "matmul_sliced_data_s" type.  The matrix is cut in slices, where each
@@ -88,7 +88,7 @@ struct matmul_sliced_data_s {
     /* repeat the fields from the public_ interface */
     struct matmul_public_s public_[1];
     /* now our private fields */
-    abdst_field xab;
+    arith_hard * xab;
     data_t data;
     vector<slice_info> dslices_info;
     unsigned int npack;
@@ -129,7 +129,7 @@ void MATMUL_NAME(clear)(matmul_ptr mm0)
 
 matmul_ptr MATMUL_NAME(init)(void * pxx, param_list pl, int optimized_direction)
 {
-    abdst_field xx = (abdst_field) pxx;
+    arith_hard * xx = (arith_hard *) pxx;
     struct matmul_sliced_data_s * mm;
     mm = new matmul_sliced_data_s;
     // see bug 21663
@@ -138,7 +138,7 @@ matmul_ptr MATMUL_NAME(init)(void * pxx, param_list pl, int optimized_direction)
 
     unsigned int npack = L1_CACHE_SIZE;
     if (pl) param_list_parse_uint(pl, "l1_cache_size", &npack);
-    npack /= sizeof(abelt);
+    npack /= sizeof(arith_hard::elt);
     mm->npack = npack;
 
     int suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
@@ -313,7 +313,7 @@ int MATMUL_NAME(reload_cache)(matmul_ptr mm0)
     FILE * f;
 
     struct matmul_sliced_data_s * mm = (struct matmul_sliced_data_s *) mm0;
-    f = matmul_common_reload_cache_fopen(sizeof(abelt), mm->public_, MM_MAGIC);
+    f = matmul_common_reload_cache_fopen(sizeof(arith_hard::elt), mm->public_, MM_MAGIC);
     if (!f) return 0;
 
     size_t n;
@@ -334,7 +334,7 @@ void MATMUL_NAME(save_cache)(matmul_ptr mm0)
     FILE * f;
 
     struct matmul_sliced_data_s * mm = (struct matmul_sliced_data_s *) mm0;
-    f = matmul_common_save_cache_fopen(sizeof(abelt), mm->public_, MM_MAGIC);
+    f = matmul_common_save_cache_fopen(sizeof(arith_hard::elt), mm->public_, MM_MAGIC);
     if (!f) return;
 
     size_t n = mm->data.size();
@@ -353,9 +353,9 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
     uint16_t nhstrips = *q++;
     q++;        // alignment.
     uint32_t i = 0;
-    abdst_field x = mm->xab;
-    absrc_vec src = (absrc_vec) (const_cast<void*>(xsrc)); // typical C const problem.
-    abdst_vec dst = (abdst_vec) xdst;
+    arith_hard * x = mm->xab;
+    arith_hard::elt const * src = (arith_hard::elt const *) xsrc;
+    arith_hard::elt * dst = (arith_hard::elt *) xdst;
 
     if (d == !mm->public_->store_transposed) {
 #ifdef  SLICE_STATS
@@ -364,8 +364,8 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
 #endif
         for(uint16_t s = 0 ; s < nhstrips ; s++) {
             uint32_t nrows_packed = matmul_sliced_data_s::read32(q);
-            abelt * where = dst + i;
-            abvec_set_zero(x, where, nrows_packed);
+            arith_hard::elt * where = x->vec_subvec(dst, i);
+            x->vec_set_zero(where, nrows_packed);
             ASM_COMMENT("critical loop");
             /* The external function must have the same semantics as this
              * code block */
@@ -374,7 +374,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
             for(uint32_t c = 0 ; c < ncoeffs_slice ; c++) {
                 j += *q++;
                 uint32_t di = *q++;
-                abadd(x, where[di], where[di], src[j]);
+                x->add(x->vec_item(where, di), src[j]);
             }
             ASM_COMMENT("end of critical loop");
             i += nrows_packed;
@@ -396,7 +396,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
             fprintf(stderr, "Warning: Doing many iterations with bad code\n");
         }
 
-        abvec_set_zero(x, dst, mm->public_->dim[!d]);
+        x->vec_set_zero(dst, mm->public_->dim[!d]);
         for(uint16_t s = 0 ; s < nhstrips ; s++) {
             uint32_t j = 0;
             uint32_t nrows_packed = matmul_sliced_data_s::read32(q);
@@ -405,7 +405,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
             for(uint32_t c = 0 ; c < ncoeffs_slice ; c++) {
                 j += *q++;
                 uint32_t di = *q++;
-                abadd(x, dst[j], dst[j], src[i+di]);
+                x->add(dst[j], src[i+di]);
             }
             i += nrows_packed;
             ASM_COMMENT("end of critical loop");

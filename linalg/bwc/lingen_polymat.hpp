@@ -1,20 +1,20 @@
 #ifndef LINGEN_POLYMAT_HPP_
 #define LINGEN_POLYMAT_HPP_
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 #error "lingen_polymat does not work with binary (maybe use bblas instead -- could end up being the same interface, IDK)"
 #endif
 
 #include <cstddef>      // for size_t, NULL
 #include <gmp.h>         // for gmp_randstate_t
-#include "mpfq_layer.h"
+#include "arith-hard.hpp"
 #include "macros.h"
 
 class matpoly;
 
 /* This is used only for lingen. */
 struct polymat {
-    abdst_field ab = NULL;
+    arith_hard * ab = NULL;
     unsigned int m = 0;
     unsigned int n = 0;
     private:
@@ -24,7 +24,10 @@ struct polymat {
     inline size_t capacity() const { return alloc; }
     inline size_t get_size() const { return size; }
     void set_size(size_t s) { size = s; }
-    abvec x = NULL;
+    typedef arith_hard::elt elt;
+    typedef elt * ptr;
+    typedef elt const * srcptr;
+    ptr x = NULL;
 
     polymat() : polymat(NULL, 0,0,0) {}
     polymat(polymat const&) = delete;
@@ -32,7 +35,7 @@ struct polymat {
     polymat(polymat &&);
     polymat& operator=(polymat &&);
     ~polymat();
-    polymat(abdst_field ab, unsigned int m, unsigned int n, int len);
+    polymat(arith_hard * ab, unsigned int m, unsigned int n, int len);
     int check_pre_init() const;
     void realloc(size_t newalloc);
     void zero();
@@ -43,23 +46,23 @@ struct polymat {
     int cmp(polymat const & b);
 
     /* {{{ access interface for polymat */
-    inline abdst_vec part(unsigned int i, unsigned int j, unsigned int k) {
+    inline ptr part(unsigned int i, unsigned int j, unsigned int k) {
         /* Assume row-major in all circumstances. Old code used to support
          * various orderings, here we don't */
         ASSERT_ALWAYS(size);
-        return abvec_subvec(ab, x, (k*m+i)*n+j);
+        return ab->vec_subvec(x, (k*m+i)*n+j);
     }
-    inline abdst_elt coeff(unsigned int i, unsigned int j, unsigned int k) {
-        return abvec_coeff_ptr(ab, part(i,j,k),0);
+    inline elt & coeff(unsigned int i, unsigned int j, unsigned int k) {
+        return ab->vec_item(part(i,j,k),0);
     }
-    inline absrc_vec part(unsigned int i, unsigned int j, unsigned int k) const {
+    inline srcptr part(unsigned int i, unsigned int j, unsigned int k) const {
         /* Assume row-major in all circumstances. Old code used to support
          * various orderings, here we don't */
         ASSERT_ALWAYS(size);
-        return abvec_subvec_const(ab, (absrc_vec)x,(k*m+i)*n+j);
+        return ab->vec_subvec(x,(k*m+i)*n+j);
     }
-    inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k) const {
-        return abvec_coeff_ptr_const(ab, part(i,j,k),0);
+    inline elt const & coeff(unsigned int i, unsigned int j, unsigned int k) const {
+        return ab->vec_item(part(i,j,k),0);
     }
     /* }}} */
 
@@ -129,17 +132,11 @@ struct polymat_cutoff_info {
     unsigned int (*table)[2];
     unsigned int table_size;
 };
-#ifdef __cplusplus
-extern "C" {
-#endif
 void polymat_cutoff_info_init(struct polymat_cutoff_info * c);
 void polymat_cutoff_info_clear(struct polymat_cutoff_info * c);
 void polymat_cutoff_add_step(struct polymat_cutoff_info * c, unsigned int size, unsigned int alg);
 void polymat_set_mul_kara_cutoff(const struct polymat_cutoff_info * new_cutoff, struct polymat_cutoff_info * old_cutoff);
 void polymat_set_mp_kara_cutoff(const struct polymat_cutoff_info * new_cutoff, struct polymat_cutoff_info * old_cutoff);
-#ifdef __cplusplus
-}
-#endif
 /* }}} */
 
 #endif	/* LINGEN_POLYMAT_HPP_ */

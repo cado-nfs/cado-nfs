@@ -7,6 +7,7 @@
 #include <cstdint>              // for uint32_t
 #include <ctime>                // for time
 #include <cstdlib>
+#include <memory>
 
 #include <vector>
 #include <array>
@@ -15,6 +16,7 @@
 #include <tuple>
 #include <algorithm>
 #include <utility>               // for pair, make_pair
+#include <sstream>
 
 #include <dirent.h>
 #include <pthread.h>             // for pthread_mutex_lock, pthread_mutex_un...
@@ -22,12 +24,12 @@
 #include <gmp.h>                 // for mpz_cmp_ui, gmp_randclear, gmp_randi...
 
 #include "bw-common.h"
-#include "cheating_vec_init.h"
+#include "cheating_vec_init.hpp"
 #include "cxx_mpz.hpp"
-#include "matmul_top.h"
-#include "mpfq/mpfq.h"
-#include "mpfq/mpfq_vbase.h"
-#include "parallelizing_info.h"
+#include "matmul_top.hpp"
+#include "arith-generic.hpp"
+#include "arith-cross.hpp"
+#include "parallelizing_info.hpp"
 #include "params.h"
 #include "portability.h"
 #include "select_mpi.h"
@@ -150,21 +152,19 @@ std::vector<sfile_info> prelude(parallelizing_info_ptr pi)/*{{{*/
     return res;
 }/*}}}*/
 
-void fprint_signed(FILE * f, mpfq_vbase_ptr A, void * x)
+void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const & x)
 {
-    char * ss;
-    void * minus;
-    A->vec_init(A, &minus, 1);
-    A->neg(A, minus, x);
-    if (A->cmp(A, minus, x) < 0) {
-        A->asprint(A, &ss, minus);
-        fprintf(f, "-%s", ss);
+    std::ostringstream os;
+    arith_generic::elt * minus = A->alloc();
+    A->neg(*minus, x);
+    if (A->cmp(*minus, x) < 0) {
+        os << "-";
+        A->cxx_out(os, *minus);
     } else {
-        A->asprint(A, &ss, x);
-        fprintf(f, "%s", ss);
+        A->cxx_out(os, x);
     }
-    A->vec_clear(A, &minus, 1);
-    free(ss);
+    A->free(minus);
+    fprintf(f, "%s", os.str().c_str());
 }
 
 void allgather(std::vector<unsigned int>& v, pi_comm_ptr wr)/*{{{*/
@@ -176,6 +176,7 @@ void allgather(std::vector<unsigned int>& v, pi_comm_ptr wr)/*{{{*/
 
     std::vector<unsigned int> *mainv;
     mainv = &v;
+    /* Yes, we're sharing a pointer, here */
     pi_thread_bcast(&mainv, sizeof(mainv), BWC_PI_BYTE, 0, wr);
 
     for(unsigned int j = 1 ; j < wr->ncores ; ++j) {
@@ -220,7 +221,7 @@ void broadcast(std::vector<unsigned int>& v, pi_comm_ptr wr)/*{{{*/
 
 std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec_ptr y, unsigned int maxidx, int want_nonzero)/*{{{*/
 {
-    mpfq_vbase_ptr A = y->abase;
+    arith_generic * A = y->abase;
     parallelizing_info_ptr pi = y->pi;
 
     std::vector<unsigned int> myz;
@@ -228,7 +229,7 @@ std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec_ptr y, unsig
     if (pi->wr[y->d]->trank == 0 && pi->wr[y->d]->jrank == 0) {
         for(unsigned int i = 0 ; i < maxidx ; i++) {
             if (y->i0 <= i && i < y->i1) {
-                if (!!want_nonzero == !A->is_zero(A, A->vec_coeff_ptr_const(A, y->v, i - y->i0))) {
+                if (!!want_nonzero == !A->is_zero(A->vec_item(y->v, i - y->i0))) {
                     myz.push_back(i);
                 }
             }
@@ -353,25 +354,25 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{
  * of the blocks whose index is congruent to
  * (j/groupsize)-th block mod cblocks ; A is my->abase.
  */
-void compress_vector_to_sparse(void * matrix, unsigned int j, unsigned int cblocks, mmt_vec_ptr my, std::vector<unsigned int> & rows)
+void compress_vector_to_sparse(arith_generic::elt * matrix, unsigned int j, unsigned int cblocks, mmt_vec_ptr my, std::vector<unsigned int> & rows)
 {
-    mpfq_vbase_ptr A = my->abase;
+    arith_generic * A = my->abase;
 
     unsigned int own_i0 = my->i0 + mmt_my_own_offset_in_items(my);
     unsigned int own_i1 = own_i0 + mmt_my_own_size_in_items(my);
     cxx_mpz v;
-    unsigned int jq = j / A->simd_groupsize(A);
+    unsigned int jq = j / A->simd_groupsize();
     // unsigned int jr = j % A->simd_groupsize(A);
 
     int char2 = mpz_cmp_ui(bw->p, 2) == 0;
-    ASSERT_ALWAYS(char2 || A->simd_groupsize(A) == 1);
+    ASSERT_ALWAYS(char2 || A->simd_groupsize() == 1);
 
     for(unsigned int ii = 0 ; ii < rows.size() ; ii++) {
         unsigned int i = rows[ii];
         if (own_i0 <= i && i < own_i1) {
-            const void * src = A->vec_coeff_ptr_const(A, my->v, i - my->i0);
-            void * dst = A->vec_coeff_ptr(A, matrix, ii * cblocks + jq);
-            A->set(A, dst, src);
+            arith_generic::elt const & src = A->vec_item(my->v, i - my->i0);
+            arith_generic::elt & dst = A->vec_item(matrix, ii * cblocks + jq);
+            A->set(dst, src);
         }
     }
 }
@@ -379,40 +380,40 @@ void compress_vector_to_sparse(void * matrix, unsigned int j, unsigned int cbloc
 struct abase_proxy {
 
     parallelizing_info_ptr pi;
-    mpfq_vbase A;
+    std::unique_ptr<arith_generic> A;
     pi_datatype_ptr A_pi;
 
-    abase_proxy(parallelizing_info_ptr pi, int width) : pi(pi) {
-        mpfq_vbase_oo_field_init_byfeatures(A,
-                MPFQ_PRIME_MPZ, bw->p,
-                MPFQ_SIMD_GROUPSIZE, width,
-                MPFQ_DONE);
-        A_pi = pi_alloc_mpfq_datatype(pi, A);
+    abase_proxy(parallelizing_info_ptr pi, int width)
+        : pi(pi)
+        , A(arith_generic::instance(bw->p, width))
+    {
+        A_pi = pi_alloc_arith_datatype(pi, A.get());
     }
+    abase_proxy(abase_proxy&&) = default;
+    abase_proxy& operator=(abase_proxy&&) = default;
     static abase_proxy most_natural(parallelizing_info_ptr pi) {
         return abase_proxy(pi, mpz_cmp_ui(bw->p, 2) == 0 ? 64 : 1);
     }
-    std::map<mpfq_vbase_ptr, mpfq_vbase_tmpl_s> tdict;
-    mpfq_vbase_tmpl_ptr templates(mpfq_vbase_ptr A1) {
+    std::map<arith_generic *, std::shared_ptr<arith_cross_generic>> tdict;
+    arith_cross_generic * templates(arith_generic * A1) {
         auto it = tdict.find(A1);
         if (it == tdict.end())
-            mpfq_vbase_oo_init_templates(&tdict[A1], A, A1);
-        return &tdict[A1];
+            tdict[A1] = std::shared_ptr<arith_cross_generic>(arith_cross_generic::instance(A.get(), A1));
+        return tdict[A1].get();
     }
     ~abase_proxy()
     {
-        pi_free_mpfq_datatype(pi, A_pi);
-        A->oo_field_clear(A);
+        pi_free_arith_datatype(pi, A_pi);
     }
 };
 
 struct rhs /*{{{*/ {
     matmul_top_data_ptr mmt;
-    mpfq_vbase_ptr A;
+    arith_generic * A;
     unsigned int nrhs;
-    void * rhscoeffs;
+    arith_generic::elt * rhscoeffs;
     abase_proxy natural;
-    mpfq_vbase_ptr Av;
+    arith_generic * Av;
 
     rhs(rhs const&) = delete;
 
@@ -433,9 +434,9 @@ struct rhs /*{{{*/ {
          * but that would be pure chance, as it was never tested */
         int char2 = mpz_cmp_ui(bw->p, 2) == 0;
         ASSERT_ALWAYS(!char2);
-        ASSERT_ALWAYS(A->simd_groupsize(A) == 1);
+        ASSERT_ALWAYS(A->simd_groupsize() == 1);
 
-        Av = natural.A;
+        Av = natural.A.get();
 
         if (leader)
             get_rhs_file_header(rhs_name, NULL, &nrhs, NULL);
@@ -461,8 +462,8 @@ struct rhs /*{{{*/ {
         if (leader) {
             // yeah, we asserted that we're GF(p) at this point anyway.
             // coverity[dead_error_line]
-            int splitwidth = char2 ? 64 : 1;
-            ASSERT_ALWAYS(Av->simd_groupsize(Av) == splitwidth);
+            unsigned int splitwidth = char2 ? 64 : 1;
+            ASSERT_ALWAYS(Av->simd_groupsize() == splitwidth);
 
             if (char2 || solutions[1] != solutions[0] + splitwidth) {
                 ASSERT_ALWAYS(0);/* never tested. I did attempt to code it right for the simd case though, but did not test. */
@@ -481,11 +482,11 @@ struct rhs /*{{{*/ {
                     FILE * f = fopen(tmp, "rb");
                     ASSERT_ALWAYS(f);
                     rc = fread(
-                            Av->vec_subvec(Av, rhscoeffs, j * Av_multiplex + i),
-                            Av->vec_elt_stride(Av,1),
+                            Av->vec_subvec(rhscoeffs, j * Av_multiplex + i),
+                            Av->elt_stride(),
                             1, f);
                     ASSERT_ALWAYS(rc == 1);
-                    if (Av->is_zero(Av, Av->vec_coeff_ptr_const(Av, rhscoeffs, j * Av_multiplex + i))) {
+                    if (Av->is_zero(Av->vec_item(rhscoeffs, j * Av_multiplex + i))) {
                         printf("Notice: coefficient for vector V%u-%u in file %s is zero\n", j, j+1, tmp);
                     }
                     fclose(f);
@@ -502,11 +503,11 @@ struct rhs /*{{{*/ {
     }/*}}}*/
     void fwrite_rhs_coeffs(FILE * f, unsigned int i=0) /* {{{ */
     {
-        unsigned int Av_multiplex = A->simd_groupsize(A) / Av->simd_groupsize(Av);
+        unsigned int Av_multiplex = A->simd_groupsize() / Av->simd_groupsize();
         for(unsigned int j = 0 ; j < nrhs ; j++) {
             int rc = fwrite(
-                    Av->vec_subvec(Av, rhscoeffs, j * Av_multiplex + i),
-                    Av->vec_elt_stride(Av,1),
+                    Av->vec_subvec(rhscoeffs, j * Av_multiplex + i),
+                    Av->elt_stride(),
                     1, f);
             ASSERT_ALWAYS(rc == 1);
         }
@@ -514,8 +515,9 @@ struct rhs /*{{{*/ {
     void fprint_rhs_coeffs(FILE * f2) /* {{{ */
     {
         for(uint32_t i = 0 ; i < nrhs ; i++) {
-            A->fprint(A, f2, A->vec_coeff_ptr(A, rhscoeffs, i));
-            fprintf(f2, "\n");
+            std::ostringstream os;
+            A->cxx_out(os, A->vec_item(rhscoeffs, i));
+            fprintf(f2, "%s\n", os.str().c_str());
         }
     }/*}}}*/
     operator bool() const { return nrhs; }
@@ -525,13 +527,13 @@ struct rhs /*{{{*/ {
         if (!nrhs) return;
 
         parallelizing_info_ptr pi = mmt->pi;
-        mpfq_vbase_ptr A = mmt->abase;
+        arith_generic * A = mmt->abase;
         ASSERT_ALWAYS(y->abase == A);
         unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
         size_t eblock = mmt_my_own_size_in_items(y);
 
         abase_proxy natural = abase_proxy::most_natural(pi);
-        mpfq_vbase_ptr Av = natural.A;
+        arith_generic * Av = natural.A.get();
         pi_datatype_ptr Av_pi = natural.A_pi;
 
         mmt_vec vi;
@@ -541,10 +543,10 @@ struct rhs /*{{{*/ {
             int ok = mmt_vec_load(vi, "V%u-%u.0", unpadded, j);
             ASSERT_ALWAYS(ok);
 
-            natural.templates(A)->addmul_tiny(Av, A, 
+            natural.templates(A)->addmul_tiny(
                     mmt_my_own_subvec(y),
                     mmt_my_own_subvec(vi),
-                    A->vec_subvec(A, rhscoeffs, j),
+                    A->vec_subvec(rhscoeffs, j),
                     eblock);
         }
 
@@ -553,7 +555,6 @@ struct rhs /*{{{*/ {
         /* addmul_tiny degrades consistency ! */
         y->consistency = 1;
         mmt_vec_broadcast(y);
-        mmt_vec_reduce_mod_p(y);
     }/*}}}*/
 };
 /*}}}*/
@@ -592,11 +593,11 @@ std::tuple<int, int> check_zero_and_padding(mmt_vec_ptr y, unsigned int maxidx)/
         my_input_coordinates = mmt_my_own_size_in_items(y);
         my_pad_coordinates = 0;
     }
-    int input_is_zero = y->abase->vec_is_zero(y->abase,
+    int input_is_zero = y->abase->vec_is_zero(
             mmt_my_own_subvec(y),
             my_input_coordinates);
-    int pad_is_zero = y->abase->vec_is_zero(y->abase,
-            y->abase->vec_subvec(y->abase,
+    int pad_is_zero = y->abase->vec_is_zero(
+            y->abase->vec_subvec(
                 mmt_my_own_subvec(y), my_input_coordinates),
             my_pad_coordinates);
 
@@ -608,7 +609,7 @@ std::tuple<int, int> check_zero_and_padding(mmt_vec_ptr y, unsigned int maxidx)/
 
 std::tuple<int, int, int> test_one_vector(matmul_top_data_ptr mmt, mmt_vec * ymy, rhs const & R)
 {
-    mpfq_vbase_ptr A = mmt->abase;
+    arith_generic * A = mmt->abase;
     parallelizing_info_ptr pi = mmt->pi;
 
     mmt_vec_ptr y = ymy[0];
@@ -637,7 +638,7 @@ std::tuple<int, int, int> test_one_vector(matmul_top_data_ptr mmt, mmt_vec * ymy
 
         /* This "is zero" check is also valid on the padded matrix of
          * course, so we don't heave the same headache as above */
-        int is_zero = A->vec_is_zero(A,
+        int is_zero = A->vec_is_zero(
                 mmt_my_own_subvec(y), mmt_my_own_size_in_items(y));
         pi_allreduce(NULL, &is_zero, 1, BWC_PI_INT, BWC_PI_MIN, pi->m);
 
@@ -666,12 +667,12 @@ std::tuple<int, int, int> expanded_test(matmul_top_data_ptr mmt, mmt_vec ymy[2],
 
 class parasite_fixer {/*{{{*/
     matmul_top_data_ptr mmt;
-    mpfq_vbase_ptr A;
+    arith_generic * A;
     parallelizing_info_ptr pi;
 
     // typedef std::map<std::pair<unsigned int, unsigned int>, cxx_mpz> pre_matrix_t;
 
-    void * matrix;
+    arith_generic::elt * matrix;
     public:
     bool attempt_to_fix;
 
@@ -712,7 +713,7 @@ class parasite_fixer {/*{{{*/
     {
         // int tcan_print = bw->can_print && pi->m->trank == 0;
 
-        mpfq_vbase_ptr A = mmt->abase;
+        arith_generic * A = mmt->abase;
 
         mmt_vec ymy[2];
         mmt_vec_ptr y = ymy[0];
@@ -722,7 +723,7 @@ class parasite_fixer {/*{{{*/
         mmt_vec_init(mmt,0,0, my, !bw->dir,                0, mmt->n[!bw->dir]);
 
         /* Now try to see which indices are potentially affected */
-        unsigned int B = A->simd_groupsize(A);
+        unsigned int B = A->simd_groupsize();
         for(unsigned int jjq = 0 ; jjq < cols.size() ; jjq+=B) {
             mmt_full_vec_set_zero(y);
             for(unsigned int jjr = 0 ; jjr < B && (jjq + jjr < cols.size()) ; jjr++) {
@@ -792,10 +793,10 @@ class parasite_fixer {/*{{{*/
     }/*}}}*/
 #endif
 
-    void debug_print_local_matrix(void * matrix,
+    void debug_print_local_matrix(arith_generic::elt * matrix,
             std::vector<unsigned int> const & rows,
             std::vector<unsigned int> const & cols,
-            void * nz = NULL)/*{{{*/
+            arith_generic::elt * nz = NULL)/*{{{*/
     {
         size_t nr = rows.size();
         size_t nc = cols.size();
@@ -803,7 +804,7 @@ class parasite_fixer {/*{{{*/
                 nz ? " (with coefficients of the vector encountered)" : "",
                 pi->m->jrank, pi->m->trank);
         unsigned int kk = 0;
-        unsigned int B = A->simd_groupsize(A);
+        unsigned int B = A->simd_groupsize();
         unsigned int cblocks = iceildiv(nc, B);
         printf("#\t\t");
         for(unsigned int jj = 0 ; jj < nc ; jj++) {
@@ -814,19 +815,19 @@ class parasite_fixer {/*{{{*/
             printf("#\t%u\t", rows[ii]);
             for(unsigned int jj = 0 ; jj < cblocks ; jj++) {
                 printf(" ");
-                fprint_signed(stdout, A, A->vec_coeff_ptr(A, matrix, kk));
+                fprint_signed(stdout, A, A->vec_item(matrix, kk));
                 kk++;
             }
             if (nz) {
                 printf(" ");
-                fprint_signed(stdout, A, A->vec_coeff_ptr(A, nz, ii));
+                fprint_signed(stdout, A, A->vec_item(nz, ii));
             }
             printf("\n");
         }
     }/*}}}*/
 
 #if 0
-    void debug_print_all_local_matrices(void * nz = NULL)/*{{{*/
+    void debug_print_all_local_matrices(arith_generic::elt * nz = NULL)/*{{{*/
     {
         for(unsigned int jr = 0 ; jr < pi->m->njobs ; jr++) {
             for(unsigned int tr = 0 ; tr < pi->m->ncores ; tr++) {
@@ -846,9 +847,8 @@ class parasite_fixer {/*{{{*/
 
         rows = row_coordinates_of_nonzero_cols(mmt, cols);
 
-        mpfq_vbase_ptr A = mmt->abase;
-        void * dummy;
-        A->vec_init(A, &dummy, 1);
+        arith_generic * A = mmt->abase;
+        arith_generic::elt * dummy = A->alloc();
 
         int char2 = mpz_cmp_ui(bw->p, 2) == 0;
 
@@ -870,10 +870,10 @@ class parasite_fixer {/*{{{*/
         for(unsigned int ii = 0 ; ii < rows.size() ; ii++)
             srows.insert(ii);
 
-        unsigned int B = A->simd_groupsize(A);
+        unsigned int B = A->simd_groupsize();
 
         cheating_vec_init(A, &matrix, iceildiv(cols.size(), B) * rows.size());
-        A->vec_set_zero(A, matrix, iceildiv(cols.size(), B) * rows.size());
+        A->vec_set_zero(matrix, iceildiv(cols.size(), B) * rows.size());
 
         for(unsigned int drop = UINT_MAX, spin=0 ; drop && !scols.empty() ; spin++) {
             drop = 0;
@@ -885,12 +885,12 @@ class parasite_fixer {/*{{{*/
             if (tcan_print)
                 printf("# Pass %d: checking for error fixing pivots within a matrix of dimension %zu*%zu\n", spin, vrows.size(), vcols.size());
 
-            void * mat;
-            void ** pmat = &mat;
+            arith_generic::elt * mat;
+            arith_generic::elt ** pmat = &mat;
             unsigned int cblocks = iceildiv(vcols.size(), B);
             if (spin) {
                 cheating_vec_init(A, pmat, cblocks * vrows.size());
-                A->vec_set_zero(A, *pmat, cblocks * vrows.size());
+                A->vec_set_zero(*pmat, cblocks * vrows.size());
             } else {
                 pmat = &matrix;
             }
@@ -935,19 +935,21 @@ class parasite_fixer {/*{{{*/
                  * ii is the index within the set of the error rows that
                  * are being considered within this pass.
                  */
-                const void * row = A->vec_subvec(A, *pmat, ii * cblocks);
-                int w = A->vec_simd_hamming_weight(A, row, cblocks);
+                const arith_generic::elt * row = A->vec_subvec(*pmat, ii * cblocks);
+                int w = A->vec_simd_hamming_weight(row, cblocks);
                 if (w == 1) {
+                    int p = A->vec_simd_find_first_set(*dummy, row, cblocks);
                     if (char2) {
-                        int p = A->vec_simd_find_first_set(A, row, cblocks);
                         pivots[xi] = std::make_pair(vcols[p], 1);
                     } else {
-                        ASSERT_ALWAYS(A->simd_groupsize(A) == 1);
-                        int p = A->vec_find_first_set(A, row, cblocks);
-                        const void * x = A->vec_coeff_ptr_const(A, row, p);
-                        if (A->cmp_ui(A, x, 1) == 0) {
+                        /* Is the first non-zero value a potential pivot
+                         * (+1 or -1 ?). And how do we do that with an
+                         * interface that looks reasonable with
+                         * characteristic two as well???
+                         */
+                        if (A->cmp(*dummy, 1) == 0) {
                             pivots[xi] = std::make_pair(vcols[p], 1);
-                        } else if (A->neg(A, dummy, x), A->cmp_ui(A, dummy, 1) == 0) {
+                        } else if (A->neg(*dummy, *dummy), A->cmp(*dummy, 1) == 0) {
                             pivots[xi] = std::make_pair(vcols[p], -1);
                         } else if (pivots[xi].second == 0) {
                             pivots[xi] = std::make_pair(vcols[p], 2);
@@ -966,8 +968,6 @@ class parasite_fixer {/*{{{*/
                     printf("Found pivot for row %u:"
                             " column %u has coefficient %d\n",
                             rows[xi], j, v);
-                /*
-                            */
                 srows.erase(xi);
                 if (scols.erase(j)) {
                     drop++;
@@ -1001,14 +1001,14 @@ class parasite_fixer {/*{{{*/
 
         mmt_vec_clear(mmt, y);
         mmt_vec_clear(mmt, my);
-        A->vec_clear(A, &dummy, 1);
+        A->free(dummy);
 
         serialize(pi->m);
     }/*}}}*/
 
     ~parasite_fixer() {/*{{{*/
         if (matrix)
-            cheating_vec_clear(A, &matrix, rows.size() * iceildiv(cols.size(), A->simd_groupsize(A)));
+            cheating_vec_clear(A, &matrix, rows.size() * iceildiv(cols.size(), A->simd_groupsize()));
     }/*}}}*/
 
     std::tuple<int, int, int> attempt(matmul_top_data_ptr mmt, mmt_vec ymy[2], mmt_vec_ptr y_saved, rhs const& R)/*{{{*/
@@ -1045,13 +1045,13 @@ class parasite_fixer {/*{{{*/
         if (tcan_print)
             printf("# Note: all the non-zero coordinates are included in the output of the \"possibly wrong\" columns, which is a good sign\n");
 
-        void * nz;
+        arith_generic::elt * nz;
 
 
         ASSERT_ALWAYS(my->abase == mmt->abase);
 
         cheating_vec_init(A, &nz, rows.size());
-        A->vec_set_zero(A, nz, rows.size());
+        A->vec_set_zero(nz, rows.size());
         compress_vector_to_sparse(nz, 0, 1, my, rows);
         pi_allreduce(NULL, nz, rows.size(), mmt->pitype, BWC_PI_SUM, pi->m); 
 
@@ -1068,7 +1068,7 @@ class parasite_fixer {/*{{{*/
                 serialize(pi->m);
                 res = expanded_test(mmt, ymy, y_saved, R);
                 std::tie(input_is_zero, pad_is_zero, hamming_out) = res;
-                A->vec_set_zero(A, nz, rows.size());
+                A->vec_set_zero(nz, rows.size());
                 compress_vector_to_sparse(nz, 0, 1, my, rows);
                 pi_allreduce(NULL, nz, rows.size(), mmt->pitype, BWC_PI_SUM, pi->m); 
 
@@ -1077,7 +1077,7 @@ class parasite_fixer {/*{{{*/
             }
 
             /* Everyone has this coefficient */
-            const void * error = A->vec_coeff_ptr(A, nz, ii);
+            arith_generic::elt const & error = A->vec_item(nz, ii);
 
             /* y_saved is shared across threads in the wiring direction,
              * so we only need to touch our very own data in there.
@@ -1091,15 +1091,15 @@ class parasite_fixer {/*{{{*/
             size_t own_i1 = own_i0 + mmt_my_own_size_in_items(y_saved);
 
             if (own_i0 <= j && j < own_i1) {
-                void * source = A->vec_coeff_ptr(A, y_saved->v, j - y_saved->i0);
+                arith_generic::elt & source = A->vec_item(y_saved->v, j - y_saved->i0);
                 printf("Row %u, coefficient is ", rows[ii]);
                 fprint_signed(stdout, A, source);
                 if (v == -1) {
                     printf(" ; fixing by adding to coordinate %u\n", j);
-                    A->add(A, source, source, error);
+                    A->add_and_reduce(source, error);
                 } else if (v == 1) {
                     printf(" ; fixing by subtracting from coordinate %u\n", j);
-                    A->sub(A, source, source, error);
+                    A->sub_and_reduce(source, error);
                 } else {
                     ASSERT_ALWAYS(0);
                 }
@@ -1153,7 +1153,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     }
 
     abase_proxy abase_solutions(pi, A_width);
-    mpfq_vbase_ptr A = abase_solutions.A;
+    arith_generic * A = abase_solutions.A.get();
 
     /* }}} */
 
@@ -1211,8 +1211,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
             int ok = mmt_vec_load(svec, sl[i].name_pattern, unpadded, solutions[0]);
             ASSERT_ALWAYS(ok);
 
-            A->vec_add(A,
-                    mmt_my_own_subvec(y), 
+            A->vec_add_and_reduce(
                     mmt_my_own_subvec(y),
                     mmt_my_own_subvec(svec),
                     mmt_my_own_size_in_items(y));
@@ -1422,14 +1421,15 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                 FILE * f2 = fopen(tmp2, "w");
                 ASSERT_ALWAYS(f);
                 ASSERT_ALWAYS(f2);
-                void * data = malloc(A->vec_elt_stride(A, 1));
+                arith_generic::elt * data = A->alloc(1);
                 for(uint32_t i = 0 ; i < mmt->n0[bw->dir] ; i++) {
-                    size_t rc = fread(data, A->vec_elt_stride(A, 1) / Av_multiplex, 1, f);
+                    size_t rc = fread(data, A->elt_stride() / Av_multiplex, 1, f);
                     ASSERT_ALWAYS(rc == 1);
-                    A->fprint(A, f2, data);
-                    fprintf(f2, "\n");
+                    std::ostringstream os;
+                    A->cxx_out(os, *data);
+                    fprintf(f2, "%s\n", os.str().c_str());
                 }
-                free(data);
+                A->free(data);
                 R.fprint_rhs_coeffs(f2);
                 fclose(f);
                 fclose(f2);

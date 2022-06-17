@@ -5,25 +5,26 @@
 #include <cstdlib>
 #include <cstdio>
 #include <string>                // for string
+#include <memory>
 #include <algorithm>
 #include <vector>
 #include <sys/stat.h>
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
-#include "async.h"
+#include "async.hpp"
 #include "bw-common.h"
-#include "cheating_vec_init.h"
+#include "cheating_vec_init.hpp"
 #include "fmt/core.h"            // for check_format_string
 #include "fmt/format.h"
 #include "fmt/printf.h" // IWYU pragma: keep
 #include "macros.h"
-#include "matmul.h"              // for matmul_public_s
-#include "matmul_top.h"
-#include "mpfq/mpfq.h"
-#include "mpfq/mpfq_vbase.h"
-#include "parallelizing_info.h"
+#include "matmul.hpp"              // for matmul_public_s
+#include "matmul_top.hpp"
+#include "arith-generic.hpp"
+#include "arith-cross.hpp"
+#include "parallelizing_info.hpp"
 #include "params.h"
 #include "select_mpi.h"
-#include "xvectors.h"
+#include "xvectors.hpp"
 using namespace fmt::literals;
 
 int legacy_check_mode = 0;
@@ -60,18 +61,13 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
 
     int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
-    mpfq_vbase A;
-    mpfq_vbase_oo_field_init_byfeatures(A, 
-            MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_SIMD_GROUPSIZE, nchecks,
-            MPFQ_DONE);
+
+    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, nchecks));
 
     /* We need that in order to do matrix products */
-    mpfq_vbase_tmpl AxA;
-    mpfq_vbase_oo_init_templates(AxA, A, A);
+    std::unique_ptr<arith_cross_generic> AxA(arith_cross_generic::instance(A.get(), A.get()));
 
-
-    matmul_top_init(mmt, A, pi, pl, bw->dir);
+    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
     pi_datatype_ptr A_pi = mmt->pitype;
 
     mmt_vec myy[2];
@@ -118,15 +114,15 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* It depends only on the random seed. We create it if start==0, or
      * reload it otherwise. */
     std::string Tfilename = fmt::format(FMT_STRING("Ct0-{}.0-{}"), nchecks, bw->m);
-    size_t T_coeff_size = A->vec_elt_stride(A, bw->m);
-    void * Tdata;
-    cheating_vec_init(A, &Tdata, bw->m);
+    size_t T_coeff_size = A->vec_elt_stride(bw->m);
+    arith_generic::elt * Tdata;
+    cheating_vec_init(A.get(), &Tdata, bw->m);
 
     /* Cr is a list of matrices of size nchecks * nchecks */
     /* It depends only on the random seed */
     std::string Rfilename = fmt::format(FMT_STRING("Cr0-{}.0-{}"), nchecks, nchecks);
     FILE * Rfile = NULL;
-    size_t R_coeff_size = A->vec_elt_stride(A, nchecks);
+    size_t R_coeff_size = A->vec_elt_stride(nchecks);
 
 
     if (!legacy_check_mode) {
@@ -210,13 +206,13 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
              *
              * (also, random generation matters only at the leader node)
              */
-            A->vec_random(A, Tdata, bw->m, rstate);
+            A->vec_set_random(Tdata, bw->m, rstate);
             if (bw->start == 0) {
-                rc = fwrite(Tdata, A->vec_elt_stride(A, bw->m), 1, T.f);
+                rc = fwrite(Tdata, A->vec_elt_stride(bw->m), 1, T.f);
                 ASSERT_ALWAYS(rc == 1);
                 if (tcan_print) fmt::printf("Saved %s\n", Tfilename);
             } else {
-                rc = fread(Tdata, A->vec_elt_stride(A, bw->m), 1, T.f);
+                rc = fread(Tdata, A->vec_elt_stride(bw->m), 1, T.f);
                 ASSERT_ALWAYS(rc == 1);
                 if (tcan_print) fmt::printf("loaded %s\n", Tfilename);
             }
@@ -233,13 +229,13 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         /* }}} */
 
     } else {
-        void * Rdata;
-        cheating_vec_init(A, &Rdata, nchecks);
+        arith_generic::elt * Rdata;
+        cheating_vec_init(A.get(), &Rdata, nchecks);
         for(int k = 0 ; k < bw->start ; k++) {
             /* same remark as above */
-            A->vec_random(A, Rdata, nchecks, rstate);
+            A->vec_set_random(Rdata, nchecks, rstate);
         }
-        cheating_vec_clear(A, &Rdata, nchecks);
+        cheating_vec_clear(A.get(), &Rdata, nchecks);
     }
 
     /* {{{ create initial Cv and Cd, or load them if start>0 */
@@ -264,10 +260,10 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         } else {
             for(int c = 0 ; c < bw->m ; c += nchecks) {
                 mmt_vec_set_x_indices(dvec, gxvecs + c * nx, nchecks, nx);
-                AxA->addmul_tiny(A, A,
+                AxA->addmul_tiny(
                         mmt_my_own_subvec(my),
                         mmt_my_own_subvec(dvec),
-                        A->vec_subvec(A, Tdata, c),
+                        A->vec_subvec(Tdata, c),
                         mmt_my_own_size_in_items(my));
             }
             /* addmul_tiny degrades consistency ! */
@@ -370,22 +366,22 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
          * stdio buffering), while no Cd file has been written yet.
          * Therefore this is mostly a matter of consistency.
          */
-        void * Rdata_stream = NULL;
+        arith_generic::elt * Rdata_stream = NULL;
         int k0 = k;
         if (!legacy_check_mode && (next - k0)) {
-            cheating_vec_init(A, &Rdata_stream, nchecks * (next - k0));
-            A->vec_set_zero(A, Rdata_stream, nchecks * (next - k0));
-            A->vec_random(A, Rdata_stream, nchecks * (next - k0), rstate);
+            cheating_vec_init(A.get(), &Rdata_stream, nchecks * (next - k0));
+            A->vec_set_zero(Rdata_stream, nchecks * (next - k0));
+            A->vec_set_random(Rdata_stream, nchecks * (next - k0), rstate);
             pi_bcast(Rdata_stream, nchecks * (next - k0), A_pi, 0, 0, pi->m);
         }
     
         for( ; k < next ; k++) {
             /* new random coefficient in R */
             if (!legacy_check_mode) {
-                void * Rdata = A->vec_subvec(A, Rdata_stream, (k-k0) * nchecks);
+                arith_generic::elt * Rdata = A->vec_subvec(Rdata_stream, (k-k0) * nchecks);
                 /* At this point Rdata should be consistent across all
                  * threads */
-                AxA->addmul_tiny(A, A,
+                AxA->addmul_tiny(
                         mmt_my_own_subvec(dvec),
                         mmt_my_own_subvec(my),
                         Rdata,
@@ -413,12 +409,12 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             mmt_vec_save(my,   fmt::format(FMT_STRING("Cv%u-%u.{}"), k), unpadded, 0);
             mmt_vec_save(dvec, fmt::format(FMT_STRING("Cd%u-%u.{}"), k), unpadded, 0);
             if (pi->m->trank == 0 && pi->m->jrank == 0 && (next - k0)) {
-                rc = fwrite(Rdata_stream, A->vec_elt_stride(A, nchecks), next - k0, Rfile);
+                rc = fwrite(Rdata_stream, A->vec_elt_stride(nchecks), next - k0, Rfile);
                 ASSERT_ALWAYS(rc == (next - k0));
                 rc = fflush(Rfile);
                 ASSERT_ALWAYS(rc == 0);
             }
-            cheating_vec_clear(A, &Rdata_stream, nchecks * (next - k0));
+            cheating_vec_clear(A.get(), &Rdata_stream, nchecks * (next - k0));
         }
     }
 
@@ -426,7 +422,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         fclose(Rfile);
     }
 
-    cheating_vec_clear(A, &Tdata, bw->m);
+    cheating_vec_clear(A.get(), &Tdata, bw->m);
 
     gmp_randclear(rstate);
 
@@ -434,8 +430,6 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     mmt_vec_clear(mmt, y);
     mmt_vec_clear(mmt, my);
     matmul_top_clear(mmt);
-
-    A->oo_field_clear(A);
 
     return NULL;
 }

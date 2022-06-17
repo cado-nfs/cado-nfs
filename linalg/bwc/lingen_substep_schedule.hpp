@@ -156,7 +156,7 @@ template<> inline lingen_substep_schedule::fft_type_t encode_fft_type<void>()
 {
     return lingen_substep_schedule::FFT_NONE;
 }
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
 template<> inline lingen_substep_schedule::fft_type_t encode_fft_type<fft_transform_info>()
 {
     return lingen_substep_schedule::FFT_FLINT;

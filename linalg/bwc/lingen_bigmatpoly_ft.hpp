@@ -6,7 +6,7 @@
 #include "lingen_fft_select.hpp" // IWYU pragma: keep
 #include "lingen_call_companion.hpp"
 /*
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 struct gf2x_fake_fft_info;
 struct gf2x_cantor_fft_info;
 struct gf2x_ternary_fft_info;
@@ -25,7 +25,7 @@ public:
     static bigmatpoly mul_caching(tree_stats & stats, bigmatpoly const & a, bigmatpoly const & b, lingen_call_companion::mul_or_mp_times * M);
 };
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 extern template class bigmatpoly_ft<gf2x_fake_fft_info>;
 extern template class bigmatpoly_ft<gf2x_cantor_fft_info>;
 extern template class bigmatpoly_ft<gf2x_ternary_fft_info>;

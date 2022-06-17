@@ -47,7 +47,7 @@ bigmatpoly_model::bigmatpoly_model(MPI_Comm * comm, unsigned int m, unsigned int
 
 /* This completes the initialization process. This is _not_ a collective
  * operation */
-void bigmatpoly::finish_init(abdst_field ab, unsigned int m, unsigned int n, int len)
+void bigmatpoly::finish_init(matpoly::arith_hard * ab, unsigned int m, unsigned int n, int len)
 {
     this->ab = ab;
     ASSERT_ALWAYS(check_pre_init());
@@ -78,7 +78,7 @@ bigmatpoly::bigmatpoly(bigmatpoly_model const & model)
     for(unsigned int k = m1*n1; k--;) cells.emplace_back();
 }
 
-bigmatpoly::bigmatpoly(abdst_field ab, bigmatpoly_model const & model, unsigned int m, unsigned int n, int len)
+bigmatpoly::bigmatpoly(matpoly::arith_hard * ab, bigmatpoly_model const & model, unsigned int m, unsigned int n, int len)
     : bigmatpoly_model(model), ab(ab), m(m), n(n)
 {
     cells.reserve(m1*n1);
@@ -855,7 +855,7 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
         size_t offset, size_t length_raw) const
 {
     constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     static_assert(std::is_same<absrc_vec, const unsigned long *>::value, "uh ?");
 #endif
 
@@ -866,8 +866,8 @@ void bigmatpoly::gather_mat_partial(matpoly & dst,
     size_t length = simd * iceildiv(length_raw, simd);
 
     MPI_Datatype mt;
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    MPI_Type_contiguous(length * abvec_elt_stride(ab, 1), MPI_BYTE, &mt);
+#ifndef LINGEN_BINARY
+    MPI_Type_contiguous(length * ab->elt_stride(), MPI_BYTE, &mt);
 #else
     ASSERT_ALWAYS(length % simd == 0);
     MPI_Type_contiguous(length / simd, MPI_UNSIGNED_LONG, &mt);
@@ -958,7 +958,7 @@ void bigmatpoly::gather_mat(matpoly & dst) const
 {
     constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
     matpoly dst_partial;
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
     size_t length = 100;
 #else
     size_t length = 1024;
@@ -985,7 +985,7 @@ struct scatter_gather_base {/*{{{*/
     protected:
     /* These are just immediately derived from dst.get_model() and src,
      * but we keep copies because they're handy to have */
-    abdst_field ab;
+        matpoly::arith_hard * ab;
 
     size_t batch_length;
 
@@ -1022,7 +1022,7 @@ struct scatter_gather_base {/*{{{*/
      * we have to put the initialization very early on in the base class.
      * In truth, it is only important for scatter_mat.
      */
-    scatter_gather_base(abdst_field ab, bigmatpoly_model const & model, unsigned int m, unsigned int n, size_t size)/*{{{*/
+    scatter_gather_base(matpoly::arith_hard * ab, bigmatpoly_model const & model, unsigned int m, unsigned int n, size_t size)/*{{{*/
           : ab(ab)
           , _model(model)
           , m1(model.m1)
@@ -1037,7 +1037,7 @@ struct scatter_gather_base {/*{{{*/
          * that the call thresholds will be such that only smaller sizes will
          * be used.
          */
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
         batch_length = 100;
 #else
         batch_length = 1024;
@@ -1058,8 +1058,8 @@ struct scatter_gather_base {/*{{{*/
 
     void define_mpi_type()/*{{{*/
     {
-#ifndef SELECT_MPFQ_LAYER_u64k1
-        MPI_Type_contiguous(batch_length * abvec_elt_stride(ab, 1), MPI_BYTE, &mt);
+#ifndef LINGEN_BINARY
+        MPI_Type_contiguous(batch_length * ab->elt_stride(), MPI_BYTE, &mt);
 #else
         constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
         MPI_Type_contiguous(batch_length / simd, MPI_UNSIGNED_LONG, &mt);
@@ -1147,8 +1147,8 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         unsigned int jj = C.flatten(j1, j0);
         unsigned int peer = i1 * n1 + j1;
         unsigned int tag = ii * shell.n + jj;
-        abdst_vec to = abvec_subvec(ab, dst.part(ii, jj), dst_offset);
-        absrc_vec from = abvec_subvec_const(ab, src.my_cell().part(i0, j0), src_offset);
+        auto to = ab->vec_subvec(dst.part(ii, jj), dst_offset);
+        auto from = ab->vec_subvec(src.my_cell().part(i0, j0), src_offset);
 
         /* XXX There's a subtlety here. batch_length and mt are tinkered
          * with by the main_loop code for the last iteration, so that the
@@ -1157,7 +1157,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
 
         if (peer == 0) {
             /* talk to ourself */
-            abvec_set(ab, to, from, roundup_simd(batch_length));
+            std::copy_n(from, roundup_simd(batch_length), to);
         } else {
             if (use_nonblocking) {
                 MPI_Irecv((void*) to, 1, mt, peer, tag, get_model().com[0], req);
@@ -1209,7 +1209,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
                 unsigned int ii = R.flatten(src.irank(), i0);
                 unsigned int jj = C.flatten(src.jrank(), j0);
                 unsigned int tag = ii * shell.n + jj;
-                absrc_vec from = abvec_subvec_const(ab, src.my_cell().part(i0, j0), src_offset);
+                auto from = ab->vec_subvec(src.my_cell().part(i0, j0), src_offset);
                 /* battle const-deprived MPI prototypes... */
                 if (use_nonblocking) {
                     MPI_Isend((void*) from, 1, mt, 0, tag, get_model().com[0], req);
@@ -1254,12 +1254,12 @@ class gather_mat : public scatter_gather_base {/*{{{*/
             for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
                 unsigned int ii = R.flatten(i1, i0);
                 unsigned int jj = C.flatten(j1, j0);
-                abdst_vec to = abvec_subvec(ab, dst.part(ii, jj), dst_offset);
+                auto to = ab->vec_subvec(dst.part(ii, jj), dst_offset);
                 unsigned int w = v + i0 * C.nth_block_size(j1) + j0;
                 unsigned int wi = w / shell.n;
                 unsigned int wj = w % shell.n;
-                absrc_vec from = dst_partial.part(wi, wj);
-                abvec_set(ab, to, from, roundup_simd(len));
+                auto from = dst_partial.part(wi, wj);
+                std::copy_n(from, roundup_simd(len), to);
             }
         }
     }/*}}}*/
@@ -1267,7 +1267,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     void post_block_recv(unsigned int i1, unsigned int j1, MPI_Request * & req)
     {
         unsigned int peer = i1 * n1 + j1;
-        abdst_vec rank0_to;
+        matpoly::ptr rank0_to;
 
         {
             unsigned int v = 0;
@@ -1279,7 +1279,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         }
         unsigned int blocksize = R.nth_block_size(i1) * C.nth_block_size(j1);
 
-        absrc_vec peer_from = src_partial.my_cell().part(0,0);
+        auto peer_from = src_partial.my_cell().part(0,0);
 
         unsigned int tag = peer;
 
@@ -1287,7 +1287,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         ASSERT_ALWAYS(batch_length % simd == 0);
         if (peer == 0) {
             /* talk to ourself */
-            abvec_set(ab, rank0_to, peer_from, blocksize*batch_length);
+            std::copy_n(peer_from, blocksize*batch_length, rank0_to);
         } else {
             /* battle const-deprived MPI prototypes... */
             if (use_nonblocking) {
@@ -1328,7 +1328,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     {
         ASSERT_ALWAYS(use_intermediary_tight);
         ASSERT_ALWAYS (rank());
-        absrc_vec peer_to = src_partial.my_cell().part(0,0);
+        auto peer_to = src_partial.my_cell().part(0,0);
         unsigned int tag = rank();
         unsigned int blocksize = src.m0r() * src.n0r();
         if (use_nonblocking) {
@@ -1348,9 +1348,9 @@ class gather_mat : public scatter_gather_base {/*{{{*/
                 unsigned int v = i * src.n0r() + j;
                 unsigned int vi = v / n0;
                 unsigned int vj = v % n0;
-                abdst_vec to = abvec_subvec(ab, src_partial.my_cell().part(vi, vj), 0);
-                absrc_vec from = abvec_subvec_const(ab, src.my_cell().part(i, j), src_offset);
-                abvec_set(ab, to, from, roundup_simd(len));
+                auto to = ab->vec_subvec(src_partial.my_cell().part(vi, vj), 0);
+                auto from = ab->vec_subvec(src.my_cell().part(i, j), src_offset);
+                std::copy_n(from, roundup_simd(len), to);
             }
         }
     }/*}}}*/
@@ -1465,7 +1465,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
        , dst(dst)
        , dst_partial(get_model())
     {
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
         ASSERT_ALWAYS(dst.ab != NULL);
 #endif
         if (use_intermediary_tight) {
@@ -1493,8 +1493,8 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         unsigned int jj = C.flatten(j1, j0);
         unsigned int peer = i1 * n1 + j1;
         unsigned int tag = ii * shell.n + jj;
-        absrc_vec from = abvec_subvec_const(ab, src.part(ii, jj), src_offset);
-        abdst_vec to = abvec_subvec(ab, dst.my_cell().part(i0, j0), dst_offset);
+        auto from = ab->vec_subvec(src.part(ii, jj), src_offset);
+        auto to = ab->vec_subvec(dst.my_cell().part(i0, j0), dst_offset);
 
         /* XXX There's a subtlety here. batch_length and mt are tinkered
          * with by the main_loop code for the last iteration, so that the
@@ -1503,7 +1503,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
 
         if (peer == 0) {
             /* talk to ourself */
-            abvec_set(ab, to, from, roundup_simd(batch_length));
+            std::copy_n(from, roundup_simd(batch_length), to);
         } else {
             /* battle const-deprived MPI prototypes... */
             if (use_nonblocking) {
@@ -1556,7 +1556,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
                 unsigned int ii = R.flatten(dst.irank(), i0);
                 unsigned int jj = C.flatten(dst.jrank(), j0);
                 unsigned int tag = ii * shell.n + jj;
-                abdst_vec to = abvec_subvec(ab, dst.my_cell().part(i0, j0), dst_offset);
+                auto to = ab->vec_subvec(dst.my_cell().part(i0, j0), dst_offset);
                 if (use_nonblocking) {
                     MPI_Irecv(to, 1, mt, 0, tag, get_model().com[0], req);
                 } else {
@@ -1600,12 +1600,12 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
             for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
                 unsigned int ii = R.flatten(i1, i0);
                 unsigned int jj = C.flatten(j1, j0);
-                absrc_vec from = abvec_subvec_const(ab, src.part(ii, jj), src_offset);
+                auto from = ab->vec_subvec(src.part(ii, jj), src_offset);
                 unsigned int w = v + i0 * C.nth_block_size(j1) + j0;
                 unsigned int wi = w / shell.n;
                 unsigned int wj = w % shell.n;
-                abdst_vec to = src_partial.part(wi, wj);
-                abvec_set(ab, to, from, roundup_simd(len));
+                auto to = src_partial.part(wi, wj);
+                std::copy_n(from, roundup_simd(len), to);
             }
         }
     }/*}}}*/
@@ -1613,7 +1613,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     void post_block_send(unsigned int i1, unsigned int j1, MPI_Request * & req)
     {
         unsigned int peer = i1 * n1 + j1;
-        absrc_vec rank0_from;
+        matpoly::srcptr rank0_from;
 
         {
             unsigned int v = 0;
@@ -1625,7 +1625,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         }
         unsigned int blocksize = R.nth_block_size(i1) * C.nth_block_size(j1);
 
-        abdst_vec peer_to = dst_partial.my_cell().part(0,0);
+        auto peer_to = dst_partial.my_cell().part(0,0);
 
         /* We can send the data now */
         unsigned int tag = peer;
@@ -1634,7 +1634,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         ASSERT_ALWAYS(batch_length % simd == 0);
         if (peer == 0) {
             /* talk to ourself */
-            abvec_set(ab, peer_to, rank0_from, blocksize*batch_length);
+            std::copy_n(rank0_from, blocksize*batch_length, peer_to);
         } else {
             /* battle const-deprived MPI prototypes... */
             if (use_nonblocking) {
@@ -1674,7 +1674,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     {
         ASSERT_ALWAYS(use_intermediary_tight);
         ASSERT_ALWAYS (rank());
-        abdst_vec peer_to = dst_partial.my_cell().part(0,0);
+        auto peer_to = dst_partial.my_cell().part(0,0);
         unsigned int tag = rank();
         unsigned int blocksize = dst.m0r() * dst.n0r();
         if (use_nonblocking) {
@@ -1694,9 +1694,9 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
                 unsigned int v = i * dst.n0r() + j;
                 unsigned int vi = v / n0;
                 unsigned int vj = v % n0;
-                absrc_vec from = abvec_subvec_const(ab, dst_partial.my_cell().part(vi, vj), 0);
-                abdst_vec to = abvec_subvec(ab, dst.my_cell().part(i, j), dst_offset);
-                abvec_set(ab, to, from, roundup_simd(len));
+                auto from = ab->vec_subvec(dst_partial.my_cell().part(vi, vj), 0);
+                auto to = ab->vec_subvec(dst.my_cell().part(i, j), dst_offset);
+                std::copy_n(from, roundup_simd(len), to);
             }
         }
     }/*}}}*/

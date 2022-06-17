@@ -5,7 +5,7 @@
 #include "macros.h"
 #include "misc.h"
 #include "select_mpi.h"
-#include "parallelizing_info.h"
+#include "parallelizing_info.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "params.h"
 

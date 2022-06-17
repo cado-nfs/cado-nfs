@@ -123,8 +123,7 @@ echo "## backends to test: ${backends[*]}"
 
 if [ "$prime" = 2 ] ; then
     case "$arith_layer" in
-        u64k*) n=$((`echo $arith_layer | cut -c5-` * 64)); m=$n;;
-        m128) n=128; m=128;;
+        b*) n=`echo $arith_layer | cut -c2-`; m=$n;;
         *) echo "unknown arithmetic layer $arith_layer" >&2; exit 1;;
     esac
     bwc_common=(m=$m n=$n)

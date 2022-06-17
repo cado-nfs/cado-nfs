@@ -4,10 +4,11 @@
 #include "gmp_aux.h"
 #include "lingen_substep_characteristics.hpp"
 #include "timing.h" // seconds
+#include "params.h"
 
 template<typename fft_type>
 struct matpoly_checker_ft {
-    abfield ab;
+    matpoly::arith_hard ab;
     unsigned int m;
     unsigned int n;
     unsigned int L;
@@ -19,21 +20,19 @@ struct matpoly_checker_ft {
     typename matpoly_ft<fft_type>::memory_guard dummy_ft;
 
     matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int L, gmp_randstate_t rstate0)
-        : m(m)
+        : ab(p, 1)
+        , m(m)
         , n(n)
         , L(L)
         , seed(gmp_urandomm_ui(rstate0, ULONG_MAX))
         , dummy(SIZE_MAX)
         , dummy_ft(SIZE_MAX)
     {
-        abfield_init(ab);
-        abfield_specify(ab, MPFQ_PRIME_MPZ, (mpz_srcptr) p);
         gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, seed);
     }
     ~matpoly_checker_ft() {
         gmp_randclear(rstate);
-        abfield_clear(ab);
     }
     private:
     static inline int max_threads() {
@@ -83,7 +82,7 @@ struct matpoly_checker_ft {
 
 void declare_usage(cxx_param_list & pl)
 {
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
     param_list_decl_usage(pl, "prime", "(mandatory) prime defining the base field");
 #else
     param_list_decl_usage(pl, "prime", "(unused) prime defining the base field -- we only use 2");
@@ -121,7 +120,7 @@ int main(int argc, char * argv[])
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
     if (!param_list_parse_mpz(pl, "prime", (mpz_ptr) p)) {
         fprintf(stderr, "--prime is mandatory\n");
         param_list_print_command_line (stdout, pl);
@@ -140,7 +139,7 @@ int main(int argc, char * argv[])
 
     if (param_list_warn_unused(pl))
         exit(EXIT_FAILURE);
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     if (m & 63) {
         unsigned int nm = 64 * iceildiv(m, 64);
         printf("Round m=%u to m=%u\n", m, nm);
@@ -156,7 +155,7 @@ int main(int argc, char * argv[])
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, seed);
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     {
         matpoly_checker_ft<gf2x_fake_fft_info> checker_ft(p, m, n, L, rstate);
         checker_ft.doit(P, std::cout);

@@ -6,7 +6,7 @@
 #include <gmp.h>
 #include "macros.h"
 #include "lingen_matpoly_select.hpp"  // for matpoly
-#include "mpfq_layer.h"
+#include "arith-hard.hpp"
 #include "lingen_polymat.hpp"
 
 #define POLYMAT_MUL_KARA_CUTOFF_DEFAULT { .cut = 10, .subdivide = 10, .table = NULL, .table_size = 0}
@@ -105,8 +105,10 @@ int polymat_cutoff_get_subdivide_ub(const struct polymat_cutoff_info * cutoff, u
 /*}}}*/
 
 /* {{{ unreduced interface, for the implementation only */
+
+template<typename X>
 struct polymat_ur {
-    abdst_field ab;
+    arith_hard * ab;
     unsigned int m;
     unsigned int n;
     private:
@@ -117,28 +119,32 @@ struct polymat_ur {
     inline size_t get_size() const { return size; }
     void set_size(size_t s) { size = s; }
 
-    abvec_ur x;
+    typedef X * ptr;
+    typedef X const * srcptr;
+
+    ptr x;
+
     polymat_ur() : polymat_ur(NULL, 0,0,0) {}
     ~polymat_ur();
-    polymat_ur(abdst_field ab, unsigned int m, unsigned int n, int len);
+    polymat_ur(arith_hard * ab, unsigned int m, unsigned int n, int len);
     void zero();
     /* {{{ access interface for polymat_ur */
-    inline abdst_vec_ur part(unsigned int i, unsigned int j, unsigned int k) {
+    inline ptr part(unsigned int i, unsigned int j, unsigned int k) {
         /* Assume row-major in all circumstances. Old code used to support
          * various orderings, here we don't */
-        return abvec_ur_subvec(ab, x, (k*m+i)*n+j);
+        return ab->vec_subvec(x, (k*m+i)*n+j);
     }
-    inline abdst_elt_ur coeff(unsigned int i, unsigned int j, unsigned int k) {
-        return abvec_ur_coeff_ptr(ab, part(i,j,k), 0);
+    inline X & coeff(unsigned int i, unsigned int j, unsigned int k) {
+        return ab->vec_item(part(i,j,k), 0);
     }
 #if 0
-    inline absrc_vec_ur part(unsigned int i, unsigned int j, unsigned int k) const {
+    inline srcptr part(unsigned int i, unsigned int j, unsigned int k) const {
         /* Assume row-major in all circumstances. Old code used to support
          * various orderings, here we don't */
-        return abvec_ur_subvec_const(ab, x, (k*m+i)*n+j);
+        return ab->vec_subvec(x, (k*m+i)*n+j);
     }
-    inline absrc_elt_ur coeff(unsigned int i, unsigned int j, unsigned int k) const {
-        return abvec_ur_coeff_ptr_const(ab, part(i,j,k), 0);
+    inline X & coeff(unsigned int i, unsigned int j, unsigned int k) const {
+        return ab->vec_item(part(i,j,k), 0);
     }
 #endif
     /* }}} */
@@ -161,22 +167,22 @@ int polymat::check_pre_init() const
 }
 
 /* {{{ init/zero/clear interface for polymat */
-polymat::polymat(abdst_field ab, unsigned int m, unsigned int n, int len)
+polymat::polymat(arith_hard * ab, unsigned int m, unsigned int n, int len)
     : ab(ab), m(m), n(n), alloc(len)
 {
     size = 0;
     x = NULL;
     if (!m) return;
-    abvec_init(ab, &x, m*n*alloc);
-    abvec_set_zero(ab, x, m*n*alloc);
+    x = ab->alloc(m*n*alloc);
+    ab->vec_set_zero(x, m*n*alloc);
 }
 
 void polymat::realloc(size_t newalloc) {
     ASSERT_ALWAYS(!check_pre_init());
-    abvec_reinit(ab, &x, m*n*alloc, m*n*newalloc);
+    x = ab->realloc(x, m*n*newalloc);
     /* zero out the newly added data */
     if (newalloc > alloc) {
-        abvec_set_zero(ab, x + m*n*alloc, m*n*(newalloc - alloc));
+        ab->vec_set_zero(x + m*n*alloc, m*n*(newalloc - alloc));
     } else {
         ASSERT_ALWAYS(size <= newalloc);
     }
@@ -184,10 +190,10 @@ void polymat::realloc(size_t newalloc) {
 }
 void polymat::zero() {
     size = 0;
-    abvec_set_zero(ab, x, m*n*alloc);
+    ab->vec_set_zero(x, m*n*alloc);
 }
 polymat::~polymat() {
-    if (ab) abvec_clear(ab, &x, m*n*alloc);
+    if (ab) ab->free(x);
 }
 polymat::polymat(polymat && a)
     : ab(a.ab), m(a.m), n(a.n), alloc(a.alloc)
@@ -201,7 +207,7 @@ polymat::polymat(polymat && a)
 polymat& polymat::operator=(polymat&& a)
 {
     if (m)
-        abvec_clear(ab, &(x), m*n*alloc);
+        ab->free(x);
     ab = a.ab;
     m = a.m;
     n = a.n;
@@ -229,7 +235,7 @@ void polymat::fill_random(unsigned int nsize, gmp_randstate_t rstate)
 {
     ASSERT_ALWAYS(nsize <= alloc);
     size = nsize;
-    abvec_random(ab, x, m*n*size, rstate);
+    ab->vec_set_random(x, m*n*size, rstate);
 }
 
 int polymat::cmp(polymat const & b)
@@ -237,61 +243,57 @@ int polymat::cmp(polymat const & b)
     ASSERT_ALWAYS(n == b.n);
     ASSERT_ALWAYS(m == b.m);
     if (size != b.size) return (size > b.size) - (b.size > size);
-    return abvec_cmp(ab, x, b.x, m*n*size);
+    return ab->vec_cmp(x, b.x, m*n*size);
 }
 
 
 /* }}} */
 
 /* {{{ init/zero/clear interface for polymat_ur */
-polymat_ur::polymat_ur(abdst_field ab, unsigned int m, unsigned int n, int len)
+template<typename X>
+polymat_ur<X>::polymat_ur(arith_hard * ab, unsigned int m, unsigned int n, int len)
     : ab(ab), m(m), n(n), alloc(len)
 {
     size = 0;
     x = NULL;
     if (!m) return;
-    abvec_ur_init(ab, &x, m*n*alloc);
-    abvec_ur_set_zero(ab, x, m*n*alloc);
+    x = ab->alloc<X>(m*n*alloc);
+    ab->vec_set_zero(x, m*n*alloc);
 }
-void polymat_ur::zero() {
+template<typename X>
+void polymat_ur<X>::zero() {
     size = 0;
-    abvec_ur_set_zero(ab, x, m*n*alloc);
+    ab->vec_set_zero(x, m*n*alloc);
 }
-polymat_ur::~polymat_ur() {
-    abvec_ur_clear(ab, &x, m*n*alloc);
+template<typename X>
+polymat_ur<X>::~polymat_ur() {
+    ab->free(x);
 }
 /* }}} */
 
 /* It's used from lingen-bigpolymat.c as well */
-void bwmat_copy_coeffs(abdst_field ab MAYBE_UNUSED, abdst_vec x0, int stride0, absrc_vec x1, int stride1, unsigned int n)
+void bwmat_copy_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, arith_hard::elt const * x1, int stride1, unsigned int n)
 {
     for(unsigned int i = 0 ; i < n ; i++) {
-        abset(ab,
-                    abvec_coeff_ptr(ab, x0, i * stride0),
-                    abvec_coeff_ptr_const(ab, x1, i * stride1));
+        ab->vec_item(x0, i * stride0) = ab->vec_item(x1, i * stride1);
     }
 }
-void bwmat_zero_coeffs(abdst_field ab MAYBE_UNUSED, abvec x0, int stride0, unsigned int n)
+void bwmat_zero_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, unsigned int n)
 {
     for(unsigned int i = 0 ; i < n ; i++) {
-        abset_zero(ab, 
-                abvec_coeff_ptr(ab, x0, i * stride0));
+        ab->vec_item(x0, i * stride0).zero();
     }
 }
-void bwmat_move_coeffs(abdst_field ab MAYBE_UNUSED, abdst_vec x0, int stride0, absrc_vec x1, int stride1, unsigned int n)
+void bwmat_move_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, arith_hard::elt const * x1, int stride1, unsigned int n)
 {
     ASSERT_ALWAYS(stride0 == stride1); /* Otherwise there's probably no point */
     if (x0 < x1) {
         for(unsigned int i = 0 ; i < n ; i++) {
-            abset(ab,
-                    abvec_coeff_ptr(ab, x0, i * stride0),
-                    abvec_coeff_ptr_const(ab, x1, i * stride1));
+            ab->vec_item(x0, i * stride0) = ab->vec_item(x1, i * stride1);
         }
     } else {
         for(unsigned int i = n ; i-- ; ) {
-            abset(ab,
-                    abvec_coeff_ptr(ab, x0, i * stride0),
-                    abvec_coeff_ptr_const(ab, x1, i * stride1));
+            ab->vec_item(x0, i * stride0) = ab->vec_item(x1, i * stride1);
         }
     }
 }
@@ -305,9 +307,7 @@ void polymat::addmat(
 {
     for(unsigned int i = 0 ; i < a.m ; i++) {
         for(unsigned int j = 0 ; j < a.n ; j++) {
-            abadd(ab, coeff(i, j, kc),
-                    a.coeff(i, j, ka),
-                    b.coeff(i, j, kb));
+            ab->add_and_reduce(coeff(i, j, kc), a.coeff(i, j, ka), b.coeff(i, j, kb));
         }
     }
 }
@@ -319,45 +319,39 @@ void polymat::submat(
 {
     for(unsigned int i = 0 ; i < a.m ; i++) {
         for(unsigned int j = 0 ; j < a.n ; j++) {
-            absub(ab, coeff(i, j, kc),
+            ab->sub_and_reduce(coeff(i, j, kc),
                     a.coeff(i, j, ka),
                     b.coeff(i, j, kb));
         }
     }
 }
 
-void polymat_ur::addmulmat(
+template<typename X>
+void polymat_ur<X>::addmulmat(
         unsigned int kc,
         polymat const & a, unsigned int ka,
         polymat const & b, unsigned int kb)
 {
-    abelt_ur tmp_ur;
-    abelt_ur_init(ab, &tmp_ur);
     ASSERT_ALWAYS(a.n == b.m);
     for(unsigned int i = 0 ; i < a.m ; i++) {
         for(unsigned int j = 0 ; j < b.n ; j++) {
             for(unsigned int k = 0 ; k < a.n ; k++) {
-                absrc_elt ea = a.coeff(i, k, ka);
-                absrc_elt eb = b.coeff(k, j, kb);
-                abmul_ur(ab, tmp_ur, ea, eb);
-                abelt_ur_add(ab,
-                        coeff(i, j, kc),
-                        coeff(i, j, kc),
-                        tmp_ur);
+                polymat::elt const & ea = a.coeff(i, k, ka);
+                polymat::elt const & eb = b.coeff(k, j, kb);
+                ab->addmul_ur(coeff(i, j, kc), ea, eb);
             }
         }
     }
-    abelt_ur_clear(ab, &tmp_ur);
 }
 
-void polymat_ur::reducemat(
+template<typename X>
+void polymat_ur<X>::reducemat(
         polymat & c, unsigned int kc,
         unsigned int ka)
 {
     for(unsigned int i = 0 ; i < m ; i++) {
         for(unsigned int j = 0 ; j < n ; j++) {
-            abreduce(ab, c.coeff(i, j, kc),
-                           coeff(i, j, ka));
+            ab->reduce(c.coeff(i, j, kc), coeff(i, j, ka));
         }
     }
 }
@@ -367,7 +361,7 @@ void polymat::mulmat(
         polymat const & a, unsigned int ka,
         polymat const & b, unsigned int kb)
 {
-    polymat_ur cx(ab, m, n, 1);
+    polymat_ur<arith_hard::elt_ur_for_addmul> cx(ab, m, n, 1);
     cx.addmulmat(0, a, ka, b, kb);
     cx.reducemat(*this, kc, 0);
 }
@@ -392,7 +386,7 @@ void polymat::multiply_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
             part(0, j, 0), n,
             m * nsize);
     for(unsigned int i = 0 ; i < m ; i++)
-        abset_ui(ab, coeff(i, j, 0), 0);
+        coeff(i, j, 0).zero();
 }/*}}}*/
 
 void polymat::truncate(polymat const & src, unsigned int nsize)/*{{{*/
@@ -478,7 +472,7 @@ void polymat_mul_raw_basecase(/*{{{*/
     unsigned int nc = na + nb - 1;
     ASSERT_ALWAYS(c.capacity() >= xc + nc);
 
-    polymat_ur tmat_ur(c.ab, c.m, c.n, 1);
+    polymat_ur<arith_hard::elt_ur_for_addmul> tmat_ur(c.ab, c.m, c.n, 1);
 
     for(unsigned int k = 0 ; k < nc ; k++) {
         unsigned int i0 = k >= nb ? k + 1 - nb : 0;
@@ -682,7 +676,7 @@ void polymat_mp_raw_basecase(/*{{{*/
     unsigned int nb = nc - na + 1;
     ASSERT_ALWAYS(b.capacity() >= xb + nb);
 
-    polymat_ur tmat_ur(b.ab, b.m, b.n, 1);
+    polymat_ur<arith_hard::elt_ur_for_addmul> tmat_ur(b.ab, b.m, b.n, 1);
     tmat_ur.set_size(1);
 
     for(unsigned int j = 0 ; j < nb ; j++) {
@@ -918,9 +912,7 @@ void polymat::set_matpoly(matpoly const & src)
     for(unsigned int i = 0 ; i < src.m ; i++) {
         for(unsigned int j = 0 ; j < src.n ; j++) {
             for(unsigned int k = 0 ; k < src.get_size() ; k++) {
-                abset(ab,
-                        coeff(i, j, k),
-                        src.coeff(i, j, k));
+                coeff(i, j, k) = src.coeff(i, j, k);
             }
         }
     }

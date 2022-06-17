@@ -5,7 +5,6 @@
 # some tests below use the bwc include files.
 include_directories(${PROJECT_SOURCE_DIR}/linalg)
 include_directories(${PROJECT_SOURCE_DIR}/linalg/bwc)
-include_directories(${PROJECT_SOURCE_DIR}/linalg/bwc/mpfq)
 include_directories(${PROJECT_SOURCE_DIR}/utils)
 include_directories(${PROJECT_SOURCE_DIR}/linalg/bblas)
 
@@ -67,7 +66,7 @@ if(HAVE_PERL_DIGEST_MD5)
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen.sh
                 ${ARGN}
-                TARGET_DEPENDENCIES lingen_u64k1
+                TARGET_DEPENDENCIES lingen_b64
                 AVOID_CONCURRENT
                 )
         endforeach()
@@ -112,10 +111,10 @@ if(HAVE_PERL_DIGEST_MD5)
     # expect_sha1_F=30b90451fb828f08caa160f96c585c4b1c0951a8 m=64 n=64 sequence_length=200 seed=1  -- lingen_mpi_threshold=10)
 endif()
 
-# Now we only ever test p_1, p_3, and pz.
+# Now we only ever test p1, p3, and pz.
 set(BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS)
 foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
-    string(REGEX MATCH "^(p_1|p_3|pz)$" t "${gfp_layer}")
+    string(REGEX MATCH "^(p1|p3|pz)$" t "${gfp_layer}")
     if(t)
         list(APPEND BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS ${t})
     else()
@@ -126,7 +125,7 @@ endforeach()
 
 foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     set(extra)
-    string(REGEX MATCH "p_([0-9]+)" t "${gfp_layer}")
+    string(REGEX MATCH "p([0-9]+)" t "${gfp_layer}")
     if(t)
         set(width ${CMAKE_MATCH_1})
         set(p "${prime_${width}}")
@@ -140,14 +139,14 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     endif()
     if(gfp_layer STREQUAL "pz")
     elseif("pz" IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
-        if(gfp_layer STREQUAL "p_1" OR gfp_layer STREQUAL "p_13")
+        if(gfp_layer STREQUAL "p1" OR gfp_layer STREQUAL "p13")
             set(modp_inhomogeneous_${gfp_layer}_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
         endif()
         add_bwc_test(modp_inhomogeneous_${gfp_layer} bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra})
         add_dependencies(test_bwc_modp_inhomogeneous_${gfp_layer}_dependencies
             lingen_pz lingen_${gfp_layer})
 
-        if(gfp_layer STREQUAL "p_1")
+        if(gfp_layer STREQUAL "p1")
             set(mextra)
             # Only try to enable magma if CHECKS_EXPENSIVE is set.
             if(DEFINED ENV{CHECKS_EXPENSIVE} AND MAGMA)
@@ -191,7 +190,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             #        add_dependencies(modp-inhomogeneous-minimal-2rhs-mn2_dependencies
             #        lingen_pz lingen_${gfp_layer})
         endif()
-        if(gfp_layer STREQUAL "p_1" OR gfp_layer STREQUAL "p_13")
+        if(gfp_layer STREQUAL "p1" OR gfp_layer STREQUAL "p13")
             set(modp_secure_continuation_${gfp_layer}_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
         endif()
         add_bwc_test(modp_secure_continuation_${gfp_layer} bwc-test-secure-continuation.sh prime=${p} random_matrix_size=500 nrhs=4 m=8 n=8 seed=1 interval=32 ${extra})
@@ -219,9 +218,9 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     # test gets run twice, once with the threads, once without. Both have
     # to succeed, of course).
 
-    # Note that we're only enabling the p_1 tests because the checksums
+    # Note that we're only enabling the p1 tests because the checksums
     # below were obtained for p=1009 specifically.
-    if(gfp_layer STREQUAL "p_1")
+    if(gfp_layer STREQUAL "p1")
         # The --ascii here is annoying. It gets in the way of our
         # automatic guess of the input sequence length.
         #
@@ -245,6 +244,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
                 2b6428178054fc0d3931dcdc9257ccf3bdea62f9 4 2 36 1009 17042
                 mpi_magic=${mpiconf} thr=2x2 --ascii
+                tuning_thresholds=recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
@@ -258,6 +258,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
                 f9bc59f0caaca0fd523ef6a020a6f49fa97f38e9 4 2 200 1009 88888
                 thr=2x2 --ascii
+                tuning_thresholds=recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
@@ -269,6 +270,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
                 b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
                 thr=3x3 --ascii
+                tuning_thresholds=recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
@@ -286,6 +288,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 c82b888f2ba844f6db1e30e091444d1023052f87 3 3 1000 1009 1111
                 thr=3x3
                 checkpoint_threshold=40
+                tuning_thresholds=recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES
                 lingen_${gfp_layer}
@@ -295,7 +298,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         endforeach()
     endif()
 
-    if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p_3")
+    if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p3")
         set(mpiconfs mpi_square1 mpi_square2)
         if (NOT HAVE_MPI OR CMAKE_VERSION VERSION_LESS 3.9)
             set(mpiconfs)
@@ -314,6 +317,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 1532495540865888858358347027150309183618739122183602191 1111
                 thr=3x3
                 lingen_program=lingen_${gfp_layer}
+                tuning_thresholds=recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
@@ -321,21 +325,23 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         endforeach()
     endif()
 
-    if(gfp_layer STREQUAL "p_1")
+    if(gfp_layer STREQUAL "p1")
         cado_define_test(test_bwc_lingen_21744
             AVOID_CONCURRENT
-            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p_1
+            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p1
             ARGUMENTS
             --afile ${CMAKE_CURRENT_SOURCE_DIR}/A.21744 ffile=/dev/null m=4 n=2
             prime=485263
-            TARGET_DEPENDENCIES lingen_p_1)
+                tuning_thresholds=recursive:32,notiming:0
+            TARGET_DEPENDENCIES lingen_p1)
 
         cado_define_test(test_bwc_lingen_21744_bis
             AVOID_CONCURRENT
-            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p_1
+            PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p1
             ARGUMENTS
             --random-input-with-length 20   m=4 n=2  prime=1009 --seed 1377
-            TARGET_DEPENDENCIES lingen_p_1)
+                tuning_thresholds=recursive:32,notiming:0
+            TARGET_DEPENDENCIES lingen_p1)
     endif()
 
     cado_define_test(TEST_NAME test_matpoly_${gfp_layer}
@@ -345,8 +351,13 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         ARGUMENTS --prime ${p}
         LIBRARIES lingen_${gfp_layer}_support)
 
+    set(our_compile_flags)
+    parse_arith_layer(${gfp_layer} our_compile_flags)
+    string(JOIN " " our_compile_flags_string ${our_compile_flags})
+
+
     set_target_properties(test_matpoly_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 
     add_executable(time_matpoly_ft_parallel_${gfp_layer} EXCLUDE_FROM_ALL
@@ -355,11 +366,11 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         lingen_${gfp_layer}_support)
 
     set_target_properties(time_matpoly_ft_parallel_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 endforeach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
 
-foreach(gfp_layer u64k1)
+foreach(gfp_layer b64)
     link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
     link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
     include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
@@ -369,17 +380,23 @@ foreach(gfp_layer u64k1)
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_qcode_binary.cpp
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_expected_pi_length.cpp
         LIBRARIES lingen_${gfp_layer}_support)
+
+    set(our_compile_flags)
+    parse_arith_layer(${gfp_layer} our_compile_flags)
+    list(APPEND our_compile_flags -DLINGEN_BINARY)
+    string(JOIN " " our_compile_flags_string ${our_compile_flags})
+
     # (unused for p=2 anyway)
     # ARGUMENTS --prime 2
     set_target_properties(test_matpoly_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
     add_executable(time_matpoly_ft_parallel_${gfp_layer} EXCLUDE_FROM_ALL
         time_matpoly_ft_parallel.cpp)
     target_link_libraries(time_matpoly_ft_parallel_${gfp_layer}
         lingen_${gfp_layer}_support)
     set_target_properties(time_matpoly_ft_parallel_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 
     cado_define_test(TEST_NAME test_matpoly_basecase_${gfp_layer}
@@ -437,9 +454,6 @@ add_dependencies(test_bwc_mod2_oddthr_dependencies mf_scan)
 add_bwc_test(mod2_m_neq_n bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=400 m=128 n=64
     seed=1 thr=5)
 add_dependencies(test_bwc_mod2_m_neq_n_dependencies mf_scan)
-
-add_subdirectory(mpfq)
-
 
 if(HAVE_CXX11 AND HAVE_HWLOC)
     cado_define_test(test_cpubinding.c
@@ -503,7 +517,7 @@ endif()
 
 #########################################################################
 
-add_executable(spmv_test EXCLUDE_FROM_ALL spmv_test.c)
+add_executable(spmv_test EXCLUDE_FROM_ALL spmv_test.cpp)
 set_target_properties(spmv_test PROPERTIES
             LINKER_LANGUAGE CXX
             COMPILE_FLAGS "--mpi"
@@ -513,10 +527,10 @@ target_link_libraries(spmv_test bwc_base)
 add_executable(short_matmul short_matmul.c)
 target_link_libraries(short_matmul bwc_base)
 
-set(test_spmv_binary_u64k1_alltests YES)
-set(test_spmv_binary_u64k4_alltests YES)
-set(test_spmv_binary_m128_alltests YES)
-set(test_spmv_prime_p_3_alltests YES)
+set(test_spmv_binary_b64_alltests YES)
+set(test_spmv_binary_b128_alltests YES)
+set(test_spmv_binary_b256_alltests YES)
+set(test_spmv_prime_p3_alltests YES)
 
 macro(create_test_spmv test_spmv_base)
     if(HAVE_PERL_DIGEST_MD5)
@@ -601,7 +615,7 @@ endforeach()
 
 foreach(arith_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     set(extra)
-    string(REGEX MATCH "p_([0-9]+)" t "${arith_layer}")
+    string(REGEX MATCH "p([0-9]+)" t "${arith_layer}")
     if(t)
         set(width ${CMAKE_MATCH_1})
     endif()
@@ -635,7 +649,7 @@ include_directories(${PROJECT_BINARY_DIR}/linalg/bwc)
 
 #########################################################################
 
-add_executable(test_hello test_hello.c)
+add_executable(test_hello test_hello.cpp)
 target_link_libraries(test_hello bwc_base)
 set_target_properties(test_hello PROPERTIES
     LINKER_LANGUAGE CXX

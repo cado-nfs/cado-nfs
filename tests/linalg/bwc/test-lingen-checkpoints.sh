@@ -72,7 +72,7 @@ verify() {
         shift
     done
     if [ "$prime" ] && [ "$prime" != 2 ] ; then
-        verifier=("$PROJECT_BINARY_DIR/linalg/bwc/lingen_verify_checkpoints_p_$nwords" "prime=$prime" m=$m n=$n)
+        verifier=("$PROJECT_BINARY_DIR/linalg/bwc/lingen_verify_checkpoints_p$nwords" "prime=$prime" m=$m n=$n)
         verifier_args_nompi=()
         verifier_args_mpi=()
         list_tool="`dirname $0`"/../../../linalg/bwc/list_lingen_checkpoints.sh

@@ -109,7 +109,7 @@ dotest() {
     nbits_prime=$(sizeinbase2 $p)
     nwords=$((1+nbits_prime/wordsize))
 
-    : ${lingen_program:=lingen_p_$nwords}
+    : ${lingen_program:=lingen_p$nwords}
 
     # The perl code for generating random data is using the seed argument
     # in a weird way. seeds that are less than 1000 actually lead do

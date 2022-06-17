@@ -1,5 +1,5 @@
 #if 0
-static inline void matmul_sub_vsc_combine(abobj_ptr x, abt * dst, const abt * * mptrs, const uint8_t * q, unsigned int count)
+static inline void matmul_sub_vsc_combine_asm(abobj_ptr x, abt * dst, const abt * * mptrs, const uint8_t * q, unsigned int count)
 {
     for( ; count-- ; ) {
         uint8_t c = *q++;
@@ -12,22 +12,24 @@ static inline void matmul_sub_vsc_combine(abobj_ptr x, abt * dst, const abt * * 
 .section .note.GNU-stack,"",%progbits
 	.text
 	.p2align 4,,15
-.globl matmul_sub_vsc_combine
-	.type	matmul_sub_vsc_combine, @function
-matmul_sub_vsc_combine:
+.globl matmul_sub_vsc_combine_asm
+	.type	matmul_sub_vsc_combine_asm, @function
+matmul_sub_vsc_combine_asm:
         pushq %rbp
         pushq %rbx
         pushq %r15
         pushq %r14
         pushq %r13
         pushq %r12
-        // rdi ignored (abobj arg)
-	movq	%rsi, %rdi
-	movq	%rdx, %rsi
-	movq	%rcx, %rbp
-	movl	%r8d, %r9d
-        // r9 is ignored for now.
-	testq	%r9, %r9
+        // arg order: %rdi, %rsi, %rdx, %rcx, %r8, and %r9
+        // %rdi dst
+        // %rsi src
+	// %rdx matrix  --> rbp
+        movq    %rdx, %rbp
+	// %rcx ncoeffs  --> r8 and r9
+        movq    %rcx, %r8
+        movq    %rcx, %r9
+        test    %r9,%r9
 	je	.Lfinished
 	.p2align 4,,10
 	.p2align 3
@@ -139,5 +141,5 @@ matmul_sub_vsc_combine:
         popq %rbx
         popq %rbp
 	ret
-	.size	matmul_sub_vsc_combine, .-matmul_sub_vsc_combine
+	.size	matmul_sub_vsc_combine_asm, .-matmul_sub_vsc_combine_asm
 

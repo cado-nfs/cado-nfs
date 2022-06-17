@@ -33,7 +33,7 @@ struct lingen_substep_characteristics {
     typedef lingen_substep_schedule sc_t;
     typedef lingen_tuning_cache tc_t;
 
-    abdst_field ab;
+    matpoly::arith_hard * ab;
     cxx_mpz p;
     gmp_randstate_t & rstate;
 
@@ -108,7 +108,7 @@ struct lingen_substep_characteristics {
         return true;
     }
 
-    lingen_substep_characteristics(abdst_field ab, gmp_randstate_t & rstate, size_t input_length, op_mul_or_mp_base::op_type_t op_type, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
+    lingen_substep_characteristics(matpoly::arith_hard * ab, gmp_randstate_t & rstate, size_t input_length, op_mul_or_mp_base::op_type_t op_type, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
         ab(ab),
         rstate(rstate),
         input_length(input_length),
@@ -116,13 +116,9 @@ struct lingen_substep_characteristics {
         n0(n0), n1(n1), n2(n2),
         asize(asize), bsize(bsize), csize(csize)
     {
-#ifdef SELECT_MPFQ_LAYER_u64k1
-        mpz_set_ui(p, 2);
+        mpz_set(p, ab->characteristic());
         // op = OP(asize, bsize);
-#else
-        mpz_set(p, abfield_characteristic_srcptr(ab));
         // op = OP(p, asize, bsize, n1);
-#endif
         // fft_alloc_sizes = op.fti.get_alloc_sizes();
     }/*}}}*/
 
@@ -529,7 +525,7 @@ struct lingen_substep_characteristics {
     bool fft_type_valid(lingen_substep_schedule::fft_type_t fft_type) const {
         try {
             std::shared_ptr<op_mul_or_mp_base> op = instantiate(fft_type);
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
             if (op_type == op_mul_or_mp_base::OP_MUL) {
                 auto x = dynamic_cast<op_mul<gf2x_ternary_fft_info> const *>(op.get());
                 if (x)
@@ -672,7 +668,7 @@ struct lingen_substep_characteristics {
                 switch(fft_type) {
                     case lingen_substep_schedule::FFT_NONE:
                         return std::make_shared<op_mp<void>>(p, asize, bsize, n1);
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
                     case lingen_substep_schedule::FFT_FLINT:
                         return std::make_shared<op_mp<fft_transform_info>>(p, asize, bsize, n1);
 #else
@@ -688,7 +684,7 @@ struct lingen_substep_characteristics {
                 switch(fft_type) {
                     case lingen_substep_schedule::FFT_NONE:
                         return std::make_shared<op_mul<void>>(p, asize, bsize, n1);
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
                     case lingen_substep_schedule::FFT_FLINT:
                         return std::make_shared<op_mul<fft_transform_info>>(p, asize, bsize, n1);
 #else
@@ -711,7 +707,7 @@ struct lingen_substep_characteristics {
                 switch(S.fft_type) {
                     case lingen_substep_schedule::FFT_NONE:
                         return get_call_time_backend(os, op_mp<void>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
                     case lingen_substep_schedule::FFT_FLINT:
                         return get_call_time_backend(os, op_mp<fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
 #else
@@ -727,7 +723,7 @@ struct lingen_substep_characteristics {
                 switch(S.fft_type) {
                     case lingen_substep_schedule::FFT_NONE:
                         return get_call_time_backend(os, op_mul<void>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
                     case lingen_substep_schedule::FFT_FLINT:
                         return get_call_time_backend(os, op_mul<fft_transform_info>(p, asize, bsize, n1), P, mesh, S, C, do_timings);
 #else

@@ -3,7 +3,7 @@
 // IWYU pragma: no_include <sys/param.h>
 // IWYU pragma: no_include <memory>
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 #error "lingen_tune_cutoffs does not work with binary, at least for the moment"
 #endif
 
@@ -30,14 +30,14 @@
 
 #include "macros.h"
 #include "cxx_mpz.hpp"
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
 #include "lingen_polymat.hpp"
 #endif
 #include "lingen_matpoly_select.hpp"
 #include "lingen_fft_select.hpp" // IWYU pragma: keep
 // #include "lingen_bigpolymat.h" // 20150826: deleted.
 #include "lingen_matpoly_ft.hpp"
-#include "lingen_abfield.hpp" // IWYU pragma: keep
+#include "arith-hard.hpp" // IWYU pragma: keep
 #include "lingen_bw_dimensions.hpp"
 #include "lingen_tune_cutoffs.hpp"
 #include "params.h"
@@ -421,7 +421,7 @@ void catch_control_signals()
  * polymat_mp_kara_threshold
  */
 
-void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cutoff_list *cl_out)/*{{{*/
+void lingen_tune_mul_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list *cl_out)/*{{{*/
 {
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
@@ -472,20 +472,16 @@ void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
     for(unsigned int k = 2 ; !hup_caught && (k < min_bench || !finder.done()) ; k=finder.next_length(k)) {
         unsigned int input_length = (m+n) * k / m;
 
-        abvec   A,   B,   C;
-        void  *tA, *tB, *tC;
-
         mpz_t p;
-        mpz_init(p);
-        abfield_characteristic(ab, p);
+        mpz_init_set(p, ab->characteristic());
 
-        abvec_init(ab, &A, k);
-        abvec_init(ab, &B, k);
-        abvec_init(ab, &C, 2*k-1);
+        auto A = ab->alloc(k);
+        auto B = ab->alloc(k);
+        auto C = ab->alloc(2*k-1);
         
-        abvec_random(ab, A, k, rstate);
-        abvec_random(ab, B, k, rstate);
-        abvec_set_zero(ab, C, 2*k-1);
+        ab->vec_set_random(A, k, rstate);
+        ab->vec_set_random(B, k, rstate);
+        ab->vec_set_zero(C, 2*k-1);
 
         ostringstream extra_info;
 
@@ -511,9 +507,9 @@ void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
             void * tt = malloc(fft_alloc_sizes[2]);
             void * qt = malloc(fft_alloc_sizes[1]);
 
-            tA = malloc(fft_alloc_sizes[0]);
-            tB = malloc(fft_alloc_sizes[0]);
-            tC = malloc(fft_alloc_sizes[0]);
+            void * tA = malloc(fft_alloc_sizes[0]);
+            void * tB = malloc(fft_alloc_sizes[0]);
+            void * tC = malloc(fft_alloc_sizes[0]);
 
             typedef small_bench<timer_t> bt;
             for(bt x = finder.micro_bench(index); !x.done(); ++x) {
@@ -558,9 +554,9 @@ void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
             free(qt);
         }
 
-        abvec_clear(ab, &A, k);
-        abvec_clear(ab, &B, k);
-        abvec_clear(ab, &C, 2*k-1);
+        ab->free(A);
+        ab->free(B);
+        ab->free(C);
         
         mpz_clear(p);
 
@@ -596,7 +592,7 @@ void lingen_tune_mul_fti_depth(abdst_field ab, unsigned int m, unsigned int n, c
 
     gmp_randclear(rstate);
 }/*}}}*/
-void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cutoff_list * cl_out)/*{{{*/
+void lingen_tune_mp_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list * cl_out)/*{{{*/
 {
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
@@ -649,20 +645,15 @@ void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cu
 
         unsigned int E_length = k + input_length - 1;
 
-        abvec   A,   B,   C;
-        void  *tA, *tB, *tC;
+        cxx_mpz p(ab->characteristic());
 
-        mpz_t p;
-        mpz_init(p);
-        abfield_characteristic(ab, p);
-
-        abvec_init(ab, &A, E_length);
-        abvec_init(ab, &B, k);
-        abvec_init(ab, &C, input_length);
+        auto A = ab->alloc(E_length);
+        auto B = ab->alloc(k);
+        auto C = ab->alloc(input_length);
         
-        abvec_random(ab, A, E_length, rstate);
-        abvec_random(ab, B, k, rstate);
-        abvec_set_zero(ab, C, input_length);
+        ab->vec_set_random(A, E_length, rstate);
+        ab->vec_set_random(B, k, rstate);
+        ab->vec_set_zero(C, input_length);
 
         ostringstream extra_info;
 
@@ -688,9 +679,9 @@ void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cu
             void * tt = malloc(fft_alloc_sizes[2]);
             void * qt = malloc(fft_alloc_sizes[1]);
 
-            tA = malloc(fft_alloc_sizes[0]);
-            tB = malloc(fft_alloc_sizes[0]);
-            tC = malloc(fft_alloc_sizes[0]);
+            void * tA = malloc(fft_alloc_sizes[0]);
+            void * tB = malloc(fft_alloc_sizes[0]);
+            void * tC = malloc(fft_alloc_sizes[0]);
 
             typedef small_bench<timer_t> bt;
             for(bt x = finder.micro_bench(index); !x.done(); ++x) {
@@ -735,11 +726,10 @@ void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cu
             free(qt);
         }
 
-        abvec_clear(ab, &A, E_length);
-        abvec_clear(ab, &B, k);
-        abvec_clear(ab, &C, input_length);
+        ab->free(A);
+        ab->free(B);
+        ab->free(C);
         
-
         cout << input_length
             << " " << finder.summarize_for_this_length(k)
             << extra_info.str()
@@ -774,7 +764,7 @@ void lingen_tune_mp_fti_depth(abdst_field ab, unsigned int m, unsigned int n, cu
 }/*}}}*/
 
 
-void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
+void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
     typedef fft_transform_info fft_type;
     gmp_randstate_t rstate;
@@ -984,7 +974,7 @@ void lingen_tune_mul(abdst_field ab, unsigned int m, unsigned int n, cutoff_list
     polymat_cutoff_info_clear(improved);
 }/*}}}*/
 
-void lingen_tune_mp(abdst_field ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
+void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cutoff_list cl MAYBE_UNUSED)/*{{{*/
 {
     typedef fft_transform_info fft_type;
     gmp_randstate_t rstate;
@@ -1281,7 +1271,6 @@ void lingen_tune_bigmul(abdst_field ab, unsigned int m, unsigned int n, unsigned
 
 void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_param_list & pl)
 {
-    cxx_mpz p;
     gmp_randstate_t rstate;
 
     int catchsig=0;
@@ -1292,10 +1281,10 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
     param_list_parse_uint(pl, "B", &bench_atleast_uptothis);
     param_list_parse_int(pl, "catchsig", &catchsig);
 
-    abdst_field ab = d.ab;
+    matpoly::arith_hard * ab = & d.ab;
     unsigned int m = d.m;
     unsigned int n = d.n;
-    abfield_characteristic(d.ab, p);
+    cxx_mpz p(ab->characteristic());
 
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, 1);
@@ -1345,13 +1334,13 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
             polymat Er(ab, m, m+n, sE-spi+1);
             E.set_size(sE);
             for(unsigned int v = 0 ; v < E.m * E.n * E.get_size() ; v++) {
-                abrandom(ab, abvec_coeff_ptr(ab, E.x, v), rstate);
+                ab->set_random(ab->vec_item(E.x, v), rstate);
             }
             piL.set_size(spi);
             piR.set_size(spi);
             for(unsigned int v = 0 ; v < piL.m * piL.n * piL.get_size() ; v++) {
-                abrandom(ab, abvec_coeff_ptr(ab, piL.x, v), rstate);
-                abrandom(ab, abvec_coeff_ptr(ab, piR.x, v), rstate);
+                ab->set_random(ab->vec_item(piL.x, v), rstate);
+                ab->set_random(ab->vec_item(piR.x, v), rstate);
             }
             double ttmp = 0, ttmul = 0;
             ttmp -= seconds();

@@ -10,16 +10,16 @@
 #include <cstring>
 #include <cstdlib>
 #include <gmp.h>                 // for mpz_cmp_ui
-#include "balancing.h"           // for DUMMY_VECTOR_COORD_VALUE, DUMMY_VECT...
-#include "parallelizing_info.h"
-#include "matmul_top.h"
+#include "balancing.hpp"           // for DUMMY_VECTOR_COORD_VALUE, DUMMY_VECT...
+#include "parallelizing_info.hpp"
+#include "matmul_top.hpp"
 #include "select_mpi.h"
 #include "params.h"
 #include "bw-common.h"
-#include "async.h"
-#include "mpfq/mpfq.h"
-#include "mpfq/mpfq_vbase.h"
-#include "cheating_vec_init.h"
+#include "async.hpp"
+#include "arith-generic.hpp"
+#include "arith-cross.hpp"
+#include "cheating_vec_init.hpp"
 #include "intersections.h"
 #include "macros.h"
 
@@ -39,12 +39,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     }
     */
 
-    mpfq_vbase A;
-    mpfq_vbase_oo_field_init_byfeatures(A, 
-            MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_SIMD_GROUPSIZE, ys[1]-ys[0],
-            MPFQ_DONE);
-
+    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
+    std::unique_ptr<arith_cross_generic> AxA(arith_cross_generic::instance(A.get(), A.get()));
     block_control_signals();
 
     /*****************************************
@@ -64,7 +60,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
      * random_matrix_size : for creating test matrices, essentially for
      * krylov/mksol speed testing.
      */
-    matmul_top_init(mmt, A, pi, pl, bw->dir);
+    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
 
     mmt_vec ymy[2];
     mmt_vec_ptr y = ymy[0];
@@ -80,7 +76,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     // in no situation shall we try to do our sanity check if we've just
     // been told to export our cache list. Note also that this sanity
     // check is currently only valid for GF(2).
-    if (sanity_check_vector != NULL && !only_export && mpz_cmp_ui(bw->p, 2) == 0 && mmt->abase->simd_groupsize(mmt->abase)) {
+    if (sanity_check_vector != NULL && !only_export && mpz_cmp_ui(bw->p, 2) == 0 && mmt->abase->simd_groupsize()) {
         /* We have computed a sanity check vector, which is H=M*K, with K
          * constant and easily given. Note that we have not computed K*M,
          * but really M*K. Thus independently of which side we prefer, we
@@ -99,7 +95,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         mmt_full_vec_set_zero(y);
         ASSERT_ALWAYS(y->siblings);     /* shared vector undesired */
         for(unsigned int i = y->i0 ; i < y->i1 && i < unpadded ; i++) {
-            void * dst = A->vec_subvec(A, y->v, i - y->i0);
+            arith_generic::elt * dst = A->vec_subvec(y->v, i - y->i0);
             uint64_t value = DUMMY_VECTOR_COORD_VALUE(i);
             memcpy(dst, &value, sizeof(uint64_t));
         }
@@ -134,27 +130,27 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         mmt_full_vec_set_zero(my);
         ASSERT_ALWAYS(my->siblings);     /* shared vector undesired */
         for(unsigned int i = my->i0 ; i < my->i1 && i < unpadded ; i++) {
-            void * dst = A->vec_subvec(A, my->v, i - my->i0);
+            arith_generic::elt * dst = A->vec_subvec(my->v, i - my->i0);
             uint64_t value = DUMMY_VECTOR_COORD_VALUE2(i);
             memcpy(dst, &value, sizeof(uint64_t));
         }
         /* This is L. Now compute the dot product. */
-        void * dp0;
-        void * dp1;
-        cheating_vec_init(A, &dp0, A->simd_groupsize(A));
-        cheating_vec_init(A, &dp1, A->simd_groupsize(A));
+        arith_generic::elt * dp0;
+        arith_generic::elt * dp1;
+        cheating_vec_init(A.get(), &dp0, A->simd_groupsize());
+        cheating_vec_init(A.get(), &dp1, A->simd_groupsize());
         unsigned int how_many;
         unsigned int offset_c;
         unsigned int offset_v;
         how_many = intersect_two_intervals(&offset_c, &offset_v,
                 my->i0, my->i1,
                 y->i0, y->i1);
-        A->vec_set_zero(A, dp0, A->simd_groupsize(A));
-        A->add_dotprod(A, dp0,
-                A->vec_subvec(A, my->v, offset_c),
-                A->vec_subvec(A, y->v, offset_v),
+        A->vec_set_zero(dp0, A->simd_groupsize());
+        AxA->add_dotprod(dp0,
+                A->vec_subvec(my->v, offset_c),
+                A->vec_subvec(y->v, offset_v),
                 how_many);
-        pi_allreduce(NULL, dp0, A->simd_groupsize(A), mmt->pitype, BWC_PI_SUM, pi->m);
+        pi_allreduce(NULL, dp0, A->simd_groupsize(), mmt->pitype, BWC_PI_SUM, pi->m);
 
         /* now we can throw away Hx */
 
@@ -178,17 +174,17 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         mmt_full_vec_set_zero(y);
         ASSERT_ALWAYS(y->siblings);     /* shared vector undesired */
         for(unsigned int i = y->i0 ; i < y->i1 && i < unpadded ; i++) {
-            void * dst = A->vec_subvec(A, y->v, i - y->i0);
+            arith_generic::elt * dst = A->vec_subvec(y->v, i - y->i0);
             uint64_t value = DUMMY_VECTOR_COORD_VALUE(i);
             memcpy(dst, &value, sizeof(uint64_t));
         }
-        A->vec_set_zero(A, dp1, A->simd_groupsize(A));
-        A->add_dotprod(A, dp1,
-                A->vec_subvec(A, my->v, offset_c),
-                A->vec_subvec(A, y->v, offset_v),
+        A->vec_set_zero(dp1, A->simd_groupsize());
+        AxA->add_dotprod(dp1,
+                A->vec_subvec(my->v, offset_c),
+                A->vec_subvec(y->v, offset_v),
                 how_many);
-        pi_allreduce(NULL, dp1, A->simd_groupsize(A), mmt->pitype, BWC_PI_SUM, pi->m);
-        int diff = memcmp(dp0, dp1, A->vec_elt_stride(A, A->simd_groupsize(A)));
+        pi_allreduce(NULL, dp1, A->simd_groupsize(), mmt->pitype, BWC_PI_SUM, pi->m);
+        int diff = memcmp(dp0, dp1, A->vec_elt_stride(A->simd_groupsize()));
         if (pi->m->jrank == 0 && pi->m->trank == 0) {
             if (diff) {
                 printf("%s : failed\n", checkname);
@@ -197,15 +193,13 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
             }
             printf("%s : ok\n", checkname);
         }
-        cheating_vec_clear(A, &dp0, A->simd_groupsize(A));
-        cheating_vec_clear(A, &dp1, A->simd_groupsize(A));
+        cheating_vec_clear(A.get(), &dp0, A->simd_groupsize());
+        cheating_vec_clear(A.get(), &dp1, A->simd_groupsize());
     }
 
     mmt_vec_clear(mmt, y);
     mmt_vec_clear(mmt, my);
     matmul_top_clear(mmt);
-
-    A->oo_field_clear(A);
 
     return NULL;
 }
