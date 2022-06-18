@@ -446,7 +446,7 @@ namespace arith_mod2 {
                         return -1;
                     }
                 /*}}}*/
-            void vec_dotprod(elt &, elt const *, elt const *, size_t) const
+            void vec_add_dotprod(elt &, elt const *, elt const *, size_t) const
             {
                 /* We do not really want to call this function, as it
                  * mostly exists for the groupsize == 1 case. Over the

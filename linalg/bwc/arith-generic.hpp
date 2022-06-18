@@ -40,7 +40,7 @@ struct arith_generic {
     virtual void vec_set_zero(elt *, size_t) const = 0;
     virtual bool vec_is_zero(elt const *, size_t) const = 0;
     virtual void vec_set_random(elt *, size_t, gmp_randstate_ptr) const = 0;
-    virtual void vec_dotprod(elt &, elt const *, elt const *, size_t) const = 0;
+    virtual void vec_add_dotprod(elt &, elt const *, elt const *, size_t) const = 0;
     virtual void vec_addmul_and_reduce(elt *, elt const *, elt const &, size_t) const = 0;
     virtual int vec_cmp(elt const * a, elt const * b, size_t k) const = 0;
     virtual int cmp(elt const & a, elt const & b) const = 0;

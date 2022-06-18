@@ -1072,11 +1072,11 @@ namespace details {
                 }
             }/*}}}*/
 
-            void vec_dotprod(elt & w, elt const * u, elt const * v, size_t n) const
+            void vec_add_dotprod(elt & w, elt const * u, elt const * v, size_t n) const
             {
                 T const * tx = static_cast<T const *>(this);
                 elt_ur_for_addmul t;
-                t.zero();
+                t = w;
                 for(size_t i = 0; i < n; ++i)
                     T::addmul_ur(t, tx->vec_item(u, i), tx->vec_item(v, i));
                 tx->reduce(w, t);

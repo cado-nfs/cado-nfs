@@ -311,7 +311,7 @@ struct arith_cross_gfp : public arith_cross_generic
     }
     virtual void add_dotprod(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override
     {
-        A->vec_dotprod(*w, u, v, n);
+        A->vec_add_dotprod(*w, u, v, n);
     }
 
     virtual void addmul_tiny(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override

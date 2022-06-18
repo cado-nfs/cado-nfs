@@ -76,9 +76,9 @@ struct arith_wrapper: public arith_generic, public T {
     virtual size_t vec_elt_stride(size_t n) const override {
         return concrete()->vec_elt_stride(n);
     }
-    virtual void vec_dotprod(elt & w, elt const * u, elt const * v, size_t n) const override
+    virtual void vec_add_dotprod(elt & w, elt const * u, elt const * v, size_t n) const override
     {
-        concrete()->vec_dotprod(cast(w), cast(u), cast(v), n);
+        concrete()->vec_add_dotprod(cast(w), cast(u), cast(v), n);
     }
     virtual void vec_addmul_and_reduce(elt * w, elt const * u, elt const & v, size_t n) const override
     {
