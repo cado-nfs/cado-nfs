@@ -384,7 +384,10 @@ namespace arith_mod2 {
                     vec_set(elt * q, elt const * p, size_t n)
                     {
                         static_assert(elt::is_flat_storage, "X must be flat");
-                        std::copy_n(p, n, q);
+                        if (q < p)
+                            std::copy_n(p, n, q);
+                        else
+                            std::copy_backward(p, p + n, q + n);
                     }
 
                 static inline void
