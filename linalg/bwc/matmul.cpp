@@ -187,7 +187,8 @@ matmul_ptr matmul_init(arith_generic * x, unsigned int nr, unsigned int nc, cons
     }
     pthread_mutex_unlock(&pp);
 #else   /* BUILD_DYNAMICALLY_LINKABLE_BWC */
-    rebinder = get_rebinder(impl, x->impl_name());
+    std::string impl_name = x->impl_name();
+    rebinder = get_rebinder(impl, impl_name.c_str());
 #endif   /* BUILD_DYNAMICALLY_LINKABLE_BWC */
 
     (*rebinder)(fake);

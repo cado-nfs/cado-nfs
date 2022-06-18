@@ -46,7 +46,12 @@ namespace arith_mod2 {
 
                 static inline E * alloc(size_t k = 1) { return new E[k]; }
                 static inline void free(E * u) { delete[] u; }
-                static inline E * realloc(E * u, size_t k) { free(u); return alloc(k); }
+                static inline E * realloc(E * u, size_t k0, size_t k) {
+                    E * v = new E[k];
+                    std::copy_n(u, k0, v);
+                    delete[] u;
+                    return v;
+                }
                 /*}}}*/
 
         };
@@ -127,16 +132,6 @@ namespace arith_mod2 {
                 static inline size_t vec_elt_stride(size_t s) { return s * elt_stride(); }
                 /*}}}*/
 
-                /*{{{ allocation / deallocation of (vectors of) elements */
-                /* These allocation interfaces seem a bit stupid. At the low
-                 * hard level, we know that they're just the same as new[]
-                 * anyway.
-                 */
-
-                static inline elt * alloc(size_t k = 1) { return new elt[k]; }
-                static inline void free(elt * u) { delete[] u; }
-                static inline elt * realloc(elt * u, size_t k) { free(u); return alloc(k); }
-                /*}}}*/
 #endif
 
                 /*{{{ predicates */

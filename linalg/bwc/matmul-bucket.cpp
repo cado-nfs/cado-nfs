@@ -2174,15 +2174,19 @@ void MATMUL_NAME(save_cache)(matmul_ptr mm0)/*{{{*/
 //     return res;
 // } /* }}} */
 
+static inline uint64_t * cvt(arith_hard::elt * a) MAYBE_UNUSED;
 static inline uint64_t * cvt(arith_hard::elt * a) {
     return reinterpret_cast<uint64_t *>(a);
 }
+static inline uint64_t const * cvt(arith_hard::elt const * a) MAYBE_UNUSED;
 static inline uint64_t const * cvt(arith_hard::elt const * a) {
     return reinterpret_cast<uint64_t const *>(a);
 }
+static inline uint64_t ** cvt(arith_hard::elt ** a) MAYBE_UNUSED;
 static inline uint64_t ** cvt(arith_hard::elt ** a) {
     return reinterpret_cast<uint64_t **>(a);
 }
+static inline uint64_t const ** cvt(arith_hard::elt const ** a) MAYBE_UNUSED;
 static inline uint64_t const ** cvt(arith_hard::elt const ** a) {
     return reinterpret_cast<uint64_t const **>(a);
 }

@@ -353,7 +353,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
 
     set(our_compile_flags)
     parse_arith_layer(${gfp_layer} our_compile_flags)
-    string(JOIN " " our_compile_flags_string ${our_compile_flags})
+    string_join(our_compile_flags_string " " ${our_compile_flags})
 
 
     set_target_properties(test_matpoly_${gfp_layer} PROPERTIES
@@ -384,7 +384,7 @@ foreach(gfp_layer b64)
     set(our_compile_flags)
     parse_arith_layer(${gfp_layer} our_compile_flags)
     list(APPEND our_compile_flags -DLINGEN_BINARY)
-    string(JOIN " " our_compile_flags_string ${our_compile_flags})
+    string_join(our_compile_flags_string " " ${our_compile_flags})
 
     # (unused for p=2 anyway)
     # ARGUMENTS --prime 2
@@ -437,11 +437,6 @@ add_dependencies(test_bwc_mod2_rolling_dependencies mf_scan)
 
 add_bwc_test(mod2_8k bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2)
 add_dependencies(test_bwc_mod2_8k_dependencies mf_scan)
-
-if (COMPILE_MPFQ_BINARY_FIELD_m128)
-add_bwc_test(mod2_8k_simd128 bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2 simd=128)
-add_dependencies(test_bwc_mod2_8k_simd128_dependencies mf_scan)
-endif()
 
 set(mod2_oddthr mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
 add_bwc_test(mod2_oddthr bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=128 n=128 seed=1 thr=3)
@@ -603,14 +598,11 @@ endforeach()
 
 
 foreach(arith_layer ${BWC_GF2_ARITHMETIC_BACKENDS})
-    if (arith_layer STREQUAL "m128" AND NOT HAVE_SSE41)
-    else()
-        string_join(mm_backends " " ${BWC_GF2_MATMUL_BACKENDS})
+    string_join(mm_backends " " ${BWC_GF2_MATMUL_BACKENDS})
 
-        create_test_spmv(binary-${arith_layer}
-            --backends "${mm_backends}"
-            --arith-layer ${arith_layer})
-    endif()
+    create_test_spmv(binary-${arith_layer}
+        --backends "${mm_backends}"
+        --arith-layer ${arith_layer})
 endforeach()
 
 foreach(arith_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})

@@ -205,7 +205,7 @@ arith_generic * arith_generic::instance(mpz_srcptr p, int simd_groupsize)
 
 #define DO_p(s) do {							\
     if (mpz_size(p) == (s) && simd_groupsize == 1)			\
-        return new arith_wrapper<arith_modp::gfp<1>>(p, simd_groupsize);\
+        return new arith_wrapper<arith_modp::gfp<s>>(p, simd_groupsize);\
     } while (0)
 
     COOKED_ARITHMETIC_BACKENDS;

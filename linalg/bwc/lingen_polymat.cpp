@@ -179,7 +179,7 @@ polymat::polymat(arith_hard * ab, unsigned int m, unsigned int n, int len)
 
 void polymat::realloc(size_t newalloc) {
     ASSERT_ALWAYS(!check_pre_init());
-    x = ab->realloc(x, m*n*newalloc);
+    x = ab->realloc(x, m * n * alloc, m*n*newalloc);
     /* zero out the newly added data */
     if (newalloc > alloc) {
         ab->vec_set_zero(x + m*n*alloc, m*n*(newalloc - alloc));

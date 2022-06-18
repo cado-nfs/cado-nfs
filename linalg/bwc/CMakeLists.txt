@@ -21,13 +21,13 @@ endif()
 # add_library calls, and then I'm not sure whether
 # target_link_libraries picks the static or shared ones...
 
-set(BWC_GF2_ARITHMETIC_BACKENDS m128 b64 b128 b256
+set(BWC_GF2_ARITHMETIC_BACKENDS b64 b128 b256
     CACHE STRING
     "which low-level arithmetic backends to use for GF(2) linear algebra")
 set(BWC_GF2_MATMUL_BACKENDS bucket basic sliced
     CACHE STRING
     "which low-level matrix multiplication backends to use for GF(2) linear algebra")
-set(BWC_GFP_ARITHMETIC_BACKENDS p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 pz
+set(BWC_GFP_ARITHMETIC_BACKENDS p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15
     CACHE STRING
     "which GF(p) backends to compile for DLOG mode (pz excluded)")
 if(HAVE_CXX11)
@@ -206,7 +206,7 @@ if(BUILD_DYNAMICALLY_LINKABLE_BWC)
         # To be honest, we don't really need the compile flags here. All
         # code is pulled in from arith-generic.cpp, which does not
         # include arith-hard.hpp
-        string(JOIN " " our_compile_flags_string ${our_compile_flags})
+        string_join(our_compile_flags_string " " ${our_compile_flags})
         set_target_properties(arithmetic_${v} PROPERTIES
             COMPILE_FLAGS "--mpi ${our_compile_flags_string}"
             LINK_FLAGS "--mpi")
@@ -237,7 +237,6 @@ else()
     endforeach()
     # DO NOT USE our_compile_flags here, because those only make sense
     # when a single implementation is compiled.
-
 endif()
 
 ### link dependencies
@@ -257,6 +256,7 @@ target_link_libraries(bwc_base utils ${pthread_libs} bwc_arith)
 # Unfortunately, we do want matmul_common to be compiled with -fPIC,
 # then. Which is easiest to trigger by making it a shared object.
 mpi_add_library(matmul_common ${CADO_SHARED} matmul-common.cpp)
+target_link_libraries(matmul_common utils)
 if(ENABLE_SHARED)
     install(TARGETS matmul_common DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endif()
@@ -302,7 +302,7 @@ macro(CONFIGURE_MATMUL_LIB v i)
 
         add_library(matmul_${v}_${i} ${CADO_SHARED} ${sources})
         target_link_libraries(matmul_${v}_${i} matmul_common)#  bwc_mpfq)
-        string(JOIN " " our_compile_flags_string ${our_compile_flags})
+        string_join(our_compile_flags_string " " ${our_compile_flags})
         set_target_properties(matmul_${v}_${i} PROPERTIES
             COMPILE_FLAGS "--mpi ${our_compile_flags_string}"
             LINK_FLAGS "--mpi")
@@ -322,13 +322,10 @@ endif()
 
 
 foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
-    if (v STREQUAL "m128" AND (NOT HAVE_SSE41 OR NOT HAVE_POPCNT))
-    else()
-        foreach(w ${BWC_GF2_MATMUL_BACKENDS})
-            CONFIGURE_MATMUL_LIB(${v} ${w})
-            list(APPEND all_matmul_gf2_libs "matmul_${v}_${w}")
-        endforeach(w)
-    endif()
+    foreach(w ${BWC_GF2_MATMUL_BACKENDS})
+        CONFIGURE_MATMUL_LIB(${v} ${w})
+        list(APPEND all_matmul_gf2_libs "matmul_${v}_${w}")
+    endforeach(w)
 endforeach(v)
 foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
     foreach(w ${BWC_GFP_MATMUL_BACKENDS})
@@ -510,7 +507,7 @@ foreach(v b64 ${BWC_GFP_ARITHMETIC_BACKENDS})
     add_executable(lingen_verify_checkpoints_${v}
         lingen_verify_checkpoints.cpp
         )
-    string(JOIN " " our_compile_flags_string ${our_compile_flags})
+    string_join(our_compile_flags_string " " ${our_compile_flags})
 
     set_target_properties(lingen_verify_checkpoints_${v} PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
@@ -558,11 +555,13 @@ foreach(v b64 ${BWC_GFP_ARITHMETIC_BACKENDS})
 endforeach(v)
 
 add_custom_target(bwc_matmul_gf2)
+add_custom_target(bwc_matmul_gfp)
+if(BUILD_DYNAMICALLY_LINKABLE_BWC)
 add_dependencies(bwc_matmul_gf2 ${all_arithmetic_gf2_libs})
 add_dependencies(bwc_matmul_gf2 ${all_matmul_gf2_libs})
-add_custom_target(bwc_matmul_gfp)
 add_dependencies(bwc_matmul_gfp ${all_arithmetic_gfp_libs})
 add_dependencies(bwc_matmul_gfp ${all_matmul_gfp_libs})
+endif()
 
 add_custom_target(bwc_full_common)
 add_dependencies(bwc_full_common mf_bal random_matrix acollect

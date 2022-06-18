@@ -176,7 +176,12 @@ namespace details {
             gfp_polymorphic_with_default(static inline, void)
                 free(X * u) { delete[] u; }
             gfp_polymorphic_with_default(static inline, X *)
-                realloc(X * u, size_t k) { free<X>(u); return alloc<X>(k); }
+                realloc(X * u, size_t k0, size_t k) {
+                    X * v = alloc<X>(k);
+                    std::copy_n(u, k0, v);
+                    free<X>(u);
+                    return v;
+                }
 
             /*}}}*/
             /*{{{ predicates */
