@@ -149,6 +149,7 @@ struct arith_wrapper: public arith_generic, public T {
     virtual void reduce(elt & a) const override {
         concrete()->reduce(cast(a));
     }
+    virtual ~arith_wrapper() override = default;
 };
 
 #ifdef ARITH_LAYER

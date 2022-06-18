@@ -81,6 +81,8 @@ struct arith_generic {
     virtual arith_concrete_base const * concrete() const = 0;
     virtual arith_concrete_base * concrete() = 0;
 
+    virtual ~arith_generic() = default;
+
     static arith_generic * instance(mpz_srcptr p, int simd_groupsize);
 };
 

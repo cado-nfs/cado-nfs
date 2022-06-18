@@ -65,8 +65,8 @@ namespace details {
 
         operator mp_limb_t * () { return x; }
         operator const mp_limb_t * () const { return x; }
-        mp_limb_t & operator[](long k) { return x[k]; }
-        mp_limb_t const & operator[](long k) const { return x[k]; }
+        // mp_limb_t & operator[](long k) { return x[k]; }
+        // mp_limb_t const & operator[](long k) const { return x[k]; }
 
         static void zero(self * x, int n) {
             // see bug 21663

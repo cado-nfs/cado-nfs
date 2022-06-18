@@ -44,6 +44,8 @@ struct arith_cross_generic {
      * w is a g1*g0 matrix (a sequence of g1 elements wrt A0)
      */
     virtual void transpose(arith_generic::elt * w, arith_generic::elt const * u) const = 0;
+
+    virtual ~arith_cross_generic() = default;
 };
 
 

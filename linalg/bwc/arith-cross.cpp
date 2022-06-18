@@ -294,6 +294,8 @@ struct arith_cross_gf2<0, L>
             auto xu = reinterpret_cast<const uint64_t *>(u);
             ::transpose()(xw,xu,g0/64,g1/64);
     }
+
+    virtual ~arith_cross_gf2() override = default;
 };
 
 struct arith_cross_gfp : public arith_cross_generic
@@ -321,6 +323,8 @@ struct arith_cross_gfp : public arith_cross_generic
     {
         A->set(*w, *u);
     }
+
+    virtual ~arith_cross_gfp() override = default;
 };
 
 arith_cross_generic * arith_cross_generic::instance(arith_generic * A0, arith_generic * A1)
