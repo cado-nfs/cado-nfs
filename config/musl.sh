@@ -2,7 +2,7 @@
 
 
 # Detect Musl C library.
-libc=$(ldd /bin/ls | grep 'musl' | head -1 | cut -d ' ' -f1)
+libc=$(ldd /bin/ls 2>/dev/null | grep 'musl' | head -1 | cut -d ' ' -f1)
 if [ -z $libc ]; then
     # This is not Musl.
     exit 1
