@@ -11,6 +11,8 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <ctype.h>
+#include <array>
+
 #include "select_mpi.h"
 #include "parallelizing_info.hpp"
 #include "macros.h"
