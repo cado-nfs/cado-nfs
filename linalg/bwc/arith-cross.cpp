@@ -69,7 +69,7 @@ struct add_dotprod<0,1> {
     }
 };
 
-#if     defined(HAVE_SSE2) && GMP_LIMB_BITS == 64
+#if    defined(HAVE_SSE2) && GMP_LIMB_BITS == 64
 /* u has n rows of 64K bits
  * v has n rows of 128 bits.
  * Compute (u|v) == tr(u)*v into the area pointed to by v: 64K rows of 128 bits.

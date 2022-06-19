@@ -894,7 +894,6 @@ void addmul_TN64K_N64_C(uint64_t * b, uint64_t const * A, uint64_t const * x, un
     uint64_t idx, i, rA;
     uint64_t rx;
 
-    memset((void *) b, 0, 64 * K * sizeof(uint64_t));
     for(idx = 0; idx < ncol; idx++) {
         rx = x[idx];
         uint64_t * pb = (uint64_t *) b;
