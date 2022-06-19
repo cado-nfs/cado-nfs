@@ -499,7 +499,7 @@ ssize_t lingen_scatter<matpoly>::write_from_matpoly(matpoly const & src, unsigne
             for(unsigned int j = 0; j < ncols ; j++) {
                 matpoly::ptr to = E.part_head(i, j, next_dst_k);
                 matpoly::srcptr from = src.part_head(i, j, k0);
-                ab->vec_set(to, from, iceildiv(nk, simd));
+                ab->vec_set(to, from, simd * iceildiv(nk, simd));
             }
         }
     }
@@ -632,7 +632,7 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
                 memset(temp, 0, ntemp * sizeof(unsigned long));
 
                 ASSERT_ALWAYS(nq <= ntemp);
-#define R(x, b) (iceildiv((x),(b)))
+#define R(x, b) ((b)*iceildiv((x),(b)))
                 ab->vec_set(temp, pi.part(i, j) + q_rk, R(n_rk + r_rk, simd));
                 if (rk1 % simd) mpn_lshift(temp, temp, nq, simd - (rk1 % simd));
                 /* Now we only have to bit-reverse temp */
@@ -1105,7 +1105,7 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
                 for(unsigned int i = 0 ; i < nrows ; i++) {
                     matpoly::ptr to = dst.part_head(i, j, k0 + produced + extra);
                     matpoly::srcptr from = tail.part_head(i, j, extra);
-                    ab->vec_set(to, from, 1);
+                    ab->vec_set(to, from, simd);
                 }
             }
             extra += MIN(simd, tail.get_size() - extra);
@@ -1270,7 +1270,7 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                 for(unsigned int i = 0 ; i < nrows ; i++) {
                     matpoly::ptr to = dst.part_head(i, j, k0 + produced + extra);
                     matpoly::srcptr from = tail.part_head(i, j, extra);
-                    ab->vec_set(to, from, 1);
+                    ab->vec_set(to, from, simd);
                 }
             }
             extra += MIN(simd, tail.get_size() - extra);

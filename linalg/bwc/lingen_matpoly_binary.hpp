@@ -39,12 +39,6 @@ public:
     typedef unsigned long const * srcptr;
 
     struct arith_hard {
-        static elt * vec_subvec(ptr p, size_t k) {
-            return p + k;
-        }
-        static elt const * vec_subvec(srcptr p, size_t k) {
-            return p + k;
-        }
         static size_t elt_stride() { return sizeof(elt); }
         static mpz_srcptr characteristic() {
             static mp_limb_t limbs[1] = {2};
@@ -53,13 +47,23 @@ public:
         }
         arith_hard(cxx_mpz const &, unsigned int) {}
         static bool is_zero(elt x) { return x == 0; }
+        public:
+        /* Note that here, k is in numbers of bits, and it must always be
+         * a multiple of ULONG_BITS
+         */
+        static elt * vec_subvec(ptr p, size_t k) {
+            return p + k/ULONG_BITS;
+        }
+        static elt const * vec_subvec(srcptr p, size_t k) {
+            return p + k/ULONG_BITS;
+        }
         static void vec_add(elt * u, elt const * x, size_t n) {
-            for(size_t i = 0 ; i < n ; i++) {
+            for(size_t i = 0 ; i < n/ULONG_BITS ; i++) {
                 u[i] ^= x[i];
             }
         }
         static void vec_set(elt * u, elt const * x, size_t n) {
-            std::copy_n(x, n, u);
+            std::copy_n(x, n/ULONG_BITS, u);
         }
     };
 
@@ -164,17 +168,25 @@ public:
     inline ptr part(unsigned int i, unsigned int j) {
         return x + (i*n+j)*alloc_words;
     }
-    inline ptr part_head(unsigned int i, unsigned int j, unsigned int k) {
-        return part(i, j) + k / ULONG_BITS;
-    }
     // inline elt& coeff(unsigned int i, unsigned int j) { return *part(i, j); }
     inline srcptr part(unsigned int i, unsigned int j) const {
         return x + (i*n+j)*alloc_words;
     }
+    public:
+    inline ptr part_head(unsigned int i, unsigned int j, unsigned int k) {
+        /* k is a number of bits. Only k/ULONG_BITS matter (see
+         * ab->vec_subvec)
+         */
+        return ab->vec_subvec(part(i, j), k);
+    }
     inline srcptr part_head(unsigned int i, unsigned int j, unsigned int k) const {
-        return part(i, j) + k / ULONG_BITS;
+        /* k is a number of bits. Only k/ULONG_BITS matter (see
+         * ab->vec_subvec)
+         */
+        return ab->vec_subvec(part(i, j), k);
     }
     inline elt coeff(unsigned int i, unsigned int j, unsigned int k) const {
+        /* k is a number of bits */
         return (*part_head(i, j, k) >> (k % ULONG_BITS)) != 0;
     }
     struct coeff_accessor_proxy {
@@ -195,6 +207,7 @@ public:
     inline coeff_accessor_proxy coeff(unsigned int i, unsigned int j, unsigned int k) {
         return coeff_accessor_proxy(*this, i, j, k);
     }
+    public:
     /* }}} */
 
     /* The interfaces below used to exist for the old binary "polmat"
