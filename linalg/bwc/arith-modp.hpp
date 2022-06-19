@@ -101,6 +101,18 @@ namespace details {
         }
         */
     };
+    template<mp_size_t S1N, mp_size_t S2N, bool ok = (S1N >= S2N)>
+        struct mpn_mul_caller {
+            void operator()(mp_limb_t * t, mp_limb_t const * s1, mp_limb_t const * s2) const {
+                mpn_mul(t, s1, S1N, s2, S2N);
+            }
+        };
+    template<mp_size_t S1N, mp_size_t S2N>
+        struct mpn_mul_caller<S1N, S2N, false> {
+            void operator()(mp_limb_t * t, mp_limb_t const * s1, mp_limb_t const * s2) const {
+                mpn_mul(t, s2, S2N, s1, S1N);
+            }
+        };
 
     template<int N, typename T>
         struct gfp_base : public arith_concrete_base {
@@ -496,7 +508,11 @@ namespace details {
                 }
                 /* emulate a submul_n ; need to do mul first, then sub... */
                 mp_limb_t scratch[N + extra];
-                mpn_mul(scratch, prime_limbs(), N, q0, extra);
+                /* Both N and extra are constexpr. We must call mpn_mul
+                 * in a way that abides by the requirement that S1N >=
+                 * S2N
+                 */
+                mpn_mul_caller<N, extra>()(scratch, prime_limbs(), q0);
                 mpn_sub_n(a, a, scratch, N + extra);
 #if !defined(NDEBUG) && !defined(DEBUG_INFINITE_LOOPS)
                 int spin=0;
