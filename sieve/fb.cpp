@@ -2064,9 +2064,14 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
     }
 #else
     if (fbc_filename) {
-        fprintf(stderr, "factor base cache not available with your libstdc++ library, sorry.\n");
-        /* It is not a failure, though: we can still read the factor base
-         * as it is, after all... */
+        static int err = 0;
+        if (err == 0)
+	  {
+	    fprintf(stderr, "factor base cache not available with your libstdc++ library: it doesn't support Glibc vector internals.\n");
+	    /* It is not a failure, though: we can still read the factor base
+	     * as it is, after all... */
+	    err = 1;
+	  }
     }
 #endif
 
