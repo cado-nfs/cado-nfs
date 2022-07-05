@@ -5,7 +5,7 @@
 #ifndef FB_HPP_
 #define FB_HPP_
 
-#include "cado_config.h"               // for HAVE_GLIBC_VECTOR_INTERNALS
+#include "cado_config.h"               // for HAVE_KNOWN_CXX_STD_VECTOR_INTERNALS
 
 #include <cstddef>                    // for size_t, NULL
 #include <cstdio>                     // for fprintf, FILE
@@ -28,7 +28,7 @@
 #include "las-config.h"                // for FB_MAX_PARTS
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
 #include "mmap_allocator.hpp"          // for mmap_allocator
-#ifdef HAVE_GLIBC_VECTOR_INTERNALS
+#ifdef HAVE_KNOWN_CXX_STD_VECTOR_INTERNALS
 #include "mmappable_vector.hpp"
 #else
 /* yes, it's a hack */

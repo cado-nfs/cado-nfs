@@ -36,7 +36,7 @@ if(NOT HAVE_FMT)
         embedded/fmt/os.cc
         )
 endif()
-if (HAVE_GLIBC_VECTOR_INTERNALS)
+if (HAVE_KNOWN_CXX_STD_VECTOR_INTERNALS)
     set(sources ${sources} mmap_allocator.cpp)
 endif()
 if (NOT MINGW)

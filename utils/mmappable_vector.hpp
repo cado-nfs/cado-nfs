@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <vector>
 #include "mmap_allocator.hpp"
+#include "cxx_std_vector_ugly_accessor.hpp"
 
 template <typename T, typename A = mmap_allocator_details::mmap_allocator<T> >
 class mmappable_vector: public std::vector<T, A> {
@@ -65,24 +66,25 @@ class mmappable_vector: public std::vector<T, A> {
         void mmap(size_t n)
         {
             Base::reserve(n);
-#ifdef HAVE_GLIBC_VECTOR_INTERNALS
-            Base::_M_impl._M_finish = Base::_M_impl._M_start + n;
-#else
-#error "Not GNU libstdc++, please expand code"
-#endif
+            auto & u = cado_nfs::ugly_accessor(*this);
+            u._finish() = u._start() + n;
         }
         void munmap()
         {
-            size_t n = Base::size();
             Base::clear();
-#ifdef HAVE_GLIBC_VECTOR_INTERNALS
-            Base::_M_deallocate(Base::_M_impl._M_start, n);
-            Base::_M_impl._M_start = 0;
-            Base::_M_impl._M_finish = 0;
-            Base::_M_impl._M_end_of_storage = 0;
-#else
-#error "Not GNU libstdc++, please expand code"
-#endif
+            auto & u = cado_nfs::ugly_accessor(*this);
+            // The following two lines are typically what the dtor does,
+            // but we should rather call the dtor explicitly, since it
+            // has access to private stuff that is a better match to our
+            // use of reserve() above. In particular, llvm libcxx with
+            // address sanitizer mode would want this.
+            //
+            // size_t n = Base::size();
+            // u._allocator().deallocate(u._start(), n);
+            reinterpret_cast<Base *>(this)->~Base();
+            u._start() = 0;
+            u._finish() = 0;
+            u._end_of_storage() = 0;
         }
 
         /* Those two are only to align with the original code I
@@ -93,25 +95,19 @@ class mmappable_vector: public std::vector<T, A> {
         /* Adding enable_if because really that only makes sense
          * with our allocator, no other */
         typename std::enable_if<std::is_same<mmap_allocator_details::mmap_allocator<T>, A>::value>::type mmap_file(const char * filename, mmap_allocator_details::access_mode mode, mmap_allocator_details::offset_type offset, mmap_allocator_details::size_type length) {
-#ifdef HAVE_GLIBC_VECTOR_INTERNALS
-            A & a(Base::_M_get_Tp_allocator());
-#else
-#error "Not GNU libstdc++, please expand code"
-#endif
+            A & a(cado_nfs::ugly_accessor(*this)._allocator());
             if (a.has_defined_mapping()) throw mmap_allocator_details::mmap_allocator_exception("already mapped");
             a = A(filename, mode, offset, length);
             mmap(length);
         }
         typename std::enable_if<std::is_same<mmap_allocator_details::mmap_allocator<T>, A>::value>::type munmap_file() {
-#ifdef HAVE_GLIBC_VECTOR_INTERNALS
-            A & a(Base::_M_get_Tp_allocator());
-#else
-#error "Not GNU libstdc++, please expand code"
-#endif
+            A & a(cado_nfs::ugly_accessor(*this)._allocator());
             if (!a.has_defined_mapping()) throw mmap_allocator_details::mmap_allocator_exception("not yet mapped");
             munmap();
             a = A();
         }
+
+
         void swap(mmappable_vector<T,A> & __x) {
             /* /usr/include/c++/7/bits/stl_vector.h:103:
              * std::_Vector_base<T,A>::_M_swap_data does not seem to do
@@ -119,15 +115,12 @@ class mmappable_vector: public std::vector<T, A> {
              * it's a bug or a feature, but that sounds definitely
              * worrisome.
              */
-#ifdef HAVE_GLIBC_VECTOR_INTERNALS
-            A & a(Base::_M_get_Tp_allocator());
-            std::swap(a, (A&) __x._M_get_Tp_allocator());
-            std::swap(Base::_M_impl._M_start, __x._M_impl._M_start);
-            std::swap(Base::_M_impl._M_finish, __x._M_impl._M_finish);
-            std::swap(Base::_M_impl._M_end_of_storage, __x._M_impl._M_end_of_storage);
-#else
-#error "Not GNU libstdc++, please expand code"
-#endif
+            auto & u = cado_nfs::ugly_accessor(*this);
+            auto & x = cado_nfs::ugly_accessor(__x);
+            std::swap(u._allocator(), x._allocator());
+            std::swap(u._start(), x._start());
+            std::swap(u._finish(), x._finish());
+            std::swap(u._end_of_storage(), x._end_of_storage());
         }
 
 };
