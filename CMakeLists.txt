@@ -266,6 +266,8 @@ message(STATUS "bits in unsigned long: ${ULONG_BITS}")
 message(STATUS "bits in unsigned long long: ${ULONGLONG_BITS}")
 include(${CADO_NFS_SOURCE_DIR}/config/check_types.cmake)
 
+include(${CADO_NFS_SOURCE_DIR}/config/pagesize.cmake)
+
 include(${CADO_NFS_SOURCE_DIR}/config/gmp_randstate.cmake)
 
 set(GF2X_CONFIGURE_FLAGS --disable-shared --disable-dependency-tracking --enable-fft-interface CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} CFLAGS=${GF2X_C_FLAGS} CXXFLAGS=${GF2X_CXX_FLAGS} LDFLAGS=${GF2X_LDFLAGS} $ENV{GF2X_CONFIGURE_EXTRA_FLAGS})

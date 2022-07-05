@@ -108,6 +108,8 @@ config/musl.sh
 config/neon.c
 config/openmp.c
 config/openmp.cmake
+config/pagesize.c
+config/pagesize.cmake
 config/pclmul.c
 config/perl.cmake
 config/popcnt.c
@@ -1377,7 +1379,8 @@ tests/sieve/F9.with_hints.todo
 tests/sieve/Makefile
 tests/sieve/README
 tests/sieve/bogus.batch0
-tests/sieve/bogus.fbc
+tests/sieve/bogus16384.fbc
+tests/sieve/bogus4096.fbc
 tests/sieve/c120.poly
 tests/sieve/c120.roots1.gz
 tests/sieve/c160_21518.poly
