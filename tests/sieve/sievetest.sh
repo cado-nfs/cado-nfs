@@ -143,8 +143,8 @@ if [ "$fbc" ] ; then
     else
         real_fbc="$fbc"
     fi
-    # Note that if HAVE_GLIBC_VECTOR_INTERNALS is not set, then we don't
-    # support fbc. We don't want the test to fail in that case.
+    # Note that fbc might not be supported by the current platform.
+    # We don't want the test to fail in that case.
     if [ -f "$real_fbc" ] ; then
         "${CADO_NFS_SOURCE_DIR}/sieve/inspect-fbc-file.pl" -fbc "$real_fbc" > "$real_fbc.txt"
     fi

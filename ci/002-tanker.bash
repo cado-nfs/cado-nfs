@@ -17,6 +17,8 @@ for v in "${exported_variables[@]}" ; do
 done
 
 tanker() {
+    # add this because we want to always have a current list of images
+    (cd "$(dirname $0)/utilities/tanker" ; rm -f images.txt || : ; make images.txt)
     "$(dirname $0)/utilities/tanker/tanker.sh" -B "${TANKER_DATABASE:-/tmp}/tanker-$(id -n -u)" "$@"
 }
 

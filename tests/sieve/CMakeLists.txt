@@ -181,9 +181,9 @@ cado_divert_test(F9 sieve
 cado_define_test(bogus_fbc_is_consistent
     PROGRAM
     ${CADO_NFS_SOURCE_DIR}/sieve/inspect-fbc-file.pl -fbc
-    ${CMAKE_CURRENT_SOURCE_DIR}/bogus.fbc)
+    ${CMAKE_CURRENT_SOURCE_DIR}/bogus${OS_PAGE_SIZE}.fbc)
 add_custom_target(copy_bogus_fbc ${CMAKE_COMMAND} -E copy
-    ${CMAKE_CURRENT_SOURCE_DIR}/bogus.fbc
+    ${CMAKE_CURRENT_SOURCE_DIR}/bogus${OS_PAGE_SIZE}.fbc
     ${CMAKE_CURRENT_BINARY_DIR}/bogus-copy.fbc)
 cado_divert_test(F9_sieve reuse_foreign_fbc
         APPEND_ENVIRONMENT
