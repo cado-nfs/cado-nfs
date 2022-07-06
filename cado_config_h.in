@@ -142,7 +142,6 @@
 
 #cmakedefine    HAVE_JEVENTS
 
-#cmakedefine    HAVE_KNOWN_CXX_STD_VECTOR_INTERNALS
 #cmakedefine    HAVE_INT128
 
 #cmakedefine    HAVE_ALIGNED_ALLOC

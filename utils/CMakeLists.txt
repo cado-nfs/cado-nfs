@@ -28,6 +28,7 @@ set (sources
         json.cpp
         indexed_relation.cpp
         cado-sighandlers.cpp
+        mmap_allocator.cpp
 )
 
 if(NOT HAVE_FMT)
@@ -35,9 +36,6 @@ if(NOT HAVE_FMT)
         embedded/fmt/format.cc
         embedded/fmt/os.cc
         )
-endif()
-if (HAVE_KNOWN_CXX_STD_VECTOR_INTERNALS)
-    set(sources ${sources} mmap_allocator.cpp)
 endif()
 if (NOT MINGW)
     set (sources ${sources} cado_popen.c)

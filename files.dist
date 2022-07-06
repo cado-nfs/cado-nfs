@@ -67,8 +67,6 @@ config/cado_check_cxx_source_compiles.cmake
 config/ccwrap.pl.in
 config/check_cpu_feature.cmake
 config/check_types.cmake
-config/cxx_std_vector_internals.cmake
-config/cxx_std_vector_internals.cpp
 config/cxxabi.cmake
 config/cxxwrap.pl.in
 config/detect-static-analysis.cmake
@@ -1601,7 +1599,6 @@ utils/clonable-exception.hpp
 utils/crc.c
 utils/crc.h
 utils/cxx_mpz.hpp
-utils/cxx_std_vector_ugly_accessor.hpp
 utils/dllist.h
 utils/double_poly.cpp
 utils/double_poly.h

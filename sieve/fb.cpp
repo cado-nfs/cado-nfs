@@ -17,14 +17,12 @@
 #include <stdexcept>       // for runtime_error
 #include <string>          // for basic_string, string
 #include <type_traits>     // for is_same
-#ifdef HAVE_KNOWN_CXX_STD_VECTOR_INTERNALS
 /* need all that for mmap() stuff */
 // #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 // #include <sys/mman.h>
 #include <unistd.h>
-#endif
 #include <gmp.h>           // for mpz_t, mpz_fdiv_ui, mpz_gcd_ui
 #include "fb.hpp"
 #include "getprime.h"               // for getprime_mt, prime_info_clear
@@ -1657,9 +1655,8 @@ fb_factorbase::read(const char * const filename)
  * we prefer to rely on mmap-able vectors that subclass the standard
  * library ones */
 
-#ifdef HAVE_KNOWN_CXX_STD_VECTOR_INTERNALS
-/* (desired) structure of the factor base cache header block (ascii, 4096
- * bytes).
+/* (desired) structure of the factor base cache header block (ascii,
+ * sysconf(_SC_PAGE_SIZE) * bytes).
  *
  * No comments are supported in the header blocks (yes, it is a bit
  * unfortunate. yes, it's possible to fix it, of course).
@@ -1998,7 +1995,6 @@ struct helper_functor_write_to_fbc_file_weight_part {
         }
 };
 
-#endif
 
 /* }}} */
 
@@ -2040,7 +2036,6 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
     std::string polystring = f.print_poly("x");
 
 
-#ifdef HAVE_KNOWN_CXX_STD_VECTOR_INTERNALS
     fbc_header hdr;
     /* First use standard I/O to read the cached file header. */
     hdr = find_fbc_header_block_for_poly(fbc_filename, f, lim, powlim, side);
@@ -2062,21 +2057,6 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
                 side, tfb, tfb_wct);
         return;
     }
-#else
-    if (fbc_filename) {
-        static int err = 0;
-        if (err == 0)
-	  {
-	    /* It is not a failure, though: we can still read the factor base
-	     * as it is, after all... */
-	    fprintf(stderr, "factor base cache not available with your libstdc++ library: we need to know more about the std::vector internals.\n");
-            /* the file that needs to be updated is
-             * utils/cxx_std_vector_ugly_accessor.hpp
-             */
-	    err = 1;
-	  }
-    }
-#endif
 
     /* compute, or maybe read the factor base from the ascii file */
     {
@@ -2114,7 +2094,6 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
         }
     }
 
-#ifdef HAVE_KNOWN_CXX_STD_VECTOR_INTERNALS
     if (fbc_filename) {
         /* We have a complete factor base prepared. If we reach here,
          * then we have to store it to the cache file */
@@ -2178,7 +2157,6 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
                     side, fbc_filename, strerror(errno));
         }
     }
-#endif
 
     /* This puts an entry in the cache with the end position for all
      * vectors. We have a shortcut that avoids re-reading the entire
