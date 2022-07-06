@@ -420,11 +420,19 @@ coverity on debian10 system with gcc:
 containers:
   stage: publish
   image: docker
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
+    - when: on_success
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - apk update
     - apk add make bash git
     - make -f docker/Makefile PUSH=yes NOW=$(date +%Y%m%d%H%M-$CI_COMMIT_SHA)
+  retry:
+    max: 2
+    when: runner_system_failure
 
 
 # "cache" is only when the runners have a notion of available cache

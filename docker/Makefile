@@ -15,5 +15,5 @@ REG=registry.gitlab.inria.fr/cado-nfs/cado-nfs
 
 docker-image-%: docker/base docker/%
 	./tests/provide-wdir.sh --env WDIR bash -xc 'git archive --format=tar.gz HEAD > $$WDIR/cado.tar.gz ; cp -p docker/local.sh docker/dispatch-files.sh $$WDIR/ ; cat $^ > $$WDIR/Dockerfile ; docker build -t $(REG)/$* $$WDIR'
-	! [ "$$PUSH" ] || (docker tag $*:latest $(REG)/$*:$(NOW) ; docker push $(REG)/$*:$(NOW) ; docker push $(REG)/$*)
+	! [ "$$PUSH" ] || ! [ "$$CI_COMMIT_BRANCH" ] || [ "$$CI_COMMIT_BRANCH" != master ] || (docker tag $*:latest $(REG)/$*:$(NOW) ; docker push $(REG)/$*:$(NOW) ; docker push $(REG)/$*)
 
