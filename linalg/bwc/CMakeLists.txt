@@ -21,7 +21,7 @@ endif()
 # add_library calls, and then I'm not sure whether
 # target_link_libraries picks the static or shared ones...
 
-set(BWC_GF2_ARITHMETIC_BACKENDS b64 b128 b256
+set(BWC_GF2_ARITHMETIC_BACKENDS b64 b128 b256 bz
     CACHE STRING
     "which low-level arithmetic backends to use for GF(2) linear algebra")
 set(BWC_GF2_MATMUL_BACKENDS bucket basic sliced
