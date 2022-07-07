@@ -123,6 +123,7 @@ echo "## backends to test: ${backends[*]}"
 
 if [ "$prime" = 2 ] ; then
     case "$arith_layer" in
+        bz) m=1024; n=256;;
         b*) n=`echo $arith_layer | cut -c2-`; m=$n;;
         *) echo "unknown arithmetic layer $arith_layer" >&2; exit 1;;
     esac

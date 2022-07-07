@@ -137,9 +137,9 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     // int tcan_print = bw->can_print && pi->m->trank == 0;
     matmul_top_data mmt;
 
-    int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
-    int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
-    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, nchecks));
+    // int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
+    // int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
+    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, bw->n));
 
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, bw->seed);

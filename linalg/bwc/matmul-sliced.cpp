@@ -374,7 +374,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
             for(uint32_t c = 0 ; c < ncoeffs_slice ; c++) {
                 j += *q++;
                 uint32_t di = *q++;
-                x->add(x->vec_item(where, di), src[j]);
+                x->add(x->vec_item(where, di), x->vec_item(src, j));
             }
             ASM_COMMENT("end of critical loop");
             i += nrows_packed;
@@ -405,7 +405,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
             for(uint32_t c = 0 ; c < ncoeffs_slice ; c++) {
                 j += *q++;
                 uint32_t di = *q++;
-                x->add(dst[j], src[i+di]);
+                x->add(x->vec_item(dst, j), x->vec_item(src, i+di));
             }
             i += nrows_packed;
             ASM_COMMENT("end of critical loop");

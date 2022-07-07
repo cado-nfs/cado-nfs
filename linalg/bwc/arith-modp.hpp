@@ -120,7 +120,7 @@ namespace details {
                 return fmt::format(FMT_STRING("p{}"), N);
             }
             static constexpr const bool is_characteristic_two = false;
-            static constexpr const bool simd_groupsize = 1;
+            static constexpr bool simd_groupsize() { return 1; }
             struct elt : public arith_concrete_base::elt, public mpn<N> {
                 template<typename... Args> elt(Args&&... args) : mpn<N>(std::forward<Args>(args)...) {}
             };
@@ -898,7 +898,7 @@ namespace details {
                 static inline int
                     vec_simd_find_first_set(elt & x, elt const * p, size_t n)
                     {
-                        static_assert(T::simd_groupsize == 1, "this code wants trivial simd");
+                        static_assert(T::simd_groupsize() == 1, "this code wants trivial simd");
                         for(size_t i = 0 ; i < n ; ++i) {
                             if (!T::is_zero(T::set(x, T::vec_item(p, i)))) {
                                 return i;

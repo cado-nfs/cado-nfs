@@ -138,7 +138,7 @@ struct arith_wrapper: public arith_generic, public T {
         return T::impl_name();
     }
     virtual size_t simd_groupsize() const override {
-        return T::simd_groupsize;
+        return concrete()->simd_groupsize();
     }
     virtual bool is_characteristic_two() const override {
         return T::is_characteristic_two;
@@ -169,24 +169,31 @@ arith_generic * arith_generic::instance(mpz_srcptr p, int simd_groupsize)
 {
 #ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
     std::string libname;
+    std::string vlibname;
     if (mpz_cmp_ui(p, 2) == 0) {
         ASSERT_ALWAYS(simd_groupsize % 64 == 0);
         libname = fmt::format(FMT_STRING(SOLIB_PREFIX "arithmetic_b{}" SOLIB_SUFFIX), simd_groupsize);
+        vlibname = SOLIB_PREFIX "arithmetic_bz" SOLIB_SUFFIX;
     } else {
         ASSERT_ALWAYS(simd_groupsize == 1);
         ASSERT_ALWAYS(mpz_cmp_ui(p, 0) > 0);
         size_t nwords = mpz_size(p);
         libname = fmt::format(FMT_STRING(SOLIB_PREFIX "arithmetic_p{}" SOLIB_SUFFIX), nwords);
+        vlibname = SOLIB_PREFIX "arithmetic_pz" SOLIB_SUFFIX;
     }
 
-    /* It might still be the case that we can have variable-width
-     * interfaces after all. And these could conceivably be used as
-     * fallbacks if the proper solib is not found.
-     */
     void * handle = dlopen(libname.c_str(), RTLD_NOW);
     if (handle == NULL) {
         fprintf(stderr, "loading %s: %s\n", libname.c_str(), dlerror());
-        abort();
+        /* We might have compiled variable-width interfaces. These can be
+         * used as fallbacks if the proper solib is not found.
+         */
+        fprintf(stderr, "*** TRYING TO FALL BACK TO VARIABLE-WIDTH CODE [%s]\n", vlibname.c_str());
+        handle = dlopen(vlibname.c_str(), RTLD_NOW);
+        if (handle == NULL) {
+            fprintf(stderr, "loading %s: %s\n", vlibname.c_str(), dlerror());
+            abort();
+        }
     }
     typedef void * (*f_t)(mpz_srcptr, unsigned int);
     f_t f = (f_t) dlsym(handle, "arith_layer");
@@ -210,18 +217,22 @@ arith_generic * arith_generic::instance(mpz_srcptr p, int simd_groupsize)
     } while (0)
 
     COOKED_ARITHMETIC_BACKENDS;
-    /*
-    DO_b(64);
-    DO_b(128);
-    DO_b(192);
-    DO_b(256);
-    DO_p(1);
-    DO_p(2);
-    DO_p(3);
-    DO_p(4);
-    DO_p(5);
-    DO_p(6);
-    */
+
+#undef DO_b
+#undef DO_p
+
+    /* Now try the generic code */
+#define DO_b(g) do {							\
+    if (mpz_cmp_ui(p, 2) == 0 && g == 0)	        		\
+        fprintf(stderr, "Using variable-width code. For better performance, please consider compiling special-purpose code via BWC_GF2_ARITHMETIC_BACKENDS=\"b%d\" in local.sh\n", simd_groupsize);                                     \
+        return new arith_wrapper<arith_mod2::gf2<0>>(p, simd_groupsize);\
+    } while (0)
+
+#define DO_p(s) do {							\
+    if (simd_groupsize == 1 && s == 0)			\
+        fprintf(stderr, "Using variable-width code. For better performance, please consider compiling special-purpose code via BWC_GFP_ARITHMETIC_BACKENDS=\"p%d\" in local.sh\n", mpz_size(p));                                     \
+        return new arith_wrapper<arith_modp::gfp<0>>(p, simd_groupsize);\
+    } while (0)
 
     abort();
 #endif

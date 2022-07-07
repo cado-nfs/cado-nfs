@@ -152,7 +152,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
             for( ; len-- ; ) {
                 j += *q++;
                 ASSERT(j < mm->public_->dim[d]);
-                x->add(dst[i], src[j]);
+                x->add(x->vec_item(dst, i), x->vec_item(src, j));
             }
         }
         ASM_COMMENT("end of critical loop");
@@ -168,7 +168,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
             for( ; len-- ; ) {
                 j += *q++;
                 ASSERT(j < mm->public_->dim[!d]);
-                x->add(dst[j], src[i]);
+                x->add(x->vec_item(dst, j), x->vec_item(src, i));
             }
         }
         ASM_COMMENT("end of critical loop (transposed mult)");
