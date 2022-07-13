@@ -14,7 +14,7 @@ In principle, just typing
   ./cado-nfs.py -dlp -ell <ell> target=<target> <p>
 should compute the discrete logarithm of <target> modulo <ell> in
 GF(<p>). Right now, there are parameters only for primes p of around 30,
-60, 100 or 155 digits (to be checked in params_dl/ subdirectory). If no
+60, 100 or 155 digits (to be checked in parameters/dlp subdirectory). If no
 target is given, then the output is a file containing the virtual
 logarithms of all the factor base elements.
 
@@ -120,3 +120,23 @@ For DLP in GF(p^2), things are sligthly more integrated:
 should work for p = 7 mod 8, provided that a parameter file is available
 for the size of p (at the time of writing this doc, only p of 20 decimal
 digits is supported).
+
+**** Creating your own parameter files
+
+If the parameter file for your target size is missing, you can create them
+by interpolating/extrapolating between existing parameter files. You need both
+params.pNNN and pNNN.hint where NNN is your target size. For the hint file, see
+parameters/dlp/README.
+
+**** Known issues
+
+Linear algebra for DLP is presently only for x86_64.
+
+The code requires that the modulus width be explicitly covered in the compile
+time settings. For example put in local.sh:
+
+   BWC_GFP_ARITHMETIC_BACKENDS=p_4
+
+(or a list like BWC_GFP_ARITHMETIC_BACKENDS="p_1;p_4;pz"), where p_4 means a
+modulus of 4 words, and p_z means a modulus of an arbitrary number of words
+(slower). Widths up to 15 words are compiled by default.
