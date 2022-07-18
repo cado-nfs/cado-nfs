@@ -641,6 +641,10 @@ lingen
     whence the generator is saved as (n/s)^2 submatrices of size s*s,
     where s is the "split width" (64 for p=2, 1 otherwise).
 
+    Note: if you run other concurrent tasks on the computer running lingen,
+    it is recommended to define OMP_DYNAMIC=true in your environment (see
+    thread https://sympa.inria.fr/sympa/arc/cado-nfs/2022-07/msg00006.html).
+
 mksol
 -----
 
