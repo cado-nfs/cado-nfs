@@ -7,6 +7,7 @@ NCPUS=`"$(dirname $0)/utilities/ncpus.sh"`
 export NCPUS
 export OMP_DYNAMIC=true STATS_PARSING_ERRORS_ARE_FATAL=1
 
+
 if ! [ "$using_cmake_directly" ] ; then
     eval $("${MAKE}" show)
 fi
@@ -37,6 +38,38 @@ if [ "$coverage" ] ; then
     leave_section
 fi
 
+test_precommand=()
+
+if [ "$valgrind" ] ; then
+    vdir=$PWD/valgrind.$CI_COMMIT_SHORT_SHA-$CI_JOB_ID
+    mkdir -p $vdir
+    cat > $vdir/v.sh <<EOF
+#!/usr/bin/env bash
+cado=$PWD
+vdir=$vdir
+EOF
+    cat >> $vdir/v.sh <<'EOF'
+    if [ -x "./$1" ] ; then
+        prg="$1"
+        shift
+        args=("./$prg" "$@")
+        set -- "${args[@]}"
+    fi
+
+    # Don't use --error-exitcode, so that we get a chance to be notified of all potential errors at once.
+    valgrind --suppressions=$cado/cado-nfs.supp --gen-suppressions=all --trace-children=yes --trace-children-skip=gzip,libtool,gcc,g++ "--log-file=$vdir/pid-%p" --leak-check=full "$@"
+EOF
+
+    VALGRIND="$vdir/v.sh"
+    chmod 755 $VALGRIND
+
+    export PYTHONDONTWRITEBYTECODE=1
+    test_precommand+=(env TEST_PRECOMMAND=$VALGRIND)
+    # valgrind tests can take _ages_ if we run them with openmp
+    export OMP_NUM_THREADS=1
+fi
+
+
 if [ "$CHECKS_EXPENSIVE" ] ; then
     enter_section "xtest" "Running expensive tests"
 else
@@ -55,9 +88,9 @@ ctest_args=(
 
 if [ "$using_cmake_directly" ] ; then
     set -o pipefail
-    (cd "$build_tree" ; ctest -j$NCPUS "${ctest_args[@]}") | "$source_tree"/scripts/filter-ctest.pl
+    (cd "$build_tree" ; "${test_precommand[@]}" ctest -j$NCPUS "${ctest_args[@]}") | "$source_tree"/scripts/filter-ctest.pl
 else
-    "${MAKE}" check ARGS="-j$NCPUS ${ctest_args[*]}"
+    "${test_precommand[@]}" "${MAKE}" check ARGS="-j$NCPUS ${ctest_args[*]}"
 fi
 rc=$?
 set -e
@@ -90,6 +123,41 @@ if [ "$coverage" ] ; then
     # sources in the info file directly.
     # tar czf ${C}-generated-sources.tar.gz $(perl -ne "m,^SF:${build_tree#$PWD/}/, && s,^SF:,, && print;" ${C}-base.info  | sort -u)
     leave_section
+fi
+
+if [ "$valgrind" ] ; then
+    dispatch_files() {
+        cd $vdir
+        mkdir ok nok system
+        find . -type f -a -name 'pid-*' | xargs egrep -l "Command: (/usr/bin|/bin|python|perl|env|[^ ]*\.sh)" | xargs -r mv --target-directory system
+        # the rm -rf step could be considered an option
+        rm -rf system
+        grep -l 'ERROR SUMMARY: [^0]' pid-* | xargs -r mv -t nok
+        ls | grep pid | xargs -r grep -l 'ERROR SUMMARY: 0' | xargs -r mv -t ok
+    }
+
+    (dispatch_files)
+
+    set +e
+    ls $vdir/nok | grep -q .
+    found_nok_files=$?
+    set -e
+
+    ls $vdir/nok | while read f ; do
+      echo "Errors in file $vdir/nok/$f"
+      cat $vdir/nok/$f
+    done
+    tar cvzf $vdir.tar.gz $vdir/
+    rm -rf $vdir
+    if [ $rc != 0 ] ; then
+     echo "exit code was $rc"
+     exit $rc
+    fi
+    if [ $found_nok_files = 0 ] ; then
+      echo "Found valgrind errors"
+      echo "See archive of log files in `hostname`:$PWD/$vdir.tar.gz"
+      exit 1
+    fi
 fi
 
 STATUS=

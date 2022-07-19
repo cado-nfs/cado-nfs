@@ -89,6 +89,13 @@ case "$CI_BUILD_NAME" in
     ;;
 esac
 case "$CI_BUILD_NAME" in
+    *"debug build"*)
+    DEBUG=1
+    CFLAGS="-O0 -g"
+    CXXFLAGS="-O0 -g"
+    ;;
+esac
+case "$CI_BUILD_NAME" in
     *"with clang"*)
     : ${CC=clang}
     : ${CXX=clang++}
@@ -155,9 +162,16 @@ case "$CI_BUILD_NAME" in
     ;;
 esac
 
+case "$CI_BUILD_NAME" in
+    *"under valgrind"*)
+        valgrind=1
+    ;;
+esac
+
 if [ -x /opt/homebrew/bin/brew ] ; then
     eval `/opt/homebrew/bin/brew shellenv`
 fi
+
 
 MAKE=make
 if type -p gmake > /dev/null 2>&1 ; then
@@ -168,3 +182,4 @@ export CC CXX
 export CFLAGS CXXFLAGS
 export MAKE
 export ENABLE_SHARED
+export DEBUG

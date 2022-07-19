@@ -1488,6 +1488,7 @@ tests/sqrt/c30.dep.000
 tests/sqrt/c30.poly
 tests/sqrt/c30.ratdep.000
 tests/sqrt/test_crtalgsqrt.sh
+tests/test.sh
 tests/test_gfp2_2_2g.sh
 tests/test_gfp3.sh
 tests/test_iceildiv.c

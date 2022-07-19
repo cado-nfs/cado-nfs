@@ -256,6 +256,27 @@ expensive checks with gcc:
     - *checks-script
   <<: *checks-junit-report
 
+checks under valgrind on debian-testing system on a debug build:
+  rules:
+    # valgrind checking takes many hours. It's simply not feasible for it to be
+    # part of the normal implement-MR-test-investigate-debug cycle.
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
+    - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "valgrind")
+      when: always
+    - when: never
+  retry:
+    max: 2
+    when: runner_system_failure
+  stage: publish
+  image: debian:testing
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
 ############################################################################
 # coverage. Actually, this is not really dependent on checks, after all.
 # It does depend on the availability of the coverage images, though!

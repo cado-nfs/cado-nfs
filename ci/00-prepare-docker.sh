@@ -100,6 +100,20 @@ while [ $# -gt 0 ] ; do
     shift
 done
 
+if [ "$valgrind" ] ; then
+    debian_packages="$debian_packages     valgrind"
+    if ! is_debian ; then
+        echo "valgrind: only on debian" >&2
+        # because I'm lazy, and also I'm not sure there would be a point
+        # in doing it on several systems anyway.
+        exit 1
+    fi
+    # opensuse_packages="$opensuse_packages python3-pip"
+    # fedora_packages="$fedora_packages     python3-pip"
+    # centos_packages="$centos_packages     python3-pip"
+    # alpine_packages="$alpine_packages     py3-pip"
+fi
+
 # These variables are set in ci/001-environment.sh
 if [ "$coverage" ] ; then
     # remove coverage from this round of package selection because we'll
