@@ -427,7 +427,11 @@ void lingen_tune_mul_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigne
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, 1);
 
+#ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
     typedef timer_rdtsc timer_t;
+#else
+    typedef timer_rusage timer_t;
+#endif
 
     int nadjs=7;
     measurement_choice mc;
@@ -598,7 +602,11 @@ void lingen_tune_mp_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, 1);
 
+#ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
     typedef timer_rdtsc timer_t;
+#else
+    typedef timer_rusage timer_t;
+#endif
 
     int nadjs=7;
     measurement_choice mc;
