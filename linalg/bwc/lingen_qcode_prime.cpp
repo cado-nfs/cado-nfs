@@ -436,6 +436,8 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
         /* }}} */
     }
 
+    delete[] ctable;
+
     unsigned int pisize = 0;
     for(unsigned int j = 0; j < b; j++) {
         if (pi_real_lengths[j] > pisize)
