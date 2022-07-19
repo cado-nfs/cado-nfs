@@ -90,7 +90,7 @@ freebsd_packages="$freebsd_packages     gmp"
 freebsd_packages="$freebsd_packages     gmake"
 freebsd_packages="$freebsd_packages     bash"
 freebsd_packages="$freebsd_packages     perl5"
-freebsd_packages="$freebsd_packages     python3 py38-sqlite3"
+freebsd_packages="$freebsd_packages     python3 py39-sqlite3"
 
 while [ $# -gt 0 ] ; do
     case "$1" in
