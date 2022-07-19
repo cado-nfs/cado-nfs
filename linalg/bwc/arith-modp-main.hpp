@@ -115,7 +115,7 @@ struct gfp_base : public arith_concrete_base
     };
     struct elt_ur_for_add : public mp_limb_array<N__ + (N__ > 0)> {
         typedef std::integral_constant<int, 1> classifier;
-        static const int alignment = std::conditional<is_constant_width, alignment_divisor<N__ + 1>, std::integral_constant<unsigned int, 1>>::type::value * sizeof(mp_limb_t);
+        static const int alignment = std::conditional<is_constant_width, alignment_divisor<(N__ + 1)>, std::integral_constant<unsigned int, 1>>::type::value * sizeof(mp_limb_t);
         elt_ur_for_add() = delete;
         elt_ur_for_add& operator=(elt_ur_for_add const &) = delete;
         elt_ur_for_add(elt_ur_for_add const &) = delete;
