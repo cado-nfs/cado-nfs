@@ -295,7 +295,9 @@ merge coverage tests:
       - coverage.tar.gz
     expire_in: 30 days
     reports:
-      cobertura: coverage.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
 
 ############################################################################
 # Tests on slow machines and/or shell executors. They depend on nothing.
