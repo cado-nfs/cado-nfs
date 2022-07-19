@@ -27,31 +27,45 @@ namespace mpn_compile_time {
 
         template<>
             struct mpn_helper<size_t> {
+                /* On the N>0 requirement, the GMP doc says:
+                 *   A common requirement for all functions is that each
+                 *   source area needs at least one limb.  No size argument
+                 *   may be zero.
+                 */
                 static inline void copyi(mp_limb_t * dst, const mp_limb_t * src, size_t N) {
+                    ASSERT(N);
                     ::mpn_copyi(dst, src, N);
                 }
                 static inline void copyd(mp_limb_t * dst, const mp_limb_t * src, size_t N) {
+                    ASSERT(N);
                     ::mpn_copyd(dst, src, N);
                 }
                 static inline void zero(mp_limb_t * dst, size_t N) {
+                    ASSERT(N);
                     ::mpn_zero(dst, N);
                 }
                 static inline int zero_p(mp_limb_t const * x, size_t N) {
+                    ASSERT(N);
                     return ::mpn_zero_p(x, N);
                 }
                 static inline int cmp(mp_limb_t const * a, mp_limb_t const * b, size_t N) {
+                    ASSERT(N);
                     return ::mpn_cmp(a, b, N);
                 }
                 static inline int cmp_ui(mp_limb_t const * x, unsigned long a, mp_size_t N) {
+                    ASSERT(N);
                     int r = (a < x[0]) - (x[0] < a);
-                    if (r) return r;
+                    if (r || N==1) return r;
                     return !zero_p(x + 1, N - 1);
                 }
                 static inline void set_ui(mp_limb_t * x, unsigned long a, mp_size_t N) {
+                    ASSERT(N);
                     x[0] = a;
+                    if (N==1) return;
                     ::mpn_zero(x + 1, N - 1);
                 }
                 static inline void SET_MPZ(mp_limb_t * DST, size_t NLIMBS, mpz_srcptr SRC) {
+                    ASSERT(NLIMBS);
                     return ::MPN_SET_MPZ(DST, NLIMBS, SRC);
                 }
             };
