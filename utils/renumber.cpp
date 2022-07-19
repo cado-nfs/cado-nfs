@@ -30,6 +30,32 @@
 #include "macros.h"
 #include "fmt/format.h"
 
+#if defined(_GLIBCXX_DEBUG) && defined(_GLIBCXX_DEBUG_DISABLE_CHECK_PARTITIONED)
+namespace __gnu_debug {
+template<>
+inline bool __check_partitioned_lower<std::vector<std::array<p_r_values_t, 2>>::const_iterator>(
+        std::vector<std::array<p_r_values_t, 2>>::const_iterator,
+        std::vector<std::array<p_r_values_t, 2>>::const_iterator,
+        std::vector<std::array<p_r_values_t, 2>>::value_type const &)
+{
+    /* This is really ugly, but unfortunately when _GLIBCXX_DEBUG is
+     * enabled, we're ending up with O(n) checks in
+     * __check_partitioned_lower whenever we do a dichotomic search
+     * through the renumber table. Which is of course horribly expensive,
+     * especially so when our test code does O(n) dichotomic searches by
+     * itself...
+     *
+     * The cure can be one of:
+     *  - do not use _GLIBCXX_DEBUG (it's currently _not_ used in our
+     *  tests)
+     *  - use it, but define _GLIBCXX_DEBUG_DISABLE_CHECK_PARTITIONED
+     *  along with it.
+     */
+    return true;
+}
+}
+#endif
+
 /* Some documentation on the internal encoding of the renumber table...
  *
  * XXX This format has changed incompatibly in 2020 XXX
