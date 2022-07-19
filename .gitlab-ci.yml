@@ -142,6 +142,16 @@ checks on debian-testing system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
+checks shared libs on debian-testing system with gcc:
+  <<: *common-template
+  stage: early
+  image: debian:testing
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
 checks on debian10 system with gcc:
   <<: *common-template
   stage: early
@@ -305,7 +315,9 @@ merge coverage tests:
       - coverage.tar.gz
     expire_in: 30 days
     reports:
-      cobertura: coverage.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
 
 ############################################################################
 # Tests on slow machines and/or shell executors. They depend on nothing.

@@ -21,6 +21,7 @@ static inline void matmul_sub_large_fbi(ulong ** sb, const ulong * z, const uint
     }
 }
 #endif
+.section .note.GNU-stack,"",%progbits
 	.text
 	.p2align 4,,15
 .globl matmul_sub_large_fbi
