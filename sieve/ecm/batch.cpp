@@ -1174,6 +1174,7 @@ create_batch_file (std::string const & fs, cxx_mpz & P, unsigned long B, unsigne
       fprintf (out, "# batch: reading large prime product");
       fflush (out);
       input_batch (fp, B, L, cpoly, P, f);
+      fclose(fp);
       goto end;
     }
 
