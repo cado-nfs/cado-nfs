@@ -119,8 +119,8 @@ struct arith_wrapper: public arith_generic, public T {
     virtual std::ostream& cxx_out(std::ostream& os, elt const & x) const override {
         return concrete()->cxx_out(os, cast(x));
     }
-    virtual elt * alloc(size_t n = 1) const override {
-        return uncast(concrete()->alloc(n));
+    virtual elt * alloc(size_t n = 1, size_t al = 64) const override {
+        return uncast(concrete()->alloc(n, al));
     }
     virtual void free(elt * dst) const override {
         return concrete()->free(cast(dst));

@@ -153,35 +153,35 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
      * (store_transposed == 0) or column-major (store_transposed == 1)
      */
 
-    gfp::elt::zero(dst, mm->public_->dim[!d]);
+    x->vec_set_zero(dst, mm->public_->dim[!d]);
 
     if (d == !mm->public_->store_transposed) {
-        gfp::elt_ur_for_add rowsum;
+        ARITH_MODP_TEMPORARY_ALLOC(x, elt_ur_for_add, rowsum);
         ASM_COMMENT("critical loop");
         for(unsigned int i = 0 ; i < mm->public_->dim[!d] ; i++) {
             uint32_t len = *q++;
             unsigned int j = 0;
-            rowsum.zero();
+            x->set_zero(rowsum);
             for( ; len-- ; ) {
                 j = *q++;
                 int32_t c = *(int32_t*)q++;
                 ASSERT(j < mm->public_->dim[d]);
                 if (c == 1) {
-                    gfp::add(rowsum, src[j]);
+                    x->add(rowsum, x->vec_item(src, j));
                 } else if (c == -1) {
-                    gfp::sub(rowsum, src[j]);
+                    x->sub(rowsum, x->vec_item(src, j));
                 } else if (c > 0) {
-                    gfp::addmul_ui(rowsum, src[j], c);
+                    x->addmul_ui(rowsum, x->vec_item(src, j), c);
                 } else {
-                    gfp::submul_ui(rowsum, src[j], -c);
+                    x->submul_ui(rowsum, x->vec_item(src, j), -c);
                 }
             }
-            x->reduce(dst[i], rowsum);
+            x->reduce(x->vec_item(dst, i), rowsum);
         }
         ASM_COMMENT("end of critical loop");
     } else {
-        auto * tdst = gfp::alloc<gfp::elt_ur_for_add>(mm->public_->dim[!d]);
-        // gfp::elt::zero(tdst, mm->public_->dim[!d]);
+        auto * tdst = x->alloc<gfp::elt_ur_for_add>(mm->public_->dim[!d]);
+        x->vec_set_zero(tdst, mm->public_->dim[!d]);
         if (mm->public_->iteration[d] == 10) {
             fprintf(stderr, "Warning: Doing many iterations with transposed code (not a huge problem for impl=basicp)\n");
         }
@@ -194,21 +194,21 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
                 int32_t c = *(int32_t*)q++;
                 ASSERT(j < mm->public_->dim[!d]);
                 if (c == 1) {
-                    gfp::add(tdst[j], src[i]);
+                    x->add(x->vec_item(tdst, j), x->vec_item(src, i));
                 } else if (c == -1) {
-                    gfp::sub(tdst[j], src[i]);
+                    x->sub(x->vec_item(tdst, j), x->vec_item(src, i));
                 } else if (c > 0) {
-                    gfp::addmul_ui(tdst[j], src[i], c);
+                    x->addmul_ui(x->vec_item(tdst, j), x->vec_item(src, i), c);
                 } else {
-                    gfp::submul_ui(tdst[j], src[i], -c);
+                    x->submul_ui(x->vec_item(tdst, j), x->vec_item(src, i), -c);
                 }
             }
         }
         for(unsigned int j = 0 ; j < mm->public_->dim[!d] ; j++) {
-            x->reduce(dst[j], tdst[j]);
+            x->reduce(x->vec_item(dst, j), x->vec_item(tdst, j));
         }
         ASM_COMMENT("end of critical loop (transposed mult)");
-        gfp::free(tdst);
+        x->free<gfp::elt_ur_for_add>(tdst);
     }
     ASM_COMMENT("end of multiplication code");
 

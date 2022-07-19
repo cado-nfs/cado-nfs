@@ -41,6 +41,8 @@
 
 #define BALANCING_MAGIC UINT32_C(0xba1a0000)
 
+#define MINIMUM_ITEMS_IN_BWC_CHUNKS     8
+
 struct balancing_header_s {
     uint32_t zero;      /* previous versions had neither zero nor magic.
                            By enforcing a zero field here, we make sure

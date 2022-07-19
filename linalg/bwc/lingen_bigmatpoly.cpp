@@ -1157,7 +1157,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
 
         if (peer == 0) {
             /* talk to ourself */
-            std::copy_n(from, roundup_simd(batch_length), to);
+            ab->vec_set(to, from, roundup_simd(batch_length));
         } else {
             if (use_nonblocking) {
                 MPI_Irecv((void*) to, 1, mt, peer, tag, get_model().com[0], req);
@@ -1259,7 +1259,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
                 unsigned int wi = w / shell.n;
                 unsigned int wj = w % shell.n;
                 auto from = dst_partial.part(wi, wj);
-                std::copy_n(from, roundup_simd(len), to);
+                ab->vec_set(to, from, roundup_simd(len));
             }
         }
     }/*}}}*/
@@ -1287,7 +1287,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         ASSERT_ALWAYS(batch_length % simd == 0);
         if (peer == 0) {
             /* talk to ourself */
-            std::copy_n(peer_from, blocksize*batch_length, rank0_to);
+            ab->vec_set(rank0_to, peer_from, blocksize*batch_length);
         } else {
             /* battle const-deprived MPI prototypes... */
             if (use_nonblocking) {
@@ -1350,7 +1350,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
                 unsigned int vj = v % n0;
                 auto to = ab->vec_subvec(src_partial.my_cell().part(vi, vj), 0);
                 auto from = ab->vec_subvec(src.my_cell().part(i, j), src_offset);
-                std::copy_n(from, roundup_simd(len), to);
+                ab->vec_set(to, from, roundup_simd(len));
             }
         }
     }/*}}}*/
@@ -1503,7 +1503,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
 
         if (peer == 0) {
             /* talk to ourself */
-            std::copy_n(from, roundup_simd(batch_length), to);
+            ab->vec_set(to, from, roundup_simd(batch_length));
         } else {
             /* battle const-deprived MPI prototypes... */
             if (use_nonblocking) {
@@ -1605,7 +1605,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
                 unsigned int wi = w / shell.n;
                 unsigned int wj = w % shell.n;
                 auto to = src_partial.part(wi, wj);
-                std::copy_n(from, roundup_simd(len), to);
+                ab->vec_set(to, from, roundup_simd(len));
             }
         }
     }/*}}}*/
@@ -1634,7 +1634,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         ASSERT_ALWAYS(batch_length % simd == 0);
         if (peer == 0) {
             /* talk to ourself */
-            std::copy_n(rank0_from, blocksize*batch_length, peer_to);
+            ab->vec_set(peer_to, rank0_from, blocksize*batch_length);
         } else {
             /* battle const-deprived MPI prototypes... */
             if (use_nonblocking) {
@@ -1696,7 +1696,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
                 unsigned int vj = v % n0;
                 auto from = ab->vec_subvec(dst_partial.my_cell().part(vi, vj), 0);
                 auto to = ab->vec_subvec(dst.my_cell().part(i, j), dst_offset);
-                std::copy_n(from, roundup_simd(len), to);
+                ab->vec_set(to, from, roundup_simd(len));
             }
         }
     }/*}}}*/

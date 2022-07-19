@@ -1,6 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <sys/param.h>
-#include <cstring>                   // for memmove
 #include <algorithm>                  // for min, max
 #include <utility>                    // for move, swap
 #include <gmp.h>
@@ -236,7 +235,7 @@ void matpoly::multiply_column_by_x(unsigned int j, unsigned int colsize)/*{{{*/
 {
     ASSERT_ALWAYS((colsize + 1) <= alloc);
     for(unsigned int i = 0 ; i < m ; i++) {
-        memmove(part_head(i, j, 1), part(i, j), colsize * ab->vec_elt_stride(1));
+        ab->vec_set(part_head(i, j, 1), part(i, j), colsize);
         ab->set_zero(coeff(i, j, 0));
     }
 }/*}}}*/
@@ -252,8 +251,7 @@ void matpoly::divide_column_by_x(unsigned int j, unsigned int colsize)/*{{{*/
     if (!colsize) return;
     ASSERT_ALWAYS(colsize <= alloc);
     for(unsigned int i = 0 ; i < m ; i++) {
-        memmove(part(i, j), part_head(i, j, 1), 
-                (colsize-1) * ab->elt_stride());
+        ab->vec_set(part(i, j), part_head(i, j, 1), colsize-1);
         ab->set_zero(coeff(i, j, colsize-1));
     }
 }/*}}}*/

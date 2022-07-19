@@ -24,7 +24,6 @@
 #include <gmp.h>                 // for mpz_cmp_ui, gmp_randclear, gmp_randi...
 
 #include "bw-common.h"
-#include "cheating_vec_init.hpp"
 #include "cxx_mpz.hpp"
 #include "matmul_top.hpp"
 #include "arith-generic.hpp"
@@ -457,7 +456,7 @@ struct rhs /*{{{*/ {
         }
 
         /* everyone allocates something */
-        cheating_vec_init(A, &rhscoeffs, nrhs);
+        rhscoeffs = A->alloc(nrhs, ALIGNMENT_ON_ALL_BWC_VECTORS);
 
         if (leader) {
             // yeah, we asserted that we're GF(p) at this point anyway.
@@ -499,7 +498,7 @@ struct rhs /*{{{*/ {
 
     ~rhs() {/*{{{*/
         if (rhscoeffs)
-            cheating_vec_clear(A, &rhscoeffs, nrhs);
+            A->free(rhscoeffs);
     }/*}}}*/
     void fwrite_rhs_coeffs(FILE * f, unsigned int i=0) /* {{{ */
     {
@@ -872,7 +871,7 @@ class parasite_fixer {/*{{{*/
 
         unsigned int B = A->simd_groupsize();
 
-        cheating_vec_init(A, &matrix, iceildiv(cols.size(), B) * rows.size());
+        matrix = A->alloc(iceildiv(cols.size(), B) * rows.size(), ALIGNMENT_ON_ALL_BWC_VECTORS);
         A->vec_set_zero(matrix, iceildiv(cols.size(), B) * rows.size());
 
         for(unsigned int drop = UINT_MAX, spin=0 ; drop && !scols.empty() ; spin++) {
@@ -889,7 +888,7 @@ class parasite_fixer {/*{{{*/
             arith_generic::elt ** pmat = &mat;
             unsigned int cblocks = iceildiv(vcols.size(), B);
             if (spin) {
-                cheating_vec_init(A, pmat, cblocks * vrows.size());
+                mat = A->alloc(cblocks * vrows.size(), ALIGNMENT_ON_ALL_BWC_VECTORS);
                 A->vec_set_zero(*pmat, cblocks * vrows.size());
             } else {
                 pmat = &matrix;
@@ -977,7 +976,7 @@ class parasite_fixer {/*{{{*/
                 }
             }
             if (spin)
-                cheating_vec_clear(A, pmat, vrows.size() * cblocks);
+                A->free(mat);
 
             if (tcan_print)
                 printf("# Pass %d: number of cols has dropped by %u. We have %zu rows (at most) and %zu columns left\n", spin, drop, srows.size(), scols.size());
@@ -1008,7 +1007,7 @@ class parasite_fixer {/*{{{*/
 
     ~parasite_fixer() {/*{{{*/
         if (matrix)
-            cheating_vec_clear(A, &matrix, rows.size() * iceildiv(cols.size(), A->simd_groupsize()));
+            A->free(matrix);
     }/*}}}*/
 
     std::tuple<int, int, int> attempt(matmul_top_data_ptr mmt, mmt_vec ymy[2], mmt_vec_ptr y_saved, rhs const& R)/*{{{*/
@@ -1050,7 +1049,7 @@ class parasite_fixer {/*{{{*/
 
         ASSERT_ALWAYS(my->abase == mmt->abase);
 
-        cheating_vec_init(A, &nz, rows.size());
+        nz = A->alloc(rows.size(), ALIGNMENT_ON_ALL_BWC_VECTORS);
         A->vec_set_zero(nz, rows.size());
         compress_vector_to_sparse(nz, 0, 1, my, rows);
         pi_allreduce(NULL, nz, rows.size(), mmt->pitype, BWC_PI_SUM, pi->m); 
@@ -1116,7 +1115,7 @@ class parasite_fixer {/*{{{*/
 
         // if (leader) debug_print_local_matrix(matrix, rows, cols, nz);
 
-        cheating_vec_clear(A, &nz, rows.size());
+        A->free(nz);
 
         return res;
     }/*}}}*/

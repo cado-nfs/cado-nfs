@@ -16,7 +16,6 @@
 #include "async.hpp"
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
-#include "cheating_vec_init.hpp"
 #include "fmt/format.h"
 #include "macros.h"
 using namespace fmt::literals;
@@ -240,13 +239,13 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     }
     arith_generic::elt ** fcoeffs = new arith_generic::elt*[Av_multiplex * As_multiplex];
     for(unsigned int k = 0 ; k < Av_multiplex * As_multiplex ; k++) {
-        cheating_vec_init(As.get(), &(fcoeffs[k]), one_fcoeff * bw->interval);
+        (fcoeffs[k]) = As->alloc(one_fcoeff * bw->interval, ALIGNMENT_ON_ALL_BWC_VECTORS);
         As->vec_set_zero(fcoeffs[k], one_fcoeff * bw->interval);
     }
     ASSERT_ALWAYS(Av_width * Af_multiplex == (unsigned int) As->simd_groupsize());
     arith_generic::elt * fcoeff_tmp = NULL;
     if (Af_multiplex > 1) {
-            cheating_vec_init(As.get(), &(fcoeff_tmp), one_fcoeff / Af_multiplex * bw->interval);
+            (fcoeff_tmp) = As->alloc(one_fcoeff / Af_multiplex * bw->interval, ALIGNMENT_ON_ALL_BWC_VECTORS);
             As->vec_set_zero(fcoeff_tmp, one_fcoeff / Af_multiplex * bw->interval);
     }
     /* }}} */
@@ -519,12 +518,12 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     delete[] vi;
 
     for(unsigned int k = 0 ; k < Av_multiplex * As_multiplex ; k++) {
-        cheating_vec_clear(As.get(), &(fcoeffs[k]), one_fcoeff * bw->interval);
+        As->free((fcoeffs[k]));
     }
     delete[] fcoeffs;
 
     if (Af_multiplex > 1) {
-        cheating_vec_clear(As.get(), &(fcoeff_tmp), one_fcoeff / Af_multiplex * bw->interval);
+        As->free((fcoeff_tmp));
     }
 
     for(int i = 0 ; i < mmt->nmatrices + nmats_odd ; i++) {

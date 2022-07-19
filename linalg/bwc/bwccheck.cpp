@@ -20,7 +20,6 @@
 #include <gmp.h>                // for mpz_cmp_ui
 #include "bw-common.h"          // for bw, bw_common_clear, bw_common_decl_u...
 
-#include "cheating_vec_init.hpp"  // for cheating_vec_clear, cheating_vec_init
 #include "fmt/core.h"           // for check_format_string
 #include "fmt/format.h"         // for basic_buffer::append, basic_parse_con...
 #include "macros.h"             // for ASSERT_ALWAYS, MAYBE_UNUSED
@@ -196,13 +195,13 @@ struct Sfile : public string {
 
 void vec_alloc(arith_generic * A, arith_generic::elt *& z, size_t vsize)
 {
-    cheating_vec_init(A, &z, vsize);
+    z = A->alloc(vsize, ALIGNMENT_ON_ALL_BWC_VECTORS);
     A->vec_set_zero(z, vsize);
 }
 
-void vec_free(arith_generic * A, arith_generic::elt *& z, size_t vsize)
+void vec_free(arith_generic * A, arith_generic::elt *& z, size_t vsize MAYBE_UNUSED)
 {
-    cheating_vec_clear(A, &z, vsize);
+    A->free(z);
 }
 
 int vec_read(arith_generic * A, void * z, string const & v, size_t vsize, const char * prefix = NULL)
@@ -410,14 +409,14 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
     int rc;
 
     arith_generic::elt * Tdata = NULL;
-    cheating_vec_init(Ac, &Tdata, bw->m);
+    Tdata = Ac->alloc(bw->m, ALIGNMENT_ON_ALL_BWC_VECTORS);
     FILE * Tfile = fopen(T.c_str(), "rb");
     rc = fread(Tdata, Ac->vec_elt_stride(bw->m), 1, Tfile);
     ASSERT_ALWAYS(rc == 1);
     fclose(Tfile);
 
     arith_generic::elt * Rdata = NULL;
-    cheating_vec_init(Ac, &Rdata, Ac->vec_elt_stride(nchecks) * rsize);
+    Rdata = Ac->alloc(Ac->vec_elt_stride(nchecks) * rsize, ALIGNMENT_ON_ALL_BWC_VECTORS);
     FILE * Rfile = fopen(R.c_str(), "rb");
     rc = fread(Rdata, Ac->vec_elt_stride(nchecks), rsize, Rfile);
     ASSERT_ALWAYS(rc == (int) rsize);
@@ -576,8 +575,8 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
             vec_free(Av.get(), dotprod_scratch[0], nchecks);
         }
     }
-    cheating_vec_clear(Ac, &Rdata, Ac->vec_elt_stride(nchecks) * rsize);
-    cheating_vec_clear(Ac, &Tdata, bw->m);
+    Ac->free(Rdata);
+    Ac->free(Tdata);
     vec_free(Ac, Dv, vsize);
 }
 
@@ -732,7 +731,7 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
     }
 
     if (!bw->skip_online_checks) {
-        cheating_vec_init(Ac, &ahead, nchecks);
+        ahead = Ac->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
     }
 
     /* We'll store all xy matrices locally before doing reductions. Given

@@ -20,9 +20,9 @@
 #include <sys/time.h>
 #include <pthread.h>            // for pthread_mutex_lock, pthread_mutex_unlock
 #include <gmp.h>
+#include <memory>
 
 #include "raw_matrix_u32.h"     // for matrix_u32
-#include "cheating_vec_init.hpp"
 #include "crc.h"        // cado_crc_lfsr
 #include "macros.h"
 #include "matmul-mf.hpp"
@@ -119,8 +119,8 @@ void init_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct b
     matmul_aux(p->mm, MATMUL_AUX_GET_READAHEAD, &nr);
     matmul_aux(p->mm, MATMUL_AUX_GET_READAHEAD, &nc);
 
-    cheating_vec_init(ba->xx, &p->colvec, nc);
-    cheating_vec_init(ba->xx, &p->rowvec, nr);
+    p->colvec = ba->xx->alloc(nc, ALIGNMENT_ON_ALL_BWC_VECTORS);
+    p->rowvec = ba->xx->alloc(nr, ALIGNMENT_ON_ALL_BWC_VECTORS);
     ba->xx->vec_set_zero(p->colvec, nc);
     ba->xx->vec_set_zero(p->rowvec, nr);
 }/*}}}*/
@@ -139,20 +139,13 @@ void check_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
     matmul_aux(p->mm, MATMUL_AUX_GET_READAHEAD, &nr);
     matmul_aux(p->mm, MATMUL_AUX_GET_READAHEAD, &nc);
 
-    arith_generic::elt * colvec_bis;
-    arith_generic::elt * rowvec_bis;
-    cheating_vec_init(A, &colvec_bis, nc);
-    cheating_vec_init(A, &rowvec_bis, nr);
-    A->vec_set_zero(colvec_bis, nc);
-    A->vec_set_zero(rowvec_bis, nr);
-
-    arith_generic::elt * check0;
-    arith_generic::elt * check1;
-    cheating_vec_init(A, &check0, A->simd_groupsize());
-    cheating_vec_init(A, &check1, A->simd_groupsize());
-
+    arith_generic::elt * colvec_bis = A->alloc(nc, ALIGNMENT_ON_ALL_BWC_VECTORS);
+    arith_generic::elt * rowvec_bis = A->alloc(nr, ALIGNMENT_ON_ALL_BWC_VECTORS);
     A->vec_set(colvec_bis, p->colvec, nc);
     A->vec_set(rowvec_bis, p->rowvec, nr);
+
+    arith_generic::elt * check0 = A->alloc(A->simd_groupsize(), ALIGNMENT_ON_ALL_BWC_VECTORS);
+    arith_generic::elt * check1 = A->alloc(A->simd_groupsize(), ALIGNMENT_ON_ALL_BWC_VECTORS);
 
     /* See the comment in matmul_mul about the direction argument and the
      * number of coordinates of source/destination vectors */
@@ -182,10 +175,10 @@ void check_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
         abort();
     }
 
-    cheating_vec_clear(A, &colvec_bis, nc);
-    cheating_vec_clear(A, &rowvec_bis, nr);
-    cheating_vec_clear(A, &check0, A->simd_groupsize());
-    cheating_vec_clear(A, &check1, A->simd_groupsize());
+    A->free(colvec_bis);
+    A->free(rowvec_bis);
+    A->free(check0);
+    A->free(check1);
 
 
     matmul_aux(p->mm, MATMUL_AUX_ZERO_STATS);
@@ -203,15 +196,15 @@ void clear_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
 {
     struct private_args * p = ba->p + tnum;
     arith_generic * A = ba->xx;
-    unsigned int nr = p->mm->dim[0];
-    unsigned int nc = p->mm->dim[1];
+    unsigned int nr MAYBE_UNUSED = p->mm->dim[0];
+    unsigned int nc MAYBE_UNUSED = p->mm->dim[1];
     pthread_mutex_lock(&tg->mu);
     matmul_report(p->mm, ba->freq);
     printf("\n");
     pthread_mutex_unlock(&tg->mu);
     matmul_clear(p->mm);
-    cheating_vec_clear(A, &p->colvec, nc);
-    cheating_vec_clear(A, &p->rowvec, nr);
+    A->free(p->colvec); // nc
+    A->free(p->rowvec); // nr
 }/*}}}*/
 
 void banner(int argc, char * argv[])

@@ -17,7 +17,6 @@
 #include "rolling.h"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
-#include "cheating_vec_init.hpp"
 #include "fmt/core.h"            // for check_format_string
 #include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
 #include "fmt/format.h"
@@ -189,7 +188,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         }
         if (!legacy_check_mode) {
             std::string Ct_filename = fmt::format(FMT_STRING("Ct0-{}.0-{}"), nchecks, bw->m);
-            cheating_vec_init(Ac.get(), &Tdata, bw->m);
+            Tdata = Ac->alloc(bw->m, ALIGNMENT_ON_ALL_BWC_VECTORS);
             if (pi->m->trank == 0 && pi->m->jrank == 0) {
                 FILE * Tfile = fopen(Ct_filename.c_str(), "rb");
                 int rc = fread(Tdata, Ac->vec_elt_stride(bw->m), 1, Tfile);
@@ -200,7 +199,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
             pi_bcast(Tdata, bw->m, Ac_pi, 0, 0, pi->m);
         }
 
-        cheating_vec_init(A.get(), &ahead, nchecks);
+        ahead = A->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
     }
 
     /* We'll store all xy matrices locally before doing reductions. Given
@@ -212,7 +211,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         printf("Each thread allocates %zd kb for the A matrices\n",
                 A->vec_elt_stride(bw->m*bw->interval) >> 10);
     }
-    cheating_vec_init(A.get(), &xymats, bw->m*bw->interval);
+    xymats = A->alloc(bw->m*bw->interval, ALIGNMENT_ON_ALL_BWC_VECTORS);
    
 #if 0
     /* FIXME -- that's temporary ! only for debugging */
@@ -292,7 +291,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                 x_dotprod(ahead, gxvecs, nchecks, nx, ymy[0], -1);
             } else {
                 arith_generic::elt * tmp1 = NULL;
-                cheating_vec_init(A.get(), &tmp1, nchecks);
+                tmp1 = A->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
                 for(int c = 0 ; c < bw->m ; c += nchecks) {
                     /* First zero out the matrix of size nchecks * nbys.  */
                     A->vec_set_zero(tmp1, nchecks);
@@ -306,7 +305,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                             tmp1,
                             nchecks);
                 }
-                cheating_vec_clear(A.get(), &tmp1, nchecks);
+                A->free(tmp1);
             }
 
             pi_allreduce(NULL, ahead, nchecks, mmt->pitype, BWC_PI_SUM, pi->m);
@@ -370,12 +369,12 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     }
     serialize(pi->m);
 
-    cheating_vec_clear(A.get(), &xymats, bw->m*bw->interval);
+    A->free(xymats);
 
     if (!bw->skip_online_checks) {
         mmt_vec_clear(mmt, check_vector);
-        cheating_vec_clear(A.get(), &ahead, nchecks);
-        cheating_vec_clear(Ac.get(), &Tdata, bw->m);
+        A->free(ahead);
+        Ac->free(Tdata);
     }
 
     free(gxvecs);

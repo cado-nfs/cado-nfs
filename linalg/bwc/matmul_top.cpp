@@ -11,7 +11,6 @@
 #include <gmp.h>
 #include "async.hpp"              // for timing_next_timer, timing_data (ptr...
 #include "balancing_workhorse.hpp"
-#include "cheating_vec_init.hpp"
 #include "intersections.h"
 #include "bwc_config.h" // IWYU pragma: keep
 #include "macros.h"     // ASSERT_ALWAYS // IWYU pragma: keep
@@ -217,13 +216,13 @@ void mmt_vec_init(matmul_top_data_ptr mmt, arith_generic * abase, pi_datatype_pt
 
     if (flags & THREAD_SHARED_VECTOR) {
         if (wr->trank == 0) {
-            cheating_vec_init(abase, &v->v, n);
+            v->v = abase->alloc(n, ALIGNMENT_ON_ALL_BWC_VECTORS);
             abase->vec_set_zero(v->v, n);
         }
         pi_thread_bcast(&v->v, sizeof(void*), BWC_PI_BYTE, 0, wr);
         v->siblings = NULL;
     } else {
-        cheating_vec_init(abase, &v->v, n);
+        v->v = abase->alloc(n, ALIGNMENT_ON_ALL_BWC_VECTORS);
         abase->vec_set_zero(v->v, n);
         v->siblings = (mmt_vec_s **) shared_malloc(wr, wr->ncores * sizeof(mmt_vec_s *));
         v->siblings[wr->trank] = v;
@@ -260,11 +259,11 @@ void mmt_vec_clear(matmul_top_data_ptr mmt, mmt_vec_ptr v)
         matmul_aux(mmt->matrices[i]->mm, MATMUL_AUX_GET_READAHEAD, &n);
     }
     if (v->siblings) {
-        cheating_vec_clear(v->abase, &v->v, n);
+        v->abase->free(v->v);
         shared_free(wr, v->siblings);
     } else {
         if (wr->trank == 0)
-            cheating_vec_clear(v->abase, &v->v, n);
+            v->abase->free(v->v);
     }
     shared_free(v->pi->wr[0], v->wrpals[0]);
     shared_free(v->pi->wr[1], v->wrpals[1]);
@@ -1339,6 +1338,11 @@ mmt_vec_reduce_inner(mmt_vec_ptr v)
 #error "not implemented, but planned"
 #endif
     }
+#else   /* MPI_LIBRARY_MT_CAPABLE */
+    /* Code deleted 20110119, as I've never been able to have enough
+     * trust in an MPI implementation to check this */
+    ASSERT_ALWAYS(0);
+#endif
     serialize_threads(wr);
 }
 void
@@ -1387,11 +1391,6 @@ mmt_vec_reduce(mmt_vec_ptr w, mmt_vec_ptr v)
             v->abase->vec_subvec(
                 mmt_vec_sibling(v, 0)->v, wr->trank * eblock),
             eblock);
-#else   /* MPI_LIBRARY_MT_CAPABLE */
-    /* Code deleted 20110119, as I've never been able to have enough
-     * trust in an MPI implementation to check this */
-    ASSERT_ALWAYS(0);
-#endif
 
     // as usual, we do not serialize on exit. Up to the next routine to
     // do so if needed.
@@ -2310,7 +2309,7 @@ void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename_patter
 
             size_t nitems = iceildiv(v->n, Adisk_multiplex);
             arith_generic::elt * y;
-            cheating_vec_init(A, &y, nitems);
+            y = A->alloc(nitems);
             A->vec_set_zero(y, nitems);
             A->vec_set_random(y, nitems, rstate);
             double tt = -wct_seconds();
@@ -2333,7 +2332,7 @@ void mmt_vec_set_random_through_file(mmt_vec_ptr v, const char * filename_patter
                         tt,
                         size_disp(fraction / tt, buf2));
             }
-            cheating_vec_clear(A, &y, v->n);
+            A->free(y);
 
             free(filename);
         }

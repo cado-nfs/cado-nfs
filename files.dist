@@ -479,6 +479,17 @@ linalg/bwc/arith-generic.cpp
 linalg/bwc/arith-generic.hpp
 linalg/bwc/arith-hard.hpp
 linalg/bwc/arith-mod2.hpp
+linalg/bwc/arith-modp-carry-save.hpp
+linalg/bwc/arith-modp-main.hpp
+linalg/bwc/arith-modp-specialization-p1.hpp
+linalg/bwc/arith-modp-specialization-p2.hpp
+linalg/bwc/arith-modp-specialization-p3.hpp
+linalg/bwc/arith-modp-specialization-p4.hpp
+linalg/bwc/arith-modp-specialization-p5.hpp
+linalg/bwc/arith-modp-specialization-p6.hpp
+linalg/bwc/arith-modp-specialization-p7.hpp
+linalg/bwc/arith-modp-specialization-p8.hpp
+linalg/bwc/arith-modp-specializations.hpp
 linalg/bwc/arith-modp.hpp
 linalg/bwc/async.cpp
 linalg/bwc/async.hpp
@@ -494,7 +505,6 @@ linalg/bwc/bw-common.h
 linalg/bwc/bwc.pl
 linalg/bwc/bwc_config_h.in
 linalg/bwc/bwccheck.cpp
-linalg/bwc/cheating_vec_init.hpp
 linalg/bwc/check_mpi_problems.c
 linalg/bwc/cleanup.cpp
 linalg/bwc/cpubinding.cpp
@@ -1556,6 +1566,7 @@ utils/modredc_ul_default.h
 utils/modul_poly.c
 utils/modul_poly.h
 utils/mpi_proxies.hpp
+utils/mpn_compile_time.hpp
 utils/mpz_mat.cpp
 utils/mpz_mat.h
 utils/mpz_poly.cpp

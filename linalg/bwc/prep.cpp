@@ -5,6 +5,7 @@
 #include <cstring>              // for memset
 #include <ctime>                // for time
 #include <cstdlib>
+#include <memory>
 #include <gmp.h>
 #include "balancing.hpp"           // for balancing_pre_shuffle
 #include "parallelizing_info.hpp"
@@ -15,7 +16,6 @@
 #include "xvectors.hpp"
 #include "bw-common.h"
 #include "arith-generic.hpp"
-#include "cheating_vec_init.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "macros.h"
 #include "cxx_mpz.hpp"
@@ -115,10 +115,8 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
 
     unsigned int my_nx = 1;
     uint32_t * xvecs = (uint32_t*) malloc(my_nx * bw->m * sizeof(uint32_t));
-    arith_generic::elt * xymats;
 
-    /* We're cheating on the generic init routines */
-    cheating_vec_init(A.get(), &xymats, bw->m * prep_lookahead_iterations * A_multiplex);
+    arith_generic::elt * xymats = A->alloc(bw->m * prep_lookahead_iterations * A_multiplex, ALIGNMENT_ON_ALL_BWC_VECTORS);
 
     for (unsigned ntri = 0;; ntri++) {
         if (nrhs == A_multiplex) {
@@ -247,7 +245,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
     matmul_top_clear(mmt);
 
     /* clean up xy mats stuff */
-    cheating_vec_clear(A.get(), &xymats, bw->m * prep_lookahead_iterations * A_multiplex);
+    A->free(xymats);
 
     free(xvecs);
     return NULL;
@@ -331,8 +329,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
             ASSERT_ALWAYS(vec_files[j] != NULL);
             printf("// Creating %s (extraction from %s)\n", vec_names[j], rhs_name);
         }
-        arith_generic::elt * coeff;
-        cheating_vec_init(A.get(), &coeff, 1);
+        arith_generic::elt * coeff = A->alloc(1);
         cxx_mpz c;
         for(unsigned int i = 0 ; i < mmt->n0[!bw->dir] ; i++) {
             for(unsigned int j = 0 ; j < nrhs ; j++) {
@@ -345,7 +342,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
                 ASSERT_ALWAYS(rc == 1);
             }
         }
-        cheating_vec_clear(A.get(), &coeff, 1);
+        A->free(coeff);
 
         for(unsigned int j = 0 ; j < nrhs ; j++) {
             fclose(vec_files[j]);

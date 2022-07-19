@@ -137,8 +137,6 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     else()
         message(FATAL_ERROR "bad arithmetic backend ${gfp_layer}")
     endif()
-    if(gfp_layer STREQUAL "pz")
-    elseif("pz" IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
         if(gfp_layer STREQUAL "p1" OR gfp_layer STREQUAL "p13")
             set(modp_inhomogeneous_${gfp_layer}_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
         endif()
@@ -194,7 +192,6 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             set(modp_secure_continuation_${gfp_layer}_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
         endif()
         add_bwc_test(modp_secure_continuation_${gfp_layer} bwc-test-secure-continuation.sh prime=${p} random_matrix_size=500 nrhs=4 m=8 n=8 seed=1 interval=32 ${extra})
-    endif()
 
     # Also add some lingen tests if it so occurs that the current
     # backend can process them

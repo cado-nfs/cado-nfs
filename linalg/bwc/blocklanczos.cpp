@@ -15,7 +15,6 @@
 #include "bblas.hpp"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
-#include "cheating_vec_init.hpp"
 #include "bit_vector.h"
 #include "macros.h"
 #include "portability.h" // asprintf // IWYU pragma: keep
@@ -578,8 +577,8 @@ void blstate::operator()(parallelizing_info_ptr pi)
     arith_generic::elt * vav;
     arith_generic::elt * vaav;
 
-    cheating_vec_init(A.get(), &vav, nelts_for_nnmat);
-    cheating_vec_init(A.get(), &vaav, nelts_for_nnmat);
+    vav = A->alloc(nelts_for_nnmat, mat64::alignment);
+    vaav = A->alloc(nelts_for_nnmat, mat64::alignment);
 
     /* TODO: Put that in the state file. */
     int sum_Ni = 0;
@@ -802,8 +801,8 @@ void blstate::operator()(parallelizing_info_ptr pi)
     // make sense.
     timing_final_tally(pi, timing, tcan_print, "blocklanczos");
 
-    cheating_vec_clear(A.get(), &vav, nelts_for_nnmat);
-    cheating_vec_clear(A.get(), &vaav, nelts_for_nnmat);
+    A->free(vav);
+    A->free(vaav);
 
 #if 0
     pi_log_clear(pi->m);

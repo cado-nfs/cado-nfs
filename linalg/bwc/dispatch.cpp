@@ -10,6 +10,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <gmp.h>                 // for mpz_cmp_ui
+#include <memory>
 #include "balancing.hpp"           // for DUMMY_VECTOR_COORD_VALUE, DUMMY_VECT...
 #include "parallelizing_info.hpp"
 #include "matmul_top.hpp"
@@ -19,7 +20,6 @@
 #include "async.hpp"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
-#include "cheating_vec_init.hpp"
 #include "intersections.h"
 #include "macros.h"
 
@@ -137,8 +137,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         /* This is L. Now compute the dot product. */
         arith_generic::elt * dp0;
         arith_generic::elt * dp1;
-        cheating_vec_init(A.get(), &dp0, A->simd_groupsize());
-        cheating_vec_init(A.get(), &dp1, A->simd_groupsize());
+        dp0 = A->alloc(A->simd_groupsize(), ALIGNMENT_ON_ALL_BWC_VECTORS);
+        dp1 = A->alloc(A->simd_groupsize(), ALIGNMENT_ON_ALL_BWC_VECTORS);
         unsigned int how_many;
         unsigned int offset_c;
         unsigned int offset_v;
@@ -193,8 +193,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
             }
             printf("%s : ok\n", checkname);
         }
-        cheating_vec_clear(A.get(), &dp0, A->simd_groupsize());
-        cheating_vec_clear(A.get(), &dp1, A->simd_groupsize());
+        A->free(dp0);
+        A->free(dp1);
     }
 
     mmt_vec_clear(mmt, y);

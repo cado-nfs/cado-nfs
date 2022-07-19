@@ -15,7 +15,6 @@
 #include "mod_ul.h"
 #include "balancing.hpp"
 #include "rowset_heap.h"
-#include "cheating_vec_init.hpp"
 #include "mf_bal.hpp"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "timing.h"     // wct_seconds
@@ -470,10 +469,10 @@ void mf_bal(struct mf_bal_args * mba)
          * Given that mmt_vec_init provides 64-byte alignment of vector
          * areas, we may enforce the block size to be a multiple of
          * 8 in order to effectively guarantee 64-byte alignment for all
-         * chunks. (Admittedly, this is a it fragile; if we were to
+         * chunks. (Admittedly, this is a bit fragile; if we were to
          * possibly use smaller items, that would change stuff somewhat).
          */
-        for ( ; block[d] % (FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES / MINIMUM_ITEM_SIZE_OF_MPFQ_VEC_TYPES) ; block[d]++);
+        for ( ; block[d] % MINIMUM_ITEMS_IN_BWC_CHUNKS ; block[d]++);
     }
 
     if (!mba->rectangular) {

@@ -13,13 +13,11 @@ using namespace arith_modp;
 template<typename F>
 void do_tests(unsigned long iter, int summands, int cbound )
 {
-    mp_size_t m = F::nlimbs * mp_bits_per_limb;
-    // mp_size_t ell = F::extra*mp_bits_per_limb;
 
-    typedef typename F::elt_ur_for_add a_type;
-    constexpr const int a_extra = a_type::nlimbs - F::nlimbs;
-    typedef typename F::elt_ur_for_addmul m_type;
-    constexpr const int m_extra = m_type::nlimbs - F::nlimbs;
+    size_t maximum_limbs = std::conditional<F::is_constant_width, std::integral_constant<size_t, F::constant_width>, std::integral_constant<int, 32>>::type::value;
+
+    mp_size_t m = maximum_limbs * mp_bits_per_limb;
+    // mp_size_t ell = F::extra*mp_bits_per_limb;
 
     uint64_t tt = 0;
 
@@ -44,12 +42,21 @@ void do_tests(unsigned long iter, int summands, int cbound )
          * */
         do {
             mpz_rrandomb(pz, state, m);
-        } while (mpz_size(pz) < F::nlimbs || mpz_even_p(pz));
+            /* Support p not having its high bit set! */
+            mpz_fdiv_q_2exp(pz, pz, gmp_urandomm_ui(state, GMP_LIMB_BITS));
+        } while (mpz_size(pz) < maximum_limbs || mpz_even_p(pz) || mpz_cmp_ui(pz, 1) == 0);
         F field(pz, 1);
+
+        size_t N = field.template nlimbs<typename F::elt>();
+
+        typedef typename F::elt_ur_for_add a_type;
+        typedef typename F::elt_ur_for_addmul m_type;
+        const int a_extra = field.template overhead_limbs<a_type>();
+        const int m_extra = field.template overhead_limbs<m_type>();
 
         auto x = field.alloc(summands);
         auto y = field.alloc(summands);
-        auto r = field.alloc();
+        ARITH_MODP_TEMPORARY_ALLOC(&field, elt, r);
 
         cxx_mpz xz[summands];
         cxx_mpz yz[summands];
@@ -57,9 +64,9 @@ void do_tests(unsigned long iter, int summands, int cbound )
 
         for(int i = 0 ; i < summands ; i++) {
             mpz_urandomm(xz[i], state, pz);
-            x[i] = xz[i];
+            field.set(field.vec_item(x, i), xz[i]);
             mpz_urandomm(yz[i], state, pz);
-            y[i] = yz[i];
+            field.set(field.vec_item(y, i), yz[i]);
         }
 
 
@@ -76,28 +83,28 @@ void do_tests(unsigned long iter, int summands, int cbound )
 
             {
                 tt -= microseconds();
-                a_type a;
-                a.zero();
+                ARITH_MODP_TEMPORARY_ALLOC(&field, elt_ur_for_add, a);
+                field.set_zero(a);
                 for(int i = 0 ; i < summands ; i++) {
                     if (coeffs[i] == 1) {
-                        field.add(a, x[i]);
+                        field.add(a, field.vec_item(x, i));
                     } else if (coeffs[i] == -1) {
-                        field.sub(a, x[i]);
+                        field.sub(a, field.vec_item(x, i));
                     } else if (coeffs[i] > 0) {
-                        field.addmul_ui(a, x[i], coeffs[i]);
+                        field.addmul_ui(a, field.vec_item(x, i), coeffs[i]);
                     } else {
-                        field.submul_ui(a, x[i], -coeffs[i]);
+                        field.submul_ui(a, field.vec_item(x, i), -coeffs[i]);
                     }
                 }
-                field.reduce(*r, a);
+                field.reduce(r, a);
                 tt += microseconds();
             }
-            MPZ_SET_MPN(rz, r->x, F::nlimbs);
+            MPZ_SET_MPN(rz, r.pointer(), N);
 
             ASSERT_ALWAYS(mpz_cmp(az, rz) == 0);
 
             if (tests_common_get_verbose()) {
-                gmp_printf("ok [%d+%d] %Zd\n", F::nlimbs, a_extra, (mpz_srcptr) pz);
+                gmp_printf("ok [%d+%d] %Zd\n", N, a_extra, (mpz_srcptr) pz);
             }
         }
         /** multiplications **/
@@ -112,28 +119,27 @@ void do_tests(unsigned long iter, int summands, int cbound )
 
             {
                 tt -= microseconds();
-                m_type m;
-                m.zero();
+                ARITH_MODP_TEMPORARY_ALLOC(&field, elt_ur_for_addmul, m);
+                field.set_zero(m);
                 for(int i = 0 ; i < summands ; i++) {
-                    field.addmul_ur(m, x[i], y[i]);
+                    field.addmul_ur(m, field.vec_item(x, i), field.vec_item(y, i));
                 }
-                field.reduce(*r, m);
+                field.reduce(r, m);
                 tt += microseconds();
             }
-            MPZ_SET_MPN(rz, r->x, F::nlimbs);
+            MPZ_SET_MPN(rz, r.pointer(), N);
 
             ASSERT_ALWAYS(mpz_cmp(mz, rz) == 0);
 
             if (tests_common_get_verbose()) {
-                gmp_printf("ok [%d+%d] %Zd\n", F::nlimbs, m_extra, (mpz_srcptr) pz);
+                gmp_printf("ok [%d+%d] %Zd\n", N, m_extra, (mpz_srcptr) pz);
             }
         }
 
         field.free(x);
         field.free(y);
-        field.free(r);
     }
-    printf("%lu tests ok [%d] in %.4f s\n", iter, F::nlimbs, 1.0e-6 * tt);
+    printf("%lu tests ok [%zu] in %.4f s\n", iter, maximum_limbs, 1.0e-6 * tt);
 }
 
 // coverity[root_function]
@@ -155,6 +161,7 @@ int main(int argc, const char * argv[])
     do_tests< gfp<7> >(iter, SUMMANDS, CBOUND);
     do_tests< gfp<8> >(iter, SUMMANDS, CBOUND);
     do_tests< gfp<9> >(iter, SUMMANDS, CBOUND);
+    do_tests< gfp<0> >(iter, SUMMANDS, CBOUND);
     tests_common_clear();
 }
 

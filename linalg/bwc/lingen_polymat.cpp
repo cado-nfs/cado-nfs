@@ -275,13 +275,13 @@ polymat_ur<X>::~polymat_ur() {
 void bwmat_copy_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, arith_hard::elt const * x1, int stride1, unsigned int n)
 {
     for(unsigned int i = 0 ; i < n ; i++) {
-        ab->vec_item(x0, i * stride0) = ab->vec_item(x1, i * stride1);
+        ab->set(ab->vec_item(x0, i * stride0), ab->vec_item(x1, i * stride1));
     }
 }
 void bwmat_zero_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, unsigned int n)
 {
     for(unsigned int i = 0 ; i < n ; i++) {
-        ab->vec_item(x0, i * stride0).zero();
+        ab->set_zero(ab->vec_item(x0, i * stride0));
     }
 }
 void bwmat_move_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int stride0, arith_hard::elt const * x1, int stride1, unsigned int n)
@@ -289,11 +289,11 @@ void bwmat_move_coeffs(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * x0, int s
     ASSERT_ALWAYS(stride0 == stride1); /* Otherwise there's probably no point */
     if (x0 < x1) {
         for(unsigned int i = 0 ; i < n ; i++) {
-            ab->vec_item(x0, i * stride0) = ab->vec_item(x1, i * stride1);
+            ab->set(ab->vec_item(x0, i * stride0), ab->vec_item(x1, i * stride1));
         }
     } else {
         for(unsigned int i = n ; i-- ; ) {
-            ab->vec_item(x0, i * stride0) = ab->vec_item(x1, i * stride1);
+            ab->set(ab->vec_item(x0, i * stride0), ab->vec_item(x1, i * stride1));
         }
     }
 }
@@ -386,7 +386,7 @@ void polymat::multiply_column_by_x(unsigned int j, unsigned int nsize)/*{{{*/
             part(0, j, 0), n,
             m * nsize);
     for(unsigned int i = 0 ; i < m ; i++)
-        coeff(i, j, 0).zero();
+        ab->set_zero(coeff(i, j, 0));
 }/*}}}*/
 
 void polymat::truncate(polymat const & src, unsigned int nsize)/*{{{*/
@@ -912,7 +912,7 @@ void polymat::set_matpoly(matpoly const & src)
     for(unsigned int i = 0 ; i < src.m ; i++) {
         for(unsigned int j = 0 ; j < src.n ; j++) {
             for(unsigned int k = 0 ; k < src.get_size() ; k++) {
-                coeff(i, j, k) = src.coeff(i, j, k);
+                ab->set(coeff(i, j, k), src.coeff(i, j, k));
             }
         }
     }

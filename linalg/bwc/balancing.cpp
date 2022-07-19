@@ -8,7 +8,6 @@
 #include <stdlib.h>
 
 #include "balancing.hpp"
-#include "cheating_vec_init.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "fix-endianness.h" // fread32_little
 #include "crc.h"        // cado_crc_lfsr
@@ -19,10 +18,10 @@ void balancing_set_row_col_count(balancing_ptr bal)
 {
     unsigned int s = bal->h->nh * bal->h->nv;
     unsigned int b = iceildiv(bal->h->nrows, s);
-    for( ; b % (FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES / MINIMUM_ITEM_SIZE_OF_MPFQ_VEC_TYPES) ; b++);
+    for( ; b % MINIMUM_ITEMS_IN_BWC_CHUNKS ; b++);
     bal->trows = s * b;
     b = iceildiv(bal->h->ncols, s);
-    for( ; b % (FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES / MINIMUM_ITEM_SIZE_OF_MPFQ_VEC_TYPES) ; b++);
+    for( ; b % MINIMUM_ITEMS_IN_BWC_CHUNKS ; b++);
     bal->tcols = s * b;
     if (bal->h->flags & FLAG_REPLICATE) {
         bal->tcols = bal->trows = MAX(bal->trows, bal->tcols);

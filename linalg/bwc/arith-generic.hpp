@@ -65,7 +65,7 @@ struct arith_generic {
     virtual int vec_simd_hamming_weight(elt const * p, size_t n) const = 0;
     virtual int vec_simd_find_first_set(elt &, elt const * p, size_t n) const = 0;
     virtual std::ostream& cxx_out(std::ostream&, elt const &) const = 0;
-    virtual elt * alloc(size_t = 1) const = 0;
+    virtual elt * alloc(size_t = 1, size_t = 64) const = 0;
     virtual void free(elt *) const = 0;
     virtual void set(elt &, elt const &) const = 0;
     virtual void neg(elt &, elt const &) const = 0;

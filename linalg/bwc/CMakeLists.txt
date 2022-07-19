@@ -27,9 +27,9 @@ set(BWC_GF2_ARITHMETIC_BACKENDS b64 b128 b256 bz
 set(BWC_GF2_MATMUL_BACKENDS bucket basic sliced
     CACHE STRING
     "which low-level matrix multiplication backends to use for GF(2) linear algebra")
-set(BWC_GFP_ARITHMETIC_BACKENDS p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15
+set(BWC_GFP_ARITHMETIC_BACKENDS p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 pz
     CACHE STRING
-    "which GF(p) backends to compile for DLOG mode (pz excluded)")
+    "which GF(p) backends to compile for DLOG mode")
 if(HAVE_CXX11)
     set(bmb basicp zone)
 else()
@@ -42,17 +42,7 @@ set(BWC_GFP_MATMUL_BACKENDS ${bmb}
 # In the fflas branch, this is used to plug in fflas.
 set(BWC_EXTRA_BACKENDS "" CACHE STRING "list of pairs (arithmetic,matmul) backends for linear algebra")
 
-# In case there's a user override, just make mention of the situation.
-if(NOT BWC_GFP_ARITHMETIC_BACKENDS OR NOT HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-    # The code in linalg/bwc/mpfq/ is 64-bit only, and relies on GNU
-    # CC idioms. We don't want to expose it on 32-bit platforms.
-    set(BWC_GFP_ARITHMETIC_BACKENDS CACHE STRING
-        "which GF(p) backends to compile for DLOG mode" FORCE)
-    message(STATUS "Warning: DL mode forcibly disabled for linear algebra (amd64-only)")
-endif()
-
 ### end bwc-specific configuration.
-
 
 # These are just shorthands. Some targets also like to define compile and
 # link flags for their own, so it's really messy, because I don't know
@@ -273,9 +263,6 @@ set(matmul_threaded_sources matmul-threaded.cpp worker-threads.c)
 
 
 macro(CONFIGURE_MATMUL_LIB v i)
-    if(v STREQUAL "pz")
-        # message(STATUS "Information: pz matmul backends are now disabled")
-    else()
         set(our_compile_flags -DMM_IMPL=${i})
         parse_arith_layer(${v} our_compile_flags)
 
@@ -311,7 +298,6 @@ macro(CONFIGURE_MATMUL_LIB v i)
         if(ENABLE_SHARED)
             install(TARGETS matmul_${v}_${i} DESTINATION ${LIBSUFFIX}/linalg/bwc)
         endif()
-    endif()
 endmacro()
 
 string_join(FOO ", " ${BWC_GF2_MATMUL_BACKENDS})
@@ -332,10 +318,7 @@ endforeach(v)
 foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
     foreach(w ${BWC_GFP_MATMUL_BACKENDS})
         CONFIGURE_MATMUL_LIB(${v} ${w})
-        if(v STREQUAL "pz")
-        else()
-            list(APPEND all_matmul_gfp_libs "matmul_${v}_${w}")
-        endif()
+        list(APPEND all_matmul_gfp_libs "matmul_${v}_${w}")
     endforeach(w)
 endforeach(v)
 
@@ -518,7 +501,7 @@ foreach(v b64 ${BWC_GFP_ARITHMETIC_BACKENDS})
 
 
     # make lingen_pz a default target, but not the others.
-    if(v STREQUAL "pz" OR v STREQUAL "b64")
+    if(v STREQUAL "pz" OR v STREQUAL "b64" OR v STREQUAL "bz")
         add_library(lingen_${v}_support ${lingen_${v}_support_sources})
         add_executable(lingen_${v} ${lingen_${v}_sources})
         install(TARGETS lingen_${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)

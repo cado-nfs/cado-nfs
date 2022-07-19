@@ -16,6 +16,7 @@
 #include "fmt/format.h"
 #include "gmp_aux.h"
 #include "macros.h"
+#include "memory.h" // malloc_aligned
 #include "misc.h" // u64_random
 #include <gmp.h>
 
@@ -23,6 +24,14 @@
 
 namespace arith_mod2 {
 namespace details {
+
+/* compile-time table that returns the largest power of two (but at most
+ * 128) that divides k */
+template<unsigned int k,unsigned int ell = 1, int divide_out = (ell < 128 && !(k & 1))>
+struct alignment_divisor;
+template<unsigned int k, unsigned int ell> struct alignment_divisor<k,ell,0> : public std::integral_constant<unsigned int, ell> {};
+template<unsigned int k, unsigned int ell> struct alignment_divisor<k,ell,1> : public alignment_divisor<k/2,ell*2> {};
+
 
 /* {{{ layout_traits
  *
@@ -60,19 +69,15 @@ struct layout_traits<elt, true>
     /*}}}*/
 
     /*{{{ allocation / deallocation of (vectors of) elements */
-    /* These allocation interfaces seem a bit stupid. At the low
-     * hard level, we know that they're just the same as new[]
-     * anyway.
-     */
-
-    static inline elt* alloc(size_t k = 1) { return new elt[k]; }
-    static inline void free(elt* u) { delete[] u; }
-    static inline elt* realloc(elt* u, size_t k0, size_t k)
+    static inline elt* alloc(size_t k = 1, size_t al = alignment_divisor<sizeof(elt)>::value) {
+        return reinterpret_cast<elt *>(malloc_aligned(k * sizeof(elt), al));
+    }
+    static inline void free(elt* u) {
+        free_aligned(reinterpret_cast<void *>(u));
+    }
+    static inline elt* realloc(elt* u, size_t k0, size_t k, size_t al = alignment_divisor<sizeof(elt)>::value)
     {
-        elt* v = new elt[k];
-        std::copy_n(u, k0, v);
-        delete[] u;
-        return v;
+        return reinterpret_cast<elt *>(::realloc_aligned(reinterpret_cast<void *>(u), k0 * sizeof(elt), k * sizeof(elt), al));
     }
     /*}}}*/
 
@@ -117,18 +122,16 @@ struct layout_traits<elt, false>
     /* }}} */
 
     /* {{{ allocation / deallocation of (vectors of) elements */
-    inline elt* alloc(size_t k = 1) const
-    {
-        return reinterpret_cast<elt*>(new X[k * K]);
+    inline elt* alloc(size_t k = 1, size_t al = sizeof(X)) const {
+        /* Do we want a runtime determination of the alignment ? */
+        return reinterpret_cast<elt *>(malloc_aligned(k * K * sizeof(X), al));
     }
-    inline void free(elt* u) const { delete[] reinterpret_cast<X*>(u); }
-    inline elt* realloc(elt* u, size_t k0, size_t k) const
+    inline void free(elt* u) const {
+        free_aligned(reinterpret_cast<void *>(u));
+    }
+    inline elt* realloc(elt* u, size_t k0, size_t k, size_t al = sizeof(X)) const
     {
-        X* vx = new X[K * k];
-        X* ux = reinterpret_cast<X*>(u);
-        std::copy_n(ux, k0, vx);
-        delete[] ux;
-        return reinterpret_cast<elt*>(vx);
+        return reinterpret_cast<elt *>(::realloc_aligned(reinterpret_cast<void *>(u), k0 * K * sizeof(X), k * K * sizeof(X), al));
     }
     /* }}} */
 

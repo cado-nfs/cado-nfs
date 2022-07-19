@@ -12,7 +12,6 @@
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
 #include "async.hpp"
 #include "bw-common.h"
-#include "cheating_vec_init.hpp"
 #include "fmt/core.h"            // for check_format_string
 #include "fmt/format.h"
 #include "fmt/printf.h" // IWYU pragma: keep
@@ -116,7 +115,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     std::string Tfilename = fmt::format(FMT_STRING("Ct0-{}.0-{}"), nchecks, bw->m);
     size_t T_coeff_size = A->vec_elt_stride(bw->m);
     arith_generic::elt * Tdata;
-    cheating_vec_init(A.get(), &Tdata, bw->m);
+    Tdata = A->alloc(bw->m);
 
     /* Cr is a list of matrices of size nchecks * nchecks */
     /* It depends only on the random seed */
@@ -229,13 +228,12 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         /* }}} */
 
     } else {
-        arith_generic::elt * Rdata;
-        cheating_vec_init(A.get(), &Rdata, nchecks);
+        arith_generic::elt * Rdata = A->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
         for(int k = 0 ; k < bw->start ; k++) {
             /* same remark as above */
             A->vec_set_random(Rdata, nchecks, rstate);
         }
-        cheating_vec_clear(A.get(), &Rdata, nchecks);
+        A->free(Rdata);
     }
 
     /* {{{ create initial Cv and Cd, or load them if start>0 */
@@ -369,7 +367,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         arith_generic::elt * Rdata_stream = NULL;
         int k0 = k;
         if (!legacy_check_mode && (next - k0)) {
-            cheating_vec_init(A.get(), &Rdata_stream, nchecks * (next - k0));
+            Rdata_stream = A->alloc(nchecks * (next - k0), ALIGNMENT_ON_ALL_BWC_VECTORS);
             A->vec_set_zero(Rdata_stream, nchecks * (next - k0));
             A->vec_set_random(Rdata_stream, nchecks * (next - k0), rstate);
             pi_bcast(Rdata_stream, nchecks * (next - k0), A_pi, 0, 0, pi->m);
@@ -414,7 +412,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                 rc = fflush(Rfile);
                 ASSERT_ALWAYS(rc == 0);
             }
-            cheating_vec_clear(A.get(), &Rdata_stream, nchecks * (next - k0));
+            A->free(Rdata_stream);
         }
     }
 
@@ -422,7 +420,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         fclose(Rfile);
     }
 
-    cheating_vec_clear(A.get(), &Tdata, bw->m);
+    A->free(Tdata);
 
     gmp_randclear(rstate);
 
