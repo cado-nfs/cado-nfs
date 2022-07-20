@@ -132,6 +132,8 @@ int main(int argc, char * argv[])
     matmul_save_cache(mm);
     matmul_clear(mm);
 
+    mpz_clear(prime);
+
     /* done here just because with have some lookup_string's into the pl
      * struct here and there.
      */
