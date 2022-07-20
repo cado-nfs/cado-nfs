@@ -60,6 +60,7 @@ test_bit_vector (unsigned long iter)
         w += bit_vector_getbit (b, i);
       ASSERT_ALWAYS(w == bit_vector_popcount (b));
       bit_vector_clear (b);
+      bit_vector_clear (c);
     }
 }
 
