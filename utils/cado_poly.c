@@ -47,11 +47,12 @@ cado_poly_set (cado_poly_ptr p, cado_poly_srcptr q)
     if (p == q) return;
     mpz_set (p->n, q->n);
     p->skew = q->skew;
-    p->nb_polys = q->nb_polys;
-    free(p->pols);
-    p->pols = malloc(p->nb_polys * sizeof(mpz_poly));
+    for( ; p->nb_polys > q->nb_polys ; ) {
+        mpz_poly_clear(p->pols[--p->nb_polys]);
+    }
     for(int side = 0 ; side < q->nb_polys ; side++) {
-        mpz_poly_init(p->pols[side], -1);
+        if (side == p->nb_polys)
+            cado_poly_provision_new_poly(p);
         mpz_poly_set (p->pols[side], q->pols[side]);
     }
 }
