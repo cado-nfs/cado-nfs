@@ -138,15 +138,15 @@ std::string sha1sum(matpoly const & X)
         S.write((const char *) X.data_area(), X.data_size_in_bytes());
         */
 #if GMP_LIMB_BITS == 32
-    size_t nwords_buffer = iceildiv(X.data_entry_size_in_words(),2);
-    uint64_t buffer[nwords_buffer];
-    std::fill_n(buffer, nwords_buffer, 0);
+    size_t nbytes_buffer = iceildiv(X.data_entry_size_in_bytes(), 8);
+    char buffer[nbytes_buffer];
+    std::fill_n(buffer, nbytes_buffer, 0);
 #endif
     for(unsigned int i = 0 ; i < X.nrows() ; i++)
         for(unsigned int j = 0 ; j < X.ncols() ; j++) {
 #if GMP_LIMB_BITS == 32
-            std::copy_n(X.part(i, j), X.data_entry_size_in_words(), reinterpret_cast<unsigned long *>(buffer));
-            S.write((const char *) buffer, nwords_buffer * sizeof(uint64_t));
+            std::copy_n(reinterpret_cast<const char *>(X.part(i, j)), X.data_entry_size_in_bytes(), buffer);
+            S.write(buffer, nbytes_buffer);
 #else
             S.write((const char *) X.part(i, j), X.data_entry_size_in_bytes());
 #endif
