@@ -84,6 +84,7 @@ main (int argc, const char *argv[])
     printf ("Found %lu factors out of %lu composites\n", found, iter);
   smooth_stat (-1);
 
+  free(primes);
   tests_common_clear ();
 
   return 0;
