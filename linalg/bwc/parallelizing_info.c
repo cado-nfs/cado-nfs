@@ -798,6 +798,7 @@ static void pi_go_inner_interleaved(
     pi_grid_clear(pi[1], grids[1]);
 
     my_pthread_barrier_destroy(b);
+    free(b);
     pi_dictionary_clear(d);
 
     free(pi[0]->interleaved);
