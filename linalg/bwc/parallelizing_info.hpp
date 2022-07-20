@@ -205,7 +205,6 @@ extern pi_datatype_ptr BWC_PI_UNSIGNED_LONG_LONG;
 extern pi_datatype_ptr BWC_PI_LONG;
 extern pi_datatype_ptr BWC_PI_SIZE_T;
 
-
 struct pi_op_s {
     MPI_Op stock;  /* typically MPI_SUM */
     MPI_Op custom = MPI_OP_NULL;  /* for arith types, the mpi-level user-defined op */
@@ -227,6 +226,11 @@ extern struct pi_op_s BWC_PI_BOR[1];
 
 extern pi_datatype_ptr pi_alloc_arith_datatype(parallelizing_info_ptr pi, arith_generic * abase);
 extern void pi_free_arith_datatype(parallelizing_info_ptr pi, pi_datatype_ptr ptr);
+
+/* This _only_ works if the datatype has been registered with
+ * pi_alloc_arith_datatype
+ */
+extern arith_generic * pi_arith_datatype_get_abase(MPI_Datatype datatype);
 
 
 

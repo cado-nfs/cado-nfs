@@ -122,6 +122,9 @@ struct arith_wrapper: public arith_generic, public T {
     virtual elt * alloc(size_t n = 1, size_t al = 64) const override {
         return uncast(concrete()->alloc(n, al));
     }
+    virtual elt * realloc(elt * p, size_t o, size_t n, size_t al = 64) const override {
+        return uncast(concrete()->realloc(cast(p), o, n, al));
+    }
     virtual void free(elt * dst) const override {
         return concrete()->free(cast(dst));
     }

@@ -1192,6 +1192,7 @@ static void pi_dispatch_op_add_stock(arith_generic::elt const *invec, arith_gene
      */
     abase->vec_add_and_reduce(inoutvec, invec, *len);
 }
+
 static void pi_dispatch_op_add_custom(arith_generic::elt const *invec, arith_generic::elt *inoutvec, size_t len, pi_datatype_ptr datatype)
 {
     /* FIXME: arith's vec_add should really take size_t arguments */
@@ -1238,6 +1239,16 @@ void pi_free_arith_datatype(parallelizing_info_ptr pi, pi_datatype_ptr ptr)
     }
     shared_free(pi->m, ptr);
 }
+
+arith_generic * pi_arith_datatype_get_abase(MPI_Datatype datatype)
+{
+    int got_it;
+    arith_generic * abase;
+    MPI_Type_get_attr(datatype, pi_mpi_attribute_key, (void*) &abase, &got_it);
+    ASSERT(got_it);
+    return abase;
+}
+
 
 /* This may *not* use MPI_Reduce_local, because we might not have an MPI
  * implementation in the first place, just a set of placeholers. So it is

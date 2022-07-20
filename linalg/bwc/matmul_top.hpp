@@ -37,8 +37,8 @@ struct mmt_vec_s {
     unsigned int n;             // total size in items
     unsigned int i0;
     unsigned int i1;
-    size_t rsbuf_size;          // auto-expanded on demand.
-                                //
+    size_t rsbuf_items;          // auto-expanded on demand.
+
     // ATTENTION: elements are laid out flat in here! rsbuf[0][i] is not
     // a thing.
     arith_generic::elt * rsbuf[2];            // only for RS_CHOICE == RS_CHOICE_MINE

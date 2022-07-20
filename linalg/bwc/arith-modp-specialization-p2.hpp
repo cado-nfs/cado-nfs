@@ -60,14 +60,14 @@ struct gfp<2> : public gfp_base<2, gfp<2>>
             : [d0] "+rm"(dst[0]), [d1] "+rm"(dst[1]), [d2] "+rm"(dst[2])
             : [s0] "r"(src[0]), [s1] "r"(src[1]), [s2] "r"(src[2]));
     }
-    static inline void add(elt_ur_for_add& dst, elt const& a, elt const& b)
+    inline void add(elt_ur_for_add& dst, elt const& a, elt const& b) const
     {
-        dst[0] = a[0];
+        set(dst, a);
         add(dst, b);
     }
-    static inline void sub(elt_ur_for_add& dst, elt const& a, elt const& b)
+    inline void sub(elt_ur_for_add& dst, elt const& a, elt const& b) const
     {
-        dst[0] = a[0];
+        set(dst, a);
         sub(dst, b);
     }
 

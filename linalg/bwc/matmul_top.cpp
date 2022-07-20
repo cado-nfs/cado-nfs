@@ -885,12 +885,11 @@ void alternative_reduce_scatter(mmt_vec_ptr v)
     MPI_Datatype t = v->pitype->datatype;
 
     size_t eitems = mmt_my_own_size_in_items(v) * wr->ncores;
-    size_t needed = v->abase->vec_elt_stride(eitems);
-    if (v->rsbuf_size < needed) {
-        ASSERT_ALWAYS(v->rsbuf_size == 0);
-        v->rsbuf[0] = (arith_generic::elt *) realloc(v->rsbuf[0], needed);
-        v->rsbuf[1] = (arith_generic::elt *) realloc(v->rsbuf[1], needed);
-        v->rsbuf_size = needed;
+    if (v->rsbuf_items < eitems) {
+        ASSERT_ALWAYS(v->rsbuf_items == 0);
+        v->rsbuf[0] = v->abase->realloc(v->rsbuf[0], v->rsbuf_items, eitems);
+        v->rsbuf[1] = v->abase->realloc(v->rsbuf[1], v->rsbuf_items, eitems);
+        v->rsbuf_items = eitems;
     }
 
     arith_generic::elt *b[2];
@@ -983,17 +982,15 @@ void alternative_reduce_scatter_parallel(pi_comm_ptr xr, mmt_vec_ptr * vs)
      * to be expanded.
      */
     size_t eitems = mmt_my_own_size_in_items(v) * wr->ncores;
-    size_t needed = v->abase->vec_elt_stride(eitems);
-
     /* notice that we are allocating a temp buffer only for one vector.
      * Of course, since this is a multithreaded routine, each thread in
      * xr is doing so at the same time */
-    if (v->rsbuf_size < needed) {
+    if (v->rsbuf_items < eitems) {
         /* It's very very ugly, right? We should probably _at least_ let
          * this go through the virtual hierarchy */
-        v->rsbuf[0] = (arith_generic::elt *) realloc(v->rsbuf[0], needed);
-        v->rsbuf[1] = (arith_generic::elt *) realloc(v->rsbuf[1], needed);
-        v->rsbuf_size = needed;
+        v->rsbuf[0] = v->abase->realloc(v->rsbuf[0], v->rsbuf_items, eitems);
+        v->rsbuf[1] = v->abase->realloc(v->rsbuf[1], v->rsbuf_items, eitems);
+        v->rsbuf_items = eitems;
     }
 
     ab->vec_set_zero(v->rsbuf[0], eitems);
@@ -1084,15 +1081,16 @@ int my_MPI_Reduce_scatter_block(void *sendbuf, void *recvbuf, int recvcount,
     
     /* This is a deliberate leak. Note that we expect to be serailized
      * here, so there is no concurrency issue with the static data. */
-    static size_t rsbuf_size = 0;
+    static size_t rsbuf_items = 0;
     static arith_generic::elt * rsbuf[2];
 
-    size_t needed = recvcount * tsize;
+    arith_generic * abase = pi_arith_datatype_get_abase(datatype);
 
-    if (rsbuf_size < needed) {
-        rsbuf[0] = (arith_generic::elt *) realloc(rsbuf[0], needed);
-        rsbuf[1] = (arith_generic::elt *) realloc(rsbuf[1], needed);
-        rsbuf_size = needed;
+    if (rsbuf_items < (size_t) recvcount) {
+        /* FIXME: how do I access abase ? */
+        rsbuf[0] = abase->realloc(rsbuf[0], rsbuf_items, recvcount);
+        rsbuf[1] = abase->realloc(rsbuf[1], rsbuf_items, recvcount);
+        rsbuf_items = recvcount;
     }
 
     memset(rsbuf[0], 0, recvcount * tsize);
