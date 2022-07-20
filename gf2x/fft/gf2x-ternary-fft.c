@@ -1179,14 +1179,20 @@ int gf2x_ternary_fft_info_copy(
         gf2x_ternary_fft_info_ptr o,
         gf2x_ternary_fft_info_srcptr other)
 {
+    /* This is a copy constructor, not an assignment operator! o->perm is
+     * not assumed valid */
     memcpy(o, other, sizeof(struct gf2x_ternary_fft_info));
-    o->perm = (size_t *) malloc(o->K * sizeof(size_t));
-    if (o->perm == NULL) {
-        memset(o, 0, sizeof(struct gf2x_ternary_fft_info));
-        return GF2X_ERROR_OUT_OF_MEMORY;
+    if (o->K) {
+        o->perm = (size_t *) malloc(o->K * sizeof(size_t));
+        if (o->perm == NULL) {
+            memset(o, 0, sizeof(struct gf2x_ternary_fft_info));
+            return GF2X_ERROR_OUT_OF_MEMORY;
+        } else {
+            memcpy(o->perm, other->perm, o->K * sizeof(size_t));
+            return 0;
+        }
     } else {
-        memcpy(o->perm, other->perm, o->K * sizeof(size_t));
-        return 0;
+        o->perm = NULL;
     }
 }
 
