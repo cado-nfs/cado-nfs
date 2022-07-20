@@ -314,7 +314,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         endforeach()
     endif()
 
-    if(gfp_layer STREQUAL "pz" OR gfp_layer STREQUAL "p3")
+    if(gfp_layer STREQUAL "pz" OR (ULONG_BITS EQUAL 64 AND gfp_layer STREQUAL "p3") OR (ULONG_BITS EQUAL 32 AND gfp_layer STREQUAL "p6"))
         set(mpiconfs mpi_square1 mpi_square2)
         if (NOT HAVE_MPI OR CMAKE_VERSION VERSION_LESS 3.9)
             set(mpiconfs)

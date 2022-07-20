@@ -55,8 +55,9 @@ sizeinbase2() {
         return
     fi
 }
-# this is used only for GF(p) code, which is resolutely 64-bit only
-wordsize=64
+
+
+wordsize=$(awk '/ULONG_BITS/ { print $3 }' $PROJECT_BINARY_DIR/cado_config.h)
 nbits_prime=$(sizeinbase2 $p)
 nwords=$((1+nbits_prime/wordsize))
 
