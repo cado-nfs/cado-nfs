@@ -335,7 +335,8 @@ int random_matrix_process_data_set_from_args(random_matrix_process_data_ptr r,
         DIE_ERRNO_DIAG(r->rhs->f == NULL, "fopen(%s)", rhsname);
         // rhs file is now always in ascii
         // if (r->ascii)
-            gmp_fprintf(r->rhs->f, "%lu %d %Zd\n", r->nrows, r->rhs->n, r->rhs->p);
+        gmp_fprintf(r->rhs->f, "%lu %d %Zd\n", r->nrows, r->rhs->n, r->rhs->p);
+        free(rhsname);
     }
     /* }}} */
 
