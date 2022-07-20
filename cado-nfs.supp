@@ -247,3 +247,14 @@
    fun:ecm_factor
    ...
 }
+{
+   intentional_leak
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:__vasprintf_internal
+   fun:asprintf
+   fun:derived_filename
+   fun:build_mat_auxfile
+   fun:main
+}
