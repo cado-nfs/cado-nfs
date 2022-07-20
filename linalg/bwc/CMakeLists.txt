@@ -164,6 +164,7 @@ macro(parse_arith_layer v outlist)
         list(APPEND our_compile_flags -DARITH_MOD2)
         list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=${vgroup})
         set(cooked_macro "DO_${vbp}(${vgroup})")
+        set(canonical_arith_layer "${v}")
     elseif(vbp STREQUAL "p")
         set(vgroup 1)
         list(GET v_items 1 vwidth)
@@ -174,6 +175,7 @@ macro(parse_arith_layer v outlist)
         list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=1)
         list(APPEND our_compile_flags -DARITH_PRIME_WIDTH=${vwidth})
         set(cooked_macro "DO_${vbp}(${vwidth})")
+        set(canonical_arith_layer "${v}")
     elseif(${v} MATCHES "^u64k[0-9]*$")
         string(REGEX REPLACE "^u64k([0-9]*)$" "\\1" k ${v})
         math(EXPR vgroup "64*${k}")
@@ -182,7 +184,22 @@ macro(parse_arith_layer v outlist)
         list(APPEND our_compile_flags -DARITH_MOD2)
         list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=${vgroup})
         set(cooked_macro "DO_${vbp}(${vgroup})")
-        message(STATUS "${v} is an old backend name. Change your local.sh to use ${vbp}${vgroup} instead")
+        if(NOT warned_obsolete_${v})
+            set(warned_obsolete_${v} 1)
+            message(WARNING "${v} is an old backend name. Change your local.sh to use ${vbp}${vgroup} instead")
+        endif()
+        set(canonical_arith_layer "${vbp}${vgroup}")
+    elseif(${v} STREQUAL "m128")
+        set(vgroup 128)
+        set(vbp b)
+        list(APPEND our_compile_flags -DARITH_MOD2)
+        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=${vgroup})
+        set(cooked_macro "DO_${vbp}(${vgroup})")
+        if(NOT warned_obsolete_${v})
+            set(warned_obsolete_${v} 1)
+            message(WARNING "${v} is an old backend name. Change your local.sh to use ${vbp}${vgroup} instead")
+        endif()
+        set(canonical_arith_layer "${vbp}${vgroup}")
     elseif(${v} MATCHES "^p_[0-9]*$")
         string(REGEX REPLACE "^p_([0-9]*)$" "\\1" vwidth ${v})
         set(vbp p)
@@ -190,7 +207,11 @@ macro(parse_arith_layer v outlist)
         list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=1)
         list(APPEND our_compile_flags -DARITH_PRIME_WIDTH=${vwidth})
         set(cooked_macro "DO_${vbp}(${vwidth})")
-        message(STATUS "${v} is an old backend name. Change your local.sh to use ${vbp}${vwidth} instead")
+        if(NOT warned_obsolete_${v})
+            set(warned_obsolete_${v} 1)
+            message(WARNING "${v} is an old backend name. Change your local.sh to use ${vbp}${vwidth} instead")
+        endif()
+        set(canonical_arith_layer "${vbp}${vwidth}")
     elseif(${v} STREQUAL "pz")
         set(vwidth 0)
         set(vbp p)
@@ -198,7 +219,11 @@ macro(parse_arith_layer v outlist)
         list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=1)
         list(APPEND our_compile_flags -DARITH_PRIME_WIDTH=${vwidth})
         set(cooked_macro "DO_${vbp}(${vwidth})")
-        message(STATUS "${v} is an old backend name. Change your local.sh to use ${vbp}z instead")
+        if(NOT warned_obsolete_${v})
+            set(warned_obsolete_${v} 1)
+            message(WARNING "${v} is an old backend name. Change your local.sh to use ${vbp}z instead")
+        endif()
+        set(canonical_arith_layer "${vbp}z")
     else()
         # Try to understand the old formats.
         message(FATAL_ERROR "unsupported arithmetic backend ${v}")
@@ -211,46 +236,70 @@ target_link_libraries(bwc_arith ${gmp_libname} utils)
 set_target_properties(bwc_arith PROPERTIES COMPILE_FLAGS "--mpi")
 set_target_properties(bwc_arith PROPERTIES LINK_FLAGS "--mpi")
 
+
+
+set(internal_arithmetic_backends_gfp)
+foreach(v pz ${BWC_GFP_ARITHMETIC_BACKENDS})
+    set(dummy)
+    parse_arith_layer(${v} dummy)
+    list(APPEND internal_arithmetic_backends_gfp ${canonical_arith_layer})
+endforeach()
+list(REMOVE_DUPLICATES internal_arithmetic_backends_gfp)
+
+set(internal_arithmetic_backends_gf2)
+foreach(v b64 bz ${BWC_GF2_ARITHMETIC_BACKENDS})
+    set(dummy)
+    parse_arith_layer(${v} dummy)
+    list(APPEND internal_arithmetic_backends_gf2 ${canonical_arith_layer})
+endforeach()
+list(REMOVE_DUPLICATES internal_arithmetic_backends_gf2)
+
+set(internal_arithmetic_backends_all ${internal_arithmetic_backends_gf2} ${internal_arithmetic_backends_gfp})
+
+
+set(all_arithmetic_gfp_libs)
+set(all_arithmetic_gf2_libs)
+set(COOKED_ARITHMETIC_BACKENDS)
+
 if(BUILD_DYNAMICALLY_LINKABLE_BWC)
-    set(COOKED_ARITHMETIC_BACKENDS)
-    foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS} ${BWC_GFP_ARITHMETIC_BACKENDS})
+    foreach(v ${internal_arithmetic_backends_all})
         set(our_compile_flags)
         parse_arith_layer(${v} our_compile_flags)
-        # set(COOKED_ARITHMETIC_BACKENDS ${COOKED_ARITHMETIC_BACKENDS} "${cooked_macro};")
-
-        add_library(arithmetic_${v} ${CADO_SHARED} arith-generic.cpp)
-        target_link_libraries(arithmetic_${v} utils)
 
         # To be honest, we don't really need the compile flags here. All
         # code is pulled in from arith-generic.cpp, which does not
         # include arith-hard.hpp
         string_join(our_compile_flags_string " " ${our_compile_flags})
+
+        add_library(arithmetic_${v} ${CADO_SHARED} arith-generic.cpp)
+        target_link_libraries(arithmetic_${v} utils)
         set_target_properties(arithmetic_${v} PROPERTIES
             COMPILE_FLAGS "--mpi ${our_compile_flags_string}"
             LINK_FLAGS "--mpi")
         install(TARGETS arithmetic_${v} DESTINATION ${LIBSUFFIX}/linalg/bwc)
-
-        # This is mandatory if we want bwc_arith to find our small .so
-        # files for arithmetic.
-        # Note that we do not need to add utils, it's added
-        # automatically.
-        set_target_properties(bwc_arith PROPERTIES BUILD_RPATH
-            "${CMAKE_CURRENT_BINARY_DIR}")
     endforeach()
 
-    foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
+    foreach(v ${internal_arithmetic_backends_gf2})
         list(APPEND all_arithmetic_gf2_libs arithmetic_${v})
     endforeach()
-    foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
+
+    foreach(v ${internal_arithmetic_backends_gfp})
         list(APPEND all_arithmetic_gfp_libs arithmetic_${v})
     endforeach()
+
+    # This is mandatory if we want bwc_arith to find our small .so
+    # files for arithmetic.
+    # Note that we do not need to add utils, it's added
+    # automatically.
+    set_target_properties(bwc_arith PROPERTIES BUILD_RPATH
+        "${CMAKE_CURRENT_BINARY_DIR}")
 
     target_link_libraries(bwc_arith dl)
 
     install(TARGETS bwc_arith DESTINATION ${LIBSUFFIX}/linalg/bwc)
 else()
-    foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS} ${BWC_GFP_ARITHMETIC_BACKENDS})
-        parse_arith_layer(${v} our_compile_flags)
+    foreach(v ${internal_arithmetic_backends_all})
+        parse_arith_layer(${v} dummy)
         set(COOKED_ARITHMETIC_BACKENDS ${COOKED_ARITHMETIC_BACKENDS} "${cooked_macro};")
     endforeach()
     # DO NOT USE our_compile_flags here, because those only make sense
@@ -326,22 +375,20 @@ macro(CONFIGURE_MATMUL_LIB v i)
         endif()
 endmacro()
 
-string_join(FOO ", " ${BWC_GF2_MATMUL_BACKENDS})
+string_join(FOO ", " ${internal_arithmetic_backends_gf2})
 message(STATUS "GF(2) SpMV backends for linear algebra: ${FOO}")
-if (BWC_GFP_ARITHMETIC_BACKENDS)
-string_join(FOO ", " ${BWC_GFP_MATMUL_BACKENDS})
+string_join(FOO ", " ${internal_arithmetic_backends_gfp})
 message(STATUS "GF(p) SpMV backends for linear algebra: ${FOO}")
-endif()
 
 
 
-foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
+foreach(v ${internal_arithmetic_backends_gf2})
     foreach(w ${BWC_GF2_MATMUL_BACKENDS})
         CONFIGURE_MATMUL_LIB(${v} ${w})
         list(APPEND all_matmul_gf2_libs "matmul_${v}_${w}")
     endforeach(w)
 endforeach(v)
-foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
+foreach(v ${internal_arithmetic_backends_gfp})
     foreach(w ${BWC_GFP_MATMUL_BACKENDS})
         CONFIGURE_MATMUL_LIB(${v} ${w})
         list(APPEND all_matmul_gfp_libs "matmul_${v}_${w}")
@@ -428,19 +475,17 @@ target_link_libraries(cleanup bitlinalg utils m)
 
 install(TARGETS cleanup RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
-if(BWC_GFP_ARITHMETIC_BACKENDS)
-    # This is a convenience library which is used **ONLY** by one binary,
-    # so there's absolutely no point in making it shared.
-    file(GLOB flint_fft_files flint-fft/*.c)
-    add_library(flint-fft ${flint_fft_files})
-    set_target_properties(flint-fft PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
-        LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
-    add_library(flint-fft-debug EXCLUDE_FROM_ALL ${flint_fft_files})
-    set_target_properties(flint-fft-debug PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DDEBUG_FFT"
-        LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
-endif()
+# This is a convenience library which is used **ONLY** by one binary,
+# so there's absolutely no point in making it shared.
+file(GLOB flint_fft_files flint-fft/*.c)
+add_library(flint-fft ${flint_fft_files})
+set_target_properties(flint-fft PROPERTIES
+    COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
+    LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
+add_library(flint-fft-debug EXCLUDE_FROM_ALL ${flint_fft_files})
+set_target_properties(flint-fft-debug PROPERTIES
+    COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DDEBUG_FFT"
+    LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
 
 # These files are not dependent on the mpfq layer, therefore it's ok to
 # put all of them in a common convenience library.
@@ -461,9 +506,10 @@ set_target_properties(lingen_common_support PROPERTIES
     LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
     )
 
-foreach(v b64 ${BWC_GFP_ARITHMETIC_BACKENDS})
+foreach(v ${internal_arithmetic_backends_gfp} b64)
     set(our_compile_flags)
     parse_arith_layer(${v} our_compile_flags)
+
     set(lingen_${v}_support_sources
         lingen_io_matpoly.cpp
         lingen_checkpoints.cpp
@@ -525,8 +571,8 @@ foreach(v b64 ${BWC_GFP_ARITHMETIC_BACKENDS})
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
     target_link_libraries(lingen_verify_checkpoints_${v} utils ${gmp_libname})
 
-
-    # make lingen_pz a default target, but not the others.
+    # lingen_bz could make sense for testing, but we certainly do not
+    # want to  use it.
     if(v STREQUAL "pz" OR v STREQUAL "b64" OR v STREQUAL "bz")
         add_library(lingen_${v}_support ${lingen_${v}_support_sources})
         add_executable(lingen_${v} ${lingen_${v}_sources})

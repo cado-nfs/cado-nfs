@@ -114,6 +114,9 @@ endif()
 # Now we only ever test p1, p3, and pz.
 set(BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS)
 foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
+    parse_arith_layer(${gfp_layer} dummy)
+    set(gfp_layer ${canonical_arith_layer})
+
     string(REGEX MATCH "^(p1|p3|pz)$" t "${gfp_layer}")
     if(t)
         list(APPEND BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS ${t})
@@ -350,8 +353,8 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
 
     set(our_compile_flags)
     parse_arith_layer(${gfp_layer} our_compile_flags)
+    set(gfp_layer ${canonical_arith_layer})
     string_join(our_compile_flags_string " " ${our_compile_flags})
-
 
     set_target_properties(test_matpoly_${gfp_layer} PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
@@ -365,7 +368,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     set_target_properties(time_matpoly_ft_parallel_${gfp_layer} PROPERTIES
         COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
-endforeach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
+endforeach()
 
 foreach(gfp_layer b64)
     link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
@@ -595,6 +598,9 @@ endforeach()
 
 
 foreach(arith_layer ${BWC_GF2_ARITHMETIC_BACKENDS})
+    parse_arith_layer(${arith_layer} dummy)
+    set(arith_layer ${canonical_arith_layer})
+
     string_join(mm_backends " " ${BWC_GF2_MATMUL_BACKENDS})
 
     create_test_spmv(binary-${arith_layer}
