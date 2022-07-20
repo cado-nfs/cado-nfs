@@ -575,5 +575,9 @@ void smooth_detect(cand_t C, int (*next_cand)(cand_t, void *),
       pool_print(ctx->pool);
     }
   }
+
+  // stats_clear is a no-op
+  // stats_clear(ctx->stats);
+  pool_clear(ctx->pool);
 }
 
