@@ -577,7 +577,7 @@ int main (int argc, char **argv)
     free(dst[j]);
   }
   free(dst);
-
+  free(part_rels);
   free(F);
   free(nsm_arg);
 
