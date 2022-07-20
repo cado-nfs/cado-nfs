@@ -88,6 +88,8 @@ static void my_sm(const char *outfile, const char *infile,
     }
     fprintf(out, "\n");
   }
+  mpz_poly_clear(pol);
+  mpz_poly_clear(smpol);
 
   if (out != NULL)
     fclose(out);
