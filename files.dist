@@ -515,6 +515,7 @@ linalg/bwc/flint-fft/adjust.c
 linalg/bwc/flint-fft/adjust_sqrt2.c
 linalg/bwc/flint-fft/butterfly_lshB.c
 linalg/bwc/flint-fft/butterfly_rshB.c
+linalg/bwc/flint-fft/clz_tab.c
 linalg/bwc/flint-fft/combine_bits.c
 linalg/bwc/flint-fft/convolution.c
 linalg/bwc/flint-fft/div_2expmod_2expp1.c
