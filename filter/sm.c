@@ -577,6 +577,9 @@ int main (int argc, char **argv)
     free(dst[j]);
   }
   free(dst);
+  for (uint64_t i = 0; i < nb_parts; ++i) {
+    sm_relset_clear(&part_rels[i]);
+  }
   free(part_rels);
   free(F);
   free(nsm_arg);
