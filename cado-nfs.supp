@@ -232,3 +232,18 @@
    fun:_ZN7nfs_auxD1Ev
    ...
 }
+{
+   ecm_bug_21864
+   # https://gitlab.inria.fr/zimmerma/ecm/-/issues/21864
+   # This is present up to 7.0.5 at least
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:__gmp_default_allocate
+   fun:__gmpz_init2
+   fun:ell_curve_init
+   fun:ell_curve_set_z
+   fun:ecm
+   fun:ecm_factor
+   ...
+}
