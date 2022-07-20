@@ -77,6 +77,7 @@ static void my_sm(const char *outfile, const char *infile,
         mpz_init(a); mpz_init(b);
         int ret = gmp_sscanf(buf, "%Zd,%Zd:", a, b);
         ASSERT_ALWAYS(ret == 2);
+        mpz_poly_clear(pol);
 	mpz_poly_init_set_mpz_ab(pol, a, b);
         mpz_clear(a); mpz_clear(b);
     }
