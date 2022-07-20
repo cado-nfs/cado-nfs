@@ -265,6 +265,8 @@ checks under valgrind on debian-testing system on a debug build:
       allow_failure: false
     - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "valgrind")
       when: always
+    - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == "valgrind"
+      when: always
     - when: never
   retry:
     max: 2
