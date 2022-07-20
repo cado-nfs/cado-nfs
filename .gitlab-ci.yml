@@ -256,7 +256,7 @@ expensive checks with gcc:
     - *checks-script
   <<: *checks-junit-report
 
-checks under valgrind on debian-testing system on a debug build:
+checks under valgrind on debian-testing system on a debug build with gcc:
   rules:
     # valgrind checking takes many hours. It's simply not feasible for it to be
     # part of the normal implement-MR-test-investigate-debug cycle.

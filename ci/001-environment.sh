@@ -9,22 +9,8 @@
 
 export CLICOLOR_FORCE=1
 
-
 # Note that our set of scripts reacts on CI_BUILD_NAME, and the logic for
-# this is here. CI_BUILD_NAME must follow the regexp below.
-#
-# (note that we **CANNOT** do regexp matching in this script because
-# we're /bin/sh, not bash !)
-#
-# (container for )?(coverage tests on )?((expensive )?checks)?( on (osx|alpine|(debian|fedora|centos|freebsd)[0-9]*) system)?( with ((32-bit )?gcc|clang|icc))?
-#
-# with one exception which is "merge coverage tests"
-#
-# a downside is that in the gitlab page, this makes many pipeline steps
-# with similar names. We could change to abbreviated names (e.g.
-# "coverage tests on " would be V, "container for " would be L, "checks"
-# and "expensive checks" would be C and XC, and so on. But it would be
-# really cryptic. to have, e.g. LC/debian10+gcc ; wouldn't it ?
+# that is in 001-environment.sh
 
 if type -p hostname > /dev/null 2>&1 ; then
     HOSTNAME=$(hostname)
