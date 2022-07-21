@@ -805,7 +805,7 @@ static void pi_go_inner_interleaved(
     free(pi[1]->interleaved);
 
     pi_clear_mpilevel(pi[0]);
-    /* pi[1] is a simple copy, it doesn't have to be cleared. */
+    pi_clear_mpilevel(pi[1]);
 }
 
 void pi_dictionary_init(pi_dictionary_ptr d)
