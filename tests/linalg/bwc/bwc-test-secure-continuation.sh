@@ -57,10 +57,14 @@ mv "$wdir"/C[rvdt]* "$wdir/saved_check"
 
 failed=
 for f in `(cd "$wdir" ; ls C[rvdt]* ; cd "$wdir/saved_check" ; ls C[rvdt]*) | sort -u` ; do
-    if ! diff -q "$wdir/$f" "$wdir/saved_check/$f" ; then
-        echo "Files $wdir/$f and $wdir/saved_check/$f differ" >&2
-        sha1sum "$wdir/$f" "$wdir/saved_check/$f"
-        failed=1
+    if [ -f "$wdir/$f" ] && [ -f "$wdir/saved_check/$f" ] ; then
+        if ! diff -q "$wdir/$f" "$wdir/saved_check/$f" ; then
+            echo "Files $wdir/$f and $wdir/saved_check/$f differ" >&2
+            sha1sum "$wdir/$f" "$wdir/saved_check/$f"
+            failed=1
+        else
+            echo "Files $wdir/$f and $wdir/saved_check/$f are consistent"
+        fi
     fi
 done
 if ! [ "$failed" ] ; then
