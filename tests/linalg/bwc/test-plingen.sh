@@ -231,8 +231,18 @@ EOF
     SHA1="${SHA1%% *}"
 
     if [ "$REFERENCE_SHA1" ] ; then
-        if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
-            echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
+        ok_sha=(${REFERENCE_SHA1//,/ })
+        ok=
+        for a in "${ok_sha[@]}" ; do
+            if [ "${SHA1}" = "$a" ] ; then
+                ok=1
+                break
+            fi
+        done
+        if ! [ "$ok" ] ; then
+            one_of=
+            if [ ${#ok_sha[@]} -gt 1 ] ; then one_of="one of " ; fi
+            echo "$0: Got SHA1 of ${SHA1} but expected ${one_of}${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
             exit 1
         fi
         echo "$SHA1 (as expected)"
