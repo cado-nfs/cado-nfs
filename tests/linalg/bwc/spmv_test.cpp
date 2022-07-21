@@ -26,7 +26,7 @@ void mmt_vec_set_0n(mmt_vec_ptr v, size_t items)
      * thing: IOW, we have set_ui_at, but no set_ui. So let's do a
      * dirty cast */
     // ASSERT_ALWAYS((size_t) v->abase->elt_stride() <= sizeof(uint64_t));
-    ASSERT_ALWAYS(v->abase->elt_stride() % sizeof(uint64_t) == 0);
+    ASSERT_ALWAYS(v->abase->elt_stride() >= sizeof(unsigned int));
     // size_t nwords = (size_t) v->abase->elt_stride(v->abase) / sizeof(uint64_t);
     size_t off = mmt_my_own_offset_in_items(v);
     size_t sz = mmt_my_own_size_in_items(v);
@@ -37,7 +37,7 @@ void mmt_vec_set_0n(mmt_vec_ptr v, size_t items)
     for(size_t s = 0 ; s < sz ; s++) {
         arith_generic::elt & u = v->abase->vec_item(data, s);
         /* yes, this is awful */
-        uint64_t * ptr = (uint64_t *) (void *) (&u);
+        auto ptr = reinterpret_cast<unsigned int *>(&u);
         *ptr = (v->i0 + off + s < items) ? v->i0 + off + s : 0;
     }
     v->consistency = 1;
@@ -52,21 +52,21 @@ void mmt_vec_check_equal_0n(mmt_vec_ptr v, size_t items)
     serialize(v->pi->m);
     ASSERT_ALWAYS(v->consistency == 2);
     // ASSERT_ALWAYS((size_t) v->abase->elt_stride() <= sizeof(uint64_t));
-    ASSERT_ALWAYS(v->abase->elt_stride() %  sizeof(uint64_t) == 0);
-    size_t nwords = (size_t) v->abase->elt_stride() / sizeof(uint64_t);
+    ASSERT_ALWAYS(v->abase->elt_stride() >= sizeof(unsigned int));
     size_t off = mmt_my_own_offset_in_items(v);
     size_t sz = mmt_my_own_size_in_items(v);
-    arith_generic::elt * data = mmt_my_own_subvec(v);
+    arith_generic::elt const * data = mmt_my_own_subvec(v);
+    arith_generic::elt * temp_alloc = v->abase->alloc(1);
+    arith_generic::elt & temp = *temp_alloc;
+    auto ptr = reinterpret_cast<unsigned int *>(temp_alloc);
     for(size_t s = 0 ; s < sz ; s++) {
-        arith_generic::elt & u = v->abase->vec_item(data, s);
+        arith_generic::elt const & u = v->abase->vec_item(data, s);
+        v->abase->set(temp, u);
         /* yes, this is awful */
-        uint64_t * ptr = (uint64_t *) (void *) (&u);
-        ASSERT_ALWAYS(*ptr == (v->i0 + off + s < items ? v->i0 + off + s : 0));
-        /* check that we have zeroes elsewhere */
-        for(size_t i = 1 ; i < nwords ; i++) {
-            ASSERT_ALWAYS(ptr[i] == 0);
-        }
+        *ptr ^= (v->i0 + off + s < items ? v->i0 + off + s : 0);
+        ASSERT_ALWAYS(v->abase->is_zero(temp));
     }
+    v->abase->free(temp_alloc);
 }
 
 /* check that v[i] == p[i] */
@@ -75,21 +75,21 @@ void mmt_vec_check_equal_0n_permuted(mmt_vec_ptr v, size_t items, uint32_t * p)
     serialize(v->pi->m);
     ASSERT_ALWAYS(v->consistency == 2);
     // ASSERT_ALWAYS((size_t) v->abase->elt_stride() <= sizeof(uint64_t));
-    ASSERT_ALWAYS(v->abase->elt_stride() %  sizeof(uint64_t) == 0);
-    size_t nwords = (size_t) v->abase->elt_stride() / sizeof(uint64_t);
+    ASSERT_ALWAYS(v->abase->elt_stride() >= sizeof(unsigned int));
     size_t off = mmt_my_own_offset_in_items(v);
     size_t sz = mmt_my_own_size_in_items(v);
-    arith_generic::elt * data = mmt_my_own_subvec(v);
+    arith_generic::elt const * data = mmt_my_own_subvec(v);
+    arith_generic::elt * temp_alloc = v->abase->alloc(1);
+    arith_generic::elt & temp = *temp_alloc;
+    auto ptr = reinterpret_cast<unsigned int *>(temp_alloc);
     for(size_t s = 0 ; s < sz ; s++) {
-        arith_generic::elt & u = v->abase->vec_item(data, s);
+        arith_generic::elt const & u = v->abase->vec_item(data, s);
+        v->abase->set(temp, u);
         /* yes, this is awful */
-        uint64_t * ptr = (uint64_t *) (void *) (&u);
-        ASSERT_ALWAYS(*ptr == (v->i0 + off + s < items ? p[v->i0 + off + s] : 0));
-        /* check that we have zeroes elsewhere */
-        for(size_t i = 1 ; i < nwords ; i++) {
-            ASSERT_ALWAYS(ptr[i] == 0);
-        }
+        *ptr ^= (v->i0 + off + s < items ? p[v->i0 + off + s] : 0);
+        ASSERT_ALWAYS(v->abase->is_zero(temp));
     }
+    v->abase->free(temp_alloc);
 }
 
 /* check that v[i] == p^-1[i] */
@@ -97,27 +97,26 @@ void mmt_vec_check_equal_0n_inv_permuted(mmt_vec_ptr v, size_t items, uint32_t *
 {
     serialize(v->pi->m);
     // ASSERT_ALWAYS((size_t) v->abase->elt_stride() <= sizeof(uint64_t));
-    ASSERT_ALWAYS(v->abase->elt_stride() %  sizeof(uint64_t) == 0);
-    size_t nwords = (size_t) v->abase->elt_stride() / sizeof(uint64_t);
+    ASSERT_ALWAYS(v->abase->elt_stride() >= sizeof(unsigned int));
     size_t off = mmt_my_own_offset_in_items(v);
     size_t sz = mmt_my_own_size_in_items(v);
-    arith_generic::elt * data = mmt_my_own_subvec(v);
+    arith_generic::elt const * data = mmt_my_own_subvec(v);
+    arith_generic::elt * temp_alloc = v->abase->alloc(1);
+    arith_generic::elt & temp = *temp_alloc;
+    auto ptr = reinterpret_cast<unsigned int *>(temp_alloc);
     for(size_t s = 0 ; s < sz ; s++) {
-        arith_generic::elt & u = v->abase->vec_item(data, s);
+        arith_generic::elt const & u = v->abase->vec_item(data, s);
+        v->abase->set(temp, u);
         /* yes, this is awful */
-        uint64_t * ptr = (uint64_t *) (void *) (&u);
-        if (v->i0 + off + s >= items) {
-            ASSERT_ALWAYS(*ptr == 0);
-        } else {
+        if (v->i0 + off + s < items) {
             ASSERT_ALWAYS(*ptr < items);
             ASSERT_ALWAYS(p[*ptr] == v->i0 + off + s);
+            *ptr = 0;
         }
-        /* check that we have zeroes elsewhere */
-        for(size_t i = 1 ; i < nwords ; i++) {
-            ASSERT_ALWAYS(ptr[i] == 0);
-        }
+        ASSERT_ALWAYS(v->abase->is_zero(temp));
     }
     serialize_threads(v->pi->wr[v->d]);
+    v->abase->free(temp_alloc);
 }
 
 /* This only does a multiplication */
