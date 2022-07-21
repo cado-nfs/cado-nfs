@@ -3,6 +3,7 @@ include_directories(${PROJECT_SOURCE_DIR}/gf2x/fft)
 include_directories(${PROJECT_SOURCE_DIR}/gf2x/fft/mpfq)
 
 add_library(bblas
+    ${CADO_SHARED}
         bblas_debug.cpp
         bblas_level2a.cpp
         bblas_level2b.cpp
@@ -17,6 +18,8 @@ add_library(bblas
         bblas_level4_lup.cpp
         bblas_level4_pluq.cpp
         bblas_level5.cpp
+        bblas_level5a64.cpp
+        bblas_level5a128.cpp
         bblas_perm_matrix.cpp
         bblas_gauss.c
         bblas_mat8.cpp
@@ -25,5 +28,6 @@ add_library(bblas
 
 set_target_properties(bblas PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
 target_link_libraries(bblas "${OpenMP_CXX_FLAGS}")
+target_link_libraries(bblas utils)
 
 add_dependencies(bblas gf2x-build)

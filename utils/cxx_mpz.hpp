@@ -26,6 +26,9 @@ public:
     cxx_mpz(cxx_mpz const & o) {
         mpz_init_set(x, o.x);
     }
+    cxx_mpz(mpz_srcptr a) {
+        mpz_init_set(x, a);
+    }
     cxx_mpz & operator=(cxx_mpz const & o) {
         mpz_set(x, o.x);
         return *this;

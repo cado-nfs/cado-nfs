@@ -1,6 +1,5 @@
 
 include_directories(. .. ../bblas)
-# include_directories(mpfq)
 
 # Use with care. Normally, binaries not needing MPI for real should not
 # emit MPI symbols since they don't do anything depending on this config
@@ -11,22 +10,26 @@ endif()
 
 ### bwc-specific configuration.
 
-# unset(BUILD_DYNAMICALLY_LINKABLE_BWC)
 # Dynamically linkable bwc needs shared libs.
-set(BUILD_DYNAMICALLY_LINKABLE_BWC ${ENABLE_SHARED})
+if(ENABLE_SHARED AND NOT CMAKE_SYSTEM_NAME MATCHES BSD)
+    set(BUILD_DYNAMICALLY_LINKABLE_BWC 1)
+else()
+    unset(BUILD_DYNAMICALLY_LINKABLE_BWC)
+endif()
+
 # having both shared and static is possible but messy. One needs two
 # add_library calls, and then I'm not sure whether
 # target_link_libraries picks the static or shared ones...
 
-set(BWC_GF2_ARITHMETIC_BACKENDS m128 u64k1 u64k2 u64k3 u64k4
+set(BWC_GF2_ARITHMETIC_BACKENDS b64 b128 b256 bz
     CACHE STRING
     "which low-level arithmetic backends to use for GF(2) linear algebra")
 set(BWC_GF2_MATMUL_BACKENDS bucket basic sliced
     CACHE STRING
     "which low-level matrix multiplication backends to use for GF(2) linear algebra")
-set(BWC_GFP_ARITHMETIC_BACKENDS p_1 p_2 p_3 p_4 p_5 p_6 p_7 p_8 p_9 p_10 p_11 p_12 p_13 p_14 p_15 pz
+set(BWC_GFP_ARITHMETIC_BACKENDS p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 pz
     CACHE STRING
-    "which GF(p) backends to compile for DLOG mode (pz excluded)")
+    "which GF(p) backends to compile for DLOG mode")
 if(HAVE_CXX11)
     set(bmb basicp zone)
 else()
@@ -39,17 +42,7 @@ set(BWC_GFP_MATMUL_BACKENDS ${bmb}
 # In the fflas branch, this is used to plug in fflas.
 set(BWC_EXTRA_BACKENDS "" CACHE STRING "list of pairs (arithmetic,matmul) backends for linear algebra")
 
-# In case there's a user override, just make mention of the situation.
-if(NOT BWC_GFP_ARITHMETIC_BACKENDS OR NOT HAVE_GCC_STYLE_AMD64_INLINE_ASM)
-    # The code in linalg/bwc/mpfq/ is 64-bit only, and relies on GNU
-    # CC idioms. We don't want to expose it on 32-bit platforms.
-    set(BWC_GFP_ARITHMETIC_BACKENDS CACHE STRING
-        "which GF(p) backends to compile for DLOG mode" FORCE)
-    message(STATUS "Warning: DL mode forcibly disabled for linear algebra (amd64-only)")
-endif()
-
 ### end bwc-specific configuration.
-
 
 # These are just shorthands. Some targets also like to define compile and
 # link flags for their own, so it's really messy, because I don't know
@@ -75,21 +68,22 @@ endmacro()
 ### bwc_base
 
 set(bwc_base_sources
-    parallelizing_info.c
+    parallelizing_info.cpp
     intersections.c
-    xvectors.c
+    xvectors.cpp
     bw-common.c
-    async.c
+    async.cpp
     rolling.c
-    matmul.c
-    matmul_top.c
+    matmul.cpp
+    matmul_top.cpp
     matmul_top2.cpp
-    random_matrix.c
+    random_matrix.cpp
     mf.c 
-    mf_bal.c
+    mf_bal.cpp
     ../rowset_heap.cpp
-    balancing.c
+    balancing.cpp
     balancing_workhorse.cpp
+    arith-cross.cpp
 )
 
 if(HAVE_CXX11 AND HAVE_HWLOC)
@@ -105,6 +99,8 @@ target_link_libraries(bwc_base ${gmp_libname})
 if (HAVE_CURL)
 target_link_libraries(bwc_base curl)
 endif()
+
+target_link_libraries(bwc_base bblas)
 
 if(HAVE_CXX11 AND HAVE_HWLOC)
 target_link_libraries(bwc_base hwloc)
@@ -130,55 +126,185 @@ endif()
 
 include_directories(${CADO_NFS_SOURCE_DIR}/linalg)
 
-mpi_add_executable(mf_bal mf_bal_main.c)
+mpi_add_executable(mf_bal mf_bal_main.cpp)
 target_link_libraries(mf_bal bwc_base m)
 install(TARGETS mf_bal RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
 
 configure_file(bwc.pl ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl ESCAPE_QUOTES @ONLY)
 
-add_executable(random_matrix ${EXCLUDE_FROM_RELEASE_BUILD} random_matrix.c)
+add_executable(random_matrix ${EXCLUDE_FROM_RELEASE_BUILD}
+    random_matrix.cpp)
 set_property(TARGET random_matrix PROPERTY COMPILE_DEFINITIONS WANT_MAIN)
 target_link_libraries(random_matrix utils m)
 set_target_properties(random_matrix PROPERTIES
         COMPILE_FLAGS "--mpi"
         LINK_FLAGS "--mpi")
 
-### bwc_mpfq
-
-set(bwc_mpfq_sources mpfq/mpfq_vbase.c)
-set(bwc_mpfq_flags)
-foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
-    if (v STREQUAL "m128" AND (NOT HAVE_SSE41 OR NOT HAVE_POPCNT))
-        message(STATUS "GF(2) arithmetic backend m128 not compiled in, sse-4.1 or popcnt support missing")
-    else()
-        set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}.cpp mpfq/mpfq_${v}_t.c)
-        set(COMPILE_MPFQ_BINARY_FIELD_${v} 1 CACHE INTERNAL "${v} is compiled in")
-        set(bwc_mpfq_flags "${bwc_mpfq_flags} -DCOMPILE_MPFQ_BINARY_FIELD_${v}")
-        message(STATUS "GF(2) arithmetic backend enabled for factoring linear algebra: ${v}")
-    endif()
-endforeach(v)
-
-foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
-    set(bwc_mpfq_sources ${bwc_mpfq_sources} mpfq/mpfq_${v}.c mpfq/mpfq_${v}.cpp mpfq/mpfq_${v}_t.c)
-    set(COMPILE_MPFQ_PRIME_FIELD_${v} 1 CACHE INTERNAL "${v} is compiled in")
-    set(bwc_mpfq_flags "${bwc_mpfq_flags} -DCOMPILE_MPFQ_PRIME_FIELD_${v}")
-    message(STATUS "GF(p) arithmetic backend enabled for DL linear algebra: ${v}")
-endforeach(v)
-
-add_library(bwc_mpfq ${CADO_SHARED} ${bwc_mpfq_sources})
-
-if(ENABLE_SHARED)
-    install(TARGETS bwc_mpfq DESTINATION ${LIBSUFFIX}/linalg/bwc)
+if(BUILD_DYNAMICALLY_LINKABLE_BWC)
+    set(SOLIB_PREFIX ${CMAKE_SHARED_LIBRARY_PREFIX})
+    set(SOLIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
+    configure_file(solib-naming.h.in solib-naming.h ESCAPE_QUOTES @ONLY)
 endif()
 
-target_link_libraries(bwc_mpfq ${gmp_libname} utils)
+include_directories (${CMAKE_CURRENT_BINARY_DIR})
 
-set_target_properties(bwc_mpfq PROPERTIES COMPILE_FLAGS "--mpi ${bwc_mpfq_flags}")
-set_target_properties(bwc_mpfq PROPERTIES LINK_FLAGS "--mpi")
 
-### end bwc_mpfq
+macro(parse_arith_layer v outlist)
+    list(APPEND our_compile_flags -DARITH_LAYER_${v})
+    list(APPEND our_compile_flags -DARITH_LAYER=${v})
+    string(REGEX REPLACE "^([bp])([0-9]*|z)$" "\\1;\\2" v_items ${v})
+    list(GET v_items 0 vbp) # binary or prime
+    if(vbp STREQUAL "b")
+        list(GET v_items 1 vgroup)
+        set(vwidth 0)
+        if(vgroup STREQUAL "z")
+            set(vgroup 0)
+        endif()
+        list(APPEND our_compile_flags -DARITH_MOD2)
+        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=${vgroup})
+        set(cooked_macro "DO_${vbp}(${vgroup})")
+        set(canonical_arith_layer "${v}")
+    elseif(vbp STREQUAL "p")
+        set(vgroup 1)
+        list(GET v_items 1 vwidth)
+        if(vwidth STREQUAL "z")
+            set(vwidth 0)
+        endif()
+        list(APPEND our_compile_flags -DARITH_MODP)
+        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=1)
+        list(APPEND our_compile_flags -DARITH_PRIME_WIDTH=${vwidth})
+        set(cooked_macro "DO_${vbp}(${vwidth})")
+        set(canonical_arith_layer "${v}")
+    elseif(${v} MATCHES "^u64k[0-9]*$")
+        string(REGEX REPLACE "^u64k([0-9]*)$" "\\1" k ${v})
+        math(EXPR vgroup "64*${k}")
+        set(vwidth 0)
+        set(vbp b)
+        list(APPEND our_compile_flags -DARITH_MOD2)
+        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=${vgroup})
+        set(cooked_macro "DO_${vbp}(${vgroup})")
+        if(NOT warned_obsolete_${v})
+            set(warned_obsolete_${v} 1)
+            message(WARNING "${v} is an old backend name. Change your local.sh to use ${vbp}${vgroup} instead")
+        endif()
+        set(canonical_arith_layer "${vbp}${vgroup}")
+    elseif(${v} STREQUAL "m128")
+        set(vgroup 128)
+        set(vbp b)
+        list(APPEND our_compile_flags -DARITH_MOD2)
+        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=${vgroup})
+        set(cooked_macro "DO_${vbp}(${vgroup})")
+        if(NOT warned_obsolete_${v})
+            set(warned_obsolete_${v} 1)
+            message(WARNING "${v} is an old backend name. Change your local.sh to use ${vbp}${vgroup} instead")
+        endif()
+        set(canonical_arith_layer "${vbp}${vgroup}")
+    elseif(${v} MATCHES "^p_[0-9]*$")
+        string(REGEX REPLACE "^p_([0-9]*)$" "\\1" vwidth ${v})
+        set(vbp p)
+        list(APPEND our_compile_flags -DARITH_MODP)
+        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=1)
+        list(APPEND our_compile_flags -DARITH_PRIME_WIDTH=${vwidth})
+        set(cooked_macro "DO_${vbp}(${vwidth})")
+        if(NOT warned_obsolete_${v})
+            set(warned_obsolete_${v} 1)
+            message(WARNING "${v} is an old backend name. Change your local.sh to use ${vbp}${vwidth} instead")
+        endif()
+        set(canonical_arith_layer "${vbp}${vwidth}")
+    elseif(${v} STREQUAL "pz")
+        set(vwidth 0)
+        set(vbp p)
+        list(APPEND our_compile_flags -DARITH_MODP)
+        list(APPEND our_compile_flags -DARITH_SIMD_GROUPSIZE=1)
+        list(APPEND our_compile_flags -DARITH_PRIME_WIDTH=${vwidth})
+        set(cooked_macro "DO_${vbp}(${vwidth})")
+        if(NOT warned_obsolete_${v})
+            set(warned_obsolete_${v} 1)
+            message(WARNING "${v} is an old backend name. Change your local.sh to use ${vbp}z instead")
+        endif()
+        set(canonical_arith_layer "${vbp}z")
+    else()
+        # Try to understand the old formats.
+        message(FATAL_ERROR "unsupported arithmetic backend ${v}")
+    endif()
+endmacro()
 
+
+add_library(bwc_arith ${CADO_SHARED} arith-generic.cpp)
+target_link_libraries(bwc_arith ${gmp_libname} utils)
+set_target_properties(bwc_arith PROPERTIES COMPILE_FLAGS "--mpi")
+set_target_properties(bwc_arith PROPERTIES LINK_FLAGS "--mpi")
+
+
+
+set(internal_arithmetic_backends_gfp)
+foreach(v pz ${BWC_GFP_ARITHMETIC_BACKENDS})
+    set(dummy)
+    parse_arith_layer(${v} dummy)
+    list(APPEND internal_arithmetic_backends_gfp ${canonical_arith_layer})
+endforeach()
+list(REMOVE_DUPLICATES internal_arithmetic_backends_gfp)
+
+set(internal_arithmetic_backends_gf2)
+foreach(v b64 bz ${BWC_GF2_ARITHMETIC_BACKENDS})
+    set(dummy)
+    parse_arith_layer(${v} dummy)
+    list(APPEND internal_arithmetic_backends_gf2 ${canonical_arith_layer})
+endforeach()
+list(REMOVE_DUPLICATES internal_arithmetic_backends_gf2)
+
+set(internal_arithmetic_backends_all ${internal_arithmetic_backends_gf2} ${internal_arithmetic_backends_gfp})
+
+
+set(all_arithmetic_gfp_libs)
+set(all_arithmetic_gf2_libs)
+set(COOKED_ARITHMETIC_BACKENDS)
+
+if(BUILD_DYNAMICALLY_LINKABLE_BWC)
+    foreach(v ${internal_arithmetic_backends_all})
+        set(our_compile_flags)
+        parse_arith_layer(${v} our_compile_flags)
+
+        # To be honest, we don't really need the compile flags here. All
+        # code is pulled in from arith-generic.cpp, which does not
+        # include arith-hard.hpp
+        string_join(our_compile_flags_string " " ${our_compile_flags})
+
+        add_library(arithmetic_${v} ${CADO_SHARED} arith-generic.cpp)
+        target_link_libraries(arithmetic_${v} utils)
+        set_target_properties(arithmetic_${v} PROPERTIES
+            COMPILE_FLAGS "--mpi ${our_compile_flags_string}"
+            LINK_FLAGS "--mpi")
+        install(TARGETS arithmetic_${v} DESTINATION ${LIBSUFFIX}/linalg/bwc)
+    endforeach()
+
+    foreach(v ${internal_arithmetic_backends_gf2})
+        list(APPEND all_arithmetic_gf2_libs arithmetic_${v})
+    endforeach()
+
+    foreach(v ${internal_arithmetic_backends_gfp})
+        list(APPEND all_arithmetic_gfp_libs arithmetic_${v})
+    endforeach()
+
+    # This is mandatory if we want bwc_arith to find our small .so
+    # files for arithmetic.
+    # Note that we do not need to add utils, it's added
+    # automatically.
+    set_target_properties(bwc_arith PROPERTIES BUILD_RPATH
+        "${CMAKE_CURRENT_BINARY_DIR}")
+
+    target_link_libraries(bwc_arith dl)
+
+    install(TARGETS bwc_arith DESTINATION ${LIBSUFFIX}/linalg/bwc)
+else()
+    foreach(v ${internal_arithmetic_backends_all})
+        parse_arith_layer(${v} dummy)
+        set(COOKED_ARITHMETIC_BACKENDS ${COOKED_ARITHMETIC_BACKENDS} "${cooked_macro};")
+    endforeach()
+    # DO NOT USE our_compile_flags here, because those only make sense
+    # when a single implementation is compiled.
+endif()
 
 ### link dependencies
 
@@ -188,97 +314,84 @@ IF(UNIX)
         EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE CMAKE_SYSTEM_NAME)
     ENDIF()
 ENDIF()
-IF(CMAKE_SYSTEM_NAME MATCHES BSD)
-    target_link_libraries(bwc_base utils bwc_mpfq ${pthread_libs})
-ELSE()
-    if(BUILD_DYNAMICALLY_LINKABLE_BWC)
-        target_link_libraries(bwc_base utils bwc_mpfq ${pthread_libs} dl)
-    else()
-        target_link_libraries(bwc_base utils bwc_mpfq ${pthread_libs})
-    endif()
-ENDIF()
+# we will probably need to link bwc_base with bwc_mpfq
+target_link_libraries(bwc_base utils ${pthread_libs} bwc_arith)
 
 # matmul_common is a dependency of all the impl-specific libs. When doing
 # dynamic linking, there's no real need to make matmul_common *also*
 # shared, as embarking the code within the impl-specific .so is fine.
 # Unfortunately, we do want matmul_common to be compiled with -fPIC,
 # then. Which is easiest to trigger by making it a shared object.
-mpi_add_library(matmul_common ${CADO_SHARED} matmul-common.c)
+mpi_add_library(matmul_common ${CADO_SHARED} matmul-common.cpp)
+target_link_libraries(matmul_common utils)
 if(ENABLE_SHARED)
     install(TARGETS matmul_common DESTINATION ${LIBSUFFIX}/linalg/bwc)
 endif()
 
 
-set(matmul_basic_sources    matmul-basic.c)
+set(matmul_basic_sources    matmul-basic.cpp)
 set(matmul_basicp_sources   matmul-basicp.cpp)
 set(matmul_zone_sources   matmul-zone.cpp)
 set(matmul_sliced_sources   matmul-sliced.cpp)
 set(matmul_bucket_sources   matmul-bucket.cpp)
-set(matmul_threaded_sources matmul-threaded.c worker-threads.c)
+set(matmul_threaded_sources matmul-threaded.cpp worker-threads.c)
+
 
 macro(CONFIGURE_MATMUL_LIB v i)
-    if(v STREQUAL "pz")
-        # message(STATUS "Information: pz matmul backends are now disabled")
-    else()
-    set(COOKED_BWC_BACKENDS ${COOKED_BWC_BACKENDS} "DO(${v}, ${i})")
-    string(COMPARE EQUAL "${v}" "u64k1" doing_u64)
-    string(COMPARE EQUAL "${i}" "bucket" doing_bucket)
-    set(sources matmul_facade.c ${matmul_${i}_sources})
-    if(doing_u64 AND doing_bucket)
-        if(HAVE_GAS_SYNTAX_ASSEMBLY_SOURCES)
-            set(sources ${sources}
-                    matmul-sub-small1.S
-                    matmul-sub-small2.S
-                    matmul-sub-large-fbi.S
-                    matmul-sub-large-fbd.S
-                    matmul-sub-vsc-combine.S
-                    matmul-sub-vsc-dispatch.S
-                    )
-            set_property(SOURCE matmul-sub-small1.S PROPERTY LANGUAGE C)
-            set_property(SOURCE matmul-sub-small2.S PROPERTY LANGUAGE C)
-            set_property(SOURCE matmul-sub-large-fbi.S PROPERTY LANGUAGE C)
-            set_property(SOURCE matmul-sub-large-fbd.S PROPERTY LANGUAGE C)
-            set_property(SOURCE matmul-sub-vsc-dispatch.S PROPERTY LANGUAGE C)
-            set_property(SOURCE matmul-sub-vsc-combine.S PROPERTY LANGUAGE C)
+        set(our_compile_flags -DMM_IMPL=${i})
+        parse_arith_layer(${v} our_compile_flags)
+
+        set(COOKED_BWC_BACKENDS ${COOKED_BWC_BACKENDS} "DO(${v}, ${i})")
+        string(COMPARE EQUAL "${v}" "b64" doing_b64)
+        string(COMPARE EQUAL "${i}" "bucket" doing_bucket)
+        set(sources matmul_facade.cpp ${matmul_${i}_sources})
+        if(doing_b64 AND doing_bucket)
+            if(HAVE_GAS_SYNTAX_ASSEMBLY_SOURCES)
+                set(sources ${sources}
+                        matmul-sub-small1.S
+                        matmul-sub-small2.S
+                        matmul-sub-large-fbi.S
+                        matmul-sub-large-fbd.S
+                        matmul-sub-vsc-combine.S
+                        matmul-sub-vsc-dispatch.S
+                        )
+                set_property(SOURCE matmul-sub-small1.S PROPERTY LANGUAGE C)
+                set_property(SOURCE matmul-sub-small2.S PROPERTY LANGUAGE C)
+                set_property(SOURCE matmul-sub-large-fbi.S PROPERTY LANGUAGE C)
+                set_property(SOURCE matmul-sub-large-fbd.S PROPERTY LANGUAGE C)
+                set_property(SOURCE matmul-sub-vsc-dispatch.S PROPERTY LANGUAGE C)
+                set_property(SOURCE matmul-sub-vsc-combine.S PROPERTY LANGUAGE C)
+            endif()
         endif()
-    endif()
 
         add_library(matmul_${v}_${i} ${CADO_SHARED} ${sources})
-        target_link_libraries(matmul_${v}_${i} matmul_common bwc_mpfq)
+        target_link_libraries(matmul_${v}_${i} matmul_common)#  bwc_mpfq)
+        string_join(our_compile_flags_string " " ${our_compile_flags})
         set_target_properties(matmul_${v}_${i} PROPERTIES
-            COMPILE_FLAGS "--mpi -DSELECT_MPFQ_LAYER_${v} -DMM_IMPL=${i} -DMM_MPFQ_LAYER=${v}"
-                LINK_FLAGS "--mpi")
+            COMPILE_FLAGS "--mpi ${our_compile_flags_string}"
+            LINK_FLAGS "--mpi")
         if(ENABLE_SHARED)
             install(TARGETS matmul_${v}_${i} DESTINATION ${LIBSUFFIX}/linalg/bwc)
         endif()
-    endif()
 endmacro()
 
-string_join(FOO ", " ${BWC_GF2_MATMUL_BACKENDS})
+string_join(FOO ", " ${internal_arithmetic_backends_gf2})
 message(STATUS "GF(2) SpMV backends for linear algebra: ${FOO}")
-if (BWC_GFP_ARITHMETIC_BACKENDS)
-string_join(FOO ", " ${BWC_GFP_MATMUL_BACKENDS})
+string_join(FOO ", " ${internal_arithmetic_backends_gfp})
 message(STATUS "GF(p) SpMV backends for linear algebra: ${FOO}")
-endif()
 
 
 
-foreach(v ${BWC_GF2_ARITHMETIC_BACKENDS})
-    if (v STREQUAL "m128" AND (NOT HAVE_SSE41 OR NOT HAVE_POPCNT))
-    else()
-        foreach(w ${BWC_GF2_MATMUL_BACKENDS})
-            CONFIGURE_MATMUL_LIB(${v} ${w})
-            set(all_matmul_gf2_libs ${all_matmul_gf2_libs} "matmul_${v}_${w}")
-        endforeach(w)
-    endif()
+foreach(v ${internal_arithmetic_backends_gf2})
+    foreach(w ${BWC_GF2_MATMUL_BACKENDS})
+        CONFIGURE_MATMUL_LIB(${v} ${w})
+        list(APPEND all_matmul_gf2_libs "matmul_${v}_${w}")
+    endforeach(w)
 endforeach(v)
-foreach(v ${BWC_GFP_ARITHMETIC_BACKENDS})
+foreach(v ${internal_arithmetic_backends_gfp})
     foreach(w ${BWC_GFP_MATMUL_BACKENDS})
         CONFIGURE_MATMUL_LIB(${v} ${w})
-        if(v STREQUAL "pz")
-        else()
-            set(all_matmul_gfp_libs ${all_matmul_gfp_libs} "matmul_${v}_${w}")
-        endif()
+        list(APPEND all_matmul_gfp_libs "matmul_${v}_${w}")
     endforeach(w)
 endforeach(v)
 
@@ -297,14 +410,6 @@ endif()
 configure_file(bwc_config_h.in bwc_config.h ESCAPE_QUOTES @ONLY)
 
 
-if(BUILD_DYNAMICALLY_LINKABLE_BWC)
-set(MATMUL_LIBS_PREFIX ${CMAKE_SHARED_LIBRARY_PREFIX})
-set(MATMUL_LIBS_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
-endif()
-
-configure_file(matmul-libnames.h.in matmul-libnames.h ESCAPE_QUOTES @ONLY)
-include_directories (${CMAKE_CURRENT_BINARY_DIR})
-
 # If we use static libraries, then unfortunately we _have_ to build all
 # possible implementation for just any single run of bwc. Define
 # ENABLE_SHARED=1 in local.sh to avoid this pitfall.
@@ -313,7 +418,7 @@ target_link_libraries(bwc_base ${all_matmul_gf2_libs} ${all_matmul_gfp_libs})
 endif()
 
 ### matmul_mf
-mpi_add_library(matmul_mf ${CADO_SHARED} matmul-mf.c)
+mpi_add_library(matmul_mf ${CADO_SHARED} matmul-mf.cpp)
 target_link_libraries(matmul_mf bwc_base)
 if(ENABLE_SHARED)
     install(TARGETS matmul_mf DESTINATION ${LIBSUFFIX}/linalg/bwc)
@@ -342,10 +447,10 @@ endmacro()
 bwc_program(acollect acollect.c)
 bwc_program(prep prep.cpp)
 target_link_libraries(prep bitlinalg)
-bwc_program(krylov krylov.cpp xdotprod.c)
-bwc_program(bwccheck bwccheck.cpp xdotprod.c)
-bwc_program(dispatch dispatch.cpp xdotprod.c)
-bwc_program(mksol mksol.cpp xdotprod.c)
+bwc_program(krylov krylov.cpp xdotprod.cpp)
+bwc_program(bwccheck bwccheck.cpp xdotprod.cpp)
+bwc_program(dispatch dispatch.cpp xdotprod.cpp)
+bwc_program(mksol mksol.cpp xdotprod.cpp)
 bwc_program(gather gather.cpp)
 bwc_program(secure secure.cpp)
 bwc_program(blocklanczos blocklanczos.cpp)
@@ -370,19 +475,17 @@ target_link_libraries(cleanup bitlinalg utils m)
 
 install(TARGETS cleanup RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
 
-if(BWC_GFP_ARITHMETIC_BACKENDS)
-    # This is a convenience library which is used **ONLY** by one binary,
-    # so there's absolutely no point in making it shared.
-    file(GLOB flint_fft_files flint-fft/*.c)
-    add_library(flint-fft ${flint_fft_files})
-    set_target_properties(flint-fft PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
-        LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
-    add_library(flint-fft-debug EXCLUDE_FROM_ALL ${flint_fft_files})
-    set_target_properties(flint-fft-debug PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DDEBUG_FFT"
-        LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
-endif()
+# This is a convenience library which is used **ONLY** by one binary,
+# so there's absolutely no point in making it shared.
+file(GLOB flint_fft_files flint-fft/*.c)
+add_library(flint-fft ${flint_fft_files})
+set_target_properties(flint-fft PROPERTIES
+    COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS}"
+    LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
+add_library(flint-fft-debug EXCLUDE_FROM_ALL ${flint_fft_files})
+set_target_properties(flint-fft-debug PROPERTIES
+    COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DDEBUG_FFT"
+    LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
 
 # These files are not dependent on the mpfq layer, therefore it's ok to
 # put all of them in a common convenience library.
@@ -403,7 +506,10 @@ set_target_properties(lingen_common_support PROPERTIES
     LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
     )
 
-foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
+foreach(v ${internal_arithmetic_backends_gfp} b64)
+    set(our_compile_flags)
+    parse_arith_layer(${v} our_compile_flags)
+
     set(lingen_${v}_support_sources
         lingen_io_matpoly.cpp
         lingen_checkpoints.cpp
@@ -422,7 +528,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
         lingen_bigmatpoly_ft.cpp
         )
 
-    if (v STREQUAL "u64k1")
+    if (v STREQUAL "b64")
         set(lingen_${v}_sources
             ${lingen_${v}_sources}
             lingen_qcode_binary.cpp
@@ -431,6 +537,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
             ${lingen_${v}_support_sources}
             lingen_matpoly_binary.cpp
             )
+        list(APPEND our_compile_flags -DLINGEN_BINARY)
     else()
         set(lingen_${v}_sources
             ${lingen_${v}_sources}
@@ -440,8 +547,8 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
 
         set(lingen_${v}_support_sources
             ${lingen_${v}_support_sources}
-            mpfq/mpfq_${v}.c
-            mpfq/mpfq_${v}.cpp
+            ## mpfq/mpfq_${v}.c
+            ## mpfq/mpfq_${v}.cpp
             # I don't have the courage to ditch lingen_polymat entirely
             # right now, because it's a bit tied inside
             # lingen_tune_cutoffs.cpp (which I seldom use, if ever). But
@@ -457,14 +564,16 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
     add_executable(lingen_verify_checkpoints_${v}
         lingen_verify_checkpoints.cpp
         )
+    string_join(our_compile_flags_string " " ${our_compile_flags})
+
     set_target_properties(lingen_verify_checkpoints_${v} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
     target_link_libraries(lingen_verify_checkpoints_${v} utils ${gmp_libname})
 
-
-    # make lingen_pz a default target, but not the others.
-    if(v STREQUAL "pz" OR v STREQUAL "u64k1")
+    # lingen_bz could make sense for testing, but we certainly do not
+    # want to  use it.
+    if(v STREQUAL "pz" OR v STREQUAL "b64" OR v STREQUAL "bz")
         add_library(lingen_${v}_support ${lingen_${v}_support_sources})
         add_executable(lingen_${v} ${lingen_${v}_sources})
         install(TARGETS lingen_${v} RUNTIME DESTINATION ${LIBSUFFIX}/linalg/bwc)
@@ -475,7 +584,7 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
 
     target_link_libraries(lingen_${v}_support lingen_common_support)
 
-    if (v STREQUAL "u64k1")
+    if (v STREQUAL "b64")
         add_dependencies(lingen_${v}_support gf2x-build)
         target_link_libraries(lingen_${v}_support gf2x-fft gf2x bblas)
     else()
@@ -493,21 +602,21 @@ foreach(v u64k1 ${BWC_GFP_ARITHMETIC_BACKENDS})
 
     # set_source_files_properties(lingen.cpp PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
     set_target_properties(lingen_${v}_support PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
         )
     set_target_properties(lingen_${v} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${v}"
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} ${our_compile_flags_string}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
         )
 endforeach(v)
 
 add_custom_target(bwc_matmul_gf2)
-if(all_matmul_gf2_libs)
-add_dependencies(bwc_matmul_gf2 ${all_matmul_gf2_libs})
-endif()
 add_custom_target(bwc_matmul_gfp)
-if(all_matmul_gfp_libs)
+if(BUILD_DYNAMICALLY_LINKABLE_BWC)
+add_dependencies(bwc_matmul_gf2 ${all_arithmetic_gf2_libs})
+add_dependencies(bwc_matmul_gf2 ${all_matmul_gf2_libs})
+add_dependencies(bwc_matmul_gfp ${all_arithmetic_gfp_libs})
 add_dependencies(bwc_matmul_gfp ${all_matmul_gfp_libs})
 endif()
 
@@ -517,7 +626,7 @@ add_dependencies(bwc_full_common mf_bal random_matrix acollect
     bwccheck)
 
 add_custom_target(bwc_full_gf2)
-add_dependencies(bwc_full_gf2 bwc_full_common bwc_matmul_gf2 lingen_u64k1 cleanup)
+add_dependencies(bwc_full_gf2 bwc_full_common bwc_matmul_gf2 lingen_b64 cleanup)
 add_custom_target(bwc_full_gfp)
 add_dependencies(bwc_full_gfp bwc_full_common bwc_matmul_gfp)
 
@@ -525,9 +634,9 @@ add_custom_target(bwc_full)
 add_dependencies(bwc_full bwc_full_gf2 bwc_full_gfp)
 
 # Those are used only for tests.
-bwc_program_extra(build_matcache build_matcache.c)
+bwc_program_extra(build_matcache build_matcache.cpp)
 target_link_libraries(build_matcache matmul_mf)
-bwc_program_extra(bench_matcache bench_matcache.c worker-threads.c)
+bwc_program_extra(bench_matcache bench_matcache.cpp worker-threads.c)
 target_link_libraries(bench_matcache matmul_mf)
 
 

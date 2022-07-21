@@ -25,7 +25,7 @@
 #  02110-1301, USA.
 
 ACLOCAL_AMFLAGS=-I config --install
-AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir) -I$(srcdir)/mpfq
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir)
 
 if HAVE_HIDDEN_VISIBILITY_ATTRIBUTE
 VH_FFT_FLAG=-fvisibility=hidden -DGF2X_FFT_EXPORTED="__attribute__((visibility(\"default\")))"
@@ -38,7 +38,6 @@ FFT_LIBS+=libgf2x-fft.la
 FFT_SOURCES+=gf2x-fake-fft.c
 FFT_SOURCES+=gf2x-ternary-fft.c
 FFT_SOURCES+=gf2x-cantor-fft.c
-AM_CPPFLAGS += -I$(top_srcdir)/fft/mpfq
 gf2x_includedir=$(includedir)/gf2x
 gf2x_include_HEADERS=	\
 	gf2x-fft.h		\
@@ -64,19 +63,8 @@ check_PROGRAMS=
 check_LTLIBRARIES=
 
 EXTRA_DIST=	\
-	gf2x-fft-impl-utils.h			\
-	mpfq/README.mpfq			\
-	mpfq/i386/mpfq_2_128.c			\
-	mpfq/i386/mpfq_2_128.h			\
-	mpfq/i386/mpfq_2_64.c			\
-	mpfq/i386/mpfq_2_64.h			\
-	mpfq/mpfq.h				\
-	mpfq/mpfq_gf2n_common.h			\
-	mpfq/mpfq_name_K.h			\
-	mpfq/x86_64/mpfq_2_128.c		\
-	mpfq/x86_64/mpfq_2_128.h		\
-	mpfq/x86_64/mpfq_2_64.c			\
-	mpfq/x86_64/mpfq_2_64.h
+	gf2x-fft-impl-utils.h		\
+	gf2x-cantor-field-impl.h
 
 # ternary fft is included by default in gf2x.
 check_LTLIBRARIES += libternary.la

@@ -25,6 +25,9 @@
 #include "lingen_expected_pi_length.hpp"
 #include "bblas.hpp"
 
+static_assert(std::is_same<matpoly::elt, unsigned long>::value, "wrong flags");
+static_assert(std::is_same<matpoly::ptr, unsigned long *>::value, "wrong flags");
+
 /* We have two interfaces here. The first one is the one that is common
  * with qcode_prime. This goes through bw_lingen_basecase.
  *
@@ -554,7 +557,7 @@ matpoly bw_lingen_basecase_raw_old(bmstatus & bm, matpoly & E)/*{{{*/
      */
     size_t exp_maxlen = 1 + E.get_size();
 
-    matpoly pi(bm.d.ab, E.ncols(), E.ncols(), exp_maxlen);
+    matpoly pi(&bm.d.ab, E.ncols(), E.ncols(), exp_maxlen);
     pi.zero_pad(exp_maxlen);
 
     bool finished = false;
@@ -695,7 +698,7 @@ matpoly bw_lingen_basecase_raw_fast(bmstatus & bm, matpoly const & mp_E)/*{{{*/
      */
     size_t D = 1 + mp_E.get_size();
 
-    abdst_field ab = d.ab;
+    matpoly::arith_hard * ab = &d.ab;
     constexpr const unsigned int B = mat64::width;
     unsigned int bb = iceildiv(b, B);
     unsigned int bX = bb * B;
@@ -856,10 +859,11 @@ matpoly bw_lingen_basecase(bmstatus & bm, matpoly & E)/*{{{*/
     return pi;
 }/*}}}*/
 
-void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
+void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
 {
     /* used by testing code */
-    bmstatus bm(m,n);
+    cxx_mpz p=2;
+    bmstatus bm(m,n,p);
     unsigned int t0 = iceildiv(m,n);
     bm.set_t0(t0);
     matpoly E(ab, m, m+n, L);
@@ -868,12 +872,13 @@ void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp
     bw_lingen_basecase_raw(bm, E);
 }/*}}}*/
 
-void test_basecase_bblas(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
+void test_basecase_bblas(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
 {
     // constexpr const unsigned int B = mat64::width;
 
     /* used by testing code */
-    bmstatus bm(m,n);
+    cxx_mpz p = 2;
+    bmstatus bm(m,n,p);
     unsigned int t0 = iceildiv(m,n);
     bm.set_t0(t0);
 

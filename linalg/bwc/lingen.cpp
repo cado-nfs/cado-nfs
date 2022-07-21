@@ -21,13 +21,13 @@
 #include "fmt/core.h"                     // for check_format_string
 #include "fmt/format.h"                   // for basic_buffer::append, basic...
 #include "fmt/printf.h" // IWYU pragma: keep
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 #include "gf2x-fft.h"                     // for gf2x_cantor_fft_info
 #include "gf2x-ternary-fft.h"             // for gf2x_ternary_fft_info
 #else
 #include "flint-fft/transform_interface.h"          // fft_transform_info
 #endif
-#include "lingen_abfield.hpp"             // for abfield_clear, abfield_init
+#include "arith-hard.hpp"             // for abfield_clear, abfield_init
 #include "lingen_bigmatpoly.hpp"          // for bigmatpoly, bigmatpoly_model
 #include "lingen_bigmatpoly_ft.hpp"       // for bigmatpoly_ft
 #include "lingen_bmstatus.hpp"            // for bmstatus
@@ -133,8 +133,24 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E);
 std::string sha1sum(matpoly const & X)
 {
     sha1_checksumming_stream S;
-    ASSERT_ALWAYS(X.is_tight());
-    S.write((const char *) X.data_area(), X.data_size_in_bytes());
+    /*
+    if (X.is_tight())
+        S.write((const char *) X.data_area(), X.data_size_in_bytes());
+        */
+#if GMP_LIMB_BITS == 32
+    size_t nbytes_buffer = iceildiv(X.data_entry_size_in_bytes(), 8);
+    char buffer[nbytes_buffer];
+    std::fill_n(buffer, nbytes_buffer, 0);
+#endif
+    for(unsigned int i = 0 ; i < X.nrows() ; i++)
+        for(unsigned int j = 0 ; j < X.ncols() ; j++) {
+#if GMP_LIMB_BITS == 32
+            std::copy_n(reinterpret_cast<const char *>(X.part(i, j)), X.data_entry_size_in_bytes(), buffer);
+            S.write(buffer, nbytes_buffer);
+#else
+            S.write((const char *) X.part(i, j), X.data_entry_size_in_bytes());
+#endif
+        }
     char checksum[41];
     S.checksum(checksum);
     return std::string(checksum);
@@ -178,14 +194,14 @@ matpoly_type generic_mp(matpoly_type & E, matpoly_type & pi_left, bmstatus & bm,
         case lingen_substep_schedule::FFT_NONE:
             return matpoly_type::mp(bm.stats, E, pi_left, &C.mp);
         case lingen_substep_schedule::FFT_FLINT:
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
             return matching_ft_type<matpoly_type,
                     fft_transform_info>::type::mp_caching(
                             bm.stats, E, pi_left, & C.mp);
 #else
             throw std::runtime_error("fft type \"flint\" does not make sense here");
 #endif
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
         case lingen_substep_schedule::FFT_CANTOR:
             return matching_ft_type<matpoly_type,
                     gf2x_cantor_fft_info>::type::mp_caching(
@@ -210,14 +226,14 @@ matpoly_type generic_mul(matpoly_type & pi_left, matpoly_type & pi_right, bmstat
         case lingen_substep_schedule::FFT_NONE:
             return matpoly_type::mul(bm.stats, pi_left, pi_right, & C.mul);
         case lingen_substep_schedule::FFT_FLINT:
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
             return matching_ft_type<matpoly_type,
                     fft_transform_info>::type::mul_caching(
                             bm.stats, pi_left, pi_right, & C.mul);
 #else
             throw std::runtime_error("fft type \"flint\" does not make sense here");
 #endif
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
         case lingen_substep_schedule::FFT_CANTOR:
             return matching_ft_type<matpoly_type,
                     gf2x_cantor_fft_info>::type::mul_caching(
@@ -455,7 +471,7 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
      * our full job here is not too much of a problem.
      */
     bw_dimensions & d = bm.d;
-    abdst_field ab = d.ab;
+    matpoly::arith_hard * ab = & d.ab;
     unsigned int m = d.m;
     unsigned int n = d.n;
     unsigned int b = m + n;
@@ -778,8 +794,7 @@ int wrapped_main(int argc, char *argv[])
     }
     ASSERT_ALWAYS((afile==NULL) == (ffile == NULL));
 
-    bmstatus bm(bw->m, bw->n);
-    bw_dimensions & d = bm.d;
+    bmstatus bm(bw->m, bw->n, bw->p);
 
     const char * rhs_name = param_list_lookup_string(pl, "rhs");
     if (!global_flag_tune && !random_input_length) {
@@ -798,9 +813,6 @@ int wrapped_main(int argc, char *argv[])
             get_rhs_file_header(rhs_name, NULL, &(bm.d.nrhs), NULL);
         MPI_Bcast(&bm.d.nrhs, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
     }
-
-    abfield_init(d.ab);
-    abfield_specify(d.ab, MPFQ_PRIME_MPZ, bw->p);
 
     gmp_randseed_ui(rstate, bw->seed);
 
@@ -930,15 +942,15 @@ int wrapped_main(int argc, char *argv[])
     std::unique_ptr<lingen_input_wrapper_base> A_series;
 
     if (random_input_length) {
-        A_series = std::unique_ptr<lingen_input_wrapper_base>(new lingen_random_input(bm.d.ab, bm.d.m, bm.d.n, rstate, random_input_length));
+        A_series = std::unique_ptr<lingen_input_wrapper_base>(new lingen_random_input(&bm.d.ab, bm.d.m, bm.d.n, rstate, random_input_length));
     } else {
-        A_series = std::unique_ptr<lingen_input_wrapper_base>(new lingen_file_input(bm.d.ab, bm.d.m, bm.d.n, afile, global_flag_ascii, input_length));
+        A_series = std::unique_ptr<lingen_input_wrapper_base>(new lingen_file_input(&bm.d.ab, bm.d.m, bm.d.n, afile, global_flag_ascii, input_length));
     }
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 #define K_elts_to_bytes(x)      (iceildiv((x),ULONG_BITS) * sizeof(unsigned long))
 #else
-#define K_elts_to_bytes(x)      (abvec_elt_stride(bm.d.ab, (x)))
+#define K_elts_to_bytes(x)      (bm.d.ab.vec_elt_stride((x)))
 #endif
 
     /* run the mpi problem detection only if we're certain that we're at
@@ -958,7 +970,7 @@ int wrapped_main(int argc, char *argv[])
 
     {
         matpoly::memory_guard blanket(SIZE_MAX);
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
         typename matpoly_ft<fft_transform_info>::memory_guard blanket_ft(SIZE_MAX);
 #else
         typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard blanket_ft(SIZE_MAX);
@@ -1016,20 +1028,20 @@ int wrapped_main(int argc, char *argv[])
     std::unique_ptr<lingen_output_wrapper_base> Fdst_rhs;
     
     if (random_input_length) {
-        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(bm.d.ab, bm.d.n, bm.d.n, "F"));
-        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(bm.d.ab, bm.d.nrhs, bm.d.n, "Frhs"));
+        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(& bm.d.ab, bm.d.n, bm.d.n, "F"));
+        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(& bm.d.ab, bm.d.nrhs, bm.d.n, "Frhs"));
     } else if (split_output_file) {
         std::string pattern = ffile;
-        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(bm.d.ab, bm.d.n, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}", global_flag_ascii));
-        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(bm.d.ab, bm.d.nrhs, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}.rhs", global_flag_ascii));
+        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(& bm.d.ab, bm.d.n, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}", global_flag_ascii));
+        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(& bm.d.ab, bm.d.nrhs, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}.rhs", global_flag_ascii));
     } else {
-        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(bm.d.ab, bm.d.n, bm.d.n, ffile, global_flag_ascii));
-        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(bm.d.ab, bm.d.nrhs, bm.d.n, std::string(ffile) + ".rhs", global_flag_ascii));
+        Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(& bm.d.ab, bm.d.n, bm.d.n, ffile, global_flag_ascii));
+        Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_singlefile(& bm.d.ab, bm.d.nrhs, bm.d.n, std::string(ffile) + ".rhs", global_flag_ascii));
     }
 
     if (go_mpi && size > 1) {
         bigmatpoly_model model(bm.com, bm.mpi_dims[0], bm.mpi_dims[1]);
-        bigmatpoly E(bm.d.ab, model, bm.d.m, bm.d.m + bm.d.n, safe_guess);
+        bigmatpoly E(& bm.d.ab, model, bm.d.m, bm.d.m + bm.d.n, safe_guess);
         lingen_scatter<bigmatpoly> fill_E(E);
         lingen_F0 F0 = *E_series;
         pipe(*E_series, fill_E, "Read");
@@ -1057,13 +1069,13 @@ int wrapped_main(int argc, char *argv[])
          * per-transform ram was computed in the perspective of an MPI
          * run, and not for a plain run.
          */
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
         typename matpoly_ft<fft_transform_info>::memory_guard blanket_ft(SIZE_MAX);
 #else
         typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard blanket_ft(SIZE_MAX);
         typename matpoly_ft<gf2x_ternary_fft_info>::memory_guard blanket_ft2(SIZE_MAX);
 #endif
-        matpoly E(bm.d.ab, bm.d.m, bm.d.m + bm.d.n, safe_guess);
+        matpoly E(& bm.d.ab, bm.d.m, bm.d.m + bm.d.n, safe_guess);
         lingen_scatter<matpoly> fill_E(E);
         lingen_F0 F0 = *E_series;
         pipe(*E_series, fill_E, "Read");
@@ -1093,7 +1105,6 @@ int wrapped_main(int argc, char *argv[])
             printf("# PeakMemusage (MB) = %ld (VmPeak: can be misleading)\n", peakmem >> 10);
     }
 
-    abfield_clear(d.ab);
     if (ffile) free(ffile);
 
     gmp_randclear(rstate);

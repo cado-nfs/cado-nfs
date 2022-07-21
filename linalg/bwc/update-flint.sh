@@ -31,6 +31,7 @@ cp flint2/printf.c flint-fft/
 cp flint2/scanf.c flint-fft/
 cp flint2/exception.c flint-fft/
 cp flint2/exception.h flint-fft/
+cp flint2/clz_tab.c flint-fft/
 mkdir flint-fft/doc
 cp flint2/doc/source/fft.rst flint-fft/doc/
 

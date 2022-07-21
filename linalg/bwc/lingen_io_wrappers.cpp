@@ -6,10 +6,11 @@
 #include <algorithm>                   // for max, sort
 #include <stdexcept>                   // for runtime_error
 #include <type_traits>                 // for integral_constant<>::value
+#include <sstream>
 #include <utility>                     // for move
 #include <sys/types.h>  // ssize_t
 #include <sys/stat.h>   // stat fstat
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 #include <cstring>        // memset
 #include <gmp.h>        // mpn_lshift
 #include "misc.h"       // bit_reverse
@@ -199,8 +200,6 @@ unsigned int lingen_random_input::preferred_window() const
 static bool
 reduce_column_mod_previous(matpoly& M, std::vector<unsigned int>& pivots)
 {
-    abelt tmp MAYBE_UNUSED;
-    abinit(M.ab, &tmp);
     unsigned int r = pivots.size();
     for (unsigned int v = 0; v < r; v++) {
         unsigned int u = pivots[v];
@@ -210,14 +209,13 @@ reduce_column_mod_previous(matpoly& M, std::vector<unsigned int>& pivots)
          * referenced in the pivots[0] to pivots[v-1] indices).
          */
         /* add M[u,r]*column v of M to column r of M */
-#ifdef SELECT_MPFQ_LAYER_u64k1
-        if (abis_zero(M.ab, M.coeff(u, r, 0)))
+#ifdef LINGEN_BINARY
+        if (M.ab->is_zero(M.coeff(u, r, 0)))
             continue;
 #endif
         for (unsigned int i = 0; i < M.m; i++) {
-#ifndef SELECT_MPFQ_LAYER_u64k1
-            abmul(M.ab, tmp, M.coeff(i, v, 0), M.coeff(u, r, 0));
-            abadd(M.ab, M.coeff(i, r, 0), M.coeff(i, r, 0), tmp);
+#ifndef LINGEN_BINARY
+            M.ab->addmul(M.coeff(i, r, 0), M.coeff(i, v, 0), M.coeff(u, r, 0));
             /* don't touch coeff u,r right now, since we're still using
              * it !
              */
@@ -225,19 +223,18 @@ reduce_column_mod_previous(matpoly& M, std::vector<unsigned int>& pivots)
                 continue;
 #else
             /* here, we know that coeff (u,r) is one */
-            M.coeff_accessor(i, r, 0) += M.coeff(i, v);
+            M.coeff(i, r, 0) += M.coeff(i, v, 0);
 #endif
         }
-#ifndef SELECT_MPFQ_LAYER_u64k1
-        abset_zero(M.ab, M.coeff(u, r, 0));
+#ifndef LINGEN_BINARY
+        M.ab->set_zero(M.coeff(u, r, 0));
 #endif
     }
     unsigned int u = 0;
     for (; u < M.m; u++) {
-        if (!abis_zero(M.ab, M.coeff(u, r, 0)))
+        if (!M.ab->is_zero(M.coeff(u, r, 0)))
             break;
     }
-    abclear(M.ab, &tmp);
     if (u != M.m) {
         pivots.push_back(u);
         return true;
@@ -246,27 +243,27 @@ reduce_column_mod_previous(matpoly& M, std::vector<unsigned int>& pivots)
     }
 }
 
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
 static void
 normalize_column(matpoly& M, std::vector<unsigned int> const& pivots)
 {
-    abelt tmp MAYBE_UNUSED;
-    abinit(M.ab, &tmp);
+    auto tmp = M.ab->alloc();
     unsigned int r = pivots.size() - 1;
     unsigned int u = pivots.back();
     /* Multiply the column so that the pivot becomes -1 */
-    int rc = abinv(M.ab, tmp, M.coeff(u, r, 0));
+    int rc = M.ab->inverse(*tmp, M.coeff(u, r, 0));
     if (!rc) {
-        fprintf(stderr, "Error, found a factor of the modulus: ");
-        abfprint(M.ab, stderr, tmp);
-        fprintf(stderr, "\n");
+        std::ostringstream os;
+        M.ab->cxx_out(os, *tmp);
+        fprintf(stderr, "Error, found a factor of the modulus: %s\n",
+                os.str().c_str());
         exit(EXIT_FAILURE);
     }
-    abneg(M.ab, tmp, tmp);
+    M.ab->neg(*tmp, *tmp);
     for (unsigned int i = 0; i < M.m; i++) {
-        abmul(M.ab, M.coeff(i, r, 0), M.coeff(i, r, 0), tmp);
+        M.ab->mul(M.coeff(i, r, 0), M.coeff(i, r, 0), *tmp);
     }
-    abclear(M.ab, &tmp);
+    M.ab->free(tmp);
 }
 #endif
 
@@ -381,7 +378,7 @@ lingen_E_from_A::initial_read()
     /* We want to create a full rank m*m matrix M, by extracting columns
      * from the first coefficients of A */
 
-    matpoly M(bw_dimensions::ab, m, m, 1);
+    matpoly M(&this->bw_dimensions::ab, m, m, 1);
     M.zero_pad(1);
 
     /* For each integer i between 0 and m-1, we have a column, picked
@@ -448,7 +445,7 @@ lingen_E_from_A::initial_read()
             /* Bingo, it's a new independent col. */
 
             fdesc.push_back( {{ t0 - 1, j }} );
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
             if (!mpi_rank())
                 normalize_column(M, pivots);
 #endif
@@ -500,9 +497,9 @@ ssize_t lingen_scatter<matpoly>::write_from_matpoly(matpoly const & src, unsigne
         E.zero_pad(next_dst_k + nk);
         for(unsigned int i = 0 ; i < nrows ; i++) {
             for(unsigned int j = 0; j < ncols ; j++) {
-                abdst_vec to = E.part_head(i, j, next_dst_k);
-                absrc_vec from = src.part_head(i, j, k0);
-                abvec_set(ab, to, from, simd * iceildiv(nk, simd));
+                matpoly::ptr to = E.part_head(i, j, next_dst_k);
+                matpoly::srcptr from = src.part_head(i, j, k0);
+                ab->vec_set(to, from, simd * iceildiv(nk, simd));
             }
         }
     }
@@ -550,9 +547,9 @@ ssize_t lingen_gather<matpoly>::read_to_matpoly(matpoly & dst, unsigned int k0, 
         ASSERT_ALWAYS(k1 <= dst.get_size());
         for(unsigned int i = 0 ; i < nrows ; i++) {
             for(unsigned int j = 0; j < ncols ; j++) {
-                abdst_vec to = dst.part_head(i, j, k0);
-                absrc_vec from = pi.part_head(i, j, next_src_k);
-                abvec_set(ab, to, from, nk);
+                matpoly::ptr to = dst.part_head(i, j, k0);
+                matpoly::srcptr from = pi.part_head(i, j, next_src_k);
+                ab->vec_set(to, from, nk);
             }
         }
     }
@@ -598,8 +595,8 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
     ASSERT_ALWAYS(k1 % simd == 0);
     ASSERT_ALWAYS(next_src_k % simd == 0);
     unsigned int d = pi.get_size();
-    abdst_field ab = pi.ab;
-#ifndef SELECT_MPFQ_LAYER_u64k1
+    matpoly::arith_hard * ab = pi.ab;
+#ifndef LINGEN_BINARY
     for(unsigned int i = 0 ; i < pi.nrows() ; i++) {
         for(unsigned int j = 0; j < pi.ncols() ; j++) {
             /* We'll read coefficients of degrees [d-k1, d-k0[, and
@@ -607,11 +604,11 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
              */
             for(unsigned int k = k0 ; k < k0 + nk ; k++) {
                 if (next_src_k + k < d + k0)
-                    abset(ab,
+                    ab->set(
                             dst.coeff(i, j, k),
                             pi.coeff(i, j, d-1-next_src_k-(k-k0)));
                 else
-                    abset_zero(ab, dst.coeff(i, j, k));
+                    ab->set_zero(dst.coeff(i, j, k));
             }
         }
     }
@@ -636,11 +633,11 @@ ssize_t reverse_matpoly_to_matpoly(matpoly & dst, unsigned int k0, unsigned int 
 
                 ASSERT_ALWAYS(nq <= ntemp);
 #define R(x, b) ((b)*iceildiv((x),(b)))
-                abvec_set(ab, temp, pi.part(i, j) + q_rk, R(n_rk + r_rk, simd));
+                ab->vec_set(temp, pi.part(i, j) + q_rk, R(n_rk + r_rk, simd));
                 if (rk1 % simd) mpn_lshift(temp, temp, nq, simd - (rk1 % simd));
                 /* Now we only have to bit-reverse temp */
                 bit_reverse(temp, temp, nq);
-                abvec_set(ab, dst.part_head(i, j, k0), temp, R(nk, simd));
+                ab->vec_set(dst.part_head(i, j, k0), temp, R(nk, simd));
 #undef R
             }
         }
@@ -724,7 +721,7 @@ ssize_t lingen_gather_reverse<bigmatpoly>::read_to_matpoly(matpoly & dst, unsign
 
 matpoly lingen_F_from_PI::recompute_rhs()
 {
-    abdst_field ab = bw_dimensions::ab;
+    matpoly::arith_hard * ab = &this->bw_dimensions::ab;
     /*
      * first compute the rhscontribs. Use that to decide on a renumbering
      * of the columns, because we'd like to get the "primary" solutions
@@ -798,12 +795,10 @@ matpoly lingen_F_from_PI::recompute_rhs()
 
             /* add coefficient (ipi, jpi, s) of the reversed pi to
              * coefficient (iF, jF, 0) of rhs */
-#ifndef SELECT_MPFQ_LAYER_u64k1
-            absrc_elt src = cache.coeff(ipi, jpi, s);
-            abdst_elt dst = rhs.coeff(iF, jF, 0);
-            abadd(ab, dst, dst, src);
+#ifndef LINGEN_BINARY
+            ab->add_and_reduce(rhs.coeff(iF, jF, 0), cache.coeff(ipi, jpi, s));
 #else
-            rhs.part(iF,jF)[0] ^= !abis_zero(ab, cache.coeff(ipi, jpi, s));
+            rhs.part(iF,jF)[0] ^= cache.coeff(ipi, jpi, s) != 0;
 #endif
         }
     }
@@ -812,13 +807,13 @@ matpoly lingen_F_from_PI::recompute_rhs()
 
 void lingen_F_from_PI::reorder_solutions()
 {
-    abdst_field ab = bw_dimensions::ab;
+    matpoly::arith_hard * ab = &this->bw_dimensions::ab;
     /* compute the score per solution */
     std::vector<std::array<unsigned int, 2>> sol_score;
     for (unsigned int jF = 0; jF < n; jF++) {
         unsigned int s = 0;
         for (unsigned int iF = 0; iF < nrhs; iF++)
-            s += abis_zero(ab, rhs.coeff(iF, jF, 0));
+            s += ab->is_zero(rhs.coeff(iF, jF, 0));
         sol_score.push_back({{ s, jF }});
     }
     std::sort(sol_score.begin(), sol_score.end());
@@ -963,7 +958,7 @@ void lingen_F_from_PI::write_rhs(lingen_output_wrapper_base & Srhs)
  */
 ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
-    abdst_field ab = bw_dimensions::ab;
+    matpoly::arith_hard * ab = &this->bw_dimensions::ab;
 
     /* The first n columns of F0 are the identity matrix, so that
      * for (0 <= j < n),
@@ -1024,10 +1019,10 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
                     std::tie(kA, jA) = column_data_from_A(j);
                     /* column j of E is actually X^{-kA}*column jA of A. */
                     for(unsigned int i = 0 ; i < m ; i++) {
-                        abdst_vec to = dst.part_head(i, j, k0);
-                        absrc_vec from = cache.part_head(i, jA, kA);
-#ifndef SELECT_MPFQ_LAYER_u64k1
-                        abvec_set(ab, to, from, nread);
+                        matpoly::ptr to = dst.part_head(i, j, k0);
+                        matpoly::srcptr from = cache.part_head(i, jA, kA);
+#ifndef LINGEN_BINARY
+                        ab->vec_set(to, from, nread);
 #else
                         unsigned int sr = kA % simd;
                         unsigned int nq = nread / simd;
@@ -1035,7 +1030,7 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
                             mpn_rshift(to, from, nq, sr);
                             to[nq-1] ^= from[nq] << (simd - sr);
                         } else {
-                            abvec_set(ab, to, from, nread);
+                            ab->vec_set(to, from, nread);
                         }
 #endif
                     }
@@ -1076,10 +1071,10 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
                         /* column j of E is actually X^{-kA}*column jA of A. */
                         if (k + kA >= cache_avail) continue;
                         for(unsigned int i = 0 ; i < m ; i++) {
-                            abdst_vec to = tail.part_head(i, j, k - nread);
-                            absrc_vec from = cache.part_head(i, jA, kA + k);
-#ifndef SELECT_MPFQ_LAYER_u64k1
-                            abvec_set(ab, to, from, 1);
+                            matpoly::ptr to = tail.part_head(i, j, k - nread);
+                            matpoly::srcptr from = cache.part_head(i, jA, kA + k);
+#ifndef LINGEN_BINARY
+                            ab->vec_set(to, from, 1);
 #else
                             unsigned int sr = kA % simd;
                             if (sr) {
@@ -1108,9 +1103,9 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
         for(extra = 0 ; extra < tail.get_size() ; ) {
             for(unsigned int j = 0; j < ncols ; j++) {
                 for(unsigned int i = 0 ; i < nrows ; i++) {
-                    abdst_vec to = dst.part_head(i, j, k0 + produced + extra);
-                    absrc_vec from = tail.part_head(i, j, extra);
-                    abvec_set(ab, to, from, simd);
+                    matpoly::ptr to = dst.part_head(i, j, k0 + produced + extra);
+                    matpoly::srcptr from = tail.part_head(i, j, extra);
+                    ab->vec_set(to, from, simd);
                 }
             }
             extra += MIN(simd, tail.get_size() - extra);
@@ -1132,7 +1127,7 @@ ssize_t lingen_E_from_A::read_to_matpoly(matpoly & dst, unsigned int k0, unsigne
  */
 ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsigned int k1)
 {
-    abdst_field ab = bw_dimensions::ab;
+    matpoly::arith_hard * ab = &this->bw_dimensions::ab;
 
     ASSERT_ALWAYS(k0 % simd == 0);
     ASSERT_ALWAYS(k1 % simd == 0);
@@ -1183,10 +1178,10 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                         /* The reversal of pi_{ipi, jpi} contributes to entry (iF,
                          * jF), once shifted right by s.  */
 
-                        abdst_vec to = dst.part_head(iF, jF, k0);
-                        absrc_vec from = cache.part_head(ipi, jpi, s);
-#ifndef SELECT_MPFQ_LAYER_u64k1
-                        abvec_add(ab, to, to, from, nread);
+                        matpoly::ptr to = dst.part_head(iF, jF, k0);
+                        matpoly::srcptr from = cache.part_head(ipi, jpi, s);
+#ifndef LINGEN_BINARY
+                        ab->vec_add_and_reduce(to, from, nread);
 #else
                         /* Add must at the same time do a right shift by sr */
                         unsigned int sr = s % simd;
@@ -1198,7 +1193,7 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                                 to[i] ^= t;
                             }
                         } else {
-                            abvec_add(ab, to, to, from, nread);
+                            ab->vec_add(to, from, nread);
                         }
 #endif
                     }
@@ -1240,10 +1235,10 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
                             unsigned int s;
                             unsigned int iF;
                             std::tie(iF, s) = get_shift_ij(ipi, jF);
-                            abdst_vec to = tail.part_head(iF, jF, k - nread);
-                            absrc_vec from = cache.part_head(ipi, jpi, k + s);
-#ifndef SELECT_MPFQ_LAYER_u64k1
-                            abvec_add(ab, to, to, from, 1);
+                            matpoly::ptr to = tail.part_head(iF, jF, k - nread);
+                            matpoly::srcptr from = cache.part_head(ipi, jpi, k + s);
+#ifndef LINGEN_BINARY
+                            ab->add_and_reduce(*to, *from);
 #else
                             /* Add must at the same time do a right shift by sr */
                             unsigned int sr = s % simd;
@@ -1273,9 +1268,9 @@ ssize_t lingen_F_from_PI::read_to_matpoly(matpoly & dst, unsigned int k0, unsign
         for(extra = 0 ; extra < tail.get_size() ; ) {
             for(unsigned int j = 0; j < ncols ; j++) {
                 for(unsigned int i = 0 ; i < nrows ; i++) {
-                    abdst_vec to = dst.part_head(i, j, k0 + produced + extra);
-                    absrc_vec from = tail.part_head(i, j, extra);
-                    abvec_set(ab, to, from, simd);
+                    matpoly::ptr to = dst.part_head(i, j, k0 + produced + extra);
+                    matpoly::srcptr from = tail.part_head(i, j, extra);
+                    ab->vec_set(to, from, simd);
                 }
             }
             extra += MIN(simd, tail.get_size() - extra);
@@ -1348,7 +1343,7 @@ void lingen_output_to_splitfile::open_file()
     done_open = true;
 }
 
-lingen_output_to_splitfile::lingen_output_to_splitfile(abdst_field ab, unsigned int m, unsigned int n, std::string const & pattern, bool ascii)
+lingen_output_to_splitfile::lingen_output_to_splitfile(matpoly::arith_hard * ab, unsigned int m, unsigned int n, std::string const & pattern, bool ascii)
     : lingen_output_wrapper_base(ab, m, n)
     , pattern(pattern)
     , ascii(ascii)
@@ -1369,11 +1364,11 @@ lingen_output_to_sha1sum::write_from_matpoly(matpoly const& src,
                                unsigned int k1)
 {
     ASSERT_ALWAYS(k0 % simd == 0);
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     ASSERT_ALWAYS(src.high_word_is_clear());
     size_t nbytes = iceildiv(k1 - k0, ULONG_BITS) * sizeof(unsigned long);
 #else
-    size_t nbytes = abvec_elt_stride(src.ab, k1-k0);
+    size_t nbytes = src.ab->vec_elt_stride(k1-k0);
 #endif
     written += src.nrows() * src.ncols() * nbytes;
     if (!mpi_rank()) {

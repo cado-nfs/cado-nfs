@@ -13,8 +13,7 @@
 
 /* relevant to secure.c as well ; really, this is almost a hard-coded
  * constant.  Don't imagine it's easily tunable. If one really insists,
- * perhaps a u64k/secure or or m128/secure would work, but
- * this has not been checked. */
+ * perhaps a b128/secure would work, but this has not been checked. */
 #define NCHECKS_CHECK_VECTOR_GF2    64
 #define NCHECKS_CHECK_VECTOR_GFp    1
 

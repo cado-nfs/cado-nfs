@@ -1,5 +1,5 @@
 #if 0
-static inline void matmul_sub_large_fbi(abobj_ptr x, abt ** sb, const abt * z, const uint8_t * q, unsigned int n)
+static inline void matmul_sub_large_fbi_asm(abobj_ptr x, abt ** sb, const abt * z, const uint8_t * q, unsigned int n)
 {
     /* Dispatch data found in z[0]...z[f(n-1)] such that z[f(i)] is in
      * array pointed to by sb[q[2*i+1]]. The function f(i) is given by
@@ -14,7 +14,7 @@ static inline void matmul_sub_large_fbi(abobj_ptr x, abt ** sb, const abt * z, c
     }
 }
 
-static inline void matmul_sub_large_fbi(ulong ** sb, const ulong * z, const uint8_t * q, unsigned int n)
+static inline void matmul_sub_large_fbi_asm(ulong ** sb, const ulong * z, const uint8_t * q, unsigned int n)
     for(unsigned int c = 0 ; c < n ; c++) {
         z += *q++;
         *sb[*q++]++ = *z;
@@ -24,23 +24,23 @@ static inline void matmul_sub_large_fbi(ulong ** sb, const ulong * z, const uint
 .section .note.GNU-stack,"",%progbits
 	.text
 	.p2align 4,,15
-.globl matmul_sub_large_fbi
-	.type	matmul_sub_large_fbi, @function
-matmul_sub_large_fbi:
+.globl matmul_sub_large_fbi_asm
+	.type	matmul_sub_large_fbi_asm, @function
+matmul_sub_large_fbi_asm:
         pushq %rbp
         pushq %rbx
         pushq %r15
         pushq %r14
         pushq %r13
         pushq %r12
-        // sb pointer --> store in rdi
-        movq    %rsi, %rdi
-        // z pointer --> store in rsi
-	movq	%rdx, %rsi
-        // matrix pointer --> rbp
-        movq    %rcx, %rbp
-                
-        movq    %r8, %r9
+        // arg order: %rdi, %rsi, %rdx, %rcx, %r8, and %r9
+        // %rdi sbp
+        // %rsi z
+	// %rdx q  --> rbp
+        movq    %rdx, %rbp
+	// %rcx q  --> r8 and r9
+        movq    %rcx, %r8
+        movq    %rcx, %r9
         test    %r9,%r9
 
         // at .Lfinished, rbp is shipped as a return value.
@@ -251,4 +251,4 @@ matmul_sub_large_fbi:
         popq %rbx
         popq %rbp
 	ret
-	.size	matmul_sub_large_fbi, .-matmul_sub_large_fbi
+	.size	matmul_sub_large_fbi_asm, .-matmul_sub_large_fbi_asm

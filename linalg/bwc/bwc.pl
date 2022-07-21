@@ -2068,7 +2068,7 @@ sub task_lingen {
     if (! -f "$wdir/$concatenated_A.gen") {
         if ($prime == 2) {
             push @args, "tuning_thresholds=recursive:128,ternary:6400,cantor:6400,notiming:0";
-            task_common_run("lingen_u64k1", @args);
+            task_common_run("lingen_b64", @args);
         } else {
             push @args, "tuning_thresholds=recursive:10,flint:10,notiming:0";
             task_common_run("lingen_pz", @args);
