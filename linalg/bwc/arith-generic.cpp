@@ -99,7 +99,7 @@ struct arith_wrapper: public arith_generic, public T {
         concrete()->simd_set_ui_at(cast(a), k, v);
     }
     virtual void simd_add_ui_at(elt & a, size_t k, int v) const override {
-        concrete()->simd_set_ui_at(cast(a), k, v);
+        concrete()->simd_add_ui_at(cast(a), k, v);
     }
     virtual int simd_hamming_weight(elt const & a) const override {
         return concrete()->simd_hamming_weight(cast(a));
