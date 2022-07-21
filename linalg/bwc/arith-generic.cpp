@@ -167,6 +167,69 @@ extern "C" void * arith_layer(mpz_srcptr p, int simd_groupsize) {
 }
 #endif
 
+#ifndef  BUILD_DYNAMICALLY_LINKABLE_BWC
+struct try_fixed_instances {
+    cxx_mpz p;
+    unsigned int simd_groupsize;
+    arith_generic * ret;
+
+    try_fixed_instances(mpz_srcptr p, unsigned int simd_groupsize)
+        : p(p)
+        , simd_groupsize(simd_groupsize)
+        , ret(nullptr)
+    {}
+    template<unsigned int g> void specialize_binary() {
+        if (!ret && mpz_cmp_ui(p, 2) == 0 && simd_groupsize == g)
+            ret = new arith_wrapper<arith_mod2::gf2<g>>(p, simd_groupsize);
+    }
+    template<unsigned int s> void specialize_prime() {
+        if (!ret && mpz_size(p) == (s) && simd_groupsize == 1)
+            ret = new arith_wrapper<arith_modp::gfp<s>>(p, simd_groupsize);
+    }
+    arith_generic * operator()() {
+#define DO_b(x) specialize_binary<x>()
+#define DO_p(x) specialize_prime<x>()
+        COOKED_ARITHMETIC_BACKENDS;
+#undef DO_b
+#undef DO_p
+        return ret;
+    }
+};
+
+struct try_variable_instances {
+    cxx_mpz p;
+    unsigned int simd_groupsize;
+    arith_generic * ret;
+
+    try_variable_instances(mpz_srcptr p, unsigned int simd_groupsize)
+        : p(p)
+        , simd_groupsize(simd_groupsize)
+        , ret(nullptr)
+    {}
+    template<unsigned int g> void specialize_binary() {
+        if (!ret && mpz_cmp_ui(p, 2) == 0 && g == 0) {
+            fprintf(stderr, "Using variable-width code. For better performance, please consider compiling special-purpose code via BWC_GF2_ARITHMETIC_BACKENDS=\"b%u\" in local.sh\n", simd_groupsize);
+            ret = new arith_wrapper<arith_mod2::gf2<0>>(p, simd_groupsize);
+        }
+    }
+    template<unsigned int s> void specialize_prime() {
+        if (!ret && simd_groupsize == 1 && s == 0) {
+            fprintf(stderr, "Using variable-width code. For better performance, please consider compiling special-purpose code via BWC_GFP_ARITHMETIC_BACKENDS=\"p%zu\" in local.sh\n", mpz_size(p));
+            ret = new arith_wrapper<arith_modp::gfp<0>>(p, simd_groupsize);
+        }
+    }
+    arith_generic * operator()() {
+#define DO_b(x) specialize_binary<x>()
+#define DO_p(x) specialize_prime<x>()
+        COOKED_ARITHMETIC_BACKENDS;
+#undef DO_b
+#undef DO_p
+        return ret;
+    }
+};
+
+#endif
+
 
 arith_generic * arith_generic::instance(mpz_srcptr p, int simd_groupsize)
 {
@@ -206,37 +269,20 @@ arith_generic * arith_generic::instance(mpz_srcptr p, int simd_groupsize)
     }
     return reinterpret_cast<arith_generic *>((*f)(p, simd_groupsize));
 #else
+
     /* Then we need code that pulls in all implementation (from a
      * restrictive list), and selects which one should be returned.
      */
-#define DO_b(g) do {							\
-    if (mpz_cmp_ui(p, 2) == 0 && simd_groupsize == g)			\
-        return new arith_wrapper<arith_mod2::gf2<g>>(p, simd_groupsize);\
-    } while (0)
-
-#define DO_p(s) do {							\
-    if (mpz_size(p) == (s) && simd_groupsize == 1)			\
-        return new arith_wrapper<arith_modp::gfp<s>>(p, simd_groupsize);\
-    } while (0)
-
-    COOKED_ARITHMETIC_BACKENDS;
-
-#undef DO_b
-#undef DO_p
+    arith_generic * fixed = try_fixed_instances(p, simd_groupsize)();
+    if (fixed) return fixed;
 
     /* Now try the generic code */
-#define DO_b(g) do {							\
-    if (mpz_cmp_ui(p, 2) == 0 && g == 0)	        		\
-        fprintf(stderr, "Using variable-width code. For better performance, please consider compiling special-purpose code via BWC_GF2_ARITHMETIC_BACKENDS=\"b%d\" in local.sh\n", simd_groupsize);                                     \
-        return new arith_wrapper<arith_mod2::gf2<0>>(p, simd_groupsize);\
-    } while (0)
+    arith_generic * variable = try_variable_instances(p, simd_groupsize)();
+    if (variable) return variable;
 
-#define DO_p(s) do {							\
-    if (simd_groupsize == 1 && s == 0)			\
-        fprintf(stderr, "Using variable-width code. For better performance, please consider compiling special-purpose code via BWC_GFP_ARITHMETIC_BACKENDS=\"p%d\" in local.sh\n", mpz_size(p));                                     \
-        return new arith_wrapper<arith_modp::gfp<0>>(p, simd_groupsize);\
-    } while (0)
 
+    fprintf(stderr, "No code is compiled in this (static) binary to deal with this case. Please fix local.sh\n");
     abort();
+
 #endif
 }
