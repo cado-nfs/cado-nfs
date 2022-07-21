@@ -146,11 +146,11 @@ if [ "$valgrind" ] ; then
     ls $vdir/nok | while read f ; do
       cmd=$(perl -ne 'm{Command: \S*/([^/\s]+)} && print "$1\n";' $vdir/nok/$f)
       nerr=$(perl -ne 'm{ERROR SUMMARY: (\d+) errors from (\d+) contexts} && print "$1 from $2\n";' $vdir/nok/$f)
-      enter_section "Errors in $cmd ($nerr)"
+      enter_section "errors" "Errors in $cmd ($nerr)"
       cat $vdir/nok/$f
       leave_section
     done
-    tar cvzf $vdir.tar.gz $vdir/
+    tar czf $vdir.tar.gz $vdir/
     rm -rf $vdir
     if [ $rc != 0 ] ; then
      echo "exit code was $rc"

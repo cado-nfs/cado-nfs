@@ -278,6 +278,9 @@ checks under valgrind on debian-testing system on a debug build with gcc:
   script:
     - *checks-script
   <<: *checks-junit-report
+  artifacts:
+    paths:
+      - valgrind-*.tar.gz
 
 ############################################################################
 # coverage. Actually, this is not really dependent on checks, after all.
