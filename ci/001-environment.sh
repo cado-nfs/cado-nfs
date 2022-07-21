@@ -151,8 +151,26 @@ esac
 case "$CI_BUILD_NAME" in
     *"under valgrind"*)
         valgrind=1
+
+        case "$CI_BUILD_NAME" in
+            *32-bit*)
+                echo "valgrind testing is practically hopeless under 32-bit"
+                echo "See https://bugs.kde.org/show_bug.cgi?id=337475"
+                echo
+                echo "We're making this test artificially succeed"
+                exit 0
+                # Things like shlx (in the BMI2 set) are valid in 32-bit
+                # mode, and can definitely be emitted by a compiler, or
+                # can be present in libraries such as gmp. We have no way
+                # to guarantee that no such instructions are encountered,
+                # and valgrind is unwilling to ramp up support for these
+                # instructions (which is understandable)
+                ;;
+        esac
     ;;
 esac
+
+
 
 if [ -x /opt/homebrew/bin/brew ] ; then
     eval `/opt/homebrew/bin/brew shellenv`
