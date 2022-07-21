@@ -104,6 +104,7 @@
    another_one_quite_similar_to_the_previous_leak
    Memcheck:Leak
    match-leak-kinds: possible
+   ...
    fun:calloc
    fun:allocate_dtv
    fun:_dl_allocate_tls
