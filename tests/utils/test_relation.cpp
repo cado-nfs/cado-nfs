@@ -94,9 +94,9 @@ int test_compute_all_r (unsigned int nb)
 {
   int err = 0;
   mpz_t tp, ta, tb;
-  mpz_init (tp);
-  mpz_init (ta);
-  mpz_init (tb);
+  mpz_init(tp);
+  mpz_init(ta);
+  mpz_init(tb);
 
   for (unsigned int i = 0; i < nb; i++)
   {
