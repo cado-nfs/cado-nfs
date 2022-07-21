@@ -210,8 +210,8 @@ EOF
 
     [ -f "$G.gen" ]
 
-    if [ "$wordsize" = 64 ] || [ $((nwords % 2)) = 0 ] ; then
-        feed() { cat "#@" ; }
+    if [ "$wordsize" = 64 ] || [ $((nwords % 2)) = 0 ] || [ "$ascii" ] ; then
+        feed() { cat "$@" ; }
     else
         # We need to expand each n-(32-bit)-word integer to n+1
         feed() {

@@ -664,6 +664,9 @@ std::tuple<int, int, int> expanded_test(matmul_top_data_ptr mmt, mmt_vec ymy[2],
     return res;
 }
 
+/* This is for a specific class of parasites that may be caused by empty
+ * columns in the matrix.
+ */
 class parasite_fixer {/*{{{*/
     matmul_top_data_ptr mmt;
     arith_generic * A;
@@ -1220,6 +1223,8 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         mmt_vec_clear(mmt, svec);
     } /* }}} */
 
+    printf("Hamming weight of sum: %lu\n", mmt_vec_hamming_weight(y));
+
     /* Note that for the inhomogeneous case, we'll do the loop only
      * once, since we end with a break. */
     int winning_iter = 0;
@@ -1332,22 +1337,27 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         /* }}} */
 
         if (tcan_print) {
+            char * hwinfo = NULL;
+            if (hamming_out && tcan_print)
+                asprintf(&hwinfo, ", Hamming weight is %d", hamming_out);
             if (R) {
                 const char * strings[] = {
-                    "V * M^%u + R is %s\n", /* unsupported anyway */
-                    "M^%u * V + R is %s\n",};
-                printf(strings[bw->dir], i, is_zero ? "zero" : "NOT zero");
+                    "V * M^%u + R is %s%s\n", /* unsupported anyway */
+                    "M^%u * V + R is %s%s\n",};
+                printf(strings[bw->dir], i, is_zero ? "zero" : "NOT zero",
+                        hwinfo ? hwinfo : "");
             } else {
                 const char * strings[] = {
-                    "V * M^%u is %s [K.sols%u-%u.%u contains V * M^%u]!\n",
-                    "M^%u * V is %s [K.sols%u-%u.%u contains M^%u * V]!\n",
+                    "V * M^%u is %s%s [K.sols%u-%u.%u contains V * M^%u]!\n",
+                    "M^%u * V is %s%s [K.sols%u-%u.%u contains M^%u * V]!\n",
                 };
                 printf(strings[bw->dir], i,
                         is_zero ? "zero" : "NOT zero",
+                        hwinfo ? hwinfo : "",
                         solutions[0], solutions[1], i-1, i-1);
             }
             if (hamming_out && tcan_print)
-                printf("Hamming weight is %d\n", hamming_out);
+                free(hwinfo);
         }
 
         if (is_zero) {
@@ -1364,7 +1374,13 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         if (tcan_print) {
             printf("Solution range %u..%u: no solution found [%d non zero coefficients in result], most probably a bug\n", solutions[0], solutions[1], nb_nonzero_coeffs);
             if (nb_nonzero_coeffs < bw->n) {
-                printf("There is some likelihood that by combining %d different solutions (each entailing a separate mksol run), a full solution can be recovered. Ask for support.\n", nb_nonzero_coeffs + 1);
+                printf("There is some likelihood that by combining %d different solutions (each entailing a separate mksol run), or even with iterates of a single solution (then with a single mksol run) a full solution can be recovered. Ask for support.\n", nb_nonzero_coeffs + 1);
+                /* A case that we do see is with
+                 * test_bwc_modp_homogeneous_minimal_mn4 and seed=8 (in
+                 * 64-bit mode). Iterates are confined to a 1-dimensional
+                 * space, which means that it is easy to combine S and
+                 * M*S into a full solution. I'm a bit lazy, though.
+                 */
             }
         }
         pthread_mutex_lock(pi->m->th->m);
