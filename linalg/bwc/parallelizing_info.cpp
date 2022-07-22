@@ -927,8 +927,8 @@ void pi_log_init(pi_comm_ptr wr)
 void pi_log_clear(pi_comm_ptr wr)
 {
     if (wr->log_book)
-        free(wr->log_book);
-    wr->log_book = (pi_log_book *) (void*) 0xdeadbeef;
+        delete wr->log_book;
+    wr->log_book = nullptr;
 }
 
 void pi_log_op(pi_comm_ptr wr, const char * fmt, ...)
