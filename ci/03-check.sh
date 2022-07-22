@@ -158,7 +158,7 @@ if [ "$valgrind" ] ; then
     fi
     if [ $found_nok_files = 0 ] ; then
       echo "Found valgrind errors"
-      echo "See archive of log files in `hostname`:$PWD/$vdir.tar.gz"
+      echo "See archive of log files in `hostname`:$vdir.tar.gz"
       exit 1
     fi
 fi

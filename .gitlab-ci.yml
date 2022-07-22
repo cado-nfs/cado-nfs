@@ -279,6 +279,8 @@ checks under valgrind on debian-testing system on a debug build with gcc:
     - *checks-script
   <<: *checks-junit-report
   artifacts:
+    # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/4034#note_17683608
+    when: always
     paths:
       - valgrind-*.tar.gz
 
