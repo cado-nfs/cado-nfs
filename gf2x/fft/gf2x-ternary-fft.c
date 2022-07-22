@@ -1194,6 +1194,7 @@ int gf2x_ternary_fft_info_copy(
     } else {
         o->perm = NULL;
     }
+    return 0;
 }
 
 void gf2x_ternary_fft_info_get_alloc_sizes(
