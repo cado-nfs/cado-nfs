@@ -819,7 +819,7 @@ void pi_dictionary_clear(pi_dictionary_ptr d)
     pi_dictionary_entry_ptr ne = d->e;
     for( ; ne ; ) {
         pi_dictionary_entry_ptr nne = ne->next;
-        free(ne);
+        delete ne;
         ne = nne;
     }
     d->e = NULL;
