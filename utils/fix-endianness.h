@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include "cado-endian.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,6 +17,24 @@ size_t fwrite64_little(const uint64_t * ptr, size_t nmemb, FILE * stream);
 
 #ifdef __cplusplus
 }
+
+static inline uint32_t bswap32(uint32_t x)
+{
+    // x is 3210
+    uint32_t lohi = (x >> 16) | (x << 16);
+    // lohi is 1032
+    uint32_t m = UINT32_C(0xff00ff00);
+    // retrieve x as .1.3  OR  0.2
+    return ((lohi & m) >> 8) | ((lohi << 8) & m);
+}
+
+#ifdef CADO_LITTLE_ENDIAN
+static inline uint32_t bfix32(uint32_t x) { return x; }
+#elif defined(CADO_BIG_ENDIAN)
+static inline uint32_t bfix32(uint32_t x) { return bswap32(x); }
+#else
+#error "implement me"
+#endif
 #endif
 
 #endif	/* FIX_ENDIANNESS_H_ */

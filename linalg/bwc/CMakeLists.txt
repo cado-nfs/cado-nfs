@@ -67,8 +67,17 @@ endmacro()
 
 ### bwc_base
 
-set(bwc_base_sources
+set(bwc_parallelization_sources
     parallelizing_info.cpp
+    )
+if(HAVE_CXX11 AND HAVE_HWLOC)
+    list(APPEND bwc_parallelization_sources
+    cpubinding.cpp
+    )
+endif()
+mpi_add_library(bwc_parallelization OBJECT ${bwc_parallelization_sources})
+
+set(bwc_base_sources
     intersections.c
     xvectors.cpp
     bw-common.c
@@ -86,14 +95,9 @@ set(bwc_base_sources
     arith-cross.cpp
 )
 
-if(HAVE_CXX11 AND HAVE_HWLOC)
-set(bwc_base_sources
-    ${bwc_base_sources}
-    cpubinding.cpp
-    )
-endif()
-
 mpi_add_library(bwc_base ${CADO_SHARED} ${bwc_base_sources})
+
+target_link_libraries(bwc_base bwc_parallelization)
 
 target_link_libraries(bwc_base ${gmp_libname})
 if (HAVE_CURL)

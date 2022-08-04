@@ -30,7 +30,6 @@ macro(add_bwc_test nm script)
     endforeach()
 endmacro()
 
-
 if (ULONG_BITS EQUAL 64)
     set(prime_1 4820030965477198813)
     set(prime_2 126961696855811517082732511703124520971)
@@ -756,5 +755,24 @@ cado_define_test(TEST_NAME test-blocklanczos-staged
 #########################################################################
 
 cado_define_test(test-arith-modp.cpp LIBRARIES tests utils)
+
+cado_define_test(test_matrix_file.cpp
+    ${CADO_NFS_SOURCE_DIR}/linalg/bwc/matrix_file.cpp
+    NO_DEFAULT_RUN
+    LIBRARIES bwc_parallelization utils)
+
+set_target_properties(test_matrix_file PROPERTIES
+    COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
+    LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+
+cado_define_test(test_matrix_file_script SCRIPT
+${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir --
+${CMAKE_CURRENT_SOURCE_DIR}/test_matrix_file.sh
+TARGET_DEPENDENCIES test_matrix_file
+NO_DEFAULT_RUN)
+
+cado_divert_test(test_matrix_file_script sample1 APPEND_ARGUMENTS sample1)
+cado_divert_test(test_matrix_file_script sample2 APPEND_ARGUMENTS sample2)
+
 
 add_subdirectory (flint-fft)

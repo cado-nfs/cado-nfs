@@ -647,6 +647,8 @@ linalg/bwc/matmul_facade.hpp
 linalg/bwc/matmul_top.cpp
 linalg/bwc/matmul_top.hpp
 linalg/bwc/matmul_top2.cpp
+linalg/bwc/matrix_file.cpp
+linalg/bwc/matrix_file.hpp
 linalg/bwc/mf.c
 linalg/bwc/mf.h
 linalg/bwc/mf_bal.cpp
@@ -1189,6 +1191,9 @@ tests/linalg/bwc/flint-fft/test-flint-debug-magma.sh
 tests/linalg/bwc/flint-fft/test-flint.c
 tests/linalg/bwc/flint-fft/test-flint.m
 tests/linalg/bwc/flint-fft/test_transform_length.cpp
+tests/linalg/bwc/matrix_bin2rows.pl
+tests/linalg/bwc/matrix_txt2bin.pl
+tests/linalg/bwc/matrix_weights_to_offsets.pl
 tests/linalg/bwc/perlrandom.pl
 tests/linalg/bwc/short_matmul.c
 tests/linalg/bwc/spmv_test.cpp
@@ -1205,6 +1210,8 @@ tests/linalg/bwc/test_bl_extraction.cpp
 tests/linalg/bwc/test_cpubinding.c
 tests/linalg/bwc/test_hello.cpp
 tests/linalg/bwc/test_matpoly.cpp
+tests/linalg/bwc/test_matrix_file.cpp
+tests/linalg/bwc/test_matrix_file.sh
 tests/linalg/bwc/time_matpoly_ft_parallel.cpp
 tests/misc/CMakeLists.txt
 tests/misc/Makefile
