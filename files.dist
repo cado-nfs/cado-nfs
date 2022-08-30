@@ -1359,6 +1359,8 @@ tests/misc/testcheck_rels.sh
 tests/ncpus.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
+tests/polyselect/sopt.input1.txt
+tests/polyselect/sopt.input2.txt
 tests/polyselect/test_auxiliary.c
 tests/polyselect/test_polyselect_shash.cpp
 tests/polyselect/test_rho.c
@@ -1570,6 +1572,7 @@ tests/utils/test_usp.c
 tests/utils/test_verbose.c
 tests/utils/testbase-rootfinder.quick
 tests/utils/testmpz-rootfinder.quick
+tests/wrap-test.sh
 typecast.h
 utils/CMakeLists.txt
 utils/Makefile
