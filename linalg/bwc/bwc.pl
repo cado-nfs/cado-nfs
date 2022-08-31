@@ -2414,7 +2414,7 @@ sub task_cleanup {
     }
     if (scalar @todo == 1 && (!-f"$wdir/W" || ((stat "$wdir/W")[7] lt (stat "$wdir/W.sols$solutions[0]")[7]))) {
         print STDERR "## Providing $wdir/W as an alias to $wdir/W.sols$solutions[0]\n";
-        symlink "$wdir/W.sols$solutions[0]", "$wdir/W";
+        symlink "W.sols$solutions[0]", "$wdir/W";
     }
 }
 # }}}
