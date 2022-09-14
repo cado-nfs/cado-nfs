@@ -199,6 +199,14 @@ static renumber_t::corrupted_table cannot_find_pr(renumber_t::p_r_side x)/*{{{*/
     std::ostringstream os;
     os << std::hex;
     os << "cannot find p=0x" << x.p << ", r=0x" << x.r << " on side " << x.side;
+    /* #30012 and #30048 are cases where we see composites. #30048 in
+     * particular sees the code crashing here, which is really cryptic.
+     * We can alleviate that with a simple test.
+     */
+    if (!ulong_isprime(x.p)) {
+        os << " ; NOTE that this p is not prime"
+            << ", which is very unexpected. See bug #30048";
+    }
     return renumber_t::corrupted_table(os.str());
 }/*}}}*/
 static renumber_t::corrupted_table cannot_lookup_p_a_b_in_bad_ideals(renumber_t::p_r_side x, int64_t a, uint64_t b)/*{{{*/
