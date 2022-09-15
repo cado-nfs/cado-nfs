@@ -401,8 +401,8 @@ padded trivially to obtain a larger matrix Mx whose number of rows and
 columns are equal, and both multiples of nh*nv, say we have
 nr==nc==nh*nv*nz for an integer nz.
 
-Each row index i in [0..nr] can be written (i*nv+j)*nz+k, 0<=i<nh,
-0<=j<nv, 0<=k<nz. The image by P of this index is (j*nh+i)*nz+k (or the
+Each row index I in [0..nr] can be written as I=(i*nv+j)*nz+k, 0<=i<nh,
+0<=j<nv, 0<=k<nz. The image by P(I) of this index is (j*nh+i)*nz+k (or the
 opposite, see bwc_trace.m to see which is right). Magma code for
 computing the corresponding permutation matrix follows:
 
