@@ -616,7 +616,7 @@ modul_poly_cantor_zassenhaus (residueul_t *r, modul_poly_t f, modulusul_t p, gmp
   ASSERT (p[0] & 1);
   ASSERT (d >= 1);
 
-  if (d == 1) /* easy case: linear factor x + a ==> root -a mod p */
+  if (d == 1) /* easy case: linear factor ax + b ==> root b/(-a) mod p */
     {
         residueul_t aux;
         modul_neg(aux, f->coeff[1], p);
