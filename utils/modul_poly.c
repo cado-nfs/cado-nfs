@@ -130,7 +130,7 @@ modul_poly_derivative(modul_poly_t f, const modul_poly_t g, modulusul_t p)
 
 /* fp <- f/lc(f) mod p. Return degree of fp (-1 if fp=0). */
 int
-modul_poly_set_mod (modul_poly_t fp, mpz_poly_srcptr F, modulusul_t p)
+modul_poly_set_mod (modul_poly_t fp, mpz_poly_srcptr f, modulusul_t p)
 {
   int d;
 
