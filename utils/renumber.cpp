@@ -234,7 +234,7 @@ static renumber_t::corrupted_table parse_error(std::string const & what)/*{{{*/
  * p_r_values_t and T == uint64_t */
 template<typename T> inline T vp_from_p(T p, int n, int c, int format MAYBE_UNUSED)
 {
-    /* The final "+c" is not necessary, but we keep it for compatibility */
+    /* The final "+d" is not necessary, but we keep it for compatibility */
     int d = 0;
     return (n - c) * (p + 1) + d;
 }
