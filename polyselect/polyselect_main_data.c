@@ -160,7 +160,7 @@ find_suitable_lq(polyselect_poly_header_srcptr header,
 /* Given the current global state (on which we expect to have a lock!),
  * print the expected time to reach the given target E.
  *
- * This uses the Weibull moments functions. Notet that the target_E
+ * This uses the Weibull moments functions. Note that the target_E
  * option is incompatible with maxtime (which also uses the same
  * things)
  */
