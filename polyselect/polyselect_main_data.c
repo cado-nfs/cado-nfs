@@ -59,7 +59,8 @@ void polyselect_main_data_clear(polyselect_main_data_ptr main)
 }
 
 /* This returns the bound on i in the algorithm. We choose to set it to
- * the square of the max prime (this is also a suggestion in the slides)
+ * the square of the largest prime (this is also a suggestion in the slides)
+ * where we consider all primes in [P,2P].
  */
 int64_t polyselect_main_data_get_M(polyselect_main_data_srcptr main)
 {
