@@ -1937,7 +1937,7 @@ sub task_krylov {
         # needed. (note that if both were specified, this is essentially
         # putting the very same parameters back in place, but with the
         # benefit of having performed a check inbetween).
-        my @args = grep { !/^ys/ && !/^start/ } @main_args;
+        my @args = grep { !/^ys/ && !/^start/ && !/^max_ram/ } @main_args;
         push @args, split(' ', $t);
         task_safety_check_krylov @args, split(' ', $t);
         task_common_run 'krylov', @args;
@@ -2202,7 +2202,7 @@ sub task_mksol {
         # take out ys from main_args, put the right one in place if
         # needed.
         # print "main_args: @main_args\n";
-        my @args = grep { !/^(ys|n?rhs|start)/ } @main_args;
+        my @args = grep { !/^(ys|n?rhs|start|max_ram)/ } @main_args;
         push @args, split(' ', $t);
 
         task_common_run 'mksol', @args;
