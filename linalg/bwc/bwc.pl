@@ -2058,7 +2058,7 @@ sub task_lingen {
     push @args, "split-output-file=1";
     push @args, "afile=$concatenated_A";
     push @args, "ffile=F";
-    push @args, grep { /^(?:mn|m|n|wdir|prime|rhs)=/ || /allow_zero_on_rhs/ } @main_args;
+    push @args, grep { /^(?:mn|m|n|wdir|prime|rhs)=/ || /allow_zero_on_rhs/ || /max_ram/ } @main_args;
     if (!$mpi_needed && ($lingen_mpi_split[0]*$lingen_mpi_split[1] != 1)) {
         print "## non-MPI build, avoiding multi-node lingen\n";
         # We keep thr=
