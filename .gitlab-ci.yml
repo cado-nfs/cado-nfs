@@ -92,10 +92,60 @@ checks on debian system with 32-bit gcc:
     - *checks-script
   <<: *checks-junit-report
 
+checks on ubuntu system with gcc:
+  <<: *common-template
+  stage: early
+  image: ubuntu:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on debian-testing system with 32-bit gcc:
+  <<: *common-template
+  stage: early
+  image: debian:testing
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
 checks using cmake directly with gcc:
   <<: *common-template
   stage: early
   image: alpine
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on debian system with gcc:
+  <<: *common-template
+  stage: early
+  image: debian:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on debian-testing system with gcc:
+  <<: *common-template
+  stage: early
+  image: debian:testing
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks shared libs on debian-testing system with gcc:
+  <<: *common-template
+  stage: early
+  image: debian:testing
   before_script:
     - ci/00-prepare-docker.sh
   script:
@@ -126,6 +176,36 @@ checks on opensuse system with gcc:
   <<: *common-template
   stage: early
   image: opensuse/leap
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on fedora system with gcc:
+  <<: *common-template
+  stage: early
+  image: fedora:latest
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on centos system with gcc:
+  <<: *common-template
+  stage: early
+  image: quay.io/centos/centos:stream
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks on centos9 system with gcc:
+  <<: *common-template
+  stage: early
+  image: quay.io/centos/centos:stream9
   before_script:
     - ci/00-prepare-docker.sh
   script:
@@ -193,6 +273,7 @@ coverage tests on checks with gcc:
     paths:
       - coverage-*.info
       - coverage-*.json
+    # - coverage-*-generated-sources.tar.gz
     expire_in: 1 week
 
 
@@ -234,7 +315,9 @@ merge coverage tests:
       - coverage.tar.gz
     expire_in: 30 days
     reports:
-      cobertura: coverage.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
 
 ############################################################################
 # Tests on slow machines and/or shell executors. They depend on nothing.
@@ -288,7 +371,9 @@ checks on freebsd12.3 system with gcc:
   # implemented someday. We would like to have it, to make sure that the
   # cleanup sequence is called no matter what.
 
-checks on freebsd13.0 system with gcc:
+# See #30036: it seems that testing with gcc on freebsd is
+# definitely too much pain now.
+checks on freebsd13.1 system with clang:
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
   <<: *common-template
@@ -299,9 +384,9 @@ checks on freebsd13.0 system with gcc:
     - freebsd-tanker
   script:
     - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
+    - ci/50-libvirt-wrap-tests.sh freebsd:13.1 ci/40-testsuite.sh
 
-checks on 32-bit freebsd13.0 system with gcc:
+checks on 32-bit freebsd13.1 system with clang:
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
     FREEBSD_ARCH: i386
@@ -313,21 +398,7 @@ checks on 32-bit freebsd13.0 system with gcc:
     - freebsd-tanker
   script:
     - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:13.0?arch=i386 ci/40-testsuite.sh
-
-# checks with the default shipped compiler as well (which is clang)
-checks on freebsd13.0 system with clang:
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-  <<: *common-template
-  stage: thorough
-  # do not start it prematurely, in case previous jobs failed
-  # needs: []
-  tags:
-    - freebsd-tanker
-  script:
-    - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:13.0 ci/40-testsuite.sh
+    - ci/50-libvirt-wrap-tests.sh freebsd:13.1?arch=i386 ci/40-testsuite.sh
 
 coverity on debian10 system with gcc:
   # override the common template.
@@ -357,6 +428,24 @@ coverity on debian10 system with gcc:
     --form file=@cov-int.tar.gz
     --form version="`git describe --tags`"
     --form description="`git describe --tags` / $CI_COMMIT_TITLE / $CI_COMMIT_REF_NAME:$CI_PIPELINE_ID"
+
+containers:
+  stage: publish
+  image: docker
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
+    - when: on_success
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - apk update
+    - apk add make bash git
+    - make -f docker/Makefile PUSH=yes NOW=$(date +%Y%m%d%H%M-$CI_COMMIT_SHA)
+  retry:
+    max: 2
+    when: runner_system_failure
+
 
 # "cache" is only when the runners have a notion of available cache
 # server, it seems. Don't do that for now.

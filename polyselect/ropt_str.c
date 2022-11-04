@@ -20,6 +20,7 @@
 #include "area.h"
 #include "auxiliary.h"  // L2_skew_lognorm // IWYU pragma: keep
 #include "size_optimization.h"
+#include "polyselect_norms.h"
 
 
 /* -----------------*/
@@ -45,18 +46,6 @@ rotate_bounds_V_mpz ( mpz_t *f,
   mpz_poly_init (G, 1);
   mpz_poly_setcoeffs (F0, f, d);
   mpz_poly_setcoeffs (G0, g, 1);
-
-  mpz_poly_ptr fptr, gptr;
-  cado_poly poly;
-  cado_poly_init (poly);
-  fptr = poly->pols[ALG_SIDE];
-  fptr->deg = d;
-  gptr = poly->pols[RAT_SIDE];
-  gptr->deg = 1;
-  for (int i = 0; i < (d+1); i++)
-    mpz_set(poly->pols[ALG_SIDE]->coeff[i], f[i]);
-  for (int i = 0; i < 2; i++)
-    mpz_set(poly->pols[RAT_SIDE]->coeff[i], g[i]);
 
   
   /* look for positive V: 2, 4, 8, ... */
@@ -103,8 +92,7 @@ rotate_bounds_V_mpz ( mpz_t *f,
     if (lognorm > bound->bound_lognorm) break;
   }
   mpz_set (bound->global_v_boundl, V);
-  
-  cado_poly_clear (poly);
+
   mpz_poly_clear (F0);
   mpz_poly_clear (F);
   mpz_poly_clear (G0);

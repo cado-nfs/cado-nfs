@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <string>                // for string
 #include <algorithm>
+#include <vector>
 #include <sys/stat.h>
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
 #include "async.h"
@@ -116,92 +117,122 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* Ct is a constant projection matrix of size bw->m * nchecks */
     /* It depends only on the random seed. We create it if start==0, or
      * reload it otherwise. */
-    std::string Tfilename = "Ct0-{}.0-{}"_format(nchecks, bw->m);
+    std::string Tfilename = fmt::format(FMT_STRING("Ct0-{}.0-{}"), nchecks, bw->m);
     size_t T_coeff_size = A->vec_elt_stride(A, bw->m);
     void * Tdata;
     cheating_vec_init(A, &Tdata, bw->m);
 
     /* Cr is a list of matrices of size nchecks * nchecks */
     /* It depends only on the random seed */
-    std::string Rfilename = "Cr0-{}.0-{}"_format(nchecks, nchecks);
+    std::string Rfilename = fmt::format(FMT_STRING("Cr0-{}.0-{}"), nchecks, nchecks);
     FILE * Rfile = NULL;
     size_t R_coeff_size = A->vec_elt_stride(A, nchecks);
 
 
-    /* {{{ First check consistency of existing files with the bw->start
-     * value. We wish to abort early (and not touch any existing file!)
-     * if an inconsistency is detected.
-     */
-    int consistency = 1;
-    if (!legacy_check_mode && pi->m->jrank == 0 && pi->m->trank == 0) {
-        struct stat sbuf[1];
-        rc = stat(Rfilename.c_str(), sbuf);
-        if (bw->start == 0) {
-            if ((rc == 0 && sbuf->st_size) || errno != ENOENT) {
-                fmt::fprintf(stderr, "Refusing to overwrite %s with new random data\n", Rfilename);
-                consistency = 0;
-            }
-        } else {
-            if (rc != 0) {
-                fmt::fprintf(stderr, "Cannot expand non-existing %s with new random data\n", Rfilename);
-                consistency = 0;
-            } else if ((size_t) sbuf->st_size != (size_t) bw->start * R_coeff_size) {
-                fmt::fprintf(stderr, "Cannot expand %s (%u entries) starting at position %u\n", Rfilename, (unsigned int) (sbuf->st_size / R_coeff_size), bw->start);
-                consistency = 0;
-            }
-        }
-        rc = stat(Tfilename.c_str(), sbuf);
-        if (bw->start == 0) {
-            if ((rc == 0 && sbuf->st_size) || errno != ENOENT) {
-                fmt::fprintf(stderr, "Refusing to overwrite %s with new random data\n", Tfilename);
-                consistency = 0;
-            }
-        } else {
-            if (rc != 0) {
-                fmt::fprintf(stderr, "File %s not found, cannot expand check data\n", Tfilename);
-                consistency = 0;
-            } else if ((size_t) sbuf->st_size != T_coeff_size) {
-                fmt::fprintf(stderr, "File %s has wrong size (%zu != %zu), cannot expand check data\n", Tfilename, (size_t) sbuf->st_size, T_coeff_size);
-                consistency = 0;
-            }
-        }
-    }
-    pi_bcast(&consistency, 1, BWC_PI_INT, 0, 0, pi->m);
-    if (!consistency) pi_abort(EXIT_FAILURE, pi->m);
-    /* }}} */
-
-    /* {{{ create or load T, based on the random seed. */
     if (!legacy_check_mode) {
-        /* When start > 0, the call below does not care about the data it
-         * generates, it only cares about the side effect to the random
-         * state. We do it just in order to keep the random state
-         * synchronized compared to what would have happened if we
-         * started with start=0. It's cheap enough anyway.
-         *
-         * (also, random generation matters only at the leader node)
+        /* {{{ First check consistency of existing files with the bw->start
+         * value. We wish to abort early (and not touch any existing file!)
+         * if an inconsistency is detected.
          */
-        A->vec_random(A, Tdata, bw->m, rstate);
-        if (bw->start == 0) {
-            if (pi->m->jrank == 0 && pi->m->trank == 0) {
-                FILE * Tfile = fopen(Tfilename.c_str(), "wb");
-                rc = fwrite(Tdata, A->vec_elt_stride(A, bw->m), 1, Tfile);
-                ASSERT_ALWAYS(rc == 1);
-                fclose(Tfile);
-                if (tcan_print) fmt::printf("Saved %s\n", Tfilename);
+        int consistency = 1;
+        if (pi->m->jrank == 0 && pi->m->trank == 0) {
+            /* a temporary structure to avoid TOCTOU *//*{{{*/
+            struct file_guard {
+                FILE * f;
+                struct stat sbuf[1];
+                FILE * steal_file_pointer() {
+                    /* Note that this breaks the conversion to bool */
+                    FILE * rf = f;
+                    f = NULL;
+                    return rf;
+                }
+                ~file_guard() { if (f) fclose(f); }
+                file_guard(const char * filename, const char * mode) {
+                    f = fopen(filename, mode);
+                    memset(sbuf, 0, sizeof(struct stat));
+                    if (!f) return;
+                    int rc = fstat(fileno(f), sbuf);
+                    if (rc != 0) {
+                        fclose(f);
+                        f = NULL;
+                    }
+                    /* f != NULL implies rc == 0 at this point */
+                }
+                operator bool() const { return f; }
+            };/*}}}*/
+
+            file_guard R(Rfilename.c_str(), "ab");
+
+            if (bw->start == 0) {
+                if (R && R.sbuf->st_size) {
+                    fmt::fprintf(stderr, "Refusing to overwrite %s with new random data\n", Rfilename);
+                    consistency = 0;
+                }
+            } else {
+                if (!R) {
+                    fmt::fprintf(stderr, "Cannot expand non-existing %s with new random data\n", Rfilename);
+                    consistency = 0;
+                } else if ((size_t) R.sbuf->st_size != (size_t) bw->start * R_coeff_size) {
+                    fmt::fprintf(stderr, "Cannot expand %s (%u entries) starting at position %u\n", Rfilename, (unsigned int) (R.sbuf->st_size / R_coeff_size), bw->start);
+                    consistency = 0;
+                }
             }
-        } else {
-            if (pi->m->jrank == 0 && pi->m->trank == 0) {
-                FILE * Tfile = fopen(Tfilename.c_str(), "rb");
-                rc = fread(Tdata, A->vec_elt_stride(A, bw->m), 1, Tfile);
+            if (consistency) Rfile = R.steal_file_pointer();
+
+            /* Non-destructively open for writing */
+            file_guard T(Tfilename.c_str(), "ab");
+            if (bw->start == 0) {
+                if (T && T.sbuf->st_size) {
+                    fmt::fprintf(stderr, "Refusing to overwrite %s with new random data\n", Tfilename);
+                    consistency = 0;
+                }
+            } else {
+                if (!T) {
+                    fmt::fprintf(stderr, "File %s not found, cannot expand check data\n", Tfilename);
+                    consistency = 0;
+                } else if ((size_t) T.sbuf->st_size != T_coeff_size) {
+                    fmt::fprintf(stderr, "File %s has wrong size (%zu != %zu), cannot expand check data\n", Tfilename, (size_t) T.sbuf->st_size, T_coeff_size);
+                    consistency = 0;
+                }
+            }
+
+            /* The non-master branch does exactly the same! */
+            pi_bcast(&consistency, 1, BWC_PI_INT, 0, 0, pi->m);
+            if (!consistency) pi_abort(EXIT_FAILURE, pi->m);
+
+            /* {{{ create or load T, based on the random seed. */
+
+            /* When start > 0, the call below does not care about the data it
+             * generates, it only cares about the side effect to the random
+             * state. We do it just in order to keep the random state
+             * synchronized compared to what would have happened if we
+             * started with start=0. It's cheap enough anyway.
+             *
+             * (also, random generation matters only at the leader node)
+             */
+            A->vec_random(A, Tdata, bw->m, rstate);
+            if (bw->start == 0) {
+                rc = fwrite(Tdata, A->vec_elt_stride(A, bw->m), 1, T.f);
                 ASSERT_ALWAYS(rc == 1);
-                fclose(Tfile);
+                if (tcan_print) fmt::printf("Saved %s\n", Tfilename);
+            } else {
+                rc = fread(Tdata, A->vec_elt_stride(A, bw->m), 1, T.f);
+                ASSERT_ALWAYS(rc == 1);
                 if (tcan_print) fmt::printf("loaded %s\n", Tfilename);
             }
+            /* }}} */
+
+            ASSERT_ALWAYS(Rfile != NULL);
+
+            pi_bcast(Tdata, bw->m, A_pi, 0, 0, pi->m);
+        } else {
+            pi_bcast(&consistency, 1, BWC_PI_INT, 0, 0, pi->m);
+            if (!consistency) pi_abort(EXIT_FAILURE, pi->m);
+            pi_bcast(Tdata, bw->m, A_pi, 0, 0, pi->m);
         }
-        pi_bcast(Tdata, bw->m, A_pi, 0, 0, pi->m);
-    }
-    /* }}} */
-    if (legacy_check_mode) {
+        /* }}} */
+
+    } else {
         void * Rdata;
         cheating_vec_init(A, &Rdata, nchecks);
         for(int k = 0 ; k < bw->start ; k++) {
@@ -210,12 +241,6 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         }
         cheating_vec_clear(A, &Rdata, nchecks);
     }
-
-    /* {{{ Set file pointer for R (append-only) */
-    if (!legacy_check_mode && pi->m->jrank == 0 && pi->m->trank == 0) {
-        Rfile = fopen(Rfilename.c_str(), "ab");
-    }
-    /* }}} */
 
     /* {{{ create initial Cv and Cd, or load them if start>0 */
     if (bw->start == 0) {
@@ -258,12 +283,12 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         int ok;
 
         if (legacy_check_mode) {
-            ok = mmt_vec_load(my,   "C%u-%u.{}"_format(bw->start), unpadded, 0);
+            ok = mmt_vec_load(my,   fmt::format(FMT_STRING("C%u-%u.{}"), bw->start), unpadded, 0);
             ASSERT_ALWAYS(ok);
         } else {
-            ok = mmt_vec_load(my,   "Cv%u-%u.{}"_format(bw->start), unpadded, 0);
+            ok = mmt_vec_load(my,   fmt::format(FMT_STRING("Cv%u-%u.{}"), bw->start), unpadded, 0);
             ASSERT_ALWAYS(ok);
-            ok = mmt_vec_load(dvec, "Cd%u-%u.{}"_format(bw->start), unpadded, 0);
+            ok = mmt_vec_load(dvec, fmt::format(FMT_STRING("Cd%u-%u.{}"), bw->start), unpadded, 0);
             ASSERT_ALWAYS(ok);
         }
     }
@@ -280,26 +305,33 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     serialize_threads(pi->m);
     ASSERT_ALWAYS(bw->end % bw->interval == 0);
 
-    int interval_already_in_check_stops = 0;
-    for(int i = 0 ; i < bw->number_of_check_stops ; i++) {
-        if (bw->check_stops[i] == bw->interval) {
-            interval_already_in_check_stops = 1;
-            break;
+    /* easier to deal with a copy on the stack */
+    std::vector<int> check_stops(bw->check_stops, bw->check_stops + bw->number_of_check_stops);
+
+    /* see #30025 -- we want a sensible default */
+    if (check_stops.empty()) {
+        check_stops.push_back(0);
+        check_stops.push_back(bw->interval);
+        int a = std::min(16, bw->interval / 2);
+        if (a) {
+            /* if interval == 1, don't bother */
+            check_stops.push_back(a);
+            check_stops.push_back(bw->interval + a);
         }
     }
-    if (serialize_threads(pi->m)) {
-        if (!interval_already_in_check_stops) {
-            ASSERT_ALWAYS(bw->number_of_check_stops < MAX_NUMBER_OF_CHECK_STOPS - 1);
-            bw->check_stops[bw->number_of_check_stops++] = bw->interval;
-        }
-        std::sort(bw->check_stops, bw->check_stops + bw->number_of_check_stops);
+
+    /* if something was provided, make really sure that at least the
+     * interval value is within the list of check stops */
+    if (std::find(check_stops.begin(), check_stops.end(), bw->interval) == check_stops.end()) {
+        check_stops.push_back(bw->interval);
     }
+    std::sort(check_stops.begin(), check_stops.end());
     serialize_threads(pi->m);
 
     if (tcan_print) {
         printf("Computing trsp(x)*M^k for check stops k=");
-        for(int s = 0 ; s < bw->number_of_check_stops ; s++) {
-            int next = bw->check_stops[s];
+        for(unsigned int s = 0 ; s < check_stops.size() ; s++) {
+            int next = check_stops[s];
             if (s) printf(",");
             printf("%d", next);
         }
@@ -315,9 +347,13 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     // }}}
 
     int k = bw->start;
-    for(int s = 0 ; s < bw->number_of_check_stops ; s++) {
+    for(int next : check_stops) {
         serialize(pi->m);
-        int next = bw->check_stops[s];
+        if (next == 0) {
+            /* if 0 is in check_stops, we don't want to create files such
+             * as Cd0-64.0 */
+            continue;
+        }
         if (next < k) {
             /* This may happen when start is passed and is beyond the
              * first check stop.
@@ -372,10 +408,10 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         mmt_vec_untwist(mmt, dvec);
 
         if (legacy_check_mode) {
-            mmt_vec_save(my,   "C%u-%u.{}"_format(k), unpadded, 0);
+            mmt_vec_save(my,   fmt::format(FMT_STRING("C%u-%u.{}"), k), unpadded, 0);
         } else {
-            mmt_vec_save(my,   "Cv%u-%u.{}"_format(k), unpadded, 0);
-            mmt_vec_save(dvec, "Cd%u-%u.{}"_format(k), unpadded, 0);
+            mmt_vec_save(my,   fmt::format(FMT_STRING("Cv%u-%u.{}"), k), unpadded, 0);
+            mmt_vec_save(dvec, fmt::format(FMT_STRING("Cd%u-%u.{}"), k), unpadded, 0);
             if (pi->m->trank == 0 && pi->m->jrank == 0 && (next - k0)) {
                 rc = fwrite(Rdata_stream, A->vec_elt_stride(A, nchecks), next - k0, Rfile);
                 ASSERT_ALWAYS(rc == (next - k0));

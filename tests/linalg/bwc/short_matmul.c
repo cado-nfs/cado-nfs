@@ -127,7 +127,7 @@ void short_matmul_binary(FILE * out, FILE * v,  const char * uri, int mul_left)
             }
         }
         fclose(v);
-        ASSERT(nrows == rrows);
+        ASSERT_ALWAYS(nrows == rrows);
         unsigned long k;
         for(k = 0 ; k < nrows ; k++) {
             uint64_t w = vec[k];
@@ -261,7 +261,7 @@ void short_matmul_prime(FILE * out, FILE * v,  const char * uri, int mul_left, m
             }
         }
         fclose(v);
-        ASSERT(nrows == rrows);
+        ASSERT_ALWAYS(nrows == rrows);
         unsigned long k;
         for(k = 0 ; k < nrows ; k++) {
             // printf("%016" PRIx64 "\n", w);

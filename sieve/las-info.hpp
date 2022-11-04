@@ -16,7 +16,7 @@
 #include <gmp.h>
 #include "cado_poly.h"   // cxx_cado_poly
 #include "ecm/batch.hpp"               // for cofac_list
-#include "ecm/facul.hpp"                   // for facul_strategies_t
+#include "ecm/facul.hpp"                   // for facul_strategies
 #include "fb.hpp"                      // for fb_factorbase, fb_factorbase::...
 #ifdef HAVE_HWLOC
 #include "hwloc-aux.h"
@@ -121,7 +121,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
     j_divisibility_helper const * get_j_divisibility_helper(int J) {
         return local_cache().get_j_divisibility_helper(J);
     }
-    facul_strategies_t const * get_strategies(siever_config const & conf) const {
+    facul_strategies const * get_strategies(siever_config const & conf) const {
         return local_cache().get_strategies(conf);
     }
     bool no_fb(int side) const {
@@ -161,8 +161,8 @@ struct las_info : public las_parallel_desc, private NonCopyable {
         return (p >= qfac_min) && (p <= qfac_max);
     }
 
-    std::array<unsigned long, 2> dupqmin;   /* smallest q sieved, for dupsup */
-    std::array<unsigned long, 2> dupqmax;   /* largest q sieved, for dupsup */
+    std::vector<unsigned long> dupqmin;   /* smallest q sieved, for dupsup */
+    std::vector<unsigned long> dupqmax;   /* largest q sieved, for dupsup */
  
     // ----- stuff roughly related to the descent
     unsigned int max_hint_bitsize[2];
@@ -209,9 +209,7 @@ struct las_info : public las_parallel_desc, private NonCopyable {
         void doit();
     } batch_print_survivors;
 
-    const char *batch_file[2];
-    int batchlpb[2];
-    int batchmfb[2];
+    std::vector<batch_side_config> bsides;
 
     /* Would this rather go somewhere else ? In a global (not per-sq)
      * version of nfs_work_cofac perhaps ?

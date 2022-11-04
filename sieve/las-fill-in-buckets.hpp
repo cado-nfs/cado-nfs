@@ -20,9 +20,9 @@ struct precomp_plattice_t {
     static const int level = LEVEL;
     typedef precomp_plattice_t type;    /* for multityped_array */
     typedef std::vector<plattices_vector_t<LEVEL>> vec_type;
-    std::array<vec_type, 2> v;
+    std::vector<vec_type> v;
     precomp_plattice_t(precomp_plattice_t<LEVEL> const&) = delete;
-    precomp_plattice_t() = default;
+    precomp_plattice_t(int nsides) : v(nsides) {}
     void push(int side, vec_type&& x) {
         std::swap(v[side], x);
     }

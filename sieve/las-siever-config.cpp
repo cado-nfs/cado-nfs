@@ -16,22 +16,13 @@
 
 /* siever_config stuff */
 
-void siever_config::declare_usage(param_list_ptr pl)
+void siever_config::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J, with J <= 2^(I-1) ; -I x is equivalent to -I (2*x-1)");
+    param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J, with J <= 2^(I-1) ; -I x is equivalent to -A (2*x-1)");
     param_list_decl_usage(pl, "A",    "set sieving region to (at most) 2^A");
-    param_list_decl_usage(pl, "lim0", "factor base bound on side 0");
-    param_list_decl_usage(pl, "lim1", "factor base bound on side 1");
-    param_list_decl_usage(pl, "lpb0", "set large prime bound on side 0 to 2^lpb0");
-    param_list_decl_usage(pl, "lpb1", "set large prime bound on side 1 to 2^lpb1");
-    param_list_decl_usage(pl, "mfb0", "set rational cofactor bound on side 0 2^mfb0");
-    param_list_decl_usage(pl, "mfb1", "set rational cofactor bound on side 1 2^mfb1");
-    param_list_decl_usage(pl, "lambda0", "lambda value on side 0");
-    param_list_decl_usage(pl, "lambda1", "lambda value on side 1");
-    param_list_decl_usage(pl, "powlim0", "limit on powers on side 0");
-    param_list_decl_usage(pl, "powlim1", "limit on powers on side 1");
-    param_list_decl_usage(pl, "ncurves0", "controls number of curves on side 0");
-    param_list_decl_usage(pl, "ncurves1", "controls number of curves on side 1");
+
+    siever_side_config::declare_usage(pl);
+
     param_list_decl_usage(pl, "tdthresh", "trial-divide primes p/r <= ththresh (r=number of roots)");
     param_list_decl_usage(pl, "skipped", "primes below this bound are not sieved at all");
     param_list_decl_usage(pl, "bkthresh", "bucket-sieve primes p >= bkthresh (default 2^I)");
@@ -64,11 +55,20 @@ void siever_config::display(int side, unsigned int bitsize) const /*{{{*/
 /* {{{ Parse default siever config (fill all possible fields). Return
  * true if the parsed siever config is complete and can be used without
  * per-special-q info. */
-bool siever_config::parse_default(siever_config & sc, param_list_ptr pl)
+bool siever_config::parse_default(siever_config & sc, cxx_param_list & pl, int n)
 {
     /* The default config is not necessarily a complete bit of
      * information.
      */
+
+    auto found = siever_side_config::parse(pl, sc.sides, n);
+
+    bool complete = true;
+
+    for (auto const & s : { "lim", "lpb", "mfb" }) {
+        if (found[s] < 2)
+            complete = false;
+    }
 
     /*
      * Note that lim0 lim1 powlim0 powlim1 are also parsed from
@@ -77,15 +77,10 @@ bool siever_config::parse_default(siever_config & sc, param_list_ptr pl)
      * of limits.
      */
 
-    param_list_parse_double(pl, "lambda0", &(sc.sides[0].lambda));
-    param_list_parse_double(pl, "lambda1", &(sc.sides[1].lambda));
     /*
      * Note: the stuff about the config being complete or not is mostly
      * rubbish now...
      */
-    int complete = 1;
-    complete &= param_list_parse_ulong(pl, "lim0", &(sc.sides[0].lim));
-    complete &= param_list_parse_ulong(pl, "lim1", &(sc.sides[1].lim));
     if (param_list_lookup_string(pl, "A")) {
         complete &= param_list_parse_int  (pl, "A",    &(sc.logA));
         if (param_list_lookup_string(pl, "I")) {
@@ -98,19 +93,19 @@ bool siever_config::parse_default(siever_config & sc, param_list_ptr pl)
         sc.logA = 2 * I - 1;
         verbose_output_print(0, 1, "# Interpreting -I %d as meaning -A %d\n", I, sc.logA);
     } else {
-        complete = 0;
+        complete = false;
     }
 
-    if (sc.sides[0].lim > 4294967295UL || sc.sides[1].lim > 4294967295UL)
-    {
-        fprintf (stderr, "Error, lim0/lim1 must be < 2^32\n");
-        exit (EXIT_FAILURE);
+#if ULONG_BITS > 32
+    for(auto const & s : sc.sides) {
+        if (s.lim > 4294967295UL)
+        {
+            fprintf (stderr, "Error, lim0/lim1 must be < 2^32\n");
+            exit (EXIT_FAILURE);
+        }
     }
+#endif
 
-    complete &= param_list_parse_int(pl, "lpb0",  &(sc.sides[0].lpb));
-    complete &= param_list_parse_int(pl, "mfb0",  &(sc.sides[0].mfb));
-    complete &= param_list_parse_int(pl, "lpb1",  &(sc.sides[1].lpb));
-    complete &= param_list_parse_int(pl, "mfb1",  &(sc.sides[1].mfb));
     if (!complete) {
         verbose_output_print(0, 1, "# default siever configuration is incomplete ; required parameters are I, lim[01], lpb[01], mfb[01]\n");
 
@@ -143,33 +138,21 @@ bool siever_config::parse_default(siever_config & sc, param_list_ptr pl)
     param_list_parse_ulong(pl, "bkthresh", &(sc.bucket_thresh));
     param_list_parse_ulong(pl, "bkthresh1", &(sc.bucket_thresh1));
 
-    const char *powlim_params[2] = {"powlim0", "powlim1"};
-    for (int side = 0; side < 2; side++) {
-        if (!param_list_parse_ulong(pl, powlim_params[side],
-                    &sc.sides[side].powlim)) {
-            if (sc.bucket_thresh) {
-                sc.sides[side].powlim = sc.bucket_thresh - 1;
-            } else {
-                /* include all powers. We'll discard all those that go to
-                 * bucket sieving anyway */
-                sc.sides[side].powlim = ULONG_MAX;
+    if (sc.bucket_thresh) {
+        for (auto & s : sc.sides) {
+            if (s.powlim == ULONG_MAX) {
+                s.powlim = sc.bucket_thresh - 1;
             }
             /* This message is also printed by
              * fb_factorbase::fb_factorbase
              */
             /*
-            verbose_output_print(0, 2,
-                    "# Using default value of %lu for -%s\n",
-                    sc.sides[side].powlim, powlim_params[side]);
-                    */
+               verbose_output_print(0, 2,
+               "# Using default value of %lu for -%s\n",
+               sc.sides[side].powlim, powlim_params[side]);
+               */
         }
     }
-
-    const char *ncurves_params[2] = {"ncurves0", "ncurves1"};
-    for (int side = 0; side < 2; side++)
-        if (!param_list_parse_int(pl, ncurves_params[side],
-                    &sc.sides[side].ncurves))
-            sc.sides[side].ncurves = -1;
 
     return complete;
 }
@@ -262,10 +245,10 @@ siever_config_pool::declare_usage(cxx_param_list & pl)/*{{{*/
 }
 /*}}}*/
 
-siever_config_pool::siever_config_pool(cxx_param_list & pl)/*{{{*/
+siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys)/*{{{*/
 {
     default_config_ptr = NULL;
-    if (siever_config::parse_default(base, pl))
+    if (siever_config::parse_default(base, pl, nb_polys))
         default_config_ptr = &base;
 
     /* support both, since we've got to realize it's not that much

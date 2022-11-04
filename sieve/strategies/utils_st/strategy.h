@@ -9,6 +9,9 @@
 extern "C" {
 #endif
 
+/* TODO: kill this! This is just the same as an array of
+ * facul_parameters_with_side. Okay, with timings. We can subclass.
+ */
 typedef struct strategy {
     tabular_fm_t *tab_fm;
     double proba;

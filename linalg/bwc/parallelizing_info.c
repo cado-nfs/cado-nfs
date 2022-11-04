@@ -36,7 +36,7 @@ static inline void pi_comm_init_pthread_things(pi_comm_ptr w, const char * desc)
 
     res = malloc(sizeof(struct pthread_things));
 
-    barrier_init(res->bh, w->ncores);
+    barrier_init(res->bh, NULL, w->ncores);
     my_pthread_barrier_init(res->b, NULL, w->ncores);
     my_pthread_mutex_init(res->m, NULL);
     res->desc = strdup(desc);
@@ -46,7 +46,7 @@ static inline void pi_comm_init_pthread_things(pi_comm_ptr w, const char * desc)
 
 static inline void pi_comm_destroy_pthread_things(pi_comm_ptr w)
 {
-    barrier_destroy(w->th->bh);
+    barrier_destroy(w->th->bh, NULL);
     my_pthread_barrier_destroy(w->th->b);
 
     my_pthread_mutex_destroy(w->th->m);

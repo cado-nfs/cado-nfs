@@ -122,8 +122,8 @@ void test_bblas_level3::matpoly_polmat() {
     }
     delete[] data;
     delete[] data_t;
-    mat64::free(A);
-    mat64::free(B);
+    mat64::free(A, n*K*L);
+    mat64::free(B, n*K*L);
 }
 /*}}}*/
 

@@ -3,8 +3,6 @@
 #include <string>
 #include "params.h"
 
-extern "C" void param_list_consolidate(param_list_ptr pl);
-
 int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_line)
 {
     int all_ok=1;
@@ -80,7 +78,6 @@ int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_lin
 
         param_list_add_key(pl, key.c_str(), value.c_str(), PARAMETER_FROM_FILE);
     }
-    param_list_consolidate(pl);
 
     return all_ok;
 }

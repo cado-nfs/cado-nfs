@@ -4,6 +4,12 @@ cado_define_test(test_double_poly.c LIBRARIES utils tests)
 cado_define_test(test_gmp_aux.c LIBRARIES utils tests)
 cado_define_test(test_gcd.c LIBRARIES utils tests)
 cado_define_test(test_getprime.c LIBRARIES utils)
+cado_divert_test(test_getprime 1 APPEND_ARGUMENTS -seek 0 -bound 100 -count 25)
+cado_divert_test(test_getprime 2 APPEND_ARGUMENTS -seek 2 -bound 100 -count 25)
+cado_divert_test(test_getprime 3 APPEND_ARGUMENTS -seek 3 -bound 100 -count 24)
+cado_divert_test(test_getprime 4 APPEND_ARGUMENTS -seek 50 -bound 100 -count 10)
+cado_divert_test(test_getprime 5 APPEND_ARGUMENTS -bound 10000000 -count 664579)
+cado_divert_test(test_getprime 6 APPEND_ARGUMENTS -seek 5000000 -bound 10000000 -count 316066)
 cado_define_test(test_memusage.c LIBRARIES utils)
 cado_define_test(test_roots_mod.c LIBRARIES utils ARGUMENTS 100 1050)
 cado_define_test(test_omega.c LIBRARIES utils)
@@ -48,11 +54,9 @@ cado_define_test(test-sort.cpp ARGUMENTS --log-bigsize 14 --max-span 128 LIBRARI
 cado_define_test(test_u64arith.cpp LIBRARIES utils tests)
 cado_define_test(test_mod.cpp LIBRARIES utils tests)
 cado_define_test(test_modint.cpp LIBRARIES utils tests)
-if(HAVE_GLIBC_VECTOR_INTERNALS)
-    cado_define_test(test_mmappable_vector.cpp LIBRARIES utils
+cado_define_test(test_mmappable_vector.cpp LIBRARIES utils
     PRECOMMAND "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --arg --tmpdir
     )
-endif()
 cado_define_test(test_sha1.c LIBRARIES utils ARGUMENTS --test)
 cado_define_test(test_fstream_maybe_compressed.cpp LIBRARIES utils
     NO_DEFAULT_RUN
@@ -64,14 +68,16 @@ cado_divert_test(test_fstream_maybe_compressed none ARGUMENTS test)
 cado_define_test(
     SCRIPT
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/test-badideals.sh --binary
-        ${CADO_NFS_BINARY_DIR}/utils/badideals
+        ${CADO_NFS_BINARY_DIR}/utils/numbertheory_tool
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.small-example
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.rsa220
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.p1024
     PRECOMMAND
         ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir --
     TARGET_DEPENDENCIES
-        badideals
+        numbertheory_tool
     )
+
+cado_define_test(test_subdivide_primes_interval.cpp LIBRARIES utils)
 
 add_subdirectory(numbertheory)

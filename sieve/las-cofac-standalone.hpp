@@ -16,17 +16,17 @@ struct qlattice_basis; // IWYU pragma: keep
 template <typename T> struct lock_guarded_container; // IWYU pragma: keep
 
 struct cofac_standalone {
-    std::array<uint8_t, 2> S;
-    std::array<cxx_mpz, 2> norm;
-    std::array<factor_list_t, 2> factors;
-    std::array<std::vector<cxx_mpz>, 2> lps;
+    std::vector<uint8_t> S;
+    std::vector<cxx_mpz> norm;
+    std::vector<factor_list_t> factors;
+    std::vector<std::vector<cxx_mpz>> lps;
     int64_t a;
     uint64_t b;
 #ifdef SUPPORT_LARGE_Q
     cxx_mpz az, bz;
 #endif
     cofac_standalone();
-    cofac_standalone(int N, size_t x, int logI, qlattice_basis const & Q);
+    cofac_standalone(int nsides, int N, size_t x, int logI, qlattice_basis const & Q);
     bool trace_on_spot() const;
     /* TODO. Hmmm. How important is this ? We don't want to expose
      * dependence on a compile flag in a header */

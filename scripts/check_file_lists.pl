@@ -30,13 +30,23 @@ my $known_lists=[];
 
 my $error=0;
 
+my $allow_rewrite=0;
+
+while (defined($_ = shift @ARGV)) {
+    /^-w$/ && do { $allow_rewrite = 1; next; };
+    die"Unexpected command line argument: $_";
+}
+
 sub add_known_list {
     my $n = shift;
     my $f = {};
     my $d = {};
+    my @comments;
+    my @data;
     open my $fh, $n or return;
     while (defined($_=<$fh>)) {
-        next unless /^[^#]/;
+        do { push @comments, $_; next; } unless /^[^#]/;
+        push @data, $_;
         chomp($_);
         m{/$} && do {
             if (exists $d->{$_}) {
@@ -53,6 +63,30 @@ sub add_known_list {
         $f->{$_}=0;
     }
     close $fh;
+    my @sorted_data = sort { $a cmp $b } @data;
+    my $i = 0;
+    my $sort_ok = 1;
+    while ($sort_ok && $i <= $#sorted_data) {
+        if ($sorted_data[$i] ne $data[$i]) {
+            $sort_ok=0;
+        } else {
+            $i++;
+        }
+    }
+    $sort_ok = $sort_ok && $i > $#data;
+    if (!$sort_ok) {
+        if ($allow_rewrite) {
+            print STDERR "$n is not sorted. Sorting in place\n";
+            open my $fh, ">$n" or die;
+            print $fh $_ for @comments;
+            print $fh $_ for @sorted_data;
+            close $fh;
+        } else {
+            print STDERR "$n is not sorted. Run scripts/check_file_lists.pl -w to sort in-place\n";
+            $error++;
+        }
+    }
+
     if (scalar keys %$d == 0 && scalar keys %$f == 0) {
         return;
     }

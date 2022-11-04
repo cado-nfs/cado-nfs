@@ -37,6 +37,7 @@ void * test_code(parallelizing_info_ptr pi, param_list_ptr pl MAYBE_UNUSED, void
                     rc = asprintf(&their, "J%uT%u\n", j, t);
                     ASSERT_ALWAYS(rc >= 0);
                     ASSERT_ALWAYS(strcmp(locreport, their) == 0);
+                    free(their);
                 }
             }
         }

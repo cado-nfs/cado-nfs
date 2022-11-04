@@ -126,6 +126,8 @@ void matmul_top_decl_usage(param_list_ptr pl)
             "read the cache files sequentially on each node");
     param_list_decl_usage(pl, "balancing_options",
             "options to pass to the balancing subprogram (see mf_bal_adjust_from_option_string)");
+    param_list_decl_usage(pl, "multi_matrix",
+            "whether to chain several matrices (experimental)");
     balancing_decl_usage(pl);
     matmul_decl_usage(pl);
 }
@@ -142,6 +144,7 @@ void matmul_top_lookup_parameters(param_list_ptr pl)
     param_list_lookup_string(pl, "sequential_cache_build");
     param_list_lookup_string(pl, "sequential_cache_read");
     param_list_lookup_string(pl, "balancing_options");
+    param_list_lookup_string(pl, "multi_matrix");
     balancing_lookup_parameters(pl);
     matmul_lookup_parameters(pl);
 }
@@ -2497,26 +2500,8 @@ void mmt_vec_set_expanded_copy_of_local_data(mmt_vec_ptr y, const void * v, unsi
 /**********************************************************************/
 static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_list_ptr pl, int optimized_direction);
 
-/* returns an allocated string holding the name of the midx-th submatrix */
-static char * matrix_list_get_item(param_list_ptr pl, const char * key, int midx)
-{
-    char * res = NULL;
-    char ** mnames;
-    int nmatrices;
-    int rc = param_list_parse_string_list_alloc(pl, key, &mnames, &nmatrices, ",");
-    if (rc == 0)
-        return NULL;
-    ASSERT_ALWAYS(midx < nmatrices);
-    for(int i = 0 ; i < nmatrices ; i++) {
-        if (i == midx) {
-            res = mnames[i];
-        } else {
-            free(mnames[i]);
-        }
-    }
-    free(mnames);
-    return res;
-}
+/* see matmul_top2.cpp */
+extern char * matrix_list_get_item(param_list_ptr pl, const char * key, int midx);
 
 static char* matrix_get_derived_cache_subdir(const char * matrixname, parallelizing_info_ptr pi)
 {
@@ -2797,7 +2782,11 @@ void matmul_top_init(matmul_top_data_ptr mmt,
     mmt->matrices = NULL;
 
     int nbals = param_list_get_list_count(pl, "balancing");
-    mmt->nmatrices = param_list_get_list_count(pl, "matrix");
+    int multimat = 0;
+    mmt->nmatrices = param_list_lookup_string(pl, "matrix") != NULL;
+    param_list_parse_int(pl, "multi_matrix", &multimat);
+    if (multimat)
+        mmt->nmatrices = param_list_get_list_count(pl, "matrix");
     const char * random_description = param_list_lookup_string(pl, "random_matrix");
     const char * static_random_matrix = param_list_lookup_string(pl, "static_random_matrix");
 
@@ -2831,8 +2820,13 @@ void matmul_top_init(matmul_top_data_ptr mmt,
     /* The initialization goes through several passes */
     for(int i = 0 ; i < mmt->nmatrices ; i++) {
         matmul_top_matrix_ptr Mloc = mmt->matrices[i];
-        Mloc->mname = matrix_list_get_item(pl, "matrix", i);
-        Mloc->bname = matrix_list_get_item(pl, "balancing", i);
+        if (multimat) {
+            Mloc->mname = strdup(param_list_lookup_string(pl, "matrix"));
+            Mloc->bname = strdup(param_list_lookup_string(pl, "balancing"));
+        } else {
+            Mloc->mname = matrix_list_get_item(pl, "matrix", i);
+            Mloc->bname = matrix_list_get_item(pl, "balancing", i);
+        }
         if (static_random_matrix) {
             ASSERT_ALWAYS(i == 0);
             Mloc->mname = strdup(static_random_matrix);

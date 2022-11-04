@@ -147,12 +147,12 @@ struct sieve_shared_data {
     lock_guarded_container<
         std::map<
             siever_config,
-            std::shared_ptr<facul_strategies_t>,
+            std::shared_ptr<facul_strategies>,
             siever_config::has_same_cofactoring::comparison
         >
     > facul_strategies_cache;
     public:
-    facul_strategies_t const * get_strategies(siever_config const & conf);
+    facul_strategies const * get_strategies(siever_config const & conf);
 
     ~sieve_shared_data();
     sieve_shared_data(cxx_cado_poly const & cpoly, cxx_param_list & pl);
@@ -161,6 +161,7 @@ struct sieve_shared_data {
     sieve_shared_data(sieve_shared_data&&) = default;
     sieve_shared_data& operator=(sieve_shared_data&&) = default;
     static void declare_usage(cxx_param_list & pl);
+    static void lookup_parameters(cxx_param_list &, int nsides = 2);
 };
 
 #endif	/* LAS_SIEVE_SHARED_DATA_HPP_ */

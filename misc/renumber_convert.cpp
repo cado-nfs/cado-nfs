@@ -39,7 +39,7 @@ int
 main (int argc, char *argv[])
 {
   argv0 = argv[0];
-  cxx_cado_poly poly;
+  cxx_cado_poly cpoly;
   int inverse = 0;
 
   cxx_param_list pl;

@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <vector>
+#include <array>
+#include <tuple>
 #include <istream> // std::istream // IWYU pragma: keep
 #include <ostream> // std::ostream // IWYU pragma: keep
 #include <gmp.h>      // mpz_srcptr
@@ -22,10 +24,13 @@ struct relation_ab {
     uint64_t b;
     cxx_mpz az;
     cxx_mpz bz;
+    int active_sides[2];
     operator bool() const { return a || b; }
     relation_ab() {
         a=0;
         b=0;
+        active_sides[0] = -1;
+        active_sides[1] = -1;
     }
     relation_ab(int64_t a, uint64_t b) : a(a), b(b) {
         mpz_set_int64(az, a);
@@ -38,9 +43,10 @@ struct relation_ab {
         b = mpz_get_uint64(bz);
     }
     bool operator<(const relation_ab& o) const {
-        return ((mpz_cmp(az, o.az) < 0) ||
-                (mpz_cmp(az, o.az) == 0 &&
-                 mpz_cmp(bz, o.bz) < 0));
+        typedef std::tuple<cxx_mpz const &, cxx_mpz const &, int, int> T;
+        T me { az, bz, active_sides[0], active_sides[1] };
+        T them { o.az, o.bz, o.active_sides[0], o.active_sides[1] };
+        return me < them;
     }
 };
 
@@ -67,31 +73,31 @@ struct relation : public relation_ab {
         pr(pr &&) = default;
         pr& operator=(const pr&) = default;
     };
-    int rational_side = -1;    /* index of the rational side, if any */
-    int nb_polys = 0;         /* number of polynomials, default = 2 */
-    std::vector<pr> sides[NB_POLYS_MAX]; /* pr's are stored w.r.t. side */
+    int rational_side = -1;   /* index of the rational side, if any */
+    std::array<std::vector<pr>, 2> sides; /* pr's are stored w.r.t. side */
+    std::array<int, 2> active_sides;
 
     relation() {}
     operator bool() const { return (bool) (relation_ab) *this; }
-    relation(int64_t a, uint64_t b, int rational_side = -1, int nb_polys = 2)
-        : relation_ab(a,b), rational_side(rational_side), nb_polys(nb_polys)
+    relation(int64_t a, uint64_t b, int rational_side = -1)
+        : relation_ab(a,b), rational_side(rational_side)
     {}
-    relation(mpz_srcptr a, mpz_srcptr b, int rational_side = -1, int nb_polys = 2)
-        : relation_ab(a,b), rational_side(rational_side), nb_polys(nb_polys)
+    relation(mpz_srcptr a, mpz_srcptr b, int rational_side = -1)
+        : relation_ab(a,b), rational_side(rational_side)
     {}
 
-    void add(int side, mpz_srcptr p, mpz_srcptr r) {
-        sides[side].push_back(pr(p, r));
+    void add(unsigned int side_index, mpz_srcptr p, mpz_srcptr r) {
+        sides[side_index].push_back(pr(p, r));
     }
-    void add(int side, unsigned long p, unsigned long r) {
-        sides[side].push_back(pr(p, r));
+    void add(unsigned int side_index, unsigned long p, unsigned long r) {
+        sides[side_index].push_back(pr(p, r));
     }
 
     /* the single-member add() functions recompute r for the algebraic
      * side, based on a,b
      */
-    void add(int side, mpz_srcptr p);
-    void add(int side, unsigned long p);
+    void add(unsigned int side_index, mpz_srcptr p);
+    void add(unsigned int side_index, unsigned long p);
 
     void print(FILE * f, const char * prefix) const;
     int parse(const char * line);

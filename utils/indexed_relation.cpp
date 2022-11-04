@@ -9,12 +9,13 @@ template<typename Storage>
 indexed_relation_tmpl<Storage>::indexed_relation_tmpl(relation const & rel, renumber_t const & R)
     : relation_ab(rel)
 {
-    Storage::set_nsides(rel.nb_polys);
-    for(int side = 0 ; side < rel.nb_polys ; side++) {
+    Storage::set_active_sides(rel.active_sides);
+    for(unsigned int side_index = 0 ; side_index < 2 ; side_index++) {
+        int side = rel.active_sides[side_index];
         for(auto const & pr : rel.sides[side]) {
             p_r_values_t p = mpz_get_ui(pr.p);
             p_r_values_t r = mpz_get_ui(pr.r);
-            if (side == rel.rational_side)
+            if ((int) side == rel.rational_side)
                 r = relation_compute_r(a, b, p);
             renumber_t::p_r_side ipr { p, r, side };
 
@@ -22,11 +23,11 @@ indexed_relation_tmpl<Storage>::indexed_relation_tmpl(relation const & rel, renu
                 auto ie = R.indices_from_p_a_b(ipr, pr.e, a, b);
                 for(size_t i = 0 ; i < ie.second.size() ; i++)
                     for(int k = ie.second[i] ; k-- ; )
-                        (*this)[side].push_back(ie.first + i);
+                        (*this)[side_index].push_back(ie.first + i);
             } else {
                 index_t i = R.index_from_p_r(ipr);
                 for(int k = pr.e ; k-- ; )
-                    (*this)[side].push_back(i);
+                    (*this)[side_index].push_back(i);
             }
         }
     }
@@ -124,10 +125,31 @@ indexed_relation_normal_storage::parse(relation_ab & ab, const char *line)
 {
     int consumed;
 
-    if (gmp_sscanf(line, "%Zx,%Zx:%n", (mpz_ptr) ab.az, (mpz_ptr) ab.bz, &consumed) < 2)
+    if (gmp_sscanf(line, "%Zx,%Zx%n",
+                (mpz_ptr) ab.az, (mpz_ptr) ab.bz,
+                &consumed) < 2)
         return 0;
+
     ab.a = mpz_get_int64(ab.az);
     ab.b = mpz_get_uint64(ab.bz);
+
+    if (line[consumed] == '@') {
+        consumed++;
+        int c;
+        if (sscanf(line + consumed, "%u,%u%n",
+                &ab.active_sides[0],
+                &ab.active_sides[1],
+                &c) < 2)
+            return 0;
+        consumed += c;
+    } else {
+        ab.active_sides[0] = 0;
+        ab.active_sides[1] = 1;
+    }
+
+    if (line[consumed] != ':')
+        return 0;
+    consumed++;
 
     while(line[consumed] != '\0' && line[consumed] != '\n') {
         index_t p;

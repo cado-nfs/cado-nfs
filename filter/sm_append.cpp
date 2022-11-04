@@ -311,10 +311,10 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
         }
         debug_fprintf(stderr, "%.3f " CSI_BLUE "turn %d peer %d done batch of size %lu" CSI_RESET " [taken %.1f]\n", wct_seconds(), turn, rank, bsize, wct_seconds() - t0);
         if (rank == 1 && turn == 2)
-        fprintf(stderr, "# peer processes batch of %lu in %.1f [%.1f SMs/s]\n",
-                bsize,
-                wct_seconds() - t0,
-                bsize / (wct_seconds() - t0));
+            fprintf(stderr, "# peer processes batch of %lu in %.1f [%.1f SMs/s]\n",
+                    bsize,
+                    wct_seconds() - t0,
+                    bsize / (wct_seconds() - t0));
 
         t0 = wct_seconds();
         MPI_Send(returns, bsize * nsm_total * limbs_per_ell * sizeof(mp_limb_t), MPI_BYTE, 0, turn, MPI_COMM_WORLD);
@@ -428,8 +428,7 @@ int main (int argc, char **argv)
     const char *polyfile = NULL;
 
     param_list pl;
-    cado_poly pol;
-    mpz_poly_ptr F[NB_POLYS_MAX];
+    cado_poly cpoly;
 
     mpz_t ell;
 
@@ -463,16 +462,18 @@ int main (int argc, char **argv)
     }
 
     /* Init polynomial */
-    cado_poly_init (pol);
-    cado_poly_read(pol, polyfile);
-    for(int side = 0; side < pol->nb_polys; side++)
-        F[side] = pol->pols[side];
+    cado_poly_init (cpoly);
+    cado_poly_read(cpoly, polyfile);
 
-    int nsm_arg[NB_POLYS_MAX];
-    for(int side = 0; side < pol->nb_polys; side++)
-        nsm_arg[side]=-1;
+    std::vector<mpz_poly_srcptr> F(cpoly->nb_polys, NULL);
 
-    param_list_parse_int_list (pl, "nsm", nsm_arg, pol->nb_polys, ",");
+    for(int side = 0; side < cpoly->nb_polys; side++)
+        F[side] = cpoly->pols[side];
+
+    std::vector<int> nsm_arg(cpoly->nb_polys, -1);
+    param_list_parse_int_args_per_side(pl, "nsm",
+            nsm_arg.data(), cpoly->nb_polys,
+            ARGS_PER_SIDE_DEFAULT_AS_IS);
 
     FILE * in = rank ? NULL : stdin;
     FILE * out = rank ? NULL: stdout;
@@ -500,9 +501,9 @@ int main (int argc, char **argv)
     if (!rank)
         param_list_print_command_line (stdout, pl);
 
-    sm_side_info sm_info[NB_POLYS_MAX];
+    sm_side_info * sm_info = new sm_side_info[cpoly->nb_polys];
 
-    for(int side = 0 ; side < pol->nb_polys; side++) {
+    for(int side = 0 ; side < cpoly->nb_polys; side++) {
         sm_side_info_init(sm_info[side], F[side], ell);
         sm_side_info_set_mode(sm_info[side], sm_mode_string);
         if (nsm_arg[side] >= 0)
@@ -513,7 +514,7 @@ int main (int argc, char **argv)
 
     /*
        if (!rank) {
-       for (int side = 0; side < pol->nb_polys; side++) {
+       for (int side = 0; side < cpoly->nb_polys; side++) {
        printf("\n# Polynomial on side %d:\nF[%d] = ", side, side);
        mpz_poly_fprintf(stdout, F[side]);
 
@@ -525,7 +526,7 @@ int main (int argc, char **argv)
        }
        */
 
-    sm_append(in, out, sm_info, pol->nb_polys);
+    sm_append(in, out, sm_info, cpoly->nb_polys);
 
     /* Make sure we print no footer line, because reconstructlog-dl won't
      * grok it */
@@ -536,12 +537,13 @@ int main (int argc, char **argv)
     if (!rank && infilename) fclose_maybe_compressed(in, infilename);
     if (!rank && out != stdout) fclose_maybe_compressed(out, outfilename);
 
-    for(int side = 0 ; side < pol->nb_polys ; side++) {
+    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
         sm_side_info_clear(sm_info[side]);
     }
+    delete[] sm_info;
 
     mpz_clear(ell);
-    cado_poly_clear(pol);
+    cado_poly_clear(cpoly);
     param_list_clear(pl);
 
     MPI_Finalize();

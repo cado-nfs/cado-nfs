@@ -62,6 +62,8 @@ void IJToNx(unsigned int & N, unsigned int & x, int i, unsigned int j, int logI)
     uint64_t xx;
     IJTox(xx, i, j, logI);
     N = xx >> LOG_BUCKET_REGION;
+    /* see CID 1453612; I _think_ that this assert should be enough */
+    ASSERT_FOR_STATIC_ANALYZER(LOG_BUCKET_REGION <= 32);
     x = xx & (uint64_t)((1 << LOG_BUCKET_REGION) - 1);
 }
 

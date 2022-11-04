@@ -92,9 +92,6 @@ class GeneralClass(object):
         parser.add_argument("--renumber",
                 help="Renumber file",
                 type=str)
-        parser.add_argument("--badidealinfo",
-                help="Badideal info file",
-                type=str)
         parser.add_argument("--fb1",
                 help="Factor base file for the algebraic side",
                 type=str)
@@ -104,9 +101,6 @@ class GeneralClass(object):
         parser.add_argument("--gfpext",
                 help="Degree of extension (default 1)",
                 type=int)
-        parser.add_argument("--numbertheorydata",
-                help="File with numbertheory data",
-                type=str)
         # This one applies to both las in the initial step
         parser.add_argument("--threads",
                 help="Number of threads to use",
@@ -134,7 +128,6 @@ class GeneralClass(object):
             # do mkdir ???
         else:
             self._tmpdir = tempfile.mkdtemp(dir="/tmp")
-        self.numbertheorydata=None
         self.hello()
         self.__load_badidealdata()
         self.logDB = LogBase(self)
@@ -204,9 +197,9 @@ class GeneralClass(object):
     def log(self):
         return self.__getfile("log", "dlog", "reconstructlog", "dlog")
     def badideals(self):
-        return self.__getfile("badideals", "badideals", "numbertheory", "badidealsfile")
+        return os.path.join(self.datadir(), self.prefix() + ".badideals")
     def badidealinfo(self):
-        return self.__getfile("badidealinfo", "badidealinfo", "numbertheory", "badidealinfofile")
+        return os.path.join(self.datadir(), self.prefix() + ".badidealinfo")
     def fb1(self):
         return self.__getfile("fb1", "roots1.gz", "factorbase", "outputfile")
     def fb0(self):
@@ -299,6 +292,8 @@ class GeneralClass(object):
         return os.path.join(args.cadobindir, "sieve", "las")
     def sm_simple_bin(self):
         return os.path.join(args.cadobindir, "filter", "sm_simple")
+    def numbertheory_bin(self):
+        return os.path.join(args.cadobindir, "utils", "numbertheory_tool")
 
     def lasMiddle_base_args(self):
         # TODO add threads once it's fixed.
@@ -331,7 +326,9 @@ class GeneralClass(object):
             errors.append("las_descent not found (make las_descent ?)")
         if not os.path.exists(self.sm_simple_bin()):
             errors.append("sm_simple not found (make sm_simple ?)")
-        for f in [ self.log(), self.badidealinfo(), self.poly(), self.renumber(), self.log(), self.fb1() ]:
+        if not os.path.exists(self.numbertheory_bin()):
+            errors.append("numbertheory_tool not found (make numbertheory_tool ?)")
+        for f in [ self.log(), self.poly(), self.renumber(), self.log(), self.fb1() ]:
             if not os.path.exists(f):
                 errors.append("%s missing" % f)
         if len(errors):
@@ -344,6 +341,20 @@ class GeneralClass(object):
     # self.badidealdata will contain a list of
     #     (p, k, rk, side, [exp1, exp2, ..., expi])
     def __load_badidealdata(self):
+        # Note that we can as well get this information from the renumber
+        # file.
+        if not os.path.exists(self.badideals()) or not os.path.exists(self.badidealinfo()):
+            call_that = [ self.numbertheory_bin(),
+                            "-poly", self.poly(),
+                            "-badideals", self.badideals(),
+                            "-badidealinfo", self.badidealinfo(),
+                            "-ell", self.ell()
+                        ]
+            call_that = [str(x) for x in call_that]
+            print("command line:\n" + " ".join(call_that))
+            with open(os.devnull, 'w') as devnull:
+                subprocess.check_call(call_that, stderr=devnull)
+
         self.list_badideals = []
         self.list_ncols = []
         with open(self.badideals(), 'r') as bad:
@@ -535,9 +546,15 @@ class ideals_above_p(object):
             return log
 
 class important_file(object):
-    def __init__(self, outfile, call_that):
+    def __init__(self, outfile, call_that, temporary_is_reusable=False):
         self.child = None
         print("command line:\n" + " ".join(call_that))
+        self.outfile = outfile
+        if temporary_is_reusable:
+            self.outfile_tmp = outfile
+        else:
+            self.outfile_tmp = outfile + ".tmp"
+
         if os.path.exists(outfile):
             print("reusing file %s" % outfile)
             self.reader = open(outfile,'r')
@@ -546,7 +563,7 @@ class important_file(object):
             print("running program, saving output to %s" % outfile)
             self.child = subprocess.Popen(call_that, stdout=subprocess.PIPE)
             self.reader = io.TextIOWrapper(self.child.stdout, 'utf-8')
-            self.writer = open(outfile, 'w')
+            self.writer = open(self.outfile_tmp, 'w')
 
     def streams(self):
         return self.reader, self.writer
@@ -575,6 +592,8 @@ class important_file(object):
                 self.writer.flush()
             self.reader.close()
             self.writer.close()
+            if self.outfile != self.outfile_tmp:
+                os.rename(self.outfile_tmp, self.outfile)
             print("ok, done")
         else:
             self.reader.close()
@@ -832,7 +851,7 @@ class DescentUpperClass(object):
             # Whether or not the output files are already present, this
             # will do the right thing and run the new processes only if
             # needed.
-            processes = [important_file(outfile, construct_call(q0,q1)) for (outfile,q0,q1) in call_params]
+            processes = [important_file(outfile, construct_call(q0,q1), temporary_is_reusable=True) for (outfile,q0,q1) in call_params]
 
         q = Queue()
         def enqueue_output(i,out,q):
@@ -952,11 +971,14 @@ class DescentUpperClass(object):
                 p ] + zz
         call_that = [str(x) for x in call_that]
         initfilename = os.path.join(general.datadir(), prefix + "init")
+        has_winner = False
+
         with important_file(initfilename, call_that) as f:
             for line in f:
                 line = line.strip()
                 foo = re.match("^Youpi: e = (\d+) is a winner", line)
                 if foo:
+                    has_winner = True
                     general.initrandomizer = int(foo.groups()[0])
                 foo = re.match("^U = ([0-9\-,]+)", line)
                 if foo:
@@ -976,6 +998,9 @@ class DescentUpperClass(object):
                 foo = re.match("^fac_v = ([, 0-9]+)", line)
                 if foo:
                     general.initfacv = [ [ int(y) for y in x.split(',') ] for x in foo.groups()[0].split(' ') ]
+
+        if not has_winner:
+            raise ValueError("initial descent failed for target %s" % zz)
 
         todofilename = os.path.join(general.datadir(), prefix + "todo")
         print(general.initfacu)

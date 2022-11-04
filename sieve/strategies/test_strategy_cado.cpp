@@ -46,6 +46,8 @@ int CONST_TEST_R = 55;
 #define COMPILE_DEAD_CODE
 
 #ifdef COMPILE_DEAD_CODE
+#include "facul.hpp"
+
 static MAYBE_UNUSED tabular_fm_t *generate_methods_cado(const int lpb)
 {
     /* we set mfb = 3*lpb to avoid the special case of 2 large primes */
@@ -187,7 +189,7 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
     ASSERT(matrix != NULL);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
+	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
 	ASSERT(matrix[r0] != NULL);
     }
 
@@ -203,7 +205,7 @@ static tabular_strategy_t ***generate_matrix_cado(const char *name_directory_dec
     unsigned long method_zero[4] = { 0, 0, 0, 0 };
     fm_set_method(zero, method_zero, 4);
 
-    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(*data_rat) * (mfb0 + 1));
+    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb0 + 1));
     ASSERT(data_rat);
 
     int lim = 2 * fbb0 - 1;
@@ -659,7 +661,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
     ASSERT(matrix != NULL);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
+	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
 	ASSERT(matrix[r0] != NULL);
     }
     
@@ -675,7 +677,7 @@ static MAYBE_UNUSED tabular_strategy_t *** generate_matrix_cado_ileav(
     unsigned long method_zero[4] = { 0, 0, 0, 0 };
     fm_set_method(zero, method_zero, 4);
 
-    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(*data_rat) * (mfb0 + 1));
+    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb0 + 1));
     ASSERT(data_rat);
 
     int lim = 2 * fbb0 - 1;
@@ -787,7 +789,7 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
     ASSERT(matrix != NULL);
 
     for (int r0 = 0; r0 <= mfb0; r0++) {
-	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(*matrix[r0]) * (mfb1 + 1));
+	matrix[r0] = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb1 + 1));
 	ASSERT(matrix[r0] != NULL);
     }
     
@@ -803,7 +805,7 @@ static tabular_strategy_t ***generate_matrix_ileav(const char *name_directory_de
     unsigned long method_zero[4] = { 0, 0, 0, 0 };
     fm_set_method(zero, method_zero, 4);
 
-    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(*data_rat) * (mfb0 + 1));
+    tabular_strategy_t **data_rat = (tabular_strategy_t**) malloc(sizeof(tabular_strategy_t *) * (mfb0 + 1));
     ASSERT(data_rat);
 
     int lim = 2 * fbb0 - 1;
@@ -938,7 +940,7 @@ TODO: a function of the same name, yet behaving somewhat differently, exists in 
  */
 #ifdef COMPILE_DEAD_CODE
 static MAYBE_UNUSED weighted_success
-bench_proba_time_st(gmp_randstate_t state, facul_strategy_t* strategy,
+bench_proba_time_st(gmp_randstate_t state, facul_strategy_oneside const & strategy,
 		    tabular_decomp_t* init_tab, int r, MAYBE_UNUSED int lpb)
 {
     int nb_test = 0, nb_success = 0;
@@ -977,249 +979,99 @@ bench_proba_time_st(gmp_randstate_t state, facul_strategy_t* strategy,
 
 #ifdef COMPILE_DEAD_CODE
 //convert type: from strategy_t to facul_strategy_t.
-static facul_strategy_t* convert_strategy_to_facul_strategy (strategy_t* t, unsigned long lim,
+static facul_strategy_oneside convert_strategy_to_facul_strategy (strategy_t* t, unsigned long lim,
 						      int lpb, int side)
 {
     tabular_fm_t* tab_fm = strategy_get_tab_fm (t);
-    int nb_methods = tab_fm->index;
 
-    facul_strategy_t * strategy = (facul_strategy_t*) malloc(sizeof(facul_strategy_t));
-    strategy->methods = (facul_method_t*) malloc((nb_methods+1) * sizeof(facul_method_t));
+    std::vector<facul_method::parameters> mps;
 
-    strategy->lpb = lpb;
-    strategy->assume_prime_thresh = (double) lim * (double) lim;
-    strategy->BBB = lim * strategy->assume_prime_thresh;
-    int index_method = 0;
-    for (int i = 0; i < nb_methods; i++)
-	{
-	  if (t->side[i] == side)
-	    {
-	      fm_t* fm = tab_fm->tab[i];
-	      int method = (int)fm->method[0];
-	      ec_parameterization_t curve = (ec_parameterization_t) fm->method[1];
-	      unsigned long B1 = fm->method[2];
-	      unsigned long B2 = fm->method[3];
-	      strategy->methods[index_method].method = method;
+    for (int i = 0; i < tab_fm->index; i++) {
+	  if (t->side[i] != side)
+              continue;
 
-	      if (method == PM1_METHOD) {
-		strategy->methods[index_method].plan = malloc(sizeof(pm1_plan_t));
-		ASSERT(strategy->methods[index_method].plan != NULL);
-		pm1_make_plan((pm1_plan_t*) strategy->methods[index_method].plan, B1, B2, 0);
-	      } else if (method == PP1_27_METHOD || method == PP1_65_METHOD) {
-		strategy->methods[index_method].plan = malloc(sizeof(pp1_plan_t));
-		ASSERT(strategy->methods[index_method].plan != NULL);
-		pp1_make_plan((pp1_plan_t*) strategy->methods[index_method].plan, B1, B2, 0);
-	      } else if (method == EC_METHOD) {
-		unsigned long parameter;
-		if (curve == MONTY16) {
-		  parameter = 1;
-		} else
-		  parameter = 4;//2 + rand();
+          fm_t* fm = tab_fm->tab[i];
+          int method = (int)fm->method[0];
+          ec_parameterization_t curve = (ec_parameterization_t) fm->method[1];
+          unsigned long B1 = fm->method[2];
+          unsigned long B2 = fm->method[3];
 
-		strategy->methods[index_method].plan = malloc(sizeof(ecm_plan_t));
-		ASSERT(strategy->methods[index_method].plan != NULL);
-		ecm_make_plan((ecm_plan_t*) strategy->methods[index_method].plan, B1, B2, curve,
-			      parameter, 0, 0);
-	      } else {
-		exit(EXIT_FAILURE);
-	      }
-	      index_method++;
-	    }
-	}
-    strategy->methods[index_method].method = 0;
-    strategy->methods[index_method].plan = NULL;
+          mps.emplace_back(
+                  method, B1, B2,
+                  curve,
+                  curve == MONTY16 ? 1 : 4,
+                  0     // extra_primes. It's 1 almost everywhere else, wtf?
+            );
+    }
 
-    return strategy;
+    return facul_strategy_oneside(lim, lpb, 4 * lpb, mps, 0);
 }
 #endif  /* COMPILE_DEAD_CODE */
 
 #ifdef COMPILE_DEAD_CODE
-/*
- * If the plan is already precomputed and stored at the index i, return
- * i. Otherwise return the last index of tab to compute and add this new
- * plan at this index!
- */
-static int
-get_index_method (facul_method_t* tab, unsigned int B1, unsigned int B2,
-                  int method, ec_parameterization_t parameterization,
-                  unsigned long parameter)
+facul_strategies convert_strategy_to_facul_strategies (strategy_t* t,
+        const unsigned int * r,
+        const unsigned long * fbb,
+        const unsigned int * lpb, 
+        const unsigned int * mfb,
+        gmp_randstate_ptr rstate)
 {
-  int i = 0;
-  while (tab[i].method != 0){
-    if (tab[i].plan == NULL){
-      if(B1 == 0 && B2 == 0)
-	//zero method!
-	break;
-      else
-	{
-	  i++;
-	  continue;
-	}
+    /* This is dead code, and it probably doesn't make sense to think
+     * about strategies for >2 sides anyway.
+     */
+    std::vector<unsigned long> B(2);
+    std::vector<unsigned int> lpb_(2);
+    std::vector<unsigned int> mfb_(2);
+    std::array<unsigned int, 2> r_;
+    auto pB = B.begin();
+    auto plpb = lpb_.begin();
+    auto pmfb = mfb_.begin();
+    auto pr = r_.begin();
+    for(int side = 0 ; side < 2 ; side++) {
+        *pB++ = *fbb++;
+        *plpb++ = *lpb++;
+        *pmfb++ = *mfb++;
+        *pr++ = *r++;
     }
-    else if (tab[i].method == method) {
-      if (method == PM1_METHOD)
-	{
-	  pm1_plan_t* plan = (pm1_plan_t*)tab[i].plan;
-	  if (plan->B1 == B1 && plan->stage2.B2 == B2)
-	    break;
-	}
-      else if (method == PP1_27_METHOD ||
-	       method == PP1_65_METHOD)
-	{
-	  pp1_plan_t* plan = (pp1_plan_t*)tab[i].plan;
-	  if (plan->B1 == B1 && plan->stage2.B2 == B2)
-	    break;
-	}
-      else if (method == EC_METHOD)
-	{
-	  ecm_plan_t* plan = (ecm_plan_t*)tab[i].plan;
-	  if (plan->B1 == B1 && plan->stage2.B2 == B2 &&
-	      plan->parameterization == parameterization
-	      && plan->parameter == parameter)
-	    break;
-	}
-    }
-    i++;
-  }
-  return i;
-}
-#endif  /* COMPILE_DEAD_CODE */
 
-#ifdef COMPILE_DEAD_CODE
-static facul_strategies_t* convert_strategy_to_facul_strategies (strategy_t* t, int* r,
-							  unsigned long*fbb,
-							  int*lpb, int*mfb,
-                                                          gmp_randstate_ptr rstate)
-{
-  int verbose = 0;
-    facul_strategies_t* strategies = (facul_strategies_t*) malloc (sizeof(facul_strategies_t));
-    ASSERT (strategies != NULL);
-    strategies->mfb[0] = mfb[0];
-    strategies->mfb[1] = mfb[1];
-
-    strategies->lpb[0] = lpb[0];
-    strategies->lpb[1] = lpb[1];
-    /* Store fbb^2 in assume_prime_thresh */
-    strategies->assume_prime_thresh[0] = (double) fbb[0] * (double) fbb[0];
-    strategies->assume_prime_thresh[1] = (double) fbb[1] * (double) fbb[1];
-
-    strategies->BBB[0] = (double) fbb[0] * strategies->assume_prime_thresh[0];
-    strategies->BBB[1] = (double) fbb[1] * strategies->assume_prime_thresh[1];
-
-    //alloc methods!
-    facul_method_side_t*** methods = (facul_method_side_t***) malloc (sizeof (*methods) * (mfb[0]+1));
-    int r0, r1;
-    for (r0 = 0; r0 <= mfb[0]; r0++) {
-      methods[r0] = (facul_method_side_t**) malloc (sizeof (*methods[r0]) * (mfb[1]+1));
-      ASSERT (methods[r0] != NULL);
-      for (r1 = 0; r1 <= mfb[1];r1++)
-	{
-	  methods[r0][r1] = (facul_method_side_t*) malloc (50 * sizeof (facul_method_side_t));
-	  ASSERT (methods[r0][r1] != NULL);
-	  methods[r0][r1][0].method = NULL;
-	}
-    }
-    strategies->methods = methods;
-    //alloc precomputed_methods
-    facul_method_t* precomputed_methods = (facul_method_t*) 
-      malloc (sizeof(facul_method_t) * NB_MAX_METHODS);
-    precomputed_methods[0].method = 0;
-    precomputed_methods[0].plan = NULL;
-      
-    strategies->precomputed_methods = precomputed_methods;
+    std::vector<facul_method::parameters_with_side> mps;
 
     tabular_fm_t* tab_fm = strategy_get_tab_fm (t);
-    int nb_methods = tab_fm->index;
-    for (int i = 0; i < nb_methods; i++)
-      {
-	fm_t* fm = tab_fm->tab[i];
-	int method = (int)fm->method[0];
-	ec_parameterization_t curve = (ec_parameterization_t) fm->method[1];
-	unsigned long B1 = fm->method[2];
-	unsigned long B2 = fm->method[3];
-	int side = (t->side != NULL)?t->side[i]:0;
-	unsigned long parameter;
-        if (curve == MONTY16) {
-            parameter = 1;
-        } else {
+    for (int i = 0; i < tab_fm->index; i++)
+    {
+        fm_t* fm = tab_fm->tab[i];
+        int method = (int)fm->method[0];
+        ec_parameterization_t curve = (ec_parameterization_t) fm->method[1];
+        unsigned long B1 = fm->method[2];
+        unsigned long B2 = fm->method[3];
+        int side = (t->side != NULL)?t->side[i]:0;
+        unsigned long parameter = 1;
+        if (method == EC_METHOD && curve != MONTY16) {
             for( ; (parameter = u64_random(rstate)) < 2 ; );
         }
-	//check if the method is already computed!
-	int index_prec_fm = 
-	  get_index_method(strategies->precomputed_methods, B1, B2,
-			   method, curve, parameter);
-	if ( strategies->precomputed_methods[index_prec_fm].method == 0)
-	  {
-	    /*
-	     * The current method isn't already precomputed. So
-	     * we will compute and store it.
-	     */
-	    void* plan = NULL;
-	    if (B1 == 0 && B2 == 0)
-	      { //zero method!
-		plan = NULL;
-		method = PM1_METHOD;//default value.
-	      }
-	    else if (method == PM1_METHOD)
-	      {
-		plan = malloc (sizeof (pm1_plan_t));
-		pm1_make_plan ((pm1_plan_t*) plan, B1, B2, verbose);
-	      }
-	    else if (method == PP1_27_METHOD ||
-		     method == PP1_65_METHOD)
-	      {
-		plan = malloc (sizeof (pp1_plan_t));
-		pp1_make_plan ((pp1_plan_t*) plan, B1, B2, verbose);
-	      }
-	    else { //method == EC_METHOD
-	      plan = malloc (sizeof (ecm_plan_t));
-        ecm_make_plan ((ecm_plan_t*) plan, B1, B2, curve, parameter, 1, verbose);
-	    }
-	    strategies->precomputed_methods[index_prec_fm].method =method;
-	    strategies->precomputed_methods[index_prec_fm].plan = plan;
-	    
-	    ASSERT_ALWAYS (index_prec_fm+1 < NB_MAX_METHODS);
-	    //to show the end of plan!
-	    strategies->precomputed_methods[index_prec_fm+1].plan = NULL;
-	    strategies->precomputed_methods[index_prec_fm+1].method = 0;
-	  }
-	/* 
-	 * Add this method to the current strategy
-	 * methods[index_st[0]][index_st[1]]. 
-	 */
-	strategies->methods[r[0]][r[1]][i].method =
-	  &strategies->precomputed_methods[index_prec_fm];
-	strategies->methods[r[0]][r[1]][i].side = side;
-	//to show the end of methods!
-	strategies->methods[r[0]][r[1]][i+1].method = NULL;
-      }
-
-    /*
-      For this strategy, one finds what is the last method used on each
-      side.
-    */
-    facul_method_side_t* fm =
-      strategies->methods[r[0]][r[1]];
-    ASSERT (fm != NULL);
-    int index_last_method[2] = {0, 0};      //the default_values
-    unsigned int i;
-    for (i = 0; fm[i].method != 0; i++) {
-      fm[i].is_the_last = 0;
-      index_last_method[fm[i].side] = i;
+        mps.emplace_back(side, method, B1, B2, curve, parameter, 1);
     }
-    fm[index_last_method[0]].is_the_last = 1;
-    fm[index_last_method[1]].is_the_last = 1;
 
-    return strategies;
+    facul_strategies::strategy_file S;
+    S[r_] = mps;
+
+    return facul_strategies(B, lpb_, mfb_, true, S, 0);
 }
 #endif  /* COMPILE_DEAD_CODE */
 
 #ifdef COMPILE_DEAD_CODE
 static MAYBE_UNUSED weighted_success
-bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
-			 tabular_decomp_t** init_tab,
-			 int* r, int* fbb, int* lpb, int* mfb)
+bench_proba_time_st_both(gmp_randstate_t state,
+                         strategy_t * t,
+			 tabular_decomp_t ** init_tab,
+			 const unsigned int * r,
+                         const unsigned long * fbb,
+                         const unsigned int * lpb,
+                         const unsigned int * mfb)
 {
+    /* This is dead code, and it probably doesn't make sense to think
+     * about strategies for >2 sides anyway.
+     */
     unsigned long lim[2] = {1UL << (fbb[0]-1), 1UL << (fbb[1]-1) };
 
     int nb_test = 0, nb_success = 0;
@@ -1237,8 +1089,8 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
 #if 1
     // Classic: bench without interleaving
 
-    facul_strategy_t* facul_st_s0 = convert_strategy_to_facul_strategy (t,lim[0], lpb[0], 0);
-    facul_strategy_t* facul_st_s1 = convert_strategy_to_facul_strategy (t,lim[1], lpb[1], 1);
+    facul_strategy_oneside facul_st_s0 = convert_strategy_to_facul_strategy (t,lim[0], lpb[0], 0);
+    facul_strategy_oneside facul_st_s1 = convert_strategy_to_facul_strategy (t,lim[1], lpb[1], 1);
     printf ("classic\n");
     nb_success = 0;
     nb_test = 0;
@@ -1277,17 +1129,17 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
 
 #if 1
     printf ("interl\n");
-    facul_strategies_t* facul_st = convert_strategy_to_facul_strategies (t,r,lim,lpb, mfb, state);
+    facul_strategies facul_st = convert_strategy_to_facul_strategies (t,r,lim,lpb, mfb, state);
 
     nb_success = 0;
     nb_test = 0;
     time = 0;
 
     {
-        std::array<std::vector<cxx_mpz>, 2> f;
+        std::vector<std::vector<cxx_mpz>> f(2);
         while (nb_test < nb_test_max)
         {
-            std::array<cxx_mpz, 2> N;
+            std::vector<cxx_mpz> N(2);
             for(int side = 0 ; side < 2 ; side++) {
                 int index = select_random_index_dec(sum_dec[side], init_tab[side], state);
                 int len_p = init_tab[side]->tab[index]->tab[1];
@@ -1315,7 +1167,6 @@ bench_proba_time_st_both(gmp_randstate_t state, strategy_t*t,
     }
     weighted_success res2(nb_success, time, nb_test);
     printf ("interL: proba = %lf, time = %lf\n", res2.prob, res2.time);
-    facul_clear_strategies(facul_st);
 #endif
 
     gmp_randclear(state_copy);

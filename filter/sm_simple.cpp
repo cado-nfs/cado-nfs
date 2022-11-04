@@ -127,8 +127,7 @@ int main (int argc, char **argv)
   const char *outfile = NULL;
 
   param_list pl;
-  cado_poly pol;
-  mpz_poly_ptr F[NB_POLYS_MAX];
+  cado_poly cpoly;
 
   mpz_t ell, ell2;
   double t0;
@@ -173,10 +172,13 @@ int main (int argc, char **argv)
   }
 
   /* Init polynomial */
-  cado_poly_init (pol);
-  cado_poly_read(pol, polyfile);
-  for(int side = 0; side < pol->nb_polys; side++)
-      F[side] = pol->pols[side];
+  cado_poly_init (cpoly);
+  cado_poly_read(cpoly, polyfile);
+
+  std::vector<mpz_poly_srcptr> F(cpoly->nb_polys, NULL);
+
+  for(int side = 0; side < cpoly->nb_polys; side++)
+      F[side] = cpoly->pols[side];
 
   const char * sm_mode_string = param_list_lookup_string(pl, "sm-mode");
 
@@ -188,14 +190,14 @@ int main (int argc, char **argv)
   mpz_init(ell2);
   mpz_mul(ell2, ell, ell);
 
-  sm_side_info sm_info[NB_POLYS_MAX];
+  sm_side_info * sm_info = new sm_side_info[cpoly->nb_polys];
 
-  for(int side = 0 ; side < pol->nb_polys; side++) {
+  for(int side = 0 ; side < cpoly->nb_polys; side++) {
     sm_side_info_init(sm_info[side], F[side], ell);
     sm_side_info_set_mode(sm_info[side], sm_mode_string);
   }
 
-  for (int side = 0; side < pol->nb_polys; side++) {
+  for (int side = 0; side < cpoly->nb_polys; side++) {
     fprintf(stdout, "\n# Polynomial on side %d:\nF[%d] = ", side, side);
     mpz_poly_fprintf(stdout, F[side]);
 
@@ -207,18 +209,19 @@ int main (int argc, char **argv)
 
   t0 = seconds();
 
-  my_sm(outfile, infile, sm_info, pol->nb_polys);
+  my_sm(outfile, infile, sm_info, cpoly->nb_polys);
 
   fprintf(stdout, "\n# sm completed in %2.2lf seconds\n", seconds() - t0);
   fflush(stdout);
 
-  for(int side = 0 ; side < pol->nb_polys ; side++) {
+  for(int side = 0 ; side < cpoly->nb_polys ; side++) {
     sm_side_info_clear(sm_info[side]);
   }
+  delete[] sm_info;
 
   mpz_clear(ell);
   mpz_clear(ell2);
-  cado_poly_clear(pol);
+  cado_poly_clear(cpoly);
   param_list_clear(pl);
 
   return 0;

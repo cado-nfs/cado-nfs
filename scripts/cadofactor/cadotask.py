@@ -141,6 +141,10 @@ class TaskException(Exception):
     """ Exception class for signaling errors during task execution """
     pass
 
+class EarlyStopException(Exception):
+    """ Exception class for cases like tasks.sieve.run=false"""
+    pass
+
 class Polynomials(object):
     r""" A class that represents a polynomial
     
@@ -950,6 +954,8 @@ class SimpleStatistics(BaseStatistics, HasState, DoesLogging,
         """ Return tuple with number of seconds of cpu and real time spent
         by all programs of this Task
         """
+        if not self.programs:
+            return 0
         times = [self.get_cpu_real_time(p) for p, o, i in self.programs]
         times = tuple(map(sum, zip(*times)))
         return times[0 if is_cpu else 1]
@@ -1144,14 +1150,17 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
 
     def run(self):
         if not self.params["run"]:
-            self.logger.info("Stopping at %s", self.name)
-            raise TaskException("Job aborted because of a forcibly disabled task")
+            self.logger.error("Stopping at %s", self.name)
+            raise EarlyStopException("Job aborted because of a forcibly disabled task -- stopped at " + self.name)
         self.logger.info("Starting")
         self.logger.debug("%s.run(): Task state: %s", self.name, self.state)
         super().run()
         # Make set of requests so multiply listed requests are sent only once
         # The input_file dict maps key -> Request. Make set union of requests
-        requests = set.union(*[set(i.values()) for p, o, i in self.programs])
+        if self.programs:
+            requests = set.union(*[set(i.values()) for p, o, i in self.programs])
+        else:
+            requests = set()
         # Make dict mapping Request -> answer (i.e., FileName object)
         answers = self.batch_request(dict(zip(requests, requests)))
         # Make list of dicts mapping key -> answer
@@ -3055,13 +3064,11 @@ class FreeRelTask(Task):
     @property
     def programs(self):
         input = {"poly": Request.GET_POLYNOMIAL_FILENAME}
-        if self.params["dlp"]:
-            input["badideals"] = Request.GET_BADIDEALS_FILENAME
         return ((cadoprograms.FreeRel, ("renumber", "out"), input),)
     @property
     def paramnames(self):
         return self.join_params(super().paramnames,
-                {"dlp": False, "gzip": True, "lcideals": None})
+                {"dlp": False, "gzip": True, "dl": None})
 
     wanted_regex = {
         'nfree': (r'# Free relations: (\d+)', int),
@@ -3072,8 +3079,7 @@ class FreeRelTask(Task):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
         if self.params["dlp"]:
-            # default for dlp is lcideals
-            self.progparams[0].setdefault("lcideals", True)
+            self.progparams[0].setdefault("dl", True)
         # Invariant: if we have a result (in self.state["freerelfilename"])
         # then we must also have a polynomial (in self.state["poly"]) and
         # the lpb0/lpb1 values used in self.state["lpb1"] / ["lpb0"]
@@ -4458,7 +4464,6 @@ class MergeTask(Task):
     def get_dense_filename(self):
         return self.get_state_filename("densefile")
 
-
 class NumberTheoryTask(Task):
     """ Number theory tasks for dlp"""
     @property
@@ -4469,7 +4474,8 @@ class NumberTheoryTask(Task):
         return "Number Theory for DLP"
     @property
     def programs(self):
-        return ((cadoprograms.NumberTheory, ("badidealinfo", "badideals"),
+        return ((cadoprograms.NumberTheory,
+                (),
                  {"poly": Request.GET_POLYNOMIAL_FILENAME}),)
     @property
     def paramnames(self):
@@ -4482,20 +4488,15 @@ class NumberTheoryTask(Task):
     def run(self):
         super().run()
 
-        # Check if we already compute the bad ideals (we check only
-        # one of the files, assuming everything was correct during the
-        # first run).
-        if "badidealsfile" in self.state:
+        # Check if the numbertheory program was run already.
+        if "nmaps0" in self.state:
             self.logger.info("NumberTheory task has already run, reusing the result.");
             return True
 
+
         # Create output files and start the computation
-        badidealsfile = self.workdir.make_filename("badideals")
-        badidealinfofile = self.workdir.make_filename("badidealinfo")
         (stdoutpath, stderrpath) = self.make_std_paths(cadoprograms.NumberTheory.name)
-        p = cadoprograms.NumberTheory(badidealinfo=badidealinfofile,
-                               badideals=badidealsfile,
-                               stdout=str(stdoutpath),
+        p = cadoprograms.NumberTheory(stdout=str(stdoutpath),
                                stderr=str(stderrpath),
                                **self.merged_args[0])
         message = self.submit_command(p, None, log_errors=True)
@@ -4516,38 +4517,26 @@ class NumberTheoryTask(Task):
             update["nmaps0"] = self.params["nsm0"]
         if self.params["nsm1"] != -1:
             update["nmaps1"] = self.params["nsm1"]
-        update["badidealinfofile"] = badidealinfofile.get_wdir_relative()
-        update["badidealsfile"] = badidealsfile.get_wdir_relative()
         
         if not "nmaps0" in update:
             raise Exception("Stdout does not give nmaps0")
         if not "nmaps1" in update:
             raise Exception("Stdout does not give nmaps1")
-        if not badidealsfile.isfile():
-            raise Exception("Output file %s does not exist" % badidealsfile)
-        if not badidealinfofile.isfile():
-            raise Exception("Output file %s does not exist" % badidealinfofile)
         # Update the state entries atomically
         self.state.update(update)
 
         self.logger.debug("Exit NumberTheoryTask.run(" + self.name + ")")
         return True
 
-    def get_badidealinfo_filename(self):
-        return self.get_state_filename("badidealinfofile")
-    
-    def get_badideals_filename(self):
-        return self.get_state_filename("badidealsfile")
-    
     def get_nmaps(self):
         return (self.state["nmaps0"], self.state["nmaps1"])
+
 
 class bwc_output_filter(RealTimeOutputFilter):
     def filter(self, data):
         super().filter(data)
         if ("ETA" or "Timings") in data:
             self.logger.info(data.rstrip())
-            
 
 # I've just ditched the statistics bit, cause I don't know to make its
 # despair cry a little bit more useful.
@@ -5202,7 +5191,7 @@ class SMTask(Task):
 
             (stdoutpath, stderrpath) = \
                     self.make_std_paths(cadoprograms.SM.name)
-            p = cadoprograms.SM(nsm=str(nmaps[0])+","+str(nmaps[1]),
+            p = cadoprograms.SM(nsms=str(nmaps[0])+","+str(nmaps[1]),
                     out=smfilename,
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
@@ -5242,7 +5231,7 @@ class ReconstructLogTask(Task):
         return ((cadoprograms.ReconstructLog, override, input),)
     @property
     def paramnames(self):
-        return self.join_params(super().paramnames, {"checkdlp": True})
+        return self.join_params(super().paramnames, {"checkdlp": True, "jlpoly": False})
 
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
@@ -5262,7 +5251,7 @@ class ReconstructLogTask(Task):
                     self.make_std_paths(cadoprograms.ReconstructLog.name)
             p = cadoprograms.ReconstructLog(
                     dlog=dlogfilename,
-                    nsm=str(nmaps[0])+","+str(nmaps[1]),
+                    nsms=str(nmaps[0])+","+str(nmaps[1]),
                     nrels=nfree+nunique,
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
@@ -5280,28 +5269,6 @@ class ReconstructLogTask(Task):
     def get_dlog_filename(self):
         return self.get_state_filename("dlog")
     
-    def get_log2log3(self):
-        if self.params["checkdlp"]:
-            filename = self.get_state_filename("dlog").get_wdir_relative()
-            fullfile = self.params["workdir"].rstrip(os.sep) + os.sep + filename
-            log2 = None
-            log3 = None
-            myfile = open(fullfile, "rb")
-            data = myfile.read()
-            for line in data.splitlines():
-                match = re.match(br'(\w+) 2 0 rat (\d+)', line)
-                if match:
-                    log2 = match.group(2)
-                match = re.match(br'(\w+) 3 0 rat (\d+)', line)
-                if match:
-                    log3 = match.group(2)
-                if log2 != None and log3 != None:
-                    myfile.close()
-                    return [ log2, log3 ]
-            raise Exception("Could not find log2 and log3 in %s" % filename)
-        else:
-            return [ 0, 0 ]
-
 # TODO: This is a bit ugly. We're leaning on the functionality that
 # descent.py infers the complete set of file names from the prefix (or
 # from the database, if it so wishes). However, the cadofactor way would
@@ -5320,7 +5287,7 @@ class DescentTask(Task):
                 "prefix": Request.GET_WORKDIR_JOBNAME,
                 "datadir": Request.GET_WORKDIR_PATH,
                 }
-        override = ("cadobindir",)
+        override = ("cadobindir","target")
         return ((cadoprograms.Descent, override, input),)
     @property
     def paramnames(self):
@@ -5330,6 +5297,7 @@ class DescentTask(Task):
     def __init__(self, *, mediator, db, parameters, path_prefix):
         super().__init__(mediator=mediator, db=db, parameters=parameters,
                          path_prefix=path_prefix)
+        self.logtargets = []
     
     def run(self):
         super().run()
@@ -5338,31 +5306,174 @@ class DescentTask(Task):
             self.logger.info("Skipping descent, as no target= argument was passed");
             return
 
-        (stdoutpath, stderrpath) = \
-                self.make_std_paths(cadoprograms.Descent.name)
-        p = cadoprograms.Descent(
-                cadobindir=self.params["execpath"],
-                stdout=str(stdoutpath),
-                stderr=str(stderrpath),
-                **self.merged_args[0])
-        message = self.submit_command(p, None, log_errors=True)
-        if message.get_exitcode(0) != 0:
-            raise Exception("Program failed")
+        for ts in self.params["target"].split(","):
+            target = int(ts)
 
-        stdout = message.read_stdout(0).decode("utf-8")
-        for line in stdout.splitlines():
-            match = re.match(r'log\(target\)=(\d+)', line)
-            if match:
-                self.state["logtarget"] = match.group(1)
-                break
+            self.logger.info("Now doing descent for target=%s" % target)
+
+            (stdoutpath, stderrpath) = \
+                    self.make_std_paths(cadoprograms.Descent.name)
+            p = cadoprograms.Descent(
+                    cadobindir=self.params["execpath"],
+                    stdout=str(stdoutpath),
+                    stderr=str(stderrpath),
+                    target=target,
+                    **self.merged_args[0])
+            message = self.submit_command(p, None, log_errors=True)
+            if message.get_exitcode(0) != 0:
+                raise Exception("Program failed")
+
+            stdout = message.read_stdout(0).decode("utf-8")
+            for line in stdout.splitlines():
+                match = re.match(r'log\(target\)=(\d+)', line)
+                if match:
+                    logtarget = int(match.group(1))
+                    self.logger.info("Descent yields log(%s)=%s" % (target,logtarget))
+                    self.logtargets.append(logtarget)
+
+                    self.send_request(Request.GET_LOGQUERY_CHECKER).check_new_log(target, logtarget)
+                    break
+        return True
+    
+    def get_logtargets(self):
+        return self.logtargets
+
+# This simple task is here to collect in one single file the logarithms
+# that we've queried, and check their consistency.
+class LogQueryTask(Task):
+    """ Log Query Task """
+    @property
+    def name(self):
+        return "logquery"
+    @property
+    def title(self):
+        return "Log queries"
+
+    @property
+    def programs(self):
+        return ()
+
+    @property
+    def paramnames(self):
+        return self.join_params(super().paramnames,
+                {"checkdlp": True, "jlpoly": False, "gfpext": [int,1],
+                "N": int, "ell": 0})
+
+    def get_logquery_filename(self):
+        return self.get_state_filename("logquery")
+    
+    def get_logquery_checker(self):
+        return self
+    
+    def get_logbase(self):
+        return self.logbase
+
+    def __init__(self, *, mediator, db, parameters, path_prefix):
+        super().__init__(mediator=mediator, db=db, parameters=parameters,
+                         path_prefix=path_prefix)
+
+        self.history = dict()
+        if "logbase" in self.state:
+            self.logbase = self.state["logbase"]
+        else:
+            self.logbase = None
+        self.p = self.params["N"]
+        self.ell = self.params["ell"]
+        self.gfpext = self.params["gfpext"]
+        # TODO gfpext
+        assert (self.p ** self.gfpext - 1) % self.ell == 0
+        self.cof = (self.p ** self.gfpext - 1) // self.ell
+    
+        if "logquery" not in self.state:
+            logquery_filename = self.workdir.make_filename("logquery")
+            update = {"logquery": logquery_filename.get_wdir_relative() }
+            self.state.update(update, commit=True)
+
+    def get_small_logs(self, bound=20):
+        small_logs=dict()
+        with open(str(self.send_request(Request.GET_DLOG_FILENAME)), "r") as f:
+            for line in f:
+                mm = re.match(r'(\w+) (\w+) \d+ rat (\d+)', line)
+                if mm:
+                    target = int(mm.group(2), 16)
+                    logtarget = int(mm.group(3))
+                    if target > bound:
+                        break
+                    small_logs[target] = logtarget
+        return small_logs
+
+    def xgcd(self, a, b):
+        u0 = 1; v0 = 0; r0 = a
+        u1 = 0; v1 = 1; r1 = b
+        while r1 != 0:
+            q = r0 // r1
+            r0, r1 = [r1, r0 - q * r1];
+            u0, u1 = [u1, u0 - q * u1];
+            v0, v1 = [v1, v0 - q * v1];
+        if r0 < 0:
+            r0 = -r0; u0 = -u0; v0 = -v0
+        return r0, u0, v0
+
+    def commit_logs(self, *args):
+        with open(str(self.get_logquery_filename()), "a") as f:
+            for x in args:
+                target, logtarget = x
+                f.write("%d %d\n" % (target, logtarget))
+
+    def check_new_log(self, target, logtarget, commit=True):
+        if target in self.history:
+            return
+        just_deduced_gen = False
+        if self.logbase is None:
+            gt, ilogt, foo = self.xgcd(logtarget * self.cof, self.ell)
+            ilogt = ilogt % self.ell
+            if gt == 1:
+                # then target^((p-1)/ell * ilogt) is a generator
+                self.logbase = pow(int(target), ilogt*self.cof, self.p)
+                self.state.update({"logbase": self.logbase}, commit=True)
+                context = "log(%d)=%d" % (target, logtarget)
+                conclusion = "logarithms are given in base %d" % self.logbase
+
+                self.logger.info("Based on %s, we expect that %s" % (context, conclusion))
+                just_deduced_gen = True
+        if not just_deduced_gen:
+            msg = "Checking that log(%d)=%d is correct in base %d..." % (target, logtarget, self.logbase)
+            self.logger.info(msg)
+            check = pow(self.logbase, logtarget*self.cof, self.p) == pow(target, self.cof, self.p)
+            if check:
+                self.logger.info(msg + " passed")
+            else:
+                self.logger.critical(msg + " FAILED")
+                raise ValueError("Failed log check, log(%d)=%d seems wrong in base %d\n" % (target, logtarget, self.logbase))
+        else:
+            self.logger.info("Check skipped for this log, as it is the only known log value at this point")
+
+        self.history[target] = logtarget
+        if commit:
+            self.commit_logs((target, logtarget))
+
+    def run(self):
+        super().run()
+
+        # read the logs that we already queried.
+        if self.get_logquery_filename().isfile():
+            with open(str(self.get_logquery_filename()), "r") as f:
+                for line in f:
+                    if re.match(r'^#', line):
+                        continue
+                    mm = re.match(r"(\d+) (\d+)", line)
+                    if not mm:
+                        self.logger.warning("Unparsed line in %s: " % self.get_logquery_filename(), line)
+                    target = int(mm.group(1))
+                    logtarget = int(mm.group(2))
+                    self.check_new_log(target, logtarget, commit=False)
+
+        for target,logtarget in self.get_small_logs().items():
+                self.check_new_log(target, logtarget)
+
         return True
 
-    # XXX I'm not sure that self.state really is the place to store
-    # logtarget. Especially given that we're storing it detached from the
-    # target, which surely looks odd.
-    def get_logtarget(self):
-        return self.state["logtarget"]
-    
+
 class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
     """ Starts HTTP server """
     @property
@@ -5376,7 +5487,8 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
         return {"name": str, "workdir": None, "address": None, "port": 0,
                 "threaded": False, "ssl": True, "whitelist": None,
                 "only_registered": True, "forgetport": False,
-                "timeout_hint": None, "nrsubdir": 0}
+                "timeout_hint": None, "nrsubdir": 0,
+                "linger_before_quit": 0}
     @property
     def param_nodename(self):
         return self.name
@@ -5451,14 +5563,15 @@ class StartServerTask(DoesLogging, cadoparams.UseParameters, HasState):
             threaded, db, self.registered_filenames,
             uploaddir, nrsubdir, bg=True, only_registered=only_registered, cafile=cafilename,
             whitelist=server_whitelist,
-            timeout_hint=servertimeout_hint)
+            timeout_hint=servertimeout_hint,
+            linger_before_quit=self.params["linger_before_quit"])
         self.state["port"] = self.server.get_port()
 
     def run(self):
         self.server.serve()
 
-    def shutdown(self):
-        self.server.shutdown()        
+    def shutdown(self, *args):
+        self.server.shutdown(*args)
 
     def stop_serving_wus(self):
         self.server.stop_serving_wus()
@@ -5829,14 +5942,13 @@ class Request(Message):
     GET_RELSDEL_FILENAME = object()
     GET_SM_FILENAME = object()
     GET_UNITS_DIRNAME = object()
-    GET_BADIDEALS_FILENAME = object()
-    GET_BADIDEALINFO_FILENAME = object()
-    GET_SMEXP = object()
     GET_NMAPS = object()
     GET_WU_RESULT = object()
     GET_WORKDIR_JOBNAME = object()
     GET_WORKDIR_PATH = object()
     GET_DLOG_FILENAME = object()
+    GET_LOGQUERY_FILENAME = object()
+    GET_LOGQUERY_CHECKER = object()
     GET_CLIENTS = object()
 
 class CompleteFactorization(HasState, wudb.DbAccess, 
@@ -5852,12 +5964,24 @@ class CompleteFactorization(HasState, wudb.DbAccess,
     def paramnames(self):
         # This isn't a Task subclass so we don't really need to define
         # paramnames, but we do it out of habit
-        return {"name": str, "workdir": str, "N": int, "ell": 0, "dlp": False,
-                "gfpext": 1, "jlpoly" : False, "trybadwu": False,
+        return {"name": str,
+                "workdir": str,
+                "N": int,
+                "ell": 0,
+                "dlp": False,
+                "gfpext": 1,
+                "jlpoly" : False,
+                "trybadwu": False,
                 "target": ""}
     @property
     def title(self):
-        return "Complete Factorization / Discrete logarithm"
+        try:
+            if self.params["dlp"]:
+                return "Discrete logarithm"
+            else:
+                return "Complete Factorization"
+        except AttributeError:
+            return "Complete Factorization / Discrete logarithm"
     @property
     def programs(self):
         return []
@@ -5870,6 +5994,16 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         super().__init__(db=db, parameters=parameters, path_prefix=path_prefix)
         self.params = self.parameters.myparams(self.paramnames)
         self.db_listener = self.make_db_listener()
+
+        if self.params["dlp"]:
+            p = self.params["N"]
+            k = self.params["gfpext"]
+            ell = self.params["ell"]
+            if (p**k-1) % ell != 0:
+                if k==1:
+                    raise ValueError("ell must divide p-1")
+                else:
+                    raise ValueError("ell must divide p^%d-1" % k)
 
         # Init WU BD
         self.wuar = self.make_wu_access()
@@ -5906,6 +6040,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         filterpath = parampath + ['filter']
         linalgpath = parampath + ['linalg']
         reconstructlogpath = parampath + ['reconstructlog']
+        logquerypath = parampath + ['logquery']
         descentpath = parampath + ['descent']
         sqrtpath = parampath + ['sqrt']
         numbertheorypath = parampath + ['numbertheory']
@@ -5988,6 +6123,14 @@ class CompleteFactorization(HasState, wudb.DbAccess,
                                      db=db,
                                      parameters=self.parameters,
                                      path_prefix=descentpath)
+
+            # By specifying a single endpoint, we make it easier to do
+            # consistency checks.
+            self.logquery = LogQueryTask(mediator=self,
+                                     db=db,
+                                     parameters=self.parameters,
+                                     path_prefix=logquerypath)
+
         else:
             ## Tasks specific to factorization
             self.merge = MergeTask(mediator=self,
@@ -6022,6 +6165,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
                           self.dup1, self.dup2,
                           self.filtergalois, self.purge, self.merge,
                           self.sm, self.linalg, self.reconstructlog)
+            self.tasks = self.tasks + (self.logquery,)
             if self.params["target"]:
                 self.tasks = self.tasks + (self.descent,)
         else:
@@ -6094,12 +6238,12 @@ class CompleteFactorization(HasState, wudb.DbAccess,
         if self.params["dlp"]:
             self.request_map[Request.GET_IDEAL_FILENAME] = self.merge.get_ideal_filename
             self.request_map[Request.GET_GAL_UNIQUE_RELCOUNT] = self.filtergalois.get_nrels
-            self.request_map[Request.GET_BADIDEALS_FILENAME] = self.numbertheory.get_badideals_filename
-            self.request_map[Request.GET_BADIDEALINFO_FILENAME] = self.numbertheory.get_badidealinfo_filename
             self.request_map[Request.GET_NMAPS] = self.numbertheory.get_nmaps
             self.request_map[Request.GET_SM_FILENAME] = self.sm.get_sm_filename
             self.request_map[Request.GET_RELSDEL_FILENAME] = self.purge.get_relsdel_filename
             self.request_map[Request.GET_DLOG_FILENAME] = self.reconstructlog.get_dlog_filename
+            self.request_map[Request.GET_LOGQUERY_FILENAME] = self.logquery.get_logquery_filename
+            self.request_map[Request.GET_LOGQUERY_CHECKER] = self.logquery.get_logquery_checker
             self.request_map[Request.GET_KERNEL_FILENAME] = self.linalg.get_virtual_logs_filename
             self.request_map[Request.GET_VIRTUAL_LOGS_FILENAME] = self.linalg.get_virtual_logs_filename
         else:
@@ -6107,60 +6251,72 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.request_map[Request.GET_DEPENDENCY_FILENAME] = self.linalg.get_dependency_filename
             self.request_map[Request.GET_LINALG_PREFIX] = self.linalg.get_prefix
 
+    def enter_subtask_chain(self):
+        self.start_elapsed_time()
+        self.servertask.run()
+        self.start_all_clients()
+
+    def exit_subtask_chain(self, exc):
+        self.servertask.stop_serving_wus()        
+        # print everybody's stats before we exit.
+        for task in self.tasks_that_have_run:
+            task.print_stats()
+        self.stop_all_clients()
+        self.elapsed = self.end_elapsed_time()
+        self.cputotal = self.get_sum_of_cpu_or_real_time(True)
+        self.servertask.shutdown(exc)
+
     def run(self):
         had_interrupt = False
         if self.params["dlp"]:
             self.logger.info("Computing Discrete Logs in GF(%s)", self.params["N"])
         else:
             self.logger.info("Factoring %s", self.params["N"])
-        self.start_elapsed_time()
 
-        self.servertask.run()
+        class wrapme(object):
+            def __init__(self, s):
+                self.s = s
+            def __enter__(self):
+                self.s.enter_subtask_chain()
+                return self
+            def __exit__(self, e_type, e_value, traceback):
+                self.s.exit_subtask_chain(e_value)
+
         last_task = None
         last_status = True
+        # we rely here on Task not having a weird comparison operator
+        self.tasks_that_have_run = set()
         try:
-            self.start_all_clients()
-            # we rely here on Task not having a weird comparison operator
-            tasks_that_have_run = set()
-            i=0
-            while last_status:
-                task = self.next_task()
-                if task is None:
-                    break
-                last_task = task.title
-                last_status = task.run()
-                tasks_that_have_run.add(task)
-                task.print_stats()
-
-            # print everybody's stats before we exit.
-            for task in tasks_that_have_run:
-                task.print_stats()
+            with wrapme(self):
+                while last_status:
+                    task = self.next_task()
+                    if task is None:
+                        break
+                    last_task = task.title
+                    last_status = task.run()
+                    self.tasks_that_have_run.add(task)
+                    self.logger.info(task.title)
+                    task.print_stats()
 
         except KeyboardInterrupt:
             self.logger.fatal("Received KeyboardInterrupt. Terminating")
-            had_interrupt = True
-
-        except TaskException as e:
-           self.stop_all_clients()
-           raise e
-
-        self.stop_all_clients()
-        self.servertask.shutdown()
-        elapsed = self.end_elapsed_time()
-
-        if had_interrupt:
             return None
 
-        cputotal = self.get_sum_of_cpu_or_real_time(True)
+        except EarlyStopException as e:
+            self.logger.info("Total cpu/elapsed time for incomplete %s: %g/%g",
+                    self.title, self.cputotal, self.elapsed)
+            self.logger.error("Finishing early: " + str(e))
+            return None
+
         # Do we want the sum of real times over all sub-processes for
         # something?
         # realtotal = self.get_sum_of_cpu_or_real_time(False)
         if self.params["dlp"]:
-            self.logger.info("Total cpu/elapsed time for entire discrete log: %g/%g",
-                         cputotal, elapsed)
+            self.logger.info("Total cpu/elapsed time for entire %s: %g/%g",
+                         self.title, self.cputotal, self.elapsed)
         else:
-            self.logger.info("Total cpu/elapsed time for entire factorization: %g/%g",
-                         cputotal, elapsed)
+            self.logger.info("Total cpu/elapsed time for entire %s %g/%g",
+                         self.title, self.cputotal, self.elapsed)
 
         if last_task and not last_status:
             self.logger.fatal("Premature exit within %s. Bye.", last_task)
@@ -6180,10 +6336,12 @@ class CompleteFactorization(HasState, wudb.DbAccess,
                 self.logger.info("The polynomial defining the finite field is %s", s)
 
         if self.params["dlp"]:
-            ret = [ self.params["N"], self.params["ell"]] + self.reconstructlog.get_log2log3()
             if self.params["target"]:
-                ret = ret + [self.descent.get_logtarget()]
-            return ret
+                logt = self.descent.get_logtargets()
+                base = self.logquery.get_logbase()
+                return [ base ] + logt
+            else:
+                return [ 0 ]
         else:
             return self.sqrt.get_factors()
     

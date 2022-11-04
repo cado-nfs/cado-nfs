@@ -20,7 +20,7 @@ int gauss_MN_C(unsigned int bM, unsigned int bN, gmp_randstate_t rstate)
     mat64 * mm = mat64::alloc(bM * bN);
     memfill_random(mm, bM * bN * sizeof(mat64), rstate);
     int r = kernel((mp_limb_t*)mm, NULL, M, N, N/ULONG_BITS, M/ULONG_BITS);
-    mat64::free(mm);
+    mat64::free(mm, bM * bN);
     return r;
 }
 

@@ -13,25 +13,32 @@
  *
  * - either a simple vector of indices
  * - or a vector of vectors of indices, one vector for each side.
+ *   NOTE: In that case, we need to know what are the active sides as
+ *   well.
  *
  * Most methods are the same, and we prefer to use a bit of c++
  * templating so as to refactor some of the code.
  */
 
 #include <vector>
+#include <array>
 #include "typedefs.h"
 #include "relation.hpp"
 #include "renumber.hpp"
 
 struct indexed_relation_storage_base {
-    // typedef void (*action_t)(unsigned int side, std::vector<index_t> &);
+    // typedef void (*action_t)(int side, std::vector<index_t> &);
+    std::array<int, 2> active_sides;
+    protected:
+    void set_active_sides(std::array<int, 2> const & aa) {
+        active_sides = aa;
+    }
+    std::array<int, 2> get_active_sides() const { return active_sides; }
 };
 
 struct indexed_relation_normal_storage : public indexed_relation_storage_base {
     std::vector<index_t> data;
     protected:
-    void set_nsides(unsigned int) {}
-    unsigned int get_nsides() const { return 1; }
     std::vector<index_t> & operator[](unsigned int) { return data; }
     template<typename ctr>
     struct fake_tmpl {
@@ -48,22 +55,21 @@ struct indexed_relation_normal_storage : public indexed_relation_storage_base {
     protected:
     /* It doesn't make sense to expose a parsing function for the storage
      * that splits by side: we *can't* do such a thing !
+     *
+     * XXX what does that mean after all?
      */
     int parse(relation_ab &, const char *line);
 
 };
 
 struct indexed_relation_byside_storage : public indexed_relation_storage_base {
-    std::vector<std::vector<index_t>> sides;
+    typedef std::array<std::vector<index_t>, 2> sides_t;
+    sides_t sides;
     protected:
-    void set_nsides(unsigned int n) {
-        sides.assign(n, std::vector<index_t>());
-    }
-    unsigned int get_nsides() const { return sides.size(); }
-    std::vector<index_t> & operator[](unsigned int side) { return sides[side]; }
+    std::vector<index_t> & operator[](int side) { return sides[side]; }
     /* this is just for range-based for loops */
-    std::vector<std::vector<index_t>> & containers() { return sides; }
-    std::vector<std::vector<index_t>> const & containers() const { return sides; }
+    sides_t & containers() { return sides; }
+    sides_t const & containers() const { return sides; }
     static constexpr const bool separates_sides = true;
 };
 

@@ -9,8 +9,11 @@
 
 set -e
 
-is_debian() { [ -f /etc/debian_version ] ; }
+is_debian() { [ -f /etc/debian_version ] && grep -q debian /etc/apt/sources.list; }
+is_ubuntu() { [ -f /etc/debian_version ] && grep -q ubuntu /etc/apt/sources.list ; }
 is_fedora() { [ -f /etc/fedora-release ] ; }
+is_centos() { [ -f /etc/centos-release ] ; }
+is_centos_above_8() { is_centos && ! grep -q 'release 8$' /etc/centos-release ; }
 is_alpine() { [ -f /etc/alpine-release ] ; }
 is_opensuse() { type -p zypper >/dev/null 2>&1 ; }
 is_osx() { case "`uname -s`" in Darwin) true;; *)false;; esac; }

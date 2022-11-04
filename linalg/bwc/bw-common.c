@@ -404,7 +404,11 @@ int get_rhs_file_header(const char * filename, uint32_t * p_nrows, unsigned int 
 
 /* Given two matrix dimensions (not padded dimensions ! we want the n0[]
  * field in matmul_top here!), set the bw->end and bw->interval values in
- * the bw struct */
+ * the bw struct
+ *
+ * It would be nice to keep this in sync with max_krylov_iteration and
+ * interval_default in bwc.pl
+*/
 static unsigned int bw_set_length_and_interval_common(struct bw_params * bw, unsigned int dims[2], int is_krylov)
 {
     unsigned int krylov_length;

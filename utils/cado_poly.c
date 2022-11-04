@@ -6,118 +6,141 @@
 #include "macros.h"  // for ASSERT_ALWAYS, ASSERT
 #include "params.h"
 #include "cado_poly.h"
+#include "portability.h"
 
 /* Be conservative and allocate two polynomials by default. */
-void cado_poly_init(cado_poly_ptr poly)
+void cado_poly_init(cado_poly_ptr cpoly)
 {
     /* ALL fields are zero upon init, EXCEPT the degree field (which is -1) */
-    memset(poly, 0, sizeof(poly[0]));
+    memset(cpoly, 0, sizeof(cpoly[0]));
 
     /* By default allocate 2 polynomials */
-    poly->nb_polys = 2;
-    for(int side = 0 ; side < poly->nb_polys ; side++)
-      mpz_poly_init (poly->pols[side], MAX_DEGREE);
+    cpoly->nb_polys = 0;
+    cpoly->pols = NULL;
 
-    mpz_init_set_ui(poly->n, 0);
+    mpz_init_set_ui(cpoly->n, 0);
 }
 
-void cado_poly_clear(cado_poly_ptr poly)
+void cado_poly_provision_new_poly(cado_poly_ptr cpoly)
 {
-    for(int side = 0 ; side < poly->nb_polys ; side++)
-      mpz_poly_clear (poly->pols[side]);
+    cpoly->nb_polys++;
+    cpoly->pols = realloc(cpoly->pols, cpoly->nb_polys * sizeof(mpz_poly));
+    mpz_poly_init(cpoly->pols[cpoly->nb_polys-1], -1);
+}
 
-    mpz_clear(poly->n);
-    memset(poly, 0, sizeof(poly[0]));
+void cado_poly_reset(cado_poly_ptr cpoly)
+{
+    for(int side = 0 ; side < cpoly->nb_polys ; side++)
+      mpz_poly_clear (cpoly->pols[side]);
+
+    free(cpoly->pols);
+    cpoly->nb_polys = 0;
+    cpoly->pols = NULL;
+
+    mpz_set_ui(cpoly->n, 0);
+}
+
+void cado_poly_clear(cado_poly_ptr cpoly)
+{
+    for(int side = 0 ; side < cpoly->nb_polys ; side++)
+      mpz_poly_clear (cpoly->pols[side]);
+
+    free(cpoly->pols);
+    mpz_clear(cpoly->n);
+
+    memset(cpoly, 0, sizeof(cpoly[0]));
 }
 
 /* p <- q */
 void
 cado_poly_set (cado_poly_ptr p, cado_poly_srcptr q)
 {
+    if (p == q) return;
     mpz_set (p->n, q->n);
     p->skew = q->skew;
     p->nb_polys = q->nb_polys;
-    for(int side = 0 ; side < q->nb_polys ; side++)
-      mpz_poly_set (p->pols[side], q->pols[side]);
+    free(p->pols);
+    p->pols = malloc(p->nb_polys * sizeof(mpz_poly));
+    for(int side = 0 ; side < q->nb_polys ; side++) {
+        mpz_poly_init(p->pols[side], -1);
+        mpz_poly_set (p->pols[side], q->pols[side]);
+    }
 }
 
 void
 cado_poly_swap (cado_poly_ptr p, cado_poly_ptr q)
 {
+    if (p == q) return;
     mpz_swap (p->n, q->n);
-    p->skew = q->skew;
-    p->nb_polys = q->nb_polys;
-    for(int side = 0 ; side < q->nb_polys ; side++)
-      mpz_poly_swap (p->pols[side], q->pols[side]);
+    { double t = p->skew; p->skew = q->skew; q->skew = t; }
+    { unsigned int t = p->nb_polys; p->nb_polys = q->nb_polys; q->nb_polys = t; }
+    { mpz_poly * t = p->pols; p->pols = q->pols; q->pols = t; }
 }
 
 // This function is no longer exported
 #define BUF_MAX 10000
 
 // returns 0 on failure, 1 on success.
-int cado_poly_set_plist(cado_poly_ptr poly, param_list_ptr pl)
+int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
 {
   int ret = 1;
 
   /* Parse skew value. Set to 0.0 to ensure that we get an invalid skewness
      in case it is not given */
-  poly->skew = 0.0;
-  param_list_parse_double(pl, "skew", &(poly->skew));
+  cpoly->skew = 0.0;
+  param_list_parse_double(pl, "skew", &(cpoly->skew));
 
   /* Parse polynomials. Either in line format (poly%d=%Zd,%Zd,...) either given
    * by coefficients. */
-  for(int i = 0; i < NB_POLYS_MAX; i++)
-  {
-    char tag[15], buf[BUF_MAX];
-    snprintf(tag, sizeof(tag), "poly%d", i);
-    if(param_list_parse_string(pl, tag, buf, BUF_MAX))
-    {
-      if(i >= 2) {
-        mpz_poly_init (poly->pols[i], MAX_DEGREE);
-      }
-      param_list_parse_mpz_poly(pl, tag, poly->pols[i]);
-      ASSERT(poly->pols[i]->deg <= MAX_DEGREE);
-    }
-    else
-    {
-      poly->nb_polys = i;
-      break;
-    }
+  for( ;; ) {
+      char tag[15];
+      snprintf(tag, sizeof(tag), "poly%d", cpoly->nb_polys);
+      if (!param_list_lookup_string(pl, tag))
+          break;
+      cado_poly_provision_new_poly(cpoly);
+      /* sure, we could probably use the result of the string lookup.
+       * Well, that's not how param_list_parse_mpz_poly works.
+       * Note that param_list_parse_mpz_poly in itself supports two
+       * distinct formats: comma-separated lists of coefficients, or
+       * algebraic expressions.
+       */
+      param_list_parse_mpz_poly(pl, tag, cpoly->pols[cpoly->nb_polys-1]);
   }
-  if (poly->nb_polys == 0) /* No polynomials so far. Try other format. */
+
+  if (cpoly->nb_polys == 0) /* No polynomials so far. Try legacy format. */
   /* Convention: c or X means side 1 (often algebraic)
    *             Y means side 0 (often rational) */
   {
-    poly->nb_polys = 2;
+    cado_poly_provision_new_poly(cpoly);
+    cado_poly_provision_new_poly(cpoly);
+    mpz_t coeff;
+    mpz_init(coeff);
     /* reading polynomials coefficient by coefficient */
     for (unsigned int i = 0; i <= MAX_DEGREE; i++)
     {
-      char tag[4];
-      snprintf(tag, sizeof(tag), "c%d", i);
-      int b = param_list_parse_mpz(pl, tag, poly->pols[1]->coeff[i]);
-      if (!b) 
-      {
-        snprintf(tag, sizeof(tag), "X%d", i);
-        param_list_parse_mpz(pl, tag, poly->pols[1]->coeff[i]);
-      }
-      snprintf(tag, sizeof(tag), "Y%d", i);
-      param_list_parse_mpz(pl, tag, poly->pols[0]->coeff[i]);
+      char tc[4]; snprintf(tc, sizeof(tc), "c%d", i);
+      char tX[4]; snprintf(tX, sizeof(tX), "X%d", i);
+      char tY[4]; snprintf(tY, sizeof(tY), "Y%d", i);
+      if (param_list_parse_mpz(pl, tc, coeff))
+          mpz_poly_setcoeff(cpoly->pols[1], i, coeff);
+      if (param_list_parse_mpz(pl, tX, coeff))
+          mpz_poly_setcoeff(cpoly->pols[1], i, coeff);
+      if (param_list_parse_mpz(pl, tY, coeff))
+          mpz_poly_setcoeff(cpoly->pols[0], i, coeff);
     }
+    mpz_clear(coeff);
   }
-  /* setting degrees */
-  for(int side = 0 ; side < poly->nb_polys ; side++)
-    mpz_poly_cleandeg(poly->pols[side], MAX_DEGREE);
 
   /* Parse value of N. Two keys possible: n or None. Return 0 if not found. */
-  if (!param_list_parse_mpz(pl, "n", poly->n) &&
-      !param_list_parse_mpz(pl, NULL, poly->n))
+  if (!param_list_parse_mpz(pl, "n", cpoly->n) &&
+      !param_list_parse_mpz(pl, NULL, cpoly->n))
   {
     fprintf (stderr, "Error, no value for N in cado_poly_set_plist\n");
     ret = 0;
   }
 
-  for (int side = 0; side < poly->nb_polys; side++)
-    if (poly->pols[side]->deg < 0)
+  for (int side = 0; side < cpoly->nb_polys; side++)
+    if (cpoly->pols[side]->deg < 0)
     {
       fprintf (stderr, "Error, polynomial on side %u has degree < 0 in "
                        "cado_poly_set_plist\n", side);
@@ -125,50 +148,87 @@ int cado_poly_set_plist(cado_poly_ptr poly, param_list_ptr pl)
     }
 
   /* check that N divides the resultant*/
-  ASSERT_ALWAYS(cado_poly_check_mapping(NULL, poly, poly->n));
+  ASSERT_ALWAYS(cado_poly_check_mapping(NULL, cpoly, cpoly->n));
 
   return ret;
 }
 
 // returns 0 on failure, 1 on success.
-int cado_poly_read_stream (cado_poly_ptr poly, FILE * f)
+int cado_poly_read_stream (cado_poly_ptr cpoly, FILE * f)
 {
   param_list pl;
   param_list_init (pl);
   param_list_read_stream (pl, f, 0);
-  int r = cado_poly_set_plist (poly, pl);
+  int r = cado_poly_set_plist (cpoly, pl);
   param_list_clear (pl);
   return r;
 }
 
 // returns 0 on failure, 1 on success.
-int cado_poly_read_next_poly_from_stream (cado_poly_ptr poly, FILE * f)
+int cado_poly_read_next_poly_from_stream (cado_poly_ptr cpoly, FILE * f)
 {
   int r;
   param_list pl;
   param_list_init (pl);
   r = param_list_read_stream (pl, f, 1);
-  if (r && pl->size > 0)
-    r = cado_poly_set_plist (poly, pl);
-  else
+  if (r && !param_list_empty(pl)) {
+    cado_poly_reset(cpoly);
+    r = cado_poly_set_plist (cpoly, pl);
+  } else {
     r = 0;
+  }
   param_list_clear (pl);
   return r;
 }
 
 // returns 0 on failure, 1 on success.
-int cado_poly_read(cado_poly_ptr poly, const char *filename)
+int cado_poly_read(cado_poly_ptr cpoly, const char *filename)
 {
     FILE *file;
     int r;
-    file = fopen(filename, "r");
-    if (file == NULL)
-    {
-      fprintf(stderr, "Error, in cado_poly_read: could not open %s\n", filename);
-      return 0;
+    const char * magic = "inline-poly://";
+    if (strncmp(filename, magic, strlen(magic)) == 0) {
+        /* interpret the reset as param list items, and create the
+         * polynomial like this.
+         */
+        param_list pl;
+        param_list_init(pl);
+        const char * p = filename + strlen(magic);
+        for( ; *p ; ) {
+            const char * q = strchr(p, '/');
+            char * newitem;
+            if (q == NULL) {
+                newitem = strdup(p);
+                p += strlen(p);
+            } else {
+                newitem = strndup(p, q - p);
+                p = q + 1;
+            }
+            char * newkey;
+            char * newvalue;
+            q = strchr(newitem, '=');
+            if (q == NULL) {
+                fprintf(stderr, "wrong value in inline-poly file\n");
+                exit (EXIT_FAILURE);
+            }
+            newitem[q-newitem] = '\0';
+            newkey = newitem;
+            newvalue = newitem + (q-newitem+1);
+            param_list_add_key(pl, newkey, newvalue, PARAMETER_FROM_FILE);
+            free(newitem);
+        }
+        r = cado_poly_set_plist (cpoly, pl);
+        param_list_clear(pl);
+    } else {
+        file = fopen(filename, "r");
+        if (file == NULL)
+        {
+          fprintf(stderr, "Error, in cado_poly_read: could not open %s\n", filename);
+          return 0;
+        }
+        r = cado_poly_read_stream(cpoly, file);
+        fclose(file);
     }
-    r = cado_poly_read_stream(poly, file);
-    fclose(file);
     return r;
 }
 
@@ -257,7 +317,7 @@ int cado_poly_check_mapping(mpz_poly_ptr G, cado_poly_srcptr cpoly,
          * where N has non-trivial factors. Well, it happens if you feed
          * random numbers to polyselect, though.
          */
-        gmp_fprintf(stderr, "Warning: non-trivial factors (%Zd) of N were found while checking the poly file. This should not happen.\n", factors_of_N);
+        gmp_fprintf(stderr, "Warning: non-trivial factors (%Zd) of N were found while checking the cpoly file. This should not happen.\n", factors_of_N);
         // found_mapping = 0;
     }
 
@@ -331,12 +391,12 @@ int cado_poly_getm(mpz_ptr m, cado_poly_srcptr cpoly, mpz_srcptr N)
  * think that we could do something useful in such a situation.
  */
 int
-cado_poly_get_ratside (cado_poly_srcptr pol)
+cado_poly_get_ratside (cado_poly_srcptr cpoly)
 {
   int number_of_rational_sides = 0;
   int ratside = -1;
-  for(int side = 0; side < pol->nb_polys; side++)
-    if(pol->pols[side]->deg == 1) {
+  for(int side = 0; side < cpoly->nb_polys; side++)
+    if(cpoly->pols[side]->deg == 1) {
         ratside = side;
         number_of_rational_sides++;
     }
@@ -345,31 +405,27 @@ cado_poly_get_ratside (cado_poly_srcptr pol)
 }
 
 void
-cado_poly_fprintf (FILE *fp, cado_poly_srcptr poly, const char *prefix)
+cado_poly_fprintf (FILE *fp, cado_poly_srcptr cpoly, const char *prefix)
 {
   if (prefix)
     fputs (prefix, fp);
-  gmp_fprintf (fp, "n: %Zd\n", poly->n);
+  gmp_fprintf (fp, "n: %Zd\n", cpoly->n);
 
-  if (poly->nb_polys == 2)
-  {
-    mpz_poly_fprintf_cado_format (fp, poly->pols[0], 'Y', prefix);
-    mpz_poly_fprintf_cado_format (fp, poly->pols[1], 'c', prefix);
-  }
-  else
-  {
-    for (int side = 0; side < poly->nb_polys; side++)
-    {
+  if (cpoly->nb_polys == 2) {
+    mpz_poly_fprintf_cado_format (fp, cpoly->pols[0], 'Y', prefix);
+    mpz_poly_fprintf_cado_format (fp, cpoly->pols[1], 'c', prefix);
+  } else {
+    for (int side = 0; side < cpoly->nb_polys; side++) {
       if (prefix)
         fputs (prefix, fp);
       fprintf (fp, "poly%u=", side);
-      mpz_poly_fprintf_coeffs (fp, poly->pols[side], ',');
+      mpz_poly_fprintf_coeffs (fp, cpoly->pols[side], ',');
     }
   }
 
   if (prefix)
     fputs (prefix, fp);
-  fprintf (fp, "skew: %1.3f\n", poly->skew);
+  fprintf (fp, "skew: %1.3f\n", cpoly->skew);
 }
 
 /* if exp_E = 0, print E = lognorm + alpha (root-optimized polynomial),

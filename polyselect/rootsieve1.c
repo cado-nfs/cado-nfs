@@ -22,14 +22,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <gmp.h>
+#include <math.h>
 #include "auxiliary.h" /* for common routines with polyselect.c */
 #include "area.h"
 #include "murphyE.h"
 #include "size_optimization.h"
+#include "polyselect_alpha.h"
+#include "polyselect_norms.h"
 #include "omp_proxy.h"
 #include "gmp_aux.h"    // ulong_isprime
 #include "timing.h"     // seconds
 #include "macros.h"
+#include "gcd.h"
 /* define ORIGINAL if you want the original algorithm from the paper */
 // #define ORIGINAL
 
@@ -151,9 +155,9 @@ get_roots (unsigned long *roots, unsigned long f, unsigned long g,
 /* Return the average value of alpha in the class (v,w) = (modv,modw) % mod.
    Assume q is a prime power. */
 static double
-average_alpha (cado_poly_srcptr poly0, long modv, long modw, long q)
+average_alpha (cado_poly_srcptr poly0, long modv, long modw, long q, gmp_randstate_ptr rstate)
 {
-  cado_poly poly;
+  cado_poly cpoly;
   double s = 0.0, alpha;
   long v0 = 0, w0 = 0, p, t;
 
@@ -187,7 +191,7 @@ average_alpha (cado_poly_srcptr poly0, long modv, long modw, long q)
         {
           rotate_aux (poly->pols[ALG_SIDE]->coeff, G1, G0, w0, q*k + modw, 0);
           w0 = q * k + modw;
-          alpha = get_alpha_affine_p (poly->pols[ALG_SIDE], p);
+          alpha = get_alpha_affine_p (poly->pols[ALG_SIDE], p, rstate);
           s += alpha;
         }
     }
@@ -266,14 +270,14 @@ insert_class (class *c, int n, int keep, double alpha, long v, long w,
    Put in *nc the number of returned classes. */
 static class*
 best_classes (cado_poly poly0, long mod, int keep, long vmin, long vmax,
-              int *nc, long u)
+              int *nc, long u, gmp_randstate_ptr rstate)
 {
   int nfactors = 0;
   unsigned long *factors = NULL, p;
   class *c, *d, *e;
   int nd, ne;
   int i;
-  cado_poly poly;
+  cado_poly cpoly;
   long q, Q = 1;
 
   if (mod == 1)
@@ -326,7 +330,7 @@ best_classes (cado_poly poly0, long mod, int keep, long vmin, long vmax,
           for (long w = 0; w < q; w++)
             {
               double alpha;
-              alpha = average_alpha (poly, v, w, q);
+              alpha = average_alpha (poly, v, w, q, rstate);
               nd = insert_class (d, nd, keep, alpha, v, w, vmin, vmax, q);
             }
         }
@@ -374,7 +378,7 @@ best_classes (cado_poly poly0, long mod, int keep, long vmin, long vmax,
           double alpha = 0;
           for (int j = 0; j < nfactors; j++)
             alpha += average_alpha (poly, get_mod (-v0, factors[j]),
-                                    get_mod (-w0, factors[j]), factors[j]);
+                                    get_mod (-w0, factors[j]), factors[j], rstate);
           printf ("class of initial polynomial is not included");
           if (*nc > 0)
             printf (" (last %.2f wrt %.2f)\n", c[*nc - 1].alpha, alpha);
@@ -397,7 +401,7 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
           long modw)
 {
   long w, wmin, wmax;
-  cado_poly poly;
+  cado_poly cpoly;
   long l;
 #define G1 poly->pols[RAT_SIDE]->coeff[1]
 #define G0 poly->pols[RAT_SIDE]->coeff[0]
@@ -674,8 +678,8 @@ rotate_v (cado_poly_srcptr poly0, long v, long B,
 }
 
 static void
-rotate (cado_poly poly, long B, double maxlognorm, double Bf, double Bg,
-        double area, long u)
+rotate (cado_poly cpoly, long B, double maxlognorm, double Bf, double Bg,
+        double area, long u, gmp_randstate_ptr rstate)
 {
   /* determine range [vmin,vmax] */
   rotation_space r;
@@ -691,7 +695,7 @@ rotate (cado_poly poly, long B, double maxlognorm, double Bf, double Bg,
 
   class *c = NULL;
   int n;
-  c = best_classes (poly, mod, keep, vmin, vmax, &n, u);
+  c = best_classes (poly, mod, keep, vmin, vmax, &n, u, rstate);
   ASSERT_ALWAYS (n <= keep);
   printf ("u=%ld: kept %d class(es)", u, n);
   if (n == 0)
@@ -724,7 +728,7 @@ rotate (cado_poly poly, long B, double maxlognorm, double Bf, double Bg,
 /* don't modify poly, which is the size-optimized polynomial
    (poly0 is the initial polynomial) */
 static void
-print_transformation (cado_poly_ptr poly0, cado_poly_srcptr poly)
+print_transformation (cado_poly_ptr poly0, cado_poly_srcptr cpoly)
 {
   mpz_t k;
   int d = poly0->pols[ALG_SIDE]->deg;
@@ -779,7 +783,7 @@ print_transformation (cado_poly_ptr poly0, cado_poly_srcptr poly)
 double
 rotate_area_v (cado_poly_srcptr poly0, double maxlognorm, long v)
 {
-  cado_poly poly;
+  cado_poly cpoly;
   double area;
 
   cado_poly_init (poly);
@@ -800,7 +804,7 @@ rotate_area_u (cado_poly_srcptr poly0, double maxlognorm, long u)
 {
   double area, sum = 0.0;
   long h, vmin, vmax;
-  cado_poly poly;
+  cado_poly cpoly;
 
   cado_poly_init (poly);
   cado_poly_set (poly, poly0);
@@ -828,7 +832,7 @@ rotate_area_u (cado_poly_srcptr poly0, double maxlognorm, long u)
 
 /* estimate the rootsieve area for umin <= u <= umax */
 double
-rotate_area (cado_poly_srcptr poly, double maxlognorm, long umin, long umax)
+rotate_area (cado_poly_srcptr cpoly, double maxlognorm, long umin, long umax)
 {
   double area, sum = 0.0;
 
@@ -870,12 +874,16 @@ main (int argc, char **argv)
 {
     int argc0 = argc;
     char **argv0 = argv;
-    cado_poly poly;
+    cado_poly cpoly;
     int I = 0;
     double margin = NORM_MARGIN;
     long umin = LONG_MIN, umax = LONG_MAX;
     int sopt = 0;
     double time = seconds ();
+    long B = ALPHA_BOUND;
+    gmp_randstate_t rstate;
+
+    gmp_randinit_default(rstate);
 
     while (argc >= 2 && argv[1][0] == '-')
       {
@@ -1051,7 +1059,7 @@ main (int argc, char **argv)
                     poly->pols[RAT_SIDE]->coeff[0], u0, u, 2);
         u0 = u;
 
-        rotate (poly, B, maxlognorm, bound_f, bound_g, area, u);
+        rotate (poly, B, maxlognorm, bound_f, bound_g, area, u, rstate);
       }
 
     /* restore original polynomial */
@@ -1085,6 +1093,8 @@ main (int argc, char **argv)
     free (Q);
     cado_poly_clear (poly);
     mpz_clear (bestw);
+
+    gmp_randclear(rstate);
 
     return 0;
 }

@@ -56,6 +56,7 @@
 struct earlyparsed_relation_s {
   int64_t a;
   uint64_t b;
+  int active_sides[2];
   prime_t *primes;      /*if nb_alloc <= NB_PRIME_OPT, primes == primes_data*/
   prime_t primes_data[NB_PRIMES_OPT];
   weight_t nb;           /* number of primes */

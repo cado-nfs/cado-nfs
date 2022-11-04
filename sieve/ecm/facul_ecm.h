@@ -13,7 +13,7 @@ typedef enum {
   MONTY12 = 2,
   MONTY16 = 4,
   MONTYTWED12 = 8,
-  MONTYTWED16 = 16
+  MONTYTWED16 = 16      // some code bits are missing
 } ec_parameterization_t;
 
 #define FULLMONTY (BRENT12 | MONTY12 | MONTY16)
@@ -58,6 +58,9 @@ void ecm_make_plan (ecm_plan_t *, const unsigned int, const unsigned int,
 void ecm_clear_plan (ecm_plan_t *);
 
 int ec_parameter_is_valid (ec_parameterization_t, const unsigned long);
+unsigned long
+ec_valid_parameter_from_sequence (ec_parameterization_t parameterization,
+                       const unsigned long sequence_value);
 
 #ifdef __cplusplus
 }

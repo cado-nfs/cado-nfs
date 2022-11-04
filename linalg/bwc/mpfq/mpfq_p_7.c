@@ -196,10 +196,8 @@ static void mpfq_p_7_init_ts(mpfq_p_7_dst_field k)
     mp_limb_t s[7];
     mpfq_fixmp_7_sub_ui_nc(pp, k->p->_mp_d, 1);
     int e = 0;
-    while (*ptr == 0) {
-        ptr++;
-        e += 64;
-    }
+    for( ; e < 7*64 && *ptr == 0 ; e+=64, ptr++) ;
+    if (e >= 7*64) abort();
     int ee;
     ee = mpfq_ctzl(*ptr);
     e += ee;
@@ -536,14 +534,7 @@ long mpfq_p_7_vec_asprint(mpfq_p_7_dst_field K MAYBE_UNUSED, char * * pstr, mpfq
             alloc = len+ltmp+100 + alloc / 4;
             *pstr = (char *)realloc(*pstr, alloc);
         }
-#if GNUC_VERSION_ATLEAST(7,1,0)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
-#endif
-        strncpy(*pstr+len, tmp, ltmp+4);
-#if GNUC_VERSION_ATLEAST(7,1,0)
-#pragma GCC diagnostic pop
-#endif
+        strncpy(*pstr+len, tmp, alloc-len);
         len += ltmp;
         free(tmp);
     }

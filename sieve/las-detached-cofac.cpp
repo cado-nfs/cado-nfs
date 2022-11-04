@@ -1,7 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cinttypes>                 // for PRId64, PRIu64
-#include <array>                      // for array, array<>::value_type
 #include <cstdint>                    // for uint8_t
 #include <cstdio>                     // for NULL
 #include <mutex>                      // for lock_guard, mutex
@@ -48,7 +47,9 @@ detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_co
 
     cofac_standalone & cur(*param);
 
-    std::array<int, 2> cof_bitsize {{ 0,0 }}; /* placate compiler */
+    int nsides = las.cpoly->nb_polys;
+
+    std::vector<int> cof_bitsize(nsides, 0);
     las.cofac_stats.call(cur.norm, cof_bitsize);
 
     SIBLING_TIMER(timer, "cofactoring"); // aka factor_both_leftover_norms
@@ -122,13 +123,6 @@ detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_co
             rep.reports ++;
             /* Not clear what gives when we have Galois relations.  */
         }
-
-        /* In some rare cases, the norm on one side is exactly 1, which
-         * creates undefined behaviour later on. (bug # 21707) */
-        if (rel.nb_polys > 2)
-            for (int i = 0; i < rel.nb_polys; ++i)
-                if (rel.sides[i].size() == 0)
-                    dup_comment = "# NORM1 ";
 
         if (!dup_comment) dup_comment = "";
 

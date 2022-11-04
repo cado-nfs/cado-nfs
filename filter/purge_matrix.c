@@ -20,6 +20,11 @@
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
+#ifdef __arm__
+/* see comment in purge_matrix_compute_sum2_row */
+#define DONT_USE_PURGE_MATRIX_COMPUTE_SUM2_ROW_MT
+#endif
+
 void
 purge_matrix_init (purge_matrix_ptr mat, uint64_t nrows_init,
                    uint64_t col_min_index, uint64_t col_max_index)
@@ -199,6 +204,7 @@ typedef struct sum2_mt_data_s {
   purge_matrix_ptr mat;
 } sum2_mt_data_t;
 
+#ifndef DONT_USE_PURGE_MATRIX_COMPUTE_SUM2_ROW_MT
 void *
 purge_matrix_compute_sum2_row_mt_thread (void *pt)
 {
@@ -276,12 +282,13 @@ purge_matrix_compute_sum2_row_mt (purge_matrix_ptr mat, unsigned int nthreads)
   free(threads);
   free(th_data);
 }
+#endif
 
 void
 purge_matrix_compute_sum2_row (purge_matrix_ptr mat,
         unsigned int nthreads MAYBE_UNUSED)
 {
-#ifndef __arm__
+#ifndef DONT_USE_PURGE_MATRIX_COMPUTE_SUM2_ROW_MT
     /* the branch below does not seem to work as we expect it to on the
      * raspberry pi. Whether it's a flaw in the code or something else, I
      * can't tell, but we often see failures in filter/purge even for a

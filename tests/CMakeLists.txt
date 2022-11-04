@@ -591,22 +591,21 @@ cado_define_test(full_c30
                 TARGET_DEPENDENCIES full_dependencies_base
                 bwc_full_gfp
                 lingen_pz sm sm_simple las_descent reconstructlog-dl
-                merge-dl replay-dl badideals
+                merge-dl replay-dl numbertheory_tool
                 AVOID_CONCURRENT
                 )
         endif()
         # The following case was hitting the bug #21707
-        cado_define_test(full_p30_JL
-            SCRIPT
-            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
-            ${CADO_NFS_BINARY_DIR}/cado-nfs.py
-            -dlp -ell 350586976534485556208993720963
-            -t 2 -dlp-no-keep
-            701173953068971112417987441927
+        set(full_p30_JL_params
             fastSM=true
             jlpoly=true tasks.polyselect.bound=3 tasks.polyselect.modm=5
-            tasks.polyselect.degree=3 tasks.reconstructlog.checkdlp=false
-            tasks.lim0=4000 tasks.lim1=600 tasks.lpb0=12 tasks.lpb1=11
+            tasks.polyselect.degree=3
+            tasks.reconstructlog.checkdlp=false
+            tasks.lim0=4000 tasks.lim1=600
+            tasks.lpb0=12
+            tasks.lpb1=11
+            tasks.descent.lpb1=11
+            tasks.descent.init_lpb=20
             tasks.sieve.mfb0=12
             tasks.sieve.mfb1=22
             tasks.sieve.lambda0=1.1
@@ -615,11 +614,29 @@ cado_define_test(full_c30
             tasks.sieve.qrange=100
             tasks.sieve.sqside=0
             tasks.sieve.rels_wanted=1500
-            TARGET_DEPENDENCIES
+        )
+        set(full_p30_JL_deps
             full_dependencies_base
             bwc_full_gfp
             lingen_pz sm sm_simple las_descent reconstructlog-dl
-            dlpolyselect merge-dl replay-dl badideals
+            dlpolyselect merge-dl replay-dl numbertheory_tool
+            )
+        if(HAVE_GMPECM)
+            set(full_p30_JL_deps ${full_p30_JL_deps} descent_init_Fp)
+            set(full_p30_JL_params ${full_p30_JL_params} target=2,3)
+        else()
+            set(full_p30_JL_params ${full_p30_JL_params} tasks.reconstructlog.checkdlp=false)
+        endif()
+        cado_define_test(full_p30_JL
+            SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
+            ${CADO_NFS_BINARY_DIR}/cado-nfs.py
+            -dlp -ell 350586976534485556208993720963
+            -t 2 -dlp-no-keep
+            701173953068971112417987441927
+            ${full_p30_JL_params}
+            TARGET_DEPENDENCIES
+            ${full_p30_JL_deps}
             AVOID_CONCURRENT
             )
     endif()
@@ -680,7 +697,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
             TARGET_DEPENDENCIES full_p30_dependencies
-            lingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
+            lingen_pz sm reconstructlog-dl merge-dl replay-dl numbertheory_tool
         AVOID_CONCURRENT
             )
         cado_define_test(full_gfp2
@@ -697,7 +714,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
 #                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp2_2_2g.sh
 #                 ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
 #             TARGET_DEPENDENCIES full_c30_dependencies
-#             plingen_pz sm reconstructlog-dl merge-dl replay-dl badideals
+#             plingen_pz sm reconstructlog-dl merge-dl replay-dl numbertheory_tool
 # 	    filter_galois)
     endif()
 endif()

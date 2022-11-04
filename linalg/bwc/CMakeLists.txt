@@ -83,6 +83,7 @@ set(bwc_base_sources
     rolling.c
     matmul.c
     matmul_top.c
+    matmul_top2.cpp
     random_matrix.c
     mf.c 
     mf_bal.c

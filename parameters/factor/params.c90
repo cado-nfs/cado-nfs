@@ -160,7 +160,7 @@ tasks.maxtimedout = 100
 tasks.lim0 = 404327
 tasks.lim1 = 811066
 # The number of rational (resp. # algebraic) primes is roughly lim0/log(lim0)
-# (resp. lim1/log(lim0))
+# (resp. lim1/log(lim1))
 tasks.lpb0 = 23
 tasks.lpb1 = 23
 # lpb0/lpb1 is the (base 2 log of the) large prime bound
@@ -448,6 +448,13 @@ server.port = 8001
 # 0/, 1/, ..., [nrsubdir-1]/ are used.
 # server.nrsubdir = 0
 
+
+# linger_before_quit: instruct the server to remain alive for the given
+# number of seconds before actually exiting. The intention is to give
+# clients sufficient time to connect once again to the server, and
+# possibly receive a 410 error message. By default this feature is not
+# used (= the time is set to 0)
+# server.linger_before_quit = 10
 
 ###########################################################################
 # Worker slaves

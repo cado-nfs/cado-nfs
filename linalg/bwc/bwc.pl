@@ -1499,6 +1499,16 @@ sub max_mksol_iteration {
     die "can't find any F file, cannot infer the mksol max iteration";
 } # }}}
 
+sub interval_default {
+    my $krylov_length = max_krylov_iteration;
+    my $interval = 1;
+    while($interval * $interval < $krylov_length) {
+        $interval *= 2;
+    }
+    if ($interval < 64) { $interval = 64; }
+    return $interval;
+}
+
 # {{{ task_common_run is just a handy proxy.
 sub task_common_run {
     my $program = shift @_;
@@ -1524,6 +1534,19 @@ sub task_common_run {
     @_ = grep !/^rhs=/, @_ unless $program =~ /(?:prep|gather|lingen.*|mksol)$/;
     @_ = grep !/(?:precmd|tolerate_failure)/, @_;
 
+    if ($program =~ /bwccheck$/) {
+        my @x_;
+        while (defined($_=shift @_)) {
+            if ($_ eq '--') {
+                push @x_, $_, splice @_;
+                last;
+            }
+            next unless /^(?:[mn]|prime|wdir)=/;
+            push @x_, $_;
+        }
+        @_ = splice @x_;
+    }
+
     $program="$bindir/$program";
     unshift @_, $program;
 
@@ -1534,7 +1557,7 @@ sub task_common_run {
     if ($mpi_needed) {
         if ($program =~ /\/lingen[^\/]*$/) {
             unshift @_, @mpi_precmd_lingen;
-        } elsif ($program =~ /\/(?:split|acollect|lingen|cleanup)$/) {
+        } elsif ($program =~ /\/(?:split|acollect|lingen|cleanup|bwccheck)$/) {
             unshift @_, @mpi_precmd_single;
         } elsif ($program =~ /\/(?:prep|secure|krylov|mksol|gather|dispatch)$/) {
             unshift @_, @mpi_precmd;
@@ -1738,16 +1761,30 @@ sub task_prep {
 
 } # }}}
 
+
 # {{{ secure -- this is now just a subtask of krylov or mksol
 sub subtask_secure {
     return if $param->{'skip_online_checks'};
     my $wanted_stops={};
-    if (defined(my $x = $param->{'interval'})) {
-        $wanted_stops->{$x}=1;
-    }
     if (defined(my $x = $param->{'check_stops'})) {
         my @x = split(',', $x);
         $wanted_stops->{$_}=1 for @x;
+        if (defined(my $x = $param->{'interval'})) {
+            $wanted_stops->{$x} = 1;
+        }
+    } else {
+        # We're taking a pretty aggressive approach of always storing
+        # extra checkpoints that correspond to the interval value + a
+        # small offset See #30025
+        my $x = $param->{'interval'};
+        $x = interval_default unless defined $x;
+        $wanted_stops->{$x}=1;
+        my $a = int($x/2);
+        $a = 16 if $a > 16;
+        if ($a) {
+            $wanted_stops->{$x+$a}=1;
+            $wanted_stops->{$a}=1;
+        }
     }
     my $leader_files = get_cached_leadernode_filelist 'HASH';
 
@@ -1780,7 +1817,8 @@ sub subtask_secure {
         $mustrun = 1;
     }
     if ($mustrun) {
-        task_common_run('secure', @main_args);
+        my $cs = "check_stops=" . join(",", sort { $a <=> $b } keys %$wanted_stops);
+        task_common_run('secure', @main_args, $cs);
     } else {
         my $x = join(", ", sort { $a <=> $b } keys %$wanted_stops);
         task_check_message 'ok', "All auxiliary files for checkpointing are here, good (wanted: $x).\n";
@@ -1808,6 +1846,58 @@ sub task_secure {
         subtask_secure;
     }
 }
+
+sub task_safety_check_krylov {
+    task_begin_message;
+    my @args = @_;
+
+    my $leader_files = get_cached_leadernode_filelist 'HASH';
+
+    my @Cvs = sort { $a <=> $b } map { /\.(\d+)$/ && $1 } grep { /^Cv0-(\d+)\.(\d+)$/ && ($1 == $splitwidth) && $2 } keys %$leader_files;
+
+    # refuse to check against C*.0, this gives false negatives (see
+    # #30025).
+    shift @Cvs if (@Cvs && $Cvs[0] == 0);
+
+    if (!@Cvs) {
+        task_check_message 'warning', "No check files present, cannot verify that the starting point is consistent";
+    }
+    
+    my $ys;    for (@args) { $ys=$1 if    /^(?:ys=)?(\d+)/;    }
+    my $start; for (@args) { $start=$1 if /^(?:start=)?(\d+)/; }
+
+    my $doable_checks = {};
+
+    my $yrange = $ys . ".." . ($ys + $splitwidth);
+    my $vfiles = list_vfiles;
+    my $v_found_checkpoints = {};
+    $v_found_checkpoints->{$_}=1 for @{$vfiles->{$yrange}};
+    my $V = sprintf("V%d-%d.%d", $ys, $ys+$splitwidth, $start);
+    for(my $i = 0 ; $i < scalar @Cvs ; $i++) {
+        my $Ci = sprintf("Cv%d-%d.%d", 0, $splitwidth, $Cvs[$i]);
+        for(my $j = $i + 1 ; $j < scalar @Cvs ; $j++) {
+            my $Cj = sprintf("Cv%d-%d.%d", 0, $splitwidth, $Cvs[$j]);
+            my $b = $start + $Cvs[$i] - $Cvs[$j];
+            next unless $v_found_checkpoints->{$b};
+            my $Vx = sprintf("V%d-%d.%d", $ys, $ys+$splitwidth, $b);
+            print "## doable check against iteration $b, using check stops $Cvs[$i] and $Cvs[$j]\n";
+            $doable_checks->{$V} = 1;
+            $doable_checks->{$Vx} = 1;
+            $doable_checks->{$Ci} = 1;
+            $doable_checks->{$Cj} = 1;
+        }
+    }
+
+    if (!keys %$doable_checks) {
+        task_check_message 'warning', "Found no way to verify that the starting point is consistent";
+        return;
+    }
+
+    @args = grep { !/^ys/ && !/^start/ } @args;
+    task_common_run('bwccheck', @args, '--', keys %$doable_checks);
+    task_check_message 'ok', "Consistency check for starting vector $V was successful";
+}
+
 
 # {{{ krylov
 sub task_krylov {
@@ -1849,6 +1939,7 @@ sub task_krylov {
         # benefit of having performed a check inbetween).
         my @args = grep { !/^ys/ && !/^start/ } @main_args;
         push @args, split(' ', $t);
+        task_safety_check_krylov @args, split(' ', $t);
         task_common_run 'krylov', @args;
     }
 } # }}}
@@ -2323,7 +2414,7 @@ sub task_cleanup {
     }
     if (scalar @todo == 1 && (!-f"$wdir/W" || ((stat "$wdir/W")[7] lt (stat "$wdir/W.sols$solutions[0]")[7]))) {
         print STDERR "## Providing $wdir/W as an alias to $wdir/W.sols$solutions[0]\n";
-        symlink "$wdir/W.sols$solutions[0]", "$wdir/W";
+        symlink "W.sols$solutions[0]", "$wdir/W";
     }
 }
 # }}}

@@ -56,6 +56,8 @@ void cofactorization_statistics::call(int bits0, int bits1)
         cof_success[bits0].insert(cof_success[bits0].end(), news1-s1, 0);
         s1 = news1;
     }
+    ASSERT_ALWAYS((size_t) bits0 < s0);
+    ASSERT_ALWAYS((size_t) bits1 < s1);
     /* no need to use a mutex here: either we use one thread only
        to compute the cofactorization data and if several threads
        the order is irrelevant. The only problem that can happen
@@ -115,13 +117,15 @@ cofactorization_statistics::~cofactorization_statistics()
                         -> cannot yield a relation
 */
 int
-check_leftover_norm (cxx_mpz const & n, siever_config::side_config const & scs)
+check_leftover_norm (cxx_mpz const & n, siever_side_config const & scs)
 {
   size_t s = mpz_sizeinbase (n, 2);
   unsigned int lpb = scs.lpb;
   unsigned int mfb = scs.mfb;
   unsigned int klpb;
   double nd, kB, B;
+
+  ASSERT_ALWAYS(mpz_cmp_ui(n, 0) != 0);
 
   if (s > mfb)
     return 0; /* n has more than mfb bits, which is the given limit */
@@ -217,11 +221,14 @@ check_leftover_norm (cxx_mpz const & n, siever_config::side_config const & scs)
 */
 
 int factor_both_leftover_norms(
-        std::array<cxx_mpz, 2> & n,
-        std::array<std::vector<cxx_mpz>, 2> & factors,
-        std::array<unsigned long, 2> const & Bs,
-        facul_strategies_t const * strat)
+        std::vector<cxx_mpz> & n,
+        std::vector<std::vector<cxx_mpz>> & factors,
+        std::vector<unsigned long> const & Bs,
+        facul_strategies const & strat)
 {
+    ASSERT_ALWAYS(n.size() == 2);
+    ASSERT_ALWAYS(factors.size() == 2);
+    ASSERT_ALWAYS(Bs.size() == 2);
     int is_smooth[2] = {FACUL_MAYBE, FACUL_MAYBE};
     /* To remember if a cofactor is already factored.*/
 
@@ -235,7 +242,7 @@ int factor_both_leftover_norms(
     }
 
     /* call the facul library */
-    std::array<int, 2> facul_code = facul_both (factors, n, strat, is_smooth);
+    std::vector<int> facul_code = facul_both (factors, n, strat, is_smooth);
 
     if (is_smooth[0] != FACUL_SMOOTH || is_smooth[1] != FACUL_SMOOTH) {
         if (is_smooth[0] == FACUL_NOT_SMOOTH || is_smooth[1] == FACUL_NOT_SMOOTH)

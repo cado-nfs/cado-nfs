@@ -24,6 +24,8 @@
 #include "macros.h"     // ASSERT
 #include "rootfinder.h"
 #include "ropt_param.h"
+#include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 
 #include "table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h"
 // contains: fPyphi_poly_t ff4
@@ -451,8 +453,6 @@ void mpz_poly_set_sli(mpz_poly f, const long int * h, int deg_h)
 bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_poly_t * ff, mpz_srcptr p){
   unsigned int j=0;
   int i=0, k=0, l=0;// index of first good f in table
-  int nb_reducible_Py = 0;
-  int nb_irreducible_Py = 0;
   int nb_roots_y = 0;
   bool found_good_f = false;
   mpz_t *y;
@@ -476,7 +476,6 @@ bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_
     while ((found_good_f != true) && (i < ff->size)){// nothing found
 
       if (! is_irreducible_mod_p_si( (ff->tab[i]).Py, ff->deg_Py, p)){ //
-	nb_reducible_Py++;
 	// Py is not irreducible i.e. if deg=2, means has roots mod p.
 	// careful:: if one day, Py will be of degree > 2, then will need here find_root(Py) instead.
 	mpz_poly_set_sli(Pyi_mpz_poly, (ff->tab[i]).Py, ff->deg_Py); // long int -> int bof
@@ -505,9 +504,6 @@ bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_
 	  }// end if
 	}// end for loop over the roots y of Py mod p
       }// Py had roots mod p 
-      else{
-	nb_irreducible_Py++;
-      }
       i++;// loop over tab ff->tab of polys {f, Py, phi}
     }// either poly f found or end of ff->tab reached.
     mpz_poly_clear(Pyi_mpz_poly);
@@ -859,7 +855,7 @@ fprintf_gfpn_poly_info ( FILE* fp, mpz_poly f, const char *label_poly)
     fprintf (fp, " lognorm %1.2f, skew %1.2f, alpha %1.2f, E %1.2f, " \
 	     "exp_E %1.2f\n",
              logmu, skew, alpha, logmu + alpha,
-             logmu + exp_alpha(exp_rot[f->deg] * log (skew)));
+             logmu + expected_alpha(exp_rot[f->deg] * log (skew)));
 }
 
 void gfpk_print_params(unsigned int n, mpz_srcptr p, mpz_srcptr ell){

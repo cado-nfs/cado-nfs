@@ -79,6 +79,8 @@ skew: 1.37
 #include "mpz_poly.h"
 #include "murphyE.h"
 #include "rootfinder.h"
+#include "polyselect_norms.h"
+#include "polyselect_alpha.h"
 #include "timing.h"             // for seconds
 #include "usp.h"        // numberOfRealRoots
 
@@ -212,12 +214,14 @@ print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
         /* compute Murphy-E */
         cado_poly p;
 	START_TIMER;
-        p->pols[ALG_SIDE]->coeff = f;
-        p->pols[ALG_SIDE]->deg = df;
-        p->pols[RAT_SIDE]->coeff = g;
-        p->pols[RAT_SIDE]->deg = dg;
+        cado_poly_init(p);
+        cado_poly_provision_new_poly(p);
+        cado_poly_provision_new_poly(p);
+        mpz_poly_setcoeffs(p->pols[ALG_SIDE], f, df);
+        mpz_poly_setcoeffs(p->pols[RAT_SIDE], f, df);
         p->skew = skew;
         E = MurphyE (p, Bf, Bg, Area, MURPHY_K, get_alpha_bound ());
+        cado_poly_clear(p);
 	END_TIMER (TIMER_MURPHYE);
         if (E <= bestE)
             return 0;
@@ -748,7 +752,7 @@ usage ()
     fprintf (stderr, "   -bound xxx        bound for absolute value of coefficients of f\n");
     fprintf (stderr, "Optional parameters:\n");
     fprintf (stderr, "   -modr r -modm m   processes only polynomials of index r mod m\n");
-    fprintf (stderr, "   -t nnn            uses n threads\n");
+    fprintf (stderr, "   -t n              uses n threads\n");
     fprintf (stderr, "   -easySM ell       generates polynomials with minimal number of SMs mod ell\n");
     fprintf (stderr, "   -skewed           search for skewed polynomials\n");
     fprintf (stderr, "   -rrf nnn          f should have nnn real roots\n");

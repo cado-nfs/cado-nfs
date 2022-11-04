@@ -98,7 +98,7 @@ if ! [ "$fb0" ] && ! [ "$fb1" ] ; then
     echo "neither fb nor fb0/fb1 provided" >&2 ; exit 1
 fi
 
-for var in fbc batch{0,1} ; do
+for var in fbc batchfile{0,1} ; do
     # Those are optional too. Being filenames, we allow that they be
     # passed as just ".", which means that we expect to have them in the
     # work directory.
@@ -130,7 +130,7 @@ else
 fi
 
 # Warm up the cache files if needed
-if [ "$fbc" ] || [ "$batch0" ] || [ "$batch1" ] ; then
+if [ "$fbc" ] || [ "$batchfile0" ] || [ "$batchfile1" ] ; then
     run "$LAS_BINARY" "${args[@]}" "${zero_qs[@]}" -out "${RELS}" "$@"
 fi
 
@@ -143,33 +143,33 @@ if [ "$fbc" ] ; then
     else
         real_fbc="$fbc"
     fi
-    # Note that if HAVE_GLIBC_VECTOR_INTERNALS is not set, then we don't
-    # support fbc. We don't want the test to fail in that case.
+    # Note that fbc might not be supported by the current platform.
+    # We don't want the test to fail in that case.
     if [ -f "$real_fbc" ] ; then
         "${CADO_NFS_SOURCE_DIR}/sieve/inspect-fbc-file.pl" -fbc "$real_fbc" > "$real_fbc.txt"
     fi
 fi
 
-if [ "$batch0" ] ; then
+if [ "$batchfile0" ] ; then
     # We should have created a cache file now. Use our companion script
     # to parse the file headers. This can serve as an automated check
     # that the companion script and the source code are kept in sync.
     if [ "$file" = "." ] ; then
         real_file="${WORKDIR}/${BASENAME}.batch0"
     else
-        real_file="$batch0"
+        real_file="$batchfile0"
     fi
     "${CADO_NFS_SOURCE_DIR}/sieve/inspect-batch-file.pl" -batch "$real_file" > "$real_file.txt"
 fi
 
-if [ "$batch1" ] ; then
+if [ "$batchfile1" ] ; then
     # We should have created a cache file now. Use our companion script
     # to parse the file headers. This can serve as an automated check
     # that the companion script and the source code are kept in sync.
     if [ "$file" = "." ] ; then
         real_file="${WORKDIR}/${BASENAME}.batch1"
     else
-        real_file="$batch1"
+        real_file="$batchfile1"
     fi
     "${CADO_NFS_SOURCE_DIR}/sieve/inspect-batch-file.pl" -batch "$real_file" > "$real_file.txt"
 fi

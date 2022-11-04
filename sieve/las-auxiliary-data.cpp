@@ -59,7 +59,7 @@ nfs_aux::~nfs_aux()
     for (auto & T : th) {
         rt.rep.accumulate_and_clear(std::move(T.rep));
         rt.timer += T.timer;
-        for (int side = 0; side < 2; side++)
+        for (int side = 0; side < (int) T.checksum_post_sieve.size(); side++)
             checksum_post_sieve[side].update(T.checksum_post_sieve[side]);
     }
 

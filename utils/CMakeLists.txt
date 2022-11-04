@@ -4,7 +4,7 @@ set (sources
         relation-tools.c
         modredc_ul.c modredc_15ul.c modredc_2ul2.c modul_poly.c gmp_aux.c
         mod64.cpp modredc64.cpp modredc126.cpp mod_mpz_new.cpp
-        double_poly.cpp rootfinder.cpp params.c params-extra.cpp gcd.c
+        double_poly.cpp rootfinder.cpp params.cpp params-extra.cpp gcd.c
         gzip.cpp misc.c misc2.cpp
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
         barrier.c usp.c fix-endianness.c memusage.c
@@ -28,6 +28,7 @@ set (sources
         json.cpp
         indexed_relation.cpp
         cado-sighandlers.cpp
+        mmap_allocator.cpp
 )
 
 if(NOT HAVE_FMT)
@@ -35,9 +36,6 @@ if(NOT HAVE_FMT)
         embedded/fmt/format.cc
         embedded/fmt/os.cc
         )
-endif()
-if (HAVE_GLIBC_VECTOR_INTERNALS)
-    set(sources ${sources} mmap_allocator.cpp)
 endif()
 if (NOT MINGW)
     set (sources ${sources} cado_popen.c)
@@ -99,10 +97,10 @@ if(ENABLE_SHARED)
     install(TARGETS utils utils_with_io DESTINATION ${LIBSUFFIX}/utils)
 endif()
 
-add_executable(badideals badideals_main.cpp)
-target_link_libraries (badideals utils)
+add_executable(numbertheory_tool numbertheory_tool.cpp)
+target_link_libraries (numbertheory_tool utils)
 
-install(TARGETS badideals RUNTIME DESTINATION ${LIBSUFFIX}/utils)
+install(TARGETS numbertheory_tool RUNTIME DESTINATION ${LIBSUFFIX}/utils)
 
 include(CMakeLists-nodist.txt OPTIONAL)
 

@@ -17,14 +17,12 @@
 #include <stdexcept>       // for runtime_error
 #include <string>          // for basic_string, string
 #include <type_traits>     // for is_same
-#ifdef HAVE_GLIBC_VECTOR_INTERNALS
 /* need all that for mmap() stuff */
 // #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 // #include <sys/mman.h>
 #include <unistd.h>
-#endif
 #include <gmp.h>           // for mpz_t, mpz_fdiv_ui, mpz_gcd_ui
 #include "fb.hpp"
 #include "getprime.h"               // for getprime_mt, prime_info_clear
@@ -42,6 +40,7 @@
 #include "ularith.h"       // for ularith_invmod
 #include "u64arith.h"       // for u64arith_invmod
 #include "verbose.h"             // verbose_output_print
+#include "las-side-config.hpp"
 struct qlattice_basis; // IWYU pragma: keep
 
 /* {{{ fb_log fb_pow and friends */
@@ -167,6 +166,8 @@ fb_entry_general::fb_entry_general (const fb_entry_x_roots<Nr_roots> &e) {
   invq = e.invq;
   for (int i = 0; i != Nr_roots; i++) {
     /* Use simple constructor for root */
+    // with Nr_roots==0, coverity likes to complain
+    // coverity[dead_error_line]
     roots[i] = e.roots[i];
   }
   nr_roots = Nr_roots;
@@ -1713,9 +1714,8 @@ fb_factorbase::read(const char * const filename)
  * we prefer to rely on mmap-able vectors that subclass the standard
  * library ones */
 
-#ifdef HAVE_GLIBC_VECTOR_INTERNALS
-/* (desired) structure of the factor base cache header block (ascii, 4096
- * bytes).
+/* (desired) structure of the factor base cache header block (ascii,
+ * sysconf(_SC_PAGE_SIZE) * bytes).
  *
  * No comments are supported in the header blocks (yes, it is a bit
  * unfortunate. yes, it's possible to fix it, of course).
@@ -2054,7 +2054,6 @@ struct helper_functor_write_to_fbc_file_weight_part {
         }
 };
 
-#endif
 
 /* }}} */
 
@@ -2069,20 +2068,17 @@ struct helper_functor_put_first_0 {
 
 fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_list & pl, const char * fbc_filename, int nthreads) : f(cpoly->pols[side]), side(side)
 {
-    {
-        std::ostringstream os;
-        os << "lim" << side;
-        param_list_parse_ulong(pl, os.str().c_str(), &lim);
-    }
-    {
-        std::ostringstream os;
-        os << "powlim" << side;
-        if (!param_list_parse_ulong(pl, os.str().c_str(), &powlim)) {
-            powlim = ULONG_MAX;
-            verbose_output_print(0, 2,
-                    "# Using default value %s=ULONG_MAX\n",
-                    os.str().c_str());
-        }
+    /* It's a bit awkward to parse and re-parse these bits over and over
+     * again. Fortunately, it's cheap.
+     */
+    std::vector<siever_side_config> all_sides;
+    siever_side_config::parse(pl, all_sides, cpoly->nb_polys, { "lim" });
+    lim = all_sides[side].lim;
+    powlim = all_sides[side].powlim;
+    if (powlim == ULONG_MAX) {
+        verbose_output_print(0, 2,
+                "# Using default value powlim%d=ULONG_MAX\n",
+                side);
     }
 
     /* This initial 0 must be here in all cases, even for an empty factor
@@ -2099,7 +2095,6 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
     std::string polystring = f.print_poly("x");
 
 
-#ifdef HAVE_GLIBC_VECTOR_INTERNALS
     fbc_header hdr;
     /* First use standard I/O to read the cached file header. */
     hdr = find_fbc_header_block_for_poly(fbc_filename, f, lim, powlim, side);
@@ -2121,25 +2116,16 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
                 side, tfb, tfb_wct);
         return;
     }
-#else
-    if (fbc_filename) {
-        fprintf(stderr, "factor base cache not available with your libstdc++ library, sorry.\n");
-        /* It is not a failure, though: we can still read the factor base
-         * as it is, after all... */
-    }
-#endif
 
     /* compute, or maybe read the factor base from the ascii file */
     {
-        char paramname[5];
-
         if (f->deg > 1) {
             verbose_output_print(0, 2,
                     "# Reading side-%d factor base from disk"
                     " for polynomial f%d(x) = %s\n",
                     side, side, polystring.c_str());
-            snprintf(paramname, sizeof(paramname), "fb%d", side);
-            const char * fbfilename = param_list_lookup_string(pl, paramname);
+            std::string const & s = all_sides[side].fbfilename;
+            const char * fbfilename = s.empty() ? NULL : s.c_str();
             if (!fbfilename) {
                 fprintf(stderr, "Error: factor base file for side %d is not given\n", side);
                 exit(EXIT_FAILURE);
@@ -2167,7 +2153,6 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
         }
     }
 
-#ifdef HAVE_GLIBC_VECTOR_INTERNALS
     if (fbc_filename) {
         /* We have a complete factor base prepared. If we reach here,
          * then we have to store it to the cache file */
@@ -2231,7 +2216,6 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
                     side, fbc_filename, strerror(errno));
         }
     }
-#endif
 
     /* This puts an entry in the cache with the end position for all
      * vectors. We have a shortcut that avoids re-reading the entire

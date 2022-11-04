@@ -42,7 +42,7 @@ extern "C" {
 extern void renumber_table_init(renumber_proxy_ptr, cado_poly_ptr);
 extern void renumber_table_clear(renumber_proxy_ptr);
 extern void renumber_table_set_lpb(renumber_proxy_ptr, const unsigned int *, size_t);
-extern void renumber_table_read_from_file(renumber_proxy_ptr, const char * filename);
+extern void renumber_table_read_from_file(renumber_proxy_ptr, const char * filename, int for_dl);
 
 /* a few trivial accessors */
 extern int renumber_table_get_format(renumber_proxy_srcptr);

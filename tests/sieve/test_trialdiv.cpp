@@ -89,6 +89,8 @@ test_trialdiv (int n, unsigned long iter)
       } else {
           do p = ulong_nextprime (gmp_urandomm_ui(state, pmax)); while (p > pmax || p < 3);
       }
+      /* Trial divide candidate numbers with a trivial list of exactly 1
+       * prime (p). This is really a dumb test */
       trialdiv_data d(std::vector<unsigned long>(1, p));
 
       mpz_urandomb (N, state, n * mp_bits_per_limb);
@@ -143,6 +145,15 @@ int main (int argc, const char **argv)
       break;
   }
 
+  if (input) {
+    if (argc <= 1) {
+        fprintf(stderr, "-i requires a value for pmax on the command line\n");
+        exit (EXIT_FAILURE);
+    }
+    trialdiv_stdinput (atol(argv[1]), verbose);
+    exit (EXIT_SUCCESS);
+  }
+
   if (argc > 1)
     len = atoi (argv[1]);
   
@@ -158,12 +169,6 @@ int main (int argc, const char **argv)
 	      "%d words\n", TRIALDIV_MAXLEN);
       exit (EXIT_FAILURE);
     }
-
-  if (input) {
-    /* First parameter is pmax, and is stored in len */
-    trialdiv_stdinput (len, verbose);
-    exit (EXIT_SUCCESS);
-  }
 
   mpz_set_ui (N, 1UL);
   mpz_mul_2exp (N, N, 8 * sizeof(unsigned long) * len);

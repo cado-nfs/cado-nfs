@@ -65,23 +65,17 @@ struct renumber_t {
         }
     };/*}}}*/
 
-    /* The various known formats are documented in renumber.cpp */
-    /* It's public because some of the static functions in renumber.cpp
-     * access these. But really, this stuff should be considered
-     * implementation-only.
+    /* As of 20220311, I'm killing the old and transitional formats. Only
+     * the "flat" format is being used now.
+     *
+     * 20220411 is the same as 20200515, but with some hex/bin mess
+     * cleaned up
      */
-    static constexpr const int format_traditional = 20130603;
-    static constexpr const int format_variant = 20199999;
-    static constexpr const int format_flat = 20200515;
+    static constexpr const int format_flat = 20220411;
 
 private:/*{{{ internal data fields*/
 
-    int format = format_traditional;
-
-    /* a random state is needed for the traditional format (and _only_
-     * for the traditional format), since rootfinding is needed at times
-     * for some lookups */
-    mutable cxx_gmp_randstate rstate;
+    int format = format_flat;
 
     /* all the (p,r,side) description of the bad ideals */
     std::vector<std::pair<p_r_side, badideal> > bad_ideals;
@@ -94,7 +88,6 @@ private:/*{{{ internal data fields*/
      * dependent. Currently we have several (3) choices. See in
      * renumber.cpp
      */
-    std::vector<p_r_values_t> traditional_data;
     std::vector<std::array<p_r_values_t, 2>> flat_data;
     std::vector<unsigned int> lpb;
     std::vector<index_t> index_from_p_cache;
@@ -108,8 +101,6 @@ private:/*{{{ internal data fields*/
      * These are the outer indices only. The internal table size depends
      * on the renumber format that is is use (see renumber.cpp).
      *
-     * traditional: traditional_data.size() == above_all - above_bad
-     * variant: traditional_data.size() == above_all - above_bad + nprimes
      * flat: flat_data.size() == above_all - above_bad
      */
     index_t above_add = 0;
@@ -121,15 +112,15 @@ private:/*{{{ internal data fields*/
 public:
     /* various accessors {{{*/
     inline int get_format() const { return format; }
-    inline unsigned int get_lpb(unsigned int i) const { return lpb[i]; }
-    inline unsigned int get_max_lpb() const { return *std::max_element(lpb.begin(), lpb.end()); }
-    inline unsigned int get_min_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
+    inline unsigned int get_lpb(int i) const { return lpb[i]; }
+    inline int get_max_lpb() const { return *std::max_element(lpb.begin(), lpb.end()); }
+    inline int get_min_lpb() const { return *std::min_element(lpb.begin(), lpb.end()); }
     inline uint64_t get_size() const { return above_all; }
-    inline unsigned int get_nb_polys() const { return cpoly->nb_polys; }
+    inline int get_nb_polys() const { return cpoly->nb_polys; }
     inline mpz_poly_srcptr get_poly(int side) const { return cpoly->pols[side]; }
     inline int get_poly_deg(int side) const { return get_poly(side)->deg; }
     inline int get_rational_side() const {
-        for(unsigned int side = 0 ; side < get_nb_polys() ; side++) {
+        for(int side = 0 ; side < get_nb_polys() ; side++) {
             if (get_poly_deg(side) == 1) return side;
         }
         return -1;
@@ -140,8 +131,7 @@ public:
     std::vector<int> get_sides_of_additional_columns() const;
     inline index_t number_of_bad_ideals() const { return above_bad - above_add; }
     inline size_t get_memory_size() const {
-        return traditional_data.size() * sizeof(decltype(traditional_data)::value_type)
-            + flat_data.size() * sizeof(decltype(flat_data)::value_type);
+        return flat_data.size() * sizeof(decltype(flat_data)::value_type);
     }
 /*}}}*/
 
@@ -164,7 +154,7 @@ public:
     /*}}}*/
 
     /*{{{ reading the table */
-    void read_from_file(const char * filename);
+    void read_from_file(const char * filename, int for_dl);
     /*}}}*/
 
     /*{{{ most important outer-visible routines: lookups */
@@ -227,11 +217,10 @@ public:
      */
 
     struct cooked {
-        std::vector<unsigned int> nroots;
-        std::vector<p_r_values_t> traditional;
+        std::vector<int> nroots;
         std::vector<std::array<p_r_values_t, 2>> flat;
         std::string text;
-        bool empty() const { return traditional.empty() && flat.empty(); }
+        bool empty() const { return flat.empty(); }
     };
 
     struct hook {
@@ -239,11 +228,10 @@ public:
         virtual ~hook() = default;
     };
 
-    static void builder_configure_switches(cxx_param_list &);
     static void builder_declare_usage(cxx_param_list &);
     static void builder_lookup_parameters(cxx_param_list &);
-    index_t build(cxx_param_list &, hook * = nullptr);
-    index_t build(hook * = nullptr);
+    index_t build(cxx_param_list &, int for_dl, hook * = nullptr);
+    index_t build(int for_dl, hook * = nullptr);
     /* }}} */
 
     /*{{{ debugging aids*/
@@ -270,9 +258,7 @@ private:/*{{{ more implementation-level stuff. */
 
     unsigned int needed_bits() const;
     /* this returns an index i such that data[i - above_bad] points to
-     * the beginning of data for p. Note that in the
-     * renumber_format_variant case, this does not mean that i is the
-     * index of the first prime above p !
+     * the beginning of data for p.
      */
     index_t get_first_index_from_p(p_r_values_t p) const;
 
@@ -280,12 +266,6 @@ private:/*{{{ more implementation-level stuff. */
     p_r_side compute_p_r_side_from_p_vr (p_r_values_t p, p_r_values_t vr) const;
     p_r_values_t compute_vp_from_p (p_r_values_t p) const;
     p_r_values_t compute_p_from_vp (p_r_values_t vp) const;
-
-    bool traditional_get_largest_nonbad_root_mod_p (p_r_side & x) const;
-    index_t traditional_backtrack_until_vp(index_t i, index_t min = 0, index_t max = std::numeric_limits<index_t>::max()) const;
-    bool traditional_is_vp_marker(index_t i) const;
-    void variant_translate_index(index_t & i0, index_t & ii, index_t i) const;
-
 
     /* The "cook" function can be used asynchronously to prepare the
      * fragments of the renumber table in parallel. use_cooked must use
@@ -295,15 +275,10 @@ private:/*{{{ more implementation-level stuff. */
      * the renumber table itself. The only thing that matters is keeping
      * track of the above_all index, which is done by the input and
      * output index_t values.
-     *
-     * In the "variant" format, the cooked data is position-dependent, as
-     * it encodes the logical position, which is known only in
-     * synchronous context. This is the reason why C is passed as a
-     * non-const reference. (and we do play dirty tricks with it...)
      */
     cooked cook(unsigned long p, std::vector<std::vector<unsigned long>> &) const;
-    void use_cooked(p_r_values_t p, cooked & C);
-    index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked & C);
+    void use_cooked(p_r_values_t p, cooked const & C);
+    index_t use_cooked_nostore(index_t n0, p_r_values_t p, cooked const & C);
 
     struct builder; // IWYU pragma: keep
     friend struct builder;
@@ -322,10 +297,7 @@ public:
              * above_bad + the inner index.  Subtract table.above_bad to get
              * inner table indices.
              */
-            index_t i0;
             index_t i;
-            // void reseat(index_t i0, index_t i);
-            void reseat(index_t i);
         public:
             typedef p_r_side                value_type;
             typedef std::ptrdiff_t          difference_type;
@@ -333,7 +305,10 @@ public:
             typedef p_r_side const &        const_reference;
             typedef std::input_iterator_tag iterator_category;
 
-            explicit const_iterator(renumber_t const & table, index_t i);
+            explicit const_iterator(renumber_t const & table, index_t i)
+                : table(table)
+                , i(i)
+            {}
 
             p_r_side operator*() const;
             bool operator==(const const_iterator& other) const { return i == other.i; }

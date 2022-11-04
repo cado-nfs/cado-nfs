@@ -13,24 +13,34 @@ target_link_libraries (makefb utils)
 
 add_library (trialdiv OBJECT trialdiv.cpp)
 
-add_executable(freerel freerel.cpp fb.cpp)
+add_library(las_core_0 OBJECT fb.cpp las-side-config.cpp)
+
+add_executable(freerel freerel.cpp $<TARGET_OBJECTS:las_core_0>)
 target_link_libraries(freerel utils)
 set_target_properties(freerel PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
 set_target_properties(freerel PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
 # las_core_a has just very very basic types and code that can be used
 # (and are actually used) by some unit tests.
-set(las_core_a_sources
+add_library(las_core_a OBJECT
         las-todo-entry.cpp
         las-qlattice.cpp
-        fb.cpp
         )
 
 # las_core_b consists of all the object files that are necessary to build
 # a las_info object. It is probably more than what would be strictly
 # necessary, ideally. Everything extra is burden that we needlessly
 # embark in dupsup.
-set(las_core_b_sources
+
+# las_core_b0 is slighlty intermediary.
+add_library(las_core_b0 OBJECT
+        las-siever-config.cpp
+        las-config.c
+        las-norms.cpp
+        logapprox.cpp
+)
+
+add_library(las_core_b OBJECT
         las-info.cpp
         las-memory.cpp
         las-parallel.cpp
@@ -38,15 +48,11 @@ set(las_core_b_sources
         las-choose-sieve-area.cpp
         las-dlog-base.cpp
         las-cofactor.cpp
-        las-siever-config.cpp
-        las-config.c
-        las-norms.cpp
         las-threads.cpp
         las-auxiliary-data.cpp
         las-report-stats.cpp
         las-trialdiv.cpp
         las-bkmult.cpp
-        logapprox.cpp
         las-todo-list.cpp
         las-galois.cpp
         las-globals.cpp
@@ -60,14 +66,11 @@ set(las_core_b_sources
         las-sieve2357.cpp
 )
 
-set(las_core_c_sources
+add_library(las_core_c OBJECT
         las-arith.cpp
         las-descent-trees.cpp
         las-plattice.cpp
 )
-add_library(las_core_a OBJECT ${las_core_a_sources})
-add_library(las_core_b OBJECT ${las_core_b_sources})
-add_library(las_core_c OBJECT ${las_core_c_sources})
 
 set(las_multi_a_sources
 	bucket.cpp
@@ -93,7 +96,9 @@ add_executable(las
     $<TARGET_OBJECTS:las_multi_a_prod>
     $<TARGET_OBJECTS:las_core_c>
     $<TARGET_OBJECTS:las_core_b>
+    $<TARGET_OBJECTS:las_core_b0>
     $<TARGET_OBJECTS:las_core_a>
+    $<TARGET_OBJECTS:las_core_0>
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries (las facul utils)
@@ -105,7 +110,9 @@ add_executable(las_tracek
     $<TARGET_OBJECTS:las_multi_a_debug>
     $<TARGET_OBJECTS:las_core_c>
     $<TARGET_OBJECTS:las_core_b>
+    $<TARGET_OBJECTS:las_core_b0>
     $<TARGET_OBJECTS:las_core_a>
+    $<TARGET_OBJECTS:las_core_0>
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries (las_tracek facul utils)
@@ -118,7 +125,9 @@ add_executable(las_descent
     $<TARGET_OBJECTS:las_multi_a_descent>
     $<TARGET_OBJECTS:las_core_c>
     $<TARGET_OBJECTS:las_core_b>
+    $<TARGET_OBJECTS:las_core_b0>
     $<TARGET_OBJECTS:las_core_a>
+    $<TARGET_OBJECTS:las_core_0>
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries (las_descent facul utils)
@@ -135,8 +144,10 @@ add_subdirectory(strategies)
 add_executable(dupsup dupsup.cpp
     las-where-am-i-prod.cpp
     $<TARGET_OBJECTS:las_multi_a_descent>
-    $<TARGET_OBJECTS:las_core_b>
+    $<TARGET_OBJECTS:las_core_b>        # overkill
+    $<TARGET_OBJECTS:las_core_b0>
     $<TARGET_OBJECTS:las_core_a>
+    $<TARGET_OBJECTS:las_core_0>
     $<TARGET_OBJECTS:trialdiv>
     )
 target_link_libraries(dupsup facul)

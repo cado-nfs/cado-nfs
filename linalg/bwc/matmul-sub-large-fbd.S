@@ -12,6 +12,7 @@ matmul_sub_large_fbd(abobj_ptr x, abt ** sb, const abt * z, const uint8_t * q, u
     }
 }
 #endif
+.section .note.GNU-stack,"",%progbits
 	.text
 	.p2align 4,,15
 .globl matmul_sub_large_fbd

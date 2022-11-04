@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 typedef struct {
-  int alloc;    /* number of allocated coefficients */
+  unsigned int alloc;    /* number of allocated coefficients */
   int degree;   /* degree < alloc */
   residueul_t *coeff; /* coefficient list */
 } __modul_poly_struct;

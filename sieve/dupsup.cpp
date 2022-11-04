@@ -62,26 +62,14 @@ static void declare_usage(cxx_param_list & pl)
   param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J");
   param_list_decl_usage(pl, "A",    "set sieving region to 2^A");
   param_list_decl_usage(pl, "skew", "skewness");
-  param_list_decl_usage(pl, "lim0", "rational factor base bound");
-  param_list_decl_usage(pl, "lim1", "algebraic factor base bound");
-  param_list_decl_usage(pl, "lpb0", "set rational large prime bound to 2^lpb0");
-  param_list_decl_usage(pl, "lpb1", "set algebraic large prime bound to 2^lpb1");
-  param_list_decl_usage(pl, "mfb0", "set rational cofactor bound 2^mfb0");
-  param_list_decl_usage(pl, "mfb1", "set algebraic cofactor bound 2^mfb1");
-  param_list_decl_usage(pl, "ncurves0", "set rational number of curves");
-  param_list_decl_usage(pl, "ncurves1", "set algebraic number of curves"); 
-  param_list_decl_usage(pl, "lambda0", "rational lambda value");
-  param_list_decl_usage(pl, "lambda1", "algebraic lambda value");
-  param_list_decl_usage(pl, "powlim0", "limit on powers on rat side");
-  param_list_decl_usage(pl, "powlim1", "limit on powers on alg side");
   param_list_decl_usage(pl, "dup-qmin", "lower limit of global q-range for 2-sided duplicate removal");
   param_list_decl_usage(pl, "dup-qmax", "upper limit of global q-range for 2-sided duplicate removal");
   param_list_decl_usage(pl, "sqside", "side of special-q (default=1)");
   /* those are typical from las invocations, we wish to keep them
    * accepted */
   param_list_decl_usage(pl, "out",  "filename where relations are written, instead of stdout");
-  param_list_decl_usage(pl, "fb0",   "(unused)");
-  param_list_decl_usage(pl, "fb1",   "(unused)");
+  siever_side_config::declare_usage(pl);
+  param_list_decl_usage(pl, "fb",   "(unused)");
   param_list_decl_usage(pl, "fbc",  "(unused)");
   param_list_decl_usage(pl, "q0",   "(unused)");
   param_list_decl_usage(pl, "q1",   "(unused)");
@@ -173,7 +161,7 @@ main (int argc, char * argv[])
           perror(argv[argi]);
           abort();
       }
-      for (int row = 0 ; !feof(f) ; row++) {
+      for (; !feof(f) ;) {
         char line[1024];
         if (fgets(line, sizeof(line), f) == NULL)
           break;

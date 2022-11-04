@@ -7,6 +7,7 @@ static inline void matmul_sub_vsc_dispatch(abobj_ptr x, abt * dst, abt const * s
     }
 }
 #endif
+.section .note.GNU-stack,"",%progbits
 	.text
         .p2align 4,,15
 .globl matmul_sub_vsc_dispatch

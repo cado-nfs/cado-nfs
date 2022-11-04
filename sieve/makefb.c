@@ -152,8 +152,8 @@ typedef struct {
 
 typedef struct {
     entry *list;
-    int len;
-    int alloc;
+    unsigned int len;
+    unsigned int alloc;
 } entry_list;
 
 void entry_list_init(entry_list *L) {
@@ -329,7 +329,7 @@ entry_list all_roots(mpz_t *f, int d, unsigned long p, int maxbits, gmp_randstat
 
             all_roots_affine(&L, fh, d, p, kmax-1, 0, 0, 1, 0, rstate);
             // convert back the roots
-            for (int i = 1; i < L.len; ++i) {
+            for (unsigned int i = 1; i < L.len; ++i) {
                 entry E = L.list[i];
                 E.q *= p;
                 E.n1 += v;
@@ -423,7 +423,7 @@ void makefb_with_powers(FILE* outfile, mpz_poly F, unsigned long lim,
           // print in a compactified way
           int oldn0=-1, oldn1=-1;
           unsigned long oldq = 0;
-          for (int i = 0; i < T[j]->L[k].len; ++i) {
+          for (unsigned int i = 0; i < T[j]->L[k].len; ++i) {
             unsigned long q = T[j]->L[k].list[i].q;
             int n1 = T[j]->L[k].list[i].n1;
             int n0 = T[j]->L[k].list[i].n0;

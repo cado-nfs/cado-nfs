@@ -146,6 +146,8 @@
 #define mod_fprintf          gmp_fprintf
 #define mod_printf           gmp_printf
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -153,83 +155,83 @@ extern "C" {
 /* A function that is not used anywhere. The purpose is solely generating 
    compilation errors if any of the renamed functions, which constitute  
    kind of a definition of the API, are not implemented. */
-static inline void * 
+static inline uintptr_t
 mod_test_if_functions_exist()
 {
-  void *p;
-  p = (void*) &mod_intinit;
-  p = (void*) &mod_intclear;
-  p = (void*) &mod_intset;
-  p = (void*) &mod_intset_ul;
-  p = (void*) &mod_intset_uls;
-  p = (void*) &mod_intget_ul;
-  p = (void*) &mod_intget_uls;
-  p = (void*) &mod_intequal;
-  p = (void*) &mod_intequal_ul;
-  p = (void*) &mod_intcmp;
-  p = (void*) &mod_intcmp_ul;
-  p = (void*) &mod_intcmp_uint64;
-  p = (void*) &mod_intfits_ul;
-  p = (void*) &mod_intadd;
-  p = (void*) &mod_intsub;
-  p = (void*) &mod_intbits;
-  p = (void*) &mod_intshr;
-  p = (void*) &mod_intshl;
-  p = (void*) &mod_intdivexact;
-  p = (void*) &mod_intmod;
-  p = (void*) &mod_init;
-  p = (void*) &mod_init_noset0;
-  p = (void*) &mod_clear;
-  p = (void*) &mod_set;
-  p = (void*) &mod_set_ul;
-  p = (void*) &mod_set_ul_reduced;
-  p = (void*) &mod_set_int;
-  p = (void*) &mod_set_int_reduced;
-  p = (void*) &mod_swap;
+  uintptr_t z = 0;
+  z += (uintptr_t) (void*) &mod_intinit;
+  z += (uintptr_t) (void*) &mod_intclear;
+  z += (uintptr_t) (void*) &mod_intset;
+  z += (uintptr_t) (void*) &mod_intset_ul;
+  z += (uintptr_t) (void*) &mod_intset_uls;
+  z += (uintptr_t) (void*) &mod_intget_ul;
+  z += (uintptr_t) (void*) &mod_intget_uls;
+  z += (uintptr_t) (void*) &mod_intequal;
+  z += (uintptr_t) (void*) &mod_intequal_ul;
+  z += (uintptr_t) (void*) &mod_intcmp;
+  z += (uintptr_t) (void*) &mod_intcmp_ul;
+  z += (uintptr_t) (void*) &mod_intcmp_uint64;
+  z += (uintptr_t) (void*) &mod_intfits_ul;
+  z += (uintptr_t) (void*) &mod_intadd;
+  z += (uintptr_t) (void*) &mod_intsub;
+  z += (uintptr_t) (void*) &mod_intbits;
+  z += (uintptr_t) (void*) &mod_intshr;
+  z += (uintptr_t) (void*) &mod_intshl;
+  z += (uintptr_t) (void*) &mod_intdivexact;
+  z += (uintptr_t) (void*) &mod_intmod;
+  z += (uintptr_t) (void*) &mod_init;
+  z += (uintptr_t) (void*) &mod_init_noset0;
+  z += (uintptr_t) (void*) &mod_clear;
+  z += (uintptr_t) (void*) &mod_set;
+  z += (uintptr_t) (void*) &mod_set_ul;
+  z += (uintptr_t) (void*) &mod_set_ul_reduced;
+  z += (uintptr_t) (void*) &mod_set_int;
+  z += (uintptr_t) (void*) &mod_set_int_reduced;
+  z += (uintptr_t) (void*) &mod_swap;
   /* This is implemented only for 1-word arithmetic.
      FIXME: Since these functions are not generally available, they probably 
      should not be renamed, either.
   p = &mod_initmod_ul; 
   p = &mod_getmod_ul;
   */
-  p = (void*) &mod_initmod_int;
-  p = (void*) &mod_getmod_int;
-  p = (void*) &mod_clearmod;
-  p = (void*) &mod_get_ul;
-  p = (void*) &mod_get_int;
-  p = (void*) &mod_equal;
-  p = (void*) &mod_is0;
-  p = (void*) &mod_is1;
-  p = (void*) &mod_add;
-  p = (void*) &mod_add1;
-  p = (void*) &mod_add_ul;
-  p = (void*) &mod_sub;
-  p = (void*) &mod_sub_ul;
-  p = (void*) &mod_neg;
-  p = (void*) &mod_mul;
-  p = (void*) &mod_sqr;
-  p = (void*) &mod_div2;
-  p = (void*) &mod_div3;
-  p = (void*) &mod_div5;
-  p = (void*) &mod_div7;
-  p = (void*) &mod_div11;
-  p = (void*) &mod_div13;
-  p = (void*) &mod_pow_ul;
-  p = (void*) &mod_2pow_ul;
-  p = (void*) &mod_pow_mp;
-  p = (void*) &mod_2pow_mp;
-  p = (void*) &mod_sprp;
-  p = (void*) &mod_sprp2;
-  p = (void*) &mod_isprime;
-  p = (void*) &mod_gcd;
-  p = (void*) &mod_inv;
-  p = (void*) &mod_batchinv;
-  p = (void*) &mod_jacobi;
-  p = (void*) &mod_set0;
-  p = (void*) &mod_set1;
-  p = (void*) &mod_next;
-  p = (void*) &mod_finished;
-  return p;
+  z += (uintptr_t) (void*) &mod_initmod_int;
+  z += (uintptr_t) (void*) &mod_getmod_int;
+  z += (uintptr_t) (void*) &mod_clearmod;
+  z += (uintptr_t) (void*) &mod_get_ul;
+  z += (uintptr_t) (void*) &mod_get_int;
+  z += (uintptr_t) (void*) &mod_equal;
+  z += (uintptr_t) (void*) &mod_is0;
+  z += (uintptr_t) (void*) &mod_is1;
+  z += (uintptr_t) (void*) &mod_add;
+  z += (uintptr_t) (void*) &mod_add1;
+  z += (uintptr_t) (void*) &mod_add_ul;
+  z += (uintptr_t) (void*) &mod_sub;
+  z += (uintptr_t) (void*) &mod_sub_ul;
+  z += (uintptr_t) (void*) &mod_neg;
+  z += (uintptr_t) (void*) &mod_mul;
+  z += (uintptr_t) (void*) &mod_sqr;
+  z += (uintptr_t) (void*) &mod_div2;
+  z += (uintptr_t) (void*) &mod_div3;
+  z += (uintptr_t) (void*) &mod_div5;
+  z += (uintptr_t) (void*) &mod_div7;
+  z += (uintptr_t) (void*) &mod_div11;
+  z += (uintptr_t) (void*) &mod_div13;
+  z += (uintptr_t) (void*) &mod_pow_ul;
+  z += (uintptr_t) (void*) &mod_2pow_ul;
+  z += (uintptr_t) (void*) &mod_pow_mp;
+  z += (uintptr_t) (void*) &mod_2pow_mp;
+  z += (uintptr_t) (void*) &mod_sprp;
+  z += (uintptr_t) (void*) &mod_sprp2;
+  z += (uintptr_t) (void*) &mod_isprime;
+  z += (uintptr_t) (void*) &mod_gcd;
+  z += (uintptr_t) (void*) &mod_inv;
+  z += (uintptr_t) (void*) &mod_batchinv;
+  z += (uintptr_t) (void*) &mod_jacobi;
+  z += (uintptr_t) (void*) &mod_set0;
+  z += (uintptr_t) (void*) &mod_set1;
+  z += (uintptr_t) (void*) &mod_next;
+  z += (uintptr_t) (void*) &mod_finished;
+  return z;
 }
 
 #ifdef __cplusplus

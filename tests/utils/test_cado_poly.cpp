@@ -21,13 +21,15 @@ test_cado_poly_set ()
 
   mpz_set_ui (q->n, 1000000007);
   q->skew = s;
+  cado_poly_provision_new_poly(q);
+  cado_poly_provision_new_poly(q);
   q->pols[0]->deg = 1;
-  mpz_set_si (q->pols[0]->coeff[0], -123128869);
-  mpz_set_ui (q->pols[0]->coeff[1], 1000000008);
+  mpz_poly_setcoeff_si(q->pols[0], 0, -123128869);
+  mpz_poly_setcoeff_si(q->pols[0], 1, 1000000008);
   q->pols[1]->deg = 2;
-  mpz_set_ui (q->pols[1]->coeff[0], 228868283);
-  mpz_set_ui (q->pols[1]->coeff[1], 887036294);
-  mpz_set_ui (q->pols[1]->coeff[2], 429156742);
+  mpz_poly_setcoeff_ui(q->pols[1], 0, 228868283);
+  mpz_poly_setcoeff_ui(q->pols[1], 1, 887036294);
+  mpz_poly_setcoeff_ui(q->pols[1], 2, 429156742);
 
   cado_poly_set (p, q);
 
@@ -51,7 +53,7 @@ test_cado_poly_set ()
 // C only at the moment...
 //
 // returns 0 on failure, 1 on success.
-extern "C" int cado_poly_set_plist(cado_poly_ptr poly, param_list_ptr pl);
+extern "C" int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl);
 
 int cado_poly_read (cxx_cado_poly & poly, std::istream& is)
 {

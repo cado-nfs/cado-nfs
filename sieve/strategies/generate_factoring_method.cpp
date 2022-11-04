@@ -169,50 +169,23 @@ generate_composite_integer_interval(gmp_randstate_t state,
    our bench.
 */
 
-facul_strategy_t *
-generate_fm (int method, ec_parameterization_t curve, unsigned long B1,
-             unsigned long B2)
+facul_strategy_oneside
+generate_fm (int method,
+        unsigned long B1,
+        unsigned long B2,
+        ec_parameterization_t curve)
 {
-    facul_strategy_t *strategy;
-    strategy = (facul_strategy_t*) malloc(sizeof(facul_strategy_t));
-    strategy->methods = (facul_method_t*) malloc(2 * sizeof(facul_method_t));
-    /*
-      without this second method, the function
-      facul_clear_strategy (strategy) failed!
-    */
-    strategy->methods[1].method = 0;
-    strategy->methods[1].plan = NULL;
+    unsigned long sigma;
+    if (curve == MONTY16)
+        sigma = 1;
+    else if (curve == BRENT12)
+        sigma = 11;
+    else 
+        sigma = 2 + rand()%BOUND_SIGMA;
 
-    strategy->lpb = ULONG_MAX;
-    strategy->assume_prime_thresh = 0;
-    strategy->BBB = 0;
-    strategy->methods[0].method = method;
-
-    if (method == PM1_METHOD) {
-	strategy->methods[0].plan = malloc(sizeof(pm1_plan_t));
-	ASSERT(strategy->methods[0].plan != NULL);
-	pm1_make_plan((pm1_plan_t*) strategy->methods[0].plan, B1, B2, 0);
-    } else if (method == PP1_27_METHOD || method == PP1_65_METHOD) {
-	strategy->methods[0].plan = malloc(sizeof(pp1_plan_t));
-	ASSERT(strategy->methods[0].plan != NULL);
-	pp1_make_plan((pp1_plan_t*) strategy->methods[0].plan, B1, B2, 0);
-    } else if (method == EC_METHOD) {
-	unsigned long sigma;
-	if (curve == MONTY16)
-	  sigma = 1;
-	else if (curve == BRENT12)
-	  sigma = 11;
-	else 
-	  sigma = 2 + rand()%BOUND_SIGMA;
-
-	strategy->methods[0].plan = malloc(sizeof(ecm_plan_t));
-	ASSERT(strategy->methods[0].plan != NULL);
-	ecm_make_plan((ecm_plan_t*) strategy->methods[0].plan, B1, B2, curve,
-		      sigma, 1, 0);
-    } else {
-      exit(EXIT_FAILURE);
-    }
-    return strategy;
+    std::vector<facul_method::parameters> m(1,
+            { method, B1, B2, curve, sigma, 1 });
+    return facul_strategy_oneside(0ul, 0u, 0u, m, 0);
 }
 
 /************************************************************************/
@@ -226,7 +199,7 @@ generate_fm (int method, ec_parameterization_t curve, unsigned long B1,
 */
 
 double
-bench_proba_fm(facul_strategy_t * strategy, gmp_randstate_t state,
+bench_proba_fm(facul_strategy_oneside const & strategy, gmp_randstate_t state,
 	       unsigned long len_p, unsigned long len_n, std::vector<cxx_mpz> & N,
 	       size_t nb_test_max)
 {
@@ -254,7 +227,7 @@ bench_proba_fm(facul_strategy_t * strategy, gmp_randstate_t state,
 }
 
 double
-bench_time_fm_onelength(facul_strategy_t * method, std::vector<cxx_mpz> & N, size_t nb_test)
+bench_time_fm_onelength(facul_strategy_oneside const & method, std::vector<cxx_mpz> & N, size_t nb_test)
 {
     double tps = 0;
     std::vector<cxx_mpz> f;
@@ -304,7 +277,7 @@ void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
 	unsigned long B1 = param[2];
 	unsigned long B2 = param[3];
 
-	facul_strategy_t *st = generate_fm (method, curve, B1, B2);
+	facul_strategy_oneside st = generate_fm (method, B1, B2, curve);
 
 	int ind_proba = 0;
 	do {
@@ -322,8 +295,6 @@ void bench_proba(gmp_randstate_t state, tabular_fm_t * fm, int len_p_min,
 		 && ind_proba < p_max);
 
 	fm_set_proba(elem, proba, ind_proba, len_p_min);
-	//free
-	facul_clear_strategy(st);
     }
     free(proba);
 }
@@ -363,15 +334,13 @@ void bench_time(gmp_randstate_t state, tabular_fm_t * fm, size_t nb_test)
 	unsigned long B1 = param[2];
 	unsigned long B2 = param[3];
 	if (B1 != 0 || B2 != 0) {
-	    facul_strategy_t *st = generate_fm(method, curve, B1, B2);
+	    facul_strategy_oneside st = generate_fm(method, B1, B2, curve);
 	    double time[4];
 	    time[0]= bench_time_fm_onelength(st, N1, nb_test);
 	    time[1]= bench_time_fm_onelength(st, N2, nb_test);
 	    time[2]= bench_time_fm_onelength(st, N3, nb_test);
 	    time[3]= bench_time_fm_onelength(st, N4, nb_test);
 	    fm_set_time(elem, time, 4);
-	    //free
-	    facul_clear_strategy(st);
 	} else {
 	    double time[4] = { 0, 0, 0, 0 };
 	    fm_set_time(elem, time, 4);
@@ -478,7 +447,7 @@ int *choice_parameters(int method, int len_p_min)
   This function allows to compute the probability and the time of a strategy
   to find a prime number in an interval [2**len_p_min, 2**len_p_max].
 */
-static weighted_success bench_proba_time_pset_onefm(facul_strategy_t *strategy,
+static weighted_success bench_proba_time_pset_onefm(facul_strategy_oneside const & strategy,
 					   std::vector<cxx_mpz>& N, size_t nb_test_max)
 {
     size_t nb_succes_lim = 1000, nb_succes = 0;
@@ -519,25 +488,25 @@ bench_proba_time_pset (int method, ec_parameterization_t curve,
     //define the sieve region
     int c_min, c_max;
     int b1_min, b1_max;
-    int c_pas, b1_pas;
+    int c_step, b1_step;
     if (param_region != NULL) {
 	b1_min = param_region[0];
 	b1_max = param_region[1];
-	b1_pas = param_region[2];
+	b1_step = param_region[2];
 
 	c_min = param_region[3];
 	c_max = param_region[4];
-	c_pas = param_region[5];
+	c_step = param_region[5];
     } else {
 	//default parameters for the sieve region.
 	int *param = choice_parameters(method, len_p_min);
 	b1_min = param[0];
 	b1_max = param[1];
-	b1_pas = param[2];
+	b1_step = param[2];
 
 	c_min = param[3];
 	c_max = param[4];
-	c_pas = param[5];
+	c_step = param[5];
 	free(param);
     }
     
@@ -564,7 +533,7 @@ bench_proba_time_pset (int method, ec_parameterization_t curve,
     double zero = 0;
     tabular_fm_add(tab_fusion, tmp_method, 4, &zero, 1, &zero, 1, len_p_min);
 
-    for (int c = c_min; c <= c_max; c += c_pas) {
+    for (int c = c_min; c <= c_max; c += c_step) {
 	int B1;
 	int B2;
 
@@ -578,7 +547,7 @@ bench_proba_time_pset (int method, ec_parameterization_t curve,
 	double max_proba = 0.9;
 
 	while (B1 <= b1_max && proba < max_proba) {
-	    facul_strategy_t *fm = generate_fm(method, curve, B1, B2);
+	    facul_strategy_oneside const & fm = generate_fm(method, B1, B2, curve);
 	    weighted_success res = bench_proba_time_pset_onefm(fm, N, nb_test_max);
 	    proba = res.prob;
 	    tps = res.time;
@@ -590,9 +559,7 @@ bench_proba_time_pset (int method, ec_parameterization_t curve,
 
 	    tabular_fm_add(tab, elem, 4, &proba, 1, &tps, 1, len_p_min);
 
-	    facul_clear_strategy(fm);
-
-	    B1 = B1 + b1_pas;
+	    B1 = B1 + b1_step;
 	    B2 = B1 * c;
 
 	}

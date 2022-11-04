@@ -32,9 +32,12 @@ struct process_bucket_region_spawn {
      *
      * The i-th process_bucket_region task thus handles the bucket region
      * of index first_region0_index + already_done + i
+     *
+     * the two fields below must be set BY HAND before operator() is
+     * called. See the .cpp file.
      */
-    int first_region0_index;
-    int already_done;
+    int first_region0_index = 0;
+    int already_done = 0;
 
     process_bucket_region_spawn(
             nfs_work & ws,

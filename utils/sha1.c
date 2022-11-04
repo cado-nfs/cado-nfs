@@ -47,7 +47,7 @@ A million repetitions of "a"
 
 /* Hash a single 512-bit block. This is the core of the algorithm. */
 
-void SHA1Transform(uint32_t state[5], const unsigned char buffer[64])
+void SHA1Transform(uint32_t * state, const unsigned char * buffer)
 {
     uint32_t a, b, c, d, e;
 
@@ -93,7 +93,11 @@ void SHA1Transform(uint32_t state[5], const unsigned char buffer[64])
     state[4] += e;
     /* Wipe variables */
     memset(block, 0, sizeof(block));
-    a=b=c=d=e=0;
+    // This is an ill-advised attempt at clearing the registers. The C
+    // model actually cannot forbid the compiler to notice that these
+    // statements are not needed, and elide them. Let's just NOT do this.
+    // Of course, we don't careabout security in our use case.
+    // a=b=c=d=e=0;
 }
 
 

@@ -38,6 +38,11 @@ using std::isnan;
 using std::isinf;
 #endif
 
+#define STATIC_ANALYSIS_ASSERT_DATA_HEALTH(d) do {		     	   \
+    ASSERT_FOR_STATIC_ANALYZER(((d)->alloc == 0) == ((d)->coeff == NULL)); \
+    ASSERT_FOR_STATIC_ANALYZER((d)->deg >= -1);                            \
+    ASSERT_FOR_STATIC_ANALYZER((unsigned int) ((d)->deg+1) <= (d)->alloc);  \
+} while (0)
 
 /* By including cmath and not math.h, we get some prototypes in std:: ;
  * This happens to *also* be the case with math.h on some boxes, and that
@@ -53,11 +58,13 @@ double_poly_init (double_poly_ptr p, int d)
         p->alloc = 0;
         p->coeff = NULL;
     } else {
+        ASSERT_ALWAYS(d < INT_MAX);
         p->alloc = d + 1;
         p->deg = -1;
         p->coeff = (double*) malloc ((d + 1) * sizeof (double));
         FATAL_ERROR_CHECK(p->coeff == NULL, "malloc failed");
     }
+    STATIC_ANALYSIS_ASSERT_DATA_HEALTH(p);
 }
 
 /* Clear a polynomial */
@@ -71,11 +78,15 @@ double_poly_clear (double_poly_ptr p)
 /* realloc to at least nc coefficients */
 /* This never shrinks (as in mpz_poly) */
 void
-double_poly_realloc (double_poly_ptr p, int nc)
+double_poly_realloc (double_poly_ptr p, unsigned int nc)
 {
-    if (p->alloc >= nc) return;
-    p->alloc = nc;
-    p->coeff = (double*) realloc(p->coeff, p->alloc * sizeof(double));
+    ASSERT_ALWAYS(nc <= (unsigned int) INT_MAX);
+    if (p->alloc < nc) {
+        p->alloc = nc;
+        p->coeff = (double*) realloc(p->coeff, p->alloc * sizeof(double));
+        FATAL_ERROR_CHECK(p->coeff == NULL, "malloc failed");
+    }
+    STATIC_ANALYSIS_ASSERT_DATA_HEALTH(p);
 }
 
 
@@ -98,6 +109,7 @@ void
 double_poly_set (double_poly_ptr r, double_poly_srcptr s)
 {
     if (r == s) return;
+    if (s->deg == -1) { r->deg = -1; return; }
     double_poly_realloc(r, s->deg + 1);
     memcpy(r->coeff, s->coeff, (s->deg+1) * sizeof(double));
     r->deg = s->deg;
@@ -690,7 +702,8 @@ double_poly_set_mpz_poly (double_poly_ptr p, mpz_poly_srcptr q)
  */
 void double_poly_cleandeg(double_poly_ptr f, int deg)
 {
-    if (f->alloc < deg + 1) {
+    ASSERT_ALWAYS(deg >= -1);
+    if (f->alloc < (unsigned int) (deg + 1)) {
         double_poly_realloc(f, deg + 1);
         memset(f->coeff + f->deg + 1, 0, (deg - f->deg) * sizeof(double));
         /* we're not increasing f->deg, since we know that the rest is
@@ -845,6 +858,7 @@ static int double_poly_pseudo_division(double_poly_ptr q, double_poly_ptr r,
         e--;
         //TODO: is it necessary?
         if (double_poly_isnan_or_isinf(r) || r->deg == -1) {
+            double_poly_clear(s);
             return 0;
         }
     }

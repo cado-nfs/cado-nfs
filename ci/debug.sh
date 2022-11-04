@@ -126,8 +126,15 @@ EOF
     # directory. Otherwise the environment that is normally set by
     # 001-environment.sh is completely missing !
 
+    # have to add this extra "dhclient restart" thing because it seems
+    # that there is a race condition in the cloud-init startup, which
+    # does both "dhclient restart em0" and "routing restart" at the same
+    # time.
     commands=(
-        @guest root@ env ASSUME_ALWAYS_YES=yes pkg install fusefs-sshfs \;
+        @guest root@
+                    set -e \;
+                    env ASSUME_ALWAYS_YES=yes pkg install fusefs-sshfs
+                    \|\| \( route get 8.8.8.8 \|\| service dhclient restart em0 \; env ASSUME_ALWAYS_YES=yes pkg install fusefs-sshfs \) \;
                      kldload fusefs \;
                      sysctl vfs.usermount=1 \;
                      ln -s /tmp/$random /host \;
@@ -139,6 +146,15 @@ EOF
     )
     tanker vm run "${DARGS[@]}" -t $myimage "${commands[@]}"
 else
+    if [[ $CI_BUILD_NAME =~ containers ]] ; then
+        if [ -r /var/run/docker.sock ] && [ -w /var/run/docker.sock ] ; then
+            DARGS+=(-v /var/run/docker.sock:/var/run/docker.sock)
+            echo "# Passing access to /var/run/docker.sock to the container"
+        else
+            echo "# Cannot build containers inside the container if the calling user does not have access to the docker socket themselves" >&2
+            exit 1
+        fi
+    fi
     # remove CI_BUILD_NAME from the args!
     shift
     : ${imagename=docker-image-$RANDOM}

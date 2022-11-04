@@ -29,14 +29,17 @@ struct qlattice_basis; // IWYU pragma: keep
  * safely be used for later work.
  */
 cofac_standalone::cofac_standalone() : a(0), b(0) {/*{{{*/
-    S[0] = S[1] = 0;
 #ifdef SUPPORT_LARGE_Q
     mpz_set_ui(az, 0);
     mpz_set_ui(bz, 0);
 #endif
 }/*}}}*/
-cofac_standalone::cofac_standalone(int N, size_t x, int logI, qlattice_basis const & Q) {/*{{{*/
-    S[0] = S[1] = 0;
+cofac_standalone::cofac_standalone(int nsides, int N, size_t x, int logI, qlattice_basis const & Q)
+    : S(nsides, 0)
+    , norm(nsides, 0)
+    , factors(nsides)
+    , lps(nsides)
+{/*{{{*/
     NxToAB (a, b, N, x, logI, Q);
 #ifdef SUPPORT_LARGE_Q
     NxToABmpz (az, bz, N, x, logI, Q);
@@ -148,6 +151,6 @@ int cofac_standalone::factor_both_leftover_norms(nfs_work_cofac & wc) {/*{{{*/
     return ::factor_both_leftover_norms(norm,
             lps,
             {{ wc.sc.sides[0].lim, wc.sc.sides[1].lim }},
-            wc.strategies);
+            *wc.strategies);
 }/*}}}*/
 

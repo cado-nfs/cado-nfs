@@ -58,6 +58,9 @@ add_library(facul
         stage2.c
         bytecode.c
         makeplan.c facul.cpp modset.cpp
+        facul_method.cpp
+        facul_strategies_stats.cpp
+        facul_strategies.cpp
         mpqs_doit.c mpqs_ul.c mpqs_15ul.c mpqs_2ul2.c mpqs_mpz.c
         batch.cpp
         ec_arith_Weierstrass_new.cpp)
@@ -70,14 +73,18 @@ add_executable(testbench testbench.cpp)
 target_link_libraries(testbench facul utils m)
 
 
-add_executable(finishbatch finishbatch.cpp)
+add_executable(finishbatch finishbatch.cpp
+    $<TARGET_OBJECTS:las_core_0>
+    )
 target_link_libraries(finishbatch facul utils m)
 set_target_properties(finishbatch PROPERTIES LINK_FLAGS "${OpenMP_C_FLAGS}")
 
 add_executable(finishecm finishecm.cpp)
 target_link_libraries(finishecm facul utils m)
 
-add_executable(precompbatch precompbatch.cpp)
+add_executable(precompbatch precompbatch.cpp
+    $<TARGET_OBJECTS:las_core_0>
+    )
 target_link_libraries(precompbatch facul utils m)
 set_target_properties(precompbatch PROPERTIES LINK_FLAGS "${OpenMP_C_FLAGS}")
 

@@ -272,7 +272,7 @@ class nfs_work_cofac {
     siever_config sc;
     las_todo_entry doing;
 
-    facul_strategies_t const * strategies;
+    facul_strategies const * strategies;
 
     /* yes, the ctor takes a non-const reference, but this->las is const.
      * This is because the ctor wants to access the cache in the las

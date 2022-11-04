@@ -25,9 +25,14 @@ debian_packages="$debian_packages     locales"
 debian_packages="$debian_packages     cmake"
 debian_packages="$debian_packages     libhwloc-dev"
 debian_packages="$debian_packages     libgmp-dev"
+# debian has gmp-ecm. Let's use it in our debian tests, that will give
+# some extra coverage.
+debian_packages="$debian_packages     libecm-dev"
 # is full perl really needed ?
 # debian_packages="$debian_packages     perl"
 debian_packages="$debian_packages     python3"
+# we may consider using a system libfmt at some point.
+# debian_packages="$debian_packages     libfmt-dev"
 
 opensuse_packages="$opensuse_packages     bc"
 opensuse_packages="$opensuse_packages     which"  # is type -p more portable?
@@ -38,6 +43,7 @@ opensuse_packages="$opensuse_packages     gmp-devel"
 opensuse_packages="$opensuse_packages     python3"
 opensuse_packages="$opensuse_packages     gzip"
 
+fedora_packages="$fedora_packages     util-linux-core"
 fedora_packages="$fedora_packages     bc"
 fedora_packages="$fedora_packages     cmake"
 fedora_packages="$fedora_packages     hwloc-devel"
@@ -45,8 +51,23 @@ fedora_packages="$fedora_packages     gmp-devel"
 fedora_packages="$fedora_packages     hostname"
 # is full perl really needed ? seems that perl-interpreter and the auto
 # dependencies that we pull already pull what we need.
-# fedora_packages="$fedora_packages     perl"
+fedora_packages="$fedora_packages     perl-interpreter"
 fedora_packages="$fedora_packages     python"
+fedora_packages="$fedora_packages     findutils diffutils"
+
+centos_packages="$centos_packages     bc"
+centos_packages="$centos_packages     cmake"
+centos_packages="$centos_packages     hwloc"
+if is_centos_above_8 ; then
+    # alright -- centos stream 8 does not have hwloc-devel. It's just
+    # weird...
+    centos_packages="$centos_packages     hwloc-devel"
+fi
+centos_packages="$centos_packages     gmp-devel"
+centos_packages="$centos_packages     hostname"
+centos_packages="$centos_packages     perl-interpreter"
+centos_packages="$centos_packages     python3"
+centos_packages="$centos_packages     findutils diffutils"
 
 alpine_packages="$alpine_packages     bc"
 alpine_packages="$alpine_packages     cmake"
@@ -58,12 +79,18 @@ alpine_packages="$alpine_packages     perl"
 alpine_packages="$alpine_packages     python3"
 
 freebsd_packages="$freebsd_packages     cmake"
-freebsd_packages="$freebsd_packages     hwloc"
+# See #30036. We NEVER want to include hwloc under freebsd.
+# 	hwloc: 1.11.13_1 seems to be the troublemaker. I haven't
+# 	investigated further
+# case "$CI_BUILD_NAME" in
+#     *"32-bit freebsd"*) : ;;
+#     *) freebsd_packages="$freebsd_packages     hwloc" ;;
+# esac
 freebsd_packages="$freebsd_packages     gmp"
 freebsd_packages="$freebsd_packages     gmake"
 freebsd_packages="$freebsd_packages     bash"
 freebsd_packages="$freebsd_packages     perl5"
-freebsd_packages="$freebsd_packages     python3 py38-sqlite3"
+freebsd_packages="$freebsd_packages     python3 py39-sqlite3"
 
 while [ $# -gt 0 ] ; do
     case "$1" in
@@ -75,11 +102,24 @@ done
 
 # These variables are set in ci/001-environment.sh
 if [ "$coverage" ] ; then
+    # remove coverage from this round of package selection because we'll
+    # install a specific version via pip instead.
+    #     debian_packages="$debian_packages     gcovr"
+    #     opensuse_packages="$opensuse_packages gcovr"
+    #     fedora_packages="$fedora_packages     gcovr"
+    #     centos_packages="$centos_packages     gcovr"
+    #     alpine_packages="$alpine_packages     gcovr"
+    debian_packages="$debian_packages     python3-pip"
+    opensuse_packages="$opensuse_packages python3-pip"
+    fedora_packages="$fedora_packages     python3-pip"
+    centos_packages="$centos_packages     python3-pip"
+    alpine_packages="$alpine_packages     py3-pip"
     # vim is needed because we have a bit of ex scripting...
-    debian_packages="$debian_packages     lcov gcovr vim-nox"
-    opensuse_packages="$opensuse_packages lcov gcovr vim"
-    fedora_packages="$fedora_packages     lcov gcovr vim"
-    alpine_packages="$alpine_packages     lcov gcovr vim"
+    debian_packages="$debian_packages     lcov vim-nox"
+    opensuse_packages="$opensuse_packages lcov vim"
+    fedora_packages="$fedora_packages     lcov vim"
+    centos_packages="$centos_packages     lcov vim"
+    alpine_packages="$alpine_packages     lcov vim"
     if is_freebsd ; then
         echo "coverage -> not on freebsd" >&2
         freebsd_packages="$freebsd_packages   lcov vim"
@@ -95,12 +135,18 @@ if [ "$gcc32" ] ; then
         echo "multlib -> only debian (fedora,opensuse:IDK ; alpine:no-go)" >&2
         # didn't even check freebsd
         exit 1
+    else
+        dpkg --add-architecture i386
     fi
     # note that opensuse has gmp-devel-32bit
     debian_packages="$debian_packages     g++-multilib"
     debian_packages="$debian_packages     curl"
     debian_packages="$debian_packages     lzip"
+    debian_packages="$debian_packages     libhwloc-dev:i386"
+    # we may consider using a system libfmt at some point.
+    # debian_packages="$debian_packages     libfmt-dev:i386"
     # fedora_packages="$fedora_packages     g++"
+    # centos_packages="$centos_packages     g++"
     # alpine_packages="$alpine_packages     g++"
 fi
 
@@ -109,6 +155,7 @@ if [ "$gcc" ] && ! type g++ > /dev/null 2>&1 ; then
     debian_packages="$debian_packages     g++"
     opensuse_packages="$opensuse_packages gcc gcc-c++"
     fedora_packages="$fedora_packages     g++"
+    centos_packages="$centos_packages     gcc-c++"
     alpine_packages="$alpine_packages     g++"
     freebsd_packages="$freebsd_packages   gcc"  # this pulls g++ too
 fi
@@ -117,6 +164,7 @@ if [ "$clang" ] && ! type clang++ > /dev/null 2>&1 ; then
     debian_packages="$debian_packages     clang"
     opensuse_packages="$opensuse_packages clang"
     fedora_packages="$fedora_packages     clang"
+    centos_packages="$centos_packages     clang"
     alpine_packages="$alpine_packages     clang"
     freebsd_packages="$freebsd_packages   llvm"
 fi
@@ -125,6 +173,7 @@ if [ "$checks" ] ; then
     debian_packages="$debian_packages     xsltproc"
     opensuse_packages="$opensuse_packages libxslt-tools"
     fedora_packages="$fedora_packages     libxslt"
+    centos_packages="$centos_packages     libxslt"
     alpine_packages="$alpine_packages     libxslt"
     freebsd_packages="$freebsd_packages   libxslt"
 fi
@@ -135,6 +184,7 @@ if [ "$coverity" ] ; then
     debian_packages="$debian_packages     curl git"
     opensuse_packages="$opensuse_packages curl git"
     fedora_packages="$fedora_packages     curl git"
+    centos_packages="$centos_packages     curl git"
     alpine_packages="$alpine_packages     curl git"
     freebsd_packages="$freebsd_packages   curl git"
 fi
@@ -143,11 +193,12 @@ if [ "$DOCKER_SCRIPT" ] ; then
     debian_packages="$debian_packages sudo git vim-nox gdb"
     opensuse_packages="$opensuse_packages sudo git vim gdb"
     fedora_packages="$fedora_packages sudo git vim gdb"
+    centos_packages="$centos_packages sudo git vim gdb"
     alpine_packages="$alpine_packages sudo git vim gdb"
     freebsd_packages="$freebsd_packages sudo git vim gdb"
 fi
 
-if is_debian ; then
+if is_debian || is_ubuntu ; then
     if [ -x /usr/local/bin/clang ] && ! [ -x /usr/bin/cc ] ; then
         T=$(mktemp -d /tmp/XXXXXXXX)
         F=$($(dirname $0)/phony-packages/clang-usrlocal-0.0/build.sh "$T")
@@ -160,6 +211,8 @@ elif is_opensuse ; then
     zypper -n install $opensuse_packages
 elif is_fedora ; then
     dnf -y install $fedora_packages
+elif is_centos ; then
+    dnf -y install $centos_packages
 elif is_alpine ; then
     # hwloc-dev still in alpine testing.
     cat >> /etc/apk/repositories <<EOF
@@ -180,6 +233,10 @@ elif is_freebsd ; then
         mkdir /usr/local/etc/libmap.d
         find /usr/local/lib/gcc* -name '*.so' -o -name '*.so.[0-9]*' | while read xx ; do if [ -e "/lib/$(basename $xx)" ] ; then echo "$(basename "$xx") $xx" ; fi ; done > /usr/local/etc/libmap.d/gcc.conf
     fi
+fi
+
+if [ "$coverage" ] ; then
+    python3 -u -m pip install gcovr==5.0
 fi
 
 if [ "$gcc32" ] ; then

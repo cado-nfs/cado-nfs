@@ -242,6 +242,9 @@ ropt_polyselect (cado_poly_ptr output_poly, cado_poly_ptr input_poly,
   ropt_poly_t poly;
   ropt_poly_init (poly);
 
+  ASSERT_ALWAYS(input_poly->nb_polys == 2);
+  for( ; output_poly->nb_polys < 2 ; )
+      cado_poly_provision_new_poly(output_poly);
   /* setup poly */
   for (i = 0; i <= input_poly->pols[RAT_SIDE]->deg; i++)
     mpz_set (poly->g[i], input_poly->pols[RAT_SIDE]->coeff[i]);
@@ -262,12 +265,8 @@ ropt_polyselect (cado_poly_ptr output_poly, cado_poly_ptr input_poly,
   ropt_do_both_stages (poly, bestpoly, param, info);
   
   /* bring bestpoly back to polyselect_ropt */
-  for (i = 0; i <= input_poly->pols[RAT_SIDE]->deg; i++)
-    mpz_set (output_poly->pols[RAT_SIDE]->coeff[i], bestpoly->g[i]);
-  mpz_poly_cleandeg (output_poly->pols[RAT_SIDE], input_poly->pols[RAT_SIDE]->deg);
-  for (i = 0; i <= input_poly->pols[ALG_SIDE]->deg; i++)
-    mpz_set (output_poly->pols[ALG_SIDE]->coeff[i], bestpoly->f[i]);
-  mpz_poly_cleandeg (output_poly->pols[ALG_SIDE], input_poly->pols[ALG_SIDE]->deg);
+  mpz_poly_setcoeffs(output_poly->pols[RAT_SIDE], bestpoly->g, input_poly->pols[RAT_SIDE]->deg);
+  mpz_poly_setcoeffs(output_poly->pols[ALG_SIDE], bestpoly->f, input_poly->pols[ALG_SIDE]->deg);
   mpz_set (output_poly->n, input_poly->n);
 
   /* get time passed from info, use info to keep interface unchanged */

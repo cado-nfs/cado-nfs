@@ -135,7 +135,7 @@ typedef struct relation_data {
     const int in_alg_first;
     const int out_alg_first;
 
-    cado_poly_ptr poly;
+    cado_poly_ptr cpoly;
     const renumber_t * renumber;
 
     read_relation_func read_relation;
@@ -983,7 +983,7 @@ int
 read_relation_renumbered (FILE *fp, relation_t *rel, relation_data_t* data)
 {
   int c;
-  cado_poly_ptr poly = data->poly;
+  cado_poly_ptr cpoly = data->poly;
   const renumber_t * renumber_table = data->renumber;
 
   if (fscanf (fp, "%" SCNx64 ",%" SCNx64 ":", &(rel->a), &(rel->b)) != 2)
@@ -1460,7 +1460,7 @@ main (int argc, char *argv[])
 
   worker_t workers[MAX_THREADS];
 
-  cado_poly poly;
+  cado_poly cpoly;
   renumber_t renumber_table;
 
   read_relation_func read_relation = NULL;

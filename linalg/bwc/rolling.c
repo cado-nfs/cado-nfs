@@ -59,6 +59,7 @@ void keep_rolling_checkpoints(const char * stem, unsigned int v)
     ASSERT_ALWAYS(svs);
     if (svs <= (size_t) bw->keep_rolling_checkpoints) {
         free(vs);
+        free(spat);
         return;
     }
     qsort(vs, svs, sizeof(unsigned int), (sortfunc_t) &uint_cmp);

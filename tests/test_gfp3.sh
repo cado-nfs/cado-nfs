@@ -33,6 +33,7 @@ name = p3dd7-f4g3-GJL-1
 dlp = true
 N = 8005493
 ell = 64087926178543
+gfpext = 3
 
 slaves.nrclients = $(((1+NCPUS)/2))
 tasks.threads = 2
@@ -46,7 +47,6 @@ slaves.hostnames = localhost
 tasks.polyselect.import = $POLYFILE
 
 # for the record, the computations involve 1 unit on side 1, 1 SM on side 0
-tasks.lcideals = true
 
 tasks.I = 11
 tasks.polyselect.degree = 4

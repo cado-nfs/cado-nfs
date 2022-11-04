@@ -154,7 +154,7 @@ matmul_ptr matmul_init(mpfq_vbase_ptr x, unsigned int nr, unsigned int nc, const
     typedef void (*rebinder_t)(matmul_ptr mm);
     rebinder_t rebinder;
 
-    if (strcmp(x->impl_name(x), "pz") == 0) {
+    if (strcmp(x->impl_name(), "pz") == 0) {
         fprintf(stderr, "Note: the pz backends for linear algebra have been intentionally disabled, in favour of fixed-width types, fixed at compile time. Therefore, in order to do linear algebra mod this p, you must either:\n"
                 " - Use a version before 48202e0\n"
                 " - Implement fixed-width mpfq code beyond what is already implemented, at at least up to the current size (%lu words)\n"
@@ -168,7 +168,7 @@ matmul_ptr matmul_init(mpfq_vbase_ptr x, unsigned int nr, unsigned int nc, const
     char solib[256];
     snprintf(solib, sizeof(solib),
             MATMUL_LIBS_PREFIX "matmul_%s_%s" MATMUL_LIBS_SUFFIX,
-            x->impl_name(x), impl);
+            x->impl_name(), impl);
 
     static pthread_mutex_t pp = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_lock(&pp);
@@ -184,7 +184,7 @@ matmul_ptr matmul_init(mpfq_vbase_ptr x, unsigned int nr, unsigned int nc, const
     }
     pthread_mutex_unlock(&pp);
 #else   /* BUILD_DYNAMICALLY_LINKABLE_BWC */
-    rebinder = get_rebinder(impl, x->impl_name(x));
+    rebinder = get_rebinder(impl, x->impl_name());
 #endif   /* BUILD_DYNAMICALLY_LINKABLE_BWC */
 
     (*rebinder)(fake);

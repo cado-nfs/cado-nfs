@@ -1,4 +1,4 @@
-/* Shirokauer maps 
+/* Schirokauer maps 
    
 Input:
 
@@ -52,14 +52,16 @@ stats_data_t stats; /* struct for printing progress */
 void *
 thread_sm (void * context_data, earlyparsed_relation_ptr rel)
 {
-  mpz_poly * abpolys = (mpz_poly *) context_data;
-  mpz_poly_init_set_ab(abpolys[rel->num], rel->a, rel->b);
+  pair_and_sides * ps = (pair_and_sides *) context_data;
+  mpz_poly_set_ab(ps[rel->num]->ab, rel->a, rel->b);
+  ps[rel->num]->active_sides[0] = rel->active_sides[0];
+  ps[rel->num]->active_sides[1] = rel->active_sides[1];
 
   return NULL;
 }
 
 sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
-                             uint64_t * small_nrows, mpz_poly_ptr *F,
+                             uint64_t * small_nrows, const mpz_poly_srcptr * F,
 			     int nb_polys,
                              const mpz_t ell2)
 {
@@ -69,10 +71,13 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
   int ret;
 
   /* array of (a,b) pairs from (purgedname) file */
-  mpz_poly *pairs;
 
   purgedfile_read_firstline (purgedname, &nrows, &ncols);
-  pairs = (mpz_poly *) malloc (nrows * sizeof(mpz_poly));
+
+  pair_and_sides * pairs = (pair_and_sides *) malloc (nrows * sizeof(pair_and_sides));
+  for (uint64_t i = 0; i < nrows; i++)
+    mpz_poly_init (pairs[i]->ab, -1);
+
   ASSERT_ALWAYS (pairs != NULL);
   /* For each rel, read the a,b-pair and init the corresponding poly pairs[] */
   fprintf(stdout, "\n# Reading %" PRIu64 " (a,b) pairs\n", nrows);
@@ -110,14 +115,7 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
       ASSERT_ALWAYS(ret == 2);
     }
     
-    int dF[NB_POLYS_MAX];
-    for (int s = 0; s < nb_polys; ++s) {
-        if (F[s] == NULL)
-	    dF[s] = 0;
-	else
-	    dF[s] = F[s]->deg;
-    }
-    sm_relset_init (&rels[i], dF, nb_polys);
+    sm_relset_init (&rels[i], F, nb_polys);
     sm_build_one_relset (&rels[i], r, e, len_relset, pairs, F, nb_polys, ell2);
 
     if (stats_test_progress(stats))
@@ -127,7 +125,7 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
   fclose_maybe_compressed(ix, indexname);
 
   for (uint64_t i = 0; i < nrows; i++)
-    mpz_poly_clear (pairs[i]);
+    mpz_poly_clear (pairs[i]->ab);
   free (pairs);
   
   return rels;
@@ -173,11 +171,17 @@ void MPI_Send_mpz_poly(mpz_poly_ptr poly, int dst) {
 
 void MPI_Recv_mpz_poly(mpz_poly_ptr poly, int src) {
   MPI_Recv(&poly->deg, 1, MPI_INT, src, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  if (poly->alloc < poly->deg+1) {
+  ASSERT_ALWAYS(poly->deg + 1 >= 0);
+  /* FIXME -- what about already allocated coefficients ? */
+  ASSERT_ALWAYS(poly->alloc == 0);
+  if (poly->alloc < ((unsigned int) poly->deg+1)) {
     poly->alloc = poly->deg+1;
     poly->coeff = (mpz_t *) realloc(poly->coeff, poly->alloc*sizeof(mpz_t));
     ASSERT_ALWAYS(poly->coeff != NULL);
   }
+  /* It pretty much seems that if poly->alloc is non zero on entry, then
+   * we have a leak here.
+   */
   for (int i = 0; i <= poly->deg; ++i)
     MPI_Recv_mpz(poly->coeff[i], src);
 }
@@ -227,7 +231,7 @@ static void declare_usage(param_list pl)
   param_list_decl_usage(pl, "out", "output file (stdout if not given)");
   param_list_decl_usage(pl, "ell", "(required) group order");
   param_list_decl_usage(pl, "sm-mode", "SM mode (see sm-portability.h)");
-  param_list_decl_usage(pl, "nsm", "number of SM on side 0,1,... (default is "
+  param_list_decl_usage(pl, "nsms", "number of SM on side 0,1,... (default is "
                                    "computed by the program)");
   param_list_decl_usage(pl, "t", "number of threads on each mpi job (default 1)");
   verbose_decl_usage(pl);
@@ -263,18 +267,11 @@ int main (int argc, char **argv)
   const char *outfile = NULL;
 
   param_list pl;
-  cado_poly pol;
-  mpz_poly_ptr F[NB_POLYS_MAX];
+  cado_poly cpoly;
 
   sm_relset_ptr rels = NULL;
   uint64_t nb_relsets;
   mpz_t ell, ell2;
-  int nsm_arg[NB_POLYS_MAX];
-
-  /* negative value means that the value that will be used is the value
-   * computed later by sm_side_info_init */
-  for (int side = 0; side < NB_POLYS_MAX; side++)
-    nsm_arg[side] = -1;
 
   /* read params */
   param_list_init(pl);
@@ -336,8 +333,8 @@ int main (int argc, char **argv)
   }
 
   /* Init polynomial */
-  cado_poly_init (pol);
-  if (!cado_poly_read (pol, polyfile))
+  cado_poly_init (cpoly);
+  if (!cado_poly_read (cpoly, polyfile))
   {
     if (idoio) {
       fprintf (stderr, "Error reading polynomial file\n");
@@ -345,14 +342,22 @@ int main (int argc, char **argv)
     exit (EXIT_FAILURE);
   }
 
-  /* Read number of sm to be printed from command line */
-  param_list_parse_int_list (pl, "nsm", nsm_arg, pol->nb_polys, ",");
+  int * nsm_arg = malloc(cpoly->nb_polys * sizeof(int));
 
-  for(int side = 0; side < pol->nb_polys; side++)
+  /* negative value means that the value that will be used is the value
+   * computed later by sm_side_info_init */
+  for (int side = 0; side < cpoly->nb_polys; side++)
+    nsm_arg[side] = -1;
+  /* Read number of sm to be printed from command line */
+  param_list_parse_int_args_per_side(pl, "nsm", nsm_arg, cpoly->nb_polys,
+          ARGS_PER_SIDE_DEFAULT_AS_IS);
+
+  mpz_poly_srcptr * F = malloc(cpoly->nb_polys * sizeof(mpz_poly_srcptr));
+
+  for(int side = 0; side < cpoly->nb_polys; side++)
   {
-    F[side] = pol->pols[side];
-    if (nsm_arg[side] > F[side]->deg)
-    {
+    F[side] = cpoly->pols[side];
+    if (nsm_arg[side] > F[side]->deg) {
       if (idoio) {
         fprintf(stderr, "Error: nsm%d=%d can not exceed the degree=%d\n",
                       side, nsm_arg[side], F[side]->deg);
@@ -378,22 +383,25 @@ int main (int argc, char **argv)
     gmp_fprintf(stdout, "# Sub-group order:\nell = %Zi\n# Computation is done "
                       "modulo ell2 = ell^2:\nell2 = %Zi\n", ell, ell2);
 
-  sm_side_info sm_info[NB_POLYS_MAX];
+  sm_side_info * sm_info = malloc(cpoly->nb_polys * sizeof(sm_side_info));
 
-  for(int side = 0 ; side < pol->nb_polys ; side++) {
+  for(int side = 0 ; side < cpoly->nb_polys ; side++) {
       sm_side_info_init(sm_info[side], F[side], ell);
       sm_side_info_set_mode(sm_info[side], sm_mode_string);
   }
 
-  for (int side = 0; side < pol->nb_polys; side++) {
+  for (int side = 0; side < cpoly->nb_polys; side++) {
     if (idoio) {
       fprintf(stdout, "\n# Polynomial on side %d:\n# F[%d] = ", side, side);
       mpz_poly_fprintf(stdout, F[side]);
       printf("# SM info on side %d:\n", side);
       sm_side_info_print(stdout, sm_info[side]);
     }
-    if (nsm_arg[side] >= 0)
+    if (nsm_arg[side] >= 0) {
+      if (idoio && nsm_arg[side] < sm_info[side]->nsm)
+        printf("# Warning: as per the command line parameters, we will only compute %d SMs instead of %d on side %d. Be sure to know what you are doing!\n", nsm_arg[side], sm_info[side]->nsm, side);
       sm_info[side]->nsm = nsm_arg[side]; /* command line wins */
+    }
     if (idoio)
       printf("# Will compute %d SMs on side %d\n", sm_info[side]->nsm, side);
 
@@ -411,17 +419,14 @@ int main (int argc, char **argv)
   }
   fflush(stdout);
 
-  // If nsm is 0 on one side, then set F[side] to NULL to desactivate the
-  // corresponding computations.
-  // TODO: this will go.
-  int dF[NB_POLYS_MAX];
-  for (int side = 0; side < pol->nb_polys; ++side) {
-    if (sm_info[side]->nsm == 0) {
-      F[side] = NULL;
-      dF[side] = 0;
-    } else {
-      dF[side] = F[side]->deg;
-    }
+  // If nsm (or nsm_arg) is 0 on one side, then set F[side] to NULL to
+  // desactivate the corresponding computations.
+  // (note that it does not seem to be a good idea to forcibly deactivate
+  // the SMs on a given side, I think).
+  for (int side = 0; side < cpoly->nb_polys; ++side) {
+      if (sm_info[side]->nsm == 0) {
+          F[side] = NULL;
+      }
   }
 
   ///////////////////////
@@ -432,7 +437,7 @@ int main (int argc, char **argv)
       const unsigned int thmax = 1;
 #endif
   if (rank == 0) {
-    rels = build_rel_sets(purgedfile, indexfile, &nb_relsets, F, pol->nb_polys, ell2);
+    rels = build_rel_sets(purgedfile, indexfile, &nb_relsets, F, cpoly->nb_polys, ell2);
     fprintf(stdout, "\n# Computing Shirokauer maps for %" PRIu64
         " relation-sets, using %d threads and %d jobs.\n", nb_relsets, thmax, size);
     fflush(stdout);
@@ -445,27 +450,27 @@ int main (int argc, char **argv)
   sm_relset_ptr part_rels = (sm_relset_ptr)malloc(nb_parts*sizeof(sm_relset_t));
   ASSERT_ALWAYS(part_rels != NULL);
   for (uint64_t i = 0; i < nb_parts; ++i) {
-    sm_relset_init(&part_rels[i], dF, pol->nb_polys);
+    sm_relset_init(&part_rels[i], F, cpoly->nb_polys);
   }
   if (rank == 0) {
     for (uint64_t i = 0; i < nb_parts; ++i) {
       sm_relset_copy(&part_rels[i], &rels[i*size]);
       for (int j = 1; j < size; ++j) {
         if (i*size+j < nb_relsets)
-          MPI_Send_relset(&rels[i*size+j], j, pol->nb_polys);
+          MPI_Send_relset(&rels[i*size+j], j, cpoly->nb_polys);
       }
     }
   } else {
     for (uint64_t i = 0; i < nb_parts; ++i) {
       if (i*size+rank < nb_relsets)
-        MPI_Recv_relset(&part_rels[i], 0, pol->nb_polys);
+        MPI_Recv_relset(&part_rels[i], 0, cpoly->nb_polys);
     }
   }
 
   // Can now free the original rels on process 0
   if (rank == 0) {
     for (uint64_t i = 0; i < nb_relsets; i++)
-      sm_relset_clear (&rels[i], pol->nb_polys);
+      sm_relset_clear (&rels[i]);
     free(rels);
   }
 
@@ -475,9 +480,9 @@ int main (int argc, char **argv)
 
   mpz_poly **dst = (mpz_poly **) malloc(nb_parts*sizeof(mpz_poly*));
   for (uint64_t j = 0; j < nb_parts; ++j) {
-    dst[j] = (mpz_poly *) malloc(pol->nb_polys*sizeof(mpz_poly));
-    memset(dst[j], 0, pol->nb_polys*sizeof(mpz_poly));
-    for(int side = 0 ; side < pol->nb_polys ; side++) {
+    dst[j] = (mpz_poly *) malloc(cpoly->nb_polys*sizeof(mpz_poly));
+    memset(dst[j], 0, cpoly->nb_polys*sizeof(mpz_poly));
+    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
       if (sm_info[side]->nsm != 0)
         mpz_poly_init(dst[j][side], sm_info[side]->f->deg);
     }
@@ -503,7 +508,7 @@ int main (int argc, char **argv)
 #pragma omp for schedule(static)
 #endif
       for(uint64_t i = 0 ; i < nb_relsets ; i++) {
-          for(int side = 0 ; side < pol->nb_polys ; side++) {
+          for(int side = 0 ; side < cpoly->nb_polys ; side++) {
               if (sm_info[side]->nsm == 0)
                   continue;
               mpz_poly_reduce_frac_mod_f_mod_mpz(
@@ -533,32 +538,32 @@ int main (int argc, char **argv)
   if (rank != 0) { // sender
     for (uint64_t i = 0; i < nb_parts; ++i) {
       if (i*size+rank < nb_relsets)
-        MPI_Send_res(dst[i], 0, sm_info, pol->nb_polys);
+        MPI_Send_res(dst[i], 0, sm_info, cpoly->nb_polys);
     }
   } else { // rank 0 receives and prints. (round Robin again)
     FILE *out = outfile ? fopen(outfile, "w") : stdout;
     ASSERT_ALWAYS(out != NULL);
     int nsm_total=0;
-    for (int side = 0; side < pol->nb_polys; side++) {
+    for (int side = 0; side < cpoly->nb_polys; side++) {
       nsm_total += sm_info[side]->nsm;
     }
     fprintf(out, "%" PRIu64 " %d", nb_relsets, nsm_total);
     gmp_fprintf(out, " %Zd\n", ell);
     mpz_poly *res;
-    res = (mpz_poly *) malloc(pol->nb_polys*sizeof(mpz_poly));
-    for(int side = 0 ; side < pol->nb_polys ; side++) {
+    res = (mpz_poly *) malloc(cpoly->nb_polys*sizeof(mpz_poly));
+    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
       mpz_poly_init(res[side], sm_info[side]->f->deg);
     }
     for (uint64_t i = 0; i < nb_parts; ++i) {
-      print_all_sm(out, sm_info, pol->nb_polys, dst[i]);
+      print_all_sm(out, sm_info, cpoly->nb_polys, dst[i]);
       for (int j = 1; j < size; ++j) {
         if (i*size+j < nb_relsets) {
-          MPI_Recv_res(res, j, sm_info, pol->nb_polys);
-          print_all_sm(out, sm_info, pol->nb_polys, res);
+          MPI_Recv_res(res, j, sm_info, cpoly->nb_polys);
+          print_all_sm(out, sm_info, cpoly->nb_polys, res);
         }
       }
     }
-    for(int side = 0 ; side < pol->nb_polys ; side++)
+    for(int side = 0 ; side < cpoly->nb_polys ; side++)
       mpz_poly_clear(res[side]);
     free(res);
     if (outfile) fclose(out);
@@ -566,19 +571,23 @@ int main (int argc, char **argv)
 
   // It's time to free...
   for (uint64_t j = 0; j < nb_parts; ++j) {
-    for(int side = 0 ; side < pol->nb_polys ; side++) {
+    for(int side = 0 ; side < cpoly->nb_polys ; side++) {
       mpz_poly_clear(dst[j][side]);
     }
     free(dst[j]);
   }
   free(dst);
 
-  for (int side = 0 ; side < pol->nb_polys ; side++)
+  free(F);
+  free(nsm_arg);
+
+  for (int side = 0 ; side < cpoly->nb_polys ; side++)
     sm_side_info_clear(sm_info[side]);
+  free(sm_info);
 
   mpz_clear(ell);
   mpz_clear(ell2);
-  cado_poly_clear(pol);
+  cado_poly_clear(cpoly);
   param_list_clear(pl);
 
   MPI_Finalize();

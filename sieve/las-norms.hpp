@@ -116,7 +116,7 @@ private:
                                  */
     cado_poly_srcptr cpoly;
     // int nb_threads;  // no longer needed.
-    cxx_double_poly fijd[2];
+    std::vector<cxx_double_poly> fijd;
     int logA;
 public:
     int logI;

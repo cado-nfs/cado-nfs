@@ -148,7 +148,7 @@ struct indexrange {
 static std::vector<indexrange> prepare_indexrange(renumber_t const & ren_tab, 
         int sqside, int compsq) {
     std::vector<indexrange> Ind(ren_tab.get_nb_polys());
-    for(unsigned int side = 0 ; side < ren_tab.get_nb_polys() ; side++)
+    for(int side = 0 ; side < ren_tab.get_nb_polys() ; side++)
         Ind[side].init();
     index_t i = 0;
     for (auto it = ren_tab.begin() ; it != ren_tab.end() ; ++it, ++i) {
@@ -160,7 +160,7 @@ static std::vector<indexrange> prepare_indexrange(renumber_t const & ren_tab,
             Ind[sqside].append_prime(x.p);
         }
     }
-    for(unsigned int side = 0 ; side < ren_tab.get_nb_polys() ; side++)
+    for(int side = 0 ; side < ren_tab.get_nb_polys() ; side++)
         Ind[side].finalize();
 
     return Ind;
@@ -191,7 +191,7 @@ struct model_relation : public indexed_relation_byside {
         relation_ab ab(R(), R());
         model_relation rel(ab);
 
-        rel.set_nsides(get_nsides());
+        rel.set_active_sides(get_active_sides());
         for(size_t side = 0 ; side < sides.size() ; side++) {
             for(auto i : sides[side]) {
                 rel[side].push_back(Ind[side].random_index(i, buf));
@@ -619,7 +619,7 @@ main (int argc, char *argv[])
   printf ("# Start reading renumber table\n");
   fflush (stdout);
   renumber_t ren_table(cpoly);
-  ren_table.read_from_file(renumberfile);
+  ren_table.read_from_file(renumberfile, dl);
   printf ("# Done reading renumber table\n");
   fflush (stdout);
 
