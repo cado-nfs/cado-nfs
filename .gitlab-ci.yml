@@ -102,6 +102,16 @@ checks on ubuntu system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
+checks on ubuntu rolling system with gcc:
+  <<: *common-template
+  stage: early
+  image: ubuntu:rolling
+  before_script:
+    - ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
 checks on debian-testing system with 32-bit gcc:
   <<: *common-template
   stage: early
