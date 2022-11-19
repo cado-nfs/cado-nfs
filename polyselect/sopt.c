@@ -134,6 +134,12 @@ int main (int argc, char **argv)
       size_optimization (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE],
                                                         sopt_effort, verbose);
 
+    /* force recomputation of the skewness. In fact, it would probably be
+     * better to do it in size_optimization proper, or even to recompute
+     * the skewness from there.
+     */
+    cpoly->skew = 0;
+
     {
         cado_poly_stats sopt_stats;
         cado_poly_stats_init(sopt_stats, 2);
