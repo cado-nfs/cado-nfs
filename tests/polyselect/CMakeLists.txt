@@ -42,6 +42,7 @@ cado_define_test(test_sopt_${input} PROGRAM
     ${sha} --filter-output "^[^#]" --
     ${CADO_NFS_BINARY_DIR}/polyselect/sopt  -sopteffort 2
     -inputpolys ${CMAKE_CURRENT_SOURCE_DIR}/${input}
+    TARGET_DEPENDENCIES sopt
 )
 endmacro()
 
