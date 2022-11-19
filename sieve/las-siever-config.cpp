@@ -18,7 +18,7 @@
 
 void siever_config::declare_usage(cxx_param_list & pl)
 {
-    param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J, with J <= 2^(I-1) ; -I x is equivalent to -I (2*x-1)");
+    param_list_decl_usage(pl, "I",    "set sieving region to 2^I times J, with J <= 2^(I-1) ; -I x is equivalent to -A (2*x-1)");
     param_list_decl_usage(pl, "A",    "set sieving region to (at most) 2^A");
 
     siever_side_config::declare_usage(pl);

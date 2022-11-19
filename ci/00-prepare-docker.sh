@@ -90,7 +90,7 @@ freebsd_packages="$freebsd_packages     gmp"
 freebsd_packages="$freebsd_packages     gmake"
 freebsd_packages="$freebsd_packages     bash"
 freebsd_packages="$freebsd_packages     perl5"
-freebsd_packages="$freebsd_packages     python3 py38-sqlite3"
+freebsd_packages="$freebsd_packages     python3 py39-sqlite3"
 
 while [ $# -gt 0 ] ; do
     case "$1" in
@@ -102,12 +102,24 @@ done
 
 # These variables are set in ci/001-environment.sh
 if [ "$coverage" ] ; then
+    # remove coverage from this round of package selection because we'll
+    # install a specific version via pip instead.
+    #     debian_packages="$debian_packages     gcovr"
+    #     opensuse_packages="$opensuse_packages gcovr"
+    #     fedora_packages="$fedora_packages     gcovr"
+    #     centos_packages="$centos_packages     gcovr"
+    #     alpine_packages="$alpine_packages     gcovr"
+    debian_packages="$debian_packages     python3-pip"
+    opensuse_packages="$opensuse_packages python3-pip"
+    fedora_packages="$fedora_packages     python3-pip"
+    centos_packages="$centos_packages     python3-pip"
+    alpine_packages="$alpine_packages     py3-pip"
     # vim is needed because we have a bit of ex scripting...
-    debian_packages="$debian_packages     lcov gcovr vim-nox"
-    opensuse_packages="$opensuse_packages lcov gcovr vim"
-    fedora_packages="$fedora_packages     lcov gcovr vim"
-    centos_packages="$centos_packages     lcov gcovr vim"
-    alpine_packages="$alpine_packages     lcov gcovr vim"
+    debian_packages="$debian_packages     lcov vim-nox"
+    opensuse_packages="$opensuse_packages lcov vim"
+    fedora_packages="$fedora_packages     lcov vim"
+    centos_packages="$centos_packages     lcov vim"
+    alpine_packages="$alpine_packages     lcov vim"
     if is_freebsd ; then
         echo "coverage -> not on freebsd" >&2
         freebsd_packages="$freebsd_packages   lcov vim"
@@ -186,7 +198,7 @@ if [ "$DOCKER_SCRIPT" ] ; then
     freebsd_packages="$freebsd_packages sudo git vim gdb"
 fi
 
-if is_debian ; then
+if is_debian || is_ubuntu ; then
     if [ -x /usr/local/bin/clang ] && ! [ -x /usr/bin/cc ] ; then
         T=$(mktemp -d /tmp/XXXXXXXX)
         F=$($(dirname $0)/phony-packages/clang-usrlocal-0.0/build.sh "$T")
@@ -221,6 +233,10 @@ elif is_freebsd ; then
         mkdir /usr/local/etc/libmap.d
         find /usr/local/lib/gcc* -name '*.so' -o -name '*.so.[0-9]*' | while read xx ; do if [ -e "/lib/$(basename $xx)" ] ; then echo "$(basename "$xx") $xx" ; fi ; done > /usr/local/etc/libmap.d/gcc.conf
     fi
+fi
+
+if [ "$coverage" ] ; then
+    python3 -u -m pip install gcovr==5.0
 fi
 
 if [ "$gcc32" ] ; then

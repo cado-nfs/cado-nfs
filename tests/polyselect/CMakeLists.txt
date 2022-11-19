@@ -36,7 +36,6 @@ cado_define_test(test_polyselect_shash.cpp
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_match.c
     LIBRARIES polyselect_common tests)
 
-
 cado_define_test(test_ropt_adv
     PROGRAM ${CADO_NFS_BINARY_DIR}/polyselect/polyselect_ropt --adv
     TARGET_DEPENDENCIES polyselect_ropt
@@ -99,3 +98,15 @@ cado_divert_test(test_polyselect_gfpn 2 APPEND_ARGUMENTS 58406483551880819719126
 cado_divert_test(test_polyselect_gfpn 3 APPEND_ARGUMENTS 45086221481123679612257)
 
 include(CMakeLists-nodist.txt OPTIONAL)
+
+macro(define_sopt_test n input sha)
+cado_define_test(test_sopt_${input} PROGRAM
+    ${CADO_NFS_SOURCE_DIR}/tests/wrap-test.sh --expect-sha1
+    ${sha} --filter-output "^[^#]" --
+    ${CADO_NFS_BINARY_DIR}/polyselect/sopt  -sopteffort 2
+    -inputpolys ${CMAKE_CURRENT_SOURCE_DIR}/${input}
+)
+endmacro()
+
+define_sopt_test(1 sopt.input1.txt 465209edaa2c8bbad4e7254a7d6fcf2f121a71b8)
+define_sopt_test(2 sopt.input2.txt a3aadd110944689565adb70ae7456b69d8d97dbc)

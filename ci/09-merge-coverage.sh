@@ -20,7 +20,7 @@ done
 #     tar xf "$f"
 # done
 
-gcovr "${tracefiles[@]}" --xml coverage.xml --xml-pretty -s
+gcovr --gcov-ignore-parse-errors "${tracefiles[@]}" --xml coverage.xml --xml-pretty -s
 
 $(dirname $0)/utilities/coverage-postprocess.sh -o coverage "${coverage_info_reports[@]}"
 

@@ -4,9 +4,7 @@
 
   [1. Run and parameters]
 
-  The parameters are similar to those in polyselect2.c, except the following,
-
-  "-nq xxx" denotes the number of special-q's trials for each ad;
+  To see parameters and their meaning, run without any argument.
 
   Please report bugs to the Bug Tracking System on:
   https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues

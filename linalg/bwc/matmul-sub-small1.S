@@ -1,3 +1,4 @@
+.section .note.GNU-stack,"",%progbits
 	.text
 	.p2align 4,,15
 .globl matmul_sub_small1

@@ -191,7 +191,7 @@ void read_local_rows(vector_of_typerow_pointer_ptr V, FILE * fi, off_t bytes_to_
         vector_of_typerow_push_back(primes, & zz);
         {
             /* this is going to be a bit ugly, I know */
-            fgets(line, sizeof(line), fi);
+            if (fgets(line, sizeof(line), fi) == NULL) break;
 
             if (line[0] == '#') continue;
 

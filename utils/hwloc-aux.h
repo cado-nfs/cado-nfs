@@ -27,8 +27,9 @@ struct cxx_hwloc_bitmap {
         o.x = NULL;
     }
     cxx_hwloc_bitmap& operator=(cxx_hwloc_bitmap && o) {
+        hwloc_bitmap_t y = x;
         x = o.x;
-        o.x = NULL;
+        o.x = y;
         return *this;
     }
     cxx_hwloc_bitmap(cxx_hwloc_bitmap const & o) {

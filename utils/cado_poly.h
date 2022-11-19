@@ -51,6 +51,7 @@ cado_poly_fprintf_MurphyE (FILE *fp, const char * prefix, int side,
 extern void cado_poly_init (cado_poly_ptr);
 extern void cado_poly_provision_new_poly(cado_poly_ptr);
 extern void cado_poly_clear (cado_poly_ptr);
+extern void cado_poly_reset (cado_poly_ptr);
 
 extern int cado_poly_check_mapping(mpz_poly_ptr G, cado_poly_srcptr cpoly,
         mpz_srcptr N);
