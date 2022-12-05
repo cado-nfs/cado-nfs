@@ -5,8 +5,6 @@
 #ifndef FB_HPP_
 #define FB_HPP_
 
-#include "cado_config.h"               // for HAVE_GLIBC_VECTOR_INTERNALS
-
 #include <cstddef>                    // for size_t, NULL
 #include <cstdio>                     // for fprintf, FILE
 #include <algorithm>                   // for sort, max
@@ -28,12 +26,7 @@
 #include "las-config.h"                // for FB_MAX_PARTS
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
 #include "mmap_allocator.hpp"          // for mmap_allocator
-#ifdef HAVE_GLIBC_VECTOR_INTERNALS
 #include "mmappable_vector.hpp"
-#else
-/* yes, it's a hack */
-#define mmappable_vector std::vector
-#endif
 #include "multityped_array.hpp"        // for multityped_array_foreach, mult...
 struct qlattice_basis;
 struct cxx_param_list;
@@ -314,6 +307,10 @@ template<typename T> struct entries_and_cdf {
         }
     };
 };
+
+template<int n> struct works_with_mmappable_vector<fb_entry_x_roots<n>> : public std::true_type {};
+template<> struct works_with_mmappable_vector<fb_entry_general> : public std::true_type {};
+
 template<int n> struct fb_entries_factory {
     typedef typename entries_and_cdf<fb_entry_x_roots<n>>::type type;
 };

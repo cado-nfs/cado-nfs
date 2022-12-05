@@ -76,7 +76,7 @@ if [ "$coverage" ] ; then
     # a more robust way to proceed.
     # TODO: I doubt that gcovr correctly tracks the symlinks in the build
     # tree.
-    gcovr --json ${C}-app.json $build_tree/ -f . -f $build_tree
+    gcovr --gcov-ignore-parse-errors --json ${C}-app.json $build_tree/ -f . -f $build_tree
     set -x
     # It _seems_ that in fact, we do **NOT** want --no-external, and -b
     # is actually doing more harm than good.

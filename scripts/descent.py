@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Examples of parameters can be found in the params_dl directory
+# Examples of parameters can be found in the parameters/dlp directory
 
 # Algorithms
 #   UpperClass:
@@ -11,7 +11,7 @@
 #       Joux-Lercier). This sieving is done with las, with two linear
 #       polynomials.
 #       At the end, we have target = num/den, where num and den are
-#       smooth, with a smoothness bound that is large than the one that
+#       smooth, with a smoothness bound that is larger than the one that
 #       was used in the sieving / linear algebra.
 #   MiddleClass:
 #       For all the primes dividing num and den that are larger than the

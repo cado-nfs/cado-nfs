@@ -55,6 +55,8 @@ case "$CI_BUILD_NAME" in
     *"debian11 system"*) FROM=debian:11;;
     *"debian-testing system"*) FROM=debian:testing;;
     *"debian-unstable system"*) FROM=debian:unstable;;
+    *"ubuntu system"*) FROM=ubuntu:latest;;
+    *"ubuntu rolling system"*) FROM=ubuntu:rolling;;
     *"fedora25 system"*) FROM=fedora:25;;
     *"fedora26 system"*) FROM=fedora:26;;
     *"fedora27 system"*) FROM=fedora:27;;
@@ -66,6 +68,7 @@ case "$CI_BUILD_NAME" in
     *"fedora33 system"*) FROM=fedora:33;;
     *"fedora34 system"*) FROM=fedora:34;;
     *"fedora-rawhide system"*) FROM=fedora:rawhide;;
+    *"containers"*) FROM=docker;;
 esac
 
 cat <<EOF

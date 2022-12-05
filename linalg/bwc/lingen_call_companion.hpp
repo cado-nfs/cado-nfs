@@ -11,6 +11,7 @@
 #include "timing.h"     /* weighted_double */
 #include "lingen_round_operand_size.hpp"
 #include "lingen_mul_substeps_base.hpp"
+#include "fmt/format.h"
 
 /* This object is passed as a companion info to a call of
  * bw_biglingen_recursive ; it is computed by the code in
@@ -168,5 +169,17 @@ inline std::ostream& operator<<(std::ostream& os, lingen_call_companion::key con
 inline std::istream& operator>>(std::istream& is, lingen_call_companion::key & c) {
     return c.unserialize(is);
 }
+
+namespace fmt {
+    template <> struct /* fmt:: */ formatter<lingen_call_companion::key>: formatter<string_view> {
+    template <typename FormatContext>
+auto format(lingen_call_companion::key const & c, FormatContext& ctx) -> decltype(ctx.out()) {
+            std::ostringstream os;
+            os << c;
+            return formatter<string_view>::format( string_view(os.str()), ctx);
+        }
+};
+}
+
 
 #endif	/* LINGEN_CALL_COMPANION_HPP_ */

@@ -28,6 +28,17 @@ void cado_poly_provision_new_poly(cado_poly_ptr cpoly)
     mpz_poly_init(cpoly->pols[cpoly->nb_polys-1], -1);
 }
 
+void cado_poly_reset(cado_poly_ptr cpoly)
+{
+    for(int side = 0 ; side < cpoly->nb_polys ; side++)
+      mpz_poly_clear (cpoly->pols[side]);
+
+    free(cpoly->pols);
+    cpoly->nb_polys = 0;
+    cpoly->pols = NULL;
+
+    mpz_set_ui(cpoly->n, 0);
+}
 
 void cado_poly_clear(cado_poly_ptr cpoly)
 {
@@ -160,10 +171,12 @@ int cado_poly_read_next_poly_from_stream (cado_poly_ptr cpoly, FILE * f)
   param_list pl;
   param_list_init (pl);
   r = param_list_read_stream (pl, f, 1);
-  if (r && !param_list_empty(pl))
+  if (r && !param_list_empty(pl)) {
+    cado_poly_reset(cpoly);
     r = cado_poly_set_plist (cpoly, pl);
-  else
+  } else {
     r = 0;
+  }
   param_list_clear (pl);
   return r;
 }

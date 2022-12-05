@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
                                           SKEWNESS_DEFAULT_PREC);
 
     mpz_set (b, cpoly->pols[RAT_SIDE]->coeff[1]);
-    mpz_neg (m, cpoly->pols[RAT_SIDE]->coeff[0]);
+    mpz_set (m, cpoly->pols[RAT_SIDE]->coeff[0]);
     rotate_aux (cpoly->pols[ALG_SIDE]->coeff, b, m, 0, k, 0);
     rotate_aux (cpoly->pols[ALG_SIDE]->coeff, b, m, 0, j, 1);
     mpz_clear(b);

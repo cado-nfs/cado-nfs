@@ -1107,6 +1107,17 @@ int wrapped_main(int argc, char *argv[])
 // coverity[root_function]
 int main(int argc, char *argv[])
 {
+#ifdef  HAVE_OPENMP
+    if (getenv("OMP_DYNAMIC") == NULL) {
+        /* Change the default behavior with respect to dynamic thread
+         * allocation, but do it with *lower* priority than the
+         * environment variable (so that the possibility of changing the
+         * behavior at runtime is retained).
+         */
+        omp_set_dynamic(true);
+    }
+#endif
+
     bw_common_init(bw, &argc, &argv);
     wrapped_main(argc, argv);
     bw_common_clear(bw);
