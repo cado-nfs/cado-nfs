@@ -752,7 +752,7 @@ usage ()
     fprintf (stderr, "   -bound xxx        bound for absolute value of coefficients of f\n");
     fprintf (stderr, "Optional parameters:\n");
     fprintf (stderr, "   -modr r -modm m   processes only polynomials of index r mod m\n");
-    fprintf (stderr, "   -t nnn            uses n threads\n");
+    fprintf (stderr, "   -t n              uses n threads\n");
     fprintf (stderr, "   -easySM ell       generates polynomials with minimal number of SMs mod ell\n");
     fprintf (stderr, "   -skewed           search for skewed polynomials\n");
     fprintf (stderr, "   -rrf nnn          f should have nnn real roots\n");

@@ -54,11 +54,9 @@ cado_define_test(test-sort.cpp ARGUMENTS --log-bigsize 14 --max-span 128 LIBRARI
 cado_define_test(test_u64arith.cpp LIBRARIES utils tests)
 cado_define_test(test_mod.cpp LIBRARIES utils tests)
 cado_define_test(test_modint.cpp LIBRARIES utils tests)
-if(HAVE_GLIBC_VECTOR_INTERNALS)
-    cado_define_test(test_mmappable_vector.cpp LIBRARIES utils
+cado_define_test(test_mmappable_vector.cpp LIBRARIES utils
     PRECOMMAND "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --arg --tmpdir
     )
-endif()
 cado_define_test(test_sha1.c LIBRARIES utils ARGUMENTS --test)
 cado_define_test(test_fstream_maybe_compressed.cpp LIBRARIES utils
     NO_DEFAULT_RUN

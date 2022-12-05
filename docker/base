@@ -1,0 +1,20 @@
+# syntax=docker/dockerfile:1
+FROM ubuntu:latest as build
+MAINTAINER Emmanuel Thomé
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y git make cmake g++ libgmp*-dev python3 ssh rsync gzip bc locales cmake python3 libhwloc-dev libgmp-dev libecm-dev libfmt-dev
+ENV PREFIX=/usr/local
+COPY local.sh dispatch-files.sh cado.tar.gz /cado-nfs/
+RUN cd /cado-nfs/ && tar xzf cado.tar.gz
+RUN cd /cado-nfs/ && make cmake
+RUN cd /cado-nfs/ && make -j8
+RUN cd /cado-nfs/ && make install
+RUN /cado-nfs/dispatch-files.sh
+
+# syntax=docker/dockerfile:1
+FROM ubuntu:latest as runtime
+MAINTAINER Emmanuel Thomé
+ARG DEBIAN_FRONTEND=noninteractive
+# Add all the *runtime* requirements
+RUN apt-get update && apt-get install -y ca-certificates python3 gzip bc libgomp1 libhwloc15 libgmp10 libfmt8
+

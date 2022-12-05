@@ -32,7 +32,7 @@ static void declare_usage(cxx_param_list & pl)
     siever_side_config::declare_usage(pl);
     batch_side_config::declare_usage(pl);
     param_list_decl_usage(pl, "doecm", "finish with ECM [default = no]");
-    param_list_decl_usage(pl, "no_recomp_norm", "given integers are the norms themselves (w/ sq) [default = no]");
+    param_list_decl_usage(pl, "dont_recomp_norm", "given integers are the norms themselves (w/ sq) [default = no]");
     param_list_decl_usage(pl, "ncurves", "number of curves to be used in ECM [default = 50]");
 
     verbose_decl_usage(pl);
@@ -53,7 +53,7 @@ main (int argc, char *argv[])
   declare_usage(pl);
 
   param_list_configure_switch(pl, "-doecm", &doecm);
-  param_list_configure_switch(pl, "-no_recomp_norm", &no_recomp_norm);
+  param_list_configure_switch(pl, "-dont_recomp_norm", &no_recomp_norm);
 
   argv++, argc--;
   for( ; argc ; ) {
@@ -111,6 +111,7 @@ main (int argc, char *argv[])
   auto batchmfb = batch_side_config::collect_batchmfb(bsides);
 
   for (int side = 0; side < 2; ++side) {
+      batchP.push_back(0);
       create_batch_file (bsides[side].batchfilename,
               batchP[side],
               sides[side].lim,
@@ -128,7 +129,6 @@ main (int argc, char *argv[])
 
 #define MAX_SIZE 2048
   char str[MAX_SIZE];
-  std::vector<cxx_mpz> norms(nsides, 0);
   cxx_mpz q;
   mpz_set_ui(q, 1);
   // Create a fake special-q
@@ -158,6 +158,7 @@ main (int argc, char *argv[])
           }
           continue;
       }
+      std::vector<cxx_mpz> norms(nsides, 0);
       std::istringstream ss(str);
       ss >> a >> b;
       for(int side = 0 ; side < nsides ; side++)

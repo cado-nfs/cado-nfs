@@ -30,6 +30,32 @@
 #include "macros.h"
 #include "fmt/format.h"
 
+#if defined(_GLIBCXX_DEBUG) && defined(_GLIBCXX_DEBUG_DISABLE_CHECK_PARTITIONED)
+namespace __gnu_debug {
+template<>
+inline bool __check_partitioned_lower<std::vector<std::array<p_r_values_t, 2>>::const_iterator>(
+        std::vector<std::array<p_r_values_t, 2>>::const_iterator,
+        std::vector<std::array<p_r_values_t, 2>>::const_iterator,
+        std::vector<std::array<p_r_values_t, 2>>::value_type const &)
+{
+    /* This is really ugly, but unfortunately when _GLIBCXX_DEBUG is
+     * enabled, we're ending up with O(n) checks in
+     * __check_partitioned_lower whenever we do a dichotomic search
+     * through the renumber table. Which is of course horribly expensive,
+     * especially so when our test code does O(n) dichotomic searches by
+     * itself...
+     *
+     * The cure can be one of:
+     *  - do not use _GLIBCXX_DEBUG (it's currently _not_ used in our
+     *  tests)
+     *  - use it, but define _GLIBCXX_DEBUG_DISABLE_CHECK_PARTITIONED
+     *  along with it.
+     */
+    return true;
+}
+}
+#endif
+
 /* Some documentation on the internal encoding of the renumber table...
  *
  * XXX This format has changed incompatibly in 2020 XXX
@@ -173,6 +199,14 @@ static renumber_t::corrupted_table cannot_find_pr(renumber_t::p_r_side x)/*{{{*/
     std::ostringstream os;
     os << std::hex;
     os << "cannot find p=0x" << x.p << ", r=0x" << x.r << " on side " << x.side;
+    /* #30012 and #30048 are cases where we see composites. #30048 in
+     * particular sees the code crashing here, which is really cryptic.
+     * We can alleviate that with a simple test.
+     */
+    if (!ulong_isprime(x.p)) {
+        os << " ; NOTE that this p is not prime"
+            << ", which is very unexpected. See bug #30048";
+    }
     return renumber_t::corrupted_table(os.str());
 }/*}}}*/
 static renumber_t::corrupted_table cannot_lookup_p_a_b_in_bad_ideals(renumber_t::p_r_side x, int64_t a, uint64_t b)/*{{{*/
@@ -200,7 +234,7 @@ static renumber_t::corrupted_table parse_error(std::string const & what)/*{{{*/
  * p_r_values_t and T == uint64_t */
 template<typename T> inline T vp_from_p(T p, int n, int c, int format MAYBE_UNUSED)
 {
-    /* The final "+c" is not necessary, but we keep it for compatibility */
+    /* The final "+d" is not necessary, but we keep it for compatibility */
     int d = 0;
     return (n - c) * (p + 1) + d;
 }

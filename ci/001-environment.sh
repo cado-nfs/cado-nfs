@@ -83,6 +83,12 @@ case "$CI_BUILD_NAME" in
     ;;
 esac
 case "$CI_BUILD_NAME" in
+    *"shared libs"*)
+    ENABLE_SHARED=1
+    shared_libs=1
+    ;;
+esac
+case "$CI_BUILD_NAME" in
     *"with clang"*)
     : ${CC=clang}
     : ${CXX=clang++}
@@ -161,3 +167,4 @@ fi
 export CC CXX
 export CFLAGS CXXFLAGS
 export MAKE
+export ENABLE_SHARED
