@@ -1577,7 +1577,7 @@ main (int argc, char *argv[])
         if (merge_pass == 2 || mat->cwmax > 2)
                 full_garbage_collection(mat);
 
-	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
+	/* Once cwmax >= 3, at each pass, we increase cbound to allow more
 	   merges. If one decreases cbound_incr, the final matrix will be
 	   smaller, but merge will take more time.
 	   If one increases cbound_incr, merge will be faster, but the final
