@@ -190,7 +190,7 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
    * for free relations, of course).
    */
   size_t n = renumber_table_get_nb_polys(renumber_tab);
-  if (n == 2) {
+  if (n == 2 && number_of_additional_columns(renumber_tab)) {
       p = u64toa16(p, (uint64_t) 0);
       *p++ = ',';
   } else {
