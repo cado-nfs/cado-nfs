@@ -17,6 +17,8 @@
 #include <gmp.h>               // for mpz_get_ui, mpz_divisible_ui_p, mpz_t
 #include "badideals.hpp"
 #include "cxx_mpz.hpp"         // for cxx_mpz
+#include "mpz_mat.h"         // for mpz_mat
+#include "numbertheory.hpp"  // for factorization_of_prime
 #include "getprime.h"          // for getprime_mt, prime_info_clear, prime_i...
 #include "gmp_aux.h"           // for ulong_isprime, nbits, mpz_get_uint64
 #include "gzip.h"       // ifstream_maybe_compressed
@@ -848,6 +850,17 @@ void renumber_t::compute_bad_ideals()
     above_all = above_cache = above_bad;
 }
 
+void renumber_t::compute_ramified_primes()
+{
+    for(int side = 0 ; side < get_nb_polys() ; side++) {
+        cxx_mpz disc;
+        cxx_mpz_poly f(cpoly->pols[side]);
+        mpz_poly_discriminant(disc, f);
+        mpz_mul(disc, disc, f->coeff[f->deg]);
+        small_primes.push_back(trial_division(disc, 10000000, disc));
+    }
+}
+
 void renumber_t::use_cooked(p_r_values_t p, cooked const & C)
 {
     if (C.empty()) return;
@@ -913,6 +926,7 @@ void renumber_t::read_from_file(const char * filename, int for_dl)
     if (for_dl)
         use_additional_columns_for_dl();
     read_header(is);
+    compute_ramified_primes();
     info(std::cout);
     read_table(is);
     more_info(std::cout);
@@ -992,6 +1006,18 @@ std::string renumber_t::debug_data_sagemath(index_t i) const
         if (x.side == get_rational_side()) {
             return fmt::format("OK{0}.ideal({1})", x.side, x.p);
         } else {
+            /* XXX if p divides the discriminant, make sure that we treat
+             * ramified primes correctly. Otherwise a simple and stupid
+             * approach can work.
+             */
+            cxx_mpz_poly f(cpoly->pols[x.side]);
+            cxx_gmp_randstate state;
+            for(auto y : small_primes[x.side]) {
+                if (x.p == y.first)
+                    return generic_sagemath_string(f, x.side, x.p, x.r, state);
+            }
+
+            /* back to the easy case */
             if (x.r == x.p) {
                 return fmt::format("(OK{0}.ideal({1})+J{0})",
                         x.side, x.p);
@@ -1271,6 +1297,8 @@ index_t renumber_t::build(cxx_param_list & pl, int for_dl, hook * f)
     compute_bad_ideals();
 
     info(std::cout);
+
+    compute_ramified_primes();
 
     check_needed_bits(needed_bits());
 

@@ -20,6 +20,7 @@
 #include "rootfinder.h"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "macros.h" // ASSERT_ALWAYS // IWYU pragma: keep
+#include "misc.h"
 
 using namespace std;
 
@@ -97,27 +98,6 @@ badideal::badideal(std::istream& is)
     return;
 }
 
-vector<pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor)/*{{{*/
-{
-    vector<pair<cxx_mpz, int> > res;
-    prime_info pinf;
-
-    prime_info_init (pinf);
-    cxx_mpz n = n0;
-
-    for (unsigned long p = 2; p < B; p = getprime_mt (pinf)) {
-        if (!mpz_divisible_ui_p(n, p)) continue;
-        int k = 0;
-        for( ; mpz_divisible_ui_p(n, p) ; mpz_fdiv_q_ui(n, n, p), k++);
-        res.push_back(make_pair(cxx_mpz(p), k));
-    }
-    // cout << "remaining nriminant " << n << "\n";
-    cofactor = n;
-    prime_info_clear (pinf); /* free the tables */
-    return res;
-}
-/*}}}*/
-
 struct all_valuations_above_p {/*{{{*/
     cxx_mpz_poly f;
     cxx_mpz p;
@@ -126,6 +106,9 @@ private:
     cxx_mpz_mat M;
     vector<pair<cxx_mpz_mat, int> > F;
     vector<int> inertia;
+    vector<int> ramification; // valuation of the ideal in the
+                              // factorization of the underlying prime
+                              // ideal.
     pair<cxx_mpz_mat, cxx_mpz> jjinv;
     vector<cxx_mpz_mat> helpers;
     vector<int> val_base;
@@ -138,6 +121,7 @@ public:
         for(unsigned int k = 0 ; k < F.size() ; k++) {
             cxx_mpz_mat const& fkp(F[k].first);
             inertia.push_back(prime_ideal_inertia_degree(fkp));
+            ramification.push_back(F[k].second);
             helpers.push_back(valuation_helper_for_ideal(M, fkp, p));
         }
         cxx_mpq_mat jjinv_gen(2, f->deg);
@@ -419,6 +403,7 @@ vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_r
     /* We're not urged to use ecm here */
     vector<pair<cxx_mpz,int> > small_primes = trial_division(disc, 10000000, disc);
 
+
     typedef vector<pair<cxx_mpz,int> >::const_iterator vzci_t;
 
     for(vzci_t it = small_primes.begin() ; it != small_primes.end() ; it++) {
@@ -459,5 +444,23 @@ cxx_mpz badideal::r_from_rk(cxx_mpz const & p, int k, cxx_mpz const & rk)
          * mod p, this means (1:0), which is encoded by p */
         return p;
     }
+}
+
+std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz const & p, cxx_mpz const & r, gmp_randstate_t state)
+{
+    /* This will crash for non-prime ideals, **on purpose** */
+    auto A = all_valuations_above_p(f, p, state);
+    auto v = A(1, r);
+    int k = -1;
+    for(unsigned x = 0 ; x < v.size() ; x++) {
+        if (v[x] == 0)
+            continue;
+        if (k != -1)
+            throw std::runtime_error("ideal is not prime");
+        k = x;
+    }
+    if (k == -1)
+        throw std::runtime_error("valuations of ideal not found");
+    return A.sagemath_string(k, side);
 }
 

@@ -144,11 +144,12 @@ main (int argc, char *argv[])
         fmt::print("J{0}=OK{0}.fractional_ideal(1,alpha{0})^-1\n", side);
         if (!for_dl)
             fmt::print("is_sq=lambda I:prod([v[1]%2==0 for v in I.factor()])\n");
+        fmt::print("is_1=lambda x:x==1\n");
+
+        fmt::print("def check(f, s, e):\n\tif not f(e):\n\t\traise AssertionError(\"Failed check on \"+s)\n");
     }
 
-    std::map<std::pair<p_r_values_t, int>, std::vector<badideal> > cache_badideals_above_p;
-
-    std::map<index_t, std::string> cache_ideals;
+    std::set<index_t> printed;
 
     int line = 0;
     for(std::string s ; std::getline(std::cin, s) ;) {
@@ -163,6 +164,7 @@ main (int argc, char *argv[])
             throw std::runtime_error(fmt::format("Parse error on line {}: {}\n", line, s));
         }
 
+        fmt::print("# {}\n", s);
         fmt::print("a={}; b={}\n", rel.az, rel.bz);
 
         std::vector<std::vector<std::string>> ideals_per_side(cpoly->nb_polys);
@@ -187,13 +189,17 @@ main (int argc, char *argv[])
         }
 
         for(auto const & c : rel.data) {
+            auto x = printed.find(c);
             auto it = tab.p_r_from_index(c);
-            auto s = tab.debug_data_sagemath(c);
+            if (x == printed.end()) {
+                printed.insert(c);
+                auto s = tab.debug_data_sagemath(c);
 
-            fmt::print("I{:x}={}\n", c, s);
-            if (!tab.is_additional_column(c))
-                fmt::print("assert I{:x}.is_prime()\n", c);
-
+                fmt::print("I{:x}={};", c, s);
+                if (!tab.is_additional_column(c))
+                    fmt::print(" check(is_prime,\"I{0:x}\",I{0:x})", c);
+                fmt::print("\n");
+            }
             ideals_per_side[it.side].push_back(fmt::format("I{:x}", c));
         }
 
@@ -207,9 +213,9 @@ main (int argc, char *argv[])
             }
             if (empty) os << "OK" << side;
             if (for_dl) {
-                std::cout << fmt::format("assert ab{} == {}", side, os.str()) << "\n";
+                std::cout << fmt::format("check(is_1, \"ab{0}<<{2},{3}>>\", ab{0}/{1})", side, os.str(), rel.az, rel.bz) << "\n";
             } else {
-                std::cout << fmt::format("assert is_sq(ab{}/({}))", side, os.str()) << "\n";
+                std::cout << fmt::format("check(is_sq, \"ab{0}<<{2},{3}>>\", ab{0}/({1}))", side, os.str(), rel.az, rel.bz) << "\n";
             }
         }
     }

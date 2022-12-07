@@ -237,5 +237,4 @@ auto format(cxx_mpz const & c, FormatContext& ctx) -> decltype(ctx.out()) {
 };
 }
 
-
 #endif	/* CXX_MPZ_HPP_ */

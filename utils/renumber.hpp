@@ -92,6 +92,14 @@ private:/*{{{ internal data fields*/
     std::vector<unsigned int> lpb;
     std::vector<index_t> index_from_p_cache;
 
+    /* This is computed on the fly when the table is built. It's cheap
+     * enough anyway. We rarely use it, and we're a bit too lazy to
+     * change the file format to include these.
+     *
+     * note that the ramified primes are a subset of these.
+     */
+    std::vector<std::vector<std::pair<cxx_mpz,int> >> small_primes;
+
     /*
      * [0..above_add): additional columns
      * [above_add..above_bad): bad ideals
@@ -249,6 +257,7 @@ private:/*{{{ more implementation-level stuff. */
     void read_table(std::istream& is);
     void compute_bad_ideals();
     void compute_bad_ideals_from_dot_badideals_hint(std::istream&, unsigned int = UINT_MAX);
+    void compute_ramified_primes();
     void write_header(std::ostream& os) const;
     void write_bad_ideals(std::ostream& os) const;
     /* these two could be made public, I believe. The public way to do
