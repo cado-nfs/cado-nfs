@@ -236,6 +236,7 @@ public:
 
     /*{{{ debugging aids*/
     std::string debug_data(index_t i) const;
+    std::string debug_data_sagemath(index_t i) const;
     void info(std::ostream & os) const;
     void more_info(std::ostream & os) const;
     /*}}}*/

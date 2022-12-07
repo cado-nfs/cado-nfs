@@ -9,6 +9,8 @@
 #include <limits>
 #include <type_traits>
 #include <stdlib.h>
+#include <fmt/core.h>
+#include <sstream>
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
 
@@ -223,4 +225,17 @@ inline std::ostream& operator<<(std::ostream& os, cxx_mpz const& x) { return os 
 inline std::ostream& operator<<(std::ostream& os, cxx_mpq const& x) { return os << (mpq_srcptr) x; }
 inline std::istream& operator>>(std::istream& is, cxx_mpz & x) { return is >> (mpz_ptr) x; }
 inline std::istream& operator>>(std::istream& is, cxx_mpq & x) { return is >> (mpq_ptr) x; }
+
+namespace fmt {
+    template <> struct /* fmt:: */ formatter<cxx_mpz>: formatter<string_view> {
+    template <typename FormatContext>
+auto format(cxx_mpz const & c, FormatContext& ctx) -> decltype(ctx.out()) {
+            std::ostringstream os;
+            os << c;
+            return formatter<string_view>::format( string_view(os.str()), ctx);
+        }
+};
+}
+
+
 #endif	/* CXX_MPZ_HPP_ */

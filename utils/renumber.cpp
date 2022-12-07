@@ -970,6 +970,40 @@ std::string renumber_t::debug_data(index_t i) const
     return os.str();
 }
 
+/* return valid sagemath code that describes the ideal */
+std::string renumber_t::debug_data_sagemath(index_t i) const
+{
+    p_r_side x = p_r_from_index (i);
+    if (is_additional_column (i)) {
+        if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+            return "J0J1";
+        } else {
+            return fmt::format("J{0}", x.side);
+        }
+    } else if (is_bad(i)) {
+        index_t j = i - above_add;
+        for(auto const & b : bad_ideals) {
+            if (j < (index_t) b.second.nbad)
+                return b.second.sagemath_string[j];
+            j -= b.second.nbad;
+        }
+    } else {
+        i -= above_bad;
+        if (x.side == get_rational_side()) {
+            return fmt::format("OK{0}.ideal({1})", x.side, x.p);
+        } else {
+            if (x.r == x.p) {
+                return fmt::format("(OK{0}.ideal({1})+J{0})",
+                        x.side, x.p);
+            } else {
+                return fmt::format("(OK{0}.fractional_ideal({1},alpha{0}-{2})*J{0})",
+                        x.side, x.p, x.r);
+            }
+        }
+    }
+    throw corrupted_table("bad bad ideals");
+}
+
 /* can be called rather early, in fact (after the bad ideals computation) */
 void renumber_t::info(std::ostream & os) const
 {

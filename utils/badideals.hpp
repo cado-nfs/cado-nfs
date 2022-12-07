@@ -30,6 +30,8 @@ struct badideal {/*{{{*/
     };
     std::vector<branch> branches;
 
+    std::vector<std::string> sagemath_string; // nbad strings.
+
     badideal(cxx_mpz const& p, cxx_mpz const& r, int nbad) : p(p), r(r), nbad(nbad) {}
     badideal(std::istream &);
 

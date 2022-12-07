@@ -11,6 +11,7 @@
 
 #include <cstddef> // size_t
 #include <gmp.h>
+#include <fmt/format.h>
 
 #include "gmp_aux.h"  // mpz_p_valuation
 #include "mpz_mat.h"
@@ -158,7 +159,7 @@ public:
         }
         return res;
     }/*}}}*/
-    void print_info(ostream& o, int k, cxx_mpz const& r, int side) const {/*{{{*/
+    std::string sagemath_string(int k, int side) {
         cxx_mpz_mat const& fkp(F[k].first);
         pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
         /* Write the uniformizer as a polynomial with respect to the
@@ -176,6 +177,27 @@ public:
         alpha << "alpha" << side;
         string uniformizer = write_element_as_polynomial(theta_q, alpha.str());
 
+        return fmt::format("OK{}.ideal({}, {})", side, two.first, uniformizer);
+    }
+    void print_info(ostream& o, int k, cxx_mpz const& r MAYBE_UNUSED, int side) const {/*{{{*/
+        cxx_mpz_mat const& fkp(F[k].first);
+        pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
+        /* Write the uniformizer as a polynomial with respect to the
+         * polynomial basis defined by f */
+        cxx_mpq_mat theta_q;
+        {
+            mpq_mat_set_mpz_mat(theta_q, two.second);
+            mpq_mat_mul(theta_q, theta_q, O);
+        }
+
+        /* That's only for debugging, so it's not terribly important.
+         * But we may have a preference towards giving ideal info in
+         * a more concise way, based on alpha_hat for instance */
+        ostringstream alpha;
+        alpha << "alpha" << side;
+        string uniformizer = write_element_as_polynomial(theta_q, alpha.str());
+
+        /* This prints magma code. */
         int e = F[k].second;
         o << "# I" << k
             << ":=ideal<O" << side << "|" << two.first << "," << uniformizer << ">;"
@@ -357,10 +379,13 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
         cmt << "# p=" << p << ", r=" << roots[i] << " : " << nonzero.size() << " ideals among " << vals.size() << " are bad\n";
         for(unsigned int j = 0 ; j < nonzero.size() ; j++) {
             A.print_info(cmt, nonzero[j], roots[i], side);
+            b.sagemath_string.push_back(A.sagemath_string(nonzero[j], side));
         }
         cmt << "# " << lifts.size() << " branch"
             << (lifts.size() == 1 ? "" : "es") << " found\n";
         b.comments = cmt.str();
+
+        ASSERT_ALWAYS(b.sagemath_string.size() == (size_t) b.nbad);
 
         /* compres all branches so that we keep only the valuations in
          * the nonzero indirection table */
@@ -369,6 +394,7 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
             vector<int> w;
             for(unsigned int k = 0 ; k < nonzero.size() ; k++) {
                 w.push_back(br.v[nonzero[k]]);
+
             }
             swap(br.v, w);
             b.branches.push_back(br);
