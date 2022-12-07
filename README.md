@@ -533,8 +533,9 @@ Examples of basic usage:
 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 --slaves 4 --client-threads 2 --server-threads 8
 ```
 
-* Run a factorization in the given directory, interrupt it (with Ctrl-C,
-  or whatever unexpected event), and resume the computation:
+* Run a factorization in the given directory (must be an absolute path),
+  interrupt it (with Ctrl-C, or whatever unexpected event), and resume
+  the computation:
 
 ```
 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 workdir=/tmp/myfacto
