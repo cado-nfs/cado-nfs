@@ -189,21 +189,24 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
    * that case, we only use a single combined additional column. (except
    * for free relations, of course).
    */
-  size_t n = renumber_table_get_nb_polys(renumber_tab);
-  if (n == 2 && number_of_additional_columns(renumber_tab)) {
-      p = u64toa16(p, (uint64_t) 0);
-      *p++ = ',';
-  } else {
-      int * sides = malloc(n * sizeof(int));
-      renumber_table_get_sides_of_additional_columns(renumber_tab, sides, &n);
-      for(index_t idx = 0; idx < n ; idx++) {
-          int side = sides[idx];
-          if ((nonvoidside & (((uint64_t) 1) << side))) {
-              p = u64toa16(p, (uint64_t) idx);
-              *p++ = ',';
+
+  if (number_of_additional_columns(renumber_tab)) {
+      size_t n = renumber_table_get_nb_polys(renumber_tab);
+      if (n == 2) {
+          p = u64toa16(p, (uint64_t) 0);
+          *p++ = ',';
+      } else {
+          int * sides = malloc(n * sizeof(int));
+          renumber_table_get_sides_of_additional_columns(renumber_tab, sides, &n);
+          for(index_t idx = 0; idx < n ; idx++) {
+              int side = sides[idx];
+              if ((nonvoidside & (((uint64_t) 1) << side))) {
+                  p = u64toa16(p, (uint64_t) idx);
+                  *p++ = ',';
+              }
           }
+          free(sides);
       }
-      free(sides);
   }
 
   *(--p) = '\n';
