@@ -135,7 +135,9 @@ main (int argc, char *argv[])
         tab.read_from_file(renumberfilename, for_dl);
     }
 
-    fmt::print("ZP.<x>=PolynomialRing(Integers())\n");
+    // sage preparser is woefully inefficient. A large source file will
+    // easily takes many minutes to preparse
+    fmt::print("ZP.<x> = PolynomialRing(Integers())\n");
     for(int side = 0 ; side < cpoly->nb_polys ; side++) {
         std::ostringstream os;
         os << cxx_mpz_poly(cpoly->pols[side]);
@@ -164,7 +166,7 @@ main (int argc, char *argv[])
             throw std::runtime_error(fmt::format("Parse error on line {}: {}\n", line, s));
         }
 
-        fmt::print("# {}\n", s);
+        fmt::print("print(\"{}\")\n", s);
         fmt::print("a={}; b={}\n", rel.az, rel.bz);
 
         std::vector<std::vector<std::string>> ideals_per_side(cpoly->nb_polys);
@@ -178,8 +180,11 @@ main (int argc, char *argv[])
              * skipped, and does not appear in the factorization. It is
              * trivial anyway to retrieve its valuation from the number
              * of (a,b) pairs used during sqrt.
+             *
+             * Note that free relations, in any case, have degree zero in
+             * alpha and therefore must not include J
              */
-            if (for_dl) {
+            if (for_dl || rel.b == 0) {
                 fmt::print("ab{0}=(OK{0}.fractional_ideal({1}-{2}*alpha{0}))\n",
                         side, rel.az, rel.bz);
             } else {
