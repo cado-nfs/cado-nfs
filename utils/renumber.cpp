@@ -1043,7 +1043,7 @@ std::string renumber_t::debug_data_sagemath(index_t i) const
              */
             cxx_mpz_poly f(cpoly->pols[x.side]);
             cxx_gmp_randstate state;
-            for(auto y : small_primes[x.side]) {
+            for(auto const & y : small_primes[x.side]) {
                 if (x.p == y.first)
                     return generic_sagemath_string(f, x.side, x.p, x.r, state);
             }
