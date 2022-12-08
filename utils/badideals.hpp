@@ -30,6 +30,8 @@ struct badideal {/*{{{*/
     };
     std::vector<branch> branches;
 
+    std::vector<std::string> sagemath_string; // nbad strings.
+
     badideal(cxx_mpz const& p, cxx_mpz const& r, int nbad) : p(p), r(r), nbad(nbad) {}
     badideal(std::istream &);
 
@@ -47,6 +49,8 @@ std::vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side);
 std::vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_randstate_t state);
 std::vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const& p);
 std::vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const& p, gmp_randstate_t state);
+
+std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz const & p, cxx_mpz const & r, gmp_randstate_t state);
 
 inline std::istream& operator>>(std::istream& i, badideal & b)
 {

@@ -17,6 +17,8 @@
 #include <gmp.h>               // for mpz_get_ui, mpz_divisible_ui_p, mpz_t
 #include "badideals.hpp"
 #include "cxx_mpz.hpp"         // for cxx_mpz
+#include "mpz_mat.h"         // for mpz_mat
+#include "numbertheory.hpp"  // for factorization_of_prime
 #include "getprime.h"          // for getprime_mt, prime_info_clear, prime_i...
 #include "gmp_aux.h"           // for ulong_isprime, nbits, mpz_get_uint64
 #include "gzip.h"       // ifstream_maybe_compressed
@@ -821,8 +823,21 @@ void renumber_t::use_additional_columns_for_dl()
 
 void renumber_t::compute_bad_ideals()
 {
-    ASSERT_ALWAYS (above_all == above_bad);
-    ASSERT_ALWAYS (above_cache == above_bad);
+    /* There are two use cases. Under normal circumstances, we're reading
+     * the header, at this point. Which means that above_all =
+     * above_cache = above_add = above_add. I.e. there are no bad ideals
+     * stored, no cached ideals, and the table is empty.
+     *
+     * There's also the use case of
+     * recompute_debug_number_theoretic_stuff(). There, we're recomputing
+     * something that we mostly already know. In that case, we don't want
+     * to destroy the old values of above_cache and above_all, of course.
+     */
+    // ASSERT_ALWAYS (above_all == above_bad);
+    // ASSERT_ALWAYS (above_cache == above_bad);
+
+    unsigned int old_nbad = above_bad - above_add;
+
     /* most useful for traditional format, where we need to do this on
      * every open. Well, it's super cheap anyway
      *
@@ -831,6 +846,7 @@ void renumber_t::compute_bad_ideals()
      * freerel.cpp
      */
     above_bad = above_add;
+    bad_ideals.clear();
     bad_ideals_max_p = 0;
     for(int side = 0 ; side < get_nb_polys() ; side++) {
         cxx_mpz_poly f(cpoly->pols[side]);
@@ -845,7 +861,22 @@ void renumber_t::compute_bad_ideals()
                 bad_ideals_max_p = p;
         }
     }
-    above_all = above_cache = above_bad;
+    if (old_nbad) {
+        ASSERT_ALWAYS(above_bad - above_add == old_nbad);
+    } else {
+        above_all = above_cache = above_bad;
+    }
+}
+
+void renumber_t::compute_ramified_primes()
+{
+    for(int side = 0 ; side < get_nb_polys() ; side++) {
+        cxx_mpz disc;
+        cxx_mpz_poly f(cpoly->pols[side]);
+        mpz_poly_discriminant(disc, f);
+        mpz_mul(disc, disc, f->coeff[f->deg]);
+        small_primes.push_back(trial_division(disc, 10000000, disc));
+    }
 }
 
 void renumber_t::use_cooked(p_r_values_t p, cooked const & C)
@@ -918,6 +949,16 @@ void renumber_t::read_from_file(const char * filename, int for_dl)
     more_info(std::cout);
 }
 
+void renumber_t::recompute_debug_number_theoretic_stuff()
+{
+    /* explain_indexed_relations really insists on having the ramified
+     * primes and the bad ideals computed anew, because that fills some
+     * fields which are _not_ retrieved from the renumber output file
+     */
+    compute_ramified_primes();
+    compute_bad_ideals();
+}
+
 std::string renumber_t::debug_data(index_t i) const
 {
     p_r_side x = p_r_from_index (i);
@@ -968,6 +1009,56 @@ std::string renumber_t::debug_data(index_t i) const
     }
 
     return os.str();
+}
+
+/* return valid sagemath code that describes the ideal */
+std::string renumber_t::debug_data_sagemath(index_t i) const
+{
+    p_r_side x = p_r_from_index (i);
+    if (is_additional_column (i)) {
+        if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+            return "J0J1";
+        } else {
+            return fmt::format("J{0}", x.side);
+        }
+    } else if (is_bad(i)) {
+        index_t j = i - above_add;
+        for(auto const & b : bad_ideals) {
+            if (j < (index_t) b.second.nbad) {
+                if (b.second.sagemath_string.empty()) {
+                    throw std::runtime_error("call compute_bad_ideals() first!\n");
+                }
+                return b.second.sagemath_string[j];
+            }
+            j -= b.second.nbad;
+        }
+    } else {
+        i -= above_bad;
+        if (x.side == get_rational_side()) {
+            return fmt::format("OK{0}.ideal({1})", x.side, x.p);
+        } else {
+            /* XXX if p divides the discriminant, make sure that we treat
+             * ramified primes correctly. Otherwise a simple and stupid
+             * approach can work.
+             */
+            cxx_mpz_poly f(cpoly->pols[x.side]);
+            cxx_gmp_randstate state;
+            for(auto y : small_primes[x.side]) {
+                if (x.p == y.first)
+                    return generic_sagemath_string(f, x.side, x.p, x.r, state);
+            }
+
+            /* back to the easy case */
+            if (x.r == x.p) {
+                return fmt::format("(OK{0}.ideal({1})+J{0})",
+                        x.side, x.p);
+            } else {
+                return fmt::format("(OK{0}.fractional_ideal({1},alpha{0}-{2})*J{0})",
+                        x.side, x.p, x.r);
+            }
+        }
+    }
+    throw corrupted_table("bad bad ideals");
 }
 
 /* can be called rather early, in fact (after the bad ideals computation) */
@@ -1237,6 +1328,8 @@ index_t renumber_t::build(cxx_param_list & pl, int for_dl, hook * f)
     compute_bad_ideals();
 
     info(std::cout);
+
+    compute_ramified_primes();
 
     check_needed_bits(needed_bits());
 

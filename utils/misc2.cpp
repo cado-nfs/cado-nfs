@@ -8,6 +8,7 @@
 #include "cado_expression_parser.hpp"
 
 #include "misc.h"
+#include "getprime.h"
 
 double nprimes_interval(double p0, double p1)
 {
@@ -109,3 +110,36 @@ int mpz_set_from_expression(mpz_ptr f, const char * value)
     }
     return 1;
 }
+
+std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor)/*{{{*/
+{
+    std::vector<std::pair<cxx_mpz, int> > res;
+    prime_info pinf;
+
+    prime_info_init (pinf);
+    cxx_mpz n = n0;
+
+    /* if n takes k bits it means that n < 2^k. If p^2>=2^k, then we
+     * can break. A sufficient condition for this is
+     * p^2 >= 2^(2*(ceiling(k/2)))
+     * p   >= 2^(  (floor((k+1)/2)))
+     * because regardless of the parity of k, this implies our
+     * condition
+     */
+    unsigned long bound_shift = (mpz_sizeinbase(n, 2) + 1) / 2;
+    for (unsigned long p = 2; p < B; p = getprime_mt (pinf)) {
+        if (bound_shift < ULONG_BITS && p >> bound_shift)
+            break;
+        if (!mpz_divisible_ui_p(n, p)) continue;
+        int k = 0;
+        for( ; mpz_divisible_ui_p(n, p) ; mpz_fdiv_q_ui(n, n, p), k++);
+        bound_shift = (mpz_sizeinbase(n, 2) + 1) / 2;
+        res.push_back(std::make_pair(cxx_mpz(p), k));
+    }
+    // cout << "remaining discriminant " << n << "\n";
+    cofactor = n;
+    prime_info_clear (pinf); /* free the tables */
+    return res;
+}
+/*}}}*/
+
