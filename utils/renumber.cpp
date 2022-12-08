@@ -823,8 +823,21 @@ void renumber_t::use_additional_columns_for_dl()
 
 void renumber_t::compute_bad_ideals()
 {
-    ASSERT_ALWAYS (above_all == above_bad);
-    ASSERT_ALWAYS (above_cache == above_bad);
+    /* There are two use cases. Under normal circumstances, we're reading
+     * the header, at this point. Which means that above_all =
+     * above_cache = above_add = above_add. I.e. there are no bad ideals
+     * stored, no cached ideals, and the table is empty.
+     *
+     * There's also the use case of
+     * recompute_debug_number_theoretic_stuff(). There, we're recomputing
+     * something that we mostly already know. In that case, we don't want
+     * to destroy the old values of above_cache and above_all, of course.
+     */
+    // ASSERT_ALWAYS (above_all == above_bad);
+    // ASSERT_ALWAYS (above_cache == above_bad);
+
+    unsigned int old_nbad = above_bad - above_add;
+
     /* most useful for traditional format, where we need to do this on
      * every open. Well, it's super cheap anyway
      *
@@ -833,6 +846,7 @@ void renumber_t::compute_bad_ideals()
      * freerel.cpp
      */
     above_bad = above_add;
+    bad_ideals.clear();
     bad_ideals_max_p = 0;
     for(int side = 0 ; side < get_nb_polys() ; side++) {
         cxx_mpz_poly f(cpoly->pols[side]);
@@ -847,7 +861,11 @@ void renumber_t::compute_bad_ideals()
                 bad_ideals_max_p = p;
         }
     }
-    above_all = above_cache = above_bad;
+    if (old_nbad) {
+        ASSERT_ALWAYS(above_bad - above_add == old_nbad);
+    } else {
+        above_all = above_cache = above_bad;
+    }
 }
 
 void renumber_t::compute_ramified_primes()
@@ -926,10 +944,19 @@ void renumber_t::read_from_file(const char * filename, int for_dl)
     if (for_dl)
         use_additional_columns_for_dl();
     read_header(is);
-    compute_ramified_primes();
     info(std::cout);
     read_table(is);
     more_info(std::cout);
+}
+
+void renumber_t::recompute_debug_number_theoretic_stuff()
+{
+    /* explain_indexed_relations really insists on having the ramified
+     * primes and the bad ideals computed anew, because that fills some
+     * fields which are _not_ retrieved from the renumber output file
+     */
+    compute_ramified_primes();
+    compute_bad_ideals();
 }
 
 std::string renumber_t::debug_data(index_t i) const
@@ -997,8 +1024,12 @@ std::string renumber_t::debug_data_sagemath(index_t i) const
     } else if (is_bad(i)) {
         index_t j = i - above_add;
         for(auto const & b : bad_ideals) {
-            if (j < (index_t) b.second.nbad)
+            if (j < (index_t) b.second.nbad) {
+                if (b.second.sagemath_string.empty()) {
+                    throw std::runtime_error("call compute_bad_ideals() first!\n");
+                }
                 return b.second.sagemath_string[j];
+            }
             j -= b.second.nbad;
         }
     } else {

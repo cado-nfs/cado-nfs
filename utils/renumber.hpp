@@ -163,6 +163,7 @@ public:
 
     /*{{{ reading the table */
     void read_from_file(const char * filename, int for_dl);
+    void recompute_debug_number_theoretic_stuff();
     /*}}}*/
 
     /*{{{ most important outer-visible routines: lookups */

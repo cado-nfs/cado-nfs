@@ -41,6 +41,14 @@
  * Note that presently, this _only_ works with very small number fields,
  * because we let sage compute the maximal order (out of laziness,
  * somehow).
+ *
+ * HOW TO USE (EXAMPLE)
+ * --------------------
+ *
+ * ./cado-nfs.py --workdir $PWD/work/ 90377629292003121684002147101760858109247336549001090677693
+ * make explain_indexed_relation
+ * $bindir/misc/explain_indexed_relation -poly work/c60.poly -renumber work/c60.renumber.gz < $(zcat work/c60.purged.gz | sort -R | head -n 1000) > check.sage
+ * docker run --rm -t -v $PWD:/host sagemath/sagemath sage /host/check3.sage
  */
 
 static void declare_usage(cxx_param_list & pl)
@@ -133,6 +141,7 @@ main (int argc, char *argv[])
         tab.build(pl, for_dl);
     } else {
         tab.read_from_file(renumberfilename, for_dl);
+        tab.recompute_debug_number_theoretic_stuff();
     }
 
     // sage preparser is woefully inefficient. A large source file will
