@@ -30,9 +30,9 @@
  * There are some change of coordinate functions in this file, and also
  * in the header file las-coordinates.hpp
  *
- * The naming scheme for the conversion functions is FOOToBAR. FOO or
- * BAR are the "short names" mentioned above for the different coordinate
- * systems.
+ * The naming scheme for the conversion functions is convert_FOO_to_BAR.
+ * FOO or BAR are the "short names" mentioned above for the different
+ * coordinate systems.
  *
  * In the single-coordinate system, X can exceed 32 bits (only if I>16,
  * in fact), while in the coordinate system (N,x), the coordinate x is
