@@ -19,6 +19,14 @@
 #include <x86intrin.h>
 #endif
 
+// see bug #30052
+#if GNUC_VERSION_ATLEAST(12,0,0) && ! GNUC_VERSION_ATLEAST(13,0,0)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wuninitialized"
+#pragma GCC diagnostic ignored "-Winit-self"
+#endif
+
+
 /* see plattice.sage */
 
 /* see https://gitlab.inria.fr/cado-nfs/cado-nfs/-/merge_requests/43 for
@@ -600,3 +608,9 @@ int main(int argc, char * argv[])
     gmp_randclear(rstate);
     return tw.failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+
+// see bug #30052
+#if GNUC_VERSION_ATLEAST(12,0,0) && ! GNUC_VERSION_ATLEAST(13,0,0)
+#pragma GCC diagnostic pop
+#endif
+
