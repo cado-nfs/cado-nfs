@@ -2821,11 +2821,11 @@ void matmul_top_init(matmul_top_data_ptr mmt,
     for(int i = 0 ; i < mmt->nmatrices ; i++) {
         matmul_top_matrix_ptr Mloc = mmt->matrices[i];
         if (multimat) {
-            Mloc->mname = strdup(param_list_lookup_string(pl, "matrix"));
-            Mloc->bname = strdup(param_list_lookup_string(pl, "balancing"));
-        } else {
             Mloc->mname = matrix_list_get_item(pl, "matrix", i);
             Mloc->bname = matrix_list_get_item(pl, "balancing", i);
+        } else {
+            Mloc->mname = strdup(param_list_lookup_string(pl, "matrix"));
+            Mloc->bname = strdup(param_list_lookup_string(pl, "balancing"));
         }
         if (static_random_matrix) {
             ASSERT_ALWAYS(i == 0);
