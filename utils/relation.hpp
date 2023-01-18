@@ -89,12 +89,10 @@ struct relation : public relation_ab {
     relation(int64_t a, uint64_t b, int rational_side = -1)
         : relation_ab(a,b)
         , rational_side(rational_side)
-        , active_sides {{ 0, 1 }}       // only a default.
     {}
     relation(mpz_srcptr a, mpz_srcptr b, int rational_side = -1)
         : relation_ab(a,b)
         , rational_side(rational_side)
-        , active_sides {{ 0, 1 }}       // only a default.
     {}
 
     void add(unsigned int side_index, mpz_srcptr p, mpz_srcptr r) {
