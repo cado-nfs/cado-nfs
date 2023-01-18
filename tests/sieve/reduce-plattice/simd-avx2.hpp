@@ -136,12 +136,16 @@ struct simd_helper<uint32_t, 8>
         for(int i = 0, m = mask2int(mm) ; m ; i++,m>>=1)
             if (m&1)
                 explode_a[i] = explode_a[i] / explode_b[i];
+        // I'm not exactly convinced that there's a value in doing that and not
+        // exploding src as well, while we're at it.
 #if defined(HAVE_AVX512F) && defined(HAVE_AVX512DQ)
 #ifdef HAVE_AVX512VL
         static_assert(std::is_same<__mmask8, mask>::value, "");
         return _mm256_mask_blend_epi32(mm, src, load(explode_a));
 #else
-        return _mm256_blend_epi32(src, load(explode_a), mask2int(mm));
+        // the line below doesn't work: mm must be an immediate.
+        // return _mm256_blend_epi32(src, load(explode_a), mask2int(mm));
+        return blendv(src, load(explode_a), mm);
 #endif
 #else
         return blendv(src, load(explode_a), mm);
@@ -152,4 +156,4 @@ struct simd_helper<uint32_t, 8>
 #endif
 
 
-#endif	/* SIMD_AVX2_HPP_ */
+#endif  /* SIMD_AVX2_HPP_ */
