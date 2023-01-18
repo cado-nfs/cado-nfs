@@ -24,23 +24,31 @@ struct relation_ab {
     uint64_t b;
     cxx_mpz az;
     cxx_mpz bz;
-    int active_sides[2];
+    /* We need to have this, because a pair (a,b) does not uniquely
+     * identify a relation: there can be several side pairs which lead to
+     * a relation.
+     */
+    std::array<int, 2> active_sides;
     operator bool() const { return a || b; }
     relation_ab() {
         a=0;
         b=0;
-        active_sides[0] = -1;
-        active_sides[1] = -1;
+        active_sides[0] = 0;
+        active_sides[1] = 1;
     }
     relation_ab(int64_t a, uint64_t b) : a(a), b(b) {
         mpz_set_int64(az, a);
         mpz_set_uint64(bz, b);
+        active_sides[0] = 0;
+        active_sides[1] = 1;
     }
     relation_ab(mpz_srcptr _az, mpz_srcptr _bz) {
         mpz_set(az, _az);
         mpz_set(bz, _bz);
         a = mpz_get_int64(az);
         b = mpz_get_uint64(bz);
+        active_sides[0] = 0;
+        active_sides[1] = 1;
     }
     bool operator<(const relation_ab& o) const {
         typedef std::tuple<cxx_mpz const &, cxx_mpz const &, int, int> T;
@@ -75,7 +83,6 @@ struct relation : public relation_ab {
     };
     int rational_side = -1;   /* index of the rational side, if any */
     std::array<std::vector<pr>, 2> sides; /* pr's are stored w.r.t. side */
-    std::array<int, 2> active_sides;
 
     relation() {}
     operator bool() const { return (bool) (relation_ab) *this; }

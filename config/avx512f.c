@@ -3,6 +3,8 @@
 #include <string.h>
 #include <x86intrin.h>
 
+__mmask16 zeromask() { return _mm512_int2mask(0); }
+
 int main() {
     __m512i * x = _mm_malloc(120 * sizeof(__m512i), sizeof(__m512i));
     memset(x, 0, 120 * sizeof(__m512i));

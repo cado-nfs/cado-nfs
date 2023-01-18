@@ -16,7 +16,7 @@ A projective ideal above p is represented by (p,p).
 1. Format of the file
 =====================
 
-The format of the file is described in filter/REAME.fileformat
+The format of the file is described in filter/README.fileformat
 
 
 2. Given an ideal (p,r) on side s, how do I find its index in the table ?

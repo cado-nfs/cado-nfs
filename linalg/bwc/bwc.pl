@@ -1937,7 +1937,7 @@ sub task_krylov {
         # needed. (note that if both were specified, this is essentially
         # putting the very same parameters back in place, but with the
         # benefit of having performed a check inbetween).
-        my @args = grep { !/^ys/ && !/^start/ } @main_args;
+        my @args = grep { !/^ys/ && !/^start/ && !/^max_ram/ } @main_args;
         push @args, split(' ', $t);
         task_safety_check_krylov @args, split(' ', $t);
         task_common_run 'krylov', @args;
@@ -2058,7 +2058,7 @@ sub task_lingen {
     push @args, "split-output-file=1";
     push @args, "afile=$concatenated_A";
     push @args, "ffile=F";
-    push @args, grep { /^(?:mn|m|n|wdir|prime|rhs)=/ || /allow_zero_on_rhs/ } @main_args;
+    push @args, grep { /^(?:mn|m|n|wdir|prime|rhs)=/ || /allow_zero_on_rhs/ || /max_ram/ } @main_args;
     if (!$mpi_needed && ($lingen_mpi_split[0]*$lingen_mpi_split[1] != 1)) {
         print "## non-MPI build, avoiding multi-node lingen\n";
         # We keep thr=
@@ -2202,7 +2202,7 @@ sub task_mksol {
         # take out ys from main_args, put the right one in place if
         # needed.
         # print "main_args: @main_args\n";
-        my @args = grep { !/^(ys|n?rhs|start)/ } @main_args;
+        my @args = grep { !/^(ys|n?rhs|start|max_ram)/ } @main_args;
         push @args, split(' ', $t);
 
         task_common_run 'mksol', @args;
@@ -2414,7 +2414,7 @@ sub task_cleanup {
     }
     if (scalar @todo == 1 && (!-f"$wdir/W" || ((stat "$wdir/W")[7] lt (stat "$wdir/W.sols$solutions[0]")[7]))) {
         print STDERR "## Providing $wdir/W as an alias to $wdir/W.sols$solutions[0]\n";
-        symlink "$wdir/W.sols$solutions[0]", "$wdir/W";
+        symlink "W.sols$solutions[0]", "$wdir/W";
     }
 }
 # }}}

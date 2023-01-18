@@ -14,7 +14,7 @@ Writing a hint table
 The descent requires a "descent hint table" that contains information
 about how to tune the parameters along the descent.
 
-Examples of descent-hint tables are given as .hint files in the params_dl/
+Examples of descent-hint tables are given as .hint files in the parameters/dlp
 directory.
 
 Each line correspond to a bit-size of a special-q for one side. For

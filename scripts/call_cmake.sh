@@ -109,9 +109,13 @@ else
     : ${cmake_path="`type -p cmake 2>/dev/null`"}
 fi
 
-cmake_version=$("$cmake_path" --version || :)
+cmake_version=
 
-if [ $? != 0 ] ; then
+if [ "$cmake_path" ] ; then
+cmake_version=$("$cmake_path" --version || :)
+fi
+
+if ! [ "$cmake_version" ] ; then
     echo "CMake not found" >&2
     cmake_path=
 # Recall that (some versions of) bash do not want quoting for regex patterns.
@@ -136,7 +140,23 @@ if ! [ "$cmake_path" ] ; then
     if [ -x "$cmake_path" ] ; then
         echo "Using custom cmake in $cmake_companion_install_location" >&2
     else
-        echo "I am about to download and compile a compatible version of Cmake."
+        echo "No cmake binary was found on your system."
+        echo
+        echo "Most probably, you want to rely on your system distribution to"
+        echo "provide cmake in some way. Luckily, the package is usually called"
+        echo "cmake. Version **at least** 3.4 is necessary."
+        echo
+        echo "You may try to have cado-nfs download and install some version of"
+        echo "cmake for you. THIS IS A PRIORI A VERY BAD IDEA, and we advise"
+        echo "you to prefer the system-level option above (because you will"
+        echo "most likely get a more recent cmake version)."
+        echo
+        echo "If, despite this word of warning, you want to auto-install cmake,"
+        echo "you can do so with scripts/install-cmake.sh \"$cmake_companion_install_location\""
+        echo "(note that compiling cmake in itself takes a bit of time)"
+        echo
+        exit 1
+
         echo "Do you want to continue ? (y/n)"
         if [ -e "`tty`" ] ; then
             read INSTALL_CMAKE

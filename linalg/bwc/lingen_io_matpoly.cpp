@@ -341,16 +341,17 @@ int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k
     size_t ulongs_per_mat = transpose ? (M.n * mc) : (M.m * nc);
     size_t one = ulongs_per_mat * sizeof(unsigned long);
 
-    unsigned int nth = 1;
 #ifdef HAVE_OPENMP
-    nth = omp_get_max_threads();
-#endif
-    unsigned int dk = ((k1 - k0)/ULONG_BITS) / nth;
-    unsigned int mk = ((k1 - k0)/ULONG_BITS) % nth;
-#ifdef HAVE_OPENMP
-#pragma omp parallel num_threads(nth)
+#pragma omp parallel
 #endif
     {
+#ifdef HAVE_OPENMP
+        unsigned int nth = omp_get_num_threads();
+#else
+        unsigned int nth = 1;
+#endif
+        unsigned int dk = ((k1 - k0)/ULONG_BITS) / nth;
+        unsigned int mk = ((k1 - k0)/ULONG_BITS) % nth;
         unsigned int idx = 0;
 #ifdef HAVE_OPENMP
         idx = omp_get_thread_num();

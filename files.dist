@@ -686,9 +686,8 @@ misc/CMakeLists.txt
 misc/check_rels.c
 misc/debug_renumber.cpp
 misc/descent_init_Fp.c
-misc/extra_renumber.cpp
+misc/explain_indexed_relation.cpp
 misc/indexed_relations_to_density.cpp
-misc/renumber_convert.cpp
 misc/smooth_detect.c
 misc/smooth_detect.h
 parameters/dlp/Joux-Lercier/params.p100
@@ -1227,6 +1226,8 @@ tests/misc/testcheck_rels.sh
 tests/ncpus.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
+tests/polyselect/sopt.input1.txt
+tests/polyselect/sopt.input2.txt
 tests/polyselect/test_auxiliary.c
 tests/polyselect/test_polyselect_shash.cpp
 tests/polyselect/test_rho.c
@@ -1439,6 +1440,7 @@ tests/utils/test_usp.c
 tests/utils/test_verbose.c
 tests/utils/testbase-rootfinder.quick
 tests/utils/testmpz-rootfinder.quick
+tests/wrap-test.sh
 typecast.h
 utils/CMakeLists.txt
 utils/Makefile
@@ -1484,12 +1486,12 @@ utils/embedded/fmt/fmt.cc
 utils/embedded/fmt/format-inl.h
 utils/embedded/fmt/format.cc
 utils/embedded/fmt/format.h
-utils/embedded/fmt/locale.h
 utils/embedded/fmt/os.cc
 utils/embedded/fmt/os.h
 utils/embedded/fmt/ostream.h
 utils/embedded/fmt/printf.h
 utils/embedded/fmt/ranges.h
+utils/embedded/fmt/std.h
 utils/embedded/fmt/xchar.h
 utils/fakempi.h
 utils/fakepthread.h
