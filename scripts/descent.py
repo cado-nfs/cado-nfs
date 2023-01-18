@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Examples of parameters can be found in the params_dl directory
+# Examples of parameters can be found in the parameters/dlp directory
 
 # Algorithms
 #   UpperClass:

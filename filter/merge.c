@@ -1568,16 +1568,24 @@ main (int argc, char *argv[])
     unsigned long lastN, lastW;
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
+    int merge_pass = 0;
 
     /****** begin main loop ******/
     while (1) {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
 	merge_pass++;
 
-        if (merge_pass == 2 || mat->cwmax > 2)
-                full_garbage_collection(mat);
+        if (merge_pass == 2 || mat->cwmax > 2) {
+                double cpu8 = seconds (), wct8 = wct_seconds ();
+                heap_garbage_collection(mat->rows);
+                 cpu8 = seconds () - cpu8;
+                wct8 = wct_seconds () - wct8;
+                print_timings ("   GC took", cpu8, wct8);
+                cpu_t[GC] += cpu8;
+                wct_t[GC] += wct8;
+        }
 
-	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
+	/* Once cwmax >= 3, at each pass, we increase cbound to allow more
 	   merges. If one decreases cbound_incr, the final matrix will be
 	   smaller, but merge will take more time.
 	   If one increases cbound_incr, merge will be faster, but the final

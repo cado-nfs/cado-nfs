@@ -19,7 +19,9 @@ struct simd_helper<uint32_t, 8>
     static constexpr const size_t N = 8;
     static constexpr const size_t store_alignment = 32;
     typedef __m256i type;
-#if defined(HAVE_AVX512F) && defined(HAVE_AVX512DQ)
+#if defined(HAVE_AVX512F) && defined(HAVE_AVX512DQ) && defined(HAVE_AVX512VL)
+    // _mm256_cmpeq_epu32_mask is AVX512VL
+    // https://www.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/intrinsics-for-avx-512-additional-instructions/intrinsics-for-comparison-operations.html
     typedef __mmask8 mask;
     static inline mask zeromask() { return _cvtu32_mask8(0); }
     static inline mask onemask() { return _cvtu32_mask8(~0); }

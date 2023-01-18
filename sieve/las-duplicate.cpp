@@ -84,7 +84,7 @@ Thus the function to check for duplicates needs the following information:
 #include "gmp_aux.h"
 #include "las-choose-sieve-area.hpp"  // for choose_sieve_area
 #include "las-cofactor.hpp"           // for check_leftover_norm, factor_bot...
-#include "las-coordinates.hpp"        // for ABToIJ
+#include "las-coordinates.hpp"        // for convert_ab_to_ij
 #include "las-norms.hpp"              // for lognorm_smart
 #include "las-qlattice.hpp"           // for operator<<, qlattice_basis
 #include "las-siever-config.hpp"      // for siever_config::side_config, sie...
@@ -242,7 +242,7 @@ sq_finds_relation(las_info const & las,
   unsigned int j;
   {
     int ok;
-    ok = ABToIJ(i, j, rel.a, rel.b, Q);
+    ok = convert_ab_to_ij(i, j, rel.a, rel.b, Q);
     if (!must && !ok) return false;
     ASSERT_ALWAYS(ok);
   }

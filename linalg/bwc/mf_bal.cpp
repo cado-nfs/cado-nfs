@@ -237,7 +237,7 @@ void mf_bal_decl_usage(param_list_ptr pl)
    param_list_decl_usage(pl, "rectangular", "accept rectangular matrices (for block Lanczos)");
    param_list_decl_usage(pl, "withcoeffs", "expect a matrix with explicit coefficients (not just 1s)");
    param_list_decl_usage(pl, "rowperm", "permute rows in priority (defaults to auto)");
-   param_list_decl_usage(pl, "colperm", "permute rows in priority (defaults to auto)");
+   param_list_decl_usage(pl, "colperm", "permute columns in priority (defaults to auto)");
    param_list_decl_usage(pl, "skip_decorrelating_permutation", "solve for the matrix M instead of the matrix P*M with P a fixed stirring matrix");
 }
 

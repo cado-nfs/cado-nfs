@@ -265,7 +265,7 @@ tasks.sieve.ncurves1 = 10
     # relations, but the cofactorization cost will increase.
     # Same for ncurves1 on side 1 (algebraic side).
     # If unspecified, the number of curves is deduced from the value of lpb0
-    # or lpb1, see function nb_curves() in file sieve/ecm/facul.c.
+    # or lpb1, see function nb_curves().
 
 
 tasks.I = 11

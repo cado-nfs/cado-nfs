@@ -13,23 +13,30 @@
  *
  * Coordinate systems for identifying an (a,b) pair.
  *
- * (a, b): This is the one from textbooks. We always have b>=0 (only free
- *         relations have b=0, and we don't see them here).
- * (i, j): For a given special q, this is a point in the q-lattice. Given
- *         the lattice basis given by (a0 b0 a1 b1), this corresponds to
- *         the (a,b) pair equal to i*(a0,b0)+j*(a1,b1). By construction
- *         this should lead to one of the norms having doing.p as a factor.
- *         i is within [-I/2, I/2[, and j is within [1, J[
- * (N, x): bucket number N, location x. N is within [0,nb_buckets[
- *         and x within [0,bucket_region[ ; we have:
+ * (a, b)  [short name "ab"] This is the one from textbooks. We always
+ *         have b>=0 (only free relations have b=0, and we don't see them
+ *         here).
+ * (i, j)  [short name "ij"] For a given special q, this is a point in
+ *         the q-lattice. Given the lattice basis given by (a0 b0 a1 b1),
+ *         this corresponds to the (a,b) pair equal to
+ *         i*(a0,b0)+j*(a1,b1). By construction this should lead to one
+ *         of the norms having doing.p as a factor.  i is within [-I/2,
+ *         I/2[, and j is within [1, J[
+ * (N, x)  [short name "Nx"] bucket number N, location x. N is within
+ *         [0,nb_buckets[ and x within [0,bucket_region[ ; we have:
  *         N*bucket_region+x == (I/2+i)+j*I
+ * X       [short name "X"]  N*bucket_region+x
  *
- * There are some change of coordinate functions at the end of this file.
- * The coordinate system (N, x) is almost always referred to as just x,
- * where x is a 64-bit value equal to N*bucket_region+x. Thus from this
- * wide x, it is possible to recover both N and (the short, fitting in 32
- * bits) x.
- * Note: the "wide" x might be larger than 32 bits only for I> 16.
+ * There are some change of coordinate functions in this file, and also
+ * in the header file las-coordinates.hpp
+ *
+ * The naming scheme for the conversion functions is convert_FOO_to_BAR.
+ * FOO or BAR are the "short names" mentioned above for the different
+ * coordinate systems.
+ *
+ * In the single-coordinate system, X can exceed 32 bits (only if I>16,
+ * in fact), while in the coordinate system (N,x), the coordinate x is
+ * less than bucket_region, which is at most 2^16.
  */
 void adjustIJsublat(int & i, unsigned int & j, sublat_t const & S)
 {
@@ -39,35 +46,35 @@ void adjustIJsublat(int & i, unsigned int & j, sublat_t const & S)
     }
 }
 
-void xToIJ(int & i, unsigned int & j, const uint64_t X, int logI)
+void convert_X_to_ij(int & i, unsigned int & j, const uint64_t X, int logI)
 {
     i = (X & ((1 << logI)-1)) - (1 << (logI - 1));
     j = X >> logI;
 }
 
 
-void NxToIJ(int & i, unsigned int & j, const unsigned int N, const unsigned int x, int logI)
+void convert_Nx_to_ij(int & i, unsigned int & j, const unsigned int N, const unsigned int x, int logI)
 {
     uint64_t X = (uint64_t)x + (((uint64_t)N) << LOG_BUCKET_REGION);
-    xToIJ(i, j, X, logI);
+    convert_X_to_ij(i, j, X, logI);
 }
 
-void IJTox(uint64_t & x, int i, unsigned int j, int logI)
+void convert_ij_to_X(uint64_t & x, int i, unsigned int j, int logI)
 {
     x = (int64_t)i + (((uint64_t)j) << logI) + (uint64_t)(1 << (logI - 1));
 }
 
-void IJToNx(unsigned int & N, unsigned int & x, int i, unsigned int j, int logI)
+void convert_ij_to_Nx(unsigned int & N, unsigned int & x, int i, unsigned int j, int logI)
 {
     uint64_t xx;
-    IJTox(xx, i, j, logI);
+    convert_ij_to_X(xx, i, j, logI);
     N = xx >> LOG_BUCKET_REGION;
     /* see CID 1453612; I _think_ that this assert should be enough */
     ASSERT_FOR_STATIC_ANALYZER(LOG_BUCKET_REGION <= 32);
     x = xx & (uint64_t)((1 << LOG_BUCKET_REGION) - 1);
 }
 
-void IJToAB(int64_t & a, uint64_t & b, int i, unsigned int j, 
+void convert_ij_to_ab(int64_t & a, uint64_t & b, int i, unsigned int j, 
         qlattice_basis const & Q)
 {
     adjustIJsublat(i, j, Q.sublat);
@@ -83,7 +90,7 @@ void IJToAB(int64_t & a, uint64_t & b, int i, unsigned int j,
     }
 }
 
-int ABToIJ(int & i, unsigned int & j, const int64_t a, const uint64_t b, qlattice_basis const & Q)
+int convert_ab_to_ij(int & i, unsigned int & j, const int64_t a, const uint64_t b, qlattice_basis const & Q)
 {
     /* Both a,b and the coordinates of the lattice basis can be quite
      * large. However the result should be small.
@@ -146,23 +153,23 @@ int ABToIJ(int & i, unsigned int & j, const int64_t a, const uint64_t b, qlattic
 }
 
 #if 0 /* currently unused */
-int ABTox(unsigned int *x, const int64_t a, const uint64_t b, int logI, qlattice_basis const & Q)
+int convert_ab_to_X(unsigned int *x, const int64_t a, const uint64_t b, int logI, qlattice_basis const & Q)
 {
     int i;
     unsigned int j;
-    if (!ABToIJ(i, j, a, b, Q)) return 0;
-    IJTox(x, a, b, logI);
+    if (!convert_ab_to_ij(i, j, a, b, Q)) return 0;
+    convert_ij_to_X(x, a, b, logI);
     return 1;
 }
 #endif
 
 #if 0 /* currently unused */
-int ABToNx(unsigned int * N, unsigned int *x, const int64_t a, const uint64_t b, int logI, qlattice_basis const & Q)
+int convert_ab_to_Nx(unsigned int * N, unsigned int *x, const int64_t a, const uint64_t b, int logI, qlattice_basis const & Q)
 {
     int i;
     unsigned int j;
-    if (!ABToIJ(i, j, a, b, Q)) return 0;
-    IJToNx(N, x, a, b, logI);
+    if (!convert_ab_to_ij(i, j, a, b, Q)) return 0;
+    convert_ij_to_Nx(N, x, a, b, logI);
     return 1;
 }
 #endif

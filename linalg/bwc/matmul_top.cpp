@@ -2775,11 +2775,14 @@ void matmul_top_init(matmul_top_data_ptr mmt,
     for(int i = 0 ; i < mmt->nmatrices ; i++) {
         matmul_top_matrix_ptr Mloc = mmt->matrices[i];
         if (multimat) {
-            Mloc->mname = strdup(param_list_lookup_string(pl, "matrix"));
-            Mloc->bname = strdup(param_list_lookup_string(pl, "balancing"));
-        } else {
             Mloc->mname = matrix_list_get_item(pl, "matrix", i);
             Mloc->bname = matrix_list_get_item(pl, "balancing", i);
+        } else {
+            const char * t;
+            t = param_list_lookup_string(pl, "matrix");
+            Mloc->mname = t ? strdup(t) : NULL;
+            t = param_list_lookup_string(pl, "balancing");
+            Mloc->bname = t ? strdup(t) : NULL;
         }
         if (static_random_matrix) {
             ASSERT_ALWAYS(i == 0);
@@ -2789,6 +2792,8 @@ void matmul_top_init(matmul_top_data_ptr mmt,
             /* returns NULL is mname is NULL */
             Mloc->bname = matrix_get_derived_balancing_filename(Mloc->mname, mmt->pi);
         }
+        /* At this point mname and bname are either NULL or freshly
+         * allocated */
         ASSERT_ALWAYS((Mloc->bname != NULL) == !random_description);
 
         matmul_top_init_fill_balancing_header(mmt, i, pl);

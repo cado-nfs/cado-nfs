@@ -8,6 +8,8 @@
 #include <type_traits>
 #include <string>
 #include <vector>
+#include <utility>
+#include "cxx_mpz.hpp"
 #endif
 #include <gmp.h>
 #include "macros.h"
@@ -382,6 +384,10 @@ template < typename _Tp > class pagealigned_allocator {
         void destroy(pointer __p) { __p->~_Tp(); }
 };
 #endif
+#endif
+
+#ifdef __cplusplus
+std::vector<std::pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor);
 #endif
 
 #endif	/* CADO_UTILS_MISC_H_ */
