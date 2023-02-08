@@ -9,8 +9,8 @@
 
 set -e
 
-is_debian() { [ -f /etc/debian_version ] && find /etc/apt/sources.list* -name '*.list' -a -type f | xargs grep -q debian ; }
-is_ubuntu() { [ -f /etc/debian_version ] && find /etc/apt/sources.list* -name '*.list' -a -type f | xargs grep -q ubuntu ; }
+is_debian() { [ -f /etc/debian_version ] && find /etc/apt/sources.list* \( -name '*.list' -o -name '*.sources' \) -a -type f | xargs grep -q debian ; }
+is_ubuntu() { [ -f /etc/debian_version ] && find /etc/apt/sources.list* \( -name '*.list' -o -name '*.sources' \) -a -type f | xargs grep -q ubuntu ; }
 
 is_fedora() { [ -f /etc/fedora-release ] ; }
 is_centos() { [ -f /etc/centos-release ] ; }
