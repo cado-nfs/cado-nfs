@@ -447,7 +447,7 @@ toFlush (const char *sparsename, typerow_t **sparsemat, index_t *colweight,
     renumber (small_ncols, colweight, ncols, idealsfilename);
 
     printf ("Sparse submatrix: nrows=%" PRIu64 " ncols=%" PRIu64 "\n",
-            (uint64_t) small_nrows, (uint64_t) small_ncols);
+            (uint64_t) small_nrows, (uint64_t) small_ncols - skip);
     ASSERT_ALWAYS(small_nrows >= small_ncols);
 
     double tt = seconds();

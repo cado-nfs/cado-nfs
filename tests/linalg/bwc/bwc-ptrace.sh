@@ -508,13 +508,14 @@ placemats() {
         nc:=Ncols(M);
         nh:=$Nh;
         nv:=$Nv;
-        // 8 is 32/4, 32=desired alignment, 4=a lower bound on the block
-        // size.
-        nr:=nh*nv*(8*Ceiling(x/8)) where x is Ceiling(Maximum(nr, nc)/(nh*nv));
+        ALIGNMENT_ON_ALL_BWC_VECTORS:=64;
+        MINIMUM_ITEMS_IN_BWC_CHUNKS:=4;
+        chunk:=ALIGNMENT_ON_ALL_BWC_VECTORS div MINIMUM_ITEMS_IN_BWC_CHUNKS;
+        nr:=nh*nv*(chunk*Ceiling(x/chunk)) where x is Ceiling(Maximum(nr, nc)/(nh*nv));
         nc:=nr;
         x:=Matrix(GF(p),nr,nc,[]);InsertBlock(~x,M,1,1);M:=x;
-        nrp:=nv*(8*Ceiling(x/8)) where x is Ceiling (nr/(nh*nv));
-        ncp:=nh*(8*Ceiling(x/8)) where x is Ceiling (nc/(nh*nv));
+        nrp:=nv*(chunk*Ceiling(x/chunk)) where x is Ceiling (nr/(nh*nv));
+        ncp:=nh*(chunk*Ceiling(x/chunk)) where x is Ceiling (nc/(nh*nv));
         Mt:=Matrix(GF(p),nh*nrp,nv*ncp,[]);
 EOF
     for i in `seq 0 $((Nh-1))` ; do
