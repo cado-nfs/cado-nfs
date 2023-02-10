@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <string>
 #include <utility>
+#include <array>
 #include "parallelizing_info.hpp"
 #include "params.h"
 
