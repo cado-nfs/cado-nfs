@@ -43,6 +43,12 @@
 
 #define MINIMUM_ITEMS_IN_BWC_CHUNKS     8
 
+/* see also
+   linalg/bwc/arith-concrete-base.hpp
+   tests/linalg/bwc/bwc-ptrace.sh
+   tests/linalg/bwc/convert_magma.pl
+ */
+
 struct balancing_header_s {
     uint32_t zero;      /* previous versions had neither zero nor magic.
                            By enforcing a zero field here, we make sure

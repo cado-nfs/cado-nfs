@@ -5,6 +5,11 @@
 
 /* See also MINIMUM_ITEMS_IN_BWC_CHUNKS in balancing.hpp */
 
+/* see also
+   tests/linalg/bwc/bwc-ptrace.sh
+   tests/linalg/bwc/convert_magma.pl
+   */
+
 /* all concrete instantiations derive from this */
 
 struct arith_concrete_base {

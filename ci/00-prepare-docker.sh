@@ -247,6 +247,9 @@ elif is_freebsd ; then
         mkdir /usr/local/etc/libmap.d
         find /usr/local/lib/gcc* -name '*.so' -o -name '*.so.[0-9]*' | while read xx ; do if [ -e "/lib/$(basename $xx)" ] ; then echo "$(basename "$xx") $xx" ; fi ; done > /usr/local/etc/libmap.d/gcc.conf
     fi
+else
+    echo "This system is not recognized by our scripts." >&2
+    exit 1
 fi
 
 if [ "$coverage" ] ; then

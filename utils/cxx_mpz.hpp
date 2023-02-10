@@ -231,6 +231,10 @@ inline std::istream& operator>>(std::istream& is, cxx_mpq & x) { return is >> (m
 
 namespace fmt {
     template <> struct /* fmt:: */ formatter<cxx_mpz>: formatter<string_view> {
+    // only allow {} for formatting. No :, no :x, etc. It could be nice
+    // to allow them, though. Note that this should be constexpr with
+    // c++-14 or later
+    auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
     template <typename FormatContext>
 auto format(cxx_mpz const & c, FormatContext& ctx) -> decltype(ctx.out()) {
             std::ostringstream os;

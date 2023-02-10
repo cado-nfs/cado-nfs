@@ -127,8 +127,11 @@ if ($mode eq 'balancing') {
         while ($x % $b) { $x++; }
         return $x*$K;
     };
-    my $tr = &$pad($nr,$nh*$nv,8);
-    my $tc = &$pad($nc,$nh*$nv,8);
+    my $ALIGNMENT_ON_ALL_BWC_VECTORS=64;
+    my $MINIMUM_ITEMS_IN_BWC_CHUNKS=4;
+    my $chunk = int($ALIGNMENT_ON_ALL_BWC_VECTORS/$MINIMUM_ITEMS_IN_BWC_CHUNKS);
+    my $tr = &$pad($nr,$nh*$nv,$chunk);
+    my $tc = &$pad($nc,$nh*$nv,$chunk);
     if ($flags & 8) {
         $tr = $tc = $tr > $tc ? $tr : $tc;
     }

@@ -1,5 +1,6 @@
 #include "cado.h"
 #include <algorithm>
+#include <limits.h>
 #include "las-side-config.hpp"
 
 void siever_side_config::declare_usage(cxx_param_list & pl)
