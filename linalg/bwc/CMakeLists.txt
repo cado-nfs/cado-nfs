@@ -462,10 +462,15 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl DESTINATION
 # Also lingen.
 
 ### This is the old binary lingen code. It is meant to go away.
+if(NOT HAVE_GF2X)
 link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
 link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
 include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
+else()
+    link_directories(${GF2X_LIBDIR})
+    include_directories(${GF2X_INCDIR})
+endif()
 # This **MUST** match the #define in gf2x/Makefile.am
 set_source_files_properties(lingen_qcode_binary.cpp COMPILE_FLAGS
     "-DCANTOR_BASE_FIELD_SIZE=128")
@@ -585,7 +590,9 @@ foreach(v ${internal_arithmetic_backends_gfp} b64)
     target_link_libraries(lingen_${v}_support lingen_common_support)
 
     if (v STREQUAL "b64")
-        add_dependencies(lingen_${v}_support gf2x-build)
+        if(NOT HAVE_GF2X)
+            add_dependencies(lingen_${v}_support gf2x-build)
+        endif()
         target_link_libraries(lingen_${v}_support gf2x-fft gf2x bblas)
     else()
         # In fact the dependency could be put on lingen_${v} instead ;

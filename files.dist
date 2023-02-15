@@ -77,6 +77,7 @@ config/gcc-bug-58805.c
 config/gcc-bugs.cmake
 config/gcc-inline-assembly.cmake
 config/gcc-ubuntu-bug.c
+config/gf2x.cmake
 config/glibc.c
 config/glibc.cmake
 config/gmp.cmake

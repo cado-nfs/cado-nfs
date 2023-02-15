@@ -1,6 +1,10 @@
 
-include_directories(${PROJECT_SOURCE_DIR}/gf2x/fft)
-include_directories(${PROJECT_SOURCE_DIR}/gf2x/fft/mpfq)
+if(NOT HAVE_GF2X)
+    include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
+    include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft/mpfq)
+else()
+    include_directories(${GF2X_INCDIR})
+endif()
 
 add_library(bblas
     ${CADO_SHARED}
@@ -30,4 +34,6 @@ set_target_properties(bblas PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
 target_link_libraries(bblas "${OpenMP_CXX_FLAGS}")
 target_link_libraries(bblas utils)
 
+if(NOT HAVE_GF2X)
 add_dependencies(bblas gf2x-build)
+endif()
