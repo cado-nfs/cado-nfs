@@ -9,9 +9,8 @@
 
 export CLICOLOR_FORCE=1
 
-
-# Note that our set of scripts reacts on CI_BUILD_NAME, and the logic for
-# this is here. CI_BUILD_NAME must follow the regexp below.
+# Note that our set of scripts reacts on BUILD_NAME, and the logic for
+# this is here. BUILD_NAME must follow the regexp below.
 #
 # (note that we **CANNOT** do regexp matching in this script because
 # we're /bin/sh, not bash !)
@@ -38,40 +37,69 @@ case "$HOSTNAME" in
     *) : ;;
 esac
 
-if ! [ "$CI_BUILD_NAME" ] && [ "$1" ] ; then
-    CI_BUILD_NAME="$1"
-    $ECHO_E "${CSI_BLUE}Setting CI_BUILD_NAME=\"$1\"${CSI_RESET}"
+if ! [ "$BUILD_NAME" ] && [ "$1" ] ; then
+    BUILD_NAME="$1"
+    $ECHO_E "${CSI_BLUE}Setting BUILD_NAME=\"$1\"${CSI_RESET}"
 fi
 
-if ! [ "$CI_BUILD_NAME" ] ; then
-    $ECHO_E "${CSI_RED}This set of scripts really really expect that CI_BUILD_NAME is set to something!${CSI_RESET}"
+#### Set BUILD_NAME to either CI_BUILD_NAME or GITHUB_JOB
+if [ "$BUILD_NAME" ] ; then
+    :
+elif [ "$CI_BUILD_NAME" ] ; then
+    BUILD_NAME="$CI_BUILD_NAME"
+elif [ "$GITHUB_JOB" ] ; then
+    BUILD_NAME="`echo $GITHUB_JOB | tr - ' '`"
+else
+    # this triggers a failure down the line
+    $ECHO_E "${CSI_RED}This set of scripts really really expect that BUILD_NAME is set to something!${CSI_RESET}"
 fi
 
-if ! [ "$CI_COMMIT_SHORT_SHA" ] && [ -d .git ] && type -p git > /dev/null 2>&1 ; then
-    CI_COMMIT_SHORT_SHA="$(git rev-parse --short HEAD)"
-    $ECHO_E "${CSI_BLUE}Setting CI_COMMIT_SHORT_SHA=\"$CI_COMMIT_SHORT_SHA\"${CSI_RESET}"
+#### set COMMIT_SHORT_SHA to CI_COMMIT_SHORT_SHA or GITHUB_SHA
+if [ "$CI_COMMIT_SHORT_SHA" ] ; then
+    COMMIT_SHORT_SHA="$CI_COMMIT_SHORT_SHA"
+elif [ "$GITHUB_SHA" ] ; then
+    COMMIT_SHORT_SHA="$GITHUB_SHA"
+elif [ -d .git ] && type -p git > /dev/null 2>&1 ; then
+    COMMIT_SHORT_SHA="$(git rev-parse --short HEAD)"
+    $ECHO_E "${CSI_BLUE}Setting COMMIT_SHORT_SHA=\"$COMMIT_SHORT_SHA\"${CSI_RESET}"
+fi
+
+#### set JOB_ID to either CI_JOB_ID or GITHUB_RUN_ID
+if [ "$CI_JOB_ID" ] ; then
+    JOB_ID="$CI_JOB_ID"
+elif [ "$GITHUB_RUN_ID" ] ; then
+    JOB_ID="$GITHUB_RUN_ID"
+else
+    JOB_ID=0
+    $ECHO_E "${CSI_BLUE}Setting JOB_ID=\"$JOB_ID\"${CSI_RESET}"
+fi
+
+### set REPOSITORY to either $CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME or GITHUB_REPOSITORY
+
+if [ "$CI_PROJECT_NAMESPACE" ] && [ "$CI_PROJECT_NAME" ] ; then
+    REPOSITORY="$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME"
+elif [ "$GITHUB_REPOSITORY" ] ; then
+    REPOSITORY="$GITHUB_REPOSITORY"
+else
+    # no default
+    REPOSITORY=
 fi
     
-if ! [ "$CI_JOB_ID" ] ; then
-    CI_JOB_ID=0
-    $ECHO_E "${CSI_BLUE}Setting CI_JOB_ID=\"$CI_JOB_ID\"${CSI_RESET}"
-fi
-    
-case "$CI_BUILD_NAME" in
+case "$BUILD_NAME" in
     *"coverage tests"*)
     : ${CFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
     : ${CXXFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
     coverage=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$BUILD_NAME" in
     *"with gcc"*)
     : ${CC=gcc}
     : ${CXX=g++}
     gcc=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$BUILD_NAME" in
     *"with 32-bit gcc"*)
     : ${CC=gcc}
     : ${CXX=g++}
@@ -82,20 +110,20 @@ case "$CI_BUILD_NAME" in
     gcc32=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$BUILD_NAME" in
     *"shared libs"*)
     ENABLE_SHARED=1
     shared_libs=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$BUILD_NAME" in
     *"with clang"*)
     : ${CC=clang}
     : ${CXX=clang++}
     clang=1
     # We want to recognize "clangNN" or "clangdev" as monikers for
     # specific versions of clang.
-    case "$CI_BUILD_NAME" in
+    case "$BUILD_NAME" in
         *"with clangdev"*) clang=dev;;
         *"with clang12"*) clang=12;;
         *"with clang13"*) clang=13;;
@@ -106,24 +134,24 @@ case "$CI_BUILD_NAME" in
     esac
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$BUILD_NAME" in
     *"with icc"*)
     : ${CC=icc}
     : ${CXX=icpc}
     icc=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$BUILD_NAME" in
     *"checks"*)
         checks=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$BUILD_NAME" in
     *"coverity"*)
         coverity=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$BUILD_NAME" in
     *"using cmake directly"*)
         using_cmake_directly=1
         # use build_tree in this case, which matches the variable that
@@ -132,7 +160,7 @@ case "$CI_BUILD_NAME" in
         export source_tree
         if [ "$BASH_VERSION" ] ; then
             if ! [ "$build_tree" ] ; then
-                build_tree="/tmp/$CI_BUILD_NAME"
+                build_tree="/tmp/$BUILD_NAME"
                 # spaces in dir names don't work, mostly because of libtool
                 # (look at gf2x/fft/libgf2x-fft.la)
                 # This substitution is bash-only, but this should be fine to 
@@ -149,7 +177,7 @@ case "$CI_BUILD_NAME" in
         fi
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$BUILD_NAME" in
     *"expensive checks"*)
         export CHECKS_EXPENSIVE=1
     ;;

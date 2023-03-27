@@ -1,0 +1,17 @@
+
+name: test compilation
+# The name goes to $GITHUB_WORKFLOW
+
+run-name: ${{ github.actor }} is learning GitHub Actions
+on: [push]
+
+jobs:
+  checks-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: gcc:latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: ci/00-prepare-docker.sh
+      - run: ci/01-conf.sh
+      - run: ci/02-build.sh
+      - run: ci/03-check.sh

@@ -7,9 +7,9 @@ find . -name 'coverage-*.info'
 
 set -x
 
-coverage_info_reports=(`ls coverage-${CI_COMMIT_SHORT_SHA}-*.info`)
-coverage_json_reports=(`ls coverage-${CI_COMMIT_SHORT_SHA}-*.json`)
-# coverage_generated_sources=(`ls coverage-${CI_COMMIT_SHORT_SHA}-*generated-sources.tar.gz`)
+coverage_info_reports=(`ls coverage-${COMMIT_SHORT_SHA}-*.info`)
+coverage_json_reports=(`ls coverage-${COMMIT_SHORT_SHA}-*.json`)
+# coverage_generated_sources=(`ls coverage-${COMMIT_SHORT_SHA}-*generated-sources.tar.gz`)
 
 tracefiles=()
 for c in "${coverage_json_reports[@]}" ; do

@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+env
+ls -ld "$GITHUB_WORKSPACE"
+id -a
+
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
 

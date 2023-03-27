@@ -1,11 +1,9 @@
 
 exported_variables=(
-      CI_BUILD_NAME
-      CI_COMMIT_SHORT_SHA
-      CI_JOB_ID
-      CI_JOB_STAGE
-      CI_PROJECT_NAMESPACE
-      CI_PROJECT_NAME
+      BUILD_NAME
+      COMMIT_SHORT_SHA
+      JOB_ID
+      REPOSITORY
       DOCKER_SCRIPT
 )
 

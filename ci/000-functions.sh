@@ -72,7 +72,9 @@ enter_section() {
     : ${message:="$internal_name"}
     set -- "$internal_name" $pushed_sections
     pushed_sections="$*"
+    if [ "$GITLAB_CI" ] ; then
     $ECHO_E "section_start:`date +%s`:$internal_name\r${CSI_KILLLINE}${CSI_BLUE}$message${CSI_RESET}"
+    fi
 }
 
 # Usage: leave_section [internal name] [message]
@@ -89,7 +91,9 @@ leave_section() {
     current_section="$1"
     shift
     pushed_sections="$*"
+    if [ "$GITLAB_CI" ] ; then
     $ECHO_E "section_end:`date +%s`:$current_section\r${CSI_KILLLINE}${CSI_BLUE}$2${CSI_RESET}"
+    fi
 }
 
 # succeed if **ALL** of the listed tools exist

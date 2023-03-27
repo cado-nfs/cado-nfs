@@ -23,7 +23,7 @@ if [ "$coverage" ] ; then
     find $build_tree -name '*conftest.gcno' | xargs -r rm
     find $build_tree -name 'CMake*.gcno' | xargs -r rm
 
-    C=coverage-$CI_COMMIT_SHORT_SHA-$CI_JOB_ID
+    C=coverage-$COMMIT_SHORT_SHA-$JOB_ID
     set -x
     # avoid -b . --no-external ; -b is also used to rewrite symlinks,
     # which we clearly don't want, and without it, --no-external is

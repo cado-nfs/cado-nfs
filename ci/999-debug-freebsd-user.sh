@@ -15,10 +15,10 @@ cat >> $HOME/.bash_profile <<EOF
 cd /host
 EOF
 
-if [ "$CI_BUILD_NAME" ] ; then
+if [ "$BUILD_NAME" ] ; then
 cat >> $HOME/.bash_profile <<EOF
-CI_BUILD_NAME="$CI_BUILD_NAME"
-export CI_BUILD_NAME
+BUILD_NAME="$BUILD_NAME"
+export BUILD_NAME
 . ci/000-functions.sh
 . ci/001-environment.sh
 set +e
