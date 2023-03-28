@@ -3,14 +3,19 @@ name: 'Common test suite'
 
 # does that work ?
 # https://github.com/orgs/community/discussions/18597
-defaults:
-  run:
-    shell: bash
+# alas, no.
+# defaults:
+#   run:
+#     shell: bash
 
 runs:
   using: "composite"
   steps:
       - run: ci/00-prepare-docker.sh
+        shell: sh
       - run: ci/01-conf.sh
+        shell: bash
       - run: ci/02-build.sh
+        shell: bash
       - run: ci/03-check.sh
+        shell: bash

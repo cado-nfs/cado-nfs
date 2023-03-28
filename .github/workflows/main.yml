@@ -5,6 +5,7 @@ name: early
 run-name: early builds
 on: [push]
 
+# this does not really apply, since we have no direct run: steps in here.
 defaults:
   run:
     shell: bash
