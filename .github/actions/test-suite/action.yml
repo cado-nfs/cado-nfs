@@ -1,0 +1,13 @@
+
+name: 'Common test suite'
+
+defaults:
+  shell: bash
+
+runs:
+  using: "composite"
+  steps:
+      - run: ci/00-prepare-docker.sh
+      - run: ci/01-conf.sh
+      - run: ci/02-build.sh
+      - run: ci/03-check.sh

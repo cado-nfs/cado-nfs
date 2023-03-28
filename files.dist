@@ -2,6 +2,7 @@
 # mentioned (with a trailing slash), then all its children are included. Note
 # that the union of this file and its companion files.nodist must agree with
 # are *NOT* recognized (by the fascist sanity check program).
+.github/actions/test-suite/action.yml
 .github/workflows/main.yml
 .gitlab-ci.yml
 .gitmodules

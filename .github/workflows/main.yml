@@ -1,8 +1,8 @@
 
-name: test compilation
+name: early
 # The name goes to $GITHUB_WORKFLOW
 
-run-name: ${{ github.actor }} is learning GitHub Actions
+run-name: early builds
 on: [push]
 
 jobs:
@@ -11,7 +11,4 @@ jobs:
     container: gcc:latest
     steps:
       - uses: actions/checkout@v3
-      - run: ci/00-prepare-docker.sh
-      - run: ci/01-conf.sh
-      - run: ci/02-build.sh
-      - run: ci/03-check.sh
+      - uses: ./.github/actions/test-suite
