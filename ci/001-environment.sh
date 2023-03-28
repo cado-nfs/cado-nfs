@@ -53,6 +53,7 @@ else
     # this triggers a failure down the line
     $ECHO_E "${CSI_RED}This set of scripts really really expect that BUILD_NAME is set to something!${CSI_RESET}"
 fi
+major_message "BUILD_NAME=$BUILD_NAME"
 
 #### set COMMIT_SHORT_SHA to CI_COMMIT_SHORT_SHA or GITHUB_SHA
 if [ "$CI_COMMIT_SHORT_SHA" ] ; then
@@ -63,6 +64,7 @@ elif [ -d .git ] && type -p git > /dev/null 2>&1 ; then
     COMMIT_SHORT_SHA="$(git rev-parse --short HEAD)"
     $ECHO_E "${CSI_BLUE}Setting COMMIT_SHORT_SHA=\"$COMMIT_SHORT_SHA\"${CSI_RESET}"
 fi
+major_message "COMMIT_SHORT_SHA=$COMMIT_SHORT_SHA"
 
 #### set JOB_ID to either CI_JOB_ID or GITHUB_RUN_ID
 if [ "$CI_JOB_ID" ] ; then
@@ -73,6 +75,7 @@ else
     JOB_ID=0
     $ECHO_E "${CSI_BLUE}Setting JOB_ID=\"$JOB_ID\"${CSI_RESET}"
 fi
+major_message "JOB_ID=$JOB_ID"
 
 ### set REPOSITORY to either $CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME or GITHUB_REPOSITORY
 
@@ -84,6 +87,7 @@ else
     # no default
     REPOSITORY=
 fi
+major_message "REPOSITORY=$REPOSITORY"
     
 case "$BUILD_NAME" in
     *"coverage tests"*)
