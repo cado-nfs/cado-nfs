@@ -36,38 +36,38 @@ jobs:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/test-suite
 
-#   checks-on-ubuntu-system-with-gcc:
-#     runs-on: [self-hosted, linux, x64]
-#     container:
-#       image: ubuntu:latest
-#       steps:
-#         - uses: actions/checkout@v3
-#         - uses: ./.github/actions/test-suite
-# 
-#   checks-on-ubuntu-rolling-system-with-gcc:
-#     runs-on: [self-hosted, linux, x64]
-#     container:
-#       image: ubuntu:rolling
-#       steps:
-#         - uses: actions/checkout@v3
-#         - uses: ./.github/actions/test-suite
-# 
-#   checks-on-debian-testing-system-with-32-bit-gcc:
-#     runs-on: [self-hosted, linux, x64]
-#     container:
-#       image: debian:testing
-#       steps:
-#         - uses: actions/checkout@v3
-#         - uses: ./.github/actions/test-suite
-# 
-#   checks-using-cmake-directly-with-gcc:
-#     runs-on: [self-hosted, linux, x64]
-#     container:
-#       image: alpine
-#       steps:
-#         - uses: actions/checkout@v3
-#         - uses: ./.github/actions/test-suite
-# 
+  checks-on-ubuntu-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container:
+      image: ubuntu:latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-ubuntu-rolling-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container:
+      image: ubuntu:rolling
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-debian-testing-system-with-32-bit-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container:
+      image: debian:testing
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-using-cmake-directly-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container:
+      image: alpine
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
 #   checks-on-debian-system-with-gcc:
 #     runs-on: [self-hosted, linux, x64]
 #     container:
