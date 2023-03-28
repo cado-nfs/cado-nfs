@@ -15,144 +15,144 @@ jobs:
   checks-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: gcc:latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-alpine-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: alpine:latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-debian-system-with-32-bit-gcc:
     runs-on: [self-hosted, linux, x64]
     container: debian
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-ubuntu-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: ubuntu:latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-ubuntu-rolling-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: ubuntu:rolling
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-debian-testing-system-with-32-bit-gcc:
     runs-on: [self-hosted, linux, x64]
     container: debian:testing
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-using-cmake-directly-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: alpine
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-debian-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: debian:latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-debian-testing-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: debian:testing
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-shared-libs-on-debian-testing-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: debian:testing
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-debian10-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: debian:10
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-debian9-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: debian:9
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-opensuse-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: opensuse/leap
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-fedora-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: fedora:latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-centos-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: quay.io/centos/centos:stream
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-on-centos9-system-with-gcc:
     runs-on: [self-hosted, linux, x64]
     container: quay.io/centos/centos:stream9
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   # unfortunately silkeh/clang:latest is outdated...
   checks-with-clang13:
     runs-on: [self-hosted, linux, x64]
     container: silkeh/clang:13
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-with-clangdev:
     runs-on: [self-hosted, linux, x64]
     container: silkeh/clang:dev
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   checks-with-icc:
     runs-on: [self-hosted, linux, x64, icc]
     container: intel/oneapi-hpckit:latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   expensive-checks-with-gcc:
     runs-on: [self-hosted, linux, x64]
     # do not start it prematurely, in case previous jobs failed
     container: gcc:latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      steps:
+        - uses: actions/checkout@v3
+        - uses: ./.github/actions/test-suite
 
   # ############################################################################
   # # coverage. Actually, this is not really dependent on checks,-after-all.
