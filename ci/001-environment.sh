@@ -4,8 +4,8 @@
 #
 # We **must** be silent, because we're read by 00-dockerfile.sh. Note
 # though that 00-dockerfile.sh sets HUSH_STDOUT, so that ECHO_E is
-# actually a no-op (i.e. ECHO_E is ok to use safely, just don't use plain
-# echo)
+# actually a no-op (i.e. ECHO_E or major_message are ok to use safely,
+# just don't use plain echo)
 
 export CLICOLOR_FORCE=1
 
@@ -94,6 +94,7 @@ case "$BUILD_NAME" in
     : ${CFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
     : ${CXXFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
     coverage=1
+    major_message coverage reports enabled
     ;;
 esac
 case "$BUILD_NAME" in
@@ -101,6 +102,7 @@ case "$BUILD_NAME" in
     : ${CC=gcc}
     : ${CXX=g++}
     gcc=1
+    major_message compiler: using gcc
     ;;
 esac
 case "$BUILD_NAME" in
@@ -121,6 +123,7 @@ case "$BUILD_NAME" in
     *"shared libs"*)
     ENABLE_SHARED=1
     shared_libs=1
+    major_message shared libraries enabled
     ;;
 esac
 case "$BUILD_NAME" in
@@ -139,6 +142,7 @@ case "$BUILD_NAME" in
         *"with clang16"*) clang=16;;
         *"with clang17"*) clang=17;;
     esac
+    major_message compiler: using clang-$clang
     ;;
 esac
 case "$BUILD_NAME" in
@@ -146,6 +150,7 @@ case "$BUILD_NAME" in
     : ${CC=icc}
     : ${CXX=icpc}
     icc=1
+    major_message compiler: using icc
     ;;
 esac
 case "$BUILD_NAME" in
@@ -156,6 +161,7 @@ esac
 case "$BUILD_NAME" in
     *"coverity"*)
         coverity=1
+        major_message producing static analysis data for coverity
     ;;
 esac
 case "$BUILD_NAME" in
@@ -182,11 +188,13 @@ case "$BUILD_NAME" in
             # just a safeguard
             build_tree=/no/build_tree/set/because/we/require/bash/for/that
         fi
+        major_message using cmake directly
     ;;
 esac
 case "$BUILD_NAME" in
     *"expensive checks"*)
         export CHECKS_EXPENSIVE=1
+        major message doing expensive checks
     ;;
 esac
 
