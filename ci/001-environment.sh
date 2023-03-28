@@ -105,14 +105,17 @@ case "$BUILD_NAME" in
 esac
 case "$BUILD_NAME" in
     *"with 32"[-\ ]"bit gcc"*)
-    : ${CC=gcc}
-    : ${CXX=g++}
-    : ${CFLAGS="$CFLAGS -m32"}
-    : ${CXXFLAGS="$CXXFLAGS -m32"}
-    GMP="/usr/local/gmp-6.2.1.abi32"
-    export GMP
-    gcc32=1
-    ;;
+        : ${CC=gcc}
+        : ${CXX=g++}
+        : ${CFLAGS="$CFLAGS -m32"}
+        : ${CXXFLAGS="$CXXFLAGS -m32"}
+        GMP="/usr/local/gmp-6.2.1.abi32"
+        export GMP
+        gcc32=1
+        major_message 32-bit build
+        ;;
+    *) major_message default abi build
+        ;;
 esac
 case "$BUILD_NAME" in
     *"shared libs"*)
