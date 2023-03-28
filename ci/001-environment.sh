@@ -104,7 +104,7 @@ case "$BUILD_NAME" in
     ;;
 esac
 case "$BUILD_NAME" in
-    *"with 32[- ]bit gcc"*)
+    *"with 32"[-\ ]"bit gcc"*)
     : ${CC=gcc}
     : ${CXX=g++}
     : ${CFLAGS="$CFLAGS -m32"}
