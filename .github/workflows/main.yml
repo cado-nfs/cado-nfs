@@ -5,6 +5,7 @@ name: early
 run-name: early builds
 on: [push]
 
+# todo: matrix ?
 jobs:
   checks-with-gcc:
     runs-on: [self-hosted, linux, x64]
@@ -12,3 +13,335 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/test-suite
+
+  checks-on-alpine-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: alpine:latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-debian-system-with-32-bit-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: debian
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-ubuntu-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: ubuntu:latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-ubuntu-rolling-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: ubuntu:rolling
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-debian-testing-system-with-32-bit-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: debian:testing
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-using-cmake-directly-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: alpine
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-debian-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: debian:latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-debian-testing-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: debian:testing
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-shared-libs-on-debian-testing-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: debian:testing
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-debian10-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: debian:10
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-debian9-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: debian:9
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-opensuse-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: opensuse/leap
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-fedora-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-centos-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: quay.io/centos/centos:stream
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-on-centos9-system-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    container: quay.io/centos/centos:stream9
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  # unfortunately silkeh/clang:latest is outdated...
+  checks-with-clang13:
+    runs-on: [self-hosted, linux, x64]
+    container: silkeh/clang:13
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-with-clangdev:
+    runs-on: [self-hosted, linux, x64]
+    container: silkeh/clang:dev
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  checks-with-icc:
+    runs-on: [self-hosted, linux, x64, icc]
+    container: intel/oneapi-hpckit:latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  expensive-checks-with-gcc:
+    runs-on: [self-hosted, linux, x64]
+    # do not start it prematurely, in case previous jobs failed
+    container: gcc:latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite
+
+  # ############################################################################
+  # # coverage. Actually, this is not really dependent on checks,-after-all.
+  # # It does depend on the availability of the coverage images, though!
+  # #
+  # coverage tests on checks-with-gcc:
+  #   <<: *common-template
+  #   stage: thorough
+  #   # do not start it prematurely, in case previous jobs failed
+  #   container: alpine:latest
+  #   before_script:
+  #     - ci/00-prepare-docker.sh
+  #   script:
+  #     - *checks-script
+  #   artifacts:
+  #     paths:
+  #       - coverage-*.info
+  #       - coverage-*.json
+  #     # - coverage-*-generated-sources.tar.gz
+  #     expire_in: 1 week
+  # 
+  # 
+  # # The json coverage reports for different runs are imported, provided we
+  # # get the needs/artifacts combination right.
+  # #
+  # # https://stackoverflow.com/questions/38140996/how-can-i-pass-artifacts-to-another-stage
+  # # https://docs.gitlab.com/ee/ci/yaml/#artifact-downloads-with-needs
+  # #
+  # # Once this job has run, the job artifacts, and in particular the html
+  # # rendering of the coverage report, can be downloaded using links that
+  # # are formed according to the following rules:
+  # #
+  # # https://docs.gitlab.com/ee/ci/pipelines/job_artifacts.html#downloading-the-latest-artifacts
+  # #
+  # # Actually it took me a while to figure out the correct url. For the
+  # # master branch, we want: https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/index.html?job=merge+coverage+tests
+  # #
+  # # The good thing is that we don't need to play dirty tricks with gitlab
+  # # pages and subdirectories. As it turns out, the final rendered page does
+  # # show up under cado-nfs.gitlabpages.inria.fr, but we do not need to care
+  # # about it.
+  # merge coverage tests:
+  #   <<: *common-template
+  #   stage: publish
+  #   needs:
+  #     - job: coverage tests on checks-with-gcc
+  #       artifacts: true
+  #     # list more of these...
+  #   # This image has gcovr installed
+  #   container: alpine:latest
+  #   before_script:
+  #     - ci/00-prepare-docker.sh
+  #   script:
+  #     - ci/09-merge-coverage.sh
+  #   artifacts:
+  #     paths:
+  #       - coverage
+  #       - coverage.tar.gz
+  #     expire_in: 30 days
+  #     reports:
+  #       coverage_report:
+  #         coverage_format: cobertura
+  #         path: coverage.xml
+  # 
+  # ############################################################################
+  # # Tests on slow machines and/or shell executors. They depend on nothing.
+  # 
+  # # # It would be possible to run the following test on arm64 as well, but my
+  # # # only runner is an allwinner CPU with 2G of RAM, and it takes more than
+  # # # two hours :-(. I think I would have to reduce the test surface first.
+  # # #    - arm64
+  # # #
+  # # # # very slow machines run with the shell executor anyway.
+  # # # # 00-prepare-shell.sh can only check if software is present.
+  # # run on very slow machines:
+  # #   <<: *common-template
+  # #   stage: thorough
+  # #   needs: []
+  # #   tags:
+  # #     - raspberry
+  # #   before_script:
+  # #     - ci/00-prepare-shell.sh
+  # #   script:
+  # #     - *checks-script
+  # #   <<: *checks-junit-report
+  #  
+  # # in fact, this one should be quick !
+  # checks-on-osx-system:
+  #   <<: *common-template
+  #   # do it early. It's one of our quickest runners.
+  #   stage: early
+  #   needs: []
+  #   tags:
+  #     - osx
+  #   before_script:
+  #     - ci/00-prepare-shell.sh
+  #   script:
+  #     - *checks-script
+  #   <<: *checks-junit-report
+  #  
+  # checks-on-freebsd12.4-system-with-gcc:
+  #   variables:
+  #     GIT_SUBMODULE_STRATEGY: recursive
+  #   <<: *common-template
+  #   stage: thorough
+  #   # do not start it prematurely, in case previous jobs failed
+  #   # needs: []
+  #   tags:
+  #     - freebsd-tanker
+  #   script:
+  #     - make -C ci/utilities/tanker
+  #     - ci/50-libvirt-wrap-tests.sh freebsd:12.4 ci/40-testsuite.sh
+  #   # https://gitlab.com/gitlab-org/gitlab/-/issues/15603 should be
+  #   # implemented someday. We would like to have it, to make sure that the
+  #   # cleanup sequence is called no matter what.
+  # 
+  # # See #30036: it seems that testing with gcc on freebsd is
+  # # definitely too much pain now.
+  # checks-on-freebsd13.1-system-with-clang:
+  #   variables:
+  #     GIT_SUBMODULE_STRATEGY: recursive
+  #   <<: *common-template
+  #   stage: thorough
+  #   # do not start it prematurely, in case previous jobs failed
+  #   # needs: []
+  #   tags:
+  #     - freebsd-tanker
+  #   script:
+  #     - make -C ci/utilities/tanker
+  #     - ci/50-libvirt-wrap-tests.sh freebsd:13.1 ci/40-testsuite.sh
+  # 
+  # checks-on-32-bit-freebsd13.1-system-with-clang:
+  #   variables:
+  #     GIT_SUBMODULE_STRATEGY: recursive
+  #     FREEBSD_ARCH: i386
+  #   <<: *common-template
+  #   stage: thorough
+  #   # do not start it prematurely, in case previous jobs failed
+  #   # needs: []
+  #   tags:
+  #     - freebsd-tanker
+  #   script:
+  #     - make -C ci/utilities/tanker
+  #     - ci/50-libvirt-wrap-tests.sh freebsd:13.1?arch=i386 ci/40-testsuite.sh
+  # 
+  # coverity on debian10 system with gcc:
+  #   # override the common template.
+  #   rules:
+  #     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+  #       when: manual
+  #       allow_failure: false
+  #     - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "coverity")
+  #       when: always
+  #     - when: never
+  #   stage: early
+  #   container: debian:10
+  #   before_script:
+  #     - ci/00-prepare-docker.sh
+  #   script:
+  #   - curl -o /tmp/cov-analysis-linux64.tgz
+  #     https://scan.coverity.com/download/linux64
+  #     --form project=$COVERITY_SCAN_PROJECT_NAME
+  #     --form token=$COVERITY_SCAN_TOKEN
+  #   - tar xfz /tmp/cov-analysis-linux64.tgz
+  #   - ci/01-conf.sh
+  #   - cov-analysis-linux64-*/bin/cov-build --dir cov-int ci/02-build.sh
+  #   - tar cfz cov-int.tar.gz cov-int
+  #   - curl https://scan.coverity.com/builds?project=$COVERITY_SCAN_PROJECT_NAME
+  #     --form token=$COVERITY_SCAN_TOKEN
+  #     --form email=$COVERITY_SCAN_USER_EMAIL
+  #     --form file=@cov-int.tar.gz
+  #     --form version="`git describe --tags`"
+  #     --form description="`git describe --tags` / $CI_COMMIT_TITLE / $CI_COMMIT_REF_NAME:$CI_PIPELINE_ID"
+  # 
+  # containers:
+  #   stage: publish
+  #   container: docker
+  #   rules:
+  #     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+  #       when: manual
+  #       allow_failure: false
+  #     - when: on_success
+  #   script:
+  #     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  #     - apk update
+  #     - apk add make bash git
+  #     - make -f docker/Makefile PUSH=yes NOW=$(date +%Y%m%d%H%M-$CI_COMMIT_SHA)
+  #   retry:
+  #     max: 2
+  #     when: runner_system_failure
+  # 
+  # 
+  # # "cache" is only when the runners have a notion of available cache
+  # # server, it seems. Don't do that for now.
+  # # cache:
+  # # # paths:
+  # # - "*.o"
