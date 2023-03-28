@@ -8,6 +8,10 @@ runs:
   using: "composite"
   steps:
       - run: ci/00-prepare-docker.sh
+        shell: bash
       - run: ci/01-conf.sh
+        shell: bash
       - run: ci/02-build.sh
+        shell: bash
       - run: ci/03-check.sh
+        shell: bash
