@@ -136,6 +136,7 @@ if [ "$gcc32" ] ; then
         # didn't even check freebsd
         exit 1
     else
+        major_message "Adding i386 architecture"
         dpkg --add-architecture i386
     fi
     # note that opensuse has gmp-devel-32bit
