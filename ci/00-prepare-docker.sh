@@ -83,7 +83,7 @@ freebsd_packages="$freebsd_packages     cmake"
 # 	hwloc: 1.11.13_1 seems to be the troublemaker. I haven't
 # 	investigated further
 # case "$BUILD_NAME" in
-#     *"32-bit freebsd"*) : ;;
+#     *"32[- ]bit freebsd"*) : ;;
 #     *) freebsd_packages="$freebsd_packages     hwloc" ;;
 # esac
 freebsd_packages="$freebsd_packages     gmp"

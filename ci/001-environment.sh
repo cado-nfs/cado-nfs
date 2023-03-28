@@ -15,7 +15,7 @@ export CLICOLOR_FORCE=1
 # (note that we **CANNOT** do regexp matching in this script because
 # we're /bin/sh, not bash !)
 #
-# (container for )?(coverage tests on )?((expensive )?checks)?( on (osx|alpine|(debian|fedora|centos|freebsd)[0-9]*) system)?( with ((32-bit )?gcc|clang|icc))?
+# (container for )?(coverage tests on )?((expensive )?checks)?( on (osx|alpine|(debian|fedora|centos|freebsd)[0-9]*) system)?( with ((32[- ]bit )?gcc|clang|icc))?
 #
 # with one exception which is "merge coverage tests"
 #
@@ -100,7 +100,7 @@ case "$BUILD_NAME" in
     ;;
 esac
 case "$BUILD_NAME" in
-    *"with 32-bit gcc"*)
+    *"with 32[- ]bit gcc"*)
     : ${CC=gcc}
     : ${CXX=g++}
     : ${CFLAGS="$CFLAGS -m32"}

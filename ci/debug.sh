@@ -96,7 +96,7 @@ fi
 if [[ "$BUILD_NAME" =~ freebsd([0-9]+\.[0-9]+) ]] ; then
     # use tanker script instead
     IMAGE_NAME=freebsd:"${BASH_REMATCH[1]}"
-    if [[ "$BUILD_NAME" =~ '32-bit freebsd' ]] ; then
+    if [[ "$BUILD_NAME" =~ '32[- ]bit freebsd' ]] ; then
         IMAGE_NAME+="?arch=i386"
     fi
     # This sets exports=()
