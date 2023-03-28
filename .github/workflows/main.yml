@@ -5,6 +5,10 @@ name: early
 run-name: early builds
 on: [push]
 
+defaults:
+  run:
+    shell: bash
+
 # todo: matrix ?
 jobs:
   checks-with-gcc:
