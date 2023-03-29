@@ -38,9 +38,8 @@ jobs:
           - [ 'checks-with-icc', 'intel/oneapi-hpckit:latest' ]
           - [ 'expensive-checks-with-gcc', 'gcc:latest' ]
     steps:
-      run:
-        - echo ${{ matrix.instance[0] }}
-        - echo ${{ matrix.instance[1] }}
+      run: echo ${{ matrix.instance[0] }}
+      run: echo ${{ matrix.instance[1] }}
 
       # - uses: actions/checkout@v3
       # - uses: ./.github/actions/test-suite
