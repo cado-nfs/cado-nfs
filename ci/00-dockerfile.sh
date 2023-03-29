@@ -7,7 +7,7 @@
 HUSH_STDOUT=1
 
 . "$(dirname $0)/000-functions.sh"
-. "$(dirname $0)/001-environment.sh"
+. "$(dirname $0)/005-build-environment.sh"
 
 FROM=alpine:latest
 
@@ -70,6 +70,11 @@ case "$BUILD_NAME" in
     *"fedora-rawhide system"*) FROM=fedora:rawhide;;
     *"containers"*) FROM=docker;;
 esac
+
+if [ "$1" = "--get-container" ] ; then
+    echo $FROM
+    exit 0
+fi
 
 cat <<EOF
 FROM $FROM

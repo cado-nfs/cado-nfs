@@ -31,6 +31,7 @@ ci/001-environment.sh
 ci/002-tanker.bash
 ci/003-trap-add.bash
 ci/004-disksize-watchdog.bash
+ci/005-build-environment.sh
 ci/01-conf.sh
 ci/02-build.sh
 ci/03-check.sh
