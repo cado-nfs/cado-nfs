@@ -12,7 +12,7 @@ defaults:
 
 # todo: matrix ?
 jobs:
-  checks_matrix:
+  checks:
     runs-on: [self-hosted, linux, x64]
     strategy:
       matrix:
