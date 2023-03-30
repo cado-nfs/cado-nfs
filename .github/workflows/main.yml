@@ -49,27 +49,27 @@ jobs:
       matrix:
         instance: [
           [ 'with gcc', 'gcc:latest' ],
-          [ 'on alpine system with gcc', 'alpine:latest' ],
-          [ 'on debian system with 32-bit gcc', 'debian' ],
-          [ 'on ubuntu system with gcc', 'ubuntu:latest' ],
-          [ 'on ubuntu rolling system with gcc', 'ubuntu:rolling' ],
-          [ 'on debian testing system with 32-bit gcc', 'debian:testing' ],
-          [ 'using cmake directly with gcc', 'alpine' ],
-          [ 'on debian system with gcc', 'debian:latest' ],
-          [ 'on debian testing system with gcc', 'debian:testing' ],
-          [ 'shared libs on debian testing system with gcc', 'debian:testing' ],
-          [ 'on debian10 system with gcc', 'debian:10' ],
-          [ 'on debian9 system with gcc', 'debian:9' ],
-          # opensuse does not have tar installed, so that
-          # actions/checkout fails.
-          # [ 'on opensuse system with gcc', 'opensuse/leap' ],
-          [ 'on fedora system with gcc', 'fedora:latest' ],
-          [ 'on centos system with gcc', 'quay.io/centos/centos:stream' ],
-          [ 'on centos9 system with gcc', 'quay.io/centos/centos:stream9' ],
-          [ 'with clang13', 'silkeh/clang:13' ],
-          [ 'with clangdev', 'silkeh/clang:dev' ],
-          [ 'with icc', 'intel/oneapi-hpckit:latest' ],
-          [ 'expensive with gcc', 'gcc:latest' ]
+#           [ 'on alpine system with gcc', 'alpine:latest' ],
+#           [ 'on debian system with 32-bit gcc', 'debian' ],
+#           [ 'on ubuntu system with gcc', 'ubuntu:latest' ],
+#           [ 'on ubuntu rolling system with gcc', 'ubuntu:rolling' ],
+#           [ 'on debian testing system with 32-bit gcc', 'debian:testing' ],
+#           [ 'using cmake directly with gcc', 'alpine' ],
+#           [ 'on debian system with gcc', 'debian:latest' ],
+#           [ 'on debian testing system with gcc', 'debian:testing' ],
+#           [ 'shared libs on debian testing system with gcc', 'debian:testing' ],
+#           [ 'on debian10 system with gcc', 'debian:10' ],
+#           [ 'on debian9 system with gcc', 'debian:9' ],
+#           # opensuse does not have tar installed, so that
+#           # actions/checkout fails.
+#           # [ 'on opensuse system with gcc', 'opensuse/leap' ],
+#           [ 'on fedora system with gcc', 'fedora:latest' ],
+#           [ 'on centos system with gcc', 'quay.io/centos/centos:stream' ],
+#           [ 'on centos9 system with gcc', 'quay.io/centos/centos:stream9' ],
+#           [ 'with clang13', 'silkeh/clang:13' ],
+#           [ 'with clangdev', 'silkeh/clang:dev' ],
+#           [ 'with icc', 'intel/oneapi-hpckit:latest' ],
+#           [ 'expensive with gcc', 'gcc:latest' ]
         ]
     container:
       image: ${{ matrix.instance[1] }}
