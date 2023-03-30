@@ -14,8 +14,13 @@ set -o pipefail
 
 IMAGE="$1"
 
-tmp=$(mktemp -d /tmp/XXXXXXXXXX)
-trap "rm -rf $tmp" EXIT
+if [ "$tmp" ] ; then
+    external=1
+else
+    external=
+    tmp=$(mktemp -d /tmp/XXXXXXXXXX)
+    trap "rm -rf $tmp" EXIT
+fi
 
 mkdir $tmp/context
 
@@ -37,4 +42,6 @@ EOF
 
 ci/00-dockerfile.sh > "$tmp/context/Dockerfile"
 
-docker build --pull -t $IMAGE --cache-from $IMAGE:latest $tmp/context
+if ! [ "$external" ] ; then
+    docker build --pull -t $IMAGE --cache-from $IMAGE:latest $tmp/context
+fi
