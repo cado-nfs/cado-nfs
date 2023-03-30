@@ -130,7 +130,7 @@ esac
 case "$BUILD_NAME" in
     *"expensive checks"*)
         export CHECKS_EXPENSIVE=1
-        major message doing expensive checks
+        major_message doing expensive checks
     ;;
 esac
 
