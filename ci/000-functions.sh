@@ -74,6 +74,8 @@ enter_section() {
     pushed_sections="$*"
     if [ "$GITLAB_CI" ] ; then
     $ECHO_E "section_start:`date +%s`:$internal_name\r${CSI_KILLLINE}${CSI_BLUE}$message${CSI_RESET}"
+    elif [ "$GITHUB_ACTIONS" ] ; then
+        $ECHO_E "::group::${CSI_BLUE}$message${CSI_RESET}"
     fi
 }
 
@@ -93,6 +95,8 @@ leave_section() {
     pushed_sections="$*"
     if [ "$GITLAB_CI" ] ; then
     $ECHO_E "section_end:`date +%s`:$current_section\r${CSI_KILLLINE}${CSI_BLUE}$2${CSI_RESET}"
+    elif [ "$GITHUB_ACTIONS" ] ; then
+        $ECHO_E "::endgroup::"
     fi
 }
 

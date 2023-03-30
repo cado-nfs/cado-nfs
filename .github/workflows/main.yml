@@ -47,6 +47,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - run: echo "### Container ready! :rocket:" >> $GITHUB_STEP_SUMMARY
+
   checks:
     runs-on: [self-hosted, linux, x64]
     strategy:
