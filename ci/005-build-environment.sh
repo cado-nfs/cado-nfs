@@ -128,7 +128,7 @@ case "$BUILD_NAME" in
     ;;
 esac
 case "$BUILD_NAME" in
-    *"expensive checks"*)
+    *"expensive checks"*|*"checks expensive"*)
         export CHECKS_EXPENSIVE=1
         major_message doing expensive checks
     ;;
