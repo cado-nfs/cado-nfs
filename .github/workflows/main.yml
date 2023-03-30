@@ -20,7 +20,7 @@ jobs:
           [ 'checks-with-gcc', 'gcc:latest' ],
           [ 'checks-on-alpine-system-with-gcc', 'alpine:latest' ],
           [ 'checks-on-debian-system-with-32-bit-gcc', 'debian' ],
-          # [ 'checks-on-ubuntu-system-with-gcc', 'ubuntu:latest' ],
+          [ 'checks-on-ubuntu-system-with-gcc', 'ubuntu:latest' ],
           # [ 'checks-on-ubuntu-rolling-system-with-gcc', 'ubuntu:rolling' ],
           # [ 'checks-on-debian-testing-system-with-32-bit-gcc', 'debian:testing' ],
           # [ 'checks-using-cmake-directly-with-gcc', 'alpine' ],
@@ -41,8 +41,6 @@ jobs:
     container:
       image: ${{ matrix.instance[1] }}
     steps:
-      - run: echo ${{ matrix.instance[0] }}
-      - run: echo ${{ matrix.instance[1] }}
       - uses: actions/checkout@v3
       - uses: ./.github/actions/test-suite
 
