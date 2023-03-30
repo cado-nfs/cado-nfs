@@ -9,8 +9,6 @@
 
 export CLICOLOR_FORCE=1
 
-. $(dirname $0)/005-build-environment.sh
-
 # Note that our set of scripts reacts on BUILD_NAME, and the logic for
 # this is here. BUILD_NAME must follow the regexp below.
 #

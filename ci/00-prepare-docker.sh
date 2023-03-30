@@ -6,6 +6,7 @@
 
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
+. "$(dirname $0)/005-build-environment.sh"
 
 if ! [ "$DOCKER_SCRIPT" ] ; then
     echo "Enter CI script for $REPOSITORY ; $BUILD_NAME"
@@ -100,7 +101,7 @@ while [ $# -gt 0 ] ; do
     shift
 done
 
-# These variables are set in ci/001-environment.sh
+# These variables are set in ci/005-build-environment.sh
 if [ "$coverage" ] ; then
     # remove coverage from this round of package selection because we'll
     # install a specific version via pip instead.
@@ -249,7 +250,7 @@ if [ "$gcc32" ] ; then
     curl -O https://gmplib.org/download/gmp/gmp-6.2.1.tar.lz
     tar xf gmp-6.2.1.tar.lz
     cd gmp-6.2.1
-    # $GMP is set in ci/001-environment.sh
+    # $GMP is set in ci/005-build-environment.sh
     ./configure --prefix=$GMP ABI=32
     make -j$NCPUS
     make install

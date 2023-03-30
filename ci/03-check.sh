@@ -2,6 +2,7 @@
 
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
+. "$(dirname $0)/005-build-environment.sh"
 
 NCPUS=`"$(dirname $0)/utilities/ncpus.sh"`
 export NCPUS

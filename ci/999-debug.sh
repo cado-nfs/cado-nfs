@@ -87,6 +87,7 @@ BUILD_NAME="$BUILD_NAME"
 export BUILD_NAME
 . ci/000-functions.sh
 . ci/001-environment.sh
+. ci/005-build-environment.sh
 set +e
 EOF
 fi

@@ -2,6 +2,7 @@
 
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
+. "$(dirname $0)/005-build-environment.sh"
 
 echo "Enter CI script for $REPOSITORY ; $BUILD_NAME"
 

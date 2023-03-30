@@ -8,6 +8,7 @@ shift
 
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
+. "$(dirname $0)/005-build-environment.sh"
 . "$(dirname $0)/002-tanker.bash"
 . "$(dirname $0)/003-trap-add.bash"
 

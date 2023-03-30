@@ -23,6 +23,7 @@ needed_files() {
     cat <<EOF
 000-functions.sh
 001-environment.sh
+005-build-environment.sh
 00-prepare-docker.sh
 utilities/ncpus.sh
 EOF

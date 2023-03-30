@@ -6,6 +6,7 @@ env
 
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
+. "$(dirname $0)/005-build-environment.sh"
 
 enter_section configuration Configuring
 if [ "$using_cmake_directly" ] ; then
