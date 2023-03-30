@@ -11,6 +11,7 @@ IMAGE="$1"
 
 if [ "$tmp" ] ; then
     external=1
+    tmp=$(mktemp -d $tmp/context.XXXXXXXXXX)
 else
     external=
     tmp=$(mktemp -d /tmp/XXXXXXXXXX)
@@ -36,6 +37,10 @@ EOF
 (cd "$tmp"/context ; tar xf $tmp/context.tar.gz)
 
 ci/00-dockerfile.sh > "$tmp/context/Dockerfile"
+
+if [ "$GITHUB_OUTPUT" ] ; then
+    echo "context=$tmp/context" >> $GITHUB_OUTPUT
+fi
 
 if ! [ "$external" ] ; then
     docker build --pull -t $IMAGE --cache-from $IMAGE:latest $tmp/context
