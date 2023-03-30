@@ -49,7 +49,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
       - name: finish and write summary
-        run: echo "### Container {{ env.IMAGE_NAME }} ready! :rocket:" >> $GITHUB_STEP_SUMMARY
+        run: echo "### Container ${{ env.IMAGE_NAME }} ready! :rocket:" >> $GITHUB_STEP_SUMMARY
 
   checks:
     runs-on: [self-hosted, linux, x64]

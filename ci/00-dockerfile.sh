@@ -98,3 +98,6 @@ if [ "$icc" ] ; then
 RUN ln -s $ONEAPI_ROOT/setvars.sh /etc/profile.d/90-intel-setvars.sh
 EOF
 fi
+
+# ok for apt apk dnf zypper
+RUN (find /var/cache /var/lib/apt /var/lib/dnf -type f || :) | xargs -r rm -f
