@@ -100,4 +100,6 @@ EOF
 fi
 
 # ok for apt apk dnf zypper
+cat <<EOF
 RUN (find /var/cache /var/lib/apt /var/lib/dnf -type f || :) | xargs -r rm -f
+EOF
