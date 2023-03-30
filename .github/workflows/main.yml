@@ -32,7 +32,6 @@ jobs:
 
       - name: create Dockerfile and context
         run: tmp=${{ runner.temp }} BUILD_NAME="checks with gcc" ci/00-docker-build.sh
-        shell: bash
 
       - name: list files
         run: find ${{ runner.temp }}

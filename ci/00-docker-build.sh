@@ -1,9 +1,4 @@
-#!/bin/sh
-
-# This wrapper is run on the hosts that build the containers, i.e.  from
-# the "docker" docker image, using /bin/sh. We do like to have
-# "pipefail", although it's not obvious that it will work with /bin/sh.
-# As a matter of fact, currently it does work, so we're happy.
+#!/usr/bin/env bash
 
 set -e
 set -o pipefail
