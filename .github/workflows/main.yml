@@ -35,7 +35,7 @@ jobs:
           [ 'checks on centos9 system with gcc', 'quay.io/centos/centos:stream9' ],
           [ 'checks with clang13', 'silkeh/clang:13' ],
           [ 'checks with clangdev', 'silkeh/clang:dev' ],
-          [ 'checks with icc', 'intel/oneapi hpckit:latest' ],
+          [ 'checks with icc', 'intel/oneapi-hpckit:latest' ],
           [ 'expensive checks with gcc', 'gcc:latest' ]
         ]
     container:
