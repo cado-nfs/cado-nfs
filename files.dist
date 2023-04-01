@@ -4,6 +4,7 @@
 # are *NOT* recognized (by the fascist sanity check program).
 .github/actions/test-suite/action.yml
 .github/workflows/main.yml
+.github/workflows/prepare-containers.yml
 .gitlab-ci.yml
 .gitmodules
 AUTHORS

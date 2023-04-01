@@ -5,51 +5,23 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build-and-push-image:
-    runs-on: [ linux, x64, self-hosted ]
-    permissions:
-      contents: read
-      packages: write
+  prepare:
+    runs-on: [self-hosted, linux, x64]
+    strategy:
+      matrix:
+        instance: [
+          [ 'with gcc', 'gcc:latest' ],
+          [ 'on alpine system with gcc', 'alpine:latest' ],
+          [ 'on debian system with 32-bit gcc', 'debian' ],
+          [ 'on opensuse system with gcc', 'opensuse/leap' ],
+        ]
     env:
-      IMAGE_NAME: ${{ github.repository }}/checks_with_gcc
-
+      BUILD_NAME: 'checks ${{ matrix.instance[0] }}'
     steps:
-      # following https://github.com/docker/build-push-action#inputs
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v2.1.0
+      - uses: ./.github/workflows/prepare-containers.yml
         with:
+          job-name: ${{ env.BUILD_NAME }}
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v4.3.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
-      - name: create Dockerfile and context
-        id: create-context
-        run: tmp=${{ runner.temp }} BUILD_NAME="checks with gcc" bash ci/00-docker-build.sh
-
-      - name: list files
-        run: find ${{ runner.temp }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: ${{ steps.create-context.outputs.context }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
-
-      - name: finish and write summary
-        run: echo "### Container ${{ env.IMAGE_NAME }} ready! :rocket:" >> $GITHUB_STEP_SUMMARY
 
   checks:
     runs-on: [self-hosted, linux, x64]
@@ -57,8 +29,8 @@ jobs:
       matrix:
         instance: [
           [ 'with gcc', 'gcc:latest' ],
-#           [ 'on alpine system with gcc', 'alpine:latest' ],
-#           [ 'on debian system with 32-bit gcc', 'debian' ],
+          [ 'on alpine system with gcc', 'alpine:latest' ],
+          [ 'on debian system with 32-bit gcc', 'debian' ],
 #           [ 'on ubuntu system with gcc', 'ubuntu:latest' ],
 #           [ 'on ubuntu rolling system with gcc', 'ubuntu:rolling' ],
 #           [ 'on debian testing system with 32-bit gcc', 'debian:testing' ],
@@ -70,7 +42,7 @@ jobs:
 #           [ 'on debian9 system with gcc', 'debian:9' ],
 #           # opensuse does not have tar installed, so that
 #           # actions/checkout fails.
-#           # [ 'on opensuse system with gcc', 'opensuse/leap' ],
+            [ 'on opensuse system with gcc', 'opensuse/leap' ],
 #           [ 'on fedora system with gcc', 'fedora:latest' ],
 #           [ 'on centos system with gcc', 'quay.io/centos/centos:stream' ],
 #           [ 'on centos9 system with gcc', 'quay.io/centos/centos:stream9' ],
@@ -79,10 +51,11 @@ jobs:
 #           [ 'with icc', 'intel/oneapi-hpckit:latest' ],
 #           [ 'expensive with gcc', 'gcc:latest' ]
         ]
-    container:
-      image: ${{ matrix.instance[1] }}
     env:
       BUILD_NAME: 'checks ${{ matrix.instance[0] }}'
+    container:
+      image: '${{ env.REGISTRY }}/${{ github.repository }}/${{ env.BUILD_NAME }}'
+      # image: ${{ matrix.instance[1] }}
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/test-suite
