@@ -17,11 +17,15 @@ inputs:
 runs:
   using: "composite"
   steps:
-      - run: ${{ inputs.path }}/ci/00-prepare-docker.sh
+      - run: ci/00-prepare-docker.sh
+        working-directory: ${{ inputs.path }}
         shell: sh
-      - run: ${{ inputs.path }}/ci/01-conf.sh
+      - run: ci/01-conf.sh
+        working-directory: ${{ inputs.path }}
         shell: bash
-      - run: ${{ inputs.path }}/ci/02-build.sh
+      - run: ci/02-build.sh
+        working-directory: ${{ inputs.path }}
         shell: bash
-      - run: ${{ inputs.path }}/ci/03-check.sh
+      - run: ci/03-check.sh
+        working-directory: ${{ inputs.path }}
         shell: bash
