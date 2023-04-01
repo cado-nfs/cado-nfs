@@ -38,6 +38,7 @@ jobs:
         uses: Bhacaz/checkout-files@v2
         with:
          files: .github
+         branch: ${{ github.ref }}
       - uses: ./.github/workflows/prepare-and-use-container.yml
         with:
           job-name: 'checks ${{ matrix.instance[0] }}'
