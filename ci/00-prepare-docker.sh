@@ -223,6 +223,10 @@ if is_debian || is_ubuntu ; then
         dpkg -i "$F"
         rm -rf "$T"
     fi
+    # intel repos are frequently out of sync, to a point that makes them
+    # barely usable. And anyway we don't care: there's no software that
+    # we want to pull from these repos anyway.
+    find /etc/apt/sources.list.d/ -type f | xargs -r grep -li intel | xargs -r rm
     DEBIAN_FRONTEND=noninteractive apt-get -y update
     DEBIAN_FRONTEND=noninteractive apt-get -y install $debian_packages
 elif is_opensuse ; then
