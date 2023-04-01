@@ -8,14 +8,20 @@ name: 'Common test suite'
 #   run:
 #     shell: bash
 
+inputs:
+  path:
+    description: 'path where the tree was checked out, relative to the runner work directory'
+    type: string
+    default: .
+
 runs:
   using: "composite"
   steps:
-      - run: ci/00-prepare-docker.sh
+      - run: ${{ inputs.path }}/ci/00-prepare-docker.sh
         shell: sh
-      - run: ci/01-conf.sh
+      - run: ${{ inputs.path }}/ci/01-conf.sh
         shell: bash
-      - run: ci/02-build.sh
+      - run: ${{ inputs.path }}/ci/02-build.sh
         shell: bash
-      - run: ci/03-check.sh
+      - run: ${{ inputs.path }}/ci/03-check.sh
         shell: bash
