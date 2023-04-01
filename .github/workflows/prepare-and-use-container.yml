@@ -42,11 +42,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Mangle image name
+        id: mangle
+        run: |
+          X="${{ env.IMAGE_NAME }}"
+          echo image=${X// /_} >> $GITHUB_OUTPUT
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v4.3.0
         with:
-          images: ${{ inputs.registry }}/${{ env.IMAGE_NAME }}
+          images: ${{ inputs.registry }}/${{ steps.mangle.outputs.image }}
 
       - name: create Dockerfile and context
         id: create-context
@@ -72,7 +78,7 @@ jobs:
   use:
     runs-on: [ linux, x64, self-hosted ]
     container:
-      image: '${{ inputs.registry }}/${{ github.repository }}/${{ inputs.job-name }}'
+      image: '${{ inputs.registry }}/${{ github.repository }}/${{ job.prepare.outputs.image }}'
     steps:
       - uses: actions/checkout@v3
         with:
