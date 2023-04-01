@@ -33,7 +33,7 @@ jobs:
 #           [ 'expensive with gcc', 'gcc:latest' ]
         ]
     uses: ./.github/workflows/prepare-and-use-container.yml
-      with:
-        job-name: 'checks ${{ matrix.instance[0] }}'
-        registry: ${{ env.REGISTRY }}
+    with:
+      job-name: 'checks ${{ matrix.instance[0] }}'
+      registry: ${{ env.REGISTRY }}
 
