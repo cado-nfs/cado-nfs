@@ -36,6 +36,7 @@ debian_packages="$debian_packages     python3"
 # debian_packages="$debian_packages     libfmt-dev"
 
 opensuse_packages="$opensuse_packages     bc"
+opensuse_packages="$opensuse_packages     tar"
 opensuse_packages="$opensuse_packages     which"  # is type -p more portable?
 opensuse_packages="$opensuse_packages     hostname"
 opensuse_packages="$opensuse_packages     cmake"
@@ -189,6 +190,18 @@ if [ "$coverity" ] ; then
     centos_packages="$centos_packages     curl git"
     alpine_packages="$alpine_packages     curl git"
     freebsd_packages="$freebsd_packages   curl git"
+fi
+
+if [ "$GITHUB_ACTIONS" ] ; then
+    # i'm not entirely sure that we want to pull git. In principle, it's
+    # somewhat expected by actions/checkout, but having tar is also
+    # enough in most cases.
+    debian_packages="$debian_packages git"
+    opensuse_packages="$opensuse_packages git"
+    fedora_packages="$fedora_packages git"
+    centos_packages="$centos_packages git"
+    alpine_packages="$alpine_packages git"
+    freebsd_packages="$freebsd_packages git"
 fi
 
 if [ "$DOCKER_SCRIPT" ] ; then
