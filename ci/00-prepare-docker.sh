@@ -1,8 +1,6 @@
 #!/bin/sh
 
 # We're /bin/sh, not bash.
-#
-# Our output must be a Dockerfile
 
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
@@ -18,6 +16,11 @@ enter_section preparation "System preparation (${RUNTIME_TYPE:-docker})"
 # export
 echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
 leave_section
+
+if [ -f "/.cado-nfs-prepared" ] ; then
+    major_message "Skipping package install, we're using a cado-nfs image"
+    exit 0
+fi
 
 enter_section install_packages "Installing required packages"
 

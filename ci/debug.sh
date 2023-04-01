@@ -121,6 +121,7 @@ EOF
     # pw groupmod operator -m user --
     force_build_tree=/tmp/b
     exports+=(force_build_tree=$force_build_tree)
+    exports+=(BUILD_NAME="$BUILD_NAME")
     echo "# NOTE: cado-nfs build tree has just been set to $force_build_tree"
     # TODO: we must create a .bash_profile file in the user's home
     # directory. Otherwise the environment that is normally set by
@@ -166,5 +167,5 @@ else
     echo "# NOTE: docker image is $imagename"
     echo "# NOTE: this image contains a few extra debug tools"
     # BUILD_NAME is passed to the script via 00-dockerfile.sh
-    docker run "${DARGS[@]}" -ti --hostname docker-script-$RANDOM --volume $PWD:/host "$imagename" /host/ci/999-debug.sh "$@"
+    docker run "${DARGS[@]}" -ti --hostname docker-script-$RANDOM --volume $PWD:/host "$imagename" env BUILD_NAME="$BUILD_NAME" /host/ci/999-debug.sh "$@"
 fi

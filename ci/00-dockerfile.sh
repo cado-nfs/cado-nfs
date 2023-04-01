@@ -84,14 +84,13 @@ if [ "$DOCKER_SCRIPT" ] ; then
     echo "ENV DOCKER_SCRIPT=1"
 fi
 
-if [ "$BUILD_NAME" ] ; then
-    echo "ENV BUILD_NAME=\"$BUILD_NAME\""
-fi
+echo "COPY ./ /tmp/ci/"
 
-cat <<EOF
-COPY ./ /tmp/ci/
-RUN /tmp/ci/00-prepare-docker.sh
-EOF
+if [ "$BUILD_NAME" ] ; then
+    echo "RUN BUILD_NAME=\"$BUILD_NAME\" /tmp/ci/00-prepare-docker.sh"
+else
+    echo "RUN /tmp/ci/00-prepare-docker.sh"
+fi
 
 if [ "$icc" ] ; then
     cat <<EOF
@@ -103,3 +102,5 @@ fi
 cat <<EOF
 RUN (find /var/cache /var/lib/apt /var/lib/dnf -type f || :) | xargs -r rm -f
 EOF
+
+echo "RUN touch /.cado-nfs-prepared"

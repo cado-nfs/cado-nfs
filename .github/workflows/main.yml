@@ -1,34 +1,44 @@
-name: build-containers
+name: main checks
 on: [push]
 
 jobs:
   checks:
     strategy:
+      # because github is able to fail-fast, there's no pressing need to
+      # defer the launch of the few expensive checks.
       matrix:
+        # we have two gcc:latest (one for normal checks, one for
+        # expensive checks, and three debian-testing (one normal, one
+        # with 32-bit abi, and one with shared libs). It could make sense
+        # to share a few of them a little bit.
         instance: [
-          [ 'with gcc', 'gcc:latest' ],
-          [ 'on alpine system with gcc', 'alpine:latest' ],
-          [ 'on debian system with 32-bit gcc', 'debian' ],
-#           [ 'on ubuntu system with gcc', 'ubuntu:latest' ],
-#           [ 'on ubuntu rolling system with gcc', 'ubuntu:rolling' ],
-#           [ 'on debian testing system with 32-bit gcc', 'debian:testing' ],
-#           [ 'using cmake directly with gcc', 'alpine' ],
-#           [ 'on debian system with gcc', 'debian:latest' ],
-#           [ 'on debian testing system with gcc', 'debian:testing' ],
-#           [ 'shared libs on debian testing system with gcc', 'debian:testing' ],
-#           [ 'on debian10 system with gcc', 'debian:10' ],
-#           [ 'on debian9 system with gcc', 'debian:9' ],
-#           # opensuse does not have tar installed, so that
-#           # actions/checkout fails.
-            [ 'on opensuse system with gcc', 'opensuse/leap' ],
-#           [ 'on fedora system with gcc', 'fedora:latest' ],
-#           [ 'on centos system with gcc', 'quay.io/centos/centos:stream' ],
-#           [ 'on centos9 system with gcc', 'quay.io/centos/centos:stream9' ],
-#           [ 'with clang13', 'silkeh/clang:13' ],
-#           [ 'with clangdev', 'silkeh/clang:dev' ],
-#           [ 'with icc', 'intel/oneapi-hpckit:latest' ],
-#           [ 'expensive with gcc', 'gcc:latest' ]
+          'with gcc',
+          'on alpine system with gcc',
+          'on debian system with 32-bit gcc',
+          'on ubuntu system with gcc',
+          'on ubuntu rolling system with gcc',
+          'on debian testing system with 32-bit gcc',
+          'using cmake directly with gcc',
+          'on debian system with gcc',
+          'on debian testing system with gcc',
+          'shared libs on debian testing system with gcc',
+          'on debian10 system with gcc',
+          'on debian9 system with gcc',
+          'on opensuse system with gcc',
+          'on fedora system with gcc',
+          'on centos system with gcc',
+          'on centos9 system with gcc',
+          'with clang13',
+          'with clangdev',
+          'with icc',
+          'expensive with gcc',
         ]
+    env:
+      # Hopefully this is sufficient, but I'm not completely sure.
+      BUILD_NAME: 'checks ${{ matrix.instance[0] }}'
+
+    # because this is a reusable workflow, we don't need a checkout to
+    # call this.
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance[0] }}'
