@@ -89,6 +89,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ steps.mangle.outputs.cache }}
           cache-to: type=registry,ref=${{ steps.mangle.outputs.cache }},mode=max
+          provenance: false
 
       - name: finish and write summary
         run: |
