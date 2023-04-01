@@ -1,6 +1,5 @@
 
 name: prepare-and-use-container
-description: 'prepare a container for a build job'
 
 on:
   workflow_call:
@@ -17,7 +16,6 @@ on:
 
     outputs:
       image:
-        type: string
         description: 'path to generated image'
 
 env:
