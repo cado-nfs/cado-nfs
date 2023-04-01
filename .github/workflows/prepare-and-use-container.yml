@@ -18,12 +18,10 @@ on:
       username:
         required: false
         description: 'username for package registry'
-        default: ${{ github.actor }}
 
       password:
         required: false
         description: 'password for package registry'
-        default: ${{ secrets.GITHUB_TOKEN }}
 
     outputs:
       image:

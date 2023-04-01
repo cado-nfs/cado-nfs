@@ -41,6 +41,8 @@ jobs:
       # registry: ghcr.io
       registry: registry.gitlab.inria.fr
     secrets:
+      # username: ${{ github.actor }}
+      # password: ${{ secrets.GITHUB_TOKEN }}
       username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
       password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
 
