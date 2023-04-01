@@ -17,6 +17,8 @@ jobs:
         ]
     env:
       BUILD_NAME: 'checks ${{ matrix.instance[0] }}'
+    container:
+      image: debian
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/workflows/prepare-containers.yml
