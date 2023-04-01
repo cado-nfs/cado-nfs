@@ -17,6 +17,7 @@ on:
     outputs:
       image:
         description: 'path to generated image'
+        value: ${{ jobs.prepare.outputs.image }}
 
 env:
   IMAGE_NAME: ${{ github.repository }}/${{ inputs.job-name }}
@@ -27,6 +28,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      image: ${{ steps.meta.inputs.images }}
     steps:
       # following https://github.com/docker/build-push-action#inputs
       - name: Set up Docker Buildx
@@ -64,7 +67,6 @@ jobs:
 
       - name: finish and write summary
         run: |
-          echo "echo image=${{ steps.meta.inputs.images }}" >> $GITHUB_OUTPUT
           echo "### Container ${{ env.IMAGE_NAME }} ready! :rocket:" >> $GITHUB_STEP_SUMMARY
 
   use:
