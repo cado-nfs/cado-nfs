@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           path: host-checkout
-      - uses: ./.github/workflows/prepare-and-use-container.yml
+      - uses: ./host-checkout/.github/workflows/prepare-and-use-container.yml
         with:
           job-name: 'checks ${{ matrix.instance[0] }}'
           registry: ${{ env.REGISTRY }}
