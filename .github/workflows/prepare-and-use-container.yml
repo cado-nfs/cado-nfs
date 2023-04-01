@@ -26,7 +26,7 @@ jobs:
       contents: read
       packages: write
     outputs:
-      image: ${{ steps.meta.inputs.images }}
+      image: ${{ steps.mangle.outputs.full_image }}
     steps:
       # following https://github.com/docker/build-push-action#inputs
       - name: Set up Docker Buildx
@@ -42,14 +42,21 @@ jobs:
       - name: Mangle image name
         id: mangle
         run: |
-          X="${{ github.repository }}/${{ inputs.job-name }}"
-          echo image=${X// /_} >> $GITHUB_OUTPUT
+          X="${{ inputs.job-name }}"
+          image_base="${X// /_}"
+          image="${{ github.repository }}/$image_base"
+          full_image="${{ github.repository }}/$image"
+          cache="${full_image}:buildcache"
+          echo image_base="$image_base" >> $GITHUB_OUTPUT
+          echo image="$image" >> $GITHUB_OUTPUT
+          echo full_image="$full_image" >> $GITHUB_OUTPUT
+          echo cache="$cache" >> $GITHUB_OUTPUT
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v4.3.0
         with:
-          images: ${{ inputs.registry }}/${{ steps.mangle.outputs.image }}
+          images: ${{ steps.mangle.outputs.full_image }}
 
       - name: create Dockerfile and context
         id: create-context
@@ -65,8 +72,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ steps.meta.inputs.images }}:buildcache
-          cache-to: type=registry,ref=${{ steps.meta.inputs.images }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ steps.mangle.outputs.cache }}
+          cache-to: type=registry,ref=${{ steps.mangle.outputs.cache }},mode=max
 
       - name: finish and write summary
         run: |
