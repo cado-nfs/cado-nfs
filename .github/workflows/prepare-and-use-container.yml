@@ -68,6 +68,7 @@ jobs:
           echo "### Container ${{ env.IMAGE_NAME }} ready! :rocket:" >> $GITHUB_STEP_SUMMARY
 
   use:
+    runs-on: [ linux, x64, self-hosted ]
     container:
       image: '${{ inputs.registry }}/${{ github.repository }}/${{ inputs.job-name }}'
     steps:
