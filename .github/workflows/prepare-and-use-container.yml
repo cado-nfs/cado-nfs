@@ -1,0 +1,77 @@
+
+name: prepare-and-use-container
+description: 'prepare a container for a build job'
+
+on:
+  workflow_call:
+    inputs:
+      job-name:
+        required: true
+        type: string
+        description: 'name of the job for which we need to prepare the container'
+      registry:
+        required: false
+        type: string
+        description: 'package registry to use'
+        default: ghcr.io
+
+    outputs:
+      image:
+        type: string
+        description: 'path to generated image'
+
+env:
+  IMAGE_NAME: ${{ github.repository }}/${{ inputs.job-name }}
+
+jobs:
+  prepare:
+    runs-on: [ linux, x64, self-hosted ]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      # following https://github.com/docker/build-push-action#inputs
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4.3.0
+        with:
+          images: ${{ inputs.registry }}/${{ env.IMAGE_NAME }}
+
+      - name: create Dockerfile and context
+        id: create-context
+        run: tmp=${{ runner.temp }} BUILD_NAME="${{ inputs.job-name }}" bash ci/00-docker-build.sh
+
+      - name: list files
+        run: find ${{ runner.temp }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ${{ steps.create-context.outputs.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ steps.meta.inputs.images }}:buildcache
+          cache-to: type=registry,ref=${{ steps.meta.inputs.images }}:buildcache,mode=max
+
+      - name: finish and write summary
+        run: |
+          echo "echo image=${{ steps.meta.inputs.images }}" >> $GITHUB_OUTPUT
+          echo "### Container ${{ env.IMAGE_NAME }} ready! :rocket:" >> $GITHUB_STEP_SUMMARY
+
+  use:
+    container:
+      image: '${{ inputs.registry }}/${{ github.repository }}/${{ inputs.job-name }}'
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/test-suite

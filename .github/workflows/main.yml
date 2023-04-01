@@ -5,30 +5,8 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  prepare:
-    runs-on: [self-hosted, linux, x64]
-    strategy:
-      matrix:
-        instance: [
-          [ 'with gcc', 'gcc:latest' ],
-          [ 'on alpine system with gcc', 'alpine:latest' ],
-          [ 'on debian system with 32-bit gcc', 'debian' ],
-          [ 'on opensuse system with gcc', 'opensuse/leap' ],
-        ]
-    env:
-      BUILD_NAME: 'checks ${{ matrix.instance[0] }}'
-    container:
-      image: debian
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/workflows/prepare-containers.yml
-        with:
-          job-name: ${{ env.BUILD_NAME }}
-          registry: ${{ env.REGISTRY }}
-
   checks:
     runs-on: [self-hosted, linux, x64]
-    needs: prepare
     strategy:
       matrix:
         instance: [
@@ -55,12 +33,13 @@ jobs:
 #           [ 'with icc', 'intel/oneapi-hpckit:latest' ],
 #           [ 'expensive with gcc', 'gcc:latest' ]
         ]
-    env:
-      BUILD_NAME: 'checks ${{ matrix.instance[0] }}'
-    container:
-      image: 'ghcr.io/${{ github.repository }}/checks ${{ matrix.instance[0] }}'
-      # image: '${{ env.REGISTRY }}/${{ github.repository }}/${{ env.BUILD_NAME }}'
-      # image: ${{ matrix.instance[1] }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/test-suite
+      - name: Checkout .github files
+        uses: Bhacaz/checkout-files@v2
+        with:
+         files: .github
+      - uses: ./.github/workflows/prepare-and-use-container.yml
+        with:
+          job-name: 'checks ${{ matrix.instance[0] }}'
+          registry: ${{ env.REGISTRY }}
+
