@@ -14,6 +14,7 @@ on:
         description: 'package registry to use'
         default: ghcr.io
 
+    secrets:
       username:
         required: false
         type: string
@@ -54,8 +55,8 @@ jobs:
         uses: docker/login-action@v2.1.0
         with:
           registry: ${{ inputs.registry }}
-          username: ${{ inputs.username }}
-          password: ${{ inputs.password }}
+          username: ${{ secrets.username }}
+          password: ${{ secrets.password }}
 
       - name: Mangle image name
         id: mangle
@@ -103,8 +104,8 @@ jobs:
     container:
       image: ${{ needs.prepare.outputs.tagged_image }}
       credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
+        username: ${{ secrets.username }}
+        password: ${{ secrets.password }}
     env:
       BUILD_NAME: "${{ inputs.job-name }}"
     steps:

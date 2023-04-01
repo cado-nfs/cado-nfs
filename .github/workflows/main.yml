@@ -40,6 +40,7 @@ jobs:
       job-name: 'checks ${{ matrix.instance }}'
       # registry: ghcr.io
       registry: registry.gitlab.inria.fr
+    secrets:
       username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
       password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
 
