@@ -45,7 +45,7 @@ jobs:
           X="${{ inputs.job-name }}"
           image_base="${X// /_}"
           image="${{ github.repository }}/$image_base"
-          full_image="${{ github.repository }}/$image"
+          full_image="${{ inputs.registry }}/$image"
           cache="${full_image}:buildcache"
           echo image_base="$image_base" >> $GITHUB_OUTPUT
           echo image="$image" >> $GITHUB_OUTPUT
