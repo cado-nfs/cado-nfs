@@ -1,9 +1,6 @@
 name: build-containers
 on: [push]
 
-env:
-  REGISTRY: ghcr.io
-
 jobs:
   checks:
     strategy:
@@ -35,5 +32,5 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance[0] }}'
-      registry: ${{ env.REGISTRY }}
+      registry: ghcr.io
 
