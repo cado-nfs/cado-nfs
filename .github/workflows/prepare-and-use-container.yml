@@ -83,7 +83,10 @@ jobs:
     runs-on: [ linux, x64, self-hosted ]
     needs: prepare
     container:
-      image: '${{ needs.prepare.outputs.image }}'
+      image: '${{ needs.prepare.outputs.image }}:${{ github.ref }}'
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
     steps:
       - uses: actions/checkout@v3
         with:
