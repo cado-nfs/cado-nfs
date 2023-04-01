@@ -6,7 +6,6 @@ env:
 
 jobs:
   checks:
-    runs-on: [self-hosted, linux, x64]
     strategy:
       matrix:
         instance: [
@@ -33,17 +32,8 @@ jobs:
 #           [ 'with icc', 'intel/oneapi-hpckit:latest' ],
 #           [ 'expensive with gcc', 'gcc:latest' ]
         ]
-    steps:
-      # - name: Checkout .github files
-      #   uses: Bhacaz/checkout-files@v2
-      #   with:
-      #    files: .github
-      #    branch: ${{ github.ref }}
-      - uses: actions/checkout@v3
-        with:
-          path: host-checkout
-      - uses: ./host-checkout/.github/workflows/prepare-and-use-container.yml
-        with:
-          job-name: 'checks ${{ matrix.instance[0] }}'
-          registry: ${{ env.REGISTRY }}
+    uses: ./.github/workflows/prepare-and-use-container.yml
+      with:
+        job-name: 'checks ${{ matrix.instance[0] }}'
+        registry: ${{ env.REGISTRY }}
 
