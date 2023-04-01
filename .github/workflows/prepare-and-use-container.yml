@@ -14,6 +14,18 @@ on:
         description: 'package registry to use'
         default: ghcr.io
 
+      username:
+        required: false
+        type: string
+        description: 'username for package registry'
+        default: ${{ github.actor }}
+
+      password:
+        required: false
+        type: string
+        description: 'password for package registry'
+        default: ${{ secrets.GITHUB_TOKEN }}
+
     outputs:
       image:
         description: 'path to generated image'
@@ -42,8 +54,8 @@ jobs:
         uses: docker/login-action@v2.1.0
         with:
           registry: ${{ inputs.registry }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ inputs.username }}
+          password: ${{ inputs.password }}
 
       - name: Mangle image name
         id: mangle

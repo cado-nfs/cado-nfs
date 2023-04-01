@@ -38,5 +38,8 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: ghcr.io
+      # registry: ghcr.io
+      registry: registry.gitlab.inria.fr
+      username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
+      password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
 
