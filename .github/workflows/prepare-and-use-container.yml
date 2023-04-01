@@ -78,7 +78,7 @@ jobs:
   use:
     runs-on: [ linux, x64, self-hosted ]
     container:
-      image: '${{ inputs.registry }}/${{ github.repository }}/${{ job.prepare.outputs.image }}'
+      image: '${{ inputs.registry }}/${{ github.repository }}/${{ jobs.prepare.outputs.image }}'
     steps:
       - uses: actions/checkout@v3
         with:
