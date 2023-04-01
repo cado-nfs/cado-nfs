@@ -17,13 +17,11 @@ on:
     secrets:
       username:
         required: false
-        type: string
         description: 'username for package registry'
         default: ${{ github.actor }}
 
       password:
         required: false
-        type: string
         description: 'password for package registry'
         default: ${{ secrets.GITHUB_TOKEN }}
 
