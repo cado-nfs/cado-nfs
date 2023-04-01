@@ -33,10 +33,6 @@ jobs:
           'with icc',
           'expensive with gcc',
         ]
-    env:
-      # Hopefully this is sufficient, but I'm not completely sure.
-      BUILD_NAME: 'checks ${{ matrix.instance[0] }}'
-
     # because this is a reusable workflow, we don't need a checkout to
     # call this.
     uses: ./.github/workflows/prepare-and-use-container.yml

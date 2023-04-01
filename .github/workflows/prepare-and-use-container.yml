@@ -93,6 +93,8 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
+    env:
+      BUILD_NAME: "${{ inputs.job-name }}"
     steps:
       - uses: actions/checkout@v3
         with:
