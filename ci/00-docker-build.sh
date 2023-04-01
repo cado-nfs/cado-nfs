@@ -36,7 +36,7 @@ EOF
 
 (cd "$tmp"/context ; tar xf $tmp/context.tar.gz)
 
-ci/00-dockerfile.sh > "$tmp/context/Dockerfile"
+(cd "$(dirname $0)" ; ci/00-dockerfile.sh) > "$tmp/context/Dockerfile"
 
 if [ "$GITHUB_OUTPUT" ] ; then
     echo "context=$tmp/context" >> $GITHUB_OUTPUT

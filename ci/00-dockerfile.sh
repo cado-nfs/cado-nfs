@@ -88,13 +88,8 @@ if [ "$BUILD_NAME" ] ; then
     echo "ENV BUILD_NAME=\"$BUILD_NAME\""
 fi
 
-# COPY ./ /tmp/ci/
 cat <<EOF
-COPY 000-functions.sh /tmp/ci/000-functions.sh
-COPY 001-environment.sh /tmp/ci/001-environment.sh
-COPY 005-build-environment.sh /tmp/ci/005-build-environment.sh
-COPY 00-prepare-docker.sh /tmp/ci/00-prepare-docker.sh
-COPY utilities/ncpus.sh /tmp/ci/ncpus.sh
+COPY ./ /tmp/ci/
 RUN /tmp/ci/00-prepare-docker.sh
 EOF
 
