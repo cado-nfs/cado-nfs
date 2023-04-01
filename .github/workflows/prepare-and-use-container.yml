@@ -27,6 +27,7 @@ jobs:
       packages: write
     outputs:
       image: ${{ steps.mangle.outputs.full_image }}
+      tagged_image: ${{ steps.meta.outputs.tags }}
     steps:
       # following https://github.com/docker/build-push-action#inputs
       - name: Set up Docker Buildx
@@ -83,7 +84,7 @@ jobs:
     runs-on: [ linux, x64, self-hosted ]
     needs: prepare
     container:
-      image: '${{ needs.prepare.outputs.image }}:${{ github.ref }}'
+      image: ${{ needs.prepare.outputs.tagged_image }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
