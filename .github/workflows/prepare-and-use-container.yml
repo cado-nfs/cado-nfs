@@ -19,9 +19,6 @@ on:
         description: 'path to generated image'
         value: ${{ jobs.prepare.outputs.image }}
 
-env:
-  IMAGE_NAME: ${{ github.repository }}/${{ inputs.job-name }}
-
 jobs:
   prepare:
     runs-on: [ linux, x64, self-hosted ]
@@ -45,7 +42,7 @@ jobs:
       - name: Mangle image name
         id: mangle
         run: |
-          X="${{ env.IMAGE_NAME }}"
+          X="${{ github.repository }}/${{ inputs.job-name }}"
           echo image=${X// /_} >> $GITHUB_OUTPUT
 
       - name: Extract metadata (tags, labels) for Docker
@@ -73,12 +70,13 @@ jobs:
 
       - name: finish and write summary
         run: |
-          echo "### Container ${{ env.IMAGE_NAME }} ready! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "### Container ${{ steps.mangle.outputs.image }} ready! :rocket:" >> $GITHUB_STEP_SUMMARY
 
   use:
     runs-on: [ linux, x64, self-hosted ]
+    needs: prepare
     container:
-      image: '${{ inputs.registry }}/${{ github.repository }}/${{ jobs.prepare.outputs.image }}'
+      image: '${{ inputs.registry }}/${{ github.repository }}/${{ needs.prepare.outputs.image }}'
     steps:
       - uses: actions/checkout@v3
         with:
