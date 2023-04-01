@@ -54,7 +54,8 @@ jobs:
     env:
       BUILD_NAME: 'checks ${{ matrix.instance[0] }}'
     container:
-      image: '${{ env.REGISTRY }}/${{ github.repository }}/${{ env.BUILD_NAME }}'
+      image: 'ghcr.io/${{ github.repository }}/checks ${{ matrix.instance[0] }}'
+      # image: '${{ env.REGISTRY }}/${{ github.repository }}/${{ env.BUILD_NAME }}'
       # image: ${{ matrix.instance[1] }}
     steps:
       - uses: actions/checkout@v3
