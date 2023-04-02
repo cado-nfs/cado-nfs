@@ -2,6 +2,7 @@
 #define LAS_REDUCE_PLATTICE_SIMD_HPP_
 
 #include <cstdint>
+// #include <array>
 
 #include "reduce-plattice/plattice-proxy.hpp"
 
@@ -34,6 +35,39 @@ struct simd_div_threshold<simd_helper<uint32_t, 16>> {
 };
 #endif
 
+/*
+template<typename> struct rpl {
+    constexpr static bool debug() { return false; }
+};
+
+template<> struct rpl<simd_helper<uint32_t, 8>> {
+    static bool debug() {
+        extern bool foo;
+        return foo;
+    }
+};
+
+template<typename A, size_t N>
+void display(typename A::type const & zmi0, typename A::type const & zi1, typename A::type const & zj0, typename A::type const & zj1, const char * X)
+{
+    if (!rpl<A>::debug()) return;
+    uint32_t explode[N] ATTR_ALIGNED(A::store_alignment);
+    plattice_proxy pli[N];
+    A::store(explode,  zmi0);
+    for(size_t j = 0 ; j < N ; j++) pli[j].mi0 = explode[j];
+    A::store(explode,  zi1);  
+    for(size_t j = 0 ; j < N ; j++) pli[j].i1  = explode[j];
+    A::store(explode,  zj0);  
+    for(size_t j = 0 ; j < N ; j++) pli[j].j0  = explode[j];
+    A::store(explode,  zj1);  
+    for(size_t j = 0 ; j < N ; j++) pli[j].j1  = explode[j];
+
+    printf("-- %s\n", X);
+    for(size_t j = 0 ; j < N ; j++)
+        printf("[ ( -%d, %d), (%d, %d) ]\n", pli[j].mi0, pli[j].j0, pli[j].i1, pli[j].j1);
+}
+*/
+
 template<size_t N>
 /* This does N instances of reduce_plattice in parallel */
 void simd(plattice_proxy * pli, uint32_t I)
@@ -63,6 +97,8 @@ void simd(plattice_proxy * pli, uint32_t I)
 
     mask flip;
     for(flip = A::zeromask() ; ; ) {
+        // display<A, N>(zmi0, zi1, zj0, zj1, "loop");
+
         /* as long as i1 >= I, proceed */
         proceed = A::mask_cmpge(proceed, zi1, zI);
 
@@ -70,6 +106,7 @@ void simd(plattice_proxy * pli, uint32_t I)
 
         mask toobig = A::mask_cmpge(proceed, zmi0, A::slli(zi1, simd_div_threshold<A>::value));
         if (UNLIKELY(A::mask2int(toobig))) {
+            // display<A, N>(zmi0, zi1, zj0, zj1, "prediv");
             /* Some quotient is larger than 32. We must do a full
              * division.
              */
@@ -79,12 +116,14 @@ void simd(plattice_proxy * pli, uint32_t I)
             zmi0 = A::sub(zmi0, A::mullo(k, zi1));
             zj0  = A::add(zj0,  A::mullo(k, zj1));
         } else {
+            // display<A, N>(zmi0, zi1, zj0, zj1, "presub");
             /* if mi0 >= i1, do a subtraction */
             mask subtract = A::mask_cmpge(proceed, zmi0, zi1);
             /* XXX in fact, it seems that subtract == proceed, right ? */
             zmi0 = A::mask_sub(zmi0, subtract, zmi0, zi1);
             zj0  = A::mask_add(zj0,  subtract, zj0,  zj1);
         }
+        // display<A, N>(zmi0, zi1, zj0, zj1, "preswap");
         /* Any zmi0[j] which is now < zi1[j] deserves a swap */
         mask swap = A::cmplt(zmi0, zi1);
         data swapper;
@@ -95,7 +134,9 @@ void simd(plattice_proxy * pli, uint32_t I)
         zj0 = A::bxor(zj0, swapper);
         zj1 = A::bxor(zj1, swapper);
         flip = A::kxor(flip, swap);
+        // display<A, N>(zmi0, zi1, zj0, zj1, "postswap");
     }
+    // display<A, N>(zmi0, zi1, zj0, zj1, "out");
 
     proceed = A::kor(   A::cmpneq(zj0, A::setzero()),
             A::cmpneq(zj1, A::setzero()));
@@ -103,6 +144,8 @@ void simd(plattice_proxy * pli, uint32_t I)
     mask haszero = A::mask_cmpeq(proceed, zi1, A::setzero());
 
     if (A::mask2int(haszero)) {
+        // display<A, N>(zmi0, zi1, zj0, zj1, "haszero!");
+
         /* This is exceptional. Explode back to single case */
         A::store(explode,  zmi0);
         for(size_t j = 0 ; j < N ; j++) pli[j].mi0 = explode[j];
@@ -113,17 +156,37 @@ void simd(plattice_proxy * pli, uint32_t I)
         A::store(explode,  zj1);  
         for(size_t j = 0 ; j < N ; j++) pli[j].j1  = explode[j];
 
+#ifdef __INTEL_COMPILER
+#if __INTEL_COMPILER == 2021 && __INTEL_COMPILER_UPDATE == 8
+        /* This is very ugly. Apparently, the version of icc above has a
+         * nasty bug which causes mishandling of the "continue"
+         * statements in the loop below. The symptom is a failed
+         * post-condition, and in particular the N-uple not being reduced
+         * past an entry that happens to have a vertical vector. Adding a
+         * volatile storage class obviously helps, so let's do this in
+         * this very specific case. But the way forward is probably to
+         * forget about this compiler version, use newer ones, and be on
+         * the lookout for nasty bugs of that kind again...
+         */
+        volatile
+#endif
+#endif
         int p = A::mask2int(proceed);
 
+        // if (rpl<A>::debug()) printf("%x\n", (unsigned int) p);
+
         for(size_t j = 0, m = A::mask2int(flip) ; j < N ; j++, m>>=1, p>>=1) {
+            // if (rpl<A>::debug()) printf("j=%zu/%zu p=%x\n", j, N, p);
             if (!(p & 1)) continue;
             if (pli[j].i1 == 0) {
+                // if (rpl<A>::debug()) printf("j=%zu/%zu vertical\n", j, N);
                 if (!(m&1))
                     pli[j].j0 = pli[j].j1 - pli[j].j0;
                 pli[j].reduce_with_vertical_vector(I);
                 continue;
             } else {
                 int a = (pli[j].mi0 + pli[j].i1 - I) / pli[j].i1;
+                // if (rpl<A>::debug()) printf("j=%zu,%zu a=%d\n", j, N, a);
                 pli[j].mi0 -= a * pli[j].i1;
                 pli[j].j0  += a * pli[j].j1;
             }
@@ -137,12 +200,14 @@ void simd(plattice_proxy * pli, uint32_t I)
         data sum = A::sub(A::add(zmi0, zi1), zI);
         mask toobig = A::cmpge(sum, A::slli(zi1, simd_div_threshold<A>::value));
         if (UNLIKELY(A::mask2int(toobig))) {
+            // display<A, N>(zmi0, zi1, zj0, zj1, "out-toobig");
             data k = A::mask_div(A::setzero(), proceed, sum, zi1);
             /* note that the avx512 A::mullo has a 10-cycle latency on
              * skylake... */
             zmi0 = A::sub(zmi0, A::mullo(k, zi1));
             zj0  = A::add(zj0,  A::mullo(k, zj1));
         } else {
+            // display<A, N>(zmi0, zi1, zj0, zj1, "out-normal");
             for(mask q ; q = A::cmpge(sum, zi1), A::mask2int(q) ; ) {
                 zmi0 = A::mask_sub(zmi0, q, zmi0, zi1);
                 sum = A::mask_sub(sum, q, sum, zi1);
@@ -150,6 +215,7 @@ void simd(plattice_proxy * pli, uint32_t I)
             }
         }
         /* based on fip, we should do a few swaps */
+        // display<A, N>(zmi0, zi1, zj0, zj1, "out-swaps");
         data swapper;
         swapper = A::mask_bxor(A::setzero(), flip, zmi0, zi1);
         zmi0 = A::bxor(zmi0, swapper);
@@ -157,6 +223,8 @@ void simd(plattice_proxy * pli, uint32_t I)
         swapper = A::mask_bxor(A::setzero(), flip, zj0, zj1);
         zj0 = A::bxor(zj0, swapper);
         zj1 = A::bxor(zj1, swapper);
+
+        // display<A, N>(zmi0, zi1, zj0, zj1, "bye");
 
         A::store(explode,  zmi0);
         for(size_t j = 0 ; j < N ; j++) pli[j].mi0 = explode[j];

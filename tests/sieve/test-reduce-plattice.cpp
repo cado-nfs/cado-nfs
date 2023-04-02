@@ -230,6 +230,8 @@ struct call_simd<2> : public call_simd_base<2> {
     static constexpr const char * what = "simd-synthetic<2>";
 };
 
+// bool foo = false;
+
 template<typename T>
 inline 
 typename std::enable_if<T::old_interface, unsigned long>::type
@@ -344,11 +346,30 @@ void test_correctness(test_wrap & tw)
                 a_test const & aa = tests[i+j];
                 std::string c = fmt::format("failed check ({})", when);
                 std::string t = fmt::format(
-                        FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
+                        FMT_STRING("i={} j={} ntests={} p^k={}^{} r={}"), i, j, tests.size(), aa.p, aa.k, aa.r);
                 std::string msg = fmt::format(
                         FMT_STRING("{}: {} check for {}\n"), thiscode, c, t);
+                msg += fmt::format(
+                        FMT_STRING("{}: [({}, {}), ({}, {})]\n"),
+                            thiscode,
+                            L[j].get_i0(),
+                            L[j].get_j0(),
+                            L[j].get_i1(),
+                            L[j].get_j1());
+                msg += fmt::format(
+                        FMT_STRING("ref {}: [({}, {}), ({}, {})]\n"),
+                            thiscode,
+                            Lref[j].get_i0(),
+                            Lref[j].get_j0(),
+                            Lref[j].get_i1(),
+                            Lref[j].get_j1());
                 fputs(msg.c_str(), stderr);
-                if (!T::has_known_bugs) tw.failed = true;
+                if (!T::has_known_bugs) {
+                    tw.failed = true;
+                    // foo = true;
+                    // test_inner<T>(L, tw, &(tests[i]), N);
+                    // exit(1);
+                }
                 if (++nfailed >= 16)
                     fprintf(stderr, "%s: stopped reporting errors, go fix your program\n", thiscode.c_str());
             }
