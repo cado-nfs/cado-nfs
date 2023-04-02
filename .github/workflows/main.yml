@@ -9,9 +9,9 @@ on: [push]
 #   password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
 
 env:
-  registry: ghcr.io
-  username: ${{ github.actor }}
-  password: ${{ secrets.GITHUB_TOKEN }}
+  docker_registry: ghcr.io
+  docker_username: ${{ github.actor }}
+  docker_password: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   checks:
@@ -42,10 +42,10 @@ jobs:
     with:
       job-name: 'checks ${{ matrix.instance }}'
       # registry: ghcr.io
-      registry: ${{ vars.registry }}
+      registry: $docker_registry
     secrets:
-      username: ${{ vars.username }}
-      password: ${{ vars.password }}
+      username: $docker_username
+      password: $docker_password
 
   checks-compilers:
     strategy:
@@ -55,7 +55,7 @@ jobs:
     secrets: inherit
     with:
       job-name: 'checks with ${{ matrix.instance }}'
-      registry: ${{ vars.registry }}
+      registry: $docker_registry
 
   checks-features:
     strategy:
@@ -67,10 +67,10 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: ${{ vars.registry }}
+      registry: $docker_registry
     secrets:
-      username: ${{ vars.username }}
-      password: ${{ vars.password }}
+      username: $docker_username
+      password: $docker_password
 
   checks-32-bit:
     strategy:
@@ -82,10 +82,10 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: ${{ vars.registry }}
+      registry: $docker_registry
     secrets:
-      username: ${{ vars.username }}
-      password: ${{ vars.password }}
+      username: $docker_username
+      password: $docker_password
 
   long-checks:
     strategy:
@@ -96,8 +96,8 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: ${{ vars.registry }}
+      registry: $docker_registry
     secrets:
-      username: ${{ vars.username }}
-      password: ${{ vars.password }}
+      username: $docker_username
+      password: $docker_password
 
