@@ -3,6 +3,8 @@
 # that the union of this file and its companion files.nodist must agree with
 # are *NOT* recognized (by the fascist sanity check program).
 .github/actions/test-suite/action.yml
+.github/workflows/32-bit.yml
+.github/workflows/compilers.yml
 .github/workflows/main.yml
 .github/workflows/prepare-and-use-container.yml
 .gitlab-ci.yml

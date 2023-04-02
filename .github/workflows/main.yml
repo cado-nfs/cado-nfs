@@ -12,12 +12,9 @@ jobs:
         # with 32-bit abi, and one with shared libs). It could make sense
         # to share a few of them a little bit.
         instance: [
-          'with gcc',
           'on alpine system with gcc',
-          'on debian system with 32-bit gcc',
           'on ubuntu system with gcc',
           'on ubuntu rolling system with gcc',
-          'on debian-testing system with 32-bit gcc',
           'using cmake directly with gcc',
           'on debian system with gcc',
           'on debian-testing system with gcc',
@@ -28,9 +25,6 @@ jobs:
           'on fedora system with gcc',
           'on centos system with gcc',
           'on centos9 system with gcc',
-          'with clang13',
-          'with clangdev',
-          'with icc',
           'expensive with gcc',
         ]
     # because this is a reusable workflow, we don't need a checkout to
