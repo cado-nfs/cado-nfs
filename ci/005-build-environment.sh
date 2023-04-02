@@ -89,8 +89,8 @@ case "$BUILD_NAME" in
 esac
 case "$BUILD_NAME" in
     *"with icc"*)
-    : ${CC=icc}
-    : ${CXX=icpc}
+    : ${CC=icx}
+    : ${CXX=icpx}
     icc=1
     display_config compiler: using icc
     ;;
