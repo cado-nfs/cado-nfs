@@ -161,7 +161,7 @@ void ringbuf_mark_done(ringbuf_ptr r)
 {
     pthread_mutex_lock(r->mx);
     ASSERT(!r->done);
-    r->done = 1;
+    r->done = -1; // it's a 1-bit bitfield.
     pthread_cond_broadcast(r->bored);
     pthread_mutex_unlock(r->mx);
 }
