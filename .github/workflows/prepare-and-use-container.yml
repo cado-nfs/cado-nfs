@@ -90,9 +90,9 @@ jobs:
           cache-from: type=registry,ref=${{ steps.mangle.outputs.cache }}
           cache-to: type=registry,ref=${{ steps.mangle.outputs.cache }},mode=max
 
-      - name: finish and write summary
-        run: |
-          echo "### Container ${{ steps.mangle.outputs.image }} ready! :rocket:" >> $GITHUB_STEP_SUMMARY
+      # - name: finish and write summary
+      #   run: |
+      #     echo "### Container ${{ steps.mangle.outputs.image }} ready! :rocket:" >> $GITHUB_STEP_SUMMARY
 
   use:
     runs-on: [ linux, x64, self-hosted ]
