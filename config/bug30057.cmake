@@ -7,11 +7,20 @@ if(HAVE_AVX512F AND (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR
 
     message(STATUS "Testing if bug 30057 (llvm bug 53842) is present")
     execute_process(COMMAND
-        ${CMAKE_CXX_COMPILER} -O3 -mllvm -mattr=+avx512f
-        INPUT_FILE ${PROJECT_SOURCE_DIR}/config/bug-llvm53842.bc
+        ${CMAKE_CXX_COMPILER} --print-prog-name llc
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        OUTPUT_VARIABLE LLC_PATH
+        ERROR_VARIABLE llc_path_err)
+    if(llc_path_err OR NOT LLC_PATH)
+        message(STATUS ${llc_path_err})
+        message(FATAL_ERROR "${CMAKE_CXX_COMPILER} won't tell us where llc is!")
+    endif()
+    # message(STATUS "${LLC_PATH} -mattr=+avx512f < ${PROJECT_SOURCE_DIR}/config/bug30057.bc")
+    execute_process(COMMAND
+        ${LLC_PATH} -mattr=+avx512f
+        INPUT_FILE ${PROJECT_SOURCE_DIR}/config/bug30057.bc
         OUTPUT_QUIET
         ERROR_VARIABLE llc_err)
-    # try_compile(bug_llvm53842_compiles ${PROJECT_BINARY_DIR}/config ${PROJECT_SOURCE_DIR}/config/bug-llvm53842.bc)
     if(NOT llc_err)
         message(STATUS "Testing if llvm bug 30057 (llvm bug 53842) is present -- No")
     else()
