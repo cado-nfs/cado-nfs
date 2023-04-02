@@ -24,7 +24,7 @@ if(HAVE_AVX512F AND (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR
     if(NOT llc_err)
         message(STATUS "Testing if llvm bug 30057 (llvm bug 53842) is present -- No")
     else()
-        message(STATUS "Testing if llvm bug 30057 (llvm bug 53842) is present -- Yes, disabling avx512f. Use a newer compiler to fix. See https://gitlab.inria.fr/cado-nfs/cado-nfs/issues/30057")
+        message(STATUS "Testing if llvm bug 30057 (llvm bug 53842) is present -- Yes, disabling avx512. Use a newer compiler to fix. See https://gitlab.inria.fr/cado-nfs/cado-nfs/issues/30057")
         string(REPLACE "-mavx512f" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
         string(REPLACE "-mavx512f" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
         set (HAVE_AVX512F 0)
