@@ -10,8 +10,6 @@ on: [push]
 
 env:
   registry: ghcr.io
-
-secrets:
   username: ${{ github.actor }}
   password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -41,11 +39,13 @@ jobs:
     # because this is a reusable workflow, we don't need a checkout to
     # call this.
     uses: ./.github/workflows/prepare-and-use-container.yml
-    secrets: inherit
     with:
       job-name: 'checks ${{ matrix.instance }}'
       # registry: ghcr.io
-      registry: ${{ env.registry }}
+      registry: ${{ vars.registry }}
+    secrets:
+      username: ${{ vars.username }}
+      password: ${{ vars.password }}
 
   checks-compilers:
     strategy:
@@ -55,7 +55,7 @@ jobs:
     secrets: inherit
     with:
       job-name: 'checks with ${{ matrix.instance }}'
-      registry: ${{ env.registry }}
+      registry: ${{ vars.registry }}
 
   checks-features:
     strategy:
@@ -65,10 +65,12 @@ jobs:
           'shared libs on debian-testing system with gcc',
         ]
     uses: ./.github/workflows/prepare-and-use-container.yml
-    secrets: inherit
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: ${{ env.registry }}
+      registry: ${{ vars.registry }}
+    secrets:
+      username: ${{ vars.username }}
+      password: ${{ vars.password }}
 
   checks-32-bit:
     strategy:
@@ -78,10 +80,12 @@ jobs:
           'on debian-testing system with 32-bit gcc',
         ]
     uses: ./.github/workflows/prepare-and-use-container.yml
-    secrets: inherit
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: ${{ env.registry }}
+      registry: ${{ vars.registry }}
+    secrets:
+      username: ${{ vars.username }}
+      password: ${{ vars.password }}
 
   long-checks:
     strategy:
@@ -90,8 +94,10 @@ jobs:
           'expensive with gcc',
         ]
     uses: ./.github/workflows/prepare-and-use-container.yml
-    secrets: inherit
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: ${{ env.registry }}
+      registry: ${{ vars.registry }}
+    secrets:
+      username: ${{ vars.username }}
+      password: ${{ vars.password }}
 
