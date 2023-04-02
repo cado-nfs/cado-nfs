@@ -19,8 +19,11 @@ if [ "$BUILD_NAME" ] ; then
 cat >> $HOME/.bash_profile <<EOF
 BUILD_NAME="$BUILD_NAME"
 export BUILD_NAME
+DISPLAY_CONFIG=1
+export DISPLAY_CONFIG
 . ci/000-functions.sh
 . ci/001-environment.sh
+. ci/005-build-environment.sh
 set +e
 EOF
 fi

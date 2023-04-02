@@ -25,6 +25,12 @@ export CLICOLOR_FORCE=1
 # and "expensive checks" would be C and XC, and so on. But it would be
 # really cryptic. to have, e.g. LC/debian10+gcc ; wouldn't it ?
 
+if [ "$DISPLAY_CONFIG" ] ; then
+    display_config() { major_message "$@" ; }
+else
+    display_config() { : ; }
+fi
+
 if type -p hostname > /dev/null 2>&1 ; then
     HOSTNAME=$(hostname)
 else
@@ -44,9 +50,9 @@ elif [ "$GITHUB_SHA" ] ; then
     COMMIT_SHORT_SHA="$GITHUB_SHA"
 elif [ -d .git ] && type -p git > /dev/null 2>&1 ; then
     COMMIT_SHORT_SHA="$(git rev-parse --short HEAD)"
-    $ECHO_E "${CSI_BLUE}Setting COMMIT_SHORT_SHA=\"$COMMIT_SHORT_SHA\"${CSI_RESET}"
+    display_config "Setting COMMIT_SHORT_SHA=\"$COMMIT_SHORT_SHA\""
 fi
-major_message "COMMIT_SHORT_SHA=$COMMIT_SHORT_SHA"
+display_config "COMMIT_SHORT_SHA=$COMMIT_SHORT_SHA"
 
 #### set JOB_ID to either CI_JOB_ID or GITHUB_RUN_ID
 if [ "$CI_JOB_ID" ] ; then
@@ -55,9 +61,9 @@ elif [ "$GITHUB_RUN_ID" ] ; then
     JOB_ID="$GITHUB_RUN_ID"
 else
     JOB_ID=0
-    $ECHO_E "${CSI_BLUE}Setting JOB_ID=\"$JOB_ID\"${CSI_RESET}"
+    display_config "Setting JOB_ID=\"$JOB_ID\""
 fi
-major_message "JOB_ID=$JOB_ID"
+display_config "JOB_ID=$JOB_ID"
 
 ### set REPOSITORY to either $CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME or GITHUB_REPOSITORY
 
@@ -69,7 +75,7 @@ else
     # no default
     REPOSITORY=
 fi
-major_message "REPOSITORY=$REPOSITORY"
+display_config "REPOSITORY=$REPOSITORY"
     
 if [ -x /opt/homebrew/bin/brew ] ; then
     eval `/opt/homebrew/bin/brew shellenv`

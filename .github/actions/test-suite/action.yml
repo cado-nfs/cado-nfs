@@ -16,7 +16,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-      - run: ci/00-prepare-docker.sh
+      - run: env DISPLAY_CONFIG=1 ci/00-prepare-docker.sh
         working-directory: ${{ inputs.path }}
         shell: sh
       - run: ci/01-conf.sh

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-env
+# env
 # ls -ld "$GITHUB_WORKSPACE"
 # id -a
 

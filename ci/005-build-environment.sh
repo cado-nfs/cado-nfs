@@ -7,9 +7,15 @@
 # actually a no-op (i.e. ECHO_E or major_message are ok to use safely,
 # just don't use plain echo)
 
+if [ "$DISPLAY_CONFIG" ] ; then
+    display_config() { major_message "$@" ; }
+else
+    display_config() { : ; }
+fi
+
 if ! [ "$BUILD_NAME" ] && [ "$1" ] ; then
     BUILD_NAME="$1"
-    major_message "Setting BUILD_NAME=\"$1\""
+    display_config "Setting BUILD_NAME=\"$1\""
 fi
 
 #### Set BUILD_NAME to either CI_BUILD_NAME or GITHUB_JOB
@@ -23,14 +29,14 @@ else
     # this triggers a failure down the line
     $ECHO_E "${CSI_RED}This set of scripts really really expect that BUILD_NAME is set to something!${CSI_RESET}"
 fi
-major_message "BUILD_NAME=$BUILD_NAME"
+display_config "BUILD_NAME=$BUILD_NAME"
 
 case "$BUILD_NAME" in
     *"coverage tests"*)
     : ${CFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
     : ${CXXFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
     coverage=1
-    major_message coverage reports enabled
+    display_config coverage reports enabled
     ;;
 esac
 case "$BUILD_NAME" in
@@ -38,7 +44,7 @@ case "$BUILD_NAME" in
     : ${CC=gcc}
     : ${CXX=g++}
     gcc=1
-    major_message compiler: using gcc
+    display_config compiler: using gcc
     ;;
 esac
 case "$BUILD_NAME" in
@@ -50,16 +56,16 @@ case "$BUILD_NAME" in
         GMP="/usr/local/gmp-6.2.1.abi32"
         export GMP
         gcc32=1
-        major_message 32-bit build
+        display_config 32-bit build
         ;;
-    *) major_message default abi build
+    *) display_config default abi build
         ;;
 esac
 case "$BUILD_NAME" in
     *"shared libs"*)
     ENABLE_SHARED=1
     shared_libs=1
-    major_message shared libraries enabled
+    display_config shared libraries enabled
     ;;
 esac
 case "$BUILD_NAME" in
@@ -78,7 +84,7 @@ case "$BUILD_NAME" in
         *"with clang16"*) clang=16;;
         *"with clang17"*) clang=17;;
     esac
-    major_message compiler: using clang-$clang
+    display_config compiler: using clang-$clang
     ;;
 esac
 case "$BUILD_NAME" in
@@ -86,7 +92,7 @@ case "$BUILD_NAME" in
     : ${CC=icc}
     : ${CXX=icpc}
     icc=1
-    major_message compiler: using icc
+    display_config compiler: using icc
     ;;
 esac
 case "$BUILD_NAME" in
@@ -97,7 +103,7 @@ esac
 case "$BUILD_NAME" in
     *"coverity"*)
         coverity=1
-        major_message producing static analysis data for coverity
+        display_config producing static analysis data for coverity
     ;;
 esac
 case "$BUILD_NAME" in
@@ -124,13 +130,13 @@ case "$BUILD_NAME" in
             # just a safeguard
             build_tree=/no/build_tree/set/because/we/require/bash/for/that
         fi
-        major_message using cmake directly
+        display_config using cmake directly
     ;;
 esac
 case "$BUILD_NAME" in
     *"expensive checks"*|*"checks expensive"*)
         export CHECKS_EXPENSIVE=1
-        major_message doing expensive checks
+        display_config doing expensive checks
     ;;
 esac
 

@@ -1,5 +1,19 @@
-name: main checks
+name: main
 on: [push]
+
+# env:
+#   registry: registry.gitlab.inria.fr
+# 
+# secrets:
+#   username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
+#   password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
+
+env:
+  registry: ghcr.io
+
+secrets:
+  username: ${{ github.actor }}
+  password: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   checks:
@@ -15,47 +29,46 @@ jobs:
           'on alpine system with gcc',
           'on ubuntu system with gcc',
           'on ubuntu rolling system with gcc',
-          'using cmake directly with gcc',
           'on debian system with gcc',
           'on debian-testing system with gcc',
-          'shared libs on debian-testing system with gcc',
           'on debian10 system with gcc',
           'on debian9 system with gcc',
           'on opensuse system with gcc',
           'on fedora system with gcc',
           'on centos system with gcc',
           'on centos9 system with gcc',
-          'expensive with gcc',
         ]
     # because this is a reusable workflow, we don't need a checkout to
     # call this.
     uses: ./.github/workflows/prepare-and-use-container.yml
+    secrets: inherit
     with:
       job-name: 'checks ${{ matrix.instance }}'
       # registry: ghcr.io
-      registry: registry.gitlab.inria.fr
-    secrets:
-      # username: ${{ github.actor }}
-      # password: ${{ secrets.GITHUB_TOKEN }}
-      username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
-      password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
+      registry: ${{ env.registry }}
 
   checks-compilers:
     strategy:
       matrix:
+        instance: [ 'gcc', 'clang13', 'clangdev', 'icc', ]
+    uses: ./.github/workflows/prepare-and-use-container.yml
+    secrets: inherit
+    with:
+      job-name: 'checks with ${{ matrix.instance }}'
+      registry: ${{ env.registry }}
+
+  checks-features:
+    strategy:
+      matrix:
         instance: [
-          'with gcc',
-          'with clang13',
-          'with clangdev',
-          'with icc',
+          'using cmake directly with gcc',
+          'shared libs on debian-testing system with gcc',
         ]
     uses: ./.github/workflows/prepare-and-use-container.yml
+    secrets: inherit
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: registry.gitlab.inria.fr
-    secrets:
-      username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
-      password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
+      registry: ${{ env.registry }}
 
   checks-32-bit:
     strategy:
@@ -65,9 +78,20 @@ jobs:
           'on debian-testing system with 32-bit gcc',
         ]
     uses: ./.github/workflows/prepare-and-use-container.yml
+    secrets: inherit
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: registry.gitlab.inria.fr
-    secrets:
-      username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
-      password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
+      registry: ${{ env.registry }}
+
+  long-checks:
+    strategy:
+      matrix:
+        instance: [
+          'expensive with gcc',
+        ]
+    uses: ./.github/workflows/prepare-and-use-container.yml
+    secrets: inherit
+    with:
+      job-name: 'checks ${{ matrix.instance }}'
+      registry: ${{ env.registry }}
+
