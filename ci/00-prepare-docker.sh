@@ -195,19 +195,31 @@ if [ "$coverity" ] ; then
     freebsd_packages="$freebsd_packages   curl git"
 fi
 
-if [ "$GITHUB_ACTIONS" ] ; then
+# The following packages are not strictly necessary when doing the CI
+# checks, but they're really useful when debugging. Which is why we used
+# to pull them when DOCKER_SCRIPT was set, because that corresponds to
+# what we get with ci/debug.sh
+#
+# Now there are a few other things to have in mind.
+#
+#  - github actions, and especially actions/checkout, tend to like having
+#  git available in the container, since that apparently allows a more
+#  efficient checkout. So we're inclined to let git be part of the
+#  container
+#
+#  - when doing debugging, if at all possible we would like to keep
+#  advantage of the possibility to use the already-prepared containers,
+#  and it's a bit of a pain to come back to the package installation
+#  circus just to install vim/sudo/gdb. In the interest of debug time,
+#  let's bring everythin in.
+#
+# Bottom line, we're pulling these things inconditionally even though
+# we don't have to, strictly speaking. The if statement below could be if [ "$GITHUB_ACTIONS" ] || [ "$DOCKER_SCRIPT" ], in a sense.
+#
+if 1 ; then
     # i'm not entirely sure that we want to pull git. In principle, it's
     # somewhat expected by actions/checkout, but having tar is also
     # enough in most cases.
-    debian_packages="$debian_packages git"
-    opensuse_packages="$opensuse_packages git"
-    fedora_packages="$fedora_packages git"
-    centos_packages="$centos_packages git"
-    alpine_packages="$alpine_packages git"
-    freebsd_packages="$freebsd_packages git"
-fi
-
-if [ "$DOCKER_SCRIPT" ] ; then
     debian_packages="$debian_packages sudo git vim-nox gdb"
     opensuse_packages="$opensuse_packages sudo git vim gdb"
     fedora_packages="$fedora_packages sudo git vim gdb"
