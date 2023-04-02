@@ -9,8 +9,6 @@ jobs:
           'on debian system with 32-bit gcc',
           'on debian-testing system with 32-bit gcc',
         ]
-    # because this is a reusable workflow, we don't need a checkout to
-    # call this.
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'

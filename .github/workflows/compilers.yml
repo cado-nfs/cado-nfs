@@ -2,7 +2,7 @@ name: compiler variety checks
 on: [push]
 
 jobs:
-  check:
+  checks:
     strategy:
       matrix:
         instance: [
@@ -18,21 +18,3 @@ jobs:
     secrets:
       username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
       password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
-
-  compiler variety check:
-    strategy:
-      matrix:
-        instance: [
-          'with gcc',
-          'with clang13',
-          'with clangdev',
-          'with icc',
-        ]
-    uses: ./.github/workflows/prepare-and-use-container.yml
-    with:
-      job-name: 'checks ${{ matrix.instance }}'
-      registry: registry.gitlab.inria.fr
-    secrets:
-      username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
-      password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
-
