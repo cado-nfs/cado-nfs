@@ -42,10 +42,10 @@ jobs:
     with:
       job-name: 'checks ${{ matrix.instance }}'
       # registry: ghcr.io
-      registry: $DOCKER_REGISTRY
+      registry: "$DOCKER_REGISTRY"
     secrets:
-      username: $DOCKER_USERNAME
-      password: $DOCKER_PASSWORD
+      username: "$DOCKER_USERNAME"
+      password: "$DOCKER_PASSWORD"
 
   checks-compilers:
     strategy:
@@ -55,7 +55,7 @@ jobs:
     secrets: inherit
     with:
       job-name: 'checks with ${{ matrix.instance }}'
-      registry: $DOCKER_REGISTRY
+      registry: "$DOCKER_REGISTRY"
 
   checks-features:
     strategy:
@@ -67,10 +67,10 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: $DOCKER_REGISTRY
+      registry: "$DOCKER_REGISTRY"
     secrets:
-      username: $DOCKER_USERNAME
-      password: $DOCKER_PASSWORD
+      username: "$DOCKER_USERNAME"
+      password: "$DOCKER_PASSWORD"
 
   checks-32-bit:
     strategy:
@@ -82,10 +82,10 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: $DOCKER_REGISTRY
+      registry: "$DOCKER_REGISTRY"
     secrets:
-      username: $DOCKER_USERNAME
-      password: $DOCKER_PASSWORD
+      username: "$DOCKER_USERNAME"
+      password: "$DOCKER_PASSWORD"
 
   long-checks:
     strategy:
@@ -96,8 +96,8 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: $DOCKER_REGISTRY
+      registry: "$DOCKER_REGISTRY"
     secrets:
-      username: $DOCKER_USERNAME
-      password: $DOCKER_PASSWORD
+      username: "$DOCKER_USERNAME"
+      password: "$DOCKER_PASSWORD"
 
