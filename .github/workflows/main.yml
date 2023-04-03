@@ -1,8 +1,6 @@
 name: main
 on: [push]
 
-
-
 jobs:
   checks:
     strategy:
@@ -31,14 +29,14 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: ghcr.io
-    secrets:
-      username: ${{ github.actor }}
-      password: ${{ secrets.GITHUB_TOKEN }}
-    #   registry: registry.gitlab.inria.fr
+    #   registry: ghcr.io
     # secrets:
-    #   username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
-    #   password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
+    #   username: ${{ github.actor }}
+    #   password: ${{ secrets.GITHUB_TOKEN }}
+      registry: registry.gitlab.inria.fr
+    secrets:
+      username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
+      password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
 
   checks-compilers:
     strategy:
@@ -47,14 +45,14 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks with ${{ matrix.instance }}'
-      registry: ghcr.io
-    secrets:
-      username: ${{ github.actor }}
-      password: ${{ secrets.GITHUB_TOKEN }}
-    #   registry: registry.gitlab.inria.fr
+    #   registry: ghcr.io
     # secrets:
-    #   username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
-    #   password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
+    #   username: ${{ github.actor }}
+    #   password: ${{ secrets.GITHUB_TOKEN }}
+      registry: registry.gitlab.inria.fr
+    secrets:
+      username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
+      password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
 
   checks-features:
     strategy:
@@ -66,14 +64,14 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: ghcr.io
-    secrets:
-      username: ${{ github.actor }}
-      password: ${{ secrets.GITHUB_TOKEN }}
-    #   registry: registry.gitlab.inria.fr
+    #   registry: ghcr.io
     # secrets:
-    #   username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
-    #   password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
+    #   username: ${{ github.actor }}
+    #   password: ${{ secrets.GITHUB_TOKEN }}
+      registry: registry.gitlab.inria.fr
+    secrets:
+      username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
+      password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
 
   checks-32-bit:
     strategy:
@@ -85,14 +83,14 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: ghcr.io
-    secrets:
-      username: ${{ github.actor }}
-      password: ${{ secrets.GITHUB_TOKEN }}
-    #   registry: registry.gitlab.inria.fr
+    #   registry: ghcr.io
     # secrets:
-    #   username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
-    #   password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
+    #   username: ${{ github.actor }}
+    #   password: ${{ secrets.GITHUB_TOKEN }}
+      registry: registry.gitlab.inria.fr
+    secrets:
+      username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
+      password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
 
   long-checks:
     strategy:
@@ -103,11 +101,11 @@ jobs:
     uses: ./.github/workflows/prepare-and-use-container.yml
     with:
       job-name: 'checks ${{ matrix.instance }}'
-      registry: ghcr.io
-    secrets:
-      username: ${{ github.actor }}
-      password: ${{ secrets.GITHUB_TOKEN }}
-    #   registry: registry.gitlab.inria.fr
+    #   registry: ghcr.io
     # secrets:
-    #   username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
-    #   password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
+    #   username: ${{ github.actor }}
+    #   password: ${{ secrets.GITHUB_TOKEN }}
+      registry: registry.gitlab.inria.fr
+    secrets:
+      username: ${{ secrets.INRIA_GITLAB_REGISTRY_USERNAME }}
+      password: ${{ secrets.INRIA_GITLAB_REGISTRY_PASSWORD }}
