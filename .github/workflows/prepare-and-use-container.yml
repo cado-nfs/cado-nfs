@@ -77,9 +77,6 @@ jobs:
         id: create-context
         run: tmp=${{ runner.temp }} BUILD_NAME="${{ inputs.job-name }}" bash host-checkout/ci/00-docker-build.sh
 
-      - name: list files
-        run: find ${{ runner.temp }}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
