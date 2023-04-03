@@ -87,6 +87,6 @@ fi
 
 if [ "$icc" ] ; then
     cat <<EOF
-RUN ln -s $ONEAPI_ROOT/setvars.sh /etc/profile.d/90-intel-setvars.sh
+RUN ln -s /opt/intel/oneapi/setvars.sh /etc/profile.d/90-intel-setvars.sh
 EOF
 fi
