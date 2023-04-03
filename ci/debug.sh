@@ -158,14 +158,39 @@ else
     fi
     # remove BUILD_NAME from the args!
     shift
-    : ${imagename=docker-image-$RANDOM}
-    # run with bash instead of sh. the "docker" docker image has a
-    # /bin/sh shell that groks "set -o pipefail", which appears in
-    # ci/00-docker-build.sh ; such is not the case of /bin/sh on debian,
-    # at least.
-    bash ci/00-docker-build.sh "$imagename"
-    echo "# NOTE: docker image is $imagename"
-    echo "# NOTE: this image contains a few extra debug tools"
+    ref="$(git rev-parse --abbrev-ref HEAD)"
+    # e.g., run with
+    # REMOTE_NAMESPACE=registry.gitlab.inria.fr/cado-nfs/cado-nfs
+    attempt_remote_image="$REMOTE_NAMESPACE/${BUILD_NAME// /_}:$ref"
+    if [ "$REMOTE_NAMESPACE" ] ; then
+        imagename=$attempt_remote_image
+        # We have a dilemma here.
+        # A docker pull will pull from the remote registry, but cannot
+        # tell whether the image we get is really up to date (e.g., with
+        # respect to the local changes !). However, when we pull, we
+        # don't necessarily pull all the intermediate layers, or at least
+        # it depends, I'm not sure. So that a build attempt that comes
+        # next may miss some of the updates. And eventually we don't want
+        # to do "docker push" either, since that would only push a
+        # single-layer image.
+        #
+        # so at this point, specifying "REMOTE_NAMESPACE" means that
+        # we're ready to blindly ignore the discrepancies between the
+        # image that we pull from remote, and what we would get if we
+        # use the code that is currently in the repo.
+        docker pull $imagename || bash ci/00-docker-build.sh "$imagename"
+        # docker push "$imagename"
+        # TODO: what can we do with the problem about missing debug tools ?
+    else
+        : ${imagename=docker-image-$RANDOM}
+        # run with bash instead of sh. the "docker" docker image has a
+        # /bin/sh shell that groks "set -o pipefail", which appears in
+        # ci/00-docker-build.sh ; such is not the case of /bin/sh on debian,
+        # at least.
+        bash ci/00-docker-build.sh "$imagename"
+        echo "# NOTE: docker image is $imagename"
+        echo "# NOTE: this image contains a few extra debug tools"
+    fi
     # BUILD_NAME is passed to the script via 00-dockerfile.sh
     docker run "${DARGS[@]}" -ti --hostname docker-script-$RANDOM --volume $PWD:/host "$imagename" env BUILD_NAME="$BUILD_NAME" /host/ci/999-debug.sh "$@"
 fi
