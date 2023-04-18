@@ -41,7 +41,14 @@ void * las_memory_accessor::alloc_frequent_size(size_t size)
     size_t rsize = next_power_of_2(size);
     std::lock_guard<std::mutex> dummy(frequent_regions_pool.mutex());
     auto & pool(frequent_regions_pool[rsize]);
-    ASSERT_ALWAYS(rsize <= LARGE_PAGE_SIZE);
+    if (rsize > LARGE_PAGE_SIZE) {
+        /* This should hardly ever occur, most probably never, but in
+         * ultra weird cases like #30058, this does happen. Well, in such
+         * a case let's use plain malloc...
+         */
+        verbose_output_print(1, 1, "# Extraordinarily large (but temporary) allocation for an area of size %zu\n", rsize);
+        return malloc_aligned(rsize, LARGE_PAGE_SIZE);
+    }
     if (pool.empty()) {
         /* allocate some more */
         verbose_output_print(1, 2, "# Allocating new large page dedicated to returning memory areas of size %zu\n", rsize);
@@ -64,6 +71,10 @@ void las_memory_accessor::free_frequent_size(void * v, size_t size)
     }
     if (!v) return;
     size_t rsize = next_power_of_2(size);
+    if (rsize > LARGE_PAGE_SIZE) {
+        free_aligned(v);
+        return;
+    }
     std::lock_guard<std::mutex> dummy(frequent_regions_pool.mutex());
     auto & pool(frequent_regions_pool[rsize]);
     pool.push(v);
