@@ -226,7 +226,8 @@ dickman_rho (double x)
 #define M_EULER 0.57721566490153286060651209008240243104
 #endif
 
-/* Return the probability that a random integer close to N is N^(1/x)-smooth */
+/* Return the probability that a random integer close to N is N^(1/x)-smooth.
+   Cf https://theses.hal.science/tel-00477005/en/, formula (5.6). */
 double
 dickman_rho_local (const double x, const double N)
 {
