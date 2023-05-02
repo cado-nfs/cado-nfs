@@ -172,16 +172,6 @@ checks on debian10 system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
-checks on debian9 system with gcc:
-  <<: *common-template
-  stage: early
-  image: debian:9
-  before_script:
-    - ci/00-prepare-docker.sh
-  script:
-    - *checks-script
-  <<: *checks-junit-report
-
 checks on opensuse system with gcc:
   <<: *common-template
   stage: early
