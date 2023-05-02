@@ -10,8 +10,6 @@
 
 #include "macros.h" // for ASSERT_ALWAYS
 
-#include "las-base.hpp" // for _padded_pod
-
 /* las_report: Structure for gathering reports and stats on sieving */
 
 struct las_report

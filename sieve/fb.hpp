@@ -22,7 +22,6 @@
 #include "cado_poly.h"   // for MAX_DEGREE
 
 #include "fb-types.h"                  // for fbprime_t, slice_index_t, fbro...
-#include "las-base.hpp"                // for _padded_pod
 #include "las-config.h"                // for FB_MAX_PARTS
 #include "lock_guarded_container.hpp"  // for lock_guarded_container
 #include "mmap_allocator.hpp"          // for mmap_allocator
@@ -108,7 +107,7 @@ struct fb_general_root {
    etc. They could, of course, also store the simple cases, but for those we
    use the simple struct to conserve memory and to decide algorithms (batch
    inversion, etc.) statically. */
-class fb_entry_general : public _padded_pod<fb_entry_general> {
+class fb_entry_general {
   void read_roots (const char *, unsigned char, unsigned char, unsigned long);
 public:
   typedef fb_entry_general transformed_entry_t;
@@ -162,7 +161,7 @@ public:
 /* "Simple" factor base entries. We imply q=p, k=1, oldexp=0, exp=1,
    and projective=false for all roots. */
 template <int Nr_roots>
-class fb_entry_x_roots : public _padded_pod<fb_entry_x_roots<Nr_roots> > {
+class fb_entry_x_roots {
 public:
   typedef fb_transformed_entry_x_roots<Nr_roots> transformed_entry_t;
   fbprime_t p;
