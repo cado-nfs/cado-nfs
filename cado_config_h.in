@@ -59,6 +59,8 @@
 
 #cmakedefine HAVE_GAS_SYNTAX_ASSEMBLY_SOURCES
 
+#cmakedefine HAVE_EXECINFO
+
 #cmakedefine STATIC_ANALYSIS
 
 #cmakedefine HAVE_GLIBC

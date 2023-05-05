@@ -8,7 +8,7 @@
 . "$(dirname $0)/001-environment.sh"
 
 if ! [ "$DOCKER_SCRIPT" ] ; then
-    echo "Enter CI script for $CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME, stage $CI_JOB_STAGE ; $CI_BUILD_NAME"
+    echo "Enter CI script for $CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME, stage $CI_JOB_STAGE ; $CI_JOB_NAME"
 fi
 
 enter_section preparation "System preparation (${RUNTIME_TYPE:-docker})"
@@ -82,7 +82,7 @@ freebsd_packages="$freebsd_packages     cmake"
 # See #30036. We NEVER want to include hwloc under freebsd.
 # 	hwloc: 1.11.13_1 seems to be the troublemaker. I haven't
 # 	investigated further
-# case "$CI_BUILD_NAME" in
+# case "$CI_JOB_NAME" in
 #     *"32-bit freebsd"*) : ;;
 #     *) freebsd_packages="$freebsd_packages     hwloc" ;;
 # esac

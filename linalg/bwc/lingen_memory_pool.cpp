@@ -42,8 +42,8 @@ void memory_pool_details::alloc_check(const char * text, bool condition)
 
 /* copied from las_debug.cpp */
 
-#if defined(__GLIBC__)
-#include <execinfo.h>   /* For backtrace. Since glibc 2.1 */
+#ifdef HAVE_EXECINFO
+#include <execinfo.h>
 #ifdef HAVE_CXXABI_H
 /* We use that to demangle C++ names */
 #include <cxxabi.h>
@@ -83,7 +83,7 @@ std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std
 memory_pool_exception::memory_pool_exception(std::string const & s)
 {
     message = s;
-#ifdef __GLIBC__
+#ifdef HAVE_EXECINFO
     int sz = 100;
 
     void * callers_addresses[sz];

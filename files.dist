@@ -72,6 +72,7 @@ config/check_types.cmake
 config/cxxabi.cmake
 config/cxxwrap.pl.in
 config/detect-static-analysis.cmake
+config/execinfo.cmake
 config/fmt.cmake
 config/gas-assembly.cmake
 config/gcc-bug-58805.c

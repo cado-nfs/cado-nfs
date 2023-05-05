@@ -132,7 +132,7 @@ set -e
 cmake_companion_install_location="$absolute_path_of_source/cmake-installed"
 
 if ! [ "$cmake_path" ] ; then
-    if [ "$CI_BUILD_NAME" ] ; then
+    if [ "$CI_JOB_NAME" ] ; then
         echo "Refusing to auto-install cmake in CI builds" >&2
         exit 1
     fi
