@@ -77,6 +77,7 @@ alpine_packages="$alpine_packages     make"
 alpine_packages="$alpine_packages     bash"
 alpine_packages="$alpine_packages     perl"
 alpine_packages="$alpine_packages     python3"
+alpine_packages="$alpine_packages     gzip"
 
 freebsd_packages="$freebsd_packages     cmake"
 # See #30036. We NEVER want to include hwloc under freebsd.
