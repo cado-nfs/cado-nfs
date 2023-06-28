@@ -12,6 +12,11 @@ if ! [ "$using_cmake_directly" ] ; then
 fi
 
 if [ "$coverage" ] ; then
+    echo "geninfo_unexecuted_block = 1" >> ~/.lcovrc
+
+    # This is a wild guess. It seems that it is not documented...
+    echo "ignore_errors = negative" >> ~/.lcovrc
+
     # The "base" coverage file has zero coverage for every instrumented
     # line of the project. At a later stage, we will combine this data
     # file with coverage data files captured after the test run. This way
