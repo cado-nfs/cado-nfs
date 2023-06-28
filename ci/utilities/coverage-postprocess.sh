@@ -45,8 +45,11 @@ ls "${files[@]}" | xargs -n 1 sed -e s,^SF:,SF:$PWD/,g -i
 
 /bin/cp -pf $(which genhtml) $TMPDIR/genhtml
 commit=$rev
-ex $TMPDIR/genhtml <<EOF
-/sub get_date_string()\$
+
+ugly_hack() {
+    ex -V1 $TMPDIR/genhtml <<EOF
+1
+/^sub get_date_string(\\\$\\?)\$
 /^{
 mark a
 /^}
@@ -56,13 +59,25 @@ mark b
        return scalar localtime;
 }
 .
-/headerValue.*date
+/headerValue.*current_date
+/);
 a
         push(@row_left, [[undef, "headerItem", "Commit:"],
                          [undef, "headerValue", "<a href=\"https://gitlab.inria.fr/cado-nfs/cado-nfs/-/commit/$commit\">$commit</a>"]]);
 .
 wq
 EOF
+}
+
+if ! ugly_hack ; then
+    echo "################################################################" >&2
+    echo "##  We failed to tweak the genhtml utility!                   ##" >&2
+    echo "##  This might mean that ci/utilities/coverage-postprocess.sh ##" >&2
+    echo "##  needs an update to account for an upstream change.        ##" >&2
+    echo "################################################################" >&2
+    exit 1
+fi
+
 # right now we don't recover the test results.
 $TMPDIR/genhtml -o $OUTPUTDIR -p $PWD "${files[@]}"
 
