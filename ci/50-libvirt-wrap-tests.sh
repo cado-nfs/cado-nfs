@@ -28,4 +28,4 @@ if [ $# = 0 ] ; then
     trap_add "rm -rf $tmp" EXIT
     set -- bash
 fi
-tanker vm run --rm "${tty[@]}" cado-nfs-"$(id -n -u)"-"$IMAGE_NAME" @host user@ "$context" env "${exports[@]}" "$@"
+tanker vm run -n ${TANKER_VM_NCPUS:-2} --rm "${tty[@]}" cado-nfs-"$(id -n -u)"-"$IMAGE_NAME" @host user@ "$context" env "${exports[@]}" "$@"
