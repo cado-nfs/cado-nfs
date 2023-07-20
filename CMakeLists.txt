@@ -37,6 +37,10 @@ get_override(BWC_GFP_MATMUL_BACKENDS    BWC_GFP_MATMUL_BACKENDS)
 get_override(BWC_EXTRA_BACKENDS    BWC_EXTRA_BACKENDS)
 get_override(CHECKS_EXPENSIVE   CHECKS_EXPENSIVE)
 
+# If you change the min version, also change scripts/call_cmake.sh
+# It must be called before the project() command.
+cmake_minimum_required(VERSION 3.4.0)
+
 project(CADO_NFS)
 
 # must be done early, but after project()
@@ -51,9 +55,6 @@ set(CADO_VERSION_STRING  "${CADO_VERSION_MAJOR}.${CADO_VERSION_MINOR}.${CADO_VER
 set(CADO_DIST_ARCHIVE_NAME "cado-nfs-${CADO_VERSION_STRING}")
 
 #####################################################################
-
-# If you change the min version, also change scripts/call_cmake.sh
-cmake_minimum_required(VERSION 3.4.0)
 
 cmake_policy(SET CMP0003 NEW)
 
