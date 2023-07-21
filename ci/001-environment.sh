@@ -108,8 +108,8 @@ case "$CI_JOB_NAME" in
 esac
 case "$CI_JOB_NAME" in
     *"with icc"*)
-    : ${CC=icc}
-    : ${CXX=icpc}
+    : ${CC=icx}
+    : ${CXX=icpx}
     icc=1
     ;;
 esac

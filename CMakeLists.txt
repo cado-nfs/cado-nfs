@@ -187,7 +187,16 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "-export-dynamic ${CMAKE_CXX_FLAGS}")
 endif()
 
-if(CMAKE_C_COMPILER_ID MATCHES "Intel")
+if(CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
+    message(STATUS "Applying flags for icc (icx)")
+    # icc defaults to -fp-model=fast, which is slightly getting in the
+    # way. We rarely depend on this in cado-nfs, so let's stick to usual
+    # behavior.
+    set (CMAKE_C_FLAGS   "-fp-model=precise -std=c99 ${CMAKE_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "-fp-model=precise -std=c++11 ${CMAKE_CXX_FLAGS}")
+    set(HAVE_CXX11 1)
+    message(STATUS "Enabling C++11 support")
+elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
     message(STATUS "Applying flags for icc")
     set (CMAKE_C_FLAGS   "-W -Wall -wd13200,13203 ${CMAKE_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "-W -Wall -wd13200,13203,3058 ${CMAKE_CXX_FLAGS}")
