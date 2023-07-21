@@ -295,10 +295,11 @@ else()
     check_cpu_feature(avx PREREQUISITES HAVE_SSE41)
     check_cpu_feature(avx2 PREREQUISITES HAVE_AVX)
     check_cpu_feature(avx512f PREREQUISITES HAVE_AVX)
+    include(config/bug30057.cmake)
     check_cpu_feature(avx512vl PREREQUISITES HAVE_AVX512F)
+    include(config/bug30027.cmake)
     check_cpu_feature(avx512dq PREREQUISITES HAVE_AVX512F)
     check_cpu_feature(pclmul PREREQUISITES HAVE_SSE41)
-    include(config/bug30027.cmake)
 endif()
 if (DEFINED ENV{NO_NEON})
     message(STATUS "As per $NO_NEON, disabling all ARM NEON intrinsics")
@@ -331,6 +332,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/strlcpy.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/linux.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/hwloc.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/fmt.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/gf2x.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/gmpecm.cmake")
 IF (NOT DEFINED ENV{NO_PYTHON_CHECK})
   include("${CADO_NFS_SOURCE_DIR}/config/python.cmake")
@@ -344,6 +346,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/alignas.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/m4ri.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/detect-static-analysis.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/execinfo.cmake")
 
 set(CADO_SHARED)
 
@@ -462,11 +465,9 @@ include_directories (${CADO_NFS_BINARY_DIR})
 # link_directories (${CADO_NFS_BINARY_DIR}/utils)
 # link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
 
+if(NOT HAVE_GF2X)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x)
 include_directories(${CADO_NFS_BINARY_DIR}/gf2x)
-
-
-############################################################
 
 add_custom_command(OUTPUT ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
     COMMAND mkdir -p ${CADO_NFS_BINARY_DIR}/gf2x
@@ -481,6 +482,7 @@ add_custom_target(gf2x-build ALL
     COMMAND "${CMAKE_MAKE_PROGRAM}"
     COMMENT "Building gf2x"
 )
+endif()
 
 # add_subdirectory (gf2x-fft)
 add_subdirectory (utils)

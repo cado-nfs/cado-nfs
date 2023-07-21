@@ -535,7 +535,7 @@ struct builder {
     uint32_t * data[2];
     // rowhead is a pointer which is naturally excpected to *move* within
     // the data[0] array.
-    uint32_t * rowhead;
+    const uint32_t * rowhead;
     uint32_t nrows_t;
     uint32_t ncols_t;
     const char * rowname;
@@ -607,7 +607,7 @@ static int builder_do_small_slice(builder * mb, struct small_slice_t * S, uint32
 
     /* Make enough vstrips */
     S->Lu.assign(iceildiv(mb->ncols_t, 1UL << 16), small_slice_t::Lv_t());
-    uint32_t * ptr0 = mb->rowhead;
+    const uint32_t * ptr0 = mb->rowhead;
     /* We're doing a new slice */
     for(uint32_t i = i0 ; i < i1 ; i++) {
         for(unsigned int j = 0 ; j < *mb->rowhead ; j++) {
@@ -831,7 +831,7 @@ static uint32_t * do_partial_transpose(builder * mb, vector<uint32_t> & cs, uint
     uint32_t * cols;
     uint32_t * qptr;
 
-    uint32_t * ptr = mb->rowhead;
+    const uint32_t * ptr = mb->rowhead;
     for(uint32_t i = i0 ; i < i1 ; i++) {
         uint32_t w = *ptr++;
         for( ; w-- ; ) {
@@ -878,7 +878,7 @@ static int builder_do_large_slice(builder * mb, struct large_slice_t * L, uint32
     R->col_sizes.assign(mb->ncols_t, 0);
     R->pad_sizes.assign(mb->ncols_t, 0);
 
-    uint32_t * ptr0 = mb->rowhead;
+    const uint32_t * ptr0 = mb->rowhead;
     uint32_t * cols = do_partial_transpose(mb, R->col_sizes, i0, i1);
     uint32_t * qptr = cols;
 
@@ -1177,7 +1177,7 @@ static int builder_do_huge_slice(builder * mb, struct huge_slice_t * H, uint32_t
     R->col_sizes.assign(mb->ncols_t, 0);
     R->pad_sizes.assign(mb->ncols_t, 0);
 
-    uint32_t * ptr0 = mb->rowhead;
+    const uint32_t * ptr0 = mb->rowhead;
     uint32_t * cols = do_partial_transpose(mb, R->col_sizes, i0, i1);
     uint32_t * qptr = cols;
 
@@ -1350,7 +1350,7 @@ static vector<unsigned int> flush_periods(unsigned int nvstrips)
 static vector<unsigned long> rowblock_weights(builder * mb, struct vsc_slice_t * V)
 {
     vector<unsigned long> blockweight;
-    uint32_t * ptr = mb->rowhead;
+    const uint32_t * ptr = mb->rowhead;
     /* It's a bit unfortunate, but since here we do speedy parsing of the
      * row weights, we're taking a shortcut which is valid only if our
      * data set spans the entire column range */
@@ -1453,7 +1453,7 @@ void vsc_fill_buffers(builder * mb, struct vsc_slice_t * V)
     unsigned int nvstrips = V->dispatch.size();
     uint32_t width = iceildiv(V->hdr->j1 - V->hdr->j0, nvstrips);
     ASSERT_ALWAYS(width > 0);
-    uint32_t * ptr = mb->rowhead;
+    const uint32_t * ptr = mb->rowhead;
     uint32_t i = V->hdr->i0;
     V->tbuf_space = 0;
 

@@ -10,8 +10,8 @@
 export CLICOLOR_FORCE=1
 
 
-# Note that our set of scripts reacts on CI_BUILD_NAME, and the logic for
-# this is here. CI_BUILD_NAME must follow the regexp below.
+# Note that our set of scripts reacts on CI_JOB_NAME, and the logic for
+# this is here. CI_JOB_NAME must follow the regexp below.
 #
 # (note that we **CANNOT** do regexp matching in this script because
 # we're /bin/sh, not bash !)
@@ -38,13 +38,13 @@ case "$HOSTNAME" in
     *) : ;;
 esac
 
-if ! [ "$CI_BUILD_NAME" ] && [ "$1" ] ; then
-    CI_BUILD_NAME="$1"
-    $ECHO_E "${CSI_BLUE}Setting CI_BUILD_NAME=\"$1\"${CSI_RESET}"
+if ! [ "$CI_JOB_NAME" ] && [ "$1" ] ; then
+    CI_JOB_NAME="$1"
+    $ECHO_E "${CSI_BLUE}Setting CI_JOB_NAME=\"$1\"${CSI_RESET}"
 fi
 
-if ! [ "$CI_BUILD_NAME" ] ; then
-    $ECHO_E "${CSI_RED}This set of scripts really really expect that CI_BUILD_NAME is set to something!${CSI_RESET}"
+if ! [ "$CI_JOB_NAME" ] ; then
+    $ECHO_E "${CSI_RED}This set of scripts really really expect that CI_JOB_NAME is set to something!${CSI_RESET}"
 fi
 
 if ! [ "$CI_COMMIT_SHORT_SHA" ] && [ -d .git ] && type -p git > /dev/null 2>&1 ; then
@@ -57,21 +57,21 @@ if ! [ "$CI_JOB_ID" ] ; then
     $ECHO_E "${CSI_BLUE}Setting CI_JOB_ID=\"$CI_JOB_ID\"${CSI_RESET}"
 fi
     
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"coverage tests"*)
     : ${CFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
     : ${CXXFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
     coverage=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"with gcc"*)
     : ${CC=gcc}
     : ${CXX=g++}
     gcc=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"with 32-bit gcc"*)
     : ${CC=gcc}
     : ${CXX=g++}
@@ -82,48 +82,48 @@ case "$CI_BUILD_NAME" in
     gcc32=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"and architecture "*)
-    set ${CI_BUILD_NAME#*and architecture }
+    set ${CI_JOB_NAME#*and architecture }
     : ${CFLAGS="$CFLAGS -march=$1"}
     : ${CXXFLAGS="$CXXFLAGS -march=$1"}
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"with clang"*)
     : ${CC=clang}
     : ${CXX=clang++}
     clang=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"with icc"*)
     : ${CC=icc}
     : ${CXX=icpc}
     icc=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"checks"*) checks=1 ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"coverity"*) coverity=1 ;;
 esac
 
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"expensive checks"*) export CHECKS_EXPENSIVE=1 ;;
 esac
 
 source_tree="$PWD"
 export source_tree
 
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"out-of-source"*) out_of_source=1 ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"make-dist"*"tarball"*) do_make_dist=1 ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"LGPL code"*|*"LGPL tarball"*) remove_gpl_sources=1 ;;
 esac
 

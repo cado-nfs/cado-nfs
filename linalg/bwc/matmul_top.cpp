@@ -2950,12 +2950,10 @@ static int export_cache_list_if_requested(matmul_top_matrix_ptr Mloc, paralleliz
     return 1;
 }
 
-static unsigned int local_fraction(unsigned int padded, unsigned int normal, pi_comm_ptr wr)
+static unsigned int local_fraction(unsigned int normal, pi_comm_ptr wr)
 {
-    ASSERT_ALWAYS(padded % wr->totalsize == 0);
     unsigned int i = wr->jrank * wr->ncores + wr->trank;
-    unsigned int quo = padded / wr->totalsize;
-    return MIN(normal - i * quo, quo);
+    return normal / wr->totalsize + (i < (normal % wr->totalsize));
 }
 
 
@@ -3074,9 +3072,14 @@ static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_l
              * make sure that we generate matrices which have zeroes in
              * the padding area.
              */
+
+            unsigned int data_nrows = local_fraction(Mloc->n0[0], mmt->pi->wr[1]);
+            unsigned int data_ncols = local_fraction(Mloc->n0[1], mmt->pi->wr[0]);
+            unsigned int padded_nrows = Mloc->n[0] / mmt->pi->wr[1]->totalsize;
+            unsigned int padded_ncols = Mloc->n[1] / mmt->pi->wr[0]->totalsize;
+
             random_matrix_get_u32(mmt->pi, pl, m,
-                    local_fraction(Mloc->n[0], Mloc->n0[0], mmt->pi->wr[1]),
-                    local_fraction(Mloc->n[1], Mloc->n0[1], mmt->pi->wr[0]));
+                    data_nrows, data_ncols, padded_nrows, padded_ncols);
         } else {
             if (can_print) {
                 printf("Matrix dispatching starts\n");

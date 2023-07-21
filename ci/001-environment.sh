@@ -9,8 +9,21 @@
 
 export CLICOLOR_FORCE=1
 
-# Note that our set of scripts reacts on CI_BUILD_NAME, and the logic for
-# that is in 001-environment.sh
+# Note that our set of scripts reacts on CI_JOB_NAME, and the logic for
+# this is here. CI_JOB_NAME must follow the regexp below.
+#
+# (note that we **CANNOT** do regexp matching in this script because
+# we're /bin/sh, not bash !)
+#
+# (container for )?(coverage tests on )?((expensive )?checks)?( on (osx|alpine|(debian|fedora|centos|freebsd)[0-9]*) system)?( with ((32-bit )?gcc|clang|icc))?
+#
+# with one exception which is "merge coverage tests"
+#
+# a downside is that in the gitlab page, this makes many pipeline steps
+# with similar names. We could change to abbreviated names (e.g.
+# "coverage tests on " would be V, "container for " would be L, "checks"
+# and "expensive checks" would be C and XC, and so on. But it would be
+# really cryptic. to have, e.g. LC/debian10+gcc ; wouldn't it ?
 
 if type -p hostname > /dev/null 2>&1 ; then
     HOSTNAME=$(hostname)
@@ -24,13 +37,13 @@ case "$HOSTNAME" in
     *) : ;;
 esac
 
-if ! [ "$CI_BUILD_NAME" ] && [ "$1" ] ; then
-    CI_BUILD_NAME="$1"
-    $ECHO_E "${CSI_BLUE}Setting CI_BUILD_NAME=\"$1\"${CSI_RESET}"
+if ! [ "$CI_JOB_NAME" ] && [ "$1" ] ; then
+    CI_JOB_NAME="$1"
+    $ECHO_E "${CSI_BLUE}Setting CI_JOB_NAME=\"$1\"${CSI_RESET}"
 fi
 
-if ! [ "$CI_BUILD_NAME" ] ; then
-    $ECHO_E "${CSI_RED}This set of scripts really really expect that CI_BUILD_NAME is set to something!${CSI_RESET}"
+if ! [ "$CI_JOB_NAME" ] ; then
+    $ECHO_E "${CSI_RED}This set of scripts really really expect that CI_JOB_NAME is set to something!${CSI_RESET}"
 fi
 
 if ! [ "$CI_COMMIT_SHORT_SHA" ] && [ -d .git ] && type -p git > /dev/null 2>&1 ; then
@@ -43,21 +56,21 @@ if ! [ "$CI_JOB_ID" ] ; then
     $ECHO_E "${CSI_BLUE}Setting CI_JOB_ID=\"$CI_JOB_ID\"${CSI_RESET}"
 fi
     
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"coverage tests"*)
     : ${CFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
     : ${CXXFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
     coverage=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"with gcc"*)
     : ${CC=gcc}
     : ${CXX=g++}
     gcc=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"with 32-bit gcc"*)
     : ${CC=gcc}
     : ${CXX=g++}
@@ -68,27 +81,27 @@ case "$CI_BUILD_NAME" in
     gcc32=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"shared libs"*)
     ENABLE_SHARED=1
     shared_libs=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"debug build"*)
     DEBUG=1
     CFLAGS="-O0 -g"
     CXXFLAGS="-O0 -g"
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"with clang"*)
     : ${CC=clang}
     : ${CXX=clang++}
     clang=1
     # We want to recognize "clangNN" or "clangdev" as monikers for
     # specific versions of clang.
-    case "$CI_BUILD_NAME" in
+    case "$CI_JOB_NAME" in
         *"with clangdev"*) clang=dev;;
         *"with clang12"*) clang=12;;
         *"with clang13"*) clang=13;;
@@ -99,24 +112,24 @@ case "$CI_BUILD_NAME" in
     esac
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"with icc"*)
     : ${CC=icc}
     : ${CXX=icpc}
     icc=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"checks"*)
         checks=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"coverity"*)
         coverity=1
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"using cmake directly"*)
         using_cmake_directly=1
         # use build_tree in this case, which matches the variable that
@@ -125,7 +138,7 @@ case "$CI_BUILD_NAME" in
         export source_tree
         if [ "$BASH_VERSION" ] ; then
             if ! [ "$build_tree" ] ; then
-                build_tree="/tmp/$CI_BUILD_NAME"
+                build_tree="/tmp/$CI_JOB_NAME"
                 # spaces in dir names don't work, mostly because of libtool
                 # (look at gf2x/fft/libgf2x-fft.la)
                 # This substitution is bash-only, but this should be fine to 
@@ -142,17 +155,17 @@ case "$CI_BUILD_NAME" in
         fi
     ;;
 esac
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"expensive checks"*)
         export CHECKS_EXPENSIVE=1
     ;;
 esac
 
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"under valgrind"*)
         valgrind=1
 
-        case "$CI_BUILD_NAME" in
+        case "$CI_JOB_NAME" in
             *32-bit*)
                 echo "valgrind testing is practically hopeless under 32-bit"
                 echo "See https://bugs.kde.org/show_bug.cgi?id=337475"

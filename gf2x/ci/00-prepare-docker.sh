@@ -10,7 +10,7 @@
 . "$(dirname $0)/001-environment.sh"
 
 if ! [ "$DOCKER_SCRIPT" ] ; then
-    echo "Enter CI script for $CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME, stage $CI_JOB_STAGE ; $CI_BUILD_NAME"
+    echo "Enter CI script for $CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME, stage $CI_JOB_STAGE ; $CI_JOB_NAME"
 fi
 
 enter_section preparation "System preparation (${RUNTIME_TYPE:-docker})"

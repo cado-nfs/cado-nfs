@@ -43,7 +43,7 @@ bool register_contending_relation(las_info const & las, las_todo_entry const & d
             if (mpz_cmp(doing.p, v.p) == 0)
                 continue;
             p_r_values_t p = mpz_get_ui(v.p);
-            if (mpz_fits_ulong_p(v.p)) {
+            if (v.p.fits<p_r_values_t>()) {
                 p_r_values_t r = mpz_get_ui(v.r);
                 if (las.dlog_base.is_known(side, p, r))
                     continue;
