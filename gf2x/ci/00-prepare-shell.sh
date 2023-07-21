@@ -3,7 +3,7 @@
 . "$(dirname $0)/000-functions.sh"
 . "$(dirname $0)/001-environment.sh"
 
-echo "Enter CI script for $CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME, stage $CI_JOB_STAGE ; $CI_BUILD_NAME"
+echo "Enter CI script for $CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME, stage $CI_JOB_STAGE ; $CI_JOB_NAME"
 
 enter_section preparation "System preparation (shell).  Checking required and optional software"
 
