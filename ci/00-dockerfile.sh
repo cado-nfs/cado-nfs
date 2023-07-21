@@ -75,6 +75,12 @@ cat <<EOF
 FROM $FROM
 EOF
 
+if [ "$icc" ] ; then
+cat <<EOF
+ENV ONEAPI_ROOT=/opt/intel/oneapi
+EOF
+fi
+
 if [ "$DOCKER_SCRIPT" ] ; then
     echo "ENV DOCKER_SCRIPT=1"
 fi
@@ -90,6 +96,6 @@ EOF
 
 if [ "$icc" ] ; then
     cat <<EOF
-RUN ln -s $ONEAPI_ROOT/setvars.sh /etc/profile.d/90-intel-setvars.sh
+RUN ln -s \$ONEAPI_ROOT/setvars.sh /etc/profile.d/90-intel-setvars.sh
 EOF
 fi
