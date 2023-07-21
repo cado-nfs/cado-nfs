@@ -48,7 +48,8 @@ if ! [ "$CI_JOB_NAME" ] ; then
 fi
 
 if ! [ "$CI_COMMIT_SHORT_SHA" ] && [ -d .git ] && type -p git > /dev/null 2>&1 ; then
-    CI_COMMIT_SHORT_SHA="$(git rev-parse --short HEAD)"
+    # CI_COMMIT_SHORT_SHA is eight characters https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
+    CI_COMMIT_SHORT_SHA="$(git rev-parse --short=8 HEAD)"
     $ECHO_E "${CSI_BLUE}Setting CI_COMMIT_SHORT_SHA=\"$CI_COMMIT_SHORT_SHA\"${CSI_RESET}"
 fi
     
