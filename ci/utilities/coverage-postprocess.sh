@@ -65,6 +65,10 @@ a
         push(@row_left, [[undef, "headerItem", "Commit:"],
                          [undef, "headerValue", "<a href=\"https://gitlab.inria.fr/cado-nfs/cado-nfs/-/commit/$commit\">$commit</a>"]]);
 .
+/die.*file error.*catdir
+c
+do { \$rel_dir = '.' }
+.
 wq
 EOF
 }
