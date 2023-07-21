@@ -64,6 +64,8 @@ config/avx512vl.c
 config/bsd.cmake
 config/bug30027.cmake
 config/bug30027.cpp
+config/bug30057.bc
+config/bug30057.cmake
 config/cado_check_cxx_source_compiles.cmake
 config/ccwrap.pl.in
 config/check_cpu_feature.cmake
@@ -71,6 +73,7 @@ config/check_types.cmake
 config/cxxabi.cmake
 config/cxxwrap.pl.in
 config/detect-static-analysis.cmake
+config/execinfo.cmake
 config/fmt.cmake
 config/gas-assembly.cmake
 config/gcc-bug-58805.c
@@ -986,7 +989,6 @@ sieve/las-arith.cpp
 sieve/las-arith.hpp
 sieve/las-auxiliary-data.cpp
 sieve/las-auxiliary-data.hpp
-sieve/las-base.hpp
 sieve/las-bkmult.cpp
 sieve/las-bkmult.hpp
 sieve/las-choose-sieve-area.cpp

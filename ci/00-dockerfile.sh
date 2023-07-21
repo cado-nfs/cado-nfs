@@ -41,7 +41,7 @@ fi
 # note that we're not matching the "on " in "on debian9 system", so that
 # an argument "debian9 system with clang" should just work, which sounds
 # a bit more natural than keeping "checks on " in the argument.
-case "$CI_BUILD_NAME" in
+case "$CI_JOB_NAME" in
     *"alpine system"*) FROM=alpine:latest;;
     *"alpine-edge system"*) FROM=alpine:edge;;
     *"debian system"*) FROM=debian:latest;;
@@ -79,8 +79,8 @@ if [ "$DOCKER_SCRIPT" ] ; then
     echo "ENV DOCKER_SCRIPT=1"
 fi
 
-if [ "$CI_BUILD_NAME" ] ; then
-    echo "ENV CI_BUILD_NAME=\"$CI_BUILD_NAME\""
+if [ "$CI_JOB_NAME" ] ; then
+    echo "ENV CI_JOB_NAME=\"$CI_JOB_NAME\""
 fi
 
 cat <<EOF

@@ -6,7 +6,6 @@
 #include <tuple>         // for tie, operator<, tuple
 #include <utility>       // for pair
 #include "fb.hpp"        // for fb_factorbase, fb_factorbase::key_type
-#include "las-base.hpp"  // for _padded_pod
 #include "params.h"     // param_list_ptr
 #include "las-side-config.hpp"
 

@@ -3,11 +3,7 @@
 #include <cstdio>     // for fprintf, stderr
 #include <cstring>    // for strsignal
 
-#ifdef HAVE_CXXABI_H
-/* We use that to demangle C++ names */
-#include <cxxabi.h> // IWYU pragma: keep
-#endif
-#ifdef HAVE_GLIBC
+#ifdef HAVE_EXECINFO
 #include <execinfo.h>                    // for backtrace, backtrace_symbols
 #include <csignal>                      // for signal, raise, SIGABRT, SIGSEGV
 #else
@@ -15,7 +11,7 @@
 #endif
 #include "cado-sighandlers.h"
 
-#ifdef HAVE_GLIBC
+#ifdef HAVE_EXECINFO
 static void signal_handling (int signum)/*{{{*/
 {
    fprintf (stderr, "*** Error: caught signal \"%s\"\n", strsignal (signum));
@@ -38,11 +34,11 @@ static void signal_handling (int signum)/*{{{*/
 
 void cado_sighandlers_install()
 {
-#ifdef HAVE_GLIBC
+#ifdef HAVE_EXECINFO
     signal (SIGABRT, signal_handling);
     signal (SIGSEGV, signal_handling);
 #else
-    verbose_output_print(0, 0, "# Cannot catch signals in an interesting way, lack glibc support\n");
+    verbose_output_print(0, 0, "# Cannot catch signals in an interesting way, lack library support\n");
 #endif
 }
 

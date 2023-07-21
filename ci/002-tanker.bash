@@ -1,6 +1,6 @@
 
 exported_variables=(
-      CI_BUILD_NAME
+      CI_JOB_NAME
       CI_COMMIT_SHORT_SHA
       CI_JOB_ID
       CI_JOB_STAGE

@@ -13,6 +13,10 @@
  * megabyte to add, which is slightly large. So we'll do a q&d thing for
  * the moment, and think of the possibility of switching to something
  * better someday if the need arises.
+ *
+ * Regarding the super-verbose "using json_base::operator X" constructs,
+ * see https://bbs.archlinux.org/viewtopic.php?pid=1830516#p1830516 and https://stackoverflow.com/questions/9995421/gcc-woverloaded-virtual-warnings
+ *
  */
 
 struct json_base {
@@ -90,6 +94,9 @@ struct json_string : public json_base {
     virtual std::string flatten() const override;
     virtual ~json_string() override {}
     virtual json_base * clone() const override { return new json_string(*this); }
+    private:
+    using json_base::operator double;
+    using json_base::operator long;
 };
 
 struct json_number : public json_base {
@@ -101,6 +108,8 @@ struct json_number : public json_base {
     virtual std::string flatten() const override;
     virtual ~json_number() override {}
     virtual json_base * clone() const override { return new json_number(*this); }
+    private:
+    using json_base::operator std::string;
 };
 
 struct json_bool : public json_base {
@@ -111,6 +120,9 @@ struct json_bool : public json_base {
     virtual std::string flatten() const override;
     virtual ~json_bool() override {}
     virtual json_base * clone() const override { return new json_bool(*this); }
+    private:
+    using json_base::operator double;
+    using json_base::operator std::string;
 };
 
 struct json_null : public json_base {

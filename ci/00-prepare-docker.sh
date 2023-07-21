@@ -8,7 +8,7 @@
 . "$(dirname $0)/001-environment.sh"
 
 if ! [ "$DOCKER_SCRIPT" ] ; then
-    echo "Enter CI script for $CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME, stage $CI_JOB_STAGE ; $CI_BUILD_NAME"
+    echo "Enter CI script for $CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME, stage $CI_JOB_STAGE ; $CI_JOB_NAME"
 fi
 
 enter_section preparation "System preparation (${RUNTIME_TYPE:-docker})"
@@ -77,12 +77,13 @@ alpine_packages="$alpine_packages     make"
 alpine_packages="$alpine_packages     bash"
 alpine_packages="$alpine_packages     perl"
 alpine_packages="$alpine_packages     python3"
+alpine_packages="$alpine_packages     gzip"
 
 freebsd_packages="$freebsd_packages     cmake"
 # See #30036. We NEVER want to include hwloc under freebsd.
 # 	hwloc: 1.11.13_1 seems to be the troublemaker. I haven't
 # 	investigated further
-# case "$CI_BUILD_NAME" in
+# case "$CI_JOB_NAME" in
 #     *"32-bit freebsd"*) : ;;
 #     *) freebsd_packages="$freebsd_packages     hwloc" ;;
 # esac
@@ -205,6 +206,10 @@ if is_debian || is_ubuntu ; then
         dpkg -i "$F"
         rm -rf "$T"
     fi
+    # intel repos are frequently out of sync, to a point that makes them
+    # barely usable. And anyway we don't care: there's no software that
+    # we want to pull from these repos anyway.
+    find /etc/apt/sources.list.d/ -type f | xargs -r grep -li intel | xargs -r rm
     DEBIAN_FRONTEND=noninteractive apt-get -y update
     DEBIAN_FRONTEND=noninteractive apt-get -y install $debian_packages
 elif is_opensuse ; then

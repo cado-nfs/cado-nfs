@@ -71,7 +71,7 @@
 #     consequence, please note that symlink traversal won't work, and
 #     sshfs might incur some delays.
 #
-#  DOCKER_SCRIPT=1 CI_BUILD_NAME='checks on freebsd13 with gcc' ci/50-libvirt-wrap-tests.sh freebsd:13.0
+#  DOCKER_SCRIPT=1 CI_JOB_NAME='checks on freebsd13 with gcc' ci/50-libvirt-wrap-tests.sh freebsd:13.0
 #     --> This second option is more faithful to what we do with
 #     gitlab-ci, and gives a bash shell on a fresh tree in sync with
 #     current git HEAD. But there's no funny volume mounting and so on.
@@ -82,7 +82,7 @@
 
 set -e
 export DOCKER_SCRIPT=1
-export CI_BUILD_NAME="$1"
+export CI_JOB_NAME="$1"
 tmp=$(mktemp -d /tmp/XXXXXXXXXXXXXX)
 trap "rm -rf $tmp" EXIT
 
@@ -93,10 +93,10 @@ else
     echo "# NOTE: the container will remain up on script exit"
 fi
 
-if [[ "$CI_BUILD_NAME" =~ freebsd([0-9]+\.[0-9]+) ]] ; then
+if [[ "$CI_JOB_NAME" =~ freebsd([0-9]+\.[0-9]+) ]] ; then
     # use tanker script instead
     IMAGE_NAME=freebsd:"${BASH_REMATCH[1]}"
-    if [[ "$CI_BUILD_NAME" =~ '32-bit freebsd' ]] ; then
+    if [[ "$CI_JOB_NAME" =~ '32-bit freebsd' ]] ; then
         IMAGE_NAME+="?arch=i386"
     fi
     # This sets exports=()
@@ -146,7 +146,7 @@ EOF
     )
     tanker vm run "${DARGS[@]}" -t $myimage "${commands[@]}"
 else
-    if [[ $CI_BUILD_NAME =~ containers ]] ; then
+    if [[ $CI_JOB_NAME =~ containers ]] ; then
         if [ -r /var/run/docker.sock ] && [ -w /var/run/docker.sock ] ; then
             DARGS+=(-v /var/run/docker.sock:/var/run/docker.sock)
             echo "# Passing access to /var/run/docker.sock to the container"
@@ -155,7 +155,7 @@ else
             exit 1
         fi
     fi
-    # remove CI_BUILD_NAME from the args!
+    # remove CI_JOB_NAME from the args!
     shift
     : ${imagename=docker-image-$RANDOM}
     # run with bash instead of sh. the "docker" docker image has a
@@ -165,6 +165,6 @@ else
     bash ci/00-docker-build.sh "$imagename"
     echo "# NOTE: docker image is $imagename"
     echo "# NOTE: this image contains a few extra debug tools"
-    # CI_BUILD_NAME is passed to the script via 00-dockerfile.sh
+    # CI_JOB_NAME is passed to the script via 00-dockerfile.sh
     docker run "${DARGS[@]}" -ti --hostname docker-script-$RANDOM --volume $PWD:/host "$imagename" /host/ci/999-debug.sh "$@"
 fi

@@ -12,7 +12,7 @@ autoreconf -i
 
 if [ "$out_of_source" ] ; then
     if ! [ "$build_tree" ] ; then
-        build_tree="${TMPDIR:-/tmp}/$CI_BUILD_NAME"
+        build_tree="${TMPDIR:-/tmp}/$CI_JOB_NAME"
         # spaces in dir names don't work, mostly because of libtool
         # (look at gf2x/fft/libgf2x-fft.la)
         # This substitution is bash-only, but this should be fine to 
@@ -51,7 +51,7 @@ if [ "$do_make_dist" ] ; then
     # hack, and change source tree and build tree.
     if [ "$out_of_source" ] ; then
         rm -rf "$build_tree"
-        build_tree="${TMPDIR:-/tmp}/$CI_BUILD_NAME"
+        build_tree="${TMPDIR:-/tmp}/$CI_JOB_NAME"
         build_tree="${build_tree// /_}"
         mkdir "$build_tree"
         $ECHO_E "${CSI_BLUE}out-of-source build tree is $build_tree${CSI_RESET}"

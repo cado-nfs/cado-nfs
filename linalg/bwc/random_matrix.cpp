@@ -1033,6 +1033,7 @@ void random_matrix_get_u32_byrows(gmp_randstate_t rstate, random_matrix_ddata_pt
         if (arg->size >= alloc) {					\
             alloc = arg->size + 64 + alloc / 4;			        \
             arg->p = (uint32_t *) realloc(arg->p, alloc * sizeof(uint32_t));	        \
+            memset(arg->p + arg->size, 0xFF, (alloc - arg->size) * sizeof(uint32_t)); \
         }								\
         arg->p[arg->size++] = (x);					\
     } while (0)
@@ -1115,6 +1116,7 @@ void random_matrix_get_u32_bycolumns(gmp_randstate_t rstate, random_matrix_ddata
         if (arg->size >= alloc) {					\
             alloc = arg->size + 64 + alloc / 4;			        \
             arg->p = (uint32_t *) realloc(arg->p, alloc * sizeof(uint32_t));  \
+            memset(arg->p + arg->size, 0xFF, (alloc - arg->size) * sizeof(uint32_t)); \
         }								\
         arg->p[arg->size++] = (x);					\
     } while (0)
@@ -1248,7 +1250,7 @@ void random_matrix_get_u32_bycolumns(gmp_randstate_t rstate, random_matrix_ddata
 }
 
 
-void random_matrix_get_u32(parallelizing_info_ptr pi, param_list pl, matrix_u32_ptr arg, unsigned long padded_nrows, unsigned long padded_ncols)
+void random_matrix_get_u32(parallelizing_info_ptr pi, param_list pl, matrix_u32_ptr arg, unsigned long data_nrows, unsigned long data_ncols, unsigned long padded_nrows, unsigned long padded_ncols)
 {
     random_matrix_process_data r;
     random_matrix_process_data_init(r);
@@ -1265,7 +1267,7 @@ void random_matrix_get_u32(parallelizing_info_ptr pi, param_list pl, matrix_u32_
     random_matrix_ddata F;
     random_matrix_ddata_init(F);
     random_matrix_ddata_set_default(F);
-    random_matrix_ddata_adjust(F, r, pi, padded_nrows, padded_ncols);
+    random_matrix_ddata_adjust(F, r, pi, data_nrows, data_ncols);
 
     if (F->print) {
         printf("Each of the %u jobs on %u nodes creates a matrix with %lu rows %lu cols, and %.2f coefficients per row on average. Seed for rank 0 is %lu.\n",
@@ -1276,10 +1278,32 @@ void random_matrix_get_u32(parallelizing_info_ptr pi, param_list pl, matrix_u32_
     gmp_randstate_t rstate;
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, r->seed + pi->m->jrank * pi->m->ncores + pi->m->trank);
-    if (arg->transpose)
+
+#define PUSH_P(x) do {    						\
+        if (arg->size >= alloc) {					\
+            alloc = arg->size + 64 + alloc / 4;			        \
+            arg->p = (uint32_t *) realloc(arg->p, alloc * sizeof(uint32_t));	        \
+            memset(arg->p + arg->size, 0xFF, (alloc - arg->size) * sizeof(uint32_t)); \
+        }								\
+        arg->p[arg->size++] = (x);					\
+    } while (0)
+    /* This is ugly, we should store alloc within arg. But this whole
+     * embarrassment of a type is meant to go away someday anyway and I
+     * have a branch that kills it, so let's touch only the minimum
+     */
+    size_t alloc = arg->size;
+    if (arg->transpose) {
         random_matrix_get_u32_bycolumns(rstate, F, arg);
-    else
+        for(unsigned int i = data_ncols ; i < padded_ncols ; i++) {
+            PUSH_P(0);
+        }
+    } else {
         random_matrix_get_u32_byrows(rstate, F, arg);
+        for(unsigned int i = data_nrows ; i < padded_nrows ; i++) {
+            PUSH_P(0);
+        }
+    }
+#undef PUSH_P
 
     random_matrix_ddata_clear(F);
     gmp_randclear(rstate);
