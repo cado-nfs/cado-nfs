@@ -157,6 +157,9 @@ case "$CI_JOB_NAME" in
             build_tree=/no/build_tree/set/because/we/require/bash/for/that
         fi
     ;;
+    *coverage*)
+        export build_base=/tmp
+    ;;
 esac
 case "$CI_JOB_NAME" in
     *"expensive checks"*)

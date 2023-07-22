@@ -10,7 +10,7 @@ mkdir coverage
 
 set -x
 
-coverage_json_reports=(`ls coverage-${CI_COMMIT_SHORT_SHA}-*.json`)
+coverage_json_reports=(`ls -rt coverage-${CI_COMMIT_SHORT_SHA}-*.json`)
 # coverage_generated_sources=(`ls coverage-${CI_COMMIT_SHORT_SHA}-*generated-sources.tar.gz`)
 
 gcovr_args=()
@@ -28,9 +28,12 @@ title="Coverage for commit <a href=\"$commit_ref\">$commit</a>"
 
 echo "Generating html output"
 gcovr "${gcovr_args[@]}"        \
-    --html-title "$title"       \
+    --html-title "TITLEGOESHERE"       \
     --html-nested coverage/coverage.html
+find coverage/ -name '*.html' | xargs -n1 perl -pe "s,TITLEGOESHERE,$title,;" -i
 ln -s coverage.html coverage/index.html
+
+
 
 echo "Generating cobertura output"
 gcovr "${gcovr_args[@]}"        \
