@@ -47,6 +47,8 @@ if ! [ "$CI_JOB_NAME" ] ; then
     $ECHO_E "${CSI_RED}This set of scripts really really expect that CI_JOB_NAME is set to something!${CSI_RESET}"
 fi
 
+: ${CI_PROJECT_URL=https://gitlab.inria.fr/cado-nfs/cado-nfs}
+
 if ! [ "$CI_COMMIT_SHORT_SHA" ] && [ -d .git ] && type -p git > /dev/null 2>&1 ; then
     # CI_COMMIT_SHORT_SHA is eight characters https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
     CI_COMMIT_SHORT_SHA="$(git rev-parse --short=8 HEAD)"
@@ -60,8 +62,14 @@ fi
     
 case "$CI_JOB_NAME" in
     *"coverage tests"*)
-    : ${CFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
-    : ${CXXFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"}
+    # -fprofile-update=atomic is because of
+    # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=68080
+    # https://github.com/gcovr/gcovr/issues/583
+    #
+    # An alternative would be https://github.com/gcovr/gcovr/pull/701
+    : ${CFLAGS="-O0 -g --coverage -fprofile-update=atomic"}
+    : ${CXXFLAGS="-O0 -g --coverage -fprofile-update=atomic"}
+    : ${LDFLAGS="--coverage"}
     coverage=1
     ;;
 esac

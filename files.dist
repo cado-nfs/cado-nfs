@@ -43,8 +43,6 @@ ci/phony-packages/clang-usrlocal-0.0/build.sh
 ci/phony-packages/clang-usrlocal-0.0/control
 ci/phony-packages/clang-usrlocal-0.0/postinst
 ci/phony-packages/clang-usrlocal-0.0/prerm
-ci/utilities/coverage-postprocess.sh
-ci/utilities/coverage_local_infofile_modifications.pl
 ci/utilities/ctest-to-junit.xsl
 ci/utilities/ncpus.sh
 ci/utilities/tanker

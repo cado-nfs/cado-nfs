@@ -116,14 +116,14 @@ if [ "$coverage" ] ; then
     centos_packages="$centos_packages     python3-pip"
     alpine_packages="$alpine_packages     py3-pip"
     # vim is needed because we have a bit of ex scripting...
-    debian_packages="$debian_packages     lcov vim-nox"
-    opensuse_packages="$opensuse_packages lcov vim"
-    fedora_packages="$fedora_packages     lcov vim"
-    centos_packages="$centos_packages     lcov vim"
-    alpine_packages="$alpine_packages     lcov vim"
+    debian_packages="$debian_packages     vim-nox"
+    opensuse_packages="$opensuse_packages vim"
+    fedora_packages="$fedora_packages     vim"
+    centos_packages="$centos_packages     vim"
+    alpine_packages="$alpine_packages     vim"
     if is_freebsd ; then
         echo "coverage -> not on freebsd" >&2
-        freebsd_packages="$freebsd_packages   lcov vim"
+        freebsd_packages="$freebsd_packages   vim"
         # freebsd has no gcovr at the moment, so it's a no-go for now. not
         # sure we expect much benefit in running coverage tests on fbsd as
         # well anyway
@@ -244,7 +244,7 @@ else
 fi
 
 if [ "$coverage" ] ; then
-    python3 -u -m pip install gcovr==5.0
+    python3 -u -m pip install gcovr==6.0
 fi
 
 if [ "$gcc32" ] ; then
