@@ -329,6 +329,8 @@ merge coverage tests:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
+  coverage: '/^lines:\s+(\d+(\.\d+)?\%)/'
+
 
 ############################################################################
 # Tests on slow machines and/or shell executors. They depend on nothing.
