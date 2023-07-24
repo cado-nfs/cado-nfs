@@ -447,6 +447,8 @@ containers:
     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
       when: manual
       allow_failure: false
+    - if: $CI_COMMIT_MESSAGE =~ /only coverage/
+      when: never
     - when: on_success
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
