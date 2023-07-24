@@ -155,10 +155,12 @@ case "$CI_JOB_NAME" in
         else
             # just a safeguard
             build_tree=/no/build_tree/set/because/we/require/bash/for/that
+            export build_tree
         fi
     ;;
     *coverage*)
         build_tree=generated
+        export build_tree
     ;;
 esac
 case "$CI_JOB_NAME" in
