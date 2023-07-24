@@ -36,7 +36,6 @@ gcovr "${gcovr_args[@]}"        \
     --html-title "TITLEGOESHERE"       \
     --html-nested coverage/coverage.html
 find coverage/ -name '*.html' | xargs -n1 perl -pe "s,TITLEGOESHERE,$title,;" -i
-ln -s coverage.html coverage/index.html
 
 
 
