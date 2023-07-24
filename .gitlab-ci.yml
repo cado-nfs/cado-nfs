@@ -329,7 +329,7 @@ merge coverage tests:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
-  coverage: '/^lines:\s+(\d+(\.\d+)?\%)/'
+  coverage: '/lines:\s+(\d+(\.\d+)?\%)/'
 
 
 ############################################################################
@@ -419,6 +419,8 @@ coverity on debian10 system with gcc:
     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
       when: manual
       allow_failure: false
+    - if: $CI_COMMIT_MESSAGE =~ /only coverage/
+      when: never
     - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "coverity")
       when: always
     - when: never
