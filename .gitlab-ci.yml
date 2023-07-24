@@ -33,6 +33,18 @@ image: gcc
     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
       when: manual
       allow_failure: false
+    - if: $CI_COMMIT_MESSAGE =~ /only coverage/
+      when: never
+    - when: on_success
+  retry:
+    max: 2
+    when: runner_system_failure
+  
+.coverage-template: &coverage-template
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
     - when: on_success
   retry:
     max: 2
@@ -261,7 +273,7 @@ expensive checks with gcc:
 # It does depend on the availability of the coverage images, though!
 #
 coverage tests on checks with gcc:
-  <<: *common-template
+  <<: *coverage-template
   stage: thorough
   # do not start it prematurely, in case previous jobs failed
   image: alpine:latest
@@ -296,7 +308,7 @@ coverage tests on checks with gcc:
 # show up under cado-nfs.gitlabpages.inria.fr, but we do not need to care
 # about it.
 merge coverage tests:
-  <<: *common-template
+  <<: *coverage-template
   stage: publish
   needs:
     - job: coverage tests on checks with gcc
