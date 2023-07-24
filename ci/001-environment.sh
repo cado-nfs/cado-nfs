@@ -158,7 +158,7 @@ case "$CI_JOB_NAME" in
         fi
     ;;
     *coverage*)
-        export build_base=/tmp
+        build_tree=generated
     ;;
 esac
 case "$CI_JOB_NAME" in

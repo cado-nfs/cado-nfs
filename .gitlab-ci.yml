@@ -271,9 +271,8 @@ coverage tests on checks with gcc:
     - *checks-script
   artifacts:
     paths:
-      - coverage-*.info
       - coverage-*.json
-    # - coverage-*-generated-sources.tar.gz
+      - coverage-*-generated-sources.tar.gz
     expire_in: 1 week
 
 

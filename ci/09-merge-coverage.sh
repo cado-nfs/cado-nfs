@@ -10,8 +10,13 @@ mkdir coverage
 
 set -x
 
+coverage_generated_sources=(`ls coverage-${CI_COMMIT_SHORT_SHA}-*generated-sources.tar.gz`)
+
+for f in "${coverage_generated_sources}" ; do
+    tar xf "$f"
+done
+
 coverage_json_reports=(`ls -rt coverage-${CI_COMMIT_SHORT_SHA}-*.json`)
-# coverage_generated_sources=(`ls coverage-${CI_COMMIT_SHORT_SHA}-*generated-sources.tar.gz`)
 
 gcovr_args=()
 gcovr_args+=(--merge-mode-functions=separate)

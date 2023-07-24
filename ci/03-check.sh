@@ -76,6 +76,12 @@ if [ "$coverage" ] ; then
 
     set +x
 
+    if [ "$build_tree" != generated ] ; then
+        echo "This part of the script assumes that build_tree=generated"
+    fi
+
+    generated=($(find "$build_tree" -name '*.[ch]' -o -name '*.[ch]pp'))
+    tar czf ${C}-generated-sources.tar.gz "${generated[@]}"
     leave_section
 fi
 
