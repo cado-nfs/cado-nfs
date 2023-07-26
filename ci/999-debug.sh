@@ -4,13 +4,15 @@
 
 uid=$(stat -c '%u' /host)
 gid=$(stat -c '%g' /host)
+# Note that on alpine, groupadd/useradd require the "shadow" package.
+# We must use them in order to bypass the 256000 limit. adduser/addgroup
+# are provided by busybox, and there does not seem to be an easy way to
+# work around this 256000 limit.
 if [ -f /etc/alpine-release ] ; then
-    addgroup -g $gid hostgroup
-    adduser -s /bin/bash -D -G hostgroup -u $uid hostuser
-else
-    groupadd -g $gid hostgroup
-    useradd -s /bin/bash -m -g $gid -u $uid hostuser
+    echo "UID_MAX 2147483647" >> /etc/login.defs
 fi
+groupadd -g $gid hostgroup
+useradd -s /bin/bash -m -g $gid -u $uid hostuser
 if [ -e /var/run/docker.sock ] ; then
     hostdockergid=$(stat -c '%g' /var/run/docker.sock)
     guestdockergroup=`(getent group $hostdockergid || :) | cut -d: -f1`
