@@ -84,6 +84,7 @@ endif()
 # /usr/bin/ld: CMakeFiles/bwc_parallelization.dir/parallelizing_info.cpp.o: relocation R_X86_64_PC32 against symbol `_Z17pi_go_helper_funcP14pi_go_helper_s' can not be used when making a shared object; recompile with -fPIC
 #
 # This is the exact same problem as https://stackoverflow.com/questions/50600708/combining-cmake-object-libraries-with-shared-libraries
+# More info here as well: https://gitlab.kitware.com/cmake/cmake/-/issues/17356
 #
 # Therefore we get away with the exact same solution, although it feels a
 # bit cumbersome.
