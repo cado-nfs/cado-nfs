@@ -250,8 +250,8 @@ void mmt_vec_clear(matmul_top_data_ptr mmt, mmt_vec_ptr v)
     ASSERT_ALWAYS(v != NULL);
     pi_comm_ptr wr = mmt->pi->wr[v->d];
     serialize_threads(wr);
-    if (v->rsbuf[0]) free(v->rsbuf[0]);
-    if (v->rsbuf[1]) free(v->rsbuf[1]);
+    if (v->rsbuf[0]) v->abase->free(v->rsbuf[0]);
+    if (v->rsbuf[1]) v->abase->free(v->rsbuf[1]);
     unsigned int n = v->i1 - v->i0;
     /* see above */
     n += ABASE_UNIVERSAL_READAHEAD_ITEMS;
