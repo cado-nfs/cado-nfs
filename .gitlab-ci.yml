@@ -1,4 +1,4 @@
-# see also ci/debug.sh
+# see also ci/ci/debug.sh
 
 stages:
   - build
@@ -8,11 +8,14 @@ stages:
 
 image: gcc
 
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
 # took inspiration from https://blog.callr.tech/building-docker-images-with-gitlab-ci-best-practices/
 # however I'm not sure if/how the "latest" tagging actually works.
 
 # Note that the name of each section is significant, as the file
-# ci/001-environment.sh sets some important environment variables based
+# ci/ci/001-environment.sh sets some important environment variables based
 # on what it finds. E.g. it reacts to "with gcc", "expensive checks",
 # "coverage tests", and so on.
 
@@ -65,9 +68,7 @@ workflow:
 # and they're grouped in the template below.
 
 .checks-script: &checks-script
-  - ci/01-conf.sh
-  - ci/02-build.sh
-  - ci/03-check.sh
+  - ci/ci/40-testsuite.sh
 
 .checks-junit-report: &checks-junit-report
   artifacts:
@@ -79,7 +80,7 @@ checks with gcc:
   stage: early
   image: gcc:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -89,7 +90,7 @@ checks on alpine system with gcc:
   stage: early
   image: alpine:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -99,7 +100,7 @@ checks on debian system with 32-bit gcc:
   stage: early
   image: debian
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -109,7 +110,7 @@ checks on ubuntu system with gcc:
   stage: early
   image: ubuntu:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -119,7 +120,7 @@ checks on ubuntu rolling system with gcc:
   stage: early
   image: ubuntu:rolling
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -129,7 +130,7 @@ checks on debian-testing system with 32-bit gcc:
   stage: early
   image: debian:testing
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -139,7 +140,7 @@ checks using cmake directly with gcc:
   stage: early
   image: alpine
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -149,7 +150,7 @@ checks on debian system with gcc:
   stage: early
   image: debian:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -159,7 +160,7 @@ checks on debian-testing system with gcc:
   stage: early
   image: debian:testing
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -169,7 +170,7 @@ checks shared libs on debian-testing system with gcc:
   stage: early
   image: debian:testing
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -179,7 +180,7 @@ checks on debian10 system with gcc:
   stage: early
   image: debian:10
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -189,7 +190,7 @@ checks on opensuse system with gcc:
   stage: early
   image: opensuse/leap
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -199,7 +200,7 @@ checks on fedora system with gcc:
   stage: early
   image: fedora:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -209,7 +210,7 @@ checks on centos system with gcc:
   stage: early
   image: quay.io/centos/centos:stream
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -219,7 +220,7 @@ checks on centos9 system with gcc:
   stage: early
   image: quay.io/centos/centos:stream9
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -230,7 +231,7 @@ checks with clang13:
   image: silkeh/clang:13
   stage: early
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -240,7 +241,7 @@ checks with clangdev:
   image: silkeh/clang:dev
   stage: early
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -252,7 +253,7 @@ checks with icc:
   tags:
     - icc
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -263,7 +264,7 @@ expensive checks with gcc:
   # do not start it prematurely, in case previous jobs failed
   image: gcc:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -278,7 +279,7 @@ coverage tests on checks with gcc:
   # do not start it prematurely, in case previous jobs failed
   image: alpine:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   artifacts:
@@ -317,9 +318,9 @@ merge coverage tests:
   # This image has gcovr installed
   image: alpine:latest
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
-    - ci/09-merge-coverage.sh
+    - ci/ci/09-merge-coverage.sh
   artifacts:
     paths:
       - coverage
@@ -349,7 +350,7 @@ merge coverage tests:
 #   tags:
 #     - raspberry
 #   before_script:
-#     - ci/00-prepare-shell.sh
+#     - ci/ci/00-prepare-shell.sh
 #   script:
 #     - *checks-script
 #   <<: *checks-junit-report
@@ -363,14 +364,12 @@ checks on osx system:
   tags:
     - osx
   before_script:
-    - ci/00-prepare-shell.sh
+    - ci/ci/00-prepare-shell.sh
   script:
     - *checks-script
   <<: *checks-junit-report
  
 checks on freebsd12.4 system with gcc:
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
   <<: *common-template
   stage: thorough
   # do not start it prematurely, in case previous jobs failed
@@ -378,8 +377,8 @@ checks on freebsd12.4 system with gcc:
   tags:
     - freebsd-tanker
   script:
-    - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:12.4 ci/40-testsuite.sh
+    - make -C ci/ci/utilities/tanker
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:12.4 ci/ci/40-testsuite.sh
   # https://gitlab.com/gitlab-org/gitlab/-/issues/15603 should be
   # implemented someday. We would like to have it, to make sure that the
   # cleanup sequence is called no matter what.
@@ -387,8 +386,6 @@ checks on freebsd12.4 system with gcc:
 # See #30036: it seems that testing with gcc on freebsd is
 # definitely too much pain now.
 checks on freebsd13.2 system with clang:
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
   <<: *common-template
   stage: thorough
   # do not start it prematurely, in case previous jobs failed
@@ -396,12 +393,11 @@ checks on freebsd13.2 system with clang:
   tags:
     - freebsd-tanker
   script:
-    - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:13.2 ci/40-testsuite.sh
+    - make -C ci/ci/utilities/tanker
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.2 ci/ci/40-testsuite.sh
 
 checks on 32-bit freebsd13.2 system with clang:
   variables:
-    GIT_SUBMODULE_STRATEGY: recursive
     FREEBSD_ARCH: i386
   <<: *common-template
   stage: thorough
@@ -410,8 +406,8 @@ checks on 32-bit freebsd13.2 system with clang:
   tags:
     - freebsd-tanker
   script:
-    - make -C ci/utilities/tanker
-    - ci/50-libvirt-wrap-tests.sh freebsd:13.2?arch=i386 ci/40-testsuite.sh
+    - make -C ci/ci/utilities/tanker
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.2?arch=i386 ci/ci/40-testsuite.sh
 
 coverity on debian10 system with gcc:
   # override the common template.
@@ -427,15 +423,15 @@ coverity on debian10 system with gcc:
   stage: early
   image: debian:10
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
   - curl -o /tmp/cov-analysis-linux64.tgz
     https://scan.coverity.com/download/linux64
     --form project=$COVERITY_SCAN_PROJECT_NAME
     --form token=$COVERITY_SCAN_TOKEN
   - tar xfz /tmp/cov-analysis-linux64.tgz
-  - ci/01-conf.sh
-  - cov-analysis-linux64-*/bin/cov-build --dir cov-int ci/02-build.sh
+  - ci/ci/01-conf.sh
+  - cov-analysis-linux64-*/bin/cov-build --dir cov-int ci/ci/02-build.sh
   - tar cfz cov-int.tar.gz cov-int
   - curl https://scan.coverity.com/builds?project=$COVERITY_SCAN_PROJECT_NAME
     --form token=$COVERITY_SCAN_TOKEN
