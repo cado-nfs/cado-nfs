@@ -287,7 +287,7 @@ checks under valgrind on debian-testing system on a debug build with gcc:
   stage: publish
   image: debian:testing
   before_script:
-    - ci/00-prepare-docker.sh
+    - ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
