@@ -31,7 +31,7 @@ first do: $ egrep -v '^[0-9]+,0$' relations > relations_fixed
 
    $ build/<hostname>/misc/check_rels -complete rels.out.gz -poly <polyfile> file0 file1 ... filen
         or
-   $ build/<hostname>/misc/check_rels -complete rels.out.gz -poly <polyfile> -filelsit <filelist>
+   $ build/<hostname>/misc/check_rels -complete rels.out.gz -poly <polyfile> -filelist <filelist>
         where <filelist> is a name of a file containing the list of all
         relations files
 

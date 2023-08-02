@@ -11,6 +11,7 @@
 #include <pthread.h>                   // for pthread_cond_broadcast, pthrea...
 #include <sys/types.h>                 // for int8_t ssize_t
 #include <gmp.h>
+#include <atomic>
 #include "barrier.h"                   // for barrier_destroy, barrier_init
 #include "cado_popen.h"                // for cado_pclose2, cado_popen
 #include "filter_io.h"
@@ -32,7 +33,15 @@ int filter_rels_force_posix_threads = 0;
 
 struct ifb_locking_posix {/*{{{*/
     static const int max_supported_concurrent = INT_MAX;
-    template<typename T> struct critical_datatype { typedef T t; };
+    template<typename T> struct critical_datatype {
+        class t {
+            T x;
+            public:
+            T load() const { return x; }
+            void store(T a) { x = a; }
+            T increment() { return x++; }
+        };
+    };
     typedef pthread_mutex_t  lock_t;
     typedef pthread_cond_t   cond_t;
     static inline void lock_init(lock_t * m) { pthread_mutex_init(m, NULL); }
@@ -74,7 +83,37 @@ struct ifb_locking_lightweight {/*{{{*/
      * location (we could, if we were relying on atomic compare and swap,
      * for instance) */
     static const int max_supported_concurrent = 1;
-    template<typename T> struct critical_datatype { typedef volatile T t; };
+    template<typename T> struct critical_datatype {
+        /* See bug #30068
+         *
+         * The total store ordering on x86 implies that we can play very
+         * dirty games with the completed[] and scheduled[] arrays. The
+         * underlying assumptions need not be true in general, and
+         * definitely do not hold on arm64.
+         *
+         * Ideally, there would be a way to qualify our operations on the
+         * atomic type that resolve to no emitted code at all if the
+         * hardware memory model is x86. But I can't find a way to do
+         * that.
+         */
+#if !defined(__x86_64) && !defined(__i386)
+        class t : private std::atomic<T> {
+            typedef std::atomic<T> super;
+            public:
+            T load() const { return super::load(std::memory_order_acquire); }
+            void store(T a) { return super::store(a, std::memory_order_release); }
+            T increment() { return super::fetch_add(1, std::memory_order_acq_rel); }
+        };
+#else
+        class t {
+            volatile T x;
+            public:
+            T load() const { return x; }
+            void store(T a) { x = a; }
+            T increment() { return x++; }
+        };
+#endif
+    };
     typedef int lock_t;
     typedef int cond_t;
     template<typename T> static inline T next(T a, int) { return a; }
@@ -107,12 +146,12 @@ struct status_table {
     typename locking::template critical_datatype<int8_t>::t x[SIZE_BUF_REL];
     /* {{{ ::catchup() (for ::schedule() termination) */
     inline void catchup(csize_t & last_completed, size_t last_scheduled, int level) {
-        size_t c = last_completed;
+        size_t c = last_completed.load();
         for( ; c < last_scheduled ; c++) {
-            if (x[c & (SIZE_BUF_REL-1)] < level)
+            if (x[c & (SIZE_BUF_REL-1)].load() < level)
                 break;
         }
-        last_completed = c;
+        last_completed.store(c);
     }
     /*}}}*/
     /*{{{ ::catchup_until_mine_completed() (for ::complete()) */
@@ -122,8 +161,8 @@ struct status_table {
      */
     inline void catchup_until_mine_completed(csize_t & last_completed, size_t me, int level) {
         size_t slot = me & (SIZE_BUF_REL-1);
-        size_t c = last_completed;
-        ASSERT(x[slot] == (int8_t) (level-1));
+        size_t c = last_completed.load();
+        ASSERT(x[slot].load() == (int8_t) (level-1));
         /* The big question is how far we should go. By not exactly answering
          * this question, we avoid the reading of scheduled[k], which is good
          * because it is protected by m[k-1]. And even if we could consider
@@ -137,19 +176,19 @@ struct status_table {
          * termination code in ::complete()
          */
         for( ; c < me ; c++) {
-            if (x[c & (SIZE_BUF_REL-1)] < level)
+            if (x[c & (SIZE_BUF_REL-1)].load() < level)
                 break;
         }
-        last_completed = c + (c == me);
-        x[slot]++;
-        ASSERT(x[slot] == (int8_t) (level));
+        last_completed.store(c + (c == me));
+        x[slot].increment();
+        ASSERT(x[slot].load() == (int8_t) (level));
     }
     /*}}}*/
     inline void update_shouldbealreadyok(size_t slot, int level) {
         if (level < 0) {
-            x[slot & (SIZE_BUF_REL-1)]=level;
+            x[slot & (SIZE_BUF_REL-1)].store(level);
         } else {
-            ASSERT(x[slot & (SIZE_BUF_REL-1)] == level);
+            ASSERT(x[slot & (SIZE_BUF_REL-1)].load() == level);
         }
     }
 };
@@ -158,10 +197,10 @@ template<>
 struct status_table<ifb_locking_lightweight> {
     typedef ifb_locking_lightweight::critical_datatype<size_t>::t csize_t;
     inline void catchup(csize_t & last_completed, size_t last_scheduled, int) {
-        ASSERT_ALWAYS(last_completed == last_scheduled);
+        ASSERT_ALWAYS(last_completed.load() == last_scheduled);
     }
     inline void catchup_until_mine_completed(csize_t & last_completed, size_t, int) {
-        last_completed++;
+        last_completed.increment();
     }
     inline void update_shouldbealreadyok(size_t, int) {}
 };
@@ -260,7 +299,7 @@ void inflight_rels_buffer<locking, n>::drain()
         while(active[k]) {
             locking::wait(bored + k, m + k);
         }
-        completed[k] = SIZE_MAX;
+        completed[k].store(SIZE_MAX);
         locking::signal_broadcast(bored + k);
         locking::unlock(m + k);
     }
@@ -319,12 +358,12 @@ inflight_rels_buffer<locking, n>::schedule(int k)
     locking::lock(m + prev);
     if (locking::max_supported_concurrent == 1) {       /* static check */
         /* can't change */
-        s=scheduled[k];
-        while(s == a + completed[prev]) {
+        s = scheduled[k].load();
+        while(s == a + completed[prev].load()) {
             locking::wait(bored + prev, m + prev);
         }
     } else {
-        while((s=scheduled[k]) == a + completed[prev]) {
+        while((s=scheduled[k].load()) == a + completed[prev].load()) {
             locking::wait(bored + prev, m + prev);
         }
     }
@@ -333,7 +372,7 @@ inflight_rels_buffer<locking, n>::schedule(int k)
      * In this case, scheduled[prev] is safe to read now. we use it
      * as a marker to tell whether there's still work ahead of us, or
      * not.  */
-    if (UNLIKELY(completed[prev] == SIZE_MAX) && scheduled[prev] == s) {
+    if (UNLIKELY(completed[prev].load() == SIZE_MAX) && scheduled[prev].load() == s) {
         /* prepare to return */
         /* note that scheduled[k] is *not* bumped here */
         locking::unlock(m + prev);
@@ -346,7 +385,7 @@ inflight_rels_buffer<locking, n>::schedule(int k)
         return NULL;
     }
     // ASSERT(scheduled[k] < a + completed[prev]);
-    scheduled[k]++;
+    scheduled[k].increment();
     size_t slot = s & (SIZE_BUF_REL - 1);
     earlyparsed_relation_ptr rel = rels[slot];
     status.update_shouldbealreadyok(s, k-1);
@@ -369,7 +408,7 @@ inflight_rels_buffer<locking, n>::complete(int k,
 
     size_t my_absolute_index;
     if (locking::max_supported_concurrent == 1) {       /* static check */
-        my_absolute_index = completed[k];
+        my_absolute_index = completed[k].load();
     } else {
         /* recover the integer relation number being currently processed from
          * the one modulo SIZE_BUF_REL.
@@ -380,7 +419,7 @@ inflight_rels_buffer<locking, n>::complete(int k,
          *          xN < ck-s + N <= (x+1) N
          *
          */
-        size_t c = completed[k];
+        size_t c = completed[k].load();
         my_absolute_index = slot;
         my_absolute_index += ((c - slot + SIZE_BUF_REL - 1) & -SIZE_BUF_REL);
     }

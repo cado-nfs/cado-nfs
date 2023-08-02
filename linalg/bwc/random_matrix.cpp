@@ -1283,7 +1283,7 @@ void random_matrix_get_u32(parallelizing_info_ptr pi, param_list pl, matrix_u32_
 #define PUSH_P(x) do {    						\
         if (arg->size >= alloc) {					\
             alloc = arg->size + 64 + alloc / 4;			        \
-            arg->p = realloc(arg->p, alloc * sizeof(uint32_t));	        \
+            arg->p = (uint32_t *) realloc(arg->p, alloc * sizeof(uint32_t));	        \
             memset(arg->p + arg->size, 0xFF, (alloc - arg->size) * sizeof(uint32_t)); \
         }								\
         arg->p[arg->size++] = (x);					\
