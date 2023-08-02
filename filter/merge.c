@@ -1089,6 +1089,11 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
    */
   int T = omp_get_max_threads();
   index_t count[T][cbound + 1];
+  /* initialize array to zero */
+#pragma omp for schedule(static)
+  for (int t = 0; t < T; t++)
+    for (int c = 0; c <= cbound; c++)
+      count[t][c] = 0;
 
   /* Yet Another Bucket Sort (sigh): sort the candidate merges by cost. Check if worth parallelizing */
 #pragma omp parallel
@@ -1221,6 +1226,17 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
       }
     }  /* for */
   } /* parallel section */
+
+  if (nmerges == 0 && total_merges > 0)
+  {
+    /* This can happen when we get a circular dependency between the row
+       locks. In that case we simply apply the first merge.
+       See https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/30069. */
+    index_t id = L[0];
+    fill_in += merge_do(mat, id, Buf);
+    nmerges ++;
+    ASSERT(mat->Rp[id + 1] - mat->Rp[id] <= MERGE_LEVEL_MAX);
+  }
 
   mat->tot_weight += fill_in;
   /* each merge decreases the number of rows and columns by one */
