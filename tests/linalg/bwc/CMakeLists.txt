@@ -758,8 +758,9 @@ cado_define_test(test-arith-modp.cpp LIBRARIES tests utils)
 
 cado_define_test(test_matrix_file.cpp
     ${CADO_NFS_SOURCE_DIR}/linalg/bwc/matrix_file.cpp
+    $<TARGET_OBJECTS:bwc_parallelization>
     NO_DEFAULT_RUN
-    LIBRARIES bwc_parallelization utils)
+    LIBRARIES utils)
 
 set_target_properties(test_matrix_file PROPERTIES
     COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
