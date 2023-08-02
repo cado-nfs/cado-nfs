@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "cado-endian.h"
+#ifdef HAVE_SYS_ENDIAN_H
+#include <sys/endian.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,6 +21,8 @@ size_t fwrite64_little(const uint64_t * ptr, size_t nmemb, FILE * stream);
 #ifdef __cplusplus
 }
 
+#ifdef HAVE_BSWAP32
+/* Freebsd already has bswap32.  */
 static inline uint32_t bswap32(uint32_t x)
 {
     // x is 3210
@@ -27,6 +32,7 @@ static inline uint32_t bswap32(uint32_t x)
     // retrieve x as .1.3  OR  0.2
     return ((lohi & m) >> 8) | ((lohi << 8) & m);
 }
+#endif
 
 #ifdef CADO_LITTLE_ENDIAN
 static inline uint32_t bfix32(uint32_t x) { return x; }

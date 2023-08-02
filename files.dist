@@ -38,6 +38,8 @@ config/avx512dq.c
 config/avx512f.c
 config/avx512vl.c
 config/bsd.cmake
+config/bswap32.c
+config/bswap32.cmake
 config/bug30027.cmake
 config/bug30027.cpp
 config/bug30057.bc

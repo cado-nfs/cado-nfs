@@ -80,7 +80,7 @@ if (MINGW)
     set(CMAKE_COLOR_MAKEFILE OFF)
 endif()
 
-set(CMAKE_REQUIRED_QUIET 1)
+set(CMAKE_REQUIRED_QUIET 0)
 
 #####################################################################
 # What are we building ?
@@ -274,7 +274,11 @@ math (EXPR ULONG_BITS "8*${ulong_size}")
 math (EXPR ULONGLONG_BITS "8*${ulonglong_size}")
 message(STATUS "bits in unsigned long: ${ULONG_BITS}")
 message(STATUS "bits in unsigned long long: ${ULONGLONG_BITS}")
+
+set(OLD_CMAKE_REQUIRED_QUIET "${CMAKE_REQUIRED_QUIET}")
+set(CMAKE_REQUIRED_QUIET 1)
 include(${CADO_NFS_SOURCE_DIR}/config/check_types.cmake)
+set(CMAKE_REQUIRED_QUIET "${OLD_CMAKE_REQUIRED_QUIET}")
 
 include(${CADO_NFS_SOURCE_DIR}/config/pagesize.cmake)
 
@@ -357,6 +361,9 @@ include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/m4ri.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/detect-static-analysis.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/execinfo.cmake")
+CHECK_INCLUDE_FILES (sys/endian.h HAVE_SYS_ENDIAN_H)
+include("${CADO_NFS_SOURCE_DIR}/config/bswap32.cmake")
+
 
 set(CADO_SHARED)
 
