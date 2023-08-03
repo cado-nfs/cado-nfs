@@ -243,6 +243,10 @@ class mmappable_vector : public A
     {
         if (_finish == _end_of_storage)
             reserve(1 + 2 * capacity());
+        /* This should avoid unitialized bytes if the value type has
+         * padding.
+         */
+        memset(static_cast<void*>(_finish), 0, sizeof(x));
         *_finish++ = std::move(x);
     }
 
