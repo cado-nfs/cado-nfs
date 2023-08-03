@@ -9,6 +9,7 @@
 
 macro(check_cpu_feature archfeature)
     set(prerequisites 1)
+    set(blockers)
     set(archfeaturename ${archfeature})
     set(compilerflag "-m${archfeature}")
     string(MAKE_C_IDENTIFIER "${archfeature}" archfeaturevar)
@@ -19,6 +20,8 @@ macro(check_cpu_feature archfeature)
     foreach(x ${ARGN})
         if (x STREQUAL "PREREQUISITES")
             SET(current prerequisites)
+        elseif (x STREQUAL "BLOCKERS")
+            SET(current blockers)
         elseif (x STREQUAL "DISPLAYNAME")
             SET(current archfeaturename)
         elseif (x STREQUAL "COMPILER_FLAG")
@@ -34,7 +37,9 @@ macro(check_cpu_feature archfeature)
 
     message(STATUS "Testing whether ${archfeaturename} code can be used")
 
-    if (${prerequisites})
+    if (${blockers})
+        message(STATUS "Testing whether ${archfeaturename} code can be used -- skipped because ${blockers} is set")
+    elseif (${prerequisites})
         # Try with the system as it is configured, with the default
         # compiler behaviour. This may include tweaks by the used, we
         # don't care. If it compiles, we're happy. And we do __NOT__ run
@@ -94,6 +99,6 @@ macro(check_cpu_feature archfeature)
             endif()
         endif()
     else()
-        message(STATUS "Testing whether ${archfeaturename} code can be used -- skipped")
+        message(STATUS "Testing whether ${archfeaturename} code can be used -- skipped because prerequisites are not met")
     endif()
 endmacro()

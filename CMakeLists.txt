@@ -289,6 +289,10 @@ set(GF2X_CONFIGURE_FLAGS --disable-shared --disable-dependency-tracking --enable
 #####################################################################
 # Obtain information from the host.
 
+if(DEFINED ENV{USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT})
+    set(USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT 1)
+endif()
+
 include(config/check_cpu_feature.cmake)
 
 if (DEFINED ENV{NO_SSE})
@@ -307,12 +311,13 @@ else()
     check_cpu_feature(sse4.1 PREREQUISITES HAVE_SSSE3)
     check_cpu_feature(popcnt PREREQUISITES HAVE_SSSE3)
     check_cpu_feature(avx PREREQUISITES HAVE_SSE41)
-    check_cpu_feature(avx2 PREREQUISITES HAVE_AVX)
-    check_cpu_feature(avx512f PREREQUISITES HAVE_AVX)
+    set(b USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT)
+    check_cpu_feature(avx2 PREREQUISITES HAVE_AVX BLOCKERS ${b})
+    check_cpu_feature(avx512f PREREQUISITES HAVE_AVX BLOCKERS ${b})
     include(config/bug30057.cmake)
-    check_cpu_feature(avx512vl PREREQUISITES HAVE_AVX512F)
+    check_cpu_feature(avx512vl PREREQUISITES HAVE_AVX512F BLOCKERS ${b})
     include(config/bug30027.cmake)
-    check_cpu_feature(avx512dq PREREQUISITES HAVE_AVX512F)
+    check_cpu_feature(avx512dq PREREQUISITES HAVE_AVX512F BLOCKERS ${b})
     check_cpu_feature(pclmul PREREQUISITES HAVE_SSE41)
 endif()
 if (DEFINED ENV{NO_NEON})
