@@ -11,6 +11,8 @@ needs_optional_ecm=1
 needs_optional_fmt=1
 needs_gmp=1
 
+project_package_selection() { : ; }
+
 tweak_tree_before_configure() { : ; }
 
 step_configure() {
