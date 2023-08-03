@@ -280,8 +280,8 @@
    perhaps_a_bug_in_hwloc
    Memcheck:Overlap
    fun:__memcpy_chk
-   obj:/usr/lib/x86_64-linux-gnu/libhwloc.so.15.6.0
-   obj:/usr/lib/x86_64-linux-gnu/libhwloc.so.15.6.0
+   obj:/usr/lib/x86_64-linux-gnu/libhwloc.so.15.*
+   obj:/usr/lib/x86_64-linux-gnu/libhwloc.so.15.*
    fun:_ZN9cpubinder15read_param_listEP12param_list_si
    fun:cpubinding_get_info
    ...
