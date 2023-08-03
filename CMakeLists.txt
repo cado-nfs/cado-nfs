@@ -174,8 +174,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             # c++17-specific constructs may appear to be valid on my
             # machine. This will be caught by CI after the fact anyway.
             set (CMAKE_CXX_FLAGS "-std=c++17 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
+            message(STATUS "Enabling C++17 support")
         else()
             set (CMAKE_CXX_FLAGS "-std=c++11 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
+            message(STATUS "Enabling C++11 support")
         endif()
     endif()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
@@ -229,15 +231,19 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
         message(STATUS "Enabling C++11 support")
     endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
+    set (CMAKE_CXX_FLAGS "-W -Wall ${CMAKE_CXX_FLAGS}")
     # According to http://clang.llvm.org/cxx_status.html
     # Caveat: Apple's clang identifies itself as plain Clang on some
     # occasions... I don't exactly know when and how, but there's some
     # potential for misconfiguration.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "3.3")
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5")
+        set (CMAKE_CXX_FLAGS   "-std=c++17 ${CMAKE_CXX_FLAGS}")
+        set (HAVE_CXX11 1)
+        message(STATUS "Enabling C++17 support")
+    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "3.3")
         set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
         set (HAVE_CXX11 1)
         message(STATUS "Enabling C++11 support")
-        set (CMAKE_CXX_FLAGS "-std=c++11 -W -Wall ${CMAKE_CXX_FLAGS}")
     endif()
 endif()
 message(STATUS "CFLAGS=${CMAKE_C_FLAGS} (synthetized)")
