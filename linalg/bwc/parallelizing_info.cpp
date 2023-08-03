@@ -782,8 +782,7 @@ static void pi_go_inner_interleaved(
     pi[0]->interleaved->b = &b;
     pi[1]->interleaved->b = &b;
 
-    pi_dictionary d;
-    pi_dictionary_init(d);
+    auto d = new pi_dictionary;
     pi[0]->dict = d;
     pi[1]->dict = d;
 
@@ -799,64 +798,27 @@ static void pi_go_inner_interleaved(
     pi_grid_clear(pi[1], grids[1]);
 
     my_pthread_barrier_destroy(&b);
-    pi_dictionary_clear(d);
+    delete d;
 
     pi_clear_mpilevel(pi[0]);
     pi_clear_mpilevel(pi[1]);
 }
 
-void pi_dictionary_init(pi_dictionary_ptr d)
-{
-    my_pthread_rwlock_init(d->m, NULL);
-    d->e = NULL;
-}
-
-void pi_dictionary_clear(pi_dictionary_ptr d)
-{
-    /* last grab of the lock -- altough it would be preferred if we
-     * weren't mt of course ! */
-    my_pthread_rwlock_wrlock(d->m);
-    pi_dictionary_entry_ptr ne = d->e;
-    for( ; ne ; ) {
-        pi_dictionary_entry_ptr nne = ne->next;
-        delete ne;
-        ne = nne;
-    }
-    d->e = NULL;
-    my_pthread_rwlock_unlock(d->m);
-    my_pthread_rwlock_destroy(d->m);
-}
-
 /* TODO: rewrite! */
 void pi_store_generic(parallelizing_info_ptr pi, unsigned long key, unsigned long who, void * value)
 {
-    pi_dictionary_ptr d = pi->dict;
-    ASSERT_ALWAYS(d != NULL);
-    pi_dictionary_entry_ptr n = new pi_dictionary_entry;
-    n->key = key;
-    n->who = who;
-    n->value = value;
-    my_pthread_rwlock_wrlock(d->m);
-    n->next = d->e;
-    d->e = n;
-    my_pthread_rwlock_unlock(d->m);
+    std::lock_guard<std::mutex> dummy(pi->dict->mutex());
+    pi->dict->insert(std::make_pair(std::make_pair(key, who), value));
 }
 
 void * pi_load_generic(parallelizing_info_ptr pi, unsigned long key, unsigned long who)
 {
-    pi_dictionary_ptr d = pi->dict;
-    ASSERT_ALWAYS(d != NULL);
-    void * r = NULL;
-    my_pthread_rwlock_rdlock(d->m);
-    pi_dictionary_entry_ptr e = d->e;
-    for( ; e ; e = e->next) {
-        if (e->key == key && e->who == who) {
-            r = e->value;
-            break;
-        }
-    }
-    my_pthread_rwlock_unlock(d->m);
-    return r;
+    std::lock_guard<std::mutex> dummy(pi->dict->mutex());
+    auto it = pi->dict->find(std::make_pair(key, who));
+    if (it == pi->dict->end())
+        return NULL;
+    else
+        return it->second;
 }
 
 void parallelizing_info_decl_usage(param_list pl)/*{{{*/
