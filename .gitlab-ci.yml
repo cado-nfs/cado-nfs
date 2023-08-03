@@ -295,7 +295,7 @@ checks under valgrind on debian-testing system on a debug build with gcc:
     # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/4034#note_17683608
     when: always
     paths:
-      - valgrind-*.tar.gz
+      - valgrind.*.tar.gz
 
 ############################################################################
 # coverage. Actually, this is not really dependent on checks, after all.
