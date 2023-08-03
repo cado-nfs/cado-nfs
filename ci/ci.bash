@@ -109,7 +109,7 @@ step_coverage() {
 step_coverage_more_artifacts() {
     prefix="$1"
     if [ "$build_tree" != generated ] ; then
-        echo "This part of the script assumes that build_tree=generated"
+        fatal_error "This part of the script assumes that build_tree=generated"
     fi
 
     # because of /bin/sh, we can't do arrays.
@@ -133,27 +133,32 @@ postprocess_valgrind() {
     (dispatch_valgrind_files)
 
     set +e
-    ls $vdir/nok | grep -q .
-    found_nok_files=$?
+    nok_files=($(find "$vdir/nok" -type f))
+    ok_files=($(find "$vdir/ok" -type f))
     set -e
 
-    ls $vdir/nok | while read f ; do
-        cmd=$(perl -ne 'm{Command: \S*/([^/\s]+)} && print "$1\n";' $vdir/nok/$f)
-        nerr=$(perl -ne 'm{ERROR SUMMARY: (\d+) errors from (\d+) contexts} && print "$1 from $2\n";' $vdir/nok/$f)
+    if [ ${#nok_files[@]} -gt 0 ] ; then
+        red_message "Found valgrind errors (${#nok_files[@]} different executions)" >&2
+    fi
+
+    for f in "${nok_files[@]}" ; do
+        cmd=$(perl -ne 'm{Command: \S*/([^/\s]+)} && print "$1\n";' "$f")
+        nerr=$(perl -ne 'm{ERROR SUMMARY: (\d+) errors from (\d+) contexts} && print "$1 from $2\n";' "$f")
         enter_section collapsed errors "Errors in $cmd ($nerr)"
-        cat $vdir/nok/$f
+        cat "$f"
         leave_section
     done
     tar czf $vdir.tar.gz $vdir/
     rm -rf $vdir
     if [ $rc != 0 ] ; then
-     echo "exit code was $rc"
-     exit $rc
+        red_message "exit code was $rc" >&2
+        exit $rc
     fi
-    if [ $found_nok_files = 0 ] ; then
-      echo "Found valgrind errors"
-      echo "See archive of log files in `hostname`:$vdir.tar.gz"
-      exit 1
+    if [ ${#nok_files[@]} -gt 0 ] ; then
+        fatal_error "Found valgrind errors (${#nok_files[@]} different executions)" "See archive of log files in $vdir.tar.gz" 
+    else
+        green_message "valgrind passed successfully (${#ok_files[@]} different executions)"
+        green_message "See archive of log files in $vdir.tar.gz"
     fi
 }
 
