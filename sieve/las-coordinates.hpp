@@ -7,45 +7,48 @@
 #include "las-config.h"  // for LOG_BUCKET_REGION
 #include "las-qlattice.hpp"
 
+/* See las-coordinates.cpp for documentation on the various coordinate
+ * systems */
+
 /*  Forward declarations of conversion functions */
-void xToIJ(int & i, unsigned int & j, const uint64_t x, int logI);
-void NxToIJ(int & i, unsigned int & j, const unsigned int N, const unsigned int x, int logI);
+void convert_X_to_ij(int & i, unsigned int & j, const uint64_t x, int logI);
+void convert_Nx_to_ij(int & i, unsigned int & j, const unsigned int N, const unsigned int x, int logI);
 void adjustIJsublat(int & i, unsigned int & j, sublat_t const & S);
 
-void IJTox(uint64_t & x, int i, unsigned int j, int logI);
-void IJToNx(unsigned int & N, unsigned int &  x, int i, unsigned int j, int logI);
-void IJToAB(int64_t & a, uint64_t & b, const int i, const unsigned int j, qlattice_basis const & Q);
-static inline void xToAB(int64_t & a, uint64_t & b, const uint64_t x, int logI, qlattice_basis const & Q);
-static inline void NxToAB(int64_t & a, uint64_t & b, const unsigned int N, const unsigned int x, int logI, qlattice_basis const & Q);
-int ABToIJ(int & i, unsigned int & j, const int64_t a, const uint64_t b, qlattice_basis const & Q);
+void convert_ij_to_X(uint64_t & x, int i, unsigned int j, int logI);
+void convert_ij_to_Nx(unsigned int & N, unsigned int &  x, int i, unsigned int j, int logI);
+void convert_ij_to_ab(int64_t & a, uint64_t & b, const int i, const unsigned int j, qlattice_basis const & Q);
+static inline void convert_X_to_ab(int64_t & a, uint64_t & b, const uint64_t x, int logI, qlattice_basis const & Q);
+static inline void convert_Nx_to_ab(int64_t & a, uint64_t & b, const unsigned int N, const unsigned int x, int logI, qlattice_basis const & Q);
+int convert_ab_to_ij(int & i, unsigned int & j, const int64_t a, const uint64_t b, qlattice_basis const & Q);
 // code exists in las-coordinates.cpp, but is unused, so untested.
-// int ABTox(uint64_t *x, const int64_t a, const uint64_t b, int logI, qlattice_basis const & Q);
-// int ABToNx(unsigned int * N, unsigned int *x, const int64_t a, const uint64_t b, int logI, qlattice_basis const & Q);
+// int convert_ab_to_X(uint64_t *x, const int64_t a, const uint64_t b, int logI, qlattice_basis const & Q);
+// int convert_ab_to_Nx(unsigned int * N, unsigned int *x, const int64_t a, const uint64_t b, int logI, qlattice_basis const & Q);
 
 /* Warning: b might be negative, in which case we return (-a,-b) */
-static inline void xToAB(int64_t & a, uint64_t & b, const uint64_t x, int logI, qlattice_basis const & Q)
+static inline void convert_X_to_ab(int64_t & a, uint64_t & b, const uint64_t x, int logI, qlattice_basis const & Q)
 {
     int i;
     unsigned int j;
-    xToIJ(i, j, x, logI);
-    IJToAB(a, b, i, j, Q);
+    convert_X_to_ij(i, j, x, logI);
+    convert_ij_to_ab(a, b, i, j, Q);
 }
-static inline void NxToAB(int64_t & a, uint64_t & b, const unsigned int N, const unsigned int x, int logI, qlattice_basis const & Q)
+static inline void convert_Nx_to_ab(int64_t & a, uint64_t & b, const unsigned int N, const unsigned int x, int logI, qlattice_basis const & Q)
 {
-    xToAB(a, b, (((uint64_t)N) << LOG_BUCKET_REGION) + (uint64_t)x, logI, Q);
+    convert_X_to_ab(a, b, (((uint64_t)N) << LOG_BUCKET_REGION) + (uint64_t)x, logI, Q);
 }
 
 // this is only used with SUPPORT_LARGE_Q, obviously, but having them
 // doesn't hurt
 // #ifdef SUPPORT_LARGE_Q
 /* Warning: b might be negative, in which case we return (-a,-b) */
-static inline void xToABmpz(mpz_ptr a, mpz_ptr b,
+static inline void convert_X_to_abmpz(mpz_ptr a, mpz_ptr b,
         const uint64_t x,
         int logI, qlattice_basis const & Q)
 {
     int i;
     unsigned int j;
-    xToIJ(i, j, x, logI);
+    convert_X_to_ij(i, j, x, logI);
     adjustIJsublat(i, j, Q.sublat);
 
     mpz_t aux_i, aux_j;
@@ -71,11 +74,11 @@ static inline void xToABmpz(mpz_ptr a, mpz_ptr b,
     mpz_clear(aux_j);
 }
 
-static inline void NxToABmpz(mpz_ptr a, mpz_ptr b,
+static inline void convert_Nx_to_abmpz(mpz_ptr a, mpz_ptr b,
         const unsigned int N, const unsigned int x,
         int logI, qlattice_basis const & Q)
 {
-    xToABmpz(a, b, (((uint64_t)N) << LOG_BUCKET_REGION) + (uint64_t)x, logI, Q);
+    convert_X_to_abmpz(a, b, (((uint64_t)N) << LOG_BUCKET_REGION) + (uint64_t)x, logI, Q);
 }
 // #endif
 

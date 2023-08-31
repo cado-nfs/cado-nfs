@@ -24,7 +24,7 @@
 /* We use that to demangle C++ names */
 #include <cxxabi.h> // IWYU pragma: keep
 #endif
-#ifdef HAVE_GLIBC
+#ifdef HAVE_EXECINFO
 #include <execinfo.h>                    // for backtrace, backtrace_symbols
 #endif
 
@@ -35,12 +35,12 @@
 #include "las-where-am-i-debug.hpp"
 
 #include "las-config.h"                  // for LOG_BUCKET_REGION
-#include "las-coordinates.hpp"           // for IJToAB, IJToNx, ABToIJ, NxToIJ
+#include "las-coordinates.hpp"           // for convert_*_to_*
 #include "las-norms.hpp"                 // for lognorm_smart
 #include "las-qlattice.hpp"              // for qlattice_basis
 #include "las-siever-config.hpp"         // for siever_config
 #include "las-threads-work-data.hpp"     // for nfs_work, nfs_work::side_data
-#include "las-where-am-i-proxy.hpp"           // for where_am_I, where_am_I::pimpl_t
+#include "las-where-am-i-proxy.hpp"      // for where_am_I, where_am_I::pimpl_t
 #include "macros.h"                      // for ASSERT_ALWAYS
 #include "verbose.h"    // verbose_output_print
 #include "params.h"
@@ -148,8 +148,8 @@ void where_am_I::begin_special_q(nfs_work const & ws)
     if (pl_ab) {
       trace_ab = *pl_ab;
       /* can possibly fall outside the q-lattice. We have to check for it */
-      if (ABToIJ(trace_ij.i, trace_ij.j, trace_ab.a, trace_ab.b, Q)) {
-          IJToNx(trace_Nx.N, trace_Nx.x, trace_ij.i, trace_ij.j, logI);
+      if (convert_ab_to_ij(trace_ij.i, trace_ij.j, trace_ab.a, trace_ab.b, Q)) {
+          convert_ij_to_Nx(trace_Nx.N, trace_Nx.x, trace_ij.i, trace_ij.j, logI);
       } else {
           verbose_output_print(3 /* TRACE_CHANNEL */, 0, "# Relation (%" PRId64 ",%" PRIu64 ") to be traced "
                   "is outside of the current q-lattice\n",
@@ -162,13 +162,13 @@ void where_am_I::begin_special_q(nfs_work const & ws)
       }
     } else if (pl_ij) {
         trace_ij = *pl_ij;
-        IJToAB(trace_ab.a, trace_ab.b, trace_ij.i, trace_ij.j, Q);
-        IJToNx(trace_Nx.N, trace_Nx.x, trace_ij.i, trace_ij.j, logI);
+        convert_ij_to_ab(trace_ab.a, trace_ab.b, trace_ij.i, trace_ij.j, Q);
+        convert_ij_to_Nx(trace_Nx.N, trace_Nx.x, trace_ij.i, trace_ij.j, logI);
     } else if (pl_Nx) {
         trace_Nx = *pl_Nx;
         if (trace_Nx.x < ((size_t) 1 << LOG_BUCKET_REGION)) {
-            NxToIJ(trace_ij.i, trace_ij.j, trace_Nx.N, trace_Nx.x, logI);
-            IJToAB(trace_ab.a, trace_ab.b, trace_ij.i, trace_ij.j, Q);
+            convert_Nx_to_ij(trace_ij.i, trace_ij.j, trace_Nx.N, trace_Nx.x, logI);
+            convert_ij_to_ab(trace_ab.a, trace_ab.b, trace_ij.i, trace_ij.j, Q);
         } else {
             fprintf(stderr, "Error, tracing requested for x=%u but"
                     " this siever was compiled with LOG_BUCKET_REGION=%d\n",
@@ -242,7 +242,7 @@ int test_divisible(where_am_I const & w)
 
 /* {{{ helper: sieve_increase */
 
-#if defined(HAVE_CXXABI_H) && defined(HAVE_GLIBC)
+#if defined(HAVE_CXXABI_H) && defined(HAVE_EXECINFO)
 static std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
 {
     size_t pos = a.find('+');
@@ -285,7 +285,7 @@ void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, 
 
     std::string caller;
 
-#ifdef HAVE_GLIBC
+#ifdef HAVE_EXECINFO
     {
         void * callers_addresses[3];
         char ** callers = NULL;
@@ -367,8 +367,8 @@ void sieve_increase_underflow_trap(unsigned char *S, const unsigned char logp, w
     uint64_t b;
     static unsigned char maxdiff = ~0;
 
-    NxToIJ(&i, &j, w->N, w->x, w->logI);
-    IJToAB(&a, &b, i, j, *w->Q);
+    convert_Nx_to_ij(&i, &j, w->N, w->x, w->logI);
+    convert_ij_to_ab(&a, &b, i, j, *w->Q);
     if ((unsigned int) logp + *S > maxdiff)
       {
         maxdiff = logp - *S;

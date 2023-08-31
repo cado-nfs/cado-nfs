@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Examples of parameters can be found in the params_dl directory
+# Examples of parameters can be found in the parameters/dlp directory
 
 # Algorithms
 #   UpperClass:
@@ -590,11 +590,19 @@ class important_file(object):
             for line in self.reader:
                 self.writer.write(line)
                 self.writer.flush()
-            self.reader.close()
-            self.writer.close()
+            # self.reader.close()
+            # self.writer.close()
+            # I'm not sure that there's still a point in babysitting the
+            # child output as we do above. Maybe a simple communicate()
+            # as we do below is all we need. Furthermore, communicate()
+            # is the thing that we have to do in order to properly catch
+            # the return code.
+            self.child.communicate()
             if self.outfile != self.outfile_tmp:
                 os.rename(self.outfile_tmp, self.outfile)
-            print("ok, done")
+            if self.child.returncode != 0:
+                raise RuntimeError(f"Child process failed with return code {self.child.returncode} ; failed command line was:\n" + " ".join(self.child.args))
+            print(f"ok, done")
         else:
             self.reader.close()
 

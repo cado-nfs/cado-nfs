@@ -11,7 +11,7 @@ purge, merge, merge-dl, replay-dl read relations in the following format:
   a,b:i1,...,ik
   where a and b are in hexa
         i1,...,ik are indexes in the renumbering table
-  all appearances of the same index must be continuous
+  all appearances of the same index must be contiguous
 
 dup1 (without -abhexa) reads relations in the following format (output of las)
   a,b:p1,...,pl:p'1,...,p'r

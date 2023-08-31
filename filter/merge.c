@@ -1089,6 +1089,11 @@ compute_merges (index_t *L, filter_matrix_t *mat, int cbound)
    */
   int T = omp_get_max_threads();
   index_t count[T][cbound + 1];
+  /* initialize array to zero */
+#pragma omp for schedule(static)
+  for (int t = 0; t < T; t++)
+    for (int c = 0; c <= cbound; c++)
+      count[t][c] = 0;
 
   /* Yet Another Bucket Sort (sigh): sort the candidate merges by cost. Check if worth parallelizing */
 #pragma omp parallel
@@ -1221,6 +1226,17 @@ apply_merges (index_t *L, index_t total_merges, filter_matrix_t *mat,
       }
     }  /* for */
   } /* parallel section */
+
+  if (nmerges == 0 && total_merges > 0)
+  {
+    /* This can happen when we get a circular dependency between the row
+       locks. In that case we simply apply the first merge.
+       See https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/30069. */
+    index_t id = L[0];
+    fill_in += merge_do(mat, id, Buf);
+    nmerges ++;
+    ASSERT(mat->Rp[id + 1] - mat->Rp[id] <= MERGE_LEVEL_MAX);
+  }
 
   mat->tot_weight += fill_in;
   /* each merge decreases the number of rows and columns by one */
@@ -1568,16 +1584,24 @@ main (int argc, char *argv[])
     unsigned long lastN, lastW;
     double lastWoverN;
     int cbound = BIAS; /* bound for the (biased) cost of merges to apply */
+    int merge_pass = 0;
 
     /****** begin main loop ******/
     while (1) {
 	double cpu1 = seconds (), wct1 = wct_seconds ();
 	merge_pass++;
 
-        if (merge_pass == 2 || mat->cwmax > 2)
-                full_garbage_collection(mat);
+        if (merge_pass == 2 || mat->cwmax > 2) {
+                double cpu8 = seconds (), wct8 = wct_seconds ();
+                heap_garbage_collection(mat->rows);
+                 cpu8 = seconds () - cpu8;
+                wct8 = wct_seconds () - wct8;
+                print_timings ("   GC took", cpu8, wct8);
+                cpu_t[GC] += cpu8;
+                wct_t[GC] += wct8;
+        }
 
-	/* Once cwmax >= 3, tt each pass, we increase cbound to allow more
+	/* Once cwmax >= 3, at each pass, we increase cbound to allow more
 	   merges. If one decreases cbound_incr, the final matrix will be
 	   smaller, but merge will take more time.
 	   If one increases cbound_incr, merge will be faster, but the final

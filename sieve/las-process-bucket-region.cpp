@@ -34,7 +34,7 @@
 #include "las-cofac-standalone.hpp"       // for cofac_standalone
 #include "las-cofactor.hpp"               // for check_leftover_norm
 #include "las-config.h"                   // for LOG_BUCKET_REGION, BUCKET_R...
-#include "las-coordinates.hpp"            // for NxToIJ, adjustIJsublat
+#include "las-coordinates.hpp"            // for convert_Nx_to_ij, adjustIJsublat
 #include "las-descent-trees.hpp"          // for descent_tree
 #include "las-descent.hpp"                // for register_contending_relation
 #include "las-detached-cofac.hpp"         // for cofac_standalone, detached_...
@@ -572,7 +572,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         unsigned int j;
         // Note that are, (i,j) must be true coordinates, not the
         // ones reduced to (-I/2, I/2) using sublattices.
-        NxToIJ (i, j, N, x, ws.conf.logI);
+        convert_Nx_to_ij (i, j, N, x, ws.conf.logI);
         adjustIJsublat(i, j, ws.Q.sublat);
 
         if (do_resieve) {

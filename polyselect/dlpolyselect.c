@@ -218,7 +218,7 @@ print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
         cado_poly_provision_new_poly(p);
         cado_poly_provision_new_poly(p);
         mpz_poly_setcoeffs(p->pols[ALG_SIDE], f, df);
-        mpz_poly_setcoeffs(p->pols[RAT_SIDE], f, df);
+        mpz_poly_setcoeffs(p->pols[RAT_SIDE], g, dg);
         p->skew = skew;
         E = MurphyE (p, Bf, Bg, Area, MURPHY_K, get_alpha_bound ());
         cado_poly_clear(p);

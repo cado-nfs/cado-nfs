@@ -248,6 +248,8 @@ double nfs_work::check_buckets_max_full(int level)
                 return buckets_max_full<3, emptyhint_t>();
             else
                 ASSERT_ALWAYS(0);
+            /* shouldn't be needed, but g++-12 likes to complain for nothing */
+            no_break();
         case 2: return buckets_max_full<2, HINT>();
         case 1: return buckets_max_full<1, HINT>();
     }

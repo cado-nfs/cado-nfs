@@ -6,7 +6,13 @@
 #include "memory.h"
 #include "mpfq/mpfq_vbase.h"
 
-#define FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES      32
+
+/* If you change stuff here, make sure that you also change the identical
+ * definitions in
+ tests/linalg/bwc/bwc-ptrace.sh
+ tests/linalg/bwc/convert_magma.pl
+ */
+#define FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES      64
 #define MINIMUM_ITEM_SIZE_OF_MPFQ_VEC_TYPES     4
 
 /* The mpfq routines for doing vec_init rely on simple malloc() to do their

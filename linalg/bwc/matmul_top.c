@@ -2821,11 +2821,14 @@ void matmul_top_init(matmul_top_data_ptr mmt,
     for(int i = 0 ; i < mmt->nmatrices ; i++) {
         matmul_top_matrix_ptr Mloc = mmt->matrices[i];
         if (multimat) {
-            Mloc->mname = strdup(param_list_lookup_string(pl, "matrix"));
-            Mloc->bname = strdup(param_list_lookup_string(pl, "balancing"));
-        } else {
             Mloc->mname = matrix_list_get_item(pl, "matrix", i);
             Mloc->bname = matrix_list_get_item(pl, "balancing", i);
+        } else {
+            const char * t;
+            t = param_list_lookup_string(pl, "matrix");
+            Mloc->mname = t ? strdup(t) : NULL;
+            t = param_list_lookup_string(pl, "balancing");
+            Mloc->bname = t ? strdup(t) : NULL;
         }
         if (static_random_matrix) {
             ASSERT_ALWAYS(i == 0);
@@ -2835,6 +2838,8 @@ void matmul_top_init(matmul_top_data_ptr mmt,
             /* returns NULL is mname is NULL */
             Mloc->bname = matrix_get_derived_balancing_filename(Mloc->mname, mmt->pi);
         }
+        /* At this point mname and bname are either NULL or freshly
+         * allocated */
         ASSERT_ALWAYS((Mloc->bname != NULL) == !random_description);
 
         matmul_top_init_fill_balancing_header(mmt, i, pl);
@@ -2990,12 +2995,10 @@ static int export_cache_list_if_requested(matmul_top_matrix_ptr Mloc, paralleliz
     return 1;
 }
 
-static unsigned int local_fraction(unsigned int padded, unsigned int normal, pi_comm_ptr wr)
+static unsigned int local_fraction(unsigned int normal, pi_comm_ptr wr)
 {
-    ASSERT_ALWAYS(padded % wr->totalsize == 0);
     unsigned int i = wr->jrank * wr->ncores + wr->trank;
-    unsigned int quo = padded / wr->totalsize;
-    return MIN(normal - i * quo, quo);
+    return normal / wr->totalsize + (i < (normal % wr->totalsize));
 }
 
 
@@ -3114,9 +3117,14 @@ static void matmul_top_read_submatrix(matmul_top_data_ptr mmt, int midx, param_l
              * make sure that we generate matrices which have zeroes in
              * the padding area.
              */
+
+            unsigned int data_nrows = local_fraction(Mloc->n0[0], mmt->pi->wr[1]);
+            unsigned int data_ncols = local_fraction(Mloc->n0[1], mmt->pi->wr[0]);
+            unsigned int padded_nrows = Mloc->n[0] / mmt->pi->wr[1]->totalsize;
+            unsigned int padded_ncols = Mloc->n[1] / mmt->pi->wr[0]->totalsize;
+
             random_matrix_get_u32(mmt->pi, pl, m,
-                    local_fraction(Mloc->n[0], Mloc->n0[0], mmt->pi->wr[1]),
-                    local_fraction(Mloc->n[1], Mloc->n0[1], mmt->pi->wr[0]));
+                    data_nrows, data_ncols, padded_nrows, padded_ncols);
         } else {
             if (can_print) {
                 printf("Matrix dispatching starts\n");

@@ -58,6 +58,17 @@ def re_cap_n_fp(prefix, n, suffix=""):
     template += suffix
     return template.format(**REGEXES)
 
+# convert the time s in [day,]hours,minutes,seconds
+# (patch from Hermann Stamm-Wilbrandt)
+def tstr(s):
+    i = round(s)
+    if i < 3600 or i >= 366 * 24 * 3600:
+        return ""
+    fmt = ""
+    if i >= 24 * 3600:
+        fmt = "%-jd "
+        i -= 24 * 3600
+    return " [" + time.strftime(fmt + "%H:%M:%S", time.gmtime(i)) + "]"
 
 class Polynomial(list):
     """
@@ -5423,6 +5434,15 @@ class LogQueryTask(Task):
     def check_new_log(self, target, logtarget, commit=True):
         if target in self.history:
             return
+        if logtarget == 0:
+            msg = "Checking that log of %d is zero..." % target
+            check = pow(target, self.cof, self.p) == 1
+            if check:
+                self.logger.info(msg + " passed")
+            else:
+                self.logger.critical(msg + " FAILED")
+                raise ValueError("Failed log check, log(%d)=0 seems wrong\n" % target)
+            return
         just_deduced_gen = False
         if self.logbase is None:
             gt, ilogt, foo = self.xgcd(logtarget * self.cof, self.ell)
@@ -5999,11 +6019,27 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             p = self.params["N"]
             k = self.params["gfpext"]
             ell = self.params["ell"]
-            if (p**k-1) % ell != 0:
-                if k==1:
+            # Check that ell divides Phi_k(p) (or simply p^k-1 for large k)
+            if k==1:
+                if (p-1) % ell != 0:
                     raise ValueError("ell must divide p-1")
-                else:
-                    raise ValueError("ell must divide p^%d-1" % k)
+            elif k==2:
+                if (p+1) % ell != 0:
+                    raise ValueError("ell must divide p+1")
+            elif k==3:
+                if (p*p+p+1) % ell != 0:
+                    raise ValueError("ell must divide p^2+p+1")
+            elif k==4:
+                if (p*p+1) % ell != 0:
+                    raise ValueError("ell must divide p^2+1")
+            elif k==5:
+                if (p**4+p**3+p**2+p+1) % ell != 0:
+                    raise ValueError("ell must divide (p^5-1)/(p-1)")
+            elif k==6:
+                if (p**2-p+1) % ell != 0:
+                    raise ValueError("ell must divide p^2-p+1")
+            elif (p**k-1) % ell != 0:
+                raise ValueError("ell must divide p^%d-1" % k)
 
         # Init WU BD
         self.wuar = self.make_wu_access()
@@ -6315,7 +6351,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.logger.info("Total cpu/elapsed time for entire %s: %g/%g",
                          self.title, self.cputotal, self.elapsed)
         else:
-            self.logger.info("Total cpu/elapsed time for entire %s %g/%g",
+            self.logger.info("Total cpu/elapsed time for entire %s %g/%g" + tstr(self.elapsed),
                          self.title, self.cputotal, self.elapsed)
 
         if last_task and not last_status:

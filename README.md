@@ -5,7 +5,7 @@ If you're accessing the cado-nfs source from a different link, it may be
 an outdated fork.
 
 [![pipeline status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/pipelines?ref=master)
-[![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/index.html?job=merge+coverage+tests)
+[![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/coverage.html?job=merge+coverage+tests)
 [![coverity scan](https://scan.coverity.com/projects/23184/badge.svg)](https://scan.coverity.com/projects/cado-nfs)
 
 Quick install:
@@ -533,8 +533,9 @@ Examples of basic usage:
 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 --slaves 4 --client-threads 2 --server-threads 8
 ```
 
-* Run a factorization in the given directory, interrupt it (with Ctrl-C,
-  or whatever unexpected event), and resume the computation:
+* Run a factorization in the given directory (must be an absolute path),
+  interrupt it (with Ctrl-C, or whatever unexpected event), and resume
+  the computation:
 
 ```
 ./cado-nfs.py 90377629292003121684002147101760858109247336549001090677693 workdir=/tmp/myfacto
