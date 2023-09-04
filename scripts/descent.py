@@ -105,11 +105,11 @@ class GeneralClass(object):
         parser.add_argument("--threads",
                 help="Number of threads to use",
                 type=int, default=4)
-        # the arguments below are really better fetched form the
+        # the arguments below are really better fetched from the
         # database.
         parser.add_argument("--ell", help="Group order (a.k.a. ell)")
-        parser.add_argument("--nsm0", help="Number of SM on side 0")
-        parser.add_argument("--nsm1", help="Number of SM on side 1")
+        parser.add_argument("--nsm0", help="Number of Shirokauer maps on side 0")
+        parser.add_argument("--nsm1", help="Number of Shirokauer maps on side 1")
         # Those are used both for the middle and lower levels of the
         # descent.
         for side in range(2):
