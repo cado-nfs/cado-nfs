@@ -84,7 +84,7 @@ void descent_tree::display_all_trees(FILE * o)
         }
     }
 #if 0
-    /* (since we've dropped the dependence on siever_config, we now
+    /* (since we've dropped the dependence on siever_config, we no
      * longer do this)
      */
     /* We also use this to provide an updated stats file (whose
