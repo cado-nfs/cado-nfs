@@ -20,18 +20,28 @@
 # This is readlink -f on many unices. Alas, not on mac.
 if [ "`uname -s`" = Darwin ] ; then
     # use code from https://github.com/mkropat/sh-realpath, MIT-licensed.
-    source "`dirname $0`/realpath.sh"
+    source `dirname "$0"`/realpath.sh
     readlink_f() { realpath "$@" ; }
 else
     readlink_f() { readlink -f "$@" ; }
 fi
 
 
-up_path="$(readlink_f `dirname $0`/..)"
-if [ "$(readlink_f $up_path/scripts/`basename $0`)" != "$(readlink_f $0)" ] ; then
+up_path=$(readlink_f `dirname "$0"`/..)
+path_inside_tree=$(readlink_f "$up_path/scripts/`basename $0`")
+path_myself=$(readlink_f "$0")
+
+if [ "$path_inside_tree" != "$path_myself" ] ; then
     echo "Error: `basename $0` must be inside the cado-nfs source tree"
     exit 1
 fi
+
+case "$path_myself" in
+    *\ *) echo "You are trying to compile cado-nfs from a directory with spaces in its full path. This is not supported. (Mostly because the GNU autotools don't support it either.)" >&2
+        exit 1
+        ;;
+esac
+
 pwdP="pwd -P"
 if ! $pwdP >/dev/null 2>&1 ; then
     pwdP=pwd
@@ -43,8 +53,8 @@ fi
 # absolute_path_of_source to be the absolute path of $CADO
 # relative_path_of_cwd to be linalg/bwc
 #
-called_from="$(readlink_f `pwd`)"
-absolute_path_of_source="$(readlink_f $up_path)"
+called_from=$(readlink_f "`pwd`")
+absolute_path_of_source=$(readlink_f "$up_path")
 relative_path_of_cwd="${called_from##$absolute_path_of_source}"
 
 ########################################################################
