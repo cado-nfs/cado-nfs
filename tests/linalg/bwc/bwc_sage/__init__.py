@@ -757,7 +757,7 @@ class BwcXVector(object):
                 for j in range(self.params.m):
                     for k in range(items_per_line):
                         i = next(it)
-                        self.X[i,j] = 1
+                        self.X[i,j] += 1
             except StopIteration:
                 raise ValueError(f"Short read in {self.filename} {NOK}")
 
