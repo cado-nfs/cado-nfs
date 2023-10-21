@@ -118,7 +118,7 @@ class BwcMatrix(object):
     For cases where the decorrelated matrix M*Q is needed instead, a thin
     wrapper class is provided.
     """
-    def __init__(self, params : BwcParameters, matrix=None, wdir=None, balancing_filename=None, nrows=None, ncols=None):
+    def __init__(self, params : BwcParameters, matrix=None, wdir=None, balancing_filename=None):
         self.params = params
         self.filename = matrix
         self.wdir = None
@@ -156,6 +156,12 @@ class BwcMatrix(object):
         self.col_weights_filename = None
         self.ncols = None
         self.ncoeffs = 0
+        # (nrows, ncols) are in most cases equal, they correspond to the
+        # dimension of a square matrix. They're both equal to
+        # max(nrows_orig, ncols_orig), which are the dimensions of the
+        # matrix as it is found in the data files on disk.
+        self.nrows_orig = None
+        self.ncols_orig = None
 
     def __clear_fields_for_fetch_balancing(self):
         self.balancing = None
@@ -168,9 +174,9 @@ class BwcMatrix(object):
         self.P = None
         self.Mt = None
 
-    def read(self, __nrows=None, __ncols=None):
+    def read(self, force_square=False):
         try:
-            self.__read()
+            self.__read(force_square=force_square)
         except Exception as e:
             # We're really in bad shape if an exception occurs here.
             # We're not even trying to salvage the BwcMatrix object, as
@@ -232,7 +238,7 @@ class BwcMatrix(object):
         else:
             return self.M * x
 
-    def __read(self, nrows=None, ncols=None):
+    def __read(self, nrows=None, ncols=None, force_square=False):
         """
         The parameters nrows and ncols are not meant for general use. We
         only use them when we know the balancing above, and the matrices
@@ -249,24 +255,24 @@ class BwcMatrix(object):
         self.row_weights=[]
         try:
             fn = re.sub(r"\.bin$", ".rw.bin", self.filename)
-            self.nrows = os.stat(fn).st_size // 4
+            self.nrows_orig = os.stat(fn).st_size // 4
             self.row_weights_filename = fn
             with open(self.row_weights_filename, 'rb') as fm:
                 while (l := fm.read(4)):
                     self.row_weights.append(int.from_bytes(l, 'little'))
-            assert len(self.row_weights) == self.nrows
+            assert len(self.row_weights) == self.nrows_orig
         except FileNotFoundError:
             self.row_weights_filename = None
 
         self.col_weights=[]
         try:
             fn = re.sub(r"\.bin$", ".cw.bin", self.filename)
-            self.ncols = os.stat(fn).st_size // 4
+            self.ncols_orig = os.stat(fn).st_size // 4
             self.col_weights_filename = fn
             with open(self.col_weights_filename, 'rb') as fm:
                 while (l := fm.read(4)):
                     self.col_weights.append(int.from_bytes(l, 'little'))
-            assert len(self.col_weights) == self.ncols
+            assert len(self.col_weights) == self.ncols_orig
         except FileNotFoundError:
             self.col_weights_filename = None
 
@@ -311,35 +317,47 @@ class BwcMatrix(object):
             assert self.row_weights == inline_row_weights
         else:
             self.row_weights = inline_row_weights
-            if nrows is not None:
-                assert len(self.row_weights) <= nrows
-                self.nrows = nrows
-            else:
-                self.nrows = len(self.row_weights)
+            self.nrows_orig = len(self.row_weights)
+
         if self.col_weights:
             assert self.col_weights == inline_col_weights
         else:
             self.col_weights = inline_col_weights
-            if ncols is not None:
-                assert len(self.col_weights) <= ncols
-                self.ncols = ncols
-            else:
-                # attention. We fill it for completeness, but it can be
-                # that the matrix has some zero cols at the end. This is
-                # the main use case for ncols, in fact.
-                self.ncols = len(self.col_weights)
+            self.ncols_orig = len(self.col_weights)
+
+        if nrows is not None:
+            assert self.nrows_orig <= nrows
+            self.nrows = nrows
+        else:
+            self.nrows = self.nrows_orig
+
+        if ncols is not None:
+            assert self.ncols_orig <= ncols
+            self.ncols = ncols
+        else:
+            # attention. We fill it for completeness, but it can be
+            # that the matrix has some zero cols at the end. This is
+            # the main use case for ncols, in fact.
+            self.ncols = self.ncols_orig
+
         self.ncoeffs = len(inline_data)
-        r2 = sum([float(x*x) for x in inline_row_weights]) / self.nrows
-        c2 = sum([float(x*x) for x in inline_col_weights]) / self.ncols
-        rmean = float(self.ncoeffs / self.nrows)
+        r2 = sum([float(x*x) for x in inline_row_weights]) / self.nrows_orig
+        c2 = sum([float(x*x) for x in inline_col_weights]) / self.ncols_orig
+        rmean = float(self.ncoeffs / self.nrows_orig)
         rsdev = math.sqrt(r2-rmean**2)
-        cmean = float(self.ncoeffs / self.ncols)
+        cmean = float(self.ncoeffs / self.ncols_orig)
         csdev = math.sqrt(c2-cmean**2)
 
-        rowscols = f"{self.nrows} rows {self.ncols} cols"
+        rowscols = f"{self.nrows_orig} rows {self.ncols_orig} cols"
         coeffs = f"{self.ncoeffs} coefficients"
         stats = f"row: {rmean:.2f}~{rsdev:.2f}, col: {cmean:.2f}~{csdev:.2f}"
         print(f"{rowscols}, {coeffs} ({stats})")
+
+        if force_square and self.nrows_orig != self.ncols_orig:
+            print("Padding to a square matrix")
+            self.nrows = max(self.nrows_orig, self.ncols_orig)
+            self.ncols = max(self.nrows_orig, self.ncols_orig)
+
         self.M = matrix(GF(self.params.p), self.nrows, self.ncols, sparse=True)
         if self.params.p == 2:
             for i,j in inline_data:
@@ -426,13 +444,13 @@ class BwcMatrix(object):
         bal = self.balancing
 
         if self.M is None:
-            raise ValueError("Cannot check consistency with matrix M, call .read() first {EXCL}")
+            raise ValueError(f"Cannot check consistency with matrix M, call .read() first {EXCL}")
 
         if bal is None:
-            raise ValueError("Cannot check consistency with balancing that has not been read yet, call .fetch_balancing() first {EXCL}")
+            raise ValueError(f"Cannot check consistency with balancing that has not been read yet, call .fetch_balancing() first {EXCL}")
 
-        if self.nrows != bal.nr or self.ncols != bal.nc:
-            raise ValueError("balancing data from {self.balancing.filename} is inconsistent with number of rows/columns of the matrix {NOK}")
+        if self.nrows_orig != bal.nr or self.ncols_orig != bal.nc:
+            raise ValueError(f"balancing data from {self.balancing.filename} is inconsistent with number of rows/columns of the matrix {NOK}")
 
         A = (self.P*self.sigma).transpose() * self.Mx * self.sigma
 
@@ -440,7 +458,7 @@ class BwcMatrix(object):
         sub = lambda T: T.submatrix(0,0,self.nrows,self.ncols)
 
         if sub(A) != B:
-            raise ValueError("Reconstructed matrix from submatrices does not match M" + NOK)
+            raise ValueError("Reconstructed matrix from submatrices does not match M " + NOK)
 
         self.Mt = zero_matrix(bal.tr, bal.tc)
         self.Mt[:self.nrows, :self.ncols] = self.M
@@ -449,7 +467,7 @@ class BwcMatrix(object):
             # It's not really possible for this to happen if the above
             # check has passed, so let's just give the same error message
             # anyway.
-            raise ValueError("Reconstructed matrix from submatrices does not match M" + NOK)
+            raise ValueError("Reconstructed matrix from submatrices does not match M " + NOK)
 
     def check(self):
         nh = self.balancing.nh
@@ -502,6 +520,10 @@ class BwcBalancing(object):
             assert zero == 0
             assert magic == 0xba1a0000
             self.nh, self.nv = u32(f, repeat=2)
+            # (nr, nc) are the same as (nrows_orig, ncols_orig) in the
+            # original matrix. However (nrows, ncols) in the BwcMatrix
+            # object may be equal to the max of these two, and thus may
+            # fail to match the (nr, nc) that we have here.
             self.nr, self.nc = u32(f, repeat=2)
             self.nzr, self.nzc = u32(f, repeat=2)
             self.ncoeffs = u64(f)
@@ -547,6 +569,9 @@ class BwcShuffling(object):
         self.M = mat
         bal = self.M.balancing
 
+        assert bal.nc == self.M.ncols_orig
+        assert bal.nr == self.M.nrows_orig
+
         Sc = SymmetricGroup(range(bal.tc))
         Sr = SymmetricGroup(range(bal.tr))
 
@@ -568,11 +593,26 @@ class BwcShuffling(object):
             self.pr = None
             self.prinv = None
 
+        # the minimal context in which the decorrelating permutation may
+        # be defined is in dimension bal.nc == self.M.ncols_orig.
+        # However this would be mostly useless, and we prefer to define
+        # it minimally as a permutation of the indices of the (most often
+        # square) matrix of dimension (nrows,ncols)
+        # 
+        # try:
+        #     # the decorrelating permutation can be defined on the non-padded
+        #     # indices too.
+        #     Sc0 = SymmetricGroup(range(mat.ncols_orig))
+        #     self.shuf = Sc0([self.__preshuf(Integer(x)) for x in range(mat.ncols_orig)])
+        #     self.shufinv = self.shuf**-1
+        # except KeyError:
+        #     print("Error in creating permutation shuf " + NOK, file=sys.stderr)
+        #     self.shuf = None
+        #     self.shufinv = None
+
         try:
-            # the decorrelating permutation can be defined on the non-padded
-            # indices too.
-            Sc0 = SymmetricGroup(range(bal.nc))
-            self.shuf = Sc0([self.__preshuf(Integer(x)) for x in range(bal.nc)])
+            Sc0 = SymmetricGroup(range(mat.ncols))
+            self.shuf = Sc0([self.__preshuf(Integer(x)) for x in range(mat.ncols)])
             self.shufinv = self.shuf**-1
         except KeyError:
             print("Error in creating permutation shuf " + NOK, file=sys.stderr)

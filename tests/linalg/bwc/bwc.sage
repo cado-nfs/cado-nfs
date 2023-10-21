@@ -22,7 +22,7 @@ if __name__ == '__main__':
     par = BWC.BwcParameters(**filter_dict(args, r"^[mnp]$"))
 
     M = BWC.BwcMatrix(par, **filter_dict(args, r"^(matrix|wdir)$"))
-    M.read()
+    M.read(force_square=True)
     M.fetch_balancing(**filter_dict(args, r"^n[hv]$"))
     M.check()
 
