@@ -153,6 +153,9 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             if(DEFINED ENV{CHECKS_EXPENSIVE} AND MAGMA)
                 set(mextra magma=${MAGMA})
             endif()
+            if(DEFINED ENV{CHECKS_EXPENSIVE} AND SAGE)
+                set(mextra sage=${SAGE})
+            endif()
             if(DEFINED ENV{CHECKS_EXPENSIVE})
                 # it's quick, but let's avoid redundant tests
                 add_bwc_test(modp_inhomogeneous_minimal_3rhs_mn6 bwc-ptrace.sh prime=1009
