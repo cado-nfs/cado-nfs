@@ -4,6 +4,8 @@ set -e
 
 exec < /dev/null
 
+old_setx=$(shopt -po xtrace)
+
 if [ "$CADO_DEBUG" ] ; then
     set -x
 fi
@@ -356,9 +358,12 @@ if ! [[ $script_steps =~ magma ]] ; then
     magma=
 fi
 
+if [ "$magma" ] || [ "$sage" ] ; then
+    common+=(save_submatrices=1)
+fi
+
 if [ "$magma" ] ; then
     echo "### Enabling magma checking ###"
-    common+=(save_submatrices=1)
     if [ -d "$magma" ] ; then
         if [ -x "$magma/magma" ] ; then
             magma="$magma/magma"
@@ -371,7 +376,6 @@ fi
 
 if [ "$sage" ] ; then
     echo "### Enabling SageMath checking ###"
-    common+=(save_submatrices=1)
 fi
 
 if ! [ "$magma" ] && ! [ "$sage" ] ; then
@@ -410,7 +414,7 @@ else
         $bindir/bwc.pl :mpirun_single -- $bindir/bwccheck prime=$prime m=$m n=$n -- $wdir/[ACVFS]* > $wdir/bwccheck.log
         grep NOK $wdir/bwccheck.log
     fi
-    set +x
+    eval $(old_setx)
     if [[ $script_steps =~ bwc\.pl([a-z:/]*) ]] ; then
         if [ "$rc" = 0 ] ; then
             echo " ========== SUCCESS ! bwc.pl returned true ========== "
@@ -424,7 +428,7 @@ else
     fi
 fi
 
-set +x
+eval $(old_setx)
 
 magma_sage_check_parameters() { # {{{
     # Required parameters below this point:
