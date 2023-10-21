@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
+old_setx=$(shopt -po xtrace || :)
+
 set -e
 
 exec < /dev/null
-
-old_setx=$(shopt -po xtrace)
 
 if [ "$CADO_DEBUG" ] ; then
     set -x
