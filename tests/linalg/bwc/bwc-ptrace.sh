@@ -745,8 +745,6 @@ magma_run_script() { # {{{
     if egrep -q "(Runtime error|Assertion failed)" magma.out ; then
         exit 1
     fi
-
-    exit $rc
 }
 # }}}
 
@@ -794,6 +792,7 @@ fi
 if [ "$sage" ] ; then
     cmd=/bin/true
     magma_sage_check_parameters
+    cd `dirname "$0"`
     export PYTHONUNBUFFERED=true
-    "$sage" tests/linalg/bwc/bwc.sage m=$m n=$n p=$prime wdir=$wdir matrix=$matrix nh=$Nh nv=$Nv
+    "$sage" bwc.sage m=$m n=$n p=$prime wdir=$wdir matrix=$matrix nh=$Nh nv=$Nv
 fi
