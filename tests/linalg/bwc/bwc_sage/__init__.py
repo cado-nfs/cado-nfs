@@ -121,9 +121,10 @@ class BwcMatrix(object):
     def __init__(self, params : BwcParameters, matrix=None, wdir=None, balancing_filename=None):
         self.params = params
         self.filename = matrix
-        self.wdir = None
-        if self.wdir is None:
+        if wdir is None:
             self.wdir = os.path.dirname(self.filename)
+        else:
+            self.wdir = wdir
 
         if balancing_filename is not None:
             self.balancing = BwcBalancing(params, balancing_filename)
