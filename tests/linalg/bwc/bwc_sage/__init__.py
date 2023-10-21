@@ -571,8 +571,8 @@ class BwcShuffling(object):
         try:
             # the decorrelating permutation can be defined on the non-padded
             # indices too.
-            Sr0 = SymmetricGroup(range(bal.nr))
-            self.shuf = Sr0([self.__preshuf(Integer(x)) for x in range(bal.nr)])
+            Sc0 = SymmetricGroup(range(bal.nc))
+            self.shuf = Sc0([self.__preshuf(Integer(x)) for x in range(bal.nc)])
             self.shufinv = self.shuf**-1
         except KeyError:
             print("Error in creating permutation shuf " + NOK, file=sys.stderr)
@@ -580,7 +580,7 @@ class BwcShuffling(object):
             self.shufinv = None
 
         try:
-            self.xshuf = Sr([self.__preshuf(Integer(x)) for x in range(bal.tr)])
+            self.xshuf = Sc([self.__preshuf(Integer(x)) for x in range(bal.tc)])
             self.xshufinv = self.xshuf**-1
         except KeyError:
             print("Error in creating permutation xshuf " + NOK, file=sys.stderr)
