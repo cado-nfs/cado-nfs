@@ -16,6 +16,10 @@ project_package_selection() { : ; }
 tweak_tree_before_configure() { : ; }
 
 step_configure() {
+    if [ "$specific_checks" = "bwc.sagemath" ] ; then
+        export CHECKS_EXPENSIVE=1
+        export FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3=1
+    fi
     if [ "$using_cmake_directly" ] ; then
         (cd "$build_tree" ; cmake "$source_tree")
     else
@@ -28,21 +32,29 @@ build_steps="build1 build2"
 build_step_name_build1="Building"
 
 step_build1() {
+    target=all
+    if [ "$specific_checks" = "bwc.sagemath" ] ; then
+        target=bwc_full
+    fi
     if [ "$using_cmake_directly" ] ; then
         SOURCEDIR="$PWD"
-        (cd "$build_tree" ; "${MAKE}" -j$NCPUS)
+        (cd "$build_tree" ; "${MAKE}" -j$NCPUS $target)
     else
-        "${MAKE}" -j$NCPUS
+        "${MAKE}" -j$NCPUS $target
     fi
 }
 
 build_step_name_build2="Building test dependencies"
 step_build2() {
+    target=all_test_dependencies
+    if [ "$specific_checks" = "bwc.sagemath" ] ; then
+        return
+    fi
     if [ "$using_cmake_directly" ] ; then
         SOURCEDIR="$PWD"
-        (cd "$build_tree" ; "${MAKE}" -j$NCPUS all_test_dependencies)
+        (cd "$build_tree" ; "${MAKE}" -j$NCPUS $target)
     else
-        "${MAKE}" -j$NCPUS all_test_dependencies
+        "${MAKE}" -j$NCPUS $target
     fi
 }
 
@@ -101,6 +113,10 @@ step_check() {
     # likes to store as zlib but headerless, which is a bit of a pain
 
     ctest_args="-T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144"
+
+    if [ "$specific_checks" = "bwc.sagemath" ] ; then
+        ctest_args="$ctest_args -R bwc"
+    fi
 
     if [ "$using_cmake_directly" ] ; then
         set -o pipefail
