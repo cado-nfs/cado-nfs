@@ -17,17 +17,38 @@ fi
 # command line with care (command-lines as created by this tool might be
 # a source of inspiration, though).
 
+pass_bwcpl_args=()
+
 while [ $# -gt 0 ] ; do
     a="$1"
     shift
     if [ "$a" = "--" ] ; then
         break
     else
+        if [[ $a =~ ^(prime|m|n|wdir|interval|seed|nullspace|mpi|thr|simd)= ]] ; then
+            # There are quite a few parameters that we parse here and
+            # pass to bwcpl anyway, so let's not put them in
+            # pass_bwcpl_args.
+            # (in fact, this is the case of most parameters)
+            :
+        elif [[ $a =~ ^(tolerate_failure|stop_at_step|keep_rolling_checkpoints|checkpoint_precious|skip_online_checks|interleaving) ]] ; then
+            # basically the same story here, except that there seem to
+            # be two ways these arguments get passed to bwc.pl : we
+            # forcibly add them to ${common[@]} later on in this file,
+            # but why do we do that? Is it only to provide for the case
+            # where these arguments are exported via the shell
+            # environment?
+            :
+        elif [[ $a =~ ^(bindir|mats|pre_wipe|random_matrix_size|random_matrix_minkernel|script_steps|nrhs|sage|magma) ]] ; then
+            # and there are even parameters that only make sense here.
+            :
+        else
+            pass_bwcpl_args+=("$a")
+        fi
         eval "$a"
     fi
 done
 
-pass_bwcpl_args=("$@")
 
 # various configuration variables. environment can be used to override them
 : ${scriptpath=$0}

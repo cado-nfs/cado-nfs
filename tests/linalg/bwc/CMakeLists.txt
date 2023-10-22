@@ -235,10 +235,11 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             # create_magma_sage_diversions(${t})
         endif()
 
+        set(t modp_secure_continuation_${gfp_layer})
         if(gfp_layer STREQUAL "p_1" OR gfp_layer STREQUAL "p_13")
-            set(modp_secure_continuation_${gfp_layer}_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
+            set(${t}_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
         endif()
-        add_bwc_test(modp_secure_continuation_${gfp_layer} bwc-test-secure-continuation.sh prime=${p} random_matrix_size=500 nrhs=4 m=8 n=8 seed=1 interval=32 ${extra})
+        add_bwc_test(${t} bwc-test-secure-continuation.sh prime=${p} random_matrix_size=500 nrhs=4 m=8 n=8 seed=1 interval=32 ${extra})
     endif()
 
     # Also add some lingen tests if it so occurs that the current
@@ -452,6 +453,7 @@ add_bwc_test(mod2_padded bwc-ptrace.sh prime=2 nullspace=left
 add_bwc_test(mod2_secure_continuation bwc-test-secure-continuation.sh
     prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64
     TARGET_DEPENDENCIES mf_scan)
+
 add_bwc_test(mod2_secure_consistent-defaults
     bwc-test-secure-consistent-defaults.sh
     prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64
