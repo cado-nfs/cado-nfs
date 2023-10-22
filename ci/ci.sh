@@ -17,7 +17,6 @@ tweak_tree_before_configure() { : ; }
 
 step_configure() {
     if [ "$specific_checks" = "bwc.sagemath" ] ; then
-        export CHECKS_EXPENSIVE=1
         export FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3=1
     fi
     if [ "$using_cmake_directly" ] ; then
@@ -34,7 +33,7 @@ build_step_name_build1="Building"
 step_build1() {
     target=all
     if [ "$specific_checks" = "bwc.sagemath" ] ; then
-        target=bwc_full
+        target=all_sagemath_test_dependencies
     fi
     if [ "$using_cmake_directly" ] ; then
         SOURCEDIR="$PWD"
@@ -48,6 +47,7 @@ build_step_name_build2="Building test dependencies"
 step_build2() {
     target=all_test_dependencies
     if [ "$specific_checks" = "bwc.sagemath" ] ; then
+        # already covered in build1 anyway
         return
     fi
     if [ "$using_cmake_directly" ] ; then
@@ -115,7 +115,7 @@ step_check() {
     ctest_args="-T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144"
 
     if [ "$specific_checks" = "bwc.sagemath" ] ; then
-        ctest_args="$ctest_args -R bwc"
+        ctest_args="$ctest_args -R with_sagemath"
     fi
 
     if [ "$using_cmake_directly" ] ; then

@@ -25,9 +25,26 @@ macro(add_bwc_test nm script)
             ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --other --arg wdir --
             ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
             ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/${script}
-            bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN} -- verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch,^bwc-loading-mksol-files,^bwc-cache-major-info,^bwc-cpubinding,^perl-checks,^perl-sections
+            bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN}
             AVOID_CONCURRENT
             TARGET_DEPENDENCIES bwc_full)
+        # these verbose_flags don't play with the idea of adding a
+        # divert_bwc_test macro.
+        # -- verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch,^bwc-loading-mksol-files,^bwc-cache-major-info,^bwc-cpubinding,^perl-checks,^perl-sections
+    endforeach()
+endmacro()
+
+macro(divert_bwc_test nm variant)
+    set(mpiconfs ${${nm}_mpi_tests})
+    if (NOT HAVE_MPI OR CMAKE_VERSION VERSION_LESS 3.9)
+        set(mpiconfs)
+    endif()
+    foreach(mpiconf nompi ${mpiconfs})
+        set(suffix _${mpiconf})
+        if(suffix STREQUAL _nompi)
+            set(suffix)
+        endif()
+        cado_divert_test(test_bwc_${nm}${suffix} ${variant} ${ARGN})
     endforeach()
 endmacro()
 
@@ -123,6 +140,19 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     endif()
 endforeach()
         
+add_custom_target(all_magma_test_dependencies)
+add_custom_target(all_sagemath_test_dependencies)
+
+macro(create_magma_sage_diversions t)
+    if(MAGMA)
+        divert_bwc_test(${t} with_magma APPEND_ARGUMENTS magma=${MAGMA})
+        add_dependencies(all_magma_test_dependencies test_bwc_${t}_with_magma_dependencies)
+    endif()
+    if(SAGE)
+        divert_bwc_test(${t} with_sagemath APPEND_ARGUMENTS sage=${SAGE})
+        add_dependencies(all_sagemath_test_dependencies test_bwc_${t}_with_sagemath_dependencies)
+    endif()
+endmacro()
 
 foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     set(extra)
@@ -140,60 +170,71 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
     endif()
     if(gfp_layer STREQUAL "pz")
     elseif("pz" IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
+        set(t modp_inhomogeneous_${gfp_layer})
         if(gfp_layer STREQUAL "p_1" OR gfp_layer STREQUAL "p_13")
-            set(modp_inhomogeneous_${gfp_layer}_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
+            set(${t}_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
         endif()
-        add_bwc_test(modp_inhomogeneous_${gfp_layer} bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra})
-        add_dependencies(test_bwc_modp_inhomogeneous_${gfp_layer}_dependencies
+
+        add_bwc_test(${t}
+            bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra}
+            TARGET_DEPENDENCIES
             lingen_pz lingen_${gfp_layer})
 
         if(gfp_layer STREQUAL "p_1")
-            set(mextra)
-            # Only try to enable magma if CHECKS_EXPENSIVE is set.
-            if(DEFINED ENV{CHECKS_EXPENSIVE} AND MAGMA)
-                set(mextra magma=${MAGMA})
-            endif()
-            if(DEFINED ENV{CHECKS_EXPENSIVE} AND SAGE)
-                set(mextra sage=${SAGE})
-            endif()
             if(DEFINED ENV{CHECKS_EXPENSIVE})
                 # it's quick, but let's avoid redundant tests
-                add_bwc_test(modp_inhomogeneous_minimal_3rhs_mn6 bwc-ptrace.sh prime=1009
-                    random_matrix_size=50 nrhs=3 m=6 n=6 seed=1 ${mextra})
-                add_dependencies(test_bwc_modp_inhomogeneous_minimal_3rhs_mn6_dependencies
+                set(t modp_inhomogeneous_minimal_3rhs_mn6)
+                add_bwc_test(${t} bwc-ptrace.sh prime=1009
+                    random_matrix_size=50 nrhs=3 m=6 n=6 seed=1
+                    TARGET_DEPENDENCIES
                     lingen_pz lingen_${gfp_layer})
+                create_magma_sage_diversions(${t})
             endif()
 
-            set(modp_inhomogeneous_minimal_2rhs_mn4_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
-            add_bwc_test(modp_inhomogeneous_minimal_2rhs_mn4 bwc-ptrace.sh
-                prime=1009 random_matrix_size=50 nrhs=2 m=4 n=4 seed=1 ${mextra})
-            add_dependencies(test_bwc_modp_inhomogeneous_minimal_2rhs_mn4_dependencies
+            set(t modp_inhomogeneous_minimal_2rhs_mn4)
+            set(${t}_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
+            add_bwc_test(${t} bwc-ptrace.sh
+                prime=1009 random_matrix_size=50 nrhs=2 m=4 n=4 seed=1
+                TARGET_DEPENDENCIES
                 lingen_pz lingen_${gfp_layer})
 
             if(DEFINED ENV{CHECKS_EXPENSIVE})
-                add_bwc_test(modp_inhomogeneous_minimal_2rhs_mn4_expensive bwc-ptrace.sh
-                    prime=1237940039285380274899124357 random_matrix_size=200 nrhs=2 m=4 n=4 seed=1 ${mextra})
-                add_dependencies(test_bwc_modp_inhomogeneous_minimal_2rhs_mn4_expensive_dependencies
+                set(t modp_inhomogeneous_minimal_2rhs_mn4_expensive)
+                add_bwc_test(${t} bwc-ptrace.sh
+                    prime=1237940039285380274899124357
+                    random_matrix_size=200 nrhs=2 m=4 n=4 seed=1
+                    TARGET_DEPENDENCIES
                     lingen_pz lingen_${gfp_layer})
+                create_magma_sage_diversions(${t})
             endif()
 
             if(DEFINED ENV{CHECKS_EXPENSIVE})
-                add_bwc_test(modp_inhomogeneous_minimal_1rhs_mn1 bwc-ptrace.sh
-                    prime=1009 random_matrix_size=50 nrhs=1 m=1 n=1 seed=1 ${mextra})
-                add_dependencies(test_bwc_modp_inhomogeneous_minimal_1rhs_mn1_dependencies
+                set(t modp_inhomogeneous_minimal_1rhs_mn1)
+                add_bwc_test(${t} bwc-ptrace.sh
+                    prime=1009 random_matrix_size=50 nrhs=1 m=1 n=1 seed=1
+                TARGET_DEPENDENCIES
                     lingen_pz lingen_${gfp_layer})
+                create_magma_sage_diversions(${t})
             endif()
 
-            add_bwc_test(modp_homogeneous_minimal_mn4 bwc-ptrace.sh
+            set(t modp_homogeneous_minimal_mn4)
+            add_bwc_test(${t} bwc-ptrace.sh
                 prime=1009 random_matrix_size=50 m=4 n=4 seed=1
-                random_matrix_minkernel=1 ${mextra})
-            add_dependencies(test_bwc_modp_homogeneous_minimal_mn4_dependencies
+                random_matrix_minkernel=1
+                TARGET_DEPENDENCIES
                 lingen_pz lingen_${gfp_layer})
-            #        add_bwc_test(modp_inhomogeneous_minimal_2rhs_mn2 bwc-ptrace.sh
-            #            prime=1009 random_matrix_size=50 nrhs=2 m=2 n=2 seed=1 ${mextra})
-            #        add_dependencies(modp-inhomogeneous-minimal-2rhs-mn2_dependencies
-            #        lingen_pz lingen_${gfp_layer})
+            create_magma_sage_diversions(${t})
+
+            ## this one isn't really useful
+            # set(t modp_inhomogeneous_minimal_2rhs_mn2)
+            # add_bwc_test(${t} bwc-ptrace.sh
+            #   prime=1009 random_matrix_size=50 nrhs=2 m=2 n=2
+            #   seed=1
+            #   TARGET_DEPENDENCIES
+            #   lingen_pz lingen_${gfp_layer})
+            # create_magma_sage_diversions(${t})
         endif()
+
         if(gfp_layer STREQUAL "p_1" OR gfp_layer STREQUAL "p_13")
             set(modp_secure_continuation_${gfp_layer}_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
         endif()
@@ -401,45 +442,47 @@ set_target_properties(check_mpi_problems PROPERTIES
 
 
 set(mod2_plain_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
-add_bwc_test(mod2_plain bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2)
-add_dependencies(test_bwc_mod2_plain_dependencies mf_scan)
-add_bwc_test(mod2_padded bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=700,600 m=64 n=64 seed=1 thr=2x2)
-add_dependencies(test_bwc_mod2_padded_dependencies mf_scan)
+add_bwc_test(mod2_plain bwc-ptrace.sh prime=2 nullspace=left
+    random_matrix_size=800 m=64 n=64 seed=1 thr=2x2
+    TARGET_DEPENDENCIES mf_scan)
+add_bwc_test(mod2_padded bwc-ptrace.sh prime=2 nullspace=left
+    random_matrix_size=700,600 m=64 n=64 seed=1 thr=2x2
+    TARGET_DEPENDENCIES mf_scan)
 
 add_bwc_test(mod2_secure_continuation bwc-test-secure-continuation.sh
-    prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64)
-add_dependencies(test_bwc_mod2_secure_continuation_dependencies mf_scan)
+    prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64
+    TARGET_DEPENDENCIES mf_scan)
 add_bwc_test(mod2_secure_consistent-defaults
     bwc-test-secure-consistent-defaults.sh
-    prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64)
-add_dependencies(test_bwc_mod2_secure_continuation_dependencies mf_scan)
+    prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64
+    TARGET_DEPENDENCIES mf_scan)
 
 # Note: because of stop_at_step here, we're not verifying what we're
 # doing, which is a bit stupid.
 add_bwc_test(mod2_rolling bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=2000
     interval=10 keep_rolling_checkpoints=2 checkpoint_precious=40 m=64 n=64
-    seed=1 thr=2x2 stop_at_step=lingen)
-add_dependencies(test_bwc_mod2_rolling_dependencies mf_scan)
+    seed=1 thr=2x2 stop_at_step=lingen
+    TARGET_DEPENDENCIES mf_scan)
 
-add_bwc_test(mod2_8k bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2)
-add_dependencies(test_bwc_mod2_8k_dependencies mf_scan)
+add_bwc_test(mod2_8k bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2
+    TARGET_DEPENDENCIES mf_scan)
 
 if (COMPILE_MPFQ_BINARY_FIELD_m128)
-add_bwc_test(mod2_8k_simd128 bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2 simd=128)
-add_dependencies(test_bwc_mod2_8k_simd128_dependencies mf_scan)
+add_bwc_test(mod2_8k_simd128 bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2 simd=128
+    TARGET_DEPENDENCIES mf_scan)
 endif()
 
 set(mod2_oddthr mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
-add_bwc_test(mod2_oddthr bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=128 n=128 seed=1 thr=3)
-add_dependencies(test_bwc_mod2_oddthr_dependencies mf_scan)
+add_bwc_test(mod2_oddthr bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=128 n=128 seed=1 thr=3
+    TARGET_DEPENDENCIES mf_scan)
 
 add_bwc_test(mod2_interleaving bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=128 n=128
-    interleaving=1 seed=1 thr=2)
-add_dependencies(test_bwc_mod2_oddthr_dependencies mf_scan)
+    interleaving=1 seed=1 thr=2
+    TARGET_DEPENDENCIES mf_scan)
  
 add_bwc_test(mod2_m_neq_n bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=400 m=128 n=64
-    seed=1 thr=5)
-add_dependencies(test_bwc_mod2_m_neq_n_dependencies mf_scan)
+    seed=1 thr=5
+    TARGET_DEPENDENCIES mf_scan)
 
 add_subdirectory(mpfq)
 
