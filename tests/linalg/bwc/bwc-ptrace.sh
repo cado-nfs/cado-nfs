@@ -31,14 +31,16 @@ while [ $# -gt 0 ] ; do
             # pass_bwcpl_args.
             # (in fact, this is the case of most parameters)
             :
-        elif [[ $a =~ ^(tolerate_failure|stop_at_step|keep_rolling_checkpoints|checkpoint_precious|skip_online_checks|interleaving) ]] ; then
-            # basically the same story here, except that there seem to
-            # be two ways these arguments get passed to bwc.pl : we
-            # forcibly add them to ${common[@]} later on in this file,
-            # but why do we do that? Is it only to provide for the case
-            # where these arguments are exported via the shell
-            # environment?
-            :
+        # (try to remove both the exception here and the offending
+        # exception later on)
+        # elif [[ $a =~ ^(tolerate_failure|stop_at_step|keep_rolling_checkpoints|checkpoint_precious|skip_online_checks|interleaving) ]] ; then
+        #     # basically the same story here, except that there seem to
+        #     # be two ways these arguments get passed to bwc.pl : we
+        #     # forcibly add them to ${common[@]} later on in this file,
+        #     # but why do we do that? Is it only to provide for the case
+        #     # where these arguments are exported via the shell
+        #     # environment?
+        #     :
         elif [[ $a =~ ^(bindir|mats|pre_wipe|random_matrix_size|random_matrix_minkernel|script_steps|nrhs|sage|magma) ]] ; then
             # and there are even parameters that only make sense here.
             :
@@ -371,9 +373,9 @@ if [ "$rhsfile" ] ; then
     common+=(rhs=$rhsfile)
 fi
 
-for v in tolerate_failure stop_at_step keep_rolling_checkpoints checkpoint_precious skip_online_checks interleaving ; do
-    if [ "${!v}" ] ; then common+=("$v=${!v}") ; fi
-done
+# for v in tolerate_failure stop_at_step keep_rolling_checkpoints checkpoint_precious skip_online_checks interleaving ; do
+#     if [ "${!v}" ] ; then common+=("$v=${!v}") ; fi
+# done
 
 if ! [[ $script_steps =~ magma ]] ; then
     magma=
