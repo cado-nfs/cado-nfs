@@ -85,7 +85,7 @@ if [ "$1" == "tidy" ] ; then
         echo "$wn no input terminal, assuming no"
         TIDY_BUILD=n
     fi
-    if [ "$TIDY_BUILD" == "Y" ]; then
+    if [ "$TIDY_BUILD" == "Y" ] ; then
         echo "$wn wiping out $build_tree"
         rm -rf "$build_tree"
     else
@@ -164,7 +164,7 @@ if ! [ "$cmake_path" ] ; then
             echo "No input terminal, assuming yes"
             INSTALL_CMAKE=y
         fi
-        if [ ! "$INSTALL_CMAKE" = "y" ]; then
+        if [ ! "$INSTALL_CMAKE" = "y" ] ; then
             echo "Please install a compatible version of Cmake."
             exit 1
         fi
@@ -243,7 +243,9 @@ callit() {
 if [ "$1" = "check" ] && ! [ "$ctest_filter" = "no" ] ; then
     set -o pipefail
     # the ctest_filter groks -nc, -q, -v
-    callit | "$absolute_path_of_source/scripts/filter-ctest.pl" $ctest_filter
+    # fd 3 is another stdout that is guaranteed to escape the ctest
+    # filter. We may want to use it.
+    (callit | "$absolute_path_of_source/scripts/filter-ctest.pl" $ctest_filter) 3>&1
 else
     callit
 fi

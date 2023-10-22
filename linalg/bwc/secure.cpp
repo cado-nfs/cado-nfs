@@ -180,7 +180,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             if (consistency) Rfile = R.steal_file_pointer();
 
             /* Non-destructively open for writing */
-            file_guard T(Tfilename.c_str(), "ab");
+            file_guard T(Tfilename.c_str(), bw->start == 0 ? "wb" : "rb");
             if (bw->start == 0) {
                 if (T && T.sbuf->st_size) {
                     fmt::fprintf(stderr, "Refusing to overwrite %s with new random data\n", Tfilename);
@@ -216,9 +216,12 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                 ASSERT_ALWAYS(rc == 1);
                 if (tcan_print) fmt::printf("Saved %s\n", Tfilename);
             } else {
+                /* We should be reading the same data, unless we changed
+                 * the seed.
+                 */
                 rc = fread(Tdata, A->vec_elt_stride(A, bw->m), 1, T.f);
                 ASSERT_ALWAYS(rc == 1);
-                if (tcan_print) fmt::printf("loaded %s\n", Tfilename);
+                if (tcan_print) fmt::printf("Loaded %s\n", Tfilename);
             }
             /* }}} */
 
@@ -232,11 +235,15 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         }
         /* }}} */
 
-    } else {
+    }
+    if (bw->start) {
+        /* same remark as above. We want the random state to be in sync
+         * even if bw->start>0 and we don't _really_ have stuff to
+         * generate for this data that's already there.
+         */
         void * Rdata;
         cheating_vec_init(A, &Rdata, nchecks);
         for(int k = 0 ; k < bw->start ; k++) {
-            /* same remark as above */
             A->vec_random(A, Rdata, nchecks, rstate);
         }
         cheating_vec_clear(A, &Rdata, nchecks);

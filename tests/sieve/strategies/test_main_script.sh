@@ -40,7 +40,7 @@ if ! [ -f final_st ] ; then
 fi
 
 nl=`wc -l final_st | cut -d " " -f 1`
-if [ "$nl" == "382" ]; then
+if [ "$nl" == "382" ] ; then
     rm -rf $t
     exit 0
 else

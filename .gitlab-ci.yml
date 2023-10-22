@@ -269,6 +269,18 @@ expensive checks with gcc:
     - *checks-script
   <<: *checks-junit-report
 
+bwc.sagemath specific expensive checks with gcc:
+  <<: *common-template
+  stage: thorough
+  image:
+    name: sagemath/sagemath:latest
+    entrypoint: [ "" ]
+  before_script:
+    - sudo -E ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
 ############################################################################
 # coverage. Actually, this is not really dependent on checks, after all.
 # It does depend on the availability of the coverage images, though!

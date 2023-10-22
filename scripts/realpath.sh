@@ -41,7 +41,7 @@ _resolve_symlinks() {
 
     local dir_context path
     path=$(readlink -- "$1")
-    if [ $? -eq 0 ]; then
+    if [ $? -eq 0 ] ; then
         dir_context=$(dirname -- "$1")
         _resolve_symlinks "$(_prepend_dir_context_if_necessary "$dir_context" "$path")" "$@"
     else
@@ -50,7 +50,7 @@ _resolve_symlinks() {
 }
 
 _prepend_dir_context_if_necessary() {
-    if [ "$1" = . ]; then
+    if [ "$1" = . ] ; then
         printf '%s\n' "$2"
     else
         _prepend_path_if_relative "$1" "$2"
@@ -71,14 +71,14 @@ _assert_no_path_cycles() {
     shift
 
     for path in "$@"; do
-        if [ "$path" = "$target" ]; then
+        if [ "$path" = "$target" ] ; then
             return 1
         fi
     done
 }
 
 canonicalize_path() {
-    if [ -d "$1" ]; then
+    if [ -d "$1" ] ; then
         _canonicalize_dir_path "$1"
     else
         _canonicalize_file_path "$1"
@@ -117,7 +117,7 @@ _system_readlink() {
 }
 
 _emulated_readlink() {
-    if [ "$1" = -- ]; then
+    if [ "$1" = -- ] ; then
         shift
     fi
 
