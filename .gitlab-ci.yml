@@ -272,9 +272,11 @@ expensive checks with gcc:
 bwc.sagemath specific expensive checks with gcc:
   <<: *common-template
   stage: thorough
-  image: sagemath/sagemath:latest
+  image:
+    name: sagemath/sagemath:latest
+    entrypoint: [ "" ]
   before_script:
-    - sudo ci/ci/00-prepare-docker.sh
+    - sudo -E ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
