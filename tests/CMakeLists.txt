@@ -740,7 +740,13 @@ cado_define_test(test_iceildiv.c)
 # used by some tests.
 if(DEFINED ENV{CHECKS_EXPENSIVE})
 find_program(MAGMA magma HINTS ENV MAGMA)
+if(MAGMA)
+    message(STATUS "magma program found, some bwc expensive checks will run magma code")
+endif()
 find_program(SAGE sage HINTS ENV SAGE)
+if(SAGE)
+    message(STATUS "sage program found, some bwc expensive checks will run sage code")
+endif()
 endif()
 
 add_subdirectory (scripts)
