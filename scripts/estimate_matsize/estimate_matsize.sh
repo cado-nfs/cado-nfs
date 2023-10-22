@@ -99,7 +99,7 @@ if ! [[ $1 =~ ^- ]] ; then
     fi
 done
 
-if [ $# != 1 ]; then
+if [ $# != 1 ] ; then
     usage
     exit 1
 fi
@@ -111,13 +111,13 @@ fi
 
 ## read poly file on command line
 polyfile="$1"
-if [ ! -e "$1" ]; then
+if [ ! -e "$1" ] ; then
     echo "Error: file $1 does not exist?" >&2
     exit 1
 fi
 
 ## if wdir is not set, build one in /tmp
-if [ -z ${wdir+x} ]; then
+if [ -z ${wdir+x} ] ; then
     wdir=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.est_mat.XXXXXXX`;
 else
     mkdir -p $wdir || (echo "mkdir -p $wdir failed"; false) || exit 1
@@ -237,7 +237,7 @@ fi
 
 ## deal with composite special-q's
 compsq=""
-if [ "$allow_compsq" == "true" ]; then
+if [ "$allow_compsq" == "true" ] ; then
     compsq_fake="-allow-compsq -qfac-min ${qfac_min} -qfac-max ${qfac_max}"
     compsq_las="-allow-largesq ${compsq_fake}"
 fi
@@ -253,7 +253,7 @@ qmin=(${array[@]})
 
 nsides=${#sqside[@]}
 echo "We sieve on $nsides sides."
-if [ "${#sqside[@]}" != "${#qmax[@]}" -o "${#sqside[@]}" != "${#qmin[@]}" ]; then
+if [ "${#sqside[@]}" != "${#qmax[@]}" -o "${#sqside[@]}" != "${#qmin[@]}" ] ; then
     echo "For multi-side sieving, length of sqside, qmin and qmax arrays must agree"
     exit 1;
 fi
@@ -262,7 +262,7 @@ for i in `seq 0 $((nsides-1))`; do
     qm=${qmax[$i]}
     lpb=lpb$side
     qqmax=`echo "2 ^ ${!lpb}" | bc`
-    if [ "$allow_compsq" == "false" -a $qqmax -le $qm ]; then
+    if [ "$allow_compsq" == "false" -a $qqmax -le $qm ] ; then
         echo "Error on side $side: qmax should be less then lpb"
         exit 1
     fi
@@ -271,13 +271,13 @@ done
 
 ## Sampling / faking on each side
 fakefiles=()
-if [ $nsides == 1 ]; then
-    if [ ${sqside[0]} == 0 ]; then
+if [ $nsides == 1 ] ; then
+    if [ ${sqside[0]} == 0 ] ; then
         dupqmin="${qmin[0]},0"
     else
         dupqmin="0,${qmin[0]}"
     fi
-elif [ $nsides == 2 ]; then
+elif [ $nsides == 2 ] ; then
     dupqmin="${qmin[0]},${qmin[1]}"
 else
     echo "Can't deal with more than 2 sides yet."
@@ -378,7 +378,7 @@ for i in `seq 0 $((nsides-1))`; do
                 "${cmd[@]}" > $file
             fi
         ) &
-        if [ $fakerels_parallel == "false" ]; then
+        if [ $fakerels_parallel == "false" ] ; then
             wait
         fi
     done
@@ -417,7 +417,7 @@ if (grep "number of rows < number of columns + keep" $wdir/purge.log > /dev/null
 fi
 
 # merge
-if [ "$dlp" == "true" ]; then
+if [ "$dlp" == "true" ] ; then
     cmd=($CADO_BUILD/filter/merge-dl -mat $wdir/purged.gz -out $wdir/history.gz 
         -skip 0 -target_density $target_density -t $threads)
     file=$wdir/history.gz
