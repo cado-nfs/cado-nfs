@@ -243,7 +243,9 @@ callit() {
 if [ "$1" = "check" ] && ! [ "$ctest_filter" = "no" ] ; then
     set -o pipefail
     # the ctest_filter groks -nc, -q, -v
-    callit | "$absolute_path_of_source/scripts/filter-ctest.pl" $ctest_filter
+    # fd 3 is another stdout that is guaranteed to escape the ctest
+    # filter. We may want to use it.
+    (callit | "$absolute_path_of_source/scripts/filter-ctest.pl" $ctest_filter) 3>&1
 else
     callit
 fi

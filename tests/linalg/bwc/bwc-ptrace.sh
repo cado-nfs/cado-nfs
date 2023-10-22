@@ -659,7 +659,7 @@ magma_print_all_Ffiles() { # {{{
 #        echo > $mdir/rhscoeffs.m
 #    fi
     # Ffiles=(`ls $wdir | perl -ne '/^F.sols\d+-\d+.\d+-\d+$/ && print;' | sort -n`)
-    echo "Saving linear generator to magma format" >&3
+    echo "Saving linear generator to magma format" >&${text_output_fd}
     echo "Fchunks:=[];";
     echo "Rchunks:=[];";
     # Solutions correspond to *columns* of F, so let us be consistent
@@ -753,7 +753,7 @@ if [ "$magma" ] ; then
 
     cmd=`dirname $0`/convert_magma.pl
 
-    exec 3>&1
+    exec {text_output_fd}>&1
     magma_sage_check_parameters
     magma_print_main_parameters > $mdir/mn.m
     magma_save_matrix
@@ -786,7 +786,11 @@ if [ "$magma" ] ; then
     #    :
     #fi
 
-    magma_run_script
+    check_script_diagnostic_fd=1
+    if [ "$FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3" ] && (exec 1>&3) 2>&- ; then
+        check_script_diagnostic_fd=3
+    fi
+    magma_run_script >&${check_script_diagnostic_fd}
 fi
 
 if [ "$sage" ] ; then
@@ -794,5 +798,13 @@ if [ "$sage" ] ; then
     magma_sage_check_parameters
     cd `dirname "$0"`
     export PYTHONUNBUFFERED=true
-    "$sage" bwc.sage m=$m n=$n p=$prime wdir=$wdir matrix=$matrix nh=$Nh nv=$Nv
+    check_script_diagnostic_fd=1
+    if [ "$FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3" ] && (exec 1>&3) 2>&- ; then
+        check_script_diagnostic_fd=3
+    fi
+    sage_args=( m=$m n=$n p=$prime
+                wdir=$wdir matrix=$matrix
+                nh=$Nh nv=$Nv
+    )
+    "$sage" bwc.sage "${sage_args[@]}" >&${check_script_diagnostic_fd}
 fi
