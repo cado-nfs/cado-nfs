@@ -2,3 +2,4 @@
 FROM runtime
 MAINTAINER Emmanuel Thomé
 COPY --from=build /usr/local/factoring-linalg/ /usr/local/
+RUN rm -rf /var/lib/apt/lists /var/cache/*

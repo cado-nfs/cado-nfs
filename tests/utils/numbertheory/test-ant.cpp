@@ -416,8 +416,7 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
      * the basis [alpha_hat^i]. We reduce modulo f_hat, which is monic.
      * And then we rewrite that back to the basis [alpha^i].
      */
-    cxx_mpz_mat I;
-    cxx_mpz denom;
+    pair<cxx_mpz_mat, cxx_mpz> Id;
     {
         cxx_mpq_mat generators(elements.size(), f->deg);
         cxx_mpz_poly fh;
@@ -450,9 +449,7 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
                 mpq_canonicalize(gik);
             }
         }
-        pair<cxx_mpz_mat, cxx_mpz> Id = generate_ideal(O, M, generators);
-        swap(Id.first, I);
-        swap(Id.second, denom);
+        Id = generate_ideal(O, M, generators);
     }
 
     gmp_randstate_t state;
@@ -463,8 +460,6 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
     }
     vector<pair<cxx_mpz_mat, int> > F = factorization_of_prime(O, f, p, state);
     gmp_randclear(state);
-
-    int w = mpz_p_valuation(denom, p);
 
     for(unsigned int k = 0 ; k < F.size() ; k++) {
         cxx_mpz_mat const& fkp(F[k].first);
@@ -478,15 +473,17 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
         }
         string uniformizer = write_element_as_polynomial(theta_q, "alpha");
 
-        int v = valuation_of_ideal_at_prime_ideal(M, I, a, p);
+        int e = F[k].second;
+        int v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
+
         cout << "# (p=" << p
             << ", k=" << k
             << ", f="<< prime_ideal_inertia_degree(fkp)
-            << ", e="<< F[k].second
+            << ", e="<< e
             << "; "
             << "ideal<O|" << two.first << "," << uniformizer << ">"
             << ")"
-            << "^" << v-w*F[k].second
+            << "^" << v
             << ";" << endl;
     }
     return 1;
@@ -581,12 +578,12 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
             }
             pair<cxx_mpz_mat, cxx_mpz> Id = generate_ideal(O, M, cxx_mpq_mat(gens));
             vector<int> my_vals;
-            int w = mpz_p_valuation(Id.second, p);
             for(unsigned int ell = 0 ; ell < my_ideals.size() ; ell++) {
                 cxx_mpz_mat const& fkp(my_ideals[ell].first);
+                int e = my_ideals[ell].second;
                 cxx_mpz_mat a = valuation_helper_for_ideal(M, fkp, p);
-                int v = valuation_of_ideal_at_prime_ideal(M, Id.first, a, p);
-                my_vals.push_back(v == INT_MAX ? v : (v-w*my_ideals[ell].second));
+                int v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
+                my_vals.push_back(v);
             }
             if (!(is1 >> keyword) || keyword != "valuations") throw exc;
             for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
