@@ -225,10 +225,11 @@ checks on centos9 system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
-# unfortunately silkeh/clang:latest is outdated...
-checks with clang13:
+# Despite what the description on docker hub says, silkeh/clang:latest is
+# not always the latest stable build, which is a pity.
+checks with clang:
   <<: *common-template
-  image: silkeh/clang:13
+  image: silkeh/clang:latest
   stage: early
   before_script:
     - ci/ci/00-prepare-docker.sh
