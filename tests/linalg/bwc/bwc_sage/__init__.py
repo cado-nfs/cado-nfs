@@ -22,6 +22,7 @@ from sage.matrix.constructor import matrix
 from sage.rings.finite_rings.finite_field_constructor import GF
 from sage.groups.perm_gps.permgroup_named import SymmetricGroup
 from sage.matrix.special import block_matrix,zero_matrix
+from collections import defaultdict
 import copy
 
 FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES  = 64
@@ -681,6 +682,11 @@ class BwcVector(object):
         self.dimension = sz // self.params.p_bytes
 
         self.V = matrix(GF(self.params.p), self.dimension, self.params.splitwidth)
+    def __iter__(self):
+        yield self.j0
+        yield self.j1
+        yield self.iteration
+        yield self.filename
 
     def __str__(self):
         return f"{self.V.nrows()}x{self.V.ncols()} vector for block {self.j0}-{self.j1} at iteration {self.iteration}"
@@ -1005,3 +1011,138 @@ def scan_for_bwc_vectors(params, dirname, read=False):
             v.read()
     return L
 
+
+class BwcAFiles(object):
+    """
+    This class gathers information on all the A files
+    (transpose(X)*M^i*Y) that are computed in the Krylov stage of bwc.
+    """
+    def __init__(self, params : BwcParameters, dims, dirname):
+        self.params = params
+        self.A = matrix(GF(self.params.p)['x'], self.params.m, self.params.n)
+        self.KP = self.A.base_ring()
+        self.dims = dims
+        self.dirname = dirname
+        self.afiles = []
+        ls = os.listdir(dirname)
+        occupancy = [ [] for j in range(self.params.n) ]
+
+        for filename in ls:
+            apat = r"^A(\d+)-(\d+)\.(\d+)-(\d+)$"
+            if (m := re.match(apat, filename)):
+                tup = (os.path.join(dirname, filename), *[int(x) for x in m.groups()])
+                j0, j1, start, end = tup[1:]
+                nj = j1 - j0
+                if nj != self.params.splitwidth and nj != self.params.n:
+                    raise ValueError(f"Wrong file name for A file (does not match splitwidth): {filename} {NOK}")
+                for j in range(j0, j1, self.params.splitwidth):
+                    occupancy[j].append((start, end, []))
+                self.afiles.append(tup)
+                continue
+
+        for j in range(0, self.params.n, self.params.splitwidth):
+            n = 0
+            occupancy[j] = sorted(occupancy[j])
+            for b,e,L in occupancy[j]:
+                if b < n:
+                    raise ValueError(f"overlap in A files for position {0:self.params.m},{j}, degrees {b}:{n}")
+                n = e
+        self.vfiles = scan_for_bwc_vectors(self.params, dirname)
+
+        # scan the v files, determine how each range is going to be
+        # tested.
+        for v in self.vfiles:
+            j0,j1,iteration,filename = v
+            assert j1-j0 == self.params.splitwidth
+            iL = iter(occupancy[j0])
+            nL = []
+            while (ell := next(iL, None)) is not None:
+                s, e, usable = ell
+                if iteration >= e:
+                    nL.append(ell)
+                elif iteration <= s:
+                    usable.append(v)
+                    nL.append(ell)
+                else:
+                    nL.append(s, iteration, usable)
+                    nL.append(iteration, e, copy(usable) + v)
+            occupancy[j0] = nL
+        for j in range(0, self.params.n, self.params.splitwidth):
+            nL = []
+            for b,e,usable in occupancy[j]:
+                if not usable:
+                    print(f"Warning: we have no way to check coefficients {b}:{e} in column {j} {EXCL}")
+                    continue
+                nL.append((b, e, max(usable, key=lambda v: v.iteration)))
+            occupancy[j] = nL
+
+        self.check_map=[]
+        by_vector = defaultdict(lambda: [])
+        for j in range(0, self.params.n, self.params.splitwidth):
+            for x in occupancy[j]:
+                by_vector[x[2]].append(x[:2])
+        for k in sorted(by_vector.keys(), key=lambda x:tuple(x)):
+            L = sorted(by_vector[k])
+            b0 = None
+            e0 = None
+            for b,e in L:
+                if b0 is None:
+                    b0 = b
+                    assert k.iteration == b
+                else:
+                    if b != e0:
+                        raise ValueError(f"Found a gap in the set of values that can be checked using {k.filename}: nothing for degrees [{n}:{b}]")
+                e0 = e
+            self.check_map.append((k, e0))
+
+        self.x = BwcXVector(self.params, self.dims, os.path.join(self.dirname, "X"))
+
+    def read_one_matrix(self, f, ni, nj):
+        M = matrix(self.KP, ni, nj)
+        for i in range(ni):
+            for j in range(nj):
+                b = bytearray(f.read(self.params.p_bytes))
+                if not b:
+                    if i or j:
+                        raise IOError(f"Short read, could not read a {ni}x{nj} matrix at offset {f.tell()}")
+                    return None
+                M[i,j] = int.from_bytes(b, 'little')
+        return M
+
+
+    def read(self):
+        x = self.KP.gen()
+        self.x.read()
+        for v in self.vfiles:
+            v.read()
+        for filename, j0, j1, start, end in self.afiles:
+            ni = self.params.m
+            nj = j1 - j0
+            k = start
+            st = os.stat(filename)
+            bytes_per_mat = ni * (nj // self.params.splitwidth) * self.params.p_bytes
+            nk = st.st_size // bytes_per_mat
+            print(f"Reading {filename} (size: {ni}*{nj}, {nk} coeffs)")
+            if nk != end - start:
+                raise ValueError(f"{filename} has incorrect size (expected {nk*bytes_per_mat} for {nk} coefficients) {NOK}")
+
+            with open(filename, 'rb') as f:
+                while (M := self.read_one_matrix(f, ni, nj)) is not None:
+                    self.A[:,j0:j1] += x**k * M
+                    k += 1
+
+
+    def __getitem__(self, i):
+        return matrix(self.KP.base_ring(),
+                      self.A.nrows(),
+                      self.A.ncols(),
+                      [t[i] for t in self.A.coefficients()])
+    def check(self, M):
+        for v, k1 in self.check_map:
+            print(f"Check iterations [{v.iteration}:{k1}] of A using {v.filename}")
+            w = v.V
+            for k in range(v.iteration, k1):
+                if self.x.X.transpose()*w != self[k][:,v.j0:v.j1]:
+                    raise ValueError(f"Inconsistency in A files at coefficient {k}")
+                w = M * w
+            print(f"Check iterations [{v.iteration}:{k1}] of A using {v.filename} {OK}")

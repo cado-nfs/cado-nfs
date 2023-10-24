@@ -1,6 +1,6 @@
 import re
 
-import bwc_sage as BWC
+from bwc_sage import *
 
 if __name__ == '__main__':
     args=dict()
@@ -19,21 +19,25 @@ if __name__ == '__main__':
     def filter_dict(D, pat):
         return dict([kv for kv in D.items() if re.match(pat, kv[0])])
 
-    par = BWC.BwcParameters(**filter_dict(args, r"^[mnp]$"))
+    par = BwcParameters(**filter_dict(args, r"^[mnp]$"))
 
-    M = BWC.BwcMatrix(par, **filter_dict(args, r"^(matrix|wdir)$"))
+    M = BwcMatrix(par, **filter_dict(args, r"^(matrix|wdir)$"))
     M.read(force_square=True)
     M.fetch_balancing(**filter_dict(args, r"^n[hv]$"))
     M.check()
 
-    Vs = BWC.scan_for_bwc_vectors(par, args["wdir"], read=True)
+    Vs = scan_for_bwc_vectors(par, args["wdir"], read=True)
 
     MQ = M.decorrelated()
 
-    BWC.check_all_vectors(Vs, MQ)
+    check_all_vectors(Vs, MQ)
 
-    c = BWC.BwcCheckData(par, M.dimensions(), args["wdir"])
+    c = BwcCheckData(par, M.dimensions(), args["wdir"])
     c.read()
     c.check(MQ)
+
+    a = BwcAFiles(par, M.dimensions(), args["wdir"])
+    a.read()
+    a.check(MQ)
 
     print("All checks passed 🥳")
