@@ -8,7 +8,7 @@ from sage.rings.finite_rings.finite_field_constructor import GF
 from collections import defaultdict
 from .BwcParameters import BwcParameters
 from .tools import read_one_matrix, mcoeff, mdiv, mmod, mdivmod, mrev, mdeg
-from .tools import OK, NOK
+from .tools import OK, NOK, EXCL
 
 
 class BwcFFiles(object):
@@ -157,10 +157,14 @@ class BwcFFiles(object):
     def derive_solutions(self, A, Vs, MQ):
         """
         This returns a pair (U, V) such that each of the n columns (u in
-        U and v in V) are such that  rhs * u + M * v = 0
+        U and v in V) are such that  rhs * u + MQ * v = 0
 
         Therefore U has size r*n, and V has size N*n
         """
+
+        # The magma code has complicated considerations about checking
+        # for solutions that happen only after a few extra rounds of
+        # applying M (in the homogenous case).
 
         r = len(self.rhs_columns)
         U = self.R[:r,:]
@@ -171,8 +175,23 @@ class BwcFFiles(object):
             V += v * mcoeff(self.F, k)
             v = MQ * v
 
+        print("Checking solutions derived from the linear generator")
+        if rhs * U + MQ * V != 0:
+            raise ValueError("check failed " + NOK)
 
-        assert rhs * U + MQ * V == 0
+        if self.params.is_nullspace_right():
+            # see what happens with the original matrix.
+            QV = MQ.parent.Q * V
+            for j in range(QV.ncols()):
+                if self.R[:,j] != 0:
+                    continue
+                warn = f"Warning (innocuous): solution {j} is zero"
+                if QV[:,j] == 0:
+                    print(f"{warn} {EXCL}")
+                elif QV[:MQ.parent.ncols_orig,j] == 0:
+                    print(f"{warn} on the interesting columns {EXCL}")
+
+        print("Checking solutions derived from the linear generator " + OK)
 
         return (U, V)
 
