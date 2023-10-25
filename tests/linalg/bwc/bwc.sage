@@ -48,4 +48,8 @@ if __name__ == '__main__':
     f.read()
     f.check(a)
 
+    s = BwcSVectorSet(par, args["wdir"])
+    s.read()
+    s.check(Vs, MQ, f)
+
     print("All checks passed " + HURRAH)

@@ -1,31 +1,11 @@
-import os
-import re
-
 from .BwcVector import BwcVector
+from .BwcVectorSetBase import BwcVectorSetBase
 from .tools import OK, EXCL
 
 
-class BwcVectorSet(object):
+class BwcVectorSet(BwcVectorSetBase):
     def __init__(self, params, dirname):
-        self.params = params
-        self.Vs = []
-        self.dirname = dirname
-        self.vfiles = []
-
-        pat = r"^V(\d+)-(\d+).(\d+)$"
-
-        doing = f"Scanning for bwc vectors in {dirname}"
-        print(doing)
-        for x in os.listdir(dirname):
-            if re.match(pat, x):
-                self.Vs.append(BwcVector(params, os.path.join(dirname, x)))
-
-        self.Vs = sorted(self.Vs, key=lambda x: (x.j0, x.j1, x.iteration))
-        print(f"{doing} ... {len(self.Vs)} vectors found")
-
-    def read(self):
-        for v in self.Vs:
-            v.read()
+        super().__init__(BwcVector, params, dirname)
 
     def check(self, mat):
         for j0, j1 in sorted(list(set([(x.j0, x.j1) for x in self.Vs]))):
@@ -50,12 +30,3 @@ class BwcVectorSet(object):
                 i = t.iteration
                 assert V == t.V
                 print(f"{doing} ... {OK}")
-
-    def __iter__(self):
-        return iter(self.Vs)
-
-    def __getitem__(self, i):
-        return self.Vs[i]
-
-    def __len__(self):
-        return len(self.Vs)

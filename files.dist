@@ -1300,8 +1300,12 @@ tests/linalg/bwc/bwc_sage/BwcCheckData.py
 tests/linalg/bwc/bwc_sage/BwcFFiles.py
 tests/linalg/bwc/bwc_sage/BwcMatrix.py
 tests/linalg/bwc/bwc_sage/BwcParameters.py
+tests/linalg/bwc/bwc_sage/BwcSVector.py
+tests/linalg/bwc/bwc_sage/BwcSVectorSet.py
 tests/linalg/bwc/bwc_sage/BwcVector.py
+tests/linalg/bwc/bwc_sage/BwcVectorBase.py
 tests/linalg/bwc/bwc_sage/BwcVectorSet.py
+tests/linalg/bwc/bwc_sage/BwcVectorSetBase.py
 tests/linalg/bwc/bwc_sage/BwcXVector.py
 tests/linalg/bwc/bwc_sage/__init__.py
 tests/linalg/bwc/bwc_sage/tools.py

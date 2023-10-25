@@ -5,6 +5,7 @@ from sage.matrix.constructor import matrix
 OK = "ok ✅"
 NOK = "❌"
 EXCL = "❗"
+NOTHING_TO_DO = "💤"
 HURRAH = "🥳"
 
 

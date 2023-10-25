@@ -21,3 +21,5 @@ from .BwcXVector import BwcXVector  # noqa: F401
 from .BwcCheckData import BwcCheckData  # noqa: F401
 from .BwcAFiles import BwcAFiles  # noqa: F401
 from .BwcFFiles import BwcFFiles  # noqa: F401
+from .BwcSVector import BwcSVector  # noqa: F401
+from .BwcSVectorSet import BwcSVectorSet  # noqa: F401
