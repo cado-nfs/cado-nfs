@@ -1,15 +1,17 @@
 import re
-
+import os
+import sys
 from bwc_sage import *
+from bwc_sage.tools import HURRAH
 
 if __name__ == '__main__':
-    args=dict()
+    args = dict()
     for v in sys.argv[1:]:
         if (m := re.match(r"^(p)(?:rime)?=(\d+)$", v)):
-            args[m.groups()[0]] = Integers()(m.groups()[1])
-        elif  (m := re.match(r"^(m|n|nh|nv)=(\d+)$", v)):
+            args[m.groups()[0]] = Integer(m.groups()[1])
+        elif (m := re.match(r"^(m|n|nh|nv)=(\d+)$", v)):
             args[m.groups()[0]] = int(m.groups()[1])
-        elif  (m := re.match(r"^(wdir|matrix)=(.*)$", v)):
+        elif (m := re.match(r"^(wdir|matrix)=(.*)$", v)):
             args[m.groups()[0]] = m.groups()[1]
         else:
             raise ValueError(f"Unknown parameter {v}")
@@ -25,19 +27,25 @@ if __name__ == '__main__':
     M.read(force_square=True)
     M.fetch_balancing(**filter_dict(args, r"^n[hv]$"))
     M.check()
-
-    Vs = scan_for_bwc_vectors(par, args["wdir"], read=True)
-
     MQ = M.decorrelated()
 
-    check_all_vectors(Vs, MQ)
+    Vs = BwcVectorSet(par, args["wdir"])
+    Vs.read()
+    Vs.check(MQ)
+
+    x = BwcXVector(par, M.dimensions(), args["wdir"])
+    x.read()
 
     c = BwcCheckData(par, M.dimensions(), args["wdir"])
     c.read()
-    c.check(MQ)
+    c.check(MQ, x)
 
     a = BwcAFiles(par, M.dimensions(), args["wdir"])
     a.read()
-    a.check(MQ)
+    a.check(MQ, x, Vs)
 
-    print("All checks passed 🥳")
+    f = BwcFFiles(par, M.dimensions(), args["wdir"])
+    f.read()
+    f.check(a)
+
+    print("All checks passed " + HURRAH)
