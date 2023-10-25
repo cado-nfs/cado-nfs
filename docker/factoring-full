@@ -3,3 +3,4 @@ FROM runtime
 MAINTAINER Emmanuel Thomé
 COPY --from=build /usr/local/factoring-server/ /usr/local/
 COPY --from=build /usr/local/factoring-client/ /usr/local/
+RUN rm -rf /var/lib/apt/lists /var/cache/*
