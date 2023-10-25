@@ -101,8 +101,8 @@ class BwcAFiles(object):
                     nL.append(ell)
                 else:
                     # v can be used for a sub-range. Split in two
-                    nL.append(s, iteration, usable)
-                    nL.append(iteration, e, copy.copy(usable) + v)
+                    nL.append((s, iteration, usable))
+                    nL.append((iteration, e, copy.copy(usable) + v))
             candidates[xj] = nL
 
         # This will be used as intermediary data.
