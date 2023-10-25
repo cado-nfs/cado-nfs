@@ -153,3 +153,28 @@ class BwcFFiles(object):
         A1 = mdiv(A.A, 1)
         R = self.R
         assert A0 * R + mcoeff(A1 * Fr, d) == 0
+
+    def derive_solutions(self, A, Vs, MQ):
+        """
+        This returns a pair (U, V) such that each of the n columns (u in
+        U and v in V) are such that  rhs * u + M * v = 0
+
+        Therefore U has size r*n, and V has size N*n
+        """
+
+        r = len(self.rhs_columns)
+        U = self.R[:r,:]
+        v = Vs.block_by_iteration(0)
+        rhs = v[:,:r]
+        V = v.parent()()
+        for k in range(self.degree()+1):
+            V += v * mcoeff(self.F, k)
+            v = MQ * v
+
+
+        assert rhs * U + MQ * V == 0
+
+        return (U, V)
+
+
+

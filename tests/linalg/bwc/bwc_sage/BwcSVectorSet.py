@@ -1,14 +1,13 @@
-from sage.matrix.special import block_matrix
 from .BwcSVector import BwcSVector
 from .BwcVectorSetBase import BwcVectorSetBase
-from .tools import NOTHING_TO_DO
+from .tools import NOTHING_TO_DO, OK, NOK
 
 
 class BwcSVectorSet(BwcVectorSetBase):
     def __init__(self, params, dirname):
         super().__init__(BwcSVector, params, dirname)
 
-    def check(self, Vs, MQ, F):
+    def check(self, Vs, MQ, F, known_solutions=None):
         """
         This is not an easy check, since it hauls lots of stuff under the
         hood. Recompute and verify all partial sum from the following data
@@ -22,17 +21,7 @@ class BwcSVectorSet(BwcVectorSetBase):
         sw = self.params.splitwidth
         xn = self.params.n // sw
 
-        V_blocks = dict()
-        for it in set([v.iteration for v in Vs]):
-            blocks = sorted([v for v in Vs if v.iteration == it],
-                             key=lambda v: v.j0)
-            for xj in range(xn):
-                assert blocks[xj].j0 == xj * sw
-
-            assert len(blocks) == xn
-
-            V_blocks[it] = block_matrix(1, xn, [v.V for v in blocks])
-
+        V_blocks = Vs.blocks_by_iteration()
 
         # It's a bit different here, because we want to check solution
         # blocks separately
@@ -59,8 +48,17 @@ class BwcSVectorSet(BwcVectorSetBase):
                 print(doing)
                 for s in S_blocks[xj]:
                     s.check(V_blocks[s.start], MQ, F.F)
+
+                if known_solutions is not None:
+                    doing += " against known data"
+                    U, V = known_solutions
+                    print(doing)
+                    if sum([s.V for s in S_blocks[xj]]) != V[:,j0:j1]:
+                        raise ValueError("check failed " + NOK)
+                    print(f"{doing} ... {OK}")
             else:
                 print(f"{doing}: no partial sum found {NOTHING_TO_DO}")
+
 
 
 

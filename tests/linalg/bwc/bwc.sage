@@ -2,7 +2,7 @@ import re
 import os
 import sys
 from bwc_sage import *
-from bwc_sage.tools import HURRAH
+from bwc_sage.tools import HURRAH, OK, NOK
 
 if __name__ == '__main__':
     args = dict()
@@ -47,9 +47,10 @@ if __name__ == '__main__':
     f = BwcFFiles(par, M.dimensions(), args["wdir"])
     f.read()
     f.check(a)
+    U, V = f.derive_solutions(a, Vs, MQ)
 
     s = BwcSVectorSet(par, args["wdir"])
     s.read()
-    s.check(Vs, MQ, f)
+    s.check(Vs, MQ, f, known_solutions=(U, V))
 
     print("All checks passed " + HURRAH)
