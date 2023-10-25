@@ -68,10 +68,10 @@ class BwcFFiles(object):
         self._degree = max(self._degrees.values())
         S = set(self.rhs_columns.values())
         self.rhs_columns = sorted(self.rhs_columns.keys())
-        if S != {self.params.n // sw}:
-            raise ValueError("Inconsistent counts wrt rhs {NOK}")
-        elif not S:
+        if not S:
             print("Homogenous system")
+        elif S != {self.params.n // sw}:
+            raise ValueError(f"Inconsistent counts wrt rhs ({S}) {NOK}")
         elif len(self.rhs_columns) == {self.params.n // sw}:
             print("Inhomogenous system")
         else:
@@ -167,9 +167,9 @@ class BwcFFiles(object):
         # applying M (in the homogenous case).
 
         r = len(self.rhs_columns)
-        U = self.R[:r,:]
+        U = self.R[:r, :]
         v = Vs.block_by_iteration(0)
-        rhs = v[:,:r]
+        rhs = v[:, :r]
         V = v.parent()()
         for k in range(self.degree()+1):
             V += v * mcoeff(self.F, k)
@@ -183,17 +183,14 @@ class BwcFFiles(object):
             # see what happens with the original matrix.
             QV = MQ.parent.Q * V
             for j in range(QV.ncols()):
-                if self.R[:,j] != 0:
+                if self.R[:, j] != 0:
                     continue
                 warn = f"Warning (innocuous): solution {j} is zero"
-                if QV[:,j] == 0:
+                if QV[:, j] == 0:
                     print(f"{warn} {EXCL}")
-                elif QV[:MQ.parent.ncols_orig,j] == 0:
+                elif QV[:MQ.parent.ncols_orig, j] == 0:
                     print(f"{warn} on the interesting columns {EXCL}")
 
         print("Checking solutions derived from the linear generator " + OK)
 
         return (U, V)
-
-
-

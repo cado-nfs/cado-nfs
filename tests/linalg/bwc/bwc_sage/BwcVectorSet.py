@@ -16,7 +16,7 @@ class BwcVectorSet(BwcVectorSetBase):
         sw = self.params.splitwidth
         xn = self.params.n // sw
         blocks = sorted([v for v in self.Vs if v.iteration == it],
-                         key=lambda v: v.j0)
+                        key=lambda v: v.j0)
         for xj in range(xn):
             assert blocks[xj].j0 == xj * sw
 

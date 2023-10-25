@@ -43,7 +43,7 @@ class BwcSVector(BwcVectorBase):
         print(f"Checking {what}")
         s = self.V.parent()()
         for k in range(self.start, self.end):
-            s += vs * mcoeff(F, k)[:,self.j0:self.j1]
+            s += vs * mcoeff(F, k)[:, self.j0:self.j1]
             vs = MQ * vs
 
         if self.V != s:
