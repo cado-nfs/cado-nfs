@@ -134,12 +134,14 @@ class BwcFFiles(object):
         Fx = self.R + D * self.F
 
         d = self.degree()
-        Frx = mrev(Fx, d)
+
+        # mdeg(Fx) might be d+1
+        Frx = mrev(Fx, mdeg(Fx))
 
         L = mdeg(A.A)
 
         print("Checking that F is a linear generator for A")
-        if mdiv(mmod(q * Frx, L), d) != 0:
+        if mdiv(mmod(q * Frx, L), mdeg(Fx)) != 0:
             raise ValueError("check failed " + NOK)
         print("Checking that F is a linear generator for A ... " + OK)
 
