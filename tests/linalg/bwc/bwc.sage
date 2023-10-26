@@ -9,7 +9,7 @@ if __name__ == '__main__':
     for v in sys.argv[1:]:
         if (m := re.match(r"^(p)(?:rime)?=(\d+)$", v)):
             args[m.groups()[0]] = Integer(m.groups()[1])
-        elif (m := re.match(r"^(m|n|nh|nv)=(\d+)$", v)):
+        elif (m := re.match(r"^(m|n|nh|nv|wordsize)=(\d+)$", v)):
             args[m.groups()[0]] = int(m.groups()[1])
         elif (m := re.match(r"^(wdir|matrix)=(.*)$", v)):
             args[m.groups()[0]] = m.groups()[1]
@@ -21,7 +21,7 @@ if __name__ == '__main__':
     def filter_dict(D, pat):
         return dict([kv for kv in D.items() if re.match(pat, kv[0])])
 
-    par = BwcParameters(**filter_dict(args, r"^[mnp]$"))
+    par = BwcParameters(**filter_dict(args, r"^([mnp]|wordsize)$"))
 
     M = BwcMatrix(par, **filter_dict(args, r"^(matrix|wdir)$"))
     M.read(force_square=True)
