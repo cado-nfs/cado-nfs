@@ -831,6 +831,7 @@ if [ "$sage" ] ; then
                 nh=$Nh nv=$Nv
     )
     if [ "$CADO_DEBUG" ] ; then set -x ; fi
-    "$sage" bwc.sage "${sage_args[@]}" >&${check_script_diagnostic_fd}
+    set -eo pipefail
+    "$sage" bwc.sage "${sage_args[@]}" | tee $wdir/sage.out >&${check_script_diagnostic_fd}
     eval $old_setx
 fi
