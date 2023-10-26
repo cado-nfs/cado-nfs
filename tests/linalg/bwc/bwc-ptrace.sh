@@ -6,9 +6,7 @@ set -e
 
 exec < /dev/null
 
-if [ "$CADO_DEBUG" ] ; then
-    set -x
-fi
+if [ "$CADO_DEBUG" ] ; then set -x ; fi
 
 # This script is intended *for testing only*. It's used for, e.g.,
 # coverage tests. This even goes with dumping all intermediary data to
@@ -437,7 +435,7 @@ else
         $bindir/bwc.pl :mpirun_single -- $bindir/bwccheck prime=$prime m=$m n=$n -- $wdir/[ACVFS]* > $wdir/bwccheck.log
         grep NOK $wdir/bwccheck.log
     fi
-    eval $(old_setx)
+    eval $old_setx
     if [[ $script_steps =~ bwc\.pl([a-z:/]*) ]] ; then
         if [ "$rc" = 0 ] ; then
             echo " ========== SUCCESS ! bwc.pl returned true ========== "
@@ -451,7 +449,7 @@ else
     fi
 fi
 
-eval $(old_setx)
+eval $old_setx
 
 magma_sage_check_parameters() { # {{{
     # Required parameters below this point:
@@ -814,7 +812,9 @@ if [ "$magma" ] ; then
     if [ "$FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3" ] && (exec 1>&3) 2>&- ; then
         check_script_diagnostic_fd=3
     fi
+    if [ "$CADO_DEBUG" ] ; then set -x ; fi
     magma_run_script >&${check_script_diagnostic_fd}
+    eval $old_setx
 fi
 
 if [ "$sage" ] ; then
@@ -830,5 +830,7 @@ if [ "$sage" ] ; then
                 wdir=$wdir matrix=$matrix
                 nh=$Nh nv=$Nv
     )
+    if [ "$CADO_DEBUG" ] ; then set -x ; fi
     "$sage" bwc.sage "${sage_args[@]}" >&${check_script_diagnostic_fd}
+    eval $old_setx
 fi
