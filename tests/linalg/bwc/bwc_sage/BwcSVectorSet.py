@@ -30,7 +30,7 @@ class BwcSVectorSet(BwcVectorSetBase):
         for s in self.Vs:
             S_blocks[s.j0 // sw].append(s)
         for xj in range(xn):
-            S_blocks[xj] = sorted(S_blocks[xj])
+            S_blocks[xj] = sorted(S_blocks[xj], key=lambda x: tuple(x))
 
         for xj in range(xn):
             j0 = xj * sw

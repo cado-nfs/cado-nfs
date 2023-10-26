@@ -39,7 +39,7 @@ while [ $# -gt 0 ] ; do
         #     # where these arguments are exported via the shell
         #     # environment?
         #     :
-        elif [[ $a =~ ^(bindir|mats|pre_wipe|random_matrix_size|random_matrix_minkernel|script_steps|nrhs|sage|magma) ]] ; then
+        elif [[ $a =~ ^(bindir|mats|pre_wipe|random_matrix_size|random_matrix_minkernel|script_steps|nrhs|sage|magma|wordsize) ]] ; then
             # and there are even parameters that only make sense here.
             :
         else
@@ -78,7 +78,8 @@ done
 
 pass_bwcpl_args+=("seed=$seed")
 
-wordsize=64
+: ${wordsize=64}
+
 # XXX note that $wdir is wiped out by this script !
 : ${wdir=/tmp/bwcp}
 
@@ -830,8 +831,11 @@ if [ "$sage" ] ; then
                 wdir=$wdir matrix=$matrix
                 nh=$Nh nv=$Nv
     )
+    if [ "$wordsize" != 64 ] ; then
+        sage_args+=(wordsize=$wordsize)
+    fi
     if [ "$CADO_DEBUG" ] ; then set -x ; fi
     set -eo pipefail
-    "$sage" bwc.sage "${sage_args[@]}" | tee $wdir/sage.out >&${check_script_diagnostic_fd}
+    "$sage" bwc.sage "${sage_args[@]}" >&${check_script_diagnostic_fd}
     eval $old_setx
 fi
