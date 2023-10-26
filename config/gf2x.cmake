@@ -22,7 +22,7 @@ endif()
 
 # First try overrides, really. We want cmake to shut up.
 if (NOT GF2X_INCDIR)
-find_path   (GF2X_INCDIR gf2x.h PATHS ${GF2X_INCDIR_HINTS} DOC "gf2x headers"
+    find_path   (GF2X_INCDIR gf2x.h PATHS ${GF2X_INCDIR_HINTS} DOC "gf2x headers"
         NO_DEFAULT_PATH
         NO_SYSTEM_ENVIRONMENT_PATH
         NO_CMAKE_PATH
@@ -31,17 +31,23 @@ find_path   (GF2X_INCDIR gf2x.h PATHS ${GF2X_INCDIR_HINTS} DOC "gf2x headers"
         NO_CMAKE_FIND_ROOT_PATH)
 endif()
 if (NOT GF2X_INCDIR)
-find_path   (GF2X_INCDIR gf2x.h HINTS ${GF2X_INCDIR_HINTS} DOC "gf2x headers"
+    find_path   (GF2X_INCDIR gf2x.h HINTS ${GF2X_INCDIR_HINTS} DOC "gf2x headers"
         NO_DEFAULT_PATH
     )
 endif()
 if (NOT GF2X_INCDIR)
-find_path   (GF2X_INCDIR gf2x.h HINTS ${GF2X_INCDIR_HINTS} DOC "gf2x headers")
+    find_path   (GF2X_INCDIR gf2x.h HINTS ${GF2X_INCDIR_HINTS} DOC "gf2x headers")
 endif()
 
 find_library(GF2X_LIB    gf2x   HINTS ${GF2X_LIBDIR_HINTS} DOC "gf2x library" NO_DEFAULT_PATH)
 if(NOT GF2X_LIBDIR)
 find_library(GF2X_LIB    gf2x   HINTS ${GF2X_LIBDIR_HINTS} DOC "gf2x library")
+endif()
+
+if(GF2X_INCDIR AND NOT EXISTS "${GF2X_INCDIR}/gf2x-cantor-field-impl.h")
+    message(STATUS "An installed version of gf2x was found in ${GF2X_INCDIR}, but it lacks the the gf2x-cantor-impl.h file, which we need. Therefore we use our embedded version instead")
+    set(GF2X_INCDIR GF2X_INCDIR-NOTFOUND)
+    set(GF2X_LIB GF2X_LIB-NOTFOUND)
 endif()
 
 # Yeah. CMake docs defines the ``PATH'' to a file as being its dirname. Very

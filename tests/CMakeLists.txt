@@ -738,8 +738,13 @@ set_tests_properties(test_tests_common_6 PROPERTIES PASS_REGULAR_EXPRESSION "Usi
 cado_define_test(test_iceildiv.c)
 
 # used by some tests.
-if(DEFINED ENV{CHECKS_EXPENSIVE})
 find_program(MAGMA magma HINTS ENV MAGMA)
+if(MAGMA)
+    message(STATUS "magma program found, some bwc checks will run Magma code")
+endif()
+find_program(SAGE sage HINTS ENV SAGE)
+if(SAGE)
+    message(STATUS "sage program found, some bwc checks will run SageMath code")
 endif()
 
 add_subdirectory (scripts)

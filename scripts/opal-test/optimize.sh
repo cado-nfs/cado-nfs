@@ -184,7 +184,7 @@ qmin_min=`expr $qmin / 2`
 qmin_max=`expr $qmin \* 2`
 echo $qmin_min $qmin_max
 # integer parameters are limited to 2147483645 in OPAL
-if [ $qmin_max -gt 2147483645 ]; then
+if [ $qmin_max -gt 2147483645 ] ; then
    qmin_max=2147483645
 fi
 # unset set -ex locally since bkthresh1_min can be 0,
@@ -197,12 +197,12 @@ set -ex
 lim0_min=`expr $lim0 / 2`
 lim0_max=`expr $lim0 \* 2`
 # integer parameters are limited to 2147483645 in OPAL
-if [ $lim0_max -gt 2147483645 ]; then
+if [ $lim0_max -gt 2147483645 ] ; then
    lim0_max=2147483645
 fi
 lim1_min=`expr $lim1 / 2`
 lim1_max=`expr $lim1 \* 2`
-if [ $lim1_max -gt 2147483645 ]; then
+if [ $lim1_max -gt 2147483645 ] ; then
    lim1_max=2147483645
 fi
 echo "lim0" $lim0_min $lim0_max
@@ -213,23 +213,23 @@ lpb1_min=`expr $lpb1 - 1`
 lpb1_max=`expr $lpb1 + 1`
 mfb0_min=$lpb0_min
 mfb0_max=`expr $lpb0_max \* 3`
-if [ $mfb0 -gt $mfb0_max ]; then
+if [ $mfb0 -gt $mfb0_max ] ; then
    mfb0_max=$mfb0
 fi
 mfb1_min=$lpb1_min
 mfb1_max=`expr $lpb1_max \* 3`
-if [ $mfb1 -gt $mfb1_max ]; then
+if [ $mfb1 -gt $mfb1_max ] ; then
    mfb1_max=$mfb1
 fi
 echo $mfb0_min $mfb0_max
 echo $mfb1_min $mfb1_max
-if [ $ncurves0 -gt 3 ]; then
+if [ $ncurves0 -gt 3 ] ; then
 ncurves0_min=`expr $ncurves0 - 3`
 else
 ncurves0_min=0
 fi
 ncurves0_max=`expr $ncurves0 + 3`
-if [ $ncurves1 -gt 3 ]; then
+if [ $ncurves1 -gt 3 ] ; then
 ncurves1_min=`expr $ncurves1 - 3`
 else
 ncurves1_min=0
@@ -306,16 +306,16 @@ sed "s/mfb1.*=.*$/mfb1 = $mfb1_opt/g" | \
 sed "s/ncurves0.*=.*$/ncurves0 = $ncurves0_opt/g" | \
 sed "s/ncurves1.*=.*$/ncurves1 = $ncurves1_opt/g" | \
 sed "s/I.*=.*$/I = $I_opt/g" > $params.opt
-if [ $has_qmin -eq 0 ]; then
+if [ $has_qmin -eq 0 ] ; then
    echo "tasks.qmin = $qmin_opt" >> $params.opt
 fi
-if [ $has_bkthresh1 -eq 0 ]; then
+if [ $has_bkthresh1 -eq 0 ] ; then
    echo "tasks.sieve.bkthresh1 = $bkthresh1_opt" >> $params.opt
 fi
-if [ $has_ncurves0 -eq 0 ]; then
+if [ $has_ncurves0 -eq 0 ] ; then
    echo "tasks.sieve.ncurves0 = $ncurves0_opt" >> $params.opt
 fi
-if [ $has_ncurves1 -eq 0 ]; then
+if [ $has_ncurves1 -eq 0 ] ; then
    echo "tasks.sieve.ncurves1 = $ncurves1_opt" >> $params.opt
 fi
 # /bin/rm -fr $d

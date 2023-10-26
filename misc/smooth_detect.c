@@ -246,7 +246,8 @@ void pool_insert(pool_t p, const cand_t c) {
   p->n += 1;
 }
 
-// Remove candidates that have a prime more than lmax, and those that
+// Remove candidates that have a prime with bitsize more than lmax,
+// and those that
 // are fully factored. If there are still more than max_size elements,
 // keep those with smallest cost.
 void pool_purge(pool_t p, unsigned int max_size, unsigned int lmax) {
