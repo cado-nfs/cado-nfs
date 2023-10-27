@@ -16,9 +16,12 @@ project_package_selection() { : ; }
 tweak_tree_before_configure() { : ; }
 
 step_configure() {
-    if [ "$specific_checks" = "bwc.sagemath" ] ; then
-        export FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3=1
-    fi
+    # now that we're confident that we've made the bwc checks specific to
+    # a "with_sagemath" suffix, there's no risk in missing the sagemath
+    # code by inadvertence.
+    # if [ "$specific_checks" = "bwc.sagemath" ] ; then
+    #     export FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3=1
+    # fi
     if [ "$using_cmake_directly" ] ; then
         (cd "$build_tree" ; cmake "$source_tree")
     else
