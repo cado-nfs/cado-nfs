@@ -563,7 +563,7 @@ mmt_vec_broadcast(mmt_vec_ptr v)
     serialize_threads(v->pi->m);
     if (wr->trank == 0 && xwr->trank == 0) {
 #if AG_CHOICE == AG_CHOICE_STOCK_IAG
-        MPI_Request * req = malloc(xwr->ncores * sizeof(MPI_Request));
+        MPI_Request * req = (MPI_Request *) malloc(xwr->ncores * sizeof(MPI_Request));
 #endif  /* AG_CHOICE == AG_CHOICE_STOCK_IAG */
 
         for(unsigned int t = 0 ; t < xwr->ncores ; t++) {
