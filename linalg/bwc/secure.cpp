@@ -18,6 +18,7 @@
 #include "macros.h"
 #include "matmul.hpp"              // for matmul_public_s
 #include "matmul_top.hpp"
+#include "matmul_top_comm.hpp"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
 #include "parallelizing_info.hpp"
@@ -77,10 +78,10 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
 
     /* we work in the opposite direction compared to other programs */
     mmt_vector_pair myy(mmt, !bw->dir);
-    mmt_vec_ptr my = myy[0];
+    mmt_vec & my = myy[0];
 
     mmt_vec dvec;
-    mmt_vec_init(mmt,0,0, dvec,!bw->dir, /* shared ! */ 1, mmt->n[!bw->dir]);
+    mmt_vec_setup(dvec, mmt,0,0, !bw->dir, /* shared ! */ 1, mmt->n[!bw->dir]);
 
     unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
 
@@ -276,7 +277,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                         mmt_my_own_size_in_items(my));
             }
             /* addmul_tiny degrades consistency ! */
-            my->consistency = 1;
+            my.consistency = 1;
             mmt_vec_broadcast(my);
             mmt_vec_save(my, "Cv%u-%u.0", unpadded, 0);
         }
@@ -397,7 +398,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                         mmt_my_own_size_in_items(my));
             }
             /* addmul_tiny degrades consistency ! */
-            dvec->consistency = 1;
+            dvec.consistency = 1;
             mmt_vec_broadcast(dvec);
             pi_log_op(mmt->pi->m, "iteration %d", k);
             matmul_top_mul(mmt, myy.vectors(), NULL);
@@ -434,8 +435,6 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     A->free(Tdata);
 
     gmp_randclear(rstate);
-
-    mmt_vec_clear(mmt, dvec);
 
     return NULL;
 }

@@ -111,25 +111,25 @@ extern unsigned int matmul_top_rank_upper_bound(matmul_top_data_ptr mmt);
 #if 0
 extern void matmul_top_fill_random_source(matmul_top_data_ptr mmt, int d);
 #endif
-extern void mmt_vec_truncate(matmul_top_data_ptr mmt, mmt_vec_ptr v);
-extern void mmt_vec_truncate_above_index(matmul_top_data_ptr mmt, mmt_vec_ptr v, unsigned int idx);
-extern void mmt_vec_truncate_below_index(matmul_top_data_ptr mmt, mmt_vec_ptr v, unsigned int idx);
-extern void matmul_top_mul_cpu(matmul_top_data_ptr mmt, int midx, int d, mmt_vec_ptr w, mmt_vec_ptr v);
+extern void mmt_vec_truncate(matmul_top_data_ptr mmt, mmt_vec & v);
+extern void mmt_vec_truncate_above_index(matmul_top_data_ptr mmt, mmt_vec & v, unsigned int idx);
+extern void mmt_vec_truncate_below_index(matmul_top_data_ptr mmt, mmt_vec & v, unsigned int idx);
+extern void matmul_top_mul_cpu(matmul_top_data_ptr mmt, int midx, int d, mmt_vec & w, mmt_vec const & v);
 extern void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d);
-extern void matmul_top_mul_comm(mmt_vec_ptr w, mmt_vec_ptr v);
+extern void matmul_top_mul_comm(mmt_vec & w, mmt_vec & v);
 
 /* v is both input and output. w is temporary */
 extern void matmul_top_mul(matmul_top_data_ptr mmt, mmt_vec *w, struct timing_data * tt);
 
-extern void mmt_vec_twist(matmul_top_data_ptr mmt, mmt_vec_ptr y);
-extern void mmt_vec_untwist(matmul_top_data_ptr mmt, mmt_vec_ptr y);
-extern void mmt_vec_apply_T(matmul_top_data_ptr mmt, mmt_vec_ptr y);
-extern void mmt_vec_unapply_T(matmul_top_data_ptr mmt, mmt_vec_ptr y);
-extern void mmt_vec_apply_S(matmul_top_data_ptr mmt, int midx, mmt_vec_ptr y);
-extern void mmt_vec_unapply_S(matmul_top_data_ptr mmt, int midx, mmt_vec_ptr y);
-extern void mmt_vec_apply_P(matmul_top_data_ptr mmt, mmt_vec_ptr y);
-extern void mmt_vec_unapply_P(matmul_top_data_ptr mmt, mmt_vec_ptr y);
-extern void mmt_apply_identity(mmt_vec_ptr w, mmt_vec_ptr v);
+extern void mmt_vec_twist(matmul_top_data_ptr mmt, mmt_vec & y);
+extern void mmt_vec_untwist(matmul_top_data_ptr mmt, mmt_vec & y);
+extern void mmt_vec_apply_T(matmul_top_data_ptr mmt, mmt_vec & y);
+extern void mmt_vec_unapply_T(matmul_top_data_ptr mmt, mmt_vec & y);
+extern void mmt_vec_apply_S(matmul_top_data_ptr mmt, int midx, mmt_vec & y);
+extern void mmt_vec_unapply_S(matmul_top_data_ptr mmt, int midx, mmt_vec & y);
+extern void mmt_vec_apply_P(matmul_top_data_ptr mmt, mmt_vec & y);
+extern void mmt_vec_unapply_P(matmul_top_data_ptr mmt, mmt_vec & y);
+extern void mmt_apply_identity(mmt_vec & w, mmt_vec const & v);
 extern void indices_twist(matmul_top_data_ptr mmt, uint32_t * xs, unsigned int n, int d);
 
 #endif	/* MATMUL_TOP_HPP_ */

@@ -63,10 +63,10 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
 
     mmt_vec ymy[2];
-    mmt_vec_ptr y = ymy[0];
-    mmt_vec_ptr my = ymy[1];
-    mmt_vec_init(mmt,0,0, y,  1, 0, mmt->n[1]);
-    mmt_vec_init(mmt,0,0, my, 0, 0, mmt->n[0]);
+    mmt_vec & y = ymy[0];
+    mmt_vec & my = ymy[1];
+    mmt_vec_setup(y,  mmt,0,0, 1, 0, mmt->n[1]);
+    mmt_vec_setup(my, mmt,0,0, 0, 0, mmt->n[0]);
 
     unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
 
@@ -93,9 +93,9 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         checkname = "1st check: consistency of M*arbitrary1 (Hx == H1)";
 
         mmt_full_vec_set_zero(y);
-        ASSERT_ALWAYS(y->siblings);     /* shared vector undesired */
-        for(unsigned int i = y->i0 ; i < y->i1 && i < unpadded ; i++) {
-            arith_generic::elt * dst = A->vec_subvec(y->v, i - y->i0);
+        ASSERT_ALWAYS(y.siblings);     /* shared vector undesired */
+        for(unsigned int i = y.i0 ; i < y.i1 && i < unpadded ; i++) {
+            arith_generic::elt * dst = A->vec_subvec(y.v, i - y.i0);
             uint64_t value = DUMMY_VECTOR_COORD_VALUE(i);
             memcpy(dst, &value, sizeof(uint64_t));
         }
@@ -128,9 +128,9 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         checkname = "2nd check: (arbitrary2, M*arbitrary1) == (arbitrary2*M==Hy, arbitrary1)";
 
         mmt_full_vec_set_zero(my);
-        ASSERT_ALWAYS(my->siblings);     /* shared vector undesired */
-        for(unsigned int i = my->i0 ; i < my->i1 && i < unpadded ; i++) {
-            arith_generic::elt * dst = A->vec_subvec(my->v, i - my->i0);
+        ASSERT_ALWAYS(my.siblings);     /* shared vector undesired */
+        for(unsigned int i = my.i0 ; i < my.i1 && i < unpadded ; i++) {
+            arith_generic::elt * dst = A->vec_subvec(my.v, i - my.i0);
             uint64_t value = DUMMY_VECTOR_COORD_VALUE2(i);
             memcpy(dst, &value, sizeof(uint64_t));
         }
@@ -143,12 +143,12 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         unsigned int offset_c;
         unsigned int offset_v;
         how_many = intersect_two_intervals(&offset_c, &offset_v,
-                my->i0, my->i1,
-                y->i0, y->i1);
+                my.i0, my.i1,
+                y.i0, y.i1);
         A->vec_set_zero(dp0, A->simd_groupsize());
         AxA->add_dotprod(dp0,
-                A->vec_subvec(my->v, offset_c),
-                A->vec_subvec(y->v, offset_v),
+                A->vec_subvec(my.v, offset_c),
+                A->vec_subvec(y.v, offset_v),
                 how_many);
         pi_allreduce(NULL, dp0, A->simd_groupsize(), mmt->pitype, BWC_PI_SUM, pi->m);
 
@@ -160,28 +160,26 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         mmt_vec_twist(mmt, my);
         {
             mmt_vec myy[2];
-            mmt_vec_init(mmt,0,0, myy[0],  0, 0, mmt->n[0]);
-            mmt_vec_init(mmt,0,0, myy[1],  1, 0, mmt->n[1]);
+            mmt_vec_setup(myy[0], mmt,0,0, 0, 0, mmt->n[0]);
+            mmt_vec_setup(myy[1], mmt,0,0, 1, 0, mmt->n[1]);
             mmt_full_vec_set(myy[0], my);
             matmul_top_mul(mmt, myy, NULL);
             mmt_full_vec_set(my, myy[0]);
-            mmt_vec_clear(mmt, myy[0]);
-            mmt_vec_clear(mmt, myy[1]);
         }
         mmt_vec_untwist(mmt, my);
         mmt_vec_save(my, "Hy%u-%u", unpadded, 0);
 
         mmt_full_vec_set_zero(y);
-        ASSERT_ALWAYS(y->siblings);     /* shared vector undesired */
-        for(unsigned int i = y->i0 ; i < y->i1 && i < unpadded ; i++) {
-            arith_generic::elt * dst = A->vec_subvec(y->v, i - y->i0);
+        ASSERT_ALWAYS(y.siblings);     /* shared vector undesired */
+        for(unsigned int i = y.i0 ; i < y.i1 && i < unpadded ; i++) {
+            arith_generic::elt * dst = A->vec_subvec(y.v, i - y.i0);
             uint64_t value = DUMMY_VECTOR_COORD_VALUE(i);
             memcpy(dst, &value, sizeof(uint64_t));
         }
         A->vec_set_zero(dp1, A->simd_groupsize());
         AxA->add_dotprod(dp1,
-                A->vec_subvec(my->v, offset_c),
-                A->vec_subvec(y->v, offset_v),
+                A->vec_subvec(my.v, offset_c),
+                A->vec_subvec(y.v, offset_v),
                 how_many);
         pi_allreduce(NULL, dp1, A->simd_groupsize(), mmt->pitype, BWC_PI_SUM, pi->m);
         int diff = memcmp(dp0, dp1, A->vec_elt_stride(A->simd_groupsize()));
@@ -197,8 +195,6 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         A->free(dp1);
     }
 
-    mmt_vec_clear(mmt, y);
-    mmt_vec_clear(mmt, my);
     matmul_top_clear(mmt);
 
     return NULL;

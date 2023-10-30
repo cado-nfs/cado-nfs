@@ -4,7 +4,7 @@
 
 
 mmt_vector_pair::mmt_vector_pair(matmul_top_data_ptr mmt, int dir)
-    : std::vector<mmt_vec_s>(mmt->nmatrices + (mmt->nmatrices & 1))
+    : std::vector<mmt_vec>(mmt->nmatrices + (mmt->nmatrices & 1))
     , mmt(mmt)
 {
     /* we allocate as many vectors as we have matrices, plus one if the
@@ -26,20 +26,13 @@ mmt_vector_pair::mmt_vector_pair(matmul_top_data_ptr mmt, int dir)
     mptr = (matmul_top_matrix_ptr) mmt->matrices + (dir ? (mmt->nmatrices - 1) : 0);
     for(int i = 0 ; i < mmt->nmatrices ; i++) {
         int shared = (i == 0) && nmats_odd;
-        mmt_vec_init(mmt,0,0, (*this)[i], dir ^ (i&1), shared, mptr->n[dir]);
-        mmt_full_vec_set_zero((*this)[i]);
+        mmt_vec_setup((*this)[i], mmt,0,0, dir ^ (i&1), shared, mptr->n[dir]);
+        mmt_full_vec_set_zero(((*this)[i]));
 
         mptr += dir ? -1 : 1;
     }
     if (nmats_odd) {
-        mmt_vec_init(mmt,0,0, (*this)[mmt->nmatrices], !dir, 0, mmt->matrices[0]->n[dir]);
-        mmt_full_vec_set_zero((*this)[mmt->nmatrices]);
-    }
-}
-
-mmt_vector_pair::~mmt_vector_pair()
-{
-    for(auto & v : *this) {
-        mmt_vec_clear(mmt, &v);
+        mmt_vec_setup((*this)[mmt->nmatrices], mmt,0,0, !dir, 0, mmt->matrices[0]->n[dir]);
+        mmt_full_vec_set_zero(((*this)[mmt->nmatrices]));
     }
 }

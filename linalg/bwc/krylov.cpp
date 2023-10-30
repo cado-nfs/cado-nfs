@@ -147,8 +147,8 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
          * Therefore, we must really understand the check vector as
          * playing a role in the very same direction of the y vector!
          */
-        mmt_vec_init(mmt, Ac.get(), Ac_pi,
-                check_vector, bw->dir, THREAD_SHARED_VECTOR, mmt->n[bw->dir]);
+        mmt_vec_setup(check_vector, mmt, Ac.get(), Ac_pi,
+                bw->dir, THREAD_SHARED_VECTOR, mmt->n[bw->dir]);
         std::string Cv_filename = fmt::format(FMT_STRING("Cv%u-%u.{}"), bw->interval);
         int ok = mmt_vec_load(check_vector, Cv_filename, mmt->n0[bw->dir], 0);
         if (!ok) {
@@ -179,7 +179,6 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     }
     auto clean_checks = call_dtor([&] {
             if (!bw->skip_online_checks) {
-                mmt_vec_clear(mmt, check_vector);
                 A->free(ahead);
                 Ac->free(Tdata);
             }

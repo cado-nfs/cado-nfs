@@ -26,6 +26,7 @@
 #include "bw-common.h"
 #include "cxx_mpz.hpp"
 #include "matmul_top.hpp"
+#include "matmul_top_comm.hpp"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
 #include "parallelizing_info.hpp"
@@ -220,24 +221,24 @@ void broadcast(std::vector<unsigned int>& v, pi_comm_ptr wr)/*{{{*/
     serialize(wr);
 }/*}}}*/
 
-std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec_ptr y, unsigned int maxidx, int want_nonzero)/*{{{*/
+std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigned int maxidx, int want_nonzero)/*{{{*/
 {
-    arith_generic * A = y->abase;
-    parallelizing_info_ptr pi = y->pi;
+    arith_generic * A = y.abase;
+    parallelizing_info_ptr pi = y.pi;
 
     std::vector<unsigned int> myz;
 
-    if (pi->wr[y->d]->trank == 0 && pi->wr[y->d]->jrank == 0) {
+    if (pi->wr[y.d]->trank == 0 && pi->wr[y.d]->jrank == 0) {
         for(unsigned int i = 0 ; i < maxidx ; i++) {
-            if (y->i0 <= i && i < y->i1) {
-                if (!!want_nonzero == !A->is_zero(A->vec_item(y->v, i - y->i0))) {
+            if (y.i0 <= i && i < y.i1) {
+                if (!!want_nonzero == !A->is_zero(A->vec_item(y.v, i - y.i0))) {
                     myz.push_back(i);
                 }
             }
         }
 
         /* in fact, a single gather at node 0 thread 0 would do */
-        allgather(myz, pi->wr[!y->d]);
+        allgather(myz, pi->wr[!y.d]);
     }
 
     broadcast(myz, pi->m);    /* And broadcast that to everyone as well. */
@@ -245,12 +246,12 @@ std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec_ptr y, unsig
     return myz;
 }/*}}}*/
 
-std::vector<unsigned int> indices_of_zero_values(mmt_vec_ptr y, unsigned int maxidx)/*{{{*/
+std::vector<unsigned int> indices_of_zero_values(mmt_vec & y, unsigned int maxidx)/*{{{*/
 {
     return indices_of_zero_or_nonzero_values(y, maxidx, 0);
 }/*}}}*/
 
-std::vector<unsigned int> indices_of_nonzero_values(mmt_vec_ptr y, unsigned int maxidx)/*{{{*/
+std::vector<unsigned int> indices_of_nonzero_values(mmt_vec & y, unsigned int maxidx)/*{{{*/
 {
     return indices_of_zero_or_nonzero_values(y, maxidx, 1);
 }/*}}}*/
@@ -293,8 +294,8 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{
 
     /* Do that in the opposite direction compared to ymy */
     mmt_vector_pair zmz(mmt, !bw->dir);
-    mmt_vec_ptr z = zmz[0];
-    mmt_vec_ptr mz = zmz[zmz.size()-1];
+    mmt_vec & z = zmz[0];
+    mmt_vec & mz = zmz[zmz.size()-1];
 
 
     mmt_vec_set_random_inconsistent(z, rstate);
@@ -312,7 +313,7 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{
      * interested in column indices which are still zero. So it's
      * really a loop until mmt->n0[bw->dir] */
 
-    ASSERT_ALWAYS(mz->d == bw->dir);
+    ASSERT_ALWAYS(mz.d == bw->dir);
     allz = indices_of_zero_values(mz, mmt->n0[bw->dir]);
 
 
@@ -330,7 +331,7 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{
     mmt_vec_unapply_T(mmt, mz);
     serialize(pi->m);
 
-    ASSERT_ALWAYS(mz->d == bw->dir);
+    ASSERT_ALWAYS(mz.d == bw->dir);
     std::set<unsigned int> allz_set(allz.begin(), allz.end());
     for(auto j : indices_of_zero_values(mz, mmt->n0[bw->dir])) {
         allz_set.erase(j);
@@ -347,13 +348,13 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{
  * matrix pointed to by matrix, which has cblocks blocks of
  * A->simd_groupsize(A) entries. The column number j is thus made of elements
  * of the blocks whose index is congruent to
- * (j/groupsize)-th block mod cblocks ; A is my->abase.
+ * (j/groupsize)-th block mod cblocks ; A is my.abase.
  */
-void compress_vector_to_sparse(arith_generic::elt * matrix, unsigned int j, unsigned int cblocks, mmt_vec_ptr my, std::vector<unsigned int> & rows)
+void compress_vector_to_sparse(arith_generic::elt * matrix, unsigned int j, unsigned int cblocks, mmt_vec const & my, std::vector<unsigned int> & rows)
 {
-    arith_generic * A = my->abase;
+    arith_generic * A = my.abase;
 
-    unsigned int own_i0 = my->i0 + mmt_my_own_offset_in_items(my);
+    unsigned int own_i0 = my.i0 + mmt_my_own_offset_in_items(my);
     unsigned int own_i1 = own_i0 + mmt_my_own_size_in_items(my);
     cxx_mpz v;
     unsigned int jq = j / A->simd_groupsize();
@@ -365,7 +366,7 @@ void compress_vector_to_sparse(arith_generic::elt * matrix, unsigned int j, unsi
     for(unsigned int ii = 0 ; ii < rows.size() ; ii++) {
         unsigned int i = rows[ii];
         if (own_i0 <= i && i < own_i1) {
-            arith_generic::elt const & src = A->vec_item(my->v, i - my->i0);
+            arith_generic::elt const & src = A->vec_item(my.v, i - my.i0);
             arith_generic::elt & dst = A->vec_item(matrix, ii * cblocks + jq);
             A->set(dst, src);
         }
@@ -517,13 +518,13 @@ struct rhs /*{{{*/ {
     }/*}}}*/
     operator bool() const { return nrhs; }
 
-    void add_contribution(mmt_vec_ptr y) const/*{{{*/
+    void add_contribution(mmt_vec & y) const/*{{{*/
     {
         if (!nrhs) return;
 
         parallelizing_info_ptr pi = mmt->pi;
         arith_generic * A = mmt->abase;
-        ASSERT_ALWAYS(y->abase == A);
+        ASSERT_ALWAYS(y.abase == A);
         unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
         size_t eblock = mmt_my_own_size_in_items(y);
 
@@ -532,7 +533,7 @@ struct rhs /*{{{*/ {
         pi_datatype_ptr Av_pi = natural.A_pi;
 
         mmt_vec vi;
-        mmt_vec_init(mmt,Av,Av_pi, vi,bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
+        mmt_vec_setup(vi, mmt,Av,Av_pi, bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
 
         for(unsigned int j = 0 ; j < nrhs ; j++) {
             int ok = mmt_vec_load(vi, "V%u-%u.0", unpadded, j);
@@ -545,16 +546,14 @@ struct rhs /*{{{*/ {
                     eblock);
         }
 
-        mmt_vec_clear(mmt, vi);
-
         /* addmul_tiny degrades consistency ! */
-        y->consistency = 1;
+        y.consistency = 1;
         mmt_vec_broadcast(y);
     }/*}}}*/
 };
 /*}}}*/
 
-std::tuple<int, int> check_zero_and_padding(mmt_vec_ptr y, unsigned int maxidx)/*{{{*/
+std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int maxidx)/*{{{*/
 {
 
     /* Here, we want to make sure that we have something non-zero in
@@ -569,13 +568,13 @@ std::tuple<int, int> check_zero_and_padding(mmt_vec_ptr y, unsigned int maxidx)/
      mmt_my_own_subvec(y), mmt_my_own_size_in_items(y));
 
      * instead, we want to check only up to index mmt->n0[bw->dir]
-     * (and bw->dir is y->d). (this is valid because at this point, y
+     * (and bw->dir is y.d). (this is valid because at this point, y
      * is untwisted and has T unapplied).
      */
     size_t my_input_coordinates;
     size_t my_pad_coordinates;
-    ASSERT_ALWAYS(y->d == bw->dir);
-    size_t my_i0 = y->i0 + mmt_my_own_offset_in_items(y);
+    ASSERT_ALWAYS(y.d == bw->dir);
+    size_t my_i0 = y.i0 + mmt_my_own_offset_in_items(y);
     size_t my_i1 = my_i0 + mmt_my_own_size_in_items(y);
 
     if (my_i0 >= maxidx) {
@@ -588,16 +587,16 @@ std::tuple<int, int> check_zero_and_padding(mmt_vec_ptr y, unsigned int maxidx)/
         my_input_coordinates = mmt_my_own_size_in_items(y);
         my_pad_coordinates = 0;
     }
-    int input_is_zero = y->abase->vec_is_zero(
+    int input_is_zero = y.abase->vec_is_zero(
             mmt_my_own_subvec(y),
             my_input_coordinates);
-    int pad_is_zero = y->abase->vec_is_zero(
-            y->abase->vec_subvec(
+    int pad_is_zero = y.abase->vec_is_zero(
+            y.abase->vec_subvec(
                 mmt_my_own_subvec(y), my_input_coordinates),
             my_pad_coordinates);
 
-    pi_allreduce(NULL, &input_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y->pi->m);
-    pi_allreduce(NULL, &pad_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y->pi->m);
+    pi_allreduce(NULL, &input_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y.pi->m);
+    pi_allreduce(NULL, &pad_is_zero, 1, BWC_PI_INT, BWC_PI_MIN, y.pi->m);
 
     return std::make_tuple(input_is_zero, pad_is_zero);
 }/*}}}*/
@@ -607,7 +606,7 @@ std::tuple<int, int, int> test_one_vector(matmul_top_data_ptr mmt, mmt_vector_pa
     arith_generic * A = mmt->abase;
     parallelizing_info_ptr pi = mmt->pi;
 
-    mmt_vec_ptr y = ymy[0];
+    mmt_vec & y = ymy[0];
 
     int input_is_zero;
     int pad_is_zero;
@@ -644,11 +643,11 @@ std::tuple<int, int, int> test_one_vector(matmul_top_data_ptr mmt, mmt_vector_pa
 
 /* Use y_saved as input (and leave it untouched). Store result in both y
  * and my */
-std::tuple<int, int, int> expanded_test(matmul_top_data_ptr mmt, mmt_vector_pair & ymy, mmt_vec_ptr y_saved, rhs const& R)
+std::tuple<int, int, int> expanded_test(matmul_top_data_ptr mmt, mmt_vector_pair & ymy, mmt_vec const & y_saved, rhs const& R)
 {
     parallelizing_info_ptr pi = mmt->pi;
-    mmt_vec_ptr y = ymy[0];
-    mmt_vec_ptr my = ymy[ymy.size()-1];
+    mmt_vec & y = ymy[0];
+    mmt_vec & my = ymy[ymy.size()-1];
     mmt_full_vec_set(y, y_saved);
     auto res = test_one_vector(mmt, ymy, R);
 
@@ -714,12 +713,9 @@ class parasite_fixer {/*{{{*/
 
         arith_generic * A = mmt->abase;
 
-        mmt_vec ymy[2];
-        mmt_vec_ptr y = ymy[0];
-        mmt_vec_ptr my = ymy[1];
-
-        mmt_vec_init(mmt,0,0, y,   bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
-        mmt_vec_init(mmt,0,0, my, !bw->dir,                0, mmt->n[!bw->dir]);
+        mmt_vector_pair ymy(mmt, bw->dir);
+        mmt_vec & y = ymy[0];
+        mmt_vec & my = ymy[ymy.size()-1];
 
         /* Now try to see which indices are potentially affected */
         unsigned int B = A->simd_groupsize();
@@ -731,7 +727,7 @@ class parasite_fixer {/*{{{*/
             }
             mmt_vec_apply_T(mmt, y);
             mmt_vec_twist(mmt, y);
-            matmul_top_mul(mmt, ymy, NULL);
+            matmul_top_mul(mmt, ymy.vectors(), NULL);
             mmt_vec_untwist(mmt, y);
             /* Not entirely clear to me if I should unapply_T here or not
             */
@@ -761,8 +757,6 @@ class parasite_fixer {/*{{{*/
         std::sort(rows.begin(), rows.end());
         auto it = std::unique(rows.begin(), rows.end());
         rows.resize(it - rows.begin());
-        mmt_vec_clear(mmt, y);
-        mmt_vec_clear(mmt, my);
 
         return rows;
     }/*}}}*/
@@ -853,8 +847,8 @@ class parasite_fixer {/*{{{*/
 
         /* code is similar to row_coordinates_of_nonzero_cols() */
         mmt_vector_pair ymy(mmt, bw->dir);
-        mmt_vec_ptr y = ymy[0];
-        mmt_vec_ptr my = ymy[ymy.size()-1];
+        mmt_vec & y = ymy[0];
+        mmt_vec & my = ymy[ymy.size()-1];
 
         /* 1, -1: coeff is 1 or -1.
          * 2: coeff is something else, and lookup is needed (char!=2
@@ -995,8 +989,6 @@ class parasite_fixer {/*{{{*/
         }
         ASSERT_ALWAYS(scols.empty());
 
-        mmt_vec_clear(mmt, y);
-        mmt_vec_clear(mmt, my);
         A->free(dummy);
 
         serialize(pi->m);
@@ -1007,9 +999,9 @@ class parasite_fixer {/*{{{*/
             A->free(matrix);
     }/*}}}*/
 
-    std::tuple<int, int, int> attempt(matmul_top_data_ptr mmt, mmt_vector_pair & ymy, mmt_vec_ptr y_saved, rhs const& R)/*{{{*/
+    std::tuple<int, int, int> attempt(matmul_top_data_ptr mmt, mmt_vector_pair & ymy, mmt_vec & y_saved, rhs const& R)/*{{{*/
     {
-        mmt_vec_ptr my = ymy[ymy.size()-1];
+        mmt_vec & my = ymy[ymy.size()-1];
         int tcan_print = bw->can_print && pi->m->trank == 0;
         int leader = pi->m->jrank == 0 && pi->m->trank == 0;
 
@@ -1044,7 +1036,7 @@ class parasite_fixer {/*{{{*/
         arith_generic::elt * nz;
 
 
-        ASSERT_ALWAYS(my->abase == mmt->abase);
+        ASSERT_ALWAYS(my.abase == mmt->abase);
 
         nz = A->alloc(rows.size(), ALIGNMENT_ON_ALL_BWC_VECTORS);
         A->vec_set_zero(nz, rows.size());
@@ -1083,11 +1075,11 @@ class parasite_fixer {/*{{{*/
              */
             ASSERT_ALWAYS(mmt_vec_is_shared(y_saved));
 
-            size_t own_i0 = y_saved->i0 + mmt_my_own_offset_in_items(y_saved);
+            size_t own_i0 = y_saved.i0 + mmt_my_own_offset_in_items(y_saved);
             size_t own_i1 = own_i0 + mmt_my_own_size_in_items(y_saved);
 
             if (own_i0 <= j && j < own_i1) {
-                arith_generic::elt & source = A->vec_item(y_saved->v, j - y_saved->i0);
+                arith_generic::elt & source = A->vec_item(y_saved.v, j - y_saved.i0);
                 printf("Row %u, coefficient is ", rows[ii]);
                 fprint_signed(stdout, A, source);
                 if (v == -1) {
@@ -1102,7 +1094,7 @@ class parasite_fixer {/*{{{*/
             }
             /* On the other hand, we're not shared across MPI nodes here
              * anyway, so we have some work to do ! */
-            y_saved->consistency = 1;
+            y_saved.consistency = 1;
             mmt_vec_broadcast(y_saved);
         }
         serialize(pi->m);
@@ -1159,10 +1151,10 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     parasite_fixer pfixer(mmt);
 
     mmt_vector_pair ymy(mmt, bw->dir);
-    mmt_vec_ptr y = ymy[0];
+    mmt_vec & y = ymy[0];
 
     mmt_vec y_saved;
-    mmt_vec_init(mmt,0,0, y_saved,   bw->dir, mmt_vec_is_shared(y), mmt->n[bw->dir]);
+    mmt_vec_setup(y_saved, mmt,0,0, bw->dir, mmt_vec_is_shared(y), mmt->n[bw->dir]);
 
     /* this is really a misnomer, because in the typical case, M is
      * rectangular, and then the square matrix does induce some padding.
@@ -1194,7 +1186,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
     { /* {{{ Collect now the sum of the LHS contributions */
         mmt_vec svec;
-        mmt_vec_init(mmt,0,0, svec,bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
+        mmt_vec_setup(svec, mmt,0,0, bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
         for(size_t i = 0 ; i < sl.size() ; i++) {
             if (tcan_print && verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
                 printf("loading %s\n", sl[i].name);
@@ -1207,9 +1199,8 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                     mmt_my_own_subvec(svec),
                     mmt_my_own_size_in_items(y));
         }
-        y->consistency = 1;
+        y.consistency = 1;
         mmt_vec_broadcast(y);
-        mmt_vec_clear(mmt, svec);
     } /* }}} */
 
     printf("Hamming weight of sum: %lu\n", mmt_vec_hamming_weight(y));
@@ -1452,8 +1443,6 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     }
 
     serialize(pi->m);
-
-    mmt_vec_clear(mmt, y_saved);
 
     return NULL;
 }

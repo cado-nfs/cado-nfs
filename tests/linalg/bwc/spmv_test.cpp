@@ -8,6 +8,7 @@
 #include "balancing.hpp"           // for balancing_clear, balancing_init, bal...
 #include "parallelizing_info.hpp"
 #include "matmul_top.hpp"
+#include "matmul_top_comm.hpp"
 #include "params.h"
 #include "bw-common.h"
 #include "arith-generic.hpp"
@@ -16,107 +17,107 @@
 
 int verbose = 0;
 
-void mmt_vec_set_0n(mmt_vec_ptr v, size_t items)
+void mmt_vec_set_0n(mmt_vec & v, size_t items)
 {
-    serialize(v->pi->m);
+    serialize(v.pi->m);
     /* For debug: set to vector [0, 1, ..., n[
      *
      * Here we do something a bit fishy. We don't really have a way
      * to set to the integer i, when in fact we're talking a simd
      * thing: IOW, we have set_ui_at, but no set_ui. So let's do a
      * dirty cast */
-    // ASSERT_ALWAYS((size_t) v->abase->elt_stride() <= sizeof(uint64_t));
-    ASSERT_ALWAYS(v->abase->elt_stride() >= sizeof(unsigned int));
-    // size_t nwords = (size_t) v->abase->elt_stride(v->abase) / sizeof(uint64_t);
+    // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
+    ASSERT_ALWAYS(v.abase->elt_stride() >= sizeof(unsigned int));
+    // size_t nwords = (size_t) v.abase->elt_stride(v.abase) / sizeof(uint64_t);
     size_t off = mmt_my_own_offset_in_items(v);
     size_t sz = mmt_my_own_size_in_items(v);
     arith_generic::elt * data = mmt_my_own_subvec(v);
     /* Put 0's everywhere, and put i at other places (just with a dirty
      * cast) */
-    v->abase->vec_set_zero(mmt_my_own_subvec(v), mmt_my_own_size_in_items(v));
+    v.abase->vec_set_zero(mmt_my_own_subvec(v), mmt_my_own_size_in_items(v));
     for(size_t s = 0 ; s < sz ; s++) {
-        arith_generic::elt & u = v->abase->vec_item(data, s);
+        arith_generic::elt & u = v.abase->vec_item(data, s);
         /* yes, this is awful */
         auto ptr = reinterpret_cast<unsigned int *>(&u);
-        *ptr = (v->i0 + off + s < items) ? v->i0 + off + s : 0;
+        *ptr = (v.i0 + off + s < items) ? v.i0 + off + s : 0;
     }
-    v->consistency = 1;
-    serialize(v->pi->m);
+    v.consistency = 1;
+    serialize(v.pi->m);
     mmt_vec_broadcast(v);
-    serialize(v->pi->m);
+    serialize(v.pi->m);
 }
 
 /* check that v[i] == p[i] */
-void mmt_vec_check_equal_0n(mmt_vec_ptr v, size_t items)
+void mmt_vec_check_equal_0n(mmt_vec const & v, size_t items)
 {
-    serialize(v->pi->m);
-    ASSERT_ALWAYS(v->consistency == 2);
-    // ASSERT_ALWAYS((size_t) v->abase->elt_stride() <= sizeof(uint64_t));
-    ASSERT_ALWAYS(v->abase->elt_stride() >= sizeof(unsigned int));
+    serialize(v.pi->m);
+    ASSERT_ALWAYS(v.consistency == 2);
+    // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
+    ASSERT_ALWAYS(v.abase->elt_stride() >= sizeof(unsigned int));
     size_t off = mmt_my_own_offset_in_items(v);
     size_t sz = mmt_my_own_size_in_items(v);
     arith_generic::elt const * data = mmt_my_own_subvec(v);
-    arith_generic::elt * temp_alloc = v->abase->alloc(1);
+    arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
     auto ptr = reinterpret_cast<unsigned int *>(temp_alloc);
     for(size_t s = 0 ; s < sz ; s++) {
-        arith_generic::elt const & u = v->abase->vec_item(data, s);
-        v->abase->set(temp, u);
+        arith_generic::elt const & u = v.abase->vec_item(data, s);
+        v.abase->set(temp, u);
         /* yes, this is awful */
-        *ptr ^= (v->i0 + off + s < items ? v->i0 + off + s : 0);
-        ASSERT_ALWAYS(v->abase->is_zero(temp));
+        *ptr ^= (v.i0 + off + s < items ? v.i0 + off + s : 0);
+        ASSERT_ALWAYS(v.abase->is_zero(temp));
     }
-    v->abase->free(temp_alloc);
+    v.abase->free(temp_alloc);
 }
 
 /* check that v[i] == p[i] */
-void mmt_vec_check_equal_0n_permuted(mmt_vec_ptr v, size_t items, uint32_t * p)
+void mmt_vec_check_equal_0n_permuted(mmt_vec const & v, size_t items, uint32_t * p)
 {
-    serialize(v->pi->m);
-    ASSERT_ALWAYS(v->consistency == 2);
-    // ASSERT_ALWAYS((size_t) v->abase->elt_stride() <= sizeof(uint64_t));
-    ASSERT_ALWAYS(v->abase->elt_stride() >= sizeof(unsigned int));
+    serialize(v.pi->m);
+    ASSERT_ALWAYS(v.consistency == 2);
+    // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
+    ASSERT_ALWAYS(v.abase->elt_stride() >= sizeof(unsigned int));
     size_t off = mmt_my_own_offset_in_items(v);
     size_t sz = mmt_my_own_size_in_items(v);
     arith_generic::elt const * data = mmt_my_own_subvec(v);
-    arith_generic::elt * temp_alloc = v->abase->alloc(1);
+    arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
     auto ptr = reinterpret_cast<unsigned int *>(temp_alloc);
     for(size_t s = 0 ; s < sz ; s++) {
-        arith_generic::elt const & u = v->abase->vec_item(data, s);
-        v->abase->set(temp, u);
+        arith_generic::elt const & u = v.abase->vec_item(data, s);
+        v.abase->set(temp, u);
         /* yes, this is awful */
-        *ptr ^= (v->i0 + off + s < items ? p[v->i0 + off + s] : 0);
-        ASSERT_ALWAYS(v->abase->is_zero(temp));
+        *ptr ^= (v.i0 + off + s < items ? p[v.i0 + off + s] : 0);
+        ASSERT_ALWAYS(v.abase->is_zero(temp));
     }
-    v->abase->free(temp_alloc);
+    v.abase->free(temp_alloc);
 }
 
 /* check that v[i] == p^-1[i] */
-void mmt_vec_check_equal_0n_inv_permuted(mmt_vec_ptr v, size_t items, uint32_t * p)
+void mmt_vec_check_equal_0n_inv_permuted(mmt_vec const & v, size_t items, uint32_t * p)
 {
-    serialize(v->pi->m);
-    // ASSERT_ALWAYS((size_t) v->abase->elt_stride() <= sizeof(uint64_t));
-    ASSERT_ALWAYS(v->abase->elt_stride() >= sizeof(unsigned int));
+    serialize(v.pi->m);
+    // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
+    ASSERT_ALWAYS(v.abase->elt_stride() >= sizeof(unsigned int));
     size_t off = mmt_my_own_offset_in_items(v);
     size_t sz = mmt_my_own_size_in_items(v);
     arith_generic::elt const * data = mmt_my_own_subvec(v);
-    arith_generic::elt * temp_alloc = v->abase->alloc(1);
+    arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
     auto ptr = reinterpret_cast<unsigned int *>(temp_alloc);
     for(size_t s = 0 ; s < sz ; s++) {
-        arith_generic::elt const & u = v->abase->vec_item(data, s);
-        v->abase->set(temp, u);
+        arith_generic::elt const & u = v.abase->vec_item(data, s);
+        v.abase->set(temp, u);
         /* yes, this is awful */
-        if (v->i0 + off + s < items) {
+        if (v.i0 + off + s < items) {
             ASSERT_ALWAYS(*ptr < items);
-            ASSERT_ALWAYS(p[*ptr] == v->i0 + off + s);
+            ASSERT_ALWAYS(p[*ptr] == v.i0 + off + s);
             *ptr = 0;
         }
-        ASSERT_ALWAYS(v->abase->is_zero(temp));
+        ASSERT_ALWAYS(v.abase->is_zero(temp));
     }
-    serialize_threads(v->pi->wr[v->d]);
-    v->abase->free(temp_alloc);
+    serialize_threads(v.pi->wr[v.d]);
+    v.abase->free(temp_alloc);
 }
 
 /* This only does a multiplication */
@@ -156,9 +157,9 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
      */
     {
         mmt_vec v, vi, vii;
-        mmt_vec_init(mmt,0,0, v,   0, /* shared ! */ 1, mmt->n[0]);
-        mmt_vec_init(mmt,0,0, vi,  1,                0, mmt->n[1]);
-        mmt_vec_init(mmt,0,0, vii, 0,                0, mmt->n[0]);
+        mmt_vec_setup(v,   mmt,0,0, 0, /* shared ! */ 1, mmt->n[0]);
+        mmt_vec_setup(vi,  mmt,0,0, 1,                0, mmt->n[1]);
+        mmt_vec_setup(vii, mmt,0,0, 0,                0, mmt->n[0]);
         serialize(pi->m);
         mmt_vec_set_0n(v, mmt->n0[0]);
         /* We save the Z files, although it's useless, the checking done
@@ -173,9 +174,6 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         mmt_vec_allreduce(vii);
         mmt_vec_check_equal_0n(vii, MIN(mmt->n0[0], mmt->n0[1]));
         mmt_vec_save(vi, "ZII%u-%u.0", mmt->n0[0], 0);
-        mmt_vec_clear(mmt, v);
-        mmt_vec_clear(mmt, vi);
-        mmt_vec_clear(mmt, vii);
     }
 
 
@@ -259,7 +257,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             }
             if (xc) {
                 mmt_vec v;
-                mmt_vec_init(mmt,0,0, v,  1, test_shared, mmt->n[1]);
+                mmt_vec_setup(v, mmt,0,0, 1, test_shared, mmt->n[1]);
 
                 /* Because we want to test the permutation, we need to
                  * fill our dummy vector with the full range [0..n[, not
@@ -293,12 +291,11 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                 mmt_vec_check_equal_0n_permuted(v, mmt->n[1], xc);
                 mmt_vec_apply_S(mmt, 0, v);
                 mmt_vec_check_equal_0n(v, mmt->n[1]);
-                mmt_vec_clear(mmt, v);
             }
             if (xr) {
                 /* same for row vectors */
                 mmt_vec v;
-                mmt_vec_init(mmt,0,0, v,  0, test_shared, mmt->n[0]);
+                mmt_vec_setup(v, mmt,0,0, 0, test_shared, mmt->n[0]);
 
                 mmt_vec_set_0n(v, mmt->n[0]);
                 /* v <- v * S:  coefficient i goes to position S(i).  */
@@ -319,7 +316,6 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                 mmt_vec_check_equal_0n_permuted(v, mmt->n[0], xr);
                 mmt_vec_apply_S(mmt, 0, v);
                 mmt_vec_check_equal_0n(v, mmt->n[1]);
-                mmt_vec_clear(mmt, v);
             }
             if (freeme[0]) free(freeme[0]);
             if (freeme[1]) free(freeme[1]);
@@ -333,23 +329,21 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
      * result obtained by short_matmul */
     {
         mmt_vec y, my;
-        mmt_vec_init(mmt,0,0, y,  1, /* shared ! */ 1, mmt->n[1]);
-        mmt_vec_init(mmt,0,0, my, 0,                0, mmt->n[0]);
+        mmt_vec_setup(y,  mmt,0,0, 1, /* shared ! */ 1, mmt->n[1]);
+        mmt_vec_setup(my, mmt,0,0, 0,                0, mmt->n[0]);
         serialize(pi->m);
         mmt_vec_set_random_through_file(y, "Y%u-%u.0", mmt->n0[1], rstate, 0);
         /* recall that for all purposes, bwc operates with M*T^-1 and not M
          */
         mmt_vec_apply_T(mmt, y);
         mmt_vec_twist(mmt, y);
-        matmul_top_mul_cpu(mmt, 0, y->d, my, y);
+        matmul_top_mul_cpu(mmt, 0, y.d, my, y);
         /* watch out -- at this point we are *NOT* doing
          * matmul_top_mul_comm, so there's no multiplication by P^-1 !
          */
         mmt_vec_allreduce(my);
         mmt_vec_untwist(mmt, my);
         mmt_vec_save(my, "MY%u-%u.0", mmt->n0[0], 0);
-        mmt_vec_clear(mmt, y);
-        mmt_vec_clear(mmt, my);
     }
 
     /* vector times matrix product */
@@ -357,12 +351,12 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
      * result obtained by short_matmul */
     {
         mmt_vec w, wm;
-        mmt_vec_init(mmt,0,0, w,  0, /* shared ! */ 1, mmt->n[0]);
-        mmt_vec_init(mmt,0,0, wm, 1,                0, mmt->n[1]);
+        mmt_vec_setup(w,  mmt,0,0, 0, /* shared ! */ 1, mmt->n[0]);
+        mmt_vec_setup(wm, mmt,0,0, 1,                0, mmt->n[1]);
         serialize(pi->m);
         mmt_vec_set_random_through_file(w, "W%u-%u.0", mmt->n0[0], rstate, 0);
         mmt_vec_twist(mmt, w);
-        matmul_top_mul_cpu(mmt, 0, w->d, wm, w);
+        matmul_top_mul_cpu(mmt, 0, w.d, wm, w);
         /* It's not the same if we do allreduce+untwist, thus stay on the
          * image side, or reduce (changing side) + untwist, which brings
          * us back to the original side.
@@ -376,13 +370,10 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         mmt_vec_untwist(mmt, wm);
         mmt_vec_unapply_T(mmt, wm);
         mmt_vec_save(wm, "WM%u-%u.0", mmt->n0[1], 0);
-        mmt_vec_clear(mmt, w);
-        mmt_vec_clear(mmt, wm);
     }
 
     /* indices_twist */
     {
-        mmt_vec x;
         uint32_t * xx;
         unsigned int m = 2;
         unsigned int nx = 2;
@@ -394,8 +385,9 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         for(int d = 0 ; d < 2 ; d++)  {
             char * tmp;
             int rc;
+            mmt_vec x;
 
-            mmt_vec_init(mmt,0,0, x,  d, /* shared ! */ 1, mmt->n[d]);
+            mmt_vec_setup(x, mmt,0,0, d, /* shared ! */ 1, mmt->n[d]);
 
             /* prepare a first vector */
             mmt_vec_set_x_indices(x, xx, m, nx);
@@ -427,8 +419,6 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             ASSERT_ALWAYS(rc >= 0);
             mmt_vec_save(x, tmp, mmt->n[d], 0);
             free(tmp);
-
-            mmt_vec_clear(mmt, x);
         }
         free(xx);
     }
@@ -504,9 +494,9 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     serialize_threads(mmt->pi->m);
 
     size_t stride = abbytes(mmt->abase, 1);
-    ASSERT_ALWAYS((mrow->v->flags & THREAD_SHARED_VECTOR) == 0);
+    ASSERT_ALWAYS((mrow->v.flags & THREAD_SHARED_VECTOR) == 0);
     if (pirow->trank == 0 && pirow->jrank == 0) {
-        mpfq_generic_copy(stride, mmt->wr[!bw->dir]->v->v, oldv[!bw->dir]->v, mmt->wr[!bw->dir]->i1 - mmt->wr[!bw->dir]->i0);
+        mpfq_generic_copy(stride, mmt->wr[!bw->dir]->v.v, oldv[!bw->dir]->v, mmt->wr[!bw->dir]->i1 - mmt->wr[!bw->dir]->i0);
     }
     serialize_threads(mmt->pi->m);
 

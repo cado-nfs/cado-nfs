@@ -102,7 +102,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
 
     mmt_vector_pair ymy(mmt, bw->dir);
 
-    mmt_vec_ptr y = ymy[0];
+    mmt_vec & y = ymy[0];
 
     unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
 
@@ -185,12 +185,12 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
                     arith_generic::elt & where = A->vec_item(xymats, (r * prep_lookahead_iterations + k) * A_multiplex + j);
                     for(unsigned int t = 0 ; t < my_nx ; t++) {
                         uint32_t row = xvecs[r*my_nx+t];
-                        unsigned int vi0 = y->i0 + mmt_my_own_offset_in_items(y);
+                        unsigned int vi0 = y.i0 + mmt_my_own_offset_in_items(y);
                         unsigned int vi1 = vi0 + mmt_my_own_size_in_items(y);
                         if (row < vi0 || row >= vi1)
                             continue;
 
-                        arith_generic::elt const & coeff = y->abase->vec_item(y->v, row - y->i0);
+                        arith_generic::elt const & coeff = y.abase->vec_item(y.v, row - y.i0);
                         A->add_and_reduce(where, coeff);
                     }
                 }
