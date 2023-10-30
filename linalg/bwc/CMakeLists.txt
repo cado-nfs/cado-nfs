@@ -456,6 +456,11 @@ bwc_program(secure secure.cpp)
 bwc_program(blocklanczos blocklanczos.cpp)
 target_link_libraries(blocklanczos bitlinalg)
 
+bwc_program(bench_cpu_bwc bench_cpu_bwc.cpp)
+bwc_program(bench_comm_bwc bench_comm_bwc.cpp)
+set_target_properties(bench_cpu_bwc PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(bench_comm_bwc PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl DESTINATION
     ${LIBSUFFIX}/linalg/bwc)
 

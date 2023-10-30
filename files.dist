@@ -476,6 +476,8 @@ linalg/bwc/balancing.cpp
 linalg/bwc/balancing.hpp
 linalg/bwc/balancing_workhorse.cpp
 linalg/bwc/balancing_workhorse.hpp
+linalg/bwc/bench_comm_bwc.cpp
+linalg/bwc/bench_cpu_bwc.cpp
 linalg/bwc/bench_matcache.cpp
 linalg/bwc/blocklanczos.cpp
 linalg/bwc/build_matcache.cpp
