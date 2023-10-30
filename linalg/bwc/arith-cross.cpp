@@ -56,6 +56,10 @@ struct add_dotprod {
     }
 };
 
+/* u has n rows of 64K bits
+ * v has n rows of 64 bits.
+ * Compute (u|v) == tr(u)*v into the area pointed to by v: 64K rows of 64 bits.
+ */
 template<>
 struct add_dotprod<0,1> {
     inline void operator()(
@@ -78,7 +82,7 @@ template<>
 struct add_dotprod<0,2> {
     inline void operator()(
             uint64_t * w,           // 128 at a time
-            const uint64_t * u,     // 128 at a time
+            const uint64_t * u,     // 64K at a time
             const uint64_t * v,     // 128 at a time
             unsigned int n,
             unsigned int K,
@@ -276,23 +280,23 @@ struct arith_cross_gf2<0, L>
     }
     virtual void add_dotprod(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override
     {
-            auto xw = reinterpret_cast<uint64_t *>(w);
-            auto xv = reinterpret_cast<const uint64_t *>(v);
-            auto xu = reinterpret_cast<const uint64_t *>(u);
-            ::add_dotprod<0,L>()(xw,xu,xv,n,g0/64,g1/64);
+        auto xw = reinterpret_cast<uint64_t *>(w);
+        auto xv = reinterpret_cast<const uint64_t *>(v);
+        auto xu = reinterpret_cast<const uint64_t *>(u);
+        ::add_dotprod<0,L>()(xw,xu,xv,n,g0/64,g1/64);
     }
 
     virtual void addmul_tiny(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const override {
-            auto xw = reinterpret_cast<uint64_t *>(w);
-            auto xv = reinterpret_cast<const uint64_t *>(v);
-            auto xu = reinterpret_cast<const uint64_t *>(u);
-            ::addmul_tiny<0,L>()(xw,xu,xv,n,g0/64,g1/64);
+        auto xw = reinterpret_cast<uint64_t *>(w);
+        auto xv = reinterpret_cast<const uint64_t *>(v);
+        auto xu = reinterpret_cast<const uint64_t *>(u);
+        ::addmul_tiny<0,L>()(xw,xu,xv,n,g0/64,g1/64);
     }
 
     virtual void transpose(arith_generic::elt * w, arith_generic::elt const * u) const override {
-            auto xw = reinterpret_cast<uint64_t *>(w);
-            auto xu = reinterpret_cast<const uint64_t *>(u);
-            ::transpose()(xw,xu,g0/64,g1/64);
+        auto xw = reinterpret_cast<uint64_t *>(w);
+        auto xu = reinterpret_cast<const uint64_t *>(u);
+        ::transpose()(xw,xu,g0/64,g1/64);
     }
 
     virtual ~arith_cross_gf2() override = default;
