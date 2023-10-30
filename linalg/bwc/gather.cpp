@@ -34,6 +34,8 @@
 #include "select_mpi.h"
 #include "verbose.h"    // verbose_enabled
 #include "macros.h"
+#include "mmt_vector_pair.hpp"
+#include "utils_cxx.hpp"
 
 struct sfile_info {/*{{{*/
     unsigned int s0,s1;
@@ -290,19 +292,16 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{
         printf("// Random generator seeded with %d\n", bw->seed);
 
     /* Do that in the opposite direction compared to ymy */
-    mmt_vec zmz[2];
+    mmt_vector_pair zmz(mmt, !bw->dir);
     mmt_vec_ptr z = zmz[0];
-    mmt_vec_ptr mz = zmz[1];
-
-    mmt_vec_init(mmt,0,0, z,  !bw->dir, /* shared ! */ 1, mmt->n[!bw->dir]);
-    mmt_vec_init(mmt,0,0, mz,  bw->dir,                0, mmt->n[bw->dir]);
+    mmt_vec_ptr mz = zmz[zmz.size()-1];
 
 
     mmt_vec_set_random_inconsistent(z, rstate);
     mmt_vec_truncate_above_index(mmt, z, mmt->n0[bw->dir]);
     mmt_vec_apply_T(mmt, z);
     mmt_vec_twist(mmt, z);
-    matmul_top_mul(mmt, zmz, NULL);
+    matmul_top_mul(mmt, zmz.vectors(), NULL);
     mmt_vec_untwist(mmt, z);
     mmt_apply_identity(mz, z);
     mmt_vec_allreduce(mz);
@@ -324,7 +323,7 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{
     mmt_vec_truncate_above_index(mmt, z, mmt->n0[!bw->dir]);
     mmt_vec_apply_T(mmt, z);
     mmt_vec_twist(mmt, z);
-    matmul_top_mul(mmt, zmz, NULL);
+    matmul_top_mul(mmt, zmz.vectors(), NULL);
     mmt_vec_untwist(mmt, z);
     mmt_apply_identity(mz, z);
     mmt_vec_allreduce(mz);
@@ -337,9 +336,6 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{
         allz_set.erase(j);
     }
     allz.assign(allz_set.begin(), allz_set.end());
-
-    mmt_vec_clear(mmt, z);
-    mmt_vec_clear(mmt, mz);
 
     gmp_randclear(rstate);
 
@@ -606,7 +602,7 @@ std::tuple<int, int> check_zero_and_padding(mmt_vec_ptr y, unsigned int maxidx)/
     return std::make_tuple(input_is_zero, pad_is_zero);
 }/*}}}*/
 
-std::tuple<int, int, int> test_one_vector(matmul_top_data_ptr mmt, mmt_vec * ymy, rhs const & R)
+std::tuple<int, int, int> test_one_vector(matmul_top_data_ptr mmt, mmt_vector_pair & ymy, rhs const & R)
 {
     arith_generic * A = mmt->abase;
     parallelizing_info_ptr pi = mmt->pi;
@@ -622,7 +618,7 @@ std::tuple<int, int, int> test_one_vector(matmul_top_data_ptr mmt, mmt_vec * ymy
         mmt_vec_apply_T(mmt, y);
         serialize(pi->m);
         mmt_vec_twist(mmt, y);
-        matmul_top_mul(mmt, ymy, NULL);
+        matmul_top_mul(mmt, ymy.vectors(), NULL);
         mmt_vec_untwist(mmt, y);
         serialize(pi->m);
         /* Add the contributions from the right-hand side vectors, to see
@@ -648,13 +644,14 @@ std::tuple<int, int, int> test_one_vector(matmul_top_data_ptr mmt, mmt_vec * ymy
 
 /* Use y_saved as input (and leave it untouched). Store result in both y
  * and my */
-std::tuple<int, int, int> expanded_test(matmul_top_data_ptr mmt, mmt_vec ymy[2], mmt_vec_ptr y_saved, rhs const& R)
+std::tuple<int, int, int> expanded_test(matmul_top_data_ptr mmt, mmt_vector_pair & ymy, mmt_vec_ptr y_saved, rhs const& R)
 {
     parallelizing_info_ptr pi = mmt->pi;
     mmt_vec_ptr y = ymy[0];
-    mmt_vec_ptr my = ymy[1];
+    mmt_vec_ptr my = ymy[ymy.size()-1];
     mmt_full_vec_set(y, y_saved);
     auto res = test_one_vector(mmt, ymy, R);
+
     /* Need to get the indices with respect to !bw->dir...  */
     serialize(pi->m);
     mmt_apply_identity(my, y);
@@ -855,12 +852,9 @@ class parasite_fixer {/*{{{*/
         int char2 = mpz_cmp_ui(bw->p, 2) == 0;
 
         /* code is similar to row_coordinates_of_nonzero_cols() */
-        mmt_vec ymy[2];
+        mmt_vector_pair ymy(mmt, bw->dir);
         mmt_vec_ptr y = ymy[0];
-        mmt_vec_ptr my = ymy[1];
-
-        mmt_vec_init(mmt,0,0, y,   bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
-        mmt_vec_init(mmt,0,0, my, !bw->dir,                0, mmt->n[!bw->dir]);
+        mmt_vec_ptr my = ymy[ymy.size()-1];
 
         /* 1, -1: coeff is 1 or -1.
          * 2: coeff is something else, and lookup is needed (char!=2
@@ -907,7 +901,7 @@ class parasite_fixer {/*{{{*/
                 }
                 mmt_vec_apply_T(mmt, y);
                 mmt_vec_twist(mmt, y);
-                matmul_top_mul(mmt, ymy, NULL);
+                matmul_top_mul(mmt, ymy.vectors(), NULL);
                 mmt_vec_untwist(mmt, y);
                 /* Not entirely clear to me if I should unapply_T here or not
                 */
@@ -1013,9 +1007,9 @@ class parasite_fixer {/*{{{*/
             A->free(matrix);
     }/*}}}*/
 
-    std::tuple<int, int, int> attempt(matmul_top_data_ptr mmt, mmt_vec ymy[2], mmt_vec_ptr y_saved, rhs const& R)/*{{{*/
+    std::tuple<int, int, int> attempt(matmul_top_data_ptr mmt, mmt_vector_pair & ymy, mmt_vec_ptr y_saved, rhs const& R)/*{{{*/
     {
-        mmt_vec_ptr my = ymy[1];
+        mmt_vec_ptr my = ymy[ymy.size()-1];
         int tcan_print = bw->can_print && pi->m->trank == 0;
         int leader = pi->m->jrank == 0 && pi->m->trank == 0;
 
@@ -1087,7 +1081,7 @@ class parasite_fixer {/*{{{*/
              * (is this is ever meant to change, see mmt_full_vec_set for
              * instance)
              */
-            ASSERT_ALWAYS(!y_saved->siblings);
+            ASSERT_ALWAYS(mmt_vec_is_shared(y_saved));
 
             size_t own_i0 = y_saved->i0 + mmt_my_own_offset_in_items(y_saved);
             size_t own_i1 = own_i0 + mmt_my_own_size_in_items(y_saved);
@@ -1160,20 +1154,15 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     /* }}} */
 
     matmul_top_init(mmt, A, pi, pl, bw->dir);
+    auto clean_mmt = call_dtor([&]() { matmul_top_clear(mmt); });
 
     parasite_fixer pfixer(mmt);
 
-    mmt_vec ymy[2];
-    mmt_vec y_saved;
+    mmt_vector_pair ymy(mmt, bw->dir);
     mmt_vec_ptr y = ymy[0];
-    mmt_vec_ptr my = ymy[1];
 
-    mmt_vec_init(mmt,0,0, y_saved,   bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
-    mmt_vec_init(mmt,0,0, y,   bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
-    mmt_vec_init(mmt,0,0, my, !bw->dir,                0, mmt->n[!bw->dir]);
-    mmt_full_vec_set_zero(y);
-    mmt_full_vec_set_zero(my);
-
+    mmt_vec y_saved;
+    mmt_vec_init(mmt,0,0, y_saved,   bw->dir, mmt_vec_is_shared(y), mmt->n[bw->dir]);
 
     /* this is really a misnomer, because in the typical case, M is
      * rectangular, and then the square matrix does induce some padding.
@@ -1465,10 +1454,6 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     serialize(pi->m);
 
     mmt_vec_clear(mmt, y_saved);
-    mmt_vec_clear(mmt, y);
-    mmt_vec_clear(mmt, my);
-
-    matmul_top_clear(mmt);
 
     return NULL;
 }

@@ -21,6 +21,8 @@
 #include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
 #include "fmt/format.h"
 #include "macros.h"
+#include "mmt_vector_pair.hpp"
+#include "utils_cxx.hpp"
 using namespace fmt::literals;
 
 void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
@@ -42,6 +44,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
     int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
+
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     std::unique_ptr<arith_generic> Ac(arith_generic::instance(bw->p, nchecks));
 
@@ -50,36 +53,9 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     block_control_signals();
 
     matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
+    auto clean_mmt = call_dtor([&]() { matmul_top_clear(mmt); });
 
-    /* we allocate as many vectors as we have matrices, plus one if the
-     * number of matrices is odd (so we always have an even number of
-     * vectors). If the number of matrices is odd, then
-     * the first vector may be shared.  Otherwise, I believe it cannot
-     * (but I'm not really sure)
-     *
-     * Storage for vectors need actually not be present at all times.
-     * This could be improved.
-     *
-     * Interleaving could defined twice as many interleaved levels as we
-     * have matrices. It is probably not relevant.
-     */
-
-    int nmats_odd = mmt->nmatrices & 1;
-
-    mmt_vec * ymy = new mmt_vec[mmt->nmatrices + nmats_odd];
-    matmul_top_matrix_ptr mptr;
-    mptr = (matmul_top_matrix_ptr) mmt->matrices + (bw->dir ? (mmt->nmatrices - 1) : 0);
-    for(int i = 0 ; i < mmt->nmatrices ; i++) {
-        int shared = (i == 0) & nmats_odd;
-        mmt_vec_init(mmt,0,0, ymy[i], bw->dir ^ (i&1), shared, mptr->n[bw->dir]);
-        mmt_full_vec_set_zero(ymy[i]);
-
-        mptr += bw->dir ? -1 : 1;
-    }
-    if (nmats_odd) {
-        mmt_vec_init(mmt,0,0, ymy[mmt->nmatrices], !bw->dir, 0, mmt->matrices[0]->n[bw->dir]);
-        mmt_full_vec_set_zero(ymy[mmt->nmatrices]);
-    }
+    mmt_vector_pair ymy(mmt, bw->dir);
 
     unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
 
@@ -92,8 +68,8 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     } else {
         set_x_fake(&gxvecs, bw->m, &nx, pi);
     }
-
     indices_twist(mmt, gxvecs, nx * bw->m, bw->dir);
+    auto clear_gxvecs = call_dtor([&]() { free(gxvecs); });
 
     /* let's be generous with interleaving protection. I don't want to be
      * bothered, really */
@@ -201,6 +177,14 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
         ahead = A->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
     }
+    auto clean_checks = call_dtor([&] {
+            if (!bw->skip_online_checks) {
+                mmt_vec_clear(mmt, check_vector);
+                A->free(ahead);
+                Ac->free(Tdata);
+            }
+        });
+
 
     /* We'll store all xy matrices locally before doing reductions. Given
      * the small footprint of these matrices, it's rather innocuous.
@@ -221,6 +205,8 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 #endif
 
     timing_init(timing, 4 * mmt->nmatrices, bw->start, bw->end);
+    auto clean_timing = call_dtor([&]() { timing_clear(timing); });
+
     for(int i = 0 ; i < mmt->nmatrices; i++) {
         timing_set_timer_name(timing, 4*i, "CPU%d", i);
         timing_set_timer_items(timing, 4*i, mmt->matrices[i]->mm->ncoeffs);
@@ -275,7 +261,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
             x_dotprod(A->vec_subvec(xymats, i * bw->m),
                     gxvecs, bw->m, nx, ymy[0], 1);
 
-            matmul_top_mul(mmt, ymy, timing);
+            matmul_top_mul(mmt, ymy.vectors(), timing);
 
             timing_check(pi, timing, s+i+1, tcan_print);
         }
@@ -371,26 +357,10 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
     A->free(xymats);
 
-    if (!bw->skip_online_checks) {
-        mmt_vec_clear(mmt, check_vector);
-        A->free(ahead);
-        Ac->free(Tdata);
-    }
-
-    free(gxvecs);
-
-    for(int i = 0 ; i < mmt->nmatrices + nmats_odd ; i++) {
-        mmt_vec_clear(mmt, ymy[i]);
-    }
-    delete[] ymy;
-
     int want_full_report = 0;
     param_list_parse_int(pl, "full_report", &want_full_report);
     matmul_top_report(mmt, 1.0, want_full_report);
-    matmul_top_clear(mmt);
     pi_free_arith_datatype(pi, Ac_pi);
-
-    timing_clear(timing);
 
     return NULL;
 }

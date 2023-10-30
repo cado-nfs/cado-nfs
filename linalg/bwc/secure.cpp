@@ -24,6 +24,8 @@
 #include "params.h"
 #include "select_mpi.h"
 #include "xvectors.hpp"
+#include "mmt_vector_pair.hpp"
+#include "utils_cxx.hpp"
 using namespace fmt::literals;
 
 int legacy_check_mode = 0;
@@ -46,6 +48,11 @@ int legacy_check_mode = 0;
  *
  * Cv0-$nchecks.$s (also referred to as C) : check vector for distance $s. Depends on X.
  * Cd0-$nchecks.$s (also referred to as D) : check vector for distance $s. Depends on X, T, and R.
+ *
+ * Cv0-<splitwidth>.<j> == trsp(M)^j * X * Ct (See note (T))
+ * Cd0-<splitwidth>.<j> == \sum_{0<=i<j} trsp(M)^i * X * Ct * Cr[i] (See note (T))
+ * 
+ * (T): This assumes that nullspace=right. If nullspace=left, replace M by trsp(M).
  */
 
 void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
@@ -60,7 +67,6 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
 
     int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
-
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, nchecks));
 
     /* We need that in order to do matrix products */
@@ -69,14 +75,11 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
     pi_datatype_ptr A_pi = mmt->pitype;
 
-    mmt_vec myy[2];
-    mmt_vec_ptr my = myy[0];
-    mmt_vec_ptr y = myy[1];
-    mmt_vec dvec;
-
     /* we work in the opposite direction compared to other programs */
-    mmt_vec_init(mmt,0,0, y,   bw->dir,                0, mmt->n[bw->dir]);
-    mmt_vec_init(mmt,0,0, my, !bw->dir, /* shared ! */ 1, mmt->n[!bw->dir]);
+    mmt_vector_pair myy(mmt, !bw->dir);
+    mmt_vec_ptr my = myy[0];
+
+    mmt_vec dvec;
     mmt_vec_init(mmt,0,0, dvec,!bw->dir, /* shared ! */ 1, mmt->n[!bw->dir]);
 
     unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
@@ -397,7 +400,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             dvec->consistency = 1;
             mmt_vec_broadcast(dvec);
             pi_log_op(mmt->pi->m, "iteration %d", k);
-            matmul_top_mul(mmt, myy, NULL);
+            matmul_top_mul(mmt, myy.vectors(), NULL);
 
             if (tcan_print) {
                 putchar('.');
@@ -433,9 +436,6 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     gmp_randclear(rstate);
 
     mmt_vec_clear(mmt, dvec);
-    mmt_vec_clear(mmt, y);
-    mmt_vec_clear(mmt, my);
-    matmul_top_clear(mmt);
 
     return NULL;
 }

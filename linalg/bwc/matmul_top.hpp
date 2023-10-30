@@ -113,9 +113,15 @@ struct matmul_top_data_s {
      *
      * n[0] is matrices[0]->n[0]
      * n[1] is matrices[nmatrices-1]->n[1]
+     * n0[0] is matrices[0]->n0[0]
+     * n0[1] is matrices[nmatrices-1]->n0[1]
      */
     unsigned int n[2];
     unsigned int n0[2]; // n0: unpadded.
+
+    /* The matrix we are dealing with is
+     * matrices[0] * matrices[1] * ... * matrices[nmatrices-1]
+     */
     int nmatrices;
     matmul_top_matrix * matrices;
 };
@@ -201,6 +207,10 @@ extern void mmt_vec_apply_P(matmul_top_data_ptr mmt, mmt_vec_ptr y);
 extern void mmt_vec_unapply_P(matmul_top_data_ptr mmt, mmt_vec_ptr y);
 extern void mmt_apply_identity(mmt_vec_ptr w, mmt_vec_ptr v);
 extern void indices_twist(matmul_top_data_ptr mmt, uint32_t * xs, unsigned int n, int d);
+
+static inline int mmt_vec_is_shared(mmt_vec_ptr v) {
+    return v->siblings == NULL;
+}
 
 static inline void mmt_vec_set_random_through_file(mmt_vec_ptr v, std::string const & name, unsigned int itemsondisk, gmp_randstate_t rstate, unsigned int block_position) {
     mmt_vec_set_random_through_file(v, name.c_str(), itemsondisk, rstate, block_position);

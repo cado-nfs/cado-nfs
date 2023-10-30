@@ -636,6 +636,8 @@ linalg/bwc/mf_bal_main.cpp
 linalg/bwc/mf_scan.c
 linalg/bwc/mf_scan2.cpp
 linalg/bwc/mksol.cpp
+linalg/bwc/mmt_vector_pair.cpp
+linalg/bwc/mmt_vector_pair.hpp
 linalg/bwc/parallelizing_info.cpp
 linalg/bwc/parallelizing_info.hpp
 linalg/bwc/prep.cpp

@@ -78,6 +78,7 @@ set(bwc_base_sources
     matmul_top.cpp
     matmul_top2.cpp
     random_matrix.cpp
+    mmt_vector_pair.cpp
     mf.c 
     mf_bal.cpp
     ../rowset_heap.cpp

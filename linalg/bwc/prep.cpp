@@ -19,6 +19,8 @@
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "macros.h"
 #include "cxx_mpz.hpp"
+#include "mmt_vector_pair.hpp"
+#include "utils_cxx.hpp"
 
 
 void bw_rank_check(matmul_top_data_ptr mmt, param_list_ptr pl)
@@ -66,6 +68,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
     ASSERT_ALWAYS(A->simd_groupsize() * A_multiplex == (unsigned int) bw->n);
 
     matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
+    auto clean_mmt = call_dtor([&]() { matmul_top_clear(mmt); });
 
     bw_rank_check(mmt, pl);
 
@@ -97,12 +100,9 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         ASSERT_ALWAYS(nrhs <= mmt->n[!bw->dir]);
     }
 
-    mmt_vec ymy[2];
-    mmt_vec_ptr y = ymy[0];
-    mmt_vec_ptr my = ymy[1];
+    mmt_vector_pair ymy(mmt, bw->dir);
 
-    mmt_vec_init(mmt,0,0, y,   bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
-    mmt_vec_init(mmt,0,0, my, !bw->dir,                0, mmt->n[!bw->dir]);
+    mmt_vec_ptr y = ymy[0];
 
     unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
 
@@ -174,7 +174,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
             // XXX Note that x^Ty does not count here, because it does not
             // take part to the sequence computed by lingen !
             mmt_vec_twist(mmt, y);
-            matmul_top_mul(mmt, ymy, NULL);
+            matmul_top_mul(mmt, ymy.vectors(), NULL);
             mmt_vec_untwist(mmt, y);
             
 
@@ -195,7 +195,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
                     }
                 }
                 mmt_vec_twist(mmt, y);
-                matmul_top_mul(mmt, ymy, NULL);
+                matmul_top_mul(mmt, ymy.vectors(), NULL);
                 mmt_vec_untwist(mmt, y);
             }
         }
@@ -240,10 +240,6 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
 
     gmp_randclear(rstate);
 
-    mmt_vec_clear(mmt, y);
-    mmt_vec_clear(mmt, my);
-    matmul_top_clear(mmt);
-
     /* clean up xy mats stuff */
     A->free(xymats);
 
@@ -282,12 +278,16 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, splitwidth));
 
     matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
+    auto clean_mmt = call_dtor([&]() { matmul_top_clear(mmt); });
+
+    // I don't think this was ever tested.
+    ASSERT_ALWAYS(mmt->nmatrices == 1);
 
     bw_rank_check(mmt, pl);
 
     if (pi->m->trank || pi->m->jrank) {
         /* as said above, this is *NOT* a parallel program.  */
-        goto leave_prep_prog_gfp;
+        return NULL;
     }
 
     gmp_randstate_t rstate;
@@ -413,9 +413,6 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         save_x(xvecs, bw->m, my_nx, pi);
         free(xvecs);
     }
-
-leave_prep_prog_gfp:
-    matmul_top_clear(mmt);
 
     return NULL;
 }
