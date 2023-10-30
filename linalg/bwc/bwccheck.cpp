@@ -295,7 +295,7 @@ void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> &
 
                 std::unique_ptr<arith_generic> Av(arith_generic::instance(bw->p,it->first.second - it->first.first));
 
-                std::unique_ptr<arith_cross_generic> AvxAc(arith_cross_generic::instance(Av.get(), Ac));
+                std::unique_ptr<arith_cross_generic> AcxAv(arith_cross_generic::instance(Ac, Av.get()));
 
 
                 /* {{{ Check that all V files here have the proper size */
@@ -351,9 +351,11 @@ void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> &
                     Av->vec_set_zero(dotprod_scratch[0], nchecks);
 
                     /* compute the dot product */
-                    AvxAc->add_dotprod(
+                    AcxAv->add_dotprod(
                             dotprod_scratch[0],
-                            Cv_i1, Vv, vsize);
+                            Cv_i1,
+                            Vv,
+                            vsize);
 
                     if (vec_read(Ac, Vv, Vs[j].c_str(), vsize, "   ") < 0)
                         continue;
@@ -361,9 +363,11 @@ void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> &
                     Vv_iter = Vs[j].n;
 
                     Av->vec_set_zero(dotprod_scratch[1], nchecks);
-                    AvxAc->add_dotprod(
+                    AcxAv->add_dotprod(
                             dotprod_scratch[1],
-                            Cv_i0, Vv, vsize);
+                            Cv_i0,
+                            Vv,
+                            vsize);
 
                     int cmp = Av->vec_cmp(dotprod_scratch[0], dotprod_scratch[1], nchecks);
 
@@ -470,7 +474,7 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
                     V0, D.stretch, a_list.str());
 
             std::unique_ptr<arith_generic> Av(arith_generic::instance(bw->p, V0.j1 - V0.j0));
-            std::unique_ptr<arith_cross_generic> AvxAc(arith_cross_generic::instance(Av.get(), Ac));
+            std::unique_ptr<arith_cross_generic> AcxAv(arith_cross_generic::instance(Ac, Av.get()));
 
             arith_generic::elt * dotprod_scratch[3];
             vec_alloc(Av.get(), dotprod_scratch[0], nchecks);
@@ -510,13 +514,13 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
                                 rc = fread(Av->vec_subvec(dotprod_scratch[2], r), Av->elt_stride(), 1, a);
                                 ASSERT_ALWAYS(rc == 1);
                             }
-                            AvxAc->add_dotprod(
+                            AcxAv->add_dotprod(
                                     dotprod_scratch[1],
                                     Ac->vec_subvec(Tdata, c),
                                     dotprod_scratch[2],
                                     nchecks);
                         }
-                        AvxAc->add_dotprod(
+                        AcxAv->add_dotprod(
                                 dotprod_scratch[0],
                                 Ac->vec_subvec(Rdata, (p - V0.n) * nchecks),
                                 dotprod_scratch[1],
@@ -544,9 +548,11 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
 
                 if (can_check) {
                     Av->vec_set_zero(dotprod_scratch[1], nchecks);
-                    AvxAc->add_dotprod(
+                    AcxAv->add_dotprod(
                             dotprod_scratch[1],
-                            Dv, Vv, vsize);
+                            Dv,
+                            Vv,
+                            vsize);
                 }
 
                 vec_free(Av.get(), Vv, vsize);

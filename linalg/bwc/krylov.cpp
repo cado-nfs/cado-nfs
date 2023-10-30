@@ -239,8 +239,8 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
              * here).
              */
             AxAc->add_dotprod(ahead,
-                    mmt_my_own_subvec(check_vector),
                     mmt_my_own_subvec(ymy[0]),
+                    mmt_my_own_subvec(check_vector),
                     mmt_my_own_size_in_items(ymy[0]));
         }
 
@@ -287,8 +287,8 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                      */
                     AxAc->add_dotprod(
                             ahead,
-                            Ac->vec_subvec(Tdata, c),
                             tmp1,
+                            Ac->vec_subvec(Tdata, c),
                             nchecks);
                 }
                 A->free(tmp1);
