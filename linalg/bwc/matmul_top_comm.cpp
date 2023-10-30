@@ -836,7 +836,7 @@ void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d)
 
     arith_generic * abase = mmt->abase;
 
-    std::array<mmt_vec, 2> test_vectors;
+    mmt_vec test_vectors[2];
     int is_shared[2] = {0,0};
     mmt_vec_setup(test_vectors[0], mmt, NULL, NULL, 0, is_shared[0], mmt->n[0]);
     mmt_vec_setup(test_vectors[1], mmt, NULL, NULL, 1, is_shared[1], mmt->n[1]);
