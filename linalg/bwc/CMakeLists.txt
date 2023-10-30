@@ -76,6 +76,8 @@ set(bwc_base_sources
     rolling.c
     matmul.cpp
     matmul_top.cpp
+    matmul_top_vec.cpp
+    matmul_top_comm.cpp
     matmul_top2.cpp
     random_matrix.cpp
     mmt_vector_pair.cpp

@@ -628,6 +628,10 @@ linalg/bwc/matmul_facade.hpp
 linalg/bwc/matmul_top.cpp
 linalg/bwc/matmul_top.hpp
 linalg/bwc/matmul_top2.cpp
+linalg/bwc/matmul_top_comm.cpp
+linalg/bwc/matmul_top_comm.hpp
+linalg/bwc/matmul_top_vec.cpp
+linalg/bwc/matmul_top_vec.hpp
 linalg/bwc/mf.c
 linalg/bwc/mf.h
 linalg/bwc/mf_bal.cpp
