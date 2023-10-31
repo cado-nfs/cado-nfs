@@ -69,7 +69,7 @@ typedef struct matmul_top_matrix_s matmul_top_matrix[1];
 typedef struct matmul_top_matrix_s * matmul_top_matrix_ptr;
 typedef struct matmul_top_matrix_s const * matmul_top_matrix_srcptr;
 
-struct matmul_top_data_s {
+struct matmul_top_data {
     parallelizing_info_ptr pi;
     arith_generic * abase;
     pi_datatype_ptr pitype;
@@ -90,13 +90,9 @@ struct matmul_top_data_s {
     matmul_top_matrix * matrices;
 };
 
-typedef struct matmul_top_data_s matmul_top_data[1];
-typedef struct matmul_top_data_s * matmul_top_data_ptr;
-typedef struct matmul_top_data_s const * matmul_top_data_srcptr;
-
 struct mmt_vec;
 
-extern void matmul_top_init(matmul_top_data_ptr mmt,
+extern void matmul_top_init(matmul_top_data & mmt,
         arith_generic * abase,
         parallelizing_info_ptr pi,
         param_list_ptr pl,
@@ -105,31 +101,31 @@ extern void matmul_top_init(matmul_top_data_ptr mmt,
 
 extern void matmul_top_decl_usage(param_list_ptr pl);
 extern void matmul_top_lookup_parameters(param_list_ptr pl);
-extern void matmul_top_report(matmul_top_data_ptr mmt, double scale, int full);
-extern void matmul_top_clear(matmul_top_data_ptr mmt);
-extern unsigned int matmul_top_rank_upper_bound(matmul_top_data_ptr mmt);
+extern void matmul_top_report(matmul_top_data & mmt, double scale, int full);
+extern void matmul_top_clear(matmul_top_data & mmt);
+extern unsigned int matmul_top_rank_upper_bound(matmul_top_data & mmt);
 #if 0
-extern void matmul_top_fill_random_source(matmul_top_data_ptr mmt, int d);
+extern void matmul_top_fill_random_source(matmul_top_data & mmt, int d);
 #endif
-extern void mmt_vec_truncate(matmul_top_data_ptr mmt, mmt_vec & v);
-extern void mmt_vec_truncate_above_index(matmul_top_data_ptr mmt, mmt_vec & v, unsigned int idx);
-extern void mmt_vec_truncate_below_index(matmul_top_data_ptr mmt, mmt_vec & v, unsigned int idx);
-extern void matmul_top_mul_cpu(matmul_top_data_ptr mmt, int midx, int d, mmt_vec & w, mmt_vec const & v);
-extern void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d);
+extern void mmt_vec_truncate(matmul_top_data & mmt, mmt_vec & v);
+extern void mmt_vec_truncate_above_index(matmul_top_data & mmt, mmt_vec & v, unsigned int idx);
+extern void mmt_vec_truncate_below_index(matmul_top_data & mmt, mmt_vec & v, unsigned int idx);
+extern void matmul_top_mul_cpu(matmul_top_data & mmt, int midx, int d, mmt_vec & w, mmt_vec const & v);
+extern void matmul_top_comm_bench(matmul_top_data & mmt, int d);
 extern void matmul_top_mul_comm(mmt_vec & w, mmt_vec & v);
 
 /* v is both input and output. w is temporary */
-extern void matmul_top_mul(matmul_top_data_ptr mmt, mmt_vec *w, struct timing_data * tt);
+extern void matmul_top_mul(matmul_top_data & mmt, mmt_vec *w, struct timing_data * tt);
 
-extern void mmt_vec_twist(matmul_top_data_ptr mmt, mmt_vec & y);
-extern void mmt_vec_untwist(matmul_top_data_ptr mmt, mmt_vec & y);
-extern void mmt_vec_apply_T(matmul_top_data_ptr mmt, mmt_vec & y);
-extern void mmt_vec_unapply_T(matmul_top_data_ptr mmt, mmt_vec & y);
-extern void mmt_vec_apply_S(matmul_top_data_ptr mmt, int midx, mmt_vec & y);
-extern void mmt_vec_unapply_S(matmul_top_data_ptr mmt, int midx, mmt_vec & y);
-extern void mmt_vec_apply_P(matmul_top_data_ptr mmt, mmt_vec & y);
-extern void mmt_vec_unapply_P(matmul_top_data_ptr mmt, mmt_vec & y);
+extern void mmt_vec_twist(matmul_top_data & mmt, mmt_vec & y);
+extern void mmt_vec_untwist(matmul_top_data & mmt, mmt_vec & y);
+extern void mmt_vec_apply_T(matmul_top_data & mmt, mmt_vec & y);
+extern void mmt_vec_unapply_T(matmul_top_data & mmt, mmt_vec & y);
+extern void mmt_vec_apply_S(matmul_top_data & mmt, int midx, mmt_vec & y);
+extern void mmt_vec_unapply_S(matmul_top_data & mmt, int midx, mmt_vec & y);
+extern void mmt_vec_apply_P(matmul_top_data & mmt, mmt_vec & y);
+extern void mmt_vec_unapply_P(matmul_top_data & mmt, mmt_vec & y);
 extern void mmt_apply_identity(mmt_vec & w, mmt_vec const & v);
-extern void indices_twist(matmul_top_data_ptr mmt, uint32_t * xs, unsigned int n, int d);
+extern void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d);
 
 #endif	/* MATMUL_TOP_HPP_ */

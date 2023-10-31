@@ -157,23 +157,23 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
      */
     {
         mmt_vec v, vi, vii;
-        mmt_vec_setup(v,   mmt,0,0, 0, /* shared ! */ 1, mmt->n[0]);
-        mmt_vec_setup(vi,  mmt,0,0, 1,                0, mmt->n[1]);
-        mmt_vec_setup(vii, mmt,0,0, 0,                0, mmt->n[0]);
+        mmt_vec_setup(v,   mmt,0,0, 0, /* shared ! */ 1, mmt.n[0]);
+        mmt_vec_setup(vi,  mmt,0,0, 1,                0, mmt.n[1]);
+        mmt_vec_setup(vii, mmt,0,0, 0,                0, mmt.n[0]);
         serialize(pi->m);
-        mmt_vec_set_0n(v, mmt->n0[0]);
+        mmt_vec_set_0n(v, mmt.n0[0]);
         /* We save the Z files, although it's useless, the checking done
          * here is allright */
-        mmt_vec_save(v, "Z%u-%u.0", mmt->n0[0], 0);
+        mmt_vec_save(v, "Z%u-%u.0", mmt.n0[0], 0);
         mmt_apply_identity(vi, v);
         mmt_vec_allreduce(vi);
-        mmt_vec_clear_padding(vi, mmt->n0[1], mmt->n0[0]);
-        mmt_vec_check_equal_0n(vi, mmt->n0[1]);
-        mmt_vec_save(vi, "ZI%u-%u.0", mmt->n0[1], 0);
+        mmt_vec_clear_padding(vi, mmt.n0[1], mmt.n0[0]);
+        mmt_vec_check_equal_0n(vi, mmt.n0[1]);
+        mmt_vec_save(vi, "ZI%u-%u.0", mmt.n0[1], 0);
         mmt_apply_identity(vii, vi);
         mmt_vec_allreduce(vii);
-        mmt_vec_check_equal_0n(vii, MIN(mmt->n0[0], mmt->n0[1]));
-        mmt_vec_save(vi, "ZII%u-%u.0", mmt->n0[0], 0);
+        mmt_vec_check_equal_0n(vii, MIN(mmt.n0[0], mmt.n0[1]));
+        mmt_vec_save(vi, "ZII%u-%u.0", mmt.n0[0], 0);
     }
 
 
@@ -184,22 +184,22 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         const char * bname = param_list_lookup_string(pl, "balancing");
         balancing_init(bb);
 
-        if (mmt->pi->m->jrank == 0 && mmt->pi->m->trank == 0) {
+        if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0) {
             balancing_read(bb, bname);
         }
-        pi_bcast(bb, sizeof(balancing), BWC_PI_BYTE, 0, 0, mmt->pi->m);
-        /* fix the mmt->rowperm and mmt->colperm */
+        pi_bcast(bb, sizeof(balancing), BWC_PI_BYTE, 0, 0, mmt.pi->m);
+        /* fix the mmt.rowperm and mmt.colperm */
         if (bb->rowperm) {
-            if (mmt->pi->m->jrank || mmt->pi->m->trank) {
+            if (mmt.pi->m->jrank || mmt.pi->m->trank) {
                 bb->rowperm = (uint32_t *) malloc(bb->trows * sizeof(uint32_t));
             }
-            pi_bcast(bb->rowperm, bb->trows * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, mmt->pi->m);
+            pi_bcast(bb->rowperm, bb->trows * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, mmt.pi->m);
         }
         if (bb->colperm) {
-            if (mmt->pi->m->jrank || mmt->pi->m->trank) {
+            if (mmt.pi->m->jrank || mmt.pi->m->trank) {
                 bb->colperm = (uint32_t *) malloc(bb->tcols * sizeof(uint32_t));
             }
-            pi_bcast(bb->colperm, bb->tcols * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, mmt->pi->m);
+            pi_bcast(bb->colperm, bb->tcols * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, mmt.pi->m);
         }
 
 
@@ -209,18 +209,18 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             uint32_t * xr = bb->rowperm;
             uint32_t * xc = bb->colperm;
             uint32_t *freeme[2] = {NULL,NULL};
-            if (mmt->matrices[0]->bal->h->flags & FLAG_REPLICATE) {
+            if (mmt.matrices[0]->bal->h->flags & FLAG_REPLICATE) {
                 ASSERT_ALWAYS(xc || xr);
-                ASSERT_ALWAYS(mmt->matrices[0]->bal->trows == mmt->matrices[0]->bal->tcols);
+                ASSERT_ALWAYS(mmt.matrices[0]->bal->trows == mmt.matrices[0]->bal->tcols);
                 /* P is the permutation which sends
                  * sub-block nv*i+j to sub-block nh*j+i
                  */
-                unsigned int nh = mmt->matrices[0]->bal->h->nh;
-                unsigned int nv = mmt->matrices[0]->bal->h->nv;
-                size_t z = mmt->matrices[0]->bal->trows / (nh * nv);
+                unsigned int nh = mmt.matrices[0]->bal->h->nh;
+                unsigned int nv = mmt.matrices[0]->bal->h->nv;
+                size_t z = mmt.matrices[0]->bal->trows / (nh * nv);
                 if (!xr) {
                     /* implicit Sr is P * Sc */
-                    xr = (uint32_t *) malloc(mmt->matrices[0]->bal->trows * sizeof(uint32_t));
+                    xr = (uint32_t *) malloc(mmt.matrices[0]->bal->trows * sizeof(uint32_t));
                     freeme[0] = xr;
                     /* The image of i is Sc(P(i)) */
                     for(size_t i = 0 ; i < nh ; i++) {
@@ -238,7 +238,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                 }
                 if (!xc) {
                     /* implicit Sc is P^-1 * Sr */
-                    xc = (uint32_t *) malloc(mmt->matrices[0]->bal->tcols * sizeof(uint32_t));
+                    xc = (uint32_t *) malloc(mmt.matrices[0]->bal->tcols * sizeof(uint32_t));
                     freeme[1] = xc;
                     /* The image of i is Sr(P^-1(i)) */
                     for(size_t i = 0 ; i < nh ; i++) {
@@ -257,7 +257,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             }
             if (xc) {
                 mmt_vec v;
-                mmt_vec_setup(v, mmt,0,0, 1, test_shared, mmt->n[1]);
+                mmt_vec_setup(v, mmt,0,0, 1, test_shared, mmt.n[1]);
 
                 /* Because we want to test the permutation, we need to
                  * fill our dummy vector with the full range [0..n[, not
@@ -267,7 +267,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                  *  - in order to tell whether we're doing the right
                  *    thing, we value uniqueness of data in the vector.
                  */
-                mmt_vec_set_0n(v, mmt->n[1]);
+                mmt_vec_set_0n(v, mmt.n[1]);
                 /* trsp(v) <- trsp(v) * S: coefficient i goes to position S(i).
                  * Hence we must check that in position j, we have what
                  * was beforehand in position S^{-1}(i), right. Which is
@@ -277,45 +277,45 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                  * apply == 1 d == 1 Sc implicit:  v <- v * Sr
                  */
                 mmt_vec_apply_S(mmt, 0, v);
-                mmt_vec_check_equal_0n_inv_permuted(v, mmt->n[1], xc);
+                mmt_vec_check_equal_0n_inv_permuted(v, mmt.n[1], xc);
                 /* apply == 0 d == 1 Sc defined:   v <- v * Sc^-1
                  * apply == 0 d == 1 Sc implicit:  v <- v * Sr^-1
                  */
                 mmt_vec_unapply_S(mmt, 0, v);
-                mmt_vec_check_equal_0n(v, mmt->n[1]);
+                mmt_vec_check_equal_0n(v, mmt.n[1]);
 
                 /* Do the same check in the other direction as well. Most
                  * probably redundant, though. */
-                mmt_vec_set_0n(v, mmt->n[1]);
+                mmt_vec_set_0n(v, mmt.n[1]);
                 mmt_vec_unapply_S(mmt, 0, v);
-                mmt_vec_check_equal_0n_permuted(v, mmt->n[1], xc);
+                mmt_vec_check_equal_0n_permuted(v, mmt.n[1], xc);
                 mmt_vec_apply_S(mmt, 0, v);
-                mmt_vec_check_equal_0n(v, mmt->n[1]);
+                mmt_vec_check_equal_0n(v, mmt.n[1]);
             }
             if (xr) {
                 /* same for row vectors */
                 mmt_vec v;
-                mmt_vec_setup(v, mmt,0,0, 0, test_shared, mmt->n[0]);
+                mmt_vec_setup(v, mmt,0,0, 0, test_shared, mmt.n[0]);
 
-                mmt_vec_set_0n(v, mmt->n[0]);
+                mmt_vec_set_0n(v, mmt.n[0]);
                 /* v <- v * S:  coefficient i goes to position S(i).  */
                 /* apply == 1 d == 0 Sr defined:   v <- v * Sr
                  * apply == 1 d == 0 Sr implicit:  v <- v * Sc
                  */
                 mmt_vec_apply_S(mmt, 0, v);
-                mmt_vec_check_equal_0n_inv_permuted(v, mmt->n[0], xr);
+                mmt_vec_check_equal_0n_inv_permuted(v, mmt.n[0], xr);
                 /*
                  * apply == 0 d == 0 Sr defined:   v <- v * Sr^-1
                  * apply == 0 d == 0 Sr implicit:  v <- v * Sc^-1
                  */
                 mmt_vec_unapply_S(mmt, 0, v);
-                mmt_vec_check_equal_0n(v, mmt->n[0]);
+                mmt_vec_check_equal_0n(v, mmt.n[0]);
 
-                mmt_vec_set_0n(v, mmt->n[0]);
+                mmt_vec_set_0n(v, mmt.n[0]);
                 mmt_vec_unapply_S(mmt, 0, v);
-                mmt_vec_check_equal_0n_permuted(v, mmt->n[0], xr);
+                mmt_vec_check_equal_0n_permuted(v, mmt.n[0], xr);
                 mmt_vec_apply_S(mmt, 0, v);
-                mmt_vec_check_equal_0n(v, mmt->n[1]);
+                mmt_vec_check_equal_0n(v, mmt.n[1]);
             }
             if (freeme[0]) free(freeme[0]);
             if (freeme[1]) free(freeme[1]);
@@ -329,10 +329,10 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
      * result obtained by short_matmul */
     {
         mmt_vec y, my;
-        mmt_vec_setup(y,  mmt,0,0, 1, /* shared ! */ 1, mmt->n[1]);
-        mmt_vec_setup(my, mmt,0,0, 0,                0, mmt->n[0]);
+        mmt_vec_setup(y,  mmt,0,0, 1, /* shared ! */ 1, mmt.n[1]);
+        mmt_vec_setup(my, mmt,0,0, 0,                0, mmt.n[0]);
         serialize(pi->m);
-        mmt_vec_set_random_through_file(y, "Y%u-%u.0", mmt->n0[1], rstate, 0);
+        mmt_vec_set_random_through_file(y, "Y%u-%u.0", mmt.n0[1], rstate, 0);
         /* recall that for all purposes, bwc operates with M*T^-1 and not M
          */
         mmt_vec_apply_T(mmt, y);
@@ -343,7 +343,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
          */
         mmt_vec_allreduce(my);
         mmt_vec_untwist(mmt, my);
-        mmt_vec_save(my, "MY%u-%u.0", mmt->n0[0], 0);
+        mmt_vec_save(my, "MY%u-%u.0", mmt.n0[0], 0);
     }
 
     /* vector times matrix product */
@@ -351,10 +351,10 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
      * result obtained by short_matmul */
     {
         mmt_vec w, wm;
-        mmt_vec_setup(w,  mmt,0,0, 0, /* shared ! */ 1, mmt->n[0]);
-        mmt_vec_setup(wm, mmt,0,0, 1,                0, mmt->n[1]);
+        mmt_vec_setup(w,  mmt,0,0, 0, /* shared ! */ 1, mmt.n[0]);
+        mmt_vec_setup(wm, mmt,0,0, 1,                0, mmt.n[1]);
         serialize(pi->m);
-        mmt_vec_set_random_through_file(w, "W%u-%u.0", mmt->n0[0], rstate, 0);
+        mmt_vec_set_random_through_file(w, "W%u-%u.0", mmt.n0[0], rstate, 0);
         mmt_vec_twist(mmt, w);
         matmul_top_mul_cpu(mmt, 0, w.d, wm, w);
         /* It's not the same if we do allreduce+untwist, thus stay on the
@@ -369,7 +369,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         mmt_vec_allreduce(wm);
         mmt_vec_untwist(mmt, wm);
         mmt_vec_unapply_T(mmt, wm);
-        mmt_vec_save(wm, "WM%u-%u.0", mmt->n0[1], 0);
+        mmt_vec_save(wm, "WM%u-%u.0", mmt.n0[1], 0);
     }
 
     /* indices_twist */
@@ -379,7 +379,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         unsigned int nx = 2;
         xx = (uint32_t *) malloc(m * nx * sizeof(uint32_t));
         for(unsigned int k = 0 ; k < m * nx ; k++) {
-            xx[k] = gmp_urandomm_ui(rstate, mmt->n0[0]);
+            xx[k] = gmp_urandomm_ui(rstate, mmt.n0[0]);
         }
         pi_bcast(xx, m * nx * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
         for(int d = 0 ; d < 2 ; d++)  {
@@ -387,13 +387,13 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             int rc;
             mmt_vec x;
 
-            mmt_vec_setup(x, mmt,0,0, d, /* shared ! */ 1, mmt->n[d]);
+            mmt_vec_setup(x, mmt,0,0, d, /* shared ! */ 1, mmt.n[d]);
 
             /* prepare a first vector */
             mmt_vec_set_x_indices(x, xx, m, nx);
             rc = asprintf(&tmp, "Xa%s.%d", "%u-%u", d);
             ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt->n[d], 0);
+            mmt_vec_save(x, tmp, mmt.n[d], 0);
             free(tmp);
 
             /* and then a second vector, which should be equal */
@@ -402,7 +402,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             mmt_vec_untwist(mmt, x);
             rc = asprintf(&tmp, "Xb%s.%d", "%u-%u", d);
             ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt->n[d], 0);
+            mmt_vec_save(x, tmp, mmt.n[d], 0);
             free(tmp);
 
             /* now for the twisted versions, too */
@@ -410,14 +410,14 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             mmt_vec_twist(mmt, x);
             rc = asprintf(&tmp, "XTa%s.%d", "%u-%u", d);
             ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt->n[d], 0);
+            mmt_vec_save(x, tmp, mmt.n[d], 0);
             free(tmp);
 
             indices_twist(mmt, xx, nx * m, d);
             mmt_vec_set_x_indices(x, xx, m, nx);
             rc = asprintf(&tmp, "XTb%s.%d", "%u-%u", d);
             ASSERT_ALWAYS(rc >= 0);
-            mmt_vec_save(x, tmp, mmt->n[d], 0);
+            mmt_vec_save(x, tmp, mmt.n[d], 0);
             free(tmp);
         }
         free(xx);
@@ -484,29 +484,29 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
 
 #if 0
     mmt_vec oldv[2];
-    memcpy(oldv[0], mmt->wr[0]->v, sizeof(mmt_vec));
-    memcpy(oldv[1], mmt->wr[1]->v, sizeof(mmt_vec));
-    memset(mmt->wr[0]->v, 0, sizeof(mmt_vec));
-    memset(mmt->wr[1]->v, 0, sizeof(mmt_vec));
+    memcpy(oldv[0], mmt.wr[0]->v, sizeof(mmt_vec));
+    memcpy(oldv[1], mmt.wr[1]->v, sizeof(mmt_vec));
+    memset(mmt.wr[0]->v, 0, sizeof(mmt_vec));
+    memset(mmt.wr[1]->v, 0, sizeof(mmt_vec));
     mmt_vec_init(mmt, NULL, NULL, NULL, 0, flags[1 ^ 0]);
     mmt_vec_init(mmt, NULL, NULL, NULL, 1, flags[1 ^ 1]);
 
-    serialize_threads(mmt->pi->m);
+    serialize_threads(mmt.pi->m);
 
-    size_t stride = abbytes(mmt->abase, 1);
+    size_t stride = abbytes(mmt.abase, 1);
     ASSERT_ALWAYS((mrow->v.flags & THREAD_SHARED_VECTOR) == 0);
     if (pirow->trank == 0 && pirow->jrank == 0) {
-        mpfq_generic_copy(stride, mmt->wr[!bw->dir]->v.v, oldv[!bw->dir]->v, mmt->wr[!bw->dir]->i1 - mmt->wr[!bw->dir]->i0);
+        mpfq_generic_copy(stride, mmt.wr[!bw->dir]->v.v, oldv[!bw->dir]->v, mmt.wr[!bw->dir]->i1 - mmt.wr[!bw->dir]->i0);
     }
-    serialize_threads(mmt->pi->m);
+    serialize_threads(mmt.pi->m);
 
     matmul_top_mul_comm(mmt, bw->dir);
     mmt_vec_save(mmt, NULL, CHECK_FILE_BASE, bw->dir, bw->interval);
 
     mmt_vec_clear(mmt, NULL, 0);
     mmt_vec_clear(mmt, NULL, 1);
-    memcpy(mmt->wr[0]->v, oldv[0], sizeof(mmt_vec));
-    memcpy(mmt->wr[1]->v, oldv[1], sizeof(mmt_vec));
+    memcpy(mmt.wr[0]->v, oldv[0], sizeof(mmt_vec));
+    memcpy(mmt.wr[1]->v, oldv[1], sizeof(mmt_vec));
     memset(oldv[0], 0, sizeof(mmt_vec));
     memset(oldv[1], 0, sizeof(mmt_vec));
 #endif

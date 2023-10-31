@@ -4,7 +4,7 @@
 #include "parallelizing_info.hpp"
 #include "arith-generic.hpp"
 
-#include "matmul_top.hpp"
+struct matmul_top_data;
 
 // the ``all_v'' field collects all the pointers to the per-thread vector
 // values. There are exactly pi->wr[0]->ncores such pointers in
@@ -26,7 +26,7 @@ struct mmt_vec {
                             NULL};  /* pi->wr[1]->ncores siblings, always. */
 
     mmt_vec() = default;
-    mmt_vec(matmul_top_data_ptr mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n);
+    mmt_vec(matmul_top_data & mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n);
     ~mmt_vec();
     mmt_vec(mmt_vec const &) = delete;
     mmt_vec& operator=(mmt_vec const &) = delete;
@@ -54,7 +54,7 @@ struct mmt_vec {
 #define THREAD_SHARED_VECTOR    1
 
 /* This is almost a constructor. */
-extern void mmt_vec_setup(mmt_vec &, matmul_top_data_ptr mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n);
+extern void mmt_vec_setup(mmt_vec &, matmul_top_data & mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n);
 
 extern size_t mmt_my_own_size_in_items(mmt_vec const & v);
 extern size_t mmt_my_own_size_in_bytes(mmt_vec const & v);
@@ -84,7 +84,7 @@ extern void mmt_vec_set_basis_vector(mmt_vec & v, unsigned int j);
 extern void mmt_vec_add_basis_vector_at(mmt_vec & v, int k, unsigned int j);
 extern void mmt_vec_add_basis_vector(mmt_vec & v, unsigned int j);
 #if 0
-extern void matmul_top_fill_random_source_generic(matmul_top_data_ptr mmt, size_t stride, mmt_vec & v, int d);
+extern void matmul_top_fill_random_source_generic(matmul_top_data & mmt, size_t stride, mmt_vec & v, int d);
 #endif
 extern int mmt_vec_load(mmt_vec & v, const char * name, unsigned int itemsondisk, unsigned int block_position) ATTRIBUTE_WARN_UNUSED_RESULT;
 extern int mmt_vec_save(mmt_vec & v, const char * name, unsigned int itemsondisk, unsigned int block_position);

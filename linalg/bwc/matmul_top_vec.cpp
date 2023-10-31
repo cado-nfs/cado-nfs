@@ -1,5 +1,6 @@
 #include "cado.h"
 
+#include "matmul_top.hpp"
 #include "matmul_top_vec.hpp"
 #include "matmul_top_comm.hpp"
 #include "timing.h"
@@ -44,27 +45,27 @@
 
 /* {{{ vector init/clear */
 
-mmt_vec::mmt_vec(matmul_top_data_ptr mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n)
+mmt_vec::mmt_vec(matmul_top_data & mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n)
 {
     mmt_vec_setup(*this, mmt, abase, pitype, d, flags, n);
 }
 
 /* this is for a vector which will be of interest to a group of threads
  * and jobs in direction d */
-void mmt_vec_setup(mmt_vec & v, matmul_top_data_ptr mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n)
+void mmt_vec_setup(mmt_vec & v, matmul_top_data & mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n)
 {
-    if (abase == NULL) abase = mmt->abase;
-    if (pitype == NULL) pitype = mmt->pitype;
-    v.pi = mmt->pi;
+    if (abase == NULL) abase = mmt.abase;
+    if (pitype == NULL) pitype = mmt.pitype;
+    v.pi = mmt.pi;
     v.d = d;
     v.abase = abase;
     v.pitype = pitype;
     v.n = n;
 
-    ASSERT_ALWAYS(n % mmt->pi->m->totalsize == 0);
+    ASSERT_ALWAYS(n % mmt.pi->m->totalsize == 0);
 
-    pi_comm_ptr wr = mmt->pi->wr[d];
-    pi_comm_ptr xwr = mmt->pi->wr[!d];
+    pi_comm_ptr wr = mmt.pi->wr[d];
+    pi_comm_ptr xwr = mmt.pi->wr[!d];
 
     /* now what is the size which we are going to allocate locally */
     n /= xwr->totalsize;
@@ -73,8 +74,8 @@ void mmt_vec_setup(mmt_vec & v, matmul_top_data_ptr mmt, arith_generic * abase, 
 
     /* Look for readahead settings for all submatrices */
     n += ABASE_UNIVERSAL_READAHEAD_ITEMS;
-    for(int i = 0 ; i < mmt->nmatrices ; i++) {
-        matmul_aux(mmt->matrices[i]->mm, MATMUL_AUX_GET_READAHEAD, &n);
+    for(int i = 0 ; i < mmt.nmatrices ; i++) {
+        matmul_aux(mmt.matrices[i]->mm, MATMUL_AUX_GET_READAHEAD, &n);
     }
 
     if (flags & THREAD_SHARED_VECTOR) {
@@ -393,10 +394,10 @@ void mmt_vec_downgrade_consistency(mmt_vec & v)
  * rest (for later use by e.g.  matmul_top_mul_comm or other integrated
  * function).
  */
-static void mmt_own_vec_clear_complement(matmul_top_data_ptr mmt, int d)
+static void mmt_own_vec_clear_complement(matmul_top_data & mmt, int d)
 {
-    mmt_comm_ptr mdst = mmt->wr[d];
-    pi_comm_ptr pidst = mmt->pi->wr[d];
+    mmt_comm_ptr mdst = mmt.wr[d];
+    pi_comm_ptr pidst = mmt.pi->wr[d];
     if (mdst->v.flags & THREAD_SHARED_VECTOR)
         serialize_threads(pidst);
     if (pidst->trank == 0 || !(mdst->v.flags & THREAD_SHARED_VECTOR)) {

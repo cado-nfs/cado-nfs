@@ -1,5 +1,6 @@
 #include "cado.h"
 #include <array>
+#include "matmul_top.hpp"
 #include "matmul_top_comm.hpp"
 
 #include "timing.h"
@@ -67,9 +68,9 @@
 */
 
 /* {{{ mmt_vec_broadcast (generic interface) */
-/* mmt_vec_broadcast reads data in mmt->wr[d]->v, and broadcasts it across the
- * communicator mmt->pi->wr[d] ; eventually everybody on the communicator
- * mmt->pi->wr[d] has the data.
+/* mmt_vec_broadcast reads data in mmt.wr[d]->v, and broadcasts it across the
+ * communicator mmt.pi->wr[d] ; eventually everybody on the communicator
+ * mmt.pi->wr[d] has the data.
  *
  * Note that the combination of mmt_vec_reduce + mmt_vec_broadcast is not the
  * identity (because of the shuffled_product).
@@ -216,26 +217,26 @@ void alternative_reduce_scatter(mmt_vec & v)
 /* Example data for a factoring matrix (rsa100) of size 135820*135692,
  * split over 2x3 mpi jobs, and 7x5 threads.
  *
- * 2 == mmt->pi->wr[1]->njobs (number of jobs encountered on a vertical axis).
- * 7 == mmt->pi->wr[1]->ncores (number of jobs per core on a vertical axis).
- * 3 == mmt->pi->wr[0]->njobs (number of jobs encountered on an horiz. axis).
- * 5 == mmt->pi->wr[0]->ncores (number of jobs per core on an horiz. axis).
+ * 2 == mmt.pi->wr[1]->njobs (number of jobs encountered on a vertical axis).
+ * 7 == mmt.pi->wr[1]->ncores (number of jobs per core on a vertical axis).
+ * 3 == mmt.pi->wr[0]->njobs (number of jobs encountered on an horiz. axis).
+ * 5 == mmt.pi->wr[0]->ncores (number of jobs per core on an horiz. axis).
  *
  * matrix is padded to a multiple of 210 = 2*3*5*7, which is * N=135870=210*647
  *
  * we'll call 647 the "small chunk" size.
  *
  * for all jobs/threads, the following relations hold:
- *      mmt->wr[0]->i1 - mmt->wr[0]->i0 == N/14 == 9705 == 15 * 647
- *      mmt->wr[1]->i1 - mmt->wr[1]->i0 == N/15 == 9058 == 14 * 647
+ *      mmt.wr[0]->i1 - mmt.wr[0]->i0 == N/14 == 9705 == 15 * 647
+ *      mmt.wr[1]->i1 - mmt.wr[1]->i0 == N/15 == 9058 == 14 * 647
  *
  * a mmt_vec_reduce operation, in the context of factoring, is with d==1
  * below. Hence, in fact, we're doing a reduction down a column.
  *
- * the value eitems fed to this function is mmt->pi->wr[d]->ncores (here,
+ * the value eitems fed to this function is mmt.pi->wr[d]->ncores (here,
  * 7) times the small chunk size. Here 7*647 == 4529.
  */
-/* all threads in mmt->wr[!d], one after another a priori, are going to
+/* all threads in mmt.wr[!d], one after another a priori, are going to
  * do alternative_reduce_scatter on their vector v[i]
  */
 void alternative_reduce_scatter_parallel(pi_comm_ptr xr, mmt_vec ** vs)
@@ -417,7 +418,7 @@ int my_MPI_Reduce_scatter_block(void *sendbuf, void *recvbuf, int recvcount,
 /* }}} */
 
 /* mmt_vec_reduce_inner reads data in v (vector for side d), sums it up
- * across the communicator mmt->pi->wr[d], and collects the results in
+ * across the communicator mmt.pi->wr[d], and collects the results in
  * vector v again, except that it's put in thread0's buffer (counting
  * threads in direction d, of course), *AT THE BEGINNING* of the data
  * area (which is surprising).
@@ -821,7 +822,7 @@ void matmul_top_comm_bench_helper(int * pk, double * pt,
 }
 
 
-void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d)
+void matmul_top_comm_bench(matmul_top_data & mmt, int d)
 {
     /* like matmul_top_mul_comm, we'll call mmt_vec_reduce with !d, and
      * mmt_vec_broadcast with d */
@@ -834,18 +835,18 @@ void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d)
     };
     const char * text[2] = { "bd", "ra" };
 
-    arith_generic * abase = mmt->abase;
+    arith_generic * abase = mmt.abase;
 
     mmt_vec test_vectors[2];
     int is_shared[2] = {0,0};
-    mmt_vec_setup(test_vectors[0], mmt, NULL, NULL, 0, is_shared[0], mmt->n[0]);
-    mmt_vec_setup(test_vectors[1], mmt, NULL, NULL, 1, is_shared[1], mmt->n[1]);
+    mmt_vec_setup(test_vectors[0], mmt, NULL, NULL, 0, is_shared[0], mmt.n[0]);
+    mmt_vec_setup(test_vectors[1], mmt, NULL, NULL, 1, is_shared[1], mmt.n[1]);
 
     size_t datasize[2];
     
     {
-        pi_comm_ptr pirow = mmt->pi->wr[!d];
-        pi_comm_ptr picol = mmt->pi->wr[d];
+        pi_comm_ptr pirow = mmt.pi->wr[!d];
+        pi_comm_ptr picol = mmt.pi->wr[d];
         /* within each row, all jobs are concerned with the same range
          * vrow->i0 to vrow->i1. This is split into m=pirow->njobs
          * chunks, and reduce_scatter has m-1 communication rounds where
@@ -858,10 +859,10 @@ void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d)
          * Note also that picol->ncores * #rows / picol->totalsize =
          * #rows / picol->njobs, so that the final thing we compute is
          * really:
-         *      #rows / mmt->pi->m->njobs * (pirow->njobs - 1)
+         *      #rows / mmt.pi->m->njobs * (pirow->njobs - 1)
          */
         size_t data_out_ra = abase->vec_elt_stride(
-                picol->ncores * (mmt->n[!d] / picol->totalsize) /
+                picol->ncores * (mmt.n[!d] / picol->totalsize) /
                 pirow->njobs * (pirow->njobs - 1));
 
         /* one way to do all-gather is to mimick this, except that each
@@ -871,11 +872,11 @@ void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d)
          * throughput estimation is way off.
          *
          * as above, this is really:
-         *      #cols / mmt->pi->m->njobs * (picol->njobs - 1)
+         *      #cols / mmt.pi->m->njobs * (picol->njobs - 1)
          *
          */
         size_t data_out_ag = abase->vec_elt_stride(
-                pirow->ncores * (mmt->n[d] / pirow->totalsize) /
+                pirow->ncores * (mmt.n[d] / pirow->totalsize) /
                 picol->njobs * (picol->njobs - 1));
 
         datasize[0] = data_out_ag;
@@ -884,8 +885,8 @@ void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d)
 
     for(int s = 0 ; s < 2 ; s++) {
         /* we have our axis, and the other axis */
-        pi_comm_ptr wr = mmt->pi->wr[d ^ s];          /* our axis */
-        pi_comm_ptr xr = mmt->pi->wr[d ^ s ^ 1];      /* other axis */
+        pi_comm_ptr wr = mmt.pi->wr[d ^ s];          /* our axis */
+        pi_comm_ptr xr = mmt.pi->wr[d ^ s ^ 1];      /* other axis */
         /* our operation has operated on the axis wr ; hence, we must
          * display data relative to the different indices within the
          * communicator xr.
@@ -907,10 +908,10 @@ void matmul_top_comm_bench(matmul_top_data_ptr mmt, int d)
                         }
                     }
                 }
-                serialize(mmt->pi->m);
+                serialize(mmt.pi->m);
             }
         }
-        serialize(mmt->pi->m);
+        serialize(mmt.pi->m);
     }
 }
 

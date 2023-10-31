@@ -85,7 +85,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     /* Now that we do this in Horner fashion, we multiply on vectors
      * whose width is the number of solutions we compute. */
     matmul_top_init(mmt, As.get(), pi, pl, bw->dir);
-    pi_datatype_ptr As_pi = mmt->pitype;
+    pi_datatype_ptr As_pi = mmt.pitype;
 
     /* allocate vectors (two batches): */
 
@@ -96,7 +96,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
      *   iteration: we need n vectors -- or n/64 for the binary case.
      */
     mmt_vec * vi = new mmt_vec[bw->n / splitwidth];
-    matmul_top_matrix_ptr mptr = (matmul_top_matrix_ptr) mmt->matrices + (bw->dir ? (mmt->nmatrices - 1) : 0);
+    matmul_top_matrix_ptr mptr = (matmul_top_matrix_ptr) mmt.matrices + (bw->dir ? (mmt.nmatrices - 1) : 0);
     for(int i = 0 ; i < bw->n / splitwidth ; i++) {
         mmt_vec_setup(vi[i], mmt, Av.get(), Av_pi, bw->dir, 1, mptr->n[bw->dir]);
         mmt_full_vec_set_zero(vi[i]);
@@ -104,7 +104,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     /* }}} */
 
 
-    unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     serialize(pi->m);
     
@@ -138,7 +138,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     serialize_threads(pi->m);
     if (pi->m->trank == 0) {
         /* the bw object is global ! */
-        expected_last_iteration = bw_set_length_and_interval_mksol(bw, mmt->n0);
+        expected_last_iteration = bw_set_length_and_interval_mksol(bw, mmt.n0);
     }
     pi_thread_bcast(&expected_last_iteration, 1, BWC_PI_UNSIGNED, 0, pi->m);
     serialize_threads(pi->m);
@@ -231,10 +231,10 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     /* }}} */
     
     /* {{{ bless our timers */
-    timing_init(timing, 4 * mmt->nmatrices, bw->start, expected_last_iteration);
-    for(int i = 0 ; i < mmt->nmatrices; i++) {
+    timing_init(timing, 4 * mmt.nmatrices, bw->start, expected_last_iteration);
+    for(int i = 0 ; i < mmt.nmatrices; i++) {
         timing_set_timer_name(timing, 4*i, "CPU%d", i);
-        timing_set_timer_items(timing, 4*i, mmt->matrices[i]->mm->ncoeffs);
+        timing_set_timer_items(timing, 4*i, mmt.matrices[i]->mm->ncoeffs);
         timing_set_timer_name(timing, 4*i+1, "cpu-wait%d", i);
         timing_set_timer_name(timing, 4*i+2, "COMM%d", i);
         timing_set_timer_name(timing, 4*i+3, "comm-wait%d", i);
@@ -378,7 +378,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
             pi_bcast(&sx, 1, BWC_PI_INT, 0, 0, pi->m);
             pi_bcast(&bw_end_copy, 1, BWC_PI_INT, 0, 0, pi->m);
 
-            serialize_threads(mmt->pi->m);
+            serialize_threads(mmt.pi->m);
 
             if (s0 == bw_end_copy)
                 continue;

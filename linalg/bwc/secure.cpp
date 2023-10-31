@@ -74,16 +74,16 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     std::unique_ptr<arith_cross_generic> AxA(arith_cross_generic::instance(A.get(), A.get()));
 
     matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
-    pi_datatype_ptr A_pi = mmt->pitype;
+    pi_datatype_ptr A_pi = mmt.pitype;
 
     /* we work in the opposite direction compared to other programs */
     mmt_vector_pair myy(mmt, !bw->dir);
     mmt_vec & my = myy[0];
 
     mmt_vec dvec;
-    mmt_vec_setup(dvec, mmt,0,0, !bw->dir, /* shared ! */ 1, mmt->n[!bw->dir]);
+    mmt_vec_setup(dvec, mmt,0,0, !bw->dir, /* shared ! */ 1, mmt.n[!bw->dir]);
 
-    unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     /* Because we're a special case, we _expect_ to work opposite to
      * optimized direction. So we pass bw->dir even though _we_ are going
@@ -306,7 +306,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     serialize_threads(pi->m);
     if (pi->m->trank == 0) {
         /* the bw object is global ! */
-        bw_set_length_and_interval_krylov(bw, mmt->n0);
+        bw_set_length_and_interval_krylov(bw, mmt.n0);
     }
     serialize_threads(pi->m);
     ASSERT_ALWAYS(bw->end % bw->interval == 0);
@@ -347,8 +347,8 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* }}} */
 
     // {{{ kill the warning about wrong spmv direction
-    for(int i = 0 ; i < mmt->nmatrices ; i++) {
-        mmt->matrices[i]->mm->iteration[!bw->dir] = INT_MIN;
+    for(int i = 0 ; i < mmt.nmatrices ; i++) {
+        mmt.matrices[i]->mm->iteration[!bw->dir] = INT_MIN;
     }
     // }}}
 
@@ -400,7 +400,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             /* addmul_tiny degrades consistency ! */
             dvec.consistency = 1;
             mmt_vec_broadcast(dvec);
-            pi_log_op(mmt->pi->m, "iteration %d", k);
+            pi_log_op(mmt.pi->m, "iteration %d", k);
             matmul_top_mul(mmt, myy.vectors(), NULL);
 
             if (tcan_print) {
@@ -409,7 +409,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             }
         }
         serialize(pi->m);
-        serialize_threads(mmt->pi->m);
+        serialize_threads(mmt.pi->m);
         mmt_vec_untwist(mmt, my);
         mmt_vec_untwist(mmt, dvec);
 

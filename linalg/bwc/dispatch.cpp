@@ -140,7 +140,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     mmt_vec & y = ymy[0];
     mmt_vec & my = ymy[1];
 
-    unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     const char * sanity_check_vector = param_list_lookup_string(pl, "sanity_check_vector");
     int only_export = param_list_lookup_string(pl, "export_cachelist") != NULL;
@@ -148,7 +148,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     // in no situation shall we try to do our sanity check if we've just
     // been told to export our cache list. Note also that this sanity
     // check is currently only valid for GF(2).
-    if (sanity_check_vector != NULL && !only_export && mpz_cmp_ui(bw->p, 2) == 0 && mmt->abase->simd_groupsize()) {
+    if (sanity_check_vector != NULL && !only_export && mpz_cmp_ui(bw->p, 2) == 0 && mmt.abase->simd_groupsize()) {
         /* We have computed a sanity check vector, which is H=M*K, with K
          * constant and easily given. Note that we have not computed K*M,
          * but really M*K. Thus independently of which side we prefer, we
@@ -212,7 +212,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
                 A->vec_subvec(my.v, offset_c),
                 A->vec_subvec(y.v, offset_v),
                 how_many);
-        pi_allreduce(NULL, dp0, A->simd_groupsize(), mmt->pitype, BWC_PI_SUM, pi->m);
+        pi_allreduce(NULL, dp0, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM, pi->m);
 
         /* now we can throw away Hx */
 
@@ -236,7 +236,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
                 A->vec_subvec(my.v, offset_c),
                 A->vec_subvec(y.v, offset_v),
                 how_many);
-        pi_allreduce(NULL, dp1, A->simd_groupsize(), mmt->pitype, BWC_PI_SUM, pi->m);
+        pi_allreduce(NULL, dp1, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM, pi->m);
         int diff = memcmp(dp0, dp1, A->vec_elt_stride(A->simd_groupsize()));
         if (pi->m->jrank == 0 && pi->m->trank == 0) {
             if (diff) {

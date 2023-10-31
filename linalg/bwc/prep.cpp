@@ -23,18 +23,18 @@
 #include "utils_cxx.hpp"
 
 
-void bw_rank_check(matmul_top_data_ptr mmt, param_list_ptr pl)
+void bw_rank_check(matmul_top_data & mmt, param_list_ptr pl)
 {
-    int tcan_print = bw->can_print && mmt->pi->m->trank == 0;
+    int tcan_print = bw->can_print && mmt.pi->m->trank == 0;
     unsigned int r = matmul_top_rank_upper_bound(mmt);
     if (tcan_print) {
         printf("Matrix rank is at most %u (based on zero columns and rows encountered)\n", r);
     }
     int skip=0;
     param_list_parse_int(pl, "skip_bw_early_rank_check", &skip);
-    if (bw->m + r < mmt->n0[0]) {
+    if (bw->m + r < mmt.n0[0]) {
         fprintf(stderr, "Based on the parameter m (=%u) and the rank defect of the matrix (>=%u), we can't expect to compute solutions reliably.\n",
-                bw->m, mmt->n0[0]-r);
+                bw->m, mmt.n0[0]-r);
         if (skip) {
             fprintf(stderr, "Proceeding anyway as per skip_bw_early_rank_check=1\n");
         } else {
@@ -97,14 +97,14 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         rhs = fopen(rhs_name, "r");
         get_rhs_file_header_stream(rhs, NULL, &nrhs, NULL);
         ASSERT_ALWAYS(rhs != NULL);
-        ASSERT_ALWAYS(nrhs <= mmt->n[!bw->dir]);
+        ASSERT_ALWAYS(nrhs <= mmt.n[!bw->dir]);
     }
 
     mmt_vector_pair ymy(mmt, bw->dir);
 
     mmt_vec & y = ymy[0];
 
-    unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     /* Number of copies of m by n matrices to use for trying to obtain a
      * matrix of rank m.
@@ -144,9 +144,9 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         // Otherwise, it's on the right.
 
         // generate indices w.r.t *unpadded* dimensions !
-        setup_x_random(xvecs, bw->m, my_nx, mmt->n0[bw->dir], pi, rstate);
+        setup_x_random(xvecs, bw->m, my_nx, mmt.n0[bw->dir], pi, rstate);
 
-        // we have indices mmt->wr[1]->i0..i1 available.
+        // we have indices mmt.wr[1]->i0..i1 available.
         A->vec_set_zero(xymats, bw->m * prep_lookahead_iterations * A_multiplex);
 
         ASSERT_ALWAYS(nrhs <= A_multiplex);
@@ -207,7 +207,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
          * pointed to by xymats */
         pi_allreduce(NULL, xymats,
                 bw->m * prep_lookahead_iterations * A_multiplex,
-                mmt->pitype, BWC_PI_SUM, pi->m);
+                mmt.pitype, BWC_PI_SUM, pi->m);
 
         /* OK -- now everybody has the same data */
 
@@ -281,7 +281,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     auto clean_mmt = call_dtor([&]() { matmul_top_clear(mmt); });
 
     // I don't think this was ever tested.
-    ASSERT_ALWAYS(mmt->nmatrices == 1);
+    ASSERT_ALWAYS(mmt.nmatrices == 1);
 
     bw_rank_check(mmt, pl);
 
@@ -314,7 +314,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         rhs = fopen(rhs_name, "r");
         get_rhs_file_header_stream(rhs, NULL, &nrhs, NULL);
         ASSERT_ALWAYS(rhs != NULL);
-        ASSERT_ALWAYS(nrhs <= mmt->n[!bw->dir]);
+        ASSERT_ALWAYS(nrhs <= mmt.n[!bw->dir]);
     }
 
     /* First create all RHS vectors -- these are just splits of the big
@@ -331,7 +331,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         }
         arith_generic::elt * coeff = A->alloc(1);
         cxx_mpz c;
-        for(unsigned int i = 0 ; i < mmt->n0[!bw->dir] ; i++) {
+        for(unsigned int i = 0 ; i < mmt.n0[!bw->dir] ; i++) {
             for(unsigned int j = 0 ; j < nrhs ; j++) {
                 int rc;
                 memset(coeff, 0, A->elt_stride());
@@ -360,10 +360,10 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         vec_file = fopen(vec_name, "wb");
         ASSERT_ALWAYS(vec_file != NULL);
         printf("// Creating %s\n", vec_name);
-        unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+        unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
         auto vec = A->alloc(unpadded);
         A->vec_set_random(vec, unpadded, rstate);
-        A->vec_set_zero(A->vec_subvec(vec, mmt->n0[bw->dir]), unpadded - mmt->n0[bw->dir]);
+        A->vec_set_zero(A->vec_subvec(vec, mmt.n0[bw->dir]), unpadded - mmt.n0[bw->dir]);
         rc = fwrite(vec, A->elt_stride(), unpadded, vec_file);
         ASSERT_ALWAYS(rc >= 0 && ((unsigned int) rc) == unpadded);
         A->free(vec);
@@ -394,19 +394,19 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
          * correctly.
          */
         ASSERT_ALWAYS(bw->dir == 1);
-        ASSERT_ALWAYS(mmt->nmatrices == 1);
+        ASSERT_ALWAYS(mmt.nmatrices == 1);
         for(unsigned int i = 0 ; i < nrhs ; i++) {
-            xvecs[i * my_nx] = balancing_pre_shuffle(mmt->matrices[0]->bal, mmt->n0[!bw->dir]-nrhs+i);
+            xvecs[i * my_nx] = balancing_pre_shuffle(mmt.matrices[0]->bal, mmt.n0[!bw->dir]-nrhs+i);
             printf("Forced %d-th x vector to be the %" PRIu32"-th canonical basis vector\n", i, xvecs[i * my_nx]);
             ASSERT_ALWAYS(xvecs[i * my_nx] >= (uint32_t) (bw->m - nrhs));
             for(unsigned int j = 1 ; j < my_nx ; j++) {
-                xvecs[i * my_nx + j] = (1009 * (i * my_nx + j)) % mmt->n0[!bw->dir];
+                xvecs[i * my_nx + j] = (1009 * (i * my_nx + j)) % mmt.n0[!bw->dir];
             }
         }
         for(int i = (int) nrhs ; i < bw->m ; i++) {
             xvecs[i * my_nx] = i - nrhs;
             for(unsigned int j = 1 ; j < my_nx ; j++) {
-                xvecs[i * my_nx + j] = (1009 * (i * my_nx + j)) % mmt->n0[!bw->dir];
+                xvecs[i * my_nx + j] = (1009 * (i * my_nx + j)) % mmt.n0[!bw->dir];
             }
         }
         /* save_x operates only on the leader thread */

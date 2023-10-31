@@ -26,7 +26,7 @@
 using namespace fmt::literals;
 
 struct check_data {
-    matmul_top_data_ptr mmt;
+    matmul_top_data & mmt;
     parallelizing_info_ptr pi;
     int nchecks;
     arith_generic * A;
@@ -45,9 +45,9 @@ struct check_data {
         return pi->m->trank == 0 && pi->m->jrank == 0;
     }
 
-    check_data(matmul_top_data_ptr mmt, arith_generic * A)
+    check_data(matmul_top_data & mmt, arith_generic * A)
         : mmt(mmt)
-        , pi(mmt->pi)
+        , pi(mmt.pi)
         , nchecks(mpz_cmp_ui(bw->p, 2) > 0 ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2)
         , A(A)
         , Ac(arith_generic::instance(bw->p, nchecks))
@@ -55,7 +55,7 @@ struct check_data {
         , AxAc(arith_cross_generic::instance(A, Ac.get()))
       {
           mmt_vec_setup(check_vector, mmt, Ac.get(), Ac_pi,
-                  bw->dir, THREAD_SHARED_VECTOR, mmt->n[bw->dir]);
+                  bw->dir, THREAD_SHARED_VECTOR, mmt.n[bw->dir]);
           tcan_print = bw->can_print && pi->m->trank == 0;
       }
 
@@ -65,12 +65,12 @@ struct check_data {
          * playing a role in the very same direction of the y vector!
          */
         std::string Cv_filename = fmt::format(FMT_STRING("Cv%u-%u.{}"), bw->interval);
-        int ok = mmt_vec_load(check_vector, Cv_filename, mmt->n0[bw->dir], 0);
+        int ok = mmt_vec_load(check_vector, Cv_filename, mmt.n0[bw->dir], 0);
         if (!ok) {
             if (tcan_print)
                 fmt::fprintf(stderr, "check file %s not found, trying legacy check mode\n", Cv_filename);
             std::string C_filename = fmt::format(FMT_STRING("C%u-%u.{}"), bw->interval);
-            ok = mmt_vec_load(check_vector, C_filename, mmt->n0[bw->dir], 0);
+            ok = mmt_vec_load(check_vector, C_filename, mmt.n0[bw->dir], 0);
             if (!ok) {
                 if (tcan_print)
                     fmt::fprintf(stderr, "check file %s not found either\n", C_filename);
@@ -150,7 +150,7 @@ struct check_data {
             A->free(tmp1);
         }
 
-        pi_allreduce(NULL, ahead, nchecks, mmt->pitype, BWC_PI_SUM, pi->m);
+        pi_allreduce(NULL, ahead, nchecks, mmt.pitype, BWC_PI_SUM, pi->m);
         return A->vec_is_zero(ahead, nchecks);
     }
 };
@@ -185,7 +185,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
     mmt_vector_pair ymy(mmt, bw->dir);
 
-    unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     serialize(pi->m);
     
@@ -256,7 +256,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     serialize_threads(pi->m);
     if (pi->m->trank == 0) {
         /* the bw object is global ! */
-        bw_set_length_and_interval_krylov(bw, mmt->n0);
+        bw_set_length_and_interval_krylov(bw, mmt.n0);
     }
     serialize_threads(pi->m);
     if (tcan_print) {
@@ -285,12 +285,12 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     pi_log_init(pi->wr[1]);
 #endif
 
-    timing_init(timing, 4 * mmt->nmatrices, bw->start, bw->end);
+    timing_init(timing, 4 * mmt.nmatrices, bw->start, bw->end);
     auto clean_timing = call_dtor([&]() { timing_clear(timing); });
 
-    for(int i = 0 ; i < mmt->nmatrices; i++) {
+    for(int i = 0 ; i < mmt.nmatrices; i++) {
         timing_set_timer_name(timing, 4*i, "CPU%d", i);
-        timing_set_timer_items(timing, 4*i, mmt->matrices[i]->mm->ncoeffs);
+        timing_set_timer_items(timing, 4*i, mmt.matrices[i]->mm->ncoeffs);
         timing_set_timer_name(timing, 4*i+1, "cpu-wait%d", i);
         timing_set_timer_name(timing, 4*i+2, "COMM%d", i);
         timing_set_timer_name(timing, 4*i+3, "comm-wait%d", i);
@@ -341,7 +341,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         /* Now (and only now) collect the xy matrices */
         pi_allreduce(NULL, xymats,
                 bw->m * bw->interval,
-                mmt->pitype, BWC_PI_SUM, pi->m);
+                mmt.pitype, BWC_PI_SUM, pi->m);
 
         if (pi->m->trank == 0 && pi->m->jrank == 0 && !fake) {
             std::string tmp = fmt::format(FMT_STRING("A{}-{}.{}-{}"), ys[0], ys[1], s, s+bw->interval);

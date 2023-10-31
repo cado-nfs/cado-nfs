@@ -256,14 +256,14 @@ std::vector<unsigned int> indices_of_nonzero_values(mmt_vec & y, unsigned int ma
     return indices_of_zero_or_nonzero_values(y, maxidx, 1);
 }/*}}}*/
 
-std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{{{*/
+std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data & mmt)/*{{{*/
 {
-    parallelizing_info_ptr pi = mmt->pi;
+    parallelizing_info_ptr pi = mmt.pi;
     int tcan_print = bw->can_print && pi->m->trank == 0;
 
     std::vector<unsigned int> allz;
 
-    if (mmt->n0[bw->dir] >= mmt->n0[!bw->dir]) return allz;
+    if (mmt.n0[bw->dir] >= mmt.n0[!bw->dir]) return allz;
 
     /*
        if (tcan_print) {
@@ -299,7 +299,7 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{
 
 
     mmt_vec_set_random_inconsistent(z, rstate);
-    mmt_vec_truncate_above_index(mmt, z, mmt->n0[bw->dir]);
+    mmt_vec_truncate_above_index(mmt, z, mmt.n0[bw->dir]);
     mmt_vec_apply_T(mmt, z);
     mmt_vec_twist(mmt, z);
     matmul_top_mul(mmt, zmz.vectors(), NULL);
@@ -311,17 +311,17 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{
 
     /* Check the indices of columns in the principal part. We're
      * interested in column indices which are still zero. So it's
-     * really a loop until mmt->n0[bw->dir] */
+     * really a loop until mmt.n0[bw->dir] */
 
     ASSERT_ALWAYS(mz.d == bw->dir);
-    allz = indices_of_zero_values(mz, mmt->n0[bw->dir]);
+    allz = indices_of_zero_values(mz, mmt.n0[bw->dir]);
 
 
     /* Do a second check with the *FULL* vector. Coordinates that are
      * still zero are no reason to be worried */
 
     mmt_vec_set_random_inconsistent(z, rstate);
-    mmt_vec_truncate_above_index(mmt, z, mmt->n0[!bw->dir]);
+    mmt_vec_truncate_above_index(mmt, z, mmt.n0[!bw->dir]);
     mmt_vec_apply_T(mmt, z);
     mmt_vec_twist(mmt, z);
     matmul_top_mul(mmt, zmz.vectors(), NULL);
@@ -333,7 +333,7 @@ std::vector<unsigned int> get_possibly_wrong_columns(matmul_top_data_ptr mmt)/*{
 
     ASSERT_ALWAYS(mz.d == bw->dir);
     std::set<unsigned int> allz_set(allz.begin(), allz.end());
-    for(auto j : indices_of_zero_values(mz, mmt->n0[bw->dir])) {
+    for(auto j : indices_of_zero_values(mz, mmt.n0[bw->dir])) {
         allz_set.erase(j);
     }
     allz.assign(allz_set.begin(), allz_set.end());
@@ -404,7 +404,7 @@ struct abase_proxy {
 };
 
 struct rhs /*{{{*/ {
-    matmul_top_data_ptr mmt;
+    matmul_top_data & mmt;
     arith_generic * A;
     unsigned int nrhs;
     arith_generic::elt * rhscoeffs;
@@ -413,7 +413,7 @@ struct rhs /*{{{*/ {
 
     rhs(rhs const&) = delete;
 
-    rhs(matmul_top_data_ptr mmt, const char * rhs_name, unsigned int solutions[2]) : mmt(mmt), A(mmt->abase), natural(abase_proxy::most_natural(mmt->pi)) /* {{{ */
+    rhs(matmul_top_data & mmt, const char * rhs_name, unsigned int solutions[2]) : mmt(mmt), A(mmt.abase), natural(abase_proxy::most_natural(mmt.pi)) /* {{{ */
     {
         nrhs = 0;
         rhscoeffs = NULL;
@@ -421,7 +421,7 @@ struct rhs /*{{{*/ {
 
         if (!rhs_name) return;
 
-        parallelizing_info_ptr pi = mmt->pi;
+        parallelizing_info_ptr pi = mmt.pi;
         int tcan_print = bw->can_print && pi->m->trank == 0;
         int leader = pi->m->jrank == 0 && pi->m->trank == 0;
 
@@ -440,16 +440,16 @@ struct rhs /*{{{*/ {
 
         if (tcan_print) {
             printf("** Informational note about GF(p) inhomogeneous system:\n");
-            printf("   Original matrix dimensions: %" PRIu32" %" PRIu32"\n", mmt->n0[0], mmt->n0[1]);
+            printf("   Original matrix dimensions: %" PRIu32" %" PRIu32"\n", mmt.n0[0], mmt.n0[1]);
             printf("   We expect to obtain a vector of size %" PRIu32"\n",
-                    mmt->n0[!bw->dir] + nrhs);
+                    mmt.n0[!bw->dir] + nrhs);
             printf("   which we hope will be a kernel vector for (M_square||RHS).\n"
                     "   We will discard the coefficients which correspond to padding columns\n"
                     "   This entails keeping coordinates in the intervals\n"
                     "   [0..%" PRIu32"[ and [%" PRIu32"..%" PRIu32"[\n"
                     "   in the result.\n"
                     "** end note.\n",
-                    mmt->n0[bw->dir], mmt->n0[!bw->dir], mmt->n0[!bw->dir] + nrhs);
+                    mmt.n0[bw->dir], mmt.n0[!bw->dir], mmt.n0[!bw->dir] + nrhs);
         }
 
         /* everyone allocates something */
@@ -490,7 +490,7 @@ struct rhs /*{{{*/ {
                 }
             }
         }
-        pi_bcast(rhscoeffs, nrhs, mmt->pitype, 0, 0, pi->m);
+        pi_bcast(rhscoeffs, nrhs, mmt.pitype, 0, 0, pi->m);
     }/*}}}*/
 
     ~rhs() {/*{{{*/
@@ -522,10 +522,10 @@ struct rhs /*{{{*/ {
     {
         if (!nrhs) return;
 
-        parallelizing_info_ptr pi = mmt->pi;
-        arith_generic * A = mmt->abase;
+        parallelizing_info_ptr pi = mmt.pi;
+        arith_generic * A = mmt.abase;
         ASSERT_ALWAYS(y.abase == A);
-        unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+        unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
         size_t eblock = mmt_my_own_size_in_items(y);
 
         abase_proxy natural = abase_proxy::most_natural(pi);
@@ -533,7 +533,7 @@ struct rhs /*{{{*/ {
         pi_datatype_ptr Av_pi = natural.A_pi;
 
         mmt_vec vi;
-        mmt_vec_setup(vi, mmt,Av,Av_pi, bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
+        mmt_vec_setup(vi, mmt,Av,Av_pi, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
 
         for(unsigned int j = 0 ; j < nrhs ; j++) {
             int ok = mmt_vec_load(vi, "V%u-%u.0", unpadded, j);
@@ -567,7 +567,7 @@ std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int maxidx)/*{
      int is_zero = A->vec_is_zero(A,
      mmt_my_own_subvec(y), mmt_my_own_size_in_items(y));
 
-     * instead, we want to check only up to index mmt->n0[bw->dir]
+     * instead, we want to check only up to index mmt.n0[bw->dir]
      * (and bw->dir is y.d). (this is valid because at this point, y
      * is untwisted and has T unapplied).
      */
@@ -601,17 +601,17 @@ std::tuple<int, int> check_zero_and_padding(mmt_vec & y, unsigned int maxidx)/*{
     return std::make_tuple(input_is_zero, pad_is_zero);
 }/*}}}*/
 
-std::tuple<int, int, int> test_one_vector(matmul_top_data_ptr mmt, mmt_vector_pair & ymy, rhs const & R)
+std::tuple<int, int, int> test_one_vector(matmul_top_data & mmt, mmt_vector_pair & ymy, rhs const & R)
 {
-    arith_generic * A = mmt->abase;
-    parallelizing_info_ptr pi = mmt->pi;
+    arith_generic * A = mmt.abase;
+    parallelizing_info_ptr pi = mmt.pi;
 
     mmt_vec & y = ymy[0];
 
     int input_is_zero;
     int pad_is_zero;
     int hamming_out = -1;
-    std::tie(input_is_zero, pad_is_zero) = check_zero_and_padding(y, mmt->n0[bw->dir]);
+    std::tie(input_is_zero, pad_is_zero) = check_zero_and_padding(y, mmt.n0[bw->dir]);
     if (!input_is_zero) {
         serialize(pi->m);
         mmt_vec_apply_T(mmt, y);
@@ -643,9 +643,9 @@ std::tuple<int, int, int> test_one_vector(matmul_top_data_ptr mmt, mmt_vector_pa
 
 /* Use y_saved as input (and leave it untouched). Store result in both y
  * and my */
-std::tuple<int, int, int> expanded_test(matmul_top_data_ptr mmt, mmt_vector_pair & ymy, mmt_vec const & y_saved, rhs const& R)
+std::tuple<int, int, int> expanded_test(matmul_top_data & mmt, mmt_vector_pair & ymy, mmt_vec const & y_saved, rhs const& R)
 {
-    parallelizing_info_ptr pi = mmt->pi;
+    parallelizing_info_ptr pi = mmt.pi;
     mmt_vec & y = ymy[0];
     mmt_vec & my = ymy[ymy.size()-1];
     mmt_full_vec_set(y, y_saved);
@@ -664,7 +664,7 @@ std::tuple<int, int, int> expanded_test(matmul_top_data_ptr mmt, mmt_vector_pair
  * columns in the matrix.
  */
 class parasite_fixer {/*{{{*/
-    matmul_top_data_ptr mmt;
+    matmul_top_data & mmt;
     arith_generic * A;
     parallelizing_info_ptr pi;
 
@@ -679,7 +679,7 @@ class parasite_fixer {/*{{{*/
     size_t nrows() const { return rows.size(); }
     std::vector<std::pair<std::array<unsigned int, 2>, int> > pivot_list;
 
-    parasite_fixer(matmul_top_data_ptr mmt) : mmt(mmt), A(mmt->abase), pi(mmt->pi) {/*{{{*/
+    parasite_fixer(matmul_top_data & mmt) : mmt(mmt), A(mmt.abase), pi(mmt.pi) {/*{{{*/
         matrix = NULL;
         int tcan_print = bw->can_print && pi->m->trank == 0;
 
@@ -706,12 +706,12 @@ class parasite_fixer {/*{{{*/
 
     parasite_fixer(parasite_fixer const&) = delete;
 
-    /*{{{ row_coordinates_of_nonzero_cols(matmul_top_data_ptr mmt) */
-    std::vector<unsigned int> row_coordinates_of_nonzero_cols(matmul_top_data_ptr mmt, std::vector<unsigned int> const& cols)
+    /*{{{ row_coordinates_of_nonzero_cols(matmul_top_data & mmt) */
+    std::vector<unsigned int> row_coordinates_of_nonzero_cols(matmul_top_data & mmt, std::vector<unsigned int> const& cols)
     {
         // int tcan_print = bw->can_print && pi->m->trank == 0;
 
-        arith_generic * A = mmt->abase;
+        arith_generic * A = mmt.abase;
 
         mmt_vector_pair ymy(mmt, bw->dir);
         mmt_vec & y = ymy[0];
@@ -737,7 +737,7 @@ class parasite_fixer {/*{{{*/
             serialize(pi->m);
 
             /* This reads the global list */
-            std::vector<unsigned int> kk = indices_of_nonzero_values(my, mmt->n0[!bw->dir]);
+            std::vector<unsigned int> kk = indices_of_nonzero_values(my, mmt.n0[!bw->dir]);
 
 #if 0
             if (tcan_print) {
@@ -782,7 +782,7 @@ class parasite_fixer {/*{{{*/
 
         pi_allreduce(NULL, matrix,
                 rows.size() * cols.size(),
-                mmt->pitype, BWC_PI_SUM, pi->m);
+                mmt.pitype, BWC_PI_SUM, pi->m);
     }/*}}}*/
 #endif
 
@@ -840,7 +840,7 @@ class parasite_fixer {/*{{{*/
 
         rows = row_coordinates_of_nonzero_cols(mmt, cols);
 
-        arith_generic * A = mmt->abase;
+        arith_generic * A = mmt.abase;
         arith_generic::elt * dummy = A->alloc();
 
         int char2 = mpz_cmp_ui(bw->p, 2) == 0;
@@ -911,7 +911,7 @@ class parasite_fixer {/*{{{*/
 
             pi_allreduce(NULL, *pmat,
                     cblocks * vrows.size(),
-                    mmt->pitype, BWC_PI_SUM, pi->m);
+                    mmt.pitype, BWC_PI_SUM, pi->m);
 
             if (leader) {
                 printf("Print matrix of size %zu*%zu\n", srows.size(), scols.size());
@@ -999,7 +999,7 @@ class parasite_fixer {/*{{{*/
             A->free(matrix);
     }/*}}}*/
 
-    std::tuple<int, int, int> attempt(matmul_top_data_ptr mmt, mmt_vector_pair & ymy, mmt_vec & y_saved, rhs const& R)/*{{{*/
+    std::tuple<int, int, int> attempt(matmul_top_data & mmt, mmt_vector_pair & ymy, mmt_vec & y_saved, rhs const& R)/*{{{*/
     {
         mmt_vec & my = ymy[ymy.size()-1];
         int tcan_print = bw->can_print && pi->m->trank == 0;
@@ -1016,7 +1016,7 @@ class parasite_fixer {/*{{{*/
         if (input_is_zero || hamming_out == 0) return res;
 
         std::vector<unsigned int> nz_pos;
-        nz_pos = indices_of_nonzero_values(my, mmt->n0[!bw->dir]);
+        nz_pos = indices_of_nonzero_values(my, mmt.n0[!bw->dir]);
 
         if (tcan_print) {
             printf("# Input vector has %s input, %s padding\n",
@@ -1036,12 +1036,12 @@ class parasite_fixer {/*{{{*/
         arith_generic::elt * nz;
 
 
-        ASSERT_ALWAYS(my.abase == mmt->abase);
+        ASSERT_ALWAYS(my.abase == mmt.abase);
 
         nz = A->alloc(rows.size(), ALIGNMENT_ON_ALL_BWC_VECTORS);
         A->vec_set_zero(nz, rows.size());
         compress_vector_to_sparse(nz, 0, 1, my, rows);
-        pi_allreduce(NULL, nz, rows.size(), mmt->pitype, BWC_PI_SUM, pi->m); 
+        pi_allreduce(NULL, nz, rows.size(), mmt.pitype, BWC_PI_SUM, pi->m); 
 
         if (leader) debug_print_local_matrix(matrix, rows, cols, nz);
 
@@ -1058,7 +1058,7 @@ class parasite_fixer {/*{{{*/
                 std::tie(input_is_zero, pad_is_zero, hamming_out) = res;
                 A->vec_set_zero(nz, rows.size());
                 compress_vector_to_sparse(nz, 0, 1, my, rows);
-                pi_allreduce(NULL, nz, rows.size(), mmt->pitype, BWC_PI_SUM, pi->m); 
+                pi_allreduce(NULL, nz, rows.size(), mmt.pitype, BWC_PI_SUM, pi->m); 
 
                 if (leader) debug_print_local_matrix(matrix, rows, cols, nz);
                 continue;
@@ -1154,7 +1154,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     mmt_vec & y = ymy[0];
 
     mmt_vec y_saved;
-    mmt_vec_setup(y_saved, mmt,0,0, bw->dir, mmt_vec_is_shared(y), mmt->n[bw->dir]);
+    mmt_vec_setup(y_saved, mmt,0,0, bw->dir, mmt_vec_is_shared(y), mmt.n[bw->dir]);
 
     /* this is really a misnomer, because in the typical case, M is
      * rectangular, and then the square matrix does induce some padding.
@@ -1162,7 +1162,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
      * we're referring to in the naming of this variable is the one which
      * is related to the number of jobs and threads: internal dimensions
      * are arranged to be multiples */
-    unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     std::vector<sfile_info> sl = prelude(pi);
     if (sl.empty()) {
@@ -1186,7 +1186,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
     { /* {{{ Collect now the sum of the LHS contributions */
         mmt_vec svec;
-        mmt_vec_setup(svec, mmt,0,0, bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
+        mmt_vec_setup(svec, mmt,0,0, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
         for(size_t i = 0 ; i < sl.size() ; i++) {
             if (tcan_print && verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
                 printf("loading %s\n", sl[i].name);
@@ -1417,7 +1417,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                 ASSERT_ALWAYS(f);
                 ASSERT_ALWAYS(f2);
                 arith_generic::elt * data = A->alloc(1);
-                for(uint32_t i = 0 ; i < mmt->n0[bw->dir] ; i++) {
+                for(uint32_t i = 0 ; i < mmt.n0[bw->dir] ; i++) {
                     size_t rc = fread(data, A->elt_stride() / Av_multiplex, 1, f);
                     ASSERT_ALWAYS(rc == 1);
                     std::ostringstream os;
@@ -1435,7 +1435,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                     tmp2,
                     bw_dirtext[bw->dir],
                     R ? "(M|RHS)" : "M",
-                    mmt->n0[0], mmt->n0[1]);
+                    mmt.n0[0], mmt.n0[1]);
             /* }}} */
             free(tmp2);
             free(tmp);
