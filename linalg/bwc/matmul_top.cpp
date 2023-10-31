@@ -31,14 +31,6 @@
 /* Start with stuff that does not depend on abase at all -- this
  * provides a half-baked interface */
 
-static permutation_data_ptr permutation_data_alloc();
-static void permutation_data_free(permutation_data_ptr a);
-static void permutation_data_push(permutation_data_ptr a, unsigned int u[2]);
-#ifdef  MVAPICH2_NUMVERSION
-static void permutation_data_ensure(permutation_data_ptr a, size_t n);
-#endif
-
-
 void matmul_top_decl_usage(param_list_ptr pl)
 {
     param_list_decl_usage(pl, "matrix",
@@ -416,21 +408,20 @@ void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec &
      *  j in [yt->i0..yt->i1[
      */
     matmul_top_matrix_ptr Mloc = mmt.matrices[midx];
-    permutation_data_ptr s = Mloc->perm[d];
 
     /* For square matrices, we'll use the other permutation transparently
      * with this piece of code. Note though that when we do so, applying
      * the permutation actually goes in the opposite direction. */
     int xd = d;
-    if (!s && (Mloc->bal->h->flags & FLAG_REPLICATE)) {
+    if (!Mloc->has_perm(xd) && (Mloc->bal->h->flags & FLAG_REPLICATE)) {
         ASSERT_ALWAYS(Mloc->n[0] == Mloc->n[1]);
-        s = Mloc->perm[!d];
         xd = !d;
     }
-    if (!s) {
+    if (!Mloc->has_perm(xd))
         /* could well be that we have nothing to do */
         return;
-    }
+
+    auto const & s(Mloc->perm[xd]);
 
     if ((apply^d^xd) == 0) {
         /*
@@ -445,13 +436,13 @@ void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec &
         mmt_vec_allreduce(yt);
         mmt_full_vec_set_zero(y);
         serialize_threads(y.pi->m);
-        for(unsigned int k = 0 ; k < s->n ; k++) {
-            if (s->x[k][d^xd] < y.i0 || s->x[k][d^xd] >= y.i1)
+        for(auto const & uv : s) {
+            if (uv[d^xd] < y.i0 || uv[d^xd] >= y.i1)
                 continue;
-            if (s->x[k][d^xd^1] < yt.i0 || s->x[k][d^xd^1] >= yt.i1)
+            if (uv[d^xd^1] < yt.i0 || uv[d^xd^1] >= yt.i1)
                 continue;
-            A->set( A->vec_item( y.v, s->x[k][d^xd]  - y.i0),
-                    A->vec_item(yt.v, s->x[k][d^xd^1] - yt.i0));
+            A->set( A->vec_item( y.v, uv[d^xd]  - y.i0),
+                    A->vec_item(yt.v, uv[d^xd^1] - yt.i0));
         }
         y.consistency = 1;
         serialize_threads(y.pi->m);
@@ -464,13 +455,13 @@ void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec &
          * apply == 0 d == 1 Sc implicit:  v <- v * Sr^-1
          */
         mmt_vec yt(mmt, A, y.pitype, !d, 0, y.n);
-        for(unsigned int k = 0 ; k < s->n ; k++) {
-            if (s->x[k][d^xd] < y.i0 || s->x[k][d^xd] >= y.i1)
+        for(auto const & uv : s) {
+            if (uv[d^xd] < y.i0 || uv[d^xd] >= y.i1)
                 continue;
-            if (s->x[k][d^xd^1] < yt.i0 || s->x[k][d^xd^1] >= yt.i1)
+            if (uv[d^xd^1] < yt.i0 || uv[d^xd^1] >= yt.i1)
                 continue;
-            A->set( A->vec_item(yt.v, s->x[k][d^xd^1] - yt.i0),
-                    A->vec_item( y.v, s->x[k][d^xd] -  y.i0));
+            A->set( A->vec_item(yt.v, uv[d^xd^1] - yt.i0),
+                    A->vec_item( y.v, uv[d^xd] -  y.i0));
         }
         yt.consistency = 1;
         mmt_vec_allreduce(yt);
@@ -486,7 +477,7 @@ void mmt_vec_unapply_S(matmul_top_data & mmt, int midx, mmt_vec & y)
 {
     matmul_top_matrix_ptr Mloc = mmt.matrices[midx];
     mmt_vec_apply_or_unapply_S_inner(mmt, midx, y, 0);
-    if ((Mloc->bal->h->flags & FLAG_REPLICATE) && !Mloc->perm[y.d]) {
+    if ((Mloc->bal->h->flags & FLAG_REPLICATE) && !Mloc->has_perm(y.d)) {
         if (y.d == 0) {
             /* implicit Sr^-1 is Sc^-1*P^-1 */
             mmt_vec_unapply_P(mmt, y);
@@ -501,8 +492,7 @@ void mmt_vec_unapply_S(matmul_top_data & mmt, int midx, mmt_vec & y)
 void mmt_vec_apply_S(matmul_top_data & mmt, int midx, mmt_vec & y)
 {
     matmul_top_matrix_ptr Mloc = mmt.matrices[midx];
-    if ((Mloc->bal->h->flags & FLAG_REPLICATE) && !Mloc->perm[y.d]) {
-
+    if ((Mloc->bal->h->flags & FLAG_REPLICATE) && !Mloc->has_perm(y.d)) {
         if (y.d == 0) {
             /* implicit Sr is P * Sc */
             mmt_vec_apply_P(mmt, y);
@@ -640,7 +630,7 @@ void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
      */
     unsigned int ii[2], jj[2];
 
-    if (Mloc->perm[d]) {
+    if (Mloc->has_perm(d)) {
         /* explicit S */
         /* coordinate S[i] in the original vector becomes i in the
          * twisted vector.
@@ -648,13 +638,13 @@ void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
         get_local_permutations_ranges(mmt, d, ii, jj);
         unsigned int * r = (unsigned int *) malloc((jj[1] - jj[0]) * sizeof(unsigned int));
         memset(r, 0, (jj[1] - jj[0]) * sizeof(unsigned int));
-        for(size_t i = 0 ; i < Mloc->perm[d]->n ; i++) {
-            ASSERT_ALWAYS(Mloc->perm[d]->x[i][0] >= ii[0]);
-            ASSERT_ALWAYS(Mloc->perm[d]->x[i][0] <  ii[1]);
-            ASSERT_ALWAYS(Mloc->perm[d]->x[i][1] >= jj[0]);
-            ASSERT_ALWAYS(Mloc->perm[d]->x[i][1] <  jj[1]);
-            // r[Mloc->perm[d]->x[i][0] - ii[0]] = Mloc->perm[d]->x[i][1];
-            r[Mloc->perm[d]->x[i][1] - jj[0]] = Mloc->perm[d]->x[i][0];
+        for(auto const & uv : Mloc->perm[d]) {
+            ASSERT_ALWAYS(uv[0] >= ii[0]);
+            ASSERT_ALWAYS(uv[0] <  ii[1]);
+            ASSERT_ALWAYS(uv[1] >= jj[0]);
+            ASSERT_ALWAYS(uv[1] <  jj[1]);
+            // r[uv[0] - ii[0]] = uv[1];
+            r[uv[1] - jj[0]] = uv[0];
         }
         for(unsigned int k = 0 ; k < n ; k++) {
             unsigned int j = xs[k];
@@ -665,7 +655,7 @@ void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
         }
         free(r);
         pi_allreduce(NULL, xs, n * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR, mmt.pi->m);
-    } else if (Mloc->perm[!d] && (Mloc->bal->h->flags & FLAG_REPLICATE)) {
+    } else if (Mloc->has_perm(!d) && (Mloc->bal->h->flags & FLAG_REPLICATE)) {
         ASSERT_ALWAYS(Mloc->n[0] == Mloc->n[1]);
         /* implicit S -- first we get the bits about the S in the other
          * direction, because the pieces we have are for the other
@@ -674,12 +664,12 @@ void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
         get_local_permutations_ranges(mmt, !d, ii, jj);
         unsigned int * r = (unsigned int *) malloc((jj[1] - jj[0]) * sizeof(unsigned int));
         memset(r, 0, (jj[1] - jj[0]) * sizeof(unsigned int));
-        for(size_t i = 0 ; i < Mloc->perm[!d]->n ; i++) {
-            ASSERT_ALWAYS(Mloc->perm[!d]->x[i][0] >= ii[0]);
-            ASSERT_ALWAYS(Mloc->perm[!d]->x[i][0] <  ii[1]);
-            ASSERT_ALWAYS(Mloc->perm[!d]->x[i][1] >= jj[0]);
-            ASSERT_ALWAYS(Mloc->perm[!d]->x[i][1] <  jj[1]);
-            r[Mloc->perm[!d]->x[i][1] - jj[0]] = Mloc->perm[!d]->x[i][0];
+        for(auto const & uv : Mloc->perm[!d]) {
+            ASSERT_ALWAYS(uv[0] >= ii[0]);
+            ASSERT_ALWAYS(uv[0] <  ii[1]);
+            ASSERT_ALWAYS(uv[1] >= jj[0]);
+            ASSERT_ALWAYS(uv[1] <  jj[1]);
+            r[uv[1] - jj[0]] = uv[0];
         }
         /* nh and nv are the same for all submatrices, really */
         unsigned int nn[2] = { Mloc->bal->h->nh, Mloc->bal->h->nv };
@@ -1074,19 +1064,17 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
 
         if (!balperm[d]) continue;
 
-        Mloc->perm[d] = permutation_data_alloc();
-#ifdef  MVAPICH2_NUMVERSION
-        /* apparently mvapich2 frowns on realloc() */
-        permutation_data_ensure(Mloc->perm[d],ii[1] - ii[0]);
-#endif
+        static pthread_mutex_t pp = PTHREAD_MUTEX_INITIALIZER;
+
+        pthread_mutex_lock(&pp);
+        Mloc->perm[d].reserve(ii[1] - ii[0]);
+        pthread_mutex_unlock(&pp);
 
         /* now create the really local permutation */
         for(unsigned int i = ii[0] ; i < ii[1] ; i++) {
             unsigned int j = balperm[d][i];
-            if (j >= jj[0] && j < jj[1]) {
-                unsigned int ij[2] = { i, j };
-                permutation_data_push(Mloc->perm[d], ij);
-            }
+            if (j >= jj[0] && j < jj[1])
+                Mloc->perm[d].push_back({i, j});
         }
 #if 0
         const char * text[2] = { "left", "right", };
@@ -1587,12 +1575,6 @@ matmul_top_data::~matmul_top_data()
 
     for(int midx = 0 ; midx < mmt.nmatrices ; midx++) {
         matmul_top_matrix_ptr Mloc = mmt.matrices[midx];
-        for(int d = 0 ; d < 2 ; d++)  {
-            permutation_data_free(Mloc->perm[d]);
-            // both are expected to hold storage for:
-            // (mmt.n[d] / mmt.pi->m->totalsize * mmt.pi->wr[d]->ncores))
-            // elements, corresponding to the largest abase encountered.
-        }
         serialize(mmt.pi->m);
         if (!mmt.pi->interleaved) {
             matmul_clear(Mloc->mm);
@@ -1608,50 +1590,3 @@ matmul_top_data::~matmul_top_data()
     serialize(mmt.pi->m);
     free(mmt.matrices);
 }
-
-static permutation_data_ptr permutation_data_alloc()
-{
-    permutation_data_ptr a = (permutation_data_ptr) malloc(sizeof(permutation_data));
-    a->n = 0;
-    a->alloc = 0;
-    a->x = NULL;
-    return a;
-}
-
-static void permutation_data_free(permutation_data_ptr a)
-{
-    if (!a) return;
-    a->n = 0;
-    a->alloc = 0;
-    if (a->x) free(a->x);
-    free(a);
-}
-
-static pthread_mutex_t pp = PTHREAD_MUTEX_INITIALIZER;
-
-static void permutation_data_push(permutation_data_ptr a, unsigned int u[2])
-{
-    if (a->n >= a->alloc) {
-        pthread_mutex_lock(&pp);
-        a->alloc = a->n + 16 + a->alloc / 4;
-        a->x = (unsigned int (*)[2]) realloc(a->x, a->alloc * sizeof(unsigned int[2]));
-        pthread_mutex_unlock(&pp);
-        ASSERT_ALWAYS(a->x != NULL);
-    }
-    a->x[a->n][0] = u[0];
-    a->x[a->n][1] = u[1];
-    a->n++;
-}
-
-#ifdef  MVAPICH2_NUMVERSION
-static void permutation_data_ensure(permutation_data_ptr a, size_t n)
-{
-    if (n >= a->alloc) {
-        pthread_mutex_lock(&pp);
-        a->alloc = n;
-        a->x = realloc(a->x, n * sizeof(unsigned int[2]));
-        pthread_mutex_unlock(&pp);
-        ASSERT_ALWAYS(a->x != NULL);
-    }
-}
-#endif

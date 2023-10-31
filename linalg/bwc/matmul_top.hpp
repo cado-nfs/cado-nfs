@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include <string>
+#include <array>
 #include <gmp.h>                 // for gmp_randstate_t
 struct timing_data;
 
@@ -13,16 +14,6 @@ struct timing_data;
 #include "matmul.hpp"
 #include "params.h"
 #include "balancing.hpp"
-
-/* yikes. yet another list structure. Wish we had the STL. */
-struct permutation_data_s {
-    size_t n;
-    size_t alloc;
-    unsigned int (*x)[2];
-};
-typedef struct permutation_data_s permutation_data[1];
-typedef struct permutation_data_s * permutation_data_ptr;
-/* all methods are private */
 
 struct matmul_top_matrix_s {
     // global stuff.
@@ -60,7 +51,8 @@ struct matmul_top_matrix_s {
      * in the current row and column range. This can be viewed as the set
      * of non-zero positions in the permutation matrix if it were split
      * just like the current matrix is. */
-    permutation_data_ptr perm[2];       /* rowperm, colperm */
+    std::vector<std::array<unsigned int, 2>> perm[2]; // row,col
+    inline bool has_perm(int d) const { return !perm[d].empty(); }
 
     matmul_ptr mm;
 };
