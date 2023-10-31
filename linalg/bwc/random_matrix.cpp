@@ -913,25 +913,24 @@ int32_t generate_coefficient(gmp_randstate_t rstate, random_matrix_ddata_ptr F, 
 }
 
 #ifndef WANT_MAIN
-void random_matrix_fill_fake_balancing_header(balancing_ptr bal, parallelizing_info_ptr pi, const char * rtmp)
+void random_matrix_fill_fake_balancing_header(balancing & bal, parallelizing_info_ptr pi, const char * rtmp)
 {
-    memset(bal->h, 0, sizeof(bal->h));
     random_matrix_process_data r;
     random_matrix_process_data_init(r);
     random_matrix_process_data_set_from_string(r, rtmp);
-    bal->h->nh = pi->wr[1]->totalsize;
-    bal->h->nv = pi->wr[0]->totalsize;
-    bal->h->nrows = r->nrows;
-    bal->h->ncols = r->ncols;
-    bal->h->ncoeffs = 0; /* FIXME ; what should I do ? */
-    bal->h->checksum = 0;
-    bal->h->flags = FLAG_COLPERM;
-    if (bal->h->nrows == bal->h->ncols)
-        bal->h->flags |= FLAG_REPLICATE;
-    bal->h->pshuf[0] = 1;
-    bal->h->pshuf[1] = 0;
-    bal->h->pshuf_inv[0] = 1;
-    bal->h->pshuf_inv[1] = 0;
+    bal.nh = pi->wr[1]->totalsize;
+    bal.nv = pi->wr[0]->totalsize;
+    bal.nrows = r->nrows;
+    bal.ncols = r->ncols;
+    bal.ncoeffs = 0; /* FIXME ; what should I do ? */
+    bal.checksum = 0;
+    bal.flags = FLAG_COLPERM;
+    if (bal.nrows == bal.ncols)
+        bal.flags |= FLAG_REPLICATE;
+    bal.pshuf[0] = 1;
+    bal.pshuf[1] = 0;
+    bal.pshuf_inv[0] = 1;
+    bal.pshuf_inv[1] = 0;
     balancing_set_row_col_count(bal);
     random_matrix_process_data_clear(r);
 }

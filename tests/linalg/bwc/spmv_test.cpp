@@ -185,40 +185,40 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0) {
             balancing_read(bb, bname);
         }
-        pi_bcast(bb, sizeof(balancing), BWC_PI_BYTE, 0, 0, mmt.pi->m);
+        pi_bcast(&bb, sizeof(balancing), BWC_PI_BYTE, 0, 0, mmt.pi->m);
         /* fix the mmt.rowperm and mmt.colperm */
-        if (bb->rowperm) {
+        if (bb.rowperm) {
             if (mmt.pi->m->jrank || mmt.pi->m->trank) {
-                bb->rowperm = (uint32_t *) malloc(bb->trows * sizeof(uint32_t));
+                bb.rowperm = (uint32_t *) malloc(bb.trows * sizeof(uint32_t));
             }
-            pi_bcast(bb->rowperm, bb->trows * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, mmt.pi->m);
+            pi_bcast(bb.rowperm, bb.trows * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, mmt.pi->m);
         }
-        if (bb->colperm) {
+        if (bb.colperm) {
             if (mmt.pi->m->jrank || mmt.pi->m->trank) {
-                bb->colperm = (uint32_t *) malloc(bb->tcols * sizeof(uint32_t));
+                bb.colperm = (uint32_t *) malloc(bb.tcols * sizeof(uint32_t));
             }
-            pi_bcast(bb->colperm, bb->tcols * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, mmt.pi->m);
+            pi_bcast(bb.colperm, bb.tcols * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, mmt.pi->m);
         }
 
 
 
         for(int test_shared = 0 ; test_shared < 2 ; test_shared++) {
             serialize(pi->m);
-            uint32_t * xr = bb->rowperm;
-            uint32_t * xc = bb->colperm;
+            uint32_t * xr = bb.rowperm;
+            uint32_t * xc = bb.colperm;
             uint32_t *freeme[2] = {NULL,NULL};
-            if (mmt.matrices[0]->bal->h->flags & FLAG_REPLICATE) {
+            if (mmt.matrices[0]->bal.flags & FLAG_REPLICATE) {
                 ASSERT_ALWAYS(xc || xr);
-                ASSERT_ALWAYS(mmt.matrices[0]->bal->trows == mmt.matrices[0]->bal->tcols);
+                ASSERT_ALWAYS(mmt.matrices[0]->bal.trows == mmt.matrices[0]->bal.tcols);
                 /* P is the permutation which sends
                  * sub-block nv*i+j to sub-block nh*j+i
                  */
-                unsigned int nh = mmt.matrices[0]->bal->h->nh;
-                unsigned int nv = mmt.matrices[0]->bal->h->nv;
-                size_t z = mmt.matrices[0]->bal->trows / (nh * nv);
+                unsigned int nh = mmt.matrices[0]->bal.nh;
+                unsigned int nv = mmt.matrices[0]->bal.nv;
+                size_t z = mmt.matrices[0]->bal.trows / (nh * nv);
                 if (!xr) {
                     /* implicit Sr is P * Sc */
-                    xr = (uint32_t *) malloc(mmt.matrices[0]->bal->trows * sizeof(uint32_t));
+                    xr = (uint32_t *) malloc(mmt.matrices[0]->bal.trows * sizeof(uint32_t));
                     freeme[0] = xr;
                     /* The image of i is Sc(P(i)) */
                     for(size_t i = 0 ; i < nh ; i++) {
@@ -236,7 +236,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                 }
                 if (!xc) {
                     /* implicit Sc is P^-1 * Sr */
-                    xc = (uint32_t *) malloc(mmt.matrices[0]->bal->tcols * sizeof(uint32_t));
+                    xc = (uint32_t *) malloc(mmt.matrices[0]->bal.tcols * sizeof(uint32_t));
                     freeme[1] = xc;
                     /* The image of i is Sr(P^-1(i)) */
                     for(size_t i = 0 ; i < nh ; i++) {

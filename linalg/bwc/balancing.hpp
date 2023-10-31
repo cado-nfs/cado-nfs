@@ -49,21 +49,21 @@
    tests/linalg/bwc/convert_magma.pl
  */
 
-struct balancing_header_s {
-    uint32_t zero;      /* previous versions had neither zero nor magic.
+struct balancing_header {
+    uint32_t zero = 0;  /* previous versions had neither zero nor magic.
                            By enforcing a zero field here, we make sure
                            that older and newer code will choke on
                            incompatible balancing files */
-    uint32_t magic;
-    uint32_t nh;
-    uint32_t nv;
-    uint32_t nrows;
-    uint32_t ncols;
-    uint32_t nzrows;
-    uint32_t nzcols;
-    uint64_t ncoeffs;
-    uint32_t checksum;
-    uint32_t flags;
+    uint32_t magic = 0;
+    uint32_t nh = 0;
+    uint32_t nv = 0;
+    uint32_t nrows = 0;
+    uint32_t ncols = 0;
+    uint32_t nzrows = 0;
+    uint32_t nzcols = 0;
+    uint64_t ncoeffs = 0;
+    uint32_t checksum = 0;
+    uint32_t flags = 0;
     // pshuf indicates two integers a,b such that the COLUMN i of the input
     // matrix is in fact mapped to column a*i+b mod n in the matrix we work
     // with. pshuf_inv indicates the inverse permutation. a and b do
@@ -79,34 +79,29 @@ struct balancing_header_s {
     /* Note: pshuf and pshuf_inv have to do with what is called
      * "shuffled-product" elsewhere (and has actually become the default)
      */
-    uint32_t pshuf[2];
-    uint32_t pshuf_inv[2];
+    uint32_t pshuf[2] = { 0, 0 };
+    uint32_t pshuf_inv[2] = { 0, 0 };
 };
-typedef struct balancing_header_s balancing_header[1];
-typedef struct balancing_header_s * balancing_header_ptr;
 
-struct balancing_s {
-    balancing_header h;
-    uint32_t trows;     // number of rows including padding.
-    uint32_t tcols;     // number of cols including padding.
-    uint32_t * rowperm; // row index for new mat. --> row index for old mat.
-    uint32_t * colperm; // might be equal to colperm.
+struct balancing : public balancing_header {
+    uint32_t trows = 0;        // number of rows including padding.
+    uint32_t tcols = 0;        // number of cols including padding.
+    uint32_t * rowperm = NULL; // row index for new mat. --> row index for old mat.
+    uint32_t * colperm = NULL; // might be equal to colperm.
 };
-typedef struct balancing_s balancing[1];
-typedef struct balancing_s * balancing_ptr;
 
 /* Once the flags and perm[] fields have been provided, the caller must
  * call _finalize() in order to 1) update the trows and tcols fields 2)
  * compute the checksum of the balancing.
  */
-extern void balancing_set_row_col_count(balancing_ptr bal);
-extern void balancing_finalize(balancing_ptr bal);
-extern void balancing_write_inner(balancing_ptr bal, const char *);
-extern void balancing_write(balancing_ptr bal, const char * , const char *);
-extern void balancing_read(balancing_ptr bal, const char *);
-extern void balancing_read_header(balancing_ptr bal, const char * filename);
-extern void balancing_clear(balancing_ptr bal);
-extern void balancing_init(balancing_ptr bal);
+extern void balancing_set_row_col_count(balancing & bal);
+extern void balancing_finalize(balancing & bal);
+extern void balancing_write_inner(balancing & bal, const char *);
+extern void balancing_write(balancing & bal, const char * , const char *);
+extern void balancing_read(balancing & bal, const char *);
+extern void balancing_read_header(balancing & bal, const char * filename);
+extern void balancing_clear(balancing & bal);
+extern void balancing_init(balancing & bal);
 
 /* helper for the functions below */
 static inline unsigned long balancing_index_shuffle_common_(unsigned long r, unsigned long n, uint32_t * shuf)
@@ -132,17 +127,17 @@ static inline unsigned long balancing_index_shuffle_common_(unsigned long r, uns
 
 /* These two relate to the global permutation represented by the rshuf /
  * rshuf_inv arrays */
-static inline unsigned long balancing_pre_shuffle(balancing_ptr bal, unsigned long r)
+static inline unsigned long balancing_pre_shuffle(balancing & bal, unsigned long r)
 {
-    unsigned int K = MIN(bal->h->ncols, bal->h->nrows);
+    unsigned int K = MIN(bal.ncols, bal.nrows);
     if (r >= K) return r;
-    return balancing_index_shuffle_common_(r, K, bal->h->pshuf);
+    return balancing_index_shuffle_common_(r, K, bal.pshuf);
 }
-static inline unsigned long balancing_pre_unshuffle(balancing_ptr bal, unsigned long r)
+static inline unsigned long balancing_pre_unshuffle(balancing & bal, unsigned long r)
 {
-    unsigned int K = MIN(bal->h->ncols, bal->h->nrows);
+    unsigned int K = MIN(bal.ncols, bal.nrows);
     if (r >= K) return r;
-    return balancing_index_shuffle_common_(r, K, bal->h->pshuf_inv);
+    return balancing_index_shuffle_common_(r, K, bal.pshuf_inv);
 }
 
 #endif	/* BALANCING_H_ */

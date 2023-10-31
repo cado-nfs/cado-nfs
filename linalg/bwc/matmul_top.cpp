@@ -413,7 +413,7 @@ void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec &
      * with this piece of code. Note though that when we do so, applying
      * the permutation actually goes in the opposite direction. */
     int xd = d;
-    if (!Mloc->has_perm(xd) && (Mloc->bal->h->flags & FLAG_REPLICATE)) {
+    if (!Mloc->has_perm(xd) && (Mloc->bal.flags & FLAG_REPLICATE)) {
         ASSERT_ALWAYS(Mloc->n[0] == Mloc->n[1]);
         xd = !d;
     }
@@ -477,7 +477,7 @@ void mmt_vec_unapply_S(matmul_top_data & mmt, int midx, mmt_vec & y)
 {
     matmul_top_matrix_ptr Mloc = mmt.matrices[midx];
     mmt_vec_apply_or_unapply_S_inner(mmt, midx, y, 0);
-    if ((Mloc->bal->h->flags & FLAG_REPLICATE) && !Mloc->has_perm(y.d)) {
+    if ((Mloc->bal.flags & FLAG_REPLICATE) && !Mloc->has_perm(y.d)) {
         if (y.d == 0) {
             /* implicit Sr^-1 is Sc^-1*P^-1 */
             mmt_vec_unapply_P(mmt, y);
@@ -492,7 +492,7 @@ void mmt_vec_unapply_S(matmul_top_data & mmt, int midx, mmt_vec & y)
 void mmt_vec_apply_S(matmul_top_data & mmt, int midx, mmt_vec & y)
 {
     matmul_top_matrix_ptr Mloc = mmt.matrices[midx];
-    if ((Mloc->bal->h->flags & FLAG_REPLICATE) && !Mloc->has_perm(y.d)) {
+    if ((Mloc->bal.flags & FLAG_REPLICATE) && !Mloc->has_perm(y.d)) {
         if (y.d == 0) {
             /* implicit Sr is P * Sc */
             mmt_vec_apply_P(mmt, y);
@@ -655,7 +655,7 @@ void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
         }
         free(r);
         pi_allreduce(NULL, xs, n * sizeof(uint32_t), BWC_PI_BYTE, BWC_PI_BXOR, mmt.pi->m);
-    } else if (Mloc->has_perm(!d) && (Mloc->bal->h->flags & FLAG_REPLICATE)) {
+    } else if (Mloc->has_perm(!d) && (Mloc->bal.flags & FLAG_REPLICATE)) {
         ASSERT_ALWAYS(Mloc->n[0] == Mloc->n[1]);
         /* implicit S -- first we get the bits about the S in the other
          * direction, because the pieces we have are for the other
@@ -672,11 +672,11 @@ void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
             r[uv[1] - jj[0]] = uv[0];
         }
         /* nh and nv are the same for all submatrices, really */
-        unsigned int nn[2] = { Mloc->bal->h->nh, Mloc->bal->h->nv };
+        unsigned int nn[2] = { Mloc->bal.nh, Mloc->bal.nv };
         /* for d == 0, we have implicit Sr = P * Sc.
          * for d == 1, we have implicit Sc = P^-1 * Sc
          */
-        size_t z = Mloc->bal->trows / (nn[0]*nn[1]);
+        size_t z = Mloc->bal.trows / (nn[0]*nn[1]);
         for(unsigned int k = 0 ; k < n ; k++) {
             unsigned int j = xs[k];
             /* for d == 0, index i goes to P^-1[Sc^-1[i]] */
@@ -973,12 +973,12 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data & mmt, int i, 
             balancing_read_header(Mloc->bal, Mloc->bname);
         }
     }
-    pi_bcast(Mloc->bal, sizeof(balancing), BWC_PI_BYTE, 0, 0, mmt.pi->m);
+    pi_bcast(&Mloc->bal, sizeof(balancing), BWC_PI_BYTE, 0, 0, mmt.pi->m);
 
     /* check that balancing dimensions are compatible with our run */
     int ok = 1;
-    ok = ok && mmt.pi->wr[0]->totalsize == Mloc->bal->h->nv;
-    ok = ok && mmt.pi->wr[1]->totalsize == Mloc->bal->h->nh;
+    ok = ok && mmt.pi->wr[0]->totalsize == Mloc->bal.nv;
+    ok = ok && mmt.pi->wr[1]->totalsize == Mloc->bal.nh;
     if (ok) return;
 
     if (pi->m->jrank == 0 && pi->m->trank == 0) {
@@ -987,7 +987,7 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data & mmt, int i, 
                 " this conflicts with the current run,"
                 " which expects dimensions (%ux%u)x(%ux%u).\n",
                 i, Mloc->mname, Mloc->bname,
-                Mloc->bal->h->nh, Mloc->bal->h->nv,
+                Mloc->bal.nh, Mloc->bal.nv,
                 mmt.pi->wr[1]->njobs,
                 mmt.pi->wr[1]->ncores,
                 mmt.pi->wr[0]->njobs,
@@ -1022,11 +1022,12 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
 
     /* Define a complete structure for the balancing which is shared
      * among threads, so that we'll be able to access it from all threads
-     * simultaneously. We will put things in bal_tmp->rowperm and
-     * bal_tmp->colperm, but beyond that, the header part will be wrong
+     * simultaneously. We will put things in bal_tmp.rowperm and
+     * bal_tmp.colperm, but beyond that, the header part will be wrong
      * at non-root nodes.
      */
-    balancing_ptr bal_tmp = (balancing_ptr) shared_malloc_set_zero(mmt.pi->m, sizeof(balancing));
+    balancing * pbal_tmp = (balancing *) shared_malloc_set_zero(mmt.pi->m, sizeof(balancing));
+    balancing & bal_tmp = * pbal_tmp;
 
     if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0) {
         if (Mloc->bname)
@@ -1034,29 +1035,29 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
         /* It's fine if we have nothing. This just means that we'll have
          * no balancing to deal with (this occurs only for matrices
          * which are generated at random on the fly). */
-        rowperm_items = bal_tmp->rowperm != NULL ? bal_tmp->trows : 0;
-        colperm_items = bal_tmp->colperm != NULL ? bal_tmp->tcols : 0;
+        rowperm_items = bal_tmp.rowperm != NULL ? bal_tmp.trows : 0;
+        colperm_items = bal_tmp.colperm != NULL ? bal_tmp.tcols : 0;
     }
     pi_bcast(&rowperm_items, 1, BWC_PI_UNSIGNED, 0, 0, mmt.pi->m);
     pi_bcast(&colperm_items, 1, BWC_PI_UNSIGNED, 0, 0, mmt.pi->m);
 
     if (mmt.pi->m->trank == 0) {
         if (rowperm_items) {
-            ASSERT_ALWAYS(rowperm_items == Mloc->bal->trows);
+            ASSERT_ALWAYS(rowperm_items == Mloc->bal.trows);
             if (mmt.pi->m->jrank != 0)
-                bal_tmp->rowperm = (uint32_t *) malloc(Mloc->bal->trows * sizeof(uint32_t));
-            MPI_Bcast(bal_tmp->rowperm, Mloc->bal->trows * sizeof(uint32_t), MPI_BYTE, 0, mmt.pi->m->pals);
+                bal_tmp.rowperm = (uint32_t *) malloc(Mloc->bal.trows * sizeof(uint32_t));
+            MPI_Bcast(bal_tmp.rowperm, Mloc->bal.trows * sizeof(uint32_t), MPI_BYTE, 0, mmt.pi->m->pals);
         }
         if (colperm_items) {
-            ASSERT_ALWAYS(colperm_items == Mloc->bal->tcols);
+            ASSERT_ALWAYS(colperm_items == Mloc->bal.tcols);
             if (mmt.pi->m->jrank != 0)
-                bal_tmp->colperm = (uint32_t *) malloc(Mloc->bal->tcols * sizeof(uint32_t));
-            MPI_Bcast(bal_tmp->colperm, Mloc->bal->tcols * sizeof(uint32_t), MPI_BYTE, 0, mmt.pi->m->pals);
+                bal_tmp.colperm = (uint32_t *) malloc(Mloc->bal.tcols * sizeof(uint32_t));
+            MPI_Bcast(bal_tmp.colperm, Mloc->bal.tcols * sizeof(uint32_t), MPI_BYTE, 0, mmt.pi->m->pals);
         }
     }
     serialize_threads(mmt.pi->m);      /* important ! */
 
-    uint32_t * balperm[2] = { bal_tmp->rowperm, bal_tmp->colperm };
+    uint32_t * balperm[2] = { bal_tmp.rowperm, bal_tmp.colperm };
     for(int d = 0 ; d < 2 ; d++)  {
         unsigned int ii[2];
         unsigned int jj[2];
@@ -1081,7 +1082,7 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
         printf("[%s] J%uT%u does %zu/%u permutation pairs for %s vectors\n",
                 mmt.pi->nodenumber_s,
                 mmt.pi->m->jrank, mmt.pi->m->trank,
-                Mloc->perm[d]->n, d ? Mloc->bal->tcols : Mloc->bal->trows,
+                Mloc->perm[d]->n, d ? Mloc->bal.tcols : Mloc->bal.trows,
                 text[d]);
 #endif
     }
@@ -1089,11 +1090,11 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
     serialize_threads(mmt.pi->m);      /* important ! */
 
     if (mmt.pi->m->trank == 0) {
-        if (bal_tmp->colperm) free(bal_tmp->colperm);
-        if (bal_tmp->rowperm) free(bal_tmp->rowperm);
+        if (bal_tmp.colperm) free(bal_tmp.colperm);
+        if (bal_tmp.rowperm) free(bal_tmp.rowperm);
     }
 
-    shared_free(mmt.pi->m, bal_tmp);
+    shared_free(mmt.pi->m, pbal_tmp);
 }
 
 matmul_top_data::matmul_top_data(
@@ -1172,11 +1173,11 @@ matmul_top_data::matmul_top_data(
 
         matmul_top_init_fill_balancing_header(mmt, i, pl);
 
-        Mloc->n[0] = Mloc->bal->trows;
-        Mloc->n[1] = Mloc->bal->tcols;
-        Mloc->n0[0] = Mloc->bal->h->nrows;
-        Mloc->n0[1] = Mloc->bal->h->ncols;
-        Mloc->locfile = matrix_get_derived_cache_filename_stem(Mloc->mname, mmt.pi, Mloc->bal->h->checksum);
+        Mloc->n[0] = Mloc->bal.trows;
+        Mloc->n[1] = Mloc->bal.tcols;
+        Mloc->n0[0] = Mloc->bal.nrows;
+        Mloc->n0[1] = Mloc->bal.ncols;
+        Mloc->locfile = matrix_get_derived_cache_filename_stem(Mloc->mname, mmt.pi, Mloc->bal.checksum);
 
     }
 
@@ -1223,8 +1224,8 @@ unsigned int matmul_top_rank_upper_bound(matmul_top_data & mmt)
     unsigned int r = MAX(mmt.n0[0], mmt.n0[1]);
     for(int i = 0 ; i < mmt.nmatrices ; i++) {
         matmul_top_matrix_ptr Mloc = mmt.matrices[i];
-        r = MAX(r, Mloc->bal->h->nrows - Mloc->bal->h->nzrows);
-        r = MAX(r, Mloc->bal->h->ncols - Mloc->bal->h->nzcols);
+        r = MAX(r, Mloc->bal.nrows - Mloc->bal.nzrows);
+        r = MAX(r, Mloc->bal.ncols - Mloc->bal.nzcols);
     }
     return r;
 }
@@ -1488,7 +1489,7 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, param_lis
         balancing_set_row_col_count(bal);
         printf("Matrix: total %" PRIu32 " rows %" PRIu32 " cols "
                 "%" PRIu64 " coeffs\n",
-                bal->h->nrows, bal->h->ncols, bal->h->ncoeffs);
+                bal.nrows, bal.ncols, bal.ncoeffs);
         balancing_clear(bal);
     }
 

@@ -143,14 +143,14 @@ struct dispatcher {/*{{{*/
          */
         if (pi->m->jrank == 0)
             balancing_read_header(bal, bfile.c_str());
-        MPI_Bcast(bal, sizeof(balancing), MPI_BYTE, 0, pi->m->pals);
+        MPI_Bcast(&bal, sizeof(balancing), MPI_BYTE, 0, pi->m->pals);
 
         nhjobs = pi->wr[1]->njobs;
         nvjobs = pi->wr[0]->njobs;
-        rows_chunk_big = bal->trows / nhjobs;
-        cols_chunk_big = bal->tcols / nvjobs;
-        rows_chunk_small = bal->trows / bal->h->nh;
-        cols_chunk_small = bal->tcols / bal->h->nv;
+        rows_chunk_big = bal.trows / nhjobs;
+        cols_chunk_big = bal.tcols / nvjobs;
+        rows_chunk_small = bal.trows / bal.nh;
+        cols_chunk_small = bal.tcols / bal.nv;
 
         /* these are set in other member functions. The values here are
          * just silly placeholders
@@ -355,7 +355,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
 #if 0
     /* This the naive-optimistic approach where we expect all row
      * fragments in the matrix to have equal size */
-    subdivision readers_rows(bal->h->nrows, nreaders);
+    subdivision readers_rows(bal.nrows, nreaders);
     unsigned int row0 = readers_rows.nth_block_start(ridx);
     unsigned int row1 = readers_rows.nth_block_end(ridx);
     ASSERT_ALWAYS(!is_reader());
@@ -379,7 +379,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
 #else
 
     row0_per_reader.assign(nreaders, 0);
-    row0_per_reader.push_back(bal->h->nrows);
+    row0_per_reader.push_back(bal.nrows);
 
     if (ridx == 0) {
         int rc;
@@ -393,12 +393,12 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         ASSERT_ALWAYS(rc == 0);
         long endpos = ftell(frw);
         ASSERT_ALWAYS(endpos >= 0);
-        ASSERT_ALWAYS((size_t) endpos == bal->h->nrows * sizeof(uint32_t));
+        ASSERT_ALWAYS((size_t) endpos == bal.nrows * sizeof(uint32_t));
         rc = fseek(frw, 0, SEEK_SET);
         ASSERT_ALWAYS(rc == 0);
-        std::vector<uint32_t> rw(bal->h->nrows,0);
-        rc = fread(rw.data(), sizeof(uint32_t), bal->h->nrows, frw);
-        ASSERT_ALWAYS(rc == (int) bal->h->nrows);
+        std::vector<uint32_t> rw(bal.nrows,0);
+        rc = fread(rw.data(), sizeof(uint32_t), bal.nrows, frw);
+        ASSERT_ALWAYS(rc == (int) bal.nrows);
         fclose(frw);
 
         uint32_t r = 0;
@@ -409,7 +409,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         for(int i = 1 ; i < nreaders ; i++) {
             /* want to find first row for reader i */
             size_t want = i * qsize + (i < rsize);
-            for( ; r < bal->h->nrows && s < want ; )
+            for( ; r < bal.nrows && s < want ; )
                 s += sizeof(uint32_t) * (1 + rw[r++] * (1 + withcoeffs));
             /* start it at row r */
             row0_per_reader[i] = r;
@@ -417,7 +417,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
             last_s = s;
         }
         /* finish the table for consistency */
-        for( ; r < bal->h->nrows ; )
+        for( ; r < bal.nrows ; )
             s += sizeof(uint32_t) * (1 + rw[r++] * (1 + withcoeffs));
         ASSERT_ALWAYS(s == matsize);
         bytes_per_reader[nreaders-1] = matsize-last_s;
@@ -582,7 +582,7 @@ void dispatcher::reader_thread()/*{{{*/
     if (pass_number == 2 && !check_vector_filename.empty()) {
         /* Allocate a full vector on the leader node */
         std::vector<uint64_t> full;
-        full.assign(bal->trows, 0);
+        full.assign(bal.trows, 0);
         std::vector<int> sizes(nreaders, 0);
         std::vector<int> displs(nreaders, 0);
         for(int ridx = 0, d = 0 ; ridx < nreaders ; ridx++) {
@@ -598,8 +598,8 @@ void dispatcher::reader_thread()/*{{{*/
 
         if (readers_index[pi->m->jrank] == 0) {
             FILE * f = fopen(check_vector_filename.c_str(), "wb");
-            int rc = fwrite(full.data(), sizeof(uint64_t), bal->h->nrows, f);
-            ASSERT_ALWAYS(rc == (int) bal->h->nrows);
+            int rc = fwrite(full.data(), sizeof(uint64_t), bal.nrows, f);
+            ASSERT_ALWAYS(rc == (int) bal.nrows);
             fclose(f);
         }
     }
@@ -610,22 +610,22 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
     balancing xbal;
     balancing_init(xbal);
     balancing_read(xbal, bfile.c_str());
-    uint32_t quo_r = xbal->trows / xbal->h->nh;
-    ASSERT_ALWAYS(xbal->trows % xbal->h->nh == 0);
+    uint32_t quo_r = xbal.trows / xbal.nh;
+    ASSERT_ALWAYS(xbal.trows % xbal.nh == 0);
 
-    fw_colperm.assign(xbal->tcols, -1);
-    fw_rowperm.assign(xbal->trows, -1);
+    fw_colperm.assign(xbal.tcols, -1);
+    fw_rowperm.assign(xbal.trows, -1);
 
-    if (xbal->h->flags & FLAG_REPLICATE) {
-        uint32_t * xc = xbal->colperm;
-        uint32_t * xr = xbal->rowperm;
-        ASSERT_ALWAYS(xbal->tcols == xbal->trows);
+    if (xbal.flags & FLAG_REPLICATE) {
+        uint32_t * xc = xbal.colperm;
+        uint32_t * xr = xbal.rowperm;
+        ASSERT_ALWAYS(xbal.tcols == xbal.trows);
         /* since we check that we don't simultaenously have FLAG_COLPERM,
          * FLAG_ROWPERM, and FLAG_REPLICATE, then we should not have (xc
          * && xr) here
          */
         ASSERT_ALWAYS(!(xc && xr));
-        ASSERT_ALWAYS(xbal->trows == xbal->tcols);
+        ASSERT_ALWAYS(xbal.trows == xbal.tcols);
 
         if (xc && !xr) {
             /* This block is written with the case xc && !xr in mind.
@@ -643,8 +643,8 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
              * need a pointer. (there is some stuff in balancing.h)
              */
             xr = xc;
-            for (uint32_t i = 0; i < xbal->tcols; i++) {
-                ASSERT_ALWAYS(xc[i] < xbal->tcols);
+            for (uint32_t i = 0; i < xbal.tcols; i++) {
+                ASSERT_ALWAYS(xc[i] < xbal.tcols);
                 uint32_t q = balancing_pre_unshuffle(bal, xc[i]);
                 ASSERT_ALWAYS(fw_colperm[q] == UINT32_MAX);
                 fw_colperm[q] = i;
@@ -653,10 +653,10 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
              * that eventually, we are still computing iterates of a matrix
              * which is conjugate to the one we're interested in */
 
-            uint32_t nh = xbal->h->nh;
-            uint32_t nv = xbal->h->nv;
-            ASSERT_ALWAYS(xbal->trows % (nh * nv) == 0);
-            uint32_t elem = xbal->trows / (nh * nv);
+            uint32_t nh = xbal.nh;
+            uint32_t nv = xbal.nv;
+            ASSERT_ALWAYS(xbal.trows % (nh * nv) == 0);
+            uint32_t elem = xbal.trows / (nh * nv);
             uint32_t ix = 0;
             uint32_t iy = 0;
             for(uint32_t i = 0 ; i < nh ; i++) {
@@ -664,9 +664,9 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
                     ix = (i * nv + j) * elem;
                     iy = (j * nh + i) * elem;
                     for(uint32_t k = 0 ; k < elem ; k++) {
-                        ASSERT_ALWAYS(iy + k < xbal->trows);
+                        ASSERT_ALWAYS(iy + k < xbal.trows);
                         uint32_t r = xr[iy+k];
-                        ASSERT_ALWAYS(r < xbal->trows);
+                        ASSERT_ALWAYS(r < xbal.trows);
                         ASSERT_ALWAYS(fw_rowperm[r] == UINT32_MAX);
                         fw_rowperm[r] = ix+k;
                     }
@@ -686,30 +686,30 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
          * shuffled product.
          */
 
-        uint32_t * xc = xbal->colperm;
-        for (uint32_t i = 0; i < xbal->tcols; i++) {
+        uint32_t * xc = xbal.colperm;
+        for (uint32_t i = 0; i < xbal.tcols; i++) {
             uint32_t j = xc ? xc[i] : i;
-            ASSERT_ALWAYS(j < xbal->tcols);
+            ASSERT_ALWAYS(j < xbal.tcols);
             ASSERT_ALWAYS(fw_colperm[j] == UINT32_MAX);
             fw_colperm[j] = i;
         }
 
-        uint32_t * xr = xbal->rowperm;
-        for (uint32_t i = 0; i < xbal->trows; i++) {
+        uint32_t * xr = xbal.rowperm;
+        for (uint32_t i = 0; i < xbal.trows; i++) {
             uint32_t j = xr ? xr[i] : i;
-            ASSERT_ALWAYS(j < xbal->trows);
+            ASSERT_ALWAYS(j < xbal.trows);
             ASSERT(fw_rowperm[j] == UINT32_MAX);
             fw_rowperm[j] = i;
         }
     }
     /* one more check. The cost is tiny compared to what we do in other
      * parts of the code. This does not deserve output. */
-    std::vector<uint32_t> ttab(xbal->h->nh, 0);
-    for (uint32_t j = 0; j < xbal->trows; j++) {
+    std::vector<uint32_t> ttab(xbal.nh, 0);
+    for (uint32_t j = 0; j < xbal.trows; j++) {
         ttab[fw_rowperm[j] / rows_chunk_small]++;
     }
-    ASSERT_ALWAYS(xbal->h->nh == pi->wr[1]->totalsize);
-    for (uint32_t k = 0; k < xbal->h->nh; k++) {
+    ASSERT_ALWAYS(xbal.nh == pi->wr[1]->totalsize);
+    for (uint32_t k = 0; k < xbal.nh; k++) {
         ASSERT_ALWAYS(ttab[k] == quo_r);
     }
 
@@ -719,13 +719,13 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
 
 #if 0
     char buf[16];
-    size_t sz = xbal->h->ncols * sizeof(*colmap);
+    size_t sz = xbal.ncols * sizeof(*colmap);
     printf("Creating column map of size %s ...", size_disp(sz, buf));
     fflush(stdout);
     colmap = malloc(sz);
-    for(uint32_t i = 0 ; i < xbal->h->ncols ; i++) {
+    for(uint32_t i = 0 ; i < xbal.ncols ; i++) {
         uint32_t q = balancing_pre_shuffle(xbal, i);
-        ASSERT_ALWAYS(q < xbal->h->ncols);
+        ASSERT_ALWAYS(q < xbal.ncols);
         uint32_t c = fw_colperm[q];
         colmap[i].w = DUMMY_VECTOR_COORD_VALUE(q);
         colmap[i].c = fw_colperm[q];
@@ -944,7 +944,7 @@ void dispatcher::watch_incoming_on_reader(int &active_peers)
 void dispatcher::stats()
 {
     if (!verbose_enabled(CADO_VERBOSE_PRINT_BWC_DISPATCH_OUTER)) return;
-    uint32_t quo_r = bal->trows / bal->h->nh;
+    uint32_t quo_r = bal.trows / bal.nh;
     for(unsigned int k = 0 ; k < pi->m->ncores ; k++) {
         printf("[J%uT%u] N=%" PRIu32 " W=%zu\n",
                 pi->m->jrank, k,
