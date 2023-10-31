@@ -2,6 +2,7 @@
 #define MMT_VECTOR_PAIR_HPP_
 
 #include "matmul_top.hpp"
+#include "matmul_top_vec.hpp"
 
 class mmt_vector_pair : public std::vector<mmt_vec> {
     matmul_top_data_ptr mmt;

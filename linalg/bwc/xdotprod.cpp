@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 #include "arith-generic.hpp"
 #include "parallelizing_info.hpp"  // for parallelizing_info_s, pi_comm, seria...
+#include "matmul_top_vec.hpp"
 #include "xdotprod.hpp"
 
 void x_dotprod(arith_generic::elt * dst, uint32_t * xv, unsigned int m, unsigned int nx, mmt_vec const & v, int sign)

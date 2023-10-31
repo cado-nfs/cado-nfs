@@ -94,7 +94,7 @@ typedef struct matmul_top_data_s matmul_top_data[1];
 typedef struct matmul_top_data_s * matmul_top_data_ptr;
 typedef struct matmul_top_data_s const * matmul_top_data_srcptr;
 
-#include "matmul_top_vec.hpp"
+struct mmt_vec;
 
 extern void matmul_top_init(matmul_top_data_ptr mmt,
         arith_generic * abase,

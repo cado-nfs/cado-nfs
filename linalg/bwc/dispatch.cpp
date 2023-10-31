@@ -22,6 +22,7 @@
 #include "arith-cross.hpp"
 #include "intersections.h"
 #include "macros.h"
+#include "mmt_vector_pair.hpp"
 
 void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {
@@ -62,11 +63,9 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
      */
     matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
 
-    mmt_vec ymy[2];
+    mmt_vector_pair ymy(mmt, 1);
     mmt_vec & y = ymy[0];
     mmt_vec & my = ymy[1];
-    mmt_vec_setup(y,  mmt,0,0, 1, 0, mmt->n[1]);
-    mmt_vec_setup(my, mmt,0,0, 0, 0, mmt->n[0]);
 
     unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
 
@@ -100,7 +99,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
             memcpy(dst, &value, sizeof(uint64_t));
         }
         mmt_vec_twist(mmt, y);
-        matmul_top_mul(mmt, ymy, NULL);
+        matmul_top_mul(mmt, ymy.vectors(), NULL);
         mmt_vec_untwist(mmt, y);
 
         mmt_vec_save(y, "Hx%u-%u", unpadded, 0);

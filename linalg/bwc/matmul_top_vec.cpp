@@ -44,6 +44,11 @@
 
 /* {{{ vector init/clear */
 
+mmt_vec::mmt_vec(matmul_top_data_ptr mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n)
+{
+    mmt_vec_setup(*this, mmt, abase, pitype, d, flags, n);
+}
+
 /* this is for a vector which will be of interest to a group of threads
  * and jobs in direction d */
 void mmt_vec_setup(mmt_vec & v, matmul_top_data_ptr mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n)

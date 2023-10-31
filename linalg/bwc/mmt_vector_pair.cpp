@@ -1,6 +1,7 @@
 #include "cado.h"
 
 #include "mmt_vector_pair.hpp"
+#include "matmul_top_vec.hpp"
 
 
 mmt_vector_pair::mmt_vector_pair(matmul_top_data_ptr mmt, int dir)

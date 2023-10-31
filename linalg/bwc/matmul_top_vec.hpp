@@ -4,6 +4,8 @@
 #include "parallelizing_info.hpp"
 #include "arith-generic.hpp"
 
+#include "matmul_top.hpp"
+
 // the ``all_v'' field collects all the pointers to the per-thread vector
 // values. There are exactly pi->wr[0]->ncores such pointers in
 // mmt->wr[0]. In some cases, these pointers may be equal (for source
@@ -24,6 +26,7 @@ struct mmt_vec {
                             NULL};  /* pi->wr[1]->ncores siblings, always. */
 
     mmt_vec() = default;
+    mmt_vec(matmul_top_data_ptr mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n);
     ~mmt_vec();
     mmt_vec(mmt_vec const &) = delete;
     mmt_vec& operator=(mmt_vec const &) = delete;
@@ -49,8 +52,6 @@ struct mmt_vec {
 /* These are flags for the distributed vectors. For the moment we have
  * only one flag */
 #define THREAD_SHARED_VECTOR    1
-
-#include "matmul_top.hpp"
 
 /* This is almost a constructor. */
 extern void mmt_vec_setup(mmt_vec &, matmul_top_data_ptr mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n);
