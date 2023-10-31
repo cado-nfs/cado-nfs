@@ -345,8 +345,8 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* }}} */
 
     // {{{ kill the warning about wrong spmv direction
-    for(int i = 0 ; i < mmt.nmatrices ; i++) {
-        mmt.matrices[i]->mm->iteration[!bw->dir] = INT_MIN;
+    for(auto const & Mloc : mmt.matrices) {
+        Mloc.mm->iteration[!bw->dir] = INT_MIN;
     }
     // }}}
 

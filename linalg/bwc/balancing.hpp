@@ -1,6 +1,7 @@
 #ifndef BALANCING_H_
 #define BALANCING_H_
 
+#include <string>
 #include <stdint.h>
 #include "macros.h"  // for MIN
 #include "mod_ul.h"
@@ -98,8 +99,8 @@ extern void balancing_set_row_col_count(balancing & bal);
 extern void balancing_finalize(balancing & bal);
 extern void balancing_write_inner(balancing & bal, const char *);
 extern void balancing_write(balancing & bal, const char * , const char *);
-extern void balancing_read(balancing & bal, const char *);
-extern void balancing_read_header(balancing & bal, const char * filename);
+extern void balancing_read(balancing & bal, std::string const &);
+extern void balancing_read_header(balancing & bal, std::string const &);
 extern void balancing_clear(balancing & bal);
 extern void balancing_init(balancing & bal);
 

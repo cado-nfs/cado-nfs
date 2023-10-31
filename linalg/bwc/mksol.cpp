@@ -95,7 +95,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
      *   iteration: we need n vectors -- or n/64 for the binary case.
      */
     mmt_vec * vi = new mmt_vec[bw->n / splitwidth];
-    matmul_top_matrix_ptr mptr = (matmul_top_matrix_ptr) mmt.matrices + (bw->dir ? (mmt.nmatrices - 1) : 0);
+    matmul_top_matrix * mptr = &mmt.matrices[bw->dir ? (mmt.matrices.size() - 1) : 0];
     for(int i = 0 ; i < bw->n / splitwidth ; i++) {
         mmt_vec_setup(vi[i], mmt, Av.get(), Av_pi, bw->dir, 1, mptr->n[bw->dir]);
         mmt_full_vec_set_zero(vi[i]);
@@ -230,13 +230,13 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     /* }}} */
     
     /* {{{ bless our timers */
-    timing_init(timing, 4 * mmt.nmatrices, bw->start, expected_last_iteration);
-    for(int i = 0 ; i < mmt.nmatrices; i++) {
-        timing_set_timer_name(timing, 4*i, "CPU%d", i);
-        timing_set_timer_items(timing, 4*i, mmt.matrices[i]->mm->ncoeffs);
-        timing_set_timer_name(timing, 4*i+1, "cpu-wait%d", i);
-        timing_set_timer_name(timing, 4*i+2, "COMM%d", i);
-        timing_set_timer_name(timing, 4*i+3, "comm-wait%d", i);
+    timing_init(timing, 4 * mmt.matrices.size(), bw->start, expected_last_iteration);
+    for(size_t i = 0 ; i < mmt.matrices.size(); i++) {
+        timing_set_timer_name(timing, 4*i, "CPU%zu", i);
+        timing_set_timer_items(timing, 4*i, mmt.matrices[i].mm->ncoeffs);
+        timing_set_timer_name(timing, 4*i+1, "cpu-wait%zu", i);
+        timing_set_timer_name(timing, 4*i+2, "COMM%zu", i);
+        timing_set_timer_name(timing, 4*i+3, "comm-wait%zu", i);
     }
     /* }}} */
 

@@ -15,7 +15,7 @@ struct timing_data;
 #include "params.h"
 #include "balancing.hpp"
 
-struct matmul_top_matrix_s {
+struct matmul_top_matrix {
     // global stuff.
     //
     // n[0] is the number of rows, includding padding.
@@ -32,7 +32,7 @@ struct matmul_top_matrix_s {
     // this really ends up within the mm field. It's not a complete file
     // name though. We lack the implementation extension, the possible
     // transposition tag, as well as the .bin extension.
-    char * locfile;
+    std::string locfile;
 
     /* These two are global to all threads and jobs (well, each thread
      * has its own pointer though, it's not a shared_malloc. It could be,
@@ -40,8 +40,8 @@ struct matmul_top_matrix_s {
      *
      * For random matrices, both strings below are NULL.
      */
-    char * mname;
-    char * bname;
+    std::string mname;
+    std::string bname;
 
     balancing bal;
 
@@ -56,10 +56,6 @@ struct matmul_top_matrix_s {
 
     matmul_ptr mm;
 };
-
-typedef struct matmul_top_matrix_s matmul_top_matrix[1];
-typedef struct matmul_top_matrix_s * matmul_top_matrix_ptr;
-typedef struct matmul_top_matrix_s const * matmul_top_matrix_srcptr;
 
 struct matmul_top_data {
     arith_generic * abase;
@@ -78,8 +74,7 @@ struct matmul_top_data {
     /* The matrix we are dealing with is
      * matrices[0] * matrices[1] * ... * matrices[nmatrices-1]
      */
-    int nmatrices;
-    matmul_top_matrix * matrices;
+    std::vector<matmul_top_matrix> matrices;
     matmul_top_data(
         arith_generic * abase,
         parallelizing_info_ptr pi,

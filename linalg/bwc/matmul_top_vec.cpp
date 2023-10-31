@@ -74,8 +74,8 @@ void mmt_vec_setup(mmt_vec & v, matmul_top_data & mmt, arith_generic * abase, pi
 
     /* Look for readahead settings for all submatrices */
     n += ABASE_UNIVERSAL_READAHEAD_ITEMS;
-    for(int i = 0 ; i < mmt.nmatrices ; i++) {
-        matmul_aux(mmt.matrices[i]->mm, MATMUL_AUX_GET_READAHEAD, &n);
+    for(auto const & Mloc : mmt.matrices) {
+        matmul_aux(Mloc.mm, MATMUL_AUX_GET_READAHEAD, &n);
     }
 
     if (flags & THREAD_SHARED_VECTOR) {

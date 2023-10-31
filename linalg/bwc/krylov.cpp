@@ -283,15 +283,15 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     pi_log_init(pi->wr[1]);
 #endif
 
-    timing_init(timing, 4 * mmt.nmatrices, bw->start, bw->end);
+    timing_init(timing, 4 * mmt.matrices.size(), bw->start, bw->end);
     auto clean_timing = call_dtor([&]() { timing_clear(timing); });
 
-    for(int i = 0 ; i < mmt.nmatrices; i++) {
-        timing_set_timer_name(timing, 4*i, "CPU%d", i);
-        timing_set_timer_items(timing, 4*i, mmt.matrices[i]->mm->ncoeffs);
-        timing_set_timer_name(timing, 4*i+1, "cpu-wait%d", i);
-        timing_set_timer_name(timing, 4*i+2, "COMM%d", i);
-        timing_set_timer_name(timing, 4*i+3, "comm-wait%d", i);
+    for(size_t i = 0 ; i < mmt.matrices.size(); i++) {
+        timing_set_timer_name(timing, 4*i, "CPU%zu", i);
+        timing_set_timer_items(timing, 4*i, mmt.matrices[i].mm->ncoeffs);
+        timing_set_timer_name(timing, 4*i+1, "cpu-wait%zu", i);
+        timing_set_timer_name(timing, 4*i+2, "COMM%zu", i);
+        timing_set_timer_name(timing, 4*i+3, "comm-wait%zu", i);
     }
 
     pi_interleaving_flip(pi);

@@ -175,17 +175,17 @@ void balancing_read_header_inner(balancing & bal, FILE * pfile)
 
 }
 
-void balancing_read_header(balancing & bal, const char * filename)
+void balancing_read_header(balancing & bal, std::string const & filename)
 {
     FILE * pfile;
-    char * derived = derived_filename(filename, "hdr", ".bin");
-    ASSERT_ALWAYS(filename);
-    pfile = fopen(filename, "rb");
+    ASSERT_ALWAYS(!filename.empty());
+    char * derived = derived_filename(filename.c_str(), "hdr", ".bin");
+    pfile = fopen(filename.c_str(), "rb");
     if (pfile == NULL) {
         pfile = fopen(derived, "rb");
         if (pfile == NULL) {
             fprintf(stderr, "Cannot read %s nor %s: %s\n",
-                    filename, derived, strerror(errno));
+                    filename.c_str(), derived, strerror(errno));
             abort();
         }
     }
@@ -195,14 +195,14 @@ void balancing_read_header(balancing & bal, const char * filename)
     free(derived);
 }
 
-void balancing_read(balancing & bal, const char * filename)
+void balancing_read(balancing & bal, std::string const & filename)
 {
     FILE * pfile;
 
-    ASSERT_ALWAYS(filename);
-    pfile = fopen (filename, "rb");
+    ASSERT_ALWAYS(!filename.empty());
+    pfile = fopen (filename.c_str(), "rb");
     if (pfile == NULL) {
-        perror(filename);
+        perror(filename.c_str());
         abort();
     }
     balancing_read_header_inner(bal, pfile);

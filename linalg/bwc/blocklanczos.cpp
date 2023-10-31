@@ -166,7 +166,7 @@ blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
     gmp_randinit_default(rstate);
 
     /* it's not really in the plans yet */
-    ASSERT_ALWAYS(mmt.nmatrices == 1);
+    ASSERT_ALWAYS(mmt.matrices.size() == 1);
 
 
     for(int i = 0 ; i < 3 ; i++) {
@@ -559,13 +559,13 @@ void blstate::operator()(parallelizing_info_ptr pi)
     }
 
 
-    timing_init(timing, 4 * mmt.nmatrices, bw->start, bw->interval * iceildiv(bw->end, bw->interval));
-    for(int i = 0 ; i < mmt.nmatrices ; i++) {
-        timing_set_timer_name(timing, 4*i, "CPU%d", i);
-        timing_set_timer_items(timing, 4*i, mmt.matrices[i]->mm->ncoeffs);
-        timing_set_timer_name(timing, 4*i+1, "cpu-wait%d", i);
-        timing_set_timer_name(timing, 4*i+2, "COMM%d", i);
-        timing_set_timer_name(timing, 4*i+3, "comm-wait%d", i);
+    timing_init(timing, 4 * mmt.matrices.size(), bw->start, bw->interval * iceildiv(bw->end, bw->interval));
+    for(size_t i = 0 ; i < mmt.matrices.size() ; i++) {
+        timing_set_timer_name(timing, 4*i, "CPU%zu", i);
+        timing_set_timer_items(timing, 4*i, mmt.matrices[i].mm->ncoeffs);
+        timing_set_timer_name(timing, 4*i+1, "cpu-wait%zu", i);
+        timing_set_timer_name(timing, 4*i+2, "COMM%zu", i);
+        timing_set_timer_name(timing, 4*i+3, "comm-wait%zu", i);
     }
 
     arith_generic::elt * vav;
