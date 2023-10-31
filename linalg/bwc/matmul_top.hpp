@@ -38,7 +38,7 @@ struct matmul_top_matrix {
      * has its own pointer though, it's not a shared_malloc. It could be,
      * but it isn't).
      *
-     * For random matrices, both strings below are NULL.
+     * For random matrices, both strings below are empty.
      */
     std::string mname;
     std::string bname;
