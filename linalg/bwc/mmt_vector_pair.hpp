@@ -5,7 +5,6 @@
 #include "matmul_top_vec.hpp"
 
 class mmt_vector_pair : public std::vector<mmt_vec> {
-    matmul_top_data & mmt;
 public:
     inline mmt_vec & operator[](int i) { return ((std::vector<mmt_vec> &)*this)[i]; }
     inline mmt_vec const & operator[](int i) const { return ((std::vector<mmt_vec> const &)*this)[i]; }

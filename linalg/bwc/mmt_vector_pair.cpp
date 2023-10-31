@@ -7,7 +7,6 @@
 
 mmt_vector_pair::mmt_vector_pair(matmul_top_data & mmt, int dir)
     : std::vector<mmt_vec>(mmt.nmatrices + (mmt.nmatrices & 1))
-    , mmt(mmt)
 {
     /* we allocate as many vectors as we have matrices, plus one if the
      * number of matrices is odd (so we always have an even number of
