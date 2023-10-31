@@ -59,8 +59,10 @@ extern void mmt_vec_setup(mmt_vec &, matmul_top_data_ptr mmt, arith_generic * ab
 extern size_t mmt_my_own_size_in_items(mmt_vec const & v);
 extern size_t mmt_my_own_size_in_bytes(mmt_vec const & v);
 extern size_t mmt_my_own_offset_in_items(mmt_vec const & v);
+extern size_t mmt_my_own_offset_in_items(mmt_vec const & v, unsigned int);
 extern size_t mmt_my_own_offset_in_bytes(mmt_vec const & v);
 extern arith_generic::elt * mmt_my_own_subvec(mmt_vec & v);
+extern arith_generic::elt * mmt_my_own_subvec(mmt_vec & v, unsigned int);
 extern arith_generic::elt const * mmt_my_own_subvec(mmt_vec const & v);
 
 extern void mmt_vec_set_random_through_file(mmt_vec & v, const char * name, unsigned int itemsondisk, gmp_randstate_t rstate, unsigned int block_position);
@@ -91,6 +93,8 @@ extern void mmt_vec_clear_padding(mmt_vec & v, size_t unpadded, size_t padded);
 static inline int mmt_vec_is_shared(mmt_vec const & v) {
     return v.siblings == NULL;
 }
+
+extern void mmt_vec_share_across_threads(mmt_vec & v);
 
 static inline void mmt_vec_set_random_through_file(mmt_vec & v, std::string const & name, unsigned int itemsondisk, gmp_randstate_t rstate, unsigned int block_position) {
     mmt_vec_set_random_through_file(v, name.c_str(), itemsondisk, rstate, block_position);

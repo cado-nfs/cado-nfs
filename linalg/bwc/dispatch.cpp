@@ -23,6 +23,79 @@
 #include "intersections.h"
 #include "macros.h"
 #include "mmt_vector_pair.hpp"
+#include "matmul_top_comm.hpp"
+
+void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
+{
+    mmt_full_vec_set_zero(y);
+
+#if 0
+    /* this should be equivalent to the other branch */
+    if (!mmt_vec_is_shared(y) || y.pi->wr[y.d]->trank == 0) {
+        for(unsigned int i = y.i0 ; i < y.i1 && i < unpadded ; i++) {
+            arith_generic::elt * dst = y.abase->vec_subvec(y.v, i - y.i0);
+            uint64_t value = DUMMY_VECTOR_COORD_VALUE(i);
+            memcpy(dst, &value, sizeof(uint64_t));
+        }
+    }
+    if (!mmt_vec_is_shared(y)) {
+        serialize_threads(y.pi->wr[y.d]);
+        y.abase->vec_set(y.v, mmt_vec_sibling(y, 0).v, y.i1 - y.i0);
+    }
+    serialize_threads(y.pi->wr[y.d]);
+#else
+    for(unsigned int j = 0 ; j < y.pi->wr[y.d]->njobs ; j++) {
+        for(size_t di = 0 ; di < mmt_my_own_size_in_items(y) ; di++) {
+            size_t i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
+            if (i >= unpadded)
+                break;
+            arith_generic::elt * dst = y.abase->vec_subvec(mmt_my_own_subvec(y, j), di);
+            uint64_t value = DUMMY_VECTOR_COORD_VALUE(i);
+            memcpy(dst, &value, sizeof(uint64_t));
+        }
+    }
+    serialize_threads(y.pi->wr[y.d]);
+    y.consistency = 1;
+    mmt_vec_share_across_threads(y);
+#endif
+    y.consistency = 2;
+}
+
+void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
+{
+    mmt_full_vec_set_zero(y);
+
+#if 0
+    /* this should be equivalent to the other branch */
+    if (!mmt_vec_is_shared(y) || y.pi->wr[y.d]->trank == 0) {
+        for(unsigned int i = y.i0 ; i < y.i1 && i < unpadded ; i++) {
+            arith_generic::elt * dst = y.abase->vec_subvec(y.v, i - y.i0);
+            uint64_t value = DUMMY_VECTOR_COORD_VALUE2(i);
+            memcpy(dst, &value, sizeof(uint64_t));
+        }
+    }
+    if (!mmt_vec_is_shared(y)) {
+        serialize_threads(y.pi->wr[y.d]);
+        y.abase->vec_set(y.v, mmt_vec_sibling(y, 0).v, y.i1 - y.i0);
+    }
+    serialize_threads(y.pi->wr[y.d]);
+#else
+    for(unsigned int j = 0 ; j < y.pi->wr[y.d]->njobs ; j++) {
+        for(size_t di = 0 ; di < mmt_my_own_size_in_items(y) ; di++) {
+            size_t i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
+            if (i >= unpadded)
+                break;
+            arith_generic::elt * dst = y.abase->vec_subvec(mmt_my_own_subvec(y, j), di);
+            uint64_t value = DUMMY_VECTOR_COORD_VALUE2(i);
+            memcpy(dst, &value, sizeof(uint64_t));
+        }
+    }
+    serialize_threads(y.pi->wr[y.d]);
+    y.consistency = 1;
+    mmt_vec_share_across_threads(y);
+#endif
+    y.consistency = 2;
+}
 
 void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {
@@ -91,13 +164,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
 
         checkname = "1st check: consistency of M*arbitrary1 (Hx == H1)";
 
-        mmt_full_vec_set_zero(y);
-        ASSERT_ALWAYS(y.siblings);     /* shared vector undesired */
-        for(unsigned int i = y.i0 ; i < y.i1 && i < unpadded ; i++) {
-            arith_generic::elt * dst = A->vec_subvec(y.v, i - y.i0);
-            uint64_t value = DUMMY_VECTOR_COORD_VALUE(i);
-            memcpy(dst, &value, sizeof(uint64_t));
-        }
+        mmt_full_vec_set_dummy1(y, unpadded);
+
         mmt_vec_twist(mmt, y);
         matmul_top_mul(mmt, ymy.vectors(), NULL);
         mmt_vec_untwist(mmt, y);
@@ -126,13 +194,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
 
         checkname = "2nd check: (arbitrary2, M*arbitrary1) == (arbitrary2*M==Hy, arbitrary1)";
 
-        mmt_full_vec_set_zero(my);
-        ASSERT_ALWAYS(my.siblings);     /* shared vector undesired */
-        for(unsigned int i = my.i0 ; i < my.i1 && i < unpadded ; i++) {
-            arith_generic::elt * dst = A->vec_subvec(my.v, i - my.i0);
-            uint64_t value = DUMMY_VECTOR_COORD_VALUE2(i);
-            memcpy(dst, &value, sizeof(uint64_t));
-        }
+        mmt_full_vec_set_dummy2(my, unpadded);
+
         /* This is L. Now compute the dot product. */
         arith_generic::elt * dp0;
         arith_generic::elt * dp1;
@@ -158,23 +221,16 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
          */
         mmt_vec_twist(mmt, my);
         {
-            mmt_vec myy[2];
-            mmt_vec_setup(myy[0], mmt,0,0, 0, 0, mmt->n[0]);
-            mmt_vec_setup(myy[1], mmt,0,0, 1, 0, mmt->n[1]);
+            mmt_vector_pair myy(mmt, 0);
             mmt_full_vec_set(myy[0], my);
-            matmul_top_mul(mmt, myy, NULL);
+            matmul_top_mul(mmt, myy.vectors(), NULL);
             mmt_full_vec_set(my, myy[0]);
         }
         mmt_vec_untwist(mmt, my);
         mmt_vec_save(my, "Hy%u-%u", unpadded, 0);
 
-        mmt_full_vec_set_zero(y);
-        ASSERT_ALWAYS(y.siblings);     /* shared vector undesired */
-        for(unsigned int i = y.i0 ; i < y.i1 && i < unpadded ; i++) {
-            arith_generic::elt * dst = A->vec_subvec(y.v, i - y.i0);
-            uint64_t value = DUMMY_VECTOR_COORD_VALUE(i);
-            memcpy(dst, &value, sizeof(uint64_t));
-        }
+        mmt_full_vec_set_dummy1(y, unpadded);
+
         A->vec_set_zero(dp1, A->simd_groupsize());
         AxA->add_dotprod(dp1,
                 A->vec_subvec(my.v, offset_c),

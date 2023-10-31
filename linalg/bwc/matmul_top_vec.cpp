@@ -128,6 +128,18 @@ mmt_vec::~mmt_vec()
 }
 /* }}} */
 
+/* This is a companion call to mmt_my_own_offset_in_items. Here, we do
+ * not give the offset of data we're particularly the "owner" of, but
+ * data that is owned by job jrank _and the same trank as ours_.
+ */
+size_t mmt_my_own_offset_in_items(mmt_vec const & v, unsigned int jrank)
+{
+    pi_comm_ptr wr = v.pi->wr[v.d];
+    size_t eblock = (v.i1 - v.i0) /  wr->totalsize;
+    int pos = jrank * wr->ncores + wr->trank;
+    return pos * eblock;
+}
+
 /* my "own" offset is the added offset within my locally stored data area
  * which represents the data range I am the owner of. This data range
  * correspond to the index range v.i0 + offset to v.i0 + offset + size
@@ -135,14 +147,17 @@ mmt_vec::~mmt_vec()
 size_t mmt_my_own_offset_in_items(mmt_vec const & v)
 {
     pi_comm_ptr wr = v.pi->wr[v.d];
-    size_t eblock = (v.i1 - v.i0) /  wr->totalsize;
-    int pos = wr->jrank * wr->ncores + wr->trank;
-    return pos * eblock;
+    return mmt_my_own_offset_in_items(v, wr->jrank);
 }
 
 size_t mmt_my_own_offset_in_bytes(mmt_vec const & v)
 {
     return v.abase->vec_elt_stride(mmt_my_own_offset_in_items(v));
+}
+
+arith_generic::elt * mmt_my_own_subvec(mmt_vec & v, unsigned int jrank)
+{
+    return v.abase->vec_subvec(v.v, mmt_my_own_offset_in_items(v, jrank));
 }
 
 arith_generic::elt * mmt_my_own_subvec(mmt_vec & v)
@@ -204,6 +219,38 @@ void mmt_vec_swap(mmt_vec & w, mmt_vec & v)
 }
 */
 
+
+/* This is a no-op if storage is shared across threads in direction v.d.
+ * If it's not, then each thread has its own copy. We take each
+ * thread as authoritative with respect to one specific data range, and
+ * all threads replicate this authoritative source to their own data
+ *
+ * The post-condition is that the data range is the same across all
+ * threads in direction v.d. We don't care whether it's consistent across
+ * nodes.  (In particular, this call is not an mmt_vec_broadcast, since
+ * we only communicate between threads)
+ */
+void mmt_vec_share_across_threads(mmt_vec & v)
+{
+    if (mmt_vec_is_shared(v)) return;
+    pi_comm_ptr wr = v.pi->wr[v.d];
+    for(unsigned int t = 0 ; t < wr->ncores ; t++) {
+        if (t == wr->trank)
+            continue;
+        mmt_vec const & w = mmt_vec_sibling(v, t);
+
+        for(unsigned int j = 0 ; j < wr->njobs ; j++) {
+            size_t off = mmt_my_own_offset_in_items(w, j);
+            size_t sz  = mmt_my_own_size_in_items(w);
+
+            v.abase->vec_set(
+                    v.abase->vec_subvec(v.v, off),
+                    v.abase->vec_subvec(w.v, off),
+                    sz);
+        }
+    }
+}
+
 void mmt_full_vec_set(mmt_vec & w, mmt_vec const & v)
 {
     /* DO **NOT** early-quit when v==w, because we might be calling this
@@ -213,21 +260,44 @@ void mmt_full_vec_set(mmt_vec & w, mmt_vec const & v)
     // ASSERT_ALWAYS(v.abase == w.abase);
     ASSERT_ALWAYS(v.d == w.d);
     ASSERT_ALWAYS(mmt_my_own_size_in_items(v) == mmt_my_own_size_in_items(w));
+    pi_comm_ptr wr = w.pi->wr[v.d];
     if (w.siblings) {
+        /* w is not shared. Maybe v is, we don't really care */
         if (w.v != v.v) {
             v.abase->vec_set(w.v, v.v, v.i1 - v.i0);
         }
-    } else {
-        ASSERT_ALWAYS(v.siblings == NULL);
+    } else if (mmt_vec_is_shared(v) || v.consistency == 2) {
+        /* We make do with a single data source in v (either because
+         * there _is_ only one, or because all are assumed consistent
+         * anyway
+         */
         if (w.v != v.v) {
-            if (w.pi->wr[w.d]->trank == 0) {
-                v.abase->vec_set(w.v, v.v, v.i1 - v.i0);
-            }
+            if (wr->trank == 0)
+                w.abase->vec_set(w.v, v.v, v.i1 - v.i0);
+            serialize_threads(wr);
         }
-        serialize_threads(w.pi->wr[w.d]);
+    } else {
+        /* w is shared, but we need to read from multiple data sources.
+         *
+         * It is not entirely clear if we need to read only the data that
+         * is relevant to the current node, or to all nodes. Given that
+         * in the other cases, we copy the full range between i0 and i1,
+         * it seems reasonable to attempt to do the same.
+         */
+        mmt_vec const & vt = mmt_vec_sibling(v, wr->trank);
+
+        for(unsigned int j = 0 ; j < wr->njobs ; j++) {
+            size_t off = mmt_my_own_offset_in_items(vt, j);
+            size_t sz  = mmt_my_own_size_in_items(vt);
+
+            w.abase->vec_set(
+                    v.abase->vec_subvec(w.v, off),
+                    v.abase->vec_subvec(vt.v, off),
+                    sz);
+        }
+        serialize_threads(wr);
     }
-    if (&v != &w)
-        w.consistency = v.consistency;
+    w.consistency = v.consistency;
 }
 
 void mmt_full_vec_set_zero(mmt_vec & v)
