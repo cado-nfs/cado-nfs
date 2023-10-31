@@ -355,8 +355,7 @@ void mmt_apply_identity(mmt_vec & w, mmt_vec const & v)
 void mmt_vec_apply_or_unapply_P_inner(matmul_top_data & mmt, mmt_vec & y, int apply)
 {
     ASSERT_ALWAYS(y.consistency == 2);
-    mmt_vec yt;
-    mmt_vec_setup(yt, mmt, y.abase, y.pitype, !y.d, 0, y.n);
+    mmt_vec yt(mmt, y.abase, y.pitype, !y.d, 0, y.n);
     if ((apply ^ y.d) == 0) {
         // y.d == 0: get v*P^-1
         // y.d == 1: get v*P
@@ -440,8 +439,7 @@ void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec &
          * apply == 1 d == 0 Sr implicit:  v <- v * Sc
          * apply == 1 d == 1 Sc implicit:  v <- v * Sr
          */
-        mmt_vec yt;
-        mmt_vec_setup(yt, mmt, A, y.pitype, !d, 0, y.n);
+        mmt_vec yt(mmt, A, y.pitype, !d, 0, y.n);
 
         mmt_apply_identity(yt, y);
         mmt_vec_allreduce(yt);
@@ -465,8 +463,7 @@ void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec &
          * apply == 0 d == 0 Sr implicit:  v <- v * Sc^-1
          * apply == 0 d == 1 Sc implicit:  v <- v * Sr^-1
          */
-        mmt_vec yt;
-        mmt_vec_setup(yt, mmt, A, y.pitype, !d, 0, y.n);
+        mmt_vec yt(mmt, A, y.pitype, !d, 0, y.n);
         for(unsigned int k = 0 ; k < s->n ; k++) {
             if (s->x[k][d^xd] < y.i0 || s->x[k][d^xd] >= y.i1)
                 continue;
@@ -564,8 +561,7 @@ void mmt_vec_apply_or_unapply_T_inner(matmul_top_data & mmt, mmt_vec & y, int ap
     matmul_top_matrix_ptr Mloc = mmt.matrices[mmt.nmatrices - 1];
     ASSERT_ALWAYS(y.consistency == 2);
     serialize_threads(y.pi->m);
-    mmt_vec yt;
-    mmt_vec_setup(yt, mmt, y.abase, y.pitype, !y.d, 0, y.n);
+    mmt_vec yt(mmt, y.abase, y.pitype, !y.d, 0, y.n);
     for(unsigned int i = y.i0 ; i < y.i1 ; i++) {
         unsigned int j;
         if (apply) {
@@ -1112,16 +1108,17 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
     shared_free(mmt.pi->m, bal_tmp);
 }
 
-void matmul_top_init(matmul_top_data & mmt,
+matmul_top_data::matmul_top_data(
         arith_generic * abase,
         /* matmul_ptr mm, */
         parallelizing_info_ptr pi,
         param_list_ptr pl,
         int optimized_direction)
+    : abase(abase)
+    , pi(pi)
+    , pitype(pi_alloc_arith_datatype(pi, abase))
 {
-    mmt.abase = abase;
-    mmt.pitype = pi_alloc_arith_datatype(pi, abase);
-    mmt.pi = pi;
+    matmul_top_data & mmt = *this;
     mmt.matrices = NULL;
 
     int nbals = param_list_get_list_count(pl, "balancing");
@@ -1580,8 +1577,9 @@ void matmul_top_report(matmul_top_data & mmt, double scale, int full)
     }
 }
 
-void matmul_top_clear(matmul_top_data & mmt)
+matmul_top_data::~matmul_top_data()
 {
+    matmul_top_data & mmt = *this;
     pi_free_arith_datatype(mmt.pi, mmt.pitype);
     serialize_threads(mmt.pi->m);
     serialize(mmt.pi->m);

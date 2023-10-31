@@ -53,9 +53,9 @@ struct check_data {
         , Ac(arith_generic::instance(bw->p, nchecks))
         , Ac_pi(pi_alloc_arith_datatype(pi, Ac.get()))
         , AxAc(arith_cross_generic::instance(A, Ac.get()))
+        , check_vector(mmt, Ac.get(), Ac_pi,
+                  bw->dir, THREAD_SHARED_VECTOR, mmt.n[bw->dir])
       {
-          mmt_vec_setup(check_vector, mmt, Ac.get(), Ac_pi,
-                  bw->dir, THREAD_SHARED_VECTOR, mmt.n[bw->dir]);
           tcan_print = bw->can_print && pi->m->trank == 0;
       }
 
@@ -162,7 +162,6 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     fake = fake || param_list_lookup_string(pl, "static_random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
     struct timing_data timing[1];
 
     int ys[2] = { bw->ys[0], bw->ys[1], };
@@ -176,8 +175,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     block_control_signals();
 
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
-    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
-    auto clean_mmt = call_dtor([&]() { matmul_top_clear(mmt); });
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
 
     std::shared_ptr<check_data> C;
     if (!bw->skip_online_checks)

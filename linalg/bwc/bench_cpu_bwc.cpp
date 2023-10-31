@@ -26,6 +26,7 @@
 #include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
 #include "fmt/format.h"
 #include "macros.h"
+#include "matmul_top_vec.hpp"
 using namespace fmt::literals;
 
 double
@@ -54,7 +55,6 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
     fake = fake || param_list_lookup_string(pl, "static_random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
 
     int ys[2] = { bw->ys[0], bw->ys[1], };
     if (pi->interleaved) {
@@ -66,7 +66,7 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     block_control_signals();
 
-    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
 
     /* we allocate as many vectors as we have matrices, plus one if the
      * number of matrices is odd (so we always have an even number of
@@ -78,21 +78,21 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
      * This could be improved.
      */
 
-    int nmats_odd = mmt->nmatrices & 1;
+    int nmats_odd = mmt.nmatrices & 1;
 
-    mmt_vec * ymy = new mmt_vec[mmt->nmatrices + nmats_odd];
+    mmt_vec * ymy = new mmt_vec[mmt.nmatrices + nmats_odd];
     matmul_top_matrix_ptr mptr;
-    mptr = (matmul_top_matrix_ptr) mmt->matrices + (bw->dir ? (mmt->nmatrices - 1) : 0);
-    for(int i = 0 ; i < mmt->nmatrices ; i++) {
+    mptr = (matmul_top_matrix_ptr) mmt.matrices + (bw->dir ? (mmt.nmatrices - 1) : 0);
+    for(int i = 0 ; i < mmt.nmatrices ; i++) {
         int shared = (i == 0) & nmats_odd;
-        mmt_vec_init(mmt,0,0, ymy[i], bw->dir ^ (i&1), shared, mptr->n[bw->dir]);
+        mmt_vec_setup(ymy[i], mmt,0,0, bw->dir ^ (i&1), shared, mptr->n[bw->dir]);
         mmt_full_vec_set_zero(ymy[i]);
 
         mptr += bw->dir ? -1 : 1;
     }
     if (nmats_odd) {
-        mmt_vec_init(mmt,0,0, ymy[mmt->nmatrices], !bw->dir, 0, mmt->matrices[0]->n[bw->dir]);
-        mmt_full_vec_set_zero(ymy[mmt->nmatrices]);
+        mmt_vec_setup(ymy[mmt.nmatrices], mmt,0,0, !bw->dir, 0, mmt.matrices[0]->n[bw->dir]);
+        mmt_full_vec_set_zero(ymy[mmt.nmatrices]);
     }
 
     /* I have absolutely no idea why, but the two --apparently useless--
@@ -128,16 +128,16 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
         for(int i = 0 ; i < streak ; i++) {
             // matmul_top_mul(mmt, ymy, timing);
             {
-                int d = ymy[0]->d;
-                int nmats_odd = mmt->nmatrices & 1;
-                int midx = (d ? (mmt->nmatrices - 1) : 0);
-                for(int l = 0 ; l < mmt->nmatrices ; l++) {
-                    mmt_vec_ptr src = ymy[l];
-                    int last = l == (mmt->nmatrices - 1);
+                int d = ymy[0].d;
+                int nmats_odd = mmt.nmatrices & 1;
+                int midx = (d ? (mmt.nmatrices - 1) : 0);
+                for(int l = 0 ; l < mmt.nmatrices ; l++) {
+                    mmt_vec & src = ymy[l];
+                    int last = l == (mmt.nmatrices - 1);
                     int lnext = last && !nmats_odd ? 0 : (l+1);
-                    mmt_vec_ptr dst = ymy[lnext];
+                    mmt_vec & dst = ymy[lnext];
 
-                    src->consistency = 2;
+                    src.consistency = 2;
                     matmul_top_mul_cpu(mmt, midx, d, dst, src);
 
 
@@ -179,12 +179,7 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
     }
     serialize(pi->m);
 
-    for(int i = 0 ; i < mmt->nmatrices + nmats_odd ; i++) {
-        mmt_vec_clear(mmt, ymy[i]);
-    }
     delete[] ymy;
-
-    matmul_top_clear(mmt);
 
     return NULL;
 }

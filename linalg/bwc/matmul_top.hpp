@@ -70,8 +70,8 @@ typedef struct matmul_top_matrix_s * matmul_top_matrix_ptr;
 typedef struct matmul_top_matrix_s const * matmul_top_matrix_srcptr;
 
 struct matmul_top_data {
-    parallelizing_info_ptr pi;
     arith_generic * abase;
+    parallelizing_info_ptr pi;
     pi_datatype_ptr pitype;
     /* These n[] and n0[] correspond to the dimensions of the product
      *
@@ -88,21 +88,20 @@ struct matmul_top_data {
      */
     int nmatrices;
     matmul_top_matrix * matrices;
-};
-
-struct mmt_vec;
-
-extern void matmul_top_init(matmul_top_data & mmt,
+    matmul_top_data(
         arith_generic * abase,
         parallelizing_info_ptr pi,
         param_list_ptr pl,
         int optimized_direction);
+    ~matmul_top_data();
+};
+
+struct mmt_vec;
 
 
 extern void matmul_top_decl_usage(param_list_ptr pl);
 extern void matmul_top_lookup_parameters(param_list_ptr pl);
 extern void matmul_top_report(matmul_top_data & mmt, double scale, int full);
-extern void matmul_top_clear(matmul_top_data & mmt);
 extern unsigned int matmul_top_rank_upper_bound(matmul_top_data & mmt);
 #if 0
 extern void matmul_top_fill_random_source(matmul_top_data & mmt, int d);

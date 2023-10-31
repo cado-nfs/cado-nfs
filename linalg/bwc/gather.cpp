@@ -532,8 +532,7 @@ struct rhs /*{{{*/ {
         arith_generic * Av = natural.A.get();
         pi_datatype_ptr Av_pi = natural.A_pi;
 
-        mmt_vec vi;
-        mmt_vec_setup(vi, mmt,Av,Av_pi, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
+        mmt_vec vi(mmt,Av,Av_pi, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
 
         for(unsigned int j = 0 ; j < nrhs ; j++) {
             int ok = mmt_vec_load(vi, "V%u-%u.0", unpadded, j);
@@ -1117,8 +1116,6 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     int tcan_print = bw->can_print && pi->m->trank == 0;
     int leader = pi->m->jrank == 0 && pi->m->trank == 0;
 
-    matmul_top_data mmt;
-
     unsigned int solutions[2] = { bw->solutions[0], bw->solutions[1], };
     int char2 = mpz_cmp_ui(bw->p, 2) == 0;
 
@@ -1145,16 +1142,14 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
     /* }}} */
 
-    matmul_top_init(mmt, A, pi, pl, bw->dir);
-    auto clean_mmt = call_dtor([&]() { matmul_top_clear(mmt); });
+    matmul_top_data mmt(A, pi, pl, bw->dir);
 
     parasite_fixer pfixer(mmt);
 
     mmt_vector_pair ymy(mmt, bw->dir);
     mmt_vec & y = ymy[0];
 
-    mmt_vec y_saved;
-    mmt_vec_setup(y_saved, mmt,0,0, bw->dir, mmt_vec_is_shared(y), mmt.n[bw->dir]);
+    mmt_vec y_saved(mmt,0,0, bw->dir, mmt_vec_is_shared(y), mmt.n[bw->dir]);
 
     /* this is really a misnomer, because in the typical case, M is
      * rectangular, and then the square matrix does induce some padding.
@@ -1185,8 +1180,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
 
     { /* {{{ Collect now the sum of the LHS contributions */
-        mmt_vec svec;
-        mmt_vec_setup(svec, mmt,0,0, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
+        mmt_vec svec(mmt,0,0, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
         for(size_t i = 0 ; i < sl.size() ; i++) {
             if (tcan_print && verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
                 printf("loading %s\n", sl[i].name);

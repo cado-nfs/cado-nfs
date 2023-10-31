@@ -27,7 +27,6 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
     struct timing_data timing[1];
 
     unsigned int solutions[2] = { bw->solutions[0], bw->solutions[1], };
@@ -84,7 +83,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
 
     /* Now that we do this in Horner fashion, we multiply on vectors
      * whose width is the number of solutions we compute. */
-    matmul_top_init(mmt, As.get(), pi, pl, bw->dir);
+    matmul_top_data mmt(As.get(), pi, pl, bw->dir);
     pi_datatype_ptr As_pi = mmt.pitype;
 
     /* allocate vectors (two batches): */
@@ -503,8 +502,6 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
         As->free((fcoeff_tmp));
     }
 
-
-    matmul_top_clear(mmt);
     pi_free_arith_datatype(pi, Av_pi);
 
     timing_clear(timing);

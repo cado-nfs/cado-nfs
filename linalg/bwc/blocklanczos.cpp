@@ -24,10 +24,10 @@
 int exit_code = 0;
 
 struct blstate {
-    matmul_top_data mmt;
-    mmt_vec y, my;
     std::unique_ptr<arith_generic> A;
+    matmul_top_data mmt;
     std::unique_ptr<arith_cross_generic> AxA;
+    mmt_vec y, my;
 
 
     gmp_randstate_t rstate;
@@ -149,7 +149,10 @@ uint64_t extraction_step(uint64_t * B, uint64_t * A, uint64_t S)
 
 blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
     : A(arith_generic::instance(bw->p, bw->ys[1]-bw->ys[0]))
+    , mmt(A.get(), pi, pl, bw->dir)
     , AxA(arith_cross_generic::instance(A.get(), A.get()))
+    , y(mmt,0,0,  bw->dir, 0, mmt.n[bw->dir])
+    , my(mmt,0,0, !bw->dir, 0, mmt.n[!bw->dir])
 {
     /* Note that THREAD_SHARED_VECTOR can't work in a block Lanczos
      * context, since both ways are used for input and output.
@@ -162,13 +165,9 @@ blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
 
     gmp_randinit_default(rstate);
 
-    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
-
     /* it's not really in the plans yet */
     ASSERT_ALWAYS(mmt.nmatrices == 1);
 
-    mmt_vec_setup(y,  mmt,0,0,  bw->dir, 0, mmt.n[bw->dir]);
-    mmt_vec_setup(my, mmt,0,0, !bw->dir, 0, mmt.n[!bw->dir]);
 
     for(int i = 0 ; i < 3 ; i++) {
         /* We also need D_n, D_{n-1}, D_{n-2}. Those are in fact bitmaps.
@@ -189,7 +188,6 @@ blstate::~blstate()
          * Not clear that the bitmap type is really the one we want, though. */
         bit_vector_clear(D[i]);
     }
-    matmul_top_clear(mmt);
     gmp_randclear(rstate);
 }
 

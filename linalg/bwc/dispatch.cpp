@@ -99,7 +99,6 @@ void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
 
 void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {
-    matmul_top_data mmt;
 
     int ys[2] = { bw->ys[0], bw->ys[1], };
     /*
@@ -123,7 +122,8 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
      
     /* HERE is the place where something actually happens. The rest of
      * this function are just sanity checks. Matrix dispatch can, in
-     * fact, be done from any program which does matmul_top_init. This
+     * fact, be done from any program which creates a matmul_top_data
+     * object. This
      * function calls mmt_finish_init, which calls
      * matmul_top_read_submatrix, which eventuallmy,a!ls
      * balancing_get_matrix_u32, which hooks into the balancing code.
@@ -134,7 +134,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
      * random_matrix_size : for creating test matrices, essentially for
      * krylov/mksol speed testing.
      */
-    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
 
     mmt_vector_pair ymy(mmt, 1);
     mmt_vec & y = ymy[0];
@@ -249,8 +249,6 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         A->free(dp0);
         A->free(dp1);
     }
-
-    matmul_top_clear(mmt);
 
     return NULL;
 }

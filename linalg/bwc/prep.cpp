@@ -56,7 +56,6 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
     pi_hello(pi);
 
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
 
     unsigned int nrhs = 0;
     int char2 = mpz_cmp_ui(bw->p, 2) == 0;
@@ -67,8 +66,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, A_width));
     ASSERT_ALWAYS(A->simd_groupsize() * A_multiplex == (unsigned int) bw->n);
 
-    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
-    auto clean_mmt = call_dtor([&]() { matmul_top_clear(mmt); });
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
 
     bw_rank_check(mmt, pl);
 
@@ -266,7 +264,6 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     pi_hello(pi);
 
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
 
     unsigned int nrhs = 0;
     int char2 = mpz_cmp_ui(bw->p, 2) == 0;
@@ -277,8 +274,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
 
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, splitwidth));
 
-    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
-    auto clean_mmt = call_dtor([&]() { matmul_top_clear(mmt); });
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
 
     // I don't think this was ever tested.
     ASSERT_ALWAYS(mmt.nmatrices == 1);

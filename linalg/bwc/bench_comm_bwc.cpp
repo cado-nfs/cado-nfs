@@ -53,7 +53,6 @@ void * bench_comm_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYB
     fake = fake || param_list_lookup_string(pl, "static_random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
 
     int ys[2] = { bw->ys[0], bw->ys[1], };
     if (pi->interleaved) {
@@ -64,7 +63,7 @@ void * bench_comm_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYB
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     block_control_signals();
 
-    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
 
     serialize(pi->m);
     matmul_top_comm_bench(mmt, bw->dir);
@@ -73,8 +72,6 @@ void * bench_comm_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYB
         printf("Done bench.\n");
     }
     serialize(pi->m);
-
-    matmul_top_clear(mmt);
 
     return NULL;
 }

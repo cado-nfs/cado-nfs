@@ -64,7 +64,6 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     ASSERT_ALWAYS(!pi->interleaved);
 
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
 
     int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
@@ -73,15 +72,14 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* We need that in order to do matrix products */
     std::unique_ptr<arith_cross_generic> AxA(arith_cross_generic::instance(A.get(), A.get()));
 
-    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
     pi_datatype_ptr A_pi = mmt.pitype;
 
     /* we work in the opposite direction compared to other programs */
     mmt_vector_pair myy(mmt, !bw->dir);
     mmt_vec & my = myy[0];
 
-    mmt_vec dvec;
-    mmt_vec_setup(dvec, mmt,0,0, !bw->dir, /* shared ! */ 1, mmt.n[!bw->dir]);
+    mmt_vec dvec(mmt,0,0, !bw->dir, /* shared ! */ 1, mmt.n[!bw->dir]);
 
     unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 

@@ -135,7 +135,6 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     gmp_randstate_t rstate;
 
     // int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
 
     // int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     // int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
@@ -148,7 +147,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
      * direction should still work. Note that changing the optimized
      * direction is going to trigger a different choice of cache files. */
     /* TODO check this with the various combinations of d */
-    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
 
     /* check that mmt_apply_identity does what we expect. This function
      * goes from a vector in one direction to a vector in another
@@ -156,10 +155,9 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
      * however).
      */
     {
-        mmt_vec v, vi, vii;
-        mmt_vec_setup(v,   mmt,0,0, 0, /* shared ! */ 1, mmt.n[0]);
-        mmt_vec_setup(vi,  mmt,0,0, 1,                0, mmt.n[1]);
-        mmt_vec_setup(vii, mmt,0,0, 0,                0, mmt.n[0]);
+        mmt_vec v  (mmt,0,0, 0, /* shared ! */ 1, mmt.n[0]);
+        mmt_vec vi (mmt,0,0, 1,                0, mmt.n[1]);
+        mmt_vec vii(mmt,0,0, 0,                0, mmt.n[0]);
         serialize(pi->m);
         mmt_vec_set_0n(v, mmt.n0[0]);
         /* We save the Z files, although it's useless, the checking done
@@ -256,8 +254,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                 }
             }
             if (xc) {
-                mmt_vec v;
-                mmt_vec_setup(v, mmt,0,0, 1, test_shared, mmt.n[1]);
+                mmt_vec v(mmt,0,0, 1, test_shared, mmt.n[1]);
 
                 /* Because we want to test the permutation, we need to
                  * fill our dummy vector with the full range [0..n[, not
@@ -294,8 +291,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             }
             if (xr) {
                 /* same for row vectors */
-                mmt_vec v;
-                mmt_vec_setup(v, mmt,0,0, 0, test_shared, mmt.n[0]);
+                mmt_vec v(mmt,0,0, 0, test_shared, mmt.n[0]);
 
                 mmt_vec_set_0n(v, mmt.n[0]);
                 /* v <- v * S:  coefficient i goes to position S(i).  */
@@ -328,9 +324,8 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* The file pair (Y.0, MY.0) will be checked for correctness against the
      * result obtained by short_matmul */
     {
-        mmt_vec y, my;
-        mmt_vec_setup(y,  mmt,0,0, 1, /* shared ! */ 1, mmt.n[1]);
-        mmt_vec_setup(my, mmt,0,0, 0,                0, mmt.n[0]);
+        mmt_vec y( mmt,0,0, 1, /* shared ! */ 1, mmt.n[1]);
+        mmt_vec my(mmt,0,0, 0,                0, mmt.n[0]);
         serialize(pi->m);
         mmt_vec_set_random_through_file(y, "Y%u-%u.0", mmt.n0[1], rstate, 0);
         /* recall that for all purposes, bwc operates with M*T^-1 and not M
@@ -350,9 +345,8 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* The file pair (W, WM) will be checked for correctness against the
      * result obtained by short_matmul */
     {
-        mmt_vec w, wm;
-        mmt_vec_setup(w,  mmt,0,0, 0, /* shared ! */ 1, mmt.n[0]);
-        mmt_vec_setup(wm, mmt,0,0, 1,                0, mmt.n[1]);
+        mmt_vec w(  mmt,0,0, 0, /* shared ! */ 1, mmt.n[0]);
+        mmt_vec wm( mmt,0,0, 1,                0, mmt.n[1]);
         serialize(pi->m);
         mmt_vec_set_random_through_file(w, "W%u-%u.0", mmt.n0[0], rstate, 0);
         mmt_vec_twist(mmt, w);
@@ -385,9 +379,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         for(int d = 0 ; d < 2 ; d++)  {
             char * tmp;
             int rc;
-            mmt_vec x;
-
-            mmt_vec_setup(x, mmt,0,0, d, /* shared ! */ 1, mmt.n[d]);
+            mmt_vec x(mmt,0,0, d, /* shared ! */ 1, mmt.n[d]);
 
             /* prepare a first vector */
             mmt_vec_set_x_indices(x, xx, m, nx);
@@ -511,7 +503,6 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     memset(oldv[1], 0, sizeof(mmt_vec));
 #endif
 
-    matmul_top_clear(mmt);
     // A->oo_field_clear(A);
     gmp_randclear(rstate);
 
