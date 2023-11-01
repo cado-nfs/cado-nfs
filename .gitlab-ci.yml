@@ -262,7 +262,7 @@ including_mpi specific checks with icc:
 
 including_mpi specific checks with openmpi:
   <<: *common-template
-  image: debian:testing
+  image: alpine:latest
   stage: early
   tags:
     - mpi
