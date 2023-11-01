@@ -141,7 +141,10 @@ set_mpi_derived_variables()
         # the same question holds for openmpi), then we must do something
         # different.
         *,impi) 
-            set_choices_from_n $nnodes
+            # 20231101: changing from nnodes to ncores. Apparently,
+            # current impi is ok with overcommitting the current node.
+            # It's quite desirable for testing purposes, so let's do it.
+            set_choices_from_n $ncores
             ;;
         *)
             echo "Script does not know which mpi tests to enable (nnode=$nnodes ncores=$ncores mpi_family=$family)"
