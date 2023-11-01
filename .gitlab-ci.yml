@@ -247,12 +247,25 @@ checks with clangdev:
     - *checks-script
   <<: *checks-junit-report
 
-checks with icc:
+including_mpi specific checks with icc:
   <<: *common-template
   image: intel/oneapi-hpckit:latest
   stage: early
   tags:
     - icc
+    - mpi
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+including_mpi specific checks with openmpi:
+  <<: *common-template
+  image: debian:testing
+  stage: early
+  tags:
+    - mpi
   before_script:
     - ci/ci/00-prepare-docker.sh
   script:

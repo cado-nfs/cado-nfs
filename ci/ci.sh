@@ -18,6 +18,10 @@ tweak_tree_before_configure() { : ; }
 step_configure() {
     if [ "$specific_checks" = "bwc.sagemath" ] ; then
         export FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3=1
+    elif [ "$specific_checks" = "including_mpi" ] ; then
+        export MPI=1
+    elif [ "$specific_checks" = "only_mpi" ] ; then
+        export MPI=1
     fi
     if [ "$using_cmake_directly" ] ; then
         (cd "$build_tree" ; cmake "$source_tree")
@@ -116,6 +120,11 @@ step_check() {
 
     if [ "$specific_checks" = "bwc.sagemath" ] ; then
         ctest_args="$ctest_args -R with_sagemath"
+    elif [ "$specific_checks" = "including_mpi" ] ; then
+        # nothing to do
+        :
+    elif [ "$specific_checks" = "only_mpi" ] ; then
+        ctest_args="$ctest_args -R mpi"
     fi
 
     if [ "$using_cmake_directly" ] ; then
