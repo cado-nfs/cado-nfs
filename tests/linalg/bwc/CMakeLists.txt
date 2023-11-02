@@ -430,7 +430,10 @@ foreach(layer u64k1)
         SOURCES test_matpoly.cpp
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_qcode_binary.cpp
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_expected_pi_length.cpp
-        LIBRARIES lingen_${layer}_support)
+        LIBRARIES lingen_${layer}_support
+        AVOID_CONCURRENT 4
+        TIMEOUT 60
+    )
     # (unused for p=2 anyway)
     # ARGUMENTS --prime 2
     set_target_properties(test_matpoly_${layer} PROPERTIES
