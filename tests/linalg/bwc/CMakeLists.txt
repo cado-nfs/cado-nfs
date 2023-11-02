@@ -27,7 +27,9 @@ macro(add_bwc_test nm script)
             ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/${script}
             bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN}
             AVOID_CONCURRENT
-            TARGET_DEPENDENCIES bwc_full)
+            TARGET_DEPENDENCIES bwc_full
+            TIMEOUT 45
+        )
         # these verbose_flags don't play with the idea of adding a
         # divert_bwc_test macro.
         # -- verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch,^bwc-loading-mksol-files,^bwc-cache-major-info,^bwc-cpubinding,^perl-checks,^perl-sections
@@ -86,6 +88,9 @@ if(HAVE_PERL_DIGEST_MD5)
                 ${ARGN}
                 TARGET_DEPENDENCIES lingen_u64k1
                 AVOID_CONCURRENT
+                # We have cases where _many_ bwc tests end up taking more
+                # than the default 20 seconds. Maybe it's better to add
+                # the cutoff.
                 TIMEOUT 60
                 )
         endforeach()
