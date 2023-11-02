@@ -54,7 +54,7 @@ math(EXPR test_index 0)
 # openmp jobs really don't like competing with eachother, so we must be
 # cautious. Setting OMP_DYNAMIC=true seems to alleviate this problem
 # significantly
-math(EXPR test_concurrency_tolerance 4)
+math(EXPR test_concurrency_tolerance 2)
 
 set(CADO_NFS_TEST_KEYWORDS_LAST_WINS TIMEOUT)
 set(CADO_NFS_TEST_KEYWORDS_FIRST_WINS_NOISY WORKING_DIRECTORY TEST_NAME)
