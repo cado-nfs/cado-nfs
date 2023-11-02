@@ -171,7 +171,7 @@ has_file_already() {
             if [ "$x" = "$filename" ] ; then
                 x="$filename.gz"
             fi
-            let cmdz+=("$x")
+            cmdz+=("$x")
         done
         test_if_has_file compressed "$filename.gz" "${cmdz[@]}"
     else
