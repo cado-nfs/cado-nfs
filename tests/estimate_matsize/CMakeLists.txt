@@ -28,5 +28,6 @@ cado_divert_test(estimate_matsize
     p80_compsq
     -params ${CMAKE_CURRENT_SOURCE_DIR}/p80_compsq.ems.params
     ${CMAKE_CURRENT_SOURCE_DIR}/p80.poly
+    TIMEOUT 90
     )
 endif()

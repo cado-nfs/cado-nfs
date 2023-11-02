@@ -279,6 +279,7 @@ cado_divert_test(F9 batch
             REFERENCE_SHA1=3aba8ade73e9e47dd76b0f85a2c681408f34a189
             REFERENCE_REVISION=5d9b68511102a957f941b272eb6d753526bcc3b1
         APPEND_ARGUMENTS -batch
+        TIMEOUT 60
         )
 cado_define_test(bogus_batch_is_consistent
     PROGRAM
