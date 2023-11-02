@@ -612,6 +612,7 @@ sub detect_mpi {
     # From standard mpi-3 on, the name has returned to mpich.
     my $maybe_mpich=1;
     my $maybe_openmpi=1;
+    my $maybe_intelmpi=1;
 
     if (defined($mpi)) {
         SEVERAL_CHECKS: {
@@ -630,29 +631,34 @@ sub detect_mpi {
                     print STDERR "Auto-detecting openmpi based on alternatives\n";
                     $maybe_mvapich2=0;
                     $maybe_mpich=0;
+                    $maybe_intelmpi=0;
                     last;
                 } elsif ($mpiexec =~ /mpich2/) {
                     print STDERR "Auto-detecting mpich2(old) based on alternatives\n";
                     $maybe_mpich='mpich2';
                     $maybe_mvapich2=0;
                     $maybe_openmpi=0;
+                    $maybe_intelmpi=0;
                     last;
                 } elsif ($mpiexec =~ /mpich/) {
                     print STDERR "Auto-detecting mpich based on alternatives\n";
                     $maybe_mvapich2=0;
                     $maybe_openmpi=0;
+                    $maybe_intelmpi=0;
                     last;
                 } elsif ($mpiexec =~ /hydra/) {
                     # Newer mvapich2 uses hydra as well...
                     print STDERR "Auto-detecting mpich or mvapich2 (hydra) or intel mpi (hydra) based on alternatives\n";
                     $maybe_mvapich2='hydra';
                     $maybe_mpich='hydra';
+                    $maybe_intelmpi='hydra';
                     $maybe_openmpi=0;
                     last;
                 } elsif ($mpiexec =~ /mvapich2/) {
                     print STDERR "Auto-detecting mvapich2 based on alternatives\n";
                     $maybe_mpich=0;
                     $maybe_openmpi=0;
+                    $maybe_intelmpi=0;
                     last;
                 }
             }
@@ -743,6 +749,22 @@ sub detect_mpi {
                         last SEVERAL_CHECKS;
                     } else {
                         $mpi_ver="openmpi-UNKNOWN";
+                        last SEVERAL_CHECKS;
+                    }
+                }
+            }
+            CHECK_INTELMPI_VERSION: {
+                # there's an impi_info binary, but it seems to be mostly
+                # useless
+                if ($maybe_intelmpi && -x "$mpi/mpicc") {
+                    my @v = `$mpi/mpicc -v`;
+                    my @vv = grep { /Intel.*MPI.*Library/i } @v;
+                    last CHECK_INTELMPI_VERSION unless scalar @vv == 1;
+                    if ($vv[0] =~ /Intel.*MPI.*Library\s*(\S+)/i) {
+                        $mpi_ver="intelmpi-$1";
+                        last SEVERAL_CHECKS;
+                    } else {
+                        $mpi_ver="intelmpi-UNKNOWN";
                         last SEVERAL_CHECKS;
                     }
                 }
