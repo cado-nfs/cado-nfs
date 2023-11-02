@@ -318,7 +318,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
                 2b6428178054fc0d3931dcdc9257ccf3bdea62f9 4 2 36 1009 17042
                 mpi_magic=${mpiconf} thr=2x2 --ascii
-                tuning_thresholds=recursive:32,notiming:0
+                tuning_thresholds=collective:64,recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
@@ -332,7 +332,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
                 f9bc59f0caaca0fd523ef6a020a6f49fa97f38e9 4 2 200 1009 88888
                 thr=2x2 --ascii
-                tuning_thresholds=recursive:32,notiming:0
+                tuning_thresholds=collective:64,recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
@@ -344,7 +344,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
                 b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
                 thr=3x3 --ascii
-                tuning_thresholds=recursive:32,notiming:0
+                tuning_thresholds=collective:64,recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
@@ -362,7 +362,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 c82b888f2ba844f6db1e30e091444d1023052f87 3 3 1000 1009 1111
                 thr=3x3
                 checkpoint_threshold=40
-                tuning_thresholds=recursive:32,notiming:0
+                tuning_thresholds=collective:64,recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES
                 lingen_${gfp_layer}
@@ -395,7 +395,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 1532495540865888858358347027150309183618739122183602191 1111
                 thr=3x3
                 lingen_program=lingen_${gfp_layer}
-                tuning_thresholds=recursive:32,notiming:0
+                tuning_thresholds=collective:64,recursive:32,notiming:0
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
@@ -410,7 +410,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             ARGUMENTS
             --afile ${CMAKE_CURRENT_SOURCE_DIR}/A.21744 ffile=/dev/null m=4 n=2
             prime=485263
-                tuning_thresholds=recursive:32,notiming:0
+                tuning_thresholds=collective:64,recursive:32,notiming:0
             TARGET_DEPENDENCIES lingen_p1)
 
         cado_define_test(test_bwc_lingen_21744_bis
@@ -418,7 +418,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p1
             ARGUMENTS
             --random-input-with-length 20   m=4 n=2  prime=1009 --seed 1377
-                tuning_thresholds=recursive:32,notiming:0
+                tuning_thresholds=collective:64,recursive:32,notiming:0
             TARGET_DEPENDENCIES lingen_p1)
     endif()
 
