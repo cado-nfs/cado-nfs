@@ -172,7 +172,14 @@ static const long tc_points[MAX_TC_DEGREE] = {0, 1, -1, 2, -2, 3, -3, 4, -4,
 */
 static void
 mpz_poly_mul_tc_interpolate (mpz_t *f, int t) {
-  int64_t M[MAX_TC_DEGREE+1][MAX_TC_DEGREE+1], g, h;
+  /* The alignment constraint below is bogus. We've seen this be
+   * mandatory with g++ 12.2.1 20220924 on alpine linux, which seems to
+   * very aggressively use simd rewriting on this part of the code, and
+   * believe that M is always aligned. It is not, and forcing it to be
+   * aligned has the effect of avoiding a segfault. But it definitely
+   * looks like a compiler bug.
+   */
+  int64_t M[MAX_TC_DEGREE+1][MAX_TC_DEGREE+1] ATTR_ALIGNED(32), g, h;
   int i, j, k, l;
   /* G[] is the list of gcd's that appear in the forward Gauss loop, in the
      order they appear (they don't depend on t, since we start with the low

@@ -141,6 +141,7 @@ set_mpi_derived_variables()
         # the same question holds for openmpi), then we must do something
         # different.
         *,impi) 
+            # see https://gitlab.inria.fr/cado-nfs/cado-nfs/-/merge_requests/123#note_898921
             set_choices_from_n $nnodes
             ;;
         *)

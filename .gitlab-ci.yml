@@ -253,6 +253,19 @@ checks with icc:
   stage: early
   tags:
     - icc
+    - mpi
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+including_mpi specific checks with openmpi:
+  <<: *common-template
+  image: alpine:latest
+  stage: early
+  tags:
+    - mpi
   before_script:
     - ci/ci/00-prepare-docker.sh
   script:
