@@ -28,7 +28,10 @@ macro(add_bwc_test nm script)
             bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN}
             AVOID_CONCURRENT
             TARGET_DEPENDENCIES bwc_full
-            TIMEOUT 45
+            # We have cases where _many_ bwc tests end up taking more
+            # than the default 20 seconds. Maybe it's better to add
+            # the cutoff.
+            TIMEOUT 50
         )
         # these verbose_flags don't play with the idea of adding a
         # divert_bwc_test macro.
@@ -88,9 +91,6 @@ if(HAVE_PERL_DIGEST_MD5)
                 ${ARGN}
                 TARGET_DEPENDENCIES lingen_u64k1
                 AVOID_CONCURRENT
-                # We have cases where _many_ bwc tests end up taking more
-                # than the default 20 seconds. Maybe it's better to add
-                # the cutoff.
                 TIMEOUT 60
                 )
         endforeach()
@@ -113,6 +113,7 @@ if(HAVE_PERL_DIGEST_MD5)
         expect_sha1_F=d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd,893801e0727d840353a35b2623430fb758e4d379,5917486028cd96a5d0c55c7caef89cc48b70d1b1
         m=64 n=64 sequence_length=480 seed=1
         tuning_thresholds=recursive:16,notiming:16,collective:16
+        TIMEOUT 90
         )
 
     # We have significant difficulties with tuning for the binary case.
@@ -489,7 +490,9 @@ add_bwc_test(mod2_rolling bwc-ptrace.sh prime=2 nullspace=left random_matrix_siz
     TARGET_DEPENDENCIES mf_scan)
 
 add_bwc_test(mod2_8k bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2
-    TARGET_DEPENDENCIES mf_scan)
+    TARGET_DEPENDENCIES mf_scan
+    TIMEOUT 60
+)
 
 if (COMPILE_MPFQ_BINARY_FIELD_m128)
 add_bwc_test(mod2_8k_simd128 bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2 simd=128

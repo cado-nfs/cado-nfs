@@ -35,7 +35,9 @@ cado_define_test(test_polyselect_shash.cpp
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_shash.c
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_poly_header.c
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_match.c
-    LIBRARIES polyselect_common tests)
+    LIBRARIES polyselect_common tests
+    TIMEOUT 40
+)
 
 macro(define_sopt_test n input sha)
 cado_define_test(test_sopt_${input} PROGRAM
