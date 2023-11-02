@@ -420,34 +420,35 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 endforeach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
 
-foreach(gfp_layer u64k1)
+foreach(layer u64k1)
     link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
     link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
     include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
     include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
-    cado_define_test(TEST_NAME test_matpoly_${gfp_layer}
+    cado_define_test(TEST_NAME test_matpoly_${layer}
         SOURCES test_matpoly.cpp
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_qcode_binary.cpp
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_expected_pi_length.cpp
-        LIBRARIES lingen_${gfp_layer}_support)
+        LIBRARIES lingen_${layer}_support)
     # (unused for p=2 anyway)
     # ARGUMENTS --prime 2
-    set_target_properties(test_matpoly_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
+    set_target_properties(test_matpoly_${layer} PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${layer}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
-    add_executable(time_matpoly_ft_parallel_${gfp_layer} EXCLUDE_FROM_ALL
+    add_executable(time_matpoly_ft_parallel_${layer} EXCLUDE_FROM_ALL
         time_matpoly_ft_parallel.cpp)
-    target_link_libraries(time_matpoly_ft_parallel_${gfp_layer}
-        lingen_${gfp_layer}_support)
-    set_target_properties(time_matpoly_ft_parallel_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
+    target_link_libraries(time_matpoly_ft_parallel_${layer}
+        lingen_${layer}_support)
+    set_target_properties(time_matpoly_ft_parallel_${layer} PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${layer}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 
-    cado_define_test(TEST_NAME test_matpoly_basecase_${gfp_layer}
+    cado_define_test(TEST_NAME test_matpoly_basecase_${layer}
         PROGRAM
-        ${CMAKE_CURRENT_BINARY_DIR}/test_matpoly_${gfp_layer}
+        ${CMAKE_CURRENT_BINARY_DIR}/test_matpoly_${layer}
         ARGUMENTS --test-basecase m=128 n=64 len1=256
-        TARGET_DEPENDENCIES test_matpoly_${gfp_layer}
+        TARGET_DEPENDENCIES test_matpoly_${layer}
+        AVOID_CONCURRENT
         TIMEOUT 60
         )
 endforeach()
