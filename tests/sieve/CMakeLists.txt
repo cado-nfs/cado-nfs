@@ -340,9 +340,13 @@ cado_divert_test(F9_quick tracek
 # Try a too-large lambda value. We could divert on any test we like, but
 # it's mildly quicker to do it on the short test.
 cado_divert_test(F9_quick lambda0
-        APPEND_ENVIRONMENT lambda0=5 "REGEX=lambda>.*does not make sense")
+        APPEND_ENVIRONMENT lambda0=5 "REGEX=lambda>.*does not make sense"
+        TIMEOUT 40
+    )
 cado_divert_test(F9_quick lambda1
-        APPEND_ENVIRONMENT lambda1=5 "REGEX=lambda>.*does not make sense")
+        APPEND_ENVIRONMENT lambda1=5 "REGEX=lambda>.*does not make sense"
+        TIMEOUT 40
+    )
 
 set(c120_poly ${CMAKE_CURRENT_SOURCE_DIR}/c120.poly)
 set(c120_fb ${CMAKE_CURRENT_SOURCE_DIR}/c120.roots1.gz)
