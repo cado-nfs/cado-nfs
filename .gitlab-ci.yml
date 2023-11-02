@@ -247,7 +247,7 @@ checks with clangdev:
     - *checks-script
   <<: *checks-junit-report
 
-including_mpi specific checks with icc:
+checks with icc:
   <<: *common-template
   image: intel/oneapi-hpckit:latest
   stage: early
