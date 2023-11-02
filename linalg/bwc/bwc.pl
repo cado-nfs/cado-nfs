@@ -5,6 +5,7 @@ use strict;
 use POSIX qw/getcwd/;
 use File::Basename;
 use File::Temp qw/tempdir tempfile mktemp/;
+use File::Spec;
 use List::Util qw/max/;
 # do not include Data::Dumper except for debugging.
 # use Data::Dumper;
@@ -224,7 +225,7 @@ my $stop_at_step;
 
 my $hostfile;
 my @hosts=();
-my $mpi;
+my @mpi_path=();
 my $mpi_ver;
 my $needs_mpd;
 # }}}
@@ -586,7 +587,10 @@ my @mpi_precmd_single;
 my @mpi_precmd_lingen;
 
 
+# This now has $mpi a local variable, and the array @mpi_path
+#
 sub detect_mpi {
+    my $mpi;
     if (defined($_=$ENV{'MPI_BINDIR'}) && -x "$_/mpiexec") {
         $mpi=$_;
     } elsif (defined($_=$ENV{'MPI'}) && -x "$_/mpiexec") { 
@@ -799,6 +803,13 @@ EOMSG
         print "## setting MV2_ENABLE_AFFINITY=0 (for mvapich2)\n";
         $ENV{'MV2_ENABLE_AFFINITY'}=0;
     }
+
+    @mpi_path=($mpi);
+
+    if ($mpi_ver =~ /openmpi/ && $mpi =~ m{^/*bin/*}) {
+        print STDERR "Rewriting MPI prefix to just nothing\n";
+        @mpi_path=();
+    }
 }
 
 # Starting daemons for mpich2 1.[012].x and mvapich2 ; we're assuming
@@ -810,18 +821,20 @@ sub check_mpd_daemons
 
     my $ssh = ssh_program();
 
-    my $rc = system "$mpi/mpdtrace > /dev/null 2>&1";
+    my $mpdtrace = File::Spec->catfile(@mpi_path, "mpdtrace");
+    my $mpdboot = File::Spec->catfile(@mpi_path, "mpdboot");
+    my $rc = system "$mpdtrace > /dev/null 2>&1";
     if ($rc == 0) {
         print "mpi daemons seem to be ok\n";
         return;
     }
 
     if ($rc == -1) {
-        die "Cannot execute $mpi/mpdtrace";
+        die "Cannot execute $mpdtrace";
     } elsif ($rc & 127) {
-        die "$mpi/mpdtrace died with signal ", ($rc&127);
+        die "$mpdtrace died with signal ", ($rc&127);
     } else {
-        print "No mpi daemons found by $mpi/mpdtrace, restarting\n";
+        print "No mpi daemons found by $mpdtrace, restarting\n";
     }
 
     open F, $hostfile;
@@ -832,7 +845,7 @@ sub check_mpd_daemons
     close F;
     my $n = scalar keys %hosts;
     print "Running $n mpi daemons\n";
-    dosystem "$mpi/mpdboot -n $n -r $ssh -f $hostfile -v";
+    dosystem "$mpdboot -n $n -r $ssh -f $hostfile -v";
 }
 
 sub get_mpi_hosts_oar {
@@ -953,7 +966,7 @@ if ($mpi_needed) {
     } else {
         # Otherwise we'll start via mpiexec, and we need to be informed
         # on the list of nodes.
-        push @mpi_precmd, "$mpi/mpiexec";
+        push @mpi_precmd, File::Spec->catfile(@mpi_path, "mpiexec");
 
         my $auto_hostfile_pattern="/tmp/cado-nfs.hosts_XXXXXXXX";
 
