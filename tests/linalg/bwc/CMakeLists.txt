@@ -494,13 +494,15 @@ add_bwc_test(mod2_rolling bwc-ptrace.sh prime=2 nullspace=left random_matrix_siz
 
 add_bwc_test(mod2_8k bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2
     TARGET_DEPENDENCIES mf_scan
-    TIMEOUT 60
+    AVOID_CONCURRENT 4
+    TIMEOUT 90
 )
 
 if (COMPILE_MPFQ_BINARY_FIELD_m128)
 add_bwc_test(mod2_8k_simd128 bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2 simd=128
     TARGET_DEPENDENCIES mf_scan
     AVOID_CONCURRENT 4
+    TIMEOUT 90
 )
 endif()
 
