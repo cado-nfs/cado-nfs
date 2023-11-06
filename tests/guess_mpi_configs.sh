@@ -61,10 +61,13 @@ set_choices_from_n()
         mpi_rect1=2x3 ; mpi_rect2=3x2 ;
     elif [ "$nnodes" -eq 1 ] && [ "$family" = openmpi ] ; then
         # we know how to overcommit.
-        mpi_rect1=2x3
-        mpi_rect1_mpi_args=(--bind-to none --host localhost:6)
-        mpi_rect2=3x2
-        mpi_rect2_mpi_args=(--bind-to none --host localhost:6)
+        mpi_rect1=2x3 ; mpi_rect1_mpi_args=(--host localhost:6)
+        mpi_rect2=3x2 ; mpi_rect2_mpi_args=(--host localhost:6)
+        if ! [ "$OPENMPI_INSIDE_DOCKER" ] ; then
+            # make sure we don't add the same stanza twice.
+            mpi_rect1_mpi_args+=(--bind-to none)
+            mpi_rect2_mpi_args+=(--bind-to none)
+        fi
         overcommit_openmpi=1
     elif [ "$jobsize" -ge 2 ] ; then
         mpi_rect1=2x1 ; mpi_rect2=1x2 ;
@@ -72,15 +75,22 @@ set_choices_from_n()
     if [ "$jobsize" -ge 9 ] ; then
         mpi_square2=3x3
     elif [ "$nnodes" -eq 1 ] && [ "$family" = openmpi ] ; then
-        mpi_square2=3x3
-        mpi_square2_mpi_args=(--bind-to none --host localhost:9)
+        mpi_square2=3x3 ; mpi_square2_mpi_args=(--host localhost:9)
+        if ! [ "$OPENMPI_INSIDE_DOCKER" ] ; then
+            # make sure we don't add the same stanza twice.
+            mpi_square2_mpi_args+=(--bind-to none)
+        fi
         overcommit_openmpi=1
     fi
     if [ "$jobsize" -ge 4 ] ; then
         mpi_square1=2x2
     elif [ "$nnodes" -eq 1 ] && [ "$family" = openmpi ] ; then
         mpi_square1=2x2
-        mpi_square1_mpi_args=(--bind-to none --host localhost:4)
+        mpi_square1_mpi_args=(--host localhost:4)
+        if ! [ "$OPENMPI_INSIDE_DOCKER" ] ; then
+            # make sure we don't add the same stanza twice.
+            mpi_square1_mpi_args+=(--bind-to none)
+        fi
         overcommit_openmpi=1
     fi
 }
@@ -155,13 +165,18 @@ set_mpi_derived_variables()
         # we get failures similar to what is reported there
         # https://github.com/open-mpi/ompi/issues/4948
         mpi_extra_args+=(--mca btl_vader_single_copy_mechanism none)
+
+        # See https://github.com/horovod/horovod/issues/1985 for the
+        # rationale of the fix below.
+        OPENMPI_INSIDE_DOCKER=1
+        mpi_extra_args+=(--bind-to none)
     fi
 
     case "$nnodes,$ncores,$family" in
         1,*,openmpi) 
             mpi_extra_args+=(-mca mtl ^psm2,ofi,cm --mca btl ^openib)
             set_choices_from_n $ncores
-            if ! [ "$overcommit_openmpi" ] ; then
+            if ! [ "$overcommit_openmpi" ] && ! [ "$OPENMPI_INSIDE_DOCKER" ] ; then
                 mpi_extra_args+=(--bind-to core)
             fi
             ;;
