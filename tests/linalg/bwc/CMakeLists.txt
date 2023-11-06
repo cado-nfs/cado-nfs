@@ -386,11 +386,12 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 00a481d0e0e2ee7403fa234b7f8b818dc2ec8db4 3 3 1000
                 1532495540865888858358347027150309183618739122183602191 1111
                 thr=3x3
+                tuning_thresholds=notiming:0,recursive:160,collective:320
                 lingen_program=lingen_${gfp_layer}
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
-                TIMEOUT 60
+                TIMEOUT 90
             )
         endforeach()
     endif()
