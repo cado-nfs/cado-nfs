@@ -358,12 +358,13 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 c82b888f2ba844f6db1e30e091444d1023052f87 3 3 1000 1009 1111
                 thr=3x3
                 checkpoint_threshold=40
+                tuning_thresholds=notiming:0,recursive:100,collective:400
                 ${extra}
                 TARGET_DEPENDENCIES
                 lingen_${gfp_layer}
                 lingen_verify_checkpoints_${gfp_layer}
                 AVOID_CONCURRENT
-                TIMEOUT 60
+                TIMEOUT 90
                 )
         endforeach()
     endif()
