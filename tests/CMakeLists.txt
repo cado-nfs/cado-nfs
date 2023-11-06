@@ -523,6 +523,11 @@ macro(cado_divert_test TEST_BASE DIVERSION)
         set(EXPECT_FAIL ${${TEST_BASE}_EXPECT_FAIL})
     endif()
 
+    if (NOT nTIMEOUT GREATER 0)
+        set(TIMEOUT ${${TEST_BASE}_TIMEOUT})
+        list(LENGTH TIMEOUT nTIMEOUT)
+    endif()
+
     # we want to define builddep_X unconditionally, depending at least on
     # the dependencies of the base test.
     add_custom_target(${TEST_NAME}_dependencies)
