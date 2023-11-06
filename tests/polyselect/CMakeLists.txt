@@ -31,12 +31,15 @@ endif()
 
 cado_define_test(test_auxiliary.c LIBRARIES utils tests polyselect_common)
 cado_define_test(test_rho.c LIBRARIES polyselect_common tests)
+# This one is more expensive than a few others, as it takes 5 seconds on
+# a laptop, and can easily take tens of seconds on a container that runs
+# on a busy machine.
 cado_define_test(test_polyselect_shash.cpp
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_shash.c
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_poly_header.c
     ${PROJECT_SOURCE_DIR}/polyselect/polyselect_match.c
     LIBRARIES polyselect_common tests
-    TIMEOUT 40
+    TIMEOUT 90
 )
 
 macro(define_sopt_test n input sha)
