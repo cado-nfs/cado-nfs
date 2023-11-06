@@ -21,17 +21,20 @@ macro(add_bwc_test nm script)
         if(suffix STREQUAL _nompi)
             set(suffix)
         endif()
-        cado_define_test(test_bwc_${nm}${suffix} SCRIPT
-            ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --other --arg wdir --
-            ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
-            ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/${script}
-            bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN}
+        # place the TIMEOUT stanza early on, so that ARGN can
+        # override it.
+        cado_define_test(test_bwc_${nm}${suffix}
             AVOID_CONCURRENT
             TARGET_DEPENDENCIES bwc_full
             # We have cases where _many_ bwc tests end up taking more
             # than the default 20 seconds. Maybe it's better to add
             # the cutoff.
             TIMEOUT 50
+            SCRIPT
+            ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --other --arg wdir --
+            ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
+            ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/${script}
+            bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN}
         )
         # these verbose_flags don't play with the idea of adding a
         # divert_bwc_test macro.
@@ -84,14 +87,17 @@ if(HAVE_PERL_DIGEST_MD5)
             if(suffix STREQUAL _nompi)
                 set(suffix)
             endif()
-            cado_define_test(test_bwc_lingen_binary_${nm}${suffix} SCRIPT
+            # place the TIMEOUT stanza early on, so that ARGN can
+            # override it.
+            cado_define_test(test_bwc_lingen_binary_${nm}${suffix}
+                TARGET_DEPENDENCIES lingen_u64k1
+                AVOID_CONCURRENT
+                TIMEOUT 60
+                SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen.sh
                 ${ARGN}
-                TARGET_DEPENDENCIES lingen_u64k1
-                AVOID_CONCURRENT
-                TIMEOUT 60
                 )
         endforeach()
     endmacro()
