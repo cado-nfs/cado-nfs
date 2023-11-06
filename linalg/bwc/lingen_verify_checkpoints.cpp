@@ -56,7 +56,7 @@ struct
 
 cxx_mpz prime;          /* prime modulus */
 unsigned long lingen_p; /* number of limbs per coefficient */
-int k = 1;              /* matrix is cut in k x k submatrices */
+int mpi_k = 1;          /* matrix is cut in k x k submatrices */
 gmp_randstate_t state;
 int verbose = 0;
 unsigned long seed;
@@ -338,7 +338,7 @@ read_matrix(const char* s,
     cxx_mpz x_power_k;
     mpz_set_ui(x_power_k, 1);
     const unsigned long batch = global_batch;
-    for (k = 0; k <= deg; k += batch) {
+    for (unsigned long k = 0; k <= deg; k += batch) {
         /* invariant: x_power_k = x^k mod prime */
         R.read_n_accumulate(M, x_power_k, x, k, batch);
     }
@@ -497,7 +497,7 @@ do_check_pi(const char* pi_left_filename,
 #pragma omp section
 #endif
         {
-            matrix Mab = read_matrix(pi_left_filename, nrows, ncols, k, x);
+            matrix Mab = read_matrix(pi_left_filename, nrows, ncols, mpi_k, x);
             mul_left(u_times_piab, u, Mab);
         }
 
@@ -505,7 +505,7 @@ do_check_pi(const char* pi_left_filename,
 #pragma omp section
 #endif
         {
-            matrix Mbc = read_matrix(pi_right_filename, nrows, ncols, k, x);
+            matrix Mbc = read_matrix(pi_right_filename, nrows, ncols, mpi_k, x);
             mul_right(pibc_times_v, Mbc, v);
         }
 
@@ -513,7 +513,7 @@ do_check_pi(const char* pi_left_filename,
 #pragma omp section
 #endif
         {
-            matrix Mac = read_matrix(pi_filename, nrows, ncols, k, x);
+            matrix Mac = read_matrix(pi_filename, nrows, ncols, mpi_k, x);
             mul_right(piac_times_v, Mac, v);
         }
     }
@@ -638,10 +638,10 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
         check_name += " [truncated cp at end]";
 
 
-    matrix pi(m + n, m + n, k);
-    matrix_reader Rpi(m + n, m + n, k, deg_pi, pi_filename, true);
-    matrix E(m, m + n, k);
-    matrix_reader RE(m, m + n, k, deg_E, E_filename, false);
+    matrix pi(m + n, m + n, mpi_k);
+    matrix_reader Rpi(m + n, m + n, mpi_k, deg_pi, pi_filename, true);
+    matrix E(m, m + n, mpi_k);
+    matrix_reader RE(m, m + n, mpi_k, deg_E, E_filename, false);
 
     /* We'll compute the evaluation at x of the short product of E*pi,
      * capped to degree deg_E
@@ -710,7 +710,7 @@ int sanity_check(std::string filename)
     abfield_specify(bm.d.ab, MPFQ_PRIME_MPZ, (mpz_srcptr) prime);
     bm.set_t0(cp.t0);
     bm.hints= hints;
-    lingen_checkpoint lcp(bm, cp.t0, cp.t1, k, filename);
+    lingen_checkpoint lcp(bm, cp.t0, cp.t1, mpi_k, filename);
     size_t Xsize;
     try {
         if (!lcp.load_aux_file(Xsize)) {
@@ -784,7 +784,7 @@ main(int argc, char* argv[])
     int mpi_dims[2] = { 0, 0 };
     if (param_list_parse_int_and_int(pl, "mpi", mpi_dims, "x")) {
         ASSERT_ALWAYS(mpi_dims[0] == mpi_dims[0]);
-        k = mpi_dims[0];
+        mpi_k = mpi_dims[0];
     }
     param_list_parse_ulong(pl, "seed", &seed);
     if (!param_list_parse_uint(pl, "m", &bw_parameters.m)) {
