@@ -151,6 +151,12 @@ set_mpi_derived_variables()
 
     ncores=$(egrep '^core[[:space:]]+id[[:space:]]+:' /proc/cpuinfo | sort -u | wc -l)
 
+    if [ "$CI_JOB_NAME" ] && [ "$family" = openmpi ] ; then
+        # we get failures similar to what is reported there
+        # https://github.com/open-mpi/ompi/issues/4948
+        mpi_extra_args+=(--mca btl_vader_single_copy_mechanism none)
+    fi
+
     case "$nnodes,$ncores,$family" in
         1,*,openmpi) 
             mpi_extra_args+=(-mca mtl ^psm2,ofi,cm --mca btl ^openib)
