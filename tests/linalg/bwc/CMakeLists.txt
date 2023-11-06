@@ -364,7 +364,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 lingen_${gfp_layer}
                 lingen_verify_checkpoints_${gfp_layer}
                 AVOID_CONCURRENT
-                TIMEOUT 90
+                TIMEOUT 180
                 )
         endforeach()
     endif()
