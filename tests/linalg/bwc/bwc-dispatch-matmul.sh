@@ -114,7 +114,11 @@ set \
     ys=0..64
 
 if [ "$hostfile" ] ; then
-    set "$@" hostfile="$hostfile"
+    set -- "$@" hostfile="$hostfile"
+fi
+
+if [ "${mpi_extra_args[*]}" ] ; then
+    set -- "$@" mpi_extra_args="${mpi_extra_args[*]}"
 fi
 
 $bindir/linalg/bwc/bwc.pl dispatch "$@"

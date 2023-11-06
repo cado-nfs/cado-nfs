@@ -118,6 +118,13 @@ if ! type -p seq >/dev/null ; then
     }
 fi
 
+# inject the variables that were provided by guess_mpi_configs
+if [ "$mpi" ] ; then
+    eval "$exporter_mpirun"
+    eval "$exporter_mpi_extra_args"
+    pass_bwcpl_args+=(mpi_extra_args="${mpi_extra_args[*]}")
+fi
+
 usage() {
     cat >&2 <<-EOF
     Usage: $scriptpath [param1=value param2=value2 ...]

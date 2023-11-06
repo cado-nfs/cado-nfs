@@ -54,12 +54,35 @@ set_choices_from_n()
 {
     jobsize="$1"
     nompi=1x1
-    # it is also possible to set things such as _mpi_rect1_mpi_args=(foo bar)
+    overcommit_openmpi=
+    # it is also possible to set things such as mpi_rect1_mpi_args=(foo bar)
     # in order to adjust the per-config parameters.
-    if [ "$jobsize" -ge 6 ] ;   then mpi_rect1=2x3 ; mpi_rect2=3x2 ;
-    elif [ "$jobsize" -ge 2 ] ; then mpi_rect1=2x1 ; mpi_rect2=1x2 ; fi
-    if [ "$jobsize" -ge 9 ] ;   then mpi_square2=3x3 ; fi
-    if [ "$jobsize" -ge 4 ] ;   then mpi_square1=2x2 ; fi
+    if [ "$jobsize" -ge 6 ] ;   then
+        mpi_rect1=2x3 ; mpi_rect2=3x2 ;
+    elif [ "$nnodes" -eq 1 ] && [ "$family" = openmpi ] ; then
+        # we know how to overcommit.
+        mpi_rect1=2x3
+        mpi_rect1_mpi_args=(--bind-to none --host localhost:6)
+        mpi_rect2=3x2
+        mpi_rect2_mpi_args=(--bind-to none --host localhost:6)
+        overcommit_openmpi=1
+    elif [ "$jobsize" -ge 2 ] ; then
+        mpi_rect1=2x1 ; mpi_rect2=1x2 ;
+    fi
+    if [ "$jobsize" -ge 9 ] ; then
+        mpi_square2=3x3
+    elif [ "$nnodes" -eq 1 ] && [ "$family" = openmpi ] ; then
+        mpi_square2=3x3
+        mpi_square2_mpi_args=(--bind-to none --host localhost:9)
+        overcommit_openmpi=1
+    fi
+    if [ "$jobsize" -ge 4 ] ; then
+        mpi_square1=2x2
+    elif [ "$nnodes" -eq 1 ] && [ "$family" = openmpi ] ; then
+        mpi_square1=2x2
+        mpi_square1_mpi_args=(--bind-to none --host localhost:4)
+        overcommit_openmpi=1
+    fi
 }
 
 create_exporters() {
@@ -130,8 +153,11 @@ set_mpi_derived_variables()
 
     case "$nnodes,$ncores,$family" in
         1,*,openmpi) 
-            mpi_extra_args+=(-mca mtl ^psm2,ofi,cm --mca btl ^openib --bind-to core)
+            mpi_extra_args+=(-mca mtl ^psm2,ofi,cm --mca btl ^openib)
             set_choices_from_n $ncores
+            if ! [ "$overcommit_openmpi" ] ; then
+                mpi_extra_args+=(--bind-to core)
+            fi
             ;;
         *,openmpi) 
             set_choices_from_n $nnodes
@@ -167,7 +193,9 @@ set_mpi_derived_variables()
     fi
     mpi_args_common+=(-n $njobs)
     _t="${mpi_magic}_mpi_args"[@]
-    mpirun=("$mpiexec" "${mpi_args_common[@]}" "${!_t}" "${mpi_extra_args[@]}")
+    mpi_extra_args+=("${!_t}")
+    # mpirun=("$mpiexec" "${mpi_args_common[@]}" "${!_t}" "${mpi_extra_args[@]}")
+    mpirun=("$mpiexec" "${mpi_args_common[@]}" "${mpi_extra_args[@]}")
     # pass on to subcalls
     create_exporters
 }

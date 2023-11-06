@@ -20,6 +20,12 @@ macro(add_bwc_test nm script)
         set(suffix _${mpiconf})
         if(suffix STREQUAL _nompi)
             set(suffix)
+            set(default_timeout 50)
+        else()
+            # Yes it is quite weird, but when we run the test suite with
+            # mpi, we are often overcommitting the resource that we're
+            # using, and it ends up degrading performance quite a bit.
+            set(default_timeout 120)
         endif()
         # place the TIMEOUT stanza early on, so that ARGN can
         # override it.
@@ -29,7 +35,7 @@ macro(add_bwc_test nm script)
             # We have cases where _many_ bwc tests end up taking more
             # than the default 20 seconds. Maybe it's better to add
             # the cutoff.
-            TIMEOUT 50
+            TIMEOUT ${default_timeout}
             SCRIPT
             ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --other --arg wdir --
             ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
