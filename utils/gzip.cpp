@@ -534,6 +534,5 @@ void streambase_maybe_compressed::close()
 // coverity[exn_spec_violation]
 streambase_maybe_compressed::~streambase_maybe_compressed()
 {
-    sync();
     close();
 }
