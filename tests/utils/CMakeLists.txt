@@ -56,6 +56,7 @@ cado_define_test(test_mod.cpp LIBRARIES utils tests)
 cado_define_test(test_modint.cpp LIBRARIES utils tests)
 cado_define_test(test_mmappable_vector.cpp LIBRARIES utils
     PRECOMMAND "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --arg --tmpdir
+    TIMEOUT 60
     )
 cado_define_test(test_sha1.c LIBRARIES utils ARGUMENTS --test)
 cado_define_test(test_fstream_maybe_compressed.cpp LIBRARIES utils
