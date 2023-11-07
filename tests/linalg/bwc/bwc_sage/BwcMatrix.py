@@ -115,6 +115,11 @@ class BwcMatrix(object):
             (matrix times vector)
             """
 
+            # TODO: This really tells us that we should not be using
+            # operator overload blindly as we do here.
+            if isinstance(y, BwcMatrix.DecorrelatedMatrix):
+                raise ValueError("please do not do things like MQ*MQ")
+
             if self.params.is_nullspace_right():
                 Qy = self.parent.Q * y
                 return self.parent.M * Qy
@@ -127,6 +132,12 @@ class BwcMatrix(object):
             multiplication operator for the decorrelated matrix
             (vector time matrixvector)
             """
+
+            # TODO: This really tells us that we should not be using
+            # operator overload blindly as we do here.
+            if isinstance(x, BwcMatrix.DecorrelatedMatrix):
+                raise ValueError("please do not do things like MQ*MQ")
+
             if self.params.is_nullspace_right():
                 xM = x.transpose() * self.parent.M
                 return (xM * self.parent.Q).transpose()
@@ -292,10 +303,14 @@ class BwcMatrix(object):
         self.M = matrix(GF(self.params.p), self.nrows, self.ncols, sparse=True)
         if self.params.p == 2:
             for i, j in inline_data:
-                self.M[i, j] = 1
+                if self.M[i, j] != 0:
+                    print(f"Warning: repeated entry in matrix data {EXCL}")
+                self.M[i, j] += 1
         else:
             for i, j, v in inline_data:
-                self.M[i, j] = v
+                if self.M[i, j] != 0:
+                    print(f"Warning: repeated entry in matrix data {EXCL}")
+                self.M[i, j] += v
         if self.balancing is not None:
             self.balancing.read()
             self.S = BwcShuffling(self.params, self)

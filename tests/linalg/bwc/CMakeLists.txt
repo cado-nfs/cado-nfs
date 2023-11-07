@@ -177,7 +177,7 @@ macro(create_magma_sage_diversions t)
         add_dependencies(all_magma_test_dependencies test_bwc_${t}_with_magma_dependencies)
     endif()
     if(SAGE)
-        divert_bwc_test(${t} with_sagemath APPEND_ARGUMENTS sage=${SAGE}
+        divert_bwc_test(${t} with_sagemath APPEND_ARGUMENTS wordsize=${ULONG_BITS} sage=${SAGE}
             TIMEOUT 120
         )
         add_dependencies(all_sagemath_test_dependencies test_bwc_${t}_with_sagemath_dependencies)
