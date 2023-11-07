@@ -95,9 +95,16 @@ if(HAVE_PERL_DIGEST_MD5)
             endif()
             # place the TIMEOUT stanza early on, so that ARGN can
             # override it.
+            #
+            # AVOID_CONCURRENT 4 is very extreme. As it turns out, this
+            # test is very sensitive to the load average of the host (of
+            # the container). The other options are the (even more
+            # extreme) RUN_SERIAL, or possibly refuse to run the test if
+            # the load average is too large (but compared to what, it's
+            # not completely clear).
             cado_define_test(test_bwc_lingen_binary_${nm}${suffix}
                 TARGET_DEPENDENCIES lingen_u64k1
-                AVOID_CONCURRENT
+                AVOID_CONCURRENT 4
                 TIMEOUT 60
                 SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
