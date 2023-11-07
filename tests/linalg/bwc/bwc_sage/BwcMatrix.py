@@ -394,7 +394,7 @@ class BwcMatrix(object):
 
         what = "Reconstructed matrix from submatrices"
         if sub(A) != B:
-            raise ValueError("{what} does not match M " + NOK)
+            raise ValueError(f"{what} does not match M " + NOK)
 
         self.Mt = zero_matrix(bal.tr, bal.tc)
         self.Mt[:self.nrows, :self.ncols] = self.M
@@ -403,7 +403,7 @@ class BwcMatrix(object):
             # It's not really possible for this to happen if the above
             # check has passed, so let's just give the same error message
             # anyway.
-            raise ValueError("{what} does not match M " + NOK)
+            raise ValueError(f"{what} does not match M " + NOK)
 
     def check(self):
         nh = self.balancing.nh
