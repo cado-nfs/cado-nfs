@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
 
-: ${TMPDIR=/tmp/}
+: ${TMPDIR=/tmp}
 
 SCRIPTDIR="$1"
+
+set -x
 
 # The correct string has a sneaky whitespace at the end of the first line
 CORRECT_OUTPUT="All existing workunits: 
