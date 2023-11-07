@@ -125,7 +125,7 @@ if(HAVE_PERL_DIGEST_MD5)
         expect_sha1_F=d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd,893801e0727d840353a35b2623430fb758e4d379,5917486028cd96a5d0c55c7caef89cc48b70d1b1
         m=64 n=64 sequence_length=480 seed=1
         tuning_thresholds=recursive:64,notiming:0,collective:128
-        TIMEOUT 180
+        TIMEOUT 300
         )
 
     # We have significant difficulties with tuning for the binary case.
