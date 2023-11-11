@@ -1166,10 +1166,10 @@ void dispatcher::main() {
         /* then the reader thread has to incorporate special code so as
          * to play both roles
          */
-            if (reader_map.is_reader())
-                reader_thread();
-            else
-                endpoint_thread();
+        if (reader_map.is_reader())
+            reader_thread();
+        else
+            endpoint_thread();
 #endif  /* RELY_ON_MPI_THREAD_MULTIPLE */
     }
 }
