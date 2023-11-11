@@ -22,6 +22,11 @@ for mpi_magic in "${mpiconfs[@]}" ; do
     unset exporter_mpi_extra_args
     . "`dirname $0`/guess_mpi_configs.sh"
     set_mpi_derived_variables
+    # hmmm. maybe it's the job of the callee to use these variables. It
+    # very much depends on what we're calling, after all.
+    # eval "$exporter_mpirun"
+    # eval "$exporter_mpi_extra_args"
+    export mpirun
     if [ "$mpi" = skip ] ; then
         exit 125
     fi

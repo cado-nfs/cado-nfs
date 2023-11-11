@@ -56,7 +56,7 @@ struct
 
 cxx_mpz prime;          /* prime modulus */
 unsigned long lingen_p; /* number of limbs per coefficient */
-int k = 1;              /* matrix is cut in k x k submatrices */
+int mpi_k = 1;          /* matrix is cut in k x k submatrices */
 gmp_randstate_t state;
 int verbose = 0;
 unsigned long seed;
@@ -68,15 +68,12 @@ struct matrix
 {
     unsigned long nrows; /* matrix dimension */
     unsigned long ncols; /* matrix dimension */
-    unsigned long k;     /* matrix is cut into k x k submatrices */
     std::vector<cxx_mpz> coeff;
 
     matrix(unsigned long nrows,
-           unsigned int ncols,
-           unsigned long k)
+           unsigned int ncols)
       : nrows(nrows)
       , ncols(ncols)
-      , k(k)
       , coeff(nrows * ncols)
 
     {}
@@ -87,7 +84,7 @@ struct matrix
     }
 };
 
-struct matrix_reader
+class matrix_reader
 {
     std::string stem;
     unsigned long nrows; /* matrix dimension */
@@ -97,30 +94,8 @@ struct matrix_reader
     bool reverse = false;
     std::vector<std::ifstream> files;
     std::vector<bool> warned_padding;
-    matrix_reader(unsigned long nrows,
-            unsigned int ncols,
-            unsigned long k,
-            unsigned long deg,
-            std::string const& stem,
-            bool reverse)
-        : stem(stem)
-          , nrows(nrows)
-          , ncols(ncols)
-          , k(k)
-          , deg(deg)
-          , reverse(reverse)
-          , warned_padding(nrows * ncols, false)
-    {
-        for (unsigned long i = 0; i < k; i++) {
-            for (unsigned long j = 0; j < k; j++) {
-                std::string filename = get_filename_ij(i, j);
-                files.emplace_back(filename, std::ios_base::in);
-                if (!files.back().good())
-                    throw std::runtime_error("cannot open " + filename);
-            }
-        }
-    }
-    std::string get_filename_ij(unsigned long i, unsigned long j) {
+
+    std::string get_filename_ij(unsigned long k, unsigned long i, unsigned long j) const {
         int nij = k * i + j;
         std::string filename;
         if (k > 1) {
@@ -129,6 +104,69 @@ struct matrix_reader
             filename = stem + ".single.data";
         }
         return filename;
+    }
+
+    bool has_single_file_data() const {
+        std::string filename = get_filename_ij(1, 0, 0);
+        return access(filename.c_str(), R_OK) == 0;
+    }
+    unsigned int has_mpi_data() const {
+        /* return 0 if no mpi data is found. If consistent mpi data is
+         * found, return the corresponding splitting */
+        std::string filename;
+        unsigned int c = 0;
+        for (unsigned int k = 1 ; k < 64 ; k++) {
+            for (unsigned int s = 0 ; c < k * k ; c++, s++) {
+                filename = stem + fmt::format(FMT_STRING(".{}.data"), c);
+                fprintf(stderr, "test %s\n", filename.c_str());
+                if (access(filename.c_str(), R_OK) != 0) {
+                    if (s == 0) {
+                        if (k-1 == 1) {
+                            throw std::runtime_error(fmt::format(FMT_STRING("weird: we have 1-node mpi data for checkpoint {}, which in theory we shouldn't produce\n"), filename));
+                            /* anyway it's going to fail with the present
+                             * code, because the meaning of k==1 is
+                             * ambiguous */
+                        }
+                        return k-1;
+                    } else {
+                        throw std::runtime_error("got non-square mpi data for checkpoint " + filename);
+                    }
+                }
+            }
+        }
+        return 0;
+    }
+
+public:
+    matrix_reader(unsigned long nrows,
+            unsigned int ncols,
+            unsigned long deg,
+            std::string const& stem,
+            bool reverse)
+        : stem(stem)
+          , nrows(nrows)
+          , ncols(ncols)
+          , deg(deg)
+          , reverse(reverse)
+          , warned_padding(nrows * ncols, false)
+    {
+        if ((k = has_mpi_data()) != 0) {
+            /* do nothing, it's all fine! */
+        } else if (has_single_file_data()) {
+            /* use the single file data instead. */
+            k = 1;
+        } else {
+            throw std::runtime_error("neither single-file nor mpi data found for " + stem);
+        }
+
+        for (unsigned long i = 0; i < k; i++) {
+            for (unsigned long j = 0; j < k; j++) {
+                std::string filename = get_filename_ij(k, i, j);
+                files.emplace_back(filename, std::ios_base::in);
+                if (!files.back().good())
+                    throw std::runtime_error("cannot open " + filename);
+            }
+        }
     }
 
     private:
@@ -146,7 +184,6 @@ struct matrix_reader
             )
     {
         int nij = k * block_i + block_j;
-        ASSERT_ALWAYS(k == M.k);
         ASSERT_ALWAYS(nrows == M.nrows);
         ASSERT_ALWAYS(ncols == M.ncols);
         unsigned int i0, i1;
@@ -180,7 +217,7 @@ struct matrix_reader
                         fmt::fprintf(stderr, "read error on file (%i,%i) [%s] when reading coefficient of degree %u, local position (%u,%u). File offset of coefficient is %zd\n",
                                 block_i,
                                 block_j,
-                                get_filename_ij(block_i, block_j),
+                                get_filename_ij(k, block_i, block_j),
                                 cidx,
                                 di,
                                 dj,
@@ -319,7 +356,7 @@ read_cp_aux(std::string const& s)
     ret = fscanf(fp, "%lu\n", &ncoeff);
     ASSERT_ALWAYS(ret == 1);
     fclose(fp);
-    return cp_useful_info{ level, t0, t1, t, ncoeff - 1 };
+    return cp_useful_info { level, t0, t1, t, ncoeff - 1 };
 }
 
 /* read a matrix of dimension n, divided into kxk submatrices.
@@ -329,16 +366,16 @@ matrix
 read_matrix(const char* s,
             unsigned long nrows,
             unsigned long ncols,
-            unsigned long k,
             cxx_mpz const& x)
 {
-    unsigned long deg = read_cp_aux(s).deg;
-    matrix M(nrows, ncols, k);
-    matrix_reader R(nrows, ncols, k, deg, s, false);
+    auto cp = read_cp_aux(s);
+    unsigned long deg = cp.deg;
+    matrix M(nrows, ncols);
+    matrix_reader R(nrows, ncols, deg, s, false);
     cxx_mpz x_power_k;
     mpz_set_ui(x_power_k, 1);
     const unsigned long batch = global_batch;
-    for (k = 0; k <= deg; k += batch) {
+    for (unsigned long k = 0; k <= deg; k += batch) {
         /* invariant: x_power_k = x^k mod prime */
         R.read_n_accumulate(M, x_power_k, x, k, batch);
     }
@@ -489,31 +526,21 @@ do_check_pi(const char* pi_left_filename,
     std::vector<cxx_mpz> u_times_piab(ncols);
     std::vector<cxx_mpz> pibc_times_v(nrows);
     std::vector<cxx_mpz> piac_times_v(nrows);
-#ifdef HAVE_OPENMP
-#pragma omp parallel sections
-#endif
+
+    /* we used to have omp sections here. It feels wrong.  */
     {
-#ifdef HAVE_OPENMP
-#pragma omp section
-#endif
         {
-            matrix Mab = read_matrix(pi_left_filename, nrows, ncols, k, x);
+            matrix Mab = read_matrix(pi_left_filename, nrows, ncols, x);
             mul_left(u_times_piab, u, Mab);
         }
 
-#ifdef HAVE_OPENMP
-#pragma omp section
-#endif
         {
-            matrix Mbc = read_matrix(pi_right_filename, nrows, ncols, k, x);
+            matrix Mbc = read_matrix(pi_right_filename, nrows, ncols, x);
             mul_right(pibc_times_v, Mbc, v);
         }
 
-#ifdef HAVE_OPENMP
-#pragma omp section
-#endif
         {
-            matrix Mac = read_matrix(pi_filename, nrows, ncols, k, x);
+            matrix Mac = read_matrix(pi_filename, nrows, ncols, x);
             mul_right(piac_times_v, Mac, v);
         }
     }
@@ -638,10 +665,10 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
         check_name += " [truncated cp at end]";
 
 
-    matrix pi(m + n, m + n, k);
-    matrix_reader Rpi(m + n, m + n, k, deg_pi, pi_filename, true);
-    matrix E(m, m + n, k);
-    matrix_reader RE(m, m + n, k, deg_E, E_filename, false);
+    matrix pi(m + n, m + n);
+    matrix_reader Rpi(m + n, m + n, deg_pi, pi_filename, true);
+    matrix E(m, m + n);
+    matrix_reader RE(m, m + n, deg_E, E_filename, false);
 
     /* We'll compute the evaluation at x of the short product of E*pi,
      * capped to degree deg_E
@@ -710,7 +737,7 @@ int sanity_check(std::string filename)
     abfield_specify(bm.d.ab, MPFQ_PRIME_MPZ, (mpz_srcptr) prime);
     bm.set_t0(cp.t0);
     bm.hints= hints;
-    lingen_checkpoint lcp(bm, cp.t0, cp.t1, k, filename);
+    lingen_checkpoint lcp(bm, cp.t0, cp.t1, mpi_k > 1, filename);
     size_t Xsize;
     try {
         if (!lcp.load_aux_file(Xsize)) {
@@ -784,7 +811,7 @@ main(int argc, char* argv[])
     int mpi_dims[2] = { 0, 0 };
     if (param_list_parse_int_and_int(pl, "mpi", mpi_dims, "x")) {
         ASSERT_ALWAYS(mpi_dims[0] == mpi_dims[0]);
-        k = mpi_dims[0];
+        mpi_k = mpi_dims[0];
     }
     param_list_parse_ulong(pl, "seed", &seed);
     if (!param_list_parse_uint(pl, "m", &bw_parameters.m)) {

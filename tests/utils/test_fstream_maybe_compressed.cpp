@@ -7,7 +7,7 @@
 // coverity[root_function]
 int main(int argc, char * argv[])
 {
-    const char * filename = "/tmp/test.gz";
+    const char * filename = "test.gz";
 
     if (argc > 2 && std::string(argv[1]) == "--wdir") {
         chdir(argv[2]);
