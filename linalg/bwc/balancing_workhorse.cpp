@@ -319,15 +319,19 @@ void dispatcher::reader_thread_data::post_send(std::vector<uint32_t> & Q, unsign
         return;
     }
     MPI_Request req;
-    MPI_Isend(Q.data(), Q.size(), CADO_MPI_UINT32_T, k, 0, pi->m->pals, &req);
+    MPI_Isend(Q.data(), Q.size(), CADO_MPI_UINT32_T, k, D.pass_number, pi->m->pals, &req);
     outstanding.push_back(req);
-    outstanding_queues.emplace_back(std::move(Q));
+    /* save the storage of Q somewhere for as long as the Isend is still
+     * pending. */
+    outstanding_queues.emplace_back();
+    std::swap(Q, outstanding_queues.back());
     if (!avail_queues.empty()) {
         /* Do this to allow re-use of queues that we used recently, and
          * that might have useful allocation to re-use */
-        Q = std::move(avail_queues.back());
+        std::swap(Q, avail_queues.back());
         avail_queues.pop_back();
     }
+    ASSERT_ALWAYS(Q.empty());
 }/*}}}*/
 
 void dispatcher::reader_thread_data::post_semaphore_blocking(unsigned int k)/*{{{*/
@@ -337,20 +341,22 @@ void dispatcher::reader_thread_data::post_semaphore_blocking(unsigned int k)/*{{
 
     /* we might as well do it in a blocking way */
     uint32_t z = UINT32_MAX;
-    MPI_Send(&z, 1, CADO_MPI_UINT32_T, k, 0, pi->m->pals);
+    MPI_Send(&z, 1, CADO_MPI_UINT32_T, k, D.pass_number, pi->m->pals);
 }/*}}}*/
 
 void dispatcher::reader_thread_data::post_semaphore_nonblocking(unsigned int k)/*{{{*/
 {
     if (k == pi->m->jrank) return;
-    /* do it non-blocking */
-    uint32_t z = UINT32_MAX;
+    /* do it non-blocking. Since we post something non-blocking, we need
+     * the data to stay alive until we MPI_Wait. It's not possible to put
+     * it on the stack
+     */
+    std::vector<uint32_t> Q(1, UINT32_MAX);
     MPI_Request req;
-    MPI_Isend(&z, 1, CADO_MPI_UINT32_T, k, 0, pi->m->pals, &req);
+    MPI_Isend(Q.data(), 1, CADO_MPI_UINT32_T, k, D.pass_number, pi->m->pals, &req);
     outstanding.push_back(req);
-    /* just for the show. We need progress() to find data that is
-     * compatible with what it expects */
     outstanding_queues.emplace_back();
+    std::swap(Q, outstanding_queues.back());
 }/*}}}*/
 
 void dispatcher::reader_thread_data::progress(bool wait)/*{{{*/
@@ -646,6 +652,10 @@ void dispatcher::reader_thread_data::read()/*{{{*/
         if (!Q.empty())
             post_send(Q, kk);
     }
+    for(auto const & Q : queues)
+        ASSERT_ALWAYS(Q.empty());
+    /* We have no data that we haven't yet Isent, but the request might
+     * still be pending */
 #ifdef RELY_ON_MPI_THREAD_MULTIPLE
     progress(true);
     for(unsigned int kk = 0 ; kk < pi->m->njobs ; kk++) {
@@ -925,7 +935,9 @@ void dispatcher::endpoint_thread_data::endpoint_handle_incoming(std::vector<uint
 
         if (D.pass_number == 1) {
             for(unsigned int j = 0 ; j < rs ; j ++) {
+                ASSERT_ALWAYS(next < Q.end());
                 uint32_t cc = *next++;
+                ASSERT_ALWAYS(cc < D.bal->tcols);
                 unsigned int col_group = (cc / D.cols_chunk_small) % n_col_groups;
                 unsigned int col_index = cc % D.cols_chunk_small;
                 unsigned int group = row_group * n_col_groups + col_group;
@@ -1011,10 +1023,10 @@ void dispatcher::endpoint_thread_data::receive()/*{{{*/
         // On pass 1, endpoint threads do Recv from any source, and update the
         // local row weight for all threads.
         MPI_Status status;
-        MPI_Probe(MPI_ANY_SOURCE, 0, pi->m->pals, &status);
+        MPI_Probe(MPI_ANY_SOURCE, D.pass_number, pi->m->pals, &status);
         MPI_Get_count(&status, CADO_MPI_UINT32_T, &Qs);
         Q.assign(Qs, 0);
-        MPI_Recv(Q.data(), Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, 0, pi->m->pals, MPI_STATUS_IGNORE);
+        MPI_Recv(Q.data(), Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, D.pass_number, pi->m->pals, MPI_STATUS_IGNORE);
         if (Qs == 1 && Q[0] == UINT32_MAX) {
             active_peers--;
             continue;
@@ -1029,7 +1041,7 @@ void dispatcher::reader_thread_data::watch_incoming_on_reader(int &active_peers)
 
     MPI_Status status;
     int flag = 0;
-    MPI_Iprobe(MPI_ANY_SOURCE, 0, pi->m->pals, &flag, &status);
+    MPI_Iprobe(MPI_ANY_SOURCE, D.pass_number, pi->m->pals, &flag, &status);
     if (!flag) return;
 
     int Qs;
@@ -1039,7 +1051,7 @@ void dispatcher::reader_thread_data::watch_incoming_on_reader(int &active_peers)
     // local row weight for all threads.
     MPI_Get_count(&status, CADO_MPI_UINT32_T, &Qs);
     Q.assign(Qs, 0);
-    MPI_Recv(Q.data(), Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, 0, pi->m->pals, MPI_STATUS_IGNORE);
+    MPI_Recv(Q.data(), Qs, CADO_MPI_UINT32_T, status.MPI_SOURCE, D.pass_number, pi->m->pals, MPI_STATUS_IGNORE);
     if (Qs == 1 && Q[0] == UINT32_MAX) {
         active_peers--;
         return;
