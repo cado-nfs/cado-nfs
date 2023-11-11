@@ -68,13 +68,15 @@ echo -e "${CSI_BLUE}COMPARING THE DIFFERENT CHECK FILES${CSI_RESET}"
 failed=
 passed=0
 for f in `(cd "$wdir" ; ls C[rvdt]* ; cd "$wdir/saved_check" ; ls C[rvdt]*) | sort -u` ; do
-    if [ -e  "$wdir/$f" ] && [ -e "$wdir/saved_check/$f" ] ; then
+    if [ -f "$wdir/$f" ] && [ -f "$wdir/saved_check/$f" ] ; then
         if ! diff -q "$wdir/$f" "$wdir/saved_check/$f" ; then
             echo -e "${CSI_RED}Files $wdir/$f and $wdir/saved_check/$f differ${CSI_RESET}" >&2
             sha1sum "$wdir/$f" "$wdir/saved_check/$f"
             failed=1
+        else
+            echo "Files $wdir/$f and $wdir/saved_check/$f are consistent"
+            let passed+=1
         fi
-        let passed+=1
     fi
 done
 if [ "$passed" -gt 0 ] && ! [ "$failed" ] ; then

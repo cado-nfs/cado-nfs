@@ -21,13 +21,13 @@ void cpubinding_lookup_parameters(param_list_ptr pl);
  * meant to collect messages for various nodes in an MPI context, and
  * print only the unique ones (see parallelizing_info.c)
  */
-void * cpubinding_get_info(char ** messages, param_list_ptr pl, int thread_split[2]);
+void * cpubinding_get_info(char ** messages, param_list_ptr pl, unsigned int, unsigned int);
 
 /* perform the actual pinning. This must be called for each thread */
 void cpubinding_do_pinning(void * pinning_info, int i, int j);
 
 /* free the opaque pointer */
-void cpubinding_free_info(void * pinning_info, int thread_split[2]);
+void cpubinding_free_info(void * pinning_info, unsigned int, unsigned int);
 
 #ifdef __cplusplus
 }

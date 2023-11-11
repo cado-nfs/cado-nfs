@@ -5,25 +5,28 @@
 #include <cstdlib>
 #include <cstdio>
 #include <string>                // for string
+#include <memory>
 #include <algorithm>
 #include <vector>
 #include <sys/stat.h>
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
-#include "async.h"
+#include "async.hpp"
 #include "bw-common.h"
-#include "cheating_vec_init.h"
 #include "fmt/core.h"            // for check_format_string
 #include "fmt/format.h"
 #include "fmt/printf.h" // IWYU pragma: keep
 #include "macros.h"
-#include "matmul.h"              // for matmul_public_s
-#include "matmul_top.h"
-#include "mpfq/mpfq.h"
-#include "mpfq/mpfq_vbase.h"
-#include "parallelizing_info.h"
+#include "matmul.hpp"              // for matmul_public_s
+#include "matmul_top.hpp"
+#include "matmul_top_comm.hpp"
+#include "arith-generic.hpp"
+#include "arith-cross.hpp"
+#include "parallelizing_info.hpp"
 #include "params.h"
 #include "select_mpi.h"
-#include "xvectors.h"
+#include "xvectors.hpp"
+#include "mmt_vector_pair.hpp"
+#include "utils_cxx.hpp"
 using namespace fmt::literals;
 
 int legacy_check_mode = 0;
@@ -46,6 +49,11 @@ int legacy_check_mode = 0;
  *
  * Cv0-$nchecks.$s (also referred to as C) : check vector for distance $s. Depends on X.
  * Cd0-$nchecks.$s (also referred to as D) : check vector for distance $s. Depends on X, T, and R.
+ *
+ * Cv0-<splitwidth>.<j> == trsp(M)^j * X * Ct (See note (T))
+ * Cd0-<splitwidth>.<j> == \sum_{0<=i<j} trsp(M)^i * X * Ct * Cr[i] (See note (T))
+ * 
+ * (T): This assumes that nullspace=right. If nullspace=left, replace M by trsp(M).
  */
 
 void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
@@ -56,35 +64,24 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     ASSERT_ALWAYS(!pi->interleaved);
 
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
 
     int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
-    mpfq_vbase A;
-    mpfq_vbase_oo_field_init_byfeatures(A, 
-            MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_SIMD_GROUPSIZE, nchecks,
-            MPFQ_DONE);
+    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, nchecks));
 
     /* We need that in order to do matrix products */
-    mpfq_vbase_tmpl AxA;
-    mpfq_vbase_oo_init_templates(AxA, A, A);
+    std::unique_ptr<arith_cross_generic> AxA(arith_cross_generic::instance(A.get(), A.get()));
 
-
-    matmul_top_init(mmt, A, pi, pl, bw->dir);
-    pi_datatype_ptr A_pi = mmt->pitype;
-
-    mmt_vec myy[2];
-    mmt_vec_ptr my = myy[0];
-    mmt_vec_ptr y = myy[1];
-    mmt_vec dvec;
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
+    pi_datatype_ptr A_pi = mmt.pitype;
 
     /* we work in the opposite direction compared to other programs */
-    mmt_vec_init(mmt,0,0, y,   bw->dir,                0, mmt->n[bw->dir]);
-    mmt_vec_init(mmt,0,0, my, !bw->dir, /* shared ! */ 1, mmt->n[!bw->dir]);
-    mmt_vec_init(mmt,0,0, dvec,!bw->dir, /* shared ! */ 1, mmt->n[!bw->dir]);
+    mmt_vector_pair myy(mmt, !bw->dir);
+    mmt_vec & my = myy[0];
 
-    unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+    mmt_vec dvec(mmt,0,0, !bw->dir, /* shared ! */ 1, mmt.n[!bw->dir]);
+
+    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     /* Because we're a special case, we _expect_ to work opposite to
      * optimized direction. So we pass bw->dir even though _we_ are going
@@ -118,15 +115,15 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* It depends only on the random seed. We create it if start==0, or
      * reload it otherwise. */
     std::string Tfilename = fmt::format(FMT_STRING("Ct0-{}.0-{}"), nchecks, bw->m);
-    size_t T_coeff_size = A->vec_elt_stride(A, bw->m);
-    void * Tdata;
-    cheating_vec_init(A, &Tdata, bw->m);
+    size_t T_coeff_size = A->vec_elt_stride(bw->m);
+    arith_generic::elt * Tdata;
+    Tdata = A->alloc(bw->m);
 
     /* Cr is a list of matrices of size nchecks * nchecks */
     /* It depends only on the random seed */
     std::string Rfilename = fmt::format(FMT_STRING("Cr0-{}.0-{}"), nchecks, nchecks);
     FILE * Rfile = NULL;
-    size_t R_coeff_size = A->vec_elt_stride(A, nchecks);
+    size_t R_coeff_size = A->vec_elt_stride(nchecks);
 
 
     if (!legacy_check_mode) {
@@ -210,16 +207,16 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
              *
              * (also, random generation matters only at the leader node)
              */
-            A->vec_random(A, Tdata, bw->m, rstate);
+            A->vec_set_random(Tdata, bw->m, rstate);
             if (bw->start == 0) {
-                rc = fwrite(Tdata, A->vec_elt_stride(A, bw->m), 1, T.f);
+                rc = fwrite(Tdata, A->vec_elt_stride(bw->m), 1, T.f);
                 ASSERT_ALWAYS(rc == 1);
                 if (tcan_print) fmt::printf("Saved %s\n", Tfilename);
             } else {
                 /* We should be reading the same data, unless we changed
                  * the seed.
                  */
-                rc = fread(Tdata, A->vec_elt_stride(A, bw->m), 1, T.f);
+                rc = fread(Tdata, A->vec_elt_stride(bw->m), 1, T.f);
                 ASSERT_ALWAYS(rc == 1);
                 if (tcan_print) fmt::printf("Loaded %s\n", Tfilename);
             }
@@ -234,19 +231,19 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             pi_bcast(Tdata, bw->m, A_pi, 0, 0, pi->m);
         }
         /* }}} */
-
     }
+
+    /* same remark as above. We want the random state to be in sync even
+     * if bw->start>0 and we don't _really_ have stuff to generate for
+     * this data that's already there.
+     */
+
     if (bw->start) {
-        /* same remark as above. We want the random state to be in sync
-         * even if bw->start>0 and we don't _really_ have stuff to
-         * generate for this data that's already there.
-         */
-        void * Rdata;
-        cheating_vec_init(A, &Rdata, nchecks);
+        arith_generic::elt * Rdata = A->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
         for(int k = 0 ; k < bw->start ; k++) {
-            A->vec_random(A, Rdata, nchecks, rstate);
+            /* same remark as above */
+            A->vec_set_random(Rdata, nchecks, rstate);
         }
-        cheating_vec_clear(A, &Rdata, nchecks);
     }
 
     /* {{{ create initial Cv and Cd, or load them if start>0 */
@@ -271,14 +268,14 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         } else {
             for(int c = 0 ; c < bw->m ; c += nchecks) {
                 mmt_vec_set_x_indices(dvec, gxvecs + c * nx, nchecks, nx);
-                AxA->addmul_tiny(A, A,
+                AxA->addmul_tiny(
                         mmt_my_own_subvec(my),
                         mmt_my_own_subvec(dvec),
-                        A->vec_subvec(A, Tdata, c),
+                        A->vec_subvec(Tdata, c),
                         mmt_my_own_size_in_items(my));
             }
             /* addmul_tiny degrades consistency ! */
-            my->consistency = 1;
+            my.consistency = 1;
             mmt_vec_broadcast(my);
             mmt_vec_save(my, "Cv%u-%u.0", unpadded, 0);
         }
@@ -307,7 +304,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     serialize_threads(pi->m);
     if (pi->m->trank == 0) {
         /* the bw object is global ! */
-        bw_set_length_and_interval_krylov(bw, mmt->n0);
+        bw_set_length_and_interval_krylov(bw, mmt.n0);
     }
     serialize_threads(pi->m);
     ASSERT_ALWAYS(bw->end % bw->interval == 0);
@@ -348,8 +345,8 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* }}} */
 
     // {{{ kill the warning about wrong spmv direction
-    for(int i = 0 ; i < mmt->nmatrices ; i++) {
-        mmt->matrices[i]->mm->iteration[!bw->dir] = INT_MIN;
+    for(auto const & Mloc : mmt.matrices) {
+        Mloc.mm->iteration[!bw->dir] = INT_MIN;
     }
     // }}}
 
@@ -377,32 +374,32 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
          * stdio buffering), while no Cd file has been written yet.
          * Therefore this is mostly a matter of consistency.
          */
-        void * Rdata_stream = NULL;
+        arith_generic::elt * Rdata_stream = NULL;
         int k0 = k;
         if (!legacy_check_mode && (next - k0)) {
-            cheating_vec_init(A, &Rdata_stream, nchecks * (next - k0));
-            A->vec_set_zero(A, Rdata_stream, nchecks * (next - k0));
-            A->vec_random(A, Rdata_stream, nchecks * (next - k0), rstate);
+            Rdata_stream = A->alloc(nchecks * (next - k0), ALIGNMENT_ON_ALL_BWC_VECTORS);
+            A->vec_set_zero(Rdata_stream, nchecks * (next - k0));
+            A->vec_set_random(Rdata_stream, nchecks * (next - k0), rstate);
             pi_bcast(Rdata_stream, nchecks * (next - k0), A_pi, 0, 0, pi->m);
         }
     
         for( ; k < next ; k++) {
             /* new random coefficient in R */
             if (!legacy_check_mode) {
-                void * Rdata = A->vec_subvec(A, Rdata_stream, (k-k0) * nchecks);
+                arith_generic::elt * Rdata = A->vec_subvec(Rdata_stream, (k-k0) * nchecks);
                 /* At this point Rdata should be consistent across all
                  * threads */
-                AxA->addmul_tiny(A, A,
+                AxA->addmul_tiny(
                         mmt_my_own_subvec(dvec),
                         mmt_my_own_subvec(my),
                         Rdata,
                         mmt_my_own_size_in_items(my));
             }
             /* addmul_tiny degrades consistency ! */
-            dvec->consistency = 1;
+            dvec.consistency = 1;
             mmt_vec_broadcast(dvec);
-            pi_log_op(mmt->pi->m, "iteration %d", k);
-            matmul_top_mul(mmt, myy, NULL);
+            pi_log_op(mmt.pi->m, "iteration %d", k);
+            matmul_top_mul(mmt, myy.vectors(), NULL);
 
             if (tcan_print) {
                 putchar('.');
@@ -410,7 +407,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             }
         }
         serialize(pi->m);
-        serialize_threads(mmt->pi->m);
+        serialize_threads(mmt.pi->m);
         mmt_vec_untwist(mmt, my);
         mmt_vec_untwist(mmt, dvec);
 
@@ -420,12 +417,12 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             mmt_vec_save(my,   fmt::format(FMT_STRING("Cv%u-%u.{}"), k), unpadded, 0);
             mmt_vec_save(dvec, fmt::format(FMT_STRING("Cd%u-%u.{}"), k), unpadded, 0);
             if (pi->m->trank == 0 && pi->m->jrank == 0 && (next - k0)) {
-                rc = fwrite(Rdata_stream, A->vec_elt_stride(A, nchecks), next - k0, Rfile);
+                rc = fwrite(Rdata_stream, A->vec_elt_stride(nchecks), next - k0, Rfile);
                 ASSERT_ALWAYS(rc == (next - k0));
                 rc = fflush(Rfile);
                 ASSERT_ALWAYS(rc == 0);
             }
-            cheating_vec_clear(A, &Rdata_stream, nchecks * (next - k0));
+            A->free(Rdata_stream);
         }
     }
 
@@ -433,16 +430,9 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
         fclose(Rfile);
     }
 
-    cheating_vec_clear(A, &Tdata, bw->m);
+    A->free(Tdata);
 
     gmp_randclear(rstate);
-
-    mmt_vec_clear(mmt, dvec);
-    mmt_vec_clear(mmt, y);
-    mmt_vec_clear(mmt, my);
-    matmul_top_clear(mmt);
-
-    A->oo_field_clear(A);
 
     return NULL;
 }

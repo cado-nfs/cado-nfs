@@ -28,17 +28,17 @@
 #include "fmt/core.h"       // for check_format_string
 #include "fmt/format.h"     // for basic_buffer::append, basic_parse_context...
 #include "fmt/printf.h"     // fmt::fprintf // IWYU pragma: keep
-#include "matmul.h"         // for matmul_ptr, matmul_public_s, MATMUL_AUX_Z...
+#include "matmul.hpp"       // for matmul_ptr, matmul_public_s, MATMUL_AUX_Z...
 #include "macros.h"
 #include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
 #include "timing.h"     // wct_seconds
-#include "mpfq_layer.h"
+#include "arith-hard.hpp"
 
 using namespace std;
 
 /* Make sure that the assembly function is only called if it matches
  * correctly the abase header !! */
-#if defined(HAVE_GAS_SYNTAX_ASSEMBLY_SOURCES) && defined(SELECT_MPFQ_LAYER_u64k1)
+#if defined(HAVE_GAS_SYNTAX_ASSEMBLY_SOURCES) && defined(ARITH_LAYER_b64)
 // disabling one particular assembly code is done by simply disabling the
 // header file (and optionally removing the assembly file from the link
 // list is the CMakeLists.txt file, but in reality it's not needed. This
@@ -53,9 +53,9 @@ using namespace std;
 // #define ENABLE_ASM
 #endif
 
-#include "matmul-common.h"
+#include "matmul-common.hpp"
 
-#include "matmul_facade.h"
+#include "matmul_facade.hpp"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "params.h"
 
@@ -428,14 +428,14 @@ struct matmul_bucket_data_s {
     /* repeat the fields from the public_ interface */
     struct matmul_public_s public_[1];
     /* now our private fields */
-    abdst_field xab;
+    arith_hard * xab;
     size_t npack;
     size_t scratch1size;
     size_t scratch2size;
     size_t scratch3size;
-    abelt * scratch1;
-    abelt * scratch2;
-    abelt * scratch3;
+    arith_hard::elt * scratch1;
+    arith_hard::elt * scratch2;
+    arith_hard::elt * scratch3;
     vector<uint16_t> t16;       /* For small (dense) slices */
     vector<uint8_t> t8;         /* For large (sparse) slices */
     vector<unsigned int> aux;   /* Various descriptors -- fairly small */
@@ -449,9 +449,10 @@ struct matmul_bucket_data_s {
 void MATMUL_NAME(clear)(matmul_ptr mm0)
 {
     struct matmul_bucket_data_s * mm = (struct matmul_bucket_data_s *)mm0;
-    if (mm->scratch1) abvec_clear(mm->xab, &mm->scratch1, mm->scratch1size);
-    if (mm->scratch2) abvec_clear(mm->xab, &mm->scratch2, mm->scratch2size);
-    if (mm->scratch3) abvec_clear(mm->xab, &mm->scratch3, mm->scratch3size);
+    arith_hard * ab = mm->xab;
+    if (mm->scratch1) ab->free(mm->scratch1);
+    if (mm->scratch2) ab->free(mm->scratch2);
+    if (mm->scratch3) ab->free(mm->scratch3);
 
     matmul_common_clear(mm->public_);
     // delete properly calls the destructor for members as well.
@@ -462,7 +463,7 @@ static void mm_finish_init(struct matmul_bucket_data_s * mm);
 
 matmul_ptr MATMUL_NAME(init)(void * pxx, param_list pl, int optimized_direction)
 {
-    abdst_field xx = (abdst_field) pxx;
+    arith_hard * xx = (arith_hard *) pxx;
     struct matmul_bucket_data_s * mm;
     mm = new matmul_bucket_data_s;
 
@@ -480,16 +481,16 @@ matmul_ptr MATMUL_NAME(init)(void * pxx, param_list pl, int optimized_direction)
 
     unsigned int npack = L1_CACHE_SIZE;
     if (pl) param_list_parse_uint(pl, "l1_cache_size", &npack);
-    npack /= sizeof(abelt);
+    npack /= sizeof(arith_hard::elt);
     mm->npack = npack;
 
     unsigned int scratch1size = L2_CACHE_SIZE/2;
     if (pl) param_list_parse_uint(pl, "l2_cache_size", &scratch1size);
-    scratch1size /= sizeof(abelt);
+    scratch1size /= sizeof(arith_hard::elt);
     mm->scratch1size = scratch1size;
 
     unsigned int scratch2size;
-    scratch2size = scratch1size * HUGE_MPLEX_MAX; // (1 << 24)/sizeof(abelt));
+    scratch2size = scratch1size * HUGE_MPLEX_MAX; // (1 << 24)/sizeof(arith_hard::elt));
     mm->scratch2size = scratch2size;
 
     int suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
@@ -1528,7 +1529,7 @@ void vsc_fill_buffers(builder * mb, struct vsc_slice_t * V)
 
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
             "Total tbuf space %lu (%lu MB)\n",
-            V->tbuf_space, (V->tbuf_space * sizeof(abelt)) >> 20);
+            V->tbuf_space, (V->tbuf_space * sizeof(arith_hard::elt)) >> 20);
 }
 /*}}}*/
 
@@ -2081,7 +2082,7 @@ int MATMUL_NAME(reload_cache)(matmul_ptr mm0)/* {{{ */
     struct matmul_bucket_data_s * mm = (struct matmul_bucket_data_s *)mm0;
     FILE * f;
 
-    f = matmul_common_reload_cache_fopen(sizeof(abelt), mm->public_, MM_MAGIC);
+    f = matmul_common_reload_cache_fopen(sizeof(arith_hard::elt), mm->public_, MM_MAGIC);
     if (!f) return 0;
 
     for( ;; ) {
@@ -2126,7 +2127,7 @@ void MATMUL_NAME(save_cache)(matmul_ptr mm0)/*{{{*/
     struct matmul_bucket_data_s * mm = (struct matmul_bucket_data_s *)mm0;
     FILE * f;
 
-    f = matmul_common_save_cache_fopen(sizeof(abelt), mm->public_, MM_MAGIC);
+    f = matmul_common_save_cache_fopen(sizeof(arith_hard::elt), mm->public_, MM_MAGIC);
     if (!f) return;
 
     for(unsigned int h = 0 ; h < mm->headers.size() ; h++) {
@@ -2174,39 +2175,62 @@ void MATMUL_NAME(save_cache)(matmul_ptr mm0)/*{{{*/
 //     return res;
 // } /* }}} */
 
-#ifndef MATMUL_SUB_SMALL1_H_
-static const uint16_t * matmul_sub_small1(abdst_field x, abelt * where, abelt const * from, const uint16_t * q, unsigned int count)
-{
-        for(uint32_t c = 0 ; c < count ; c++) {
-            uint32_t j = *q++;
-            uint32_t di = *q++;
-            // ASSERT(j < (1UL << 16));
-            // ASSERT(hdr->j0 + j < hdr->j1);
-            // ASSERT(hdr->i0 + di < hdr->i1);
-            abadd(x, where[di], where[di], from[j]);
-        }
-        return q;
+static inline uint64_t * cvt(arith_hard::elt * a) MAYBE_UNUSED;
+static inline uint64_t * cvt(arith_hard::elt * a) {
+    return reinterpret_cast<uint64_t *>(a);
 }
-#endif
+static inline uint64_t const * cvt(arith_hard::elt const * a) MAYBE_UNUSED;
+static inline uint64_t const * cvt(arith_hard::elt const * a) {
+    return reinterpret_cast<uint64_t const *>(a);
+}
+static inline uint64_t ** cvt(arith_hard::elt ** a) MAYBE_UNUSED;
+static inline uint64_t ** cvt(arith_hard::elt ** a) {
+    return reinterpret_cast<uint64_t **>(a);
+}
+static inline uint64_t const ** cvt(arith_hard::elt const ** a) MAYBE_UNUSED;
+static inline uint64_t const ** cvt(arith_hard::elt const ** a) {
+    return reinterpret_cast<uint64_t const **>(a);
+}
 
-#ifndef MATMUL_SUB_SMALL1_TR_H_
-static const uint16_t * matmul_sub_small1_tr(abdst_field x, abelt * where, abelt const * from, const uint16_t * q, unsigned int count)
+static const uint16_t * matmul_sub_small1(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * where, arith_hard::elt const * from, const uint16_t * q, unsigned int count)
 {
+#ifdef MATMUL_SUB_SMALL1_H_
+    return matmul_sub_small1_asm(cvt(where), cvt(from), q, count);
+#else
     for(uint32_t c = 0 ; c < count ; c++) {
         uint32_t j = *q++;
         uint32_t di = *q++;
         // ASSERT(j < (1UL << 16));
         // ASSERT(hdr->j0 + j < hdr->j1);
         // ASSERT(hdr->i0 + di < hdr->i1);
-        abadd(x, where[j], where[j], from[di]);
+        ab->add(ab->vec_item(where, di), ab->vec_item(from, j));
     }
     return q;
-}
 #endif
+}
 
-#ifndef MATMUL_SUB_SMALL2_H_
-static const uint16_t * matmul_sub_small2(abdst_field x, abelt * where, abelt const * from, const uint16_t * q, unsigned int count)
+static const uint16_t * matmul_sub_small1_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * where, arith_hard::elt const * from, const uint16_t * q, unsigned int count)
 {
+#ifdef MATMUL_SUB_SMALL1_TR_H_
+    return matmul_sub_small1_tr_asm(cvt(where), cvt(from), q, count);
+#else
+    for(uint32_t c = 0 ; c < count ; c++) {
+        uint32_t j = *q++;
+        uint32_t di = *q++;
+        // ASSERT(j < (1UL << 16));
+        // ASSERT(hdr->j0 + j < hdr->j1);
+        // ASSERT(hdr->i0 + di < hdr->i1);
+        ab->add(ab->vec_item(where, j), ab->vec_item(from, di));
+    }
+    return q;
+#endif
+}
+
+static const uint16_t * matmul_sub_small2(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * where, arith_hard::elt const * from, const uint16_t * q, unsigned int count)
+{
+#ifdef MATMUL_SUB_SMALL2_H_
+    return matmul_sub_small2_asm(cvt(where), cvt(from), q, count);
+#else
     uint32_t j = 0;
     for(uint32_t c = 0 ; c < count ; c++) {
         uint16_t h = *q++;
@@ -2215,15 +2239,17 @@ static const uint16_t * matmul_sub_small2(abdst_field x, abelt * where, abelt co
         uint32_t di = h & ((1UL << SMALL_SLICES_I_BITS) - 1);
         // ASSERT(hdr->j0 + j < hdr->j1);
         // ASSERT(hdr->i0 + di < hdr->i1);
-        abadd(x, where[di], where[di], from[j]);
+        ab->add(ab->vec_item(where, di), ab->vec_item(from, j));
     }
     return q;
-}
 #endif
+}
 
-#ifndef MATMUL_SUB_SMALL2_TR_H_
-static const uint16_t * matmul_sub_small2_tr(abdst_field x, abelt * where, abelt const * from, const uint16_t * q, unsigned int count)
+static const uint16_t * matmul_sub_small2_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * where, arith_hard::elt const * from, const uint16_t * q, unsigned int count)
 {
+#ifdef MATMUL_SUB_SMALL2_TR_H_
+    return matmul_sub_small2_tr_asm(cvt(where), cvt(from), q, count);
+#else
     uint32_t j = 0;
     for(uint32_t c = 0 ; c < count ; c++) {
         uint16_t h = *q++;
@@ -2232,11 +2258,11 @@ static const uint16_t * matmul_sub_small2_tr(abdst_field x, abelt * where, abelt
         uint32_t di = h & ((1UL << SMALL_SLICES_I_BITS) - 1);
         // ASSERT(hdr->j0 + j < hdr->j1);
         // ASSERT(hdr->i0 + di < hdr->i1);
-        abadd(x, where[j], where[j], from[di]);
+        ab->add(ab->vec_item(where, j), ab->vec_item(from, di));
     }
     return q;
-}
 #endif
+}
 
 struct pos_desc {
     const uint16_t * q16;
@@ -2247,54 +2273,54 @@ struct pos_desc {
     uint32_t ncols_t;
 };
 
-static inline void matmul_bucket_mul_small1_vblock(struct matmul_bucket_data_s * mm, slice_header_t * hdr, abelt * dst, abelt const * src, int d, struct pos_desc * pos)
+static inline void matmul_bucket_mul_small1_vblock(struct matmul_bucket_data_s * mm, slice_header_t * hdr, arith_hard::elt * dst, arith_hard::elt const * src, int d, struct pos_desc * pos)
 {
     ASM_COMMENT("multiplication code -- small1 (dense) slices"); /* {{{ */
     int usual = d == ! mm->public_->store_transposed;
-    abdst_field x = mm->xab;
-    abelt * where      = dst + (usual ? hdr->i0 : hdr->j0);
-    abelt const * from = src + (usual ? hdr->j0 : hdr->i0);
+    arith_hard * ab = mm->xab;
+    arith_hard::elt * where      = dst + (usual ? hdr->i0 : hdr->j0);
+    arith_hard::elt const * from = src + (usual ? hdr->j0 : hdr->i0);
     if ((usual ? hdr->j0 : hdr->i0) == 0) { /* first to come, first to clear */
-        abvec_set_zero(x, where, usual ? (hdr->i1 - hdr->i0) : (hdr->j1 - hdr->j0));
+        ab->vec_set_zero(where, (usual ? (hdr->i1 - hdr->i0) : (hdr->j1 - hdr->j0)));
     }
 
     uint32_t ncoeffs_slice = hdr->ncoeffs;
     ASSERT_ALWAYS(pos->i == hdr->i0);   // FIXME -- should disappear.
 
     if (usual) {
-        pos->q16 = matmul_sub_small1(x, where, from, pos->q16, ncoeffs_slice);
+        pos->q16 = matmul_sub_small1(ab, where, from, pos->q16, ncoeffs_slice);
     } else {
-        pos->q16 = matmul_sub_small1_tr(x, where, from, pos->q16, ncoeffs_slice);
+        pos->q16 = matmul_sub_small1_tr(ab, where, from, pos->q16, ncoeffs_slice);
     }
     ASM_COMMENT("end of small1 (dense) slices"); /* }}} */
 }
 
-static inline void matmul_bucket_mul_small2(struct matmul_bucket_data_s * mm, slice_header_t * hdr, abelt * dst, abelt const * src, int d, struct pos_desc * pos)
+static inline void matmul_bucket_mul_small2(struct matmul_bucket_data_s * mm, slice_header_t * hdr, arith_hard::elt * dst, arith_hard::elt const * src, int d, struct pos_desc * pos)
 {
     ASM_COMMENT("multiplication code -- small2 (dense) slices"); /* {{{ */
     int usual = d == ! mm->public_->store_transposed;
-    abdst_field x = mm->xab;
-    abelt * where      = dst + (usual ? hdr->i0 : hdr->j0);
-    abelt const * from = src + (usual ? hdr->j0 : hdr->i0);
+    arith_hard * ab = mm->xab;
+    arith_hard::elt * where      = dst + (usual ? hdr->i0 : hdr->j0);
+    arith_hard::elt const * from = src + (usual ? hdr->j0 : hdr->i0);
 
     if ((usual ? hdr->j0 : hdr->i0) == 0) { /* first to come, first to clear */
-        abvec_set_zero(x, where, usual ? (hdr->i1 - hdr->i0) : (hdr->j1 - hdr->j0));
+        ab->vec_set_zero(where, (usual ? (hdr->i1 - hdr->i0) : (hdr->j1 - hdr->j0)));
     }
 
     uint32_t ncoeffs_slice = hdr->ncoeffs;
     ASSERT_ALWAYS(pos->i == hdr->i0);   // FIXME -- should disappear.
 
     if (usual) {
-        pos->q16 = matmul_sub_small2(x, where, from, pos->q16, ncoeffs_slice);
+        pos->q16 = matmul_sub_small2(ab, where, from, pos->q16, ncoeffs_slice);
     } else {
-        pos->q16 = matmul_sub_small2_tr(x, where, from, pos->q16, ncoeffs_slice);
+        pos->q16 = matmul_sub_small2_tr(ab, where, from, pos->q16, ncoeffs_slice);
     }
     /* fix alignment in any case */
     pos->q16 += (2 - 1) & - ncoeffs_slice;
     ASM_COMMENT("end of small2 (dense) slices"); /* }}} */
 }
 
-// static inline void prepare_buckets_and_fences(abdst_field x MAYBE_UNUSED, abelt ** b, abelt ** f, abelt * z, const unsigned int * ql, unsigned int n)
+// static inline void prepare_buckets_and_fences(arith_hard * x MAYBE_UNUSED, arith_hard::elt ** b, arith_hard::elt ** f, arith_hard::elt * z, const unsigned int * ql, unsigned int n)
 // {
 //     for(unsigned int k = 0 ; k < n ; k++) {
 //         b[k] = z;
@@ -2303,17 +2329,19 @@ static inline void matmul_bucket_mul_small2(struct matmul_bucket_data_s * mm, sl
 //     }
 // }
 
-static inline void prepare_buckets(abdst_field x MAYBE_UNUSED, abelt ** b, abelt * z, const unsigned int * ql, unsigned int n)
+static inline void prepare_buckets(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** b, arith_hard::elt * z, const unsigned int * ql, unsigned int n)
 {
     for(unsigned int k = 0 ; k < n ; k++) {
         b[k] = z;
-        z += ql[k];
+        z = ab->vec_subvec(z, ql[k]);
     }
 }
 
-#ifndef MATMUL_SUB_LARGE_FBI_H_
-static inline void matmul_sub_large_fbi(abdst_field x, abelt ** sb, const abelt * z, const uint8_t * q, unsigned int n)
+static inline void matmul_sub_large_fbi(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** sb, const arith_hard::elt * z, const uint8_t * q, unsigned int n)
 {
+#ifdef MATMUL_SUB_LARGE_FBI_H_
+    matmul_sub_large_fbi_asm(cvt(sb), cvt(z), q, n);
+#else
     /* Dispatch data found in z[0]...z[f(n-1)] such that z[f(i)] is in
      * array pointed to by sb[q[2*i+1]]. The function f(i) is given by
      * the sum q[0]+q[2]+...+q[2*(i-1)]. Exactly 2n coefficients are
@@ -2323,32 +2351,36 @@ static inline void matmul_sub_large_fbi(abdst_field x, abelt ** sb, const abelt 
         // we might receive zmax and do some checking (see caller)
         // ASSERT_ALWAYS(z < zmax);
         q++;
-        abset(x, sb[*q][0], z[0]);
-        sb[*q]+= 1;
+        ab->set(*sb[*q], *z);
+        sb[*q] = ab->vec_subvec(sb[*q], 1);
         q++;
     }
-}
 #endif
+}
 
-#ifndef MATMUL_SUB_LARGE_FBI_TR_H_
 static inline void
-matmul_sub_large_fbi_tr(abdst_field x, abelt ** sb, abelt * z, const uint8_t * q, unsigned int n)
+matmul_sub_large_fbi_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** sb, arith_hard::elt * z, const uint8_t * q, unsigned int n)
 {
+#ifdef MATMUL_SUB_LARGE_FBI_TR_H_
+    matmul_sub_large_fbi_tr_asm(cvt(sb), cvt(z), q, n);
+#else
     /* Does the converse of the above */
     for(unsigned int c = 0 ; c < n ; c++) {
-        z += *q;
+        z = ab->vec_subvec(z, *q);
         q++;
-        abadd(x, z[0], z[0], sb[*q][0]);
-        sb[*q]+= 1;
+        ab->add(*z, *sb[*q]);
+        sb[*q] = ab->vec_subvec(sb[*q], 1);
         q++;
     }
-}
 #endif
+}
 
-#ifndef MATMUL_SUB_LARGE_ASB_H_
-// static void matmul_sub_large_asb(abdst_field x, abelt * dst, const abelt * z, const uint8_t * q, const unsigned int * ql) __attribute__((__noinline__));
-static void matmul_sub_large_asb(abdst_field x, abelt * dst, const abelt * z, const uint8_t * q, const unsigned int * ql)
+// static void matmul_sub_large_asb(arith_hard::elt * dst, const arith_hard::elt * z, const uint8_t * q, const unsigned int * ql) __attribute__((__noinline__));
+static void matmul_sub_large_asb(arith_hard * ab, arith_hard::elt * dst, const arith_hard::elt * z, const uint8_t * q, const unsigned int * ql)
 {
+#ifdef MATMUL_SUB_LARGE_ASB_H_
+    matmul_sub_large_asb(cvt(dst), cvt(z), q, ql);
+#else
     /* This ``applies'' the LSL_NBUCKETS_MAX small buckets whose
      * respective lengths are given by ql[0] to ql[LSL_NBUCKETS_MAX-1].
      *
@@ -2357,23 +2389,22 @@ static void matmul_sub_large_asb(abdst_field x, abelt * dst, const abelt * z, co
      */
     for(int k = 0 ; k < LSL_NBUCKETS_MAX ; k++) {
         unsigned int l = ql[k];
-        for( ; l-- ; ) {
+        for( ; l-- ; )
             /* For padding coeffs, the assertion can fail if
              * we choose a row not equal to (0,0) -- first in
              * the first bucket.
              */
-            abadd(x, dst[*q], dst[*q], z[0]);
-            z+= 1;
-            q++;
-        }
+            ab->add(dst[*q++], *z++);
         dst += 256;
     }
-}
 #endif
+}
 
-#ifndef MATMUL_SUB_LARGE_ASB_TR_H_
-static inline void matmul_sub_large_asb_tr(abdst_field x, const abelt * src, abelt * z, const uint8_t * q, const unsigned int * ql)
+static inline void matmul_sub_large_asb_tr(arith_hard * ab MAYBE_UNUSED, const arith_hard::elt * src, arith_hard::elt * z, const uint8_t * q, const unsigned int * ql)
 {
+#ifdef MATMUL_SUB_LARGE_ASB_TR_H_
+    matmul_sub_large_asb(cvt(src), cvt(z), q, ql);
+#else
     /* converse of the above */
     for(int k = 0 ; k < LSL_NBUCKETS_MAX ; k++) {
         unsigned int l = ql[k];
@@ -2382,58 +2413,59 @@ static inline void matmul_sub_large_asb_tr(abdst_field x, const abelt * src, abe
              * we choose a row not equal to (0,0) -- first in
              * the first bucket.
              */
-            abset(x, z[0], src[*q]);
-            z += 1;
-            q++;
+            ab->set(*z++, ab->vec_item(src, *q++));
+            z = ab->vec_subvec(z, 1);
         }
         src += 256;
     }
-}
 #endif
+}
 
-#ifndef MATMUL_SUB_LARGE_FBD_H_
 static void
-matmul_sub_large_fbd(abdst_field x, abelt ** sb, const abelt * z, const uint8_t * q, unsigned int n)
+matmul_sub_large_fbd(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** sb, const arith_hard::elt * z, const uint8_t * q, unsigned int n)
 {
+#ifdef MATMUL_SUB_LARGE_FBD_H_
+    matmul_sub_large_fbd_asm(cvt(sb), cvt(z), q, n);
+#else
     /* Dispatch data found in z[0]...z[n] such that z[i] is in array
      * pointed to by sb[q[i]]. Exactly n coefficients are expected. All
      * the sb[] pointers are increased */
     for(unsigned int c = 0 ; c < n ; c++) {
-        abset(x, sb[q[c]][0], z[0]);
-        sb[q[c]]+= 1;
-        z += 1;
+        ab->set(*sb[q[c]], *z);
+        sb[q[c]] = ab->vec_subvec(sb[q[c]], 1);
+        z = ab->vec_subvec(z, 1);
     }
-}
 #endif
+}
 
-#ifndef MATMUL_SUB_LARGE_FBD_TR_H_
 static inline void
-matmul_sub_large_fbd_tr(abdst_field x, abelt ** sb, abelt * z, const uint8_t * q, unsigned int n)
+matmul_sub_large_fbd_tr(arith_hard * ab, arith_hard::elt ** sb, arith_hard::elt * z, const uint8_t * q, unsigned int n)
 {
+#ifdef MATMUL_SUB_LARGE_FBD_TR_H_
+    matmul_sub_large_fbd_tr_asm(cvt(sb), arith_hard::from_pointer(z), q, n);
+#else
     /* Does the converse of the above */
     for(unsigned int c = 0 ; c < n ; c++) {
-        abset(x, z[0], sb[q[c]][0]);
-        sb[q[c]]+= 1;
-        z += 1;
+        ab->set(*z++, *sb[q[c]]++);
     }
-}
 #endif
+}
 
-static inline void matmul_bucket_mul_large(struct matmul_bucket_data_s * mm, slice_header_t * hdr, abelt * dst, abelt const * src, int d, struct pos_desc * pos)
+static inline void matmul_bucket_mul_large(struct matmul_bucket_data_s * mm, slice_header_t * hdr, arith_hard::elt * dst, arith_hard::elt const * src, int d, struct pos_desc * pos)
 {
     ASM_COMMENT("multiplication code -- large (sparse) slices"); /* {{{ */
 
-    abdst_field x = mm->xab;
+    arith_hard * ab = mm->xab;
 
     int usual = d == ! mm->public_->store_transposed;
 
-    abelt * where      = dst + (usual ? hdr->i0 : hdr->j0);
-    abelt const * from = src + (usual ? hdr->j0 : hdr->i0);
+    arith_hard::elt * where      = dst + (usual ? hdr->i0 : hdr->j0);
+    arith_hard::elt const * from = src + (usual ? hdr->j0 : hdr->i0);
     if ((usual ? hdr->j0 : hdr->i0) == 0) { /* first to come, first to clear */
-        abvec_set_zero(x, where, usual ? (hdr->i1 - hdr->i0) : (hdr->j1 - hdr->j0));
+        ab->vec_set_zero(where, (usual ? (hdr->i1 - hdr->i0) : (hdr->j1 - hdr->j0)));
     }
 
-    abelt * scratch = mm->scratch1;
+    arith_hard::elt * scratch = mm->scratch1;
 
     uint32_t j = 0;
 
@@ -2441,15 +2473,15 @@ static inline void matmul_bucket_mul_large(struct matmul_bucket_data_s * mm, sli
         for( ; j < pos->ncols_t ; ) {
             uint32_t j1 = j + *pos->ql++;
             uint32_t n = *pos->ql++;
-            abelt * bucket[LSL_NBUCKETS_MAX];
-            abelt const * inp = from + j;
-            prepare_buckets(x,bucket,scratch,pos->ql,LSL_NBUCKETS_MAX);
+            arith_hard::elt * bucket[LSL_NBUCKETS_MAX];
+            arith_hard::elt const * inp = from + j;
+            prepare_buckets(ab, bucket,scratch,pos->ql,LSL_NBUCKETS_MAX);
             ASSERT_ALWAYS((((unsigned long)pos->q8)&1)==0);
-            matmul_sub_large_fbi(x, bucket, inp, pos->q8, n);
+            matmul_sub_large_fbi(ab, bucket, inp, pos->q8, n);
             // the (inp) variable in the call above never exceeds from +
             // j1, although we don't do the check in reality.
             // matmul_sub_large_fbi_boundschecked(x, bucket, inp, pos->q8, n, from + j1);
-            matmul_sub_large_asb(x, where, scratch, pos->q8+2*n, pos->ql);
+            matmul_sub_large_asb(ab, where, scratch, pos->q8+2*n, pos->ql);
             pos->q8 += 3*n;
             // fix alignment !
             pos->q8 += n & 1;
@@ -2463,12 +2495,12 @@ static inline void matmul_bucket_mul_large(struct matmul_bucket_data_s * mm, sli
         for( ; j < pos->ncols_t ; ) {
             uint32_t j1 = j + *pos->ql++;
             uint32_t n = *pos->ql++;
-            abelt * bucket[LSL_NBUCKETS_MAX];
-            abelt * outp = where + j;
-            prepare_buckets(x,bucket,scratch,pos->ql,LSL_NBUCKETS_MAX);
-            matmul_sub_large_asb_tr(x, from, scratch, pos->q8+2*n, pos->ql);
+            arith_hard::elt * bucket[LSL_NBUCKETS_MAX];
+            arith_hard::elt * outp = where + j;
+            prepare_buckets(ab, bucket,scratch,pos->ql,LSL_NBUCKETS_MAX);
+            matmul_sub_large_asb_tr(ab, from, scratch, pos->q8+2*n, pos->ql);
             ASSERT_ALWAYS((((unsigned long)pos->q8)&1)==0);
-            matmul_sub_large_fbi_tr(x, bucket, outp, pos->q8, n);
+            matmul_sub_large_fbi_tr(ab, bucket, outp, pos->q8, n);
             pos->q8 += 3 * n;
             // fix alignment !
             pos->q8 += n & 1;
@@ -2479,21 +2511,21 @@ static inline void matmul_bucket_mul_large(struct matmul_bucket_data_s * mm, sli
     ASM_COMMENT("end of large (sparse) slices"); /* }}} */
 }
 
-static inline void matmul_bucket_mul_huge(struct matmul_bucket_data_s * mm, slice_header_t * hdr, abelt * dst, abelt const * src, int d, struct pos_desc * pos)
+static inline void matmul_bucket_mul_huge(struct matmul_bucket_data_s * mm, slice_header_t * hdr, arith_hard::elt * dst, arith_hard::elt const * src, int d, struct pos_desc * pos)
 {
     ASM_COMMENT("multiplication code -- huge (very sparse) slices"); /* {{{ */
 
-    abdst_field x = mm->xab;
+    arith_hard * ab = mm->xab;
 
     int usual = d == ! mm->public_->store_transposed;
 
-    abelt * where      = dst + (usual ? hdr->i0 : hdr->j0);
-    abelt const * from = src + (usual ? hdr->j0 : hdr->i0);
+    arith_hard::elt * where      = dst + (usual ? hdr->i0 : hdr->j0);
+    arith_hard::elt const * from = src + (usual ? hdr->j0 : hdr->i0);
     if ((usual ? hdr->j0 : hdr->i0) == 0) { /* first to come, first to clear */
-        abvec_set_zero(x, where, usual ? (hdr->i1 - hdr->i0) : (hdr->j1 - hdr->j0));
+        ab->vec_set_zero(where, (usual ? (hdr->i1 - hdr->i0) : (hdr->j1 - hdr->j0)));
     }
 
-    abelt * scratch = mm->scratch1;
+    arith_hard::elt * scratch = mm->scratch1;
 
     uint32_t j = 0;
 
@@ -2507,23 +2539,23 @@ static inline void matmul_bucket_mul_huge(struct matmul_bucket_data_s * mm, slic
             uint32_t j1 = j + *pos->ql++;
             unsigned int n = *pos->ql++;
             ASSERT_ALWAYS(n <= mm->scratch2size);
-            abelt * scratch2 = mm->scratch2;
-            abelt const * inp = src + j;
-            abelt * bucket[HUGE_MPLEX_MAX];
+            arith_hard::elt * scratch2 = mm->scratch2;
+            arith_hard::elt const * inp = src + j;
+            arith_hard::elt * bucket[HUGE_MPLEX_MAX];
             const unsigned int * Lsizes = pos->ql;
-            prepare_buckets(x,bucket,scratch2,pos->ql,nlarge);
+            prepare_buckets(ab, bucket,scratch2,pos->ql,nlarge);
             pos->ql += nlarge;
             ASSERT_ALWAYS((((unsigned long)pos->q8)&1)==0);
-            matmul_sub_large_fbi(x, bucket, inp, pos->q8, n);
+            matmul_sub_large_fbi(ab, bucket, inp, pos->q8, n);
             pos->q8 += 2 * n;
             for(unsigned int k = 0 ; k < nlarge ; k++) {
-                abelt * sbucket[LSL_NBUCKETS_MAX];
-                prepare_buckets(x,sbucket,scratch,pos->ql,LSL_NBUCKETS_MAX);
+                arith_hard::elt * sbucket[LSL_NBUCKETS_MAX];
+                prepare_buckets(ab, sbucket,scratch,pos->ql,LSL_NBUCKETS_MAX);
                 bucket[k] -= Lsizes[k];
-                matmul_sub_large_fbd(x, sbucket, bucket[k], pos->q8, Lsizes[k]);
+                matmul_sub_large_fbd(ab, sbucket, bucket[k], pos->q8, Lsizes[k]);
                 pos->q8 += Lsizes[k];
-                abelt * outp = where + k * di_sub;
-                matmul_sub_large_asb(x, outp, scratch, pos->q8, pos->ql);
+                arith_hard::elt * outp = where + k * di_sub;
+                matmul_sub_large_asb(ab, outp, scratch, pos->q8, pos->ql);
                 pos->q8 += Lsizes[k];
                 pos->ql += LSL_NBUCKETS_MAX;
             }
@@ -2533,30 +2565,30 @@ static inline void matmul_bucket_mul_huge(struct matmul_bucket_data_s * mm, slic
         for( ; j < pos->ncols_t ; ) {
             uint32_t j1 = j + *pos->ql++;
             unsigned int n = *pos->ql++;
-            abelt * scratch2 = mm->scratch2;
-            abelt * outp = dst + j;
-            abelt * bucket[HUGE_MPLEX_MAX];
+            arith_hard::elt * scratch2 = mm->scratch2;
+            arith_hard::elt * outp = dst + j;
+            arith_hard::elt * bucket[HUGE_MPLEX_MAX];
             const unsigned int * Lsizes = pos->ql;
-            prepare_buckets(x,bucket,scratch2,pos->ql,nlarge);
+            prepare_buckets(ab, bucket,scratch2,pos->ql,nlarge);
             pos->ql += nlarge;
             const uint8_t * q8_saved = pos->q8;
             pos->q8 += 2 * n;
             for(unsigned int k = 0 ; k < nlarge ; k++) {
-                abelt * sbucket[LSL_NBUCKETS_MAX];
-                prepare_buckets(x,sbucket,scratch,pos->ql,LSL_NBUCKETS_MAX);
+                arith_hard::elt * sbucket[LSL_NBUCKETS_MAX];
+                prepare_buckets(ab, sbucket,scratch,pos->ql,LSL_NBUCKETS_MAX);
                 const uint8_t * fill = pos->q8;
                 const uint8_t * apply = pos->q8 + Lsizes[k];
-                const abelt * inp = from + k * di_sub;
-                matmul_sub_large_asb_tr(x, inp, scratch, apply, pos->ql);
+                const arith_hard::elt * inp = from + k * di_sub;
+                matmul_sub_large_asb_tr(ab, inp, scratch, apply, pos->ql);
 
-                matmul_sub_large_fbd_tr(x, sbucket, bucket[k], fill, Lsizes[k]);
+                matmul_sub_large_fbd_tr(ab, sbucket, bucket[k], fill, Lsizes[k]);
 
                 pos->q8 += 2 * Lsizes[k];
                 pos->ql += LSL_NBUCKETS_MAX;
             }
             swap(pos->q8, q8_saved);
             ASSERT_ALWAYS((((unsigned long)pos->q8)&1)==0);
-            matmul_sub_large_fbi_tr(x, bucket, outp, pos->q8, n);
+            matmul_sub_large_fbi_tr(ab, bucket, outp, pos->q8, n);
             pos->q8 += 2 * n;
             swap(pos->q8, q8_saved);
             j = j1;
@@ -2565,20 +2597,24 @@ static inline void matmul_bucket_mul_huge(struct matmul_bucket_data_s * mm, slic
     ASM_COMMENT("end of huge (very sparse) slices"); /* }}} */
 }
 
-#ifndef MATMUL_SUB_VSC_DISPATCH_H
-static inline void matmul_sub_vsc_dispatch(abdst_field x, abelt * dst, abelt const * src, const uint16_t * q, unsigned int count)
+static inline void matmul_sub_vsc_dispatch(arith_hard * ab, arith_hard::elt * dst, arith_hard::elt const * src, const uint16_t * q, unsigned int count)
 {
+#ifdef MATMUL_SUB_VSC_DISPATCH_H
+    matmul_sub_vsc_dispatch_asm(cvt(dst), cvt(src), q, count);
+#else
     // printf("dispatch(%u), sum=%x\n", count, idiotic_sum((void*)q, count * sizeof(uint16_t)));
     for( ; count-- ; ) {
-        abset(x, dst[0], src[*q++]);
-        dst += 1;
+        ab->set(*dst, src[*q++]);
+        dst = ab->vec_subvec(dst, 1);
     }
-}
 #endif
+}
 
-#ifndef MATMUL_SUB_VSC_COMBINE_H_
-static inline void matmul_sub_vsc_combine(abdst_field x, abelt * dst, const abelt * * mptrs, const uint8_t * q, unsigned int count, unsigned int defer MAYBE_UNUSED)
+static inline void matmul_sub_vsc_combine(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * dst, const arith_hard::elt * * mptrs, const uint8_t * q, unsigned int count, unsigned int defer MAYBE_UNUSED)
 {
+#ifdef MATMUL_SUB_VSC_COMBINE_H_
+    matmul_sub_vsc_combine_asm(cvt(dst), cvt(mptrs), q, count, defer);
+#else
     // printf("combine(%u), defer %u\n", count, defer);
     // printf("combine(%u), sum=%x\n", count, idiotic_sum((void*)q, compressed_size(count, defer)));
     if (0) {
@@ -2591,9 +2627,9 @@ static inline void matmul_sub_vsc_combine(abdst_field x, abelt * dst, const abel
                 uint8_t c = wx & ((1 << nbits) - 1);
                 ASSERT(c <= defer);
                 wx >>= nbits;
-                abadd(x, dst[0], dst[0], mptrs[c][0]);
-                mptrs[c] += c != 0;
-                dst += c == 0;
+                ab->add(*dst, *mptrs[c]);
+                mptrs[c] = ab->vec_subvec(mptrs[c], c != 0);
+                dst = ab->vec_subvec(dst, c == 0);
             }
         }
 #endif
@@ -2606,9 +2642,9 @@ static inline void matmul_sub_vsc_combine(abdst_field x, abelt * dst, const abel
                 uint8_t c = wx & ((1 << nbits) - 1);
                 ASSERT(c <= defer);
                 wx >>= nbits;
-                abadd(x, dst[0], dst[0], mptrs[c][0]);
-                mptrs[c] += c != 0;
-                dst += c == 0;
+                ab->add(*dst, *mptrs[c]);
+                mptrs[c] = ab->vec_subvec(mptrs[c], c != 0);
+                dst = ab->vec_subvec(dst, c == 0);
             }
         }
 #endif
@@ -2621,26 +2657,26 @@ static inline void matmul_sub_vsc_combine(abdst_field x, abelt * dst, const abel
                 uint8_t c = wx & ((1 << nbits) - 1);
                 ASSERT(c <= defer);
                 wx >>= nbits;
-                abadd(x, dst[0], dst[0], mptrs[c][0]);
-                mptrs[c] += c != 0;
-                dst += c == 0;
+                ab->add(*dst, *mptrs[c]);
+                mptrs[c] = ab->vec_subvec(mptrs[c], c != 0);
+                dst = ab->vec_subvec(dst, c == 0);
             }
         }
 #endif
     } else {
         for( ; count-- ; ) {
             uint8_t c = *q++;
-                ASSERT(c <= defer);
-            abadd(x, dst[0], dst[0], mptrs[c][0]);
-            mptrs[c] += c != 0;
-            dst += c == 0;
+            ASSERT(c <= defer);
+            ab->add(*dst, *mptrs[c]);
+            mptrs[c] = ab->vec_subvec(mptrs[c], c != 0);
+            dst = ab->vec_subvec(dst, c == 0);
         }
     }
-}
 #endif
+}
 
 #ifndef MATMUL_SUB_VSC_COMBINE_TR_H_
-static inline void matmul_sub_vsc_combine_tr(abdst_field x, abelt ** mptrs, const abelt * qw, const uint8_t * z, unsigned int count, unsigned int defer MAYBE_UNUSED)
+static inline void matmul_sub_vsc_combine_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** mptrs, const arith_hard::elt * qw, const uint8_t * z, unsigned int count, unsigned int defer MAYBE_UNUSED)
 {
     // printf("uncombine(%u), defer %u\n", count, defer);
     // printf("uncombine(%u), sum=%x\n", count, idiotic_sum((void*)z, compressed_size(count, defer)));
@@ -2654,9 +2690,9 @@ static inline void matmul_sub_vsc_combine_tr(abdst_field x, abelt ** mptrs, cons
                 uint8_t c = wx & ((1 << nbits) - 1);
                 ASSERT(c <= defer);
                 wx >>= nbits;
-                abset(x, mptrs[c][0], qw[0]);
-                mptrs[c] += c != 0;
-                qw += c == 0;
+                ab->set(*mptrs[c], *qw);
+                mptrs[c] = ab->vec_subvec(mptrs[c], c != 0);
+                qw = ab->vec_subvec(qw, c == 0);
             }
         }
 #endif
@@ -2669,9 +2705,9 @@ static inline void matmul_sub_vsc_combine_tr(abdst_field x, abelt ** mptrs, cons
                 uint8_t c = wx & ((1 << nbits) - 1);
                 ASSERT(c <= defer);
                 wx >>= nbits;
-                abset(x, mptrs[c][0], qw[0]);
-                mptrs[c] += c != 0;
-                qw += c == 0;
+                ab->set(*mptrs[c], *qw);
+                mptrs[c] = ab->vec_subvec(mptrs[c], c != 0);
+                qw = ab->vec_subvec(qw, c == 0);
             }
         }
 #endif
@@ -2684,9 +2720,9 @@ static inline void matmul_sub_vsc_combine_tr(abdst_field x, abelt ** mptrs, cons
                 uint8_t c = wx & ((1 << nbits) - 1);
                 ASSERT(c <= defer);
                 wx >>= nbits;
-                abset(x, mptrs[c][0], qw[0]);
-                mptrs[c] += c != 0;
-                qw += c == 0;
+                ab->set(*mptrs[c], *qw);
+                mptrs[c] = ab->vec_subvec(mptrs[c], c != 0);
+                qw = ab->vec_subvec(qw, c == 0);
             }
         }
 #endif
@@ -2694,22 +2730,21 @@ static inline void matmul_sub_vsc_combine_tr(abdst_field x, abelt ** mptrs, cons
         for( ; count-- ; ) {
             uint8_t c = *z++;
             ASSERT(c <= defer);
-            abset(x, mptrs[c][0], qw[0]);
-            mptrs[c] += c != 0;
-            qw += c == 0;
+            ab->set(*mptrs[c], *qw);
+            mptrs[c] = ab->vec_subvec(mptrs[c], c != 0);
+            qw = ab->vec_subvec(qw, c == 0);
         }
     }
 }
 #endif
 
 #ifndef MATMUL_SUB_VSC_DISPATCH_TR_H_
-static inline void matmul_sub_vsc_dispatch_tr(abdst_field x, abelt * qr, const abelt * q, const uint16_t * z, unsigned int count)
+static inline void matmul_sub_vsc_dispatch_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * qr, const arith_hard::elt * q, const uint16_t * z, unsigned int count)
 {
     // printf("undispatch(%u), sum=%x\n", count, idiotic_sum((void*)z, count * sizeof(uint16_t)));
     for( ; count-- ; ) {
-        abadd(x, qr[*z], qr[*z], q[0]);
-        z++;
-        q += 1;
+        ab->add(ab->vec_item(qr, *z++), *q);
+        q = ab->vec_subvec(q, 1);
     }
 }
 #endif
@@ -2767,19 +2802,19 @@ static inline void rebuild_vsc_slice_skeleton(
         }
     }
 }
-static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vector<slice_header_t>::iterator & hdr, abelt * dst, abelt const * src, int d, struct pos_desc * pos)
+static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vector<slice_header_t>::iterator & hdr, arith_hard::elt * dst, arith_hard::elt const * src, int d, struct pos_desc * pos)
 {
-    abdst_field x = mm->xab;
+    arith_hard * ab = mm->xab;
 
     int usual = d == ! mm->public_->store_transposed;
 
-    abelt * where      = dst + (usual ? hdr->i0 : hdr->j0);
-    // abelt const * from = src + (usual ? hdr->j0 : hdr->i0);
+    arith_hard::elt * where      = dst + (usual ? hdr->i0 : hdr->j0);
+    // arith_hard::elt const * from = src + (usual ? hdr->j0 : hdr->i0);
     if ((usual ? hdr->j0 : hdr->i0) == 0) { /* first to come, first to clear */
-        abvec_set_zero(x, where, usual ? (hdr->i1 - hdr->i0) : (hdr->j1 - hdr->j0));
+        ab->vec_set_zero(where, (usual ? (hdr->i1 - hdr->i0) : (hdr->j1 - hdr->j0)));
     }
 
-    abelt * scratch = mm->scratch3;
+    arith_hard::elt * scratch = mm->scratch3;
 
     /* {{{ */
 
@@ -2800,11 +2835,11 @@ static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vecto
      * that is explained in the bug report below.
      * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97222
      */
-    vector<abelt *> base_ptrs;
-    vector<abelt *> cptrs;
-    abelt * q0 = scratch;
-    abelt * dummy = q0;
-    abvec_set_zero(x, dummy, 1);
+    vector<arith_hard::elt *> base_ptrs;
+    vector<arith_hard::elt *> cptrs;
+    arith_hard::elt * q0 = scratch;
+    arith_hard::elt * dummy = q0;
+    ab->set_zero(*dummy);
     q0++;
     for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
         base_ptrs.push_back(q0);
@@ -2818,16 +2853,16 @@ static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vecto
         pos->ql += skipover;
         for(unsigned int k = 0 ; k < V->dispatch.size() ; k++) {
             vsc_middle_slice_t const & D(V->dispatch[k]);
-            const abelt * qr = src + D.hdr->j0;
+            const arith_hard::elt * qr = src + D.hdr->j0;
             mm->slice_timings[Midx].t -= wct_seconds();
             for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
                 vsc_sub_slice_t const & S(D.sub[l]);
-                abelt * q = cptrs[l];
+                arith_hard::elt * q = cptrs[l];
                 unsigned int count = S.hdr->ncoeffs;
                 ASSERT(base_ptrs[l] <= q);
                 ASSERT(q <= base_ptrs[l+1]);
                 mm->slice_timings[Didx].t -= wct_seconds();
-                matmul_sub_vsc_dispatch(x, q, qr, pos->q16, count);
+                matmul_sub_vsc_dispatch(ab, q, qr, pos->q16, count);
                 q += count;
                 pos->q16 += count;
                 mm->slice_timings[Didx].t += wct_seconds();
@@ -2845,16 +2880,16 @@ static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vecto
                     continue;
 
                 /* our different read pointers */
-                vector<abelt const *> mptrs;
+                vector<arith_hard::elt const *> mptrs;
                 mptrs.reserve(defer + 1);
-                abelt const * q = base_ptrs[l];
+                arith_hard::elt const * q = base_ptrs[l];
                 mptrs.push_back(dummy);
                 for(unsigned int k0 = k - k % defer ; k0 <= k ; k0++) {
                     mptrs.push_back(q);
                     q += V->dispatch[k0].sub[l].hdr->ncoeffs;
                 }
 
-                abelt * qw = dst + S.hdr->i0;
+                arith_hard::elt * qw = dst + S.hdr->i0;
                 unsigned int count = mm->headers[Cidx].ncoeffs + V->steps[l].nrows;
                 ASSERT(V->steps[l].nrows == S.hdr->i1 - S.hdr->i0);
                 ASSERT(q - base_ptrs[l] == (ptrdiff_t) mm->headers[Cidx].ncoeffs);
@@ -2862,7 +2897,7 @@ static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vecto
                 double t = wct_seconds();
                 mm->slice_timings[Cidx].t -= t;
                 mm->slice_timings[Ridx+l].t -= t;
-                matmul_sub_vsc_combine(x, qw, ptrbegin(mptrs), pos->q8, count, defer);
+                matmul_sub_vsc_combine(ab, qw, ptrbegin(mptrs), pos->q8, count, defer);
                 pos->q8 += compressed_size(count, defer);
                 t = wct_seconds();
                 mm->slice_timings[Cidx].t += t;
@@ -2881,7 +2916,7 @@ static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vecto
         pos->ql++;      // only the count, for fast skipover.
         for(unsigned int k = 0 ; k < V->dispatch.size() ; k++) {
             vsc_middle_slice_t const & D(V->dispatch[k]);
-            abelt * qr = dst + D.hdr->j0;
+            arith_hard::elt * qr = dst + D.hdr->j0;
             for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
                 vsc_sub_slice_t const & S(D.sub[l]);
                 unsigned int defer = V->steps[l].defer;
@@ -2892,9 +2927,9 @@ static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vecto
                     continue;
 
                 /* our different _write_ pointers */
-                vector<abelt *> mptrs;
+                vector<arith_hard::elt *> mptrs;
                 mptrs.reserve(defer + 1);
-                abelt * q = base_ptrs[l];
+                arith_hard::elt * q = base_ptrs[l];
                 cptrs[l] = q;
                 mptrs.push_back(dummy);
                 for(unsigned int k0 = k ; k0 <= when_flush(k,nvstrips,defer) ; k0++) {
@@ -2902,7 +2937,7 @@ static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vecto
                     q += V->dispatch[k0].sub[l].hdr->ncoeffs;
                 }
 
-                const abelt * qw = src + S.hdr->i0;
+                const arith_hard::elt * qw = src + S.hdr->i0;
                 // unsigned int count = mm->headers[Cidx].ncoeffs + V->steps[l].nrows;
                 const uint8_t * z = pos->q8 + *pos->ql++;
                 unsigned int count = *pos->ql++;
@@ -2910,7 +2945,7 @@ static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vecto
                 double t = wct_seconds();
                 // mm->slice_timings[Cidx].t -= t;
                 mm->slice_timings[Ridx+l].t -= t;
-                matmul_sub_vsc_combine_tr(x, ptrbegin(mptrs), qw, z, count, defer);
+                matmul_sub_vsc_combine_tr(ab, ptrbegin(mptrs), qw, z, count, defer);
                 z += compressed_size(count, defer);
                 t = wct_seconds();
                 // mm->slice_timings[Cidx].t += t;
@@ -2921,12 +2956,12 @@ static inline void matmul_bucket_mul_vsc(struct matmul_bucket_data_s * mm, vecto
             mm->slice_timings[Midx].t -= wct_seconds();
             for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
                 vsc_sub_slice_t const & S(D.sub[l]);
-                abelt * q = cptrs[l];
+                arith_hard::elt * q = cptrs[l];
                 unsigned int count = S.hdr->ncoeffs;
                 ASSERT(base_ptrs[l] <= q);
                 ASSERT(q <= base_ptrs[l+1]);
                 mm->slice_timings[Didx].t -= wct_seconds();
-                matmul_sub_vsc_dispatch_tr(x, qr, q, pos->q16, count);
+                matmul_sub_vsc_dispatch_tr(ab, qr, q, pos->q16, count);
                 cptrs[l] += count;
                 pos->q16 += count;
                 mm->slice_timings[Didx].t += wct_seconds();
@@ -3103,9 +3138,10 @@ static inline void mm_finish_init(struct matmul_bucket_data_s * mm)
     }
 #endif
 
-    abvec_init(mm->xab, &mm->scratch1, mm->scratch1size);
-    abvec_init(mm->xab, &mm->scratch2, mm->scratch2size);
-    abvec_init(mm->xab, &mm->scratch3, mm->scratch3size);
+    arith_hard * ab = mm->xab;
+    mm->scratch1 = ab->alloc(mm->scratch1size);
+    mm->scratch2 = ab->alloc(mm->scratch2size);
+    mm->scratch3 = ab->alloc(mm->scratch3size);
 
     mm->slice_timings.resize(mm->headers.size());
 }
@@ -3119,7 +3155,7 @@ static void matmul_bucket_zero_stats(struct matmul_bucket_data_s * mm)
     }
 }
 
-static inline void matmul_bucket_mul_small1(struct matmul_bucket_data_s * mm, vector<slice_header_t>::iterator & hdr, abelt * dst, abelt const * src, int d, struct pos_desc * pos)
+static inline void matmul_bucket_mul_small1(struct matmul_bucket_data_s * mm, vector<slice_header_t>::iterator & hdr, arith_hard::elt * dst, arith_hard::elt const * src, int d, struct pos_desc * pos)
 {
     slice_header_t & h(*hdr++);
     for(unsigned int i = 0 ; i < h.nchildren ; i++, hdr++) {
@@ -3132,7 +3168,7 @@ static inline void matmul_bucket_mul_small1(struct matmul_bucket_data_s * mm, ve
     hdr--;
 }
 
-static inline void matmul_bucket_mul_loop(struct matmul_bucket_data_s * mm, abelt * dst, abelt const * src, int d, struct pos_desc * pos)
+static inline void matmul_bucket_mul_loop(struct matmul_bucket_data_s * mm, arith_hard::elt * dst, arith_hard::elt const * src, int d, struct pos_desc * pos)
 {
     vector<slice_header_t>::iterator hdr;
 
@@ -3183,8 +3219,8 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
     struct matmul_bucket_data_s * mm = (struct matmul_bucket_data_s *)mm0;
     struct pos_desc pos[1];
 
-    abdst_vec dst = (abdst_vec) xdst;
-    absrc_vec src = (absrc_vec) const_cast<void*>(xsrc);
+    arith_hard::elt * dst = (arith_hard::elt *) xdst;
+    arith_hard::elt const * src = (arith_hard::elt const *) xsrc;
     pos->q16 = ptrbegin(mm->t16);
     pos->q8 = ptrbegin(mm->t8);
     pos->ql = ptrbegin(mm->aux);
@@ -3192,7 +3228,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
     pos->nrows_t = mm->public_->dim[ mm->public_->store_transposed];
     pos->ncols_t = mm->public_->dim[!mm->public_->store_transposed];
 
-    abdst_field x = mm->xab;
+    arith_hard * ab = mm->xab;
 
     mm->main_timing.t -= wct_seconds();
 
@@ -3206,7 +3242,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
             fprintf(stderr, "Warning: Doing many iterations with bad code\n");
         }
         /* We zero out the dst area beforehand */
-        abvec_set_zero(x, dst, pos->ncols_t);
+        ab->vec_set_zero(dst, pos->ncols_t);
     }
     matmul_bucket_mul_loop(mm, dst, src, d, pos);
 

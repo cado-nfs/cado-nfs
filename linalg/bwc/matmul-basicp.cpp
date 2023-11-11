@@ -8,39 +8,17 @@
 #include <cstring>
 #include <climits>
 #include <gmp.h>
-#include "matmul.h"
-#include "matmul-common.h"
-#include "mpfq_layer.h"
+#include "matmul.hpp"
+#include "matmul-common.hpp"
+#include "arith-hard.hpp"
 
-#include "matmul_facade.h"
+#include "matmul_facade.hpp"
 
 #include "arith-modp.hpp"
 #include "macros.h"
 #include "params.h"
 
-/* define "gfp" as being our c++ type built from the number of words in
- * the underlying mpfq data type.
- *
- * It's a bit hacky, but mpfq should provide a ``number of words''
- * implementation info.
- */
-template<typename F, unsigned int m> struct our_gfp_type {
-    static const int mpfq_base_field_width = sizeof(F)/sizeof(unsigned long);
-    typedef arith_modp::gfp<mpfq_base_field_width> type;
-};
-
-template<typename F> struct our_gfp_type<F, UINT_MAX> {
-    static const int mpfq_base_field_width = 0;
-    /* We *intentionally* do not provide a variable-width GF(p) type with
-     * the C++ code. That wouldn't be totally impossible, but I can assure
-     * that it would be a royal pain (something like a 200+-line patch of
-     * barely parseable c++ hacks to arith-modp.hpp -- tried it out and
-     * gave up...).
-     */
-};
-
-/* If this line complains that ::type is not a type, then see above */
-typedef our_gfp_type<abelt,abimpl_max_characteristic_bits()>::type gfp;
+typedef arith_hard gfp;
 
 
 
@@ -68,7 +46,7 @@ struct matmul_basicp_data_s {
     struct matmul_public_s public_[1];
     /* now our private fields */
     size_t datasize;
-    abdst_field xab;
+    arith_hard * xab;
     uint32_t * q;
 };
 
@@ -85,7 +63,7 @@ matmul_ptr MATMUL_NAME(init)(void* xx, param_list pl, int optimized_direction)
     struct matmul_basicp_data_s * mm;
     mm = (struct matmul_basicp_data_s *) malloc(sizeof(struct matmul_basicp_data_s));
     memset(mm, 0, sizeof(struct matmul_basicp_data_s));
-    mm->xab = (abdst_field) xx;
+    mm->xab = (arith_hard *) xx;
 
     int suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
     mm->public_->store_transposed = suggest;
@@ -134,7 +112,7 @@ int MATMUL_NAME(reload_cache)(matmul_ptr mm0)
 {
     FILE * f;
     struct matmul_basicp_data_s * mm = (struct matmul_basicp_data_s *) mm0;
-    f = matmul_common_reload_cache_fopen(sizeof(abelt), mm->public_, MM_MAGIC);
+    f = matmul_common_reload_cache_fopen(sizeof(arith_hard::elt), mm->public_, MM_MAGIC);
     if (!f) return 0;
 
     MATMUL_COMMON_READ_ONE32(mm->datasize, f);
@@ -150,7 +128,7 @@ void MATMUL_NAME(save_cache)(matmul_ptr mm0)
     FILE * f;
 
     struct matmul_basicp_data_s * mm = (struct matmul_basicp_data_s *) mm0;
-    f = matmul_common_save_cache_fopen(sizeof(abelt), mm->public_, MM_MAGIC);
+    f = matmul_common_save_cache_fopen(sizeof(arith_hard::elt), mm->public_, MM_MAGIC);
     if (!f) return;
 
     MATMUL_COMMON_WRITE_ONE32(mm->datasize, f);
@@ -164,22 +142,9 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
     struct matmul_basicp_data_s * mm = (struct matmul_basicp_data_s *) mm0;
     ASM_COMMENT("multiplication code");
     uint32_t * q = mm->q;
-    abdst_field x = mm->xab;
+    arith_hard * x = mm->xab;
     const gfp::elt * src = (const gfp::elt *) xsrc;
     gfp::elt * dst = (gfp::elt *) xdst;
-
-    gfp::preinv preinverse;
-    gfp::elt prime;
-
-    {
-        mpz_t p;
-        mpz_init(p);
-        abfield_characteristic(x, p);
-        prime = p;
-        mpz_clear(p);
-    }
-
-    gfp::compute_preinv(preinverse, prime);
 
     /* d == 1: matrix times vector product */
     /* d == 0: vector times matrix product */
@@ -188,35 +153,35 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
      * (store_transposed == 0) or column-major (store_transposed == 1)
      */
 
-    gfp::elt::zero(dst, mm->public_->dim[!d]);
+    x->vec_set_zero(dst, mm->public_->dim[!d]);
 
     if (d == !mm->public_->store_transposed) {
-        gfp::elt_ur rowsum;
+        ARITH_MODP_TEMPORARY_ALLOC(x, elt_ur_for_add, rowsum);
         ASM_COMMENT("critical loop");
         for(unsigned int i = 0 ; i < mm->public_->dim[!d] ; i++) {
             uint32_t len = *q++;
             unsigned int j = 0;
-            rowsum.zero();
+            x->set_zero(rowsum);
             for( ; len-- ; ) {
                 j = *q++;
                 int32_t c = *(int32_t*)q++;
                 ASSERT(j < mm->public_->dim[d]);
                 if (c == 1) {
-                    gfp::add(rowsum, src[j]);
+                    x->add(rowsum, x->vec_item(src, j));
                 } else if (c == -1) {
-                    gfp::sub(rowsum, src[j]);
+                    x->sub(rowsum, x->vec_item(src, j));
                 } else if (c > 0) {
-                    gfp::addmul_ui(rowsum, src[j], c, prime, preinverse);
+                    x->addmul_ui(rowsum, x->vec_item(src, j), c);
                 } else {
-                    gfp::submul_ui(rowsum, src[j], -c, prime, preinverse);
+                    x->submul_ui(rowsum, x->vec_item(src, j), -c);
                 }
             }
-            gfp::reduce(dst[i], rowsum, prime, preinverse);
+            x->reduce(x->vec_item(dst, i), rowsum);
         }
         ASM_COMMENT("end of critical loop");
     } else {
-        gfp::elt_ur * tdst = new gfp::elt_ur[mm->public_->dim[!d]];
-        // gfp::elt::zero(tdst, mm->public_->dim[!d]);
+        auto * tdst = x->alloc<gfp::elt_ur_for_add>(mm->public_->dim[!d]);
+        x->vec_set_zero(tdst, mm->public_->dim[!d]);
         if (mm->public_->iteration[d] == 10) {
             fprintf(stderr, "Warning: Doing many iterations with transposed code (not a huge problem for impl=basicp)\n");
         }
@@ -229,21 +194,21 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
                 int32_t c = *(int32_t*)q++;
                 ASSERT(j < mm->public_->dim[!d]);
                 if (c == 1) {
-                    gfp::add(tdst[j], src[i]);
+                    x->add(x->vec_item(tdst, j), x->vec_item(src, i));
                 } else if (c == -1) {
-                    gfp::sub(tdst[j], src[i]);
+                    x->sub(x->vec_item(tdst, j), x->vec_item(src, i));
                 } else if (c > 0) {
-                    gfp::addmul_ui(tdst[j], src[i], c, prime, preinverse);
+                    x->addmul_ui(x->vec_item(tdst, j), x->vec_item(src, i), c);
                 } else {
-                    gfp::submul_ui(tdst[j], src[i], -c, prime, preinverse);
+                    x->submul_ui(x->vec_item(tdst, j), x->vec_item(src, i), -c);
                 }
             }
         }
         for(unsigned int j = 0 ; j < mm->public_->dim[!d] ; j++) {
-            gfp::reduce(dst[j], tdst[j], prime, preinverse);
+            x->reduce(x->vec_item(dst, j), x->vec_item(tdst, j));
         }
         ASM_COMMENT("end of critical loop (transposed mult)");
-        delete[] tdst;
+        x->free<gfp::elt_ur_for_add>(tdst);
     }
     ASM_COMMENT("end of multiplication code");
 

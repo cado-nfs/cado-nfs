@@ -1184,10 +1184,10 @@ void cpubinder::stage()
  * This returns NULL if cpubinding failed.
  */
 
-void * cpubinding_get_info(char ** messages, param_list_ptr pl, int ttt[2])
+void * cpubinding_get_info(char ** messages, param_list_ptr pl, unsigned int tt0, unsigned int tt1)
 {
     const char * conf = param_list_lookup_string(pl, "cpubinding");
-    thread_split thr(ttt);
+    thread_split thr(tt0, tt1);
 
     if (conf && (strcmp(conf, "no") == 0 || strcmp(conf, "none")==0)) {
         if (messages) {
@@ -1259,7 +1259,7 @@ void cpubinding_do_pinning(void * pinning_info_pre, int i, int j)
 }
 
 /* free the opaque pointer */
-void cpubinding_free_info(void * pinning_info_pre, int[2])
+void cpubinding_free_info(void * pinning_info_pre, unsigned int, unsigned int)
 {
     if (pinning_info_pre == NULL) return;
     cpubinder* cb = static_cast<cpubinder*>(pinning_info_pre);

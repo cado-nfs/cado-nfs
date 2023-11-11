@@ -1000,12 +1000,14 @@ write_log (const char *filename, logtab & log, renumber_t const & tab,
   for( ; tab.is_additional_column(i) ; i++) {
       if (!log.is_known(i)) continue;
       nknown++;
-      gmp_fprintf (f, "%" PRid " added column %Zd\n", i, (mpz_srcptr) log[i]);
+      gmp_fprintf (f, "%" PRid " added column %Zd\n", 
+              (index_t) i, (mpz_srcptr) log[i]);
   }
   for( ; tab.is_bad(i) ; i++) {
       if (!log.is_known(i)) continue;
       nknown++;
-      gmp_fprintf (f, "%" PRid " bad ideals %Zd\n", i, (mpz_srcptr) log[i]);
+      gmp_fprintf (f, "%" PRid " bad ideals %Zd\n",
+              (index_t) i, (mpz_srcptr) log[i]);
   }
   for( ; i < tab.get_size(); i++) {
       if (!log.is_known(i)) continue;
@@ -1014,10 +1016,10 @@ write_log (const char *filename, logtab & log, renumber_t const & tab,
       renumber_t::p_r_side x = tab.p_r_from_index(i);
       if (x.side != tab.get_rational_side())
           gmp_fprintf (f, "%" PRid " %" PRpr " %d %" PRpr " %Zd\n",
-                  i, x.p, x.side, x.r, (mpz_srcptr) log[i]);
+                  (index_t) i, x.p, x.side, x.r, (mpz_srcptr) log[i]);
       else
           gmp_fprintf (f, "%" PRid " %" PRpr " %d rat %Zd\n",
-                  i, x.p, x.side, (mpz_srcptr) log[i]);
+                  (index_t) i, x.p, x.side, (mpz_srcptr) log[i]);
       if (stats_test_progress (stats))
           stats_print_progress (stats, nknown, i+1, 0, 0);
   }
@@ -1036,7 +1038,8 @@ write_log (const char *filename, logtab & log, renumber_t const & tab,
     } else {
         ASSERT_ALWAYS (log.is_known(i+nsm));
     }
-    gmp_fprintf (f, "%" PRid " SM %d %d %Zd\n", i+nsm, side, jnsm,
+    gmp_fprintf (f, "%" PRid " SM %d %d %Zd\n",
+            (index_t) (i+nsm), side, jnsm,
             (mpz_srcptr) log[i+nsm]);
   }
 

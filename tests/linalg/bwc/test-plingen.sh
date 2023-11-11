@@ -23,11 +23,7 @@ fi
 
 # Create a fake sequence
 
-# Note that if we arrive here, we are 64-bit only, since the GFP backends
-# for bwc are explicitly disabled on i386 (for now -- most probably
-# forever too).
-
-wordsize=64
+wordsize=$(awk '/ULONG_BITS/ { print $3 }' $PROJECT_BINARY_DIR/cado_config.h)
 
 SHA1BIN=sha1sum
 if ! type -p "$SHA1BIN" > /dev/null ; then SHA1BIN=sha1 ; fi
@@ -109,7 +105,7 @@ dotest() {
     nbits_prime=$(sizeinbase2 $p)
     nwords=$((1+nbits_prime/wordsize))
 
-    : ${lingen_program:=lingen_p_$nwords}
+    : ${lingen_program:=lingen_p$nwords}
 
     # The perl code for generating random data is using the seed argument
     # in a weird way. seeds that are less than 1000 actually lead do
@@ -149,7 +145,8 @@ EOF
         # generate $F with exactly ($kmax/3)*$m*$n*$nwords_per_gfp_elt
         # machine words of random data.
         read -s -r -d '' code <<-'EOF'
-            my ($m, $n, $kmax, $nwords, $seed) = @ARGV;
+            my ($wordsize, $m, $n, $kmax, $nwords, $seed) = @ARGV;
+            my $pack = ($wordsize == 64) ? "Q" : "L";
             my $u = int($seed / 1000);
             my $v = $seed % 1000;
             # my $u = 1 + ($seed & 0x55555555);
@@ -164,14 +161,14 @@ EOF
                 for my $i (1..$m) {
                     for my $j (1..$n) {
                         for my $s (1..$nwords) {
-                            print pack("Q", newx);
+                            print pack($pack, newx);
                         }
                     }
                 }
             }
             
 EOF
-        perl -e "$code" $m $n $((kmax/3)) $nwords $seed > $F
+        perl -e "$code" $wordsize $m $n $((kmax/3)) $nwords $seed > $F
     fi
 
     G="$WDIR/seq.txt"
@@ -212,12 +209,40 @@ EOF
     if [ "$ONLY_TUNE" ] ; then exit 0 ; fi
 
     [ -f "$G.gen" ]
-    SHA1=$($SHA1BIN < $G.gen)
+
+    if [ "$wordsize" = 64 ] || [ $((nwords % 2)) = 0 ] || [ "$ascii" ] ; then
+        feed() { cat "$@" ; }
+    else
+        # We need to expand each n-(32-bit)-word integer to n+1
+        feed() {
+        read -s -r -d '' code <<-'EOF'
+        my ($nwords) = @ARGV;
+        my $ewords = $nwords + 1;
+        while (sysread(STDIN, my $x, $nwords * 4)) {
+            $x = pack("L$ewords", unpack("L$nwords", $x), 0);
+            syswrite(STDOUT, $x);
+        }
+
+EOF
+        cat "$@" | perl -e "$code" $nwords
+    }
+    fi
+    SHA1=$(feed $G.gen | $SHA1BIN)
     SHA1="${SHA1%% *}"
 
     if [ "$REFERENCE_SHA1" ] ; then
-        if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
-            echo "$0: Got SHA1 of ${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
+        ok_sha=(${REFERENCE_SHA1//,/ })
+        ok=
+        for a in "${ok_sha[@]}" ; do
+            if [ "${SHA1}" = "$a" ] ; then
+                ok=1
+                break
+            fi
+        done
+        if ! [ "$ok" ] ; then
+            one_of=
+            if [ ${#ok_sha[@]} -gt 1 ] ; then one_of="one of " ; fi
+            echo "$0: Got SHA1 of ${SHA1} but expected ${one_of}${REFERENCE_SHA1}${REFMSG}. Files remain in ${WDIR}" >&2
             exit 1
         fi
         echo "$SHA1 (as expected)"

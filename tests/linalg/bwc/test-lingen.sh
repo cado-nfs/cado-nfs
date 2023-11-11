@@ -21,7 +21,7 @@ fi
 # forever too).
 
 p=2
-lingen_program=lingen_u64k1
+lingen_program=lingen_b64
 
 wordsize=64
 

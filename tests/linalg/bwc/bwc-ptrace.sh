@@ -510,8 +510,8 @@ magma_sage_check_parameters() { # {{{
 magma_print_main_parameters() { # {{{
     echo "m:=$m;n:=$n;interval:=$interval;"
     echo "nrhs:=$nrhs;"
-}
-# }}}
+} # }}}
+
 magma_save_matrix() { # {{{
     echo "Saving matrix to magma format"
     $cmd weights < $rwfile > $mdir/rw.m
@@ -549,9 +549,9 @@ magma_save_matrix() { # {{{
             nc:=Ncols(M);
             nh:=$Nh;
             nv:=$Nv;
-            FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES:=64;
-            MINIMUM_ITEM_SIZE_OF_MPFQ_VEC_TYPES:=4;
-            chunk:=FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES div MINIMUM_ITEM_SIZE_OF_MPFQ_VEC_TYPES;
+            ALIGNMENT_ON_ALL_BWC_VECTORS:=64;
+            MINIMUM_ITEMS_IN_BWC_CHUNKS:=4;
+            chunk:=ALIGNMENT_ON_ALL_BWC_VECTORS div MINIMUM_ITEMS_IN_BWC_CHUNKS;
             nr:=nh*nv*(chunk*Ceiling(x/chunk)) where x is Ceiling(Maximum(nr, nc)/(nh*nv));
             nc:=nr;
             x:=Matrix(GF(p),nr,nc,[]);InsertBlock(~x,M,1,1);M:=x;
@@ -598,6 +598,7 @@ EOF
     placemats > $mdir/placemats.m
 }
 # }}}
+
 magma_save_all_vectors() { # {{{
     echo "Saving vectors to magma format"
     $cmd x $wdir/X > $mdir/x.m

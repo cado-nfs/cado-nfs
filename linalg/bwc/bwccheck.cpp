@@ -9,6 +9,7 @@
 
 #include <algorithm>            // for sort, min
 #include <map>                  // for map<>::mapped_type, _Rb_tree_iterator
+#include <memory>
 #include <sstream>              // for ostringstream, operator<<, basic_ostream
 #include <stdexcept>            // for runtime_error
 #include <string>               // for string, basic_string, operator<<, cha...
@@ -19,13 +20,12 @@
 #include <gmp.h>                // for mpz_cmp_ui
 #include "bw-common.h"          // for bw, bw_common_clear, bw_common_decl_u...
 
-#include "cheating_vec_init.h"  // for cheating_vec_clear, cheating_vec_init
 #include "fmt/core.h"           // for check_format_string
 #include "fmt/format.h"         // for basic_buffer::append, basic_parse_con...
 #include "macros.h"             // for ASSERT_ALWAYS, MAYBE_UNUSED
 #include "misc.h"               // ok_NOKNOK
-#include "mpfq/mpfq.h"          // for MPFQ_DONE, MPFQ_PRIME_MPZ, MPFQ_SIMD_...
-#include "mpfq/mpfq_vbase.h"    // for mpfq_vbase_s, mpfq_vbase_oo_field_ini...
+#include "arith-generic.hpp"
+#include "arith-cross.hpp"
 #include "params.h"             // for param_list_clear, param_list_init
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "select_mpi.h"         // for MPI_Abort, MPI_Comm_rank, MPI_COMM_WORLD
@@ -193,23 +193,23 @@ struct Sfile : public string {
 };
 #endif
 
-void vec_alloc(mpfq_vbase_ptr A, void *& z, size_t vsize)
+void vec_alloc(arith_generic * A, arith_generic::elt *& z, size_t vsize)
 {
-    cheating_vec_init(A, &z, vsize);
-    A->vec_set_zero(A, z, vsize);
+    z = A->alloc(vsize, ALIGNMENT_ON_ALL_BWC_VECTORS);
+    A->vec_set_zero(z, vsize);
 }
 
-void vec_free(mpfq_vbase_ptr A, void *& z, size_t vsize)
+void vec_free(arith_generic * A, arith_generic::elt *& z, size_t vsize MAYBE_UNUSED)
 {
-    cheating_vec_clear(A, &z, vsize);
+    A->free(z);
 }
 
-int vec_read(mpfq_vbase_ptr A, void * z, string const & v, size_t vsize, const char * prefix = NULL)
+int vec_read(arith_generic * A, void * z, string const & v, size_t vsize, const char * prefix = NULL)
 {
     fmt::print(FMT_STRING("{} {} ..."), prefix, v);
     FILE * f;
     if ((f = fopen(v.c_str(), "rb")) != NULL) {
-        int rc = fread(z, A->elt_stride(A), vsize, f);
+        int rc = fread(z, A->elt_stride(), vsize, f);
         fclose(f);
         if (rc >= 0 && (size_t) rc == vsize) {
             fmt::print(FMT_STRING("{}"), " done\n");
@@ -220,18 +220,18 @@ int vec_read(mpfq_vbase_ptr A, void * z, string const & v, size_t vsize, const c
     return -1;
 }
 
-size_t vec_items(mpfq_vbase_ptr A, string const & v)
+size_t vec_items(arith_generic * A, string const & v)
 {
     struct stat sbuf[1];
     int rc = stat(v.c_str(), sbuf);
     if (rc < 0 && errno == ENOENT)
         return 0;
     ASSERT_ALWAYS(rc == 0);
-    return sbuf->st_size / A->elt_stride(A);
+    return sbuf->st_size / A->elt_stride();
 }
 
 template<typename T>
-size_t common_size(mpfq_vbase_ptr Ac, std::vector<T> const & Cfiles, const char * name)
+size_t common_size(arith_generic * Ac, std::vector<T> const & Cfiles, const char * name)
 {
     size_t vsize = 0;
     std::string vsize_first;
@@ -257,16 +257,16 @@ size_t common_size(mpfq_vbase_ptr Ac, std::vector<T> const & Cfiles, const char 
 }
 
 typedef std::map<pair<unsigned int, unsigned int>, vector<Vfile> > vseq_t;
-void check_V_files(mpfq_vbase_ptr Ac, vseq_t & Vsequences, std::vector<Cfile> & Cfiles, int & nfailed)/*{{{*/
+void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> & Cfiles, int & nfailed)/*{{{*/
 {
     if (Cfiles.empty()) return;
 
-    int nchecks = Ac->simd_groupsize(Ac);
+    int nchecks = Ac->simd_groupsize();
     size_t vsize = common_size(Ac, Cfiles, "Cv");
 
     for(unsigned int i0 = 0 ; i0 + 1 < Cfiles.size() ; i0++) {
         Cfile& C_i0(Cfiles[i0]);
-        void * Cv_i0;
+        arith_generic::elt * Cv_i0;
         vec_alloc(Ac, Cv_i0, vsize);
 
         int has_read_Cv_i0 = 0;
@@ -280,7 +280,7 @@ void check_V_files(mpfq_vbase_ptr Ac, vseq_t & Vsequences, std::vector<Cfile> & 
                     C_i0, C_i1
                     );
 
-            void * Cv_i1;
+            arith_generic::elt * Cv_i1;
             vec_alloc(Ac, Cv_i1, vsize);
 
             int has_read_Cv_i1 = 0;
@@ -293,19 +293,14 @@ void check_V_files(mpfq_vbase_ptr Ac, vseq_t & Vsequences, std::vector<Cfile> & 
                 fmt::print(FMT_STRING(" checks on V files for sequence {}-{}\n"),
                         it->first.first, it->first.second);
 
-                mpfq_vbase Av;
-                mpfq_vbase_oo_field_init_byfeatures(Av, 
-                        MPFQ_PRIME_MPZ, bw->p,
-                        MPFQ_SIMD_GROUPSIZE, it->first.second - it->first.first,
-                        MPFQ_DONE);
+                std::unique_ptr<arith_generic> Av(arith_generic::instance(bw->p,it->first.second - it->first.first));
 
+                std::unique_ptr<arith_cross_generic> AcxAv(arith_cross_generic::instance(Ac, Av.get()));
 
-                mpfq_vbase_tmpl AvxAc;
-                mpfq_vbase_oo_init_templates(AvxAc, Av, Ac);
 
                 /* {{{ Check that all V files here have the proper size */
                 for(unsigned int i = 0 ; i < Vs.size() ; i++) {
-                    size_t items = vec_items(Av, Vs[i]);
+                    size_t items = vec_items(Av.get(), Vs[i]);
                     if (items != vsize) {
                         fmt::print(stderr, FMT_STRING("{} has {} coordinates, different from expected {}\n"), Vs[i], items, vsize);
                         exit(EXIT_FAILURE);
@@ -313,13 +308,13 @@ void check_V_files(mpfq_vbase_ptr Ac, vseq_t & Vsequences, std::vector<Cfile> & 
                 }
                 /* }}} */
 
-                void * Vv;
-                vec_alloc(Av, Vv, vsize);
+                arith_generic::elt * Vv;
+                vec_alloc(Av.get(), Vv, vsize);
                 unsigned int Vv_iter = UINT_MAX;
 
-                void * dotprod_scratch[2];
-                vec_alloc(Av, dotprod_scratch[0], nchecks);
-                vec_alloc(Av, dotprod_scratch[1], nchecks);
+                arith_generic::elt * dotprod_scratch[2];
+                vec_alloc(Av.get(), dotprod_scratch[0], nchecks);
+                vec_alloc(Av.get(), dotprod_scratch[1], nchecks);
 
                 unsigned int j = 0;
                 for(unsigned int i = 0 ; i < Vs.size() ; i++) {
@@ -353,24 +348,28 @@ void check_V_files(mpfq_vbase_ptr Ac, vseq_t & Vsequences, std::vector<Cfile> & 
                         Vv_iter = Vs[i].n;
                     }
 
-                    Av->vec_set_zero(Av, dotprod_scratch[0], nchecks);
+                    Av->vec_set_zero(dotprod_scratch[0], nchecks);
 
                     /* compute the dot product */
-                    AvxAc->add_dotprod(Av, Ac, 
+                    AcxAv->add_dotprod(
                             dotprod_scratch[0],
-                            Cv_i1, Vv, vsize);
+                            Cv_i1,
+                            Vv,
+                            vsize);
 
                     if (vec_read(Ac, Vv, Vs[j].c_str(), vsize, "   ") < 0)
                         continue;
 
                     Vv_iter = Vs[j].n;
 
-                    Av->vec_set_zero(Av, dotprod_scratch[1], nchecks);
-                    AvxAc->add_dotprod(Av, Ac, 
+                    Av->vec_set_zero(dotprod_scratch[1], nchecks);
+                    AcxAv->add_dotprod(
                             dotprod_scratch[1],
-                            Cv_i0, Vv, vsize);
+                            Cv_i0,
+                            Vv,
+                            vsize);
 
-                    int cmp = Av->vec_cmp(Av, dotprod_scratch[0], dotprod_scratch[1], nchecks);
+                    int cmp = Av->vec_cmp(dotprod_scratch[0], dotprod_scratch[1], nchecks);
 
                     std::string diag = fmt::format(
                             FMT_STRING("  check {} against {} -> {}\n"),
@@ -383,11 +382,10 @@ void check_V_files(mpfq_vbase_ptr Ac, vseq_t & Vsequences, std::vector<Cfile> & 
                         fmt::print(stderr, FMT_STRING("{}"), diag);
                     }
                 }
-                vec_free(Av, dotprod_scratch[0], nchecks);
-                vec_free(Av, dotprod_scratch[1], nchecks);
+                vec_free(Av.get(), dotprod_scratch[0], nchecks);
+                vec_free(Av.get(), dotprod_scratch[1], nchecks);
                 vec_free(Ac, Vv, vsize);
 
-                Av->oo_field_clear(Av);
             }
             /* }}} */
 
@@ -397,13 +395,13 @@ void check_V_files(mpfq_vbase_ptr Ac, vseq_t & Vsequences, std::vector<Cfile> & 
     }
 }/*}}}*/
 
-void check_A_files(mpfq_vbase_ptr Ac, std::vector<Vfile> const & Vfiles, std::vector<Afile> const & Afiles, std::vector<Dfile> const & Dfiles, Rfile & R, Tfile & T, int & nfailed)
+void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::vector<Afile> const & Afiles, std::vector<Dfile> const & Dfiles, Rfile & R, Tfile & T, int & nfailed)
 {
     if (Dfiles.empty())
         return;
-    void * Dv = NULL;
+    arith_generic::elt * Dv = NULL;
     size_t vsize = common_size(Ac, Dfiles, "Cd");
-    int nchecks = Ac->simd_groupsize(Ac);
+    int nchecks = Ac->simd_groupsize();
 
     size_t rsize = vec_items(Ac, R) / nchecks;
     fmt::print(FMT_STRING("Cr file has {} coordinates\n"), rsize);
@@ -414,17 +412,17 @@ void check_A_files(mpfq_vbase_ptr Ac, std::vector<Vfile> const & Vfiles, std::ve
 
     int rc;
 
-    void * Tdata = NULL;
-    cheating_vec_init(Ac, &Tdata, bw->m);
+    arith_generic::elt * Tdata = NULL;
+    Tdata = Ac->alloc(bw->m, ALIGNMENT_ON_ALL_BWC_VECTORS);
     FILE * Tfile = fopen(T.c_str(), "rb");
-    rc = fread(Tdata, Ac->vec_elt_stride(Ac, bw->m), 1, Tfile);
+    rc = fread(Tdata, Ac->vec_elt_stride(bw->m), 1, Tfile);
     ASSERT_ALWAYS(rc == 1);
     fclose(Tfile);
 
-    void * Rdata = NULL;
-    cheating_vec_init(Ac, &Rdata, Ac->vec_elt_stride(Ac, nchecks) * rsize);
+    arith_generic::elt * Rdata = NULL;
+    Rdata = Ac->alloc(Ac->vec_elt_stride(nchecks) * rsize, ALIGNMENT_ON_ALL_BWC_VECTORS);
     FILE * Rfile = fopen(R.c_str(), "rb");
-    rc = fread(Rdata, Ac->vec_elt_stride(Ac, nchecks), rsize, Rfile);
+    rc = fread(Rdata, Ac->vec_elt_stride(nchecks), rsize, Rfile);
     ASSERT_ALWAYS(rc == (int) rsize);
     fclose(Rfile);
 
@@ -475,18 +473,13 @@ void check_A_files(mpfq_vbase_ptr Ac, std::vector<Vfile> const & Vfiles, std::ve
             fmt::print(FMT_STRING("  check {} against {} entries of{}\n"),
                     V0, D.stretch, a_list.str());
 
-            mpfq_vbase Av;
-            mpfq_vbase_oo_field_init_byfeatures(Av, 
-                    MPFQ_PRIME_MPZ, bw->p,
-                    MPFQ_SIMD_GROUPSIZE, V0.j1 - V0.j0,
-                    MPFQ_DONE);
-            mpfq_vbase_tmpl AvxAc;
-            mpfq_vbase_oo_init_templates(AvxAc, Av, Ac);
+            std::unique_ptr<arith_generic> Av(arith_generic::instance(bw->p, V0.j1 - V0.j0));
+            std::unique_ptr<arith_cross_generic> AcxAv(arith_cross_generic::instance(Ac, Av.get()));
 
-            void * dotprod_scratch[3];
-            vec_alloc(Av, dotprod_scratch[0], nchecks);
-            vec_alloc(Av, dotprod_scratch[1], nchecks);
-            vec_alloc(Av, dotprod_scratch[2], nchecks);
+            arith_generic::elt * dotprod_scratch[3];
+            vec_alloc(Av.get(), dotprod_scratch[0], nchecks);
+            vec_alloc(Av.get(), dotprod_scratch[1], nchecks);
+            vec_alloc(Av.get(), dotprod_scratch[2], nchecks);
 
             /* read data from the A files. We redo the detection loop
              * that we had above */
@@ -503,33 +496,33 @@ void check_A_files(mpfq_vbase_ptr Ac, std::vector<Vfile> const & Vfiles, std::ve
                             bw->m, bw->n, A);
                     FILE * a = fopen(A.c_str(), "rb");
                     for(unsigned int p = n_reach ; p < A.n1 && p < V0.n + D.stretch ; p++) {
-                        Av->vec_set_zero(Av, dotprod_scratch[1], nchecks);
+                        Av->vec_set_zero(dotprod_scratch[1], nchecks);
                         for(int c = 0 ; c < bw->m ; c += nchecks) {
                             int rc;
                             for(int r = 0 ; r < nchecks ; r++) {
-                                size_t simd = Av->simd_groupsize(Av);
+                                size_t simd = Av->simd_groupsize();
                                 size_t rowsize = (A.j1 - A.j0) / simd;
                                 size_t matsize = bw->m * rowsize;
                                 size_t nmats = p - A.n0;
 
                                 rc = fseek(a,
-                                            nmats * Av->vec_elt_stride(Av, matsize) +
-                                            (c + r) * Av->vec_elt_stride(Av, rowsize) +
-                                            Av->vec_elt_stride(Av, (V0.j0 - A.j0) / simd),
+                                            nmats * Av->vec_elt_stride(matsize) +
+                                            (c + r) * Av->vec_elt_stride(rowsize) +
+                                            Av->vec_elt_stride((V0.j0 - A.j0) / simd),
                                         SEEK_SET);
                                 ASSERT_ALWAYS(rc == 0);
-                                rc = fread(Av->vec_subvec(Av, dotprod_scratch[2], r), Av->vec_elt_stride(Av, 1), 1, a);
+                                rc = fread(Av->vec_subvec(dotprod_scratch[2], r), Av->elt_stride(), 1, a);
                                 ASSERT_ALWAYS(rc == 1);
                             }
-                            AvxAc->add_dotprod(Av, Ac,
+                            AcxAv->add_dotprod(
                                     dotprod_scratch[1],
-                                    Ac->vec_subvec(Ac, Tdata, c),
+                                    Ac->vec_subvec(Tdata, c),
                                     dotprod_scratch[2],
                                     nchecks);
                         }
-                        AvxAc->add_dotprod(Av, Ac,
+                        AcxAv->add_dotprod(
                                 dotprod_scratch[0],
-                                Ac->vec_subvec(Ac, Rdata, (p - V0.n) * nchecks),
+                                Ac->vec_subvec(Rdata, (p - V0.n) * nchecks),
                                 dotprod_scratch[1],
                                 nchecks);
                     }
@@ -547,24 +540,26 @@ void check_A_files(mpfq_vbase_ptr Ac, std::vector<Vfile> const & Vfiles, std::ve
                     can_check = 0;
 
             if (can_check) {
-                void * Vv;
+                arith_generic::elt * Vv;
 
-                vec_alloc(Av, Vv, vsize);
-                if (vec_read(Av, Vv, V0.c_str(), vsize, "   ") < 0)
+                vec_alloc(Av.get(), Vv, vsize);
+                if (vec_read(Av.get(), Vv, V0.c_str(), vsize, "   ") < 0)
                     can_check = 0;
 
                 if (can_check) {
-                    Av->vec_set_zero(Av, dotprod_scratch[1], nchecks);
-                    AvxAc->add_dotprod(Av, Ac, 
+                    Av->vec_set_zero(dotprod_scratch[1], nchecks);
+                    AcxAv->add_dotprod(
                             dotprod_scratch[1],
-                            Dv, Vv, vsize);
+                            Dv,
+                            Vv,
+                            vsize);
                 }
 
-                vec_free(Av, Vv, vsize);
+                vec_free(Av.get(), Vv, vsize);
             }
 
             if (can_check) {
-                int cmp = Av->vec_cmp(Av, dotprod_scratch[0], dotprod_scratch[1], nchecks);
+                int cmp = Av->vec_cmp(dotprod_scratch[0], dotprod_scratch[1], nchecks);
 
                 std::string diag = fmt::format(
                         FMT_STRING("  check {} against {} entries of{} -> {}\n"),
@@ -581,15 +576,13 @@ void check_A_files(mpfq_vbase_ptr Ac, std::vector<Vfile> const & Vfiles, std::ve
             if (!can_check)
                 fmt::print(FMT_STRING("{}"), "  (check aborted because of missing files)\n");
 
-            vec_free(Av, dotprod_scratch[2], nchecks);
-            vec_free(Av, dotprod_scratch[1], nchecks);
-            vec_free(Av, dotprod_scratch[0], nchecks);
-
-            Av->oo_field_clear(Av);
+            vec_free(Av.get(), dotprod_scratch[2], nchecks);
+            vec_free(Av.get(), dotprod_scratch[1], nchecks);
+            vec_free(Av.get(), dotprod_scratch[0], nchecks);
         }
     }
-    cheating_vec_clear(Ac, &Rdata, Ac->vec_elt_stride(Ac, nchecks) * rsize);
-    cheating_vec_clear(Ac, &Tdata, bw->m);
+    Ac->free(Rdata);
+    Ac->free(Tdata);
     vec_free(Ac, Dv, vsize);
 }
 
@@ -601,11 +594,7 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
 {
     int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
-    mpfq_vbase Ac;
-    mpfq_vbase_oo_field_init_byfeatures(Ac, 
-            MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_SIMD_GROUPSIZE, nchecks,
-            MPFQ_DONE);
+    std::unique_ptr<arith_generic> Ac(arith_generic::instance(bw->p, nchecks));
 
     vector<Cfile> Cfiles;
     vector<Dfile> Dfiles;
@@ -708,14 +697,14 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
 
     int nfailed = 0;
 
-    check_V_files(Ac, Vsequences, Cfiles, nfailed);
+    check_V_files(Ac.get(), Vsequences, Cfiles, nfailed);
 
     /* Check A files using V, D, T, and R */
     if ((Tfiles.empty() || Rfiles.empty()) && !Dfiles.empty()) {
         fmt::print(stderr, FMT_STRING("{}"), "It makes no sense to provide Cd files and no Cr and Ct file\n");
         exit(EXIT_FAILURE);
     } else if (!Tfiles.empty() && !Rfiles.empty() && !Dfiles.empty()) {
-        check_A_files(Ac, Vfiles, Afiles, Dfiles, Rfiles.front(), Tfiles.front(), nfailed);
+        check_A_files(Ac.get(), Vfiles, Afiles, Dfiles, Rfiles.front(), Tfiles.front(), nfailed);
     }
 
     if (nfailed) {
@@ -748,7 +737,7 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
     }
 
     if (!bw->skip_online_checks) {
-        cheating_vec_init(Ac, &ahead, nchecks);
+        ahead = Ac->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
     }
 
     /* We'll store all xy matrices locally before doing reductions. Given
@@ -826,20 +815,17 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
 
     // reached s + bw->interval. Count our time on cpu, and compute the sum.
     timing_disp_collective_oneline(pi, timing, s + bw->interval, tcan_print, "check");
-}
 
-free(gxvecs);
-free(v_name);
+    free(gxvecs);
+    free(v_name);
 
-for(int i = 0 ; i < mmt->nmatrices + nmats_odd ; i++) {
-    mmt_vec_clear(mmt, ymy[i]);
-}
-free(ymy);
+    for(int i = 0 ; i < mmt->nmatrices + nmats_odd ; i++) {
+        mmt_vec_clear(mmt, ymy[i]);
+    }
+    free(ymy);
 #endif
 
-Ac->oo_field_clear(Ac);
-
-return NULL;
+    return NULL;
 }
 
 

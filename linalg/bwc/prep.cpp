@@ -5,34 +5,36 @@
 #include <cstring>              // for memset
 #include <ctime>                // for time
 #include <cstdlib>
+#include <memory>
 #include <gmp.h>
-#include "balancing.h"           // for balancing_pre_shuffle
-#include "parallelizing_info.h"
-#include "matmul_top.h"
+#include "balancing.hpp"           // for balancing_pre_shuffle
+#include "parallelizing_info.hpp"
+#include "matmul_top.hpp"
 #include "select_mpi.h"
 #include "bblas_gauss.h"
 #include "params.h"
-#include "xvectors.h"
+#include "xvectors.hpp"
 #include "bw-common.h"
-#include "mpfq/mpfq.h"
-#include "mpfq/mpfq_vbase.h"
-#include "cheating_vec_init.h"
+#include "arith-generic.hpp"
 #include "portability.h" // asprintf // IWYU pragma: keep
 #include "macros.h"
+#include "cxx_mpz.hpp"
+#include "mmt_vector_pair.hpp"
+#include "utils_cxx.hpp"
 
 
-void bw_rank_check(matmul_top_data_ptr mmt, param_list_ptr pl)
+void bw_rank_check(matmul_top_data & mmt, param_list_ptr pl)
 {
-    int tcan_print = bw->can_print && mmt->pi->m->trank == 0;
+    int tcan_print = bw->can_print && mmt.pi->m->trank == 0;
     unsigned int r = matmul_top_rank_upper_bound(mmt);
     if (tcan_print) {
         printf("Matrix rank is at most %u (based on zero columns and rows encountered)\n", r);
     }
     int skip=0;
     param_list_parse_int(pl, "skip_bw_early_rank_check", &skip);
-    if (bw->m + r < mmt->n0[0]) {
+    if (bw->m + r < mmt.n0[0]) {
         fprintf(stderr, "Based on the parameter m (=%u) and the rank defect of the matrix (>=%u), we can't expect to compute solutions reliably.\n",
-                bw->m, mmt->n0[0]-r);
+                bw->m, mmt.n0[0]-r);
         if (skip) {
             fprintf(stderr, "Proceeding anyway as per skip_bw_early_rank_check=1\n");
         } else {
@@ -54,22 +56,17 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
     pi_hello(pi);
 
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
 
     unsigned int nrhs = 0;
     int char2 = mpz_cmp_ui(bw->p, 2) == 0;
     int splitwidth = char2 ? 64 : 1;
 
-    mpfq_vbase A;
     unsigned int A_width = splitwidth;
     unsigned int A_multiplex = bw->n / A_width;
-    mpfq_vbase_oo_field_init_byfeatures(A, 
-            MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_SIMD_GROUPSIZE, A_width,
-            MPFQ_DONE);
-    ASSERT_ALWAYS(A->simd_groupsize(A) * A_multiplex == (unsigned int) bw->n);
+    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, A_width));
+    ASSERT_ALWAYS(A->simd_groupsize() * A_multiplex == (unsigned int) bw->n);
 
-    matmul_top_init(mmt, A, pi, pl, bw->dir);
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
 
     bw_rank_check(mmt, pl);
 
@@ -98,17 +95,14 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         rhs = fopen(rhs_name, "r");
         get_rhs_file_header_stream(rhs, NULL, &nrhs, NULL);
         ASSERT_ALWAYS(rhs != NULL);
-        ASSERT_ALWAYS(nrhs <= mmt->n[!bw->dir]);
+        ASSERT_ALWAYS(nrhs <= mmt.n[!bw->dir]);
     }
 
-    mmt_vec ymy[2];
-    mmt_vec_ptr y = ymy[0];
-    mmt_vec_ptr my = ymy[1];
+    mmt_vector_pair ymy(mmt, bw->dir);
 
-    mmt_vec_init(mmt,0,0, y,   bw->dir, /* shared ! */ 1, mmt->n[bw->dir]);
-    mmt_vec_init(mmt,0,0, my, !bw->dir,                0, mmt->n[!bw->dir]);
+    mmt_vec & y = ymy[0];
 
-    unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     /* Number of copies of m by n matrices to use for trying to obtain a
      * matrix of rank m.
@@ -119,10 +113,8 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
 
     unsigned int my_nx = 1;
     uint32_t * xvecs = (uint32_t*) malloc(my_nx * bw->m * sizeof(uint32_t));
-    void * xymats;
 
-    /* We're cheating on the generic init routines */
-    cheating_vec_init(A, &xymats, bw->m * prep_lookahead_iterations * A_multiplex);
+    arith_generic::elt * xymats = A->alloc(bw->m * prep_lookahead_iterations * A_multiplex, ALIGNMENT_ON_ALL_BWC_VECTORS);
 
     for (unsigned ntri = 0;; ntri++) {
         if (nrhs == A_multiplex) {
@@ -150,10 +142,10 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         // Otherwise, it's on the right.
 
         // generate indices w.r.t *unpadded* dimensions !
-        setup_x_random(xvecs, bw->m, my_nx, mmt->n0[bw->dir], pi, rstate);
+        setup_x_random(xvecs, bw->m, my_nx, mmt.n0[bw->dir], pi, rstate);
 
-        // we have indices mmt->wr[1]->i0..i1 available.
-        A->vec_set_zero(A, xymats, bw->m * prep_lookahead_iterations * A_multiplex);
+        // we have indices mmt.wr[1]->i0..i1 available.
+        A->vec_set_zero(xymats, bw->m * prep_lookahead_iterations * A_multiplex);
 
         ASSERT_ALWAYS(nrhs <= A_multiplex);
 
@@ -180,7 +172,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
             // XXX Note that x^Ty does not count here, because it does not
             // take part to the sequence computed by lingen !
             mmt_vec_twist(mmt, y);
-            matmul_top_mul(mmt, ymy, NULL);
+            matmul_top_mul(mmt, ymy.vectors(), NULL);
             mmt_vec_untwist(mmt, y);
             
 
@@ -188,20 +180,20 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
              * the coefficients in another order (but why ?) */
             for(unsigned int k = 0 ; k < prep_lookahead_iterations ; k++) {
                 for(int r = 0 ; r < bw->m ; r++) {
-                    void * where = A->vec_subvec(A, xymats, (r * prep_lookahead_iterations + k) * A_multiplex + j);
+                    arith_generic::elt & where = A->vec_item(xymats, (r * prep_lookahead_iterations + k) * A_multiplex + j);
                     for(unsigned int t = 0 ; t < my_nx ; t++) {
                         uint32_t row = xvecs[r*my_nx+t];
-                        unsigned int vi0 = y->i0 + mmt_my_own_offset_in_items(y);
+                        unsigned int vi0 = y.i0 + mmt_my_own_offset_in_items(y);
                         unsigned int vi1 = vi0 + mmt_my_own_size_in_items(y);
                         if (row < vi0 || row >= vi1)
                             continue;
 
-                        void * coeff = y->abase->vec_subvec(y->abase, y->v, row - y->i0);
-                        A->add(A, where, where, coeff);
+                        arith_generic::elt const & coeff = y.abase->vec_item(y.v, row - y.i0);
+                        A->add_and_reduce(where, coeff);
                     }
                 }
                 mmt_vec_twist(mmt, y);
-                matmul_top_mul(mmt, ymy, NULL);
+                matmul_top_mul(mmt, ymy.vectors(), NULL);
                 mmt_vec_untwist(mmt, y);
             }
         }
@@ -213,7 +205,7 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
          * pointed to by xymats */
         pi_allreduce(NULL, xymats,
                 bw->m * prep_lookahead_iterations * A_multiplex,
-                mmt->pitype, BWC_PI_SUM, pi->m);
+                mmt.pitype, BWC_PI_SUM, pi->m);
 
         /* OK -- now everybody has the same data */
 
@@ -222,8 +214,8 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
         /* the kernel() call is not reentrant */
         if (pi->m->trank == 0) {
             dimk = kernel((mp_limb_t *) xymats, NULL,
-                    bw->m, prep_lookahead_iterations * A->simd_groupsize(A) * A_multiplex,
-                    A->vec_elt_stride(A, prep_lookahead_iterations * A_multiplex)/sizeof(mp_limb_t),
+                    bw->m, prep_lookahead_iterations * A->simd_groupsize() * A_multiplex,
+                    A->vec_elt_stride(prep_lookahead_iterations * A_multiplex)/sizeof(mp_limb_t),
                     0);
         }
         pi_thread_bcast((void *) &dimk, 1, BWC_PI_INT, 0, pi->m);
@@ -246,14 +238,8 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
 
     gmp_randclear(rstate);
 
-    mmt_vec_clear(mmt, y);
-    mmt_vec_clear(mmt, my);
-    matmul_top_clear(mmt);
-
     /* clean up xy mats stuff */
-    cheating_vec_clear(A, &xymats, bw->m * prep_lookahead_iterations * A_multiplex);
-
-    A->oo_field_clear(A);
+    A->free(xymats);
 
     free(xvecs);
     return NULL;
@@ -278,7 +264,6 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     pi_hello(pi);
 
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
 
     unsigned int nrhs = 0;
     int char2 = mpz_cmp_ui(bw->p, 2) == 0;
@@ -287,19 +272,18 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     const char * rhs_name;
     FILE * rhs;
 
-    mpfq_vbase A;
-    mpfq_vbase_oo_field_init_byfeatures(A, 
-            MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_SIMD_GROUPSIZE, splitwidth,
-            MPFQ_DONE);
+    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, splitwidth));
 
-    matmul_top_init(mmt, A, pi, pl, bw->dir);
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
+
+    // I don't think this was ever tested.
+    ASSERT_ALWAYS(mmt.matrices.size() == 1);
 
     bw_rank_check(mmt, pl);
 
     if (pi->m->trank || pi->m->jrank) {
         /* as said above, this is *NOT* a parallel program.  */
-        goto leave_prep_prog_gfp;
+        return NULL;
     }
 
     gmp_randstate_t rstate;
@@ -326,7 +310,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         rhs = fopen(rhs_name, "r");
         get_rhs_file_header_stream(rhs, NULL, &nrhs, NULL);
         ASSERT_ALWAYS(rhs != NULL);
-        ASSERT_ALWAYS(nrhs <= mmt->n[!bw->dir]);
+        ASSERT_ALWAYS(nrhs <= mmt.n[!bw->dir]);
     }
 
     /* First create all RHS vectors -- these are just splits of the big
@@ -341,23 +325,21 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
             ASSERT_ALWAYS(vec_files[j] != NULL);
             printf("// Creating %s (extraction from %s)\n", vec_names[j], rhs_name);
         }
-        void * coeff;
-        cheating_vec_init(A, &coeff, 1);
-        mpz_t c;
-        mpz_init(c);
-        for(unsigned int i = 0 ; i < mmt->n0[!bw->dir] ; i++) {
+        arith_generic::elt * coeff = A->alloc(1);
+        cxx_mpz c;
+        for(unsigned int i = 0 ; i < mmt.n0[!bw->dir] ; i++) {
             for(unsigned int j = 0 ; j < nrhs ; j++) {
                 int rc;
-                memset(coeff, 0, A->vec_elt_stride(A, 1));
-                rc = gmp_fscanf(rhs, "%Zd", c);
+                memset(coeff, 0, A->elt_stride());
+                rc = gmp_fscanf(rhs, "%Zd", (mpz_ptr) c);
                 ASSERT_ALWAYS(rc == 1);
-                A->set_mpz(A, A->vec_coeff_ptr(A, coeff, 0), c);
-                rc = fwrite(coeff, A->vec_elt_stride(A,1), 1, vec_files[j]);
+                A->set(A->vec_item(coeff, 0), c);
+                rc = fwrite(coeff, A->elt_stride(), 1, vec_files[j]);
                 ASSERT_ALWAYS(rc == 1);
             }
         }
-        mpz_clear(c);
-        cheating_vec_clear(A, &coeff, 1);
+        A->free(coeff);
+
         for(unsigned int j = 0 ; j < nrhs ; j++) {
             fclose(vec_files[j]);
             free(vec_names[j]);
@@ -367,7 +349,6 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     }
     /* Now create purely random vectors */
     for(int j = (int) nrhs ; j < bw->n ; j++) {
-        void * vec;
         char * vec_name;
         FILE * vec_file;
         int rc = asprintf(&vec_name, "V%d-%d.0", j, j+1);
@@ -375,13 +356,13 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         vec_file = fopen(vec_name, "wb");
         ASSERT_ALWAYS(vec_file != NULL);
         printf("// Creating %s\n", vec_name);
-        unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
-        cheating_vec_init(A, &vec, unpadded);
-        A->vec_random(A, vec, unpadded, rstate);
-        A->vec_set_zero(A, A->vec_subvec(A, vec, mmt->n0[bw->dir]), unpadded - mmt->n0[bw->dir]);
-        rc = fwrite(vec, A->vec_elt_stride(A,1), unpadded, vec_file);
+        unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
+        auto vec = A->alloc(unpadded);
+        A->vec_set_random(vec, unpadded, rstate);
+        A->vec_set_zero(A->vec_subvec(vec, mmt.n0[bw->dir]), unpadded - mmt.n0[bw->dir]);
+        rc = fwrite(vec, A->elt_stride(), unpadded, vec_file);
         ASSERT_ALWAYS(rc >= 0 && ((unsigned int) rc) == unpadded);
-        cheating_vec_clear(A, &vec, unpadded);
+        A->free(vec);
         fclose(vec_file);
         free(vec_name);
     }
@@ -409,19 +390,19 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
          * correctly.
          */
         ASSERT_ALWAYS(bw->dir == 1);
-        ASSERT_ALWAYS(mmt->nmatrices == 1);
+        ASSERT_ALWAYS(mmt.matrices.size() == 1);
         for(unsigned int i = 0 ; i < nrhs ; i++) {
-            xvecs[i * my_nx] = balancing_pre_shuffle(mmt->matrices[0]->bal, mmt->n0[!bw->dir]-nrhs+i);
+            xvecs[i * my_nx] = balancing_pre_shuffle(mmt.matrices[0].bal, mmt.n0[!bw->dir]-nrhs+i);
             printf("Forced %d-th x vector to be the %" PRIu32"-th canonical basis vector\n", i, xvecs[i * my_nx]);
             ASSERT_ALWAYS(xvecs[i * my_nx] >= (uint32_t) (bw->m - nrhs));
             for(unsigned int j = 1 ; j < my_nx ; j++) {
-                xvecs[i * my_nx + j] = (1009 * (i * my_nx + j)) % mmt->n0[!bw->dir];
+                xvecs[i * my_nx + j] = (1009 * (i * my_nx + j)) % mmt.n0[!bw->dir];
             }
         }
         for(int i = (int) nrhs ; i < bw->m ; i++) {
             xvecs[i * my_nx] = i - nrhs;
             for(unsigned int j = 1 ; j < my_nx ; j++) {
-                xvecs[i * my_nx + j] = (1009 * (i * my_nx + j)) % mmt->n0[!bw->dir];
+                xvecs[i * my_nx + j] = (1009 * (i * my_nx + j)) % mmt.n0[!bw->dir];
             }
         }
         /* save_x operates only on the leader thread */
@@ -429,10 +410,6 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         free(xvecs);
     }
 
-leave_prep_prog_gfp:
-    matmul_top_clear(mmt);
-
-    A->oo_field_clear(A);
     return NULL;
 }
 
