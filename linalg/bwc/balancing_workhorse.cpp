@@ -81,10 +81,9 @@ struct dispatcher {/*{{{*/
     uint32_t cols_chunk_big;
     uint32_t rows_chunk_small;
     uint32_t cols_chunk_small;
-
     MPI_Comm reader_comm;
 
-    struct reader_map_data {
+    struct reader_map_data {/*{{{*/
         parallelizing_info_ptr pi;
         std::vector<int> map;
         std::vector<int> index;
@@ -114,11 +113,101 @@ struct dispatcher {/*{{{*/
             index = map;
             nreaders = integrate(index);
         }
-    };
+    };/*}}}*/
 
     reader_map_data reader_map;
 
     size_t nreaders() const { return reader_map.size(); }
+
+    int pass_number;
+
+    struct endpoint_thread_data {
+        dispatcher const & D;
+        parallelizing_info_ptr pi;
+        matrix_u32_ptr * args_per_thread;
+
+        /* used in pass 1 for the weights per row */
+        std::vector<std::vector<uint32_t>> thread_row_weights;
+
+        /* used on pass 2 to give the row-beginning pointers. */
+        std::vector<std::vector<size_t>> thread_row_positions;
+
+        std::mutex incoming_mutex;
+
+        endpoint_thread_data(dispatcher const & D,
+                matrix_u32_ptr * args_per_thread)
+            : D(D)
+            , pi(D.pi)
+            , args_per_thread(args_per_thread)
+        {
+
+        }
+
+        void endpoint_handle_incoming(std::vector<uint32_t> & Q, int from);
+        void receive();
+        void enter_pass_one();
+        void enter_pass_two();
+        void prepare_pass(int pass_number);
+    };
+    void endpoint_thread() {
+        endpoint.receive();
+    }
+    endpoint_thread_data endpoint;
+
+    /* reader stuff */
+    std::vector<size_t> bytes_per_reader;
+    std::vector<size_t> offset_per_reader;
+    std::vector<uint32_t> row0_per_reader;
+    std::vector<uint32_t> fw_rowperm; // fragmented among all readers.
+    std::vector<uint32_t> fw_colperm; // identical at all nodes
+    void reader_compute_offsets();
+    void reader_fill_index_maps();
+
+    struct reader_thread_data {
+        dispatcher const & D;
+        parallelizing_info_ptr pi;
+        endpoint_thread_data & E;
+
+        /* MPI send from readers to endpoints */
+        std::vector<MPI_Request> outstanding;
+        std::vector<std::vector<uint32_t>> outstanding_queues;
+        std::vector<std::vector<uint32_t>> avail_queues;
+        std::vector<int> indices;
+        // std::vector<MPI_Status> statuses;
+
+        reader_thread_data(dispatcher const & D,
+                endpoint_thread_data & E)
+            : D(D)
+            , pi(D.pi)
+            , E(E)
+        {
+            /* It's important that the reference to D be const, here as
+             * well as in the endpoint thread.
+             *
+             * However there's obviously a catch with the passing of E as
+             * a non-const reference. It is __only__ used to call
+             * E.endpoint_handle_incoming(), and that is mutex-protected
+             * inside. It's of course super important if we have several
+             * threads running per node (with MPI_THREAD_MULTIPLE). If we
+             * don't, then obviously it doesn't matter.
+             */
+        }
+
+        void read();
+
+        void post_send(std::vector<uint32_t> &, unsigned int);
+        void progress(bool wait = false);
+        void post_semaphore_blocking(unsigned int k);
+        void post_semaphore_nonblocking(unsigned int k);
+        void watch_incoming_on_reader(int & active_peers);
+    };
+    void reader_thread() {
+        reader.read();
+    }
+
+    reader_thread_data reader;
+    void main();
+    void stats();
 
     dispatcher(parallelizing_info_ptr pi,/*{{{*/
             param_list_ptr pl,
@@ -180,85 +269,6 @@ struct dispatcher {/*{{{*/
         balancing_clear(bal);
     }/*}}}*/
 
-    void main();
-    void stats();
-
-    int pass_number;
-
-    void endpoint_thread() {
-        endpoint.receive();
-    }
-
-    struct endpoint_thread_data {
-        dispatcher const & D;
-        parallelizing_info_ptr pi;
-        matrix_u32_ptr * args_per_thread;
-
-        /* used in pass 1 for the weights per row */
-        std::vector<std::vector<uint32_t>> thread_row_weights;
-
-        /* used on pass 2 to give the row-beginning pointers. */
-        std::vector<std::vector<size_t>> thread_row_positions;
-
-        std::mutex incoming_mutex;
-
-        endpoint_thread_data(dispatcher const & D,
-                matrix_u32_ptr * args_per_thread)
-            : D(D)
-            , pi(D.pi)
-            , args_per_thread(args_per_thread)
-        {
-
-        }
-
-        void endpoint_handle_incoming(std::vector<uint32_t> & Q);
-        void receive();
-        void enter_pass_one();
-        void enter_pass_two();
-        void prepare_pass(int pass_number);
-    };
-
-
-    /* reader stuff */
-    std::vector<size_t> bytes_per_reader;
-    std::vector<size_t> offset_per_reader;
-    std::vector<uint32_t> row0_per_reader;
-    std::vector<uint32_t> fw_rowperm; // fragmented among all readers.
-    std::vector<uint32_t> fw_colperm; // identical at all nodes
-    void reader_compute_offsets();
-    void reader_fill_index_maps();
-    void reader_thread() {
-        reader.read();
-    }
-
-    struct reader_thread_data {
-        dispatcher const & D;
-        parallelizing_info_ptr pi;
-        endpoint_thread_data & E;
-
-        /* MPI send from readers to endpoints */
-        std::vector<MPI_Request> outstanding;
-        std::vector<std::vector<uint32_t>> outstanding_queues;
-        std::vector<std::vector<uint32_t>> avail_queues;
-        std::vector<int> indices;
-        // std::vector<MPI_Status> statuses;
-
-        reader_thread_data(dispatcher const & D,
-                endpoint_thread_data & E
-                ) : D(D), pi(D.pi), E(E) {
-        }
-
-        void read();
-
-        void post_send(std::vector<uint32_t> &, unsigned int);
-        void progress(bool wait = false);
-        void post_semaphore_blocking(unsigned int k);
-        void post_semaphore_nonblocking(unsigned int k);
-        void watch_incoming_on_reader(int & active_peers);
-    };
-
-    endpoint_thread_data endpoint;
-    reader_thread_data reader;
 };/*}}}*/
 
 /* balancing_get_matrix_u32 -- This is our entry point. {{{
@@ -304,7 +314,7 @@ void balancing_get_matrix_u32(parallelizing_info_ptr pi, param_list pl,
 void dispatcher::reader_thread_data::post_send(std::vector<uint32_t> & Q, unsigned int k)/*{{{*/
 {
     if (k == pi->m->jrank) {
-        E.endpoint_handle_incoming(Q);
+        E.endpoint_handle_incoming(Q, k);
         Q.clear();
         return;
     }
@@ -873,9 +883,11 @@ void dispatcher::endpoint_thread_data::prepare_pass(int pass_number)/*{{{*/
     }
 }/*}}}*/
 
-void dispatcher::endpoint_thread_data::endpoint_handle_incoming(std::vector<uint32_t> & Q)/*{{{*/
+void dispatcher::endpoint_thread_data::endpoint_handle_incoming(std::vector<uint32_t> & Q, int from MAYBE_UNUSED)/*{{{*/
 {
     std::lock_guard<std::mutex> dummy(incoming_mutex);
+
+    /* We're receiving data from rank "from" */
 
     for(auto next = Q.begin() ; next != Q.end() ; ) {
         ASSERT_ALWAYS(next < Q.end());
@@ -1007,7 +1019,7 @@ void dispatcher::endpoint_thread_data::receive()/*{{{*/
             active_peers--;
             continue;
         }
-        endpoint_handle_incoming(Q);
+        endpoint_handle_incoming(Q, status.MPI_SOURCE);
     }
 }/*}}}*/
 
@@ -1032,7 +1044,7 @@ void dispatcher::reader_thread_data::watch_incoming_on_reader(int &active_peers)
         active_peers--;
         return;
     }
-    E.endpoint_handle_incoming(Q);
+    E.endpoint_handle_incoming(Q, status.MPI_SOURCE);
 }
 
 
