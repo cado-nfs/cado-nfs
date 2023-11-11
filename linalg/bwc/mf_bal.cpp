@@ -183,45 +183,45 @@ struct slice * shuffle_rtable(
 /* }}} */
 
 /* {{{ read the mfile header if we have it, deduce #coeffs */
-void read_mfile_header(balancing_ptr bal, const char * mfile, int withcoeffs)
+void read_mfile_header(balancing & bal, const char * mfile, int withcoeffs)
 {
     struct stat sbuf_mat[1];
     int rc = stat(mfile, sbuf_mat);
     if (rc < 0) {
         fprintf(stderr, "Reading %s: %s (not fatal)\n", mfile, strerror(errno));
         printf("%s: %" PRIu32 " rows %" PRIu32 " cols\n",
-                mfile, bal->h->nrows, bal->h->ncols);
+                mfile, bal.nrows, bal.ncols);
         printf("%s: main input file not present locally, total weight unknown\n", mfile);
-        bal->h->ncoeffs = 0;
+        bal.ncoeffs = 0;
     } else {
-        bal->h->ncoeffs = sbuf_mat->st_size / sizeof(uint32_t) - bal->h->nrows;
+        bal.ncoeffs = sbuf_mat->st_size / sizeof(uint32_t) - bal.nrows;
         if (withcoeffs) {
-            if (bal->h->ncoeffs & 1) {
-                fprintf(stderr, "Matrix with coefficient must have an even number of 32-bit entries for all (col index, coeff). Here, %" PRIu64 " is odd.\n", bal->h->ncoeffs);
+            if (bal.ncoeffs & 1) {
+                fprintf(stderr, "Matrix with coefficient must have an even number of 32-bit entries for all (col index, coeff). Here, %" PRIu64 " is odd.\n", bal.ncoeffs);
                 abort();
             }
-            bal->h->ncoeffs /= 2;
+            bal.ncoeffs /= 2;
         }
 
-        int extra = bal->h->ncols - bal->h->nrows;
+        int extra = bal.ncols - bal.nrows;
         if (extra > 0) {
             printf( "%s: %" PRIu32 " rows %" PRIu32 " cols"
                     " (%d extra cols)"
                     " weight %" PRIu64 "\n",
-                    mfile, bal->h->nrows, bal->h->ncols,
+                    mfile, bal.nrows, bal.ncols,
                     extra,
-                    bal->h->ncoeffs);
+                    bal.ncoeffs);
         } else if (extra < 0) {
             printf( "%s: %" PRIu32 " rows %" PRIu32 " cols"
                     " (%d extra rows)"
                     " weight %" PRIu64 "\n",
-                    mfile, bal->h->nrows, bal->h->ncols,
+                    mfile, bal.nrows, bal.ncols,
                     -extra,
-                    bal->h->ncoeffs);
+                    bal.ncoeffs);
         } else {
             printf( "%s: %" PRIu32 " rows %" PRIu32 " cols"
                     " weight %" PRIu64 "\n",
-                    mfile, bal->h->nrows, bal->h->ncols, bal->h->ncoeffs);
+                    mfile, bal.nrows, bal.ncols, bal.ncoeffs);
         }
     }
 }
@@ -395,19 +395,19 @@ void mf_bal(struct mf_bal_args * mba)
     balancing bal;
     balancing_init(bal);
 
-    bal->h->nh = mba->nh;
-    bal->h->nv = mba->nv;
+    bal.nh = mba->nh;
+    bal.nv = mba->nv;
 
     struct stat sbuf[2][1];
     rc = stat(mba->rwfile, sbuf[0]);
     if (rc < 0) { perror(mba->rwfile); exit(1); }
-    bal->h->nrows = sbuf[0]->st_size / sizeof(uint32_t);
+    bal.nrows = sbuf[0]->st_size / sizeof(uint32_t);
 
     rc = stat(mba->cwfile, sbuf[1]);
     if (rc < 0) { perror(mba->cwfile); exit(1); }
-    bal->h->ncols = sbuf[1]->st_size / sizeof(uint32_t);
+    bal.ncols = sbuf[1]->st_size / sizeof(uint32_t);
 
-    if (bal->h->ncols > bal->h->nrows) {
+    if (bal.ncols > bal.nrows) {
         fprintf(stderr, "Warning. More columns than rows. There could be bugs.\n");
     }
 
@@ -419,30 +419,30 @@ void mf_bal(struct mf_bal_args * mba)
          * permutation. Nothing to do with what is called
          * "shuffled-product" elsewhere, except that both are taken care
          * of within mf_bal. */
-        bal->h->pshuf[0] = 1;
-        bal->h->pshuf[1] = 0;
-        bal->h->pshuf_inv[0] = 1;
-        bal->h->pshuf_inv[1] = 0;
+        bal.pshuf[0] = 1;
+        bal.pshuf[1] = 0;
+        bal.pshuf_inv[0] = 1;
+        bal.pshuf_inv[1] = 0;
     } else {
         modulusul_t M;
-        modul_initmod_ul(M, MIN(bal->h->nrows, bal->h->ncols));
+        modul_initmod_ul(M, MIN(bal.nrows, bal.ncols));
         residueul_t a,b;
         residueul_t ai,bi;
         modul_init(a, M);
         modul_init(b, M);
         modul_init(ai, M);
         modul_init(bi, M);
-        modul_set_ul(a, (unsigned long) sqrt(bal->h->ncols), M);
+        modul_set_ul(a, (unsigned long) sqrt(bal.ncols), M);
         modul_set_ul(b, 42, M);
 
         for( ; modul_inv(ai, a, M) == 0 ; modul_add_ul(a,a,1,M)) ;
         modul_mul(bi, ai, b, M);
         modul_neg(bi, bi, M);
 
-        bal->h->pshuf[0] = modul_get_ul(a, M);
-        bal->h->pshuf[1] = modul_get_ul(b, M);
-        bal->h->pshuf_inv[0] = modul_get_ul(ai, M);
-        bal->h->pshuf_inv[1] = modul_get_ul(bi, M);
+        bal.pshuf[0] = modul_get_ul(a, M);
+        bal.pshuf[1] = modul_get_ul(b, M);
+        bal.pshuf_inv[0] = modul_get_ul(ai, M);
+        bal.pshuf_inv[1] = modul_get_ul(bi, M);
 
         modul_clear(a, M);
         modul_clear(b, M);
@@ -453,7 +453,7 @@ void mf_bal(struct mf_bal_args * mba)
     /* }}} */
 
     const char * text[2] = { "row", "column", };
-    unsigned int matsize[2] = { bal->h->nrows, bal->h->ncols, };
+    unsigned int matsize[2] = { bal.nrows, bal.ncols, };
     unsigned int gridsize[2] = { (unsigned int) mba->nh, (unsigned int) mba->nv };
     unsigned int block[2];
     unsigned int padding[2];
@@ -519,7 +519,7 @@ void mf_bal(struct mf_bal_args * mba)
             continue;
         }
 
-        uint32_t ** pperm = d == 0 ? &bal->rowperm : &bal->colperm;
+        uint32_t ** pperm = d == 0 ? &bal.rowperm : &bal.colperm;
         *pperm = (uint32_t *) malloc(2 * n * sizeof(uint32_t));
 
         /* prepare for qsort */
@@ -533,8 +533,8 @@ void mf_bal(struct mf_bal_args * mba)
             size_t rx = r;
             if (r < matsize[d]) {
                 /* The balancing_pre_* function satisfy
-                 * f([0,bal->h->ncols[) \subset [0,bal->h->ncols[.
-                 * and correspond to identity for x>=bal->h->ncols
+                 * f([0,bal.ncols[) \subset [0,bal.ncols[.
+                 * and correspond to identity for x>=bal.ncols
                  */
                 rx = balancing_pre_unshuffle(bal, r);
                 ASSERT(balancing_pre_shuffle(bal, rx) == r);
@@ -552,24 +552,24 @@ void mf_bal(struct mf_bal_args * mba)
         sdev[d] = sqrt(s2 / matsize[d] - avg[d]*avg[d]);
         t_w += wct_seconds();
 
-        if (bal->h->ncoeffs) {
-            if (totalweight != bal->h->ncoeffs) {
+        if (bal.ncoeffs) {
+            if (totalweight != bal.ncoeffs) {
                 fprintf(stderr, "Inconsistency in number of coefficients\n"
                         "From %s: %" PRIu64 ", from file sizes; %" PRIu64 "\n",
-                        filename, totalweight, bal->h->ncoeffs);
+                        filename, totalweight, bal.ncoeffs);
                 fprintf(stderr, "Maybe use the --withcoeffs option for DL matrices ?\n");
                 exit(1);
             }
         } else {
-            bal->h->ncoeffs = totalweight;
+            bal.ncoeffs = totalweight;
             printf("%" PRIu64 " coefficients counted\n", totalweight);
         }
         printf("%" PRIu32 " %ss ; avg %.1f sdev %.1f [scan time %.1f s]\n",
                 matsize[d], text[d], avg[d], sdev[d], t_w);
     }
 
-    bal->h->nzrows = nzero[0];
-    bal->h->nzcols = nzero[1];
+    bal.nzrows = nzero[0];
+    bal.nzcols = nzero[1];
 
 #if 0
     /* We used to examine the correlation between row and column
@@ -582,17 +582,17 @@ void mf_bal(struct mf_bal_args * mba)
      */
 
     if (display_correlation) {
-        size_t n = bal->h->nrows + rpadding;
+        size_t n = bal.nrows + rpadding;
         FILE * frw = fopen(rwfile, "rb");
         if (frw == NULL) { perror(rwfile); exit(1); }
         uint32_t * rowweights = malloc(n * sizeof(uint32_t));
         memset(rowweights, 0, n * sizeof(uint32_t));
         double t_rw;
         t_rw = -wct_seconds();
-        size_t nr = fread32_little(rowweights, bal->h->nrows, frw);
+        size_t nr = fread32_little(rowweights, bal.nrows, frw);
         t_rw += wct_seconds();
         fclose(frw);
-        if (nr < bal->h->nrows) {
+        if (nr < bal.nrows) {
             fprintf(stderr, "%s: short row count\n", rwfile);
             exit(1);
         }
@@ -605,7 +605,7 @@ void mf_bal(struct mf_bal_args * mba)
             rs1 += x;
             rs2 += x * x;
             rc_plain += x * colweights[r];
-            rc_decorr += x * bal->colperm[2*r];
+            rc_decorr += x * bal.colperm[2*r];
         }
         double ravg = rs1 / n;
         double rsdev = sqrt(rs2 / n - ravg*ravg);
@@ -617,7 +617,7 @@ void mf_bal(struct mf_bal_args * mba)
         double dcorr = dcov / csdev / rsdev;
 
         printf("%" PRIu32 " rows ; avg %.1f sdev %.1f [scan time %.1f s]\n",
-                bal->h->nrows, ravg, rsdev, t_rw);
+                bal.nrows, ravg, rsdev, t_rw);
         printf("row-column correlation coefficient is %.4f\n",
                 pcorr);
         printf("row-column correlation coefficient after decorrelation is %.4f\n",
@@ -636,12 +636,12 @@ void mf_bal(struct mf_bal_args * mba)
         mba->do_perm[!choose] = mf_bal_args::MF_BAL_PERM_NO;
     }
 
-    bal->h->flags = 0;
+    bal.flags = 0;
 
     for(int d = 0 ; d < 2 ; d++) {
         if (mba->do_perm[d] == mf_bal_args::MF_BAL_PERM_NO) continue;
-        bal->h->flags |= (d == 0) ? FLAG_ROWPERM : FLAG_COLPERM;
-        uint32_t ** pperm = d == 0 ? &bal->rowperm : &bal->colperm;
+        bal.flags |= (d == 0) ? FLAG_ROWPERM : FLAG_COLPERM;
+        uint32_t ** pperm = d == 0 ? &bal.rowperm : &bal.colperm;
         struct slice * h = shuffle_rtable(text[d], *pperm, matsize[d] + padding[d], gridsize[d]);
         /* we can now make the column permutation tidier */
         *pperm = (uint32_t *) realloc(*pperm, (matsize[d] + padding[d]) * sizeof(uint32_t));
@@ -653,7 +653,7 @@ void mf_bal(struct mf_bal_args * mba)
     }
 
     if (!mba->rectangular) {
-        bal->h->flags |= FLAG_REPLICATE;
+        bal.flags |= FLAG_REPLICATE;
     }
 
     balancing_finalize(bal);

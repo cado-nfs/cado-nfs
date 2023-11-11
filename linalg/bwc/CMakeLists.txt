@@ -101,8 +101,11 @@ set(bwc_base_sources
     rolling.c
     matmul.cpp
     matmul_top.cpp
+    matmul_top_vec.cpp
+    matmul_top_comm.cpp
     matmul_top2.cpp
     random_matrix.cpp
+    mmt_vector_pair.cpp
     mf.c 
     mf_bal.cpp
     ../rowset_heap.cpp
@@ -476,6 +479,11 @@ bwc_program(secure secure.cpp)
 bwc_program(blocklanczos blocklanczos.cpp)
 target_link_libraries(blocklanczos bitlinalg)
 
+bwc_program(bench_cpu_bwc bench_cpu_bwc.cpp)
+bwc_program(bench_comm_bwc bench_comm_bwc.cpp)
+set_target_properties(bench_cpu_bwc PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(bench_comm_bwc PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/bwc.pl DESTINATION
     ${LIBSUFFIX}/linalg/bwc)
 
@@ -656,6 +664,12 @@ add_custom_target(bwc_full_gf2)
 add_dependencies(bwc_full_gf2 bwc_full_common bwc_matmul_gf2 lingen_b64 cleanup)
 add_custom_target(bwc_full_gfp)
 add_dependencies(bwc_full_gfp bwc_full_common bwc_matmul_gfp)
+if(BWC_GFP_ARITHMETIC_BACKENDS)
+    add_dependencies(bwc_full_gfp lingen_pz)
+    if(pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
+        add_dependencies(bwc_full_gfp lingen_pz)
+    endif()
+endif()
 
 add_custom_target(bwc_full)
 add_dependencies(bwc_full bwc_full_gf2 bwc_full_gfp)

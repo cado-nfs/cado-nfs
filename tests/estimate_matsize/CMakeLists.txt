@@ -7,6 +7,7 @@ cado_define_test(estimate_matsize
     CADO_BUILD=${PROJECT_BINARY_DIR}
     CADO_SOURCE=${PROJECT_SOURCE_DIR}
     NO_DEFAULT_RUN
+    TIMEOUT 180
     TARGET_DEPENDENCIES
         las
         makefb

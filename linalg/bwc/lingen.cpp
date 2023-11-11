@@ -852,10 +852,18 @@ int wrapped_main(int argc, char *argv[])
         int thr[2] = {1,1};
 #ifdef  HAVE_OPENMP
         if (param_list_parse_intxint(pl, "thr", thr)) {
-            if (!rank)
-                printf("# Limiting number of openmp threads to %d\n",
-                        thr[0] * thr[1]);
-            omp_set_num_threads(thr[0] * thr[1]);
+            if (omp_get_max_threads() >= thr[0] * thr[1]) {
+                if (!rank)
+                    printf("# Limiting number of openmp threads to %d\n",
+                            thr[0] * thr[1]);
+                omp_set_num_threads(thr[0] * thr[1]);
+            } else {
+                if (!rank)
+                    printf("# Number of openmp threads is capped at %d"
+                            ", which is below thr=%dx%d. Keeping as it is\n",
+                            omp_get_max_threads(),
+                            thr[0], thr[1]);
+            }
         }
 #else
         if (param_list_parse_intxint(pl, "thr", thr)) {

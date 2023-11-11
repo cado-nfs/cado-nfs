@@ -181,20 +181,20 @@ bool lingen_checkpoint::checkpoint_already_present() const/*{{{*/
                 datafile, inv.what());
         exc = 1;
     }
-    MPI_Allreduce(MPI_IN_PLACE, &exc, 1, MPI_INT, MPI_MAX, bm.com[0]);
+    if (mpi) MPI_Allreduce(MPI_IN_PLACE, &exc, 1, MPI_INT, MPI_MAX, bm.com[0]);
     if (exc) return false;
 
-    MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
+    if (mpi) MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
     if (!ok) return false;
 
     /* Do we have a scattered file set (preferred) ? */
     ok = access(sdatafile.c_str(), R_OK) == 0;
-    MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
+    if (mpi) MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
     if (ok) return true;
 
     /* Do we have a gathered file ? */
     ok = rank || access(gdatafile.c_str(), R_OK) == 0;
-    MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
+    if (mpi) MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
     if (ok) return true;
 
     return false;

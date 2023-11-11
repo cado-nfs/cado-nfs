@@ -17,9 +17,9 @@ struct arith_cross_generic {
      *
      * Let g0 = A0->simd_groupsize() and g1 = A1->simd_groupsize()
      *
-     * w is a g1*g0 matrix (a sequence of g1 elements wrt A0)
-     * u is a n*g1 matrix (a sequence of n elements wrt A1)
-     * v is a n*g0 matrix (a sequence of n elements wrt A0)
+     * w is a g0*g1 matrix (a sequence of g0 elements wrt A1)
+     * u is a n*g0 matrix (a sequence of n elements wrt A0)
+     * v is a n*g1 matrix (a sequence of n elements wrt A1)
      */
     virtual void add_dotprod(arith_generic::elt * w, arith_generic::elt const * u, arith_generic::elt const * v, unsigned int n) const = 0;
 

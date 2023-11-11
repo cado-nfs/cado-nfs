@@ -162,8 +162,8 @@ def l2norm_tk_circular(f,s):
       n = n * pi / 4
       return RealField(PRECISION)(1/2 * log(n / s))
    else:
-      raise ValueError, "circular norm not yet implemented for degree %d" % \
-            f.degree()
+      raise (ValueError, "circular norm not yet implemented for degree %d" % \
+            f.degree())
 
 ##### Optimizing norms.
 
@@ -274,20 +274,20 @@ def skew_l2norm_tk_circular(f, verbose=false):
       a8 = f[8] * s^8
       d = (6435*a0^2 + 429*a1^2 + 858*a0*a2 + 99*a2^2 + 198*a1*a3 + 45*a3^2 + 198*a0*a4 + 90*a2*a4 + 35*a4^2 + 90*a1*a5 + 70*a3*a5 + 45*a5^2 + 90*a0*a6 + 70*a2*a6 + 90*a4*a6 + 99*a6^2 + 70*a1*a7 + 90*a3*a7 + 198*a5*a7 + 429*a7^2 + 70*a0*a8 + 90*a2*a8 + 198*a4*a8 + 858*a6*a8 + 6435*a8^2)/s^8
       if verbose:
-         print "trying to minimize", d
+         print ("trying to minimize", d)
       # derivative of d wrt s (numerator, divided by 18)
       e = -2860*a0^2 - 143*a1^2 - 286*a0*a2 - 22*a2^2 - 44*a1*a3 - 5*a3^2 - 44*a0*a4 - 10*a2*a4 - 10*a1*a5 + 5*a5^2 - 10*a0*a6 + 10*a4*a6 + 22*a6^2 + 10*a3*a7 + 44*a5*a7 + 143*a7^2 + 10*a2*a8 + 44*a4*a8 + 286*a6*a8 + 2860*a8^2
       if verbose:
-         print "derivative is", e
+         print ("derivative is", e)
       r = e.real_roots()
       root_pos=[s for s in r if s > 0]
       if verbose:
-         print "positive real roots of derivative:", r
+         print ("positive real roots of derivative:", r)
       best_norm = infinity
       for r in root_pos:
          no = d(r)
          if verbose:
-            print "value at r=", r, "is", no
+            print ("value at r=", r, "is", no)
          if no < best_norm:
             best_norm = no
             best_root = r
@@ -304,20 +304,20 @@ def skew_l2norm_tk_circular(f, verbose=false):
       a7 = f[7] * s^7
       d = (429*a0^2 + 33*a1^2 + 66*a0*a2 + 9*a2^2 + 18*a1*a3 + 5*a3^2 + 18*a0*a4 + 10*a2*a4 + 5*a4^2 + 10*a1*a5 + 10*a3*a5 + 9*a5^2 + 10*a0*a6 + 10*a2*a6 + 18*a4*a6 + 33*a6^2 + 10*a1*a7 + 18*a3*a7 + 66*a5*a7 + 429*a7^2)/s^7
       if verbose:
-         print "trying to minimize", d
+         print ("trying to minimize", d)
       # derivative of d wrt s (numerator)
       e = -3003*a0^2 - 165*a1^2 - 330*a0*a2 - 27*a2^2 - 54*a1*a3 - 5*a3^2 - 54*a0*a4 - 10*a2*a4 + 5*a4^2 - 10*a1*a5 + 10*a3*a5 + 27*a5^2 - 10*a0*a6 + 10*a2*a6 + 54*a4*a6 + 165*a6^2 + 10*a1*a7 + 54*a3*a7 + 330*a5*a7 + 3003*a7^2
       if verbose:
-         print "derivative is", e
+         print ("derivative is", e)
       r = e.real_roots()
       root_pos=[s for s in r if s > 0]
       if verbose:
-         print "positive real roots of derivative:", r
+         print ("positive real roots of derivative:", r)
       best_norm = infinity
       for r in root_pos:
          no = d(r)
          if verbose:
-            print "value at r=", r, "is", no
+            print ("value at r=", r, "is", no)
          if no < best_norm:
             best_norm = no
             best_root = r
@@ -333,20 +333,20 @@ def skew_l2norm_tk_circular(f, verbose=false):
       a6 = f[6] * s^6
       d = (231*a0^2+42*a0*a2+14*a0*a4+10*a0*a6+21*a1^2+14*a1*a3+10*a1*a5+7*a2^2+10*a2*a4+14*a2*a6+5*a3^2+14*a3*a5+7*a4^2+42*a4*a6+21*a5^2+231*a6^2)/s^6
       if verbose:
-         print "trying to minimize", d
+         print ("trying to minimize", d)
       # derivative of d wrt s (numerator divided by 14)
       e = -99*a0^2+12*a6*a4+2*a6*a2-2*a4*a0-12*a2*a0+6*a5^2-6*a1^2+99*a6^2+a4^2-a2^2+2*a5*a3-2*a3*a1
       if verbose:
-         print "derivative is", e
+         print ("derivative is", e)
       r = e.real_roots()
       root_pos=[s for s in r if s > 0]
       if verbose:
-         print "positive real roots of derivative:", r
+         print ("positive real roots of derivative:", r)
       best_norm = infinity
       for r in root_pos:
          no = d(r)
          if verbose:
-            print "value at r=", r, "is", no
+            print ("value at r=", r, "is", no)
          if no < best_norm:
             best_norm = no
             best_root = r
@@ -362,8 +362,8 @@ def skew_l2norm_tk_circular(f, verbose=false):
       e = 105*a5^2+7*(2*a3*a5+a4^2)+(2*a1*a5+2*a2*a4+a3^2)-(2*a0*a4+2*a1*a3+a2^2)-7*(2*a0*a2+a1^2)-105*a0^2
       r = e.real_roots()
       root_pos=[s for s in r if s > 0]
-      if len(root_pos) <> 1:
-         raise ValueError, "number of positive roots <> 1"
+      if len(root_pos) != 1:
+         raise (ValueError, "number of positive roots != 1")
       return root_pos[0]
    elif f.degree()==4:
       R.<s> = RealField(PRECISION)[]
@@ -392,24 +392,24 @@ def skew_l2norm_tk_circular(f, verbose=false):
       e = 15*a3^2 + (a2^2 + 2*a1*a3) - (a1^2 + 2*a0*a2) - 15*a0^2
       r = e.real_roots()
       root_pos=[s for s in r if s > 0]
-      if len(root_pos) <> 1:
-         raise ValueError, "number of positive roots <> 1"
+      if len(root_pos) != 1:
+         raise (ValueError, "number of positive roots != 1")
       return root_pos[0]
    elif f.degree()==2:
       return RR(sqrt(abs(f[0]/f[2])))
    elif f.degree()==1:
       return RR(abs(f[0]/f[1]))
    else:
-      raise ValueError, "skew_l2norm_tk_circular not yet implemented for degree %d" % f.degree()
+      raise (ValueError, "skew_l2norm_tk_circular not yet implemented for degree %d" % f.degree())
 
 # return the skewness optimizing the Murphy-E value
 def L2_combined_skewness (f, g, Bf, Bg, area, verbose=false):
    a = skew_l2norm_tk_circular (f)
    if verbose:
-      print "optimal skewness(f) = ", a
+      print ("optimal skewness(f) = ", a)
    b = skew_l2norm_tk_circular (g)
    if verbose:
-      print "optimal skewness(g) = ", b
+      print ("optimal skewness(g) = ", b)
    # for SNFS polynomials, b might be huge, which will take
    # many steps to converge, thus we search between a and 2^k*a
    a = min(a,b)
@@ -422,7 +422,7 @@ def L2_combined_skewness (f, g, Bf, Bg, area, verbose=false):
       vb = MurphyE (f, g, b, Bf, Bg, area)
    while b - a > a * 0.001:
       if verbose:
-         print "a=", a, "va=", va, "b=", b, "vb=", vb
+         print ("a=", a, "va=", va, "b=", b, "vb=", vb)
       c = (2 * a + b) / 3.0
       vc = MurphyE (f, g, c, Bf, Bg, area)
       d = (a + 2 * b) / 3.0
@@ -444,19 +444,19 @@ def L2_combined_skewness2 (f, g, verbose=false):
    # now a <= b
    va = l2norm_tk_circular (f, a) + l2norm_tk_circular (g, a)
    if verbose:
-      print "a=", a, "va=", va
+      print ("a=", a, "va=", va)
    vb = l2norm_tk_circular (f, b) + l2norm_tk_circular (g, b)
    if verbose:
-      print "b=", b, "vb=", vb
+      print ("b=", b, "vb=", vb)
    while b - a > a * 0.001:
       c = (2 * a + b) / 3.0
       vc = l2norm_tk_circular (f, c) + l2norm_tk_circular (g, c)
       if verbose:
-      	 print "c=", c, "vc=", vc
+      	 print ("c=", c, "vc=", vc)
       d = (a + 2 * b) / 3.0
       vd = l2norm_tk_circular (f, d) + l2norm_tk_circular (g, d)
       if verbose:
-      	 print "d=", d, "vd=", vd
+      	 print ("d=", d, "vd=", vd)
       max_left = max(va, vc)
       max_right = max(vd, vb)
       if max_left < max_right: # maximum in a or c
@@ -464,7 +464,7 @@ def L2_combined_skewness2 (f, g, verbose=false):
       else:
          a, va = c, vc
       if verbose:
-      	 print "a=", a, "b=", b
+      	 print ("a=", a, "b=", b)
    return (a + b) * 0.5
 
 def square_l2norm_tk_sym(f,s):

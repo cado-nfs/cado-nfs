@@ -8,7 +8,7 @@ base_args=("$@")
 
 set -e
 
-tmp=$(mktemp -d /tmp/XXXXXXXXXXXXXX)
+tmp=$(mktemp -d /tmp/cado-nfs.XXXXXXXXXXXXXX)
 
 if ! [ "$CADO_DEBUG" ] ; then
     trap "rm -rf $tmp" EXIT

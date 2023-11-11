@@ -24,7 +24,7 @@ def MurphyE(f,g,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,verbose=False,B=2000):
        vi = (log(abs(gi))+alpha_g)/log(Bg)
        v1 = dickman_rho(ui) * dickman_rho(vi)
        if verbose:
-          print i, log(abs(fi))+alpha_f, log(abs(gi))+alpha_g, v1
+          print (i, log(abs(fi))+alpha_f, log(abs(gi))+alpha_g, v1)
        E += v1
     return E/K
 
@@ -139,7 +139,7 @@ def MurphyE_combined_aux(f,g,B,verbose=false):
             ef = average_valuation_homogeneous_coprime_sub(f,p,1,0)
             eg = average_valuation_homogeneous_coprime_sub(g,p,1,0)
          if verbose:
-            print "p=", p, "r=", r, "ef=", ef, "eg=", eg
+            print ("p=", p, "r=", r, "ef=", ef, "eg=", eg)
          # if there was already a class with the same exponents, accumulate
          found = false
          for i in range(len(lp)):
@@ -182,15 +182,15 @@ def MurphyE_combined_aux2(f,g,B,verbose=false):
          for s in range(p^e):
             if r % p == 0 and s % p == 0: # we want r and s coprime
                continue
-            if s % p <> 0 and s <> 1: # p^e classes (r,1)
+            if s % p != 0 and s != 1: # p^e classes (r,1)
                continue
-            if s % p == 0 and r <> 1: # p^(e-1) classes (1,s) for p | s
+            if s % p == 0 and r != 1: # p^(e-1) classes (1,s) for p | s
                continue
             nrs += 1
             ef = average_valuation_homogeneous_coprime_sub2(f,p,e,r,s)
             eg = average_valuation_homogeneous_coprime_sub2(g,p,e,r,s)
             if verbose:
-               print "p=", p, "r=", r, "s=", s, "ef=", ef, "eg=", eg
+               print ("p=", p, "r=", r, "s=", s, "ef=", ef, "eg=", eg)
             # if there was already a class with the same exponents, accumulate
             found = false
             for i in range(len(lp)):
@@ -220,7 +220,7 @@ def MurphyE_combined_aux2(f,g,B,verbose=false):
 # value than MurphyE)
 def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,method='sample',verbose=false):
     l = MurphyE_combined_aux2(f,g,B,verbose)
-    print "number of residue classes:", len(l)
+    print ("number of residue classes:", len(l))
     df = f.degree()
     dg = g.degree()
     E = 0
@@ -233,42 +233,42 @@ def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,method='sam
        alpha_f = entry[1]
        alpha_g = entry[2]
        if method == 'sample':
-	  Ej = 0
-	  for i in range(K):
-	     theta_i = float(pi/K*(i+0.5))
-	     xi = cos(theta_i)*sx
-	     yi = sin(theta_i)*sy
-	     fi = f(x=xi/yi)*yi^df/sq
-	     gi = g(x=xi/yi)*yi^dg
-	     ui = (log(abs(fi))+alpha_f)/log(Bf)
-	     vi = (log(abs(gi))+alpha_g)/log(Bg)
-	     v1 = dickman_rho(ui) * dickman_rho(vi)
-	     Ej += v1
-	  Ej = Ej/K
+          Ej = 0
+          for i in range(K):
+             theta_i = float(pi/K*(i+0.5))
+             xi = cos(theta_i)*sx
+             yi = sin(theta_i)*sy
+             fi = f(x=xi/yi)*yi^df/sq
+             gi = g(x=xi/yi)*yi^dg
+             ui = (log(abs(fi))+alpha_f)/log(Bf)
+             vi = (log(abs(gi))+alpha_g)/log(Bg)
+             v1 = dickman_rho(ui) * dickman_rho(vi)
+             Ej += v1
+          Ej = Ej/K
        elif method == 'integrate':
           var('theta')
           xi = cos(theta)*sx
           yi = sin(theta)*sy
-	  fi = f(x=xi/yi)*yi^df/sq
-	  gi = g(x=xi/yi)*yi^dg
-	  ui = (log(abs(fi))+alpha_f)/log(Bf)
-	  vi = (log(abs(gi))+alpha_g)/log(Bg)
-	  v1 = dickman_rho(ui) * dickman_rho(vi)
+          fi = f(x=xi/yi)*yi^df/sq
+          gi = g(x=xi/yi)*yi^dg
+          ui = (log(abs(fi))+alpha_f)/log(Bf)
+          vi = (log(abs(gi))+alpha_g)/log(Bg)
+          v1 = dickman_rho(ui) * dickman_rho(vi)
           v1 = v1 / pi
           Ej = numerical_integral(v1, 0, pi)[0]
        else:
-          print "Unknown method:", method
+          print ("Unknown method:", method)
           raise ValueError
        if Ej < smallest[0]:
           smallest = Ej,entry
        if Ej > largest[0]:
           largest = Ej,entry
        if verbose:
-          print Ej,entry
+          print (Ej,entry)
        E += Ej*pr
     if verbose:
-       print "smallest:", smallest
-       print "largest:", largest
+       print ("smallest:", smallest)
+       print ("largest:", largest)
     return E
 
 # example: RSA-768 polynomials
@@ -322,7 +322,7 @@ def MurphyE_combined(f,g,B,s=1.0,Bf=1e7,Bg=5e6,area=1e16,K=1000,sq=1,method='sam
 
 def rho(x):
    if x < 0:
-      raise ValueError, "x < 0"
+      raise (ValueError, "x < 0")
    if x <= 1.0:
       return 1.0
    if x <= 2.0:
@@ -363,7 +363,7 @@ def check_rho(a,b,N):
       err = abs(z-y)
       if err>maxerr:
          maxerr=err
-         print x, err
+         print (x, err)
 
 # given a rootsieve space of S points, estimate the best alpha value
 # which is the solution of f(x)^S = 1/2 for f(x) = 1/2*(1 - erf(x/sqrt(2)))
@@ -381,10 +381,10 @@ def expected_alpha(S):
 def expected_growth(f, g, i, margin=0.2, maxlognorm=None, verbose=false):
    s = skew_l2norm_tk_circular(f)
    if verbose:
-      print "s=", s
+      print ("s=", s)
    n = l2norm_tk_circular(f,s)
    if verbose:
-      print "n=", n
+      print ("n=", n)
    if maxlognorm == None:
       maxlognorm = n + margin
    x = f.parent().0
@@ -394,7 +394,7 @@ def expected_growth(f, g, i, margin=0.2, maxlognorm=None, verbose=false):
       ff = f + kmin*x^i*g
       n2 = l2norm_tk_circular(ff,s)
       if verbose:
-         print "k=", kmin, "n2=", n2
+         print ("k=", kmin, "n2=", n2)
       if n2 > maxlognorm:
          break
       kmin = 2*kmin
@@ -405,7 +405,7 @@ def expected_growth(f, g, i, margin=0.2, maxlognorm=None, verbose=false):
       ff = f + k*x^i*g
       n2 = l2norm_tk_circular(ff,s)
       if verbose:
-         print "k=", k, "n2=", n2
+         print ("k=", k, "n2=", n2)
       if n2 > maxlognorm: # k is too large (in absolute value)
          kmin = k
       else:

@@ -118,7 +118,7 @@ def print_c(table):
     Prints the table for inclusion in a C program.
     """
     st=["{ %d, %f, %f },\n" % (z[0],z[1][0],z[1][1]) for z in table]
-    print reduce(operator.add, st)
+    print (reduce(operator.add, st))
 
 
 # print create_c_table(table,0.005,0.95)

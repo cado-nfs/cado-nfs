@@ -2,6 +2,25 @@
 tweak_tree_before_configure() { : ; }
 
 step_configure() {
+    # now that we're confident that we've made the bwc checks specific to
+    # a "with_sagemath" suffix, there's no risk in missing the sagemath
+    # code by inadvertence.
+    # if [ "$specific_checks" = "bwc.sagemath" ] ; then
+    #     export FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3=1
+    # fi
+    if [ "$specific_checks" = "including_mpi" ] ; then
+        export MPI=1
+        # sigh. when we run in containers, running as root isn't much of
+        # a problem
+        export OMPI_ALLOW_RUN_AS_ROOT=1
+        export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+    elif [ "$specific_checks" = "only_mpi" ] ; then
+        export MPI=1
+        # sigh. when we run in containers, running as root isn't much of
+        # a problem
+        export OMPI_ALLOW_RUN_AS_ROOT=1
+        export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+    fi
     if [ "$using_cmake_directly" ] ; then
         (cd "$build_tree" ; cmake "$source_tree")
     else
@@ -14,21 +33,30 @@ build_steps="build1 build2"
 build_step_name_build1="Building"
 
 step_build1() {
+    target=all
+    if [ "$specific_checks" = "bwc.sagemath" ] ; then
+        target=all_sagemath_test_dependencies
+    fi
     if [ "$using_cmake_directly" ] ; then
         SOURCEDIR="$PWD"
-        (cd "$build_tree" ; "${MAKE}" -j$NCPUS)
+        (cd "$build_tree" ; "${MAKE}" -j$NCPUS $target)
     else
-        "${MAKE}" -j$NCPUS
+        "${MAKE}" -j$NCPUS $target
     fi
 }
 
 build_step_name_build2="Building test dependencies"
 step_build2() {
+    target=all_test_dependencies
+    if [ "$specific_checks" = "bwc.sagemath" ] ; then
+        # already covered in build1 anyway
+        return
+    fi
     if [ "$using_cmake_directly" ] ; then
         SOURCEDIR="$PWD"
-        (cd "$build_tree" ; "${MAKE}" -j$NCPUS all_test_dependencies)
+        (cd "$build_tree" ; "${MAKE}" -j$NCPUS $target)
     else
-        "${MAKE}" -j$NCPUS all_test_dependencies
+        "${MAKE}" -j$NCPUS $target
     fi
 }
 
@@ -167,6 +195,15 @@ step_check() {
     # likes to store as zlib but headerless, which is a bit of a pain
 
     ctest_args="-T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144"
+
+    if [ "$specific_checks" = "bwc.sagemath" ] ; then
+        ctest_args="$ctest_args -R with_sagemath"
+    elif [ "$specific_checks" = "including_mpi" ] ; then
+        # nothing to do
+        :
+    elif [ "$specific_checks" = "only_mpi" ] ; then
+        ctest_args="$ctest_args -R mpi"
+    fi
 
     if [ "$using_cmake_directly" ] ; then
         set -o pipefail

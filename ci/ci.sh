@@ -50,6 +50,4 @@ project_package_selection() {
     fi
 }
 
-
-
 # Note: most of the interesting stuff is in ci.bash

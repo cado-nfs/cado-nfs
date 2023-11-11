@@ -58,7 +58,7 @@ const char * path_remove_suffix(char * name)
 
 struct suffix_handler supported_compression_formats[] = {
     { ".gz", "gzip -dc %s", "gzip -c --fast > %s", },
-    { ".bz2", "bzip2 -dc %s", "bzip2 -c --fast > %s", },
+    { ".bz2", "bzip2 -dc %s", "bzip2 -c -1 > %s", },
     /* zstd seems to be uniformly better than any other alternative */
     { ".zstd", "zstdcat %s", "zstd --fast > %s", },
     /* xz is really slow */
@@ -534,6 +534,5 @@ void streambase_maybe_compressed::close()
 // coverity[exn_spec_violation]
 streambase_maybe_compressed::~streambase_maybe_compressed()
 {
-    sync();
     close();
 }

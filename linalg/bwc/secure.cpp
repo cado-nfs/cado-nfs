@@ -18,12 +18,15 @@
 #include "macros.h"
 #include "matmul.hpp"              // for matmul_public_s
 #include "matmul_top.hpp"
+#include "matmul_top_comm.hpp"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
 #include "parallelizing_info.hpp"
 #include "params.h"
 #include "select_mpi.h"
 #include "xvectors.hpp"
+#include "mmt_vector_pair.hpp"
+#include "utils_cxx.hpp"
 using namespace fmt::literals;
 
 int legacy_check_mode = 0;
@@ -46,6 +49,11 @@ int legacy_check_mode = 0;
  *
  * Cv0-$nchecks.$s (also referred to as C) : check vector for distance $s. Depends on X.
  * Cd0-$nchecks.$s (also referred to as D) : check vector for distance $s. Depends on X, T, and R.
+ *
+ * Cv0-<splitwidth>.<j> == trsp(M)^j * X * Ct (See note (T))
+ * Cd0-<splitwidth>.<j> == \sum_{0<=i<j} trsp(M)^i * X * Ct * Cr[i] (See note (T))
+ * 
+ * (T): This assumes that nullspace=right. If nullspace=left, replace M by trsp(M).
  */
 
 void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
@@ -56,30 +64,24 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     ASSERT_ALWAYS(!pi->interleaved);
 
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
 
     int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
-
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, nchecks));
 
     /* We need that in order to do matrix products */
     std::unique_ptr<arith_cross_generic> AxA(arith_cross_generic::instance(A.get(), A.get()));
 
-    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
-    pi_datatype_ptr A_pi = mmt->pitype;
-
-    mmt_vec myy[2];
-    mmt_vec_ptr my = myy[0];
-    mmt_vec_ptr y = myy[1];
-    mmt_vec dvec;
+    matmul_top_data mmt(A.get(), pi, pl, bw->dir);
+    pi_datatype_ptr A_pi = mmt.pitype;
 
     /* we work in the opposite direction compared to other programs */
-    mmt_vec_init(mmt,0,0, y,   bw->dir,                0, mmt->n[bw->dir]);
-    mmt_vec_init(mmt,0,0, my, !bw->dir, /* shared ! */ 1, mmt->n[!bw->dir]);
-    mmt_vec_init(mmt,0,0, dvec,!bw->dir, /* shared ! */ 1, mmt->n[!bw->dir]);
+    mmt_vector_pair myy(mmt, !bw->dir);
+    mmt_vec & my = myy[0];
 
-    unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+    mmt_vec dvec(mmt,0,0, !bw->dir, /* shared ! */ 1, mmt.n[!bw->dir]);
+
+    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     /* Because we're a special case, we _expect_ to work opposite to
      * optimized direction. So we pass bw->dir even though _we_ are going
@@ -175,7 +177,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             if (consistency) Rfile = R.steal_file_pointer();
 
             /* Non-destructively open for writing */
-            file_guard T(Tfilename.c_str(), "ab");
+            file_guard T(Tfilename.c_str(), bw->start == 0 ? "wb" : "rb");
             if (bw->start == 0) {
                 if (T && T.sbuf->st_size) {
                     fmt::fprintf(stderr, "Refusing to overwrite %s with new random data\n", Tfilename);
@@ -211,9 +213,12 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                 ASSERT_ALWAYS(rc == 1);
                 if (tcan_print) fmt::printf("Saved %s\n", Tfilename);
             } else {
+                /* We should be reading the same data, unless we changed
+                 * the seed.
+                 */
                 rc = fread(Tdata, A->vec_elt_stride(bw->m), 1, T.f);
                 ASSERT_ALWAYS(rc == 1);
-                if (tcan_print) fmt::printf("loaded %s\n", Tfilename);
+                if (tcan_print) fmt::printf("Loaded %s\n", Tfilename);
             }
             /* }}} */
 
@@ -226,14 +231,19 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             pi_bcast(Tdata, bw->m, A_pi, 0, 0, pi->m);
         }
         /* }}} */
+    }
 
-    } else {
+    /* same remark as above. We want the random state to be in sync even
+     * if bw->start>0 and we don't _really_ have stuff to generate for
+     * this data that's already there.
+     */
+
+    if (bw->start) {
         arith_generic::elt * Rdata = A->alloc(nchecks, ALIGNMENT_ON_ALL_BWC_VECTORS);
         for(int k = 0 ; k < bw->start ; k++) {
             /* same remark as above */
             A->vec_set_random(Rdata, nchecks, rstate);
         }
-        A->free(Rdata);
     }
 
     /* {{{ create initial Cv and Cd, or load them if start>0 */
@@ -265,7 +275,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                         mmt_my_own_size_in_items(my));
             }
             /* addmul_tiny degrades consistency ! */
-            my->consistency = 1;
+            my.consistency = 1;
             mmt_vec_broadcast(my);
             mmt_vec_save(my, "Cv%u-%u.0", unpadded, 0);
         }
@@ -294,7 +304,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     serialize_threads(pi->m);
     if (pi->m->trank == 0) {
         /* the bw object is global ! */
-        bw_set_length_and_interval_krylov(bw, mmt->n0);
+        bw_set_length_and_interval_krylov(bw, mmt.n0);
     }
     serialize_threads(pi->m);
     ASSERT_ALWAYS(bw->end % bw->interval == 0);
@@ -335,8 +345,8 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* }}} */
 
     // {{{ kill the warning about wrong spmv direction
-    for(int i = 0 ; i < mmt->nmatrices ; i++) {
-        mmt->matrices[i]->mm->iteration[!bw->dir] = INT_MIN;
+    for(auto const & Mloc : mmt.matrices) {
+        Mloc.mm->iteration[!bw->dir] = INT_MIN;
     }
     // }}}
 
@@ -386,10 +396,10 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                         mmt_my_own_size_in_items(my));
             }
             /* addmul_tiny degrades consistency ! */
-            dvec->consistency = 1;
+            dvec.consistency = 1;
             mmt_vec_broadcast(dvec);
-            pi_log_op(mmt->pi->m, "iteration %d", k);
-            matmul_top_mul(mmt, myy, NULL);
+            pi_log_op(mmt.pi->m, "iteration %d", k);
+            matmul_top_mul(mmt, myy.vectors(), NULL);
 
             if (tcan_print) {
                 putchar('.');
@@ -397,7 +407,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             }
         }
         serialize(pi->m);
-        serialize_threads(mmt->pi->m);
+        serialize_threads(mmt.pi->m);
         mmt_vec_untwist(mmt, my);
         mmt_vec_untwist(mmt, dvec);
 
@@ -423,11 +433,6 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     A->free(Tdata);
 
     gmp_randclear(rstate);
-
-    mmt_vec_clear(mmt, dvec);
-    mmt_vec_clear(mmt, y);
-    mmt_vec_clear(mmt, my);
-    matmul_top_clear(mmt);
 
     return NULL;
 }

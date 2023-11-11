@@ -19,7 +19,7 @@ my $print_outputs_on_interrupt;
 
 my $use_color = 1;
 
-my $tmpdir = tempdir( CLEANUP => 1 );
+my $tmpdir = tempdir( TEMPLATE => '/tmp/filter-ctest.XXXXXXXXX', CLEANUP => 1 );
 
 my %archive=();
 my @live=();
@@ -92,7 +92,8 @@ sub print_live {
     for (@live) {
         my $tx = defined($_) ? sprintf("%3d", $_) : "   ";
         if (defined($_) && $_ == $n && defined($color)) {
-            $ex = "$csi->{$color}$tx: $archive{$n}->{'title'}$csi->{'normal'}";
+            my $c = $archive{$n}->{'comment'} || '';
+            $ex = "$csi->{$color}$tx: $archive{$n}->{'title'}$c$csi->{'normal'}";
             $tx = "$csi->{$color}$tx$csi->{'normal'}";
         }
         push @txs, $tx;
@@ -268,6 +269,9 @@ while (<>) {
         } else {
             $tests_failed++;
             $color='failure';
+            if ($outcome =~ /Timeout/) {
+                $archive{$n}->{'comment'} = ' (Timeout)';
+            }
         }
         remove_from_live_slot($n, $color);
     } elsif (/\s*\d+% tests/ || /The following/) {

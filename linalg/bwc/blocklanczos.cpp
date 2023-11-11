@@ -18,15 +18,16 @@
 #include "bit_vector.h"
 #include "macros.h"
 #include "portability.h" // asprintf // IWYU pragma: keep
+#include "matmul_top_comm.hpp"
 
 
 int exit_code = 0;
 
 struct blstate {
-    matmul_top_data mmt;
-    mmt_vec y, my;
     std::unique_ptr<arith_generic> A;
+    matmul_top_data mmt;
     std::unique_ptr<arith_cross_generic> AxA;
+    mmt_vec y, my;
 
 
     gmp_randstate_t rstate;
@@ -148,7 +149,10 @@ uint64_t extraction_step(uint64_t * B, uint64_t * A, uint64_t S)
 
 blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
     : A(arith_generic::instance(bw->p, bw->ys[1]-bw->ys[0]))
+    , mmt(A.get(), pi, pl, bw->dir)
     , AxA(arith_cross_generic::instance(A.get(), A.get()))
+    , y(mmt,0,0,  bw->dir, 0, mmt.n[bw->dir])
+    , my(mmt,0,0, !bw->dir, 0, mmt.n[!bw->dir])
 {
     /* Note that THREAD_SHARED_VECTOR can't work in a block Lanczos
      * context, since both ways are used for input and output.
@@ -161,13 +165,9 @@ blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
 
     gmp_randinit_default(rstate);
 
-    matmul_top_init(mmt, A.get(), pi, pl, bw->dir);
-
     /* it's not really in the plans yet */
-    ASSERT_ALWAYS(mmt->nmatrices == 1);
+    ASSERT_ALWAYS(mmt.matrices.size() == 1);
 
-    mmt_vec_init(mmt,0,0, y,   bw->dir, 0, mmt->n[bw->dir]);
-    mmt_vec_init(mmt,0,0, my, !bw->dir, 0, mmt->n[!bw->dir]);
 
     for(int i = 0 ; i < 3 ; i++) {
         /* We also need D_n, D_{n-1}, D_{n-2}. Those are in fact bitmaps.
@@ -175,25 +175,19 @@ blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
         bit_vector_init(D[i], bw->n);
         /* We need as well the two previous vectors. For these, distributed
          * storage will be ok. */
-        mmt_vec_init(mmt,0,0, V[i], bw->dir, 0, mmt->n[bw->dir]);
+        mmt_vec_setup(V[i], mmt,0,0, bw->dir, 0, mmt.n[bw->dir]);
     }
 
 }
 
 blstate::~blstate()
 {
-    serialize(mmt->pi->m);
+    serialize(mmt.pi->m);
     for(int i = 0 ; i < 3 ; i++) {
         /* We also need D_n, D_{n-1}, D_{n-2}. Those are in fact bitmaps.
          * Not clear that the bitmap type is really the one we want, though. */
         bit_vector_clear(D[i]);
-        /* We need as well the two previous vectors. For these, distributed
-         * storage will be ok. */
-        mmt_vec_clear(mmt, V[i]);
     }
-    mmt_vec_clear(mmt, y);
-    mmt_vec_clear(mmt, my);
-    matmul_top_clear(mmt);
     gmp_randclear(rstate);
 }
 
@@ -205,8 +199,8 @@ void blstate::set_start()
         L[i] = 1;
     }
     /* matmul_top_vec_init has already set V to zero */
-    /* for bw->dir=0, mmt->n0[0] is the number of rows. */
-    mmt_vec_set_random_through_file(V[0], "blstart.0.V%u-%u.i0", mmt->n0[bw->dir], rstate, 0);
+    /* for bw->dir=0, mmt.n0[0] is the number of rows. */
+    mmt_vec_set_random_through_file(V[0], "blstart.0.V%u-%u.i0", mmt.n0[bw->dir], rstate, 0);
     mmt_own_vec_set(y, V[0]);
 }
 
@@ -215,7 +209,7 @@ void blstate::load( unsigned int iter)
     unsigned int i0 = iter % 3;
     unsigned int i1 = (iter+3-1) % 3;
     unsigned int i2 = (iter+3-2) % 3;
-    parallelizing_info_ptr pi = mmt->pi;
+    parallelizing_info_ptr pi = mmt.pi;
 
     char * filename_base;
     int rc = asprintf(&filename_base, "blstate.%u", iter);
@@ -241,19 +235,19 @@ void blstate::load( unsigned int iter)
 
     rc = asprintf(&tmp, "%s.V%s.i0", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    rc = mmt_vec_load(V[i0], tmp, mmt->n0[bw->dir], 0);
+    rc = mmt_vec_load(V[i0], tmp, mmt.n0[bw->dir], 0);
     ASSERT_ALWAYS(rc >= 0);
     free(tmp);
 
     rc = asprintf(&tmp, "%s.V%s.i1", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    rc = mmt_vec_load(V[i1], tmp, mmt->n0[bw->dir], 0);
+    rc = mmt_vec_load(V[i1], tmp, mmt.n0[bw->dir], 0);
     ASSERT_ALWAYS(rc >= 0);
     free(tmp);
 
     rc = asprintf(&tmp, "%s.V%s.i2", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    rc = mmt_vec_load(V[i2], tmp, mmt->n0[bw->dir], 0);
+    rc = mmt_vec_load(V[i2], tmp, mmt.n0[bw->dir], 0);
     ASSERT_ALWAYS(rc >= 0);
     free(tmp);
 
@@ -266,7 +260,7 @@ void blstate::save(unsigned int iter)
     unsigned int i0 = iter % 3;
     unsigned int i1 = (iter+3-1) % 3;
     unsigned int i2 = (iter+3-2) % 3;
-    parallelizing_info_ptr pi = mmt->pi;
+    parallelizing_info_ptr pi = mmt.pi;
 
     char * filename_base;
     int rc = asprintf(&filename_base, "blstate.%u", iter);
@@ -289,17 +283,17 @@ void blstate::save(unsigned int iter)
     }
     rc = asprintf(&tmp, "%s.V%s.i0", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_save(V[i0], tmp, mmt->n0[bw->dir], 0);
+    mmt_vec_save(V[i0], tmp, mmt.n0[bw->dir], 0);
     free(tmp);
 
     rc = asprintf(&tmp, "%s.V%s.i1", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_save(V[i1], tmp, mmt->n0[bw->dir], 0);
+    mmt_vec_save(V[i1], tmp, mmt.n0[bw->dir], 0);
     free(tmp);
 
     rc = asprintf(&tmp, "%s.V%s.i2", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_save(V[i2], tmp, mmt->n0[bw->dir], 0);
+    mmt_vec_save(V[i2], tmp, mmt.n0[bw->dir], 0);
     free(tmp);
 
     if (tcan_print) { printf("done\n"); fflush(stdout); }
@@ -314,13 +308,13 @@ void blstate::save(unsigned int iter)
  *
  * This is a collective operation.
  */
-int mmt_vec_echelon(mat64 & m, mmt_vec_ptr v0)
+int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
 {
     m = 1;
     uint64_t * v = (uint64_t *) mmt_my_own_subvec(v0);
     size_t eblock = mmt_my_own_size_in_items(v0);
     /* This is the total number of non-zero coordinates of the vector v */
-    size_t n = v0->n;
+    size_t n = v0.n;
     /* In all what follows, we'll talk about v being a 64*n matrix, with
      * [v[i]&1] being "the first row", and so on.  */
     uint64_t usedrows = 0;
@@ -333,9 +327,9 @@ int mmt_vec_echelon(mat64 & m, mmt_vec_ptr v0)
             if (v[j] & mi) break;
         }
         if (j == eblock) j = n;
-        else j += v0->i0 + mmt_my_own_offset_in_items(v0);
+        else j += v0.i0 + mmt_my_own_offset_in_items(v0);
         unsigned int jmin;
-        pi_allreduce(&j, &jmin, 1, BWC_PI_UNSIGNED, BWC_PI_MIN, v0->pi->m);
+        pi_allreduce(&j, &jmin, 1, BWC_PI_UNSIGNED, BWC_PI_MIN, v0.pi->m);
         if (jmin == n) {
             /* zero row */
             continue;
@@ -347,13 +341,13 @@ int mmt_vec_echelon(mat64 & m, mmt_vec_ptr v0)
          * owns this column, and then act accordingly */
         uint64_t control = 0;
         if (jmin == j) {
-            control = v[j - (v0->i0 + mmt_my_own_offset_in_items(v0))];
+            control = v[j - (v0.i0 + mmt_my_own_offset_in_items(v0))];
             ASSERT_ALWAYS(control & mi);
             control ^= mi;
         }
         /* TODO: once we require mpi-3.0, use MPI_UINT64_T instead */
         ASSERT_ALWAYS(sizeof(unsigned long long) == sizeof(uint64_t));
-        pi_allreduce(NULL, &control, 1, BWC_PI_UNSIGNED_LONG_LONG, BWC_PI_MAX, v0->pi->m);
+        pi_allreduce(NULL, &control, 1, BWC_PI_UNSIGNED_LONG_LONG, BWC_PI_MAX, v0.pi->m);
         /* add row i to all rows where we had a coeff in column j */
         /* we'll do that for all coefficients in the block, but on m this
          * is just one single operation */
@@ -402,10 +396,10 @@ void blstate::save_result( unsigned int iter)
     mat64 m0, m1, m2;
     int r;
     unsigned int i0 = iter % 3;
-    parallelizing_info_ptr pi = mmt->pi;
+    parallelizing_info_ptr pi = mmt.pi;
 
-    /* bw->dir=0: mmt->n0[bw->dir] = number of rows */
-    /* bw->dir=1: mmt->n0[bw->dir] = number of columns */
+    /* bw->dir=0: mmt.n0[bw->dir] = number of rows */
+    /* bw->dir=1: mmt.n0[bw->dir] = number of columns */
 
     const char * filename_base = "blaux";
     char * tmp;
@@ -417,14 +411,14 @@ void blstate::save_result( unsigned int iter)
     mmt_full_vec_set(y, V[i0]);
 
     /* save raw V because it's conceivably useful */
-    ASSERT_ALWAYS(y->n == mmt->n[bw->dir]);
+    ASSERT_ALWAYS(y.n == mmt.n[bw->dir]);
     rc = asprintf(&tmp, "%s.Y%s", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_save(y, tmp, mmt->n0[bw->dir], 0);
+    mmt_vec_save(y, tmp, mmt.n0[bw->dir], 0);
     free(tmp);
 
     mmt_vec_twist(mmt, y);
-    matmul_top_mul_cpu(mmt, 0, y->d, my, y);
+    matmul_top_mul_cpu(mmt, 0, y.d, my, y);
     mmt_vec_allreduce(my);
     mmt_vec_untwist(mmt, my);
 
@@ -435,11 +429,11 @@ void blstate::save_result( unsigned int iter)
      * property of the _write and _read calls. But before we do that, we
      * should clean up the mess done in mksol & gather.
      */
-    ASSERT_ALWAYS(my->n == mmt->n[!bw->dir]);
-    ASSERT_ALWAYS(y->n == mmt->n[bw->dir]);
+    ASSERT_ALWAYS(my.n == mmt.n[!bw->dir]);
+    ASSERT_ALWAYS(y.n == mmt.n[bw->dir]);
     rc = asprintf(&tmp, "%s.MY%s", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_save(my, tmp, mmt->n0[!bw->dir], 0);
+    mmt_vec_save(my, tmp, mmt.n0[!bw->dir], 0);
     free(tmp);
 
     /* Do some rank calculations */
@@ -474,7 +468,7 @@ void blstate::save_result( unsigned int iter)
             (uint64_t *) mmt_my_own_subvec(y),
             m1,
             mmt_my_own_size_in_items(y));
-    y->consistency = 1;
+    y.consistency = 1;
     /* Compute m2 such that m2 * m1 * V is in RREF. We discard the
      * combinations which lead to zero, so that m2*m1 should have rank
      * precisely the rank of the nullspace */
@@ -494,7 +488,7 @@ void blstate::save_result( unsigned int iter)
         fclose(f);
         free(tmp);
     }
-    serialize(mmt->pi->m);
+    serialize(mmt.pi->m);
     /* Now apply m2*m1 to v, for real */
     mmt_full_vec_set(y, V[i0]);
     mul_N64_T6464((uint64_t *) mmt_my_own_subvec(y),
@@ -508,15 +502,15 @@ void blstate::save_result( unsigned int iter)
 
 
     /* Now save the reduced kernel basis */
-    ASSERT_ALWAYS(y->n == mmt->n[bw->dir]);
+    ASSERT_ALWAYS(y.n == mmt.n[bw->dir]);
     rc = asprintf(&tmp, "%s.YR%s", filename_base, "%u-%u");
     ASSERT_ALWAYS(rc >= 0);
-    mmt_vec_save(y, tmp, mmt->n0[bw->dir], 0);
+    mmt_vec_save(y, tmp, mmt.n0[bw->dir], 0);
     free(tmp);
 
     if (tcan_print) { printf("Saving %s.* ...done\n", filename_base); fflush(stdout); }
 
-    mmt_vec_save(y, "blsolution%u-%u.0", mmt->n0[bw->dir], 0);
+    mmt_vec_save(y, "blsolution%u-%u.0", mmt.n0[bw->dir], 0);
 }
 
 
@@ -548,7 +542,7 @@ void blstate::operator()(parallelizing_info_ptr pi)
     if (bw->end == 0) {
         /* Decide on an automatic ending value */
         unsigned int length;
-        length = mmt->n[bw->dir] / (bw->n - 0.76) + 10;
+        length = mmt.n[bw->dir] / (bw->n - 0.76) + 10;
         /* allow some deviation */
         length += 2*integer_sqrt(length);
         /* Because bw is a global variable, we protect its use */
@@ -565,13 +559,13 @@ void blstate::operator()(parallelizing_info_ptr pi)
     }
 
 
-    timing_init(timing, 4 * mmt->nmatrices, bw->start, bw->interval * iceildiv(bw->end, bw->interval));
-    for(int i = 0 ; i < mmt->nmatrices ; i++) {
-        timing_set_timer_name(timing, 4*i, "CPU%d", i);
-        timing_set_timer_items(timing, 4*i, mmt->matrices[i]->mm->ncoeffs);
-        timing_set_timer_name(timing, 4*i+1, "cpu-wait%d", i);
-        timing_set_timer_name(timing, 4*i+2, "COMM%d", i);
-        timing_set_timer_name(timing, 4*i+3, "comm-wait%d", i);
+    timing_init(timing, 4 * mmt.matrices.size(), bw->start, bw->interval * iceildiv(bw->end, bw->interval));
+    for(size_t i = 0 ; i < mmt.matrices.size() ; i++) {
+        timing_set_timer_name(timing, 4*i, "CPU%zu", i);
+        timing_set_timer_items(timing, 4*i, mmt.matrices[i].mm->ncoeffs);
+        timing_set_timer_name(timing, 4*i+1, "cpu-wait%zu", i);
+        timing_set_timer_name(timing, 4*i+2, "COMM%zu", i);
+        timing_set_timer_name(timing, 4*i+3, "comm-wait%zu", i);
     }
 
     arith_generic::elt * vav;
@@ -647,7 +641,7 @@ void blstate::operator()(parallelizing_info_ptr pi)
 
             mmt_full_vec_set_zero(my);
 
-            mmt_vec_ptr yy[2] = {y, my};
+            mmt_vec * yy[2] = {&y, &my};
 
             for(int d = 0 ; d < 2 ; d++) {
                 /* The first part of this loop must be guaranteed to be free
@@ -655,13 +649,13 @@ void blstate::operator()(parallelizing_info_ptr pi)
                 /* at this point, timer is [0] (CPU) */
 
                 {
-                    matmul_top_mul_cpu(mmt, 0, yy[d]->d, yy[!d], yy[d]);
+                    matmul_top_mul_cpu(mmt, 0, yy[d]->d, *yy[!d], *yy[d]);
                     timing_next_timer(timing);  /* now timer is [1] (cpu-wait) */
                 }
                 serialize(pi->m);           /* for measuring waits only */
 
                 timing_next_timer(timing);  /* now timer is [2] (COMM) */
-                mmt_vec_allreduce(yy[!d]);
+                mmt_vec_allreduce(*yy[!d]);
 
                 timing_next_timer(timing);  /* now timer is [3] (comm-wait) */
                 serialize(pi->m);           /* for measuring waits only */
@@ -684,7 +678,7 @@ void blstate::operator()(parallelizing_info_ptr pi)
                     mmt_my_own_size_in_items(y));
 
             pi_allreduce(NULL, vav,
-                    nelts_for_nnmat, mmt->pitype, BWC_PI_SUM, pi->m);
+                    nelts_for_nnmat, mmt.pitype, BWC_PI_SUM, pi->m);
 
             A->vec_set_zero(vaav, nelts_for_nnmat);
 
@@ -694,14 +688,14 @@ void blstate::operator()(parallelizing_info_ptr pi)
                     mmt_my_own_size_in_items(y));
 
             pi_allreduce(NULL, vaav, nelts_for_nnmat,
-                    mmt->pitype, BWC_PI_SUM, pi->m);
+                    mmt.pitype, BWC_PI_SUM, pi->m);
 
 
             ASSERT_ALWAYS(D[i0]->n == 64);
 
             {
                 size_t eblock = mmt_my_own_size_in_items(y);
-                ASSERT_ALWAYS(y->abase->elt_stride() == sizeof(uint64_t));
+                ASSERT_ALWAYS(y.abase->elt_stride() == sizeof(uint64_t));
 
                 // Here are the operations we will now perform
                 //
@@ -756,19 +750,19 @@ void blstate::operator()(parallelizing_info_ptr pi)
                 addmul_N64_6464(X, V0, m0, eblock);
                 addmul_N64_6464(X, V1, m1, eblock);
                 addmul_N64_6464(X, V2, m2, eblock);
-                y->consistency = 1;
+                y.consistency = 1;
 
                 /* So. We need to get ready for the next step, don't we ? */
                 mmt_vec_broadcast(y);
                 mmt_own_vec_set(V[i2], y);
-                V[i2]->consistency = 1;
+                V[i2].consistency = 1;
             }
             timing_check(pi, timing, s+i+1, tcan_print);
         }
         serialize(pi->m);
 
         for(int k = 0 ; k < 3 ; k++) {
-            if (V[k]->consistency < 2)
+            if (V[k].consistency < 2)
                 mmt_vec_broadcast(V[k]);
             mmt_vec_untwist(mmt, V[k]);
         }
