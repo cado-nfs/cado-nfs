@@ -569,7 +569,6 @@ void mmt_vec_apply_or_unapply_T_inner(matmul_top_data & mmt, mmt_vec & y, int ap
     mmt_vec_allreduce(yt);
     mmt_apply_identity(y, yt);
     mmt_vec_allreduce(y);
-    mmt_vec_clear(mmt, yt);
 }
 void mmt_vec_unapply_T(matmul_top_data & mmt, mmt_vec & v)
 {
