@@ -17,8 +17,13 @@ cado_define_test(test_timing.c LIBRARIES utils)
 cado_define_test(test_rootfinder.c LIBRARIES utils tests)
 cado_define_test(test_mod_ul.c LIBRARIES utils tests ARGUMENTS 1000)
 cado_define_test(test_modredc_ul.c LIBRARIES utils tests ARGUMENTS 1000)
-cado_define_test(test_modredc_15ul.c LIBRARIES utils tests ARGUMENTS 1000)
-cado_define_test(test_modredc_2ul2.c LIBRARIES utils tests ARGUMENTS 1000)
+# These two seem to time out easily in coverage mode
+cado_define_test(test_modredc_15ul.c LIBRARIES utils tests ARGUMENTS 1000
+    TIMEOUT 60
+)
+cado_define_test(test_modredc_2ul2.c LIBRARIES utils tests ARGUMENTS 1000
+    TIMEOUT 60
+)
 cado_define_test(test_sm_utils.c LIBRARIES utils ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/test_sm_utils.data)
 cado_define_test(test_mpz_poly.cpp LIBRARIES utils tests AVOID_CONCURRENT 4 TIMEOUT 60)
 cado_define_test(test_mpz_poly_parsing.cpp LIBRARIES utils tests)

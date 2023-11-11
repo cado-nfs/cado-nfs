@@ -35,12 +35,15 @@ cado_define_test(test_renumber_on_the_fly_gnfs
     TARGET_DEPENDENCIES debug_renumber)
 
 # This is one of the failure conditions that we see in bug 30003
+# times out easily in coverage mode
 cado_define_test(test_renumber_on_the_fly_gnfs2_30003
     PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
     -poly ${PROJECT_SOURCE_DIR}/parameters/polynomials/rsa768.poly
     -lpbs 20,21
     -check -build -quiet
-    TARGET_DEPENDENCIES debug_renumber)
+    TARGET_DEPENDENCIES debug_renumber
+    TIMEOUT 60
+)
 
 # keep a file that is saved by freerel and read by debug_renumber.
 cado_define_test(test_renumber_file
