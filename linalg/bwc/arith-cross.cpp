@@ -88,7 +88,7 @@ struct add_dotprod<0,2> {
             unsigned int K,
             unsigned int /* L=2 is hard-coded */) const
     {
-        /* okay, we've casted the m128i* to u64* for interchange, and now
+        /* okay, we converted the m128i* to u64* for interchange, and now
          * we're casting it back...  */
         /* Apparently we don't have this code in bblas at this point.
          */

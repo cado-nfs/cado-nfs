@@ -9,7 +9,7 @@ If it fails, then either there's a bug in cado-nfs, or your configuration
 is not set to allow this code part to be build. Make sure that the cmake
 output includes a line such as:
 
--- GF(p) implementations enabled for DL linear algebra: p_1;p_2;p_3;p_4;p_8;pz
+-- GF(p) implementations enabled for DL linear algebra: p1;p2;p3;p4;p8;pz
 
 (you need not have all of them, though). One implementation corresponding
 to the word size of the prime you're working with must be included.
