@@ -884,8 +884,8 @@ cado_define_test(test_matrix_file.cpp
     LIBRARIES utils)
 
 set_target_properties(test_matrix_file PROPERTIES
-    COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
-    LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+    COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+    LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 
 cado_define_test(test_matrix_file_script SCRIPT
 ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir --
