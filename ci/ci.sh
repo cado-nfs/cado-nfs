@@ -76,6 +76,13 @@ step_build2() {
 
 check_environment() {
     export OMP_DYNAMIC=true
+    # See https://stackoverflow.com/questions/70126350/openmp-incredibly-slow-when-another-process-is-running
+    # It's not totally clear to me if it somewhere specified that
+    # lowercase "passive" implies GOMP_SPINCOUNT=0 for gcc. If it's not
+    # specified, it may change in the future, so let's force the setting
+    # ourselves.
+    export OMP_WAIT_POLICY=passive
+    export GOMP_SPINCOUNT=0
     export STATS_PARSING_ERRORS_ARE_FATAL=1
 }
 
