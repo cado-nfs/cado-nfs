@@ -81,8 +81,12 @@ check_environment() {
     # lowercase "passive" implies GOMP_SPINCOUNT=0 for gcc. If it's not
     # specified, it may change in the future, so let's force the setting
     # ourselves.
+    export OMP_DISPLAY_ENV=verbose
     export OMP_WAIT_POLICY=passive
     export GOMP_SPINCOUNT=0
+    # OMP_PROC_BIND helps in certain cases, and is a disaster in other
+    # cases. We can't afford it.
+    # export OMP_PROC_BIND=true
     export STATS_PARSING_ERRORS_ARE_FATAL=1
 }
 

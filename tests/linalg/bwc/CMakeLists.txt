@@ -445,6 +445,13 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
 endforeach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
 
 foreach(layer u64k1)
+    # The binary matpoly tests are a nightmare because of openmp. Setting
+    # OMP_WAIT_POLICY=passive GOMP_SPINCOUNT=0 (as we do in ci.sh) is a
+    # good way to alleviate the slowdown. OMP_PROC_BIND is another, but
+    # we can't afford it since it impacts other tests negatively.
+    #
+    # So even though on a normal machine these tests take roughly one
+    # second, the only option that we have is to increase the timeout
     link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
     link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
     include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
@@ -455,7 +462,7 @@ foreach(layer u64k1)
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_expected_pi_length.cpp
         LIBRARIES lingen_${layer}_support
         AVOID_CONCURRENT 4
-        TIMEOUT 60
+        TIMEOUT 120
     )
     # (unused for p=2 anyway)
     # ARGUMENTS --prime 2
@@ -476,7 +483,7 @@ foreach(layer u64k1)
         ARGUMENTS --test-basecase m=128 n=64 len1=256
         TARGET_DEPENDENCIES test_matpoly_${layer}
         AVOID_CONCURRENT 4
-        TIMEOUT 60
+        TIMEOUT 120
         )
 endforeach()
 
