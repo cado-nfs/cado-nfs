@@ -1,6 +1,7 @@
 
 from sage.rings.finite_rings.finite_field_constructor import GF
 from sage.matrix.constructor import matrix
+from sage.rings.integer import Integer
 
 OK = "ok ✅"
 NOK = "❌"
@@ -39,7 +40,7 @@ def s64(f, *args, **kwargs):
 def read_one_matrix(params, f, ni, nj):
     M = matrix(GF(params.p), ni, nj)
     for i in range(ni):
-        for j in range(nj):
+        for j in range(0, nj, params.splitwidth):
             b = bytearray(f.read(params.p_bytes))
             if not b:
                 if i or j:
@@ -47,7 +48,13 @@ def read_one_matrix(params, f, ni, nj):
                     where = f"at offset {f.tell()}"
                     raise IOError(f"Short read, {what} {where} {NOK}")
                 return None
-            M[i, j] = int.from_bytes(b, 'little')
+            z = int.from_bytes(b, 'little')
+            if params.splitwidth == 1:
+                M[i, j] = z
+            elif params.splitwidth == 64 and params.p == 2:
+                for k, bit in enumerate(Integer(z).bits()):
+                    M[i, j + k] = bit
+
     return M
 
 

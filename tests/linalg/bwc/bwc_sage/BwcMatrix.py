@@ -7,6 +7,7 @@ import copy
 from sage.matrix.constructor import matrix
 from sage.rings.finite_rings.finite_field_constructor import GF
 from sage.matrix.special import block_matrix, zero_matrix
+from sage.modules.free_module_element import vector
 
 from .tools import OK, NOK, EXCL
 from .tools import u32, s32
@@ -262,7 +263,9 @@ class BwcMatrix(object):
             self.nrows_orig = len(self.row_weights)
 
         if self.col_weights:
-            assert self.col_weights == inline_col_weights
+            icw = inline_col_weights
+            assert self.col_weights[:len(icw)] == icw
+            assert vector(self.col_weights[len(icw):]) == 0
         else:
             self.col_weights = inline_col_weights
             self.ncols_orig = len(self.col_weights)
@@ -352,8 +355,17 @@ class BwcMatrix(object):
         # Now we want to check the consistency of the matrix that we just
         # read.
 
+        # The submatrices may be stored in transposed order. This is done
+        # because it is convenient for the matmul layers to read them so.
+        # Sometimes. In truth, we should perhaps get rid of this
+        # complication, I don't really know.
+        t = lambda x:x
+        if self.params.is_nullspace_left():
+            t = lambda x:x.transpose()
+
+
         self.Mx = block_matrix(nh, nv,
-                               [self.__subM(i, j)
+                               [t(self.__subM(i, j))
                                 for i in range(nh)
                                 for j in range(nv)])
         self.sigma = self.S.sc.matrix()

@@ -8,9 +8,17 @@ from .tools import NOK
 
 
 class BwcVectorBase(object):
-    def __init__(self, params: BwcParameters, filename):
+    def __init__(self,
+                 params: BwcParameters,
+                 filename,
+                 pattern=None,
+                 _what=None):
         self.params = params
         self.filename = filename
+        if pattern is not None:
+            self.pattern = pattern
+        if _what is not None:
+            self._what = _what
         if (m := re.match(self.pattern, os.path.basename(filename))) is None:
             raise ValueError(f"{self.filename} : not a {self._what} {NOK}")
         self._filename_data = [int(c) for c in m.groups()]
