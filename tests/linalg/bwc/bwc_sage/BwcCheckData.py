@@ -3,8 +3,10 @@ import re
 
 from sage.matrix.constructor import matrix
 from sage.rings.finite_rings.finite_field_constructor import GF
+from sage.rings.integer import Integer
 
 from .BwcParameters import BwcParameters
+from .BwcVectorBase import BwcVectorBase
 from .tools import OK, NOK, EXCL
 
 
@@ -65,6 +67,7 @@ class BwcCheckData(object):
             raise ValueError(f"Conflicting Cr files among {what} {NOK}")
 
         self.nchecks = self.tfiles[0][1]
+        assert self.nchecks % self.params.splitwidth == 0
 
         if self.tfiles[0][2] != self.params.m:
             fn = self.tfiles[0]
@@ -107,20 +110,15 @@ class BwcCheckData(object):
         There is one single T file, a priori. It's a fixed size matrix.
         """
         filename = os.path.join(self.dirname, self.tfiles[0][0])
-        st = os.stat(filename)
-        s = self.nchecks * self.params.m * self.params.p_bytes
-        if st.st_size != s:
-            raise ValueError(f"{filename} has wrong size (expected {s}) {NOK}")
-        print(f"Reading {filename}")
-        with open(filename, "rb") as fv:
-            L = []
-            for i in range(self.nchecks * self.params.m):
-                b = bytearray(fv.read(self.params.p_bytes))
-                if not b:
-                    what = f"short read after {fv.tell()} bytes"
-                    raise ValueError(f"{filename}: {what} {NOK}")
-                L.append(int.from_bytes(b, 'little'))
-            self.T = matrix(GF(self.params.p), self.params.m, self.nchecks, L)
+        t = BwcVectorBase(self.params,
+                          filename,
+                          pattern = r"^Ct(\d+)-(\d+).0-(\d+)",
+                          _what = "bwc T check vector")
+        t.read()
+        if t.V.nrows() != self.params.m:
+            expect = f"expected {self.params.m} rows"
+            raise ValueError(f"{filename} has wrong size ({expect}) {NOK}")
+        self.T = t.V
 
     def __read_rfile(self):
         """
@@ -128,61 +126,40 @@ class BwcCheckData(object):
         length
         """
         filename = os.path.join(self.dirname, self.rfiles[0][0])
-        st = os.stat(filename)
-        s = self.nchecks * self.nchecks * self.params.p_bytes
-        if st.st_size % s != 0:
-            expect = f"expected a multiple of {s}"
-            raise ValueError(f"{filename} has wrong size ({expect}) {NOK}")
-        p = self.params.p
-        print(f"Reading {filename}")
-        with open(filename, "rb") as fv:
-            while True:
-                L = []
-                for i in range(self.nchecks * self.nchecks):
-                    b = bytearray(fv.read(self.params.p_bytes))
-                    if not i and not b:
-                        # we're done.
-                        return
-                    if not b:
-                        what = f"short read after {fv.tell()} bytes"
-                        raise ValueError(f"{filename}: {what} {NOK}")
-                    L.append(int.from_bytes(b, 'little'))
-                self.R.append(matrix(GF(p), self.nchecks, self.nchecks, L))
-
-    def __read_dv(self, files):
-        """
-        common code for D and V files, they have the exact same structure
-        """
-        ldim = self.dims[0]
-        p = self.params.p
-        ret = []
-        for basename, sw, j in files:
-            filename = os.path.join(self.dirname, basename)
-            print(f"Reading {filename}")
-            st = os.stat(filename)
-            s = ldim * self.params.p_bytes
-            if st.st_size != s:
-                expect = f"expected a multiple of {s}"
-                raise ValueError(f"{filename} has wrong size ({expect}) {NOK}")
-            with open(filename, "rb") as fv:
-                L = []
-                for i in range(ldim):
-                    b = bytearray(fv.read(self.params.p_bytes))
-                    if not b:
-                        what = f"short read after {fv.tell()} bytes"
-                        raise ValueError(f"{filename}: {what} {NOK}")
-                    L.append(int.from_bytes(b, 'little'))
-                # XXX this is clearly wrong if sw>1
-                # see email thread with malb, 19-23 Jan 2023
-                assert sw == 1
-                ret.append((j, filename, matrix(GF(p), ldim, sw, L)))
-        return sorted(ret)
+        r = BwcVectorBase(self.params,
+                          filename,
+                          pattern = r"^Cr(\d+)-(\d+).0-(\2)",
+                          _what = "bwc R check vector")
+        r.read()
+        sd = list(range(self.params.splitwidth,
+                        r.V.nrows(),
+                        self.params.splitwidth))
+        r.V.subdivide(sd)
+        self.R = [ r.V.subdivision(i,0) for i in range(len(sd)+1) ]
 
     def __read_dfiles(self):
-        self.D = self.__read_dv(self.dfiles)
+        ret = []
+        for basename, sw, j in self.dfiles:
+            filename = os.path.join(self.dirname, basename)
+            d = BwcVectorBase(self.params,
+                              filename,
+                              pattern = r"^Cd(\d+)-(\d+).(\d+)$",
+                              _what = "bwc D check vector")
+            d.read()
+            ret.append((j, filename, d.V))
+        self.D = sorted(ret)
 
     def __read_vfiles(self):
-        self.V = self.__read_dv(self.vfiles)
+        ret = []
+        for basename, sw, j in self.vfiles:
+            filename = os.path.join(self.dirname, basename)
+            v = BwcVectorBase(self.params,
+                              filename,
+                              pattern = r"^Cv(\d+)-(\d+).(\d+)$",
+                              _what = "bwc V check vector")
+            v.read()
+            ret.append((j, filename, v.V))
+        self.V = sorted(ret)
 
     def check(self, M, x):
         """

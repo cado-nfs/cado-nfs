@@ -96,11 +96,8 @@ class BwcFFiles(object):
             print(f"Reading {filename} (size: {nj}*{ns}, {nk} coeffs)")
             k = 0
             with open(filename, 'rb') as f:
-                # TODO: splitwidth being 1 for the GF(p) case I'm
-                # testing first, I'm not totally sure if F files are stored
-                # transposed or not.
                 while (M := read_one_matrix(self.params, f, nj, ns)) is not None:  # noqa: E501
-                    self.F[j0:j1, s0:s1] += x**k * M.transpose()
+                    self.F[j0:j1, s0:s1] += x**k * M
                     k += 1
 
         for filename, s0, s1, j0, j1 in self.ffiles_rhs:
