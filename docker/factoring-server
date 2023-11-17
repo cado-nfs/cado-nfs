@@ -2,4 +2,5 @@
 FROM runtime
 MAINTAINER Emmanuel Thomé
 COPY --from=build /usr/local/factoring-server/ /usr/local/
+RUN apt-get update && apt-get install -y --no-install-recommends python3-mysql.connector
 RUN rm -rf /var/lib/apt/lists /var/cache/*
