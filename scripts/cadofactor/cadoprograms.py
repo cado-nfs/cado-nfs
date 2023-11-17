@@ -7,6 +7,7 @@ import logging
 import cadocommand
 import cadologger
 import cadoparams
+from collections import defaultdict
 
 
 class InspectType(type):
@@ -405,15 +406,15 @@ class Program(object, metaclass=InspectType):
         self.suggest_subdir=dict()
         if execsubfile != execfile and os.path.isfile(execsubfile):
             self.execfile = execsubfile
-            self.suggest_subdir[self.execfile]=subdir
         elif os.path.isfile(execfile):
             self.execfile = execfile
         else:
-            self.execfile = binary
+            self.execfile = os.sep.join([self.subdir, binary])
             if not skip_check_binary_exists:
                 # Raising an exception here makes it impossible to run
                 # doctests for each Program subclass
-                raise Exception("Binary executable file %s not found (did you run \"make\" ?)" % execfile)
+                raise Exception("Binary executable file %s not found (did you run \"make\" ?)" % binary)
+        self.suggest_subdir[self.execfile]=subdir
 
     @classmethod
     def _get_option_annotations(cls):
@@ -636,7 +637,9 @@ class Program(object, metaclass=InspectType):
             counters[key] += 1
             wu.append('%s %s' % (key, os.path.basename(filename)))
             if with_checksum:
-                wu.append('CHECKSUM %s' % sha1cache.get_sha1(filename))
+                if os.path.isfile(filename):
+                    wu.append('CHECKSUM %s' % sha1cache.get_sha1(filename))
+                # otherwise there'll be no checksum.
             if self.suggest_subdir.get(filename, None):
                 wu.append('SUGGEST_%s %s' % (key, self.suggest_subdir[filename]))
         
@@ -664,10 +667,10 @@ class Polyselect(Program):
     """
     >>> p = Polyselect(P=5, N=42, degree=4, verbose=True, skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
-    'polyselect -P 5 -N 42 -degree 4 -v'
+    'polyselect/polyselect -P 5 -N 42 -degree 4 -v'
     >>> p = Polyselect(P=5, N=42, degree=4, verbose=True, skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
-    'polyselect -P 5 -N 42 -degree 4 -v'
+    'polyselect/polyselect -P 5 -N 42 -degree 4 -v'
     """
     binary = "polyselect"
     name = binary
@@ -699,7 +702,7 @@ class PolyselectRopt(Program):
     """
     >>> p = PolyselectRopt(ropteffort=5, inputpolys="foo.polys", verbose=True, skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
-    'polyselect_ropt -v -inputpolys foo.polys -ropteffort 5'
+    'polyselect/polyselect_ropt -v -inputpolys foo.polys -ropteffort 5'
     """
     binary = "polyselect_ropt"
     name = binary
@@ -771,10 +774,10 @@ class MakeFB(Program):
     """
     >>> p = MakeFB(poly="foo.poly", lim=1, skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
-    'makefb -poly foo.poly -lim 1'
+    'sieve/makefb -poly foo.poly -lim 1'
     >>> p = MakeFB(poly="foo.poly", lim=1, maxbits=5, stdout="foo.roots", skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
-    'makefb -poly foo.poly -lim 1 -maxbits 5 > foo.roots'
+    'sieve/makefb -poly foo.poly -lim 1 -maxbits 5 > foo.roots'
     """
     binary = "makefb"
     name = binary
@@ -795,10 +798,10 @@ class FreeRel(Program):
     """
     >>> p = FreeRel(poly="foo.poly", renumber="foo.renumber", lpb0=1, lpb1=2, out="foo.freerel", skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
-    'freerel -poly foo.poly -renumber foo.renumber -lpb0 1 -lpb1 2 -out foo.freerel'
+    'sieve/freerel -poly foo.poly -renumber foo.renumber -lpb0 1 -lpb1 2 -out foo.freerel'
     >>> p = FreeRel(poly="foo.poly", renumber="foo.renumber", lpb0=1, lpb1=2, out="foo.freerel", pmin=123, pmax=234, skip_check_binary_exists=True)
     >>> p.make_command_line().replace(defaultsuffix + " ", " ", 1)
-    'freerel -poly foo.poly -renumber foo.renumber -lpb0 1 -lpb1 2 -out foo.freerel -pmin 123 -pmax 234'
+    'sieve/freerel -poly foo.poly -renumber foo.renumber -lpb0 1 -lpb1 2 -out foo.freerel -pmin 123 -pmax 234'
     """
     binary = "freerel"
     name = binary
