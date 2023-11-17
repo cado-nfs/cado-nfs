@@ -2413,7 +2413,7 @@ static inline void matmul_sub_large_asb_tr(arith_hard * ab MAYBE_UNUSED, const a
              * we choose a row not equal to (0,0) -- first in
              * the first bucket.
              */
-            ab->set(*z++, ab->vec_item(src, *q++));
+            ab->set(*z, ab->vec_item(src, *q++));
             z = ab->vec_subvec(z, 1);
         }
         src += 256;
