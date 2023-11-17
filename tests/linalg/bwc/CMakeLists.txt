@@ -728,6 +728,15 @@ foreach(arith_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         --prime "${prime_${width}}")
 endforeach()
 
+cado_define_test(TEST_NAME spmv_bucket_30075
+    PROGRAM
+    ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir --
+    ${CMAKE_CURRENT_SOURCE_DIR}/bug30075.sh
+    TARGET_DEPENDENCIES
+    spmv_test bwc_matmul_gf2 mf_bal mf_scan
+)
+
+
 #########################################################################
 
 cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-matcache.sh
