@@ -417,9 +417,9 @@ void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec &
         ASSERT_ALWAYS(Mloc.n[0] == Mloc.n[1]);
         xd = !d;
     }
-    if (!Mloc.has_perm(xd))
-        /* could well be that we have nothing to do */
-        return;
+
+    /* it could well be that we have nothing to do */
+    if (!Mloc.has_perm(xd)) return;
 
     auto const & s(Mloc.perm[xd]);
 
@@ -1100,6 +1100,15 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
     }
 
     shared_free(mmt.pi->m, pbal_tmp);
+
+    /* Do this so that has_perm makes sense globally */
+    Mloc.has_perm_map[0] = Mloc.has_perm_local(0);
+    Mloc.has_perm_map[1] = Mloc.has_perm_local(1);
+    pi_allreduce(NULL, Mloc.has_perm_map, 2, BWC_PI_INT, BWC_PI_MAX, mmt.pi->m);
+    if (mmt.pi->m->trank == 0) {
+        MPI_Allreduce(MPI_IN_PLACE, Mloc.has_perm_map, 2, MPI_INT, MPI_MAX, mmt.pi->m->pals);
+    }
+    pi_bcast(Mloc.has_perm_map, 2, BWC_PI_INT, 0, 0, mmt.pi->m);
 }
 
 matmul_top_data::matmul_top_data(

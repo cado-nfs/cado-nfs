@@ -52,7 +52,18 @@ struct matmul_top_matrix {
      * of non-zero positions in the permutation matrix if it were split
      * just like the current matrix is. */
     std::vector<std::array<unsigned int, 2>> perm[2]; // row,col
-    inline bool has_perm(int d) const { return !perm[d].empty(); }
+
+    /* XXX XXX XXX dangerous: has_perm_local is only a local thing!
+     * Some threads/jobs may have has_perm_local(d)==false while others don't!
+     */
+    inline bool has_perm_local(int d) const { return !perm[d].empty(); }
+
+    /* This is the global version, as prepared by
+     * matmul_top_init_prepare_local_permutations
+     */
+    int has_perm_map[2];
+    inline bool has_perm(int d) const { return has_perm_map[d]; }
+
 
     matmul_ptr mm;
 };
