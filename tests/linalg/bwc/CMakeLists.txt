@@ -548,6 +548,11 @@ set(mod2_plain_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
 add_bwc_test(mod2_plain bwc-ptrace.sh prime=2 nullspace=left
     random_matrix_size=800 m=64 n=64 seed=1 thr=2x2
     TARGET_DEPENDENCIES mf_scan)
+create_magma_sage_diversions(mod2_plain)
+if(SAGE)
+set_property(TEST test_bwc_mod2_plain_with_sagemath PROPERTY TIMEOUT 360)
+endif()
+
 add_bwc_test(mod2_padded bwc-ptrace.sh prime=2 nullspace=left
     random_matrix_size=700,600 m=64 n=64 seed=1 thr=2x2
     TARGET_DEPENDENCIES mf_scan)
@@ -769,6 +774,15 @@ foreach(arith_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         --arith-layer ${arith_layer}
         --prime "${prime_${width}}")
 endforeach()
+
+cado_define_test(TEST_NAME spmv_bucket_30075
+    PROGRAM
+    ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir --
+    ${CMAKE_CURRENT_SOURCE_DIR}/bug30075.sh
+    TARGET_DEPENDENCIES
+    spmv_test bwc_matmul_gf2 mf_bal mf_scan
+)
+
 
 #########################################################################
 
