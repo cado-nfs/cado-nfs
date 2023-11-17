@@ -2403,7 +2403,7 @@ static void matmul_sub_large_asb(arith_hard * ab, arith_hard::elt * dst, const a
 static inline void matmul_sub_large_asb_tr(arith_hard * ab MAYBE_UNUSED, const arith_hard::elt * src, arith_hard::elt * z, const uint8_t * q, const unsigned int * ql)
 {
 #ifdef MATMUL_SUB_LARGE_ASB_TR_H_
-    matmul_sub_large_asb(cvt(src), cvt(z), q, ql);
+    matmul_sub_large_asb_tr(cvt(src), cvt(z), q, ql);
 #else
     /* converse of the above */
     for(int k = 0 ; k < LSL_NBUCKETS_MAX ; k++) {
