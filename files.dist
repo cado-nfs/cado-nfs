@@ -1288,6 +1288,7 @@ tests/linalg/bblas/time_bblas_common.hpp
 tests/linalg/bwc/A.21744
 tests/linalg/bwc/CMakeLists.txt
 tests/linalg/bwc/Makefile
+tests/linalg/bwc/bug30075.sh
 tests/linalg/bwc/bwc-dispatch-matmul.sh
 tests/linalg/bwc/bwc-ptrace.m
 tests/linalg/bwc/bwc-ptrace.sh
