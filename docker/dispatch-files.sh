@@ -12,7 +12,6 @@ lib/cado-nfs-3.0.0/sieve/las
 lib/cado-nfs-3.0.0/polyselect/libpolyselect_common.so
 lib/cado-nfs-3.0.0/polyselect/polyselect
 lib/cado-nfs-3.0.0/polyselect/polyselect_ropt
-lib/cado-nfs-3.0.0/polyselect/polyselect3
 bin/cado-nfs-client.py
 EOF
 
@@ -26,6 +25,7 @@ EOF
 
 rsync -a --files-from=- /usr/local/ /usr/local/common-server/ <<EOF
 bin/cado-nfs.py
+lib/cado-nfs-3.0.0/polyselect/polyselect3
 lib/cado-nfs-3.0.0/filter/dup1
 lib/cado-nfs-3.0.0/filter/dup2
 lib/cado-nfs-3.0.0/filter/purge
