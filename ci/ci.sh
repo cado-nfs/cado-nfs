@@ -15,6 +15,7 @@ case "$CI_JOB_NAME" in
     *"under valgrind"*)
         valgrind=1
         export USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT=1
+        export TIMEOUT_SCALE=8
         case "$CI_JOB_NAME" in
             *32-bit*)
                 echo "valgrind testing is practically hopeless under 32-bit"

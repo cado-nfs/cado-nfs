@@ -36,6 +36,7 @@ get_override(BWC_GFP_ARITHMETIC_BACKENDS BWC_GFP_ARITHMETIC_BACKENDS)
 get_override(BWC_GFP_MATMUL_BACKENDS    BWC_GFP_MATMUL_BACKENDS)
 get_override(BWC_EXTRA_BACKENDS    BWC_EXTRA_BACKENDS)
 get_override(CHECKS_EXPENSIVE   CHECKS_EXPENSIVE)
+get_override(TIMEOUT_SCALE   TIMEOUT_SCALE)
 
 # If you change the min version, also change scripts/call_cmake.sh
 # It must be called before the project() command.

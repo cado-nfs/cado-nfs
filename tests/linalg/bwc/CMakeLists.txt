@@ -549,7 +549,11 @@ add_bwc_test(mod2_plain bwc-ptrace.sh prime=2 nullspace=left
     TARGET_DEPENDENCIES mf_scan)
 create_magma_sage_diversions(mod2_plain)
 if(SAGE)
-set_property(TEST test_bwc_mod2_plain_with_sagemath PROPERTY TIMEOUT 360)
+    set(t 360)
+    if(TIMEOUT_SCALE)
+        MATH(EXPR t "${t}*${TIMEOUT_SCALE}")
+    endif()
+    set_property(TEST test_bwc_mod2_plain_with_sagemath PROPERTY TIMEOUT ${t})
 endif()
 
 add_bwc_test(mod2_padded bwc-ptrace.sh prime=2 nullspace=left
