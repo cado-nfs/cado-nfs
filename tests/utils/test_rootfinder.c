@@ -39,11 +39,14 @@ test (int d, const char *pp, const char *ff[], int nroots)
   f = (mpz_t *) malloc ((d + 1) * sizeof(mpz_t));
   F->coeff = f;
   F->deg = d;
+  for (i = 0; i <= d; i++)
+    {
+      mpz_init (f[i]);
+    }
  retry:
   mpz_set (v, p);
   for (i = 0; i <= d; i++)
     {
-      mpz_init (f[i]);
       if (strlen (pp) > 0)
         mpz_set_str (f[i], ff[d - i], 0);
       else

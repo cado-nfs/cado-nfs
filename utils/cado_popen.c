@@ -180,8 +180,12 @@ int cado_fd_pclose2(int fd, void * nr MAYBE_UNUSED)
     fprintf(stderr, "Child process %d %s, having spent %.2fs+%.2fs on cpu\n",
             kid, long_status, u, s);
             */
-#if defined(HAVE_GETRUSAGE) && defined(HAVE_WAIT4)
+#if defined(HAVE_GETRUSAGE)
+#if defined(HAVE_WAIT4)
     if (nr) memcpy(nr, r, sizeof(struct rusage));
+#else
+    if (nr) memset(nr, 0, sizeof(struct rusage));
+#endif
 #endif
     /* Linux man page: 
        "returns the exit status of the command as returned by wait4(2)"

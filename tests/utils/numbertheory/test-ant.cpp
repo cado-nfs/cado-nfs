@@ -683,8 +683,7 @@ int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
 // coverity[root_function]
 int main(int argc, char *argv[]) /*{{{ */
 {
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
 
     param_list_configure_alias(pl, "prime", "p");
     param_list_configure_alias(pl, "polystr", "f");

@@ -165,8 +165,10 @@ void relation::fixup_r(bool also_rational)
 {
     for(unsigned int side_index = 0 ; side_index < sides.size() ; side_index++) {
         int side = active_sides[side_index];
-        if (!also_rational && (int) side == rational_side)
-            continue;
+        if (!also_rational) {
+            if ((int) side == rational_side)
+                continue;
+        }
         for(unsigned int i = 0 ; i < sides[side_index].size() ; i++) {
             if (mpz_cmp_ui(sides[side_index][i].r,0) == 0) {
                 pr & x(sides[side_index][i]);

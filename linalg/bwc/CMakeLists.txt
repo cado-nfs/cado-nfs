@@ -67,8 +67,33 @@ endmacro()
 
 ### bwc_base
 
-set(bwc_base_sources
+set(bwc_parallelization_sources
     parallelizing_info.cpp
+    )
+if(HAVE_CXX11 AND HAVE_HWLOC)
+    list(APPEND bwc_parallelization_sources
+    cpubinding.cpp
+    )
+endif()
+
+# The ${CADO_SHARED} flag is ignored here, really. As of current cmake
+# (3.26) it seems that we can't give the SHARED flag to an OBJECT
+# library. This results in object files in the object library which are,
+# by default, compiled without -fPIC. Eventually, this is likely to yield
+# issues like:
+# /usr/bin/ld: CMakeFiles/bwc_parallelization.dir/parallelizing_info.cpp.o: relocation R_X86_64_PC32 against symbol `_Z17pi_go_helper_funcP14pi_go_helper_s' can not be used when making a shared object; recompile with -fPIC
+#
+# This is the exact same problem as https://stackoverflow.com/questions/50600708/combining-cmake-object-libraries-with-shared-libraries
+# More info here as well: https://gitlab.kitware.com/cmake/cmake/-/issues/17356
+#
+# Therefore we get away with the exact same solution, although it feels a
+# bit cumbersome.
+mpi_add_library(bwc_parallelization ${CADO_SHARED} OBJECT ${bwc_parallelization_sources})
+if(ENABLE_SHARED)
+    set_property(TARGET bwc_parallelization PROPERTY POSITION_INDEPENDENT_CODE ON)
+endif()
+
+set(bwc_base_sources
     intersections.c
     xvectors.cpp
     bw-common.c
@@ -89,14 +114,9 @@ set(bwc_base_sources
     arith-cross.cpp
 )
 
-if(HAVE_CXX11 AND HAVE_HWLOC)
-set(bwc_base_sources
-    ${bwc_base_sources}
-    cpubinding.cpp
-    )
-endif()
-
 mpi_add_library(bwc_base ${CADO_SHARED} ${bwc_base_sources})
+
+target_link_libraries(bwc_base bwc_parallelization)
 
 target_link_libraries(bwc_base ${gmp_libname})
 if (HAVE_CURL)

@@ -230,7 +230,7 @@ void timingstats_dict_add(timingstats_dict_ptr p, const char * key, struct rusag
     static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_lock(&lock);
     real_timingstats_dict_t& s(*static_cast<real_timingstats_dict_t*>(*p));
-    s.insert(std::make_pair(std::string(key), *r));
+    s.emplace(std::string(key), *r);
     pthread_mutex_unlock(&lock);
 }
 
