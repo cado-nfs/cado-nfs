@@ -135,8 +135,8 @@ Linear algebra for DLP is presently only for x86_64.
 The code requires that the modulus width be explicitly covered in the compile
 time settings. For example put in local.sh:
 
-   BWC_GFP_ARITHMETIC_BACKENDS=p_4
+   BWC_GFP_ARITHMETIC_BACKENDS=p4
 
-(or a list like BWC_GFP_ARITHMETIC_BACKENDS="p_1;p_4;pz"), where p_4 means a
-modulus of 4 words, and p_z means a modulus of an arbitrary number of words
+(or a list like BWC_GFP_ARITHMETIC_BACKENDS="p1;p4;pz"), where p4 means a
+modulus of 4 words, and pz means a modulus of an arbitrary number of words
 (slower). Widths up to 15 words are compiled by default.

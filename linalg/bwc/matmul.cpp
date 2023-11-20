@@ -109,19 +109,19 @@ void (*get_rebinder(const char * impl, const char * dimpl))(matmul_ptr mm)
     /* There's a cmake-defined macro in cado_config.h which exposes the
      * configuration settings. Its expansion is something like:
      *
-    CONFIGURE_MATMUL_LIB(u64k1     , bucket)
-    CONFIGURE_MATMUL_LIB(u64k2     , bucket)
-    CONFIGURE_MATMUL_LIB(u64k1     , basic)
-    CONFIGURE_MATMUL_LIB(u64k2     , basic)
-    CONFIGURE_MATMUL_LIB(u64k1     , sliced)
-    CONFIGURE_MATMUL_LIB(u64k2     , sliced)
-    CONFIGURE_MATMUL_LIB(u64k1     , threaded)
-    CONFIGURE_MATMUL_LIB(u64k2     , threaded)
-    CONFIGURE_MATMUL_LIB(p_1       , basicp)
-    CONFIGURE_MATMUL_LIB(p_2       , basicp)
-    CONFIGURE_MATMUL_LIB(p_3       , basicp)
-    CONFIGURE_MATMUL_LIB(p_4       , basicp)
-    CONFIGURE_MATMUL_LIB(p_8       , basicp)
+    CONFIGURE_MATMUL_LIB(b64     , bucket)
+    CONFIGURE_MATMUL_LIB(b128    , bucket)
+    CONFIGURE_MATMUL_LIB(b64     , basic)
+    CONFIGURE_MATMUL_LIB(b128    , basic)
+    CONFIGURE_MATMUL_LIB(b64     , sliced)
+    CONFIGURE_MATMUL_LIB(b128    , sliced)
+    CONFIGURE_MATMUL_LIB(b64     , threaded)
+    CONFIGURE_MATMUL_LIB(b128    , threaded)
+    CONFIGURE_MATMUL_LIB(p1      , basicp)
+    CONFIGURE_MATMUL_LIB(p2      , basicp)
+    CONFIGURE_MATMUL_LIB(p3      , basicp)
+    CONFIGURE_MATMUL_LIB(p4      , basicp)
+    CONFIGURE_MATMUL_LIB(p8      , basicp)
     */
     } else {
         fprintf(stderr, "Cannot find the proper rebinder for data backend = %s and matmul backend = %s ; are the corresponding configuration lines present in local.sh or linalg/bwc/CMakeLists.txt ?\n", dimpl, impl);

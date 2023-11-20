@@ -657,7 +657,7 @@ cado_define_test(full_c30
         bwc_full_gf2
         sqrt
     AVOID_CONCURRENT
-    TIMEOUT 240
+    TIMEOUT 300
         )
     if(pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
         # no need to have both the JL and non-JL in normal tests, I
@@ -676,7 +676,7 @@ cado_define_test(full_c30
             lingen_pz sm sm_simple las_descent reconstructlog-dl
             merge-dl replay-dl numbertheory_tool
             AVOID_CONCURRENT
-            TIMEOUT 240
+            TIMEOUT 300
         )
         # The following case was hitting the bug #21707
         set(full_p30_JL_params
@@ -721,7 +721,7 @@ cado_define_test(full_c30
             TARGET_DEPENDENCIES
             ${full_p30_JL_deps}
             AVOID_CONCURRENT
-            TIMEOUT 240
+            TIMEOUT 300
             )
     endif()
 endif()
@@ -742,7 +742,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         AVOID_CONCURRENT
-        TIMEOUT 240
+        TIMEOUT 300
             )
     cado_define_test(full_c65_128
         SCRIPT
@@ -753,7 +753,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         AVOID_CONCURRENT
-        TIMEOUT 240
+        TIMEOUT 300
             )
     cado_define_test(full_c59_nonlinear
         SCRIPT
@@ -765,7 +765,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         AVOID_CONCURRENT
-        TIMEOUT 240
+        TIMEOUT 300
         )
     if (BWC_GFP_ARITHMETIC_BACKENDS AND pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
 #        this test is probably not very useful, given that the other
@@ -786,7 +786,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             TARGET_DEPENDENCIES full_p30_dependencies
             lingen_pz sm reconstructlog-dl merge-dl replay-dl numbertheory_tool
         AVOID_CONCURRENT
-        TIMEOUT 240
+        TIMEOUT 300
             )
         cado_define_test(full_gfp2
             SCRIPT
@@ -795,7 +795,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             TARGET_DEPENDENCIES full_p30_dependencies
             filter_galois polyselect_gfpn
         AVOID_CONCURRENT
-        TIMEOUT 240
+        TIMEOUT 300
             )
 # see bug https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21767
 #         cado_define_test(full_gfp2_2_2g

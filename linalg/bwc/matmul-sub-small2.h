@@ -1,7 +1,7 @@
 #ifndef MATMUL_SUB_SMALL2_H_
 #define MATMUL_SUB_SMALL2_H_
 
-/* This is only compiled when the underlying layer is u64k1 */
+/* This is only compiled when the underlying layer is b64 */
 
 #include <stdint.h>
 
