@@ -337,10 +337,12 @@ coverage tests on checks with gcc:
 merge coverage tests:
   <<: *coverage-template
   stage: publish
-  needs:
-    - job: coverage tests on checks with gcc
-      artifacts: true
-    # list more of these...
+  # remove the "needs" keyword, as this causes the whole "publish" stage
+  # to run early on, including when earlier stages actually failed!
+  # needs:
+  #   - job: coverage tests on checks with gcc
+  #     artifacts: true
+  #   # list more of these...
   # This image has gcovr installed
   image: alpine:latest
   before_script:
