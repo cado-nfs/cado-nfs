@@ -3,6 +3,8 @@
 ###########################################################################
 # See params/params.c90 for an example which contains some documentation.
 
+# contributed by Mike Curtis
+
 ###########################################################################
 # General parameters
 ###########################################################################
@@ -14,42 +16,45 @@ name = c110
 ###########################################################################
 
 tasks.polyselect.degree = 5
-tasks.polyselect.P = 25000
-tasks.polyselect.admax = 5e4
-tasks.polyselect.adrange = 5e3
+tasks.polyselect.P = 10000
+tasks.polyselect.admax = 6e3
+tasks.polyselect.adrange = 120
 tasks.polyselect.incr = 60
-tasks.polyselect.nq = 3125
-tasks.polyselect.nrkeep = 80
-tasks.polyselect.ropteffort = 1
+tasks.polyselect.nq = 31250
+tasks.polyselect.nrkeep = 30
+tasks.polyselect.ropteffort = 3
 
 ###########################################################################
 # Sieve
 ###########################################################################
 
-tasks.lim0 = 1400000
-tasks.lim1 = 2500000
-tasks.lpb0 = 25
-tasks.lpb1 = 26
+tasks.lim0 = 1300000
+tasks.lim1 = 2000000
+tasks.lpb0 = 26
+tasks.lpb1 = 27
 tasks.sieve.mfb0 = 50
 tasks.sieve.mfb1 = 52
-tasks.sieve.ncurves0 = 12
-tasks.sieve.ncurves1 = 17
+tasks.sieve.lambda0 = 1.88
+tasks.sieve.lambda1 = 1.92
+tasks.sieve.ncurves0 = 10
+tasks.sieve.ncurves1 = 12
 tasks.I = 12
-
-tasks.sieve.qrange = 2000
-tasks.qmin = 500000
+tasks.sieve.rels_wanted = 8000000
+tasks.sieve.qrange = 5000
+tasks.qmin = 240000
 
 ###########################################################################
 # Filtering
 ###########################################################################
 
-tasks.filter.purge.keep = 160
-tasks.filter.target_density = 155.0
+tasks.filter.purge.keep = 155
+tasks.filter.target_density = 95.0
 
 ###########################################################################
 # Linear algebra
 ###########################################################################
 
+tasks.linalg.bwc.interval = 2000
 tasks.linalg.bwc.interleaving = 0
 tasks.linalg.m = 64
 tasks.linalg.n = 64

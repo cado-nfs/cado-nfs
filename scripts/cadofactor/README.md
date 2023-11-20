@@ -339,7 +339,8 @@ distribution).
   
 To activate this feature, pass the database URI as an extra parameter to
 `cado-nfs.py`, e.g.  `database=db:mysql://USER:PASS@host:port/foobar`,
-where `port`, `PASS`, and `USER` are optional.
+where `port`, `PASS`, and `USER` are optional. The name `foobar` is how
+you choose to name your database inside the database server.
 
 The same syntax can be used to force the use of an externally located
 sqlite3 database, e.g. with `database=db:sqlite3:///home/john/rsa1024.db`
