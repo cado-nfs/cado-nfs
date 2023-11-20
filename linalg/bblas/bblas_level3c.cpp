@@ -23,6 +23,7 @@
  * with varying left length:
  *      mul_TN32_N64
  *      mul_TN64K_N64
+ *      addmul_TN64K_N64
  */
 
 /* implemented here:
@@ -860,9 +861,8 @@ void mul_TN32_N64_C(uint64_t * b, uint32_t const * A, uint64_t const * x, unsign
 }/*}}}*/
 
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
-void mul_TN64K_N64_sse2(mat64 * w, uint64_t const * u, uint64_t const * v, unsigned int n, unsigned int K)/*{{{*/
+void addmul_TN64K_N64_sse2(uint64_t * w, uint64_t const * u, uint64_t const * v, unsigned int n, unsigned int K)/*{{{*/
 {
-    memset((void *) w, 0, K * sizeof(mat64));
     for(unsigned int i = 0 ; i < n ; i++) {
         __m128i * w0 = (__m128i*) w;
         // TODO: It's possible to expand more, and use a __m128i
@@ -889,12 +889,11 @@ void mul_TN64K_N64_sse2(mat64 * w, uint64_t const * u, uint64_t const * v, unsig
 }/*}}}*/
 #endif
 
-void mul_TN64K_N64_C(mat64 * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K)/*{{{*/
+void addmul_TN64K_N64_C(uint64_t * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K)/*{{{*/
 {
     uint64_t idx, i, rA;
     uint64_t rx;
 
-    memset((void *) b, 0, 64 * K * sizeof(uint64_t));
     for(idx = 0; idx < ncol; idx++) {
         rx = x[idx];
         uint64_t * pb = (uint64_t *) b;
@@ -979,14 +978,22 @@ void mul_TN32_N64(uint64_t * b, uint32_t const * A, uint64_t const * x, unsigned
     mul_TN32_N64_C(b, A, x, ncol);
 }
 /*}}}*/
-void mul_TN64K_N64(mat64 * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K)/*{{{*/
+void addmul_TN64K_N64(uint64_t * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K)/*{{{*/
 {
 #if defined(HAVE_SSE2) && ULONG_BITS == 64
-    mul_TN64K_N64_sse2(b, A, x, ncol, K);
+    addmul_TN64K_N64_sse2(b, A, x, ncol, K);
 #else
-    mul_TN64K_N64_C(b, A, x, ncol, K);
+    addmul_TN64K_N64_C(b, A, x, ncol, K);
 #endif
 }/*}}}*/
+
+void mul_TN64K_N64(uint64_t * b, uint64_t const * A, uint64_t const * x, unsigned int ncol, unsigned int K)/*{{{*/
+{
+    ASSERT_ALWAYS(b != A && b != x);
+    memset((void *) b, 0, 64 * K * sizeof(uint64_t));
+    addmul_TN64K_N64(b, A, x, ncol, K);
+}/*}}}*/
+
 /*}}}*/
 
 

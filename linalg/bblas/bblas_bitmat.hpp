@@ -75,6 +75,7 @@ class
 
     typedef aligned_allocator<bitmat, S::alignment> allocator_type;
     public:
+    static constexpr const int alignment = S::alignment;
     static constexpr const int width = S::width;
     typedef T datatype;
     typedef std::vector<bitmat, allocator_type> vector_type;

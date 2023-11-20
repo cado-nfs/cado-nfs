@@ -11,7 +11,7 @@
 #include "omp_proxy.h"
 #include "macros.h"
 
-#include "mpfq_fake.hpp"
+#include "arith-hard.hpp"
 #include "misc.h"       // cado_ctzl
 #include "gf2x.h"
 
@@ -20,7 +20,7 @@ matpoly::memory_pool_type matpoly::memory;
 static_assert(std::is_same<unsigned long, mp_limb_t>::value, "need fix for mp_limb_t != unsigned long");
 
 /* {{{ init/zero/clear interface for matpoly */
-matpoly::matpoly(abdst_field ab, unsigned int m, unsigned int n, int len) : ab(ab), m(m), n(n), alloc_words(b2w_x(len)) {
+matpoly::matpoly(matpoly::arith_hard *, unsigned int m, unsigned int n, int len) : m(m), n(n), alloc_words(b2w_x(len)) {
     /* As a special case, we allow a pre-init state with m==n==len==0 */
     /* Note that because we want to handle homogenous and non-homogenous
      * cases the same way, we support matrices of size 0*n, so that is
@@ -43,19 +43,19 @@ matpoly::~matpoly() {
         memory.free(x, data_alloc_size_in_bytes());
 }
 matpoly::matpoly(matpoly && a)
-    : ab(a.ab), m(a.m), n(a.n), alloc_words(a.alloc_words)
+    : m(a.m), n(a.n), alloc_words(a.alloc_words)
 {
     size=a.size;
     x=a.x;
     a.x=NULL;
     a.m=a.n=a.size=a.alloc_words=0;
-    a.ab=NULL;
+    // a.ab=NULL;
 }
 matpoly& matpoly::operator=(matpoly&& a)
 {
     if (x)
         memory.free(x, data_alloc_size_in_bytes());
-    ab = a.ab;
+    // ab = a.ab;
     m = a.m;
     n = a.n;
     alloc_words = a.alloc_words;
@@ -63,14 +63,14 @@ matpoly& matpoly::operator=(matpoly&& a)
     x=a.x;
     a.x=NULL;
     a.m=a.n=a.size=a.alloc_words=0;
-    a.ab=NULL;
+    // a.ab=NULL;
     return *this;
 }
 matpoly& matpoly::set(matpoly const& a)
 {
     if (x)
         memory.free(x, data_alloc_size_in_bytes());
-    ab = a.ab;
+    // ab = a.ab;
     m = a.m;
     n = a.n;
     alloc_words = a.alloc_words;
@@ -169,7 +169,7 @@ void matpoly::set_constant_ui(unsigned long e) {
     if (!e) return;
     size = 1;
     for(unsigned int i = 0 ; i < m ; ++i)
-        *coeff(i, i) = e;
+        *part(i, i) = e;
 }
 /* }}} */
 
@@ -772,7 +772,7 @@ void matpoly::coeff_set_zero(unsigned int k)
     unsigned long kbit = 1UL << (k % ULONG_BITS);
     for(unsigned int i = 0 ; i < m ; i++)
         for(unsigned int j = 0; j < n; j++)
-            coeff(i, j)[kq] &= ~kbit;
+            part(i, j)[kq] &= ~kbit;
 }
 
 matpoly matpoly::truncate_and_rshift(unsigned int truncated_size, unsigned int shiftcount)

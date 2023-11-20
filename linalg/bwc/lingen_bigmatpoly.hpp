@@ -4,7 +4,6 @@
 #include <vector>
 #include <cstring>     // memcmp
 
-#include "lingen_abfield.hpp"
 #include "lingen_matpoly_select.hpp"
 #include "lingen_call_companion.hpp"
 #include "subdivision.hpp"
@@ -41,7 +40,7 @@ struct bigmatpoly_model {
  */
 class bigmatpoly : public bigmatpoly_model {
     public:
-    abdst_field ab = NULL;
+    matpoly::arith_hard * ab = NULL;
     unsigned int m = 0;     /* total number of rows */
     unsigned int n = 0;     /* total number of cols */
     /* The following three are also in cells */
@@ -59,7 +58,7 @@ class bigmatpoly : public bigmatpoly_model {
     public:
 
     bigmatpoly(bigmatpoly_model const &);
-    bigmatpoly(abdst_field, bigmatpoly_model const &, unsigned int m, unsigned int n, int len);
+    bigmatpoly(matpoly::arith_hard *, bigmatpoly_model const &, unsigned int m, unsigned int n, int len);
     bigmatpoly similar_shell() const { return bigmatpoly(ab, get_model(), m, n, 0); }
     bigmatpoly(bigmatpoly const&) = delete;
     bigmatpoly& operator=(bigmatpoly const&) = delete;
@@ -78,7 +77,7 @@ class bigmatpoly : public bigmatpoly_model {
     public:
     /* }}} */
 
-    void finish_init(abdst_field ab, unsigned int m, unsigned int n, int len);
+    void finish_init(matpoly::arith_hard * ab, unsigned int m, unsigned int n, int len);
     bool check_pre_init() const { return size == 0; }
 
     // void realloc(int newalloc);
@@ -92,7 +91,7 @@ class bigmatpoly : public bigmatpoly_model {
     void zero_with_size(size_t size) { set_size(0); zero_pad(size); }
     int coeff_is_zero(unsigned int k) const;
     void coeff_set_zero_loc(unsigned int k);
-    int bigmatpoly_coeff_is_zero(abdst_field ab, bigmatpoly const & pi, unsigned int k);
+    int bigmatpoly_coeff_is_zero(matpoly::arith_hard * ab, bigmatpoly const & pi, unsigned int k);
     /* not to be confused with the former. the following two are in fact
      * relevant only to the binary interface. They're noops in the prime
      * field case. Here we're just agnostic, so we'll pass on the action

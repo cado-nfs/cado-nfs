@@ -25,7 +25,7 @@
 #include "fmt/core.h"                          // for check_format_string
 #include "fmt/format.h"                        // for basic_buffer::append
 #include "fmt/ostream.h"                       // for formatbuf<>::int_type
-#include "lingen_abfield.hpp"                  // for abdst_field
+#include "arith-hard.hpp"                  // for abdst_field
 #include "lingen_bw_dimensions.hpp"            // for bw_dimensions
 #include "lingen_call_companion.hpp"           // for lingen_call_companion
 #include "lingen_matpoly_select.hpp"           // for matpoly, matpoly::over...
@@ -57,7 +57,7 @@
  */
 std::vector<unsigned int> all_splits_of(unsigned int n)
 {
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     n /= 8;
 #endif
     std::vector<unsigned int> res;
@@ -205,7 +205,7 @@ struct lingen_tuner {
     typedef lingen_platform pc_t;
     typedef lingen_substep_schedule sc_t;
 
-    abdst_field ab; /* imported from the dims struct */
+    matpoly::arith_hard * ab; /* imported from the dims struct */
     cxx_mpz p;
     unsigned int m,n;
     size_t L;
@@ -348,15 +348,11 @@ struct lingen_tuner {
     }/*}}}*/
 
     lingen_tuner(std::ostream& os, bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl) :/*{{{*/
-        ab(d.ab), 
+        ab(&d.ab), 
         m(d.m), n(d.n), L(L), P(comm, pl),
         tuning_thresholds(pl, os, P)
     {
-#ifdef SELECT_MPFQ_LAYER_u64k1
-        mpz_set_ui(p, 2);
-#else
-        mpz_set (p, abfield_characteristic_srcptr(ab));
-#endif
+        mpz_set (p, ab->characteristic());
         gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, 1);
 
@@ -387,10 +383,10 @@ struct lingen_tuner {
          */
         size_t data0 = m*(m+n)*(P.r*P.r-1);
         data0 = data0 * L;
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
         data0 = iceildiv(data0, ULONG_BITS) * sizeof(unsigned long);
 #else
-        data0 = abvec_elt_stride(ab, data0);
+        data0 = ab->vec_elt_stride(data0);
 #endif
 
         // We must **NOT** divide by r*r, because the problem is
@@ -681,7 +677,7 @@ struct lingen_tuner {
         bool do_timings = true;
         configurations_to_test() {
             ffts = { lingen_substep_schedule::FFT_NONE };
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
             ffts.push_back(lingen_substep_schedule::FFT_FLINT);
 #else
             ffts.push_back(lingen_substep_schedule::FFT_TERNARY);
@@ -823,7 +819,7 @@ struct lingen_tuner {
              * loop would not be easier to understand.
              */
             std::ostringstream explanation;
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
             bool hc = T.has(T_t::cantor);
             bool ht = T.has(T_t::ternary);
             unsigned int tc = T[T_t::cantor];
@@ -1361,7 +1357,7 @@ lingen_tuner::tuning_thresholds_t::thresholds_verbs
     // multiple mesh sizes.
     // "plain" makes no sense per se, as it's the base thing
     // to use as soon as we go recursive
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     ternary,
     cantor,
 #else
@@ -1371,7 +1367,7 @@ lingen_tuner::tuning_thresholds_t::thresholds_verbs
 };
 
 const std::vector<std::pair<lingen_substep_schedule::fft_type_t, const char *>> lingen_tuner::tuning_thresholds_t::code_to_key
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 {
     { lingen_substep_schedule::FFT_NONE, recursive, },
     { lingen_substep_schedule::FFT_TERNARY, ternary, },

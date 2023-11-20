@@ -35,7 +35,7 @@
 #include "fmt/format.h"
 #include "fmt/printf.h" // IWYU pragma: keep
 #include "gmp-hacks.h"
-#include "lingen_abfield.hpp"        // for mpfq_p_1_field_specify, MPFQ_PRI...
+#include "arith-hard.hpp"        // for mpfq_p_1_field_specify, MPFQ_PRI...
 #include "lingen_bmstatus.hpp"
 #include "lingen_bw_dimensions.hpp"  // for bw_dimensions
 #include "lingen_checkpoints.hpp"
@@ -733,8 +733,7 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
 int sanity_check(std::string filename)
 {
     cp_useful_info cp = read_cp_aux(filename);
-    bmstatus bm(bw_parameters.m,bw_parameters.n);
-    abfield_specify(bm.d.ab, MPFQ_PRIME_MPZ, (mpz_srcptr) prime);
+    bmstatus bm(bw_parameters.m,bw_parameters.n, prime);
     bm.set_t0(cp.t0);
     bm.hints= hints;
     lingen_checkpoint lcp(bm, cp.t0, cp.t1, mpi_k > 1, filename);

@@ -9,6 +9,7 @@
 #include "lingen_call_companion.hpp"
 #include "tree_stats.hpp"
 #include "select_mpi.h"               // for MPI_Comm
+#include "cxx_mpz.hpp"
 
 struct bmstatus {
     bw_dimensions d;
@@ -36,14 +37,15 @@ struct bmstatus {
 
     int depth() const { return stats.non_transition_depth(); }
 
-    bmstatus(unsigned int m, unsigned int n)/*{{{*/
-
-    {
-        memset(&d, 0, sizeof(bw_dimensions));
-        d.m = m;
-        d.n = n;
+    bmstatus(unsigned int m, unsigned int n, cxx_mpz const & p)
+        : d(m, n, p)
+    { /*{{{*/
         lucky.assign(m+n, 0);
+        delta.assign(d.m + d.n, 0);
     }/*}}}*/
+    bmstatus(unsigned int m, unsigned int n, mpz_srcptr p)
+        : bmstatus(m, n, cxx_mpz(p)) {}
+
     void set_t0(unsigned int t0) {
         t = t0;
         delta.assign(d.m + d.n, t);

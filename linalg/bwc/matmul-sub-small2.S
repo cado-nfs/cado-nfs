@@ -1,27 +1,23 @@
 .section .note.GNU-stack,"",%progbits
 	.text
 	.p2align 4,,15
-.globl matmul_sub_small2
-	.type	matmul_sub_small2, @function
-matmul_sub_small2:
+.globl matmul_sub_small2_asm
+	.type	matmul_sub_small2_asm, @function
+matmul_sub_small2_asm:
         pushq %rbp
         pushq %rbx
         pushq %r15
         pushq %r14
         pushq %r13
         pushq %r12
-        // rdi is ignored (it's the abobj argument)
-        // dst pointer --> store in rdi
-        movq    %rsi, %rdi
-        // src pointer --> store in rsi
-	movq	%rdx, %rsi
-        // matrix pointer --> rbp
-        movq    %rcx, %rbp
-                
-        // ncoeffs_slice --> r9
-        movq    %r8, %r9
-
-        // rbp is the index of the first coeff
+        // arg order: %rdi, %rsi, %rdx, %rcx, %r8, and %r9
+        // %rdi dst
+        // %rsi src
+	// %rdx matrix  --> rbp
+        movq    %rdx, %rbp
+	// %rcx ncoeffs  --> r8 and r9
+        movq    %rcx, %r8
+        movq    %rcx, %r9
         test    %r9,%r9
 
         // at .Lfinished, rbp is shipped as a return value.
@@ -170,4 +166,4 @@ matmul_sub_small2:
         popq %rbx
         popq %rbp
 	ret
-	.size	matmul_sub_small2, .-matmul_sub_small2
+	.size	matmul_sub_small2_asm, .-matmul_sub_small2_asm

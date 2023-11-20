@@ -342,6 +342,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/strlcpy.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/linux.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/hwloc.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/fmt.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/gf2x.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/gmpecm.cmake")
 IF (NOT DEFINED ENV{NO_PYTHON_CHECK})
   include("${CADO_NFS_SOURCE_DIR}/config/python.cmake")
@@ -368,12 +369,18 @@ if("$ENV{ENABLE_SHARED}")
     endif()
     set(CADO_SHARED SHARED)
     message(STATUS "Building with dynamic libraries (ENABLE_SHARED=$ENV{ENABLE_SHARED})")
+
+    # https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
+    set(CMAKE_SKIP_BUILD_RPATH FALSE)
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
     string_join(rpath ":"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/utils"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/polyselect"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/linalg/bwc"
     )
     set(CMAKE_INSTALL_RPATH ${rpath})
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 else()
     message(STATUS "Building with static libraries (ENABLE_SHARED=\"$ENV{ENABLE_SHARED}\")")
 endif()
@@ -468,11 +475,9 @@ include_directories (${CADO_NFS_BINARY_DIR})
 # link_directories (${CADO_NFS_BINARY_DIR}/utils)
 # link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
 
+if(NOT HAVE_GF2X)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x)
 include_directories(${CADO_NFS_BINARY_DIR}/gf2x)
-
-
-############################################################
 
 add_custom_command(OUTPUT ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
     COMMAND mkdir -p ${CADO_NFS_BINARY_DIR}/gf2x
@@ -487,6 +492,7 @@ add_custom_target(gf2x-build ALL
     COMMAND "${CMAKE_MAKE_PROGRAM}"
     COMMENT "Building gf2x"
 )
+endif()
 
 # add_subdirectory (gf2x-fft)
 add_subdirectory (utils)

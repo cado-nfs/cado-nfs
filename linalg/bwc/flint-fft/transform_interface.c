@@ -328,10 +328,31 @@ void fft_transform_info_set_first_guess(struct fft_transform_info * fti)
         mp_bitcnt_t nw = (mp_bitcnt_t) n * w;
         /* decrease (n,w) for a test */
         if (w == 1) { w = 2; depth--; n/=2; } else { w = 1; }
+#if ULONG_BITS == 32
+        /* We must make sure that neither (b1+b2)*2 nor (4*n+1)*nw
+         * overflow
+         */
+        {
+            uint64_t B1 = b1;
+            uint64_t B2 = b2;
+            ASSERT_ALWAYS((B1+B2)*2 == (uint64_t) ((b1+b2)*2));
+            uint64_t N = n;
+            uint64_t NW = nw;
+            ASSERT_ALWAYS((4*N+1)*NW == (uint64_t) ((4*n+1)*nw));
+        }
+#endif
         if (!((b1+b2)*2 <= (4*n+1)*nw)) {
             /* increase again */
             if (w == 1) { w = 2; } else { w = 1; depth++; n*=2; }
         }
+#if ULONG_BITS == 32
+        /* check again */
+        {
+            uint64_t N = n;
+            uint64_t NW = nw;
+            ASSERT_ALWAYS((4*N+1)*NW == (uint64_t) ((4*n+1)*nw));
+        }
+#endif
         ASSERT_ALWAYS((b1+b2)*2 <= (4*n+1)*nw);
     }
 

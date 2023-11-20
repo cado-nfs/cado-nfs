@@ -16,7 +16,7 @@ struct op_mul : public op_mul_or_mp_base {
     size_t csize = 0;
     // static constexpr const char * name = "MUL";
     op_mul() = default;
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     op_mul(size_t asize, size_t bsize, unsigned int adj MAYBE_UNUSED = UINT_MAX) : fti(fft_type::mul_info(asize, bsize))
     {
         op_type = OP_MUL;
@@ -36,7 +36,7 @@ struct op_mul : public op_mul_or_mp_base {
         if (adj != UINT_MAX) fti.adjust_depth(adj);
     }
     template<typename T>
-    op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(abfield_characteristic_srcptr(a.ab), a.get_size(), b.get_size(), a.n, adj)
+    op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(a.ab->characteristic(), a.get_size(), b.get_size(), a.n, adj)
     {}
 #endif
     std::array<size_t, 3> get_alloc_sizes() const override { return fti.get_alloc_sizes(); }
@@ -50,7 +50,7 @@ struct op_mp : public op_mul_or_mp_base {
     size_t csize = 0;
     unsigned int shift = 0;
     op_mp() = default;
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     op_mp(size_t asize, size_t bsize, unsigned int MAYBE_UNUSED adj = UINT_MAX) : fti(fft_type::mp_info(asize, bsize))
     {
         op_type = OP_MP;
@@ -73,7 +73,7 @@ struct op_mp : public op_mul_or_mp_base {
     }
     template<typename T>
     op_mp(T const & a, T const & b, unsigned int adj = UINT_MAX)
-        : op_mp(abfield_characteristic_srcptr(a.ab), a.get_size(), b.get_size(), a.n, adj)
+        : op_mp(a.ab->characteristic(), a.get_size(), b.get_size(), a.n, adj)
     {}
 #endif
     std::array<size_t, 3> get_alloc_sizes() const override { return fti.get_alloc_sizes(); }
@@ -86,7 +86,7 @@ struct op_mul<void> : public op_mul_or_mp_base {
     typedef void FFT;
     size_t csize = 0;
     op_mul() = default;
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     op_mul(size_t asize, size_t bsize, unsigned int adj MAYBE_UNUSED = UINT_MAX)
     {
         op_type = OP_MUL;
@@ -104,7 +104,7 @@ struct op_mul<void> : public op_mul_or_mp_base {
         csize = asize + bsize; csize -= (csize > 0);
     }
     template<typename T>
-    op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(abfield_characteristic_srcptr(a.ab), a.get_size(), b.get_size(), a.n, adj)
+    op_mul(T const & a, T const & b, unsigned int adj = UINT_MAX) : op_mul(a.ab->characteristic(), a.get_size(), b.get_size(), a.n, adj)
     {}
 #endif
     static void addcompose(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1) {
@@ -121,7 +121,7 @@ struct op_mp<void> : public op_mul_or_mp_base {
     // static constexpr const char * name = "MP";
     unsigned int shift = 0;
     op_mp() = default;
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     op_mp(size_t asize, size_t bsize, unsigned int MAYBE_UNUSED adj = UINT_MAX)
     {
         op_type = OP_MP;
@@ -142,7 +142,7 @@ struct op_mp<void> : public op_mul_or_mp_base {
     }
     template<typename T>
     op_mp(T const & a, T const & b, unsigned int adj = UINT_MAX)
-        : op_mp(abfield_characteristic_srcptr(a.ab), a.get_size(), b.get_size(), a.n, adj)
+        : op_mp(a.ab->characteristic(), a.get_size(), b.get_size(), a.n, adj)
     {}
 #endif
     static void addcompose(matpoly::view_t t, matpoly::const_view_t t0, matpoly::const_view_t t1) {

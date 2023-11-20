@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 #include <fstream> // IWYU pragma: keep
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 #include <limits.h>                   // for UINT_MAX
 #include <stdlib.h>                   // for abort
 #else
@@ -48,8 +48,8 @@ void lingen_io_matpoly_interpret_parameters(cxx_param_list & pl)
  * -1 on error (e.g. when some matrix was only partially written).
  */
 
-#ifndef SELECT_MPFQ_LAYER_u64k1
-int matpoly_write(abdst_field ab, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+#ifndef LINGEN_BINARY
+int matpoly_write(matpoly::arith_hard * ab, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     unsigned int m = transpose ? M.n : M.m;
     unsigned int n = transpose ? M.m : M.n;
@@ -59,13 +59,12 @@ int matpoly_write(abdst_field ab, std::ostream& os, matpoly const & M, unsigned 
         int matnb = 0;
         for(unsigned int i = 0 ; !err && i < m ; i++) {
             for(unsigned int j = 0 ; !err && j < n ; j++) {
-                absrc_elt x;
-                x = transpose ? M.coeff(j, i, k) : M.coeff(i, j, k);
+                matpoly::arith_hard::elt const & x = M.coeff(transpose?j:i,transpose?i:j,k);
                 if (ascii) {
                     if (j) err = !(os << " ");
-                    if (!err) err = !(abcxx_out(ab, os, x));
+                    if (!err) err = !(ab->cxx_out(os, x));
                 } else {
-                    err = !(os.write((const char *) x, (size_t) abvec_elt_stride(ab, 1)));
+                    err = !ab->write(os, x);
                 }
                 if (!err) matnb++;
             }
@@ -79,7 +78,7 @@ int matpoly_write(abdst_field ab, std::ostream& os, matpoly const & M, unsigned 
     return k1 - k0;
 }
 #else
-int matpoly_write(abdst_field, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+int matpoly_write(matpoly::arith_hard *, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     unsigned int m = M.m;
     unsigned int n = M.n;
@@ -139,10 +138,10 @@ int matpoly_write(abdst_field, std::ostream& os, matpoly const & M, unsigned int
 /* fw must be an array of ofstreams of exactly the same size as the
  * matrix to be written.
  */
-int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> & fw, matpoly const & M, unsigned int k0, unsigned int k1, int ascii)
+int matpoly_write_split(matpoly::arith_hard * ab MAYBE_UNUSED, std::vector<std::ofstream> & fw, matpoly const & M, unsigned int k0, unsigned int k1, int ascii)
 {
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     size_t ulongs_per_mat = splitwidth * splitwidth / ULONG_BITS;
     std::vector<unsigned long> buf(ulongs_per_mat);
 #endif
@@ -152,15 +151,18 @@ int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> 
         for(unsigned int i = 0 ; !err && i < M.m ; i += splitwidth) {
             for(unsigned int j = 0 ; !err && j < M.n ; j += splitwidth) {
                 std::ostream& os = fw[i/splitwidth*M.n/splitwidth+j/splitwidth];
-#ifndef SELECT_MPFQ_LAYER_u64k1
-                absrc_elt x = M.coeff(i, j, k);
+#ifndef LINGEN_BINARY
+                arith_hard::elt const & x = M.coeff(i, j, k);
                 if (ascii) {
-                    err = !(abcxx_out(ab, os, x));
+                    err = !(ab->cxx_out(os, x));
                     if (!err) err = !(os << "\n");
                 } else {
-                    err = !(os.write((const char *) x, (size_t) abvec_elt_stride(ab, 1)));
+                    err = !ab->write(os, x);
                 }
 #else
+                /* In fact, we _do_ have code that we might want to use
+                 * in the b64 layer.
+                 */
                 if (ascii)
                     abort();
                 buf.assign(ulongs_per_mat, 0);
@@ -202,39 +204,23 @@ int matpoly_write_split(abdst_field ab MAYBE_UNUSED, std::vector<std::ofstream> 
  * been already allocated.
  */
 
-#ifndef SELECT_MPFQ_LAYER_u64k1
-int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+#ifndef LINGEN_BINARY
+int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     ASSERT_ALWAYS(!M.check_pre_init());
     unsigned int m = transpose ? M.n : M.m;
     unsigned int n = transpose ? M.m : M.n;
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
-    mpz_srcptr pz = abfield_characteristic_srcptr(ab);
-#if GMP_VERSION_ATLEAST(6, 0, 0)
-    mp_size_t pzsize = mpz_size(pz);
-    const mp_limb_t * pzlimbs = mpz_limbs_read(pz);
-#else
-    mp_size_t pzsize = SIZ(pz);
-    const mp_limb_t * pzlimbs = PTR(pz);
-#endif
-    std::vector<mp_limb_t> vbuf(pzsize + 1);
-    mp_limb_t * buf = vbuf.data();
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
         int matnb = 0;
         for(unsigned int i = 0 ; !err && i < m ; i++) {
             for(unsigned int j = 0 ; !err && j < n ; j++) {
-                abdst_elt x;
-                x = transpose ? M.coeff(j, i, k)
-                              : M.coeff(i, j, k);
+                matpoly::arith_hard::elt & x = M.coeff(transpose?j:i,transpose?i:j,k);
                 if (ascii) {
-                    err = abfscan(ab, f, x) == 0;
+                    err = ab->fscan(f, x) == 0;
                 } else {
-                    err = fread(x, abvec_elt_stride(ab, 1), 1, f) < 1;
-                    if (mpn_cmp(x, pzlimbs, pzsize >= 0)) {
-                        mpn_tdiv_qr(buf + pzsize, buf, 0, x, pzsize, pzlimbs, pzsize);
-                        mpn_copyi(x, buf, pzsize);
-                    }
+                    err = ab->fread(f, x) < 1;
                 }
                 if (!err) matnb++;
             }
@@ -250,7 +236,7 @@ int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigne
     return k1 - k0;
 }
 #else
-int matpoly_read_inner(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose, off_t base, unsigned int batch = 1)
+int matpoly_read_inner(matpoly::arith_hard *, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose, off_t base, unsigned int batch = 1)
 {
     /* Internally, the dimension of the matrix that are most packed
      * (i.e., rows when in row-major order) are padded to multiples of
@@ -324,7 +310,7 @@ int matpoly_read_inner(abdst_field, FILE * f, matpoly & M, unsigned int k0, unsi
     }
     return k1 - k0;
 }
-int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
+int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     int rc = 0;
     if (k0 % ULONG_BITS) {
