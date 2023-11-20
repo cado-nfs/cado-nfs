@@ -459,8 +459,10 @@ bwc_program(secure secure.cpp)
 bwc_program(blocklanczos blocklanczos.cpp)
 target_link_libraries(blocklanczos bitlinalg)
 
-bwc_program(bench_cpu_bwc bench_cpu_bwc.cpp)
-bwc_program(bench_comm_bwc bench_comm_bwc.cpp)
+# bwc_program_base is good for programs that we don't want to see when we
+# do "make install"
+bwc_program_base(bench_cpu_bwc bench_cpu_bwc.cpp)
+bwc_program_base(bench_comm_bwc bench_comm_bwc.cpp)
 set_target_properties(bench_cpu_bwc PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(bench_comm_bwc PROPERTIES EXCLUDE_FROM_ALL TRUE)
 

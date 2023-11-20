@@ -489,6 +489,17 @@ containers:
     max: 2
     when: runner_system_failure
 
+# same, but do not restrict to the master branch
+dry-run containers:
+  stage: early
+  image: docker
+  <<: *common-template
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - apk update
+    - apk add make bash git
+    - make -f docker/Makefile NOW=$(date +%Y%m%d%H%M-$CI_COMMIT_SHA)
+
 
 # "cache" is only when the runners have a notion of available cache
 # server, it seems. Don't do that for now.
