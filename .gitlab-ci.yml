@@ -478,7 +478,7 @@ containers:
     - if: $CI_COMMIT_MESSAGE =~ /only coverage/
       when: never
     - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "containers")
-      when: always
+      when: on_success
     - when: never
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
