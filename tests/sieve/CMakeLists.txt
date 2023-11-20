@@ -496,8 +496,11 @@ cado_define_test(F9_fakereltest
     ${F9_roots} ${las_path} ${CADO_NFS_SOURCE_DIR}
     TARGET_DEPENDENCIES fake_rels freerel las
     TEST_DEPENDENCIES F9_makefb
-    TIMEOUT 60
+    TIMEOUT 120
 )
+# This really taking super long with valgrind in particular, so let's
+# bump the timeout. 60 seconds is generally ok for normal runs, but 60
+# times 8 for valgrind isn't.
 
 # Check a bug in fake_rels (see 9d52c08c)
 cado_define_test(c60_fakereltest
