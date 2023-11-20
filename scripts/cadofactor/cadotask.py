@@ -2245,6 +2245,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         else:
             p = cadoprograms.Polyselect(admin=adstart, admax=adend,
                                         stdout=str(outputfile),
+                                        skip_check_binary_exists=True,
                                         **self.progparams[0])
             self.submit_command(p, "%d-%d" % (adstart, adend), commit=False)
         self.state.update({"adnext": adend}, commit=True)
@@ -2613,6 +2614,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         else:
             p = cadoprograms.PolyselectRopt(inputpolys=str(inputfilename),
                                             stdout=str(outputfile),
+                                            skip_check_binary_exists=True,
                                             **self.progparams[0])
             self.submit_command(p, "%d" % nr, commit=False)
         self.state.update({"nr_poly_submitted": nr + batchsize}, commit=True)
@@ -2845,6 +2847,7 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
         else:
             p = cadoprograms.PolyselectJL(modr=modr, df=df, dg=dg,
                                         stdout=str(outputfile),
+                                        skip_check_binary_exists=True,
                                         **self.progparams[0])
             self.submit_command(p, "%d" % (modr,), commit=False)
         self.state.update({"rnext": modr+1}, commit=True)
@@ -3347,12 +3350,14 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
                 p = cadoprograms.Las(q0=q0, q1=q1,
                                      factorbase1=fb1,
                                      out=outputfilename, stats_stderr=True,
+                                     skip_check_binary_exists=True,
                                      **self.merged_args[0])
             else:
                 p = cadoprograms.Las(q0=q0, q1=q1,
                                      factorbase0=fb0,
                                      factorbase1=fb1,
                                      out=outputfilename, stats_stderr=True,
+                                     skip_check_binary_exists=True,
                                      **self.merged_args[0])
             # Note that submit_command may call wait() !
             self.submit_command(p, "%d-%d" % (q0, q1), commit=False)
