@@ -207,7 +207,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             uint32_t * xr = bb.rowperm;
             uint32_t * xc = bb.colperm;
             uint32_t *freeme[2] = {NULL,NULL};
-            if (mmt.matrices[0].bal.flags & FLAG_REPLICATE) {
+            if ((mmt.matrices[0].bal.flags & FLAG_REPLICATE) && (xr || xc)) {
                 ASSERT_ALWAYS(xc || xr);
                 ASSERT_ALWAYS(mmt.matrices[0].bal.trows == mmt.matrices[0].bal.tcols);
                 /* P is the permutation which sends
