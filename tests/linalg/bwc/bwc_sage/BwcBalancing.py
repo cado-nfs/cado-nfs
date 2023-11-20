@@ -6,9 +6,6 @@ from .tools import u32, u64
 from .tools import NOK
 from .BwcParameters import BwcParameters
 
-FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES = 64
-MINIMUM_ITEM_SIZE_OF_MPFQ_VEC_TYPES = 4
-
 
 class BwcBalancing(object):
     def __init__(self, params: BwcParameters, filename):
@@ -52,9 +49,8 @@ class BwcBalancing(object):
                 # return the next multiple of b*k
                 return ((n + (b*k) - 1) // (b*k)) * (b*k)
 
-            fa = FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES
-            mi = MINIMUM_ITEM_SIZE_OF_MPFQ_VEC_TYPES
-            chunk = fa // mi
+            # copy b111d37a5: now the alignment is always on multiples of 8
+            chunk = 8
 
             self.tr = pad(self.nr, self.nh * self.nv, chunk)
             self.tc = pad(self.nc, self.nh * self.nv, chunk)

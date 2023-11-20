@@ -1,12 +1,8 @@
 #ifndef LINGEN_AVERAGE_MATSIZE_HPP_
 #define LINGEN_AVERAGE_MATSIZE_HPP_
 
-#ifndef SELECT_MPFQ_LAYER_u64k1
-#include "mpfq_layer.h"
-#else
-#include "mpfq_fake.hpp"
-#endif
+#include "lingen_matpoly_select.hpp"
 
-double average_matsize(abdst_field ab, unsigned int m, unsigned int n, int ascii);
+double average_matsize(matpoly::arith_hard * ab, unsigned int m, unsigned int n, int ascii);
 
 #endif	/* LINGEN_AVERAGE_MATSIZE_HPP_ */

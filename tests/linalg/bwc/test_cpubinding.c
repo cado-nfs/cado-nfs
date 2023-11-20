@@ -63,8 +63,8 @@ int do_cpubinding_tests(const char * cpubinding_conf)
         }
 
         int pos2;
-        int t[2];
-        int rc = sscanf(line + pos, "%d %d %n", &t[0], &t[1], &pos2);
+        unsigned int t[2];
+        int rc = sscanf(line + pos, "%u %u %n", &t[0], &t[1], &pos2);
         for(int n = strlen(line); n && isspace(line[n-1]); line[--n]='\0');
         ASSERT_ALWAYS(rc >= 2);
 
@@ -77,7 +77,7 @@ int do_cpubinding_tests(const char * cpubinding_conf)
         param_list_add_key(pl2, "input-topology-string", line + pos + pos2, PARAMETER_FROM_CMDLINE);
 
         char * msg;
-        void * cc = cpubinding_get_info(&msg, pl2, t);
+        void * cc = cpubinding_get_info(&msg, pl2, t[0], t[1]);
         /* don't make the tests too verbose */
         if (msg) {
             if (verbose) puts(msg);
@@ -89,7 +89,7 @@ int do_cpubinding_tests(const char * cpubinding_conf)
         nb_nok += !ok;
 
         cpubinding_do_pinning(cc, 0, 0);
-        cpubinding_free_info(cc, t);
+        cpubinding_free_info(cc, t[0], t[1]);
 
         param_list_clear(pl2);
     }
@@ -127,8 +127,8 @@ int main(int argc, char * argv[])
 
     cpubinding_conf = param_list_lookup_string(pl, "cpubinding");
 
-    int thr[2] = {1,1};
-    int parsed_thr = param_list_parse_int_and_int(pl, "thr", thr, "x");
+    unsigned int thr[2] = {1,1};
+    int parsed_thr = param_list_parse_uint_and_uint(pl, "thr", thr, "x");
 
     if (param_list_warn_unused(pl)) {
         usage();
@@ -142,13 +142,13 @@ int main(int argc, char * argv[])
          * debug program, just to see how a given mapping string is
          * interpreted.
          */
-        void * cc = cpubinding_get_info(&msg, pl, thr);
+        void * cc = cpubinding_get_info(&msg, pl, thr[0], thr[1]);
         if (msg) {
             puts(msg);
             free(msg);
         }
         cpubinding_do_pinning(cc, 0, 0);
-        cpubinding_free_info(cc, thr);
+        cpubinding_free_info(cc, thr[0], thr[1]);
     } else if (cpubinding_conf) {
         rc = do_cpubinding_tests(cpubinding_conf) ? EXIT_SUCCESS : EXIT_FAILURE;
     } else {

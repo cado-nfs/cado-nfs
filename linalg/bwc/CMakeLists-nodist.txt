@@ -1,8 +1,18 @@
 link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
 link_directories (${CADO_NFS_BINARY_DIR}/gf2x/gf2x-fft/.libs)
-
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft/mpfq)
+
+if(NOT HAVE_GF2X)
+link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
+link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
+include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
+include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
+include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft/mpfq)
+else()
+    link_directories(${GF2X_LIBDIR})
+    include_directories(${GF2X_INCDIR})
+endif()
 
 
 
@@ -13,7 +23,10 @@ set_target_properties(bench_polmatmul PROPERTIES
     COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
     LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 target_link_libraries(bench_polmatmul utils gf2x)
+
+if(NOT HAVE_GF2X)
 add_dependencies(bench_polmatmul gf2x-build)
+endif()
 
 add_executable(bcast-file EXCLUDE_FROM_ALL bcast-file.c)
 set_target_properties(bcast-file PROPERTIES

@@ -14,7 +14,7 @@
 #include <vector>                      // for vector
 #include "fmt/core.h"                  // for check_format_string, char_t
 #include "fmt/format.h"                // for basic_buffer::append, basic_pa...
-#include "lingen_abfield.hpp"
+#include "arith-hard.hpp"
 #include "lingen_bw_dimensions.hpp"
 #include "lingen_call_companion.hpp"   // for lingen_call_companion, lingen_...
 #include "lingen_hints.hpp"            // for operator<<, lingen_hints, oper...
@@ -136,7 +136,7 @@ bool lingen_checkpoint::save_aux_file(size_t Xsize) const /*{{{*/
     os << m << " " << n << "\n";
     os << level << " " << t0 << " " << t1 << " " << bm.t << "\n";
     os << Xsize << "\n";
-    os << abfield_characteristic_srcptr(bm.d.ab) << "\n";
+    os << bm.d.ab.characteristic() << "\n";
     for(unsigned int i = 0 ; i < m + n ; i++) os << " " << bm.delta[i];
     os << "\n";
     for(unsigned int i = 0 ; i < m + n ; i++) os << " " << bm.lucky[i];
@@ -230,7 +230,7 @@ bool lingen_checkpoint::load_aux_file(size_t & Xsize)/*{{{*/
     is >> Xsize;
     cxx_mpz xp;
     is >> xp;
-    if (mpz_cmp(xp, abfield_characteristic_srcptr(bm.d.ab)) != 0)
+    if (mpz_cmp(xp, bm.d.ab.characteristic()) != 0)
         throw invalid_aux_file("checkpoint file cannot be used (made for wrong p)");
     for(unsigned int i = 0 ; i < m + n ; i++) {
         is >> nbm.delta[i];
@@ -278,14 +278,14 @@ bool lingen_checkpoint::load_aux_file(size_t & Xsize)/*{{{*/
 int lingen_checkpoint::load_data_file(matpoly & X)/*{{{*/
 {
     bw_dimensions & d = bm.d;
-    abdst_field ab = d.ab;
+    matpoly::arith_hard & ab = d.ab;
     FILE * data = fopen(datafile.c_str(), "rb");
     int rc;
     if (data == NULL) {
         fmt::fprintf(stderr, "Warning: cannot open %s\n", datafile);
         return 0;
     }
-    rc = matpoly_read(ab, data, X, 0, X.get_size(), 0, 0);
+    rc = matpoly_read(&ab, data, X, 0, X.get_size(), 0, 0);
     if (rc != (int) X.get_size()) { fclose(data); return 0; }
     rc = fclose(data);
     return rc == 0;
@@ -296,7 +296,7 @@ int lingen_checkpoint::load_data_file(matpoly & X)/*{{{*/
  * situation is when we're saving part of a big matrix */
 int lingen_checkpoint::save_data_file(matpoly const & X)/*{{{*/
 {
-    abdst_field ab = bm.d.ab;
+    matpoly::arith_hard & ab = bm.d.ab;
     std::ofstream data(datafile, std::ios_base::out | std::ios_base::binary);
     int rc;
     if (!data) {
@@ -304,7 +304,7 @@ int lingen_checkpoint::save_data_file(matpoly const & X)/*{{{*/
         unlink(auxfile.c_str());
         return 0;
     }
-    rc = matpoly_write(ab, data, X, 0, X.get_size(), 0, 0);
+    rc = matpoly_write(&ab, data, X, 0, X.get_size(), 0, 0);
     if (rc != (int) X.get_size()) goto lingen_checkpoint_save_data_file_bailout;
     if (data.good()) return 1;
 lingen_checkpoint_save_data_file_bailout:
@@ -317,7 +317,7 @@ template<>
 int load_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly & X, unsigned int t0, unsigned int t1)/*{{{*/
 {
     bw_dimensions & d = bm.d;
-    abdst_field ab = d.ab;
+    matpoly::arith_hard * ab = & d.ab;
     unsigned int m = d.m;
     unsigned int n = d.n;
 
@@ -401,7 +401,7 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     bw_dimensions & d = bm.d;
-    abdst_field ab = bm.d.ab;
+    matpoly::arith_hard * ab = & bm.d.ab;
     unsigned int m = d.m;
     unsigned int n = d.n;
     lingen_checkpoint cp(bm, which, t0, t1, 1);
@@ -489,7 +489,7 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     bw_dimensions & d = bm.d;
-    abdst_field ab = d.ab;
+    matpoly::arith_hard * ab = & d.ab;
     unsigned int m = d.m;
     unsigned int n = d.n;
     lingen_checkpoint cp(bm, which, t0, t1, 1);
@@ -575,7 +575,7 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     bw_dimensions & d = bm.d;
-    abdst_field ab = d.ab;
+    matpoly::arith_hard * ab = & d.ab;
     lingen_checkpoint cp(bm, which, t0, t1, 1);
     cp.datafile = cp.gdatafile;
     int ok = cp.checkpoint_already_present();

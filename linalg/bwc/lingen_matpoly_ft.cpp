@@ -85,7 +85,7 @@ matpoly matpoly_ft<fft_type>::mul_caching_adj(tree_stats & stats, matpoly const 
     return c;
 } /* }}} */
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 template class matpoly_ft<gf2x_fake_fft_info>;
 template class matpoly_ft<gf2x_cantor_fft_info>;
 template class matpoly_ft<gf2x_ternary_fft_info>;

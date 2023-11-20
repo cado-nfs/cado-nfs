@@ -1,6 +1,6 @@
 #include "cado.h" // IWYU pragma: keep
 #include <stdint.h>                   // for uint64_t
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
 #include <cmath>
 #include <gmp.h>                      // for mpz_get_d, mpz_fdiv_q_ui, mpz_s...
 #include <stddef.h>                   // for size_t
@@ -12,27 +12,26 @@
 
 /*{{{ avg_matsize */
 template<bool over_gf2>
-double avg_matsize(abdst_field, unsigned int m, unsigned int n, int ascii);
+double avg_matsize(matpoly::arith_hard *, unsigned int m, unsigned int n, int ascii);
 
 template<>
-double avg_matsize<true>(abdst_field, unsigned int m, unsigned int n, int ascii)
+double avg_matsize<true>(matpoly::arith_hard *, unsigned int m, unsigned int n, int ascii)
 {
     ASSERT_ALWAYS(!ascii);
     ASSERT_ALWAYS((m*n) % 64 == 0);
-    return ((m*n)/64) * sizeof(uint64_t);
+    unsigned int nwords = m * n / 64;
+    return nwords * sizeof(uint64_t);
 }
 
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
 template<>
-double avg_matsize<false>(abdst_field ab, unsigned int m, unsigned int n, int ascii)
+double avg_matsize<false>(matpoly::arith_hard * ab, unsigned int m, unsigned int n, int ascii)
 {
     if (!ascii) {
         /* Easy case first. If we have binary input, then we know a priori
          * that the input data must have size a multiple of the element size.
          */
-        size_t elemsize = abvec_elt_stride(ab, 1);
-        size_t matsize = elemsize * m * n;
-        return matsize;
+        return ab->vec_elt_stride(m * n);
     }
 
     /* Ascii is more complicated. We're necessarily fragile here.
@@ -48,7 +47,7 @@ double avg_matsize<false>(abdst_field ab, unsigned int m, unsigned int n, int as
      */
     double avg;
     cxx_mpz a;
-    double pd = mpz_get_d(abfield_characteristic_srcptr(ab));
+    double pd = mpz_get_d(ab->characteristic());
     unsigned long k = ceil(log(pd)/log(10));
     unsigned long b = 10;
     mpz_ui_pow_ui(a, b, k);
@@ -62,7 +61,7 @@ double avg_matsize<false>(abdst_field ab, unsigned int m, unsigned int n, int as
 }
 #endif
 
-double average_matsize(abdst_field ab, unsigned int m, unsigned int n, int ascii)
+double average_matsize(matpoly::arith_hard * ab, unsigned int m, unsigned int n, int ascii)
 {
     return avg_matsize<matpoly::over_gf2>(ab, m, n, ascii);
 }
