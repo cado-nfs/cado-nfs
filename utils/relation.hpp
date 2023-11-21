@@ -87,10 +87,12 @@ struct relation : public relation_ab {
     relation() {}
     operator bool() const { return (bool) (relation_ab) *this; }
     relation(int64_t a, uint64_t b, int rational_side = -1)
-        : relation_ab(a,b), rational_side(rational_side)
+        : relation_ab(a,b)
+        , rational_side(rational_side)
     {}
     relation(mpz_srcptr a, mpz_srcptr b, int rational_side = -1)
-        : relation_ab(a,b), rational_side(rational_side)
+        : relation_ab(a,b)
+        , rational_side(rational_side)
     {}
 
     void add(unsigned int side_index, mpz_srcptr p, mpz_srcptr r) {

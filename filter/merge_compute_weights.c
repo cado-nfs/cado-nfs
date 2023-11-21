@@ -197,6 +197,8 @@ void compute_weights_backend (filter_matrix_t *mat, index_t j0)
 
         for(size_t i = 0 ; i < number_of_slots ; i++)
             bucket_clear(all_buckets[tid][i]);
+
+        free(all_buckets[tid]);
     }
 
     mat->rem_ncols = mat->ncols - empty_cols;

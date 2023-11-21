@@ -57,6 +57,7 @@
    openmp_leak
    Memcheck:Leak
    match-leak-kinds: possible
+   ...
    fun:calloc
    fun:allocate_dtv
    fun:_dl_allocate_tls
@@ -77,7 +78,7 @@
    fun:call_init.part.0
    fun:call_init
    fun:_dl_init
-   obj:/lib/x86_64-linux-gnu/ld-2.24.so
+   obj:/lib/x86_64-linux-gnu/ld-2.*
    ...
 }
 
@@ -90,6 +91,7 @@
    another_one_quite_similar_to_the_previous_leak
    Memcheck:Leak
    match-leak-kinds: possible
+   ...
    fun:calloc
    fun:allocate_dtv
    fun:_dl_allocate_tls
@@ -104,6 +106,7 @@
    another_one_quite_similar_to_the_previous_leak
    Memcheck:Leak
    match-leak-kinds: possible
+   ...
    fun:calloc
    fun:allocate_dtv
    fun:_dl_allocate_tls
@@ -117,6 +120,7 @@
    another_one_quite_similar_to_the_previous_leak
    Memcheck:Leak
    match-leak-kinds: possible
+   ...
    fun:calloc
    fun:allocate_dtv
    fun:_dl_allocate_tls
@@ -124,6 +128,20 @@
    fun:pthread_create*
    ...
    fun:_ZN11thread_poolC1EmRdm
+   ...
+}
+{
+   another_one_quite_similar_to_the_previous_leak
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create*
+   ...
+   fun:_ZNSt6thread15_M_start_threadESt10unique_ptrINS_6_StateESt14default_deleteIS1_EEPFvvE
    ...
 }
 {
@@ -230,5 +248,41 @@
    ...
    fun:_ZN10las_report20accumulate_and_clearEOS_
    fun:_ZN7nfs_auxD1Ev
+   ...
+}
+{
+   ecm_bug_21864
+   # https://gitlab.inria.fr/zimmerma/ecm/-/issues/21864
+   # This is present up to 7.0.5 at least
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:__gmp_default_allocate
+   fun:__gmpz_init2
+   fun:ell_curve_init
+   fun:ell_curve_set_z
+   fun:ecm
+   fun:ecm_factor
+   ...
+}
+{
+   intentional_leak
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:__vasprintf_internal
+   fun:asprintf
+   fun:derived_filename
+   fun:build_mat_auxfile
+   fun:main
+}
+{
+   perhaps_a_bug_in_hwloc
+   Memcheck:Overlap
+   fun:__memcpy_chk
+   obj:/usr/lib/x86_64-linux-gnu/libhwloc.so.15.*
+   obj:/usr/lib/x86_64-linux-gnu/libhwloc.so.15.*
+   fun:_ZN9cpubinder15read_param_listEP12param_list_si
+   fun:cpubinding_get_info
    ...
 }

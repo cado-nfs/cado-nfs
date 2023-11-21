@@ -244,6 +244,8 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             /* same remark as above */
             A->vec_set_random(Rdata, nchecks, rstate);
         }
+
+        A->free(Rdata);
     }
 
     /* {{{ create initial Cv and Cd, or load them if start>0 */

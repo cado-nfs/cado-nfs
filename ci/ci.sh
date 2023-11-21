@@ -11,151 +11,44 @@ needs_optional_ecm=1
 needs_optional_fmt=1
 needs_gmp=1
 
-project_package_selection() { : ; }
+case "$CI_JOB_NAME" in
+    *"under valgrind"*)
+        valgrind=1
+        export USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT=1
+        export TIMEOUT_SCALE=8
+        case "$CI_JOB_NAME" in
+            *32-bit*)
+                echo "valgrind testing is practically hopeless under 32-bit"
+                echo "See https://bugs.kde.org/show_bug.cgi?id=337475"
+                echo
+                echo "We're making this test artificially succeed"
+                exit 0
+                # Things like shlx (in the BMI2 set) are valid in 32-bit
+                # mode, and can definitely be emitted by a compiler, or
+                # can be present in libraries such as gmp. We have no way
+                # to guarantee that no such instructions are encountered,
+                # and valgrind is unwilling to ramp up support for these
+                # instructions (which is understandable)
+                ;;
+        esac
+        ;;
+esac
 
-tweak_tree_before_configure() { : ; }
-
-step_configure() {
-    # now that we're confident that we've made the bwc checks specific to
-    # a "with_sagemath" suffix, there's no risk in missing the sagemath
-    # code by inadvertence.
-    # if [ "$specific_checks" = "bwc.sagemath" ] ; then
-    #     export FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3=1
-    # fi
-    if [ "$specific_checks" = "including_mpi" ] ; then
-        export MPI=1
-        # sigh. when we run in containers, running as root isn't much of
-        # a problem
-        export OMPI_ALLOW_RUN_AS_ROOT=1
-        export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
-    elif [ "$specific_checks" = "only_mpi" ] ; then
-        export MPI=1
-        # sigh. when we run in containers, running as root isn't much of
-        # a problem
-        export OMPI_ALLOW_RUN_AS_ROOT=1
-        export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
-    fi
-    if [ "$using_cmake_directly" ] ; then
-        (cd "$build_tree" ; cmake "$source_tree")
-    else
-        "${MAKE}" cmake
-    fi
-    eval `${MAKE} show`
-}
-
-build_steps="build1 build2"
-build_step_name_build1="Building"
-
-step_build1() {
-    target=all
-    if [ "$specific_checks" = "bwc.sagemath" ] ; then
-        target=all_sagemath_test_dependencies
-    fi
-    if [ "$using_cmake_directly" ] ; then
-        SOURCEDIR="$PWD"
-        (cd "$build_tree" ; "${MAKE}" -j$NCPUS $target)
-    else
-        "${MAKE}" -j$NCPUS $target
+project_package_selection() {
+    if [ "$valgrind" ] ; then
+        echo " + valgrind is set"
+        debian_packages="$debian_packages     valgrind"
+        if ! is_debian ; then
+            echo "valgrind: only on debian" >&2
+            # because I'm lazy, and also I'm not sure there would be a point
+            # in doing it on several systems anyway.
+            exit 1
+        fi
+        # opensuse_packages="$opensuse_packages python3-pip"
+        # fedora_packages="$fedora_packages     python3-pip"
+        # centos_packages="$centos_packages     python3-pip"
+        # alpine_packages="$alpine_packages     py3-pip"
     fi
 }
 
-build_step_name_build2="Building test dependencies"
-step_build2() {
-    target=all_test_dependencies
-    if [ "$specific_checks" = "bwc.sagemath" ] ; then
-        # already covered in build1 anyway
-        return
-    fi
-    if [ "$using_cmake_directly" ] ; then
-        SOURCEDIR="$PWD"
-        (cd "$build_tree" ; "${MAKE}" -j$NCPUS $target)
-    else
-        "${MAKE}" -j$NCPUS $target
-    fi
-}
-
-check_environment() {
-    export OMP_DYNAMIC=true
-    # See https://stackoverflow.com/questions/70126350/openmp-incredibly-slow-when-another-process-is-running
-    # It's not totally clear to me if it somewhere specified that
-    # lowercase "passive" implies GOMP_SPINCOUNT=0 for gcc. If it's not
-    # specified, it may change in the future, so let's force the setting
-    # ourselves.
-    export OMP_DISPLAY_ENV=verbose
-    export OMP_WAIT_POLICY=passive
-    export GOMP_SPINCOUNT=0
-    # OMP_PROC_BIND helps in certain cases, and is a disaster in other
-    # cases. We can't afford it.
-    # export OMP_PROC_BIND=true
-    export STATS_PARSING_ERRORS_ARE_FATAL=1
-}
-
-
-step_coverage() {
-    # This takes a coverage file prefix as $1, and info for the kind of
-    # file (whether it's "base" or "app", for instance) in $2.
-   
-    # build_tree and source_tree are used
-
-    outfile="$source_tree/$1-$2.json"
-
-    # Rationale for having this "base" coverage step (and I'm not sure it
-    # is still relevant):
-    # The "base" coverage file has zero coverage for every instrumented
-    # line of the project. At a later stage, we will combine this data
-    # file with coverage data files captured after the test run. This way
-    # the percentage of total lines covered will always be correct, even
-    # when not all source code files were loaded during the test(s).
-
-    # might be useful. We don't want to bother with traces of config
-    # checks.
-    find "$build_tree" -name '*conftest.gcno' -o -name 'CMake*.gcno' -o -name '?-CMake*.gcno' | xargs -r rm -v
-
-    # ci/ci/001-environment.sh sets build_tree to "./generated" for coverage
-    # jobs. Therefore, all files, gcno and gcda, are found under
-    # $PWD==$src_tree .
-    # This is done so because we have to ship the files that are
-    # generated by the build process, and expose them to the merged
-    # coverage report.
-    # If $build_tree is outside $src_tree, we should add "." before
-    # --json
-    (set -x ; cd "$build_tree" ; time gcovr --merge-mode-functions=separate -r "$source_tree" --json "$outfile")
-}
-
-step_coverage_more_artifacts() {
-    prefix="$1"
-    if [ "$build_tree" != generated ] ; then
-        echo "This part of the script assumes that build_tree=generated"
-    fi
-
-    # because of /bin/sh, we can't do arrays.
-    find "$build_tree" -name '*.[ch]' -o -name '*.[ch]pp' | xargs -x tar czf ${prefix}-generated-sources.tar.gz
-}
-
-
-coverage_expunge_paths="utils/embedded:gf2x:generated:linalg/bwc/flint-fft:linalg/bwc/mpfq"
-
-step_check() {
-    # --no-compress-output is perhaps better for test uploading, as ctest
-    # likes to store as zlib but headerless, which is a bit of a pain
-
-    ctest_args="-T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144"
-
-    if [ "$specific_checks" = "bwc.sagemath" ] ; then
-        ctest_args="$ctest_args -R with_sagemath"
-    elif [ "$specific_checks" = "including_mpi" ] ; then
-        # nothing to do
-        :
-    elif [ "$specific_checks" = "only_mpi" ] ; then
-        ctest_args="$ctest_args -R mpi"
-    fi
-
-    if [ "$using_cmake_directly" ] ; then
-        set -o pipefail
-        (cd "$build_tree" ; ctest -j$NCPUS $ctest_args ) | "$source_tree"/scripts/filter-ctest.pl
-    else
-        "${MAKE}" check ARGS="-j$NCPUS $ctest_args"
-    fi
-}
-
-step_doc() { : ; }
+# Note: most of the interesting stuff is in ci.bash

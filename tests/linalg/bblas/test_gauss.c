@@ -121,6 +121,8 @@ int main(int argc, char **argv) {
 
   }
 
+  for (i = 0; i < nrows; ++i)
+      free(ker[i]);
   free(mat);
   free(ker);
 }

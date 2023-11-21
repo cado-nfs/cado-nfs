@@ -306,6 +306,9 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE
     // std::cout << "\n";
 #endif
     std::cout << std::flush;
+
+    /* This was allocated by matmul-mf.cpp */
+    free(data);
 }
 
 int MATMUL_NAME(reload_cache)(matmul_ptr mm0)
