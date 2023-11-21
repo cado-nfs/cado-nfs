@@ -13,7 +13,7 @@ PHONY_CHECK=1 RELS=$RELSD "`dirname $0`/sievetest.sh" -dup -dup-qmin 0,$lim1 "$@
 ndup_ref=`grep -wc DUPE $RELSD || :`
 # remove leading spaces (for openbsd 5.3)
 ndup_ref=`echo $ndup_ref`
-if [ "$ndup_ref" != "$DUPE_COUNT" ]; then
+if [ "$ndup_ref" != "$DUPE_COUNT" ] ; then
     echo "Wrong number of duplicates in las -dup"
     echo "Expected $DUPE_COUNT, got $ndup_ref"
     exit 1
@@ -26,7 +26,7 @@ PHONY_CHECK=1 LAS_BINARY=$DUPSUP_BINARY RELS=$RELSF "`dirname $0`/sievetest.sh" 
 ndup=`grep -wc DUPE $RELSF || :`
 # remove leading spaces (for openbsd 5.3)
 ndup=`echo $ndup`
-if [ "$ndup" != "$DUPE_COUNT" ]; then
+if [ "$ndup" != "$DUPE_COUNT" ] ; then
     echo "Wrong number of duplicates in dupsup"
     echo "Expected $DUPE_COUNT, got $ndup"
     exit 1

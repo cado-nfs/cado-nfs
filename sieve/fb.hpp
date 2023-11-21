@@ -16,6 +16,7 @@
 #include <mutex>                       // for lock_guard, mutex
 #include <utility>                     // for pair
 #include <vector>                      // for vector
+#include <type_traits>                 // for vector
 
 #include "macros.h"                    // for ASSERT_ALWAYS, ASSERT, MAYBE_U...
 #include "mpz_poly.h"   // for cxx_mpz, cxx_mpz_poly
@@ -60,9 +61,18 @@ struct fb_general_root {
      If not projective and a == br (mod p^k), then p^exp | F(a,b)
      -"-                   a == br (mod p^(k-1)), then p^oldexp | F(a,b)
      If projective and ar == b  -"- */
-  fbroot_t r;
-  bool proj;
-  unsigned char exp, oldexp;
+
+  /* Note that we must arrange so that this structure has no hidden
+   * padding, and has all its fields default-initialized to zero, so that
+   * we can write to the factor base cache file without transferring
+   * potentially uninitialized bytes.
+   */
+  fbroot_t r = 0;
+  bool proj = 0;
+  unsigned char exp = 0, oldexp = 0;
+  private:
+  unsigned char dummy_padding_byte MAYBE_UNUSED = 0;
+  public:
 
   fb_general_root (){}
   fb_general_root (const fbroot_t r, const unsigned char nexp,
@@ -105,6 +115,14 @@ private:
                  const redc_invp_t invq,
                  const qlattice_basis &basis) const;
 };
+#if __cplusplus >= 201703L
+/* std::has_unique_object_representations should be almost what we want,
+ * but unfortunately it does not seem to work as it should (tested on
+ * g++13 and clang-{14,15,16})
+ */
+static_assert(std::has_unique_object_representations<fb_general_root>::value, "fb_general_root must have no padding");
+#endif
+static_assert(sizeof(fb_general_root) == 8, "fb_general_root must have no padding");
 
 /* General entries are anything that needs auxiliary information:
    Prime powers, projective roots, ramified primes where exp != oldexp + 1,
@@ -118,8 +136,12 @@ public:
   fbprime_t q, p; /* q = p^k */
   redc_invp_t invq; /* invq = -1/q (mod 2^32), or (mod 2^64), depending on
 		       the size of redc_invp_t */
-  fb_general_root roots[MAX_DEGREE];
   unsigned char k, nr_roots;
+private:
+  unsigned char dummy_padding_byte1 MAYBE_UNUSED = 0;
+  unsigned char dummy_padding_byte2 MAYBE_UNUSED = 0;
+public:
+  fb_general_root roots[MAX_DEGREE];
   /* Static class members to allow fb_vector<> to distinguish between and
      operate on both kind of entries */
   static const bool is_general_type = true;
@@ -146,6 +168,14 @@ public:
     bool operator()(fb_entry_general const & a, fb_entry_general const & b) const { return a.get_q() < b.get_q(); };
   };
 };
+#if __cplusplus >= 201703L
+/* std::has_unique_object_representations should be almost what we want,
+ * but unfortunately it does not seem to work as it should (tested on
+ * g++13 and clang-{14,15,16})
+ */
+static_assert(std::has_unique_object_representations<fb_entry_general>::value, "fb_entry_general must have no padding");
+#endif
+static_assert(sizeof(fb_entry_general) == 4 * 4 + MAX_DEGREE * 8, "fb_entry_general must have no padding");
 
 template <int Nr_roots>
 class fb_transformed_entry_x_roots {
@@ -201,6 +231,11 @@ public:
   void fprint(FILE *) const;
   void transform_roots(transformed_entry_t &, const qlattice_basis &) const;
 };
+
+#if __cplusplus >= 201703L
+static_assert(std::has_unique_object_representations<fb_entry_x_roots<1>>::value, "fb_entry_x_roots<1> must not have padding");
+static_assert(std::has_unique_object_representations<fb_entry_x_roots<2>>::value, "fb_entry_x_roots<2> must not have padding");
+#endif
 
 /* }}} */
 

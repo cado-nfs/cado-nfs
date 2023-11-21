@@ -38,23 +38,30 @@ add_custom_target(all_test_dependencies)
 # about X_dependencies (for adding extra dependencies late), or the
 # targets X (for setting compile time definitions).
 
-set(CADO_NFS_LOCK_TOOL)
-find_program(HAVE_LOCKF_TOOL NAMES flock DOC "locking tool lockf")
-if (HAVE_LOCKF_TOOL)
-    set(CADO_NFS_LOCK_TOOL ${HAVE_LOCKF_TOOL})
-else()
-    find_program(HAVE_LCKDO_TOOL NAMES flock DOC "locking tool lockf")
-    if (HAVE_LCKDO_TOOL)
-        set(CADO_NFS_LOCK_TOOL ${HAVE_LCKDO_TOOL} -w)
-    endif()
-endif()
-
+# set(CADO_NFS_LOCK_TOOL)
+# find_program(HAVE_LOCKF_TOOL NAMES flock DOC "locking tool lockf")
+# if (HAVE_LOCKF_TOOL)
+#     set(CADO_NFS_LOCK_TOOL ${HAVE_LOCKF_TOOL})
+# else()
+#     find_program(HAVE_LCKDO_TOOL NAMES flock DOC "locking tool lockf")
+#     if (HAVE_LCKDO_TOOL)
+#         set(CADO_NFS_LOCK_TOOL ${HAVE_LCKDO_TOOL} -w)
+#     endif()
+# endif()
+# 
 math(EXPR test_index 0)
 
 # openmp jobs really don't like competing with eachother, so we must be
 # cautious. Setting OMP_DYNAMIC=true seems to alleviate this problem
 # significantly
-math(EXPR test_concurrency_tolerance 8)
+math(EXPR test_concurrency_tolerance 2)
+
+if(TIMEOUT_SCALE)
+    message(STATUS "TIMEOUT_SCALE is set to ${TIMEOUT_SCALE}")
+endif()
+
+set(CADO_NFS_TEST_KEYWORDS_LAST_WINS TIMEOUT AVOID_CONCURRENT)
+set(CADO_NFS_TEST_KEYWORDS_FIRST_WINS_NOISY WORKING_DIRECTORY TEST_NAME)
 
 macro(cado_define_test)
     # This macro is appropriate for a test which consists in running a
@@ -153,6 +160,7 @@ macro(cado_define_test)
     set(AVOID_CONCURRENT)
     set(EXPECT_FAIL)
     set(current IMPLICIT)
+    set(TIMEOUT 20)
     foreach(x ${ARGN})
         if (x STREQUAL "TEST_DEPENDENCIES")
             SET(current TEST_DEPENDENCIES)
@@ -184,6 +192,10 @@ macro(cado_define_test)
         elseif (x STREQUAL "EXPECT_FAIL")
             SET(current EXPECT_FAIL)
             set(EXPECT_FAIL 1)
+        elseif (x STREQUAL "TIMEOUT")
+            SET(current TIMEOUT)
+        elseif (current IN_LIST CADO_NFS_TEST_KEYWORDS_LAST_WINS)
+            set(${current} ${x})
         else()
             list(APPEND ${current} ${x})
         endif()
@@ -203,6 +215,7 @@ macro(cado_define_test)
     #message(STATUS "NO_DEFAULT_RUN is ${NO_DEFAULT_RUN}")
     list(LENGTH TEST_NAME nTEST_NAME)
     list(LENGTH WORKING_DIRECTORY nWORKING_DIRECTORY)
+    list(LENGTH TIMEOUT nTIMEOUT)
     list(LENGTH SOURCES nSOURCES)
     list(LENGTH SCRIPT nSCRIPT)
     list(LENGTH LIBRARIES nLIBRARIES)
@@ -248,16 +261,15 @@ macro(cado_define_test)
             message(FATAL_ERROR "SCRIPT and LIBRARIES incompatible")
         endif()
     endif()
-    if(nWORKING_DIRECTORY GREATER 1)
-        message(WARNING "too many test names ${WORKING_DIRECTORY}, retaining only first")
-        LIST(GET WORKING_DIRECTORY 0 x)
-        SET(WORKING_DIRECTORY ${x})
-    endif()
-    if(nTEST_NAME GREATER 1)
-        message(WARNING "too many test names ${TEST_NAME}, retaining only first")
-        LIST(GET TEST_NAME 0 x)
-        SET(TEST_NAME ${x})
-    elseif(nTEST_NAME EQUAL 0)
+    foreach(x ${CADO_NFS_TEST_KEYWORDS_FIRST_WINS_NOISY})
+        if(n${x} GREATER 1)
+            message(WARNING "too many ${x} directives for ${TEST_NAME} ${${x}}, retaining only first")
+            LIST(GET ${x} 0 y)
+            SET(${x} ${y})
+        endif()
+    endforeach()
+
+    if(nTEST_NAME EQUAL 0)
         # # message(STATUS "trying to find a test name")
         # # message(STATUS "SOURCES = ${SOURCES}")
         # # message(STATUS "SCRIPT = ${SCRIPT}")
@@ -327,6 +339,7 @@ macro(cado_define_test)
     set(${TEST_NAME}_PRECOMMAND ${PRECOMMAND})
     set(${TEST_NAME}_AVOID_CONCURRENT ${AVOID_CONCURRENT})
     set(${TEST_NAME}_EXPECT_FAIL ${EXPECT_FAIL})
+    set(${TEST_NAME}_TIMEOUT ${TIMEOUT})
 
     if(NOT NO_DEFAULT_RUN)
         set(test_env env)
@@ -337,19 +350,47 @@ macro(cado_define_test)
             set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
         endif()
         MATH(EXPR test_index "${test_index}+1")
-        if(CADO_NFS_LOCK_TOOL AND AVOID_CONCURRENT)
-            MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
-            set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock.${testmod})
-        endif()
         set(A2F)
         if(EXPECT_FAIL)
             list(APPEND A2F ${CADO_NFS_SOURCE_DIR}/tests/abort-to-fail.sh)
         endif()
-        set(add_test_args NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_NAME}_LOCKF} ${A2F} ${${TEST_NAME}_PRECOMMAND} ${${TEST_NAME}_EXECUTABLE} ${ARGUMENTS})
+        # remove the pre-call to ${${TEST_NAME}_LOCKF} (right before
+        # A2F), because it doesn't play nicely with TIMEOUT. It's likely
+        # that using RESOURCE_LOCK below is a better idea.
+        set(add_test_args NAME ${TEST_NAME} COMMAND ${test_env} ${A2F} ${${TEST_NAME}_PRECOMMAND} ${CADO_NFS_SOURCE_DIR}/tests/test.sh ${${TEST_NAME}_EXECUTABLE} ${ARGUMENTS})
         if(nWORKING_DIRECTORY GREATER 0)
             list(APPEND add_test_args WORKING_DIRECTORY ${WORKING_DIRECTORY})
         endif()
         add_test(${add_test_args})
+        if(AVOID_CONCURRENT)
+            set(${TEST_NAME}_LOCKED_RESOURCES)
+            set(n ${AVOID_CONCURRENT})
+            if(n GREATER ${test_concurrency_tolerance})
+                set(n ${test_concurrency_tolerance})
+            endif()
+            foreach(j RANGE 1 ${n})
+                MATH(EXPR testmod "(${test_index} + ${j}) % ${test_concurrency_tolerance}")
+                LIST(APPEND ${TEST_NAME}_LOCKED_RESOURCES lock.${testmod})
+            endforeach()
+            if(n GREATER_EQUAL 2)
+                message(STATUS "Test ${TEST_NAME} locks resources ${${TEST_NAME}_LOCKED_RESOURCES}")
+            endif()
+            set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK
+                ${${TEST_NAME}_LOCKED_RESOURCES})
+            # set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK lock.${testmod})
+        endif()
+        # if(CADO_NFS_LOCK_TOOL AND AVOID_CONCURRENT)
+        #     MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
+        #     set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock.${testmod})
+        # endif()
+        if(nTIMEOUT GREATER 0)
+            if(TIMEOUT_SCALE)
+                MATH(EXPR t "${TIMEOUT}*${TIMEOUT_SCALE}")
+                set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT ${t})
+            else()
+                set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT ${TIMEOUT})
+            endif()
+        endif()
         set(${TEST_NAME}_TEST_EXISTS 1)
         if(nTARGET_DEPENDENCIES GREATER 0)
             # seems that we need set_tests_properties to take only a
@@ -368,6 +409,9 @@ macro(cado_define_test)
         # inherited tests depend on these.
         set(${TEST_NAME}_TEST_DEPENDENCIES ${TEST_DEPENDENCIES})
     endif()
+        if(nTIMEOUT GREATER 0)
+            # message(STATUS "Timeout for ${TEST_NAME} is ${TIMEOUT}")
+        endif()
 endmacro()
 
 macro(cado_divert_test TEST_BASE DIVERSION)
@@ -404,13 +448,14 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     set(PRECOMMAND)
     set(APPEND_ARGUMENTS)
     set(APPEND_ENVIRONMENT)
-    set(APPEND_PRECOMMAND)
+    set(PREPEND_PRECOMMAND)
     set(TEST_DEPENDENCIES)
     set(TARGET_DEPENDENCIES)
     set(NO_DEFAULT_RUN)
     set(AVOID_CONCURRENT)
     set(EXPECT_FAIL)
     set(current ARGUMENTS)
+    set(TIMEOUT)
     foreach(x ${ARGN})
         if (x STREQUAL "ARGUMENTS")
             SET(current ARGUMENTS)
@@ -422,8 +467,8 @@ macro(cado_divert_test TEST_BASE DIVERSION)
             SET(current APPEND_ARGUMENTS)
         elseif (x STREQUAL "APPEND_ENVIRONMENT")
             SET(current APPEND_ENVIRONMENT)
-        elseif (x STREQUAL "APPEND_PRECOMMAND")
-            SET(current APPEND_PRECOMMAND)
+        elseif (x STREQUAL "PREPEND_PRECOMMAND")
+            SET(current PREPEND_PRECOMMAND)
         elseif (x STREQUAL "TEST_DEPENDENCIES")
             SET(current TEST_DEPENDENCIES)
         elseif (x STREQUAL "TARGET_DEPENDENCIES")
@@ -435,9 +480,13 @@ macro(cado_divert_test TEST_BASE DIVERSION)
         elseif (x STREQUAL "AVOID_CONCURRENT")
             SET(current AVOID_CONCURRENT)
             set(AVOID_CONCURRENT 1)
+        elseif (x STREQUAL "TIMEOUT")
+            SET(current TIMEOUT)
         elseif (x STREQUAL "EXPECT_FAIL")
             SET(current EXPECT_FAIL)
             set(EXPECT_FAIL 1)
+        elseif (current IN_LIST CADO_NFS_TEST_KEYWORDS_LAST_WINS)
+            set(${current} ${x})
         else()
             list(APPEND ${current} ${x})
         endif()
@@ -447,9 +496,10 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     list(LENGTH ARGUMENTS nARGUMENTS)
     list(LENGTH ENVIRONMENT nENVIRONMENT)
     list(LENGTH PRECOMMAND nPRECOMMAND)
+    list(LENGTH TIMEOUT nTIMEOUT)
     list(LENGTH APPEND_ARGUMENTS nAPPEND_ARGUMENTS)
     list(LENGTH APPEND_ENVIRONMENT nAPPEND_ENVIRONMENT)
-    list(LENGTH APPEND_PRECOMMAND nAPPEND_PRECOMMAND)
+    list(LENGTH PREPEND_PRECOMMAND nPREPEND_PRECOMMAND)
     list(LENGTH NO_DEFAULT_RUN nNO_DEFAULT_RUN)
     if ((nAPPEND_ARGUMENTS GREATER 0) AND (nARGUMENTS GREATER 0))
         message(FATAL_ERROR "ARGUMENTS and APPEND_ARGUMENTS are incompatible")
@@ -457,8 +507,8 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     if ((nAPPEND_ENVIRONMENT GREATER 0) AND (nENVIRONMENT GREATER 0))
         message(FATAL_ERROR "ENVIRONMENT and APPEND_ENVIRONMENT are incompatible")
     endif()
-    if ((nAPPEND_PRECOMMAND GREATER 0) AND (nPRECOMMAND GREATER 0))
-        message(FATAL_ERROR "PRECOMMAND and APPEND_PRECOMMAND are incompatible")
+    if ((nPREPEND_PRECOMMAND GREATER 0) AND (nPRECOMMAND GREATER 0))
+        message(FATAL_ERROR "PRECOMMAND and PREPEND_PRECOMMAND are incompatible")
     endif()
 
     set(TEST_NAME "${TEST_BASE}_${DIVERSION}")
@@ -474,7 +524,7 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     endif()
 
     if (NOT nPRECOMMAND GREATER 0)
-        set(PRECOMMAND ${${TEST_BASE}_PRECOMMAND} ${APPEND_PRECOMMAND})
+        set(PRECOMMAND ${PREPEND_PRECOMMAND} ${${TEST_BASE}_PRECOMMAND})
         list(LENGTH PRECOMMAND nPRECOMMAND)
     endif()
 
@@ -484,6 +534,12 @@ macro(cado_divert_test TEST_BASE DIVERSION)
 
     if (NOT EXPECT_FAIL GREATER 0)
         set(EXPECT_FAIL ${${TEST_BASE}_EXPECT_FAIL})
+    endif()
+
+    if (NOT nTIMEOUT GREATER 0)
+        set(TIMEOUT ${${TEST_BASE}_TIMEOUT})
+        # message(STATUS "Timeout for ${TEST_NAME} is inherited from ${TEST_BASE}: ${TIMEOUT}")
+        list(LENGTH TIMEOUT nTIMEOUT)
     endif()
 
     # we want to define builddep_X unconditionally, depending at least on
@@ -501,6 +557,7 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     set(${TEST_NAME}_PRECOMMAND ${PRECOMMAND})
     set(${TEST_NAME}_AVOID_CONCURRENT ${AVOID_CONCURRENT})
     set(${TEST_NAME}_EXPECT_FAIL ${EXPECT_FAIL})
+    set(${TEST_NAME}_TIMEOUT ${TIMEOUT})
 
     if(NOT NO_DEFAULT_RUN)
         set(test_env env)
@@ -511,15 +568,42 @@ macro(cado_divert_test TEST_BASE DIVERSION)
             set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
         endif()
         MATH(EXPR test_index "${test_index}+1")
-        if(CADO_NFS_LOCK_TOOL AND AVOID_CONCURRENT)
-            MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
-            set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock.${testmod})
-        endif()
+        # if(CADO_NFS_LOCK_TOOL AND AVOID_CONCURRENT)
+        #     MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
+        #     set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock.${testmod})
+        # endif()
         set(A2F)
         if(EXPECT_FAIL)
             list(APPEND A2F ${CADO_NFS_SOURCE_DIR}/tests/abort-to-fail.sh)
         endif()
-        add_test(NAME ${TEST_NAME} COMMAND ${test_env} ${${TEST_NAME}_LOCKF} ${A2F} ${${TEST_NAME}_PRECOMMAND} ${${TEST_BASE}_EXECUTABLE} ${ARGUMENTS})
+        # dropping ${${TEST_NAME}_LOCKF} (see in cado_define_test)
+        add_test(NAME ${TEST_NAME} COMMAND ${test_env} ${A2F} ${${TEST_NAME}_PRECOMMAND} ${CADO_NFS_SOURCE_DIR}/tests/test.sh ${${TEST_BASE}_EXECUTABLE} ${ARGUMENTS})
+        if(AVOID_CONCURRENT)
+            set(${TEST_NAME}_LOCKED_RESOURCES)
+            set(n ${AVOID_CONCURRENT})
+            if(n GREATER ${test_concurrency_tolerance})
+                set(n ${test_concurrency_tolerance})
+            endif()
+            foreach(j RANGE 1 ${n})
+                MATH(EXPR testmod "(${test_index} + ${j}) % ${test_concurrency_tolerance}")
+                LIST(APPEND ${TEST_NAME}_LOCKED_RESOURCES lock.${testmod})
+            endforeach()
+            if(n GREATER_EQUAL 2)
+                message(STATUS "Test ${TEST_NAME} locks resources ${${TEST_NAME}_LOCKED_RESOURCES}")
+            endif()
+            set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK
+                ${${TEST_NAME}_LOCKED_RESOURCES})
+            # MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
+            # set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK lock.${testmod})
+        endif()
+        if(nTIMEOUT GREATER 0)
+            if(TIMEOUT_SCALE)
+                MATH(EXPR t "${TIMEOUT}*${TIMEOUT_SCALE}")
+                set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT ${t})
+            else()
+                set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT ${TIMEOUT})
+            endif()
+        endif()
         set(${TEST_NAME}_TEST_EXISTS 1)
         # prepare a ;-separated list for set_tests_properties
         # note that we do not need to make the test depend on
@@ -573,28 +657,27 @@ cado_define_test(full_c30
         bwc_full_gf2
         sqrt
     AVOID_CONCURRENT
+    TIMEOUT 300
         )
-    if(HAVE_GCC_STYLE_AMD64_INLINE_ASM AND pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
+    if(pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
         # no need to have both the JL and non-JL in normal tests, I
         # think, given that there's always at least one machine that does
         # the expensive tests.
-        if(DEFINED ENV{CHECKS_EXPENSIVE})
-            # see linalg/bwc/CMakeLists.txt for an explanation
-            cado_define_test(full_p30
-                SCRIPT
-                ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
-                ${CADO_NFS_BINARY_DIR}/cado-nfs.py
-                -dlp -ell 445257213376519703258944813
-                -t 2 -dlp-no-keep
-                target=92800609832959449330691138186
-                3037544709654617415632521514287
-                TARGET_DEPENDENCIES full_dependencies_base
-                bwc_full_gfp
-                lingen_pz sm sm_simple las_descent reconstructlog-dl
-                merge-dl replay-dl numbertheory_tool
-                AVOID_CONCURRENT
-                )
-        endif()
+        cado_define_test(full_p30
+            SCRIPT
+            ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --arg workdir
+            ${CADO_NFS_BINARY_DIR}/cado-nfs.py
+            -dlp -ell 445257213376519703258944813
+            -t 2 -dlp-no-keep
+            target=92800609832959449330691138186
+            3037544709654617415632521514287
+            TARGET_DEPENDENCIES full_dependencies_base
+            bwc_full_gfp
+            lingen_pz sm sm_simple las_descent reconstructlog-dl
+            merge-dl replay-dl numbertheory_tool
+            AVOID_CONCURRENT
+            TIMEOUT 300
+        )
         # The following case was hitting the bug #21707
         set(full_p30_JL_params
             fastSM=true
@@ -638,6 +721,7 @@ cado_define_test(full_c30
             TARGET_DEPENDENCIES
             ${full_p30_JL_deps}
             AVOID_CONCURRENT
+            TIMEOUT 300
             )
     endif()
 endif()
@@ -658,6 +742,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         AVOID_CONCURRENT
+        TIMEOUT 300
             )
     cado_define_test(full_c65_128
         SCRIPT
@@ -668,6 +753,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         AVOID_CONCURRENT
+        TIMEOUT 300
             )
     cado_define_test(full_c59_nonlinear
         SCRIPT
@@ -679,6 +765,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         AVOID_CONCURRENT
+        TIMEOUT 300
         )
     if (BWC_GFP_ARITHMETIC_BACKENDS AND pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
 #        this test is probably not very useful, given that the other
@@ -699,6 +786,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             TARGET_DEPENDENCIES full_p30_dependencies
             lingen_pz sm reconstructlog-dl merge-dl replay-dl numbertheory_tool
         AVOID_CONCURRENT
+        TIMEOUT 300
             )
         cado_define_test(full_gfp2
             SCRIPT
@@ -707,6 +795,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             TARGET_DEPENDENCIES full_p30_dependencies
             filter_galois polyselect_gfpn
         AVOID_CONCURRENT
+        TIMEOUT 300
             )
 # see bug https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21767
 #         cado_define_test(full_gfp2_2_2g
@@ -738,8 +827,13 @@ set_tests_properties(test_tests_common_6 PROPERTIES PASS_REGULAR_EXPRESSION "Usi
 cado_define_test(test_iceildiv.c)
 
 # used by some tests.
-if(DEFINED ENV{CHECKS_EXPENSIVE})
 find_program(MAGMA magma HINTS ENV MAGMA)
+if(MAGMA)
+    message(STATUS "magma program found, some bwc checks will run Magma code")
+endif()
+find_program(SAGE sage HINTS ENV SAGE)
+if(SAGE)
+    message(STATUS "sage program found, some bwc checks will run SageMath code")
 endif()
 
 add_subdirectory (scripts)
@@ -749,6 +843,8 @@ add_subdirectory (polyselect)
 add_subdirectory (filter)
 add_subdirectory (estimate_matsize)
 add_subdirectory (linalg)
+if(NOT HAVE_GF2X)
 add_subdirectory (gf2x)
+endif()
 add_subdirectory (misc)
 add_subdirectory (sqrt)

@@ -3,38 +3,78 @@
 
 /* The outer interface of the matpoly_binary type is exactly the same as
  * for the matpoly type. This is enforced by the test program. In
- * particular, we copy even the "abdst_field" argument that is passed
+ * particular, we copy even the "arith_hard" argument that is passed
  * everywhere, with the slight catch that the code *here* does not use it
  * at all.
  *
- * We have two options:
  *
- * For convenience, consider this binary matpoly type as
- * linked to the u64k1 type
- *
- * Replace all the "ab" stuff by empty proxies.
- *
- * I haven't made my mind yet as to which is best.
+ * All the "arith_hard" stuff in here is replaced by (nearly) empty proxies.
  */
 
 #include <cstdlib>
 #include <gmp.h>
+#include <algorithm>
 #include "cado_config.h"
 #include "macros.h"
 #include "lingen_memory_pool.hpp"
 #include "submatrix_range.hpp"
-#include "mpfq_fake.hpp"
+// #include "arith-hard.hpp"
 #include "tree_stats.hpp"
 #include "lingen_call_companion.hpp"
+#include "cxx_mpz.hpp"
 
 class matpoly {
     friend class bigmatpoly;
 
-    typedef abdst_vec ptr;
-    typedef absrc_vec srcptr;
+    // static_assert(arith_hard::elt::compatible_with<unsigned long>::value, "This file requires that the arithmetic layer be based on unsigned long");
 
+public:
+    /*
+    typedef arith_hard::elt elt;
+    typedef arith_hard::elt * ptr;
+    typedef arith_hard::elt const * srcptr;
+    */
+    typedef unsigned long elt;
+    typedef unsigned long * ptr;
+    typedef unsigned long const * srcptr;
+
+    struct arith_hard {
+        static size_t elt_stride() { return sizeof(elt); }
+        static mpz_srcptr characteristic() {
+            static mp_limb_t limbs[1] = {2};
+            static __mpz_struct a = { 1, 1, limbs };
+            return &a;
+        }
+        arith_hard(cxx_mpz const &, unsigned int) {}
+        static bool is_zero(elt x) { return x == 0; }
+        public:
+        /* Note that here, k is in numbers of bits, and it must always be
+         * a multiple of ULONG_BITS
+         */
+        static elt * vec_subvec(ptr p, size_t k) {
+            return p + k/ULONG_BITS;
+        }
+        static elt const * vec_subvec(srcptr p, size_t k) {
+            return p + k/ULONG_BITS;
+        }
+        static void vec_add(elt * u, elt const * x, size_t n) {
+            for(size_t i = 0 ; i < n/ULONG_BITS ; i++) {
+                u[i] ^= x[i];
+            }
+        }
+        static void vec_set(elt * u, elt const * x, size_t n) {
+            std::copy_n(x, n/ULONG_BITS, u);
+        }
+    };
+
+    /* it's only needed when we have code, such as in lingen_matpoly_ft,
+     * which wants to pass matpoly init data from earlier stuff */
+    static constexpr arith_hard * ab = nullptr;
+
+private:
     typedef memory_pool_wrapper<ptr, true> memory_pool_type;
     static memory_pool_type memory;
+
 public:
     struct memory_guard : private memory_pool_type::guard_base {
         memory_guard(size_t s) : memory_pool_type::guard_base(memory, s) {}
@@ -43,7 +83,11 @@ public:
 
     static constexpr bool over_gf2 = true;
     // static void add_to_main_memory_pool(size_t s);
-    abdst_field ab = NULL;
+    // arith_hard * ab = NULL;
+    /* Note that in a sense, we're perverting the b64 layer anyway, since
+     * what we're really doing is _NOT_ simd at all.
+     */
+    // static_assert(arith_hard::simd_groupsize == 64, "This code only works with the b64 layer");
     unsigned int m = 0;
     unsigned int n = 0;
     /* alloc_words is the number of unsigned longs used to store each
@@ -51,7 +95,7 @@ public:
 private:
     size_t size = 0;    /* in bits */
     size_t alloc_words = 0;
-    unsigned long * x = NULL;
+    ptr x = NULL;
 #define BITS_TO_WORDS(B,W)      iceildiv((B),(W))
     static inline size_t b2w_x(size_t n) {
         /* We always use an even number of words. It seems stupid, but
@@ -65,7 +109,8 @@ private:
     }
     static inline size_t b2w(size_t n) {
         return BITS_TO_WORDS(n, ULONG_BITS);
-    }/*{{{*/
+    }
+    /*{{{*/
     // inline size_t colstride() const { return nrows() * stride(); }/*}}}*/
 public:
     inline size_t capacity() const { return alloc_words * ULONG_BITS; }
@@ -99,15 +144,15 @@ public:
     size_t get_true_nonzero_size() const;
     unsigned int valuation() const;
 
-    matpoly() { m=n=0; size=0; alloc_words=0; ab=NULL; x=NULL; }
-    matpoly(abdst_field ab, unsigned int m, unsigned int n, int len);
+    matpoly() { m=n=0; size=0; alloc_words=0; x=NULL; }
+    matpoly(arith_hard * ab, unsigned int m, unsigned int n, int len);
     matpoly(matpoly const&) = delete;
     matpoly& operator=(matpoly const&) = delete;
     matpoly& set(matpoly const&);
     matpoly(matpoly &&);
     matpoly& operator=(matpoly &&);
     ~matpoly();
-    matpoly similar_shell() const { return matpoly(ab, m, n, 0); }
+    matpoly similar_shell() const { return matpoly(nullptr, m, n, 0); }
     bool check_pre_init() const ATTRIBUTE_WARN_UNUSED_RESULT {
         return x == NULL;
     }
@@ -120,46 +165,49 @@ public:
     /* part_head does not _promise_ to point to coefficient k exactly. In
      * the simd case (lingen_matpoly_binary.hpp) it points to the word
      * where coefficient k can be found */
-    inline abdst_vec part(unsigned int i, unsigned int j) {
+    inline ptr part(unsigned int i, unsigned int j) {
         return x + (i*n+j)*alloc_words;
     }
-    inline abdst_vec part_head(unsigned int i, unsigned int j, unsigned int k) {
-        return part(i, j) + k / ULONG_BITS;
-    }
-    inline abdst_elt coeff(unsigned int i, unsigned int j) {
-        return part(i, j);
-    }
-    inline absrc_vec part(unsigned int i, unsigned int j) const {
+    // inline elt& coeff(unsigned int i, unsigned int j) { return *part(i, j); }
+    inline srcptr part(unsigned int i, unsigned int j) const {
         return x + (i*n+j)*alloc_words;
     }
-    inline absrc_vec part_head(unsigned int i, unsigned int j, unsigned int k) const {
-        return part(i, j) + k / ULONG_BITS;
+    public:
+    inline ptr part_head(unsigned int i, unsigned int j, unsigned int k) {
+        /* k is a number of bits. Only k/ULONG_BITS matter (see
+         * ab->vec_subvec)
+         */
+        return ab->vec_subvec(part(i, j), k);
     }
-    /* This one is a bit special, as it makes it possible to read one
-     * coefficient exactly. It's R/O access, though. */
-    inline absrc_elt coeff(unsigned int i, unsigned int j, unsigned int k) const {
-        unsigned int kr = k % ULONG_BITS;
-        unsigned long km = 1UL << kr;
-        static constexpr abelt coeffbits[2] = { {0}, {1} };
-        return coeffbits[((*part_head(i, j, k) & km) != 0)];
+    inline srcptr part_head(unsigned int i, unsigned int j, unsigned int k) const {
+        /* k is a number of bits. Only k/ULONG_BITS matter (see
+         * ab->vec_subvec)
+         */
+        return ab->vec_subvec(part(i, j), k);
+    }
+    inline elt coeff(unsigned int i, unsigned int j, unsigned int k) const {
+        /* k is a number of bits */
+        return (*part_head(i, j, k) >> (k % ULONG_BITS)) != 0;
     }
     struct coeff_accessor_proxy {
-        unsigned long * p;
+        unsigned long & p;
         unsigned int kr;
         coeff_accessor_proxy(matpoly& F, unsigned int i,
                 unsigned int j, unsigned int k)
+            : p(*F.part_head(i, j, k))
+            , kr(k % ULONG_BITS)
         {
-            p = F.coeff(i, j) + (k / ULONG_BITS);
-            kr = k % ULONG_BITS;
         }
-        coeff_accessor_proxy& operator+=(absrc_elt x) {
-            *p ^= *x << kr;
+        operator elt() const { return (p>>kr) & 1; }
+        coeff_accessor_proxy& operator+=(unsigned long x) {
+            p ^= (x&1) << kr;
             return *this;
         }
     };
-    inline coeff_accessor_proxy coeff_accessor(unsigned int i, unsigned int j, unsigned int k = 0) {
+    inline coeff_accessor_proxy coeff(unsigned int i, unsigned int j, unsigned int k) {
         return coeff_accessor_proxy(*this, i, j, k);
     }
+    public:
     /* }}} */
 
     /* The interfaces below used to exist for the old binary "polmat"
@@ -167,11 +215,11 @@ public:
      */
     void addpoly(unsigned int i, unsigned int j, matpoly const& y, unsigned int iy, unsigned int jy) __attribute__((deprecated));
     void xmul_poly(unsigned int i, unsigned int j, unsigned long s) __attribute__((deprecated));
-    unsigned long * poly(unsigned int i, unsigned int j) __attribute__((deprecated)) { return part(i, j); }
-    const unsigned long * poly(unsigned int i, unsigned int j) const __attribute__((deprecated)) { return part(i, j); }
+    ptr poly(unsigned int i, unsigned int j) __attribute__((deprecated)) { return part(i, j); }
+    srcptr poly(unsigned int i, unsigned int j) const __attribute__((deprecated)) { return part(i, j); }
 
     void set_constant_ui(unsigned long e);
-    void set_constant(absrc_elt e) { set_constant_ui(*e); }
+    void set_constant(unsigned long e) { set_constant_ui(e); }
 
     /* Note that this does not affect the size field */
     void fill_random(unsigned int k0, unsigned int k1, gmp_randstate_t rstate);
@@ -248,10 +296,10 @@ public:
         matpoly & M;
         view_t(matpoly & M, submatrix_range S) : submatrix_range(S), M(M) {}
         view_t(matpoly & M) : submatrix_range(M), M(M) {}
-        inline abdst_vec part(unsigned int i, unsigned int j) {
+        inline ptr part(unsigned int i, unsigned int j) {
             return M.part(i0+i, j0+j);
         }
-        inline absrc_vec part(unsigned int i, unsigned int j) const {
+        inline srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
         void zero();
@@ -262,7 +310,7 @@ public:
         const_view_t(matpoly const & M, submatrix_range S) : submatrix_range(S), M(M) {}
         const_view_t(matpoly const & M) : submatrix_range(M), M(M) {}
         const_view_t(view_t const & V) : submatrix_range(V), M(V.M) {}
-        inline absrc_vec part(unsigned int i, unsigned int j) const {
+        inline srcptr part(unsigned int i, unsigned int j) const {
             return M.part(i0+i, j0+j);
         }
     };

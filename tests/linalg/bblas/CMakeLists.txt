@@ -49,10 +49,13 @@ cado_define_test(test_bblas_level3 PROGRAM
     --fast n=1000
     TARGET_DEPENDENCIES test_bblas)
 
+# easily times out in coverage mode
 cado_define_test(test_bblas_level4 PROGRAM
     ${CMAKE_CURRENT_BINARY_DIR}/test_bblas --tests l4
     --fast n=1000
-    TARGET_DEPENDENCIES test_bblas)
+    TARGET_DEPENDENCIES test_bblas
+    TIMEOUT 60
+)
 
 cado_define_test(test_bblas_level5 PROGRAM
     ${CMAKE_CURRENT_BINARY_DIR}/test_bblas --tests l5

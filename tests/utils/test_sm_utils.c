@@ -203,6 +203,7 @@ test_sm (FILE * datafile)
     }
 
 
+    sm_side_info_clear(sm_info);
     for (int i = 0; i < nb_ab; i++)
       mpz_poly_clear (ab_polys[i]->ab);
     mpz_clear (tmp);

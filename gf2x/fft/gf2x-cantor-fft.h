@@ -195,24 +195,21 @@ extern char * gf2x_cantor_fft_info_explain(
 
 /* End of automatically generated section */
 
-/* gf2x_cantor_fft_elt is actually the same as mpfq_2_XXX_elt, but we don't
- * want to define mpfq_2_XXX_elt just yet. The .c file will include mpfq
- * itself, and that would mean two typedefs for the same thing.
- * (and we don't want mpfq be part of the exported interface)
+/* gf2x_cantor_fft_elt is actually the same as Kelt (from
+ * gf2x-cantor-field-impl.h, and formerly from mpfq) but we do not
+ * want to expose all of the field impl just yet.
  */
-#if CANTOR_BASE_FIELD_SIZE == 128
-#if GF2X_WORDSIZE == 64
-typedef unsigned long gf2x_cantor_fft_elt[2];
+#if CANTOR_BASE_FIELD_SIZE == 128 && GF2X_WORDSIZE == 64
+#elif CANTOR_BASE_FIELD_SIZE == 128 && GF2X_WORDSIZE == 32
+#elif CANTOR_BASE_FIELD_SIZE == 64 && GF2X_WORDSIZE == 64
+#elif CANTOR_BASE_FIELD_SIZE == 64 && GF2X_WORDSIZE == 32
 #else
-typedef unsigned long gf2x_cantor_fft_elt[4];
+#error "Unsupported combination"
 #endif
-#else
-#if GF2X_WORDSIZE == 64
-typedef unsigned long gf2x_cantor_fft_elt[1];
-#else
-typedef unsigned long gf2x_cantor_fft_elt[2];
-#endif
-#endif
+typedef unsigned long gf2x_cantor_fft_elt[CANTOR_BASE_FIELD_SIZE / GF2X_WORDSIZE];
+typedef unsigned long * gf2x_cantor_fft_dst_elt;
+typedef const unsigned long * gf2x_cantor_fft_src_elt;
+
 /* The section below is automatically generated */
 /* inline: export import prepare */
 
@@ -466,8 +463,6 @@ struct gf2x_cantor_fft_info {
     inline std::array<size_t, 3> get_alloc_sizes() const {
         std::array<size_t, 3> sizes;
         gf2x_cantor_fft_info_get_alloc_sizes(this, &sizes[0]);
-        // false positive
-        // coverity[uninit_use]
         return sizes;
     }
     /* This is equal to transform_size() * sizeof(elt) */

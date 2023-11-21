@@ -107,5 +107,11 @@ int main(int argc, const char **argv)
     for (int i = 0; i < 2*N; ++i) {
         ASSERT_ALWAYS(h1[i] == h2[i]);
     }
+
+    free(f);
+    free(g);
+    free(h1);
+    free(h2);
+
     return EXIT_SUCCESS;
 }

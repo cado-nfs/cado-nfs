@@ -225,10 +225,11 @@ checks on centos9 system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
-# unfortunately silkeh/clang:latest is outdated...
-checks with clang13:
+# Despite what the description on docker hub says, silkeh/clang:latest is
+# not always the latest stable build, which is a pity.
+checks with clang:
   <<: *common-template
-  image: silkeh/clang:13
+  image: silkeh/clang:latest
   stage: early
   before_script:
     - ci/ci/00-prepare-docker.sh
@@ -252,6 +253,19 @@ checks with icc:
   stage: early
   tags:
     - icc
+    - mpi
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+including_mpi specific checks with openmpi:
+  <<: *common-template
+  image: alpine:latest
+  stage: early
+  tags:
+    - mpi
   before_script:
     - ci/ci/00-prepare-docker.sh
   script:
@@ -265,6 +279,46 @@ expensive checks with gcc:
   image: gcc:latest
   before_script:
     - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+
+checks under valgrind on debian-testing system on a debug build with gcc:
+  rules:
+    # valgrind checking takes many hours. It's simply not feasible for it to be
+    # part of the normal implement-MR-test-investigate-debug cycle.
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
+    - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "valgrind")
+      when: always
+    - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == "valgrind"
+      when: always
+    - when: never
+  retry:
+    max: 2
+    when: runner_system_failure
+  stage: publish
+  image: debian:testing
+  before_script:
+    - ci/ci/00-prepare-docker.sh
+  script:
+    - *checks-script
+  <<: *checks-junit-report
+  artifacts:
+    # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/4034#note_17683608
+    when: always
+    paths:
+      - valgrind.*.tar.gz
+
+bwc.sagemath specific expensive checks with gcc:
+  <<: *common-template
+  stage: thorough
+  image:
+    name: sagemath/sagemath:latest
+    entrypoint: [ "" ]
+  before_script:
+    - sudo -E ci/ci/00-prepare-docker.sh
   script:
     - *checks-script
   <<: *checks-junit-report
@@ -311,10 +365,12 @@ coverage tests on checks with gcc:
 merge coverage tests:
   <<: *coverage-template
   stage: publish
-  needs:
-    - job: coverage tests on checks with gcc
-      artifacts: true
-    # list more of these...
+  # remove the "needs" keyword, as this causes the whole "publish" stage
+  # to run early on, including when earlier stages actually failed!
+  # needs:
+  #   - job: coverage tests on checks with gcc
+  #     artifacts: true
+  #   # list more of these...
   # This image has gcovr installed
   image: alpine:latest
   before_script:
@@ -449,7 +505,9 @@ containers:
       allow_failure: false
     - if: $CI_COMMIT_MESSAGE =~ /only coverage/
       when: never
-    - when: on_success
+    - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "containers")
+      when: on_success
+    - when: never
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - apk update
@@ -458,6 +516,17 @@ containers:
   retry:
     max: 2
     when: runner_system_failure
+
+# same, but do not restrict to the master branch
+dry-run containers:
+  stage: early
+  image: docker
+  <<: *common-template
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - apk update
+    - apk add make bash git
+    - make -f docker/Makefile NOW=$(date +%Y%m%d%H%M-$CI_COMMIT_SHA)
 
 
 # "cache" is only when the runners have a notion of available cache

@@ -9,7 +9,7 @@
 
 if [ "$CADO_DEBUG" ] ; then set -x ; fi
 
-if [ $# != 9 ]; then
+if [ $# != 9 ] ; then
     echo "usage: ./create_strat_file.sh <lim0> <lpb0> <mfb0> <lim1> <lpb1> <mfb1> <poly> <I> <cado_bindir>";
     exit;
 fi
@@ -101,7 +101,7 @@ while read m b1min b1max b1step cmin cmax cstep; do
     cmd="$GFM -lb $fbb -ub $lpb  -m $m -b1min $b1min -b1max $b1max -b1step $b1step -cmin $cmin -cmax $cmax -cstep $cstep -out $outfile"
     echo $cmd
     let x=$x+1
-    if [ $x == 10 ]; then
+    if [ $x == 10 ] ; then
         x=0
         $cmd
     else

@@ -1,5 +1,7 @@
 # Some cmake glue code.
 
+# note that cmake 3.7 or older don't have string(JOIN ...)
+
 macro(string_join var delimiter str_list)
     set(_ret "")
     foreach(_str ${str_list})

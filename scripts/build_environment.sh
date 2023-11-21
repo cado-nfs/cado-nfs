@@ -20,18 +20,28 @@
 # This is readlink -f on many unices. Alas, not on mac.
 if [ "`uname -s`" = Darwin ] ; then
     # use code from https://github.com/mkropat/sh-realpath, MIT-licensed.
-    source "`dirname $0`/realpath.sh"
+    source `dirname "$0"`/realpath.sh
     readlink_f() { realpath "$@" ; }
 else
     readlink_f() { readlink -f "$@" ; }
 fi
 
 
-up_path="$(readlink_f `dirname $0`/..)"
-if [ "$(readlink_f $up_path/scripts/`basename $0`)" != "$(readlink_f $0)" ] ; then
+up_path=$(readlink_f `dirname "$0"`/..)
+path_inside_tree=$(readlink_f "$up_path/scripts/`basename $0`")
+path_myself=$(readlink_f "$0")
+
+if [ "$path_inside_tree" != "$path_myself" ] ; then
     echo "Error: `basename $0` must be inside the cado-nfs source tree"
     exit 1
 fi
+
+case "$path_myself" in
+    *\ *) echo "You are trying to compile cado-nfs from a directory with spaces in its full path. This is not supported. (Mostly because the GNU autotools don't support it either.)" >&2
+        exit 1
+        ;;
+esac
+
 pwdP="pwd -P"
 if ! $pwdP >/dev/null 2>&1 ; then
     pwdP=pwd
@@ -43,8 +53,8 @@ fi
 # absolute_path_of_source to be the absolute path of $CADO
 # relative_path_of_cwd to be linalg/bwc
 #
-called_from="$(readlink_f `pwd`)"
-absolute_path_of_source="$(readlink_f $up_path)"
+called_from=$(readlink_f "`pwd`")
+absolute_path_of_source=$(readlink_f "$up_path")
 relative_path_of_cwd="${called_from##$absolute_path_of_source}"
 
 ########################################################################
@@ -102,78 +112,63 @@ fi
 # results to scripts. This is done by cmake substitutions, but the
 # corresponding names need not match the ones below).
 
-export CC
-export CXX
-export CFLAGS
-export CXXFLAGS
-export FLAGS_SIZE
-export LDFLAGS
-export PREFIX
-export CADO_DIST_ARCHIVE_NAME
-export MPI
-export GF2X_CONFIGURE_EXTRA
-export GMP
-export GMP_INCDIR
-export GMP_LIBDIR
-export MPIR
-export MPIR_INCDIR
-export MPIR_LIBDIR
-export PTHREADS
-export CURL
-export CURL_INCDIR
-export CURL_LIBDIR
-export HWLOC
-export HWLOC_INCDIR
-export HWLOC_LIBDIR
-export GMPECM
-export GMPECM_INCDIR
-export GMPECM_LIBDIR
-export JEVENTS
-export JEVENTS_INCDIR
-export JEVENTS_LIBDIR
-export NUMA
-export NUMA_INCDIR
-export NUMA_LIBDIR
-export GF2X_CONFIGURE_EXTRA_FLAGS
-export CMAKE_DUMP_VARIABLES
-export ENABLE_SHARED
-export NO_PYTHON_CHECK
-export NO_SSE
-export NO_INLINE_ASSEMBLY
-export NO_GAS_ASSEMBLY
-export CHECKS_EXPENSIVE
-export BWC_GF2_MATMUL_BACKENDS
-export BWC_GFP_MATMUL_BACKENDS
-export BWC_GF2_ARITHMETIC_BACKENDS
-export BWC_GFP_ARITHMETIC_BACKENDS
-export BWC_EXTRA_BACKENDS
+passed_env=(
+CC
+CXX
+CFLAGS
+CXXFLAGS
+FLAGS_SIZE
+LDFLAGS
+PREFIX
+CADO_DIST_ARCHIVE_NAME
+MPI
+GF2X_CONFIGURE_EXTRA
+GMP
+GMP_INCDIR
+GMP_LIBDIR
+MPIR
+MPIR_INCDIR
+MPIR_LIBDIR
+PTHREADS
+HWLOC
+HWLOC_INCDIR
+HWLOC_LIBDIR
+GMPECM
+GMPECM_INCDIR
+GMPECM_LIBDIR
+JEVENTS
+JEVENTS_INCDIR
+JEVENTS_LIBDIR
+NUMA
+NUMA_INCDIR
+NUMA_LIBDIR
+GF2X_CONFIGURE_EXTRA_FLAGS
+CMAKE_DUMP_VARIABLES
+ENABLE_SHARED
+NO_PYTHON_CHECK
+NO_SSE
+NO_INLINE_ASSEMBLY
+NO_GAS_ASSEMBLY
+CHECKS_EXPENSIVE
+BWC_GF2_MATMUL_BACKENDS
+BWC_GFP_MATMUL_BACKENDS
+BWC_GF2_ARITHMETIC_BACKENDS
+BWC_GFP_ARITHMETIC_BACKENDS
+BWC_EXTRA_BACKENDS
+TIMEOUT_SCALE
+)
+
+for e in "${passed_env[@]}" ; do export $e ; done
 
 ########################################################################
 # make show
 if [ "$1" = "--show" ] ; then
-    echo "build_tree=\"$build_tree\""
-    echo "up_path=\"$up_path\""
-    echo "called_from=\"$called_from\""
-    echo "absolute_path_of_source=\"$absolute_path_of_source\""
-    echo "relative_path_of_cwd=\"$relative_path_of_cwd\""
-    echo "CC=\"$CC\""
-    echo "CXX=\"$CXX\""
-    echo "CFLAGS=\"$CFLAGS\""
-    echo "CXXFLAGS=\"$CXXFLAGS\""
-    echo "FLAGS_SIZE=\"$FLAGS_SIZE\""
-    echo "LDFLAGS=\"$CFLAGS\""
-    echo "PREFIX=\"$PREFIX\""
-    echo "CADO_DIST_ARCHIVE_NAME=\"$CADO_DIST_ARCHIVE_NAME\""
-    echo "MPI=\"$MPI\""
-    echo "GF2X_CONFIGURE_EXTRA=\"$GF2X_CONFIGURE_EXTRA\""
-    echo "PTHREADS=\"$PTHREADS\""
-    echo "CMAKE_GENERATOR=\"$CMAKE_GENERATOR\""
-    echo "ENABLE_SHARED=\"$ENABLE_SHARED\""
-    echo "CHECKS_EXPENSIVE=\"$CHECKS_EXPENSIVE\""
-    echo "BWC_GF2_MATMUL_BACKENDS=\"$BWC_GF2_MATMUL_BACKENDS\""
-    echo "BWC_GFP_MATMUL_BACKENDS=\"$BWC_GFP_MATMUL_BACKENDS\""
-    echo "BWC_GF2_ARITHMETIC_BACKENDS=\"$BWC_GF2_ARITHMETIC_BACKENDS\""
-    echo "BWC_GFP_ARITHMETIC_BACKENDS=\"$BWC_GFP_ARITHMETIC_BACKENDS\""
-    echo "BWC_EXTRA_BACKENDS=\"$BWC_EXTRA_BACKENDS\""
+    env_me=(build_tree up_path called_from absolute_path_of_source relative_path_of_cwd)
+    for e in "${env_me[@]}" ; do
+        echo "${e}=\"${!e}\""
+    done
+    for e in "${passed_env[@]}" ; do
+        echo "${e}=\"${!e}\""
+    done
     exit 0
 fi

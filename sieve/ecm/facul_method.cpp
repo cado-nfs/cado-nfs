@@ -16,6 +16,7 @@ facul_method::~facul_method()
         pp1_clear_plan ((pp1_plan_t*) plan);
     else if (method == EC_METHOD)
         ecm_clear_plan ((ecm_plan_t*) plan);
+    free(plan);
 }
 
 

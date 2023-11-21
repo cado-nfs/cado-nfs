@@ -8,7 +8,7 @@
 #include "macros.h"
 // technically, abfield isn't _really_ needed. We use this include as
 // a kludge
-#include "lingen_abfield.hpp" // IWYU pragma: keep
+#include "arith-hard.hpp" // IWYU pragma: keep
 #include "lingen_matpoly_ft.hpp"
 #include "lingen_fft_select.hpp" // IWYU pragma: keep
 #include "lingen_bigmatpoly_ft.hpp"
@@ -144,7 +144,7 @@ bigmatpoly bigmatpoly_ft<fft_type>::mul_caching(tree_stats & stats, bigmatpoly c
     return c;
 }
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 template class bigmatpoly_ft<gf2x_fake_fft_info>;
 template class bigmatpoly_ft<gf2x_cantor_fft_info>;
 template class bigmatpoly_ft<gf2x_ternary_fft_info>;

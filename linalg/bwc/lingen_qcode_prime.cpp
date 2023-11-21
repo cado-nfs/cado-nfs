@@ -2,10 +2,11 @@
 // IWYU pragma: no_include <sys/param.h>
 #include <cstdio>                        // for printf, fprintf, stderr
 #include <cstdlib>                       // for exit, qsort, EXIT_FAILURE
+#include <sstream>
 #include <tuple>                          // for tie, tuple
 #include <vector>                         // for vector
 #include "cxx_mpz.hpp"
-#include "lingen_abfield.hpp" // IWYU pragma: keep
+#include "arith-hard.hpp" // IWYU pragma: keep
 #include "lingen_bmstatus.hpp"            // for bmstatus
 #include "lingen_bw_dimensions.hpp"
 #include "lingen_call_companion.hpp"      // for lingen_call_companion
@@ -58,7 +59,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
     unsigned int m = d.m;
     unsigned int n = d.n;
     unsigned int b = m + n;
-    abdst_field ab = d.ab;
+    matpoly::arith_hard * ab = & d.ab;
     ASSERT(E.m == m);
     ASSERT(E.n == b);
 
@@ -126,12 +127,8 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 #pragma omp parallel
 #endif
         {
-            abelt_ur tmp_ur;
-            abelt_ur_init(ab, &tmp_ur);
+            auto e_ur = ab->alloc<arith_hard::elt_ur_for_addmul>(1);
 
-            abelt_ur e_ur;
-            abelt_ur_init(ab, &e_ur);
-            
 #ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
 #endif
@@ -139,21 +136,19 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                 for(unsigned int i = 0 ; i < m ; ++i) {
                     unsigned int j = todo[jl];
                     unsigned int lj = MIN(pi_real_lengths[j], t + 1);
-                    abelt_ur_set_zero(ab, e_ur);
+                    ab->set_zero(*e_ur);
                     for(unsigned int k = 0 ; k < b ; ++k) {
                         for(unsigned int s = 0 ; s < lj ; s++) {
-                            abmul_ur(ab, tmp_ur,
+                            ab->addmul_ur(*e_ur,
                                     E.coeff(i, k, t - s),
                                     pi.coeff(k, j, s));
-                            abelt_ur_add(ab, e_ur, e_ur, tmp_ur);
                         }
                     }
-                    abreduce(ab, e.coeff(i, j, 0), e_ur);
+                    ab->reduce(e.coeff(i, j, 0), *e_ur);
                 }
             }
 
-            abelt_ur_clear(ab, &tmp_ur);
-            abelt_ur_clear(ab, &e_ur);
+            ab->free(e_ur);
         }
         /* }}} */
 
@@ -164,7 +159,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             unsigned int j = todo[jl];
             unsigned int nz = 0;
             for(unsigned int i = 0 ; i < m ; i++) {
-                nz += abcmp_ui(ab, e.coeff(i, j, 0), 0) == 0;
+                nz += ab->is_zero(e.coeff(i, j, 0));
             }
             if (nz == m) {
                 newluck++, bm.lucky[j]++;
@@ -238,7 +233,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             unsigned int u = 0;
             /* {{{ Find the pivot */
             for( ; u < m ; u++) {
-                if (abcmp_ui(ab, e.coeff(u, j, 0), 0) != 0)
+                if (!ab->is_zero(e.coeff(u, j, 0)))
                     break;
             }
             if (u == m) continue;
@@ -248,35 +243,27 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             is_pivot[j] = 1;
             pivot_columns.push_back(j);
             /* {{{ Cancel this coeff in all other columns. */
-            abelt inv;
-            abinit(ab, &inv);
-            int rc = abinv(ab, inv, e.coeff(u, j, 0));
+            auto inv = ab->alloc();
+            int rc = ab->inverse(*inv, e.coeff(u, j, 0));
             if (!rc) {
-                fprintf(stderr, "Error, found a factor of the modulus: ");
-                abfprint(ab, stderr, inv);
-                fprintf(stderr, "\n");
+                std::ostringstream os;
+                ab->cxx_out(os, *inv);
+                fprintf(stderr, "Error, found a factor of the modulus: %s\n",
+                        os.str().c_str());
                 exit(EXIT_FAILURE);
             }
-            abneg(ab, inv, inv);
+            ab->neg(*inv, *inv);
             for (unsigned int kl = jl + 1; kl < b ; kl++) {
                 unsigned int k = ctable[kl][1];
-                if (abcmp_ui(ab, e.coeff(u, k, 0), 0) == 0)
+                if (ab->is_zero(e.coeff(u, k, 0)))
                     continue;
                 // add lambda = e[u,k]*-e[u,j]^-1 times col j to col k.
-                abelt lambda;
-                abinit(ab, &lambda);
-                abmul(ab, lambda, inv, e.coeff(u, k, 0));
+                auto lambda = ab->alloc();
+                ab->mul(*lambda, *inv, e.coeff(u, k, 0));
                 ASSERT(bm.delta[j] <= bm.delta[k]);
                 /* {{{ Apply on both e and pi */
-                abelt tmp;
-                abinit(ab, &tmp);
                 for(unsigned int i = 0 ; i < m ; i++) {
-                    /* TODO: Would be better if mpfq had an addmul */
-                    abmul(ab, tmp, lambda, e.coeff(i, j, 0));
-                    abadd(ab,
-                            e.coeff(i, k, 0),
-                            e.coeff(i, k, 0),
-                            tmp);
+                    ab->addmul_and_reduce(e.coeff(i, k, 0), *lambda, e.coeff(i, j, 0));
                 }
                 if (bm.lucky[k] < 0) {
                     /* This column is already discarded, don't bother */
@@ -294,12 +281,12 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                 /* We do *NOT* really update T. T is only used as
                  * storage!
                  */
-                abset(ab, T.coeff(j, k, 0), lambda);
-                abclear(ab, &tmp);
+                ab->set(T.coeff(j, k, 0), *lambda);
                 /* }}} */
-                abclear(ab, &lambda);
+                ab->free(lambda);
             }
-            abclear(ab, &inv); /* }}} */
+            ab->free(inv);
+            /* }}} */
         }
         /* }}} */
 
@@ -320,10 +307,8 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 #pragma omp parallel
 #endif
         {
-            abelt_ur tmp_pi;
-            abelt_ur tmp;
-            abelt_ur_init(ab, &tmp);
-            abelt_ur_init(ab, &tmp_pi);
+            auto tmp = ab->alloc<arith_hard::elt_ur_for_addmul>();
+            auto tmp_pi = ab->alloc<arith_hard::elt_ur_for_addmul>();
 
             for(unsigned int jl = 0 ; jl < b ; ++jl) {
                 unsigned int j = pivot_columns[jl];
@@ -344,13 +329,11 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                 {
                     for(unsigned int kl = m ; kl < b ; kl++) {
                         unsigned int k = pivot_columns[kl];
-                        absrc_elt Tkj = T.coeff(k, j, 0);
-                        ASSERT_ALWAYS(abcmp_ui(ab, Tkj, k==j) == 0);
+                        ASSERT_ALWAYS(ab->cmp(T.coeff(k, j, 0), k==j) == 0);
                     }
                     for(unsigned int kl = 0 ; kl < MIN(m,jl) ; kl++) {
                         unsigned int k = pivot_columns[kl];
-                        absrc_elt Tkj = T.coeff(k, j, 0);
-                        if (abcmp_ui(ab, Tkj, 0) == 0) continue;
+                        if (ab->is_zero(T.coeff(k, j, 0))) continue;
                         ASSERT_ALWAYS(pi_lengths[k] <= pi_lengths[j]);
                         pi_real_lengths[j] = std::max(pi_real_lengths[k], pi_real_lengths[j]);
                     }
@@ -369,9 +352,9 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 #endif
                 for(unsigned int i = 0 ; i < b ; i++) {
                     for(unsigned int s = 0 ; s < dummy ; s++) {
-                        abdst_elt piijs = pi.coeff(i, j, s);
+                        arith_hard::elt & piijs = pi.coeff(i, j, s);
 
-                        abelt_ur_set_elt(ab, tmp_pi, piijs);
+                        ab->set(*tmp_pi, piijs);
 
                         for(unsigned int kl = 0 ; kl < MIN(m,jl) ; kl++) {
                             unsigned int k = pivot_columns[kl];
@@ -382,23 +365,23 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                              * accurately).
                              */
 
-                            absrc_elt Tkj = T.coeff(k, j, 0);
-                            if (abcmp_ui(ab, Tkj, 0) == 0) continue;
+                            arith_hard::elt const & Tkj = T.coeff(k, j, 0);
+                            if (ab->is_zero(Tkj)) continue;
                             /* pi[i,k] has length pi_lengths[k]. Multiply
                              * that by T[k,j], which is a constant. Add
                              * to the unreduced thing. We don't have an
                              * mpfq api call for that operation.
                              */
-                            absrc_elt piiks = pi.coeff(i, k, s);
-                            abmul_ur(ab, tmp, piiks, Tkj);
-                            abelt_ur_add(ab, tmp_pi, tmp_pi, tmp);
+                            arith_hard::elt const & piiks = pi.coeff(i, k, s);
+                            ab->mul_ur(*tmp, piiks, Tkj);
+                            ab->add(*tmp_pi, *tmp);
                         }
-                        abreduce(ab, piijs, tmp_pi);
+                        ab->reduce(piijs, *tmp_pi);
                     }
                 }
             }
-            abelt_ur_clear(ab, &tmp);
-            abelt_ur_clear(ab, &tmp_pi);
+            ab->free(tmp);
+            ab->free(tmp_pi);
         }
         /* }}} */
 
@@ -436,6 +419,8 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
         /* }}} */
     }
 
+    delete[] ctable;
+
     unsigned int pisize = 0;
     for(unsigned int j = 0; j < b; j++) {
         if (pi_real_lengths[j] > pisize)
@@ -450,7 +435,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
     for(unsigned int j = 0; j < b; j++) {
         for(unsigned int k = pi_real_lengths[j] ; k < pi.get_size() ; k++) {
             for(unsigned int i = 0 ; i < b ; i++) {
-                ASSERT_ALWAYS(abis_zero(ab, pi.coeff(i, j, k)));
+                ASSERT_ALWAYS(ab->is_zero(pi.coeff(i, j, k)));
             }
         }
     }
@@ -474,13 +459,10 @@ bw_lingen_basecase(bmstatus & bm, matpoly & E)
     return pi;
 }
 
-void test_basecase(abdst_field ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
+void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, size_t L, gmp_randstate_t rstate)/*{{{*/
 {
     /* used by testing code */
-    bmstatus bm(m,n);
-    cxx_mpz p;
-    abfield_characteristic(ab, p);
-    abfield_specify(bm.d.ab, MPFQ_PRIME_MPZ, (mpz_srcptr) p);
+    bmstatus bm(m,n,ab->characteristic());
     unsigned int t0 = iceildiv(m,n);
     bm.set_t0(t0);
     matpoly E(ab, m, m+n, L);

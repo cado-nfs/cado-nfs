@@ -5,6 +5,7 @@ use strict;
 use POSIX qw/getcwd/;
 use File::Basename;
 use File::Temp qw/tempdir tempfile mktemp/;
+use File::Spec;
 use List::Util qw/max/;
 # do not include Data::Dumper except for debugging.
 # use Data::Dumper;
@@ -224,7 +225,7 @@ my $stop_at_step;
 
 my $hostfile;
 my @hosts=();
-my $mpi;
+my @mpi_path=();
 my $mpi_ver;
 my $needs_mpd;
 # }}}
@@ -586,7 +587,10 @@ my @mpi_precmd_single;
 my @mpi_precmd_lingen;
 
 
+# This now has $mpi a local variable, and the array @mpi_path
+#
 sub detect_mpi {
+    my $mpi;
     if (defined($_=$ENV{'MPI_BINDIR'}) && -x "$_/mpiexec") {
         $mpi=$_;
     } elsif (defined($_=$ENV{'MPI'}) && -x "$_/mpiexec") { 
@@ -612,6 +616,7 @@ sub detect_mpi {
     # From standard mpi-3 on, the name has returned to mpich.
     my $maybe_mpich=1;
     my $maybe_openmpi=1;
+    my $maybe_intelmpi=1;
 
     if (defined($mpi)) {
         SEVERAL_CHECKS: {
@@ -630,29 +635,34 @@ sub detect_mpi {
                     print STDERR "Auto-detecting openmpi based on alternatives\n";
                     $maybe_mvapich2=0;
                     $maybe_mpich=0;
+                    $maybe_intelmpi=0;
                     last;
                 } elsif ($mpiexec =~ /mpich2/) {
                     print STDERR "Auto-detecting mpich2(old) based on alternatives\n";
                     $maybe_mpich='mpich2';
                     $maybe_mvapich2=0;
                     $maybe_openmpi=0;
+                    $maybe_intelmpi=0;
                     last;
                 } elsif ($mpiexec =~ /mpich/) {
                     print STDERR "Auto-detecting mpich based on alternatives\n";
                     $maybe_mvapich2=0;
                     $maybe_openmpi=0;
+                    $maybe_intelmpi=0;
                     last;
                 } elsif ($mpiexec =~ /hydra/) {
                     # Newer mvapich2 uses hydra as well...
                     print STDERR "Auto-detecting mpich or mvapich2 (hydra) or intel mpi (hydra) based on alternatives\n";
                     $maybe_mvapich2='hydra';
                     $maybe_mpich='hydra';
+                    $maybe_intelmpi='hydra';
                     $maybe_openmpi=0;
                     last;
                 } elsif ($mpiexec =~ /mvapich2/) {
                     print STDERR "Auto-detecting mvapich2 based on alternatives\n";
                     $maybe_mpich=0;
                     $maybe_openmpi=0;
+                    $maybe_intelmpi=0;
                     last;
                 }
             }
@@ -747,6 +757,22 @@ sub detect_mpi {
                     }
                 }
             }
+            CHECK_INTELMPI_VERSION: {
+                # there's an impi_info binary, but it seems to be mostly
+                # useless
+                if ($maybe_intelmpi && -x "$mpi/mpicc") {
+                    my @v = `$mpi/mpicc -v`;
+                    my @vv = grep { /Intel.*MPI.*Library/i } @v;
+                    last CHECK_INTELMPI_VERSION unless scalar @vv == 1;
+                    if ($vv[0] =~ /Intel.*MPI.*Library\s*(\S+)/i) {
+                        $mpi_ver="intelmpi-$1";
+                        last SEVERAL_CHECKS;
+                    } else {
+                        $mpi_ver="intelmpi-UNKNOWN";
+                        last SEVERAL_CHECKS;
+                    }
+                }
+            }
         }
 
         if (defined($mpi_ver)) {
@@ -777,6 +803,13 @@ EOMSG
         print "## setting MV2_ENABLE_AFFINITY=0 (for mvapich2)\n";
         $ENV{'MV2_ENABLE_AFFINITY'}=0;
     }
+
+    @mpi_path=($mpi);
+
+    if ($mpi_ver =~ /openmpi/ && $mpi =~ m{^/*bin/*}) {
+        print STDERR "Rewriting MPI prefix to just nothing\n";
+        @mpi_path=();
+    }
 }
 
 # Starting daemons for mpich2 1.[012].x and mvapich2 ; we're assuming
@@ -788,18 +821,20 @@ sub check_mpd_daemons
 
     my $ssh = ssh_program();
 
-    my $rc = system "$mpi/mpdtrace > /dev/null 2>&1";
+    my $mpdtrace = File::Spec->catfile(@mpi_path, "mpdtrace");
+    my $mpdboot = File::Spec->catfile(@mpi_path, "mpdboot");
+    my $rc = system "$mpdtrace > /dev/null 2>&1";
     if ($rc == 0) {
         print "mpi daemons seem to be ok\n";
         return;
     }
 
     if ($rc == -1) {
-        die "Cannot execute $mpi/mpdtrace";
+        die "Cannot execute $mpdtrace";
     } elsif ($rc & 127) {
-        die "$mpi/mpdtrace died with signal ", ($rc&127);
+        die "$mpdtrace died with signal ", ($rc&127);
     } else {
-        print "No mpi daemons found by $mpi/mpdtrace, restarting\n";
+        print "No mpi daemons found by $mpdtrace, restarting\n";
     }
 
     open F, $hostfile;
@@ -810,7 +845,7 @@ sub check_mpd_daemons
     close F;
     my $n = scalar keys %hosts;
     print "Running $n mpi daemons\n";
-    dosystem "$mpi/mpdboot -n $n -r $ssh -f $hostfile -v";
+    dosystem "$mpdboot -n $n -r $ssh -f $hostfile -v";
 }
 
 sub get_mpi_hosts_oar {
@@ -931,7 +966,7 @@ if ($mpi_needed) {
     } else {
         # Otherwise we'll start via mpiexec, and we need to be informed
         # on the list of nodes.
-        push @mpi_precmd, "$mpi/mpiexec";
+        push @mpi_precmd, File::Spec->catfile(@mpi_path, "mpiexec");
 
         my $auto_hostfile_pattern="/tmp/cado-nfs.hosts_XXXXXXXX";
 
@@ -2068,7 +2103,7 @@ sub task_lingen {
     if (! -f "$wdir/$concatenated_A.gen") {
         if ($prime == 2) {
             push @args, "tuning_thresholds=recursive:128,ternary:6400,cantor:6400,notiming:0";
-            task_common_run("lingen_u64k1", @args);
+            task_common_run("lingen_b64", @args);
         } else {
             push @args, "tuning_thresholds=recursive:10,flint:10,notiming:0";
             task_common_run("lingen_pz", @args);

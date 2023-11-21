@@ -36,10 +36,11 @@ get_override(BWC_GFP_ARITHMETIC_BACKENDS BWC_GFP_ARITHMETIC_BACKENDS)
 get_override(BWC_GFP_MATMUL_BACKENDS    BWC_GFP_MATMUL_BACKENDS)
 get_override(BWC_EXTRA_BACKENDS    BWC_EXTRA_BACKENDS)
 get_override(CHECKS_EXPENSIVE   CHECKS_EXPENSIVE)
+get_override(TIMEOUT_SCALE   TIMEOUT_SCALE)
 
 # If you change the min version, also change scripts/call_cmake.sh
 # It must be called before the project() command.
-cmake_minimum_required(VERSION 3.4.0)
+cmake_minimum_required(VERSION 3.5.0)
 
 project(CADO_NFS)
 
@@ -80,7 +81,7 @@ if (MINGW)
     set(CMAKE_COLOR_MAKEFILE OFF)
 endif()
 
-set(CMAKE_REQUIRED_QUIET 1)
+set(CMAKE_REQUIRED_QUIET 0)
 
 #####################################################################
 # What are we building ?
@@ -174,8 +175,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             # c++17-specific constructs may appear to be valid on my
             # machine. This will be caught by CI after the fact anyway.
             set (CMAKE_CXX_FLAGS "-std=c++17 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
+            message(STATUS "Enabling C++17 support")
         else()
             set (CMAKE_CXX_FLAGS "-std=c++11 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
+            message(STATUS "Enabling C++11 support")
         endif()
     endif()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-literal-suffix")
@@ -229,15 +232,19 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
         message(STATUS "Enabling C++11 support")
     endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
+    set (CMAKE_CXX_FLAGS "-W -Wall ${CMAKE_CXX_FLAGS}")
     # According to http://clang.llvm.org/cxx_status.html
     # Caveat: Apple's clang identifies itself as plain Clang on some
     # occasions... I don't exactly know when and how, but there's some
     # potential for misconfiguration.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "3.3")
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5")
+        set (CMAKE_CXX_FLAGS   "-std=c++17 ${CMAKE_CXX_FLAGS}")
+        set (HAVE_CXX11 1)
+        message(STATUS "Enabling C++17 support")
+    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "3.3")
         set (CMAKE_CXX_FLAGS   "-std=c++11 ${CMAKE_CXX_FLAGS}")
         set (HAVE_CXX11 1)
         message(STATUS "Enabling C++11 support")
-        set (CMAKE_CXX_FLAGS "-std=c++11 -W -Wall ${CMAKE_CXX_FLAGS}")
     endif()
 endif()
 message(STATUS "CFLAGS=${CMAKE_C_FLAGS} (synthetized)")
@@ -274,7 +281,11 @@ math (EXPR ULONG_BITS "8*${ulong_size}")
 math (EXPR ULONGLONG_BITS "8*${ulonglong_size}")
 message(STATUS "bits in unsigned long: ${ULONG_BITS}")
 message(STATUS "bits in unsigned long long: ${ULONGLONG_BITS}")
+
+set(OLD_CMAKE_REQUIRED_QUIET "${CMAKE_REQUIRED_QUIET}")
+set(CMAKE_REQUIRED_QUIET 1)
 include(${CADO_NFS_SOURCE_DIR}/config/check_types.cmake)
+set(CMAKE_REQUIRED_QUIET "${OLD_CMAKE_REQUIRED_QUIET}")
 
 include(${CADO_NFS_SOURCE_DIR}/config/pagesize.cmake)
 
@@ -284,6 +295,10 @@ set(GF2X_CONFIGURE_FLAGS --disable-shared --disable-dependency-tracking --enable
 
 #####################################################################
 # Obtain information from the host.
+
+if(DEFINED ENV{USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT})
+    set(USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT 1)
+endif()
 
 include(config/check_cpu_feature.cmake)
 
@@ -303,12 +318,13 @@ else()
     check_cpu_feature(sse4.1 PREREQUISITES HAVE_SSSE3)
     check_cpu_feature(popcnt PREREQUISITES HAVE_SSSE3)
     check_cpu_feature(avx PREREQUISITES HAVE_SSE41)
-    check_cpu_feature(avx2 PREREQUISITES HAVE_AVX)
-    check_cpu_feature(avx512f PREREQUISITES HAVE_AVX)
+    set(b USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT)
+    check_cpu_feature(avx2 PREREQUISITES HAVE_AVX BLOCKERS ${b})
+    check_cpu_feature(avx512f PREREQUISITES HAVE_AVX BLOCKERS ${b})
     include(config/bug30057.cmake)
-    check_cpu_feature(avx512vl PREREQUISITES HAVE_AVX512F)
+    check_cpu_feature(avx512vl PREREQUISITES HAVE_AVX512F BLOCKERS ${b})
     include(config/bug30027.cmake)
-    check_cpu_feature(avx512dq PREREQUISITES HAVE_AVX512F)
+    check_cpu_feature(avx512dq PREREQUISITES HAVE_AVX512F BLOCKERS ${b})
     check_cpu_feature(pclmul PREREQUISITES HAVE_SSE41)
 endif()
 if (DEFINED ENV{NO_NEON})
@@ -342,6 +358,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/strlcpy.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/linux.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/hwloc.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/fmt.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/gf2x.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/gmpecm.cmake")
 IF (NOT DEFINED ENV{NO_PYTHON_CHECK})
   include("${CADO_NFS_SOURCE_DIR}/config/python.cmake")
@@ -356,6 +373,9 @@ include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/m4ri.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/detect-static-analysis.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/execinfo.cmake")
+CHECK_INCLUDE_FILES (sys/endian.h HAVE_SYS_ENDIAN_H)
+include("${CADO_NFS_SOURCE_DIR}/config/bswap32.cmake")
+
 
 set(CADO_SHARED)
 
@@ -368,12 +388,18 @@ if("$ENV{ENABLE_SHARED}")
     endif()
     set(CADO_SHARED SHARED)
     message(STATUS "Building with dynamic libraries (ENABLE_SHARED=$ENV{ENABLE_SHARED})")
+
+    # https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
+    set(CMAKE_SKIP_BUILD_RPATH FALSE)
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
     string_join(rpath ":"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/utils"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/polyselect"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/linalg/bwc"
     )
     set(CMAKE_INSTALL_RPATH ${rpath})
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 else()
     message(STATUS "Building with static libraries (ENABLE_SHARED=\"$ENV{ENABLE_SHARED}\")")
 endif()
@@ -468,16 +494,14 @@ include_directories (${CADO_NFS_BINARY_DIR})
 # link_directories (${CADO_NFS_BINARY_DIR}/utils)
 # link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
 
+if(NOT HAVE_GF2X)
 include_directories(${CADO_NFS_SOURCE_DIR}/gf2x)
 include_directories(${CADO_NFS_BINARY_DIR}/gf2x)
-
-
-############################################################
 
 add_custom_command(OUTPUT ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
     COMMAND mkdir -p ${CADO_NFS_BINARY_DIR}/gf2x
     COMMAND echo Configuring gf2x with options ${GF2X_CONFIGURE_FLAGS}
-    COMMAND cd gf2x && ${CADO_NFS_SOURCE_DIR}/gf2x/configure ${GF2X_CONFIGURE_FLAGS} < /dev/null
+    COMMAND cd gf2x && "${CADO_NFS_SOURCE_DIR}/gf2x/configure" ${GF2X_CONFIGURE_FLAGS} < /dev/null
     COMMENT "Configuring gf2x"
 )
 
@@ -487,6 +511,7 @@ add_custom_target(gf2x-build ALL
     COMMAND "${CMAKE_MAKE_PROGRAM}"
     COMMENT "Building gf2x"
 )
+endif()
 
 # add_subdirectory (gf2x-fft)
 add_subdirectory (utils)

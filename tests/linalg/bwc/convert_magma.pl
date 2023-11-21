@@ -127,9 +127,9 @@ if ($mode eq 'balancing') {
         while ($x % $b) { $x++; }
         return $x*$K;
     };
-    my $FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES=64;
-    my $MINIMUM_ITEM_SIZE_OF_MPFQ_VEC_TYPES=4;
-    my $chunk = int($FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES/$MINIMUM_ITEM_SIZE_OF_MPFQ_VEC_TYPES);
+    my $ALIGNMENT_ON_ALL_BWC_VECTORS=64;
+    my $MINIMUM_ITEMS_IN_BWC_CHUNKS=4;
+    my $chunk = int($ALIGNMENT_ON_ALL_BWC_VECTORS/$MINIMUM_ITEMS_IN_BWC_CHUNKS);
     my $tr = &$pad($nr,$nh*$nv,$chunk);
     my $tc = &$pad($nc,$nh*$nv,$chunk);
     if ($flags & 8) {

@@ -936,6 +936,15 @@ int mpq_mat_cmp(mpq_mat_srcptr M, mpq_mat_srcptr N)/*{{{*/
 }
 /*}}}*/
 
+int mpz_mat_is_zero(mpz_mat_srcptr M)
+{
+    for(unsigned int i = 0 ; i < M->m ; i++)
+        for(unsigned int j = 0 ; j < M->n ; j++)
+            if (mpz_cmp_ui(mpz_mat_entry_const(M, i, j), 0) != 0)
+                return 0;
+    return 1;
+}
+
 /* TODO (perhaps) :
  * mp[qz]_mat_is_{upper,lower}_triangular
  * mp[qz]_mat_is_diagonal

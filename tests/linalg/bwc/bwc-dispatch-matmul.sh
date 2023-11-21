@@ -98,26 +98,34 @@ $bindir/linalg/bwc/mf_bal mfile=$D/$M.bin out=$D/ $nh $nv
 
 set +e
 
-set \
-    nullspace=left	\
-    wdir=$D	\
-    thr=$thr	\
-    mpi=$mpi	\
-    mn=64	\
-    verbose_flags=^all-cmdline,^bwc-timing-grids,^all-bwc-dispatch,^bwc-cache-major-info,^perl-cmdline,^perl-sections,^perl-checks	\
-    matrix=$D/$M.bin	\
-    sequential_cache_build=1	\
-    sanity_check_vector=H1	\
-    rebuild_cache=1	\
-    skip_bw_early_rank_check=1       \
-    matmul_bucket_methods=small1,small2,large   \
+args=(
+    nullspace=left	
+    wdir=$D	
+    thr=$thr	
+    mpi=$mpi	
+    mn=64	
+    matrix=$D/$M.bin	
+    sequential_cache_build=1	
+    sanity_check_vector=H1	
+    rebuild_cache=1	
+    skip_bw_early_rank_check=1
+    matmul_bucket_methods=small1,small2,large
     ys=0..64
+)
 
-if [ "$hostfile" ] ; then
-    set "$@" hostfile="$hostfile"
+if ! [ "$CADO_DEBUG" ] ; then
+    args+=(verbose_flags=^all-cmdline,^bwc-timing-grids,^all-bwc-dispatch,^bwc-cache-major-info,^perl-cmdline,^perl-sections,^perl-checks)
 fi
 
-$bindir/linalg/bwc/bwc.pl dispatch "$@"
+if [ "$hostfile" ] ; then
+    args+=(hostfile="$hostfile")
+fi
+
+if [ "${mpi_extra_args[*]}" ] ; then
+    args+=(mpi_extra_args="${mpi_extra_args[*]}")
+fi
+
+$bindir/linalg/bwc/bwc.pl dispatch "${args[@]}"
 
 rc=$?
 # $bindir/linalg/bwc/dispatch nullspace=left wdir=/tmp/$M thr=${thr1}x${thr2} interval=20 mn=64 prime=2 verbose_flags=^all-cmdline,^bwc-timing-grids matrix=/tmp/$M.bin balancing=$bfile ys=0..64 sequential_cache_build=1 sanity_check_vector=H1 rebuild_cache=1 matmul_bucket_methods=small1,small2,large

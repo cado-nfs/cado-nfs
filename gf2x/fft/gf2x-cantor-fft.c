@@ -48,21 +48,7 @@
 #include "gf2x-cantor-fft.h"
 #include "gf2x-fft-impl-utils.h"
 
-/* Actually including mpfq is reserved for the c file. The header has
- * merely defined the main typedefs */
-#if CANTOR_BASE_FIELD_SIZE == 128
-#if WLEN == 64
-#include "mpfq/x86_64/mpfq_2_128.h"
-#else
-#include "mpfq/i386/mpfq_2_128.h"
-#endif
-#else
-#if WLEN == 64
-#include "mpfq/x86_64/mpfq_2_64.h"
-#else
-#include "mpfq/i386/mpfq_2_64.h"
-#endif
-#endif
+#include "gf2x-cantor-field-impl.h"
 
 /* The following flags affect the behaviour of the program */
 
@@ -72,14 +58,6 @@
 #ifdef CANTOR_GM
 #error "This is experimental code, and it seems to be slightly buggy. Do not use"
 #endif
-
-#include "mpfq/mpfq_name_K.h"
-
-/* It's a placeholder, really. After macro expansion, nobody really uses
- * this. The symbol must exist, though, because we have static inlines
- * here and there. So an empty macro won't do. */
-static Kfield K;
-
 
 /* Cantor transforms are always powers of two in size. But for truncated
  * transforms, we spare some of the computation. For direct transforms,
@@ -1153,7 +1131,7 @@ static inline void mulSi(unsigned int k, Kelt * f, size_t L, Kelt beta)
 }
 #endif
 
-#if GNUC_VERSION_ATLEAST(3,4,0)
+#if GF2X_GNUC_VERSION_ATLEAST(3,4,0)
 #define gf2x_clzl(x)         __builtin_clzl(x)
 #define gf2x_ctzl(x)         __builtin_ctzl(x)
 #else

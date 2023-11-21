@@ -12,7 +12,6 @@ lib/cado-nfs-3.0.0/sieve/las
 lib/cado-nfs-3.0.0/polyselect/libpolyselect_common.so
 lib/cado-nfs-3.0.0/polyselect/polyselect
 lib/cado-nfs-3.0.0/polyselect/polyselect_ropt
-lib/cado-nfs-3.0.0/polyselect/polyselect3
 bin/cado-nfs-client.py
 EOF
 
@@ -26,6 +25,7 @@ EOF
 
 rsync -a --files-from=- /usr/local/ /usr/local/common-server/ <<EOF
 bin/cado-nfs.py
+lib/cado-nfs-3.0.0/polyselect/polyselect3
 lib/cado-nfs-3.0.0/filter/dup1
 lib/cado-nfs-3.0.0/filter/dup2
 lib/cado-nfs-3.0.0/filter/purge
@@ -47,8 +47,8 @@ lib/cado-nfs-3.0.0/linalg/bwc/cleanup
 lib/cado-nfs-3.0.0/linalg/bwc/dispatch
 lib/cado-nfs-3.0.0/linalg/bwc/gather
 lib/cado-nfs-3.0.0/linalg/bwc/krylov
+lib/cado-nfs-3.0.0/linalg/bwc/libbwc_arith.so
 lib/cado-nfs-3.0.0/linalg/bwc/libbwc_base.so
-lib/cado-nfs-3.0.0/linalg/bwc/libbwc_mpfq.so
 lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_common.so
 lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_mf.so
 lib/cado-nfs-3.0.0/linalg/bwc/mksol
@@ -57,30 +57,32 @@ lib/cado-nfs-3.0.0/linalg/bwc/secure
 EOF
 
 rsync -a --files-from=- /usr/local/ /usr/local/factoring-linalg/ <<EOF
-lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_m128_bucket.so
-lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_u64k1_bucket.so
-lib/cado-nfs-3.0.0/linalg/bwc/lingen_u64k1
+lib/cado-nfs-3.0.0/linalg/bwc/libarithmetic_b128.so
+lib/cado-nfs-3.0.0/linalg/bwc/libarithmetic_b64.so
+lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_b128_bucket.so
+lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_b64_bucket.so
+lib/cado-nfs-3.0.0/linalg/bwc/lingen_b64
 EOF
 
 # # This is wrong. We have multiple binary configurations per prime size, a
 # # priori.
 # rsync -a --files-from=- /usr/local/ /usr/local/discretelog-linalg/ <<EOF
 # lib/cado-nfs-3.0.0/linalg/bwc/lingen_pz
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_1_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_2_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_3_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_4_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_5_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_6_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_7_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_8_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_9_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_10_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_11_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_12_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_13_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_14_zone.so
-# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p_15_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p1_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p2_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p3_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p4_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p5_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p6_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p7_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p8_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p9_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p10_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p11_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p12_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p13_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p14_zone.so
+# lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_p15_zone.so
 # EOF
 # 
 

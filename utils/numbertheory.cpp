@@ -734,6 +734,10 @@ int prime_ideal_inertia_degree(cxx_mpz_mat const& I)/*{{{*/
 /*}}}*/
 int valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, cxx_mpz_mat const& I, cxx_mpz_mat const& a, cxx_mpz const& p)/*{{{*/
 {
+    /* M is the multiplication table of the order. I is an ideal. We want
+     * to compute the fkp-valuation of I, where fkp is an ideal above p
+     * with a helper element given by a
+     */
     unsigned int n = M->m;
     ASSERT_ALWAYS(M->n == n * n);
     ASSERT_ALWAYS(I->m == n);
@@ -741,6 +745,9 @@ int valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, cxx_mpz_mat const& I
     ASSERT_ALWAYS(a->m == 1);
     ASSERT_ALWAYS(a->n == n);
     
+    if (mpz_mat_is_zero(I))
+        return INT_MAX;
+
     cxx_mpz_mat Ia(I);
     int val = 0;
     for(;;val++) {
@@ -758,8 +765,19 @@ int valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, cxx_mpz_mat const& I
 /*}}}*/
 int valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, pair<cxx_mpz_mat,cxx_mpz> const& Id, cxx_mpz_mat const& a, int e, cxx_mpz const& p)/*{{{*/
 {
-    int w = mpz_p_valuation(Id.second, p);
+    /* M is the multiplication table of the order. Id is a pair (ideal,
+     * denominator of ideal). We want to compute the fkp-valuation of I,
+     * where fkp is an ideal above p with a helper element given by a. e
+     * is the fkp-valuation of p (that is, the ramification index of
+     * fkp).
+     *
+     * INT_MAX is returned if Id.first is the zero ideal, but please
+     * don't try to use it.
+     */
     int v = valuation_of_ideal_at_prime_ideal(M, Id.first, a, p);
+    if (v == INT_MAX) return v;
+
+    int w = mpz_p_valuation(Id.second, p);
     return v-w*e;
 }
 /*}}}*/

@@ -6,19 +6,20 @@
 #include <ctime>                // for time
 #include <string>                // for string
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
-#include "matmul.h"              // for matmul_public_s
-#include "parallelizing_info.h"
-#include "matmul_top.h"
+#include "matmul.hpp"              // for matmul_public_s
+#include "parallelizing_info.hpp"
+#include "matmul_top.hpp"
+#include "matmul_top_comm.hpp"
 #include "select_mpi.h"
 #include "params.h"
 #include "misc.h"
 #include "bw-common.h"
-#include "async.h"
-#include "mpfq/mpfq.h"
-#include "mpfq/mpfq_vbase.h"
-#include "cheating_vec_init.h"
+#include "async.hpp"
+#include "arith-cross.hpp"
+#include "arith-generic.hpp"
 #include "fmt/format.h"
 #include "macros.h"
+#include "mmt_vector_pair.hpp"
 using namespace fmt::literals;
 
 void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
@@ -26,7 +27,6 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
     int tcan_print = bw->can_print && pi->m->trank == 0;
-    matmul_top_data mmt;
     struct timing_data timing[1];
 
     unsigned int solutions[2] = { bw->solutions[0], bw->solutions[1], };
@@ -47,14 +47,10 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
      */
 
     /* {{{ First: only relative to the vectors we read */
-    mpfq_vbase Av;
     unsigned int Av_width = splitwidth;
     unsigned int Av_multiplex = bw->n / Av_width;
-    mpfq_vbase_oo_field_init_byfeatures(Av, 
-            MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_SIMD_GROUPSIZE, Av_width,
-            MPFQ_DONE);
-    pi_datatype_ptr Av_pi = pi_alloc_mpfq_datatype(pi, Av);
+    std::unique_ptr<arith_generic> Av(arith_generic::instance(bw->p, Av_width));
+    pi_datatype_ptr Av_pi = pi_alloc_arith_datatype(pi, Av.get());
     /* }}} */
 
     /* {{{ Second: We intend to perform only a single spmv per iteration,
@@ -73,68 +69,41 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                 As_width);
         exit(EXIT_FAILURE);
     }
-    mpfq_vbase As;
-    mpfq_vbase_oo_field_init_byfeatures(As,
-            MPFQ_PRIME_MPZ, bw->p,
-            MPFQ_SIMD_GROUPSIZE, As_width,
-            MPFQ_DONE);
+    std::unique_ptr<arith_generic> As(arith_generic::instance(bw->p, As_width));
     /* How many F files do we need to read simultaneously to form
      * solutions[1]-solutions[0] columns ? */
     unsigned int Af_multiplex = As_width / Av_width;
     /* }}} */
 
     /* {{{ ... and the combined operations */
-    mpfq_vbase_tmpl AvxAs;
-    mpfq_vbase_oo_init_templates(AvxAs, Av, As);
+    std::unique_ptr<arith_cross_generic> AvxAs(arith_cross_generic::instance(Av.get(), As.get()));
     /* }}} */
 
     block_control_signals();
 
     /* Now that we do this in Horner fashion, we multiply on vectors
      * whose width is the number of solutions we compute. */
-    matmul_top_init(mmt, As, pi, pl, bw->dir);
-    pi_datatype_ptr As_pi = mmt->pitype;
+    matmul_top_data mmt(As.get(), pi, pl, bw->dir);
+    pi_datatype_ptr As_pi = mmt.pitype;
 
     /* allocate vectors (two batches): */
 
-    /* {{{ For the vectors which get multiplied by matrices:
-     *   we need nmatrices vectors, rounded to the next even integer
-     *   (well, in truth two would always suffice, but the code isn't
-     *   ther yet).
-     *
-     * XXX note that As_multiplex is equal to 1 above
-     */
-    int nmats_odd = mmt->nmatrices & 1;
-    mmt_vec * ymy = new mmt_vec[mmt->nmatrices + nmats_odd];
-    matmul_top_matrix_ptr mptr;
-    mptr = (matmul_top_matrix_ptr) mmt->matrices + (bw->dir ? (mmt->nmatrices - 1) : 0);
-    for(int i = 0 ; i < mmt->nmatrices ; i++) {
-        int shared = (i == 0) & nmats_odd;
-        mmt_vec_init(mmt,0,0, ymy[i], bw->dir ^ (i&1), shared, mptr->n[bw->dir]);
-        mmt_full_vec_set_zero(ymy[i]);
-
-        mptr += bw->dir ? -1 : 1;
-    }
-    if (nmats_odd) {
-        mmt_vec_init(mmt,0,0, ymy[mmt->nmatrices], !bw->dir, 0, mmt->matrices[0]->n[bw->dir]);
-        mmt_full_vec_set_zero(ymy[mmt->nmatrices]);
-    }
-    /* }}} */
+    mmt_vector_pair ymy(mmt, bw->dir);
 
     /* {{{ For the vectors which we read from disk and which participate in
      *   the coefficients which get added to the computation at each
      *   iteration: we need n vectors -- or n/64 for the binary case.
      */
     mmt_vec * vi = new mmt_vec[bw->n / splitwidth];
-    mptr = (matmul_top_matrix_ptr) mmt->matrices + (bw->dir ? (mmt->nmatrices - 1) : 0);
+    matmul_top_matrix * mptr = &mmt.matrices[bw->dir ? (mmt.matrices.size() - 1) : 0];
     for(int i = 0 ; i < bw->n / splitwidth ; i++) {
-        mmt_vec_init(mmt, Av, Av_pi, vi[i], bw->dir, 1, mptr->n[bw->dir]);
+        mmt_vec_setup(vi[i], mmt, Av.get(), Av_pi, bw->dir, 1, mptr->n[bw->dir]);
         mmt_full_vec_set_zero(vi[i]);
     }
     /* }}} */
 
 
-    unsigned int unpadded = MAX(mmt->n0[0], mmt->n0[1]);
+    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     serialize(pi->m);
     
@@ -168,7 +137,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     serialize_threads(pi->m);
     if (pi->m->trank == 0) {
         /* the bw object is global ! */
-        expected_last_iteration = bw_set_length_and_interval_mksol(bw, mmt->n0);
+        expected_last_iteration = bw_set_length_and_interval_mksol(bw, mmt.n0);
     }
     pi_thread_bcast(&expected_last_iteration, 1, BWC_PI_UNSIGNED, 0, pi->m);
     serialize_threads(pi->m);
@@ -231,7 +200,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
      * several smaller sets. The number of these subsets is Af_multiplex,
      * and each holds splitwidth columns.
      */
-    size_t one_fcoeff = As->vec_elt_stride(As, Av->simd_groupsize(Av));
+    size_t one_fcoeff = As->vec_elt_stride(Av->simd_groupsize());
     if (tcan_print) {
         char buf[20];
         printf("Each thread allocates %d*%u*%u*%zu*%d=%s for the F matrices\n",
@@ -247,27 +216,27 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                     one_fcoeff *
                     bw->interval, buf));
     }
-    void ** fcoeffs = new void*[Av_multiplex * As_multiplex];
+    arith_generic::elt ** fcoeffs = new arith_generic::elt*[Av_multiplex * As_multiplex];
     for(unsigned int k = 0 ; k < Av_multiplex * As_multiplex ; k++) {
-        cheating_vec_init(As, &(fcoeffs[k]), one_fcoeff * bw->interval);
-        As->vec_set_zero(As, fcoeffs[k], one_fcoeff * bw->interval);
+        (fcoeffs[k]) = As->alloc(one_fcoeff * bw->interval, ALIGNMENT_ON_ALL_BWC_VECTORS);
+        As->vec_set_zero(fcoeffs[k], one_fcoeff * bw->interval);
     }
-    ASSERT_ALWAYS(Av_width * Af_multiplex == (unsigned int) As->simd_groupsize(As));
-    void * fcoeff_tmp = NULL;
+    ASSERT_ALWAYS(Av_width * Af_multiplex == (unsigned int) As->simd_groupsize());
+    arith_generic::elt * fcoeff_tmp = NULL;
     if (Af_multiplex > 1) {
-            cheating_vec_init(As, &(fcoeff_tmp), one_fcoeff / Af_multiplex * bw->interval);
-            As->vec_set_zero(As, fcoeff_tmp, one_fcoeff / Af_multiplex * bw->interval);
+            (fcoeff_tmp) = As->alloc(one_fcoeff / Af_multiplex * bw->interval, ALIGNMENT_ON_ALL_BWC_VECTORS);
+            As->vec_set_zero(fcoeff_tmp, one_fcoeff / Af_multiplex * bw->interval);
     }
     /* }}} */
     
     /* {{{ bless our timers */
-    timing_init(timing, 4 * mmt->nmatrices, bw->start, expected_last_iteration);
-    for(int i = 0 ; i < mmt->nmatrices; i++) {
-        timing_set_timer_name(timing, 4*i, "CPU%d", i);
-        timing_set_timer_items(timing, 4*i, mmt->matrices[i]->mm->ncoeffs);
-        timing_set_timer_name(timing, 4*i+1, "cpu-wait%d", i);
-        timing_set_timer_name(timing, 4*i+2, "COMM%d", i);
-        timing_set_timer_name(timing, 4*i+3, "comm-wait%d", i);
+    timing_init(timing, 4 * mmt.matrices.size(), bw->start, expected_last_iteration);
+    for(size_t i = 0 ; i < mmt.matrices.size(); i++) {
+        timing_set_timer_name(timing, 4*i, "CPU%zu", i);
+        timing_set_timer_items(timing, 4*i, mmt.matrices[i].mm->ncoeffs);
+        timing_set_timer_name(timing, 4*i+1, "cpu-wait%zu", i);
+        timing_set_timer_name(timing, 4*i+2, "COMM%zu", i);
+        timing_set_timer_name(timing, 4*i+3, "comm-wait%zu", i);
     }
     /* }}} */
 
@@ -285,7 +254,6 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
             } else {
                 int ok = mmt_vec_load(vi[i], v_name, unpadded, ys[0]);
                 ASSERT_ALWAYS(ok);
-                mmt_vec_reduce_mod_p(vi[i]);
             }
             mmt_vec_twist(mmt, vi[i]);
         }
@@ -323,16 +291,16 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                 int rc0 = 0, rc = 0;
                 for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
                     for(unsigned int j = 0 ; j < As_multiplex ; j++) {
-                        void * ff = fcoeffs[j * Av_multiplex + i];
+                        arith_generic::elt * ff = fcoeffs[j * Av_multiplex + i];
                         /* points to bw->interval * one_fcoeff */
                         /* Zero out first, then read; when we reach EOF while
                          * reading F, it is crucially important that we have
                          * a zero area past the end of the file ! */
-                        As->vec_set_zero(As, ff, one_fcoeff * bw->interval);
+                        As->vec_set_zero(ff, one_fcoeff * bw->interval);
 
                         /* Now read piece by piece */
                         for(unsigned int k = 0 ; k < Af_multiplex ; k++) {
-                            void * buffer;
+                            arith_generic::elt * buffer;
                             if (Af_multiplex == 1) {
                                 buffer = ff;
                             } else {
@@ -364,12 +332,12 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                                 ASSERT_ALWAYS(rc >= 0 && rc <= bw->interval);
                                 if (Af_multiplex > 1) {
                                     /* spread to fcoeff */
-                                    const void * src = buffer;
-                                    void * dst = Av->vec_subvec(Av, ff, k);
+                                    const arith_generic::elt * src = buffer;
+                                    arith_generic::elt * dst = Av->vec_subvec(ff, k);
                                     for(unsigned int row = 0 ; row < Av_width *  rc; row++) {
-                                        memcpy(dst, src, Av->vec_elt_stride(Av, 1));
-                                        src = Av->vec_subvec_const(Av, src, 1);
-                                        dst = Av->vec_subvec(Av, dst, Af_multiplex);
+                                        memcpy(dst, src, Av->elt_stride());
+                                        src = Av->vec_subvec(src, 1);
+                                        dst = Av->vec_subvec(dst, Af_multiplex);
                                     }
                                 }
                             } else {
@@ -409,7 +377,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
             pi_bcast(&sx, 1, BWC_PI_INT, 0, 0, pi->m);
             pi_bcast(&bw_end_copy, 1, BWC_PI_INT, 0, 0, pi->m);
 
-            serialize_threads(mmt->pi->m);
+            serialize_threads(mmt.pi->m);
 
             if (s0 == bw_end_copy)
                 continue;
@@ -423,8 +391,8 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
             /* broadcast f */
             for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
                 for(unsigned int j = 0 ; j < As_multiplex ; j++) {
-                    void * ff = fcoeffs[i * As_multiplex + j];
-                    pi_bcast(ff, Av->simd_groupsize(Av) * (s1 - s0), As_pi, 0, 0, pi->m);
+                    arith_generic::elt * ff = fcoeffs[i * As_multiplex + j];
+                    pi_bcast(ff, Av->simd_groupsize() * (s1 - s0), As_pi, 0, 0, pi->m);
                 }
             }
 
@@ -452,17 +420,17 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                     */
 
                     for(unsigned int i = 0 ; i < Av_multiplex ; i++) {
-                        void * ff = fcoeffs[i * As_multiplex /* + j */];
+                        arith_generic::elt * ff = fcoeffs[i * As_multiplex /* + j */];
                         /* or maybe transpose here instead ?? */
-                        AvxAs->addmul_tiny(Av, As,
+                        AvxAs->addmul_tiny(
                                 mmt_my_own_subvec(ymy[0]),
                                 mmt_my_own_subvec(vi[i]),
-                                As->vec_subvec(As, ff,
-                                    (s1 - s0 - 1 - k) * Av->simd_groupsize(Av)),
+                                As->vec_subvec(ff,
+                                    (s1 - s0 - 1 - k) * Av->simd_groupsize()),
                                 eblock);
                     }
                     /* addmul_tiny degrades consistency ! */
-                    ymy[0]->consistency = 1;
+                    ymy[0].consistency = 1;
                     mmt_vec_broadcast(ymy[0]);
                     /* we're doing something which we normally avoid: write
                      * on the next input vector. This means a race condition
@@ -485,7 +453,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
                      */
                     if (i_window < n_windows-1 || k < s1 - s0 - 1) {
                         // if (tcan_print) printf("v:=M*v;\n");
-                        matmul_top_mul(mmt, ymy, timing);
+                        matmul_top_mul(mmt, ymy.vectors(), timing);
 
                         timing_check(pi, timing, s + sx - s1 + k + 1, tcan_print);
                     }
@@ -508,7 +476,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
              */
             int j = 0;
             std::string s_name = fmt::format(FMT_STRING("S.sols%u-%u.{}-{}"), s, s + bw->checkpoint_precious);
-            ASSERT_ALWAYS(ymy[0]->abase->simd_groupsize(ymy[0]->abase) == (int) As_width);
+            ASSERT_ALWAYS(ymy[0].abase->simd_groupsize() == As_width);
             mmt_vec_save(ymy[0], s_name, unpadded,
                     solutions[0] + j * As_width);
         }
@@ -523,30 +491,18 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     }
     serialize(pi->m);
     if (fake) gmp_randclear(rstate);
-    for(int i = 0 ; i < bw->n / splitwidth ; i++) {
-        mmt_vec_clear(mmt, vi[i]);
-    }
     delete[] vi;
 
     for(unsigned int k = 0 ; k < Av_multiplex * As_multiplex ; k++) {
-        cheating_vec_clear(As, &(fcoeffs[k]), one_fcoeff * bw->interval);
+        As->free((fcoeffs[k]));
     }
     delete[] fcoeffs;
 
     if (Af_multiplex > 1) {
-        cheating_vec_clear(As, &(fcoeff_tmp), one_fcoeff / Af_multiplex * bw->interval);
+        As->free((fcoeff_tmp));
     }
 
-    for(int i = 0 ; i < mmt->nmatrices + nmats_odd ; i++) {
-        mmt_vec_clear(mmt, ymy[i]);
-    }
-    delete[] ymy;
-
-    matmul_top_clear(mmt);
-    pi_free_mpfq_datatype(pi, Av_pi);
-
-    As->oo_field_clear(As);
-    Av->oo_field_clear(Av);
+    pi_free_arith_datatype(pi, Av_pi);
 
     timing_clear(timing);
 
