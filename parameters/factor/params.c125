@@ -51,7 +51,6 @@ tasks.sieve.qrange = 5000
 ###########################################################################
 
 tasks.filter.purge.keep = 165
-tasks.filter.required_excess = 0.05
 tasks.filter.target_density = 110.0
 
 ###########################################################################
