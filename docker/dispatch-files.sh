@@ -47,6 +47,7 @@ lib/cado-nfs-3.0.0/linalg/bwc/cleanup
 lib/cado-nfs-3.0.0/linalg/bwc/dispatch
 lib/cado-nfs-3.0.0/linalg/bwc/gather
 lib/cado-nfs-3.0.0/linalg/bwc/krylov
+lib/cado-nfs-3.0.0/linalg/bblas/libbblas.so
 lib/cado-nfs-3.0.0/linalg/bwc/libbwc_arith.so
 lib/cado-nfs-3.0.0/linalg/bwc/libbwc_base.so
 lib/cado-nfs-3.0.0/linalg/bwc/libmatmul_common.so
