@@ -23,6 +23,10 @@ lib/cado-nfs-3.0.0/polyselect/dlpolyselect
 bin/cado-nfs-client.py
 EOF
 
+rsync -a --files-from=- /usr/local/ /usr/local/common-client/ <<EOF
+lib/cado-nfs-3.0.0/scripts/cadofactor/
+EOF
+
 rsync -a --files-from=- /usr/local/ /usr/local/common-server/ <<EOF
 bin/cado-nfs.py
 lib/cado-nfs-3.0.0/polyselect/polyselect3
@@ -113,6 +117,8 @@ rsync -a /usr/local/common-server/ /usr/local/factoring-server/
 rsync -a /usr/local/common-linalg/ /usr/local/factoring-linalg/
 rsync -a /usr/local/factoring-linalg/ /usr/local/factoring-server/
 # rsync -a /usr/local/discretelog-linalg/ /usr/local/discretelog-server/
+rsync -a /usr/local/common-client/ /usr/local/factoring-client/
+# rsync -a /usr/local/common-client/ /usr/local/discretelog-client/
 
 : unused <<EOF
 lib/cado-nfs-3.0.0/misc/check_rels
