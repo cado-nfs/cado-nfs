@@ -6347,7 +6347,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.logger.info("Total cpu/elapsed time for incomplete %s: %g/%g",
                     self.title, self.cputotal, self.elapsed)
             self.logger.error("Finishing early: " + str(e))
-            return None
+            raise e
 
         # Do we want the sum of real times over all sub-processes for
         # something?

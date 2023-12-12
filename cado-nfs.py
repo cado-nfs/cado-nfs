@@ -191,9 +191,13 @@ if __name__ == '__main__':
 
     logger.info("If this computation gets interrupted, it can be resumed with %s %s", sys.argv[0], snapshot_filename)
 
-    factorjob = cadotask.CompleteFactorization(db=db,
-                                               parameters = parameters,
-                                               path_prefix = [])
+    try:
+        factorjob = cadotask.CompleteFactorization(db=db,
+                                                   parameters = parameters,
+                                                   path_prefix = [])
+    except cadotask.EarlyStopException as e:
+        sys.exit(0)
+
 
     if toplevel_params.args.verboseparam:
         logger.info("Summary of all recognized parameters\n" +

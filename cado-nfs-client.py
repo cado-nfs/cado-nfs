@@ -695,6 +695,11 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
     return child.returncode, stdout, stderr
 # }}}
 
+class ServerGone(Exception):
+    def __init__(self):
+        Exception.__init__(self)
+    def __str__(self):
+        return "Server gone"
 
 # {{{ wrap around python urllib
 class HTTP_connector(object):
@@ -802,6 +807,8 @@ class HTTP_connector(object):
                                 "file %s", dlpath)
                 HTTP_connector.wait_until_positive_filesize(dlpath)
                 return None, None
+            if err.errno == 111 and self.exit_on_server_gone:
+                raise ServerGone()
             raise
         logging.info("_native_get_file(%s) -> %s" % (url, dlpath))
         logging.info("fd = %d" % fd)
@@ -823,6 +830,7 @@ class HTTP_connector(object):
         # can be overridden below
         self.get_file = self._native_get_file
         self.no_cn_check = settings["NO_CN_CHECK"]
+        self.exit_on_server_gone = settings["EXIT_ON_SERVER_GONE"]
 
 # }}}
 
@@ -1970,6 +1978,7 @@ class WorkunitClient(object):
         self.uploader = uploader
         self.settings = settings
         self.workunit = None
+        self.exit_on_server_gone = settings["EXIT_ON_SERVER_GONE"]
 
     def have_terminate_request(self):
         return self.workunit.get("TERMINATE", None) is not None
@@ -2110,6 +2119,8 @@ if __name__ == '__main__':
                           help="Skip checking the SHA1 for input files")
         parser.add_option("--single", default=False, action="store_true",
                           help="process only a single WU, then exit")
+        parser.add_option("--exit-on-server-gone", default=False, action="store_true",
+                          help="when the reserver is gone (but was at least seen present once), exit")
         parser.add_option("--nocncheck", default=False, action="store_true",
                           help="Don't check common name/SAN of certificate. ")
         parser.add_option("--override", nargs=2, action='append',
@@ -2188,6 +2199,7 @@ if __name__ == '__main__':
     SETTINGS["NO_CN_CHECK"] = options.nocncheck
     SETTINGS["OVERRIDE"] = options.override
     SETTINGS["SINGLE"] = options.single
+    SETTINGS["EXIT_ON_SERVER_GONE"] = options.exit_on_server_gone
 
     # Create download and working directories if they don't exist
     if not os.path.isdir(SETTINGS["DLDIR"]):
@@ -2271,6 +2283,9 @@ if __name__ == '__main__':
         except WorkunitClientToFinish as e:
             logging.info("Client finishing: %s. Bye.", e)
             sys.exit(0)
+        except ServerGone as e:
+            sys.exit(0)
+
         if options.single:
             logging.info("Client processed its WU."
                          " Finishing now as implied by --single")
