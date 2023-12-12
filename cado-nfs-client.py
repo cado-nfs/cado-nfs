@@ -771,14 +771,26 @@ class HTTP_connector(object):
                 # the workunit client, which we do by letting an
                 # exception pop up a few levels up (eeek)
                 raise WorkunitClientToFinish("Received 410 from server")
-            error_str = "URL error: %s" % str(error)
-            hard_error = (error.errno == errno.ECONNREFUSED or \
-                          error.errno == errno.ECONNRESET)
+            error_str = "HTTP error: %s" % str(error)
+            if error.errno is not None:
+                hard_error = (error.errno == errno.ECONNREFUSED or \
+                              error.errno == errno.ECONNRESET)
+            elif isinstance(error.reason, OSError):
+                hard_error = (error.reason.errno == errno.ECONNREFUSED or \
+                              error.reason.errno == errno.ECONNRESET)
+            else:
+                hard_error = None
         except urllib_error.URLError as error:
             error_str = "URL error: %s" % str(error)
             current_error = error.errno
-            hard_error = (error.errno == errno.ECONNREFUSED or \
-                          error.errno == errno.ECONNRESET)
+            if error.errno is not None:
+                hard_error = (error.errno == errno.ECONNREFUSED or \
+                              error.errno == errno.ECONNRESET)
+            elif isinstance(error.reason, OSError):
+                hard_error = (error.reason.errno == errno.ECONNREFUSED or \
+                              error.reason.errno == errno.ECONNRESET)
+            else:
+                hard_error = None
         except BadStatusLine as error:
             error_str = "Bad Status line: %s" % str(error)
         except socket.error as error:
@@ -807,7 +819,7 @@ class HTTP_connector(object):
                                 "file %s", dlpath)
                 HTTP_connector.wait_until_positive_filesize(dlpath)
                 return None, None
-            if err.errno == 111 and self.exit_on_server_gone:
+            if hard_error and self.exit_on_server_gone:
                 raise ServerGone()
             raise
         logging.info("_native_get_file(%s) -> %s" % (url, dlpath))
@@ -944,6 +956,7 @@ class ServerPool(object): # {{{
         self.has_https = False
         self.current_index = 0
         self.wait = float(settings["DOWNLOADRETRY"])
+        self.worked_once = [ 0 ] * self.nservers
 
         for ss in settings["SERVER"]:
             scheme, netloc = urlparse(ss)[0:2]
@@ -1035,6 +1048,12 @@ class ServerPool(object): # {{{
             self.current_index = (self.current_index + 1) % self.nservers
         return self.servers[self.current_index]
 
+    def mark_current_server_alive(self):
+        self.worked_once[self.current_index] += 1
+
+    def current_server_was_successful_once(self):
+        return self.worked_once[self.current_index]
+
     def change_server(self):
         """we're not happy with the current server for some reason.
         return a new one
@@ -1055,6 +1074,9 @@ class ServerPool(object): # {{{
             raise NoMoreServers()
         if self.current_index == S.get_index():
             self.change_server()
+
+    def get_current_server_index(self):
+        return self.current_index
 
     def get_current_server(self):
         return self.servers[self.current_index]
@@ -1443,6 +1465,7 @@ class InputDownloader(object):
                                         self.settings["WU_FILENAME"])
         self.wu_backlog = []
         self.wu_backlog_alt = []
+        self.exit_on_server_gone = self.settings["EXIT_ON_SERVER_GONE"]
 
     # {{{ download -- this goes through several steps.
     @staticmethod
@@ -1533,15 +1556,34 @@ class InputDownloader(object):
                                                             dlpath_tmp,
                                                             cafile=cafile,
                                                             wait=wait)
+            if not hard_error:
+                self.server_pool.mark_current_server_alive()
+
             if error_str is None:
                 break
+
+            if hard_error and self.exit_on_server_gone and self.server_pool.current_server_was_successful_once():
+                logging.error(f"Disabling {current_server} because of --exit-on-server-gone")
+                try:
+                    self.server_pool.disable_server(current_server)
+                except NoMoreServers:
+                    raise ServerGone()
+                spin += 1
+                current_server = self.server_pool.get_current_server()
+                waiting_since = 0
+                last_error = ""
+                connfailed = 0
+                continue
+
             # otherwise we enter the wait loop
             if not silent_wait or waiting_since == 0 or error_str != last_error:
                 givemsg = True
+
             if hard_error:
                 connfailed += 1
             else:
                 connfailed = 0
+            
             if givemsg:
                 logging.error("Download failed%s, %s",
                               " with hard error" if hard_error else "",
@@ -2120,7 +2162,7 @@ if __name__ == '__main__':
         parser.add_option("--single", default=False, action="store_true",
                           help="process only a single WU, then exit")
         parser.add_option("--exit-on-server-gone", default=False, action="store_true",
-                          help="when the reserver is gone (but was at least seen present once), exit")
+                          help="when the server is gone (but was at least seen present once), exit")
         parser.add_option("--nocncheck", default=False, action="store_true",
                           help="Don't check common name/SAN of certificate. ")
         parser.add_option("--override", nargs=2, action='append',
