@@ -2968,10 +2968,11 @@ class FactorBaseTask(Task):
         elif "A" in self.params:
             self.progparams[0].setdefault("maxbits", (self.params["A"]+1)//2)
         else:
+            path = ".".join(self.parameters.get_param_path())
             msg = "Required parameter I or A not found " \
                   "for makefb's maxbits under %s ; " \
                   "consider setting tasks.I or tasks.A" % path
-            logger.critical(msg)
+            self.logger.critical(msg)
             raise KeyError(msg)
     
     def run(self):
