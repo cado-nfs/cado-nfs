@@ -762,6 +762,12 @@ main (int argc, char *argv[])
 
           get_outfilename_from_infilename (*p, outfmt, outdir, &oname, &oname_tmp);
           output = fopen_maybe_compressed(oname_tmp, "w");
+          if (output == NULL){
+            fprintf (stderr, "Error, could not open file to write the "
+                             "relations. Check that the directory %s exists\n",
+                             outdir);
+            abort();
+          }
           desc[1].arg = (void*) output;
 
           nrels = ndup = 0;
