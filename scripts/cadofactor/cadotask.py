@@ -3994,7 +3994,7 @@ class PurgeTask(Task):
             # For small cases, we want to avoid degenerated cases, so let's
             # keep most of the ideals: memory is not an issue in that case.
             if (col_minindex < 10000):
-                col_minindex = 500
+                col_minindex = min(500, nprimes-1)
             self.progparams[0].setdefault("col_minindex", col_minindex)
         
         if "purgedfile" in self.state and not self.have_new_input_files() and \
