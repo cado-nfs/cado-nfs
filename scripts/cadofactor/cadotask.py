@@ -4313,7 +4313,7 @@ class MergeDLPTask(Task):
                 del(self.state["densefile"])
             
             nmaps = self.send_request(Request.GET_NMAPS)
-            keep = nmaps[0] + nmaps[1]
+            keep = sum(nmaps)
             # We use .gzip by default, unless set to no in parameters
             use_gz = ".gz" if self.params["gzip"] else ""
             historyfile = self.workdir.make_filename("history" + use_gz)
@@ -4609,7 +4609,7 @@ class LinAlgDLPTask(Task):
             wdir = workdir.realpath()
             self.state["ran_already"] = True
             nmaps = self.send_request(Request.GET_NMAPS)
-            nsm = nmaps[0] + nmaps[1]
+            nsm = sum(nmaps)
             if self.params["n"] == 0:
                 self.logger.info("Using %d as default value for n to account for Schirokauer maps"
                         % nsm)
@@ -5203,14 +5203,14 @@ class SMTask(Task):
 
         if not "sm" in self.state or self.have_new_input_files():
             nmaps = self.send_request(Request.GET_NMAPS)
-            if nmaps[0]+nmaps[1] == 0:
+            if sum(nmaps) == 0:
                 self.logger.info("Number of SM is 0: skipping this part.")
                 return True
             smfilename = self.workdir.make_filename("sm")
 
             (stdoutpath, stderrpath) = \
                     self.make_std_paths(cadoprograms.SM.name)
-            p = cadoprograms.SM(nsms=str(nmaps[0])+","+str(nmaps[1]),
+            p = cadoprograms.SM(nsms=",".join(str(nmap) for nmap in nmaps),
                     out=smfilename,
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
@@ -5270,7 +5270,7 @@ class ReconstructLogTask(Task):
                     self.make_std_paths(cadoprograms.ReconstructLog.name)
             p = cadoprograms.ReconstructLog(
                     dlog=dlogfilename,
-                    nsms=str(nmaps[0])+","+str(nmaps[1]),
+                    nsms=",".join(str(nmap) for nmap in nmaps),
                     nrels=nfree+nunique,
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
