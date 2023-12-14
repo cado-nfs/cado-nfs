@@ -3452,6 +3452,8 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             sides = rest.split(b":")
             assert len(sides) == 2
             for side, primes_as_str in enumerate(sides):
+                if not primes_as_str: # empty string
+                    continue
                 value = poly.get_polynomial(side).eval_h(a, b)
                 primes = [int(s, 16) for s in primes_as_str.split(b",")]
                 for prime in primes:
