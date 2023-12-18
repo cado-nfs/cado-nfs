@@ -1090,7 +1090,12 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
                           self.name)
         self.logger.debug("state = %s", self.state)
         # Set default parameters for this task, if any are given
-        self.params = self.parameters.myparams(self.paramnames)
+        # The parameters that are relative to the _task_ itself ("run",
+        # "wdir"), and that affect all programs in a given task (e.g.,
+        # below "mergetask": the "merge" and "replay" programs) are
+        # prefixed with the task name, simply because there is no program
+        # to play with.
+        self.params = self.parameters.myparams(self.paramnames, self.name)
         self.logger.debug("self.parameters = %s", self.parameters)
         self.logger.debug("params = %s", self.params)
         # Set default parameters for our programs
@@ -1512,7 +1517,7 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         message.append("Parameters used by Task %s" % self.name)
         prefix = '.'.join(self.parameters.get_param_path())
         for p in self.paramnames:
-            message.append("  %s.%s" % (prefix, p))
+            message.append("  %s.%s.%s" % (prefix, self.name, p))
             rl[p].append(prefix)
         for prog, override, needed_input in self.programs:
             message.append("  Parameters for program %s (general form %s.%s.*)" % (
@@ -4385,7 +4390,7 @@ class MergeTask(Task):
     """ Merges relations """
     @property
     def name(self):
-        return "merge"
+        return "mergetask"
     @property
     def title(self):
         return "Filtering - Merging"
@@ -6347,7 +6352,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.logger.info("Total cpu/elapsed time for incomplete %s: %g/%g",
                     self.title, self.cputotal, self.elapsed)
             self.logger.error("Finishing early: " + str(e))
-            return None
+            raise e
 
         # Do we want the sum of real times over all sub-processes for
         # something?
