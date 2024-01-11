@@ -17,10 +17,10 @@ name = c95
 
 tasks.polyselect.degree = 4
 tasks.polyselect.P = 11000
-tasks.polyselect.admax = 576
+tasks.polyselect.admax = 288
 tasks.polyselect.adrange = 24
 tasks.polyselect.incr = 12
-tasks.polyselect.nq = 32768
+tasks.polyselect.nq = 65536
 tasks.polyselect.nrkeep = 36
 tasks.polyselect.ropteffort = 0.9
 
@@ -34,14 +34,14 @@ tasks.lpb0 = 24
 tasks.lpb1 = 25
 tasks.sieve.mfb0 = 47
 tasks.sieve.mfb1 = 48
-tasks.sieve.lambda0 = 1.96
-tasks.sieve.lambda1 = 1.92
+tasks.sieve.lambda0 = 1.94
+tasks.sieve.lambda1 = 1.91
 tasks.sieve.ncurves0 = 7
 tasks.sieve.ncurves1 = 8
 tasks.I = 11
-tasks.qmin = 100000
-tasks.sieve.qrange = 4000
 tasks.sieve.rels_wanted = 2200000
+tasks.qmin = 100000
+tasks.sieve.qrange = 5000
 
 ###########################################################################
 # Filtering
@@ -53,6 +53,7 @@ tasks.filter.target_density = 85.0
 ###########################################################################
 # Linear algebra
 ###########################################################################
+
 tasks.linalg.bwc.interval = 2000
 tasks.linalg.bwc.interleaving = 0
 tasks.linalg.m = 64
