@@ -11,7 +11,7 @@ endif()
 ### bwc-specific configuration.
 
 # Dynamically linkable bwc needs shared libs.
-if(ENABLE_SHARED AND NOT CMAKE_SYSTEM_NAME MATCHES BSD)
+if(ENABLE_SHARED)
     set(BUILD_DYNAMICALLY_LINKABLE_BWC 1)
 else()
     unset(BUILD_DYNAMICALLY_LINKABLE_BWC)
