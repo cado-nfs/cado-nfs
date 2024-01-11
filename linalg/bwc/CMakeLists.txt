@@ -331,12 +331,6 @@ endif()
 
 ### link dependencies
 
-IF(UNIX)
-    FIND_PROGRAM(CMAKE_UNAME uname /bin /usr/bin /usr/local/bin )
-    IF(CMAKE_UNAME)
-        EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE CMAKE_SYSTEM_NAME)
-    ENDIF()
-ENDIF()
 # we will probably need to link bwc_base with bwc_mpfq
 target_link_libraries(bwc_base utils ${pthread_libs} bwc_arith)
 
