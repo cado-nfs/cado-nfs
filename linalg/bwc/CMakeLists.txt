@@ -11,7 +11,7 @@ endif()
 ### bwc-specific configuration.
 
 # Dynamically linkable bwc needs shared libs.
-if(ENABLE_SHARED AND NOT CMAKE_SYSTEM_NAME MATCHES BSD)
+if(ENABLE_SHARED)
     set(BUILD_DYNAMICALLY_LINKABLE_BWC 1)
 else()
     unset(BUILD_DYNAMICALLY_LINKABLE_BWC)
@@ -331,12 +331,6 @@ endif()
 
 ### link dependencies
 
-IF(UNIX)
-    FIND_PROGRAM(CMAKE_UNAME uname /bin /usr/bin /usr/local/bin )
-    IF(CMAKE_UNAME)
-        EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE CMAKE_SYSTEM_NAME)
-    ENDIF()
-ENDIF()
 # we will probably need to link bwc_base with bwc_mpfq
 target_link_libraries(bwc_base utils ${pthread_libs} bwc_arith)
 

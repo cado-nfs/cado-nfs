@@ -425,20 +425,6 @@ checks on osx system:
     - *checks-script
   <<: *checks-junit-report
  
-checks on freebsd12.4 system with gcc:
-  <<: *common-template
-  stage: thorough
-  # do not start it prematurely, in case previous jobs failed
-  # needs: []
-  tags:
-    - freebsd-tanker
-  script:
-    - make -C ci/ci/utilities/tanker
-    - ci/ci/50-libvirt-wrap-tests.sh freebsd:12.4 ci/ci/40-testsuite.sh
-  # https://gitlab.com/gitlab-org/gitlab/-/issues/15603 should be
-  # implemented someday. We would like to have it, to make sure that the
-  # cleanup sequence is called no matter what.
-
 # See #30036: it seems that testing with gcc on freebsd is
 # definitely too much pain now.
 checks on freebsd13.2 system with clang:
@@ -451,6 +437,15 @@ checks on freebsd13.2 system with clang:
   script:
     - make -C ci/ci/utilities/tanker
     - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.2 ci/ci/40-testsuite.sh
+
+checks on freebsd14.0 system with clang:
+  <<: *common-template
+  stage: thorough
+  tags:
+    - freebsd-tanker
+  script:
+    - make -C ci/ci/utilities/tanker
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:14.0 ci/ci/40-testsuite.sh
 
 checks on 32-bit freebsd13.2 system with clang:
   variables:

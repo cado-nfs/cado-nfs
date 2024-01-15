@@ -302,6 +302,13 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #define MAYBE_UNUSED
 #endif
 #endif
+#if !(defined(GENUINE_GNUC) && GNUC_VERSION_ATMOST(11,9,9))
+/* https://stackoverflow.com/questions/50646334/maybe-unused-on-member-variable-gcc-warns-incorrectly-that-attribute-is
+ */
+#define MAYBE_UNUSED_PRIVATE_DATA_MEMBER MAYBE_UNUSED
+#else
+#define MAYBE_UNUSED_PRIVATE_DATA_MEMBER
+#endif
 
 #if __STDC_VERSION__ >= 201112L
 #define STATIC_ASSERT(COND,MSG) _Static_assert(COND, #MSG)

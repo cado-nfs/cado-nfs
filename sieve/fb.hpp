@@ -69,7 +69,7 @@ struct fb_general_root {
   bool proj = 0;
   unsigned char exp = 0, oldexp = 0;
   private:
-  unsigned char dummy_padding_byte MAYBE_UNUSED = 0;
+  unsigned char dummy_padding_byte MAYBE_UNUSED_PRIVATE_DATA_MEMBER = 0;
   public:
 
   fb_general_root (){}
@@ -134,8 +134,8 @@ public:
 		       the size of redc_invp_t */
   unsigned char k, nr_roots;
 private:
-  unsigned char dummy_padding_byte1 MAYBE_UNUSED = 0;
-  unsigned char dummy_padding_byte2 MAYBE_UNUSED = 0;
+  unsigned char dummy_padding_byte1 MAYBE_UNUSED_PRIVATE_DATA_MEMBER = 0;
+  unsigned char dummy_padding_byte2 MAYBE_UNUSED_PRIVATE_DATA_MEMBER = 0;
 public:
   fb_general_root roots[MAX_DEGREE];
   /* Static class members to allow fb_vector<> to distinguish between and
