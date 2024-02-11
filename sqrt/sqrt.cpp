@@ -51,7 +51,7 @@
 #include "params.h"
 #include "timing.h"
 
-/* define to check the result of cxx_mpz_polymod_scaled_sqrt */
+/* define to check the result of cxx_mpz_polymodF_sqrt */
 // #define DEBUG
 
 /* frequency of messages "read xxx (a,b) pairs" */
@@ -64,85 +64,6 @@ static int verbose = 0;
 static double wct0;
 
 std::mutex stdio_guard;
-
-struct cxx_mpz_polymod_scaled {
-  cxx_mpz_poly p;
-  unsigned long v;
-  cxx_mpz_polymod_scaled(int deg) : p(deg), v(0) {}
-  cxx_mpz_polymod_scaled() = default;
-  cxx_mpz_polymod_scaled(cxx_mpz_poly const & p, unsigned long v = 0) : p(p), v(v) {}
-  cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled const &) = delete;
-  cxx_mpz_polymod_scaled(cxx_mpz_polymod_scaled &&) = default;
-  cxx_mpz_polymod_scaled& operator=(cxx_mpz_polymod_scaled const &) = delete;
-  cxx_mpz_polymod_scaled& operator=(cxx_mpz_polymod_scaled &&) = default;
-};
-
-/* Pseudo-reduce a plain polynomial p modulo a non-monic polynomial F.
-   The result is of type cxx_mpz_polymod_scaled P, and satisfies:
-   P->p = lc(F)^(P->v) * p mod F.
-   WARNING: this function destroys its input p !!! */
-static void
-cxx_mpz_polymod_scaled_reduce(cxx_mpz_polymod_scaled & P, cxx_mpz_poly & p, cxx_mpz_poly const & F) {
-  unsigned long v = 0;
-
-  if (p->deg < F->deg) {
-    mpz_poly_set(P.p, p);
-    P.v = 0;
-    return;
-  }
-
-  const int d = F->deg;
-
-  while (p->deg >= d) {
-    const int k = p->deg;
-
-    /* We compute F[d]*p - p[k]*F. In case F[d] divides p[k], we can simply
-       compute p - p[k]/F[d]*F. However this will happen rarely with
-       Kleinjung's polynomial selection, since lc(F) is large. */
-
-    /* FIXME: in msieve, Jason Papadopoulos reduces by F[d]^d*F(x/F[d])
-       instead of F(x). This might avoid one of the for-loops below. */
-
-    // temporary hack: account for the possibility that we're indeed
-    // using f_hat instead of f.
-    if (mpz_cmp_ui(F->coeff[d], 1) != 0) {
-      v++; /* we consider p/F[d]^v */
-#pragma omp parallel for
-      for (int i = 0; i < k; ++i)
-        mpz_mul (p->coeff[i], p->coeff[i], F->coeff[d]);
-    }
-
-#pragma omp parallel for
-    for (int i = 0; i < d; ++i)
-      mpz_submul (p->coeff[k-d+i], p->coeff[k], F->coeff[i]);
-
-    mpz_poly_cleandeg (p, k-1);
-  }
-
-  mpz_poly_set(P.p, p);
-  P.v = v;
-}
-
-/* Set Q=P1*P2 (mod F). Warning: Q might equal P1 (or P2). */
-void
-cxx_mpz_polymod_scaled_mul (cxx_mpz_polymod_scaled & Q, cxx_mpz_polymod_scaled const & P1, cxx_mpz_polymod_scaled const & P2,
-                   cxx_mpz_poly const & F, mpz_poly_parallel_info * pinf) {
-  unsigned long v;
-
-  /* beware: if P1 and P2 are zero, P1.p->deg + P2.p->deg = -2 */
-  cxx_mpz_poly prd ((P1.p->deg == -1) ? -1 : P1.p->deg + P2.p->deg);
-
-  ASSERT_ALWAYS(mpz_poly_normalized_p (P1.p));
-  ASSERT_ALWAYS(mpz_poly_normalized_p (P2.p));
-
-  pinf->mpz_poly_mul(prd, P1.p, P2.p);
-  v = P1.v + P2.v;
-  ASSERT_ALWAYS(v >= P1.v); /* no overflow */
-
-  cxx_mpz_polymod_scaled_reduce (Q, prd, F);
-  Q.v += v;
-  ASSERT_ALWAYS(Q.v >= v); /* no overflow */
-}
 
 static char*
 get_depname (const char *prefix, const char *algrat, int numdep)
@@ -795,63 +716,31 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly cpoly,
 }
 
 /********** ALGSQRT **********/
-static cxx_mpz_polymod_scaled
-cxx_mpz_polymod_scaled_from_ab (cxx_mpz const & a, cxx_mpz const & b)
-{
-    if (mpz_cmp_ui (b, 0) == 0) {
-        cxx_mpz_polymod_scaled tmp(0);
-        mpz_set (tmp.p->coeff[0], a);
-        mpz_poly_cleandeg(tmp.p, 0);
-        return tmp;
-    } else {
-        cxx_mpz_polymod_scaled tmp(1);
-        mpz_neg (tmp.p->coeff[1], b);
-        mpz_set (tmp.p->coeff[0], a);
-        mpz_poly_cleandeg(tmp.p, 1);
-        return tmp;
-    }
-}
-
-/* On purpose, this does not free the resources. Doing so would be
- * premature optimization. In this file we knowingly call this function
- * when we do _not_ want reallocation to happen.
- */
-void cxx_mpz_polymod_scaled_set_ui(cxx_mpz_polymod_scaled & P, unsigned long x)
-{
-    P.v = 0;
-    mpz_poly_realloc(P.p, 1);
-    mpz_set_ui (P.p->coeff[0], x);
-    mpz_poly_cleandeg(P.p, 0);
-}
-
-void cxx_mpz_polymod_scaled_set(cxx_mpz_polymod_scaled & y, cxx_mpz_polymod_scaled const & x)
-{
-    y.v = x.v;
-    mpz_poly_set(y.p, x.p);
-}
 
 /* This is the analogue of cxx_mpz_functions for the algebraic square
  * root. Here, the object must carry a reference to the field polynomial
  */
-struct cxx_mpz_polymod_scaled_functions {
-    typedef cxx_mpz_polymod_scaled T;
+struct cxx_mpz_polymodF_functions {
+    typedef cxx_mpz_polymodF T;
     cxx_mpz_poly const & F;
     mpz_poly_parallel_info * pinf;
-    cxx_mpz_polymod_scaled_functions(cxx_mpz_poly & F, mpz_poly_parallel_info * pinf = NULL) : F(F), pinf(pinf) {}
+    cxx_mpz_polymodF_functions(cxx_mpz_poly & F, mpz_poly_parallel_info * pinf = NULL) : F(F), pinf(pinf) {}
     T from_ab(cxx_mpz const & a, cxx_mpz const & b) const {
-        return cxx_mpz_polymod_scaled_from_ab(a, b);
+        cxx_mpz_polymodF ret;
+        mpz_polymodF_set_from_ab(ret, a, b);
+        return ret;
     }
     bool is1(T & res) const {
-        return res.p.degree() == 0 && res.v == 0 && mpz_cmp_ui(res.p->coeff[0], 1) == 0;
+        return res->p->deg == 0 && res->v == 0 && mpz_cmp_ui(res->p->coeff[0], 1) == 0;
     }
     void set(T & y, T const & x) const {
-        cxx_mpz_polymod_scaled_set(y, x);
+        mpz_polymodF_set(y, x);
     }
     void set1(T & res) const {
-        cxx_mpz_polymod_scaled_set_ui(res, 1);
+        mpz_polymodF_set_ui(res, 1);
     }
     void operator()(T &res, T const & a, T const & b) const {
-        cxx_mpz_polymod_scaled_mul(res, a, b, F, pinf);
+        pinf->mpz_polymodF_mul(res, a, b, F);
     }
 };
 
@@ -983,7 +872,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
 
 // res <- Sqrt(AA) mod F, using p-adic lifting, at prime p.
 unsigned long
-cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scaled & AA, cxx_mpz_poly const & F, unsigned long p,
+cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_poly const & F, unsigned long p,
 	       int numdep,
                mpz_poly_parallel_info * pinf)
 {
@@ -1004,7 +893,7 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
      twice as large, before reduction by f(x). The reduction modulo f(x)
      produces A(x), however that reduction should not decrease the size of
      the coefficients. */
-  target_size = mpz_poly_sizeinbase (AA.p, 2);
+  target_size = mpz_poly_sizeinbase (AA->p, 2);
   target_size = target_size / 2;
 
   /* note that we scale by the derivative of f_hat, which might increase
@@ -1027,11 +916,11 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
   mpz_poly_init(A, d-1);
   // Clean up the mess with denominator: if it is an odd power of fd,
   // then multiply num and denom by fd to make it even.
-  mpz_poly_swap(A, AA.p);
-  if (((AA.v)&1) == 0) {
-    v = AA.v / 2;
+  mpz_poly_swap(A, AA->p);
+  if (((AA->v)&1) == 0) {
+    v = AA->v / 2;
   } else {
-    v = (1+AA.v) / 2;
+    v = (1+AA->v) / 2;
     pinf->mpz_poly_mul_mpz(A, A, F->coeff[d]);
   }
 
@@ -1231,15 +1120,15 @@ cxx_mpz_polymod_scaled_sqrt (cxx_mpz_polymod_scaled & res, cxx_mpz_polymod_scale
 
   mpz_poly_base_modp_clear (P, logk0);
 
-  mpz_poly_set(res.p, tmp);
-  res.v = v;
+  mpz_poly_set(res->p, tmp);
+  res->v = v;
 
   mpz_clear (pk);
   mpz_poly_clear(tmp);
   mpz_poly_clear (invsqrtA);
   mpz_poly_clear (a);
 
-  size_t sqrt_size = mpz_poly_sizeinbase (res.p, 2);
+  size_t sqrt_size = mpz_poly_sizeinbase (res->p, 2);
 #pragma omp critical
   {
     fprintf (stderr, "Alg(%d): maximal sqrt bit-size = %zu (%.0f%% of target size)\n",
@@ -1313,7 +1202,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
   // Init F to be the corresponding polynomial
   cxx_mpz_poly F(cpoly->pols[side]);
   cxx_mpz_poly F_hat(F->deg);
-  cxx_mpz_polymod_scaled prod;
+  cxx_mpz_polymodF prod;
 
   /* {{{ create F_hat, the minimal polynomial of alpha_hat = lc(F) *
    * alpha */
@@ -1331,11 +1220,11 @@ calculateSqrtAlg (const char *prefix, int numdep,
 
   // Accumulate product with a subproduct tree
   {
-      cxx_mpz_polymod_scaled_functions M(F, pinf);
+      cxx_mpz_polymodF_functions M(F, pinf);
 
       std::string message = fmt::format(FMT_STRING("Alg({})"), numdep);
       char * depname = get_depname (prefix, "", numdep);
-      std::vector<cxx_mpz_polymod_scaled> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
+      std::vector<cxx_mpz_polymodF> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
       free(depname);
 
       {
@@ -1383,9 +1272,9 @@ calculateSqrtAlg (const char *prefix, int numdep,
       fprintf (stderr, "Alg(%d): finished accumulating product at %.2fs (wct %.2fs)\n",
 	       numdep, seconds(), wct_seconds () - wct0);
       fprintf (stderr, "Alg(%d): nab = %lu, nfree = %lu, v = %lu\n", numdep,
-	       nab, nfree, prod.v);
+	       nab, nfree, prod->v);
       fprintf (stderr, "Alg(%d): maximal polynomial bit-size = %lu\n", numdep,
-	       (unsigned long) mpz_poly_sizeinbase (prod.p, 2));
+	       (unsigned long) mpz_poly_sizeinbase (prod->p, 2));
       fprintf (stderr, "Alg(%d): using p=%lu for lifting\n", numdep, p);
       fflush (stderr);
     }
@@ -1399,7 +1288,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
     mpz_poly_set (prod0, prod.p);
 #endif
     unsigned long target_k MAYBE_UNUSED;
-    target_k = cxx_mpz_polymod_scaled_sqrt (prod, prod, F, p, numdep, pinf);
+    target_k = cxx_mpz_polymodF_sqrt (prod, prod, F, p, numdep, pinf);
 #ifdef DEBUG
     unsigned long v = prod.v;
     /* we should have prod.p/fd^v = sqrt(prod0/fd^v0) mod (F,p^k)
@@ -1449,7 +1338,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
             mpz_divexact(Np, Np, m);
         }
     } while (!ret);
-    mpz_poly_eval_mod_mpz(algsqrt, prod.p, m, Np);
+    mpz_poly_eval_mod_mpz(algsqrt, prod->p, m, Np);
 
     /* now divide by f'(alpha_hat), but mod N. alpha_hat mod N is lc*m
      */
@@ -1465,7 +1354,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
     mpz_clear(m);
 
     mpz_invert(aux, F->coeff[F->deg], Np);  // 1/fd mod n
-    mpz_powm_ui(aux, aux, prod.v, Np);      // 1/fd^v mod n
+    mpz_powm_ui(aux, aux, prod->v, Np);      // 1/fd^v mod n
     mpz_mul(algsqrt, algsqrt, aux);
     mpz_mod(algsqrt, algsqrt, Np);
 

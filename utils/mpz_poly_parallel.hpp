@@ -3,6 +3,7 @@
 
 #include <gmp.h>
 #include "mpz_poly.h"
+#include "mpz_polymodF.h"
 #include "rootfinder.h"
 
 /* We duplicate here the parallel interface of mpz_poly. The functions
@@ -32,13 +33,18 @@ struct mpz_poly_parallel_interface {
     void mpz_poly_mul_mod_f (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2, mpz_poly_srcptr f);
     void mpz_poly_reduce_frac_mod_f_mod_mpz (mpz_poly_ptr num, mpz_poly_ptr denom, mpz_poly_srcptr F, mpz_srcptr m);
     void mpz_poly_div_2_mod_mpz(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m);
-    void polymodF_mul (polymodF_t Q, const polymodF_t P1, const polymodF_t P2, mpz_poly_srcptr F);
     void mpz_poly_sqr_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
     void mpz_poly_pow_mod_f_mod_ui(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, unsigned long p);
     void mpz_poly_pow_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, mpz_srcptr p);
     void mpz_poly_pow_ui_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, unsigned long a, mpz_srcptr p);
     mpz_poly* mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l);
     void mpz_poly_base_modp_lift(mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk);
+
+    /* polymodF functions (scaled polynomials modulo a non monic integer
+     * polynomial)
+     */
+    void mpz_polymodF_mul (mpz_polymodF_ptr Q, mpz_polymodF_srcptr P1, mpz_polymodF_srcptr P2, mpz_poly_srcptr F);
+    void mpz_poly_reducemodF(mpz_polymodF_ptr P, mpz_poly_srcptr p, mpz_poly_srcptr F);
 };
 
 struct mpz_poly_notparallel_info : public mpz_poly_parallel_interface<mpz_poly_notparallel_info> {
