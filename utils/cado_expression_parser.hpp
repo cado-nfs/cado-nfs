@@ -17,6 +17,9 @@ template<typename T>
 struct cado_expression_parser : public T {
     using typename T::type;
 
+    template<typename... Args>
+    cado_expression_parser(Args&& ...args): T(std::forward<Args>(args)...) {}
+
     struct parse_error: public std::exception {
         const char * what() const noexcept override { return "parse error"; }
     };
@@ -37,11 +40,11 @@ private:
         LITERAL
     };
     std::vector<expression_token> tokens;
-    std::vector<char> literals;
+    std::vector<std::string> literals;
     std::vector<cxx_mpz> integers;
 
     typename std::vector<expression_token>::const_iterator ctok;
-    std::vector<char>::const_iterator clit;
+    std::vector<std::string>::const_iterator clit;
     std::vector<cxx_mpz>::const_iterator cint;
 
     inline void next() { if (ctok != tokens.end()) ctok++; }
@@ -125,15 +128,18 @@ private:
     }
 public:
     type parse() {
-        /* count literals, see if we have the right number (at most) */
-        std::sort(literals.begin(), literals.end());
-        char c = '\0';
-        int nlit = 0;
-        for(auto const & l : literals) {
-            if (l != c) nlit++;
-            c = l;
-            if (nlit > T::accept_literals)
-                throw parse_error();
+        {
+            /* count literals, see if we have the right number (at most) */
+            auto lcopy = literals;
+            std::sort(lcopy.begin(), lcopy.end());
+            std::string c;
+            int nlit = 0;
+            for(auto const & l : lcopy) {
+                if (l != c) nlit++;
+                c = l;
+                if (nlit > T::accept_literals)
+                    throw parse_error();
+            }
         }
         type p = parse_expression();
         if (ctok != tokens.end())
@@ -174,7 +180,13 @@ public:
                 tokens.push_back(POSITIVE_INTEGER);
             } else if (T::accept_literals && isalpha(c)) {
                 is.get();
-                literals.push_back(c);
+                std::string lit(1, (char) c);
+                /* we should be able to collect literals such as x0 */
+                for( ;; lit += c, is.get()) {
+                    c = is.peek();
+                    if (is.eof() || !isalnum(c)) break;
+                }
+                literals.push_back(lit);
                 tokens.push_back(LITERAL);
             } else {
                 throw token_error();

@@ -1201,7 +1201,8 @@ calculateSqrtAlg (const char *prefix, int numdep,
 
   // Init F to be the corresponding polynomial
   cxx_mpz_poly F(cpoly->pols[side]);
-  cxx_mpz_poly F_hat(F->deg);
+  cxx_mpz_poly F_hat;
+  mpz_poly_realloc(F_hat, 1 + F->deg); // number of coefficients
   cxx_mpz_polymodF prod;
 
   /* {{{ create F_hat, the minimal polynomial of alpha_hat = lc(F) *

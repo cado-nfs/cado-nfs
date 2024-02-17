@@ -288,7 +288,11 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
 // #pragma omp parallel
 #endif
         {
-            cxx_mpz_poly smpol(maxdeg), pol(1);
+            cxx_mpz_poly smpol, pol;
+
+            mpz_poly_realloc(smpol, maxdeg + 1); // number of coeffs
+            mpz_poly_realloc(pol, 2); // number of coeffs
+
 #ifdef HAVE_OPENMP
 // #pragma omp for
 #endif

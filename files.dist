@@ -1430,7 +1430,7 @@ tests/utils/test_modredcul_batchinv_ul.c
 tests/utils/test_modul_poly.c
 tests/utils/test_mpz_mat.c
 tests/utils/test_mpz_poly.cpp
-tests/utils/test_mpz_poly_bivariate.c
+tests/utils/test_mpz_poly_bivariate.cpp
 tests/utils/test_mpz_poly_parsing.cpp
 tests/utils/test_mpz_vector.c
 tests/utils/test_omega.c
@@ -1593,8 +1593,8 @@ utils/mpz_mat.cpp
 utils/mpz_mat.h
 utils/mpz_poly.cpp
 utils/mpz_poly.h
-utils/mpz_poly_bivariate.c
-utils/mpz_poly_bivariate.h
+utils/mpz_poly_bivariate.cpp
+utils/mpz_poly_bivariate.hpp
 utils/mpz_poly_parallel.hpp
 utils/mpz_polymodF.h
 utils/mpz_vector.c

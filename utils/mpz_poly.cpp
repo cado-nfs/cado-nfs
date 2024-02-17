@@ -19,6 +19,7 @@
 #include <cstdio>       // fprintf // IWYU pragma: keep
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <gmp.h>
 #include "cxx_mpz.hpp"    // for cxx_mpz
 #include "double_poly.h"  // for double_poly_s, double_poly_srcptr
@@ -841,6 +842,26 @@ void mpz_poly_set_mpz(mpz_poly_ptr f, mpz_srcptr z)
     mpz_poly_cleandeg(f, 0);
 }
 
+void mpz_poly_set_rrandomb(mpz_poly_ptr f, int d, int k, gmp_randstate_ptr state)
+{
+  int i;
+  mpz_t u;
+
+  ASSERT_ALWAYS (k > 0);
+  mpz_poly_realloc (f, d + 1);
+  mpz_init_set_ui (u, 1);
+  mpz_mul_2exp (u, u, k - 1); /* u = 2^(k-1) */
+  for (i = 0; i <= d; i++)
+    do
+      {
+        mpz_rrandomb (f->coeff[i], state, k); /* 0 to 2^k-1 */
+        mpz_sub (f->coeff[i], f->coeff[i], u); /* -2^(k-1) to 2^(k-1)-1 */
+      }
+    while (i == d && mpz_cmp_ui (f->coeff[i], 0) == 0);
+  mpz_clear (u);
+  f->deg = d;
+}
+
 /* g <- quo (f, x^i) */
 void mpz_poly_div_xi(mpz_poly_ptr g, mpz_poly_srcptr f, int i)
 {
@@ -927,6 +948,18 @@ int mpz_poly_valuation(mpz_poly_srcptr f)
     ASSERT(f->deg >= 0);
     for( ; n < f->deg  && mpz_cmp_ui(f->coeff[n], 0) == 0 ; n++) ;
     return n;
+}
+
+/* return true if f is zero or a multiple of x^deg(f) */
+int mpz_poly_is_monomial_multiple(mpz_poly_srcptr f)
+{
+    return mpz_poly_degree(f) == -1 || mpz_poly_valuation(f) == mpz_poly_degree(f);
+}
+
+/* return true if f == x^deg(f) */
+int mpz_poly_is_monomial(mpz_poly_srcptr f)
+{
+    return mpz_poly_degree(f) >= 0 && mpz_poly_valuation(f) == mpz_poly_degree(f) && mpz_cmp_ui(mpz_poly_lc(f), 1) == 0;
 }
 
 
@@ -1154,6 +1187,7 @@ void mpz_poly_neg (mpz_poly_ptr f, mpz_poly_srcptr g) {
   for (int i = 0 ; i <= g->deg ; i++) {
     mpz_neg (f->coeff[i], g->coeff[i]);
   }
+  f->deg = g->deg;
 }
 
 /* Set f=g+h.
@@ -1587,7 +1621,7 @@ mpz_poly_pseudodiv_r (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr N, mpz_ptr f
 /* h=rem(h, f) mod p, f not necessarily monic. */
 /* returns 0 if an inverse of the leading coeff could not be found. */
 int
-mpz_poly_div_r (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr p)
+mpz_poly_div_r_mod_mpz_clobber (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr p)
 {
   return mpz_poly_pseudodiv_r (h, f, p, NULL);
 }
@@ -1598,7 +1632,7 @@ mpz_poly_div_r (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr p)
    q and r must be allocated!
    the only aliasing allowed is f==r.
 */
-int mpz_poly_div_qr (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr p)
+int mpz_poly_div_qr_mod_mpz (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr p)
 {
   int k, j, df = f->deg, dg = g->deg, dq = df - dg;
   mpz_t lg, invlg;
@@ -1656,7 +1690,7 @@ int mpz_poly_div_qr (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly
  *
  * TODO: do the parallel version
  */
-int mpz_poly_div_qr_z (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g)
+int mpz_poly_div_qr (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g)
 {
   int k, j, df = f->deg, dg = g->deg, dq = df - dg;
 
@@ -1688,13 +1722,18 @@ int mpz_poly_div_qr_z (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_po
   return 1;
 }
 
-int mpz_poly_div_r_z (mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g)
+int mpz_poly_div_r (mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g)
 {
     mpz_poly quo;
     mpz_poly_init(quo,-1);
-    int ret = mpz_poly_div_qr_z(quo,r,f,g);
+    int ret = mpz_poly_div_qr(quo,r,f,g);
     mpz_poly_clear(quo);
     return ret;
+}
+
+int mpz_poly_mod (mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g)
+{
+    return mpz_poly_div_r(r, f, g);
 }
 
 
@@ -2344,7 +2383,7 @@ mpz_poly_parallel_interface<inf>::mpz_poly_mul_mod_f (mpz_poly_ptr Q, mpz_poly_s
                         mpz_poly_srcptr f)
 {
     mpz_poly_mul(Q,P1,P2);
-    mpz_poly_div_r_z(Q,Q,f);
+    mpz_poly_div_r(Q,Q,f);
 }
 
 /* Q = P^2 mod f, mod m
@@ -2462,7 +2501,7 @@ void mpz_poly_pow_ui_mod_f(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n, m
             mpz_poly_mul(Q, B, A);
             mpz_poly_swap(Q, B);
         }
-        mpz_poly_div_r_z(B, B, f);
+        mpz_poly_div_r(B, B, f);
     }
     mpz_poly_clear(Q);
 }/*}}}*/
@@ -2806,7 +2845,7 @@ mpz_poly_gcd_mpz_clobber (mpz_poly_ptr f, mpz_poly_ptr g, mpz_srcptr p)
   mpz_poly_mod_mpz(g, g, p, NULL);
   while (g->deg >= 0)
     {
-      mpz_poly_div_r (f, g, p);
+      mpz_poly_div_r_mod_mpz_clobber (f, g, p);
       /* now deg(f) < deg(g): swap f and g */
       mpz_poly_swap (f, g);
     }
@@ -2900,7 +2939,7 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
     {
 
       /* q, r := f div g mod p */
-      mpz_poly_div_qr (q, d, d, gg, p);
+      mpz_poly_div_qr_mod_mpz (q, d, d, gg, p);
 
       /* u := u - q * uu mod p */
       mpz_poly_mul(tmp, q, uu);
@@ -3052,6 +3091,12 @@ mpz_poly_content (mpz_ptr c, mpz_poly_srcptr F)
   int i;
   mpz_t *f = F->coeff;
   int d = F->deg;
+
+  if (d == -1) {
+      mpz_set_ui(c, 0);
+      return;
+  }
+
 
   mpz_set (c, f[0]);
   for (i = 1; i <= d; i++)
@@ -3872,7 +3917,7 @@ static int mpz_poly_factor2(mpz_poly_factor_list_ptr list, mpz_poly_srcptr f,
         mpz_poly r;
         mpz_poly_init(r, 0);
         //Euclidean division of fcopy
-        mpz_poly_div_qr(q, r, fcopy, tmp, p);
+        mpz_poly_div_qr_mod_mpz(q, r, fcopy, tmp, p);
         //Power of the possible factor.
         unsigned int m = 0;
         //While fcopy is divisible by tmp.
@@ -3884,7 +3929,7 @@ static int mpz_poly_factor2(mpz_poly_factor_list_ptr list, mpz_poly_srcptr f,
             //No other possible factor.
             break;
           }
-          mpz_poly_div_qr(q, r, fcopy, tmp, p);
+          mpz_poly_div_qr_mod_mpz(q, r, fcopy, tmp, p);
         }
         if (m != 0) {
           //Push tmp^m as a factor of f mod 2.
@@ -4613,6 +4658,20 @@ void  mpz_poly_setcoeffs_counter_print_error_code(int error_code){
 
 
 struct mpz_poly_parser_traits {
+    std::string x;
+    mpz_poly_parser_traits(std::string const & x)
+        : x(x)
+    {}
+    struct parse_error : public std::exception {};
+    struct unexpected_literal : public parse_error {
+        std::string msg;
+        unexpected_literal(std::string const & v)
+            : msg(std::string("unexpected literal " + v))
+        {}
+        const char *what() const noexcept override {
+            return msg.c_str();
+        }
+    };
     static constexpr const int accept_literals = 1;
     typedef cxx_mpz_poly type;
     void add(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
@@ -4633,14 +4692,15 @@ struct mpz_poly_parser_traits {
     void set_mpz(cxx_mpz_poly & a, cxx_mpz const & z) {
         mpz_poly_set_mpz(a, z);
     }
-    void set_literal_power(cxx_mpz_poly & a, char, unsigned long e) {
-        mpz_poly_set_xi(a, e);
+    void set_literal_power(cxx_mpz_poly & a, std::string const & v, unsigned long e) {
+        if (v == x)
+            mpz_poly_set_xi(a, e);
+        else
+            throw unexpected_literal(v);
     }
 };
 
-typedef cado_expression_parser<mpz_poly_parser_traits> poly_parser;
-
-std::istream& operator>>(std::istream& in, cxx_mpz_poly & f)
+std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_poly &> F)
 {
     std::string line;
     for(;;in.get()) {
@@ -4650,11 +4710,15 @@ std::istream& operator>>(std::istream& in, cxx_mpz_poly & f)
     if (!getline(in, line)) return in;
     std::istringstream is(line);
 
-    poly_parser P;
+    typedef cado_expression_parser<mpz_poly_parser_traits> poly_parser;
+    poly_parser P(F.x);
     P.tokenize(is);
 
     try {
-        f = P.parse();
+        F.c = P.parse();
+    } catch (mpz_poly_parser_traits::parse_error const & p) {
+        in.setstate(std::ios_base::failbit);
+        return in;
     } catch (poly_parser::parse_error const & p) {
         in.setstate(std::ios_base::failbit);
         return in;
@@ -4663,8 +4727,9 @@ std::istream& operator>>(std::istream& in, cxx_mpz_poly & f)
     return in;
 }
 
-std::ostream& operator<<(std::ostream& o, cxx_mpz_poly const & f) {
-    return o << f.print_poly(std::string("x"));
+std::ostream& operator<<(std::ostream& o, cxx_mpz_poly::named_proxy<cxx_mpz_poly const &> F)
+{
+    return o << F.c.print_poly(std::string(F.x));
 }
 
 int mpz_poly_set_from_expression(mpz_poly_ptr f, const char * value)
@@ -4810,6 +4875,107 @@ void mpz_polymodF_swap(mpz_polymodF_ptr P, mpz_polymodF_ptr Q)
     std::swap(P->v, Q->v);
     mpz_poly_swap(P->p, Q->p);
 }
+
+#include <memory>
+
+struct product_tree {
+    size_t i0, i1;
+    cxx_mpz_poly A;
+    cxx_mpz_poly Ad;
+    std::shared_ptr<product_tree> children[2];
+};
+
+static std::shared_ptr<product_tree> polyfromroots_and_derivative(
+        std::vector<cxx_mpz> const & points, size_t i0 = 0, size_t i1 = SIZE_MAX)
+{
+    if (i1 >= points.size())
+        i1 = points.size();
+    ASSERT_ALWAYS(i0 <= i1);
+    if (i1 == i0)
+        return nullptr;
+    auto ret = std::make_shared<product_tree>();
+    ret->i0 = i0;
+    ret->i1 = i1;
+    if (i1 == i0 + 1) {
+        mpz_poly_set_xi(ret->A, 1);
+        mpz_poly_sub_mpz(ret->A, ret->A, points[i0]);
+        mpz_poly_set_xi(ret->Ad, 0);
+    } else {
+        size_t j = (i0 + i1) / 2;
+        ret->children[0] = polyfromroots_and_derivative(points, i0, j);
+        ret->children[1] = polyfromroots_and_derivative(points, j, i1);
+
+        mpz_poly_mul(ret->A, ret->children[0]->A, ret->children[1]->A);
+        cxx_mpz_poly tmp;
+        mpz_poly_mul(ret->Ad, ret->children[0]->A, ret->children[1]->Ad);
+        mpz_poly_mul(tmp, ret->children[0]->Ad, ret->children[1]->A);
+        mpz_poly_add(ret->Ad, ret->Ad, tmp);
+    }
+    return ret;
+}
+
+static void multievaluate_derivative(std::vector<cxx_mpz> & ret, std::shared_ptr<product_tree> const & T, cxx_mpz_poly const & P)
+{
+    cxx_mpz_poly tmp;
+    mpz_poly_mod(tmp, P, T->A);
+    if (T->i1 == T->i0 + 1) {
+        ret.push_back(tmp[0]);
+    } else {
+        multievaluate_derivative(ret, T->children[0], tmp);
+        multievaluate_derivative(ret, T->children[1], tmp);
+    }
+}
+
+static void interpolate_inner(cxx_mpz_poly & num, cxx_mpz & den, std::shared_ptr<product_tree> const & T, std::vector<cxx_mpz> const & multipliers, std::vector<cxx_mpz> const & evaluations)
+{
+    if (T->i1 == T->i0 + 1) {
+        num = T->Ad;
+        mpz_poly_mul_mpz(num, num, evaluations[T->i0]);
+        den = multipliers[T->i0];
+    } else {
+        cxx_mpz_poly cnum[2];
+        cxx_mpz cden[2];
+        interpolate_inner(cnum[0], cden[0], T->children[0], multipliers, evaluations);
+        interpolate_inner(cnum[1], cden[1], T->children[1], multipliers, evaluations);
+        mpz_poly_mul(cnum[0], cnum[0], T->children[1]->A);
+        mpz_poly_mul(cnum[1], cnum[1], T->children[0]->A);
+        mpz_poly_mul_mpz(cnum[0], cnum[0], cden[1]);
+        mpz_poly_mul_mpz(cnum[1], cnum[1], cden[0]);
+        mpz_poly_add(num, cnum[0], cnum[1]);
+        mpz_mul(den, cden[0], cden[1]);
+    }
+}
+
+
+int mpz_poly_interpolate(mpz_poly_ptr resultant,
+        std::vector<cxx_mpz> const & points,
+        std::vector<cxx_mpz> const & evaluations)
+{
+    auto T = polyfromroots_and_derivative(points);
+    std::vector<cxx_mpz> multipliers;
+    multievaluate_derivative(multipliers, T, T->Ad);
+
+    cxx_mpz_poly num;
+    cxx_mpz den;
+    interpolate_inner(num, den, T, multipliers, evaluations);
+
+    cxx_mpz tmp;
+    mpz_poly_content(tmp, num);
+    mpz_gcd(tmp, tmp, den);
+    mpz_poly_divexact_mpz(num, num, tmp);
+    mpz_divexact(den, den, tmp);
+
+    mpz_poly_set(resultant, num);
+    if (mpz_sgn(den) < 0) {
+        mpz_poly_neg(resultant, resultant);
+        mpz_abs(den, den);
+    }
+    return mpz_cmp_ui(den, 1) == 0;
+}
+
+
+
+
 
 
 template struct mpz_poly_parallel_interface<mpz_poly_notparallel_info>;

@@ -5,33 +5,17 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <gmp.h>
+#include <iostream>
 #include "mpz_poly.h"
 #include "mpz_polymodF.h"
 #include "mpz_poly_parallel.hpp"
 #include "tests_common.h"
 #include "portability.h" //  IWYU pragma: keep
 
-/* Put random coefficients of k bits in a polynomial (already initialized).
-   Ensure the coefficient of degree d is not zero. */
 static void
 mpz_poly_random (mpz_poly f, int d, int k)
 {
-  int i;
-  mpz_t u;
-
-  ASSERT_ALWAYS (k > 0);
-  mpz_poly_realloc (f, d + 1);
-  mpz_init_set_ui (u, 1);
-  mpz_mul_2exp (u, u, k - 1); /* u = 2^(k-1) */
-  for (i = 0; i <= d; i++)
-    do
-      {
-        mpz_rrandomb (f->coeff[i], state, k); /* 0 to 2^k-1 */
-        mpz_sub (f->coeff[i], f->coeff[i], u); /* -2^(k-1) to 2^(k-1)-1 */
-      }
-    while (i == d && mpz_cmp_ui (f->coeff[i], 0) == 0);
-  mpz_clear (u);
-  f->deg = d;
+    mpz_poly_set_rrandomb(f, d, k, state);
 }
 
 static void mpz_poly_setcoeffs_ui_var(mpz_poly f, int d, ...)
@@ -912,7 +896,7 @@ void test_mpz_poly_trivialities()
     mpz_set_ui(p, 143);
     mpz_poly_setcoeffs_ui_var(f, 2, 1, 1, 3);
     mpz_poly_setcoeffs_ui_var(g, 1, 1, 11);
-    rc = mpz_poly_div_r(f, g, p);
+    rc = mpz_poly_div_r_mod_mpz_clobber(f, g, p);
     ASSERT_ALWAYS(rc == 0);
     mpz_poly_setcoeffs_ui_var(f, 2, 1, 1, 3);
     mpz_poly_setcoeffs_ui_var(g, 1, 1, 11);
@@ -924,10 +908,10 @@ void test_mpz_poly_trivialities()
     /* test div_qr */
     mpz_poly_setcoeffs_ui_var(f, 4, 1, 1, 1, 1, 3);
     mpz_poly_setcoeffs_ui_var(g, 2, 1, 2, 11);
-    rc = mpz_poly_div_qr(q, r, f, g, p);
+    rc = mpz_poly_div_qr_mod_mpz(q, r, f, g, p);
     ASSERT_ALWAYS(rc == 0);
     mpz_set_ui(p, 13);
-    rc = mpz_poly_div_qr(q, r, f, g, p);
+    rc = mpz_poly_div_qr_mod_mpz(q, r, f, g, p);
     mpz_poly_setcoeffs_ui_var(f, 2, 0, 11, 5);
     mpz_poly_setcoeffs_ui_var(g, 1, 1, 3);
     ASSERT_ALWAYS(rc);
@@ -1128,6 +1112,53 @@ void test_mpz_poly_infinity_norm()
   mpz_poly_clear(f);
 }
 
+void test_mpz_poly_interpolation(unsigned long iter)
+{
+    {
+        std::vector<cxx_mpz> points;
+        std::vector<cxx_mpz> evaluations;
+        cxx_mpz_poly f;
+        std::istringstream("x+x^2-x^17+3") >> f;
+        for(int i = 0 ; i < 24 ; i++) { 
+            cxx_mpz t(i), e;
+            mpz_poly_eval(e, f, t);
+            points.push_back(t);
+            evaluations.push_back(e);
+        }
+        cxx_mpz_poly tmp;
+        int ok = mpz_poly_interpolate(tmp, points, evaluations);
+        ASSERT_ALWAYS(tmp == f);
+        ASSERT_ALWAYS(ok);
+    }
+
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        int d = 4 + gmp_urandomm_ui(state, 97);
+        cxx_mpz_poly f;
+        mpz_poly_random (f, d, 5);
+
+        std::vector<cxx_mpz> points;
+        std::vector<cxx_mpz> evaluations;
+
+        int neval = d + 1;
+
+        for(int i = 0 ; i < neval ; i++) {
+            cxx_mpz t(i), e;
+            mpz_poly_eval(e, f, t);
+            points.push_back(t);
+            evaluations.push_back(e);
+        }
+        cxx_mpz_poly tmp;
+        int ok = mpz_poly_interpolate(tmp, points, evaluations);
+        if (!ok || (tmp != f)) {
+            std::cerr << "// bug in resultant" << std::endl;
+            std::cerr << f << std::endl;
+            std::cerr << tmp << std::endl;
+        }
+        ASSERT_ALWAYS(tmp == f);
+        ASSERT_ALWAYS(ok);
+    }
+}
+
 // coverity[root_function]
 int
 main (int argc, const char *argv[])
@@ -1152,6 +1183,7 @@ main (int argc, const char *argv[])
   test_mpz_poly_resultant();
   test_mpz_poly_discriminant(20000);
   test_mpz_poly_infinity_norm();
+  test_mpz_poly_interpolation(iter);
   tests_common_clear ();
   exit (EXIT_SUCCESS);
 }
