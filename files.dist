@@ -1596,6 +1596,7 @@ utils/mpz_poly.h
 utils/mpz_poly_bivariate.c
 utils/mpz_poly_bivariate.h
 utils/mpz_poly_parallel.hpp
+utils/mpz_polymodF.h
 utils/mpz_vector.c
 utils/mpz_vector.h
 utils/multityped_array.hpp

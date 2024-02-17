@@ -238,7 +238,9 @@ void bpack_ops<T>::mul(bpack_view<T> C, bpack_const_view<T> A, bpack_const_view<
 template<typename T>
 void bpack_ops<T>::mul_lt_ge(bpack_const_view<T> A, bpack_view<T> X)
 {
-    /* A is considered an an implicitly square bitmat<T>. It is
+    /* Do X <- A * X
+     *
+     * A is considered an an implicitly square bitmat<T>. It is
      * completed to the right to as many blocks as is necessary
      * to match the number of row blocks of X
      */
@@ -270,14 +272,25 @@ void bpack_ops<T>::mul_lt_ge(bpack_const_view<T> A, bpack_view<T> X)
     /* This approach is significantly faster when the multiplication code
      * benefits from doing precomputations on its right-hand side.
      */
+
+    /*
+    fprintf(stderr, "mul_lt_ge %u %u %u\n",
+            A.nrowblocks(),
+            A.ncolblocks(),
+            X.ncolblocks());
+     */
+
+    /* We're going to process X in vertical bands of B columns (or,
+     * more precisely, B/bitmat<T>::width blocks. In fact, we may
+     * choose the number B to our liking (any multiple of
+     * bitmat<T>::width), but it seems that the fewer the better.
+     */
+    constexpr const unsigned int B = bitmat<T>::width;
 #ifdef HAVE_OPENMP
-#pragma omp parallel
+#pragma omp parallel num_threads(X.ncols() / B)
 #endif
     {
-        constexpr const unsigned int B = bitmat<T>::width;
-        /* We may adjust the number of columns to our liking, but it
-         * seems that the fewer the better.
-         */
+        /* Use a temp variable */
         bpack<T> Y(X.nrows(), B);
         size_t A_stride = &A.cell(1,0) - &A.cell(0,0);
         size_t T_stride = &Y.cell(1,0) - &Y.cell(0,0);
@@ -285,6 +298,7 @@ void bpack_ops<T>::mul_lt_ge(bpack_const_view<T> A, bpack_view<T> X)
 #pragma omp for
 #endif
     for(unsigned int bj = 0 ; bj < X.ncolblocks() ; bj += Y.ncolblocks()) {
+        /* refresh our temp variable */
         Y = 0;
         unsigned int ndbj = std::min(Y.ncolblocks(), X.ncolblocks() - bj);
         for(unsigned int bk = 0 ; bk < A.ncolblocks() ; bk++) {
@@ -295,7 +309,7 @@ void bpack_ops<T>::mul_lt_ge(bpack_const_view<T> A, bpack_view<T> X)
         /* We could conceivably parallelize the loops below, but openmp
          * won't let us do it, and I don't know how I can work around
          * this limitation (it would require cooperation from the
-         * enclosing loop)
+         * enclosing loop). Y is the trouble maker here.
          */
         for(unsigned int bi = 0 ; bi < A.ncolblocks() ; bi++) {
             for(unsigned int dbj = 0 ; dbj < ndbj ; dbj++) {

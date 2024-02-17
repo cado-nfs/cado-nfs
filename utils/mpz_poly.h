@@ -42,31 +42,6 @@ typedef const struct mpz_poly_s * mpz_poly_srcptr;
 #endif
 typedef struct mpz_poly_s mpz_poly[1];
 
-/* -------------------------------------------------------------------------- */
-
-/* [LI] This should also be renamed to mpz_polymodF.  */
-/* And may be moved outside mpz_poly.[ch]? */
- 
-/* Let F(x) be a (non-monic) polynomial of degree d:
-   F(x) = f_d x^d + f_{d-1} x^{d-1} + .... + f_1 x + f_0
-   The following type represents a polynomial modulo F(x):
-   If P is such an element, it means: P = P.p / f_d^P.v */
-typedef struct {
-  mpz_poly p;
-  int v;
-} polymodF_struct_t;
-
-typedef polymodF_struct_t polymodF_t[1];
-/* -------------------------------------------------------------------------- */
-
-/* Special structure to represent coeffs of a polynomial in base p^k. */
-typedef struct {
-  int deg;
-  char **coeff;
-} poly_base_struct_t;
-
-typedef poly_base_struct_t poly_base_t[1];
-
 /* Note on parallelism.
  *
  * Some functions in this API can optionally use openmp. We want to make
@@ -199,7 +174,6 @@ void mpz_poly_eval_diff_poly (mpz_poly_ptr res, mpz_poly_srcptr f, mpz_poly_srcp
 void mpz_poly_eval_mod_mpz(mpz_t res, mpz_poly_srcptr f, mpz_srcptr x, mpz_srcptr m);
 int mpz_poly_is_root(mpz_poly_srcptr poly, mpz_srcptr root, mpz_srcptr modulus);
 void mpz_poly_eval_several_mod_mpz(mpz_ptr * res, mpz_poly_srcptr * f, int k, mpz_srcptr x, mpz_srcptr m);
-void polymodF_mul(polymodF_t Q, const polymodF_t P1, const polymodF_t P2, mpz_poly_srcptr F);
 void mpz_poly_sqr_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
 void mpz_poly_pow_ui(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n);
 void mpz_poly_pow_ui_mod_f(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n, mpz_poly_srcptr f);
