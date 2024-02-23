@@ -811,6 +811,9 @@ struct urandomb {
     }
 };
 struct rrandomb {
+    /* note that mpz_rrandomb(..., ..., k) only gives k bits of entropy
+     * (return value between 2^(k-1) and 2^k-1).
+     */
     typedef int argtype;
     argtype k;
     explicit rrandomb(argtype k)
@@ -824,7 +827,11 @@ struct rrandomb {
     }
     void operator()(mpz_ptr x, gmp_randstate_t state) const
     {
-        mpz_rrandomb(x, state, k);
+        /* get 2^k <= x < 2^(k+1) */
+        mpz_rrandomb(x, state, k + 1);
+        /* subtract 2^k, i.e.  clear the k-th bit */
+        mpz_clrbit(x, k);
+        /* we now have 0 <= x < 2^k */
     }
 };
 /* Put random coefficients of k bits in a polynomial
