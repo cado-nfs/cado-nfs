@@ -771,6 +771,7 @@ struct urandomm {
     explicit urandomm(argtype k)
         : k(k)
     {
+        ASSERT_ALWAYS(mpz_sgn(k) > 0);
     }
     void fetch_half(cxx_mpz & h) const { mpz_div_2exp(h, k, 1); }
     void operator()(mpz_ptr x, gmp_randstate_t state) const
@@ -784,6 +785,7 @@ struct urandomm_ui {
     explicit urandomm_ui(argtype k)
         : k(k)
     {
+        ASSERT_ALWAYS(k > 0);
     }
     void fetch_half(cxx_mpz & h) const { h = k / 2; }
     void operator()(mpz_ptr x, gmp_randstate_t state) const
@@ -819,6 +821,7 @@ struct rrandomb {
     explicit rrandomb(argtype k)
         : k(k)
     {
+        ASSERT_ALWAYS(k > 0);
     }
     void fetch_half(cxx_mpz & h) const
     {
