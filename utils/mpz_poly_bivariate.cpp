@@ -169,6 +169,49 @@ void cxx_mpz_poly_bivariate::set_rrandomb_cab(self & f, int dx, int dy,
     }
 }
 
+/*
+ * exact: degree in x is exact (degree in y always is)
+ * monic: monic in y (we never enforce monic in x)
+ */
+void cxx_mpz_poly_bivariate::set_urandomm(self & f, int dx, int dy,
+                                          mpz_srcptr p,
+                                          gmp_randstate_ptr rstate,
+                                          bool exact,
+                                          bool monic) /*{{{*/
+{
+    f.assign(dy + 1, 0);
+    for (int i = 0; i <= dy; i++) {
+        mpz_poly_set_randomm(((super &)f)[i], dx, rstate, p,
+                MPZ_POLY_URANDOM |
+                (exact ? MPZ_POLY_DEGREE_EXACT : 0)
+                );
+    }
+    if (monic) {
+        ((super &)f)[dy] = 1;
+    }
+    f.cleandeg(dy);
+}
+/*}}}*/
+
+void cxx_mpz_poly_bivariate::set_urandomm_cab(self & f, int dx, int dy,
+                                              mpz_srcptr p,
+                                              gmp_randstate_ptr rstate) /*{{{*/
+{
+    // dx and dy must be coprime, but we don't check it.
+    // as far as the "Cab" notation goes, dy is a and dx is b.
+    set_urandomm(f, dx, dy, p, rstate, true, true);
+    // X^i Y^j appears only if i * dy + j * dx < dx * dy
+    ((super &)f)[dy] = 1;
+    for (int j = 0; j < dy; j++) {
+        // we may have X^i only if i * dy < (dx * dy  - j * dx)
+        int d = (dx * (dy - j) - 1) / dy;
+        mpz_poly_cleandeg(((super &)f)[j], d);
+        if (j == 0)
+            mpz_poly_setcoeff_ui(((super &)f)[j], dx, 1);
+    }
+}
+/*}}}*/
+
 /* transpose */
 void cxx_mpz_poly_bivariate::transpose(self & a, self && b)
 {

@@ -560,6 +560,10 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
                              gmp_randstate_ptr rstate);
     static void set_rrandomb_cab(self & f, int dx, int dy, int bits,
                                  gmp_randstate_ptr rstate);
+    static void set_urandomm(self & f, int dx, int dy, mpz_srcptr,
+                             gmp_randstate_ptr rstate, bool exact, bool monic);
+    static void set_urandomm_cab(self & f, int dx, int dy, mpz_srcptr,
+                                 gmp_randstate_ptr rstate);
 
     static void derivative_y(self &, self const &);
 
