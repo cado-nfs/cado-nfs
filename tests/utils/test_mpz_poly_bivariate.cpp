@@ -322,13 +322,14 @@ int test_mpz_poly_bivariate_reduction_operator(reducer const & R)
     }
     {
         T c, t;
+
         T::mul(c, a, b);
         R(b, b);
         R(a, a);
         T::mul(t, a, b);
         R(t, t);
         R(c, c);
-        if (! (t == c)) {
+        if (t != c) {
             std::cerr << "a = " << a << std::endl;
             std::cerr << "b = " << b << std::endl;
             std::cerr << "t = " << t << std::endl;

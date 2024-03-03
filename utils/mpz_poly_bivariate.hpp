@@ -282,8 +282,12 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
         return 0;
     }
 
+    /* TODO: I guess we no longer need these now that we have the
+     * spaceship, right? */
     bool operator<(self const & o) const { return cmp(o) < 0; }
     bool operator==(self const & o) const { return cmp(o) == 0; }
+    bool operator!=(self const & o) const { return cmp(o) != 0; }
+    int operator<=>(self const & o) const { return cmp(o); }
 
     /* We don't have any operator overloads, on purpose. No reason to
      * have this one specifically
