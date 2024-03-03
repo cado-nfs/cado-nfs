@@ -381,6 +381,7 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
         void operator()(cxx_mpz_poly & B, cxx_mpz_poly const & A) const;
         void operator()(self & B, self const & A) const;
         std::string print() const;
+        bool make_monic(self & f) const;
     }; /*}}}*/
     struct reducer_mod_fy_mod_fx_mod_mpz
         : public reducer_mod_fx_mod_mpz { /*{{{*/

@@ -554,7 +554,9 @@ void cxx_mpz_poly_bivariate::mod_fx(cxx_mpz_poly_bivariate & a,
     ASSERT_ALWAYS(mpz_poly_is_monic(fx));
     for (auto & c: a)
         mpz_poly_div_r(c, c, fx);
+    a.cleandeg(a.degree());
 }
+
 /*}}}*/
 void cxx_mpz_poly_bivariate::mod_fy(cxx_mpz_poly_bivariate & a,
                                     cxx_mpz_poly_bivariate const & b,
@@ -803,7 +805,7 @@ void cxx_mpz_poly_bivariate::div_qr(cxx_mpz_poly_bivariate & q,
     ASSERT_ALWAYS(&r != &g);
     /* r == f is allowed */
 
-    int k, j, df = f.degree(), dg = g.degree(), dq = df - dg;
+    int j, df = f.degree(), dg = g.degree(), dq = df - dg;
 
     if (df < dg) /* f is already reduced mod g */
     {
@@ -818,7 +820,7 @@ void cxx_mpz_poly_bivariate::div_qr(cxx_mpz_poly_bivariate & q,
     q.assign(dq + 1, 0);
     cxx_mpz_poly tmp;
 
-    for (k = df - dg; k >= 0; k--) {
+    for (int k ; (k = r.degree() - dg) >= 0 ; ) {
         ((super &)q)[k] = r[k + dg];
         for (j = dg + k - 1; j >= k; j--) {
             mpz_poly_mul(tmp, q[k], g[j - k]);
@@ -853,6 +855,7 @@ void cxx_mpz_poly_bivariate::gcd(self & C, self const & A, self const & B,
     self R1 = B;
     self R2;
     for (; R1.degree_y() >= 0;) {
+        Rx.make_monic(R1);
         mod_fy(R2, R0, R1);
         std::swap(R0, R1);
         Rx(R1, R2);
@@ -861,15 +864,25 @@ void cxx_mpz_poly_bivariate::gcd(self & C, self const & A, self const & B,
 }
 /*}}}*/
 
+bool cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz::make_monic(cxx_mpz_poly_bivariate & f) const
+{
+    if (f.lc() == 1)
+        return true;
+    cxx_mpz_poly u,v, d;
+    mpz_poly_xgcd_mpz(d, f.lc(), fx, u, v, p);
+    cxx_mpz_poly_bivariate::mul(f, f, u);
+    (*this)(f, f);
+    return d == 1;
+}
+
 int sqf_inner(cxx_mpz_poly_bivariate::factor_list & fl,
-              cxx_mpz_poly_bivariate const & f, int stride, mpz_poly_srcptr fx,
-              mpz_srcptr p)
+              cxx_mpz_poly_bivariate const & f, int stride,
+              cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz const & Rx)
+
 {
     int r = 0;
 
     typedef cxx_mpz_poly_bivariate self;
-
-    self::reducer_mod_fx_mod_mpz Rx(fx, p);
 
     self g, mi, mi1;
     self t0, t1, T, tmp;
