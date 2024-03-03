@@ -4602,6 +4602,13 @@ std::string cxx_mpz_poly::print_poly(std::string const & var) const
     return os.str();
 }
 
+/* this proxy is used for pretty printing in gdb */
+std::string cxx_mpz_poly::print_poly() const
+{
+    return print_poly("x");
+}
+
+
 /* functions for Joux--Lercier and Generalized Joux--Lercier */
 /**
  * \brief set the (mpz_t) coefficients of f from ::counter

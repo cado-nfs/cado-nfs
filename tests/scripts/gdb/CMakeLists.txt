@@ -27,7 +27,7 @@ cado_define_test(
     --batch
     TARGET_DEPENDENCIES
     test_gdb_printers
-    EXPECT_SHA1 79cddcf25b16b8faaa4bc0e3ad26c2fb64c6d5d1
+    EXPECT_SHA1 bf57e3cb5e93d755beb3bf148114e55570422931
     SHA1_ON_REGEXP_LINES "^\\$"
     ENVIRONMENT
     CADO_NFS_GDB_SHOW_MATRIX_COMPACT=1

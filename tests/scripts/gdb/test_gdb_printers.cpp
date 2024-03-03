@@ -3,6 +3,8 @@
 #include <gmp.h>
 #include "cxx_mpz.hpp"
 #include "mpz_mat.h"
+#include "mpz_poly.h"
+// #include "mpz_poly_bivariate.hpp"
 #include "macros.h"
 
 static void foo()
@@ -31,6 +33,10 @@ int main(int argc, char const * argv[])
 
     cxx_mpq_mat M1;
     mpq_mat_set_mpz_mat_denom(M1, M0, cxx_mpz(17));
+
+    cxx_mpz_poly f("1+2*x-(x-1)^2");
+
+    // cxx_mpz_poly_bivariate ff("1+2*x*y-(x-y)^2");
 
     foo();
 }

@@ -16,6 +16,8 @@ class generic_matrix(object):
     def to_string(self):
         m = self.m
         n = self.n
+        if not self.m or not self.n:
+            return "<empty>"
 
         def S(x):
             if type(x) is str:

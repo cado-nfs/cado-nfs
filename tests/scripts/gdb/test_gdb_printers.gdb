@@ -20,4 +20,8 @@ p M1
 p M1.x
 p (mpq_mat_ptr) M1.x
 p (mpq_mat_srcptr) M1.x
+p f
+p f.x
+p (mpz_poly_ptr) f.x
+p (mpz_poly_srcptr) f.x
 c

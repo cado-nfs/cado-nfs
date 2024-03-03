@@ -448,6 +448,7 @@ struct cxx_mpz_poly {
     mpz_poly_ptr operator->() { return x; }
     mpz_poly_srcptr operator->() const { return x; }
     std::string print_poly(std::string const& var) const;
+    std::string print_poly() const;
 
     cado::named_proxy<cxx_mpz_poly &> named(std::string const & x) {
         return { *this, x };
