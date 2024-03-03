@@ -218,6 +218,7 @@ void mpz_mat_kernel_mod_ui(mpz_mat_ptr K, mpz_mat_srcptr M, unsigned long p);
 void mpz_mat_kernel_mod_mpz(mpz_mat_ptr K, mpz_mat_srcptr M, mpz_srcptr p);
 
 void mpq_mat_inv(mpq_mat_ptr dst, mpq_mat_srcptr src);
+void mpz_mat_inv_mod_mpz(mpz_mat_ptr dst, mpz_mat_srcptr src, mpz_srcptr p);
 
 int mpz_mat_cmp(mpz_mat_srcptr M, mpz_mat_srcptr N);
 int mpz_mat_is_zero(mpz_mat_srcptr M);
