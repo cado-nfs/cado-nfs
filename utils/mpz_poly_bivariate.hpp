@@ -580,6 +580,8 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
     static void derivative_y(self &, self const &);
 
     typedef std::vector<std::pair<self, unsigned int>> factor_list;
+
+    static factor_list factor_sqf(self const & f, reducer_mod_fx_mod_mpz const & R);
 };
 
 /* printing needs a way to specify the variables... */

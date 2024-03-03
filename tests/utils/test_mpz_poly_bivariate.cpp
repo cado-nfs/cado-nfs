@@ -646,6 +646,57 @@ void test_mpz_poly_bivariate_frobenius(unsigned long iter)
         }
     }
 }
+
+void test_mpz_poly_bivariate_factoring(unsigned long iter)
+{
+    std::cout << __func__ << std::endl;
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        cxx_mpz p;
+        for( ; p == 0 || !mpz_probab_prime_p(p, 10) ; ) {
+            mpz_urandomb(p, state, 2 + gmp_urandomm_ui(state, 8));
+        }
+        int d = 1 + gmp_urandomm_ui(state, 5);
+        cxx_mpz_poly f;
+        for( ; f == 0 || !mpz_poly_is_irreducible(f, p) ; ) {
+            mpz_poly_set_randomm(f, d, state, p,
+                    MPZ_POLY_URANDOM |
+                    MPZ_POLY_DEGREE_EXACT |
+                    MPZ_POLY_MONIC);
+        }
+
+        cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz R { f, p };
+
+
+        /* test square free factorization */
+        {
+            cxx_mpz_poly_bivariate a, b, t;
+            
+            /* a is chosen monic */
+            cxx_mpz_poly_bivariate::set_urandomm (a, d-1, 10 + gmp_urandomm_ui(state, 32), p, state, false, true);
+
+            auto fl = cxx_mpz_poly_bivariate::factor_sqf(a, R);
+
+            /* all factors must be coprime */
+            for(unsigned int i = 0 ; i < fl.size() ; i++) {
+                for(unsigned int j = i + 1 ; j < fl.size() ; j++) {
+                    cxx_mpz_poly_bivariate::gcd(t, fl[i].first, fl[j].first, R);
+                    ASSERT_ALWAYS(t == 1);
+                }
+            }
+            
+            /* their product must match a */
+            b = 1;
+            for(unsigned int i = 0 ; i < fl.size() ; i++) {
+
+                cxx_mpz_poly_bivariate::pow_ui(t, fl[i].first, i);
+                cxx_mpz_poly_bivariate::mul(b, b, t);
+                cxx_mpz_poly_bivariate::mod(b, b, R);
+            }
+            ASSERT_ALWAYS(a == b);
+        }
+    }
+}
+
 int main(int argc, char const * argv[])
 {
     unsigned long iter = 500;
@@ -657,6 +708,7 @@ int main(int argc, char const * argv[])
     test_mpz_poly_bivariate_reduction_functions(iter);
     test_mpz_poly_bivariate_resultant(iter);
     test_mpz_poly_bivariate_frobenius(iter);
+    test_mpz_poly_bivariate_factoring(iter);
     tests_common_clear ();
     exit (EXIT_SUCCESS);
 }

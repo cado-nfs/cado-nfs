@@ -1020,13 +1020,14 @@ int sqf_inner(cxx_mpz_poly_bivariate::factor_list & fl,
          * are no longer in t1, there's absent from mi1 too. Whence
          * mi/mi1 is exactly the product of factors of multiplicity 1.
          */
-        if ((size_t)(i * stride) >= fl.size()) {
-            fl.insert(fl.end(), i * stride + 1 - fl.size(), {});
+        self::divexact(tmp, mi, mi1, Rx);
+        if ((size_t) (i * stride) >= fl.size()) {
+            /* insert unit polynomials for consistency */
+            fl.insert(fl.end(), i*stride + 1 - fl.size(), {1, 1});
         }
         /* Use tmp so that we don't absurdly keep storage within
          * lf->factors */
-        self::divexact(tmp, mi, mi1, Rx);
-        fl[i * stride] = {tmp, 1}; /* multiplicity field in fact unused */
+        fl[i * stride] = { tmp, 1 }; /* multiplicity field in fact unused */
         self::pow_ui(t0, fl[i * stride].first, i, Rx);
         self::mul(T, T, t0);
         Rx(T, T);
@@ -1038,4 +1039,51 @@ int sqf_inner(cxx_mpz_poly_bivariate::factor_list & fl,
     fl[0].second = 1;
 
     return r;
+}
+
+/* returns a list of square-free factors of f. In the returned
+ * factor_list, item i has multiplicity i. Note that f0 is made monic
+ * before any work, and we do not keep track of the leading coefficient
+ */
+cxx_mpz_poly_bivariate::factor_list cxx_mpz_poly_bivariate::factor_sqf(cxx_mpz_poly_bivariate const & f0, cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz const & R)
+{
+    typedef cxx_mpz_poly_bivariate self;
+
+    /* factoring 0 doesn't make sense, really */
+    ASSERT(f0.degree() >= 0);
+
+    /* We'll call mpz_poly_factor_sqf_inner, possibly several times if
+     * we are in small characteristic.
+     */
+    self f = f0;
+    R.make_monic(f);
+    ASSERT(f.lc() == 1);
+
+    int m = 0;
+    // coverity[zero_return]
+    int pu = mpz_get_ui(R.p);  // see below
+
+    cxx_mpz_poly_bivariate::factor_list lf;
+
+    for(int stride = 1 ; ; stride *= pu) {
+        int r = sqf_inner(lf, f, stride, R);
+        if (r > m) m = r;
+        cxx_mpz_poly_bivariate repeated = 1;
+        repeated.swap(lf[0].first);
+        if (repeated.degree() == 0) {
+            // if p is LAAAARGE, then of course we'll never have a linear
+            // polynomial out of sqf_inner, thus we'll break early here.
+            break;
+        }
+        /* lf[0].first is a p-th power. Take the p-th root, which also
+         * means taking the p-th root of each coefficient (mod fx).
+         */
+        R.frobenius(f, repeated, -1);
+
+    }
+    /* Now make sure that all factors in the factor list are non-zero */
+    for(auto & c : lf) {
+        ASSERT_ALWAYS(c.first.degree_y() >= 0);
+    }
+    return lf;
 }
