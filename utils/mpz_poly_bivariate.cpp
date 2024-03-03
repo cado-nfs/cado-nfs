@@ -15,11 +15,11 @@
 
 #include "cado_expression_parser.hpp"
 #include "cxx_mpz.hpp"
-#include "macros.h"
 #include "mpz_poly.h"
 #include "mpz_poly_bivariate.hpp"
 #include "runtime_numeric_cast.hpp"
 #include "macros.h"
+#include "mpz_mat.h"
 #include "named_proxy.hpp"
 
 /* Polynomial arithmetic.
@@ -726,6 +726,121 @@ std::string cxx_mpz_poly_bivariate::reducer_mod_fy_mod_fx_mod_mpz::print() const
     os << "reduction mod " << fy.named("x", "y") << ", mod " << fx.named("x")
        << ", mod " << p;
     return os.str();
+}
+
+void cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz::compute_frobenius_matrices() const
+{
+    unsigned int d = fx->deg;
+    ASSERT_ALWAYS(fx->deg > 0);
+    if (frobenius_matrix->m) {
+        ASSERT_ALWAYS(frobenius_matrix->m == d);
+        ASSERT_ALWAYS(frobenius_matrix->n == d);
+        ASSERT_ALWAYS(inverse_frobenius_matrix->m == d);
+        ASSERT_ALWAYS(inverse_frobenius_matrix->n == d);
+        return;
+    }
+    mpz_mat_realloc(frobenius_matrix, d, d);
+    for(unsigned int i = 0 ; i < d ; i++) {
+        cxx_mpz_poly R;
+        mpz_poly_set_xi(R, i);
+        mpz_poly_pow_mod_f_mod_mpz(R, R, fx, p, p);
+        ASSERT_ALWAYS(R->deg >= 0);
+        ASSERT_ALWAYS((unsigned int) R->deg < d);
+        for(unsigned int j = 0 ; j <= (unsigned int) R->deg ; j++)
+            mpz_set(mpz_mat_entry(frobenius_matrix, i, j), R->_coeff[j]);
+    }
+    mpz_mat_inv_mod_mpz(inverse_frobenius_matrix, frobenius_matrix, p);
+}
+
+void cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz::frobenius(
+        cxx_mpz_poly & B,
+        cxx_mpz_poly const & A,
+        int order) const
+{
+    if (A == 0) {
+        B = A;
+        return;
+    }
+
+    /* It's just a linear operation, all we care about is gettint the
+     * correct (precomputed) matrix */
+
+    mpz_mat_ptr mat;
+    compute_frobenius_matrices();
+    if (order == 1) {
+        mat = frobenius_matrix;
+    } else if (order == -1) {
+        mat = inverse_frobenius_matrix;
+    } else {
+        /* for the moment the others are unimplemented. Of course we could at
+         * least reduce the order mod the degree of fx (thereby asserting
+         * that fx is irreducible), but we have no strong use case for such
+         * an interface at the moment. */
+        ASSERT_ALWAYS(0);
+    }
+
+    /* there might be situations where the input isn't reduced.
+     */
+    (*this)(B, A);
+
+    cxx_mpz_poly h;
+    /* It's weird, but we don't have row times matrix in mpz_mat...  */
+    for(int j = 0 ; j < fx->deg ; j++) {
+        cxx_mpz s;
+        ASSERT_ALWAYS(B->deg < fx->deg);
+        for(int i = 0 ; i <= B->deg ; i++) {
+            mpz_addmul(s, B->_coeff[i], mpz_mat_entry_const(mat, i, j));
+        }
+        mpz_mod(s, s, p);
+        mpz_poly_setcoeff(h, j, s);
+    }
+    B = h;
+}
+
+void cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz::frobenius(
+        cxx_mpz_poly_bivariate & B,
+        cxx_mpz_poly_bivariate const & A,
+        int order) const
+{
+    ASSERT_ALWAYS(mpz_size(p) == 1);
+    mp_limb_t pp = mpz_get_ui(p);
+
+    /* for the moment the others are unimplemented */
+    ASSERT_ALWAYS(order == 1 || order == -1);
+
+    B = A;
+    int n = B.degree_y();
+
+    if (n == -1)
+        return;
+
+    if (order == -1) {
+        /* scale down powers for inverse Frobenius */
+        ASSERT_ALWAYS(n % pp == 0);
+        n = n / pp;
+        for(int k = 0 ; k <= n ; k++) {
+            if (k < n) {
+                for(mp_limb_t l = 1 ; l < pp ; l++)
+                    ASSERT_ALWAYS(B[k * pp + l] == 0);
+            }
+            mpz_poly_swap(((super&)B)[k], ((super&)B)[k*pp]);
+        }
+        B.erase(B.begin() + n + 1, B.end());
+    }
+
+    for(int k = 0 ; k <= n ; k++)
+        frobenius(((super&)B)[k], ((super&)B)[k], order);
+
+    if (order == 1) {
+        /* scale up powers for forward Frobenius */
+
+        B.insert(B.end(), n * (pp - 1), cxx_mpz_poly());
+        for(int k = n ; k >= 0 ; k--)
+            mpz_poly_swap(((super&)B)[k * pp], ((super&)B)[k]);
+        B.cleandeg(n * pp);
+        ASSERT_ALWAYS(B.degree_y() >= 0);
+        ASSERT_ALWAYS((unsigned int) B.degree_y() == n * pp);
+    }
 }
 
 /* powering. Both the generic template, and the instantiations that go

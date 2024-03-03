@@ -548,6 +548,104 @@ static void test_mpz_poly_bivariate_resultant(unsigned long iter)
     }
 }
 
+/* in reality, most of the complex stuff here should go in a reduction
+ * object for the univariate mpz_poly type instead
+ */
+void test_mpz_poly_bivariate_frobenius(unsigned long iter)
+{
+    std::cout << __func__ << std::endl;
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        cxx_mpz p;
+        for( ; p == 0 || !mpz_probab_prime_p(p, 10) ; ) {
+            mpz_urandomb(p, state, 2 + gmp_urandomm_ui(state, 8));
+        }
+        int d = 1 + gmp_urandomm_ui(state, 5);
+        cxx_mpz_poly f;
+        for( ; f == 0 || !mpz_poly_is_irreducible(f, p) ; ) {
+            mpz_poly_set_randomm(f, d, state, p,
+                    MPZ_POLY_DEGREE_EXACT |
+                    MPZ_POLY_MONIC |
+                    MPZ_POLY_URANDOM);
+        }
+
+        cxx_mpz_poly_bivariate::reducer_mod_fx_mod_mpz R { f, p };
+
+        /* Tests on simple mpz_poly's -- this should probably go
+         * elsewhere, really. */
+
+        /* make sure that Frobenius and inverse Frobenius are linear */
+        for(auto order: { 1, -1 }) {
+            cxx_mpz_poly a, b, c, t;
+            mpz_poly_set_randomm(a, d, state, p,
+                    MPZ_POLY_DEGREE_UPPER_BOUND |
+                    MPZ_POLY_URANDOM);
+            mpz_poly_set_randomm(b, d, state, p,
+                    MPZ_POLY_DEGREE_UPPER_BOUND |
+                    MPZ_POLY_URANDOM);
+            mpz_poly_add(c, a, b);
+            R.frobenius(c, c, order);
+            R.frobenius(a, a, order);
+            R.frobenius(b, b, order);
+            mpz_poly_add(t, a, b);
+            R(t, t);
+            if (t != c) {
+                std::cerr << "a = " << a << std::endl;
+                std::cerr << "b = " << b << std::endl;
+                std::cerr << "t = " << t << std::endl;
+                std::cerr << "c = " << c << std::endl;
+                std::cerr << R.print() << std::endl;
+            }
+            ASSERT_ALWAYS(c == t);
+        }
+
+        /* compatibility with scalar multiplication */
+        for(auto order: { 1, -1 }) {
+            cxx_mpz_poly a, c, t;
+            cxx_mpz lambda;
+            mpz_poly_set_randomm(a, d-1, state, p,
+                    MPZ_POLY_DEGREE_UPPER_BOUND |
+                    MPZ_POLY_URANDOM);
+            mpz_urandomm(lambda, state, p);
+            mpz_poly_mul_mpz(c, a, lambda);
+            mpz_poly_mod_mpz(c, c, p, NULL);
+            R.frobenius(c, c, order);
+            R.frobenius(a, a, order);
+            mpz_poly_mul_mpz(t, a, lambda);
+            R(t, t);
+            ASSERT_ALWAYS(c == t);
+        }
+
+        /* make sure that both operators have order d */
+        for(auto order: { 1, -1 }) {
+            cxx_mpz_poly a, t;
+            mpz_poly_set_randomm(a, d-1, state, p,
+                    MPZ_POLY_DEGREE_UPPER_BOUND |
+                    MPZ_POLY_URANDOM);
+            R(t, a);
+            for(int i = 0 ; i < d ; i++) {
+                R.frobenius(a, a, order);
+            }
+            if (t != a) {
+                std::cerr << "a = " << a << std::endl;
+                std::cerr << "t = " << t << std::endl;
+                std::cerr << R.print() << std::endl;
+            }
+            ASSERT_ALWAYS(a == t);
+        }
+
+        /* Also do some tests on bivariate polynomials. There's not much
+         * interesting to test, really. */
+        {
+            cxx_mpz_poly_bivariate a, b, t;
+            cxx_mpz_poly_bivariate::set_urandomm (a, d-1, d, p, state, false, false);
+            R.frobenius(b, a, 1);
+            R.frobenius(t, b, -1);
+            ASSERT_ALWAYS(a == t);
+            R.frobenius(t, t, 1);
+            ASSERT_ALWAYS(b == t);
+        }
+    }
+}
 int main(int argc, char const * argv[])
 {
     unsigned long iter = 500;
@@ -558,6 +656,7 @@ int main(int argc, char const * argv[])
     test_mpz_poly_bivariate_basic_arithmetic(iter);
     test_mpz_poly_bivariate_reduction_functions(iter);
     test_mpz_poly_bivariate_resultant(iter);
-    tests_common_clear();
-    return EXIT_SUCCESS;
+    test_mpz_poly_bivariate_frobenius(iter);
+    tests_common_clear ();
+    exit (EXIT_SUCCESS);
 }

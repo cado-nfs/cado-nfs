@@ -34,6 +34,7 @@
 
 #include <gmp.h>
 
+#include "mpz_mat.h"
 #include "macros.h"
 #include "named_proxy.hpp"
 #include "runtime_numeric_cast.hpp"
@@ -386,9 +387,15 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
         void operator()(self & B, self const & A) const;
         std::string print() const;
         bool make_monic(self & f) const;
-    }; /*}}}*/
-    struct reducer_mod_fy_mod_fx_mod_mpz
-        : public reducer_mod_fx_mod_mpz { /*{{{*/
+        private:
+        mutable cxx_mpz_mat frobenius_matrix;
+        mutable cxx_mpz_mat inverse_frobenius_matrix;
+        void compute_frobenius_matrices() const;
+        public:
+        void frobenius(cxx_mpz_poly & B, cxx_mpz_poly const & A, int i) const;
+        void frobenius(self & B, self const & A, int i) const;
+    };/*}}}*/
+    struct reducer_mod_fy_mod_fx_mod_mpz : public reducer_mod_fx_mod_mpz {/*{{{*/
         /* In effect, when (p, fx) define a prime ideal, this implements
          * arithmetic of polynomials with coefficients in a finite field
          */

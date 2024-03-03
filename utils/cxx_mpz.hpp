@@ -23,7 +23,12 @@ public:
     typedef mp_limb_t WordType;
     mpz_t x;
     // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    cxx_mpz() { mpz_init(x); }
+    
+    /* we set to zero because both default-initialization and
+     * value-initialization reach here. It makes better sense to take 0
+     * for the value-initialized case.
+     */
+    cxx_mpz() { mpz_init_set_ui(x, 0); }
 
     template <typename T>
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
