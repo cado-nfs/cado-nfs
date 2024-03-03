@@ -954,6 +954,9 @@ void mpz_poly_set_zero(mpz_poly_ptr f)
 void mpz_poly_setcoeff(mpz_poly_ptr f, int i, mpz_srcptr z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -963,6 +966,9 @@ void mpz_poly_setcoeff(mpz_poly_ptr f, int i, mpz_srcptr z)
 void mpz_poly_setcoeff_si(mpz_poly_ptr f, int i, long z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set_si(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -972,6 +978,9 @@ void mpz_poly_setcoeff_si(mpz_poly_ptr f, int i, long z)
 void mpz_poly_setcoeff_ui(mpz_poly_ptr f, int i, unsigned long z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set_ui(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -981,6 +990,9 @@ void mpz_poly_setcoeff_ui(mpz_poly_ptr f, int i, unsigned long z)
 void mpz_poly_setcoeff_int64(mpz_poly_ptr f, int i, int64_t z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set_int64(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -990,6 +1002,9 @@ void mpz_poly_setcoeff_int64(mpz_poly_ptr f, int i, int64_t z)
 void mpz_poly_setcoeff_uint64(mpz_poly_ptr f, int i, uint64_t z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set_uint64(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -999,6 +1014,9 @@ void mpz_poly_setcoeff_uint64(mpz_poly_ptr f, int i, uint64_t z)
 void mpz_poly_setcoeff_double(mpz_poly_ptr f, int i, double z)
 {
     mpz_poly_realloc(f, i + 1);
+    /* ensure consistency of inserted coefficients */
+    for (int j = f->deg + 1; j < i; j++)
+        mpz_set_ui(f->_coeff[j], 0);
     mpz_set_d(f->_coeff[i], z);
     if (i >= f->deg)
         mpz_poly_cleandeg(f, i);
@@ -1614,17 +1632,32 @@ void mpz_poly_rotation(mpz_poly_ptr fr, mpz_poly_srcptr f, mpz_poly_srcptr g,
                        mpz_srcptr k, int t)
 {
     mpz_poly_set(fr, f);
+    ASSERT_ALWAYS(t >= 0);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
 }
+
+
 
 void mpz_poly_reverse_rotation(mpz_poly_ptr fr, mpz_poly_srcptr f,
                                mpz_poly_srcptr g, mpz_srcptr k, int t)
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_submul(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1635,6 +1668,12 @@ void mpz_poly_rotation_si(mpz_poly_ptr fr, mpz_poly_srcptr f, mpz_poly_srcptr g,
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_si(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1645,6 +1684,12 @@ void mpz_poly_reverse_rotation_si(mpz_poly_ptr fr, mpz_poly_srcptr f,
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_submul_si(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1655,6 +1700,12 @@ void mpz_poly_rotation_ui(mpz_poly_ptr fr, mpz_poly_srcptr f, mpz_poly_srcptr g,
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_ui(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1665,6 +1716,12 @@ void mpz_poly_reverse_rotation_ui(mpz_poly_ptr fr, mpz_poly_srcptr f,
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_submul_ui(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1676,6 +1733,12 @@ void mpz_poly_rotation_int64(mpz_poly_ptr fr, mpz_poly_srcptr f,
 {
     mpz_poly_set(fr, f);
     mpz_poly_realloc(fr, t + g->deg + 1);
+    /* If f is not yet such that t+deg(g) <= deg(f), it is important that
+     * all newly added coefficients are set to zero. realloc does not do
+     * this (well, maybe it's a bug, really) */
+    for (int i = fr->deg + 1; i <= t + g->deg; i++) {
+        mpz_set_ui(fr->_coeff[i], 0);
+    }
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_int64(fr->_coeff[i + t], g->_coeff[i], k);
     mpz_poly_cleandeg(fr, std::max(fr->deg, t + g->deg));
@@ -1685,6 +1748,8 @@ void mpz_poly_rotation_int64(mpz_poly_ptr fr, mpz_poly_srcptr f,
 void mpz_poly_addmul_si(mpz_poly_ptr f, mpz_poly_srcptr g, long k)
 {
     mpz_poly_realloc(f, g->deg + 1);
+    for (int i = f->deg + 1; i <= g->deg; i++)
+        mpz_set_ui(f->_coeff[i], 0);
     for (int i = 0; i <= g->deg; i++)
         mpz_addmul_si(f->_coeff[i], g->_coeff[i], k);
     mpz_poly_cleandeg(f, std::max(f->deg, g->deg));
