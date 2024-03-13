@@ -137,6 +137,8 @@ class nfs_aux {/*{{{*/
         where_am_I w;
         //thread_data(nfs_aux & t) : common(t) {}
         void update_checksums(int side, const unsigned char *data, const size_t len) {
+            if (!data)
+                return;
             /* It's simpler to auto-vivify */
             for( ; checksum_post_sieve.size() <= (size_t) side ; )
                 checksum_post_sieve.emplace_back();
