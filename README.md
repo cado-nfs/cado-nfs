@@ -125,6 +125,8 @@ Optionally, cado-nfs can use the following additional software.
 * Support for OpenMP (at least version 3.0)
 * Support for MPI (see [`local.sh.example`](local.sh.example) and [`linalg/bwc/README`](linalg/bwc/README))
 * Support for hwloc (see [`parameters/misc/cpubinding.conf`](parameters/misc/cpubinding.conf))
+  Under Debian the command to install HWLOC is:
+  	apt-get install libhwloc-dev
 * Support for GMP-ECM. Define the environment variable GMPECM if it is
   installed in a non-standard place.
 * A system [`fmt`](https://fmt.dev/) is used is found, otherwise a
