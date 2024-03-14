@@ -129,7 +129,7 @@ Optionally, cado-nfs can use the following additional software.
   	apt-get install libhwloc-dev
 * Support for GMP-ECM. Define the environment variable GMPECM if it is
   installed in a non-standard place.
-* A system [`fmt`](https://fmt.dev/) is used is found, otherwise a
+* A formatting library [`fmt`](https://fmt.dev/) is used if found, otherwise a
   snapshot is embedded in the cado-nfs code anyway.
 
 Configure
