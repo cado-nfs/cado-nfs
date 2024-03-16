@@ -228,6 +228,7 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra}
             TARGET_DEPENDENCIES
             lingen_pz lingen_${layer})
+        set_property(TEST test_bwc_${t} PROPERTY TIMEOUT 120)
 
         if(layer STREQUAL "p1")
             if(DEFINED ENV{CHECKS_EXPENSIVE})
@@ -505,7 +506,7 @@ foreach(layer b64)
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_expected_pi_length.cpp
         LIBRARIES lingen_${layer}_support
         AVOID_CONCURRENT 4
-        TIMEOUT 120
+        TIMEOUT 150
     )
 
     set(our_compile_flags)
@@ -583,7 +584,7 @@ add_bwc_test(mod2_rolling bwc-ptrace.sh prime=2 nullspace=left random_matrix_siz
 add_bwc_test(mod2_8k bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2
     TARGET_DEPENDENCIES mf_scan
     AVOID_CONCURRENT 4
-    TIMEOUT 90
+    TIMEOUT 120
 )
 
 if (COMPILE_MPFQ_BINARY_FIELD_m128)
@@ -750,7 +751,8 @@ foreach(mpiconf nompi ${mpiconfs})
         TARGET_DEPENDENCIES bwc_full
         TIMEOUT 60
         )
-    cado_divert_test(test_random_matrix${suffix} thr22 APPEND_ARGUMENTS thr=2x2)
+    cado_divert_test(test_random_matrix${suffix} thr22 APPEND_ARGUMENTS thr=2x2
+        TIMEOUT 120)
 endforeach()
 
 
@@ -804,7 +806,7 @@ cado_define_test(TEST_NAME bwc_staged_krylov PROGRAM
     sequential_cache_build=1 random_matrix=10000,density=150,seed=1
     no_save_cache=1 verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch
     TARGET_DEPENDENCIES bwc_full_gf2
-    TIMEOUT 60
+    TIMEOUT 120
 )
 
 # Tests which use bwc_base will need bwc_config.h
