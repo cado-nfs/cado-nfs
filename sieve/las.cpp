@@ -1586,7 +1586,12 @@ int main (int argc0, char *argv0[])/*{{{*/
             verbose_output_print(0, 0, "# No --job-memory option given. Job placement needs either an explicit placement with -t, a complete siever config with a factor base to allow automatic ram estimates, or a --job-memory option\n");
             exit(EXIT_FAILURE);
         }
+    } catch (las_parallel_desc::bad_specification & e) {
+        verbose_output_print(0, 0, "# Error reported by the cpu binding layer: %s\n", e.what());
+        verbose_output_print(0, 0, "# The parallelism specification for this job and/or the specifics of the hardware make it difficult for us to decide on what to do on an automatic basis with respect to CPU binding. Please stick to simple \"-t <number of threads>\". More advanced specifications like \"-t auto\" cannot be supported for this hardware.\n");
+        exit(EXIT_FAILURE);
     }
+
 
     /* These are sometimes looked up a bit late in the process */
     sieve_shared_data::lookup_parameters(pl, las.cpoly->nb_polys);
