@@ -396,11 +396,8 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #ifndef NO_INLINE
 #define NO_INLINE __attribute__ ((noinline))
 #endif
-#ifndef PACKED
-#define PACKED __attribute__ ((packed))
-#endif
-#ifndef EXPECT
-#define EXPECT(x,val)	__builtin_expect(x,val)
+#ifndef ATTR_EXPECT
+#define ATTR_EXPECT(x,val)	__builtin_expect(x,val)
 #endif
 #ifndef ATTR_ALIGNED
 #define ATTR_ALIGNED(x) __attribute__((aligned(x)))
@@ -431,11 +428,8 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #ifndef NO_INLINE
 #define NO_INLINE
 #endif
-#ifndef PACKED
-#define PACKED
-#endif
-#ifndef EXPECT
-#define	EXPECT(x,val)	(x)
+#ifndef ATTR_EXPECT
+#define	ATTR_EXPECT(x,val)	(x)
 #endif
 #ifndef ATTR_ALIGNED
 #define ATTR_ALIGNED(x)
@@ -490,10 +484,10 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 
 #ifndef	LIKELY
-#define LIKELY(x)	EXPECT(x,1)
+#define LIKELY(x)	ATTR_EXPECT(x,1)
 #endif
 #ifndef	UNLIKELY
-#define UNLIKELY(x)	EXPECT(x,0)
+#define UNLIKELY(x)	ATTR_EXPECT(x,0)
 #endif
 
 #ifndef CADO_CONCATENATE
