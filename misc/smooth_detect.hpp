@@ -1,6 +1,7 @@
 #ifndef SMOOTH_DETECT_H__
 #define SMOOTH_DETECT_H__
 
+#include "cxx_mpz.hpp"
 #include <gmp.h>
 
 /*
@@ -15,25 +16,90 @@
  * that it can have a context, and update it after each call.
  *
  * The next_cand() function must create candidates with something like:
- *   cand_set_original_values(C, u0, v0);
+ *   descent_init_candidate C(u0, v0, e);
  * where u0 and v0 are the two integers that must be checked for
  * simultaneous smoothness.
- * Note that the candidate C is initialized and cleared by the caller.
  *
- * An example of usage is given in descent_init_Fp.c .
+ * An example of usage is given in descent_init_Fp.cpp .
  */
 
 // Type and basic functions for candidates
-typedef struct
+struct descent_init_candidate
 {
-    mpz_t u0, v0; // original integers to be tested for smoothness
-    mpz_t u, v;   // unfactored parts of u, v, must be composite or 1
-    unsigned int lpu,
-      lpv;            // bitsize of largest primes found so far on both sides
-    double effort;    // sum of the B1 already tried on these numbers
-    unsigned long id; // for the caller to remember who is who
-} cand_s;
-typedef cand_s cand_t[1];
+    cxx_mpz u0, v0;        // original integers to be tested for smoothness
+    cxx_mpz u, v;          // unfactored parts of u, v, must be composite or 1
+    unsigned int lpu, lpv; // bitsize of largest primes on both sides
+    double effort;         // sum of the B1 already tried on these numbers
+    unsigned long e;       // this is a reconstruction of target^e
+
+    descent_init_candidate() = default;
+    descent_init_candidate(descent_init_candidate const&) = default;
+    descent_init_candidate& operator=(descent_init_candidate const&) = default;
+    descent_init_candidate(descent_init_candidate&&) = default;
+    descent_init_candidate& operator=(descent_init_candidate&&) = default;
+
+    void check_prime()
+    {
+        if (mpz_probab_prime_p(u, 1)) {
+            lpu = MAX(lpu, mpz_sizeinbase(u, 2));
+            u = 1;
+        }
+        if (mpz_probab_prime_p(v, 1)) {
+            lpv = MAX(lpv, mpz_sizeinbase(v, 2));
+            mpz_set_ui(v, 1);
+        }
+    }
+
+    descent_init_candidate(cxx_mpz const& u0,
+                           cxx_mpz const& v0,
+                           cxx_mpz const& u,
+                           cxx_mpz const& v,
+                           unsigned int lpu,
+                           unsigned int lpv,
+                           unsigned long e)
+      : u0(u0)
+      , v0(v0)
+      , u(u)
+      , v(v)
+      , lpu(lpu)
+      , lpv(lpv)
+      , effort(0.0)
+      , e(e)
+    {
+        check_prime();
+    }
+
+    descent_init_candidate(cxx_mpz const& u0,
+                           cxx_mpz const& v0,
+                           unsigned long e)
+      : descent_init_candidate(u0, v0, u0, v0, 0, 0, e)
+    {
+    }
+
+    bool is_factored() const
+    {
+        return (mpz_cmp_ui(u, 1) == 0) && (mpz_cmp_ui(v, 1) == 0);
+    }
+
+    int cost() const
+    {
+        if (is_factored())
+            return INT_MAX;
+        else
+            return MAX(mpz_sizeinbase(u, 2), mpz_sizeinbase(v, 2));
+    }
+
+    unsigned int maxlp() const { return MAX(lpu, lpv); }
+
+    bool operator<(descent_init_candidate const& c) const
+    {
+        return cost() < c.cost();
+    }
+    bool is_probably_not_smooth(unsigned int bound) const;
+};
+
+std::ostream&
+operator<<(std::ostream&, descent_init_candidate const&);
 
 // Type for tuning parameters for smooth_detect.
 //   min_effort: the effort at the start (effort = sum of the B1 already tried)
@@ -42,37 +108,21 @@ typedef cand_s cand_t[1];
 //   verbose: 0 = no verbose, 1 verbose
 //   minB1: first B1 to try, in the ECM chain.
 // Default values: {2000, +inf, 10, 1, 100.0}.
-typedef struct
+struct smooth_detect_params
 {
     double min_effort;
     double max_effort;
     unsigned int max_pool_size;
     int verbose;
     double minB1;
-} smooth_detect_param_s;
-
-void cand_init(cand_t c);
-void cand_clear(cand_t c);
-void cand_set(cand_t c, const cand_t d);
-void cand_set_original_values(cand_t c,
-        const mpz_t u0,
-        const mpz_t v0,
-        unsigned long id);
-void cand_set_presieved_values(cand_t c,
-        const mpz_t u0,
-        const mpz_t v0,
-        const mpz_t u,
-        const mpz_t v,
-        unsigned int lpu,
-        unsigned int lpv,
-        unsigned long id);
+};
 
 // The main exported function. Smooth candidate is put in C.
 // Last argument is for changing default strategy. NULL can be passed.
-void smooth_detect(cand_t C,
-        int (*next_cand)(cand_t, void*),
-        void* param_next_cand,
-        unsigned long bound,
-        const smooth_detect_param_s* param);
+descent_init_candidate
+smooth_detect(int (*next_cand)(descent_init_candidate&, const void*),
+              const void* param_next_cand,
+              unsigned long bound,
+              smooth_detect_params const& param);
 
 #endif /* SMOOTH_DETECT_H__ */
