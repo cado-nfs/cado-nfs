@@ -69,7 +69,7 @@ CHECK_CXX_SOURCE_COMPILES("
 #include <iostream>
 #include <fmt/core.h>
 #ifdef FMT_VERSION
-#if FMT_VERSION < 50000
+#if FMT_VERSION < 80000
 #error \"too old, never checked\"
 #endif
 #else
@@ -77,11 +77,37 @@ CHECK_CXX_SOURCE_COMPILES("
 #endif
 #include <fmt/format.h>
 
+/* with fmt8, formatting a const reference to a type that defines a
+ * conversion to a pointer seems to fail, even though we abide by the
+ * recommended practice for the definition of the custom formatter.
+ */
+#include <sstream>
+struct cxx_foo {
+public:
+    int x[1] { 42 };
+    operator int const *() const { return x; }
+};
+template <> struct fmt::formatter<cxx_foo>: formatter<string_view> {
+  // parse is inherited from formatter<string_view>.
+
+  auto format(cxx_foo const & c, format_context& ctx) const
+      -> format_context::iterator
+      {
+            std::ostringstream os;
+            os << c.x[0];
+            return formatter<string_view>::format( string_view(os.str()), ctx);
+      }
+};
+
+
 int main(void)
 {
-std::cout << fmt::format(FMT_STRING(\"{} {}\"), \"Catch\", 22) << std::endl;
+    cxx_foo b;
+    cxx_foo const & a(b);
+    std::cout << fmt::format(FMT_STRING(\"{} {} {}\"), \"Catch\", 22, a) << std::endl;
     return 0;
 }
+
 " HAVE_FMT)
 if(HAVE_FMT)
     message(STATUS "Using the fmt library found on the system")
