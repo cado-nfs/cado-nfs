@@ -1,5 +1,5 @@
-#ifndef __SMOOTH_DETECT_H__
-#define __SMOOTH_DETECT_H__
+#ifndef SMOOTH_DETECT_H__
+#define SMOOTH_DETECT_H__
 
 #include <gmp.h>
 
@@ -51,35 +51,28 @@ typedef struct
     double minB1;
 } smooth_detect_param_s;
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-    void cand_init(cand_t c);
-    void cand_clear(cand_t c);
-    void cand_set(cand_t c, const cand_t d);
-    void cand_set_original_values(cand_t c,
-                                  const mpz_t u0,
-                                  const mpz_t v0,
-                                  unsigned long id);
-    void cand_set_presieved_values(cand_t c,
-                                   const mpz_t u0,
-                                   const mpz_t v0,
-                                   const mpz_t u,
-                                   const mpz_t v,
-                                   unsigned int lpu,
-                                   unsigned int lpv,
-                                   unsigned long id);
+void cand_init(cand_t c);
+void cand_clear(cand_t c);
+void cand_set(cand_t c, const cand_t d);
+void cand_set_original_values(cand_t c,
+        const mpz_t u0,
+        const mpz_t v0,
+        unsigned long id);
+void cand_set_presieved_values(cand_t c,
+        const mpz_t u0,
+        const mpz_t v0,
+        const mpz_t u,
+        const mpz_t v,
+        unsigned int lpu,
+        unsigned int lpv,
+        unsigned long id);
 
-    // The main exported function. Smooth candidate is put in C.
-    // Last argument is for changing default strategy. NULL can be passed.
-    void smooth_detect(cand_t C,
-                       int (*next_cand)(cand_t, void*),
-                       void* param_next_cand,
-                       unsigned long bound,
-                       const smooth_detect_param_s* param);
-#ifdef __cplusplus
-}
-#endif
+// The main exported function. Smooth candidate is put in C.
+// Last argument is for changing default strategy. NULL can be passed.
+void smooth_detect(cand_t C,
+        int (*next_cand)(cand_t, void*),
+        void* param_next_cand,
+        unsigned long bound,
+        const smooth_detect_param_s* param);
 
-#endif /* __SMOOTH_DETECT_H__ */
+#endif /* SMOOTH_DETECT_H__ */

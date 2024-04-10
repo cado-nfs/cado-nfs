@@ -1,12 +1,11 @@
 #include "cado.h" // IWYU pragma: keep
 
-#define _GNU_SOURCE    // for pthread_tryjoin_np()
 #include "cado_poly.h" // cado_poly
 #include "ecm.h"
 #include "lll.h" // mat_Z LLL
 #include "macros.h"
 #include "mpz_poly.h" // mpz_poly
-#include "smooth_detect.h"
+#include "smooth_detect.hpp"
 #include <gmp.h>
 #include <math.h>
 #include <pthread.h>
@@ -646,7 +645,7 @@ main(int argc, char** argv)
     thparam_s* thparam;
     thparam = (thparam_s*)malloc(nthread * sizeof(thparam_s));
 
-    pthread_t* thid = malloc(nthread * sizeof(pthread_t));
+    pthread_t* thid = (pthread_t *) malloc(nthread * sizeof(pthread_t));
     for (unsigned int i = 0; i < nthread; ++i) {
         thparam[i].params = &params;
         thparam[i].smooth_param = &smooth_param;
@@ -674,7 +673,7 @@ main(int argc, char** argv)
     int found = 0;
     do {
         cand_s* winner;
-        int ret = pthread_join(thid[i], (void*)(&winner));
+        int ret = pthread_join(thid[i], (void**)(&winner));
         ASSERT_ALWAYS(ret == 0);
         if (jl || ext > 1) {
             mpz_t u, v;
@@ -771,7 +770,7 @@ main(int argc, char** argv)
         if (i == j)
             continue;
         cand_s* winner;
-        pthread_join(thid[j], (void*)(&winner));
+        pthread_join(thid[j], (void**)(&winner));
         cand_clear(winner);
         free(winner);
     }

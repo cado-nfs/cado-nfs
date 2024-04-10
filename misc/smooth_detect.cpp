@@ -1,4 +1,4 @@
-#define _DEFAULT_SOURCE // for random()
+#include "cado.h"
 #include "ecm.h"
 #include <gmp.h>
 #include <limits.h>
@@ -9,7 +9,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "smooth_detect.h"
+#include "smooth_detect.hpp"
 
 #ifndef MIN
 #define MIN(l, o) ((l) < (o) ? (l) : (o))
