@@ -6,6 +6,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>
+#ifdef __cplusplus
+#include <sstream>
+#include <string>
+#include "fmt/core.h"
+#endif
 #include "macros.h"
 
 #define xxxMPZ_POLY_TIMINGS
@@ -310,6 +315,35 @@ std::istream& operator>>(std::istream& in, cxx_mpz_poly & f);
 extern void mpz_poly_init(cxx_mpz_poly & pl, int) __attribute__((error("mpz_poly_init must not be called on a mpz_poly reference -- it is the caller's business (via a ctor)")));
 extern void mpz_poly_clear(cxx_mpz_poly & pl) __attribute__((error("mpz_poly_clear must not be called on a mpz_poly reference -- it is the caller's business (via a dtor)")));
 #endif
+
+struct mpz_poly_coeff_list {
+    cxx_mpz_poly const & P;
+    std::string sep;
+    mpz_poly_coeff_list(cxx_mpz_poly const & P, std::string const & sep = ", "): P(P), sep(sep) {}
+};
+std::ostream& operator<<(std::ostream& os, mpz_poly_coeff_list const & P);
+
+namespace fmt {
+    template <> struct /* fmt:: */ formatter<mpz_poly_coeff_list>: formatter<string_view> {
+    template <typename FormatContext>
+        auto format(mpz_poly_coeff_list const & c, FormatContext& ctx) -> decltype(ctx.out())
+        {
+            std::ostringstream os;
+            os << c;
+            return formatter<string_view>::format( string_view(os.str()), ctx);
+        }
+};
+    template <> struct /* fmt:: */ formatter<cxx_mpz_poly>: formatter<string_view> {
+    template <typename FormatContext>
+        auto format(cxx_mpz_poly const & c, FormatContext& ctx) -> decltype(ctx.out())
+        {
+            std::ostringstream os;
+            os << c;
+            return formatter<string_view>::format( string_view(os.str()), ctx);
+        }
+};
+}
+
 
 #endif
 
