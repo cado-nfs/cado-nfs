@@ -2549,6 +2549,10 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if not poly.MurphyE:
             self.logger.warning("Polynomial in file %s has no Murphy E value",
                              filename)
+        if poly.skew == 0:
+            self.logger.error("Polynomial in file %s has no skew value",
+                             filename)
+            return None
         margin = 0.80 # we keep polynomials with MurphyE >= margin*bestMurphyE
         if len(self.best_polys) == 0 or poly.MurphyE >= margin * self.bestpoly.MurphyE:
            self.best_polys.append(poly)
