@@ -37,24 +37,28 @@ compute_skewness (char *input_file, char *output_file)
       exit (EXIT_FAILURE);
     }
   p->skew = L2_skewness (p->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-  FILE *of;
-  of = fopen (output_file, "w");
-  if (of == NULL)
-    {
-      fprintf (stderr, "Error writing polynomial file %s\n", output_file);
-      cado_poly_clear (p);
-      exit (EXIT_FAILURE);
-    }
-  cado_poly_fprintf (of, p, "");
-  cado_poly_clear (p);
+  if (output_file == NULL) {
+    printf("%.5g\n", p->skew);
+  } else {
+    FILE *of;
+    of = fopen (output_file, "w");
+    if (of == NULL)
+      {
+        fprintf (stderr, "Error writing polynomial file %s\n", output_file);
+        cado_poly_clear (p);
+        exit (EXIT_FAILURE);
+      }
+    cado_poly_fprintf (of, p, "");
+    cado_poly_clear (p);
+  }
 } 
 
 // usage: skewness input_file output_file
 int
 main (int argc, char *argv[])
 {
-  ASSERT_ALWAYS (argc == 3);
+  ASSERT_ALWAYS (argc == 2 || argc == 3);
   char *input_file = argv[1];
-  char *output_file = argv[2];
+  char *output_file = (argc == 3) ? argv[2] : NULL;
   compute_skewness (input_file, output_file);
 }
