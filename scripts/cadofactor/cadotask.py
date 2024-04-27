@@ -996,6 +996,8 @@ class DoesImport(DoesLogging, cadoparams.UseParameters, Runnable,
 
     def run(self):
         super().run()
+
+    def do_import(self):
         if "import" in self.params and not self._did_import:
             self.import_files(self.params["import"])
             self._did_import = True
@@ -1981,6 +1983,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
 
         super().run()
 
+        self.do_import()
         if self.did_import() and "import_sopt" in self.params:
             self.logger.critical("The import and import_sopt parameters "
                                  "are mutually exclusive")
@@ -2346,7 +2349,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
 
     def run(self):
         super().run()
-        
+
+        self.do_import()
         if self.bestpoly is None:
             self.logger.info("No polynomial was previously found")
         else:
@@ -2696,7 +2700,8 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
             
     def run(self):
         super().run()
-       
+
+        self.do_import()
         if not "import" in self.params:
             if self.is_done():
                 self.logger.info("Already finished - nothing to do")
@@ -2887,6 +2892,7 @@ class PolyselGFpnTask(Task, DoesImport):
     def run(self):
         super().run()
 
+        self.do_import()
         if not "polyfilename" in self.state:
             polyfilename = self.workdir.make_filename("poly")
             # Import mode
@@ -3336,6 +3342,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
 
     def run(self):
         super().run()
+        self.do_import()
         have_two_alg = self.send_request(Request.GET_HAVE_TWO_ALG_SIDES)
         fb1 = self.send_request(Request.GET_FACTORBASE1_FILENAME)
         if have_two_alg:
