@@ -2273,7 +2273,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         return "Polynomial Selection (root optimized)"
     @property
     def programs(self):
-        return ((cadoprograms.PolyselectRopt, (), {}),)
+        return ((cadoprograms.PolyselectRopt, (), {}),
+                (cadoprograms.Skewness, (), {}))
     @property
     def paramnames(self):
         return self.join_params(super().paramnames, {
@@ -2471,7 +2472,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
     
     def import_one_file(self, filename):
         old_bestpoly = self.bestpoly
-        self.process_polyfile(filename)
+        self.process_polyfile(filename, allow_no_skewness=True)
+        
         if not self.bestpoly is old_bestpoly:
             self.write_poly_file()
 
@@ -2497,7 +2499,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if block:
             yield block
 
-    def process_polyfile(self, filename, commit=True):
+    def process_polyfile(self, filename, *, allow_no_skewness=False, commit=True):
         try:
             polyfile = self.read_log_warning(filename)
         except (OSError, IOError) as e:
@@ -2507,7 +2509,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             else:
                 raise
         for block in self.read_blocks(polyfile):
-           poly = self.parse_poly(block, filename)
+           poly = self.parse_poly(block, filename, allow_no_skewness=allow_no_skewness)
            if not poly is None:
                self.bestpoly = poly
                update = {"bestpoly": str(poly)}
@@ -2524,7 +2526,9 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
                                      filename, line.strip())
                 yield line
 
-    def parse_poly(self, text, filename):
+    # If allow_no_skewness is True and the polynomial file does not contain
+    # a skew: line, compute the skewness and use it.
+    def parse_poly(self, text, filename, *, allow_no_skewness=False):
         poly = None
         try:
             poly = Polynomials(text)
@@ -2554,9 +2558,24 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             self.logger.warning("Polynomial in file %s has no Murphy E value",
                              filename)
         if poly.skew == 0:
-            self.logger.error("Polynomial in file %s has no skew value",
-                             filename)
-            return None
+            if not allow_no_skewness:
+                self.logger.error("Polynomial in file %s has no skew value",
+                                  filename)
+                return None
+            else:
+                self.logger.info("Polynomial in file %s has no skew value, "
+                                 "computing it", filename)
+                p = cadoprograms.Skewness(inputpoly=filename,
+                                          **self.merged_args[1])
+                # Explicitly call Task's submit_command so we don't generate
+                # a WU for this
+                result = Task.submit_command(self, p, "", commit=True,
+                                             log_errors=True)
+                if result.get_exitcode(0) != 0:
+                    return None
+                poly.skew = float(result.get_stdout(0))
+                self.logger.info("Computed skewness is %.5g", poly.skew)
+
         margin = 0.80 # we keep polynomials with MurphyE >= margin*bestMurphyE
         if len(self.best_polys) == 0 or poly.MurphyE >= margin * self.bestpoly.MurphyE:
            self.best_polys.append(poly)
