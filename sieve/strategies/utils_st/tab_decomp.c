@@ -94,7 +94,7 @@ static decomp_t *analyse_line(char *line)
 	//printf ("line-->'%s'\n", str_process);
 	/*TEST REGULAR EXPRESSION  'preg_decomp */
 	size_t nmatch = 2;
-	regmatch_t *pmatch = calloc(sizeof(*pmatch), nmatch);
+	regmatch_t *pmatch = calloc(nmatch, sizeof(*pmatch));
 	regexec(&preg_decomp, str_process, nmatch, pmatch, 0);
 	if (pmatch[0].rm_so != pmatch[0].rm_eo) {
 	    int start = pmatch[1].rm_so;
