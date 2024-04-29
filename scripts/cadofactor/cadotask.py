@@ -2567,13 +2567,13 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
                                  "computing it", filename)
                 p = cadoprograms.Skewness(inputpoly=filename,
                                           **self.merged_args[1])
-                # Explicitly call Task's submit_command so we don't generate
-                # a WU for this
-                result = Task.submit_command(self, p, "", commit=True,
-                                             log_errors=True)
-                if result.get_exitcode(0) != 0:
+                process = cadocommand.Command(p)
+                (rc, stdout, stderr) = process.wait()
+                if rc != 0:
+                    self.logger.error("Computing skewness failed with exit code %d",
+                                      rc)
                     return None
-                poly.skew = float(result.get_stdout(0))
+                poly.skew = float(stdout)
                 self.logger.info("Computed skewness is %.5g", poly.skew)
 
         margin = 0.80 # we keep polynomials with MurphyE >= margin*bestMurphyE
