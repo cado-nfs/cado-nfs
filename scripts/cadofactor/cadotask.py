@@ -27,36 +27,21 @@ import workunit
 from struct import error as structerror
 from shutil import rmtree
 from workunit import Workunit
-# Patterns for floating-point numbers
-# They can be used with the string.format() function, e.g.,
-# re.compile("value = {cap_fp}".format(**REGEXES))
-# where format() replaces "{cap_fp}" with the string in CAP_FP
-RE_FP = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
-CAP_FP = "(%s)" % RE_FP
-REGEXES = {"fp": RE_FP, "cap_fp": CAP_FP}
 
-def re_cap_n_fp(prefix, n, suffix=""):
-    """ Generate a regular expression that starts with prefix, then captures
-    1 up to n floating-point numbers (possibly in scientific notation)
-    separated by whitespace, and ends with suffix.
-    
-    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo 1.23').group(1)
-    '1.23'
-    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo1.23   4.56').groups()
-    ('1.23', '4.56')
-    
-    # The first fp pattern must match something
-    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo')
-    """
-    template = prefix
-    if n > 0:
-        # The first CAP_FP pattern is mandatory, and can have zero or more
-        # whitespace in front
-        template += r"\s*{cap_fp}"
-        # The remaining FP_CAPs are optional, and have 1 or more whitespace
-        template += r"(?:\s+{cap_fp})?" * (n - 1)
-    template += suffix
-    return template.format(**REGEXES)
+# Pattern for floating-point numbers
+RE_FP = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
+
+# This is just like re.compile(), except that any string "{fp}" within the
+# pattern is subsituted by a regular expression that matches floating-point
+# numbers (incl. in scientific notation).
+# "{a}" or "{a,b}" with a, b numeric are repetition operators in regular
+# expressions, but if a or b are not numeric text, they match just as literal
+# text, so using "{fp}" shouldn't introduce conflicts with valid regexes.
+def re_fp_compile(pattern, *args, **kwargs):
+    # We can't use str.format() here or it will try to interpret regex
+    # repetition operators {n} or {n,m} and complain
+    fp_pattern = pattern.replace("{fp}", RE_FP)
+    return re.compile(fp_pattern, *args, **kwargs)
 
 # convert the time s in [day,]hours,minutes,seconds
 # (patch from Hermann Stamm-Wilbrandt)
@@ -213,17 +198,17 @@ class Polynomials(object):
     re_pol_f = re.compile(r"c(\d+)\s*:\s*(-?\d+)")
     re_pol_g = re.compile(r"Y(\d+)\s*:\s*(-?\d+)")
     re_polys = re.compile(r"poly(\d+)\s*:") # FIXME: do better?
-    re_Murphy = re.compile(re_cap_n_fp(r"\s*#\s*MurphyE\s*\((.*)\)\s*=", 1))
+    re_Murphy = re_fp_compile(r"\s*#\s*MurphyE\s*\((.*)\)\s*=\s*({fp})")
     # MurphyF is the refined value of MurphyE produced by polyselect3
-    re_MurphyF = re.compile(re_cap_n_fp(r"\s*#\s*MurphyF\s*\((.*)\)\s*=", 1))
+    re_MurphyF = re_fp_compile(r"\s*#\s*MurphyF\s*\((.*)\)\s*=\s*({fp})")
     re_n = re.compile(r"n\s*:\s* (\d+)") # Ex. "n: 1234567"
-    re_skew = re.compile(re_cap_n_fp(r"skew:", 1)) # Ex. "skew: 1.3e-5"
+    re_skew = re_fp_compile(r"skew:\s*({fp})") # Ex. "skew: 1.3e5"
     re_type = re.compile(r"type\s*:\s*(snfs|gnfs)") # Ex. "type: snfs"
     # Note, the value of m is ignored by CADO-NFS, but should not trigger an
     # error if it occurs in a polynomial file.
     re_m = re.compile(r"m\s*:\s*(\d+)") # Ex. "m: 123"
     re_best = re.compile(r"# Best polynomial found \(revision (.*)\):")
-    re_exp_E = re.compile(re_cap_n_fp(r"\s*#\s*exp_E", 1))
+    re_exp_E = re_fp_compile(r"\s*#\s*exp_E\s*({fp})")
     
     def __init__(self, lines):
         """ Parse a polynomial file in the syntax as produced by polyselect
@@ -1900,7 +1885,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Stat: potential collisions=', 1)),
+            re_fp_compile(r'# Stat: potential collisions=({fp})'),
             False
         ),
         (
@@ -1908,7 +1893,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             (int, float, float, float, float),
             "0 0 0 0 0",
             self.update_lognorms,
-            re.compile(r"# Stat: raw lognorm \(nr/min/av/max/std\): (\d+)/{cap_fp}/{cap_fp}/{cap_fp}/{cap_fp}".format(**REGEXES)),
+            re_fp_compile(r"# Stat: raw lognorm \(nr/min/av/max/std\): (\d+)/({fp})/({fp})/({fp})/({fp})"),
             False
         ),
         (
@@ -1916,7 +1901,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             (int, float, float, float, float),
             "0 0 0 0 0",
             self.update_lognorms,
-            re.compile(r"# Stat: optimized lognorm \(nr/min/av/max/std\): (\d+)/{cap_fp}/{cap_fp}/{cap_fp}/{cap_fp}".format(**REGEXES)),
+            re_fp_compile(r"# Stat: optimized lognorm \(nr/min/av/max/std\): (\d+)/({fp})/({fp})/({fp})/({fp})"),
             False
         ),
         (
@@ -1924,7 +1909,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Stat: total phase took', 1, "s")),
+            re_fp_compile(r'# Stat: total phase took ({fp})s'),
             False
         ),
     )
@@ -2341,7 +2326,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Stat: total phase took', 1, "s")),
+            re_fp_compile(r'# Stat: total phase took ({fp})s'),
             False
         ),
         (
@@ -2349,7 +2334,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Stat: rootsieve took', 1, "s")),
+            re_fp_compile(r'# Stat: rootsieve took ({fp})s'),
             False
         )
     )
@@ -3336,7 +3321,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (float, int),
             "0 0",
             Statistics.zip_combine_mean,
-            re.compile(re_cap_n_fp(r'# Average J=', 1, r"\s*for (\d+) special-q's")),
+            re_fp_compile(r"# Average J=({fp})\s*for (\d+) special-q's"),
             False
         ),
         (
@@ -3352,7 +3337,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Total cpu time', 1, "s")),
+            re_fp_compile(r'# Total cpu time ({fp})s'),
             False
         ),
         (
@@ -3360,7 +3345,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (float, ),
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Total elapsed time', 1, "s")),
+            re_fp_compile(r'# Total elapsed time ({fp})s'),
             False
         )
     )
@@ -3673,7 +3658,7 @@ class Duplicates1Task(Task, FilesCreator, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"# Done: Read \d+ relations in", 1, "s")),
+            re_fp_compile(r"# Done: Read \d+ relations in ({fp})s"),
             False
         ),
     )
@@ -3892,7 +3877,7 @@ class Duplicates2Task(Task, FilesCreator, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"# Done: Read \d+ relations in", 1, "s")),
+            re_fp_compile(r"# Done: Read \d+ relations in ({fp})s"),
             True    # allow several !
         ),
     )
@@ -4769,7 +4754,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for prep: .wct.', 1)),
+            re_fp_compile(r'Timings for prep: .wct. ({fp})'),
             False
         ),
         (
@@ -4777,7 +4762,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for prep: .cpu.', 1)),
+            re_fp_compile(r'Timings for prep: .cpu. ({fp})'),
             False
         ),
         (
@@ -4785,7 +4770,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for secure: .wct.', 1)),
+            re_fp_compile(r'Timings for secure: .wct. ({fp})'),
             False
         ),
         (
@@ -4793,7 +4778,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for secure: .cpu.', 1)),
+            re_fp_compile(r'Timings for secure: .cpu. ({fp})'),
             False
         ),
         (
@@ -4801,7 +4786,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for gather: .wct.', 1)),
+            re_fp_compile(r'Timings for gather: .wct. ({fp})'),
             False
         ),
         (
@@ -4809,7 +4794,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for gather: .cpu.', 1)),
+            re_fp_compile(r'Timings for gather: .cpu. ({fp})'),
             False
         ),
         (
@@ -4817,7 +4802,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"Timings for krylov: .wct.", 1)),
+            re_fp_compile(r"Timings for krylov: .wct. ({fp})"),
             True
         ),
         (
@@ -4825,7 +4810,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"Timings for krylov: .cpu.", 1)),
+            re_fp_compile(r"Timings for krylov: .cpu. ({fp})"),
             True
         ),
         (
@@ -4833,7 +4818,7 @@ class LinAlgTask(Task, HasStatistics):
             (int, float),
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"krylov done N=(\d+) ; CPU\d*:", 1)),
+            re_fp_compile(r"krylov done N=(\d+) ; CPU\d*: ({fp})"),
             True
         ),
         (
@@ -4841,7 +4826,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"krylov done N=\d+ ; cpu-wait\d*:", 1)),
+            re_fp_compile(r"krylov done N=\d+ ; cpu-wait\d*: ({fp})"),
             True
         ),
         (
@@ -4849,7 +4834,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"krylov done N=\d+ ; COMM\d*:", 1)),
+            re_fp_compile(r"krylov done N=\d+ ; COMM\d*: ({fp})"),
             True
         ),
         (
@@ -4857,7 +4842,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"krylov done N=\d+ ; comm-wait\d*:", 1)),
+            re_fp_compile(r"krylov done N=\d+ ; comm-wait\d*: ({fp})"),
             True
         ),
         (
@@ -4865,7 +4850,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for lingen_\w+: .wct.', 1)),
+            re_fp_compile(r'Timings for lingen_\w+: .wct. ({fp})'),
             False
         ),
         (
@@ -4873,7 +4858,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for lingen_\w+: .cpu.', 1)),
+            re_fp_compile(r'Timings for lingen_\w+: .cpu. ({fp})'),
             False
         ),
         (
@@ -4881,7 +4866,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"Timings for mksol: .wct.", 1)),
+            re_fp_compile(r"Timings for mksol: .wct. ({fp})"),
             True
         ),
         (
@@ -4889,7 +4874,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"Timings for mksol: .cpu.", 1)),
+            re_fp_compile(r"Timings for mksol: .cpu. ({fp})"),
             True
         ),
         (
@@ -4897,7 +4882,7 @@ class LinAlgTask(Task, HasStatistics):
             (int, float),
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"mksol done N=(\d+) ; CPU\d*:", 1)),
+            re_fp_compile(r"mksol done N=(\d+) ; CPU\d*: ({fp})"),
             True
         ),
         (
@@ -4905,7 +4890,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"mksol done N=\d+ ; cpu-wait\d*:", 1)),
+            re_fp_compile(r"mksol done N=\d+ ; cpu-wait\d*: ({fp})"),
             True
         ),
         (
@@ -4913,7 +4898,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"mksol done N=\d+ ; COMM\d*:", 1)),
+            re_fp_compile(r"mksol done N=\d+ ; COMM\d*: ({fp})"),
             True
         ),
         (
@@ -4921,7 +4906,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"mksol done N=\d+ ; comm-wait\d*:", 1)),
+            re_fp_compile(r"mksol done N=\d+ ; comm-wait\d*: ({fp})"),
             True
         ),
     )
