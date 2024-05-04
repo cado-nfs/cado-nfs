@@ -17,6 +17,7 @@ import logging
 import socket
 import gzip
 import heapq
+import errno
 import patterns
 import wudb
 import cadoprograms
@@ -2108,7 +2109,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         try:
             polyfile = self.read_log_warning(filename)
         except (OSError, IOError) as e:
-            if e.errno == 2: # No such file or directory
+            if e.errno == errno.ENOENT: # No such file or directory
                 self.logger.error("File '%s' does not exist", filename)
                 return None
             else:
@@ -2567,7 +2568,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         try:
             poly = Polynomials(text)
         except (OSError, IOError) as e:
-            if e.errno == 2: # No such file or directory
+            if e.errno == errno.ENOENT: # No such file or directory
                 self.logger.error("File '%s' does not exist", filename)
                 return None
             else:
@@ -2832,7 +2833,7 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
         try:
             polyfile = self.read_log_warning(filename)
         except (OSError, IOError) as e:
-            if e.errno == 2: # No such file or directory
+            if e.errno == errno.ENOENT: # No such file or directory
                 self.logger.error("File '%s' does not exist", filename)
                 return None
             else:
@@ -3542,7 +3543,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
                 size = os.path.getsize(filename)
                 f = open(filename, "rb")
         except (OSError, IOError) as e:
-            if e.errno == 2: # No such file or directory
+            if e.errno == errno.ENOENT: # No such file or directory
                 self.logger.error("File '%s' does not exist", filename)
                 return None
             else:
