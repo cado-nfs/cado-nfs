@@ -363,7 +363,7 @@ class Polynomials(object):
 
         # Test that all required keys are there. Currently, only n is required
         if self.n is None:
-            raise PolynomialParseException("Value of n missing" % key)
+            raise PolynomialParseException("Value of n missing")
 
         if len(tabpoly) > 0:
             polyg = tabpoly[0]
