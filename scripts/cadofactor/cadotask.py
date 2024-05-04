@@ -404,11 +404,6 @@ class Polynomials(object):
     def __ne__(self, other):
         return not (self == other)
 
-    def create_file(self, filename):
-        # Write polynomial to a file
-        with open(str(filename), "w") as poly_file:
-            poly_file.write(str(self))
-
     def same_lc(self, other):
         """ Returns true if both polynomial pairs have same degree and
         leading coefficient
@@ -2445,7 +2440,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         n = len(self.best_polys)
         for i in range(n):
            filename = self.workdir.make_filename("poly." + str(i))
-           self.best_polys[i].create_file(filename)
+           with open(str(filename), "w") as poly_file:
+              poly_file.write(str(self.best_polys[i]))
         # remove ropteffort since polyselect3 does not use it
         self.progparams[0].pop("ropteffort", None)
         filename = self.workdir.make_filename("poly")
@@ -2648,7 +2644,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
     
     def write_poly_file(self):
         filename = self.workdir.make_filename("poly")
-        self.bestpoly.create_file(filename)
+        with open(str(filename), "w") as poly_file:
+            poly_file.write(str(self.bestpoly))
         self.state["polyfilename"] = filename.get_wdir_relative()
     
     def get_poly(self):
@@ -2775,7 +2772,8 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
             self.logger.info("Finished")
 
         filename = self.workdir.make_filename("poly")
-        self.bestpoly.create_file(filename)
+        with open(str(filename), "w") as poly_file:
+            poly_file.write(str(self.bestpoly))
         self.state["polyfilename"] = filename.get_wdir_relative()
         self.state["bestpoly"] = str(self.bestpoly)
         self.logger.info("Selected polynomial has MurphyE %f",
