@@ -1225,6 +1225,7 @@ tests/linalg/bwc/test_matrix_file.cpp
 tests/linalg/bwc/test_matrix_file.sh
 tests/linalg/bwc/time_matpoly_ft_parallel.cpp
 tests/misc/CMakeLists.txt
+tests/misc/F7.poly
 tests/misc/Makefile
 tests/misc/c59_nonlinear.poly
 tests/misc/c60.poly
