@@ -730,8 +730,11 @@ cado_define_test(full_c30
     SCRIPT
     ${CADO_NFS_BINARY_DIR}/cado-nfs.py
         --server-threads 2
+        -s 1
         340282366920938463463374607431768211457
+        ${CADO_NFS_SOURCE_DIR}/parameters/factor/parameters.F7
         tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/F7.poly
+        slaves.hostnames=localhost
     TARGET_DEPENDENCIES
         full_dependencies_base
         merge replay
