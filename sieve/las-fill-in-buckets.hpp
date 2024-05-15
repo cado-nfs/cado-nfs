@@ -11,7 +11,7 @@ class nfs_work;
 class nfs_work_cofac;
 class thread_pool;
 struct where_am_I;
-template <int LEVEL> class plattices_vector_t;
+class plattices_vector_t;
 template <template <int> class F, int n0, int n1> struct multityped_array;
 
 // This one is used for keeping information of middle primes.
@@ -19,7 +19,7 @@ template<int LEVEL>
 struct precomp_plattice_t {
     static const int level = LEVEL;
     typedef precomp_plattice_t type;    /* for multityped_array */
-    typedef std::vector<plattices_vector_t<LEVEL>> vec_type;
+    typedef std::vector<plattices_vector_t> vec_type;
     std::vector<vec_type> v;
     precomp_plattice_t(precomp_plattice_t<LEVEL> const&) = delete;
     precomp_plattice_t(int nsides) : v(nsides) {}
