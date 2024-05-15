@@ -32,6 +32,12 @@ case "$CI_JOB_NAME" in
                 ;;
         esac
         ;;
+    *"coverage tests"*)
+        # With some tests, the coverage test time goes to the roof, but
+        # it's not always so. A blanket TIMEOUT_SCALE is probably a gross
+        # fix, but we can live with it.
+        export TIMEOUT_SCALE=2
+        ;;
 esac
 
 project_package_selection() {
