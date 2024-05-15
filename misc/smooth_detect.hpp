@@ -28,8 +28,8 @@ struct descent_init_candidate
 {
     cxx_mpz u0, v0;        // original integers to be tested for smoothness
     cxx_mpz u, v;          // unfactored parts of u, v, must be composite or 1
-    unsigned int lpu, lpv; // bitsize of largest primes on both sides
-    double effort;         // sum of the B1 already tried on these numbers
+    unsigned int lpu = 0, lpv = 0; // bitsize of largest primes on both sides
+    double effort = 0;     // sum of the B1 already tried on these numbers
     unsigned long e;       // this is a reconstruction of target^e
 
     descent_init_candidate() = default;
