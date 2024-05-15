@@ -206,7 +206,7 @@ struct bpack : public bpack_ops<T> {
     matrix const & cell(unsigned int bi, unsigned int bj) const { return view().cell(bi, bj); }
     inline bpack<T>& operator=(int a) { view().set(a); return *this; }
     inline bool operator==(int a) const { return view() == a; }
-    inline bpack<T>(const_view_t a)
+    inline bpack(const_view_t a)
         : bpack(a.nrows(), a.ncols())
     {
         std::copy_n(&a.cell(0,0), a.nrowblocks() * a.ncolblocks(), &cell(0,0));

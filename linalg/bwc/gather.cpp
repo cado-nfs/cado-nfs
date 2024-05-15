@@ -1312,8 +1312,10 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
         if (tcan_print) {
             char * hwinfo = NULL;
-            if (hamming_out && tcan_print)
-                asprintf(&hwinfo, ", Hamming weight is %d", hamming_out);
+            if (hamming_out && tcan_print) {
+                int rc = asprintf(&hwinfo, ", Hamming weight is %d", hamming_out);
+                ASSERT_ALWAYS(rc >= 0);
+            }
             if (R) {
                 const char * strings[] = {
                     "V * M^%u + R is %s%s\n", /* unsupported anyway */
