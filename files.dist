@@ -48,6 +48,7 @@ config/cado_check_cxx_source_compiles.cmake
 config/ccwrap.pl.in
 config/check_cpu_feature.cmake
 config/check_types.cmake
+config/clock_gettime.cmake
 config/cxxabi.cmake
 config/cxxwrap.pl.in
 config/detect-static-analysis.cmake
