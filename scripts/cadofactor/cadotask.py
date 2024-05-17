@@ -71,7 +71,9 @@ def tstr(s):
     return " [" + time.strftime(fmt + "%H:%M:%S", time.gmtime(i)) + "]"
 
 class Polynomial(list):
-    """
+    r"""
+    >>> # This docstring needs to be a raw string (r prefix) because
+    >>> # backslashes occur in it
     >>> p = Polynomial()
     >>> p.degree < 0
     True
@@ -84,6 +86,11 @@ class Polynomial(list):
     >>> p[42] = 0
     >>> p.degree == 0
     True
+    >>> p = Polynomial([1,-5,0,0,0,7])
+    >>> str(p)
+    '7*x^5-5*x+1'
+    >>> p.as_lines("c")
+    ['c0: 1\n', 'c1: -5\n', 'c5: 7\n']
     >>> p = Polynomial([3,2,1]) # x^2 + 2*x + 3
     >>> p.eval(0)
     3
@@ -117,6 +124,13 @@ class Polynomial(list):
         poly = "".join(reversed(arr)).lstrip('+')
         poly = re.sub(r'\b1\*', "", poly)
         return poly
+
+    # Returns the coefficients as an array of strings in a format like we use
+    # in polynomial files. See doctest example.
+    # Coefficients which are 0 get omitted, each line has a trailing newline
+    def as_lines(self, prefix):
+        return ["%s%d: %d\n" % (prefix, idx, coeff) for (idx, coeff)
+                    in enumerate(self) if not coeff == 0]
 
     def eval(self, x):
         """ Evaluate the polynomial at x """
@@ -166,6 +180,10 @@ class Polynomials(object):
     >>> p=Polynomials(t.splitlines())
     Traceback (most recent call last):
     cadotask.PolynomialParseException: Line 'c5: 1' redefines coefficient of x^5
+    >>> t="n: 1021\n"
+    >>> p=Polynomials(t.splitlines())
+    Traceback (most recent call last):
+    cadotask.PolynomialParseException: No polynomial f specified (c: lines)
     >>> t="n: 1021\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\nskew: 1.0\n"
     >>> p=Polynomials(t.splitlines())
     >>> str(p)
@@ -174,8 +192,22 @@ class Polynomials(object):
     >>> p=Polynomials(t.splitlines())
     >>> str(p)
     'n: 1021\nskew: 1.0\nc0: -1\nc1: 1\nc5: -1\nY0: -4\nY1: 1\n# f(x) = -x^5+x-1\n# g(x) = x-4\n'
+    >>> # Without skew
+    >>> t="n: 1021\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\n\n"
+    >>> p1=Polynomials(t.splitlines())
+    >>> str(p1)
+    'n: 1021\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\n# f(x) = x^5-x+1\n# g(x) = -x+4\n'
+    >>> # With all optional lines
+    >>> t="n: 1021\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\nskew: 1.0\ntype: gnfs\nm: 123\n"
+    >>> p2=Polynomials(t.splitlines())
+    >>> str(p2)
+    'n: 1021\nskew: 1.0\ntype: gnfs\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\n# f(x) = x^5-x+1\n# g(x) = -x+4\n'
+    >>> p1.same_lc(p2)
+    True
     >>> t="n: 1021\npoly0: 1, 2, 3\npoly1: 4, 5, 6\nskew: 1.0\n"
     >>> p=Polynomials(t.splitlines())
+    >>> str(p)
+    'n: 1021\nskew: 1.0\npoly0: 1,2,3\npoly1: 4,5,6\n# poly0 = 3*x^2+2*x+1\n# poly1 = 6*x^2+5*x+4\n'
     """
 
     re_pol_f = re.compile(r"c(\d+)\s*:\s*(-?\d+)")
@@ -184,19 +216,14 @@ class Polynomials(object):
     re_Murphy = re.compile(re_cap_n_fp(r"\s*#\s*MurphyE\s*\((.*)\)\s*=", 1))
     # MurphyF is the refined value of MurphyE produced by polyselect3
     re_MurphyF = re.compile(re_cap_n_fp(r"\s*#\s*MurphyF\s*\((.*)\)\s*=", 1))
-    re_skew = re.compile(re_cap_n_fp(r"skew:", 1))
+    re_n = re.compile(r"n\s*:\s* (\d+)") # Ex. "n: 1234567"
+    re_skew = re.compile(re_cap_n_fp(r"skew:", 1)) # Ex. "skew: 1.3e-5"
+    re_type = re.compile(r"type\s*:\s*(snfs|gnfs)") # Ex. "type: snfs"
+    # Note, the value of m is ignored by CADO-NFS, but should not trigger an
+    # error if it occurs in a polynomial file.
+    re_m = re.compile(r"m\s*:\s*(\d+)") # Ex. "m: 123"
     re_best = re.compile(r"# Best polynomial found \(revision (.*)\):")
     re_exp_E = re.compile(re_cap_n_fp(r"\s*#\s*exp_E", 1))
-    
-    # Keys that can occur in a polynomial file, in their preferred ordering,
-    # and whether the key is mandatory or not. The preferred ordering is used
-    # when turning a polynomial back into a string.
-    keys = OrderedDict(
-        (
-            ("n", (int, True)),
-            ("skew", (float, False)),
-            ("type", (str, False))
-        ))
     
     def __init__(self, lines):
         """ Parse a polynomial file in the syntax as produced by polyselect
@@ -204,11 +231,12 @@ class Polynomials(object):
         """
         self.MurphyE = 0.
         self.MurphyF = 0.
-        self.skew = 0.
+        self.n = None
+        self.skew = None
+        self.type = None
         self.MurphyParams = None
         self.revision = None
         self.exp_E = 0.
-        self.params = {}
         polyf = Polynomial()
         polyg = Polynomial()
         # in case of multiple fields
@@ -226,7 +254,7 @@ class Polynomials(object):
                 return True
             return False
 
-        # line = "poly0: 1, 2, 3" => poly[0] = {1, 2, 3} = 1+2*X+3*X^2
+        # line = "poly0: 1, 2, 3" => poly[0] = [1, 2, 3] = 1+2*X+3*X^2
         def match_poly_all(line, regex):
             match = regex.match(line)
             if match:
@@ -243,6 +271,9 @@ class Polynomials(object):
 
         for line in lines:
             # print ("Parsing line: >%s<" % line.strip())
+
+            # First, match comment lines that contain useful info
+
             # If this is a comment line telling the Murphy E value,
             # extract the value and store it
             match = self.re_Murphy.match(line)
@@ -260,10 +291,6 @@ class Polynomials(object):
                         "Line '%s' redefines Murphy F value" % line)
                 self.MurphyF = float(match.group(2))
                 continue
-            match = self.re_skew.match(line)
-            if match:
-                self.skew = float(match.group(1))
-                # go through
             match = self.re_best.match(line)
             if match:
                 self.revision = match.group(1)
@@ -277,11 +304,15 @@ class Polynomials(object):
                         "Line '%s' redefines exp_E value" % line)
                 self.exp_E = float(match.group(1))
                 continue
-            # Drop comment, strip whitespace
+
+            # If it's a comment that doesn't contain interesting data,
+            # drop it
+
             line2 = line.split('#', 1)[0].strip()
             # If nothing is left, process next line
             if not line2:
                 continue
+
             # Try to parse polynomial coefficients
             if match_poly(line, polyf, self.re_pol_f) or \
                     match_poly(line, polyg, self.re_pol_g):
@@ -291,43 +322,70 @@ class Polynomials(object):
             if ip != -1:
                 tabpoly[ip] = tip
                 continue
-            # All remaining lines must be of the form "x: y"
-            array = line2.split(":")
-            if not len(array) == 2:
-                raise PolynomialParseException("Invalid line '%s'" % line)
-            key = array[0].strip()
-            value = array[1].strip()
-            
-            if not key in self.keys:
-                raise PolynomialParseException("Invalid key '%s' in line '%s'" %
-                                               (key, line))
-            if key in self.params:
-                raise PolynomialParseException("Key %s in line %s has occurred "
-                                               "before" % (key, line))
-            (_type, isrequired) = self.keys[key]
-            self.params[key] = _type(value)
+
+            match = self.re_n.match(line)
+            if match:
+                if self.n is not None:
+                    raise PolynomialParseException(
+                        "Value of n redefined in line %s" % line)
+                self.n = int(match.group(1))
+                continue
+
+            match = self.re_skew.match(line)
+            if match:
+                if self.skew is not None:
+                    raise PolynomialParseException(
+                        "Value of skewness redefined in line %s" % line)
+                self.skew = float(match.group(1))
+                continue
+
+            match = self.re_type.match(line)
+            if match:
+                if self.type is not None:
+                    raise PolynomialParseException(
+                        "Type of factorization redefined in line %s" % line)
+                self.type = match.group(1)
+                continue
+
+            match = self.re_m.match(line)
+            if match:
+                # Simply ignore "m:" lines
+                continue
+
+            # If nothing matches, complain
+            raise PolynomialParseException("Invalid line '%s'" % line)
 
         # If no polynomial was found at all (not even partial data), assume
         # that polyselect simply did not find anything in this search range
-        if polyf.degree < 0 and polyg.degree < 0 and self.params == {} and \
-                self.MurphyE == 0.:
+        if polyf.degree < 0 and polyg.degree < 0 and self.n is None and \
+               self.skew is None and self.MurphyE == 0.:
             raise PolynomialParseException("No polynomials found")
 
-        # Test that all required keys are there
-        for (key, (_type, isrequired)) in self.keys.items():
-            if isrequired and not key in self.params:
-                raise PolynomialParseException("Key %s missing" % key)
+        # Test that all required keys are there. Currently, only n is required
+        if self.n is None:
+            raise PolynomialParseException("Value of n missing")
+
         if len(tabpoly) > 0:
             polyg = tabpoly[0]
             polyf = tabpoly[1]
+
+        # Check that the polynomials were specified
+        if polyf.degree < 0:
+            raise PolynomialParseException("No polynomial f specified (c: lines)")
+        if polyg.degree < 0:
+            raise PolynomialParseException("No polynomial g specified (Y: lines)")
+
         self.polyf = polyf
         self.polyg = polyg
         self.tabpoly = tabpoly
         return
 
     def __str__(self):
-        arr = ["%s: %s\n" % (key, self.params[key])
-               for key in self.keys if key in self.params]
+        arr = ["n: %d\n" % self.n]
+        if self.skew is not None:
+            arr += ["skew: %s\n" % self.skew]
+        if self.type is not None:
+            arr += ["type: %s\n" % self.type]
         if len(self.tabpoly) > 0:
             for i in range(len(self.tabpoly)):
                 poltmp = self.tabpoly[i]
@@ -335,16 +393,14 @@ class Polynomials(object):
                 arr += [","+str(poltmp[j]) for j in range(1, len(poltmp))]
                 arr += "\n"
         else:
-            arr += ["c%d: %d\n" % (idx, coeff) for (idx, coeff)
-                    in enumerate(self.polyf) if not coeff == 0]
-            arr += ["Y%d: %d\n" % (idx, coeff) for (idx, coeff)
-                    in enumerate(self.polyg) if not coeff == 0]
+            arr += self.polyf.as_lines("c")
+            arr += self.polyg.as_lines("Y")
         if not self.MurphyE == 0.:
             if self.MurphyParams:
                 arr.append("# MurphyE (%s) = %.3e\n" % (self.MurphyParams, self.MurphyE))
             else:
                 arr.append("# MurphyE = %.3e\n" % self.MurphyE)
-        if not self.revision == None:
+        if self.revision is not None:
             arr.append("# found by revision %s\n" % self.revision)
         if not self.exp_E == 0.:
             arr.append("# exp_E %g\n" % self.exp_E)
@@ -358,7 +414,7 @@ class Polynomials(object):
 
     def __eq__(self, other):
         return self.polyf == other.polyf and self.polyg == other.polyg \
-            and self.params == other.params
+            and self.n == other.n
 
     def __ne__(self, other):
         return not (self == other)
@@ -367,9 +423,6 @@ class Polynomials(object):
         # Write polynomial to a file
         with open(str(filename), "w") as poly_file:
             poly_file.write(str(self))
-
-    def getN(self):
-        return self.params["n"]
 
     def same_lc(self, other):
         """ Returns true if both polynomial pairs have same degree and
@@ -996,6 +1049,8 @@ class DoesImport(DoesLogging, cadoparams.UseParameters, Runnable,
 
     def run(self):
         super().run()
+
+    def do_import(self):
         if "import" in self.params and not self._did_import:
             self.import_files(self.params["import"])
             self._did_import = True
@@ -1981,6 +2036,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
 
         super().run()
 
+        self.do_import()
         if self.did_import() and "import_sopt" in self.params:
             self.logger.critical("The import and import_sopt parameters "
                                  "are mutually exclusive")
@@ -2111,7 +2167,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         poly = self.parse_poly(text, filename)
         if poly is None:
             return (0, 0)
-        if poly.getN() != self.params["N"]:
+        if poly.n != self.params["N"]:
             self.logger.error("Polynomial is for the wrong number to be factored:\n%s",
                               poly)
             return (0, 0)
@@ -2270,7 +2326,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         return "Polynomial Selection (root optimized)"
     @property
     def programs(self):
-        return ((cadoprograms.PolyselectRopt, (), {}),)
+        return ((cadoprograms.PolyselectRopt, (), {}),
+                (cadoprograms.Skewness, (), {}))
     @property
     def paramnames(self):
         return self.join_params(super().paramnames, {
@@ -2346,7 +2403,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
 
     def run(self):
         super().run()
-        
+
+        self.do_import()
         if self.bestpoly is None:
             self.logger.info("No polynomial was previously found")
         else:
@@ -2467,7 +2525,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
     
     def import_one_file(self, filename):
         old_bestpoly = self.bestpoly
-        self.process_polyfile(filename)
+        self.process_polyfile(filename, allow_no_skewness=True)
+        
         if not self.bestpoly is old_bestpoly:
             self.write_poly_file()
 
@@ -2493,7 +2552,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if block:
             yield block
 
-    def process_polyfile(self, filename, commit=True):
+    def process_polyfile(self, filename, *, allow_no_skewness=False, commit=True):
         try:
             polyfile = self.read_log_warning(filename)
         except (OSError, IOError) as e:
@@ -2503,7 +2562,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             else:
                 raise
         for block in self.read_blocks(polyfile):
-           poly = self.parse_poly(block, filename)
+           poly = self.parse_poly(block, filename, allow_no_skewness=allow_no_skewness)
            if not poly is None:
                self.bestpoly = poly
                update = {"bestpoly": str(poly)}
@@ -2520,7 +2579,9 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
                                      filename, line.strip())
                 yield line
 
-    def parse_poly(self, text, filename):
+    # If allow_no_skewness is True and the polynomial file does not contain
+    # a skew: line, compute the skewness and use it.
+    def parse_poly(self, text, filename, *, allow_no_skewness=False):
         poly = None
         try:
             poly = Polynomials(text)
@@ -2542,13 +2603,32 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if not poly:
             # This happens when all polynomials are parsed
             return None
-        if poly.getN() != self.params["N"]:
+        if poly.n != self.params["N"]:
             self.logger.error("Polynomial is for the wrong number to be factored:\n%s",
                               poly)
             return None
         if not poly.MurphyE:
             self.logger.warning("Polynomial in file %s has no Murphy E value",
                              filename)
+        if poly.skew is None:
+            if not allow_no_skewness:
+                self.logger.error("Polynomial in file %s has no skew value",
+                                  filename)
+                return None
+            else:
+                self.logger.info("Polynomial in file %s has no skew value, "
+                                 "computing it", filename)
+                p = cadoprograms.Skewness(inputpoly=filename,
+                                          **self.merged_args[1])
+                process = cadocommand.Command(p)
+                (rc, stdout, stderr) = process.wait()
+                if rc != 0:
+                    self.logger.error("Computing skewness failed with exit code %d",
+                                      rc)
+                    return None
+                poly.skew = float(stdout)
+                self.logger.info("Computed skewness is %.5g", poly.skew)
+
         margin = 0.80 # we keep polynomials with MurphyE >= margin*bestMurphyE
         if len(self.best_polys) == 0 or poly.MurphyE >= margin * self.bestpoly.MurphyE:
            self.best_polys.append(poly)
@@ -2692,7 +2772,8 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
             
     def run(self):
         super().run()
-       
+
+        self.do_import()
         if not "import" in self.params:
             if self.is_done():
                 self.logger.info("Already finished - nothing to do")
@@ -2795,7 +2876,7 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
         poly = self.parse_poly(text, filename)
         if poly is None:
             return 0
-        if poly.getN() != self.params["N"]:
+        if poly.n != self.params["N"]:
             self.logger.error("Polynomial is for the wrong prime:\n%s",
                               poly)
             return 0
@@ -2883,6 +2964,7 @@ class PolyselGFpnTask(Task, DoesImport):
     def run(self):
         super().run()
 
+        self.do_import()
         if not "polyfilename" in self.state:
             polyfilename = self.workdir.make_filename("poly")
             # Import mode
@@ -3332,6 +3414,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
 
     def run(self):
         super().run()
+        self.do_import()
         have_two_alg = self.send_request(Request.GET_HAVE_TWO_ALG_SIDES)
         fb1 = self.send_request(Request.GET_FACTORBASE1_FILENAME)
         if have_two_alg:

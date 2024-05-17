@@ -724,6 +724,26 @@ cado_define_test(full_c30
             TIMEOUT 360
             )
     endif()
+
+    # Test importing an SNFS polynomial with no skew: line
+    cado_define_test(full_F7
+    SCRIPT
+    ${CADO_NFS_BINARY_DIR}/cado-nfs.py
+        --server-threads 2
+        -s 1
+        340282366920938463463374607431768211457
+        ${CADO_NFS_SOURCE_DIR}/parameters/factor/parameters.F7
+        tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/F7.poly
+        slaves.hostnames=localhost
+    TARGET_DEPENDENCIES
+        full_dependencies_base
+        merge replay
+        characters
+        bwc_full_gf2
+        sqrt
+    AVOID_CONCURRENT
+    TIMEOUT 300
+        )
 endif()
 # MPI binaries are not properly launched by cado-nfs.py (see #21819)
 if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})

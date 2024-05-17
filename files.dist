@@ -736,6 +736,7 @@ parameters/dlp/params.p80
 parameters/dlp/params.p85
 parameters/dlp/params.p90
 parameters/dlp/params.p95
+parameters/factor/parameters.F7
 parameters/factor/parameters.F9
 parameters/factor/params.c100
 parameters/factor/params.c105
@@ -856,6 +857,7 @@ polyselect/ropt_tree.c
 polyselect/ropt_tree.h
 polyselect/size_optimization.c
 polyselect/size_optimization.h
+polyselect/skewness.c
 polyselect/table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h
 polyselect/table_t_Py_f_deg4_type0_h1_t-200--200.h
 portability.h
@@ -1225,6 +1227,7 @@ tests/linalg/bwc/test_matrix_file.cpp
 tests/linalg/bwc/test_matrix_file.sh
 tests/linalg/bwc/time_matpoly_ft_parallel.cpp
 tests/misc/CMakeLists.txt
+tests/misc/F7.poly
 tests/misc/Makefile
 tests/misc/c59_nonlinear.poly
 tests/misc/c60.poly

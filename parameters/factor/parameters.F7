@@ -1,0 +1,41 @@
+###########################################################################
+#     Parameter file for Cado-NFS
+###########################################################################
+
+# This parameter file is mostly for very quick testing purpose: a full
+# cadofactor run should take a few seconds.
+#
+# In order to accelerate the wct of the script, it is possible to 
+# set DOWNLOADRETRY to 1 seconds in cado-nfs-client.py. (don't do that in
+# production, your clients might ddos your server!)
+
+# This polynomial file is intended for factoring F7 = 2^(2^7)+1
+# with a degree-5 polynomial.
+
+name = F7
+
+tasks.polyselect.degree=5
+
+tasks.polyselect.admax = 5000
+tasks.polyselect.incr = 20
+tasks.polyselect.adrange = 2500
+tasks.polyselect.P = 1000
+tasks.polyselect.nq = 3
+tasks.polyselect.nrkeep = 2
+tasks.polyselect.ropteffort = 1
+
+tasks.I = 9
+tasks.lim0 = 30000
+tasks.lim1 = 30000
+tasks.lpb0 = 17
+tasks.lpb1 = 17
+tasks.sieve.mfb0 = 17
+tasks.sieve.mfb1 = 17
+
+tasks.qmin = 30000
+tasks.sieve.qrange = 1000
+tasks.sieve.rels_wanted = 20000
+
+tasks.linalg.m = 64
+tasks.linalg.n = 64
+tasks.linalg.characters.nchar = 50
