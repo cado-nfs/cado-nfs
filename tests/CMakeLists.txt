@@ -737,6 +737,7 @@ cado_define_test(full_c30
         slaves.hostnames=localhost
     TARGET_DEPENDENCIES
         full_dependencies_base
+        skewness
         merge replay
         characters
         bwc_full_gf2
