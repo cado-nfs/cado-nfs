@@ -79,7 +79,7 @@ unsigned long **extract_matrix_C(FILE * file, int len_abs, int len_ord)
     ASSERT(matrix_call != NULL);
 
     for (int i = 0; i < len_abs; i++) {
-	matrix_call[i] = (unsigned long *) calloc(sizeof(*matrix_call[i]), len_ord);
+      matrix_call[i] = (unsigned long *) calloc(len_ord, sizeof(*matrix_call[i]));
 	ASSERT(matrix_call[i]);
     }
 

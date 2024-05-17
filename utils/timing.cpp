@@ -6,6 +6,9 @@
 #ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>	/* for cputime */
 #endif
+#ifdef HAVE_CLOCK_THREAD_CPUTIME_ID
+#include <time.h>
+#endif
 #include <sys/time.h>	/* for gettimeofday */
 #include "timing.h"
 #include "memusage.h"
@@ -76,9 +79,24 @@ seconds (void)
     return (double) microseconds() / 1.0e6;
 }
 
+/* Measuring thread seconds is a bit of a red herring. I'm gradually
+ * changing my mind to the idea that wall clock (at least monotonic rdtsc
+ * like) should suffice
+ */
 double
 seconds_thread (void)
 {
+    /* CLOCK_THREAD_CPUTIME_ID has better resolution than getrusage and
+     * should probably be preferred. It does entail a system call,
+     * though.
+     */
+#ifdef HAVE_CLOCK_THREAD_CPUTIME_ID
+    struct timespec ts[1];
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, ts);
+    double r = 1.0e-9 * ts->tv_nsec;
+    r += ts->tv_sec;
+    return r;
+#else
 #ifdef HAVE_GETRUSAGE
     struct rusage ru[1];
 #ifdef HAVE_RUSAGE_THREAD
@@ -91,6 +109,7 @@ seconds_thread (void)
     return r;
 #else
     return 0;
+#endif
 #endif
 }
 

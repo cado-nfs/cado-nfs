@@ -48,6 +48,7 @@ config/cado_check_cxx_source_compiles.cmake
 config/ccwrap.pl.in
 config/check_cpu_feature.cmake
 config/check_types.cmake
+config/clock_gettime.cmake
 config/cxxabi.cmake
 config/cxxwrap.pl.in
 config/detect-static-analysis.cmake
@@ -675,11 +676,11 @@ macros.h
 misc/CMakeLists.txt
 misc/check_rels.c
 misc/debug_renumber.cpp
-misc/descent_init_Fp.c
+misc/descent_init_Fp.cpp
 misc/explain_indexed_relation.cpp
 misc/indexed_relations_to_density.cpp
-misc/smooth_detect.c
-misc/smooth_detect.h
+misc/smooth_detect.cpp
+misc/smooth_detect.hpp
 parameters/dlp/Joux-Lercier/params.p100
 parameters/dlp/Joux-Lercier/params.p30
 parameters/dlp/Joux-Lercier/params.p35

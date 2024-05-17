@@ -21,6 +21,9 @@ minimalSpanningTree (int *start, int *end, int m,
   int n, k, i, j, w = 0, imin, jmin, wmin;
   int S[MERGE_LEVEL_MAX], T[MERGE_LEVEL_MAX];
 
+  ASSERT_ALWAYS(m - 1 < MERGE_LEVEL_MAX);
+  ASSERT_ALWAYS(m >= 2);
+
   /* S is the set of vertices in the current tree, T is the set of remaining
      vertices */
   S[0] = 0; /* S = {0} */
