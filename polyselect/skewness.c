@@ -39,6 +39,7 @@ compute_skewness (char *input_file, char *output_file)
   p->skew = L2_skewness (p->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
   if (output_file == NULL) {
     printf("%.5g\n", p->skew);
+    cado_poly_clear (p);
   } else {
     FILE *of;
     of = fopen (output_file, "w");
