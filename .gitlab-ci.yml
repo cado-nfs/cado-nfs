@@ -448,14 +448,14 @@ checks on freebsd13.3 system with clang:
     - make -C ci/ci/utilities/tanker
     - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.3 ci/ci/40-testsuite.sh
 
-checks on freebsd14.0 system with clang:
+checks on freebsd14.1 system with clang:
   <<: *common-template
   stage: thorough
   tags:
     - freebsd-tanker
   script:
     - make -C ci/ci/utilities/tanker
-    - ci/ci/50-libvirt-wrap-tests.sh freebsd:14.0 ci/ci/40-testsuite.sh
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:14.1 ci/ci/40-testsuite.sh
 
 checks on 32-bit freebsd13.3 system with clang:
   variables:
