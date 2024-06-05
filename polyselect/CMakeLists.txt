@@ -92,3 +92,8 @@ install(TARGETS dlpolyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 add_executable (skewness skewness.c)
 target_link_libraries (skewness polyselect_common utils)
 install(TARGETS skewness RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
+
+# score
+add_executable (score score.c)
+target_link_libraries (score polyselect_common utils)
+install(TARGETS score RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
