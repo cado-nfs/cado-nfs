@@ -19,49 +19,46 @@ along with CADO-NFS; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-#include "cado.h" // IWYU pragma: keep
+#include "cado.h"		// IWYU pragma: keep
 #include <stdio.h>
 #include "auxiliary.h"
 #include "polyselect_norms.h"
 #include "cado_poly.h"
 #include "murphyE.h"
 
-static void
-compute_murphyE (char *input_file, char *output_file)
+static void compute_murphyE(char *input_file, char *output_file)
 {
-  cado_poly p;
-  double E;
-  cado_poly_init (p);
-  if (!cado_poly_read (p, input_file))
-    {
-      fprintf (stderr, "Error reading polynomial file %s\n", input_file);
-      cado_poly_clear (p);
-      exit (EXIT_FAILURE);
+    cado_poly p;
+    double E;
+    cado_poly_init(p);
+    if (!cado_poly_read(p, input_file)) {
+	fprintf(stderr, "Error reading polynomial file %s\n", input_file);
+	cado_poly_clear(p);
+	exit(EXIT_FAILURE);
     }
-  if (output_file == NULL) {
-    E = MurphyE (p, bound_f, bound_g, area, MURPHY_K, get_alpha_bound ());
-    printf("%.5g\n", E);
-    cado_poly_clear (p);
-  } else {
-    FILE *of;
-    of = fopen (output_file, "w");
-    if (of == NULL)
-      {
-        fprintf (stderr, "Error writing polynomial file %s\n", output_file);
-        cado_poly_clear (p);
-        exit (EXIT_FAILURE);
-      }
-    cado_poly_fprintf (of, p, "");
-    cado_poly_clear (p);
-  }
-} 
+    if (output_file == NULL) {
+	E = MurphyE(p, bound_f, bound_g, area, MURPHY_K, get_alpha_bound());
+	printf("%.5g\n", E);
+	cado_poly_clear(p);
+    } else {
+	FILE *of;
+	of = fopen(output_file, "w");
+	if (of == NULL) {
+	    fprintf(stderr, "Error writing polynomial file %s\n",
+		    output_file);
+	    cado_poly_clear(p);
+	    exit(EXIT_FAILURE);
+	}
+	cado_poly_fprintf(of, p, "");
+	cado_poly_clear(p);
+    }
+}
 
 // usage: score input_file <output_file>
-int
-main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-  ASSERT_ALWAYS (argc == 2 || argc == 3);
-  char *input_file = argv[1];
-  char *output_file = (argc == 3) ? argv[2] : NULL;
-  compute_murphyE (input_file, output_file);
+    ASSERT_ALWAYS(argc == 2 || argc == 3);
+    char *input_file = argv[1];
+    char *output_file = (argc == 3) ? argv[2] : NULL;
+    compute_murphyE(input_file, output_file);
 }
