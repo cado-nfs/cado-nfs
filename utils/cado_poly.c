@@ -148,6 +148,30 @@ int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
       ret = 0;
     }
 
+  for (int side = 0; side < cpoly->nb_polys; side++) {
+      mpz_poly_ptr g = cpoly->pols[side];
+      mpz_t c;
+      mpz_init(c);
+      mpz_poly_content(c, g);
+      if (mpz_cmp_ui(c, 1) != 0) {
+          gmp_fprintf (stderr, "# Warning: the polynomial on side %d"
+                  " has non-trivial content (gcd of coeffs = %Zd).\n"
+                  "# This is a very unexpected situation."
+                  " For all useful cases, it seems that\n"
+                  "# the correct thing to do is to divide the polynomial"
+                  " by its content. Doing it now.\n",
+                  side, c);
+          fprintf(stderr, "# Old poly: ");
+          mpz_poly_fprintf(stderr, g);
+          for(int j = 0 ; j <= g->deg ; j++) {
+              mpz_fdiv_q(g->coeff[j],g->coeff[j],c);
+          }
+          fprintf(stderr, "# Reduced poly: ");
+          mpz_poly_fprintf(stderr, g);
+      }
+      mpz_clear(c);
+  }
+
   /* check that N divides the resultant*/
   ASSERT_ALWAYS(cado_poly_check_mapping(NULL, cpoly, cpoly->n));
 
