@@ -604,7 +604,7 @@ mpz_poly_fprintf_verbose (FILE *out, mpz_poly_srcptr f, int verbose)
    returns the skew lognorm of f_opt.
 
    To use only translation: use_translation = 1 and deg_rotation = -1
-   To use only rotation   : use_transaltion = 0 and deg_rotation >= 0
+   To use only rotation   : use_translation = 0 and deg_rotation >= 0
    To use both            : use_translation = 1 and deg_rotation >= 0
    TODO: _mp version like old optimize_aux_mp in auxiliary.c
    XXX: Could we replace lognorm computation by norm computation to save
