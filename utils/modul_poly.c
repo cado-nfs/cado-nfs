@@ -550,7 +550,7 @@ modul_poly_xpowmod_ui (modul_poly_t g, residueul_t a,
 
   residueul_t one;
   modul_set1(one, p);
-  /* initialize g to x */
+  /* initialize g to x+a */
   modul_poly_set_linear (g, one, a, p);
 
   ASSERT (e > 0);
@@ -558,16 +558,16 @@ modul_poly_xpowmod_ui (modul_poly_t g, residueul_t a,
     {
       modul_poly_sqr (h, g, p);             /* h <- g^2 */
       if (e & (1UL << k))
-        modul_poly_mul_x (h, a, p);            /* h <- x*h */
+        modul_poly_mul_x (h, a, p);         /* h <- (x+a)*h */
 
-      modul_poly_div_r (h, fp, p);       /* h -> rem(h, fp) */
-      modul_poly_set (g, h, p);       /* g <- h  */
+      modul_poly_div_r (h, fp, p);          /* h -> rem(h, fp) */
+      modul_poly_set (g, h, p);             /* g <- h  */
     }
 
   modul_poly_clear(h);
 }
 
-/* g <- g^e mod (fp, p) */
+/* g <- a^e mod (fp, p) */
 static void
 modul_poly_powmod_ui (modul_poly_t g, modul_poly_t a,
 		     unsigned long e, modul_poly_t fp, modulusul_t p)
@@ -588,15 +588,17 @@ modul_poly_powmod_ui (modul_poly_t g, modul_poly_t a,
   modul_poly_t h;
   modul_poly_init(h, 2 * fp->degree);
 
+  modul_poly_set (g, a, p);
+
   ASSERT (e > 0);
   for (k -= 2; k >= 0; k--)
     {
-      modul_poly_sqr (h, g, p);             /* h <- g^2 */
-      modul_poly_div_r (h, fp, p);       /* h -> rem(h, fp) */
+      modul_poly_sqr (h, g, p);       /* h <- g^2 */
+      modul_poly_div_r (h, fp, p);    /* h -> rem(h, fp) */
       modul_poly_set (g, h, p);       /* g <- h */
       if (e & (1UL << k))
-        modul_poly_mul (h, h, a, p);            /* h <- a*h */
-      modul_poly_div_r (h, fp, p);       /* h -> rem(h, fp) */
+        modul_poly_mul (h, h, a, p);  /* h <- a*h */
+      modul_poly_div_r (h, fp, p);    /* h -> rem(h, fp) */
       modul_poly_set (g, h, p);       /* g <- h */
     }
   modul_poly_clear(h);
