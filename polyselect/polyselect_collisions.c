@@ -636,7 +636,7 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
         for(unsigned int i = 0 ; i < i0 ; i++) {
             z += thread->team->R->nr[i];
         }
-        polyselect_proots_dispatch_to_shash_flat_ugly(SH,
+        polyselect_proots_dispatch_to_shash_flat(SH,
                 pt->Primes + i0,
                 i1 - i0,
                 invq_roots_per_prime + z,
