@@ -877,7 +877,7 @@ collision_on_each_sq_r(unsigned long q,
 
   if (!tinv_qq)
     {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
       exit(1);
     }
   tinv_qq[0] = malloc((number_pr + 1) * count * sizeof(unsigned long));
@@ -1092,7 +1092,7 @@ collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread)
   unsigned long *invqq = malloc(thread->team->league->pt->lenPrimes * sizeof(unsigned long));
   if (!invqq)
     {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
       exit(1);
     }
 

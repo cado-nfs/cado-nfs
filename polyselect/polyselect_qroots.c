@@ -23,22 +23,22 @@ polyselect_qroots_realloc (polyselect_qroots_ptr R, unsigned long newalloc)
   R->alloc = newalloc;
   R->q = realloc (R->q, newalloc * sizeof (unsigned int));
   if (R->q == NULL)
-  {
-    fprintf (stderr, "Error, cannot reallocate memory in roots_realloc\n");
-    exit (1);
-  }
+    {
+      fprintf(stderr, "Error, cannot reallocate memory in %s\n", __func__);
+      exit(1);
+    }
   R->nr = realloc (R->nr, newalloc * sizeof (unsigned int));
   if (R->nr == NULL)
-  {
-    fprintf (stderr, "Error, cannot reallocate memory in roots_realloc\n");
-    exit (1);
-  }
+    {
+      fprintf(stderr, "Error, cannot reallocate memory in %s\n", __func__);
+      exit(1);
+    }
   R->roots = realloc (R->roots, newalloc * sizeof (uint64_t*));
   if (R->roots == NULL)
-  {
-    fprintf (stderr, "Error, cannot reallocate memory in roots_realloc\n");
-    exit (1);
-  }
+    {
+      fprintf(stderr, "Error, cannot reallocate memory in %s\n", __func__);
+      exit(1);
+    }
 }
 
 /* reorder by decreasing number of roots (nr) 
@@ -122,10 +122,10 @@ polyselect_qroots_add (polyselect_qroots_ptr R, unsigned int q, unsigned int nr,
   R->nr[R->size] = nr;
   R->roots[R->size] = malloc (MAX_DEGREE * sizeof (uint64_t));
   if (R->roots[R->size] == NULL)
-  {
-    fprintf (stderr, "Error, cannot allocate memory in roots_add\n");
-    exit (1);
-  }
+    {
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
+      exit(1);
+    }
   for (i = 0; i < nr; i++)
     R->roots[R->size][i] = roots[i];
   R->size ++;

@@ -110,7 +110,7 @@ polyselect_shash_init_multi (polyselect_shash_t * H, unsigned int init_size, uns
     H[0]->pmem = (uint32_t*) malloc (H[0]->alloc * sizeof (uint32_t));
     if (!H[0]->mem || !H[0]->pmem)
     {
-        fprintf (stderr, "Error, cannot allocate memory in polyselect_shash_init\n");
+        fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
         exit (1);
     }
 

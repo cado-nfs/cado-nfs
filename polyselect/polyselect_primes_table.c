@@ -22,7 +22,7 @@ initPrimes ( unsigned long P,
 
   *primes = (uint32_t*) malloc (maxprimes * sizeof (uint32_t));
   if ( (*primes) == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in initPrimes\n");
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
 
@@ -40,7 +40,7 @@ initPrimes ( unsigned long P,
       maxprimes += maxprimes / 10;
       *primes = (uint32_t*) realloc (*primes, maxprimes * sizeof (uint32_t));
       if ( (*primes) == NULL) {
-        fprintf (stderr, "Error, cannot reallocate memory in initPrimes\n");
+        fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
         exit (1);
       }
     }
@@ -51,7 +51,7 @@ initPrimes ( unsigned long P,
 
   uint32_t * p2 = (uint32_t*) malloc (nprimes * sizeof (uint32_t));
   if ( p2 == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in initPrimes\n");
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
   /* rearrange so that when we subdivide into threads, the local density

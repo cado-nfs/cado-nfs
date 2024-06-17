@@ -124,8 +124,7 @@ ropt_do_stage2 (ropt_poly_t poly,
   fuv = Fuv->coeff;
   guv = (mpz_t*) malloc (2 * sizeof (mpz_t));
   if (guv == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in "
-             "ropt_do_stage2().\n");
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
   for (i = 0; i <= poly->d; i++)
