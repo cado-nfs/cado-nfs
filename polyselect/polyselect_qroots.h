@@ -12,8 +12,8 @@ struct polyselect_qroots_s {
   unsigned int alloc;   /* allocated size */
   unsigned int size;    /* used size */
   unsigned int *q;
-  unsigned int *nr;     /* number of roots of x^d = N (mod p) */
-  uint64_t **roots; /* roots of (m0+x)^d = N (mod p^2) */
+  unsigned int *nr;     /* number of roots of x^d = N (mod q) */
+  uint64_t **roots;     /* roots of (m0+x)^d = N (mod q^2) */
 };
 typedef struct polyselect_qroots_s polyselect_qroots_t[1];
 typedef struct polyselect_qroots_s * polyselect_qroots_ptr;
