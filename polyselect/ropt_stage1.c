@@ -338,8 +338,7 @@ find_sublattice ( single_sublattice_pq *top,
     if ( (f_ui == NULL) ||
          (g_ui == NULL) ||
          (fuv_ui == NULL) ) {
-      fprintf (stderr, "Error, cannot allocate memory in "
-               "find_sublattice(). \n");
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
       exit (1);
     }
 
@@ -505,9 +504,7 @@ return_combined_sublattice ( ropt_poly_t poly,
 
   if ( individual_sublattices == NULL ||
        individual_sublattices_weighted_val == NULL ) {
-    fprintf ( stderr,
-              "Error, cannot allocate memory in "
-              "return_combined_sublattice(). \n" );
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
 
@@ -565,8 +562,7 @@ return_combined_sublattice ( ropt_poly_t poly,
       t_size[i] * sizeof(float) );
     if ( (individual_sublattices)[i] == NULL || 
          (individual_sublattices_weighted_val)[i] == NULL ) {
-      fprintf ( stderr, "Error, cannot allocate memory in "
-                "return_combined_sublattice(). \n" );
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
       exit (1);
     }
 
@@ -575,8 +571,7 @@ return_combined_sublattice ( ropt_poly_t poly,
       (individual_sublattices)[i][j] = (unsigned int *) 
         malloc ( 3 * sizeof(unsigned int) );
       if ( individual_sublattices[i][j] == NULL ) {
-        fprintf ( stderr, "Error, cannot allocate memory in "
-                  "return_combined_sublattice(). \n" );
+        fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
         exit (1);
       }
 

@@ -251,8 +251,7 @@ ropt_poly_init ( ropt_poly_t poly )
   if ( (poly->f == NULL) || (poly->g == NULL) ||
        ((poly->fx) == NULL) || ((poly->gx) == NULL) ||
        ((poly->numerator) == NULL) ) {
-    fprintf (stderr, "Error, cannot allocate memory for polynomial"
-             " coefficients in ropt_poly_init().\n");
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit(1);
   }
 
@@ -685,8 +684,7 @@ ropt_s1param_init ( ropt_s1param_t s1param )
     malloc ( NUM_SUBLATTICE_PRIMES * sizeof (unsigned int) );
 
   if (s1param->e_sl == NULL || s1param->individual_nbest_sl == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in "
-             "ropt_s1param_init().\n");
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
 
@@ -940,8 +938,7 @@ ropt_s2param_init ( ropt_poly_t poly,
   s2param->f = (mpz_t*) malloc ((poly->d + 1) * sizeof (mpz_t));
   s2param->g = (mpz_t*) malloc (2 * sizeof (mpz_t));
   if (s2param->f == NULL || s2param->g == NULL) {
-    fprintf ( stderr, "Error, cannot allocate memory in "
-              "ropt_s2param_init().\n" );
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
 
@@ -1174,8 +1171,7 @@ ropt_bestpoly_init ( ropt_bestpoly_t bestpoly,
   bestpoly->g = (mpz_t*) malloc (2 * sizeof (mpz_t));
 
   if ((bestpoly->f == NULL) || (bestpoly->g == NULL)) {
-    fprintf ( stderr, "Error, cannot allocate memory for"
-              " ropt_bestpoly_init()\n" );
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
 

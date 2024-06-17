@@ -434,7 +434,7 @@ average_valuation_affine_root (mpz_poly_ptr f, unsigned long p, unsigned long r 
    /* init fv */
    fv = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
    if (fv == NULL) {
-      fprintf (stderr, "Error, cannot allocate memory in average_valuation_affine_root.\n");
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
       exit (1);
    }
 

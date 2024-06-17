@@ -451,7 +451,7 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
         unsigned long i0 = qt * it + MIN(it, rt);
         unsigned long i1 = i0 + qt + (it < rt);
         polyselect_proots_dispatch_to_shash2_notflat(SH,
-                thread->team->league->pt->Primes + i0,
+                pt->Primes + i0,
                 i1 - i0,
                 thread->team->R->roots + i0,
                 thread->team->R->nr + i0,
@@ -515,7 +515,7 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
         unsigned long i0 = qt * it + MIN(it, rt);
         unsigned long i1 = i0 + qt + (it < rt);
         polyselect_proots_dispatch_to_shash_notflat(SH,
-                thread->team->league->pt->Primes + i0,
+                pt->Primes + i0,
                 i1 - i0,
                 thread->team->R->roots + i0,
                 thread->team->R->nr + i0,
@@ -636,11 +636,8 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
         for(unsigned int i = 0 ; i < i0 ; i++) {
             z += thread->team->R->nr[i];
         }
-        /* XXX for some reason, the ugly code does not work with this
-         * version. It's annoying.
-         */
         polyselect_proots_dispatch_to_shash_flat_ugly(SH,
-                thread->team->league->pt->Primes + i0,
+                pt->Primes + i0,
                 i1 - i0,
                 invq_roots_per_prime + z,
                 thread->team->R->nr + i0,
@@ -713,7 +710,7 @@ void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
             z += thread->team->R->nr[i];
         }
         polyselect_proots_dispatch_to_shash2_flat(SH,
-                thread->team->league->pt->Primes + i0,
+                pt->Primes + i0,
                 i1 - i0,
                 invq_roots_per_prime + z,
                 thread->team->R->nr + i0,
@@ -822,7 +819,7 @@ void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
         uint8_t nr = thread->team->R->nr[i];
         if (!nr)
             continue;
-        uint32_t p = thread->team->league->pt->Primes[i];
+        uint32_t p = pt->Primes[i];
         uint64_t pp = (int64_t) p *(int64_t) p;
 
         modulusredcul_t modpp;
@@ -880,7 +877,7 @@ collision_on_each_sq_r(unsigned long q,
 
   if (!tinv_qq)
     {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
       exit(1);
     }
   tinv_qq[0] = malloc((number_pr + 1) * count * sizeof(unsigned long));
@@ -1053,7 +1050,6 @@ static inline void invert_q2_mod_all_p2_subtask(polyselect_thread_ptr thread) /*
     const uint32_t * Primes = pt->Primes;
     polyselect_poly_header_srcptr header = thread->team->header;
     const uint8_t * number_of_roots_per_prime = thread->team->R->nr;
-    /* Step 1: inversion; compute 1/q^2 (mod p_i^2) to invqq[i] */
     for (unsigned long i = i0; i < i1; i++)
     {
         unsigned long p = Primes[i];
@@ -1095,7 +1091,7 @@ collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread)
   unsigned long *invqq = malloc(thread->team->league->pt->lenPrimes * sizeof(unsigned long));
   if (!invqq)
     {
-      fprintf(stderr, "Error, cannot allocate memory in %s\n", __FUNCTION__);
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
       exit(1);
     }
 
@@ -1127,6 +1123,7 @@ collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread)
 
       /* collision batch */
 
+      /* Step 1: inversion; compute 1/q^2 (mod p_i^2) to invqq[i] */
       struct invert_q2_mod_all_p2_data arg[1] = {{ .q = q, .invqq = invqq }};
       polyselect_thread_team_post_work(thread->team, thread, invert_q2_mod_all_p2_subtask, arg);
  
