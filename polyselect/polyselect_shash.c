@@ -200,7 +200,7 @@ int
 polyselect_shash_find_collision_multi(const polyselect_shash_t * H, unsigned int multi, uint32_t k0, uint32_t k1)
 {
 
-  /* XXX what does this maro do? Documentation needed!
+  /* XXX what does this macro do? Documentation needed!
    */
 #define polyselect_SHASH_RESEARCH(TH,I)				\
   do {							\
