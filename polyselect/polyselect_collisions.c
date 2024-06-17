@@ -451,7 +451,7 @@ void polyselect_CCS_notflat_subtask(polyselect_thread_ptr thread)
         unsigned long i0 = qt * it + MIN(it, rt);
         unsigned long i1 = i0 + qt + (it < rt);
         polyselect_proots_dispatch_to_shash2_notflat(SH,
-                thread->team->league->pt->Primes + i0,
+                pt->Primes + i0,
                 i1 - i0,
                 thread->team->R->roots + i0,
                 thread->team->R->nr + i0,
@@ -515,7 +515,7 @@ void polyselect_DCS_notflat_subtask(polyselect_thread_ptr thread)
         unsigned long i0 = qt * it + MIN(it, rt);
         unsigned long i1 = i0 + qt + (it < rt);
         polyselect_proots_dispatch_to_shash_notflat(SH,
-                thread->team->league->pt->Primes + i0,
+                pt->Primes + i0,
                 i1 - i0,
                 thread->team->R->roots + i0,
                 thread->team->R->nr + i0,
@@ -637,7 +637,7 @@ void polyselect_DCS_flat_subtask(polyselect_thread_ptr thread)
             z += thread->team->R->nr[i];
         }
         polyselect_proots_dispatch_to_shash_flat_ugly(SH,
-                thread->team->league->pt->Primes + i0,
+                pt->Primes + i0,
                 i1 - i0,
                 invq_roots_per_prime + z,
                 thread->team->R->nr + i0,
@@ -710,7 +710,7 @@ void polyselect_CCS_flat_subtask(polyselect_thread_ptr thread)
             z += thread->team->R->nr[i];
         }
         polyselect_proots_dispatch_to_shash2_flat(SH,
-                thread->team->league->pt->Primes + i0,
+                pt->Primes + i0,
                 i1 - i0,
                 invq_roots_per_prime + z,
                 thread->team->R->nr + i0,
@@ -819,7 +819,7 @@ void modcalc_subtask(polyselect_thread_ptr thread)/*{{{*/
         uint8_t nr = thread->team->R->nr[i];
         if (!nr)
             continue;
-        uint32_t p = thread->team->league->pt->Primes[i];
+        uint32_t p = pt->Primes[i];
         uint64_t pp = (int64_t) p *(int64_t) p;
 
         modulusredcul_t modpp;
