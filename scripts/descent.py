@@ -52,7 +52,6 @@ import shutil
 import functools
 import itertools
 import random
-import asyncio
 
 has_hwloc = None
 
@@ -544,99 +543,206 @@ class ideals_above_p(object):
                 log = log + logs[i]*self.bads["exp"][i]
             return log
 
-class important_files_async_loop():
-    def __init__(self, calls,
-                 consumer,
-                 consumer_args=(),
-                 temporary_is_reusable=False):
-        self.consumer = consumer
-        self.consumer_args = consumer_args
-        self.consumer_done = asyncio.Event()
-        self.calls = calls
-        self.temporary_is_reusable = temporary_is_reusable
-        self.q = asyncio.Queue()
-        self.lk = asyncio.Lock()
+if sys.version_info >= (3,8):
+    import asyncio
 
-    async def producer_task(self, i, outfile, args) -> None:
-        if os.path.exists(outfile):
-            print(f"reusing file {outfile}")
-            with open(outfile, "r") as f:
-                for l in f.readlines():
-                    async with self.lk:
-                        if self.consumer_done.is_set():
-                            break
-                        await self.q.put((i, l.strip()))
-        else:
-            if self.temporary_is_reusable:
-                outfile_tmp = outfile
+    class important_files_async_loop():
+        def __init__(self, calls,
+                     consumer,
+                     consumer_args=(),
+                     temporary_is_reusable=False):
+            self.consumer = consumer
+            self.consumer_args = consumer_args
+            self.consumer_done = asyncio.Event()
+            self.calls = calls
+            self.temporary_is_reusable = temporary_is_reusable
+            self.q = asyncio.Queue()
+            self.lk = asyncio.Lock()
+
+        async def producer_task(self, i, outfile, args) -> None:
+            if os.path.exists(outfile):
+                print(f"reusing file {outfile}")
+                with open(outfile, "r") as f:
+                    for l in f.readlines():
+                        async with self.lk:
+                            if self.consumer_done.is_set():
+                                break
+                            await self.q.put((i, l.strip()))
             else:
-                outfile_tmp = outfile + ".tmp"
+                if self.temporary_is_reusable:
+                    outfile_tmp = outfile
+                else:
+                    outfile_tmp = outfile + ".tmp"
 
-            print(f"running program, saving output to {outfile}")
-            print(f"calling {args}", file=sys.stderr)
+                print(f"running program, saving output to {outfile}")
+                print(f"calling {args}", file=sys.stderr)
 
-            with open(outfile_tmp, 'w') as save:
-                proc = await asyncio.create_subprocess_exec(
-                    *args,
-                    stdout=asyncio.subprocess.PIPE)
-                while (l := await proc.stdout.readline()):
-                    l = l.decode('utf-8').strip()
-                    async with self.lk:
-                        if self.consumer_done.is_set():
-                            proc.kill()
+                with open(outfile_tmp, 'w') as save:
+                    proc = await asyncio.create_subprocess_exec(
+                        *args,
+                        stdout=asyncio.subprocess.PIPE)
+                    while (l := await proc.stdout.readline()):
+                        l = l.decode('utf-8').strip()
+                        async with self.lk:
+                            if self.consumer_done.is_set():
+                                proc.kill()
+                                break
+                            await self.q.put((i, l))
+                            print(l, file=save)
+                    await proc.wait()
+
+                if not self.temporary_is_reusable:
+                    os.rename(outfile_tmp, outfile)
+
+        async def consumer_task(self) -> None:
+            while True:
+                i, t = await self.q.get()
+                self.q.task_done()
+                if (m := self.consumer(*self.consumer_args, i, t)):
+                    break
+            async with self.lk:
+                self.consumer_done.set()
+            # make sure we drain the queue
+            while not self.q.empty():
+                await self.q.get()
+                self.q.task_done()
+
+        async def monitor(self):
+            sources = [ asyncio.create_task(self.producer_task(i,*c)) for i,c in
+                       enumerate(self.calls) ]
+            sinks = [ asyncio.create_task(self.consumer_task()) ]
+            await asyncio.gather(*sources)
+            await self.q.join()
+            for c in sinks:
+                c.cancel()
+            return
+
+
+    def monitor_important_files(*args, **kwargs):
+        """
+        This function calls one or several subprograms (listed in the
+        "calls" array) and calls the consumer function on each output line,
+        with both the caller-provided consumer_args, the index of the
+        subprocess that produced the line, and of course the line itself.
+        Processing terminates as soon as the consumer function returns a True
+        value, or when all programs exit (thus the consumer function may not
+        be called at all).
+
+        Each entry in the "calls" array is a pair (filename, tuple of
+        arguments). The output of each call is saved to the filename.
+        Depending on whether temporary_is_reusable is True or False, this
+        filename is written directly, or via a temporary file.
+
+        The limit argument can be used to limit the number of data lines that
+        are produced. limit=0 means unlimited
+        """
+        F = important_files_async_loop(*args, **kwargs)
+        asyncio.run(F.monitor())
+
+
+else:
+
+    """This backwards compatible code will eventually go away, but we
+    still need it for some outdated OSes"""
+
+    from queue import Queue, Empty
+    from threading import Thread
+
+    class important_file(object):
+        def __init__(self, outfile, call_that, temporary_is_reusable=False):
+            self.child = None
+            print("command line:\n" + " ".join(call_that))
+            self.outfile = outfile
+            if temporary_is_reusable:
+                self.outfile_tmp = outfile
+            else:
+                self.outfile_tmp = outfile + ".tmp"
+            if os.path.exists(outfile):
+                print("reusing file %s" % outfile)
+                self.reader = open(outfile,'r')
+                self.writer = None
+            else:
+                print("running program, saving output to %s" % outfile)
+                self.child = subprocess.Popen(call_that, stdout=subprocess.PIPE)
+                self.reader = io.TextIOWrapper(self.child.stdout, 'utf-8')
+                self.writer = open(self.outfile_tmp, 'w')
+    
+        def streams(self):
+            return self.reader, self.writer
+    
+        def __iter__(self):
+            return self
+    
+        def __next__(self):
+            line = next(self.reader)
+            if self.writer is not None:
+                self.writer.write(line)
+                self.writer.flush()
+            return line
+    
+        def __enter__(self):
+            return self
+    
+        def __exit__(self, *args):
+            if self.child is not None:
+                # self.writer.close()
+                print("Waiting for child to finish")
+                # self.child.kill()
+                # self.reader.close()   # do I need to put it before ? broken pipe
+    
+                for line in self.reader:
+                    self.writer.write(line)
+                    self.writer.flush()
+                # self.reader.close()
+                # self.writer.close()
+                # I'm not sure that there's still a point in babysitting the
+                # child output as we do above. Maybe a simple communicate()
+                # as we do below is all we need. Furthermore, communicate()
+                # is the thing that we have to do in order to properly catch
+                # the return code.
+                self.child.communicate()
+                if self.outfile != self.outfile_tmp:
+                    os.rename(self.outfile_tmp, self.outfile)
+                if self.child.returncode != 0:
+                    raise RuntimeError(f"Child process failed with return code {self.child.returncode} ; failed command line was:\n" + " ".join(self.child.args))
+                print(f"ok, done")
+            else:
+                self.reader.close()
+
+    def monitor_important_files(sources,
+                                consumer,
+                                consumer_args,
+                                temporary_is_reusable=False):
+        if len(sources) == 1:
+            filename, args = sources[0]
+            with important_file(filename, args) as f:
+                for line in f:
+                    consumer(*consumer_args, 0, line)
+        else:
+            q = Queue()
+
+            def enqueue_output(i,out,q):
+                for line in out:
+                    q.put((i,line))
+                #q.close()
+
+            threads = [Thread(target=enqueue_output, args=(i,process,q)) for (i,process) in enumerate(processes)]
+
+            for t in threads:
+                t.daemon = True
+                t.start()
+
+            while True:
+                try:
+                    i,line = q.get_nowait()
+                except Empty:
+                    if all([not t.is_alive() for t in threads]):
+                        if q.empty():
                             break
-                        await self.q.put((i, l))
-                        print(l, file=save)
-                await proc.wait()
-
-            if not self.temporary_is_reusable:
-                os.rename(outfile_tmp, outfile)
-
-    async def consumer_task(self) -> None:
-        while True:
-            i, t = await self.q.get()
-            self.q.task_done()
-            if (m := self.consumer(*self.consumer_args, i, t)):
-                break
-        async with self.lk:
-            self.consumer_done.set()
-        # make sure we drain the queue
-        while not self.q.empty():
-            await self.q.get()
-            self.q.task_done()
-
-    async def monitor(self):
-        sources = [ asyncio.create_task(self.producer_task(i,*c)) for i,c in
-                   enumerate(self.calls) ]
-        sinks = [ asyncio.create_task(self.consumer_task()) ]
-        await asyncio.gather(*sources)
-        await self.q.join()
-        for c in sinks:
-            c.cancel()
-        return
-
-
-def monitor_important_files(*args, **kwargs):
-    """
-    This function calls one or several subprograms (listed in the
-    "calls" array) and calls the consumer function on each output line,
-    with both the caller-provided consumer_args, the index of the
-    subprocess that produced the line, and of course the line itself.
-    Processing terminates as soon as the consumer function returns a True
-    value, or when all programs exit (thus the consumer function may not
-    be called at all).
-
-    Each entry in the "calls" array is a pair (filename, tuple of
-    arguments). The output of each call is saved to the filename.
-    Depending on whether temporary_is_reusable is True or False, this
-    filename is written directly, or via a temporary file.
-
-    The limit argument can be used to limit the number of data lines that
-    are produced. limit=0 means unlimited
-    """
-    F = important_files_async_loop(*args, **kwargs)
-    asyncio.run(F.monitor())
-
+                        else:
+                            continue
+                else:
+                    consumer(*consumer_args, i, line)
 
 class object_holder():
     def __init__(self, v=None):
@@ -645,7 +751,6 @@ class object_holder():
         self.v = v
     def unset(self):
         self.v = None
-
 
 class DescentUpperClass(object):
     def declare_args(parser):
@@ -904,11 +1009,6 @@ class DescentUpperClass(object):
                     with open(os.devnull, 'w') as devnull:
                         subprocess.check_call(fbc_call(), stdout=devnull)
                     print (" - done -")
-
-            def winner_action(i, relsfilename):
-                if not os.path.exists(relsfilename):
-                    shutil.copyfile(f"{relsfilename}.{i}",relsfilename)
-
 
             # Whether or not the output files are already present, this
             # will do the right thing and run the new processes only if
