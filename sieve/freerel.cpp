@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include <utility>       // for pair
 #include <cstdio>       // fprintf
 #include <cstdlib>       // exit
+#include <climits>       // CHAR_BIT
 #include "cado_poly.h"   // for cxx_cado_poly, cado_poly_s, cado_poly_read
 #include "gzip.h"       // ofstream_maybe_compressed
 #include "macros.h"      // for ASSERT_ALWAYS
@@ -249,7 +250,13 @@ main(int argc, char* argv[])
     renumber_t renumber_table(cpoly);
     renumber_table.set_lpb(lpb);
 
-    unsigned long lpbmax = 1UL << renumber_table.get_max_lpb();
+    int max_lpb = renumber_table.get_max_lpb();
+    if (max_lpb >= (int) sizeof(unsigned long) * CHAR_BIT) {
+      fprintf (stderr, "Error, cannot handle lpb >= %zu (max(lpbs) is %d)\n",
+                       sizeof(unsigned long) * CHAR_BIT, max_lpb);
+      abort();
+    }
+    unsigned long lpbmax = 1UL << max_lpb;
     printf("Generating renumber table for 2 <= p <= %lu\n", lpbmax);
 
     /* This reads the options:

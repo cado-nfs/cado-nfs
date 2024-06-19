@@ -22,7 +22,7 @@ void renumber_table_init(renumber_proxy_ptr R, cado_poly_ptr P)
 
 void renumber_table_clear(renumber_proxy_ptr R)
 {
-    deref(R)->~renumber_t();
+    delete deref(R);
 }
 
 void renumber_table_set_lpb(renumber_proxy_ptr R, const unsigned int * lpb, size_t n)
