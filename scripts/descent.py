@@ -553,11 +553,11 @@ if sys.version_info >= (3,8):
                      temporary_is_reusable=False):
             self.consumer = consumer
             self.consumer_args = consumer_args
-            self.consumer_done = asyncio.Event()
             self.calls = calls
             self.temporary_is_reusable = temporary_is_reusable
-            self.q = asyncio.Queue()
-            self.lk = asyncio.Lock()
+            self.q = None
+            self.lk = None
+            self.consumer_done = None
 
         async def producer_task(self, i, outfile, args) -> None:
             if os.path.exists(outfile):
@@ -608,6 +608,9 @@ if sys.version_info >= (3,8):
                 self.q.task_done()
 
         async def monitor(self):
+            self.q = asyncio.Queue()
+            self.consumer_done = asyncio.Event()
+            self.lk = asyncio.Lock()
             sources = [ asyncio.create_task(self.producer_task(i,*c)) for i,c in
                        enumerate(self.calls) ]
             sinks = [ asyncio.create_task(self.consumer_task()) ]
