@@ -1,6 +1,6 @@
-/* Compute skewness of an imported polynomial
+/* Compute Murphy E-value of an imported polynomial
 
-Copyright 2024 Paul Zimmermann
+Copyright 2024 Paul Zimmermann and Tyler Busby
 
 This file is part of CADO-NFS.
 
@@ -26,7 +26,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "cado_poly.h"
 #include "murphyE.h"
 
-static void compute_murphyE(char *input_file, char *output_file)
+static void
+compute_murphyE (char *input_file, char *output_file)
 {
     cado_poly p;
     double E;
