@@ -52,8 +52,11 @@ import shutil
 import functools
 import itertools
 import random
-from queue import Queue, Empty
-from threading import Thread
+if sys.version_info >= (3,8):
+    from descent_helper_asyncio import monitor_important_files
+else:
+    from descent_helper_fallback import monitor_important_files
+
 
 has_hwloc = None
 
@@ -545,66 +548,13 @@ class ideals_above_p(object):
                 log = log + logs[i]*self.bads["exp"][i]
             return log
 
-class important_file(object):
-    def __init__(self, outfile, call_that, temporary_is_reusable=False):
-        self.child = None
-        print("command line:\n" + " ".join(call_that))
-        self.outfile = outfile
-        if temporary_is_reusable:
-            self.outfile_tmp = outfile
-        else:
-            self.outfile_tmp = outfile + ".tmp"
-
-        if os.path.exists(outfile):
-            print("reusing file %s" % outfile)
-            self.reader = open(outfile,'r')
-            self.writer = None
-        else:
-            print("running program, saving output to %s" % outfile)
-            self.child = subprocess.Popen(call_that, stdout=subprocess.PIPE)
-            self.reader = io.TextIOWrapper(self.child.stdout, 'utf-8')
-            self.writer = open(self.outfile_tmp, 'w')
-
-    def streams(self):
-        return self.reader, self.writer
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        line = next(self.reader)
-        if self.writer is not None:
-            self.writer.write(line)
-            self.writer.flush()
-        return line
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        if self.child is not None:
-            # self.writer.close()
-            print("Waiting for child to finish")
-            # self.child.kill()
-            # self.reader.close()   # do I need to put it before ? broken pipe ?
-            for line in self.reader:
-                self.writer.write(line)
-                self.writer.flush()
-            # self.reader.close()
-            # self.writer.close()
-            # I'm not sure that there's still a point in babysitting the
-            # child output as we do above. Maybe a simple communicate()
-            # as we do below is all we need. Furthermore, communicate()
-            # is the thing that we have to do in order to properly catch
-            # the return code.
-            self.child.communicate()
-            if self.outfile != self.outfile_tmp:
-                os.rename(self.outfile_tmp, self.outfile)
-            if self.child.returncode != 0:
-                raise RuntimeError(f"Child process failed with return code {self.child.returncode} ; failed command line was:\n" + " ".join(self.child.args))
-            print(f"ok, done")
-        else:
-            self.reader.close()
+class object_holder():
+    def __init__(self, v=None):
+        self.v = v
+    def set(self, v):
+        self.v = v
+    def unset(self):
+        self.v = None
 
 class DescentUpperClass(object):
     def declare_args(parser):
@@ -800,9 +750,16 @@ class DescentUpperClass(object):
             f.write("Y0: %d\n" % gg[1][1])
 
         print ("--- Sieving (initial) ---")
+
+        def relation_filter(data):
+            line = data.strip()
+            if re.match(r"^[^#]-?\d+,\d+:(\w+(,\w+)*)?:(\w+(,\w+)*)?$", line):
+                return line
+
         relsfilename = os.path.join(general.datadir(), prefix + "rels")
+
         if os.path.exists(relsfilename):
-            processes = [important_file(relsfilename,[])]
+            sources = [ (relsfilename, []) ]
         else:
             fbcfilename = os.path.join(tmpdir, prefix + "fbc")
             call_common = [ general.las_bin(),
@@ -827,6 +784,7 @@ class DescentUpperClass(object):
                 ]
                 call_that = [str(x) for x in call_that]
                 return call_that
+
             def construct_call(q0,q1):
                 call_that = call_common + [
                           "-q0", q0,
@@ -859,57 +817,35 @@ class DescentUpperClass(object):
             # Whether or not the output files are already present, this
             # will do the right thing and run the new processes only if
             # needed.
-            processes = [important_file(outfile, construct_call(q0,q1), temporary_is_reusable=True) for (outfile,q0,q1) in call_params]
+            sources = [(outfile, construct_call(q0,q1)) for (outfile,q0,q1) in call_params]
 
-        q = Queue()
-        def enqueue_output(i,out,q):
-            for line in out:
-                q.put((i,line))
-            #q.close()
+        rel_holder = object_holder()
 
-        threads = [Thread(target=enqueue_output, args=(i,process,q)) for (i,process) in enumerate(processes)]
-        for t in threads:
-            t.daemon = True
-            t.start()
-
-        rel = None
-        while True:
-            try:
-                i,line = q.get_nowait()
-            except Empty:
-                if all([not t.is_alive() for t in threads]):
-                    if q.empty():
-                        break
-                    else:
-                        continue
-            else:
-                if line[0] != '#':
-                    rel = line.strip()
-                    continue
-                if re.match("^# Sieving.*q=", line):
-                    sys.stdout.write('\n')
-                    print(line.rstrip())
-                    continue
-                foo = re.match("^# (\d+) relation", line)
-                if not foo:
-                    sys.stdout.write('.')
-                    sys.stdout.flush()
-                    continue
+        def consume(rel_holder, idx, line):
+            if line[0] != '#':
+                rel_holder.set((idx, line))
+                return True
+            if re.match("^# (Now sieving.*q=|\d+ relation)", line):
                 sys.stdout.write('\n')
                 print(line.rstrip())
-                if int(foo.groups()[0]) > 0:
-                    for j,process in enumerate(processes):
-                        if j != i:
-                            process.child.kill()
-                    if not os.path.exists(relsfilename):
-                        shutil.copyfile(relsfilename+"."+str(i),relsfilename)
-                    break
+                sys.stdout.flush()
 
+        monitor_important_files(sources,
+                                consume,
+                                (rel_holder,),
+                                temporary_is_reusable=True)
+                       
         sys.stdout.write('\n')
-        if not rel:
+        if rel_holder.v is None:
             print("No relation found!")
             print("Trying again with another random seed...")
             return None, None, None
+
+        idx,rel = rel_holder.v
+
+        if not os.path.exists(relsfilename):
+            shutil.copyfile(sources[idx][0],relsfilename)
+        
         print("Taking relation %s\n" % rel)
         rel = rel.split(':')
         a,b = [int(x) for x in rel[0].split(',')]
@@ -979,35 +915,39 @@ class DescentUpperClass(object):
                 p ] + zz
         call_that = [str(x) for x in call_that]
         initfilename = os.path.join(general.datadir(), prefix + "init")
-        has_winner = False
 
-        with important_file(initfilename, call_that) as f:
-            for line in f:
-                line = line.strip()
-                foo = re.match("^Youpi: e = (\d+) is a winner", line)
-                if foo:
-                    has_winner = True
-                    general.initrandomizer = int(foo.groups()[0])
-                foo = re.match("^U = ([0-9\-,]+)", line)
-                if foo:
-                    general.initU = [ int(x) for x in foo.groups()[0].split(',') ]
-                foo = re.match("^V = ([0-9\-,]+)", line)
-                if foo:
-                    general.initV = [ int(x) for x in foo.groups()[0].split(',') ]
-                foo = re.match("^u = ([0-9]+)", line)
-                if foo:
-                    general.initu = int(foo.groups()[0])
-                foo = re.match("^v = ([0-9]+)", line)
-                if foo:
-                    general.initv = int(foo.groups()[0])
-                foo = re.match("^fac_u = ([, 0-9]+)", line)
-                if foo:
-                    general.initfacu = [ [ int(y) for y in x.split(',') ] for x in foo.groups()[0].split(' ') ]
-                foo = re.match("^fac_v = ([, 0-9]+)", line)
-                if foo:
-                    general.initfacv = [ [ int(y) for y in x.split(',') ] for x in foo.groups()[0].split(' ') ]
+        has_winner = object_holder(True)
 
-        if not has_winner:
+        def consume(has_winner, general, idx, line):
+            foo = re.match("^Youpi: e = (\d+) is a winner", line)
+            if foo:
+                has_winner.set(True)
+                general.initrandomizer = int(foo.groups()[0])
+            foo = re.match("^U = ([0-9\-,]+)", line)
+            if foo:
+                general.initU = [ int(x) for x in foo.groups()[0].split(',') ]
+            foo = re.match("^V = ([0-9\-,]+)", line)
+            if foo:
+                general.initV = [ int(x) for x in foo.groups()[0].split(',') ]
+            foo = re.match("^u = ([0-9]+)", line)
+            if foo:
+                general.initu = int(foo.groups()[0])
+            foo = re.match("^v = ([0-9]+)", line)
+            if foo:
+                general.initv = int(foo.groups()[0])
+            foo = re.match("^fac_u = ([, 0-9]+)", line)
+            if foo:
+                general.initfacu = [ [ int(y) for y in x.split(',') ] for x in foo.groups()[0].split(' ') ]
+            foo = re.match("^fac_v = ([, 0-9]+)", line)
+            if foo:
+                general.initfacv = [ [ int(y) for y in x.split(',') ] for x in foo.groups()[0].split(' ') ]
+
+        monitor_important_files(
+                [(initfilename, call_that)],
+                consume,
+                (has_winner, general))
+
+        if not has_winner.v:
             raise ValueError("initial descent failed for target %s" % zz)
 
         todofilename = os.path.join(general.datadir(), prefix + "todo")
@@ -1138,23 +1078,29 @@ class DescentMiddleClass(object):
         call_that=[str(x) for x in s]
         relsfilename = os.path.join(general.datadir(), prefix + "rels")
 
-        printing = False
+        printing = object_holder(False)
         failed = []
-        with important_file(relsfilename, call_that) as relstream:
-            for line in relstream:
-                if re.match("^# taking path", line):
-                    print(line.rstrip())
-                elif re.match("^# END TREE", line):
-                    print("")
-                    printing = False
-                elif printing:
-                    print(line.rstrip())
-                    foo = re.match("# FAILED (\d+\@\d+)", line)
-                    if foo:
-                        failed.append(foo.groups()[0])
-                elif re.match("^# BEGIN TREE", line):
-                    print("")
-                    printing=True
+        
+        def consume(printing, failed, idx, line):
+            if re.match("^# taking path", line):
+                print(line.rstrip())
+            elif re.match("^# END TREE", line):
+                print("")
+                printing.unset()
+            elif printing.v:
+                print(line.rstrip())
+                foo = re.match("# FAILED (\d+\@\d+)", line)
+                if foo:
+                    failed.append(foo.groups()[0])
+            elif re.match("^# BEGIN TREE", line):
+                print("")
+                printing.set(True)
+
+        monitor_important_files(
+                [(relsfilename, call_that)],
+                consume,
+                (printing, failed)
+                )
 
         if failed:
             raise RuntimeError("Failed descents for: " + ", ".join(failed))
