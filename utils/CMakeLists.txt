@@ -29,6 +29,7 @@ set (sources
         indexed_relation.cpp
         cado-sighandlers.cpp
         mmap_allocator.cpp
+        random_distributions.cpp
 )
 
 if(NOT HAVE_FMT)

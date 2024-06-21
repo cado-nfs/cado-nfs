@@ -70,6 +70,7 @@ cado_define_test(test_fstream_maybe_compressed.cpp LIBRARIES utils
 cado_divert_test(test_fstream_maybe_compressed gz ARGUMENTS test.gz)
 cado_divert_test(test_fstream_maybe_compressed bz2 ARGUMENTS test.bz2)
 cado_divert_test(test_fstream_maybe_compressed none ARGUMENTS test)
+cado_define_test(test_random_distributions.cpp LIBRARIES utils tests)
 
 cado_define_test(
     SCRIPT
