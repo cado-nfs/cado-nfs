@@ -1,6 +1,8 @@
 #include "cado.h"
+#include <stdlib.h>
 #include <math.h>
 #include "random_distributions.hpp"
+#include "macros.h"
 
 /* random picking */
 double random_uniform(gmp_randstate_t rstate)
@@ -183,4 +185,171 @@ double random_binomial(gmp_randstate_t rstate, unsigned long n, double p)
     return r;
 }
 
+void punched_interval_free(punched_interval_ptr c, punched_interval_ptr * pool)
+{
+    if (!c) return;
+    /* enqueue both children to the free pool */
+    punched_interval_free(c->left, pool);
+    punched_interval_free(c->right, pool);
+    c->left = *pool;
+    /* also store the count */
+    c->has_left = 1 + ((*pool) ? (*pool)->has_left : 0);
+    *pool = c;
+}
 
+void punched_interval_set_full(punched_interval_ptr x, double b0, double b1)
+{
+    x->b0 = b0;
+    x->b1 = b1;
+    x->has_left = 0;
+    x->holes = 0;
+    x->left = 0;
+    x->right = 0;
+}
+
+punched_interval_ptr punched_interval_alloc(punched_interval_ptr * pool, double b0, double b1)
+{
+    punched_interval_ptr x;
+    if (*pool) {
+        x = *pool;
+        *pool = x->left;
+    } else {
+        x = (struct punched_interval_s *) malloc(sizeof(struct punched_interval_s));
+    }
+    memset(x, 0, sizeof(struct punched_interval_s));
+    punched_interval_set_full(x, b0, b1);
+    return x;
+}
+
+void punched_interval_free_pool(punched_interval_ptr * pool)
+{
+    for(punched_interval_ptr q = *pool, v ; q ; q = v) {
+        v = q->left;
+        free(q);
+    }
+    *pool = NULL;
+}
+
+void punched_interval_pre_free_pool(punched_interval_ptr * pool, int max, int print)
+{
+    if (!*pool) return;
+    if ((*pool)->has_left < 2 * max) return;
+    if (print) {
+        fprintf(stderr, "Reducing punched_interval pool from size %d to %d\n",
+                (*pool)->has_left, max);
+    }
+    punched_interval_ptr q = * pool;
+    int size = (*pool)->has_left;
+    for(int i = 0 ; q->has_left >= max ; i++) {
+        ASSERT_ALWAYS(q->left);
+        ASSERT_ALWAYS(q->has_left == size - i);
+        punched_interval_ptr nq = q->left;
+        free(q);
+        q = nq;
+    }
+    *pool = q;
+}
+
+
+static void punched_interval_punch_inner(punched_interval_ptr * pool, punched_interval_ptr c, double x0, double x1)
+{
+    /* This function is misleading. It is only ever called on full
+     * intervals, so that we always have the following...
+     */
+    ASSERT_ALWAYS(c->holes == 0);
+    ASSERT_ALWAYS(!c->has_left);
+    ASSERT_ALWAYS(!c->left);
+    ASSERT_ALWAYS(!c->right);
+
+    c->holes += x1 - x0;
+    c->left = punched_interval_alloc(pool, c->b0, x0);
+    c->has_left=1;
+    c->right = punched_interval_alloc(pool, x1, c->b1);
+
+    /* A "longer" version exists here, but I doubt it's correct.
+     * The code below has branches that are not callable, and whether
+     * they make any sense is really not clear at all. I should probably
+     * get rid of them.
+     */
+#if 0
+    c->holes += x1 - x0;
+    if (!c->left) {
+        c->left = punched_interval_alloc(pool, c->b0, x0);
+    } else {
+        punched_interval_set_full(c->left, c->b0, x0);
+    }
+    c->has_left=1;
+    if (!c->right) {
+        c->right = punched_interval_alloc(pool, x1, c->b1);
+    } else {
+        punched_interval_set_full(c->right, x1, c->b1);
+    }
+#endif
+}
+
+static unsigned long punched_interval_pick_inner(punched_interval_ptr * pool, punched_interval_ptr c,
+        double (*dist_q)(const void *, double), 
+        double (*dist_qrev)(const void *, double), 
+        const void * f,
+        double x)
+{
+
+    /* x should be within [c->b0, c->b1 - c->holes] */
+    ASSERT_ALWAYS(x >= c->b0);
+    ASSERT_ALWAYS(x + c->holes < c->b1);
+    if (!c->has_left) {
+        /* no holes ! */
+        double r = dist_qrev(f, x);
+        unsigned long i;
+        if (r < 0) {
+            i = 0;
+        } else {
+            i = floor(r);
+        }
+        double x0 = dist_q(f, i);
+        double x1 = dist_q(f, i + 1);
+        punched_interval_punch_inner(pool, c, x0, x1);
+        return i;
+    }
+    /* try to correct x with all left holes */
+    double xc = x + c->left->holes;
+    if (xc < c->left->b1) {
+        double h = c->left->holes;
+        unsigned long i = punched_interval_pick_inner(pool, c->left, dist_q, dist_qrev, f, x);
+        c->holes += c->left->holes - h;
+        return i;
+    } else {
+        /* modify x. It's more than just xc ! */
+        xc += c->right->b0 - c->left->b1;
+        double h = c->right->holes;
+        unsigned long i = punched_interval_pick_inner(pool, c->right, dist_q, dist_qrev, f, xc);
+        c->holes += c->right->holes - h;
+        return i;
+    }
+}
+
+unsigned long punched_interval_pick(punched_interval_ptr * pool, punched_interval_ptr c,
+        double (*dist_q)(const void *, double), 
+        double (*dist_qrev)(const void *, double), 
+        const void * f,
+        gmp_randstate_ptr rstate)
+{
+    double x = random_uniform(rstate) * (c->b1 - c->holes);
+    return punched_interval_pick_inner(pool, c, dist_q, dist_qrev, f, x);
+}
+
+
+void punched_interval_print_rec(FILE * f, punched_interval_ptr c)
+{
+    if (!c->has_left) return;
+    punched_interval_print_rec(f, c->left);
+    fprintf(f, "(\e[31m%.4f...%.4f\e[0m)...", c->left->b1, c->right->b0);
+    punched_interval_print_rec(f, c->right);
+}
+
+void punched_interval_print(FILE * f, punched_interval_ptr c)
+{
+    fprintf(f, "%.4f...", c->b0);
+    punched_interval_print_rec(f, c);
+    fprintf(f, "%.4f\n", c->b1);
+}

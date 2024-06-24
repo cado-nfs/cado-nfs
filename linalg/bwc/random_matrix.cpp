@@ -264,13 +264,14 @@ struct random_matrix_ddata_s {
 };
 typedef struct random_matrix_ddata_s random_matrix_ddata[1];
 typedef struct random_matrix_ddata_s * random_matrix_ddata_ptr;
+typedef const struct random_matrix_ddata_s * random_matrix_ddata_srcptr;
 
 void random_matrix_ddata_init(random_matrix_ddata_ptr d);
 void random_matrix_ddata_set_default(random_matrix_ddata_ptr d);
 void random_matrix_ddata_clear(random_matrix_ddata_ptr d);
 void random_matrix_ddata_adjust(random_matrix_ddata_ptr f, random_matrix_process_data_srcptr r, parallelizing_info_srcptr pi, unsigned long padded_nrows, unsigned long padded_ncols);
 void random_matrix_ddata_adjust_force_kernel(random_matrix_ddata_ptr f, random_matrix_process_data_srcptr r, parallelizing_info_srcptr pi, unsigned long padded_nrows, unsigned long padded_ncols, int kernel_left, int kernel_right);
-void random_matrix_ddata_info(FILE * out, random_matrix_ddata_ptr f);
+void random_matrix_ddata_info(FILE * out, random_matrix_ddata_srcptr f);
 void random_matrix_ddata_init(random_matrix_ddata_ptr F);
 void random_matrix_ddata_clear(random_matrix_ddata_ptr F);
 /* }}} */
@@ -300,13 +301,13 @@ void random_matrix_ddata_clear(random_matrix_ddata_ptr F);
 /* {{{ direct queries on the random_matrix_ddata type */
 
 /* probability mass function */
-double dist_p(random_matrix_ddata_ptr f, double x)
+double dist_p(random_matrix_ddata_srcptr f, double x)
 {
     return f->alpha<=0 ? f->scale : f->scale*pow(x*f->spread+f->offset,-f->alpha);
 }
 
 /* cumulative distribution function */
-double dist_q(random_matrix_ddata_ptr f, double x)
+double dist_q(random_matrix_ddata_srcptr f, double x)
 {
     if (f->alpha <= 0) {
         return x * f->scale;
@@ -329,7 +330,7 @@ double dist_qrev(random_matrix_ddata_ptr f, double y)
 }
 
 /* variance for the count of successes */
-double dist_qq(random_matrix_ddata_ptr f, double x)
+double dist_qq(random_matrix_ddata_srcptr f, double x)
 {
     if (f->alpha < 0) {
         /* don't need it */
@@ -360,7 +361,7 @@ void random_matrix_ddata_set_default(random_matrix_ddata_ptr F)
     F->spread = 1;
 }
 
-void random_matrix_ddata_info(FILE * out, random_matrix_ddata_ptr f)
+void random_matrix_ddata_info(FILE * out, random_matrix_ddata_srcptr f)
 {
     unsigned long nrows = f->nrows;
     unsigned long ncols = f->ncols;
@@ -459,157 +460,6 @@ void random_matrix_ddata_adjust(random_matrix_ddata_ptr f, random_matrix_process
 
 /* }}} */
 
-/* {{{ punch intervals */
-struct punched_interval_s {
-    double b0, b1;
-    double holes;
-    int has_left, has_right;
-    /* free blocks use the "left" pointer below for the next argument in
-     * the free list */
-    struct punched_interval_s * left;
-    struct punched_interval_s * right;
-};
-typedef struct punched_interval_s * punched_interval_ptr;
-
-void punched_interval_free(punched_interval_ptr c, punched_interval_ptr * pool)
-{
-    if (!c) return;
-    /* enqueue both children to the free pool */
-    punched_interval_free(c->left, pool);
-    punched_interval_free(c->right, pool);
-    c->left = *pool;
-    /* also store the count */
-    c->has_left = 1 + ((*pool) ? (*pool)->has_left : 0);
-    *pool = c;
-}
-
-void punched_interval_set_full(punched_interval_ptr x, double b0, double b1)
-{
-    x->b0 = b0;
-    x->b1 = b1;
-    x->has_left = 0;
-    x->has_right = 0;
-    x->holes = 0;
-}
-
-punched_interval_ptr punched_interval_alloc(punched_interval_ptr * pool, double b0, double b1)
-{
-    punched_interval_ptr x;
-    if (*pool) {
-        x = *pool;
-        *pool = x->left;
-    } else {
-        x = (struct punched_interval_s *) malloc(sizeof(struct punched_interval_s));
-    }
-    memset(x, 0, sizeof(struct punched_interval_s));
-    punched_interval_set_full(x, b0, b1);
-    return x;
-}
-
-void punched_interval_free_pool(punched_interval_ptr * pool)
-{
-    for(punched_interval_ptr q = *pool, v ; q ; q = v) {
-        v = q->left;
-        free(q);
-    }
-    *pool = NULL;
-}
-
-void punched_interval_pre_free_pool(punched_interval_ptr * pool, int max, int print)
-{
-    if (!*pool) return;
-    if ((*pool)->has_left < 2 * max) return;
-    if (print) {
-        fprintf(stderr, "Reducing punched_interval pool from size %d to %d\n",
-                (*pool)->has_left, max);
-    }
-    punched_interval_ptr q = * pool;
-    int size = (*pool)->has_left;
-    for(int i = 0 ; q->has_left >= max ; i++) {
-        ASSERT_ALWAYS(q->left);
-        ASSERT_ALWAYS(q->has_left == size - i);
-        punched_interval_ptr nq = q->left;
-        free(q);
-        q = nq;
-    }
-    *pool = q;
-}
-
-
-void punched_interval_punch(punched_interval_ptr * pool, punched_interval_ptr c, double x0, double x1)
-{
-    c->holes += x1 - x0;
-    if (!c->left) {
-        c->left = punched_interval_alloc(pool, c->b0, x0);
-    } else {
-        punched_interval_set_full(c->left, c->b0, x0);
-    }
-    c->has_left=1;
-    if (!c->right) {
-        c->right = punched_interval_alloc(pool, x1, c->b1);
-    } else {
-        punched_interval_set_full(c->right, x1, c->b1);
-    }
-}
-
-
-unsigned long pick_and_punch(random_matrix_ddata_ptr f, punched_interval_ptr * pool, punched_interval_ptr c, double x)
-{
-    /* x should be within [c->b0, c->b1 - c->holes] */
-    ASSERT_ALWAYS(x >= c->b0);
-    ASSERT_ALWAYS(x + c->holes < c->b1);
-    if (!c->has_left) {
-        /* no holes ! */
-        double r = dist_qrev(f, x);
-        unsigned long i;
-        if (r < 0) {
-            i = 0;
-        } else if (r >= f->ncols) {
-            i = f->ncols - 1;
-        } else {
-            i = floor(r);
-        }
-        double x0 = dist_q(f, i);
-        double x1 = dist_q(f, i + 1);
-        punched_interval_punch(pool, c, x0, x1);
-        return i;
-    }
-    /* try to correct x with all left holes */
-    double xc = x + c->left->holes;
-    if (xc < c->left->b1) {
-        double h = c->left->holes;
-        unsigned long i = pick_and_punch(f, pool, c->left, x);
-        c->holes += c->left->holes - h;
-        return i;
-    } else {
-        /* modify x. It's more than just xc ! */
-        xc += c->right->b0 - c->left->b1;
-        double h = c->right->holes;
-        unsigned long i = pick_and_punch(f, pool, c->right, xc);
-        c->holes += c->right->holes - h;
-        return i;
-    }
-}
-
-/*
-void punched_interval_print_rec(FILE * f, punched_interval_ptr c)
-{
-    if (!c->has_left) return;
-    punched_interval_print_rec(f, c->left);
-    fprintf(f, "(\e[31m%.2f...%.2f\e[0m)...", c->left->b1, c->right->b0);
-    punched_interval_print_rec(f, c->right);
-}
-
-void punched_interval_print(FILE * f, punched_interval_ptr c)
-{
-    fprintf(f, "%.2f...", c->b0);
-    punched_interval_print_rec(f, c);
-    fprintf(f, "%.2f\n", c->b1);
-}
-   */
-
-/* }}} */
-
 typedef int (*sortfunc_t)(const void *, const void *);
 
 int cmp_u32(uint32_t * a, uint32_t * b)
@@ -629,8 +479,13 @@ uint32_t generate_row(gmp_randstate_t rstate, random_matrix_ddata_ptr f, uint32_
     punched_interval_set_full(range, 0, f->mean);
     for(uint32_t i = 0 ; i < weight ; i++) {
         // punched_interval_print(stdout, range);
-        double x = random_uniform(rstate) * (range->b1 - range->holes);
-        uint32_t k = pick_and_punch(f, pool, range, x);
+        uint32_t k = punched_interval_pick(pool, range,
+                (double (*)(const void *, double)) dist_q,
+                (double (*)(const void *, double)) dist_qrev,
+                (const void *) f,
+                rstate);
+        if (k >= f->ncols)
+            k = f->ncols - 1;
         ptr[i] = k;
     }
     qsort(ptr, weight, sizeof(uint32_t), (sortfunc_t) &cmp_u32);
