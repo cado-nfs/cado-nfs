@@ -2,6 +2,7 @@
 #define UTILS_RANDOM_DISTRIBUTIONS_HPP_
 
 #include <gmp.h>
+#include "gmp_aux.h"
 
 /* Some generic functions for random picking along distributions
  */

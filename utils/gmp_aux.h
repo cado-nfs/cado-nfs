@@ -196,7 +196,7 @@ void memfill_random(void *p, size_t s, gmp_randstate_t rstate);
  * taken in the following months. Maybe it will be merged for gmp 17.42
  * eventually...)
  */
-#if !GMP_VERSION_ATLEAST(17,42,0)
+#if !GMP_VERSION_ATLEAST(6,3,0)
 typedef __gmp_randstate_struct * gmp_randstate_ptr;
 typedef const __gmp_randstate_struct * gmp_randstate_srcptr;
 #endif
