@@ -63,7 +63,7 @@ special_val0 (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr rstate)
   mpz_poly_init (H, d);
   H->deg = d;
   h = H->coeff;
-  /* first compute h(x) = g(px) */
+  /* first compute h(x) = g(p*x) = f(p*x)/p^v */
   mpz_set_ui (c, 1);
   for (i = 0; i <= d; i++)
     {
@@ -85,8 +85,8 @@ special_val0 (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr rstate)
         v += 1.0 / (double) (p - 1);
       else /* hard case */
         {
-          /* g(px+r) = h(x + r/p), thus we can go from h0(x)=g(px+r0)
-             to h1(x)=g(px+r1) by computing h0(x + (r1-r0)/p).
+          /* g(p*x+r) = h(x + r/p), thus we can go from h0(x)=g(p*x+r0)
+             to h1(x)=g(p*x+r1) by computing h0(x + (r1-r0)/p).
              Warning: we can have h = f, and thus an infinite loop, when
              the p-valuation of f is d, and f has a single root r/(1-p) of
              multiplicity d.
