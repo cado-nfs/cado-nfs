@@ -121,7 +121,7 @@ void polyselect_stats_display_final(polyselect_stats_ptr stats, int verbose)
       ("# Stat: tried %lu ad-value(s), %lu size-optimized polynomials, kept %lu\n",
        stats->number_of_ad_values, stats->opt_found, stats->collisions_good);
 
-  /* print best keep values of logmu */
+  /* print the best "keep" values of logmu */
   if (stats->collisions_good > 0)
     {
       char qstr[8 * stats->best_exp_E->size];
