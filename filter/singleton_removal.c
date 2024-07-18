@@ -77,7 +77,7 @@ typedef struct sing_rem_mt_data_s
   purge_matrix_ptr mat;
 } sing_rem_mt_data_t;
 
-/* Hightest criticality for performance. I inline all myself. */
+/* Highest criticality for performance (fully inlined). */
 static void *
 singleton_removal_mt_thread (void *arg)
 {
