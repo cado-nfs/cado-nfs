@@ -42,7 +42,6 @@
    or:
    -(i1+1) i2 ... in
    which means that line i1 has to be added to i2, ..., in, but not destroyed.
-   The sum of n-1 over all such lines must equal k.
    Each line consists of numbers written in decimal:
    - if SIZEOF_INDEX=4, each number is a 32-bit value (<=10 digits)
    - if SIZEOF_INDEX=8, each number is a 64-bit value (<=20 digits)
@@ -51,7 +50,7 @@
    spanning tree algorithm. We then get exactly k-1 lines: first k-2 with a
    minus sign (row i1 not destroyed), and last one without minus sign (row
    destroyed).
-   We also a final \n per line, and (for DLP) an extra number of 10/20
+/   We also a final \n per line, and (for DLP) an extra number of 10/20
    digits and two extra characters (" #"). Plus an extra \0 (end of string).
    This gives a maximum of:
    - (k-1)*(2*10*SIZEOF_INDEX/4 + 3) for the factorization
