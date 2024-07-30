@@ -51,6 +51,7 @@ std::vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz
 std::vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const& p, gmp_randstate_t state);
 
 std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz const & p, cxx_mpz const & r, gmp_randstate_t state);
+int get_inertia_of_prime_ideal(cxx_mpz_poly const & f, cxx_mpz const & p, cxx_mpz const & r, gmp_randstate_t state);
 
 inline std::istream& operator>>(std::istream& i, badideal & b)
 {

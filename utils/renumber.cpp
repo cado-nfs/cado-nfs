@@ -10,6 +10,7 @@
 #include <sstream>      // std::ostringstream // IWYU pragma: keep
 #include <stdexcept>
 #include <string>
+#include <mutex>
 #include <vector>
 #include <cstring>             // for strcmp
 #include <cstdio> // stdout // IWYU pragma: keep
@@ -947,6 +948,9 @@ void renumber_t::read_from_file(const char * filename, int for_dl)
     info(std::cout);
     read_table(is);
     more_info(std::cout);
+    
+    /* It's used by inertia_from_p_r */
+    compute_ramified_primes();
 }
 
 void renumber_t::recompute_debug_number_theoretic_stuff()
@@ -1035,7 +1039,7 @@ std::string renumber_t::debug_data_sagemath(index_t i) const
     } else {
         i -= above_bad;
         if (x.side == get_rational_side()) {
-            return fmt::format("OK{0}.ideal({1})", x.side, x.p);
+            return fmt::format("OK{0}.fractional_ideal({1})", x.side, x.p);
         } else {
             /* XXX if p divides the discriminant, make sure that we treat
              * ramified primes correctly. Otherwise a simple and stupid
@@ -1050,7 +1054,7 @@ std::string renumber_t::debug_data_sagemath(index_t i) const
 
             /* back to the easy case */
             if (x.r == x.p) {
-                return fmt::format("(OK{0}.ideal({1})+J{0})",
+                return fmt::format("(OK{0}.fractional_ideal({1})+J{0})",
                         x.side, x.p);
             } else {
                 return fmt::format("(OK{0}.fractional_ideal({1},alpha{0}-{2})*J{0})",
@@ -1407,4 +1411,33 @@ renumber_t::const_iterator& renumber_t::const_iterator::operator++()
      */
     i++;
     return *this;
+}
+
+int renumber_t::inertia_from_p_r(p_r_side x) const
+{
+    cxx_mpz_poly f(cpoly->pols[x.side]);
+    if (f.degree() == 1) return 1;
+
+    for(auto const & y : small_primes[x.side]) {
+        if (x.p == y.first) {
+            static std::mutex m;
+            {
+                std::lock_guard<std::mutex> dummy(m);
+                auto it = exceptional_inertia.find(x);
+                if (it != exceptional_inertia.end())
+                    return it->second;
+            }
+            cxx_gmp_randstate state;
+            int inertia = get_inertia_of_prime_ideal(f, x.p, x.r, state);
+            {
+                std::lock_guard<std::mutex> dummy(m);
+                exceptional_inertia[x] = inertia;
+            }
+            if (inertia != 1) {
+                std::cerr << fmt::format(FMT_STRING("# computed exceptional inertia {} for ideal {},{} on side {}\n"), inertia, x.p, x.r, x.side);
+            }
+            return inertia;
+        }
+    }
+    return 1;
 }

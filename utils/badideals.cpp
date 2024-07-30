@@ -6,6 +6,7 @@
 // iwyu wants it for allocator_traits<>::value_type, which seems weird
 #include <ostream>
 #include <iomanip>      // std::dec // IWYU pragma: keep
+#include <iostream>
 #include <sstream>
 #include <utility>
 
@@ -161,7 +162,7 @@ public:
         alpha << "alpha" << side;
         string uniformizer = write_element_as_polynomial(theta_q, alpha.str());
 
-        return fmt::format("OK{}.ideal({}, {})", side, two.first, uniformizer);
+        return fmt::format("OK{}.fractional_ideal({}, {})", side, two.first, uniformizer);
     }
     void print_info(ostream& o, int k, cxx_mpz const& r MAYBE_UNUSED, int side) const {/*{{{*/
         cxx_mpz_mat const& fkp(F[k].first);
@@ -229,6 +230,14 @@ public:
         }
         return res;
     }/*}}}*/
+
+    // getters for e and f
+    int get_ramification_index(int i) const {
+        return ramification[i];
+    }
+    int get_inertia_degree(int i) const {
+        return inertia[i];
+    }
 };/*}}}*/
 
 vector<cxx_mpz> lift_p1_elements(cxx_mpz const& p, int k, cxx_mpz const& x)/*{{{*/
@@ -455,6 +464,18 @@ std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz co
     for(unsigned x = 0 ; x < v.size() ; x++) {
         if (v[x] == 0)
             continue;
+        int inertia = A.get_inertia_degree(x);
+        if (inertia != 1) {
+            /* we do this because for some reason, the references to mpzs
+             * get resolved to mpz_srcptr, and libfmt8 don't want to
+             * format these. Pretty annoying, to be honest.
+             */
+            cxx_mpz pp = p;
+            cxx_mpz rr = r;
+            std::cerr << fmt::format(FMT_STRING(
+                        "# note: seemingly innocuous prime ideal ({},{}) on side {} has non-trivial residue class degree {}\n"),
+                    pp, rr, side, inertia);
+        }
         if (k != -1)
             throw std::runtime_error("ideal is not prime");
         k = x;
@@ -464,3 +485,14 @@ std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz co
     return A.sagemath_string(k, side);
 }
 
+int get_inertia_of_prime_ideal(cxx_mpz_poly const & f, cxx_mpz const & p, cxx_mpz const & r, gmp_randstate_t state)
+{
+    auto A = all_valuations_above_p(f, p, state);
+    auto v = A(1, r);
+    for(unsigned x = 0 ; x < v.size() ; x++) {
+        if (v[x] == 0)
+            continue;
+        return A.get_inertia_degree(x);
+    }
+    return 1;
+}
