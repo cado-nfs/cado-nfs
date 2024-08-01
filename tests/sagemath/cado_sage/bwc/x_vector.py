@@ -2,7 +2,7 @@ import os
 
 from sage.matrix.constructor import matrix
 from sage.rings.finite_rings.finite_field_constructor import GF
-from .tools import NOK
+from cado_sage.tools import NOK
 
 
 class BwcXVector(object):

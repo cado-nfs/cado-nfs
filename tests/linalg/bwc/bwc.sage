@@ -1,8 +1,9 @@
 import re
 import os
 import sys
-from bwc_sage import *
-from bwc_sage.tools import HURRAH, OK, NOK
+import cado_sage
+from cado_sage.bwc import *
+from cado_sage.tools import HURRAH, OK, NOK
 
 if __name__ == '__main__':
     args = dict()

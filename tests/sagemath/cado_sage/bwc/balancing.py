@@ -2,9 +2,9 @@ import sys
 
 from sage.rings.integer import Integer
 from sage.groups.perm_gps.permgroup_named import SymmetricGroup
-from .tools import u32, u64
-from .tools import NOK
-from .BwcParameters import BwcParameters
+from cado_sage.tools import u32, u64
+from cado_sage.tools import NOK
+from .parameters import BwcParameters
 
 
 class BwcBalancing(object):
@@ -47,7 +47,8 @@ class BwcBalancing(object):
 
             def pad(n, k, b=1):
                 # return the next multiple of b*k
-                return ((n + (b*k) - 1) // (b*k)) * (b*k)
+                bk = b * k
+                return ((n + bk - 1) // bk) * bk
 
             # copy b111d37a5: now the alignment is always on multiples of 8
             chunk = 8

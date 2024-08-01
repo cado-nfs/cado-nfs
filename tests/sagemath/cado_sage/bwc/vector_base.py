@@ -3,8 +3,8 @@ import re
 
 from sage.rings.finite_rings.finite_field_constructor import GF
 from sage.matrix.constructor import matrix
-from .BwcParameters import BwcParameters
-from .tools import NOK
+from .parameters import BwcParameters
+from cado_sage.tools import NOK
 
 
 class BwcVectorBase(object):

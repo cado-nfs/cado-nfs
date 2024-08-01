@@ -1,13 +1,9 @@
 import os
 import re
 
-from sage.matrix.constructor import matrix
-from sage.rings.finite_rings.finite_field_constructor import GF
-from sage.rings.integer import Integer
-
-from .BwcParameters import BwcParameters
-from .BwcVectorBase import BwcVectorBase
-from .tools import OK, NOK, EXCL
+from .parameters import BwcParameters
+from .vector_base import BwcVectorBase
+from cado_sage.tools import OK, NOK, EXCL
 
 
 class BwcCheckData(object):
@@ -112,8 +108,8 @@ class BwcCheckData(object):
         filename = os.path.join(self.dirname, self.tfiles[0][0])
         t = BwcVectorBase(self.params,
                           filename,
-                          pattern = r"^Ct(\d+)-(\d+).0-(\d+)",
-                          _what = "bwc T check vector")
+                          pattern=r"^Ct(\d+)-(\d+).0-(\d+)",
+                          _what="bwc T check vector")
         t.read()
         if t.V.nrows() != self.params.m:
             expect = f"expected {self.params.m} rows"
@@ -128,14 +124,14 @@ class BwcCheckData(object):
         filename = os.path.join(self.dirname, self.rfiles[0][0])
         r = BwcVectorBase(self.params,
                           filename,
-                          pattern = r"^Cr(\d+)-(\d+).0-(\2)",
-                          _what = "bwc R check vector")
+                          pattern=r"^Cr(\d+)-(\d+).0-(\2)",
+                          _what="bwc R check vector")
         r.read()
         sd = list(range(self.params.splitwidth,
                         r.V.nrows(),
                         self.params.splitwidth))
         r.V.subdivide(sd)
-        self.R = [ r.V.subdivision(i,0) for i in range(len(sd)+1) ]
+        self.R = [ r.V.subdivision(i, 0) for i in range(len(sd) + 1) ]
 
     def __read_dfiles(self):
         ret = []
@@ -143,8 +139,8 @@ class BwcCheckData(object):
             filename = os.path.join(self.dirname, basename)
             d = BwcVectorBase(self.params,
                               filename,
-                              pattern = r"^Cd(\d+)-(\d+).(\d+)$",
-                              _what = "bwc D check vector")
+                              pattern=r"^Cd(\d+)-(\d+).(\d+)$",
+                              _what="bwc D check vector")
             d.read()
             ret.append((j, filename, d.V))
         self.D = sorted(ret)
@@ -155,8 +151,8 @@ class BwcCheckData(object):
             filename = os.path.join(self.dirname, basename)
             v = BwcVectorBase(self.params,
                               filename,
-                              pattern = r"^Cv(\d+)-(\d+).(\d+)$",
-                              _what = "bwc V check vector")
+                              pattern=r"^Cv(\d+)-(\d+).(\d+)$",
+                              _what="bwc V check vector")
             v.read()
             ret.append((j, filename, v.V))
         self.V = sorted(ret)

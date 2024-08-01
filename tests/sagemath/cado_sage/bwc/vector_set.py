@@ -1,7 +1,7 @@
 from sage.matrix.special import block_matrix
-from .BwcVector import BwcVector
-from .BwcVectorSetBase import BwcVectorSetBase
-from .tools import OK, EXCL
+from .vector import BwcVector
+from .vector_set_base import BwcVectorSetBase
+from cado_sage.tools import OK, EXCL
 
 
 class BwcVectorSet(BwcVectorSetBase):
@@ -57,7 +57,7 @@ class BwcVectorSet(BwcVectorSetBase):
             for t in iW:
                 doing = f"Checking {t.filename}"
                 print(doing)
-                V = mat**(t.iteration-i) * V
+                V = mat**(t.iteration - i) * V
                 i = t.iteration
                 assert V == t.V
                 print(f"{doing} ... {OK}")

@@ -6,9 +6,10 @@ from sage.matrix.special import diagonal_matrix
 from sage.rings.finite_rings.finite_field_constructor import GF
 
 from collections import defaultdict
-from .BwcParameters import BwcParameters
-from .tools import read_one_matrix, mcoeff, mdiv, mmod, mdivmod, mrev, mdeg
-from .tools import OK, NOK, EXCL
+from .parameters import BwcParameters
+from .matrix_tools import read_one_matrix
+from .matrix_tools import mcoeff, mdiv, mmod, mdivmod, mrev, mdeg
+from cado_sage.tools import OK, NOK, EXCL
 
 
 class BwcFFiles(object):
@@ -124,7 +125,7 @@ class BwcFFiles(object):
         n = self.params.n
         x = self.F.base_ring().gen()
 
-        D = diagonal_matrix([x] * r + [1] * (n-r))
+        D = diagonal_matrix([x] * r + [1] * (n - r))
 
         q, re = mdivmod(A.A * D, 1)
 
@@ -170,7 +171,7 @@ class BwcFFiles(object):
         v = Vs.block_by_iteration(0)
         rhs = v[:, :r]
         V = v.parent()()
-        for k in range(self.degree()+1):
+        for k in range(self.degree() + 1):
             V += v * mcoeff(self.F, k)
             v = MQ * v
 

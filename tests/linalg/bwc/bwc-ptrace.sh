@@ -828,8 +828,12 @@ fi
 if [ "$sage" ] ; then
     cmd=/bin/true
     magma_sage_check_parameters
-    cd `dirname "$0"`
+    cd `dirname "$0"`/../..
     export PYTHONUNBUFFERED=true
+    # we want cado_sage to be accessible. Note that as we customarily run
+    # sage within a docker container, it's best if this PYTHONPATH is a
+    # relative subdirectory.
+    export PYTHONPATH=sagemath
     check_script_diagnostic_fd=1
     if [ "$FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3" ] && (exec 1>&3) 2>&- ; then
         check_script_diagnostic_fd=3
@@ -843,6 +847,6 @@ if [ "$sage" ] ; then
     fi
     if [ "$CADO_DEBUG" ] ; then set -x ; fi
     set -eo pipefail
-    "$sage" bwc.sage "${sage_args[@]}" >&${check_script_diagnostic_fd}
+    "$sage" linalg/bwc/bwc.sage "${sage_args[@]}" >&${check_script_diagnostic_fd}
     eval $old_setx
 fi

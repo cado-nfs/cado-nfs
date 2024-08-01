@@ -7,9 +7,9 @@ from sage.rings.finite_rings.finite_field_constructor import GF
 
 from collections import defaultdict
 
-from .BwcParameters import BwcParameters
-from .tools import mcoeff, read_one_matrix
-from .tools import OK, NOK, EXCL
+from .parameters import BwcParameters
+from .matrix_tools import mcoeff, read_one_matrix
+from cado_sage.tools import OK, NOK, EXCL
 
 
 class BwcAFiles(object):
@@ -83,7 +83,7 @@ class BwcAFiles(object):
         candidates = [[(*x, []) for x in L] for L in self.occupancy]
         for v in vfiles:
             j0, j1, iteration, filename = v
-            assert j1-j0 == sw
+            assert j1 - j0 == sw
             xj = j0 // sw
             # Transtorm candidates[j] to a list where the vector v is
             # appended to [2] whenever it can be used for checking the
@@ -153,7 +153,7 @@ class BwcAFiles(object):
             nk = st.st_size // bytes_per_mat
             print(f"Reading {filename} (size: {ni}*{nj}, {nk} coeffs)")
             if nk != end - start:
-                expect = f"expected {nk*bytes_per_mat} for {nk} coefficients"
+                expect = f"expected {nk * bytes_per_mat} for {nk} coefficients"
                 raise ValueError(f"{filename} has wrong size ({expect}) {NOK}")
             with open(filename, 'rb') as f:
                 while (M := read_one_matrix(self.params, f, ni, nj)) is not None:  # noqa: E501
@@ -171,7 +171,7 @@ class BwcAFiles(object):
             print(f"Check {what} using {v.filename}")
             w = v.V
             for k in range(v.iteration, k1):
-                if x.X.transpose()*w != mcoeff(self.A, k)[:, v.j0:v.j1]:
+                if x.X.transpose() * w != mcoeff(self.A, k)[:, v.j0:v.j1]:
                     where = f"at coefficient {k}"
                     raise ValueError(f"Inconsistency in A files {where}")
                 w = M * w

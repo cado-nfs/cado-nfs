@@ -24,8 +24,8 @@
 // Input:
 //
 // * [k] A bit matrix of (small_nrows) rows and (some multiple of 64)
-//   cols, whose column span _contains_ the kernel of the matrix which
-//   has been fed to the linear algebra.
+//   cols, whose column span _contains_ a subspace of the left kernel of
+//   the matrix which has been fed to the linear algebra.
 // * A list of the (npurged) a,b pairs. This is obtained from the
 //   purgedfile.
 // * A matrix of (small_nrows) rows and (npurged) cols, which indicates

@@ -471,6 +471,14 @@ if (!defined($param->{'solutions'})) {
 } else {
     # make that a list.
     $param->{'solutions'} = [ split(',',$param->{'solutions'}) ];
+    if (scalar(@{$param->{'solutions'}}) == 1 and $splitwidth == 1) {
+        my ($s0, $s1) = split('-',$param->{'solutions'}->[0]);
+        $param->{'solutions'} = [];
+        for(my $i = 0 ; $s0 + $i < $s1 ; $i += $splitwidth) {
+            push @{$param->{'solutions'}}, join('-', ($s0 + $i, $s0 + $i + $splitwidth ));
+        }
+        print STDERR "## Note: rewriting solutions=$s0-$s1 into solutions=" . join(",", @{$param->{'solutions'}} ) . "\n";
+    }
 }
 
 for (@{$param->{'solutions'}}) {

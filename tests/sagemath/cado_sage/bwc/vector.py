@@ -1,5 +1,5 @@
-from .BwcParameters import BwcParameters
-from .BwcVectorBase import BwcVectorBase
+from .parameters import BwcParameters
+from .vector_base import BwcVectorBase
 
 
 class BwcVector(BwcVectorBase):

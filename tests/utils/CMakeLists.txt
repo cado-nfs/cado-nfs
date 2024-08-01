@@ -93,7 +93,7 @@ add_subdirectory(numbertheory)
 if(SAGE)
     cado_define_test(
         SCRIPT
-            ${CMAKE_CURRENT_SOURCE_DIR}/test_explain_relations.sh
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_explain_relations_with_sagemath.sh
         PROVIDE_TEMPORARY_WDIR
         NO_DEFAULT_RUN
         TARGET_DEPENDENCIES
@@ -104,16 +104,18 @@ if(SAGE)
             dup2
             explain_indexed_relation
     )
+    add_dependencies(all_sagemath_test_dependencies
+        test_explain_relations_with_sagemath_dependencies)
 
     # note that the sage preparser takes an absurd amount of time here,
     # so it's important to split into very small data sets.
-    cado_divert_test(test_explain_relations
+    cado_divert_test(test_explain_relations_with_sagemath
         c30
-        -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_explain_relations.data/c30.poly
+        -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_explain_relations_with_sagemath.data/c30.poly
         -I 9
         -q0 56230 -q1 56240
         -lim0 30000 -lpb0 17 -mfb0 18
         -lim1 30000 -lpb1 17 -mfb1 18
     )
-    cado_divert_test(test_explain_relations_c30 dl APPEND_ARGUMENTS -dl)
+    cado_divert_test(test_explain_relations_with_sagemath_c30 dl APPEND_ARGUMENTS -dl)
 endif()

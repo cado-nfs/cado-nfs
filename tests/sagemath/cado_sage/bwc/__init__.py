@@ -12,14 +12,14 @@ The work plan is:
     4. address the remaining cases like interleaving and so on.
 """
 
-from .BwcParameters import BwcParameters  # noqa: F401
-from .BwcMatrix import BwcMatrix  # noqa: F401
-from .BwcBalancing import BwcBalancing  # noqa: F401
-from .BwcVector import BwcVector  # noqa: F401
-from .BwcVectorSet import BwcVectorSet  # noqa: F401
-from .BwcXVector import BwcXVector  # noqa: F401
-from .BwcCheckData import BwcCheckData  # noqa: F401
-from .BwcAFiles import BwcAFiles  # noqa: F401
-from .BwcFFiles import BwcFFiles  # noqa: F401
-from .BwcSVector import BwcSVector  # noqa: F401
-from .BwcSVectorSet import BwcSVectorSet  # noqa: F401
+from .parameters import BwcParameters  # noqa: F401
+from .matrix import BwcMatrix  # noqa: F401
+from .balancing import BwcBalancing  # noqa: F401
+from .vector import BwcVector  # noqa: F401
+from .vector_set import BwcVectorSet  # noqa: F401
+from .x_vector import BwcXVector  # noqa: F401
+from .check_data import BwcCheckData  # noqa: F401
+from .a_files import BwcAFiles  # noqa: F401
+from .f_files import BwcFFiles  # noqa: F401
+from .s_vector import BwcSVector  # noqa: F401
+from .s_vector_set import BwcSVectorSet  # noqa: F401

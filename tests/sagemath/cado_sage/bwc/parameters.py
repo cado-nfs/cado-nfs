@@ -18,7 +18,7 @@ class BwcParameters(object):
             self.nullspace = self.NULLSPACE_RIGHT
 
         word = 2**self.wordsize
-        self.p_words = len((self.p**self.splitwidth-1).digits(word))
+        self.p_words = len((self.p**self.splitwidth - 1).digits(word))
         self.p_bytes = self.p_words * (self.wordsize // 8)
         n = kwargs.get('nullspace', None)
         if n == 'left':

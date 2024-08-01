@@ -9,10 +9,12 @@ from sage.rings.finite_rings.finite_field_constructor import GF
 from sage.matrix.special import block_matrix, zero_matrix
 from sage.modules.free_module_element import vector
 
-from .tools import OK, NOK, EXCL
-from .tools import u32, s32
-from .BwcParameters import BwcParameters
-from .BwcBalancing import BwcBalancing, BwcShuffling
+from cado_sage import get_verbose
+
+from cado_sage.tools import OK, NOK, EXCL
+from cado_sage.tools import u32, s32
+from .parameters import BwcParameters
+from .balancing import BwcBalancing, BwcShuffling
 
 
 class BwcMatrix(object):
@@ -182,10 +184,11 @@ class BwcMatrix(object):
         that we're reading are just chunks of the bigger matrix
         """
 
-        if nrows is not None:
-            print(f"Reading {self.filename} (size: {nrows}*{ncols})")
-        else:
-            print(f"Reading {self.filename}")
+        if get_verbose():
+            if nrows is not None:
+                print(f"Reading {self.filename} (size: {nrows}*{ncols})")
+            else:
+                print(f"Reading {self.filename}")
 
         self.__clear_fields_for_read()
 
@@ -286,20 +289,22 @@ class BwcMatrix(object):
             self.ncols = self.ncols_orig
 
         self.ncoeffs = len(inline_data)
-        r2 = sum([float(x*x) for x in inline_row_weights]) / self.nrows_orig
-        c2 = sum([float(x*x) for x in inline_col_weights]) / self.ncols_orig
+        r2 = sum([float(x * x) for x in inline_row_weights]) / self.nrows_orig
+        c2 = sum([float(x * x) for x in inline_col_weights]) / self.ncols_orig
         rmean = float(self.ncoeffs / self.nrows_orig)
-        rsdev = math.sqrt(r2-rmean**2)
+        rsdev = math.sqrt(r2 - rmean**2)
         cmean = float(self.ncoeffs / self.ncols_orig)
-        csdev = math.sqrt(c2-cmean**2)
+        csdev = math.sqrt(c2 - cmean**2)
 
         rowscols = f"{self.nrows_orig} rows {self.ncols_orig} cols"
         coeffs = f"{self.ncoeffs} coefficients"
         stats = f"row: {rmean:.2f}~{rsdev:.2f}, col: {cmean:.2f}~{csdev:.2f}"
-        print(f"{rowscols}, {coeffs} ({stats})")
+        if get_verbose():
+            print(f"{rowscols}, {coeffs} ({stats})")
 
         if force_square and self.nrows_orig != self.ncols_orig:
-            print("Padding to a square matrix")
+            if get_verbose():
+                print("Padding to a square matrix")
             self.nrows = max(self.nrows_orig, self.ncols_orig)
             self.ncols = max(self.nrows_orig, self.ncols_orig)
 
@@ -338,7 +343,8 @@ class BwcMatrix(object):
         if not os.path.exists(bfile):
             return FileNotFoundError(bfile)
         self.balancing = BwcBalancing(self.params, bfile)
-        print("Reading balancing from " + bfile)
+        if get_verbose():
+            print("Reading balancing from " + bfile)
         self.balancing.read()
         self.S = BwcShuffling(self.params, self)
         self.submatrices = [[None for j in range(nv)] for i in range(nh)]
@@ -359,10 +365,9 @@ class BwcMatrix(object):
         # because it is convenient for the matmul layers to read them so.
         # Sometimes. In truth, we should perhaps get rid of this
         # complication, I don't really know.
-        t = lambda x:x
+        t = lambda x: x
         if self.params.is_nullspace_left():
-            t = lambda x:x.transpose()
-
+            t = lambda x: x.transpose()
 
         self.Mx = block_matrix(nh, nv,
                                [t(self.__subM(i, j))
@@ -386,7 +391,7 @@ class BwcMatrix(object):
 
         bal = self.balancing
 
-        A = (self.P*self.sigma).transpose() * self.Mx * self.sigma
+        A = (self.P * self.sigma).transpose() * self.Mx * self.sigma
 
         what = "Reconstructed matrix from submatrices"
         if A[bal.nr:bal.tr] != 0:
@@ -414,7 +419,7 @@ class BwcMatrix(object):
             what = "inconsistent with number of rows/columns of the matrix"
             raise ValueError(f"{self.balancing.filename} is {what} {NOK}")
 
-        A = (self.P*self.sigma).transpose() * self.Mx * self.sigma
+        A = (self.P * self.sigma).transpose() * self.Mx * self.sigma
 
         B = self.M * self.Q
         sub = lambda T: T.submatrix(0, 0, self.nrows, self.ncols)  # noqa: E731

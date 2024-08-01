@@ -68,7 +68,7 @@ FILTERED="$wdir/$name.dup1/0/$name.dup1.0000"
 nrels=$(wc -l < "$FILTERED")
 "$build_tree/filter/dup2" -poly $POLY -nrels $nrels -renumber $RENUMBER $DL "$FILTERED"
 
-"$build_tree/misc/explain_indexed_relation" -renumber "$RENUMBER" -poly "$POLY" $DL -python < "$FILTERED" > "$wdir/check.py"
+"$build_tree/misc/explain_indexed_relation" -renumber "$RENUMBER" -poly "$POLY" $DL -python -relations "$FILTERED" > "$wdir/check.py"
 
 export PYTHONUNBUFFERED=true
 "$SAGE" "$wdir/check.py"

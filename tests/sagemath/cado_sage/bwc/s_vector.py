@@ -1,7 +1,7 @@
-from .BwcParameters import BwcParameters
-from .BwcVectorBase import BwcVectorBase
-from .tools import OK, NOK
-from .tools import mcoeff
+from .parameters import BwcParameters
+from .vector_base import BwcVectorBase
+from cado_sage.tools import OK, NOK
+from .matrix_tools import mcoeff
 
 
 class BwcSVector(BwcVectorBase):

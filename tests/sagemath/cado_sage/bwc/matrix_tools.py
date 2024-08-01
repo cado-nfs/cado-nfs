@@ -1,40 +1,7 @@
-
 from sage.rings.finite_rings.finite_field_constructor import GF
 from sage.matrix.constructor import matrix
 from sage.rings.integer import Integer
-
-OK = "ok ✅"
-NOK = "❌"
-EXCL = "❗"
-NOTHING_TO_DO = "💤"
-HURRAH = "🥳"
-
-
-def get_int(f, bytes=4, signed=False, repeat=None, may_fail=False):
-    assert not (may_fail and repeat is not None)
-    if repeat is not None:
-        return [get_int(f, bytes=bytes, signed=signed) for i in range(repeat)]
-    data = f.read(bytes)
-    if not data and may_fail:
-        return None
-    assert data
-    return int.from_bytes(data, 'little', signed=signed)
-
-
-def u32(f, *args, **kwargs):
-    return get_int(f, bytes=4, *args, **kwargs)
-
-
-def u64(f, *args, **kwargs):
-    return get_int(f, bytes=8, *args, **kwargs)
-
-
-def s32(f, *args, **kwargs):
-    return get_int(f, bytes=4, signed=True, *args, **kwargs)
-
-
-def s64(f, *args, **kwargs):
-    return get_int(f, bytes=8, signed=True, *args, **kwargs)
+from cado_sage.tools import NOK
 
 
 def read_one_matrix(params, f, ni, nj):
