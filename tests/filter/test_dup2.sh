@@ -115,3 +115,8 @@ EOF
       exit 1
     fi
 fi
+
+if [ "$SAGE" ] ; then
+    "${BUILD_DIR}/misc/explain_indexed_relation" -renumber  "$RENUMBER" -poly "$POLY" -dl -relations <(zcat "$WORK_RELS" )  > "$WORKDIR/check.sage"
+    "$SAGE" "$WORKDIR/check.sage"
+fi

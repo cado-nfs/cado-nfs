@@ -4,7 +4,12 @@ cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/testsm.sh
     "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
     TARGET_DEPENDENCIES sm)
 
-cado_define_test(test_dup2
+set(sage_opt)
+if(SAGE)
+    set(sage_opt _with_sagemath)
+endif()
+
+cado_define_test(test_dup2${sage_opt}
    NO_DEFAULT_RUN
    SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_dup2.sh
    -b ${CADO_NFS_BINARY_DIR} 
@@ -14,7 +19,7 @@ cado_define_test(test_dup2
    TARGET_DEPENDENCIES freerel debug_renumber dup2)
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})
-cado_divert_test(test_dup2 c105_30003
+cado_divert_test(test_dup2${sage_opt} c105_30003
     APPEND_ARGUMENTS
     -poly ${CADO_NFS_SOURCE_DIR}/tests/misc/test_renumber.data/c105_30003.poly
     -rels ${CMAKE_CURRENT_SOURCE_DIR}/c105_30003.rels.gz
@@ -23,13 +28,12 @@ cado_divert_test(test_dup2 c105_30003
     )
 endif()
 
-cado_divert_test(test_dup2 c105_30004
+cado_divert_test(test_dup2${sage_opt} c105_30004
     APPEND_ARGUMENTS
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/p40_30004.poly
     -rels ${CMAKE_CURRENT_SOURCE_DIR}/p40_30004.rels.gz
     -lpbs 14,14
     -dl
-    -S c8c5a0aa4750790e8e5e150bf13de7b1e77ade01
-    -R b40784b0e
+    -S daa017e17f50607820e7896dcc3a05370364b3b4
+    -R 2959973f1
     )
-# b40784b0e is old working commit 122e3868, plus this test
