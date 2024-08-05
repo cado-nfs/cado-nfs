@@ -1,5 +1,15 @@
 add_custom_target(all_test_dependencies)
 
+# used by some tests.
+find_program(MAGMA magma HINTS ENV MAGMA)
+if(MAGMA)
+    message(STATUS "magma program found, some bwc checks will run Magma code")
+endif()
+find_program(SAGE sage HINTS ENV SAGE)
+if(SAGE)
+    message(STATUS "sage program found, some bwc checks will run SageMath code")
+endif()
+
 # cmake understands tests and targets as being two different things. It
 # is perfectly common to have both a target and a test having the same
 # name X. Yet testing X will not trigger building X, and that is
@@ -353,8 +363,10 @@ macro(cado_define_test)
 
     if(NOT NO_DEFAULT_RUN)
         set(test_env env)
-        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR)
-            set(test_env ${test_env} ${v}=${${v}})
+        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR MAGMA SAGE)
+            if(${v})
+                set(test_env ${test_env} ${v}=${${v}})
+            endif()
         endforeach()
         if (nENVIRONMENT GREATER 0)
             set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
@@ -566,8 +578,10 @@ macro(cado_divert_test TEST_BASE DIVERSION)
 
     if(NOT NO_DEFAULT_RUN)
         set(test_env env)
-        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR)
-            set(test_env ${test_env} ${v}=${${v}})
+        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR MAGMA SAGE)
+            if(${v})
+                set(test_env ${test_env} ${v}=${${v}})
+            endif()
         endforeach()
         if (nENVIRONMENT GREATER 0)
             set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
@@ -803,7 +817,6 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --env t
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
-                ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
             TARGET_DEPENDENCIES full_p30_dependencies
             lingen_pz sm reconstructlog-dl merge-dl replay-dl numbertheory_tool
         AVOID_CONCURRENT
@@ -846,16 +859,6 @@ cado_divert_test(test_tests_common 6 -iter 10)
 set_tests_properties(test_tests_common_6 PROPERTIES PASS_REGULAR_EXPRESSION "Using 10 iterations")
 
 cado_define_test(test_iceildiv.c)
-
-# used by some tests.
-find_program(MAGMA magma HINTS ENV MAGMA)
-if(MAGMA)
-    message(STATUS "magma program found, some bwc checks will run Magma code")
-endif()
-find_program(SAGE sage HINTS ENV SAGE)
-if(SAGE)
-    message(STATUS "sage program found, some bwc checks will run SageMath code")
-endif()
 
 add_subdirectory (scripts)
 add_subdirectory (utils)

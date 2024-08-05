@@ -854,7 +854,6 @@ set_target_properties(test_bl_extraction PROPERTIES
 cado_define_test(TEST_NAME test-blocklanczos
     PROGRAM ${CMAKE_CURRENT_SOURCE_DIR}/test-blocklanczos.sh
         --density 10
-        --bindir ${CADO_NFS_BINARY_DIR}/linalg/bwc
     NO_DEFAULT_RUN
     TARGET_DEPENDENCIES mf_scan mf_bal random_matrix blocklanczos
     bwc_full_gf2 short_matmul)

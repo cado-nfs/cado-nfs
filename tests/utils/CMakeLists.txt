@@ -73,8 +73,7 @@ cado_divert_test(test_fstream_maybe_compressed none ARGUMENTS test)
 
 cado_define_test(
     SCRIPT
-        ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/test-badideals.sh --binary
-        ${CADO_NFS_BINARY_DIR}/utils/numbertheory_tool
+        ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/test-badideals.sh
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.small-example
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.rsa220
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.p1024

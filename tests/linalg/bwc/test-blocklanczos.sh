@@ -5,7 +5,6 @@ nrows=100
 ncols=100
 density=10
 seed=1
-bindir=
 nullspace=left
 bwc_extra=()
 mpithr_args=()
@@ -23,7 +22,11 @@ usage() {
 }
 
 while [ $# -gt 0 ] ; do
-    if [ "$1" = "--matrix-size" ] ; then
+    if [ "$1" = "-b" ] ; then
+        shift
+        CADO_NFS_BINARY_DIR="$1"
+        shift
+    elif [ "$1" = "--matrix-size" ] ; then
         shift
         nrows=`echo $1 | cut -d, -f1`
         ncols=`echo $1 | cut -d, -f2`   # = nrows if no comma
@@ -35,10 +38,6 @@ while [ $# -gt 0 ] ; do
     elif [ "$1" = "--seed" ] ; then
         shift
         seed=$1
-        shift
-    elif [ "$1" = "--bindir" ] ; then
-        shift
-        bindir=$1
         shift
     elif [ "$1" = "--nullspace" ] ; then
         shift
@@ -61,6 +60,8 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
+: "${CADO_NFS_BINARY_DIR?missing}"
+
 redirect_unless_debug() {
     file="$1"
     shift
@@ -82,8 +83,8 @@ if [ "$kleft" -ge "$((nrows/4))" ] ; then
     kleft=$((nrows/4))
 fi
 
-$bindir/random_matrix $nrows $ncols $density seed=1 kleft=$kleft > $wdir/mat.txt
-$bindir/mf_scan mfile=$wdir/mat.txt --freq --binary-out --ofile $wdir/mat.bin
+$CADO_NFS_BINARY_DIR/linalg/bwc/random_matrix $nrows $ncols $density seed=1 kleft=$kleft > $wdir/mat.txt
+$CADO_NFS_BINARY_DIR/linalg/bwc/mf_scan mfile=$wdir/mat.txt --freq --binary-out --ofile $wdir/mat.bin
 
 file_is_zero() {
     tt=$(mktemp "$wdir/XXXXXXXXXXXXXX")
@@ -96,12 +97,12 @@ file_is_zero() {
 
 # We pass --rectangular because that is the way we say that we do not
 # care about replicating permutations.
-$bindir/mf_bal $nh $nv $wdir/mat.bin skip_decorrelating_permutation=1 out=$wdir/bal.bin --rectangular
+$CADO_NFS_BINARY_DIR/linalg/bwc/mf_bal $nh $nv $wdir/mat.bin skip_decorrelating_permutation=1 out=$wdir/bal.bin --rectangular
 
-$bindir/bwc.pl :mpirun "${mpithr_args[@]}" -- $bindir/blocklanczos m=64 n=64 ys=0..64 matrix=mat.bin wdir=$wdir balancing=bal.bin seed=1 interval=$((nrows/10+1)) no_save_cache=1 "${bwc_extra[@]}" skip_bw_early_rank_check=1
+$CADO_NFS_BINARY_DIR/linalg/bwc/bwc.pl :mpirun "${mpithr_args[@]}" -- $CADO_NFS_BINARY_DIR/linalg/bwc/blocklanczos m=64 n=64 ys=0..64 matrix=mat.bin wdir=$wdir balancing=bal.bin seed=1 interval=$((nrows/10+1)) no_save_cache=1 "${bwc_extra[@]}" skip_bw_early_rank_check=1
 
 if [ $nullspace = left ] ; then
-    $bindir/../../tests/linalg/bwc/short_matmul -t $wdir/mat.bin $wdir/blsolution0-64.0 $wdir/blsolution0-64.0.image
+    $CADO_NFS_BINARY_DIR/tests/linalg/bwc/short_matmul -t $wdir/mat.bin $wdir/blsolution0-64.0 $wdir/blsolution0-64.0.image
     if ! file_is_zero $wdir/blsolution0-64.0.image ; then
         echo "Apparently we have v*M != 0 ; BAD !" >&2
         exit 1
@@ -116,7 +117,7 @@ if [ $nullspace = left ] ; then
         fi
     fi
 else
-    $bindir/../../tests/linalg/bwc/short_matmul $wdir/mat.bin $wdir/blsolution0-64.0 $wdir/blsolution0-64.0.image
+    $CADO_NFS_BINARY_DIR/tests/linalg/bwc/short_matmul $wdir/mat.bin $wdir/blsolution0-64.0 $wdir/blsolution0-64.0.image
     if ! file_is_zero $wdir/blsolution0-64.0.image ; then
         echo "Apparently we have M*v != 0 ; BAD !" >&2
         exit 1

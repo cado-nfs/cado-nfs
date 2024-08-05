@@ -4,8 +4,8 @@
 # that one would obtain with a given set of parameters.
 # It takes as input a polynomial file, and sieving / filtering parameters
 # given as env variables.
-# The CADO_SOURCE variable must point to the cado-nfs source directory
-# The CADO_BUILD variable must point to the directory where cado-nfs was
+# The CADO_NFS_SOURCE_DIR variable must point to the cado-nfs source directory
+# The CADO_NFS_BINARY_DIR variable must point to the directory where cado-nfs was
 # compiled.
 #
 # Typical usage will be something like:
@@ -53,8 +53,9 @@ set -e
 : ${sampling_method=todo}       # choose either todo or random-sampling
 : ${seed=0}
 
-if ! [ -d ${CADO_BUILD?missing} ] ; then echo "$CADO_BUILD missing" >&2 ; exit 1 ; fi
-if ! [ -d ${CADO_SOURCE?missing} ] ; then echo "$CADO_SOURCE missing" >&2 ; exit 1 ; fi
+# These are normally set by cmake during tests
+if ! [ -d ${CADO_NFS_BINARY_DIR?missing} ] ; then echo "$CADO_NFS_BINARY_DIR missing" >&2 ; exit 1 ; fi
+if ! [ -d ${CADO_NFS_SOURCE_DIR?missing} ] ; then echo "$CADO_NFS_SOURCE_DIR missing" >&2 ; exit 1 ; fi
 
 
 ## The following can also be overriden with env variables
@@ -104,8 +105,8 @@ if [ $# != 1 ] ; then
     exit 1
 fi
 
-if ! [ "$CADO_BUILD" ] ; then
-    echo "Error: \$CADO_BUILD must be set" >&2
+if ! [ "$CADO_NFS_BINARY_DIR" ] ; then
+    echo "Error: \$CADO_NFS_BINARY_DIR must be set" >&2
     exit 1
 fi
 
@@ -197,7 +198,7 @@ has_file_already() {
 
 ## if wdir does not contain a rootfile, build it
 rootfile0="$wdir/roots0"
-cmd=("$CADO_BUILD/sieve/makefb"
+cmd=("$CADO_NFS_BINARY_DIR/sieve/makefb"
         -poly "$polyfile"
         -lim "$lim0"
         -maxbits "$maxbits"
@@ -211,7 +212,7 @@ elif [ "$reused_compressed" ] ; then
 fi
 
 rootfile1="$wdir/roots1"
-cmd=("$CADO_BUILD/sieve/makefb"
+cmd=("$CADO_NFS_BINARY_DIR/sieve/makefb"
         -poly "$polyfile"
         -lim "$lim1"
         -maxbits "$maxbits"
@@ -226,7 +227,7 @@ fi
 
 ## if wdir does not contain a renumber table, build it
 renumberfile=$wdir/renumber
-cmd=("$CADO_BUILD/sieve/freerel" -poly "$polyfile" -renumber
+cmd=("$CADO_NFS_BINARY_DIR/sieve/freerel" -poly "$polyfile" -renumber
     "$renumberfile" -pmax 1 -lpb0 "$lpb0" -lpb1 "$lpb1" -t
     "$threads")
 if ! has_file_already $renumberfile "${cmd[@]}" ; then
@@ -300,7 +301,7 @@ for i in `seq 0 $((nsides-1))`; do
             echo "Sampling in qrange=[$q0,$q1] ; sampling method: $sampling_method"
             samplebase=$wdir/sample.side${side}.${q0}-${q1}
 
-            cmd0=($CADO_BUILD/sieve/las -A $A -poly $polyfile -q0 $q0 -q1 $q1 
+            cmd0=($CADO_NFS_BINARY_DIR/sieve/las -A $A -poly $polyfile -q0 $q0 -q1 $q1 
               -lim0 $lim0 -lim1 $lim1 -lpb0 $lpb0 -lpb1 $lpb1 -sqside $side 
               -mfb0 $mfb0 -mfb1 $mfb1 $compsq_las 
               -fb0 $rootfile0 -fb1 $rootfile1
@@ -320,7 +321,7 @@ for i in `seq 0 $((nsides-1))`; do
                         echo "${generate[@]}"
                         "${generate[@]}" | grep '^[0-9]' > "$completelist"
                     fi
-                    random_gen=($CADO_SOURCE/tests/linalg/bwc/perlrandom.pl 0 $seed)
+                    random_gen=($CADO_NFS_SOURCE_DIR/tests/linalg/bwc/perlrandom.pl 0 $seed)
                     if type -p shuf > /dev/null 2>&1 ; then
                         fshuf() { shuf --random-source=<("${random_gen[@]}") "$@" ; }
                     else
@@ -366,7 +367,7 @@ for i in `seq 0 $((nsides-1))`; do
             q1=$((qmin + i*qrange))
             samplebase=$wdir/sample.side${side}.${q0}-${q1}
             echo "  Building fake relations in qrange=[$q0,$q1]"
-            cmd=($CADO_BUILD/sieve/fake_rels -poly $polyfile -lpb0 $lpb0 -lpb1 $lpb1
+            cmd=($CADO_NFS_BINARY_DIR/sieve/fake_rels -poly $polyfile -lpb0 $lpb0 -lpb1 $lpb1
               -q0 $q0 -q1 $q1 -sqside $side $compsq_fake
               -sample $samplebase
               -shrink-factor $shrink_factor
@@ -401,7 +402,7 @@ cmi=$((nprimes/2))
 if [ $cmi -gt 2000 ] ; then
     cmi=2000
 fi
-cmd=($CADO_BUILD/filter/purge -out $wdir/purged.gz -nrels $nrels -keep 3
+cmd=($CADO_NFS_BINARY_DIR/filter/purge -out $wdir/purged.gz -nrels $nrels -keep 3
     -col-min-index $cmi -col-max-index $nprimes -t $threads
     ${fakefiles[@]})
 file=$wdir/purged.gz
@@ -418,14 +419,14 @@ fi
 
 # merge
 if [ "$dlp" == "true" ] ; then
-    cmd=($CADO_BUILD/filter/merge-dl -mat $wdir/purged.gz -out $wdir/history.gz 
+    cmd=($CADO_NFS_BINARY_DIR/filter/merge-dl -mat $wdir/purged.gz -out $wdir/history.gz 
         -skip 0 -target_density $target_density -t $threads)
     file=$wdir/history.gz
     if ! has_file_already $file "${cmd[@]}" ; then
         "${cmd[@]}" 2>&1 | tee $wdir/merge-dl.log
     fi
 else
-    cmd=($CADO_BUILD/filter/merge -mat $wdir/purged.gz -out $wdir/history.gz
+    cmd=($CADO_NFS_BINARY_DIR/filter/merge -mat $wdir/purged.gz -out $wdir/history.gz
         -skip 32 -target_density $target_density -t $threads)
     file=$wdir/history.gz
     if ! has_file_already $file "${cmd[@]}" ; then
