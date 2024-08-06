@@ -379,11 +379,18 @@ siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys)/*{{{*/
 
     parse_hints_file(filename);
 
-    if (base.logA < LOG_BUCKET_REGION) {
-        fprintf(stderr, "Error: I=%d (or A=%d) is incompatible with LOG_BUCKET_REGION=%d. Try -B %d\n",
-                (base.logA + 1) / 2, base.logA, LOG_BUCKET_REGION,
-                base.logA);
-        exit(EXIT_FAILURE);
+    /* Do checks for #30092 */
+
+    if (default_config_ptr) {
+        /* no need to do this check if we don't have a default siever
+         * config!
+         */
+        if (base.logA < LOG_BUCKET_REGION) {
+            fprintf(stderr, "Error: I=%d (or A=%d) is incompatible with LOG_BUCKET_REGION=%d. Try -B %d\n",
+                    (base.logA + 1) / 2, base.logA, LOG_BUCKET_REGION,
+                    base.logA);
+            exit(EXIT_FAILURE);
+        }
     }
 
     for(auto const & kh : hints) {
