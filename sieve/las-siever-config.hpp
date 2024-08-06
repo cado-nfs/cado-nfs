@@ -220,6 +220,10 @@ struct siever_config_pool {
 
     siever_config_pool(cxx_param_list& pl, int nb_polys);
 
+    private:
+    void parse_hints_file(const char * filename);
+    public:
+
     double hint_expected_time(key_type const &K) const {
         if (hints.find(K) == hints.end())
             return -1;
