@@ -245,29 +245,8 @@ siever_config_pool::declare_usage(cxx_param_list & pl)/*{{{*/
 }
 /*}}}*/
 
-siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys)/*{{{*/
+void siever_config_pool::parse_hints_file(const char * filename)/*{{{*/
 {
-    default_config_ptr = NULL;
-    if (siever_config::parse_default(base, pl, nb_polys))
-        default_config_ptr = &base;
-
-    /* support both, since we've got to realize it's not that much
-     * attached to sieving. */
-    const char * filename = param_list_lookup_string(pl, "hint-table");
-    if (dlp_descent) {
-        const char * filename2 = param_list_lookup_string(pl, "descent-hint-table");
-        if (!filename) {
-            filename = filename2;
-        }
-        if (!filename) {
-            if (!default_config_ptr) {
-                fprintf(stderr,
-                        "Error: no default config set, and no hint table either\n");
-                exit(EXIT_FAILURE);
-            }
-            return;
-        }
-    }
     if (!filename) return;
 
     char line[1024];
@@ -372,5 +351,49 @@ siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys)/*{{{*/
         hints[K] = h;
     }
     fclose(f);
+}
+/*}}}*/
+siever_config_pool::siever_config_pool(cxx_param_list & pl, int nb_polys)/*{{{*/
+{
+    default_config_ptr = NULL;
+    if (siever_config::parse_default(base, pl, nb_polys))
+        default_config_ptr = &base;
+
+    /* support both, since we've got to realize it's not that much
+     * attached to sieving. */
+    const char * filename = param_list_lookup_string(pl, "hint-table");
+    if (dlp_descent) {
+        const char * filename2 = param_list_lookup_string(pl, "descent-hint-table");
+        if (!filename) {
+            filename = filename2;
+        }
+        if (!filename) {
+            if (!default_config_ptr) {
+                fprintf(stderr,
+                        "Error: no default config set, and no hint table either\n");
+                exit(EXIT_FAILURE);
+            }
+            return;
+        }
+    }
+
+    parse_hints_file(filename);
+
+    if (base.logA < LOG_BUCKET_REGION) {
+        fprintf(stderr, "Error: I=%d (or A=%d) is incompatible with LOG_BUCKET_REGION=%d. Try -B %d\n",
+                (base.logA + 1) / 2, base.logA, LOG_BUCKET_REGION,
+                base.logA);
+        exit(EXIT_FAILURE);
+    }
+
+    for(auto const & kh : hints) {
+        siever_config const & sc(kh.second);
+        if (sc.logA < LOG_BUCKET_REGION) {
+            fprintf(stderr, "Error: I=%d (or A=%d) is incompatible with LOG_BUCKET_REGION=%d. Try -B %d\n",
+                    (sc.logA + 1) / 2, sc.logA, LOG_BUCKET_REGION,
+                    sc.logA);
+            exit(EXIT_FAILURE);
+        }
+    }
 }/*}}}*/
 
