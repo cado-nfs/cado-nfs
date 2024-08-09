@@ -1016,6 +1016,10 @@ class DescentMiddleClass(object):
             help="Default value for I (must match hint file)",
             required=True,
             type=int)
+        parser.add_argument("--B",
+            help="set bucket region size in las calls",
+            required=False,
+            type=int)
         for side in range(2):
             parser.add_argument("--mfb%d" % side,
                     help="Default cofactor bound on side %d" % side,
@@ -1085,6 +1089,8 @@ class DescentMiddleClass(object):
                 "--mfb1", self.args.mfb1,
                 "-t", "machine,1,pu" if has_hwloc else "4"
              ]
+        if self.args.B is not None:
+            s += ["--B", self.args.B]
         s += [ "--todo", todofile ]
         call_that=[str(x) for x in s]
         relsfilename = os.path.join(self.general.datadir(), prefix + "rels")
