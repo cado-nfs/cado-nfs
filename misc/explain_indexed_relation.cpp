@@ -250,6 +250,13 @@ main (int argc, char *argv[])
             if (!output_raw) {
                 auto s = tab.debug_data_sagemath(c);
 
+                if (tab.is_additional_column(c) && tab.has_merged_additional_column()) {
+                    /* The J0J1 ideal does not exist, really. We'll just
+                     * report it as a comment in the text
+                     */
+                    fmt::print("# I{:x}={}; # virtually the product of J0^-1 and J1^_1\n", c, s);
+                    continue;
+                }
                 if (output_python) {
                     fmt::print("I{:x}={};", c, rewrite_carets(s));
                 } else {
@@ -318,6 +325,14 @@ main (int argc, char *argv[])
                     printed.insert(c);
                     auto s = tab.debug_data_sagemath(c);
 
+                    if (tab.is_additional_column(c) && tab.has_merged_additional_column()) {
+                        /* The J0J1 ideal does not exist, really. We'll just
+                         * report it as a comment in the text
+                         */
+                        fmt::print("# I{:x}={}; # virtually the product of J0^-1 and J1^_1\n", c, s);
+                        continue;
+                    }
+
                     if (output_python) {
                         fmt::print("I{:x}={};", c, rewrite_carets(s));
                     } else {
@@ -328,7 +343,12 @@ main (int argc, char *argv[])
                     fmt::print("\n");
                 }
                 if (tab.is_additional_column(c)) {
-                    ideals_per_side[it.side].push_back("1");
+                    if (tab.has_merged_additional_column()) {
+                        ideals_per_side[0].push_back("1");
+                        ideals_per_side[1].push_back("1");
+                    } else {
+                        ideals_per_side[it.side].push_back("1");
+                    }
                 } else {
                     ideals_per_side[it.side].push_back(fmt::format("I{:x}", c));
                 }

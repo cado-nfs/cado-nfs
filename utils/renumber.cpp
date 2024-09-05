@@ -443,9 +443,9 @@ index_t renumber_t::index_from_p_r (p_r_side x) const
     if (x.p == 0) {
         // additional columns. By convention they're attached to p==0.
         // Note that also by convention/tradition we use only a single
-        // additional column where we have two non-monic sides, in which
+        // additional column when we have two non-monic sides, in which
         // case it's only counted on side 0.
-        if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+        if (has_merged_additional_column()) {
             if (x.side == 0)
                 return 0;
             throw cannot_find_pr(x);
@@ -594,7 +594,7 @@ renumber_t::p_r_side renumber_t::p_r_from_index (index_t i) const
     if (i < above_add) {
         /* In the special case where we have two non-monic polynomials,
          * we have a single additional column, hence above_add=1 and i=0.
-         * We return {0,0,(aribitrarily the first of the two sides)} in
+         * We return {0,0,(arbitrarily the first of the two sides)} in
          * that case.
          */
         for(auto side : get_sides_of_additional_columns()) {
@@ -758,7 +758,7 @@ void renumber_t::write_header(std::ostream& os) const
     }
 
     os << "# " << above_add << " additional columns";
-    if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2)
+    if (has_merged_additional_column())
         os << " (combined for both sides)";
     os << "\n";
     os.flags(ff);
@@ -801,7 +801,12 @@ std::vector<int> renumber_t::get_sides_of_additional_columns() const
     std::vector<int> res;
     for(int side = 0 ; side < get_nb_polys() ; side++) {
         mpz_poly_srcptr f = cpoly->pols[side];
-        if (f->deg > 1 && !mpz_poly_is_monic(f))
+        /*
+         * We used to not count an additional ideal J for degree 1
+         * polynomials.  IMHO this is wrong.  We do have a J ideal,
+         * and it must be counted so. It's cosmetic, but still.
+         */
+        if (/* f->deg > 1 && */ !mpz_poly_is_monic(f))
             res.push_back(side);
     }
     return res;
@@ -811,7 +816,7 @@ void renumber_t::use_additional_columns_for_dl()
 {
     ASSERT_ALWAYS(above_all == 0);
     above_add = get_sides_of_additional_columns().size();
-    if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+    if (has_merged_additional_column()) {
         /* This is a minor optimization. When we have two non-monic
          * sides, a single additional column is sufficient.
          */
@@ -971,7 +976,7 @@ std::string renumber_t::debug_data(index_t i) const
     os << "i=0x" << std::hex << i;
 
     if (is_additional_column (i)) {
-        if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+        if (has_merged_additional_column()) {
             os << " tab[i]=#"
                 << " added column for both sides combined";
         } else {
@@ -1020,7 +1025,7 @@ std::string renumber_t::debug_data_sagemath(index_t i) const
 {
     p_r_side x = p_r_from_index (i);
     if (is_additional_column (i)) {
-        if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+        if (has_merged_additional_column()) {
             return "J0J1";
         } else {
             return fmt::format("J{0}", x.side);
@@ -1092,7 +1097,7 @@ std::string renumber_t::debug_data_machine_description(index_t i) const
 {
     p_r_side x = p_r_from_index (i);
     if (is_additional_column (i)) {
-        if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+        if (has_merged_additional_column()) {
             return "J 0 1";
         } else {
             return fmt::format("J {0}", x.side);
@@ -1162,10 +1167,10 @@ void renumber_t::info(std::ostream & os) const
         os << P << "Polynomial on side " << get_rational_side() << " is rational\n";
     os << P << "#additional columns = " << above_add;
     if (above_add) {
-        os << ", on sides";
+        os << ", on side(s)";
         for(auto s : get_sides_of_additional_columns())
             os << " " << s;
-        if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+        if (has_merged_additional_column()) {
             os << " (one column for both sides combined)";
         }
     }
@@ -1450,7 +1455,8 @@ renumber_t::const_iterator renumber_t::end() const
 renumber_t::p_r_side renumber_t::const_iterator::operator*() const {
     if (i < table.above_add) {
         /* See comment in p_r from index about the special case with 2
-         * non-monic sides */
+         * non-monic sides: we return {0,0,0} in that case, since
+         * above_add == 1 */
         index_t j = 0;
         for(auto side : table.get_sides_of_additional_columns()) {
             if (j++ == i)

@@ -16,6 +16,8 @@ from cado_sage.tools import u32, s32
 from .parameters import BwcParameters
 from .balancing import BwcBalancing, BwcShuffling
 
+from sage.rings.integer_ring import ZZ
+
 
 class BwcMatrix(object):
     """
@@ -71,6 +73,7 @@ class BwcMatrix(object):
 
     def __clear_fields_for_read(self):
         self.M = None
+        self.MZ = None
         self.row_weights = None
         self.row_weights_filename = None
         self.nrows = None
@@ -308,20 +311,22 @@ class BwcMatrix(object):
             self.nrows = max(self.nrows_orig, self.ncols_orig)
             self.ncols = max(self.nrows_orig, self.ncols_orig)
 
-        self.M = matrix(GF(self.params.p), self.nrows, self.ncols, sparse=True)
+        self.MZ = matrix(ZZ, self.nrows, self.ncols, sparse=True)
         if self.params.p == 2:
             for i, j in inline_data:
-                if self.M[i, j] != 0:
+                if self.MZ[i, j] != 0:
                     print(f"Warning: repeated entry in matrix data {EXCL}")
-                self.M[i, j] += 1
+                self.MZ[i, j] += 1
         else:
             for i, j, v in inline_data:
-                if self.M[i, j] != 0:
+                if self.MZ[i, j] != 0:
                     print(f"Warning: repeated entry in matrix data {EXCL}")
-                self.M[i, j] += v
+                self.MZ[i, j] += v
         if self.balancing is not None:
             self.balancing.read()
             self.S = BwcShuffling(self.params, self)
+
+        self.M = self.MZ.change_ring(GF(self.params.p))
 
     def __subM(self, i, j):
         return self.submatrices[i][j].M

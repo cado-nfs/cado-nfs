@@ -7,6 +7,8 @@ class CadoIdealsDebugFile(object):
         self.poly = poly
         self.filename = filename
         self.__clear_fields_for_read()
+        self.has_merged_J = False
+        self.index_of_J = []
 
     def __clear_fields_for_read(self):
         self._ideals = []
@@ -45,10 +47,14 @@ class CadoIdealsDebugFile(object):
             parser, *data = t.split(' ')
 
             if parser == 'J':
-                if len(data) == 1:
-                    I = J[int(data[0])]
+                # the "data" field is actually a bit of a lie, b
+                self.has_merged_J = len(data) > 1
+                if self.has_merged_J:
+                    # We're going to cheat, and not return an ideal
+                    I = tuple([J[int(s)] for s in data])
                 else:
-                    raise ValueError("How can I deal with this consistently?")
+                    I = J[int(data[0])]
+                self.index_of_J.append(len(self._ideals))
             elif parser == 'rat':
                 side, p = data
                 side = int(side)
@@ -75,6 +81,8 @@ class CadoIdealsDebugFile(object):
 
             self._ideals.append(I)
 
+        assert not self.has_merged_J or len(self.index_of_J) == 1
+
     def __iter__(self):
         return iter(self._ideals)
 
@@ -83,3 +91,6 @@ class CadoIdealsDebugFile(object):
 
     def __getitem__(self, i):
         return self._ideals[i]
+
+    def index(self, i):
+        return self._ideals.index(i)

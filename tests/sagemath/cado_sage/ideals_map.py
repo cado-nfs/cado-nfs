@@ -1,5 +1,6 @@
 from sage.rings.integer_ring import ZZ
 from cado_sage.tools import get_verbose, cat_or_zcat
+from collections import defaultdict
 
 
 class CadoIdealsMapFile(object):
@@ -14,6 +15,7 @@ class CadoIdealsMapFile(object):
 
     def __clear_fields_for_read(self):
         self.ideals_map = []
+        self.reverse_ideals_map = []
 
     def __repr__(self):
         return f"CadoIdealsMapFile(\"{self.filename}\")"
@@ -39,12 +41,16 @@ class CadoIdealsMapFile(object):
         contents = cat_or_zcat(self.filename)
 
         ideals_map_length = ZZ(next(contents)[1:])
+        self.reverse_ideals_map = defaultdict(lambda:None)
         for ii, t in enumerate(contents):
             i, j = t.decode('ascii').split(' ')
             assert ii == ZZ(i)
             j = ZZ(j, 16)
             self.ideals_map.append(j)
+            self.reverse_ideals_map[j] = ii
         assert len(self.ideals_map) == ideals_map_length
+
+        self.reverse_ideals_map = dict(self.reverse_ideals_map)
 
     def __iter__(self):
         return iter(self.ideals_map)
@@ -54,3 +60,6 @@ class CadoIdealsMapFile(object):
 
     def __len__(self):
         return len(self.ideals_map)
+
+    def reverse(self):
+        return self.reverse_ideals_map

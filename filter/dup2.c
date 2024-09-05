@@ -193,6 +193,15 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
   if (number_of_additional_columns(renumber_tab)) {
       size_t n = renumber_table_get_nb_polys(renumber_tab);
       if (n == 2) {
+          /* Possible cases when we have two sides:
+           *  - both are monic, there is no J ideal
+           *  - only one is monic, there is only one J ideal
+           *  - neither is monic, we have two J ideals, but since n==2
+           *  it's okay to have only one additional column to count both
+           *  of them together.
+           * Either way, we only have one additional column (if we have
+           * any, of course), and it's number zero
+           */
           p = u64toa16(p, (uint64_t) 0);
           *p++ = ',';
       } else {
