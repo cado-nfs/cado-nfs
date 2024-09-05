@@ -1,4 +1,4 @@
-/* Shirokauer maps 
+/* Schirokauer maps 
 
    This is largely copied from sm_simple.cpp ; however the purpose of
    sm_simple was to be kept simple and stupid, so let's keep it like
