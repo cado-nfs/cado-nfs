@@ -790,6 +790,8 @@ polyselect/auxiliary.c
 polyselect/auxiliary.h
 polyselect/dlpolyselect.c
 polyselect/gfpkdlpolyselect.c
+polyselect/gfpkdlpolyselect_impl.h
+tests/polyselect/gfpkdlpolyselect_test.c
 polyselect/gfpkdlpolyselect.h
 polyselect/murphyE.c
 polyselect/murphyE.h

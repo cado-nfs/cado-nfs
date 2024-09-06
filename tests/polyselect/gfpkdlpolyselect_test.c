@@ -21,10 +21,13 @@
 //#include <time.h> 
 #include "cado_poly.h"
 #include "gfpkdlpolyselect.h"
+#include "gfpkdlpolyselect_impl.h"
+#include "macros.h"
+#include "portability.h"
 
-extern const row_f_poly_t tab_t_Py_f_deg4_type0_h1[26];
+extern const tPyf_t tab_t_Py_f_deg4_type0_h1[26];
 extern const unsigned int table_f4_size;
-extern const table_f_poly_t table_f4;
+extern const tPyf_poly_t table_f4;
 
 // maybe: in a separate file.
 // gfpkdlpolyselect_utils.c --> with all the auxiliary functions
@@ -59,8 +62,8 @@ int main(int argc, char* argv[])
   // first, catch k and p
   // then, compute the two polynomials (f,g)
   int i, k = 0;
-  int label_size_max = 48;
-  char label[48];
+#define LABEL_SIZE_MAX 48
+  char label[LABEL_SIZE_MAX];
   label[0] = '\0';
   mpz_t p;
   mpz_init (p);
@@ -87,9 +90,10 @@ int main(int argc, char* argv[])
         }
         else if (argc >= 3 && strcmp (argv[1], "-label") == 0) {
 	  label[0] = '_';
-	  strncpy(label+1, argv[2], label_size_max-1);
-            argv += 2;
-            argc -= 2;
+	  int rc = strlcpy(label+1, argv[2], LABEL_SIZE_MAX-1);
+          ASSERT_ALWAYS(rc < LABEL_SIZE_MAX-1);
+          argv += 2;
+          argc -= 2;
         }
         else {
             fprintf (stderr, "Invalid option: %s\n", argv[1]);
@@ -111,6 +115,6 @@ int main(int argc, char* argv[])
         usage ();
     }
 
-    gfpkdlpolyselect(p, k, label);
+    gfpkdlpolyselect(k, p, NULL, 0, NULL);
     mpz_clear (p);
 }
