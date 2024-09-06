@@ -86,39 +86,39 @@ class CadoNumberFieldWrapper(object):
         hom = Hom(K, VectorSpace(R, len(closure_map(K(0), prec))), Sets())
         return hom(closure_map)
 
-    def LogDriftMap(self, prec=53):
-        """
-        This is almost like the log embeddings, except that we're
-        actually returning the drift with respect to the norm.
+    # def LogDriftMap(self, prec=53):
+    #     """
+    #     This is almost like the log embeddings, except that we're
+    #     actually returning the drift with respect to the norm.
+    #
+    #     At some point we thought it was useful.
+    #     """
+    #
+    #     L = self.LogMap(prec)
+    #
+    #     def c(x):
+    #         l = list(L(x))
+    #         S = sum(l) / len(l)
+    #         return vector([a - S for a in list(L(x))])
 
-        At some point we thought it was useful.
-        """
+    #     return c
 
-        L = self.LogMap(prec)
-
-        def c(x):
-            l = list(L(x))
-            S = sum(l) / len(l)
-            return vector([a - S for a in list(L(x))])
-
-        return c
-
-    @functools.cache
-    def OrderCastMap(self, O=None):
-        """
-        return a function that, on x, returns a vector of rationals that
-        gives the coordinates of x with respect to the specified order. x
-        is integral if all coordinates are integers.
-        """
-        K = self.K
-        if O is not None:
-            assert O.number_field() == K
-        else:
-            O = K.maximal_order()
-        B = [vector(v) for v in O.basis()]
-        V = QQ**K.degree()
-        W = V.submodule_with_basis(B)
-        return lambda x: W.coordinate_vector(vector(x))
+    # @functools.cache
+    # def OrderCastMap(self, O=None):
+    #     """
+    #     return a function that, on x, returns a vector of rationals that
+    #     gives the coordinates of x with respect to the specified order. x
+    #     is integral if all coordinates are integers.
+    #     """
+    #     K = self.K
+    #     if O is not None:
+    #         assert O.number_field() == K
+    #     else:
+    #         O = K.maximal_order()
+    #     B = [vector(v) for v in O.basis()]
+    #     V = QQ**K.degree()
+    #     W = V.submodule_with_basis(B)
+    #     return lambda x: W.coordinate_vector(vector(x))
 
     def _schirokauer_maps_internal(self, ell, uniformizer_mode=False):
         K = self.K
