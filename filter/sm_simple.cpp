@@ -196,7 +196,7 @@ int main (int argc, char **argv)
   sm_side_info * sm_info = new sm_side_info[cpoly->nb_polys];
 
   for(int side = 0 ; side < cpoly->nb_polys; side++) {
-    sm_side_info_init(sm_info[side], F[side], ell);
+    sm_side_info_init(sm_info[side], F[side], ell, 0);
     sm_side_info_set_mode(sm_info[side], sm_mode_string);
   }
 
