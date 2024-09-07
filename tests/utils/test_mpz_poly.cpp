@@ -6,9 +6,12 @@
 #include <stdint.h>
 #include <gmp.h>
 #include "mpz_poly.h"
+#include "cxx_mpz.hpp"
 #include "mpz_polymodF.h"
 #include "mpz_poly_parallel.hpp"
 #include "tests_common.h"
+#include "fmt/core.h"
+#include "fmt/format.h"
 #include "portability.h" //  IWYU pragma: keep
 
 /* Put random coefficients of k bits in a polynomial (already initialized).
@@ -841,6 +844,54 @@ void test_mpz_poly_factor(unsigned long iter)
     mpz_poly_clear(f);
 }
 
+void test_mpz_poly_factor_padic(unsigned long iter)
+{
+    cxx_mpz_poly f;
+    cxx_mpz p = 1;
+    cxx_gmp_randstate rstate;
+
+    for(unsigned long i = 0 ; i < iter ; ) {
+        /* pick a prime between 4 and 128 bits */
+        unsigned long pbits = gmp_urandomm_ui(rstate, 124) + 4;
+        for( ; !mpz_probab_prime_p(p, 2) ; mpz_urandomb(p, rstate, pbits));
+
+        cxx_mpz disc = 0;
+        for( ; mpz_cmp_ui(disc, 0) == 0 ; ) {
+            /* pick a degree between 2 and 10 */
+            unsigned long deg = gmp_urandomm_ui(rstate, 8) + 2;
+
+            for(unsigned long i = 0 ; i < deg ; i++)
+                mpz_poly_setcoeff_ui(f, i, gmp_urandomm_ui(rstate, 100));
+            mpz_poly_setcoeff_ui(f, deg, 1);
+            mpz_poly_mod_mpz(f, f, p, NULL);
+
+            mpz_poly_discriminant(disc, f);
+            mpz_mod(disc, disc, p);
+        }
+
+        int prec = MAX(2, 256 / pbits);
+        auto lf = mpz_poly_factor_and_lift_padically(f, p, prec, state);
+
+        cxx_mpz px;
+        mpz_pow_ui(px, p, prec);
+        auto F = prod(lf, px);
+
+        mpz_poly_sub_mod_mpz(F, F, f, px);
+        ASSERT_ALWAYS(F.degree() == -1);
+
+        /* only for sagemath testing. the test above is good enough I
+         * think.
+        fmt::print("R.<x>=pAdicRing({},{})[];\nA={}\nB=[\n",
+                p, prec, f.print_poly("x"));
+        for(auto const & fm : lf) {
+            fmt::print("\t({})^{},\n", fm.first.print_poly("x"), fm.second);
+        }
+        fmt::print("\t]\nA == prod(B)\n");
+        */
+        i++;
+    }
+}
+
 void test_mpz_poly_trivialities()
 {
     mpz_t a[5], p;
@@ -1147,7 +1198,8 @@ main (int argc, const char *argv[])
   test_mpz_poly_pow_mod_f_mod_ui ();
   test_mpz_poly_base_modp_init (iter);
   test_mpz_poly_is_root(iter);
-  test_mpz_poly_factor(iter / 5);
+  test_mpz_poly_factor(2 + iter / 5);
+  test_mpz_poly_factor_padic(2 + iter / 20);
   test_mpz_poly_trivialities ();
   test_mpz_poly_resultant();
   test_mpz_poly_discriminant(20000);

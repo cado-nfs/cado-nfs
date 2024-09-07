@@ -6,13 +6,19 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>
+
 #ifdef __cplusplus
 #include <sstream>
 #include <string>
+#include <vector>
+#include <utility>
+#include <istream>      // std::istream // IWYU pragma: keep
+#include <ostream>      // std::ostream // IWYU pragma: keep
 #include <type_traits>
 #include "fmt/core.h"
 #include "cxx_mpz.hpp"
 #endif
+
 #include "macros.h"
 
 #define xxxMPZ_POLY_TIMINGS
@@ -24,9 +30,6 @@ typedef const struct double_poly_s * double_poly_srcptr;
 #endif
 
 #ifdef __cplusplus
-#include <string>
-#include <istream>      // std::istream // IWYU pragma: keep
-#include <ostream>      // std::ostream // IWYU pragma: keep
 extern "C" {
 #endif
 
@@ -241,23 +244,12 @@ int mpz_poly_factor_edf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f, int k, m
 
 /* output is sorted by degree and lexicographically */
 int mpz_poly_factor(mpz_poly_factor_list lf, mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_t rstate);
-int mpz_poly_is_irreducible(mpz_poly_srcptr f, mpz_srcptr p);
 
-/* lift from a factor list mod ell to a factor list mod ell2.
- * ell does not need to be prime, provided all factors considered are
- * unitary.
- *
- * ell and ell2 must be powers of the same prime, with ell2 <= ell^2
- * (NOTE that this is not checked)
- */
-int mpz_poly_factor_list_lift(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, mpz_srcptr ell, mpz_srcptr ell2);
+int mpz_poly_is_irreducible(mpz_poly_srcptr f, mpz_srcptr p);
 
 /* This computes the ell-adic lifts of the factors of f, assuming
  * we have no multiplicities, using Newton lifting.
  * This requires that f be monic 
- *
- * I'm terribly lazy, so at the moment this is working only for prec==2.
- * Extending to arbitrary p is an easy exercise.
  *
  * The output is sorted based on the order of the factors mod p (that is,
  * factors are the lifts of the factors returned by mpz_poly_factor mod
@@ -359,6 +351,11 @@ namespace fmt {
 };
 }
 
+
+cxx_mpz_poly prod(std::vector<std::pair<cxx_mpz_poly, int>> const &lf, mpz_srcptr modulus = NULL, mpz_srcptr invm = NULL);
+std::vector<std::pair<cxx_mpz_poly, int>> mpz_poly_factor(mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_t rstate);
+std::vector<std::pair<cxx_mpz_poly, int>> 
+mpz_poly_factor_and_lift_padically(mpz_poly_srcptr f, mpz_srcptr ell, int prec, gmp_randstate_t rstate);
 
 #endif
 

@@ -2891,25 +2891,19 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
         mpz_poly_xgcd_mpz(d, g, f, v, u, p);
         return;
     }
-    cxx_mpz_poly u0, v0, r0 = f;
-    cxx_mpz_poly u1, v1, r1 = g;
 
-    mpz_poly_set_xi(u0, 0);
-    mpz_poly_set_zero(v0);
-    mpz_poly_set_zero(u1);
-    mpz_poly_set_xi(v1, 0);
+    cxx_mpz_poly u0, v0, r0;
+    cxx_mpz_poly u1, v1, r1;
 
-    cxx_mpz_poly q, tmp;
+    mpz_poly_set_ui(u0, 1); mpz_poly_set_ui(v0, 0); mpz_poly_set(r0, f);
+    mpz_poly_set_ui(u1, 0); mpz_poly_set_ui(v1, 1); mpz_poly_set(r1, g);
+
     mpz_poly_mod_mpz(r0, r0, p, NULL);
     mpz_poly_mod_mpz(r1, r1, p, NULL);
 
-    mpz_poly_set_xi(u0, 0);
-    mpz_poly_set_zero(u1);
-
-    mpz_poly_set_xi(v1, 0);
-    mpz_poly_set_zero(v0);
-
     while (r1->deg >= 0) {
+        cxx_mpz_poly q, tmp;
+
         /* q, r0 := r0 div r1 mod p
          * yes, replacing the dividend by the remainder works */
         int ok = mpz_poly_div_qr (q, r0, r0, r1, p);
@@ -2942,9 +2936,9 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
         mpz_poly_mod_mpz(v0, v0, p, NULL);
     }
 
-    mpz_poly_set(u, u0);
-    mpz_poly_set(v, v0);
-    mpz_poly_set(d, r0);
+    mpz_poly_swap(u, u0);
+    mpz_poly_swap(v, v0);
+    mpz_poly_swap(d, r0);
 }
 
 /* Homographic transform on polynomials */
@@ -4169,6 +4163,26 @@ int mpz_poly_factor(mpz_poly_factor_list lf, mpz_poly_srcptr f, mpz_srcptr p, gm
     return lf->size;
 }
 
+std::vector<std::pair<cxx_mpz_poly, int>> mpz_poly_factor(mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_t rstate)
+{
+    mpz_poly_factor_list lf;
+    mpz_poly_factor_list_init(lf);
+    mpz_poly_factor(lf, f, p, rstate);
+    std::vector<std::pair<cxx_mpz_poly, int>> res;
+    for(int i = 0 ; i < lf->size ; i++) {
+        res.emplace_back(lf->factors[i]->f, lf->factors[i]->m);
+    }
+    mpz_poly_factor_list_clear(lf);
+    return res;
+}
+
+void mpz_poly_factor_list_set(mpz_poly_factor_list_ptr lf, std::vector<std::pair<cxx_mpz_poly, int>> const & xlf)
+{
+    mpz_poly_factor_list_flush(lf);
+    for(auto const & fm : xlf)
+        mpz_poly_factor_list_push(lf, fm.first, fm.second);
+}
+
 int mpz_poly_number_of_real_roots(mpz_poly_srcptr f)
 {
     /* This is coded in usp.c, with an interface pretty different from
@@ -4179,12 +4193,94 @@ int mpz_poly_number_of_real_roots(mpz_poly_srcptr f)
     return numberOfRealRoots(f->coeff, f->deg, 0.0, 0, NULL);
 }
 
-int mpz_poly_factor_list_lift(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, mpz_srcptr ell, mpz_srcptr ell2)
-{
-    mpz_poly f1; /* f - the product of its factors mod ell */
+/* return the product of P lf[a:b].
+ * Store in dst[a:b] the coproducts, defined by coproduct[i] = P / lf[i].
+ */
 
-    mpz_poly_init(f1, -1);
-    mpz_poly_set(f1, f);
+static cxx_mpz_poly coproduct_tree(std::vector<cxx_mpz_poly>& dst, std::vector<std::pair<cxx_mpz_poly, int>> const &lf, mpz_srcptr modulus, mpz_srcptr invm, size_t a, size_t b, bool terminal = false)
+{
+    ASSERT_ALWAYS(b >= a);
+    if (b - a == 0) {
+        return 1;
+    } else if (b - a == 1) {
+        dst[a] = 1;
+        return lf[a].first;
+    }
+    size_t c = (a + b) / 2;
+    cxx_mpz_poly Pleft = coproduct_tree(dst, lf, modulus, invm, a, c);
+    cxx_mpz_poly Pright = coproduct_tree(dst, lf, modulus, invm, c, b);
+    for(size_t i = a ; i < c ; i++) {
+        mpz_poly_mul(dst[i], dst[i], Pright);
+        if (modulus)
+            mpz_poly_mod_mpz(dst[i], dst[i], modulus, invm);
+    }
+    for(size_t i = c ; i < b ; i++) {
+        mpz_poly_mul(dst[i], dst[i], Pleft);
+        if (modulus)
+            mpz_poly_mod_mpz(dst[i], dst[i], modulus, invm);
+    }
+    if (terminal)
+        return 1;
+    cxx_mpz_poly P;
+    mpz_poly_mul(P, Pleft, Pright);
+    if (modulus)
+        mpz_poly_mod_mpz(P, P, modulus, invm);
+    return P;
+}
+
+static std::vector<cxx_mpz_poly> coproduct_tree(std::vector<std::pair<cxx_mpz_poly, int>> const &lf, mpz_srcptr modulus = NULL, mpz_srcptr invm = NULL)
+{
+    std::vector<cxx_mpz_poly>
+    dst(lf.size());
+    coproduct_tree(dst, lf, modulus, invm, 0, lf.size(), true);
+    return dst;
+}
+
+static cxx_mpz_poly prod(std::vector<std::pair<cxx_mpz_poly, int>> const &lf, mpz_srcptr modulus, mpz_srcptr invm, size_t a, size_t b)
+{
+    ASSERT_ALWAYS(b >= a);
+    if (b - a == 0) {
+        return 1;
+    } else if (b - a == 1) {
+        return lf[a].first;
+    }
+    size_t c = (a + b) / 2;
+    cxx_mpz_poly Pleft  = prod(lf, modulus, invm, a, c);
+    cxx_mpz_poly Pright = prod(lf, modulus, invm, c, b);
+    cxx_mpz_poly P;
+    mpz_poly_mul(P, Pleft, Pright);
+    if (modulus)
+        mpz_poly_mod_mpz(P, P, modulus, invm);
+    return P;
+}
+cxx_mpz_poly prod(std::vector<std::pair<cxx_mpz_poly, int>> const &lf, mpz_srcptr modulus, mpz_srcptr invm)
+{
+    return prod(lf, modulus, invm, 0, lf.size());
+}
+
+
+static int mpz_poly_factor_list_lift(std::vector<std::pair<cxx_mpz_poly, int>> &lf, mpz_poly_srcptr f, mpz_srcptr ell, mpz_srcptr ell2)
+{
+    {
+        /* do a few sanity checks */
+        cxx_mpz ell_ell;
+        mpz_mul(ell_ell, ell, ell);
+        ASSERT_ALWAYS(mpz_cmp(ell_ell, ell2) >= 0);
+
+        for(auto const & fm : lf) {
+            if (fm.second != 1) {
+                fprintf(stderr, "Ramified ell not supported\n");
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+
+    auto coprod = coproduct_tree(lf, ell);
+    cxx_mpz_poly f1 = prod(lf, ell2);
+    mpz_poly_sub_mod_mpz(f1, f, f1, ell2);
+    mpz_poly_divexact_mpz(f1, f1, ell);
+    
+    /* we have f = prod(fi) + ell * f1 mod ell2 */
 
     /* Lift all factors. Take g0 h0 unitary, g1 h1 of lesser
      * degree.
@@ -4196,73 +4292,80 @@ int mpz_poly_factor_list_lift(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, m
      *    a*f1 = a*g1*h0+a*h1*g0 = h1 mod h0
      *    b*f1 = b*g1*h0+b*h1*g0 = g1 mod g0
      *
+     * since deg(g1) < deg(g0), we deduce g1 = b * f1 mod g0
+     *
      */
-    mpz_poly_set_xi(f1, 0);
-    for(int i = 0 ; i < fac->size ; i++) {
-        mpz_poly_srcptr g0 = fac->factors[i]->f;
-        mpz_poly_mul_mod_f_mod_mpz(f1, f1, g0, 0, ell2, NULL, NULL);
-    }
-    mpz_poly_sub_mod_mpz(f1, f, f1, ell2);
-    mpz_poly_divexact_mpz(f1, f1, ell);
 
-    for(int i = 0 ; i < fac->size ; i++) {
-        mpz_poly g1, d, a, b, h0;
-        mpz_poly_ptr g = fac->factors[i]->f;
+    for(size_t i = 0 ; i < lf.size() ; i++) {
+        cxx_mpz_poly g1, d, a, b;
+
+        mpz_poly_ptr g = lf[i].first;
+
         mpz_poly_srcptr g0 = g;   /* alias */
-        mpz_poly_init(g1, g0->deg - 1);
-        mpz_poly_init(h0, f->deg - g0->deg);
-        mpz_poly_init(d, 0);
-        mpz_poly_init(a, f->deg - g0->deg - 1);
-        mpz_poly_init(b, g0->deg - 1);
-        if (fac->factors[i]->m != 1) {
-            fprintf(stderr, "Ramified ell not supported\n");
-            exit(EXIT_FAILURE);
-        }
+
         ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_lc(g), 1) == 0);
+
         /* compute h0 = product of other factors */
-        mpz_poly_divexact(h0, f, g0, ell);
+        cxx_mpz_poly h0 = coprod[i];
 
         /* say a*g0 + b*h0 = 1 */
         mpz_poly_xgcd_mpz(d, g0, h0, a, b, ell);
         ASSERT_ALWAYS(d->deg == 0);
         ASSERT_ALWAYS(mpz_cmp_ui(d->coeff[0], 1) == 0);
 
-        /* b*f1 = b*g1*h0+b*h1*g0 = g1 mod g0 */
+        /* g1 is b*f1 mod g0 */
         mpz_poly_mul_mod_f_mod_mpz(g1, f1, b, g0, ell, NULL, NULL);
 
         /* now update g */
         mpz_poly_mul_mpz(g1, g1, ell);
         mpz_poly_add(g, g, g1);
 
-        mpz_poly_clear(g1);
-        mpz_poly_clear(a);
-        mpz_poly_clear(b);
-        mpz_poly_clear(d);
-        mpz_poly_clear(h0);
     }
-
-    mpz_poly_clear(f1);
 
     return 1;
 }
 
-int mpz_poly_factor_and_lift_padically(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, mpz_srcptr ell, int prec, gmp_randstate_t rstate)
+
+std::vector<std::pair<cxx_mpz_poly, int>> 
+mpz_poly_factor_and_lift_padically(mpz_poly_srcptr f, mpz_srcptr ell, int prec, gmp_randstate_t rstate)
 {
     // this is a false positive
     // coverity[exception_thrown]
     ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_lc(f), 1) == 0);
 
-    mpz_poly_factor(fac, f, ell, rstate);
-    mpz_t ellx;
-    mpz_init_set(ellx, ell);
+    auto xfac = mpz_poly_factor(f, ell, rstate);
 
-    /* keep for a rainy day: compute the list of prime powers we want to
-     * pass by. (the mpz_poly_factor_list_lift function is happy to take
-     * ell^m and ell^n, with n being 2m or 2m-1). */
-    ASSERT_ALWAYS(prec == 2);
-    mpz_mul(ellx, ell, ell);
-    mpz_poly_factor_list_lift(fac, f, ell, ellx);
-    mpz_clear(ellx);
+    std::vector<int> precs;
+    for(int p = prec ; p != 1 ; p -= p/2)
+        precs.push_back(p);
+
+    int k = 1;
+    cxx_mpz ell_k_minus_1 = 1;  /* always ell^(k-1) */
+    cxx_mpz ell_k = ell;        /* always ell^k */
+
+    for(size_t i = precs.size() ; i-- ; ) {
+        cxx_mpz ell_next;
+        int p = precs[i];
+        if (p == 2 * k) {
+            mpz_mul(ell_next, ell_k, ell_k);
+            mpz_mul(ell_k_minus_1, ell_k, ell_k_minus_1);
+        } else if (p == 2 * k - 1) {
+            mpz_mul(ell_next, ell_k, ell_k_minus_1);
+            mpz_mul(ell_k_minus_1, ell_k_minus_1, ell_k_minus_1);
+        } else {
+            ASSERT_ALWAYS(0);
+        }
+        mpz_poly_factor_list_lift(xfac, f, ell_k, ell_next);
+        mpz_swap(ell_next, ell_k);
+        k = p;
+    }
+
+    return xfac;
+}
+
+int mpz_poly_factor_and_lift_padically(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, mpz_srcptr ell, int prec, gmp_randstate_t rstate)
+{
+    mpz_poly_factor_list_set(fac, mpz_poly_factor_and_lift_padically(f, ell, prec, rstate));
 
     return 1;
 }
