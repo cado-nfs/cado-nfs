@@ -159,7 +159,7 @@ filter/shrink_rels.cpp
 filter/singleton_removal.c
 filter/singleton_removal.h
 filter/singleton_simple.cpp
-filter/sm.c
+filter/sm.cpp
 filter/sm_append.cpp
 filter/sm_simple.cpp
 filter/sparse.c
@@ -1446,7 +1446,7 @@ tests/utils/test_relation.cpp
 tests/utils/test_rootfinder.c
 tests/utils/test_roots_mod.c
 tests/utils/test_sha1.c
-tests/utils/test_sm_utils.c
+tests/utils/test_sm_utils.cpp
 tests/utils/test_sm_utils.data
 tests/utils/test_smallset.cpp
 tests/utils/test_strlcat.c
@@ -1637,7 +1637,7 @@ utils/roots_mod.h
 utils/select_mpi.h
 utils/sha1.c
 utils/sha1.h
-utils/sm_utils.c
+utils/sm_utils.cpp
 utils/sm_utils.h
 utils/smallset.hpp
 utils/stats.c

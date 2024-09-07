@@ -36,7 +36,7 @@ void compute_sm_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u, sm_side_info_srcp
     mpz_poly_init(temp, n);
 
     /* we can afford calling malloc() here */
-    mpz_poly * chunks = malloc(fac->size * sizeof(mpz_poly));
+    mpz_poly * chunks = (mpz_poly *) malloc(fac->size * sizeof(mpz_poly));
     for(int j = 0 ; j < fac->size ; j++) {
         mpz_poly_srcptr g = fac->factors[j]->f;
         mpz_poly_init(chunks[j], g->deg-1);
@@ -138,8 +138,8 @@ void
 sm_relset_init (sm_relset_t r, const mpz_poly_srcptr * F, int nb_polys)
 {
   r->nb_polys = nb_polys;
-  r->num = malloc(nb_polys * sizeof(mpz_poly));
-  r->denom = malloc(nb_polys * sizeof(mpz_poly));
+  r->num = (mpz_poly *) malloc(nb_polys * sizeof(mpz_poly));
+  r->denom = (mpz_poly *) malloc(nb_polys * sizeof(mpz_poly));
   for (int side = 0; side < nb_polys; side++) {
     mpz_poly_init (r->num[side], F[side] ? mpz_poly_degree(F[side]) : -1);
     mpz_poly_init (r->denom[side],  F[side] ? mpz_poly_degree(F[side]) : -1);
@@ -164,8 +164,8 @@ sm_relset_copy (sm_relset_t r, sm_relset_srcptr s)
       return;
   sm_relset_clear(r);
   r->nb_polys = s->nb_polys;
-  r->num = malloc(s->nb_polys * sizeof(mpz_poly));
-  r->denom = malloc(s->nb_polys * sizeof(mpz_poly));
+  r->num = (mpz_poly *) malloc(s->nb_polys * sizeof(mpz_poly));
+  r->denom = (mpz_poly *) malloc(s->nb_polys * sizeof(mpz_poly));
   for (int side = 0; side < r->nb_polys; side++) {
     mpz_poly_init (r->num[side], -1);
     mpz_poly_init (r->denom[side], -1);
@@ -191,7 +191,7 @@ sm_build_one_relset(sm_relset_ptr rel,
 {
   mpz_t ee;
   mpz_init(ee);  
-  mpz_poly * tmp = malloc(nb_polys * sizeof(mpz_poly));
+  mpz_poly * tmp = (mpz_poly *) malloc(nb_polys * sizeof(mpz_poly));
   memset(tmp, 0, nb_polys * sizeof(mpz_poly));
   for (int side = 0; side < nb_polys; side++) {
     if (F[side] == NULL) continue;
