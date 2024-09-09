@@ -4,7 +4,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <gmp.h>
-#include "sm_utils.h" // sm_relset_t
+#include "sm_utils.hpp" // sm_relset_t
 #include "mpz_poly.h"   // mpz_poly_srcptr
 #include "macros.h"
 
@@ -55,8 +55,7 @@ test_sm (FILE * datafile)
 
     gmp_fscanf (datafile, " %Zi", ell);
 
-    sm_side_info sm_info;
-    sm_side_info_init(sm_info, F, ell, 0);
+    sm_side_info sm_info(F, ell, 0);
 
     ret = fscanf(datafile, " %d", &nb_ab);
     ASSERT_ALWAYS (ret == 1);
@@ -137,16 +136,16 @@ test_sm (FILE * datafile)
     if (len_relset == 1 && e[0] == 1 && nb_test_single_rel % FREQ == 0)
     {
       nb_test_single_rel++;
-      compute_sm_piecewise(SMc, ab_polys[r[0]]->ab, sm_info);
+      sm_info.compute_piecewise(SMc, ab_polys[r[0]]->ab);
     } else {
       mpz_poly_srcptr FF[2] = {F, F};
       sm_relset_init (relset, FF, 2);
-      sm_build_one_relset (relset, r, e, len_relset, ab_polys, FF, 2, sm_info->ell2);
+      sm_build_one_relset (relset, r, e, len_relset, ab_polys, FF, 2, sm_info.ell2);
       mpz_poly_set (Nc, relset->num[0]);
       mpz_poly_set (Dc, relset->denom[0]);
       mpz_poly_reduce_frac_mod_f_mod_mpz (relset->num[0], relset->denom[0],
-              F, sm_info->ell2);
-      compute_sm_piecewise (SMc, relset->num[0], sm_info);
+              F, sm_info.ell2);
+      sm_info.compute_piecewise (SMc, relset->num[0]);
       sm_relset_clear (relset);
     }
     // mpz_poly_clear(SMc2);
@@ -157,8 +156,8 @@ test_sm (FILE * datafile)
       err++;
       fprintf (stderr, "### ERROR: computation of SM is wrong with:\nF = ");
       mpz_poly_fprintf(stderr, F);
-      gmp_fprintf(stderr, "ell = %Zi\nell2 = %Zi\n\n", ell, sm_info->ell2);
-      sm_side_info_print(stderr, sm_info);
+      gmp_fprintf(stderr, "ell = %Zi\nell2 = %Zi\n\n", ell, (mpz_srcptr) sm_info.ell2);
+      sm_info.print(stderr);
       fprintf (stderr, "# Relation-set is:\n%" PRIu64 "", len_relset);
       for (uint64_t i = 0; i < len_relset; i++)
         fprintf (stderr, " %" PRIu64 ":%" PRId64 "", r[i], e[i]);
@@ -203,7 +202,6 @@ test_sm (FILE * datafile)
     }
 
 
-    sm_side_info_clear(sm_info);
     for (int i = 0; i < nb_ab; i++)
       mpz_poly_clear (ab_polys[i]->ab);
     mpz_clear (tmp);

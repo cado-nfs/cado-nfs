@@ -42,7 +42,7 @@ Output
 #include "params.h"
 #include "purgedfile.h" // purgedfile_read_firstline
 #include "select_mpi.h"
-#include "sm_utils.h"   // sm_relset_ptr
+#include "sm_utils.hpp"   // sm_relset_ptr
 #include "stats.h"      // stats_data_t
 #include "timing.h"      // for seconds
 #include "verbose.h"    // verbose_output_print
@@ -132,10 +132,10 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
 }
 
 
-void print_all_sm(FILE *out, sm_side_info *sm_info, int nb_polys,
+void print_all_sm(FILE *out, std::vector<sm_side_info> const & sm_info, int nb_polys,
     mpz_poly *sm) {
   for(int side = 0, c = 0 ; side < nb_polys ; side++) {
-    if (sm_info[side]->nsm == 0)
+    if (sm_info[side].nsm == 0)
       continue;
     if (c++) fprintf(out, " ");
     print_sm (out, sm_info[side], sm[side]);
@@ -195,19 +195,19 @@ void MPI_Recv_relset(sm_relset_ptr relset, int src, int nb_polys) {
   }
 }
 
-void MPI_Send_res(mpz_poly * res, int dst, sm_side_info *sm_info,
+void MPI_Send_res(mpz_poly * res, int dst, std::vector<sm_side_info> const & sm_info,
     int nb_polys) {
   for(int side = 0 ; side < nb_polys ; side++) {
-    if (sm_info[side]->nsm == 0)
+    if (sm_info[side].nsm == 0)
       continue;
     MPI_Send_mpz_poly(res[side], dst);
   }
 }
 
-void MPI_Recv_res(mpz_poly * res, int src, sm_side_info * sm_info,
+void MPI_Recv_res(mpz_poly * res, int src, std::vector<sm_side_info> const & sm_info,
     int nb_polys) {
   for(int side = 0 ; side < nb_polys ; side++) {
-    if (sm_info[side]->nsm == 0)
+    if (sm_info[side].nsm == 0)
       continue;
     MPI_Recv_mpz_poly(res[side], src);
   }
@@ -376,11 +376,11 @@ int main (int argc, char **argv)
     gmp_fprintf(stdout, "# Sub-group order:\nell = %Zi\n# Computation is done "
                       "modulo ell2 = ell^2:\nell2 = %Zi\n", ell, ell2);
 
-  sm_side_info * sm_info = (sm_side_info *) malloc(cpoly->nb_polys * sizeof(sm_side_info));
+  std::vector<sm_side_info> sm_info;
 
   for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-      sm_side_info_init(sm_info[side], F[side], ell, 0);
-      sm_side_info_set_mode(sm_info[side], sm_mode_string);
+      sm_info.emplace_back(F[side], ell, 0);
+      sm_info[side].set_mode(sm_mode_string);
   }
 
   for (int side = 0; side < cpoly->nb_polys; side++) {
@@ -388,26 +388,26 @@ int main (int argc, char **argv)
       fprintf(stdout, "\n# Polynomial on side %d:\n# F[%d] = ", side, side);
       mpz_poly_fprintf(stdout, F[side]);
       printf("# SM info on side %d:\n", side);
-      sm_side_info_print(stdout, sm_info[side]);
+      sm_info[side].print(stdout);
     }
     if (nsm_arg[side] >= 0) {
-      if (idoio && nsm_arg[side] < sm_info[side]->nsm)
-        printf("# Warning: as per the command line parameters, we will only compute %d SMs instead of %d on side %d. Be sure to know what you are doing!\n", nsm_arg[side], sm_info[side]->nsm, side);
-      sm_info[side]->nsm = nsm_arg[side]; /* command line wins */
+      if (idoio && nsm_arg[side] < sm_info[side].nsm)
+        printf("# Warning: as per the command line parameters, we will only compute %d SMs instead of %d on side %d. Be sure to know what you are doing!\n", nsm_arg[side], sm_info[side].nsm, side);
+      sm_info[side].nsm = nsm_arg[side]; /* command line wins */
     }
     if (idoio)
-      printf("# Will compute %d SMs on side %d\n", sm_info[side]->nsm, side);
+      printf("# Will compute %d SMs on side %d\n", sm_info[side].nsm, side);
 
     /* do some consistency checks */
-    if (sm_info[side]->unit_rank != sm_info[side]->nsm)
+    if (sm_info[side].unit_rank != sm_info[side].nsm)
     {
       if (idoio)
         fprintf(stderr, "# On side %d, unit rank is %d, computing %d SMs ; "
-          "weird.\n", side, sm_info[side]->unit_rank,
-          sm_info[side]->nsm);
+          "weird.\n", side, sm_info[side].unit_rank,
+          sm_info[side].nsm);
       /* for the 0 case, we haven't computed anything: prevent the
        * user from asking SM data anyway */
-      ASSERT_ALWAYS(sm_info[side]->unit_rank != 0);
+      ASSERT_ALWAYS(sm_info[side].unit_rank != 0);
     }
   }
   fflush(stdout);
@@ -417,7 +417,7 @@ int main (int argc, char **argv)
   // (note that it does not seem to be a good idea to forcibly deactivate
   // the SMs on a given side, I think).
   for (int side = 0; side < cpoly->nb_polys; ++side) {
-      if (sm_info[side]->nsm == 0) {
+      if (sm_info[side].nsm == 0) {
           F[side] = NULL;
       }
   }
@@ -476,8 +476,8 @@ int main (int argc, char **argv)
     dst[j] = (mpz_poly *) malloc(cpoly->nb_polys*sizeof(mpz_poly));
     memset(dst[j], 0, cpoly->nb_polys*sizeof(mpz_poly));
     for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-      if (sm_info[side]->nsm != 0)
-        mpz_poly_init(dst[j][side], sm_info[side]->f->deg);
+      if (sm_info[side].nsm != 0)
+        mpz_poly_init(dst[j][side], sm_info[side].f->deg);
     }
   }
 
@@ -501,18 +501,17 @@ int main (int argc, char **argv)
 #pragma omp for schedule(static)
 #endif
       for(uint64_t i = 0 ; i < nb_relsets ; i++) {
-          printf("%d\n", (int) i);
           for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-              if (sm_info[side]->nsm == 0)
+              if (sm_info[side].nsm == 0)
                   continue;
               mpz_poly_reduce_frac_mod_f_mod_mpz(
                       part_rels[i].num[side],
                       part_rels[i].denom[side],
-                      sm_info[side]->f0,
-                      sm_info[side]->ell2);
-              compute_sm_piecewise(dst[i][side],
-                      part_rels[i].num[side],
-                      sm_info[side]);
+                      sm_info[side].f0,
+                      sm_info[side].ell2);
+              sm_info[side].compute_piecewise(
+                      dst[i][side],
+                      part_rels[i].num[side]);
           }
           if (thid == 0) {
               /* Static schedule, all threads can reasonably be expected
@@ -539,14 +538,14 @@ int main (int argc, char **argv)
     ASSERT_ALWAYS(out != NULL);
     int nsm_total=0;
     for (int side = 0; side < cpoly->nb_polys; side++) {
-      nsm_total += sm_info[side]->nsm;
+      nsm_total += sm_info[side].nsm;
     }
     fprintf(out, "%" PRIu64 " %d", nb_relsets, nsm_total);
     gmp_fprintf(out, " %Zd\n", ell);
     mpz_poly *res;
     res = (mpz_poly *) malloc(cpoly->nb_polys*sizeof(mpz_poly));
     for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-      mpz_poly_init(res[side], sm_info[side]->f->deg);
+      mpz_poly_init(res[side], sm_info[side].f->deg);
     }
     for (uint64_t i = 0; i < nb_parts; ++i) {
       print_all_sm(out, sm_info, cpoly->nb_polys, dst[i]);
@@ -577,10 +576,6 @@ int main (int argc, char **argv)
   free(part_rels);
   free(F);
   free(nsm_arg);
-
-  for (int side = 0 ; side < cpoly->nb_polys ; side++)
-    sm_side_info_clear(sm_info[side]);
-  free(sm_info);
 
   mpz_clear(ell);
   mpz_clear(ell2);

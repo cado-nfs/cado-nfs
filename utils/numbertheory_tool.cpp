@@ -18,7 +18,7 @@
 #include "mpz_poly.h"
 #include "params.h"
 #include "cado_poly.h"
-#include "sm_utils.h"
+#include "sm_utils.hpp"
 
 using namespace std;
 
@@ -222,10 +222,8 @@ int main(int argc, char * argv[])
         cxx_mpz ell;
         if (param_list_parse_mpz(pl, "ell", ell)) {
             for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-                sm_side_info sm;
-                sm_side_info_init(sm, cpoly->pols[side], ell, 0);
-                cout << "# nmaps" << side << " " << sm->nsm << endl;
-                sm_side_info_clear(sm);
+                sm_side_info sm(cpoly->pols[side], ell, 0);
+                cout << "# nmaps" << side << " " << sm.nsm << endl;
             }
         }
         cado_poly_clear(cpoly);

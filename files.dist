@@ -1669,7 +1669,7 @@ utils/select_mpi.h
 utils/sha1.c
 utils/sha1.h
 utils/sm_utils.cpp
-utils/sm_utils.h
+utils/sm_utils.hpp
 utils/smallset.hpp
 utils/stats.c
 utils/stats.h

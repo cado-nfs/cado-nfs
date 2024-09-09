@@ -15,13 +15,13 @@
 #include "cado_poly.h"  // for cado_poly_clear, cado_poly_init, cado_poly_read
 #include "macros.h"
 #include "mpz_poly.h"   // mpz_poly
-#include "sm_utils.h"   // sm_side_info
+#include "sm_utils.hpp"   // sm_side_info
 #include "timing.h"     // seconds
 #include "verbose.h"    // verbose_output_print
 #include "params.h"
 
 static void my_sm(const char *outfile, const char *infile, 
-		  sm_side_info *sm_info, int nb_polys)
+		  std::vector<sm_side_info> const & sm_info, int nb_polys)
 {
   FILE *in;
   in = fopen(infile, "r");
@@ -40,9 +40,9 @@ static void my_sm(const char *outfile, const char *infile,
 
   char buf[1024];
   mpz_poly pol, smpol;
-  int maxdeg = sm_info[0]->f->deg;
-  for(int side = 1; side < nb_polys; side++)
-      maxdeg = MAX(maxdeg, sm_info[side]->f->deg);
+  int maxdeg = 0;
+  for(int side = 0; side < nb_polys; side++)
+      maxdeg = MAX(maxdeg, sm_info[side].f->deg);
   mpz_poly_init(pol, maxdeg);
   mpz_poly_init(smpol, maxdeg);
   while (fgets(buf, 1024, in)) {
@@ -82,9 +82,9 @@ static void my_sm(const char *outfile, const char *infile,
         mpz_clear(a); mpz_clear(b);
     }
     for (int side = 0; side < nb_polys; ++side) {
-      compute_sm_piecewise(smpol, pol, sm_info[side]);
+      sm_info[side].compute_piecewise(smpol, pol);
       print_sm(out, sm_info[side], smpol);
-      if (side == 0 && sm_info[0]->nsm > 0 && sm_info[1]->nsm > 0)
+      if (side == 0 && sm_info[0].nsm > 0 && sm_info[1].nsm > 0)
           fprintf(out, " ");
     }
     fprintf(out, "\n");
@@ -193,11 +193,11 @@ int main (int argc, char **argv)
   mpz_init(ell2);
   mpz_mul(ell2, ell, ell);
 
-  sm_side_info * sm_info = new sm_side_info[cpoly->nb_polys];
+  std::vector<sm_side_info> sm_info;
 
   for(int side = 0 ; side < cpoly->nb_polys; side++) {
-    sm_side_info_init(sm_info[side], F[side], ell, 0);
-    sm_side_info_set_mode(sm_info[side], sm_mode_string);
+    sm_info.emplace_back(F[side], ell, 0);
+    sm_info[side].set_mode(sm_mode_string);
   }
 
   for (int side = 0; side < cpoly->nb_polys; side++) {
@@ -205,7 +205,7 @@ int main (int argc, char **argv)
     mpz_poly_fprintf(stdout, F[side]);
 
     printf("# SM info on side %d:\n", side);
-    sm_side_info_print(stdout, sm_info[side]);
+    sm_info[side].print(stdout);
 
     fflush(stdout);
   }
@@ -216,11 +216,6 @@ int main (int argc, char **argv)
 
   fprintf(stdout, "\n# sm completed in %2.2lf seconds\n", seconds() - t0);
   fflush(stdout);
-
-  for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-    sm_side_info_clear(sm_info[side]);
-  }
-  delete[] sm_info;
 
   mpz_clear(ell);
   mpz_clear(ell2);

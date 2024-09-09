@@ -273,6 +273,8 @@ struct cxx_mpz_mat {
     operator mpz_mat_srcptr() const { return x; }
     mpz_mat_ptr operator->() { return x; }
     mpz_mat_srcptr operator->() const { return x; }
+    mpz_ptr operator ()(int i, int j) { return mpz_mat_entry(x, i, j); }
+    mpz_srcptr operator ()(int i, int j) const { return mpz_mat_entry_const(x, i, j); }
 };
 #if GNUC_VERSION_ATLEAST(4,3,0)
 extern void mpz_mat_init(cxx_mpz_mat & pl, unsigned int, unsigned int) __attribute__((error("mpz_mat_init must not be called on a mpz_mat reference -- it is the caller's business (via a ctor)")));
@@ -326,6 +328,8 @@ struct cxx_mpq_mat {
     operator mpq_mat_srcptr() const { return x; }
     mpq_mat_ptr operator->() { return x; }
     mpq_mat_srcptr operator->() const { return x; }
+    mpq_ptr operator ()(int i, int j) { return mpq_mat_entry(x, i, j); }
+    mpq_srcptr operator ()(int i, int j) const { return mpq_mat_entry_const(x, i, j); }
 };
 
 extern std::ostream& operator<<(std::ostream& os, cxx_mpz_mat const& M);

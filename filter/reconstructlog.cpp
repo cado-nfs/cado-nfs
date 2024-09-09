@@ -9,6 +9,8 @@
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif
+#include <vector>
+
 #include <gmp.h>
 #include "bit_vector.h"  // for bit_vector_set, bit_vector, bit_vector_getbit
 #include "cado_poly.h"  // cado_poly
@@ -22,7 +24,7 @@
 #include "params.h"
 #include "purgedfile.h" // purgedfile_read_firstline
 #include "renumber.hpp"
-#include "sm_utils.h"   // sm_side_info_clear
+#include "sm_utils.hpp"   // sm_side_info_clear
 #include "stats.h"                     // stats_data_t
 #include "timing.h"      // for wct_seconds
 #include "typedefs.h"    // for ideal_merge_t, index_t, weight_t, PRid, prime_t
@@ -106,7 +108,7 @@ struct logtab
     int nbsm;
     cxx_mpz ell;
     cado_poly_srcptr cpoly;
-    sm_side_info *sm_info;
+    std::vector<sm_side_info> const & sm_info;
     private:
     mp_limb_t * data;
     public:
@@ -210,7 +212,7 @@ struct logtab
     uint64_t smlog_index(int side, int idx_sm) const {
         uint64_t h = nprimes;
         for(int i = 0 ; i < side ; i++) {
-            h += sm_info[i]->nsm;
+            h += sm_info[i].nsm;
         }
         return h + idx_sm;
     }
@@ -243,7 +245,7 @@ struct logtab
         mpn_copyi(p, v->_mp_d, mpz_size(v));
     }
 
-    logtab(cado_poly_srcptr cpoly, sm_side_info * sm_info, uint64_t nprimes, mpz_srcptr ell)
+    logtab(cado_poly_srcptr cpoly, std::vector<sm_side_info> const & sm_info, uint64_t nprimes, mpz_srcptr ell)
         : nprimes(nprimes)
           , cpoly(cpoly)
           , sm_info(sm_info)
@@ -252,7 +254,7 @@ struct logtab
         nknown = 0;
         nbsm = 0;
         for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-            nbsm += sm_info[side]->nsm;
+            nbsm += sm_info[side].nsm;
         }
         data = (mp_limb_t *) malloc((nprimes + nbsm) * mpz_size(ell) * sizeof(mp_limb_t));
         FATAL_ERROR_CHECK(data == NULL, "Cannot allocate memory");
@@ -270,10 +272,11 @@ struct read_data
   logtab & log;
   uint64_t nrels;
   cado_poly_ptr cpoly;
-  sm_side_info *sm_info;
+  std::vector<sm_side_info> const & sm_info;
   renumber_t & renum_tab;
   read_data(logtab & log, uint64_t nrels,
-          cado_poly_ptr cpoly, sm_side_info *sm_info,
+          cado_poly_ptr cpoly,
+          std::vector<sm_side_info> const & sm_info,
           renumber_t & renum_tab)
       : log(log)
       , nrels(nrels)
@@ -330,31 +333,31 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
          */
         int c = 0;
         for(int side = 0 ; side < data.cpoly->nb_polys ; side++) {
-            sm_side_info_srcptr S = data.sm_info[side];
-            if (S->nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
+            sm_side_info const & S = data.sm_info[side];
+            if (S.nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
 #define xxxDOUBLECHECK_SM
 #ifdef DOUBLECHECK_SM
                 /* I doubt that this is really compatible with our
                  * changes in the SM mode.
                  */
                 mpz_poly u;
-                mpz_poly_init(u, MAX(1, S->f->deg-1));
+                mpz_poly_init(u, MAX(1, S.f->deg-1));
                 mpz_poly_setcoeff_int64(u, 0, a);
                 mpz_poly_setcoeff_int64(u, 1, -b);
                 compute_sm_piecewise(u, u, S);
-                ASSERT_ALWAYS(u->deg < S->f->deg);
-                ASSERT_ALWAYS(u->deg == S->f->deg - 1);
-                for(int i = 0 ; i < S->nsm; i++) {
-                    if (S->mode == SM_MODE_LEGACY_PRE2018)
-                        ASSERT_ALWAYS(mpz_cmp(u->coeff[S->f->deg-1-i],rel->sm[c + i
+                ASSERT_ALWAYS(u->deg < S.f->deg);
+                ASSERT_ALWAYS(u->deg == S.f->deg - 1);
+                for(int i = 0 ; i < S.nsm; i++) {
+                    if (S.mode == SM_MODE_LEGACY_PRE2018)
+                        ASSERT_ALWAYS(mpz_cmp(u->coeff[S.f->deg-1-i],rel->sm[c + i
 ]) == 0);
                     else
                         ASSERT_ALWAYS(mpz_cmp(u->coeff[i],rel->sm[c + i]) == 0);
                 }
 
 #endif
-                ASSERT_ALWAYS(c + S->nsm <= rel->sm_size);
-                for(int i = 0 ; i < S->nsm ; i++, c++) {
+                ASSERT_ALWAYS(c + S.nsm <= rel->sm_size);
+                for(int i = 0 ; i < S.nsm ; i++, c++) {
                     mpz_addmul(l, data.log.smlog(side, i), rel->sm[c]);
                 }
                 mpz_mod(l, l, data.log.ell);
@@ -366,20 +369,20 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
     } else {
         mpz_srcptr ell = data.log.ell;
         for(int side = 0 ; side < data.cpoly->nb_polys ; side++) {
-            sm_side_info_srcptr S = data.sm_info[side];
-            if (S->nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
+            sm_side_info const & S = data.sm_info[side];
+            if (S.nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
                 mpz_poly u;
-                mpz_poly_init(u, MAX(1, S->f->deg-1));
+                mpz_poly_init(u, MAX(1, S.f->deg-1));
                 mpz_poly_setcoeff_int64(u, 0, a);
                 mpz_poly_setcoeff_int64(u, 1, -b);
-                compute_sm_piecewise(u, u, S);
-                ASSERT_ALWAYS(u->deg < S->f->deg);
-                if (S->mode == SM_MODE_LEGACY_PRE2018) {
-                    for(int i = S->f->deg-1-u->deg; i < S->nsm; i++) {
-                        mpz_addmul (l, data.log.smlog(side, i), mpz_poly_coeff_const(u, S->f->deg-1-i));
+                S.compute_piecewise(u, u);
+                ASSERT_ALWAYS(u->deg < S.f->deg);
+                if (S.mode == SM_MODE_LEGACY_PRE2018) {
+                    for(int i = S.f->deg-1-u->deg; i < S.nsm; i++) {
+                        mpz_addmul (l, data.log.smlog(side, i), mpz_poly_coeff_const(u, S.f->deg-1-i));
                     }
                 } else {
-                    for(int i = 0; i < S->nsm; i++) {
+                    for(int i = 0; i < S.nsm; i++) {
                         mpz_addmul (l, data.log.smlog(side, i), mpz_poly_coeff_const(u, i));
                     }
                 }
@@ -816,7 +819,7 @@ dep_do_one_iter_mt (dep_read_data & d, bit_vector bv, int nt, uint64_t nrels)
 /* Read the logarithms computed by the linear algebra */
 static void
 read_log_format_LA (logtab & log, const char *logfile, const char *idealsfile,
-                    sm_side_info *sm_info, int nb_polys)
+                    std::vector<sm_side_info> const & sm_info, int nb_polys)
 {
   uint64_t i, ncols, col;
   index_t h;
@@ -861,7 +864,7 @@ read_log_format_LA (logtab & log, const char *logfile, const char *idealsfile,
 
   for(int side = 0; side < nb_polys; side++)
   {
-      for (int ism = 0; ism < sm_info[side]->nsm; ism++)
+      for (int ism = 0; ism < sm_info[side].nsm; ism++)
       {
         int ret = gmp_fscanf (flog, "%Zd\n", tmp_log);
         FATAL_ERROR_CHECK (ret != 1, "Error in file containing logarithms values");
@@ -875,9 +878,9 @@ read_log_format_LA (logtab & log, const char *logfile, const char *idealsfile,
 
   for(int side = 0; side < nb_polys; side++)
   {
-    if (sm_info[side]->nsm)
+    if (sm_info[side].nsm)
       printf ("# Logarithms for %d SM columns on side %d were also read\n",
-              sm_info[side]->nsm, side);
+              sm_info[side].nsm, side);
   }
   mpz_clear (tmp_log);
   fclose_maybe_compressed (flog, logfile);
@@ -955,7 +958,7 @@ read_log_format_reconstruct (logtab & log, MAYBE_UNUSED renumber_t const & renum
  * renumber table!!! */
 static void
 write_log (const char *filename, logtab & log, renumber_t const & tab, 
-	   sm_side_info *sm_info)
+	   std::vector<sm_side_info> const & sm_info)
 {
   uint64_t i;
   FILE *f = NULL;
@@ -1027,12 +1030,12 @@ write_log (const char *filename, logtab & log, renumber_t const & tab,
   for (int nsm = 0, i = tab.get_size(); nsm < log.nbsm; nsm++)
   {
     // compute side
-    int side, nsm_tot = sm_info[0]->nsm, jnsm = nsm;
+    int side, nsm_tot = sm_info[0].nsm, jnsm = nsm;
     for(side = 0; ((int)nsm) >= nsm_tot; side++){
-	nsm_tot += sm_info[side+1]->nsm;
-	jnsm -= sm_info[side]->nsm;
+	nsm_tot += sm_info[side+1].nsm;
+	jnsm -= sm_info[side].nsm;
     }
-    ASSERT_ALWAYS ((jnsm >= 0) && (jnsm < sm_info[side]->nsm));
+    ASSERT_ALWAYS ((jnsm >= 0) && (jnsm < sm_info[side].nsm));
     if (log.is_zero(i+nsm)) {
         printf("# Note: on side %d, log of SM number %d is zero\n", side, jnsm);
     } else {
@@ -1445,28 +1448,28 @@ main(int argc, char *argv[])
   set_antebuffer_path (argv0, path_antebuffer);
 
   /* Init data for computation of the SMs. */
-  sm_side_info * sm_info = new sm_side_info[cpoly->nb_polys];
+  std::vector<sm_side_info> sm_info;
   for (int side = 0; side < cpoly->nb_polys; side++)
   {
-    sm_side_info_init(sm_info[side], cpoly->pols[side], ell, 0);
-    sm_side_info_set_mode(sm_info[side], sm_mode_string);
+    sm_info.emplace_back(cpoly->pols[side], ell, 0);
+    sm_info[side].set_mode(sm_mode_string);
     fprintf(stdout, "\n# Polynomial on side %d:\n# F[%d] = ", side, side);
     mpz_poly_fprintf(stdout, cpoly->pols[side]);
     printf("# SM info on side %d:\n", side);
-    sm_side_info_print(stdout, sm_info[side]);
+    sm_info[side].print(stdout);
     if (nsm_arg[side] >= 0)
-      sm_info[side]->nsm = nsm_arg[side]; /* command line wins */
-    printf("# Will use %d SMs on side %d\n", sm_info[side]->nsm, side);
+      sm_info[side].nsm = nsm_arg[side]; /* command line wins */
+    printf("# Will use %d SMs on side %d\n", sm_info[side].nsm, side);
 
     /* do some consistency checks */
-    if (sm_info[side]->unit_rank != sm_info[side]->nsm)
+    if (sm_info[side].unit_rank != sm_info[side].nsm)
     {
       fprintf(stderr, "# On side %d, unit rank is %d, computing %d SMs ; "
-                      "weird.\n", side, sm_info[side]->unit_rank,
-                      sm_info[side]->nsm);
+                      "weird.\n", side, sm_info[side].unit_rank,
+                      sm_info[side].nsm);
       /* for the 0 case, we haven't computed anything: prevent the
        * user from asking SM data anyway */
-      ASSERT_ALWAYS(sm_info[side]->unit_rank != 0);
+      ASSERT_ALWAYS(sm_info[side].unit_rank != 0);
     }
   }
   fflush(stdout);
@@ -1548,10 +1551,6 @@ main(int argc, char *argv[])
 
   /* freeing and closing */
   mpz_clear(ell);
-
-  for (int side = 0 ; side < cpoly->nb_polys ; side++)
-    sm_side_info_clear (sm_info[side]);
-  delete[] sm_info;
 
   bit_vector_clear(rels_to_process);
   param_list_clear (pl);

@@ -1,5 +1,5 @@
-#ifndef SM_UTILS_H_
-#define SM_UTILS_H_
+#ifndef SM_UTILS_HPP_
+#define SM_UTILS_HPP_
 
 /* Which SMs are used ?
  * There have been several choices during time. We keep track of the old
@@ -56,6 +56,8 @@
 #include <stdio.h>      // FILE
 #include <gmp.h>        // mpz_t
 #include "mpz_poly.h"
+#include "mpz_mat.h"
+#include "cxx_mpz.hpp"
 #include "cado_poly.h"  // MAX_DEGREE, NB_POLYS_MAX
 
 enum sm_mode {
@@ -65,27 +67,45 @@ enum sm_mode {
     SM_MODE_PSEUDORANDOM_COMBINATION = 4, /* not implemented yet */
 };
 
-struct sm_side_info_s {
+struct sm_side_info {
     int unit_rank;
     int nsm; /* number of SMs that are going to be computed. By default, is
                 equal to unitrank but can be modified by the user. */
-    mpz_t ell;
-    mpz_t ell2;
-    mpz_t ell3;
-    mpz_poly_srcptr f0;
-    mpz_poly f;       /* monic */
-    mpz_poly_factor_list fac;
-    int is_factor_used[MAX_DEGREE];
-    mpz_t exponent;
-    mpz_t * exponents;
+    cxx_mpz ell, ell2, ell3;
+    cxx_mpz_poly f0;
+    cxx_mpz_poly f;       /* monic */
+    cxx_mpz exponent;
 
-    mpz_t * matrix; // only if sm->mode == SM_MODE_LEGACY_PRE2018
+    struct piece {
+        cxx_mpz_poly g;
+        int m;
+        bool is_used;
+        cxx_mpz exponent;
+        piece(cxx_mpz_poly const & g, const int & m, bool is_used, int exponent)
+            : g(g)
+            , m(m)
+            , is_used(is_used)
+            , exponent(exponent)
+        {}
+    };
+
+    std::vector<piece> pieces;
+
+    cxx_mpz_mat matrix; // only if sm->mode == SM_MODE_LEGACY_PRE2018
 
     enum sm_mode mode;
+
+    sm_side_info(mpz_poly_srcptr f0, mpz_srcptr ell, bool handle_small_ell = false);
+    void set_mode(const char * mode_string);
+    void print(FILE * out) const;
+
+    /* This does the same as compute_sm_straightforward, except that it works piecewise on
+     * the different components. It is thus noticeably faster. Results are
+     * compatible, as the change of basis is precomputed within the
+     * sm_side_info structure.
+     */
+    void compute_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u) const;
 };
-typedef struct sm_side_info_s sm_side_info[1];
-typedef struct sm_side_info_s * sm_side_info_ptr;
-typedef const struct sm_side_info_s * sm_side_info_srcptr;
 
 typedef struct {
   mpz_poly * num;
@@ -114,10 +134,6 @@ typedef const struct pair_and_sides_s * pair_and_sides_srcptr;
 extern "C" {
 #endif
 
-void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell, int handle_small_ell);
-void sm_side_info_set_mode(sm_side_info_ptr sm, const char * mode_string);
-void sm_side_info_clear(sm_side_info_ptr sm);
-void sm_side_info_print(FILE * out, sm_side_info_srcptr sm);
 
 void sm_relset_init (sm_relset_t r, const mpz_poly_srcptr * F, int nb_polys);
 void sm_relset_clear (sm_relset_t r);
@@ -137,20 +153,14 @@ void sm_build_one_relset (sm_relset_ptr rel,
 		    mpz_srcptr ell2);
 
 // Print coeffs of the SM polynomial
-void print_sm (FILE *f, sm_side_info_srcptr S, mpz_poly_srcptr SM);
+void print_sm (FILE *f, sm_side_info const & S, mpz_poly_srcptr SM);
 // same, with a delimiter
-void print_sm2 (FILE *f, sm_side_info_srcptr S, mpz_poly_srcptr SM, const char * delim);
+void print_sm2 (FILE *f, sm_side_info const & S, mpz_poly_srcptr SM, const char * delim);
 
-/* This does the same as compute_sm_straightforward, except that it works piecewise on
- * the different components. It is thus noticeably faster. Results are
- * compatible, as the change of basis is precomputed within the
- * sm_side_info structure.
- */
-void compute_sm_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u, sm_side_info_srcptr sm);
 
 #ifdef __cplusplus
 }
 #endif
 
 
-#endif /* SM_UTILS_H_ */
+#endif /* SM_UTILS_HPP_ */
