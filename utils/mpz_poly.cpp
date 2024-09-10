@@ -116,6 +116,35 @@ void print_timings_pow_mod_f_mod_p(){
 }
 #endif
 
+/* This sets a polynomial coefficient, even if that means reallocation.
+ *
+ * A note about a few design choices:
+ *
+ * - should we update the degree when we return a read-write accessor to
+ *   a coefficient that is above the current degree?
+ *   No, because we don't know yet what coefficient we're going to put
+ *   anyway, and if we do that we may end up breaking consistency of the
+ *   object.
+ * - should we return zero on all coefficients above the current degree?
+ *   It's not totally easy, but there are more use cases that hinge on
+ *   the idea that we don't: this makes it possible to set all
+ *   coefficients, possibly depending on each other, and _then_, outside
+ *   the loop, set the degree with cleandeg.
+ */
+mpz_ptr mpz_poly_coeff(mpz_poly_ptr f, int i)
+{
+    mpz_poly_realloc (f, i + 1);
+    return f->coeff[i];
+}
+
+mpz_srcptr mpz_poly_coeff_const(mpz_poly_srcptr f, int i)
+{
+    static cxx_mpz zero = 0;
+    if ((unsigned int) i < f->alloc)
+        return f->coeff[i];
+    else
+        return zero;
+}
 
 /* --------------------------------------------------------------------------
    Static functions
@@ -749,11 +778,27 @@ void mpz_poly_cleandeg(mpz_poly_ptr f, int deg)
    given by coeffs. */
 void mpz_poly_setcoeffs (mpz_poly_ptr f, mpz_t * coeffs, int d)
 {
-  int i;
-  for (i=d; i>=0; --i)
-    mpz_poly_setcoeff(f, i, coeffs[i]);
-  mpz_poly_cleandeg(f, d);
+    for(int i = d ; i >= 0 ; --i)
+        mpz_poly_setcoeff(f, i, coeffs[i]);
+    mpz_poly_cleandeg(f, d);
 }
+
+/* Set signed long int coefficient for the i-th term. */
+void mpz_poly_setcoeffs_si(mpz_poly_ptr f, const long int * h, int d)
+{
+    for(int i = d ; i >= 0 ; --i)
+        mpz_poly_setcoeff_si(f, i, h[i]);
+    mpz_poly_cleandeg (f, d);
+}
+
+/* Set unsigned long int coefficient for the i-th term. */
+void mpz_poly_setcoeffs_ui(mpz_poly_ptr f, const unsigned long int * h, int d)
+{
+    for(int i = d ; i >= 0 ; --i)
+        mpz_poly_setcoeff_ui(f, i, h[i]);
+    mpz_poly_cleandeg (f, d);
+}
+
 
 /* Set a zero polynomial. */
 void mpz_poly_set_zero(mpz_poly_ptr f)

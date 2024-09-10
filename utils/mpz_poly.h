@@ -74,6 +74,16 @@ typedef struct mpz_poly_s mpz_poly[1];
  * More detail on can be found in mpz_poly_parallel.hpp and mpz_poly.cpp
  */
 
+/* We should not access the polynomial coefficients directly. At least we
+ * need specific accessors for them.
+ * The accessors below behave in the exact same way as old direct
+ * accesses that were within (allocation) bounds. Beyond bounds, they
+ * force a realloc if we want a read-write access, and they return a
+ * const static zero for const accesses.
+ */
+mpz_ptr mpz_poly_coeff(mpz_poly_ptr, int i);
+mpz_srcptr mpz_poly_coeff_const(mpz_poly_srcptr, int i);
+
 /* Management of the structure, set and print coefficients. */
 void mpz_poly_init(mpz_poly_ptr, int d);
 void mpz_poly_realloc (mpz_poly_ptr f, unsigned int nc);
@@ -84,6 +94,8 @@ static inline int mpz_poly_degree(mpz_poly_srcptr f) { return f->deg; }
 
 void mpz_poly_cleandeg(mpz_poly_ptr f, int deg);
 void mpz_poly_setcoeffs(mpz_poly_ptr f, mpz_t * coeffs, int d);
+void mpz_poly_setcoeffs_si(mpz_poly_ptr f, const long int * h, int d);
+void mpz_poly_setcoeffs_ui(mpz_poly_ptr f, const unsigned long int * h, int d);
 void mpz_poly_set_zero(mpz_poly_ptr f);
 void mpz_poly_set_ui(mpz_poly_ptr f, unsigned long z);
 void mpz_poly_set_si(mpz_poly_ptr f, long z);
