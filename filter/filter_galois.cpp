@@ -173,7 +173,7 @@ static void
 compute_galois_action (renumber_t const & tab, const char *action)
 {
     index_t i;
-    p_r_values_t r[20], rr = 0;
+    p_r_values_t r[20];
     index_t ind[20];
     int nr;
     int j, ord, imat[4];
@@ -202,7 +202,7 @@ compute_galois_action (renumber_t const & tab, const char *action)
             renumber_t::p_r_side x = tab.p_r_from_index(i);
             // Is it a new (p, side) ?
             if (old.same_p(x)) {
-                r[nr] = rr;
+                r[nr] = x.r;
                 ind[nr] = i;
                 nr++;
             }
@@ -213,8 +213,9 @@ compute_galois_action (renumber_t const & tab, const char *action)
                     // -> build orbits r, sigma(r), ..., sigma^{ord-1}(r)
                     if ((nr % ord) != 0){
                         fprintf(stderr,
-                                "Warning: number of roots not divisible by %d,"
-                                "skipping p=%" PRpr ", r=%" PRpr "\n", ord, old.p, r[0]);
+                                "Warning: number of roots not divisible by %d, "
+                                "skipping p=0x%" PRpr ", r=0x%" PRpr "\n", ord,
+                                old.p, r[0]);
                         for (int k = 0; k < nr; ++k)
                             Gal[ind[k]] = ind[k];
                     } else {
@@ -255,7 +256,7 @@ compute_galois_action (renumber_t const & tab, const char *action)
                 // Prepare for next
                 old = x;
                 nr = 1;
-                r[0] = rr;
+                r[0] = x.r;
                 ind[0] = i;
             }
         }
