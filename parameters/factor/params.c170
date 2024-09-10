@@ -15,40 +15,48 @@ name = c170
 
 tasks.polyselect.degree = 5
 
-tasks.polyselect.P = 1500000
-tasks.polyselect.admax = 1e6
-tasks.polyselect.adrange = 1e3
-tasks.polyselect.incr = 60
-tasks.polyselect.nq = 3125
-tasks.polyselect.nrkeep = 200
+tasks.polyselect.P = 1200000
+tasks.polyselect.admin = 7560
+tasks.polyselect.admax = 60e4
+tasks.polyselect.adrange = 3780
+tasks.polyselect.incr = 1260
+tasks.polyselect.nq = 390625
+tasks.polyselect.nrkeep = 84
+tasks.polyselect.sopteffort = 9
+tasks.polyselect.ropteffort = 32
 
 ###########################################################################
 # Sieve
 ###########################################################################
 
 tasks.I = 14
-tasks.qmin = 19600000
-tasks.lim0 = 37000000
-tasks.lim1 = 52000000
-tasks.lpb0 = 30
-tasks.lpb1 = 31
-tasks.sieve.mfb0 = 60
+tasks.qmin = 12500000
+tasks.lim0 = 59000000
+tasks.lim1 = 48000000
+tasks.lpb0 = 31
+tasks.lpb1 = 32
+tasks.sieve.mfb0 = 61
 tasks.sieve.mfb1 = 90
-tasks.sieve.ncurves0 = 12
+tasks.sieve.lambda0 = 1.98
+tasks.sieve.lambda1 = 2.83
+tasks.sieve.ncurves0 = 14
 tasks.sieve.ncurves1 = 8
-tasks.sieve.qrange = 5000
+tasks.sieve.qrange = 10000
+tasks.sieve.rels_wanted = 315000000
 
 ###########################################################################
 # Filtering
 ###########################################################################
 
-tasks.filter.purge.keep = 160
-tasks.filter.target_density = 170.0
+tasks.filter.purge.keep = 185
+tasks.filter.required_excess = 0.09
+tasks.filter.target_density = 160.0
 
 ###########################################################################
 # Linear algebra
 ###########################################################################
 
+tasks.linalg.bwc.interval = 5000
 tasks.linalg.bwc.interleaving = 0
 tasks.linalg.m = 64
 tasks.linalg.n = 64
