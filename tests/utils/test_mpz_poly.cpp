@@ -14,29 +14,6 @@
 #include "fmt/format.h"
 #include "portability.h" //  IWYU pragma: keep
 
-/* Put random coefficients of k bits in a polynomial (already initialized).
-   Ensure the coefficient of degree d is not zero. */
-static void
-mpz_poly_random (mpz_poly f, int d, int k)
-{
-  int i;
-  mpz_t u;
-
-  ASSERT_ALWAYS (k > 0);
-  mpz_poly_realloc (f, d + 1);
-  mpz_init_set_ui (u, 1);
-  mpz_mul_2exp (u, u, k - 1); /* u = 2^(k-1) */
-  for (i = 0; i <= d; i++)
-    do
-      {
-        mpz_rrandomb (f->coeff[i], state, k); /* 0 to 2^k-1 */
-        mpz_sub (f->coeff[i], f->coeff[i], u); /* -2^(k-1) to 2^(k-1)-1 */
-      }
-    while (i == d && mpz_cmp_ui (f->coeff[i], 0) == 0);
-  mpz_clear (u);
-  f->deg = d;
-}
-
 static void mpz_poly_setcoeffs_ui_var(mpz_poly f, int d, ...)
 {
     va_list ap;
@@ -90,8 +67,8 @@ test_mpz_poly_mul_tc (unsigned long iter)
     for (r = 0; r <= MAX_TC_DEGREE; r++)
       for (s = 0; r + s <= MAX_TC_DEGREE; s++)
         {
-          mpz_poly_random (g, r, 10);
-          mpz_poly_random (h, s, 10);
+          mpz_poly_set_signed_rrandomb (g, r, state, 10);
+          mpz_poly_set_signed_rrandomb (h, s, state, 10);
           mpz_poly_mul (f0, g, h);
           mpz_poly_realloc (f1, r + s + 1);
           f1->deg = r + s;
@@ -129,7 +106,7 @@ test_mpz_poly_sqr_tc (unsigned long iter)
   while (iter--)
     for (r = 0; r <= MAX_TC_DEGREE; r++)
       {
-        mpz_poly_random (g, r, 10);
+        mpz_poly_set_signed_rrandomb (g, r, state, 10);
         mpz_poly_mul(f0, g, g);
         mpz_poly_realloc (f1, r + r + 1);
         f1->deg = r + r;
@@ -167,18 +144,18 @@ test_mpz_polymodF_mul ()
     {
       mpz_poly_init (F, d);
       mpz_poly_init (Q->p, d-1);
-      do mpz_poly_random (F, d, k); while (F->deg == -1);
+      do mpz_poly_set_signed_rrandomb (F, d, state, k); while (F->deg == -1);
       for (d1 = 1; d1 <= 10; d1++)
         {
           mpz_poly_init (P1->p, d1);
           mpz_poly_init (P1_saved->p, d1);
-          mpz_poly_random (P1->p, d1, k);
+          mpz_poly_set_signed_rrandomb (P1->p, d1, state, k);
           mpz_poly_set (P1_saved->p, P1->p);
           P1->v = 0;
           for (d2 = 1; d2 <= 10; d2++)
             {
               mpz_poly_init (P2->p, d2);
-              mpz_poly_random (P2->p, d2, k);
+              mpz_poly_set_signed_rrandomb (P2->p, d2, state, k);
               P2->v = 0;
               if ((++count % 3) == 0)
                 mpz_polymodF_mul (Q, P1, P2, F);
@@ -326,7 +303,7 @@ test_mpz_poly_sqr_mod_f_mod_mpz (unsigned long iter)
       mpz_init (invm);
       while (1)
         {
-          mpz_poly_random (f, d, k);
+          mpz_poly_set_signed_rrandomb (f, d, state, k);
           if (f->deg < d)
             continue;
           mpz_gcd (invm, m, f->coeff[d]);
@@ -335,7 +312,7 @@ test_mpz_poly_sqr_mod_f_mod_mpz (unsigned long iter)
         }
       mpz_poly_init (P, d - 1);
       if (iter)
-        mpz_poly_random (P, d - 1, k);
+        mpz_poly_set_signed_rrandomb (P, d - 1, state, k);
       else
         P->deg = -1; /* P=0 */
       mpz_poly_init (Q, d - 1);
@@ -626,7 +603,7 @@ test_mpz_poly_base_modp_init (unsigned long iter)
           d = 1;
           m = 833;
         }
-      mpz_poly_random (f, d, m);
+      mpz_poly_set_signed_rrandomb (f, d, state, m);
       s = mpz_poly_sizeinbase (f, 2);
       for (i = 0; i <= f->deg; i++)
         ASSERT_ALWAYS(mpz_sizeinbase (f->coeff[i], 2) <= s);
@@ -655,7 +632,7 @@ void test_mpz_poly_is_root(unsigned long iter)
     mpz_poly_init(ell, 1);
 
     for( ; iter--; ) {
-        mpz_poly_random(f, 10, 100);
+        mpz_poly_set_signed_rrandomb(f, 10, state, 100);
         mpz_urandomb(p, state, 100);
         mpz_rrandomb(r, state, 100);
         mpz_poly_setcoeff_si(ell, 1, 1);
@@ -821,7 +798,7 @@ void test_mpz_poly_factor(unsigned long iter)
         // fprintf(stderr, "%lu ", iter);
         mpz_rrandomb(p, state, 20);
         mpz_nextprime(p, p);
-        mpz_poly_random(f, 10, 10);
+        mpz_poly_set_signed_rrandomb(f, 10, state, 10);
         mpz_poly_mod_mpz(f, f, p, NULL);
         // mpz_poly_fprintf(stderr, f);
         mpz_poly_factor(lf, f, p, state);
@@ -954,7 +931,7 @@ void test_mpz_poly_trivialities()
     ASSERT_ALWAYS(mpz_poly_cmp(f, g) == 0);
 
     /* multiply by zero */
-    mpz_poly_random(f, 10, 10);
+    mpz_poly_set_signed_rrandomb(f, 10, state, 10);
     mpz_poly_set_zero(g);
     mpz_poly_mul(f, f, g);
     ASSERT_ALWAYS(mpz_poly_cmp(f, g) == 0);
@@ -986,7 +963,7 @@ void test_mpz_poly_trivialities()
     ASSERT_ALWAYS(mpz_poly_cmp(g, r) == 0);
 
     /* multiply by p, then reduce mod p */
-    mpz_poly_random(f, 10, 10);
+    mpz_poly_set_signed_rrandomb(f, 10, state, 10);
     mpz_poly_mul_mpz (f, f, p);
     mpz_poly_makemonic_mod_mpz(f, f, p);
     ASSERT_ALWAYS(f->deg < 0);

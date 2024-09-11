@@ -760,6 +760,94 @@ void mpz_poly_clear(mpz_poly_ptr f)
   f->alloc = 0; /* to avoid a double-free */
 }
 
+struct urandomm {
+    typedef mpz_srcptr argtype;
+    argtype k;
+    urandomm(argtype k) : k(k) {}
+    void fetch_half(cxx_mpz & h) const {
+        mpz_div_2exp(h, k, 1);
+    }
+    void operator()(mpz_ptr x, gmp_randstate_t state) const {
+        mpz_urandomm(x, state, k);
+    }
+};
+struct urandomb {
+    typedef int argtype;
+    argtype k;
+    urandomb(argtype k) : k(k) { ASSERT_ALWAYS (k > 0); }
+    void fetch_half(cxx_mpz & h) const {
+        h = 1;
+        mpz_mul_2exp(h, h, k-1);
+    }
+    void operator()(mpz_ptr x, gmp_randstate_t state) const {
+        mpz_urandomb(x, state, k);
+    }
+};
+struct rrandomb {
+    typedef int argtype;
+    argtype k;
+    rrandomb(argtype k) : k(k) {}
+    void fetch_half(cxx_mpz & h) const {
+        h = 1;
+        mpz_mul_2exp(h, h, k-1);
+    }
+    void operator()(mpz_ptr x, gmp_randstate_t state) const {
+        mpz_rrandomb(x, state, k);
+    }
+};
+/* Put random coefficients of k bits in a polynomial
+ * Ensure the coefficient of degree d is not zero.
+ */
+template<typename R>
+static void mpz_poly_set_random_internal (mpz_poly_ptr f, int d, gmp_randstate_ptr state, R const & r, bool is_signed)
+{
+    cxx_mpz u;
+
+    if (is_signed) r.fetch_half(u);
+
+    for (int i = 0; i <= d; i++) {
+        mpz_ptr fi = mpz_poly_coeff(f, i);
+        do {
+            r(fi, state);
+            if (is_signed)
+                mpz_sub (fi, fi, u);
+        }
+        while (i == d && mpz_cmp_ui (fi, 0) == 0);
+    }
+
+    mpz_poly_cleandeg(f, d);
+}
+
+void mpz_poly_set_signed_rrandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k)
+{
+    mpz_poly_set_random_internal(f, d, state, rrandomb(k), true);
+}
+
+void mpz_poly_set_rrandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k)
+{
+    mpz_poly_set_random_internal(f, d, state, rrandomb(k), false);
+}
+
+void mpz_poly_set_signed_urandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k)
+{
+    mpz_poly_set_random_internal(f, d, state, urandomb(k), true);
+}
+
+void mpz_poly_set_urandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k)
+{
+    mpz_poly_set_random_internal(f, d, state, urandomb(k), false);
+}
+
+void mpz_poly_set_signed_urandomm (mpz_poly_ptr f, int d, gmp_randstate_ptr state, mpz_srcptr N)
+{
+    mpz_poly_set_random_internal(f, d, state, urandomm(N), true);
+}
+
+void mpz_poly_set_urandomm (mpz_poly_ptr f, int d, gmp_randstate_ptr state, mpz_srcptr N)
+{
+    mpz_poly_set_random_internal(f, d, state, urandomm(N), false);
+}
+
 /* removed mpz_poly_set_deg, as for all purposes there is no reason to
  * not use the more robust mpz_poly_cleandeg */
 
