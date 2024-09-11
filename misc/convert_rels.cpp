@@ -38,12 +38,13 @@ command line is faster than the current code:
 #include <sys/syscall.h>
 
 #include <gmp.h>
+#include "timing.h"
 #include "cado_poly.h"
+#include "getprime.h"
 #include "renumber.hpp"
 #include "gzip.h"
 #include "macros.h"
 #include "filter_io.h"  // filter_rels
-#include "getprime.h" // prime_pi
 
 #define MAX_PRIMES 255 /* maximal number of factor base primes */
 #define MAX_LPRIMES 3  /* maximal number of large primes */
@@ -83,23 +84,23 @@ uint64_t relations_written = 0;
 /* used for counting time in different processes */
 timingstats_dict_t stats = {0};
 
-typedef struct {
+struct worker {
     pid_t pid = 0;
     int fd[2] = {0,};
 
     char readbuf[16 * 1024] = {0,};
     int bufsize = 0;
     int readpos = 0;
-} worker_t;
+};
 
-typedef struct {
-    worker_t* workers;
+struct thread_rel_args {
+    worker* workers;
     int num_workers;
     FILE* fp;
     int lines_per_relation;
-} thread_rel_args_t;
+};
 
-typedef struct
+struct relation
 {
   int64_t a;
   uint64_t b;
@@ -118,15 +119,12 @@ typedef struct
   unsigned long large_aprimes[MAX_LPRIMES];
   int32_t qcb1, qcb2; /* quadratic characters */
   int end_of_set;
-} relation_t;
+};
 
-// Forward declaration
-struct relation_data;
+typedef int (*read_relation_func)(FILE* fp, relation * rel, struct relation_data* data);
+typedef void (*print_relation_func)(FILE* fp, relation * rel, struct relation_data* data);
 
-typedef int (*read_relation_func)(FILE* fp, relation_t* rel, struct relation_data* data);
-typedef void (*print_relation_func)(FILE* fp, relation_t* rel, struct relation_data* data);
-
-typedef struct relation_data {
+struct relation_data {
     mpz_t* f;
     int degf;
 
@@ -147,7 +145,7 @@ typedef struct relation_data {
     int iformat;
     int oformat;
 
-} relation_data_t;
+};
 
 uint32_t
 get_uint32 (FILE *fp)
@@ -200,7 +198,7 @@ print_large_prime (uint32_t l, uint32_t h)
 /* Return 1 if the largest prime in rel is < 2^lpb or if lpb == 0, 
    return 0 otherwise */
 int
-checksize_relation_cado (relation_t *rel, int32_t *rfb, int32_t *afb, int lpb)
+checksize_relation_cado (relation  *rel, int32_t *rfb, int32_t *afb, int lpb)
 {
   unsigned int i;
   unsigned long p;
@@ -262,7 +260,7 @@ checksize_relation_cado (relation_t *rel, int32_t *rfb, int32_t *afb, int lpb)
    p1,p2,...,pn are the primes on the rational side.
 */
 void
-print_relation_cado (FILE* fp, relation_t *rel, relation_data_t* data)
+print_relation_cado (FILE* fp, relation  *rel, relation_data * data)
 {
 
   unsigned int i, j;
@@ -335,7 +333,7 @@ print_relation_cado (FILE* fp, relation_t *rel, relation_data_t* data)
    Y 444B A6CF C827 2C8627 B 25 209 527 B 2 2 2
 */
 void
-print_relation_fk (FILE* fp, relation_t *rel, relation_data_t* data)
+print_relation_fk (FILE* fp, relation  *rel, relation_data * data)
 {
   unsigned int i, j;
   int32_t *rfb = data->rfb;
@@ -418,7 +416,7 @@ print_primes_cwi (FILE* fp, unsigned long *primes, unsigned long *exp,
 }
 
 void
-print_relation_cwi (FILE* fp, relation_t *rel, relation_data_t* data)
+print_relation_cwi (FILE* fp, relation  *rel, relation_data * data)
 {
   unsigned long i, nr, na;
   int32_t *rfb = data->rfb;
@@ -537,7 +535,7 @@ trialdiv (unsigned long *primes, unsigned long *exps, unsigned int *n,
 /* Read one relation in CADO format from fp, and put it in rel.
    Return 1 if relation is valid, 0 if invalid, -1 if end of file. */
 int
-read_relation_cado (FILE *fp, relation_t *rel, relation_data_t* data MAYBE_UNUSED)
+read_relation_cado (FILE *fp, relation  *rel, relation_data * data MAYBE_UNUSED)
 {
   int c;
   unsigned long p;
@@ -662,7 +660,7 @@ fk_read_primes (char **lp, unsigned long *exponent, unsigned long *primes)
 }
 
 int
-read_relation_fk (FILE *fp, relation_t *rel, relation_data_t* data)
+read_relation_fk (FILE *fp, relation  *rel, relation_data * data)
 {
   char line[512];
   char *lp;
@@ -731,15 +729,16 @@ read_relation_fk (FILE *fp, relation_t *rel, relation_data_t* data)
 /* Read one relation in CWI format from fp, and put it in rel.
    Return 1 if relation is valid, 0 if invalid, -1 if end of file. */
 int
-read_relation_cwi (FILE *fp, relation_t *rel, relation_data_t* data)
+read_relation_cwi (FILE *fp, relation  *rel, relation_data * data)
 {
   int ret, side;
   unsigned long p;
   unsigned int i; /* number of given primes */
-  char c, flag[4];
+  char c, flag[5];
   const int alg_first = data->in_alg_first;
 
-  ret = fscanf (fp, "%4s %" SCNd64 " %" SCNu64 "", flag, &(rel->a), &(rel->b));
+  ret = fscanf (fp, "%4s %" SCNd64 " %" SCNu64 "", flag, &(rel->a),
+          &(rel->b));
   if (ret != 3)
     {
       if (feof (fp))
@@ -807,7 +806,7 @@ read_relation_cwi (FILE *fp, relation_t *rel, relation_data_t* data)
    Return value: 1 if relation is ok, 0 if invalid, -1 if end of file.
 */
 int
-read_relation_ggnfs (FILE *fp, relation_t *rel, relation_data_t* data)
+read_relation_ggnfs (FILE *fp, relation  *rel, relation_data * data)
 {
   uint32_t size_field; /* 32 bits */
   unsigned int i = 0; /* gcc 4.1.2 warns that i may be used uninitialized,
@@ -899,33 +898,34 @@ read_relation_ggnfs (FILE *fp, relation_t *rel, relation_data_t* data)
   return 1; /* valid relation */
 }
 
-#define NB_POLYS_MAX 2
-
 /**
  * Bluntly stolen from check_rels, should be refactored.
  * renumbered relations do not contain all the prime factors for the relation, we use this function to add the missing primes.
  */
-static int fix_relation(relation_t *rel, cado_poly_ptr cpoly, unsigned int * lpb)
+static int fix_relation(relation  *rel, cado_poly_ptr cpoly, unsigned int * lpb)
 {
-  mpz_t norm[NB_POLYS_MAX];
+  mpz_t norm[2];
   int err = 0;
-  unsigned long lpb_max[NB_POLYS_MAX];
+  unsigned long lpb_max[2];
+
+  for(int side = 0 ; side < 2 ; side++) {
+      mpz_init (norm[side]);
+      lpb_max[side] = 1UL << lpb[side];
+  }
 
   /* compute the norm on alg and rat sides */
   for(int side = 0 ; side < cpoly->nb_polys ; side++)
   {
+      ASSERT_ALWAYS(side < 2);
       mpz_poly_ptr ps = cpoly->pols[side];
-      mpz_init (norm[side]);
       mpz_poly_homogeneous_eval_siui (norm[side], ps, rel->a, rel->b);
-      lpb_max[side] = 1UL << lpb[side];
   }
 
-  int side = 0;
   unsigned int* entries = &rel->rfb_entries;
   unsigned long* primes = rel->rprimes;
   unsigned long* exp = rel->rexp;
 
-  for (; side < 2;
+  for (int side = 0 ; side < 2;
           side++,
           entries = &rel->afb_entries,
           primes = rel->aprimes,
@@ -973,7 +973,7 @@ static int fix_relation(relation_t *rel, cado_poly_ptr cpoly, unsigned int * lpb
     }
   }
 
-  for(int side = 0 ; side < cpoly->nb_polys ; side++)
+  for(int side = 0 ; side < 2 ; side++)
     mpz_clear(norm[side]);
 
   return err;
@@ -983,7 +983,7 @@ static int fix_relation(relation_t *rel, cado_poly_ptr cpoly, unsigned int * lpb
 /* Read one relation in CADO format from fp, and put it in rel.
    Return 1 if relation is valid, 0 if invalid, -1 if end of file. */
 int
-read_relation_renumbered (FILE *fp, relation_t *rel, relation_data_t* data)
+read_relation_renumbered (FILE *fp, relation  *rel, relation_data * data)
 {
   int c;
   cado_poly_ptr cpoly = data->cpoly;
@@ -1025,10 +1025,6 @@ read_relation_renumbered (FILE *fp, relation_t *rel, relation_data_t* data)
     unsigned long i;
     renumber_t::p_r_side x;
     if (fscanf (fp, "%lx", &i) == 1) {
-        if (i == 0) {
-            c = getc (fp);
-            break;
-        }
         x = renumber_table->p_r_from_index(i);
         if (x.side == 0) {
             add_prime (rel->rprimes, rel->rexp, &rel->rfb_entries, x.p);
@@ -1075,9 +1071,9 @@ read_relation_renumbered (FILE *fp, relation_t *rel, relation_data_t* data)
    f[0]...f[degf].
 */
 unsigned long
-convert_relations (FILE* infp, FILE* outfp, int lpb, int multi, unsigned int rels_in_file, relation_data_t* data)
+convert_relations (FILE* infp, FILE* outfp, int lpb, int multi, unsigned int rels_in_file, relation_data * data)
 {
-  relation_t rel[1];
+  relation  rel[1];
   unsigned long output_rels = 0;
   unsigned int j;
   int ok;
@@ -1261,8 +1257,8 @@ usage (char *s)
 }
 
 void* read_rels(void* _args) {
-    thread_rel_args_t* args = (thread_rel_args_t*) _args;
-    worker_t* workers = args->workers;
+    thread_rel_args * args = (thread_rel_args *) _args;
+    worker * workers = args->workers;
     int num_workers = args->num_workers;
     FILE* fp = args->fp;
 
@@ -1292,8 +1288,8 @@ void* read_rels(void* _args) {
 
 
 void* read_ggnfs_rels(void* _args) {
-    thread_rel_args_t* args = (thread_rel_args_t*) _args;
-    worker_t* workers = args->workers;
+    thread_rel_args * args = (thread_rel_args *) _args;
+    worker * workers = args->workers;
     int num_workers = args->num_workers;
     FILE* fp = args->fp;
 
@@ -1369,7 +1365,7 @@ void* read_ggnfs_rels(void* _args) {
 #define READ_PARTIAL  0
 #define READ_COMPLETE 1
 
-int read_until(worker_t* worker, char** buf, int* bufsize, const char* needle) {
+int read_until(worker * worker, char** buf, int* bufsize, const char* needle) {
     int ret = 0;
     if (worker->readpos >= worker->bufsize) {
         ret = read(worker->fd[0], worker->readbuf, sizeof(worker->readbuf));
@@ -1403,8 +1399,8 @@ int read_until(worker_t* worker, char** buf, int* bufsize, const char* needle) {
 
 
 void* write_rels(void* _args) {
-    thread_rel_args_t* args = (thread_rel_args_t*) _args;
-    worker_t* workers = args->workers;
+    thread_rel_args * args = (thread_rel_args *) _args;
+    worker * workers = args->workers;
     int num_workers = args->num_workers;
     FILE* fp MAYBE_UNUSED = args->fp;
 
@@ -1461,7 +1457,7 @@ main (int argc, char *argv[])
 
   uint32_t rels_in_file = UINT32_MAX;
 
-  worker_t workers[MAX_THREADS];
+  worker  workers[MAX_THREADS];
 
   cado_poly cpoly;
   renumber_t renumber_table;
@@ -1667,7 +1663,8 @@ main (int argc, char *argv[])
           exit(1);
       }
 
-      renumber_table = renumber_t(renumberfile);
+      renumber_table = renumber_t(cpoly);
+      renumber_table.read_from_file(renumberfile, 0);
   }
 
   switch (iformat) {
@@ -1707,18 +1704,18 @@ main (int argc, char *argv[])
   }
 
 
-  relation_data_t data = {
+  relation_data  data = {
           .f = f,
           .degf = degf,
 
           .rfb = rfb,
           .afb = afb,
 
-          .cpoly = cpoly,
-          .renumber = & renumber_table,
-
           .in_alg_first = in_alg_first,
           .out_alg_first = out_alg_first,
+
+          .cpoly = cpoly,
+          .renumber = & renumber_table,
 
           .read_relation = read_relation,
           .print_relation = print_relation,
@@ -1830,16 +1827,17 @@ main (int argc, char *argv[])
 
       if (fd == NULL) {
           pthread_t reader, writer;
-          thread_rel_args_t reader_args = {
+          thread_rel_args  reader_args = {
                   .workers = workers,
                   .num_workers = num_threads,
                   .fp = fp,
                   .lines_per_relation = get_format_lines(iformat)
           };
-          thread_rel_args_t writer_args = {
+          thread_rel_args  writer_args = {
                 .workers = workers,
                 .num_workers = num_threads,
                 .fp = out_fp,
+                .lines_per_relation = 0 //unused for writing
           };
           void* retval;
           if (pthread_create(&reader, NULL, iformat == FORMAT_GGNFS ? read_ggnfs_rels : read_rels, &reader_args) != 0) {
