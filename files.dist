@@ -1159,6 +1159,8 @@ tests/estimate_matsize/test_with_relation_cache.sh
 tests/filter/CMakeLists.txt
 tests/filter/Makefile
 tests/filter/c105_30003.rels.gz
+tests/filter/c30_sm_small_ell.poly
+tests/filter/c30_sm_small_ell.purged
 tests/filter/p40_30004.poly
 tests/filter/p40_30004.rels.gz
 tests/filter/test_dup2.sh

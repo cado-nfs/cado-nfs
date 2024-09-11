@@ -10,10 +10,16 @@
 
 /* compute the SM */
 static void
-compute_sm_lowlevel (mpz_poly SM, mpz_poly_srcptr num, const mpz_poly F,
-                     const mpz_t ell, const mpz_t smexp, const mpz_t ell2)
+compute_sm_lowlevel (cxx_mpz_poly & SM,
+        cxx_mpz_poly const & num, cxx_mpz_poly const & F,
+        cxx_mpz const & ell, cxx_mpz const & smexp, cxx_mpz const & ell2)
 {
     mpz_poly_pow_mod_f_mod_mpz (SM, num, F, smexp, ell2);
+    if (SM->deg == -1) {
+        throw std::runtime_error(fmt::format(
+                "Fatal error: {} has non-zero valuation at the ideal ({}, {}). The code is currently unable to deal with this correctly", num, ell, F));
+    }
+
     mpz_poly_sub_ui (SM, SM, 1);
     mpz_poly_divexact_mpz (SM, SM, ell);
 }
