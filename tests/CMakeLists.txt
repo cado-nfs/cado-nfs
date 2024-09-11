@@ -9,6 +9,9 @@ find_program(SAGE sage HINTS ENV SAGE)
 if(SAGE)
     message(STATUS "sage program found, some bwc checks will run SageMath code")
 endif()
+add_custom_target(all_magma_test_dependencies)
+add_custom_target(all_sagemath_test_dependencies)
+
 
 # cmake understands tests and targets as being two different things. It
 # is perfectly common to have both a target and a test having the same

@@ -18,6 +18,10 @@ cado_define_test(test_dup2${sage_opt}
    --env WORKDIR
    TARGET_DEPENDENCIES freerel debug_renumber dup2 ${deps})
 
+if (SAGE)
+    add_dependencies(all_sagemath_test_dependencies test_dup2${sage_opt}_dependencies)
+endif()
+
 if(DEFINED ENV{CHECKS_EXPENSIVE})
     # rels found by:
     # makefb -poly c105_30003.poly    -lim 1600000 -side 1 -out /tmp/r1.gz

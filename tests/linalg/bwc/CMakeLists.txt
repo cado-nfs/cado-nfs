@@ -185,9 +185,6 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     endif()
 endforeach()
         
-add_custom_target(all_magma_test_dependencies)
-add_custom_target(all_sagemath_test_dependencies)
-
 macro(create_magma_sage_diversions t)
     if(MAGMA)
         divert_bwc_test(${t} with_magma APPEND_ARGUMENTS magma=${MAGMA}
