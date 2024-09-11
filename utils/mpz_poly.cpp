@@ -4868,6 +4868,9 @@ struct mpz_poly_parser_traits {
     void sub(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
         mpz_poly_sub(c, a, b);
     }
+    void neg(cxx_mpz_poly & c, cxx_mpz_poly const & a) {
+        mpz_poly_neg(c, a);
+    }
     void mul(cxx_mpz_poly & c, cxx_mpz_poly const & a, cxx_mpz_poly const & b) {
         mpz_poly_mul(c, a, b);
     }
