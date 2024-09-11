@@ -61,7 +61,7 @@ void compute_sm_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u, sm_side_info_srcp
             compute_sm_lowlevel (chunks[j], u,
                     g, sm->ell, sm->exponents[j], sm->ell2);
         } else {
-            ASSERT_ALWAYS(mpz_cmp_ui(g->coeff[1], 1) == 0);
+            ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(g, 1), 1) == 0);
             mpz_poly_set(chunks[j], u);
             mpz_poly_mod_f_mod_mpz(chunks[j], g, sm->ell2, NULL, NULL);
             ASSERT_ALWAYS(chunks[j]->deg == 0);
@@ -76,9 +76,9 @@ void compute_sm_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u, sm_side_info_srcp
 #endif
         for(int k = 0 ; k < g->deg ; k++, s++) {
             if (sm->mode == SM_MODE_2019REV)
-                mpz_swap(temp->coeff[s], chunks[j]->coeff[g->deg-1-k]);
+                mpz_swap(mpz_poly_coeff(temp, s), mpz_poly_coeff(chunks[j], g->deg-1-k));
             else
-                mpz_swap(temp->coeff[s], chunks[j]->coeff[k]);
+                mpz_swap(mpz_poly_coeff(temp, s), mpz_poly_coeff(chunks[j], k));
         }
     }
 
@@ -86,13 +86,14 @@ void compute_sm_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u, sm_side_info_srcp
         temp->deg = n - 1;
         /* now apply the change of basis matrix */
         for(int s = 0 ; s < n ; s++) {
-            mpz_set_ui(dst->coeff[s], 0);
+            mpz_ptr y = mpz_poly_coeff(dst, s);
+            mpz_set_ui(y, 0);
             for(int k = 0 ; k < n ; k++) {
-                mpz_addmul(dst->coeff[s],
-                        temp->coeff[k],
+                mpz_addmul(y,
+                        mpz_poly_coeff_const(temp, k),
                         sm->matrix[k * n + s]);
             }
-            mpz_mod(dst->coeff[s], dst->coeff[s], sm->ell);
+            mpz_mod(y, y, sm->ell);
         }
         dst->deg = n - 1;
     } else {
@@ -120,7 +121,7 @@ print_sm2 (FILE *f, sm_side_info_srcptr S, mpz_poly_srcptr SM, const char * deli
         if (jx > SM->deg)
             fprintf(f, "0");
         else
-            gmp_fprintf(f, "%Zu", SM->coeff[jx]);
+            gmp_fprintf(f, "%Zu", mpz_poly_coeff_const(SM, jx));
 
         if (j != S->nsm-1)
             fputs(delim, f);
@@ -293,7 +294,7 @@ void compute_change_of_basis_matrix(mpz_t * matrix, mpz_poly_srcptr f, mpz_poly_
              * modulo f */
             for(int k = 0 ; k < f->deg ; k++) {
                 if (k <= h->deg)
-                    mpz_set(matrix[s * f->deg + k], h->coeff[k]);
+                    mpz_set(matrix[s * f->deg + k], mpz_poly_coeff_const(h, k));
             }
             mpz_poly_mul_xi(h, h, 1);
             mpz_poly_mod_f_mod_mpz(h, f, ell, NULL, NULL);

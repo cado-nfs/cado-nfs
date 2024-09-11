@@ -114,14 +114,14 @@ void test_mpz_poly()
 
   mpz_vector_get_mpz_poly(p, c);
   for (unsigned int i = 0; i < c->dim; i++) {
-    ASSERT_ALWAYS(mpz_cmp(p->coeff[i], c->c[i]) == 0);
+    ASSERT_ALWAYS(mpz_cmp(mpz_poly_coeff_const(p, i), c->c[i]) == 0);
   }
   ASSERT_ALWAYS(p->deg == (int)(c->dim - 1));
 
   mpz_vector_setcoordinate_ui(c, 2, 0);
   mpz_vector_get_mpz_poly(p, c);
   for (unsigned int i = 0; i < c->dim; i++) {
-    ASSERT_ALWAYS(mpz_cmp(p->coeff[i], c->c[i]) == 0);
+    ASSERT_ALWAYS(mpz_cmp(mpz_poly_coeff_const(p, i), c->c[i]) == 0);
   }
   ASSERT_ALWAYS(p->deg == 1);
 

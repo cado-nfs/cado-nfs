@@ -44,7 +44,7 @@ extern "C" {
 struct mpz_poly_s {
   unsigned int alloc;
   int deg;
-  mpz_t *coeff;
+  mpz_t *_coeff;
 };
 #ifndef DOUBLE_POLY_H_
 /* double_poly.h forward-declares these. Don't do it twice */
@@ -134,7 +134,12 @@ unsigned long mpz_poly_cardinality(int deg, unsigned int bound);
 /* return the leading coefficient of f */
 static inline mpz_srcptr mpz_poly_lc (mpz_poly_srcptr f) {
     ASSERT(f->deg >= 0);
-    return f->coeff[f->deg];
+    return mpz_poly_coeff_const(f, f->deg);
+}
+
+static inline mpz_ptr mpz_poly_lc_w (mpz_poly_ptr f) {
+    ASSERT(f->deg >= 0);
+    return mpz_poly_coeff(f, f->deg);
 }
 
 /* Print functions */
@@ -173,11 +178,18 @@ void mpz_poly_mul_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a);
 void mpz_poly_divexact_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a);
 int mpz_poly_divisible_mpz (mpz_poly_srcptr P, mpz_srcptr a);
 void mpz_poly_translation (mpz_poly_ptr, mpz_poly_srcptr, mpz_srcptr);
+
 void mpz_poly_rotation (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr, int);
+void mpz_poly_rotation_si (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, long int, int);
+void mpz_poly_rotation_ui (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, unsigned long int, int);
+void mpz_poly_rotation_int64 (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, int64_t, int);
+void mpz_poly_reverse_rotation (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr, int);
+void mpz_poly_reverse_rotation_si (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, long int, int);
+void mpz_poly_reverse_rotation_ui (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, unsigned long int, int);
+
 void mpz_poly_addmul_si (mpz_poly_ptr, mpz_poly_srcptr, long);
 void mpz_poly_mul_si (mpz_poly_ptr, mpz_poly_srcptr, long);
 void mpz_poly_divexact_ui (mpz_poly_ptr, mpz_poly_srcptr, unsigned long);
-void mpz_poly_rotation_int64 (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, const int64_t, int);
 void mpz_poly_makemonic_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr m);
 void barrett_precompute_inverse (mpz_ptr invm, mpz_srcptr m);
 int mpz_poly_mod_f_mod_mpz(mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
@@ -229,12 +241,14 @@ void mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4]);
 void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, const int64_t i, const uint64_t j);
 void mpz_poly_content (mpz_ptr c, mpz_poly_srcptr F);
 int mpz_poly_has_trivial_content (mpz_poly_srcptr F);
+int mpz_poly_divide_by_content (mpz_poly_ptr F);
 void mpz_poly_resultant(mpz_ptr res, mpz_poly_srcptr p, mpz_poly_srcptr q);
 void mpz_poly_discriminant(mpz_ptr res, mpz_poly_srcptr f);
 int mpz_poly_squarefree_p(mpz_poly_srcptr f);
 int mpz_poly_is_irreducible_z(mpz_poly_srcptr f);
 
 int mpz_poly_number_of_real_roots(mpz_poly_srcptr f);
+void mpz_poly_discriminant_of_linear_combination (mpz_poly_ptr D, mpz_poly_srcptr f0, mpz_poly_srcptr g);
 
 struct mpz_poly_with_m_s {
     mpz_poly f;

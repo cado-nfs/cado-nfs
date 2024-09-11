@@ -33,40 +33,40 @@ test_L2_lognorm (void)
   mpz_poly_init (p, MAX_DEGREE);
 
   /* degree 1 */
-  mpz_set_ui (p->coeff[0], 1);
-  mpz_set_ui (p->coeff[1], 2);
-  p->deg = 1;
+  mpz_poly_set_zero(p);
+  mpz_poly_setcoeff_ui(p, 0, 1);
+  mpz_poly_setcoeff_ui(p, 1, 2);
   n = L2_lognorm (p, 1.0);
   check_num (n, 0.68393671871075337595, 2e-10);
   n = L2_lognorm (p, 2.0);
   check_num (n, 0.94925084419690070780, 2e-10);
 
   /* degree 2 */
-  mpz_set_ui (p->coeff[2], 3);
-  p->deg = 2;
+  mpz_poly_setcoeff_ui(p, 2, 3);
+
   n = L2_lognorm (p, 1.0);
   check_num (n, 0.82777775480769542870, 2e-10);
   n = L2_lognorm (p, 2.0);
   check_num (n, 1.3718482492081025724, 2e-10);
 
   /* degree 3 */
-  mpz_set_si (p->coeff[3], -4);
-  p->deg = 3;
+  mpz_poly_setcoeff_si (p, 3, -4);
+
   n = L2_lognorm (p, 1.0);
   check_num (n, 0.73159180848396739500, 2e-10);
   n = L2_lognorm (p, 2.0);
   check_num (n, 1.7170713330509004847, 2e-10);
 
   /* degree 4 */
-  mpz_set_si (p->coeff[4], 5);
-  p->deg = 4;
+  mpz_poly_setcoeff_ui (p, 4, 5);
+
   n = L2_lognorm (p, 1.0);
   check_num (n, 0.88625243226159843905, 2e-10);
   n = L2_lognorm (p, 2.0);
   check_num (n, 2.1476529791715452362, 2e-10);
 
   /* degree 5 */
-  mpz_set_si (p->coeff[5], -6);
+  mpz_poly_setcoeff_si(p, 5, -6);
   p->deg = 5;
   n = L2_lognorm (p, 1.0);
   check_num (n, 0.90490889517894624795, 2e-10);
@@ -74,7 +74,7 @@ test_L2_lognorm (void)
   check_num (n, 2.5284494790416146421, 2e-10);
 
   /* degree 6 */
-  mpz_set_si (p->coeff[6], 7);
+  mpz_poly_setcoeff_si(p, 6, 7);
   p->deg = 6;
   n = L2_lognorm (p, 1.0);
   check_num (n, 0.94130996783641860020, 2e-10);
@@ -82,7 +82,7 @@ test_L2_lognorm (void)
   check_num (n, 2.9064780318501317870, 2e-10);
 
   /* degree 7 */
-  mpz_set_si (p->coeff[7], -8);
+  mpz_poly_setcoeff_si(p, 7, -8);
   p->deg = 7;
   n = L2_lognorm (p, 1.0);
   check_num (n, 0.95405307631727864405, 2e-10);
@@ -105,24 +105,24 @@ test_L2_skewness (int t)
 
   mpz_poly_init (p, MAX_DEGREE);
   if (t == 0)
-    mpz_set_ui (p->coeff[0], 1);
+    mpz_poly_setcoeff_ui(p, 0, 1);
   else if (t == 1)
-    mpz_set_ui (p->coeff[0], 4294967295UL);
+    mpz_poly_setcoeff_ui(p, 0, 4294967295UL);
   else
-    mpz_set_ui (p->coeff[0], mrand48 ());
+    mpz_poly_setcoeff_ui(p, 0, mrand48 ());
   for (d = 1; d <= 7; d++)
     {
       if ((t == 0 || t == 1) && d > 1)
-        mpz_set_ui (p->coeff[d-1], 1);
+        mpz_poly_setcoeff_ui(p, d-1, 1);
       if (t == 0)
-        mpz_set_ui (p->coeff[d], 4294967295UL);
+        mpz_poly_setcoeff_ui(p, d, 4294967295UL);
       else if (t == 1)
-        mpz_set_ui (p->coeff[d], 1);
+        mpz_poly_setcoeff_ui(p, d, 1);
       else
         {
           do
-            mpz_set_ui (p->coeff[d], mrand48 ());
-          while (mpz_cmp_ui (p->coeff[d], 0) == 0);
+            mpz_poly_setcoeff_ui(p, d, mrand48 ());
+          while (mpz_cmp_ui (mpz_poly_coeff_const(p, d), 0) == 0);
         }
       p->deg = d;
       s = L2_skewness (p, prec);
@@ -155,29 +155,32 @@ test_L2_skewness (int t)
     }
 
   /* non-regression test for -1+x-x^2+x^4+x^5+x^6 */
-  mpz_set_si (p->coeff[0], -1);
-  mpz_set_si (p->coeff[1], 1);
-  mpz_set_si (p->coeff[2], -1);
-  mpz_set_si (p->coeff[3], 0);
-  mpz_set_si (p->coeff[4], 1);
-  mpz_set_si (p->coeff[5], 1);
-  mpz_set_si (p->coeff[6], 1);
-  p->deg = 6;
+  mpz_poly_set_zero(p);
+  mpz_poly_setcoeff_si(p, 0, -1);
+  mpz_poly_setcoeff_si(p, 1, 1);
+  mpz_poly_setcoeff_si(p, 2, -1);
+  mpz_poly_setcoeff_si(p, 3, 0);
+  mpz_poly_setcoeff_si(p, 4, 1);
+  mpz_poly_setcoeff_si(p, 5, 1);
+  mpz_poly_setcoeff_si(p, 6, 1);
+
   s = L2_skewness (p, prec);
   ASSERT_ALWAYS (s == 1.0);
 
   /* test of degree 2 */
-  mpz_set_si (p->coeff[0], 42);
-  mpz_set_si (p->coeff[1], 0);
-  mpz_set_si (p->coeff[2], 17);
-  p->deg = 2;
+  mpz_poly_set_zero(p);
+  mpz_poly_setcoeff_si(p, 0, 42);
+  mpz_poly_setcoeff_si(p, 1, 0);
+  mpz_poly_setcoeff_si(p, 2, 17);
+
   s = L2_skewness (p, prec);
   ASSERT_ALWAYS (1.571 <= s && s <= 1.572);
 
   /* test of degree 1 */
-  mpz_set_si (p->coeff[0], 42);
-  mpz_set_si (p->coeff[1], 17);
-  p->deg = 1;
+  mpz_poly_set_zero(p);
+  mpz_poly_setcoeff_si(p, 0, 42);
+  mpz_poly_setcoeff_si(p, 1, 17);
+
   s = L2_skewness (p, prec);
   ASSERT_ALWAYS (2.470 <= s && s <= 2.471);
 
@@ -196,20 +199,19 @@ test_size_optimization (void)
   mpz_poly_init (f_opt, 6);
   mpz_poly_init (g, 1);
   mpz_poly_init (g_opt, 1);
-  mpz_set_str (g->coeff[1], "479811439908216194249453", 10);
-  mpz_set_str (g->coeff[0],
-                    "-1817512374557883972669278009547068402044185664937", 10);
+  mpz_set_str (mpz_poly_coeff(g, 1), "479811439908216194249453", 10);
+  mpz_set_str (mpz_poly_coeff(g, 0), "-1817512374557883972669278009547068402044185664937", 10);
   g->deg = 1;
-  mpz_set_str (f->coeff[6], "3746994889972677420", 10);
-  mpz_set_str (f->coeff[5], "11057269082141058123", 10);
-  mpz_set_str (f->coeff[4], "-476255458524556917851536204692614007", 10);
-  mpz_set_str (f->coeff[3], "571753863783554395130237455946021515899994741285",
+  mpz_set_str (mpz_poly_coeff(f, 6), "3746994889972677420", 10);
+  mpz_set_str (mpz_poly_coeff(f, 5), "11057269082141058123", 10);
+  mpz_set_str (mpz_poly_coeff(f, 4), "-476255458524556917851536204692614007", 10);
+  mpz_set_str (mpz_poly_coeff(f, 3), "571753863783554395130237455946021515899994741285",
                10);
-  mpz_set_str (f->coeff[2],
+  mpz_set_str (mpz_poly_coeff(f, 2),
                "-119215284531776978224224998903910352781670761348", 10);
-  mpz_set_str (f->coeff[1],
+  mpz_set_str (mpz_poly_coeff(f, 1),
                "776740771444910094386701822648133452751778906680", 10);
-  mpz_set_str (f->coeff[0],
+  mpz_set_str (mpz_poly_coeff(f, 0),
                "-690339709954574842053460672118938320489859967550", 10);
   f->deg = 6;
   n = L2_skew_lognorm (f, SKEWNESS_DEFAULT_PREC);

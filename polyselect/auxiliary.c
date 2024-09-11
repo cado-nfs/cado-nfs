@@ -41,39 +41,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 
 /* replace f + k0 * x^t * (b*x + m) by f + k * x^t * (b*x + m), and return k */
 long
-rotate_aux (mpz_t *f, mpz_t b, mpz_t m, long k0, long k, unsigned int t)
+rotate_aux (mpz_poly_ptr f, mpz_poly_srcptr g, long k0, long k, unsigned int t)
 {
   /* Warning: k - k0 might not be representable in a long! */
-  unsigned long diff;
-  if (k >= k0)
-    {
-      diff = k - k0; /* k - k0 always fits in an unsigned long */
-      mpz_addmul_ui (f[t + 1], b, diff);
-      mpz_addmul_ui (f[t], m, diff);
-    }
-  else
-    {
-      diff = k0 - k;
-      mpz_submul_ui (f[t + 1], b, diff);
-      mpz_submul_ui (f[t], m, diff);
-    }
+  if (k > k0) {
+      mpz_poly_rotation_ui(f, f, g, k - k0, t);
+  } else if (k < k0) {
+      mpz_poly_reverse_rotation_ui(f, f, g, k0 - k, t);
+  }
   return k;
 }
 
 /* replace f by f + k * x^t * (b*x + g0) */
 void
-rotate_auxg_z (mpz_t *f, const mpz_t b, const mpz_t g0, const mpz_t k, unsigned int t)
+rotate_auxg_z (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr k, unsigned int t)
 {
-  mpz_addmul (f[t + 1], b, k);
-  mpz_addmul (f[t], g0, k);
-}
-
-/* replace f by f - k * x^t * (b*x + g0) */
-void
-derotate_auxg_z (mpz_t *f, const mpz_t b, const mpz_t g0, const mpz_t k, unsigned int t)
-{
-  mpz_submul (f[t + 1], b, k);
-  mpz_submul (f[t], g0, k);
+    mpz_poly_rotation(f, f, g, k, t);
 }
 
 /*
@@ -81,7 +64,7 @@ derotate_auxg_z (mpz_t *f, const mpz_t b, const mpz_t g0, const mpz_t k, unsigne
    Note: it's a backend for print_cadopoly().
 */
 void
-print_cadopoly_fg (FILE *fp, mpz_t *f, int df, mpz_t *g, int dg, mpz_srcptr n)
+print_cadopoly_fg (FILE *fp, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr n)
 {
    int i;
 
@@ -89,12 +72,12 @@ print_cadopoly_fg (FILE *fp, mpz_t *f, int df, mpz_t *g, int dg, mpz_srcptr n)
    gmp_fprintf (fp, "\nn: %Zd\n", n);
 
    /* Y[i] */
-   for (i = dg; i >= 0; i--)
-     gmp_fprintf (fp, "Y%d: %Zd\n", i, g[i]);
+   for (i = g->deg; i >= 0; i--)
+     gmp_fprintf (fp, "Y%d: %Zd\n", i, mpz_poly_coeff_const(g, i));
 
    /* c[i] */
-   for (i = df; i >= 0; i--)
-     gmp_fprintf (fp, "c%d: %Zd\n", i, f[i]);
+   for (i = f->deg; i >= 0; i--)
+     gmp_fprintf (fp, "c%d: %Zd\n", i, mpz_poly_coeff_const(f, i));
 }
 
 
@@ -107,22 +90,13 @@ print_cadopoly (FILE *fp, cado_poly_srcptr p)
 {
    unsigned int nroots = 0;
    double alpha, alpha_proj, logmu, e;
-   mpz_poly F, G;
+   mpz_poly_srcptr F, G;
 
-   F->coeff = p->pols[ALG_SIDE]->coeff;
-   F->deg = p->pols[ALG_SIDE]->deg;
-   G->coeff = p->pols[RAT_SIDE]->coeff;
-   G->deg = p->pols[RAT_SIDE]->deg;
+   F = p->pols[ALG_SIDE];
+   G = p->pols[RAT_SIDE];
 
    /* print f, g only*/
-   print_cadopoly_fg (fp, F->coeff, F->deg, G->coeff, G->deg, p->n);
-
-#ifdef DEBUG
-   fprintf (fp, "# ");
-   fprint_polynomial (fp, F->coeff, F->deg);
-   fprintf (fp, "# ");
-   fprint_polynomial (fp, G->coeff, G->deg);
-#endif
+   print_cadopoly_fg (fp, F, G, p->n);
 
    fprintf (fp, "skew: %1.3f\n", p->skew);
 
@@ -131,7 +105,7 @@ print_cadopoly (FILE *fp, cado_poly_srcptr p)
     logmu = L2_lognorm (G, p->skew);
     alpha = get_alpha (G, get_alpha_bound ());
     alpha_proj = get_alpha_projective (G, get_alpha_bound ());
-    nroots = numberOfRealRoots ((const mpz_t *) G->coeff, G->deg, 0, 0, NULL);
+    nroots = mpz_poly_number_of_real_roots(G);
     fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
                  "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
    }
@@ -139,7 +113,7 @@ print_cadopoly (FILE *fp, cado_poly_srcptr p)
    logmu = L2_lognorm (F, p->skew);
    alpha = get_alpha (F, get_alpha_bound ());
    alpha_proj = get_alpha_projective (F, get_alpha_bound ());
-   nroots = numberOfRealRoots ((const mpz_t *) F->coeff, F->deg, 0, 0, NULL);
+   nroots = mpz_poly_number_of_real_roots(F);
    fprintf (fp, "# lognorm: %1.2f, alpha: %1.2f (proj: %1.2f), E: %1.2f, "
                 "nr: %u\n", logmu, alpha, alpha_proj, logmu + alpha, nroots);
 
@@ -172,7 +146,7 @@ print_cadopoly_extra (FILE *fp, cado_poly cpoly, int argc, char *argv[], double 
   Call print_cadopoly, given f, g and return MurphyE.
 */
 double
-print_poly_fg (mpz_poly_srcptr f, mpz_t *g, mpz_t N, int mode)
+print_poly_fg (mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr N, int mode)
 {
    double e;
 
@@ -181,7 +155,7 @@ print_poly_fg (mpz_poly_srcptr f, mpz_t *g, mpz_t N, int mode)
    cado_poly_provision_new_poly(cpoly);
    cado_poly_provision_new_poly(cpoly);
    mpz_poly_set(cpoly->pols[ALG_SIDE], f);
-   mpz_poly_setcoeffs(cpoly->pols[RAT_SIDE], g, 1);
+   mpz_poly_set(cpoly->pols[RAT_SIDE], g);
    mpz_set(cpoly->n, N);
    cpoly->skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
 
@@ -197,33 +171,6 @@ print_poly_fg (mpz_poly_srcptr f, mpz_t *g, mpz_t N, int mode)
    return e;
 }
 
-/* f <- f(x+k), g <- g(x+k) */
-void
-do_translate_z (mpz_poly_ptr f, mpz_t *g, const mpz_t k)
-{
-  int i, j;
-  int d = f->deg;
-
-  for (i = d - 1; i >= 0; i--)
-    for (j = i; j < d; j++)
-      mpz_addmul (f->coeff[j], f->coeff[j+1], k);
-  mpz_addmul (g[0], g[1], k);
-}
-
-/* f <- f(x-k), g <- g(x-k) */
-void
-do_detranslate_z (mpz_poly_ptr f, mpz_t *g, const mpz_t k)
-{
-  int i, j;
-  int d = f->deg;
-
-  for (i = d - 1; i >= 0; i--)
-    for (j = i; j < d; j++)
-      mpz_submul (f->coeff[j], f->coeff[j+1], k);
-  mpz_submul (g[0], g[1], k);
-}
-
-
 /* If final <> 0, print the real value of E (root-optimized polynomial),
    otherwise print the expected value of E. Return E or exp_E accordingly.
    TODO: adapt for more than 2 polynomials and two algebraic polynomials */
@@ -234,7 +181,7 @@ cado_poly_fprintf_with_info (FILE *fp, cado_poly_ptr cpoly, const char *prefix,
   unsigned int nrroots;
   double lognorm, alpha, alpha_proj, exp_E;
 
-  nrroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, cpoly->pols[ALG_SIDE]->deg, 0, 0, NULL);
+  nrroots = mpz_poly_number_of_real_roots(cpoly->pols[ALG_SIDE]);
   if (cpoly->skew <= 0.0) /* If skew is undefined, compute it. */
     cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
   lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
@@ -265,14 +212,16 @@ cado_poly_fprintf_with_info_and_MurphyE (FILE *fp, cado_poly_ptr cpoly,
 /* compute largest interval kmin <= k <= kmax such that when we add k*x^i*g(x)
    to f(x), the lognorm does not exceed maxlognorm (with skewness s) */
 void
-expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
+expected_growth (rotation_space *r, mpz_poly_srcptr f0, mpz_poly_srcptr g, int i,
                  double maxlognorm, double s)
 {
-  mpz_t fi, fip1, kmin, kmax, k;
+  mpz_t kmin, kmax, k;
   double n2;
 
-  mpz_init_set (fi, f->coeff[i]);
-  mpz_init_set (fip1, f->coeff[i+1]);
+  mpz_poly f;
+  mpz_poly_init(f, -1);
+  mpz_poly_set(f, f0);
+
   mpz_init (kmin);
   mpz_init (kmax);
   mpz_init (k);
@@ -281,9 +230,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
   mpz_set_si (kmin, -1);
   for (;;)
     {
-      mpz_set (f->coeff[i], fi);
-      mpz_set (f->coeff[i+1], fip1);
-      rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], kmin, i);
+      mpz_poly_rotation(f, f0, g, kmin, i);
       n2 = L2_lognorm (f, s);
       if (n2 > maxlognorm)
         break;
@@ -297,9 +244,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
       mpz_div_2exp (k, k, 1);
       if (mpz_cmp (k, kmin) == 0 || mpz_cmp (k, kmax) == 0)
         break;
-      mpz_set (f->coeff[i], fi);
-      mpz_set (f->coeff[i+1], fip1);
-      rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], k, i);
+      mpz_poly_rotation(f, f0, g, k, i);
       n2 = L2_lognorm (f, s);
       if (n2 > maxlognorm)
         mpz_set (kmin, k);
@@ -312,9 +257,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
   mpz_set_ui (kmax, 1);
   for (;;)
     {
-      mpz_set (f->coeff[i], fi);
-      mpz_set (f->coeff[i+1], fip1);
-      rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], kmax, i);
+      mpz_poly_rotation(f, f0, g, kmax, i);
       n2 = L2_lognorm (f, s);
       if (n2 > maxlognorm)
         break;
@@ -328,9 +271,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
       mpz_div_2exp (k, k, 1);
       if (mpz_cmp (k, kmin) == 0 || mpz_cmp (k, kmax) == 0)
         break;
-      mpz_set (f->coeff[i], fi);
-      mpz_set (f->coeff[i+1], fip1);
-      rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], k, i);
+      mpz_poly_rotation(f, f0, g, k, i);
       n2 = L2_lognorm (f, s);
       if (n2 > maxlognorm)
         mpz_set (kmax, k);
@@ -339,12 +280,8 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
     }
   r->kmax = mpz_get_d (kmin);
 
-  /* reset f[i] and f[i+1] */
-  mpz_set (f->coeff[i], fi);
-  mpz_set (f->coeff[i+1], fip1);
+  mpz_poly_clear(f);
 
-  mpz_clear (fi);
-  mpz_clear (fip1);
   mpz_clear (kmin);
   mpz_clear (kmax);
   mpz_clear (k);

@@ -168,9 +168,9 @@ mpz_poly_cantor_zassenhaus (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p,
 
   /* linear polynomial */
   if (d == 1) {
-    mpz_neg (aux, f->coeff[1]);
+    mpz_neg (aux, mpz_poly_coeff_const(f, 1));
     mpz_invert (a, aux, p);
-    mpz_mul (r[0], a, f->coeff[0]);
+    mpz_mul (r[0], a, mpz_poly_coeff_const(f, 0));
     mpz_fdiv_r (r[0], r[0], p);
     n = 1;
     goto clear_a;

@@ -355,7 +355,7 @@ vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p, g
         mpz_set(a, rr[i]);
         roots.push_back(a);
     }
-    if (mpz_divisible_p(f->coeff[f->deg], p)) {
+    if (mpz_divisible_p(mpz_poly_lc(f), p)) {
         roots.push_back(p);
     }
     for(int i = 0 ; i < f->deg ; i++) mpz_clear(rr[i]);
@@ -427,7 +427,7 @@ vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_r
 
     cxx_mpz disc;
     mpz_poly_discriminant(disc, f);
-    mpz_mul(disc, disc, f->coeff[f->deg]);
+    mpz_mul(disc, disc, mpz_poly_lc(f));
 
     /* We're not urged to use ecm here */
     vector<pair<cxx_mpz,int> > small_primes = trial_division(disc, 10000000, disc);

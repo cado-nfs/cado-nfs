@@ -96,7 +96,7 @@ extern unsigned int L1_cachesize;
 /* set once in ropt_io.c and unchanged then */
 extern unsigned int size_tune_sievearray;
 
-extern const unsigned int primes[];
+extern const unsigned int ropt_primes[];
 
 extern const unsigned char next_prime_idx[];
 

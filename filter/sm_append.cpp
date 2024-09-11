@@ -302,7 +302,7 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
                         if (k <= smpol->deg) {
                             mp_limb_t * rix = returns + (i * nsm_total + smidx) * limbs_per_ell;
                             for(size_t j = 0 ; j < limbs_per_ell ; j++) {
-                                rix[j] = mpz_getlimbn(smpol->coeff[k], j);
+                                rix[j] = mpz_getlimbn(mpz_poly_coeff_const(smpol, k), j);
                             }
                         }
                     }

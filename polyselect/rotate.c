@@ -23,11 +23,8 @@ int main(int argc, char **argv) {
     cado_poly cpoly;
     long j, k;
     int I = 0;
-    mpz_t b, m;
     double skew = 0.0;
 
-    mpz_init(b);
-    mpz_init(m);
     while (argc >= 2 && argv[1][0] == '-')
       {
         if (strcmp (argv[1], "-area") == 0)
@@ -91,12 +88,8 @@ int main(int argc, char **argv) {
       cpoly->skew = L2_combined_skewness2 (cpoly->pols[0], cpoly->pols[1],
                                           SKEWNESS_DEFAULT_PREC);
 
-    mpz_set (b, cpoly->pols[RAT_SIDE]->coeff[1]);
-    mpz_set (m, cpoly->pols[RAT_SIDE]->coeff[0]);
-    rotate_aux (cpoly->pols[ALG_SIDE]->coeff, b, m, 0, k, 0);
-    rotate_aux (cpoly->pols[ALG_SIDE]->coeff, b, m, 0, j, 1);
-    mpz_clear(b);
-    mpz_clear(m);
+    rotate_aux (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 0, k, 0);
+    rotate_aux (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 0, j, 1);
 
     print_cadopoly_extra (stdout, cpoly, argc, argv, 0);
     return 0;
