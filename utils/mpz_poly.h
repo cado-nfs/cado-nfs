@@ -15,7 +15,7 @@
 #include <istream>      // std::istream // IWYU pragma: keep
 #include <ostream>      // std::ostream // IWYU pragma: keep
 #include <type_traits>
-#include "fmt/core.h"
+#include "fmt/format.h"
 #include "cxx_mpz.hpp"
 #endif
 
