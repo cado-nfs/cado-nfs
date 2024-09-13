@@ -6,6 +6,7 @@
 #include <array>
 #include <memory>
 #include "las-config.h" // FB_MAX_PARTS
+#include "las-plattice.hpp"
 class nfs_aux; // IWYU pragma: keep
 class nfs_work;
 class nfs_work_cofac;
