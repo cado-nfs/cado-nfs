@@ -260,8 +260,7 @@ main (int argc, char *argv[])
                 fmt::print(" all_ideals.append(I{:x})", c);
                 fmt::print("\n");
             } else {
-                fmt::print(tab.debug_data_machine_description(c));
-                fmt::print("\n");
+                fmt::print("{}\n", tab.debug_data_machine_description(c));
             }
         }
     }
