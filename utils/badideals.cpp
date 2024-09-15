@@ -22,31 +22,29 @@
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "macros.h" // ASSERT_ALWAYS // IWYU pragma: keep
 #include "misc.h"
+#include "numbertheory/all_valuations_above_p.hpp"
 
 using namespace std;
 
-/* we'd like to get rid of this! */
-using namespace numbertheory_internals;
-
-    std::ostream& badideal::print_dot_badideals_file(std::ostream & o, int side) const {/*{{{*/
-        o << p
-          << "," << r
-          << ":" << side
-          << ": " << nbad << std::endl;
-        return o;
-    }/*}}}*/
-    std::ostream& badideal::print_dot_badidealinfo_file(std::ostream& o, int side) const {/*{{{*/
-        o << comments;
-        for(unsigned int j = 0 ; j < branches.size() ; j++) {
-            badideal::branch const& br(branches[j]);
-            o << p << " " << br.k << " " << br.r << " " << side;
-            for(unsigned int k = 0 ; k < br.v.size() ; k++) {
-                o << " " << br.v[k];
-            }
-            o << std::endl;
+std::ostream& badideal::print_dot_badideals_file(std::ostream & o, int side) const {/*{{{*/
+    o << p
+        << "," << r
+        << ":" << side
+        << ": " << nbad << std::endl;
+    return o;
+}/*}}}*/
+std::ostream& badideal::print_dot_badidealinfo_file(std::ostream& o, int side) const {/*{{{*/
+    o << comments;
+    for(unsigned int j = 0 ; j < branches.size() ; j++) {
+        badideal::branch const& br(branches[j]);
+        o << p << " " << br.k << " " << br.r << " " << side;
+        for(unsigned int k = 0 ; k < br.v.size() ; k++) {
+            o << " " << br.v[k];
         }
-        return o;
-    }/*}}}*/
+        o << std::endl;
+    }
+    return o;
+}/*}}}*/
 
 std::ostream& badideal::operator<<(std::ostream& os) const
 {
@@ -206,11 +204,13 @@ vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p, g
     return roots;
 }/*}}}*/
 
-vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const& p, gmp_randstate_t state)/*{{{*/
+vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const& p, cxx_gmp_randstate & state)/*{{{*/
 {
     vector<badideal> badideals;
 
     numbertheory_internals::all_valuations_above_p A(f, p, state);
+
+    A.bless_side(side);
 
     vector<cxx_mpz> roots = projective_roots_modp(f, p, state);
 
@@ -260,7 +260,7 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
     return badideals;
 }/*}}}*/
 
-vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_randstate_t state)/*{{{*/
+vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, cxx_gmp_randstate & state)/*{{{*/
 {
     vector<badideal> badideals;
 
@@ -275,11 +275,8 @@ vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_r
     /* We're not urged to use ecm here */
     vector<pair<cxx_mpz,int> > small_primes = trial_division(disc, 10000000, disc);
 
-
-    typedef vector<pair<cxx_mpz,int> >::const_iterator vzci_t;
-
-    for(vzci_t it = small_primes.begin() ; it != small_primes.end() ; it++) {
-        vector<badideal> tmp = badideals_above_p(f, side, it->first, state);
+    for(auto const & pe : small_primes) {
+        vector<badideal> tmp = badideals_above_p(f, side, pe.first, state);
         badideals.insert(badideals.end(), tmp.begin(), tmp.end());
     }
 
@@ -319,6 +316,7 @@ std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz co
     cxx_gmp_randstate state;
     /* This will crash for non-prime ideals, **on purpose** */
     auto A = numbertheory_internals::all_valuations_above_p(f, p, state);
+    A.bless_side(side);
     auto v = A(1, r);
     int k = -1;
     for(unsigned x = 0 ; x < v.size() ; x++) {
@@ -326,15 +324,9 @@ std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz co
             continue;
         int inertia = A.get_inertia_degree(x);
         if (inertia != 1) {
-            /* we do this because for some reason, the references to mpzs
-             * get resolved to mpz_srcptr, and libfmt8 don't want to
-             * format these. Pretty annoying, to be honest.
-             */
-            cxx_mpz pp = p;
-            cxx_mpz rr = r;
             std::cerr << fmt::format(FMT_STRING(
                         "# note: seemingly innocuous prime ideal ({},{}) on side {} has non-trivial residue class degree {}\n"),
-                    pp, rr, side, inertia);
+                    p, r, side, inertia);
         }
         if (k != -1)
             throw std::runtime_error("ideal is not prime");
@@ -345,7 +337,7 @@ std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz co
     return A.sagemath_string(k, side);
 }
 
-std::vector<cxx_mpz> generic_machine_description(cxx_mpz_poly const & f, int, cxx_mpz const & p, cxx_mpz const & r)
+std::string generic_machine_description(cxx_mpz_poly const & f, int, cxx_mpz const & p, cxx_mpz const & r)
 {
     cxx_gmp_randstate state;
     /* This will crash for non-prime ideals, **on purpose** */

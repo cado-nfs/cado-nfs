@@ -38,6 +38,7 @@ set (sources
         numbertheory/number_field_order_element.cpp
         numbertheory/number_field_prime_ideal.cpp
         numbertheory/numbertheory_internals.cpp
+        numbertheory/all_valuations_above_p.cpp
         mpz_mat_accessors.cpp
         badideals.cpp
         json.cpp

@@ -6,6 +6,7 @@
 #include "numbertheory/number_field_element.hpp"
 #include "numbertheory/numbertheory_internals.hpp"
 #include "getprime.h"
+#include "misc.h"
 
 number_field::number_field(cxx_mpz_poly const & f)
     : f(f)
@@ -115,13 +116,21 @@ cxx_mpq_mat number_field::trace_matrix() const
 number_field_order const& number_field::maximal_order(unsigned long prime_limit) const
 {
     if (cached_maximal_order.get() == nullptr) {
-        prime_info pi;
-        prime_info_init(pi);
+
         number_field_order O = equation_order();
-        for( ; getprime_mt(pi) < prime_limit ; ) {
-            ASSERT_ALWAYS(0);
+
+        cxx_mpz disc;
+        mpz_poly_discriminant(disc, f);
+        mpz_mul(disc, disc, mpz_poly_lc(f));
+
+        /* We're not urged to use ecm here */
+        std::vector<std::pair<cxx_mpz,int> > small_primes = trial_division(disc, prime_limit, disc);
+
+        for(auto const & pe : small_primes) {
+            fmt::print("{} {}\n", pe.first, O);
         }
-        prime_info_clear(pi);
+
+        ASSERT_ALWAYS(0);
 
         cached_maximal_order = std::unique_ptr<number_field_order>(new number_field_order(O));
     }
