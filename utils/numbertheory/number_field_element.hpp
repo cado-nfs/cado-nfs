@@ -4,9 +4,11 @@
 #include <utility>
 #include "numbertheory/numbertheory_fwd_types.hpp"
 #include "numbertheory/number_field.hpp"
+#include "numbertheory/fmt_helpers.hpp"
 #include "mpz_mat.h"
 
 class number_field_element {
+    friend struct fmt::formatter<number_field_element>;
     friend class number_field_fractional_ideal;
     friend class number_field_order_element;
     friend class number_field;
@@ -82,15 +84,15 @@ class number_field_element {
 };
 
 namespace fmt {
-    template <> struct formatter<number_field_element> : formatter<string_view>{
-        auto format(number_field_element const & e, format_context& ctx) const -> format_context::iterator {
-            auto y = e.as_polynomial();
-            if (y.second == 1) {
-                return fmt::format_to(ctx.out(), "{}", y.first.print_poly(e.number_field().varname));
-            } else {
-                return fmt::format_to(ctx.out(), "({})/{}", y.first.print_poly(e.number_field().varname), y.second);
-            }
-        }
+    template <>
+    struct formatter<number_field_element>
+        : formatter<string_view>
+        , fmt_helper_sagemath<number_field_element>
+    {
+        static constexpr const decltype(custom_format) custom_format_default = SAGEMATH;
+        using fmt_helper_sagemath::parse;
+        auto format(number_field_element const & e, format_context& ctx) const
+            -> format_context::iterator;
     };
 }
 inline std::ostream& operator<<(std::ostream& os, number_field_element const & e) { return os << fmt::format("{}", e); }

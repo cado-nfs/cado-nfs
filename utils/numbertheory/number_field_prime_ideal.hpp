@@ -15,6 +15,8 @@ class number_field_prime_ideal : private number_field_fractional_ideal {
         using number_field_fractional_ideal::number_field;
 
     operator two_element() const;
+    int inertia_degree() const;
+    inline int ramification_index() const { return e; };
 
     private:
     /* This ctor computes the helper. The tricky thing is that we may not
@@ -22,14 +24,18 @@ class number_field_prime_ideal : private number_field_fractional_ideal {
      */
     number_field_prime_ideal(number_field_fractional_ideal const & I, cxx_mpz const & p, int e);
     int valuation(number_field_fractional_ideal const & I) const;
-    int inertia_degree() const;
-    inline int ramification_index() const { return e; };
     friend class number_field_order;
     friend class number_field_fractional_ideal;
 };
 
 namespace fmt {
-    template <> struct formatter<number_field_prime_ideal> : formatter<string_view>{
+    template <>
+    struct formatter<number_field_prime_ideal>
+        : formatter<string_view>
+        , fmt_helper_sagemath<number_field_prime_ideal>
+    {
+        using fmt_helper_sagemath::parse;
+        static constexpr const decltype(custom_format) custom_format_default = SAGEMATH;
         auto format(number_field_prime_ideal const & e, format_context& ctx) const -> format_context::iterator;
     };
 }

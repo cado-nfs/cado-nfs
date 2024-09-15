@@ -2,6 +2,7 @@
 #define UTILS_NUMBERTHEORY_NUMBER_FIELD_FRACTIONAL_IDEAL_HPP_
 
 #include <utility>
+#include "fmt/format.h"
 #include "numbertheory/numbertheory_fwd_types.hpp"
 #include "numbertheory/number_field_order.hpp"
 #include "cxx_mpz.hpp"
@@ -65,6 +66,21 @@ class number_field_fractional_ideal {
         , ideal_basis_matrix(a.ideal_basis_matrix)
         , denominator(a.denominator)
     {}
+
+    number_field_fractional_ideal& operator=(number_field_fractional_ideal const & a)
+    {
+        ASSERT_ALWAYS(&O == &a.O);
+        ideal_basis_matrix = a.ideal_basis_matrix;
+        denominator = a.denominator;
+        return *this;
+    }
+    number_field_fractional_ideal& operator=(number_field_fractional_ideal && a)
+    {
+        ASSERT_ALWAYS(&O == &a.O);
+        ideal_basis_matrix = std::move(a.ideal_basis_matrix);
+        denominator = std::move(a.denominator);
+        return *this;
+    }
 };
 
 namespace fmt {

@@ -52,8 +52,15 @@ int number_field_prime_ideal::inertia_degree() const
 namespace fmt {
     auto formatter<number_field_prime_ideal>::format(number_field_prime_ideal const & I, format_context& ctx) const -> format_context::iterator
     {
-        number_field_order const & O(I.order());
         number_field_prime_ideal::two_element uv(I);
-        return fmt::format_to(ctx.out(), "{}.fractional_ideal([{}, {}])", O.name, uv.first, uv.second);
+        number_field const & K(I.order().number_field());
+
+        if (custom_format == SAGEMATH || custom_format == TEXT) {
+            number_field_order const & O(I.order());
+            fmt::format_to(ctx.out(), "{}.fractional_ideal([{}, {}])", O.name, uv.first, K(uv.second));
+        } else if (custom_format == MACHINE) {
+            fmt::format_to(ctx.out(), "{} {:M}", uv.first, uv.second);
+        }
+        return ctx.out();
     }
 }

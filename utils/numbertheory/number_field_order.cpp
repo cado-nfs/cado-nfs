@@ -33,9 +33,24 @@ std::vector<std::pair<number_field_prime_ideal, int>>
     return ret;
 }
 
+std::vector<number_field_prime_ideal>
+    number_field_order::factor_radical(cxx_mpz const & p, cxx_gmp_randstate & state) const
+{
+    std::vector<number_field_prime_ideal> ret;
+    for(auto const & F : factor(p, state)) {
+        ret.emplace_back(F.first);
+    }
+    return ret;
+}
+
 std::vector<std::pair<number_field_prime_ideal, int>> number_field_order::factor(cxx_mpz const & p) const {
     cxx_gmp_randstate state;
     return factor(p, state);
+}
+
+std::vector<number_field_prime_ideal> number_field_order::factor_radical(cxx_mpz const & p) const {
+    cxx_gmp_randstate state;
+    return factor_radical(p, state);
 }
 
 number_field_fractional_ideal number_field_order::fractional_ideal(std::vector<number_field_element> const & gens) const
@@ -75,7 +90,7 @@ number_field_order_element number_field_order::operator()(cxx_mpz_mat const & a)
 
 namespace fmt {
     auto formatter<number_field_order>::format(number_field_order const & O, format_context& ctx) const -> format_context::iterator {
-        if (sagemath_format) {
+        if (custom_format == SAGEMATH) {
             int n = O.number_field().degree();
             std::string s = "[";
             for(int i = 0 ; i < n ; i++) {
@@ -84,8 +99,10 @@ namespace fmt {
             }
             s += "]";
             return fmt::format_to(ctx.out(), "{}.order({})", O.number_field().name, s);
-        } else {
+        } else if (custom_format == TEXT) {
             return fmt::format_to(ctx.out(), "Order {} in {}", O.name, O.number_field());
+        } else {
+            throw std::runtime_error("bad format");
         }
     }
 }

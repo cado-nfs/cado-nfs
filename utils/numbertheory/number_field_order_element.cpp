@@ -46,12 +46,19 @@ cxx_mpz_mat number_field_order_element::multiplication_matrix() const
 namespace fmt {
     auto formatter<number_field_order_element>::format(number_field_order_element const & e, format_context& ctx) const -> format_context::iterator
     {
-        fmt::format_to(ctx.out(), "{}([", e.order().name);
-        for(int i = 0 ; i < e.order().number_field().degree() ; i++) {
-            if (i) fmt::format_to(ctx.out(), ", ");
-            fmt::format_to(ctx.out(), "{}", * (cxx_mpz const *) e.coefficients(0,i));
+        if (custom_format == SAGEMATH || custom_format == TEXT) {
+            fmt::format_to(ctx.out(), "{}([", e.order().name);
+            for(int i = 0 ; i < e.order().number_field().degree() ; i++) {
+                if (i) fmt::format_to(ctx.out(), ", ");
+                fmt::format_to(ctx.out(), "{}", * (cxx_mpz const *) e.coefficients(0,i));
+            }
+            fmt::format_to(ctx.out(), "])");
+        } else if (custom_format == MACHINE) {
+            for(int i = 0 ; i < e.order().number_field().degree() ; i++) {
+                if (i) fmt::format_to(ctx.out(), " ");
+                fmt::format_to(ctx.out(), "{}", * (cxx_mpz const *) e.coefficients(0,i));
+            }
         }
-        fmt::format_to(ctx.out(), "])");
         return ctx.out();
     }
 }

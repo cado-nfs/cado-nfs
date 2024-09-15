@@ -116,3 +116,23 @@ number_field_element number_field_element::operator*(number_field_element const 
     }
     return ret;
 }
+
+auto fmt::formatter<number_field_element>::format(number_field_element const & e, format_context& ctx) const -> format_context::iterator
+{
+    auto y = e.as_polynomial();
+    if (custom_format == SAGEMATH || custom_format == TEXT) {
+        if (y.second == 1) {
+            fmt::format_to(ctx.out(), "{}", y.first.print_poly(e.number_field().varname));
+        } else {
+            fmt::format_to(ctx.out(), "({})/{}", y.first.print_poly(e.number_field().varname), y.second);
+        }
+    } else if (custom_format == MACHINE) {
+        cxx_mpz_mat mz;
+        cxx_mpz d;
+        mpq_mat_numden(mz, d, e.coefficients);
+        fmt::format_to(ctx.out(), "{}", d);
+        for(int i = 0 ; i < e.number_field().degree() ; i++)
+            fmt::format_to(ctx.out(), " {}", *(cxx_mpz *)mz(0,i));
+    }
+    return ctx.out();
+}

@@ -27,13 +27,15 @@ namespace fmt {
     {
         number_field_order const & O(I.order());
         int n = O.number_field().degree();
+        number_field const & K(O.number_field());
+
         if (I.denominator != 1) fmt::format_to(ctx.out(), "(");
         fmt::format_to(ctx.out(), "{}.fractional_ideal([", O.name);
         cxx_mpz_mat a(1, n);
         for(int i = 0 ; i < n ; i++) {
             if (i) fmt::format_to(ctx.out(), ", ");
             mpz_mat_submat_set(a, 0, 0, I.ideal_basis_matrix, i, 0, 1, n);
-            fmt::format_to(ctx.out(), "{}", O(a));
+            fmt::format_to(ctx.out(), "{}", K(O(a)));
         }
         fmt::format_to(ctx.out(), "])");
         if (I.denominator != 1)

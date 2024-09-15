@@ -8,6 +8,7 @@
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
 #include "mpz_mat.h"
+#include "fmt/format.h"
 #include <string>
 
 class number_field {
@@ -35,6 +36,10 @@ class number_field {
 
     number_field_order const& maximal_order(unsigned long prime_limit=0) const;
     cxx_mpq_mat trace_matrix() const;
+
+    /* convert an element of an order to the equivalent element as an
+     * element of the number field */
+    number_field_element operator()(number_field_order_element const &) const;
 };
 
 namespace fmt {

@@ -2,6 +2,7 @@
 
 #include "numbertheory/number_field.hpp"
 #include "numbertheory/number_field_order.hpp"
+#include "numbertheory/number_field_order_element.hpp"
 #include "numbertheory/number_field_element.hpp"
 #include "numbertheory/numbertheory_internals.hpp"
 #include "getprime.h"
@@ -140,3 +141,12 @@ number_field_element number_field::operator()(cxx_mpz_mat const & a, cxx_mpz con
 {
     return number_field_element(*this, a, d);
 }
+
+number_field_element number_field::operator()(number_field_order_element const & e) const
+{
+    ASSERT_ALWAYS(this == &e.order().number_field());
+    cxx_mpq_mat c = e.coefficients;
+    mpq_mat_mul(c, c, e.order().basis_matrix);
+    return number_field_element(*this, c);
+}
+

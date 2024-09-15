@@ -8,6 +8,7 @@
 #include "numbertheory/number_field.hpp"
 #include "cxx_mpz.hpp"
 #include "mpz_mat.h"
+#include "numbertheory/fmt_helpers.hpp"
 
 class number_field_order {
     friend class number_field;
@@ -44,6 +45,8 @@ class number_field_order {
 
     std::vector<std::pair<number_field_prime_ideal, int>> factor(cxx_mpz const &, cxx_gmp_randstate &) const;
     std::vector<std::pair<number_field_prime_ideal, int>> factor(cxx_mpz const & p) const;
+    std::vector<number_field_prime_ideal> factor_radical(cxx_mpz const &, cxx_gmp_randstate &) const;
+    std::vector<number_field_prime_ideal> factor_radical(cxx_mpz const & p) const;
 
     number_field_order(number_field_order const & a)
         : K(a.K)
@@ -61,21 +64,15 @@ class number_field_order {
 };
 
 namespace fmt {
-    template <> struct formatter<number_field_order> : formatter<string_view> {
-        private:
-            bool sagemath_format = false;
-        public:
-            FMT_CONSTEXPR auto parse(basic_format_parse_context<char>& ctx)
-                -> decltype(ctx.begin()) {
-                    auto begin = ctx.begin(), end = ctx.end();
-                    if (begin != end && *begin == 'S') {
-                        ++begin;
-                        sagemath_format = true;
-                    }
-                    return begin;
-                }
-        auto format(number_field_order const & O, format_context& ctx) const -> format_context::iterator;
-
+    template <>
+    struct formatter<number_field_order>
+        : formatter<string_view>
+        , fmt_helper_sagemath<number_field_order>
+    {
+        using fmt_helper_sagemath::parse;
+        static constexpr const decltype(custom_format) custom_format_default = TEXT;
+        auto format(number_field_order const & O, format_context& ctx) const
+            -> format_context::iterator;
     };
 }
 inline std::ostream& operator<<(std::ostream& os, number_field_order const & K) { return os << fmt::format("{}", K); }

@@ -6,6 +6,7 @@
 #include "mpz_mat.h"
 
 class number_field_order_element {
+    friend class number_field;
     friend class number_field_prime_ideal;
     friend struct fmt::formatter<number_field_order_element>;
     number_field_order const & O;
@@ -42,8 +43,15 @@ class number_field_order_element {
 };
 
 namespace fmt {
-    template <> struct formatter<number_field_order_element> : formatter<string_view>{
-        auto format(number_field_order_element const & e, format_context& ctx) const -> format_context::iterator;
+    template <>
+    struct formatter<number_field_order_element>
+        : formatter<string_view>
+        , fmt_helper_sagemath<number_field_order_element>
+    {
+        static constexpr const decltype(custom_format) custom_format_default = SAGEMATH;
+        using fmt_helper_sagemath::parse;
+        auto format(number_field_order_element const & e, format_context& ctx) const
+            -> format_context::iterator;
     };
 }
 inline std::ostream& operator<<(std::ostream& os, number_field_order_element const & e) { return os << fmt::format("{}", e); }
