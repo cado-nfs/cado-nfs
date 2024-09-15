@@ -18,7 +18,7 @@ for i in [1..40] do
         Bz:=Matrix(Integers(),B*Bd);
         O`Maximal:=true;
         Fp:=Factorization(ideal<O|p>);
-        print ps(Eltseq(f));
+        print ps([f]);
         iprint:=function(Im)
             I,m:=Explode(Im);
             // MI:=BasisMatrix(I);

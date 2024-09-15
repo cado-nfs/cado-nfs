@@ -38,6 +38,7 @@ cado_define_test(
     PROGRAM
     ${CMAKE_CURRENT_BINARY_DIR}/test-ant
     -test nt-object-interface
+    -poly "10*x^3-x-2"
     TARGET_DEPENDENCIES
     test-ant
     )
@@ -50,6 +51,7 @@ if (SAGE)
         ${CADO_NFS_SOURCE_DIR}/tests/pipe_to_sage.sh
         ${CMAKE_CURRENT_BINARY_DIR}/test-ant
         -test nt-object-interface
+        -poly "10*x^3-x-2"
         TARGET_DEPENDENCIES
         test-ant
         )
