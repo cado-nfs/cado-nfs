@@ -107,7 +107,8 @@ int main(int argc, char * argv[])
         if ((tmp = strstr(basename, ".bin")) != NULL) {
             *tmp='\0';
         }
-        asprintf(&locfile, "%s/%s", tmpdir, basename);
+        int rc = asprintf(&locfile, "%s/%s", tmpdir, basename);
+        ASSERT_ALWAYS(rc >= 0);
         free(matrixfile_copy);
     }
 

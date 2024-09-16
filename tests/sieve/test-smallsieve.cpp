@@ -691,7 +691,8 @@ struct bench_base {
 
     bench_base(int logB, int logI, int logA) : logI(logI), logA(logA) {
         B = 1UL << logB;
-        posix_memalign((void**)&S, B, B);
+        int rc = posix_memalign((void**)&S, B, B);
+        ASSERT_ALWAYS(rc == 0);
     }
     bench_base(bench_base const &) = delete;
     ~bench_base() { free(S); }
@@ -751,7 +752,8 @@ struct bench_base {
                 }
             }
             unsigned char * Scopy;
-            posix_memalign((void**)&Scopy, B, B);
+            int rc = posix_memalign((void**)&Scopy, B, B);
+            ASSERT_ALWAYS(rc == 0);
             memcpy(Scopy, S, B);
             refS.push_back(Scopy);
         }
@@ -833,7 +835,8 @@ struct bench_base {
         std::vector<std::vector<int>> refpos;
         for(size_t i = 0 ; i < cand.size() ; i++) {
             unsigned char * Scopy;
-            posix_memalign((void**)&Scopy, B, B);
+            int rc = posix_memalign((void**)&Scopy, B, B);
+            ASSERT_ALWAYS(rc == 0);
             refS.push_back(Scopy);
             /* make a copy */
             refpos.push_back(positions);
