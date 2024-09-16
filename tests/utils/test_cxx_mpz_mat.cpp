@@ -38,7 +38,7 @@ int main(int argc, char * argv[])
         }
         mpz_mat_mod_ui(M, M, p);
         cxx_mpz_mat M1 = M, T, M2;
-        mpz_mat_hnf_backend(M1, T);
+        mpz_mat_hermite_form(M1, T);
         // mpz_mat_fprint(stdout, M1);
         unsigned int d = std::min(M1->m, M1->n);
         mpz_mat_realloc(M2, d, d);

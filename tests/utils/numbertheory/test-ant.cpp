@@ -23,9 +23,14 @@
 #include "params.h"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "timing.h"     // seconds
+#include "getprime.h"
 #include "misc.h"
 
 using namespace std;
+
+/* we'd like to get rid of this! */
+using namespace numbertheory_internals;
+
 static char ** original_argv;
 
 namespace straightforward_poly_io {
@@ -617,6 +622,88 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
 }
 /*}}}*/
 
+int do_number_theory_object_interface(param_list_ptr pl)
+{
+    std::string polystr("10*x^3-x-2");
+
+    cxx_gmp_randstate state;
+    unsigned long seed = 0;
+    if (param_list_parse_ulong(pl, "seed", &seed)) {
+        gmp_randseed_ui(state, seed);
+    }
+
+    param_list_parse(pl, "poly", polystr);
+
+    cxx_mpz_poly f(polystr);
+    number_field K(f);
+
+    K.bless("K", "alpha");
+
+    fmt::print("print(\"working with {}\")\n", K);
+    fmt::print("ZP.<x> = ZZ[]\n");
+    fmt::print("{}.<{}> = NumberField({})\n", K.name, K.varname, f);
+
+    auto alpha = K.gen();
+    auto x = K(1);
+
+    const int N = 2 * f.degree();
+
+    for(int i = 0 ; i < N ; i++) {
+        fmt::print("assert alpha^{} == {}\n", i, x);
+        x = x * alpha;
+    }
+
+    fmt::print("assert (alpha^{}).trace() == {}\n", N, x.trace());
+
+    prime_info pi;
+    prime_info_init(pi);
+    for(unsigned long pp ; (pp = getprime_mt(pi)) < 12 ; pp++) {
+        fmt::print("print(\"tests mod p={}\")\n", pp);
+        cxx_mpz p = pp;
+        number_field_order Op = K.p_maximal_order(p);
+        Op.bless(fmt::format("O{}", p));
+        fmt::print("print(\"computed {}\")\n", Op);
+        fmt::print("{} = {:S}\n", Op.name, Op);
+        fmt::print("assert {}.is_maximal({})\n", Op.name, p);
+
+        auto fac_p = Op.factor(p);
+        fmt::print("assert {}.fractional_ideal({}) == prod([\n", Op.name, p);
+        for(auto const & Ie : fac_p) {
+            number_field_prime_ideal const & I(Ie.first);
+            int e = Ie.second;
+            if (e == 1) {
+                fmt::print(" {},\n", I);
+            } else {
+                fmt::print(" ({})^{},\n", I, e);
+            }
+        }
+        fmt::print("])\n");
+
+        for(int i = 0 ; i < 4 ; i++) {
+            cxx_mpz_poly phi;
+            int64_t a = gmp_urandomm_ui(state, 1000);
+            uint64_t b = gmp_urandomm_ui(state, 1000);
+            fmt::print("print(\"computing valuations above {} for a={} b={}\")\n", p, a, b);
+            mpz_poly_set_ab(phi, a, b);
+            number_field_element z = K(phi);
+            number_field_fractional_ideal I = Op.fractional_ideal({z});
+
+            fmt::print("I_{0}_{1} = {2}.fractional_ideal([{0}-{1}*{3}])\n",
+                    a, b, Op.name, K.varname);
+            fmt::print("assert I_{}_{} == {}\n", a, b, I);
+            for(auto const & Ie : fac_p) {
+                fmt::print("assert I_{}_{}.valuation({}) == {}\n",
+                        a, b, Ie.first, 
+                        I.valuation(Ie.first));
+                fmt::print("print(\"{}\")\n", I.valuation(Ie.first));
+            }
+        }
+    }
+    prime_info_clear(pi);
+
+    return 1;
+}
+
 int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
 {
     unsigned int m = 8;
@@ -640,7 +727,7 @@ int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
     mpz_set_ui(p, 19);
     param_list_parse_mpz(pl, "prime", p);
 
-    if (0) {
+    if (1) {
         printf("\n\nCas 0.1\n\n");
         mpq_mat_urandomm(M, state, p);
         mpq_mat_fprint(stdout, M);
@@ -652,7 +739,7 @@ int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
         printf("\n");
     }
 
-    if (0) {
+    if (1) {
         printf("\n\nCas 0.2\n\n");
         mpz_mat_urandomm(Mz, state, p);
         mpz_mat_fprint(stdout, Mz);
@@ -670,7 +757,7 @@ int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
         mpz_mat_urandomm(Mz, state, p);
         mpz_mat_fprint(stdout, Mz); printf("\n");
         double t = seconds();
-        mpz_mat_hnf_backend(Mz, Tz);
+        mpz_mat_hermite_form(Mz, Tz);
         t = seconds()-t;
         mpz_mat_fprint(stdout, Mz); printf("\n");
         mpz_mat_fprint(stdout, Tz); printf("\n");
@@ -722,6 +809,8 @@ int main(int argc, char *argv[]) /*{{{ */
         rc = do_valuations_of_ideal_batch(pl);
     } else if (strcmp(tmp, "linear-algebra-timings") == 0) {
         rc = do_linear_algebra_timings(pl);
+    } else if (strcmp(tmp, "nt-object-interface") == 0) {
+        rc = do_number_theory_object_interface(pl);
     } else {
         usage(pl, original_argv, "unknown test");
     }

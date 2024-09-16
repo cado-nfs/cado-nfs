@@ -206,7 +206,8 @@ void mpz_mat_gauss_backend_mod_ui(mpz_mat_ptr M, mpz_mat_ptr T, unsigned long p)
 void mpz_gcd_many(mpz_mat_ptr dT, mpz_ptr * a, unsigned int n);
 
 /* return +1 or -1, which is the determinant of the transformation matrix T */
-int mpz_mat_hnf_backend(mpz_mat_ptr M, mpz_mat_ptr T);
+int mpz_mat_hermite_form(mpz_mat_ptr M, mpz_mat_ptr T);
+int mpz_mat_hermite_form_rev(mpz_mat_ptr M, mpz_mat_ptr T);
 
 /* kernel*/
 // This is supposed to compute the Kernel of M mod p and to store it in the matrix K. If r is the rank of M, and M is a square matrix n*n, K is a n*(n-r) matrix

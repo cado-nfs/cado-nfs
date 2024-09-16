@@ -25,6 +25,8 @@
 
 using namespace std;
 
+/* we'd like to get rid of this! */
+using namespace numbertheory_internals;
 
     std::ostream& badideal::print_dot_badideals_file(std::ostream & o, int side) const {/*{{{*/
         o << p
@@ -123,7 +125,7 @@ vector<cxx_mpz> lift_p1_elements(cxx_mpz const& p, int k, cxx_mpz const& x)/*{{{
     return res;
 }/*}}}*/
 
-vector<badideal::branch> lift_root(all_valuations_above_p const& A, int k0, cxx_mpz const& Q, vector<int> v)/*{{{*/
+vector<badideal::branch> lift_root(numbertheory_internals::all_valuations_above_p const& A, int k0, cxx_mpz const& Q, vector<int> v)/*{{{*/
 {
     vector<badideal::branch> dead_branches_reports;
     vector<pair<cxx_mpz, vector<int> > > live_branches;
@@ -208,7 +210,7 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
 {
     vector<badideal> badideals;
 
-    all_valuations_above_p A(f, p, state);
+    numbertheory_internals::all_valuations_above_p A(f, p, state);
 
     vector<cxx_mpz> roots = projective_roots_modp(f, p, state);
 
@@ -316,7 +318,7 @@ std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz co
 {
     cxx_gmp_randstate state;
     /* This will crash for non-prime ideals, **on purpose** */
-    auto A = all_valuations_above_p(f, p, state);
+    auto A = numbertheory_internals::all_valuations_above_p(f, p, state);
     auto v = A(1, r);
     int k = -1;
     for(unsigned x = 0 ; x < v.size() ; x++) {
@@ -347,7 +349,7 @@ std::vector<cxx_mpz> generic_machine_description(cxx_mpz_poly const & f, int, cx
 {
     cxx_gmp_randstate state;
     /* This will crash for non-prime ideals, **on purpose** */
-    auto A = all_valuations_above_p(f, p, state);
+    auto A = numbertheory_internals::all_valuations_above_p(f, p, state);
     auto v = A(1, r);
     int k = -1;
     for(unsigned x = 0 ; x < v.size() ; x++) {
@@ -365,7 +367,7 @@ std::vector<cxx_mpz> generic_machine_description(cxx_mpz_poly const & f, int, cx
 int get_inertia_of_prime_ideal(cxx_mpz_poly const & f, cxx_mpz const & p, cxx_mpz const & r)
 {
     cxx_gmp_randstate state;
-    auto A = all_valuations_above_p(f, p, state);
+    auto A = numbertheory_internals::all_valuations_above_p(f, p, state);
     auto v = A(1, r);
     for(unsigned x = 0 ; x < v.size() ; x++) {
         if (v[x] == 0)

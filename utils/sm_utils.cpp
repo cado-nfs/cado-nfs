@@ -29,6 +29,8 @@ compute_sm_lowlevel (cxx_mpz_poly & SM,
 
 double m_seconds = 0;
 
+#define xxxxWIP_SM
+
 /* u and dst may be equal */
 void sm_side_info::compute_piecewise(cxx_mpz_poly & dst, cxx_mpz_poly const & u) const
 {

@@ -223,4 +223,27 @@ struct std::default_delete<FILE>
     void operator()(FILE* x) { fclose(x); }
 };
 
+#define CADO_DEFAULT_CXX_CTOR(T)        \
+    T() = default
+
+#define CADO_DEFAULT_COPY_CTOR(T)       \
+    T(T const &) = default
+
+#define CADO_DEFAULT_COPY_ASSIGNMENT(T) \
+    T& operator=(T const &) = default
+
+#define CADO_DEFAULT_MOVE_CTOR(T)       \
+    T(T&&) = default
+
+#define CADO_DEFAULT_MOVE_ASSIGNMENT(T) \
+    T& operator=(T&&) = default
+
+#define CADO_DEFAULT_ALL_FIVE(T)        \
+    CADO_DEFAULT_CXX_CTOR(T);           \
+    CADO_DEFAULT_COPY_CTOR(T);          \
+    CADO_DEFAULT_COPY_ASSIGNMENT(T);    \
+    CADO_DEFAULT_MOVE_CTOR(T);          \
+    CADO_DEFAULT_MOVE_ASSIGNMENT(T)
+
+
 #endif	/* UTILS_CXX_HPP_ */

@@ -31,7 +31,14 @@ set (sources
         sha1.c
         fd_streambuf.cpp
         cado_pipe_streambuf.cpp
-        numbertheory.cpp
+        numbertheory/number_field.cpp
+        numbertheory/number_field_element.cpp
+        numbertheory/number_field_fractional_ideal.cpp
+        numbertheory/number_field_order.cpp
+        numbertheory/number_field_order_element.cpp
+        numbertheory/number_field_prime_ideal.cpp
+        numbertheory/numbertheory_internals.cpp
+        mpz_mat_accessors.cpp
         badideals.cpp
         json.cpp
         indexed_relation.cpp

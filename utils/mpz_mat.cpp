@@ -1609,10 +1609,9 @@ struct mpz_mat_hnf_helper_cmp {
     cxx_mpz_mat A;
     std::vector<double> dd;
     mpz_mat_hnf_helper_cmp(mpz_mat_srcptr T, std::vector<cxx_mpz> & a)
-        :
-        n(T->m),
-        A(n, 1),
-        dd(n, 0)
+        : n(T->m)
+        , A(n, 1)
+        , dd(n, 0)
         {
             ASSERT_ALWAYS(a.size() == n);
             mpz_mat_set_ui(A, 0);
@@ -1778,15 +1777,18 @@ void mpz_gcd_many(mpz_mat_ptr dT, std::vector<cxx_mpz> & a)
 /*}}}*/
 /*}}}*/
 
-/* return +1 or -1, which is the determinant of the transformation matrix
+/*
+ * T receives the transformation matrix.
+ * M is put into HNF form.
+ * return +1 or -1, which is the determinant of the transformation matrix
  * T */
-int mpz_mat_hnf_backend(mpz_mat_ptr M, mpz_mat_ptr T)
+int mpz_mat_hermite_form(mpz_mat_ptr M, mpz_mat_ptr T)
 {
     ASSERT_ALWAYS(M != T);
     if (T == NULL) {
         mpz_mat xT;
         mpz_mat_init(xT,0,0);
-        int r = mpz_mat_hnf_backend(M, xT);
+        int r = mpz_mat_hermite_form(M, xT);
         mpz_mat_clear(xT);
         return r;
     }
@@ -1830,6 +1832,53 @@ int mpz_mat_hnf_backend(mpz_mat_ptr M, mpz_mat_ptr T)
     return signdet;
 }
 /* }}} */
+
+/* This is almost like mpz_mat_hermite_form, except that we do it in a
+ * different order, which is more suitable for displaying number
+ * field elements in a way which ends up being similar to magma's
+ *
+ * T receives the transformation matrix.
+ * M is put into HNF form.
+ */
+int mpz_mat_hermite_form_rev(mpz_mat_ptr M, mpz_mat_ptr T) // {{{
+{
+    mpz_mat_reverse_rows(M, M);
+    mpz_mat_reverse_columns(M, M);
+    int s = mpz_mat_hermite_form(M, T);
+    mpz_mat_reverse_rows(M, M);
+    mpz_mat_reverse_columns(M, M);
+    if (T) mpz_mat_reverse_rows(T, T);
+    if (T) mpz_mat_reverse_columns(T, T);
+    if (M->m > M->n) {
+        /* we need some swaps... */
+        mpz_mat sM;
+        mpz_mat_init(sM, M->m, M->n);
+        mpz_mat_submat_swap(sM, 0, 0,    M, M->m-M->n, 0, M->n, M->n);
+        mpz_mat_submat_swap(sM, M->n, 0, M, 0, 0,         M->m-M->n, M->n);
+        mpz_mat_swap(sM, M);
+        mpz_mat_clear(sM);
+        if (T) {
+            mpz_mat sT;
+            mpz_mat_init(sT, T->m, T->n);
+            mpz_mat_submat_swap(sT, 0, 0,    T, T->m-T->n, 0, T->n, T->n);
+            mpz_mat_submat_swap(sT, T->n, 0, T, 0, 0,         T->m-T->n, T->n);
+            mpz_mat_swap(sT, T);
+            mpz_mat_clear(sT);
+        }
+        /* While the transformations above had no effect on s (because
+         * they compensate), this one has.
+         * we have n circular shifts on length m, plus a reversal on m-n.
+         * a circular shift on length k is exactly k-1 inversions, so
+         * that sums up to n*(m-1) inversions. Then we add
+         * (m-n)*(m-n-1)/2 inversions. This is, in total,
+         * (m(m-1)+n(n-1))/2 inversions.
+         * m*(m-1) is congruent to 2 mod 4 when m is 2 or 3 mod 4
+         */
+        int ninvs = ((M->m&2)+(M->n&2))/2;
+        if (ninvs) s=-s;
+    }
+    return s;
+}//}}}
 /*{{{ kernel*/
 // This is supposed to compute the Kernel of M mod p and to store it in
 // the matrix K. If r is the rank of M, and M is a square matrix n*n, K

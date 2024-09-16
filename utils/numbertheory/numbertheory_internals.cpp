@@ -2,7 +2,6 @@
 /* 
  * Authors: Joshua Peignier and Emmanuel Thomé
  */
-#include "numbertheory.hpp"
 #include <gmp.h>        // for mpz_t, mpz_mul, mpq_denref, mpq_numref, mpz_c...
 #include <algorithm>    // for sort
 #include <cstdio>       // for NULL, size_t
@@ -10,161 +9,34 @@
 #include <memory>       // for allocator_traits<>::value_type
 #include <string>       // for char_traits, operator<<, string
 #include <type_traits>  // for __strip_reference_wrapper<>::__type
+#include "fmt/format.h"
 #include "cxx_mpz.hpp"  // for cxx_mpz, operator<<
 #include "gmp_aux.h"    // for mpz_p_valuation
 #include "macros.h"     // for ASSERT_ALWAYS
+#include "mpz_mat_accessors.h"
+#include "numbertheory_internals.hpp"
+#include "numbertheory_fwd_types.hpp"
 
 
 using namespace std;
 
-/*{{{ conversion of rows and columns to polynomials*/
-void mpz_mat_row_to_poly(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int i);
-void mpz_mat_row_to_poly_rev(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int i);
-void mpz_mat_column_to_poly(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int j);
-void mpq_mat_row_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const unsigned int i);
-void mpq_poly_to_mat_row(mpq_mat_ptr M, const unsigned int i, mpz_poly_srcptr f, mpz_srcptr denom);
-void mpq_mat_column_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const unsigned int j);
-/* }}} */
-
-/*{{{ conversion of rows and columns to polynomials*/
-void mpz_mat_row_to_poly(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int i)
-{
-    mpz_poly_realloc(f,M->n);
-    unsigned int j;
-    for (j = 0 ; j < M->n; j++){
-        mpz_poly_setcoeff(f,j,mpz_mat_entry_const(M,i,j));
-    }
-    mpz_poly_cleandeg(f, M->n - 1);
-}
-
-void mpz_mat_row_to_poly_rev(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int i)
-{
-    mpz_poly_realloc(f,M->n);
-    unsigned int j;
-    for (j = 0 ; j < M->n; j++){
-        mpz_poly_setcoeff(f,j,mpz_mat_entry_const(M,i,M->n-1-j));
-    }
-    mpz_poly_cleandeg(f, M->n - 1);
-}
-
-void mpz_mat_column_to_poly(mpz_poly_ptr f, mpz_mat_srcptr M, const unsigned int j)
-{
-    mpz_poly_realloc(f,M->m);
-    unsigned int i;
-    for (i = 0 ; i < M->m; i++){
-        mpz_poly_setcoeff(f,i,mpz_mat_entry_const(M,i,j));
-    }
-    mpz_poly_cleandeg(f, M->m - 1);
-}
-
-void mpq_mat_row_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const unsigned int i)
-{
-    /* read element w[i] as a polynomial. beware, the element might
-     * have rational coordinates, that's life ! */
-    unsigned int n = M->n;
-    ASSERT_ALWAYS(i < M->m);
-    mpz_set_ui(lcm, 1);
-    for (unsigned int j = 0; j < n; j++) {
-        mpz_lcm(lcm, lcm, mpq_denref(mpq_mat_entry_const(M, i, j)));
-    }
-    mpz_poly_realloc(f, n);
-    for (unsigned int j = 0; j < n; j++) {
-        mpq_srcptr mij = mpq_mat_entry_const(M, i, j);
-        mpz_divexact(mpz_poly_coeff(f, j), lcm, mpq_denref(mij));
-        mpz_mul(mpz_poly_coeff(f, j), mpz_poly_coeff_const(f, j), mpq_numref(mij));
-    }
-    mpz_poly_cleandeg(f, n-1);
-}
-
-void mpq_poly_to_mat_row(mpq_mat_ptr M, const unsigned int i, mpz_poly_srcptr f, mpz_srcptr denom)
-{
-    ASSERT_ALWAYS(f->deg < (int) M->n);
-    for (unsigned int j = 0 ; j < M->n; j++){
-        mpq_ptr mij = mpq_mat_entry(M,i,j);
-        mpz_set(mpq_numref(mij), mpz_poly_coeff_const(f, j));
-        mpz_set(mpq_denref(mij), denom);
-        mpq_canonicalize(mij);
-    }
-}
-
-void mpq_mat_column_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const unsigned int j)
-{
-    mpz_poly_realloc(f,M->m);
-    mpz_set_si(lcm,1);
-    for (unsigned int i = 0 ; i < M->m ; i++) {
-        mpz_lcm(lcm,lcm,mpq_denref(mpq_mat_entry_const(M,i,j)));
-    }
-    for (unsigned int i = 0 ; i < M->m; i++){
-        mpq_srcptr mij = mpq_mat_entry_const(M, i, j);
-        mpz_divexact(mpz_poly_coeff(f, i), lcm, mpq_denref(mij));
-        mpz_mul(mpz_poly_coeff(f, i), mpz_poly_coeff_const(f, i), mpq_numref(mij));
-    }
-    mpz_poly_cleandeg(f, M->m - 1);
-}
-/*}}}*/
-
 /*{{{ commonly used wrappers around HNF functions */
-int mpz_mat_hnf_backend_rev(mpz_mat_ptr M, mpz_mat_ptr T) // {{{
-{
-    /* This is almost like hnf_backend, except that we do it in a
-     * different order, which is more suitable for displaying number
-     * field elements in a way which ends up being similar to magma's
-     *
-     * T receives the transformation matrix.
-     * M is put into HNF form.
-     */
-    mpz_mat_reverse_rows(M, M);
-    mpz_mat_reverse_columns(M, M);
-    int s = mpz_mat_hnf_backend(M, T);
-    mpz_mat_reverse_rows(M, M);
-    mpz_mat_reverse_columns(M, M);
-    if (T) mpz_mat_reverse_rows(T, T);
-    if (T) mpz_mat_reverse_columns(T, T);
-    if (M->m > M->n) {
-        /* we need some swaps... */
-        mpz_mat sM;
-        mpz_mat_init(sM, M->m, M->n);
-        mpz_mat_submat_swap(sM, 0, 0,    M, M->m-M->n, 0, M->n, M->n);
-        mpz_mat_submat_swap(sM, M->n, 0, M, 0, 0,         M->m-M->n, M->n);
-        mpz_mat_swap(sM, M);
-        mpz_mat_clear(sM);
-        if (T) {
-            mpz_mat sT;
-            mpz_mat_init(sT, T->m, T->n);
-            mpz_mat_submat_swap(sT, 0, 0,    T, T->m-T->n, 0, T->n, T->n);
-            mpz_mat_submat_swap(sT, T->n, 0, T, 0, 0,         T->m-T->n, T->n);
-            mpz_mat_swap(sT, T);
-            mpz_mat_clear(sT);
-        }
-        /* While the transformations above had no effect on s (because
-         * they compensate), this one has.
-         * we have n circular shifts on length m, plus a reversal on m-n.
-         * a circular shift on length k is exactly k-1 inversions, so
-         * that sums up to n*(m-1) inversions. Then we add
-         * (m-n)*(m-n-1)/2 inversions. This is, in total,
-         * (m(m-1)+n(n-1))/2 inversions.
-         * m*(m-1) is congruent to 2 mod 4 when m is 2 or 3 mod 4
-         */
-        int ninvs = ((M->m&2)+(M->n&2))/2;
-        if (ninvs) s=-s;
-    }
-    return s;
-}//}}}
 
-cxx_mpz_mat join_HNF(cxx_mpz_mat const& K, cxx_mpz const& p)//{{{
+static cxx_mpz_mat join_HNF(cxx_mpz_mat const& K, cxx_mpz const& p)//{{{
 {
     cxx_mpz_mat J(K->n, K->n, p);
     cxx_mpz_mat T0;
     cxx_mpz_mat I;
 
     mpz_mat_vertical_join(I, J, K);
-    mpz_mat_hnf_backend(I, T0);
+    mpz_mat_hermite_form(I, T0);
     mpz_mat_submat_swap(I, 0, 0, J, 0, 0, K->n, K->n);
     return J;
 }
 //}}}
 
-cxx_mpz_mat join_HNF_rev(cxx_mpz_mat const& K, cxx_mpz const& p)//{{{
+#if 0
+static cxx_mpz_mat join_HNF_rev(cxx_mpz_mat const& K, cxx_mpz const& p)//{{{
 {
     // Builds the block matrix containing p*identity in the top, and K in
     // the bottom Then computes its HNF and stores it in I
@@ -173,14 +45,18 @@ cxx_mpz_mat join_HNF_rev(cxx_mpz_mat const& K, cxx_mpz const& p)//{{{
     cxx_mpz_mat I;
 
     mpz_mat_vertical_join(I, J, K);
-    mpz_mat_hnf_backend_rev(I, T0);
+    mpz_mat_hermite_form_rev(I, T0);
     mpz_mat_submat_swap(I, 0, 0, J, 0, 0, K->n, K->n);
     return J;
 }//}}}
+#endif
 /*}}}*/
 
 /* {{{ multiplication_table_of_order */
-cxx_mpz_mat multiplication_table_of_order(cxx_mpq_mat const& O,
+/* The correct interface is
+number_field_order::number_field_order(class number_field & K, cxx_mpq_mat const & mat)
+ */
+cxx_mpz_mat numbertheory_internals::multiplication_table_of_order(cxx_mpq_mat const& O,
                                   cxx_mpz_poly const& g)
 {
     /* Let O be an order, with basis written with respect to the
@@ -217,7 +93,9 @@ cxx_mpz_mat multiplication_table_of_order(cxx_mpq_mat const& O,
         mpq_mat_mul(T, T, R);
         cxx_mpz_mat Tz;
         int rc = mpq_mat_numden(Tz, NULL, T);
-        ASSERT_ALWAYS(rc);
+        if (!rc) {
+            throw element_not_integral();
+        }
         for (unsigned int j = 0; j < n; j++) {
             mpz_mat_submat_swap(M, i, j*n, Tz, j, 0, 1, n);
         }
@@ -226,7 +104,7 @@ cxx_mpz_mat multiplication_table_of_order(cxx_mpq_mat const& O,
 }/*}}}*/
 
 /* {{{ multiplication_table_of_ideal*/
-cxx_mpz_mat multiplication_table_of_ideal(cxx_mpz_mat const& M,
+static cxx_mpz_mat multiplication_table_of_ideal(cxx_mpz_mat const& M,
 				  cxx_mpz_mat const& I)
 {
     /* Let O be an order of a degree n number field. Let M be the n*n^2
@@ -272,7 +150,8 @@ cxx_mpz_mat multiplication_table_of_ideal(cxx_mpz_mat const& M,
 }/*}}}*/
 
 /*{{{ multiply_elements_in_order */
-cxx_mpz_mat multiply_elements_in_order(cxx_mpz_mat const& M, cxx_mpz_mat const& E, cxx_mpz_mat const& F)
+/* The correct interface is number_field_order_element::operator* */
+cxx_mpz_mat numbertheory_internals::multiply_elements_in_order(cxx_mpz_mat const& M, cxx_mpz_mat const& E, cxx_mpz_mat const& F)
 {
     /* Let O be an order in a degree n number field.
      *
@@ -305,7 +184,7 @@ cxx_mpz_mat multiply_elements_in_order(cxx_mpz_mat const& M, cxx_mpz_mat const& 
 }/*}}}*/
 
 //{{{ frobenius_matrix
-cxx_mpz_mat frobenius_matrix(cxx_mpz_mat const& M, cxx_mpz const& p)
+static cxx_mpz_mat frobenius_matrix(cxx_mpz_mat const& M, cxx_mpz const& p)
 {
     // frobenius_matrix ; utility function for computing the p-radical
     // Takes a matrix B containing the generators (w_0, ... w_{n-1}) of an
@@ -324,18 +203,21 @@ cxx_mpz_mat frobenius_matrix(cxx_mpz_mat const& M, cxx_mpz const& p)
 
     int k = mpz_sizeinbase(p, 2) - 1;
     for( ; k-- ; ) {
-        F = multiply_elements_in_order(M, F, F);
+        F = numbertheory_internals::multiply_elements_in_order(M, F, F);
         if (mpz_tstbit(p, k))
-            F = multiply_elements_in_order(M, E, F);
+            F = numbertheory_internals::multiply_elements_in_order(M, E, F);
         mpz_mat_mod_mpz(F, F, p);
     }
     return F;
 }//}}}
 
 // {{{ cxx_mpz_mat p_radical_of_order
+
+/* the correct interface is number_field_order::p_radical */
+
 // Stores in I the p-radical of the order whose multiplication matrix is
 // given by M. I is expressed with respect to the basis of the order.
-cxx_mpz_mat p_radical_of_order(cxx_mpz_mat const& M, cxx_mpz const& p)
+cxx_mpz_mat numbertheory_internals::p_radical_of_order(cxx_mpz_mat const& M, cxx_mpz const& p)
 {
     unsigned int n = M->m;
     ASSERT_ALWAYS(M->n == n * n);
@@ -368,13 +250,14 @@ cxx_mpz_mat p_radical_of_order(cxx_mpz_mat const& M, cxx_mpz const& p)
 //
 // The returned order is expressed with respect to the polynomial basis
 // defined by f.
-cxx_mpq_mat p_maximal_order(cxx_mpz_poly const& f, cxx_mpz const& p)
+cxx_mpq_mat numbertheory_internals::p_maximal_order(cxx_mpz_poly const& f, cxx_mpz const& p)
 {
     unsigned int n = f->deg;
 
     cxx_mpz_poly g;
     mpz_poly_to_monic(g, f);
-    cxx_mpq_mat B(n, n, 1);
+    cxx_mpq_mat B(n, n);
+    mpq_mat_set_ui(B, 1);
 
     cxx_mpq_mat new_D = B;
     cxx_mpq_mat D = B;
@@ -424,14 +307,14 @@ cxx_mpq_mat p_maximal_order(cxx_mpz_poly const& f, cxx_mpz const& p)
     cxx_mpz_mat Dz;
     cxx_mpz den;
     mpq_mat_numden(Dz, den, D);
-    mpz_mat_hnf_backend_rev(Dz, NULL);
+    mpz_mat_hermite_form_rev(Dz, NULL);
     mpq_mat_set_mpz_mat_denom(D, Dz, den);
     return D;
 }
 //}}}
 
 //{{{ mpz_mat_minpoly_mod_ui
-cxx_mpz_poly mpz_mat_minpoly_mod_mpz(cxx_mpz_mat M, cxx_mpz const& p)
+static cxx_mpz_poly mpz_mat_minpoly_mod_mpz(cxx_mpz_mat M, cxx_mpz const& p)
 {
     ASSERT_ALWAYS(M->m == M->n);
     unsigned long n = M->n;
@@ -461,7 +344,7 @@ cxx_mpz_poly mpz_mat_minpoly_mod_mpz(cxx_mpz_mat M, cxx_mpz const& p)
 /*}}}*/
 
 /*{{{ matrix_of_multmap */
-cxx_mpz_mat matrix_of_multmap(
+static cxx_mpz_mat matrix_of_multmap(
         cxx_mpz_mat const& M,
         cxx_mpz_mat const& J, 
         cxx_mpz_mat const& c,
@@ -500,7 +383,7 @@ cxx_mpz_mat matrix_of_multmap(
     for(unsigned int k = 0 ; k < m ; k++) {
         cxx_mpz_mat jk(1,n);
         mpz_mat_submat_set(jk,0,0,J,k,0,1,n);
-        cxx_mpz_mat w = multiply_elements_in_order(M, c, jk);
+        cxx_mpz_mat w = numbertheory_internals::multiply_elements_in_order(M, c, jk);
         mpz_mat_submat_swap(CJ,k,0,w,0,0,1,n);
     }
     mpz_mat_mul_mod_mpz(Mc, CJ, Kt, p);
@@ -528,7 +411,7 @@ template <typename T> void append_move(vector<T> &a, vector<T> &b)
 /*}}}*/
 
 // {{{ factorization_of_prime
-vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
+static vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
         cxx_mpq_mat const & B,
         cxx_mpz_mat const & M,
         cxx_mpz const& p,
@@ -599,18 +482,18 @@ vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
         cxx_mpz_mat Ihead(n, n);
         if (Ci->m == e * f->deg) {
             mpz_mat_vertical_join(Ix, Ix, Ip);
-            mpz_mat_hnf_backend_rev(Ix, NULL);
+            mpz_mat_hermite_form_rev(Ix, NULL);
             mpz_mat_submat_swap(Ihead,0,0,Ix,0,0,n,n);
             ideals.push_back(make_pair(Ihead, e));
         } else {
-            mpz_mat_hnf_backend_rev(Ix, NULL);
+            mpz_mat_hermite_form_rev(Ix, NULL);
             mpz_mat_submat_swap(Ihead,0,0,Ix,0,0,n,n);
             vector<pair<cxx_mpz_mat, int> > more_ideals;
             more_ideals = factorization_of_prime_inner(B,M,p,Ip,Ihead,Ci,state);
             append_move(ideals, more_ideals);
         }
     }
-    sort(ideals.begin(), ideals.end(), ideal_comparator());
+    sort(ideals.begin(), ideals.end(), numbertheory_internals::ideal_comparator());
     return ideals;
 }
 
@@ -625,11 +508,13 @@ vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
  * by the p_maximal_order function. No guarantees as to how it would
  * behave is B is not a b-maximal order. Maybe your chair will transform
  * into a coconut.
+ *
+ * the correct interface is number_field_order::factor
  */
-vector<pair<cxx_mpz_mat, int> > factorization_of_prime(
-        cxx_mpq_mat & B, cxx_mpz_poly const& g,
+vector<pair<cxx_mpz_mat, int> > numbertheory_internals::factorization_of_prime(
+        cxx_mpq_mat const & B, cxx_mpz_poly const& g,
         cxx_mpz const& p,
-        gmp_randstate_t state)
+        gmp_randstate_ptr state)
 {
     int n = g->deg;
     cxx_mpz_mat M = multiplication_table_of_order(B, g);
@@ -639,6 +524,7 @@ vector<pair<cxx_mpz_mat, int> > factorization_of_prime(
             cxx_mpz_mat(n, n, 1), state);
 }
 //}}}
+
 
 // {{{ valuation_helper_for_ideal
 //
@@ -652,7 +538,7 @@ vector<pair<cxx_mpz_mat, int> > factorization_of_prime(
 // a is returned as a 1 times n matrix, and the coefficients are a
 // polynomial representation of a with respect to the basis of the order
 // that M is a multiplication matrix of.
-cxx_mpz_mat valuation_helper_for_ideal(cxx_mpz_mat const& M, cxx_mpz_mat const& I, cxx_mpz const& p)
+cxx_mpz_mat numbertheory_internals::valuation_helper_for_ideal(cxx_mpz_mat const& M, cxx_mpz_mat const& I, cxx_mpz const& p)
 {
     unsigned int n = M->m;
     ASSERT_ALWAYS(M->n == n * n);
@@ -677,7 +563,7 @@ cxx_mpz_mat valuation_helper_for_ideal(cxx_mpz_mat const& M, cxx_mpz_mat const& 
 
     cxx_mpz_mat ker;
     mpz_mat_kernel_mod_mpz(ker, MI, p);
-    mpz_mat_hnf_backend(ker, NULL);
+    mpz_mat_hermite_form(ker, NULL);
 
     cxx_mpz_mat res(1, n);
     mpz_mat_submat_swap(res, 0, 0, ker, 0, 0, 1, n);
@@ -689,7 +575,7 @@ cxx_mpz_mat valuation_helper_for_ideal(cxx_mpz_mat const& M, cxx_mpz_mat const& 
 // elements of the order. In case the ideal is fractional, its
 // denominator is also returned. For an integral ideal, the denominator
 // is always 1.
-pair<cxx_mpz_mat, cxx_mpz> generate_ideal(cxx_mpq_mat const& O, cxx_mpz_mat const& M, cxx_mpq_mat const& gens)
+pair<cxx_mpz_mat, cxx_mpz> numbertheory_internals::generate_ideal(cxx_mpq_mat const& O, cxx_mpz_mat const& M, cxx_mpq_mat const& gens)
 {
     unsigned int n = M->m;
     ASSERT_ALWAYS(M->n == n * n);
@@ -715,13 +601,13 @@ pair<cxx_mpz_mat, cxx_mpz> generate_ideal(cxx_mpq_mat const& O, cxx_mpz_mat cons
         }
     }
     /* And put this in HNF */
-    mpz_mat_hnf_backend_rev(products, NULL);
+    mpz_mat_hermite_form_rev(products, NULL);
     cxx_mpz_mat I(n,n);
     mpz_mat_submat_swap(I,0,0,products,0,0,n,n);
     return make_pair(I, denom);
 }//}}}
 
-int prime_ideal_inertia_degree(cxx_mpz_mat const& I)/*{{{*/
+int numbertheory_internals::prime_ideal_inertia_degree(cxx_mpz_mat const& I)/*{{{*/
 {
     unsigned int n = I->m;
     ASSERT_ALWAYS(I->n == n);
@@ -732,7 +618,7 @@ int prime_ideal_inertia_degree(cxx_mpz_mat const& I)/*{{{*/
     return f;
 }
 /*}}}*/
-int valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, cxx_mpz_mat const& I, cxx_mpz_mat const& a, cxx_mpz const& p)/*{{{*/
+int numbertheory_internals::valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, cxx_mpz_mat const& I, cxx_mpz_mat const& a, cxx_mpz const& p)/*{{{*/
 {
     /* M is the multiplication table of the order. I is an ideal. We want
      * to compute the fkp-valuation of I, where fkp is an ideal above p
@@ -754,7 +640,7 @@ int valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, cxx_mpz_mat const& I
         for(unsigned int i = 0 ; i < n ; i++) {
             cxx_mpz_mat b(1,n);
             mpz_mat_submat_set(b,0,0,Ia,i,0,1,n);
-            b = multiply_elements_in_order(M, a, b);
+            b = numbertheory_internals::multiply_elements_in_order(M, a, b);
             mpz_mat_submat_swap(b,0,0,Ia,i,0,1,n);
         }
         if (mpz_mat_p_valuation(Ia, p) < 1)
@@ -763,7 +649,7 @@ int valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, cxx_mpz_mat const& I
     }
 }
 /*}}}*/
-int valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, pair<cxx_mpz_mat,cxx_mpz> const& Id, cxx_mpz_mat const& a, int e, cxx_mpz const& p)/*{{{*/
+int numbertheory_internals::valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, pair<cxx_mpz_mat,cxx_mpz> const& Id, cxx_mpz_mat const& a, int e, cxx_mpz const& p)/*{{{*/
 {
     /* M is the multiplication table of the order. Id is a pair (ideal,
      * denominator of ideal). We want to compute the fkp-valuation of I,
@@ -774,7 +660,7 @@ int valuation_of_ideal_at_prime_ideal(cxx_mpz_mat const& M, pair<cxx_mpz_mat,cxx
      * INT_MAX is returned if Id.first is the zero ideal, but please
      * don't try to use it.
      */
-    int v = valuation_of_ideal_at_prime_ideal(M, Id.first, a, p);
+    int v = numbertheory_internals::valuation_of_ideal_at_prime_ideal(M, Id.first, a, p);
     if (v == INT_MAX) return v;
 
     int w = mpz_p_valuation(Id.second, p);
@@ -833,7 +719,7 @@ struct hypercube_walk {/*{{{*/
  
 /* {{{ prime_ideal_two_element */
 /* I must be in HNF */
-pair<cxx_mpz, cxx_mpz_mat> prime_ideal_two_element(cxx_mpq_mat const& O, cxx_mpz_poly const& f, cxx_mpz_mat const& M, cxx_mpz_mat const& I)
+pair<cxx_mpz, cxx_mpz_mat> numbertheory_internals::prime_ideal_two_element(cxx_mpq_mat const& O, cxx_mpz_poly const& f, cxx_mpz_mat const& M, cxx_mpz_mat const& I)
 {
     cxx_mpz p;
     unsigned int n = M->m;
@@ -929,7 +815,7 @@ pair<cxx_mpz, cxx_mpz_mat> prime_ideal_two_element(cxx_mpq_mat const& O, cxx_mpz
 }
 // }}}
 
-string write_element_as_polynomial(cxx_mpq_mat const& theta_q, string const& var)
+string numbertheory_internals::write_element_as_polynomial(cxx_mpq_mat const& theta_q, string const& var)
 {
     ASSERT_ALWAYS(theta_q->m == 1);
     cxx_mpz theta_denom;
@@ -947,7 +833,7 @@ string write_element_as_polynomial(cxx_mpq_mat const& theta_q, string const& var
     }
 }
 
-string write_order_element_as_vector(cxx_mpz_mat const& z)
+string numbertheory_internals::write_order_element_as_vector(cxx_mpz_mat const& z)
 {
     ASSERT_ALWAYS(z->m == 1);
     ostringstream s;
@@ -961,7 +847,7 @@ string write_order_element_as_vector(cxx_mpz_mat const& z)
 }
 
 std::vector<cxx_mpz>
-write_element_as_list_of_integers(cxx_mpq_mat const& theta_q)
+numbertheory_internals::write_element_as_list_of_integers(cxx_mpq_mat const& theta_q)
 {
     ASSERT_ALWAYS(theta_q->m == 1);
     cxx_mpz theta_denom;
@@ -974,7 +860,7 @@ write_element_as_list_of_integers(cxx_mpq_mat const& theta_q)
     return res;
 }
 
-all_valuations_above_p::all_valuations_above_p(cxx_mpz_poly const& f, cxx_mpz const& p, gmp_randstate_t state)
+numbertheory_internals::all_valuations_above_p::all_valuations_above_p(cxx_mpz_poly const& f, cxx_mpz const& p, gmp_randstate_t state)
     : f(f)
     , p(p)
 {
@@ -983,7 +869,7 @@ all_valuations_above_p::all_valuations_above_p(cxx_mpz_poly const& f, cxx_mpz co
     F = factorization_of_prime(O, f, p, state);
     for(unsigned int k = 0 ; k < F.size() ; k++) {
         cxx_mpz_mat const& fkp(F[k].first);
-        inertia.push_back(prime_ideal_inertia_degree(fkp));
+        inertia.push_back(numbertheory_internals::prime_ideal_inertia_degree(fkp));
         ramification.push_back(F[k].second);
         helpers.push_back(valuation_helper_for_ideal(M, fkp, p));
     }
@@ -992,7 +878,7 @@ all_valuations_above_p::all_valuations_above_p(cxx_mpz_poly const& f, cxx_mpz co
         cxx_mpq_mat jjinv_gen(2, f->deg);
         mpq_set_ui(mpq_mat_entry(jjinv_gen,0,0),1,1);
         mpq_set_ui(mpq_mat_entry(jjinv_gen,1,1),1,1);
-        jjinv = ::generate_ideal(O,M,jjinv_gen);
+        jjinv = numbertheory_internals::generate_ideal(O,M,jjinv_gen);
         val_base = (*this)(jjinv);
     } else {
         int v = 0;
@@ -1010,21 +896,21 @@ all_valuations_above_p::all_valuations_above_p(cxx_mpz_poly const& f, cxx_mpz co
     }
 }
 
-std::vector<int> all_valuations_above_p::operator()(std::pair<cxx_mpz_mat, cxx_mpz> const& Id) const {
+std::vector<int> numbertheory_internals::all_valuations_above_p::operator()(std::pair<cxx_mpz_mat, cxx_mpz> const& Id) const {
     int w = mpz_p_valuation(Id.second, p);
     std::vector<int> res;
     for(unsigned int k = 0 ; k < F.size() ; k++) {
         cxx_mpz_mat const& a(helpers[k]);
-        int v = valuation_of_ideal_at_prime_ideal(M, Id.first, a, p);
+        int v = numbertheory_internals::valuation_of_ideal_at_prime_ideal(M, Id.first, a, p);
         int e = F[k].second;
         res.push_back(v - w * e - val_base[k]);
     }
     return res;
 }
 
-std::string all_valuations_above_p::sagemath_string(int k, int side) {
+std::string numbertheory_internals::all_valuations_above_p::sagemath_string(int k, int side) {
     cxx_mpz_mat const& fkp(F[k].first);
-    std::pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
+    std::pair<cxx_mpz, cxx_mpz_mat> two = numbertheory_internals::prime_ideal_two_element(O, f, M, fkp);
     /* Write the uniformizer as a polynomial with respect to the
      * polynomial basis defined by f */
     cxx_mpq_mat theta_q;
@@ -1038,12 +924,12 @@ std::string all_valuations_above_p::sagemath_string(int k, int side) {
      * a more concise way, based on alpha_hat for instance */
     std::ostringstream alpha;
     alpha << "alpha" << side;
-    std::string uniformizer = write_element_as_polynomial(theta_q, alpha.str());
+    std::string uniformizer = numbertheory_internals::write_element_as_polynomial(theta_q, alpha.str());
 
     return fmt::format("OK{}.fractional_ideal({}, {})", side, two.first, uniformizer);
 }
 
-std::vector<cxx_mpz> all_valuations_above_p::machine_description(int k) {
+std::vector<cxx_mpz> numbertheory_internals::all_valuations_above_p::machine_description(int k) {
     /* This is about the same as above, in that we also return a
      * two-element form of the ideal, but here we return it in a
      * machine readable way. First the prime above which our ideal
@@ -1051,18 +937,18 @@ std::vector<cxx_mpz> all_valuations_above_p::machine_description(int k) {
      * polynomial in alpha that define the second element.
      */
     cxx_mpz_mat const& fkp(F[k].first);
-    std::pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
+    std::pair<cxx_mpz, cxx_mpz_mat> two = numbertheory_internals::prime_ideal_two_element(O, f, M, fkp);
     cxx_mpq_mat theta_q;
     mpq_mat_set_mpz_mat(theta_q, two.second);
     mpq_mat_mul(theta_q, theta_q, O);
-    std::vector<cxx_mpz> res = write_element_as_list_of_integers(theta_q);
+    std::vector<cxx_mpz> res = numbertheory_internals::write_element_as_list_of_integers(theta_q);
     res.insert(res.begin(), two.first);
     return res;
 }
 
-void all_valuations_above_p::print_info(std::ostream& o, int k, cxx_mpz const& r MAYBE_UNUSED, int side) const {
+void numbertheory_internals::all_valuations_above_p::print_info(std::ostream& o, int k, cxx_mpz const& r MAYBE_UNUSED, int side) const {
     cxx_mpz_mat const& fkp(F[k].first);
-    std::pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
+    std::pair<cxx_mpz, cxx_mpz_mat> two = numbertheory_internals::prime_ideal_two_element(O, f, M, fkp);
     /* Write the uniformizer as a polynomial with respect to the
      * polynomial basis defined by f */
     cxx_mpq_mat theta_q;
@@ -1076,13 +962,13 @@ void all_valuations_above_p::print_info(std::ostream& o, int k, cxx_mpz const& r
      * a more concise way, based on alpha_hat for instance */
     std::ostringstream alpha;
     alpha << "alpha" << side;
-    std::string uniformizer = write_element_as_polynomial(theta_q, alpha.str());
+    std::string uniformizer = numbertheory_internals::write_element_as_polynomial(theta_q, alpha.str());
 
     /* This prints magma code. */
     int e = F[k].second;
     o << "# I" << k
         << ":=ideal<O" << side << "|" << two.first << "," << uniformizer << ">;"
-        << " // f=" << prime_ideal_inertia_degree(fkp)
+        << " // f=" << numbertheory_internals::prime_ideal_inertia_degree(fkp)
         << " e="<< e
         << std::endl;
     o << "# I_" << two.first << "_" << r << "_" << side << "_" << k
@@ -1090,20 +976,20 @@ void all_valuations_above_p::print_info(std::ostream& o, int k, cxx_mpz const& r
         << " " << r
         << " " << side
         << " " << theta_q
-        << " // " << prime_ideal_inertia_degree(fkp)
+        << " // " << numbertheory_internals::prime_ideal_inertia_degree(fkp)
         << " " << e
         << endl;
 }
-std::pair<cxx_mpz_mat, cxx_mpz> all_valuations_above_p::generate_ideal(cxx_mpq_mat const& gens) const {
-    return ::generate_ideal(O, M, gens);
+std::pair<cxx_mpz_mat, cxx_mpz> numbertheory_internals::all_valuations_above_p::generate_ideal(cxx_mpq_mat const& gens) const {
+    return numbertheory_internals::generate_ideal(O, M, gens);
 }
 
-std::pair<cxx_mpz_mat, cxx_mpz> all_valuations_above_p::generate_ideal(cxx_mpz_mat const& gens) const {
-    return ::generate_ideal(O, M, cxx_mpq_mat(gens));
+std::pair<cxx_mpz_mat, cxx_mpz> numbertheory_internals::all_valuations_above_p::generate_ideal(cxx_mpz_mat const& gens) const {
+    return numbertheory_internals::generate_ideal(O, M, cxx_mpq_mat(gens));
 }
 
 /* create ideal I=<p^k,p^k*alpha,v*alpha-u> and decompose I*J */
-std::vector<int> all_valuations_above_p::operator()(int k, cxx_mpz const& r) const {
+std::vector<int> numbertheory_internals::all_valuations_above_p::operator()(int k, cxx_mpz const& r) const {
     cxx_mpz pk;
     mpz_pow_ui(pk, p, k);
     cxx_mpz_mat Igens(3, f->deg);
@@ -1121,7 +1007,7 @@ std::vector<int> all_valuations_above_p::operator()(int k, cxx_mpz const& r) con
     return (*this)(I);
 }
 
-std::vector<int> all_valuations_above_p::multiply_inertia(std::vector<int> const& v) const {
+std::vector<int> numbertheory_internals::all_valuations_above_p::multiply_inertia(std::vector<int> const& v) const {
     ASSERT_ALWAYS(v.size() == inertia.size());
     std::vector<int> res(v.size(),0);
     for(unsigned int i = 0 ; i < v.size() ; i++) {
