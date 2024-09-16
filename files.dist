@@ -790,9 +790,8 @@ polyselect/auxiliary.c
 polyselect/auxiliary.h
 polyselect/dlpolyselect.c
 polyselect/gfpkdlpolyselect.c
-polyselect/gfpkdlpolyselect_impl.h
-tests/polyselect/gfpkdlpolyselect_test.c
 polyselect/gfpkdlpolyselect.h
+polyselect/gfpkdlpolyselect_impl.h
 polyselect/murphyE.c
 polyselect/murphyE.h
 polyselect/polyselect.c
@@ -1245,6 +1244,7 @@ tests/misc/testcheck_rels.sh
 tests/ncpus.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
+tests/polyselect/gfpkdlpolyselect_test.c
 tests/polyselect/sopt.input1.txt
 tests/polyselect/sopt.input2.txt
 tests/polyselect/test_auxiliary.c
@@ -1416,6 +1416,8 @@ tests/utils/test_cxx_mpz_mat.cpp
 tests/utils/test_cxx_mpz_poly.cpp
 tests/utils/test_dllist.c
 tests/utils/test_double_poly.c
+tests/utils/test_explain_relations.data/c30.poly
+tests/utils/test_explain_relations.sh
 tests/utils/test_fstream_maybe_compressed.cpp
 tests/utils/test_gcd.c
 tests/utils/test_getprime.c
