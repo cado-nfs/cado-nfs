@@ -82,7 +82,7 @@ skew: 1.37
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
 #include "timing.h"             // for seconds
-#include "usp.h"        // numberOfRealRoots
+#include "mpz_mat.h"
 
 /* We assume a difference <= ALPHA_BOUND_GUARD between alpha computed
    with ALPHA_BOUND_SMALL and ALPHA_BOUND. In practice the largest value
@@ -142,7 +142,7 @@ add_timer (int flag, double t)
 
 
 static int
-check_SM (mpz_poly ff, mpz_t ell)
+check_SM (mpz_poly_srcptr ff, mpz_srcptr ell)
 {
     if (ff->deg <= 2) {
         return 1;
@@ -165,15 +165,10 @@ check_SM (mpz_poly ff, mpz_t ell)
   Print two nonlinear poly info. Return non-zero for record polynomials.
 */
 static int
-print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
+print_nonlinear_poly_info (mpz_poly_srcptr ff, double alpha_f, mpz_poly_srcptr gg,
                            int format,  mpz_t n, mpz_t ell)
 {
-    unsigned int i;
     double skew, logmu[2], alpha_g_approx, alpha_g, score, score_approx;
-    int df = ff->deg;
-    mpz_t *f = ff->coeff;
-    int dg = gg->deg;
-    mpz_t *g = gg->coeff;
     static double best_score = DBL_MAX;
     /* the coefficients of g are O(n^(1/df)) */
 
@@ -217,8 +212,8 @@ print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
         cado_poly_init(p);
         cado_poly_provision_new_poly(p);
         cado_poly_provision_new_poly(p);
-        mpz_poly_setcoeffs(p->pols[ALG_SIDE], f, df);
-        mpz_poly_setcoeffs(p->pols[RAT_SIDE], g, dg);
+        mpz_poly_set(p->pols[ALG_SIDE], ff);
+        mpz_poly_set(p->pols[RAT_SIDE], gg);
         p->skew = skew;
         E = MurphyE (p, Bf, Bg, Area, MURPHY_K, get_alpha_bound ());
         cado_poly_clear(p);
@@ -250,26 +245,26 @@ print_nonlinear_poly_info (mpz_poly ff, double alpha_f, mpz_poly gg,
 	gmp_printf ("N %Zd\n", n);
 
       if (format == 1) {
-        for (i = df + 1; i -- != 0; )
-	  gmp_printf ("c%u: %Zd\n", i, f[i]);
+        for (int i = ff->deg ; i >= 0 ; i--)
+	  gmp_printf ("c%u: %Zd\n", i, mpz_poly_coeff_const(ff, i));
       }
       else {
-        for (i = df + 1; i -- != 0; )
-	  gmp_printf ("X%u %Zd\n", i, f[i]);
+        for (int i = ff->deg ; i >= 0 ; i--)
+	  gmp_printf ("X%u %Zd\n", i, mpz_poly_coeff_const(ff, i));
       }
       if (format == 1) {
-        for (i = dg + 1; i -- != 0; )
-	  gmp_printf ("Y%u: %Zd\n", i, g[i]);
+        for (int i = gg->deg ; i >= 0 ; i--)
+	  gmp_printf ("Y%u: %Zd\n", i, mpz_poly_coeff_const(gg, i));
       }
       else {
-        for (i = dg + 1; i -- != 0; )
-	  gmp_printf ("Y%u %Zd\n", i, g[i]);
+        for (int i = gg->deg ; i >= 0 ; i--)
+	  gmp_printf ("Y%u %Zd\n", i, mpz_poly_coeff_const(gg, i));
       }
       printf ("skew: %1.2f\n", skew);
-      int nr = numberOfRealRoots ((const mpz_t *) f, df, 0, 0, NULL);
+      int nr = mpz_poly_number_of_real_roots (ff);
       printf ("# f lognorm %1.2f, alpha %1.2f, score %1.2f, %d rroot(s)\n",
 	      logmu[0], alpha_f, logmu[0] + alpha_f, nr);
-      nr = numberOfRealRoots ((const mpz_t *) g, dg, 0, 0, NULL);
+      nr = mpz_poly_number_of_real_roots(gg);
       printf ("# g lognorm %1.2f, alpha %1.2f, score %1.2f, %d rroot(s)\n",
 	      logmu[1], alpha_g, logmu[1] + alpha_g, nr);
       printf ("# f+g score %1.2f\n", score);
@@ -325,13 +320,12 @@ get_maxtries (unsigned int B, unsigned int d)
 }
 
 static int
-generate_f (mpz_t *f, unsigned int d, unsigned long idx, unsigned int bound)
+generate_f (mpz_poly_ptr ff, unsigned int d, unsigned long idx, unsigned int bound)
 {
   unsigned int i, j;
   int ok = 1;
-  int *a;
 
-  a = malloc ((d + 1) * sizeof (int));
+  long * a = malloc ((d + 1) * sizeof (long));
 
   /* the coefficient of degree j can take count[j] different values */
   for (j = 0; j <= d; j++)
@@ -360,12 +354,12 @@ generate_f (mpz_t *f, unsigned int d, unsigned long idx, unsigned int bound)
      the line going through |a[i]| and |a[j]| should not exceed bound at d/2 */
   for (i = d / 2 + 1; i <= d && ok; i++)
     {
-      unsigned ai = abs (a[i]);
+      unsigned long ai = labs (a[i]);
       if (ai == 0)
         continue;
       for (j = 0; j < (d + 1) / 2 && ok; j++)
         {
-          unsigned aj = abs (a[j]);
+          unsigned long aj = labs (a[j]);
           double s = pow ((double) aj / (double) ai, 1.0 / (double) (i - j));
           double mid = (double) ai * pow (s, (double) (2 * i - d) / 2.0);
           ok = mid <= (double) bound;
@@ -376,9 +370,9 @@ generate_f (mpz_t *f, unsigned int d, unsigned long idx, unsigned int bound)
      This test discards about 7.7% of the polynomials for d=4 and bound=6. */
   if (ok)
     for (j = 0; 2 * j < d; j++)
-      if (abs (a[d-j]) != abs(a[j]))
+      if (labs (a[d-j]) != labs(a[j]))
         {
-          ok = abs (a[d-j]) < abs(a[j]);
+          ok = labs (a[d-j]) < labs(a[j]);
           break;
         }
 
@@ -418,8 +412,7 @@ generate_f (mpz_t *f, unsigned int d, unsigned long idx, unsigned int bound)
     }
 
   if (ok)
-    for (j = 0; j <= d; j++)
-      mpz_set_si (f[j], a[j]);
+      mpz_poly_setcoeffs_si(ff, a, d);
 
   free (a);
 
@@ -439,13 +432,10 @@ generate_f (mpz_t *f, unsigned int d, unsigned long idx, unsigned int bound)
   Return !=0 if the poly is valid.
 */
 static int
-polygen_JL_f (int d, unsigned int bound, mpz_t *f, unsigned long idx)
+polygen_JL_f (int d, unsigned int bound, mpz_poly_ptr ff, unsigned long idx)
 {
     int ok = 1;
     /* compute polynomial of index idx and check it is irreducible */
-    mpz_poly ff;
-    ff->deg = d;
-    ff->coeff = f;
     //mpz_poly_init(ff, d);
     if (!skewed) {
         int max_abs_coeffs;
@@ -453,7 +443,7 @@ polygen_JL_f (int d, unsigned int bound, mpz_t *f, unsigned long idx)
         ok = mpz_poly_setcoeffs_counter(ff, &max_abs_coeffs, &next_counter,
                 d, idx, bound);
     } else {
-        ok = generate_f (f, d, idx, bound);
+        ok = generate_f (ff, d, idx, bound);
     }
 
     // to be compatible with the previous version, the count on the number of valid polys was before
@@ -478,7 +468,7 @@ polygen_JL_f (int d, unsigned int bound, mpz_t *f, unsigned long idx)
         /* check number of real roots */
         if (ok && (easySM || rrf != -1))
           {
-            int nr = numberOfRealRoots ((const mpz_t *) ff->coeff, ff->deg, 0.0, 0, NULL);
+            int nr = mpz_poly_number_of_real_roots(ff);
             if (easySM)
               /* check that the number of real roots is minimal */
               ok = nr == (ff->deg & 1);
@@ -499,11 +489,11 @@ polygen_JL_f (int d, unsigned int bound, mpz_t *f, unsigned long idx)
    because LLL is not very sensible to a small change of the skewness).
    kN is the product k*N, where k is the multiplier. */
 static void
-polygen_JL_g (mpz_t kN, int dg, mat_Z g, mpz_t root, double skew_f)
+polygen_JL_g (mpz_t kN, int dg, mpz_mat_ptr g, mpz_t root, double skew_f)
 {
     int i, j;
     mpz_t a, b, det, r;
-    unsigned long skew, skew_powi;
+    unsigned long skew;
 
     skew = skew_f < 0.5 ? 1 : round (skew_f);
 
@@ -511,21 +501,19 @@ polygen_JL_g (mpz_t kN, int dg, mat_Z g, mpz_t root, double skew_f)
     mpz_init_set_ui (a, 1);
     mpz_init_set_ui (b, 1);
     mpz_init_set (r, root);
-    for (i = 0; i <= dg + 1; i ++) {
-        for (j = 0; j <= dg + 1; j ++) {
-            mpz_set_ui (g.coeff[i][j], 0);
-        }
-    }
 
-    for (i = skew_powi = 1; i <= dg + 1; i++) {
-        for (j = 1; j <= dg + 1; j++) {
-            if (i == 1)
+    mpz_mat_set_ui(g, 0);
+
+    unsigned long skew_powi = 1;
+    for (int i = 0; i <= dg ; i++) {
+        for (int j = 0; j <= dg ; j++) {
+            if (i == 0)
               {
-                if (j == 1)
-                    mpz_set (g.coeff[j][i], kN);
+                if (j == 0)
+                    mpz_set (mpz_mat_entry(g, j, i), kN);
                 else
                   {
-                    mpz_neg (g.coeff[j][i], r);
+                    mpz_neg (mpz_mat_entry(g, j, i), r);
                     mpz_mul (r, r, root);
                   }
               }
@@ -533,24 +521,24 @@ polygen_JL_g (mpz_t kN, int dg, mat_Z g, mpz_t root, double skew_f)
 	      {
 		ASSERT_ALWAYS((double) skew_powi * (double) skew < (double) ULONG_MAX);
 		skew_powi *= skew;
-		mpz_set_ui (g.coeff[j][i], skew_powi);
+		mpz_set_ui (mpz_mat_entry(g, j, i), skew_powi);
 	      }
         }
     }
 
     START_TIMER;
-    LLL (det, g, NULL, a, b);
+    mpz_mat_LLL(det, g, NULL, a, b);
     END_TIMER (TIMER_LLL);
 
     /* divide row i back by skew^i */
     skew_powi = 1;
-    for (i = 2;  i <= dg + 1; i++)
+    for (i = 1;  i <= dg; i++)
       {
 	skew_powi *= skew;
-	for (j = 1; j <= dg + 1; j++)
+	for (j = 0; j <= dg; j++)
 	  {
-	    ASSERT_ALWAYS (mpz_divisible_ui_p (g.coeff[j][i], skew_powi));
-	    mpz_divexact_ui (g.coeff[j][i], g.coeff[j][i], skew_powi);
+	    ASSERT_ALWAYS (mpz_divisible_ui_p (mpz_mat_entry_const(g, j, i), skew_powi));
+	    mpz_divexact_ui (mpz_mat_entry(g, j, i), mpz_mat_entry_const(g, j, i), skew_powi);
 	  }
       }
 
@@ -566,12 +554,11 @@ polygen_JL_g (mpz_t kN, int dg, mat_Z g, mpz_t root, double skew_f)
 static void
 polygen_JL2 (mpz_t n,
              unsigned int df, unsigned int dg,
-	     unsigned long nb_comb, mpz_poly f, long bound2, mpz_t ell)
+	     unsigned long nb_comb, mpz_poly_srcptr f, long bound2, mpz_t ell)
 {
-    unsigned int i, j, nr, format = 1;
+    unsigned int nr, format = 1;
     mpz_t *rf, c;
-    mat_Z g;
-    mpz_poly *v, u;
+    mpz_poly u;
     long *a;
     double alpha_f;
     gmp_randstate_t rstate;
@@ -580,22 +567,13 @@ polygen_JL2 (mpz_t n,
     ASSERT_ALWAYS (df >= 3);
     mpz_init (c);
     rf = (mpz_t *) malloc (df * sizeof(mpz_t));
-    for (i = 0; i < df; i ++)
+    for (unsigned int i = 0; i < df; i ++)
       mpz_init (rf[i]);
-    g.coeff = (mpz_t **) malloc ((dg + 2) * sizeof(mpz_t*));
-    g.NumRows = g.NumCols = dg + 1;
-    for (i = 0; i <= dg + 1; i ++) {
-        g.coeff[i] = (mpz_t *) malloc ((dg + 2) * sizeof(mpz_t));
-        for (j = 0; j <= dg + 1; j ++) {
-            mpz_init (g.coeff[i][j]);
-        }
-    }
-    v = malloc ((dg + 1) * sizeof (mpz_poly));
-    for (j = 0; j <= dg; j++)
-      {
-        v[j]->deg = dg;
-        v[j]->coeff = g.coeff[j + 1] + 1;
-      }
+
+    mpz_mat g;
+    mpz_mat_init(g, dg + 1, dg + 1);
+
+
     mpz_poly_init (u, dg);
     u->deg = dg;
     a = malloc ((dg + 1) * sizeof (long));
@@ -634,7 +612,7 @@ polygen_JL2 (mpz_t n,
     }
 
     /* for each root of f mod n, generate the corresponding g */
-    for (i = 0; i < nr; i ++) {
+    for (unsigned int i = 0; i < nr; i ++) {
         /* generate g of degree dg */
         polygen_JL_g (n, dg, g, rf[i], skew_f);
 
@@ -646,20 +624,27 @@ polygen_JL2 (mpz_t n,
             /* compute first index */
             a[0] = k % (bound2 + 1);
             k = k / (bound2 + 1);
-            for (j = 1; j <= dg; j++)
+            for (unsigned int j = 1; j <= dg; j++)
               {
                 a[j] = k % (2 * bound2 + 1);
                 k = k / (2 * bound2 + 1);
                 a[j] = (a[j] <= bound2) ? a[j] : a[j] - (2 * bound2 + 1);
               }
             ASSERT_ALWAYS(k == 0);
-            mpz_poly_mul_si (u, v[0], a[0]);
-	    for (j = 1; j <= dg; j++)
-	      mpz_poly_addmul_si (u, v[j], a[j]);
 
-            /* adjust degree of u */
-            for (u->deg = dg; u->deg >= 0 && mpz_cmp_ui (u->coeff[u->deg], 0)
-                   == 0; u->deg--);
+            /* compute the linear combination of the rows
+             * \sum_{i=0}^{i=dg} a[i] * row[i]
+             */
+            mpz_poly_set_zero(u);
+            for(unsigned int i = 0 ; i <= dg ; i++) {
+                for(unsigned int j = 0 ; j <= dg ; j++) {
+                    mpz_addmul_si(mpz_poly_coeff(u, j),
+                            mpz_mat_entry_const(g, i, j),
+                            a[i]);
+                }
+            }
+
+            mpz_poly_cleandeg(u, dg);
 
 #if 0
             /* If u is not square-free or irreducible, skip it. However, this
@@ -672,7 +657,7 @@ polygen_JL2 (mpz_t n,
             /* check the number of real roots of g */
             if (easySM || rrg != -1)
               {
-                int nr = numberOfRealRoots ((const mpz_t *) u->coeff, u->deg, 0.0, 0, NULL);
+                int nr = mpz_poly_number_of_real_roots(u);
                 int ok;
                 if (easySM)
                   ok = nr == (u->deg & 1);
@@ -696,17 +681,15 @@ polygen_JL2 (mpz_t n,
     /* clear */
     gmp_randclear(rstate);
     free (a);
+
     mpz_poly_clear (u);
-    free (v);
-    for (i = 0; i < df; i ++)
+
+    for (unsigned int i = 0; i < df; i ++)
       mpz_clear (rf[i]);
-    for (i = 0; i <= dg + 1; i ++) {
-        for (j = 0; j <= dg + 1; j ++)
-            mpz_clear (g.coeff[i][j]);
-        free(g.coeff[i]);
-    }
-    free (g.coeff);
     free (rf);
+
+    mpz_mat_clear(g);
+
     mpz_clear (c);
 }
 
@@ -718,27 +701,19 @@ polygen_JL1 (mpz_t n,
              unsigned long idx, unsigned long nb_comb, unsigned int bound2,
              mpz_t ell)
 {
-    unsigned int i;
-    mpz_t *f;
     mpz_poly ff;
     int irred;
 
-    ASSERT_ALWAYS (df >= 3);
-    f = (mpz_t *) malloc ((df + 1)*sizeof(mpz_t));
-    for (i = 0; i <= df; i ++)
-      mpz_init (f[i]);
+    mpz_poly_init(ff, df);
 
-    ff->deg = df;
-    ff->coeff = f;
+    ASSERT_ALWAYS (df >= 3);
 
     /* generate f of degree d with small coefficients */
-    irred = polygen_JL_f (df, bound, f, idx);
+    irred = polygen_JL_f (df, bound, ff, idx);
     if (irred)
       polygen_JL2 (n, df, dg, nb_comb, ff, bound2, ell);
-    /* clear */
-    for (i = 0; i <= df; i ++)
-      mpz_clear (f[i]);
-    free (f);
+
+    mpz_poly_clear(ff);
 }
 
 static void

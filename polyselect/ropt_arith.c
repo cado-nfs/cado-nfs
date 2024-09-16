@@ -56,10 +56,10 @@ solve_lineq ( unsigned long a,
  * where A + MOD*a = u.
  */
 void
-ab2uv ( mpz_t A,
-        mpz_t MOD,
+ab2uv ( mpz_srcptr A,
+        mpz_srcptr MOD,
         long a,
-        mpz_t u )
+        mpz_ptr u )
 {
   mpz_mul_si (u, MOD, a);
   mpz_add (u, u, A);
@@ -94,11 +94,11 @@ ij2ab ( long Amin,
  * Change coordinate from (i, j) to (u, v).
  */
 void
-ij2uv ( mpz_t A,
-        mpz_t MOD,
+ij2uv ( mpz_srcptr A,
+        mpz_srcptr MOD,
         long Amin,
         long i,
-        mpz_t u )
+        mpz_ptr u )
 {
   ab2uv(A, MOD, ij2ab(Amin, i), u);
 }
@@ -109,8 +109,8 @@ ij2uv ( mpz_t A,
  * A + MOD*a = u (mod p).
  */
 unsigned int
-uv2ab_mod ( mpz_t A,
-            mpz_t MOD,
+uv2ab_mod ( mpz_srcptr A,
+            mpz_srcptr MOD,
             unsigned int U,
             unsigned int p )
 {
@@ -127,9 +127,9 @@ uv2ab_mod ( mpz_t A,
  * position of a in the array.
  */
 long
-uv2ij_mod ( mpz_t A,
+uv2ij_mod ( mpz_srcptr A,
             long Amin,
-            mpz_t MOD,
+            mpz_srcptr MOD,
             unsigned int U,
             unsigned int p )
 {
@@ -149,54 +149,24 @@ uv2ij_mod ( mpz_t A,
 
 /**
  * Compute fuv = f+(u*x+v)*g,
- * f(r) + u*r*g(r) + v*g(r) = 0
- * The inputs for f and g are mpz.
  */
 void
-compute_fuv_mp ( mpz_t *fuv,
-                 mpz_t *f,
-                 mpz_t *g,
-                 int d,
-                 mpz_t u,
-                 mpz_t v )
+compute_fuv_mp ( mpz_poly_ptr fuv,
+                 mpz_poly_srcptr f,
+                 mpz_poly_srcptr g,
+                 mpz_srcptr u,
+                 mpz_srcptr v )
 {
-  mpz_t tmp, tmp1;
-  mpz_init (tmp);
-  mpz_init (tmp1);
-  int i = 0;
-
-  for (i = 3; i <= d; i ++)
-    mpz_set (fuv[i], f[i]);
-
-  /* f + u*g1*x^2
-     + (g0*u* + v*g1)*x
-     + v*g0 */
-
-  /* Note, u, v are signed long! */
-  /* u*g1*x^2 */
-  mpz_mul (tmp, g[1], u);
-  mpz_add (fuv[2], f[2], tmp);
-
-  /* (g0*u* + v*g1)*x */
-  mpz_mul (tmp, g[0], u);
-  mpz_mul (tmp1, g[1], v);
-  mpz_add (tmp, tmp, tmp1);
-  mpz_add (fuv[1], f[1], tmp);
-
-  /* v*g0 */
-  mpz_mul (tmp, g[0], v);
-  mpz_add (fuv[0], f[0], tmp);
-
-  mpz_clear (tmp);
-  mpz_clear (tmp1);
+    mpz_poly_rotation(fuv, f, g, v, 0);
+    mpz_poly_rotation(fuv, fuv, g, u, 1);
 }
 
 
 /**
  * Compute fuv = f+(u*x+v)*g,
- * The inputs for f and g are unsigne long.
+ * The inputs for f and g are unsigned long.
  * Note, u, v are unsigned int.
- * So they should be reduce (mod p) if necessary.
+ * So they should be reduced (mod p) if necessary.
  */
 void
 compute_fuv_ui ( unsigned int *fuv_ui,
@@ -336,14 +306,13 @@ eval_poly_ui_mod ( unsigned int *f,
  * Given modulus pe, return f (mod pe).
  */
 inline void
-reduce_poly_ul ( unsigned int *f_ui,
-                 mpz_t *f,
-                 int d,
+reduce_poly_uint ( unsigned int *f_ui,
+                 mpz_poly_srcptr f,
                  unsigned int pe )
 {
   int i;
-  for (i = 0; i <= d; i ++) {
-    f_ui[i] = (unsigned int) mpz_fdiv_ui (f[i], pe);
+  for (i = 0; i <= f->deg; i ++) {
+    f_ui[i] = (unsigned int) mpz_fdiv_ui (mpz_poly_coeff_const(f, i), pe);
   }
 }
 
@@ -351,19 +320,33 @@ reduce_poly_ul ( unsigned int *f_ui,
 /**
  * From polyselect.c
  * Implements Lemma 2.1 from Kleinjung's paper.
+ *
+ * given N, d, ad, p, and m, compute a polynomial pair f(x), g(x)=l*x-m
+ *
  * If a[d] is non-zero, it is assumed it is already set, otherwise it is
  * determined as a[d] = N/m^d (mod p).
  */
 void
-Lemma21 ( mpz_t *a,
+Lemma21 ( ropt_poly_ptr poly,
           mpz_t N,
           int d,
-          mpz_t p,
-          mpz_t m,
-          mpz_t res )
+          mpz_srcptr p,
+          mpz_srcptr ad,
+          mpz_srcptr m,
+          mpz_ptr res )
 {
   mpz_t r, mi, invp, l, ln;
   int i;
+
+  /* very basic settings inside the ropt_poly structure */
+  mpz_set (poly->n, N);
+  poly->d = d;
+  mpz_poly_set_zero(poly->f);
+  mpz_poly_set_zero(poly->g);
+  mpz_poly_setcoeff(poly->f, poly->d, ad);
+  mpz_poly_setcoeff(poly->g, 1, l);
+  mpz_neg(mpz_poly_coeff(poly->g, 0), m);
+
 
   mpz_init (r);
   mpz_init_set_ui (l, 1);
@@ -372,31 +355,35 @@ Lemma21 ( mpz_t *a,
   mpz_init (invp);
   mpz_pow_ui (mi, m, d);
 
-  if (mpz_cmp_ui (a[d], 0) < 0)
-    mpz_abs (a[d], a[d]);
+  mpz_ptr lc = mpz_poly_lc_w(poly->f);
+
+  if (mpz_cmp_ui (lc, 0) < 0)
+    mpz_abs (lc, lc);
   
-  if (mpz_cmp_ui (a[d], 0) == 0) {
-    mpz_invert (a[d], mi, p); /* 1/m^d mod p */
-    mpz_mul (a[d], a[d], N);
-    mpz_mod (a[d], a[d], p);
+  if (mpz_cmp_ui (lc, 0) == 0) {
+    mpz_invert (lc, mi, p); /* 1/m^d mod p */
+    mpz_mul (lc, lc, N);
+    mpz_mod (lc, lc, p);
     mpz_set_ui (l, 1);
   }
   /* multiplier l < m1 */
   else {
     mpz_invert (l, N, p);
     mpz_mul (l, l, mi);
-    mpz_mul (l, l, a[d]);
+    mpz_mul (l, l, lc);
     mpz_mod (l, l, p);
   }
   mpz_mul (ln, N, l);
   mpz_set (r, ln);
+
   mpz_set (res, l);
   
   for (i = d - 1; i >= 0; i--)
   {
+    mpz_ptr ai = mpz_poly_coeff(poly->f, i);
     /* invariant: mi = m^(i+1) */
-    mpz_mul (a[i], a[i+1], mi);
-    mpz_sub (r, r, a[i]);
+    mpz_mul (ai, mpz_poly_coeff_const(poly->f, i+1), mi);
+    mpz_sub (r, r, ai);
     ASSERT (mpz_divisible_p (r, p));
     mpz_divexact (r, r, p);
     mpz_divexact (mi, mi, m); /* now mi = m^i */
@@ -407,21 +394,21 @@ Lemma21 ( mpz_t *a,
     }
     else
       mpz_mod (invp, invp, mi);
-    mpz_mul (a[i], invp, r);
-    mpz_mod (a[i], a[i], mi); /* -r/p mod m^i */
+    mpz_mul (ai, invp, r);
+    mpz_mod (ai, ai, mi); /* -r/p mod m^i */
     /* round to nearest in [-m^i/2, m^i/2] */
-    mpz_mul_2exp (a[i], a[i], 1);
-    if (mpz_cmp (a[i], mi) >= 0)
+    mpz_mul_2exp (ai, ai, 1);
+    if (mpz_cmp (ai, mi) >= 0)
     {
-      mpz_div_2exp (a[i], a[i], 1);
-      mpz_sub (a[i], a[i], mi);
+      mpz_div_2exp (ai, ai, 1);
+      mpz_sub (ai, ai, mi);
     }
     else
-      mpz_div_2exp (a[i], a[i], 1);
-    mpz_mul (a[i], a[i], p);
-    mpz_add (a[i], a[i], r);
-    ASSERT (mpz_divisible_p (a[i], mi));
-    mpz_divexact (a[i], a[i], mi);
+      mpz_div_2exp (ai, ai, 1);
+    mpz_mul (ai, ai, p);
+    mpz_add (ai, ai, r);
+    ASSERT (mpz_divisible_p (ai, mi));
+    mpz_divexact (ai, ai, mi);
   }
   mpz_clear (r);
   mpz_clear (l);

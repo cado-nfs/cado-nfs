@@ -4,8 +4,22 @@
 # This test is here to check that the multi-threaded and mono-threaded versions
 # give the same results and that the -nsms option works correctly.
 
-SM="$1"
+build_tree="$PROJECT_BINARY_DIR"
+
+while [ $# -gt 0 ] ; do
+    if [ "$1" = "-b" ] ; then
+        shift
+        build_tree="$1"
+        shift
+    else
+        echo "bad arg: $1" >&2
+        exit 1
+    fi
+done
+
+SM="$build_tree/filter/sm"
 SOURCE_TEST_DIR="`dirname "$0"`"
+
 : ${WORKDIR?missing}
 
 poly="${SOURCE_TEST_DIR}/testsm.p59.poly"

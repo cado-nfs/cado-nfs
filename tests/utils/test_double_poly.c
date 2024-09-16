@@ -270,10 +270,10 @@ test_double_poly_set_mpz_poly (void)
 
   mpz_poly_init (q, 2);
   double_poly_init (p, 2);
-  mpz_set_ui (q->coeff[2], 17);
-  mpz_set_si (q->coeff[1], -42);
-  mpz_set_si (q->coeff[0], -3);
-  q->deg = 2;
+  mpz_poly_setcoeff_si(q, 2, 17);
+  mpz_poly_setcoeff_si(q, 1, -42);
+  mpz_poly_setcoeff_si(q, 0, -3);
+  mpz_poly_cleandeg(q, 2);
   double_poly_set_mpz_poly (p, q);
   ASSERT_ALWAYS (p->deg == 2 && p->coeff[2] == 17.0 && p->coeff[1] == -42.0 &&
           p->coeff[0] == -3.0);

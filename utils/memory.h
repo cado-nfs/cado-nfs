@@ -28,16 +28,19 @@ extern void free_pagealigned(void * ptr);
 #endif
 
 #ifdef __cplusplus
+/* std::allocator<T>::pointer has always been the same as T *, and the
+ * former is now deprecated in favor of the latter
+ */
 template<typename T, int align = sizeof(T)> class aligned_allocator : public std::allocator<T> {
     typedef std::allocator<T> super;
     public:
     template <typename U> struct rebind {
         typedef aligned_allocator<U, align> other;
     } ;
-    typename super::pointer allocate(size_t n) const {
-        return (typename super::pointer) malloc_aligned(n * sizeof(T), align);
+    T * allocate(size_t n) const {
+        return (T *) malloc_aligned(n * sizeof(T), align);
     }
-    void deallocate(typename super::pointer p, size_t) const {
+    void deallocate(T * p, size_t) const {
         return free_aligned(p);
     }
     template <typename X>

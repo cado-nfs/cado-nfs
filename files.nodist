@@ -87,7 +87,6 @@ polyselect/MurphyE.sage
 polyselect/alpha.sage
 polyselect/debug_rootsieve.sage
 polyselect/gfp2dlpolyselect_notes.txt
-polyselect/gfpkdlpolyselect_test.c
 polyselect/gnuplot_stuff.sage
 polyselect/higher_order_roots.sage
 polyselect/integral.sage

@@ -37,6 +37,8 @@ std::pair<cxx_mpz, cxx_mpz_mat> prime_ideal_two_element(cxx_mpq_mat const& O, cx
 
 std::string write_element_as_polynomial(cxx_mpq_mat const& theta_q, std::string const& var);
 
+std::vector<cxx_mpz> write_element_as_list_of_integers(cxx_mpq_mat const& theta_q);
+
 struct ideal_comparator {
     typedef std::pair<cxx_mpz_mat,int> Im_t;
     bool operator()(Im_t const& a, Im_t const& b) const {

@@ -9,13 +9,13 @@ Input:
   indexfile.
 * The sub-group order (ell) such that ell | p-1
   Note: All computations are done mod ell^2.
-* (eps): the exponent used in the computation of the Shirokauer maps.
+* (eps): the exponent used in the computation of the Schirokauer maps.
   Note: eps = ppcm(eps_i), where eps_i = ell^(deg(f_i)) - 1 and f = f_1 ... f_k mod ell
   
 Output
 
 * A matrix of (small_nrows) rows and (nmaps)=deg(f) cols (mpz_t).  For each
-  relation (rel) the (nmaps) Shirokauer maps are computed as the second
+  relation (rel) the (nmaps) Schirokauer maps are computed as the second
   least-significant digit of the ell-adic representation of the polynomial 
   equal to (rel^eps - 1) / ell.
 
@@ -166,7 +166,7 @@ void MPI_Recv_mpz(mpz_ptr z, int src) {
 void MPI_Send_mpz_poly(mpz_poly_ptr poly, int dst) {
   MPI_Send(&poly->deg, 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
   for (int i = 0; i <= poly->deg; ++i)
-    MPI_Send_mpz(poly->coeff[i], dst);
+    MPI_Send_mpz(mpz_poly_coeff(poly, i), dst);
 }
 
 void MPI_Recv_mpz_poly(mpz_poly_ptr poly, int src) {
@@ -174,16 +174,9 @@ void MPI_Recv_mpz_poly(mpz_poly_ptr poly, int src) {
   ASSERT_ALWAYS(poly->deg + 1 >= 0);
   /* FIXME -- what about already allocated coefficients ? */
   ASSERT_ALWAYS(poly->alloc == 0);
-  if (poly->alloc < ((unsigned int) poly->deg+1)) {
-    poly->alloc = poly->deg+1;
-    poly->coeff = (mpz_t *) realloc(poly->coeff, poly->alloc*sizeof(mpz_t));
-    ASSERT_ALWAYS(poly->coeff != NULL);
-  }
-  /* It pretty much seems that if poly->alloc is non zero on entry, then
-   * we have a leak here.
-   */
+  mpz_poly_realloc(poly, poly->deg + 1);
   for (int i = 0; i <= poly->deg; ++i)
-    MPI_Recv_mpz(poly->coeff[i], src);
+    MPI_Recv_mpz(mpz_poly_coeff(poly, i), src);
 }
 
 void MPI_Send_relset(sm_relset_ptr relset, int dst, int nb_polys) {
@@ -257,7 +250,7 @@ int main (int argc, char **argv)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   int idoio = (rank == 0); // Am I the job allowed to do I/O ?
-  double t0 = seconds();
+  double t0;
 
   char *argv0 = argv[0];
 
@@ -342,7 +335,7 @@ int main (int argc, char **argv)
     exit (EXIT_FAILURE);
   }
 
-  int * nsm_arg = malloc(cpoly->nb_polys * sizeof(int));
+  int * nsm_arg = (int *) malloc(cpoly->nb_polys * sizeof(int));
 
   /* negative value means that the value that will be used is the value
    * computed later by sm_side_info_init */
@@ -352,7 +345,7 @@ int main (int argc, char **argv)
   param_list_parse_int_args_per_side(pl, "nsm", nsm_arg, cpoly->nb_polys,
           ARGS_PER_SIDE_DEFAULT_AS_IS);
 
-  mpz_poly_srcptr * F = malloc(cpoly->nb_polys * sizeof(mpz_poly_srcptr));
+  mpz_poly_srcptr * F = (mpz_poly_srcptr *) malloc(cpoly->nb_polys * sizeof(mpz_poly_srcptr));
 
   for(int side = 0; side < cpoly->nb_polys; side++)
   {
@@ -383,10 +376,10 @@ int main (int argc, char **argv)
     gmp_fprintf(stdout, "# Sub-group order:\nell = %Zi\n# Computation is done "
                       "modulo ell2 = ell^2:\nell2 = %Zi\n", ell, ell2);
 
-  sm_side_info * sm_info = malloc(cpoly->nb_polys * sizeof(sm_side_info));
+  sm_side_info * sm_info = (sm_side_info *) malloc(cpoly->nb_polys * sizeof(sm_side_info));
 
   for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-      sm_side_info_init(sm_info[side], F[side], ell);
+      sm_side_info_init(sm_info[side], F[side], ell, 0);
       sm_side_info_set_mode(sm_info[side], sm_mode_string);
   }
 
@@ -438,7 +431,7 @@ int main (int argc, char **argv)
 #endif
   if (rank == 0) {
     rels = build_rel_sets(purgedfile, indexfile, &nb_relsets, F, cpoly->nb_polys, ell2);
-    fprintf(stdout, "\n# Computing Shirokauer maps for %" PRIu64
+    fprintf(stdout, "\n# Computing Schirokauer maps for %" PRIu64
         " relation-sets, using %d threads and %d jobs.\n", nb_relsets, thmax, size);
     fflush(stdout);
   }
@@ -508,6 +501,7 @@ int main (int argc, char **argv)
 #pragma omp for schedule(static)
 #endif
       for(uint64_t i = 0 ; i < nb_relsets ; i++) {
+          printf("%d\n", (int) i);
           for(int side = 0 ; side < cpoly->nb_polys ; side++) {
               if (sm_info[side]->nsm == 0)
                   continue;

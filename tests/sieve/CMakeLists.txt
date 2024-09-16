@@ -509,7 +509,6 @@ cado_define_test(c60_fakereltest
     SCRIPT
     "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
     ${CMAKE_CURRENT_SOURCE_DIR}/c60.fakerels.sh
-    ${CADO_NFS_BINARY_DIR} ${CADO_NFS_SOURCE_DIR}
     TARGET_DEPENDENCIES fake_rels freerel
     TIMEOUT 60
 )

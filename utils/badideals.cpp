@@ -6,6 +6,7 @@
 // iwyu wants it for allocator_traits<>::value_type, which seems weird
 #include <ostream>
 #include <iomanip>      // std::dec // IWYU pragma: keep
+#include <iostream>
 #include <sstream>
 #include <utility>
 
@@ -161,8 +162,26 @@ public:
         alpha << "alpha" << side;
         string uniformizer = write_element_as_polynomial(theta_q, alpha.str());
 
-        return fmt::format("OK{}.ideal({}, {})", side, two.first, uniformizer);
+        return fmt::format("OK{}.fractional_ideal({}, {})", side, two.first, uniformizer);
     }
+
+    std::vector<cxx_mpz> machine_description(int k) {
+        /* This is about the same as above, in that we also return a
+         * two-element form of the ideal, but here we return it in a
+         * machine readable way. First the prime above which our ideal
+         * sits, then a denominator, then the coefficients of the
+         * polynomial in alpha that define the second element.
+         */
+        cxx_mpz_mat const& fkp(F[k].first);
+        pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
+        cxx_mpq_mat theta_q;
+        mpq_mat_set_mpz_mat(theta_q, two.second);
+        mpq_mat_mul(theta_q, theta_q, O);
+        vector<cxx_mpz> res = write_element_as_list_of_integers(theta_q);
+        res.insert(res.begin(), two.first);
+        return res;
+    }
+
     void print_info(ostream& o, int k, cxx_mpz const& r MAYBE_UNUSED, int side) const {/*{{{*/
         cxx_mpz_mat const& fkp(F[k].first);
         pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
@@ -229,6 +248,14 @@ public:
         }
         return res;
     }/*}}}*/
+
+    // getters for e and f
+    int get_ramification_index(int i) const {
+        return ramification[i];
+    }
+    int get_inertia_degree(int i) const {
+        return inertia[i];
+    }
 };/*}}}*/
 
 vector<cxx_mpz> lift_p1_elements(cxx_mpz const& p, int k, cxx_mpz const& x)/*{{{*/
@@ -328,7 +355,7 @@ vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p, g
         mpz_set(a, rr[i]);
         roots.push_back(a);
     }
-    if (mpz_divisible_p(f->coeff[f->deg], p)) {
+    if (mpz_divisible_p(mpz_poly_lc(f), p)) {
         roots.push_back(p);
     }
     for(int i = 0 ; i < f->deg ; i++) mpz_clear(rr[i]);
@@ -364,12 +391,14 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
         for(unsigned int j = 0 ; j < nonzero.size() ; j++) {
             A.print_info(cmt, nonzero[j], roots[i], side);
             b.sagemath_string.push_back(A.sagemath_string(nonzero[j], side));
+            b.machine_description.push_back(A.machine_description(nonzero[j]));
         }
         cmt << "# " << lifts.size() << " branch"
             << (lifts.size() == 1 ? "" : "es") << " found\n";
         b.comments = cmt.str();
 
         ASSERT_ALWAYS(b.sagemath_string.size() == (size_t) b.nbad);
+        ASSERT_ALWAYS(b.machine_description.size() == (size_t) b.nbad);
 
         /* compres all branches so that we keep only the valuations in
          * the nonzero indirection table */
@@ -398,7 +427,7 @@ vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_r
 
     cxx_mpz disc;
     mpz_poly_discriminant(disc, f);
-    mpz_mul(disc, disc, f->coeff[f->deg]);
+    mpz_mul(disc, disc, mpz_poly_lc(f));
 
     /* We're not urged to use ecm here */
     vector<pair<cxx_mpz,int> > small_primes = trial_division(disc, 10000000, disc);
@@ -416,19 +445,15 @@ vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_r
 
 vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side)
 {
-    gmp_randstate_t state;
-    gmp_randinit_default(state);
+    cxx_gmp_randstate state;
     auto x = badideals_for_polynomial(f, side, state);
-    gmp_randclear(state);
     return x;
 }
 
 vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const & p)
 {
-    gmp_randstate_t state;
-    gmp_randinit_default(state);
+    cxx_gmp_randstate state;
     auto x = badideals_above_p(f, side, p, state);
-    gmp_randclear(state);
     return x;
 }
 
@@ -446,8 +471,40 @@ cxx_mpz badideal::r_from_rk(cxx_mpz const & p, int k, cxx_mpz const & rk)
     }
 }
 
-std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz const & p, cxx_mpz const & r, gmp_randstate_t state)
+std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz const & p, cxx_mpz const & r)
 {
+    cxx_gmp_randstate state;
+    /* This will crash for non-prime ideals, **on purpose** */
+    auto A = all_valuations_above_p(f, p, state);
+    auto v = A(1, r);
+    int k = -1;
+    for(unsigned x = 0 ; x < v.size() ; x++) {
+        if (v[x] == 0)
+            continue;
+        int inertia = A.get_inertia_degree(x);
+        if (inertia != 1) {
+            /* we do this because for some reason, the references to mpzs
+             * get resolved to mpz_srcptr, and libfmt8 don't want to
+             * format these. Pretty annoying, to be honest.
+             */
+            cxx_mpz pp = p;
+            cxx_mpz rr = r;
+            std::cerr << fmt::format(FMT_STRING(
+                        "# note: seemingly innocuous prime ideal ({},{}) on side {} has non-trivial residue class degree {}\n"),
+                    pp, rr, side, inertia);
+        }
+        if (k != -1)
+            throw std::runtime_error("ideal is not prime");
+        k = x;
+    }
+    if (k == -1)
+        throw std::runtime_error("valuations of ideal not found");
+    return A.sagemath_string(k, side);
+}
+
+std::vector<cxx_mpz> generic_machine_description(cxx_mpz_poly const & f, int, cxx_mpz const & p, cxx_mpz const & r)
+{
+    cxx_gmp_randstate state;
     /* This will crash for non-prime ideals, **on purpose** */
     auto A = all_valuations_above_p(f, p, state);
     auto v = A(1, r);
@@ -461,6 +518,18 @@ std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz co
     }
     if (k == -1)
         throw std::runtime_error("valuations of ideal not found");
-    return A.sagemath_string(k, side);
+    return A.machine_description(k);
 }
 
+int get_inertia_of_prime_ideal(cxx_mpz_poly const & f, cxx_mpz const & p, cxx_mpz const & r)
+{
+    cxx_gmp_randstate state;
+    auto A = all_valuations_above_p(f, p, state);
+    auto v = A(1, r);
+    for(unsigned x = 0 ; x < v.size() ; x++) {
+        if (v[x] == 0)
+            continue;
+        return A.get_inertia_degree(x);
+    }
+    return 1;
+}

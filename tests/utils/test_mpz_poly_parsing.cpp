@@ -46,7 +46,7 @@ int main()
         std::cout << f << std::endl;
         ASSERT_ALWAYS((size_t)(f->deg+1) == example.second.size());
         for(size_t i = 0 ; i < example.second.size() ; ++i)
-            ASSERT_ALWAYS(mpz_cmp(f->coeff[i], example.second[i]) == 0);
+            ASSERT_ALWAYS(mpz_cmp(mpz_poly_coeff_const(f, i), example.second[i]) == 0);
     }
     for(auto const & example : expected_failures) {
         cxx_mpz_poly f;

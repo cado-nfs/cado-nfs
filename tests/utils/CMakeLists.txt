@@ -24,7 +24,7 @@ cado_define_test(test_modredc_15ul.c LIBRARIES utils tests ARGUMENTS 1000
 cado_define_test(test_modredc_2ul2.c LIBRARIES utils tests ARGUMENTS 1000
     TIMEOUT 120
 )
-cado_define_test(test_sm_utils.c LIBRARIES utils ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/test_sm_utils.data)
+cado_define_test(test_sm_utils.cpp LIBRARIES utils ARGUMENTS ${CMAKE_CURRENT_SOURCE_DIR}/test_sm_utils.data)
 cado_define_test(test_mpz_poly.cpp LIBRARIES utils tests AVOID_CONCURRENT 4 TIMEOUT 60)
 cado_define_test(test_mpz_poly_parsing.cpp LIBRARIES utils tests)
 cado_define_test(test_json_parsing.cpp LIBRARIES utils tests)
@@ -73,8 +73,7 @@ cado_divert_test(test_fstream_maybe_compressed none ARGUMENTS test)
 
 cado_define_test(
     SCRIPT
-        ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/test-badideals.sh --binary
-        ${CADO_NFS_BINARY_DIR}/utils/numbertheory_tool
+        ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/test-badideals.sh
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.small-example
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.rsa220
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.p1024
@@ -87,3 +86,31 @@ cado_define_test(
 cado_define_test(test_subdivide_primes_interval.cpp LIBRARIES utils)
 
 add_subdirectory(numbertheory)
+
+if(SAGE)
+    cado_define_test(
+        SCRIPT
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_explain_relations.sh
+        PRECOMMAND "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env wdir --
+        NO_DEFAULT_RUN
+        TARGET_DEPENDENCIES
+        makefb
+        freerel
+        las
+        dup1
+        dup2
+        explain_indexed_relation
+    )
+
+    # note that the sage preparser takes an absurd amount of time here,
+    # so it's important to split into very small data sets.
+    cado_divert_test(test_explain_relations
+        c30
+        -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_explain_relations.data/c30.poly
+        -I 9
+        -q0 56230 -q1 56240
+        -lim0 30000 -lpb0 17 -mfb0 18
+        -lim1 30000 -lpb1 17 -mfb1 18
+    )
+    cado_divert_test(test_explain_relations_c30 dl APPEND_ARGUMENTS -dl)
+endif()

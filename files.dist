@@ -159,7 +159,7 @@ filter/shrink_rels.cpp
 filter/singleton_removal.c
 filter/singleton_removal.h
 filter/singleton_simple.cpp
-filter/sm.c
+filter/sm.cpp
 filter/sm_append.cpp
 filter/sm_simple.cpp
 filter/sparse.c
@@ -791,6 +791,7 @@ polyselect/auxiliary.h
 polyselect/dlpolyselect.c
 polyselect/gfpkdlpolyselect.c
 polyselect/gfpkdlpolyselect.h
+polyselect/gfpkdlpolyselect_impl.h
 polyselect/murphyE.c
 polyselect/murphyE.h
 polyselect/polyselect.c
@@ -1243,6 +1244,7 @@ tests/misc/testcheck_rels.sh
 tests/ncpus.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
+tests/polyselect/gfpkdlpolyselect_test.c
 tests/polyselect/sopt.input1.txt
 tests/polyselect/sopt.input2.txt
 tests/polyselect/test_auxiliary.c
@@ -1414,6 +1416,8 @@ tests/utils/test_cxx_mpz_mat.cpp
 tests/utils/test_cxx_mpz_poly.cpp
 tests/utils/test_dllist.c
 tests/utils/test_double_poly.c
+tests/utils/test_explain_relations.data/c30.poly
+tests/utils/test_explain_relations.sh
 tests/utils/test_fstream_maybe_compressed.cpp
 tests/utils/test_gcd.c
 tests/utils/test_getprime.c
@@ -1444,7 +1448,7 @@ tests/utils/test_relation.cpp
 tests/utils/test_rootfinder.c
 tests/utils/test_roots_mod.c
 tests/utils/test_sha1.c
-tests/utils/test_sm_utils.c
+tests/utils/test_sm_utils.cpp
 tests/utils/test_sm_utils.data
 tests/utils/test_smallset.cpp
 tests/utils/test_strlcat.c
@@ -1635,7 +1639,7 @@ utils/roots_mod.h
 utils/select_mpi.h
 utils/sha1.c
 utils/sha1.h
-utils/sm_utils.c
+utils/sm_utils.cpp
 utils/sm_utils.h
 utils/smallset.hpp
 utils/stats.c

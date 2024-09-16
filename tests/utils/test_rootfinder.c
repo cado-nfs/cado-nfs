@@ -24,8 +24,8 @@ int cmp(mpz_t * a, mpz_t * b)
 void
 test (int d, const char *pp, const char *ff[], int nroots)
 {
-  mpz_t p, *f, *r, v;
-  int i, n, n1;
+  mpz_t p, *r, v;
+  int n1;
   mpz_poly F;
 
   mpz_init (p);
@@ -36,22 +36,20 @@ test (int d, const char *pp, const char *ff[], int nroots)
       do mpz_urandomb (p, state, MAX_BITS); while (mpz_even_p (p));
     }
   mpz_init (v);
-  f = (mpz_t *) malloc ((d + 1) * sizeof(mpz_t));
-  F->coeff = f;
-  F->deg = d;
-  for (i = 0; i <= d; i++)
-    {
-      mpz_init (f[i]);
-    }
+
+  mpz_poly_init(F, d);
+
  retry:
+  mpz_poly_set_zero(F);
   mpz_set (v, p);
-  for (i = 0; i <= d; i++)
+  for (int i = 0; i <= d; i++)
     {
       if (strlen (pp) > 0)
-        mpz_set_str (f[i], ff[d - i], 0);
+        mpz_set_str (mpz_poly_coeff(F, i), ff[d - i], 0);
       else
-        mpz_urandomb (f[i], state, MAX_BITS);
-      mpz_gcd (v, v, f[i]);
+        mpz_urandomb (mpz_poly_coeff(F, i), state, MAX_BITS);
+      mpz_poly_cleandeg(F, i);
+      mpz_gcd (v, v, mpz_poly_coeff_const(F, i));
     }
   if (mpz_cmp_ui (v, 1) > 0) /* f vanishes modulo some prime factor of p */
     {
@@ -64,7 +62,8 @@ test (int d, const char *pp, const char *ff[], int nroots)
       else
         goto retry;
     }
-  n = mpz_poly_roots_gen (&r, F, p, state);
+
+  int n = mpz_poly_roots_gen (&r, F, p, state);
 
   if (tests_common_get_verbose()) {
       for(int i = 0 ; i < n ; i++) {
@@ -79,17 +78,17 @@ test (int d, const char *pp, const char *ff[], int nroots)
     }
   if (nroots != -1)
     ASSERT_ALWAYS(n == nroots);
-  for (i = 0; i < n; i++)
+  for (int i = 0; i < n; i++)
     {
       mpz_poly_eval (v, F, r[i]);
       ASSERT_ALWAYS(mpz_divisible_p (v, p));
     }
-  for (i = 0; i <= d; i++)
-    mpz_clear (f[i]);
-  for (i = 0; i < n; i++)
+  mpz_poly_clear(F);
+
+  for (int i = 0; i < n; i++)
     mpz_clear (r[i]);
-  free (f);
   free (r);
+
   mpz_clear (p);
   mpz_clear (v);
 }

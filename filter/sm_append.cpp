@@ -1,4 +1,4 @@
-/* Shirokauer maps 
+/* Schirokauer maps 
 
    This is largely copied from sm_simple.cpp ; however the purpose of
    sm_simple was to be kept simple and stupid, so let's keep it like
@@ -288,7 +288,7 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
 // #pragma omp parallel
 #endif
         {
-            cxx_mpz_poly smpol(maxdeg), pol(1);
+            cxx_mpz_poly smpol, pol;
 #ifdef HAVE_OPENMP
 // #pragma omp for
 #endif
@@ -302,7 +302,7 @@ static void sm_append_slave(sm_side_info *sm_info, int nb_polys)
                         if (k <= smpol->deg) {
                             mp_limb_t * rix = returns + (i * nsm_total + smidx) * limbs_per_ell;
                             for(size_t j = 0 ; j < limbs_per_ell ; j++) {
-                                rix[j] = mpz_getlimbn(smpol->coeff[k], j);
+                                rix[j] = mpz_getlimbn(mpz_poly_coeff_const(smpol, k), j);
                             }
                         }
                     }
@@ -504,7 +504,7 @@ int main (int argc, char **argv)
     sm_side_info * sm_info = new sm_side_info[cpoly->nb_polys];
 
     for(int side = 0 ; side < cpoly->nb_polys; side++) {
-        sm_side_info_init(sm_info[side], F[side], ell);
+        sm_side_info_init(sm_info[side], F[side], ell, 0);
         sm_side_info_set_mode(sm_info[side], sm_mode_string);
         if (nsm_arg[side] >= 0)
             sm_info[side]->nsm = nsm_arg[side]; /* command line wins */
