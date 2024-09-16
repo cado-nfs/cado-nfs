@@ -3,6 +3,10 @@
 
 #include "gfpkdlpolyselect.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // table structure, old version.
 
 typedef struct {
@@ -69,6 +73,8 @@ typedef struct {
 
 typedef polyselect_parameters_t pp_t[1];
 
-
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* POLYSELECT_GFPKDLPOLYSELECT_IMPL_H_ */
