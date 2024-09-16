@@ -120,7 +120,26 @@ struct ifb_locking_lightweight {/*{{{*/
             explicit inline t() : x(0) {}
             inline void store(T a) { x = a; }
             inline t& operator=(T const& a) { store(a); return *this; }
-            inline T increment() { return x++; }
+            /* c++20 frowns upon volatile. Well, it kinda forces us to
+             * use atomics, in fact. Let's silence the issue for the
+             * moment. It may well be that the correct way to go is the
+             * code branch above. But I still long for the optimal way to
+             * write things so that there's a 1-to-1 correspondence with
+             * the simple and easy code here.
+             */
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-volatile"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wvolatile"
+#endif
+            T increment() { return x++; }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
         };
 #endif
     };
