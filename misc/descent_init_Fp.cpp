@@ -641,24 +641,14 @@ main(int argc0, char* argv0[])
                     u, v);
 
             std::cout << "fac_u =";
-            for(cxx_mpz const & pp : facu) {
-#if FMT_VERSION < 90000
-                cxx_mpz p = pp;
-#else
-                cxx_mpz const & p = pp;
-#endif
+            for(cxx_mpz const & p : facu) {
                 std::cout << fmt::format(FMT_STRING(" {},{}"),
                         p, find_root(p, U, params.f));
             }
             std::cout << "\n";
 
             std::cout << "fac_v =";
-            for(cxx_mpz const & pp : facv) {
-#if FMT_VERSION < 90000
-                cxx_mpz p = pp;
-#else
-                cxx_mpz const & p = pp;
-#endif
+            for(cxx_mpz const & p : facv) {
                 std::cout << fmt::format(FMT_STRING(" {},{}"),
                         p, find_root(p, V, params.f));
             }

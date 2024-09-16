@@ -65,17 +65,10 @@ get_time()
 std::ostream&
 operator<<(std::ostream& os, descent_init_candidate const& c)
 {
-#if FMT_VERSION < 90000
-    cxx_mpz u0 = c.u0;
-    cxx_mpz v0 = c.v0;
-    cxx_mpz u = c.u;
-    cxx_mpz v = c.v;
-#else
     cxx_mpz const & u0 = c.u0;
     cxx_mpz const & v0 = c.v0;
     cxx_mpz const & u = c.u;
     cxx_mpz const & v = c.v;
-#endif
     return os
            << fmt::format(FMT_STRING("Candidate e = {}\n"), c.e)
            << fmt::format(FMT_STRING("u0={}\nv0={}\n"), u0, v0)
