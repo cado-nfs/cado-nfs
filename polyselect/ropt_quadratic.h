@@ -10,10 +10,10 @@
 extern "C" {
 #endif
 
-void ropt_quadratic ( ropt_poly_t rs,
-                      ropt_bestpoly_t bestpoly,
-                      ropt_param_t param,
-                      ropt_info_t info);
+void ropt_quadratic ( ropt_poly_ptr rs,
+                      ropt_bestpoly_ptr bestpoly,
+                      ropt_param_ptr param,
+                      ropt_info_ptr info);
 
 #ifdef __cplusplus
 }

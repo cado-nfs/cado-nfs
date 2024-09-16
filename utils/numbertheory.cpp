@@ -70,8 +70,8 @@ void mpq_mat_row_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const un
     mpz_poly_realloc(f, n);
     for (unsigned int j = 0; j < n; j++) {
         mpq_srcptr mij = mpq_mat_entry_const(M, i, j);
-        mpz_divexact(f->coeff[j], lcm, mpq_denref(mij));
-        mpz_mul(f->coeff[j], f->coeff[j], mpq_numref(mij));
+        mpz_divexact(mpz_poly_coeff(f, j), lcm, mpq_denref(mij));
+        mpz_mul(mpz_poly_coeff(f, j), mpz_poly_coeff_const(f, j), mpq_numref(mij));
     }
     mpz_poly_cleandeg(f, n-1);
 }
@@ -96,8 +96,8 @@ void mpq_mat_column_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const
     }
     for (unsigned int i = 0 ; i < M->m; i++){
         mpq_srcptr mij = mpq_mat_entry_const(M, i, j);
-        mpz_divexact(f->coeff[i], lcm, mpq_denref(mij));
-        mpz_mul(f->coeff[i], f->coeff[i], mpq_numref(mij));
+        mpz_divexact(mpz_poly_coeff(f, i), lcm, mpq_denref(mij));
+        mpz_mul(mpz_poly_coeff(f, i), mpz_poly_coeff_const(f, i), mpq_numref(mij));
     }
     mpz_poly_cleandeg(f, M->m - 1);
 }
@@ -418,7 +418,7 @@ cxx_mpq_mat p_maximal_order(cxx_mpz_poly const& f, cxx_mpz const& p)
             mpz_mul(mpq_numref(dij), mpq_numref(dij), x);
             mpq_canonicalize(dij);
         }
-        mpz_mul(x, x, f->coeff[f->deg]);
+        mpz_mul(x, x, mpz_poly_lc(f));
     }
     // Put D into HNF.
     cxx_mpz_mat Dz;
@@ -508,22 +508,6 @@ cxx_mpz_mat matrix_of_multmap(
 }
 /*}}}*/
 
-/*{{{ factorization_of_polynomial_mod_mpz */
-vector<pair<cxx_mpz_poly, int> > factorization_of_polynomial_mod_mpz(cxx_mpz_poly const& f, cxx_mpz const& p, gmp_randstate_t state)
-{
-    mpz_poly_factor_list lf;
-    mpz_poly_factor_list_init(lf);
-    mpz_poly_factor(lf,f,p,state);
-    vector<pair<cxx_mpz_poly, int> > res(lf->size);
-    for(int i = 0 ; i < lf->size ; i++) {
-        mpz_poly_swap(res[i].first, lf->factors[i]->f);
-        res[i].second = lf->factors[i]->m;
-    }
-    mpz_poly_factor_list_clear(lf);
-    return res;
-}
-/*}}}*/
-
 /*{{{ template <typename T> void append_move(vector<T> &a, vector<T> &b) */
 template <typename T> void append_move(vector<T> &a, vector<T> &b)
 {
@@ -574,7 +558,7 @@ vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
      */
     cxx_mpz_poly Pc = mpz_mat_minpoly_mod_mpz(Mc, p);
 
-    vector<pair<cxx_mpz_poly, int> > facP = factorization_of_polynomial_mod_mpz(Pc, p, state);
+    vector<pair<cxx_mpz_poly, int> > facP = mpz_poly_factor(Pc, p, state);
 
     vector<pair<cxx_mpz_mat, int> > ideals;
 
@@ -913,7 +897,7 @@ pair<cxx_mpz, cxx_mpz_mat> prime_ideal_two_element(cxx_mpq_mat const& O, cxx_mpz
              * all conjugate of pgen(alpha). Resultant(f,pgen) is
              * lc(f)^deg(pgen) times the galois norm.
              */
-            int v = mpz_p_valuation(res, p) - pgen->deg * mpz_p_valuation(f->coeff[f->deg], p) - f->deg * mpz_p_valuation(dgen, p);
+            int v = mpz_p_valuation(res, p) - pgen->deg * mpz_p_valuation(mpz_poly_lc(f), p) - f->deg * mpz_p_valuation(dgen, p);
             ASSERT_ALWAYS(v >= inertia);
             if (v == inertia) {
                 cxx_mpz_mat lambda(1, m);
@@ -945,4 +929,18 @@ string write_element_as_polynomial(cxx_mpq_mat const& theta_q, string const& var
         os2 << "(" << num << ")/" << theta_denom;
         return os2.str();
     }
+}
+
+std::vector<cxx_mpz>
+write_element_as_list_of_integers(cxx_mpq_mat const& theta_q)
+{
+    ASSERT_ALWAYS(theta_q->m == 1);
+    cxx_mpz theta_denom;
+    cxx_mpz_mat theta;
+    mpq_mat_numden(theta, theta_denom, theta_q);
+    std::vector<cxx_mpz> res;
+    res.push_back(theta_denom);
+    for(unsigned int i = 0 ; i < theta->n ; i++)
+        res.push_back(mpz_mat_entry(theta, 0, i));
+    return res;
 }

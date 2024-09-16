@@ -560,8 +560,8 @@ struct cxx_mpz_functions {
     {
         cxx_mpz v;
         /* accumulate g1*a+g0*b */
-        mpz_mul (v, P->coeff[1], a);
-        mpz_addmul (v, P->coeff[0], b);
+        mpz_mul (v, mpz_poly_coeff_const(P, 1), a);
+        mpz_addmul (v, mpz_poly_coeff_const(P, 0), b);
         return v;
     }
     cxx_mpz_functions(cxx_mpz_poly const & P) : P(P) {}
@@ -605,7 +605,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly cpoly,
   /* we must divide by g1^nab: if the number of (a,b) pairs is odd, we
      multiply by g1, and divide by g1^(nab+1) */
   if (nab & 1)
-    mpz_mul (prod, prod, F->coeff[1]);
+    mpz_mul (prod, prod, mpz_poly_coeff_const(F, 1));
 
 #pragma omp critical
   {
@@ -687,7 +687,7 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly cpoly,
   /* now divide by g1^(nab/2) if nab is even, and g1^((nab+1)/2)
      if nab is odd */
 
-  mpz_powm_ui (v, F->coeff[1], (nab + 1) / 2, Np);
+  mpz_powm_ui (v, mpz_poly_coeff_const(F, 1), (nab + 1) / 2, Np);
 #pragma omp critical
   {
     fprintf (stderr, "Rat(%d): computed g1^(nab/2) mod n at %.2fs (wct %.2fs)\n",
@@ -731,7 +731,7 @@ struct cxx_mpz_polymodF_functions {
         return ret;
     }
     bool is1(T & res) const {
-        return res->p->deg == 0 && res->v == 0 && mpz_cmp_ui(res->p->coeff[0], 1) == 0;
+        return res->p->deg == 0 && res->v == 0 && mpz_cmp_ui(mpz_poly_coeff_const(res->p, 0), 1) == 0;
     }
     void set(T & y, T const & x) const {
         mpz_polymodF_set(y, x);
@@ -751,7 +751,7 @@ mpz_poly_mod_center (mpz_poly R, const mpz_t m)
 {
 #pragma omp parallel for
   for (int i=0; i <= R->deg; i++)
-    mpz_ndiv_r (R->coeff[i], R->coeff[i], m);
+    mpz_ndiv_r (mpz_poly_coeff(R, i), mpz_poly_coeff_const(R, i), m);
 }
 
 #if 0
@@ -769,11 +769,11 @@ mpz_poly_integer_reconstruction (mpz_poly R, const mpz_t m)
 
   for (i=0; i <= R->deg; ++i)
     {
-      sizer = mpz_sizeinbase (R->coeff[i], 2);
+      sizer = mpz_sizeinbase (mpz_poly_coeff_const(R, i), 2);
       if (sizer + 20 > sizem)
         {
-          mpz_sub (R->coeff[i], R->coeff[i], m);
-          sizer = mpz_sizeinbase (R->coeff[i], 2);
+          mpz_sub (mpz_poly_coeff(R, i), mpz_poly_coeff_const(R, i), m);
+          sizer = mpz_sizeinbase (mpz_poly_coeff_const(R, i), 2);
           if (sizer + 20 > sizem)
             return 0;
         }
@@ -812,23 +812,25 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
     s++;
     mpz_divexact_ui(t, t, 2);
   }
+
   // find a non quadratic residue delta
+  mpz_poly_init(delta, d);
+
   {
-    mpz_poly_init(delta, d);
     gmp_randstate_t state;
     gmp_randinit_default(state);
     do {
       int i;
       // pick a random delta
       for (i = 0; i < d; ++i)
-	mpz_urandomm(delta->coeff[i], state, myp);
+	mpz_urandomm(mpz_poly_coeff(delta, i), state, myp);
       mpz_poly_cleandeg(delta, d-1);
       // raise it to power (q-1)/2
       mpz_poly_pow_mod_f_mod_ui(auxpol, delta, F, aux, p);
       /* Warning: the coefficients of auxpol might either be reduced in
 	 [0, p) or in [-p/2, p/2). This code should work in both cases. */
-    } while (auxpol->deg != 0 || (mpz_cmp_ui (auxpol->coeff[0], p-1) != 0 &&
-				  mpz_cmp_si (auxpol->coeff[0], -1) != 0));
+    } while (auxpol->deg != 0 || (mpz_cmp_ui (mpz_poly_coeff_const(auxpol, 0), p-1) != 0 &&
+				  mpz_cmp_si (mpz_poly_coeff_const(auxpol, 0), -1) != 0));
     gmp_randclear (state);
   }
 
@@ -847,7 +849,7 @@ TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p
       mpz_poly_mul_mod_f_mod_mpz(auxpol, auxpol, A, F, myp, NULL, NULL);
       mpz_ui_pow_ui(aux, 2, (s-1-i));
       mpz_poly_pow_mod_f_mod_ui(auxpol, auxpol, F, aux, p);
-      if ((auxpol->deg == 0) && (mpz_cmp_ui(auxpol->coeff[0], p-1)== 0))
+      if ((auxpol->deg == 0) && (mpz_cmp_ui(mpz_poly_coeff_const(auxpol, 0), p-1)== 0))
     mpz_add_ui(m, m, 1UL<<i);
     }
     mpz_add_ui(t, t, 1);
@@ -921,7 +923,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
     v = AA->v / 2;
   } else {
     v = (1+AA->v) / 2;
-    pinf->mpz_poly_mul_mpz(A, A, F->coeff[d]);
+    pinf->mpz_poly_mul_mpz(A, A, mpz_poly_coeff_const(F, d));
   }
 
   // Now, we just have to take the square root of A (without denom) and
@@ -1201,22 +1203,11 @@ calculateSqrtAlg (const char *prefix, int numdep,
 
   // Init F to be the corresponding polynomial
   cxx_mpz_poly F(cpoly->pols[side]);
-  cxx_mpz_poly F_hat(F->deg);
+  cxx_mpz_poly F_hat;
   cxx_mpz_polymodF prod;
 
-  /* {{{ create F_hat, the minimal polynomial of alpha_hat = lc(F) *
-   * alpha */
-  {
-      cxx_mpz tmp;
-      mpz_init_set_ui(tmp, 1);
-      mpz_set_ui(F_hat->coeff[F->deg], 1);
-      for(int i = F->deg - 1 ; i >= 0 ; i--) {
-          mpz_mul(F_hat->coeff[i], tmp, F->coeff[i]);
-          mpz_mul(tmp, tmp, F->coeff[F->deg]);
-      }
-      mpz_poly_cleandeg(F_hat, F->deg);
-  }
-  /* }}} */
+  /* create F_hat, the minimal polynomial of alpha_hat = lc(F) * alpha */
+  mpz_poly_to_monic(F_hat, F);
 
   // Accumulate product with a subproduct tree
   {
@@ -1353,7 +1344,7 @@ calculateSqrtAlg (const char *prefix, int numdep,
 
     mpz_clear(m);
 
-    mpz_invert(aux, F->coeff[F->deg], Np);  // 1/fd mod n
+    mpz_invert(aux, mpz_poly_lc(F), Np);  // 1/fd mod n
     mpz_powm_ui(aux, aux, prod->v, Np);      // 1/fd^v mod n
     mpz_mul(algsqrt, algsqrt, aux);
     mpz_mod(algsqrt, algsqrt, Np);
@@ -1840,7 +1831,7 @@ int main(int argc, char *argv[])
         mpz_set(Np, cpoly->n);
         for (int side = 0; side < 2; ++side) {
             do {
-                mpz_gcd(gg, Np, cpoly->pols[side]->coeff[cpoly->pols[side]->deg]);
+                mpz_gcd(gg, Np, mpz_poly_lc(cpoly->pols[side]));
                 if (mpz_cmp_ui(gg, 1) != 0) {
                     gmp_fprintf(stderr, "Warning: found the following factor of N as a factor of g: %Zd\n", gg);
                     print_factor(gg);

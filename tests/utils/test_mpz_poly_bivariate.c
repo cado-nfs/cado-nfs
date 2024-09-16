@@ -50,7 +50,7 @@ void test_mpz_poly_bivariate_trivialities()
   ASSERT_ALWAYS(f->deg_x == 5);
   ASSERT_ALWAYS(f->coeff[1]->deg == -1);
   ASSERT_ALWAYS(f->coeff[5]->deg == 5);
-  ASSERT_ALWAYS(mpz_cmp_ui(f->coeff[2]->coeff[1], 18) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(f->coeff[2], 1), 18) == 0);
 
   tmp->deg = -1;
   mpz_poly_setcoeff_int64(tmp, 0, 0);
@@ -61,7 +61,7 @@ void test_mpz_poly_bivariate_trivialities()
   ASSERT_ALWAYS(f->deg_x == 2);
   ASSERT_ALWAYS(f->coeff[1]->deg == -1);
   ASSERT_ALWAYS(f->coeff[0]->deg == 2);
-  ASSERT_ALWAYS(mpz_cmp_ui(f->coeff[0]->coeff[2], 42) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(f->coeff[0], 2), 42) == 0);
 
   mpz_t y;
   mpz_init(y);
@@ -69,17 +69,17 @@ void test_mpz_poly_bivariate_trivialities()
   //tmp = 75894*x^2 + 31769*x + 21179
   mpz_poly_bivariate_eval_y(tmp, f, y);
   ASSERT_ALWAYS(tmp->deg == 2);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[0], 21179) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[1], 31769) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[2], 75894) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 0), 21179) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 1), 31769) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 2), 75894) == 0);
 
   mpz_set_si(y, 0);
   //tmp = 42*x^2 + 17*x + 11
   mpz_poly_bivariate_eval_y(tmp, f, y);
   ASSERT_ALWAYS(tmp->deg == 2);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[0], 11) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[1], 17) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[2], 42) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 0), 11) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 1), 17) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 2), 42) == 0);
 
   mpz_t x;
   mpz_init(x);
@@ -87,17 +87,17 @@ void test_mpz_poly_bivariate_trivialities()
   //tmp = 76620*y^2 + 74813
   mpz_poly_bivariate_eval_x(tmp, f, x);
   ASSERT_ALWAYS(tmp->deg == 2);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[0], 74813) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[1], 0) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[2], 76620) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 0), 74813) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 1), 0) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 2), 76620) == 0);
 
   mpz_set_si(x, 0);
   //tmp = 12*y^2 + 11
   mpz_poly_bivariate_eval_x(tmp, f, x);
   ASSERT_ALWAYS(tmp->deg == 2);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[0], 11) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[1], 0) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[2], 12) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 0), 11) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 1), 0) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 2), 12) == 0);
 
   f->deg_y = -1;
   mpz_poly_bivariate_eval_y(tmp, f, y);
@@ -146,23 +146,23 @@ void test_mpz_poly_bivariate_resultant()
 
   mpz_poly_bivariate_resultant_y(tmp, f, g);
   ASSERT_ALWAYS(tmp->deg == 8);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[0], 10000) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[1], 86200) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[2], 150561) == 0);
-  ASSERT_ALWAYS(mpz_cmp_si(tmp->coeff[3], -238512) == 0);
-  ASSERT_ALWAYS(mpz_cmp_si(tmp->coeff[4], -1060332) == 0);
-  ASSERT_ALWAYS(mpz_cmp_si(tmp->coeff[5], -2938364) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[6], 1450628) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[7], 3112648) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[8], 12859396) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 0), 10000) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 1), 86200) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 2), 150561) == 0);
+  ASSERT_ALWAYS(mpz_cmp_si(mpz_poly_coeff_const(tmp, 3), -238512) == 0);
+  ASSERT_ALWAYS(mpz_cmp_si(mpz_poly_coeff_const(tmp, 4), -1060332) == 0);
+  ASSERT_ALWAYS(mpz_cmp_si(mpz_poly_coeff_const(tmp, 5), -2938364) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 6), 1450628) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 7), 3112648) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 8), 12859396) == 0);
 
   mpz_poly_bivariate_resultant_x(tmp, f, g);
   ASSERT_ALWAYS(tmp->deg == 8);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[0], 467750) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[2], 38960) == 0);
-  ASSERT_ALWAYS(mpz_cmp_si(tmp->coeff[4], -996138) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[6], 44919) == 0);
-  ASSERT_ALWAYS(mpz_cmp_ui(tmp->coeff[8], 622660) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 0), 467750) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 2), 38960) == 0);
+  ASSERT_ALWAYS(mpz_cmp_si(mpz_poly_coeff_const(tmp, 4), -996138) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 6), 44919) == 0);
+  ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(tmp, 8), 622660) == 0);
 
   mpz_poly_setcoeff_int64(tmp, 1, 11);
   mpz_poly_setcoeff_int64(tmp, 3, 17);
@@ -206,14 +206,14 @@ void test_mpz_poly_bivariate_resultant()
   ASSERT_ALWAYS(tmp->deg == 72);
   mpz_set_str(Z_tmp, "1494774748820383618990632550811343575455342810669737",
       10);
-  ASSERT_ALWAYS(mpz_cmp(tmp->coeff[42], Z_tmp) == 0);
+  ASSERT_ALWAYS(mpz_cmp(mpz_poly_coeff_const(tmp, 42), Z_tmp) == 0);
 
   mpz_poly_bivariate_resultant_x(tmp, f, g);
   ASSERT_ALWAYS(tmp->deg == 72);
   mpz_set_str(Z_tmp,
       "392307271360601863563100893262849685478724955452018428897254854297277064613707763200",
       10);
-  ASSERT_ALWAYS(mpz_cmp(tmp->coeff[42], Z_tmp) == 0);
+  ASSERT_ALWAYS(mpz_cmp(mpz_poly_coeff_const(tmp, 42), Z_tmp) == 0);
   mpz_clear(Z_tmp);
 
   mpz_poly_bivariate_clear(f);

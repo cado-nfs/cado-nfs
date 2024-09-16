@@ -182,7 +182,7 @@ prime_list_poly (std::vector<unsigned long> & L, prime_info pi,
   gmp_randinit_default(rstate);
 
   for (unsigned long p = 2 ; p <= pmax ; p = getprime_mt(pi))
-    if (mpz_divisible_ui_p (f->coeff[f->deg], p) ||
+    if (mpz_divisible_ui_p (mpz_poly_lc(f), p) ||
         mpz_poly_roots_ulong (NULL, f, p, rstate) > 0)
         L.push_back(p);
 
@@ -254,7 +254,7 @@ prime_tree_poly (mpz_product_tree L, unsigned long pmax, cxx_mpz_poly const& f, 
 #pragma omp parallel for schedule(static)
 #endif
       for (int j = 0; j < i; j++)
-        if (mpz_divisible_ui_p (f->coeff[f->deg], q[j]) == 0 &&
+        if (mpz_divisible_ui_p (mpz_poly_lc(f), q[j]) == 0 &&
             mpz_poly_roots_ulong (NULL, f, q[j], rstate_per_thread[omp_get_thread_num()]) == 0)
           q[j] = 0;
 

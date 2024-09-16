@@ -56,7 +56,7 @@ test_sm (FILE * datafile)
     gmp_fscanf (datafile, " %Zi", ell);
 
     sm_side_info sm_info;
-    sm_side_info_init(sm_info, F, ell);
+    sm_side_info_init(sm_info, F, ell, 0);
 
     ret = fscanf(datafile, " %d", &nb_ab);
     ASSERT_ALWAYS (ret == 1);

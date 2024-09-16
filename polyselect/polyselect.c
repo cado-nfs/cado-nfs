@@ -225,13 +225,13 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
   mpz_sub(m, mtilde, m);
   check_divexact_ui(m, m, "m-a_{d-1}*l", header->d, "d");
   check_divexact(m, m, "(m-a_{d-1}*l)/d", header->ad, "ad");
-  mpz_set(g->coeff[1], l);
-  mpz_neg(g->coeff[0], m);
-  mpz_set(f->coeff[header->d], header->ad);
+  mpz_set(mpz_poly_coeff(g, 1), l);
+  mpz_neg(mpz_poly_coeff(g, 0), m);
+  mpz_set(mpz_poly_coeff(f, header->d), header->ad);
   mpz_pow_ui(t, m, header->d);
   mpz_mul(t, t, header->ad);
   mpz_sub(t, header->N, t);
-  mpz_set(f->coeff[header->d - 1], adm1);
+  mpz_set(mpz_poly_coeff(f, header->d - 1), adm1);
   check_divexact(t, t, "t", l, "l");
   mpz_pow_ui(mtilde, m, header->d - 1);
   mpz_mul(mtilde, mtilde, adm1);
@@ -255,12 +255,12 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
       if (cmp >= 0)
 	mpz_sub(k, k, l);
       mpz_add(adm1, adm1, k);
-      mpz_set(f->coeff[j], adm1);
+      mpz_set(mpz_poly_coeff(f, j), adm1);
       /* subtract adm1*m^j */
       mpz_submul(t, mtilde, adm1);
     }
   check_divexact(t, t, "t", l, "l");
-  mpz_set(f->coeff[0], t);
+  mpz_set(mpz_poly_coeff(f, 0), t);
 
   /* As noticed by Min Yang, Qingshu Meng, Zhangyi Wang, Lina Wang and
      Huanguo Zhang in "Polynomial Selection for the Number Field Sieve in an
@@ -268,7 +268,7 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
      if the coefficient of degree d-2 is of the same sign as the leading
      coefficient, the size optimization will not work well, thus we simply
      discard those polynomials. */
-  if (mpz_sgn(f->coeff[header->d]) * mpz_sgn(f->coeff[header->d - 2]) > 0)
+  if (mpz_sgn(mpz_poly_coeff_const(f, header->d)) * mpz_sgn(mpz_poly_coeff_const(f, header->d - 2)) > 0)
     {
       stats->discarded1++;
       goto end;
@@ -312,7 +312,7 @@ polyselect_process_match_async(polyselect_thread_league_srcptr league, polyselec
 
   /* polynomials with f[d-1] * f[d-3] > 0 *after* size-optimization
      give worse exp_E values */
-  if (mpz_sgn(f->coeff[f->deg - 1]) * mpz_sgn(f->coeff[f->deg - 3]) > 0) {
+  if (mpz_sgn(mpz_poly_coeff_const(f, f->deg - 1)) * mpz_sgn(mpz_poly_coeff_const(f, f->deg - 3)) > 0) {
       stats->discarded2++;
       goto end;
   }

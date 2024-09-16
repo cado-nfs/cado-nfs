@@ -13,18 +13,18 @@
 /* h(x) <- h(x + r/p), where the coefficients of h(x + r/p) are known to
    be integers */
 static void
-poly_shift_divp (mpz_t *h, unsigned int d, unsigned long r, unsigned long p)
+mpz_poly_shift_divp (mpz_poly_ptr H, unsigned long r, unsigned long p)
 {
-  unsigned int i, k;
+  int i, k;
   mpz_t t;
 
   mpz_init (t);
-  for (i = 1; i <= d; i++)
-    for (k = d - i; k < d; k++)
+  for (i = 1; i <= H->deg; i++)
+    for (k = H->deg - i; k < H->deg; k++)
       { /* h[k] <- h[k] + r/p h[k+1] */
-        ASSERT (mpz_divisible_ui_p (h[k+1], p) != 0);
-        mpz_divexact_ui (t, h[k+1], p);
-        mpz_addmul_ui (h[k], t, r);
+        ASSERT (mpz_divisible_ui_p (mpz_poly_coeff_const(H, k+1), p) != 0);
+        mpz_divexact_ui (t, mpz_poly_coeff_const(H, k+1), p);
+        mpz_addmul_ui (mpz_poly_coeff(H, k), t, r);
       }
   mpz_clear (t);
 }
@@ -38,7 +38,7 @@ static double
 special_val0 (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr rstate)
 {
   double v;
-  mpz_t c,  *h;
+  mpz_t c;
   unsigned long *roots, r, r0;
   int i, d = f->deg, nroots;
   mpz_poly g, H;
@@ -55,19 +55,18 @@ special_val0 (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr rstate)
     {
       mpz_ui_pow_ui (c, p, (unsigned long) v); /* p^v */
       for (i = 0; i <= d; i++)
-        mpz_divexact (g->coeff[i], f->coeff[i], c);
+        mpz_divexact (mpz_poly_coeff(g, i), mpz_poly_coeff_const(f, i), c);
     }
   else
     mpz_poly_set (g, f);
 
   mpz_poly_init (H, d);
   H->deg = d;
-  h = H->coeff;
   /* first compute h(x) = g(p*x) = f(p*x)/p^v */
   mpz_set_ui (c, 1);
   for (i = 0; i <= d; i++)
     {
-      mpz_mul (h[i], g->coeff[i], c);
+      mpz_mul (mpz_poly_coeff(H, i), mpz_poly_coeff_const(g, i), c);
       mpz_mul_ui (c, c, p);
     }
   /* Search for roots of g mod p */
@@ -97,7 +96,7 @@ special_val0 (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr rstate)
              check that efficiently? And which value to return in such a case?
           */
           ASSERT_ALWAYS (r >= r0); /* the roots are sorted */
-          poly_shift_divp (h, d, r - r0, p);
+          mpz_poly_shift_divp (H, r - r0, p);
           r0 = r;
           v += special_val0 (H, p, rstate) / (double) p;
         }
@@ -163,7 +162,7 @@ special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_srcptr disc, gmp_rand
   mpz_clear(t);
     }
 
-    p_divides_lc = mpz_divisible_ui_p(f->coeff[d], p);
+    p_divides_lc = mpz_divisible_ui_p(mpz_poly_lc(f), p);
 
     if (pvaluation_disc == 0) {
   /* easy ! */
@@ -171,7 +170,7 @@ special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_srcptr disc, gmp_rand
   e = mpz_poly_roots_ulong (NULL, f, p, rstate);
   if (p_divides_lc) {
       /* Or the discriminant would have valuation 1 at least */
-      ASSERT(mpz_divisible_ui_p(f->coeff[d - 1], p) == 0);
+      ASSERT(mpz_divisible_ui_p(mpz_poly_coeff_const(f, d - 1), p) == 0);
       e++;
   }
   return (pd * e) / (pd * pd - 1);
@@ -189,18 +188,16 @@ special_valuation (mpz_poly_srcptr f, unsigned long p, mpz_srcptr disc, gmp_rand
       /* compute g(x) = f(1/(px))*(px)^d, i.e., g[i] = f[d-i]*p^i */
       /* IOW, the reciprocal polynomial evaluated at px */
       mpz_poly G;
-      mpz_t *g;
       mpz_t t;
       int i;
 
       mpz_poly_init (G, d);
-      G->deg = d;
-      g = G->coeff;
-      mpz_init_set_ui(t, 1);  /* will contains p^i */
+      mpz_init_set_ui(t, 1);  /* will contain p^i */
       for (i = 0; i <= d; i++) {
-        mpz_mul(g[i], f->coeff[d - i], t);
+        mpz_mul(mpz_poly_coeff(G, i), mpz_poly_coeff_const(f, d - i), t);
         mpz_mul_ui(t, t, p);
       }
+      mpz_poly_cleandeg(G, d);
       v += special_val0(G, p, rstate);
       mpz_poly_clear (G);
       mpz_clear(t);

@@ -10,16 +10,16 @@
  * mpz_poly in x.
  */
 
-typedef struct {
+struct mpz_poly_bivariate_s {
   unsigned int alloc;
   int deg_y;
   int deg_x;
   mpz_poly * coeff;
-} mpz_poly_bivariate_struct_t;
+};
 
-typedef mpz_poly_bivariate_struct_t mpz_poly_bivariate_t[1];
-typedef mpz_poly_bivariate_struct_t * mpz_poly_bivariate_ptr;
-typedef const mpz_poly_bivariate_struct_t * mpz_poly_bivariate_srcptr;
+typedef struct mpz_poly_bivariate_s mpz_poly_bivariate_t[1];
+typedef struct mpz_poly_bivariate_s * mpz_poly_bivariate_ptr;
+typedef const struct mpz_poly_bivariate_s * mpz_poly_bivariate_srcptr;
 
 #ifdef __cplusplus
 extern "C" {

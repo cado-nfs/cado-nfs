@@ -112,7 +112,7 @@ int main (int argc, char **argv)
 
     printf ("\n### Input raw polynomial (%u) ###\n", nb_input_polys);
     cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-    nrroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, cpoly->pols[ALG_SIDE]->deg, 0, 0, NULL);
+    nrroots = mpz_poly_number_of_real_roots(cpoly->pols[ALG_SIDE]);
     lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
     alpha = get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ());
     alpha_proj = get_alpha_projective (cpoly->pols[ALG_SIDE], get_alpha_bound ());
@@ -137,7 +137,7 @@ int main (int argc, char **argv)
 
     printf ("### Size-optimized polynomial (%u) ###\n", nb_input_polys);
     cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-    nrroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, cpoly->pols[ALG_SIDE]->deg, 0, 0, NULL);
+    nrroots = mpz_poly_number_of_real_roots(cpoly->pols[ALG_SIDE]);
     lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
     alpha = get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ());
     alpha_proj = get_alpha_projective (cpoly->pols[ALG_SIDE], get_alpha_bound ());

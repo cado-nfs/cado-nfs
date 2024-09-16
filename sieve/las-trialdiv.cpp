@@ -32,7 +32,7 @@ append_prime_list (T inserter, prime_info pi, unsigned long pmax, cxx_mpz_poly c
             *inserter++ = p;
     } else {
         for (; (p = getprime_mt (pi)) < pmax; )
-            if (mpz_divisible_ui_p (f->coeff[f->deg], p) ||
+            if (mpz_divisible_ui_p (mpz_poly_lc(f), p) ||
                     mpz_poly_roots_ulong (NULL, f, p, rstate) >= minroots)
                 *inserter++ = p;
     }

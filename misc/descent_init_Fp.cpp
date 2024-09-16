@@ -213,7 +213,7 @@ get_Fpn_candidate_from_e(unsigned long e,
     // put the coef of phi=phi[0]+phi[1]*x+...+phi[n-1]*x^(n-1)+x^n
     for (int i = n + 1; i < d + 1; ++i) {
         for (int j = 0; j < n + 1; ++j)
-            mpz_set(M.coeff[i][i - n + j], param.phi->coeff[j]);
+            mpz_set(M.coeff[i][i - n + j], mpz_poly_coeff_const(param.phi, j));
     }
 
     // Bottomleft d*d block
@@ -224,7 +224,7 @@ get_Fpn_candidate_from_e(unsigned long e,
             if (j > c->deg)
                 mpz_set_ui(M.coeff[d + i + 1][j + 1], 0);
             else
-                mpz_set(M.coeff[d + i + 1][j + 1], c->coeff[j]);
+                mpz_set(M.coeff[d + i + 1][j + 1], mpz_poly_coeff_const(c, j));
         }
     }
 
@@ -376,9 +376,9 @@ find_root(cxx_mpz const & p, cxx_mpz_poly const & f1, cxx_mpz_poly const & f2)
 {
     // Check if projective root
     cxx_mpz r;
-    mpz_mod(r, f1->coeff[f1->deg], p);
+    mpz_mod(r, mpz_poly_lc(f1), p);
     if (mpz_cmp_ui(r, 0) == 0) {
-        mpz_mod(r, f2->coeff[f2->deg], p);
+        mpz_mod(r, mpz_poly_lc(f2), p);
         if (mpz_cmp_ui(r, 0) == 0) {
             return p;
         }
@@ -388,8 +388,8 @@ find_root(cxx_mpz const & p, cxx_mpz_poly const & f1, cxx_mpz_poly const & f2)
     cxx_mpz_poly G;
     mpz_poly_gcd_mpz(G, f1, f2, p);
     ASSERT_ALWAYS(G->deg == 1);
-    mpz_invert(r, G->coeff[1], p);
-    mpz_mul(r, r, G->coeff[0]);
+    mpz_invert(r, mpz_poly_coeff_const(G, 1), p);
+    mpz_mul(r, r, mpz_poly_coeff_const(G, 0));
     mpz_neg(r, r);
     mpz_mod(r, r, p);
     return r;
