@@ -159,3 +159,15 @@ number_field_element number_field::operator()(number_field_order_element const &
     return number_field_element(*this, c);
 }
 
+
+auto fmt::formatter<number_field>::format(number_field const & K, format_context& ctx) const -> format_context::iterator
+{
+    if (custom_format == TEXT) {
+        fmt::format_to(ctx.out(), "Number Field {} in variable {} defined by {}", K.name, K.varname, K.defining_polynomial());
+    } else if (custom_format == SAGEMATH) {
+        fmt::format_to(ctx.out(), "NumberField({}, name=(\"{}\",))", K.defining_polynomial(), K.varname);
+    } else if (custom_format == MACHINE) {
+        fmt::format_to(ctx.out(), "{}", K.defining_polynomial());
+    }
+    return ctx.out();
+}

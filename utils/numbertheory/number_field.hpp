@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "numbertheory/numbertheory_fwd_types.hpp"
+#include "numbertheory/fmt_helpers.hpp"
 
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
@@ -43,10 +44,14 @@ class number_field {
 };
 
 namespace fmt {
-    template <> struct formatter<number_field> : formatter<string_view>{
-        auto format(number_field const & K, format_context& ctx) const -> format_context::iterator {
-            return fmt::format_to(ctx.out(), "Number Field {} in variable {} defined by {}", K.name, K.varname, K.defining_polynomial());
-        }
+    template <>
+    struct formatter<number_field>
+        : formatter<string_view>
+        , fmt_helper_sagemath<number_field>
+    {
+        using fmt_helper_sagemath::parse;
+        static constexpr const decltype(custom_format) custom_format_default = TEXT;
+        auto format(number_field const & K, format_context& ctx) const -> format_context::iterator;
     };
 }
 inline std::ostream& operator<<(std::ostream& os, number_field const & K) { return os << fmt::format("{}", K); }
