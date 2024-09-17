@@ -250,7 +250,7 @@ class Cado_NFS_toplevel(object):
             return nphysical * int(cpu_cores.pop())
         def backquote(cmd):
             pipe = subprocess.Popen(cmd.split(" "), stdout=subprocess.PIPE)
-            loc = locale.getdefaultlocale()[1]
+            loc = locale.getlocale()[1]
             if not loc:
                 loc="ascii"
             return [s.decode(loc) for s in pipe.stdout.readlines()]
@@ -301,7 +301,7 @@ class Cado_NFS_toplevel(object):
         # this regard.
         def backquote(cmd):
             pipe = subprocess.Popen(cmd.split(" "), stdout=subprocess.PIPE)
-            loc = locale.getdefaultlocale()[1]
+            loc = locale.getlocale()[1]
             if not loc:
                 loc="ascii"
             return [s.decode(loc) for s in pipe.stdout.readlines()]
