@@ -654,8 +654,8 @@ linalg/bwc/prep.cpp
 linalg/bwc/random_matrix.cpp
 linalg/bwc/random_matrix.hpp
 linalg/bwc/raw_matrix_u32.h
-linalg/bwc/rolling.c
-linalg/bwc/rolling.h
+linalg/bwc/rolling.cpp
+linalg/bwc/rolling.hpp
 linalg/bwc/secure.cpp
 linalg/bwc/solib-naming.h.in
 linalg/bwc/strassen-thresholds.hpp
