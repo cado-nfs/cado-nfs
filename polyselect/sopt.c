@@ -17,16 +17,21 @@
 #include "verbose.h"             // verbose_decl_usage
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
+#include "portability.h"
 
 
 static void
 declare_usage(param_list pl)
 {
-  char str[200];
   param_list_decl_usage(pl, "inputpolys", "size-optimized the polynomials "
                                           "given in this file");
-  snprintf (str, 200, "size-optimization effort (default %d)", SOPT_DEFAULT_EFFORT);
-  param_list_decl_usage(pl, "sopteffort", str);
+  {
+      char * str;
+      int rc = asprintf (&str, "size-optimization effort (default %d)", SOPT_DEFAULT_EFFORT);
+      ASSERT_ALWAYS(rc >= 0);
+      param_list_decl_usage(pl, "sopteffort", str);
+      free(str);
+  }
   param_list_decl_usage(pl, "v", "verbose mode");
   param_list_decl_usage(pl, "translation-only", "(switch) do not use rotations");
   verbose_decl_usage(pl);
