@@ -17,6 +17,8 @@
 #include <memory>              // for allocator_traits<>::value_type
 #include <sstream>             // for operator<<, ostringstream, basic_ostream
 #include <string>              // for basic_string
+#include <stdexcept>
+#include "fmt/format.h"
 #include <type_traits>         // for remove_reference<>::type
 #include <vector>              // for vector
 #include <gmp.h>
@@ -1113,8 +1115,9 @@ input_batch (FILE *fp, unsigned long B, unsigned long L, cxx_mpz_poly const & cp
 #undef CHECK_2
 #undef CHECK_Z
 parse_error:
-  fprintf (stderr, "Error while reading batch product from %s:\n%s", f, msg);
-  exit(EXIT_FAILURE);
+  throw std::runtime_error(fmt::format(
+              "Error while reading batch product from {}:\n{}\n",
+              f, msg));
 }
 
 /* We have 3 cases:
