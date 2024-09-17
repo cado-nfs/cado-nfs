@@ -671,8 +671,10 @@ bool get_g_CONJ(mpz_poly g[], mpz_poly phi,
       for (i=0; (i<nb_found) && (i< (int)params->mnfs); i++){
 	mpz_poly_init(g[i], params_g->deg);
 	mpz_poly_set(g[i], gi[i]);
-	mpz_poly_clear(gi[i]);
       }
+    }
+    for(i=0; i < nb_LLL_poly; i++){
+	mpz_poly_clear(gi[i]);
     }
     free(gi);
   }else{
@@ -771,11 +773,14 @@ int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED,
 	  }else{ // f found but g not found
 	    f_id++;
 	  }	  
+          for(int k = 0 ; k < nb_roots_Py ; k++)
+              mpz_clear(tab_roots_Py[k]);
 	}else{ // f not found
 	  f_id++;
 	}// end if--then--else f_found
       }// end while not (found_f && found_g)
       mpz_poly_clear(f);
+      mpz_poly_clear(phi);
       for(i=0;i<mnfs;i++){
 	mpz_poly_clear(g[i]);
       }
