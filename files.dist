@@ -1424,6 +1424,7 @@ tests/utils/test_getprime.c
 tests/utils/test_gmp_aux.c
 tests/utils/test_gpf.c
 tests/utils/test_intinv.c
+tests/utils/test_istream_matcher.cpp
 tests/utils/test_json_parsing.cpp
 tests/utils/test_memusage.c
 tests/utils/test_mmappable_vector.cpp
@@ -1546,6 +1547,7 @@ utils/indexed_relation.cpp
 utils/indexed_relation.hpp
 utils/intrinsics.hpp
 utils/iqsort.h
+utils/istream_matcher.hpp
 utils/json.cpp
 utils/json.hpp
 utils/lll.c
