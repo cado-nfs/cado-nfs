@@ -95,9 +95,18 @@ test_galois_apply()
     galois_action G41("autom4.1");
     auto is_fixed_point_41 = [](unsigned long r, unsigned long p) {
             /* only use with small values to avoid overflow */
-            return r != p && ((r*r+1) % p) == 0;
+            return ((r*r+1) % p) == 0;
     };
     ret &= test_galois_apply_one(G41, is_fixed_point_41);
+    return ret;
+
+    /* galois action x->-(2*x+1)/(x-1): fixed points are s.t. r^2+r+1 mod p == 0 */
+    galois_action G61("autom6.1");
+    auto is_fixed_point_61 = [](unsigned long r, unsigned long p) {
+            /* only use with small values to avoid overflow */
+            return ((r*r+r+1) % p) == 0;
+    };
+    ret &= test_galois_apply_one(G61, is_fixed_point_61);
     return ret;
 }
 
@@ -217,6 +226,51 @@ test_galois_hash()
     TEST_HASH_NEQ(G41, -42, 17, 42, 17);    /* h(a, b) != h(-a, b) */
     TEST_HASH_NEQ(G41, 42, 17, 17, 42);     /* h(a, b) != h(b, a) */
     TEST_HASH_NEQ(G41, -42, 17, -17, 42);   /* h(a, b) != h(-b, -a) */
+
+    /*
+     * galois action x->-(2*x+1)/(x-1)
+     */
+    galois_action G61("autom6.1");
+    /* test case: 0 < b < a */
+    TEST_HASH_EQ(G61, 42, 17, 25, 76);    /* h(a, b) == h(a-b, a+2*b) */
+    TEST_HASH_EQ(G61, 42, 17, -17, 59);   /* h(a, b) == h(-b, a+b) */
+    TEST_HASH_EQ(G61, 42, 17, -76, 101);  /* h(a, b) == h(-a-2*b, 2*a+b) */
+    TEST_HASH_EQ(G61, 42, 17, -59, 42);   /* h(a, b) == h(-a-b, a) */
+    TEST_HASH_EQ(G61, 42, 17, -101, 25);  /* h(a, b) == h(-2*a-b, a-b) */
+    /* test case: 0 < a < b */
+    TEST_HASH_EQ(G61, 17, 42, -25, 101);  /* h(a, b) == h(a-b, a+2*b) */
+    TEST_HASH_EQ(G61, 17, 42, -42, 59);   /* h(a, b) == h(-b, a+b) */
+    TEST_HASH_EQ(G61, 17, 42, -101, 76);  /* h(a, b) == h(-a-2*b, 2*a+b) */
+    TEST_HASH_EQ(G61, 17, 42, -59, 17);   /* h(a, b) == h(-a-b, a) */
+    TEST_HASH_EQ(G61, 17, 42, 76, 25);    /* h(a, b) == h(2*a+b, -a+b) */
+    /* test case: -b/2 < a < 0 */
+    TEST_HASH_EQ(G61, -17, 42, -59, 67);  /* h(a, b) == h(a-b, a+2*b) */
+    TEST_HASH_EQ(G61, -17, 42, -42, 25);  /* h(a, b) == h(-b, a+b) */
+    TEST_HASH_EQ(G61, -17, 42, -67, 8);   /* h(a, b) == h(-a-2*b, 2*a+b) */
+    TEST_HASH_EQ(G61, -17, 42, 25, 17);   /* h(a, b) == h(a+b, -a) */
+    TEST_HASH_EQ(G61, -17, 42, 8, 59);    /* h(a, b) == h(2*a+b, -a+b) */
+    /* test case: -b < a < -b/2 < 0 */
+    TEST_HASH_EQ(G61, -25, 42, -67, 59);  /* h(a, b) == h(a-b, a+2*b) */
+    TEST_HASH_EQ(G61, -25, 42, -42, 17);  /* h(a, b) == h(-b, a+b) */
+    TEST_HASH_EQ(G61, -25, 42, 59, 8);    /* h(a, b) == h(a+2*b, -2*a-b) */
+    TEST_HASH_EQ(G61, -25, 42, 17, 25);   /* h(a, b) == h(a+b, -a) */
+    TEST_HASH_EQ(G61, -25, 42, -8, 67);   /* h(a, b) == h(2*a+b, -a+b) */
+    /* test case: -2b < a < -b < 0 */
+    TEST_HASH_EQ(G61, -25, 17, -42, 9);   /* h(a, b) == h(a-b, a+2*b) */
+    TEST_HASH_EQ(G61, -25, 17, 17, 8);    /* h(a, b) == h(b, -a-b) */
+    TEST_HASH_EQ(G61, -25, 17, 9, 33);    /* h(a, b) == h(a+2*b, -2*a-b) */
+    TEST_HASH_EQ(G61, -25, 17, -8, 25);   /* h(a, b) == h(a+b, -a) */
+    TEST_HASH_EQ(G61, -25, 17, -33, 42);  /* h(a, b) == h(2*a+b, -a+b) */
+    /* test case: a < -2b < 0 */
+    TEST_HASH_EQ(G61, -42, 17, 59, 8);    /* h(a, b) == h(-a+b, -a-2*b) */
+    TEST_HASH_EQ(G61, -42, 17, 17, 25);   /* h(a, b) == h(b, -a-b) */
+    TEST_HASH_EQ(G61, -42, 17, -8, 67);   /* h(a, b) == h(a+2*b, -2*a-b) */
+    TEST_HASH_EQ(G61, -42, 17, -25, 42);  /* h(a, b) == h(a+b, -a) */
+    TEST_HASH_EQ(G61, -42, 17, -67, 59);  /* h(a, b) == h(2*a+b, -a+b) */
+
+    TEST_HASH_NEQ(G61, -42, 17, 42, 17);    /* h(a, b) != h(-a, b) */
+    TEST_HASH_NEQ(G61, 42, 17, 17, 42);     /* h(a, b) != h(b, a) */
+    TEST_HASH_NEQ(G61, -42, 17, -17, 42);   /* h(a, b) != h(-b, -a) */
 
 #undef TEST_HASH_INNER
 #undef TEST_HASH_EQ

@@ -428,7 +428,6 @@ public:
     }
 };
 
-#if 0
 /* action: autom6.1 or autom6.1g
  * x -> -(2*x+1)/(x-1)
  * matrix=[[-2, -1], [1, -1]]
@@ -441,15 +440,113 @@ public:
         return 6;
     }
 
-    unsigned long apply(unsigned long r, unsigned long) const final
+    unsigned long apply(unsigned long r, unsigned long p) const final
     {
-        return r; //TODO
+        if (r == 1UL) {
+            return p;
+        } else if (r == p) {
+            return p-2UL;
+        } else {
+            modulusul_t pp;
+            residueul_t rr, three, two;
+            modul_initmod_ul(pp, p);
+            modul_init_noset0(rr, pp);
+            modul_init_noset0(three, pp);
+            modul_init_noset0(two, pp);
+            modul_set_ul_reduced(rr, r, pp);
+            modul_set_ul(three, 3UL, pp);
+            modul_set_ul(two, 2UL, pp);
+
+            modul_sub_ul(rr, rr, 1, pp);    /* r-1 */
+            modul_inv(rr, rr, pp);          /* 1/(r-1) */
+            modul_mul(rr, three, rr, pp);   /* 3/(r-1) */
+            modul_add(rr, two, rr, pp);     /* 1+3/(r-1) */
+            modul_neg(rr, rr, pp);          /* -2-3/(r-1) */
+            unsigned long sigma_r = modul_get_ul(rr, pp);
+
+            modul_clear(two, pp);
+            modul_clear(three, pp);
+            modul_clear(rr, pp);
+            modul_clearmod(pp);
+            return sigma_r;
+        }
     }
 
     uint64_t hash_ab(int64_t a, uint64_t b,
                      uint64_t CA, uint64_t CB) const final
     {
-        return CA * (uint64_t) a + CB * b; //TODO
+        /* Orbit of (a,b):
+         *  (a, b)
+         *  (-a+b, -a-2*b) ~ (a-b, a+2*b)
+         *  (-3*b, 3*a+3*b) ~ (-b, a+b) ~ (b, -a-b)
+         *  (a+2*b, -2*a-b) ~ (-a-2*b, 2*a+b)
+         *  (-3*a-3*b, 3*a) ~ (-a-b, a) ~ (a+b, -a)
+         *  (2*a+b, -a+b) ~ (-2*a-b, a-b)
+
+         *  (a, b)
+         *  -> (-a+b, -a-2*b) ~ (a-b, a+2*b)
+         *  -> (-3*b, 3*a+3*b) ~ (-b, a+b) ~ (b, -a-b)
+         *  -> (a+2*b, -2*a-b) ~ (-a-2*b, 2*a+b)
+         *  -> (-3*a-3*b, 3*a) ~ (-a-b, a) ~ (a+b, -a)
+         *  -> (2*a+b, -a+b) ~ (-2*a-b, a-b)
+         *
+         * Rule:
+         *  the representative is the pair with the largest first coeff
+         *
+         * Algo:
+         *  If a < -2b < 0: (a, b) -> (-a+b, -a-2*b) -> (b, -a-b)
+         *                      -> (a+2*b, -2*a-b) -> (a+b, -a) -> (2*a+b, -a+b)
+         *      the largest coeff is the second one: -a+b
+         *      we compute the hash of (-a+b, -a-2*b)
+         *  If -2b < a < -b < 0: (a, b) -> (a-b, a+2*b) -> (b, -a-b)
+         *                      -> (a+2*b, -2*a-b) -> (a+b, -a) -> (2*a+b, -a+b)
+         *      the largest coeff is the third one: (b, -a-b)
+         *      we compute the hash of (b, -a-b)
+         *  If -b < a < -b/2 < 0: (a, b) -> (a-b, a+2*b) -> (-b, a+b)
+         *                      -> (a+2*b, -2*a-b) -> (a+b, -a) -> (2*a+b, -a+b)
+         *      the largest coeff is the fourth one: (a+2*b)
+         *      we compute the hash of (a+2*b, -2*a-b)
+         *  If -b/2 < a < 0: (a, b) -> (a-b, a+2*b) -> (-b, a+b)
+         *                      -> (-a-2*b, 2*a+b) -> (a+b, -a) -> (2*a+b, -a+b)
+         *      the largest coeff is the fifth one: a+b
+         *      we compute the hash of (a+b, -a)
+         *  If 0 < a < b: (a, b) -> (a-b, a+2*b) -> (-b, a+b) -> (-a-2*b, 2*a+b)
+         *                              -> (-a-b, a) -> (2*a+b, -a+b)
+         *      the largest coeff is the last one: 2*a+b
+         *      we compute the hash of (2*a+b, -a+b)
+         *  If 0 < b < a: (a, b) -> (a-b, a+2*b) -> (-b, a+b) -> (-a-2*b, 2*a+b)
+         *                              -> (-a-b, a) -> (-2*a-b, a-b)
+         *      the largest coeff is the first one: a
+         *      we compute the hash of (a, b)
+         *  Note: Do not forget to divide by 3 when necessary!
+         */
+        uint64_t a_abs = safe_abs64(a);
+        if (a > 0 && a_abs > b) { /* 0 < b < a */
+            return CA * (uint64_t) a + CB * b;
+        } else if (a > 0) { /* 0 < a < b */
+            if (a_abs % 3 == b % 3) {
+              return CA * ((2*a_abs+b)/3) + CB * ((b - a_abs)/3);
+            } else {
+              return CA * (2*a_abs+b) + CB * (b - a_abs);
+            }
+        } else if (2*a_abs < b) { /* -b/2 < a < 0 */
+            return CA * (b-a_abs) + CB * a_abs;
+        } else if (a_abs < b) { /* -b < a < -b/2 < 0 */
+            if ((UINT64_C(3) - (a_abs % 3)) % 3 == b % 3) {
+                return CA * (((b << 1)-a_abs)/3) + CB * (((a_abs << 1)-b)/3);
+            } else {
+                return CA * ((b << 1)-a_abs) + CB * ((a_abs << 1)-b);
+            }
+        } else if (a_abs < 2*b) { /* -2b < a < -b < 0 */
+            return CA * b + CB * (a_abs-b);
+        } else { /* a < -2b < 0 */
+            if ((UINT64_C(3) - (a_abs % 3)) % 3 == b % 3) {
+                return CA * ((b+a_abs)/3) + CB * ((a_abs-(b << 1))/3);
+            } else {
+                return CA * (b+a_abs) + CB * (a_abs-(b << 1));
+            }
+        }
+        return CA * (uint64_t) a + CB * b;
     }
 
     void print_action(std::ostream& os) const final
@@ -462,7 +559,6 @@ public:
         os << "autom6.1g";
     }
 };
-#endif
 
 galois_action::galois_action(const std::string &action)
     : impl(NULL)
@@ -479,6 +575,8 @@ galois_action::galois_action(const std::string &action)
         impl = static_cast<impl_ptr>(new galois_action_autom3_2());
     else if (action == "autom4.1" || action == "autom4.1g")
         impl = static_cast<impl_ptr>(new galois_action_autom4_1());
+    else if (action == "autom6.1" || action == "autom6.1g")
+        impl = static_cast<impl_ptr>(new galois_action_autom6_1());
     else
         throw std::runtime_error("invalid action string");
 }
