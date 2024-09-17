@@ -1523,8 +1523,8 @@ utils/filter_io.h
 utils/filter_io.tex
 utils/fix-endianness.c
 utils/fix-endianness.h
-utils/galois_utils.cpp
-utils/galois_utils.hpp
+utils/galois_action.cpp
+utils/galois_action.hpp
 utils/gcd.c
 utils/gcd.h
 utils/getprime.c

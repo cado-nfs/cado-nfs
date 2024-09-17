@@ -6,7 +6,7 @@
 #include <ostream>
 #include <vector>        // for vector
 #include "cxx_mpz.hpp"
-#include "galois_utils.hpp" // galois_action
+#include "galois_action.hpp" // galois_action
 #include "las-galois.hpp"
 #include "macros.h"      // for ASSERT_ALWAYS
 #include "mod_ul.h"     // modulusul_t

@@ -13,7 +13,7 @@
 #include "cado_poly.h"       // for cado_poly_clear, cado_poly_init, cado_po...
 #include "filter_config.h"   // for CA_DUP2, CB_DUP2
 #include "filter_io.h"       // for earlyparsed_relation_s, filter_rels_desc...
-#include "galois_utils.hpp"  // for galois_action
+#include "galois_action.hpp"  // for galois_action
 #include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
 #include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY
 #include "misc.h"            // for filelist_clear, filelist_from_file
@@ -302,7 +302,7 @@ main (int argc, char *argv[])
   if (renumber_tab.number_of_bad_ideals() > 0 && gal_action.get_order() > 1) {
       std::cout << "\n/!\\/!\\/!\\/!\\\nWARNING, bad ideals will be left "
                    "unchanged, the output may not be usable depending on "
-                   "your use case\nSee comments in utils/galois_utils.cpp "
+                   "your use case\nSee comments in utils/galois_action.cpp "
                    "for more info\n/!\\/!\\/!\\/!\\\n\n";
   }
 

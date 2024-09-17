@@ -84,7 +84,7 @@ cado_define_test(
     )
 
 cado_define_test(test_subdivide_primes_interval.cpp LIBRARIES utils)
-cado_define_test(test_galois_utils.cpp LIBRARIES utils tests)
+cado_define_test(test_galois_action.cpp LIBRARIES utils tests)
 
 add_subdirectory(numbertheory)
 

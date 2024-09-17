@@ -2,7 +2,7 @@
 #include <cstdint>          // for UINT64_C, INT64_C
 #include <iostream>         // for std::cout, std::endl, ...
 #include "tests_common.h"   // for tests_common_cmdline, tests_common_clear, ...
-#include "utils/galois_utils.hpp"
+#include "utils/galois_action.hpp"
 
 bool
 test_galois_apply_one(galois_action const & G,

@@ -7,7 +7,7 @@
 #include <unordered_map>    // for unordered_map
 #include <vector>           // for vector
 
-#include "galois_utils.hpp"
+#include "galois_action.hpp"
 
 /* action: none
  * x -> x
