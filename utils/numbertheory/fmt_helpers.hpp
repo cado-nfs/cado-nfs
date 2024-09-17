@@ -7,7 +7,7 @@ namespace fmt {
     template<typename T>
     struct fmt_helper_sagemath {
         protected:
-            enum { TEXT, SAGEMATH, MACHINE } custom_format = formatter<T>::custom_format_default;
+            enum { TEXT, SAGEMATH, MACHINE, MAGMA } custom_format = formatter<T>::custom_format_default;
             /* this can be overridden */
             static constexpr const decltype(custom_format) custom_format_default = SAGEMATH;
         public:
@@ -21,6 +21,9 @@ namespace fmt {
                 } else if (begin != end && *begin == 'M') {
                     ++begin;
                     custom_format = MACHINE;
+                } else if (begin != end && *begin == 'm') {
+                    ++begin;
+                    custom_format = MAGMA;
                 } else if (begin != end && *begin == 'T') {
                     ++begin;
                     custom_format = TEXT;
