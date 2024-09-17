@@ -4,13 +4,17 @@
 #include <cstring>          // for strcmp, strlen, memcpy, memset, strdup
 #include <cstdio>            // for fprintf, stderr, NULL, asprintf, FILE
 #include <cstdlib>           // for free, abort, exit, malloc, EXIT_FAILURE
+#include <unordered_map>    // for unordered_map
+#include <tuple>            // for tuple, get
+#include <vector>           // for vector
+#include <string>           // for string
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif
 #include "cado_poly.h"       // for cado_poly_clear, cado_poly_init, cado_po...
 #include "filter_config.h"   // for CA_DUP2, CB_DUP2
 #include "filter_io.h"       // for earlyparsed_relation_s, filter_rels_desc...
-#include "galois_utils.h"    // for automorphism_init
+#include "galois_utils.hpp"  // for galois_action
 #include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
 #include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY
 #include "misc.h"            // for filelist_clear, filelist_from_file
@@ -19,6 +23,7 @@
 #include "portability.h" // strdup  // IWYU pragma: keep
 #include "relation-tools.h"  // for u64toa16, d64toa16
 #include "renumber.hpp"      // for renumber_t, renumber_t::p_r_side
+#include "timing.h"          // timingstats_dict_t
 #include "typedefs.h"        // for p_r_values_t, index_t, prime_t, PRpr
 #include "verbose.h"         // for verbose_decl_usage, verbose_interpret_pa...
 
@@ -73,297 +78,14 @@ get_outfilename_from_infilename (char *infilename, const char *outfmt,
   free(newname);
 }
 
-// Global variable for the table of Galois action
-// For an ideal of index idx, Gal[idx] gives the index of a
-// representative of the class under Galois action. It might be idx
-// itself, or another index.
-index_t *Gal;
-
-// returns 1/r mod p; FIXME: should be replaced some time.
-static p_r_values_t my_inv(p_r_values_t r, p_r_values_t p){
-    p_r_values_t sigma_r;
-
-    modulusul_t mm;
-    residueul_t xx;
-    modul_initmod_ul(mm, p);
-    modul_init(xx, mm);
-    modul_set_ul(xx, r, mm);
-    modul_inv(xx, xx, mm);
-    sigma_r = modul_get_ul(xx, mm);
-    modul_clear(xx, mm);
-    modul_clearmod(mm);
-    return sigma_r;
-}
-
-// TMP, TMP: should be replaced by stuff in galois_utils.
-static p_r_values_t apply_auto(p_r_values_t p, p_r_values_t r, const char *action){
-    p_r_values_t sigma_r = 0;
-
-    if(strcmp(action, "1/y") == 0 || strcmp(action, "autom2.1g") == 0){
-	if (r == 0)
-	    sigma_r = p;
-	else if (r == p)
-	    sigma_r = 0;
-	else {
-	    sigma_r = my_inv(r, p);
-	    ASSERT_ALWAYS(sigma_r < p);
-	}
-    }
-    else if(strcmp(action, "_y") == 0 || strcmp(action, "autom2.2g") == 0){
-	if (r == 0){
-	    fprintf(stderr, "WARNING: r=0\n");
-	    sigma_r = 0;
-	}
-	else if (r == p){
-	    fprintf(stderr, "WARNING: r=oo\n");
-	    sigma_r = p;
-	}
-	else {
-	    sigma_r = p - r;
-	    ASSERT_ALWAYS(sigma_r < p);
-	}
-    }
-    else if(strcmp(action, "autom3.1g") == 0){
-	// x -> 1-1/x
-	if (r == 0){
-	    fprintf(stderr, "WARNING: r=0\n");
-	    sigma_r = p;
-	}
-	else if (r == p){
-	    fprintf(stderr, "WARNING: r=oo\n");
-	    sigma_r = 1;
-	}
-	else if (r == 1){
-	    fprintf(stderr, "WARNING: r=1\n");
-	    sigma_r = 0;
-	}
-	else {
-	    // 1 < r < p => 1 < 1/r < p
-	    // => 1 < p+1-1/r < p
-	    sigma_r = p + 1 - my_inv(r, p);
-	    ASSERT_ALWAYS(sigma_r < p);
-	}
-    }
-    else if(strcmp(action, "autom3.2g") == 0){
-	// x -> -1-1/x
-	if (r == 0){
-	    fprintf(stderr, "WARNING: r=0\n");
-	    sigma_r = p;
-	}
-	else if (r == p){
-	    fprintf(stderr, "WARNING: r=oo\n");
-	    sigma_r = p-1;
-	}
-	else if (r == p-1){
-	    fprintf(stderr, "WARNING: r=-1\n");
-	    sigma_r = 0;
-	}
-	else {
-	    // 1 <= r < p-1 => 1 <= 1/r < p-1
-	    sigma_r = p - 1 - my_inv(r, p);
-	    ASSERT_ALWAYS(sigma_r < p);
-	}
-    }
-    else
-      ASSERT_ALWAYS(0); /* should not happen */
-    return sigma_r;
-}
-
-static void
-compute_galois_action (renumber_t const & tab, const char *action)
-{
-    index_t i;
-    p_r_values_t r[20];
-    index_t ind[20];
-    int nr;
-    int j, ord, imat[4];
-    /* FIXME: I don't understand this code, and I'm pretty sure that it
-     * hasn't been exposed for ages. What's this placeholder value for
-     * the side (-1) ?
-     */
-    renumber_t::p_r_side old { (p_r_values_t) 0, (p_r_values_t) 0, -1 };
-    nr = 0;
-
-    Gal = (index_t *) malloc(tab.get_size() * sizeof(index_t));
-    ASSERT_ALWAYS(Gal != NULL);
-
-    automorphism_init(&ord, imat, action);
-    for (i = 0; i < tab.get_size(); i++) {
-        //    if (i % (1<<16) == 0)
-        //      fprintf(stderr, "at %lu\n", (unsigned long)i);
-        if (tab.is_additional_column(i)) {
-            Gal[i] = i;
-        } else if (tab.is_bad(i)) {
-            /* XXX this is quite obviously wrong ! bad ideals do change with
-             * Galois action, come on ! */
-            ASSERT_ALWAYS(0);       // added ET 20200518
-            Gal[i] = i;
-        } else {
-            renumber_t::p_r_side x = tab.p_r_from_index(i);
-            // Is it a new (p, side) ?
-            if (old.same_p(x)) {
-                r[nr] = x.r;
-                ind[nr] = i;
-                nr++;
-            }
-            // If needed, take care of previous (p,side)
-            if (!old.same_p(x) || i == tab.get_size()-1) {
-                if (old.p != 0) {
-                    // Sort the roots, to put sigma(r) near r.
-                    // -> build orbits r, sigma(r), ..., sigma^{ord-1}(r)
-                    if ((nr % ord) != 0){
-                        fprintf(stderr,
-                                "Warning: number of roots not divisible by %d, "
-                                "skipping p=0x%" PRpr ", r=0x%" PRpr "\n", ord,
-                                old.p, r[0]);
-                        for (int k = 0; k < nr; ++k)
-                            Gal[ind[k]] = ind[k];
-                    } else {
-                        int k = 0;
-                        while (k < nr) {
-                            // Get sigma(r[k]) mod p
-                            p_r_values_t sigma_r = apply_auto(old.p, r[k], action);
-
-                            for(j = 1; j < ord; j++){
-                                // r[k], ..., sigma^{j-1}(r[k]) already treated
-                                // eq. r[k], ..., r[k+j-1]
-                                // Find the index of sigma_r
-                                int l;
-                                for (l = k+j; l <= nr; ++l) {
-                                    if (r[l] == sigma_r)
-                                        break;
-                                }
-                                ASSERT_ALWAYS(l < nr);
-                                // Swap position k+j and l
-                                r[l] = r[k+j];
-                                r[k+j] = sigma_r;
-                                int tmp = ind[l];
-                                ind[l] = ind[k+j];
-                                ind[k+j] = tmp;
-                                sigma_r = apply_auto(old.p, sigma_r, action);
-                            }
-                            ASSERT_ALWAYS(sigma_r == r[k]);
-                            // Next
-                            k += ord;
-                        }
-                        // Store the correspondence between conjugate ideals
-                        for (k = 0; k < nr; k += ord) {
-                            for(j = 0; j < ord; j++)
-                                Gal[ind[k+j]] = ind[k];
-                        }
-                    }
-                }
-                // Prepare for next
-                old = x;
-                nr = 1;
-                r[0] = x.r;
-                ind[0] = i;
-            }
-        }
-    }
-}
-
-// Case 2.1 (x -> 1/x): (a-b/x) = 1/x*(-b-(-a)*x) = (-b, -a) ~ (b, a)
-// Hash value that is the same for (a,b) and (b,a)
-// (with sign normalization).
-static inline uint64_t myhash_2_1(int64_t a, uint64_t b)
-{
-  uint64_t h0, h1;
-  h0 = CA_DUP2 * (uint64_t) a + CB_DUP2 * b;
-  if (a > 0) {
-    h1 = CA_DUP2 * b + CB_DUP2 * (uint64_t)a;
-  } else {
-    int64_t bb = -((int64_t)b);
-    h1 = CA_DUP2 *(uint64_t) bb + CB_DUP2 * (uint64_t) (-a);
-  }
-  return h0 ^ h1;
-}
-
-// Case 2.2 (x -> -x): (a-b*(-x)) = (a-(-b)*x) = (a, -b) ~ (-a, b).
-// Hash value that is the same for (a,b) and (-a,b): H((|a|, b))
-// (with sign normalization).
-static inline uint64_t myhash_2_2(int64_t a, uint64_t b)
-{
-    int64_t absa = (a >= 0 ? a : -a);
-    return (CA_DUP2 * (uint64_t) absa + CB_DUP2 * b);
-}
-
-static inline void lexico3(int64_t *aa, int64_t *bb, 
-			   int64_t a1, int64_t b1, 
-			   int64_t a2, int64_t b2, 
-			   int64_t a3, int64_t b3)
-{
-    // make signs ok
-    if(b2 < 0){ a2 = -a2; b2 = -b2; }
-    if(b3 < 0){ a3 = -a3; b3 = -b3; }
-    // take largest pair (a_i, b_i) in lexicographic order
-    if(a1 > a2){
-	if(a1 > a3){ *aa = a1; *bb = b1; }
-	else if(a1 < a3){ *aa = a3; *bb = b3; }
-	else{ // a1 == a3
-	    if(b1 >= b3){ *aa = a1; *bb = b1; }
-	    else{ *aa = a3; *bb = b3; }
-	}
-    }
-    else{ // a1 <= a2
-	if(a2 < a3){ *aa = a3; *bb = b3; }
-	else if(a2 > a3){ *aa = a2; *bb = b2; }
-	else{ // a1 <= a2 == a3: we cannot have a1 = a2 = a3 (?)
-	    if(b2 >= b3){ *aa = a2; *bb = b2; }
-	    else{ *aa = a3; *bb = b3; }
-	}
-    }
-    ASSERT_ALWAYS(*aa > 0);
-}
-
-// Case 3.1 (x -> 1-1/x): (a, b), (b, b-a), (b-a, -a)
-// If a < b: (a, b), (b, b-a), (b-a, -a) ~ (a-b, a) if a > 0 else (b-a, -a).
-// If a > b: (a, b), (b, b-a) ~ (-b, a-b); (b-a, -a) ~ (a-b, a).
-static inline uint64_t myhash_3_1(int64_t a, uint64_t b)
-{
-    int64_t b1 = (int64_t)b, a1 = a, a2, b2, a3, b3, aa, bb;
-    a2 = b1; b2 = -a1+b1;
-    a3 = b2; b3 = -a2+b2;
-    lexico3(&aa, &bb, a1, b1, a2, b2, a3, b3);
-    uint64_t h = (CA_DUP2 * (uint64_t) aa + CB_DUP2 * (uint64_t)bb);
-    fprintf(stderr, "HASH3.1: %" PRId64 " %" PRIu64 " -> %" PRId64 " %" PRId64 " -> h=%" PRIu64 "\n", a, b, aa, bb, h);
-    return h;
-}
-
-// Case 3.2 (x -> -1-1/x): (a, b), (b, -a-b), (-a-b, a)
-static inline uint64_t myhash_3_2(int64_t a, uint64_t b)
-{
-    int64_t b1 = (int64_t)b, a1 = a, a2, b2, a3, b3, aa, bb;
-    a2 = b1; b2 = -a1-b1;
-    a3 = b2; b3 = -a2-b2;
-    lexico3(&aa, &bb, a1, b1, a2, b2, a3, b3);
-    uint64_t h = (CA_DUP2 * (uint64_t) aa + CB_DUP2 * (uint64_t)bb);
-    fprintf(stderr, "HASH3.2: %" PRId64 " %" PRIu64 " -> %" PRId64 " %" PRId64 " -> h=%" PRIu64 "\n", a, b, aa, bb, h);
-    return h;
-}
-
-static inline uint64_t myhash(int64_t a, uint64_t b, const char *action)
-{
-    if(strcmp(action, "1/y") == 0 || strcmp(action, "autom2.1g") == 0)
-	return myhash_2_1(a, b);
-    else if(strcmp(action, "_y") == 0 || strcmp(action, "autom2.2g") == 0)
-	return myhash_2_2(a, b);
-    else if(strcmp(action, "autom3.1g") == 0)
-	return myhash_3_1(a, b);
-    else if(strcmp(action, "autom3.2g") == 0)
-	return myhash_3_2(a, b);
-    else
-	return 0;
-}
-
 static inline uint32_t
 insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel,
-				  unsigned int *is_dup, const char *action)
+				  unsigned int *is_dup, const galois_action &G)
 {
   uint64_t h;
   uint32_t i, j;
 
-  h = myhash(rel->a, rel->b, action);
+  h = G.hash_ab(rel->a, rel->b, CA_DUP2, CB_DUP2);
   i = h % K;
   j = (uint32_t) (h >> 32);
   while (H[i] != 0 && H[i] != j) {
@@ -382,11 +104,14 @@ insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel,
 }
 
 static void *
-thread_galois (void * context_data, earlyparsed_relation_ptr rel, const char *action)
+thread_galois (void * context_data, earlyparsed_relation_ptr rel)
 {
   unsigned int is_dup;
-  FILE * output = (FILE*) context_data;
-  insert_relation_in_dup_hashtable (rel, &is_dup, action);
+  auto data = *((std::tuple<std::vector<index_t> const &, galois_action const &, FILE *> *) context_data);
+  const std::vector<index_t> &sigma = std::get<0>(data);
+  const galois_action &G = std::get<1>(data);
+  FILE *output = std::get<2>(data);
+  insert_relation_in_dup_hashtable (rel, &is_dup, G);
   if (is_dup)
     return NULL;
 
@@ -405,7 +130,7 @@ thread_galois (void * context_data, earlyparsed_relation_ptr rel, const char *ac
   {
     ASSERT_ALWAYS(rel->primes[i].e != 0);
     index_t h = rel->primes[i].h;
-    index_t hrep = Gal[h];
+    index_t hrep = sigma[h];
     // The new sign of the exponent is the XOR of the original sign and of 
     // the fact that we change the prime ideal for its conjugate.
     int neg = (rel->primes[i].e < 0) ^ (hrep != h);
@@ -433,31 +158,6 @@ thread_galois (void * context_data, earlyparsed_relation_ptr rel, const char *ac
     abort();
   }
   return NULL;
-}
-
-// TODO: do better than having a function per automorphism.
-static void *
-thread_galois_2_1 (void * context_data, earlyparsed_relation_ptr rel)
-{
-    return thread_galois(context_data, rel, "1/y");
-}
-
-static void *
-thread_galois_2_2 (void * context_data, earlyparsed_relation_ptr rel)
-{
-    return thread_galois(context_data, rel, "_y");
-}
-
-static void *
-thread_galois_3_1 (void * context_data, earlyparsed_relation_ptr rel)
-{
-    return thread_galois(context_data, rel, "autom3.1g");
-}
-
-static void *
-thread_galois_3_2 (void * context_data, earlyparsed_relation_ptr rel)
-{
-    return thread_galois(context_data, rel, "autom3.2g");
 }
 
 static void declare_usage(param_list pl)
@@ -566,15 +266,9 @@ main (int argc, char *argv[])
   }
   K = 100 + 1.2 * nrels_expected;
 
-  if( action == NULL 
-      || (strcmp(action, "1/y") 
-	  && strcmp(action, "_y") 
-	  && strcmp(action, "autom3.1g")
-	  && strcmp(action, "autom3.2g")
-	 )
-    )
+  if(action == NULL)
   {
-    fprintf(stderr, "Error, missing -action command line argument\n");
+    fprintf(stderr, "Error, missing -galois command line argument\n");
     usage(pl, argv0);
   }
 
@@ -590,30 +284,48 @@ main (int argc, char *argv[])
 
   set_antebuffer_path (argv0, path_antebuffer);
 
+  /* */
+  galois_action gal_action(action);
+  std::cout << "# Using " << gal_action << std::endl;
+
+  if (gal_action.get_order() > 2) {
+      std::cerr << "Error, Galois action of order > 2 are not supported "
+                   "yet. The missing piece of code is the one that takes "
+                   "care of computing the new valuation of the the "
+                   "rewritten ideals.\n";
+      exit(EXIT_FAILURE);
+  }
+
   /* Renumbering table to convert from (p,r) to an index */
   renumber_t renumber_tab(cpoly);
   renumber_tab.read_from_file(renumberfilename, for_dl);
 
-  fprintf(stderr, "Computing Galois action %s on ideals\n", action);
-  compute_galois_action(renumber_tab, action);
+  if (renumber_tab.number_of_bad_ideals() > 0 && gal_action.get_order() > 1) {
+      std::cout << "\n/!\\/!\\/!\\/!\\\nWARNING, bad ideals will be left "
+                   "unchanged, the output may not be usable depending on "
+                   "your use case\nSee comments in utils/galois_utils.cpp "
+                   "for more info\n/!\\/!\\/!\\/!\\\n\n";
+  }
 
-  fprintf(stderr, "Rewriting relations files\n");
+  std::cout << "Computing Galois action on ideals\n";
+  std::vector<index_t> ga_id_cache;
+  size_t norb = gal_action.compute_action_on_index(ga_id_cache, renumber_tab);
+  std::cout << "Found " << norb << " orbits of length "
+            << gal_action.get_order() << ", "
+            << ga_id_cache.size() - norb*gal_action.get_order() << " columns "
+            << "were left unchanged (among which "
+            <<  renumber_tab.number_of_additional_columns() << " additional "
+            << "column(s) and " << renumber_tab.number_of_bad_ideals()
+            << " column(s) corresponding to badideals)\n";
+
+  std::cout << "Rewriting relations files\n";
   char ** files;
   files = filelist ? filelist_from_file (basepath, filelist, 0) : argv;
 
-  struct filter_rels_description desc[2] = {
-    { .f = thread_galois_2_1, .arg=0, .n=1, },
-    { .f = NULL, .arg=0, .n=1, },
-  };
+  std::cout << "Reading files (using 1 auxiliary thread):\n";
+  timingstats_dict_t stats;
+  timingstats_dict_init(stats);
 
-  if(strcmp(action, "_y") == 0)
-      desc[0].f = thread_galois_2_2;
-  else if(strcmp(action, "autom3.1g") == 0)
-      desc[0].f = thread_galois_3_1;
-  else if(strcmp(action, "autom3.2g") == 0)
-      desc[0].f = thread_galois_3_2;
-
-  fprintf (stderr, "Reading files (using %d auxiliary threads):\n", desc[0].n);
   for (char **p = files; *p ; p++) {
     FILE * output = NULL;
     char * oname, * oname_tmp;
@@ -626,11 +338,12 @@ main (int argc, char *argv[])
                        "Check that the directory %s exists\n", outdir);
       abort();
     }
-    desc[0].arg = (void*) output;
+    auto arg = std::make_tuple(std::cref(ga_id_cache), std::cref(gal_action),
+                                                       output);
 
-    filter_rels2(local_filelist, desc,
-        EARLYPARSE_NEED_AB_HEXA | EARLYPARSE_NEED_INDEX,
-        NULL, NULL);
+    filter_rels(local_filelist, (filter_rels_callback_t) &thread_galois,
+                (void *) &arg, EARLYPARSE_NEED_AB_HEXA | EARLYPARSE_NEED_INDEX,
+                NULL, stats);
 
     fclose_maybe_compressed(output, oname_tmp);
 
@@ -654,5 +367,9 @@ main (int argc, char *argv[])
   param_list_clear(pl);
   cado_poly_clear (cpoly);
   free(H);
+
+  timingstats_dict_add_mythread(stats, "main");
+  timingstats_dict_disp(stats);
+  timingstats_dict_clear(stats);
   return 0;
 }

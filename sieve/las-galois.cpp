@@ -6,7 +6,7 @@
 #include <ostream>
 #include <vector>        // for vector
 #include "cxx_mpz.hpp"
-#include "galois_utils.h" // automorphism_init
+#include "galois_utils.hpp" // galois_action
 #include "las-galois.hpp"
 #include "macros.h"      // for ASSERT_ALWAYS
 #include "mod_ul.h"     // modulusul_t
@@ -176,20 +176,15 @@ int
 skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
 		  const char *galois_autom)
 {
-    int imat[4];
-    residueul_t mat[4];
-    int nroots = orig_nroots, ord;
+    int nroots = orig_nroots;
 
     if(nroots == 0)
 	return 0;
-    automorphism_init(&ord, imat, galois_autom);
+    galois_action gal_action(galois_autom);
+    unsigned int ord = gal_action.get_order();
     modulusul_t mm;
     unsigned long qq = mpz_get_ui(q);
     modul_initmod_ul(mm, qq);
-    for(int i = 0; i < 4; i++){
-	modul_init(mat[i], mm);
-	modul_set_int64(mat[i], imat[i], mm);
-    }
     if (nroots % ord) {
         fprintf(stderr, "Number of roots modulo q is not divisible by %d. Don't know how to interpret -galois.\n", ord);
         ASSERT_ALWAYS(0);
@@ -199,7 +194,7 @@ skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
     modul_init(r2, mm);
     modul_init(r3, mm);
     residueul_t conj[ord]; // where to put conjugates
-    for(int k = 0; k < ord; k++)
+    for(unsigned int k = 0; k < ord; k++)
 	modul_init(conj[k], mm);
     char used[nroots];     // used roots: non-principal conjugates
     memset(used, 0, nroots);
@@ -208,8 +203,8 @@ skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
 	unsigned long rr0 = mpz_get_ui(roots[k]), rr;
 	rr = rr0;
 	// build ord-1 conjugates for roots[k]
-	for(int l = 0; l < ord; l++){
-	    rr = automorphism_apply(mat, rr, mm, qq);
+	for(unsigned int l = 0; l < ord; l++){
+        rr = gal_action.apply(rr, qq);
 	    modul_set_ul(conj[l], rr, mm);
 	}
 #if 0 // debug. 
@@ -224,7 +219,7 @@ skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
 	for(int l = k+1; l < nroots; l++){
 	    unsigned long ss = mpz_get_ui(roots[l]);
 	    modul_set_ul(r2, ss, mm);
-	    for(int i = 0; i < ord-1; i++)
+	    for(unsigned int i = 0; i < ord-1; i++)
 		if(modul_equal(r2, conj[i], mm)){
 		    ASSERT_ALWAYS(used[l] == 0);
 		    // l is some conjugate, we erase it
@@ -241,12 +236,10 @@ skip_galois_roots(const int orig_nroots, const mpz_t q, mpz_t *roots,
 		mpz_set(roots[kk], roots[k]);
 	    kk++;
 	}
-    ASSERT_ALWAYS(kk == (nroots/ord));
+    ASSERT_ALWAYS((unsigned int) kk == (nroots/ord));
     nroots = kk;
-    for(int k = 0; k < ord; k++)
+    for(unsigned int k = 0; k < ord; k++)
 	modul_clear(conj[k], mm);
-    for(int i = 0; i < 4; i++)
-	modul_clear(mat[i], mm);
     modul_clear(r2, mm);
     modul_clear(r3, mm);
     modul_clearmod(mm);
