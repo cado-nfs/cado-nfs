@@ -56,6 +56,7 @@ void SHA1Transform(uint32_t * state, const unsigned char * buffer)
 	uint32_t l[16];
     } block[1];	/* use array to appear as a pointer */
 
+    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     memcpy(block, buffer, 64);
 
     /* Copy context->state[] to working vars */
@@ -92,6 +93,7 @@ void SHA1Transform(uint32_t * state, const unsigned char * buffer)
     state[3] += d;
     state[4] += e;
     /* Wipe variables */
+    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     memset(block, 0, sizeof(block));
     // This is an ill-advised attempt at clearing the registers. The C
     // model actually cannot forbid the compiler to notice that these
@@ -127,6 +129,7 @@ void SHA1Update(SHA1_CTX * context, const unsigned char *data, uint32_t len)
     context->count[1] += (len >> 29);
     j = (j >> 3) & 63;
     if ((j + len) > 63) {
+        // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
 	memcpy(&context->buffer[j], data, (i = 64 - j));
 	SHA1Transform(context->state, context->buffer);
 	for (; i + 63 < len; i += 64) {
@@ -136,6 +139,7 @@ void SHA1Update(SHA1_CTX * context, const unsigned char *data, uint32_t len)
     } else {
 	i = 0;
     }
+    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     memcpy(&context->buffer[j], &data[i], len - i);
 }
 
@@ -163,7 +167,9 @@ void SHA1Final(unsigned char digest[20], SHA1_CTX * context)
 	    ((context->state[i >> 2] >> ((3 - (i & 3)) * 8)) & 255);
     }
     /* Wipe variables */
+    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     memset(context, '\0', sizeof(*context));
+    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     memset(&finalcount, '\0', sizeof(finalcount));
 }
 
