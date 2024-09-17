@@ -37,8 +37,7 @@ static void decl_usage(param_list_ptr pl)/*{{{*/
 {
     param_list_decl_usage(pl, "test", "which test to run");
     param_list_decl_usage(pl, "prime", "prime");
-    param_list_decl_usage(pl, "polystr", "polynomial (string)");
-    param_list_decl_usage(pl, "polyfile", "polynomial (file)");
+    param_list_decl_usage(pl, "poly", "polynomial (string)");
     param_list_decl_usage(pl, "out", "output file");
     param_list_decl_usage(pl, "batch", "batch input file with test vectors and expected results");
     param_list_decl_usage(pl, "seed", "seed used for random picks");
@@ -225,20 +224,30 @@ int do_factorization_of_prime(param_list_ptr pl) /*{{{*/
     if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
     cxx_mpz_poly f(polystr);
 
+    number_field K(f);
+    K.bless("K", "alpha");
+    number_field_order O = K.p_maximal_order(p);
+    O.bless(fmt::format("O{}", p));
 
-    cxx_mpq_mat M = p_maximal_order(f, p);
-    gmp_randstate_t state;
-    gmp_randinit_default(state);
+    cxx_gmp_randstate state;
     unsigned long seed = 0;
     if (param_list_parse_ulong(pl, "seed", &seed)) {
         gmp_randseed_ui(state, seed);
     }
-    vector<pair<cxx_mpz_mat, int> > F = factorization_of_prime(M, f, p, state);
-    gmp_randclear(state);
-    std::cout << F.size() << "\n";
-    for(unsigned int k = 0 ; k < F.size() ; k++) {
-        std::cout << F[k].first << " " << F[k].second << endl;
+    fmt::print("{}.<{}lpha>={:S}\n", K.name, K.varname, K);
+    fmt::print("{}={:S}\n", O.name, O);
+    auto F = O.factor(p, state);
+
+    // number_field_fractional_ideal I = O.fractional_ideal({K(11)});
+
+    fmt::print("assert {}.fractional_ideal({}) == prod([\n", O.name, p);
+    for(auto const & fe : F) {
+        fmt::print("\t{}", fe.first);
+        if (fe.second > 1)
+            fmt::print("^{}", fe.second);
+        fmt::print(",\n");
     }
+    fmt::print("])\n");
     return 1;
 }
 /*}}}*/
@@ -708,7 +717,6 @@ int main(int argc, char *argv[]) /*{{{ */
     cxx_param_list pl;
 
     param_list_configure_alias(pl, "prime", "p");
-    param_list_configure_alias(pl, "polystr", "f");
 
     decl_usage(pl);
 
