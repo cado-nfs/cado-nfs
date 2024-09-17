@@ -4,7 +4,6 @@
 #include <cstring>          // for strcmp, strlen, memcpy, memset, strdup
 #include <cstdio>            // for fprintf, stderr, NULL, asprintf, FILE
 #include <cstdlib>           // for free, abort, exit, malloc, EXIT_FAILURE
-#include <unordered_map>    // for unordered_map
 #include <tuple>            // for tuple, get
 #include <vector>           // for vector
 #include <string>           // for string

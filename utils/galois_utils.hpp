@@ -1,7 +1,5 @@
 #include <iostream>
-#include <stdexcept>
 #include <string>
-#include <unordered_set>
 
 #include "renumber.hpp"     // for renumber_t
 #include "typedefs.h"       // for index_t

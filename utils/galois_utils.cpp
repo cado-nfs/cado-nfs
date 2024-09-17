@@ -3,6 +3,10 @@
 #include "misc.h"           // for safe_abs64
 #include "mod_ul.h"         // for modul_clear, modul_clearmod, modul_get_ul
 
+#include <stdexcept>        // for std::runtime_error
+#include <unordered_map>    // for unordered_map
+#include <vector>           // for vector
+
 #include "galois_utils.hpp"
 
 /* action: none
