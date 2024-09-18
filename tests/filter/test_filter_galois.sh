@@ -6,7 +6,7 @@
 set -e
 
 build_tree="$PROJECT_BINARY_DIR"
-REFERENCE_SHA1="a17f3dfab371fa5e76ac2dc35ca38fd23feb577b"
+REFERENCE_SHA1="89e535ffd3f76ca0a099b5ce04052d0d22f5b08a"
 
 while [ $# -gt 0 ] ; do
     if [ "$1" = "-b" ] ; then
@@ -48,26 +48,10 @@ if ! "${FG}" ${args}; then
   exit 1
 fi
 
-# Copied from test_dup2.sh
-export LC_ALL=C
-export LANG=C
-export LANGUAGE=C
-
-sort_rels() {
-    read -s -r -d '' perl_code <<- 'EOF'
-        /^[^#]/ or next;
-        chomp($_);
-        my ($ab,@sides) = split(":", $_, 3);
-        for (@sides) {
-            $_ = join(",", sort({ hex($a) <=> hex($b) } split(",",$_)));
-        }
-        print join(":", ($ab, @sides)), "\n";
-        
-EOF
-    perl -ne "$perl_code" "$@" | sort -n
-}
-
-SHA1=$(cat ${outrels} | grep -v "^#" | sort_rels | ${SHA1BIN})
+# XXX We do not sort before computing the hash because filter_galois is not
+# multi-threaded and the computation is deterministic, so the output files
+# should be exactly the same.
+SHA1=$(grep -v "^#" ${outrels} | ${SHA1BIN})
 SHA1="${SHA1%% *}"
 
 echo ""
@@ -79,7 +63,7 @@ if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
   else
       REFMSG=". Set CADO_DEBUG=1 to examine log output"
   fi
-  echo "Got SHA1(sort(${outrels}))=${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}"
-  cat ${outrels} | grep -v "^#" | sort_rels
+  echo "Got SHA1(${outrels})=${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}"
+  grep -v "^#" ${outrels}
   exit 1
 fi
