@@ -165,5 +165,5 @@ int main()
   test_norm();
   test_mpz_poly();
   test_submul();
-  exit (EXIT_SUCCESS);
+  return EXIT_SUCCESS;
 }

@@ -760,10 +760,11 @@ void mpz_poly_clear(mpz_poly_ptr f)
   f->alloc = 0; /* to avoid a double-free */
 }
 
+namespace {
 struct urandomm {
     typedef mpz_srcptr argtype;
     argtype k;
-    urandomm(argtype k) : k(k) {}
+    explicit urandomm(argtype k) : k(k) {}
     void fetch_half(cxx_mpz & h) const {
         mpz_div_2exp(h, k, 1);
     }
@@ -774,7 +775,7 @@ struct urandomm {
 struct urandomb {
     typedef int argtype;
     argtype k;
-    urandomb(argtype k) : k(k) { ASSERT_ALWAYS (k > 0); }
+    explicit urandomb(argtype k) : k(k) { ASSERT_ALWAYS (k > 0); }
     void fetch_half(cxx_mpz & h) const {
         h = 1;
         mpz_mul_2exp(h, h, k-1);
@@ -786,7 +787,7 @@ struct urandomb {
 struct rrandomb {
     typedef int argtype;
     argtype k;
-    rrandomb(argtype k) : k(k) {}
+    explicit rrandomb(argtype k) : k(k) {}
     void fetch_half(cxx_mpz & h) const {
         h = 1;
         mpz_mul_2exp(h, h, k-1);
@@ -799,7 +800,7 @@ struct rrandomb {
  * Ensure the coefficient of degree d is not zero.
  */
 template<typename R>
-static void mpz_poly_set_random_internal (mpz_poly_ptr f, int d, gmp_randstate_ptr state, R const & r, bool is_signed)
+void mpz_poly_set_random_internal (mpz_poly_ptr f, int d, gmp_randstate_ptr state, R const & r, bool is_signed)
 {
     cxx_mpz u;
 
@@ -816,6 +817,7 @@ static void mpz_poly_set_random_internal (mpz_poly_ptr f, int d, gmp_randstate_p
     }
 
     mpz_poly_cleandeg(f, d);
+}
 }
 
 void mpz_poly_set_signed_rrandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k)

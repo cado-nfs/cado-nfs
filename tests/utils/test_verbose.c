@@ -7,8 +7,10 @@
 #include "verbose.h"
 #include "portability.h" // sleep // IWYU pragma: keep
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 int verbose;
 volatile size_t conflict;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 void *print_stuff (void *data)
 {
@@ -19,7 +21,7 @@ void *print_stuff (void *data)
     verbose_output_print(1, verbose, "%c", text[i]);
     conflict = i;
     fflush(stdout);
-    struct timespec tv = { 0, 5*1000*1000 };
+    struct timespec tv = { 0, 5UL*1000UL*1000UL };
     struct timespec rem;
     nanosleep(&tv, &rem);
   }

@@ -83,7 +83,7 @@ ropt_do_stage2 (ropt_poly_ptr poly,
                 ropt_info_ptr info)
 {
 
-  int old_i;
+  long int old_i;
   double alpha_lat;
   ropt_bound bound;
   ropt_s2param s2param;
@@ -133,7 +133,7 @@ ropt_do_stage2 (ropt_poly_ptr poly,
 
   /* rotate back */
   rotate_aux (poly->f, poly->g, old_i, 0, 2);
-  old_i = 0;
+  old_i = 0;    // NOLINT(clang-analyzer-deadcode.DeadStores)
 
   /* return best poly */
   ropt_get_bestpoly (poly, global_E_pqueue, bestpoly);
@@ -163,7 +163,7 @@ ropt_do_both_stages ( ropt_poly_ptr poly,
     ropt_quadratic (poly, bestpoly, param, info);
   else {
     fprintf (stderr, "Error: only support deg 3, 4, 5, 6 and 7.\n");
-    exit(1);
+    exit(EXIT_FAILURE);    // NOLINT(concurrency-mt-unsafe)
   }
 }
 
@@ -183,8 +183,8 @@ ropt ( ropt_poly_ptr poly,
 
   /* print cache size */
   if (param->verbose == 2)
-    fprintf ( stderr, "# Info: L1_cachesize: %d, "
-              "size_tune_sievearray: %d\n",
+    fprintf ( stderr, "# Info: L1_cachesize: %zu, "
+              "size_tune_sievearray: %zu\n",
               L1_cachesize, size_tune_sievearray );
 
   if (param->stage_flag == 2)

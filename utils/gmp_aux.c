@@ -478,13 +478,11 @@ next_mpz_with_factor_constraints(mpz_ptr r,
 {
     ASSERT_ALWAYS(pmin > 2);
     mpz_add_ui(r, s, diff);
-    if (mpz_cmp_ui(r, pmin) < 0) {
+    if (mpz_cmp_ui(r, pmin) < 0)
         mpz_set_ui(r, pmin);
-    }
-    if (mpz_even_p(r)) {
+    if (mpz_even_p(r))
         mpz_add_ui(r, r, 1);
-    }
-    while (1) {
+    for( ; ; mpz_add_ui(r, r, 2)) { // only odd values are considered.
         /* This function is used for the composite special-q code, and it
          * is really important that no composite special-q is considered
          * prime.*/
@@ -499,62 +497,56 @@ next_mpz_with_factor_constraints(mpz_ptr r,
             int nf = 0;
             prime_info pi;
             prime_info_init(pi);
-            unsigned long p = getprime_mt(pi); // p=3
+            unsigned long p;
             bool ok = true;
-            while (p < pmin && ok) {
+            for( ; (p = getprime_mt(pi)) < pmin ; ) {
                 if ((rr % p) == 0) {
                     ok = false;
+                    break;
                 }
-                p = getprime_mt(pi);
             }
             if (!ok) {
                 // r is divisible by a prime < pmin.
                 // try next candidate.
                 prime_info_clear(pi);
-                mpz_add_ui(r, r, 2);
                 continue;
             }
             // Compute the factorization
-            while (rr > 1 && p < pmax) {
-                if ((rr % p) == 0) {
-                    int c = 0;
-                    do {
-                        rr = rr / p;
-                        c ++;
-                    } while ((rr % p) == 0);
-                    // so p divides exactly c times r.
-                    if (c > 1) {
-                        // Force p=pmax to break the loop.
-                        p = pmax;
-                        continue;
-                    }
-                    factor_r[nf++] = p;
-                    // check primality of cofactor.
-                    bool cofac_prime;
-                    {
-                        mpz_t xxx;
-                        mpz_init_set_ui(xxx, rr);
-                        cofac_prime = mpz_probab_prime_p(xxx, 10);
-                        mpz_clear(xxx);
-                    }
-                    if (cofac_prime) {
-                        if (rr < pmax) {
-                            // We have a winner.
-                            factor_r[nf++] = rr;
-                            prime_info_clear(pi);
-                            return nf;
-                        } else {
-                            break;
-                        }
-                    }
+            for( ; rr > 1 && p < pmax ; p = getprime_mt(pi)) {
+                if (rr % p)
+                    continue;
+
+                int c = 0;
+                for( ; rr % p == 0 ; rr /= p, c++) ;
+                // p divides exactly c times r. Note that 2 or
+                // more is too many.
+                if (c > 1)
+                    break;
+                factor_r[nf++] = p;
+                // check primality of cofactor.
+                bool cofac_prime;
+                {
+                    mpz_t xxx;
+                    mpz_init_set_ui(xxx, rr);
+                    cofac_prime = mpz_probab_prime_p(xxx, 10);
+                    mpz_clear(xxx);
                 }
-                p = getprime_mt(pi);
+                
+                if (!cofac_prime)
+                    continue;
+
+                if (rr >= pmax)
+                    break;
+
+                // We have a winner.
+                factor_r[nf++] = rr;
+                prime_info_clear(pi);
+                return nf;
             }
             prime_info_clear(pi);
             // We have still a composite in rr, it must have a prime > pmax.
             // This is a fail. Continue with next candidate.
         }
-        mpz_add_ui(r, r, 2); // only odd values are considered.
     }
     ASSERT_ALWAYS(0); // Should never get there.
 }
@@ -564,7 +556,7 @@ int nbits (uintmax_t p)
 {
   int k;
 
-  for (k = 0; p != 0; p >>= 1, k ++);
+  for (k = 0; p != 0; p >>= 1U, k ++);
   return k;
 }
 
@@ -637,21 +629,22 @@ mpz_ndiv_r (mpz_ptr a, mpz_srcptr b, mpz_srcptr c)
 
   mp_size_t n = (mp_size_t) mpz_size (c);
   mp_limb_t aj, cj;
-  int sub = 0, sh = GMP_NUMB_BITS - 1;
+  int sub = 0;
+  unsigned int sh = GMP_NUMB_BITS - 1;
 
   if (n == 0) {
       mpz_set_ui (a, 0);
       return;
   }
 
-  if (mpz_getlimbn (a, n-1) >= (mp_limb_t) 1 << sh)
+  if (mpz_getlimbn (a, n-1) >= (mp_limb_t) 1U << sh)
     sub = 1;
   else
     {
       while (n-- > 0)
 	{
 	  cj = mpz_getlimbn (c, n);
-	  aj = mpz_getlimbn (a, n) << 1;
+	  aj = mpz_getlimbn (a, n) << 1U;
 	  if (n > 0)
 	    aj |= mpz_getlimbn (a, n-1) >> sh;
 	  if (aj > cj)

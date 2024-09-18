@@ -225,8 +225,8 @@ int usp_internal_transform(mpz_poly_ptr r, mpz_poly_srcptr p, mpz_srcptr a, mpz_
    r[0..n] is an auxiliary array.
    If R is not NULL, puts the roots in R.
 */
-static int
-usp (mpz_ptr a, mpz_ptr b, int m, int up, int va, int vb, int n, int *nroots,
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+static int usp (mpz_ptr a, mpz_ptr b, int m, int up, int va, int vb, int n, int *nroots,
      mpz_poly_srcptr p, mpz_poly_ptr r, int verbose, usp_root_interval *R)
 {
    int lmi, i, k, c, s, smi, last, d;
@@ -414,8 +414,8 @@ usp (mpz_ptr a, mpz_ptr b, int m, int up, int va, int vb, int n, int *nroots,
    If verbose is non-zero, print the isolating intervals for the roots.
    If Roots is not NULL, put the isolating intervals in Roots[0..nroots-1].
 */
-int
-mpz_poly_number_of_real_roots_extra (mpz_poly_srcptr f, double T, usp_root_interval *Roots)
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+int mpz_poly_number_of_real_roots_extra (mpz_poly_srcptr f, double T, usp_root_interval *Roots)
 {
   const int verbose = 0;
 

@@ -22,27 +22,29 @@ A million repetitions of "a"
 
 #include "sha1.h"
 
-#define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
+#define rol(value, bits) (((value) << (bits)) | ((value) >> (32U - (bits))))
 
 /* blk0() and blk() perform the initial expand. */
 /* I got the idea of expanding during the round function from SSLeay */
 #if BYTE_ORDER == LITTLE_ENDIAN
-#define blk0(i) (block->l[i] = (rol(block->l[i],24)&0xFF00FF00) \
-    |(rol(block->l[i],8)&0x00FF00FF))
+#define blk0(i) (block->l[i] = (rol(block->l[i],24U)&0xFF00FF00U) \
+    |(rol(block->l[i],8U)&0x00FF00FFU))
 #elif BYTE_ORDER == BIG_ENDIAN
 #define blk0(i) block->l[i]
 #else
 #error "Endianness not defined!"
 #endif
-#define blk(i) (block->l[i&15] = rol(block->l[(i+13)&15]^block->l[(i+8)&15] \
-    ^block->l[(i+2)&15]^block->l[i&15],1))
+#define blk(i) (block->l[(i)&15U] = rol(block->l[((i)+13U)&15U] ^ \
+                                        block->l[((i)+8U)&15U]  ^ \
+                                        block->l[((i)+2U)&15U]   ^ \
+                                        block->l[(i)&15U],1U))
 
 /* (R0+R1), R2, R3, R4 are the different operations used in SHA1 */
-#define R0(v,w,x,y,z,i) z+=((w&(x^y))^y)+blk0(i)+0x5A827999+rol(v,5);w=rol(w,30);
-#define R1(v,w,x,y,z,i) z+=((w&(x^y))^y)+blk(i)+0x5A827999+rol(v,5);w=rol(w,30);
-#define R2(v,w,x,y,z,i) z+=(w^x^y)+blk(i)+0x6ED9EBA1+rol(v,5);w=rol(w,30);
-#define R3(v,w,x,y,z,i) z+=(((w|x)&y)|(w&x))+blk(i)+0x8F1BBCDC+rol(v,5);w=rol(w,30);
-#define R4(v,w,x,y,z,i) z+=(w^x^y)+blk(i)+0xCA62C1D6+rol(v,5);w=rol(w,30);
+#define R0(v,w,x,y,z,i) z+=(((w)&((x)^(y)))^(y))+blk0(i)+0x5A827999U+rol(v,5U);(w)=rol(w,30U);
+#define R1(v,w,x,y,z,i) z+=(((w)&((x)^(y)))^(y))+blk(i)+0x5A827999U+rol(v,5U);(w)=rol(w,30U);
+#define R2(v,w,x,y,z,i) z+=((w)^(x)^(y))+blk(i)+0x6ED9EBA1U+rol(v,5U);(w)=rol(w,30U);
+#define R3(v,w,x,y,z,i) z+=((((w)|(x))&(y))|((w)&(x)))+blk(i)+0x8F1BBCDCU+rol(v,5U);(w)=rol(w,30U);
+#define R4(v,w,x,y,z,i) z+=((w)^(x)^(y))+blk(i)+0xCA62C1D6U+rol(v,5U);(w)=rol(w,30U);
 
 
 /* Hash a single 512-bit block. This is the core of the algorithm. */
@@ -66,26 +68,26 @@ void SHA1Transform(uint32_t * state, const unsigned char * buffer)
     d = state[3];
     e = state[4];
     /* 4 rounds of 20 operations each. Loop unrolled. */
-    R0(a,b,c,d,e, 0); R0(e,a,b,c,d, 1); R0(d,e,a,b,c, 2); R0(c,d,e,a,b, 3);
-    R0(b,c,d,e,a, 4); R0(a,b,c,d,e, 5); R0(e,a,b,c,d, 6); R0(d,e,a,b,c, 7);
-    R0(c,d,e,a,b, 8); R0(b,c,d,e,a, 9); R0(a,b,c,d,e,10); R0(e,a,b,c,d,11);
-    R0(d,e,a,b,c,12); R0(c,d,e,a,b,13); R0(b,c,d,e,a,14); R0(a,b,c,d,e,15);
-    R1(e,a,b,c,d,16); R1(d,e,a,b,c,17); R1(c,d,e,a,b,18); R1(b,c,d,e,a,19);
-    R2(a,b,c,d,e,20); R2(e,a,b,c,d,21); R2(d,e,a,b,c,22); R2(c,d,e,a,b,23);
-    R2(b,c,d,e,a,24); R2(a,b,c,d,e,25); R2(e,a,b,c,d,26); R2(d,e,a,b,c,27);
-    R2(c,d,e,a,b,28); R2(b,c,d,e,a,29); R2(a,b,c,d,e,30); R2(e,a,b,c,d,31);
-    R2(d,e,a,b,c,32); R2(c,d,e,a,b,33); R2(b,c,d,e,a,34); R2(a,b,c,d,e,35);
-    R2(e,a,b,c,d,36); R2(d,e,a,b,c,37); R2(c,d,e,a,b,38); R2(b,c,d,e,a,39);
-    R3(a,b,c,d,e,40); R3(e,a,b,c,d,41); R3(d,e,a,b,c,42); R3(c,d,e,a,b,43);
-    R3(b,c,d,e,a,44); R3(a,b,c,d,e,45); R3(e,a,b,c,d,46); R3(d,e,a,b,c,47);
-    R3(c,d,e,a,b,48); R3(b,c,d,e,a,49); R3(a,b,c,d,e,50); R3(e,a,b,c,d,51);
-    R3(d,e,a,b,c,52); R3(c,d,e,a,b,53); R3(b,c,d,e,a,54); R3(a,b,c,d,e,55);
-    R3(e,a,b,c,d,56); R3(d,e,a,b,c,57); R3(c,d,e,a,b,58); R3(b,c,d,e,a,59);
-    R4(a,b,c,d,e,60); R4(e,a,b,c,d,61); R4(d,e,a,b,c,62); R4(c,d,e,a,b,63);
-    R4(b,c,d,e,a,64); R4(a,b,c,d,e,65); R4(e,a,b,c,d,66); R4(d,e,a,b,c,67);
-    R4(c,d,e,a,b,68); R4(b,c,d,e,a,69); R4(a,b,c,d,e,70); R4(e,a,b,c,d,71);
-    R4(d,e,a,b,c,72); R4(c,d,e,a,b,73); R4(b,c,d,e,a,74); R4(a,b,c,d,e,75);
-    R4(e,a,b,c,d,76); R4(d,e,a,b,c,77); R4(c,d,e,a,b,78); R4(b,c,d,e,a,79);
+    R0(a,b,c,d,e, 0U); R0(e,a,b,c,d, 1U); R0(d,e,a,b,c, 2U); R0(c,d,e,a,b, 3U);
+    R0(b,c,d,e,a, 4U); R0(a,b,c,d,e, 5U); R0(e,a,b,c,d, 6U); R0(d,e,a,b,c, 7U);
+    R0(c,d,e,a,b, 8U); R0(b,c,d,e,a, 9U); R0(a,b,c,d,e,10U); R0(e,a,b,c,d,11U);
+    R0(d,e,a,b,c,12U); R0(c,d,e,a,b,13U); R0(b,c,d,e,a,14U); R0(a,b,c,d,e,15U);
+    R1(e,a,b,c,d,16U); R1(d,e,a,b,c,17U); R1(c,d,e,a,b,18U); R1(b,c,d,e,a,19U);
+    R2(a,b,c,d,e,20U); R2(e,a,b,c,d,21U); R2(d,e,a,b,c,22U); R2(c,d,e,a,b,23U);
+    R2(b,c,d,e,a,24U); R2(a,b,c,d,e,25U); R2(e,a,b,c,d,26U); R2(d,e,a,b,c,27U);
+    R2(c,d,e,a,b,28U); R2(b,c,d,e,a,29U); R2(a,b,c,d,e,30U); R2(e,a,b,c,d,31U);
+    R2(d,e,a,b,c,32U); R2(c,d,e,a,b,33U); R2(b,c,d,e,a,34U); R2(a,b,c,d,e,35U);
+    R2(e,a,b,c,d,36U); R2(d,e,a,b,c,37U); R2(c,d,e,a,b,38U); R2(b,c,d,e,a,39U);
+    R3(a,b,c,d,e,40U); R3(e,a,b,c,d,41U); R3(d,e,a,b,c,42U); R3(c,d,e,a,b,43U);
+    R3(b,c,d,e,a,44U); R3(a,b,c,d,e,45U); R3(e,a,b,c,d,46U); R3(d,e,a,b,c,47U);
+    R3(c,d,e,a,b,48U); R3(b,c,d,e,a,49U); R3(a,b,c,d,e,50U); R3(e,a,b,c,d,51U);
+    R3(d,e,a,b,c,52U); R3(c,d,e,a,b,53U); R3(b,c,d,e,a,54U); R3(a,b,c,d,e,55U);
+    R3(e,a,b,c,d,56U); R3(d,e,a,b,c,57U); R3(c,d,e,a,b,58U); R3(b,c,d,e,a,59U);
+    R4(a,b,c,d,e,60U); R4(e,a,b,c,d,61U); R4(d,e,a,b,c,62U); R4(c,d,e,a,b,63U);
+    R4(b,c,d,e,a,64U); R4(a,b,c,d,e,65U); R4(e,a,b,c,d,66U); R4(d,e,a,b,c,67U);
+    R4(c,d,e,a,b,68U); R4(b,c,d,e,a,69U); R4(a,b,c,d,e,70U); R4(e,a,b,c,d,71U);
+    R4(d,e,a,b,c,72U); R4(c,d,e,a,b,73U); R4(b,c,d,e,a,74U); R4(a,b,c,d,e,75U);
+    R4(e,a,b,c,d,76U); R4(d,e,a,b,c,77U); R4(c,d,e,a,b,78U); R4(b,c,d,e,a,79U);
     /* Add the working vars back into context.state[] */
     state[0] += a;
     state[1] += b;
@@ -123,11 +125,13 @@ void SHA1Update(SHA1_CTX * context, const unsigned char *data, uint32_t len)
     uint32_t i;
     uint32_t j;
 
+    // NOLINTBEGIN(bugprone-*)
     j = context->count[0];
-    if ((context->count[0] += len << 3) < j)
+    if ((context->count[0] += len << 3U) < j)
+    // NOLINTEND(bugprone-*)
 	context->count[1]++;
-    context->count[1] += (len >> 29);
-    j = (j >> 3) & 63;
+    context->count[1] += (len >> 29U);
+    j = (j >> 3U) & 63U;
     if ((j + len) > 63) {
         // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
 	memcpy(&context->buffer[j], data, (i = 64 - j));
@@ -153,18 +157,18 @@ void SHA1Final(unsigned char digest[20], SHA1_CTX * context)
     unsigned char c;
 
     for (i = 0; i < 8; i++) {
-	finalcount[i] = (unsigned char) ((context->count[(i >= 4 ? 0 : 1)] >> ((3 - (i & 3)) * 8)) & 255);	/* Endian independent */
+	finalcount[i] = (unsigned char) ((context->count[(i >= 4 ? 0 : 1)] >> ((3 - (i & 3U)) * 8)) & 255U);	/* Endian independent */
     }
     c = 0200;
     SHA1Update(context, &c, 1);
-    while ((context->count[0] & 504) != 448) {
+    while ((context->count[0] & 504U) != 448U) {
 	c = 0000;
 	SHA1Update(context, &c, 1);
     }
     SHA1Update(context, finalcount, 8);	/* Should cause a SHA1Transform() */
     for (i = 0; i < 20; i++) {
 	digest[i] = (unsigned char)
-	    ((context->state[i >> 2] >> ((3 - (i & 3)) * 8)) & 255);
+	    ((context->state[i >> 2U] >> ((3 - (i & 3U)) * 8)) & 255U);
     }
     /* Wipe variables */
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)

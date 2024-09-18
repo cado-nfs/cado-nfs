@@ -13,12 +13,15 @@
 #define F(X) (UINT64_C(1) << G(X))
 
 /* Mutex for verbose_output_*() functions */
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 static pthread_mutex_t io_mutex[1] = {PTHREAD_MUTEX_INITIALIZER};
 static pthread_cond_t io_cond[1] = {PTHREAD_COND_INITIALIZER};
 static int batch_locked = 0;
 static pthread_t batch_owner;
+static uint64_t verbose_flag_word;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-struct {
+const struct {
     const char * name;
     int def;
 } verbose_flag_list[] = 
@@ -37,7 +40,7 @@ struct {
     [G(BWC_LOADING_MKSOL_FILES)]= { "bwc-loading-mksol-files", 1 },
 };
 
-struct {
+const struct {
     const char * name;
     uint64_t mask;
 } verbose_flag_groups[] = {
@@ -59,19 +62,17 @@ struct {
 };
 
 
-uint64_t verbose_flag_word;
-
 
 /* This must be called in single-threaded context, preferably at program
  * start */
-void verbose_interpret_parameters(param_list pl)
+void verbose_interpret_parameters(param_list_ptr pl)
 {
     verbose_flag_word = ~0UL;
 
     /* mark these defaults. */
     for(size_t i = 0 ; i < sizeof(verbose_flag_list) / sizeof(verbose_flag_list[0]) ; i++) {
         if (verbose_flag_list[i].def == 0) {
-            uint64_t mask = UINT64_C(1) << (int) i;
+            uint64_t mask = UINT64_C(1) << (unsigned int) i;
             verbose_flag_word = verbose_flag_word & ~mask;
         }
     }
@@ -98,7 +99,7 @@ void verbose_interpret_parameters(param_list pl)
         uint64_t mask = 0;
         for(size_t i = 0 ; i < sizeof(verbose_flag_list) / sizeof(verbose_flag_list[0]) ; i++) {
             if (strcmp(p, verbose_flag_list[i].name) == 0) {
-                mask = UINT64_C(1) << (int) i;
+                mask = UINT64_C(1) << (unsigned int) i;
                 break;
             }
         }
@@ -127,7 +128,7 @@ void verbose_decl_usage(param_list pl)
 }
 
 /* returns true if the following verbose flag is enabled */
-int verbose_enabled(int flag) {
+int verbose_enabled(unsigned int flag) {
     return verbose_flag_word & (UINT64_C(1) << flag);
 }
 

@@ -54,14 +54,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define CPP_PAD(x,y) x ## y
 #endif
 
-#define croak__(x,y) do {						\
+#define croak__(x,y)     						\
         fprintf(stderr,"%s in %s at %s:%d -- %s\n",			\
-                (x),__func__,__FILE__,__LINE__,(y));			\
-    } while (0)
-#define croak_throw__(e, x) do {					\
+                (x),__func__,__FILE__,__LINE__,(y))
+#define croak_throw__(e, x)     					\
         throw e("code BUG() : condition " x            \
-                " failed at " __FILE__ ":" CPP_STRINGIFY(__LINE__));    \
-    } while (0)
+                " failed at " __FILE__ ":" CPP_STRINGIFY(__LINE__))
 
 /* In C++ dtors which are not allowed to throw, use this variant instead.
  */
@@ -73,6 +71,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
             abort();							\
         }								\
     } while (0)
+// NOLINTBEGIN(readability-simplify-boolean-expr)
 #ifdef __cplusplus
 #include <stdexcept>
 #define ASSERT_ALWAYS_OR_THROW(x, e)                                   \
@@ -84,6 +83,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #else
 #define ASSERT_ALWAYS(x) ASSERT_ALWAYS_NOTHROW(x)
 #endif
+// NOLINTEND(readability-simplify-boolean-expr)
 
 /* never throw exceptions in that case, just exit */
 #define FATAL_ERROR_CHECK(cond, msg)		        		\
@@ -151,17 +151,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define siceildiv(x,y) ((x) == 0 ? 0 : ((x)<0) + ((y)<0) == 1 ? (x)/(y) : ((x)-1+2*((y)<0))/(y)+1)
 #endif
 
-#define LEXGE2(X,Y,A,B) (X>A || (X == A && Y >= B))
-#define LEXGE3(X,Y,Z,A,B,C) (X>A || (X == A && LEXGE2(Y,Z,B,C)))
-#define LEXLE2(X,Y,A,B) LEXGE2(A,B,X,Y)
-#define LEXLE3(X,Y,Z,A,B,C) LEXGE3(A,B,C,X,Y,Z)
+#define LEXGE2(X,Y,A,B) ((X)>(A) || ((X) == (A) && (Y) >= (B)))
+#define LEXGE3(X,Y,Z,A,B,C) ((X)>(A) || ((X) == (A) && LEXGE2((Y),(Z),(B),(C))))
+#define LEXLE2(X,Y,A,B) LEXGE2((A),(B),(X),(Y))
+#define LEXLE3(X,Y,Z,A,B,C) LEXGE3((A),(B),(C),(X),(Y),(Z))
 
 #ifndef GNUC_VERSION
 #ifndef __GNUC__
 #define GNUC_VERSION(X,Y,Z) 0
 #else
 #define GNUC_VERSION(X,Y,Z)     \
-(__GNUC__ == X && __GNUC_MINOR__ == Y && __GNUC_PATCHLEVEL__ == Z)
+(__GNUC__ == (X) && __GNUC_MINOR__ == (Y) && __GNUC_PATCHLEVEL__ == (Z))
 #endif
 #endif
 
@@ -170,7 +170,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define GNUC_VERSION_ATLEAST(X,Y,Z) 0
 #else
 #define GNUC_VERSION_ATLEAST(X,Y,Z)     \
-LEXGE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
+LEXGE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,(X),(Y),(Z))
 #endif
 #endif
 
@@ -179,7 +179,7 @@ LEXGE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
 #define GNUC_VERSION_ATMOST(X,Y,Z) 0
 #else
 #define GNUC_VERSION_ATMOST(X,Y,Z)     \
-LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
+LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,(X),(Y),(Z))
 #endif
 #endif
 
@@ -201,7 +201,7 @@ LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
     LEXGE3(__INTEL_COMPILER,    \
             __INTEL_COMPILER_UPDATE,    \
             __INTEL_COMPILER_BUILD_DATE,        \
-            X,Y,Z)
+            (X),(Y),(Z))
 #endif
 #endif
 
@@ -213,7 +213,7 @@ LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
     LEXGE3(__INTEL_COMPILER,    \
             __INTEL_COMPILER_UPDATE,    \
             __INTEL_COMPILER_BUILD_DATE,        \
-            X,Y,Z)
+            (X),(Y),(Z))
 #endif
 #endif
 
@@ -223,7 +223,7 @@ LEXLE3(__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__,X,Y,Z)
 #define GMP_VERSION_ATLEAST(X,Y,Z) 0
 #else
 #define GMP_VERSION_ATLEAST(X,Y,Z)     \
-LEXGE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z)
+LEXGE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,(X),(Y),(Z))
 #endif
 #endif
 
@@ -232,7 +232,7 @@ LEXGE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #define GMP_VERSION_ATMOST(X,Y,Z) 0
 #else
 #define GMP_VERSION_ATMOST(X,Y,Z)     \
-LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z)
+LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,(X),(Y),(Z))
 #endif
 #endif
 
@@ -247,11 +247,11 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #endif
 
 #ifndef MPI_VERSION_ATLEAST
-#define MPI_VERSION_ATLEAST(X,Y) LEXGE2(MPI_VERSION,MPI_SUBVERSION,X,Y)
+#define MPI_VERSION_ATLEAST(X,Y) LEXGE2(MPI_VERSION,MPI_SUBVERSION,(X),(Y))
 #endif  /* MPI_VERSION_ATLEAST */
 
 #ifndef MPI_VERSION_ATMOST
-#define MPI_VERSION_ATMOST(X,Y) LEXLE2(MPI_VERSION,MPI_SUBVERSION,X,Y)
+#define MPI_VERSION_ATMOST(X,Y) LEXLE2(MPI_VERSION,MPI_SUBVERSION,(X),(Y))
 #endif  /* MPI_VERSION_ATMOST */
 
 #ifndef MPI_VERSION_IS
@@ -261,7 +261,7 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #ifndef OMPI_VERSION_ATLEAST
 #ifdef OPEN_MPI
 #define OMPI_VERSION_ATLEAST(X,Y,Z)     \
-    (LEXGE3(OMPI_MAJOR_VERSION,OMPI_MINOR_VERSION,OMPI_RELEASE_VERSION,X,Y,Z))
+    (LEXGE3(OMPI_MAJOR_VERSION,OMPI_MINOR_VERSION,OMPI_RELEASE_VERSION,(X),(Y),(Z)))
 #else
 #define OMPI_VERSION_ATLEAST(X,Y,Z) 0
 #endif
@@ -270,7 +270,7 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,X,Y,Z
 #ifndef OMPI_VERSION_ATMOST
 #ifdef OPEN_MPI
 #define OMPI_VERSION_ATMOST(X,Y,Z)     \
-    (LEXLE3(OMPI_MAJOR_VERSION,OMPI_MINOR_VERSION,OMPI_RELEASE_VERSION,X,Y,Z))
+    (LEXLE3(OMPI_MAJOR_VERSION,OMPI_MINOR_VERSION,OMPI_RELEASE_VERSION,(X),(Y),(Z)))
 #else
 #define OMPI_VERSION_ATMOST(X,Y,Z) 0
 #endif

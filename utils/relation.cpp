@@ -69,6 +69,7 @@ relation::parse(const char *line)
             continue;
         } else if (comma_allowed && line[consumed] == ',') {
             consumed++;
+            // NOLINTNEXLINE(clang-analyzer-deadcode.DeadStores)
             comma_allowed = 0;
         }
 

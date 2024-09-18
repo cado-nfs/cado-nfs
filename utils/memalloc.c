@@ -6,6 +6,7 @@
 #include "macros.h" // FATAL_ERROR_CHECK
 #include "memalloc.h"  // for BLOCK_SIZE
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 /* index_plist is a list of blocks, each one of BLOCK_SIZE index_ts */
 static index_t **index_plist = NULL;
 static index_t *index_p;
@@ -23,10 +24,12 @@ static unsigned int idealmerge_psize = 0;  /* minimal size of relcompact_list */
 static int idealmerge_pcurrent = -1; /* index of current block */
 
 static size_t my_malloc_bytes = 0;
+//
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 /* return a pointer to an array of n (index_t) */
-index_t *
-index_my_malloc (unsigned int n)
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+index_t * index_my_malloc (unsigned int n)
 {
   index_t *ptr;
 
@@ -37,9 +40,11 @@ index_my_malloc (unsigned int n)
     if (((unsigned int) (++index_pcurrent)) == index_psize)
     {
       my_malloc_bytes -= index_psize * sizeof (index_t *);
-      index_psize = index_psize ? (index_psize << 1) : INIT_NB_BLOCK;
+      index_psize = index_psize ? (index_psize << 1U) : INIT_NB_BLOCK;
       size_t tmp_size = index_psize * sizeof(index_t *);
-      index_plist = (index_t **) realloc(index_plist, tmp_size);
+      index_t ** t = (index_t **) realloc(index_plist, tmp_size);
+      if (!t) free(index_plist);
+      index_plist = t;
       FATAL_ERROR_CHECK((index_plist == NULL), "realloc error");
       my_malloc_bytes += tmp_size;
     }
@@ -55,8 +60,8 @@ index_my_malloc (unsigned int n)
 }
 
 /* return a pointer to an array of n (ideal_merge_t) */
-ideal_merge_t *
-idealmerge_my_malloc (unsigned int n)
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+ideal_merge_t * idealmerge_my_malloc (unsigned int n)
 {
   ideal_merge_t *ptr;
 
@@ -68,9 +73,11 @@ idealmerge_my_malloc (unsigned int n)
     {
       my_malloc_bytes -= idealmerge_psize * sizeof (ideal_merge_t *);
       idealmerge_psize =
-                     idealmerge_psize ? (idealmerge_psize << 1) : INIT_NB_BLOCK;
+                     idealmerge_psize ? (idealmerge_psize << 1U) : INIT_NB_BLOCK;
       size_t tmp_size = idealmerge_psize * sizeof(ideal_merge_t *);
-      idealmerge_plist = (ideal_merge_t **) realloc(idealmerge_plist, tmp_size);
+      ideal_merge_t **t = (ideal_merge_t **) realloc(idealmerge_plist, tmp_size);
+      if (!t) free(idealmerge_plist);
+      idealmerge_plist = t;
       FATAL_ERROR_CHECK((idealmerge_plist == NULL), "realloc error");
       my_malloc_bytes += tmp_size;
     }

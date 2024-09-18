@@ -19,11 +19,11 @@
 #include "macros.h" // ASSERT_ALWAYS
 #include "ularith.h" // ularith_ctz, ularith_sqrt
 
-static int 
-mod_roots (residue_t *, residue_t, int, modulus_t);
+static unsigned int 
+mod_roots (residue_t *rr, residue_t aa, unsigned int d, modulus_t pp);
 
 /* For i < 50, isprime_table[i] == 1 iff i is prime */
-static unsigned char isprime_table[] = {
+static const unsigned char isprime_table[] = {
 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 
 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 
 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 
@@ -299,12 +299,13 @@ tonelli_shanks (residue_t *rr, int d, uint64_t n, const modulus_t pp)
 
 /* Tonelli-shanks for the case pp == 5 (mod 8).
    In this case we know that 2 is a QNR. */
-static int
-tonelli_shanks5(residue_t *rr, int d, uint64_t n, const modulus_t pp)
+static unsigned int
+tonelli_shanks5(residue_t *rr, unsigned int d, uint64_t n, const modulus_t pp)
 {
-  uint64_t q, i, k = 0;
+  uint64_t q, i;
+  unsigned int k = 0;
   residue_t dd, delta;
-  const uint64_t p =  mod_getmod_ul(pp);
+  const uint64_t p = mod_getmod_ul(pp);
 
   /* write p-1 = q*2^s with q odd. We don't need s here */
   q = (p-1) / 4;
@@ -313,7 +314,7 @@ tonelli_shanks5(residue_t *rr, int d, uint64_t n, const modulus_t pp)
   mod_init (delta, pp);
   for (i = 0; i < n; i++)
     {
-      if ((d & 3) == 0 && mod_jacobi (rr[d/2+i], pp) != 1)
+      if ((d & 3U) == 0 && mod_jacobi (rr[d/2+i], pp) != 1)
         continue;
 
       mod_pow_ul (dd, rr[d/2+i], (q-1) / 2, pp);
@@ -341,8 +342,7 @@ tonelli_shanks5(residue_t *rr, int d, uint64_t n, const modulus_t pp)
 }
 
 /* put in rr a square root of aa mod pp */
-static void
-one_root2_V (residue_t rr, const residue_t aa, const modulus_t pp)
+static void one_root2_V (residue_t rr, const residue_t aa, const modulus_t pp)
 {
   residue_t xx, two, discr;
   unsigned long c;
@@ -421,14 +421,14 @@ one_root2_V (residue_t rr, const residue_t aa, const modulus_t pp)
 
 /* given n roots of x^(d/2) = a (mod p) at rr[d/2], ..., rr[d/2 + n - 1],
    finds all (2n) roots of x^d = a (mod p) in rr[0], ..., rr[2n-1] */
-static int
-roots2_V (residue_t *rr, int d, uint64_t n, const modulus_t pp)
+static unsigned int
+roots2_V (residue_t *rr, unsigned int d, uint64_t n, const modulus_t pp)
 {
   uint64_t i, k = 0;
 
   for (i = 0; i < n; i++)
     {
-      if ((d & 3) == 0 && mod_jacobi (rr[d/2+i], pp) != 1)
+      if ((d & 3U) == 0 && mod_jacobi (rr[d/2+i], pp) != 1)
         continue;
       one_root2_V (rr[2*k], rr[d/2+i], pp);
       mod_neg (rr[2*k + 1], rr[2*k], pp);
@@ -439,10 +439,11 @@ roots2_V (residue_t *rr, int d, uint64_t n, const modulus_t pp)
 
 
 /* Roots of x^d = a (mod p) for d even and a 64-bit word */
-static int
-roots2 (residue_t *rr, residue_t aa, int d, modulus_t pp)
+static unsigned int
+roots2 (residue_t *rr, residue_t aa, unsigned int d, modulus_t pp)
 {
-  uint64_t n, i, k = 0;
+  uint64_t n, i;
+  unsigned int k = 0;
   const uint64_t p =  mod_getmod_ul(pp);
 
   if (mod_jacobi (aa, pp) != 1)
@@ -468,10 +469,10 @@ roots2 (residue_t *rr, residue_t aa, int d, modulus_t pp)
              two roots (5 and 6), then x^2-5 mod 11 has two roots (4 and 7)
              but x^2-6 mod 11 has no root. */
           
-          if ((d & 3) == 0 && mod_jacobi (rr[d/2+i], pp) != 1)
+          if ((d & 3U) == 0 && mod_jacobi (rr[d/2+i], pp) != 1)
             continue;
 
-          mod_pow_ul (rr[2*k], rr[d/2+i], (p + 1) >> 2, pp);
+          mod_pow_ul (rr[2*k], rr[d/2+i], (p + 1) >> 2U, pp);
           mod_neg (rr[2*k+1], rr[2*k], pp);
           k ++;
         }
@@ -509,8 +510,7 @@ one_cubic_root_2mod3 (residue_t rr, residue_t ddelta, modulus_t pp)
    and in zeta a primitive 3-rd root of unity.
    Use the algorithm from Table 3 in reference [1].
    rr and ddelta overlapping is permissible. */
-static void 
-one_cubic_root_1mod3 (residue_t rr, residue_t zeta, residue_t ddelta, modulus_t pp)
+static void one_cubic_root_1mod3 (residue_t rr, residue_t zeta, residue_t ddelta, modulus_t pp)
 {
   residue_t rho, a, aprime, b, h, d;
   uint64_t i, j, s, t, smod3, l;
@@ -615,8 +615,8 @@ is_cube (residue_t aa, modulus_t pp)
 
 
 /* Roots of x^d = a (mod p) for d divisible by 3 and a 64-bit word */
-static int
-roots3 (residue_t *rr, residue_t aa, int d, modulus_t pp)
+static unsigned int
+roots3 (residue_t *rr, residue_t aa, unsigned int d, modulus_t pp)
 {
   const uint64_t p = mod_getmod_ul(pp);
 
@@ -763,8 +763,8 @@ is_rth_power (residue_t a, uint64_t r, modulus_t pp)
 /* Roots of x^d = a (mod p), assuming d >= 5 is not divisible by 2 nor 3.
    (This code works in fact for d divisible by 3 too, if one starts by r = 3
    in the loop below.) */
-static int
-roots (residue_t *rr, residue_t a, int d, modulus_t pp)
+static unsigned int
+roots (residue_t *rr, residue_t a, unsigned int d, modulus_t pp)
 {
   uint64_t r, n, i, j;
   const uint64_t p = mod_getmod_ul (pp);
@@ -830,32 +830,26 @@ roots (residue_t *rr, residue_t a, int d, modulus_t pp)
 
 /*****************************************************************************/
 
-static int 
-mod_roots (residue_t *rr, residue_t aa, int d, modulus_t pp)
+static unsigned int
+mod_roots (residue_t *rr, residue_t aa, unsigned int d, modulus_t pp)
 {
-  if (d == 1)
-    {
+  if (d == 1) {
       mod_set (rr[0], aa, pp);
       return 1;
-    }
-  else if ((d & 1) == 0) /* d is even */
-    {
+  } else if ((d & 1U) == 0) { /* d is even */
       return roots2 (rr, aa, d, pp);
-    }
-  else if (d % 3 == 0)
-    {
+  } else if (d % 3U == 0) {
       return roots3 (rr, aa, d, pp);
-    }
-  else
-    return roots (rr, aa, d, pp);
+  } else
+      return roots (rr, aa, d, pp);
 }
 
 
 /* sort the roots r[0], ..., r[n-1] in increasing order */
 static void
-sort_roots (uint64_t *r, int n)
+sort_roots (uint64_t *r, unsigned int n)
 {
-  int i, j;
+  unsigned int i, j;
   uint64_t t;
 
   for (i = 1; i < n; i++)
@@ -873,10 +867,10 @@ sort_roots (uint64_t *r, int n)
    sorted by increasing value, and return the number of roots.
    Assumes 0 <= a < p.
 */
-int
+unsigned int
 roots_mod_uint64 (uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr rstate)
 {
-  int n = -1, i;
+  unsigned int n;
 
   ASSERT_ALWAYS(d <= MAX_DEGREE);
 
@@ -894,12 +888,12 @@ roots_mod_uint64 (uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr 
       mod_initmod_ul (pp, p);
       mod_init (aa, pp);
       mod_set_ul (aa, a, pp);
-      for (i = 0; i < d; i++)
+      for (int i = 0; i < d; i++)
         mod_init (rr[i], pp);
 
       n = mod_roots (rr, aa, d, pp);
 
-      for (i = 0; i < n; i++) {
+      for (unsigned int i = 0; i < n; i++) {
         r[i] = mod_get_ul (rr[i], pp);
 #ifndef NDEBUG
         /* Check that it's a d-th root of a */
@@ -910,11 +904,11 @@ roots_mod_uint64 (uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr 
       sort_roots (r, n);
 #ifndef NDEBUG
       /* Check for duplicates */
-      for (i = 1; i < n; i++)
+      for (unsigned int i = 1; i < n; i++)
         ASSERT(r[i-1] < r[i]);
 #endif
 
-      for (i = 0; i < d; i++)
+      for (int i = 0; i < d; i++)
         mod_clear (rr[i], pp);
       mod_clear (aa, pp);
       mod_clearmod (pp);
@@ -924,7 +918,7 @@ roots_mod_uint64 (uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr 
       mpz_poly f;
       mpz_poly_init(f, d);
       mpz_poly_setcoeff_int64 (f, d, 1);
-      mpz_poly_setcoeff_int64 (f, 0, p-a);
+      mpz_poly_setcoeff_uint64 (f, 0, p-a);
       n = mpz_poly_roots_uint64 (r, f, p, rstate);
       mpz_poly_clear(f);
       sort_roots (r, n);

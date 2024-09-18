@@ -28,7 +28,7 @@ extern "C" {
 int mpz_poly_number_of_real_roots_extra(mpz_poly_srcptr f, double T, usp_root_interval * R);
 
 /* Refine the root of f given by the interval r */
-double usp_root_interval_refine (usp_root_interval_ptr r, mpz_poly_srcptr f, double precision);
+double usp_root_interval_refine (usp_root_interval_ptr r, mpz_poly_srcptr P, double precision);
 
 void usp_root_interval_init (usp_root_interval_ptr R);
 void usp_root_interval_clear (usp_root_interval_ptr R);

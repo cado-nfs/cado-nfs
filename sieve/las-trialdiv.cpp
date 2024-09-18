@@ -20,35 +20,35 @@
 #include "rootfinder.h" // mpz_poly_roots_ulong
 #include "trialdiv.hpp"                // for trialdiv_data, trialdiv_data::...
 
-
+namespace {
 template<typename T>
-static unsigned long
-append_prime_list (T inserter, prime_info pi, unsigned long pmax, cxx_mpz_poly const & f, gmp_randstate_ptr rstate, int minroots = 1)
+unsigned long
+append_prime_list (T inserter, prime_info pi, unsigned long pmax, cxx_mpz_poly const & f, gmp_randstate_ptr rstate, unsigned int minroots = 1)
 {
     unsigned long p;
-    ASSERT_ALWAYS(minroots <= f->deg);
+    ASSERT_ALWAYS(f->deg >= 0 && minroots <= (unsigned int) f->deg);
     if (f->deg == 1) {
         for (; (p = getprime_mt (pi)) < pmax; )
             *inserter++ = p;
     } else {
         for (; (p = getprime_mt (pi)) < pmax; )
             if (mpz_divisible_ui_p (mpz_poly_lc(f), p) ||
-                    mpz_poly_roots_ulong (NULL, f, p, rstate) >= minroots)
+                    mpz_poly_roots_ulong (nullptr, f, p, rstate) >= minroots)
                 *inserter++ = p;
     }
     return p;
 }
-
+}
 
 trialdiv_data const * sieve_shared_data::side_data::get_trialdiv_data(fb_factorbase::key_type fbK, fb_factorbase::slicing const * fbs)
 {
-    std::lock_guard<std::mutex> foo(trialdiv_data_cache.mutex());
+    const std::lock_guard<std::mutex> foo(trialdiv_data_cache.mutex());
     auto it = trialdiv_data_cache.find(fbK);
     if (it != trialdiv_data_cache.end()) {
         return &it->second;
     }
 
-    ASSERT_ALWAYS(fbs != NULL);
+    ASSERT_ALWAYS(fbs);
 
     /* Note that since we have trialdiv_data_cache.mutex() unlock, we may
      * safely access the random state in this->rstate
@@ -61,7 +61,7 @@ trialdiv_data const * sieve_shared_data::side_data::get_trialdiv_data(fb_factorb
        We assume that if 2 is in the list, it is the first list entry,
        and that it appears at most once. */
 
-    unsigned long pmax = std::min((unsigned long) fbK.thresholds[0],
+    const unsigned long pmax = std::min((unsigned long) fbK.thresholds[0],
                              trialdiv_data::max_p);
 
     std::vector<unsigned long> trialdiv_primes = fbs->small_sieve_entries.skipped;
@@ -83,12 +83,11 @@ trialdiv_data const * sieve_shared_data::side_data::get_trialdiv_data(fb_factorb
         /* we need some more. */
         prime_info pi;
         prime_info_init(pi);
-        unsigned long p;
-        /* first seek to the end of the fb. */
-        for ( ; (p = getprime_mt (pi)) < pmax_sofar ; );
+
+        prime_info_seek(pi, pmax_sofar);
 
         for(int minroots = 1 ; minroots <= f->deg ; minroots++) {
-            p = append_prime_list(std::back_inserter(trialdiv_primes),
+            append_prime_list(std::back_inserter(trialdiv_primes),
                     pi, MIN(pmax, minroots * fbK.td_thresh), f, rstate, minroots);
         }
         prime_info_clear (pi);

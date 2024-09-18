@@ -29,9 +29,11 @@ alloc_long_array (int d)
 
 /* reallocate an array to d coefficients */
 static residueul_t*
-realloc_long_array (residueul_t *f, int d)
+realloc_long_array (residueul_t *f, unsigned int d)
 {
-  f = (residueul_t*) realloc (f, d * sizeof (residueul_t));
+  residueul_t * t = (residueul_t*) realloc (f, d * sizeof (residueul_t));
+  if (!t) free(f);
+  f = t;
   FATAL_ERROR_CHECK (f == NULL, "not enough memory");
   return f;
 }
@@ -41,6 +43,7 @@ void
 modul_poly_init (modul_poly_t f, int d)
 {
   f->degree = -1; /* initialize to 0 */
+  ASSERT_ALWAYS(d >= -1);
   /* The zero polynomial has no coeffs allocated */
   if (d >= 0) {
       f->coeff = alloc_long_array (d + 1);
@@ -56,6 +59,7 @@ void
 modul_poly_clear (modul_poly_t f)
 {
   free (f->coeff);
+  // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
   memset(f, 0, sizeof(modul_poly_t));
   f->degree = -1;
 }
@@ -194,18 +198,22 @@ modul_poly_set_linear (modul_poly_t f, residueul_t a, residueul_t b, modulusul_t
 static void
 modul_poly_swap (modul_poly_t f, modul_poly_t g)
 {
-  int i;
-  residueul_t *t;
-
-  i = f->alloc;
-  f->alloc = g->alloc;
-  g->alloc = i;
-  i = f->degree;
-  f->degree = g->degree;
-  g->degree = i;
-  t = f->coeff;
-  f->coeff = g->coeff;
-  g->coeff = t;
+  {
+      unsigned int i = f->alloc;
+      f->alloc = g->alloc;
+      g->alloc = i;
+  }
+  {
+      int i = f->degree;
+      f->degree = g->degree;
+      g->degree = i;
+  }
+  {
+      residueul_t *t;
+      t = f->coeff;
+      f->coeff = g->coeff;
+      g->coeff = t;
+  }
 }
 
 /* h <- f*g mod p */

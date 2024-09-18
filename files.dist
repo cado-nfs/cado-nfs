@@ -1558,7 +1558,7 @@ utils/memalloc.c
 utils/memalloc.h
 utils/memory.c
 utils/memory.h
-utils/memusage.c
+utils/memusage.cpp
 utils/memusage.h
 utils/misc.c
 utils/misc.h
