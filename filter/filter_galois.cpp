@@ -13,6 +13,7 @@
 #include "cado_poly.h"       // for cado_poly_clear, cado_poly_init, cado_po...
 #include "filter_config.h"   // for CA_DUP2, CB_DUP2
 #include "filter_io.h"       // for earlyparsed_relation_s, filter_rels_desc...
+#include "fmt/core.h"        // for fmt::print
 #include "galois_action.hpp"  // for galois_action
 #include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
 #include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY
@@ -285,7 +286,7 @@ main (int argc, char *argv[])
 
   /* */
   galois_action gal_action(action);
-  std::cout << "# Using " << gal_action << std::endl;
+  fmt::print("# Using {}\n", gal_action);
 
   if (gal_action.get_order() > 2) {
       std::cerr << "Error, Galois action of order > 2 are not supported "
@@ -309,13 +310,12 @@ main (int argc, char *argv[])
   std::cout << "Computing Galois action on ideals\n";
   std::vector<index_t> ga_id_cache;
   size_t norb = gal_action.compute_action_on_index(ga_id_cache, renumber_tab);
-  std::cout << "Found " << norb << " orbits of length "
-            << gal_action.get_order() << ", "
-            << ga_id_cache.size() - norb*gal_action.get_order() << " columns "
-            << "were left unchanged (among which "
-            <<  renumber_tab.number_of_additional_columns() << " additional "
-            << "column(s) and " << renumber_tab.number_of_bad_ideals()
-            << " column(s) corresponding to badideals)\n";
+  fmt::print("Found {} orbits of length {}, {} columns were left unchanged "
+             "(among which {} additional column(s) and {} column(s) "
+             "corresponding to badideals)\n", norb, gal_action.get_order(),
+             ga_id_cache.size() - norb*gal_action.get_order(),
+             renumber_tab.number_of_additional_columns(),
+             renumber_tab.number_of_bad_ideals());
 
   std::cout << "Rewriting relations files\n";
   char ** files;

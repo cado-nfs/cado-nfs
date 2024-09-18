@@ -3,6 +3,8 @@
 
 #include "renumber.hpp"     // for renumber_t
 #include "typedefs.h"       // for index_t
+#include "fmt/format.h"     // for fmt::formatter
+#include "fmt/ostream.h"    // for fmt::ostream_formatter
 
 /*
  * Implementation of Galois action.
@@ -88,3 +90,7 @@ private:
     using impl_ptr = galois_action_impl_base *;
     impl_ptr impl;
 };
+
+namespace fmt {
+    template <> struct formatter<galois_action>: ostream_formatter {};
+}
