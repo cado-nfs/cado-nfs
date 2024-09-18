@@ -1150,6 +1150,10 @@ tests/filter/testsm.p59.index.gz
 tests/filter/testsm.p59.poly
 tests/filter/testsm.p59.purged.gz
 tests/filter/testsm.sh
+tests/filter/test_filter_galois.d20.poly
+tests/filter/test_filter_galois.d20.rels
+tests/filter/test_filter_galois.d20.renumber
+tests/filter/test_filter_galois.sh
 tests/generic_test_sha1_output.sh
 tests/gf2x/CMakeLists.txt
 tests/gf2x/test_cantor.c
@@ -1523,8 +1527,8 @@ utils/filter_io.h
 utils/filter_io.tex
 utils/fix-endianness.c
 utils/fix-endianness.h
-utils/galois_utils.c
-utils/galois_utils.h
+utils/galois_action.cpp
+utils/galois_action.hpp
 utils/gcd.c
 utils/gcd.h
 utils/getprime.c
