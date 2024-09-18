@@ -6,7 +6,7 @@
 set -e
 
 build_tree="$PROJECT_BINARY_DIR"
-REFERENCE_SHA1="8070f6b82b084ff3a2260fd0b9cd2141fe5ed0f5"
+REFERENCE_SHA1="a17f3dfab371fa5e76ac2dc35ca38fd23feb577b"
 
 while [ $# -gt 0 ] ; do
     if [ "$1" = "-b" ] ; then
@@ -48,7 +48,26 @@ if ! "${FG}" ${args}; then
   exit 1
 fi
 
-SHA1=$(cat ${outrels} | grep -v "^#" | sort -n | ${SHA1BIN})
+# Copied from test_dup2.sh
+export LC_ALL=C
+export LANG=C
+export LANGUAGE=C
+
+sort_rels() {
+    read -s -r -d '' perl_code <<- 'EOF'
+        /^[^#]/ or next;
+        chomp($_);
+        my ($ab,@sides) = split(":", $_, 3);
+        for (@sides) {
+            $_ = join(",", sort({ hex($a) <=> hex($b) } split(",",$_)));
+        }
+        print join(":", ($ab, @sides)), "\n";
+        
+EOF
+    perl -ne "$perl_code" "$@" | sort -n
+}
+
+SHA1=$(cat ${outrels} | grep -v "^#" | sort_rels | ${SHA1BIN})
 SHA1="${SHA1%% *}"
 
 echo ""
@@ -61,6 +80,6 @@ if [ "${SHA1}" != "${REFERENCE_SHA1}" ] ; then
       REFMSG=". Set CADO_DEBUG=1 to examine log output"
   fi
   echo "Got SHA1(sort(${outrels}))=${SHA1} but expected ${REFERENCE_SHA1}${REFMSG}"
-  cat ${outrels}
+  cat ${outrels} | grep -v "^#" | sort_rels
   exit 1
 fi
