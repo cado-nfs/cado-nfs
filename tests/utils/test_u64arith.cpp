@@ -1,16 +1,18 @@
 #include "cado.h" // IWYU pragma: keep
 #include <cstdint>
 #include <cinttypes>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include "macros.h"
 #include "tests_common.h"
 #include "utils/u64arith.h"
 #include "misc.h"
 
-void
-test_one_u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
-  const uint64_t b1, const uint64_t b2, const int v) {
+// NOLINTBEGIN(concurrency-mt-unsafe,misc-use-anonymous-namespace)
+
+static void test_one_u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
+  const uint64_t b1, const uint64_t b2, const int v)
+{
   const int r = u64arith_gt_2_2(a1, a2, b1, b2);
   if (v != r) {
     printf("%s: Error, got result %d, but expected %d\n", __func__, v, r);
@@ -18,7 +20,8 @@ test_one_u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
   }
 }
 
-void test_u64arith_gt_2_2() {
+static void test_u64arith_gt_2_2()
+{
   test_one_u64arith_gt_2_2(0,0,0,0,0);
   test_one_u64arith_gt_2_2(1,0,0,0,1);
   test_one_u64arith_gt_2_2(0,1,0,0,1);
@@ -37,7 +40,7 @@ void test_u64arith_gt_2_2() {
   test_one_u64arith_gt_2_2(1,1,1,1,0);
 }
 
-void
+static void
 test_one_u64arith_add_1_2(uint64_t r1, uint64_t r2,
     const uint64_t a, const uint64_t v1, const uint64_t v2) {
   u64arith_add_1_2(&r1, &r2, a);
@@ -48,7 +51,7 @@ test_one_u64arith_add_1_2(uint64_t r1, uint64_t r2,
   }
 }
 
-void
+static void
 test_u64arith_add_1_2() {
   test_one_u64arith_add_1_2(1, 4, 1, 2, 4);
   test_one_u64arith_add_1_2(UINT64_MAX, 1, 1, 0, 2);
@@ -56,7 +59,7 @@ test_u64arith_add_1_2() {
 }
 
 
-void
+static void
 test_one_u64arith_add_2_2(uint64_t r1, uint64_t r2,
     const uint64_t a1, const uint64_t a2, const uint64_t v1, const uint64_t v2) {
   u64arith_add_2_2(&r1, &r2, a1, a2);
@@ -68,7 +71,7 @@ test_one_u64arith_add_2_2(uint64_t r1, uint64_t r2,
 }
 
 
-void
+static void
 test_u64arith_add_2_2() {
   test_one_u64arith_add_2_2(1, 4, 1, 0, 2, 4);
   test_one_u64arith_add_2_2(UINT64_MAX, 1, 1, 0, 0, 2);
@@ -77,11 +80,12 @@ test_u64arith_add_2_2() {
 }
 
 
-void
+static void
 test_one_u64arith_add_2_2_cy(uint64_t r1, uint64_t r2,
     const uint64_t a1, const uint64_t a2, const uint64_t v1, const uint64_t v2,
-    const char vcy) {
-  unsigned char cy = u64arith_add_2_2_cy(&r1, &r2, a1, a2);
+    const char vcy)
+{
+  const char cy = u64arith_add_2_2_cy(&r1, &r2, a1, a2);
   if (r1 != v1 || r2 != v2 || vcy != cy) {
     printf("%s: Error, got result %hhu:%" PRIu64 ":%" PRIu64 ", but expected %hhu:%" PRIu64 ":%" PRIu64 "\n",
         __func__, cy, r2, r1, vcy, v2, v1);
@@ -90,7 +94,7 @@ test_one_u64arith_add_2_2_cy(uint64_t r1, uint64_t r2,
 }
 
 
-void
+static void
 test_u64arith_add_2_2_cy() {
   test_one_u64arith_add_2_2_cy(1, 4, 1, 0, 2, 4, 0);
   test_one_u64arith_add_2_2_cy(UINT64_MAX, 1, 1, 0, 0, 2, 0);
@@ -140,7 +144,7 @@ test_u64arith_addmod_1_1() {
 /* TODO: add tests for u64arith_sub_2_2_ge() */
 /* TODO: add tests for u64arith_submod_1_1() */
 
-void
+static void
 test_one_u64arith_mul_1_1_2(const uint64_t a, const uint64_t b,
     const uint64_t v1, const uint64_t v2) {
   uint64_t r1, r2;
@@ -152,18 +156,18 @@ test_one_u64arith_mul_1_1_2(const uint64_t a, const uint64_t b,
   }
 }
 
-void
+static void
 test_u64arith_mul_1_1_2() {
   test_one_u64arith_mul_1_1_2(1, 2, 2, 0);
   uint64_t a = 1, b = 1;
-  a <<= 31; b <<= 33;
+  a <<= 31U; b <<= 33U;
   test_one_u64arith_mul_1_1_2(a, b, 0, 1);
   test_one_u64arith_mul_1_1_2(UINT64_MAX, UINT64_MAX - 1, 2, UINT64_MAX - 2);
   test_one_u64arith_mul_1_1_2(UINT64_MAX, UINT64_MAX, 1, UINT64_MAX - 1);
 }
 
 
-void
+static void
 test_one_u64arith_sqr_1_2(const uint64_t a, const uint64_t v1, const uint64_t v2) {
   uint64_t r1, r2;
   u64arith_sqr_1_2 (&r1, &r2, a);
@@ -175,17 +179,17 @@ test_one_u64arith_sqr_1_2(const uint64_t a, const uint64_t v1, const uint64_t v2
 }
 
 
-void
+static void
 test_u64arith_sqr_1_2() {
   test_one_u64arith_sqr_1_2(2, 4, 0);
   uint64_t a = 1;
-  a <<= 32;
+  a <<= 32U;
   test_one_u64arith_sqr_1_2(a, 0, 1);
   test_one_u64arith_sqr_1_2(UINT64_MAX, 1, UINT64_MAX - 1);
 }
 
 
-void
+static void
 test_one_u64arith_reciprocal_for_div(const uint64_t d) {
   uint64_t q, r;
   const uint64_t v = u64arith_reciprocal_for_div(d);
@@ -198,9 +202,9 @@ test_one_u64arith_reciprocal_for_div(const uint64_t d) {
   /* printf("u64arith_reciprocal_for_div(%" PRIu64 ") = %" PRIu64 "\n", d, v); */
 }
 
-void
+static void
 test_u64arith_reciprocal_for_div() {
-  const uint64_t msb = UINT64_C(1) << 63;
+  const uint64_t msb = UINT64_C(1) << 63U;
   unsigned long i, iter = 100;
   tests_common_get_iter(&iter);
   for (i = 0; i < iter; i++) {
@@ -211,7 +215,7 @@ test_u64arith_reciprocal_for_div() {
   }
 }
 
-void
+static void
 test_one_u64arith_divqr_2_1_1(const uint64_t b, const uint64_t cq, const uint64_t cr)
 {
   uint64_t a1, a2, q, r;
@@ -226,7 +230,7 @@ test_one_u64arith_divqr_2_1_1(const uint64_t b, const uint64_t cq, const uint64_
   }
 }
 
-void
+static void
 test_u64arith_divqr_2_1_1()
 {
   test_one_u64arith_divqr_2_1_1(123, 1, 0);
@@ -235,7 +239,7 @@ test_u64arith_divqr_2_1_1()
   test_one_u64arith_divqr_2_1_1(UINT64_MAX, UINT64_MAX, UINT64_MAX - 1);
 }
 
-void
+static void
 test_one_u64arith_reciprocal_for_div_3by2(const uint64_t d0, const uint64_t d1) {
     uint64_t t, p0, p1, p2;
     const uint64_t v = u64arith_reciprocal_for_div_3by2(d0, d1);
@@ -276,8 +280,9 @@ test_one_u64arith_reciprocal_for_div_3by2(const uint64_t d0, const uint64_t d1) 
     /* printf("u64arith_reciprocal_for_div_3by2(" PRIu64 ":%" PRIu64 ") = %" PRIu64 "\n", __func__, d0, d1, v); */
 }
 
-void test_u64arith_reciprocal_for_div_3by2(const unsigned long iter) {
-    const uint64_t msb = UINT64_C(1) << 63;
+static void test_u64arith_reciprocal_for_div_3by2(const unsigned long iter)
+{
+    const uint64_t msb = UINT64_C(1) << 63U;
     test_one_u64arith_reciprocal_for_div_3by2(0, msb);
     test_one_u64arith_reciprocal_for_div_3by2(0, UINT64_MAX);
     test_one_u64arith_reciprocal_for_div_3by2(UINT64_MAX, UINT64_MAX);
@@ -290,7 +295,7 @@ void test_u64arith_reciprocal_for_div_3by2(const unsigned long iter) {
     }
 }
 
-void test_one_u64arith_divqr_3_2_1_recip_precomp(
+static void test_one_u64arith_divqr_3_2_1_recip_precomp(
     const uint64_t q, const uint64_t d0, const uint64_t d1, const uint64_t r0, const uint64_t r1) 
 {
     /* D = d0 + 2^64*d1, R = r0 + 2^64*r1 */
@@ -320,7 +325,8 @@ void test_one_u64arith_divqr_3_2_1_recip_precomp(
     }
 }
 
-void test_u64arith_divqr_3_2_1_recip_precomp(const unsigned long iter) {
+static void test_u64arith_divqr_3_2_1_recip_precomp(const unsigned long iter)
+{
     test_one_u64arith_divqr_3_2_1_recip_precomp(1, 1, 1, 0, 1);
     for (unsigned long i = 0; i < iter; i++) {
         const uint64_t q = u64_random(state),
@@ -335,7 +341,6 @@ void test_u64arith_divqr_3_2_1_recip_precomp(const unsigned long iter) {
     }
 }
 
-
 static void test_one_u64arith_div2mod(const uint64_t a, const uint64_t m) {
     uint64_t r, t;
     r = u64arith_div2mod(a, m);
@@ -346,10 +351,10 @@ static void test_one_u64arith_div2mod(const uint64_t a, const uint64_t m) {
     }
 }
 
-void test_u64arith_div2mod(unsigned long iter) {
+static void test_u64arith_div2mod(unsigned long iter) {
     for (unsigned long i = 0; i < iter; i++) {
         const uint64_t a = u64_random(state);
-        const uint64_t m = u64_random(state) | 1;
+        const uint64_t m = u64_random(state) | UINT64_C(1);
         test_one_u64arith_div2mod(a % m, m);
     }
 }
@@ -384,5 +389,7 @@ main (int argc, const char *argv[])
   test_u64arith_divqr_3_2_1_recip_precomp(iter);
   test_u64arith_div2mod(iter);
   tests_common_clear();
-  exit (EXIT_SUCCESS);
+  return EXIT_SUCCESS;
 }
+
+// NOLINTEND(concurrency-mt-unsafe,misc-use-anonymous-namespace)

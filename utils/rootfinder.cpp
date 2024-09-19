@@ -584,6 +584,7 @@ mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, mpz_srcptr n, gmp_randstate_p
         cxx_mpz p;
         mpz_set(p, n);
         std::vector<cxx_mpz> roots_p = mpz_poly_roots(F, p, rstate);
+        // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,hicpp-no-malloc,cppcoreguidelines-pro-type-cstyle-cast)
         *rp = (mpz_t *) malloc(roots_p.size() * sizeof(mpz_t));
         for(unsigned int i = 0 ; i < roots_p.size() ; i++)
             mpz_init_set((*rp)[i], roots_p[i]);
@@ -664,7 +665,7 @@ mpz_poly_roots_gen (mpz_t **rp, mpz_poly_srcptr F, mpz_srcptr n, gmp_randstate_p
     }
 
     if (results.empty()) {
-        *rp = NULL;
+        *rp = nullptr;
         return 0;
     }
     
