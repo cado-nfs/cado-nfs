@@ -47,10 +47,12 @@ template<typename T> struct call_dtor_s {
     T x;
     explicit call_dtor_s(T x): x(x) {}
     ~call_dtor_s() { x(); }
-    call_dtor_s(call_dtor_s&&) = delete;
     call_dtor_s& operator=(call_dtor_s&&) = delete;
     call_dtor_s(call_dtor_s const &) = delete;
     call_dtor_s& operator=(call_dtor_s const &) = delete;
+
+    // move works
+    call_dtor_s(call_dtor_s&&) noexcept = default;
 };
 template<typename T> call_dtor_s<T> call_dtor(T x) { return call_dtor_s<T>(x); }
 
