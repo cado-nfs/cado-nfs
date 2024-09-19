@@ -1646,7 +1646,7 @@ main (int argc, char *argv[])
           {
             fprintf (stderr, "Error, no merge done while n_possible_merges > 0\n");
             fprintf (stderr, "Please check the entries in your purged file are sorted\n");
-            exit (EXIT_FAILURE);
+            exit(EXIT_FAILURE);         // NOLINT(concurreny-mt-unsafe)
           }
 
 	/* settings for next pass */
@@ -1658,7 +1658,7 @@ main (int argc, char *argv[])
 			mat->cwmax ++;
 	}
 
-	if (mat->rem_ncols < 0.66 * mat->ncols) {
+	if (mat->rem_ncols < 0.66 * (double) mat->ncols) {
 	  static int recompress_pass = 0;
 	  printf("============== Recompress %d ==============\n", ++recompress_pass);
 	  recompress(mat, jmin);
