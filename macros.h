@@ -335,6 +335,14 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,(X),(
 #endif
 #endif
 
+#ifndef ATTRIBUTE_NODISCARD
+#if defined(__cplusplus) && __cplusplus >= 202002L
+#define ATTRIBUTE_NODISCARD [[nodiscard]]
+#else
+#define ATTRIBUTE_NODISCARD
+#endif
+#endif
+
 #ifndef ATTRIBUTE_DEPRECATED
 #if GNUC_VERSION_ATLEAST(3,1,1)
 #define ATTRIBUTE_DEPRECATED __attribute__ ((deprecated))
