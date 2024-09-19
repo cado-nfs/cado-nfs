@@ -28,6 +28,7 @@ void bit_vector_set(bit_vector_ptr b, int s)
 {
     ASSERT(s == 0 || s == 1);
     if (!b->n) return;
+    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     memset(b->p, -s, iceildiv(b->n, BV_BITS) * sizeof(bv_t));
     /* For the last byte, put the high bits to 0 if the bitmap count does not
      * correspond to an integer number of words */
@@ -118,7 +119,7 @@ size_t bit_vector_popcount(bit_vector_ptr b)
     size_t z = iceildiv(b->n, BV_BITS);
     for(size_t i = 0 ; i < z ; i++) {
         bv_t x = b->p[i];
-        for( ; x ; x>>=8) w+=hamming_weight[x&255];
+        for( ; x ; x>>=8U) w+=hamming_weight[x&255U];
     }
     return w;
 }

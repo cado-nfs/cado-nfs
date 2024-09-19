@@ -5,8 +5,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define BV_BITS 64      // since we're using uint64_t's
-#define LN2_BV_BITS 6   // 2^^LN2_BV_BITS = BV_BITS
+#define BV_BITS 64U      // since we're using uint64_t's
+#define LN2_BV_BITS 6U   // 2^^LN2_BV_BITS = BV_BITS
 /* Changing bv_t to something else is possibly dangerous and should not
  * be taken lightly. Some code down the line may make indirect
  * assumptions on bv_t being uint64_t */

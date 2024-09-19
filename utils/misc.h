@@ -31,10 +31,10 @@ double nprimes_interval(double p0, double p1);
 uint64_t u64_random(gmp_randstate_t buf);
 int64_t i64_random(gmp_randstate_t buf);
 
-#define UMAX(A) (0xffffffffffffffffULL >>((8-sizeof(A))<<3))
-#define SMAX(A) (0x7fffffffffffffffLL  >>((8-sizeof(A))<<3))
+#define UMAX(A) (0xffffffffffffffffULL >>((8-sizeof(A))<<3U))
+#define SMAX(A) (0x7fffffffffffffffLL  >>((8-sizeof(A))<<3U))
 #define UMIN(A) (0)
-#define SMIN(A) (1ULL<< ((sizeof(A)<<3)-1))
+#define SMIN(A) (1ULL<< ((sizeof(A)<<3U)-1))
 
 /* uintmax_t is guaranteed to be larger or equal to uint64_t */
 #define strtouint64(nptr,endptr,base) (uint64_t) strtoumax(nptr,endptr,base)
@@ -97,7 +97,7 @@ static inline unsigned long next_power_of_2(unsigned long x)
     /* round x to the next power of two */
     for( ; x & (x - 1) ; ) {
         unsigned long low = x ^ (x - 1);
-        x += (low >> 1) + 1;
+        x += (low >> 1U) + 1;
     }
     return x;
 }
@@ -107,7 +107,7 @@ static inline unsigned long next_power_of_2(unsigned long x)
    lines aligned on modern X86, so dst/src/lg & 0x3F = 0 */
 static inline void aligned_medium_memcpy(void *dst, void *src, size_t lg) {
 #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM
-  size_t lg_8bytes = lg >> 3;
+  size_t lg_8bytes = lg >> 3U;
   __asm__ __volatile__ ("cld\nrep movsq\n":"+D"(dst),"+S"(src),"+c"(lg_8bytes));
 #else
   memcpy(dst,src,lg);
@@ -121,17 +121,17 @@ static inline void aligned_medium_memcpy(void *dst, void *src, size_t lg) {
 #define cado_clz(x)          __builtin_clz(x)
 #else
 /* provide slow fallbacks */
-static inline int cado_clzll(unsigned long long x)
+static inline unsigned int cado_clzll(unsigned long long x)
 {
 #if ULONGLONG_BITS == 64
         static const int t[4] = { 2, 1, 0, 0 };
         int a = 0;
         int res;
-        if (x >> 32) { a += 32; x >>= 32; }
-        if (x >> 16) { a += 16; x >>= 16; }
-        if (x >>  8) { a +=  8; x >>=  8; }
-        if (x >>  4) { a +=  4; x >>=  4; }
-        if (x >>  2) { a +=  2; x >>=  2; }
+        if (x >> 32U) { a += 32; x >>= 32U; }
+        if (x >> 16U) { a += 16; x >>= 16U; }
+        if (x >>  8U) { a +=  8; x >>=  8U; }
+        if (x >>  4U) { a +=  4; x >>=  4U; }
+        if (x >>  2U) { a +=  2; x >>=  2U; }
         res = 64 - 2 - a + t[x];
         return res;
 #else
@@ -139,31 +139,31 @@ static inline int cado_clzll(unsigned long long x)
 #endif
 }
 
-static inline int cado_clzl(unsigned long x)
+static inline unsigned int cado_clzl(unsigned long x)
 {
         static const int t[4] = { 2, 1, 0, 0 };
         int a = 0;
         int res;
 #if ULONG_BITS == 64
-        if (x >> 32) { a += 32; x >>= 32; }
+        if (x >> 32U) { a += 32; x >>= 32U; }
 #endif
-        if (x >> 16) { a += 16; x >>= 16; }
-        if (x >>  8) { a +=  8; x >>=  8; }
-        if (x >>  4) { a +=  4; x >>=  4; }
-        if (x >>  2) { a +=  2; x >>=  2; }
+        if (x >> 16U) { a += 16; x >>= 16U; }
+        if (x >>  8U) { a +=  8; x >>=  8U; }
+        if (x >>  4U) { a +=  4; x >>=  4U; }
+        if (x >>  2U) { a +=  2; x >>=  2U; }
         res = GMP_LIMB_BITS - 2 - a + t[x];
         return res;
 }
 
 static inline int cado_clz(unsigned int x)
 {
-        static const int t[4] = { 2, 1, 0, 0 };
+        static const unsigned int t[4] = { 2, 1, 0, 0 };
         int a = 0;
         int res;
-        if (x >> 16) { a += 16; x >>= 16; }
-        if (x >>  8) { a +=  8; x >>=  8; }
-        if (x >>  4) { a +=  4; x >>=  4; }
-        if (x >>  2) { a +=  2; x >>=  2; }
+        if (x >> 16U) { a += 16; x >>= 16U; }
+        if (x >>  8U) { a +=  8; x >>=  8U; }
+        if (x >>  4U) { a +=  4; x >>=  4U; }
+        if (x >>  2U) { a +=  2; x >>=  2U; }
         res = 30 - a + t[x];
         return res;
 }
@@ -178,15 +178,15 @@ static inline int cado_clz(unsigned int x)
 /* the following code is correct because if x = 0...0abc10...0, then
    -x = ~x + 1, where ~x = 1...1(1-a)(1-b)(1-c)01...1, thus
    -x = 1...1(1-a)(1-b)(1-c)10...0, and x & (-x) = 0...000010...0 */
-static inline int cado_ctzll(unsigned long long x)
+static inline unsigned int cado_ctzll(unsigned long long x)
 {
   return (ULONGLONG_BITS - 1) - cado_clzll(x & - x);
 }
-static inline int cado_ctzl(unsigned long x)
+static inline unsigned int cado_ctzl(unsigned long x)
 {
   return (ULONG_BITS - 1) - cado_clzl(x & - x);
 }
-static inline int cado_ctz(unsigned int x)
+static inline unsigned int cado_ctz(unsigned int x)
 {
   return (ULONG_BITS - 1) - cado_clzl(x & - x);
 }
@@ -202,10 +202,10 @@ static inline int cado_ctz(unsigned int x)
 static inline int cado_parityll(unsigned long long x)
 {
 #if ULONGLONG_BITS == 64
-    x ^= x >> 32;
-    x ^= x >> 16;
-    x ^= x >> 8;
-    x ^= x >> 4;
+    x ^= x >> 32U;
+    x ^= x >> 16U;
+    x ^= x >> 8U;
+    x ^= x >> 4U;
     int t[16] = { 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0 };
     return t[x&15];
 #else
@@ -215,9 +215,9 @@ static inline int cado_parityll(unsigned long long x)
 #endif
 
 #if ULONGLONG_BITS == 64
-static inline int cado_ctz64(uint64_t x) { return cado_ctzll(x); }
-static inline int cado_clz64(uint64_t x) { return cado_clzll(x); }
-static inline int cado_parity64(uint64_t x) { return cado_parityll(x); }
+static inline unsigned int cado_ctz64(uint64_t x) { return cado_ctzll(x); }
+static inline unsigned int cado_clz64(uint64_t x) { return cado_clzll(x); }
+static inline unsigned int cado_parity64(uint64_t x) { return cado_parityll(x); }
 #else
 #error "need proper equivalents for cado_ctz64 & friends"
 #endif
@@ -291,7 +291,7 @@ static inline T next_power_of_2(T x)
      *   for(T c ; (c = x & (x-1)) != 0 ; x = c);
      *   return x;
      * }
-     * next_power_of_2(x) { return previous_power_of_two(x-1)<<1; }
+     * next_power_of_2(x) { return previous_power_of_two(x-1)<<1U; }
      */
     static_assert(
             std::is_same<T, unsigned long>::value ||
@@ -301,7 +301,7 @@ static inline T next_power_of_2(T x)
     /* round x to the next power of two */
     for( ; x & (x - 1) ; ) {
         T low = x ^ (x - 1);
-        x += (low >> 1) + 1;
+        x += (low >> 1U) + 1;
     }
     return x;
 }

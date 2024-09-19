@@ -8,8 +8,8 @@ class fd_streambuf : public std::streambuf
 {
     public:
     static constexpr const size_t bufferSize = BUFSIZ;
-    fd_streambuf(int d = -1);
-    ~fd_streambuf();
+    explicit fd_streambuf(int d = -1);
+    ~fd_streambuf() override;
     int fd() const { return fd_; }
     // void fd(int v);
     void close(); // { fd(-1); }
@@ -23,6 +23,12 @@ class fd_streambuf : public std::streambuf
     int fd_;
     char *readBuf, *writeBuf;
     friend class cado_pipe_streambuf;
+
+    public:
+    fd_streambuf(fd_streambuf const &) = delete;
+    fd_streambuf(fd_streambuf &&) = delete;
+    fd_streambuf& operator=(fd_streambuf const &) = delete;
+    fd_streambuf& operator=(fd_streambuf &&) = delete;
 };
 
 #endif /* CXX_FDSTREAMBUF_HPP_ */

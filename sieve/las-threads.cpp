@@ -37,7 +37,7 @@ reservation_array<T>::allocate_buckets(las_memory_accessor & memory, int n_bucke
             timetree_t & timer(aux.th[worker->rank()].timer);
             ENTER_THREAD_TIMER(timer);
 #ifndef DISABLE_TIMINGS
-            timetree_t::accounting_sibling dummy(timer, tdict_slot_for_alloc_buckets);
+            const timetree_t::accounting_sibling dummy(timer, tdict_slot_for_alloc_buckets);
 #endif
             TIMER_CATEGORY(timer, bookkeeping());
             B.allocate_memory(memory, n_bucket, ratio / n, logI);
