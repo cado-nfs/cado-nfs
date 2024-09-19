@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
+#include <string>
 #include "macros.h"
 
 /* Base class with private copy-constructor and assignment operator.
