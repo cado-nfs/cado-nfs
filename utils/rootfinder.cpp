@@ -76,50 +76,6 @@ mpz_poly_roots_ulong (unsigned long *r, mpz_poly_srcptr F, unsigned long p, gmp_
 }
 
 
-
-/* Note that parallelizing this makes no sense. The payload is too small.
- */
-unsigned int
-mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstate_ptr rstate)
-{
-    /* This is glue around poly_roots_ulong, nothing more. When uint64
-       is larger than ulong, we call mpz_poly_roots_mpz as a fallback */
-
-    unsigned int n;
-
-    if (F->deg <= 0) {
-        n = 0;
-#if ULONG_BITS < 64
-    } else if (p > (uint64_t) ULONG_MAX) {
-        cxx_mpz pp = p;
-        if (r == NULL)
-          n = mpz_poly_roots_mpz (nullptr, F, pp, rstate);
-        else {
-              std::vector<cxx_mpz> rr(F->deg, cxx_mpz());
-              n = mpz_poly_roots_mpz (rr, F, pp, rstate);
-              for (unsigned int i = 0; i < n; i++)
-                  r[i] = mpz_get_uint64 (rr[i]);
-        }
-#endif
-    } else if (!r) {
-        n = mpz_poly_roots_ulong (nullptr, F, p, rstate);
-    } else if (sizeof (unsigned long) != sizeof (uint64_t)) {
-        auto rr = std::unique_ptr<unsigned long>(new unsigned long[F->deg]);
-        n = mpz_poly_roots_ulong (rr.get(), F, p, rstate);
-        for(unsigned int i = 0 ; i < n ; i++)
-            r[i] = rr.get()[i];
-    } else {
-        /* OS X wants to nitpick about unsigned long and unsigned long
-         * long (i.e. uint64_t), which are both 64-bit types, not being
-         * accessible with identical pointer. It's slightly annoying.
-         */
-        n = mpz_poly_roots_ulong ((unsigned long *) r, F, p, rstate);
-    }
-    return n;
-}
-
-
-
 /* Assuming f is a (squarefree) product of linear factors mod p, splits it
    and put the corresponding roots mod p in r[]. Return number of roots
    which should be degree of f. Assumes p is odd, and deg(f) >= 1. */
@@ -498,6 +454,46 @@ std::vector<uint64_t> mpz_poly_roots<uint64_t>(cxx_mpz_poly const & f, uint64_t 
     return tmp;
 }
 #endif
+
+/* Note that parallelizing this makes no sense. The payload is too small.
+ */
+unsigned int
+mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstate_ptr rstate)
+{
+    /* This is glue around poly_roots_ulong, nothing more. When uint64
+       is larger than ulong, we call the mpz version as a fallback */
+
+    unsigned int n;
+
+    if (F->deg <= 0) {
+        n = 0;
+#if ULONG_BITS < 64
+    } else if (p > (uint64_t) ULONG_MAX) {
+        std::vector<cxx_mpz> roots_p = mpz_poly_roots(F, cxx_mpz(p), rstate);
+
+        if (r)
+            for (size_t i = 0; i < roots_p.size(); i++)
+                r[i] = mpz_get_uint64 (roots_p[i]);
+        return roots_p.size();
+#endif
+    } else if (!r) {
+        n = mpz_poly_roots_ulong (nullptr, F, p, rstate);
+    } else if (sizeof (unsigned long) != sizeof (uint64_t)) {
+        auto rr = std::unique_ptr<unsigned long[]>(new unsigned long[F->deg]);
+        n = mpz_poly_roots_ulong (rr.get(), F, p, rstate);
+        for(unsigned int i = 0 ; i < n ; i++)
+            r[i] = rr.get()[i];
+    } else {
+        /* OS X wants to nitpick about unsigned long and unsigned long
+         * long (i.e. uint64_t), which are both 64-bit types, not being
+         * accessible with identical pointer. It's slightly annoying.
+         */
+        n = mpz_poly_roots_ulong ((unsigned long *) r, F, p, rstate);
+    }
+    return n;
+}
+
+
 
 #if 0
 int roots_for_composite_q(mpz_t* roots, mpz_poly_srcptr f,
