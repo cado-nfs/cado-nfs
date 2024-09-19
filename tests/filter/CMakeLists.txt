@@ -48,4 +48,5 @@ cado_divert_test(test_dup2${sage_opt} c105_30004
     -dl
     -S daa017e17f50607820e7896dcc3a05370364b3b4
     -R 2959973f1
+    TIMEOUT 60
     )
