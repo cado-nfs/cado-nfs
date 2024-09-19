@@ -69,6 +69,16 @@ project_package_selection() {
             exit 1
         fi
     fi
+   
+    # bzip2 is used in the tests, but after all it makes sense that we
+    # pay attention to our good support of some compression tool not
+    # being available...
+    #
+    # debian_packages="$debian_packages     bzip2"
+    # opensuse_packages="$opensuse_packages bzip2"
+    # fedora_packages="$fedora_packages     bzip2"
+    # centos_packages="$centos_packages     bzip2"
+    # alpine_packages="$alpine_packages     bzip2"
 }
 
 # Note: most of the interesting stuff is in ci.bash
