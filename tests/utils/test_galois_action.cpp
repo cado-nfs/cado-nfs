@@ -12,8 +12,12 @@ test_galois_apply_one(galois_action const & G,
     std::vector<unsigned long> P { 2, 3, 5, 11, 23, 101 };
 
     for (unsigned long p: P) {
-        if (p == 2 && G.get_order() == 4)
-            continue; /* skip 2 for action of order 4, very special case */
+        if ((p == 2 && (G.get_order() == 4 || G.get_order() == 6))
+                || (p == 3 && G.get_order() == 6))
+            /* skip 2 for action of order 4 and 6, skip 3 for action
+             * of order 6: very special case
+             */
+            continue;
         for (unsigned long r = 0; r <= p; r++) {
             unsigned long sigma_r = G.apply(r, p);
             bool b;
@@ -98,7 +102,6 @@ test_galois_apply()
             return ((r*r+1) % p) == 0;
     };
     ret &= test_galois_apply_one(G41, is_fixed_point_41);
-    return ret;
 
     /* galois action x->-(2*x+1)/(x-1): fixed points are s.t. r^2+r+1 mod p == 0 */
     galois_action G61("autom6.1");
