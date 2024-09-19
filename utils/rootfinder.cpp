@@ -84,45 +84,28 @@ mpz_poly_roots_uint64 (uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstat
 {
     /* This is glue around poly_roots_ulong, nothing more. When uint64
        is larger than ulong, we call mpz_poly_roots_mpz as a fallback */
+
     unsigned int n;
 
-    if (F->deg <= 0)
-        return 0;
-
+    if (F->deg <= 0) {
+        n = 0;
 #if ULONG_BITS < 64
-    if (p > (uint64_t) ULONG_MAX)
-      {
-        mpz_t pp;
-        mpz_init (pp);
-        mpz_set_uint64 (pp, p);
+    } else if (p > (uint64_t) ULONG_MAX) {
+        cxx_mpz pp = p;
         if (r == NULL)
-          n = mpz_poly_roots_mpz (NULL, F, pp, rstate);
-        else
-          {
-            mpz_t *rr;
-            rr = (mpz_t*) malloc ((F->deg + 1) * sizeof (mpz_t));
-            for (int i = 0; i <= F->deg; i++)
-              mpz_init (rr[i]);
-            n = mpz_poly_roots_mpz (rr, F, pp, rstate);
-            for (int i = 0; i <= F->deg; i++)
-              {
-                if (i < n)
+          n = mpz_poly_roots_mpz (nullptr, F, pp, rstate);
+        else {
+              std::vector<cxx_mpz> rr(F->deg, cxx_mpz());
+              n = mpz_poly_roots_mpz (rr, F, pp, rstate);
+              for (unsigned int i = 0; i < n; i++)
                   r[i] = mpz_get_uint64 (rr[i]);
-                mpz_clear (rr[i]);
-              }
-            free (rr);
-          }
-        mpz_clear (pp);
-        return n;
-      }
+        }
 #endif
-
-    if (!r)
-      return mpz_poly_roots_ulong (nullptr, F, p, rstate);
-
-    if (sizeof (unsigned long) != sizeof (uint64_t)) {
+    } else if (!r) {
+        n = mpz_poly_roots_ulong (nullptr, F, p, rstate);
+    } else if (sizeof (unsigned long) != sizeof (uint64_t)) {
         auto rr = std::unique_ptr<unsigned long>(new unsigned long[F->deg]);
-        const unsigned int n = mpz_poly_roots_ulong (rr.get(), F, p, rstate);
+        n = mpz_poly_roots_ulong (rr.get(), F, p, rstate);
         for(unsigned int i = 0 ; i < n ; i++)
             r[i] = rr.get()[i];
     } else {

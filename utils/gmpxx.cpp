@@ -3,8 +3,9 @@
 #include <istream>
 #include <ostream>
 #include <string>
-#include <stdlib.h>
+#include <cstdlib>
 #include "gmpxx.hpp"
+#include "utils_cxx.hpp"
 
 using namespace std;
 
@@ -14,7 +15,8 @@ using namespace std;
  * We make no effort to do this very accurately, though.
  */
 
-static inline int getbase(ostream const& o)
+namespace {
+inline int getbase(ostream const& o)
 {
     switch(o.flags() & std::ios_base::basefield) {
         case std::ios::hex:
@@ -27,20 +29,21 @@ static inline int getbase(ostream const& o)
             return 10;
     }
 }
+}
+
+#include <memory>
 
 ostream& operator<<(ostream& os, mpz_srcptr x)
 {
-    char * str;
-    os << (str = mpz_get_str(NULL, getbase(os), x));
-    free(str);
+    const unique_ptr<char, free_delete> str(mpz_get_str(nullptr, getbase(os), x));
+    os << str.get();
     return os;
 }
 
 ostream& operator<<(ostream& os, mpq_srcptr x)
 {
-    char * str;
-    os << (str = mpq_get_str(NULL, getbase(os), x));
-    free(str);
+    const unique_ptr<char, free_delete> str(mpq_get_str(nullptr, getbase(os), x));
+    os << str.get();
     return os;
 }
 
