@@ -51,7 +51,7 @@ typedef struct barrier_tag {
 #ifdef	__cplusplus
 extern "C" {
 #endif
-#define BARRIER_SERIAL_THREAD   -1
+#define BARRIER_SERIAL_THREAD   (-1)
 extern int barrier_init (barrier_t *, pthread_mutex_t * lock, int);
 extern int barrier_destroy (barrier_t *, pthread_mutex_t * lock);
 extern int barrier_resize(barrier_t * barrier, int count);

@@ -18,19 +18,19 @@
  * About 64K sentences for the optimal.
  */
 // #define SIZE_BUF_REL MAX((1<<(NFR+NNFR+1+(NFR==0))),(1<<6))
-#define SIZE_BUF_REL (1<<15)
+#define SIZE_BUF_REL (1U<<15U)
 
 /* we want the programs to specify in a completely explicit way whether
  * they want stuff in base 10 or 16 */
-#define EARLYPARSE_NEED_AB_DECIMAL              1
-#define EARLYPARSE_NEED_AB_HEXA                 2
-#define EARLYPARSE_NEED_LINE                    4
+#define EARLYPARSE_NEED_AB_DECIMAL              1U
+#define EARLYPARSE_NEED_AB_HEXA                 2U
+#define EARLYPARSE_NEED_LINE                    4U
 /* for reading ideals (e.g. output of las) */
-#define EARLYPARSE_NEED_PRIMES                  8
+#define EARLYPARSE_NEED_PRIMES                  8U
 /* for reading index (i.e. renumber ideal) */
-#define EARLYPARSE_NEED_INDEX                  16
-#define EARLYPARSE_NEED_SM                     32
-#define EARLYPARSE_NEED_SORTED                 64
+#define EARLYPARSE_NEED_INDEX                  16U
+#define EARLYPARSE_NEED_SM                     32U
+#define EARLYPARSE_NEED_SORTED                 64U
 #define EARLYPARSE_NEED_INDEX_SORTED (EARLYPARSE_NEED_INDEX | EARLYPARSE_NEED_SORTED)
 
 

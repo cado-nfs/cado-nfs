@@ -25,6 +25,7 @@
 /* This is a configuration variable which may be set by the caller (it's
  * possible to bind it to a command-line argument)
  */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 int filter_rels_force_posix_threads = 0;
 
 /*{{{ inflight buffer. See filter_io.tex for documentation. */
@@ -160,7 +161,7 @@ struct status_table {
      * giving me this relation to process).
      */
     inline void catchup_until_mine_completed(csize_t & last_completed, size_t me, int level) {
-        size_t slot = me & (SIZE_BUF_REL-1);
+        const size_t slot = me & (SIZE_BUF_REL-1);
         size_t c = last_completed.load();
         ASSERT(x[slot].load() == (int8_t) (level-1));
         /* The big question is how far we should go. By not exactly answering
@@ -196,10 +197,10 @@ struct status_table {
 template<>
 struct status_table<ifb_locking_lightweight> {
     typedef ifb_locking_lightweight::critical_datatype<size_t>::t csize_t;
-    inline void catchup(csize_t & last_completed, size_t last_scheduled, int) {
+    static inline void catchup(csize_t & last_completed, size_t last_scheduled, int) {
         ASSERT_ALWAYS(last_completed.load() == last_scheduled);
     }
-    inline void catchup_until_mine_completed(csize_t & last_completed, size_t, int) {
+    static inline void catchup_until_mine_completed(csize_t & last_completed, size_t, int) {
         last_completed.increment();
     }
     inline void update_shouldbealreadyok(size_t, int) {}
@@ -223,8 +224,13 @@ struct inflight_rels_buffer {
     typename locking::cond_t bored[n];
     int active[n];     /* number of active threads */
 
-    inflight_rels_buffer(int nthreads_total);
+    explicit inflight_rels_buffer(int nthreads_total);
     ~inflight_rels_buffer();
+
+    inflight_rels_buffer(inflight_rels_buffer const&) = delete;
+    inflight_rels_buffer(inflight_rels_buffer &&) = delete;
+    inflight_rels_buffer& operator=(inflight_rels_buffer const&) = delete;
+    inflight_rels_buffer& operator=(inflight_rels_buffer &&) = delete;
 
     void drain();
     earlyparsed_relation_ptr schedule(int);
@@ -382,11 +388,11 @@ inflight_rels_buffer<locking, n>::schedule(int k)
         active[k]--;
         locking::signal_broadcast(bored + k);
         locking::unlock(m + k);
-        return NULL;
+        return nullptr;
     }
     // ASSERT(scheduled[k] < a + completed[prev]);
     scheduled[k].increment();
-    size_t slot = s & (SIZE_BUF_REL - 1);
+    const size_t slot = s & (SIZE_BUF_REL - 1);
     earlyparsed_relation_ptr rel = rels[slot];
     status.update_shouldbealreadyok(s, k-1);
     locking::unlock(m + prev);
@@ -419,7 +425,7 @@ inflight_rels_buffer<locking, n>::complete(int k,
          *          xN < ck-s + N <= (x+1) N
          *
          */
-        size_t c = completed[k].load();
+        const size_t c = completed[k].load();
         my_absolute_index = slot;
         my_absolute_index += ((c - slot + SIZE_BUF_REL - 1) & -SIZE_BUF_REL);
     }
@@ -1114,13 +1120,13 @@ uint64_t filter_rels2_inner(char ** input_files,
      * parsing needs */
 #define _(X) EARLYPARSE_NEED_ ## X      /* convenience */
     if (earlyparse_needed_data & (_(PRIMES) | _(INDEX))) {
-        for (int i = 0 ; i < SIZE_BUF_REL; i++) {
+        for (unsigned int i = 0 ; i < SIZE_BUF_REL; i++) {
             inflight->rels[i]->primes = inflight->rels[i]->primes_data;
             inflight->rels[i]->nb_alloc = NB_PRIMES_OPT;
         }
     }
     if (earlyparse_needed_data & _(LINE)) {
-        for (int i = 0 ; i < SIZE_BUF_REL; i++) {
+        for (unsigned int i = 0 ; i < SIZE_BUF_REL; i++) {
             inflight->rels[i]->line = (char*) malloc(RELATION_MAX_BYTES);
 	    if (inflight->rels[i]->line == NULL)
 	      {
