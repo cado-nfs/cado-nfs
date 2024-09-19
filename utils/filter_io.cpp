@@ -49,10 +49,6 @@ struct ifb_locking_posix {/*{{{*/
     };
     typedef std::mutex  lock_t;
     typedef std::condition_variable   cond_t;
-    static inline void lock_init(lock_t *) { }
-    static inline void lock_clear(lock_t *) { }
-    static inline void cond_init(cond_t *) { }
-    static inline void cond_clear(cond_t *) { }
     static inline void lock(lock_t * m) { m->lock(); }
     static inline void unlock(lock_t * m) { m->unlock(); }
     static inline void wait(cond_t * c, lock_t * m) {
@@ -131,10 +127,6 @@ struct ifb_locking_lightweight {/*{{{*/
     typedef int lock_t;
     typedef int cond_t;
     template<typename T> static inline T next(T a, int) { return a; }
-    static inline void lock_init(lock_t *) {}
-    static inline void lock_clear(lock_t *) {}
-    static inline void cond_init(cond_t *) {}
-    static inline void cond_clear(cond_t *) {}
     static inline void lock(lock_t *) {}
     static inline void unlock(lock_t *) {}
     static inline void wait(cond_t *, lock_t *) { NANOSLEEP(); }
@@ -299,10 +291,6 @@ inflight_rels_buffer<locking, n>::inflight_rels_buffer(int nthreads_total)
     std::fill(active, active + n, 0);
     // std::fill(rels.get(), rels.get() + SIZE_BUF_REL, 0);
     memset(rels.get(), 0, SIZE_BUF_REL * sizeof(earlyparsed_relation));
-    for(int i = 0 ; i < n; i++) {
-        locking::lock_init(m + i);
-        locking::cond_init(bored + i);
-    }
 }/*}}}*/
 /*{{{ ::drain() */
 /* This belongs to the buffer closing process.  The out condition of this
@@ -346,10 +334,6 @@ inflight_rels_buffer<locking, n>::~inflight_rels_buffer()
             free(rels[i]->sm);
         }
         memset(rels[i], 0, sizeof(rels[i]));
-    }
-    for(int i = 0 ; i < n ; i++) {
-        locking::lock_clear(m + i);
-        locking::cond_clear(bored + i);
     }
 }
 /*}}}*/

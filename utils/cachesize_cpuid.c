@@ -26,24 +26,25 @@ static inline uint32_t byte0(uint32_t x) {
   return (x & mask0);
 }
 static inline uint32_t byte1(uint32_t x) {
-  return (x & mask1)>>8;
+  return (x & mask1)>>8U;
 }
 static inline uint32_t byte2(uint32_t x) {
-  return (x & mask2)>>16;
+  return (x & mask2)>>16U;
 }
 static inline uint32_t byte3(uint32_t x) {
-  return (x & mask3)>>24;
+  return (x & mask3)>>24U;
 }
 static inline uint32_t bits_31_22(uint32_t x) {
-  return (x & mask_31_22)>>22;
+  return (x & mask_31_22)>>22U;
 }
 static inline uint32_t bits_21_12(uint32_t x) {
-  return (x & mask_21_12)>>12;
+  return (x & mask_21_12)>>12U;
 }
 static inline uint32_t bits_11_0(uint32_t x) {
   return (x & mask_11_0);
 }
 
+// NOLINTNEXTLINE(readability-non-const-parameter)
 void cpuid(uint32_t res[4], uint32_t op) {
     __asm__ __volatile__(
             "cpuid\n"
@@ -52,6 +53,7 @@ void cpuid(uint32_t res[4], uint32_t op) {
 }
 
 /* variant which sets the ecx register to given value */
+// NOLINTNEXTLINE(readability-non-const-parameter)
 void cpuid2(uint32_t res[4], uint32_t op, uint32_t ecx) {
     __asm__ __volatile__(
             "cpuid\n"
@@ -64,20 +66,20 @@ void vendor(char *str) {
   uint32_t abcd[4], x;
   cpuid(abcd, 0);
   x = abcd[1];
-  str[0] = x & 255; x >>= 8;
-  str[1] = x & 255; x >>= 8;
-  str[2] = x & 255; x >>= 8;
-  str[3] = x & 255;
+  str[0] = (char) (x & 255U); x >>= 8U;
+  str[1] = (char) (x & 255U); x >>= 8U;
+  str[2] = (char) (x & 255U); x >>= 8U;
+  str[3] = (char) (x & 255U);
   x = abcd[3];
-  str[4] = x & 255; x >>= 8;
-  str[5] = x & 255; x >>= 8;
-  str[6] = x & 255; x >>= 8;
-  str[7] = x & 255;
+  str[4] = (char) (x & 255U); x >>= 8U;
+  str[5] = (char) (x & 255U); x >>= 8U;
+  str[6] = (char) (x & 255U); x >>= 8U;
+  str[7] = (char) (x & 255U);
   x = abcd[2];
-  str[8] = x & 255; x >>= 8;
-  str[9] = x & 255; x >>= 8;
-  str[10] = x & 255; x >>= 8;
-  str[11] = x & 255;
+  str[8] = (char) (x & 255U); x >>= 8U;
+  str[9] = (char) (x & 255U); x >>= 8U;
+  str[10] = (char) (x & 255U); x >>= 8U;
+  str[11] = (char) (x & 255U);
   str[12] = '\0';
 }
 
@@ -411,8 +413,12 @@ update_intel_byte (uint32_t c, cache_data_t *data) {
      exit(1);
 #endif
      // (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
-     data->L1Data_size = (bits_31_22(res[1]) + 1) *
-       (bits_21_12(res[1]) + 1) * (bits_11_0(res[1]) + 1) * (res[2] + 1) / 1024;
+     size_t s = 1;
+     s *= bits_31_22(res[1]) + 1;
+     s *= bits_21_12(res[1]) + 1;
+     s *= bits_11_0(res[1]) + 1;
+     s *= res[2] + 1;
+     data->L1Data_size = (int) (s >> 10U);
      break;
    }
    default:
@@ -469,24 +475,24 @@ static int print_amd_cache(int verbose) {
   init_cache_data(&data);
 
   cpuid(res, 0x80000005);
-  data.L1Data_size = byte3(res[2]);
-  data.L1Data_line = byte0(res[2]);
-  data.L1Data_assoc = byte2(res[2]);
+  data.L1Data_size = (int) byte3(res[2]);
+  data.L1Data_line = (int) byte0(res[2]);
+  data.L1Data_assoc = (int) byte2(res[2]);
   data.DataTLB_pagesize = 4; // always the same for AMD, it seems.
-  data.DataTLB_entries = byte2(res[1]);
-  data.DataTLB_assoc = byte3(res[1]);
-  data.L1Instr_size = byte3(res[3]);
-  data.L1Instr_line = byte0(res[3]);
-  data.L1Instr_assoc = byte2(res[3]);
+  data.DataTLB_entries = (int) byte2(res[1]);
+  data.DataTLB_assoc = (int) byte3(res[1]);
+  data.L1Instr_size = (int) byte3(res[3]);
+  data.L1Instr_line = (int) byte0(res[3]);
+  data.L1Instr_assoc = (int) byte2(res[3]);
   data.InstrTLB_pagesize = 4; // always the same for AMD, it seems.
-  data.InstrTLB_entries = byte0(res[1]);
-  data.InstrTLB_assoc = byte1(res[1]);
+  data.InstrTLB_entries = (int) byte0(res[1]);
+  data.InstrTLB_assoc = (int) byte1(res[1]);
 
   cpuid(res, 0x80000000);
   if (res[0] >= 0x80000006) {
     cpuid(res, 0x80000006);
-    data.L2_size = res[2]>>16;
-    data.L3_size = 512*(res[3]>>18);
+    data.L2_size = (int) (res[2] >> 16U);
+    data.L3_size = (int) (512*(res[3]>>18U));
   }
 
   if (verbose)
