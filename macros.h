@@ -98,7 +98,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define DIE_ERRNO_DIAG(tst, fmt, ...) do {				\
     if (UNLIKELY(tst)) {				        	\
         fprintf(stderr, fmt ": %s\n", __VA_ARGS__, strerror(errno));    \
-        exit(1);					        	\
+        abort();					        	\
     }							        	\
 } while (0)
 
