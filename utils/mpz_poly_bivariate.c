@@ -148,7 +148,9 @@ void mpz_poly_bivariate_realloc_x(mpz_poly_bivariate_ptr f, unsigned int nc, int
 {
   ASSERT_ALWAYS(nc <= (unsigned int) INT_MAX);
   if (f->alloc < nc) {
-    f->coeff = (mpz_poly*) realloc(f->coeff, nc * sizeof(mpz_poly));
+    mpz_poly * t = realloc(f->coeff, nc * sizeof(mpz_poly));
+    if (!t) free(f->coeff);
+    f->coeff = t;
     FATAL_ERROR_CHECK(f->coeff == NULL, "not enough memory");
     for (unsigned int i = f->alloc; i < nc; i++) {
       mpz_poly_init(f->coeff[i], dx);
@@ -171,6 +173,7 @@ void mpz_poly_bivariate_clear(mpz_poly_bivariate_ptr f)
     free(f->coeff);
   }
   f->coeff = NULL; /* to avoid a double-free */
+  // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
   memset(f, 0, sizeof(mpz_poly_bivariate_t));
   f->deg_y = -1;
   f->deg_x = -1;

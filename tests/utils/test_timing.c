@@ -117,7 +117,8 @@ int test_seconds_thread()
     }
     generic_mutltithread_test(&test_seconds_thread_subthread, ptrs);
     double s=0;
-    for(int i = 0 ; i < NTHREADS_TEST ; s += timers[i++]);
+    for(int i = 0 ; i < NTHREADS_TEST ; i++)
+        s += timers[i];
     printf("%s %.2f\n", __func__, s);
     return 1;
 }
@@ -157,8 +158,10 @@ int test_thread_seconds_user_sys()
     }
     generic_mutltithread_test(&test_thread_seconds_user_sys_subthread, ptrs);
     double s=0,t=0;
-    for(int i = 0 ; i < NTHREADS_TEST ; s += timers[i++][0]);
-    for(int i = 0 ; i < NTHREADS_TEST ; t += timers[i++][1]);
+    for(int i = 0 ; i < NTHREADS_TEST ; i++) {
+        s += timers[i][0];
+        t += timers[i][1];
+    }
     printf("%s %.2f %.2f\n", __func__, s, t);
     return 1;
 }

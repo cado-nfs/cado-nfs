@@ -225,7 +225,7 @@ void mpz_poly_pow_mod_f_mod_ui(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcpt
 void mpz_poly_pow_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, mpz_srcptr p);
 void mpz_poly_pow_ui_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, unsigned long a, mpz_srcptr p);
 void mpz_poly_derivative(mpz_poly_ptr df, mpz_poly_srcptr f);
-mpz_poly* mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l);
+mpz_poly* mpz_poly_base_modp_init (mpz_poly_srcptr P0, unsigned long p, unsigned long *K, int l);
 void mpz_poly_base_modp_clear (mpz_poly *P, int l);
 void mpz_poly_base_modp_lift(mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk);
 size_t mpz_poly_sizeinbase (mpz_poly_srcptr f, int base);
@@ -238,7 +238,7 @@ void mpz_poly_gcd_mpz (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz
 int mpz_poly_pseudogcd_mpz(mpz_poly_ptr , mpz_poly_ptr , mpz_srcptr , mpz_ptr);
 void mpz_poly_xgcd_mpz(mpz_poly_ptr gcd, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_poly_ptr u, mpz_poly_ptr v, mpz_srcptr p);
 void mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4]);
-void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, const int64_t i, const uint64_t j);
+void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, int64_t i, uint64_t j);
 void mpz_poly_content (mpz_ptr c, mpz_poly_srcptr F);
 int mpz_poly_has_trivial_content (mpz_poly_srcptr F);
 int mpz_poly_divide_by_content (mpz_poly_ptr F);
@@ -308,17 +308,17 @@ int mpz_poly_factor_and_lift_padically(mpz_poly_factor_list_ptr fac, mpz_poly_sr
  */
 struct cxx_mpz_poly {
     mpz_poly x;
-    cxx_mpz_poly() { mpz_poly_init(x, -1); }
+
+    ATTRIBUTE_NODISCARD
     inline int degree() const { return x->deg; } /* handy */
+
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+    cxx_mpz_poly() { mpz_poly_init(x, -1); }
+
     cxx_mpz_poly(mpz_poly_srcptr f) { mpz_poly_init(x, -1); mpz_poly_set(x, f); }
-    ~cxx_mpz_poly() { mpz_poly_clear(x); }
     cxx_mpz_poly(cxx_mpz_poly const & o) {
         mpz_poly_init(x, -1);
         mpz_poly_set(x, o.x);
-    }
-    cxx_mpz_poly & operator=(cxx_mpz_poly const & o) {
-        mpz_poly_set(x, o.x);
-        return *this;
     }
     template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
     cxx_mpz_poly (const T & rhs) {
@@ -342,6 +342,14 @@ struct cxx_mpz_poly {
         return *this;
     }
 #endif
+    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+
+    ~cxx_mpz_poly() { mpz_poly_clear(x); }
+
+    cxx_mpz_poly & operator=(cxx_mpz_poly const & o) {
+        mpz_poly_set(x, o.x);
+        return *this;
+    }
     operator mpz_poly_ptr() { return x; }
     operator mpz_poly_srcptr() const { return x; }
     mpz_poly_ptr operator->() { return x; }

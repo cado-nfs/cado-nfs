@@ -1,6 +1,7 @@
 #ifndef ROPT_PARAM_H
 #define ROPT_PARAM_H
 
+#include <stddef.h>
 
 /* -------------------------
    perhaps no need to change
@@ -91,10 +92,12 @@
 extern "C" {
 #endif
 
-extern unsigned int L1_cachesize;
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+extern size_t L1_cachesize;
 
 /* set once in ropt_io.c and unchanged then */
-extern unsigned int size_tune_sievearray;
+extern size_t size_tune_sievearray;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 extern const unsigned int ropt_primes[];
 

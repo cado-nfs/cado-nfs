@@ -11,8 +11,8 @@
 #include "cado_poly.h"
 #include "portability.h" // IWYU pragma: keep
 
-void
-test_modul_poly_is_irreducible (unsigned long iter)
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+void test_modul_poly_is_irreducible (unsigned long iter)
 {
   modul_poly_t f;
   modulusul_t p;
@@ -66,7 +66,7 @@ test_modul_poly_is_irreducible (unsigned long iter)
 
   while (iter--)
     {
-      d = 1 + gmp_urandomm_ui(state, MAX_DEGREE - 1);
+      d = 1 + (int) gmp_urandomm_ui(state, MAX_DEGREE - 1);
       q = gmp_urandomb_ui(state, 31);
       q = ulong_nextprime (q);
       /* modul_poly_cantor_zassenhaus only works for odd primes */
@@ -96,8 +96,8 @@ test_modul_poly_is_irreducible (unsigned long iter)
   modul_poly_clear (f);
 }
 
-void
-test_modul_poly_roots_ulong (unsigned long iter)
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+void test_modul_poly_roots_ulong (unsigned long iter)
 {
   unsigned long r[MAX_DEGREE];
   int d, i, n;

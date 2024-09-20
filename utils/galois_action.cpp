@@ -546,7 +546,6 @@ public:
                 return CA * (b+a_abs) + CB * (a_abs-(b << 1));
             }
         }
-        return CA * (uint64_t) a + CB * b;
     }
 
     void print_action(std::ostream& os) const final

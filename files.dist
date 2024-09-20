@@ -3,6 +3,7 @@
 # that the union of this file and its companion files.nodist must agree with
 # the list of files known to the SCM.  A further word of caution: wildcards
 # are *NOT* recognized (by the fascist sanity check program).
+.clang-tidy
 .gitlab-ci.yml
 .gitmodules
 AUTHORS
@@ -654,8 +655,8 @@ linalg/bwc/prep.cpp
 linalg/bwc/random_matrix.cpp
 linalg/bwc/random_matrix.hpp
 linalg/bwc/raw_matrix_u32.h
-linalg/bwc/rolling.c
-linalg/bwc/rolling.h
+linalg/bwc/rolling.cpp
+linalg/bwc/rolling.hpp
 linalg/bwc/secure.cpp
 linalg/bwc/solib-naming.h.in
 linalg/bwc/strassen-thresholds.hpp
@@ -1130,6 +1131,7 @@ sqrt/knapsack.h
 sqrt/powers_of_p.cpp
 sqrt/powers_of_p.h
 sqrt/sqrt.cpp
+tests/.clang-tidy
 tests/CMakeLists.txt
 tests/README
 tests/do_with_mpi.sh
@@ -1146,14 +1148,14 @@ tests/filter/c105_30003.rels.gz
 tests/filter/p40_30004.poly
 tests/filter/p40_30004.rels.gz
 tests/filter/test_dup2.sh
-tests/filter/testsm.p59.index.gz
-tests/filter/testsm.p59.poly
-tests/filter/testsm.p59.purged.gz
-tests/filter/testsm.sh
 tests/filter/test_filter_galois.d20.poly
 tests/filter/test_filter_galois.d20.rels
 tests/filter/test_filter_galois.d20.renumber
 tests/filter/test_filter_galois.sh
+tests/filter/testsm.p59.index.gz
+tests/filter/testsm.p59.poly
+tests/filter/testsm.p59.purged.gz
+tests/filter/testsm.sh
 tests/generic_test_sha1_output.sh
 tests/gf2x/CMakeLists.txt
 tests/gf2x/test_cantor.c
@@ -1423,11 +1425,13 @@ tests/utils/test_double_poly.c
 tests/utils/test_explain_relations.data/c30.poly
 tests/utils/test_explain_relations.sh
 tests/utils/test_fstream_maybe_compressed.cpp
+tests/utils/test_galois_action.cpp
 tests/utils/test_gcd.c
 tests/utils/test_getprime.c
 tests/utils/test_gmp_aux.c
 tests/utils/test_gpf.c
 tests/utils/test_intinv.c
+tests/utils/test_istream_matcher.cpp
 tests/utils/test_json_parsing.cpp
 tests/utils/test_memusage.c
 tests/utils/test_mmappable_vector.cpp
@@ -1550,6 +1554,7 @@ utils/indexed_relation.cpp
 utils/indexed_relation.hpp
 utils/intrinsics.hpp
 utils/iqsort.h
+utils/istream_matcher.hpp
 utils/json.cpp
 utils/json.hpp
 utils/lll.c
@@ -1560,7 +1565,7 @@ utils/memalloc.c
 utils/memalloc.h
 utils/memory.c
 utils/memory.h
-utils/memusage.c
+utils/memusage.cpp
 utils/memusage.h
 utils/misc.c
 utils/misc.h

@@ -60,7 +60,7 @@ ropt_linear_tune_stage1 ( ropt_poly_ptr poly,
                           alpha_pq *alpha_pqueue,
                           ropt_info_ptr info,
                           MurphyE_pq *global_E_pqueue,
-                          unsigned long w);
+                          int quad);
 #endif
 
 void

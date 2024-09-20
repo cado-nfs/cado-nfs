@@ -6,8 +6,8 @@
 
 struct cado_crc_lfsr_s {
     uint32_t t[32];
-    int i; 
-    int r;
+    unsigned int i; 
+    unsigned int r;
 };
 
 typedef struct cado_crc_lfsr_s cado_crc_lfsr[1];
@@ -18,7 +18,7 @@ extern "C" {
 #endif
 
 /* This computes the crc32 value of the n bytes pointed to by c.  */
-extern uint32_t crc32(const void * c, size_t n);
+extern uint32_t crc32(const void * data, size_t count);
 
 /* These provide the possibility of computing a checkum in several parts */
 extern uint32_t cado_crc_lfsr_turn1(cado_crc_lfsr_ptr, uint32_t);

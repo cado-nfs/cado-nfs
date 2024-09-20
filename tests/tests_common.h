@@ -4,12 +4,12 @@
 #include <stdint.h>
 #include <gmp.h>
 
-#define PARSE_SEED 1
-#define PARSE_ITER 2
-#define PARSE_VERBOSE 4
-#define PARSE_QUIET 8
-#define PARSE_CHECK 16
-#define PARSE_TIME 32
+#define PARSE_SEED 1U
+#define PARSE_ITER 2U
+#define PARSE_VERBOSE 4U
+#define PARSE_QUIET 8U
+#define PARSE_CHECK 16U
+#define PARSE_TIME 32U
 
 extern gmp_randstate_t state;
 

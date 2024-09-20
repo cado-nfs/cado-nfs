@@ -7,7 +7,7 @@
 #include <sys/resource.h>	/* for cputime */
 #endif
 #ifdef HAVE_CLOCK_THREAD_CPUTIME_ID
-#include <time.h>
+#include <ctime>
 #endif
 #include <sys/time.h>	/* for gettimeofday */
 #include "timing.h"
@@ -93,8 +93,8 @@ seconds_thread (void)
 #ifdef HAVE_CLOCK_THREAD_CPUTIME_ID
     struct timespec ts[1];
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, ts);
-    double r = 1.0e-9 * ts->tv_nsec;
-    r += ts->tv_sec;
+    double r = 1.0e-9 * (double) ts->tv_nsec;
+    r += (double) ts->tv_sec;
     return r;
 #else
 #ifdef HAVE_GETRUSAGE
@@ -134,7 +134,7 @@ double
 wct_seconds (void)
 {
     struct timeval tv[1];
-    gettimeofday (tv, NULL);
+    gettimeofday (tv, nullptr);
     return (double)tv->tv_sec + (double)tv->tv_usec*1.0e-6;
 }
 
@@ -145,9 +145,10 @@ void
 print_timing_and_memory (FILE*fp, double cpu0, double wct0)
 {
   fprintf (fp, "Total usage: time %1.0fs (cpu), %1.0fs (wct) ; "
-           "memory %luMiB, peak %luMiB\n",
+           "memory %zuMiB, peak %zuMiB\n",
            seconds () - cpu0, wct_seconds () - wct0,
-           Memusage () >> 10, PeakMemusage () >> 10);
+           Memusage () >> 10U,
+           PeakMemusage () >> 10U);
 }
 
 /* We need some way to detect the time spent by threads. Unfortunately,

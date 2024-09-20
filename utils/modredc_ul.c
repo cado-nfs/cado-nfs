@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 #include "modredc_ul.h"
 #include "modredc_ul_default.h" // IWYU pragma: keep
+// NOLINTNEXTLINE(bugprone-suspicious-include)
 #include "mod_ul_common.c"
 #include "macros.h"
 
@@ -9,7 +10,8 @@ modredcul_inv (residueredcul_t r, const residueredcul_t A,
                const modulusredcul_t m)
 {
   unsigned long x = m[0].m, y, u, v;
-  int t, lsh;
+  unsigned int t;
+  unsigned int lsh;
 
   ASSERT (A[0] < x);
   ASSERT (x & 1UL);
@@ -127,7 +129,7 @@ modredcul_intinv (residueredcul_t r, const residueredcul_t A,
                const modulusredcul_t m)
 {
   unsigned long x = m[0].m, y, u, v;
-  int t, lsh;
+  unsigned int t, lsh;
 
   ASSERT (A[0] < x);
   ASSERT (x & 1UL);

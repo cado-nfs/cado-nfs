@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdlib.h>
+#include <cstdlib>
 #include <gmp.h>
 #include <sstream>
 #include <istream>

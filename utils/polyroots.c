@@ -395,7 +395,7 @@ static int find_one_root(double complex *root, jt_t *w) {
 }
 
 /*-----------------------------------------------------------------------*/
-static uint32_t jenkins_traub(double complex poly[], 
+static uint32_t jenkins_traub(const double complex * poly, 
 			uint32_t degree, double complex roots[]) {
 
 	/* main Jenkins-Traub driver; returns number 
@@ -443,7 +443,7 @@ static uint32_t jenkins_traub(double complex poly[],
 
 #define NEWTON_ITER 10
 
-static uint32_t polish_root(long double complex *poly, uint32_t degree,
+static uint32_t polish_root(const long double complex *poly, uint32_t degree,
 			long double complex x, long double complex *root,
 			double eps)
 {
@@ -476,7 +476,7 @@ static uint32_t polish_root(long double complex *poly, uint32_t degree,
 	return 1;
 }
 /*------------------------------------------------------------------*/
-uint32_t poly_roots_longdouble(double *poly, uint32_t degree, long double complex *eroots) {
+uint32_t poly_roots_longdouble(const double *poly, uint32_t degree, long double complex *eroots) {
 
 	uint32_t i;
 	double complex rev_dccoeffs[MAX_ROOTFINDER_DEGREE + 1];
@@ -516,13 +516,13 @@ uint32_t poly_roots_longdouble(double *poly, uint32_t degree, long double comple
         /* change roots with very small imaginary part to
            be explicitly real roots */
 	for (i = 0; i < degree; i++) {
-		if (fabsl(cimagl(eroots[i])) <= 1e-30l*fabsl(creall(eroots[i])))
+		if (fabsl(cimagl(eroots[i])) <= 1e-30L*fabsl(creall(eroots[i])))
 			eroots[i] = creall(eroots[i]);
 	}
 	return rc;
 }
 
-uint32_t poly_roots_double(double *poly, uint32_t degree, double complex *roots) {
+uint32_t poly_roots_double(const double *poly, uint32_t degree, double complex *roots) {
         long double complex * eroots = malloc(degree * sizeof(long double complex));
         uint32_t res = poly_roots_longdouble(poly, degree, eroots);
         for (uint32_t i = 0; i < degree; i++) {

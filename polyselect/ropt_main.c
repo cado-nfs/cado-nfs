@@ -1,3 +1,6 @@
+// this compilation unit is a collection of linter red flags.
+// NOLINTBEGIN
+
 /**
    Root optimization for polynomials in the number field sieve.
 
@@ -700,7 +703,7 @@ main_basic (int argc, char **argv)
   else if (has_area && has_A_or_I)
     {
       fprintf (stderr, "Error, both -area and -I/-A given\n");
-      exit (1);
+      return EXIT_FAILURE;
     }
   else if (has_A_or_I)
     area = bound_f * pow (2.0, (double) A);
@@ -732,7 +735,7 @@ main_basic (int argc, char **argv)
   printf ("# Info: Will use %u thread%s\n# Info: ropteffort = %.0f\n", nthreads,
           (nthreads > 1) ? "s": "", rparam->effort);
 
-  printf ("# Info: L1_cachesize = %u, size_tune_sievearray = %u\n",
+  printf ("# Info: L1_cachesize = %zu, size_tune_sievearray = %zu\n",
           L1_cachesize, size_tune_sievearray);
 
   /* Open file containing polynomials. */
@@ -741,7 +744,7 @@ main_basic (int argc, char **argv)
   if (polys_file == NULL)
   {
     perror("Could not open file");
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   /* Remove initial empty lines */
@@ -868,3 +871,5 @@ main (int argc, char **argv)
   else
     return main_basic (argc, argv);
 }
+
+// NOLINTEND
