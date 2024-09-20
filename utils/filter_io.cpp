@@ -215,7 +215,7 @@ struct status_table<ifb_locking_lightweight> {
 template<typename locking, int n>
 struct inflight_rels_buffer {
     cado_nfs::barrier sync_point;
-    earlyparsed_relation * rels;        /* always malloc()-ed to SIZE_BUF_REL,
+    std::unique_ptr<earlyparsed_relation[]> rels;        /* always malloc()-ed to SIZE_BUF_REL,
                                            which is a power of two */
     /* invariant:
      * scheduled_0 >= ... >= completed_{n-1} >= scheduled_0 - SIZE_BUF_REL
@@ -283,13 +283,14 @@ struct inflight_rels_buffer {
 template<typename locking, int n>
 inflight_rels_buffer<locking, n>::inflight_rels_buffer(int nthreads_total)
     : sync_point(nthreads_total)
+    , rels(new earlyparsed_relation[SIZE_BUF_REL])
 {
     memset(completed, 0, n * sizeof(completed[0]));
     memset(scheduled, 0, n * sizeof(scheduled[0]));
     memset(&status, 0, sizeof(status));
     memset(active, 0, n * sizeof(active[0]));
-    rels = new earlyparsed_relation[SIZE_BUF_REL];
-    memset(rels, 0, SIZE_BUF_REL * sizeof(earlyparsed_relation));
+    // std::fill(rels.get(), rels.get() + SIZE_BUF_REL, 0);
+    memset(rels.get(), 0, SIZE_BUF_REL * sizeof(earlyparsed_relation));
     for(int i = 0 ; i < n; i++) {
         locking::lock_init(m + i);
         locking::cond_init(bored + i);
@@ -338,7 +339,6 @@ inflight_rels_buffer<locking, n>::~inflight_rels_buffer()
         }
         memset(rels[i], 0, sizeof(rels[i]));
     }
-    delete[] rels;
     for(int i = 0 ; i < n ; i++) {
         locking::lock_clear(m + i);
         locking::cond_clear(bored + i);
@@ -412,7 +412,7 @@ inflight_rels_buffer<locking, n>::complete(int k,
 {
     // coverity[result_independent_of_operands]
     ASSERT(active[k] <= locking::max_supported_concurrent);
-    int slot = rel - (earlyparsed_relation_srcptr) rels;
+    const int slot = rel - (earlyparsed_relation_srcptr) rels.get();
 
     locking::lock(m + k);
 
