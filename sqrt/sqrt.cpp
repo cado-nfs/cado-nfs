@@ -613,7 +613,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
   if (mpz_sgn (prod) < 0)
     {
       fprintf (stderr, "Error, product is negative: try another dependency\n");
-      exit(EXIT_FAILURE);       // NOLINT(concurrency-mt-unsafe)
+      exit(EXIT_FAILURE);
     }
 
 #pragma omp critical
@@ -665,7 +665,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
           p = getprime_mt (pi);
         }
       prime_info_clear (pi);
-      exit(EXIT_FAILURE);       // NOLINT(concurrency-mt-unsafe)
+      exit(EXIT_FAILURE);
     }
 
   mpz_mod (prod, prod, Np);
@@ -991,7 +991,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
       {
         fprintf (stderr, "Failed to reconstruct an integer polynomial\n");
         printf ("Failed\n");
-        exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
+        exit(EXIT_FAILURE);
       }
 
     /* invariant: invsqrtA = 1/sqrt(A) bmod p^k */
@@ -1148,7 +1148,7 @@ FindSuitableModP (cxx_mpz_poly const & F, cxx_mpz const & N)
       {
 	fprintf (stderr, "Error, found no suitable prime up to %d\n", MAXP);
 	fprintf (stderr, "See paragraph \"Factoring with SNFS\" in README\n");
-	exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
+	exit(EXIT_FAILURE);
       }
     }
   modul_poly_clear (fp);
@@ -1412,7 +1412,7 @@ calculateGcd (std::string const & prefix, unsigned int numdep, cxx_mpz const & N
             const std::lock_guard<std::mutex> dummy(stdio_guard);
             fmt::print(stderr, "Error, cannot open file {} for reading\n",
                     sidename[side]);
-            exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
+            exit(EXIT_FAILURE);
         }
         gmp_fscanf (sidefile[side], "%Zd", (mpz_ptr) sidesqrt[side]);
         fclose_maybe_compressed_lock (sidefile[side], sidename[side].c_str());
@@ -1506,13 +1506,13 @@ void create_dependencies(const char * prefix, const char * indexname, const char
         ker = fopen(kername, "rb");
         if (!ker) {
             perror(kername);
-            exit(errno);        // NOLINT(concurrency-mt-unsafe)
+            exit(errno);
         }
         struct stat sbuf[1];
         ret = fstat(fileno(ker), sbuf);
         if (ret < 0) {
             perror(kername);
-            exit(errno);        // NOLINT(concurrency-mt-unsafe)
+            exit(errno);
         }
         ASSERT_ALWAYS(sbuf->st_size % small_nrows == 0);
         const unsigned int ndepbytes = sbuf->st_size / small_nrows;
@@ -1664,7 +1664,7 @@ void usage(param_list pl, const char * argv0, FILE *f)
     fprintf(f, "or %s (-side0 || -side1 || -gcd) -poly polyname -prefix prefix -dep numdep -t ndep\n\n", argv0);
     fprintf(f, "(a,b) pairs of dependency relation 'numdep' will be r/w in file 'prefix.numdep',");
     fprintf(f, " side0 sqrt in 'prefix.side0.numdep' ...\n");
-    exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
+    exit(EXIT_FAILURE);
 }
 
 // coverity[root_function]

@@ -910,6 +910,7 @@ scripts/realpath.sh
 scripts/refresh-fmtlib.sh
 scripts/refresh-gf2x.sh
 scripts/resubmit-tools.sh
+scripts/run-clang-tidy.py
 scripts/split.py
 scripts/version.sh
 sieve/CMakeLists.txt

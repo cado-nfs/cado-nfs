@@ -167,15 +167,15 @@ ropt_do_both_stages ( ropt_poly_ptr poly,
         ropt_param_ptr param,
         ropt_info_ptr info)
 {
-    int d = mpz_poly_degree(poly->cpoly->pols[1]);
-    if (d == 5 || d == 4 || d == 3)
-        ropt_linear (poly, bestpoly, param, info);
-    else if (d == 6 || d == 7)
-        ropt_quadratic (poly, bestpoly, param, info);
-    else {
-        fprintf (stderr, "Error: only support deg 3, 4, 5, 6 and 7.\n");
-        exit(1);
-    }
+     int d = mpz_poly_degree(poly->cpoly->pols[1]);
+     if (d == 5 || d == 4 || d == 3)
+         ropt_linear (poly, bestpoly, param, info);
+     else if (d == 6 || d == 7)
+         ropt_quadratic (poly, bestpoly, param, info);
+     else {
+         fprintf (stderr, "Error: only support deg 3, 4, 5, 6 and 7.\n");
+         exit(EXIT_FAILURE);
+     }
 }
 
 

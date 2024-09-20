@@ -8,11 +8,13 @@
 #include "tests_common.h"
 #include "portability.h" // IWYU pragma: keep
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 static int rng_state_inited = 0;
 gmp_randstate_t state;
 static int parsed_iter = 0;
 unsigned long iter;
 static int verbose = 0, quiet = 0, want_check = 0, want_time = 0;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 /* Return non-zero iff |d2| is in the interval |d1| * (1 +- err_margin) */
 int

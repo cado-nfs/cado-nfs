@@ -109,7 +109,6 @@ void test_random_p_and_poly(int d, int max_bits, gmp_randstate_t state)
 void usage()
 {
     fprintf(stderr, "Usage: test_rootfinder [-seed nnn] [-iter nnn] [-v] [[-degree <d>] | <p> <polynomial in x>]\n");
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     exit(EXIT_FAILURE);
 }
 

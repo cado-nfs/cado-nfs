@@ -8,8 +8,6 @@
 #include "utils/u64arith.h"
 #include "misc.h"
 
-// NOLINTBEGIN(concurrency-mt-unsafe)
-
 static void test_one_u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
   const uint64_t b1, const uint64_t b2, const int v)
 {
@@ -391,5 +389,3 @@ main (int argc, const char *argv[])
   tests_common_clear();
   return EXIT_SUCCESS;
 }
-
-// NOLINTEND(concurrency-mt-unsafe)
