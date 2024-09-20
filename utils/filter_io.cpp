@@ -39,9 +39,12 @@ struct ifb_locking_posix {/*{{{*/
         class t {
             T x;
             public:
-            T load() const { return x; }
-            void store(T a) { x = a; }
-            T increment() { return x++; }
+            inline T load() const { return x; }
+            inline void store(T a) { x = a; }
+            explicit inline t(T const& a) : x(a) {}
+            explicit inline t() : x(0) {}
+            inline t& operator=(T const& a) { x = a; return *this; }
+            inline T increment() { return x++; }
         };
     };
     typedef std::mutex  lock_t;
@@ -105,17 +108,23 @@ struct ifb_locking_lightweight {/*{{{*/
         class t : private std::atomic<T> {
             typedef std::atomic<T> super;
             public:
-            T load() const { return super::load(std::memory_order_acquire); }
-            void store(T a) { return super::store(a, std::memory_order_release); }
-            T increment() { return super::fetch_add(1, std::memory_order_acq_rel); }
+            inline T load() const { return super::load(std::memory_order_acquire); }
+            explicit inline t(T const& a) : super(a) {}
+            explicit inline t() : super(0) {}
+            inline void store(T a) { super::store(a, std::memory_order_release); }
+            inline t& operator=(T const& a) { store(a); return *this; }
+            inline T increment() { return super::fetch_add(1, std::memory_order_acq_rel); }
         };
 #else
         class t {
             volatile T x;
             public:
-            T load() const { return x; }
-            void store(T a) { x = a; }
-            T increment() { return x++; }
+            inline T load() const { return x; }
+            explicit inline t(T const& a) : x(a) {}
+            explicit inline t() : x(0) {}
+            inline void store(T a) { x = a; }
+            inline t& operator=(T const& a) { store(a); return *this; }
+            inline T increment() { return x++; }
         };
 #endif
     };
@@ -285,10 +294,9 @@ inflight_rels_buffer<locking, n>::inflight_rels_buffer(int nthreads_total)
     : sync_point(nthreads_total)
     , rels(new earlyparsed_relation[SIZE_BUF_REL])
 {
-    memset(completed, 0, n * sizeof(completed[0]));
-    memset(scheduled, 0, n * sizeof(scheduled[0]));
-    memset(&status, 0, sizeof(status));
-    memset(active, 0, n * sizeof(active[0]));
+    std::fill(completed, completed + n, 0UL);
+    std::fill(scheduled, scheduled + n, 0UL);
+    std::fill(active, active + n, 0);
     // std::fill(rels.get(), rels.get() + SIZE_BUF_REL, 0);
     memset(rels.get(), 0, SIZE_BUF_REL * sizeof(earlyparsed_relation));
     for(int i = 0 ; i < n; i++) {
