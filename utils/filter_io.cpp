@@ -8,7 +8,8 @@
 #ifdef  HAVE_GETRUSAGE
 #include <sys/resource.h>              // for rusage // IWYU pragma: keep
 #endif
-#include <pthread.h>                   // for pthread_cond_broadcast, pthrea...
+#include <mutex>
+#include <condition_variable>
 #include <sys/types.h>                 // for int8_t ssize_t
 #include <gmp.h>
 #include <atomic>
@@ -43,18 +44,21 @@ struct ifb_locking_posix {/*{{{*/
             T increment() { return x++; }
         };
     };
-    typedef pthread_mutex_t  lock_t;
-    typedef pthread_cond_t   cond_t;
-    static inline void lock_init(lock_t * m) { pthread_mutex_init(m, NULL); }
-    static inline void lock_clear(lock_t * m) { pthread_mutex_destroy(m); }
-    static inline void cond_init(cond_t * c) { pthread_cond_init(c, NULL); }
-    static inline void cond_clear(cond_t * c) { pthread_cond_destroy(c); }
-    static inline void lock(lock_t * m) { pthread_mutex_lock(m); }
-    static inline void unlock(lock_t * m) { pthread_mutex_unlock(m); }
-    static inline void wait(cond_t * c, lock_t * m) { pthread_cond_wait(c, m); }
-    static inline void signal(cond_t * c) { pthread_cond_signal(c); }
-    static inline void signal_broadcast(cond_t * c) { pthread_cond_broadcast(c); }
-    static inline void broadcast(cond_t * c) { pthread_cond_broadcast(c); }
+    typedef std::mutex  lock_t;
+    typedef std::condition_variable   cond_t;
+    static inline void lock_init(lock_t *) { }
+    static inline void lock_clear(lock_t *) { }
+    static inline void cond_init(cond_t *) { }
+    static inline void cond_clear(cond_t *) { }
+    static inline void lock(lock_t * m) { m->lock(); }
+    static inline void unlock(lock_t * m) { m->unlock(); }
+    static inline void wait(cond_t * c, lock_t * m) {
+        std::unique_lock<std::mutex> foo(*m, std::adopt_lock);
+        c->wait(foo);
+        foo.release();
+    }
+    static inline void signal(cond_t * c) { c->notify_one(); }
+    static inline void signal_broadcast(cond_t * c) { c->notify_all(); }
     static inline int isposix() { return 1; }
 };
 /*}}}*/
@@ -127,7 +131,6 @@ struct ifb_locking_lightweight {/*{{{*/
     static inline void wait(cond_t *, lock_t *) { NANOSLEEP(); }
     static inline void signal(cond_t *) {}
     static inline void signal_broadcast(cond_t *) {}
-    static inline void broadcast(cond_t *) {}
     static inline int isposix() { return 0; }
 };
 /*}}}*/
