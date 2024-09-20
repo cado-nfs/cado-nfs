@@ -211,7 +211,7 @@ struct status_table<ifb_locking_lightweight> {
  * mechanism specified by the template class.  */
 template<typename locking, int n>
 struct inflight_rels_buffer {
-    barrier_t sync_point[1];
+    cado_nfs::barrier sync_point;
     earlyparsed_relation * rels;        /* always malloc()-ed to SIZE_BUF_REL,
                                            which is a power of two */
     /* invariant:
@@ -239,7 +239,7 @@ struct inflight_rels_buffer {
     /* computation threads joining the computation are calling these */
     inline void enter(int k) {
         locking::lock(m+k); active[k]++; locking::unlock(m+k);
-        barrier_wait(sync_point, NULL, NULL, NULL);
+        sync_point.arrive_and_wait();
     }
     /* leave() is a no-op, since active-- is performed as part of the
      * normal drain() call */
@@ -279,15 +279,18 @@ struct inflight_rels_buffer {
 /*{{{ ::inflight_rels_buffer() */
 template<typename locking, int n>
 inflight_rels_buffer<locking, n>::inflight_rels_buffer(int nthreads_total)
+    : sync_point(nthreads_total)
 {
-    memset(this, 0, sizeof(*this));
+    memset(completed, 0, n * sizeof(completed[0]));
+    memset(scheduled, 0, n * sizeof(scheduled[0]));
+    memset(&status, 0, sizeof(status));
+    memset(active, 0, n * sizeof(active[0]));
     rels = new earlyparsed_relation[SIZE_BUF_REL];
     memset(rels, 0, SIZE_BUF_REL * sizeof(earlyparsed_relation));
     for(int i = 0 ; i < n; i++) {
         locking::lock_init(m + i);
         locking::cond_init(bored + i);
     }
-    barrier_init(sync_point, NULL, nthreads_total);
 }/*}}}*/
 /*{{{ ::drain() */
 /* This belongs to the buffer closing process.  The out condition of this
@@ -316,7 +319,6 @@ void inflight_rels_buffer<locking, n>::drain()
 template<typename locking, int n>
 inflight_rels_buffer<locking, n>::~inflight_rels_buffer()
 {
-    barrier_destroy(sync_point, NULL);
     for(int i = 0 ; i < n ; i++) {
         ASSERT_ALWAYS_NOTHROW(active[i] == 0);
     }
@@ -338,7 +340,6 @@ inflight_rels_buffer<locking, n>::~inflight_rels_buffer()
         locking::lock_clear(m + i);
         locking::cond_clear(bored + i);
     }
-    memset(this, 0, sizeof(*this));
 }
 /*}}}*/
 
