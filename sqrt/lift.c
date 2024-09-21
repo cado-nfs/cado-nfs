@@ -305,7 +305,7 @@ int main(int argc, char * argv[])
 
     {
         char sbuf[32];
-        fprintf(stderr, "# [%2.2lf] Lifting to precision l=%d (p^l is approx %s)\n", WCT, precision, size_disp(precision * log(prime->p)/M_LN2 / 8, sbuf));
+        fprintf(stderr, "# [%2.2lf] Lifting to precision l=%d (p^l is approx %d)\n", WCT, precision, size_disp(precision * log(prime->p)/M_LN2 / 8, sbuf));
     }
 
     fprintf(stderr, "# [%2.2lf] Computing powers of p\n", WCT);

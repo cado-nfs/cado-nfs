@@ -777,7 +777,6 @@ main (int argc, char *argv[])
       for (char **p = files_new; *p ; p++) {
           FILE * output = NULL;
           char * oname, * oname_tmp;
-          char * local_filelist[] = { *p, NULL};
 
           get_outfilename_from_infilename (*p, outfmt, outdir, &oname, &oname_tmp);
           output = fopen_maybe_compressed(oname_tmp, "w");
@@ -791,7 +790,7 @@ main (int argc, char *argv[])
 
           nrels = ndup = 0;
 
-          uint64_t loc_nrels = filter_rels2(local_filelist, desc,
+          uint64_t loc_nrels = filter_rels2(p, desc,
                   EARLYPARSE_NEED_AB_DECIMAL | EARLYPARSE_NEED_PRIMES,
                   NULL, NULL);
 

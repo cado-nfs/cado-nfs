@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
 
-    int opt_fch = param_list_parse_switch(pl, "-fch");
+    int const opt_fch = param_list_parse_switch(pl, "-fch");
     if (opt_fch) {
 	const char *pathname_fch_in;
 	const char *pathname_fch_out;
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
         int *param = (int*) calloc(6, sizeof(int));
 	ASSERT(param != NULL);
 
-	int opt_ch = param_list_parse_switch(pl, "-ch");
+	int const opt_ch = param_list_parse_switch(pl, "-ch");
 	param_list_parse_int(pl, "ub", &ub);
 	param_list_parse_int(pl, "lb", &lb);
 	param_list_parse_int(pl, "n", &len_n);
@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
         /* if -out is not given, print to stdout */
 	FILE *file_out = (name_file_out == NULL)
           ? stdout : fopen(name_file_out, "w");
-	int err = tabular_fm_fprint(file_out, res);
+	int const err = tabular_fm_fprint(file_out, res);
 	if (err < 0) {
 	    fprintf(stderr,
 		    "error:: try to write in the file '%s'.\n", name_file_out);

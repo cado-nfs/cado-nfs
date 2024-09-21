@@ -26,8 +26,8 @@ std::vector<std::pair<number_field_prime_ideal, int>>
 
     std::vector<std::pair<number_field_prime_ideal, int>> ret;
     for(auto const & bd : R) {
-        number_field_fractional_ideal I(*this, bd.first);
-        number_field_prime_ideal fkp(I, p, bd.second);
+        number_field_fractional_ideal const I(*this, bd.first);
+        number_field_prime_ideal const fkp(I, p, bd.second);
         ret.emplace_back(fkp, bd.second);
     }
     return ret;
@@ -67,7 +67,7 @@ number_field_fractional_ideal number_field_order::p_radical(cxx_mpz const& p) co
 number_field_element number_field_order::operator[](int i) const
 {
     class number_field const & K(number_field());
-    int n = K.degree();
+    int const n = K.degree();
     cxx_mpq_mat a(1, n);
     mpq_mat_submat_set(a, 0, 0, basis_matrix, i, 0, 1, n);
     return number_field_element(K, a);
@@ -76,7 +76,7 @@ number_field_element number_field_order::operator[](int i) const
 std::vector<number_field_element> number_field_order::basis() const
 {
     std::vector<number_field_element> ret;
-    int n = K.degree();
+    int const n = K.degree();
     for(int i = 0 ; i < n ; i++)
         ret.push_back((*this)[i]);
     return ret;
@@ -91,7 +91,7 @@ number_field_order_element number_field_order::operator()(cxx_mpz_mat const & a)
 namespace fmt {
     auto formatter<number_field_order>::format(number_field_order const & O, format_context& ctx) const -> format_context::iterator {
         if (custom_format == SAGEMATH) {
-            int n = O.number_field().degree();
+            int const n = O.number_field().degree();
             std::string s = "[";
             for(int i = 0 ; i < n ; i++) {
                 if (i) s += ", ";

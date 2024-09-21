@@ -22,7 +22,7 @@ unsigned int gpf_safe_get(const unsigned long i)
 void gpf_init(unsigned int m)
 {
     static std::mutex mm;
-    std::lock_guard<std::mutex> foo(mm);
+    std::lock_guard<std::mutex> const foo(mm);
     if (m < gpf_cxx.size())
         return;
 
@@ -60,7 +60,7 @@ void gpf_init(unsigned int m)
             ASSERT_EXPENSIVE(res[i] / p == res[i] * inv_p);
 
             while (res[i] > p) {
-                unsigned int candidate = res[i] * inv_p;
+                unsigned int const candidate = res[i] * inv_p;
                 if (candidate > lim_p)
                     break;
                 res[i] = candidate;

@@ -53,14 +53,14 @@ piecewise_linear_approximator::piecewise_linear_approximator(cxx_double_poly con
 std::vector<double> piecewise_linear_approximator::roots_off_course(cxx_double_poly const& uv, bool divide_root, double r)/*{{{*/
 {
     std::vector<double> res;
-    for(double m : { std::exp(scale), std::exp(-scale) }) {
+    for(double const m : { std::exp(scale), std::exp(-scale) }) {
         cxx_double_poly d;
         double_poly_set(d, f);
         double_poly_submul_double(d, uv, m);
         if (divide_root)
             double_poly_div_linear(d, d, r);
         std::vector<double> roots(d->deg, 0);
-        unsigned int n = double_poly_compute_all_roots(roots.data(), d);
+        unsigned int const n = double_poly_compute_all_roots(roots.data(), d);
         res.insert(res.end(), roots.begin(), roots.begin() + n);
     }
     return res;
@@ -68,8 +68,8 @@ std::vector<double> piecewise_linear_approximator::roots_off_course(cxx_double_p
 
 piecewise_linear_function piecewise_linear_approximator::expand_at_root(double r)/*{{{*/
 {
-    double v = double_poly_eval(f1, r);
-    double u = -r*v;
+    double const v = double_poly_eval(f1, r);
+    double const u = -r*v;
     cxx_double_poly uv(1);
     uv->coeff[0] = u;
     uv->coeff[1] = v;
@@ -82,7 +82,7 @@ piecewise_linear_function piecewise_linear_approximator::expand_at_root(double r
         fprintf(stderr, "# Warning: logapprox encountered a (quasi-) inflection point. We cannot fulfill our requirements\n");
 
 
-    for(double x : roots_off_course(uv, true, r)) {
+    for(double const x : roots_off_course(uv, true, r)) {
         if (x < r && x > r0) r0 = x;
         if (x > r && x < r1) r1 = x;
     }
@@ -112,10 +112,10 @@ piecewise_linear_function piecewise_linear_approximator::C0_from_points(std::lis
     double a = *it++;
     double fa = double_poly_eval(f, a);
     for(; it != r.end() ; it++) {
-        double b = *it;
-        double fb = double_poly_eval(f, b);
-        double u = (b*fa-a*fb)/(b-a);
-        double v = (fb-fa)/(b-a);
+        double const b = *it;
+        double const fb = double_poly_eval(f, b);
+        double const u = (b*fa-a*fb)/(b-a);
+        double const v = (fb-fa)/(b-a);
         res.equations.push_back(std::make_pair(u,v));
         a = b;
         fa = fb;
@@ -141,21 +141,21 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
                 done.equations.size(),
                 todo.equations.size());
 #endif
-        double r0 = done.endpoints.back();
+        double const r0 = done.endpoints.back();
         /* This one really should be r0 anyway, and it's slightly
          * boring to have to deal with it.
          */
         todo.endpoints.pop_front();
-        double r1 = todo.endpoints.front();
+        double const r1 = todo.endpoints.front();
         /* Arrange so that we don't emit linear approximations on
          * subintervals that are absurdly close to the existing ones.
          */
-        double r0s = r0 + SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL;
-        double r1s = r1 - SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL;
+        double const r0s = r0 + SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL;
+        double const r1s = r1 - SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL;
 #ifdef DEBUG_LOGAPPROX
         printf("Checking interval %f, %f\n", r0,r1);
 #endif
-        std::pair<double, double> uv=todo.equations.front();
+        std::pair<double, double> const uv=todo.equations.front();
         todo.equations.pop_front();
 
         cxx_double_poly guv(1);
@@ -163,7 +163,7 @@ piecewise_linear_function piecewise_linear_approximator::fill_gap(double i0, dou
         guv->coeff[1] = uv.second;
         double_poly_cleandeg(guv,1);
         std::vector<double> roots;
-        for(double r : roots_off_course(guv)) {
+        for(double const r : roots_off_course(guv)) {
             if (r >= r0s && r <= r1s)
                 roots.push_back(r);
         }
@@ -240,9 +240,9 @@ piecewise_linear_function piecewise_linear_approximator::logapprox(double i0, do
         piecewise_linear_function res(i0);
         res.endpoints.push_back(i1);
         ASSERT_ALWAYS(f_roots.size() == 1);
-        double r = f_roots.front();
-        double v = double_poly_eval(f1, r);
-        double u = -r*v;
+        double const r = f_roots.front();
+        double const v = double_poly_eval(f1, r);
+        double const u = -r*v;
         res.equations.push_back(std::make_pair(u,v));
         return res;
     }
@@ -251,8 +251,8 @@ piecewise_linear_function piecewise_linear_approximator::logapprox(double i0, do
         if (r < i0) continue;
         if (r > i1) break;
         piecewise_linear_function s = expand_at_root(r);
-        double u1 = done.endpoints.back();
-        double v0 = s.endpoints.front();
+        double const u1 = done.endpoints.back();
+        double const v0 = s.endpoints.front();
         if (v0 > u1 + SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL) {
             piecewise_linear_function G = fill_gap(u1, v0);
             done.merge_right(G);
@@ -263,7 +263,7 @@ piecewise_linear_function piecewise_linear_approximator::logapprox(double i0, do
         s.endpoints.front() = done.endpoints.back();
         done.merge_right(s);
     }
-    double u1 = done.endpoints.back();
+    double const u1 = done.endpoints.back();
     if (u1 + SMALLEST_MEANINGFUL_LOGAPPROX_INTERVAL < i1) {
         piecewise_linear_function G = fill_gap(u1, i1);
         done.merge_right(G);

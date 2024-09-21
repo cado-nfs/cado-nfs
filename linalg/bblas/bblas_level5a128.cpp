@@ -16,8 +16,8 @@
 
 void m64pol_mul_gf2_128_bitslice(mat64 * r, mat64 const * a1, mat64 const * a2)/*{{{*/
 {
-    unsigned int n1 = 128;
-    unsigned int n2 = 128;
+    unsigned int const n1 = 128;
+    unsigned int const n2 = 128;
     mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
     m64pol_mul_kara(t, a1, a2, n1, n2);
     /* This reduces modulo the polynomial x^128+x^7+x^2+x+1 */
@@ -33,8 +33,8 @@ void m64pol_mul_gf2_128_bitslice(mat64 * r, mat64 const * a1, mat64 const * a2)/
 
 void m64pol_scalmul_gf2_128_bitslice(mat64 * r, mat64 const * a, uint64_t * s)/*{{{*/
 {
-    unsigned int n1 = 128;
-    unsigned int n2 = 128;
+    unsigned int const n1 = 128;
+    unsigned int const n2 = 128;
     mat64 * t = (mat64 *) malloc_aligned((n1 + n2 -1) * sizeof(mat64), 64);
     memset((void *) t, 0, (n1 + n2 -1) * sizeof(mat64));
     for(unsigned int i = 0 ; i < 128 ; i++) {

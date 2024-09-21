@@ -562,7 +562,7 @@ template<typename gfp, typename fast_gfp>
 matmul_zone_data<gfp, fast_gfp>::matmul_zone_data(void* xab, param_list pl, int optimized_direction) : xab((arith_hard *) xab)/*{{{*/
 {
     memset(&public_, 0, sizeof(public_));
-    int suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
+    int const suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
     public_->store_transposed = suggest;
     if (pl) {
         param_list_parse_int(pl, "mm_store_transposed",
@@ -688,8 +688,8 @@ void matmul_zone_data<gfp, fast_gfp>::build_cache(uint32_t * data, size_t size)/
 
     ASSERT_ALWAYS(data);
 
-    unsigned int nrows_t = mm->public_->dim[ mm->public_->store_transposed];
-    unsigned int ncols_t = mm->public_->dim[!mm->public_->store_transposed];
+    unsigned int const nrows_t = mm->public_->dim[ mm->public_->store_transposed];
+    unsigned int const ncols_t = mm->public_->dim[!mm->public_->store_transposed];
 
     uint32_t * ptr = data;
 
@@ -735,7 +735,7 @@ void matmul_zone_data<gfp, fast_gfp>::build_cache(uint32_t * data, size_t size)/
             } else {
                 maxrow = i0 + k + 1;
                 ASSERT_ALWAYS((pp[k] - data) < (ptrdiff_t) size);
-                uint32_t weight = *pp[k];
+                uint32_t const weight = *pp[k];
                 pp[k+1] = pp[k] + 1 + 2*weight;
                 mm->public_->ncoeffs += weight;
                 /* This is very important. We must sort rows before
@@ -756,7 +756,7 @@ void matmul_zone_data<gfp, fast_gfp>::build_cache(uint32_t * data, size_t size)/
             zone<gfp, fast_gfp> z(i0, j0);
             for(unsigned int k = 0 ; k < rowbatch ; k++) {
                 for( ; cc[k] < pp[k+1] ; cc[k] += 2) {
-                    uint32_t j = cc[k][0] - j0;
+                    uint32_t const j = cc[k][0] - j0;
                     int32_t c = cc[k][1];
                     if (j >= colbatch) break;
                     cstats(c);
@@ -921,9 +921,9 @@ void zone<gfp, fast_gfp>::mul(arith_hard const * x, fast_elt_ur_for_add * tdst, 
     gfp3_dispatch_sub((void*)tdst, (const void*)tsrc, (const void*)(&*qm.begin()), qm.size());
 #endif
     for(auto const& ijc : qg) {
-        uint16_t i = ijc.first;
-        uint16_t j = ijc.second;
-        int32_t c = ijc.third;
+        uint16_t const i = ijc.first;
+        uint16_t const j = ijc.second;
+        int32_t const c = ijc.third;
         if (c>0) {
             x->addmul_ui(x->vec_item(tdst, i), x->vec_item(tsrc, j), c);
         } else {
@@ -945,9 +945,9 @@ void zone<gfp, fast_gfp>::tmul(arith_hard const * x, fast_elt_ur_for_add * tdst,
     gfp3_dispatch_sub((void*)tdst, (const void*)tsrc, (const void*)(&*qm.begin()), qm.size());
 #endif
     for(auto const& ijc : qg) {
-        uint16_t i = ijc.first;
-        uint16_t j = ijc.second;
-        int32_t c = ijc.third;
+        uint16_t const i = ijc.first;
+        uint16_t const j = ijc.second;
+        int32_t const c = ijc.third;
         if (c>0) {
             x->addmul_ui(x->vec_item(tdst, j), x->vec_item(tsrc, i), c);
         } else {
@@ -967,7 +967,7 @@ void matmul_zone_data<gfp, fast_gfp>::mul(void * xdst, void const * xsrc, int d)
     fast_elt * dst;
 
     // size_t nsrc = mm->public_->dim[d];
-    size_t ndst = mm->public_->dim[!d];
+    size_t const ndst = mm->public_->dim[!d];
 
     /* ef7268528 had some remains of support for changing the source
      * vector to alternate representation. However, this does
@@ -1108,7 +1108,7 @@ void matmul_zone_data<gfp, fast_gfp>::mul(void * xdst, void const * xsrc, int d)
 #endif
 
             /* reduce last batch. It could possibly be incomplete */
-            size_t active = std::min(rowbatch, (size_t) (ndst - B.i0));
+            size_t const active = std::min(rowbatch, (size_t) (ndst - B.i0));
             for(size_t i = 0 ; i < active ; i++) {
 #ifdef DISPATCHERS_AND_COMBINERS
                 fast_gfp::sub_ur(x->vec_item(tdst, i), x->vec_item(tdst, i + rowbatch));
@@ -1166,7 +1166,7 @@ void matmul_zone_data<gfp, fast_gfp>::report(double scale MAYBE_UNUSED)
 {
     static pthread_mutex_t lk = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_lock(&lk);
-    unsigned int niter = public_->iteration[0] + public_->iteration[1];
+    unsigned int const niter = public_->iteration[0] + public_->iteration[1];
     for(typename tmap_t::const_iterator it = tmap.begin() ; it != tmap.end() ; it++) {
         printf("j0=%u [%u zones]: avg %.1f cycles/c [%.1f coeffs avg] - %.1f Mcycles/iter\n",
                 it->first, it->second.n / niter, it->second.tt / scale / it->second.w, (double) it->second.w / it->second.n, (double) it->second.tt / niter * 1.0e-6);

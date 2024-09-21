@@ -97,12 +97,12 @@ uint64_t extraction_step(uint64_t * B, uint64_t * A, uint64_t S)
     for(int i = 0 ; i < 64 ; i++) B0[i] = UINT64_C(1)<<i;
     for(int i = 0 ; i < 64 ; i++) reorder[i]=-1;
     for(int j = 0 ; j < 64 ; j++) {
-        int oj = order[j];
-        uint64_t mj = UINT64_C(1)<<oj;
+        int const oj = order[j];
+        uint64_t const mj = UINT64_C(1)<<oj;
         int p = -1;
         for(int i = 0 ; i < 64 ; i++) {
-            int oi = order[i];
-            uint64_t mi = UINT64_C(1)<<oi;
+            int const oi = order[i];
+            uint64_t const mi = UINT64_C(1)<<oi;
             if (T & mi) continue;
             if (A[oi] & mj) {
                 p = i;
@@ -111,18 +111,18 @@ uint64_t extraction_step(uint64_t * B, uint64_t * A, uint64_t S)
         }
         if (p < 0) continue;
 
-        int op = order[p];
+        int const op = order[p];
         /* Of course it's important to use indices op and oj here ! */
         reorder[op] = oj;
-        uint64_t mp = UINT64_C(1) << op;
+        uint64_t const mp = UINT64_C(1) << op;
         /* We have a pivot, great. */
         ASSERT_ALWAYS(!(T & mp));
         T |= mp;
         /* add row op to all rows except itself */
         for(int i = 0 ; i < 64 ; i++) {
             if (i == p) continue;
-            int oi = order[i];
-            uint64_t x = ~-!(A[oi] & mj);
+            int const oi = order[i];
+            uint64_t const x = ~-!(A[oi] & mj);
             B0[oi] ^= B0[op] & x;
             A[oi] ^= A[op] & x;
         }
@@ -206,15 +206,15 @@ void blstate::set_start()
 
 void blstate::load( unsigned int iter)
 {
-    unsigned int i0 = iter % 3;
-    unsigned int i1 = (iter+3-1) % 3;
-    unsigned int i2 = (iter+3-2) % 3;
+    unsigned int const i0 = iter % 3;
+    unsigned int const i1 = (iter+3-1) % 3;
+    unsigned int const i2 = (iter+3-2) % 3;
     parallelizing_info_ptr pi = mmt.pi;
 
     char * filename_base;
     int rc = asprintf(&filename_base, "blstate.%u", iter);
     ASSERT_ALWAYS(rc >= 0);
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
     if (tcan_print) { printf("Loading %s.* ...", filename_base); fflush(stdout); }
 
     char * tmp;
@@ -257,15 +257,15 @@ void blstate::load( unsigned int iter)
 
 void blstate::save(unsigned int iter)
 {
-    unsigned int i0 = iter % 3;
-    unsigned int i1 = (iter+3-1) % 3;
-    unsigned int i2 = (iter+3-2) % 3;
+    unsigned int const i0 = iter % 3;
+    unsigned int const i1 = (iter+3-1) % 3;
+    unsigned int const i2 = (iter+3-2) % 3;
     parallelizing_info_ptr pi = mmt.pi;
 
     char * filename_base;
     int rc = asprintf(&filename_base, "blstate.%u", iter);
     ASSERT_ALWAYS(rc >= 0);
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
     if (tcan_print) { printf("Saving %s.* ...", filename_base); fflush(stdout); }
 
     char * tmp;
@@ -312,15 +312,15 @@ int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
 {
     m = 1;
     uint64_t * v = (uint64_t *) mmt_my_own_subvec(v0);
-    size_t eblock = mmt_my_own_size_in_items(v0);
+    size_t const eblock = mmt_my_own_size_in_items(v0);
     /* This is the total number of non-zero coordinates of the vector v */
-    size_t n = v0.n;
+    size_t const n = v0.n;
     /* In all what follows, we'll talk about v being a 64*n matrix, with
      * [v[i]&1] being "the first row", and so on.  */
     uint64_t usedrows = 0;
     int rank = 0;
     for(int i = 0 ; i < 64 ; i++) {
-        uint64_t mi = UINT64_C(1) << i;
+        uint64_t const mi = UINT64_C(1) << i;
         /* Find the earliest column which has non-zero in the i-th row */
         unsigned int j;
         for(j = 0 ; j < eblock ; j++) {
@@ -369,7 +369,7 @@ int mmt_vec_echelon(mat64 & m, mmt_vec const & v0)
     Z = 0;
     N = 0;
     for(int i = 0 ; i < 64 ; i++) {
-        uint64_t mi = UINT64_C(1) << i;
+        uint64_t const mi = UINT64_C(1) << i;
         if (usedrows & mi) {
             N[nN++] = m[i];
         } else {
@@ -395,7 +395,7 @@ void blstate::save_result( unsigned int iter)
 {
     mat64 m0, m1, m2;
     int r;
-    unsigned int i0 = iter % 3;
+    unsigned int const i0 = iter % 3;
     parallelizing_info_ptr pi = mmt.pi;
 
     /* bw->dir=0: mmt.n0[bw->dir] = number of rows */
@@ -405,7 +405,7 @@ void blstate::save_result( unsigned int iter)
     char * tmp;
     int rc;
 
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
     if (tcan_print) { printf("Saving %s.* ...\n", filename_base); fflush(stdout); }
 
     mmt_full_vec_set(y, V[i0]);
@@ -457,7 +457,7 @@ void blstate::save_result( unsigned int iter)
         ASSERT_ALWAYS(rc >= 0);
         FILE * f = fopen(tmp, "wb");
         ASSERT_ALWAYS(f);
-        size_t rc = fwrite(m1.data(), sizeof(mat64), 1, f);
+        size_t const rc = fwrite(m1.data(), sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
         fclose(f);
         free(tmp);
@@ -483,7 +483,7 @@ void blstate::save_result( unsigned int iter)
         ASSERT_ALWAYS(rc >= 0);
         FILE * f = fopen(tmp, "wb");
         ASSERT_ALWAYS(f);
-        size_t rc = fwrite(m2.data(), sizeof(mat64), 1, f);
+        size_t const rc = fwrite(m2.data(), sizeof(mat64), 1, f);
         ASSERT_ALWAYS(rc == (size_t) 1);
         fclose(f);
         free(tmp);
@@ -516,10 +516,10 @@ void blstate::save_result( unsigned int iter)
 
 void blstate::operator()(parallelizing_info_ptr pi)
 {
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
     struct timing_data timing[1];
 
-    size_t nelts_for_nnmat = bw->n * (bw->n / A->simd_groupsize());
+    size_t const nelts_for_nnmat = bw->n * (bw->n / A->simd_groupsize());
 
     serialize(pi->m);
 
@@ -694,7 +694,7 @@ void blstate::operator()(parallelizing_info_ptr pi)
             ASSERT_ALWAYS(D[i0]->n == 64);
 
             {
-                size_t eblock = mmt_my_own_size_in_items(y);
+                size_t const eblock = mmt_my_own_size_in_items(y);
                 ASSERT_ALWAYS(y.abase->elt_stride() == sizeof(uint64_t));
 
                 // Here are the operations we will now perform
@@ -714,11 +714,11 @@ void blstate::operator()(parallelizing_info_ptr pi)
                 uint64_t * VA  = (uint64_t *) mmt_my_own_subvec(y);
                 uint64_t * X   = (uint64_t *) mmt_my_own_subvec(y);
                 uint64_t D0;
-                uint64_t D1 = D[i1]->p[0];
+                uint64_t const D1 = D[i1]->p[0];
                 mat64 & mvav = *(mat64*) vav;
                 mat64 & mvaav = *(mat64*) vaav;
                 mat64 & mL0 = L[i0];
-                mat64 & mL1 = L[i1];
+                mat64  const& mL1 = L[i1];
                 mat64 & mL2 = L[i2];
                 mat64 m0, m1, m2, t;
 
@@ -727,7 +727,7 @@ void blstate::operator()(parallelizing_info_ptr pi)
 
                 D0 = D[i0]->p[0] = extraction_step(mL0.data(), t.data(), D1);
 
-                int Ni = bit_vector_popcount(D[i0]);
+                int const Ni = bit_vector_popcount(D[i0]);
                 sum_Ni += Ni;
                 // int defect = bw->n - Ni;
                 // printf("step %d, dim=%d\n", s+i, Ni);

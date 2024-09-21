@@ -48,7 +48,7 @@ std::ostream& badideal::print_dot_badidealinfo_file(std::ostream& o, int side) c
 
 std::ostream& badideal::operator<<(std::ostream& os) const
 {
-    std::ios_base::fmtflags ff = os.flags();
+    std::ios_base::fmtflags const ff = os.flags();
     os << comments;
     // p and r are printed according to the current format flags, but the
     // number of ideals and the branches are always in decimal.
@@ -160,7 +160,7 @@ vector<badideal::branch> lift_root(numbertheory_internals::all_valuations_above_
         int sumvv = 0;
         for(unsigned int j = 0 ; j < vv.size() ; sumvv+=vv[j++]);
         for(unsigned int j = 0 ; j < live_ideals.size() ; j++) {
-            int jj = live_ideals[j];
+            int const jj = live_ideals[j];
             vv[jj] = vv[jj] - sumvv;
         }
         badideal::branch br;
@@ -190,7 +190,7 @@ vector<cxx_mpz> projective_roots_modp(cxx_mpz_poly const& f, cxx_mpz const& p, g
     mpz_t * rr = new mpz_t[f->deg];
     for(int i = 0 ; i < f->deg ; i++) mpz_init(rr[i]);
 
-    int d = mpz_poly_roots(rr, f, p, rstate);
+    int const d = mpz_poly_roots(rr, f, p, rstate);
     for(int i = 0 ; i < d ; i++) {
         cxx_mpz a;
         mpz_set(a, rr[i]);
@@ -273,7 +273,7 @@ vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, cxx_g
     mpz_mul(disc, disc, mpz_poly_lc(f));
 
     /* We're not urged to use ecm here */
-    vector<pair<cxx_mpz,int> > small_primes = trial_division(disc, 10000000, disc);
+    vector<pair<cxx_mpz,int> > const small_primes = trial_division(disc, 10000000, disc);
 
     for(auto const & pe : small_primes) {
         vector<badideal> tmp = badideals_above_p(f, side, pe.first, state);

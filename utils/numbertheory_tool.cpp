@@ -169,13 +169,13 @@ int main(int argc, char * argv[])
 
     const char * tmp;
     if ((tmp = param_list_lookup_string(pl, "polystr")) != NULL) {
-        int side = 0;
+        int const side = 0;
         cxx_mpz_poly f;
         istringstream is(tmp);
         if (!(is >> f))
             usage(pl, original_argv, "cannot parse polynomial");
 
-        vector<badideal> badideals = badideals_for_polynomial(f, side);
+        vector<badideal> const badideals = badideals_for_polynomial(f, side);
         cout << "--- .badideals data ---\n";
         for(auto const & b : badideals)
             b.print_dot_badideals_file(cout, side);
@@ -206,7 +206,7 @@ int main(int argc, char * argv[])
         for(int side = 0 ; side < cpoly->nb_polys ; side++) {
             cxx_mpz_poly f(cpoly->pols[side]);
             if (f->deg == 1) continue;
-            vector<badideal> badideals = badideals_for_polynomial(f, side);
+            vector<badideal> const badideals = badideals_for_polynomial(f, side);
             if (fb) {
                 for(auto const & b : badideals) {
                     b.print_dot_badideals_file(*fb, side);
@@ -222,7 +222,7 @@ int main(int argc, char * argv[])
         cxx_mpz ell;
         if (param_list_parse_mpz(pl, "ell", ell)) {
             for(int side = 0 ; side < cpoly->nb_polys ; side++) {
-                sm_side_info sm(cpoly->pols[side], ell, 0);
+                sm_side_info const sm(cpoly->pols[side], ell, 0);
                 cout << "# nmaps" << side << " " << sm.nsm << endl;
             }
         }

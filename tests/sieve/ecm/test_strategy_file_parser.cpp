@@ -9,9 +9,9 @@ int main(int argc, char * argv[])
     if (argc > 2)
         exit(EXIT_FAILURE);
 
-    std::vector<unsigned long> B { 1ul<<20, 1ul<<20 };
-    std::vector<unsigned int> lpb { 25, 25 };
-    std::vector<unsigned int> mfb { 50, 50 };
+    std::vector<unsigned long> const B { 1ul<<20, 1ul<<20 };
+    std::vector<unsigned int> const lpb { 25, 25 };
+    std::vector<unsigned int> const mfb { 50, 50 };
 
     FILE * f = stdin;
     if (argc == 2) {

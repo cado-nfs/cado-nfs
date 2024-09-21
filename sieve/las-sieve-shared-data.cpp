@@ -66,8 +66,8 @@ void sieve_shared_data::load_factor_base(cxx_param_list & pl, int nthreads) /*{{
 /*}}}*/
 unsieve_data const * sieve_shared_data::get_unsieve_data(siever_config const & conf) /* {{{ */
 {
-    std::pair<int, int> p(conf.logI, conf.logA);
-    std::lock_guard<std::mutex> dummy(us_cache.mutex());
+    std::pair<int, int> const p(conf.logI, conf.logA);
+    std::lock_guard<std::mutex> const dummy(us_cache.mutex());
     auto it = us_cache.find(p);
     if (it != us_cache.end()) {
         return &it->second;
@@ -80,8 +80,8 @@ j_divisibility_helper const * sieve_shared_data::get_j_divisibility_helper(int J
 {
     ASSERT_ALWAYS(J);
     /* Round to the next power of two */
-    unsigned int Jround = 1 << nbits(J-1);
-    std::lock_guard<std::mutex> dummy(jdiv_cache.mutex());
+    unsigned int const Jround = 1 << nbits(J-1);
+    std::lock_guard<std::mutex> const dummy(jdiv_cache.mutex());
     auto it = jdiv_cache.find(Jround);
     if (it != jdiv_cache.end()) {
         return &it->second;
@@ -92,13 +92,13 @@ j_divisibility_helper const * sieve_shared_data::get_j_divisibility_helper(int J
 }/*}}}*/
 facul_strategies const * sieve_shared_data::get_strategies(siever_config const & conf) /* {{{ */
 {
-    std::lock_guard<std::mutex> dummy(facul_strategies_cache.mutex());
+    std::lock_guard<std::mutex> const dummy(facul_strategies_cache.mutex());
     auto it = facul_strategies_cache.find(conf);
     if (it != facul_strategies_cache.end()) {
         return it->second.get();
     }
 
-    double time_strat = seconds();
+    double const time_strat = seconds();
 
     FILE* file = NULL;
     if (cofactfilename != NULL) /* a file was given */

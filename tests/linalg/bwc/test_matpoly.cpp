@@ -75,9 +75,9 @@ struct matpoly_checker_base {
     }
 
     int ctor_and_pre_init() {
-        matpoly A(&ab, 0, 0, 0);
+        matpoly const A(&ab, 0, 0, 0);
         if (!A.check_pre_init()) return 0;
-        matpoly P;
+        matpoly const P;
         matpoly Q(&ab, m, m+n, len1);
         Q.clear_and_set_random(len1, rstate);
         return P.check_pre_init() && !Q.check_pre_init();
@@ -92,7 +92,7 @@ struct matpoly_checker_base {
          */
         matpoly P(&ab, m, m+n, len1);
         P.clear_and_set_random(len1, rstate);
-        matpoly Q(std::move(P));
+        matpoly const Q(std::move(P));
         matpoly R(&ab, m, n, len1);
         R.clear_and_set_random(len1, rstate);
         R = matpoly();
@@ -112,7 +112,7 @@ struct matpoly_checker_base {
         matpoly P1(&ab, n, n, len1 + len2);
         gmp_randseed_ui(rstate, seed); P0.clear_and_set_random(len1, rstate);
         gmp_randseed_ui(rstate, seed); P1.clear_and_set_random(len1, rstate);
-        int ok = P0.capacity() >= len1 && P1.capacity() >= len1+len2 && P0.cmp(P1) == 0;
+        int const ok = P0.capacity() >= len1 && P1.capacity() >= len1+len2 && P0.cmp(P1) == 0;
         return ok;
     }
 
@@ -152,13 +152,13 @@ struct matpoly_checker_base {
 
         gmp_randseed_ui(rstate, seed);
         for(unsigned int k = 0 ; k < n ; k++) {
-            unsigned int j = gmp_urandomm_ui(rstate, n);
+            unsigned int const j = gmp_urandomm_ui(rstate, n);
             P.multiply_column_by_x(j, jlen[j]++);
         }
         /* Arrange so that we pick the same list, and divide */
         gmp_randseed_ui(rstate, seed);
         for(unsigned int k = 0 ; k < n ; k++) {
-            unsigned int j = gmp_urandomm_ui(rstate, n);
+            unsigned int const j = gmp_urandomm_ui(rstate, n);
             ASSERT_ALWAYS(jlen[j] > 0);
             P.divide_column_by_x(j, jlen[j]--);
         }
@@ -167,8 +167,8 @@ struct matpoly_checker_base {
 
     int truncate_is_like_mulx_then_divx_everywhere() {
         matpoly P(&ab, m,   n, len1);
-        unsigned int trmax = std::min(128u, len1 / 2);
-        unsigned int tr = gmp_urandomm_ui(rstate, trmax + 1);
+        unsigned int const trmax = std::min(128u, len1 / 2);
+        unsigned int const tr = gmp_urandomm_ui(rstate, trmax + 1);
         P.clear_and_set_random(len1, rstate);
         matpoly Q;
         Q.set(P);
@@ -197,8 +197,8 @@ struct matpoly_checker_base {
 
     int rshift_is_like_divx_everywhere() {
         matpoly P(&ab, m,   n, len1);
-        unsigned int trmax = std::min(128u, len1 / 2);
-        unsigned int tr = gmp_urandomm_ui(rstate, trmax + 1);
+        unsigned int const trmax = std::min(128u, len1 / 2);
+        unsigned int const tr = gmp_urandomm_ui(rstate, trmax + 1);
         P.clear_and_set_random(len1, rstate);
         matpoly Q;
         Q.set(P);
@@ -221,7 +221,7 @@ struct matpoly_checker_base {
     }
 
     int test_extract_column() {
-        unsigned int s = n;
+        unsigned int const s = n;
         matpoly P(&ab, m,   n, s+1);
         P.clear_and_set_random(1, rstate);
         for(unsigned int k = 0 ; k < s ; k++)
@@ -251,7 +251,7 @@ struct matpoly_checker_base {
         std::vector<int> jlen(n, len1);
         std::vector<unsigned int> js;
         for(unsigned int k = 0 ; k < n ; k++) {
-            unsigned int j = gmp_urandomm_ui(rstate, n);
+            unsigned int const j = gmp_urandomm_ui(rstate, n);
             if (!jlen[j]) continue;
             P.divide_column_by_x(j, jlen[j]);
             Q.zero_column(j, len1-jlen[j]);
@@ -350,7 +350,7 @@ struct matpoly_checker_base {
         }
         matpoly P(&ab, m, n, mlen1);
         matpoly Q(&ab, m, n, mlen2);
-        matpoly R(&ab, n, n, mlen2);
+        matpoly const R(&ab, n, n, mlen2);
         matpoly PQ, PR, QR, PQ_R, PR_QR;
         P.clear_and_set_random(mlen1, rstate);
         Q.clear_and_set_random(mlen2, rstate);
@@ -370,7 +370,7 @@ struct matpoly_checker_base {
     {
         matpoly P(&ab, m,   n, len1 + 2);
         P.clear_and_set_random(len1, rstate);
-        unsigned int k = P.get_size() / 2;
+        unsigned int const k = P.get_size() / 2;
         for(unsigned int j = 0 ; j < n ; j++)
             P.zero_column(j, k);
         return P.coeff_is_zero(k);
@@ -414,8 +414,8 @@ struct matpoly_checker_ft : public matpoly_checker_base {
         P.clear_and_set_random(len1, rstate);
         Q.clear_and_set_random(len2, rstate);
 
-        matpoly R0 = matpoly::mul(P, Q);
-        matpoly R1 = matpoly_ft<fft_type>::mul_caching(stats, P, Q, NULL);
+        matpoly const R0 = matpoly::mul(P, Q);
+        matpoly const R1 = matpoly_ft<fft_type>::mul_caching(stats, P, Q, NULL);
 
         return (R0.cmp(R1) == 0);
     }
@@ -427,8 +427,8 @@ struct matpoly_checker_ft : public matpoly_checker_base {
         P.clear_and_set_random(len1, rstate);
         Q.clear_and_set_random(len2, rstate);
 
-        matpoly M0 = matpoly::mp(P, Q);
-        matpoly M1 = matpoly_ft<fft_type>::mp_caching(stats, P, Q, NULL);
+        matpoly const M0 = matpoly::mp(P, Q);
+        matpoly const M1 = matpoly_ft<fft_type>::mp_caching(stats, P, Q, NULL);
 
         return M0.cmp(M1) == 0;
     }
@@ -502,12 +502,12 @@ int main(int argc, char * argv[])
         exit(EXIT_FAILURE);
 #ifdef LINGEN_BINARY
     if (m & 63) {
-        unsigned int nm = 64 * iceildiv(m, 64);
+        unsigned int const nm = 64 * iceildiv(m, 64);
         printf("Round m=%u to m=%u\n", m, nm);
         m = nm;
     }
     if (n & 63) {
-        unsigned int nn = 64 * iceildiv(n, 64);
+        unsigned int const nn = 64 * iceildiv(n, 64);
         printf("Round n=%u to n=%u\n", n, nn);
         n = nn;
     }

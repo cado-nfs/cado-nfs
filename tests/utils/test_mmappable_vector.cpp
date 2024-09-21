@@ -41,7 +41,7 @@ void test_test_file(int count, const char * fname, bool expect_zeros)
     FILE * f = fopen(fname, "r");
     for (int i=0;i<count;i++) {
         int j;
-        int n = fread(&j, 1, sizeof(j), f);
+        int const n = fread(&j, 1, sizeof(j), f);
         ASSERT_ALWAYS(n == (int) sizeof(j));
         ASSERT_ALWAYS(j == (expect_zeros ? 0 : i));
     }
@@ -55,7 +55,7 @@ void test_mmap(void)
 
     {
         fprintf(stderr, "Testing R/O mapping\n");
-        mmapped_file M(TESTFILE, READ_ONLY);
+        mmapped_file const M(TESTFILE, READ_ONLY);
         mmappable_vector<int> int_vec_default(mmap_allocator<int>(M, 0, 1024));
         int_vec_default.mmap(1024);
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
@@ -70,7 +70,7 @@ void test_mmap(void)
     /* Now do the same test read-write */
     {
         fprintf(stderr, "Testing private R/W mapping\n");
-        mmapped_file M(TESTFILE, READ_WRITE_PRIVATE);
+        mmapped_file const M(TESTFILE, READ_WRITE_PRIVATE);
         mmappable_vector<int> int_vec_default(mmap_allocator<int>(M, 0, 1024));
         int_vec_default.mmap(1024);
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
@@ -86,7 +86,7 @@ void test_mmap(void)
      * different */
     {
         fprintf(stderr, "Testing shared R/W mapping\n");
-        mmapped_file M(TESTFILE, READ_WRITE_SHARED);
+        mmapped_file const M(TESTFILE, READ_WRITE_SHARED);
         mmappable_vector<int> int_vec_default(mmap_allocator<int>(M, 0, 1024));
         int_vec_default.mmap(1024);
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
@@ -103,7 +103,7 @@ void test_mmap(void)
     /* Now how does it go if we map only part of a file */
     {
         fprintf(stderr, "Testing fragment mapping\n");
-        mmapped_file M(TESTFILE2, READ_WRITE_SHARED, 8000, 1040576);
+        mmapped_file const M(TESTFILE2, READ_WRITE_SHARED, 8000, 1040576);
         mmappable_vector<int> int_vec_default(mmap_allocator<int>(M, 8000, 1024));
         int_vec_default.mmap(1024);
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
@@ -117,7 +117,7 @@ void test_mmap(void)
      */
     {
         fprintf(stderr, "Testing value-initialized + private mapping\n");
-        mmapped_file M(TESTFILE, READ_WRITE_PRIVATE);
+        mmapped_file const M(TESTFILE, READ_WRITE_PRIVATE);
         mmappable_vector<int> int_vec_default(1024, 0, mmap_allocator<int>(M, 0, 1024));
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
         for (int i=0;i<1024;i++) {
@@ -129,7 +129,7 @@ void test_mmap(void)
     /* on a shared mapping, we're supposed to get the zeroes */
     {
         fprintf(stderr, "Testing value-initialized + shared mapping\n");
-        mmapped_file M(TESTFILE, READ_WRITE_SHARED);
+        mmapped_file const M(TESTFILE, READ_WRITE_SHARED);
         mmappable_vector<int> int_vec_default(1024, 0, mmap_allocator<int>(M, 0, 1024));
         ASSERT_ALWAYS(int_vec_default.size() == 1024);
         for (int i=0;i<1024;i++) {
@@ -253,8 +253,8 @@ void test_multiple_open(void)
     /* It is better to specifically create a mapping for the file, and
      * use it. That way, we have only one mmap() per file */
     {
-        mmapped_file M(TESTFILE, READ_ONLY);
-        mmapped_file M2(TESTFILE2, READ_ONLY);
+        mmapped_file const M(TESTFILE, READ_ONLY);
+        mmapped_file const M2(TESTFILE2, READ_ONLY);
         fprintf(stderr, "Testing multiple open (you need to strace this).\n");
         mmappable_vector<int> vec1(mmap_allocator<int>(M, 0, 1024));
         mmappable_vector<int> vec2(mmap_allocator<int>(M, 0, 1024));

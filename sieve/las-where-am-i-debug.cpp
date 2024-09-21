@@ -138,8 +138,8 @@ void where_am_I::interpret_parameters(cxx_param_list & pl)
  */
 void where_am_I::begin_special_q(nfs_work const & ws)
 {
-    int logI = ws.conf.logI;
-    unsigned int J = ws.J;
+    int const logI = ws.conf.logI;
+    unsigned int const J = ws.J;
     qlattice_basis const & Q(ws.Q);
 
     /* At most one of the three coordinates must be specified */
@@ -213,22 +213,22 @@ int test_divisible(where_am_I const & w)
 
     /* Note that when we are reaching here through apply_one_bucket, we
      * do not know the prime number. */
-    fbprime_t p = w->p;
+    fbprime_t const p = w->p;
     if (p==0) return 1;
 
     const unsigned int logI = w->logI;
     const unsigned int I = 1U << logI;
 
     const unsigned long X = w->x + (w->N << LOG_BUCKET_REGION);
-    long i = (long) (X & (I-1)) - (long) (I/2);
-    unsigned long j = X >> logI;
+    long const i = (long) (X & (I-1)) - (long) (I/2);
+    unsigned long const j = X >> logI;
     fbprime_t q;
 
     q = fb_is_power (p, NULL);
     if (q == 0)
         q = p;
 
-    int rc = mpz_divisible_ui_p (traced_norms[w->side], (unsigned long) q);
+    int const rc = mpz_divisible_ui_p (traced_norms[w->side], (unsigned long) q);
 
     if (rc)
         mpz_divexact_ui (traced_norms[w->side], traced_norms[w->side], (unsigned long) q);
@@ -245,7 +245,7 @@ int test_divisible(where_am_I const & w)
 #if defined(HAVE_CXXABI_H) && defined(HAVE_EXECINFO)
 static std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
 {
-    size_t pos = a.find('+');
+    size_t const pos = a.find('+');
     if (pos == a.npos) {
         suffix.clear();
         return a;
@@ -256,13 +256,13 @@ static std::string remove_trailing_address_suffix(std::string const& a, std::str
 
 static std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std::string& suffix)
 {
-    size_t pos = a.find('(');
+    size_t const pos = a.find('(');
     if (pos == a.npos) {
         prefix=a;
         suffix.clear();
         return std::string();
     }
-    size_t pos2 = a.find(')', pos + 1);
+    size_t const pos2 = a.find(')', pos + 1);
     if (pos2 == a.npos) {
         prefix=a;
         suffix.clear();

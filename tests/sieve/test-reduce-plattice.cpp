@@ -255,7 +255,7 @@ inline
 typename std::enable_if<!T::old_interface && T::batch_count == 1, unsigned long>::type
 test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa)
 {
-    bool proj = aa->r >= aa->q;
+    bool const proj = aa->r >= aa->q;
     L->initial_basis(aa->q, proj ? (aa->r - aa->q) : aa->r, proj);
     T::call(*L, tw.I);
     return L->mi0;
@@ -282,9 +282,9 @@ test_inner(plattice_proxy * L, test_wrap const & tw, a_test const * aa, size_t N
     /* prepare the lattices for all calls. */
     for(j = 0 ; j < N ; j++) {
         // unsigned long p = tests[j].p;
-        unsigned long q = aa[j].q;
-        unsigned long r = aa[j].r;
-        bool proj = r >= q;
+        unsigned long const q = aa[j].q;
+        unsigned long const r = aa[j].r;
+        bool const proj = r >= q;
         L[j].initial_basis(q, proj ? (r-q) : r, proj);
         if (L[j].needs_special_treatment(tw.I))
             normal = false;
@@ -319,7 +319,7 @@ void test_correctness(test_wrap & tw)
                 test_inner<call_simplistic>(Lref, tw, &(tests[i]), N);
                 test_inner<T>(L, tw, &(tests[i]), N);
             } else {
-                size_t M = tests.size() - i;
+                size_t const M = tests.size() - i;
                 test_inner<call_simplistic>(Lref, tw, &(tests[i]), M);
                 test_inner<T>(L, tw, &(tests[i]), M);
             }
@@ -335,7 +335,7 @@ void test_correctness(test_wrap & tw)
             std::string c = "failed in-algorithm check";
             std::string t = fmt::format(
                     FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
-            std::string msg = fmt::format(FMT_STRING("{}: {} check for {}\n"),
+            std::string const msg = fmt::format(FMT_STRING("{}: {} check for {}\n"),
                     thiscode, c, t);
             fputs(msg.c_str(), stderr);
             if (!T::has_known_bugs) tw.failed = true;
@@ -345,7 +345,7 @@ void test_correctness(test_wrap & tw)
                 std::string c = fmt::format("failed check ({})", when);
                 std::string t = fmt::format(
                         FMT_STRING("p^k={}^{} r={}"), aa.p, aa.k, aa.r);
-                std::string msg = fmt::format(
+                std::string const msg = fmt::format(
                         FMT_STRING("{}: {} check for {}\n"), thiscode, c, t);
                 fputs(msg.c_str(), stderr);
                 if (!T::has_known_bugs) tw.failed = true;
@@ -388,7 +388,7 @@ test_speed(test_wrap & tw)
 {
     test_correctness<T>(tw);
     if (!tw.timing) return 0;
-    clock_t clk0 = clock();
+    clock_t const clk0 = clock();
     unsigned long dummy_local = 0;
     size_t i;
     for(i = 0 ; i + T::batch_count <= tw.tests.size() ; i += T::batch_count) {
@@ -399,7 +399,7 @@ test_speed(test_wrap & tw)
         plattice_proxy L[T::batch_count];
         dummy_local += test_inner<T>(L, tw, &tw.tests[i], tw.tests.size() - i);
     }
-    clock_t clk1 = clock();
+    clock_t const clk1 = clock();
     if (tw.timing) {
         printf("# %s: %zu tests in %.4fs\n",
                 T::what, tw.tests.size(), ((double)(clk1-clk0))/CLOCKS_PER_SEC);
@@ -414,13 +414,13 @@ test_speed(test_wrap & tw)
 {
     test_correctness<T>(tw);
     if (!tw.timing) return 0;
-    clock_t clk0 = clock();
+    clock_t const clk0 = clock();
     unsigned long dummy_local = 0;
     for(a_test const & aa : tw.tests) {
         plattice_proxy L[T::batch_count];
         dummy_local += test_inner<T>(L, tw, &aa);
     }
-    clock_t clk1 = clock();
+    clock_t const clk1 = clock();
     if (tw.timing) {
         printf("# %s: %zu tests in %.4fs\n",
                 T::what, tw.tests.size(), ((double)(clk1-clk0))/CLOCKS_PER_SEC);
@@ -495,18 +495,18 @@ int main(int argc, char * argv[])
     tests.emplace_back(a_test { 1579, 1579, 1579, 1 });
 
     for( ; tw.tests.size() < ntests ; ) {
-        unsigned long j = gmp_urandomm_ui(rstate, prime_powers.size());
+        unsigned long const j = gmp_urandomm_ui(rstate, prime_powers.size());
         unsigned long p;
         int k;
         std::tie(p, k) = prime_powers[j];
         unsigned long q = 1;
         for(int s = k ; s-- ; q*=p) ;
         unsigned long r = gmp_urandomm_ui(rstate, q + q / p);
-        bool proj = r >= q;
+        bool const proj = r >= q;
         if (proj)
             r = q + p * (r - q);
 
-        a_test aa { p, q, r, k };
+        a_test const aa { p, q, r, k };
 
         tests.emplace_back(aa);
 
@@ -522,7 +522,7 @@ int main(int argc, char * argv[])
         auto jt = tests.begin();
         for(auto const & aa : tests) {
             plattice_proxy L;
-            bool proj = aa.r >= aa.q;
+            bool const proj = aa.r >= aa.q;
             L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
             if (L.check_pre_conditions(tw.I)) {
                 *jt++ = aa;
@@ -577,7 +577,7 @@ int main(int argc, char * argv[])
          */
         std::map<int, unsigned long> T;
         for(auto const & aa : tests) {
-            bool proj = aa.r >= aa.q;
+            bool const proj = aa.r >= aa.q;
             plattice_proxy L;
             L.initial_basis(aa.q, proj ? (aa.r - aa.q) : aa.r, proj);
             if (L.needs_special_treatment(tw.I)) {
@@ -588,7 +588,7 @@ int main(int argc, char * argv[])
             }
         }
         for(auto & kv : stats) {
-            int k = kv.first;
+            int const k = kv.first;
             printf("%d:", k);
             for(auto & dn : kv.second) {
                 printf(" %s:%d", dn.first.c_str(), dn.second);

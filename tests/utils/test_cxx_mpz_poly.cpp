@@ -29,7 +29,7 @@ int main(int argc, char * argv[])
 
     for(int i = 0 ; i < 10 ; i++) {
         cxx_mpz_poly x;
-        int jmax = rand() % 16;
+        int const jmax = rand() % 16;
         for(int j = 0 ; j < jmax ; j++) {
             mpz_poly_setcoeff_si(x, j, (rand() - (RAND_MAX / 2)));
         }

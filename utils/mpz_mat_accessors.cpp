@@ -42,7 +42,7 @@ void mpq_mat_row_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const un
 {
     /* read element w[i] as a polynomial. beware, the element might
      * have rational coordinates, that's life ! */
-    unsigned int n = M->n;
+    unsigned int const n = M->n;
     ASSERT_ALWAYS(i < M->m);
     mpz_set_ui(lcm, 1);
     for (unsigned int j = 0; j < n; j++) {

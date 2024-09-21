@@ -59,13 +59,13 @@ int legacy_check_mode = 0;
 void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {
 
-    int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
+    int const fake = param_list_lookup_string(pl, "random_matrix") != NULL;
 
     ASSERT_ALWAYS(!pi->interleaved);
 
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
 
-    int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
+    int const withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, nchecks));
 
@@ -81,7 +81,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
 
     mmt_vec dvec(mmt,0,0, !bw->dir, /* shared ! */ 1, mmt.n[!bw->dir]);
 
-    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
+    unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     /* Because we're a special case, we _expect_ to work opposite to
      * optimized direction. So we pass bw->dir even though _we_ are going
@@ -114,16 +114,16 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* Ct is a constant projection matrix of size bw->m * nchecks */
     /* It depends only on the random seed. We create it if start==0, or
      * reload it otherwise. */
-    std::string Tfilename = fmt::format(FMT_STRING("Ct0-{}.0-{}"), nchecks, bw->m);
-    size_t T_coeff_size = A->vec_elt_stride(bw->m);
+    std::string const Tfilename = fmt::format(FMT_STRING("Ct0-{}.0-{}"), nchecks, bw->m);
+    size_t const T_coeff_size = A->vec_elt_stride(bw->m);
     arith_generic::elt * Tdata;
     Tdata = A->alloc(bw->m);
 
     /* Cr is a list of matrices of size nchecks * nchecks */
     /* It depends only on the random seed */
-    std::string Rfilename = fmt::format(FMT_STRING("Cr0-{}.0-{}"), nchecks, nchecks);
+    std::string const Rfilename = fmt::format(FMT_STRING("Cr0-{}.0-{}"), nchecks, nchecks);
     FILE * Rfile = NULL;
-    size_t R_coeff_size = A->vec_elt_stride(nchecks);
+    size_t const R_coeff_size = A->vec_elt_stride(nchecks);
 
 
     if (!legacy_check_mode) {
@@ -148,7 +148,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                     f = fopen(filename, mode);
                     memset(sbuf, 0, sizeof(struct stat));
                     if (!f) return;
-                    int rc = fstat(fileno(f), sbuf);
+                    int const rc = fstat(fileno(f), sbuf);
                     if (rc != 0) {
                         fclose(f);
                         f = NULL;
@@ -317,7 +317,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     if (check_stops.empty()) {
         check_stops.push_back(0);
         check_stops.push_back(bw->interval);
-        int a = std::min(16, bw->interval / 2);
+        int const a = std::min(16, bw->interval / 2);
         if (a) {
             /* if interval == 1, don't bother */
             check_stops.push_back(a);
@@ -336,7 +336,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     if (tcan_print) {
         printf("Computing trsp(x)*M^k for check stops k=");
         for(unsigned int s = 0 ; s < check_stops.size() ; s++) {
-            int next = check_stops[s];
+            int const next = check_stops[s];
             if (s) printf(",");
             printf("%d", next);
         }
@@ -352,7 +352,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     // }}}
 
     int k = bw->start;
-    for(int next : check_stops) {
+    for(int const next : check_stops) {
         serialize(pi->m);
         if (next == 0) {
             /* if 0 is in check_stops, we don't want to create files such
@@ -376,7 +376,7 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
          * Therefore this is mostly a matter of consistency.
          */
         arith_generic::elt * Rdata_stream = NULL;
-        int k0 = k;
+        int const k0 = k;
         if (!legacy_check_mode && (next - k0)) {
             Rdata_stream = A->alloc(nchecks * (next - k0), ALIGNMENT_ON_ALL_BWC_VECTORS);
             A->vec_set_zero(Rdata_stream, nchecks * (next - k0));

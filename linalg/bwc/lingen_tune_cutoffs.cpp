@@ -94,7 +94,7 @@ unsigned int bench_atleast_uptothis = 0;
 #ifdef  HAVE_GCC_STYLE_AMD64_INLINE_ASM
 struct timer_rdtsc {
     inline double operator()() const {
-        uint64_t c = cputicks();
+        uint64_t const c = cputicks();
         return c/1.0e9;
     }
     static const char * timer_unit() { return "Gccyc"; }
@@ -172,7 +172,7 @@ struct small_bench {
     /* *sets* tt to the time since the last timer reset. Do not reset the
      * timer.  */
     inline void set_since_last(int weight = 1) { 
-        double now = T()();
+        double const now = T()();
         tt = weight * (now - last_starting_tt);
     }
     inline void inject(double t, int weight = 1) { tt += weight*t; }
@@ -213,7 +213,7 @@ struct cutoff_finder {
     }
     inline string method_name(int i) const {
         ostringstream v;
-        map<int, string>::const_iterator z = method_names.find(i);
+        map<int, string>::const_iterator const z = method_names.find(i);
         if (z == method_names.end()) {
             v << "method " << i;
             return v.str();
@@ -266,7 +266,7 @@ struct cutoff_finder {
             unsigned int age_slow = 0;
             for( ; age_slow < all_results.size() ; age_slow++) {
                 vector<double> const& these(all_results[all_results.size()-1-age_slow].second.first);
-                int best_there = all_results[all_results.size()-1-age_slow].second.second;
+                int const best_there = all_results[all_results.size()-1-age_slow].second.second;
                 /* do not discard this method if a less advanced one is
                  * still alive.
                  */
@@ -310,8 +310,8 @@ struct cutoff_finder {
 
         typedef vector<pair<unsigned int, pair<vector<double>, int> > >::const_iterator it_t;
         for(it_t it = all_results.begin() ; it != all_results.end() ; ++it) {
-            unsigned int size = it->first;
-            int best = it->second.second;
+            unsigned int const size = it->first;
+            int const best = it->second.second;
             if (steps.empty() || best != steps.back().second) {
                 steps.push_back(make_pair(size, best));
             }
@@ -334,7 +334,7 @@ struct cutoff_finder {
 
         typedef vector<pair<unsigned int, pair<vector<double>, int> > >::const_iterator it_t;
         for(it_t it = all_results.begin() ; it != all_results.end() ; ++it) {
-            unsigned int size = it->first;
+            unsigned int const size = it->first;
             vector<double> const& benches(it->second.first);
             int best = it->second.second;
             /* In case fft wins, we invent something which will use
@@ -361,7 +361,7 @@ struct cutoff_finder {
     }
     vector<pair<unsigned int, int> > export_kara_cutoff_data_force_kara_now(struct polymat_cutoff_info * dst, unsigned int size)
     {
-        vector<double> allz(ntests);
+        vector<double> const allz(ntests);
         all_results.push_back(make_pair(size, make_pair(allz, 1)));
         vector<pair<unsigned int, int> > x = export_kara_cutoff_data(dst);
         all_results.pop_back();
@@ -387,7 +387,7 @@ int hup_caught = 0;
 
 void sighandler(int sig MAYBE_UNUSED)
 {
-    double t = wct_seconds();
+    double const t = wct_seconds();
     if (t < last_hup + 0.5) {
         fprintf(stderr, "Interrupt twice in half a second; exiting\n");
         exit(1);
@@ -433,7 +433,7 @@ void lingen_tune_mul_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigne
     typedef timer_rusage timer_t;
 #endif
 
-    int nadjs=7;
+    int const nadjs=7;
     measurement_choice mc;
     mc.enough_time = 2.0;
     mc.minimum_time = 0.1;
@@ -469,19 +469,19 @@ void lingen_tune_mul_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigne
 
     /* This is for forcing the bench to run until a large length. This is
      * unnecessary here */
-    unsigned int min_bench = 0;
+    // unsigned int const min_bench = 0;
 
     /* Beware, k is the length of piL, not a degree. Hence length 1
      * clearly makes no sense */
-    for(unsigned int k = 2 ; !hup_caught && (k < min_bench || !finder.done()) ; k=finder.next_length(k)) {
-        unsigned int input_length = (m+n) * k / m;
+    for(unsigned int k = 2 ; !hup_caught && (/* k < min_bench || */ !finder.done()) ; k=finder.next_length(k)) {
+        unsigned int const input_length = (m+n) * k / m;
 
         mpz_t p;
         mpz_init_set(p, ab->characteristic());
 
-        auto A = ab->alloc(k);
-        auto B = ab->alloc(k);
-        auto C = ab->alloc(2*k-1);
+        auto * A = ab->alloc(k);
+        auto * B = ab->alloc(k);
+        auto * C = ab->alloc(2*k-1);
         
         ab->vec_set_random(A, k, rstate);
         ab->vec_set_random(B, k, rstate);
@@ -543,7 +543,7 @@ void lingen_tune_mul_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigne
                 }
                 x.inject(t_conv, (m+n)*(m+n)*(m+n));
 
-                double t_iftC=0;
+                double const t_iftC=0;
                 for(bt y = bt(t_conv, mc); !y.done(); ++y) {
                     fft_prepare(fti, tC);
                     fft_ift(fti, (mp_limb_t*)C, 2*k-1, tC, qt);
@@ -608,7 +608,7 @@ void lingen_tune_mp_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned
     typedef timer_rusage timer_t;
 #endif
 
-    int nadjs=7;
+    int const nadjs=7;
     measurement_choice mc;
     mc.enough_time = 2.0;
     mc.minimum_time = 0.1;
@@ -644,20 +644,20 @@ void lingen_tune_mp_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned
 
     /* This is for forcing the bench to run until a large length. This is
      * unnecessary here */
-    unsigned int min_bench = 0;
+    // unsigned int const min_bench = 0;
 
     /* Beware, k is the length of piL, not a degree. Hence length 1
      * clearly makes no sense */
-    for(unsigned int k = 2 ; !hup_caught && (k < min_bench || !finder.done()) ; k=finder.next_length(k)) {
-        unsigned int input_length = (m+n) * k / m;
+    for(unsigned int k = 2 ; !hup_caught && (/* k < min_bench || */ !finder.done()) ; k=finder.next_length(k)) {
+        unsigned int const input_length = (m+n) * k / m;
 
-        unsigned int E_length = k + input_length - 1;
+        unsigned int const E_length = k + input_length - 1;
 
         cxx_mpz p(ab->characteristic());
 
-        auto A = ab->alloc(E_length);
-        auto B = ab->alloc(k);
-        auto C = ab->alloc(input_length);
+        auto * A = ab->alloc(E_length);
+        auto * B = ab->alloc(k);
+        auto * C = ab->alloc(input_length);
         
         ab->vec_set_random(A, E_length, rstate);
         ab->vec_set_random(B, k, rstate);
@@ -719,7 +719,7 @@ void lingen_tune_mp_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned
                 }
                 x.inject(t_conv, m*(m+n)*(m+n));
 
-                double t_iftC=0;
+                double const t_iftC=0;
                 for(bt y = bt(t_conv, mc); !y.done(); ++y) {
                     fft_prepare(fti, tC);
                     fft_ift(fti, (mp_limb_t*)C, input_length, tC, qt);
@@ -813,12 +813,12 @@ void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, c
 
     /* make sure we don't stop the bench absurdly early. We set the bench
      * as input_length \approx 2000 */
-    unsigned int min_bench = bench_atleast_uptothis * m / (m+n);
+    unsigned int const min_bench = bench_atleast_uptothis * m / (m+n);
 
     /* Beware, k is the length of piL, not a degree. Hence length 1
      * clearly makes no sense */
     for(unsigned int k = 2 ; !hup_caught && (k < min_bench || !finder.done()) ; k=finder.next_length(k)) {
-        unsigned int input_length = (m+n) * k / m;
+        unsigned int const input_length = (m+n) * k / m;
         polymat piL  (ab, m+n, m+n, k);
         polymat piR  (ab, m+n, m+n, k);
         polymat pi   (ab, m+n, m+n, 2*k-1);
@@ -826,7 +826,7 @@ void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, c
         piL.fill_random(k, rstate);
         piR.fill_random(k, rstate);
         
-        ostringstream extra_info;
+        ostringstream const extra_info;
 
         if (finder.still_meaningful_to_test(0)) {
             /* disable kara for a minute */
@@ -900,7 +900,7 @@ void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, c
         }
 
         if (finder.still_meaningful_to_test(3)) {
-            unsigned int adj = cutoff_list_get(cl, k);
+            unsigned int const adj = cutoff_list_get(cl, k);
             {
                 ostringstream o;
                 o << "matpoly-ft-kronecker-schönhage-caching@adj" << adj;
@@ -967,7 +967,7 @@ void lingen_tune_mul(matpoly::arith_hard * ab, unsigned int m, unsigned int n, c
     hup_caught = 0;
 
 
-    vector<pair<unsigned int, int> > table = finder.export_kara_cutoff_data(improved);
+    vector<pair<unsigned int, int> > const table = finder.export_kara_cutoff_data(improved);
     polymat_set_mul_kara_cutoff(improved, NULL);
 
     cout << "/* Cutoffs (0=basecase, 1=kara) for "
@@ -1034,18 +1034,18 @@ void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cu
 
     /* make sure we don't stop the bench absurdly early. We set the bench
      * as input_length \approx 2000 */
-    unsigned int min_bench = bench_atleast_uptothis * m / (m+n);
+    unsigned int const min_bench = bench_atleast_uptothis * m / (m+n);
 
     /* Beware, k is a length of piL, not a degree. Hence length 1 clearly
      * makes no sense */
     for(unsigned int k = 2 ; !hup_caught && (k < min_bench || !finder.done()) ; k=finder.next_length(k)) {
-        unsigned int input_length = (m+n) * k / m;
+        unsigned int const input_length = (m+n) * k / m;
         /* MP(degree a, degree b) -> degree b-a
          *    length la=a+1, length lb=b+1 -> length b-a+1 = lb-la+1
          * we do want lc=input_length, we have set la=k, whence lb =
          * k+input_length-1
          */
-        unsigned int E_length = k + input_length - 1;
+        unsigned int const E_length = k + input_length - 1;
         polymat E(ab, m, m+n, E_length);
         polymat piL(ab, m+n, m+n, k);
         polymat ER(ab, m, m+n, input_length);
@@ -1053,7 +1053,7 @@ void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cu
         E.fill_random(E_length, rstate);
         piL.fill_random(k, rstate);
 
-        ostringstream extra_info;
+        ostringstream const extra_info;
 
         if (finder.still_meaningful_to_test(0)) {
             /* disable kara for a minute */
@@ -1189,7 +1189,7 @@ void lingen_tune_mp(matpoly::arith_hard * ab, unsigned int m, unsigned int n, cu
     }
     hup_caught = 0;
 
-    vector<pair<unsigned int, int> > table = finder.export_kara_cutoff_data(improved);
+    vector<pair<unsigned int, int> > const table = finder.export_kara_cutoff_data(improved);
     polymat_set_mp_kara_cutoff(improved, NULL);
 
     cout << "/* Cutoffs (0=basecase, 1=kara) for "
@@ -1290,8 +1290,8 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
     param_list_parse_int(pl, "catchsig", &catchsig);
 
     matpoly::arith_hard * ab = & d.ab;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
     cxx_mpz p(ab->characteristic());
 
     gmp_randinit_default(rstate);
@@ -1320,21 +1320,21 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
     lingen_tune_mul(ab, m, n, cl_mul);
 
     // int tune_bm_basecase = 1;
-    int tune_mp = 1;
+    int const tune_mp = 1;
     /* record the list of cutoffs, and the method which wins from there
      */
 
     if (tune_mp) {
         /* Now for benching mp and plain mul */
-        unsigned int maxtune = 10000 / (m*n);
+        unsigned int const maxtune = 10000 / (m*n);
         /* Bench the products which would come together with a k-steps
          * basecase algorithm. IOW a 2k, one-level recursive call incurs
          * twice the k-steps basecase, plus once the timings counted here
          * (presently, this has Karatsuba complexity)
          */
         for(unsigned int k = 10 ; k < maxtune ; k+= k/10) {
-            unsigned int sE = k*(m+2*n)/(m+n);
-            unsigned int spi = k*m/(m+n);
+            unsigned int const sE = k*(m+2*n)/(m+n);
+            unsigned int const spi = k*m/(m+n);
             polymat E(ab, m, m+n, sE);
             polymat piL(ab, m+n, m+n, spi);
             polymat piR(ab, m+n, m+n, spi);
@@ -1357,10 +1357,10 @@ void lingen_tune_cutoffs(bw_dimensions & d, MPI_Comm comm MAYBE_UNUSED, cxx_para
             ttmul -= seconds();
             pi.mul(piL, piR);
             ttmul += seconds();
-            double ttmpq = ttmp / (k*k);
-            double ttmulq = ttmul / (k*k);
-            double ttmpk = ttmp / pow(k, 1.58);
-            double ttmulk = ttmul / pow(k, 1.58);
+            double const ttmpq = ttmp / (k*k);
+            double const ttmulq = ttmul / (k*k);
+            double const ttmpk = ttmp / pow(k, 1.58);
+            double const ttmulk = ttmul / pow(k, 1.58);
             printf("%u [%.2e+%.2e = %.2e] [%.2e+%.2e = %.2e]\n",
                     k,
                     ttmpq, ttmulq, ttmpq + ttmulq,

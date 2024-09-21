@@ -71,7 +71,7 @@ struct shrink_action {
             if (!(std::istringstream(line) >> rel))
                 throw std::runtime_error(fmt::format(FMT_STRING("parse error while reading {}"), line));
 
-            double rnd = double(u64_random(rstate)) / double(UINT64_MAX);
+            double const rnd = double(u64_random(rstate)) / double(UINT64_MAX);
             if (rnd >= row_fraction)
                 continue;
 

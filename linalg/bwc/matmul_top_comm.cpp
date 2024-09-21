@@ -110,7 +110,7 @@ mmt_vec_broadcast(mmt_vec & v)
      * help here.
      */
 
-    size_t eblock = mmt_my_own_size_in_items(v);
+    size_t const eblock = mmt_my_own_size_in_items(v);
 
 #ifndef MPI_LIBRARY_MT_CAPABLE
     if (!mmt_vec_is_shared(v)) {
@@ -169,11 +169,11 @@ mmt_vec_broadcast(mmt_vec & v)
 void alternative_reduce_scatter(mmt_vec & v)
 {
     pi_comm_ptr wr = v.pi->wr[v.d];
-    int njobs = wr->njobs;
-    int rank = wr->jrank;
-    MPI_Datatype t = v.pitype->datatype;
+    int const njobs = wr->njobs;
+    int const rank = wr->jrank;
+    MPI_Datatype const t = v.pitype->datatype;
 
-    size_t eitems = mmt_my_own_size_in_items(v) * wr->ncores;
+    size_t const eitems = mmt_my_own_size_in_items(v) * wr->ncores;
     if (v.rsbuf_items < eitems) {
         ASSERT_ALWAYS(v.rsbuf_items == 0);
         v.rsbuf[0] = v.abase->realloc(v.rsbuf[0], v.rsbuf_items, eitems);
@@ -187,8 +187,8 @@ void alternative_reduce_scatter(mmt_vec & v)
     v.abase->vec_set_zero(b[0], eitems);
 
     int l = (rank + 1) % njobs;
-    int srank = (rank + 1) % njobs;
-    int drank = (rank + njobs - 1) % njobs;
+    int const srank = (rank + 1) % njobs;
+    int const drank = (rank + njobs - 1) % njobs;
 
     for (int i = 0; i < njobs; i++) {
         int j0, j1;
@@ -258,19 +258,19 @@ void alternative_reduce_scatter_parallel(pi_comm_ptr xr, mmt_vec ** vs)
      * communicators, even though those collide into a unique
      * communicator as far as MPI is concerned.
      */
-    int njobs = wr->njobs;      /* 2 */
+    int const njobs = wr->njobs;      /* 2 */
     /* note that we no longer care at this point about what happened at
      * the thread level in our dimension. This is already done, period.
      */
-    int rank = wr->jrank;
-    MPI_Datatype t = v.pitype->datatype;
+    int const rank = wr->jrank;
+    MPI_Datatype const t = v.pitype->datatype;
 
     /* If the rsbuf[] buffers have not yet been allocated, it is time to
      * do so now. We also take the opportunity to possibly re-allocate
      * them if because of a larger abase, the corresponding storage has
      * to be expanded.
      */
-    size_t eitems = mmt_my_own_size_in_items(v) * wr->ncores;
+    size_t const eitems = mmt_my_own_size_in_items(v) * wr->ncores;
     /* notice that we are allocating a temp buffer only for one vector.
      * Of course, since this is a multithreaded routine, each thread in
      * xr is doing so at the same time */
@@ -285,8 +285,8 @@ void alternative_reduce_scatter_parallel(pi_comm_ptr xr, mmt_vec ** vs)
     ab->vec_set_zero(v.rsbuf[0], eitems);
     serialize_threads(xr);
 
-    int srank = (rank + 1) % njobs;
-    int drank = (rank + njobs - 1) % njobs;
+    int const srank = (rank + 1) % njobs;
+    int const drank = (rank + njobs - 1) % njobs;
 
     /* We describe the algorithm for one of the xr->ncores==5 threads.
      * local vector areas [9058] split into [wr->njobs==2] sub-areas of
@@ -314,9 +314,9 @@ void alternative_reduce_scatter_parallel(pi_comm_ptr xr, mmt_vec ** vs)
      */
 
     for (int i = 0, s = 0; i < njobs; i++, s=!s) {
-        int l = (rank + 1 + i) % njobs;
-        int j0 = l * eitems; 
-        int j1 = j0 +  eitems;
+        int const l = (rank + 1 + i) % njobs;
+        int const j0 = l * eitems; 
+        int const j1 = j0 +  eitems;
         ab->vec_add_and_reduce(v.rsbuf[s],
                 ab->vec_subvec(mmt_vec_sibling(v, 0).v, j0),
                 j1-j0);
@@ -384,8 +384,8 @@ int my_MPI_Reduce_scatter_block(void *sendbuf, void *recvbuf, int recvcount,
 
     memset(rsbuf[0], 0, recvcount * tsize);
 
-    int srank = (rank + 1) % njobs;
-    int drank = (rank + njobs - 1) % njobs;
+    int const srank = (rank + 1) % njobs;
+    int const drank = (rank + njobs - 1) % njobs;
 
     for (int i = 0, w = 0; i < njobs; i++, w^=1) {
 #if MPI_VERSION_ATLEAST(2,2)
@@ -469,7 +469,7 @@ mmt_vec_reduce_inner(mmt_vec & v)
          * the destination thread may be clobbered by the operation
          * (although in the present implementation it is not).
          */
-        size_t thread_chunk = wr->njobs * mmt_my_own_size_in_items(v);
+        size_t const thread_chunk = wr->njobs * mmt_my_own_size_in_items(v);
         arith_generic::elt * dptr = v.abase->vec_subvec(
                 mmt_vec_sibling(v, 0).v, 
                 wr->trank * thread_chunk);
@@ -664,7 +664,7 @@ mmt_vec_reduce(mmt_vec & w, mmt_vec & v)
     // Now among the picol->totalsize blocks of the col buffer, this
     // will go to position cj * picol->ncores + ct
  
-    size_t eblock = mmt_my_own_size_in_items(v);
+    size_t const eblock = mmt_my_own_size_in_items(v);
     ASSERT_ALWAYS(mmt_my_own_size_in_items(w) == eblock);
 
     v.abase->vec_set(
@@ -702,7 +702,7 @@ mmt_vec_reduce_sameside(mmt_vec & v)
 {
     pi_comm_ptr wr = v.pi->wr[v.d];
     mmt_vec_reduce_inner(v);
-    size_t eblock = mmt_my_own_size_in_items(v);
+    size_t const eblock = mmt_my_own_size_in_items(v);
     v.abase->vec_set(
             mmt_my_own_subvec(v),
             v.abase->vec_subvec(
@@ -738,7 +738,7 @@ mmt_vec_allreduce(mmt_vec & v)
     serialize_threads(v.pi->m);
     /* sum up row threads, so that only one thread on each row is used
      * for communication */
-    size_t thread_chunk = wr->njobs * mmt_my_own_size_in_items(v);
+    size_t const thread_chunk = wr->njobs * mmt_my_own_size_in_items(v);
     if (!mmt_vec_is_shared(v)) {
         arith_generic::elt * dv = v.abase->vec_subvec(v.v,
                 wr->trank * thread_chunk);
@@ -838,7 +838,7 @@ void matmul_top_comm_bench(matmul_top_data & mmt, int d)
     arith_generic * abase = mmt.abase;
 
     mmt_vec test_vectors[2];
-    int is_shared[2] = {0,0};
+    int const is_shared[2] = {0,0};
     mmt_vec_setup(test_vectors[0], mmt, NULL, NULL, 0, is_shared[0], mmt.n[0]);
     mmt_vec_setup(test_vectors[1], mmt, NULL, NULL, 1, is_shared[1], mmt.n[1]);
 
@@ -861,7 +861,7 @@ void matmul_top_comm_bench(matmul_top_data & mmt, int d)
          * really:
          *      #rows / mmt.pi->m->njobs * (pirow->njobs - 1)
          */
-        size_t data_out_ra = abase->vec_elt_stride(
+        size_t const data_out_ra = abase->vec_elt_stride(
                 picol->ncores * (mmt.n[!d] / picol->totalsize) /
                 pirow->njobs * (pirow->njobs - 1));
 
@@ -875,7 +875,7 @@ void matmul_top_comm_bench(matmul_top_data & mmt, int d)
          *      #cols / mmt.pi->m->njobs * (picol->njobs - 1)
          *
          */
-        size_t data_out_ag = abase->vec_elt_stride(
+        size_t const data_out_ag = abase->vec_elt_stride(
                 pirow->ncores * (mmt.n[d] / pirow->totalsize) /
                 picol->njobs * (picol->njobs - 1));
 

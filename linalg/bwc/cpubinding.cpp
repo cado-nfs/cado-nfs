@@ -98,8 +98,8 @@ class thread_split {
     thread_split(int t0, int t1) { t[0] = t0; t[1] = t1; }
     thread_split(int tt[2]) { t[0] = tt[0]; t[1] = tt[1]; }
     bool operator<(const thread_split& o) const {
-        int tt = (int) *this;
-        int oo = (int) o;
+        int const tt = (int) *this;
+        int const oo = (int) o;
         return tt < oo || (tt == oo && t[0] < o[0]);
     }
     thread_split operator*(thread_split const& o) const {
@@ -146,7 +146,7 @@ std::istream& operator>>(std::istream& is, thread_split& t) {
             return is;
         }
     }
-    std::string::size_type x01 = s.find_first_not_of(digits, x00);
+    std::string::size_type const x01 = s.find_first_not_of(digits, x00);
     if (x01 == std::string::npos
             || x01 >= s.size()
             || !(std::istringstream(s.substr(x00, x01 - x00)) >> t[0]))
@@ -155,7 +155,7 @@ std::istream& operator>>(std::istream& is, thread_split& t) {
         return is;
     }
 
-    std::string::size_type x10 = x01 + 1;
+    std::string::size_type const x10 = x01 + 1;
     if (!(std::istringstream(s.substr(x10)) >> t[1])) {
         is.setstate(std::ios_base::failbit);
         return is;
@@ -200,7 +200,7 @@ std::istream& operator>>(std::istream& is, topology_level& t)
         t.has_memory=1;
         return is;
     }
-    std::string::size_type colon = s.find(':');
+    std::string::size_type const colon = s.find(':');
     if (colon != std::string::npos) {
         t.object = s.substr(0, colon);
         if (t.object == "Socket") t.object="Package";
@@ -234,13 +234,13 @@ synthetic_topology hwloc_synthetic_topology(hwloc_topology_t topology)
     synthetic_topology result;
 
 #if HWLOC_API_VERSION >= 0x020000
-    bool root_has_memory = obj->memory_arity > 0;
+    bool const root_has_memory = obj->memory_arity > 0;
 #endif
 
     for(unsigned int arity = obj->arity ; arity ; arity = obj->arity) {
         obj = obj->first_child;
         char t[64];
-        int d = hwloc_obj_type_snprintf(t, sizeof(t), obj, 1);
+        int const d = hwloc_obj_type_snprintf(t, sizeof(t), obj, 1);
         if (d >= (int) sizeof(t))
             throw std::overflow_error("Too long hwloc type name.");
         topology_level T(t, arity);
@@ -306,11 +306,11 @@ std::istream& operator>>(std::istream& is, mapping_string& ms)
     if (!(is>>s)) {
         return is;
     }
-    std::string::size_type rel = s.find("=>");
+    std::string::size_type const rel = s.find("=>");
     if (rel == std::string::npos || !(std::istringstream(s.substr(rel+2)) >> ms.t)) {
         is.setstate(std::ios_base::failbit);
     } else {
-        std::string::size_type star = s.find('*');
+        std::string::size_type const star = s.find('*');
         if (star == std::string::npos) {
             ms.object = s.substr(0, rel);
             if (ms.object == "Socket") ms.object="Package";
@@ -438,7 +438,7 @@ std::istream& operator>>(std::istream& is, std::list<matching_string>& L)
                 << "found memory objects at two different levels";
         }
         is_version = 1;
-        int n = x.n;
+        int const n = x.n;
         
         if (n == 1) {
             /* I think that hwloc-1.x *NEVER* outputs this:
@@ -579,8 +579,8 @@ conf_file_parse_error:
     }
 
     /* reaching EOF is *normal* here ! */
-    bool fail = f.rdstate() & std::ios_base::failbit;
-    bool eof = f.rdstate() & std::ios_base::eofbit;
+    bool const fail = f.rdstate() & std::ios_base::failbit;
+    bool const eof = f.rdstate() & std::ios_base::eofbit;
     if (fail && !eof) {
         return f;
     } else if (eof) {
@@ -618,7 +618,7 @@ bool compare_to_section_title(std::ostream& os, synthetic_topology & topology, s
         }
         if (s.joker == "merge_caches") {
             while (t->object.find("Cache") != std::string::npos) {
-                int g = t->n;
+                int const g = t->n;
                 t = topology.erase(t);
                 if (t == topology.end()) {
                     throw std::invalid_argument("@merge_caches failure");
@@ -687,7 +687,7 @@ public:
     }
     /* define mergeing operations */
     pinning_group operator+(pinning_group const& o) const {
-        pinning_group r;
+        pinning_group const r;
         hwloc_bitmap_or(r.cpu, cpu, o.cpu);
         hwloc_bitmap_or(r.mem, mem, o.mem);
         return r;
@@ -764,7 +764,7 @@ class cpubinder {
                 /* place (int) n blocks */
                 for(int n0 = 0 ; n0 < n[0] ; n0++) {
                     for(int n1 = 0 ; n1 < n[1] ; n1++) {
-                        int nn = n0 * n[1] + n1;
+                        int const nn = n0 * n[1] + n1;
                         /* place the elementary blocks at the right places */
                         for(int t0 = 0 ; t0 < t[0] ; t0++) {
                             for(int t1 = 0 ; t1 < t[1] ; t1++) {
@@ -861,7 +861,7 @@ void cpubinder::read_param_list(param_list_ptr pl, int want_conf_file)
 
     /* {{{ retrieve the topology */
     if (topology_file) {
-        int rc = hwloc_topology_set_xml(topology, topology_file);
+        int const rc = hwloc_topology_set_xml(topology, topology_file);
         ASSERT_ALWAYS_OR_THROW(rc >= 0, std::invalid_argument);
         fake = true;
     } else if (topology_string) {
@@ -887,7 +887,7 @@ void cpubinder::read_param_list(param_list_ptr pl, int want_conf_file)
 #endif
                 std::ostringstream os;
                 os << stopo;
-                std::string ss(os.str());
+                std::string const ss(os.str());
                 const char * v = ss.c_str();
                 rc = hwloc_topology_set_synthetic(topology, v);
                 if (rc < 0)
@@ -912,7 +912,7 @@ void cpubinder::set_permissive_binding()
     os << PRE << "Selecting permissive mapping:"
         << " " << mapping << std::endl;
     mapping.clear();
-    mapping_string top(stopo.front().object, stopo.front().n, thr);
+    mapping_string const top(stopo.front().object, stopo.front().n, thr);
     mapping.push_back(top);
 }
 
@@ -1002,7 +1002,7 @@ void cpubinder::stage()
     /* First gather all PUs in an ordered sequence which matches the
      * topology tree. Note that the next_cousin member function is really
      * perfect for that */
-    int depth = hwloc_topology_get_depth(topology);
+    int const depth = hwloc_topology_get_depth(topology);
     /*
     int npu = hwloc_get_nbobjs_by_depth(topology, depth-1);
     int g=1;
@@ -1028,12 +1028,12 @@ void cpubinder::stage()
     os << PRE << "Applying mapping: " << mapping << std::endl;
 
 #if HWLOC_API_VERSION >= 0x020000
-    int numa_depth = hwloc_get_memory_parents_depth(topology);
+    int const numa_depth = hwloc_get_memory_parents_depth(topology);
     std::string numa_replace;
     {
         hwloc_obj_t pu = hwloc_get_obj_by_depth(topology, numa_depth, 0);
         char t[64];
-        int d = hwloc_obj_type_snprintf(t, sizeof(t), pu, 1);
+        int const d = hwloc_obj_type_snprintf(t, sizeof(t), pu, 1);
         if (d >= (int) sizeof(t))
             throw std::overflow_error("Too long hwloc type name.");
         numa_replace = t;
@@ -1165,7 +1165,7 @@ void cpubinder::stage()
             } else {
                 oos << "thread ("<<i<<","<<j<<")";
             }
-            pinning_group p = coarse_slots.xs(i/coarse[0], j/coarse[1]);
+            pinning_group const p = coarse_slots.xs(i/coarse[0], j/coarse[1]);
             os << PRE << "" << oos.str() << " -> " << p << std::endl;
         }
     }
@@ -1187,7 +1187,7 @@ void cpubinder::stage()
 void * cpubinding_get_info(char ** messages, param_list_ptr pl, unsigned int tt0, unsigned int tt1)
 {
     const char * conf = param_list_lookup_string(pl, "cpubinding");
-    thread_split thr(tt0, tt1);
+    thread_split const thr(tt0, tt1);
 
     if (conf && (strcmp(conf, "no") == 0 || strcmp(conf, "none")==0)) {
         if (messages) {
@@ -1204,7 +1204,7 @@ void * cpubinding_get_info(char ** messages, param_list_ptr pl, unsigned int tt0
 
     cpubinder * cb = new cpubinder(os);
 
-    int force = conf && (strstr(conf, "=>") || strcmp(conf, "remove") == 0 || strlen(conf) == 0);
+    int const force = conf && (strstr(conf, "=>") || strcmp(conf, "remove") == 0 || strlen(conf) == 0);
 
     try {
         cb->read_param_list(pl, !force);
@@ -1239,11 +1239,11 @@ void cpubinder::apply(int i, int j) const
 {
     ASSERT_ALWAYS(i < thr[0]);
     ASSERT_ALWAYS(j < thr[1]);
-    int ti = i / coarse[0];
-    int tj = j / coarse[1];
-    pinning_group p = coarse_slots.xs(ti, tj);
+    int const ti = i / coarse[0];
+    int const tj = j / coarse[1];
+    pinning_group const p = coarse_slots.xs(ti, tj);
     // cout << "Pinning thread ("<<i<<","<<j<<") to " << p << "\n";
-    int rc = p.pin(topology, HWLOC_CPUBIND_THREAD);
+    int const rc = p.pin(topology, HWLOC_CPUBIND_THREAD);
     if (rc < 0) {
         std::cerr << "Pinning thread ("<<i<<","<<j<<") to " << p << ": " << strerror(errno) << std::endl;
     }

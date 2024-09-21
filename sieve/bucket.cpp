@@ -187,10 +187,10 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(
   n_bucket = new_n_bucket;
 
   if (new_size_b_align > size_b_align) {
-    int all_null =  (bucket_write == NULL) &&
+    int const all_null =  (bucket_write == NULL) &&
                     (bucket_start == NULL) &&
                     (bucket_read == NULL);
-    int none_null = bucket_write &&
+    int const none_null = bucket_write &&
                     bucket_start &&
                     bucket_read;
     ASSERT_ALWAYS(all_null || none_null);
@@ -203,7 +203,7 @@ bucket_array_t<LEVEL, HINT>::allocate_memory(
     size_b_align = new_size_b_align;
     bucket_write = (update_t **) malloc_pagealigned (size_b_align);
     /* bucket_start is allocated as an array of n_bucket+1 pointers */
-    size_t alloc_bstart = MAX(size_b_align, (n_bucket+1) * sizeof(void*));
+    size_t const alloc_bstart = MAX(size_b_align, (n_bucket+1) * sizeof(void*));
     bucket_start = (update_t **) malloc_aligned (alloc_bstart, 0x40);
     bucket_read = (update_t **) malloc_aligned (size_b_align, 0x40);
     memset(bucket_write, 0, size_b_align);
@@ -268,7 +268,7 @@ bucket_array_t<LEVEL, HINT>::max_full (unsigned int * fullest_index) const
   double max = 0;
   for (unsigned int i = 0; i < n_bucket; ++i)
     {
-      double j = (double) nb_of_updates (i) / room_allocated_for_updates(i);
+      double const j = (double) nb_of_updates (i) / room_allocated_for_updates(i);
       if (max < j) {
           max = j;
           if (fullest_index) *fullest_index = i;
@@ -295,12 +295,12 @@ bucket_array_t<LEVEL, HINT>::log_this_update (
     where_am_I & w MAYBE_UNUSED) const
 {
 #if defined(TRACE_K)
-    size_t (&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
-    unsigned int saveN = w->N;
+    size_t  const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
+    unsigned int const saveN = w->N;
     /* flatten the (N,x) coordinate as if relative to a unique array of
      * level-1 bucket regions */
-    unsigned int x = update.x % BRS[1];
-    unsigned int N = w->N +
+    unsigned int const x = update.x % BRS[1];
+    unsigned int const N = w->N +
         bucket_number*BRS[LEVEL]/BRS[1] + (update.x / BRS[1]);
 
     WHERE_AM_I_UPDATE(w, x, x);
@@ -362,7 +362,7 @@ bucket_primes_t::purge (const bucket_array_t<1, shorthint_t> &BA,
         const slice_index_t slice_index = BA.get_slice_index(i_slice);
         for(auto const & it : BA.slice_range(i, i_slice)) {
             if (UNLIKELY(S[it.x] != 255)) {
-                fbprime_t p = fb[slice_index].get_prime(it.hint);
+                fbprime_t const p = fb[slice_index].get_prime(it.hint);
                 push_update(bucket_update_t<1, primehint_t>(it.x, p, 0, 0));
             }
         }
@@ -523,7 +523,7 @@ downsort(fb_factorbase::slicing const & fbs,
     const slice_index_t slice_index = BA_in.get_slice_index(i_slice);
     // WHERE_AM_I_UPDATE(w, i, slice_index);
     for (auto const & it : BA_in.slice_range(bucket_number, i_slice)) {
-        logphint_t h = fbs[slice_index].get_logp();
+        logphint_t const h = fbs[slice_index].get_logp();
         BA_out.push_update(it.x, h, w);
     }
   }

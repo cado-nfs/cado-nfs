@@ -87,7 +87,7 @@ int polymat_cutoff_get_alg_b(const struct polymat_cutoff_info * cutoff, unsigned
     unsigned int a = 0;
     unsigned int b = cutoff->table_size;
     for( ; b-a > 1 ; ) {
-        unsigned int c = (a+b)/2;
+        unsigned int const c = (a+b)/2;
         if (s >= cutoff->table[c][0]) {
             a = c;
         } else {
@@ -439,7 +439,7 @@ void polymat::extract_row_fragment(/*{{{*/
 void polymat::rshift(polymat const & src, unsigned int k)/*{{{*/
 {
     ASSERT_ALWAYS(k <= src.size);
-    unsigned int newsize = src.size - k;
+    unsigned int const newsize = src.size - k;
     ASSERT_ALWAYS(m == src.m);
     ASSERT_ALWAYS(n == src.n);
     if (this != &src) {
@@ -469,17 +469,17 @@ void polymat_mul_raw_basecase(/*{{{*/
         polymat const & b, unsigned int xb, unsigned int nb,
         int transpose, int add)
 {
-    unsigned int nc = na + nb - 1;
+    unsigned int const nc = na + nb - 1;
     ASSERT_ALWAYS(c.capacity() >= xc + nc);
 
     polymat_ur<arith_hard::elt_ur_for_addmul> tmat_ur(c.ab, c.m, c.n, 1);
 
     for(unsigned int k = 0 ; k < nc ; k++) {
-        unsigned int i0 = k >= nb ? k + 1 - nb : 0;
-        unsigned int i1 = k + 1 < na ? k + 1 : na;
+        unsigned int const i0 = k >= nb ? k + 1 - nb : 0;
+        unsigned int const i1 = k + 1 < na ? k + 1 : na;
         tmat_ur.zero();
         for(unsigned int i = i0 ; i < i1 ; i++) {
-            unsigned int j = k - i;
+            unsigned int const j = k - i;
             if (!transpose) {
                 tmat_ur.addmulmat(0, a, xa + i, b, xb + j);
             } else {
@@ -511,13 +511,13 @@ void polymat_mul_raw_kara(/*{{{*/
         return;
     }
 
-    unsigned int nc = na + nb - 1;
+    unsigned int const nc = na + nb - 1;
     ASSERT_ALWAYS(c.capacity() >= xc + nc);
     if (!add) {
         bwmat_zero_coeffs(c.ab, c.part(0, 0, xc), 1, c.m*c.n*nc);
     }
-    unsigned int m0 = na / 2;
-    unsigned int m1 = na - m0;
+    unsigned int const m0 = na / 2;
+    unsigned int const m1 = na - m0;
 
     {
         polymat s(c.ab, a.m, a.n, m1);
@@ -569,7 +569,7 @@ void polymat_mul_raw_subdivide(/*{{{*/
         polymat_mul_raw_basecase(c, xc, a, xa, na, b, xb, nb, transpose, add);
         return;
     }
-    unsigned int nc = na + nb - 1;
+    unsigned int const nc = na + nb - 1;
     if (!add) {
         bwmat_zero_coeffs(c.ab, c.part(0, 0, xc), 1, c.m*c.n*nc);
     }
@@ -673,7 +673,7 @@ void polymat_mp_raw_basecase(/*{{{*/
         polymat_mp_raw_basecase(b, xb, c, xc, nc, a, xa, na, !transpose, add);
         return;
     }
-    unsigned int nb = nc - na + 1;
+    unsigned int const nb = nc - na + 1;
     ASSERT_ALWAYS(b.capacity() >= xb + nb);
 
     polymat_ur<arith_hard::elt_ur_for_addmul> tmat_ur(b.ab, b.m, b.n, 1);
@@ -682,7 +682,7 @@ void polymat_mp_raw_basecase(/*{{{*/
     for(unsigned int j = 0 ; j < nb ; j++) {
         tmat_ur.zero();
         for(unsigned int i = 0 ; i < na ; i++) {
-            unsigned int k = j + na - 1 - i;
+            unsigned int const k = j + na - 1 - i;
             if (!transpose) {
                 tmat_ur.addmulmat(0, a, xa + i, c, xc + k);
             } else {
@@ -717,15 +717,15 @@ void polymat_mp_raw_kara(/*{{{*/
         polymat_mp_raw_kara(b, xb, c, xc, nc, a, xa, na, !transpose, add);
         return;
     }
-    unsigned int m0 = na / 2;
-    unsigned int m1 = na - m0;
+    unsigned int const m0 = na / 2;
+    unsigned int const m1 = na - m0;
     /* Spans of different chunks, in (offset, length) format */
-    unsigned int span_a0[2] =  {xa,        m0};
-    unsigned int span_a1[2] =  {xa+m0,     m1};
-    unsigned int span_c0[2] =  {xc,      2*m1-1};
-    unsigned int span_c10[2] = {xc+m1,   2*m0-1};
-    unsigned int span_c11[2] = {xc+m1,   2*m1-1};
-    unsigned int span_c2[2] =  {xc+2*m1, 2*m0-1};
+    unsigned int const span_a0[2] =  {xa,        m0};
+    unsigned int const span_a1[2] =  {xa+m0,     m1};
+    unsigned int const span_c0[2] =  {xc,      2*m1-1};
+    unsigned int const span_c10[2] = {xc+m1,   2*m0-1};
+    unsigned int const span_c11[2] = {xc+m1,   2*m1-1};
+    unsigned int const span_c2[2] =  {xc+2*m1, 2*m0-1};
     /* Dammit, we need some temp storage, of course */
     /* The polymats s and t are used to build temporaries, respectively
      * from a and c, of respective maximum lengths m1 and 2*m1-1 */
@@ -857,7 +857,7 @@ void polymat_mp_raw_subdivide(/*{{{*/
      * 2*na-1-nc.  By assumption, the expression above, with nc>=na,
      * guarantees that the first condition 0<=k<=na is satisfied.
      */
-    unsigned int chop = 2*na-1-nc;
+    unsigned int const chop = 2*na-1-nc;
     polymat_mp_raw_kara(b, xb,
             a, xa, na - chop, c, xc + chop, nc - chop, transpose, add);
     polymat_mp_raw_subdivide(b, xb,
@@ -875,7 +875,7 @@ void polymat_mp_raw(/*{{{*/
 
 void polymat::mp(polymat const & a, polymat const & c)/*{{{*/
 {
-    unsigned int nb = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
+    unsigned int const nb = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
     ASSERT_ALWAYS(a.n == c.m);
     if (check_pre_init()) {
         *this = polymat(a.ab, a.m, c.n, nb);
@@ -890,7 +890,7 @@ void polymat::mp(polymat const & a, polymat const & c)/*{{{*/
 
 void polymat::addmp(polymat const & a, polymat const & c)/*{{{*/
 {
-    unsigned int nb = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
+    unsigned int const nb = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
     ASSERT_ALWAYS(a.n == c.m);
     if (check_pre_init()) {
         *this = polymat(a.ab, a.m, c.n, nb);

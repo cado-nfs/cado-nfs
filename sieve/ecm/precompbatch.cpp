@@ -67,7 +67,7 @@ main (int argc, char *argv[])
 
   param_list_parse_ulong(pl, "t"   , &nb_threads);
 
-  int nsides = cpoly->nb_polys;
+  int const nsides = cpoly->nb_polys;
 
   std::vector<siever_side_config> sides;
   siever_side_config::parse(pl, sides, nsides, { "lim" });
@@ -79,8 +79,8 @@ main (int argc, char *argv[])
 
   double extra_time = 0;
   for (int side = 0; side < nsides; ++side) {
-      siever_side_config & S(sides[side]);
-      batch_side_config & bS(bsides[side]);
+      siever_side_config  const& S(sides[side]);
+      batch_side_config  const& bS(bsides[side]);
       create_batch_file (bS.batchfilename, batchP[side], S.lim,
               1UL << bS.batchlpb, cpoly->pols[side], stdout, nb_threads, extra_time);
   }

@@ -141,7 +141,7 @@ matmul_ptr MATMUL_NAME(init)(void * pxx, param_list pl, int optimized_direction)
     npack /= sizeof(arith_hard::elt);
     mm->npack = npack;
 
-    int suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
+    int const suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
     mm->public_->store_transposed = suggest;
     if (pl) {
         param_list_parse_int(pl, "mm_store_transposed", 
@@ -162,18 +162,18 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE
     struct matmul_sliced_data_s * mm = (struct matmul_sliced_data_s *) mm0;
     ASSERT_ALWAYS(data);
 
-    uint32_t i0 = 0;
-    uint32_t i1 = mm->public_->dim[ mm->public_->store_transposed];
+    uint32_t const i0 = 0;
+    uint32_t const i1 = mm->public_->dim[ mm->public_->store_transposed];
 
-    unsigned int nslices = iceildiv(i1-i0, mm->npack);
-    unsigned int nslices_index = mm->data.size();
+    unsigned int const nslices = iceildiv(i1-i0, mm->npack);
+    unsigned int const nslices_index = mm->data.size();
     mm->push(0);
     mm->push(0);        // placeholder for alignment
 
-    unsigned int packbase = (i1-i0) / nslices;
+    unsigned int const packbase = (i1-i0) / nslices;
 
-    unsigned int nslices1 = (i1-i0) % nslices; /* 1+packbase-sized slices */
-    unsigned int nslices0 = nslices - nslices1;  /* packbase-sized slices */
+    unsigned int const nslices1 = (i1-i0) % nslices; /* 1+packbase-sized slices */
+    unsigned int const nslices0 = nslices - nslices1;  /* packbase-sized slices */
     unsigned int current;
     unsigned int next = i0;
     unsigned int s;
@@ -182,7 +182,7 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE
 
     for(s = 0 ; s < nslices ; s++) {
         current = next;
-        unsigned int npack = packbase + (s < nslices1);
+        unsigned int const npack = packbase + (s < nslices1);
         next = current + npack;
 
         slice_info si; memset(&si,0,sizeof(si)); si.nrows = npack;
@@ -218,15 +218,15 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE
         double sumdi2=0;
         uint32_t weight=0;
         for(Lci_t lp = L.begin() ; lp != L.end() ; ++lp) {
-            uint32_t dj = lp->first - j; j += dj;
+            uint32_t const dj = lp->first - j; j += dj;
             int32_t di = lp->second - i; i += di;
             weight++;
 
             if (di<0) di = -di;
             if (di > di_max) di_max = di;
 
-            double ddj = dj;
-            double ddi = di;
+            double const ddj = dj;
+            double const ddi = di;
             sumdj+=ddj;
             sumdj2+=ddj*ddj;
             sumdi+=ddi;
@@ -246,12 +246,12 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size MAYBE
             mm->push(dj); mm->push(i);
         }
         mm->data[nslices_index]++;
-        double dj2_avg = sumdj2 / weight;
-        double dj_avg = sumdj / weight;
-        double dj_sdev = sqrt(dj2_avg-dj_avg*dj_avg);
-        double di2_avg = sumdi2 / weight;
-        double di_avg = sumdi / weight;
-        double di_sdev = sqrt(di2_avg-di_avg*di_avg);
+        double const dj2_avg = sumdj2 / weight;
+        double const dj_avg = sumdj / weight;
+        double const dj_sdev = sqrt(dj2_avg-dj_avg*dj_avg);
+        double const di2_avg = sumdi2 / weight;
+        double const di_avg = sumdi / weight;
+        double const di_sdev = sqrt(di2_avg-di_avg*di_avg);
         si.dj_avg = dj_avg;
         si.dj_sdev = dj_sdev;
         si.di_avg = di_avg;
@@ -340,7 +340,7 @@ void MATMUL_NAME(save_cache)(matmul_ptr mm0)
     f = matmul_common_save_cache_fopen(sizeof(arith_hard::elt), mm->public_, MM_MAGIC);
     if (!f) return;
 
-    size_t n = mm->data.size();
+    size_t const n = mm->data.size();
     MATMUL_COMMON_WRITE_ONE32(n, f);
     MATMUL_COMMON_WRITE_MANY16(mm->data.data(), n, f);
 
@@ -353,7 +353,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
     ASM_COMMENT("multiplication code");
     const uint16_t * q = mm->data.data();
 
-    uint16_t nhstrips = *q++;
+    uint16_t const nhstrips = *q++;
     q++;        // alignment.
     uint32_t i = 0;
     arith_hard * x = mm->xab;
@@ -366,17 +366,17 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
         double tick = oncpu_ticks();
 #endif
         for(uint16_t s = 0 ; s < nhstrips ; s++) {
-            uint32_t nrows_packed = matmul_sliced_data_s::read32(q);
+            uint32_t const nrows_packed = matmul_sliced_data_s::read32(q);
             arith_hard::elt * where = x->vec_subvec(dst, i);
             x->vec_set_zero(where, nrows_packed);
             ASM_COMMENT("critical loop");
             /* The external function must have the same semantics as this
              * code block */
-            uint32_t ncoeffs_slice = matmul_sliced_data_s::read32(q);
+            uint32_t const ncoeffs_slice = matmul_sliced_data_s::read32(q);
             uint32_t j = 0;
             for(uint32_t c = 0 ; c < ncoeffs_slice ; c++) {
                 j += *q++;
-                uint32_t di = *q++;
+                uint32_t const di = *q++;
                 x->add(x->vec_item(where, di), x->vec_item(src, j));
             }
             ASM_COMMENT("end of critical loop");
@@ -402,12 +402,12 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
         x->vec_set_zero(dst, mm->public_->dim[!d]);
         for(uint16_t s = 0 ; s < nhstrips ; s++) {
             uint32_t j = 0;
-            uint32_t nrows_packed = matmul_sliced_data_s::read32(q);
+            uint32_t const nrows_packed = matmul_sliced_data_s::read32(q);
             ASM_COMMENT("critical loop");
-            uint32_t ncoeffs_slice = matmul_sliced_data_s::read32(q);
+            uint32_t const ncoeffs_slice = matmul_sliced_data_s::read32(q);
             for(uint32_t c = 0 ; c < ncoeffs_slice ; c++) {
                 j += *q++;
-                uint32_t di = *q++;
+                uint32_t const di = *q++;
                 x->add(x->vec_item(dst, j), x->vec_item(src, i+di));
             }
             i += nrows_packed;

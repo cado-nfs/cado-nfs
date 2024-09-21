@@ -243,7 +243,7 @@ int main (int argc, char **argv)
   int size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
-  int idoio = (rank == 0); // Am I the job allowed to do I/O ?
+  int const idoio = (rank == 0); // Am I the job allowed to do I/O ?
   double t0;
 
   char *argv0 = argv[0];
@@ -433,7 +433,7 @@ int main (int argc, char **argv)
 
   ///////////////////////
   // Send a share of the rel sets to each process (round Robin)
-  uint64_t nb_parts = (nb_relsets - 1) / size + 1; // ceiling
+  uint64_t const nb_parts = (nb_relsets - 1) / size + 1; // ceiling
   sm_relset_ptr part_rels = (sm_relset_ptr)malloc(nb_parts*sizeof(sm_relset_t));
   ASSERT_ALWAYS(part_rels != NULL);
   for (uint64_t i = 0; i < nb_parts; ++i) {

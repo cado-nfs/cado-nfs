@@ -1527,7 +1527,7 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     uint64_t nrows, ncols;
     purgedfile_read_firstline (purgedname, &nrows, &ncols);
 
-    std::unique_ptr<uint64_t[]> abs(new uint64_t[nrows]);
+    std::unique_ptr<uint64_t[]> const abs(new uint64_t[nrows]);
     std::fill(abs.get(), abs.get() + nrows, 0);
 
     for(uint64_t i = 0 ; i < small_nrows ; i++) {
@@ -1559,7 +1559,7 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     unsigned int dep_counts[64]={0,};
 
     for(unsigned int i = 0 ; i < 64U ; i++) {
-        uint64_t m = UINT64_C(1) << i;
+        uint64_t const m = UINT64_C(1) << i;
         if (sanity & m)
             dep_masks[nonzero_deps++] = m;
     }

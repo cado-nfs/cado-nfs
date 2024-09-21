@@ -189,7 +189,7 @@ divide_known_primes (std::vector<uint64_t> & fl, cxx_mpz & norm, const unsigned 
 
     // handle 2 separately, if it is in fb
     if (handle_2) {
-        int bit = mpz_scan1(norm, 0);
+        int const bit = mpz_scan1(norm, 0);
         for (int i = 0; i < bit; ++i)
             fl.push_back(2);
         if (trial_div_very_verbose)
@@ -199,12 +199,12 @@ divide_known_primes (std::vector<uint64_t> & fl, cxx_mpz & norm, const unsigned 
 
     // remove primes in "primes" that map to x
     divide_primes_from_bucket (fl, norm, N, x, primes, trial_div_very_verbose);
-    size_t nf_divide_primes = fl.size();
+    size_t const nf_divide_primes = fl.size();
 
     // now remove prime hints in "purged". If we had no factor base, then
     // we really should have an empty list here.
     divide_hints_from_bucket (fl, norm, N, x, purged, fbs, trial_div_very_verbose);
-    size_t nf_divide_hints = fl.size();
+    size_t const nf_divide_hints = fl.size();
 
     if (trial_div_very_verbose)
         verbose_output_vfprint(TRACE_CHANNEL, 0, gmp_vfprintf, "# x = %d, after dividing out bucket/resieved norm = %Zd\n", x, (mpz_srcptr) norm);
@@ -219,7 +219,7 @@ divide_known_primes (std::vector<uint64_t> & fl, cxx_mpz & norm, const unsigned 
     }
 
     td.trial_divide(fl, norm);
-    size_t nf_td = fl.size();
+    size_t const nf_td = fl.size();
 
     if (trial_div_very_verbose) {
         std::ostringstream os;

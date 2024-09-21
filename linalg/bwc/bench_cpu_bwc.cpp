@@ -55,16 +55,16 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
     int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
     fake = fake || param_list_lookup_string(pl, "static_random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
 
-    int ys[2] = { bw->ys[0], bw->ys[1], };
+    int const ys[2] = { bw->ys[0], bw->ys[1], };
     if (pi->interleaved) {
         fprintf(stderr,
                 "bench_cpu_bwc does not work in the interleaved setting\n");
         exit(EXIT_FAILURE);
     }
 
-    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
+    std::unique_ptr<arith_generic> const A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     block_control_signals();
 
     matmul_top_data mmt(A.get(), pi, pl, bw->dir);
@@ -90,7 +90,7 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
     {
         gmp_randstate_t rstate;
         gmp_randinit_default(rstate);
-        unsigned long g = pi->m->jrank * pi->m->ncores + pi->m->trank;
+        unsigned long const g = pi->m->jrank * pi->m->ncores + pi->m->trank;
         gmp_randseed_ui(rstate, bw->seed + g);
         mmt_vec_set_random_inconsistent(ymy[0], rstate);
         mmt_vec_truncate(mmt, ymy[0]);
@@ -114,13 +114,13 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
         for(int i = 0 ; i < streak ; i++) {
             // matmul_top_mul(mmt, ymy, timing);
             {
-                int d = ymy[0].d;
-                int nmats_odd = mmt.matrices.size() & 1;
+                int const d = ymy[0].d;
+                int const nmats_odd = mmt.matrices.size() & 1;
                 int midx = (d ? (mmt.matrices.size() - 1) : 0);
                 for(size_t l = 0 ; l < mmt.matrices.size() ; l++) {
                     mmt_vec & src = ymy[l];
-                    int last = l == (mmt.matrices.size() - 1);
-                    int lnext = last && !nmats_odd ? 0 : (l+1);
+                    int const last = l == (mmt.matrices.size() - 1);
+                    int const lnext = last && !nmats_odd ? 0 : (l+1);
                     mmt_vec & dst = ymy[lnext];
 
                     src.consistency = 2;

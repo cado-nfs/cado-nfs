@@ -46,7 +46,7 @@ number_field_order number_field::order(number_field_element const & a) const
     /* Here we probably want to make sure that a is integral */
     ASSERT_ALWAYS(0);
     number_field_element x = (*this)(1);
-    int n = degree();
+    int const n = degree();
     cxx_mpq_mat B(n, n);
     for(int i = 0; i < n; i++) {
         mpq_set_ui(B(0,i), i == 0, 1);
@@ -61,7 +61,7 @@ number_field_order number_field::order(number_field_element const & a) const
 number_field_order number_field::equation_order() const
 {
     cxx_mpz x;
-    int n = degree();
+    int const n = degree();
     mpz_set_ui(x, 1);
     cxx_mpq_mat B(n, n);
     mpq_mat_set_ui(B, 1);
@@ -79,7 +79,7 @@ number_field_order number_field::p_maximal_order(cxx_mpz const & p) const
 
 static cxx_mpq_mat companion_matrix(cxx_mpz_poly const & f)
 {
-    int n = f.degree();
+    int const n = f.degree();
     cxx_mpq_mat M(n, n);
     for(int i = 0 ; i < n-1 ; i++)
         mpq_set_ui(M(i, i+1), 1, 1);
@@ -95,7 +95,7 @@ cxx_mpq_mat number_field::trace_matrix() const
 {
     if (cached_trace_matrix.get() == nullptr) {
         cxx_mpz_poly const & f(defining_polynomial());
-        int n = degree();
+        int const n = degree();
         cxx_mpq_mat C = companion_matrix(f);
         cxx_mpq_mat M = C;
         cxx_mpq_mat T(1, n);
@@ -124,7 +124,7 @@ number_field_order const& number_field::maximal_order(unsigned long prime_limit)
         mpz_mul(disc, disc, mpz_poly_lc(f));
 
         /* We're not urged to use ecm here */
-        std::vector<std::pair<cxx_mpz,int> > small_primes = trial_division(disc, prime_limit, disc);
+        std::vector<std::pair<cxx_mpz,int> > const small_primes = trial_division(disc, prime_limit, disc);
 
         for(auto const & pe : small_primes) {
             fmt::print("{} {}\n", pe.first, O);

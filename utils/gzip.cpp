@@ -2,6 +2,7 @@
 // IWYU pragma: no_include <bits/types/struct_rusage.h>
 #include <cstdlib>
 #include <climits>
+#include <array>
 #include <cstdio> // FILE // IWYU pragma: keep
 #include <cstring>
 #include <sys/types.h>  // pid_t
@@ -24,55 +25,32 @@
 #include "cado_pipe_streambuf.hpp"
 
 struct suffix_handler {
-    const char * suffix;
-    const char * pfmt_in;
-    const char * pfmt_out;
+    std::string suffix;
+    std::string pfmt_in;
+    std::string pfmt_out;
 };
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 static char antebuffer[PATH_MAX];	/* "directory/antebuffer" or "cat" */
 static int antebuffer_buffer_size = 24; /* default value 2^24 = 16 Mo */
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-#if 0
-const char * suffix = NULL;
-
-const char * copy_suffix_noalloc(const char * name)
-{
-    const char * p = strrchr(name, '.');
-    if (p == NULL)
-        p = name + strlen(name);
-    return strdup(p);
-}
-
-const char * copy_suffix_alloc(const char * name)
-{
-    return strdup(copy_suffix_noalloc(name));
-}
-const char * path_remove_suffix(char * name)
-{
-    char * p = strrchr(name, '.');
-    if (p) *p=0;
-    return name;
-}
-
-#endif
-
-struct suffix_handler supported_compression_formats[] = {
-    { ".gz", "gzip -dc %s", "gzip -c --fast > %s", },
-    { ".bz2", "bzip2 -dc %s", "bzip2 -c -1 > %s", },
+const std::array<suffix_handler, 6> supported_compression_formats {{
+    { ".gz", "gzip -dc {}", "gzip -c --fast > {}", },
+    { ".bz2", "bzip2 -dc {}", "bzip2 -c -1 > {}", },
     /* zstd seems to be uniformly better than any other alternative */
-    { ".zstd", "zstdcat %s", "zstd --fast > %s", },
+    { ".zstd", "zstdcat {}", "zstd --fast > {}", },
     /* xz is really slow */
-    { ".xz", "xzcat %s", "xz --fast > %s", },
-    { ".lzma", "lzma -dc %s", "lzma -c -0 > %s", },
+    { ".xz", "xzcat {}", "xz --fast > {}", },
+    { ".lzma", "lzma -dc {}", "lzma -c -0 > {}", },
     /* These two have to be present */
-    { "", NULL, NULL },
-    { NULL, NULL, NULL },
-};
+    { "", "", "" },
+}};
 
 const char * path_basename(const char * path)
 {
     const char *p = strrchr(path, '/');
-    if (p == NULL) {
+    if (!p) {
         p = path;
     } else {
         p = p + 1;
@@ -82,9 +60,8 @@ const char * path_basename(const char * path)
 
 int is_supported_compression_format(const char * s)
 {
-    struct suffix_handler * r = supported_compression_formats;
-    for( ; r->suffix ; r++) {
-        if (strcmp(r->suffix, s) == 0)
+    for(auto const & r : supported_compression_formats) {
+        if (r.suffix == s)
             return 1;
     }
     return 0;
@@ -92,35 +69,30 @@ int is_supported_compression_format(const char * s)
 
 int filename_matches_one_compression_format(const char * path)
 {
-    const struct suffix_handler * r = supported_compression_formats;
-
-    for( ; r->suffix ; r++) {
-        if (!*r->suffix) continue;
-        if (has_suffix(path, r->suffix)) return 1;
+    for(auto const & r : supported_compression_formats) {
+        if (r.suffix.empty()) continue;
+        if (has_suffix(path, r.suffix.c_str())) return 1;
     }
     return 0;
 }
 
-void get_suffix_from_filename (char *s, char const **sfx)
+void get_suffix_from_filename (const char *s, char const **sfx)
 {
-  const struct suffix_handler * r = supported_compression_formats;
-  for( ; r->suffix ; r++)
-  {
-    if (has_suffix(s, r->suffix))
+  for(auto const & r : supported_compression_formats) {
+    if (has_suffix(s, r.suffix.c_str()))
     {
-      *sfx = r->suffix;
+      *sfx = r.suffix.c_str();
       return;
     }
   }
 
   /* If we arrive here, it's because "" is not among the suffixes */
   abort();
-  return;
 }
 
 static int try_antebuffer_path()
 {
-    int rc = access(antebuffer, X_OK);
+    int const rc = access(antebuffer, X_OK);
     if (rc >= 0) {
         fprintf(stderr, "antebuffer set to %s\n", antebuffer);
         return 1;
@@ -137,7 +109,7 @@ int set_antebuffer_path (const char *executable_filename, const char *path_anteb
   /* First, if we have path_antebuffer, we must have antebuffer or error */
   if (path_antebuffer) {
       struct stat sbuf[1];
-      int rc = stat(path_antebuffer, sbuf);
+      int const rc = stat(path_antebuffer, sbuf);
       if (rc < 0) {
           fprintf(stderr, "%s: path_antebuffer=\"%s\" access error: %s\n",
                   __func__, path_antebuffer, strerror(errno));
@@ -163,7 +135,7 @@ int set_antebuffer_path (const char *executable_filename, const char *path_anteb
       char dummy2[PATH_MAX + 64];
       const char * slash = strrchr(executable_filename, '/');
       if (slash) {
-          int len = MIN(PATH_MAX - 1, slash - executable_filename);
+          int const len = MIN(PATH_MAX - 1, slash - executable_filename);
           strncpy(dummy, executable_filename, len);
           dummy[len]='\0';
       } else {
@@ -179,7 +151,7 @@ int set_antebuffer_path (const char *executable_filename, const char *path_anteb
           return 1;
   }
   /* Third option: walk $PATH */
-  if ((path_resolve("antebuffer", antebuffer)) != NULL && try_antebuffer_path()) {
+  if (path_resolve("antebuffer", antebuffer) && try_antebuffer_path()) {
       return 1;
   }
   *antebuffer = 0;
@@ -205,149 +177,112 @@ int set_antebuffer_path (const char *executable_filename, const char *path_anteb
  * value is a malloc()-ed array of malloc()-ed strings, and the caller is
  * in charge of freeing it (with filelist_clear, for instance).
  */
-char **prepare_grouped_command_lines(char **list_of_files)
+std::vector<std::string> prepare_grouped_command_lines(std::vector<std::string> const & list_of_files)
 {
-    const struct suffix_handler *r = supported_compression_formats;
-    char ** new_commands = NULL;
-    size_t n_new_commands = 0;
+    std::vector<std::string> new_commands;
     
     /* Allow a few bytes extra for popen's "/bin/sh" "-c" prefix */
     ASSERT_ALWAYS(get_arg_max() >= 20);
-    size_t arg_max = get_arg_max() - 20;
+    size_t const arg_max = get_arg_max() - 20;
     
-    for(char ** grouphead = list_of_files ; *grouphead ; ) {
-        char *cmd_prefix = NULL, *cmd_postfix = NULL;
-        size_t prefix_len, postfix_len;
-        const struct suffix_handler * this_suffix = r;
-        for (; this_suffix && this_suffix->suffix; this_suffix++)
-            if (has_suffix(*grouphead, this_suffix->suffix))
+    for(auto it = list_of_files.begin() ; it != list_of_files.end() ; ) {
+        std::string cmd_prefix, cmd_postfix;
+        const struct suffix_handler * this_suffix = nullptr;
+        for (auto const & r : supported_compression_formats) {
+            if (has_suffix(it->c_str(), r.suffix.c_str())) {
+                this_suffix = &r;
                 break;
+            }
+        }
         ASSERT_ALWAYS(this_suffix);
-        size_t filenames_total_size = 0;
-        char ** grouptail;
 
         if (*antebuffer) {
-            if (this_suffix->pfmt_in) {
+            if (!this_suffix->pfmt_in.empty()) {
                 /* antebuffer 24 file1.gz file2.gz file3.gz | gzip -dc - */
-                int rc = asprintf(&cmd_prefix, "%s %d ", antebuffer, antebuffer_buffer_size);
-                ASSERT_ALWAYS(rc >= 0);
-                char *tmp;
-                rc = asprintf(&tmp, this_suffix->pfmt_in, "-");
-                ASSERT_ALWAYS(rc >= 0);
-                rc = asprintf(&cmd_postfix, " | %s", tmp);
-                ASSERT_ALWAYS(rc >= 0);
-                free(tmp);
+                cmd_prefix  = fmt::format("{} {}", antebuffer, antebuffer_buffer_size);
+                cmd_postfix = fmt::format(" | {}", fmt::format(fmt::runtime(this_suffix->pfmt_in), "-"));
             } else {
                 /* antebuffer 24 file1.txt file2.txt file3.txt */
                 /* avoid piping through cat */
-                int rc = asprintf(&cmd_prefix, "%s %d ", antebuffer, antebuffer_buffer_size);
-                ASSERT_ALWAYS(rc >= 0);
+                cmd_prefix  = fmt::format("{} {}", antebuffer, antebuffer_buffer_size);
             }
         } else {
-            if (this_suffix->pfmt_in) {
+            if (!this_suffix->pfmt_in.empty()) {
                 /* gzip -dc file1.gz file2.gz file3.gz */
-                int rc = asprintf(&cmd_prefix, this_suffix->pfmt_in, "");
-                ASSERT_ALWAYS(rc >= 0);
+                cmd_prefix = fmt::format(fmt::runtime(this_suffix->pfmt_in), "");
             } else {
                 /* cat file1.txt file2.txt file3.txt */
                 /* There's potential for this to qualify as a useless use
                  * of cat, but anyway we don't expect to meet this case
                  * often.
                  */
-                int rc = asprintf(&cmd_prefix, "cat ");
-                ASSERT_ALWAYS(rc >= 0);
+                cmd_prefix = "cat ";
             }
         }
-        prefix_len = cmd_prefix ? strlen(cmd_prefix) : 0;
-        postfix_len = cmd_postfix ? strlen(cmd_postfix) : 0;
         
-        for(grouptail = grouphead ; *grouptail ; grouptail++) {
-            const struct suffix_handler * other_suffix = r;
-            for (; other_suffix && other_suffix->suffix; other_suffix++)
-                if (has_suffix(*grouptail, other_suffix->suffix))
+        std::string cmd = cmd_prefix;
+
+        for( ; it != list_of_files.end() ; ++it) {
+            const struct suffix_handler * other_suffix = nullptr;
+            for (auto const & r : supported_compression_formats) {
+                if (has_suffix(it->c_str(), r.suffix.c_str())) {
+                    other_suffix = &r;
                     break;
+                }
+            }
+            ASSERT_ALWAYS(other_suffix);
             if (other_suffix != this_suffix)
                 break;
-            /* Add 1 for a space */
-            size_t ds = strlen(*grouptail) + 1;
-            if (filenames_total_size + prefix_len + postfix_len + ds > arg_max)
+
+            cmd += " ";
+            cmd += *it;
+
+            if (cmd.size() + cmd_postfix.size() > arg_max)
                 break;
-            filenames_total_size += ds;
         }
+
         /* Now all file names referenced by pointers in the interval
-         * [grouphead..grouptail[ have the same suffix. Create a new
-         * command for unpacking them.
+         * [grouphead..grouptail[ have the same suffix.
          */
-        new_commands = (char**) realloc(new_commands, ++n_new_commands * sizeof(char*));
 
-        /* intermediary string for the list of file names */
-        char * tmp = (char*)  malloc(filenames_total_size + 1);
-        size_t k = 0;
-        for(char ** g = grouphead ; g != grouptail ; g++) {
-            k += snprintf(tmp + k, filenames_total_size + 1 - k, "%s ", *g);
-        }
-        tmp[k-1]='\0';  /* turn final space to a null byte */
-        filenames_total_size--; /* and adjust filenames_total_size for deleted space */
-            
-        char * cmd;
-        int rc;
+        cmd += cmd_postfix;
 
-        rc = asprintf(&cmd, "%s%s%s",
-                cmd_prefix ? cmd_prefix : "",
-                tmp,
-                cmd_postfix ? cmd_postfix : "");
-        ASSERT_ALWAYS(rc >= 0);
-        ASSERT_ALWAYS(strlen(cmd) <= arg_max);
-        ASSERT_ALWAYS(strlen(cmd) == filenames_total_size + prefix_len + postfix_len);
-        new_commands[n_new_commands-1] = cmd;
-        free(tmp);
-        if (cmd_prefix) free(cmd_prefix);
-        if (cmd_postfix) free(cmd_postfix);
-        grouphead = grouptail;
+        new_commands.push_back(cmd);
     }
-    new_commands = (char**) realloc(new_commands, ++n_new_commands * sizeof(char*));
-    new_commands[n_new_commands-1] = NULL;
     return new_commands;
 }
 
 FILE*
-fopen_maybe_compressed2 (const char * name, const char * mode, int* p_pipeflag, char const ** suf)
+fopen_maybe_compressed2 (const char * orig_name, const char * mode, int* p_pipeflag, char const ** suf)
 {
-    const struct suffix_handler * r = supported_compression_formats;
     FILE * f;
 
-    // coverity[fs_check_call]
-    if (strchr(mode, 'r') && access(name, R_OK) != 0)
-        return NULL;
+    std::string name = orig_name;
 
-    for( ; r->suffix ; r++) {
-        if (!has_suffix(name, r->suffix)) continue;
-        if (suf) *suf = r->suffix;
-        char * command = NULL;
-        char * tempname = NULL;
-        int ret;
+    // coverity[fs_check_call]
+    if (strchr(mode, 'r') && access(name.c_str(), R_OK) != 0)
+        return nullptr;
+
+    for(auto const & r : supported_compression_formats) {
+        if (!has_suffix(name.c_str(), r.suffix.c_str())) continue;
+        if (suf) *suf = r.suffix.c_str();
+        std::string command, tempname;
 
         /* Just *any* file that we write to will get a .tmp.$PID suffix
          */
-        if (strchr(mode, 'w')) {
-            ret = asprintf(&tempname, "%s.tmp.%d", name, getpid());
-            ASSERT_ALWAYS(ret >= 0);
-            name = tempname;
-        }
+        if (strchr(mode, 'w'))
+            name = tempname = fmt::format("{}.tmp.{}", name, getpid());
 
-        if (strchr(mode, 'r') && r->pfmt_in) {
-            int ret = asprintf(&command, r->pfmt_in, name);
-            ASSERT_ALWAYS(ret >= 0);
-        } else if (strchr(mode, 'w') && r->pfmt_out) {
-            ret = asprintf(&command, r->pfmt_out, name);
-            ASSERT_ALWAYS(ret >= 0);
-        }
+        if (strchr(mode, 'r') && !r.pfmt_in.empty())
+            command = fmt::format(fmt::runtime(r.pfmt_in), name);
+        else if (strchr(mode, 'w') && !r.pfmt_out.empty())
+            command = fmt::format(fmt::runtime(r.pfmt_out), name);
 
-        if (command) {
+        if (!command.empty()) {
           /* apparently popen() under Linux does not accept the 'b' modifier */
             char pmode[2] = "x";
             pmode[0] = mode[0];
-            f = cado_popen(command, pmode);
+            f = cado_popen(command.c_str(), pmode);
             if (p_pipeflag) *p_pipeflag = 1;
 #ifdef F_SETPIPE_SZxxx
             /* The pipe capacity is 2^16 by default; we can increase it,
@@ -355,52 +290,48 @@ fopen_maybe_compressed2 (const char * name, const char * mode, int* p_pipeflag, 
              * change it by default (patch from Alain Filbois). */
             fcntl (fileno (f), F_SETPIPE_SZ, 1UL << 20);
 #endif
-            free(command);
         } else {
-            f = fopen(name, mode);
+            f = fopen(name.c_str(), mode);
             if (p_pipeflag) *p_pipeflag = 0;
         }
-        if (tempname)
-            free(tempname);
         return f;
     }
     /* If we arrive here, it's because "" is not among the suffixes */
     abort();
-    return NULL;
+    return nullptr;
 }
 
 
 FILE*
 fopen_maybe_compressed (const char * name, const char * mode)
 {
-    return fopen_maybe_compressed2(name, mode, NULL, NULL);
+    return fopen_maybe_compressed2(name, mode, nullptr, nullptr);
 }
 
 #ifdef  HAVE_GETRUSAGE
 int
-fclose_maybe_compressed2 (FILE * f, const char * name, struct rusage * rr)
+fclose_maybe_compressed2 (FILE * f, const char * orig_name, struct rusage * rr)
 #else
 /* if we don't even have getrusage, then no fclose_maybe_compressed2 is
  * exposed. Yet, we use one as a code shortcut
  */
 static int
-fclose_maybe_compressed2 (FILE * f, const char * name, void * rr MAYBE_UNUSED)
+fclose_maybe_compressed2 (FILE * f, const char * orig_name, void * rr MAYBE_UNUSED)
 #endif
 {
-    const struct suffix_handler * r = supported_compression_formats;
+    std::string name = orig_name;
 
-    for( ; r->suffix ; r++) {
-        if (!has_suffix(name, r->suffix)) continue;
+    for(auto const & r : supported_compression_formats) {
+        if (!has_suffix(name.c_str(), r.suffix.c_str())) continue;
         /* It doesn't really make sense to imagine that one of these two
          * may exist and not the other */
-        ASSERT_ALWAYS((r->pfmt_out == NULL) == (r->pfmt_in == NULL));
+        ASSERT_ALWAYS((r.pfmt_out.empty()) == (r.pfmt_in.empty()));
 
-        char * tempname;
-        int ret = asprintf(&tempname, "%s.tmp.%d", name, getpid());
-        struct stat sbuf[1];
-        ASSERT_ALWAYS(ret >= 0);
+        const std::string tempname = fmt::format("{}.tmp.{}", name, getpid());
 
-        if (r->pfmt_in || r->pfmt_out) {
+        int ret;
+
+        if (!r.pfmt_in.empty() || !r.pfmt_out.empty()) {
 #ifdef  HAVE_GETRUSAGE
             if (rr)
                 ret = cado_pclose2(f, rr);
@@ -412,16 +343,13 @@ fclose_maybe_compressed2 (FILE * f, const char * name, void * rr MAYBE_UNUSED)
             /* Unless child process finished normally and with exit ret 0,
                we return an error */
             if (ret == -1 || !WIFEXITED(ret) || WEXITSTATUS(ret) != 0) {
-                free(tempname);
                 return EOF;
             }
 #else
             /* What do under MinGW? -1 definitely means an error, but how do
                we parse the other possible ret codes? */
-            if (ret == -1) {
-                free(tempname);
+            if (ret == -1)
                 return EOF;
-            }
 #endif
 
         } else {
@@ -429,21 +357,17 @@ fclose_maybe_compressed2 (FILE * f, const char * name, void * rr MAYBE_UNUSED)
             if (rr) memset(rr, 0, sizeof(*rr));
 #endif
             ret = fclose(f);
-            if (ret != 0) {
-                free(tempname);
+            if (ret != 0)
                 return ret;
-            }
         }
 
         /* do the rename only if the child completed successfully */
 
         // coverity[fs_check_call]
-        if (stat(tempname, sbuf) == 0) {
-            ret = rename(tempname, name);
-            free(tempname);
+        struct stat sbuf[1];
+        if (stat(tempname.c_str(), sbuf) == 0) {
+            ret = rename(tempname.c_str(), name.c_str());
             if (ret != 0) return EOF;
-        } else {
-            free(tempname);
         }
 
         return 0;
@@ -456,7 +380,7 @@ fclose_maybe_compressed2 (FILE * f, const char * name, void * rr MAYBE_UNUSED)
 int
 fclose_maybe_compressed (FILE * f, const char * name)
 {
-    return fclose_maybe_compressed2(f, name, NULL);
+    return fclose_maybe_compressed2(f, name, nullptr);
 }
 
 #include <stdexcept>
@@ -464,49 +388,44 @@ fclose_maybe_compressed (FILE * f, const char * name)
 #include <fstream>  // filebuf
 #include "portability.h" // strdup // IWYU pragma: keep
 
-streambase_maybe_compressed::streambase_maybe_compressed(const char * name, std::ios_base::openmode mode)
+streambase_maybe_compressed::streambase_maybe_compressed(std::string const & name, std::ios_base::openmode mode)
 {
     open(name, mode);
     init(buf);
 }
 
-void streambase_maybe_compressed::open(const char * name, std::ios_base::openmode mode)
+void streambase_maybe_compressed::open(std::string const & name_arg, std::ios_base::openmode mode)
 {
+    std::string name = name_arg;
     orig_name = name;
-    const struct suffix_handler * r = supported_compression_formats;
-    if (mode & std::ios_base::out && r->pfmt_out) {
+    if (mode & std::ios_base::out) {
         // fmtlib's fmt::format oddly mentions that it can throw a format
         // error, while its constexpr nature should be able to mark it as
         // impossible.
         // coverity[exception_thrown]
-        tempname = fmt::format(FMT_STRING("{}.tmp.{}"), name, getpid());
-        name = tempname.c_str();
+        tempname = fmt::format("{}.tmp.{}", name, getpid());
+        name = tempname;
     }
 
-    if (mode & std::ios_base::in && access(name, R_OK) != 0)
+    if (mode & std::ios_base::in && access(name.c_str(), R_OK) != 0)
         throw std::runtime_error("cannot open file for reading");
     /* creating is ok, of course
     if (mode & std::ios_base::out && access(name, W_OK) != 0)
         throw std::runtime_error("cannot open file for writing");
      */
-    for( ; r->suffix ; r++) {
-        if (!has_suffix(orig_name.c_str(), r->suffix)) continue;
-        char * command = NULL;
-        if (mode & std::ios_base::in && r->pfmt_in) {
-            int ret = asprintf(&command, r->pfmt_in, name);
-            ASSERT_ALWAYS(ret >= 0);
-        }
-        if (mode & std::ios_base::out && r->pfmt_out) {
-            int ret = asprintf(&command, r->pfmt_out, name);
-            ASSERT_ALWAYS(ret >= 0);
-        }
+    for(auto const & r : supported_compression_formats) {
+        if (!has_suffix(orig_name.c_str(), r.suffix.c_str())) continue;
+        std::string command;
+        if (mode & std::ios_base::in && !r.pfmt_in.empty())
+            command = fmt::format(fmt::runtime(r.pfmt_in), name);
+        else if (mode & std::ios_base::out && !r.pfmt_out.empty())
+            command = fmt::format(fmt::runtime(r.pfmt_out), name);
 
-        if (command) {
+        if (!command.empty()) {
             /* apparently popen() under Linux does not accept the 'b' modifier */
-            pbuf.reset(new cado_pipe_streambuf(command, mode));
+            pbuf.reset(new cado_pipe_streambuf(command.c_str(), mode));
             buf = pbuf.get();
             pipe = true;
-            free(command);
         } else {
             fbuf.reset(new std::filebuf());
             fbuf->open(name, mode);
@@ -523,7 +442,7 @@ void streambase_maybe_compressed::close()
     if (pipe) pbuf->close();
     else fbuf->close();
     if (!tempname.empty()) {
-        int rc = rename(tempname.c_str(), orig_name.c_str());
+        int const rc = rename(tempname.c_str(), orig_name.c_str());
         ASSERT_ALWAYS(rc == 0);
         tempname.clear();
     }

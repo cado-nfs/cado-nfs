@@ -15,7 +15,7 @@ int number_field_fractional_ideal::valuation(number_field_prime_ideal const & fk
 number_field_fractional_ideal::number_field_fractional_ideal(number_field_order const & O, std::vector<number_field_element> const & gens)
     : O(O)
 {
-    int n = O.number_field().degree();
+    int const n = O.number_field().degree();
     cxx_mpq_mat G(gens.size(), n);
     for(size_t i = 0 ; i < gens.size() ; i++)
         mpq_mat_submat_set(G, i, 0, gens[i].coefficients, 0, 0, 1, n);
@@ -26,7 +26,7 @@ namespace fmt {
     auto formatter<number_field_fractional_ideal>::format(number_field_fractional_ideal const & I, format_context& ctx) const -> format_context::iterator
     {
         number_field_order const & O(I.order());
-        int n = O.number_field().degree();
+        int const n = O.number_field().degree();
         number_field const & K(O.number_field());
 
         if (I.denominator != 1) fmt::format_to(ctx.out(), "(");

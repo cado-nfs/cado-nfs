@@ -104,9 +104,9 @@ struct indexrange {
         //  it = lower_bound (ind.begin(), ind.end(), z);
         //  uint64_t position = it - ind.begin();
         // Fast, approximate version:
-        uint64_t position = z >> 1; // half of indices on each side
-        uint64_t range = uint64_t((double(position))*0.2);
-        uint64_t low = MAX((int64_t)(position - range), 0);
+        uint64_t const position = z >> 1; // half of indices on each side
+        uint64_t const range = uint64_t((double(position))*0.2);
+        uint64_t const low = MAX((int64_t)(position - range), 0);
         uint64_t high = MIN(position + range, ind.size());
         if (high == low)
             high++;
@@ -154,7 +154,7 @@ static std::vector<indexrange> prepare_indexrange(renumber_t const & ren_tab,
     for (auto it = ren_tab.begin() ; it != ren_tab.end() ; ++it, ++i) {
         if (ren_tab.is_additional_column(i))
             continue;
-        renumber_t::p_r_side x = *it;
+        renumber_t::p_r_side const x = *it;
         Ind[x.side].append(i);
         if (compsq && (x.side == sqside)) {
             Ind[sqside].append_prime(x.p);
@@ -188,7 +188,7 @@ struct model_relation : public indexed_relation_byside {
     model_relation perturb(std::vector<indexrange> const & Ind, gmp_randstate_t buf) const
     {
         auto R = [buf]() { return u64_random(buf); };
-        relation_ab ab(R(), R());
+        relation_ab const ab(R(), R());
         model_relation rel(ab);
 
         rel.set_active_sides(get_active_sides());
@@ -346,11 +346,11 @@ static unsigned long print_fake_rel_manyq(
         if (shrink_factor == 1) {
             nr = model_nrels;
         } else {
-            double nr_dble = double(model_nrels) / double(shrink_factor);
+            double const nr_dble = double(model_nrels) / double(shrink_factor);
             // Do probabilistic rounding, in case nr_dble is small (maybe < 1)
-            double trunc_part = trunc(nr_dble);
-            double frac_part = nr_dble - trunc_part;
-            double rnd = double(u64_random(buf)) / double(UINT64_MAX);
+            double const trunc_part = trunc(nr_dble);
+            double const frac_part = nr_dble - trunc_part;
+            double const rnd = double(u64_random(buf)) / double(UINT64_MAX);
             nr = int(trunc_part) + int(rnd < frac_part);
         }
 
@@ -379,7 +379,7 @@ static unsigned long print_fake_rel_manyq(
             nrels_thread++;
             // rels_printed++;
         }
-        std::lock_guard<std::mutex> dummy(io_mutex);
+        std::lock_guard<std::mutex> const dummy(io_mutex);
         os << oss.str();
     }
     return nrels_thread;
@@ -407,12 +407,12 @@ std::vector<index_t> indexrange::all_composites(uint64_t q0, uint64_t q1,
     l1min = p_from_pos(pos_l1min);
 
     /* and never bigger than this: */
-    uint64_t l1max = MIN(qfac_max, round(pow(q1, 1/(double) n)));
-    uint64_t pos_l1max = pos_from_p(l1max);
+    uint64_t const l1max = MIN(qfac_max, round(pow(q1, 1/(double) n)));
+    uint64_t const pos_l1max = pos_from_p(l1max);
 
     for (uint64_t pos1 = pos_l1min; pos1 < pos_l1max; ++pos1) {
         /* look for cases where _this_ prime is the smallest one */
-        uint64_t l1 = p_from_pos(pos1);
+        uint64_t const l1 = p_from_pos(pos1);
         /* q0 <= l1 * x < q1
          * implies q0/l1 <= x < q1/l1
          * the left part is easy, but for the right part, we rewrite as:
@@ -481,7 +481,7 @@ void worker(int tnum, int nt,
                 buf);
     }
     gmp_randclear(buf);
-    std::lock_guard<std::mutex> dummy(io_mutex);
+    std::lock_guard<std::mutex> const dummy(io_mutex);
     rels_printed += ret;
 }
 
@@ -641,7 +641,7 @@ main (int argc, char *argv[])
   printf ("# Start reading sample file\n");
   fflush (stdout);
 
-  std::pair<std::vector<size_t>, std::vector<model_relation>> sample = read_sample_file(sqside, samplefile, ren_table);
+  std::pair<std::vector<size_t>, std::vector<model_relation>> const sample = read_sample_file(sqside, samplefile, ren_table);
 
   /*
   std::vector<std::pair<las_todo_entry, std::vector<model_relation>>>

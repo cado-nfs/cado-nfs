@@ -136,8 +136,8 @@ mmt_vec::~mmt_vec()
 size_t mmt_my_own_offset_in_items(mmt_vec const & v, unsigned int jrank)
 {
     pi_comm_ptr wr = v.pi->wr[v.d];
-    size_t eblock = (v.i1 - v.i0) /  wr->totalsize;
-    int pos = jrank * wr->ncores + wr->trank;
+    size_t const eblock = (v.i1 - v.i0) /  wr->totalsize;
+    int const pos = jrank * wr->ncores + wr->trank;
     return pos * eblock;
 }
 
@@ -174,7 +174,7 @@ arith_generic::elt const * mmt_my_own_subvec(mmt_vec const & v)
 size_t mmt_my_own_size_in_items(mmt_vec const & v)
 {
     pi_comm_ptr wr = v.pi->wr[v.d];
-    size_t eblock = (v.i1 - v.i0) /  wr->totalsize;
+    size_t const eblock = (v.i1 - v.i0) /  wr->totalsize;
     return eblock;
 }
 
@@ -195,8 +195,8 @@ void mmt_own_vec_set2(mmt_vec const & z, mmt_vec & w, mmt_vec const & v)
     if (&v == &w) return;
     ASSERT_ALWAYS(z.d == v.d);
     ASSERT_ALWAYS(z.d == w.d);
-    size_t off = mmt_my_own_offset_in_items(z);
-    size_t sz = mmt_my_own_size_in_items(z);
+    size_t const off = mmt_my_own_offset_in_items(z);
+    size_t const sz = mmt_my_own_size_in_items(z);
     ASSERT_ALWAYS(sz == mmt_my_own_size_in_items(v));
     ASSERT_ALWAYS(sz == mmt_my_own_size_in_items(w));
     v.abase->vec_set(
@@ -241,8 +241,8 @@ void mmt_vec_share_across_threads(mmt_vec & v)
         mmt_vec const & w = mmt_vec_sibling(v, t);
 
         for(unsigned int j = 0 ; j < wr->njobs ; j++) {
-            size_t off = mmt_my_own_offset_in_items(w, j);
-            size_t sz  = mmt_my_own_size_in_items(w);
+            size_t const off = mmt_my_own_offset_in_items(w, j);
+            size_t const sz  = mmt_my_own_size_in_items(w);
 
             v.abase->vec_set(
                     v.abase->vec_subvec(v.v, off),
@@ -288,8 +288,8 @@ void mmt_full_vec_set(mmt_vec & w, mmt_vec const & v)
         mmt_vec const & vt = mmt_vec_sibling(v, wr->trank);
 
         for(unsigned int j = 0 ; j < wr->njobs ; j++) {
-            size_t off = mmt_my_own_offset_in_items(vt, j);
-            size_t sz  = mmt_my_own_size_in_items(vt);
+            size_t const off = mmt_my_own_offset_in_items(vt, j);
+            size_t const sz  = mmt_my_own_size_in_items(vt);
 
             w.abase->vec_set(
                     v.abase->vec_subvec(w.v, off),
@@ -348,8 +348,8 @@ void mmt_vec_downgrade_consistency(mmt_vec & v)
 {
     ASSERT_ALWAYS(v.consistency == 2);
     size_t erase[2][2];
-    size_t off = mmt_my_own_offset_in_items(v);
-    size_t sz = mmt_my_own_size_in_items(v);
+    size_t const off = mmt_my_own_offset_in_items(v);
+    size_t const sz = mmt_my_own_size_in_items(v);
         serialize_threads(v.pi->wr[v.d]);
     if (v.siblings) {
         erase[0][0] = 0;
@@ -451,25 +451,25 @@ mmt_vec const & mmt_vec_sibling(mmt_vec const & v, unsigned int i)
 int mmt_vec_load(mmt_vec & v, const char * filename_pattern, unsigned int itemsondisk, unsigned int block_position)
 {
     serialize(v.pi->m);
-    int tcan_print = v.pi->m->trank == 0 && v.pi->m->jrank == 0;
+    int const tcan_print = v.pi->m->trank == 0 && v.pi->m->jrank == 0;
 
     ASSERT_ALWAYS(strstr(filename_pattern, "%u-%u") != NULL);
 
-    int char2 = v.abase->is_characteristic_two();
-    int splitwidth = char2 ? 64 : 1;
-    unsigned int Adisk_width = splitwidth;
-    unsigned int Adisk_multiplex = v.abase->simd_groupsize() / Adisk_width;
+    int const char2 = v.abase->is_characteristic_two();
+    int const splitwidth = char2 ? 64 : 1;
+    unsigned int const Adisk_width = splitwidth;
+    unsigned int const Adisk_multiplex = v.abase->simd_groupsize() / Adisk_width;
 
-    size_t sizeondisk = v.abase->vec_elt_stride(itemsondisk);
+    size_t const sizeondisk = v.abase->vec_elt_stride(itemsondisk);
     arith_generic::elt * mychunk = mmt_my_own_subvec(v);
-    size_t mysize = mmt_my_own_size_in_bytes(v);
-    size_t bigstride = v.abase->vec_elt_stride(1);
-    size_t smallstride = bigstride / Adisk_multiplex;
+    size_t const mysize = mmt_my_own_size_in_bytes(v);
+    size_t const bigstride = v.abase->vec_elt_stride(1);
+    size_t const smallstride = bigstride / Adisk_multiplex;
 
     int global_ok = 1;
 
     for(unsigned int b = 0 ; global_ok && b < Adisk_multiplex ; b++) {
-        unsigned int b0 = block_position + b * Adisk_width;
+        unsigned int const b0 = block_position + b * Adisk_width;
         char * filename;
         int rc;
         rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
@@ -480,7 +480,7 @@ int mmt_vec_load(mmt_vec & v, const char * filename_pattern, unsigned int itemso
             fflush(stdout);
         }
         pi_file_handle f;
-        int ok = pi_file_open(f, v.pi, v.d, filename, "rb");
+        int const ok = pi_file_open(f, v.pi, v.d, filename, "rb");
         /* "ok" is globally consistent after pi_file_open */
         if (!ok) {
             if (v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
@@ -488,9 +488,9 @@ int mmt_vec_load(mmt_vec & v, const char * filename_pattern, unsigned int itemso
             }
         } else {
             serialize(v.pi->m);
-            ssize_t s = pi_file_read_chunk(f, mychunk, mysize, sizeondisk,
+            ssize_t const s = pi_file_read_chunk(f, mychunk, mysize, sizeondisk,
                     bigstride, b * smallstride, (b+1) * smallstride);
-            int ok = s >= 0 && (size_t) s == sizeondisk / Adisk_multiplex;
+            int const ok = s >= 0 && (size_t) s == sizeondisk / Adisk_multiplex;
             /* "ok" is globally consistent after pi_file_read_chunk */
             if (!ok) {
                 if (v.pi->m->trank == 0 && v.pi->m->jrank == 0) {
@@ -527,25 +527,25 @@ int mmt_vec_load(mmt_vec & v, const char * filename_pattern, unsigned int itemso
 int mmt_vec_save(mmt_vec & v, const char * filename_pattern, unsigned int itemsondisk, unsigned int block_position)
 {
     serialize_threads(v.pi->m);
-    int tcan_print = v.pi->m->trank == 0 && v.pi->m->jrank == 0;
+    int const tcan_print = v.pi->m->trank == 0 && v.pi->m->jrank == 0;
 
     ASSERT_ALWAYS(strstr(filename_pattern, "%u-%u") != NULL);
 
-    int char2 = v.abase->is_characteristic_two();
-    int splitwidth = char2 ? 64 : 1;
-    unsigned int Adisk_width = splitwidth;
-    unsigned int Adisk_multiplex = v.abase->simd_groupsize() / Adisk_width;
+    int const char2 = v.abase->is_characteristic_two();
+    int const splitwidth = char2 ? 64 : 1;
+    unsigned int const Adisk_width = splitwidth;
+    unsigned int const Adisk_multiplex = v.abase->simd_groupsize() / Adisk_width;
 
-    size_t sizeondisk = v.abase->vec_elt_stride(itemsondisk);
+    size_t const sizeondisk = v.abase->vec_elt_stride(itemsondisk);
     arith_generic::elt * mychunk = mmt_my_own_subvec(v);
-    size_t mysize = mmt_my_own_size_in_bytes(v);
-    size_t bigstride = v.abase->vec_elt_stride(1);
-    size_t smallstride = bigstride / Adisk_multiplex;
+    size_t const mysize = mmt_my_own_size_in_bytes(v);
+    size_t const bigstride = v.abase->vec_elt_stride(1);
+    size_t const smallstride = bigstride / Adisk_multiplex;
 
     int global_ok = 1;
 
     for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
-        unsigned int b0 = block_position + b * Adisk_width;
+        unsigned int const b0 = block_position + b * Adisk_width;
         char * filename;
         int rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
         ASSERT_ALWAYS(rc >= 0);
@@ -568,7 +568,7 @@ int mmt_vec_save(mmt_vec & v, const char * filename_pattern, unsigned int itemso
         } else {
             ASSERT_ALWAYS(v.consistency == 2);
             serialize_threads(v.pi->m);
-            ssize_t s = pi_file_write_chunk(f, mychunk, mysize, sizeondisk,
+            ssize_t const s = pi_file_write_chunk(f, mychunk, mysize, sizeondisk,
                     bigstride, b * smallstride, (b+1) * smallstride);
             serialize_threads(v.pi->m);
             ok = s >= 0 && (size_t) s == sizeondisk / Adisk_multiplex;
@@ -646,19 +646,19 @@ void mmt_vec_set_random_through_file(mmt_vec & v, const char * filename_pattern,
     
     arith_generic * A = v.abase;
     parallelizing_info_ptr pi = v.pi;
-    int tcan_print = v.pi->m->trank == 0 && v.pi->m->jrank == 0;
+    int const tcan_print = v.pi->m->trank == 0 && v.pi->m->jrank == 0;
 
-    int char2 = v.abase->is_characteristic_two();
-    int splitwidth = char2 ? 64 : 1;
-    unsigned int Adisk_width = splitwidth;
-    unsigned int Adisk_multiplex = v.abase->simd_groupsize() / Adisk_width;
+    int const char2 = v.abase->is_characteristic_two();
+    int const splitwidth = char2 ? 64 : 1;
+    unsigned int const Adisk_width = splitwidth;
+    unsigned int const Adisk_multiplex = v.abase->simd_groupsize() / Adisk_width;
 
     ASSERT_ALWAYS(itemsondisk % Adisk_multiplex == 0);
-    unsigned int loc_itemsondisk = itemsondisk / Adisk_multiplex;
+    unsigned int const loc_itemsondisk = itemsondisk / Adisk_multiplex;
 
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
         for(unsigned int b = 0 ; b < Adisk_multiplex ; b++) {
-            unsigned int b0 = block_position + b * Adisk_width;
+            unsigned int const b0 = block_position + b * Adisk_width;
             char * filename;
             int rc;
             rc = asprintf(&filename, filename_pattern, b0, b0 + splitwidth);
@@ -670,7 +670,7 @@ void mmt_vec_set_random_through_file(mmt_vec & v, const char * filename_pattern,
              * the job of properly cutting the overflowing data.
              */
 
-            size_t nitems = iceildiv(v.n, Adisk_multiplex);
+            size_t const nitems = iceildiv(v.n, Adisk_multiplex);
             arith_generic::elt * y;
             y = A->alloc(nitems);
             A->vec_set_zero(y, nitems);
@@ -687,8 +687,8 @@ void mmt_vec_set_random_through_file(mmt_vec & v, const char * filename_pattern,
             fclose(f);
             tt += wct_seconds();
             if (tcan_print) {
-                size_t sizeondisk = A->vec_elt_stride(loc_itemsondisk);
-                size_t fraction = sizeondisk / Adisk_multiplex;
+                size_t const sizeondisk = A->vec_elt_stride(loc_itemsondisk);
+                size_t const fraction = sizeondisk / Adisk_multiplex;
                 char buf[20], buf2[20];
                 printf(" done [%s in %.2fs, %s/s]\n",
                         size_disp(fraction, buf),
@@ -700,7 +700,7 @@ void mmt_vec_set_random_through_file(mmt_vec & v, const char * filename_pattern,
             free(filename);
         }
     }
-    int ok = mmt_vec_load(v, filename_pattern, itemsondisk, block_position);
+    int const ok = mmt_vec_load(v, filename_pattern, itemsondisk, block_position);
     ASSERT_ALWAYS(ok);
 }
 
@@ -728,13 +728,13 @@ void mmt_vec_set_random_inconsistent(mmt_vec & v, gmp_randstate_t rstate)
 
 void mmt_vec_set_x_indices(mmt_vec & y, uint32_t * gxvecs, int m, unsigned int nx)
 {
-    int shared = mmt_vec_is_shared(y);
+    int const shared = mmt_vec_is_shared(y);
     arith_generic * A = y.abase;
     mmt_full_vec_set_zero(y);
     if (!shared || y.pi->wr[y.d]->trank == 0) {
         for(int j = 0 ; j < m ; j++) {
             for(unsigned int k = 0 ; k < nx ; k++) {
-                uint32_t i = gxvecs[j*nx+k];
+                uint32_t const i = gxvecs[j*nx+k];
                 // set bit j of entry i to 1.
                 if (i < y.i0 || i >= y.i1)
                     continue;
@@ -755,7 +755,7 @@ void mmt_vec_set_x_indices(mmt_vec & y, uint32_t * gxvecs, int m, unsigned int n
  */
 void mmt_vec_set_expanded_copy_of_local_data(mmt_vec & y, const arith_generic::elt * v, unsigned int n)
 {
-    int shared = !y.siblings;
+    int const shared = !y.siblings;
     arith_generic * A = y.abase;
     mmt_full_vec_set_zero(y);
     if (!shared || y.pi->wr[y.d]->trank == 0) {

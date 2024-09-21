@@ -39,7 +39,7 @@ void sm_side_info::compute_piecewise(cxx_mpz_poly & dst, cxx_mpz_poly const & u)
     if (nsm == 0)
         return;
 
-    int n = f0->deg;
+    int const n = f0->deg;
     mpz_poly_realloc(dst, n);
 
     cxx_mpz_poly temp;
@@ -114,7 +114,7 @@ print_sm2 (FILE *f, sm_side_info const & S, mpz_poly_srcptr SM, const char * del
 
     for (int j = 0; j < S.nsm; ++j) {
 
-        int jx = S.mode == SM_MODE_LEGACY_PRE2018 ? S.f->deg-1-j : j;
+        int const jx = S.mode == SM_MODE_LEGACY_PRE2018 ? S.f->deg-1-j : j;
 
         if (jx > SM->deg)
             fprintf(f, "0");
@@ -217,7 +217,7 @@ sm_build_one_relset(sm_relset_ptr rel,
       mpz_set_si(ee, e[k]);
       /* TODO: mpz_poly_long_power_mod_f_mod_mpz */
       for (int i = 0 ; i < 2 ; i++) {
-          unsigned int s = si[i];
+          unsigned int const s = si[i];
           if (F[s] == NULL) continue;
           mpz_poly_pow_mod_f_mod_mpz(tmp[s], ab, F[s], ee, ell2);
           mpz_poly_mul_mod_f_mod_mpz(rel->num[s], rel->num[s], tmp[s],
@@ -227,7 +227,7 @@ sm_build_one_relset(sm_relset_ptr rel,
       mpz_set_si(ee, -e[k]);
       /* TODO: mpz_poly_long_power_mod_f_mod_mpz */
       for (int i = 0 ; i < 2 ; i++) {
-          unsigned int s = si[i];
+          unsigned int const s = si[i];
           if (F[s] == NULL) continue;
           mpz_poly_pow_mod_f_mod_mpz(tmp[s], ab, F[s], ee, ell2);
           mpz_poly_mul_mod_f_mod_mpz(rel->denom[s], rel->denom[s], tmp[s], F[s],
@@ -247,10 +247,10 @@ sm_build_one_relset(sm_relset_ptr rel,
 
 static int compute_unit_rank(mpz_poly_srcptr f)
 {
-    int r1 = mpz_poly_number_of_real_roots(f);
+    int const r1 = mpz_poly_number_of_real_roots(f);
     ASSERT_ALWAYS((f->deg - r1) % 2 == 0);
-    int r2 = (f->deg - r1) / 2;
-    int unitrank = r1 + r2 - 1;
+    int const r2 = (f->deg - r1) / 2;
+    int const unitrank = r1 + r2 - 1;
     return unitrank;
 }
 
@@ -368,7 +368,7 @@ sm_side_info::sm_side_info(mpz_poly_srcptr f0, mpz_srcptr ell, bool handle_small
         }
         i--;
         while (s > nsm && i >= 0) {
-            int di = pieces[i].g->deg;
+            int const di = pieces[i].g->deg;
             if (s - di >= nsm) {
                 s -= di;
                 pieces[i].is_used = false;

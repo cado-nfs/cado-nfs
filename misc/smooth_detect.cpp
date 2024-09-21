@@ -93,7 +93,7 @@ operator<<(std::ostream& os, descent_init_candidate const& c)
 bool
 descent_init_candidate::is_probably_not_smooth(unsigned int bound) const
 {
-    double eff = effort;
+    double const eff = effort;
     unsigned int bits = 0;
     while ((bits < MAX_PBIT) && (2 * expected_effort[bits] < eff)) {
         bits++;
@@ -104,12 +104,12 @@ descent_init_candidate::is_probably_not_smooth(unsigned int bound) const
     // bits -= 3; // take some margin
 
     for (unsigned int k = 2; k < 4; ++k) {
-        unsigned long bu = mpz_sizeinbase(u, 2);
+        unsigned long const bu = mpz_sizeinbase(u, 2);
         if ((bu < (k + 1) * bits) && (bu > k * bound)) {
             //      printf("Probably not smooth, level %d: %lu bits!\n", k, bu);
             return true;
         }
-        unsigned long bv = mpz_sizeinbase(v, 2);
+        unsigned long const bv = mpz_sizeinbase(v, 2);
         if ((bv < (k + 1) * bits) && (bv > k * bound)) {
             //      printf("Probably not smooth, level %d: %lu bits!\n", k, bv);
             return true;
@@ -273,7 +273,7 @@ my_ecm_factor(cxx_mpz& f, cxx_mpz& z, double B1)
 {
     ecm_params ecm_par;
     ecm_init(ecm_par);
-    long sig = random();
+    long const sig = random();
     mpz_set_ui(ecm_par->sigma, sig);
     ecm_par->B1done = default_B1done; /* issue with ECM 6.4.x */
     ecm_factor(f, z, B1, ecm_par);
@@ -295,7 +295,7 @@ smooth_detect_one_step(descent_init_candidate& winner, context& ctx)
     double gain_u = 0;
     double gain_v = 0;
     do {
-        int ret = ctx.next_cand(C, ctx.param_next_cand);
+        int const ret = ctx.next_cand(C, ctx.param_next_cand);
         if (ret == 0) {
             return -1; // early stop, no more candidates.
         }
@@ -466,7 +466,7 @@ smooth_detect(int (*next_cand)(descent_init_candidate&, const void*),
 
     descent_init_candidate C;
 
-    double tm = get_time();
+    double const tm = get_time();
     int cpt = 0;
     int found = 0;
     while (found == 0) {

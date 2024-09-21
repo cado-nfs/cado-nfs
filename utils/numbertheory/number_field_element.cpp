@@ -10,7 +10,7 @@ number_field_element::number_field_element(class number_field const & K, cxx_mpz
     cxx_mpz_poly r;
     cxx_mpz_poly const & f(K.defining_polynomial());
     cxx_mpz denom;
-    int n = f.degree();
+    int const n = f.degree();
 
     if (a.degree() >= n) {
         cxx_mpz c;
@@ -39,7 +39,7 @@ number_field_element::number_field_element(class number_field const & K, cxx_mpz
     : K(K)
     , coefficients(1, K.degree())
 {
-    int n = K.degree();
+    int const n = K.degree();
     for(int i = 0 ; i < n ; i++) {
         mpq_ptr ci = coefficients(0, i);
         mpz_set(mpq_numref(ci), a(0, i));
@@ -60,7 +60,7 @@ cxx_mpq_mat number_field_element::multiplication_matrix() const
 {
     class number_field const & K(number_field());
     cxx_mpz_poly const & f(K.defining_polynomial());
-    int n = K.degree();
+    int const n = K.degree();
     cxx_mpq_mat M(n, n);
     cxx_mpz denom;
     cxx_mpz_poly a;
@@ -81,7 +81,7 @@ cxx_mpq_mat number_field_element::multiplication_matrix() const
 cxx_mpq number_field_element::trace() const
 {
     cxx_mpq_mat const & T(number_field().trace_matrix());
-    int n = number_field().degree();
+    int const n = number_field().degree();
     cxx_mpq t = 0, c;
     for(int i = 0 ; i < n ; i++) {
         mpq_mul(c, coefficients(0, i), T(0, i));
@@ -94,14 +94,14 @@ number_field_element number_field_element::operator*(number_field_element const 
 {
     class number_field const & K(number_field());
     cxx_mpz_poly const & f(K.defining_polynomial());
-    int n = K.degree();
+    int const n = K.degree();
     cxx_mpz_poly a,b,c;
     cxx_mpz ad,bd,cd;
     std::tie(a, ad) = as_polynomial();
     std::tie(b, bd) = o.as_polynomial();
     mpz_poly_mul(c, a, b);
     mpz_mul(cd, ad, bd);
-    int k = c.degree() - n;
+    int const k = c.degree() - n;
     if (k >= 0) {
         mpz_poly_pseudo_remainder(c, c, f);
         cxx_mpz lck;

@@ -80,7 +80,7 @@ struct slice * alloc_slices(unsigned int water, unsigned int n)
 
     res = (struct slice*) malloc(n * sizeof(struct slice));
 
-    uint32_t common_size = water / n;
+    uint32_t const common_size = water / n;
 
     // we now require equal-sized blocks.
     ASSERT_ALWAYS(water % n == 0);
@@ -133,8 +133,8 @@ struct slice * shuffle_rtable(
      */
     for(i = 0 ; i < n ; i++) {
         pop_heap(heap, heap + ns);
-        int j = heap[ns-1].i;
-        int pos = slices[j].nrows-heap[ns-1].room;
+        int const j = heap[ns-1].i;
+        int const pos = slices[j].nrows-heap[ns-1].room;
         ASSERT(heap[ns-1].room);
         slices[j].r[pos] = rt[2*i+1];
         heap[ns-1].s += rt[2*i];
@@ -149,7 +149,7 @@ struct slice * shuffle_rtable(
     qsort(heap, ns, sizeof(struct bucket), (sortfunc_t) &heap_index_compare);
 
     for(i = 0 ; i < ns ; i++) {
-        int j = heap[i].i;
+        int const j = heap[i].i;
         ASSERT(heap[i].i == (int) i);
         printf("%s slice %d, span=%ld, weight=%ld\n",
                 text,
@@ -186,7 +186,7 @@ struct slice * shuffle_rtable(
 void read_mfile_header(balancing & bal, const char * mfile, int withcoeffs)
 {
     struct stat sbuf_mat[1];
-    int rc = stat(mfile, sbuf_mat);
+    int const rc = stat(mfile, sbuf_mat);
     if (rc < 0) {
         fprintf(stderr, "Reading %s: %s (not fatal)\n", mfile, strerror(errno));
         printf("%s: %" PRIu32 " rows %" PRIu32 " cols\n",
@@ -203,7 +203,7 @@ void read_mfile_header(balancing & bal, const char * mfile, int withcoeffs)
             bal.ncoeffs /= 2;
         }
 
-        int extra = bal.ncols - bal.nrows;
+        int const extra = bal.ncols - bal.nrows;
         if (extra > 0) {
             printf( "%s: %" PRIu32 " rows %" PRIu32 " cols"
                     " (%d extra cols)"
@@ -453,8 +453,8 @@ void mf_bal(struct mf_bal_args * mba)
     /* }}} */
 
     const char * text[2] = { "row", "column", };
-    unsigned int matsize[2] = { bal.nrows, bal.ncols, };
-    unsigned int gridsize[2] = { (unsigned int) mba->nh, (unsigned int) mba->nv };
+    unsigned int const matsize[2] = { bal.nrows, bal.ncols, };
+    unsigned int const gridsize[2] = { (unsigned int) mba->nh, (unsigned int) mba->nv };
     unsigned int block[2];
     unsigned int padding[2];
     uint32_t * weights[2];
@@ -487,7 +487,7 @@ void mf_bal(struct mf_bal_args * mba)
                 gridsize[d],
                 gridsize[!d], block[d], gridsize[!d] * block[d], text[d]);
 
-        size_t n = matsize[d] + padding[d];
+        size_t const n = matsize[d] + padding[d];
 
         /* Read the file with row or column weights */
         const char * filename = d == 0 ? mba->rwfile : mba->cwfile;
@@ -498,7 +498,7 @@ void mf_bal(struct mf_bal_args * mba)
         /* Padding rows and cols have zero weight of course */
         double t_w;
         t_w = -wct_seconds();
-        size_t nr = fread32_little(weights[d], matsize[d], fw);
+        size_t const nr = fread32_little(weights[d], matsize[d], fw);
         t_w += wct_seconds();
         fclose(fw);
         if (nr < matsize[d]) {
@@ -540,9 +540,9 @@ void mf_bal(struct mf_bal_args * mba)
                 ASSERT(balancing_pre_shuffle(bal, rx) == r);
                 ASSERT(rx < matsize[d]);
             }
-            uint32_t w = weights[d][rx];
+            uint32_t const w = weights[d][rx];
             totalweight += w;
-            double x = w;
+            double const x = w;
             perm[2*r]=w;
             perm[2*r+1]=r;
             s1 += x;
@@ -628,7 +628,7 @@ void mf_bal(struct mf_bal_args * mba)
     if (mba->do_perm[1] != mf_bal_args::MF_BAL_PERM_NO) free(weights[1]);
 
     if (mba->do_perm[0] == mf_bal_args::MF_BAL_PERM_AUTO) {
-        int choose = sdev[1] > sdev[0];
+        int const choose = sdev[1] > sdev[0];
         printf("Choosing a %s permutation based on largest deviation"
                 " (%.2f > %.2f)\n",
                 text[choose], sdev[choose], sdev[!choose]);

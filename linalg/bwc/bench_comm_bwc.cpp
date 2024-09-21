@@ -51,15 +51,15 @@ void * bench_comm_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYB
     int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
     fake = fake || param_list_lookup_string(pl, "static_random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
 
-    int ys[2] = { bw->ys[0], bw->ys[1], };
+    int const ys[2] = { bw->ys[0], bw->ys[1], };
     if (pi->interleaved) {
         fprintf(stderr, "bench_bwc does not work in the interleaved setting\n");
         exit(EXIT_FAILURE);
     }
 
-    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
+    std::unique_ptr<arith_generic> const A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     block_control_signals();
 
     matmul_top_data mmt(A.get(), pi, pl, bw->dir);

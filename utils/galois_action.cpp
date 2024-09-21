@@ -69,7 +69,7 @@ public:
             modul_set_ul_reduced(rr, r, pp);
 
             modul_inv(rr, rr, pp);      /* 1/r */
-            unsigned long sigma_r = modul_get_ul(rr, pp);
+            unsigned long const sigma_r = modul_get_ul(rr, pp);
 
             modul_clear(rr, pp);
             modul_clearmod(pp);
@@ -95,7 +95,7 @@ public:
          *  |a| = b, it implies (a,b) = (1,1) whose image is itself
          *                   or (a,b) = (-1,1) whose image is itself
          */
-        uint64_t a_abs = safe_abs64(a);
+        uint64_t const a_abs = safe_abs64(a);
         if (a_abs < b) {
             return CA * (uint64_t) a + CB * b;
         } else {
@@ -183,7 +183,7 @@ public:
             modul_inv(rr, rr, pp);      /* 1/r */
             modul_neg(rr, rr, pp);      /* -1/r */
             modul_add1(rr, rr, pp);     /* 1-1/r */
-            unsigned long sigma_r = modul_get_ul(rr, pp);
+            unsigned long const sigma_r = modul_get_ul(rr, pp);
 
             modul_clear(rr, pp);
             modul_clearmod(pp);
@@ -215,7 +215,7 @@ public:
          *      the only negative first coeff is the second one: -b
          *      we compute the hash of (-b, a-b)
          */
-        uint64_t ua = (uint64_t) a;
+        uint64_t const ua = (uint64_t) a;
         if (a <= 0) {
             return CA * ua + CB * b;
         } else if (ua < b) {
@@ -264,7 +264,7 @@ public:
             modul_inv(rr, rr, pp);      /* 1/r */
             modul_add1(rr, rr, pp);     /* 1+1/r */
             modul_neg(rr, rr, pp);      /* -1-1/r */
-            unsigned long sigma_r = modul_get_ul(rr, pp);
+            unsigned long const sigma_r = modul_get_ul(rr, pp);
 
             modul_clear(rr, pp);
             modul_clearmod(pp);
@@ -296,7 +296,7 @@ public:
          *      the only positive coeff is the second one: b
          *      we compute the hash of (b, -a-b)
          */
-        uint64_t a_abs = safe_abs64(a);
+        uint64_t const a_abs = safe_abs64(a);
         if (a > 0) {
             return CA * (uint64_t) a + CB * b;
         } else if (a_abs < b) {
@@ -347,7 +347,7 @@ public:
             modul_add(rr, rr, rr, pp);      /* 2/(r-1) */
             modul_add1(rr, rr, pp);         /* 1+2/(r-1) */
             modul_neg(rr, rr, pp);          /* -1-2/(r-1) */
-            unsigned long sigma_r = modul_get_ul(rr, pp);
+            unsigned long const sigma_r = modul_get_ul(rr, pp);
 
             modul_clear(rr, pp);
             modul_clearmod(pp);
@@ -397,7 +397,7 @@ public:
          *      we compute the hash of (a, b)
          *  Note: Do not forget to divide by 2 when necessary!
          */
-        uint64_t a_abs = safe_abs64(a);
+        uint64_t const a_abs = safe_abs64(a);
         if (a > 0 && a_abs > b) {
             return CA * (uint64_t) a + CB * b;
         } else if (a < 0 && a_abs < b) {
@@ -462,7 +462,7 @@ public:
             modul_mul(rr, three, rr, pp);   /* 3/(r-1) */
             modul_add(rr, two, rr, pp);     /* 1+3/(r-1) */
             modul_neg(rr, rr, pp);          /* -2-3/(r-1) */
-            unsigned long sigma_r = modul_get_ul(rr, pp);
+            unsigned long const sigma_r = modul_get_ul(rr, pp);
 
             modul_clear(two, pp);
             modul_clear(three, pp);
@@ -520,7 +520,7 @@ public:
          *      we compute the hash of (a, b)
          *  Note: Do not forget to divide by 3 when necessary!
          */
-        uint64_t a_abs = safe_abs64(a);
+        uint64_t const a_abs = safe_abs64(a);
         if (a > 0 && a_abs > b) { /* 0 < b < a */
             return CA * (uint64_t) a + CB * b;
         } else if (a > 0) { /* 0 < a < b */
@@ -600,7 +600,7 @@ size_t galois_action::compute_action_on_index(std::vector<index_t> &sigma,
                                               renumber_t const & tab) const
 {
     size_t norbits = 0;
-    unsigned long order = get_order();
+    unsigned long const order = get_order();
     /* Map of all r corresponding to the current (p, side) to its index. */
     std::unordered_map<p_r_values_t, index_t> index_of_r;
 
@@ -645,7 +645,7 @@ size_t galois_action::compute_action_on_index(std::vector<index_t> &sigma,
         } else {
             index_of_r.clear();
             renumber_t::p_r_side idc = tab.p_r_from_index(i);
-            renumber_t::p_r_side id0 = idc;
+            renumber_t::p_r_side const id0 = idc;
             do
             {
                 index_of_r.emplace(idc.r, i);
@@ -663,8 +663,8 @@ size_t galois_action::compute_action_on_index(std::vector<index_t> &sigma,
                  * i0=elt.second as representative for the whole orbit
                  */
                 unsigned int n;
-                p_r_values_t r0 = elt.first;
-                index_t i0 = elt.second;
+                p_r_values_t const r0 = elt.first;
+                index_t const i0 = elt.second;
 
                 p_r_values_t sigma_r = apply(r0, id0.p);
 

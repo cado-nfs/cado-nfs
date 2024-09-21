@@ -2,11 +2,12 @@
 #include <cinttypes>        // for PRId64, PRIu64
 #include <cstdint>          // for int64_t, uint64_t, uint32_t
 #include <cstring>          // for strcmp, strlen, memcpy, memset, strdup
-#include <cstdio>            // for fprintf, stderr, NULL, asprintf, FILE
+#include <cstdio>            // for fprintf, stderr, asprintf, FILE
 #include <cstdlib>           // for free, abort, exit, malloc, EXIT_FAILURE
 #include <tuple>            // for tuple, get
 #include <vector>           // for vector
 #include <string>           // for string
+#include <memory>
 #ifdef HAVE_MINGW
 #include <fcntl.h>   /* for _O_BINARY */
 #endif
@@ -14,6 +15,7 @@
 #include "filter_config.h"   // for CA_DUP2, CB_DUP2
 #include "filter_io.h"       // for earlyparsed_relation_s, filter_rels_desc...
 #include "fmt/core.h"        // for fmt::print
+#include "fmt/format.h"
 #include "galois_action.hpp"  // for galois_action
 #include "gzip.h"            // for fclose_maybe_compressed, fopen_maybe_com...
 #include "macros.h"          // for ASSERT_ALWAYS, UNLIKELY
@@ -28,13 +30,15 @@
 #include "verbose.h"         // for verbose_decl_usage, verbose_interpret_pa...
 
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 char *argv0; /* = argv[0] */
 
-static uint32_t *H; /* H contains the hash table */
+static std::unique_ptr<uint32_t[]> H; /* H contains the hash table */
 static unsigned long K = 0; /* Size of the hash table */
 static unsigned long noutrels = 0; // Number of output relations
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-/* return in *oname and *oname_tmp two file names for writing the output
+/* return in oname and oname_tmp two file names for writing the output
  * of processing the given input file infilename. Both files are placed
  * in the directory outdir if not NULL, otherwise in the current
  * directory.  The parameter outfmt specifies the output file extension
@@ -45,37 +49,27 @@ static unsigned long noutrels = 0; // Number of output relations
  * be renamed to *oname. Otherwise disaster may occur, as there is a slim
  * possibility that *oname == infilename on return.
  */
-static void
-get_outfilename_from_infilename (char *infilename, const char *outfmt,
-    const char *outdir, char **oname,
-    char **oname_tmp)
+static std::string
+get_outfilename_from_infilename (std::string const & infilename,
+        std::string const & outfmt,
+    std::string const & outdir)
 {
   const char * suffix_in;
-  const char * suffix_out;
-  get_suffix_from_filename (infilename, &suffix_in);
-  suffix_out = outfmt ? outfmt : suffix_in;
+  get_suffix_from_filename (infilename.c_str(), &suffix_in);
+  std::string suffix_out = outfmt;
+  if (suffix_out.empty()) suffix_out = suffix_in;
 
-  char * newname = strdup(infilename);
-  ASSERT_ALWAYS(strlen(suffix_in) <= strlen(newname));
-  newname[strlen(newname)-strlen(suffix_in)]='\0';
+  std::string newname = infilename.substr(0, infilename.size() - strlen(suffix_in));
 
-#define chkrcp(x) do { int rc = x; ASSERT_ALWAYS(rc>=0); } while (0)
-  if(outdir) {
-    const char * basename = path_basename(newname);
-    chkrcp(asprintf(oname_tmp, "%s/%s.tmp%s", outdir, basename, suffix_out));
-    chkrcp(asprintf(oname, "%s/%s%s", outdir, basename, suffix_out));
-  } else {
-    chkrcp(asprintf(oname_tmp, "%s.tmp%s", newname, suffix_out));
-    chkrcp(asprintf(oname, "%s%s", newname, suffix_out));
+  std::string prefix = outdir;
+
+  if (!prefix.empty()) {
+      if (prefix.back() != '/')
+          prefix += '/';
+      newname = path_basename(newname.c_str());
   }
-#undef  chkrcp
 
-#if DEBUG >= 1
-  fprintf (stderr, "DEBUG: Input file name: %s,\nDEBUG: temporary output file "
-      "name: %s,\nDEBUG: final output file name: %s\n", infilename,
-      *oname_tmp, *oname);
-#endif
-  free(newname);
+  return prefix + newname + suffix_out;
 }
 
 static inline uint32_t
@@ -103,17 +97,24 @@ insert_relation_in_dup_hashtable (earlyparsed_relation_srcptr rel,
   return i;
 }
 
+struct thread_galois_arg {
+  std::vector<index_t> const & ga_id_cache;
+  galois_action const & gal_action;
+  std::ostream & os;
+};
+
 static void *
 thread_galois (void * context_data, earlyparsed_relation_ptr rel)
 {
   unsigned int is_dup;
-  auto data = *((std::tuple<std::vector<index_t> const &, galois_action const &, FILE *> *) context_data);
-  const std::vector<index_t> &sigma = std::get<0>(data);
-  const galois_action &G = std::get<1>(data);
-  FILE *output = std::get<2>(data);
+  auto data = *(thread_galois_arg const *) context_data;
+
+  const std::vector<index_t> &sigma = data.ga_id_cache;
+  const galois_action &G = data.gal_action;
+  std::ostream & output(data.os);
   insert_relation_in_dup_hashtable (rel, &is_dup, G);
   if (is_dup)
-    return NULL;
+    return nullptr;
 
   noutrels++;
   
@@ -129,11 +130,11 @@ thread_galois (void * context_data, earlyparsed_relation_ptr rel)
   for (i = 0; i < rel->nb; i++)
   {
     ASSERT_ALWAYS(rel->primes[i].e != 0);
-    index_t h = rel->primes[i].h;
-    index_t hrep = sigma[h];
+    index_t const h = rel->primes[i].h;
+    index_t const hrep = sigma[h];
     // The new sign of the exponent is the XOR of the original sign and of 
     // the fact that we change the prime ideal for its conjugate.
-    int neg = (rel->primes[i].e < 0) ^ (hrep != h);
+    int const neg = (rel->primes[i].e < 0) ^ (hrep != h);
     op = p;
     if (neg) { *p++ = '-'; }
     p = u64toa16(p, (uint64_t) hrep);
@@ -153,11 +154,11 @@ thread_galois (void * context_data, earlyparsed_relation_ptr rel)
 
   *(--p) = '\n';
   p[1] = 0;
-  if (fputs(buf, output) == EOF) {
+  if (!(output << buf)) {
     perror("Error writing relation");
     abort();
   }
-  return NULL;
+  return nullptr;
 }
 
 static void declare_usage(param_list pl)
@@ -189,12 +190,11 @@ int
 main (int argc, char *argv[])
 {
   argv0 = argv[0];
-  cado_poly cpoly;
+  cxx_cado_poly cpoly;
   unsigned long nrels_expected = 0;
   int for_dl = 0;
 
-  param_list pl;
-  param_list_init(pl);
+  cxx_param_list pl;
   declare_usage(pl);
   argv++,argc--;
 
@@ -221,10 +221,12 @@ main (int argc, char *argv[])
   fflush(stdout);
 
   const char * polyfilename = param_list_lookup_string(pl, "poly");
-  const char * outfmt = param_list_lookup_string(pl, "outfmt");
+  std::string outfmt;
+  param_list_parse(pl, "outfmt", outfmt);
   const char * filelist = param_list_lookup_string(pl, "filelist");
   const char * basepath = param_list_lookup_string(pl, "basepath");
-  const char * outdir = param_list_lookup_string(pl, "outdir");
+  std::string outdir;
+  param_list_parse(pl, "outdir", outdir);
   const char * renumberfilename = param_list_lookup_string(pl, "renumber");
   const char * path_antebuffer = param_list_lookup_string(pl, "path_antebuffer");
   const char * action = param_list_lookup_string(pl, "galois");
@@ -235,12 +237,12 @@ main (int argc, char *argv[])
     fprintf(stderr, "Error, unused parameters are given\n");
     usage(pl, argv0);
   }
-  if (polyfilename == NULL)
+  if (polyfilename == nullptr)
   {
     fprintf(stderr, "Error, missing -poly command line argument\n");
     usage(pl, argv0);
   }
-  if (renumberfilename == NULL)
+  if (renumberfilename == nullptr)
   {
     fprintf (stderr, "Error, missing -renumber command line argument\n");
     usage(pl, argv0);
@@ -250,11 +252,11 @@ main (int argc, char *argv[])
     fprintf(stderr, "Error, -basepath only valid with -filelist\n");
     usage(pl, argv0);
   }
-  if (outfmt && !is_supported_compression_format(outfmt)) {
+  if (!outfmt.empty() && !is_supported_compression_format(outfmt.c_str())) {
     fprintf(stderr, "Error, output compression format unsupported\n");
     usage(pl, argv0);
   }
-  if ((filelist != NULL) + (argc != 0) != 1) {
+  if ((filelist != nullptr) + (argc != 0) != 1) {
     fprintf(stderr, "Error, provide either -filelist or freeform file names\n");
     usage(pl, argv0);
   }
@@ -264,19 +266,18 @@ main (int argc, char *argv[])
                     "(or nrels = 0)\n");
     usage(pl, argv0);
   }
-  K = 100 + 1.2 * nrels_expected;
+  K = 100 + 1.2 * double(nrels_expected);
 
-  if(action == NULL)
+  if(action == nullptr)
   {
     fprintf(stderr, "Error, missing -galois command line argument\n");
     usage(pl, argv0);
   }
 
-  H = (uint32_t*) malloc (K * sizeof (uint32_t));
+  H = std::unique_ptr<uint32_t[]>(new uint32_t[K]);
   ASSERT_ALWAYS(H);
-  memset (H, 0, K * sizeof (uint32_t));
+  std::fill(H.get(), H.get() + K, 0);
 
-  cado_poly_init (cpoly);
   if (!cado_poly_read (cpoly, polyfilename)) {
     fprintf (stderr, "Error reading polynomial file\n");
     exit (EXIT_FAILURE);
@@ -326,36 +327,28 @@ main (int argc, char *argv[])
   timingstats_dict_init(stats);
 
   for (char **p = files; *p ; p++) {
-    FILE * output = NULL;
-    char * oname, * oname_tmp;
-    char * local_filelist[] = { *p, NULL};
+    // FILE * output = nullptr;
+    std::string oname;
+    char * local_filelist[] = { *p, nullptr};
 
-    get_outfilename_from_infilename (*p, outfmt, outdir, &oname, &oname_tmp);
-    output = fopen_maybe_compressed(oname_tmp, "w");
-    if (output == NULL){
-      fprintf (stderr, "Error, could not open file to write the relations. "
-                       "Check that the directory %s exists\n", outdir);
+    oname = get_outfilename_from_infilename (*p, outfmt, outdir);
+
+    ofstream_maybe_compressed output(oname);
+    // output = fopen_maybe_compressed(oname_tmp, "w");
+    if (!output) {
+        fmt::print (stderr, "Error, could not open file to write the relations. "
+                       "Check that the directory {} exists\n", outdir);
       abort();
     }
-    auto arg = std::make_tuple(std::cref(ga_id_cache), std::cref(gal_action),
-                                                       output);
+
+    thread_galois_arg foo { ga_id_cache, gal_action, output };
 
     filter_rels(local_filelist, (filter_rels_callback_t) &thread_galois,
-                (void *) &arg, EARLYPARSE_NEED_AB_HEXA | EARLYPARSE_NEED_INDEX,
-                NULL, stats);
+                (void *) &foo, EARLYPARSE_NEED_AB_HEXA | EARLYPARSE_NEED_INDEX,
+                nullptr, stats);
 
-    fclose_maybe_compressed(output, oname_tmp);
+    // fclose_maybe_compressed(output, oname_tmp);
 
-#ifdef HAVE_MINGW /* For MinGW, rename cannot overwrite an existing file */
-    remove (oname);
-#endif
-    if (rename(oname_tmp, oname)) {
-      fprintf(stderr, "Error while renaming %s into %s\n", oname_tmp, oname);
-      abort();
-    }
-
-    free(oname);
-    free(oname_tmp);
   }
 
   fprintf(stderr, "Number of output relations: %lu\n", noutrels);
@@ -363,9 +356,6 @@ main (int argc, char *argv[])
   if (filelist)
     filelist_clear(files);
 
-  param_list_clear(pl);
-  cado_poly_clear (cpoly);
-  free(H);
 
   timingstats_dict_add_mythread(stats, "main");
   timingstats_dict_disp(stats);

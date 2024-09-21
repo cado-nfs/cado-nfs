@@ -184,7 +184,7 @@ main (int argc, char **argv)
   const char * datafilename = argv[1];
   datafile = fopen (datafilename, "r");
 
-  int err = test_sm (datafile);
+  int const err = test_sm (datafile);
 
   fclose (datafile); 
   if (err)

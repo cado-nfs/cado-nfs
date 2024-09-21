@@ -349,8 +349,8 @@ j_divisibility_helper::j_divisibility_helper(uint32_t J)
         }
         p = (c == 1U) ? p : c;
         c = k; do {c /= p;} while (c % p == 0);
-        unsigned int inv = p == 2 ? 0U : (unsigned int)ularith_invmod(p);
-        unsigned int bound = UINT_MAX / p;
+        unsigned int const inv = p == 2 ? 0U : (unsigned int)ularith_invmod(p);
+        unsigned int const bound = UINT_MAX / p;
         entries.push_back({ p, c, inv, bound});
     }
 }
@@ -520,8 +520,8 @@ search_survivors_in_line(unsigned char * const SS[2],
         // FIXME: in sublat mode, this is broken!
         if (j == 0 && (!sublat.m)) {
             if (i0 <= 0 && i1 > 0) {
-                unsigned char s0 = SS[0][1-i0];
-                unsigned char s1 = SS[1][1-i0];
+                unsigned char const s0 = SS[0][1-i0];
+                unsigned char const s1 = SS[1][1-i0];
                 memset(SS[0], 255, i1 - i0);
                 if (s0 <= bound[0] && s1 <= bound[1]) {
                     SS[0][1 - i0] = s0;
@@ -575,7 +575,7 @@ search_survivors_in_line(unsigned char * const SS[2],
         // FIXME: in sublat mode, this is broken!
         if (j == 0 && (!sublat.m)) {
             if (i0 <= 0 && i1 > 0) {
-                unsigned char s = Sf[1-i0];
+                unsigned char const s = Sf[1-i0];
                 memset(Sf, 255, i1 - i0);
                 if (s <= b) {
                     Sf[1 - i0] = s;

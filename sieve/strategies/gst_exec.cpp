@@ -126,9 +126,9 @@ int main(int argc, char *argv[])
     param_list_parse_int(pl, "mfb0", &mfb0);
     param_list_parse_int(pl, "ncurves", &ncurves);
 
-    int gdc = param_list_parse_switch(pl, "-gdc");
-    int gst_r = param_list_parse_switch(pl, "-gst_r");
-    int gst = param_list_parse_switch(pl, "-gst");
+    int const gdc = param_list_parse_switch(pl, "-gdc");
+    int const gst_r = param_list_parse_switch(pl, "-gst_r");
+    int const gst = param_list_parse_switch(pl, "-gst");
 
     //and precompute just for one side!
     if (gdc) {			//precompute all decompositions!
@@ -378,8 +378,8 @@ int main(int argc, char *argv[])
 	      }
 
 	      //precompute the convex hull for one bit size of cofactor
-	      int fbb0 = ceil (log2 ((double) (lim0 + 1)));
-	      int lim_is_prime = 2 * fbb0 - 1;
+	      int const fbb0 = ceil (log2 ((double) (lim0 + 1)));
+	      int const lim_is_prime = 2 * fbb0 - 1;
 	      tabular_decomp_t *tab_decomp = NULL;
 	      if (r0 >= lim_is_prime) {
 		  const char *name_file_decomp;

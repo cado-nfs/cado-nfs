@@ -25,8 +25,8 @@
 
 void bw_rank_check(matmul_top_data & mmt, param_list_ptr pl)
 {
-    int tcan_print = bw->can_print && mmt.pi->m->trank == 0;
-    unsigned int r = matmul_top_rank_upper_bound(mmt);
+    int const tcan_print = bw->can_print && mmt.pi->m->trank == 0;
+    unsigned int const r = matmul_top_rank_upper_bound(mmt);
     if (tcan_print) {
         printf("Matrix rank is at most %u (based on zero columns and rows encountered)\n", r);
     }
@@ -55,14 +55,14 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
     // suggest leaving it here as a cheap sanity check.
     pi_hello(pi);
 
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
 
     unsigned int nrhs = 0;
-    int char2 = mpz_cmp_ui(bw->p, 2) == 0;
-    int splitwidth = char2 ? 64 : 1;
+    int const char2 = mpz_cmp_ui(bw->p, 2) == 0;
+    int const splitwidth = char2 ? 64 : 1;
 
-    unsigned int A_width = splitwidth;
-    unsigned int A_multiplex = bw->n / A_width;
+    unsigned int const A_width = splitwidth;
+    unsigned int const A_multiplex = bw->n / A_width;
     std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, A_width));
     ASSERT_ALWAYS(A->simd_groupsize() * A_multiplex == (unsigned int) bw->n);
 
@@ -102,14 +102,14 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
 
     mmt_vec & y = ymy[0];
 
-    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
+    unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     /* Number of copies of m by n matrices to use for trying to obtain a
      * matrix of rank m.
      *
      * Note that it must be at least m/n, otherwise we stand no chance !
      */
-    unsigned int prep_lookahead_iterations = iceildiv(bw->m, bw->n) + 1;
+    unsigned int const prep_lookahead_iterations = iceildiv(bw->m, bw->n) + 1;
 
     unsigned int my_nx = 1;
     uint32_t * xvecs = (uint32_t*) malloc(my_nx * bw->m * sizeof(uint32_t));
@@ -182,9 +182,9 @@ void * prep_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUS
                 for(int r = 0 ; r < bw->m ; r++) {
                     arith_generic::elt & where = A->vec_item(xymats, (r * prep_lookahead_iterations + k) * A_multiplex + j);
                     for(unsigned int t = 0 ; t < my_nx ; t++) {
-                        uint32_t row = xvecs[r*my_nx+t];
-                        unsigned int vi0 = y.i0 + mmt_my_own_offset_in_items(y);
-                        unsigned int vi1 = vi0 + mmt_my_own_size_in_items(y);
+                        uint32_t const row = xvecs[r*my_nx+t];
+                        unsigned int const vi0 = y.i0 + mmt_my_own_offset_in_items(y);
+                        unsigned int const vi1 = vi0 + mmt_my_own_size_in_items(y);
                         if (row < vi0 || row >= vi1)
                             continue;
 
@@ -263,11 +263,11 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     // suggest leaving it here as a cheap sanity check.
     pi_hello(pi);
 
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
 
     unsigned int nrhs = 0;
-    int char2 = mpz_cmp_ui(bw->p, 2) == 0;
-    int splitwidth = char2 ? 64 : 1;
+    int const char2 = mpz_cmp_ui(bw->p, 2) == 0;
+    int const splitwidth = char2 ? 64 : 1;
 
     const char * rhs_name;
     FILE * rhs;
@@ -319,7 +319,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         char ** vec_names = (char**) malloc(nrhs * sizeof(char *));
         FILE ** vec_files = (FILE**) malloc(nrhs * sizeof(FILE *));
         for(unsigned int j = 0 ; j < nrhs ; j++) {
-            int rc = asprintf(&vec_names[j], "V%d-%d.0", j, j+1);
+            int const rc = asprintf(&vec_names[j], "V%d-%d.0", j, j+1);
             ASSERT_ALWAYS(rc >= 0);
             vec_files[j] = fopen(vec_names[j], "wb");
             ASSERT_ALWAYS(vec_files[j] != NULL);
@@ -356,7 +356,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
         vec_file = fopen(vec_name, "wb");
         ASSERT_ALWAYS(vec_file != NULL);
         printf("// Creating %s\n", vec_name);
-        unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
+        unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
         auto vec = A->alloc(unpadded);
         A->vec_set_random(vec, unpadded, rstate);
         A->vec_set_zero(A->vec_subvec(vec, mmt.n0[bw->dir]), unpadded - mmt.n0[bw->dir]);
@@ -372,7 +372,7 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
 
     {
         /* initialize x -- make it completely deterministic. */
-        unsigned int my_nx = 4;
+        unsigned int const my_nx = 4;
         uint32_t * xvecs = (uint32_t*) malloc(my_nx * bw->m * sizeof(uint32_t));
         /* with rhs, consider the strategy where the matrix is kept with
          * its full size, but the SM block is replaced with zeros. Here

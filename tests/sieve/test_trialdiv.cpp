@@ -27,7 +27,7 @@ trialdiv_stdinput(const unsigned long pmax, const int verbose)
     primes.push_back(p);
   prime_info_clear (pi);
 
-  trialdiv_data d(primes);
+  trialdiv_data const d(primes);
 
   
   while (!feof(stdin)) {
@@ -54,7 +54,7 @@ trialdiv_stdinput(const unsigned long pmax, const int verbose)
       continue;
     }
 
-    std::vector<uint64_t> factors = d.trial_divide(N);
+    std::vector<uint64_t> const factors = d.trial_divide(N);
 
     if (verbose) {
       for (i = 0; i < bit; i++) {
@@ -91,7 +91,7 @@ test_trialdiv (int n, unsigned long iter)
       }
       /* Trial divide candidate numbers with a trivial list of exactly 1
        * prime (p). This is really a dumb test */
-      trialdiv_data d(std::vector<unsigned long>(1, p));
+      trialdiv_data const d(std::vector<unsigned long>(1, p));
 
       mpz_urandomb (N, state, n * mp_bits_per_limb);
       ret = mpz_divisible_ui_p (N, p);
@@ -214,7 +214,7 @@ int main (int argc, const char **argv)
                 (unsigned long) primes[nr_primes - 1]);
   prime_info_clear (pi);
 
-  trialdiv_data d(primes);
+  trialdiv_data const d(primes);
 
   for (i = 0; i < nr_N; i++)
     {

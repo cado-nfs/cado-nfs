@@ -33,7 +33,7 @@ renumber_sort_ul (unsigned long *r, size_t n)
         size_t min = i;
         rmin = r[min];
         for (size_t j = i; j--;) {
-            unsigned long rj = r[j];
+            unsigned long const rj = r[j];
             if (UNLIKELY (rj < rmin)) {
                 min = j;
                 rmin = rj;
@@ -82,8 +82,8 @@ hard_mergesort (unsigned long *r, size_t n)
 
 static int gcmp(const void * pa, const void * pb)
 {
-    unsigned long a = * (const unsigned long *) pa;
-    unsigned long b = * (const unsigned long *) pb;
+    unsigned long const a = * (const unsigned long *) pa;
+    unsigned long const b = * (const unsigned long *) pb;
     return (a < b) - (b < a);
 }
 
@@ -97,7 +97,7 @@ int main(int argc, char * argv[])
 
     argv++, argc--;
     for( ; argc ; argc--,argv++) {
-        std::string s = *argv;
+        std::string const s = *argv;
         if (s == "--verbose" || s == "-v") {
             verbose = true;
             continue;

@@ -315,8 +315,8 @@ tree_height (unsigned long n)
 static mpz_t**
 product_tree (std::vector<cxx_mpz> const & R, size_t *w, double & extra_time)
 {
-  size_t n = R.size();
-  int h = tree_height (n);
+  size_t const n = R.size();
+  int const h = tree_height (n);
   ASSERT_ALWAYS(n >= 1);
 
   mpz_t ** T = (mpz_t**) malloc ((h + 1) * sizeof (mpz_t*));
@@ -407,7 +407,7 @@ remainder_tree (mpz_t **T, size_t *w, mpz_srcptr P,
         std::vector<cxx_mpz> & R,
         double & extra_time)
 {
-  size_t n = R.size();
+  size_t const n = R.size();
   unsigned long h = tree_height (n), i, j, guard;
   unsigned long **nbits;
   mpz_t Q;
@@ -506,7 +506,7 @@ smoothness_test (std::vector<cxx_mpz> & R, mpz_srcptr P, FILE *out, double& extr
   size_t w[MAX_DEPTH];
   mpz_t **T;
   double s, st, e0, wct;
-  size_t n = R.size();
+  size_t const n = R.size();
 
   if (n == 0)
     return;
@@ -522,7 +522,7 @@ smoothness_test (std::vector<cxx_mpz> & R, mpz_srcptr P, FILE *out, double& extr
   wct = wct_seconds ();
 
   T = product_tree (R, w, extra_time);
-  size_t h = tree_height (n);
+  size_t const h = tree_height (n);
   fprintf (out, "# batch: took %.2fs (%.2fs + %.2fs ; wct %.2fs) to compute product tree of %zu bits\n",
            seconds() - s,
            seconds_thread () - st,
@@ -571,7 +571,7 @@ find_smooth (cofac_list & l,
         FILE *out,
         int nthreads MAYBE_UNUSED, double & extra_time)
 {
-    int nsides = lpb.size();
+    int const nsides = lpb.size();
     ASSERT_ALWAYS(batchP.size() == (size_t) nsides);
     ASSERT_ALWAYS(batchlpb.size() == (size_t) nsides);
     ASSERT_ALWAYS(batchmfb.size() == (size_t) nsides);
@@ -601,9 +601,9 @@ find_smooth (cofac_list & l,
         e0 = extra_time;
         wct = wct_seconds ();
 
-        size_t input_candidates = l.size();
+        size_t const input_candidates = l.size();
 
-        int side = xside ^ first_smoothness_test_side;
+        int const side = xside ^ first_smoothness_test_side;
 
         cxx_mpz B, BB, L, M;
 
@@ -789,7 +789,7 @@ factor_simple_minded (std::vector<cxx_mpz> &factors,
 	   facul_doit_onefm_mpz, it means fm[j] has not been set. */
 
         std::vector<cxx_mpz> temp;
-        int nf = facul_doit_onefm (temp, n0, *pm, fm[0], fm[1], lpb, BB, BBB);
+        int const nf = facul_doit_onefm (temp, n0, *pm, fm[0], fm[1], lpb, BB, BBB);
         pm++;
 
         /* Could happen if we allowed a cofactor bound after batch
@@ -880,10 +880,10 @@ factor_one (
         std::vector<std::vector<unsigned long>> const & SP,
         int recomp_norm)
 {
-    int64_t a = C.a;
-    uint64_t b = C.b;
+    int64_t const a = C.a;
+    uint64_t const b = C.b;
 
-    int nsides = cpoly->nb_polys;
+    int const nsides = cpoly->nb_polys;
 
     std::vector<std::vector<cxx_mpz>> factors;
 
@@ -901,8 +901,8 @@ factor_one (
                 mpz_set(norm, cofac);
             }
         }
-        std::vector<uint64_t> empty;
-        bool smooth = factor_simple_minded (factors[side], norm, methods,
+        std::vector<uint64_t> const empty;
+        bool const smooth = factor_simple_minded (factors[side], norm, methods,
                 lpb[side], (double) lim[side], SP[side],
                 cofac,
                 (C.doing_p->side == side) ? C.doing_p->prime_factors : empty);
@@ -956,7 +956,7 @@ factor (cofac_list const & L,
         FILE *out, int nthreads MAYBE_UNUSED, double& extra_time,
         int recomp_norm)
 {
-  int nsides = cpoly->nb_polys;
+  int const nsides = cpoly->nb_polys;
   ASSERT_ALWAYS(batchlpb.size() == (size_t) nsides);
   ASSERT_ALWAYS(lpb.size() == (size_t) nsides);
   std::vector<unsigned long> B(nsides);

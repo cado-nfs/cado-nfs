@@ -31,10 +31,10 @@ void trsm64_general(mat64 const & L, mat64 & U, unsigned int n0, unsigned int n1
     /* need to determine the very first fragment before we can align */
     if (n0 % 4) {
         uint64_t c[8];
-        unsigned int n0b = std::min(n0 + 4 - (n0 % 4), n1);
+        unsigned int const n0b = std::min(n0 + 4 - (n0 % 4), n1);
         uint64_t * uu = U.data() + n0;
         uint64_t const * ll= L.data() + n0;
-        unsigned int d = n0b - n0;
+        unsigned int const d = n0b - n0;
         c[0] = 0;
         c[1] = uu[0];
         uint64_t m = 1;
@@ -82,7 +82,7 @@ void trsm64_general(mat64 const & L, mat64 & U, unsigned int n0, unsigned int n1
     }
     if (n1 % 4) {
         ASSERT(b < n1);
-        unsigned int d = n1 % 4;
+        unsigned int const d = n1 % 4;
         ASSERT(n1 == b + d);
         if (d <= 1) return;
         uint64_t c[4];

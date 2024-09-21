@@ -182,7 +182,7 @@ int main (int argc, char **argv)
   char *inp_fn = NULL;
   FILE *inp;
   cxx_mpz N, cof;
-  int nr_methods = 0;
+  int const nr_methods = 0;
   int only_primes = 0, verbose = 0, quiet = 0;
   int printfactors = 0;
   int printnonfactors = 0;
@@ -465,7 +465,7 @@ int main (int argc, char **argv)
   
   if (!quiet && endtime > starttime)
     {
-      double usrtime = endtime - starttime;
+      double const usrtime = endtime - starttime;
       printf ("Total time: %.2f s, per call: %f usec, per factor: %f usec\n",
               usrtime / 1000000., usrtime / (double) (total + !total), 
               usrtime / (double) (hits + !hits));

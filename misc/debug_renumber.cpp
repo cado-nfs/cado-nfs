@@ -108,8 +108,8 @@ main (int argc, char *argv[])
     renumber_t tab(cpoly);
 
     if (build) {
-        double wtt = wct_seconds();
-        double tt = seconds();
+        double const wtt = wct_seconds();
+        double const tt = seconds();
         std::vector<unsigned int> lpb(tab.get_nb_polys(),0);
         param_list_parse_uint_list(pl, "lpbs", lpb.data(), tab.get_nb_polys(), ",");
         tab.set_lpb(lpb);
@@ -122,8 +122,8 @@ main (int argc, char *argv[])
         }
 
     } else {
-        double wtt = wct_seconds();
-        double tt = seconds();
+        double const wtt = wct_seconds();
+        double const tt = seconds();
 
         tab.read_from_file(renumberfilename, for_dl);
 
@@ -165,7 +165,7 @@ main (int argc, char *argv[])
 
     if (!quiet) {
         for (index_t i = 0; i < tab.get_size() ; i++) {
-            std::string s = tab.debug_data(i);
+            std::string const s = tab.debug_data(i);
             printf ("%s\n", s.c_str());
         }
     }
@@ -208,14 +208,14 @@ main (int argc, char *argv[])
         gmp_randinit_default(rstate);
         double tt;
         volatile unsigned long sum_h MAYBE_UNUSED = 0;
-        int nlookups = 1000 * 1000;
+        int const nlookups = 1000 * 1000;
 
         std::vector<renumber_t::p_r_side> sample;
 
         tt = seconds();
         for(int i = 0 ; i < nlookups ; i++) {
-            index_t h = gmp_urandomm_ui(rstate, tab.get_size());
-            renumber_t::p_r_side x = tab.p_r_from_index(h);
+            index_t const h = gmp_urandomm_ui(rstate, tab.get_size());
+            renumber_t::p_r_side const x = tab.p_r_from_index(h);
             if (!tab.is_additional_column(h))
                 sample.push_back(x);
         }
@@ -234,7 +234,7 @@ main (int argc, char *argv[])
         int nlookups_cached = 0;
         for(auto const & x : sample_cached) {
             nlookups_cached += 1;
-            index_t h = tab.index_from_p_r(x);
+            index_t const h = tab.index_from_p_r(x);
             sum_h += h;
         }
         printf("# Time for %d random lookups"
@@ -250,7 +250,7 @@ main (int argc, char *argv[])
 
         tt = seconds();
         for(auto const & x : sample) {
-            index_t h = tab.index_from_p_r(x);
+            index_t const h = tab.index_from_p_r(x);
             sum_h += h;
         }
         printf("# Time for %d random lookups"

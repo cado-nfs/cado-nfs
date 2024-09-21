@@ -379,7 +379,7 @@ void dispatcher::reader_thread_data::progress(bool wait)/*{{{*/
 #endif
     indices.assign(n_in, 0);
     // statuses.assign(n_in, 0);
-    int err = MPI_Testsome(n_in, outstanding.data(),
+    int const err = MPI_Testsome(n_in, outstanding.data(),
             &n_out, indices.data(),
             MPI_STATUSES_IGNORE);
     ASSERT_ALWAYS(!err);
@@ -412,7 +412,7 @@ void dispatcher::reader_thread_data::progress(bool wait)/*{{{*/
 void dispatcher::reader_compute_offsets()/*{{{*/
 {
     ASSERT_ALWAYS(reader_map.is_reader());
-    unsigned int ridx = reader_map.index[pi->m->jrank];
+    unsigned int const ridx = reader_map.index[pi->m->jrank];
 
     // Let R == nreaders().
     // All R nodes read from the rw file and deduce the byte size of the
@@ -460,12 +460,12 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         struct stat sbuf[1];
         rc = stat(mfile.c_str(), sbuf);
         ASSERT_ALWAYS(rc == 0);
-        size_t matsize = sbuf->st_size;
+        size_t const matsize = sbuf->st_size;
         FILE * frw = fopen(rwfile.c_str(), "rb");
         ASSERT_ALWAYS(frw);
         rc = fseek(frw, 0, SEEK_END);
         ASSERT_ALWAYS(rc == 0);
-        long endpos = ftell(frw);
+        long const endpos = ftell(frw);
         ASSERT_ALWAYS(endpos >= 0);
         ASSERT_ALWAYS((size_t) endpos == bal.nrows * sizeof(uint32_t));
         rc = fseek(frw, 0, SEEK_SET);
@@ -478,11 +478,11 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         uint32_t r = 0;
         size_t s = 0;
         size_t last_s = 0;
-        size_t qsize = matsize / nreaders();
-        size_t rsize = matsize % nreaders();
+        size_t const qsize = matsize / nreaders();
+        size_t const rsize = matsize % nreaders();
         for(size_t i = 1 ; i < nreaders() ; i++) {
             /* want to find first row for reader i */
-            size_t want = i * qsize + (i < rsize);
+            size_t const want = i * qsize + (i < rsize);
             for( ; r < bal.nrows && s < want ; )
                 s += sizeof(uint32_t) * (1 + rw[r++] * (1 + withcoeffs));
             /* start it at row r */
@@ -498,7 +498,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
 
         for(unsigned int i = 0 ; i < pi->m->njobs ; i++) {
             if (!reader_map.is_reader(i)) continue;
-            int r = reader_map.index[i];
+            int const r = reader_map.index[i];
             fmt::printf("Job %d (reader number %d) reads rows %" PRIu32 " to %" PRIu32 " and expects %s\n",
                     i, r,
                     row0_per_reader[r],
@@ -536,9 +536,9 @@ void dispatcher::reader_thread_data::read()/*{{{*/
     auto nreaders = D.nreaders();
     auto bal = D.bal;
 
-    unsigned int ridx = D.reader_map.index[pi->m->jrank];
-    unsigned int row0 = D.row0_per_reader[ridx];
-    unsigned int row1 = D.row0_per_reader[ridx+1];
+    unsigned int const ridx = D.reader_map.index[pi->m->jrank];
+    unsigned int const row0 = D.row0_per_reader[ridx];
+    unsigned int const row1 = D.row0_per_reader[ridx+1];
 
     FILE * f = fopen(mfile.c_str(), "rb");
     ASSERT_ALWAYS(f);
@@ -549,7 +549,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
     std::vector<std::vector<uint32_t>> nodedata(D.nvjobs);
     std::vector<std::vector<uint32_t>> queues(pi->m->njobs);
 
-    size_t queue_size_per_peer = 1 << 16;
+    size_t const queue_size_per_peer = 1 << 16;
 
     std::vector<uint64_t> check_vector;
     if (pass_number == 2 && !check_vector_filename.empty())
@@ -565,7 +565,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
     for( ; disp_z * 20 < D.bytes_per_reader[0] ; disp_z <<= 1);
     size_t disp_zx = 1 << 14;
 
-    double t0 = wct_seconds();
+    double const t0 = wct_seconds();
 
 #ifndef RELY_ON_MPI_THREAD_MULTIPLE
     int active_peers = nreaders-1;
@@ -575,7 +575,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
 #ifndef RELY_ON_MPI_THREAD_MULTIPLE
         watch_incoming_on_reader(active_peers);
 #endif
-        uint32_t rr = D.fw_rowperm[i - row0];
+        uint32_t const rr = D.fw_rowperm[i - row0];
         // Readers read full lines from the matrix.
         uint32_t w;
         rc = fread(&w, sizeof(uint32_t), 1, f);
@@ -586,7 +586,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
         }
         z += rc * sizeof(uint32_t);
         row.assign(w * (1 + withcoeffs), 0);
-        int ww = w * (1 + withcoeffs);
+        int const ww = w * (1 + withcoeffs);
         rc = fread(row.data(), sizeof(uint32_t), ww, f);
         if (rc != ww) {
             fprintf(stderr, "%s: short read\n", mfile.c_str());
@@ -595,14 +595,14 @@ void dispatcher::reader_thread_data::read()/*{{{*/
         z += ww * sizeof(uint32_t);
         // Column indices are transformed.
         for(int j = 0 ; j < ww ; j += 1 + withcoeffs) {
-            uint32_t cc = D.fw_colperm[row[j]];
-            unsigned int k = cc / D.cols_chunk_big;
+            uint32_t const cc = D.fw_colperm[row[j]];
+            unsigned int const k = cc / D.cols_chunk_big;
             ASSERT_ALWAYS(k < nodedata.size());
             nodedata[k].push_back(cc);
             if (pass_number == 2 && withcoeffs)
                 nodedata[k].push_back(row[j+1]);
             if (pass_number == 2 && !check_vector_filename.empty()) {
-                uint32_t q = balancing_pre_shuffle(bal, row[j]);
+                uint32_t const q = balancing_pre_shuffle(bal, row[j]);
                 check_vector[i - row0] ^= DUMMY_VECTOR_COORD_VALUE(q);
             }
         }
@@ -612,7 +612,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
             auto & C = nodedata[k];
             if (C.empty()) continue;
 
-            unsigned int group = rr / D.rows_chunk_big * D.nvjobs + k;
+            unsigned int const group = rr / D.rows_chunk_big * D.nvjobs + k;
             auto & Q = queues[group];
             Q.push_back(rr);
             Q.push_back(C.size());
@@ -641,7 +641,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
         progress();
     }
     {
-        double dt = wct_seconds()-t0;
+        double const dt = wct_seconds()-t0;
         fmt::printf("pass %d, J%u (reader 0/%d): %s in %.1fs, %s/s (done)\n",
                 D.pass_number, pi->m->jrank, nreaders,
                 size_disp(z), dt, size_disp(z / dt));
@@ -694,7 +694,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
 
         if (D.reader_map.index[pi->m->jrank] == 0) {
             FILE * f = fopen(check_vector_filename.c_str(), "wb");
-            int rc = fwrite(full.data(), sizeof(uint64_t), bal.nrows, f);
+            int const rc = fwrite(full.data(), sizeof(uint64_t), bal.nrows, f);
             ASSERT_ALWAYS(rc == (int) bal.nrows);
             fclose(f);
         }
@@ -706,7 +706,7 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
     balancing xbal;
     balancing_init(xbal);
     balancing_read(xbal, bfile.c_str());
-    uint32_t quo_r = xbal.trows / xbal.nh;
+    uint32_t const quo_r = xbal.trows / xbal.nh;
     ASSERT_ALWAYS(xbal.trows % xbal.nh == 0);
 
     fw_colperm.assign(xbal.tcols, -1);
@@ -741,7 +741,7 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
             xr = xc;
             for (uint32_t i = 0; i < xbal.tcols; i++) {
                 ASSERT_ALWAYS(xc[i] < xbal.tcols);
-                uint32_t q = balancing_pre_unshuffle(bal, xc[i]);
+                uint32_t const q = balancing_pre_unshuffle(bal, xc[i]);
                 ASSERT_ALWAYS(fw_colperm[q] == UINT32_MAX);
                 fw_colperm[q] = i;
             }
@@ -749,10 +749,10 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
              * that eventually, we are still computing iterates of a matrix
              * which is conjugate to the one we're interested in */
 
-            uint32_t nh = xbal.nh;
-            uint32_t nv = xbal.nv;
+            uint32_t const nh = xbal.nh;
+            uint32_t const nv = xbal.nv;
             ASSERT_ALWAYS(xbal.trows % (nh * nv) == 0);
-            uint32_t elem = xbal.trows / (nh * nv);
+            uint32_t const elem = xbal.trows / (nh * nv);
             uint32_t ix = 0;
             uint32_t iy = 0;
             for(uint32_t i = 0 ; i < nh ; i++) {
@@ -761,7 +761,7 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
                     iy = (j * nh + i) * elem;
                     for(uint32_t k = 0 ; k < elem ; k++) {
                         ASSERT_ALWAYS(iy + k < xbal.trows);
-                        uint32_t r = xr[iy+k];
+                        uint32_t const r = xr[iy+k];
                         ASSERT_ALWAYS(r < xbal.trows);
                         ASSERT_ALWAYS(fw_rowperm[r] == UINT32_MAX);
                         fw_rowperm[r] = ix+k;
@@ -784,7 +784,7 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
 
         uint32_t * xc = xbal.colperm;
         for (uint32_t i = 0; i < xbal.tcols; i++) {
-            uint32_t j = xc ? xc[i] : i;
+            uint32_t const j = xc ? xc[i] : i;
             ASSERT_ALWAYS(j < xbal.tcols);
             ASSERT_ALWAYS(fw_colperm[j] == UINT32_MAX);
             fw_colperm[j] = i;
@@ -792,7 +792,7 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
 
         uint32_t * xr = xbal.rowperm;
         for (uint32_t i = 0; i < xbal.trows; i++) {
-            uint32_t j = xr ? xr[i] : i;
+            uint32_t const j = xr ? xr[i] : i;
             ASSERT_ALWAYS(j < xbal.trows);
             ASSERT(fw_rowperm[j] == UINT32_MAX);
             fw_rowperm[j] = i;
@@ -809,9 +809,9 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
         ASSERT_ALWAYS(ttab[k] == quo_r);
     }
 
-    unsigned int ridx = reader_map.index[pi->m->jrank];
-    unsigned int row0 = row0_per_reader[ridx];
-    unsigned int row1 = row0_per_reader[ridx+1];
+    unsigned int const ridx = reader_map.index[pi->m->jrank];
+    unsigned int const row0 = row0_per_reader[ridx];
+    unsigned int const row1 = row0_per_reader[ridx+1];
     fw_rowperm.erase(fw_rowperm.begin() + row1, fw_rowperm.end());
     fw_rowperm.erase(fw_rowperm.begin(), fw_rowperm.begin() + row0);
 
@@ -854,7 +854,7 @@ void dispatcher::endpoint_thread_data::enter_pass_two()
             for(auto & x : Cint) x = 1 + x * 2;
         else
             for(auto & x : Cint) x++;
-        uint32_t w = integrate(Cint);
+        uint32_t const w = integrate(Cint);
 
         args_per_thread[i]->size = w;
         args_per_thread[i]->p = (uint32_t *) malloc(w * sizeof(uint32_t));
@@ -895,20 +895,20 @@ void dispatcher::endpoint_thread_data::prepare_pass(int pass_number)/*{{{*/
 
 void dispatcher::endpoint_thread_data::endpoint_handle_incoming(std::vector<uint32_t> & Q, int from MAYBE_UNUSED)/*{{{*/
 {
-    std::lock_guard<std::mutex> dummy(incoming_mutex);
+    std::lock_guard<std::mutex> const dummy(incoming_mutex);
 
     /* We're receiving data from rank "from" */
 
     for(auto next = Q.begin() ; next != Q.end() ; ) {
         ASSERT_ALWAYS(next < Q.end());
-        uint32_t rr = *next++;
+        uint32_t const rr = *next++;
         uint32_t rs = *next++;
         if (D.pass_number == 2 && D.withcoeffs) rs/=2;
 
-        unsigned int n_row_groups = pi->wr[1]->ncores;
-        unsigned int n_col_groups = pi->wr[0]->ncores;
-        unsigned int row_group = (rr / D.rows_chunk_small) % n_row_groups;
-        unsigned int row_index = rr % D.rows_chunk_small;
+        unsigned int const n_row_groups = pi->wr[1]->ncores;
+        unsigned int const n_col_groups = pi->wr[0]->ncores;
+        unsigned int const row_group = (rr / D.rows_chunk_small) % n_row_groups;
+        unsigned int const row_index = rr % D.rows_chunk_small;
 
         /* Does it make sense anyway ? In the transposed case we
          * don't do this...
@@ -936,11 +936,11 @@ void dispatcher::endpoint_thread_data::endpoint_handle_incoming(std::vector<uint
         if (D.pass_number == 1) {
             for(unsigned int j = 0 ; j < rs ; j ++) {
                 ASSERT_ALWAYS(next < Q.end());
-                uint32_t cc = *next++;
+                uint32_t const cc = *next++;
                 ASSERT_ALWAYS(cc < D.bal.tcols);
-                unsigned int col_group = (cc / D.cols_chunk_small) % n_col_groups;
-                unsigned int col_index = cc % D.cols_chunk_small;
-                unsigned int group = row_group * n_col_groups + col_group;
+                unsigned int const col_group = (cc / D.cols_chunk_small) % n_col_groups;
+                unsigned int const col_index = cc % D.cols_chunk_small;
+                unsigned int const group = row_group * n_col_groups + col_group;
                 if (!D.transpose)
                     thread_row_weights[group][row_index]++;
                 else
@@ -952,16 +952,16 @@ void dispatcher::endpoint_thread_data::endpoint_handle_incoming(std::vector<uint
                 std::vector<uint32_t *> pointers;
                 pointers.reserve(n_col_groups);
                 for(unsigned int i = 0 ; i < n_col_groups ; i++) {
-                    unsigned int col_group = i;
-                    uint32_t group = row_group * n_col_groups + col_group;
+                    unsigned int const col_group = i;
+                    uint32_t const group = row_group * n_col_groups + col_group;
                     uint32_t * matrix = args_per_thread[group]->p;
-                    size_t pos0 = thread_row_positions[group][row_index];
+                    size_t const pos0 = thread_row_positions[group][row_index];
                     uint32_t * p0 = matrix + pos0;
                     pointers.push_back(p0);
                 }
                 for(unsigned int j = 0 ; j < rs ; j ++) {
-                    uint32_t cc = *next++;
-                    unsigned int col_group = (cc / D.cols_chunk_small) % n_col_groups;
+                    uint32_t const cc = *next++;
+                    unsigned int const col_group = (cc / D.cols_chunk_small) % n_col_groups;
                     uint32_t * & p = pointers[col_group];
                     ASSERT(*p == 0);
                     *p++ = cc % D.cols_chunk_small;
@@ -973,10 +973,10 @@ void dispatcher::endpoint_thread_data::endpoint_handle_incoming(std::vector<uint
                     }
                 }
                 for(unsigned int i = 0 ; i < n_col_groups ; i++) {
-                    unsigned int col_group = i;
-                    uint32_t group = row_group * n_col_groups + col_group;
+                    unsigned int const col_group = i;
+                    uint32_t const group = row_group * n_col_groups + col_group;
                     uint32_t * matrix = args_per_thread[group]->p;
-                    size_t pos0 = thread_row_positions[group][row_index];
+                    size_t const pos0 = thread_row_positions[group][row_index];
                     uint32_t * p0 = matrix + pos0;
                     /* verify consistency with the first pass */
                     ASSERT_ALWAYS((pointers[col_group] - p0) == (ptrdiff_t) ((1 + D.withcoeffs) * p0[-1]));
@@ -989,10 +989,10 @@ void dispatcher::endpoint_thread_data::endpoint_handle_incoming(std::vector<uint
                  */
                 /* for clarity -- we might as well do a swap() */
                 for(unsigned int j = 0 ; j < rs ; j ++) {
-                    uint32_t cc = *next++;
-                    unsigned int col_group = (cc / D.cols_chunk_small) % n_col_groups;
-                    unsigned int col_index = cc % D.cols_chunk_small;
-                    unsigned int group = row_group * n_col_groups + col_group;
+                    uint32_t const cc = *next++;
+                    unsigned int const col_group = (cc / D.cols_chunk_small) % n_col_groups;
+                    unsigned int const col_index = cc % D.cols_chunk_small;
+                    unsigned int const group = row_group * n_col_groups + col_group;
                     uint32_t * matrix = args_per_thread[group]->p;
                     size_t & x = thread_row_positions[group][col_index];
                     ASSERT(matrix[x] == 0);
@@ -1063,7 +1063,7 @@ void dispatcher::reader_thread_data::watch_incoming_on_reader(int &active_peers)
 void dispatcher::stats()
 {
     if (!verbose_enabled(CADO_VERBOSE_PRINT_BWC_DISPATCH_OUTER)) return;
-    uint32_t quo_r = bal.trows / bal.nh;
+    uint32_t const quo_r = bal.trows / bal.nh;
     for(unsigned int k = 0 ; k < pi->m->ncores ; k++) {
         printf("[J%uT%u] N=%" PRIu32 " W=%zu\n",
                 pi->m->jrank, k,

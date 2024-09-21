@@ -43,11 +43,11 @@ class semaphore {
     bool b = false;
     public:
     operator bool() {
-        std::lock_guard<std::mutex> dummy(lk);
+        std::lock_guard<std::mutex> const dummy(lk);
         return b;
     }
     void raise() {
-        std::lock_guard<std::mutex> dummy(lk);
+        std::lock_guard<std::mutex> const dummy(lk);
         b = true;
     }
 };
@@ -91,7 +91,7 @@ next_cand_Fp_hgcd(descent_init_candidate & cand, const void * params)
         return 0;
     }
     Fp_param const & param = * (Fp_param const *) params;
-    unsigned long e = random();
+    unsigned long const e = random();
     cxx_mpz u0, v0;
     mpz_powm_ui(u0, param.z, e, param.p);
     cxx_mpz tmp = param.p;
@@ -105,11 +105,11 @@ next_cand_Fp_hgcd(descent_init_candidate & cand, const void * params)
 int
 is_probably_sqrfree(cxx_mpz const & z)
 {
-    for (unsigned long p :
+    for (unsigned long const p :
             { 2,  3,  5,  7,  11, 13, 17, 19,
               23, 29, 31, 37, 41, 43, 47 })
     {
-        unsigned long p2 = p * p;
+        unsigned long const p2 = p * p;
         if (mpz_gcd_ui(NULL, z, p2) == p2)
             return 0;
     }
@@ -310,7 +310,7 @@ full_factor(std::vector<cxx_mpz> & fac_z, cxx_mpz const & z0)
     cxx_mpz z = z0;
 
     // Remove small primes, ECM can't separate them
-    for (unsigned long p : {
+    for (unsigned long const p : {
             2,  3,  5,  7,  11, 13, 17, 19,
             23, 29, 31, 37, 41, 43, 47 })
     {
@@ -447,7 +447,7 @@ one_descent_thread(
                       smooth_param);
     }
 
-    std::lock_guard<std::mutex> dummy(mut_found);
+    std::lock_guard<std::mutex> const dummy(mut_found);
 
     winners.emplace_back(std::this_thread::get_id(), C);
     cond_found.notify_one();
@@ -496,7 +496,7 @@ main(int argc0, char* argv0[])
     using descent_switches::jl;
     unsigned int ext = 1; // extension degree
     int side = 1;
-    clock_t tm = clock();
+    clock_t const tm = clock();
 
     cxx_param_list pl;
 
@@ -570,7 +570,7 @@ main(int argc0, char* argv0[])
         params.f = cpoly->pols[side];
     }
     if (jl) {
-        int ret = cado_poly_getm(params.m, cpoly, params.p);
+        int const ret = cado_poly_getm(params.m, cpoly, params.p);
         ASSERT_ALWAYS(ret);
     }
     if (ext > 1) {
@@ -586,13 +586,13 @@ main(int argc0, char* argv0[])
     };
 
 
-    int mode = (ext > 1) ? MODE_FPN : (jl ? MODE_JL : MODE_RAT);
+    int const mode = (ext > 1) ? MODE_FPN : (jl ? MODE_JL : MODE_RAT);
 
     std::map<std::thread::id, std::thread> threads;
 
     for( ; threads.size() < nthread ; ) {
         auto th = std::thread(one_descent_thread, params, smooth_param, target, mode);
-        std::thread::id id = th.get_id();
+        std::thread::id const id = th.get_id();
         threads[id] = std::move(th);
     }
 
@@ -630,7 +630,7 @@ main(int argc0, char* argv0[])
                 // one of them is not squarefree. Restart the thread and wait
                 // for another candidate.
                 auto th = std::thread(one_descent_thread, params, smooth_param, target, mode);
-                std::thread::id id = th.get_id();
+                std::thread::id const id = th.get_id();
                 threads[id] = std::move(th);
                 continue;
             }

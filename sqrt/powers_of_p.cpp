@@ -62,7 +62,7 @@ mpz_srcptr power_lookup_table::operator()(int i)
 mpz_srcptr power_lookup_table::operator()(int i) const
 {
     pthread_mutex_lock(mx);
-    m_t::const_iterator px = m.find(i);
+    m_t::const_iterator const px = m.find(i);
     if (px == m.end()) {
         pthread_mutex_unlock(mx);
         fprintf(stderr, "Fatal error: we would have expected p^%d to have been computed already\n", i);
@@ -75,7 +75,7 @@ mpz_srcptr power_lookup_table::operator()(int i) const
 
 mpz_srcptr power_lookup_table::inside(int i)
 {
-    m_t::const_iterator px = m.find(i);
+    m_t::const_iterator const px = m.find(i);
     if (px != m.end()) {
         mpz_srcptr res = z[px->second];
         return res;
@@ -100,7 +100,7 @@ mpz_srcptr power_lookup_table::inside(int i)
         mpz_srcptr pl = inside(i/2);
         mpz_mul(q,pl,pl);
     }
-    int r = extra_power_swapstore(q);
+    int const r = extra_power_swapstore(q);
     m[i]=r;
     mpz_clear(q);  // has been swapped with the other one.
     mpz_srcptr res = z[r];

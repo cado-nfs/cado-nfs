@@ -69,8 +69,8 @@ void addmul8_naive(mat8 & C,
     // uint64_t keepmask = (ones << yi1) - (ones << yi0);
     // uint64_t aa = keepmask & * (uint64_t const *) A.data();
     uint8_t Bx[2][16];
-    unsigned int j0 = yi0 / 4;
-    unsigned int j1 = (yi1 + 3) / 4;
+    unsigned int const j0 = yi0 / 4;
+    unsigned int const j1 = (yi1 + 3) / 4;
     for(unsigned int j = j0 ; j < j1 ; j++) {
         const uint8_t * bb = B.data() + 4 * j;
         uint8_t w = 0;
@@ -124,10 +124,10 @@ void trsm8_naive(mat8 const & L,
     /* need to determine the very first fragment before we can align */
     if (n0 % 4) {
         uint8_t c[8];
-        unsigned int n0b = std::min(n0 + 4 - (n0 % 4), n1);
+        unsigned int const n0b = std::min(n0 + 4 - (n0 % 4), n1);
         uint8_t * uu = U.data() + n0;
         uint8_t const * ll= L.data() + n0;
-        unsigned int d = n0b - n0;
+        unsigned int const d = n0b - n0;
         c[0] = 0;
         c[1] = uu[0];
         uint8_t m = 1;
@@ -175,7 +175,7 @@ void trsm8_naive(mat8 const & L,
     }
     if (n1 % 4) {
         ASSERT(b < n1);
-        unsigned int d = n1 % 4;
+        unsigned int const d = n1 % 4;
         ASSERT(n1 == b + d);
         if (d <= 1) return;
         uint8_t c[4];

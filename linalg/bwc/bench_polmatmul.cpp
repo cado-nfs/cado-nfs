@@ -157,7 +157,7 @@ struct my_strassen_selector {
      * matrices of sizes m*n and n*p, depending on BITS_IN_DIM_D and
      * BITS_IN_DIM_I */
     unsigned int threshold_index(unsigned int m, unsigned int n, unsigned int p) const {
-        unsigned int combined = m|n|p;
+        unsigned int const combined = m|n|p;
         unsigned int b = cado_ctzl(combined);
         if (b >= (1UL << BITS_IN_DIM_I)) {
             // arrange so that we 
@@ -184,7 +184,7 @@ struct my_strassen_selector {
     }
 
     int operator()(unsigned int m, unsigned int n, unsigned int p, unsigned int nbits) const {
-        int answer = nbits >= threshold(m,n,p);
+        int const answer = nbits >= threshold(m,n,p);
         // printf("([%u,%u,%u,%u]=>%d)",m,n,p,nbits,answer);
         return answer;
     }
@@ -406,7 +406,7 @@ void tune_strassen1(fft_type const& base,
 {
     my_strassen_selector& s(foo<fft_type>::s);
 
-    unsigned int bp = cado_ctzl(d1 | d2 | d3);
+    unsigned int const bp = cado_ctzl(d1 | d2 | d3);
     unsigned int dd1 = d1 >> bp;
     unsigned int dd2 = d2 >> bp;
     unsigned int dd3 = d3 >> bp;
@@ -429,8 +429,8 @@ void tune_strassen1(fft_type const& base,
     // nbits on, then of course it is going to pay off at worst at this
     // size.
     // old_wt stands for old threshold in words.
-    unsigned int max_wt = iceildiv(maxlen, ULONG_BITS);
-    unsigned int min_wt = 0;
+    unsigned int const max_wt = iceildiv(maxlen, ULONG_BITS);
+    unsigned int const min_wt = 0;
     unsigned int old_wt = max_wt;
     size_t earliest_good_strassen = UINT_MAX;
     for( ; dd1 <= d1 ; dd1 <<= 1, dd2 <<= 1, dd3 <<= 1) {
@@ -450,7 +450,7 @@ void tune_strassen1(fft_type const& base,
         for( ; wt1 - wt0 > 1  && wt0 < max_wt; ) {
             // assuming cubic is better for 64 * t0, ans strassen better
             // for 64 * t1
-            unsigned int wt = (wt1 + wt0) / 2;
+            unsigned int const wt = (wt1 + wt0) / 2;
             // unsigned int t1 = wt1 * ULONG_BITS;
             // unsigned int t0 = wt0 * ULONG_BITS;
             unsigned int t = wt * ULONG_BITS;
@@ -742,18 +742,18 @@ void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
      * really doing a middle product, which is annoying.
      */
     if (0) {
-        size_t d = (N * b / m / n);
+        size_t const d = (N * b / m / n);
 
-        unsigned long dl = d-d/2;
-        unsigned long pi_l_len = dl*m/b;   // always <= dl
+        unsigned long const dl = d-d/2;
+        unsigned long const pi_l_len = dl*m/b;   // always <= dl
         /* it's a middle product. So we have something like
          * d * pi_l_len -> d/2, chopping off all dl first coeffs. So
          * that dl-pi_l_len coeffs of E are unused, which is the (chop)
          * value below */
-        unsigned long chop = dl - pi_l_len;
+        unsigned long const chop = dl - pi_l_len;
 
-        size_t n1 = d - chop;
-        size_t n2 = pi_l_len;
+        size_t const n1 = d - chop;
+        size_t const n2 = pi_l_len;
         printf("Top-level multiplications E*pi: len %zu, %lux%lu * len %zu, %lux%lu (alpha=%.2f)\n",
                 n1, m, b, n2, b, b, (double) n1/n2);
 
@@ -779,12 +779,12 @@ void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
     }
     /* Tune for pi * pi */
     {
-        size_t d = (N * b / m / n);
+        size_t const d = (N * b / m / n);
 
-        unsigned long dl = d-d/2;
-        unsigned long pi_l_len = dl*m/b;   // always <= dl
-        size_t n1 = pi_l_len;
-        size_t n2 = pi_l_len;
+        unsigned long const dl = d-d/2;
+        unsigned long const pi_l_len = dl*m/b;   // always <= dl
+        size_t const n1 = pi_l_len;
+        size_t const n2 = pi_l_len;
 
         gf2x_cantor_fft oc(n1, n2);
         printf("=== c128 ===\n");
@@ -814,7 +814,7 @@ void tune_strassen_global(unsigned long m, unsigned long n, unsigned long N)
 
 void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
 {
-    unsigned long b = m + n;
+    unsigned long const b = m + n;
     /* Seed the random state. Ugly at will. */
     extern char             __gmp_rands_initialized;
     extern gmp_randstate_t  __gmp_rands;
@@ -835,7 +835,7 @@ void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
     vector<level_info> results;
 
     for(unsigned long level = 0 ; ; level++) {
-        unsigned long d = (N * b / m / n) >> level;
+        unsigned long const d = (N * b / m / n) >> level;
         if (d <= 64) {
             printf("[%lu] is below threshold (length %lu)\n", level, d);
             break;
@@ -848,10 +848,10 @@ void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
         }
 
         printf("[%lu] length of E is %lu (%lu MB)\n", level, d, d*m*b>>23);
-        unsigned long dl = d-d/2;
-        unsigned long pi_l_len = dl*m/b;   // always <= dl
+        unsigned long const dl = d-d/2;
+        unsigned long const pi_l_len = dl*m/b;   // always <= dl
         printf("[%lu] Top-level length of pi_left is %lu (%lu MB)\n", level, pi_l_len, pi_l_len*b*b>>23);
-        unsigned long chop = dl - pi_l_len;
+        unsigned long const chop = dl - pi_l_len;
         printf("[%lu] Number of chopped of bits at top level is %lu\n", level, chop);
         printf("[%lu] Top-level degree of truncated E is %lu\n", level, d - chop);
         printf("[%lu] Degree of product E'*pi_left is %lu\n", level, d-chop + pi_l_len);
@@ -938,7 +938,7 @@ int main(int argc, char * argv[])
     }
     // if (N == 0 || n == 0) usage();
 
-    unsigned long b = m + n;
+    unsigned long const b = m + n;
 
 #if 0
     /* tune strassen for all sizes... Takes a looong time */

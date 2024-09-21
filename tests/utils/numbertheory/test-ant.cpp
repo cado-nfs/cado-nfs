@@ -60,7 +60,7 @@ int do_p_maximal_order(param_list_ptr pl) /*{{{*/
 
     std::string polystr;
     if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
-    cxx_mpz_poly f(polystr);
+    cxx_mpz_poly const f(polystr);
 
     cxx_mpq_mat M = p_maximal_order(f, p);
     cxx_mpz D;
@@ -189,17 +189,17 @@ int do_p_maximal_order_batch(param_list_ptr pl) /*{{{*/
 
         if (!(getline(is, s, '\n')))
             throw exc;
-        cxx_mpz d;
-        cxx_mpz_mat A(f->deg, f->deg);
+        cxx_mpz const d;
+        cxx_mpz_mat const A(f->deg, f->deg);
         istringstream is1(s);
         cxx_mpz p;
         if (!(is1 >> p))
             throw exc;
 
-        cxx_mpq_mat O = batch_read_order_basis(is1, f->deg);
-        cxx_mpq_mat my_O = p_maximal_order(f, p);
+        cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
+        cxx_mpq_mat const my_O = p_maximal_order(f, p);
 
-        bool ok = sl_equivalent_matrices(O, my_O, p);
+        bool const ok = sl_equivalent_matrices(O, my_O, p);
 
         cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
@@ -222,7 +222,7 @@ int do_factorization_of_prime(param_list_ptr pl) /*{{{*/
 
     std::string polystr;
     if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
-    cxx_mpz_poly f(polystr);
+    cxx_mpz_poly const f(polystr);
 
     number_field K(f);
     K.bless("K", "alpha");
@@ -281,13 +281,13 @@ int do_factorization_of_prime_batch(param_list_ptr pl) /*{{{*/
         cxx_mpz p;
         if (!(is1 >> p)) throw exc;
 
-        string keyword;
-        cxx_mpq_mat O = batch_read_order_basis(is1, f->deg);
-        cxx_mpz_mat M = multiplication_table_of_order(O, f);
+        string const keyword;
+        cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
+        cxx_mpz_mat const M = multiplication_table_of_order(O, f);
 
         vector<pair<cxx_mpz_mat, int> > ideals = batch_read_prime_factorization(is1, f->deg, p, O, M);
 
-        cxx_mpq_mat my_O = p_maximal_order(f, p);
+        cxx_mpq_mat const my_O = p_maximal_order(f, p);
 
         bool ok = sl_equivalent_matrices(O, my_O, p);
 
@@ -354,7 +354,7 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
 
 
     cxx_mpq_mat O = p_maximal_order(f, p);
-    cxx_mpz_mat M = multiplication_table_of_order(O, f);
+    cxx_mpz_mat const M = multiplication_table_of_order(O, f);
 
     /* We need to reduce our generating elements modulo f, at the expense
      * of creating denominators all over the place.
@@ -412,7 +412,7 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
 
     for(unsigned int k = 0 ; k < F.size() ; k++) {
         cxx_mpz_mat const& fkp(F[k].first);
-        cxx_mpz_mat a = valuation_helper_for_ideal(M, fkp, p);
+        cxx_mpz_mat const a = valuation_helper_for_ideal(M, fkp, p);
         pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
 
         cxx_mpq_mat theta_q;
@@ -420,10 +420,10 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
             mpq_mat_set_mpz_mat(theta_q, two.second);
             mpq_mat_mul(theta_q, theta_q, O);
         }
-        string uniformizer = write_element_as_polynomial(theta_q, "alpha");
+        string const uniformizer = write_element_as_polynomial(theta_q, "alpha");
 
-        int e = F[k].second;
-        int v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
+        int const e = F[k].second;
+        int const v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
 
         cout << "# (p=" << p
             << ", k=" << k
@@ -469,13 +469,13 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
         cxx_mpz p;
         if (!(is1 >> p)) throw exc;
 
-        string keyword;
-        cxx_mpq_mat O = batch_read_order_basis(is1, f->deg);
-        cxx_mpz_mat M = multiplication_table_of_order(O, f);
+        string const keyword;
+        cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
+        cxx_mpz_mat const M = multiplication_table_of_order(O, f);
 
         vector<pair<cxx_mpz_mat, int> > ideals = batch_read_prime_factorization(is1, f->deg, p, O, M);
 
-        cxx_mpq_mat my_O = p_maximal_order(f, p);
+        cxx_mpq_mat const my_O = p_maximal_order(f, p);
 
         bool ok = sl_equivalent_matrices(O, my_O, p);
 
@@ -525,13 +525,13 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
                         throw exc;
                 }
             }
-            pair<cxx_mpz_mat, cxx_mpz> Id = generate_ideal(O, M, cxx_mpq_mat(gens));
+            pair<cxx_mpz_mat, cxx_mpz> const Id = generate_ideal(O, M, cxx_mpq_mat(gens));
             vector<int> my_vals;
             for(unsigned int ell = 0 ; ell < my_ideals.size() ; ell++) {
                 cxx_mpz_mat const& fkp(my_ideals[ell].first);
-                int e = my_ideals[ell].second;
-                cxx_mpz_mat a = valuation_helper_for_ideal(M, fkp, p);
-                int v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
+                int const e = my_ideals[ell].second;
+                cxx_mpz_mat const a = valuation_helper_for_ideal(M, fkp, p);
+                int const v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
                 my_vals.push_back(v);
             }
             if (!(is1 >> keyword) || keyword != "valuations") throw exc;
@@ -627,7 +627,7 @@ int do_number_theory_object_interface(param_list_ptr pl)
             uint64_t b = gmp_urandomm_ui(state, 1000);
             fmt::print("print(\"computing valuations above {} for a={} b={}\")\n", p, a, b);
             mpz_poly_set_ab(phi, a, b);
-            number_field_element z = K(phi);
+            number_field_element const z = K(phi);
             number_field_fractional_ideal I = Op.fractional_ideal({z});
 
             fmt::print("I_{0}_{1} = {2}.fractional_ideal([{0}-{1}*{3}])\n",

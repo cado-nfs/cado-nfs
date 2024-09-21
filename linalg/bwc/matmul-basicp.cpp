@@ -65,7 +65,7 @@ matmul_ptr MATMUL_NAME(init)(void* xx, param_list pl, int optimized_direction)
     memset(mm, 0, sizeof(struct matmul_basicp_data_s));
     mm->xab = (arith_hard *) xx;
 
-    int suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
+    int const suggest = optimized_direction ^ MM_DIR0_PREFERS_TRANSP_MULT;
     mm->public_->store_transposed = suggest;
     if (pl) {
         param_list_parse_int(pl, "mm_store_transposed", 
@@ -84,7 +84,7 @@ void MATMUL_NAME(build_cache)(matmul_ptr mm0, uint32_t * data, size_t size)
     ASSERT_ALWAYS(data);
 
     struct matmul_basicp_data_s * mm = (struct matmul_basicp_data_s *) mm0;
-    unsigned int nrows_t = mm->public_->dim[ mm->public_->store_transposed];
+    unsigned int const nrows_t = mm->public_->dim[ mm->public_->store_transposed];
     
     uint32_t * ptr = data;
     unsigned int i = 0;
@@ -164,7 +164,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
             x->set_zero(rowsum);
             for( ; len-- ; ) {
                 j = *q++;
-                int32_t c = *(int32_t*)q++;
+                int32_t const c = *(int32_t*)q++;
                 ASSERT(j < mm->public_->dim[d]);
                 if (c == 1) {
                     x->add(rowsum, x->vec_item(src, j));
@@ -191,7 +191,7 @@ void MATMUL_NAME(mul)(matmul_ptr mm0, void * xdst, void const * xsrc, int d)
             unsigned int j = 0;
             for( ; len-- ; ) {
                 j = *q++;
-                int32_t c = *(int32_t*)q++;
+                int32_t const c = *(int32_t*)q++;
                 ASSERT(j < mm->public_->dim[!d]);
                 if (c == 1) {
                     x->add(x->vec_item(tdst, j), x->vec_item(src, i));

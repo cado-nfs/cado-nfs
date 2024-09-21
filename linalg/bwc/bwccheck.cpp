@@ -55,7 +55,7 @@ struct Cfile : public string {
     unsigned int j0, j1;
     unsigned int stretch;
     Cfile(const char * x) : string(x) {
-        int rc = sscanf(my_basename(x), "Cv%u-%u.%u", &j0, &j1, &stretch);
+        int const rc = sscanf(my_basename(x), "Cv%u-%u.%u", &j0, &j1, &stretch);
         if (rc != 3) throw std::runtime_error("want Cv%u-%u.%u");
     }
     inline bool operator<(Cfile const& o) {
@@ -67,7 +67,7 @@ struct Dfile : public string {
     unsigned int j0, j1;
     unsigned int stretch;
     Dfile(const char * x) : string(x) {
-        int rc = sscanf(my_basename(x), "Cd%u-%u.%u", &j0, &j1, &stretch);
+        int const rc = sscanf(my_basename(x), "Cd%u-%u.%u", &j0, &j1, &stretch);
         if (rc != 3) throw std::runtime_error("want Cd%u-%u.%u");
     }
     inline bool operator<(Dfile const& o) {
@@ -79,7 +79,7 @@ struct Rfile : public string {
     unsigned int nchecks;
     Rfile(const char * x) : string(x) {
         unsigned int nc0, nc1;
-        int rc = sscanf(my_basename(x), "Cr0-%u.0-%u", &nc0, &nc1);
+        int const rc = sscanf(my_basename(x), "Cr0-%u.0-%u", &nc0, &nc1);
         if (rc != 2) throw std::runtime_error("want Cr0-%u.0-%u");
         nchecks = nc0;
         if (nc0 != nc1) throw std::runtime_error("want Cr0-NCHECKS.0-NCHECKS");
@@ -93,7 +93,7 @@ struct Tfile : public string {
     unsigned int nchecks;
     int m;
     Tfile(const char * x) : string(x) {
-        int rc = sscanf(my_basename(x), "Ct0-%u.0-%d", &nchecks, &m);
+        int const rc = sscanf(my_basename(x), "Ct0-%u.0-%d", &nchecks, &m);
         if (rc != 2) throw std::runtime_error("want Ct0-%u.0-%d");
     }
     inline bool operator<(Tfile const& o) {
@@ -109,7 +109,7 @@ struct Vfile : public string {
         return make_pair(j0, j1);
     }
     Vfile(const char * x) : string(x) {
-        int rc = sscanf(my_basename(x), "V%u-%u.%u", &j0, &j1, &n);
+        int const rc = sscanf(my_basename(x), "V%u-%u.%u", &j0, &j1, &n);
         if (rc != 3) throw std::runtime_error("want " "V%u-%u.%u");
     }
     inline bool operator<(Vfile const& o) {
@@ -130,7 +130,7 @@ struct Afile : public string {
         return make_pair(n0, n1);
     }
     Afile(const char * x) : string(x) {
-        int rc = sscanf(my_basename(x), "A%u-%u.%u-%u", &j0, &j1, &n0, &n1);
+        int const rc = sscanf(my_basename(x), "A%u-%u.%u-%u", &j0, &j1, &n0, &n1);
         if (rc != 4) throw std::runtime_error("want " "A%u-%u.%u-%u");
     }
     inline bool operator<(Afile const& o) {
@@ -209,7 +209,7 @@ int vec_read(arith_generic * A, void * z, string const & v, size_t vsize, const 
     fmt::print(FMT_STRING("{} {} ..."), prefix, v);
     FILE * f;
     if ((f = fopen(v.c_str(), "rb")) != NULL) {
-        int rc = fread(z, A->elt_stride(), vsize, f);
+        int const rc = fread(z, A->elt_stride(), vsize, f);
         fclose(f);
         if (rc >= 0 && (size_t) rc == vsize) {
             fmt::print(FMT_STRING("{}"), " done\n");
@@ -223,7 +223,7 @@ int vec_read(arith_generic * A, void * z, string const & v, size_t vsize, const 
 size_t vec_items(arith_generic * A, string const & v)
 {
     struct stat sbuf[1];
-    int rc = stat(v.c_str(), sbuf);
+    int const rc = stat(v.c_str(), sbuf);
     if (rc < 0 && errno == ENOENT)
         return 0;
     ASSERT_ALWAYS(rc == 0);
@@ -261,7 +261,7 @@ void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> &
 {
     if (Cfiles.empty()) return;
 
-    int nchecks = Ac->simd_groupsize();
+    int const nchecks = Ac->simd_groupsize();
     size_t vsize = common_size(Ac, Cfiles, "Cv");
 
     for(unsigned int i0 = 0 ; i0 + 1 < Cfiles.size() ; i0++) {
@@ -369,7 +369,7 @@ void check_V_files(arith_generic * Ac, vseq_t & Vsequences, std::vector<Cfile> &
                             Vv,
                             vsize);
 
-                    int cmp = Av->vec_cmp(dotprod_scratch[0], dotprod_scratch[1], nchecks);
+                    int const cmp = Av->vec_cmp(dotprod_scratch[0], dotprod_scratch[1], nchecks);
 
                     std::string diag = fmt::format(
                             FMT_STRING("  check {} against {} -> {}\n"),
@@ -400,8 +400,8 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
     if (Dfiles.empty())
         return;
     arith_generic::elt * Dv = NULL;
-    size_t vsize = common_size(Ac, Dfiles, "Cd");
-    int nchecks = Ac->simd_groupsize();
+    size_t const vsize = common_size(Ac, Dfiles, "Cd");
+    int const nchecks = Ac->simd_groupsize();
 
     size_t rsize = vec_items(Ac, R) / nchecks;
     fmt::print(FMT_STRING("Cr file has {} coordinates\n"), rsize);
@@ -500,10 +500,10 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
                         for(int c = 0 ; c < bw->m ; c += nchecks) {
                             int rc;
                             for(int r = 0 ; r < nchecks ; r++) {
-                                size_t simd = Av->simd_groupsize();
-                                size_t rowsize = (A.j1 - A.j0) / simd;
-                                size_t matsize = bw->m * rowsize;
-                                size_t nmats = p - A.n0;
+                                size_t const simd = Av->simd_groupsize();
+                                size_t const rowsize = (A.j1 - A.j0) / simd;
+                                size_t const matsize = bw->m * rowsize;
+                                size_t const nmats = p - A.n0;
 
                                 rc = fseek(a,
                                             nmats * Av->vec_elt_stride(matsize) +
@@ -559,7 +559,7 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
             }
 
             if (can_check) {
-                int cmp = Av->vec_cmp(dotprod_scratch[0], dotprod_scratch[1], nchecks);
+                int const cmp = Av->vec_cmp(dotprod_scratch[0], dotprod_scratch[1], nchecks);
 
                 std::string diag = fmt::format(
                         FMT_STRING("  check {} against {} entries of{} -> {}\n"),
@@ -592,9 +592,9 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
  */
 void * check_prog(param_list pl MAYBE_UNUSED, int argc, char * argv[])
 {
-    int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
-    int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
-    std::unique_ptr<arith_generic> Ac(arith_generic::instance(bw->p, nchecks));
+    int const withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
+    int const nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
+    std::unique_ptr<arith_generic> const Ac(arith_generic::instance(bw->p, nchecks));
 
     vector<Cfile> Cfiles;
     vector<Dfile> Dfiles;

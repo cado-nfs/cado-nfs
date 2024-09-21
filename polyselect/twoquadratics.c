@@ -86,9 +86,9 @@ void cado_poly_extended_print_cado_format(FILE *out, cado_poly_extended poly,
 
   gmp_fprintf(out, "n: %Zd\n", N);
   for (int i = 0; i < 3; i++)
-    gmp_fprintf(out, "c%d: %Zd\n", i, f0->coeff[i]);
+    gmp_fprintf(out, "c%d: %Zd\n", i, f0->_coeff[i]);
   for (int i = 0; i < 3; i++)
-    gmp_fprintf(out, "Y%d: %Zd\n", i, f1->coeff[i]);
+    gmp_fprintf(out, "Y%d: %Zd\n", i, f1->_coeff[i]);
   fprintf(out, "skew: %1.2f\n", L2_combined_skewness2(f0, f1, SKEWNESS_DEFAULT_PREC));
 }
 

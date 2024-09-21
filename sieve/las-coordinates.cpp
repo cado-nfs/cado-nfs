@@ -55,7 +55,7 @@ void convert_X_to_ij(int & i, unsigned int & j, const uint64_t X, int logI)
 
 void convert_Nx_to_ij(int & i, unsigned int & j, const unsigned int N, const unsigned int x, int logI)
 {
-    uint64_t X = (uint64_t)x + (((uint64_t)N) << LOG_BUCKET_REGION);
+    uint64_t const X = (uint64_t)x + (((uint64_t)N) << LOG_BUCKET_REGION);
     convert_X_to_ij(i, j, X, logI);
 }
 
@@ -79,8 +79,8 @@ void convert_ij_to_ab(int64_t & a, uint64_t & b, int i, unsigned int j,
 {
     adjustIJsublat(i, j, Q.sublat);
 
-    int64_t s = (int64_t)i * (int64_t) Q.a0 + (int64_t)j * (int64_t) Q.a1;
-    int64_t t = (int64_t)i * (int64_t) Q.b0 + (int64_t)j * (int64_t) Q.b1;
+    int64_t const s = (int64_t)i * (int64_t) Q.a0 + (int64_t)j * (int64_t) Q.a1;
+    int64_t const t = (int64_t)i * (int64_t) Q.b0 + (int64_t)j * (int64_t) Q.b1;
     if (t >= 0) {
         a = s;
         b = t;

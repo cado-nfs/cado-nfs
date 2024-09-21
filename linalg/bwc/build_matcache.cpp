@@ -87,7 +87,7 @@ int main(int argc, char * argv[])
     }
     param_list_warn_unused(pl);
 
-    std::unique_ptr<arith_generic> xx(arith_generic::instance(prime, groupsize));
+    std::unique_ptr<arith_generic> const xx(arith_generic::instance(prime, groupsize));
 
     if (direction == 1) {
         fprintf(stderr, "Saving cache for matrix-times-vector\n");
@@ -107,7 +107,7 @@ int main(int argc, char * argv[])
         if ((tmp = strstr(basename, ".bin")) != NULL) {
             *tmp='\0';
         }
-        int rc = asprintf(&locfile, "%s/%s", tmpdir, basename);
+        int const rc = asprintf(&locfile, "%s/%s", tmpdir, basename);
         ASSERT_ALWAYS(rc >= 0);
         free(matrixfile_copy);
     }

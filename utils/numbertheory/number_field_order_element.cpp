@@ -33,7 +33,7 @@ cxx_mpz_mat number_field_order_element::multiplication_matrix() const
 {
     number_field_order const & O(order());
     /* return the matrix of the multiplication by e in O */
-    int n = O.number_field().degree();
+    int const n = O.number_field().degree();
     cxx_mpz_mat eM;
     mpz_mat_mul(eM, coefficients, O.multiplication_table);
     cxx_mpz_mat ret(n, n);

@@ -41,17 +41,17 @@ cofactorization_statistics::cofactorization_statistics(param_list_ptr pl)
 void cofactorization_statistics::call(int bits0, int bits1)
 {
     if (!file) return;
-    std::lock_guard<std::mutex> dummy(lock);
+    std::lock_guard<std::mutex> const dummy(lock);
     size_t s0 = cof_call.size();
     if ((size_t) bits0 >= s0) {
-        size_t news0 = std::max((size_t) bits0+1, s0 + s0/2);
+        size_t const news0 = std::max((size_t) bits0+1, s0 + s0/2);
         cof_call.insert(cof_call.end(), news0-s0, std::vector<uint32_t>());
         cof_success.insert(cof_success.end(), news0-s0, std::vector<uint32_t>());
         s0 = news0;
     }
     size_t s1 = cof_call[bits0].size();
     if ((size_t) bits1 >= s1) {
-        size_t news1 = std::max((size_t) bits1+1, s1 + s1/2);
+        size_t const news1 = std::max((size_t) bits1+1, s1 + s1/2);
         cof_call[bits0].insert(cof_call[bits0].end(), news1-s1, 0);
         cof_success[bits0].insert(cof_success[bits0].end(), news1-s1, 0);
         s1 = news1;
@@ -119,9 +119,9 @@ cofactorization_statistics::~cofactorization_statistics()
 int
 check_leftover_norm (cxx_mpz const & n, siever_side_config const & scs)
 {
-  size_t s = mpz_sizeinbase (n, 2);
-  unsigned int lpb = scs.lpb;
-  unsigned int mfb = scs.mfb;
+  size_t const s = mpz_sizeinbase (n, 2);
+  unsigned int const lpb = scs.lpb;
+  unsigned int const mfb = scs.mfb;
   unsigned int klpb;
   double nd, kB, B;
 
@@ -235,7 +235,7 @@ int factor_both_leftover_norms(
     for (int side = 0; side < 2; side++) {
         factors[side].clear();
 
-        double B = (double) Bs[side];
+        double const B = (double) Bs[side];
         /* If n < B^2, then n is prime, since all primes < B have been removed */
         if (mpz_get_d (n[side]) < B * B)
             is_smooth[side] = FACUL_SMOOTH;

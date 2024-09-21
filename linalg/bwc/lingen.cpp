@@ -296,14 +296,14 @@ void truncate_overflow(bmstatus & bm, matpoly_type & pi, unsigned int pi_expect)
 template<typename matpoly_type>
 matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
 {
-    int depth = bm.depth();
-    size_t z = E.get_size();
+    int const depth = bm.depth();
+    size_t const z = E.get_size();
 
     /* C0 is a copy. We won't use it for long anyway. We'll take a
      * reference _later_ */
-    lingen_call_companion C0 = bm.companion(depth, z);
+    lingen_call_companion const C0 = bm.companion(depth, z);
 
-    tree_stats::sentinel dummy(bm.stats, fmt::sprintf("%srecursive", matpoly_diverter<matpoly_type>::prefix), z, C0.total_ncalls);
+    tree_stats::sentinel const dummy(bm.stats, fmt::sprintf("%srecursive", matpoly_diverter<matpoly_type>::prefix), z, C0.total_ncalls);
 
     bm.stats.plan_smallstep(C0.mp.step_name(), C0.mp.tt);
     bm.stats.plan_smallstep(C0.mul.step_name(), C0.mul.tt);
@@ -312,12 +312,12 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
 
     /* we have to start with something large enough to get all
      * coefficients of E_right correct */
-    size_t half = E.get_size() - (E.get_size() / 2);
+    size_t const half = E.get_size() - (E.get_size() / 2);
     // unsigned int pi_expect = expected_pi_length(d, bm.delta, E.get_size());
-    unsigned int pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.get_size());
-    unsigned int pi_left_expect = expected_pi_length(d, bm.delta, half);
-    unsigned int pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
-    unsigned int pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
+    unsigned int const pi_expect_lowerbound = expected_pi_length_lowerbound(d, E.get_size());
+    unsigned int const pi_left_expect = expected_pi_length(d, bm.delta, half);
+    unsigned int const pi_left_expect_lowerbound = expected_pi_length_lowerbound(d, half);
+    unsigned int const pi_left_expect_used_for_shift = MIN(pi_left_expect, half + 1);
 
 
     matpoly_type E_left = E.truncate_and_rshift(half, half + 1 - pi_left_expect_used_for_shift);
@@ -359,8 +359,8 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
     E.clear();
 
 
-    unsigned int pi_right_expect = expected_pi_length(d, bm.delta, E_right.get_size());
-    unsigned int pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());
+    unsigned int const pi_right_expect = expected_pi_length(d, bm.delta, E_right.get_size());
+    unsigned int const pi_right_expect_lowerbound = expected_pi_length_lowerbound(d, E_right.get_size());
 
     matpoly_type pi_right = matpoly_diverter<matpoly_type>::callback(bm, E_right);
 
@@ -423,13 +423,13 @@ matpoly bw_lingen_single_nocp(bmstatus & bm, matpoly & E) /*{{{*/
     ASSERT_ALWAYS(!rank);
     matpoly pi;
 
-    lingen_call_companion C = bm.companion(bm.depth(), E.get_size());
+    lingen_call_companion const C = bm.companion(bm.depth(), E.get_size());
 
     // ASSERT_ALWAYS(E.size < bm.lingen_mpi_threshold);
 
     // fprintf(stderr, "Enter %s\n", __func__);
     if (!bm.recurse(E.get_size())) {
-        tree_stats::transition_sentinel dummy(bm.stats, "recursive_threshold", E.get_size(), C.total_ncalls);
+        tree_stats::transition_sentinel const dummy(bm.stats, "recursive_threshold", E.get_size(), C.total_ncalls);
         bm.t_basecase -= seconds();
         E.clear_high_word();
         pi = bw_lingen_basecase(bm, E);
@@ -446,8 +446,8 @@ matpoly bw_lingen_single(bmstatus & bm, matpoly & E) /*{{{*/
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
     ASSERT_ALWAYS(!rank);
-    unsigned int t0 = bm.t;
-    unsigned int t1 = bm.t + E.get_size();
+    unsigned int const t0 = bm.t;
+    unsigned int const t1 = bm.t + E.get_size();
     matpoly pi;
 
     save_checkpoint_file(bm, LINGEN_CHECKPOINT_E, E, t0, t1);
@@ -472,21 +472,21 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
      */
     bw_dimensions & d = bm.d;
     matpoly::arith_hard * ab = & d.ab;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
-    unsigned int b = m + n;
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
+    unsigned int const b = m + n;
     int rank;
     int size;
     MPI_Comm_rank(bm.com[0], &rank);
     MPI_Comm_size(bm.com[0], &size);
-    unsigned int t0 = bm.t;
-    unsigned int t1 = bm.t + E.get_size();
+    unsigned int const t0 = bm.t;
+    unsigned int const t1 = bm.t + E.get_size();
     bigmatpoly_model const& model(E);
-    int depth = bm.depth();
-    size_t z = E.get_size();
+    int const depth = bm.depth();
+    size_t const z = E.get_size();
 
-    lingen_call_companion C = bm.companion(depth, z);
-    bool go_mpi = C.go_mpi();
+    lingen_call_companion const C = bm.companion(depth, z);
+    bool const go_mpi = C.go_mpi();
     // bool go_mpi = E.get_size() >= bm.lingen_mpi_threshold;
 
     bigmatpoly pi(model);
@@ -504,12 +504,12 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
         /* This entails gathering E locally, computing pi locally, and
          * dispathing it back. */
 
-        tree_stats::transition_sentinel dummy(bm.stats, "mpi_threshold", E.get_size(), C.total_ncalls);
+        tree_stats::transition_sentinel const dummy(bm.stats, "mpi_threshold", E.get_size(), C.total_ncalls);
 
         matpoly sE(ab, m, b, E.get_size());
         matpoly spi;
 
-        double expect0 = bm.hints.tt_gather_per_unit * E.get_size();
+        double const expect0 = bm.hints.tt_gather_per_unit * E.get_size();
         bm.stats.plan_smallstep("gather(L+R)", expect0);
         bm.stats.begin_smallstep("gather(L+R)");
         E.gather_mat(sE);
@@ -520,7 +520,7 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
         if (!rank)
             spi = bw_lingen_single_nocp(bm, sE);
 
-        double expect1 = bm.hints.tt_scatter_per_unit * z;
+        double const expect1 = bm.hints.tt_scatter_per_unit * z;
         bm.stats.plan_smallstep("scatter(L+R)", expect1);
         bm.stats.begin_smallstep("scatter(L+R)");
         pi = bigmatpoly(ab, model, b, b, 0);
@@ -549,10 +549,10 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
 unsigned int count_lucky_columns(bmstatus & bm)/*{{{*/
 {
     bw_dimensions & d = bm.d;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
-    unsigned int b = m + n;
-    int luck_mini = expected_pi_length(d);
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
+    unsigned int const b = m + n;
+    int const luck_mini = expected_pi_length(d);
     MPI_Bcast(bm.lucky.data(), b, MPI_UNSIGNED, 0, bm.com[0]);
     unsigned int nlucky = 0;
     for(unsigned int j = 0 ; j < b ; nlucky += bm.lucky[j++] >= luck_mini) ;
@@ -562,9 +562,9 @@ unsigned int count_lucky_columns(bmstatus & bm)/*{{{*/
 int check_luck_condition(bmstatus & bm)/*{{{*/
 {
     bw_dimensions & d = bm.d;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
-    unsigned int nlucky = count_lucky_columns(bm);
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
+    unsigned int const nlucky = count_lucky_columns(bm);
 
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
@@ -591,7 +591,7 @@ int check_luck_condition(bmstatus & bm)/*{{{*/
             printf("Random input: faking successful computation\n");
         }
         for(unsigned int j = 0 ; j < n ; j++) {
-            unsigned int s = (j * 1009) % (m+n);
+            unsigned int const s = (j * 1009) % (m+n);
             bm.lucky[s]  = expected_pi_length(d);
             bm.delta[s] -= expected_pi_length(d);
         }
@@ -609,9 +609,9 @@ void print_node_assignment(MPI_Comm comm)/*{{{*/
     MPI_Comm_rank(comm, &rank);
 
     struct utsname me[1];
-    int rc = uname(me);
+    int const rc = uname(me);
     if (rc < 0) { perror("uname"); MPI_Abort(comm, 1); }
-    size_t sz = 1 + sizeof(me->nodename);
+    size_t const sz = 1 + sizeof(me->nodename);
     char * global = (char*) malloc(size * sz);
     memset(global, 0, size * sz);
     memcpy(global + rank * sz, me->nodename, sizeof(me->nodename));
@@ -789,7 +789,7 @@ int wrapped_main(int argc, char *argv[])
     if (tmp) {
         ffile = strdup(tmp);
     } else if (afile) {
-        int rc = asprintf(&ffile, "%s.gen", afile);
+        int const rc = asprintf(&ffile, "%s.gen", afile);
         ASSERT_ALWAYS(rc >= 0);
     }
     ASSERT_ALWAYS((afile==NULL) == (ffile == NULL));
@@ -848,7 +848,7 @@ int wrapped_main(int argc, char *argv[])
         /* Reorder all mpi nodes so that each node gets the given number
          * of jobs, but close together.
          */
-        int mpi[2] = { bm.mpi_dims[0], bm.mpi_dims[1], };
+        int const mpi[2] = { bm.mpi_dims[0], bm.mpi_dims[1], };
         int thr[2] = {1,1};
 #ifdef  HAVE_OPENMP
         if (param_list_parse_intxint(pl, "thr", thr)) {
@@ -891,8 +891,8 @@ int wrapped_main(int argc, char *argv[])
                     bm.mpi_dims[0], bm.mpi_dims[1]);
             abort();
         }
-        int irank = rank / mpi[1];
-        int jrank = rank % mpi[1];
+        int const irank = rank / mpi[1];
+        int const jrank = rank % mpi[1];
         bm.com[0] = MPI_COMM_WORLD;
         /* MPI Api has some very deprecated prototypes */
         MPI_Comm_set_name(bm.com[0], (char*) "world");
@@ -945,7 +945,7 @@ int wrapped_main(int argc, char *argv[])
     /* TODO: read the a files in scattered mode */
 
     /* Don't police memory right now, we don't care */
-    matpoly::memory_guard main_memory(SIZE_MAX);
+    matpoly::memory_guard const main_memory(SIZE_MAX);
 
     std::unique_ptr<lingen_input_wrapper_base> A_series;
 
@@ -974,15 +974,15 @@ int wrapped_main(int argc, char *argv[])
 
     bm.t = E_series->t0;
 
-    size_t L = E_series->guessed_length();
+    size_t const L = E_series->guessed_length();
 
     {
-        matpoly::memory_guard blanket(SIZE_MAX);
+        matpoly::memory_guard const blanket(SIZE_MAX);
 #ifndef LINGEN_BINARY
-        typename matpoly_ft<fft_transform_info>::memory_guard blanket_ft(SIZE_MAX);
+        typename matpoly_ft<fft_transform_info>::memory_guard const blanket_ft(SIZE_MAX);
 #else
-        typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard blanket_ft(SIZE_MAX);
-        typename matpoly_ft<gf2x_ternary_fft_info>::memory_guard blanket_ft2(SIZE_MAX);
+        typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard const blanket_ft(SIZE_MAX);
+        typename matpoly_ft<gf2x_ternary_fft_info>::memory_guard const blanket_ft2(SIZE_MAX);
 #endif
         try {
             bm.hints = lingen_tuning(bm.d, L - bm.t, bm.com[0], pl);
@@ -997,14 +997,14 @@ int wrapped_main(int argc, char *argv[])
         exit(EXIT_SUCCESS);
     }
 
-    size_t safe_guess = global_flag_ascii ? ceil(1.05 * L) : L;
+    size_t const safe_guess = global_flag_ascii ? ceil(1.05 * L) : L;
 
     /* c0 is (1+m/n) times the input size */
-    size_t c0 = K_elts_to_bytes(
+    size_t const c0 = K_elts_to_bytes(
                 iceildiv(bm.d.m + bm.d.n, bm.mpi_dims[0]) *
                 iceildiv(bm.d.m + bm.d.n, bm.mpi_dims[1]) *
                 iceildiv(bm.d.m*safe_guess, bm.d.m+bm.d.n));
-    matpoly::memory_guard main(2*c0);
+    matpoly::memory_guard const main(2*c0);
 
     if (!rank) {
         char buf[20];
@@ -1015,7 +1015,7 @@ int wrapped_main(int argc, char *argv[])
                 size_disp(bm.hints.peak, buf));
     }
 
-    int go_mpi = bm.companion(0, L).go_mpi();
+    int const go_mpi = bm.companion(0, L).go_mpi();
 
     if (go_mpi) {
         if (!rank) {
@@ -1039,7 +1039,7 @@ int wrapped_main(int argc, char *argv[])
         Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(& bm.d.ab, bm.d.n, bm.d.n, "F"));
         Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_sha1sum(& bm.d.ab, bm.d.nrhs, bm.d.n, "Frhs"));
     } else if (split_output_file) {
-        std::string pattern = ffile;
+        std::string const pattern = ffile;
         Fdst = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(& bm.d.ab, bm.d.n, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}", global_flag_ascii));
         Fdst_rhs = std::unique_ptr<lingen_output_wrapper_base>(new lingen_output_to_splitfile(& bm.d.ab, bm.d.nrhs, bm.d.n, pattern + ".sols{2}-{3}.{0}-{1}.rhs", global_flag_ascii));
     } else {
@@ -1048,10 +1048,10 @@ int wrapped_main(int argc, char *argv[])
     }
 
     if (go_mpi && size > 1) {
-        bigmatpoly_model model(bm.com, bm.mpi_dims[0], bm.mpi_dims[1]);
+        bigmatpoly_model const model(bm.com, bm.mpi_dims[0], bm.mpi_dims[1]);
         bigmatpoly E(& bm.d.ab, model, bm.d.m, bm.d.m + bm.d.n, safe_guess);
         lingen_scatter<bigmatpoly> fill_E(E);
-        lingen_F0 F0 = *E_series;
+        lingen_F0 const F0 = *E_series;
         pipe(*E_series, fill_E, "Read");
         bm.delta.assign(bm.d.m + bm.d.n, F0.t0);
         logline_init_timer();
@@ -1078,14 +1078,14 @@ int wrapped_main(int argc, char *argv[])
          * run, and not for a plain run.
          */
 #ifndef LINGEN_BINARY
-        typename matpoly_ft<fft_transform_info>::memory_guard blanket_ft(SIZE_MAX);
+        typename matpoly_ft<fft_transform_info>::memory_guard const blanket_ft(SIZE_MAX);
 #else
-        typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard blanket_ft(SIZE_MAX);
-        typename matpoly_ft<gf2x_ternary_fft_info>::memory_guard blanket_ft2(SIZE_MAX);
+        typename matpoly_ft<gf2x_cantor_fft_info>::memory_guard const blanket_ft(SIZE_MAX);
+        typename matpoly_ft<gf2x_ternary_fft_info>::memory_guard const blanket_ft2(SIZE_MAX);
 #endif
         matpoly E(& bm.d.ab, bm.d.m, bm.d.m + bm.d.n, safe_guess);
         lingen_scatter<matpoly> fill_E(E);
-        lingen_F0 F0 = *E_series;
+        lingen_F0 const F0 = *E_series;
         pipe(*E_series, fill_E, "Read");
         bm.delta.assign(bm.d.m + bm.d.n, F0.t0);
         logline_init_timer();
@@ -1108,7 +1108,7 @@ int wrapped_main(int argc, char *argv[])
         printf("t_mp = %.2f\n", bm.t_mp);
         printf("t_mul = %.2f\n", bm.t_mul);
         printf("t_cp_io = %.2f\n", bm.t_cp_io);
-        long peakmem = PeakMemusage();
+        long const peakmem = PeakMemusage();
         if (peakmem > 0)
             printf("# PeakMemusage (MB) = %ld (VmPeak: can be misleading)\n", peakmem >> 10);
     }

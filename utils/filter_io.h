@@ -125,36 +125,37 @@ struct filter_rels_description {
     int n;
 };
 
-typedef void *(*filter_rels_callback_t) (void *, earlyparsed_relation_ptr);
-
 extern uint64_t filter_rels2(char ** input_files,
         struct filter_rels_description * desc,
         int earlyparse_needed_data,
         bit_vector_srcptr active,
         timingstats_dict_ptr);
 
-static inline uint64_t filter_rels(char ** input_files,
+typedef void *(*filter_rels_callback_t) (void *, earlyparsed_relation_ptr);
+
+extern uint64_t filter_rels(char ** input_files,
         filter_rels_callback_t f,
         void * arg,
         int earlyparse_needed_data,
         bit_vector_srcptr active,
-        timingstats_dict_ptr stats)
-{
-    /* Of course I would prefer designated intializers here.
-     * Unfortunately this header is included by C++ code as well, which
-     * makes them illegal (at least with gcc-4.6.3 ; gcc-4.8.1 groks
-     * them). So I stick to dumb code.
-     */
-    struct filter_rels_description desc[2] = {
-        { f, arg, 1, }, { NULL, NULL, 0, },
-    };
-    return filter_rels2(input_files, desc, earlyparse_needed_data, active, stats);
-}
+        timingstats_dict_ptr stats);
 
 
 #ifdef __cplusplus
 }
 #endif
+
+#ifdef __cplusplus
+#include <vector>
+#include <string>
+extern uint64_t filter_rels2(std::vector<std::string> const & input_files,
+        struct filter_rels_description * desc,
+        int earlyparse_needed_data,
+        bit_vector_srcptr active,
+        timingstats_dict_ptr);
+#endif
+
+
 
 #endif /* FILTER_IO_H_ */
 

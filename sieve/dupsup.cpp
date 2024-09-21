@@ -187,7 +187,7 @@ main (int argc, char * argv[])
 
         relation rel;
         if (rel.parse(line)) {
-            int is_dupe = relation_is_duplicate(rel, doing, las);
+            int const is_dupe = relation_is_duplicate(rel, doing, las);
             dupsup(output, rel, doing, is_dupe);
         }
       }

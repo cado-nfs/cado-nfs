@@ -94,7 +94,7 @@ int for_dl = 0;
 void output_prologue(cado_poly_srcptr cpoly)
 {
     if (output_python) {
-        std::vector<std::pair<std::string, std::string>> imports {
+        std::vector<std::pair<std::string, std::string>> const imports {
             //{ "sage.categories.category", "" },
             //{ "sage.categories.commutative_rings", "" },
             //{ "sage.categories.commutative_additive_groups", "" },

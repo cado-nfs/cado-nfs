@@ -905,12 +905,12 @@ int mpz_mat_cmp(mpz_mat_srcptr M, mpz_mat_srcptr N)/*{{{*/
     if (M->m != N->m) return M->m - N->m;
     if (M->n != N->n) return M->n - N->n;
     // ASSERT_ALWAYS((M->m == N->m) && (M->n == N->n));
-    unsigned int m = M->m;
-    unsigned int n = M->n;
+    unsigned int const m = M->m;
+    unsigned int const n = M->n;
     unsigned int i,j;
     for (i = 0 ; i < m ; i++){
         for (j = 0 ; j < n ; j++){
-            int k = mpz_cmp(mpz_mat_entry_const(M,i,j),mpz_mat_entry_const(N,i,j));
+            int const k = mpz_cmp(mpz_mat_entry_const(M,i,j),mpz_mat_entry_const(N,i,j));
             if(k!=0) return k;
         }
     }
@@ -923,12 +923,12 @@ int mpq_mat_cmp(mpq_mat_srcptr M, mpq_mat_srcptr N)/*{{{*/
     if (M->m != N->m) return M->m - N->m;
     if (M->n != N->n) return M->n - N->n;
     // ASSERT_ALWAYS((M->m == N->m) && (M->n == N->n));
-    unsigned int m = M->m;
-    unsigned int n = M->n;
+    unsigned int const m = M->m;
+    unsigned int const n = M->n;
     unsigned int i,j;
     for (i = 0 ; i < m ; i++){
         for (j = 0 ; j < n ; j++){
-            int k = mpq_cmp(mpq_mat_entry_const(M,i,j),mpq_mat_entry_const(N,i,j));
+            int const k = mpq_cmp(mpq_mat_entry_const(M,i,j),mpq_mat_entry_const(N,i,j));
             if(k!=0) return k;
         }
     }
@@ -1381,8 +1381,8 @@ void mpz_mat_pow_ui_mod_mpz(mpz_mat_ptr B, mpz_mat_srcptr A, unsigned long n, mp
 void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcptr f)/*{{{*/
 {
     ASSERT_ALWAYS(M->m == M->n);
-    unsigned int n = M->n;
-    int d = f->deg;
+    unsigned int const n = M->n;
+    int const d = f->deg;
     if (d < 0) {
         mpz_mat_realloc(D, n, n);
         mpz_mat_set_ui(D, 0);
@@ -1407,8 +1407,8 @@ void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcptr f)/*
 void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcptr f, unsigned long p)/*{{{*/
 {
     ASSERT_ALWAYS(M->m == M->n);
-    unsigned int n = M->n;
-    int d = f->deg;
+    unsigned int const n = M->n;
+    int const d = f->deg;
     if (d < 0) {
         mpz_mat_realloc(D, n, n);
         mpz_mat_set_ui(D, 0);
@@ -1434,8 +1434,8 @@ void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcp
 void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcptr f, mpz_srcptr p)/*{{{*/
 {
     ASSERT_ALWAYS(M->m == M->n);
-    unsigned int n = M->n;
-    int d = f->deg;
+    unsigned int const n = M->n;
+    int const d = f->deg;
     if (d < 0) {
         mpz_mat_realloc(D, n, n);
         mpz_mat_set_ui(D, 0);
@@ -1475,8 +1475,8 @@ void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_src
  */
 void mpq_mat_gauss_backend(mpq_mat_ptr M, mpq_mat_ptr T)
 {
-    unsigned int m = M->m;
-    unsigned int n = M->n;
+    unsigned int const m = M->m;
+    unsigned int const n = M->n;
     ASSERT_ALWAYS(M != T);
     mpq_mat_realloc(T, m, m);
     mpq_mat_set_ui(T, 1);
@@ -1529,8 +1529,8 @@ void mpq_mat_gauss_backend(mpq_mat_ptr M, mpq_mat_ptr T)
  */
 void mpz_mat_gauss_backend_mod_mpz(mpz_mat_ptr M, mpz_mat_ptr T, mpz_srcptr p)
 {
-    unsigned int m = M->m;
-    unsigned int n = M->n;
+    unsigned int const m = M->m;
+    unsigned int const n = M->n;
     ASSERT_ALWAYS(M != T);
     if (T) mpz_mat_realloc(T, m, m);
     if (T) mpz_mat_set_ui(T, 1);
@@ -1615,13 +1615,13 @@ struct mpz_mat_hnf_helper_cmp {
         {
             ASSERT_ALWAYS(a.size() == n);
             mpz_mat_set_ui(A, 0);
-            unsigned int n = T->m;
+            unsigned int const n = T->m;
             for(unsigned int i = 0 ; i < n ; i++) {
                 mpz_ptr Ai = mpz_mat_entry(A, i, 0);
                 mpz_swap(Ai, a[i]);
                 dd[i] = 0;
                 for(unsigned int j = 0 ; j < n ; j++) {
-                    double d = mpz_get_d(mpz_mat_entry_const(T, i, j));
+                    double const d = mpz_get_d(mpz_mat_entry_const(T, i, j));
                     dd[i] += d * d;
                 }
             }
@@ -1637,14 +1637,14 @@ struct mpz_mat_hnf_helper_cmp {
 
         ASSERT(mpz_sgn(xa) >= 0);
         ASSERT(mpz_sgn(xb) >= 0);
-        int r = mpz_cmp(xa, xb);
+        int const r = mpz_cmp(xa, xb);
         if (r) return r < 0;
         /* among combinations giving the same result, we want the "best" to
          * be the one with *smallest* norm. So instead of the sign of da-db,
          * we want the sign of db-da, here.
          */
-        double da = dd[a];
-        double db = dd[b];
+        double const da = dd[a];
+        double const db = dd[b];
         return (db > da) < (da > db);
     }
 
@@ -1671,7 +1671,7 @@ struct mpz_mat_hnf_helper_cmp {
  */
 static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, std::vector<cxx_mpz> & a, unsigned int n0)
 {
-    unsigned int n = a.size();
+    unsigned int const n = a.size();
     int signdet=1;
     ASSERT_ALWAYS(dT != T);
     mpz_mat_realloc(dT, n, n);
@@ -1741,7 +1741,7 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, std::vector<cxx_mpz
         /* adjust the norm of the row in T */
         cmp.dd[head] = 0;
         for(unsigned int j = 0 ; j < n ; j++) {
-            double d = mpz_get_d(mpz_mat_entry(T, head, j));
+            double const d = mpz_get_d(mpz_mat_entry(T, head, j));
             cmp.dd[head] += d * d;
         }
         std::push_heap(heap.begin() + n0, heap.end(), cmp);
@@ -1768,7 +1768,7 @@ static int mpz_mat_hnf_helper(mpz_mat_ptr T, mpz_mat_ptr dT, std::vector<cxx_mpz
 void mpz_gcd_many(mpz_mat_ptr dT, std::vector<cxx_mpz> & a)
 {
     mpz_mat T;
-    unsigned int n = a.size();
+    unsigned int const n = a.size();
     mpz_mat_init(T, n, n);
     mpz_mat_set_ui(T, 1);
     mpz_mat_hnf_helper(T, dT, a, 0);
@@ -1788,13 +1788,13 @@ int mpz_mat_hermite_form(mpz_mat_ptr M, mpz_mat_ptr T)
     if (T == NULL) {
         mpz_mat xT;
         mpz_mat_init(xT,0,0);
-        int r = mpz_mat_hermite_form(M, xT);
+        int const r = mpz_mat_hermite_form(M, xT);
         mpz_mat_clear(xT);
         return r;
     }
     int signdet = 1;
-    unsigned int m = M->m;
-    unsigned int n = M->n;
+    unsigned int const m = M->m;
+    unsigned int const n = M->n;
     mpz_mat_realloc(T, m, m);
     mpz_mat_set_ui(T, 1);
     unsigned int rank = 0;
@@ -1874,7 +1874,7 @@ int mpz_mat_hermite_form_rev(mpz_mat_ptr M, mpz_mat_ptr T) // {{{
          * (m(m-1)+n(n-1))/2 inversions.
          * m*(m-1) is congruent to 2 mod 4 when m is 2 or 3 mod 4
          */
-        int ninvs = ((M->m&2)+(M->n&2))/2;
+        int const ninvs = ((M->m&2)+(M->n&2))/2;
         if (ninvs) s=-s;
     }
     return s;

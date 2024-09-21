@@ -23,10 +23,10 @@ int number_field_prime_ideal::valuation(number_field_fractional_ideal const & I)
     cxx_mpz_mat const & M(O.multiplication_table);
     cxx_mpz_mat const & a(valuation_helper.coefficients);
 
-    int v = numbertheory_internals::valuation_of_ideal_at_prime_ideal(M, I.ideal_basis_matrix, a, p);
+    int const v = numbertheory_internals::valuation_of_ideal_at_prime_ideal(M, I.ideal_basis_matrix, a, p);
     if (v == INT_MAX) return v;
 
-    int w = mpz_p_valuation(I.denominator, p);
+    int const w = mpz_p_valuation(I.denominator, p);
     return v-w*e;
 
 }

@@ -21,11 +21,11 @@ mmt_vector_pair::mmt_vector_pair(matmul_top_data & mmt, int dir)
      * have matrices. It is probably not relevant.
      */
 
-    int nmats_odd = mmt.matrices.size() & 1;
+    int const nmats_odd = mmt.matrices.size() & 1;
 
     matmul_top_matrix * mptr = & mmt.matrices[dir ? (mmt.matrices.size() - 1) : 0];
     for(size_t i = 0 ; i < mmt.matrices.size() ; i++) {
-        int shared = (i == 0) && nmats_odd;
+        int const shared = (i == 0) && nmats_odd;
         mmt_vec_setup((*this)[i], mmt,0,0, dir ^ (i&1), shared, mptr->n[dir]);
         mmt_full_vec_set_zero(((*this)[i]));
 

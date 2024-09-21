@@ -29,8 +29,8 @@ void mmt_vec_set_0n(mmt_vec & v, size_t items)
     // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
     ASSERT_ALWAYS(v.abase->elt_stride() >= sizeof(unsigned int));
     // size_t nwords = (size_t) v.abase->elt_stride(v.abase) / sizeof(uint64_t);
-    size_t off = mmt_my_own_offset_in_items(v);
-    size_t sz = mmt_my_own_size_in_items(v);
+    size_t const off = mmt_my_own_offset_in_items(v);
+    size_t const sz = mmt_my_own_size_in_items(v);
     arith_generic::elt * data = mmt_my_own_subvec(v);
     /* Put 0's everywhere, and put i at other places (just with a dirty
      * cast) */
@@ -54,8 +54,8 @@ void mmt_vec_check_equal_0n(mmt_vec const & v, size_t items)
     ASSERT_ALWAYS(v.consistency == 2);
     // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
     ASSERT_ALWAYS(v.abase->elt_stride() >= sizeof(unsigned int));
-    size_t off = mmt_my_own_offset_in_items(v);
-    size_t sz = mmt_my_own_size_in_items(v);
+    size_t const off = mmt_my_own_offset_in_items(v);
+    size_t const sz = mmt_my_own_size_in_items(v);
     arith_generic::elt const * data = mmt_my_own_subvec(v);
     arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
@@ -77,8 +77,8 @@ void mmt_vec_check_equal_0n_permuted(mmt_vec const & v, size_t items, uint32_t *
     ASSERT_ALWAYS(v.consistency == 2);
     // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
     ASSERT_ALWAYS(v.abase->elt_stride() >= sizeof(unsigned int));
-    size_t off = mmt_my_own_offset_in_items(v);
-    size_t sz = mmt_my_own_size_in_items(v);
+    size_t const off = mmt_my_own_offset_in_items(v);
+    size_t const sz = mmt_my_own_size_in_items(v);
     arith_generic::elt const * data = mmt_my_own_subvec(v);
     arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
@@ -99,8 +99,8 @@ void mmt_vec_check_equal_0n_inv_permuted(mmt_vec const & v, size_t items, uint32
     serialize(v.pi->m);
     // ASSERT_ALWAYS((size_t) v.abase->elt_stride() <= sizeof(uint64_t));
     ASSERT_ALWAYS(v.abase->elt_stride() >= sizeof(unsigned int));
-    size_t off = mmt_my_own_offset_in_items(v);
-    size_t sz = mmt_my_own_size_in_items(v);
+    size_t const off = mmt_my_own_offset_in_items(v);
+    size_t const sz = mmt_my_own_size_in_items(v);
     arith_generic::elt const * data = mmt_my_own_subvec(v);
     arith_generic::elt * temp_alloc = v.abase->alloc(1);
     arith_generic::elt & temp = *temp_alloc;
@@ -138,7 +138,7 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
 
     // int withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     // int nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
-    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, bw->n));
+    std::unique_ptr<arith_generic> const A(arith_generic::instance(bw->p, bw->n));
 
     gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, bw->seed);
@@ -213,9 +213,9 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
                 /* P is the permutation which sends
                  * sub-block nv*i+j to sub-block nh*j+i
                  */
-                unsigned int nh = mmt.matrices[0].bal.nh;
-                unsigned int nv = mmt.matrices[0].bal.nv;
-                size_t z = mmt.matrices[0].bal.trows / (nh * nv);
+                unsigned int const nh = mmt.matrices[0].bal.nh;
+                unsigned int const nv = mmt.matrices[0].bal.nv;
+                size_t const z = mmt.matrices[0].bal.trows / (nh * nv);
                 if (!xr) {
                     /* implicit Sr is P * Sc */
                     xr = (uint32_t *) malloc(mmt.matrices[0].bal.trows * sizeof(uint32_t));
@@ -369,8 +369,8 @@ void * tst_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     /* indices_twist */
     {
         uint32_t * xx;
-        unsigned int m = 2;
-        unsigned int nx = 2;
+        unsigned int const m = 2;
+        unsigned int const nx = 2;
         xx = (uint32_t *) malloc(m * nx * sizeof(uint32_t));
         for(unsigned int k = 0 ; k < m * nx ; k++) {
             xx[k] = gmp_urandomm_ui(rstate, mmt.n0[0]);
