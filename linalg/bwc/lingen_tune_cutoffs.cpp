@@ -182,30 +182,23 @@ struct small_bench {
 template<typename Timer_backend = timer_rusage>
 struct cutoff_finder {
     measurement_choice mc;
-    double scale;
-    int stable_cutoff_break;
+    double scale = 1.1;
+    int stable_cutoff_break = 4;
     unsigned int ntests;
-    int stable;
+    int stable = 0;
     vector<double> benches;
     vector<bool> meaningful;
     vector<pair<unsigned int, pair<vector<double>, int> > > all_results;
     map<int, string> method_names;
-        double slowness_ratio;
-        unsigned int age_slow_discard;
+    double slowness_ratio = 2;
+    unsigned int age_slow_discard = 5;
 
-    cutoff_finder(unsigned int ntests, measurement_choice mc = measurement_choice())
-        :
-        mc(mc),
-        ntests(ntests),
-        benches(ntests),
-        meaningful(ntests, true)
+    explicit cutoff_finder(unsigned int ntests, measurement_choice mc = measurement_choice())
+        : mc(mc)
+        , ntests(ntests)
+        , benches(ntests)
+        , meaningful(ntests , true)
     {
-        /* Fill defaults */
-        scale = 1.1;
-        stable_cutoff_break = 4;
-        stable = 0;
-        slowness_ratio = 2;
-        age_slow_discard = 5;
     }
 
     inline void set_method_name(int k, string const& s) {
@@ -213,7 +206,7 @@ struct cutoff_finder {
     }
     inline string method_name(int i) const {
         ostringstream v;
-        map<int, string>::const_iterator const z = method_names.find(i);
+        const auto z = method_names.find(i);
         if (z == method_names.end()) {
             v << "method " << i;
             return v.str();
@@ -244,8 +237,8 @@ struct cutoff_finder {
             if (meaningful[i] && (best < 0 || benches[i] < benches[best])) best = i;
         }
         ASSERT_ALWAYS(best >= 0);
-        all_results.push_back(make_pair(k,
-                    make_pair(benches, best)));
+        all_results.emplace_back(k,
+                    make_pair(benches, best));
 
         if (all_results.empty() || best != all_results.back().second.second) {
             stable = 0;
@@ -306,14 +299,13 @@ struct cutoff_finder {
     vector<pair<unsigned int, int> > export_best_table()
     {
         vector<pair<unsigned int, int> > steps;
-        steps.push_back(make_pair(1,0));
+        steps.emplace_back(1,0);
 
-        typedef vector<pair<unsigned int, pair<vector<double>, int> > >::const_iterator it_t;
-        for(it_t it = all_results.begin() ; it != all_results.end() ; ++it) {
-            unsigned int const size = it->first;
-            int const best = it->second.second;
+        for(auto const & it : all_results) {
+            unsigned int const size = it.first;
+            int const best = it.second.second;
             if (steps.empty() || best != steps.back().second) {
-                steps.push_back(make_pair(size, best));
+                steps.emplace_back(size, best);
             }
         }
         return steps;
@@ -330,18 +322,17 @@ struct cutoff_finder {
         unsigned int first_alwayskara_size = UINT_MAX;
 
         vector<pair<unsigned int, int> > steps;
-        steps.push_back(make_pair(1,0));
+        steps.emplace_back(1,0);
 
-        typedef vector<pair<unsigned int, pair<vector<double>, int> > >::const_iterator it_t;
-        for(it_t it = all_results.begin() ; it != all_results.end() ; ++it) {
-            unsigned int const size = it->first;
-            vector<double> const& benches(it->second.first);
-            int best = it->second.second;
+        for(auto const & it : all_results) {
+            unsigned int const size = it.first;
+            vector<double> const& benches(it.second.first);
+            int best = it.second.second;
             /* In case fft wins, we invent something which will use
              * karatsuba still */
             if (best > 1) best = benches[1] < benches[0];
             if (steps.empty() || best != steps.back().second) {
-                steps.push_back(make_pair(size, best));
+                steps.emplace_back(size, best);
                 if (best == 1 && size < first_kara_size)
                     first_kara_size = size;
                 /* assign it multiple times */
@@ -362,7 +353,7 @@ struct cutoff_finder {
     vector<pair<unsigned int, int> > export_kara_cutoff_data_force_kara_now(struct polymat_cutoff_info * dst, unsigned int size)
     {
         vector<double> const allz(ntests);
-        all_results.push_back(make_pair(size, make_pair(allz, 1)));
+        all_results.emplace_back(size, make_pair(allz, 1));
         vector<pair<unsigned int, int> > x = export_kara_cutoff_data(dst);
         all_results.pop_back();
         return x;
@@ -370,10 +361,8 @@ struct cutoff_finder {
     static string print_result(vector<pair<unsigned int, int> > const& tab) {
         ostringstream s;
         s << "{";
-        typedef vector<pair<unsigned int, int> >::const_iterator it_t;
-        for(it_t y = tab.begin() ; y != tab.end() ; y++) {
-            s << " { " << y->first << ", " << y->second << " },";
-        }
+        for(auto const & y : tab)
+            s << " { " << y.first << ", " << y.second << " },";
         s << " }";
         return s.str();
     }
@@ -573,16 +562,15 @@ void lingen_tune_mul_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigne
 
     vector<pair<unsigned int, int> > table = finder.export_best_table();
 
-    typedef vector<pair<unsigned int, int> >::iterator it_t;
-    for(it_t x = table.begin() ; x != table.end() ; ++x)
-        x->second = nadjs-1-x->second;
+    for(auto & x : table)
+        x.second = nadjs-1-x.second;
 
     cout << "/* FFT depth adjustments for "
                 << (m)<<"*"<<(m+n)
                 <<" times "
                 << (m+n)<<"*"<<(m+n)<<" products */\n";
     cout << "#define MUL_FTI_DEPTH_ADJ_" <<m+n<<"_"<<(m+n)<<"_"<<(m+n)
-        << " " << finder.print_result(table) << endl;
+        << " " << decltype(finder)::print_result(table) << endl;
 
     if (cl_out) {
         *cl_out = (cutoff_list) malloc((table.size()+1)*sizeof(**cl_out));
@@ -747,16 +735,15 @@ void lingen_tune_mp_fti_depth(matpoly::arith_hard * ab, unsigned int m, unsigned
 
     vector<pair<unsigned int, int> > table = finder.export_best_table();
 
-    typedef vector<pair<unsigned int, int> >::iterator it_t;
-    for(it_t x = table.begin() ; x != table.end() ; ++x)
-        x->second = nadjs-1-x->second;
+    for(auto & x : table)
+        x.second = nadjs-1-x.second;
 
     cout << "/* FFT depth adjustments for "
                 << (m)<<"*"<<(m+n)
                 <<" times "
                 << (m+n)<<"*"<<(m+n)<<" middle-products */\n";
     cout << "#define MP_FTI_DEPTH_ADJ_" <<m<<"_"<<(m+n)<<"_"<<(m+n)
-        << " " << finder.print_result(table) << endl;
+        << " " << decltype(finder)::print_result(table) << endl;
 
     if (cl_out) {
         *cl_out = (cutoff_list) malloc((table.size()+1)*sizeof(**cl_out));
