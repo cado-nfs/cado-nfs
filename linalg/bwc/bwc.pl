@@ -1074,7 +1074,7 @@ if ($mpi_needed) {
         my @a = split(' ', $mpi_extra_args);
         my @b;
         while (defined($_=shift(@a))) {
-            if (/^(--map-by|bind-to)$/) {
+            if (/^--(map-by|bind-to)$/) {
                 shift @a;
                 next;
             }
