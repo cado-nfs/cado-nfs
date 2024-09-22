@@ -54,6 +54,7 @@ if (SAGE)
         -poly "10*x^3-x-2"
         TARGET_DEPENDENCIES
         test-ant
+        TIMEOUT 60
         )
     add_dependencies(all_sagemath_test_dependencies
         numbertheory-object-interface_with_sagemath_dependencies)
