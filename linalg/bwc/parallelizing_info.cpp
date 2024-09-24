@@ -6,18 +6,21 @@
 #include <string.h>
 
 #include <sys/types.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <ctype.h>
+#include <cerrno>
+#include <cstdarg>
+#include <cstdint>
+#include <cinttypes>
+#include <cctype>
 #include <array>
+#include <fstream>
+#include <iostream>
 
 #include "select_mpi.h"
 #include "parallelizing_info.hpp"
 #include "macros.h"
 #include "misc.h"
 #include "verbose.h"
+#include "timing.h"
 #include "portability.h"
 
 
@@ -34,11 +37,11 @@
 
 static inline void pi_comm_init_pthread_things(pi_comm_ptr w, const char * desc)
 {
-    struct pthread_things * res = new pthread_things;
+    auto * res = new pthread_things;
 
-    barrier_init(res->bh, NULL, w->ncores);
-    my_pthread_barrier_init(res->b, NULL, w->ncores);
-    my_pthread_mutex_init(res->m, NULL);
+    barrier_init(res->bh, nullptr, w->ncores);
+    my_pthread_barrier_init(res->b, nullptr, w->ncores);
+    my_pthread_mutex_init(res->m, nullptr);
     res->desc = strdup(desc);
 
     w->th = res;
@@ -807,13 +810,13 @@ static void pi_go_inner_interleaved(
 /* TODO: rewrite! */
 void pi_store_generic(parallelizing_info_ptr pi, unsigned long key, unsigned long who, void * value)
 {
-    std::lock_guard<std::mutex> dummy(pi->dict->mutex());
+    const std::lock_guard<std::mutex> dummy(pi->dict->mutex());
     pi->dict->insert(std::make_pair(std::make_pair(key, who), value));
 }
 
 void * pi_load_generic(parallelizing_info_ptr pi, unsigned long key, unsigned long who)
 {
-    std::lock_guard<std::mutex> dummy(pi->dict->mutex());
+    const std::lock_guard<std::mutex> dummy(pi->dict->mutex());
     auto it = pi->dict->find(std::make_pair(key, who));
     if (it == pi->dict->end())
         return NULL;
