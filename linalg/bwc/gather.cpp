@@ -1178,14 +1178,15 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     if (tcan_print)
         printf("Trying to build solutions %u..%u\n", solutions[0], solutions[1]);
 
+    serialize(mmt.pi->m);
 
     { /* {{{ Collect now the sum of the LHS contributions */
         mmt_vec svec(mmt,0,0, bw->dir, /* shared ! */ 1, mmt.n[bw->dir]);
-        for(size_t i = 0 ; i < sl.size() ; i++) {
+        for(auto const & S : sl) {
             if (tcan_print && verbose_enabled(CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES)) {
-                printf("loading %s\n", sl[i].name);
+                fmt::print("loading {}\n", S.name);
             }
-            int ok = mmt_vec_load(svec, sl[i].name_pattern, unpadded, solutions[0]);
+            int const ok = mmt_vec_load(svec, S.name_pattern, unpadded, solutions[0]);
             ASSERT_ALWAYS(ok);
 
             A->vec_add_and_reduce(
@@ -1197,7 +1198,12 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         mmt_vec_broadcast(y);
     } /* }}} */
 
-    printf("Hamming weight of sum: %lu\n", mmt_vec_hamming_weight(y));
+    serialize(mmt.pi->m);
+
+    auto w = mmt_vec_hamming_weight(y);
+    {
+        fmt::print("Hamming weight of sum: {}\n", w);
+    }
 
     /* Note that for the inhomogeneous case, we'll do the loop only
      * once, since we end with a break. */

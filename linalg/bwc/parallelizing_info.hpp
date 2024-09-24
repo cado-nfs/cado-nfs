@@ -41,6 +41,11 @@
 /* don't enable this. Clutters output a lot */
 #define xxxCONCURRENCY_DEBUG
 
+#ifdef CONCURRENCY_DEBUG
+#include <mutex>
+extern std::mutex stdio_mutex;
+#endif
+
 /*
  * MPI_LIBRARY_MT_CAPABLE: do mpi communications in a furiously
  * concurrent manner.
@@ -108,6 +113,8 @@ struct pi_log_book {
 };
 /* }}} */
 /* }}} */
+
+struct parallelizing_info_s;
 
 struct pi_comm_s { /* {{{ */
     /* njobs : number of mpi jobs concerned by this logical group */
