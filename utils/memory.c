@@ -76,6 +76,8 @@ void *
 realloc_aligned(void * p, const size_t old_size, const size_t new_size,
                 const size_t alignment)
 {
+  if (p == NULL)
+    return malloc_aligned(new_size, alignment);
 #ifdef HAVE_POSIX_MEMALIGN
   /*  Alas, there is no posix_realloc_aligned(). Try to realloc(); if it
       happens to result in the desired alignment, there is nothing left

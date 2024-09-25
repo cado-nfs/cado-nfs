@@ -2,5 +2,9 @@
 FROM runtime
 MAINTAINER Emmanuel Thomé
 COPY --from=build /usr/local/factoring-server/ /usr/local/
-RUN apt-get update && apt-get install -y --no-install-recommends python3-mysql.connector
+# We might run into trouble soonish because python3-mysql.connector is no
+# longer in testing. In which case we can rely on the pip version.
+RUN apt-get update && apt-get install -y --no-install-recommends python3-venv
+RUN python3 -m venv --system-site-packages /usr/local && /usr/local/bin/pip3 install mysql-connector-python
+# RUN apt-get update && apt-get install -y --no-install-recommends python3-mysql.connector
 RUN rm -rf /var/lib/apt/lists /var/cache/*

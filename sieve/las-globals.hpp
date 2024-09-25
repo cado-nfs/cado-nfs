@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <mutex>
+#include <memory>
 
 #include "las-output.hpp"
 
@@ -11,6 +12,7 @@
  * integration in some other mechanism.
  */
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 extern size_t base_memory;
 extern int recursive_descent;
 extern int prepend_relation_time;
@@ -22,6 +24,7 @@ extern int sync_at_special_q;
 extern int trialdiv_first_side;
 extern double general_grace_time_ratio;
 extern double tt_qstart;
-extern las_output main_output;
+extern std::unique_ptr<las_output> main_output;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 #endif	/* LAS_GLOBALS_HPP_ */

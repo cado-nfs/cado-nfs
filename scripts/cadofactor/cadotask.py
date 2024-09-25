@@ -17,6 +17,7 @@ import logging
 import socket
 import gzip
 import heapq
+import errno
 import patterns
 import wudb
 import cadoprograms
@@ -27,36 +28,21 @@ import workunit
 from struct import error as structerror
 from shutil import rmtree
 from workunit import Workunit
-# Patterns for floating-point numbers
-# They can be used with the string.format() function, e.g.,
-# re.compile("value = {cap_fp}".format(**REGEXES))
-# where format() replaces "{cap_fp}" with the string in CAP_FP
-RE_FP = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
-CAP_FP = "(%s)" % RE_FP
-REGEXES = {"fp": RE_FP, "cap_fp": CAP_FP}
 
-def re_cap_n_fp(prefix, n, suffix=""):
-    """ Generate a regular expression that starts with prefix, then captures
-    1 up to n floating-point numbers (possibly in scientific notation)
-    separated by whitespace, and ends with suffix.
-    
-    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo 1.23').group(1)
-    '1.23'
-    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo1.23   4.56').groups()
-    ('1.23', '4.56')
-    
-    # The first fp pattern must match something
-    >>> re.match(re_cap_n_fp(r'foo', 2), 'foo')
-    """
-    template = prefix
-    if n > 0:
-        # The first CAP_FP pattern is mandatory, and can have zero or more
-        # whitespace in front
-        template += r"\s*{cap_fp}"
-        # The remaining FP_CAPs are optional, and have 1 or more whitespace
-        template += r"(?:\s+{cap_fp})?" * (n - 1)
-    template += suffix
-    return template.format(**REGEXES)
+# Pattern for floating-point numbers
+RE_FP = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
+
+# This is just like re.compile(), except that any string "{fp}" within the
+# pattern is subsituted by a regular expression that matches floating-point
+# numbers (incl. in scientific notation).
+# "{a}" or "{a,b}" with a, b numeric are repetition operators in regular
+# expressions, but if a or b are not numeric text, they match just as literal
+# text, so using "{fp}" shouldn't introduce conflicts with valid regexes.
+def re_fp_compile(pattern, *args, **kwargs):
+    # We can't use str.format() here or it will try to interpret regex
+    # repetition operators {n} or {n,m} and complain
+    fp_pattern = pattern.replace("{fp}", RE_FP)
+    return re.compile(fp_pattern, *args, **kwargs)
 
 # convert the time s in [day,]hours,minutes,seconds
 # (patch from Hermann Stamm-Wilbrandt)
@@ -71,7 +57,9 @@ def tstr(s):
     return " [" + time.strftime(fmt + "%H:%M:%S", time.gmtime(i)) + "]"
 
 class Polynomial(list):
-    """
+    r"""
+    >>> # This docstring needs to be a raw string (r prefix) because
+    >>> # backslashes occur in it
     >>> p = Polynomial()
     >>> p.degree < 0
     True
@@ -84,6 +72,11 @@ class Polynomial(list):
     >>> p[42] = 0
     >>> p.degree == 0
     True
+    >>> p = Polynomial([1,-5,0,0,0,7])
+    >>> str(p)
+    '7*x^5-5*x+1'
+    >>> p.as_lines("c")
+    ['c0: 1\n', 'c1: -5\n', 'c5: 7\n']
     >>> p = Polynomial([3,2,1]) # x^2 + 2*x + 3
     >>> p.eval(0)
     3
@@ -117,6 +110,13 @@ class Polynomial(list):
         poly = "".join(reversed(arr)).lstrip('+')
         poly = re.sub(r'\b1\*', "", poly)
         return poly
+
+    # Returns the coefficients as an array of strings in a format like we use
+    # in polynomial files. See doctest example.
+    # Coefficients which are 0 get omitted, each line has a trailing newline
+    def as_lines(self, prefix):
+        return ["%s%d: %d\n" % (prefix, idx, coeff) for (idx, coeff)
+                    in enumerate(self) if not coeff == 0]
 
     def eval(self, x):
         """ Evaluate the polynomial at x """
@@ -166,6 +166,10 @@ class Polynomials(object):
     >>> p=Polynomials(t.splitlines())
     Traceback (most recent call last):
     cadotask.PolynomialParseException: Line 'c5: 1' redefines coefficient of x^5
+    >>> t="n: 1021\n"
+    >>> p=Polynomials(t.splitlines())
+    Traceback (most recent call last):
+    cadotask.PolynomialParseException: No polynomial f specified (c: lines)
     >>> t="n: 1021\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\nskew: 1.0\n"
     >>> p=Polynomials(t.splitlines())
     >>> str(p)
@@ -174,29 +178,38 @@ class Polynomials(object):
     >>> p=Polynomials(t.splitlines())
     >>> str(p)
     'n: 1021\nskew: 1.0\nc0: -1\nc1: 1\nc5: -1\nY0: -4\nY1: 1\n# f(x) = -x^5+x-1\n# g(x) = x-4\n'
+    >>> # Without skew
+    >>> t="n: 1021\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\n\n"
+    >>> p1=Polynomials(t.splitlines())
+    >>> str(p1)
+    'n: 1021\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\n# f(x) = x^5-x+1\n# g(x) = -x+4\n'
+    >>> # With all optional lines
+    >>> t="n: 1021\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\nskew: 1.0\ntype: gnfs\nm: 123\n"
+    >>> p2=Polynomials(t.splitlines())
+    >>> str(p2)
+    'n: 1021\nskew: 1.0\ntype: gnfs\nc0: 1\nc1: -1\nc5: 1\nY0: 4\nY1: -1\n# f(x) = x^5-x+1\n# g(x) = -x+4\n'
+    >>> p1.same_lc(p2)
+    True
     >>> t="n: 1021\npoly0: 1, 2, 3\npoly1: 4, 5, 6\nskew: 1.0\n"
     >>> p=Polynomials(t.splitlines())
+    >>> str(p)
+    'n: 1021\nskew: 1.0\npoly0: 1,2,3\npoly1: 4,5,6\n# poly0 = 3*x^2+2*x+1\n# poly1 = 6*x^2+5*x+4\n'
     """
 
     re_pol_f = re.compile(r"c(\d+)\s*:\s*(-?\d+)")
     re_pol_g = re.compile(r"Y(\d+)\s*:\s*(-?\d+)")
     re_polys = re.compile(r"poly(\d+)\s*:") # FIXME: do better?
-    re_Murphy = re.compile(re_cap_n_fp(r"\s*#\s*MurphyE\s*\((.*)\)\s*=", 1))
+    re_Murphy = re_fp_compile(r"\s*#\s*MurphyE\s*\((.*)\)\s*=\s*({fp})")
     # MurphyF is the refined value of MurphyE produced by polyselect3
-    re_MurphyF = re.compile(re_cap_n_fp(r"\s*#\s*MurphyF\s*\((.*)\)\s*=", 1))
-    re_skew = re.compile(re_cap_n_fp(r"skew:", 1))
+    re_MurphyF = re_fp_compile(r"\s*#\s*MurphyF\s*\((.*)\)\s*=\s*({fp})")
+    re_n = re.compile(r"n\s*:\s* (\d+)") # Ex. "n: 1234567"
+    re_skew = re_fp_compile(r"skew:\s*({fp})") # Ex. "skew: 1.3e5"
+    re_type = re.compile(r"type\s*:\s*(snfs|gnfs)") # Ex. "type: snfs"
+    # Note, the value of m is ignored by CADO-NFS, but should not trigger an
+    # error if it occurs in a polynomial file.
+    re_m = re.compile(r"m\s*:\s*(\d+)") # Ex. "m: 123"
     re_best = re.compile(r"# Best polynomial found \(revision (.*)\):")
-    re_exp_E = re.compile(re_cap_n_fp(r"\s*#\s*exp_E", 1))
-    
-    # Keys that can occur in a polynomial file, in their preferred ordering,
-    # and whether the key is mandatory or not. The preferred ordering is used
-    # when turning a polynomial back into a string.
-    keys = OrderedDict(
-        (
-            ("n", (int, True)),
-            ("skew", (float, False)),
-            ("type", (str, False))
-        ))
+    re_exp_E = re_fp_compile(r"\s*#\s*exp_E\s*({fp})")
     
     def __init__(self, lines):
         """ Parse a polynomial file in the syntax as produced by polyselect
@@ -204,11 +217,12 @@ class Polynomials(object):
         """
         self.MurphyE = 0.
         self.MurphyF = 0.
-        self.skew = 0.
+        self.n = None
+        self.skew = None
+        self.type = None
         self.MurphyParams = None
         self.revision = None
         self.exp_E = 0.
-        self.params = {}
         polyf = Polynomial()
         polyg = Polynomial()
         # in case of multiple fields
@@ -226,7 +240,7 @@ class Polynomials(object):
                 return True
             return False
 
-        # line = "poly0: 1, 2, 3" => poly[0] = {1, 2, 3} = 1+2*X+3*X^2
+        # line = "poly0: 1, 2, 3" => poly[0] = [1, 2, 3] = 1+2*X+3*X^2
         def match_poly_all(line, regex):
             match = regex.match(line)
             if match:
@@ -243,6 +257,9 @@ class Polynomials(object):
 
         for line in lines:
             # print ("Parsing line: >%s<" % line.strip())
+
+            # First, match comment lines that contain useful info
+
             # If this is a comment line telling the Murphy E value,
             # extract the value and store it
             match = self.re_Murphy.match(line)
@@ -260,10 +277,6 @@ class Polynomials(object):
                         "Line '%s' redefines Murphy F value" % line)
                 self.MurphyF = float(match.group(2))
                 continue
-            match = self.re_skew.match(line)
-            if match:
-                self.skew = float(match.group(1))
-                # go through
             match = self.re_best.match(line)
             if match:
                 self.revision = match.group(1)
@@ -277,11 +290,15 @@ class Polynomials(object):
                         "Line '%s' redefines exp_E value" % line)
                 self.exp_E = float(match.group(1))
                 continue
-            # Drop comment, strip whitespace
+
+            # If it's a comment that doesn't contain interesting data,
+            # drop it
+
             line2 = line.split('#', 1)[0].strip()
             # If nothing is left, process next line
             if not line2:
                 continue
+
             # Try to parse polynomial coefficients
             if match_poly(line, polyf, self.re_pol_f) or \
                     match_poly(line, polyg, self.re_pol_g):
@@ -291,43 +308,70 @@ class Polynomials(object):
             if ip != -1:
                 tabpoly[ip] = tip
                 continue
-            # All remaining lines must be of the form "x: y"
-            array = line2.split(":")
-            if not len(array) == 2:
-                raise PolynomialParseException("Invalid line '%s'" % line)
-            key = array[0].strip()
-            value = array[1].strip()
-            
-            if not key in self.keys:
-                raise PolynomialParseException("Invalid key '%s' in line '%s'" %
-                                               (key, line))
-            if key in self.params:
-                raise PolynomialParseException("Key %s in line %s has occurred "
-                                               "before" % (key, line))
-            (_type, isrequired) = self.keys[key]
-            self.params[key] = _type(value)
+
+            match = self.re_n.match(line)
+            if match:
+                if self.n is not None:
+                    raise PolynomialParseException(
+                        "Value of n redefined in line %s" % line)
+                self.n = int(match.group(1))
+                continue
+
+            match = self.re_skew.match(line)
+            if match:
+                if self.skew is not None:
+                    raise PolynomialParseException(
+                        "Value of skewness redefined in line %s" % line)
+                self.skew = float(match.group(1))
+                continue
+
+            match = self.re_type.match(line)
+            if match:
+                if self.type is not None:
+                    raise PolynomialParseException(
+                        "Type of factorization redefined in line %s" % line)
+                self.type = match.group(1)
+                continue
+
+            match = self.re_m.match(line)
+            if match:
+                # Simply ignore "m:" lines
+                continue
+
+            # If nothing matches, complain
+            raise PolynomialParseException("Invalid line '%s'" % line)
 
         # If no polynomial was found at all (not even partial data), assume
         # that polyselect simply did not find anything in this search range
-        if polyf.degree < 0 and polyg.degree < 0 and self.params == {} and \
-                self.MurphyE == 0.:
+        if polyf.degree < 0 and polyg.degree < 0 and self.n is None and \
+               self.skew is None and self.MurphyE == 0.:
             raise PolynomialParseException("No polynomials found")
 
-        # Test that all required keys are there
-        for (key, (_type, isrequired)) in self.keys.items():
-            if isrequired and not key in self.params:
-                raise PolynomialParseException("Key %s missing" % key)
+        # Test that all required keys are there. Currently, only n is required
+        if self.n is None:
+            raise PolynomialParseException("Value of n missing")
+
         if len(tabpoly) > 0:
             polyg = tabpoly[0]
             polyf = tabpoly[1]
+
+        # Check that the polynomials were specified
+        if polyf.degree < 0:
+            raise PolynomialParseException("No polynomial f specified (c: lines)")
+        if polyg.degree < 0:
+            raise PolynomialParseException("No polynomial g specified (Y: lines)")
+
         self.polyf = polyf
         self.polyg = polyg
         self.tabpoly = tabpoly
         return
 
     def __str__(self):
-        arr = ["%s: %s\n" % (key, self.params[key])
-               for key in self.keys if key in self.params]
+        arr = ["n: %d\n" % self.n]
+        if self.skew is not None:
+            arr += ["skew: %s\n" % self.skew]
+        if self.type is not None:
+            arr += ["type: %s\n" % self.type]
         if len(self.tabpoly) > 0:
             for i in range(len(self.tabpoly)):
                 poltmp = self.tabpoly[i]
@@ -335,16 +379,14 @@ class Polynomials(object):
                 arr += [","+str(poltmp[j]) for j in range(1, len(poltmp))]
                 arr += "\n"
         else:
-            arr += ["c%d: %d\n" % (idx, coeff) for (idx, coeff)
-                    in enumerate(self.polyf) if not coeff == 0]
-            arr += ["Y%d: %d\n" % (idx, coeff) for (idx, coeff)
-                    in enumerate(self.polyg) if not coeff == 0]
+            arr += self.polyf.as_lines("c")
+            arr += self.polyg.as_lines("Y")
         if not self.MurphyE == 0.:
             if self.MurphyParams:
                 arr.append("# MurphyE (%s) = %.3e\n" % (self.MurphyParams, self.MurphyE))
             else:
                 arr.append("# MurphyE = %.3e\n" % self.MurphyE)
-        if not self.revision == None:
+        if self.revision is not None:
             arr.append("# found by revision %s\n" % self.revision)
         if not self.exp_E == 0.:
             arr.append("# exp_E %g\n" % self.exp_E)
@@ -358,18 +400,10 @@ class Polynomials(object):
 
     def __eq__(self, other):
         return self.polyf == other.polyf and self.polyg == other.polyg \
-            and self.params == other.params
+            and self.n == other.n
 
     def __ne__(self, other):
         return not (self == other)
-
-    def create_file(self, filename):
-        # Write polynomial to a file
-        with open(str(filename), "w") as poly_file:
-            poly_file.write(str(self))
-
-    def getN(self):
-        return self.params["n"]
 
     def same_lc(self, other):
         """ Returns true if both polynomial pairs have same degree and
@@ -996,6 +1030,8 @@ class DoesImport(DoesLogging, cadoparams.UseParameters, Runnable,
 
     def run(self):
         super().run()
+
+    def do_import(self):
         if "import" in self.params and not self._did_import:
             self.import_files(self.params["import"])
             self._did_import = True
@@ -1090,7 +1126,12 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
                           self.name)
         self.logger.debug("state = %s", self.state)
         # Set default parameters for this task, if any are given
-        self.params = self.parameters.myparams(self.paramnames)
+        # The parameters that are relative to the _task_ itself ("run",
+        # "wdir"), and that affect all programs in a given task (e.g.,
+        # below "mergetask": the "merge" and "replay" programs) are
+        # prefixed with the task name, simply because there is no program
+        # to play with.
+        self.params = self.parameters.myparams(self.paramnames, self.name)
         self.logger.debug("self.parameters = %s", self.parameters)
         self.logger.debug("params = %s", self.params)
         # Set default parameters for our programs
@@ -1512,7 +1553,7 @@ class Task(patterns.Colleague, SimpleStatistics, HasState, DoesLogging,
         message.append("Parameters used by Task %s" % self.name)
         prefix = '.'.join(self.parameters.get_param_path())
         for p in self.paramnames:
-            message.append("  %s.%s" % (prefix, p))
+            message.append("  %s.%s.%s" % (prefix, self.name, p))
             rl[p].append(prefix)
         for prog, override, needed_input in self.programs:
             message.append("  Parameters for program %s (general form %s.%s.*)" % (
@@ -1840,7 +1881,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Stat: potential collisions=', 1)),
+            re_fp_compile(r'# Stat: potential collisions=({fp})'),
             False
         ),
         (
@@ -1848,7 +1889,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             (int, float, float, float, float),
             "0 0 0 0 0",
             self.update_lognorms,
-            re.compile(r"# Stat: raw lognorm \(nr/min/av/max/std\): (\d+)/{cap_fp}/{cap_fp}/{cap_fp}/{cap_fp}".format(**REGEXES)),
+            re_fp_compile(r"# Stat: raw lognorm \(nr/min/av/max/std\): (\d+)/({fp})/({fp})/({fp})/({fp})"),
             False
         ),
         (
@@ -1856,7 +1897,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             (int, float, float, float, float),
             "0 0 0 0 0",
             self.update_lognorms,
-            re.compile(r"# Stat: optimized lognorm \(nr/min/av/max/std\): (\d+)/{cap_fp}/{cap_fp}/{cap_fp}/{cap_fp}".format(**REGEXES)),
+            re_fp_compile(r"# Stat: optimized lognorm \(nr/min/av/max/std\): (\d+)/({fp})/({fp})/({fp})/({fp})"),
             False
         ),
         (
@@ -1864,7 +1905,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Stat: total phase took', 1, "s")),
+            re_fp_compile(r'# Stat: total phase took ({fp})s'),
             False
         ),
     )
@@ -1976,6 +2017,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
 
         super().run()
 
+        self.do_import()
         if self.did_import() and "import_sopt" in self.params:
             self.logger.critical("The import and import_sopt parameters "
                                  "are mutually exclusive")
@@ -2067,7 +2109,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         try:
             polyfile = self.read_log_warning(filename)
         except (OSError, IOError) as e:
-            if e.errno == 2: # No such file or directory
+            if e.errno == errno.ENOENT: # No such file or directory
                 self.logger.error("File '%s' does not exist", filename)
                 return None
             else:
@@ -2106,7 +2148,7 @@ class Polysel1Task(ClientServerTask, DoesImport, HasStatistics, patterns.Observe
         poly = self.parse_poly(text, filename)
         if poly is None:
             return (0, 0)
-        if poly.getN() != self.params["N"]:
+        if poly.n != self.params["N"]:
             self.logger.error("Polynomial is for the wrong number to be factored:\n%s",
                               poly)
             return (0, 0)
@@ -2265,7 +2307,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         return "Polynomial Selection (root optimized)"
     @property
     def programs(self):
-        return ((cadoprograms.PolyselectRopt, (), {}),)
+        return ((cadoprograms.PolyselectRopt, (), {}),
+                (cadoprograms.Skewness, (), {}))
     @property
     def paramnames(self):
         return self.join_params(super().paramnames, {
@@ -2279,7 +2322,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Stat: total phase took', 1, "s")),
+            re_fp_compile(r'# Stat: total phase took ({fp})s'),
             False
         ),
         (
@@ -2287,7 +2330,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Stat: rootsieve took', 1, "s")),
+            re_fp_compile(r'# Stat: rootsieve took ({fp})s'),
             False
         )
     )
@@ -2341,7 +2384,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
 
     def run(self):
         super().run()
-        
+
+        self.do_import()
         if self.bestpoly is None:
             self.logger.info("No polynomial was previously found")
         else:
@@ -2397,7 +2441,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         n = len(self.best_polys)
         for i in range(n):
            filename = self.workdir.make_filename("poly." + str(i))
-           self.best_polys[i].create_file(filename)
+           with open(str(filename), "w") as poly_file:
+              poly_file.write(str(self.best_polys[i]))
         # remove ropteffort since polyselect3 does not use it
         self.progparams[0].pop("ropteffort", None)
         filename = self.workdir.make_filename("poly")
@@ -2462,7 +2507,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
     
     def import_one_file(self, filename):
         old_bestpoly = self.bestpoly
-        self.process_polyfile(filename)
+        self.process_polyfile(filename, allow_no_skewness=True)
+        
         if not self.bestpoly is old_bestpoly:
             self.write_poly_file()
 
@@ -2488,7 +2534,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if block:
             yield block
 
-    def process_polyfile(self, filename, commit=True):
+    def process_polyfile(self, filename, *, allow_no_skewness=False, commit=True):
         try:
             polyfile = self.read_log_warning(filename)
         except (OSError, IOError) as e:
@@ -2498,7 +2544,7 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
             else:
                 raise
         for block in self.read_blocks(polyfile):
-           poly = self.parse_poly(block, filename)
+           poly = self.parse_poly(block, filename, allow_no_skewness=allow_no_skewness)
            if not poly is None:
                self.bestpoly = poly
                update = {"bestpoly": str(poly)}
@@ -2515,12 +2561,14 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
                                      filename, line.strip())
                 yield line
 
-    def parse_poly(self, text, filename):
+    # If allow_no_skewness is True and the polynomial file does not contain
+    # a skew: line, compute the skewness and use it.
+    def parse_poly(self, text, filename, *, allow_no_skewness=False):
         poly = None
         try:
             poly = Polynomials(text)
         except (OSError, IOError) as e:
-            if e.errno == 2: # No such file or directory
+            if e.errno == errno.ENOENT: # No such file or directory
                 self.logger.error("File '%s' does not exist", filename)
                 return None
             else:
@@ -2537,13 +2585,41 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
         if not poly:
             # This happens when all polynomials are parsed
             return None
-        if poly.getN() != self.params["N"]:
+        if poly.n != self.params["N"]:
             self.logger.error("Polynomial is for the wrong number to be factored:\n%s",
                               poly)
             return None
         if not poly.MurphyE:
-            self.logger.warning("Polynomial in file %s has no Murphy E value",
-                             filename)
+            self.logger.warning("Polynomial in file %s has no Murphy E value, "
+                                "computing it", filename)
+            p = cadoprograms.Score(inputpoly=filename,
+                                   **self.merged_args[1])
+            process = cadocommand.Command(p)
+            (rc, stdout, stderr) = process.wait()
+            if rc != 0:
+                self.logger.error("Computing murphyE failed with exit code %d",
+                                    rc)
+            poly.MurphyE = float(stdout)
+            self.logger.info("Computed murphyE is %.5g", poly.MurphyE)
+        if poly.skew is None:
+            if not allow_no_skewness:
+                self.logger.error("Polynomial in file %s has no skew value",
+                                  filename)
+                return None
+            else:
+                self.logger.info("Polynomial in file %s has no skew value, "
+                                 "computing it", filename)
+                p = cadoprograms.Skewness(inputpoly=filename,
+                                          **self.merged_args[1])
+                process = cadocommand.Command(p)
+                (rc, stdout, stderr) = process.wait()
+                if rc != 0:
+                    self.logger.error("Computing skewness failed with exit code %d",
+                                      rc)
+                    return None
+                poly.skew = float(stdout)
+                self.logger.info("Computed skewness is %.5g", poly.skew)
+
         margin = 0.80 # we keep polynomials with MurphyE >= margin*bestMurphyE
         if len(self.best_polys) == 0 or poly.MurphyE >= margin * self.bestpoly.MurphyE:
            self.best_polys.append(poly)
@@ -2578,7 +2654,8 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
     
     def write_poly_file(self):
         filename = self.workdir.make_filename("poly")
-        self.bestpoly.create_file(filename)
+        with open(str(filename), "w") as poly_file:
+            poly_file.write(str(self.bestpoly))
         self.state["polyfilename"] = filename.get_wdir_relative()
     
     def get_poly(self):
@@ -2687,7 +2764,8 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
             
     def run(self):
         super().run()
-       
+
+        self.do_import()
         if not "import" in self.params:
             if self.is_done():
                 self.logger.info("Already finished - nothing to do")
@@ -2704,7 +2782,8 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
             self.logger.info("Finished")
 
         filename = self.workdir.make_filename("poly")
-        self.bestpoly.create_file(filename)
+        with open(str(filename), "w") as poly_file:
+            poly_file.write(str(self.bestpoly))
         self.state["polyfilename"] = filename.get_wdir_relative()
         self.state["bestpoly"] = str(self.bestpoly)
         self.logger.info("Selected polynomial has MurphyE %f",
@@ -2763,7 +2842,7 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
         try:
             polyfile = self.read_log_warning(filename)
         except (OSError, IOError) as e:
-            if e.errno == 2: # No such file or directory
+            if e.errno == errno.ENOENT: # No such file or directory
                 self.logger.error("File '%s' does not exist", filename)
                 return None
             else:
@@ -2790,7 +2869,7 @@ class PolyselJLTask(ClientServerTask, DoesImport, patterns.Observer):
         poly = self.parse_poly(text, filename)
         if poly is None:
             return 0
-        if poly.getN() != self.params["N"]:
+        if poly.n != self.params["N"]:
             self.logger.error("Polynomial is for the wrong prime:\n%s",
                               poly)
             return 0
@@ -2878,6 +2957,7 @@ class PolyselGFpnTask(Task, DoesImport):
     def run(self):
         super().run()
 
+        self.do_import()
         if not "polyfilename" in self.state:
             polyfilename = self.workdir.make_filename("poly")
             # Import mode
@@ -2968,10 +3048,11 @@ class FactorBaseTask(Task):
         elif "A" in self.params:
             self.progparams[0].setdefault("maxbits", (self.params["A"]+1)//2)
         else:
+            path = ".".join(self.parameters.get_param_path())
             msg = "Required parameter I or A not found " \
                   "for makefb's maxbits under %s ; " \
                   "consider setting tasks.I or tasks.A" % path
-            logger.critical(msg)
+            self.logger.critical(msg)
             raise KeyError(msg)
     
     def run(self):
@@ -3249,7 +3330,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (float, int),
             "0 0",
             Statistics.zip_combine_mean,
-            re.compile(re_cap_n_fp(r'# Average J=', 1, r"\s*for (\d+) special-q's")),
+            re_fp_compile(r"# Average J=({fp})\s*for (\d+) special-q's"),
             False
         ),
         (
@@ -3265,7 +3346,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Total cpu time', 1, "s")),
+            re_fp_compile(r'# Total cpu time ({fp})s'),
             False
         ),
         (
@@ -3273,7 +3354,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             (float, ),
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'# Total elapsed time', 1, "s")),
+            re_fp_compile(r'# Total elapsed time ({fp})s'),
             False
         )
     )
@@ -3327,6 +3408,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
 
     def run(self):
         super().run()
+        self.do_import()
         have_two_alg = self.send_request(Request.GET_HAVE_TWO_ALG_SIDES)
         fb1 = self.send_request(Request.GET_FACTORBASE1_FILENAME)
         if have_two_alg:
@@ -3451,6 +3533,8 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
             sides = rest.split(b":")
             assert len(sides) == 2
             for side, primes_as_str in enumerate(sides):
+                if not primes_as_str: # empty string
+                    continue
                 value = poly.get_polynomial(side).eval_h(a, b)
                 primes = [int(s, 16) for s in primes_as_str.split(b",")]
                 for prime in primes:
@@ -3471,7 +3555,7 @@ class SievingTask(ClientServerTask, DoesImport, FilesCreator, HasStatistics,
                 size = os.path.getsize(filename)
                 f = open(filename, "rb")
         except (OSError, IOError) as e:
-            if e.errno == 2: # No such file or directory
+            if e.errno == errno.ENOENT: # No such file or directory
                 self.logger.error("File '%s' does not exist", filename)
                 return None
             else:
@@ -3585,7 +3669,7 @@ class Duplicates1Task(Task, FilesCreator, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"# Done: Read \d+ relations in", 1, "s")),
+            re_fp_compile(r"# Done: Read \d+ relations in ({fp})s"),
             False
         ),
     )
@@ -3804,7 +3888,7 @@ class Duplicates2Task(Task, FilesCreator, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"# Done: Read \d+ relations in", 1, "s")),
+            re_fp_compile(r"# Done: Read \d+ relations in ({fp})s"),
             True    # allow several !
         ),
     )
@@ -3993,7 +4077,7 @@ class PurgeTask(Task):
             # For small cases, we want to avoid degenerated cases, so let's
             # keep most of the ideals: memory is not an issue in that case.
             if (col_minindex < 10000):
-                col_minindex = 500
+                col_minindex = min(500, nprimes-1)
             self.progparams[0].setdefault("col_minindex", col_minindex)
         
         if "purgedfile" in self.state and not self.have_new_input_files() and \
@@ -4310,7 +4394,7 @@ class MergeDLPTask(Task):
                 del(self.state["densefile"])
             
             nmaps = self.send_request(Request.GET_NMAPS)
-            keep = nmaps[0] + nmaps[1]
+            keep = sum(nmaps)
             # We use .gzip by default, unless set to no in parameters
             use_gz = ".gz" if self.params["gzip"] else ""
             historyfile = self.workdir.make_filename("history" + use_gz)
@@ -4385,7 +4469,7 @@ class MergeTask(Task):
     """ Merges relations """
     @property
     def name(self):
-        return "merge"
+        return "mergetask"
     @property
     def title(self):
         return "Filtering - Merging"
@@ -4606,7 +4690,7 @@ class LinAlgDLPTask(Task):
             wdir = workdir.realpath()
             self.state["ran_already"] = True
             nmaps = self.send_request(Request.GET_NMAPS)
-            nsm = nmaps[0] + nmaps[1]
+            nsm = sum(nmaps)
             if self.params["n"] == 0:
                 self.logger.info("Using %d as default value for n to account for Schirokauer maps"
                         % nsm)
@@ -4681,7 +4765,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for prep: .wct.', 1)),
+            re_fp_compile(r'Timings for prep: .wct. ({fp})'),
             False
         ),
         (
@@ -4689,7 +4773,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for prep: .cpu.', 1)),
+            re_fp_compile(r'Timings for prep: .cpu. ({fp})'),
             False
         ),
         (
@@ -4697,7 +4781,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for secure: .wct.', 1)),
+            re_fp_compile(r'Timings for secure: .wct. ({fp})'),
             False
         ),
         (
@@ -4705,7 +4789,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for secure: .cpu.', 1)),
+            re_fp_compile(r'Timings for secure: .cpu. ({fp})'),
             False
         ),
         (
@@ -4713,7 +4797,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for gather: .wct.', 1)),
+            re_fp_compile(r'Timings for gather: .wct. ({fp})'),
             False
         ),
         (
@@ -4721,7 +4805,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for gather: .cpu.', 1)),
+            re_fp_compile(r'Timings for gather: .cpu. ({fp})'),
             False
         ),
         (
@@ -4729,7 +4813,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"Timings for krylov: .wct.", 1)),
+            re_fp_compile(r"Timings for krylov: .wct. ({fp})"),
             True
         ),
         (
@@ -4737,7 +4821,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"Timings for krylov: .cpu.", 1)),
+            re_fp_compile(r"Timings for krylov: .cpu. ({fp})"),
             True
         ),
         (
@@ -4745,7 +4829,7 @@ class LinAlgTask(Task, HasStatistics):
             (int, float),
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"krylov done N=(\d+) ; CPU\d*:", 1)),
+            re_fp_compile(r"krylov done N=(\d+) ; CPU\d*: ({fp})"),
             True
         ),
         (
@@ -4753,7 +4837,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"krylov done N=\d+ ; cpu-wait\d*:", 1)),
+            re_fp_compile(r"krylov done N=\d+ ; cpu-wait\d*: ({fp})"),
             True
         ),
         (
@@ -4761,7 +4845,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"krylov done N=\d+ ; COMM\d*:", 1)),
+            re_fp_compile(r"krylov done N=\d+ ; COMM\d*: ({fp})"),
             True
         ),
         (
@@ -4769,7 +4853,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"krylov done N=\d+ ; comm-wait\d*:", 1)),
+            re_fp_compile(r"krylov done N=\d+ ; comm-wait\d*: ({fp})"),
             True
         ),
         (
@@ -4777,7 +4861,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for lingen_\w+: .wct.', 1)),
+            re_fp_compile(r'Timings for lingen_\w+: .wct. ({fp})'),
             False
         ),
         (
@@ -4785,7 +4869,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r'Timings for lingen_\w+: .cpu.', 1)),
+            re_fp_compile(r'Timings for lingen_\w+: .cpu. ({fp})'),
             False
         ),
         (
@@ -4793,7 +4877,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"Timings for mksol: .wct.", 1)),
+            re_fp_compile(r"Timings for mksol: .wct. ({fp})"),
             True
         ),
         (
@@ -4801,7 +4885,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"Timings for mksol: .cpu.", 1)),
+            re_fp_compile(r"Timings for mksol: .cpu. ({fp})"),
             True
         ),
         (
@@ -4809,7 +4893,7 @@ class LinAlgTask(Task, HasStatistics):
             (int, float),
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"mksol done N=(\d+) ; CPU\d*:", 1)),
+            re_fp_compile(r"mksol done N=(\d+) ; CPU\d*: ({fp})"),
             True
         ),
         (
@@ -4817,7 +4901,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"mksol done N=\d+ ; cpu-wait\d*:", 1)),
+            re_fp_compile(r"mksol done N=\d+ ; cpu-wait\d*: ({fp})"),
             True
         ),
         (
@@ -4825,7 +4909,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"mksol done N=\d+ ; COMM\d*:", 1)),
+            re_fp_compile(r"mksol done N=\d+ ; COMM\d*: ({fp})"),
             True
         ),
         (
@@ -4833,7 +4917,7 @@ class LinAlgTask(Task, HasStatistics):
             float,
             "0",
             Statistics.add_list,
-            re.compile(re_cap_n_fp(r"mksol done N=\d+ ; comm-wait\d*:", 1)),
+            re_fp_compile(r"mksol done N=\d+ ; comm-wait\d*: ({fp})"),
             True
         ),
     )
@@ -5200,14 +5284,14 @@ class SMTask(Task):
 
         if not "sm" in self.state or self.have_new_input_files():
             nmaps = self.send_request(Request.GET_NMAPS)
-            if nmaps[0]+nmaps[1] == 0:
+            if sum(nmaps) == 0:
                 self.logger.info("Number of SM is 0: skipping this part.")
                 return True
             smfilename = self.workdir.make_filename("sm")
 
             (stdoutpath, stderrpath) = \
                     self.make_std_paths(cadoprograms.SM.name)
-            p = cadoprograms.SM(nsms=str(nmaps[0])+","+str(nmaps[1]),
+            p = cadoprograms.SM(nsms=",".join(str(nmap) for nmap in nmaps),
                     out=smfilename,
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
@@ -5267,7 +5351,7 @@ class ReconstructLogTask(Task):
                     self.make_std_paths(cadoprograms.ReconstructLog.name)
             p = cadoprograms.ReconstructLog(
                     dlog=dlogfilename,
-                    nsms=str(nmaps[0])+","+str(nmaps[1]),
+                    nsms=",".join(str(nmap) for nmap in nmaps),
                     nrels=nfree+nunique,
                     stdout=str(stdoutpath),
                     stderr=str(stderrpath),
@@ -6347,7 +6431,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.logger.info("Total cpu/elapsed time for incomplete %s: %g/%g",
                     self.title, self.cputotal, self.elapsed)
             self.logger.error("Finishing early: " + str(e))
-            return None
+            raise e
 
         # Do we want the sum of real times over all sub-processes for
         # something?

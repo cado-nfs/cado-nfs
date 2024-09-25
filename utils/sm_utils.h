@@ -71,13 +71,16 @@ struct sm_side_info_s {
                 equal to unitrank but can be modified by the user. */
     mpz_t ell;
     mpz_t ell2;
+    mpz_t ell3;
     mpz_poly_srcptr f0;
     mpz_poly f;       /* monic */
     mpz_poly_factor_list fac;
     int is_factor_used[MAX_DEGREE];
     mpz_t exponent;
     mpz_t * exponents;
-    mpz_t * matrix;
+
+    mpz_t * matrix; // only if sm->mode == SM_MODE_LEGACY_PRE2018
+
     enum sm_mode mode;
 };
 typedef struct sm_side_info_s sm_side_info[1];
@@ -111,7 +114,7 @@ typedef const struct pair_and_sides_s * pair_and_sides_srcptr;
 extern "C" {
 #endif
 
-void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell);
+void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell, int handle_small_ell);
 void sm_side_info_set_mode(sm_side_info_ptr sm, const char * mode_string);
 void sm_side_info_clear(sm_side_info_ptr sm);
 void sm_side_info_print(FILE * out, sm_side_info_srcptr sm);

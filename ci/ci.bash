@@ -160,12 +160,18 @@ coverage_expunge_paths="utils/embedded:gf2x:generated:linalg/bwc/flint-fft:linal
 
 dispatch_valgrind_files() {
     cd $vdir
-    mkdir ok nok system
+    mkdir ok ok-signal nok system
     find . -type f -a -name 'pid-*' | xargs egrep -l "Command: (/usr/bin|/bin|python|perl|env|[^ ]*\.sh)" | xargs -r mv --target-directory system
     # the rm -rf step could be considered an option
     rm -rf system
-    grep -l 'ERROR SUMMARY: [^0]' pid-* | xargs -r mv -t nok
-    ls | grep pid | xargs -r grep -l 'ERROR SUMMARY: 0' | xargs -r mv -t ok
+    # SEGV is something to worry about, but there are cases where we
+    # terminate with SIGTERM / SIGINT / SIGHUP and this is just normal
+    # business (e.g., cado-nfs-client.py can do that). It is possible
+    # that vlagrind report leaks in such cases, but we're not super
+    # interested in them
+    ls | grep pid | xargs -r egrep -l 'ERROR SUMMARY: 0' | xargs -r mv -t ok
+    ls | grep pid | xargs -r egrep -l 'Process terminating.*signal.*SIG(TERM|INT|HUP)' pid-* | xargs -r mv -t ok-signal
+    ls | grep pid | xargs -r egrep -l 'ERROR SUMMARY: [^0]' pid-* | xargs -r mv -t nok
 }
 
 postprocess_valgrind() {
@@ -174,6 +180,7 @@ postprocess_valgrind() {
     set +e
     nok_files=($(find "$vdir/nok" -type f))
     ok_files=($(find "$vdir/ok" -type f))
+    ok_signal_files=($(find "$vdir/ok-signal" -type f))
     set -e
 
     if [ ${#nok_files[@]} -gt 0 ] ; then
@@ -197,6 +204,9 @@ postprocess_valgrind() {
         fatal_error "Found valgrind errors (${#nok_files[@]} different executions)" "See archive of log files in $vdir.tar.gz" 
     else
         green_message "valgrind passed successfully (${#ok_files[@]} different executions)"
+        if [ "${#ok_signal_files[@]}" ] ; then
+            yellow_message "NOTE: valgrind reported (possibly spurious) errors on ${#ok_signal_files[@]} executions that were terminated by SIG{TERM,INT,HUP}"
+        fi
         green_message "See archive of log files in $vdir.tar.gz"
     fi
 }
@@ -223,10 +233,12 @@ step_check() {
         "${test_precommand[@]}" "${MAKE}" check ARGS="-j$NCPUS $ctest_args"
     fi
     rc=$?
+    export rc
 
     if [ "$valgrind" ] ; then
-        export rc
         (set +x ; postprocess_valgrind)
+    else
+        return $rc
     fi
 }
 

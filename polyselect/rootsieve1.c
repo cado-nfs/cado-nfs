@@ -739,7 +739,10 @@ print_transformation (cado_poly_ptr poly0, cado_poly_srcptr cpoly)
   ASSERT_ALWAYS(mpz_divisible_p (k, poly0->pols[RAT_SIDE]->coeff[1]));
   mpz_divexact (k, k, poly0->pols[RAT_SIDE]->coeff[1]);
   gmp_printf ("translation %Zd, ", k);
-  do_translate_z (poly0->pols[ALG_SIDE], poly0->pols[RAT_SIDE]->coeff, k);
+
+  mpz_poly_translation(poly0->pols[ALG_SIDE], poly0->pols[ALG_SIDE], k);
+  mpz_poly_translation(poly0->pols[RAT_SIDE], poly0->pols[RAT_SIDE], k);
+
   /* size_optimization might multiply f0 by some integer t */
   ASSERT_ALWAYS(mpz_divisible_p (poly->pols[ALG_SIDE]->coeff[d],
 				 poly0->pols[ALG_SIDE]->coeff[d]));

@@ -80,7 +80,7 @@ def l2norm_tk(f,s):
     g2=square_evenpart(g)
     d=f.degree()
     coeffs=[4/(2*i+1)/(2*(d-i)+1) for i in [0..d]]
-    return sqrt(vector(g2.coeffs())*vector(coeffs)/ss)
+    return sqrt(vector(g2.coefficients())*vector(coeffs)/ss)
 
 # see symbolic_l2 to generate formulas for larger degrees
 def l2norm_tk_circular(f,s):
@@ -196,7 +196,7 @@ def supnorm_hull(f):
     log(s)
     """
     d=f.degree()
-    logs=[float(log(abs(a))) if a != 0 else -Infinity for a in f.coeffs()]
+    logs=[float(log(abs(a))) if a != 0 else -Infinity for a in f.coefficients()]
     l=supnorm_hull_inner(f,logs)
     if l[0][0] == -Infinity:
         l.pop(0)
@@ -241,7 +241,7 @@ def skew_l2norm_tk(f):
     ZP=f.parent()
     x=ZP.gen()
     coeffs=[4*(2*i-d)*x^i/(2*i+1)/(2*(d-i)+1) for i in [0..d]]
-    dd=vector(square_evenpart(f).coeffs())*vector(coeffs)
+    dd=vector(square_evenpart(f).coefficients())*vector(coeffs)
     return sqrt(unique_positive_real_root(dd,lambda s:l2norm_tk(f,sqrt(s))))
 
 # Return the best chosen norm
@@ -478,7 +478,7 @@ def square_l2norm_tk_sym(f,s):
     g2=square_evenpart(f.parent()(g))
     d=f.degree()
     coeffs=[4/(2*i+1)/(2*(d-i)+1) for i in [0..d]]
-    return 1/4*vector(g2.coeffs())*vector(coeffs)/ss
+    return 1/4*vector(g2.coefficients())*vector(coeffs)/ss
 
 
 def bounds_l2norm_tk(f,g,multiplier):
@@ -561,7 +561,7 @@ def supnorm_hull_extra(f):
     """
     d=f.degree()
     c=1
-    logs=[float(log(abs(a))) if a != 0 else -Infinity for a in f.coeffs()]
+    logs=[float(log(abs(a))) if a != 0 else -Infinity for a in f.coefficients()]
     f1=f-f[0]
     l=[(v[0],v[1],logs[v[1]]+(v[1]-d/2)*v[0])           \
                 for v in supnorm_hull_inner(f1,logs)]

@@ -27,7 +27,8 @@ struct bpack_ops {
     static void mul(bpack<T> & C, bpack<T> const & A, bpack<T> const & B) {
         mul(C.view(), A.view(), B.view());
     }
-    /* This works in place on the bitmat<T> X. A is considered "implicitly
+    /* Do X <- A * X
+     * This works in place on the bitmat<T> X. A is considered "implicitly
      * lower triangular". */
     static void mul_lt_ge(bpack_const_view<T> A, bpack_view<T> X);
     static void mul_lt_ge(bpack<T> const & A, bpack<T> & X) {
@@ -205,7 +206,7 @@ struct bpack : public bpack_ops<T> {
     matrix const & cell(unsigned int bi, unsigned int bj) const { return view().cell(bi, bj); }
     inline bpack<T>& operator=(int a) { view().set(a); return *this; }
     inline bool operator==(int a) const { return view() == a; }
-    inline bpack<T>(const_view_t a)
+    inline bpack(const_view_t a)
         : bpack(a.nrows(), a.ncols())
     {
         std::copy_n(&a.cell(0,0), a.nrowblocks() * a.ncolblocks(), &cell(0,0));

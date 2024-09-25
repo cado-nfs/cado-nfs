@@ -17,16 +17,21 @@
 #include "verbose.h"             // verbose_decl_usage
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
+#include "portability.h"
 
 
 static void
 declare_usage(param_list pl)
 {
-  char str[200];
   param_list_decl_usage(pl, "inputpolys", "size-optimized the polynomials "
                                           "given in this file");
-  snprintf (str, 200, "size-optimization effort (default %d)", SOPT_DEFAULT_EFFORT);
-  param_list_decl_usage(pl, "sopteffort", str);
+  {
+      char * str;
+      int rc = asprintf (&str, "size-optimization effort (default %d)", SOPT_DEFAULT_EFFORT);
+      ASSERT_ALWAYS(rc >= 0);
+      param_list_decl_usage(pl, "sopteffort", str);
+      free(str);
+  }
   param_list_decl_usage(pl, "v", "verbose mode");
   param_list_decl_usage(pl, "translation-only", "(switch) do not use rotations");
   verbose_decl_usage(pl);
@@ -112,7 +117,7 @@ int main (int argc, char **argv)
 
     printf ("\n### Input raw polynomial (%u) ###\n", nb_input_polys);
     cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-    nrroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, cpoly->pols[ALG_SIDE]->deg, 0, 0, NULL);
+    nrroots = mpz_poly_number_of_real_roots(cpoly->pols[ALG_SIDE]);
     lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
     alpha = get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ());
     alpha_proj = get_alpha_projective (cpoly->pols[ALG_SIDE], get_alpha_bound ());
@@ -137,7 +142,7 @@ int main (int argc, char **argv)
 
     printf ("### Size-optimized polynomial (%u) ###\n", nb_input_polys);
     cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
-    nrroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, cpoly->pols[ALG_SIDE]->deg, 0, 0, NULL);
+    nrroots = mpz_poly_number_of_real_roots(cpoly->pols[ALG_SIDE]);
     lognorm = L2_lognorm (cpoly->pols[ALG_SIDE], cpoly->skew);
     alpha = get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ());
     alpha_proj = get_alpha_projective (cpoly->pols[ALG_SIDE], get_alpha_bound ());

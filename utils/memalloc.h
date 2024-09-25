@@ -12,10 +12,10 @@
 
 
 /* memory blocks are allocated of that # of index_t's */
-#define BLOCK_SIZE (1<<20)
+#define BLOCK_SIZE (1U<<20U)
 #define BLOCK_INDEX_BYTES (BLOCK_SIZE * sizeof(index_t))
 #define BLOCK_IDEALMERGE_BYTES (BLOCK_SIZE * sizeof(ideal_merge_t))
-#define INIT_NB_BLOCK (1<<16)
+#define INIT_NB_BLOCK (1U<<16U)
 
 #ifdef __cplusplus
 extern "C" {

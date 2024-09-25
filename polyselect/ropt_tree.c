@@ -111,7 +111,7 @@ alloc_r_node ( node *pnode )
   }
 
   if (pnode->r == NULL) {
-    fprintf (stderr, "Error, cannot reallocate memory in alloc_r_node().\n");
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
 }

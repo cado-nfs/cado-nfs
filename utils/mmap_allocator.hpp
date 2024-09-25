@@ -9,6 +9,7 @@
 #include <limits>
 #include <string>
 #include <stdexcept>
+#include <type_traits>
 
 /* This is inspired from https://github.com/johannesthoma/mmap_allocator
  * License is LGPL.
@@ -46,14 +47,18 @@ namespace mmap_allocator_details
             private:
             class mapping {
                 int fd = -1;
-                void * area = NULL;
+                void * area = nullptr;
                 offset_type offset_mapped;     /* page-aligned */
                 size_type length_mapped;       /* page-aligned */
                 public:
-                mapping(const char * fname, enum access_mode access_mode, offset_type offset, size_type length);
+                mapping(const char * filename, enum access_mode amode, offset_type offset, size_type length);
                 ~mapping();
                 void * get(offset_type, size_type);
                 void put(void *, offset_type, size_type);
+                mapping(mapping const &) = delete;
+                mapping(mapping &&) = delete;
+                mapping& operator=(mapping const &) = delete;
+                mapping& operator=(mapping &&) = delete;
             };
 #if 0
             /* use this to trace shared_ptr games. */
@@ -108,9 +113,22 @@ namespace mmap_allocator_details
     template <typename T> class mmap_allocator: public std::allocator<T>
     {
         public:
-            using typename std::allocator<T>::size_type;
-            using typename std::allocator<T>::pointer;
-            using typename std::allocator<T>::const_pointer;
+            // using typename std::allocator<T>::size_type;
+            // using typename std::allocator<T>::pointer;
+            // using typename std::allocator<T>::const_pointer;
+            // The types above seem to have always been the same as the
+            // simpler ones below, and c++17 forces us to remove these
+            // middle men.
+            typedef size_t size_type;
+            typedef T * pointer;
+            typedef T const * const_pointer;
+#if __cplusplus < 201703L
+            // still, I want to error out if for some reason these checks
+            // happen to fail...
+            static_assert(std::is_same<pointer, typename std::allocator<T>::pointer>::value, "std::allocator<T> subtypes do not behave as expected");
+            static_assert(std::is_same<const_pointer, typename std::allocator<T>::const_pointer>::value, "std::allocator<T> subtypes do not behave as expected");
+            static_assert(std::is_same<size_type, typename std::allocator<T>::size_type>::value, "std::allocator<T> subtypes do not behave as expected");
+#endif
             typedef mmap_allocator_details::offset_type offset_type;
         private:
             mmapped_file::segment s;
@@ -119,10 +137,19 @@ namespace mmap_allocator_details
             template<typename _Tp1>
             struct rebind { typedef mmap_allocator<_Tp1> other; };
 
+#if __cplusplus < 201703L
             pointer allocate(size_type n, const void *hint=0)
+#else
+            pointer allocate(size_type n)
+#endif
             {
-                if (!s)
+                if (!s) {
+#if __cplusplus < 201703L
                     return std::allocator<T>::allocate(n, hint);
+#else
+                    return std::allocator<T>::allocate(n);
+#endif
+                }
 
                 if (n == 0) return NULL;
 

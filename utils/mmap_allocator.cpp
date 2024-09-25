@@ -16,9 +16,11 @@
  * The version here has been trimmed down significantly, look for uptream
  * version for more features */
 
+// NOLINTBEGIN(hicpp-signed-bitwise)
 #define ALIGN_TO_PAGE(x) ((x) & ~(sysconf(_SC_PAGE_SIZE) - 1))
 #define UPPER_ALIGN_TO_PAGE(x) ALIGN_TO_PAGE((x)+(sysconf(_SC_PAGE_SIZE)-1))
 #define OFFSET_INTO_PAGE(x) ((x) & (sysconf(_SC_PAGE_SIZE) - 1))
+// NOLINTEND(hicpp-signed-bitwise)
 
 namespace mmap_allocator_details {
     mmapped_file::mapping::mapping(const char * filename, access_mode amode, offset_type offset, size_type length) {
@@ -29,6 +31,7 @@ namespace mmap_allocator_details {
         int prot;
         int mmap_mode = 0;
 
+        // NOLINTBEGIN(hicpp-signed-bitwise)
         switch (amode) {
             case READ_ONLY:
                 mode = O_RDONLY;
@@ -49,6 +52,7 @@ namespace mmap_allocator_details {
                 throw mmap_allocator_exception("Internal error");
                 break;
         }
+        // NOLINTEND(hicpp-signed-bitwise)
 
         fd = open(filename, mode);
         if (fd < 0)
@@ -63,7 +67,7 @@ namespace mmap_allocator_details {
         }
         offset_mapped = ALIGN_TO_PAGE(offset);
         length_mapped = UPPER_ALIGN_TO_PAGE(length + offset - offset_mapped);
-        area = mmap(NULL, length_mapped, prot, mmap_mode, fd, offset_mapped);
+        area = mmap(nullptr, length_mapped, prot, mmap_mode, fd, offset_mapped);
     }
 
     mmapped_file::mapping::~mapping() {
@@ -75,12 +79,14 @@ namespace mmap_allocator_details {
 
     void * mmapped_file::mapping::get(offset_type offset, size_type length) {
         if (offset >= offset_mapped && length + offset <= offset_mapped + length_mapped) {
+            // NOLINTNEXTLINE
             return ((char*)area)+offset-offset_mapped;
         } else {
             throw mmap_allocator_exception("Cannot get range outside mapping bounds");
         }
     }
 
+    // NOLINTNEXTLINE
     void mmapped_file::mapping::put(void *, offset_type, size_type)
     {
         /* in fact, we do nothing. We _could_ imagine keeping track

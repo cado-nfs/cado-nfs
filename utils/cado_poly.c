@@ -148,6 +148,28 @@ int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
       ret = 0;
     }
 
+  for (int side = 0; side < cpoly->nb_polys; side++) {
+      mpz_poly_ptr g = cpoly->pols[side];
+      mpz_t c;
+      mpz_init(c);
+      mpz_poly_content(c, g);
+      if (mpz_cmp_ui(c, 1) != 0) {
+          gmp_fprintf (stderr, "# Warning: the polynomial on side %d"
+                  " has non-trivial content (gcd of coeffs = %Zd).\n"
+                  "# This is a very unexpected situation."
+                  " For all useful cases, it seems that\n"
+                  "# the correct thing to do is to divide the polynomial"
+                  " by its content. Doing it now.\n",
+                  side, c);
+          fprintf(stderr, "# Old poly: ");
+          mpz_poly_fprintf(stderr, g);
+          mpz_poly_divide_by_content(g);
+          fprintf(stderr, "# Reduced poly: ");
+          mpz_poly_fprintf(stderr, g);
+      }
+      mpz_clear(c);
+  }
+
   /* check that N divides the resultant*/
   ASSERT_ALWAYS(cado_poly_check_mapping(NULL, cpoly, cpoly->n));
 
@@ -363,14 +385,14 @@ int cado_poly_getm(mpz_ptr m, cado_poly_srcptr cpoly, mpz_srcptr N)
     if (m != NULL) {
         mpz_t inv;
         mpz_init(inv);
-        int ret2 = mpz_invert(inv, G->coeff[1], N);
+        int ret2 = mpz_invert(inv, mpz_poly_coeff_const(G, 1), N);
         // This inversion should always work.
         // If not, it means that N has a small factor (not sure we want
         // to be robust against that...). This should have been reported,
         // at least as a warning, by cado_poly_check_mapping.
         // Or maybe the polynomial selection was really bogus!
         ASSERT_ALWAYS(ret2);
-        mpz_mul(inv, inv, G->coeff[0]);
+        mpz_mul(inv, inv, mpz_poly_coeff_const(G, 0));
         mpz_neg(inv, inv);
         mpz_mod(m, inv, N);
         mpz_clear(inv);

@@ -117,7 +117,7 @@ sopt_get_skewness (mpz_t skew, mpz_poly_srcptr f, mpz_poly_srcptr g)
 {
   const int d = f->deg;
   /* skew0 = (|g0/ad|)^(1/d): seems close to optimal experimentally */
-  double skew0 = pow (fabs (mpz_get_d (g->coeff[0]) / mpz_get_d (f->coeff[d])),
+  double skew0 = pow (fabs (mpz_get_d (mpz_poly_coeff_const(g, 0)) / mpz_get_d (mpz_poly_coeff_const(f, d))),
                       1.0 / (double) d);
   mpz_set_d (skew, skew0);
 }
@@ -137,13 +137,13 @@ sopt_find_translations_deg6 (list_mpz_t list_k, mpz_poly_srcptr f,
 
   /* Let f(x) = a6 x^6 + ... + a0 and g(x) = g1 x + g0. */
   double a6, a5, a4, a3, a2, g1, g0;
-  a6 = mpz_get_d (f->coeff[6]);
-  a5 = mpz_get_d (f->coeff[5]);
-  a4 = mpz_get_d (f->coeff[4]);
-  a3 = mpz_get_d (f->coeff[3]);
-  a2 = mpz_get_d (f->coeff[2]);
-  g1 = mpz_get_d (g->coeff[1]);
-  g0 = mpz_get_d (g->coeff[0]);
+  a6 = mpz_get_d (mpz_poly_coeff_const(f, 6));
+  a5 = mpz_get_d (mpz_poly_coeff_const(f, 5));
+  a4 = mpz_get_d (mpz_poly_coeff_const(f, 4));
+  a3 = mpz_get_d (mpz_poly_coeff_const(f, 3));
+  a2 = mpz_get_d (mpz_poly_coeff_const(f, 2));
+  g1 = mpz_get_d (mpz_poly_coeff_const(g, 1));
+  g0 = mpz_get_d (mpz_poly_coeff_const(g, 0));
 
   double kmax;
   /* after translation by k, we have a2 = Theta(binomial(6,2)*a6*k^4)
@@ -417,12 +417,12 @@ sopt_find_translations_deg5 (list_mpz_t list_k, mpz_poly_srcptr f,
 
   /* Let f(x) = a5 x^5 + ... + a0 and g(x) = g1 x + g0. */
   double a5, a4, a3, a2, g1, g0;
-  a5 = mpz_get_d (f->coeff[5]);
-  a4 = mpz_get_d (f->coeff[4]);
-  a3 = mpz_get_d (f->coeff[3]);
-  a2 = mpz_get_d (f->coeff[2]);
-  g1 = mpz_get_d (g->coeff[1]);
-  g0 = mpz_get_d (g->coeff[0]);
+  a5 = mpz_get_d (mpz_poly_coeff_const(f, 5));
+  a4 = mpz_get_d (mpz_poly_coeff_const(f, 4));
+  a3 = mpz_get_d (mpz_poly_coeff_const(f, 3));
+  a2 = mpz_get_d (mpz_poly_coeff_const(f, 2));
+  g1 = mpz_get_d (mpz_poly_coeff_const(g, 1));
+  g0 = mpz_get_d (mpz_poly_coeff_const(g, 0));
 
   /* Let f~(x,k,q2) = f(x+k)+q2*x^2*g(x+k).
      Let c_i(k,q2) be the coefficient of x^i in f~. Then
@@ -555,14 +555,14 @@ LLL_set_matrix_from_polys (mat_Z *m, mpz_poly_srcptr ft, mpz_poly_srcptr gt,
       mpz_mul (tmp, tmp, skew); /* skew^k */
     if (k <= m->NumRows - 2)
       mpz_set (m->coeff[k+2][k+1], tmp);
-    mpz_mul (m->coeff[1][k+1], tmp, ft->coeff[k]);
+    mpz_mul (m->coeff[1][k+1], tmp, mpz_poly_coeff_const(ft, k));
   }
   for (int k = 0; k <= m->NumRows - 2; k++)
   {
     /* m.coeff[k+2][k+1] is already skew^k */
     mpz_mul (m->coeff[k+2][k+2], m->coeff[k+2][k+1], skew); /* skew^(k+1) */
-    mpz_mul (m->coeff[k+2][k+1], m->coeff[k+2][k+1], gt->coeff[0]);
-    mpz_mul (m->coeff[k+2][k+2], m->coeff[k+2][k+2], gt->coeff[1]);
+    mpz_mul (m->coeff[k+2][k+1], m->coeff[k+2][k+1], mpz_poly_coeff_const(gt, 0));
+    mpz_mul (m->coeff[k+2][k+2], m->coeff[k+2][k+2], mpz_poly_coeff_const(gt, 1));
   }
 }
 
@@ -572,8 +572,8 @@ mpz_poly_fprintf_short (FILE *out, mpz_poly_srcptr f)
 {
   int d = f->deg;
   ASSERT_ALWAYS (d >= 1);
-  gmp_fprintf (out, "%Zd*x^%d + %Zd*x^%d%s\n", f->coeff[d], d,
-                    f->coeff[d-1], d-1, (d > 1) ? " + ...":"");
+  gmp_fprintf (out, "%Zd*x^%d + %Zd*x^%d%s\n", mpz_poly_coeff_const(f, d), d,
+                    mpz_poly_coeff_const(f, d-1), d-1, (d > 1) ? " + ...":"");
 }
 
 /* Print poly: use mpz_poly_fprintf or mpz_poly_fprintf_short depending on
@@ -604,7 +604,7 @@ mpz_poly_fprintf_verbose (FILE *out, mpz_poly_srcptr f, int verbose)
    returns the skew lognorm of f_opt.
 
    To use only translation: use_translation = 1 and deg_rotation = -1
-   To use only rotation   : use_transaltion = 0 and deg_rotation >= 0
+   To use only rotation   : use_translation = 0 and deg_rotation >= 0
    To use both            : use_translation = 1 and deg_rotation >= 0
    TODO: _mp version like old optimize_aux_mp in auxiliary.c
    XXX: Could we replace lognorm computation by norm computation to save
@@ -825,7 +825,7 @@ best_norm (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
             for (int j = 0; j <= d; j++)
               {
                 /* invariant: tmp = skew^i */
-                mpz_divexact (ft->coeff[j], m.coeff[l][j+1], tmp);
+                mpz_divexact (mpz_poly_coeff(ft, j), m.coeff[l][j+1], tmp);
                 mpz_mul (tmp, tmp, skew);
               }
             min_norm = norm;
@@ -875,9 +875,9 @@ best_norm2 (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
 
   /* solve d*(d-1)/2*f[d]*k^2 + (d-1)*f[d-1]*k + f[d-2] = 0 */
   double_poly_init (eq, 2);
-  eq->coeff[2] = (double) (d * (d-1)) / 2.0 * mpz_get_d (ft->coeff[d]);
-  eq->coeff[1] = (double) (d-1) * mpz_get_d (ft->coeff[d-1]);
-  eq->coeff[0] = mpz_get_d (ft->coeff[d-2]);
+  eq->coeff[2] = (double) (d * (d-1)) / 2.0 * mpz_get_d (mpz_poly_coeff_const(ft, d));
+  eq->coeff[1] = (double) (d-1) * mpz_get_d (mpz_poly_coeff(ft, d-1));
+  eq->coeff[0] = mpz_get_d (mpz_poly_coeff(ft, d-2));
   double_poly_cleandeg(eq, 2);
   nroots = double_poly_compute_all_roots (roots, eq);
   for (int l = 0; l < nroots; l++)
@@ -938,8 +938,8 @@ best_norm2 (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
    translations.
    Assume that deg(g) = 1.
    Return the size-optimized pair (f_opt, g_opt) and the skew lognorm of f_opt.
-   The sopt_effort parameter is used to increase the number of translations that
-   are considered. sopt_effort = 0 means that we consider only translations
+   The sopt_effort parameter is used to increase the number of translations
+   that are considered. sopt_effort = 0 means that we consider only rotations.
    Consider rotation up to x^max_rot*g(x), usually max_rot = d-2 or d-3.
    found by sopt_find_translation_deg* and the translation k = 0.
    TODO: LLL on gram matrix to be faster

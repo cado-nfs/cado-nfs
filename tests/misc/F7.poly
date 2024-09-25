@@ -1,0 +1,6 @@
+n: 340282366920938463463374607431768211457
+# skew: 1.320 # Commented out to test automatic computation of skewness
+c5: 1
+c0: 4
+Y1: -1
+Y0: 67108864

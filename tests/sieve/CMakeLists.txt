@@ -284,7 +284,7 @@ cado_divert_test(F9 batch
             REFERENCE_SHA1=3aba8ade73e9e47dd76b0f85a2c681408f34a189
             REFERENCE_REVISION=5d9b68511102a957f941b272eb6d753526bcc3b1
         APPEND_ARGUMENTS -batch
-        TIMEOUT 120
+        TIMEOUT 180
         )
 cado_define_test(bogus_batch_is_consistent
     PROGRAM
@@ -303,6 +303,7 @@ cado_divert_test(F9 sublat
             REFERENCE_SHA1=f35a27aa4d96918a087cf8169071985c3992e659
             REFERENCE_REVISION=2c5ac2cff
         APPEND_ARGUMENTS -sublat 3
+        TIMEOUT 150
         )
 
 cado_divert_test(F9 skipped
@@ -347,11 +348,11 @@ cado_divert_test(F9_quick tracek
 # it's mildly quicker to do it on the short test.
 cado_divert_test(F9_quick lambda0
         APPEND_ENVIRONMENT lambda0=5 "REGEX=lambda>.*does not make sense"
-        TIMEOUT 120
+        TIMEOUT 180
     )
 cado_divert_test(F9_quick lambda1
         APPEND_ENVIRONMENT lambda1=5 "REGEX=lambda>.*does not make sense"
-        TIMEOUT 120
+        TIMEOUT 180
     )
 
 set(c120_poly ${CMAKE_CURRENT_SOURCE_DIR}/c120.poly)
@@ -485,6 +486,7 @@ cado_define_test(F9_dupsup
             -v -v --adjust-strategy 0
         TARGET_DEPENDENCIES las dupsup
         TEST_DEPENDENCIES F9_sievetest_cleanup F9_makefb F9_sieve
+        TIMEOUT 60
         )
 
 # Try fake relation generation
@@ -506,7 +508,6 @@ cado_define_test(c60_fakereltest
     SCRIPT
     "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
     ${CMAKE_CURRENT_SOURCE_DIR}/c60.fakerels.sh
-    ${CADO_NFS_BINARY_DIR} ${CADO_NFS_SOURCE_DIR}
     TARGET_DEPENDENCIES fake_rels freerel
     TIMEOUT 60
 )

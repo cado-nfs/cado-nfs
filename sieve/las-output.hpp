@@ -2,20 +2,24 @@
 #define LAS_OUTPUT_HPP_
 
 #include <cstdio>
+#include <string>
+
 struct cxx_param_list;
 
 struct las_output {
     int verbose = 1;
-    /* outputname is owned by pl, and output by the libc. We want to
-     * control when these get released, with the release() function */
-    FILE *output = NULL;
-    const char * outputname = NULL; /* keep track of whether it's gzipped or not */
-    void set(cxx_param_list & pl);
-    void release();
-    void fflush();
+    FILE *output = nullptr;
+    std::string outputname;
+    explicit las_output(cxx_param_list & pl);
+    void fflush() const;
     static void declare_usage(cxx_param_list & pl);
     static void configure_aliases(cxx_param_list &) { }
     static void configure_switches(cxx_param_list & pl);
+    ~las_output();
+    las_output(las_output const &) = delete;
+    las_output(las_output &&) = delete;
+    las_output& operator=(las_output const &) = delete;
+    las_output& operator=(las_output &&) = delete;
 };
 
 /* used in verbose_output_print.

@@ -55,7 +55,7 @@ target_link_libraries(shrink_rels utils)
 if (${WITH_MPI})
     add_definitions(-DWITH_MPI)
 endif()
-add_executable(sm sm.c)
+add_executable(sm sm.cpp)
 target_link_libraries(sm utils_with_io)
 if (${WITH_MPI})
     set_target_properties(sm PROPERTIES

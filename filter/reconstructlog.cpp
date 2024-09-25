@@ -376,11 +376,11 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
                 ASSERT_ALWAYS(u->deg < S->f->deg);
                 if (S->mode == SM_MODE_LEGACY_PRE2018) {
                     for(int i = S->f->deg-1-u->deg; i < S->nsm; i++) {
-                        mpz_addmul (l, data.log.smlog(side, i), u->coeff[S->f->deg-1-i]);
+                        mpz_addmul (l, data.log.smlog(side, i), mpz_poly_coeff_const(u, S->f->deg-1-i));
                     }
                 } else {
                     for(int i = 0; i < S->nsm; i++) {
-                        mpz_addmul (l, data.log.smlog(side, i), u->coeff[i]);
+                        mpz_addmul (l, data.log.smlog(side, i), mpz_poly_coeff_const(u, i));
                     }
                 }
                 mpz_mod(l, l, ell);
@@ -1448,7 +1448,7 @@ main(int argc, char *argv[])
   sm_side_info * sm_info = new sm_side_info[cpoly->nb_polys];
   for (int side = 0; side < cpoly->nb_polys; side++)
   {
-    sm_side_info_init(sm_info[side], cpoly->pols[side], ell);
+    sm_side_info_init(sm_info[side], cpoly->pols[side], ell, 0);
     sm_side_info_set_mode(sm_info[side], sm_mode_string);
     fprintf(stdout, "\n# Polynomial on side %d:\n# F[%d] = ", side, side);
     mpz_poly_fprintf(stdout, cpoly->pols[side]);

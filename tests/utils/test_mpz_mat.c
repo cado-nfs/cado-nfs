@@ -170,5 +170,5 @@ void test_mpz_mat_LLL()
 int main()
 {
   test_mpz_mat_LLL();
-  exit (EXIT_SUCCESS);
+  return EXIT_SUCCESS;
 }

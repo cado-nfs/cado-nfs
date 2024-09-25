@@ -6,6 +6,20 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <gmp.h>
+
+#ifdef __cplusplus
+#include <sstream>
+#include <string>
+#include <vector>
+#include <utility>
+#include <istream>      // std::istream // IWYU pragma: keep
+#include <ostream>      // std::ostream // IWYU pragma: keep
+#include <type_traits>
+#include "fmt/format.h"
+#include "cxx_mpz.hpp"
+#endif
+
+#include "gmp_aux.h"
 #include "macros.h"
 
 #define xxxMPZ_POLY_TIMINGS
@@ -17,9 +31,6 @@ typedef const struct double_poly_s * double_poly_srcptr;
 #endif
 
 #ifdef __cplusplus
-#include <string>
-#include <istream>      // std::istream // IWYU pragma: keep
-#include <ostream>      // std::ostream // IWYU pragma: keep
 extern "C" {
 #endif
 
@@ -33,7 +44,7 @@ extern "C" {
 struct mpz_poly_s {
   unsigned int alloc;
   int deg;
-  mpz_t *coeff;
+  mpz_t *_coeff;
 };
 #ifndef DOUBLE_POLY_H_
 /* double_poly.h forward-declares these. Don't do it twice */
@@ -41,31 +52,6 @@ typedef struct mpz_poly_s * mpz_poly_ptr;
 typedef const struct mpz_poly_s * mpz_poly_srcptr;
 #endif
 typedef struct mpz_poly_s mpz_poly[1];
-
-/* -------------------------------------------------------------------------- */
-
-/* [LI] This should also be renamed to mpz_polymodF.  */
-/* And may be moved outside mpz_poly.[ch]? */
- 
-/* Let F(x) be a (non-monic) polynomial of degree d:
-   F(x) = f_d x^d + f_{d-1} x^{d-1} + .... + f_1 x + f_0
-   The following type represents a polynomial modulo F(x):
-   If P is such an element, it means: P = P.p / f_d^P.v */
-typedef struct {
-  mpz_poly p;
-  int v;
-} polymodF_struct_t;
-
-typedef polymodF_struct_t polymodF_t[1];
-/* -------------------------------------------------------------------------- */
-
-/* Special structure to represent coeffs of a polynomial in base p^k. */
-typedef struct {
-  int deg;
-  char **coeff;
-} poly_base_struct_t;
-
-typedef poly_base_struct_t poly_base_t[1];
 
 /* Note on parallelism.
  *
@@ -89,6 +75,16 @@ typedef poly_base_struct_t poly_base_t[1];
  * More detail on can be found in mpz_poly_parallel.hpp and mpz_poly.cpp
  */
 
+/* We should not access the polynomial coefficients directly. At least we
+ * need specific accessors for them.
+ * The accessors below behave in the exact same way as old direct
+ * accesses that were within (allocation) bounds. Beyond bounds, they
+ * force a realloc if we want a read-write access, and they return a
+ * const static zero for const accesses.
+ */
+mpz_ptr mpz_poly_coeff(mpz_poly_ptr, int i);
+mpz_srcptr mpz_poly_coeff_const(mpz_poly_srcptr, int i);
+
 /* Management of the structure, set and print coefficients. */
 void mpz_poly_init(mpz_poly_ptr, int d);
 void mpz_poly_realloc (mpz_poly_ptr f, unsigned int nc);
@@ -99,7 +95,11 @@ static inline int mpz_poly_degree(mpz_poly_srcptr f) { return f->deg; }
 
 void mpz_poly_cleandeg(mpz_poly_ptr f, int deg);
 void mpz_poly_setcoeffs(mpz_poly_ptr f, mpz_t * coeffs, int d);
+void mpz_poly_setcoeffs_si(mpz_poly_ptr f, const long int * h, int d);
+void mpz_poly_setcoeffs_ui(mpz_poly_ptr f, const unsigned long int * h, int d);
 void mpz_poly_set_zero(mpz_poly_ptr f);
+void mpz_poly_set_ui(mpz_poly_ptr f, unsigned long z);
+void mpz_poly_set_si(mpz_poly_ptr f, long z);
 void mpz_poly_set_xi(mpz_poly_ptr f, int i);
 void mpz_poly_set_mpz(mpz_poly_ptr f, mpz_srcptr z);
 void mpz_poly_set_double_poly(mpz_poly_ptr g, double_poly_srcptr f);
@@ -118,6 +118,13 @@ void mpz_poly_setcoeff_uint64(mpz_poly_ptr f, int i, uint64_t z);
 void mpz_poly_setcoeff_double(mpz_poly_ptr f, int i, double z);
 void mpz_poly_getcoeff(mpz_ptr res, int i, mpz_poly_srcptr f);
 
+void mpz_poly_set_signed_urandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
+void mpz_poly_set_signed_rrandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
+void mpz_poly_set_signed_urandomm (mpz_poly_ptr f, int d, gmp_randstate_ptr state, mpz_srcptr N);
+void mpz_poly_set_urandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
+void mpz_poly_set_rrandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
+void mpz_poly_set_urandomm (mpz_poly_ptr f, int d, gmp_randstate_ptr state, mpz_srcptr N);
+
 /* functions for Joux-Lercier and generalized Joux-Lercier */
 int mpz_poly_setcoeffs_counter(mpz_poly_ptr f, int* max_abs_coeffs, unsigned long *next_counter, int deg, unsigned long counter, unsigned int bound);
 void  mpz_poly_setcoeffs_counter_print_error_code(int error_code);
@@ -127,7 +134,12 @@ unsigned long mpz_poly_cardinality(int deg, unsigned int bound);
 /* return the leading coefficient of f */
 static inline mpz_srcptr mpz_poly_lc (mpz_poly_srcptr f) {
     ASSERT(f->deg >= 0);
-    return f->coeff[f->deg];
+    return mpz_poly_coeff_const(f, f->deg);
+}
+
+static inline mpz_ptr mpz_poly_lc_w (mpz_poly_ptr f) {
+    ASSERT(f->deg >= 0);
+    return mpz_poly_coeff(f, f->deg);
 }
 
 /* Print functions */
@@ -166,11 +178,18 @@ void mpz_poly_mul_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a);
 void mpz_poly_divexact_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr a);
 int mpz_poly_divisible_mpz (mpz_poly_srcptr P, mpz_srcptr a);
 void mpz_poly_translation (mpz_poly_ptr, mpz_poly_srcptr, mpz_srcptr);
+
 void mpz_poly_rotation (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr, int);
+void mpz_poly_rotation_si (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, long int, int);
+void mpz_poly_rotation_ui (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, unsigned long int, int);
+void mpz_poly_rotation_int64 (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, int64_t, int);
+void mpz_poly_reverse_rotation (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr, int);
+void mpz_poly_reverse_rotation_si (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, long int, int);
+void mpz_poly_reverse_rotation_ui (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, unsigned long int, int);
+
 void mpz_poly_addmul_si (mpz_poly_ptr, mpz_poly_srcptr, long);
 void mpz_poly_mul_si (mpz_poly_ptr, mpz_poly_srcptr, long);
 void mpz_poly_divexact_ui (mpz_poly_ptr, mpz_poly_srcptr, unsigned long);
-void mpz_poly_rotation_int64 (mpz_poly_ptr, mpz_poly_srcptr, mpz_poly_srcptr, const int64_t, int);
 void mpz_poly_makemonic_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_srcptr m);
 void barrett_precompute_inverse (mpz_ptr invm, mpz_srcptr m);
 int mpz_poly_mod_f_mod_mpz(mpz_poly_ptr R, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
@@ -199,7 +218,6 @@ void mpz_poly_eval_diff_poly (mpz_poly_ptr res, mpz_poly_srcptr f, mpz_poly_srcp
 void mpz_poly_eval_mod_mpz(mpz_t res, mpz_poly_srcptr f, mpz_srcptr x, mpz_srcptr m);
 int mpz_poly_is_root(mpz_poly_srcptr poly, mpz_srcptr root, mpz_srcptr modulus);
 void mpz_poly_eval_several_mod_mpz(mpz_ptr * res, mpz_poly_srcptr * f, int k, mpz_srcptr x, mpz_srcptr m);
-void polymodF_mul(polymodF_t Q, const polymodF_t P1, const polymodF_t P2, mpz_poly_srcptr F);
 void mpz_poly_sqr_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
 void mpz_poly_pow_ui(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n);
 void mpz_poly_pow_ui_mod_f(mpz_poly_ptr B, mpz_poly_srcptr A, unsigned long n, mpz_poly_srcptr f);
@@ -207,7 +225,7 @@ void mpz_poly_pow_mod_f_mod_ui(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcpt
 void mpz_poly_pow_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, mpz_srcptr a, mpz_srcptr p);
 void mpz_poly_pow_ui_mod_f_mod_mpz (mpz_poly_ptr Q, mpz_poly_srcptr P, mpz_poly_srcptr f, unsigned long a, mpz_srcptr p);
 void mpz_poly_derivative(mpz_poly_ptr df, mpz_poly_srcptr f);
-mpz_poly* mpz_poly_base_modp_init (mpz_poly_srcptr P0, int p, unsigned long *K, int l);
+mpz_poly* mpz_poly_base_modp_init (mpz_poly_srcptr P0, unsigned long p, unsigned long *K, int l);
 void mpz_poly_base_modp_clear (mpz_poly *P, int l);
 void mpz_poly_base_modp_lift(mpz_poly_ptr a, mpz_poly *P, int k, mpz_srcptr pk);
 size_t mpz_poly_sizeinbase (mpz_poly_srcptr f, int base);
@@ -220,15 +238,17 @@ void mpz_poly_gcd_mpz (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz
 int mpz_poly_pseudogcd_mpz(mpz_poly_ptr , mpz_poly_ptr , mpz_srcptr , mpz_ptr);
 void mpz_poly_xgcd_mpz(mpz_poly_ptr gcd, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_poly_ptr u, mpz_poly_ptr v, mpz_srcptr p);
 void mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4]);
-void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, const int64_t i, const uint64_t j);
+void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, int64_t i, uint64_t j);
 void mpz_poly_content (mpz_ptr c, mpz_poly_srcptr F);
 int mpz_poly_has_trivial_content (mpz_poly_srcptr F);
+int mpz_poly_divide_by_content (mpz_poly_ptr F);
 void mpz_poly_resultant(mpz_ptr res, mpz_poly_srcptr p, mpz_poly_srcptr q);
 void mpz_poly_discriminant(mpz_ptr res, mpz_poly_srcptr f);
 int mpz_poly_squarefree_p(mpz_poly_srcptr f);
 int mpz_poly_is_irreducible_z(mpz_poly_srcptr f);
 
 int mpz_poly_number_of_real_roots(mpz_poly_srcptr f);
+void mpz_poly_discriminant_of_linear_combination (mpz_poly_ptr D, mpz_poly_srcptr f0, mpz_poly_srcptr g);
 
 struct mpz_poly_with_m_s {
     mpz_poly f;
@@ -258,23 +278,12 @@ int mpz_poly_factor_edf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f, int k, m
 
 /* output is sorted by degree and lexicographically */
 int mpz_poly_factor(mpz_poly_factor_list lf, mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_t rstate);
-int mpz_poly_is_irreducible(mpz_poly_srcptr f, mpz_srcptr p);
 
-/* lift from a factor list mod ell to a factor list mod ell2.
- * ell does not need to be prime, provided all factors considered are
- * unitary.
- *
- * ell and ell2 must be powers of the same prime, with ell2 <= ell^2
- * (NOTE that this is not checked)
- */
-int mpz_poly_factor_list_lift(mpz_poly_factor_list_ptr fac, mpz_poly_srcptr f, mpz_srcptr ell, mpz_srcptr ell2);
+int mpz_poly_is_irreducible(mpz_poly_srcptr f, mpz_srcptr p);
 
 /* This computes the ell-adic lifts of the factors of f, assuming
  * we have no multiplicities, using Newton lifting.
  * This requires that f be monic 
- *
- * I'm terribly lazy, so at the moment this is working only for prec==2.
- * Extending to arbitrary p is an easy exercise.
  *
  * The output is sorted based on the order of the factors mod p (that is,
  * factors are the lifts of the factors returned by mpz_poly_factor mod
@@ -299,17 +308,28 @@ int mpz_poly_factor_and_lift_padically(mpz_poly_factor_list_ptr fac, mpz_poly_sr
  */
 struct cxx_mpz_poly {
     mpz_poly x;
-    cxx_mpz_poly() { mpz_poly_init(x, -1); }
-    cxx_mpz_poly(int deg) { mpz_poly_init(x, deg); }
+
+    ATTRIBUTE_NODISCARD
     inline int degree() const { return x->deg; } /* handy */
+
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+    cxx_mpz_poly() { mpz_poly_init(x, -1); }
+
     cxx_mpz_poly(mpz_poly_srcptr f) { mpz_poly_init(x, -1); mpz_poly_set(x, f); }
-    ~cxx_mpz_poly() { mpz_poly_clear(x); }
     cxx_mpz_poly(cxx_mpz_poly const & o) {
         mpz_poly_init(x, -1);
         mpz_poly_set(x, o.x);
     }
-    cxx_mpz_poly & operator=(cxx_mpz_poly const & o) {
-        mpz_poly_set(x, o.x);
+    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
+    cxx_mpz_poly (const T & rhs) {
+        mpz_poly_init(x, -1);
+        *this = rhs;
+    }
+    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
+    cxx_mpz_poly & operator=(const T a) {
+        cxx_mpz b;
+        gmp_auxx::mpz_set(b, a);
+        mpz_poly_set_mpz(x, b);
         return *this;
     }
 #if __cplusplus >= 201103L
@@ -322,6 +342,14 @@ struct cxx_mpz_poly {
         return *this;
     }
 #endif
+    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+
+    ~cxx_mpz_poly() { mpz_poly_clear(x); }
+
+    cxx_mpz_poly & operator=(cxx_mpz_poly const & o) {
+        mpz_poly_set(x, o.x);
+        return *this;
+    }
     operator mpz_poly_ptr() { return x; }
     operator mpz_poly_srcptr() const { return x; }
     mpz_poly_ptr operator->() { return x; }
@@ -336,6 +364,40 @@ std::istream& operator>>(std::istream& in, cxx_mpz_poly & f);
 extern void mpz_poly_init(cxx_mpz_poly & pl, int) __attribute__((error("mpz_poly_init must not be called on a mpz_poly reference -- it is the caller's business (via a ctor)")));
 extern void mpz_poly_clear(cxx_mpz_poly & pl) __attribute__((error("mpz_poly_clear must not be called on a mpz_poly reference -- it is the caller's business (via a dtor)")));
 #endif
+
+struct mpz_poly_coeff_list {
+    cxx_mpz_poly const & P;
+    std::string sep;
+    mpz_poly_coeff_list(cxx_mpz_poly const & P, std::string const & sep = ", "): P(P), sep(sep) {}
+};
+std::ostream& operator<<(std::ostream& os, mpz_poly_coeff_list const & P);
+
+namespace fmt {
+    template <> struct /* fmt:: */ formatter<mpz_poly_coeff_list>: formatter<string_view> {
+    template <typename FormatContext>
+        auto format(mpz_poly_coeff_list const & c, FormatContext& ctx) -> decltype(ctx.out())
+        {
+            std::ostringstream os;
+            os << c;
+            return formatter<string_view>::format( string_view(os.str()), ctx);
+        }
+};
+    template <> struct /* fmt:: */ formatter<cxx_mpz_poly>: formatter<string_view> {
+    template <typename FormatContext>
+        auto format(cxx_mpz_poly const & c, FormatContext& ctx) -> decltype(ctx.out())
+        {
+            std::ostringstream os;
+            os << c;
+            return formatter<string_view>::format( string_view(os.str()), ctx);
+        }
+};
+}
+
+
+cxx_mpz_poly prod(std::vector<std::pair<cxx_mpz_poly, int>> const &lf, mpz_srcptr modulus = NULL, mpz_srcptr invm = NULL);
+std::vector<std::pair<cxx_mpz_poly, int>> mpz_poly_factor(mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_t rstate);
+std::vector<std::pair<cxx_mpz_poly, int>> 
+mpz_poly_factor_and_lift_padically(mpz_poly_srcptr f, mpz_srcptr ell, int prec, gmp_randstate_t rstate);
 
 #endif
 

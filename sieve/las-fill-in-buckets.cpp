@@ -362,9 +362,9 @@ make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
    * shot of "next()", and that happens to need the fence. Only logI is
    * needed, though.
    */
-  typename plattice_enumerator<LEVEL>::fence F(ws.conf.logI, 0);
+  plattice_enumerator::fence F(ws.conf.logI, 0);
 
-  plattices_vector_t<LEVEL> result(index, slice.get_weight());
+  plattices_vector_t result(index, slice.get_weight());
   slice_offset_t i_entry = 0;
   for (auto const & e : slice) {
       increment_counter_on_dtor<slice_offset_t> _dummy(i_entry);
@@ -377,7 +377,7 @@ make_lattice_bases(worker_thread * worker MAYBE_UNUSED,
       const fbroot_t r = transformed.get_r(i_root);
       const bool proj = transformed.get_proj(i_root);
         plattice_info pli = plattice_info(transformed.get_q(), r, proj, logI);
-        plattice_enumerator<LEVEL> ple(pli, i_entry, logI, sublat);
+        plattice_enumerator ple(pli, i_entry, logI, sublat);
         // Skip (0,0) unless we have sublattices.
         if (!sublat.m)
           ple.next(F);
@@ -428,7 +428,7 @@ struct helper_functor_prepare_precomp_plattice
              * It would be nice to have a way to notify that all threads here are
              * done with their job.
              */
-            V.assign(P.nslices(), plattices_vector_t<T::level>());
+            V.assign(P.nslices(), plattices_vector_t());
             make_lattice_bases_parameters_base<T::level> model { side, ws, V };
             push_make_bases_to_task_list<T::level> F { pool, model };
             P.foreach_slice(F);
@@ -471,13 +471,13 @@ static void
 fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
                 nfs_work & ws,
                 fb_slice<FB_ENTRY_TYPE> const & slice,
-                plattices_dense_vector_t<LEVEL> * p_precomp_slice,
+                plattices_dense_vector_t * p_precomp_slice,
                 where_am_I & w)
 {
   int logI = ws.conf.logI;
   qlattice_basis const & Q(ws.Q);
 
-  plattices_dense_vector_t<LEVEL> & precomp_slice(*p_precomp_slice);
+  plattices_dense_vector_t & precomp_slice(*p_precomp_slice);
 
   ASSERT_ALWAYS(Q.sublat.m);
   bool first_sublat = Q.sublat.i0 == 0 && Q.sublat.j0 == 1;
@@ -492,7 +492,7 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
   typename FB_ENTRY_TYPE::transformed_entry_t transformed;
 
   /* top level: the fence we care about is the one defined by J */
-  typename plattice_enumerator<LEVEL>::fence F(ws.conf.logI, ws.J);
+  plattice_enumerator::fence F(ws.conf.logI, ws.J);
 
   int logB = LOG_BUCKET_REGIONS[LEVEL];
   typename bucket_array_t<LEVEL, TARGET_HINT>::update_t::br_index_t bmask = (1UL << logB) - 1;
@@ -528,9 +528,9 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
         const bool proj = transformed.get_proj(i_root);
           plattice_info pli(transformed.get_q(), r, proj, logI);
           // In sublat mode, save it for later use
-          precomp_slice.push_back(plattice_info_dense_t<LEVEL>(pli, i_entry));
+          precomp_slice.push_back(plattice_info_dense_t(pli, i_entry));
 
-          plattice_enumerator<LEVEL> ple(pli, i_entry, logI, Q.sublat);
+          plattice_enumerator ple(pli, i_entry, logI, Q.sublat);
 
           if (ple.done(F))
             continue;
@@ -569,7 +569,7 @@ fill_in_buckets_toplevel_sublat(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
       plattice_info pli(precomp_slice[i].unpack(logI));
       slice_offset_t i_entry = precomp_slice[i].get_hint();
 
-      plattice_enumerator<LEVEL> ple(pli, i_entry, logI, Q.sublat);
+      plattice_enumerator ple(pli, i_entry, logI, Q.sublat);
 
       if (ple.done(F))
         continue;
@@ -610,7 +610,7 @@ void
 fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
                 nfs_work & ws,
                 fb_slice<FB_ENTRY_TYPE> const & slice,
-                plattices_dense_vector_t<LEVEL> * /* unused */,
+                plattices_dense_vector_t * /* unused */,
                 where_am_I & w)
 {
   int logI = ws.conf.logI;
@@ -630,7 +630,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
   typename FB_ENTRY_TYPE::transformed_entry_t transformed;
 
   /* top level: the fence we care about is the one defined by J */
-  typename plattice_enumerator<LEVEL>::fence F(ws.conf.logI, ws.J);
+  plattice_enumerator::fence F(ws.conf.logI, ws.J);
 
   slice_offset_t i_entry = 0;
 
@@ -653,7 +653,7 @@ fill_in_buckets_toplevel(bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
       const bool proj = transformed.get_proj(i_root);
         plattice_info pli(transformed.get_q(), r, proj, logI);
   
-        plattice_enumerator<LEVEL> ple(pli, i_entry, logI);
+        plattice_enumerator ple(pli, i_entry, logI);
 
         // Skip (i,j)=(0,0)
         ple.next(F);
@@ -729,7 +729,7 @@ template <int LEVEL, typename TARGET_HINT>
 fill_in_buckets_lowlevel(
     bucket_array_t<LEVEL, TARGET_HINT> &orig_BA,
     nfs_work & ws,
-    plattices_vector_t<LEVEL> & plattices_vector,
+    plattices_vector_t & plattices_vector,
     bool first_reg MAYBE_UNUSED,
     where_am_I & w)
 {
@@ -748,7 +748,7 @@ fill_in_buckets_lowlevel(
   /* top level: the fence we care about is the one defined by the number
    * of bucket regions at this level, most probably (but J might
    * conceivably give a lower bound) */
-  typename plattice_enumerator<LEVEL>::fence F(ws.conf.logI, ws.J, BUCKET_REGIONS[LEVEL+1]);
+  plattice_enumerator::fence F(ws.conf.logI, ws.J, BUCKET_REGIONS[LEVEL+1]);
 
   /* yes, we want the level-1 regions here */
   int logB1 = LOG_BUCKET_REGIONS[1];
@@ -763,7 +763,7 @@ fill_in_buckets_lowlevel(
     // what we want, but this is C++11, anyway.
     //
     // FIXME we're c++11 now. Look into this.
-    plattice_enumerator<LEVEL> ple(ple_orig);
+    plattice_enumerator ple(ple_orig);
 
     const slice_offset_t hint = ple.get_hint();
     WHERE_AM_I_UPDATE(w, h, hint);
@@ -841,15 +841,15 @@ public:
   nfs_aux & aux;
   const int side;
   const fb_slice_interface * slice;
-  plattices_vector_t<LEVEL> * plattices_vector; // content changed during fill-in
-  plattices_dense_vector_t<LEVEL> * plattices_dense_vector; // for sublat
+  plattices_vector_t * plattices_vector; // content changed during fill-in
+  plattices_dense_vector_t * plattices_dense_vector; // for sublat
   const uint32_t first_region0_index;
   where_am_I w;
 
   fill_in_buckets_parameters(nfs_work &_ws, nfs_aux& aux, const int _side,
           const fb_slice_interface *_slice,
-          plattices_vector_t<LEVEL> * _platt,
-          plattices_dense_vector_t<LEVEL> * _dplatt,
+          plattices_vector_t * _platt,
+          plattices_dense_vector_t * _dplatt,
           const uint32_t _reg0,
           where_am_I const & w)
   : ws(_ws), aux(aux), side(_side), slice(_slice),
@@ -1111,7 +1111,7 @@ struct push_slice_to_task_list_saving_precomp {
         slice_index_t idx = s.get_index();
         ASSERT_ALWAYS((size_t) idx == pushed);
 
-        plattices_dense_vector_t<LEVEL> & pre(Vpre[idx]);
+        plattices_dense_vector_t & pre(Vpre[idx]);
 
         fill_in_buckets_parameters<LEVEL> *param = new fill_in_buckets_parameters<LEVEL>(model);
         param->slice = &s;

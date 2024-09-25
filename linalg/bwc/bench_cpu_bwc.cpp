@@ -19,7 +19,6 @@
 #include "bw-common.h"
 #include "async.hpp"
 #include "xdotprod.hpp"
-#include "rolling.h"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
 #include "fmt/core.h"            // for check_format_string
@@ -27,6 +26,8 @@
 #include "fmt/format.h"
 #include "macros.h"
 #include "matmul_top_vec.hpp"
+#include "mmt_vector_pair.hpp"
+
 using namespace fmt::literals;
 
 double
@@ -78,22 +79,7 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
      * This could be improved.
      */
 
-    int nmats_odd = mmt.nmatrices & 1;
-
-    mmt_vec * ymy = new mmt_vec[mmt.nmatrices + nmats_odd];
-    matmul_top_matrix_ptr mptr;
-    mptr = (matmul_top_matrix_ptr) mmt.matrices + (bw->dir ? (mmt.nmatrices - 1) : 0);
-    for(int i = 0 ; i < mmt.nmatrices ; i++) {
-        int shared = (i == 0) & nmats_odd;
-        mmt_vec_setup(ymy[i], mmt,0,0, bw->dir ^ (i&1), shared, mptr->n[bw->dir]);
-        mmt_full_vec_set_zero(ymy[i]);
-
-        mptr += bw->dir ? -1 : 1;
-    }
-    if (nmats_odd) {
-        mmt_vec_setup(ymy[mmt.nmatrices], mmt,0,0, !bw->dir, 0, mmt.matrices[0]->n[bw->dir]);
-        mmt_full_vec_set_zero(ymy[mmt.nmatrices]);
-    }
+    mmt_vector_pair ymy(mmt, bw->dir);
 
     /* I have absolutely no idea why, but the two --apparently useless--
      * serializing calls around the next block seem to have a beneficial
@@ -129,11 +115,11 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
             // matmul_top_mul(mmt, ymy, timing);
             {
                 int d = ymy[0].d;
-                int nmats_odd = mmt.nmatrices & 1;
-                int midx = (d ? (mmt.nmatrices - 1) : 0);
-                for(int l = 0 ; l < mmt.nmatrices ; l++) {
+                int nmats_odd = mmt.matrices.size() & 1;
+                int midx = (d ? (mmt.matrices.size() - 1) : 0);
+                for(size_t l = 0 ; l < mmt.matrices.size() ; l++) {
                     mmt_vec & src = ymy[l];
-                    int last = l == (mmt.nmatrices - 1);
+                    int last = l == (mmt.matrices.size() - 1);
                     int lnext = last && !nmats_odd ? 0 : (l+1);
                     mmt_vec & dst = ymy[lnext];
 
@@ -178,8 +164,6 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
         printf("Done bench.\n");
     }
     serialize(pi->m);
-
-    delete[] ymy;
 
     return NULL;
 }

@@ -68,13 +68,14 @@ class Cado_NFS_toplevel(object):
         ''' return the full path of the default parameter file which
         is appropriate for the given integer self.args.N. We look for the file
         whose name exactly matches the size in digits of self.args.N, as
-        well as the nearest multiple of 5.
+        well as the closest size up to a distance of 3 (of 5 for 200 digits
+        or more).
 
         If self.args.dlp is set, we look in the dlp/ subdirectory of
         self.pathdict["data"]. Otherwise we look in the factor/ subdirectory.
 
         >>> tempdir=tempfile.mkdtemp()
-        >>> names = ["c10", "c13", "c20", "p20", "p13" ]
+        >>> names = ["c10", "c12", "c20", "p12", "p20" ]
         >>> os.mkdir(os.path.join(tempdir, "factor"))
         >>> os.mkdir(os.path.join(tempdir, "dlp"))
         >>> for n in names:
@@ -95,6 +96,7 @@ class Cado_NFS_toplevel(object):
         >>> n12=123456789012
         >>> n13=1234567890123
         >>> n14=12345678901234
+        >>> n16=1234567890123456
         >>> n18=123456789012345678
         >>> n20=12345678901231231231
         >>> n21=123456789012312312311
@@ -104,13 +106,19 @@ class Cado_NFS_toplevel(object):
         >>> fn == os.path.join(tempdir, "factor", "params.c10")
         True
 
+        >>> t.args.N=n12
+        >>> t.args.dlp=False
+        >>> fn=t.find_default_parameter_file()
+        >>> fn == os.path.join(tempdir, "factor", "params.c12")
+        True
+
         >>> t.args.N=n13
         >>> t.args.dlp=False
         >>> fn=t.find_default_parameter_file()
-        >>> fn == os.path.join(tempdir, "factor", "params.c13")
+        >>> fn == os.path.join(tempdir, "factor", "params.c12")
         True
 
-        >>> t.args.N=n14
+        >>> t.args.N=n16
         >>> t.args.dlp=False
         >>> try:
         ...   t.find_default_parameter_file()
@@ -124,25 +132,31 @@ class Cado_NFS_toplevel(object):
         >>> fn == os.path.join(tempdir, "factor", "params.c20")
         True
 
-        >>> t.args.N=n18
+        >>> t.args.N=n12
         >>> t.args.dlp=True
         >>> fn=t.find_default_parameter_file()
-        >>> fn == os.path.join(tempdir, "dlp", "params.p20")
+        >>> fn == os.path.join(tempdir, "dlp", "params.p12")
         True
 
         >>> t.args.N=n13
         >>> t.args.dlp=True
         >>> fn=t.find_default_parameter_file()
-        >>> fn == os.path.join(tempdir, "dlp", "params.p13")
+        >>> fn == os.path.join(tempdir, "dlp", "params.p12")
         True
 
-        >>> t.args.N=n14
+        >>> t.args.N=n16
         >>> t.args.dlp=True
         >>> try:
         ...   t.find_default_parameter_file()
         ... except RuntimeError:
         ...   'NOTFOUND'
         'NOTFOUND'
+
+        >>> t.args.N=n18
+        >>> t.args.dlp=True
+        >>> fn=t.find_default_parameter_file()
+        >>> fn == os.path.join(tempdir, "dlp", "params.p20")
+        True
 
         >>> for n in names:
         ...  if re.search("^p", n):
@@ -164,12 +178,17 @@ class Cado_NFS_toplevel(object):
             default_param_dir = os.path.join(default_param_dir, "factor")
             letter="c"
         size_of_n=len(repr(self.args.N))
-        # also attempt nearest multiple of 5 for < 200 digits,
-        # nearest multiple of 10 for >= 200 digits
+        # we try the nearest value in range [size_of_n-k,size_of_n+k]
+        # with k=3 for < 200 digits, k=5 for >= 200 digits
         if size_of_n < 200:
-           attempts=["%d"%x for x in [size_of_n, ((size_of_n+2)//5)*5]]
+           maxk = 3
         else:
-           attempts=["%d"%x for x in [size_of_n, ((size_of_n+5)//10)*10]]
+           maxk = 5
+        tried_sizes = [size_of_n]
+        for k in range(1,maxk+1):
+           tried_sizes.append(size_of_n+k)
+           tried_sizes.append(size_of_n-k)
+        attempts=["%d"%x for x in tried_sizes]
         if self.args.gfpext > 1:
             attempts=[letter+"%ddd"%self.args.gfpext+x for x in attempts]
         else:
@@ -231,7 +250,7 @@ class Cado_NFS_toplevel(object):
             return nphysical * int(cpu_cores.pop())
         def backquote(cmd):
             pipe = subprocess.Popen(cmd.split(" "), stdout=subprocess.PIPE)
-            loc = locale.getdefaultlocale()[1]
+            loc = locale.getlocale()[1]
             if not loc:
                 loc="ascii"
             return [s.decode(loc) for s in pipe.stdout.readlines()]
@@ -282,7 +301,7 @@ class Cado_NFS_toplevel(object):
         # this regard.
         def backquote(cmd):
             pipe = subprocess.Popen(cmd.split(" "), stdout=subprocess.PIPE)
-            loc = locale.getdefaultlocale()[1]
+            loc = locale.getlocale()[1]
             if not loc:
                 loc="ascii"
             return [s.decode(loc) for s in pipe.stdout.readlines()]

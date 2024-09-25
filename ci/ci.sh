@@ -15,7 +15,7 @@ case "$CI_JOB_NAME" in
     *"under valgrind"*)
         valgrind=1
         export USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT=1
-        export TIMEOUT_SCALE=8
+        export TIMEOUT_SCALE=10
         case "$CI_JOB_NAME" in
             *32-bit*)
                 echo "valgrind testing is practically hopeless under 32-bit"
@@ -31,6 +31,15 @@ case "$CI_JOB_NAME" in
                 # instructions (which is understandable)
                 ;;
         esac
+        ;;
+    *"coverage tests"*)
+        # With some tests, the coverage test time goes to the roof, but
+        # it's not always so. A blanket TIMEOUT_SCALE is probably a gross
+        # fix, but we can live with it.
+        export TIMEOUT_SCALE=2
+        ;;
+    *"using package libfmt-dev"*)
+        export install_package_libfmt_dev=1
         ;;
 esac
 
@@ -49,6 +58,27 @@ project_package_selection() {
         # centos_packages="$centos_packages     python3-pip"
         # alpine_packages="$alpine_packages     py3-pip"
     fi
+
+    if [ "$install_package_libfmt_dev" ] ; then
+        echo " + libfmt_dev is set"
+        debian_packages="$debian_packages     libfmt-dev"
+        if ! is_debian && ! is_ubuntu ; then
+            echo "libfmt-dev: only on debian" >&2
+            # because I'm lazy, and also I'm not sure there would be a point
+            # in doing it on several systems anyway.
+            exit 1
+        fi
+    fi
+   
+    # bzip2 is used in the tests, but after all it makes sense that we
+    # pay attention to our good support of some compression tool not
+    # being available...
+    #
+    # debian_packages="$debian_packages     bzip2"
+    # opensuse_packages="$opensuse_packages bzip2"
+    # fedora_packages="$fedora_packages     bzip2"
+    # centos_packages="$centos_packages     bzip2"
+    # alpine_packages="$alpine_packages     bzip2"
 }
 
 # Note: most of the interesting stuff is in ci.bash

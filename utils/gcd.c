@@ -83,7 +83,7 @@ xgcd_ul (unsigned long * xa, unsigned long a, unsigned long b)
     unsigned long u1 = 1; /*  u1 * a = r1 mod b */
     // unsigned long v0 = 1; /* -u0 * a + v0 * b = r0 */
     // unsigned long v1 = 0; /*  u1 * a - v1 * b = r1 */
-    int i = 0;
+    unsigned int i = 0;
     for( ; r1 > 0 ; i++) {
         // this invariant works, but of course it can't be checked when
         // u0*a overflows !
@@ -136,7 +136,7 @@ xgcd_ul (unsigned long * xa, unsigned long a, unsigned long b)
      * essential.
      */
     // ASSERT(r0 * v1 == b);
-    if ((i & 1) == 0 && u0) {
+    if ((i & 1U) == 0 && u0) {
         u0 = b/r0 - u0;
     }
     ASSERT((unsigned long) u0 < b/r0);
@@ -167,7 +167,7 @@ uint64_t
 bin_gcd_int64_safe (const int64_t a, const int64_t b)
 {
   uint64_t ua = safe_abs64(a), ub = safe_abs64(b);
-  int s, t;
+  unsigned int s, t;
 
   if (ua == 0)
     return ub;

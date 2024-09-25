@@ -103,6 +103,9 @@
 #cmakedefine    HAVE_SYSCONF
 
 #cmakedefine    HAVE_RUSAGE_THREAD
+#cmakedefine    HAVE_CLOCK_MONOTONIC
+#cmakedefine    HAVE_CLOCK_MONOTONIC_RAW
+#cmakedefine    HAVE_CLOCK_THREAD_CPUTIME_ID
 
 #cmakedefine    HAVE_SYNC_FETCH
 

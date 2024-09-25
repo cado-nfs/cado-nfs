@@ -284,6 +284,11 @@ lognorm_base::lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly
      * get_maxnorm_rectangular(). */
 
     mpz_poly_homography (fij, cpoly->pols[side], H);
+
+    /* This is checked for in choose_sieve_area. Homographies with a
+     * degree drop are always discarded */
+    ASSERT_ALWAYS(fij->deg == cpoly->pols[side]->deg);
+
     if (Q.doing.side == side) {
         ASSERT_ALWAYS(mpz_poly_divisible_mpz(fij, Q.doing.p));
         mpz_poly_divexact_mpz(fij, fij, Q.doing.p);
@@ -750,10 +755,10 @@ static void lognorm_fill_alg_smart (unsigned char *S, uint32_t N, int logI, doub
 
 void lognorm_smart::fill(unsigned char * S, int N) const/*{{{*/
 {
-    if (fijd->deg == 1)
-        lognorm_fill_rat_smart(S, N, logI, scale, fijd, cexp2);
-    else
+    if (fijd->deg > 1)
         lognorm_fill_alg_smart(S, N, logI, scale, fijd, G, cexp2);
+    else
+        lognorm_fill_rat_smart(S, N, logI, scale, fijd, cexp2);
 }
 /*}}}*/
 

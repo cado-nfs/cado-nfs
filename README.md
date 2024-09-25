@@ -125,9 +125,11 @@ Optionally, cado-nfs can use the following additional software.
 * Support for OpenMP (at least version 3.0)
 * Support for MPI (see [`local.sh.example`](local.sh.example) and [`linalg/bwc/README`](linalg/bwc/README))
 * Support for hwloc (see [`parameters/misc/cpubinding.conf`](parameters/misc/cpubinding.conf))
+  Under Debian the command to install HWLOC is:
+  	apt-get install libhwloc-dev
 * Support for GMP-ECM. Define the environment variable GMPECM if it is
   installed in a non-standard place.
-* A system [`fmt`](https://fmt.dev/) is used is found, otherwise a
+* A formatting library [`fmt`](https://fmt.dev/) is used if found, otherwise a
   snapshot is embedded in the cado-nfs code anyway.
 
 Configure
@@ -207,7 +209,7 @@ export PREFIX=/tmp/install ; cmake .../cado-nfs
 
 There are several ways to call cado-nfs scripts (e.g., `cado-nfs.py`).
 Here we assume that `$SRCDIR` is the source directory, that `$BUILDDIR`
-is the build tree for the local machine (typically `$SRCDIR/$(hostname)`),
+is the build tree for the local machine (typically `$SRCDIR/build/$(hostname)`),
 and that `$PREFIX` is the installation prefix (see above).  We refer to
 these different ways, and later discuss how they work on different
 systems (which is mostly impacted by the shared library mechanism).
@@ -222,7 +224,9 @@ systems (which is mostly impacted by the shared library mechanism).
   `$PREFIX/share/cado-nfs-x.y.z/`
 
 * `$BUILDDIR/cado-nfs.py`
-  This is not supported. Might work, might not. You've been warned.
+  This calls binaries within `$BUILDDIR`. This is useful when several
+  processors with the same architecture share a file-system, you have
+  to compile CADO-NFS on one only.
 
 Linux, BSD: the first two choices above should work ok.
 MacOS X:

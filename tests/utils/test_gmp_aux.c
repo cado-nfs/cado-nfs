@@ -388,11 +388,11 @@ test_next_mpz_with_factor_constraints (void)
   ASSERT_ALWAYS(mpz_cmp_ui(r, 25631737) == 0);
 
   mpz_set_ui(s, 5426767); // this is 31^2*5647; must be skipped
-  ret = next_mpz_with_factor_constraints(r, fact, s, 0, 25, 100000);
+  next_mpz_with_factor_constraints(r, fact, s, 0, 25, 100000);
   ASSERT_ALWAYS(mpz_cmp_ui(r, 5426777) == 0);
 
   mpz_set_ui(s, 25030009); // this is 5003^2 must be skipped
-  ret = next_mpz_with_factor_constraints(r, fact, s, 0, 100, 100000);
+  next_mpz_with_factor_constraints(r, fact, s, 0, 100, 100000);
   ASSERT_ALWAYS(mpz_cmp_ui(r, 25030039) == 0);
 
   mpz_clear(r);
@@ -422,5 +422,5 @@ main (int argc, const char *argv[])
   test_ulong_nextcomposite ();
   test_next_mpz_with_factor_constraints ();
   tests_common_clear ();
-  exit (EXIT_SUCCESS);
+  return EXIT_SUCCESS;
 }

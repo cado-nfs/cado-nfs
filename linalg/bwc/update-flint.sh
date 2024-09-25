@@ -81,6 +81,8 @@ i
 #endif
 
 .
+/mp_limb_t.*p_lo/
+s/p_lo/FLINT_SET_BUT_UNUSED(p_lo)/
 wq
 EOF
 

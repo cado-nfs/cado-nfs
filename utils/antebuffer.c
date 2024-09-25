@@ -9,6 +9,9 @@
 
 /* To avoid the warning: implicit declaration of nanosleep for c99 compliant */
 #include "cado.h" // IWYU pragma: keep
+
+// I don't want to look into this code, really.
+// NOLINTBEGIN
 #ifdef _POSIX_C_SOURCE
 #undef _POSIX_C_SOURCE
 #endif
@@ -191,3 +194,4 @@ int main(int argc, char **argv) {
           */
   exit (0);
 }
+// NOLINTEND

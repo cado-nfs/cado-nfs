@@ -90,7 +90,7 @@ def detect_source_tree(pathdict):
             print("{} does not exist".format(helper))
         return False
     pipe = subprocess.Popen([helper, "--show"], stdout=subprocess.PIPE)
-    loc = locale.getdefaultlocale()[1]
+    loc = locale.getlocale()[1]
     if not loc:
         loc="ascii"
     output = pipe.communicate()[0].decode(loc)
@@ -192,14 +192,18 @@ if __name__ == '__main__':
     logger.info("If this computation gets interrupted, it can be resumed with %s %s", sys.argv[0], snapshot_filename)
 
     factorjob = cadotask.CompleteFactorization(db=db,
-                                               parameters = parameters,
-                                               path_prefix = [])
+                                                   parameters = parameters,
+                                                   path_prefix = [])
+
 
     if toplevel_params.args.verboseparam:
         logger.info("Summary of all recognized parameters\n" +
                 factorjob.parameter_help)
 
-    factors = factorjob.run()
+    try:
+        factors = factorjob.run()
+    except cadotask.EarlyStopException as e:
+        sys.exit(0)
     
     if factors is None:
         toplevel_params.purge_temp_files(nopurge=True)

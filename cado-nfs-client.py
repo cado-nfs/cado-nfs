@@ -124,7 +124,7 @@ def detect_source_tree(pathdict):
             print("{} does not exist".format(helper))
         return False
     pipe = subprocess.Popen([helper, "--show"], stdout=subprocess.PIPE)
-    loc = locale.getdefaultlocale()[1]
+    loc = locale.getlocale()[1]
     if not loc:
         loc="ascii"
     output = pipe.communicate()[0].decode(loc)
@@ -436,11 +436,6 @@ def create_daemon(workdir=None, umask=None, logfile=None):# {{{
     if not umask is None:
         os.umask(umask)
 
-    import resource		# Resource usage information.
-    maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
-    if maxfd == resource.RLIM_INFINITY:
-        maxfd = maxfd_default
-
     if logfile is not None:
         # must remove the intermediary handlers that the logging system
         # uses, otherwise we get inconsistent file position and python
@@ -450,9 +445,31 @@ def create_daemon(workdir=None, umask=None, logfile=None):# {{{
             logger.removeHandler(handler)
 
     # Iterate through and close all file descriptors.
-    for fd in range(0, maxfd):
+    fdlist = None
+
+    if fdlist is None:
         try:
-            if logfile is not None and fd != logfile.fileno():
+            fdlist = [ int(c) for c in os.listdir('/proc/self/fd') ]
+        except FileNotFoundError:
+            pass
+
+    if fdlist is None:
+        try:
+            fdlist = [ int(c) for c in os.listdir('/dev/fd') ]
+        except FileNotFoundError:
+            pass
+
+    if fdlist is None:
+        import resource		# Resource usage information.
+        maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
+        if maxfd == resource.RLIM_INFINITY:
+            maxfd = maxfd_default
+
+        fdlist = range(0, maxfd)
+
+    for fd in fdlist:
+        try:
+            if logfile is None or fd != logfile.fileno():
                 os.close(fd)
         except OSError:	# ERROR, fd wasn't open to begin with (ignored)
             pass
@@ -695,6 +712,11 @@ def run_command(command, stdin=None, print_error=True, **kwargs):
     return child.returncode, stdout, stderr
 # }}}
 
+class ServerGone(Exception):
+    def __init__(self):
+        Exception.__init__(self)
+    def __str__(self):
+        return "Server gone"
 
 # {{{ wrap around python urllib
 class HTTP_connector(object):
@@ -766,14 +788,26 @@ class HTTP_connector(object):
                 # the workunit client, which we do by letting an
                 # exception pop up a few levels up (eeek)
                 raise WorkunitClientToFinish("Received 410 from server")
-            error_str = "URL error: %s" % str(error)
-            hard_error = (error.errno == errno.ECONNREFUSED or \
-                          error.errno == errno.ECONNRESET)
+            error_str = "HTTP error: %s" % str(error)
+            if error.errno is not None:
+                hard_error = (error.errno == errno.ECONNREFUSED or \
+                              error.errno == errno.ECONNRESET)
+            elif isinstance(error.reason, OSError):
+                hard_error = (error.reason.errno == errno.ECONNREFUSED or \
+                              error.reason.errno == errno.ECONNRESET)
+            else:
+                hard_error = None
         except urllib_error.URLError as error:
             error_str = "URL error: %s" % str(error)
             current_error = error.errno
-            hard_error = (error.errno == errno.ECONNREFUSED or \
-                          error.errno == errno.ECONNRESET)
+            if error.errno is not None:
+                hard_error = (error.errno == errno.ECONNREFUSED or \
+                              error.errno == errno.ECONNRESET)
+            elif isinstance(error.reason, OSError):
+                hard_error = (error.reason.errno == errno.ECONNREFUSED or \
+                              error.reason.errno == errno.ECONNRESET)
+            else:
+                hard_error = None
         except BadStatusLine as error:
             error_str = "Bad Status line: %s" % str(error)
         except socket.error as error:
@@ -802,6 +836,8 @@ class HTTP_connector(object):
                                 "file %s", dlpath)
                 HTTP_connector.wait_until_positive_filesize(dlpath)
                 return None, None
+            if hard_error and self.exit_on_server_gone:
+                raise ServerGone()
             raise
         logging.info("_native_get_file(%s) -> %s" % (url, dlpath))
         logging.info("fd = %d" % fd)
@@ -823,6 +859,7 @@ class HTTP_connector(object):
         # can be overridden below
         self.get_file = self._native_get_file
         self.no_cn_check = settings["NO_CN_CHECK"]
+        self.exit_on_server_gone = settings["EXIT_ON_SERVER_GONE"]
 
 # }}}
 
@@ -936,6 +973,7 @@ class ServerPool(object): # {{{
         self.has_https = False
         self.current_index = 0
         self.wait = float(settings["DOWNLOADRETRY"])
+        self.worked_once = [ 0 ] * self.nservers
 
         for ss in settings["SERVER"]:
             scheme, netloc = urlparse(ss)[0:2]
@@ -1027,6 +1065,12 @@ class ServerPool(object): # {{{
             self.current_index = (self.current_index + 1) % self.nservers
         return self.servers[self.current_index]
 
+    def mark_current_server_alive(self):
+        self.worked_once[self.current_index] += 1
+
+    def current_server_was_successful_once(self):
+        return self.worked_once[self.current_index]
+
     def change_server(self):
         """we're not happy with the current server for some reason.
         return a new one
@@ -1047,6 +1091,9 @@ class ServerPool(object): # {{{
             raise NoMoreServers()
         if self.current_index == S.get_index():
             self.change_server()
+
+    def get_current_server_index(self):
+        return self.current_index
 
     def get_current_server(self):
         return self.servers[self.current_index]
@@ -1435,6 +1482,7 @@ class InputDownloader(object):
                                         self.settings["WU_FILENAME"])
         self.wu_backlog = []
         self.wu_backlog_alt = []
+        self.exit_on_server_gone = self.settings["EXIT_ON_SERVER_GONE"]
 
     # {{{ download -- this goes through several steps.
     @staticmethod
@@ -1525,15 +1573,34 @@ class InputDownloader(object):
                                                             dlpath_tmp,
                                                             cafile=cafile,
                                                             wait=wait)
+            if not hard_error:
+                self.server_pool.mark_current_server_alive()
+
             if error_str is None:
                 break
+
+            if hard_error and self.exit_on_server_gone and self.server_pool.current_server_was_successful_once():
+                logging.error(f"Disabling {current_server} because of --exit-on-server-gone")
+                try:
+                    self.server_pool.disable_server(current_server)
+                except NoMoreServers:
+                    raise ServerGone()
+                spin += 1
+                current_server = self.server_pool.get_current_server()
+                waiting_since = 0
+                last_error = ""
+                connfailed = 0
+                continue
+
             # otherwise we enter the wait loop
             if not silent_wait or waiting_since == 0 or error_str != last_error:
                 givemsg = True
+
             if hard_error:
                 connfailed += 1
             else:
                 connfailed = 0
+            
             if givemsg:
                 logging.error("Download failed%s, %s",
                               " with hard error" if hard_error else "",
@@ -1970,6 +2037,7 @@ class WorkunitClient(object):
         self.uploader = uploader
         self.settings = settings
         self.workunit = None
+        self.exit_on_server_gone = settings["EXIT_ON_SERVER_GONE"]
 
     def have_terminate_request(self):
         return self.workunit.get("TERMINATE", None) is not None
@@ -2110,6 +2178,8 @@ if __name__ == '__main__':
                           help="Skip checking the SHA1 for input files")
         parser.add_option("--single", default=False, action="store_true",
                           help="process only a single WU, then exit")
+        parser.add_option("--exit-on-server-gone", default=False, action="store_true",
+                          help="when the server is gone (but was at least seen present once), exit")
         parser.add_option("--nocncheck", default=False, action="store_true",
                           help="Don't check common name/SAN of certificate. ")
         parser.add_option("--override", nargs=2, action='append',
@@ -2188,6 +2258,7 @@ if __name__ == '__main__':
     SETTINGS["NO_CN_CHECK"] = options.nocncheck
     SETTINGS["OVERRIDE"] = options.override
     SETTINGS["SINGLE"] = options.single
+    SETTINGS["EXIT_ON_SERVER_GONE"] = options.exit_on_server_gone
 
     # Create download and working directories if they don't exist
     if not os.path.isdir(SETTINGS["DLDIR"]):
@@ -2271,6 +2342,9 @@ if __name__ == '__main__':
         except WorkunitClientToFinish as e:
             logging.info("Client finishing: %s. Bye.", e)
             sys.exit(0)
+        except ServerGone as e:
+            sys.exit(0)
+
         if options.single:
             logging.info("Client processed its WU."
                          " Finishing now as implied by --single")

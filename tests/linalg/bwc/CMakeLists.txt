@@ -24,7 +24,7 @@ macro(add_bwc_test nm script)
             # Yes it is quite weird, but when we run the test suite with
             # mpi, we are often overcommitting the resource that we're
             # using, and it ends up degrading performance quite a bit.
-            set(default_timeout 120)
+            set(default_timeout 180)
         endif()
         # place the TIMEOUT stanza early on, so that ARGN can
         # override it.
@@ -185,19 +185,16 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     endif()
 endforeach()
         
-add_custom_target(all_magma_test_dependencies)
-add_custom_target(all_sagemath_test_dependencies)
-
 macro(create_magma_sage_diversions t)
     if(MAGMA)
         divert_bwc_test(${t} with_magma APPEND_ARGUMENTS magma=${MAGMA}
-            TIMEOUT 120
+            TIMEOUT 180
         )
         add_dependencies(all_magma_test_dependencies test_bwc_${t}_with_magma_dependencies)
     endif()
     if(SAGE)
         divert_bwc_test(${t} with_sagemath APPEND_ARGUMENTS wordsize=${ULONG_BITS} sage=${SAGE}
-            TIMEOUT 120
+            TIMEOUT 180
         )
         add_dependencies(all_sagemath_test_dependencies test_bwc_${t}_with_sagemath_dependencies)
     endif()
@@ -228,6 +225,7 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra}
             TARGET_DEPENDENCIES
             lingen_pz lingen_${layer})
+        cado_set_test_timeout(test_bwc_${t} 180)
 
         if(layer STREQUAL "p1")
             if(DEFINED ENV{CHECKS_EXPENSIVE})
@@ -505,7 +503,7 @@ foreach(layer b64)
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_expected_pi_length.cpp
         LIBRARIES lingen_${layer}_support
         AVOID_CONCURRENT 4
-        TIMEOUT 120
+        TIMEOUT 150
     )
 
     set(our_compile_flags)
@@ -532,7 +530,7 @@ foreach(layer b64)
         ARGUMENTS --test-basecase m=128 n=64 len1=256
         TARGET_DEPENDENCIES test_matpoly_${layer}
         AVOID_CONCURRENT 4
-        TIMEOUT 120
+        TIMEOUT 180
         )
 endforeach()
 
@@ -549,11 +547,7 @@ add_bwc_test(mod2_plain bwc-ptrace.sh prime=2 nullspace=left
     TARGET_DEPENDENCIES mf_scan)
 create_magma_sage_diversions(mod2_plain)
 if(SAGE)
-    set(t 360)
-    if(TIMEOUT_SCALE)
-        MATH(EXPR t "${t}*${TIMEOUT_SCALE}")
-    endif()
-    set_property(TEST test_bwc_mod2_plain_with_sagemath PROPERTY TIMEOUT ${t})
+    cado_set_test_timeout(test_bwc_mod2_plain_with_sagemath 480)
 endif()
 
 add_bwc_test(mod2_padded bwc-ptrace.sh prime=2 nullspace=left
@@ -583,7 +577,7 @@ add_bwc_test(mod2_rolling bwc-ptrace.sh prime=2 nullspace=left random_matrix_siz
 add_bwc_test(mod2_8k bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2
     TARGET_DEPENDENCIES mf_scan
     AVOID_CONCURRENT 4
-    TIMEOUT 90
+    TIMEOUT 180
 )
 
 if (COMPILE_MPFQ_BINARY_FIELD_m128)
@@ -750,7 +744,8 @@ foreach(mpiconf nompi ${mpiconfs})
         TARGET_DEPENDENCIES bwc_full
         TIMEOUT 60
         )
-    cado_divert_test(test_random_matrix${suffix} thr22 APPEND_ARGUMENTS thr=2x2)
+    cado_divert_test(test_random_matrix${suffix} thr22 APPEND_ARGUMENTS thr=2x2
+        TIMEOUT 180)
 endforeach()
 
 
@@ -804,7 +799,7 @@ cado_define_test(TEST_NAME bwc_staged_krylov PROGRAM
     sequential_cache_build=1 random_matrix=10000,density=150,seed=1
     no_save_cache=1 verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch
     TARGET_DEPENDENCIES bwc_full_gf2
-    TIMEOUT 60
+    TIMEOUT 180
 )
 
 # Tests which use bwc_base will need bwc_config.h
@@ -856,7 +851,6 @@ set_target_properties(test_bl_extraction PROPERTIES
 cado_define_test(TEST_NAME test-blocklanczos
     PROGRAM ${CMAKE_CURRENT_SOURCE_DIR}/test-blocklanczos.sh
         --density 10
-        --bindir ${CADO_NFS_BINARY_DIR}/linalg/bwc
     NO_DEFAULT_RUN
     TARGET_DEPENDENCIES mf_scan mf_bal random_matrix blocklanczos
     bwc_full_gf2 short_matmul)

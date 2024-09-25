@@ -19,7 +19,6 @@ test_double_poly_compute_roots1(const char *poly_str, const char *roots_str,
                                const int verbose)
 {
   double_poly poly, roots1, roots2;
-  int nr_roots, i;
 
   double_poly_init(poly, -1);
   double_poly_init(roots1, -1);
@@ -36,15 +35,15 @@ test_double_poly_compute_roots1(const char *poly_str, const char *roots_str,
       free(s);
   }
 
-  nr_roots = double_poly_compute_roots(roots2->coeff, poly, s);
-  if (nr_roots != (int) roots1->deg + 1) {
+  unsigned int nr_roots = double_poly_compute_roots(roots2->coeff, poly, s);
+  if (nr_roots != (unsigned int) roots1->deg + 1) {
     fprintf (stderr, "double_poly_compute_roots() produced wrong number of roots %d, reference has %d\n",
              nr_roots, roots1->deg + 1);
     double_poly_print (stderr, poly, "Polynomial was: ");
     fprintf (stderr, "bound is s=%.16e\n", s);
     abort();
   }
-  for (i = 0; i < nr_roots; i++) {
+  for (unsigned int i = 0; i < nr_roots; i++) {
     if (!cmp_double(roots1->coeff[i], roots2->coeff[i], err_margin)) {
       fprintf (stderr, "double_poly_compute_roots() produced wrong roots %f, reference has %f\n",
                roots2->coeff[i], roots1->coeff[i]);
@@ -140,7 +139,7 @@ test_double_poly_eval (void)
   for (deg = 0, w = 0.0; deg <= 52; deg++)
     {
       s->coeff[deg] = 1.0;
-      s->deg = deg;
+      s->deg = (int) deg;
       v = double_poly_eval (s, 2.0);
       w = 2.0 * w + s->coeff[deg];
       ASSERT_ALWAYS (v == w);
@@ -270,10 +269,10 @@ test_double_poly_set_mpz_poly (void)
 
   mpz_poly_init (q, 2);
   double_poly_init (p, 2);
-  mpz_set_ui (q->coeff[2], 17);
-  mpz_set_si (q->coeff[1], -42);
-  mpz_set_si (q->coeff[0], -3);
-  q->deg = 2;
+  mpz_poly_setcoeff_si(q, 2, 17);
+  mpz_poly_setcoeff_si(q, 1, -42);
+  mpz_poly_setcoeff_si(q, 0, -3);
+  mpz_poly_cleandeg(q, 2);
   double_poly_set_mpz_poly (p, q);
   ASSERT_ALWAYS (p->deg == 2 && p->coeff[2] == 17.0 && p->coeff[1] == -42.0 &&
           p->coeff[0] == -3.0);
@@ -354,5 +353,5 @@ int main()
   test_double_poly_print ();
   test_double_poly_set_mpz_poly ();
   test_double_poly_resultant();
-  exit(EXIT_SUCCESS);
+  return EXIT_SUCCESS;
 }

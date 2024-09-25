@@ -486,8 +486,8 @@ fb_linear_root (cxx_mpz_poly const & poly, const fbprime_t q)
   modul_init_noset0 (r1, m);
 
   /* Set r0 = poly[0] % q, r1 = poly[1] (mod q) */
-  modul_set_ul_reduced (r0, mpz_fdiv_ui (poly->coeff[0], q), m);
-  modul_set_ul_reduced (r1, mpz_fdiv_ui (poly->coeff[1], q), m);
+  modul_set_ul_reduced (r0, mpz_fdiv_ui (mpz_poly_coeff_const(poly, 0), q), m);
+  modul_set_ul_reduced (r1, mpz_fdiv_ui (mpz_poly_coeff_const(poly, 1), q), m);
 
   /* We want poly[1] * a + poly[0] * b == 0 <=>
      a/b == - poly[0] / poly[1] */
@@ -495,7 +495,7 @@ fb_linear_root (cxx_mpz_poly const & poly, const fbprime_t q)
 
   if (R.proj)
     {
-      ASSERT_ALWAYS(mpz_gcd_ui(NULL, poly->coeff[1], q) > 1);
+      ASSERT_ALWAYS(mpz_gcd_ui(NULL, mpz_poly_coeff_const(poly, 1), q) > 1);
       /* invert r0 instead. */
       int rc = modul_inv (r0, r0, m);
       ASSERT_ALWAYS(rc != 0);

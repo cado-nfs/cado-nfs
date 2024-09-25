@@ -252,24 +252,25 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     if (bw->start == 0) {
         if (tcan_print)
             printf("We have start=0: creating Cv0-%u.0 as an expanded copy of X*T\n", nchecks);
-        uint32_t * gxvecs = NULL;
+
+        std::unique_ptr<uint32_t[]> gxvecs;
         unsigned int nx = 0;
 
         if (!fake) {
-            load_x(&gxvecs, bw->m, &nx, pi);
+            gxvecs = load_x(bw->m, nx, pi);
         } else {
-            set_x_fake(&gxvecs, bw->m, &nx, pi);
+            gxvecs = set_x_fake(bw->m, nx, pi);
         }
 
         mmt_full_vec_set_zero(my);
         ASSERT_ALWAYS(bw->m % nchecks == 0);
 
         if (legacy_check_mode) {
-            mmt_vec_set_x_indices(my, gxvecs, MIN(nchecks, bw->m), nx);
+            mmt_vec_set_x_indices(my, gxvecs.get(), MIN(nchecks, bw->m), nx);
             mmt_vec_save(my, "C%u-%u.0", unpadded, 0);
         } else {
             for(int c = 0 ; c < bw->m ; c += nchecks) {
-                mmt_vec_set_x_indices(dvec, gxvecs + c * nx, nchecks, nx);
+                mmt_vec_set_x_indices(dvec, gxvecs.get() + c * nx, nchecks, nx);
                 AxA->addmul_tiny(
                         mmt_my_own_subvec(my),
                         mmt_my_own_subvec(dvec),
@@ -281,8 +282,6 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
             mmt_vec_broadcast(my);
             mmt_vec_save(my, "Cv%u-%u.0", unpadded, 0);
         }
-
-        free(gxvecs);
 
         mmt_full_vec_set_zero(dvec);
     } else {

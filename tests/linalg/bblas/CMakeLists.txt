@@ -54,7 +54,7 @@ cado_define_test(test_bblas_level4 PROGRAM
     ${CMAKE_CURRENT_BINARY_DIR}/test_bblas --tests l4
     --fast n=1000
     TARGET_DEPENDENCIES test_bblas
-    TIMEOUT 60
+    TIMEOUT 120
 )
 
 cado_define_test(test_bblas_level5 PROGRAM

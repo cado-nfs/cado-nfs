@@ -42,10 +42,15 @@ parameters/polynomials/c125.poly
 parameters/polynomials/c130.poly
 parameters/polynomials/c135.poly
 parameters/polynomials/c140.poly
+parameters/polynomials/c143.poly
 parameters/polynomials/c145.poly
+parameters/polynomials/c148.poly
 parameters/polynomials/c150.poly
+parameters/polynomials/c153.poly
 parameters/polynomials/c155.poly
+parameters/polynomials/c158.poly
 parameters/polynomials/c160.poly
+parameters/polynomials/c163.poly
 parameters/polynomials/c165.poly
 parameters/polynomials/c170.poly
 parameters/polynomials/c175.poly
@@ -82,7 +87,6 @@ polyselect/MurphyE.sage
 polyselect/alpha.sage
 polyselect/debug_rootsieve.sage
 polyselect/gfp2dlpolyselect_notes.txt
-polyselect/gfpkdlpolyselect_test.c
 polyselect/gnuplot_stuff.sage
 polyselect/higher_order_roots.sage
 polyselect/integral.sage
