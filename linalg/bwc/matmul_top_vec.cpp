@@ -709,7 +709,11 @@ unsigned long mmt_vec_hamming_weight(mmt_vec const & y) {
     unsigned long w = y.abase->vec_simd_hamming_weight(y.v, y.i1 - y.i0);
     /* all threads / cores in wiring wr[y.d] share the same data and
      * thus deduce the same count */
-    pi_allreduce(NULL, &w, 1, BWC_PI_UNSIGNED_LONG, BWC_PI_SUM, y.pi->wr[!y.d]);
+    /* 20240925, bug #30083: added protection (inside pi_allreduce)
+     * across wr[y.d] !!!  */
+    pi_allreduce(nullptr, &w,
+            1, BWC_PI_UNSIGNED_LONG, BWC_PI_SUM,
+            y.pi->wr[!y.d]);
     return w;
 }
 

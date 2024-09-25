@@ -1,9 +1,9 @@
 #include "cado.h" // IWYU pragma: keep
 #include <pthread.h>      // for pthread_t
-#include <stddef.h>       // for ptrdiff_t
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstddef>       // for ptrdiff_t
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 
 #include <sys/types.h>
 #include <cerrno>
@@ -27,7 +27,7 @@
 #include <sys/time.h>   // gettimeofday
 #ifdef  HAVE_UTSNAME_H
 #include <sys/utsname.h>
-#include <limits.h>
+#include <climits>
 #endif
 
 #if defined(HAVE_HWLOC) && defined(HAVE_CXX11)
@@ -139,15 +139,14 @@ typedef void * (*pthread_callee_t)(void*);
 
 void grid_print(parallelizing_info_ptr pi, char * buf, size_t siz, int print)
 {
-    pi_comm_ptr wr = pi->m;
     unsigned long maxsize = siz;
-    pi_allreduce(NULL, &maxsize, 1, BWC_PI_UNSIGNED_LONG, BWC_PI_MAX, wr);
+    pi_allreduce(NULL, &maxsize, 1, BWC_PI_UNSIGNED_LONG, BWC_PI_MAX, pi->m);
 
     // TODO: rewrite
-    char * strings = (char *) malloc(wr->totalsize * maxsize);
-    memset(strings, 0, wr->totalsize * maxsize);
+    char * strings = (char *) malloc(pi->m->totalsize * maxsize);
+    memset(strings, 0, pi->m->totalsize * maxsize);
 
-    int me = wr->jrank * wr->ncores + wr->trank;
+    int const me = pi->m->jrank * pi->m->ncores + pi->m->trank;
 
     /* instead of doing memcpy, we align the stuff. */
     char * fmt;
@@ -155,7 +154,7 @@ void grid_print(parallelizing_info_ptr pi, char * buf, size_t siz, int print)
     ASSERT_ALWAYS(rc >= 0);
     snprintf(strings + me * maxsize, maxsize, fmt, buf);
     free(fmt);
-    pi_allreduce(NULL, strings, wr->totalsize * maxsize, BWC_PI_BYTE, BWC_PI_BXOR, wr);
+    pi_allreduce(NULL, strings, pi->m->totalsize * maxsize, BWC_PI_BYTE, BWC_PI_BXOR, pi->m);
 
     char * ptr = strings;
 
@@ -185,7 +184,7 @@ void grid_print(parallelizing_info_ptr pi, char * buf, size_t siz, int print)
             print_several(nj0, nt0, '-', '+', maxsize-1);
         }
     }
-    serialize(wr);
+    serialize(pi->m);
     free(strings);
 }
 
@@ -555,6 +554,8 @@ pi_grid_init(parallelizing_info_ptr pi)
         e->m->trank = k;
         e->wr[0]->trank = k0;
         e->wr[1]->trank = k1;
+        e->wr[0]->xwr = e->wr[1];
+        e->wr[1]->xwr = e->wr[0];
 #ifdef  MPI_LIBRARY_MT_CAPABLE
         MPI_Comm_dup(pi->m->pals, &(e->m->pals));
         MPI_Comm_dup(pi->wr[0]->pals, &(e->wr[0]->pals));
@@ -1259,14 +1260,13 @@ void pi_reduce_local(void *inbuf, void *inoutbuf, size_t count,
  *
  * Notice also that as long as the underlying mpi implementation cannot
  * be considered thread-safe in the MPI_THREAD_MULTIPLE meaning, it is
- * not possible to call any of the pi collective functions simultaneously
- * from two distinct parallel communicators. That is, either calls are with
- * pi->m, or with pi->wr[d] provided that pi->wr[!d]->trank == 0. The
- * SEVERAL_THREADS_PLAY_MPI_BEGIN construct may be useful, as follows:
- *      SEVERAL_THREADS_PLAY_MPI_BEGIN(pi->wr[!d]) {
- *              pi-collective operation on pi->wr[d]
- *      }
- *      SEVERAL_THREADS_PLAY_MPI_END();
+ * not possible to call any of the mpi collective functions simultaneously
+ * from two distinct parallel communicators.
+ *
+ * In a way that is similar to what is done in matmul_top_comm.cpp, we
+ * provide a layer of protection around our pi_{bcast,allreduce,data_eq}
+ * functions (of course, the pi_thread_* functiona are fine). These work
+ * by checking the orthogonal communicator wr->xwr, if there is one.
  */
 
 struct pi_collective_arg {
@@ -1328,15 +1328,32 @@ void pi_thread_bcast(void * ptr, size_t count, pi_datatype_ptr datatype, unsigne
     serialize_threads(wr);
 }
 
+static void pi_bcast_mpi_inner(void * ptr, size_t count, pi_datatype_ptr datatype, unsigned int jroot, unsigned int troot, pi_comm_ptr wr)
+{
+    if (wr->trank != troot)
+        return;
+
+    const int err = MPI_Bcast(ptr,
+            count,
+            datatype->datatype,
+            jroot,
+            wr->pals);
+    ASSERT_ALWAYS(!err);
+}
 void pi_bcast(void * ptr, size_t count, pi_datatype_ptr datatype, unsigned int jroot, unsigned int troot, pi_comm_ptr wr)
 {
-    int err;
-
     ASSERT(jroot < wr->njobs);
     ASSERT(troot < wr->ncores);
-    if (wr->trank == troot) {
-        err = MPI_Bcast(ptr, count, datatype->datatype, jroot, wr->pals);
-        ASSERT_ALWAYS(!err);
+
+    if (wr->xwr) {
+        /* We need a layer of protection */
+        SEVERAL_THREADS_PLAY_MPI_BEGIN(wr->xwr) {
+            pi_bcast_mpi_inner(ptr, count, datatype, jroot, troot, wr);
+        }
+        SEVERAL_THREADS_PLAY_MPI_END();
+    } else {
+        /* we expect that wr == pi->m */
+        pi_bcast_mpi_inner(ptr, count, datatype, jroot, troot, wr);
     }
     pi_thread_bcast(ptr, count, datatype, troot, wr);
 }
@@ -1416,6 +1433,22 @@ void pi_thread_allreduce(void *ptr, void *dptr, size_t count,
 }
 
 
+static void pi_allreduce_mpi_inner(
+        void *recvbuf, size_t count,
+        pi_datatype_ptr datatype, pi_op_ptr op, pi_comm_ptr wr)
+{
+    if (wr->trank == 0) {
+        if (datatype->abase) {
+            /* Then it's a type for which we supposedly have written an
+             * overloaded operation. */
+            MPI_Allreduce(MPI_IN_PLACE, recvbuf, count, datatype->datatype, op->custom, wr->pals);
+        } else {
+            MPI_Allreduce(MPI_IN_PLACE, recvbuf, count, datatype->datatype, op->stock, wr->pals);
+        }
+    }
+}
+
+
 /* This intentionally has the same prototype as MPI_Allreduce */
 /* Only a few operations and datatypes are supported.
  *
@@ -1426,20 +1459,35 @@ void pi_allreduce(void *sendbuf, void *recvbuf, size_t count,
 {
     ASSERT_ALWAYS(count <= (size_t) INT_MAX);
     pi_thread_allreduce(sendbuf, recvbuf, count, datatype, op, wr);
-    if (wr->trank == 0) {
-        if (datatype->abase) {
-            /* Then it's a type for which we supposedly have written an
-             * overloaded operation. */
-            MPI_Allreduce(MPI_IN_PLACE, recvbuf, count, datatype->datatype, op->custom, wr->pals);
-        } else {
-            MPI_Allreduce(MPI_IN_PLACE, recvbuf, count, datatype->datatype, op->stock, wr->pals);
+
+    if (wr->xwr) {
+        SEVERAL_THREADS_PLAY_MPI_BEGIN(wr->xwr) {
+            pi_allreduce_mpi_inner(recvbuf, count, datatype, op, wr);
         }
+        SEVERAL_THREADS_PLAY_MPI_END();
+    } else {
+        pi_allreduce_mpi_inner(recvbuf, count, datatype, op, wr);
     }
     /* now it's just a matter of broadcasting to all threads */
     pi_thread_bcast(recvbuf, count, datatype, 0, wr);
 }
 
-extern void pi_allgather(void * sendbuf,
+void pi_allgather_mpi_inner(
+        void *recvbuf,
+        size_t per_thread,
+        pi_comm_ptr wr)
+{
+    if (wr->trank != 0)
+        return;
+
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+            recvbuf, wr->ncores * per_thread, MPI_BYTE,
+            wr->pals);
+}
+
+/* should we have a pi_thread_allgather ? */
+
+void pi_allgather(void * sendbuf,
         size_t sendcount, pi_datatype_ptr sendtype,
         void *recvbuf,
         size_t recvcount, pi_datatype_ptr recvtype,
@@ -1458,10 +1506,16 @@ extern void pi_allgather(void * sendbuf,
             pointer_arith_const(recvbuf, offset),
             per_thread);
     serialize_threads(wr);
-    if (wr->trank == 0) {
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                recvbuf, wr->ncores * per_thread, MPI_BYTE,
-                wr->pals);
+
+    if (wr->xwr) {
+        SEVERAL_THREADS_PLAY_MPI_BEGIN(wr->xwr)
+        {
+            pi_allgather_mpi_inner(recvbuf, per_thread, wr);
+        }
+        SEVERAL_THREADS_PLAY_MPI_END();
+    } else {
+        /* we expect that wr == pi->m */
+        pi_allgather_mpi_inner(recvbuf, per_thread, wr);
     }
     serialize_threads(wr);
     /* and copy back */
@@ -1513,8 +1567,16 @@ int pi_data_eq(void *buffer, size_t count, pi_datatype_ptr datatype, pi_comm_ptr
     int ok = pi_thread_data_eq(buffer, count, datatype, wr);
 
     ASSERT_ALWAYS(count <= (size_t) INT_MAX);
-    if (wr->trank == 0) {
-        MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_BAND, wr->pals);
+    if (wr->xwr) {
+        SEVERAL_THREADS_PLAY_MPI_BEGIN(wr->xwr) {
+            if (wr->trank == 0)
+                MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_BAND, wr->pals);
+        }
+        SEVERAL_THREADS_PLAY_MPI_END();
+    } else {
+        /* we expect that wr == pi->m */
+        if (wr->trank == 0)
+            MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_BAND, wr->pals);
     }
     pi_thread_bcast(&ok, 1, BWC_PI_INT, 0, wr);
     return ok;
@@ -1566,10 +1628,6 @@ int serialize__(pi_comm_ptr w, const char * s MAYBE_UNUSED, unsigned int l MAYBE
         err = MPI_Barrier(w->pals);
         ASSERT_ALWAYS(!err);
     }
-    // struct timeval tv[1];
-    // gettimeofday(tv, NULL);
-    // printf("%.2f\n", tv->tv_sec + (double) tv->tv_usec / 1.0e6);
-    // sleep(1);
     return w->jrank == 0 && w->trank == 0;
 }
 

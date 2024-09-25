@@ -116,6 +116,10 @@ struct pi_log_book {
 
 struct parallelizing_info_s;
 
+struct pi_comm_s;
+typedef struct pi_comm_s * pi_comm_ptr;
+typedef const struct pi_comm_s * pi_comm_srcptr;
+
 struct pi_comm_s { /* {{{ */
     /* njobs : number of mpi jobs concerned by this logical group */
     /* ncores : number of threads concerned by this logical group */
@@ -133,10 +137,14 @@ struct pi_comm_s { /* {{{ */
     int th_count;
 #endif
     struct pi_log_book * log_book;
+
+    /* This is the communicator in "the other direction". If this pointer
+     * is not NULL, then there are exactly this->xwr->ncores such that
+     * this->trank == 0
+     */
+    pi_comm_ptr xwr;
 };
 typedef struct pi_comm_s pi_comm[1];
-typedef struct pi_comm_s * pi_comm_ptr;
-typedef const struct pi_comm_s * pi_comm_srcptr;
 /* }}} */
 /* }}} */
 
@@ -295,13 +303,16 @@ extern void pi_thread_bcast(void * sendbuf,
         size_t count, pi_datatype_ptr datatype,
         unsigned int root,
         pi_comm_ptr wr);
-extern void pi_bcast(void * sendbuf,
-        size_t count, pi_datatype_ptr datatype,
-        unsigned int jroot, unsigned int troot,
-        pi_comm_ptr wr);
 extern void pi_abort(int err, pi_comm_ptr wr);
 extern void pi_thread_allreduce(void * sendbuf, void * recvbuf,
         size_t count, pi_datatype_ptr datatype, pi_op_ptr op,
+        pi_comm_ptr wr);
+extern int pi_thread_data_eq(void * buffer,
+        size_t count, pi_datatype_ptr datatype,
+        pi_comm_ptr wr);
+extern void pi_bcast(void * sendbuf,
+        size_t count, pi_datatype_ptr datatype,
+        unsigned int jroot, unsigned int troot,
         pi_comm_ptr wr);
 extern void pi_allreduce(void * sendbuf, void *recvbuf,
         size_t count, pi_datatype_ptr datatype, pi_op_ptr op,
@@ -310,9 +321,6 @@ extern void pi_allgather(void * sendbuf,
         size_t sendcount, pi_datatype_ptr sendtype,
         void *recvbuf,
         size_t recvcount, pi_datatype_ptr recvtype,
-        pi_comm_ptr wr);
-extern int pi_thread_data_eq(void * buffer,
-        size_t count, pi_datatype_ptr datatype,
         pi_comm_ptr wr);
 extern int pi_data_eq(void * buffer,
         size_t count, pi_datatype_ptr datatype,
