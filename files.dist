@@ -857,6 +857,7 @@ polyselect/ropt_str.c
 polyselect/ropt_str.h
 polyselect/ropt_tree.c
 polyselect/ropt_tree.h
+polyselect/score.c
 polyselect/size_optimization.c
 polyselect/size_optimization.h
 polyselect/skewness.c
