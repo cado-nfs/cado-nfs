@@ -15,8 +15,10 @@
  * Default values for L1 cache size and tune sieve length (which should be half of
  * the L1 cache size). The code will also try to auto-detect them.
  */
-unsigned int L1_cachesize = 16384;
-unsigned int size_tune_sievearray = 8192;
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+size_t L1_cachesize = 16384;
+size_t size_tune_sievearray = 8192;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 
 /* ------------------
@@ -26,7 +28,7 @@ unsigned int size_tune_sievearray = 8192;
 
 /**
  * Total number of sublattices in the tuning and sieving steps.
- * If with the default parametes (SIZE_SIEVEARRAY_V_MAX 4194304),
+ * With the default parameters (SIZE_SIEVEARRAY_V_MAX 4194304),
  * each root sieve takes about 2-4 seconds. The first column is `
  * ranked by the digits of integers to be factored and the right
  * column is the number (actually number+1).
@@ -76,7 +78,7 @@ const unsigned int size_total_sublattices[NUM_DEFAULT_DIGITS][4] = {
 
 /**
  * Number of top sublattice for individual primes[i] in stage 1,
- * where i < NUM_SUBLATTICE_PRIMES. The constrcution should depends
+ * where i < NUM_SUBLATTICE_PRIMES. The construction should depend
  * on the total num of primes in s1param->e_sl[]. 
  * The main purpose is to prevent too much crt computations in stage 1.
  * They will be passed to s1param->individual_nbest_sl[] later.
@@ -111,7 +113,7 @@ s1_size_each_sublattice_tune[NUM_SUBLATTICE_PRIMES] = {
 
 
 /**
- * Default parameters for sublattice p_i^e^i.
+ * Default parameters for sublattice p_i^e_i.
  * Non-decreasing due to ropt_s1param_setup() in ropt_str.c
  */
 const unsigned int 
@@ -162,7 +164,7 @@ default_sublattice_prod[NUM_DEFAULT_SUBLATTICE] = {
 /**
  * Primes.
  */
-const unsigned int primes[ROPT_NPRIMES] = {
+const unsigned int ropt_primes[ROPT_NPRIMES] = {
   2, 3, 5, 7, 11, 13, 17, 19, 23, 29,
   31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
   73, 79, 83, 89, 97, 101, 103, 107, 109, 113,

@@ -203,8 +203,8 @@ struct las_info : public las_parallel_desc, private NonCopyable {
         uint64_t    filesize; // number of survivors per file
         int         counter;  // current index of filename
         int number_of_printers;
-        std::vector<std::thread>  printers;     // id of the thread doing writing (if any)
-        operator bool() const { return filename != NULL; }
+        std::vector<std::thread>  printer_threads;     // id of the thread doing writing (if any)
+        operator bool() const { return filename != nullptr; }
 
         void doit();
     } batch_print_survivors;

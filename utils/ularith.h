@@ -718,7 +718,7 @@ ularith_shld (unsigned long *r, const unsigned long lo, const unsigned long hi,
 
 /* Returns number of trailing zeros in a. a must not be zero */
 MAYBE_UNUSED
-static inline int
+static inline unsigned int
 ularith_ctz (const unsigned long a)
 {
 #if !defined (ULARITH_NO_ASM) && defined(__GNUC__) && \
@@ -749,7 +749,7 @@ ularith_ctz (const unsigned long a)
 
 /* Returns number of leading zeros in a. a must not be zero */
 MAYBE_UNUSED
-static inline int
+static inline unsigned int
 ularith_clz (const unsigned long a)
 {
 #if !defined (ULARITH_NO_ASM) && defined(__GNUC__) && \

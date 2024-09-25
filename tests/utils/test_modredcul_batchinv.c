@@ -74,15 +74,18 @@ check_product_c(residueredcul_t *a1, residueredcul_t *a2,
    return ok;
 }
 
-int
-test_modredc_batchinv (const size_t len, unsigned long uc)
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+int test_modredc_batchinv (const size_t len, unsigned long uc)
 {
   residueredcul_t *a, *r, c;
   modulusredcul_t m;
   int ok = 1;
   
+  if (len == 0)
+      return 1;
+
   /* Random, odd modulus */
-  modredcul_initmod_ul(m, u64_random(state) | 1);
+  modredcul_initmod_ul(m, u64_random(state) | 1U);
   
   a = (residueredcul_t *) malloc(len * sizeof(residueredcul_t));
   r = (residueredcul_t *) malloc(len * sizeof(residueredcul_t));
@@ -188,13 +191,10 @@ main (int argc, const char *argv[])
   
   for (unsigned long i = 0; ok && i < iter; i++) {
     ok = test_modredc_batchinv(i, 0);
-    ok = test_modredc_batchinv(i, 1);
-    ok = test_modredc_batchinv(i, u64_random(state));
+    ok = ok && test_modredc_batchinv(i, 1);
+    ok = ok && test_modredc_batchinv(i, u64_random(state));
   }
   
   tests_common_clear();
-  if (ok)
-    exit (EXIT_SUCCESS);
-  else
-    exit (EXIT_FAILURE);
+  return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

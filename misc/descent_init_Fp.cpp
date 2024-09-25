@@ -24,6 +24,7 @@
 #include <iostream>
 #include "fmt/core.h"
 #include "fmt/format.h"
+#include "mpz_mat.h"
 
 static double default_B1done;
 
@@ -129,38 +130,37 @@ get_JL_candidate_from_e(unsigned long e,
     mpz_powm_ui(ze, param.z, e, param.p);
 
     //**** Create matrix (see Barbulescu's PhD thesis, section 8.4.2)
-    // Warning: the LLL code count indices starting with 1 and not 0.
-    // (this is a bug, imho)
-    int d = param.f->deg;
-    mat_Z M;
-    LLL_init(&M, 2 * d, 2 * d); // allocate and set to 0.
+    const int d = param.f->deg;
+
+    cxx_mpz_mat M(2 * d, 2 * d);
+
+    mpz_set(mpz_mat_entry(M, 0,0), param.p);
+
     // Topleft d*d block
-    mpz_set(M.coeff[1][1], param.p);
     for (int i = 1; i < d; ++i) {
-        mpz_set_ui(M.coeff[i + 1][i + 1], 1);
-        mpz_neg(M.coeff[i + 1][i], param.m);
+        mpz_set_ui(mpz_mat_entry(M, i, i), 1);
+        mpz_neg(mpz_mat_entry(M, i, i-1), param.m);
     }
     // Bottomleft d*d block
-    for (int i = 0; i < d; ++i) {
-        mpz_set(M.coeff[d + i + 1][i + 1], ze);
-    }
+    for (int i = 0; i < d; ++i)
+        mpz_set(mpz_mat_entry(M, d+i, i), ze);
+
     // Bottomright d*d block
-    for (int i = 0; i < d; ++i) {
-        mpz_set_ui(M.coeff[d + i + 1][d + i + 1], 1);
-    }
+    for (int i = 0; i < d; ++i)
+        mpz_set_ui(mpz_mat_entry(M, d+i, d+i), 1);
 
     //**** Apply LLL.
     {
         cxx_mpz det, a, b;
         a = b = 1;
-        LLL(det, M, NULL, a, b);
+        mpz_mat_LLL(det, M, nullptr, a, b);
     }
 
     //**** Recover rational reconstruction
     // z^e = U(alpha)/V(alpha) mod (p, x-m)
     for (int i = 0; i < d; ++i) {
-        mpz_poly_setcoeff(U, i, M.coeff[1][i + 1]);
-        mpz_poly_setcoeff(V, i, M.coeff[1][d + i + 1]);
+        mpz_poly_setcoeff(U, i, mpz_mat_entry_const(M, 0, i));
+        mpz_poly_setcoeff(V, i, mpz_mat_entry_const(M, 0, d+i));
     }
     mpz_poly_cleandeg(U, d - 1);
     mpz_poly_cleandeg(V, d - 1);
@@ -177,7 +177,6 @@ get_JL_candidate_from_e(unsigned long e,
     if (!is_probably_sqrfree(u) || !is_probably_sqrfree(v))
         fail = 1;
 
-    LLL_clear(&M);
     return fail;
 }
 
@@ -191,8 +190,8 @@ get_Fpn_candidate_from_e(unsigned long e,
                         cxx_mpz & v,
                         Fp_param const & param)
 {
-    int d = param.f->deg;
-    int n = param.phi->deg;
+    const int d = param.f->deg;
+    const int n = param.phi->deg;
 
     cxx_mpz_poly ze;
     mpz_poly_pow_ui_mod_f_mod_mpz(ze, param.zpol, param.f, e, param.p);
@@ -213,18 +212,18 @@ get_Fpn_candidate_from_e(unsigned long e,
     // put the coef of phi=phi[0]+phi[1]*x+...+phi[n-1]*x^(n-1)+x^n
     for (int i = n + 1; i < d + 1; ++i) {
         for (int j = 0; j < n + 1; ++j)
-            mpz_set(M.coeff[i][i - n + j], param.phi->coeff[j]);
+            mpz_set(M.coeff[i][i - n + j], mpz_poly_coeff_const(param.phi, j));
     }
 
     // Bottomleft d*d block
     for (int i = 0; i < d; ++i) {
         mpz_poly_set_xi(y, i); // y is the polynomial alpha^i
-        mpz_poly_mul_mod_f_mod_mpz(c, ze, y, param.f, param.p, NULL, NULL);
+        mpz_poly_mul_mod_f_mod_mpz(c, ze, y, param.f, param.p, nullptr, nullptr);
         for (int j = 0; j < d; ++j) {
             if (j > c->deg)
                 mpz_set_ui(M.coeff[d + i + 1][j + 1], 0);
             else
-                mpz_set(M.coeff[d + i + 1][j + 1], c->coeff[j]);
+                mpz_set(M.coeff[d + i + 1][j + 1], mpz_poly_coeff_const(c, j));
         }
     }
 
@@ -376,9 +375,9 @@ find_root(cxx_mpz const & p, cxx_mpz_poly const & f1, cxx_mpz_poly const & f2)
 {
     // Check if projective root
     cxx_mpz r;
-    mpz_mod(r, f1->coeff[f1->deg], p);
+    mpz_mod(r, mpz_poly_lc(f1), p);
     if (mpz_cmp_ui(r, 0) == 0) {
-        mpz_mod(r, f2->coeff[f2->deg], p);
+        mpz_mod(r, mpz_poly_lc(f2), p);
         if (mpz_cmp_ui(r, 0) == 0) {
             return p;
         }
@@ -388,8 +387,8 @@ find_root(cxx_mpz const & p, cxx_mpz_poly const & f1, cxx_mpz_poly const & f2)
     cxx_mpz_poly G;
     mpz_poly_gcd_mpz(G, f1, f2, p);
     ASSERT_ALWAYS(G->deg == 1);
-    mpz_invert(r, G->coeff[1], p);
-    mpz_mul(r, r, G->coeff[0]);
+    mpz_invert(r, mpz_poly_coeff_const(G, 1), p);
+    mpz_mul(r, r, mpz_poly_coeff_const(G, 0));
     mpz_neg(r, r);
     mpz_mod(r, r, p);
     return r;
@@ -450,7 +449,7 @@ one_descent_thread(
 
     std::lock_guard<std::mutex> dummy(mut_found);
 
-    winners.push_back(std::make_pair(std::this_thread::get_id(), C));
+    winners.emplace_back(std::this_thread::get_id(), C);
     cond_found.notify_one();
 }
 
@@ -520,7 +519,7 @@ main(int argc0, char* argv0[])
         }
         fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
         param_list_print_usage(pl, argv0[0], stderr);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     param_list_parse(pl, "seed", seed);
@@ -538,7 +537,7 @@ main(int argc0, char* argv0[])
 
     if (param_list_warn_unused(pl)) {
         param_list_print_usage(pl, argv0[0], stderr);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if ((jl || (ext > 1)) && !polyfilename) {
@@ -546,7 +545,7 @@ main(int argc0, char* argv0[])
           stderr,
           "Error, must provide -poly when extdeg > 1 or using -jl option\n");
         param_list_print_usage(pl, argv0[0], stderr);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (ext > 1 && jl) {
@@ -557,11 +556,11 @@ main(int argc0, char* argv0[])
     if (wild.size() != ext + 1) {
         fprintf(stderr, "Error: for extension degree %d, we need %d tail arguments\n",
                 ext, ext + 1);
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     if (seed == 0)
-        seed = getpid() + (time(NULL) << 16);
+        seed = getpid() + (time(nullptr) << 16U);
     srandom(seed);
 
     Fp_param params;
@@ -582,7 +581,7 @@ main(int argc0, char* argv0[])
         params.z = wild[1];
     }
 
-    smooth_detect_params smooth_param = {
+    const smooth_detect_params smooth_param = {
         mineff, maxeff, 10, verbose, minB1
     };
 

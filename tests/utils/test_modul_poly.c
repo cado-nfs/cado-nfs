@@ -11,8 +11,8 @@
 #include "cado_poly.h"
 #include "portability.h" // IWYU pragma: keep
 
-void
-test_modul_poly_is_irreducible (unsigned long iter)
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+void test_modul_poly_is_irreducible (unsigned long iter)
 {
   modul_poly_t f;
   modulusul_t p;
@@ -66,7 +66,7 @@ test_modul_poly_is_irreducible (unsigned long iter)
 
   while (iter--)
     {
-      d = 1 + gmp_urandomm_ui(state, MAX_DEGREE - 1);
+      d = 1 + (int) gmp_urandomm_ui(state, MAX_DEGREE - 1);
       q = gmp_urandomb_ui(state, 31);
       q = ulong_nextprime (q);
       /* modul_poly_cantor_zassenhaus only works for odd primes */
@@ -96,53 +96,46 @@ test_modul_poly_is_irreducible (unsigned long iter)
   modul_poly_clear (f);
 }
 
-void
-test_modul_poly_roots_ulong (unsigned long iter)
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+void test_modul_poly_roots_ulong (unsigned long iter)
 {
   unsigned long r[MAX_DEGREE];
-  mpz_t f[MAX_DEGREE + 1];
   int d, i, n;
   modulusul_t p;
   residueul_t y, x;
   modul_poly_t fp;
+  mpz_poly F;
 
-  for (i = 0; i <= MAX_DEGREE; i++)
-    mpz_init (f[i]);
+  mpz_poly_init(F, -1);
 
   /* hard-coded examples */
-  mpz_set_ui (f[0], 0);
-  mpz_set_ui (f[1], 0);
-  mpz_set_ui (f[2], 1);
-  d = 2;
-  mpz_poly F;
-  F->coeff =  f;
-  F->deg = d;
+  mpz_poly_set_xi(F, 2);
   modul_initmod_ul (p, 113);
   n = modul_poly_roots_ulong (r, F, p, state);
   ASSERT_ALWAYS(n == 1 && r[0] == 0);
   modul_clearmod (p);
 
   modul_initmod_ul (p, 13);
-  mpz_set_ui (f[0], 4);
-  mpz_set_ui (f[1], 10);
-  mpz_set_ui (f[2], 12);
-  mpz_set_ui (f[3], 0);
-  mpz_set_ui (f[4], 9);
-  mpz_set_ui (f[5], 3);
-  mpz_set_ui (f[6], 1);
-  F->deg = 6;
+  mpz_poly_setcoeff_ui(F, 0, 4);
+  mpz_poly_setcoeff_ui(F, 1, 10);
+  mpz_poly_setcoeff_ui(F, 2, 12);
+  mpz_poly_setcoeff_ui(F, 3, 0);
+  mpz_poly_setcoeff_ui(F, 4, 9);
+  mpz_poly_setcoeff_ui(F, 5, 3);
+  mpz_poly_setcoeff_ui(F, 6, 1);
+  mpz_poly_cleandeg(F, 6);
   n = modul_poly_roots (NULL, F, p, state);
   ASSERT_ALWAYS (n == 5);
 
   while (iter--)
     {
       d = 1 + gmp_urandomm_ui(state, MAX_DEGREE - 1);
-      F->deg = d;
       for (i = 0; i <= d; i++)
-        mpz_urandomb (f[i], state, 64);
+        mpz_urandomb (mpz_poly_coeff(F, i), state, 64);
+      mpz_poly_cleandeg(F, d);
       modul_initmod_ul (p, ulong_nextprime (gmp_urandomb_ui(state, 31)));
-      while (mpz_divisible_ui_p (f[d], modul_getmod_ul (p)))
-        mpz_urandomb (f[d], state, 64);
+      while (mpz_divisible_ui_p (mpz_poly_lc(F), modul_getmod_ul (p)))
+        mpz_urandomb (mpz_poly_coeff(F, d), state, 64);
       n = modul_poly_roots_ulong (r, F, p, state);
       ASSERT_ALWAYS(0 <= n && n <= d);
       modul_poly_init (fp, d);
@@ -163,8 +156,7 @@ test_modul_poly_roots_ulong (unsigned long iter)
       modul_poly_clear (fp);
       modul_clearmod (p);
     }
-  for (i = 0; i <= MAX_DEGREE; i++)
-    mpz_clear (f[i]);
+  mpz_poly_clear(F);
 }
 
 int

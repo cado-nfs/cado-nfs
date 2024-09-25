@@ -5,7 +5,8 @@
 #include "cado_pipe_streambuf.hpp"
 #include "cado_popen.h"
 
-static const char*
+namespace {
+const char*
 ios_mode_to_stdio_mode(std::ios_base::openmode mode)
 {
     switch (mode) {
@@ -22,7 +23,8 @@ ios_mode_to_stdio_mode(std::ios_base::openmode mode)
         default:
             throw std::invalid_argument("open mode not understood");
     }
-    return NULL;
+    return nullptr;
+}
 }
 
 cado_pipe_streambuf::cado_pipe_streambuf(const char* command, const char* mode)

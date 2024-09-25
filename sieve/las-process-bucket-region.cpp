@@ -810,7 +810,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
         BOOKKEEPING_TIMER(timer);
     }
 
-    if (main_output.verbose >= 2)
+    if (main_output->verbose >= 2)
         update_checksums(tws, taux);
 
     auto survivors = search_survivors();

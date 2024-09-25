@@ -9,6 +9,8 @@
 #define MOD_NO_SHARED_MOD_POW_INT 1
 
 typedef ModulusMPZ Modulus;
+
+// NOLINTNEXTLINE(bugprone-suspicious-include)
 #include "mod_common.cpp"
 #include "macros.h"
 
@@ -88,7 +90,7 @@ ModulusMPZ::div3(ModulusMPZ::Residue &r, ModulusMPZ::Residue const &a) const {
     } else {
         cy = addM(t.r, a.r);
     }
-    mp_limb_t spill = mpn_divexact_by3(r.r, t.r, mpz_size(m));
+    const mp_limb_t spill = mpn_divexact_by3(r.r, t.r, mpz_size(m));
     ASSERT_ALWAYS(cy != 0 || spill == 0);
     
     return true;
@@ -97,7 +99,7 @@ ModulusMPZ::div3(ModulusMPZ::Residue &r, ModulusMPZ::Residue const &a) const {
 bool
 ModulusMPZ::divn (Residue &r, const Residue &a, const unsigned long b,
                   const mp_limb_t *minvb, const mp_limb_t binvw MAYBE_UNUSED) const {
-    const size_t sz = mpz_size(m);
+    const mp_size_t sz = mpz_size(m);
     const unsigned long mModB = mpz_tdiv_ui(m, b);
 
     if (mModB == 0) {
@@ -123,7 +125,7 @@ ModulusMPZ::divn (Residue &r, const Residue &a, const unsigned long b,
     mp_limb_t t0 = (r.r[0] * binvlimb) & GMP_NUMB_MASK;
     r.r[0] = t0;
     
-    for (size_t i = 1; i < sz; i++) {
+    for (mp_size_t i = 1; i < sz; i++) {
         mp_limb_t t1, t2;
 #if GMP_LIMB_BITS == 64
         // while sizeof(mp_limb_t) == sizeof(uint64_t), it does not mean
@@ -149,7 +151,7 @@ ModulusMPZ::divn (Residue &r, const Residue &a, const unsigned long b,
         r.r[i] = t0;
     }
 
-    if (1) {
+    {
         mp_limb_t t1, t2;
 #if GMP_LIMB_BITS == 64
         // see remark above.
@@ -178,7 +180,7 @@ ModulusMPZ::div5 (Residue &r, const Residue &a) const
 {
   /* inv_5[i] = -1/i (mod 5) */
   const mp_limb_t inv_5[5] = {0,4,2,3,1};
-  const mp_limb_t c = (mp_limb_t) UINT64_C(0xcccccccccccccccd); /* 1/5 (mod 2^64) */
+  const auto c = (mp_limb_t) UINT64_C(0xcccccccccccccccd); /* 1/5 (mod 2^64) */
   
   return divn (r, a, 5, inv_5, c);
 }
@@ -191,7 +193,7 @@ ModulusMPZ::div7 (Residue &r, const Residue &a) const
 {
   /* inv_7[i] = -1/i (mod 7) */
   const mp_limb_t inv_7[7] = {0,6,3,2,5,4,1};
-  const mp_limb_t c = (mp_limb_t) UINT64_C(0x6db6db6db6db6db7); /* 1/7 (mod 2^64) */
+  const auto c = (mp_limb_t) UINT64_C(0x6db6db6db6db6db7); /* 1/7 (mod 2^64) */
   return divn (r, a, 7, inv_7, c);
 }
 
@@ -203,7 +205,7 @@ ModulusMPZ::div11 (Residue &r, const Residue &a) const
 {
   /* inv_11[i] = -1/i (mod 11) */
   const mp_limb_t inv_11[11] = {0, 10, 5, 7, 8, 2, 9, 3, 4, 6, 1}; 
-  const mp_limb_t c = (mp_limb_t) UINT64_C(0x2e8ba2e8ba2e8ba3); /* 1/11 (mod 2^64) */
+  const auto c = (mp_limb_t) UINT64_C(0x2e8ba2e8ba2e8ba3); /* 1/11 (mod 2^64) */
   return divn (r, a, 11, inv_11, c);
 }
 
@@ -215,7 +217,7 @@ ModulusMPZ::div13 (Residue &r, const Residue &a) const
 {
   /* inv_13[i] = -1/i (mod 13) */
   const mp_limb_t inv_13[13] = {0, 12, 6, 4, 3, 5, 2, 11, 8, 10, 9, 7, 1}; 
-  const mp_limb_t c = (mp_limb_t) UINT64_C(0x4ec4ec4ec4ec4ec5); /* 1/13 (mod 2^64) */
+  const auto c = (mp_limb_t) UINT64_C(0x4ec4ec4ec4ec4ec5); /* 1/13 (mod 2^64) */
   return divn (r, a, 13, inv_13, c);
 }
 
@@ -244,7 +246,7 @@ bool ModulusMPZ::isprime() const
 bool ModulusMPZ::inv (Residue &r, const Residue &a) const {
     cxx_mpz A;
     set_mpz_residue(A, a);
-    bool exists = mpz_invert(A, A, m);
+    const bool exists = mpz_invert(A, A, m);
     if (exists)
         set_residue_mpz(r, A);
     return exists;

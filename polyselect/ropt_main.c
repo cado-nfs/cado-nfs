@@ -1,3 +1,6 @@
+// this compilation unit is a collection of linter red flags.
+// NOLINTBEGIN
+
 /**
    Root optimization for polynomials in the number field sieve.
 
@@ -54,7 +57,7 @@ unsigned int nthreads = 1;
 int tot_found = 0; /* total number of polynomials */
 cado_poly best_poly;
 double best_MurphyE = 0.0; /* Murphy's E (the larger the better) */
-ropt_param_t ropt_param; /* params for ropt algorithms */
+ropt_param rparam; /* params for ropt algorithms */
 double total_exp_E = 0.0; /* cumulated expected E for input polynomials */
 double total_E = 0.0; /* cumulated E-value for input polynomials */
 double nb_read = 0.0; /* number of read polynomials so far */
@@ -133,11 +136,13 @@ usage_adv (char **argv)
 
 /**
  * parse manually input parameters to param.
+ *
+ * TODO: gosh. use param_list instead.
  */
 static void
 ropt_parse_param ( int argc,
                    char **argv,
-                   ropt_param_t param )
+                   ropt_param_ptr param )
 {
   int A = 0;
   int I_area = 0; /* 0 when neither -area nor I is given,
@@ -449,7 +454,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
   mpz_clear (t);
 
   st = seconds_thread ();
-  ropt_polyselect (ropt_poly, input_poly, ropt_param, eacht);
+  ropt_polyselect (ropt_poly, input_poly, rparam, eacht);
   st1 = seconds_thread ();
 
   /* MurphyE */
@@ -502,7 +507,7 @@ main_adv (int argc, char **argv)
   argc -= 1;
   int i;
 
-  ropt_param_t param;
+  ropt_param param;
   ropt_param_init (param);
 
   /* print command-line arguments */
@@ -534,7 +539,7 @@ main_adv (int argc, char **argv)
     ropt_on_cadopoly (file, param);
 
     fclose (file);
-    ropt_param_free (param);
+    ropt_param_clear (param);
 
     return EXIT_SUCCESS;
   }
@@ -569,7 +574,7 @@ main_adv (int argc, char **argv)
     ropt_on_msievepoly (file, param);
 
     fclose (file);
-    ropt_param_free (param);
+    ropt_param_clear (param);
 
     return EXIT_SUCCESS;
   }
@@ -583,7 +588,7 @@ main_adv (int argc, char **argv)
     /* call ropt_on_stdin() */
     ropt_on_stdin (param);
 
-    ropt_param_free (param);
+    ropt_param_clear (param);
 
     return EXIT_SUCCESS;
   }
@@ -660,14 +665,14 @@ main_basic (int argc, char **argv)
   ASSERT_ALWAYS (input_polys != NULL);
   for (unsigned int i = 0; i < size_input_polys; i++)
     cado_poly_init (input_polys[i]);
-  ropt_param_init (ropt_param);
-  ropt_param->effort = DEFAULT_ROPTEFFORT; /* ropt effort */
+  ropt_param_init (rparam);
+  rparam->effort = DEFAULT_ROPTEFFORT; /* ropt effort */
 
   /* read params */
   param_list pl;
   param_list_init (pl);
   declare_usage_basic(pl);
-  param_list_configure_switch (pl, "-v", &(ropt_param->verbose));
+  param_list_configure_switch (pl, "-v", &(rparam->verbose));
   param_list_configure_alias(pl, "alpha_bound", "B");
 
   if (argc == 1)
@@ -698,15 +703,15 @@ main_basic (int argc, char **argv)
   else if (has_area && has_A_or_I)
     {
       fprintf (stderr, "Error, both -area and -I/-A given\n");
-      exit (1);
+      return EXIT_FAILURE;
     }
   else if (has_A_or_I)
     area = bound_f * pow (2.0, (double) A);
 
   /* sieving effort that passed to ropt */
-  param_list_parse_double (pl, "ropteffort", &(ropt_param->effort));
+  param_list_parse_double (pl, "ropteffort", &(rparam->effort));
   /* param for ropt */
-  param_list_parse_double (pl, "boundmaxlognorm", &(ropt_param->bound_lognorm));
+  param_list_parse_double (pl, "boundmaxlognorm", &(rparam->bound_lognorm));
   /* filename of the file with the list of polynomials to root-sieve */
   polys_filename = param_list_lookup_string (pl, "inputpolys");
 
@@ -728,9 +733,9 @@ main_basic (int argc, char **argv)
     usage_basic (argv0[0], "inputpolys", pl);
 
   printf ("# Info: Will use %u thread%s\n# Info: ropteffort = %.0f\n", nthreads,
-          (nthreads > 1) ? "s": "", ropt_param->effort);
+          (nthreads > 1) ? "s": "", rparam->effort);
 
-  printf ("# Info: L1_cachesize = %u, size_tune_sievearray = %u\n",
+  printf ("# Info: L1_cachesize = %zu, size_tune_sievearray = %zu\n",
           L1_cachesize, size_tune_sievearray);
 
   /* Open file containing polynomials. */
@@ -739,7 +744,7 @@ main_basic (int argc, char **argv)
   if (polys_file == NULL)
   {
     perror("Could not open file");
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   /* Remove initial empty lines */
@@ -755,7 +760,7 @@ main_basic (int argc, char **argv)
     nb_input_polys++;
     if (nb_input_polys == size_input_polys) /* Realloc if needed */
     {
-      if (ropt_param->verbose > 0)
+      if (rparam->verbose > 0)
         fprintf (stderr, "# Reallocating input_polys\n");
       unsigned int new_size = 2 * size_input_polys;
       input_polys = (cado_poly *) realloc (input_polys, new_size * sizeof (cado_poly));
@@ -837,7 +842,7 @@ main_basic (int argc, char **argv)
             total_E / (double) nb_input_polys);
   }
 
-  ropt_param_free (ropt_param);
+  ropt_param_clear (rparam);
   cado_poly_clear (best_poly);
   for (unsigned int i = 0; i < size_input_polys; i++)
     cado_poly_clear (input_polys[i]);
@@ -866,3 +871,5 @@ main (int argc, char **argv)
   else
     return main_basic (argc, argv);
 }
+
+// NOLINTEND

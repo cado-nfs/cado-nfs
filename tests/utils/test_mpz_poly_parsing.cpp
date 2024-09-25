@@ -13,6 +13,7 @@
 #include "macros.h"
 
 /* a shorthand so that we can use user-defined literals */
+// NOLINTNEXTLINE(hicpp-named-parameter,readability-named-parameter)
 cxx_mpz operator "" _mpz (const char* str, size_t)
 {
     cxx_mpz res;
@@ -41,18 +42,19 @@ int main()
         cxx_mpz_poly f;
         if (!(std::istringstream(example.first) >> f)) {
             std::cerr << "cannot parse polynomial\n";
-            exit(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
         std::cout << f << std::endl;
         ASSERT_ALWAYS((size_t)(f->deg+1) == example.second.size());
         for(size_t i = 0 ; i < example.second.size() ; ++i)
-            ASSERT_ALWAYS(mpz_cmp(f->coeff[i], example.second[i]) == 0);
+            ASSERT_ALWAYS(mpz_cmp(mpz_poly_coeff_const(f, i), example.second[i]) == 0);
     }
     for(auto const & example : expected_failures) {
         cxx_mpz_poly f;
         if ((std::istringstream(example) >> f)) {
             std::cerr << "unexpected success while parsing bad polynomial\n";
-            exit(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
     }
+    return EXIT_SUCCESS;
 }

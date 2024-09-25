@@ -547,7 +547,12 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs.py DESTINATION ${BINSUFFIX
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs-client.py DESTINATION ${BINSUFFIX})
 
 # Some scripts are handy to have also in the bin directory.
-foreach(script split.py descent.py)
+foreach(script
+        split.py
+        descent.py
+        descent_helper_asyncio.py
+        descent_helper_fallback.py
+    )
     configure_file(
         ${CADO_NFS_SOURCE_DIR}/scripts/${script}
         ${CADO_NFS_BINARY_DIR}/scripts/${script}
@@ -555,6 +560,8 @@ foreach(script split.py descent.py)
 endforeach(script)
 
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent.py DESTINATION ${LIBSUFFIX}/scripts)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent_helper_asyncio.py DESTINATION ${LIBSUFFIX}/scripts)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent_helper_fallback.py DESTINATION ${LIBSUFFIX}/scripts)
 
 
 message(STATUS "Main scripts will go to ${CMAKE_INSTALL_PREFIX}/${BINSUFFIX}")

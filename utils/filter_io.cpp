@@ -8,7 +8,8 @@
 #ifdef  HAVE_GETRUSAGE
 #include <sys/resource.h>              // for rusage // IWYU pragma: keep
 #endif
-#include <pthread.h>                   // for pthread_cond_broadcast, pthrea...
+#include <mutex>
+#include <condition_variable>
 #include <sys/types.h>                 // for int8_t ssize_t
 #include <gmp.h>
 #include <atomic>
@@ -25,6 +26,7 @@
 /* This is a configuration variable which may be set by the caller (it's
  * possible to bind it to a command-line argument)
  */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 int filter_rels_force_posix_threads = 0;
 
 /*{{{ inflight buffer. See filter_io.tex for documentation. */
@@ -37,23 +39,25 @@ struct ifb_locking_posix {/*{{{*/
         class t {
             T x;
             public:
-            T load() const { return x; }
-            void store(T a) { x = a; }
-            T increment() { return x++; }
+            inline T load() const { return x; }
+            inline void store(T a) { x = a; }
+            explicit inline t(T const& a) : x(a) {}
+            explicit inline t() : x(0) {}
+            inline t& operator=(T const& a) { x = a; return *this; }
+            inline T increment() { return x++; }
         };
     };
-    typedef pthread_mutex_t  lock_t;
-    typedef pthread_cond_t   cond_t;
-    static inline void lock_init(lock_t * m) { pthread_mutex_init(m, NULL); }
-    static inline void lock_clear(lock_t * m) { pthread_mutex_destroy(m); }
-    static inline void cond_init(cond_t * c) { pthread_cond_init(c, NULL); }
-    static inline void cond_clear(cond_t * c) { pthread_cond_destroy(c); }
-    static inline void lock(lock_t * m) { pthread_mutex_lock(m); }
-    static inline void unlock(lock_t * m) { pthread_mutex_unlock(m); }
-    static inline void wait(cond_t * c, lock_t * m) { pthread_cond_wait(c, m); }
-    static inline void signal(cond_t * c) { pthread_cond_signal(c); }
-    static inline void signal_broadcast(cond_t * c) { pthread_cond_broadcast(c); }
-    static inline void broadcast(cond_t * c) { pthread_cond_broadcast(c); }
+    typedef std::mutex  lock_t;
+    typedef std::condition_variable   cond_t;
+    static inline void lock(lock_t * m) { m->lock(); }
+    static inline void unlock(lock_t * m) { m->unlock(); }
+    static inline void wait(cond_t * c, lock_t * m) {
+        std::unique_lock<std::mutex> foo(*m, std::adopt_lock);
+        c->wait(foo);
+        foo.release();
+    }
+    static inline void signal(cond_t * c) { c->notify_one(); }
+    static inline void signal_broadcast(cond_t * c) { c->notify_all(); }
     static inline int isposix() { return 1; }
 };
 /*}}}*/
@@ -100,33 +104,34 @@ struct ifb_locking_lightweight {/*{{{*/
         class t : private std::atomic<T> {
             typedef std::atomic<T> super;
             public:
-            T load() const { return super::load(std::memory_order_acquire); }
-            void store(T a) { return super::store(a, std::memory_order_release); }
-            T increment() { return super::fetch_add(1, std::memory_order_acq_rel); }
+            inline T load() const { return super::load(std::memory_order_acquire); }
+            explicit inline t(T const& a) : super(a) {}
+            explicit inline t() : super(0) {}
+            inline void store(T a) { super::store(a, std::memory_order_release); }
+            inline t& operator=(T const& a) { store(a); return *this; }
+            inline T increment() { return super::fetch_add(1, std::memory_order_acq_rel); }
         };
 #else
         class t {
             volatile T x;
             public:
-            T load() const { return x; }
-            void store(T a) { x = a; }
-            T increment() { return x++; }
+            inline T load() const { return x; }
+            explicit inline t(T const& a) : x(a) {}
+            explicit inline t() : x(0) {}
+            inline void store(T a) { x = a; }
+            inline t& operator=(T const& a) { store(a); return *this; }
+            inline T increment() { return x++; }
         };
 #endif
     };
     typedef int lock_t;
     typedef int cond_t;
     template<typename T> static inline T next(T a, int) { return a; }
-    static inline void lock_init(lock_t *) {}
-    static inline void lock_clear(lock_t *) {}
-    static inline void cond_init(cond_t *) {}
-    static inline void cond_clear(cond_t *) {}
     static inline void lock(lock_t *) {}
     static inline void unlock(lock_t *) {}
     static inline void wait(cond_t *, lock_t *) { NANOSLEEP(); }
     static inline void signal(cond_t *) {}
     static inline void signal_broadcast(cond_t *) {}
-    static inline void broadcast(cond_t *) {}
     static inline int isposix() { return 0; }
 };
 /*}}}*/
@@ -160,7 +165,7 @@ struct status_table {
      * giving me this relation to process).
      */
     inline void catchup_until_mine_completed(csize_t & last_completed, size_t me, int level) {
-        size_t slot = me & (SIZE_BUF_REL-1);
+        const size_t slot = me & (SIZE_BUF_REL-1);
         size_t c = last_completed.load();
         ASSERT(x[slot].load() == (int8_t) (level-1));
         /* The big question is how far we should go. By not exactly answering
@@ -196,10 +201,10 @@ struct status_table {
 template<>
 struct status_table<ifb_locking_lightweight> {
     typedef ifb_locking_lightweight::critical_datatype<size_t>::t csize_t;
-    inline void catchup(csize_t & last_completed, size_t last_scheduled, int) {
+    static inline void catchup(csize_t & last_completed, size_t last_scheduled, int) {
         ASSERT_ALWAYS(last_completed.load() == last_scheduled);
     }
-    inline void catchup_until_mine_completed(csize_t & last_completed, size_t, int) {
+    static inline void catchup_until_mine_completed(csize_t & last_completed, size_t, int) {
         last_completed.increment();
     }
     inline void update_shouldbealreadyok(size_t, int) {}
@@ -210,8 +215,8 @@ struct status_table<ifb_locking_lightweight> {
  * mechanism specified by the template class.  */
 template<typename locking, int n>
 struct inflight_rels_buffer {
-    barrier_t sync_point[1];
-    earlyparsed_relation * rels;        /* always malloc()-ed to SIZE_BUF_REL,
+    cado_nfs::barrier sync_point;
+    std::unique_ptr<earlyparsed_relation[]> rels;        /* always malloc()-ed to SIZE_BUF_REL,
                                            which is a power of two */
     /* invariant:
      * scheduled_0 >= ... >= completed_{n-1} >= scheduled_0 - SIZE_BUF_REL
@@ -223,8 +228,13 @@ struct inflight_rels_buffer {
     typename locking::cond_t bored[n];
     int active[n];     /* number of active threads */
 
-    inflight_rels_buffer(int nthreads_total);
+    explicit inflight_rels_buffer(int nthreads_total);
     ~inflight_rels_buffer();
+
+    inflight_rels_buffer(inflight_rels_buffer const&) = delete;
+    inflight_rels_buffer(inflight_rels_buffer &&) = delete;
+    inflight_rels_buffer& operator=(inflight_rels_buffer const&) = delete;
+    inflight_rels_buffer& operator=(inflight_rels_buffer &&) = delete;
 
     void drain();
     earlyparsed_relation_ptr schedule(int);
@@ -233,7 +243,7 @@ struct inflight_rels_buffer {
     /* computation threads joining the computation are calling these */
     inline void enter(int k) {
         locking::lock(m+k); active[k]++; locking::unlock(m+k);
-        barrier_wait(sync_point, NULL, NULL, NULL);
+        sync_point.arrive_and_wait();
     }
     /* leave() is a no-op, since active-- is performed as part of the
      * normal drain() call */
@@ -273,15 +283,14 @@ struct inflight_rels_buffer {
 /*{{{ ::inflight_rels_buffer() */
 template<typename locking, int n>
 inflight_rels_buffer<locking, n>::inflight_rels_buffer(int nthreads_total)
+    : sync_point(nthreads_total)
+    , rels(new earlyparsed_relation[SIZE_BUF_REL])
 {
-    memset(this, 0, sizeof(*this));
-    rels = new earlyparsed_relation[SIZE_BUF_REL];
-    memset(rels, 0, SIZE_BUF_REL * sizeof(earlyparsed_relation));
-    for(int i = 0 ; i < n; i++) {
-        locking::lock_init(m + i);
-        locking::cond_init(bored + i);
-    }
-    barrier_init(sync_point, NULL, nthreads_total);
+    std::fill(completed, completed + n, 0UL);
+    std::fill(scheduled, scheduled + n, 0UL);
+    std::fill(active, active + n, 0);
+    // std::fill(rels.get(), rels.get() + SIZE_BUF_REL, 0);
+    memset(rels.get(), 0, SIZE_BUF_REL * sizeof(earlyparsed_relation));
 }/*}}}*/
 /*{{{ ::drain() */
 /* This belongs to the buffer closing process.  The out condition of this
@@ -310,7 +319,6 @@ void inflight_rels_buffer<locking, n>::drain()
 template<typename locking, int n>
 inflight_rels_buffer<locking, n>::~inflight_rels_buffer()
 {
-    barrier_destroy(sync_point, NULL);
     for(int i = 0 ; i < n ; i++) {
         ASSERT_ALWAYS_NOTHROW(active[i] == 0);
     }
@@ -327,12 +335,6 @@ inflight_rels_buffer<locking, n>::~inflight_rels_buffer()
         }
         memset(rels[i], 0, sizeof(rels[i]));
     }
-    delete[] rels;
-    for(int i = 0 ; i < n ; i++) {
-        locking::lock_clear(m + i);
-        locking::cond_clear(bored + i);
-    }
-    memset(this, 0, sizeof(*this));
 }
 /*}}}*/
 
@@ -382,11 +384,11 @@ inflight_rels_buffer<locking, n>::schedule(int k)
         active[k]--;
         locking::signal_broadcast(bored + k);
         locking::unlock(m + k);
-        return NULL;
+        return nullptr;
     }
     // ASSERT(scheduled[k] < a + completed[prev]);
     scheduled[k].increment();
-    size_t slot = s & (SIZE_BUF_REL - 1);
+    const size_t slot = s & (SIZE_BUF_REL - 1);
     earlyparsed_relation_ptr rel = rels[slot];
     status.update_shouldbealreadyok(s, k-1);
     locking::unlock(m + prev);
@@ -402,7 +404,7 @@ inflight_rels_buffer<locking, n>::complete(int k,
 {
     // coverity[result_independent_of_operands]
     ASSERT(active[k] <= locking::max_supported_concurrent);
-    int slot = rel - (earlyparsed_relation_srcptr) rels;
+    const int slot = rel - (earlyparsed_relation_srcptr) rels.get();
 
     locking::lock(m + k);
 
@@ -419,7 +421,7 @@ inflight_rels_buffer<locking, n>::complete(int k,
          *          xN < ck-s + N <= (x+1) N
          *
          */
-        size_t c = completed[k].load();
+        const size_t c = completed[k].load();
         my_absolute_index = slot;
         my_absolute_index += ((c - slot + SIZE_BUF_REL - 1) & -SIZE_BUF_REL);
     }
@@ -1114,13 +1116,13 @@ uint64_t filter_rels2_inner(char ** input_files,
      * parsing needs */
 #define _(X) EARLYPARSE_NEED_ ## X      /* convenience */
     if (earlyparse_needed_data & (_(PRIMES) | _(INDEX))) {
-        for (int i = 0 ; i < SIZE_BUF_REL; i++) {
+        for (unsigned int i = 0 ; i < SIZE_BUF_REL; i++) {
             inflight->rels[i]->primes = inflight->rels[i]->primes_data;
             inflight->rels[i]->nb_alloc = NB_PRIMES_OPT;
         }
     }
     if (earlyparse_needed_data & _(LINE)) {
-        for (int i = 0 ; i < SIZE_BUF_REL; i++) {
+        for (unsigned int i = 0 ; i < SIZE_BUF_REL; i++) {
             inflight->rels[i]->line = (char*) malloc(RELATION_MAX_BYTES);
 	    if (inflight->rels[i]->line == NULL)
 	      {

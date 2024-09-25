@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 #include "modredc_15ul.h"
 #include "modredc_15ul_default.h" // IWYU pragma: keep
+// NOLINTNEXTLINE(bugprone-suspicious-include)
 #include "modredc_2ul_common.c"
 #include "macros.h"
 
@@ -30,7 +31,7 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
 		 const modulusredc15ul_t m) 
 {
   modintredc15ul_t a, b, u, v;
-  int t, lsh;
+  unsigned int t, lsh;
 #ifdef WANT_ASSERT_EXPENSIVE
   residueredc15ul_t tmp;
   
@@ -164,8 +165,6 @@ modredc15ul_inv (residueredc15ul_t r, const residueredc15ul_t A,
   
   if (modredc15ul_intcmp_ul (a, 1UL) != 0) /* Non-trivial GCD */
     return 0;
-
-  ASSERT (t >= 0);
 
   /* Here, the inverse of a is u/2^t mod m. To do the division by t,
      we use a variable-width REDC. We want to add a multiple of m to u

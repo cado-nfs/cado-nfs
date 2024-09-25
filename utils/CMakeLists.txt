@@ -1,4 +1,12 @@
 
+set(fmt_sources)
+if(NOT HAVE_FMT)
+    set(fmt_sources
+        embedded/fmt/format.cc
+        embedded/fmt/os.cc
+        )
+endif()
+
 set (sources 
         cado_poly.c timing.cpp getprime.c mod_ul.c relation.cpp
         relation-tools.c
@@ -7,11 +15,11 @@ set (sources
         double_poly.cpp rootfinder.cpp params.cpp params-extra.cpp gcd.c
         gzip.cpp misc.c misc2.cpp
         mpz_mat.cpp mpz_poly.cpp crc.c purgedfile.c bit_vector.c
-        barrier.c usp.c fix-endianness.c memusage.c
+        barrier.c usp.c fix-endianness.c memusage.cpp
         cachesize_cpuid.c cachesize_guess.c roots_mod.c mod_mpz.c
         renumber.cpp
         renumber_proxy.cpp
-        ringbuf.c sm_utils.c galois_utils.c memalloc.c 
+        ringbuf.c sm_utils.cpp galois_action.cpp memalloc.c
 	mpz_vector.c memory.c stats.c lll.c
         verbose.c 
         polyroots.c 
@@ -29,14 +37,9 @@ set (sources
         indexed_relation.cpp
         cado-sighandlers.cpp
         mmap_allocator.cpp
+        ${fmt_sources}
 )
 
-if(NOT HAVE_FMT)
-    set(sources ${sources}
-        embedded/fmt/format.cc
-        embedded/fmt/os.cc
-        )
-endif()
 if (NOT MINGW)
     set (sources ${sources} cado_popen.c)
 endif()
@@ -87,8 +90,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     message(STATUS "Disabling antebuffer on ${CMAKE_SYSTEM_NAME}, see #21410")
     # https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21410
 else()
-    add_executable(antebuffer antebuffer.c timing.cpp memusage.c)
+    add_executable(antebuffer antebuffer.c timing.cpp memusage.cpp
+        ${fmt_sources})
     target_link_libraries(antebuffer pthread)
+    if(HAVE_FMT)
+        target_link_libraries(antebuffer fmt)
+    endif()
     install(TARGETS antebuffer RUNTIME DESTINATION ${LIBSUFFIX}/utils)
     add_dependencies(utils_with_io antebuffer)
 endif()

@@ -47,14 +47,18 @@ namespace mmap_allocator_details
             private:
             class mapping {
                 int fd = -1;
-                void * area = NULL;
+                void * area = nullptr;
                 offset_type offset_mapped;     /* page-aligned */
                 size_type length_mapped;       /* page-aligned */
                 public:
-                mapping(const char * fname, enum access_mode access_mode, offset_type offset, size_type length);
+                mapping(const char * filename, enum access_mode amode, offset_type offset, size_type length);
                 ~mapping();
                 void * get(offset_type, size_type);
                 void put(void *, offset_type, size_type);
+                mapping(mapping const &) = delete;
+                mapping(mapping &&) = delete;
+                mapping& operator=(mapping const &) = delete;
+                mapping& operator=(mapping &&) = delete;
             };
 #if 0
             /* use this to trace shared_ptr games. */

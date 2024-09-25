@@ -100,6 +100,8 @@ private:/*{{{ internal data fields*/
      */
     std::vector<std::vector<std::pair<cxx_mpz,int> >> small_primes;
 
+    mutable std::map<p_r_side, int> exceptional_inertia;
+
     /*
      * [0..above_add): additional columns
      * [above_add..above_bad): bad ideals
@@ -206,6 +208,12 @@ public:
     }
     p_r_side p_r_from_index (index_t) const;
 
+    int inertia_from_p_r(p_r_side) const;
+    int inertia_from_p_r(p_r_values_t p, p_r_values_t r, int side) const {
+        return inertia_from_p_r({p, r, side});
+    }
+
+
     class const_iterator;
 
     index_t index_from_p(p_r_values_t p0) const;
@@ -246,6 +254,7 @@ public:
     /*{{{ debugging aids*/
     std::string debug_data(index_t i) const;
     std::string debug_data_sagemath(index_t i) const;
+    std::string debug_data_machine_description(index_t i) const;
     void info(std::ostream & os) const;
     void more_info(std::ostream & os) const;
     /*}}}*/

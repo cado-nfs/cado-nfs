@@ -98,7 +98,7 @@ set(bwc_base_sources
     xvectors.cpp
     bw-common.c
     async.cpp
-    rolling.c
+    rolling.cpp
     matmul.cpp
     matmul_top.cpp
     matmul_top_vec.cpp

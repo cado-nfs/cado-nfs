@@ -429,12 +429,12 @@ L2_skewness_deg6 (mpz_poly_ptr f MAYBE_UNUSED, double_poly_srcptr ff,
 {
   double s, logmu, logmu_min = DBL_MAX, s_min = 1.0;
   mpz_poly df;
-  usp_root_data Roots[6];
+  usp_root_interval Roots[6];
   int i, k;
 
   mpz_poly_init (df, 6);
   for (i = 0; i < 6; i++)
-    usp_root_data_init (Roots + i);
+    usp_root_interval_init (Roots[i]);
 
   /* Sage code:
      var('r,s,t,y')
@@ -455,35 +455,35 @@ L2_skewness_deg6 (mpz_poly_ptr f MAYBE_UNUSED, double_poly_srcptr ff,
      99*a0^2
   */
 #if 1 /* using numberOfRealRoots */
-  mpz_mul (df->coeff[6], f->coeff[6], f->coeff[6]);
-  mpz_mul_ui (df->coeff[6], df->coeff[6], 99); /* 99*a6^2 */
-  mpz_mul (df->coeff[5], f->coeff[4], f->coeff[6]);
-  mpz_mul_2exp (df->coeff[5], df->coeff[5], 1);
-  mpz_addmul (df->coeff[5], f->coeff[5], f->coeff[5]);
-  mpz_mul_ui (df->coeff[5], df->coeff[5], 6); /* 6*(2*a4*a6 + a5^2) */
-  mpz_mul (df->coeff[4], f->coeff[2], f->coeff[6]);
-  mpz_addmul (df->coeff[4], f->coeff[3], f->coeff[5]);
-  mpz_mul_2exp (df->coeff[4], df->coeff[4], 1);
-  mpz_addmul (df->coeff[4], f->coeff[4], f->coeff[4]); /*2*a2*a6+2*a3*a5+a4^2*/
-  mpz_set_ui (df->coeff[3], 0);
-  mpz_mul (df->coeff[2], f->coeff[0], f->coeff[4]);
-  mpz_addmul (df->coeff[2], f->coeff[1], f->coeff[3]);
-  mpz_mul_2exp (df->coeff[2], df->coeff[2], 1);
-  mpz_addmul (df->coeff[2], f->coeff[2], f->coeff[2]);
-  mpz_neg (df->coeff[2], df->coeff[2]); /* -(2*a0*a4+2*a1*a3+a2^2) */
-  mpz_mul (df->coeff[1], f->coeff[0], f->coeff[2]);
-  mpz_mul_2exp (df->coeff[1], df->coeff[1], 1);
-  mpz_addmul (df->coeff[1], f->coeff[1], f->coeff[1]);
-  mpz_mul_si (df->coeff[1], df->coeff[1], -6); /* -6*(2*a0*a2 + a1^2) */
-  mpz_mul (df->coeff[0], f->coeff[0], f->coeff[0]);
-  mpz_mul_si (df->coeff[0], df->coeff[0], -99); /* -99*a0^2 */
+  mpz_mul (mpz_poly_coeff(df, 6), mpz_poly_coeff_const(f, 6), mpz_poly_coeff_const(f, 6));
+  mpz_mul_ui (mpz_poly_coeff(df, 6), mpz_poly_coeff_const(df, 6), 99); /* 99*a6^2 */
+  mpz_mul (mpz_poly_coeff(df, 5), mpz_poly_coeff_const(f, 4), mpz_poly_coeff_const(f, 6));
+  mpz_mul_2exp (mpz_poly_coeff(df, 5), mpz_poly_coeff_const(df, 5), 1);
+  mpz_addmul (mpz_poly_coeff(df, 5), mpz_poly_coeff_const(f, 5), mpz_poly_coeff_const(f, 5));
+  mpz_mul_ui (mpz_poly_coeff(df, 5), mpz_poly_coeff_const(df, 5), 6); /* 6*(2*a4*a6 + a5^2) */
+  mpz_mul (mpz_poly_coeff(df, 4), mpz_poly_coeff_const(f, 2), mpz_poly_coeff_const(f, 6));
+  mpz_addmul (mpz_poly_coeff(df, 4), mpz_poly_coeff_const(f, 3), mpz_poly_coeff_const(f, 5));
+  mpz_mul_2exp (mpz_poly_coeff(df, 4), mpz_poly_coeff_const(df, 4), 1);
+  mpz_addmul (mpz_poly_coeff(df, 4), mpz_poly_coeff_const(f, 4), mpz_poly_coeff_const(f, 4)); /*2*a2*a6+2*a3*a5+a4^2*/
+  mpz_set_ui (mpz_poly_coeff(df, 3), 0);
+  mpz_mul (mpz_poly_coeff(df, 2), mpz_poly_coeff_const(f, 0), mpz_poly_coeff_const(f, 4));
+  mpz_addmul (mpz_poly_coeff(df, 2), mpz_poly_coeff_const(f, 1), mpz_poly_coeff_const(f, 3));
+  mpz_mul_2exp (mpz_poly_coeff(df, 2), mpz_poly_coeff_const(df, 2), 1);
+  mpz_addmul (mpz_poly_coeff(df, 2), mpz_poly_coeff_const(f, 2), mpz_poly_coeff_const(f, 2));
+  mpz_neg (mpz_poly_coeff(df, 2), mpz_poly_coeff_const(df, 2)); /* -(2*a0*a4+2*a1*a3+a2^2) */
+  mpz_mul (mpz_poly_coeff(df, 1), mpz_poly_coeff_const(f, 0), mpz_poly_coeff_const(f, 2));
+  mpz_mul_2exp (mpz_poly_coeff(df, 1), mpz_poly_coeff_const(df, 1), 1);
+  mpz_addmul (mpz_poly_coeff(df, 1), mpz_poly_coeff_const(f, 1), mpz_poly_coeff_const(f, 1));
+  mpz_mul_si (mpz_poly_coeff(df, 1), mpz_poly_coeff_const(df, 1), -6); /* -6*(2*a0*a2 + a1^2) */
+  mpz_mul (mpz_poly_coeff(df, 0), mpz_poly_coeff_const(f, 0), mpz_poly_coeff_const(f, 0));
+  mpz_mul_si (mpz_poly_coeff(df, 0), mpz_poly_coeff_const(df, 0), -99); /* -99*a0^2 */
 
   df->deg = 6;
-  k = numberOfRealRoots ((const mpz_t *) df->coeff, 6, 0.0, 0, Roots);
+  k = mpz_poly_number_of_real_roots_extra(df, 0, Roots);
   for (i = 0; i < k; i++)
-    if (mpz_sgn (Roots[i].b) > 0)
+    if (mpz_sgn (Roots[i]->b) > 0)
       {
-        s = rootRefine (Roots + i, (const mpz_t *) df->coeff, 6, ldexp (1.0, -prec));
+        s = usp_root_interval_refine (Roots[i], df, ldexp (1.0, -prec));
         s = sqrt (s);
         logmu = L2_lognorm_d (ff, s);
         if (logmu < logmu_min)
@@ -521,7 +521,7 @@ L2_skewness_deg6 (mpz_poly_ptr f MAYBE_UNUSED, double_poly_srcptr ff,
 
   mpz_poly_clear (df);
   for (i = 0; i < 6; i++)
-    usp_root_data_clear (Roots + i);
+    usp_root_interval_clear (Roots[i]);
 
   return s_min;
 }

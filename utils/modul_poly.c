@@ -29,9 +29,11 @@ alloc_long_array (int d)
 
 /* reallocate an array to d coefficients */
 static residueul_t*
-realloc_long_array (residueul_t *f, int d)
+realloc_long_array (residueul_t *f, unsigned int d)
 {
-  f = (residueul_t*) realloc (f, d * sizeof (residueul_t));
+  residueul_t * t = (residueul_t*) realloc (f, d * sizeof (residueul_t));
+  if (!t) free(f);
+  f = t;
   FATAL_ERROR_CHECK (f == NULL, "not enough memory");
   return f;
 }
@@ -41,6 +43,7 @@ void
 modul_poly_init (modul_poly_t f, int d)
 {
   f->degree = -1; /* initialize to 0 */
+  ASSERT_ALWAYS(d >= -1);
   /* The zero polynomial has no coeffs allocated */
   if (d >= 0) {
       f->coeff = alloc_long_array (d + 1);
@@ -56,6 +59,7 @@ void
 modul_poly_clear (modul_poly_t f)
 {
   free (f->coeff);
+  // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
   memset(f, 0, sizeof(modul_poly_t));
   f->degree = -1;
 }
@@ -145,17 +149,16 @@ int
 modul_poly_set_mod_raw (modul_poly_t fp, mpz_poly_srcptr F, modulusul_t p)
 {
   int i;
-  mpz_t *f = F->coeff;
   int d = F->deg;
 
-  while (d >= 0 && mpz_divisible_ui_p (f[d], modul_getmod_ul (p)))
+  while (d >= 0 && mpz_divisible_ui_p (mpz_poly_coeff_const(F, d), modul_getmod_ul (p)))
     d --;
   ASSERT (d >= 0); /* f is 0 mod p: should not happen in the CADO-NFS context
                       since otherwise p would divide N, indeed f(m)=N */
   modul_poly_realloc (fp, d + 1);
   fp->degree = d;
   for (i = 0; i <= d; i++)
-    modul_set_ul (fp->coeff[i], mpz_fdiv_ui (f[i], modul_getmod_ul (p)), p);
+    modul_set_ul (fp->coeff[i], mpz_fdiv_ui (mpz_poly_coeff_const(F, i), modul_getmod_ul (p)), p);
 
   return d;
 }
@@ -195,18 +198,22 @@ modul_poly_set_linear (modul_poly_t f, residueul_t a, residueul_t b, modulusul_t
 static void
 modul_poly_swap (modul_poly_t f, modul_poly_t g)
 {
-  int i;
-  residueul_t *t;
-
-  i = f->alloc;
-  f->alloc = g->alloc;
-  g->alloc = i;
-  i = f->degree;
-  f->degree = g->degree;
-  g->degree = i;
-  t = f->coeff;
-  f->coeff = g->coeff;
-  g->coeff = t;
+  {
+      unsigned int i = f->alloc;
+      f->alloc = g->alloc;
+      g->alloc = i;
+  }
+  {
+      int i = f->degree;
+      f->degree = g->degree;
+      g->degree = i;
+  }
+  {
+      residueul_t *t;
+      t = f->coeff;
+      f->coeff = g->coeff;
+      g->coeff = t;
+  }
 }
 
 /* h <- f*g mod p */
@@ -285,7 +292,7 @@ modul_poly_normalize (modul_poly_t h, modulusul_t p)
 
 /* h <- (x+a)*h mod p */
 static void
-modul_poly_mul_x (modul_poly_t h, residueul_t a, modulusul_t p)
+modul_poly_mul_x_plus_a (modul_poly_t h, residueul_t a, modulusul_t p)
 {
   ASSERT_FOR_STATIC_ANALYZER(h->degree >= -1);
 
@@ -550,7 +557,7 @@ modul_poly_xpowmod_ui (modul_poly_t g, residueul_t a,
 
   residueul_t one;
   modul_set1(one, p);
-  /* initialize g to x */
+  /* initialize g to x+a */
   modul_poly_set_linear (g, one, a, p);
 
   ASSERT (e > 0);
@@ -558,16 +565,16 @@ modul_poly_xpowmod_ui (modul_poly_t g, residueul_t a,
     {
       modul_poly_sqr (h, g, p);             /* h <- g^2 */
       if (e & (1UL << k))
-        modul_poly_mul_x (h, a, p);            /* h <- x*h */
+        modul_poly_mul_x_plus_a (h, a, p);  /* h <- (x+a)*h */
 
-      modul_poly_div_r (h, fp, p);       /* h -> rem(h, fp) */
-      modul_poly_set (g, h, p);       /* g <- h  */
+      modul_poly_div_r (h, fp, p);          /* h -> rem(h, fp) */
+      modul_poly_set (g, h, p);             /* g <- h  */
     }
 
   modul_poly_clear(h);
 }
 
-/* g <- g^e mod (fp, p) */
+/* g <- a^e mod (fp, p) */
 static void
 modul_poly_powmod_ui (modul_poly_t g, modul_poly_t a,
 		     unsigned long e, modul_poly_t fp, modulusul_t p)
@@ -588,15 +595,17 @@ modul_poly_powmod_ui (modul_poly_t g, modul_poly_t a,
   modul_poly_t h;
   modul_poly_init(h, 2 * fp->degree);
 
+  modul_poly_set (g, a, p);
+
   ASSERT (e > 0);
   for (k -= 2; k >= 0; k--)
     {
-      modul_poly_sqr (h, g, p);             /* h <- g^2 */
-      modul_poly_div_r (h, fp, p);       /* h -> rem(h, fp) */
+      modul_poly_sqr (h, g, p);       /* h <- g^2 */
+      modul_poly_div_r (h, fp, p);    /* h -> rem(h, fp) */
       modul_poly_set (g, h, p);       /* g <- h */
       if (e & (1UL << k))
-        modul_poly_mul (h, h, a, p);            /* h <- a*h */
-      modul_poly_div_r (h, fp, p);       /* h -> rem(h, fp) */
+        modul_poly_mul (h, h, a, p);  /* h <- a*h */
+      modul_poly_div_r (h, fp, p);    /* h -> rem(h, fp) */
       modul_poly_set (g, h, p);       /* g <- h */
     }
   modul_poly_clear(h);

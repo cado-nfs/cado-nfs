@@ -17,6 +17,8 @@
 #include <memory>              // for allocator_traits<>::value_type
 #include <sstream>             // for operator<<, ostringstream, basic_ostream
 #include <string>              // for basic_string
+#include <stdexcept>
+#include "fmt/format.h"
 #include <type_traits>         // for remove_reference<>::type
 #include <vector>              // for vector
 #include <gmp.h>
@@ -182,7 +184,7 @@ prime_list_poly (std::vector<unsigned long> & L, prime_info pi,
   gmp_randinit_default(rstate);
 
   for (unsigned long p = 2 ; p <= pmax ; p = getprime_mt(pi))
-    if (mpz_divisible_ui_p (f->coeff[f->deg], p) ||
+    if (mpz_divisible_ui_p (mpz_poly_lc(f), p) ||
         mpz_poly_roots_ulong (NULL, f, p, rstate) > 0)
         L.push_back(p);
 
@@ -254,7 +256,7 @@ prime_tree_poly (mpz_product_tree L, unsigned long pmax, cxx_mpz_poly const& f, 
 #pragma omp parallel for schedule(static)
 #endif
       for (int j = 0; j < i; j++)
-        if (mpz_divisible_ui_p (f->coeff[f->deg], q[j]) == 0 &&
+        if (mpz_divisible_ui_p (mpz_poly_lc(f), q[j]) == 0 &&
             mpz_poly_roots_ulong (NULL, f, q[j], rstate_per_thread[omp_get_thread_num()]) == 0)
           q[j] = 0;
 
@@ -1113,8 +1115,9 @@ input_batch (FILE *fp, unsigned long B, unsigned long L, cxx_mpz_poly const & cp
 #undef CHECK_2
 #undef CHECK_Z
 parse_error:
-  fprintf (stderr, "Error while reading batch product from %s:\n%s", f, msg);
-  exit(EXIT_FAILURE);
+  throw std::runtime_error(fmt::format(
+              "Error while reading batch product from {}:\n{}\n",
+              f, msg));
 }
 
 /* We have 3 cases:
@@ -1173,7 +1176,12 @@ create_batch_file (std::string const & fs, cxx_mpz & P, unsigned long B, unsigne
     {
       fprintf (out, "# batch: reading large prime product");
       fflush (out);
-      input_batch (fp, B, L, cpoly, P, f);
+      try {
+          input_batch (fp, B, L, cpoly, P, f);
+      } catch(std::exception const & e) {
+          fclose(fp);
+          throw e;
+      }
       fclose(fp);
       goto end;
     }

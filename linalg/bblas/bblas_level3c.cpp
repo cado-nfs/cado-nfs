@@ -551,8 +551,8 @@ void mul_N64_6464_transB(uint64_t *C,/*{{{*/
 #if defined(HAVE_AVX2)
 /* implements mul_N64_6464 */
 void mul_N64_6464_avx2(uint64_t *C,/*{{{*/
-		 uint64_t const *A,
-		 mat64 const & B, size_t m)
+                       uint64_t const *A,
+                       mat64 const & B, size_t m)
 {
     /* can work in place, so not simply memset0 + addmul (the ^= have been
      * changed to =)
@@ -566,40 +566,34 @@ void mul_N64_6464_avx2(uint64_t *C,/*{{{*/
      * data width */
     __m256d zd = _mm256_setzero_pd();
 
-    for (j = 0; j + (SIMD - 1) < m ; j += SIMD*2) {
+    for (j = 0; j + (SIMD*2 - 1) < m ; j += SIMD*2) {
         __m256i c0 = _mm256_setzero_si256();
         __m256i c1 = _mm256_setzero_si256();
-	__m256i a0 = *Aw++;
-	__m256i a1 = *Aw++;
+        __m256i a0 = *Aw++;
+        __m256i a1 = *Aw++;
 
-	for (int i = 64; i--;) {
+        for (int i = 64; i--;) {
             __m256d Bd = _mm256_castsi256_pd(_mm256_set1_epi64x(B[i]));
-            __m256d c0d = _mm256_blendv_pd(
-                    zd,
-                    Bd,
-                    _mm256_castsi256_pd(a0));
-            __m256d c1d = _mm256_blendv_pd(
-                    zd,
-                    Bd,
-                    _mm256_castsi256_pd(a1));
+            __m256d c0d = _mm256_blendv_pd(zd, Bd, _mm256_castsi256_pd(a0));
+            __m256d c1d = _mm256_blendv_pd(zd, Bd, _mm256_castsi256_pd(a1));
             c0 = _mm256_xor_si256(c0, _mm256_castpd_si256(c0d));
             c1 = _mm256_xor_si256(c1, _mm256_castpd_si256(c1d));
             a0 = _mm256_slli_epi64(a0, 1);
             a1 = _mm256_slli_epi64(a1, 1);
-	}
-	*Cw++ = c0;
-	*Cw++ = c1;
+        }
+        *Cw++ = c0;
+        *Cw++ = c1;
     }
     C += j;
     A += j;
     for (; j < m; j++) {
-	uint64_t c = UINT64_C(0);
-	uint64_t a = *A++;
-	for (int i = 0; i < 64; i++) {
-	    c ^= (B[i] & -(a & UINT64_C(1)));
-	    a >>= UINT64_C(1);
-	}
-	*C++ = c;
+        uint64_t c = UINT64_C(0);
+        uint64_t a = *A++;
+        for (int i = 0; i < 64; i++) {
+            c ^= (B[i] & -(a & UINT64_C(1)));
+            a >>= UINT64_C(1);
+        }
+        *C++ = c;
     }
 }/*}}}*/
 #endif

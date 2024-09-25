@@ -36,7 +36,7 @@ void compute_sm_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u, sm_side_info_srcp
     mpz_poly_init(temp, n);
 
     /* we can afford calling malloc() here */
-    mpz_poly * chunks = malloc(fac->size * sizeof(mpz_poly));
+    mpz_poly * chunks = (mpz_poly *) malloc(fac->size * sizeof(mpz_poly));
     for(int j = 0 ; j < fac->size ; j++) {
         mpz_poly_srcptr g = fac->factors[j]->f;
         mpz_poly_init(chunks[j], g->deg-1);
@@ -61,7 +61,7 @@ void compute_sm_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u, sm_side_info_srcp
             compute_sm_lowlevel (chunks[j], u,
                     g, sm->ell, sm->exponents[j], sm->ell2);
         } else {
-            ASSERT_ALWAYS(mpz_cmp_ui(g->coeff[1], 1) == 0);
+            ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(g, 1), 1) == 0);
             mpz_poly_set(chunks[j], u);
             mpz_poly_mod_f_mod_mpz(chunks[j], g, sm->ell2, NULL, NULL);
             ASSERT_ALWAYS(chunks[j]->deg == 0);
@@ -76,9 +76,9 @@ void compute_sm_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u, sm_side_info_srcp
 #endif
         for(int k = 0 ; k < g->deg ; k++, s++) {
             if (sm->mode == SM_MODE_2019REV)
-                mpz_swap(temp->coeff[s], chunks[j]->coeff[g->deg-1-k]);
+                mpz_swap(mpz_poly_coeff(temp, s), mpz_poly_coeff(chunks[j], g->deg-1-k));
             else
-                mpz_swap(temp->coeff[s], chunks[j]->coeff[k]);
+                mpz_swap(mpz_poly_coeff(temp, s), mpz_poly_coeff(chunks[j], k));
         }
     }
 
@@ -86,13 +86,14 @@ void compute_sm_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u, sm_side_info_srcp
         temp->deg = n - 1;
         /* now apply the change of basis matrix */
         for(int s = 0 ; s < n ; s++) {
-            mpz_set_ui(dst->coeff[s], 0);
+            mpz_ptr y = mpz_poly_coeff(dst, s);
+            mpz_set_ui(y, 0);
             for(int k = 0 ; k < n ; k++) {
-                mpz_addmul(dst->coeff[s],
-                        temp->coeff[k],
+                mpz_addmul(y,
+                        mpz_poly_coeff_const(temp, k),
                         sm->matrix[k * n + s]);
             }
-            mpz_mod(dst->coeff[s], dst->coeff[s], sm->ell);
+            mpz_mod(y, y, sm->ell);
         }
         dst->deg = n - 1;
     } else {
@@ -120,7 +121,7 @@ print_sm2 (FILE *f, sm_side_info_srcptr S, mpz_poly_srcptr SM, const char * deli
         if (jx > SM->deg)
             fprintf(f, "0");
         else
-            gmp_fprintf(f, "%Zu", SM->coeff[jx]);
+            gmp_fprintf(f, "%Zu", mpz_poly_coeff_const(SM, jx));
 
         if (j != S->nsm-1)
             fputs(delim, f);
@@ -138,8 +139,8 @@ void
 sm_relset_init (sm_relset_t r, const mpz_poly_srcptr * F, int nb_polys)
 {
   r->nb_polys = nb_polys;
-  r->num = malloc(nb_polys * sizeof(mpz_poly));
-  r->denom = malloc(nb_polys * sizeof(mpz_poly));
+  r->num = (mpz_poly *) malloc(nb_polys * sizeof(mpz_poly));
+  r->denom = (mpz_poly *) malloc(nb_polys * sizeof(mpz_poly));
   for (int side = 0; side < nb_polys; side++) {
     mpz_poly_init (r->num[side], F[side] ? mpz_poly_degree(F[side]) : -1);
     mpz_poly_init (r->denom[side],  F[side] ? mpz_poly_degree(F[side]) : -1);
@@ -164,8 +165,8 @@ sm_relset_copy (sm_relset_t r, sm_relset_srcptr s)
       return;
   sm_relset_clear(r);
   r->nb_polys = s->nb_polys;
-  r->num = malloc(s->nb_polys * sizeof(mpz_poly));
-  r->denom = malloc(s->nb_polys * sizeof(mpz_poly));
+  r->num = (mpz_poly *) malloc(s->nb_polys * sizeof(mpz_poly));
+  r->denom = (mpz_poly *) malloc(s->nb_polys * sizeof(mpz_poly));
   for (int side = 0; side < r->nb_polys; side++) {
     mpz_poly_init (r->num[side], -1);
     mpz_poly_init (r->denom[side], -1);
@@ -191,7 +192,7 @@ sm_build_one_relset(sm_relset_ptr rel,
 {
   mpz_t ee;
   mpz_init(ee);  
-  mpz_poly * tmp = malloc(nb_polys * sizeof(mpz_poly));
+  mpz_poly * tmp = (mpz_poly *) malloc(nb_polys * sizeof(mpz_poly));
   memset(tmp, 0, nb_polys * sizeof(mpz_poly));
   for (int side = 0; side < nb_polys; side++) {
     if (F[side] == NULL) continue;
@@ -293,7 +294,7 @@ void compute_change_of_basis_matrix(mpz_t * matrix, mpz_poly_srcptr f, mpz_poly_
              * modulo f */
             for(int k = 0 ; k < f->deg ; k++) {
                 if (k <= h->deg)
-                    mpz_set(matrix[s * f->deg + k], h->coeff[k]);
+                    mpz_set(matrix[s * f->deg + k], mpz_poly_coeff_const(h, k));
             }
             mpz_poly_mul_xi(h, h, 1);
             mpz_poly_mod_f_mod_mpz(h, f, ell, NULL, NULL);
@@ -333,7 +334,7 @@ void sm_side_info_print(FILE * out, sm_side_info_srcptr sm)
 }
 
 
-void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell)
+void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell, int handle_small_ell)
 {
     memset(sm, 0, sizeof(*sm));
 
@@ -347,7 +348,9 @@ void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell)
     /* initialize all fields */
     mpz_init_set(sm->ell, ell);
     mpz_init(sm->ell2);
+    mpz_init(sm->ell3);
     mpz_mul(sm->ell2, sm->ell, sm->ell);
+    mpz_mul(sm->ell3, sm->ell2, sm->ell);
 
     mpz_poly_init(sm->f, -1);
     sm->f0 = f0;
@@ -364,7 +367,7 @@ void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell)
         /* polynomial factorization is Las Vegas type */
         gmp_randstate_t rstate;
         gmp_randinit_default(rstate);
-        mpz_poly_factor_and_lift_padically(sm->fac, sm->f, sm->ell, 2, rstate);
+        mpz_poly_factor_and_lift_padically(sm->fac, sm->f, sm->ell, 2 + handle_small_ell, rstate);
         gmp_randclear(rstate);
     }
 
@@ -399,6 +402,15 @@ void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell)
         mpz_sub_ui(sm->exponents[i], sm->exponents[i], 1);
         mpz_lcm(sm->exponent, sm->exponent, sm->exponents[i]);
     }
+
+    sm->matrix = NULL;
+
+    /* We need to compute an ell-maximal order. Well, most probably
+     * Z[\alpha\hat] is an ell-maximal order, of course, so it's very
+     * probably going to be an easy computation
+     */
+    // we need to be cxx to do that.
+    // cxx_mpq_mat p_maximal_order(cxx_mpz_poly const& f, cxx_mpz const& p)
 }
 
 void sm_side_info_set_mode(sm_side_info_ptr sm, const char * mode_string)
@@ -417,6 +429,7 @@ void sm_side_info_set_mode(sm_side_info_ptr sm, const char * mode_string)
     }
 
     if (sm->mode == SM_MODE_LEGACY_PRE2018) {
+        ASSERT_ALWAYS(!sm->matrix);
         sm->matrix = (mpz_t *) malloc(sm->f->deg * sm->f->deg * sizeof(mpz_t));
         for(int i = 0 ; i < sm->f->deg ; i++)
             for(int j = 0 ; j < sm->f->deg ; j++)
@@ -450,6 +463,7 @@ void sm_side_info_clear(sm_side_info_ptr sm)
     mpz_poly_factor_list_clear(sm->fac);
     mpz_poly_clear(sm->f);
 
+    mpz_clear(sm->ell3);
     mpz_clear(sm->ell2);
     mpz_clear(sm->ell);
 }

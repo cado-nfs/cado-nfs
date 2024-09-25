@@ -205,8 +205,9 @@ void all_roots_affine(entry_list *L, mpz_t *f, int d, unsigned long p,
     mpz_t aux;
 
     mpz_poly F;
-    F->coeff = f;
+    F->_coeff = f;
     F->deg = d;
+    F->alloc = d + 1;
 
     if (k0 >= kmax) {
         return;
@@ -381,10 +382,10 @@ one_thread (void* args)
   return NULL;
 }
 
-void makefb_with_powers(FILE* outfile, mpz_poly F, unsigned long lim,
+void makefb_with_powers(FILE* outfile, mpz_poly_srcptr F, unsigned long lim,
                         int maxbits, int nb_threads)
 {
-    mpz_t *f = F->coeff;
+    mpz_t *f = F->_coeff;
     int d = F->deg, j, k, maxj;
 
     fprintf(outfile, "# Roots for polynomial ");

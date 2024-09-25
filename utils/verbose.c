@@ -13,12 +13,15 @@
 #define F(X) (UINT64_C(1) << G(X))
 
 /* Mutex for verbose_output_*() functions */
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 static pthread_mutex_t io_mutex[1] = {PTHREAD_MUTEX_INITIALIZER};
 static pthread_cond_t io_cond[1] = {PTHREAD_COND_INITIALIZER};
 static int batch_locked = 0;
 static pthread_t batch_owner;
+static uint64_t verbose_flag_word;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-struct {
+const struct {
     const char * name;
     int def;
 } verbose_flag_list[] = 
@@ -37,7 +40,7 @@ struct {
     [G(BWC_LOADING_MKSOL_FILES)]= { "bwc-loading-mksol-files", 1 },
 };
 
-struct {
+const struct {
     const char * name;
     uint64_t mask;
 } verbose_flag_groups[] = {
@@ -59,19 +62,17 @@ struct {
 };
 
 
-uint64_t verbose_flag_word;
-
 
 /* This must be called in single-threaded context, preferably at program
  * start */
-void verbose_interpret_parameters(param_list pl)
+void verbose_interpret_parameters(param_list_ptr pl)
 {
     verbose_flag_word = ~0UL;
 
     /* mark these defaults. */
     for(size_t i = 0 ; i < sizeof(verbose_flag_list) / sizeof(verbose_flag_list[0]) ; i++) {
         if (verbose_flag_list[i].def == 0) {
-            uint64_t mask = UINT64_C(1) << (int) i;
+            uint64_t mask = UINT64_C(1) << (unsigned int) i;
             verbose_flag_word = verbose_flag_word & ~mask;
         }
     }
@@ -98,7 +99,7 @@ void verbose_interpret_parameters(param_list pl)
         uint64_t mask = 0;
         for(size_t i = 0 ; i < sizeof(verbose_flag_list) / sizeof(verbose_flag_list[0]) ; i++) {
             if (strcmp(p, verbose_flag_list[i].name) == 0) {
-                mask = UINT64_C(1) << (int) i;
+                mask = UINT64_C(1) << (unsigned int) i;
                 break;
             }
         }
@@ -127,8 +128,8 @@ void verbose_decl_usage(param_list pl)
 }
 
 /* returns true if the following verbose flag is enabled */
-int verbose_enabled(int flag) {
-    return verbose_flag_word & (UINT64_C(1) << flag);
+int verbose_enabled(unsigned int flag) {
+    return (verbose_flag_word & (UINT64_C(1) << flag)) != 0;
 }
 
 int verbose_vfprintf(FILE * f, int flag, const char * fmt, va_list ap)
@@ -288,22 +289,24 @@ vfprint_output(const struct outputs_s * const output, const int verbosity,
 }
 
 /* Static variables, the poor man's Singleton. */
-static size_t _nr_channels = 0;
-static struct outputs_s *_channel_outputs = NULL;
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+static size_t verbose_nr_channels = 0;
+static struct outputs_s *verbose_channel_outputs = NULL;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 int
 verbose_output_init(const size_t nr_channels)
 {
     if (monitor_enter() != 0)
         return 0;
-    _channel_outputs = (struct outputs_s *) malloc(nr_channels * sizeof(struct outputs_s));
-    if (_channel_outputs == NULL) {
+    verbose_channel_outputs = (struct outputs_s *) malloc(nr_channels * sizeof(struct outputs_s));
+    if (verbose_channel_outputs == NULL) {
         pthread_mutex_unlock(io_mutex);
         return 0;
     }
-    _nr_channels = nr_channels;
+    verbose_nr_channels = nr_channels;
     for (size_t i = 0; i < nr_channels; i++)
-        init_output(&_channel_outputs[i]);
+        init_output(&verbose_channel_outputs[i]);
     if (monitor_leave() != 0)
         return 0;
     return 1;
@@ -314,11 +317,11 @@ verbose_output_clear()
 {
     if (monitor_enter() != 0)
         return 0;
-    for (size_t i = 0; i < _nr_channels; i++)
-        clear_output(&_channel_outputs[i]);
-    free(_channel_outputs);
-    _nr_channels = 0;
-    _channel_outputs = NULL;
+    for (size_t i = 0; i < verbose_nr_channels; i++)
+        clear_output(&verbose_channel_outputs[i]);
+    free(verbose_channel_outputs);
+    verbose_nr_channels = 0;
+    verbose_channel_outputs = NULL;
     if (monitor_leave() != 0)
         return 0;
     return 1;
@@ -329,8 +332,8 @@ verbose_output_add(const size_t channel, FILE * const out, const int verbose)
 {
     if (monitor_enter() != 0)
         return 0;
-    ASSERT_ALWAYS(channel < _nr_channels);
-    int rc = add_output(&_channel_outputs[channel], out, verbose);
+    ASSERT_ALWAYS(channel < verbose_nr_channels);
+    int rc = add_output(&verbose_channel_outputs[channel], out, verbose);
     if (monitor_leave() != 0)
         return 0;
     return rc;
@@ -346,7 +349,7 @@ verbose_output_print(const size_t channel, const int verbose,
     if (monitor_enter() != 0)
         return -1;
     va_start(ap, fmt);
-    if (_channel_outputs == NULL) {
+    if (verbose_channel_outputs == NULL) {
         /* Default behaviour: print to stdout or stderr */
         ASSERT_ALWAYS(channel < 2);
         if (verbose <= 1) {
@@ -354,8 +357,8 @@ verbose_output_print(const size_t channel, const int verbose,
             rc = vfprintf(out, fmt, ap);
         }
     } else {
-        ASSERT_ALWAYS(channel < _nr_channels);
-        rc = vfprint_output(&_channel_outputs[channel], verbose, &vfprintf,
+        ASSERT_ALWAYS(channel < verbose_nr_channels);
+        rc = vfprint_output(&verbose_channel_outputs[channel], verbose, &vfprintf,
                             fmt, ap);
     }
     va_end(ap);
@@ -366,15 +369,15 @@ verbose_output_print(const size_t channel, const int verbose,
 
 void verbose_output_flush(const size_t channel, const int verbose)
 {
-    if (_channel_outputs == NULL) {
+    if (verbose_channel_outputs == NULL) {
         if (verbose > 1)
             return;
         FILE *out = (channel == 0) ? stdout : stderr;
         fflush(out);
     } else {
-        for (size_t i = 0; i < _channel_outputs[channel].nr_outputs; i++) {
-            if (_channel_outputs[channel].verbosity[i] >= verbose)
-                fflush(_channel_outputs[channel].outputs[i]);
+        for (size_t i = 0; i < verbose_channel_outputs[channel].nr_outputs; i++) {
+            if (verbose_channel_outputs[channel].verbosity[i] >= verbose)
+                fflush(verbose_channel_outputs[channel].outputs[i]);
         }
     }
 }
@@ -386,7 +389,7 @@ verbose_output_get(const size_t channel, const int verbose, const size_t index)
         return NULL;
 
     FILE *output = NULL;
-    if (_channel_outputs == NULL) {
+    if (verbose_channel_outputs == NULL) {
         /* Default behaviour: channel 0 has stdout, channel 1 has stderr,
            each with verbosity 1. */
         ASSERT_ALWAYS(channel < 2);
@@ -394,8 +397,8 @@ verbose_output_get(const size_t channel, const int verbose, const size_t index)
             output = (channel == 0) ? stdout : stderr;
         }
     } else {
-        ASSERT_ALWAYS(channel < _nr_channels);
-        struct outputs_s * const chan = &_channel_outputs[channel];
+        ASSERT_ALWAYS(channel < verbose_nr_channels);
+        struct outputs_s * const chan = &verbose_channel_outputs[channel];
         size_t j = 0;
         /* Iterate through all the outputs for this channel */
         for (size_t i = 0; i < chan->nr_outputs; i++) {
@@ -448,7 +451,7 @@ verbose_output_vfprint(const size_t channel, const int verbose,
     if (monitor_enter() != 0)
         return -1;
     va_start(ap, fmt);
-    if (_channel_outputs == NULL) {
+    if (verbose_channel_outputs == NULL) {
         /* Default behaviour: print to stdout or stderr */
         ASSERT_ALWAYS(channel < 2);
         if (verbose <= 1) {
@@ -456,8 +459,8 @@ verbose_output_vfprint(const size_t channel, const int verbose,
             rc = func(out, fmt, ap);
         }
     } else {
-        ASSERT_ALWAYS(channel < _nr_channels);
-        rc = vfprint_output(&_channel_outputs[channel], verbose, func, fmt,
+        ASSERT_ALWAYS(channel < verbose_nr_channels);
+        rc = vfprint_output(&verbose_channel_outputs[channel], verbose, func, fmt,
                             ap);
     }
     va_end(ap);

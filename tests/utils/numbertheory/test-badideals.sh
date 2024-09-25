@@ -4,8 +4,9 @@ set -e
 
 if [ "$CADO_DEBUG" ] ; then set -x ; fi
 
+
 usage() {
-    echo "Usage: $0 --binary <binary> [--wdir <directory>] <test sample name>" >&2
+    echo "Usage: $0 [-b <cado-nfs build tree>] [--wdir <directory>] <test sample name>" >&2
     for x in "$@" ; do echo "$x" ; done
     exit 1
 }
@@ -17,9 +18,9 @@ while [ $# -gt 0 ] ; do
         shift
         wdir=$1
         shift
-    elif [ "$1" = "--binary" ] ; then
+    elif [ "$1" = "-b" ] ; then
         shift
-        binary=$1
+        CADO_NFS_BINARY_DIR=$1
         shift
     else
         tests+=("$1")
@@ -27,7 +28,9 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-if ! [ "$binary" ] ; then
+: ${CADO_NFS_BINARY_DIR?missing}
+
+if ! [ "$CADO_NFS_BINARY_DIR/utils/numbertheory_tool" ] ; then
     usage
 fi
 
@@ -37,7 +40,7 @@ fi
 check_there() {
     u="$1"
     cd "$wdir"
-    "$binary" $(cat "$u.input") > "$u.stdout"
+    "$CADO_NFS_BINARY_DIR/utils/numbertheory_tool" $(cat "$u.input") > "$u.stdout"
     for e in stdout badideals badidealinfo ; do
         if ! [ -f "$u.$e" ] ; then continue; fi
         if ! [ -f "$u.expect_$e" ] ; then usage "$t.$e: missing file" ; fi

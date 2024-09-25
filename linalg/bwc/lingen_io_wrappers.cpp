@@ -1335,7 +1335,7 @@ void lingen_output_to_splitfile::open_file()
         if (!ascii) mode |= std::ios_base::binary;
         for(unsigned int i = 0 ; i < nrows ; i+=splitwidth) {
             for(unsigned int j = 0 ; j < ncols ; j+=splitwidth) {
-                std::string s = fmt::format(pattern,
+                std::string s = fmt::format(fmt::runtime(this->pattern),
                         i, i+splitwidth,
                         j, j+splitwidth);
                 fw.emplace_back(std::ofstream { s, mode });
