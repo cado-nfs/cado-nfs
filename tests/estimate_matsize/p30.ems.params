@@ -8,7 +8,6 @@ mfb1=11
 qmin=600
 qmax=1800
 sqside=1
-maxlevel=25
 target_density=50
 allow_compsq=false
 NBSAMPLE=10

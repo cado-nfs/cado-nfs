@@ -472,7 +472,7 @@ static __inline__
     mp_limb_t
 n_mulmod_shoup(mp_limb_t w, mp_limb_t t, mp_limb_t w_precomp, mp_limb_t p)
 {
-    mp_limb_t q, r, p_hi, p_lo;
+    mp_limb_t q, r, p_hi, FLINT_SET_BUT_UNUSED(p_lo);
 
     umul_ppmm(p_hi, p_lo, w_precomp, t);
     q = p_hi;
