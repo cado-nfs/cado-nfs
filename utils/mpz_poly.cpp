@@ -2994,7 +2994,7 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
   mpz_poly_clear(tmp);
 }
 
-/*  Homographic transform on polynomials */
+/* Homographic transform on polynomials */
 /* Put in fij[] the coefficients of f'(i) = F(a0*i+a1, b0*i+b1).
    Assumes the coefficients of fij[] are initialized.
 */
@@ -3071,6 +3071,8 @@ mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4])
   for (k = 0; k <= d; k++)
     mpz_clear (g[k]);
   free (g);
+
+  mpz_poly_cleandeg(Fij, Fij->deg);
 }
 
 /* v <- |f(i,j)|, where f is homogeneous of degree d */
