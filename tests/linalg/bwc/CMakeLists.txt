@@ -228,7 +228,7 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             bwc-ptrace.sh prime=${p} random_matrix_size=500 nrhs=2 m=6 n=4 seed=1 ${extra}
             TARGET_DEPENDENCIES
             lingen_pz lingen_${layer})
-        set_property(TEST test_bwc_${t} PROPERTY TIMEOUT 120)
+        cado_set_test_timeout(test_bwc_${t} 120)
 
         if(layer STREQUAL "p1")
             if(DEFINED ENV{CHECKS_EXPENSIVE})
@@ -550,11 +550,7 @@ add_bwc_test(mod2_plain bwc-ptrace.sh prime=2 nullspace=left
     TARGET_DEPENDENCIES mf_scan)
 create_magma_sage_diversions(mod2_plain)
 if(SAGE)
-    set(t 360)
-    if(TIMEOUT_SCALE)
-        MATH(EXPR t "${t}*${TIMEOUT_SCALE}")
-    endif()
-    set_property(TEST test_bwc_mod2_plain_with_sagemath PROPERTY TIMEOUT ${t})
+    cado_set_test_timeout(test_bwc_mod2_plain_with_sagemath 360)
 endif()
 
 add_bwc_test(mod2_padded bwc-ptrace.sh prime=2 nullspace=left
