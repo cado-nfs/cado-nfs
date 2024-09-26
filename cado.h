@@ -129,10 +129,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  * as to trigger as many warnings as we can, and force ourselves to get
  * them fixed.
  * (useful to enable temporarily before releases, at least)
+ *
+ * note that clang and intel cc both define __GNUC__, so these flags
+ * apply to them as well.
  */
 #ifdef  __GNUC__
 #pragma GCC diagnostic error "-Wextra"
 #pragma GCC diagnostic error "-Wall"
+#endif
+
+#if defined(__clang__)
+#if __clang_major__ >= 18
+/* See #30073. Sure, it's a bit of a pity, but I can't find a totally
+ * satisfactory replacement for VLAs, which are used in somewhat critical
+ * parts of the code.
+ */
+#pragma GCC diagnostic ignored "-Wvla-cxx-extension"
+#endif
 #endif
 
 #include "cado_config.h"        // IWYU pragma: export
