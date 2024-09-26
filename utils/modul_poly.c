@@ -285,7 +285,7 @@ modul_poly_normalize (modul_poly_t h, modulusul_t p)
 
 /* h <- (x+a)*h mod p */
 static void
-modul_poly_mul_x (modul_poly_t h, residueul_t a, modulusul_t p)
+modul_poly_mul_x_plus_a (modul_poly_t h, residueul_t a, modulusul_t p)
 {
   ASSERT_FOR_STATIC_ANALYZER(h->degree >= -1);
 
@@ -558,7 +558,7 @@ modul_poly_xpowmod_ui (modul_poly_t g, residueul_t a,
     {
       modul_poly_sqr (h, g, p);             /* h <- g^2 */
       if (e & (1UL << k))
-        modul_poly_mul_x (h, a, p);         /* h <- (x+a)*h */
+        modul_poly_mul_x_plus_a (h, a, p);  /* h <- (x+a)*h */
 
       modul_poly_div_r (h, fp, p);          /* h -> rem(h, fp) */
       modul_poly_set (g, h, p);             /* g <- h  */
