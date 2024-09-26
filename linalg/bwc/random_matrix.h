@@ -19,7 +19,7 @@ extern "C" {
  * way to state this argument is for example
  * random_matrix=2000,density=4,seed=1
  */
-void random_matrix_get_u32(parallelizing_info_ptr pi, param_list pl, matrix_u32_ptr arg, unsigned long padded_nrows, unsigned long padded_ncols);
+void random_matrix_get_u32(parallelizing_info_ptr pi, param_list pl, matrix_u32_ptr arg, unsigned long data_nrows, unsigned long data_ncols, unsigned long padded_nrows, unsigned long padded_ncols);
 
 void random_matrix_fill_fake_balancing_header(balancing_ptr bal, parallelizing_info_ptr pi, const char * rtmp);
 

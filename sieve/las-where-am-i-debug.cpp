@@ -24,7 +24,7 @@
 /* We use that to demangle C++ names */
 #include <cxxabi.h> // IWYU pragma: keep
 #endif
-#ifdef HAVE_GLIBC
+#ifdef HAVE_EXECINFO
 #include <execinfo.h>                    // for backtrace, backtrace_symbols
 #endif
 
@@ -242,7 +242,7 @@ int test_divisible(where_am_I const & w)
 
 /* {{{ helper: sieve_increase */
 
-#if defined(HAVE_CXXABI_H) && defined(HAVE_GLIBC)
+#if defined(HAVE_CXXABI_H) && defined(HAVE_EXECINFO)
 static std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
 {
     size_t pos = a.find('+');
@@ -285,7 +285,7 @@ void sieve_increase_logging_backend(unsigned char *S, const unsigned char logp, 
 
     std::string caller;
 
-#ifdef HAVE_GLIBC
+#ifdef HAVE_EXECINFO
     {
         void * callers_addresses[3];
         char ** callers = NULL;

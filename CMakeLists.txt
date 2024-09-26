@@ -345,6 +345,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/alignas.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/m4ri.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/detect-static-analysis.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/execinfo.cmake")
 
 set(CADO_SHARED)
 
