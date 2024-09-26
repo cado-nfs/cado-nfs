@@ -508,22 +508,6 @@ cxx_mpz_mat matrix_of_multmap(
 }
 /*}}}*/
 
-/*{{{ factorization_of_polynomial_mod_mpz */
-vector<pair<cxx_mpz_poly, int> > factorization_of_polynomial_mod_mpz(cxx_mpz_poly const& f, cxx_mpz const& p, gmp_randstate_t state)
-{
-    mpz_poly_factor_list lf;
-    mpz_poly_factor_list_init(lf);
-    mpz_poly_factor(lf,f,p,state);
-    vector<pair<cxx_mpz_poly, int> > res(lf->size);
-    for(int i = 0 ; i < lf->size ; i++) {
-        mpz_poly_swap(res[i].first, lf->factors[i]->f);
-        res[i].second = lf->factors[i]->m;
-    }
-    mpz_poly_factor_list_clear(lf);
-    return res;
-}
-/*}}}*/
-
 /*{{{ template <typename T> void append_move(vector<T> &a, vector<T> &b) */
 template <typename T> void append_move(vector<T> &a, vector<T> &b)
 {
@@ -574,7 +558,7 @@ vector<pair<cxx_mpz_mat, int> > factorization_of_prime_inner(
      */
     cxx_mpz_poly Pc = mpz_mat_minpoly_mod_mpz(Mc, p);
 
-    vector<pair<cxx_mpz_poly, int> > facP = factorization_of_polynomial_mod_mpz(Pc, p, state);
+    vector<pair<cxx_mpz_poly, int> > facP = mpz_poly_factor(Pc, p, state);
 
     vector<pair<cxx_mpz_mat, int> > ideals;
 

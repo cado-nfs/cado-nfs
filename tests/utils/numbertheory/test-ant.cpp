@@ -401,6 +401,7 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
             if (!(is >> x)) usage(pl, original_argv, "cannot parse ideal generators");
             elements.push_back(x);
         }
+        free(desc);
     }
 
 

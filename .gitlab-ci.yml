@@ -437,7 +437,7 @@ checks on osx system:
  
 # See #30036: it seems that testing with gcc on freebsd is
 # definitely too much pain now.
-checks on freebsd13.3 system with clang:
+checks on freebsd13.4 system with clang:
   <<: *common-template
   stage: thorough
   # do not start it prematurely, in case previous jobs failed
@@ -446,7 +446,7 @@ checks on freebsd13.3 system with clang:
     - freebsd-tanker
   script:
     - make -C ci/ci/utilities/tanker
-    - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.3 ci/ci/40-testsuite.sh
+    - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.4 ci/ci/40-testsuite.sh
 
 checks on freebsd14.1 system with clang:
   <<: *common-template
@@ -456,19 +456,6 @@ checks on freebsd14.1 system with clang:
   script:
     - make -C ci/ci/utilities/tanker
     - ci/ci/50-libvirt-wrap-tests.sh freebsd:14.1 ci/ci/40-testsuite.sh
-
-checks on 32-bit freebsd13.3 system with clang:
-  variables:
-    FREEBSD_ARCH: i386
-  <<: *common-template
-  stage: thorough
-  # do not start it prematurely, in case previous jobs failed
-  # needs: []
-  tags:
-    - freebsd-tanker
-  script:
-    - make -C ci/ci/utilities/tanker
-    - ci/ci/50-libvirt-wrap-tests.sh freebsd:13.3?arch=i386 ci/ci/40-testsuite.sh
 
 coverity on debian10 system with gcc:
   # override the common template.

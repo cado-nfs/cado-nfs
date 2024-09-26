@@ -9,6 +9,7 @@
 #include <limits>
 #include <type_traits>
 #include <stdlib.h>
+#include "fmt/format.h"
 #include <sstream>
 #include "fmt/core.h"
 #include "gmp_aux.h"
