@@ -207,7 +207,7 @@ export PREFIX=/tmp/install ; cmake .../cado-nfs
 
 There are several ways to call cado-nfs scripts (e.g., `cado-nfs.py`).
 Here we assume that `$SRCDIR` is the source directory, that `$BUILDDIR`
-is the build tree for the local machine (typically `$SRCDIR/$(hostname)`),
+is the build tree for the local machine (typically `$SRCDIR/build/$(hostname)`),
 and that `$PREFIX` is the installation prefix (see above).  We refer to
 these different ways, and later discuss how they work on different
 systems (which is mostly impacted by the shared library mechanism).
@@ -222,7 +222,9 @@ systems (which is mostly impacted by the shared library mechanism).
   `$PREFIX/share/cado-nfs-x.y.z/`
 
 * `$BUILDDIR/cado-nfs.py`
-  This is not supported. Might work, might not. You've been warned.
+  This calls binaries within `$BUILDDIR`. This is useful when several
+  processors with the same architecture share a file-system, you have
+  to compile CADO-NFS on one only.
 
 Linux, BSD: the first two choices above should work ok.
 MacOS X:
