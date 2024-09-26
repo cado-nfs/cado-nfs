@@ -6,7 +6,7 @@
 #include "memory.h"
 #include "mpfq/mpfq_vbase.h"
 
-#define FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES      32
+#define FORCED_ALIGNMENT_ON_MPFQ_VEC_TYPES      64
 #define MINIMUM_ITEM_SIZE_OF_MPFQ_VEC_TYPES     4
 
 /* The mpfq routines for doing vec_init rely on simple malloc() to do their
