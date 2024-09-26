@@ -26,7 +26,7 @@ variables:
 #   (finer grained than the ["skip ci"
 #   syntax](https://docs.gitlab.com/ee/ci/yaml/#skip-pipeline))
 #
-# Much desired: https://gitlab.com/gitlab-org/gitlab/-/issues/23605
+
   
 ############################################################################
 # This template is used so that if the magic words "skip some ci" are
@@ -60,6 +60,9 @@ workflow:
      - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
        when: never
      - when: always
+   # https://gitlab.com/gitlab-org/gitlab/-/issues/23605
+   auto_cancel:
+     on_job_failure: all
 
 ############################################################################
 # The jobs that do checks.
