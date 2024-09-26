@@ -225,10 +225,11 @@ checks on centos9 system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
-# unfortunately silkeh/clang:latest is outdated...
-checks with clang13:
+# Despite what the description on docker hub says, silkeh/clang:latest is
+# not always the latest stable build, which is a pity.
+checks with clang:
   <<: *common-template
-  image: silkeh/clang:13
+  image: silkeh/clang:latest
   stage: early
   before_script:
     - ci/ci/00-prepare-docker.sh
@@ -461,7 +462,9 @@ containers:
       allow_failure: false
     - if: $CI_COMMIT_MESSAGE =~ /only coverage/
       when: never
-    - when: on_success
+    - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "containers")
+      when: always
+    - when: never
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - apk update
