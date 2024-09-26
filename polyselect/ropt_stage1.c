@@ -342,8 +342,7 @@ find_sublattice ( single_sublattice_priority_queue_ptr top,
     if ( (f_ui == NULL) ||
          (g_ui == NULL) ||
          (fuv_ui == NULL) ) {
-      fprintf (stderr, "Error, cannot allocate memory in "
-               "find_sublattice(). \n");
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
       exit (1);
     }
 

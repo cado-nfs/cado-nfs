@@ -102,10 +102,10 @@ comp_sq_roots ( polyselect_poly_header_srcptr header,
 
   rq = (uint64_t*) malloc (header->d * sizeof (uint64_t));
   if (rq == NULL)
-  {
-    fprintf (stderr, "Error, cannot allocate memory in comp_sq_q\n");
-    exit (1);
-  }
+    {
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
+      exit(1);
+    }
 
   /* prepare the special-q's */
   for (i = 1; (q = SPECIAL_Q[i]) != 0 ; i++)
