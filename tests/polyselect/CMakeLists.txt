@@ -116,3 +116,13 @@ endmacro()
 
 define_sopt_test(1 sopt.input1.txt 465209edaa2c8bbad4e7254a7d6fcf2f121a71b8)
 define_sopt_test(2 sopt.input2.txt a3aadd110944689565adb70ae7456b69d8d97dbc)
+
+
+cado_define_test(gfpkdlpolyselect_test.c
+    ${CADO_NFS_SOURCE_DIR}/polyselect/gfpkdlpolyselect.c
+    NO_DEFAULT_RUN
+    LIBRARIES polyselect_common utils)
+
+foreach(p 10000000019 10000000033 10000000061 10000000069 10000000097)
+    cado_divert_test(gfpkdlpolyselect_test ${p} APPEND_ARGUMENTS -k 2 -p ${p} -label test${p})
+endforeach()
