@@ -38,6 +38,9 @@ case "$CI_JOB_NAME" in
         # fix, but we can live with it.
         export TIMEOUT_SCALE=2
         ;;
+    *"using package libfmt-dev"*)
+        export install_package_libfmt_dev=1
+        ;;
 esac
 
 project_package_selection() {
@@ -54,6 +57,17 @@ project_package_selection() {
         # fedora_packages="$fedora_packages     python3-pip"
         # centos_packages="$centos_packages     python3-pip"
         # alpine_packages="$alpine_packages     py3-pip"
+    fi
+
+    if [ "$install_package_libfmt_dev" ] ; then
+        echo " + libfmt_dev is set"
+        debian_packages="$debian_packages     libfmt-dev"
+        if ! is_debian && ! is_ubuntu ; then
+            echo "libfmt-dev: only on debian" >&2
+            # because I'm lazy, and also I'm not sure there would be a point
+            # in doing it on several systems anyway.
+            exit 1
+        fi
     fi
 }
 

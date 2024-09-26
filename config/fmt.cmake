@@ -77,6 +77,7 @@ CHECK_CXX_SOURCE_COMPILES("
 #endif
 #include <fmt/format.h>
 
+#if FMT_VERSION >= 90000
 /* with fmt8, formatting a const reference to a type that defines a
  * conversion to a pointer seems to fail, even though we abide by the
  * recommended practice for the definition of the custom formatter.
@@ -98,13 +99,17 @@ template <> struct fmt::formatter<cxx_foo>: formatter<string_view> {
             return formatter<string_view>::format( string_view(os.str()), ctx);
       }
 };
-
+#endif
 
 int main(void)
 {
+#if FMT_VERSION >= 90000
     cxx_foo b;
     cxx_foo const & a(b);
     std::cout << fmt::format(FMT_STRING(\"{} {} {}\"), \"Catch\", 22, a) << std::endl;
+#else
+    std::cout << fmt::format(FMT_STRING(\"{} {}\"), \"Catch\", 22) << std::endl;
+#endif
     return 0;
 }
 
