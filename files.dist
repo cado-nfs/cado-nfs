@@ -745,10 +745,15 @@ parameters/factor/params.c125
 parameters/factor/params.c130
 parameters/factor/params.c135
 parameters/factor/params.c140
+parameters/factor/params.c143
 parameters/factor/params.c145
+parameters/factor/params.c148
 parameters/factor/params.c150
+parameters/factor/params.c153
 parameters/factor/params.c155
+parameters/factor/params.c158
 parameters/factor/params.c160
+parameters/factor/params.c163
 parameters/factor/params.c165
 parameters/factor/params.c170
 parameters/factor/params.c175
@@ -1603,6 +1608,7 @@ utils/mpz_poly.h
 utils/mpz_poly_bivariate.c
 utils/mpz_poly_bivariate.h
 utils/mpz_poly_parallel.hpp
+utils/mpz_polymodF.h
 utils/mpz_vector.c
 utils/mpz_vector.h
 utils/multityped_array.hpp

@@ -348,10 +348,6 @@ void cachefile_close(cachefile_ptr c)
 }
 /* }}} */
 
-void
-polymodF_mul_monic (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
-        mpz_poly_srcptr F);
-
 /* {{{ mpi-gmp helpers */
 static int mpi_data_agrees(void *buffer, int count, MPI_Datatype datatype,/*{{{*/
         MPI_Comm comm)
@@ -514,7 +510,7 @@ void allreduce_mulmod_mpz(mpz_ptr z, MPI_Comm comm, mpz_srcptr px)/*{{{*/
 #endif
 }/*}}}*/
 
-void reduce_polymodF_mul_monic(mpz_poly P, int recv, MPI_Comm comm, mpz_poly F)/*{{{*/
+void reduce_mpz_poly_mul_mod_f(mpz_poly P, int recv, MPI_Comm comm, mpz_poly F)/*{{{*/
 {
     int me;
     int s;
@@ -542,7 +538,7 @@ void reduce_polymodF_mul_monic(mpz_poly P, int recv, MPI_Comm comm, mpz_poly F)/
         // could be off-loaded to a working queue.
         if (me == receiver) {
             mpz_poly_cleandeg(Q, F->deg - 1);
-            polymodF_mul_monic(P, P, Q, F);
+            mpz_poly_mul_mod_f(P, P, Q, F);
         }
     }
     mpz_poly_clear(Q);
@@ -560,9 +556,9 @@ static void broadcast_poly(mpz_poly P, int maxdeg, int root, MPI_Comm comm) /*{{
     }
     mpz_poly_cleandeg(P, maxdeg);
 }/*}}}*/
-void allreduce_polymodF_mul_monic(mpz_poly P, MPI_Comm comm, mpz_poly F)/*{{{*/
+void allreduce_mpz_poly_mul_mod_f(mpz_poly P, MPI_Comm comm, mpz_poly F)/*{{{*/
 {
-    reduce_polymodF_mul_monic(P, 0, comm, F);
+    reduce_mpz_poly_mul_mod_f(P, 0, comm, F);
     broadcast_poly(P, F->deg - 1, 0, comm);
 }
 /* }}} */
@@ -1056,37 +1052,6 @@ mpz_poly_from_ab_monic(mpz_poly tmp, long a, unsigned long b) {
     mpz_mul(tmp->coeff[0], tmp->coeff[0], glob.cpoly->pols[1]->coeff[glob.n]);
 }
 
-    static void
-mpz_poly_reducemodF_monic(mpz_poly P, mpz_poly p, const mpz_poly F)
-{
-    if (p->deg < F->deg) {
-        mpz_poly_set(P, p);
-        return;
-    }
-    const int d = F->deg;
-    while (p->deg >= d) {
-        const int k = p->deg;
-        for (int i = 0; i < d; ++i)
-            mpz_submul (p->coeff[k-d+i], p->coeff[k], F->coeff[i]);
-
-        mpz_poly_cleandeg (p, k-1);
-    }
-
-    mpz_poly_set(P, p);
-}
-
-    void
-polymodF_mul_monic (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2,
-        mpz_poly_srcptr F)
-{
-    mpz_poly prd;
-    mpz_poly_init(prd, P1->deg+P2->deg);
-    ASSERT_ALWAYS(mpz_poly_normalized_p (P1));
-    ASSERT_ALWAYS(mpz_poly_normalized_p (P2));
-    mpz_poly_mul(prd, P1, P2);
-    mpz_poly_reducemodF_monic(Q, prd, F);
-    mpz_poly_clear(prd);
-}
 
 // }}}
 
@@ -1432,7 +1397,7 @@ alg_ptree_t * alg_ptree_build(struct prime_data * p, int i0, int i1)
     res->t0 = alg_ptree_build(p, i0, i0+d);
     res->t1 = alg_ptree_build(p, i0+d, i1);
     mpz_poly_mul(res->s, res->t0->s, res->t1->s);
-    mpz_poly_reducemodF_monic(res->s, res->s, glob.F);
+    mpz_poly_div_q_z(res->s, res->s, glob.F);
     mpz_poly_mod_mpz (res->s, res->s, px);
     return res;
 }
@@ -2172,7 +2137,7 @@ size_t accumulate_ab_poly(mpz_poly_ptr P, ab_source_ptr ab, size_t off0, size_t 
             int r = ab_source_next(ab, &a, &b);
             FATAL_ERROR_CHECK(!r, "dep file ended prematurely\n");
             mpz_poly_from_ab_monic(tmp, a, b);
-            polymodF_mul_monic(P, P, tmp, glob.f_hat);
+            mpz_poly_mul_mod_f(P, P, tmp, glob.f_hat);
         }
         return res;
     }
@@ -2182,7 +2147,7 @@ size_t accumulate_ab_poly(mpz_poly_ptr P, ab_source_ptr ab, size_t off0, size_t 
     mpz_poly_init(Pr, glob.n);
     res += accumulate_ab_poly(Pl, ab, off0, off0 + d, tmp);
     res += accumulate_ab_poly(Pr, ab, off0 + d, off1, tmp);
-    polymodF_mul_monic(P, Pl, Pr, glob.f_hat);
+    mpz_poly_mul_mod_f(P, Pl, Pr, glob.f_hat);
     mpz_poly_clear(Pl);
     mpz_poly_clear(Pr);
     return res;
@@ -2234,7 +2199,7 @@ void * a_poly_read_share_child(struct subtask_info_t * info)
 
 void * a_poly_read_share_child2(struct subtask_info_t * info)
 {
-    polymodF_mul_monic(info->P0, info->P0, info->P1, glob.f_hat);
+    mpz_poly_mul_mod_f(info->P0, info->P0, info->P1, glob.f_hat);
     return NULL;
 }
 
@@ -2328,7 +2293,7 @@ size_t a_poly_read_share(mpz_poly P, size_t off0, size_t off1)
 
     log_step(": sharing");
 
-    allreduce_polymodF_mul_monic(P, glob.acomm, glob.f_hat);
+    allreduce_mpz_poly_mul_mod_f(P, glob.acomm, glob.f_hat);
     MPI_Allreduce(MPI_IN_PLACE, &nab_loc, 1, CADO_MPI_SIZE_T, MPI_SUM, MPI_COMM_WORLD);
 
     STOPWATCH_GET();
@@ -3792,166 +3757,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
-#if 0/*{{{*/
-
-// Init F to be the algebraic polynomial
-mpz_poly_init(F, degree);
-mpz_poly_set (F, cpoly->alg);
-
-// Init prd to 1.
-mpz_poly_init(prd->p, cpoly->alg->deg);
-mpz_set_ui(prd->p->coeff[0], 1);
-prd->p->deg = 0;
-prd->v = 0;
-
-// Allocate tmp
-mpz_poly_init(tmp->p, 1);
-
-// Accumulate product
-int nab = 0, nfree = 0;
-#if 0
-// Naive version, without subproduct tree
-    while (fscanf(depfile, "%ld %lu", &a, &b) != EOF) {
-        if (!(nab % 100000))
-            fprintf(stderr, "# Reading ab pair #%d at %2.2lf\n", nab,
-                    WCT);
-        if ((a == 0) && (b == 0))
-            break;
-        polymodF_from_ab(tmp, a, b);
-        polymodF_mul(prd, prd, tmp, F);
-        nab++;
-    }
-#else
-// With a subproduct tree
-{
-    polymodF_t *prd_tab;
-    unsigned long lprd = 1;	/* number of elements in prd_tab[] */
-    unsigned long nprd = 0;	/* number of accumulated products in prd_tab[] */
-    prd_tab = (polymodF_t *) malloc(lprd * sizeof(polymodF_t));
-    mpz_poly_init(prd_tab[0]->p, F->deg);
-    mpz_set_ui(prd_tab[0]->p->coeff[0], 1);
-    prd_tab[0]->p->deg = 0;
-    prd_tab[0]->v = 0;
-    while (fscanf(depfile, "%ld %lu", &a, &b) != EOF) {
-        if (!(nab % 100000))
-            fprintf(stderr, "# Reading ab pair #%d at %2.2lf\n", nab,
-                    WCT);
-        if ((a == 0) && (b == 0))
-            break;
-        polymodF_from_ab(tmp, a, b);
-        prd_tab = accumulate_fast(prd_tab, tmp, F, &lprd, nprd++);
-        nab++;
-        if (b == 0)
-            nfree++;
-    }
-    fprintf(stderr, "# Read %d including %d free relations\n", nab,
-            nfree);
-    ASSERT_ALWAYS((nab & 1) == 0);
-    ASSERT_ALWAYS((nfree & 1) == 0);
-    accumulate_fast_end(prd_tab, F, lprd);
-    fclose(depfile);
-
-    mpz_poly_set(prd->p, prd_tab[0]->p);
-    prd->v = prd_tab[0]->v;
-    for (i = 0; i < (long) lprd; ++i)
-        mpz_poly_clear(prd_tab[i]->p);
-    free(prd_tab);
-}
-#endif
-
-fprintf(stderr, "Finished accumulating the product at %2.2lf\n",
-        WCT);
-fprintf(stderr, "nab = %d, nfree = %d, v = %d\n", nab, nfree, prd->v);
-fprintf(stderr, "maximal polynomial bit-size = %lu\n",
-        (unsigned long) mpz_poly_sizeinbase(prd->p, 2));
-
-p = FindSuitableModP(F);
-fprintf(stderr, "Using p=%lu for lifting\n", p);
-
-double tm = seconds();
-polymodF_sqrt(prd, prd, F, p);
-
-
-fprintf(stderr, "Square root lifted in %2.2lf\n", seconds() - tm);
-mpz_t algsqrt, aux;
-mpz_init(algsqrt);
-mpz_init(aux);
-mpz_poly_eval_mod_mpz(algsqrt, prd->p, cpoly->m, cpoly->n);
-mpz_invert(aux, F->coeff[F->deg], cpoly->n);	// 1/fd mod n
-mpz_powm_ui(aux, aux, prd->v, cpoly->n);	// 1/fd^v mod n
-mpz_mul(algsqrt, algsqrt, aux);
-mpz_mod(algsqrt, algsqrt, cpoly->n);
-
-gmp_fprintf(stderr, "Algebraic square root is: %Zd\n", algsqrt);
-
-depfile = fopen(param_list_lookup_string(pl, "ratdepfile"), "r");
-ASSERT_ALWAYS(depfile != NULL);
-gmp_fscanf(depfile, "%Zd", aux);
-fclose(depfile);
-
-gmp_fprintf(stderr, "Rational square root is: %Zd\n", aux);
-fprintf(stderr, "Total square root time is %2.2lf\n", seconds());
-
-int found = 0;
-{
-    mpz_t g1, g2;
-    mpz_init(g1);
-    mpz_init(g2);
-
-    // First check that the squares agree
-    mpz_mul(g1, aux, aux);
-    mpz_mod(g1, g1, cpoly->n);
-    if (mpz_cmp_ui(cpoly->g[1], 1) != 0) {
-        // case g(X)=m1*X+m2 with m1 != 1
-        // we should have prod (a+b*m2/m1) = A^2 = R^2/m1^(nab-nfree)
-        // and therefore nab should be even
-        if (nab & 1) {
-            fprintf(stderr, "Sorry, but #(a, b) is odd\n");
-            fprintf(stderr,
-                    "Bug: this should be patched! Please report your buggy input\n");
-            printf("Failed\n");
-            return 0;
-        }
-        mpz_powm_ui(g2, cpoly->g[1], (nab - nfree) >> 1, cpoly->n);
-        mpz_mul(algsqrt, algsqrt, g2);
-        mpz_mod(algsqrt, algsqrt, cpoly->n);
-    }
-    mpz_mul(g2, algsqrt, algsqrt);
-    mpz_mod(g2, g2, cpoly->n);
-    if (mpz_cmp(g1, g2) != 0) {
-        fprintf(stderr, "Bug: the squares do not agree modulo n!\n");
-        //      gmp_printf("g1:=%Zd;\ng2:=%Zd;\n", g1, g2);
-    }
-    mpz_sub(g1, aux, algsqrt);
-    mpz_gcd(g1, g1, cpoly->n);
-
-    if (mpz_cmp(g1, cpoly->n)) {
-        if (mpz_cmp_ui(g1, 1)) {
-            found = 1;
-            gmp_printf("%Zd\n", g1);
-        }
-    }
-    mpz_add(g2, aux, algsqrt);
-    mpz_gcd(g2, g2, cpoly->n);
-    if (mpz_cmp(g2, cpoly->n)) {
-        if (mpz_cmp_ui(g2, 1)) {
-            found = 1;
-            gmp_printf("%Zd\n", g2);
-        }
-    }
-    mpz_clear(g1);
-    mpz_clear(g2);
-}
-if (!found)
-    printf("Failed\n");
-
-    cado_poly_clear(cpoly);
-    mpz_clear(aux);
-    mpz_clear(algsqrt);
-    mpz_poly_clear(F);
-    mpz_poly_clear(prd->p);
-    mpz_poly_clear(tmp->p);
-
-    return 0;
-#endif/*}}}*/

@@ -223,10 +223,12 @@ step_check() {
         "${test_precommand[@]}" "${MAKE}" check ARGS="-j$NCPUS $ctest_args"
     fi
     rc=$?
+    export rc
 
     if [ "$valgrind" ] ; then
-        export rc
         (set +x ; postprocess_valgrind)
+    else
+        return $rc
     fi
 }
 

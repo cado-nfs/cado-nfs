@@ -3,13 +3,11 @@
 ###########################################################################
 # See params/params.c90 for an example which contains some documentation.
 
-# contributed by Mike Curtis
-
 ###########################################################################
 # General parameters
 ###########################################################################
 
-name = c140
+name = c148
 
 ###########################################################################
 # Polynomial selection
@@ -17,46 +15,50 @@ name = c140
 
 tasks.polyselect.degree = 5
 
-tasks.polyselect.P = 125000
-tasks.polyselect.admin = 1260
-tasks.polyselect.admax = 7e4
+tasks.polyselect.P = 260000
+tasks.polyselect.admin = 2160
+tasks.polyselect.admax = 1e5
 tasks.polyselect.adrange = 1260
 tasks.polyselect.incr = 420
 tasks.polyselect.nq = 156250
-tasks.polyselect.nrkeep = 60
-tasks.polyselect.sopteffort = 2
-tasks.polyselect.ropteffort = 16
+tasks.polyselect.nrkeep = 72
+tasks.polyselect.sopteffort = 5
+tasks.polyselect.ropteffort = 21
+#tasks.polyselect.threads = 3
 
 ###########################################################################
 # Sieve
 ###########################################################################
 
-tasks.lim0 = 11000000
-tasks.lim1 = 14000000
+tasks.lim0 = 17000000
+tasks.lim1 = 24000000
 tasks.lpb0 = 30
-tasks.lpb1 = 30
-tasks.sieve.mfb0 = 57
-tasks.sieve.mfb1 = 58
-tasks.sieve.lambda0 = 1.90
-tasks.sieve.lambda1 = 1.935
+tasks.lpb1 = 31
+tasks.sieve.mfb0 = 58
+tasks.sieve.mfb1 = 59
+tasks.sieve.lambda0 = 1.94
+tasks.sieve.lambda1 = 1.91
 tasks.sieve.ncurves0 = 12
 tasks.sieve.ncurves1 = 14
-tasks.I = 13
-tasks.qmin = 2400000
+tasks.I = 14
+#tasks.sieve.las.threads = 3
+#tasks.sieve.adjust_strategy = 2
+tasks.qmin = 2300000
+tasks.sieve.rels_wanted = 119000000
 tasks.sieve.qrange = 10000
-tasks.sieve.rels_wanted = 71000000
 
 ###########################################################################
 # Filtering
 ###########################################################################
 
-tasks.filter.purge.keep = 175
-tasks.filter.required_excess = 0.04
-tasks.filter.target_density = 125.0
+tasks.filter.purge.keep = 180
+tasks.filter.required_excess = 0.08
+tasks.filter.target_density = 130.0
 
 ###########################################################################
 # Linear algebra
 ###########################################################################
+
 tasks.linalg.bwc.interval = 4000
 tasks.linalg.bwc.interleaving = 0
 tasks.linalg.m = 64

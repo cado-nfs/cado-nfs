@@ -598,57 +598,6 @@ mpz_poly_sqr_tc (inf& /* unused */, mpz_t *f, mpz_t *g, int r)
   return t;
 }
 
-/* Pseudo-reduce a plain polynomial p modulo a non-monic polynomial F.
-   The result is of type polymodF_t P, and satisfies:
-   P->p = lc(F)^P->v * p mod F.
-   WARNING: this function destroys its input p !!!
-
-   TODO: parallel version ?
-   */
-static void
-mpz_poly_reducemodF(polymodF_t P, mpz_poly_ptr p, mpz_poly_srcptr F)
-{
-  int v = 0;
-
-  if (p->deg < F->deg) {
-    mpz_poly_set(P->p, p);
-    P->v = 0;
-    return;
-  }
-
-  const int d = F->deg;
-
-  while (p->deg >= d) {
-    const int k = p->deg;
-    int i;
-
-    /* We compute F[d]*p - p[k]*F. In case F[d] divides p[k], we can simply
-       compute p - p[k]/F[d]*F. However this will happen rarely with
-       Kleinjung's polynomial selection, since lc(F) is large. */
-
-    /* FIXME: in msieve, Jason Papadopoulos reduces by F[d]^d*F(x/F[d])
-       instead of F(x). This might avoid one of the for-loops below. */
-
-    // temporary hack: account for the possibility that we're indeed
-    // using f_hat instead of f.
-    if (mpz_cmp_ui(F->coeff[d], 1) != 0) {
-      v++; /* we consider p/F[d]^v */
-      for (i = 0; i < k; ++i)
-        mpz_mul (p->coeff[i], p->coeff[i], F->coeff[d]);
-    }
-
-    for (i = 0; i < d; ++i)
-      mpz_submul (p->coeff[k-d+i], p->coeff[k], F->coeff[i]);
-
-    mpz_poly_cleandeg (p, k-1);
-  }
-
-  mpz_poly_set(P->p, p);
-  P->v = v;
-}
-
-
-
 /* --------------------------------------------------------------------------
    Public functions
    -------------------------------------------------------------------------- */
@@ -659,6 +608,8 @@ mpz_poly_reducemodF(polymodF_t P, mpz_poly_ptr p, mpz_poly_srcptr F)
 
 /* Allocate a polynomial that can contain 'd+1' coefficients and set to zero.
    We allow d < 0, which is equivalent to d = -1.
+
+   XXX mpz_poly_init takes a degree ; mpz_poly_realloc takes a number of coeffs
  */
 void mpz_poly_init(mpz_poly_ptr f, int d)
 {
@@ -680,7 +631,9 @@ void mpz_poly_init(mpz_poly_ptr f, int d)
 }
 
 
-/* realloc f to (at least) nc coefficients */
+/* realloc f to (at least) nc coefficients 
+   XXX mpz_poly_init takes a degree ; mpz_poly_realloc takes a number of coeffs
+   */
 void mpz_poly_realloc (mpz_poly_ptr f, unsigned int nc)
 {
   ASSERT_ALWAYS(nc <= (unsigned int) INT_MAX);
@@ -1774,6 +1727,7 @@ int mpz_poly_div_qr_z (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_po
     }
 
   /* now df >= dg */
+  /* realloc takes a number of coefficients, not a degree */
   mpz_poly_realloc(q, dq + 1);
 
   mpz_poly_set(r, f);
@@ -1792,6 +1746,7 @@ int mpz_poly_div_qr_z (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_po
   mpz_poly_cleandeg(r, r->deg);
   return 1;
 }
+
 int mpz_poly_div_r_z (mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g)
 {
     mpz_poly quo;
@@ -2089,35 +2044,6 @@ mpz_poly_eval_several_mod_mpz (mpz_ptr *r, mpz_poly_srcptr *f, int k,
         mpz_mod (r[j], r[j], m);
     }
     mpz_clear(w);
-}
-
-/* Set Q=P1*P2 (mod F). Warning: Q might equal P1 (or P2). */
-void polymodF_mul (polymodF_t Q,
-        const polymodF_t P1, const polymodF_t P2,
-        mpz_poly_srcptr F)
-{
-    mpz_poly_notparallel_info().polymodF_mul (Q, P1, P2, F);
-}
-template<typename inf>
-void mpz_poly_parallel_interface<inf>::polymodF_mul (polymodF_t Q,
-        const polymodF_t P1, const polymodF_t P2,
-        mpz_poly_srcptr F)
-{
-  mpz_poly prd;
-  int v;
-
-  /* beware: if P1 and P2 are zero, P1->p->deg + P2->p->deg = -2 */
-  mpz_poly_init (prd, (P1->p->deg == -1) ? -1 : P1->p->deg + P2->p->deg);
-
-  ASSERT_ALWAYS(mpz_poly_normalized_p (P1->p));
-  ASSERT_ALWAYS(mpz_poly_normalized_p (P2->p));
-
-  mpz_poly_mul (prd, P1->p, P2->p);
-  v = P1->v + P2->v;
-
-  mpz_poly_reducemodF(Q, prd, F);
-  Q->v += v;
-  mpz_poly_clear (prd);
 }
 
 /* Set Q = P/lc(P) (mod m). Q and P might be identical. */
@@ -4917,6 +4843,140 @@ int mpz_poly_set_from_expression(mpz_poly_ptr f, const char * value)
     }
     mpz_poly_set(f, tmp);
     return 1;
+}
+
+/* Pseudo-reduce a plain polynomial p modulo a non-monic polynomial F.
+   The result is of type mpz_polymodF P, and satisfies:
+   P->p = lc(F)^P->v * p mod F.
+
+   */
+void mpz_poly_reducemodF(mpz_polymodF_ptr P, mpz_poly_srcptr p, mpz_poly_srcptr F)
+{
+    mpz_poly_notparallel_info().mpz_poly_reducemodF(P, p, F);
+}
+
+template<typename inf>
+void mpz_poly_parallel_interface<inf>::mpz_poly_reducemodF(mpz_polymodF_ptr P, mpz_poly_srcptr p, mpz_poly_srcptr F)
+{
+  int v = 0;
+
+  ASSERT_ALWAYS(P->p != p);
+
+  mpz_poly_set(P->p, p);
+  P->v = 0;
+
+  if (p->deg < F->deg)
+    return;
+
+  const int d = F->deg;
+
+  while (P->p->deg >= d) {
+    const int k = P->p->deg;
+    int i;
+
+    /* We compute F[d]*p - p[k]*F. In case F[d] divides p[k], we can simply
+       compute p - p[k]/F[d]*F. However this will happen rarely with
+       Kleinjung's polynomial selection, since lc(F) is large. */
+
+    /* FIXME: in msieve, Jason Papadopoulos reduces by F[d]^d*F(x/F[d])
+       instead of F(x). This might avoid one of the for-loops below. */
+
+    // temporary hack: account for the possibility that we're indeed
+    // using f_hat instead of f.
+    if (mpz_cmp_ui(F->coeff[d], 1) != 0) {
+      v++; /* we consider p/F[d]^v */
+#ifdef HAVE_OPENMP
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
+#endif
+      for (i = 0; i < k; ++i)
+        mpz_mul (P->p->coeff[i], P->p->coeff[i], F->coeff[d]);
+    }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for if (!std::is_same<inf, mpz_poly_notparallel_info>::value)
+#endif
+    for (i = 0; i < d; ++i)
+      mpz_submul (P->p->coeff[k-d+i], P->p->coeff[k], F->coeff[i]);
+
+    mpz_poly_cleandeg (P->p, k-1);
+  }
+
+  P->v = v;
+}
+
+/* Set Q=P1*P2 (mod F). Warning: Q might equal P1 (or P2). */
+void mpz_polymodF_mul (mpz_polymodF_ptr Q,
+        mpz_polymodF_srcptr P1, mpz_polymodF_srcptr P2,
+        mpz_poly_srcptr F)
+{
+    mpz_poly_notparallel_info().mpz_polymodF_mul (Q, P1, P2, F);
+}
+template<typename inf>
+void mpz_poly_parallel_interface<inf>::mpz_polymodF_mul (mpz_polymodF_ptr Q,
+        mpz_polymodF_srcptr P1, mpz_polymodF_srcptr P2,
+        mpz_poly_srcptr F)
+{
+  mpz_poly prd;
+  int v;
+
+  /* beware: if P1 and P2 are zero, P1->p->deg + P2->p->deg = -2 */
+  mpz_poly_init (prd, (P1->p->deg == -1) ? -1 : P1->p->deg + P2->p->deg);
+
+  ASSERT_ALWAYS(mpz_poly_normalized_p (P1->p));
+  ASSERT_ALWAYS(mpz_poly_normalized_p (P2->p));
+
+  mpz_poly_mul (prd, P1->p, P2->p);
+  v = P1->v + P2->v;
+
+  mpz_poly_reducemodF(Q, prd, F);
+  Q->v += v;
+  mpz_poly_clear (prd);
+}
+
+void mpz_polymodF_set_ui(mpz_polymodF_ptr P, unsigned long x)
+{
+    P->v = 0;
+    mpz_poly_realloc(P->p, 1);
+    mpz_set_ui(P->p->coeff[0], x);
+    mpz_poly_cleandeg(P->p, 0);
+}
+
+void mpz_polymodF_set(mpz_polymodF_ptr P, mpz_polymodF_srcptr Q)
+{
+    P->v = Q->v;
+    mpz_poly_set(P->p, Q->p);
+}
+
+void mpz_polymodF_set_from_ab(mpz_polymodF_ptr P, mpz_srcptr a, mpz_srcptr b)
+{
+    P->v = 0;
+    if (mpz_cmp_ui (b, 0) == 0) {
+        mpz_poly_realloc(P->p, 1);
+        mpz_set (P->p->coeff[0], a);
+        mpz_poly_cleandeg(P->p, 0);
+    } else {
+        mpz_poly_realloc(P->p, 2);
+        mpz_set (P->p->coeff[0], a);
+        mpz_neg (P->p->coeff[1], b);
+        mpz_poly_cleandeg(P->p, 1);
+    }
+}
+
+void mpz_polymodF_init(mpz_polymodF_ptr P, int x)
+{
+    P->v = 0;
+    mpz_poly_init(P->p, x);
+}
+
+void mpz_polymodF_clear(mpz_polymodF_ptr P)
+{
+    mpz_poly_clear(P->p);
+}
+
+void mpz_polymodF_swap(mpz_polymodF_ptr P, mpz_polymodF_ptr Q)
+{
+    std::swap(P->v, Q->v);
+    mpz_poly_swap(P->p, Q->p);
 }
 
 

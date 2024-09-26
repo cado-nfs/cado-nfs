@@ -18,46 +18,44 @@ name = c130
 tasks.polyselect.degree = 5
 
 tasks.polyselect.P = 65000
-tasks.polyselect.admin = 960
-tasks.polyselect.admax = 10e3
-tasks.polyselect.adrange = 240
-tasks.polyselect.incr = 60
+tasks.polyselect.admin = 1260
+tasks.polyselect.admax = 38e3
+tasks.polyselect.adrange = 630
+tasks.polyselect.incr = 210
 tasks.polyselect.nq = 78125
 tasks.polyselect.nrkeep = 48
-#tasks.polyselect.sopteffort = 1 A/B tested, no change in sopt score from using sopt=1 but 10% longer time
 tasks.polyselect.ropteffort = 8
 
 ###########################################################################
 # Sieve
 ###########################################################################
 
-tasks.lim0 = 6500000
-tasks.lim1 = 8000000
-tasks.lpb0 = 29
+tasks.lim0 = 6000000
+tasks.lim1 = 7500000
+tasks.lpb0 = 28
 tasks.lpb1 = 29
 tasks.sieve.mfb0 = 54
 tasks.sieve.mfb1 = 57
-tasks.sieve.lambda0 = 1.86
-tasks.sieve.lambda1 = 1.95
-tasks.sieve.ncurves0 = 12
+tasks.sieve.lambda0 = 1.93
+tasks.sieve.lambda1 = 1.96
+tasks.sieve.ncurves0 = 11
 tasks.sieve.ncurves1 = 13
 tasks.I = 13
-#tasks.sieve.adjust_strategy = 2
-tasks.qmin = 700000
-tasks.sieve.rels_wanted = 41000000
+tasks.qmin = 750000
+tasks.sieve.rels_wanted = 30000000
 tasks.sieve.qrange = 10000
 
 ###########################################################################
 # Filtering
 ###########################################################################
 
-tasks.filter.purge.keep = 165
-tasks.filter.target_density = 115.0
+tasks.filter.purge.keep = 160
+tasks.filter.required_excess= 0.02
+tasks.filter.target_density = 110.0
 
 ###########################################################################
 # Linear algebra
 ###########################################################################
-
 tasks.linalg.bwc.interval = 3000
 tasks.linalg.bwc.interleaving = 0
 tasks.linalg.m = 64

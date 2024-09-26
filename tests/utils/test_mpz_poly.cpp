@@ -9,6 +9,7 @@
 #include <gmp.h>
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
+#include "mpz_polymodF.h"
 #include "mpz_poly_parallel.hpp"
 #include "tests_common.h"
 #include "portability.h" //  IWYU pragma: keep
@@ -128,11 +129,11 @@ test_mpz_poly_sqr_tc (unsigned long iter)
 }
 
 void
-test_polymodF_mul ()
+test_mpz_polymodF_mul ()
 {
   int d1, d2, d;
   mpz_poly F, T, U;
-  polymodF_t P1, P2, Q, P1_saved;
+  mpz_polymodF P1, P2, Q, P1_saved;
   int k = 2 + gmp_urandomm_ui(state, 127), count = 0;
   mpz_t c;
 
@@ -157,10 +158,10 @@ test_polymodF_mul ()
               mpz_poly_set_rrandomb (P2->p, d2, k, state);
               P2->v = 0;
               if ((++count % 3) == 0)
-                polymodF_mul (Q, P1, P2, F);
+                mpz_polymodF_mul (Q, P1, P2, F);
               else if ((count % 3) == 1)
                 {
-                  polymodF_mul (P1, P1, P2, F);
+                  mpz_polymodF_mul (P1, P1, P2, F);
                   mpz_poly_set (Q->p, P1->p);
                   Q->v = P1->v;
                   mpz_poly_set (P1->p, P1_saved->p);
@@ -168,7 +169,7 @@ test_polymodF_mul ()
                 }
               else
                 {
-                  polymodF_mul (P1, P2, P1, F);
+                  mpz_polymodF_mul (P1, P2, P1, F);
                   mpz_poly_set (Q->p, P1->p);
                   Q->v = P1->v;
                   mpz_poly_set (P1->p, P1_saved->p);
@@ -186,7 +187,7 @@ test_polymodF_mul ()
                   int oldd = T->deg;
                   if (!mpz_divisible_p (T->coeff[T->deg], F->coeff[F->deg]))
                     {
-                      printf ("Error in test_polymodF_mul\n");
+                      printf ("Error in test_mpz_polymodF_mul\n");
                       printf ("F="); mpz_poly_fprintf (stdout, F);
                       printf ("P1="); mpz_poly_fprintf (stdout, P1->p);
                       printf ("P2="); mpz_poly_fprintf (stdout, P2->p);
@@ -1152,7 +1153,7 @@ main (int argc, const char *argv[])
 
   test_mpz_poly_mul_tc (iter / 5);
   test_mpz_poly_sqr_tc (iter / 5);
-  test_polymodF_mul ();
+  test_mpz_polymodF_mul ();
   /* test_mpz_poly_roots_mpz (iter); */
   test_mpz_poly_sqr_mod_f_mod_mpz (iter);
   test_mpz_poly_fprintf ();
