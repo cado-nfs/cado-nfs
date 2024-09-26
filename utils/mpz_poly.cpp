@@ -900,6 +900,20 @@ void mpz_poly_set_urandomm(mpz_poly_ptr f, int d, mpz_srcptr m, gmp_randstate_pt
     mpz_poly_cleandeg(f, d);
 }
 
+void mpz_poly_set_ui(mpz_poly_ptr f, unsigned long z)
+{
+    mpz_poly_realloc (f, 1);
+    mpz_set_ui(f->coeff[0], z);
+    mpz_poly_cleandeg(f, 0);
+}
+
+void mpz_poly_set_si(mpz_poly_ptr f, long z)
+{
+    mpz_poly_realloc (f, 1);
+    mpz_set_si(f->coeff[0], z);
+    mpz_poly_cleandeg(f, 0);
+}
+
 /* g <- quo (f, x^i) */
 void mpz_poly_div_xi(mpz_poly_ptr g, mpz_poly_srcptr f, int i)
 {
@@ -2933,8 +2947,14 @@ mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_pol
         mpz_poly_xgcd_mpz(d, g, f, v, u, p);
         return;
     }
-    cxx_mpz_poly u0 = 1, v0 = 0, r0 = f;
-    cxx_mpz_poly u1 = 0, v1 = 1, r1 = g;
+    cxx_mpz_poly u0, v0, r0 = f;
+    cxx_mpz_poly u1, v1, r1 = g;
+
+    mpz_poly_set_xi(u0, 0);
+    mpz_poly_set_zero(v0);
+    mpz_poly_set_zero(u1);
+    mpz_poly_set_xi(v1, 0);
+
     cxx_mpz_poly q, tmp;
     mpz_poly_mod_mpz(r0, r0, p, NULL);
     mpz_poly_mod_mpz(r1, r1, p, NULL);

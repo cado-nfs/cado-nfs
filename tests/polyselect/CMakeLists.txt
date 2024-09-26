@@ -79,7 +79,8 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         -e 3 5 2 1)
 endif()
 
-cado_define_test(gfpkdlpolyselect_test.c
+cado_define_test(
+    gfpkdlpolyselect_test.c
     table_t_Py_f_deg4_type0_h1_t-200--200.c
     ${PROJECT_SOURCE_DIR}/polyselect/gfpkdlpolyselect.c
     LIBRARIES polyselect_common utils
@@ -89,6 +90,9 @@ cado_define_test(gfpkdlpolyselect_test.c
 cado_divert_test(gfpkdlpolyselect_test 1 -p 10000000019 -k 2 -label test01)
 cado_divert_test(gfpkdlpolyselect_test 2 -p 10000000019 -k 2 -label test02)
 cado_divert_test(gfpkdlpolyselect_test 3 -p 10000000019 -k 2 -label test03)
+foreach(p 10000000019 10000000033 10000000061 10000000069 10000000097)
+    cado_divert_test(gfpkdlpolyselect_test ${p} APPEND_ARGUMENTS -k 2 -p ${p} -label test${p})
+endforeach()
 
 cado_define_test(test_polyselect_gfpn
         PROGRAM
@@ -118,11 +122,3 @@ define_sopt_test(1 sopt.input1.txt 465209edaa2c8bbad4e7254a7d6fcf2f121a71b8)
 define_sopt_test(2 sopt.input2.txt a3aadd110944689565adb70ae7456b69d8d97dbc)
 
 
-cado_define_test(gfpkdlpolyselect_test.c
-    ${CADO_NFS_SOURCE_DIR}/polyselect/gfpkdlpolyselect.c
-    NO_DEFAULT_RUN
-    LIBRARIES polyselect_common utils)
-
-foreach(p 10000000019 10000000033 10000000061 10000000069 10000000097)
-    cado_divert_test(gfpkdlpolyselect_test ${p} APPEND_ARGUMENTS -k 2 -p ${p} -label test${p})
-endforeach()

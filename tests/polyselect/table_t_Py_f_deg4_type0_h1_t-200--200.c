@@ -1,6 +1,7 @@
 #include "cado.h"
 
 #include "gfpkdlpolyselect.h"
+#include "gfpkdlpolyselect_impl.h"
 
 /*
        f := x^4 - t*x^3 - 6*x^2 + t*x + 1;
