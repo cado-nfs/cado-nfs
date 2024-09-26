@@ -36,14 +36,6 @@ void Lemma21 ( mpz_poly_ptr F,
                mpz_poly_srcptr G,
                mpz_ptr res );
 
-void eval_polys ( mpz_t *f,
-                  mpz_t *g,
-                  mpz_t *fr,
-                  mpz_t *gr,
-                  mpz_t *numerator,
-                  const unsigned int *primes,
-                  int d );
-
 unsigned long
 solve_lineq ( unsigned long a,
               unsigned long b,
