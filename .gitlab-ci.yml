@@ -33,6 +33,18 @@ image: gcc
     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
       when: manual
       allow_failure: false
+    - if: $CI_COMMIT_MESSAGE =~ /only coverage/
+      when: never
+    - when: on_success
+  retry:
+    max: 2
+    when: runner_system_failure
+  
+.coverage-template: &coverage-template
+  rules:
+    - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
+      when: manual
+      allow_failure: false
     - when: on_success
   retry:
     max: 2
@@ -261,7 +273,7 @@ expensive checks with gcc:
 # It does depend on the availability of the coverage images, though!
 #
 coverage tests on checks with gcc:
-  <<: *common-template
+  <<: *coverage-template
   stage: thorough
   # do not start it prematurely, in case previous jobs failed
   image: alpine:latest
@@ -271,9 +283,8 @@ coverage tests on checks with gcc:
     - *checks-script
   artifacts:
     paths:
-      - coverage-*.info
       - coverage-*.json
-    # - coverage-*-generated-sources.tar.gz
+      - coverage-*-generated-sources.tar.gz
     expire_in: 1 week
 
 
@@ -297,7 +308,7 @@ coverage tests on checks with gcc:
 # show up under cado-nfs.gitlabpages.inria.fr, but we do not need to care
 # about it.
 merge coverage tests:
-  <<: *common-template
+  <<: *coverage-template
   stage: publish
   needs:
     - job: coverage tests on checks with gcc
@@ -318,6 +329,8 @@ merge coverage tests:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
+  coverage: '/lines:\s\d+\.\d+\%/'
+
 
 ############################################################################
 # Tests on slow machines and/or shell executors. They depend on nothing.
@@ -406,6 +419,8 @@ coverity on debian10 system with gcc:
     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
       when: manual
       allow_failure: false
+    - if: $CI_COMMIT_MESSAGE =~ /only coverage/
+      when: never
     - if: $CI_COMMIT_BRANCH && ($CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "coverity")
       when: always
     - when: never
@@ -436,6 +451,8 @@ containers:
     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
       when: manual
       allow_failure: false
+    - if: $CI_COMMIT_MESSAGE =~ /only coverage/
+      when: never
     - when: on_success
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY

@@ -115,7 +115,7 @@ if [[ "$CI_JOB_NAME" =~ freebsd([0-9]+\.[0-9]+) ]] ; then
 EOF
     libvirt_host=$(xsltproc $tmp/getaddress.xsl <(virsh -c qemu:///system net-dumpxml default))
     random=$(uuidgen  | sha256sum | cut -c1-10)
-    # contrary to what I found in some places, user access to fues mounts
+    # contrary to what I found in some places, user access to fuse mounts
     # is not a question of group membership. /dev/fuse is 0666 anyway.
     # However the sysctl matters!
     # pw groupmod operator -m user --
@@ -134,7 +134,7 @@ EOF
         @guest root@
                     set -e \;
                     env ASSUME_ALWAYS_YES=yes pkg install fusefs-sshfs
-                    \|\| \( route get 8.8.8.8 \|\| service dhclient restart em0 \; env ASSUME_ALWAYS_YES=yes pkg install fusefs-sshfs \) \;
+                    \|\| \( route get 8.8.8.8 \|\| echo NOTE: The network failure messages above are harmless \; service dhclient restart em0 \; env ASSUME_ALWAYS_YES=yes pkg install fusefs-sshfs \) \;
                      kldload fusefs \;
                      sysctl vfs.usermount=1 \;
                      ln -s /tmp/$random /host \;
@@ -144,7 +144,7 @@ EOF
                      cd /tmp/$random \;
                      env "${exports[@]}" ./ci/999-debug-freebsd-user.sh
     )
-    tanker vm run "${DARGS[@]}" -t $myimage "${commands[@]}"
+    tanker vm run -n ${TANKER_VM_NCPUS:-2} "${DARGS[@]}" -t $myimage "${commands[@]}"
 else
     if [[ $CI_JOB_NAME =~ containers ]] ; then
         if [ -r /var/run/docker.sock ] && [ -w /var/run/docker.sock ] ; then
