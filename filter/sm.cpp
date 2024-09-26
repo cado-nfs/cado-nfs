@@ -342,7 +342,7 @@ int main (int argc, char **argv)
     exit (EXIT_FAILURE);
   }
 
-  int * nsm_arg = malloc(cpoly->nb_polys * sizeof(int));
+  int * nsm_arg = (int *) malloc(cpoly->nb_polys * sizeof(int));
 
   /* negative value means that the value that will be used is the value
    * computed later by sm_side_info_init */
@@ -352,7 +352,7 @@ int main (int argc, char **argv)
   param_list_parse_int_args_per_side(pl, "nsm", nsm_arg, cpoly->nb_polys,
           ARGS_PER_SIDE_DEFAULT_AS_IS);
 
-  mpz_poly_srcptr * F = malloc(cpoly->nb_polys * sizeof(mpz_poly_srcptr));
+  mpz_poly_srcptr * F = (mpz_poly_srcptr *) malloc(cpoly->nb_polys * sizeof(mpz_poly_srcptr));
 
   for(int side = 0; side < cpoly->nb_polys; side++)
   {
@@ -383,7 +383,7 @@ int main (int argc, char **argv)
     gmp_fprintf(stdout, "# Sub-group order:\nell = %Zi\n# Computation is done "
                       "modulo ell2 = ell^2:\nell2 = %Zi\n", ell, ell2);
 
-  sm_side_info * sm_info = malloc(cpoly->nb_polys * sizeof(sm_side_info));
+  sm_side_info * sm_info = (sm_side_info *) malloc(cpoly->nb_polys * sizeof(sm_side_info));
 
   for(int side = 0 ; side < cpoly->nb_polys ; side++) {
       sm_side_info_init(sm_info[side], F[side], ell, 0);
