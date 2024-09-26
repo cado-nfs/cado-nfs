@@ -58,6 +58,17 @@ def re_cap_n_fp(prefix, n, suffix=""):
     template += suffix
     return template.format(**REGEXES)
 
+# convert the time s in [day,]hours,minutes,seconds
+# (patch from Hermann Stamm-Wilbrandt)
+def tstr(s):
+    i = round(s)
+    if i < 3600 or i >= 366 * 24 * 3600:
+        return ""
+    fmt = ""
+    if i >= 24 * 3600:
+        fmt = "%-jd "
+        i -= 24 * 3600
+    return " [" + time.strftime(fmt + "%H:%M:%S", time.gmtime(i)) + "]"
 
 class Polynomial(list):
     """
@@ -6324,7 +6335,7 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             self.logger.info("Total cpu/elapsed time for entire %s: %g/%g",
                          self.title, self.cputotal, self.elapsed)
         else:
-            self.logger.info("Total cpu/elapsed time for entire %s %g/%g",
+            self.logger.info("Total cpu/elapsed time for entire %s %g/%g" + tstr(self.elapsed),
                          self.title, self.cputotal, self.elapsed)
 
         if last_task and not last_status:
