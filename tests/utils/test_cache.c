@@ -6,5 +6,5 @@ int
 main ()
 {
   cachesize_cpuid (1);
-  exit (EXIT_SUCCESS);
+  return EXIT_SUCCESS;
 }

@@ -15,8 +15,10 @@
  * Default values for L1 cache size and tune sieve length (which should be half of
  * the L1 cache size). The code will also try to auto-detect them.
  */
-unsigned int L1_cachesize = 16384;
-unsigned int size_tune_sievearray = 8192;
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+size_t L1_cachesize = 16384;
+size_t size_tune_sievearray = 8192;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 
 /* ------------------

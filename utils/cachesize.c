@@ -17,7 +17,7 @@ int main (int argc, char **argv)
 
   if (argc != 1) {
     printf ("Usage: %s\n", *argv);
-    exit (1);
+    return EXIT_FAILURE;
   }
 
   printf ("-- invoking cachesize_cpuid() --\n");  
@@ -28,4 +28,5 @@ int main (int argc, char **argv)
   ret = cachesize_guess (1);
   printf ("-- cachesize_guess() returns %d --\n", ret);  
 
+  return EXIT_SUCCESS;
 }

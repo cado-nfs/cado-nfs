@@ -18,7 +18,7 @@ typedef struct {
   unsigned int ndiv;
 } enumeratediv_t;
 
-int roots_mod_uint64 (uint64_t * r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr);
+unsigned int roots_mod_uint64 (uint64_t * r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr);
 unsigned char factor_ul (unsigned long *, unsigned char *, unsigned long n);
 void enumeratediv_init (enumeratediv_t *, unsigned long n);
 unsigned long enumeratediv (enumeratediv_t *);

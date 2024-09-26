@@ -3,15 +3,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include "sha1.h"
 
-struct {
+const struct {
     const char * input;
     const char * digest;
 } test_vectors[] = {
     { "abc", "a9993e364706816aba3e25717850c26c9cd0d89d" },
 };
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void stdio_util(FILE * in, FILE * out) {
     SHA1_CTX ctx;
     uint8_t mac[20];
@@ -40,18 +42,19 @@ int main(int argc, char * argv[])
             SHA1Update(&ctx, (const unsigned char *) in, strlen(in));
             SHA1Final(mac, &ctx);
             char out[41];
-            for(int i = 0 ; i < 20 ; i++) {
+            for(ptrdiff_t i = 0 ; i < 20 ; i++) {
+                // NOLINTNEXTLINE
                 snprintf(out + 2*i, 3, "%02x", (unsigned int) mac[i]);
             }
             if (strcmp(xout, out) != 0) {
                 fprintf(stderr, "test failure, computed sha1(%s)=%s, expected %s\n",
                         in, out, xout);
-                exit(EXIT_FAILURE);
+                return EXIT_FAILURE;
             }
         }
     } else {
         stdio_util(stdin, stdout);
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }

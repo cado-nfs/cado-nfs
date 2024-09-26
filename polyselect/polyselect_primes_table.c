@@ -35,7 +35,7 @@ initPrimes ( unsigned long P,
    */
   prime_info_seek(pi, P);
 
-  for (p = P, nprimes = 0; (p = getprime_mt (pi)) <= Pmax; nprimes++) {
+  for (nprimes = 0; (p = getprime_mt (pi)) <= Pmax; nprimes++) {
     if (nprimes + 1 >= maxprimes) {
       maxprimes += maxprimes / 10;
       *primes = (uint32_t*) realloc (*primes, maxprimes * sizeof (uint32_t));
@@ -46,8 +46,11 @@ initPrimes ( unsigned long P,
     }
     (*primes)[nprimes] = p;
   }
-
   prime_info_clear (pi);
+
+  if (nprimes == 0) {
+      return 0;
+  }
 
   uint32_t * p2 = (uint32_t*) malloc (nprimes * sizeof (uint32_t));
   if ( p2 == NULL) {

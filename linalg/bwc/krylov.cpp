@@ -14,7 +14,7 @@
 #include "bw-common.h"
 #include "async.hpp"
 #include "xdotprod.hpp"
-#include "rolling.h"
+#include "rolling.hpp"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
 #include "fmt/core.h"            // for check_format_string

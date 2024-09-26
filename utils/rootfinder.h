@@ -19,10 +19,10 @@ extern "C" {
 
 
 unsigned long mpz_poly_roots_gen(mpz_t **r, mpz_poly_srcptr F, mpz_srcptr p, gmp_randstate_ptr rstate);
-int mpz_poly_roots(mpz_t * r, mpz_poly_srcptr F, mpz_srcptr p, gmp_randstate_ptr rstate);
-int mpz_poly_roots_ulong(unsigned long * r, mpz_poly_srcptr F, unsigned long p, gmp_randstate_ptr rstate);
-int mpz_poly_roots_uint64(uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstate_ptr rstate);
-int mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_ptr rstate);
+unsigned int mpz_poly_roots(mpz_t * r, mpz_poly_srcptr F, mpz_srcptr p, gmp_randstate_ptr rstate);
+unsigned int mpz_poly_roots_ulong(unsigned long * r, mpz_poly_srcptr F, unsigned long p, gmp_randstate_ptr rstate);
+unsigned int mpz_poly_roots_uint64(uint64_t * r, mpz_poly_srcptr F, uint64_t p, gmp_randstate_ptr rstate);
+unsigned int mpz_poly_roots_mpz (mpz_t *r, mpz_poly_srcptr f, mpz_srcptr p, gmp_randstate_ptr rstate);
 
 
 #ifdef __cplusplus

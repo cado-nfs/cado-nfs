@@ -1,3 +1,6 @@
+// NOLINTBEGIN(readability-function-cognitive-complexity)
+// NOLINTBEGIN(bugprone-easily-swappable-parameters)
+
 /**
  * @file ropt_linear.c
  * Main function for linear rotation.
@@ -51,7 +54,7 @@ ropt_linear_tune_stage1 ( ropt_poly_ptr poly,
                           alpha_pq *alpha_pqueue,
                           ropt_info_ptr info,
                           MurphyE_pq *global_E_pqueue,
-                          unsigned long quad )
+                          int quad )
 {
   info->mode = 0;
 
@@ -59,11 +62,11 @@ ropt_linear_tune_stage1 ( ropt_poly_ptr poly,
   unsigned int s1_size, pqueue_size;
   int i, k, kk, r, w, used, steps = 0;
   ropt_bound bound;
-  alpha_pq *pqueue;
+  alpha_pq *pqueue = NULL;
   ropt_s1param s1param_tune;
   mpz_t u, v, mod;
 
-  s1_size = s1param->nbest_sl_tune * param->effort;
+  s1_size = (unsigned int) (s1param->nbest_sl_tune * param->effort);
   if (s1_size < 2)
     s1_size = 2; /* required by new_alpha_pq() */
   pqueue_size = s1_size;
@@ -218,7 +221,8 @@ ropt_tune_stage2_fast ( ropt_poly_ptr poly,
   /* tune mode, prevent from fprint */
   info->mode = 1;
 
-  int i, w, used, old_i;
+  int w, used;
+  long i, old_i;
   double score;
   double max_score;
   mpz_t u, v, mod;
@@ -266,7 +270,7 @@ ropt_tune_stage2_fast ( ropt_poly_ptr poly,
 
   }
   /* rotate back */
-  old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
+  rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
   ropt_poly_setup (poly);
 
   /* save result to alpha_pqueue */
@@ -318,7 +322,8 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
   /* tune mode */
   info->mode = 1;
 
-  int i, j, w, used, old_i;
+  int j, w, used;
+  long i, old_i;
   double score, old_MurphyE;
   mpz_t u, tmpu, v, mod, old_mod;
   ropt_s2param s2param;
@@ -380,8 +385,8 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
 #if TUNE_EARLY_ABORT
     ave_E = 0.0;
     ave_bestE = 0.0;
-    new_ave_E = 0.0;
-    new_ave_bestE = 0.0;
+    new_ave_E = 0.0;            // NOLINT(clang-analyzer-*)
+    new_ave_bestE = 0.0;        // NOLINT(clang-analyzer-*)
     acc = 0;
 #endif
     
@@ -466,8 +471,8 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
 #if TUNE_EARLY_ABORT
     ave_E = 0.0;
     ave_bestE = 0.0;
-    new_ave_E = 0.0;
-    new_ave_bestE = 0.0;
+    new_ave_E = 0.0;            // NOLINT(clang-analyzer-*)
+    new_ave_bestE = 0.0;        // NOLINT(clang-analyzer-*)
     acc = 0;
 #endif
 
@@ -594,7 +599,7 @@ ropt_tune_stage2_slow ( ropt_poly_ptr poly,
   /* rotate back */
   rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
   ropt_poly_setup (poly);
-  old_i = 0;
+  old_i = 0;    // NOLINT(clang-analyzer-*)
 
   /* End: save to alpha_pqueue */
   reset_alpha_pq (alpha_pqueue);
@@ -701,7 +706,6 @@ ropt_tune_stage2 ( ropt_poly_ptr poly,
   mpz_clear (v);
   mpz_clear (mod);
 #endif
-  return;
 }
 
 
@@ -779,7 +783,7 @@ ropt_call_sieve ( ropt_poly_ptr poly,
   }
 
   /* Step3, final root sieve */
-  int old_i = 0;
+  long old_i = 0;
   used = tmp_E_pqueue->used - 1;
   for (i = 0; i < used; i ++) {
 
@@ -806,16 +810,16 @@ ropt_call_sieve ( ropt_poly_ptr poly,
 
       if (param->verbose >= 3) {
         fprintf (stderr, "# Info: resieve [%4d] in "
-                 "range %u.\n", i + 1, size_tune_sievearray * 10);
+                 "range %zu.\n", i + 1, size_tune_sievearray * 10);
       }
      
       ropt_s2param_setup_tune (s1param, s2param, u, v, mod,
-                               0, size_tune_sievearray * 10, ROPT_NPRIMES - 1);
+                               0, size_tune_sievearray * 10UL, ROPT_NPRIMES - 1);
       ropt_stage2 (poly, s2param, param, info, global_E_pqueue, w);
     }
   }
   /* rotate back */
-  old_i = rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
+  rotate_aux (poly->cpoly->pols[1], poly->cpoly->pols[0], old_i, 0, 2);
   ropt_poly_setup (poly);
 
   /* free */
@@ -862,8 +866,8 @@ ropt_linear_deg5 ( ropt_poly_ptr poly,
 #endif  
   /* Here we use some larger value since alpha_pqueue records
      more sublattices to be tuned by test root sieve */
-  unsigned long len_full_alpha = s1param->nbest_sl *
-    TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort;
+  unsigned long len_full_alpha = (unsigned long) (s1param->nbest_sl *
+    TUNE_RATIO_STAGE1_FULL_ALPHA * param->effort);
   if (len_full_alpha < 2)
     len_full_alpha = 2; /* required by new_alpha_pq */
   new_alpha_pq (&alpha_pqueue, len_full_alpha);
@@ -1007,3 +1011,6 @@ ropt_linear ( ropt_poly_ptr poly,
     else 
         fprintf (stderr, "Error: ropt_linear() only supports degrees 3-5.");
 }
+
+// NOLINTEND(bugprone-easily-swappable-parameters)
+// NOLINTEND(readability-function-cognitive-complexity)

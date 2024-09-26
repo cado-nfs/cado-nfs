@@ -9,6 +9,8 @@
 #include <string>
 #include <functional>
 
+#include "test_bblas_base.hpp"
+
 /* We used to do this with C macros. It's not harder to do the same with
  * C++ templates.
  */
@@ -18,7 +20,7 @@ struct bblas_timer {
     int j=0;
     double maxtime;
     std::string const & name;
-    double t;
+    double t=0;
     const char * unit="s";
     bblas_timer(double maxtime, std::string const & name)
         : maxtime(maxtime)
