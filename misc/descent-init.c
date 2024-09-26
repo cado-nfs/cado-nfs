@@ -60,7 +60,7 @@ bsize (mpz_t u, int uprime)
   if (uprime)
     return mpz_sizeinbase (u, 2);
   else /* if u has n bits, we have 2^(n-1) <= u < 2^n: if u = p*q with p <= q,
-          then q >= 2^((n-1)/2) and q has at least floor(((n-1)/2)+1 bits */
+          then q >= 2^((n-1)/2) and q has at least floor((n-1)/2)+1 bits */
     return (mpz_sizeinbase (u, 2) + 1) / 2;
 }
 

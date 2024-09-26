@@ -39,7 +39,7 @@ get_override(CHECKS_EXPENSIVE   CHECKS_EXPENSIVE)
 
 # If you change the min version, also change scripts/call_cmake.sh
 # It must be called before the project() command.
-cmake_minimum_required(VERSION 3.4.0)
+cmake_minimum_required(VERSION 3.5.0)
 
 project(CADO_NFS)
 
@@ -477,7 +477,7 @@ include_directories(${CADO_NFS_BINARY_DIR}/gf2x)
 add_custom_command(OUTPUT ${CADO_NFS_BINARY_DIR}/gf2x/Makefile
     COMMAND mkdir -p ${CADO_NFS_BINARY_DIR}/gf2x
     COMMAND echo Configuring gf2x with options ${GF2X_CONFIGURE_FLAGS}
-    COMMAND cd gf2x && ${CADO_NFS_SOURCE_DIR}/gf2x/configure ${GF2X_CONFIGURE_FLAGS} < /dev/null
+    COMMAND cd gf2x && "${CADO_NFS_SOURCE_DIR}/gf2x/configure" ${GF2X_CONFIGURE_FLAGS} < /dev/null
     COMMENT "Configuring gf2x"
 )
 

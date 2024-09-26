@@ -6019,11 +6019,27 @@ class CompleteFactorization(HasState, wudb.DbAccess,
             p = self.params["N"]
             k = self.params["gfpext"]
             ell = self.params["ell"]
-            if (p**k-1) % ell != 0:
-                if k==1:
+            # Check that ell divides Phi_k(p) (or simply p^k-1 for large k)
+            if k==1:
+                if (p-1) % ell != 0:
                     raise ValueError("ell must divide p-1")
-                else:
-                    raise ValueError("ell must divide p^%d-1" % k)
+            elif k==2:
+                if (p+1) % ell != 0:
+                    raise ValueError("ell must divide p+1")
+            elif k==3:
+                if (p*p+p+1) % ell != 0:
+                    raise ValueError("ell must divide p^2+p+1")
+            elif k==4:
+                if (p*p+1) % ell != 0:
+                    raise ValueError("ell must divide p^2+1")
+            elif k==5:
+                if (p**4+p**3+p**2+p+1) % ell != 0:
+                    raise ValueError("ell must divide (p^5-1)/(p-1)")
+            elif k==6:
+                if (p**2-p+1) % ell != 0:
+                    raise ValueError("ell must divide p^2-p+1")
+            elif (p**k-1) % ell != 0:
+                raise ValueError("ell must divide p^%d-1" % k)
 
         # Init WU BD
         self.wuar = self.make_wu_access()

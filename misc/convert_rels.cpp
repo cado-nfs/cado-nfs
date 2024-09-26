@@ -43,6 +43,7 @@ command line is faster than the current code:
 #include "gzip.h"
 #include "macros.h"
 #include "filter_io.h"  // filter_rels
+#include "getprime.h" // prime_pi
 
 #define MAX_PRIMES 255 /* maximal number of factor base primes */
 #define MAX_LPRIMES 3  /* maximal number of large primes */
@@ -898,6 +899,8 @@ read_relation_ggnfs (FILE *fp, relation_t *rel, relation_data_t* data)
   return 1; /* valid relation */
 }
 
+#define NB_POLYS_MAX 2
+
 /**
  * Bluntly stolen from check_rels, should be refactored.
  * renumbered relations do not contain all the prime factors for the relation, we use this function to add the missing primes.
@@ -983,7 +986,7 @@ int
 read_relation_renumbered (FILE *fp, relation_t *rel, relation_data_t* data)
 {
   int c;
-  cado_poly_ptr cpoly = data->poly;
+  cado_poly_ptr cpoly = data->cpoly;
   const renumber_t * renumber_table = data->renumber;
 
   if (fscanf (fp, "%" SCNx64 ",%" SCNx64 ":", &(rel->a), &(rel->b)) != 2)
@@ -1055,7 +1058,7 @@ read_relation_renumbered (FILE *fp, relation_t *rel, relation_data_t* data)
   std::vector<unsigned int> lpb;
   for(int side = 0 ; side < (int) renumber_table->get_nb_polys() ; side++)
       lpb.push_back(renumber_table->get_lpb(side));
-  fix_relation(rel, poly, lpb.data());
+  fix_relation(rel, cpoly, lpb.data());
 
   return 1;
 }
@@ -1657,8 +1660,8 @@ main (int argc, char *argv[])
           exit(1);
       }
 
-      cado_poly_init(poly);
-      if (!cado_poly_read (poly, polyfile))
+      cado_poly_init(cpoly);
+      if (!cado_poly_read (cpoly, polyfile))
       {
           fprintf (stderr, "Error reading polynomial file\n");
           exit(1);
@@ -1711,7 +1714,7 @@ main (int argc, char *argv[])
           .rfb = rfb,
           .afb = afb,
 
-          .poly = poly,
+          .cpoly = cpoly,
           .renumber = & renumber_table,
 
           .in_alg_first = in_alg_first,
