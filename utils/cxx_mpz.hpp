@@ -9,8 +9,8 @@
 #include <limits>
 #include <type_traits>
 #include <stdlib.h>
-#include <fmt/core.h>
 #include <sstream>
+#include "fmt/core.h"
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
 
