@@ -34,6 +34,10 @@ set_target_properties(bblas PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}")
 target_link_libraries(bblas "${OpenMP_CXX_FLAGS}")
 target_link_libraries(bblas utils)
 
+if(ENABLE_SHARED)
+    install(TARGETS bblas DESTINATION ${LIBSUFFIX}/linalg/bblas)
+endif()
+
 if(NOT HAVE_GF2X)
 add_dependencies(bblas gf2x-build)
 endif()

@@ -396,6 +396,7 @@ if("$ENV{ENABLE_SHARED}")
     string_join(rpath ":"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/utils"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/polyselect"
+        "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/linalg/bblas"
         "${CMAKE_INSTALL_PREFIX}/${LIBSUFFIX}/linalg/bwc"
     )
     set(CMAKE_INSTALL_RPATH ${rpath})

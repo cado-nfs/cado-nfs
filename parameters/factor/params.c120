@@ -52,7 +52,6 @@ tasks.sieve.rels_wanted = 15500000
 ###########################################################################
 
 tasks.filter.purge.keep = 160
-tasks.filter.required_excess = 0.03
 # for a c120, a density of 100 is close to optimal (determined experimentally
 # with -t 16, and BWC cost W*N + C*N^2, with C = 17.2)
 tasks.filter.target_density = 105
