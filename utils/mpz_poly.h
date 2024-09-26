@@ -9,7 +9,9 @@
 #ifdef __cplusplus
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include "fmt/core.h"
+#include "cxx_mpz.hpp"
 #endif
 #include "macros.h"
 #include "gmp_aux.h"      // for gmp_randstate_ptr
@@ -81,6 +83,8 @@ static inline int mpz_poly_degree(mpz_poly_srcptr f) { return f->deg; }
 void mpz_poly_cleandeg(mpz_poly_ptr f, int deg);
 void mpz_poly_setcoeffs(mpz_poly_ptr f, mpz_t * coeffs, int d);
 void mpz_poly_set_zero(mpz_poly_ptr f);
+void mpz_poly_set_ui(mpz_poly_ptr f, unsigned long z);
+void mpz_poly_set_si(mpz_poly_ptr f, long z);
 void mpz_poly_set_xi(mpz_poly_ptr f, int i);
 void mpz_poly_set_mpz(mpz_poly_ptr f, mpz_srcptr z);
 void mpz_poly_set_double_poly(mpz_poly_ptr g, double_poly_srcptr f);
@@ -296,6 +300,18 @@ struct cxx_mpz_poly {
     }
     cxx_mpz_poly & operator=(cxx_mpz_poly const & o) {
         mpz_poly_set(x, o.x);
+        return *this;
+    }
+    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
+    cxx_mpz_poly (const T & rhs) {
+        mpz_poly_init(x, -1);
+        *this = rhs;
+    }
+    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
+    cxx_mpz_poly & operator=(const T a) {
+        cxx_mpz b;
+        gmp_auxx::mpz_set(b, a);
+        mpz_poly_set_mpz(x, b);
         return *this;
     }
 #if __cplusplus >= 201103L

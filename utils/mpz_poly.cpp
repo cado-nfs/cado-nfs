@@ -900,6 +900,20 @@ void mpz_poly_set_urandomm(mpz_poly_ptr f, int d, mpz_srcptr m, gmp_randstate_pt
     mpz_poly_cleandeg(f, d);
 }
 
+void mpz_poly_set_ui(mpz_poly_ptr f, unsigned long z)
+{
+    mpz_poly_realloc (f, 1);
+    mpz_set_ui(f->coeff[0], z);
+    mpz_poly_cleandeg(f, 0);
+}
+
+void mpz_poly_set_si(mpz_poly_ptr f, long z)
+{
+    mpz_poly_realloc (f, 1);
+    mpz_set_si(f->coeff[0], z);
+    mpz_poly_cleandeg(f, 0);
+}
+
 /* g <- quo (f, x^i) */
 void mpz_poly_div_xi(mpz_poly_ptr g, mpz_poly_srcptr f, int i)
 {
