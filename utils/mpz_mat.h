@@ -216,6 +216,7 @@ void mpz_mat_kernel_mod_mpz(mpz_mat_ptr K, mpz_mat_srcptr M, mpz_srcptr p);
 void mpq_mat_inv(mpq_mat_ptr dst, mpq_mat_srcptr src);
 
 int mpz_mat_cmp(mpz_mat_srcptr M, mpz_mat_srcptr N);
+int mpz_mat_is_zero(mpz_mat_srcptr M);
 int mpq_mat_cmp(mpq_mat_srcptr M, mpq_mat_srcptr N);
 void mpq_mat_fprint_as_mpz(FILE* f, mpq_mat_srcptr M);
 void mpz_mat_fprint(FILE * stream, mpz_mat_srcptr M);

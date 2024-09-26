@@ -586,12 +586,19 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
                 cxx_mpz_mat const& fkp(my_ideals[ell].first);
                 cxx_mpz_mat a = valuation_helper_for_ideal(M, fkp, p);
                 int v = valuation_of_ideal_at_prime_ideal(M, Id.first, a, p);
-                my_vals.push_back(v-w*my_ideals[ell].second);
+                my_vals.push_back(v == INT_MAX ? v : (v-w*my_ideals[ell].second));
             }
             if (!(is1 >> keyword) || keyword != "valuations") throw exc;
             for(unsigned int k = 0 ; ok && k < ideals.size() ; k++) {
+                std::string s;
+                is1 >> s;
                 int v;
-                if (!(is1 >> v)) throw exc;
+                if (s == "Infinity") {
+                    v = INT_MAX;
+                } else {
+                    std::istringstream is2(s);
+                    if (!(is2 >> v)) throw exc;
+                }
                 ok = (v == my_vals[magma_to_mine[k]]);
             }
         }
