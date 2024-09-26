@@ -12,7 +12,7 @@
 #include "gcd.h"       // for bin_gcd_int64_safe // IWYU pragma: keep
 #include "ecm/batch.hpp"                   // for cofac_list
 #include "las-cofactor.hpp"            // for factor_both_leftover_norms
-#include "las-coordinates.hpp"         // for NxToAB
+#include "las-coordinates.hpp"         // for convert_Nx_to_ab
 #include "las-divide-primes.hpp"       // for factor_list_t
 #include "las-siever-config.hpp"       // for siever_config::side_config
 #include "las-threads-work-data.hpp"   // for nfs_work_cofac
@@ -40,9 +40,9 @@ cofac_standalone::cofac_standalone(int nsides, int N, size_t x, int logI, qlatti
     , factors(nsides)
     , lps(nsides)
 {/*{{{*/
-    NxToAB (a, b, N, x, logI, Q);
+    convert_Nx_to_ab (a, b, N, x, logI, Q);
 #ifdef SUPPORT_LARGE_Q
-    NxToABmpz (az, bz, N, x, logI, Q);
+    convert_Nx_to_abmpz (az, bz, N, x, logI, Q);
 #endif
 }/*}}}*/
 bool cofac_standalone::trace_on_spot() const {/*{{{*/
