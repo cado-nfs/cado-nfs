@@ -3,6 +3,8 @@
 # enabled, and we never worked on that in the 32-bit context. So we need
 # to disable the flint-fft-only checks if BWC_GFP_ARITHMETIC_BACKENDS is
 # empty.
+
+# note that these tests are randomized, and takes variable time.
 if(BWC_GFP_ARITHMETIC_BACKENDS)
     include_directories(${PROJECT_SOURCE_DIR}/linalg/bwc/flint-fft)
     include_directories(${PROJECT_SOURCE_DIR}/utils)
@@ -39,7 +41,11 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-flint.m
                 ${CMAKE_CURRENT_BINARY_DIR}/test-flint-debug
             TARGET_DEPENDENCIES test-flint-debug
-            NO_DEFAULT_RUN)
+            NO_DEFAULT_RUN
+            # let's hope that even with the test randomness, all
+            # executions will remain comfortably below this timeout.
+            TIMEOUT 60
+        )
     cado_divert_test(test-flint-debug-magma mul0 APPEND_ARGUMENTS mul0 -s 20000)
     cado_divert_test(test-flint-debug-magma mul APPEND_ARGUMENTS mul)
     # cado_divert_test(test-flint-debug-magma mulmod APPEND_ARGUMENTS mulmod)
