@@ -110,9 +110,7 @@ Required software tools
    * LLVM Clang: the minimal required version is >= 4.0.0
    * Apple Clang: the minimal required version is >= 6.0.0
    * Intel ICC: the minimal required version is >= 14
- * GNU make and CMake (`cmake 3.4` or later) for building (CMake is
-   installed on the fly if missing. This feature requires an Internet
-   connection.)
+ * GNU make and CMake (`cmake 3.5` or later) for building.
  * Support for POSIX threads.
  * The main `cado-nfs.py` script uses a lot of unix tools: Python, Python3,
    `ssh`, `rsync`, `gzip` to mention but a few.

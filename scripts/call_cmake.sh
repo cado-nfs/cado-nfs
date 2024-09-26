@@ -12,7 +12,7 @@
 # In particular, the following tasks are done,
 #  - check if the calling path is correct?
 #  - if exists, parse the file ${up_path}/local.sh
-#  - check if cmake is installed, if not install it.
+#  - check if cmake is installed
 #  - "cmake" to generate Makefile
 #  - "make"
 #
@@ -120,10 +120,10 @@ if ! [ "$cmake_version" ] ; then
     cmake_path=
 # Recall that (some versions of) bash do not want quoting for regex patterns.
 elif [[ "$cmake_version" =~ ^cmake\ version\ [012] ]] ; then
-    echo "CMake found, but not with version 3.4 or newer" >&2
+    echo "CMake found, but not with version 3.5 or newer" >&2
     cmake_path=
-elif [[ "$cmake_version" =~ ^cmake\ version\ 3\.[0123]\. ]] ; then
-    echo "CMake found, but not with version 3.4 or newer" >&2
+elif [[ "$cmake_version" =~ ^cmake\ version\ 3\.[01234]\. ]] ; then
+    echo "CMake found, but not with version 3.5 or newer" >&2
     cmake_path=
 fi
 
@@ -144,7 +144,7 @@ if ! [ "$cmake_path" ] ; then
         echo
         echo "Most probably, you want to rely on your system distribution to"
         echo "provide cmake in some way. Luckily, the package is usually called"
-        echo "cmake. Version **at least** 3.4 is necessary."
+        echo "cmake. Version **at least** 3.5 is necessary."
         echo
         echo "You may try to have cado-nfs download and install some version of"
         echo "cmake for you. THIS IS A PRIORI A VERY BAD IDEA, and we advise"
