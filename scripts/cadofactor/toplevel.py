@@ -676,6 +676,8 @@ class Cado_NFS_toplevel(object):
             self.logger.info("No database exists yet")
 
         a=self.args.workdir
+        if a and a[0] != '/':
+            raise ValueError("Given working directory must be an absolute path: %s" % a)
         b=db_stored_workdir
         if a and b and a != b:
             self.logger.critical("Cannot have workdir provided both by the command line and the database in two different ways")
