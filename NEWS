@@ -7,6 +7,14 @@ Main changes between cado-nfs-2.3.0 and cado-nfs-3.0.0:
 * The cofactorization step now uses the improved method described by Cyril
   Bouvier and Laurent Imbert in https://eprint.iacr.org/2018/669.pdf, which
   was implemented by them.
+* Following the earlier change in parameter names:
+  tasks.PATH_PREFIX.TASKNAME.PROGRAMNAME.foo is still not made visible
+  because the TASKNAME is an implementation detail that we do not wish to
+  explore. However, we add an exception for the few parameters that may
+  be defined precisely at this TASKNAME level, where no PROGRAMNAME
+  exists. Since tasks.PATH_PREFIX.foo is way too coarse grain, we retain
+  TASKNAME in this case, and allow tasks.PATH_PREFIX.TASKNAME.foo to be
+  specified. An example of "foo" can be "run", "wdir", or "gzip"
 
 Main changes between cado-nfs-2.2.0 and cado-nfs-2.3.0:
 * When tasks.threads is not given, it is set to the number of logical cores
