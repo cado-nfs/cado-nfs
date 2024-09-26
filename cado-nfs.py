@@ -90,7 +90,7 @@ def detect_source_tree(pathdict):
             print("{} does not exist".format(helper))
         return False
     pipe = subprocess.Popen([helper, "--show"], stdout=subprocess.PIPE)
-    loc = locale.getdefaultlocale()[1]
+    loc = locale.getlocale()[1]
     if not loc:
         loc="ascii"
     output = pipe.communicate()[0].decode(loc)

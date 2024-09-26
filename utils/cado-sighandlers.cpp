@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 
 #include <cstdio>     // for fprintf, stderr
+#include <cstdlib>
 #include <cstring>    // for strsignal
 
 #ifdef HAVE_EXECINFO
@@ -26,6 +27,8 @@ static void signal_handling (int signum)/*{{{*/
    fprintf(stderr, "======= Backtrace: =========\n");
    for (i = 0; i < sz; i++)
        fprintf (stderr, "%s\n", text [i]);
+
+   free(text);
 
    signal (signum, SIG_DFL);
    raise (signum);

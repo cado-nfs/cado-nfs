@@ -11,7 +11,7 @@ set (sources
         cachesize_cpuid.c cachesize_guess.c roots_mod.c mod_mpz.c
         renumber.cpp
         renumber_proxy.cpp
-        ringbuf.c sm_utils.cpp galois_utils.c memalloc.c 
+        ringbuf.c sm_utils.cpp galois_action.cpp memalloc.c
 	mpz_vector.c memory.c stats.c lll.c
         verbose.c 
         polyroots.c 
