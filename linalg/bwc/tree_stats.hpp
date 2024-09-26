@@ -357,7 +357,7 @@ class tree_stats {
     std::vector<level_stats> levels;
     curstack_t curstack;
 
-    unsigned int tree_total_breadth;
+    unsigned int tree_total_breadth = 0;
     double last_print_time = 0;
     std::pair<unsigned int, unsigned int> last_print_position { 0,0 };
     private:

@@ -45,7 +45,8 @@ void MATMUL_NAME(clear)(matmul_ptr mm0)
 {
     struct matmul_basic_data_s * mm = (struct matmul_basic_data_s *) mm0;
     matmul_common_clear(mm->public_);
-    delete[] mm->q;
+    /* This pointer was allocated by matmul-mf.cpp:34 */
+    free(mm->q);
     delete mm;
 }
 

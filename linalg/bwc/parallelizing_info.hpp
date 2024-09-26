@@ -10,6 +10,8 @@
 #include "params.h"
 #include "select_mpi.h"
 #include "arith-generic.hpp"
+#include <map>
+#include "lock_guarded_container.hpp"
 
 /*
  * The main guy here is the parallelizing_info data type. It is commonly
@@ -144,21 +146,8 @@ typedef struct pi_interleaving_s * pi_interleaving_ptr;
 /* {{{ This arbitrary associative array is meant to be very global, even
  * common to two interleaved pi structures. Used to pass lightweight info
  * only */
-typedef struct pi_dictionary_entry_s * pi_dictionary_entry_ptr;
-struct pi_dictionary_entry_s {
-    unsigned long key;
-    unsigned long who;
-    void * value;
-    pi_dictionary_entry_ptr next;
-};
-typedef struct pi_dictionary_entry_s pi_dictionary_entry[1];
 
-struct pi_dictionary_s {
-    my_pthread_rwlock_t m[1];
-    pi_dictionary_entry_ptr e;
-};
-typedef struct pi_dictionary_s pi_dictionary[1];
-typedef struct pi_dictionary_s * pi_dictionary_ptr;
+typedef lock_guarded_container<std::map<std::pair<unsigned long, unsigned long>, void *>> pi_dictionary;
 /* }}} */
 
 /* {{{ global parallelizing_info handle */
@@ -169,7 +158,7 @@ struct parallelizing_info_s {
     // main.
     pi_comm m;
     pi_interleaving_ptr interleaved;
-    pi_dictionary_ptr dict;
+    pi_dictionary * dict;
     char nodename[PI_NAMELEN];
     char nodeprefix[PI_NAMELEN];
     char nodenumber_s[PI_NAMELEN];
@@ -362,9 +351,6 @@ extern void pi_interleaving_leave(parallelizing_info_ptr);
 
 extern void pi_store_generic(parallelizing_info_ptr, unsigned long, unsigned long, void *);
 extern void * pi_load_generic(parallelizing_info_ptr, unsigned long, unsigned long);
-
-extern void pi_dictionary_init(pi_dictionary_ptr);
-extern void pi_dictionary_clear(pi_dictionary_ptr);
 
 /* This provides a fairly typical construct, used like this:
  * SEVERAL_THREADS_PLAY_MPI_BEGIN(some pi communicator) {

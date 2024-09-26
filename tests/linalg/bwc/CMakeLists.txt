@@ -61,7 +61,6 @@ macro(divert_bwc_test nm variant)
     endforeach()
 endmacro()
 
-
 if (ULONG_BITS EQUAL 64)
     set(prime_1 4820030965477198813)
     set(prime_2 126961696855811517082732511703124520971)
@@ -550,7 +549,11 @@ add_bwc_test(mod2_plain bwc-ptrace.sh prime=2 nullspace=left
     TARGET_DEPENDENCIES mf_scan)
 create_magma_sage_diversions(mod2_plain)
 if(SAGE)
-set_property(TEST test_bwc_mod2_plain_with_sagemath PROPERTY TIMEOUT 360)
+    set(t 360)
+    if(TIMEOUT_SCALE)
+        MATH(EXPR t "${t}*${TIMEOUT_SCALE}")
+    endif()
+    set_property(TEST test_bwc_mod2_plain_with_sagemath PROPERTY TIMEOUT ${t})
 endif()
 
 add_bwc_test(mod2_padded bwc-ptrace.sh prime=2 nullspace=left
@@ -898,5 +901,25 @@ cado_define_test(TEST_NAME test-blocklanczos-staged
 #########################################################################
 
 cado_define_test(test-arith-modp.cpp LIBRARIES tests utils)
+
+cado_define_test(test_matrix_file.cpp
+    ${CADO_NFS_SOURCE_DIR}/linalg/bwc/matrix_file.cpp
+    $<TARGET_OBJECTS:bwc_parallelization>
+    NO_DEFAULT_RUN
+    LIBRARIES utils)
+
+set_target_properties(test_matrix_file PROPERTIES
+    COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
+    LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
+
+cado_define_test(test_matrix_file_script SCRIPT
+${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir --
+${CMAKE_CURRENT_SOURCE_DIR}/test_matrix_file.sh
+TARGET_DEPENDENCIES test_matrix_file
+NO_DEFAULT_RUN)
+
+cado_divert_test(test_matrix_file_script sample1 APPEND_ARGUMENTS sample1)
+cado_divert_test(test_matrix_file_script sample2 APPEND_ARGUMENTS sample2)
+
 
 add_subdirectory (flint-fft)

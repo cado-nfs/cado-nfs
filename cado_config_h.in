@@ -148,6 +148,10 @@
 
 #cmakedefine    HAVE_ALIGNED_ALLOC
 
+#cmakedefine    HAVE_SYS_ENDIAN_H
+
+#cmakedefine    HAVE_BSWAP32_IN_SYS_ENDIAN_H
+
 #cmakedefine    UINT64_T_IS_EXACTLY_UNSIGNED_LONG
 #cmakedefine    UINT64_T_IS_EXACTLY_UNSIGNED_LONG_LONG
 #cmakedefine    INT64_T_IS_EXACTLY_LONG

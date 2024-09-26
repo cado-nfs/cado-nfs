@@ -2318,6 +2318,7 @@ size_t a_poly_read_share(mpz_poly P, size_t off0, size_t off1)
 
     mpz_poly_swap(P, a_tasks[0].P);
     for(int j = j0 ; j < j1 ; j++) mpz_poly_clear(pols[j-j0]);
+    free(pols);
 
     free(a_tasks);
 

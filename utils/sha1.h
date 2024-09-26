@@ -37,6 +37,7 @@ void SHA1(char *hash_out, const char *str, int len);
 #ifdef __cplusplus
 #include <streambuf>
 #include <ostream>
+#include <string>
 /* mock streambuf implementation that just computes the sha-1 sum of what
  * it gets fed.
  *
@@ -52,7 +53,7 @@ class sha1_checksumming_streambuf: public std::basic_streambuf<char_type, traits
 public:
     typedef typename traits::int_type int_type;
     sha1_checksumming_streambuf() { SHA1Init(&ctx); }
-    void checksum(char out[41])
+    void checksum(char out[41]) const
     {
         SHA1_CTX ctx1;
         memcpy(&ctx1, &ctx, sizeof(SHA1_CTX));
@@ -60,6 +61,12 @@ public:
         SHA1Final(dest, &ctx1);
         for(int i = 0 ; i < 20 ; i++)
             snprintf(out + 2*i, 3, "%02x", (unsigned int) dest[i]);
+    }
+    std::string digest() const
+    {
+        char x[41] = { '\0' };
+        checksum(x);
+        return std::string(x);
     }
 private:
     virtual int_type overflow(int_type c) {
@@ -76,7 +83,8 @@ class sha1_checksumming_stream : public std::ostream
     sha1_checksumming_streambuf<char> cbuf;
 public:
     sha1_checksumming_stream() : std::ostream(&cbuf) {}
-    void checksum(char out[41]) { cbuf.checksum(out); }
+    void checksum(char out[41]) const { cbuf.checksum(out); }
+    std::string digest() const { return cbuf.digest(); }
 };
 #endif
 
