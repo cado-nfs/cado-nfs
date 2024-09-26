@@ -53,6 +53,7 @@ typedef int MPI_Request;
 #define MPI_LAND       4
 #define MPI_BAND       5
 #define MPI_BOR        6
+#define MPI_OP_NULL    -1
 
 #define MPI_ERRORS_ARE_FATAl        0
 #define MPI_ERRORS_RETURN        1
@@ -142,7 +143,7 @@ static inline int MPI_Comm_set_errhandler (MPI_Comm x MAYBE_UNUSED, MPI_Errhandl
 }
 static inline int MPI_Comm_free (MPI_Comm * x MAYBE_UNUSED) { return 0; }
 static inline int MPI_Comm_dup (MPI_Comm y, MPI_Comm * x) { *x = y; return 0; }
-static inline int MPI_Comm_set_name(MPI_Comm comm MAYBE_UNUSED, char *comm_name MAYBE_UNUSED) { return 0;}
+static inline int MPI_Comm_set_name(MPI_Comm comm MAYBE_UNUSED, const char *comm_name MAYBE_UNUSED) { return 0;}
 static inline int MPI_Comm_get_name(MPI_Comm comm MAYBE_UNUSED, char *comm_name MAYBE_UNUSED, int * rlen) { *comm_name='\0'; *rlen=0; return 0;}
 static inline int MPI_Scatterv(const void * sendbuf, int * sendcounts, int * displs,  MPI_Datatype st, void * recvbuf, int recvcount, MPI_Datatype rt, int root MAYBE_UNUSED, MPI_Comm x MAYBE_UNUSED) {
     ASSERT_ALWAYS(sendcounts[0] * fakempi_sizeof_type(st) == recvcount * fakempi_sizeof_type(rt));

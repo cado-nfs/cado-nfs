@@ -7,7 +7,7 @@
 #include <utility>                          // for move
 #include <vector>                           // for vector
 #include <gmp.h>                // for gmp_randstate_t, gmp_randclear, gmp_r...
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 #include "gf2x-fft.h"
 #include "gf2x-fake-fft.h"
 #include "gf2x-cantor-fft.h"
@@ -15,7 +15,7 @@
 #else
 #include "flint-fft/transform_interface.h"  // for fft_transform_info
 #endif
-#include "lingen_abfield.hpp"  // IWYU pragma: keep
+#include "arith-hard.hpp"  // IWYU pragma: keep
 #include "lingen_matpoly_select.hpp"        // for matpoly, matpoly::memory_...
 #include "select_mpi.h"                     // for MPI_Finalize, MPI_Init
 #include "timing.h"                         // for wct_seconds
@@ -27,7 +27,7 @@
 #include "params.h"
 
 struct matpoly_checker_base {
-    abfield ab;
+    matpoly::arith_hard ab;
     unsigned int m;
     unsigned int n;
     unsigned int len1;
@@ -41,15 +41,14 @@ struct matpoly_checker_base {
     unsigned long seed;
 
     matpoly_checker_base(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int len1, unsigned int len2, gmp_randstate_t rstate0)
-        : m(m)
+        : ab(p, 1)
+        , m(m)
         , n(n)
         , len1(len1)
         , len2(len2)
         , dummy(SIZE_MAX)
         , seed(gmp_urandomm_ui(rstate0, ULONG_MAX))
     {
-        abfield_init(ab);
-        abfield_specify(ab, MPFQ_PRIME_MPZ, (mpz_srcptr) p);
         gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, seed);
         // ab might be left uninit, depending on the mpfq layer. This is
@@ -57,15 +56,14 @@ struct matpoly_checker_base {
         // coverity[uninit_member]
     }
     matpoly_checker_base(matpoly_checker_base const & o)
-        : m(o.m)
+        : ab(o.ab)
+        , m(o.m)
         , n(o.n)
         , len1(o.len1)
         , len2(o.len2)
         , dummy(SIZE_MAX)
         , seed(o.seed)
     {
-        abfield_init(ab);
-        abfield_specify(ab, MPFQ_PRIME_MPZ, abfield_characteristic_srcptr(o.ab));
         gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, seed);
         // ab might be left uninit, depending on the mpfq layer. This is
@@ -74,14 +72,13 @@ struct matpoly_checker_base {
     }
     ~matpoly_checker_base() {
         gmp_randclear(rstate);
-        abfield_clear(ab);
     }
 
     int ctor_and_pre_init() {
-        matpoly A(ab, 0, 0, 0);
+        matpoly A(&ab, 0, 0, 0);
         if (!A.check_pre_init()) return 0;
         matpoly P;
-        matpoly Q(ab, m, m+n, len1);
+        matpoly Q(&ab, m, m+n, len1);
         Q.clear_and_set_random(len1, rstate);
         return P.check_pre_init() && !Q.check_pre_init();
     }
@@ -93,17 +90,17 @@ struct matpoly_checker_base {
          * often in the code, and it's good if I have an occasion to
          * check that it holds
          */
-        matpoly P(ab, m, m+n, len1);
+        matpoly P(&ab, m, m+n, len1);
         P.clear_and_set_random(len1, rstate);
         matpoly Q(std::move(P));
-        matpoly R(ab, m, n, len1);
+        matpoly R(&ab, m, n, len1);
         R.clear_and_set_random(len1, rstate);
         R = matpoly();
         return P.check_pre_init() && !Q.check_pre_init() && R.check_pre_init();
     }
 
     int copy_ctor() {
-        matpoly P(ab, m, n, len1);
+        matpoly P(&ab, m, n, len1);
         P.clear_and_set_random(len1, rstate);
         matpoly Q;
         Q.set(P);
@@ -111,8 +108,8 @@ struct matpoly_checker_base {
     }
 
     int fill_random_is_deterministic() {
-        matpoly P0(ab, n, n, len1);
-        matpoly P1(ab, n, n, len1 + len2);
+        matpoly P0(&ab, n, n, len1);
+        matpoly P1(&ab, n, n, len1 + len2);
         gmp_randseed_ui(rstate, seed); P0.clear_and_set_random(len1, rstate);
         gmp_randseed_ui(rstate, seed); P1.clear_and_set_random(len1, rstate);
         int ok = P0.capacity() >= len1 && P1.capacity() >= len1+len2 && P0.cmp(P1) == 0;
@@ -121,8 +118,8 @@ struct matpoly_checker_base {
 
     int realloc_does_what_it_says() {
         /* begin like the previous test. In particular, we  */
-        matpoly P0(ab, n, n, len1);
-        matpoly P1(ab, n, n, len1 + len2);
+        matpoly P0(&ab, n, n, len1);
+        matpoly P1(&ab, n, n, len1 + len2);
         gmp_randseed_ui(rstate, seed); P0.clear_and_set_random(len1, rstate);
         gmp_randseed_ui(rstate, seed); P1.clear_and_set_random(len1, rstate);
         int ok;
@@ -146,12 +143,13 @@ struct matpoly_checker_base {
     }
 
     int mulx_then_divx() {
-        matpoly P(ab, m,   n, len1 + n);
+        matpoly P(&ab, m,   n, len1 + n);
         P.clear_and_set_random(len1, rstate);
         matpoly Q;
         Q.set(P);
         /* take some columns, do multiplies */
         std::vector<int> jlen(n, len1);
+
         gmp_randseed_ui(rstate, seed);
         for(unsigned int k = 0 ; k < n ; k++) {
             unsigned int j = gmp_urandomm_ui(rstate, n);
@@ -161,13 +159,14 @@ struct matpoly_checker_base {
         gmp_randseed_ui(rstate, seed);
         for(unsigned int k = 0 ; k < n ; k++) {
             unsigned int j = gmp_urandomm_ui(rstate, n);
+            ASSERT_ALWAYS(jlen[j] > 0);
             P.divide_column_by_x(j, jlen[j]--);
         }
         return P.cmp(Q) == 0;
     }
 
     int truncate_is_like_mulx_then_divx_everywhere() {
-        matpoly P(ab, m,   n, len1);
+        matpoly P(&ab, m,   n, len1);
         unsigned int trmax = std::min(128u, len1 / 2);
         unsigned int tr = gmp_urandomm_ui(rstate, trmax + 1);
         P.clear_and_set_random(len1, rstate);
@@ -197,7 +196,7 @@ struct matpoly_checker_base {
     }
 
     int rshift_is_like_divx_everywhere() {
-        matpoly P(ab, m,   n, len1);
+        matpoly P(&ab, m,   n, len1);
         unsigned int trmax = std::min(128u, len1 / 2);
         unsigned int tr = gmp_urandomm_ui(rstate, trmax + 1);
         P.clear_and_set_random(len1, rstate);
@@ -223,7 +222,7 @@ struct matpoly_checker_base {
 
     int test_extract_column() {
         unsigned int s = n;
-        matpoly P(ab, m,   n, s+1);
+        matpoly P(&ab, m,   n, s+1);
         P.clear_and_set_random(1, rstate);
         for(unsigned int k = 0 ; k < s ; k++)
             for(unsigned int j = 0 ; j < s ; j++)
@@ -244,31 +243,30 @@ struct matpoly_checker_base {
     int divx_then_mulx_is_like_zero_column() {
         /* This is a bit like doing the mulx_then_divx test, but in
          * reverse order */
-        matpoly P(ab, m,   n, len1 + n);
+        matpoly P(&ab, m,   n, len1 + n);
         P.clear_and_set_random(len1, rstate);
         matpoly Q;
         Q.set(P);
         /* take some columns, divide */
         std::vector<int> jlen(n, len1);
-        gmp_randseed_ui(rstate, seed);
+        std::vector<unsigned int> js;
         for(unsigned int k = 0 ; k < n ; k++) {
             unsigned int j = gmp_urandomm_ui(rstate, n);
+            if (!jlen[j]) continue;
             P.divide_column_by_x(j, jlen[j]);
             Q.zero_column(j, len1-jlen[j]);
             jlen[j]--;
+            js.push_back(j);
         }
-        /* Arrange so that we pick the same list, and divide */
-        gmp_randseed_ui(rstate, seed);
-        for(unsigned int k = 0 ; k < n ; k++) {
-            unsigned int j = gmp_urandomm_ui(rstate, n);
+        for(auto j : js) {
             P.multiply_column_by_x(j, jlen[j]++);
         }
         return P.cmp(Q) == 0;
     }
 
     int add_and_sub() {
-        matpoly P(ab, m,   n, len1);
-        matpoly Q(ab, m,   n, len2);
+        matpoly P(&ab, m,   n, len1);
+        matpoly Q(&ab, m,   n, len2);
         P.clear_and_set_random(len1, rstate);
         Q.clear_and_set_random(len2, rstate);
         matpoly R;
@@ -320,9 +318,9 @@ struct matpoly_checker_base {
             mlen1 /= 2;
             mlen2 /= 2;
         }
-        matpoly P(ab, m, n, mlen1);
-        matpoly Q(ab, m, n, mlen2);
-        matpoly R(ab, n, n, mlen2);
+        matpoly P(&ab, m, n, mlen1);
+        matpoly Q(&ab, m, n, mlen2);
+        matpoly R(&ab, n, n, mlen2);
         matpoly PQ, PR, QR, PQ_R, PR_QR;
         P.clear_and_set_random(mlen1, rstate);
         Q.clear_and_set_random(mlen2, rstate);
@@ -333,7 +331,7 @@ struct matpoly_checker_base {
         PQ_R = matpoly::mul(PQ, R);
         PR_QR.add(PR, QR);
         if (PQ_R.cmp(PR_QR) != 0) return 0;
-        matpoly testz(ab, m, n, 0);
+        matpoly testz(&ab, m, n, 0);
         testz.sub(PR_QR);
         testz.addmul(PQ, R);
         if (!testz.tail_is_zero(0)) return 0;
@@ -350,9 +348,9 @@ struct matpoly_checker_base {
             mlen1 /= 2;
             mlen2 /= 2;
         }
-        matpoly P(ab, m, n, mlen1);
-        matpoly Q(ab, m, n, mlen2);
-        matpoly R(ab, n, n, mlen2);
+        matpoly P(&ab, m, n, mlen1);
+        matpoly Q(&ab, m, n, mlen2);
+        matpoly R(&ab, n, n, mlen2);
         matpoly PQ, PR, QR, PQ_R, PR_QR;
         P.clear_and_set_random(mlen1, rstate);
         Q.clear_and_set_random(mlen2, rstate);
@@ -362,7 +360,7 @@ struct matpoly_checker_base {
         PQ_R = matpoly::mp(PQ, R);
         PR_QR.add(PR, QR);
         if (PQ_R.cmp(PR_QR) != 0) return 0;
-        matpoly testz(ab, m, n, 0);
+        matpoly testz(&ab, m, n, 0);
         testz.sub(PR_QR);
         testz.addmp(PQ, R);
         if (!testz.tail_is_zero(0)) return 0;
@@ -370,7 +368,7 @@ struct matpoly_checker_base {
     }
     int coeff_is_zero_and_zero_column_agree()
     {
-        matpoly P(ab, m,   n, len1 + 2);
+        matpoly P(&ab, m,   n, len1 + 2);
         P.clear_and_set_random(len1, rstate);
         unsigned int k = P.get_size() / 2;
         for(unsigned int j = 0 ; j < n ; j++)
@@ -381,13 +379,13 @@ struct matpoly_checker_base {
     int test_basecase()
     {
         double tt;
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
         tt = wct_seconds();
-        test_basecase_bblas(ab, m, n, len1, rstate);
+        test_basecase_bblas(&ab, m, n, len1, rstate);
         printf("%.3f\n", wct_seconds()-tt);
 #endif
         tt = wct_seconds();
-        ::test_basecase(ab, m, n, len1, rstate);
+        ::test_basecase(&ab, m, n, len1, rstate);
         printf("%.3f\n", wct_seconds()-tt);
         return 1;
     }
@@ -410,8 +408,8 @@ struct matpoly_checker_ft : public matpoly_checker_base {
         , dummy_ft(SIZE_MAX)
     {}
     int mul_and_mul_caching_are_consistent() {
-        matpoly P(ab, n, n, len1);
-        matpoly Q(ab, n, n, len2);
+        matpoly P(&ab, n, n, len1);
+        matpoly Q(&ab, n, n, len2);
 
         P.clear_and_set_random(len1, rstate);
         Q.clear_and_set_random(len2, rstate);
@@ -423,8 +421,8 @@ struct matpoly_checker_ft : public matpoly_checker_base {
     }
 
     int mp_and_mp_caching_are_consistent() {
-        matpoly P(ab, m,   n, len1);
-        matpoly Q(ab, n, n, len2);
+        matpoly P(&ab, m,   n, len1);
+        matpoly Q(&ab, n, n, len2);
 
         P.clear_and_set_random(len1, rstate);
         Q.clear_and_set_random(len2, rstate);
@@ -439,7 +437,7 @@ struct matpoly_checker_ft : public matpoly_checker_base {
 
 void declare_usage(cxx_param_list & pl)
 {
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
     param_list_decl_usage(pl, "prime", "(mandatory) prime defining the base field");
 #else
     param_list_decl_usage(pl, "prime", "(unused) prime defining the base field -- we only use 2");
@@ -485,7 +483,7 @@ int main(int argc, char * argv[])
         param_list_print_usage(pl, argv0, stderr);
         exit(EXIT_FAILURE);
     }
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
     if (!param_list_parse_mpz(pl, "prime", (mpz_ptr) p)) {
         fprintf(stderr, "--prime is mandatory\n");
         param_list_print_command_line (stdout, pl);
@@ -502,7 +500,7 @@ int main(int argc, char * argv[])
     param_list_parse_ulong(pl, "seed", &seed);
     if (param_list_warn_unused(pl))
         exit(EXIT_FAILURE);
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
     if (m & 63) {
         unsigned int nm = 64 * iceildiv(m, 64);
         printf("Round m=%u to m=%u\n", m, nm);
@@ -536,7 +534,7 @@ int main(int argc, char * argv[])
         ASSERT_ALWAYS(checker.mp_is_distributive());
         ASSERT_ALWAYS(checker.coeff_is_zero_and_zero_column_agree());
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
         {
             matpoly_checker_ft<gf2x_fake_fft_info> checker_ft(checker);
             ASSERT_ALWAYS(checker_ft.mul_and_mul_caching_are_consistent());

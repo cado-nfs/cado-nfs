@@ -9,7 +9,10 @@ include_directories(bblas)
 # possibly be incorporated in bblas
 add_library(bitlinalg blockmatrix.cpp)
 target_link_libraries(bitlinalg bblas)
+
+if(NOT HAVE_GF2X)
 add_dependencies(bitlinalg gf2x-build)
+endif()
 
 
 add_executable(characters characters.cpp bwc/worker-threads.c)

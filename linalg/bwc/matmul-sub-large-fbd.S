@@ -1,37 +1,36 @@
 #if 0
 static void
-matmul_sub_large_fbd(abobj_ptr x, abt ** sb, const abt * z, const uint8_t * q, unsigned int n)
+matmul_sub_large_fbd_asm(abt ** sb, const abt * z, const uint8_t * q, unsigned int n)
 {
     /* Dispatch data found in z[0]...z[n] such that z[i] is in array
      * pointed to by sb[q[i]]. Exactly n coefficients are expected. All
      * the sb[] pointers are increased */
     for(unsigned int c = 0 ; c < n ; c++) {
-        abcopy(x, sb[q[c]], z, 1);
-        sb[q[c]]+= aboffset(x, 1);
-        z += aboffset(x, 1);
+        *sb[q[c]]++ = *z++;
     }
 }
 #endif
 .section .note.GNU-stack,"",%progbits
 	.text
 	.p2align 4,,15
-.globl matmul_sub_large_fbd
-	.type	matmul_sub_large_fbd, @function
-matmul_sub_large_fbd:
+.globl matmul_sub_large_fbd_asm
+	.type	matmul_sub_large_fbd_asm, @function
+matmul_sub_large_fbd_asm:
         pushq %rbp
         pushq %rbx
         pushq %r15
         pushq %r14
         pushq %r13
         pushq %r12
-        // sb pointer --> store in rdi
-        movq    %rsi, %rdi
-        // z pointer --> store in rsi
-	movq	%rdx, %rsi
-        // matrix pointer --> rbp
-        movq    %rcx, %rbp
-                
-        movq    %r8, %r9
+        // arg order: %rdi, %rsi, %rdx, %rcx, %r8, and %r9
+        // %rdi sbp
+        // %rsi z
+	// %rdx q  --> rbp
+        movq    %rdx, %rbp
+	// %rcx q  --> r8 and r9
+        movq    %rcx, %r8
+        movq    %rcx, %r9
+
         test    %r9, %r9
 
         // at .Lfinished, rbp is shipped as a return value.
@@ -174,4 +173,4 @@ matmul_sub_large_fbd:
         popq %rbx
         popq %rbp
 	ret
-	.size	matmul_sub_large_fbd, .-matmul_sub_large_fbd
+	.size	matmul_sub_large_fbd_asm, .-matmul_sub_large_fbd_asm

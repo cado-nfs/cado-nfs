@@ -106,7 +106,7 @@ code for common sets of parametsrs. Working with blocks of vectors of
 width 64 utilizes code which has inlined functions specific to this
 width. Programs achieve versatility w.r.t. this width by loading the
 corresponding code from shared libraries. These shared libraries, named
-e.g. libmatmul_u64k1_bucket.so for the default compiled library, are
+e.g. libmatmul_b64_bucket.so for the default compiled library, are
 expected to be present in the same directory as the calling binary.
 
 * wdir=<directory name>
@@ -579,7 +579,7 @@ krylov
 
     n2-n1 determines which shared library the binary loads for performing
     its lowest-level arithmetic operations. For n2-n1==64, the shared
-    library named libmatmul_u64k1_MMMMMMM.bin is loaded.
+    library named libmatmul_b64_MMMMMMM.bin is loaded.
     
     The j-j1-th matrix in A<n1>-<n2>.<j1>-<j2> (for j1<=j<j2) is equal to
     trsp(X)*M^j*Y (see note (T)).

@@ -7,7 +7,7 @@
 #include <algorithm>                  // for min
 #include <array>                      // for array
 #include <gmp.h>                      // for mp_limb_t
-#include "lingen_abfield.hpp"        // for abdst_field
+#include "arith-hard.hpp"        // for abdst_field
 #include "lingen_call_companion.hpp"
 #include "lingen_fft_select.hpp" // IWYU pragma: keep
 #include "lingen_matpoly_select.hpp"
@@ -226,7 +226,7 @@ public:
             for(unsigned int i = 0 ; i < nrows ; i++) {
                 for(unsigned int j = 0 ; j < ncols ; j++) {
                     ptr tij = t.part(i, j);
-                    absrc_vec aij = a.part(i, j);
+                    matpoly::srcptr aij = a.part(i, j);
                     /* ok, casting like this is a crude hack ! */
                     t.M.fti.dft(tij, (const mp_limb_t *) aij, a.M.get_size(), tt);
                 }
@@ -252,7 +252,7 @@ public:
             for(unsigned int i = 0 ; i < nrows ; i++) {
                 for(unsigned int j = 0 ; j < ncols ; j++) {
                     ptr tij = t.part(i,j);
-                    abdst_vec aij = a.part(i, j);
+                    matpoly::ptr aij = a.part(i, j);
                     /* ok, casting like this is a crude hack ! */
                     t.M.fti.ift((mp_limb_t *) aij, a.M.get_size(), tij, tt);
                 }
@@ -339,7 +339,7 @@ void add(matpoly_ft::view_t t, matpoly_ft::const_view_t t0, matpoly_ft::const_vi
 
 template<typename T> struct is_binary;
 
-#ifdef SELECT_MPFQ_LAYER_u64k1
+#ifdef LINGEN_BINARY
 extern template class matpoly_ft<gf2x_fake_fft_info>;
 extern template class matpoly_ft<gf2x_cantor_fft_info>;
 extern template class matpoly_ft<gf2x_ternary_fft_info>;

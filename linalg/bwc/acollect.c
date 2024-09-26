@@ -144,7 +144,7 @@ int main(int argc, char * argv[])
 
     /* {{{ interpret our parameters */
     if (mpz_cmp_ui(bw->p, 2) > 0) {
-        bits_per_coeff = 64 * iceildiv(mpz_sizeinbase(bw->p, 2), 64);
+        bits_per_coeff = ULONG_BITS * iceildiv(mpz_sizeinbase(bw->p, 2), ULONG_BITS);
     } else {
         bits_per_coeff = 1;
     }

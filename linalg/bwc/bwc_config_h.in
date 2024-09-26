@@ -10,6 +10,10 @@
  */
 #cmakedefine    COOKED_BWC_BACKENDS @COOKED_BWC_BACKENDS@
 
+
+/* The following is only defined for statically linked builds */
+#cmakedefine    COOKED_ARITHMETIC_BACKENDS @COOKED_ARITHMETIC_BACKENDS@
+
 #cmakedefine    BUILD_DYNAMICALLY_LINKABLE_BWC
 
 #endif	/* BWC_CONFIG_H_ */

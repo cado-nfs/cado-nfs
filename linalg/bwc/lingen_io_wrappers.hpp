@@ -12,7 +12,7 @@
 #include <tuple>                      // for tuple
 #include <sys/types.h>                // for ssize_t
 #include "gmp_aux.h"
-#include "lingen_abfield.hpp"         // for abdst_field, mpfq_p_1_dst_field
+#include "arith-hard.hpp"         // for abdst_field, mpfq_p_1_dst_field
 #include "lingen_bigmatpoly.hpp"
 #include "lingen_bw_dimensions.hpp"   // for bw_dimensions
 #include "lingen_matpoly_select.hpp"
@@ -30,7 +30,7 @@ struct bmstatus;
  */
 struct lingen_io_wrapper_base
 {
-    abdst_field ab;
+    matpoly::arith_hard * ab;
     unsigned int nrows;
     unsigned int ncols;
 
@@ -55,7 +55,7 @@ struct lingen_io_wrapper_base
      */
     virtual unsigned int preferred_window() const;
 
-    lingen_io_wrapper_base(abdst_field ab, unsigned int nrows, unsigned int ncols)
+    lingen_io_wrapper_base(matpoly::arith_hard * ab, unsigned int nrows, unsigned int ncols)
       : ab(ab)
       , nrows(nrows)
       , ncols(ncols)
@@ -67,7 +67,7 @@ struct lingen_io_wrapper_base
 
 struct lingen_input_wrapper_base : public lingen_io_wrapper_base
 {
-    lingen_input_wrapper_base(abdst_field ab,
+    lingen_input_wrapper_base(matpoly::arith_hard * ab,
                               unsigned int nrows,
                               unsigned int ncols)
       : lingen_io_wrapper_base(ab, nrows, ncols)
@@ -91,7 +91,7 @@ struct lingen_input_wrapper_base : public lingen_io_wrapper_base
 
 struct lingen_output_wrapper_base : public lingen_io_wrapper_base
 {
-    lingen_output_wrapper_base(abdst_field ab,
+    lingen_output_wrapper_base(matpoly::arith_hard * ab,
                                unsigned int nrows,
                                unsigned int ncols)
       : lingen_io_wrapper_base(ab, nrows, ncols)
@@ -122,7 +122,7 @@ class lingen_file_input : public lingen_input_wrapper_base
     void close_file();
 
     public:
-    lingen_file_input(abdst_field ab,
+    lingen_file_input(matpoly::arith_hard * ab,
                       unsigned int nrows,
                       unsigned int ncols,
                       std::string const& filename,
@@ -150,7 +150,7 @@ struct lingen_random_input : public lingen_input_wrapper_base
     gmp_randstate_ptr rstate;
     size_t next_src_k = 0;
     size_t length;
-    lingen_random_input(abdst_field ab,
+    lingen_random_input(matpoly::arith_hard * ab,
                         unsigned int nrows,
                         unsigned int ncols,
                         gmp_randstate_ptr rstate,
@@ -392,7 +392,7 @@ class lingen_output_to_singlefile : public lingen_output_wrapper_base
     bool done_open = false;
 
     public:
-    lingen_output_to_singlefile(abdst_field ab,
+    lingen_output_to_singlefile(matpoly::arith_hard * ab,
                                 unsigned int nrows,
                                 unsigned int ncols,
                                 std::string const& filename,
@@ -419,7 +419,7 @@ class lingen_output_to_splitfile : public lingen_output_wrapper_base
     bool done_open = false;
 
     public:
-    lingen_output_to_splitfile(abdst_field ab,
+    lingen_output_to_splitfile(matpoly::arith_hard * ab,
                                unsigned int nrows,
                                unsigned int ncols,
                                std::string const& pattern,
@@ -438,7 +438,7 @@ class lingen_output_to_sha1sum : public lingen_output_wrapper_base
     size_t written = 0;
 
     public:
-    lingen_output_to_sha1sum(abdst_field ab,
+    lingen_output_to_sha1sum(matpoly::arith_hard * ab,
                              unsigned int nrows,
                              unsigned int ncols,
                              std::string const& who)

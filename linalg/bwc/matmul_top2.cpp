@@ -10,8 +10,6 @@
  *
  */
 
-extern "C" char * matrix_list_get_item(param_list_ptr pl, const char * key, int midx);
-
 /* returns an allocated string holding the name of the midx-th submatrix */
 char * matrix_list_get_item(param_list_ptr pl, const char * key, int midx)
 {

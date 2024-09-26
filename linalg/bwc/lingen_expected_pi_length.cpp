@@ -1,10 +1,10 @@
 #include "cado.h" // IWYU pragma: keep
 #include <climits>                  // for UINT_MAX
-#ifndef SELECT_MPFQ_LAYER_u64k1
+#ifndef LINGEN_BINARY
 #include <gmp.h>
 #include "cxx_mpz.hpp"
 #endif
-#include "lingen_abfield.hpp" // IWYU pragma: keep
+#include "arith-hard.hpp" // IWYU pragma: keep
 #include "lingen_bw_dimensions.hpp"  // for bw_dimensions
 #include "lingen_expected_pi_length.hpp"
 #include "macros.h"                  // for iceildiv, MAYBE_UNUSED
@@ -58,17 +58,16 @@ unsigned int expected_pi_length(bw_dimensions & d, unsigned int len)/*{{{*/
     unsigned int m = d.m;
     unsigned int n = d.n;
     unsigned int b = m + n;
-    abdst_field ab MAYBE_UNUSED = d.ab;
+    matpoly::arith_hard * ab MAYBE_UNUSED = & d.ab;
     unsigned int res = 1 + iceildiv(len * m, b);
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    cxx_mpz p;
-    abfield_characteristic(ab, (mpz_ptr) p);
+#ifndef LINGEN_BINARY
+    mpz_srcptr p = ab->characteristic();
     unsigned int l;
     if (mpz_cmp_ui(p, 1024) >= 0) {
         l = mpz_sizeinbase(p, 2);
-        l *= abfield_degree(ab);    /* roughly log_2(#K) */
+        // l *= ab->degree();    /* roughly log_2(#K) */
     } else {
-        mpz_pow_ui(p, p, abfield_degree(ab));
+        // mpz_pow_ui(p, p, ab->degree());
         l = mpz_sizeinbase(p, 2);
     }
 #else
@@ -108,17 +107,16 @@ unsigned int expected_pi_length_lowerbound(bw_dimensions & d, unsigned int len)/
     unsigned int m = d.m;
     unsigned int n = d.n;
     unsigned int b = m + n;
-    abdst_field ab MAYBE_UNUSED = d.ab;
+    matpoly::arith_hard * ab MAYBE_UNUSED = & d.ab;
     unsigned int res = 1 + (len * m) / b;
-#ifndef SELECT_MPFQ_LAYER_u64k1
-    cxx_mpz p;
-    abfield_characteristic(ab, p);
+#ifndef LINGEN_BINARY
+    cxx_mpz p(ab->characteristic());
     unsigned int l;
     if (mpz_cmp_ui(p, 1024) >= 0) {
         l = mpz_sizeinbase(p, 2);
-        l *= abfield_degree(ab);    /* roughly log_2(#K) */
+        // l *= abfield_degree(ab);    /* roughly log_2(#K) */
     } else {
-        mpz_pow_ui(p, p, abfield_degree(ab));
+        // mpz_pow_ui(p, p, abfield_degree(ab));
         l = mpz_sizeinbase(p, 2);
     }
 #else

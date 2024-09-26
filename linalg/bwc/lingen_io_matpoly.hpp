@@ -16,8 +16,8 @@ void lingen_io_matpoly_lookup_parameters(cxx_param_list & pl);
 void lingen_io_matpoly_interpret_parameters(cxx_param_list & pl);
 
 
-int matpoly_read(abdst_field ab, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose);
-int matpoly_write(abdst_field ab, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose);
-int matpoly_write_split(abdst_field ab, std::vector<std::ofstream> & fw, matpoly const & M, unsigned int k0, unsigned int k1, int ascii);
+int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose);
+int matpoly_write(matpoly::arith_hard * ab, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose);
+int matpoly_write_split(matpoly::arith_hard * ab, std::vector<std::ofstream> & fw, matpoly const & M, unsigned int k0, unsigned int k1, int ascii);
 
 #endif	/* LINGEN_IO_MATPOLY_HPP_ */

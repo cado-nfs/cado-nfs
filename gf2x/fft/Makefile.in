@@ -120,7 +120,6 @@ target_triplet = @target@
 @ENABLE_FFT_INTERFACE_TRUE@am__append_2 = gf2x-fake-fft.c \
 @ENABLE_FFT_INTERFACE_TRUE@	gf2x-ternary-fft.c \
 @ENABLE_FFT_INTERFACE_TRUE@	gf2x-cantor-fft.c
-@ENABLE_FFT_INTERFACE_TRUE@am__append_3 = -I$(top_srcdir)/fft/mpfq
 TESTS = $(am__EXEEXT_1)
 check_PROGRAMS = $(am__EXEEXT_1)
 
@@ -178,7 +177,7 @@ check_PROGRAMS = $(am__EXEEXT_1)
 # gf2x_fft_check_cantor64gmt_CFLAGS=$(AM_CFLAGS) $(VH_FFT_FLAG) -DGF2X_SOURCE_TREE $(C64gmt)
 # gf2x_fft_check_cantor64gmt_LDADD=libgf2x-fft-cantor64gmt.la ../libgf2x.la
 # 
-@ENABLE_FFT_INTERFACE_TRUE@am__append_4 = libcantor64.la \
+@ENABLE_FFT_INTERFACE_TRUE@am__append_3 = libcantor64.la \
 @ENABLE_FFT_INTERFACE_TRUE@	libgf2x-fft-cantor64.la \
 @ENABLE_FFT_INTERFACE_TRUE@	libcantor64nt.la \
 @ENABLE_FFT_INTERFACE_TRUE@	libgf2x-fft-cantor64nt.la \
@@ -216,12 +215,12 @@ check_PROGRAMS = $(am__EXEEXT_1)
 
 # This last one is a duplicate of one of the other one (presumably
 # cantor128), and it exerts libgf2x-fft as it is shipped.
-@ENABLE_FFT_INTERFACE_TRUE@am__append_5 = gf2x_fft_check_cantor64 \
+@ENABLE_FFT_INTERFACE_TRUE@am__append_4 = gf2x_fft_check_cantor64 \
 @ENABLE_FFT_INTERFACE_TRUE@	gf2x_fft_check_cantor64nt \
 @ENABLE_FFT_INTERFACE_TRUE@	gf2x_fft_check_cantor128 \
 @ENABLE_FFT_INTERFACE_TRUE@	gf2x_fft_check_cantor128nt \
 @ENABLE_FFT_INTERFACE_TRUE@	gf2x_fft_check
-@ENABLE_FFT_INTERFACE_TRUE@am__append_6 = gf2x_fft_check_cantor64 \
+@ENABLE_FFT_INTERFACE_TRUE@am__append_5 = gf2x_fft_check_cantor64 \
 @ENABLE_FFT_INTERFACE_TRUE@	gf2x_fft_check_cantor64nt \
 @ENABLE_FFT_INTERFACE_TRUE@	gf2x_fft_check_cantor128 \
 @ENABLE_FFT_INTERFACE_TRUE@	gf2x_fft_check_cantor128nt \
@@ -800,6 +799,7 @@ ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 EXEEXT_FOR_BUILD = @EXEEXT_FOR_BUILD@
 FGREP = @FGREP@
+FILECMD = @FILECMD@
 GF2X_FFT_VERSION_MAJOR = @GF2X_FFT_VERSION_MAJOR@
 GF2X_FFT_VERSION_MINOR = @GF2X_FFT_VERSION_MINOR@
 GF2X_FFT_VERSION_PATCHLEVEL = @GF2X_FFT_VERSION_PATCHLEVEL@
@@ -907,8 +907,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I config --install
-AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir) -I$(srcdir)/mpfq \
-	$(am__append_3)
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir)
 @HAVE_HIDDEN_VISIBILITY_ATTRIBUTE_TRUE@VH_FFT_FLAG = -fvisibility=hidden -DGF2X_FFT_EXPORTED="__attribute__((visibility(\"default\")))"
 FFT_SOURCES = gf2x-fft.c $(am__append_2)
 FFT_LIBS = $(am__append_1)
@@ -933,21 +932,10 @@ FFT_LIBS = $(am__append_1)
 @ENABLE_FFT_INTERFACE_TRUE@libgf2x_fft_la_LDFLAGS = -version-info @gf2x_fft_lib_version@ -no-undefined
 
 # ternary fft is included by default in gf2x.
-check_LTLIBRARIES = libternary.la $(am__append_4)
+check_LTLIBRARIES = libternary.la $(am__append_3)
 EXTRA_DIST = \
-	gf2x-fft-impl-utils.h			\
-	mpfq/README.mpfq			\
-	mpfq/i386/mpfq_2_128.c			\
-	mpfq/i386/mpfq_2_128.h			\
-	mpfq/i386/mpfq_2_64.c			\
-	mpfq/i386/mpfq_2_64.h			\
-	mpfq/mpfq.h				\
-	mpfq/mpfq_gf2n_common.h			\
-	mpfq/mpfq_name_K.h			\
-	mpfq/x86_64/mpfq_2_128.c		\
-	mpfq/x86_64/mpfq_2_128.h		\
-	mpfq/x86_64/mpfq_2_64.c			\
-	mpfq/x86_64/mpfq_2_64.h
+	gf2x-fft-impl-utils.h		\
+	gf2x-cantor-field-impl.h
 
 libternary_la_SOURCES = gf2x-ternary-fft.c
 libternary_la_CFLAGS = $(AM_CFLAGS) $(VH_FFT_FLAG) -DENGINE_TERNARY

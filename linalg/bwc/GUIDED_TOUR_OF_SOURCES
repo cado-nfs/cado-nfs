@@ -21,12 +21,16 @@ linalg/bwc/README.gfp
     => some bits of documentation
 
 
-linalg/bwc/mpfq_layer.h
-linalg/bwc/mpfq/*
+linalg/bwc/arith-concrete-base.hpp
+linalg/bwc/arith-generic.hpp
+linalg/bwc/arith-hard.hpp
+linalg/bwc/arith-mod2.hpp
+linalg/bwc/arith-modp.hpp
 
     => low-level code that performs arithmetic in the base field. This is
-    aut-generated from mpfq, and in truth only a very tiny portion of
-    mpfq is actually used.
+    used both with hard-coded, explicitly unrolled routines in arith-hard
+    (and then in arith-mod2 and arith-modp) but also with an
+    implementation-agnostic OO interface.
 
 
 linalg/bwc/arith-modp.hpp
@@ -103,8 +107,8 @@ linalg/bwc/random_matrix.h
     the fly)
 
 
-linalg/bwc/parallelizing_info.c
-linalg/bwc/parallelizing_info.h
+linalg/bwc/parallelizing_info.cpp
+linalg/bwc/parallelizing_info.hpp
 
     => backend that implements the hybrid MPI+threads computing model
     used by bwc. Take it with a grain of salt: by the time it was
@@ -291,56 +295,52 @@ one. This implies that serializing on one of these sub-communicators with
 all threads of the other communicator concurrently is illegal, because
 serialize() entails MPI calls which do not handle concurrency well.
 
-The "abase" mechanism
+The "arith" mechanism
 ---------------------
 
 The matrix stuff is kind-of generic w.r.t the type of objects inside the
-matrix. The "abase" mechanism provides this genericity -- don't expect a
+matrix. The "arith" mechanism provides this genericity -- don't expect a
 clean ring structure, beautifully following the mathematical notions.
-This layer is built from the mpfq library, together with a table of
-indirect functions serving as wrappers.
 
-Thanks to the abase layer, the same code may be used both in
+Thanks to the arith layer, the same code may be used both in
 characteristic two and in characteristic p, only with minor changes.
 
-The abase layer is accessed in different ways depending on whether we're
+The arith layer is accessed in different ways depending on whether we're
 looking at a higher level or lower level part of the code.
 
 For the higher level code (typically, matmul_top.c, krylov.c, etc), we
 have some object-oriented access. Everything goes through the
-mpfq_vbase_ptr type, which is the type of the parent structure, holding
-all the required function pointers.  The elements are cast to void*
-pointers, will all the accompanying infelicities. The cod compiled in
+arith_generic type, which is the type of the parent structure, holding
+all the required function pointers.  The elements inherith
+arith_generic::elt (but are wider than an arith_generic::elt !)
+The code compiled in
 this way is independent of the actual implementation of the underlying
 arithmetic.
 
 For lower level code (typically, matmul-bucket.cpp), it's different. We
 have the two main types:
-    abdst_field - a descriptor of the field we're working with
-    abelt       - an element.
+    arith_hard      - a descriptor of the field we're working with
+    arith_hard::elt - an element.
 
-Each instance of the abase mechanism is a set of files, as follows:
-    mpfq/mpfq_<something>.c
-    mpfq/mpfq_<something>.h
-    mpfq/mpfq_<something>_t.c
-    mpfq/mpfq_<something>_t.h
+Each instance of the arith mechanism is in a header file, either:
+    arith-mod2.hpp
+    arith-modp.hpp
 This may describe elements whose sizes are known at compile-time
 (uint64_t), or blocks of them, of width possibly known only at
-running-time (this is the case for the mpfq_pz layer).
+running-time (temporarily disabled)
 
 The idea is to have genericity and variable width for boring stuff (like
 prep) that does not need maximal efficiency, and fixed sized- code for
 the main operations inside Krylov.
 
 See the example uses of the abase layer in either high level or low level
-code for details on how to use this. Functions are all following the mpfq
-api.
+code for details on how to use this.
 
 Currently the following are implemented:
-  abase-u64k1   // uint64_t
-  abase-m128    // uint128_t, packed into SSE2
-  abase-u64k#   // block of # uint64_t, size known at compile-time, with
-                // # being 1,2,3, or 4
+  // uint64_t
+  // uint128_t, packed into SSE2
+  // block of # uint64_t, size known at compile-time, with
+  // # being 1,2,3, or 4
 
 The main use of this type is for vectors to be multiplied by the binary
 matrix. We have for instance in matmul.[ch] a function called:
