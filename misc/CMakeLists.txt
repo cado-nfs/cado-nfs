@@ -3,7 +3,7 @@ target_link_libraries(check_rels utils_with_io)
 install(TARGETS check_rels RUNTIME DESTINATION ${LIBSUFFIX}/misc)
 
 if (HAVE_GMPECM)
-add_executable(descent_init_Fp descent_init_Fp.c smooth_detect.c)
+add_executable(descent_init_Fp descent_init_Fp.cpp smooth_detect.cpp)
 target_link_libraries(descent_init_Fp utils ecm)
 install(TARGETS descent_init_Fp RUNTIME DESTINATION ${LIBSUFFIX}/misc)
 endif()

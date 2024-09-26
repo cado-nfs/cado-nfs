@@ -675,11 +675,11 @@ macros.h
 misc/CMakeLists.txt
 misc/check_rels.c
 misc/debug_renumber.cpp
-misc/descent_init_Fp.c
+misc/descent_init_Fp.cpp
 misc/explain_indexed_relation.cpp
 misc/indexed_relations_to_density.cpp
-misc/smooth_detect.c
-misc/smooth_detect.h
+misc/smooth_detect.cpp
+misc/smooth_detect.hpp
 parameters/dlp/Joux-Lercier/params.p100
 parameters/dlp/Joux-Lercier/params.p30
 parameters/dlp/Joux-Lercier/params.p35
