@@ -604,7 +604,7 @@ static size_t expected_memory_usage_per_subjob_worst_logI(siever_config const & 
             max_memory = memory;
         }
     }
-    if (logImin != logImax || main_output.verbose < 2 + hush)
+    if (logImin != logImax || main_output->verbose < 2 + hush)
         verbose_output_print(0, 0 + hush,
                 "# Expected memory use per subjob (max reached for logI=%d):"
                 " %s\n",
@@ -705,12 +705,12 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
     where_am_I & w(aux.w);
 
     /* essentially update the fij polynomials and the max log bounds */
-    if (main_output.verbose >= 2) {
+    if (main_output->verbose >= 2) {
         verbose_output_start_batch();
         verbose_output_print (0, 1, "# f_0'(x) = ");
-        mpz_poly_fprintf(main_output.output, ws.sides[0].lognorms.fij);
+        mpz_poly_fprintf(main_output->output, ws.sides[0].lognorms.fij);
         verbose_output_print (0, 1, "# f_1'(x) = ");
-        mpz_poly_fprintf(main_output.output, ws.sides[1].lognorms.fij);
+        mpz_poly_fprintf(main_output->output, ws.sides[1].lognorms.fij);
         verbose_output_end_batch();
     }
 
@@ -1057,7 +1057,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                 if (global_exit_semaphore)
                     break;
             }
-            main_output.fflush();
+            main_output->fflush();
             las_todo_entry * doing_p = todo.feed_and_pop(las.rstate);
             if (!doing_p) break;
             las_todo_entry& doing(*doing_p);
@@ -1075,9 +1075,9 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                     if (las.tree.depth() == 0) {
                         if (recursive_descent) {
                             /* BEGIN TREE / END TREE are for the python script */
-                            fprintf(main_output.output, "# BEGIN TREE\n");
-                            las.tree.display_last_tree(main_output.output);
-                            fprintf(main_output.output, "# END TREE\n");
+                            fprintf(main_output->output, "# BEGIN TREE\n");
+                            las.tree.display_last_tree(main_output->output);
+                            fprintf(main_output->output, "# END TREE\n");
                         }
                         las.tree.visited.clear();
                     }
@@ -1378,7 +1378,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
     int nq = 0;
 
     for(;; nq++) {
-        main_output.fflush();
+        main_output->fflush();
         las_todo_entry * doing_p = todo.feed_and_pop(las.rstate);
         if (!doing_p) break;
 
@@ -1465,8 +1465,8 @@ int main (int argc0, char *argv0[])/*{{{*/
     int argc = argc0;
     char **argv = argv0;
 
-    setbuf(stdout, NULL);
-    setbuf(stderr, NULL);
+    setbuf(stdout, nullptr);
+    setbuf(stderr, nullptr);
 
     cxx_param_list pl;
     cado_sighandlers_install();
@@ -1479,8 +1479,8 @@ int main (int argc0, char *argv0[])/*{{{*/
     for( ; argc ; ) {
         if (param_list_update_cmdline(pl, &argc, &argv)) { continue; }
         /* Could also be a file */
-        FILE * f;
-        if ((f = fopen(argv[0], "r")) != NULL) {
+        FILE * f = fopen(argv[0], "r");
+        if (f) {
             param_list_read_stream(pl, f, 0);
             fclose(f);
             argv++,argc--;
@@ -1498,7 +1498,7 @@ int main (int argc0, char *argv0[])/*{{{*/
     param_list_parse_int(pl, "log-bucket-region", &LOG_BUCKET_REGION);
     set_LOG_BUCKET_REGION();
 
-    main_output.set(pl);
+    main_output = std::unique_ptr<las_output>(new las_output(pl));
 
     if (las_production_mode) {
         tdict::global_enable = 0;
@@ -1525,16 +1525,15 @@ int main (int argc0, char *argv0[])/*{{{*/
 
     where_am_I::interpret_parameters(pl);
 
-    base_memory = Memusage() << 10;
+    base_memory = Memusage() << 10U;
 
     if (todo.print_todo_list_flag) {
         /* printing the todo list takes only a very small amount of ram.
          * In all likelihood, nsubjobs will be total number of cores (or
          * the number of threads that were requested on command line)
          */
-        las.set_parallel(pl, base_memory / (double) (1 << 30));
+        las.set_parallel(pl, double(base_memory) / (1U << 30U));
         todo.print_todo_list(pl, las.rstate, las.number_of_threads_total());
-        main_output.release();
         return EXIT_SUCCESS;
 
     }
@@ -1558,14 +1557,14 @@ int main (int argc0, char *argv0[])/*{{{*/
         if (las.config_pool.default_config_ptr) {
             verbose_output_print(0, 2, "# No --job-memory option given, relying on automatic memory estimate\n");
             siever_config const & sc0(las.config_pool.base);
-            size_t ram0 = expected_memory_usage_per_binding_zone(sc0, las, false);
+            const size_t ram0 = expected_memory_usage_per_binding_zone(sc0, las, false);
             for(int z = 1, s = 1 << 30, n = 1, spin=0 ; ; spin++) {
                 if (spin > 10) {
                     fprintf(stderr, "Warning: computation of expected memory does not stabilize after %d attempts, picking the situation as it is\n", spin);
                     break;
                 }
-                size_t ram1 = expected_memory_usage_per_subjob_worst_logI(sc0, las, n, false);
-                size_t jobram = (base_memory / z + ram0) / s + ram1;
+                const size_t ram1 = expected_memory_usage_per_subjob_worst_logI(sc0, las, n, false);
+                const size_t jobram = (base_memory / z + ram0) / s + ram1;
                 /*
                 std::ostringstream os;
                 os << z << " " << s << " " << n
@@ -1574,10 +1573,10 @@ int main (int argc0, char *argv0[])/*{{{*/
                     << " " << (double) jobram / (1 << 30);
                 fprintf(stderr, "%s\n", os.str().c_str());
                 */
-                las.set_parallel(pl, (double) jobram / (1 << 30));
-                int nz = las.number_of_memory_binding_zones();
-                int ns = las.number_of_subjobs_per_memory_binding_zone();
-                int nn = las.number_of_threads_per_subjob();
+                las.set_parallel(pl, (double) jobram / (1U << 30U));
+                const int nz = las.number_of_memory_binding_zones();
+                const int ns = las.number_of_subjobs_per_memory_binding_zone();
+                const int nn = las.number_of_threads_per_subjob();
                 if (s == ns && n == nn && z == nz)
                     break;
                 z = nz; s = ns; n = nn;
@@ -1612,7 +1611,6 @@ int main (int argc0, char *argv0[])/*{{{*/
      */
     if (!las.relation_cache.empty()) {
         quick_subjob_loop_using_cache(las, todo);
-        main_output.release();
         return EXIT_SUCCESS;
     }
 
@@ -1635,149 +1633,155 @@ int main (int argc0, char *argv0[])/*{{{*/
     t0 = seconds ();
     wct = wct_seconds();
 
-    if (las.batch_print_survivors.filename) {
-        for(int i = 0 ; i < las.batch_print_survivors.number_of_printers ; i++) {
-            las.batch_print_survivors.printers.push_back(
-                    std::thread(print_survivors_job, std::ref(las)));
+    try {
+        if (las.batch_print_survivors.filename) {
+            for(int i = 0 ; i < las.batch_print_survivors.number_of_printers ; i++) {
+                las.batch_print_survivors.printer_threads.emplace_back(
+                        print_survivors_job, std::ref(las));
+            }
         }
-    }
 
-    std::vector<std::thread> subjobs;
-    /* In theory we would be able to to multiple descents in parallel, of
-     * course, but how we should proceed with the todo list, our brace
-     * mechanism, and the descent tree thing is altogether not obvious
-     */
-    int nsubjobs = dlp_descent ? 1 : las.number_of_subjobs_total();
-    for(int subjob = 0 ; subjob < nsubjobs ; ++subjob) {
-        /* when references are passed through variadic template arguments
-         * as for the std::thread ctor, we have automatic decaying unless
-         * we use std::ref.
+        std::vector<std::thread> subjobs;
+        /* In theory we would be able to to multiple descents in parallel, of
+         * course, but how we should proceed with the todo list, our brace
+         * mechanism, and the descent tree thing is altogether not obvious
          */
-        subjobs.push_back(
-                std::thread(las_subjob,
-                    std::ref(las),
-                    subjob,
-                    std::ref(todo),
-                    std::ref(global_rt)
-                ));
-    }
-    for(auto & t : subjobs) t.join();
+        const int nsubjobs = dlp_descent ? 1 : las.number_of_subjobs_total();
+        for(int subjob = 0 ; subjob < nsubjobs ; ++subjob) {
+            /* when references are passed through variadic template arguments
+             * as for the std::thread ctor, we have automatic decaying unless
+             * we use std::ref.
+             */
+            subjobs.emplace_back(
+                    las_subjob,
+                        std::ref(las),
+                        subjob,
+                        std::ref(todo),
+                        std::ref(global_rt)
+                    );
+        }
+        for(auto & t : subjobs) t.join();
 
-    if (dlp_descent && recursive_descent) {
-        verbose_output_print(0, 1, "# Now displaying again the results of all descents\n");
-        las.tree.display_all_trees(main_output.output);
-    }
+        if (dlp_descent && recursive_descent) {
+            verbose_output_print(0, 1, "# Now displaying again the results of all descents\n");
+            las.tree.display_all_trees(main_output->output);
+        }
 
-    las.set_loose_binding();
+        las.set_loose_binding();
 
-    if (las.batch_print_survivors.filename) {
-        las.batch_print_survivors.mm.lock();
-        las.batch_print_survivors.done = true;
-        las.batch_print_survivors.todo.push_back(std::move(las.L));
-        las.batch_print_survivors.mm.unlock();
-        las.batch_print_survivors.cv.notify_all();
-        for(auto & x : las.batch_print_survivors.printers)
-            x.join();
-    }
+        if (las.batch_print_survivors.filename) {
+            las.batch_print_survivors.mm.lock();
+            las.batch_print_survivors.done = true;
+            las.batch_print_survivors.todo.push_back(std::move(las.L));
+            las.batch_print_survivors.mm.unlock();
+            las.batch_print_survivors.cv.notify_all();
+            for(auto & x : las.batch_print_survivors.printer_threads)
+                x.join();
+        }
 
-    if (las.batch)
-      {
-          int nsides = las.cpoly->nb_polys;
+        if (las.batch)
+          {
+              int nsides = las.cpoly->nb_polys;
 
-          timetree_t batch_timer;
-          auto z = call_dtor([&]() {
-                  std::lock_guard<std::mutex> lock(global_rt.mm);
-                  global_rt.timer += batch_timer;
-                  });
-          ACTIVATE_TIMER(batch_timer);
+              timetree_t batch_timer;
+              auto z = call_dtor([&]() {
+                      std::lock_guard<std::mutex> lock(global_rt.mm);
+                      global_rt.timer += batch_timer;
+                      });
+              ACTIVATE_TIMER(batch_timer);
 
-        /* We need to access lim[01] and lpb[01] */
-        siever_config const & sc0(las.config_pool.base);
-        CHILD_TIMER(batch_timer, "batch cofactorization (time is wrong because of openmp)");
-        TIMER_CATEGORY(batch_timer, batch_mixed());
-        double extra_time = 0;
+            /* We need to access lim[01] and lpb[01] */
+            siever_config const & sc0(las.config_pool.base);
+            CHILD_TIMER(batch_timer, "batch cofactorization (time is wrong because of openmp)");
+            TIMER_CATEGORY(batch_timer, batch_mixed());
+            double extra_time = 0;
 
-        std::vector<cxx_mpz> batchP(nsides);
-        auto lpb = siever_side_config::collect_lpb(sc0.sides);
-        auto batchlpb = batch_side_config::collect_batchlpb(las.bsides);
-        auto batchmfb = batch_side_config::collect_batchmfb(las.bsides);
-        auto batchfilename = batch_side_config::collect_batchfilename(las.bsides);
-        for(int side = 0 ; side < nsides ; side++) {
-            create_batch_file (batchfilename[side],
-                    batchP[side],
-                    sc0.sides[side].lim,
-                    1UL << batchlpb[side],
-                    las.cpoly->pols[side],
-                    main_output.output,
+            std::vector<cxx_mpz> batchP(nsides);
+            auto lpb = siever_side_config::collect_lpb(sc0.sides);
+            auto batchlpb = batch_side_config::collect_batchlpb(las.bsides);
+            auto batchmfb = batch_side_config::collect_batchmfb(las.bsides);
+            auto batchfilename = batch_side_config::collect_batchfilename(las.bsides);
+            for(int side = 0 ; side < nsides ; side++) {
+                create_batch_file (batchfilename[side],
+                        batchP[side],
+                        sc0.sides[side].lim,
+                        1UL << batchlpb[side],
+                        las.cpoly->pols[side],
+                        main_output->output,
+                        las.number_of_threads_loose(),
+                        extra_time);
+            }
+
+            double tcof_batch = seconds ();
+
+            /* This one uses openmp, and forks from the current thread (well,
+             * I believe so -- it's not entirely clear how openmp deals with
+             * cpu binding. At least I presume that it does nothing before
+             * the first pragma omp statement.)
+             */
+            find_smooth (las.L,
+                    batchP, batchlpb, lpb, batchmfb,
+                    main_output->output,
                     las.number_of_threads_loose(),
                     extra_time);
-        }
 
-	double tcof_batch = seconds ();
+            /* We may go back to our general thread placement at this point.
+             * Currently the code below still uses openmp */
 
-        /* This one uses openmp, and forks from the current thread (well,
-         * I believe so -- it's not entirely clear how openmp deals with
-         * cpu binding. At least I presume that it does nothing before
-         * the first pragma omp statement.)
-         */
-	find_smooth (las.L,
-                batchP, batchlpb, lpb, batchmfb,
-                main_output.output,
-                las.number_of_threads_loose(),
-                extra_time);
-
-        /* We may go back to our general thread placement at this point.
-         * Currently the code below still uses openmp */
-
-        int ncurves = 0;
-        for(int side = 0 ; side < nsides ; side++) {
-            ncurves = MAX(ncurves, sc0.sides[side].ncurves);
-            // Possible issue: if lpb=batchlp, ECM is still used for finding
-            // the sieved primes in order to print the smooth relations.
-            // In that case, we need enough curves to find them.
-            if (sc0.sides[side].lpb == las.bsides[side].batchlpb)
-                ncurves = MAX(ncurves, 30);
-        }
-
-
-        if (ncurves <= 0)
-            ncurves = 50; // use the same default as finishbatch
-
-        std::list<relation> rels = factor (las.L,
-                las.cpoly,
-                batchlpb,
-                lpb,
-                ncurves,
-		main_output.output,
-                las.number_of_threads_loose(),
-                extra_time,
-                1);
-        verbose_output_print (0, 1, "# batch reported time for additional threads: %.2f\n", extra_time);
-        batch_timer.add_foreign_time(extra_time);
-
-        verbose_output_start_batch();
-        nfs_aux::rel_hash_t rel_hash;
-        size_t nondup = 0;
-        for(auto const & rel : rels) {
-            std::ostringstream os;
-            nfs_aux::abpair_t ab(rel.a, rel.b);
-            bool is_new_rel = rel_hash.insert(ab).second;
-            if (!is_new_rel) {
-                /* we had this (a,b) pair twice, probably because of a
-                 * failed attempt, that was aborted because of an
-                 * exception. (occurs only with 2-level sieving) */
-                os << "# DUP ";
-            } else {
-                nondup++;
+            int ncurves = 0;
+            for(int side = 0 ; side < nsides ; side++) {
+                ncurves = MAX(ncurves, sc0.sides[side].ncurves);
+                // Possible issue: if lpb=batchlp, ECM is still used for finding
+                // the sieved primes in order to print the smooth relations.
+                // In that case, we need enough curves to find them.
+                if (sc0.sides[side].lpb == las.bsides[side].batchlpb)
+                    ncurves = MAX(ncurves, 30);
             }
-            os << rel;
-            verbose_output_print(0, 1, "%s\n", os.str().c_str());
-        }
-        verbose_output_end_batch();
-        global_rt.rep.reports = nondup;
 
-	tcof_batch = seconds () - tcof_batch;
-      }
+
+            if (ncurves <= 0)
+                ncurves = 50; // use the same default as finishbatch
+
+            std::list<relation> rels = factor (las.L,
+                    las.cpoly,
+                    batchlpb,
+                    lpb,
+                    ncurves,
+                    main_output->output,
+                    las.number_of_threads_loose(),
+                    extra_time,
+                    1);
+            verbose_output_print (0, 1, "# batch reported time for additional threads: %.2f\n", extra_time);
+            batch_timer.add_foreign_time(extra_time);
+
+            verbose_output_start_batch();
+            nfs_aux::rel_hash_t rel_hash;
+            size_t nondup = 0;
+            for(auto const & rel : rels) {
+                std::ostringstream os;
+                nfs_aux::abpair_t ab(rel.a, rel.b);
+                bool is_new_rel = rel_hash.insert(ab).second;
+                if (!is_new_rel) {
+                    /* we had this (a,b) pair twice, probably because of a
+                     * failed attempt, that was aborted because of an
+                     * exception. (occurs only with 2-level sieving) */
+                    os << "# DUP ";
+                } else {
+                    nondup++;
+                }
+                os << rel;
+                verbose_output_print(0, 1, "%s\n", os.str().c_str());
+            }
+            verbose_output_end_batch();
+            global_rt.rep.reports = nondup;
+
+            tcof_batch = seconds () - tcof_batch;
+          }
+    } catch (std::exception const & e) {
+        verbose_output_print(0, 0, "\n\n# Program aborted on fatal error\n%s\n", e.what());
+        verbose_output_print(1, 0, "\n\n# Program aborted on fatal error\n%s\n", e.what());
+        return EXIT_FAILURE;
+    }
 
     t0 = seconds () - t0;
     wct = wct_seconds() - wct;
@@ -1813,8 +1817,8 @@ int main (int argc0, char *argv0[])/*{{{*/
     global_rt.rep.display_survivor_counters();
 
 
-    if (main_output.verbose)
-        facul_print_stats (main_output.output);
+    if (main_output->verbose)
+        facul_print_stats (main_output->output);
 
     /*{{{ Display tally */
     display_bucket_prime_stats();
@@ -1861,7 +1865,7 @@ int main (int argc0, char *argv0[])/*{{{*/
                  wct, wct / (double) global_rt.rep.nr_sq_processed, wct / (double) global_rt.rep.reports);
 
     /* memory usage */
-    if (main_output.verbose >= 1 && las.config_pool.default_config_ptr) {
+    if (main_output->verbose >= 1 && las.config_pool.default_config_ptr) {
         expected_memory_usage(las.config_pool.base, las, true, base_memory);
     }
     const long peakmem = PeakMemusage();
@@ -1881,9 +1885,6 @@ int main (int argc0, char *argv0[])/*{{{*/
     /*}}}*/
 
     las.cofac_stats.print();
-
-    /* In essence, almost a dtor, but we want it to be before the pl dtor */
-    main_output.release();
 
     return EXIT_SUCCESS;
 }/*}}}*/

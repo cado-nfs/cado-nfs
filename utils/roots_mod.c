@@ -625,7 +625,7 @@ roots3 (residue_t *rr, residue_t aa, unsigned int d, modulus_t pp)
 
   /* find the roots of x^(d/3) = a (mod p) */
   int k;
-  int n = mod_roots (rr + 2 * (d / 3), aa, d / 3, pp);
+  unsigned int n = mod_roots (rr + 2 * (d / 3), aa, d / 3, pp);
 
   ASSERT(n > 0);
 
@@ -639,7 +639,7 @@ roots3 (residue_t *rr, residue_t aa, unsigned int d, modulus_t pp)
 
       k = 0;
 
-      for (int i = 0; i < n; i++)
+      for (unsigned int i = 0; i < n; i++)
         {
           /* Note: if d is divisible by 9, then we must check again if each
              root of x^(d/3) = a (mod p) is a cube. For example for d = 9,
@@ -660,7 +660,7 @@ roots3 (residue_t *rr, residue_t aa, unsigned int d, modulus_t pp)
     }
   else /* p = 2 (mod 3): exactly one root each */
     {
-      for (int i = 0; i < n; i++)
+      for (unsigned int i = 0; i < n; i++)
         one_cubic_root_2mod3 (rr[i], rr[2 * (d / 3) + i], pp);
       return n;
     }

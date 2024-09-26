@@ -95,7 +95,7 @@ mpz_vector_is_coordinate_zero (mpz_vector_srcptr v, unsigned int i)
 void
 mpz_vector_get_mpz_poly (mpz_poly_ptr p, mpz_vector_srcptr v)
 {
-  for (unsigned int i = 0; i < v->dim; i++)
+  for (int i = 0; i < (int) v->dim; i++)
     mpz_poly_setcoeff (p, i, v->c[i]);
 }
 
@@ -103,7 +103,7 @@ int mpz_vector_cmp (mpz_vector_srcptr a, mpz_vector_srcptr b)
 {
   int r = (a->dim > b->dim) - (b->dim > a->dim);
   if (r) return r;
-  for(int d = a->dim - 1; d >= 0 ; d--) {
+  for(int d = (int) a->dim - 1; d >= 0 ; d--) {
     r = mpz_cmp(a->c[d], b->c[d]);
     if (r) return r;
   }

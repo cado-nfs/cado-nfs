@@ -8,6 +8,7 @@
 #include <mutex>          // for mutex
 #include <type_traits>    // for is_base_of
 #include <vector>         // for vector
+#include <condition_variable>
 #include "macros.h"       // for ASSERT_ALWAYS
 #include "utils_cxx.hpp"  // for call_dtor, NonCopyable
 struct clonable_exception;
@@ -36,75 +37,56 @@ thread_log(const char *c, const char *m, const void *p)
 /* All the synchronization stuff could be moved to the implementation if
    thread_pool used monitor as a dynamically allocated object. Tempting. */
 
-class mutex {
-  friend class condition_variable;
-  pthread_mutex_t m;
-  public:
-  mutex(const pthread_mutexattr_t *mutexattr = NULL) {
-    LOG;
-    pthread_mutex_init(&m, mutexattr);
-  }
-  ~mutex() {LOG; ASSERT_ALWAYS_NOTHROW(pthread_mutex_destroy(&m) == 0);}
-  void lock(){LOG; ASSERT_ALWAYS(pthread_mutex_lock(&m) == 0);}
-  bool try_lock() {
-    LOG;
-    int rc = pthread_mutex_trylock(&m);
-    ASSERT_ALWAYS(rc == 0 || rc == EBUSY);
-    return rc;
-  }
-  void unlock(){LOG; ASSERT_ALWAYS(pthread_mutex_unlock(&m) == 0);}
-};
-
-class condition_variable {
-  pthread_cond_t cv;
-  public:
-  condition_variable(pthread_condattr_t *cond_attr = NULL) {
-    LOG;
-    ASSERT_ALWAYS(pthread_cond_init(&cv, cond_attr) == 0);
-  }
-  ~condition_variable() {LOG; pthread_cond_destroy(&cv);}
-  void signal() {LOG; ASSERT_ALWAYS(pthread_cond_signal(&cv) == 0);}
-  void broadcast(){LOG; ASSERT_ALWAYS(pthread_cond_broadcast(&cv) == 0);}
-  void wait(mutex &m) {LOG; ASSERT_ALWAYS(pthread_cond_wait(&cv, &m.m) == 0);}
-};
-
 class monitor {
-  mutex m;
+protected:
+  std::mutex m;
 public:
-  void enter() {m.lock();}
-  void leave() {m.unlock();}
-  void signal(condition_variable &cond) {cond.signal();}
-  void broadcast(condition_variable &cond){cond.broadcast();}
-  void wait(condition_variable &cond) {cond.wait(m);}
+  struct my_unique_lock : public std::unique_lock<std::mutex> {
+      explicit my_unique_lock(monitor & m) : std::unique_lock<std::mutex>(m.m) {}
+  };
+  // void enter() {m.lock();}
+  // void leave() {m.unlock();}
+  static void signal(std::condition_variable &cond) {cond.notify_one();}
+  static void broadcast(std::condition_variable &cond){cond.notify_all();}
+  static void wait(std::condition_variable &cond, my_unique_lock & u) {cond.wait(u);}
 };
 
 class monitor_or_synchronous : public monitor {
     bool sync = false;
     public:
-    monitor_or_synchronous(bool sync = false) : sync(sync) {}
-    bool is_synchronous() const { return sync; }
-    void enter() { if (!sync) monitor::enter();}
-    void leave() { if (!sync) monitor::leave();}
-    void signal(condition_variable &cond) { if (!sync) monitor::signal(cond); }
-    void broadcast(condition_variable &cond){ if (!sync) monitor::broadcast(cond);}
-    void wait(condition_variable &cond) {
+    struct my_unique_lock : public std::unique_lock<std::mutex> {
+        explicit my_unique_lock(monitor_or_synchronous & m)
+            : std::unique_lock<std::mutex>(m.m, std::defer_lock_t())
+        {
+            if (!m.sync) lock();
+        }
+    };
+    explicit monitor_or_synchronous(bool sync = false)
+        : sync(sync)
+    {}
+    ATTRIBUTE_NODISCARD bool is_synchronous() const { return sync; }
+    // void enter() { if (!sync) monitor::enter();}
+    // void leave() { if (!sync) monitor::leave();}
+    void signal(std::condition_variable &cond) const { if (!sync) monitor::signal(cond); }
+    void broadcast(std::condition_variable &cond) const { if (!sync) monitor::broadcast(cond);}
+    void wait(std::condition_variable &cond, my_unique_lock & u) const {
         if (sync)
             ASSERT_ALWAYS(0);
         else
-            monitor::wait(cond);
+            cond.wait(u);
     }
 };
 
 /* Base for classes that hold parameters for worker functions */
 class task_parameters {
   public:
-  virtual ~task_parameters(){};
+  virtual ~task_parameters() = default;
 };
 
 /* Base for classes that hold results produced by worker functions */
 class task_result {
   public:
-  virtual ~task_result(){};
+  virtual ~task_result() = default;
 };
 
 class thread_task;
@@ -119,9 +101,11 @@ class worker_thread {
   thread_pool &pool;
   pthread_t thread;
   const size_t preferred_queue;
+public:
   worker_thread(worker_thread const &) = delete;
   worker_thread& operator=(worker_thread const &) = delete;
-public:
+
+  // move is ok
   worker_thread(worker_thread&&) = default;
   // worker_thread& operator=(worker_thread&&) = default;
   int rank() const;
@@ -158,7 +142,7 @@ class thread_pool : private monitor_or_synchronous, private NonCopyable {
   void add_exception(size_t queue, clonable_exception * e);
   bool all_task_queues_empty() const;
 public:
-  bool is_synchronous() const { return monitor_or_synchronous::is_synchronous(); }
+  // bool is_synchronous() const { return monitor_or_synchronous::is_synchronous(); }
   double cumulated_wait_time = 0;
   std::mutex mm_cumulated_wait_time;
 

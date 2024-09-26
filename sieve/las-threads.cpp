@@ -26,18 +26,18 @@ reservation_array<T>::allocate_buckets(las_memory_accessor & memory, int n_bucke
      is not too large compared to the number of slices (i.e. the size of the
      factor bases).
      */
-  double ratio = fill_ratio;
+  const double ratio = fill_ratio;
 
-  size_t n = BAs.size();
+  const size_t n = BAs.size();
   for (size_t i = 0; i < n; i++) {
       auto & B(BAs[i]);
       /* Arrange so that the largest allocations are done first ! */
-      double cost = ratio/n * BUCKET_REGIONS[T::level] * n_bucket * sizeof(typename T::update_t);
+      const auto cost = (double) (ratio/n * BUCKET_REGIONS[T::level] * n_bucket * sizeof(typename T::update_t));
       pool.add_task_lambda([=,&B,&aux,&memory](worker_thread * worker,int){
             timetree_t & timer(aux.th[worker->rank()].timer);
             ENTER_THREAD_TIMER(timer);
 #ifndef DISABLE_TIMINGS
-            timetree_t::accounting_sibling dummy(timer, tdict_slot_for_alloc_buckets);
+            const timetree_t::accounting_sibling dummy(timer, tdict_slot_for_alloc_buckets);
 #endif
             TIMER_CATEGORY(timer, bookkeeping());
             B.allocate_memory(memory, n_bucket, ratio / n, logI);
@@ -49,21 +49,18 @@ reservation_array<T>::allocate_buckets(las_memory_accessor & memory, int n_bucke
 template <typename T>
 T &reservation_array<T>::reserve(int wish)
 {
-  enter();
+  my_unique_lock u(*this);
   const bool verbose = false;
   const bool choose_least_full = true;
   size_t i;
 
-  size_t n = BAs.size();
+  const size_t n = BAs.size();
 
-  if (wish >= 0) {
-      ASSERT_ALWAYS(!in_use[wish]);
-      i=wish;
-      goto happy;
-  }
+  if (wish >= 0)
+      return use_(wish);
 
   while ((i = find_free()) == n)
-    wait(cv);
+      wait(cv, u);
 
   if (choose_least_full) {
     /* Find the least-full bucket array. A bucket array that has one, or
@@ -73,22 +70,22 @@ T &reservation_array<T>::reserve(int wish)
     if (verbose)
       verbose_output_print(0, 3, "# Looking for least full bucket array\n");
     double least_full = 1000; /* any large value */
-    int least_full_index = -1;
+    size_t least_full_index = SIZE_MAX;
     for (i = 0; i < n; i++) {
       if (in_use[i])
         continue;
-      double full = BAs[i].average_full();
+      const double full = BAs[i].average_full();
       if (full < least_full) {
           least_full = full;
           least_full_index = i;
       }
     }
-    if (least_full_index >= 0) {
+    if (least_full_index != SIZE_MAX) {
         if (verbose)
-            verbose_output_print(0, 3, "# Bucket %d is %.0f%% full\n",
+            verbose_output_print(0, 3, "# Bucket %zu is %.0f%% full\n",
                     least_full_index, least_full * 100.);
         i = least_full_index;
-        goto happy;
+        return use_(i);
     }
     /*
      * Now all bucket arrays are full on average. We're going to scream
@@ -98,7 +95,6 @@ T &reservation_array<T>::reserve(int wish)
      * mostly phony exception that will maybe be caught and acted upon,
      * or maybe not.
      */
-    leave(); /* important ! */
 
     auto k = bkmult_specifier::getkey<typename T::update_t>();
     verbose_output_print(0, 1, "# Error: %s buckets are full (least avg %f), throwing exception\n",
@@ -106,21 +102,17 @@ T &reservation_array<T>::reserve(int wish)
             least_full);
     throw buckets_are_full(k, -1, least_full * 1e6, 1 * 1e6); 
   }
-happy:
-  in_use[i] = true;
-  leave();
-  return BAs[i];
+  return use_(i);
 }
 
 template <typename T>
 void reservation_array<T>::release(T &BA) {
-  enter();
-  ASSERT_ALWAYS(&BA >= BAs.data());
-  ASSERT_ALWAYS(&BA < BAs.data() + BAs.size());
-  size_t i = &BA - BAs.data();
-  in_use[i] = false;
-  signal(cv);
-  leave();
+    const my_unique_lock u(*this);
+    ASSERT_ALWAYS(&BA >= BAs.data());
+    ASSERT_ALWAYS(&BA < BAs.data() + BAs.size());
+    const size_t i = &BA - BAs.data();
+    in_use[i] = false;
+    signal(cv);
 }
 
 /* Reserve the required number of bucket arrays. For shorthint BAs, we

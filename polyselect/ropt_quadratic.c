@@ -10,7 +10,7 @@
  * -  then ropt_call_sieve() the top few candidates from above.
  *
  * For the above figures:
- *  N   = size_total_sublattices[][1]*ropteffort*TUNE_NUM_SUBLATTICE_STAGE1
+ *  N   = size_total_sublattices[][1]*ropteffort*TUNE_RATIO_STAGE1_FULL_ALPHA
  *  N'  = size_total_sublattices[][1]*ropteffort (plus those from stage1_tune)
  *  N'' = size_total_sublattices[][2] (no ropteffort here)
  */

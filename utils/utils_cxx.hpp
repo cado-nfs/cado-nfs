@@ -4,6 +4,10 @@
 #include <limits>
 #include <type_traits>
 #include <cstdio>
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include "macros.h"
 
 /* Base class with private copy-constructor and assignment operator.
    Classes which are not copy-constructible can inherit this with:
@@ -14,8 +18,8 @@
    https://www.boost.org/doc/libs/1_67_0/libs/core/doc/html/core/noncopyable.html
    */
 struct NonCopyable {
-   NonCopyable() {}
-   ~NonCopyable() {}
+   NonCopyable() = default;
+   ~NonCopyable() = default;
    NonCopyable(NonCopyable&&) = delete;
    NonCopyable& operator=(NonCopyable&&) = delete;
    NonCopyable(NonCopyable const &) = delete;
@@ -42,8 +46,14 @@ public:
  */
 template<typename T> struct call_dtor_s {
     T x;
-    call_dtor_s(T x): x(x) {}
+    explicit call_dtor_s(T x): x(x) {}
     ~call_dtor_s() { x(); }
+    call_dtor_s& operator=(call_dtor_s&&) = delete;
+    call_dtor_s(call_dtor_s const &) = delete;
+    call_dtor_s& operator=(call_dtor_s const &) = delete;
+
+    // move works
+    call_dtor_s(call_dtor_s&&) noexcept = default;
 };
 template<typename T> call_dtor_s<T> call_dtor(T x) { return call_dtor_s<T>(x); }
 
@@ -54,8 +64,12 @@ template<typename T> call_dtor_s<T> call_dtor(T x) { return call_dtor_s<T>(x); }
 template<typename T>
 struct increment_counter_on_dtor {
     T & a;
-    increment_counter_on_dtor(T & a) : a(a) {}
+    explicit increment_counter_on_dtor(T & a) : a(a) {}
     ~increment_counter_on_dtor() { ++a; }
+    increment_counter_on_dtor(increment_counter_on_dtor&&) = delete;
+    increment_counter_on_dtor& operator=(increment_counter_on_dtor&&) = delete;
+    increment_counter_on_dtor(increment_counter_on_dtor const &) = delete;
+    increment_counter_on_dtor& operator=(increment_counter_on_dtor const &) = delete;
 };
 
 /* usage example:
@@ -87,22 +101,24 @@ void foo(int x) {
 }
 */
 
-class StaticHistogram : private NonCopyable {
-    const char *name; /* Non-owning reference, caller must preserve pointed-to data */
+class StaticHistogram {
+    std::string name;
     const size_t len;
     bool print_indices;
-    unsigned long *c;
+    std::unique_ptr<unsigned long[]> c;
 public:
-    StaticHistogram(const size_t _len, const char *_name = NULL, const bool _print_indices = false)
-    : name(_name), len(_len), print_indices(_print_indices) {
-        c = new unsigned long[_len];
+    explicit StaticHistogram(const size_t _len, const char *_name = nullptr, const bool _print_indices = false)
+        : name(_name)
+        , len(_len)
+        , print_indices(_print_indices)
+        , c(new unsigned long[_len])
+    {
         for (size_t i = 0; i < len; i++)
             c[i] = 0;
     }
     ~StaticHistogram() {
-        if (name != NULL) {
-            printf("%s: ", name);
-        }
+        if (!name.empty())
+            printf("%s: ", name.c_str());
         if (print_indices) {
             for (size_t i = 0; i < len; i++)
                 if (c[i] > 0)
@@ -112,12 +128,17 @@ public:
                 printf("%s%lu", (i > 0) ? " " : "", c[i]);
         }
         printf("\n");
-        delete[] c;
     }
     void inc(const size_t i = 0) {
         ASSERT_ALWAYS(i < len);
         c[i]++;
     }
+    StaticHistogram(StaticHistogram const &) = delete;
+    StaticHistogram& operator=(StaticHistogram const &) = delete;
+    StaticHistogram& operator=(StaticHistogram&&) = delete;
+
+    // move is ok.
+    StaticHistogram(StaticHistogram&&) = default;
 };
 
 
@@ -182,5 +203,24 @@ struct integral_fits : integral_fits_final<integral_fits_<T, U>::value> {};
 
 template <typename T, typename U >
 using integral_fits_t = typename integral_fits<T, U>::type;
+
+/* Use this for unique_ptr's of objects allocated with malloc() */
+struct free_delete
+{
+    void operator()(void* x) {
+        free(x);        // NOLINT(cppcoreguidelines-no-malloc,hicpp-no-malloc)
+    }
+};
+
+/* This makes it possible to replace FILE* by std::unique_ptr<FILE>
+ * almost transparently. (note that we can't do that with
+ * fclose_maybe_compressed, unfortunately, since it requires to keep
+ * track of the file name)
+ */
+template<>
+struct std::default_delete<FILE>
+{
+    void operator()(FILE* x) { fclose(x); }
+};
 
 #endif	/* UTILS_CXX_HPP_ */

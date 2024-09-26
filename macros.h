@@ -98,7 +98,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define DIE_ERRNO_DIAG(tst, fmt, ...) do {				\
     if (UNLIKELY(tst)) {				        	\
         fprintf(stderr, fmt ": %s\n", __VA_ARGS__, strerror(errno));    \
-        exit(1);					        	\
+        abort();					        	\
     }							        	\
 } while (0)
 
@@ -332,6 +332,14 @@ LEXLE3(__GNU_MP_VERSION,__GNU_MP_VERSION_MINOR,__GNU_MP_VERSION_PATCHLEVEL,(X),(
 #endif
 #else
 #define ATTRIBUTE_WARN_UNUSED_RESULT
+#endif
+#endif
+
+#ifndef ATTRIBUTE_NODISCARD
+#if defined(__cplusplus) && __cplusplus >= 202002L
+#define ATTRIBUTE_NODISCARD [[nodiscard]]
+#else
+#define ATTRIBUTE_NODISCARD
 #endif
 #endif
 

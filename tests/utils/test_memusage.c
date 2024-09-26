@@ -6,7 +6,7 @@
 int
 main ()
 {
-  long l = Memusage2 ();
-  printf ("Memusage2: %ld\n", l);
-  exit (EXIT_SUCCESS);
+    size_t l = Memusage2 ();
+    printf ("Memusage2: %zu\n", l);
+    return EXIT_SUCCESS;
 }

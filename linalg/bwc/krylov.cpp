@@ -187,15 +187,14 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
     serialize(pi->m);
     
-    uint32_t * gxvecs = NULL;
+    std::unique_ptr<uint32_t[]> gxvecs;
     unsigned int nx = 0;
     if (!fake) {
-        load_x(&gxvecs, bw->m, &nx, pi);
+        gxvecs = load_x(bw->m, nx, pi);
     } else {
-        set_x_fake(&gxvecs, bw->m, &nx, pi);
+        gxvecs = set_x_fake(bw->m, nx, pi);
     }
-    indices_twist(mmt, gxvecs, nx * bw->m, bw->dir);
-    auto clear_gxvecs = call_dtor([&]() { free(gxvecs); });
+    indices_twist(mmt, gxvecs.get(), nx * bw->m, bw->dir);
 
     /* let's be generous with interleaving protection. I don't want to be
      * bothered, really */
@@ -211,11 +210,9 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
      * mpi_leave_pinned 1
      */
     serialize(pi->m);
-    char * v_name = NULL;
     if (!fake) {
         int ok = mmt_vec_load(ymy[0], fmt::format(FMT_STRING("V%u-%u.{}"), bw->start), unpadded, ys[0]);
         ASSERT_ALWAYS(ok);
-        free(v_name);
     } else {
         gmp_randstate_t rstate;
         gmp_randinit_default(rstate);
@@ -316,7 +313,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         for(int i = 0 ; i < bw->interval ; i++) {
             /* Compute the product by x */
             x_dotprod(A->vec_subvec(xymats, i * bw->m),
-                    gxvecs, bw->m, nx, ymy[0], 1);
+                    gxvecs.get(), bw->m, nx, ymy[0], 1);
 
             matmul_top_mul(mmt, ymy.vectors(), timing);
 
@@ -328,7 +325,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         pi_interleaving_flip(pi);
         pi_interleaving_flip(pi);
 
-        if (C && !C->verify(ymy[0], gxvecs, nx)) {
+        if (C && !C->verify(ymy[0], gxvecs.get(), nx)) {
             printf("Failed %scheck at iteration %d\n", legacy_check_mode ? "(legacy) " : "", s + bw->interval);
             exit(1);
         }

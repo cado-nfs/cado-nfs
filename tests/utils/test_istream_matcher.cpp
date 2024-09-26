@@ -10,51 +10,46 @@
 int main()
 {
     {
-        std::string data = "Catch 22";
+        const std::string data = "Catch 22";
 
         {
             std::istringstream is(data);
             int x;
             istream_matcher<char> m(is);
-            bool b = (m >> "Catch" >> x && x == 22);
-            ASSERT_ALWAYS(b);
+            ASSERT_ALWAYS(m >> "Catch" >> x && x == 22);
         }
 
         {
             std::istringstream is(data);
             int x;
             istream_matcher<char> m(is);
-            bool b = (m >> "Catch" >> std::noskipws >> x && x == 22);
-            ASSERT_ALWAYS(!b);
+            ASSERT_ALWAYS(!(m >> "Catch" >> std::noskipws >> x));
         }
 
         {
             std::istringstream is(data);
-            std::string prefix("Catch");
+            const std::string prefix("Catch");
             int x;
             istream_matcher<char> m(is);
-            bool b = (m >> (std::string const &) prefix >> std::noskipws >> x && x == 22);
-            ASSERT_ALWAYS(!b);
+            ASSERT_ALWAYS(!(m >> prefix >> std::noskipws >> x));
         }
     }
 
     {
-        std::string data = "Catch22";
+        const std::string data = "Catch22";
 
         {
             std::istringstream is(data);
             int x;
             istream_matcher<char> m(is);
-            bool b = (m >> "Catch" >> x && x == 22);
-            ASSERT_ALWAYS(b);
+            ASSERT_ALWAYS(m >> "Catch" >> x && x == 22);
         }
 
         {
             std::istringstream is(data);
             int x;
             istream_matcher<char> m(is);
-            bool b = (m >> "Catch" >> std::noskipws >> x && x == 22);
-            ASSERT_ALWAYS(b);
+            ASSERT_ALWAYS(m >> "Catch" >> std::noskipws >> x && x == 22);
         }
     }
 }

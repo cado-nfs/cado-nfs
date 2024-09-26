@@ -1,22 +1,12 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdio.h>
-#include <inttypes.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cinttypes>
+#include <cstdlib>
+#include <fstream>
+#include <algorithm>
 #include "parallelizing_info.hpp"
 #include "xvectors.hpp"
 #include "macros.h"              // for FATAL_ERROR_CHECK
-
-typedef int (*sortfunc_t) (const void *, const void *);
-
-int uint32_cmp(const uint32_t * xa, const uint32_t * xb)
-{
-    if (*xa < *xb) {
-        return -1;
-    } else if (*xb < *xa) {
-        return 1;
-    }
-    return 0;
-}
 
 void setup_x_random(uint32_t * xs,
         unsigned int m, unsigned int nx, unsigned int nr,
@@ -30,16 +20,17 @@ void setup_x_random(uint32_t * xs,
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
         for(unsigned int i = 0 ; i < m ; i++) {
             for(;;) {
-                for(unsigned int j = 0 ; j < nx ; j++) {
+                for(unsigned int j = 0 ; j < nx ; j++)
                     xs[i*nx+j] = gmp_urandomm_ui(rstate, nr);
-                }
+                if (nx == 1)
+                    break;
                 /* Make sure that there's no collision. Not that it
                  * matters so much, but at times the X vector is set with
                  * set_ui, and later on used in an additive manner. Plus,
                  * it does not make a lot of sense to have duplicates,
                  * since that amounts to having nothing anyway...
                  */
-                qsort(xs+i*nx,nx,sizeof(uint32_t),(sortfunc_t)uint32_cmp);
+                std::sort(xs + i * nx, xs + (i + 1) * nx);
                 int collision=0;
                 for(unsigned int j = 1 ; j < nx ; j++) {
                     if (xs[i*nx+j] == xs[i*nx+j-1]) {
@@ -55,69 +46,71 @@ void setup_x_random(uint32_t * xs,
     pi_bcast(xs, nx * m * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
 }
 
-void load_x(uint32_t ** xs, unsigned int m, unsigned int *pnx,
+std::unique_ptr<uint32_t[]>
+load_x(unsigned int m, unsigned int & nx,
         parallelizing_info_ptr pi)
 {
-    FILE * f = NULL;
-    int rc = 0;
+    std::ifstream is;
 
     /* pretty much the same deal as above */
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
-        f = fopen("X", "r");
-        FATAL_ERROR_CHECK(f == NULL, "Cannot open X for reading");
-        rc = fscanf(f, "%u", pnx);
-        FATAL_ERROR_CHECK(rc != 1, "short read in file X");
+        is.open("X");
+        FATAL_ERROR_CHECK(!is, "Cannot open X for reading");
+        is >> nx;
+        FATAL_ERROR_CHECK(!is, "short read in file X");
     }
-    pi_bcast(pnx, 1, BWC_PI_UNSIGNED, 0, 0, pi->m);
+    pi_bcast(&nx, 1, BWC_PI_UNSIGNED, 0, 0, pi->m);
 #ifdef __COVERITY__
     __coverity_mark_pointee_as_sanitized__(pnx, LOOP_BOUND);
 #endif
-    *xs = (unsigned int *) malloc(*pnx * m * sizeof(unsigned int));
+    std::unique_ptr<uint32_t[]> xs(new unsigned int[nx * m]);
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
         for (unsigned int i = 0, k = 0 ; i < m; i++) {
-            for (unsigned int j = 0 ; j < *pnx; j++, k++) {
-                rc = fscanf(f, "%" SCNu32, &((*xs)[k]));
-                if (rc != 1) {
+            for (unsigned int j = 0 ; j < nx; j++, k++) {
+                is >> xs[k];
+                if (!is) {
                     fprintf(stderr, "Short read in X, after reading data for %u rows (compared to expected %u)\n",
                             i, m);
                     abort();
                 }
             }
         }
-        fclose(f);
     }
-    pi_bcast(*xs, *pnx * m * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
+    pi_bcast(xs.get(), nx * m * sizeof(uint32_t), BWC_PI_BYTE, 0, 0, pi->m);
+
+    return xs;
 }
 
-void set_x_fake(uint32_t ** xs, unsigned int m, unsigned int *pnx,
+std::unique_ptr<uint32_t[]>
+set_x_fake(unsigned int m, unsigned int & nx,
         parallelizing_info_ptr pi)
 {
     /* Don't bother. */
-    *pnx=3;
-    *xs = (unsigned int *) malloc(*pnx * m * sizeof(unsigned int));
-    for(unsigned int i = 0 ; i < *pnx*m ; i++) {
-        (*xs)[i] = i;
-    }
+    nx=3;
+    std::unique_ptr<uint32_t[]> xs(new unsigned int[nx * m]);
+    for(unsigned int i = 0 ; i < nx*m ; i++)
+        xs[i] = i;
     serialize(pi->m);
+    return xs;
 }
 
-void save_x(uint32_t * xs, unsigned int m, unsigned int nx, parallelizing_info_ptr pi)
+void save_x(const uint32_t * xs, unsigned int m, unsigned int nx, parallelizing_info_ptr pi)
 {
     /* Here, we expect that the data is already available to everybody, so
      * no synchronization is necessary.
      */
     if (pi->m->trank == 0 && pi->m->jrank == 0) {
         // write the X vector
-        FILE * fx = fopen("X", "w");
-        FATAL_ERROR_CHECK(fx == NULL, "Cannot open X for writing");
-        fprintf(fx,"%u\n",nx);
+        std::ofstream fx("X");
+        FATAL_ERROR_CHECK(!fx, "Cannot open X for writing");
+        fx << nx << "\n";
         for(unsigned int i = 0 ; i < m ; i++) {
             for(unsigned int k = 0 ; k < nx ; k++) {
-                fprintf(fx,"%s%" PRIu32,k?" ":"",xs[i*nx+k]);
+                if (k) fx << " ";
+                fx << xs[i*nx+k];
             }
-            fprintf(fx,"\n");
+            fx << "\n";
         }
-        fclose(fx);
     }
 }
 

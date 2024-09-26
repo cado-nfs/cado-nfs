@@ -33,8 +33,8 @@ int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_lin
         // A DIGIT* as something that goes with the "NULL" token in the
         // pl dictionary. That looks like a pretty obscure hack, in fact.
         // Do we ever use it ?
-        if (!(isalpha((int)(unsigned char)line[0]) || line[0] == '_' || line[0] == '-')) {
-            param_list_add_key(pl, NULL, line.c_str(), PARAMETER_FROM_FILE);
+        if (!isalpha((int)(unsigned char)line[0]) && line[0] != '_' && line[0] != '-') {
+            param_list_add_key(pl, nullptr, line.c_str(), PARAMETER_FROM_FILE);
             continue;
         }
         std::string::const_iterator q = line.begin();
@@ -46,7 +46,7 @@ int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_lin
             continue;
         }
 
-        std::string key(line.cbegin(), q);
+        const std::string key(line.cbegin(), q);
 
         /* Now we can match (whitespace+ | whitespace* separator whitespace*) data
          */
@@ -66,7 +66,7 @@ int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_lin
             q++;
             if (*q == '=')
                 q++;
-        } else if (q == line.begin() + key.size()) {
+        } else if (q == line.begin() + (ptrdiff_t) key.size()) {
             fprintf(stderr, "Parse error, no separator for config line:\n%s\n",
                     line.c_str());
             all_ok=0;
@@ -74,7 +74,7 @@ int param_list_read(param_list_ptr pl, std::istream & is, bool stop_on_empty_lin
         }
         for( ; *q && isspace((int)(unsigned char)*q) ; q++);
 
-        std::string value(q, line.cend());
+        const std::string value(q, line.cend());
 
         param_list_add_key(pl, key.c_str(), value.c_str(), PARAMETER_FROM_FILE);
     }
