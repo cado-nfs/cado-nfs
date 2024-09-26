@@ -11,6 +11,7 @@
 
 #include <cstddef> // size_t
 #include <gmp.h>
+#include <fmt/format.h>
 
 #include "gmp_aux.h"  // mpz_p_valuation
 #include "mpz_mat.h"
@@ -19,6 +20,7 @@
 #include "rootfinder.h"
 #include "getprime.h"  // for getprime_mt, prime_info_clear, prime_info_init
 #include "macros.h" // ASSERT_ALWAYS // IWYU pragma: keep
+#include "misc.h"
 
 using namespace std;
 
@@ -96,27 +98,6 @@ badideal::badideal(std::istream& is)
     return;
 }
 
-vector<pair<cxx_mpz, int> > trial_division(cxx_mpz const& n0, unsigned long B, cxx_mpz & cofactor)/*{{{*/
-{
-    vector<pair<cxx_mpz, int> > res;
-    prime_info pinf;
-
-    prime_info_init (pinf);
-    cxx_mpz n = n0;
-
-    for (unsigned long p = 2; p < B; p = getprime_mt (pinf)) {
-        if (!mpz_divisible_ui_p(n, p)) continue;
-        int k = 0;
-        for( ; mpz_divisible_ui_p(n, p) ; mpz_fdiv_q_ui(n, n, p), k++);
-        res.push_back(make_pair(cxx_mpz(p), k));
-    }
-    // cout << "remaining nriminant " << n << "\n";
-    cofactor = n;
-    prime_info_clear (pinf); /* free the tables */
-    return res;
-}
-/*}}}*/
-
 struct all_valuations_above_p {/*{{{*/
     cxx_mpz_poly f;
     cxx_mpz p;
@@ -125,6 +106,9 @@ private:
     cxx_mpz_mat M;
     vector<pair<cxx_mpz_mat, int> > F;
     vector<int> inertia;
+    vector<int> ramification; // valuation of the ideal in the
+                              // factorization of the underlying prime
+                              // ideal.
     pair<cxx_mpz_mat, cxx_mpz> jjinv;
     vector<cxx_mpz_mat> helpers;
     vector<int> val_base;
@@ -137,6 +121,7 @@ public:
         for(unsigned int k = 0 ; k < F.size() ; k++) {
             cxx_mpz_mat const& fkp(F[k].first);
             inertia.push_back(prime_ideal_inertia_degree(fkp));
+            ramification.push_back(F[k].second);
             helpers.push_back(valuation_helper_for_ideal(M, fkp, p));
         }
         cxx_mpq_mat jjinv_gen(2, f->deg);
@@ -158,7 +143,7 @@ public:
         }
         return res;
     }/*}}}*/
-    void print_info(ostream& o, int k, cxx_mpz const& r, int side) const {/*{{{*/
+    std::string sagemath_string(int k, int side) {
         cxx_mpz_mat const& fkp(F[k].first);
         pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
         /* Write the uniformizer as a polynomial with respect to the
@@ -176,6 +161,27 @@ public:
         alpha << "alpha" << side;
         string uniformizer = write_element_as_polynomial(theta_q, alpha.str());
 
+        return fmt::format("OK{}.ideal({}, {})", side, two.first, uniformizer);
+    }
+    void print_info(ostream& o, int k, cxx_mpz const& r MAYBE_UNUSED, int side) const {/*{{{*/
+        cxx_mpz_mat const& fkp(F[k].first);
+        pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
+        /* Write the uniformizer as a polynomial with respect to the
+         * polynomial basis defined by f */
+        cxx_mpq_mat theta_q;
+        {
+            mpq_mat_set_mpz_mat(theta_q, two.second);
+            mpq_mat_mul(theta_q, theta_q, O);
+        }
+
+        /* That's only for debugging, so it's not terribly important.
+         * But we may have a preference towards giving ideal info in
+         * a more concise way, based on alpha_hat for instance */
+        ostringstream alpha;
+        alpha << "alpha" << side;
+        string uniformizer = write_element_as_polynomial(theta_q, alpha.str());
+
+        /* This prints magma code. */
         int e = F[k].second;
         o << "# I" << k
             << ":=ideal<O" << side << "|" << two.first << "," << uniformizer << ">;"
@@ -357,10 +363,13 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
         cmt << "# p=" << p << ", r=" << roots[i] << " : " << nonzero.size() << " ideals among " << vals.size() << " are bad\n";
         for(unsigned int j = 0 ; j < nonzero.size() ; j++) {
             A.print_info(cmt, nonzero[j], roots[i], side);
+            b.sagemath_string.push_back(A.sagemath_string(nonzero[j], side));
         }
         cmt << "# " << lifts.size() << " branch"
             << (lifts.size() == 1 ? "" : "es") << " found\n";
         b.comments = cmt.str();
+
+        ASSERT_ALWAYS(b.sagemath_string.size() == (size_t) b.nbad);
 
         /* compres all branches so that we keep only the valuations in
          * the nonzero indirection table */
@@ -369,6 +378,7 @@ vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz cons
             vector<int> w;
             for(unsigned int k = 0 ; k < nonzero.size() ; k++) {
                 w.push_back(br.v[nonzero[k]]);
+
             }
             swap(br.v, w);
             b.branches.push_back(br);
@@ -392,6 +402,7 @@ vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_r
 
     /* We're not urged to use ecm here */
     vector<pair<cxx_mpz,int> > small_primes = trial_division(disc, 10000000, disc);
+
 
     typedef vector<pair<cxx_mpz,int> >::const_iterator vzci_t;
 
@@ -433,5 +444,23 @@ cxx_mpz badideal::r_from_rk(cxx_mpz const & p, int k, cxx_mpz const & rk)
          * mod p, this means (1:0), which is encoded by p */
         return p;
     }
+}
+
+std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz const & p, cxx_mpz const & r, gmp_randstate_t state)
+{
+    /* This will crash for non-prime ideals, **on purpose** */
+    auto A = all_valuations_above_p(f, p, state);
+    auto v = A(1, r);
+    int k = -1;
+    for(unsigned x = 0 ; x < v.size() ; x++) {
+        if (v[x] == 0)
+            continue;
+        if (k != -1)
+            throw std::runtime_error("ideal is not prime");
+        k = x;
+    }
+    if (k == -1)
+        throw std::runtime_error("valuations of ideal not found");
+    return A.sagemath_string(k, side);
 }
 
