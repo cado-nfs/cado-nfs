@@ -479,7 +479,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
                     "# level 1, side %d:"
                     " %zu primes => precomp_plattices: %s\n",
                     side, nprimes,
-                    size_disp(more = nprimes * sizeof(plattice_enumerator<1>), buf));
+                    size_disp(more = nprimes * sizeof(plattice_enumerator), buf));
             memory += more;
 
             {

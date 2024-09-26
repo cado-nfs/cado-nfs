@@ -770,6 +770,17 @@ class PolyselectJL(Program):
                  **kwargs):
         super().__init__(locals(), **kwargs)
 
+class Skewness(Program):
+    binary = "skewness"
+    name = binary
+    subdir = "polyselect"
+
+    def __init__(self, *,
+                 inputpoly : PositionalParameter(is_input_file=True),
+                 outputpoly : PositionalParameter(is_output_file=True)=None,
+                 **kwargs):
+        super().__init__(locals(), **kwargs)
+
 class MakeFB(Program):
     """
     >>> p = MakeFB(poly="foo.poly", lim=1, skip_check_binary_exists=True)
