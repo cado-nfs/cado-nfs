@@ -287,7 +287,6 @@ int mpz_poly_factor_and_lift_padically(mpz_poly_factor_list_ptr fac, mpz_poly_sr
 struct cxx_mpz_poly {
     mpz_poly x;
     cxx_mpz_poly() { mpz_poly_init(x, -1); }
-    cxx_mpz_poly(int deg) { mpz_poly_init(x, deg); }
     inline int degree() const { return x->deg; } /* handy */
     cxx_mpz_poly(mpz_poly_srcptr f) { mpz_poly_init(x, -1); mpz_poly_set(x, f); }
     ~cxx_mpz_poly() { mpz_poly_clear(x); }

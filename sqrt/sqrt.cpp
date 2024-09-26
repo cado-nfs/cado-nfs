@@ -1201,22 +1201,11 @@ calculateSqrtAlg (const char *prefix, int numdep,
 
   // Init F to be the corresponding polynomial
   cxx_mpz_poly F(cpoly->pols[side]);
-  cxx_mpz_poly F_hat(F->deg);
+  cxx_mpz_poly F_hat;
   cxx_mpz_polymodF prod;
 
-  /* {{{ create F_hat, the minimal polynomial of alpha_hat = lc(F) *
-   * alpha */
-  {
-      cxx_mpz tmp;
-      mpz_init_set_ui(tmp, 1);
-      mpz_set_ui(F_hat->coeff[F->deg], 1);
-      for(int i = F->deg - 1 ; i >= 0 ; i--) {
-          mpz_mul(F_hat->coeff[i], tmp, F->coeff[i]);
-          mpz_mul(tmp, tmp, F->coeff[F->deg]);
-      }
-      mpz_poly_cleandeg(F_hat, F->deg);
-  }
-  /* }}} */
+  /* create F_hat, the minimal polynomial of alpha_hat = lc(F) * alpha */
+  mpz_poly_to_monic(F_hat, F);
 
   // Accumulate product with a subproduct tree
   {
