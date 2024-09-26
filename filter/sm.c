@@ -9,13 +9,13 @@ Input:
   indexfile.
 * The sub-group order (ell) such that ell | p-1
   Note: All computations are done mod ell^2.
-* (eps): the exponent used in the computation of the Shirokauer maps.
+* (eps): the exponent used in the computation of the Schirokauer maps.
   Note: eps = ppcm(eps_i), where eps_i = ell^(deg(f_i)) - 1 and f = f_1 ... f_k mod ell
   
 Output
 
 * A matrix of (small_nrows) rows and (nmaps)=deg(f) cols (mpz_t).  For each
-  relation (rel) the (nmaps) Shirokauer maps are computed as the second
+  relation (rel) the (nmaps) Schirokauer maps are computed as the second
   least-significant digit of the ell-adic representation of the polynomial 
   equal to (rel^eps - 1) / ell.
 
@@ -438,7 +438,7 @@ int main (int argc, char **argv)
 #endif
   if (rank == 0) {
     rels = build_rel_sets(purgedfile, indexfile, &nb_relsets, F, cpoly->nb_polys, ell2);
-    fprintf(stdout, "\n# Computing Shirokauer maps for %" PRIu64
+    fprintf(stdout, "\n# Computing Schirokauer maps for %" PRIu64
         " relation-sets, using %d threads and %d jobs.\n", nb_relsets, thmax, size);
     fflush(stdout);
   }
@@ -508,6 +508,7 @@ int main (int argc, char **argv)
 #pragma omp for schedule(static)
 #endif
       for(uint64_t i = 0 ; i < nb_relsets ; i++) {
+          printf("%d\n", (int) i);
           for(int side = 0 ; side < cpoly->nb_polys ; side++) {
               if (sm_info[side]->nsm == 0)
                   continue;

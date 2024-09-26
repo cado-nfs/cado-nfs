@@ -27,8 +27,55 @@
 #include "polyselect_norms.h"
 #include "polyselect_alpha.h"
 
+//#define PHI_COEFF_INT 1 // ?
+
+#include "gfpkdlpolyselect_impl.h"
+
 #include "table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h"
 // contains: fPyphi_poly_t ff4
+
+
+// works only if PY is of degree 2
+// static void eval_mpz_phi_mpz_uv(mpz_poly g, mpz_t** phi_coeff, unsigned int deg_phi, mpz_t u, mpz_t v);
+static void eval_si_phi_mpz_y(mpz_poly g, const long int phi_coeff[MAX_DEGREE + 1][DEG_PY], unsigned int deg_phi, mpz_t y);
+static void eval_si_phi_mpz_uv(mpz_poly g, const long int phi_coeff[MAX_DEGREE + 1][DEG_PY], unsigned int deg_phi, mpz_t u, mpz_t v);
+// works only if PY is of degree 2
+
+// static void init_eval_mpz_phi_mpz_uv(mpz_poly g, mpz_t** phi_coeff, unsigned int deg_phi, mpz_t u, mpz_t v);
+// static void init_eval_si_phi_mpz_y(mpz_poly g, const long int phi_coeff[MAX_DEGREE + 1][DEG_PY], unsigned int deg_phi, mpz_t y);
+// static void init_eval_si_phi_mpz_uv(mpz_poly g, const long int phi_coeff[MAX_DEGREE + 1][DEG_PY], unsigned int deg_phi, mpz_t u, mpz_t v);
+
+
+// static bool is_irreducible_ZZ(mpz_poly_srcptr phi);
+static bool is_irreducible_mod_p_deg2(mpz_poly_srcptr phi, mpz_srcptr p, mpz_t Discr);
+static bool is_irreducible_mod_p(mpz_poly_srcptr phi, mpz_srcptr p);
+static bool is_irreducible_mod_p_si(const long int* Py, int deg_Py, mpz_srcptr p);
+
+// same as is_good_poly_check_all in gfpk/magma/polyselect_utils.mag
+// return: error_code, see above
+// static int is_good_poly(pp_t pp, ppf_t ppf, mpz_poly f);
+// I need a function that works also for polynomials of small coefficients (signed long int)
+// static bool is_good_phi(mpz_poly phi, unsigned int n, mpz_t p);
+// static bool is_good_f_PY(fPyphi_t* fPyphi, mpz_poly** phi);
+
+// set f_id l'indice de la bonne ligne du tableau de {f, Py, phi}
+static bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_poly_t * ff, mpz_srcptr p);
+// ff->tab_f[i] is the line with a right f.
+
+// case MNFS: tab of g_i, 1 <= i <= mnfs.
+static bool get_g_CONJ(mpz_poly g[], mpz_poly phi, ppf_t params_g, int f_id, mpz_t * tab_roots_Py, int nb_roots_Py, const fPyphi_poly_t * ff, pp_t params);
+// ff->tab[i] is the line with a right f.
+// ff->tab[i].f
+
+/* print functions */
+
+static void mpz_poly_fprintf_cado_format_line (FILE *fp, mpz_poly f, 
+					const int j, const char* label_poly);
+// static void mpz_phi_poly_fprintf_cado_format_line (FILE *fp, const long int phi_coeff[MAX_DEGREE + 1][DEG_PY], unsigned int deg_phi, unsigned int deg_Py, int j, const char *label_poly);
+static void fprintf_gfpn_poly_info (FILE* fp, mpz_poly f, const char *label_poly);
+// to convert a poly from int poly[] to mpz_poly format
+static void mpz_poly_setcoeff_sli(mpz_poly_ptr f, int i, long int z);
+static void mpz_poly_set_sli(mpz_poly f, const long int * h, int deg_h);
 
 /**
  * \brief Return appropriate degrees of polynomials f and g for CONJUGATION
@@ -60,6 +107,7 @@ static void get_degree_CONJ_f_g(unsigned int n, unsigned int *deg_f, unsigned in
  * NOTE: maybe input phi and deg_phi directly ? Or a poly structure ?
  */
 // works only if PY is of degree 2
+/* 20240905 -- unused, removing
 void eval_mpz_phi_mpz_uv(mpz_poly g, mpz_t** phi_coeff, unsigned int deg_phi, mpz_t u, mpz_t v)
 {
   unsigned int i;
@@ -69,6 +117,8 @@ void eval_mpz_phi_mpz_uv(mpz_poly g, mpz_t** phi_coeff, unsigned int deg_phi, mp
   }
   mpz_poly_cleandeg(g, deg_phi); // set deg to deg_phi at most (check that coeff is not 0)
 }
+*/
+
     // t[0] + t[1]*X + ... + t[deg_phi]*X^deg_phi
     // with t[i] = t[i][0] + t[i][1]*Y + ... t[i][deg_Py - 1]*Y^(deg_Py-1)
     // t[i][j] are int
@@ -77,7 +127,7 @@ void eval_mpz_phi_mpz_uv(mpz_poly g, mpz_t** phi_coeff, unsigned int deg_phi, mp
     // ff.phi[i][1] * u
     // phi_i = phi_i0 + phi_i1 * Y
     // the function does not use modular arithmetic but exact integer arithmetic
-void eval_si_phi_mpz_uv(mpz_poly g, const long int phi_coeff[MAX_DEGREE + 1][DEG_PY], unsigned int deg_phi, mpz_t u, mpz_t v)
+static void eval_si_phi_mpz_uv(mpz_poly g, const long int phi_coeff[MAX_DEGREE + 1][DEG_PY], unsigned int deg_phi, mpz_t u, mpz_t v)
 {
   unsigned int i;
   for (i=0; i <= deg_phi; i++){
@@ -126,7 +176,7 @@ static bool polygen_CONJ_get_tab_f(const unsigned int deg_f, \
   }
 }
 
-
+#if 0 /* unused code */
 /**
  * \brief test irreducibility over integers of polynomial phi
  * 
@@ -136,7 +186,7 @@ static bool polygen_CONJ_get_tab_f(const unsigned int deg_f, \
  * 
  * 1st version : for Degree(phi) <= 2.
  */
-bool is_irreducible_ZZ(mpz_poly_srcptr phi)
+static bool is_irreducible_ZZ(mpz_poly_srcptr phi)
 {
   /* if deg <= 1, return true
      if deg == 2, test discriminant 
@@ -187,6 +237,7 @@ bool is_irreducible_ZZ(mpz_poly_srcptr phi)
   }// degree <= 1
   return is_irreducible;
 }
+#endif
 
 /**
  * \brief test irreducibility modulo a prime p of polynomial phi
@@ -410,17 +461,8 @@ bool is_irreducible_mod_p_si(const long int * f, int deg_f, mpz_srcptr p){
   //    return (Degree(phi_p) eq n) and IsIrreducible(phi_p);
 
 
-void mpz_poly_set_si(mpz_poly f, const int * h, int deg_h)
-{
-  int i;
-  for (i=0; i<=deg_h; i++){
-    mpz_poly_setcoeff_si(f, i, h[i]);
-  }
-}
-
-
 /* Set signed long int coefficient for the i-th term. */
-void mpz_poly_setcoeff_sli(mpz_poly_ptr f, int i, long int z)
+static void mpz_poly_setcoeff_sli(mpz_poly_ptr f, int i, long int z)
 {
   mpz_poly_realloc (f, i + 1);
   mpz_set_si (f->coeff[i], z);
@@ -428,12 +470,14 @@ void mpz_poly_setcoeff_sli(mpz_poly_ptr f, int i, long int z)
     mpz_poly_cleandeg (f, i);
 }
 
-void mpz_poly_set_sli(mpz_poly f, const long int * h, int deg_h)
+static void mpz_poly_set_sli(mpz_poly f, const long int * h, int deg_h)
 {
+  mpz_poly_realloc (f, deg_h + 1);
   int i;
   for (i=0; i<=deg_h; i++){
     mpz_poly_setcoeff_sli(f, i, h[i]);
   }
+  mpz_poly_cleandeg (f, deg_h);
 }
 
 /**
@@ -671,7 +715,7 @@ bool get_g_CONJ(mpz_poly g[], mpz_poly phi,
  */
 
 // , mpz_t ell, unsigned int mnfs
-int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell, unsigned int mnfs,
+int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED, unsigned int mnfs,
 		      const char* out_filename){
   bool found_f=false, found_g=false;
   int f_id;
@@ -689,7 +733,7 @@ int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell, unsigned int
   ppf_t params_g = {{2, {0,1}, 0, {0,0}, 2, -1, 0}}; 
   params->n = n;
   params->p = p;
-  params->ell = ell;
+  // params->ell = ell;
   params->mnfs = mnfs;
 
   if (n==2){

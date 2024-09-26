@@ -10,6 +10,7 @@
 #include <sstream>      // std::ostringstream // IWYU pragma: keep
 #include <stdexcept>
 #include <string>
+#include <mutex>
 #include <vector>
 #include <cstring>             // for strcmp
 #include <cstdio> // stdout // IWYU pragma: keep
@@ -947,6 +948,9 @@ void renumber_t::read_from_file(const char * filename, int for_dl)
     info(std::cout);
     read_table(is);
     more_info(std::cout);
+    
+    /* It's used by inertia_from_p_r */
+    compute_ramified_primes();
 }
 
 void renumber_t::recompute_debug_number_theoretic_stuff()
@@ -1035,22 +1039,21 @@ std::string renumber_t::debug_data_sagemath(index_t i) const
     } else {
         i -= above_bad;
         if (x.side == get_rational_side()) {
-            return fmt::format("OK{0}.ideal({1})", x.side, x.p);
+            return fmt::format("OK{0}.fractional_ideal({1})", x.side, x.p);
         } else {
             /* XXX if p divides the discriminant, make sure that we treat
              * ramified primes correctly. Otherwise a simple and stupid
              * approach can work.
              */
             cxx_mpz_poly f(cpoly->pols[x.side]);
-            cxx_gmp_randstate state;
             for(auto const & y : small_primes[x.side]) {
                 if (x.p == y.first)
-                    return generic_sagemath_string(f, x.side, x.p, x.r, state);
+                    return generic_sagemath_string(f, x.side, x.p, x.r);
             }
 
             /* back to the easy case */
             if (x.r == x.p) {
-                return fmt::format("(OK{0}.ideal({1})+J{0})",
+                return fmt::format("(OK{0}.fractional_ideal({1})+J{0})",
                         x.side, x.p);
             } else {
                 return fmt::format("(OK{0}.fractional_ideal({1},alpha{0}-{2})*J{0})",
@@ -1061,6 +1064,86 @@ std::string renumber_t::debug_data_sagemath(index_t i) const
     throw corrupted_table("bad bad ideals");
 }
 
+/* return machine parseable code that describes the ideal */
+/* The first token can be one of:
+ *  J
+ *  rat
+ *  proj
+ *  easy
+ *  generic
+ * which all lead to different ways of parsing the data.
+ *
+ * J is for additional columns. It is followed by the side info, or maybe
+ * the sideS info in the odd case where we have a merged additional
+ * column.
+ *
+ * rat is for rational primes, followed by the side index and the prime
+ *
+ * proj is for projective primes, followed by the side index and the prime
+ *
+ * easy is for easy algebrac primes, followed by the side index, the prime, and the root of alpha
+ *
+ * generic is for the rest. The following data is the side index, the
+ * prime p, a denominator, and the coefficients of a polynomial which, when
+ * divided by the denominator, yield an algebraic integer beta such that
+ * (p,beta) is a prime ideal
+ */
+std::string renumber_t::debug_data_machine_description(index_t i) const
+{
+    p_r_side x = p_r_from_index (i);
+    if (is_additional_column (i)) {
+        if (get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2) {
+            return "J 0 1";
+        } else {
+            return fmt::format("J {0}", x.side);
+        }
+    } else if (is_bad(i)) {
+        index_t j = i - above_add;
+        for(auto const & b : bad_ideals) {
+            if (j < (index_t) b.second.nbad) {
+                if (b.second.machine_description.empty()) {
+                    throw std::runtime_error("call compute_bad_ideals() first!\n");
+                }
+                std::ostringstream os;
+                os << "generic " << x.side;
+                for(auto const & x : b.second.machine_description[j]) {
+                    os << " " << x;
+                }
+                return os.str();
+            }
+            j -= b.second.nbad;
+        }
+    } else {
+        // i -= above_bad;
+        if (x.side == get_rational_side()) {
+            return fmt::format("rat {} {}", x.side, x.p);
+        } else {
+            /* XXX if p divides the discriminant, make sure that we treat
+             * ramified primes correctly. Otherwise a simple and stupid
+             * approach can work.
+             */
+            cxx_mpz_poly f(cpoly->pols[x.side]);
+            for(auto const & y : small_primes[x.side]) {
+                if (x.p == y.first) {
+                    std::ostringstream os;
+                    os << "generic " << x.side;
+                    for(auto const & x : generic_machine_description(f, x.side, x.p, x.r)) {
+                        os << " " << x;
+                    }
+                    return os.str();
+                }
+            }
+
+            /* back to the easy case */
+            if (x.r == x.p) {
+                return fmt::format("proj {} {}", x.side, x.p);
+            } else {
+                return fmt::format("easy {} {} {}", x.side, x.p, x.r);
+            }
+        }
+    }
+    throw corrupted_table("bad bad ideals");
+}
 /* can be called rather early, in fact (after the bad ideals computation) */
 void renumber_t::info(std::ostream & os) const
 {
@@ -1411,4 +1494,33 @@ renumber_t::const_iterator& renumber_t::const_iterator::operator++()
      */
     i++;
     return *this;
+}
+
+int renumber_t::inertia_from_p_r(p_r_side x) const
+{
+    cxx_mpz_poly f(cpoly->pols[x.side]);
+    if (f.degree() == 1) return 1;
+
+    for(auto const & y : small_primes[x.side]) {
+        if (x.p == y.first) {
+            static std::mutex m;
+            {
+                std::lock_guard<std::mutex> dummy(m);
+                auto it = exceptional_inertia.find(x);
+                if (it != exceptional_inertia.end())
+                    return it->second;
+            }
+            cxx_gmp_randstate state;
+            int inertia = get_inertia_of_prime_ideal(f, x.p, x.r);
+            {
+                std::lock_guard<std::mutex> dummy(m);
+                exceptional_inertia[x] = inertia;
+            }
+            if (inertia != 1) {
+                std::cerr << fmt::format(FMT_STRING("# computed exceptional inertia {} for ideal {},{} on side {}\n"), inertia, x.p, x.r, x.side);
+            }
+            return inertia;
+        }
+    }
+    return 1;
 }

@@ -359,6 +359,16 @@ compute_index_rel (earlyparsed_relation_ptr rel)
         free(exps);
       } else {
         pr[i].h = renumber_table_index_from_p_r(renumber_tab, pr[i].p, r, pr[i].side);
+        int f = renumber_table_p_r_side_get_inertia(renumber_tab, p, r, side);
+        if (f > 1) {
+            /* XXX there's a catch here. A non-bad ideal can still have
+             * non-trivial inertia (say f=2), in which case we must divide
+             * the valuation (which comes from the norm) by the inertia in
+             * order to obtain the valuation at the prime ideal
+             */
+            ASSERT_ALWAYS(pr[i].e % f == 0);
+            pr[i].e /= f;
+        }
       }
     }
     if (!is_for_dl) { /* Do we reduce mod 2 */
@@ -762,6 +772,12 @@ main (int argc, char *argv[])
 
           get_outfilename_from_infilename (*p, outfmt, outdir, &oname, &oname_tmp);
           output = fopen_maybe_compressed(oname_tmp, "w");
+          if (output == NULL){
+            fprintf (stderr, "Error, could not open file to write the "
+                             "relations. Check that the directory %s exists\n",
+                             outdir);
+            abort();
+          }
           desc[1].arg = (void*) output;
 
           nrels = ndup = 0;

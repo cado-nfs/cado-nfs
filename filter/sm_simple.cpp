@@ -1,4 +1,4 @@
-/* Shirokauer maps 
+/* Schirokauer maps 
 
    Given a list of a,b pairs, compute the corresponding SMs.
 	

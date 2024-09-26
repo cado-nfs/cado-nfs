@@ -79,8 +79,7 @@ sievearray_init ( sievearray_t sievearray,
       sievearray->array[k] = tmpu;
   }
   else {
-    fprintf ( stderr, "Error, cannot allocate memory in "
-              "sievearray_init().\n" );
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
 }
@@ -101,7 +100,7 @@ sievearray_reset ( sievearray_t sievearray )
       sievearray->array[k] = tmpu;
   }
   else {
-    fprintf (stderr, "Error, null memory in sievearray_reset().\n");
+    fprintf (stderr, "Error, null memory in %s.\n", __func__);
     exit (1);
   }
 }
@@ -555,8 +554,7 @@ rootsieve_run_multroot ( sievearray_t sa,
   fuv_ui = (unsigned int*) malloc ((d + 1) * sizeof (unsigned int));
   g_ui = (unsigned int*) malloc ((2) * sizeof (unsigned int));
   if ((f_ui == NULL) || (g_ui == NULL) || (fuv_ui == NULL)) {
-    fprintf (stderr, "Error, cannot allocate memory in "
-             "rootsieve_run_multroot(). \n");
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
   reduce_poly_ul (f_ui, rs->cpoly->pols[1], pe);
@@ -624,8 +622,7 @@ rootsieve_one_block ( sievearray_t sa,
 
   if ( subsgl == NULL || submul == NULL || j_idx == NULL ||
        j_idx_i0 == NULL || roottype_flag == NULL ) {
-    fprintf ( stderr, "Error, cannot allocate memory in "
-              "rootsieve_one_block().\n" );
+    fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
 

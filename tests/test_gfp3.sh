@@ -1,7 +1,23 @@
 #!/bin/sh
 
-CADO_NFS_SOURCE_DIR=$1
-CADO_NFS_BINARY_DIR=$2
+build_tree="$CADO_NFS_BINARY_DIR"
+source_tree="$CADO_NFS_BINARY_DIR"
+
+while [ $# -gt 0 ] ; do
+    if [ "$1" = "-b" ] ; then
+        shift
+        build_tree="$1"
+        shift
+    elif [ "$1" = "-s" ] ; then
+        shift
+        source_tree="$1"
+        shift
+    else
+        echo "bad arg: $1" >&2
+        exit 1
+    fi
+done
+
 
 NCPUS=$("`dirname $0`"/ncpus.sh)
 
@@ -38,8 +54,8 @@ gfpext = 3
 slaves.nrclients = $(((1+NCPUS)/2))
 tasks.threads = 2
 tasks.linalg.bwc.threads = $NCPUS
-tasks.execpath = $CADO_NFS_BINARY_DIR
-slaves.scriptpath = $CADO_NFS_SOURCE_DIR
+tasks.execpath = $build_tree
+slaves.scriptpath = $source_tree
 tasks.workdir = $WDIR
 slaves.basepath= $WDIR/client
 slaves.hostnames = localhost
@@ -71,4 +87,4 @@ tasks.reconstructlog.partial = true
 checkdlp = false
 EOF
 
-${CADO_NFS_BINARY_DIR}/cado-nfs.py $PARAMFILE
+${build_tree}/cado-nfs.py $PARAMFILE

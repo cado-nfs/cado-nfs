@@ -22,8 +22,8 @@ polyselect_proots_init (polyselect_proots_ptr R,
   R->roots = (uint64_t **) malloc (size * sizeof (*(R->roots)));
 
   if (R->nr == NULL || R->roots == NULL) {
-    fprintf (stderr, "Error, cannot allocate memory in polyselect_proots_init().\n");
-    exit (1);
+      fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
+      exit(1);
   }
   for (unsigned int i = 0; i < R->size; i++) {
       R->nr[i] = 0;

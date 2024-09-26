@@ -609,7 +609,7 @@ mpz_poly_fprintf_verbose (FILE *out, mpz_poly_srcptr f, int verbose)
    returns the skew lognorm of f_opt.
 
    To use only translation: use_translation = 1 and deg_rotation = -1
-   To use only rotation   : use_transaltion = 0 and deg_rotation >= 0
+   To use only rotation   : use_translation = 0 and deg_rotation >= 0
    To use both            : use_translation = 1 and deg_rotation >= 0
    TODO: _mp version like old optimize_aux_mp in auxiliary.c
    XXX: Could we replace lognorm computation by norm computation to save
@@ -943,8 +943,8 @@ best_norm2 (mpz_poly_ptr fopt, mpz_poly_ptr gopt,
    translations.
    Assume that deg(g) = 1.
    Return the size-optimized pair (f_opt, g_opt) and the skew lognorm of f_opt.
-   The sopt_effort parameter is used to increase the number of translations that
-   are considered. sopt_effort = 0 means that we consider only translations
+   The sopt_effort parameter is used to increase the number of translations
+   that are considered. sopt_effort = 0 means that we consider only rotations.
    Consider rotation up to x^max_rot*g(x), usually max_rot = d-2 or d-3.
    found by sopt_find_translation_deg* and the translation k = 0.
    TODO: LLL on gram matrix to be faster

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-CADO_NFS_SOURCE_DIR=$1
-CADO_NFS_BINARY_DIR=$2
+: ${CADO_NFS_SOURCE_DIR?missing}
+: ${CADO_NFS_BINARY_DIR?missing}
 
 t=`mktemp -d ${TMPDIR-/tmp}/cado-nfs.XXXXXXXXX`
 cd $t
