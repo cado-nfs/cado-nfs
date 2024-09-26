@@ -46,6 +46,7 @@ cado_define_test(test_ropt_adv
     PROGRAM ${CADO_NFS_BINARY_DIR}/polyselect/polyselect_ropt --adv
     TARGET_DEPENDENCIES polyselect_ropt
     NO_DEFAULT_RUN
+    TIMEOUT 60
     )
 
 foreach(example c60 c65 c70 c75 c80)
@@ -66,6 +67,7 @@ cado_divert_test(test_ropt_adv deg6
     APPEND_ARGUMENTS
     -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/rsa768.poly
     -v -v -d 6   -amin -4 -amax 4 -e 1 1 -bmax 6 -cmax 12
+    TIMEOUT 120
     )
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})
@@ -76,7 +78,9 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
         -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/rsa768.poly
         -v -v
         -amin -16 -amax 16 -bmax 10 -cmax 10000
-        -e 3 5 2 1)
+        -e 3 5 2 1
+    TIMEOUT 240
+    )
 endif()
 
 cado_define_test(
