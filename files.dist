@@ -3,6 +3,7 @@
 # that the union of this file and its companion files.nodist must agree with
 # the list of files known to the SCM.  A further word of caution: wildcards
 # are *NOT* recognized (by the fascist sanity check program).
+.clang-format
 .clang-tidy
 .gitlab-ci.yml
 .gitmodules
