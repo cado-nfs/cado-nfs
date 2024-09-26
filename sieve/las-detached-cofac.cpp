@@ -108,6 +108,7 @@ detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_co
 
         if (do_check && relation_is_duplicate(rel, wc.doing, wc.las)) {
             dup_comment = "# DUPE ";
+            rep.duplicates ++;
         } else {
             if (!is_new_rel) {
                 /* the relation was already printed in a prior attempt,
