@@ -84,6 +84,9 @@ private:
         type p;
         if (T::accept_literals && accept(LITERAL)) {
             T::set_literal_power(p, *clit++, exponent());
+        } else if (accept(MINUS)) {
+            p = parse_factor();
+            T::neg(p, p);
         } else if (accept(POSITIVE_INTEGER)) {
             T::set_mpz(p, *cint++);
         } else if (accept(LEFT_PAREN)) {

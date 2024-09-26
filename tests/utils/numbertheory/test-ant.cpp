@@ -36,7 +36,7 @@ istream& operator>>(istream& is, cxx_mpz_poly& f)/*{{{*/
     for( ; is >> a ; v.push_back(a)) ;
     mpz_poly_realloc(f, v.size());
     for(unsigned int i = 0 ; i < v.size() ; i++) {
-        mpz_set(f->coeff[i], v[i]);
+        mpz_set(mpz_poly_coeff(f, i), v[i]);
     }
     mpz_poly_cleandeg(f, v.size()-1);
     is.clear();
@@ -44,13 +44,14 @@ istream& operator>>(istream& is, cxx_mpz_poly& f)/*{{{*/
 }
 /*}}}*/
 
+/* This format looks weird. Is it used at all? */
 ostream& operator<<(ostream& o, cxx_mpz_poly const& v)/*{{{*/
 {
     /* note that we can't cheat and use cxx_mpz here */
     ostream_iterator<mpz_t> it(o, " ");
     if (v->deg>=0) {
-        copy(v->coeff, v->coeff + v->deg, it);
-        o << v->coeff[v->deg];
+        copy(v->_coeff, v->_coeff + v->deg, it);
+        o << mpz_poly_lc(v);
     } else {
         o << "0";
     }
@@ -400,6 +401,7 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
             if (!(is >> x)) usage(pl, original_argv, "cannot parse ideal generators");
             elements.push_back(x);
         }
+        free(desc);
     }
 
 
@@ -436,15 +438,15 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
             mpz_set_ui(denom, 1);
             mpz_set_ui(c, 1);
             for(int k = e->deg ; k-- ; ) {
-                mpz_mul(denom, denom, f->coeff[f->deg]);
-                mpz_mul(e->coeff[k], e->coeff[k], denom);
+                mpz_mul(denom, denom, mpz_poly_lc(f));
+                mpz_mul(mpz_poly_coeff(e, k), mpz_poly_coeff_const(e, k), denom);
             }
             mpz_poly_div_r(e, e, fh);
             for(int k = 0 ; k <= e->deg ; k++) {
-                mpz_mul(e->coeff[k], e->coeff[k], c);
-                mpz_mul(c, c, f->coeff[f->deg]);
+                mpz_mul(mpz_poly_coeff(e, k), mpz_poly_coeff_const(e, k), c);
+                mpz_mul(c, c, mpz_poly_lc(f));
                 mpq_ptr gik = mpq_mat_entry(generators, i, k);
-                mpz_set(mpq_numref(gik), e->coeff[k]);
+                mpz_set(mpq_numref(gik), mpz_poly_coeff_const(e, k));
                 mpz_set(mpq_denref(gik), denom);
                 mpq_canonicalize(gik);
             }

@@ -1,5 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
-#include <stdlib.h>
+#include <cstdlib>
 #include <gmp.h>
 #include <sstream>
 #include <istream>
@@ -35,11 +35,11 @@ test_cado_poly_set ()
 
   ASSERT_ALWAYS (mpz_cmp_ui (p->n, 1000000007) == 0);
   ASSERT_ALWAYS (p->skew == s);
-  ASSERT_ALWAYS (mpz_cmp_si (p->pols[0]->coeff[0], -123128869) == 0);
-  ASSERT_ALWAYS (mpz_cmp_ui (p->pols[0]->coeff[1], 1000000008) == 0);
-  ASSERT_ALWAYS (mpz_cmp_ui (p->pols[1]->coeff[0], 228868283) == 0);
-  ASSERT_ALWAYS (mpz_cmp_ui (p->pols[1]->coeff[1], 887036294) == 0);
-  ASSERT_ALWAYS (mpz_cmp_ui (p->pols[1]->coeff[2], 429156742) == 0);
+  ASSERT_ALWAYS (mpz_cmp_si (mpz_poly_coeff_const(p->pols[0], 0), -123128869) == 0);
+  ASSERT_ALWAYS (mpz_cmp_ui (mpz_poly_coeff_const(p->pols[0], 1), 1000000008) == 0);
+  ASSERT_ALWAYS (mpz_cmp_ui (mpz_poly_coeff_const(p->pols[1], 0), 228868283) == 0);
+  ASSERT_ALWAYS (mpz_cmp_ui (mpz_poly_coeff_const(p->pols[1], 1), 887036294) == 0);
+  ASSERT_ALWAYS (mpz_cmp_ui (mpz_poly_coeff_const(p->pols[1], 2), 429156742) == 0);
   mpz_t m;
   mpz_init(m);
   cado_poly_getm(m, p, p->n);

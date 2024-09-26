@@ -9,27 +9,27 @@
 
 uint32_t cado_crc_lfsr_turn1(cado_crc_lfsr_ptr l, uint32_t c)
 {
-    static uint32_t const twist = 3486328325;
+    static uint32_t const twist = 3486328325U;
 
     uint32_t w = 0;
 
-    // FIXME. We used to have 31^l->r, which very much seems to be a typo
-    // for 31&l->r. Unfortunately, ``fixing'' this would mean changing
+    // FIXME. We used to have 31U^l->r, which very much seems to be a typo
+    // for 31U&l->r. Unfortunately, ``fixing'' this would mean changing
     // behaviour on our main platform, so for the time being we change
     // this in a compatible way so as to reach the same output on non-x86
     // hardware (which wraps around shift counts, not a guaranteed
     // behaviour everywhere).
-    w = (c >> (31&(31^l->r))) ^ (c << (31&-l->r));
+    w = (c >> (31U&(31U^l->r))) ^ (c << (31U&-l->r));
     l->i--;
     l->r+=11;
-    l->i &= 31;
+    l->i &= 31U;
 
-    w ^= l->t[ l->i           ];
-    w ^= l->t[(l->i + 22) & 31];
-    w ^= l->t[(l->i +  2) & 31];
-    w ^= l->t[(l->i +  1) & 31];
+    w ^= l->t[ l->i             ];
+    w ^= l->t[(l->i + 22U) & 31U];
+    w ^= l->t[(l->i +  2U) & 31U];
+    w ^= l->t[(l->i +  1U) & 31U];
 
-    w = w >> 1 ^ (twist & -(w&1));
+    w = w >> 1U ^ (twist & -(w&1U));
     l->t[l->i] = w;
 
     return w;
@@ -64,7 +64,7 @@ uint32_t cado_crc_lfsr_turn32_little(cado_crc_lfsr_ptr l, const uint32_t * data,
     ASSERT_ALWAYS(sizeof(uint32_t) == 4);
     ASSERT_ALWAYS(count % 4 == 0);
     int twist[sizeof(uint32_t)];
-    for(size_t j = 0 ; j < sizeof(uint32_t) ; j++) {
+    for(int j = 0 ; j < (int) sizeof(uint32_t) ; j++) {
         const uint32_t c = 0x03020100;
         twist[((uint8_t *)&c)[j]]=j;
     }

@@ -11,8 +11,6 @@
 #include "tests_common.h"
 #include "misc.h"
 
-uint64_t B = 0;
-
 static void
 cmp_mpz_gcd_i64(const int64_t a, const int64_t b, const uint64_t g)
 {
@@ -103,8 +101,8 @@ test_gcd_int64 (const unsigned long iter)
   
   for (i = 0; i < iter; i++)
     {
-      a = (i == 0 || i == 1) ? 0 : u64_random (state);
-      b = (i == 0 || i == 2) ? 0 : u64_random (state);
+      a = (i == 0 || i == 1) ? 0 : (int64_t) u64_random (state);
+      b = (i == 0 || i == 2) ? 0 : (int64_t) u64_random (state);
       g = gcd_int64 (a, b);
       cmp_mpz_gcd_i64(a, b, g);
     }
@@ -187,8 +185,8 @@ test_bin_gcd_int64_safe (const unsigned long iter)
 
   for (i = 0; i < iter; i++)
     {
-      int64_t a = (i == 0 || i == 1) ? 0 : u64_random (state);
-      int64_t b = (i == 0 || i == 2) ? 0 : u64_random (state);
+      int64_t a = (i == 0 || i == 1) ? 0 : (int64_t) u64_random (state);
+      int64_t b = (i == 0 || i == 2) ? 0 : (int64_t) u64_random (state);
       test_bin_gcd_int64_safe_ab(a,b);
     }
 }
@@ -205,5 +203,5 @@ main (int argc, const char *argv[])
   test_xgcd_ul (iter);
   test_bin_gcd_int64_safe (iter);
   tests_common_clear();
-  exit (EXIT_SUCCESS);
+  return EXIT_SUCCESS;
 }

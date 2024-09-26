@@ -15,31 +15,31 @@ extern "C" {
  * macro here, and define a corresponding text string in verbose.c
  */
 
-#define CADO_VERBOSE_PRINT_CMDLINE                      0
-#define CADO_VERBOSE_PRINT_MODIFIED_FILES               1
-#define CADO_VERBOSE_PRINT_COMPILATION_INFO             2
-#define CADO_VERBOSE_PRINT_BWC_DISPATCH_SLAVES          3
-#define CADO_VERBOSE_PRINT_BWC_DISPATCH_MASTER          4
-#define CADO_VERBOSE_PRINT_BWC_TIMING_GRIDS             5
-#define CADO_VERBOSE_PRINT_BWC_ITERATION_TIMINGS        6
-#define CADO_VERBOSE_PRINT_BWC_CACHE_BUILD              7
-#define CADO_VERBOSE_PRINT_BWC_DISPATCH_OUTER           8
-#define CADO_VERBOSE_PRINT_BWC_CPUBINDING               9
-#define CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO         10
-#define CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES      11
+#define CADO_VERBOSE_PRINT_CMDLINE                      0U
+#define CADO_VERBOSE_PRINT_MODIFIED_FILES               1U
+#define CADO_VERBOSE_PRINT_COMPILATION_INFO             2U
+#define CADO_VERBOSE_PRINT_BWC_DISPATCH_SLAVES          3U
+#define CADO_VERBOSE_PRINT_BWC_DISPATCH_MASTER          4U
+#define CADO_VERBOSE_PRINT_BWC_TIMING_GRIDS             5U
+#define CADO_VERBOSE_PRINT_BWC_ITERATION_TIMINGS        6U
+#define CADO_VERBOSE_PRINT_BWC_CACHE_BUILD              7U
+#define CADO_VERBOSE_PRINT_BWC_DISPATCH_OUTER           8U
+#define CADO_VERBOSE_PRINT_BWC_CPUBINDING               9U
+#define CADO_VERBOSE_PRINT_BWC_CACHE_MAJOR_INFO         10U
+#define CADO_VERBOSE_PRINT_BWC_LOADING_MKSOL_FILES      11U
 
 typedef int (*vfprintf_func_t)(FILE *, const char *, va_list);
 
 /* This must be called in single-threaded context, preferably at program
  * start */
-extern void verbose_interpret_parameters(param_list pl);
+extern void verbose_interpret_parameters(param_list_ptr pl);
 
-extern int verbose_enabled(int flag);
+extern int verbose_enabled(unsigned int flag);
 extern int verbose_vfprintf(FILE * f, int flag, const char * fmt, va_list ap);
 extern int verbose_vprintf(int flag, const char * fmt, va_list ap);
 extern int verbose_fprintf(FILE * f, int flag, const char * fmt, ...);
 extern int verbose_printf(int flag, const char * fmt, ...);
-extern void verbose_output_flush(const size_t channel, const int verbose);
+extern void verbose_output_flush(size_t channel, int verbose);
 extern void verbose_decl_usage(param_list pl);
 
 

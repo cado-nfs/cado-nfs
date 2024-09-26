@@ -1397,10 +1397,10 @@ void mpz_poly_eval_mpz_mat(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcptr f)/*
         return;
     }
     mpz_mat_realloc(D, n, n);
-    mpz_mat_set_mpz(D, f->coeff[f->deg]);
+    mpz_mat_set_mpz(D, mpz_poly_coeff_const(f, f->deg));
     for(int i = f->deg - 1 ; i >= 0 ; i--) {
         mpz_mat_mul(D, M, D);
-        mpz_mat_add_mpz(D, f->coeff[i]);
+        mpz_mat_add_mpz(D, mpz_poly_coeff_const(f, i));
     }
 }
 /*}}}*/
@@ -1423,10 +1423,10 @@ void mpz_poly_eval_mpz_mat_mod_ui(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_srcp
         return;
     }
     mpz_mat_realloc(D, n, n);
-    mpz_mat_set_ui(D, mpz_fdiv_ui(f->coeff[f->deg], p));
+    mpz_mat_set_ui(D, mpz_fdiv_ui(mpz_poly_coeff_const(f, f->deg), p));
     for(int i = f->deg - 1 ; i >= 0 ; i--) {
         mpz_mat_mul_mod_ui(D, M, D, p);
-        mpz_mat_add_ui(D, mpz_fdiv_ui(f->coeff[i], p));
+        mpz_mat_add_ui(D, mpz_fdiv_ui(mpz_poly_coeff_const(f, i), p));
         mpz_mat_mod_ui(D, D, p);
     }
 }
@@ -1452,11 +1452,11 @@ void mpz_poly_eval_mpz_mat_mod_mpz(mpz_mat_ptr D, mpz_mat_srcptr M, mpz_poly_src
     mpz_mat_realloc(D, n, n);
     mpz_t tmp;
     mpz_init(tmp);
-    mpz_fdiv_r(tmp, f->coeff[f->deg], p);
+    mpz_fdiv_r(tmp, mpz_poly_coeff_const(f, f->deg), p);
     mpz_mat_set_mpz(D, tmp);
     for(int i = f->deg - 1 ; i >= 0 ; i--) {
         mpz_mat_mul_mod_mpz(D, M, D, p);
-        mpz_fdiv_r(tmp, f->coeff[i], p);
+        mpz_fdiv_r(tmp, mpz_poly_coeff_const(f, i), p);
         mpz_mat_add_mpz(D, tmp);
         mpz_mat_mod_mpz(D, D, p);
     }

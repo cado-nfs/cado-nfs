@@ -135,12 +135,12 @@ uint64_t eval_64chars(int64_t a, uint64_t b, alg_prime_t * chars, cado_poly_ptr 
                 mpz_poly_ptr po = cpoly->pols[ratside];
 
                 /* first perform a quick check */
-                res = (a > 0) ? mpz_sgn(po->coeff[1]) : -mpz_sgn(po->coeff[1]);
-                if (mpz_sgn(po->coeff[0]) != res) {
+                res = (a > 0) ? mpz_sgn(mpz_poly_coeff_const(po, 1)) : -mpz_sgn(mpz_poly_coeff_const(po, 1));
+                if (mpz_sgn(mpz_poly_coeff_const(po, 0)) != res) {
                     mpz_init(tmp1);
-                    mpz_mul_si(tmp1, po->coeff[1], a);
+                    mpz_mul_si(tmp1, mpz_poly_coeff_const(po, 1), a);
                     mpz_init(tmp2);
-                    mpz_mul_ui(tmp2, po->coeff[0], b);
+                    mpz_mul_ui(tmp2, mpz_poly_coeff_const(po, 0), b);
                     mpz_add(tmp1, tmp1, tmp2);
                     res = mpz_sgn(tmp1) < 0;
                     mpz_clear(tmp1);

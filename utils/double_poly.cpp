@@ -683,7 +683,7 @@ double_poly_set_mpz_poly (double_poly_ptr p, mpz_poly_srcptr q)
 {
     double_poly_realloc(p, q->deg + 1);
     for (int i = 0; i <= q->deg; i++)
-        p->coeff[i] = mpz_get_d (q->coeff[i]);
+        p->coeff[i] = mpz_get_d (mpz_poly_coeff_const(q, i));
     p->deg = q->deg;
 }
 

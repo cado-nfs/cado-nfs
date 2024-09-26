@@ -145,6 +145,9 @@ struct mpz_poly_bivariate_parser_traits {
     void pow_ui(cxx_mpz_poly_bivariate & c, cxx_mpz_poly_bivariate const & a, unsigned long e) {
         type::pow_ui(c, a, e);
     }
+    void neg(cxx_mpz_poly_bivariate & a, cxx_mpz_poly_bivariate & b) {
+        type::neg(a, b);
+    }
     void swap(cxx_mpz_poly_bivariate & a, cxx_mpz_poly_bivariate & b) {
         a.swap(b);
     }
@@ -329,7 +332,7 @@ void cxx_mpz_poly_bivariate::eval_fx(cxx_mpz_poly & a, self const & f, mpz_srcpt
 {
     mpz_poly_realloc(a, f.degree() + 1);
     for(size_t i = 0 ; i < f.size() ; i++)
-        mpz_poly_eval(a->coeff[i], f[i], e);
+        mpz_poly_eval(mpz_poly_coeff(a, i), f[i], e);
     mpz_poly_cleandeg(a, f.degree());
 }
 
@@ -346,11 +349,12 @@ void cxx_mpz_poly_bivariate::transpose(self & a, self && b)
     for(auto & c : a) {
         mpz_poly_realloc(c, dy + 1);
         for(int j = 0 ; j <= dy ; j++)
-            mpz_set_ui(c->coeff[j], 0);
+            mpz_poly_setcoeff_ui(c, j, 0);
     }
     for(int j = 0 ; j <= dy ; j++) {
         for(int i = 0 ; i <= mpz_poly_degree(((super const &)b)[j]) ; i++) {
-            mpz_swap(((super&)a)[i]->coeff[j], ((super&)b)[j]->coeff[i]);
+            mpz_swap(mpz_poly_coeff(((super&)a)[i], j),
+                mpz_poly_coeff(((super&)b)[j], i));
         }
     }
     for(int i = 0 ; i <= dx ; i++) {
@@ -436,7 +440,7 @@ void cxx_mpz_poly_bivariate::set_rrandomb(self & f, int dx, int dy, int bits, gm
 {
     f.assign(dy + 1, 0);
     for(int i = 0 ; i <= dy ; i++) {
-        mpz_poly_set_rrandomb(((super&)f)[i], dx, bits, rstate);
+        mpz_poly_set_rrandomb(((super&)f)[i], dx, rstate, bits);
     }
     f.cleandeg(dy);
 }
@@ -452,10 +456,8 @@ void cxx_mpz_poly_bivariate::set_rrandomb_cab(self & f, int dx, int dy, int bits
         // we may have X^i only if i * dy < (dx * dy  - j * dx)
         int d = (dx * (dy - j) - 1) / dy;
         mpz_poly_cleandeg(((super&)f)[j], d);
-        if (j == 0) {
-            mpz_set_ui(((super&)f)[j]->coeff[dx], 1);
-            mpz_poly_cleandeg(((super&)f)[j], dx);
-        }
+        if (j == 0)
+            mpz_poly_setcoeff_ui(((super&)f)[j], dx, 1);
     }
 }
 

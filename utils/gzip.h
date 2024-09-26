@@ -129,12 +129,16 @@ class streambase_maybe_compressed : virtual public std::ios {
     void open(const char * name, std::ios_base::openmode mode);
     void close();
     bool is_pipe() const { return pipe; }
+    streambase_maybe_compressed(streambase_maybe_compressed const &) = delete;
+    streambase_maybe_compressed(streambase_maybe_compressed &&) = delete;
+    streambase_maybe_compressed& operator=(streambase_maybe_compressed const &) = delete;
+    streambase_maybe_compressed& operator=(streambase_maybe_compressed &&) = delete;
 };
 
 template <class charT, class Traits = std::char_traits<charT> >
 class basic_ifstream_maybe_compressed : public streambase_maybe_compressed, public std::basic_istream<charT, Traits> {
 public:
-    basic_ifstream_maybe_compressed(const char * name)
+    explicit basic_ifstream_maybe_compressed(const char * name)
         : streambase_maybe_compressed(name, std::ios::in)
         , std::basic_istream<charT, Traits>(buf)
     {}
@@ -146,7 +150,7 @@ public:
 template <class charT, class Traits = std::char_traits<charT> >
 class basic_ofstream_maybe_compressed : public streambase_maybe_compressed, public std::basic_ostream<charT, Traits> {
 public:
-    basic_ofstream_maybe_compressed(const char * name)
+    explicit basic_ofstream_maybe_compressed(const char * name)
         : streambase_maybe_compressed(name, std::ios::out)
         , std::basic_ostream<charT, Traits>(buf)
     {}

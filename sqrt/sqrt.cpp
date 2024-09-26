@@ -24,12 +24,14 @@
 #include <cmath> /* for log */
 #include <cerrno>
 #include <sys/stat.h>
-#include <pthread.h>
 #include <gmp.h>
 #include <mutex>
+#include <memory>
 #include <string>
+#include <fstream>
 #include <vector>
 #include <utility> // pair
+#include <thread>
 #include "cado_poly.h"  // cado_poly
 #include "cxx_mpz.hpp"   // for cxx_mpz
 #include "filter_io.h"  // filter_rels
@@ -60,67 +62,56 @@
 /* maximal number of threads when reading dependency files */
 #define MAX_IO_THREADS 16
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 static int verbose = 0;
 static double wct0;
 
 std::mutex stdio_guard;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-static char*
-get_depname (const char *prefix, const char *algrat, int numdep)
+static std::string
+get_depname (std::string const & prefix, std::string const & algrat, unsigned int numdep)
 {
-  char *depname;
-  const char* suffixes[] = {".gz", ".bz2", ".lzma", ""};
-  const char *suffix;
-  char *prefix_base;
-  int ret;
+    const std::string suffixes[] = {".gz", ".bz2", ".lzma"};
+    std::string suffix;
 
-  for (int i = 0; strlen (suffix = suffixes[i]) != 0; i++)
-    if (strcmp (prefix + strlen (prefix) - strlen (suffix), suffix) == 0)
-      break;
-  prefix_base = strndup(prefix, strlen (prefix) - strlen (suffix));
-  ASSERT_ALWAYS(prefix_base != NULL);
-  ret = asprintf (&depname, "%s.%s%03d%s", prefix_base, algrat, numdep, suffix);
-  ASSERT_ALWAYS(ret > 0);
-  free (prefix_base);
-  return depname;
+    for (auto const & t : suffixes) {
+        if (prefix.substr(prefix.size() - t.size()) == t) {
+            suffix = t;
+            break;
+        }
+    }
+    auto prefix_base = prefix.substr(0, prefix.size() - suffix.size());
+    return fmt::format("{}.{}{:03d}{}", prefix_base, algrat, numdep, suffix);
 }
 
-static char*
-get_depsidename (const char *prefix, int numdep, int side)
+static std::string
+get_depsidename (std::string const & prefix, unsigned int numdep, int side)
 {
-  char S[10];
-  snprintf(S, 10, "side%d.", side);
-  return get_depname (prefix, S, numdep);
+  return get_depname(prefix, fmt::format("side{}.", side), numdep);
 }
 
 static FILE*
 fopen_maybe_compressed_lock (const char * name, const char * mode)
 {
-  std::lock_guard<std::mutex> dummy(stdio_guard);
+  const std::lock_guard<std::mutex> dummy(stdio_guard);
   return fopen_maybe_compressed (name, mode);
 }
 
 static int
 fclose_maybe_compressed_lock (FILE * f, const char * name)
 {
-  std::lock_guard<std::mutex> dummy(stdio_guard);
+  const std::lock_guard<std::mutex> dummy(stdio_guard);
   return fclose_maybe_compressed (f, name);
 }
 
 /* this function is run sequentially, thus no need to be thread-safe */
 static int
-check_dep (const char *prefix, int numdep)
+check_dep (const char *prefix, unsigned int numdep)
 {
-  char *depname;
-  FILE *depfile;
-
-  depname = get_depname (prefix, "", numdep);
-  depfile = fopen (depname, "r");
-  free (depname);
-  if (depfile == NULL)
-    return 0;
-  fclose (depfile);
-  return 1;
+  const std::string depname = get_depname (prefix, "", numdep);
+  const std::ifstream f(depname);
+  return bool(f);
 }
 
 /*************************************************************************/
@@ -145,18 +136,18 @@ check_dep (const char *prefix, int numdep)
  */
 static inline uint64_t bitrev(uint64_t a)
 {
-    a = (a >> 32) ^ (a << 32);
+    a = (a >> 32U) ^ (a << 32U);
     uint64_t m;
     m = UINT64_C(0x0000ffff0000ffff);
-    a = ((a >> 16) & m) ^ ((a << 16) & ~m);
+    a = ((a >> 16U) & m) ^ ((a << 16U) & ~m);
     m = UINT64_C(0x00ff00ff00ff00ff);
-    a = ((a >> 8) & m) ^ ((a << 8) & ~m);
+    a = ((a >> 8U) & m) ^ ((a << 8U) & ~m);
     m = UINT64_C(0x0f0f0f0f0f0f0f0f);
-    a = ((a >> 4) & m) ^ ((a << 4) & ~m);
+    a = ((a >> 4U) & m) ^ ((a << 4U) & ~m);
     m = UINT64_C(0x3333333333333333);
-    a = ((a >> 2) & m) ^ ((a << 2) & ~m);
+    a = ((a >> 2U) & m) ^ ((a << 2U) & ~m);
     m = UINT64_C(0x5555555555555555);
-    a = ((a >> 1) & m) ^ ((a << 1) & ~m);
+    a = ((a >> 1U) & m) ^ ((a << 1U) & ~m);
     return a;
 }
 
@@ -177,7 +168,7 @@ void accumulate(std::vector<typename M::T> & A, typename std::vector<typename M:
     if (ve - vb < 16) {
         /* Don't bother with very small vectors. Here we have a vector of
          * size less than 16*2*thr/2, so don't bother. */
-        for(typename std::vector<typename M::T>::iterator vi = vb+1; vi < ve ; ++vi) {
+        for(auto vi = vb+1; vi < ve ; ++vi) {
             m(*vb, *vb, *vi);
         }
         return;
@@ -192,14 +183,14 @@ void accumulate(std::vector<typename M::T> & A, typename std::vector<typename M:
      * Hence with n cells int the table A, we can have up to
      * (ratio^n-1)/(ratio-1) values stored.
      */
-    size_t as = 1 + (ratio - 1) * (ve - vb);
+    const size_t as = 1 + (ratio - 1) * (ve - vb);
     unsigned int ncells = 0;
     for(size_t s = 1 ; s < as ; s *= ratio, ncells++) ;
     /* make sure A is large enough */
     for(; A.size() < ncells; A.emplace_back());
     for(auto& x: A) m.set1(x);
 
-    for(typename std::vector<typename M::T>::iterator vi = vb ; vi < ve ; ++vi) {
+    for(auto vi = vb ; vi < ve ; ++vi) {
         m(A[0], A[0], *vi);
         /* We won't need *vi again. This frees indirect storage */
         *vi = typename M::T();
@@ -289,7 +280,7 @@ void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string
         return;
     }
 
-    uint64_t r = N % (1UL << n);
+    const uint64_t r = N % (1UL << n);
     {
         fmt::fprintf (stderr, "%s: starting level 00 at wct=%1.2fs,"
                 " %zu -> 2^%zu*%zu+%zu\n",
@@ -307,8 +298,8 @@ void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string
     std::vector<size_t> endpoints;
     endpoints.push_back(0);
     for(uint64_t i = 0 ; i < (UINT64_C(1) << n) ; i++) {
-        uint64_t ir = bitrev(i) >> (64 - n);
-        size_t fragment_size = (N>>n) + (ir < (uint64_t) r);
+        const uint64_t ir = bitrev(i) >> (64U - n);
+        const size_t fragment_size = (N>>n) + (ir < (uint64_t) r);
         endpoints.push_back(endpoints.back() + fragment_size);
     }
     ASSERT_ALWAYS(endpoints.back() == v.size());
@@ -322,26 +313,26 @@ void accumulate_level00(std::vector<typename M::T> & v, M const & m, std::string
          */
         std::vector<typename M::T> A;
 #pragma omp for
-        for(unsigned int i = 0 ; i < (1u << n) ; i++) {
-            typename std::vector<typename M::T>::iterator vb = v.begin() + endpoints[i];
-            typename std::vector<typename M::T>::iterator ve = v.begin() + endpoints[i+1];
+        for(unsigned int i = 0 ; i < (1U << n) ; i++) {
+            auto vb = v.begin() + endpoints[i];
+            auto ve = v.begin() + endpoints[i+1];
             accumulate(A, vb, ve, m);
-	      {
-                std::lock_guard<std::mutex> dummy(stdio_guard);
+            {
+                const std::lock_guard<std::mutex> dummy(stdio_guard);
                 fmt::fprintf (stderr, "%s: fragment %u/%u"
-			      " of level 00 done by thread %u at wct=%1.2fs\n",
-			      message,
-			      i, 1u<<n, omp_get_thread_num(),
-			      wct_seconds () - wct0);
+                        " of level 00 done by thread %u at wct=%1.2fs\n",
+                        message,
+                        i, 1U<<n, omp_get_thread_num(),
+                        wct_seconds () - wct0);
                 fflush (stderr);
-	      }
+            }
         }
     }
     /* This puts pressure at the malloc level, but takes negligible time */
     {
-        typename std::vector<typename M::T>::iterator dst = v.begin();
+        auto dst = v.begin();
         endpoints.pop_back();
-        for(size_t z : endpoints)
+        for(const size_t z : endpoints)
             std::swap(v[z], *dst++);
         v.erase(dst, v.end());
     }
@@ -365,23 +356,23 @@ typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::strin
     #pragma omp critical
     nthr = omp_get_num_threads (); /* total number of threads */
 
-    size_t vs = v.size();
+    const size_t vs = v.size();
     ASSERT_ALWAYS(!(vs & (vs - 1)));
 
     /* At this point v has size a power of two */
   for(int level = 0 ; v.size() > 1 ; level++) {
       {
-        std::lock_guard<std::mutex> dummy(stdio_guard);
+        const std::lock_guard<std::mutex> dummy(stdio_guard);
 	fmt::fprintf (stderr, "%s: starting level %d at cpu=%1.2fs (wct=%1.2fs), %zu values to multiply\n",
 		      message, level, seconds (), wct_seconds () - wct0, v.size());
 	fflush (stderr);
       }
 
-      double st = seconds (), wct = wct_seconds ();
-      size_t N = v.size() - 1;
+      const double st = seconds (), wct = wct_seconds ();
+      const size_t N = v.size() - 1;
       int local_nthreads;
       /* the loop below performs floor((N+1)/2) products */
-      size_t nloops = (N + 1) / 2;
+      const size_t nloops = (N + 1) / 2;
       if (nthr < 2 * nloops)
 	{
 	  omp_set_nested (0);
@@ -411,7 +402,7 @@ typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::strin
       }
       v.erase(v.begin() + (v.size() + 1) / 2, v.end());
       {
-        std::lock_guard<std::mutex> dummy(stdio_guard);
+        const std::lock_guard<std::mutex> dummy(stdio_guard);
 	fmt::fprintf (stderr, "%s: level %d took cpu=%1.2fs (wct=%1.2fs)\n",
 		      message, level, seconds () - st, wct_seconds () - wct);
 	fflush (stderr);
@@ -425,11 +416,11 @@ typename M::T accumulate(std::vector<typename M::T> & v, M const & m, std::strin
 
 template<typename M>
 std::vector<typename M::T>
-read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const & message, unsigned long & nab, unsigned long & nfree)
+read_ab_pairs_from_depfile(std::string const & depname, M const & m, std::string const & message, unsigned long & nab, unsigned long & nfree)
 {
     nab = nfree = 0;
-    FILE * depfile = fopen_maybe_compressed_lock (depname, "rb");
-    ASSERT_ALWAYS(depfile != NULL);
+    FILE * depfile = fopen_maybe_compressed_lock (depname.c_str(), "rb");
+    ASSERT_ALWAYS(depfile);
     std::vector<typename M::T> prd;
 
     if (fseek(depfile, 0, SEEK_END) < 0) {
@@ -439,9 +430,9 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
         while (gmp_fscanf(depfile, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b) != EOF)
         {
             if(!(nab % REPORT)) {
-                fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
+                fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %zuM)\n",
                         message, nab, seconds (), wct_seconds () - wct0,
-                        PeakMemusage () >> 10);
+                        PeakMemusage () >> 10U);
                 fflush (stderr);
             }
             if (mpz_cmp_ui (a, 0) == 0 && mpz_cmp_ui (b, 0) == 0)
@@ -453,7 +444,7 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
         }
     } else {
         /* We _can_ seek. Good news ! */
-        off_t endpos = ftell(depfile);
+        const off_t endpos = ftell(depfile);
         /* Find accurate starting positions for everyone */
         unsigned int nthreads = omp_get_max_threads();
         /* cap the number of I/O threads */
@@ -467,9 +458,9 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
         /* All threads get their private reading head. */
 #pragma omp parallel num_threads(nthreads)
         {
-            int i = omp_get_thread_num();
-            FILE * fi = fopen_maybe_compressed_lock (depname, "rb");
-            int rc = fseek(fi, spos_tab[i], SEEK_SET);
+            const int i = omp_get_thread_num();
+            FILE * fi = fopen_maybe_compressed_lock (depname.c_str(), "rb");
+            const int rc = fseek(fi, spos_tab[i], SEEK_SET);
             ASSERT_ALWAYS(rc == 0);
             if (i > 0) {
                 /* Except when we're at the end of the stream, read until
@@ -483,7 +474,7 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
             unsigned long loc_nfree = 0;
             cxx_mpz a, b;
             for(off_t pos = ftell(fi) ; pos < spos_tab[i+1] ; ) {
-                int rc = gmp_fscanf(fi, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b);
+                const int rc = gmp_fscanf(fi, "%Zd %Zd", (mpz_ptr) a, (mpz_ptr) b);
                 pos = ftell(fi);
                 /* We may be tricked by initial white space, since our
                  * line parsing does not gobble whitespace at end of
@@ -512,9 +503,9 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
                         prd.emplace_back(std::move(x));
                     loc_prd.clear();
                     if(!(nab % REPORT)) {
-                        fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %luM)\n",
+                        fmt::fprintf(stderr, "%s: read %lu (a,b) pairs in %.2fs (wct %.2fs, peak %zuM)\n",
                                 message, nab, seconds (), wct_seconds () - wct0,
-                                PeakMemusage () >> 10);
+                                PeakMemusage () >> 10U);
                         fflush (stderr);
                     }
                 }
@@ -527,7 +518,7 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
                     prd.emplace_back(std::move(x));
                 loc_prd.clear();
             }
-            fclose_maybe_compressed_lock (fi, depname);
+            fclose_maybe_compressed_lock (fi, depname.c_str());
         }
         {
             fmt::fprintf (stderr, "%s read %lu (a,b) pairs, including %lu free, in %1.2fs (wct %1.2fs)\n",
@@ -535,7 +526,7 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
             fflush (stderr);
         }
     }
-    fclose_maybe_compressed_lock (depfile, depname);
+    fclose_maybe_compressed_lock (depfile, depname.c_str());
     return prd;
 }
 
@@ -550,29 +541,30 @@ read_ab_pairs_from_depfile(const char * depname, M const & m, std::string const 
 struct cxx_mpz_functions {
     cxx_mpz_poly const & P;
     typedef cxx_mpz T;
-    void set1(T & x) const { mpz_set_ui(x, 1); }
-    void set(T & y, T const & x) const { mpz_set(y, x); }
-    bool is1(T & x) const { return mpz_cmp_ui(x, 1) == 0; }
+    static void set1(T & x) { mpz_set_ui(x, 1); }
+    static void set(T & y, T const & x) { mpz_set(y, x); }
+    static bool is1(T & x) { return mpz_cmp_ui(x, 1) == 0; }
     void operator()(T & res, T const & a, T const & b) const {
         mpz_mul(res, a, b);
     }
+    ATTRIBUTE_NODISCARD
     T from_ab(cxx_mpz const& a, cxx_mpz const& b) const
     {
         cxx_mpz v;
         /* accumulate g1*a+g0*b */
-        mpz_mul (v, P->coeff[1], a);
-        mpz_addmul (v, P->coeff[0], b);
+        mpz_mul (v, mpz_poly_coeff_const(P, 1), a);
+        mpz_addmul (v, mpz_poly_coeff_const(P, 0), b);
         return v;
     }
-    cxx_mpz_functions(cxx_mpz_poly const & P) : P(P) {}
+    explicit cxx_mpz_functions(cxx_mpz_poly const & P) : P(P) {}
 };
 
 
 int
-calculateSqrtRat (const char *prefix, int numdep, cado_poly cpoly,
-        int side, mpz_t Np)
+calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly const & cpoly,
+        int side, cxx_mpz const & Np)
 {
-  char * sidename = get_depsidename (prefix, numdep, side);
+  const std::string sidename = get_depsidename (prefix, numdep, side);
   FILE *resfile;
   unsigned long nab = 0, nfree = 0;
 
@@ -592,33 +584,36 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly cpoly,
   cxx_mpz prod;
 
   {
-      cxx_mpz_functions M(F);
+      const cxx_mpz_functions M(F);
+      const std::string message = fmt::format(FMT_STRING("Rat({})"), numdep);
 
-      std::string message = fmt::format(FMT_STRING("Rat({})"), numdep);
-      char * depname = get_depname (prefix, "", numdep);
-      std::vector<cxx_mpz> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
-      free(depname);
+      std::vector<cxx_mpz> prd = read_ab_pairs_from_depfile(
+              get_depname (prefix, "", numdep),
+              M,
+              message,
+              nab,
+              nfree);
 
       prod = accumulate(prd, M, message);
   }
 
   /* we must divide by g1^nab: if the number of (a,b) pairs is odd, we
      multiply by g1, and divide by g1^(nab+1) */
-  if (nab & 1)
-    mpz_mul (prod, prod, F->coeff[1]);
+  if (nab & 1U)
+    mpz_mul (prod, prod, mpz_poly_coeff_const(F, 1));
 
 #pragma omp critical
   {
-    fprintf (stderr, "Rat(%d): size of product = %zu bits (peak %luM)\n",
+    fprintf (stderr, "Rat(%d): size of product = %zu bits (peak %zuM)\n",
 	     numdep, mpz_sizeinbase (prod, 2),
-	     PeakMemusage () >> 10);
+	     PeakMemusage () >> 10U);
     fflush (stderr);
   }
 
   if (mpz_sgn (prod) < 0)
     {
       fprintf (stderr, "Error, product is negative: try another dependency\n");
-      exit (1);
+      exit(EXIT_FAILURE);       // NOLINT(concurrency-mt-unsafe)
     }
 
 #pragma omp critical
@@ -642,9 +637,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly cpoly,
   if (mpz_cmp_ui (v, 0) != 0)
     {
       unsigned long p = 2, e, errors = 0;
-      mpz_t pp;
+      cxx_mpz pp;
 
-      mpz_init (pp);
       fprintf (stderr, "Error, rational square root remainder is not zero\n");
       /* reconstruct the initial value of prod to debug */
       mpz_mul (prod, prod, prod);
@@ -670,9 +664,8 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly cpoly,
             }
           p = getprime_mt (pi);
         }
-      mpz_clear (pp);
       prime_info_clear (pi);
-      exit (EXIT_FAILURE);
+      exit(EXIT_FAILURE);       // NOLINT(concurrency-mt-unsafe)
     }
 
   mpz_mod (prod, prod, Np);
@@ -687,22 +680,21 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly cpoly,
   /* now divide by g1^(nab/2) if nab is even, and g1^((nab+1)/2)
      if nab is odd */
 
-  mpz_powm_ui (v, F->coeff[1], (nab + 1) / 2, Np);
+  mpz_powm_ui (v, mpz_poly_coeff_const(F, 1), (nab + 1) / 2, Np);
 #pragma omp critical
   {
     fprintf (stderr, "Rat(%d): computed g1^(nab/2) mod n at %.2fs (wct %.2fs)\n",
 	     numdep, seconds (), wct_seconds () - wct0);
     fflush (stderr);
   }
-  resfile = fopen_maybe_compressed_lock (sidename, "wb");
+  resfile = fopen_maybe_compressed_lock (sidename.c_str(), "wb");
 
   mpz_invert (v, v, Np);
   mpz_mul (prod, prod, v);
   mpz_mod (prod, prod, Np);
 
   gmp_fprintf (resfile, "%Zd\n", (mpz_srcptr) prod);
-  fclose_maybe_compressed_lock (resfile, sidename);
-  free (sidename);
+  fclose_maybe_compressed_lock (resfile, sidename.c_str());
 
 #pragma omp critical
   {
@@ -723,20 +715,25 @@ calculateSqrtRat (const char *prefix, int numdep, cado_poly cpoly,
 struct cxx_mpz_polymodF_functions {
     typedef cxx_mpz_polymodF T;
     cxx_mpz_poly const & F;
-    mpz_poly_parallel_info * pinf;
-    cxx_mpz_polymodF_functions(cxx_mpz_poly & F, mpz_poly_parallel_info * pinf = NULL) : F(F), pinf(pinf) {}
-    T from_ab(cxx_mpz const & a, cxx_mpz const & b) const {
+    const mpz_poly_parallel_info * pinf;
+    explicit cxx_mpz_polymodF_functions(cxx_mpz_poly & F, const mpz_poly_parallel_info * pinf = nullptr)
+        : F(F)
+        , pinf(pinf)
+    {}
+    
+    ATTRIBUTE_NODISCARD
+    static T from_ab(cxx_mpz const & a, cxx_mpz const & b) {
         cxx_mpz_polymodF ret;
         mpz_polymodF_set_from_ab(ret, a, b);
         return ret;
     }
-    bool is1(T & res) const {
-        return res->p->deg == 0 && res->v == 0 && mpz_cmp_ui(res->p->coeff[0], 1) == 0;
+    static bool is1(T & res) {
+        return res->p->deg == 0 && res->v == 0 && mpz_cmp_ui(mpz_poly_coeff_const(res->p, 0), 1) == 0;
     }
-    void set(T & y, T const & x) const {
+    static void set(T & y, T const & x) {
         mpz_polymodF_set(y, x);
     }
-    void set1(T & res) const {
+    static void set1(T & res) {
         mpz_polymodF_set_ui(res, 1);
     }
     void operator()(T &res, T const & a, T const & b) const {
@@ -751,7 +748,7 @@ mpz_poly_mod_center (mpz_poly R, const mpz_t m)
 {
 #pragma omp parallel for
   for (int i=0; i <= R->deg; i++)
-    mpz_ndiv_r (R->coeff[i], R->coeff[i], m);
+    mpz_ndiv_r (mpz_poly_coeff(R, i), mpz_poly_coeff_const(R, i), m);
 }
 
 #if 0
@@ -769,11 +766,11 @@ mpz_poly_integer_reconstruction (mpz_poly R, const mpz_t m)
 
   for (i=0; i <= R->deg; ++i)
     {
-      sizer = mpz_sizeinbase (R->coeff[i], 2);
+      sizer = mpz_sizeinbase (mpz_poly_coeff_const(R, i), 2);
       if (sizer + 20 > sizem)
         {
-          mpz_sub (R->coeff[i], R->coeff[i], m);
-          sizer = mpz_sizeinbase (R->coeff[i], 2);
+          mpz_sub (mpz_poly_coeff(R, i), mpz_poly_coeff_const(R, i), m);
+          sizer = mpz_sizeinbase (mpz_poly_coeff_const(R, i), 2);
           if (sizer + 20 > sizem)
             return 0;
         }
@@ -786,99 +783,76 @@ mpz_poly_integer_reconstruction (mpz_poly R, const mpz_t m)
 static void
 TonelliShanks (mpz_poly res, const mpz_poly a, const mpz_poly F, unsigned long p)
 {
-  int d = F->deg;
-  mpz_t q;
-  mpz_poly delta;  // a non quadratic residue
-  mpz_poly auxpol;
-  mpz_t aux;
-  mpz_t t;
-  int s;
-  mpz_t myp;
+  const int d = F->deg;
+  cxx_mpz q;
+  cxx_mpz_poly delta;  // a non quadratic residue
+  cxx_mpz_poly auxpol;
+  cxx_mpz aux;
+  cxx_mpz t;
+  unsigned int s;
+  cxx_mpz myp = p;
 
-  mpz_init_set_ui(myp, p);
-
-  mpz_init(aux);
-  mpz_init(q);
-  mpz_poly_init(auxpol, d);
   mpz_ui_pow_ui(q, p, (unsigned long)d);
 
   // compute aux = (q-1)/2
   // and (s,t) s.t.  q-1 = 2^s*t
   mpz_sub_ui(aux, q, 1);
   mpz_divexact_ui(aux, aux, 2);
-  mpz_init_set(t, aux);
-  s = 1;
-  while (mpz_divisible_2exp_p(t, 1)) {
-    s++;
-    mpz_divexact_ui(t, t, 2);
-  }
+
+  for(t = aux, s = 1 ; mpz_divisible_2exp_p(t, 1) ; s++)
+      mpz_fdiv_q_2exp(t, t, 1);
+
   // find a non quadratic residue delta
+
   {
-    mpz_poly_init(delta, d);
-    gmp_randstate_t state;
-    gmp_randinit_default(state);
+    cxx_gmp_randstate state;
     do {
       int i;
       // pick a random delta
       for (i = 0; i < d; ++i)
-	mpz_urandomm(delta->coeff[i], state, myp);
+	mpz_urandomm(mpz_poly_coeff(delta, i), state, myp);
       mpz_poly_cleandeg(delta, d-1);
       // raise it to power (q-1)/2
       mpz_poly_pow_mod_f_mod_ui(auxpol, delta, F, aux, p);
       /* Warning: the coefficients of auxpol might either be reduced in
 	 [0, p) or in [-p/2, p/2). This code should work in both cases. */
-    } while (auxpol->deg != 0 || (mpz_cmp_ui (auxpol->coeff[0], p-1) != 0 &&
-				  mpz_cmp_si (auxpol->coeff[0], -1) != 0));
-    gmp_randclear (state);
+    } while (auxpol->deg != 0 || (mpz_cmp_ui (mpz_poly_coeff_const(auxpol, 0), p-1) != 0 &&
+				  mpz_cmp_si (mpz_poly_coeff_const(auxpol, 0), -1) != 0));
   }
 
   // follow the description of Crandall-Pomerance, page 94
   {
-    mpz_poly A, D;
-    mpz_t m;
-    int i;
-    mpz_poly_init(A, d);
-    mpz_poly_init(D, d);
-    mpz_init_set_ui(m, 0);
+    cxx_mpz_poly A, D;
+    cxx_mpz m = 0;
     mpz_poly_pow_mod_f_mod_ui(A, a, F, t, p);
     mpz_poly_pow_mod_f_mod_ui(D, delta, F, t, p);
-    for (i = 0; i <= s-1; ++i) {
-      mpz_poly_pow_mod_f_mod_ui(auxpol, D, F, m, p);
-      mpz_poly_mul_mod_f_mod_mpz(auxpol, auxpol, A, F, myp, NULL, NULL);
-      mpz_ui_pow_ui(aux, 2, (s-1-i));
-      mpz_poly_pow_mod_f_mod_ui(auxpol, auxpol, F, aux, p);
-      if ((auxpol->deg == 0) && (mpz_cmp_ui(auxpol->coeff[0], p-1)== 0))
-    mpz_add_ui(m, m, 1UL<<i);
+    for (unsigned int i = 0; i < s; ++i) {
+        mpz_poly_pow_mod_f_mod_ui(auxpol, D, F, m, p);
+        mpz_poly_mul_mod_f_mod_mpz(auxpol, auxpol, A, F, myp, nullptr, nullptr);
+        mpz_ui_pow_ui(aux, 2, (s-1-i));
+        mpz_poly_pow_mod_f_mod_ui(auxpol, auxpol, F, aux, p);
+        if ((auxpol->deg == 0) && (mpz_cmp_ui(mpz_poly_coeff_const(auxpol, 0), p-1)== 0))
+            mpz_add_ui(m, m, 1UL<<i);
     }
     mpz_add_ui(t, t, 1);
-    mpz_divexact_ui(t, t, 2);
+    mpz_divexact_ui(t, t, 2U);
     mpz_poly_pow_mod_f_mod_ui(res, a, F, t, p);
-    mpz_divexact_ui(m, m, 2);
+    mpz_divexact_ui(m, m, 2U);
     mpz_poly_pow_mod_f_mod_ui(auxpol, D, F, m, p);
 
-    mpz_poly_mul_mod_f_mod_mpz(res, res, auxpol, F, myp, NULL, NULL);
-    mpz_poly_clear(D);
-    mpz_poly_clear(A);
-    mpz_clear(m);
+    mpz_poly_mul_mod_f_mod_mpz(res, res, auxpol, F, myp, nullptr, nullptr);
   }
-
-  mpz_poly_clear(auxpol);
-  mpz_poly_clear(delta);
-  mpz_clear(q);
-  mpz_clear(aux);
-  mpz_clear(myp);
-  mpz_clear (t);
 }
 
 // res <- Sqrt(AA) mod F, using p-adic lifting, at prime p.
 unsigned long
 cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_poly const & F, unsigned long p,
-	       int numdep,
-               mpz_poly_parallel_info * pinf)
+	       unsigned int numdep,
+               const mpz_poly_parallel_info * pinf)
 {
   mpz_poly A, *P;
   unsigned long v;
-  int d = F->deg;
+  const int d = F->deg;
   unsigned long k, target_k;
   unsigned long K[65];
   int lk, logk, logk0;
@@ -917,11 +891,11 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
   // Clean up the mess with denominator: if it is an odd power of fd,
   // then multiply num and denom by fd to make it even.
   mpz_poly_swap(A, AA->p);
-  if (((AA->v)&1) == 0) {
+  if (((AA->v) & 1U) == 0) {
     v = AA->v / 2;
   } else {
     v = (1+AA->v) / 2;
-    pinf->mpz_poly_mul_mpz(A, A, F->coeff[d]);
+    pinf->mpz_poly_mul_mpz(A, A, mpz_poly_coeff_const(F, d));
   }
 
   // Now, we just have to take the square root of A (without denom) and
@@ -947,7 +921,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
       mpz_mul_ui (pk, pk, p);
       target_k ++;
     }
-  pinf->mpz_poly_mod_mpz (A, A, pk, NULL);
+  pinf->mpz_poly_mod_mpz (A, A, pk, nullptr);
   for (k = target_k, logk = 0; k > 1; k = (k + 1) / 2, logk ++)
     K[logk] = k;
   K[logk] = 1;
@@ -1017,7 +991,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
       {
         fprintf (stderr, "Failed to reconstruct an integer polynomial\n");
         printf ("Failed\n");
-        exit (1);
+        exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
       }
 
     /* invariant: invsqrtA = 1/sqrt(A) bmod p^k */
@@ -1032,16 +1006,16 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
     if (verbose)
 #pragma omp critical
       {
-	fprintf (stderr, "Alg(%d):    mpz_poly_base_modp_lift took %.2fs (wct %.2fs, peak %luM)\n",
+	fprintf (stderr, "Alg(%d):    mpz_poly_base_modp_lift took %.2fs (wct %.2fs, peak %zuM)\n",
 		 numdep, seconds () - st, wct_seconds () - wct,
-		 PeakMemusage () >> 10);
+		 PeakMemusage () >> 10U);
 	fflush (stderr);
       }
 
     mpz_mul (pk, pk, pk);   // double the current precision
     k = k + k;
     logk --;
-    if (K[logk] & 1)
+    if (K[logk] & 1U)
       {
         mpz_div_ui (pk, pk, p);
         k --;
@@ -1062,13 +1036,13 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
     // now, do the Newton operation x <- 1/2(3*x-a*x^3)
     st = seconds ();
     wct = wct_seconds ();
-    pinf->mpz_poly_sqr_mod_f_mod_mpz (tmp, invsqrtA, F, pk, NULL, invpk); /* tmp = invsqrtA^2 */
+    pinf->mpz_poly_sqr_mod_f_mod_mpz (tmp, invsqrtA, F, pk, nullptr, invpk); /* tmp = invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_sqr_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %luM)\n",
+        fprintf (stderr, "Alg(%d):    mpz_poly_sqr_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %zuM)\n",
 		 numdep, seconds () - st, wct_seconds () - wct,
-		 PeakMemusage () >> 10);
+		 PeakMemusage () >> 10U);
         fflush (stderr);
       }
 
@@ -1077,26 +1051,26 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
        if 1-a*x^2 are divisible by p^(k/2). */
     st = seconds ();
     wct = wct_seconds ();
-    pinf->mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, a, F, pk, NULL, invpk); /* tmp=a*invsqrtA^2 */
+    pinf->mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, a, F, pk, nullptr, invpk); /* tmp=a*invsqrtA^2 */
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %luM)\n",
+        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %zuM)\n",
 		 numdep, seconds () - st, wct_seconds () - wct,
-		 PeakMemusage () >> 10);
+		 PeakMemusage () >> 10U);
         fflush (stderr);
       }
     mpz_poly_sub_ui (tmp, tmp, 1); /* a*invsqrtA^2-1 */
     pinf->mpz_poly_div_2_mod_mpz (tmp, tmp, pk); /* (a*invsqrtA^2-1)/2 */
     st = seconds ();
     wct = wct_seconds ();
-    pinf->mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, invsqrtA, F, pk, NULL, invpk);
+    pinf->mpz_poly_mul_mod_f_mod_mpz (tmp, tmp, invsqrtA, F, pk, nullptr, invpk);
     if (verbose)
 #pragma omp critical
       {
-        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %luM)\n",
+        fprintf (stderr, "Alg(%d):    mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %zuM)\n",
 		 numdep, seconds () - st, wct_seconds () - wct,
-		 PeakMemusage () >> 10);
+		 PeakMemusage () >> 10U);
         fflush (stderr);
       }
     /* tmp = invsqrtA/2 * (a*invsqrtA^2-1) */
@@ -1106,14 +1080,14 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
   /* multiply by a to get an approximation of the square root */
   st = seconds ();
   wct = wct_seconds ();
-  pinf->mpz_poly_mul_mod_f_mod_mpz (tmp, invsqrtA, a, F, pk, NULL, invpk);
+  pinf->mpz_poly_mul_mod_f_mod_mpz (tmp, invsqrtA, a, F, pk, nullptr, invpk);
   mpz_clear (invpk);
   if (verbose)
 #pragma omp critical
     {
-      fprintf (stderr, "Alg(%d):    final mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %luM)\n",
+      fprintf (stderr, "Alg(%d):    final mpz_poly_mul_mod_f_mod_mpz took %.2fs (wct %.2fs, peak %zuM)\n",
 	       numdep, seconds () - st, wct_seconds () - wct,
-	       PeakMemusage () >> 10);
+	       PeakMemusage () >> 10U);
       fflush (stderr);
     }
   mpz_poly_mod_center (tmp, pk);
@@ -1128,11 +1102,11 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
   mpz_poly_clear (invsqrtA);
   mpz_poly_clear (a);
 
-  size_t sqrt_size = mpz_poly_sizeinbase (res->p, 2);
+  const size_t sqrt_size = mpz_poly_sizeinbase (res->p, 2);
 #pragma omp critical
   {
     fprintf (stderr, "Alg(%d): maximal sqrt bit-size = %zu (%.0f%% of target size)\n",
-	     numdep, sqrt_size, 100.0 * (double) sqrt_size / target_size);
+	     numdep, sqrt_size, 100.0 * (double) sqrt_size / (double) target_size);
     fflush (stderr);
   }
 
@@ -1140,24 +1114,24 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
 }
 
 static unsigned long
-FindSuitableModP (mpz_poly F, mpz_t N)
+FindSuitableModP (cxx_mpz_poly const & F, cxx_mpz const & N)
 {
   unsigned long p = 2;
-  int dF = F->deg;
+  const int dF = F->deg;
 
   modul_poly_t fp;
 
   modul_poly_init (fp, dF);
   prime_info pi;
   prime_info_init (pi);
-  while (1)
+  while (true)
     {
     int d;
 
     p = getprime_mt (pi);
 
     /* check p does not divide N */
-    if (mpz_gcd_ui (NULL, N, p) != 1)
+    if (mpz_gcd_ui (nullptr, N, p) != 1)
       continue;
 
     /* check the leading coefficient of F does not vanish mod p */
@@ -1174,7 +1148,7 @@ FindSuitableModP (mpz_poly F, mpz_t N)
       {
 	fprintf (stderr, "Error, found no suitable prime up to %d\n", MAXP);
 	fprintf (stderr, "See paragraph \"Factoring with SNFS\" in README\n");
-	exit (1);
+	exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
       }
     }
   modul_poly_clear (fp);
@@ -1187,9 +1161,9 @@ FindSuitableModP (mpz_poly F, mpz_t N)
    Process dependencies numdep to numdep + nthreads - 1.
 */
 int
-calculateSqrtAlg (const char *prefix, int numdep,
-                  cado_poly_ptr cpoly, int side, mpz_t Np,
-                  mpz_poly_parallel_info * pinf)
+calculateSqrtAlg (std::string const & prefix, unsigned int numdep,
+                  cxx_cado_poly const & cpoly, int side, cxx_mpz const & Np,
+                  const mpz_poly_parallel_info * pinf)
 {
   FILE *resfile;
   unsigned long p;
@@ -1197,36 +1171,27 @@ calculateSqrtAlg (const char *prefix, int numdep,
 
   ASSERT_ALWAYS(side == 0 || side == 1);
 
-  char * sidename = get_depsidename (prefix, numdep, side);
+  const std::string sidename = get_depsidename (prefix, numdep, side);
 
   // Init F to be the corresponding polynomial
   cxx_mpz_poly F(cpoly->pols[side]);
   cxx_mpz_poly F_hat;
-  mpz_poly_realloc(F_hat, 1 + F->deg); // number of coefficients
   cxx_mpz_polymodF prod;
 
-  /* {{{ create F_hat, the minimal polynomial of alpha_hat = lc(F) *
-   * alpha */
-  {
-      cxx_mpz tmp;
-      mpz_init_set_ui(tmp, 1);
-      mpz_set_ui(F_hat->coeff[F->deg], 1);
-      for(int i = F->deg - 1 ; i >= 0 ; i--) {
-          mpz_mul(F_hat->coeff[i], tmp, F->coeff[i]);
-          mpz_mul(tmp, tmp, F->coeff[F->deg]);
-      }
-      mpz_poly_cleandeg(F_hat, F->deg);
-  }
-  /* }}} */
+  /* create F_hat, the minimal polynomial of alpha_hat = lc(F) * alpha */
+  mpz_poly_to_monic(F_hat, F);
 
   // Accumulate product with a subproduct tree
   {
-      cxx_mpz_polymodF_functions M(F, pinf);
+      const cxx_mpz_polymodF_functions M(F, pinf);
 
-      std::string message = fmt::format(FMT_STRING("Alg({})"), numdep);
-      char * depname = get_depname (prefix, "", numdep);
-      std::vector<cxx_mpz_polymodF> prd = read_ab_pairs_from_depfile(depname, M, message, nab, nfree);
-      free(depname);
+      const std::string message = fmt::format(FMT_STRING("Alg({})"), numdep);
+      std::vector<cxx_mpz_polymodF> prd = read_ab_pairs_from_depfile(
+              get_depname (prefix, "", numdep),
+              M,
+              message,
+              nab,
+              nfree);
 
       {
           cxx_mpz_poly scale, alpha_hat;
@@ -1241,8 +1206,8 @@ calculateSqrtAlg (const char *prefix, int numdep,
           prd.emplace_back(scale,0);
       }
 
-      ASSERT_ALWAYS ((nab & 1) == 0);
-      ASSERT_ALWAYS ((nfree & 1) == 0);
+      ASSERT_ALWAYS ((nab & 1U) == 0);
+      ASSERT_ALWAYS ((nfree & 1U) == 0);
       /* nfree being even is forced by a specific character column added
        * by character.c. The correspond assert should not fail.
        *
@@ -1282,10 +1247,9 @@ calculateSqrtAlg (const char *prefix, int numdep,
 
 
 #ifdef DEBUG
-    mpz_poly prod0;
+    cxx_mpz_poly prod0;
     unsigned long v0 = prod.v;
     ASSERT_ALWAYS(prod.p->deg == F->deg - 1);
-    mpz_poly_init (prod0, F->deg - 1);
     mpz_poly_set (prod0, prod.p);
 #endif
     unsigned long target_k MAYBE_UNUSED;
@@ -1295,51 +1259,44 @@ calculateSqrtAlg (const char *prefix, int numdep,
     /* we should have prod.p/fd^v = sqrt(prod0/fd^v0) mod (F,p^k)
        thus prod.p^2/fd^(2v) = prod0/fd^v0 mod (F,p^k)
        thus fd^v0*prod.p^2 = fd^(2v)*prod0 mod (F,p^k) */
-    mpz_poly q;
-    mpz_t pk, fdv0, fd2v;
-    mpz_poly_init (q, F->deg - 1);
-    mpz_init (pk);
+    cxx_mpz_poly q;
+    cxx_mpz pk, fdv0, fd2v;
     mpz_ui_pow_ui (pk, p, target_k);
-    mpz_poly_sqr_mod_f_mod_mpz (q, prod.p, F, pk, NULL, NULL);
+    mpz_poly_sqr_mod_f_mod_mpz (q, prod.p, F, pk, nullptr, nullptr);
     /* we should have fd^v0*q = fd^(2v)*prod0 mod p^k */
-    mpz_init (fdv0);
     mpz_powm_ui (fdv0, F->coeff[F->deg], v0, pk);
     mpz_poly_mul_mpz (q, q, fdv0);
-    mpz_poly_mod_mpz (q, q, pk, NULL);
+    mpz_poly_mod_mpz (q, q, pk, nullptr);
     /* now we should have q = fd^(2v)*prod0 mod p^k */
-    mpz_init (fd2v);
     mpz_powm_ui (fd2v, F->coeff[F->deg], 2 * v, pk);
     mpz_poly_mul_mpz (prod0, prod0, fd2v);
-    mpz_poly_mod_mpz (prod0, prod0, pk, NULL);
+    mpz_poly_mod_mpz (prod0, prod0, pk, nullptr);
     /* now we should have q = prod0 */
     ASSERT_ALWAYS(mpz_poly_cmp (q, prod0) == 0);
-    mpz_poly_clear (prod0);
-    mpz_clear (pk);
-    mpz_clear (fdv0);
-    mpz_clear (fd2v);
 #endif
 
 #pragma omp critical
     {
-      fprintf (stderr, "Alg(%d): square root lifted at %.2fs (wct %.2fs)\n",
-	       numdep, seconds(), wct_seconds () - wct0);
-      fflush (stderr);
+        fmt::print (stderr,
+                "Alg({}): square root lifted at {:.2f}s (wct {:.2f}s)\n",
+                numdep, seconds(), wct_seconds () - wct0);
+        fflush (stderr);
     }
 
-    mpz_t algsqrt, aux;
-    mpz_init(algsqrt);
-    mpz_init(aux);
-    mpz_t m;
+    cxx_mpz algsqrt, aux;
+    cxx_mpz m;
     int ret;
-    mpz_init(m);
+
+    cxx_mpz Np1 = Np;
+
     do {
-        ret = cado_poly_getm(m, cpoly, Np);
+        ret = cado_poly_getm(m, cpoly, Np1);
         if (!ret) {
-            gmp_fprintf(stderr, "When trying to compute m, got the factor %Zd\n", m);
-            mpz_divexact(Np, Np, m);
+            fmt::print(stderr, "When trying to compute m, got the factor {}\n", m);
+            mpz_divexact(Np1, Np1, m);
         }
     } while (!ret);
-    mpz_poly_eval_mod_mpz(algsqrt, prod->p, m, Np);
+    mpz_poly_eval_mod_mpz(algsqrt, prod->p, m, Np1);
 
     /* now divide by f'(alpha_hat), but mod N. alpha_hat mod N is lc*m
      */
@@ -1347,33 +1304,28 @@ calculateSqrtAlg (const char *prefix, int numdep,
         cxx_mpz scale_modN, alpha_hat_modN;
         mpz_mul(alpha_hat_modN, mpz_poly_lc(F), m);
         mpz_poly_eval_diff(scale_modN, F_hat, alpha_hat_modN);
-        mpz_invert(scale_modN, scale_modN, Np);
+        mpz_invert(scale_modN, scale_modN, Np1);
         mpz_mul(algsqrt, algsqrt, scale_modN);
-        mpz_mod(algsqrt, algsqrt, Np);
+        mpz_mod(algsqrt, algsqrt, Np1);
     }
 
-    mpz_clear(m);
-
-    mpz_invert(aux, F->coeff[F->deg], Np);  // 1/fd mod n
-    mpz_powm_ui(aux, aux, prod->v, Np);      // 1/fd^v mod n
+    mpz_invert(aux, mpz_poly_lc(F), Np1);  // 1/fd mod n
+    mpz_powm_ui(aux, aux, prod->v, Np1);      // 1/fd^v mod n
     mpz_mul(algsqrt, algsqrt, aux);
-    mpz_mod(algsqrt, algsqrt, Np);
+    mpz_mod(algsqrt, algsqrt, Np1);
 
-    resfile = fopen_maybe_compressed_lock (sidename, "wb");
-    gmp_fprintf (resfile, "%Zd\n", algsqrt);
-    fclose_maybe_compressed_lock (resfile, sidename);
+    resfile = fopen_maybe_compressed_lock (sidename.c_str(), "wb");
+    fmt::print (resfile, "{}\n", algsqrt);
+    fclose_maybe_compressed_lock (resfile, sidename.c_str());
 
 #pragma omp critical
     {
-      gmp_fprintf (stderr, "Alg(%d): square root is: %Zd\n",
+        fmt::print (stderr, "Alg({}): square root is: {}\n",
 		   numdep, algsqrt);
-      fprintf (stderr, "Alg(%d): square root completed at %.2fs (wct %.2fs)\n",
+        fmt::print (stderr, "Alg({}): square root completed at {:.2f}s (wct {:.2f}s)\n",
 	       numdep, seconds(), wct_seconds () - wct0);
-      fflush (stderr);
+        fflush (stderr);
     }
-    free (sidename);
-    mpz_clear(aux);
-    mpz_clear(algsqrt);
     return 0;
 }
 
@@ -1446,31 +1398,27 @@ void print_factor(mpz_t N)
 
 /********** GCD **********/
 int
-calculateGcd (const char *prefix, int numdep, mpz_t Np)
+calculateGcd (std::string const & prefix, unsigned int numdep, cxx_mpz const & Np)
 {
-    char *sidename[2];
-    FILE *sidefile[2] = {NULL, NULL};
-    mpz_t sidesqrt[2];
+    std::string sidename[2];
+    FILE *sidefile[2] = { nullptr, nullptr };
+    cxx_mpz sidesqrt[2];
     int found = 0;
 
     for (int side = 0; side < 2; ++side) {
         sidename[side] = get_depsidename (prefix, numdep, side);
-        sidefile[side] = fopen_maybe_compressed_lock (sidename[side], "rb");
-        mpz_init(sidesqrt[side]);
-        if (sidefile[side] == NULL) {
-            std::lock_guard<std::mutex> dummy(stdio_guard);
-            fprintf(stderr, "Error, cannot open file %s for reading\n",
+        sidefile[side] = fopen_maybe_compressed_lock (sidename[side].c_str(), "rb");
+        if (!sidefile[side]) {
+            const std::lock_guard<std::mutex> dummy(stdio_guard);
+            fmt::print(stderr, "Error, cannot open file {} for reading\n",
                     sidename[side]);
-            exit(EXIT_FAILURE);
+            exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
         }
-        gmp_fscanf (sidefile[side], "%Zd", sidesqrt[side]);
-        fclose_maybe_compressed_lock (sidefile[side], sidename[side]);
-        free(sidename[side]);
+        gmp_fscanf (sidefile[side], "%Zd", (mpz_ptr) sidesqrt[side]);
+        fclose_maybe_compressed_lock (sidefile[side], sidename[side].c_str());
     }
 
-    mpz_t g1, g2;
-    mpz_init(g1);
-    mpz_init(g2);
+    cxx_mpz g1, g2;
 
     // reduce mod Np
     mpz_mod(sidesqrt[0], sidesqrt[0], Np);
@@ -1484,7 +1432,7 @@ calculateGcd (const char *prefix, int numdep, mpz_t Np)
     mpz_mod(g2, g2, Np);
 
     if (mpz_cmp(g1, g2)!=0) {
-      std::lock_guard<std::mutex> dummy(stdio_guard);
+      const std::lock_guard<std::mutex> dummy(stdio_guard);
       fprintf(stderr, "Bug: the squares do not agree modulo n!\n");
       ASSERT_ALWAYS(0);
       //      gmp_printf("g1:=%Zd;\ng2:=%Zd;\n", g1, g2);
@@ -1495,7 +1443,7 @@ calculateGcd (const char *prefix, int numdep, mpz_t Np)
     if (mpz_cmp(g1,Np)) {
       if (mpz_cmp_ui(g1,1)) {
         found = 1;
-        std::lock_guard<std::mutex> dummy(stdio_guard);
+        const std::lock_guard<std::mutex> dummy(stdio_guard);
         print_factor(g1);
       }
     }
@@ -1505,20 +1453,15 @@ calculateGcd (const char *prefix, int numdep, mpz_t Np)
     if (mpz_cmp(g2,Np)) {
       if (mpz_cmp_ui(g2,1)) {
         found = 1;
-        std::lock_guard<std::mutex> dummy(stdio_guard);
+        const std::lock_guard<std::mutex> dummy(stdio_guard);
         print_factor(g2);
       }
     }
-    mpz_clear(g1);
-    mpz_clear(g2);
 
     if (!found) {
-      std::lock_guard<std::mutex> dummy(stdio_guard);
+      const std::lock_guard<std::mutex> dummy(stdio_guard);
       printf ("Failed\n");
     }
-
-    mpz_clear(sidesqrt[0]);
-    mpz_clear(sidesqrt[1]);
 
     return 0;
 }
@@ -1535,7 +1478,7 @@ typedef struct
 void *
 thread_sqrt (void * context_data, earlyparsed_relation_ptr rel)
 {
-  sqrt_data_t *data = (sqrt_data_t *) context_data;
+  auto data = (sqrt_data_t *) context_data;
   for(unsigned int j = 0 ; j < data->nonzero_deps ; j++)
   {
     if (data->abs[rel->num] & data->dep_masks[j])
@@ -1544,7 +1487,7 @@ thread_sqrt (void * context_data, earlyparsed_relation_ptr rel)
       data->dep_counts[j]++;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 void create_dependencies(const char * prefix, const char * indexname, const char * purgedname, const char * kername)
@@ -1561,12 +1504,18 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     /* Check that kername has consistent size */
     {
         ker = fopen(kername, "rb");
-        if (ker == NULL) { perror(kername); exit(errno); }
+        if (!ker) {
+            perror(kername);
+            exit(errno);        // NOLINT(concurrency-mt-unsafe)
+        }
         struct stat sbuf[1];
         ret = fstat(fileno(ker), sbuf);
-        if (ret < 0) { perror(kername); exit(errno); }
+        if (ret < 0) {
+            perror(kername);
+            exit(errno);        // NOLINT(concurrency-mt-unsafe)
+        }
         ASSERT_ALWAYS(sbuf->st_size % small_nrows == 0);
-        unsigned int ndepbytes = sbuf->st_size / small_nrows;
+        const unsigned int ndepbytes = sbuf->st_size / small_nrows;
         fprintf(stderr, "%s contains %u dependencies (including padding)\n",
                 kername, 8 * ndepbytes);
         ker_stride = ndepbytes - sizeof(uint64_t);
@@ -1578,21 +1527,20 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     uint64_t nrows, ncols;
     purgedfile_read_firstline (purgedname, &nrows, &ncols);
 
-    uint64_t * abs = (uint64_t *) malloc(nrows * sizeof(uint64_t));
-    ASSERT_ALWAYS(abs != NULL);
-    memset(abs, 0, nrows * sizeof(uint64_t));
+    std::unique_ptr<uint64_t[]> abs(new uint64_t[nrows]);
+    std::fill(abs.get(), abs.get() + nrows, 0);
 
     for(uint64_t i = 0 ; i < small_nrows ; i++) {
         uint64_t v;
-        ret = fread(&v, sizeof(uint64_t), 1, ker);
+        ret = (int) fread(&v, sizeof(uint64_t), 1, ker);
         if (ker_stride) fseek(ker, ker_stride, SEEK_CUR);
 
         /* read the index row */
         int nc;
-        ret = fscanf(ix, "%d", &nc); ASSERT_ALWAYS(ret == 1);
+        ret = (int) fscanf(ix, "%d", &nc); ASSERT_ALWAYS(ret == 1);
         for(int k = 0 ; k < nc ; k++) {
             uint64_t col;
-            ret = fscanf(ix, "%" SCNx64 "", &col); ASSERT_ALWAYS(ret == 1);
+            ret = (int) fscanf(ix, "%" SCNx64 "", &col); ASSERT_ALWAYS(ret == 1);
             ASSERT_ALWAYS(col < nrows);
             abs[col] ^= v;
         }
@@ -1606,11 +1554,11 @@ void create_dependencies(const char * prefix, const char * indexname, const char
         sanity |= abs[i];
     }
     uint64_t dep_masks[64]={0,};
-    char * dep_names[64];
+    std::string dep_names[64];
     FILE * dep_files[64];
     unsigned int dep_counts[64]={0,};
 
-    for(int i = 0 ; i < 64 ; i++) {
+    for(unsigned int i = 0 ; i < 64U ; i++) {
         uint64_t m = UINT64_C(1) << i;
         if (sanity & m)
             dep_masks[nonzero_deps++] = m;
@@ -1618,95 +1566,61 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     fprintf(stderr, "Total: %u non-zero dependencies\n", nonzero_deps);
     for(unsigned int i = 0 ; i < nonzero_deps ; i++) {
         dep_names[i] = get_depname (prefix, "", i);
-        dep_files[i] = fopen_maybe_compressed (dep_names[i], "wb");
-        ASSERT_ALWAYS(dep_files[i] != NULL);
+        dep_files[i] = fopen_maybe_compressed (dep_names[i].c_str(), "wb");
+        ASSERT_ALWAYS(dep_files[i]);
     }
 
-    sqrt_data_t data = {.abs = abs, .dep_masks = dep_masks,
+    sqrt_data_t data = {.abs = abs.get(), .dep_masks = dep_masks,
                         .dep_counts = dep_counts, .nonzero_deps = nonzero_deps,
                         .dep_files = dep_files};
-    char *fic[2] = {(char *) purgedname, NULL};
+    char *fic[2] = {(char *) purgedname, nullptr};
     filter_rels (fic, (filter_rels_callback_t) thread_sqrt, &data,
-          EARLYPARSE_NEED_AB_HEXA, NULL, NULL);
+          EARLYPARSE_NEED_AB_HEXA, nullptr, nullptr);
 
 
     fprintf(stderr, "Written %u dependencies files\n", nonzero_deps);
     for(unsigned int i = 0 ; i < nonzero_deps ; i++) {
-        fprintf(stderr, "%s : %u (a,b) pairs\n", dep_names[i], dep_counts[i]);
-        fclose_maybe_compressed (dep_files[i], dep_names[i]);
-        free (dep_names[i]);
+        fprintf(stderr, "%s : %u (a,b) pairs\n", dep_names[i].c_str(), dep_counts[i]);
+        fclose_maybe_compressed (dep_files[i], dep_names[i].c_str());
     }
-    free (abs);
 }
 
-
-struct sqrt_thread_args
-{
-  const char *prefix;
-  int task;            /* 0:ratsqrt 1:algsqrt 2:gcd */
-  int numdep;
-  cado_poly_ptr cpoly;
-  int side;
-  mpz_ptr Np;
-  mpz_poly_parallel_info * pinf;
-};
-typedef struct sqrt_thread_args * sqrt_thread_ptr;
-typedef struct sqrt_thread_args sqrt_thread[1];
 
 #define TASK_SQRT 0
 #define TASK_GCD  2
 /* perform one task (rat or alg or gcd) on one dependency */
-void*
-one_thread (void* args)
+void
+one_thread (std::string const & prefix, int task, unsigned int numdep, cxx_cado_poly const & cpoly, int side, cxx_mpz const & Np, const mpz_poly_parallel_info * pinf)
 {
-  sqrt_thread_ptr tab = (sqrt_thread_ptr) args;
-  if (tab->task == TASK_SQRT) {
-      if (tab->cpoly->pols[tab->side]->deg == 1) {
-          calculateSqrtRat (tab->prefix, tab->numdep, tab->cpoly,
-                  tab->side, tab->Np);
+  if (task == TASK_SQRT) {
+      if (cpoly->pols[side]->deg == 1) {
+          calculateSqrtRat (prefix, numdep, cpoly, side, Np);
       } else {
-          calculateSqrtAlg (tab->prefix, tab->numdep, tab->cpoly,
-                  tab->side, tab->Np, tab->pinf);
+          calculateSqrtAlg (prefix, numdep, cpoly, side, Np, pinf);
       }
   } else /* gcd */
-    calculateGcd (tab->prefix, tab->numdep, tab->Np);
-  return NULL;
+    calculateGcd (prefix, numdep, Np);
 }
 
 /* process task (0=sqrt, 2=gcd) in parallel for
    dependencies numdep to numdep + nthreads - 1 */
 void
-calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
-                cado_poly cpoly, int side, mpz_t Np)
+calculateTaskN (int task, std::string const & prefix, unsigned int numdep, int nthreads,
+                cxx_cado_poly const & cpoly, int side, cxx_mpz const & Np)
 {
-  pthread_t *tid;
-  sqrt_thread *T;
-  int j;
-
   /* This descriptor will hold info about "how" we parallelize the
    * mpz_poly operations. For the moment, there's not a lot in there.
    * Only the fact that the pointer that we pass is not NULL is
    * significant! But eventually, we may find it useful to add more
    * stuff.
    */
-  mpz_poly_parallel_info pinf[1];
+  const mpz_poly_parallel_info pinf;
 
   omp_set_num_threads(iceildiv(omp_get_max_threads(), nthreads));
 
-  tid = (pthread_t*) malloc (nthreads * sizeof (pthread_t));
-  ASSERT_ALWAYS(tid != NULL);
-  T = (sqrt_thread*) malloc (nthreads * sizeof (sqrt_thread));
-  ASSERT_ALWAYS(T != NULL);
-  for (j = 0; j < nthreads; j++)
-    {
-      T[j]->prefix = prefix;
-      T[j]->task = task;
-      T[j]->numdep = numdep + j;
-      T[j]->cpoly = cpoly;
-      T[j]->side = side;
-      T[j]->Np = Np;
-      T[j]->pinf = pinf;
-    }
+  std::vector<std::thread> threads;
+  threads.reserve(nthreads);
+
 #if defined(__OpenBSD__) || defined(HAVE_MUSL)
   /* On openbsd, we have obscure failures that seem to be triggered
    * by multithreading. So let's play it simple.
@@ -1715,16 +1629,14 @@ calculateTaskN (int task, const char *prefix, int numdep, int nthreads,
    * by alpine linux). Note that HAVE_MUSL is a custom flag that we define
    * ourselves.
    */
-  for (j = 0; j < nthreads; j++)
-      (*one_thread)((void*)(T+j));
+  for (int j = 0; j < nthreads; j++)
+      one_thread(prefix, task, numdep + j, cpoly, side, Np, &pinf);
 #else
-  for (j = 0; j < nthreads; j++)
-      pthread_create (&tid[j], NULL, one_thread, (void *) (T+j));
-  while (j > 0)
-      pthread_join (tid[--j], NULL);
+  for (int j = 0; j < nthreads; j++)
+      threads.emplace_back(one_thread, prefix, task, numdep + j, cpoly, side, Np, & pinf);
+
+  for(auto & t : threads) t.join();
 #endif
-  free (tid);
-  free (T);
 }
 
 void declare_usage(param_list pl)
@@ -1752,14 +1664,14 @@ void usage(param_list pl, const char * argv0, FILE *f)
     fprintf(f, "or %s (-side0 || -side1 || -gcd) -poly polyname -prefix prefix -dep numdep -t ndep\n\n", argv0);
     fprintf(f, "(a,b) pairs of dependency relation 'numdep' will be r/w in file 'prefix.numdep',");
     fprintf(f, " side0 sqrt in 'prefix.side0.numdep' ...\n");
-    exit(EXIT_FAILURE);
+    exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
 }
 
 // coverity[root_function]
 int main(int argc, char *argv[])
 {
-    cado_poly cpoly;
-    int numdep = -1, nthreads = 1, ret MAYBE_UNUSED, i;
+    unsigned int numdep = UINT_MAX;
+    int nthreads = 1, ret MAYBE_UNUSED, i;
 
     char * me = *argv;
     /* print the command line */
@@ -1768,8 +1680,7 @@ int main(int argc, char *argv[])
       fprintf (stderr, " %s", argv[i]);
     fprintf (stderr, "\n");
 
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
     declare_usage(pl);
 
     int opt_ab = 0;    /* create dependency files */
@@ -1787,44 +1698,46 @@ int main(int argc, char *argv[])
         if (param_list_update_cmdline(pl, &argc, &argv)) continue;
         if (strcmp(*argv, "--help") == 0) {
             usage(pl, me, stderr);
-            exit(0);
+            return EXIT_SUCCESS;
         } else {
             fprintf(stderr, "unexpected argument: %s\n", *argv);
             usage(pl, me, stderr);
-            exit(1);
+            return EXIT_FAILURE;
         }
     }
     const char * tmp;
-    if((tmp = param_list_lookup_string(pl, "poly")) == NULL) {
+    if(!(tmp = param_list_lookup_string(pl, "poly"))) {
         fprintf(stderr, "Parameter -poly is missing\n");
         usage(pl, me, stderr);
-        exit(1);
+        return EXIT_FAILURE;
     }
-    cado_poly_init(cpoly);
+
+    cxx_cado_poly cpoly;
+
     ret = cado_poly_read(cpoly, tmp);
     if (ret == 0) {
         fprintf(stderr, "Could not read polynomial file\n");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
-    param_list_parse_int (pl, "dep", &numdep);
+    param_list_parse_uint (pl, "dep", &numdep);
     param_list_parse_int (pl, "t", &nthreads);
     const char * purgedname = param_list_lookup_string(pl, "purged");
     const char * indexname = param_list_lookup_string(pl, "index");
     const char * kername = param_list_lookup_string(pl, "ker");
     const char * prefix = param_list_lookup_string(pl, "prefix");
-    if (prefix == NULL) {
+    if (!prefix) {
         fprintf(stderr, "Parameter -prefix is missing\n");
-        exit(1);
+        return EXIT_FAILURE;
     }
     if (param_list_warn_unused(pl))
-        exit(1);
+        return EXIT_FAILURE;
 
     /* if no options then -ab -side0 -side1 -gcd */
     if (!(opt_ab || opt_side0 || opt_side1 || opt_gcd))
         opt_ab = opt_side0 = opt_side1 = opt_gcd = 1;
 
-    double cpu0 = seconds ();
+    const double cpu0 = seconds ();
     wct0 = wct_seconds();
 
     /*
@@ -1833,23 +1746,20 @@ int main(int argc, char *argv[])
      * will fail. Let's compute N', the factor of N that is coprime to
      * those leading coefficients.
      */
-    mpz_t Np;
-    mpz_init(Np);
+    cxx_mpz Np;
     {
-        mpz_t gg;
-        mpz_init(gg);
+        cxx_mpz gg;
         mpz_set(Np, cpoly->n);
         for (int side = 0; side < 2; ++side) {
             do {
-                mpz_gcd(gg, Np, cpoly->pols[side]->coeff[cpoly->pols[side]->deg]);
+                mpz_gcd(gg, Np, mpz_poly_lc(cpoly->pols[side]));
                 if (mpz_cmp_ui(gg, 1) != 0) {
-                    gmp_fprintf(stderr, "Warning: found the following factor of N as a factor of g: %Zd\n", gg);
+                    fmt::print(stderr, "Warning: found the following factor of N as a factor of g: {}\n", gg);
                     print_factor(gg);
                     mpz_divexact(Np, Np, gg);
                 }
             } while (mpz_cmp_ui(gg, 1) != 0);
         }
-        mpz_clear(gg);
         /* Trial divide Np, to avoid bug if a stupid input is given */
         {
             unsigned long p;
@@ -1864,20 +1774,14 @@ int main(int argc, char *argv[])
             prime_info_clear (pi);
         }
         if (mpz_cmp(cpoly->n, Np) != 0)
-            gmp_fprintf(stderr, "Now factoring N' = %Zd\n", Np);
+            fmt::print(stderr, "Now factoring N' = {}\n", Np);
         if (mpz_cmp_ui(Np, 1) == 0) {
-            gmp_fprintf(stderr, "Hey N' is 1! Stopping\n");
-            cado_poly_clear (cpoly);
-            param_list_clear(pl);
-            mpz_clear(Np);
+            fmt::print(stderr, "Hey N' is 1! Stopping\n");
             return 0;
         }
         if (mpz_probab_prime_p(Np, 10) || mpz_perfect_power_p(Np)) {
-            gmp_fprintf(stderr, "Hey N' is (power of) prime! Stopping\n");
+            fmt::print(stderr, "Hey N' is (power of) prime! Stopping\n");
             print_factor(Np);
-            cado_poly_clear (cpoly);
-            param_list_clear(pl);
-            mpz_clear(Np);
             return 0;
         }
     }
@@ -1887,17 +1791,17 @@ int main(int argc, char *argv[])
          * together -- should be enough for our purposes, even if we do
          * have more dependencies !
          */
-        if (indexname == NULL) {
+        if (!indexname) {
             fprintf(stderr, "Parameter -index is missing\n");
-            exit(1);
+            return EXIT_FAILURE;
         }
-        if (purgedname == NULL) {
+        if (!purgedname) {
             fprintf(stderr, "Parameter -purged is missing\n");
-            exit(1);
+            return EXIT_FAILURE;
         }
-        if (kername == NULL) {
+        if (!kername) {
             fprintf(stderr, "Parameter -ker is missing\n");
-            exit(1);
+            return EXIT_FAILURE;
         }
         create_dependencies(prefix, indexname, purgedname, kername);
     }
@@ -1927,30 +1831,24 @@ int main(int argc, char *argv[])
     if (nthreads == 0)
       {
         fprintf (stderr, "Error, no more dependency\n");
-        cado_poly_clear (cpoly);
-        param_list_clear (pl);
-        mpz_clear (Np);
         return 1;
       }
 
     if (opt_side0) {
-        ASSERT_ALWAYS(numdep != -1);
+        ASSERT_ALWAYS(numdep != UINT_MAX);
         calculateTaskN(TASK_SQRT, prefix, numdep, nthreads, cpoly, 0, Np);
     }
 
     if (opt_side1) {
-        ASSERT_ALWAYS(numdep != -1);
+        ASSERT_ALWAYS(numdep != UINT_MAX);
         calculateTaskN(TASK_SQRT, prefix, numdep, nthreads, cpoly, 1, Np);
     }
 
     if (opt_gcd) {
-        ASSERT_ALWAYS(numdep != -1);
+        ASSERT_ALWAYS(numdep != UINT_MAX);
         calculateTaskN(TASK_GCD, prefix, numdep, nthreads, cpoly, 0, Np);
     }
 
-    cado_poly_clear (cpoly);
-    param_list_clear (pl);
-    mpz_clear (Np);
     print_timing_and_memory (stderr, cpu0, wct0);
     return 0;
 }

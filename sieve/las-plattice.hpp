@@ -77,9 +77,8 @@ typedef uint64_t plattice_x_t;
 
 class plattice_info;  // IWYU pragma: keep
 
-template<int /* LEVEL */>
 struct plattice_info_dense_t;
-template<int LEVEL>
+
 class plattice_enumerator;
 
 /* Information on a p-lattice: lattice basis coordinates, and auxiliary
@@ -88,12 +87,8 @@ class plattice_enumerator;
 class plattice_info {
     // vectors are (-mi0,j0) (the "warp" vector) 
     //         and (i1,j1) (the "step" vector)
-    friend struct plattice_info_dense_t<1>;
-    friend struct plattice_info_dense_t<2>;
-    friend struct plattice_info_dense_t<3>;
-    friend class plattice_enumerator<1>;
-    friend class plattice_enumerator<2>;
-    friend class plattice_enumerator<3>;
+    friend struct plattice_info_dense_t;
+    friend class plattice_enumerator;
     protected:
 
         uint32_t mi0;  /* This encodes i0 = -mi0 */
@@ -423,7 +418,6 @@ struct plattice_enumerator_base {
 };
 
 /* Class for enumerating lattice points with the Franke-Kleinjung algorithm */
-template<int LEVEL>
 class plattice_enumerator : public plattice_enumerator_base {
 protected:
     // Maybe at some point, the plattice_x_t type could be templated in
@@ -539,28 +533,26 @@ public:
 /* Also enumerates lattice points, but probably_coprime() does a full gcd()
    to ensure that points are really coprime. Very slow. Not used, just there
    for experimenting.*/
-template<int LEVEL>
-class plattice_enumerator_coprime : public plattice_enumerator<LEVEL> {
+class plattice_enumerator_coprime : public plattice_enumerator {
   unsigned long u, v;
-  typedef plattice_enumerator<LEVEL> super;
+  typedef plattice_enumerator super;
   typedef typename super::fence fence;
 public:
   plattice_enumerator_coprime(const plattice_info &basis,
           const slice_offset_t hint, const int logI, const sublat_t &sublat)
-    : plattice_enumerator<LEVEL>(basis, hint, logI, sublat), u(0), v(0) {}
+    : plattice_enumerator(basis, hint, logI, sublat), u(0), v(0) {}
   void next(fence const & F) {
     uint32_t i = super::x & F.maskI;
     if (i >= super::bound_warp) { super::x += super::inc_warp; u++; }
     if (i < super::bound_step) { super::x += super::inc_step; v++; }
   }
-  bool probably_coprime(typename plattice_enumerator<LEVEL>::fence const & F) const {
+  bool probably_coprime(plattice_enumerator::fence const & F) const {
     return (super::x & F.even_mask) != 0 && gcd_ul(u, v) == 1;
   }
 };
 
-template<int LEVEL>
 class plattices_vector_t:
-        public std::vector<plattice_enumerator<LEVEL>> {
+        public std::vector<plattice_enumerator> {
     /* The index here is the global index, across all fb parts */
     slice_index_t index = -1;
     double weight = 0;
@@ -575,9 +567,6 @@ public:
 /* Dense version of plattice_info and friends for long-term storage in
  * sublat mode. */
 
-/* This can now be a template. We don't use it, so far.
- */
-template<int /* LEVEL */>
 struct plattice_info_dense_t {
     uint32_t pack[3];
     // This pack of 96 bits is enough to contain
@@ -658,9 +647,8 @@ struct plattice_info_dense_t {
 
 };
 
-template<int LEVEL>
 class plattices_dense_vector_t:
-        public std::vector<plattice_info_dense_t<LEVEL>> {
+        public std::vector<plattice_info_dense_t> {
 public:
 #if !GNUC_VERSION(4,7,2)
     /* Apparently there's a bug in gcc 4.7.2, which does not recognize
@@ -676,35 +664,13 @@ public:
 #endif
 };
 
-// std::vector<plattices_dense_vector_t<LEVEL>> is for remembering the FK
+// std::vector<plattices_dense_vector_t> is for remembering the FK
 // basis in sublat mode, between two different congruences of (i,j) mod
 // m. For simplicity, we remember them only for the toplevel.
-template<int LEVEL>
+template<int>
 struct precomp_plattice_dense_t {
-    typedef std::vector<plattices_dense_vector_t<LEVEL>> type;
+    typedef std::vector<plattices_dense_vector_t> type;
 };
-
-
-/* All of these are defined in las-plattice.cpp */
-extern template class plattice_enumerator<1>;
-extern template class plattice_enumerator_coprime<1>;
-extern template class plattices_vector_t<1>;
-extern template class plattices_dense_vector_t<1>;
-extern template struct precomp_plattice_dense_t<1>;
-extern template class plattice_enumerator<2>;
-extern template class plattice_enumerator_coprime<2>;
-extern template class plattices_vector_t<2>;
-extern template class plattices_dense_vector_t<2>;
-extern template struct precomp_plattice_dense_t<2>;
-extern template class plattice_enumerator<3>;
-extern template class plattice_enumerator_coprime<3>;
-extern template struct plattice_info_dense_t<1>;
-extern template struct plattice_info_dense_t<2>;
-extern template class plattices_vector_t<3>;
-extern template struct plattice_info_dense_t<3>;
-extern template class plattices_dense_vector_t<3>;
-extern template struct precomp_plattice_dense_t<3>;
-
 
 
 #endif

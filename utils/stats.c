@@ -6,6 +6,7 @@
 #include "stats.h"
 #include "timing.h"     // wct_seconds
 
+// NOLINTBEGIN(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
 void
 stats_init (stats_data_t r, FILE *f, uint64_t *followed_var,
             uint8_t max_log_report, const char *verb, const char *name,
@@ -55,10 +56,10 @@ stats_print_progress (stats_data_t r, uint64_t i, uint64_t outof, size_t nByte,
   double t, dt, speed;
   t = wct_seconds();
   dt = t - r->t0;
-  speed = dt > 0.01 ? i/dt : INFINITY;
+  speed = dt > 0.01 ? (double) i/dt : INFINITY;
   if (nByte > 0)
   {
-    double mb_s = dt > 0.01 ? (nByte/dt * 1.0e-6) : INFINITY;
+    double mb_s = dt > 0.01 ? ((double) nByte/dt * 1.0e-6) : INFINITY;
     snprintf (MBpart, 32, "-- %.1f MB/s ", mb_s);
   }
   if (outof > 0)
@@ -71,3 +72,4 @@ stats_print_progress (stats_data_t r, uint64_t i, uint64_t outof, size_t nByte,
     r->log_report++;
   r->last_report = (*(r->followed_var) >> r->log_report);
 }
+// NOLINTEND(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)

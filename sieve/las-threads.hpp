@@ -1,20 +1,22 @@
 #ifndef LAS_THREADS_HPP_
 #define LAS_THREADS_HPP_
 
-#include <stddef.h>        // for size_t
+#include <cstddef>         // for size_t
 #include <array>           // for array
 #include <vector>          // for vector
 #include "bucket.hpp"      // for bucket_array_t, emptyhint_t (ptr only)
 #include "las-bkmult.hpp"  // for bkmult_specifier
 #include "las-config.h"    // for FB_MAX_PARTS
 #include "threadpool.hpp"  // for thread_pool (ptr only), condition_variable
+#include <mutex>
+#include <condition_variable>
 class las_memory_accessor;
 class nfs_aux;
 
 /* A set of n bucket arrays, all of the same type, and methods to reserve one
    of them for exclusive use and to release it again. */
 template <typename T>
-class reservation_array : private monitor {
+class reservation_array : public monitor {
     /* typically, T is here bucket_array_t<LEVEL, HINT>. It's a
      * non-copy-able object. Yet, it's legit to use std::vectors's on
      * such objects in c++11, provided that we limit ourselves to the
@@ -23,18 +25,32 @@ class reservation_array : private monitor {
      */
     std::vector<T> BAs;
     std::vector<bool> in_use;
-  condition_variable cv;
+    std::condition_variable cv;
   /* Return the index of the first entry that's currently not in use, or the
      first index out of array bounds if all are in use */
+  ATTRIBUTE_NODISCARD
   size_t find_free() const {
     return std::find(in_use.begin(), in_use.end(), false) - in_use.begin();
   }
+  inline T& use_(int i) {
+      ASSERT_ALWAYS(!in_use[i]);
+      in_use[i]=true; 
+      return BAs[i];
+  }
+public:
   reservation_array(reservation_array const &) = delete;
   reservation_array& operator=(reservation_array const&) = delete;
-public:
+  
+  /* I think that moves are ok */
+  reservation_array(reservation_array &&) noexcept = default;
+  reservation_array& operator=(reservation_array &&) noexcept = default;
+
   typedef typename T::update_t update_t;
-  reservation_array(reservation_array &&) = default;
-  reservation_array(size_t n) : BAs(n), in_use(n, false) { }
+
+  explicit reservation_array(size_t n)
+      : BAs(n)
+      , in_use(n, false)
+  { }
 
   /* Allocate enough memory to be able to store at least n_bucket buckets,
      each of size at least fill_ratio * bucket region size. */
@@ -42,7 +58,11 @@ public:
   // typename std::vector<T>::const_iterator cbegin() const {return BAs.cbegin();}
   // typename std::vector<T>::const_iterator cend() const {return BAs.cend();}
   // std::vector<T>& arrays() { return BAs; }
+
+  ATTRIBUTE_NODISCARD
   std::vector<T> const& bucket_arrays() const { return BAs; }
+
+  ATTRIBUTE_NODISCARD
   inline int rank(T const & BA) const { return &BA - BAs.data(); }
 
   void reset_all_pointers() { for(auto & A : BAs) A.reset_pointers(); }

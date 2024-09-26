@@ -1547,10 +1547,10 @@ main (int argc, char *argv[])
 #endif
     printf ("\n");
 
-    printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%luM\n",
+    printf ("N=%" PRIu64 " W=%" PRIu64 " W/N=%.2f cpu=%.1fs wct=%.1fs mem=%zuM\n",
 	    mat->rem_nrows, mat->tot_weight, average_density (mat),
 	    seconds () - cpu0, wct_seconds () - wct0,
-	    PeakMemusage () >> 10);
+	    PeakMemusage () >> 10U);
 #ifdef BIG_BROTHER
     printf("$$$ N: %" PRId64 "\n", mat->nrows);
     printf("$$$ start:\n");
@@ -1646,7 +1646,7 @@ main (int argc, char *argv[])
           {
             fprintf (stderr, "Error, no merge done while n_possible_merges > 0\n");
             fprintf (stderr, "Please check the entries in your purged file are sorted\n");
-            exit (EXIT_FAILURE);
+            exit(EXIT_FAILURE);         // NOLINT(concurreny-mt-unsafe)
           }
 
 	/* settings for next pass */
@@ -1658,7 +1658,7 @@ main (int argc, char *argv[])
 			mat->cwmax ++;
 	}
 
-	if (mat->rem_ncols < 0.66 * mat->ncols) {
+	if (mat->rem_ncols < 0.66 * (double) mat->ncols) {
 	  static int recompress_pass = 0;
 	  printf("============== Recompress %d ==============\n", ++recompress_pass);
 	  recompress(mat, jmin);
@@ -1679,12 +1679,12 @@ main (int argc, char *argv[])
 	double av_fill_in = ((double) mat->tot_weight - (double) lastW)
 	  / (double) (lastN - mat->rem_nrows);
 
-	printf ("N=%" PRIu64 " W=%" PRIu64 " (%.0fMB) W/N=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%luM [pass=%d,cwmax=%d]\n",
+	printf ("N=%" PRIu64 " W=%" PRIu64 " (%.0fMB) W/N=%.2f fill-in=%.2f cpu=%.1fs wct=%.1fs mem=%zuM [pass=%d,cwmax=%d]\n",
 		mat->rem_nrows, mat->tot_weight,
-		9.5367431640625e-07 * (mat->rem_nrows + mat->tot_weight) * sizeof(index_t),
+		9.5367431640625e-07 * (double) (mat->rem_nrows + mat->tot_weight) * sizeof(index_t),
 		(double) mat->tot_weight / (double) mat->rem_nrows, av_fill_in,
 		seconds () - cpu0, wct_seconds () - wct0,
-		PeakMemusage () >> 10, merge_pass, mat->cwmax);
+		PeakMemusage () >> 10U, merge_pass, mat->cwmax);
 	fflush (stdout);
 
 	if (average_density (mat) >= target_density)

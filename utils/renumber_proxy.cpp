@@ -22,7 +22,7 @@ void renumber_table_init(renumber_proxy_ptr R, cado_poly_ptr P)
 
 void renumber_table_clear(renumber_proxy_ptr R)
 {
-    deref(R)->~renumber_t();
+    delete deref(R);
 }
 
 void renumber_table_set_lpb(renumber_proxy_ptr R, const unsigned int * lpb, size_t n)
@@ -131,6 +131,11 @@ bool renumber_table_index_is_additional_column(renumber_proxy_srcptr R, index_t 
 index_t renumber_table_index_from_p_r (renumber_proxy_srcptr R, p_r_values_t p, p_r_values_t r, int side)
 {
     return deref(R)->index_from_p_r(p, r, side);
+}
+
+int renumber_table_p_r_side_get_inertia (renumber_proxy_srcptr R, p_r_values_t p, p_r_values_t r, int side)
+{
+    return deref(R)->inertia_from_p_r(p, r, side);
 }
 
 bool renumber_table_p_r_from_index(renumber_proxy_srcptr R, p_r_values_t * pp, p_r_values_t * pr, int * pside, index_t h)

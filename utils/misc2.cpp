@@ -74,6 +74,9 @@ struct mpz_parser_traits {
     void sub(cxx_mpz & c, cxx_mpz const & a, cxx_mpz const & b) {
         mpz_sub(c, a, b);
     }
+    void neg(cxx_mpz & c, cxx_mpz const & a) {
+        mpz_neg(c, a);
+    }
     void mul(cxx_mpz & c, cxx_mpz const & a, cxx_mpz const & b) {
         mpz_mul(c, a, b);
     }

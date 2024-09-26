@@ -137,6 +137,8 @@ class nfs_aux {/*{{{*/
         where_am_I w;
         //thread_data(nfs_aux & t) : common(t) {}
         void update_checksums(int side, const unsigned char *data, const size_t len) {
+            if (!data)
+                return;
             /* It's simpler to auto-vivify */
             for( ; checksum_post_sieve.size() <= (size_t) side ; )
                 checksum_post_sieve.emplace_back();
@@ -185,14 +187,14 @@ extern tdict::slot tdict_slot_for_fibt;
 
 #define ENTER_THREAD_TIMER(timer)       \
     ACTIVATE_TIMER_IF_NOT_RUNNING(timer);                           \
-    typename std::remove_reference<decltype(timer)>::type::accounting_child UNIQUE_ID(dummy)(timer, tdict_slot_for_threads)
+    const typename std::remove_reference<decltype(timer)>::type::accounting_child UNIQUE_ID(dummy)(timer, tdict_slot_for_threads)
 
 #define ENTER_THREAD_FUZZY_TIMER(T, U)       \
     ACTIVATE_TIMER_IF_NOT_RUNNING(T);                           \
-    tdict::tie_timer<typename TIMER_TYPE_(T)::timer_type, fast_timetree_t::timer_type> U(T, tdict_slot_for_threads)
+    const tdict::tie_timer<typename TIMER_TYPE_(T)::timer_type, fast_timetree_t::timer_type> U(T, tdict_slot_for_threads)
 
 #define MARK_TIMER_FOR_SIDE(timer, side)       \
-    typename std::remove_reference<decltype(timer)>::type::accounting_child UNIQUE_ID(dummy)(timer, tdict_slot_for_side(side))
+    const typename std::remove_reference<decltype(timer)>::type::accounting_child UNIQUE_ID(dummy)(timer, tdict_slot_for_side(side))
 
 #else /* DISABLE_TIMINGS */
 

@@ -14,6 +14,7 @@
 #include "macros.h"
 
 /* a shorthand so that we can use user-defined literals */
+// NOLINTNEXTLINE(hicpp-named-parameter,readability-named-parameter)
 cxx_mpz operator "" _mpz (const char* str, size_t)
 {
     cxx_mpz res;
@@ -41,26 +42,22 @@ void tests_univariate()
 
     for(auto const & example : examples) {
         cxx_mpz_poly f;
-        if (!(std::istringstream(example.first.second) >> f.named(example.first.first))) {
-            std::cerr << "cannot parse polynomial\n";
-            exit(EXIT_FAILURE);
-        }
+        if (!(std::istringstream(example.first.second) >> f.named(example.first.first)))
+            throw std::runtime_error("cannot parse polynomial\n");
         std::ostringstream os;
         os << f;
         std::cout << os.str() << std::endl;
         ASSERT_ALWAYS((size_t)(f->deg+1) == example.second.size());
         for(size_t i = 0 ; i < example.second.size() ; ++i)
-            ASSERT_ALWAYS(mpz_cmp(f->coeff[i], example.second[i]) == 0);
+            ASSERT_ALWAYS(mpz_cmp(mpz_poly_coeff_const(f, i), example.second[i]) == 0);
         std::istringstream is(os.str());
         decltype(f) g;
         ASSERT_ALWAYS(is >> g && f == g);
     }
     for(auto const & example : expected_failures) {
         cxx_mpz_poly f;
-        if ((std::istringstream(example.second) >> f.named(example.first))) {
-            std::cerr << "unexpected success while parsing bad polynomial\n";
-            exit(EXIT_FAILURE);
-        }
+        if ((std::istringstream(example.second) >> f.named(example.first)))
+            throw std::runtime_error("unexpected success while parsing bad polynomial\n");
     }
 }
 

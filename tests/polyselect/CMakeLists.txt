@@ -54,3 +54,34 @@ endmacro()
 
 define_sopt_test(1 sopt.input1.txt 465209edaa2c8bbad4e7254a7d6fcf2f121a71b8)
 define_sopt_test(2 sopt.input2.txt a3aadd110944689565adb70ae7456b69d8d97dbc)
+
+
+cado_define_test(gfpkdlpolyselect_test.c
+    ${CADO_NFS_SOURCE_DIR}/polyselect/gfpkdlpolyselect.c
+    NO_DEFAULT_RUN
+    LIBRARIES polyselect_common utils)
+
+foreach(p 10000000019 10000000033 10000000061 10000000069 10000000097)
+    cado_divert_test(gfpkdlpolyselect_test ${p} APPEND_ARGUMENTS -k 2 -p ${p} -label test${p})
+endforeach()
+
+cado_define_test(polyselect_add_score
+    SCRIPT
+    ${CADO_NFS_SOURCE_DIR}/tests/wrap-test.sh
+        --expect-sha1 27954264d0ab7e6bf8bbc07a8376ff9c63649ba8
+        --
+        ${CADO_NFS_BINARY_DIR}/polyselect/score
+        -Bf 1e+04 -Bg 2e+05 -area 5e+10
+        ${CADO_NFS_SOURCE_DIR}/tests/misc/c60.poly
+    TARGET_DEPENDENCIES score)
+
+cado_define_test(polyselect_add_skewness
+    SCRIPT
+    ${CADO_NFS_SOURCE_DIR}/tests/wrap-test.sh
+        --expect-sha1
+        0694420c819d125950c304e205c0593cefa889db
+        --
+        ${CADO_NFS_BINARY_DIR}/polyselect/skewness
+        ${CADO_NFS_SOURCE_DIR}/tests/misc/c60.poly
+    TARGET_DEPENDENCIES skewness)
+

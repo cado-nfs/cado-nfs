@@ -318,7 +318,7 @@ modredc15ul_intbits (const modintredc15ul_t a)
 /* r = trunc(s / 2^i) */
 MAYBE_UNUSED
 static inline void
-modredc15ul_intshr (modintredc15ul_t r, const modintredc15ul_t s, const int i)
+modredc15ul_intshr (modintredc15ul_t r, const modintredc15ul_t s, const unsigned int i)
 {
   if (i >= 2 * LONG_BIT) {
     r[1] = r[0] = 0UL;
@@ -335,7 +335,7 @@ modredc15ul_intshr (modintredc15ul_t r, const modintredc15ul_t s, const int i)
 /* r = (s * 2^i) % (2^(2 * LONG_BIT)) */
 MAYBE_UNUSED
 static inline void
-modredc15ul_intshl (modintredc15ul_t r, const modintredc15ul_t s, const int i)
+modredc15ul_intshl (modintredc15ul_t r, const modintredc15ul_t s, const unsigned int i)
 {
   if (i >= 2 * LONG_BIT) {
     r[1] = r[0] = 0UL;

@@ -5,7 +5,7 @@
 #include "las-config.h"
 #include "las-output.hpp"
 
-
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 size_t base_memory = 0;
 int recursive_descent = 0;
 int prepend_relation_time = 0;
@@ -21,6 +21,7 @@ double general_grace_time_ratio = DESCENT_DEFAULT_GRACE_TIME_RATIO;
 
 double tt_qstart;
 
-las_output main_output;
+std::unique_ptr<las_output> main_output;
 
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 

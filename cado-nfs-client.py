@@ -124,7 +124,7 @@ def detect_source_tree(pathdict):
             print("{} does not exist".format(helper))
         return False
     pipe = subprocess.Popen([helper, "--show"], stdout=subprocess.PIPE)
-    loc = locale.getdefaultlocale()[1]
+    loc = locale.getlocale()[1]
     if not loc:
         loc="ascii"
     output = pipe.communicate()[0].decode(loc)
@@ -436,11 +436,6 @@ def create_daemon(workdir=None, umask=None, logfile=None):# {{{
     if not umask is None:
         os.umask(umask)
 
-    import resource		# Resource usage information.
-    maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
-    if maxfd == resource.RLIM_INFINITY:
-        maxfd = maxfd_default
-
     if logfile is not None:
         # must remove the intermediary handlers that the logging system
         # uses, otherwise we get inconsistent file position and python
@@ -450,9 +445,31 @@ def create_daemon(workdir=None, umask=None, logfile=None):# {{{
             logger.removeHandler(handler)
 
     # Iterate through and close all file descriptors.
-    for fd in range(0, maxfd):
+    fdlist = None
+
+    if fdlist is None:
         try:
-            if logfile is not None and fd != logfile.fileno():
+            fdlist = [ int(c) for c in os.listdir('/proc/self/fd') ]
+        except FileNotFoundError:
+            pass
+
+    if fdlist is None:
+        try:
+            fdlist = [ int(c) for c in os.listdir('/dev/fd') ]
+        except FileNotFoundError:
+            pass
+
+    if fdlist is None:
+        import resource		# Resource usage information.
+        maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
+        if maxfd == resource.RLIM_INFINITY:
+            maxfd = maxfd_default
+
+        fdlist = range(0, maxfd)
+
+    for fd in fdlist:
+        try:
+            if logfile is None or fd != logfile.fileno():
                 os.close(fd)
         except OSError:	# ERROR, fd wasn't open to begin with (ignored)
             pass

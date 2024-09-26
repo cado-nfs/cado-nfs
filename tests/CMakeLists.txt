@@ -1,5 +1,18 @@
 add_custom_target(all_test_dependencies)
 
+# used by some tests.
+find_program(MAGMA magma HINTS ENV MAGMA)
+if(MAGMA)
+    message(STATUS "magma program found, some bwc checks will run Magma code")
+endif()
+find_program(SAGE sage HINTS ENV SAGE)
+if(SAGE)
+    message(STATUS "sage program found, some bwc checks will run SageMath code")
+endif()
+add_custom_target(all_magma_test_dependencies)
+add_custom_target(all_sagemath_test_dependencies)
+
+
 # cmake understands tests and targets as being two different things. It
 # is perfectly common to have both a target and a test having the same
 # name X. Yet testing X will not trigger building X, and that is
@@ -62,6 +75,16 @@ endif()
 
 set(CADO_NFS_TEST_KEYWORDS_LAST_WINS TIMEOUT AVOID_CONCURRENT)
 set(CADO_NFS_TEST_KEYWORDS_FIRST_WINS_NOISY WORKING_DIRECTORY TEST_NAME)
+
+macro(cado_set_test_timeout TEST_NAME TIMEOUT)
+    if(TIMEOUT_SCALE)
+        MATH(EXPR scaled_timeout "${TIMEOUT}*${TIMEOUT_SCALE}")
+        set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT
+            ${scaled_timeout})
+    else()
+        set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT ${TIMEOUT})
+    endif()
+endmacro()
 
 macro(cado_define_test)
     # This macro is appropriate for a test which consists in running a
@@ -343,8 +366,10 @@ macro(cado_define_test)
 
     if(NOT NO_DEFAULT_RUN)
         set(test_env env)
-        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR)
-            set(test_env ${test_env} ${v}=${${v}})
+        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR MAGMA SAGE)
+            if(${v})
+                set(test_env ${test_env} ${v}=${${v}})
+            endif()
         endforeach()
         if (nENVIRONMENT GREATER 0)
             set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
@@ -384,13 +409,7 @@ macro(cado_define_test)
         #     set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock.${testmod})
         # endif()
         if(nTIMEOUT GREATER 0)
-            if(TIMEOUT_SCALE)
-                MATH(EXPR scaled_timeout "${TIMEOUT}*${TIMEOUT_SCALE}")
-                set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT
-                    ${scaled_timeout})
-            else()
-                set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT ${TIMEOUT})
-            endif()
+            cado_set_test_timeout(${TEST_NAME} ${TIMEOUT})
         endif()
         set(${TEST_NAME}_TEST_EXISTS 1)
         if(nTARGET_DEPENDENCIES GREATER 0)
@@ -562,8 +581,10 @@ macro(cado_divert_test TEST_BASE DIVERSION)
 
     if(NOT NO_DEFAULT_RUN)
         set(test_env env)
-        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR)
-            set(test_env ${test_env} ${v}=${${v}})
+        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR MAGMA SAGE)
+            if(${v})
+                set(test_env ${test_env} ${v}=${${v}})
+            endif()
         endforeach()
         if (nENVIRONMENT GREATER 0)
             set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
@@ -598,13 +619,7 @@ macro(cado_divert_test TEST_BASE DIVERSION)
             # set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK lock.${testmod})
         endif()
         if(nTIMEOUT GREATER 0)
-            if(TIMEOUT_SCALE)
-                MATH(EXPR scaled_timeout "${TIMEOUT}*${TIMEOUT_SCALE}")
-                set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT
-                    ${scaled_timeout})
-            else()
-                set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT ${TIMEOUT})
-            endif()
+            cado_set_test_timeout(${TEST_NAME} ${TIMEOUT})
         endif()
         set(${TEST_NAME}_TEST_EXISTS 1)
         # prepare a ;-separated list for set_tests_properties
@@ -659,7 +674,7 @@ cado_define_test(full_c30
         bwc_full_gf2
         sqrt
     AVOID_CONCURRENT
-    TIMEOUT 300
+    TIMEOUT 360
         )
     if(pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
         # no need to have both the JL and non-JL in normal tests, I
@@ -678,7 +693,7 @@ cado_define_test(full_c30
             lingen_pz sm sm_simple las_descent reconstructlog-dl
             merge-dl replay-dl numbertheory_tool
             AVOID_CONCURRENT
-            TIMEOUT 300
+            TIMEOUT 360
         )
         # The following case was hitting the bug #21707
         set(full_p30_JL_params
@@ -723,9 +738,30 @@ cado_define_test(full_c30
             TARGET_DEPENDENCIES
             ${full_p30_JL_deps}
             AVOID_CONCURRENT
-            TIMEOUT 300
+            TIMEOUT 360
             )
     endif()
+
+    # Test importing an SNFS polynomial with no skew: line
+    cado_define_test(full_F7
+    SCRIPT
+    ${CADO_NFS_BINARY_DIR}/cado-nfs.py
+        --server-threads 2
+        -s 1
+        340282366920938463463374607431768211457
+        ${CADO_NFS_SOURCE_DIR}/parameters/factor/parameters.F7
+        tasks.polyselect.import=${CADO_NFS_SOURCE_DIR}/tests/misc/F7.poly
+        slaves.hostnames=localhost
+    TARGET_DEPENDENCIES
+        full_dependencies_base
+        skewness
+        merge replay
+        characters
+        bwc_full_gf2
+        sqrt
+    AVOID_CONCURRENT
+    TIMEOUT 300
+        )
 endif()
 # MPI binaries are not properly launched by cado-nfs.py (see #21819)
 if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
@@ -744,7 +780,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         AVOID_CONCURRENT
-        TIMEOUT 300
+        TIMEOUT 360
             )
     cado_define_test(full_c65_128
         SCRIPT
@@ -755,7 +791,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         AVOID_CONCURRENT
-        TIMEOUT 300
+        TIMEOUT 360
             )
     cado_define_test(full_c59_nonlinear
         SCRIPT
@@ -767,7 +803,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
         TARGET_DEPENDENCIES
             full_c30_dependencies
         AVOID_CONCURRENT
-        TIMEOUT 300
+        TIMEOUT 360
         )
     if (BWC_GFP_ARITHMETIC_BACKENDS AND pz IN_LIST BWC_GFP_ARITHMETIC_BACKENDS)
 #        this test is probably not very useful, given that the other
@@ -784,11 +820,10 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             SCRIPT
                 ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --env t
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
-                ${CADO_NFS_SOURCE_DIR} ${CADO_NFS_BINARY_DIR}
             TARGET_DEPENDENCIES full_p30_dependencies
             lingen_pz sm reconstructlog-dl merge-dl replay-dl numbertheory_tool
         AVOID_CONCURRENT
-        TIMEOUT 300
+        TIMEOUT 360
             )
         cado_define_test(full_gfp2
             SCRIPT
@@ -797,7 +832,7 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
             TARGET_DEPENDENCIES full_p30_dependencies
             filter_galois polyselect_gfpn
         AVOID_CONCURRENT
-        TIMEOUT 300
+        TIMEOUT 360
             )
 # see bug https://gitlab.inria.fr/cado-nfs/cado-nfs/-/issues/21767
 #         cado_define_test(full_gfp2_2_2g
@@ -827,16 +862,6 @@ cado_divert_test(test_tests_common 6 -iter 10)
 set_tests_properties(test_tests_common_6 PROPERTIES PASS_REGULAR_EXPRESSION "Using 10 iterations")
 
 cado_define_test(test_iceildiv.c)
-
-# used by some tests.
-find_program(MAGMA magma HINTS ENV MAGMA)
-if(MAGMA)
-    message(STATUS "magma program found, some bwc checks will run Magma code")
-endif()
-find_program(SAGE sage HINTS ENV SAGE)
-if(SAGE)
-    message(STATUS "sage program found, some bwc checks will run SageMath code")
-endif()
 
 add_subdirectory (scripts)
 add_subdirectory (utils)

@@ -167,8 +167,6 @@ int main(int argc, char * argv[])
         gmp_randseed_ui(state, seed);
     }
 
-    typedef vector<badideal>::const_iterator vbci_t;
-
     const char * tmp;
     if ((tmp = param_list_lookup_string(pl, "polystr")) != NULL) {
         int side = 0;
@@ -179,17 +177,13 @@ int main(int argc, char * argv[])
 
         vector<badideal> badideals = badideals_for_polynomial(f, side);
         cout << "--- .badideals data ---\n";
-        for(vbci_t it = badideals.begin() ; it != badideals.end() ; it++) {
-            badideal const& b(*it);
+        for(auto const & b : badideals)
             b.print_dot_badideals_file(cout, side);
-        }
 
         cout << "--- .badidealinfo data ---\n";
         cout << "# bad ideals for poly"<<side<<"=" << f.print_poly("x") << endl;
-        for(vbci_t it = badideals.begin() ; it != badideals.end() ; it++) {
-            badideal const& b(*it);
+        for(auto const & b : badideals)
             b.print_dot_badidealinfo_file(cout, side);
-        }
     } else if ((tmp = param_list_lookup_string(pl, "poly")) != NULL) {
         cado_poly cpoly;
         cado_poly_init(cpoly);
@@ -229,7 +223,7 @@ int main(int argc, char * argv[])
         if (param_list_parse_mpz(pl, "ell", ell)) {
             for(int side = 0 ; side < cpoly->nb_polys ; side++) {
                 sm_side_info sm;
-                sm_side_info_init(sm, cpoly->pols[side], ell);
+                sm_side_info_init(sm, cpoly->pols[side], ell, 0);
                 cout << "# nmaps" << side << " " << sm->nsm << endl;
                 sm_side_info_clear(sm);
             }

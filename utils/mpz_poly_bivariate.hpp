@@ -56,7 +56,7 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
     }
     inline int degree_in_xi(unsigned int i) const { 
         for(int d = degree_y() ; d >= 0 ; d--) {
-            if (mpz_poly_degree((*this)[d]) >= (int) i && mpz_cmp_ui((*this)[d]->coeff[i], 0) != 0)
+            if (mpz_poly_degree((*this)[d]) >= (int) i && mpz_cmp_ui(mpz_poly_coeff_const((*this)[d], i), 0) != 0)
                 return d;
         }
         return -1;
@@ -136,7 +136,7 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
         clear();
         reserve(c->deg + 1);
         for(int i = 0 ; i <= c->deg ; i++) {
-            push_back(cxx_mpz_poly(c.c->coeff[i]));
+            emplace_back(mpz_poly_coeff_const(c.c, i));
         }
         return *this;
     }
@@ -232,7 +232,7 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
     }
 
     bool monic_p() const {
-        return empty() || (lc()->deg == 0 && mpz_cmp_ui(lc()->coeff[0], 1) == 0);
+        return empty() || (lc()->deg == 0 && mpz_cmp_ui(mpz_poly_coeff_const(lc(), 0), 1) == 0);
     }
 
     int cmp(self const & o) const {

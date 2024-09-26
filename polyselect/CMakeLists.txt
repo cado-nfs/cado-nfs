@@ -87,3 +87,13 @@ set_target_properties(dlpolyselect PROPERTIES
   COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 target_link_libraries (dlpolyselect polyselect_common utils)
 install(TARGETS dlpolyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
+
+# skewness
+add_executable (skewness skewness.c)
+target_link_libraries (skewness polyselect_common utils)
+install(TARGETS skewness RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
+
+# score
+add_executable (score score.c)
+target_link_libraries (score polyselect_common utils)
+install(TARGETS score RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)

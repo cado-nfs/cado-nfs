@@ -57,7 +57,7 @@ template <typename T> struct /* fmt:: */ formatter<fb_root_p1_t<T>>: formatter<s
     // only allow {} for formatting. No :, no :x, etc. It could be nice
     // to allow them, though. Note that this should be constexpr with
     // c++-14 or later
-    auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
+    // auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
     template <typename FormatContext>
         auto format(fb_root_p1_t<T> const & c, FormatContext& ctx) -> decltype(ctx.out()) {
             std::ostringstream os;
@@ -70,7 +70,7 @@ template <> struct /* fmt:: */ formatter<qlattice_basis>: formatter<string_view>
     // only allow {} for formatting. No :, no :x, etc. It could be nice
     // to allow them, though. Note that this should be constexpr with
     // c++-14 or later
-    auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
+    // auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
     template <typename FormatContext>
         auto format(qlattice_basis const & c, FormatContext& ctx) -> decltype(ctx.out()) {
             std::ostringstream os;

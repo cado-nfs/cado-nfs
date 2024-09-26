@@ -143,6 +143,41 @@ static bool choose_sieve_area(las_info const & las,
         }
     }
 
+    /* last check: we don't want the homography induced by the qlattice
+     * to trip over a potential small rational root of the polynomial.
+     * Of course it is highly unexpected. It can only
+     * happen for a linear polynomial, of course, and when it happens, it
+     * means that the bivariate fij would only on one of its variables,
+     * so we're not going to do anything very interesting.
+     *
+     */
+    {
+        int64_t H[4] = { Adj.Q.a0, Adj.Q.b0, Adj.Q.a1, Adj.Q.b1 };
+        cxx_mpz_poly fij;
+    
+        mpz_poly_homography (fij, las.cpoly->pols[doing.side], H);
+
+        if (fij->deg < las.cpoly->pols[doing.side]->deg) {
+            verbose_output_vfprint(0, 1, gmp_vfprintf,
+                    "# "
+                    HILIGHT_START
+                    "Discarding side-%d q=%Zd; rho=%Zd;"
+                    HILIGHT_END,
+                    doing.side,
+                    (mpz_srcptr) doing.p,
+                    (mpz_srcptr) doing.r);
+            verbose_output_print(0, 1,
+                    " a0=%" PRId64
+                    "; b0=%" PRId64
+                    "; a1=%" PRId64
+                    "; b1=%" PRId64
+                    "; raw_J=%u; // explanation: tripped over rational root.\n",
+                    Adj.Q.a0, Adj.Q.b0, Adj.Q.a1, Adj.Q.b1, Adj.J);
+            return false;
+        }
+    }
+
+
     /* At this point we've decided on a new configuration for the
      * siever.
      */

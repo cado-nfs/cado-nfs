@@ -6,8 +6,8 @@
 #include "macros.h"
 #include "portability.h" // IWYU pragma: keep
 
-void
-test_bit_vector (unsigned long iter)
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+void test_bit_vector (unsigned long iter)
 {
   bit_vector b, c;
   size_t n, i, w;
@@ -105,5 +105,5 @@ main (int argc, const char *argv[])
   test_bit_vector (iter);
   test_bit_vector_read_from_file ();
   tests_common_clear ();
-  exit (EXIT_SUCCESS);
+  return EXIT_SUCCESS;
 }

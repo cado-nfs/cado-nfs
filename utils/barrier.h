@@ -51,7 +51,7 @@ typedef struct barrier_tag {
 #ifdef	__cplusplus
 extern "C" {
 #endif
-#define BARRIER_SERIAL_THREAD   -1
+#define BARRIER_SERIAL_THREAD   (-1)
 extern int barrier_init (barrier_t *, pthread_mutex_t * lock, int);
 extern int barrier_destroy (barrier_t *, pthread_mutex_t * lock);
 extern int barrier_resize(barrier_t * barrier, int count);
@@ -67,6 +67,27 @@ extern int barrier_wait_unlocked (barrier_t *,
 extern int barrier_finish_unlocked(barrier_t * barrier);
 
 #ifdef	__cplusplus
+}
+#endif
+
+#ifdef	__cplusplus
+#include <cstddef>
+namespace cado_nfs {
+/* interface is a subset of the c++20 std::barrier */
+class barrier {
+    barrier_t b[1];
+    public:
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
+    explicit inline barrier(std::ptrdiff_t expected) {
+        barrier_init(b, nullptr, (int) expected);
+    }
+    inline ~barrier() { barrier_destroy(b, nullptr); }
+    barrier(barrier const &) = delete;
+    barrier(barrier &&) = delete;
+    barrier& operator=(barrier const &) = delete;
+    barrier& operator=(barrier &&) = delete;
+    inline void arrive_and_wait() { barrier_wait(b, nullptr, nullptr, nullptr); }
+};
 }
 #endif
 

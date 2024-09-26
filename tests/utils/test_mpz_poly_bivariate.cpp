@@ -1,7 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 #include <iostream>
 #include <sstream>
-#include <stdlib.h>
+#include <cstdlib>
 #include <gmp.h>
 #include "tests_common.h"
 #include "macros.h"
@@ -25,8 +25,7 @@ void test_mpz_poly_bivariate_trivialities()
         os << f << std::endl;
 
         std::istringstream(os.str()) >> g;
-        bool ok = (f == g);
-        ASSERT_ALWAYS(ok);
+        ASSERT_ALWAYS(f == g);
     }
 
     {
@@ -39,7 +38,7 @@ void test_mpz_poly_bivariate_trivialities()
         ASSERT_ALWAYS(f.degree_in_yi(1) == -1);
         ASSERT_ALWAYS(f.degree_in_yi(2) == 2);
         ASSERT_ALWAYS(f.degree_in_xi(2) == 2);
-        ASSERT_ALWAYS(mpz_cmp_ui(f[2]->coeff[1], 18) == 0);
+        ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(f[2], 1), 18) == 0);
 
         T::transpose(g, f);
 
@@ -58,7 +57,7 @@ void test_mpz_poly_bivariate_trivialities()
 
         ASSERT_ALWAYS(f.degree_y() == 2);
         ASSERT_ALWAYS(f.degree_x() == 2);
-        ASSERT_ALWAYS(mpz_cmp_ui(f[0]->coeff[2], 42) == 0);
+        ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(f[0], 2), 42) == 0);
 
         std::istringstream("11+17*x+42*x^2") >> F;
         std::istringstream("1+x+x^2") >> A;
@@ -149,7 +148,7 @@ cxx_mpz operator "" _mpz (const char* str, size_t)
 void test_mpz_poly_bivariate_resultant(unsigned long iter)
 {
     for(unsigned long i = 0 ; i < iter ; i++) {
-        int d = 2 + gmp_urandomm_ui(state, 5);
+        const int d = 2 + gmp_urandomm_ui(state, 5);
 
         cxx_mpz_poly_bivariate f, g;
 
@@ -166,7 +165,7 @@ void test_mpz_poly_bivariate_resultant(unsigned long iter)
         cxx_mpz_poly_bivariate::resultant_x(rx, f, g);
         cxx_mpz_poly_bivariate::resultant_y(ry, f, g);
 
-        int ok = (rx != 0) && (ry != 0) && (mpz_poly_degree(rx) == mpz_poly_degree(ry));
+        const int ok = (rx != 0) && (ry != 0) && (mpz_poly_degree(rx) == mpz_poly_degree(ry));
         if (!ok) {
             std::cerr << "// bug in resultant" << std::endl;
             std::cerr << "f = " << f << std::endl;
@@ -289,5 +288,5 @@ main (int argc, const char *argv[])
     test_mpz_poly_bivariate_trivialities();
     test_mpz_poly_bivariate_resultant(iter);
     tests_common_clear ();
-    exit (EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }

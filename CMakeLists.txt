@@ -291,8 +291,6 @@ include(${CADO_NFS_SOURCE_DIR}/config/pagesize.cmake)
 
 include(${CADO_NFS_SOURCE_DIR}/config/gmp_randstate.cmake)
 
-set(GF2X_CONFIGURE_FLAGS --disable-shared --disable-dependency-tracking --enable-fft-interface CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} CFLAGS=${GF2X_C_FLAGS} CXXFLAGS=${GF2X_CXX_FLAGS} LDFLAGS=${GF2X_LDFLAGS} $ENV{GF2X_CONFIGURE_EXTRA_FLAGS})
-
 #####################################################################
 # Obtain information from the host.
 
@@ -301,6 +299,8 @@ if(DEFINED ENV{USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT})
 endif()
 
 include(config/check_cpu_feature.cmake)
+
+set(GF2X_CONFIGURE_FLAGS)
 
 if (DEFINED ENV{NO_SSE})
     list(APPEND GF2X_CONFIGURE_FLAGS --disable-sse2)
@@ -318,6 +318,7 @@ else()
     check_cpu_feature(sse4.1 PREREQUISITES HAVE_SSSE3)
     check_cpu_feature(popcnt PREREQUISITES HAVE_SSSE3)
     check_cpu_feature(avx PREREQUISITES HAVE_SSE41)
+    check_cpu_feature(pclmul PREREQUISITES HAVE_SSE41)
     set(b USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT)
     check_cpu_feature(avx2 PREREQUISITES HAVE_AVX BLOCKERS ${b})
     check_cpu_feature(avx512f PREREQUISITES HAVE_AVX BLOCKERS ${b})
@@ -325,14 +326,32 @@ else()
     check_cpu_feature(avx512vl PREREQUISITES HAVE_AVX512F BLOCKERS ${b})
     include(config/bug30027.cmake)
     check_cpu_feature(avx512dq PREREQUISITES HAVE_AVX512F BLOCKERS ${b})
-    check_cpu_feature(pclmul PREREQUISITES HAVE_SSE41)
+
+    if (HAVE_SSE2 AND USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT)
+        set(fallback "westmere")
+        if (NOT HAVE_AVX OR NOT HAVE_PCLMUL OR NOT HAVE_POPCNT)
+            set(fallback "x86-64")
+        endif()
+        message(STATUS "As per USE_ONLY_ASSEMBLY_INSTRUCTIONS_THAT_VALGRIND_KNOWS_ABOUT, restricting gf2x build to old enough microarchitecture (${fallback})")
+        set(GF2X_C_FLAGS "${GF2X_C_FLAGS} -march=${fallback}")
+    endif()
 endif()
+
 if (DEFINED ENV{NO_NEON})
     message(STATUS "As per $NO_NEON, disabling all ARM NEON intrinsics")
 else()
     check_cpu_feature(neon COMPILER_FLAG -mfpu=neon DISPLAYNAME "ARM NEON")
 endif()
 
+list(APPEND GF2X_CONFIGURE_FLAGS --disable-shared)
+list(APPEND GF2X_CONFIGURE_FLAGS --disable-dependency-tracking)
+list(APPEND GF2X_CONFIGURE_FLAGS --enable-fft-interface)
+list(APPEND GF2X_CONFIGURE_FLAGS CC=${CMAKE_C_COMPILER})
+list(APPEND GF2X_CONFIGURE_FLAGS CXX=${CMAKE_CXX_COMPILER})
+list(APPEND GF2X_CONFIGURE_FLAGS CFLAGS=${GF2X_C_FLAGS})
+list(APPEND GF2X_CONFIGURE_FLAGS CXXFLAGS=${GF2X_CXX_FLAGS})
+list(APPEND GF2X_CONFIGURE_FLAGS LDFLAGS=${GF2X_LDFLAGS})
+list(APPEND GF2X_CONFIGURE_FLAGS $ENV{GF2X_CONFIGURE_EXTRA_FLAGS})
 
 get_override(GF2X_CONFIGURE_FLAGS GF2X_CONFIGURE_FLAGS)
 
@@ -350,6 +369,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/math-special.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/posix.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/bsd.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/rusage_thread.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/clock_gettime.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/sync_fetch.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/asprintf.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/mingw.cmake")
@@ -546,7 +566,12 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs.py DESTINATION ${BINSUFFIX
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs-client.py DESTINATION ${BINSUFFIX})
 
 # Some scripts are handy to have also in the bin directory.
-foreach(script split.py descent.py)
+foreach(script
+        split.py
+        descent.py
+        descent_helper_asyncio.py
+        descent_helper_fallback.py
+    )
     configure_file(
         ${CADO_NFS_SOURCE_DIR}/scripts/${script}
         ${CADO_NFS_BINARY_DIR}/scripts/${script}
@@ -554,6 +579,8 @@ foreach(script split.py descent.py)
 endforeach(script)
 
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent.py DESTINATION ${LIBSUFFIX}/scripts)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent_helper_asyncio.py DESTINATION ${LIBSUFFIX}/scripts)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent_helper_fallback.py DESTINATION ${LIBSUFFIX}/scripts)
 
 
 message(STATUS "Main scripts will go to ${CMAKE_INSTALL_PREFIX}/${BINSUFFIX}")

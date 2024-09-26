@@ -3,6 +3,7 @@
 # that the union of this file and its companion files.nodist must agree with
 # the list of files known to the SCM.  A further word of caution: wildcards
 # are *NOT* recognized (by the fascist sanity check program).
+.clang-tidy
 .gitlab-ci.yml
 .gitmodules
 AUTHORS
@@ -48,6 +49,7 @@ config/cado_check_cxx_source_compiles.cmake
 config/ccwrap.pl.in
 config/check_cpu_feature.cmake
 config/check_types.cmake
+config/clock_gettime.cmake
 config/cxxabi.cmake
 config/cxxwrap.pl.in
 config/detect-static-analysis.cmake
@@ -158,7 +160,7 @@ filter/shrink_rels.cpp
 filter/singleton_removal.c
 filter/singleton_removal.h
 filter/singleton_simple.cpp
-filter/sm.c
+filter/sm.cpp
 filter/sm_append.cpp
 filter/sm_simple.cpp
 filter/sparse.c
@@ -653,8 +655,8 @@ linalg/bwc/prep.cpp
 linalg/bwc/random_matrix.cpp
 linalg/bwc/random_matrix.hpp
 linalg/bwc/raw_matrix_u32.h
-linalg/bwc/rolling.c
-linalg/bwc/rolling.h
+linalg/bwc/rolling.cpp
+linalg/bwc/rolling.hpp
 linalg/bwc/secure.cpp
 linalg/bwc/solib-naming.h.in
 linalg/bwc/strassen-thresholds.hpp
@@ -675,11 +677,11 @@ macros.h
 misc/CMakeLists.txt
 misc/check_rels.c
 misc/debug_renumber.cpp
-misc/descent_init_Fp.c
+misc/descent_init_Fp.cpp
 misc/explain_indexed_relation.cpp
 misc/indexed_relations_to_density.cpp
-misc/smooth_detect.c
-misc/smooth_detect.h
+misc/smooth_detect.cpp
+misc/smooth_detect.hpp
 parameters/dlp/Joux-Lercier/params.p100
 parameters/dlp/Joux-Lercier/params.p30
 parameters/dlp/Joux-Lercier/params.p35
@@ -735,6 +737,7 @@ parameters/dlp/params.p80
 parameters/dlp/params.p85
 parameters/dlp/params.p90
 parameters/dlp/params.p95
+parameters/factor/parameters.F7
 parameters/factor/parameters.F9
 parameters/factor/params.c100
 parameters/factor/params.c105
@@ -789,6 +792,7 @@ polyselect/auxiliary.h
 polyselect/dlpolyselect.c
 polyselect/gfpkdlpolyselect.c
 polyselect/gfpkdlpolyselect.h
+polyselect/gfpkdlpolyselect_impl.h
 polyselect/murphyE.c
 polyselect/murphyE.h
 polyselect/polyselect.c
@@ -853,8 +857,10 @@ polyselect/ropt_str.c
 polyselect/ropt_str.h
 polyselect/ropt_tree.c
 polyselect/ropt_tree.h
+polyselect/score.c
 polyselect/size_optimization.c
 polyselect/size_optimization.h
+polyselect/skewness.c
 polyselect/table_f_Py_phi__f_deg4_s02_C4V4_h1_Py_s20_f01.h
 polyselect/table_t_Py_f_deg4_type0_h1_t-200--200.h
 portability.h
@@ -880,6 +886,8 @@ scripts/check_compilation_units_policy.pl
 scripts/check_python_pathdetection_stub.sh
 scripts/check_repo_policies.sh
 scripts/descent.py
+scripts/descent_helper_asyncio.py
+scripts/descent_helper_fallback.py
 scripts/estimate_matsize/build_relation_cache.pl
 scripts/estimate_matsize/estimate_matsize.sh
 scripts/filter-ctest.pl
@@ -1124,6 +1132,7 @@ sqrt/knapsack.h
 sqrt/powers_of_p.cpp
 sqrt/powers_of_p.h
 sqrt/sqrt.cpp
+tests/.clang-tidy
 tests/CMakeLists.txt
 tests/README
 tests/do_with_mpi.sh
@@ -1140,6 +1149,10 @@ tests/filter/c105_30003.rels.gz
 tests/filter/p40_30004.poly
 tests/filter/p40_30004.rels.gz
 tests/filter/test_dup2.sh
+tests/filter/test_filter_galois.d20.poly
+tests/filter/test_filter_galois.d20.rels
+tests/filter/test_filter_galois.d20.renumber
+tests/filter/test_filter_galois.sh
 tests/filter/testsm.p59.index.gz
 tests/filter/testsm.p59.poly
 tests/filter/testsm.p59.purged.gz
@@ -1224,6 +1237,7 @@ tests/linalg/bwc/test_matrix_file.cpp
 tests/linalg/bwc/test_matrix_file.sh
 tests/linalg/bwc/time_matpoly_ft_parallel.cpp
 tests/misc/CMakeLists.txt
+tests/misc/F7.poly
 tests/misc/Makefile
 tests/misc/c59_nonlinear.poly
 tests/misc/c60.poly
@@ -1237,6 +1251,7 @@ tests/misc/testcheck_rels.sh
 tests/ncpus.sh
 tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
+tests/polyselect/gfpkdlpolyselect_test.c
 tests/polyselect/sopt.input1.txt
 tests/polyselect/sopt.input2.txt
 tests/polyselect/test_auxiliary.c
@@ -1408,12 +1423,16 @@ tests/utils/test_cxx_mpz_mat.cpp
 tests/utils/test_cxx_mpz_poly.cpp
 tests/utils/test_dllist.c
 tests/utils/test_double_poly.c
+tests/utils/test_explain_relations.data/c30.poly
+tests/utils/test_explain_relations.sh
 tests/utils/test_fstream_maybe_compressed.cpp
+tests/utils/test_galois_action.cpp
 tests/utils/test_gcd.c
 tests/utils/test_getprime.c
 tests/utils/test_gmp_aux.c
 tests/utils/test_gpf.c
 tests/utils/test_intinv.c
+tests/utils/test_istream_matcher.cpp
 tests/utils/test_json_parsing.cpp
 tests/utils/test_memusage.c
 tests/utils/test_mmappable_vector.cpp
@@ -1438,7 +1457,7 @@ tests/utils/test_relation.cpp
 tests/utils/test_rootfinder.c
 tests/utils/test_roots_mod.c
 tests/utils/test_sha1.c
-tests/utils/test_sm_utils.c
+tests/utils/test_sm_utils.cpp
 tests/utils/test_sm_utils.data
 tests/utils/test_smallset.cpp
 tests/utils/test_strlcat.c
@@ -1513,8 +1532,8 @@ utils/filter_io.h
 utils/filter_io.tex
 utils/fix-endianness.c
 utils/fix-endianness.h
-utils/galois_utils.c
-utils/galois_utils.h
+utils/galois_action.cpp
+utils/galois_action.hpp
 utils/gcd.c
 utils/gcd.h
 utils/getprime.c
@@ -1536,6 +1555,7 @@ utils/indexed_relation.cpp
 utils/indexed_relation.hpp
 utils/intrinsics.hpp
 utils/iqsort.h
+utils/istream_matcher.hpp
 utils/json.cpp
 utils/json.hpp
 utils/lll.c
@@ -1546,7 +1566,7 @@ utils/memalloc.c
 utils/memalloc.h
 utils/memory.c
 utils/memory.h
-utils/memusage.c
+utils/memusage.cpp
 utils/memusage.h
 utils/misc.c
 utils/misc.h
@@ -1629,7 +1649,7 @@ utils/roots_mod.h
 utils/select_mpi.h
 utils/sha1.c
 utils/sha1.h
-utils/sm_utils.c
+utils/sm_utils.cpp
 utils/sm_utils.h
 utils/smallset.hpp
 utils/stats.c

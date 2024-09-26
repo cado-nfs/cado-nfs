@@ -255,7 +255,7 @@
    # https://gitlab.inria.fr/zimmerma/ecm/-/issues/21864
    # This is present up to 7.0.5 at least
    Memcheck:Leak
-   match-leak-kinds: definite
+   match-leak-kinds: definite,possible
    fun:malloc
    fun:__gmp_default_allocate
    fun:__gmpz_init2
