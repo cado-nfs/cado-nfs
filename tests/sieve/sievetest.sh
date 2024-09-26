@@ -258,7 +258,14 @@ fi
 if [ -n "${CHECKSUM_FILE}" ] ; then
   MYCHECKSUM_FILE="${WORKDIR}/$(basename "$CHECKSUM_FILE")"
   grep "# Checksums over sieve region:" "${RELS}" > "${MYCHECKSUM_FILE}"
-  if [ -f "${CHECKSUM_FILE}" ] ; then
+  # copy first, so that it's atomic, and if that happens to fail, then
+  # compare the contents with what we have. If we do otherwise, we risk
+  # concurrency problems with the three checks
+  # F9_quick_{tracek,lambda0,lambda1} which are possibly run in parallel.
+  if cp "${MYCHECKSUM_FILE}" "${CHECKSUM_FILE}" 2>/dev/null ; then
+    # File with checksums does not exists, create it
+    echo "Created checksum file"
+  elif [ -f "$CHECKSUM_FILE" ] ; then
     # File with checksums already exists, compare
     if diff -b "${CHECKSUM_FILE}" "${MYCHECKSUM_FILE}" > /dev/null ; then
       echo "Checksums agree"
@@ -268,9 +275,8 @@ if [ -n "${CHECKSUM_FILE}" ] ; then
     fi
     let checks_passed+=1
   else
-    # File with checksums does not exists, create it
-    cp "${MYCHECKSUM_FILE}" "${CHECKSUM_FILE}"
-    echo "Created checksum file"
+    echo "Cannot create $CHECKSUM_FILE, this is probably an error" >&2
+    exit 1
   fi
 fi
 
