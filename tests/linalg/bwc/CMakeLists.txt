@@ -185,9 +185,6 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS})
     endif()
 endforeach()
         
-add_custom_target(all_magma_test_dependencies)
-add_custom_target(all_sagemath_test_dependencies)
-
 macro(create_magma_sage_diversions t)
     if(MAGMA)
         divert_bwc_test(${t} with_magma APPEND_ARGUMENTS magma=${MAGMA}
@@ -854,7 +851,6 @@ set_target_properties(test_bl_extraction PROPERTIES
 cado_define_test(TEST_NAME test-blocklanczos
     PROGRAM ${CMAKE_CURRENT_SOURCE_DIR}/test-blocklanczos.sh
         --density 10
-        --bindir ${CADO_NFS_BINARY_DIR}/linalg/bwc
     NO_DEFAULT_RUN
     TARGET_DEPENDENCIES mf_scan mf_bal random_matrix blocklanczos
     bwc_full_gf2 short_matmul)

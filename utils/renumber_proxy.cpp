@@ -133,6 +133,11 @@ index_t renumber_table_index_from_p_r (renumber_proxy_srcptr R, p_r_values_t p, 
     return deref(R)->index_from_p_r(p, r, side);
 }
 
+int renumber_table_p_r_side_get_inertia (renumber_proxy_srcptr R, p_r_values_t p, p_r_values_t r, int side)
+{
+    return deref(R)->inertia_from_p_r(p, r, side);
+}
+
 bool renumber_table_p_r_from_index(renumber_proxy_srcptr R, p_r_values_t * pp, p_r_values_t * pr, int * pside, index_t h)
 {
     try {

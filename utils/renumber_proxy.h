@@ -81,6 +81,7 @@ extern int renumber_table_p_r_side_is_bad(renumber_proxy_srcptr, index_t *, p_r_
 extern bool renumber_table_index_is_additional_column(renumber_proxy_srcptr, index_t h);
 extern index_t renumber_table_index_from_p_r (renumber_proxy_srcptr, p_r_values_t p, p_r_values_t r, int side);
 extern bool renumber_table_p_r_from_index(renumber_proxy_srcptr, p_r_values_t *, p_r_values_t *, int *, index_t);
+extern int renumber_table_p_r_side_get_inertia (renumber_proxy_srcptr R, p_r_values_t p, p_r_values_t r, int side);
 extern bool renumber_table_indices_from_p_a_b(renumber_proxy_srcptr R, index_t * first, int * exps, size_t * nexps, p_r_values_t p, p_r_values_t r, int side, int e, int64_t a, uint64_t b);
 
 #ifdef __cplusplus

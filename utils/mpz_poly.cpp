@@ -2905,93 +2905,82 @@ mpz_poly_gcd_mpz (mpz_poly_ptr f, mpz_poly_srcptr a, mpz_poly_srcptr b,
 int
 mpz_poly_pseudogcd_mpz(mpz_poly_ptr f, mpz_poly_ptr g, mpz_srcptr N, mpz_ptr factor)
 {
-  mpz_poly_mod_mpz(f, f, N, NULL);
-  mpz_poly_mod_mpz(g, g, N, NULL);
-  while (g->deg >= 0)
-  {
-    int ret = mpz_poly_pseudodiv_r(f, g, N, factor);
-    if (!ret)
-        return ret;
-    /* now deg(f) < deg(g): swap f and g */
-    mpz_poly_swap (f, g);
-  }
-  // success: all inversions mod N worked.
-  return 1;
+    mpz_poly_mod_mpz(f, f, N, NULL);
+    mpz_poly_mod_mpz(g, g, N, NULL);
+    while (g->deg >= 0) {
+        int ret = mpz_poly_pseudodiv_r(f, g, N, factor);
+        if (!ret)
+            return ret;
+        /* now deg(f) < deg(g): swap f and g */
+        mpz_poly_swap (f, g);
+    }
+    // success: all inversions mod N worked.
+    return 1;
 }
 
 
 /* computes d = gcd(f, g) = u*f + v*g mod p, with p in mpz_t */
 /* Coefficients of f and g need not be reduced mod p.
- * Coefficients of d, u, v are reduced mod p */
+ * Coefficients of d, u, v are reduced mod p
+ *
+ * Note that this is likely to fail quite miserably if p is not a prime
+ * number.
+ */
 void
 mpz_poly_xgcd_mpz (mpz_poly_ptr d, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_poly_ptr u, mpz_poly_ptr v, mpz_srcptr p)
 {
-  mpz_poly q, tmp;
-  mpz_poly gg;
+    if (f->deg < g->deg) {
+        mpz_poly_xgcd_mpz(d, g, f, v, u, p);
+        return;
+    }
+    cxx_mpz_poly u0 = 1, v0 = 0, r0 = f;
+    cxx_mpz_poly u1 = 0, v1 = 1, r1 = g;
+    cxx_mpz_poly q, tmp;
+    mpz_poly_mod_mpz(r0, r0, p, NULL);
+    mpz_poly_mod_mpz(r1, r1, p, NULL);
 
-  if (f->deg < g->deg) {
-      mpz_poly_xgcd_mpz(d, g, f, v, u, p);
-      return;
-  }
-  mpz_poly_init(gg, g->alloc);
-  mpz_poly_set(d, f);
-  mpz_poly_set(gg, g);
-  mpz_poly_mod_mpz(d,  d,  p, NULL);
-  mpz_poly_mod_mpz(gg, gg, p, NULL);
+    mpz_poly_set_xi(u0, 0);
+    mpz_poly_set_zero(u1);
 
-  mpz_poly uu, vv;
-  mpz_poly_init (uu, 0);
-  mpz_poly_init (vv, 0);
+    mpz_poly_set_xi(v1, 0);
+    mpz_poly_set_zero(v0);
 
-  mpz_poly_set_xi(u, 0);
-  mpz_poly_set_zero(uu);
+    while (r1->deg >= 0) {
+        /* q, r0 := r0 div r1 mod p
+         * yes, replacing the dividend by the remainder works */
+        int ok = mpz_poly_div_qr (q, r0, r0, r1, p);
 
-  mpz_poly_set_xi(vv, 0);
-  mpz_poly_set_zero(v);
+        /* if this fails, then we need a pseudo_xgcd_mpz */
+        ASSERT_ALWAYS(ok);
+        mpz_poly_swap (r0, r1);
 
-  mpz_poly_init(q, d->deg);
-  mpz_poly_init(tmp, d->deg + gg->deg);
+        /* u0 := u0 - q * u1 mod p */
+        mpz_poly_mul(tmp, q, u1);
+        mpz_poly_sub_mod_mpz(u0, u0, tmp, p);
+        mpz_poly_swap (u0, u1);
 
-  while (gg->deg >= 0)
-    {
+        /* v0 := v0 - q * v1 mod p */
+        mpz_poly_mul(tmp, q, v1);
+        mpz_poly_sub_mod_mpz(v0, v0, tmp, p);
+        mpz_poly_swap (v0, v1);
 
-      /* q, r := f div g mod p */
-      mpz_poly_div_qr (q, d, d, gg, p);
-
-      /* u := u - q * uu mod p */
-      mpz_poly_mul(tmp, q, uu);
-      mpz_poly_sub_mod_mpz(u, u, tmp, p);
-      mpz_poly_swap (u, uu);
-
-      /* v := v - q * vv mod p */
-      mpz_poly_mul(tmp, q, vv);
-      mpz_poly_sub_mod_mpz(v, v, tmp, p);
-      mpz_poly_swap (v, vv);
-
-      /* now deg(f) < deg(g): swap f and g */
-      mpz_poly_swap (d, gg);
     }
 
-  /* make monic */
-  mpz_t inv;
-  if (mpz_cmp_ui(d->coeff[d->deg], 1) != 0)
-    {
-      mpz_init(inv);
-      mpz_invert(inv, d->coeff[0], p);
-      mpz_poly_mul_mpz(d, d, inv);
-      mpz_poly_mod_mpz(d, d, p, NULL);
-      mpz_poly_mul_mpz(u, u, inv);
-      mpz_poly_mod_mpz(u, u, p, NULL);
-      mpz_poly_mul_mpz(v, v, inv);
-      mpz_poly_mod_mpz(v, v, p, NULL);
-      mpz_clear(inv);
+    /* make monic */
+    if (mpz_cmp_ui(r0->coeff[r0->deg], 1) != 0) {
+        cxx_mpz inv;
+        mpz_invert(inv, r0->coeff[r0->deg], p);
+        mpz_poly_mul_mpz(r0, r0, inv);
+        mpz_poly_mod_mpz(r0, r0, p, NULL);
+        mpz_poly_mul_mpz(u0, u0, inv);
+        mpz_poly_mod_mpz(u0, u0, p, NULL);
+        mpz_poly_mul_mpz(v0, v0, inv);
+        mpz_poly_mod_mpz(v0, v0, p, NULL);
     }
 
-  mpz_poly_clear(gg);
-  mpz_poly_clear(uu);
-  mpz_poly_clear(vv);
-  mpz_poly_clear(q);
-  mpz_poly_clear(tmp);
+    mpz_poly_set(u, u0);
+    mpz_poly_set(v, v0);
+    mpz_poly_set(d, r0);
 }
 
 /* Homographic transform on polynomials */

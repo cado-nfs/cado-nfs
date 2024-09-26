@@ -946,3 +946,17 @@ string write_element_as_polynomial(cxx_mpq_mat const& theta_q, string const& var
         return os2.str();
     }
 }
+
+std::vector<cxx_mpz>
+write_element_as_list_of_integers(cxx_mpq_mat const& theta_q)
+{
+    ASSERT_ALWAYS(theta_q->m == 1);
+    cxx_mpz theta_denom;
+    cxx_mpz_mat theta;
+    mpq_mat_numden(theta, theta_denom, theta_q);
+    std::vector<cxx_mpz> res;
+    res.push_back(theta_denom);
+    for(unsigned int i = 0 ; i < theta->n ; i++)
+        res.push_back(mpz_mat_entry(theta, 0, i));
+    return res;
+}
