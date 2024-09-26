@@ -20,14 +20,28 @@ macro(add_bwc_test nm script)
         set(suffix _${mpiconf})
         if(suffix STREQUAL _nompi)
             set(suffix)
+            set(default_timeout 50)
+        else()
+            # Yes it is quite weird, but when we run the test suite with
+            # mpi, we are often overcommitting the resource that we're
+            # using, and it ends up degrading performance quite a bit.
+            set(default_timeout 120)
         endif()
-        cado_define_test(test_bwc_${nm}${suffix} SCRIPT
+        # place the TIMEOUT stanza early on, so that ARGN can
+        # override it.
+        cado_define_test(test_bwc_${nm}${suffix}
+            AVOID_CONCURRENT
+            TARGET_DEPENDENCIES bwc_full
+            # We have cases where _many_ bwc tests end up taking more
+            # than the default 20 seconds. Maybe it's better to add
+            # the cutoff.
+            TIMEOUT ${default_timeout}
+            SCRIPT
             ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg mats --other --arg wdir --
             ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
             ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/${script}
             bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc pre_wipe=1 ${ARGN}
-            AVOID_CONCURRENT
-            TARGET_DEPENDENCIES bwc_full)
+        )
         # these verbose_flags don't play with the idea of adding a
         # divert_bwc_test macro.
         # -- verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch,^bwc-loading-mksol-files,^bwc-cache-major-info,^bwc-cpubinding,^perl-checks,^perl-sections
@@ -79,13 +93,24 @@ if(HAVE_PERL_DIGEST_MD5)
             if(suffix STREQUAL _nompi)
                 set(suffix)
             endif()
-            cado_define_test(test_bwc_lingen_binary_${nm}${suffix} SCRIPT
+            # place the TIMEOUT stanza early on, so that ARGN can
+            # override it.
+            #
+            # AVOID_CONCURRENT 4 is very extreme. As it turns out, this
+            # test is very sensitive to the load average of the host (of
+            # the container). The other options are the (even more
+            # extreme) RUN_SERIAL, or possibly refuse to run the test if
+            # the load average is too large (but compared to what, it's
+            # not completely clear).
+            cado_define_test(test_bwc_lingen_binary_${nm}${suffix}
+                TARGET_DEPENDENCIES lingen_u64k1
+                AVOID_CONCURRENT 4
+                TIMEOUT 60
+                SCRIPT
                 ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen.sh
                 ${ARGN}
-                TARGET_DEPENDENCIES lingen_u64k1
-                AVOID_CONCURRENT
                 )
         endforeach()
     endmacro()
@@ -106,7 +131,8 @@ if(HAVE_PERL_DIGEST_MD5)
     add_lingen_binary_test(test0
         expect_sha1_F=d0e758e619c8e81b3e28bbd4fe69c32826e9a4bd,893801e0727d840353a35b2623430fb758e4d379,5917486028cd96a5d0c55c7caef89cc48b70d1b1
         m=64 n=64 sequence_length=480 seed=1
-        tuning_thresholds=recursive:16,notiming:16,collective:16
+        tuning_thresholds=recursive:64,notiming:0,collective:128
+        TIMEOUT 300
         )
 
     # We have significant difficulties with tuning for the binary case.
@@ -120,7 +146,7 @@ if(HAVE_PERL_DIGEST_MD5)
         add_lingen_binary_test(test2
             expect_sha1_F=fefcefb595751b7120d593d6f10f0a5bb5466dfb,3fd4e3439ad7f76145329bb631c78ccfbf939a90
             m=128 n=128 sequence_length=480 seed=1
-            tuning_thresholds=recursive:128,notiming:16,collective:128
+            tuning_thresholds=recursive:128,notiming:0,collective:128
             )
     endif()
 
@@ -145,11 +171,15 @@ add_custom_target(all_sagemath_test_dependencies)
 
 macro(create_magma_sage_diversions t)
     if(MAGMA)
-        divert_bwc_test(${t} with_magma APPEND_ARGUMENTS magma=${MAGMA})
+        divert_bwc_test(${t} with_magma APPEND_ARGUMENTS magma=${MAGMA}
+            TIMEOUT 120
+        )
         add_dependencies(all_magma_test_dependencies test_bwc_${t}_with_magma_dependencies)
     endif()
     if(SAGE)
-        divert_bwc_test(${t} with_sagemath APPEND_ARGUMENTS sage=${SAGE})
+        divert_bwc_test(${t} with_sagemath APPEND_ARGUMENTS wordsize=${ULONG_BITS} sage=${SAGE}
+            TIMEOUT 120
+        )
         add_dependencies(all_sagemath_test_dependencies test_bwc_${t}_with_sagemath_dependencies)
     endif()
 endmacro()
@@ -187,7 +217,8 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 add_bwc_test(${t} bwc-ptrace.sh prime=1009
                     random_matrix_size=50 nrhs=3 m=6 n=6 seed=1
                     TARGET_DEPENDENCIES
-                    lingen_pz lingen_${gfp_layer})
+                    lingen_pz lingen_${gfp_layer}
+                )
                 create_magma_sage_diversions(${t})
             endif()
 
@@ -293,6 +324,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
+                TIMEOUT 60
                 )
             cado_divert_test(test_bwc_lingen_${gfp_layer}_test0${suffix} frag
                 APPEND_ARGUMENTS io_block_size=1024)
@@ -306,6 +338,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
+                TIMEOUT 60
                 )
             cado_define_test(test_bwc_lingen_${gfp_layer}_test2${suffix}
                 SCRIPT
@@ -317,6 +350,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
+                TIMEOUT 60
                 )
             # We really _can't_ have ascii with the checkpoint test. ascii
             # modifies the anticipation of the schedule, which in turns means
@@ -331,11 +365,13 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 c82b888f2ba844f6db1e30e091444d1023052f87 3 3 1000 1009 1111
                 thr=3x3
                 checkpoint_threshold=40
+                tuning_thresholds=notiming:0,recursive:100,collective:400
                 ${extra}
                 TARGET_DEPENDENCIES
                 lingen_${gfp_layer}
                 lingen_verify_checkpoints_${gfp_layer}
                 AVOID_CONCURRENT
+                TIMEOUT 180
                 )
         endforeach()
     endif()
@@ -358,10 +394,12 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 00a481d0e0e2ee7403fa234b7f8b818dc2ec8db4 3 3 1000
                 1532495540865888858358347027150309183618739122183602191 1111
                 thr=3x3
+                tuning_thresholds=notiming:0,recursive:160,collective:320
                 lingen_program=lingen_${gfp_layer}
                 ${extra}
                 TARGET_DEPENDENCIES lingen_${gfp_layer}
                 AVOID_CONCURRENT
+                TIMEOUT 90
             )
         endforeach()
     endif()
@@ -373,6 +411,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             ARGUMENTS
             --afile ${CMAKE_CURRENT_SOURCE_DIR}/A.21744 ffile=/dev/null m=4 n=2
             prime=485263
+            TIMEOUT 60
             TARGET_DEPENDENCIES lingen_p_1)
 
         cado_define_test(test_bwc_lingen_21744_bis
@@ -380,6 +419,7 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             PROGRAM ${CADO_NFS_BINARY_DIR}/linalg/bwc/lingen_p_1
             ARGUMENTS
             --random-input-with-length 20   m=4 n=2  prime=1009 --seed 1377
+            TIMEOUT 60
             TARGET_DEPENDENCIES lingen_p_1)
     endif()
 
@@ -404,34 +444,39 @@ foreach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 endforeach(gfp_layer ${BWC_GFP_ARITHMETIC_BACKENDS})
 
-foreach(gfp_layer u64k1)
+foreach(layer u64k1)
     link_directories (${CADO_NFS_BINARY_DIR}/gf2x/fft/.libs)
     link_directories (${CADO_NFS_BINARY_DIR}/gf2x/.libs)
     include_directories(${CADO_NFS_BINARY_DIR}/gf2x/fft)
     include_directories(${CADO_NFS_SOURCE_DIR}/gf2x/fft)
-    cado_define_test(TEST_NAME test_matpoly_${gfp_layer}
+    cado_define_test(TEST_NAME test_matpoly_${layer}
         SOURCES test_matpoly.cpp
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_qcode_binary.cpp
         ${PROJECT_SOURCE_DIR}/linalg/bwc/lingen_expected_pi_length.cpp
-        LIBRARIES lingen_${gfp_layer}_support)
+        LIBRARIES lingen_${layer}_support
+        AVOID_CONCURRENT 4
+        TIMEOUT 60
+    )
     # (unused for p=2 anyway)
     # ARGUMENTS --prime 2
-    set_target_properties(test_matpoly_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
+    set_target_properties(test_matpoly_${layer} PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${layer}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
-    add_executable(time_matpoly_ft_parallel_${gfp_layer} EXCLUDE_FROM_ALL
+    add_executable(time_matpoly_ft_parallel_${layer} EXCLUDE_FROM_ALL
         time_matpoly_ft_parallel.cpp)
-    target_link_libraries(time_matpoly_ft_parallel_${gfp_layer}
-        lingen_${gfp_layer}_support)
-    set_target_properties(time_matpoly_ft_parallel_${gfp_layer} PROPERTIES
-        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${gfp_layer}"
+    target_link_libraries(time_matpoly_ft_parallel_${layer}
+        lingen_${layer}_support)
+    set_target_properties(time_matpoly_ft_parallel_${layer} PROPERTIES
+        COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS} -DSELECT_MPFQ_LAYER_${layer}"
         LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 
-    cado_define_test(TEST_NAME test_matpoly_basecase_${gfp_layer}
+    cado_define_test(TEST_NAME test_matpoly_basecase_${layer}
         PROGRAM
-        ${CMAKE_CURRENT_BINARY_DIR}/test_matpoly_${gfp_layer}
+        ${CMAKE_CURRENT_BINARY_DIR}/test_matpoly_${layer}
         ARGUMENTS --test-basecase m=128 n=64 len1=256
-        TARGET_DEPENDENCIES test_matpoly_${gfp_layer}
+        TARGET_DEPENDENCIES test_matpoly_${layer}
+        AVOID_CONCURRENT 4
+        TIMEOUT 60
         )
 endforeach()
 
@@ -452,12 +497,16 @@ add_bwc_test(mod2_padded bwc-ptrace.sh prime=2 nullspace=left
 
 add_bwc_test(mod2_secure_continuation bwc-test-secure-continuation.sh
     prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64
-    TARGET_DEPENDENCIES mf_scan)
+    TARGET_DEPENDENCIES mf_scan
+    TIMEOUT 60
+)
 
 add_bwc_test(mod2_secure_consistent-defaults
     bwc-test-secure-consistent-defaults.sh
     prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64
-    TARGET_DEPENDENCIES mf_scan)
+    TARGET_DEPENDENCIES mf_scan
+    TIMEOUT 60
+)
 
 # Note: because of stop_at_step here, we're not verifying what we're
 # doing, which is a bit stupid.
@@ -467,11 +516,17 @@ add_bwc_test(mod2_rolling bwc-ptrace.sh prime=2 nullspace=left random_matrix_siz
     TARGET_DEPENDENCIES mf_scan)
 
 add_bwc_test(mod2_8k bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2
-    TARGET_DEPENDENCIES mf_scan)
+    TARGET_DEPENDENCIES mf_scan
+    AVOID_CONCURRENT 4
+    TIMEOUT 90
+)
 
 if (COMPILE_MPFQ_BINARY_FIELD_m128)
 add_bwc_test(mod2_8k_simd128 bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2 simd=128
-    TARGET_DEPENDENCIES mf_scan)
+    TARGET_DEPENDENCIES mf_scan
+    AVOID_CONCURRENT 4
+    TIMEOUT 90
+)
 endif()
 
 set(mod2_oddthr mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
@@ -631,6 +686,7 @@ foreach(mpiconf nompi ${mpiconfs})
         --
         ${CADO_NFS_BINARY_DIR}/linalg/bwc/krylov --random_matrix 20000,density=100 m=64 n=64 ys=0..64 prime=2 interval=100 end=200
         TARGET_DEPENDENCIES bwc_full
+        TIMEOUT 60
         )
     cado_divert_test(test_random_matrix${suffix} thr22 APPEND_ARGUMENTS thr=2x2)
 endforeach()
@@ -676,7 +732,9 @@ cado_define_test(TEST_NAME bwc_staged_krylov PROGRAM
     skip_online_checks=1 rebuild_cache=1 seed=1
     sequential_cache_build=1 random_matrix=10000,density=150,seed=1
     no_save_cache=1 verbose_flags=^all-bwc-sub-timings,^all-bwc-dispatch
-    TARGET_DEPENDENCIES bwc_full_gf2)
+    TARGET_DEPENDENCIES bwc_full_gf2
+    TIMEOUT 60
+)
 
 # Tests which use bwc_base will need bwc_config.h
 include_directories(${PROJECT_BINARY_DIR}/linalg/bwc)

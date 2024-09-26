@@ -86,6 +86,7 @@ struct balancing_s {
 };
 typedef struct balancing_s balancing[1];
 typedef struct balancing_s * balancing_ptr;
+typedef struct balancing_s const * balancing_srcptr;
 
 #ifdef __cplusplus
 extern "C" {
@@ -97,15 +98,15 @@ extern "C" {
  */
 extern void balancing_set_row_col_count(balancing_ptr bal);
 extern void balancing_finalize(balancing_ptr bal);
-extern void balancing_write_inner(balancing_ptr bal, const char *);
-extern void balancing_write(balancing_ptr bal, const char * , const char *);
+extern void balancing_write_inner(balancing_srcptr bal, const char *);
+extern void balancing_write(balancing_srcptr bal, const char * , const char *);
 extern void balancing_read(balancing_ptr bal, const char *);
 extern void balancing_read_header(balancing_ptr bal, const char * filename);
 extern void balancing_clear(balancing_ptr bal);
 extern void balancing_init(balancing_ptr bal);
 
 /* helper for the functions below */
-static inline unsigned long balancing_index_shuffle_common_(unsigned long r, unsigned long n, uint32_t * shuf)
+static inline unsigned long balancing_index_shuffle_common_(unsigned long r, unsigned long n, const uint32_t * shuf)
 {
     modulusul_t M;
     modul_initmod_ul(M, n);
@@ -128,13 +129,13 @@ static inline unsigned long balancing_index_shuffle_common_(unsigned long r, uns
 
 /* These two relate to the global permutation represented by the rshuf /
  * rshuf_inv arrays */
-static inline unsigned long balancing_pre_shuffle(balancing_ptr bal, unsigned long r)
+static inline unsigned long balancing_pre_shuffle(balancing_srcptr bal, unsigned long r)
 {
     unsigned int K = MIN(bal->h->ncols, bal->h->nrows);
     if (r >= K) return r;
     return balancing_index_shuffle_common_(r, K, bal->h->pshuf);
 }
-static inline unsigned long balancing_pre_unshuffle(balancing_ptr bal, unsigned long r)
+static inline unsigned long balancing_pre_unshuffle(balancing_srcptr bal, unsigned long r)
 {
     unsigned int K = MIN(bal->h->ncols, bal->h->nrows);
     if (r >= K) return r;

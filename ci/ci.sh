@@ -16,9 +16,13 @@ project_package_selection() { : ; }
 tweak_tree_before_configure() { : ; }
 
 step_configure() {
-    if [ "$specific_checks" = "bwc.sagemath" ] ; then
-        export FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3=1
-    elif [ "$specific_checks" = "including_mpi" ] ; then
+    # now that we're confident that we've made the bwc checks specific to
+    # a "with_sagemath" suffix, there's no risk in missing the sagemath
+    # code by inadvertence.
+    # if [ "$specific_checks" = "bwc.sagemath" ] ; then
+    #     export FORCE_BWC_EXTERNAL_CHECKS_OUTPUT_ON_FD3=1
+    # fi
+    if [ "$specific_checks" = "including_mpi" ] ; then
         export MPI=1
         # sigh. when we run in containers, running as root isn't much of
         # a problem

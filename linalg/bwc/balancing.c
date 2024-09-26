@@ -59,7 +59,7 @@ void balancing_finalize(balancing_ptr bal)
     }
 }
 
-void balancing_write_inner(balancing_ptr bal, const char * filename)
+void balancing_write_inner(balancing_srcptr bal, const char * filename)
 {
     FILE * pfile;
     fprintf(stderr, "Writing balancing data to %s\n", filename);
@@ -87,14 +87,16 @@ void balancing_write_inner(balancing_ptr bal, const char * filename)
     ASSERT_ALWAYS(rc == 15);
     if (bal->h->flags & FLAG_ROWPERM) {
         rc = fwrite32_little(bal->rowperm, bal->trows, pfile);
+        ASSERT_ALWAYS(rc == (int) bal->trows);
     }
     if (bal->h->flags & FLAG_COLPERM) {
         rc = fwrite32_little(bal->colperm, bal->tcols, pfile);
+        ASSERT_ALWAYS(rc == (int) bal->tcols);
     }
     fclose(pfile);
 }
 
-void balancing_write(balancing_ptr bal, const char * mfile, const char * suggest)
+void balancing_write(balancing_srcptr bal, const char * mfile, const char * suggest)
 {
     /* the semantics of -out for this program are farily weird. If it's
      * a file, then we'll use that as an output name (this is the call to

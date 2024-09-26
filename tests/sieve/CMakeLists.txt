@@ -155,6 +155,9 @@ cado_define_test(F9_makefb
             -out ${F9_roots}
         TARGET_DEPENDENCIES makefb)
 
+# Most F9 tests easily take between 5 and 10 seconds on a laptop,
+# and this can grow to several tens of seconds on a container that runs
+# on a busy machine.
 cado_define_test(F9
         ENVIRONMENT ${F9_baseargs}
             las_I=12
@@ -169,6 +172,7 @@ cado_define_test(F9
         TARGET_DEPENDENCIES las
         TEST_DEPENDENCIES F9_sievetest_cleanup F9_makefb
         NO_DEFAULT_RUN
+        TIMEOUT 90
         )
 
 cado_divert_test(F9 sieve
@@ -203,6 +207,7 @@ cado_divert_test(F9 sieve_with_hints
             REL_COUNT=153
             REFERENCE_SHA1=e80b973209f78c7df4541956e15814e04d699932
             REFERENCE_REVISION=21aa5e0327129475c37784b849cddc303d05f526
+        TIMEOUT 30
         )
 
 
@@ -279,6 +284,7 @@ cado_divert_test(F9 batch
             REFERENCE_SHA1=3aba8ade73e9e47dd76b0f85a2c681408f34a189
             REFERENCE_REVISION=5d9b68511102a957f941b272eb6d753526bcc3b1
         APPEND_ARGUMENTS -batch
+        TIMEOUT 120
         )
 cado_define_test(bogus_batch_is_consistent
     PROGRAM
@@ -304,6 +310,7 @@ cado_divert_test(F9 skipped
             las_I=10
             REL_COUNT=60
         APPEND_ARGUMENTS -skipped 100
+        TIMEOUT 30
         )
 
 # We make these depend on sievetest, for checking the checksum file.
@@ -339,9 +346,13 @@ cado_divert_test(F9_quick tracek
 # Try a too-large lambda value. We could divert on any test we like, but
 # it's mildly quicker to do it on the short test.
 cado_divert_test(F9_quick lambda0
-        APPEND_ENVIRONMENT lambda0=5 "REGEX=lambda>.*does not make sense")
+        APPEND_ENVIRONMENT lambda0=5 "REGEX=lambda>.*does not make sense"
+        TIMEOUT 120
+    )
 cado_divert_test(F9_quick lambda1
-        APPEND_ENVIRONMENT lambda1=5 "REGEX=lambda>.*does not make sense")
+        APPEND_ENVIRONMENT lambda1=5 "REGEX=lambda>.*does not make sense"
+        TIMEOUT 120
+    )
 
 set(c120_poly ${CMAKE_CURRENT_SOURCE_DIR}/c120.poly)
 set(c120_fb ${CMAKE_CURRENT_SOURCE_DIR}/c120.roots1.gz)
@@ -454,6 +465,7 @@ cado_divert_test(F9 descent
             -allow-largesq
         TARGET_DEPENDENCIES las_descent
         TEST_DEPENDENCIES F9_makefb
+        TIMEOUT 30
         )
 
 # The underlying script changes, here. We have to do something slightly
@@ -483,7 +495,9 @@ cado_define_test(F9_fakereltest
     ${CMAKE_CURRENT_SOURCE_DIR}/F9.fakerels.sh
     ${F9_roots} ${las_path} ${CADO_NFS_SOURCE_DIR}
     TARGET_DEPENDENCIES fake_rels freerel las
-    TEST_DEPENDENCIES F9_makefb)
+    TEST_DEPENDENCIES F9_makefb
+    TIMEOUT 60
+)
 
 # Check a bug in fake_rels (see 9d52c08c)
 cado_define_test(c60_fakereltest
@@ -491,7 +505,9 @@ cado_define_test(c60_fakereltest
     "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
     ${CMAKE_CURRENT_SOURCE_DIR}/c60.fakerels.sh
     ${CADO_NFS_BINARY_DIR} ${CADO_NFS_SOURCE_DIR}
-    TARGET_DEPENDENCIES fake_rels freerel)
+    TARGET_DEPENDENCIES fake_rels freerel
+    TIMEOUT 60
+)
 
 # Try with default TRIALDIV_MAXLEN, whatever it may be
 cado_define_test(test_trialdiv.cpp

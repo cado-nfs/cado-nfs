@@ -134,12 +134,14 @@ class BwcFFiles(object):
         Fx = self.R + D * self.F
 
         d = self.degree()
-        Frx = mrev(Fx, d)
+
+        # mdeg(Fx) might be d+1
+        Frx = mrev(Fx, mdeg(Fx))
 
         L = mdeg(A.A)
 
         print("Checking that F is a linear generator for A")
-        if mdiv(mmod(q * Frx, L), d) != 0:
+        if mdiv(mmod(q * Frx, L), mdeg(Fx)) != 0:
             raise ValueError("check failed " + NOK)
         print("Checking that F is a linear generator for A ... " + OK)
 
@@ -176,7 +178,14 @@ class BwcFFiles(object):
             v = MQ * v
 
         print("Checking solutions derived from the linear generator")
-        if rhs * U + MQ * V != 0:
+
+        should_be_zero = rhs * U + MQ * V
+        if should_be_zero != 0:
+            rk = should_be_zero.rank()
+            event = f"rhs * U + MQ * V has rank {rk} (should be zero)"
+            print(f"check failed: {event} {NOK}")
+            print("This is typically _not_ recovered by the C code, " +
+                  "but is otherwise rather harmless. Shit happens.")
             raise ValueError("check failed " + NOK)
 
         if self.params.is_nullspace_right():
