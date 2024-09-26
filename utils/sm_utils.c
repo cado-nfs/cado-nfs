@@ -333,7 +333,7 @@ void sm_side_info_print(FILE * out, sm_side_info_srcptr sm)
 }
 
 
-void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell)
+void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell, int handle_small_ell)
 {
     memset(sm, 0, sizeof(*sm));
 
@@ -347,7 +347,9 @@ void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell)
     /* initialize all fields */
     mpz_init_set(sm->ell, ell);
     mpz_init(sm->ell2);
+    mpz_init(sm->ell3);
     mpz_mul(sm->ell2, sm->ell, sm->ell);
+    mpz_mul(sm->ell3, sm->ell2, sm->ell);
 
     mpz_poly_init(sm->f, -1);
     sm->f0 = f0;
@@ -364,7 +366,7 @@ void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell)
         /* polynomial factorization is Las Vegas type */
         gmp_randstate_t rstate;
         gmp_randinit_default(rstate);
-        mpz_poly_factor_and_lift_padically(sm->fac, sm->f, sm->ell, 2, rstate);
+        mpz_poly_factor_and_lift_padically(sm->fac, sm->f, sm->ell, 2 + handle_small_ell, rstate);
         gmp_randclear(rstate);
     }
 
@@ -399,6 +401,15 @@ void sm_side_info_init(sm_side_info_ptr sm, mpz_poly_srcptr f0, mpz_srcptr ell)
         mpz_sub_ui(sm->exponents[i], sm->exponents[i], 1);
         mpz_lcm(sm->exponent, sm->exponent, sm->exponents[i]);
     }
+
+    sm->matrix = NULL;
+
+    /* We need to compute an ell-maximal order. Well, most probably
+     * Z[\alpha\hat] is an ell-maximal order, of course, so it's very
+     * probably going to be an easy computation
+     */
+    // we need to be cxx to do that.
+    // cxx_mpq_mat p_maximal_order(cxx_mpz_poly const& f, cxx_mpz const& p)
 }
 
 void sm_side_info_set_mode(sm_side_info_ptr sm, const char * mode_string)
@@ -417,6 +428,7 @@ void sm_side_info_set_mode(sm_side_info_ptr sm, const char * mode_string)
     }
 
     if (sm->mode == SM_MODE_LEGACY_PRE2018) {
+        ASSERT_ALWAYS(!sm->matrix);
         sm->matrix = (mpz_t *) malloc(sm->f->deg * sm->f->deg * sizeof(mpz_t));
         for(int i = 0 ; i < sm->f->deg ; i++)
             for(int j = 0 ; j < sm->f->deg ; j++)
@@ -450,6 +462,7 @@ void sm_side_info_clear(sm_side_info_ptr sm)
     mpz_poly_factor_list_clear(sm->fac);
     mpz_poly_clear(sm->f);
 
+    mpz_clear(sm->ell3);
     mpz_clear(sm->ell2);
     mpz_clear(sm->ell);
 }
