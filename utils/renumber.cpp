@@ -875,7 +875,7 @@ void renumber_t::compute_ramified_primes()
         cxx_mpz disc;
         cxx_mpz_poly f(cpoly->pols[side]);
         mpz_poly_discriminant(disc, f);
-        mpz_mul(disc, disc, f->coeff[f->deg]);
+        mpz_mul(disc, disc, mpz_poly_lc(f));
         small_primes.push_back(trial_division(disc, 10000000, disc));
     }
 }
@@ -1272,7 +1272,7 @@ void renumber_t::builder::preprocess(prime_chunk & P, gmp_randstate_ptr rstate)/
              */
 
             if ((int) roots.size() != R.get_poly_deg(side)
-                    && mpz_divisible_ui_p(f->coeff[f->deg], p))
+                    && mpz_divisible_ui_p(mpz_poly_lc(f), p))
                 roots.push_back(p);
 
             /* take off bad ideals from the list, if any. */

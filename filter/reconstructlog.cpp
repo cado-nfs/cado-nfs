@@ -376,11 +376,11 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
                 ASSERT_ALWAYS(u->deg < S->f->deg);
                 if (S->mode == SM_MODE_LEGACY_PRE2018) {
                     for(int i = S->f->deg-1-u->deg; i < S->nsm; i++) {
-                        mpz_addmul (l, data.log.smlog(side, i), u->coeff[S->f->deg-1-i]);
+                        mpz_addmul (l, data.log.smlog(side, i), mpz_poly_coeff_const(u, S->f->deg-1-i));
                     }
                 } else {
                     for(int i = 0; i < S->nsm; i++) {
-                        mpz_addmul (l, data.log.smlog(side, i), u->coeff[i]);
+                        mpz_addmul (l, data.log.smlog(side, i), mpz_poly_coeff_const(u, i));
                     }
                 }
                 mpz_mod(l, l, ell);

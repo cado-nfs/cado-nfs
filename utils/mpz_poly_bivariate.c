@@ -87,7 +87,7 @@ static void interpolate(mpz_poly_ptr p, mpz_t * x, mpz_t * y, unsigned int nb)
     for (unsigned int j = 0; j < nb; j++) {
       if (i != j) {
         mpz_poly_setcoeff(poly_tmp, 0, x[j]);
-        mpz_mul_si(poly_tmp->coeff[0], poly_tmp->coeff[0], -1);
+        mpz_mul_si(mpz_poly_coeff(poly_tmp, 0), mpz_poly_coeff_const(poly_tmp, 0), -1);
         mpz_poly_mul(l[i]->p, l[i]->p, poly_tmp);
         mpz_sub(Z_tmp, x[i], x[j]);
         mpz_mul(l[i]->denom, l[i]->denom, Z_tmp);
@@ -103,10 +103,10 @@ static void interpolate(mpz_poly_ptr p, mpz_t * x, mpz_t * y, unsigned int nb)
     lagrange_poly_add(interpol, interpol, l[i]);
   }
   for (int i = 0; i <= interpol->p->deg; i++) {
-    mpz_poly_setcoeff(p, i, interpol->p->coeff[i]);
-    ASSERT(mpz_divisible_p(p->coeff[i], interpol->denom) != 0);
-    /*gmp_printf("%d, %Zd\n", i, p->coeff[i]);*/
-    mpz_divexact(p->coeff[i], p->coeff[i], interpol->denom);
+    mpz_poly_setcoeff(p, i, mpz_poly_coeff_const(interpol->p, i));
+    ASSERT(mpz_divisible_p(mpz_poly_coeff_const(p, i), interpol->denom) != 0);
+    /*gmp_printf("%d, %Zd\n", i, mpz_poly_coeff_const(p, i));*/
+    mpz_divexact(mpz_poly_coeff(p, i), mpz_poly_coeff_const(p, i), interpol->denom);
   }
   lagrange_poly_clear(interpol);
   for (unsigned int i = 0; i < nb; i++) {

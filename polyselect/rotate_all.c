@@ -109,11 +109,11 @@ update_table (mpz_poly_srcptr f, mpz_poly_srcptr g, double *A, long K0, long K1,
   ASSERT_ALWAYS(mpz_poly_degree(g) == 1);
 
   /* compute -g(0) */
-  modul_set_ul (gpn, mpz_fdiv_ui (g->coeff[0], pn), Pn);
+  modul_set_ul (gpn, mpz_fdiv_ui (mpz_poly_coeff_const(g, 0), pn), Pn);
   modul_neg(gpn, gpn, Pn);
 
   /* invariant: gpn = -g(l) */
-  modul_set_ul (bpn, mpz_fdiv_ui (g->coeff[1], pn), Pn);
+  modul_set_ul (bpn, mpz_fdiv_ui (mpz_poly_coeff_const(g, 1), pn), Pn);
 
   residueul_t l;
   modul_init (l, Pn);
@@ -279,9 +279,9 @@ rotate_bounds (mpz_poly_ptr f, mpz_poly_srcptr g,
   rotate_aux (f, g, j0, 0, 1);
 }
 
-/* Return the smallest value of lognorm + alpha(f + (j*x+k)*(b*x-m)) for
+/* Return the smallest value of lognorm + alpha(f + (j*x+k)*g) for
    j and k small enough such that the norm does not increase too much, and
-   modify f[] accordingly.
+   modify f[] accordingly. g is a linear polynomial.
    The parameter "multi" means that several polynomials are wanted. If
    multi=0 or 1, then only 1 polynomial is returned (classical behavior).
    Otherwise, multi polynomials are stored in jmin and kmin (that
@@ -291,8 +291,6 @@ rotate_bounds (mpz_poly_ptr f, mpz_poly_srcptr g,
    is returned (and f[] accordingly).
    Warning: the caller is responsible to update the skewness if needed.
 
-   FIXME: it would be better to pass the polynomial g to rotate, instead of
-   b and m.
    */
 double
 rotate (mpz_poly_ptr f, unsigned long alim,
@@ -327,7 +325,9 @@ rotate (mpz_poly_ptr f, unsigned long alim,
             best_E[i] = DBL_MAX;
     }
 
-    // mpz_poly_init(D, -1);
+    /* allocate D(k) = disc(f + (j*x+k)*g, x) */
+    mpz_poly D;
+    mpz_poly_init(D, d);
 
     /* compute range for k */
     rotate_bounds (f, g, &K0, &K1, &J0, &J1, verbose);
@@ -349,7 +349,7 @@ rotate (mpz_poly_ptr f, unsigned long alim,
         /* go back to k=0 for the discriminant */
         k0 = rotate_aux (f, g, k0, 0, 0);
         /* D(k) = disc(f + (j*x+k)*g, x) (j is now fixed) */
-        // mpz_poly_discriminantal (D, f, g);
+        mpz_poly_discriminant_of_linear_combination (D, f, g);
 
         for (k = K0; k <= K1; k++)
             A[k - K0] = 0.0; /* A[k - K0] will store the value alpha(f + k*g) */
@@ -361,7 +361,7 @@ rotate (mpz_poly_ptr f, unsigned long alim,
                 /* We skip primes which divide all coefficients of f, since then
                    f mod p is zero. This can only happen when p divides N, which is
                    silly in GNFS, but maybe the user is stupid. */
-                for (i = d; i >= 0 && mpz_divisible_ui_p (f->coeff[i], p); i--);
+                for (i = d; i >= 0 && mpz_divisible_ui_p (mpz_poly_coeff_const(f, i), p); i--);
                 if (i < 0)
                     continue;
 
@@ -493,7 +493,7 @@ rotate (mpz_poly_ptr f, unsigned long alim,
 
     free (A);
 
-    // mpz_poly_clear(D);
+    mpz_poly_clear(D);
 
     {
         double ret_val = best_lognorm + best_alpha;
@@ -563,6 +563,7 @@ main (int argc, char **argv)
               cpoly->skew, get_alpha (cpoly->pols[ALG_SIDE], get_alpha_bound ()));
 
     rotate (cpoly->pols[ALG_SIDE], alim, cpoly->pols[RAT_SIDE], &jmin, &kmin, 0, verbose - 1);
+
     /* optimize again, but only translation */
     mpz_poly_fprintf (stdout, cpoly->pols[RAT_SIDE]);
     sopt_local_descent (cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], cpoly->pols[ALG_SIDE], cpoly->pols[RAT_SIDE], 1, -1,

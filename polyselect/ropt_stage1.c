@@ -347,8 +347,8 @@ find_sublattice ( single_sublattice_priority_queue_ptr top,
     }
 
     /* compute f (mod pe) */
-    reduce_poly_ul (f_ui, poly->cpoly->pols[1], pe);
-    reduce_poly_ul (g_ui, poly->cpoly->pols[0], pe);
+    reduce_poly_uint (f_ui, poly->cpoly->pols[1], pe);
+    reduce_poly_uint (g_ui, poly->cpoly->pols[0], pe);
 
     find_sublattice_lift ( root->firstchild,
                            top,
@@ -600,7 +600,6 @@ void transfer_to_alpha_priority_queue(mpz_srcptr u, mpz_srcptr v, mpz_srcptr mod
             u, v, modulus, alpha_lat);
     mpz_poly_clear (Fuv);
 }
-
 
 /**
  * Stage 1: record good sublattices to "alpha_pqueue".

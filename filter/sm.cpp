@@ -166,7 +166,7 @@ void MPI_Recv_mpz(mpz_ptr z, int src) {
 void MPI_Send_mpz_poly(mpz_poly_ptr poly, int dst) {
   MPI_Send(&poly->deg, 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
   for (int i = 0; i <= poly->deg; ++i)
-    MPI_Send_mpz(poly->coeff[i], dst);
+    MPI_Send_mpz(mpz_poly_coeff(poly, i), dst);
 }
 
 void MPI_Recv_mpz_poly(mpz_poly_ptr poly, int src) {
@@ -174,16 +174,9 @@ void MPI_Recv_mpz_poly(mpz_poly_ptr poly, int src) {
   ASSERT_ALWAYS(poly->deg + 1 >= 0);
   /* FIXME -- what about already allocated coefficients ? */
   ASSERT_ALWAYS(poly->alloc == 0);
-  if (poly->alloc < ((unsigned int) poly->deg+1)) {
-    poly->alloc = poly->deg+1;
-    poly->coeff = (mpz_t *) realloc(poly->coeff, poly->alloc*sizeof(mpz_t));
-    ASSERT_ALWAYS(poly->coeff != NULL);
-  }
-  /* It pretty much seems that if poly->alloc is non zero on entry, then
-   * we have a leak here.
-   */
+  mpz_poly_realloc(poly, poly->deg + 1);
   for (int i = 0; i <= poly->deg; ++i)
-    MPI_Recv_mpz(poly->coeff[i], src);
+    MPI_Recv_mpz(mpz_poly_coeff(poly, i), src);
 }
 
 void MPI_Send_relset(sm_relset_ptr relset, int dst, int nb_polys) {
@@ -257,7 +250,7 @@ int main (int argc, char **argv)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   int idoio = (rank == 0); // Am I the job allowed to do I/O ?
-  double t0 = seconds();
+  double t0;
 
   char *argv0 = argv[0];
 

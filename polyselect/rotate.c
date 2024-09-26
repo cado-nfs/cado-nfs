@@ -48,14 +48,11 @@ int main(int argc, char *argv[])
     int argc0 = argc;
     cado_poly cpoly;
     int I = 0;
-    mpz_t b, m;
     double skew = 0.0;
     param_list pl;
     mpz_poly rot;
     mpz_t tmp;
 
-    mpz_init(b);
-    mpz_init(m);
     mpz_init(tmp);
     mpz_poly_init(rot, -1);
 

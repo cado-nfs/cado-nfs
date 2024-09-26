@@ -3,6 +3,7 @@
 #include <gmp.h>
 #include <stdbool.h>    // for bool (in C)
 #include "cado_poly.h"
+#include "mpz_poly.h"
 
 /* --- structs for ropt --- */
 
@@ -83,7 +84,6 @@ struct ropt_s1param_s {
 typedef struct ropt_s1param_s ropt_s1param[1];
 typedef struct ropt_s1param_s * ropt_s1param_ptr;
 typedef const struct ropt_s1param_s * ropt_s1param_srcptr;
-
 
 /**
  * Struct for stage 2 parameters:
@@ -177,8 +177,8 @@ typedef const struct ropt_param_s * ropt_param_srcptr;
  * Struct for top polynomials.
  */
 struct ropt_bestpoly_s {
-  mpz_poly *pols;
-  int nb_polys;
+  mpz_poly f;
+  mpz_poly g;
 };
 typedef struct ropt_bestpoly_s ropt_bestpoly[1];
 typedef struct ropt_bestpoly_s * ropt_bestpoly_ptr;
@@ -248,7 +248,7 @@ void ropt_bound_reset ( ropt_poly_srcptr poly,
 void ropt_bound_clear ( ropt_bound_ptr bound );
 
 
-/* ropt_s1param_t */
+/* ropt_s1param */
 void ropt_s1param_init ( ropt_s1param_ptr s1param);
 
 void ropt_s1param_setup_individual_nbest_sl (ropt_s1param_ptr s1param);
@@ -312,7 +312,7 @@ void ropt_s2param_print ( ropt_s2param_srcptr s2param );
 /* bestpoly */
 void ropt_bestpoly_init ( ropt_bestpoly_ptr bestpoly);
                       
-void ropt_bestpoly_setup ( ropt_bestpoly_ptr bestpoly,
+void ropt_bestpoly_set ( ropt_bestpoly_ptr bestpoly,
                            mpz_poly_srcptr f,
                            mpz_poly_srcptr g);
 

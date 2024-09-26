@@ -52,20 +52,29 @@ ropt_L1_cachesize ()
 
 /**
  * Regenerate raw polyomial with small c_{d-1}.
+ *
+ * g <- g(x - h) where h is round(a_{d-1} / (d a_d)))
+ *
+ * Note that if rounding is exact, f(x - h) has a zero coefficient in
+ * degree d-1.
+ *
+ * Oddly enough, this function does not modify f.
  */
 static void
-ropt_regen_raw (mpz_poly_srcptr F, mpz_poly_ptr G)
+ropt_regen_raw (mpz_poly_srcptr f, mpz_poly_ptr g)
 {
   mpz_t t, d_ad;
   mpz_init (t);
   mpz_init (d_ad);
+
+  int d = f->deg;
   
-  int d = mpz_poly_degree(F);
-  mpz_mul_si (d_ad, F->coeff[d], d);
-  mpz_neg (t, F->coeff[d-1]);
+  mpz_mul_si (d_ad, mpz_poly_coeff_const(f, d), d);
+  mpz_neg (t, mpz_poly_coeff_const(f, d-1));
   mpz_tdiv_q (t, t, d_ad);
-  mpz_mul (t, t, G->coeff[1]);
-  mpz_add (G->coeff[0], G->coeff[0], t);
+
+  mpz_mul (t, t, mpz_poly_coeff_const(g, 1));
+  mpz_poly_add_mpz(g, g, t);
 
   mpz_clear (t);
   mpz_clear (d_ad);
@@ -89,29 +98,35 @@ ropt_common ( ropt_poly_ptr poly,
   ropt_bestpoly bestpoly;
   ropt_poly_setup (poly);
   ropt_bestpoly_init (bestpoly);
-  ropt_bestpoly_setup (bestpoly, poly->cpoly->pols[1], poly->cpoly->pols[0]);
+  ropt_bestpoly_set (bestpoly, poly->cpoly->pols[1], poly->cpoly->pols[0]);
 
   /* reducing c5 to raw and skip ropt */
   if (param->gen_raw) {
     mpz_t res;
+    mpz_t l, m;
     mpz_poly_ptr F = poly->cpoly->pols[1];
     mpz_poly_ptr G = poly->cpoly->pols[0];
     mpz_init (res);
+    mpz_init (l);
+    mpz_init (m);
 
     /* original polynomial */
     print_poly_fg (F, G, poly->cpoly->n, 1);
 
-    ASSERT_ALWAYS(mpz_poly_degree(G) == 1);
-
-    Lemma21 (F, poly->cpoly->n, G, res);
-    mpz_ptr lc = F->coeff[mpz_poly_degree(F)];
-    mpz_div (lc, lc, res);
-
-    Lemma21 (F, poly->cpoly->n, G, res);
+    mpz_set (l, mpz_poly_coeff_const(G, 1));
+    mpz_neg (m, mpz_poly_coeff_const(G, 0));
+    mpz_ptr ad = mpz_poly_lc_w(F);
+    Lemma21 (poly, param->n, param->d, (mpz_srcptr) ad, l, m, res);
+    mpz_div (ad, ad, res);
+    Lemma21 (poly, param->n, param->d, ad, l, m, res);
     ropt_regen_raw (F, G);
 
-    Lemma21 (F, poly->cpoly->n, G, res);
+    mpz_set (l, mpz_poly_coeff_const(G, 1));
+    mpz_neg (m, mpz_poly_coeff_const(G, 0));
+    Lemma21 (poly, param->n, param->d, ad, l, m, res);
 
+    mpz_clear (l);
+    mpz_clear (m);
     mpz_clear (res);
   }
 
@@ -142,12 +157,11 @@ ropt_common ( ropt_poly_ptr poly,
     /* call ropt */
     ropt (poly, bestpoly, param, info);
     fprintf (stderr, "\n# Info: Best E is:\n");
-    print_poly_fg (bestpoly->pols[1], bestpoly->pols[0], poly->cpoly->n, 1);
+    print_poly_fg (bestpoly->f, bestpoly->g, poly->cpoly->n, 1);
   }
   ropt_info_clear (info);
   ropt_bestpoly_clear (bestpoly);
 }
-
 
 
 /**
@@ -222,28 +236,22 @@ ropt_on_msievepoly ( FILE *file,
     if (ret != 3)
       continue;
 
-    /* set d, n, ad, l, m */
-    mpz_set (poly->cpoly->n, param->n);
-
     mpz_poly_ptr F = poly->cpoly->pols[1];
     mpz_poly_ptr G = poly->cpoly->pols[0];
 
-    mpz_poly_set_zero(F);
-    mpz_poly_setcoeff(F, param->d, ad);
-
-    mpz_poly_set_mpz_ab(G, m, l); /* sets to m-lx */
-    mpz_poly_neg(G, G); /* we want lx-m */
-
     /* generate polynomial */
-    Lemma21 (F, poly->cpoly->n, G, res);
+    Lemma21 (poly, param->n, param->d, ad, l, m, res);
 
     /* scale ad back and generate poly with small c5 */
     if (param->gen_raw) {
-        mpz_ptr lc = F->coeff[mpz_poly_degree(F)];
-        mpz_div (lc, lc, res);
-        Lemma21 (F, poly->cpoly->n, G, res);
+        mpz_div (ad, ad, res);
+        Lemma21 (poly, param->n, param->d, ad, l, m, res);
+
+        /* get new m */
         ropt_regen_raw (F, G);
-        Lemma21 (F, poly->cpoly->n, G, res);
+        mpz_neg (m, mpz_poly_coeff_const(G, 0));
+
+        Lemma21 (poly, param->n, param->d, ad, l, m, res);
     }
 
     /* print before size optimization */
@@ -283,48 +291,33 @@ ropt_on_msievepoly ( FILE *file,
  * Print ad, l, m and polynomial information.
  */
 double
-print_poly_info_short ( mpz_t *f,
-                        mpz_t *g,
-                        int d,
-                        mpz_t N )
+print_poly_info_short ( mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr N )
 {
   /* print info about the polynomial */
   unsigned int nroots = 0;
   double skew, logmu, alpha, e, alpha_proj;
-  int i;
   double exp_rot[] = {0, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 0};
-  mpz_poly F;
-  F->coeff = f;
-  F->deg = d;
 
   cado_poly cpoly;
   cado_poly_init(cpoly);
-  for (i = 0; i < (d + 1); i++) {
-    mpz_set(cpoly->pols[ALG_SIDE]->coeff[i], f[i]);
-  }
-  for (i = 0; i < 2; i++) {
-    mpz_set(cpoly->pols[RAT_SIDE]->coeff[i], g[i]);
-  }
+  mpz_poly_set(cpoly->pols[ALG_SIDE], f);
+  mpz_poly_set(cpoly->pols[RAT_SIDE], g);
   mpz_set (cpoly->n, N);
-  cpoly->pols[ALG_SIDE]->deg = d;
-  cpoly->pols[RAT_SIDE]->deg = 1;
 
-  /* output original poly */
-  gmp_printf ("%Zd ", f[d]);
-  mpz_neg (g[0], g[0]);
-  for (i = 1; i >= 0; i --) {
-    gmp_printf ("%Zd ", g[i]);
-  }
-  printf ("\n");
-  mpz_neg (g[0], g[0]);
+  /* output original poly (only ad, l, m) */
+  mpz_t mg0;
+  mpz_init(mg0);
+  mpz_neg (mg0, mpz_poly_coeff_const(g, 0));
+  gmp_printf ("%Zd %Zd %Zd\n", mpz_poly_lc(f), mpz_poly_lc(g), mg0);
+  mpz_clear(mg0);
   
   /* compute skew, logmu, nroots */
-  nroots = numberOfRealRoots ((const mpz_t *) cpoly->pols[ALG_SIDE]->coeff, d, 0, 0, NULL);
-  skew = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
+  nroots = mpz_poly_number_of_real_roots(cpoly->pols[ALG_SIDE]);
+  skew = L2_skewness (f, SKEWNESS_DEFAULT_PREC);
   cpoly->skew = skew;
-  logmu = L2_lognorm (F, skew);
-  alpha = get_alpha (F, get_alpha_bound ());
-  alpha_proj = get_alpha_projective (F, get_alpha_bound ());
+  logmu = L2_lognorm (f, skew);
+  alpha = get_alpha (f, get_alpha_bound ());
+  alpha_proj = get_alpha_projective (f, get_alpha_bound ());
   e = MurphyE (cpoly, bound_f, bound_g, area, MURPHY_K, get_alpha_bound ());
 
   printf ("# lognorm: %.2f, alpha: %.2f, (proj: %.2f) E: %.2f, nr: %u, exp_E: %1.2f, MurphyE: %1.2e\n",
@@ -333,7 +326,7 @@ print_poly_info_short ( mpz_t *f,
           alpha_proj,
           logmu + alpha,
           nroots,
-          logmu + expected_alpha(exp_rot[d]*log(skew)),
+          logmu + expected_alpha(exp_rot[f->deg]*log(skew)),
           e );
 
   fflush( stdout );

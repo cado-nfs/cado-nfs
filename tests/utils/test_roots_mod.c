@@ -32,21 +32,16 @@ sort_roots (uint64_t *r, int n)
 int 
 roots_mod_mpz(uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr rstate)
 {
-  mpz_t *f;
-  int n, i;
   mpz_poly F;
 
-  f = (mpz_t*) malloc ((d + 1) * sizeof (mpz_t));
-  for (i = 0; i <= d; i++)
-    mpz_init (f[i]);
-  mpz_set_ui (f[d], 1);
-  mpz_set_uint64 (f[0], p - a);
-  F->coeff = f;
-  F->deg = d;
-  n = mpz_poly_roots_uint64 (r, F, p, rstate);
-  for (i = 0; i <= d; i++)
-    mpz_clear (f[i]);
-  free (f);
+  mpz_poly_init(F, d);
+
+  mpz_poly_set_xi(F, d);
+
+  mpz_set_uint64 (mpz_poly_coeff(F, 0), p - a);
+  int n = mpz_poly_roots_uint64 (r, F, p, rstate);
+  mpz_poly_clear(F);
+
   sort_roots (r, n);
   return n;
 }

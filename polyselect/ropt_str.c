@@ -32,21 +32,17 @@
  * Find bound V for constant rotation.
  */
 static inline double
-rotate_bounds_V_mpz(mpz_poly_srcptr f,
-                    mpz_poly_srcptr g,
-                    ropt_bound_ptr bound )
+rotate_bounds_V_mpz ( mpz_poly_srcptr F0,
+                      mpz_poly_srcptr G0,
+                      ropt_bound_ptr bound )
 {
   mpz_t V;
-  mpz_poly F0, G0, F, G;
+  mpz_poly  F, G;
   double lognorm, exp_E = DBL_MAX, min_exp_E = DBL_MAX;
-  mpz_poly_init (F0, -1);
-  mpz_poly_init (F, -1);
-  mpz_poly_init (G0, -1);
-  mpz_poly_init (G, -1);
-  mpz_poly_set(F0, f);
-  mpz_poly_set(G0, g);
 
-  
+  mpz_poly_init (F, F0->deg);
+  mpz_poly_init (G, G0->deg);
+
   /* look for positive V: 2, 4, 8, ... */
   mpz_init_set_ui (V, 1);
   for (unsigned int i = 0; i < 150; i++, mpz_mul_2exp (V, V, 1) )
@@ -92,9 +88,7 @@ rotate_bounds_V_mpz(mpz_poly_srcptr f,
   }
   mpz_set (bound->global_v_boundl, V);
 
-  mpz_poly_clear (F0);
   mpz_poly_clear (F);
-  mpz_poly_clear (G0);
   mpz_poly_clear (G);
   mpz_clear (V);
   return min_exp_E;
@@ -105,18 +99,14 @@ rotate_bounds_V_mpz(mpz_poly_srcptr f,
  * Find bound U for linear rotation.
  */
 static inline double
-rotate_bounds_U_lu (mpz_poly_srcptr f,
-                    mpz_poly_srcptr g,
-                    ropt_bound_ptr bound )
+rotate_bounds_U_lu ( mpz_poly_srcptr F0,
+                     mpz_poly_srcptr G0,
+                     ropt_bound_ptr bound )
 {
-  mpz_poly F0, G0, F, G;
+  mpz_poly F, G;
   double lognorm, exp_E = DBL_MAX, min_exp_E = DBL_MAX;
-  mpz_poly_init (F0, -1);
-  mpz_poly_init (F, -1);
-  mpz_poly_init (G0, -1);
-  mpz_poly_init (G, -1);
-  mpz_poly_set(F0, f);
-  mpz_poly_set(G0, g);
+  mpz_poly_init (F, F0->deg);
+  mpz_poly_init (G, G0->deg);
 
   /* Look for positive u: 1, 2, 4, 8, ... */
   int64_t u = 1;
@@ -163,9 +153,7 @@ rotate_bounds_U_lu (mpz_poly_srcptr f,
   }
   bound->global_u_boundl = u;
 
-  mpz_poly_clear (F0);
   mpz_poly_clear (F);
-  mpz_poly_clear (G0);
   mpz_poly_clear (G);
   return exp_E;
 }
@@ -178,14 +166,12 @@ static inline void
 rotate_bounds_W_lu ( ropt_poly_srcptr poly,
                      ropt_bound_ptr bound )
 {
-  mpz_poly F0, G0, F, G;
+  mpz_poly F, G;
 
-  mpz_poly_init (F0, -1);
-  mpz_poly_init (F, -1);
-  mpz_poly_init (G0, -1);
-  mpz_poly_init (G, -1);
-  mpz_poly_set (F0, poly->cpoly->pols[1]);
-  mpz_poly_set (G0, poly->cpoly->pols[0]);
+  mpz_poly_srcptr F0 = poly->cpoly->pols[1];
+  mpz_poly_srcptr G0 = poly->cpoly->pols[0];
+  mpz_poly_init (F, F0->deg);
+  mpz_poly_init (G, G0->deg);
 
   /* look for positive w: 0, 1, 2, ... */
   int64_t w = 0;
@@ -217,9 +203,7 @@ rotate_bounds_W_lu ( ropt_poly_srcptr poly,
   }
   bound->global_w_boundl = w;
 
-  mpz_poly_clear (F0);
   mpz_poly_clear (F);
-  mpz_poly_clear (G0);
   mpz_poly_clear (G);
 }
 
@@ -235,7 +219,6 @@ rotate_bounds_W_lu ( ropt_poly_srcptr poly,
 void
 ropt_poly_init ( ropt_poly_ptr poly )
 {
-  unsigned int i;
   mpz_init (poly->m);
 
   cado_poly_init(poly->cpoly);
@@ -253,7 +236,7 @@ ropt_poly_init ( ropt_poly_ptr poly )
     exit(1);
   }
 
-  for (i = 0; i <= ropt_primes[ROPT_NPRIMES-1]; i++) {
+  for (unsigned int i = 0; i <= ropt_primes[ROPT_NPRIMES-1]; i++) {
     mpz_init (poly->fx[i]);
     mpz_init (poly->gx[i]);
     mpz_init (poly->numerator[i]);
@@ -267,12 +250,11 @@ ropt_poly_init ( ropt_poly_ptr poly )
 void
 ropt_poly_refresh ( ropt_poly_ptr poly )
 {
-  unsigned int i;
   mpz_set_ui (poly->cpoly->n, 0);
   mpz_set_ui (poly->m, 0);
   mpz_poly_set_zero(poly->cpoly->pols[1]);
   mpz_poly_set_zero(poly->cpoly->pols[0]);
-  for (i = 0; i <= ropt_primes[ROPT_NPRIMES-1]; i++) {
+  for (unsigned int i = 0; i <= ropt_primes[ROPT_NPRIMES-1]; i++) {
     mpz_set_ui (poly->fx[i], 0);
     mpz_set_ui (poly->gx[i], 0);
     mpz_set_ui (poly->numerator[i], 0);
@@ -284,23 +266,24 @@ ropt_poly_refresh ( ropt_poly_ptr poly )
  * Evaluation polynomials at many points.
  */
 static inline void
-ropt_poly_setup_eval (mpz_t *fr, mpz_t *gr, mpz_t *numerator, mpz_poly_srcptr f,
-                      mpz_poly_srcptr g, const unsigned int *p)
+ropt_poly_compute_evaluations (ropt_poly_ptr poly)
 {
-  unsigned long i;
   mpz_t tmp;
   mpz_init (tmp);
 
-  for ( i = 0; i <= p[ROPT_NPRIMES-1]; i ++ ) {
-    mpz_set_ui (fr[i], 0);
-    mpz_set_ui (gr[i], 0);
-    mpz_poly_eval_ui (fr[i], f, i);
-    mpz_poly_eval_ui (gr[i], g, i);
-    mpz_poly_eval_diff_ui (numerator[i], f, i);
-    mpz_mul (numerator[i], numerator[i], gr[i]);
-    mpz_neg (numerator[i], numerator[i]);
-    mpz_mul (tmp, fr[i], g->coeff[1]);
-    mpz_add (numerator[i], tmp, numerator[i]);
+  for (unsigned int i = 0; i <= ropt_primes[ROPT_NPRIMES-1]; i ++ ) {
+    mpz_set_ui (poly->fx[i], 0);
+    mpz_set_ui (poly->gx[i], 0);
+    /* fx[i] is f(i), gx[i] is g(i) */
+    mpz_poly_eval_ui (poly->fx[i], poly->cpoly->pols[1],i);
+    mpz_poly_eval_ui (poly->gx[i], poly->cpoly->pols[0], i);
+    /* numerator[i] is f(i)*g'(i) - f'(i)*g(i) */
+    mpz_poly_eval_diff_ui (poly->numerator[i], poly->cpoly->pols[1], i);
+    mpz_mul (poly->numerator[i], poly->numerator[i], poly->gx[i]);
+    mpz_neg (poly->numerator[i], poly->numerator[i]);
+    mpz_poly_eval_diff_ui (tmp, poly->cpoly->pols[0], i);    /* it's g_1 anyway */
+    mpz_mul (tmp, poly->fx[i], tmp);
+    mpz_add (poly->numerator[i], tmp, poly->numerator[i]);
   }
 
   mpz_clear (tmp);
@@ -311,23 +294,22 @@ ropt_poly_setup_eval (mpz_t *fr, mpz_t *gr, mpz_t *numerator, mpz_poly_srcptr f,
  * check if g[0]/g[1] is a root of f (mod n)
  */
 bool
-ropt_poly_setup_check (ropt_poly_ptr poly )
+ropt_poly_setup_check ( ropt_poly_ptr poly )
 {
-  mpz_t t;
-  mpz_init (t);
-
   /* m = -Y0/Y1 mod n */
-  mpz_invert (poly->m, poly->cpoly->pols[0]->coeff[1], poly->cpoly->n);
+  mpz_invert (poly->m, mpz_poly_coeff_const(poly->cpoly->pols[0], 1), poly->cpoly->n);
   mpz_neg (poly->m, poly->m);
-  mpz_mul (poly->m, poly->m, poly->cpoly->pols[0]->coeff[0]);
+  mpz_mul (poly->m, poly->m, mpz_poly_coeff_const(poly->cpoly->pols[0], 0));
   mpz_mod (poly->m, poly->m, poly->cpoly->n);
 
   /* check if m is a root of f mod n */
+  mpz_t t;
+  mpz_init (t);
   mpz_poly_eval_mod_mpz(t, poly->cpoly->pols[1], poly->m, poly->cpoly->n);
-
-  int ok = mpz_cmp_ui (t, 0) == 0;
+  int ret = mpz_cmp_ui (t, 0) == 0;
   mpz_clear (t);
-  return ok;
+
+  return ret;
 }
 
 
@@ -347,9 +329,7 @@ ropt_poly_setup ( ropt_poly_ptr poly )
   }
 
   /* pre-compute f(r) for all r < B */
-  ropt_poly_setup_eval (poly->fx, poly->gx, poly->numerator,
-                        poly->cpoly->pols[1], poly->cpoly->pols[0], ropt_primes);
-
+  ropt_poly_compute_evaluations(poly);
   /* projective alpha */
   poly->alpha_proj = get_alpha_projective (poly->cpoly->pols[1], get_alpha_bound ());
 }
@@ -361,9 +341,7 @@ ropt_poly_setup ( ropt_poly_ptr poly )
 void
 ropt_poly_clear ( ropt_poly_ptr poly )
 {
-  unsigned int i;
-
-  for (i = 0; i <= ropt_primes[ROPT_NPRIMES-1]; i ++) {
+  for (unsigned int i = 0; i <= ropt_primes[ROPT_NPRIMES-1]; i ++) {
     mpz_clear(poly->fx[i]);
     mpz_clear(poly->gx[i]);
     mpz_clear(poly->numerator[i]);
@@ -407,7 +385,7 @@ ropt_bound_setup_normbound ( ropt_poly_srcptr poly,
                              double incr )
 {
   /* XXX when we put a cpoly inside ropt_poly, we can reuse the
-   * cado_poly_stats type. Except that cado_poly_stats always compute
+   * cado_poly_stats type. Except that cado_poly_stats always computes
    * alpha, whieh here we don't really care. Not sure it's a problem
    */
   mpz_poly_srcptr F = poly->cpoly->pols[1];
@@ -415,8 +393,7 @@ ropt_bound_setup_normbound ( ropt_poly_srcptr poly,
   double skewness;
   skewness = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
   bound->init_lognorm = L2_lognorm (F, skewness);
-  bound->bound_E = (bound->init_lognorm + expected_rotation_gain (F, G))
-    * incr;
+  bound->bound_E = (bound->init_lognorm + expected_rotation_gain (F, G)) * incr;
   /* setup lognorm bound, either from input or by default
      By default, we do not use bound_lognorm to bound the 
      rotation; instead we use (lognorm + exp_E)          */
@@ -432,7 +409,7 @@ ropt_bound_expected_E (mpz_poly F, mpz_poly G)
   mpz_t *f = F->coeff;
   mpz_t *g = G->coeff;
   unsigned int d = F->deg;
-  ropt_bound_t bound;
+  ropt_bound_ptr bound;
   double exp_E;
 
   ASSERT_ALWAYS(G->deg == 1);
@@ -443,7 +420,7 @@ ropt_bound_expected_E (mpz_poly F, mpz_poly G)
   bound->bound_lognorm = bound->init_lognorm * BOUND_LOGNORM_INCR_MAX;
   exp_E = rotate_bounds_U_lu (f, g, d, bound);
   exp_E = fmin(exp_E, rotate_bounds_V_mpz (f, g, d, bound));
-  ropt_bound_free (bound);  
+  ropt_bound_clear (bound);  
   return exp_E;
 }
 #endif
@@ -1100,12 +1077,10 @@ ropt_s2param_print ( ropt_s2param_srcptr s2param )
  * Init bestpoly.
  */
 void
-ropt_bestpoly_init (ropt_bestpoly_ptr bestpoly)
+ropt_bestpoly_init ( ropt_bestpoly_ptr bestpoly)
 {
-    bestpoly->nb_polys = 2;
-    bestpoly->pols = malloc(bestpoly->nb_polys * sizeof(mpz_poly));
-    for(int side = 0 ; side < bestpoly->nb_polys ; side++)
-        mpz_poly_init(bestpoly->pols[side], -1);
+    mpz_poly_init(bestpoly->f, -1);
+    mpz_poly_init(bestpoly->g, -1);
 }
 
 
@@ -1113,13 +1088,12 @@ ropt_bestpoly_init (ropt_bestpoly_ptr bestpoly)
  * Setup bestpoly.
  */
 void
-ropt_bestpoly_setup ( ropt_bestpoly_ptr bestpoly,
+ropt_bestpoly_set ( ropt_bestpoly_ptr bestpoly,
                       mpz_poly_srcptr f,
                       mpz_poly_srcptr g)
 {
-    ASSERT_ALWAYS(bestpoly->nb_polys == 2);
-    mpz_poly_set(bestpoly->pols[1], f);
-    mpz_poly_set(bestpoly->pols[0], g);
+    mpz_poly_set(bestpoly->f, f);
+    mpz_poly_set(bestpoly->g, g);
 }
 
 
@@ -1127,11 +1101,10 @@ ropt_bestpoly_setup ( ropt_bestpoly_ptr bestpoly,
  * Free bestpoly.
  */
 void
-ropt_bestpoly_clear ( ropt_bestpoly_ptr bestpoly)
+ropt_bestpoly_clear ( ropt_bestpoly_ptr bestpoly )
 {
-    for(int side = 0 ; side < bestpoly->nb_polys ; side++)
-        mpz_poly_clear(bestpoly->pols[side]);
-    free(bestpoly->pols);
+    mpz_poly_clear(bestpoly->f);
+    mpz_poly_clear(bestpoly->g);
 }
 
 

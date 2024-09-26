@@ -73,9 +73,6 @@ static void mpz_poly_fprintf_cado_format_line (FILE *fp, mpz_poly f,
 					const int j, const char* label_poly);
 // static void mpz_phi_poly_fprintf_cado_format_line (FILE *fp, const long int phi_coeff[MAX_DEGREE + 1][DEG_PY], unsigned int deg_phi, unsigned int deg_Py, int j, const char *label_poly);
 static void fprintf_gfpn_poly_info (FILE* fp, mpz_poly f, const char *label_poly);
-// to convert a poly from int poly[] to mpz_poly format
-static void mpz_poly_setcoeff_sli(mpz_poly_ptr f, int i, long int z);
-static void mpz_poly_set_sli(mpz_poly f, const long int * h, int deg_h);
 
 /**
  * \brief Return appropriate degrees of polynomials f and g for CONJUGATION
@@ -112,8 +109,8 @@ void eval_mpz_phi_mpz_uv(mpz_poly g, mpz_t** phi_coeff, unsigned int deg_phi, mp
 {
   unsigned int i;
   for (i=0; i <= deg_phi; i++){
-    mpz_mul(g->coeff[i], v, phi_coeff[i][0]);    // gi <- phi_i0 * v
-    mpz_addmul(g->coeff[i], u, phi_coeff[i][1]); // gi <- gi + phi_i1 * u
+    mpz_mul(mpz_poly_coeff(g, i), v, phi_coeff[i][0]);    // gi <- phi_i0 * v
+    mpz_addmul(mpz_poly_coeff(g, i), u, phi_coeff[i][1]); // gi <- gi + phi_i1 * u
   }
   mpz_poly_cleandeg(g, deg_phi); // set deg to deg_phi at most (check that coeff is not 0)
 }
@@ -132,8 +129,8 @@ static void eval_si_phi_mpz_uv(mpz_poly g, const long int phi_coeff[MAX_DEGREE +
   unsigned int i;
   for (i=0; i <= deg_phi; i++){
     // phi has coefficients of type (signed) long int
-    mpz_mul_si(g->coeff[i], v, phi_coeff[i][0]);    // gi <- phi_i0 * v
-    mpz_addmul_si(g->coeff[i], u, phi_coeff[i][1]); // gi <- gi + phi_i1 * u
+    mpz_mul_si(mpz_poly_coeff(g, i), v, phi_coeff[i][0]);    // gi <- phi_i0 * v
+    mpz_addmul_si(mpz_poly_coeff(g, i), u, phi_coeff[i][1]); // gi <- gi + phi_i1 * u
   }
   mpz_poly_cleandeg(g, deg_phi); // set deg to deg_phi at most (check that coeff is not 0)
 }
@@ -144,8 +141,8 @@ void eval_si_phi_mpz_y(mpz_poly g, const long int phi_coeff[MAX_DEGREE + 1][DEG_
   for (i=0; i <= deg_phi; i++){
     // phi has coefficients of type (signed) long int
     // mpz_add_si does not exist.
-    mpz_set_si(g->coeff[i], phi_coeff[i][0]);    // gi <- phi_i0
-    mpz_addmul_si(g->coeff[i], y, phi_coeff[i][1]); // gi <- phi_i0 + phi_i1 * y
+    mpz_set_si(mpz_poly_coeff(g, i), phi_coeff[i][0]);    // gi <- phi_i0
+    mpz_addmul_si(mpz_poly_coeff(g, i), y, phi_coeff[i][1]); // gi <- phi_i0 + phi_i1 * y
   }
   mpz_poly_cleandeg(g, deg_phi); // set deg to deg_phi at most (check that coeff is not 0)
 }
@@ -210,8 +207,8 @@ static bool is_irreducible_ZZ(mpz_poly_srcptr phi)
       //compute discriminant, phi = a*x^2 + b*x + c
       mpz_init(D);
       mpz_init(tmp);
-      mpz_mul(D, phi->coeff[1], phi->coeff[1]); //   D <- b^2
-      mpz_mul(tmp, phi->coeff[0], phi->coeff[2]); // tmp <- a*c
+      mpz_mul(D, mpz_poly_coeff_const(phi, 1), mpz_poly_coeff_const(phi, 1)); //   D <- b^2
+      mpz_mul(tmp, mpz_poly_coeff_const(phi, 0), mpz_poly_coeff_const(phi, 2)); // tmp <- a*c
       mpz_mul_ui(tmp, tmp, 4);      // tmp <- 4*a*c
       sign_D = mpz_cmp(D, tmp);     // sign_D = 1 if b^2 > 4ac, 0 if b^2 = 4ac, -1 if b^2 < 4ac
       if (sign_D == 0){
@@ -270,8 +267,8 @@ bool is_irreducible_mod_p_deg2(mpz_poly_srcptr phi, mpz_srcptr p, mpz_t Discr)
       //compute discriminant, phi = a*x^2 + b*x + c
       //mpz_init(Discr); assume already done in calling function
       mpz_init(tmp);
-      mpz_mul(Discr, phi->coeff[1], phi->coeff[1]); //   D <- b^2
-      mpz_mul(tmp, phi->coeff[0], phi->coeff[2]); // tmp <- a*c
+      mpz_mul(Discr, mpz_poly_coeff_const(phi, 1), mpz_poly_coeff_const(phi, 1)); //   D <- b^2
+      mpz_mul(tmp, mpz_poly_coeff_const(phi, 0), mpz_poly_coeff_const(phi, 2)); // tmp <- a*c
       mpz_mul_ui(tmp, tmp, 4);      // tmp <- 4*a*c
       mpz_sub(Discr, Discr, tmp); //   D <- b^2 - 4*a*c and is != 0
       if (mpz_sgn(Discr) == 0) {
@@ -461,25 +458,6 @@ bool is_irreducible_mod_p_si(const long int * f, int deg_f, mpz_srcptr p){
   //    return (Degree(phi_p) eq n) and IsIrreducible(phi_p);
 
 
-/* Set signed long int coefficient for the i-th term. */
-static void mpz_poly_setcoeff_sli(mpz_poly_ptr f, int i, long int z)
-{
-  mpz_poly_realloc (f, i + 1);
-  mpz_set_si (f->coeff[i], z);
-  if (i >= f->deg)
-    mpz_poly_cleandeg (f, i);
-}
-
-static void mpz_poly_set_sli(mpz_poly f, const long int * h, int deg_h)
-{
-  mpz_poly_realloc (f, deg_h + 1);
-  int i;
-  for (i=0; i<=deg_h; i++){
-    mpz_poly_setcoeff_sli(f, i, h[i]);
-  }
-  mpz_poly_cleandeg (f, deg_h);
-}
-
 /**
  * \brief select suitable polynomial f 
  * 
@@ -522,7 +500,7 @@ bool get_f_CONJ(int* f_id, mpz_t * tab_roots_Py, int* nb_roots_Py, const fPyphi_
       if (! is_irreducible_mod_p_si( (ff->tab[i]).Py, ff->deg_Py, p)){ //
 	// Py is not irreducible i.e. if deg=2, means has roots mod p.
 	// careful:: if one day, Py will be of degree > 2, then will need here find_root(Py) instead.
-	mpz_poly_set_sli(Pyi_mpz_poly, (ff->tab[i]).Py, ff->deg_Py); // long int -> int bof
+	mpz_poly_setcoeffs_si(Pyi_mpz_poly, (ff->tab[i]).Py, ff->deg_Py); // long int -> int bof
 	// compute the two roots of Pyi, 
 	// --> compute a square root mod p
 	// HOW TO DO THAT ?
@@ -761,7 +739,7 @@ int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED,
 	  found_g = get_g_CONJ(g, phi, params_g, f_id, tab_roots_Py, nb_roots_Py, ff, params);
 
 	  if(found_g){
-	    mpz_poly_set_sli(f, ff->tab[f_id].f, ff->deg_f);
+	    mpz_poly_setcoeffs_si(f, ff->tab[f_id].f, ff->deg_f);
 	    FILE* outputpoly;
             if (out_filename != NULL) {
                 outputpoly = fopen(out_filename, "w");
@@ -780,7 +758,7 @@ int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED,
 	    }
 	    fprintf (outputpoly, "# gcd(f, g) = phi = ");
             for (int i = 0; i <= phi->deg; i++) {
-                gmp_fprintf(outputpoly, "%Zd", phi->coeff[i]);
+                gmp_fprintf(outputpoly, "%Zd", mpz_poly_coeff_const(phi, i));
                 if (i != phi->deg) {
                     fprintf(outputpoly, ",");
                 } else {
@@ -827,11 +805,11 @@ void mpz_poly_fprintf_cado_format_line (FILE *fp, mpz_poly f, const int j, const
   fprintf (fp, "poly%d: ", j);
   for (int i = 0; i < f->deg; i++)
   {
-    gmp_fprintf (fp, "%Zd,", f->coeff[i]);
+    gmp_fprintf (fp, "%Zd,", mpz_poly_coeff_const(f, i));
   }
   //i = f->deg;
   if (f->deg >= 0){
-    gmp_fprintf (fp, "%Zd\n", f->coeff[f->deg]);
+    gmp_fprintf (fp, "%Zd\n", mpz_poly_lc(f));
   }
 }
 

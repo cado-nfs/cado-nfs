@@ -53,6 +53,7 @@ pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; /* used as mutual exclusion
                                                      lock for output */
 unsigned int nthreads = 1;
 int tot_found = 0; /* total number of polynomials */
+double best_MurphyE = 0.0; /* Murphy's E (the larger the better) */
 ropt_param rparam; /* params for ropt algorithms */
 double total_exp_E = 0.0; /* cumulated expected E for input polynomials */
 double total_E = 0.0; /* cumulated E-value for input polynomials */
@@ -134,6 +135,8 @@ usage_adv (char **argv)
 
 /**
  * parse manually input parameters to param.
+ *
+ * TODO: gosh. use param_list instead.
  */
 static void
 ropt_parse_param ( int argc,
@@ -894,7 +897,6 @@ main_basic (int argc, char **argv)
               total_exp_E / (double) nb_input_polys,
               total_E / (double) nb_input_polys);
   }
-
 
   ropt_param_clear (rparam);
   best_polynomials_queue_clear(best_polys);

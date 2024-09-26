@@ -8,6 +8,9 @@ extern "C" {
 #endif
 
 typedef struct {
+    /* TODO: Refactor. Outstanding uses should use mpz_mat_LLL instead.
+     * We have some in size_optimization.c
+     * */
   mpz_t **coeff;
   int NumRows, NumCols;
 } mat_Z;

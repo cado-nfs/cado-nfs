@@ -146,43 +146,26 @@ uv2ij_mod ( mpz_srcptr A,
   return i;
 }
 
-/* replace f by f + k * x^t * g, and return k */
-void
-rotate_aux_mp (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr k, unsigned int t)
-{
-  /* I think that there's absolutely no use case for rotation which
-   * touches the leading coefficient of f, so let's forbid if. If we want
-   * to allow it, we want to make sure that the leading coefficient does
-   * not become zero.
-   */
-  ASSERT_ALWAYS((int) t + mpz_poly_degree(g) < mpz_poly_degree(f));
-  for(int d = 0 ; d <= mpz_poly_degree(g) ; d++)
-      mpz_addmul (f->coeff[t + d], g->coeff[d], k);
-}
-
 /**
  * Compute fuv = f+(u*x+v)*g,
- * f(r) + u*r*g(r) + v*g(r) = 0
- * The inputs for f and g are mpz.
  */
 void
-compute_fuv_mp (mpz_poly_ptr fuv,
-                mpz_poly_srcptr f,
-                mpz_poly_srcptr g,
-                mpz_srcptr u,
-                mpz_srcptr v )
+compute_fuv_mp ( mpz_poly_ptr fuv,
+                 mpz_poly_srcptr f,
+                 mpz_poly_srcptr g,
+                 mpz_srcptr u,
+                 mpz_srcptr v )
 {
-    mpz_poly_set(fuv, f);
-    rotate_aux_mp(fuv, g, u, 1);
-    rotate_aux_mp(fuv, g, v, 0);
+    mpz_poly_rotation(fuv, f, g, v, 0);
+    mpz_poly_rotation(fuv, fuv, g, u, 1);
 }
 
 
 /**
  * Compute fuv = f+(u*x+v)*g,
- * The inputs for f and g are unsigne long.
+ * The inputs for f and g are unsigned long.
  * Note, u, v are unsigned int.
- * So they should be reduce (mod p) if necessary.
+ * So they should be reduced (mod p) if necessary.
  */
 void
 compute_fuv_ui ( unsigned int *fuv_ui,
@@ -322,13 +305,13 @@ eval_poly_ui_mod ( unsigned int *f,
  * Given modulus pe, return f (mod pe).
  */
 inline void
-reduce_poly_ul ( unsigned int *f_ui,
-                 mpz_poly_srcptr F,
+reduce_poly_uint ( unsigned int *f_ui,
+                 mpz_poly_srcptr f,
                  unsigned int pe )
 {
   int i;
-  for (i = 0; i <= mpz_poly_degree(F); i ++) {
-    f_ui[i] = (unsigned int) mpz_fdiv_ui (F->coeff[i], pe);
+  for (i = 0; i <= f->deg; i ++) {
+    f_ui[i] = (unsigned int) mpz_fdiv_ui (mpz_poly_coeff_const(f, i), pe);
   }
 }
 
@@ -336,61 +319,76 @@ reduce_poly_ul ( unsigned int *f_ui,
 /**
  * From polyselect.c
  * Implements Lemma 2.1 from Kleinjung's paper.
+ *
+ * given N, d, ad, p, and m, compute a polynomial pair f(x), g(x)=l*x-m
+ *
  * If a[d] is non-zero, it is assumed it is already set, otherwise it is
  * determined as a[d] = N/m^d (mod p).
  */
 void
-Lemma21 ( mpz_poly_ptr F,
-          mpz_srcptr N,
-          mpz_poly_srcptr G,
-          mpz_ptr res )
+Lemma21 ( ropt_poly_ptr poly,
+          mpz_t N,
+          int d,
+          mpz_srcptr ad,
+          mpz_srcptr p,
+          mpz_srcptr m,
+          mpz_ptr res)
 {
   mpz_t r, mi, invp, l, ln;
-  mpz_t m;
   int i;
 
-  mpz_t * a = F->coeff;
-  int d = mpz_poly_degree(F);
+  mpz_poly_ptr F = poly->cpoly->pols[1];
+  mpz_poly_ptr G = poly->cpoly->pols[0];
 
-  ASSERT_ALWAYS(mpz_poly_degree(G) == 1);
-  ASSERT_ALWAYS(mpz_sgn(G->coeff[1]) > 0);
-
-  mpz_srcptr p = G->coeff[1];
+  /* very basic settings inside the ropt_poly structure */
 
   mpz_init (r);
   mpz_init_set_ui (l, 1);
   mpz_init (ln);
   mpz_init (mi);
   mpz_init (invp);
-  mpz_init (m);
-  mpz_neg(m, G->coeff[0]);
+
+  /* Set in the ropt_poly structure the fields that derive directly from
+   * our arguments */
+  mpz_set(poly->cpoly->n, N);
+  mpz_poly_set_zero(F);
+  mpz_poly_setcoeff(F, d, ad);
+  mpz_poly_set_mpz_ab(G, m, p); /* sets to m-px */
+  mpz_poly_neg(G, G); /* we want px-m */
+
+
   mpz_pow_ui (mi, m, d);
 
-  if (mpz_cmp_ui (a[d], 0) < 0)
-    mpz_abs (a[d], a[d]);
+
+  mpz_ptr lc = mpz_poly_lc_w(F);
+
+  if (mpz_cmp_ui (lc, 0) < 0)
+    mpz_abs (lc, lc);
   
-  if (mpz_cmp_ui (a[d], 0) == 0) {
-    mpz_invert (a[d], mi, p); /* 1/m^d mod p */
-    mpz_mul (a[d], a[d], N);
-    mpz_mod (a[d], a[d], p);
+  if (mpz_cmp_ui (lc, 0) == 0) {
+    mpz_invert (lc, mi, p); /* 1/m^d mod p */
+    mpz_mul (lc, lc, N);
+    mpz_mod (lc, lc, p);
     mpz_set_ui (l, 1);
   }
   /* multiplier l < m1 */
   else {
     mpz_invert (l, N, p);
     mpz_mul (l, l, mi);
-    mpz_mul (l, l, a[d]);
+    mpz_mul (l, l, lc);
     mpz_mod (l, l, p);
   }
   mpz_mul (ln, N, l);
   mpz_set (r, ln);
+
   mpz_set (res, l);
   
   for (i = d - 1; i >= 0; i--)
   {
+    mpz_ptr ai = mpz_poly_coeff(F, i);
     /* invariant: mi = m^(i+1) */
-    mpz_mul (a[i], a[i+1], mi);
-    mpz_sub (r, r, a[i]);
+    mpz_mul (ai, mpz_poly_coeff_const(F, i+1), mi);
+    mpz_sub (r, r, ai);
     ASSERT (mpz_divisible_p (r, p));
     mpz_divexact (r, r, p);
     mpz_divexact (mi, mi, m); /* now mi = m^i */
@@ -401,26 +399,25 @@ Lemma21 ( mpz_poly_ptr F,
     }
     else
       mpz_mod (invp, invp, mi);
-    mpz_mul (a[i], invp, r);
-    mpz_mod (a[i], a[i], mi); /* -r/p mod m^i */
+    mpz_mul (ai, invp, r);
+    mpz_mod (ai, ai, mi); /* -r/p mod m^i */
     /* round to nearest in [-m^i/2, m^i/2] */
-    mpz_mul_2exp (a[i], a[i], 1);
-    if (mpz_cmp (a[i], mi) >= 0)
+    mpz_mul_2exp (ai, ai, 1);
+    if (mpz_cmp (ai, mi) >= 0)
     {
-      mpz_div_2exp (a[i], a[i], 1);
-      mpz_sub (a[i], a[i], mi);
+      mpz_div_2exp (ai, ai, 1);
+      mpz_sub (ai, ai, mi);
     }
     else
-      mpz_div_2exp (a[i], a[i], 1);
-    mpz_mul (a[i], a[i], p);
-    mpz_add (a[i], a[i], r);
-    ASSERT (mpz_divisible_p (a[i], mi));
-    mpz_divexact (a[i], a[i], mi);
+      mpz_div_2exp (ai, ai, 1);
+    mpz_mul (ai, ai, p);
+    mpz_add (ai, ai, r);
+    ASSERT (mpz_divisible_p (ai, mi));
+    mpz_divexact (ai, ai, mi);
   }
   mpz_clear (r);
   mpz_clear (l);
   mpz_clear (ln);
   mpz_clear (mi);
   mpz_clear (invp);
-  mpz_clear (m);
 }

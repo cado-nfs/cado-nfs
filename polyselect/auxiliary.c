@@ -43,42 +43,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 long
 rotate_aux (mpz_poly_ptr f, mpz_poly_srcptr g, long k0, long k, unsigned int t)
 {
-  /* I think that there's absolutely no use case for rotation which
-   * touches the leading coefficient of f, so let's forbid if. If we want
-   * to allow it, we want to make sure that the leading coefficient does
-   * not become zero.
-   */
-  ASSERT_ALWAYS((int) t + mpz_poly_degree(g) < mpz_poly_degree(f));
-  /* Warning: k - k0 might not be representable in a long! This is the
-   * reason why we do two cases depending on the sign.
-   */
-  if (k >= k0)
-    {
-      for(int d = 0 ; d <= mpz_poly_degree(g) ; d++)
-          mpz_addmul_ui (f->coeff[t + d], g->coeff[d], k-k0);
-    }
-  else
-    {
-      for(int d = 0 ; d <= mpz_poly_degree(g) ; d++)
-          mpz_submul_ui (f->coeff[t + d], g->coeff[d], k0-k);
-    }
+  /* Warning: k - k0 might not be representable in a long! */
+  if (k > k0) {
+      mpz_poly_rotation_ui(f, f, g, k - k0, t);
+  } else if (k < k0) {
+      mpz_poly_reverse_rotation_ui(f, f, g, k0 - k, t);
+  }
   return k;
 }
 
 /* replace f by f + k * x^t * (b*x + g0) */
 void
-rotate_auxg_z (mpz_t *f, const mpz_t b, const mpz_t g0, const mpz_t k, unsigned int t)
+rotate_auxg_z (mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr k, unsigned int t)
 {
-  mpz_addmul (f[t + 1], b, k);
-  mpz_addmul (f[t], g0, k);
-}
-
-/* replace f by f - k * x^t * (b*x + g0) */
-void
-derotate_auxg_z (mpz_t *f, const mpz_t b, const mpz_t g0, const mpz_t k, unsigned int t)
-{
-  mpz_submul (f[t + 1], b, k);
-  mpz_submul (f[t], g0, k);
+    mpz_poly_rotation(f, f, g, k, t);
 }
 
 /*
@@ -94,12 +72,12 @@ print_cadopoly_fg (FILE *fp, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr n)
    gmp_fprintf (fp, "\nn: %Zd\n", n);
 
    /* Y[i] */
-   for (i = mpz_poly_degree(g); i >= 0; i--)
-     gmp_fprintf (fp, "Y%d: %Zd\n", i, g->coeff[i]);
+   for (i = g->deg; i >= 0; i--)
+     gmp_fprintf (fp, "Y%d: %Zd\n", i, mpz_poly_coeff_const(g, i));
 
    /* c[i] */
-   for (i = mpz_poly_degree(f); i >= 0; i--)
-     gmp_fprintf (fp, "c%d: %Zd\n", i, f->coeff[i]);
+   for (i = f->deg; i >= 0; i--)
+     gmp_fprintf (fp, "c%d: %Zd\n", i, mpz_poly_coeff_const(f, i));
 }
 
 
@@ -186,31 +164,6 @@ print_poly_fg (mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr N, int mode)
    return e;
 }
 
-/* f <- f(x+k), g <- g(x+k) */
-void
-do_translate_z (mpz_poly_ptr f, mpz_t *g, const mpz_t k)
-{
-  int i, j;
-  int d = f->deg;
-
-  for (i = d - 1; i >= 0; i--)
-    for (j = i; j < d; j++)
-      mpz_addmul (f->coeff[j], f->coeff[j+1], k);
-  mpz_addmul (g[0], g[1], k);
-}
-
-/* f <- f(x-k), g <- g(x-k) */
-void
-do_detranslate_z (mpz_poly_ptr f, mpz_t *g, const mpz_t k)
-{
-  int i, j;
-  int d = f->deg;
-
-  for (i = d - 1; i >= 0; i--)
-    for (j = i; j < d; j++)
-      mpz_submul (f->coeff[j], f->coeff[j+1], k);
-  mpz_submul (g[0], g[1], k);
-}
 
 /* TODO: Does it make sense with multiple polynomials?
  */
@@ -219,7 +172,6 @@ void cado_poly_set_skewness_if_undefined(cado_poly_ptr cpoly)
     if (cpoly->skew <= 0.0) /* If skew is undefined, compute it. */
         cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
 }
-
 
 void cado_poly_stats_init(cado_poly_stats_ptr spoly, int nb_polys)
 {
@@ -314,14 +266,16 @@ void cado_poly_fprintf_stats(FILE * fp, const char * prefix, cado_poly_srcptr cp
 /* compute largest interval kmin <= k <= kmax such that when we add k*x^i*g(x)
    to f(x), the lognorm does not exceed maxlognorm (with skewness s) */
 void
-expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
+expected_growth (rotation_space *r, mpz_poly_srcptr f0, mpz_poly_srcptr g, int i,
                  double maxlognorm, double s)
 {
-  mpz_t fi, fip1, kmin, kmax, k;
+  mpz_t kmin, kmax, k;
   double n2;
 
-  mpz_init_set (fi, f->coeff[i]);
-  mpz_init_set (fip1, f->coeff[i+1]);
+  mpz_poly f;
+  mpz_poly_init(f, -1);
+  mpz_poly_set(f, f0);
+
   mpz_init (kmin);
   mpz_init (kmax);
   mpz_init (k);
@@ -330,9 +284,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
   mpz_set_si (kmin, -1);
   for (;;)
     {
-      mpz_set (f->coeff[i], fi);
-      mpz_set (f->coeff[i+1], fip1);
-      rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], kmin, i);
+      mpz_poly_rotation(f, f0, g, kmin, i);
       n2 = L2_lognorm (f, s);
       if (n2 > maxlognorm)
         break;
@@ -346,9 +298,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
       mpz_div_2exp (k, k, 1);
       if (mpz_cmp (k, kmin) == 0 || mpz_cmp (k, kmax) == 0)
         break;
-      mpz_set (f->coeff[i], fi);
-      mpz_set (f->coeff[i+1], fip1);
-      rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], k, i);
+      mpz_poly_rotation(f, f0, g, k, i);
       n2 = L2_lognorm (f, s);
       if (n2 > maxlognorm)
         mpz_set (kmin, k);
@@ -361,9 +311,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
   mpz_set_ui (kmax, 1);
   for (;;)
     {
-      mpz_set (f->coeff[i], fi);
-      mpz_set (f->coeff[i+1], fip1);
-      rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], kmax, i);
+      mpz_poly_rotation(f, f0, g, kmax, i);
       n2 = L2_lognorm (f, s);
       if (n2 > maxlognorm)
         break;
@@ -377,9 +325,7 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
       mpz_div_2exp (k, k, 1);
       if (mpz_cmp (k, kmin) == 0 || mpz_cmp (k, kmax) == 0)
         break;
-      mpz_set (f->coeff[i], fi);
-      mpz_set (f->coeff[i+1], fip1);
-      rotate_auxg_z (f->coeff, g->coeff[1], g->coeff[0], k, i);
+      mpz_poly_rotation(f, f0, g, k, i);
       n2 = L2_lognorm (f, s);
       if (n2 > maxlognorm)
         mpz_set (kmax, k);
@@ -388,12 +334,8 @@ expected_growth (rotation_space *r, mpz_poly_srcptr f, mpz_poly_srcptr g, int i,
     }
   r->kmax = mpz_get_d (kmin);
 
-  /* reset f[i] and f[i+1] */
-  mpz_set (f->coeff[i], fi);
-  mpz_set (f->coeff[i+1], fip1);
+  mpz_poly_clear(f);
 
-  mpz_clear (fi);
-  mpz_clear (fip1);
   mpz_clear (kmin);
   mpz_clear (kmax);
   mpz_clear (k);

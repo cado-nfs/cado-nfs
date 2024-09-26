@@ -557,8 +557,8 @@ rootsieve_run_multroot ( sievearray_t sa,
     fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit (1);
   }
-  reduce_poly_ul (f_ui, rs->cpoly->pols[1], pe);
-  reduce_poly_ul (g_ui, rs->cpoly->pols[0], pe);
+  reduce_poly_uint (f_ui, rs->cpoly->pols[1], pe);
+  reduce_poly_uint (g_ui, rs->cpoly->pols[0], pe);
 
   /* j -> v (mod p) */
   ij2uv (s2param->B, s2param->MOD, s2param->Bmin, j, tmpz);

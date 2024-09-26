@@ -70,8 +70,8 @@ void mpq_mat_row_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const un
     mpz_poly_realloc(f, n);
     for (unsigned int j = 0; j < n; j++) {
         mpq_srcptr mij = mpq_mat_entry_const(M, i, j);
-        mpz_divexact(f->coeff[j], lcm, mpq_denref(mij));
-        mpz_mul(f->coeff[j], f->coeff[j], mpq_numref(mij));
+        mpz_divexact(mpz_poly_coeff(f, j), lcm, mpq_denref(mij));
+        mpz_mul(mpz_poly_coeff(f, j), mpz_poly_coeff_const(f, j), mpq_numref(mij));
     }
     mpz_poly_cleandeg(f, n-1);
 }
@@ -96,8 +96,8 @@ void mpq_mat_column_to_poly(mpz_poly_ptr f, mpz_ptr lcm, mpq_mat_srcptr M, const
     }
     for (unsigned int i = 0 ; i < M->m; i++){
         mpq_srcptr mij = mpq_mat_entry_const(M, i, j);
-        mpz_divexact(f->coeff[i], lcm, mpq_denref(mij));
-        mpz_mul(f->coeff[i], f->coeff[i], mpq_numref(mij));
+        mpz_divexact(mpz_poly_coeff(f, i), lcm, mpq_denref(mij));
+        mpz_mul(mpz_poly_coeff(f, i), mpz_poly_coeff_const(f, i), mpq_numref(mij));
     }
     mpz_poly_cleandeg(f, M->m - 1);
 }
@@ -418,7 +418,7 @@ cxx_mpq_mat p_maximal_order(cxx_mpz_poly const& f, cxx_mpz const& p)
             mpz_mul(mpq_numref(dij), mpq_numref(dij), x);
             mpq_canonicalize(dij);
         }
-        mpz_mul(x, x, f->coeff[f->deg]);
+        mpz_mul(x, x, mpz_poly_lc(f));
     }
     // Put D into HNF.
     cxx_mpz_mat Dz;
@@ -913,7 +913,7 @@ pair<cxx_mpz, cxx_mpz_mat> prime_ideal_two_element(cxx_mpq_mat const& O, cxx_mpz
              * all conjugate of pgen(alpha). Resultant(f,pgen) is
              * lc(f)^deg(pgen) times the galois norm.
              */
-            int v = mpz_p_valuation(res, p) - pgen->deg * mpz_p_valuation(f->coeff[f->deg], p) - f->deg * mpz_p_valuation(dgen, p);
+            int v = mpz_p_valuation(res, p) - pgen->deg * mpz_p_valuation(mpz_poly_lc(f), p) - f->deg * mpz_p_valuation(dgen, p);
             ASSERT_ALWAYS(v >= inertia);
             if (v == inertia) {
                 cxx_mpz_mat lambda(1, m);

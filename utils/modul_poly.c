@@ -145,17 +145,16 @@ int
 modul_poly_set_mod_raw (modul_poly_t fp, mpz_poly_srcptr F, modulusul_t p)
 {
   int i;
-  mpz_t *f = F->coeff;
   int d = F->deg;
 
-  while (d >= 0 && mpz_divisible_ui_p (f[d], modul_getmod_ul (p)))
+  while (d >= 0 && mpz_divisible_ui_p (mpz_poly_coeff_const(F, d), modul_getmod_ul (p)))
     d --;
   ASSERT (d >= 0); /* f is 0 mod p: should not happen in the CADO-NFS context
                       since otherwise p would divide N, indeed f(m)=N */
   modul_poly_realloc (fp, d + 1);
   fp->degree = d;
   for (i = 0; i <= d; i++)
-    modul_set_ul (fp->coeff[i], mpz_fdiv_ui (f[i], modul_getmod_ul (p)), p);
+    modul_set_ul (fp->coeff[i], mpz_fdiv_ui (mpz_poly_coeff_const(F, i), modul_getmod_ul (p)), p);
 
   return d;
 }

@@ -63,12 +63,16 @@ ropt_get_bestpoly ( ropt_poly_srcptr poly,
 
       ave_MurphyE = print_poly_fg (Fuv, Guv, poly->cpoly->n, 0);
 
-      mpz_poly_make_trivial_content (Fuv);
+      /* Does it even make sense ? After all, if we end up with something
+       * with non-trivial content, we would expect that we encountered it
+       * earlier, right ?
+       */
+      mpz_poly_divide_by_content (Fuv);
 
       if (ave_MurphyE > best_E) {
           best_E = ave_MurphyE;
-          mpz_poly_set (bestpoly->pols[1], Fuv);
-          mpz_poly_set (bestpoly->pols[0], Guv);
+          mpz_poly_set (bestpoly->f, Fuv);
+          mpz_poly_set (bestpoly->g, Guv);
       }
   }
 
@@ -87,6 +91,13 @@ ropt_do_stage2 (ropt_poly_ptr poly,
                 ropt_info_ptr info)
 {
   double alpha_lat;
+
+  // int old_i;
+  // double alpha_lat;
+  // ropt_bound bound;
+  // ropt_s2param s2param;
+  // MurphyE_pq *global_E_pqueue;
+  // mpz_poly Fuv, Guv;
 
   mpz_poly Fuv, Guv;
   mpz_poly_init (Fuv, -1);
@@ -128,6 +139,7 @@ ropt_do_stage2 (ropt_poly_ptr poly,
 
   /* root sieve */
   ropt_s2param s2param;
+
   ropt_s2param_init (s2param);
   ropt_s2param_setup_stage2_only (bound, s2param, param,
                                   param->s2_u, param->s2_v, param->s2_mod);
@@ -217,7 +229,7 @@ ropt_polyselect (cado_poly_ptr output_poly, cado_poly_srcptr input_poly,
 
   ropt_bestpoly bestpoly;
   ropt_bestpoly_init (bestpoly);
-  ropt_bestpoly_setup (bestpoly, poly->cpoly->pols[1], poly->cpoly->pols[0]);
+  ropt_bestpoly_set (bestpoly, poly->cpoly->pols[1], poly->cpoly->pols[0]);
 
   /* call main function */
   ropt_do_both_stages (poly, bestpoly, param, info);
@@ -225,8 +237,8 @@ ropt_polyselect (cado_poly_ptr output_poly, cado_poly_srcptr input_poly,
   /* bring bestpoly back to polyselect_ropt */
   for( ; output_poly->nb_polys < 2 ; )
       cado_poly_provision_new_poly(output_poly);
-  mpz_poly_set(output_poly->pols[0], bestpoly->pols[0]);
-  mpz_poly_set(output_poly->pols[1], bestpoly->pols[1]);
+  mpz_poly_set(output_poly->pols[0], bestpoly->g);
+  mpz_poly_set(output_poly->pols[1], bestpoly->f);
   mpz_set (output_poly->n, input_poly->n);
 
   /* get time passed from info, use info to keep interface unchanged */

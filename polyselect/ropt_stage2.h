@@ -2,7 +2,7 @@
 #define ROPT_STAGE2_H
 
 #include <stdint.h>      // int16_t
-#include "ropt_str.h"    // ropt_param_t ...
+#include "ropt_str.h"    // ropt_param ...
 #include "ropt_tree.h" // MurphyE_pq
 
 
