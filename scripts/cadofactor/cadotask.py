@@ -5423,6 +5423,15 @@ class LogQueryTask(Task):
     def check_new_log(self, target, logtarget, commit=True):
         if target in self.history:
             return
+        if logtarget == 0:
+            msg = "Checking that log of %d is zero..." % target
+            check = pow(target, self.cof, self.p) == 1
+            if check:
+                self.logger.info(msg + " passed")
+            else:
+                self.logger.critical(msg + " FAILED")
+                raise ValueError("Failed log check, log(%d)=0 seems wrong\n" % target)
+            return
         just_deduced_gen = False
         if self.logbase is None:
             gt, ilogt, foo = self.xgcd(logtarget * self.cof, self.ell)

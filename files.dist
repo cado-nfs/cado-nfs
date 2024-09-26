@@ -63,6 +63,8 @@ config/avx512vl.c
 config/bsd.cmake
 config/bug30027.cmake
 config/bug30027.cpp
+config/bug30057.bc
+config/bug30057.cmake
 config/cado_check_cxx_source_compiles.cmake
 config/ccwrap.pl.in
 config/check_cpu_feature.cmake
