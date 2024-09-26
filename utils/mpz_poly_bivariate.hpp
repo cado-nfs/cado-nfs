@@ -24,39 +24,44 @@
 
 #include "mpz_poly.h"
 
-#include <vector>
 #include <istream>
 #include <ostream>
 #include <type_traits>
+#include <vector>
 
-
-class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
+class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly>
+{
     typedef std::vector<cxx_mpz_poly> super;
     typedef cxx_mpz_poly_bivariate self;
-    public:
-    cxx_mpz_poly_bivariate() { }
+
+  public:
+    cxx_mpz_poly_bivariate() {}
 #if 0
     cxx_mpz_poly_bivariate(int d)
         ATTRIBUTE_DEPRECATED /* it's too dangerous */
         : super(d+1) {}
 #endif
-    inline int degree() const { return ((int) size()) - 1; }
+    inline int degree() const { return ((int)size()) - 1; }
     inline int degree_y() const { return degree(); }
-    inline int degree_x() const { 
+    inline int degree_x() const
+    {
         int d = -1;
-        for(auto const & c : *this) {
+        for (auto const & c: *this) {
             d = std::max(d, c->deg);
         }
         return d;
     }
-    inline int degree_in_yi(unsigned int i) const {
-        if ((int) i >= degree())
+    inline int degree_in_yi(unsigned int i) const
+    {
+        if ((int)i >= degree())
             return -1;
         return mpz_poly_degree((*this)[i]);
     }
-    inline int degree_in_xi(unsigned int i) const { 
-        for(int d = degree_y() ; d >= 0 ; d--) {
-            if (mpz_poly_degree((*this)[d]) >= (int) i && mpz_cmp_ui(mpz_poly_coeff_const((*this)[d], i), 0) != 0)
+    inline int degree_in_xi(unsigned int i) const
+    {
+        for (int d = degree_y(); d >= 0; d--) {
+            if (mpz_poly_degree((*this)[d]) >= (int)i &&
+                mpz_cmp_ui(mpz_poly_coeff_const((*this)[d], i), 0) != 0)
                 return d;
         }
         return -1;
@@ -66,7 +71,7 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
     ~cxx_mpz_poly_bivariate() = default;
 #if __cplusplus >= 201103L
     cxx_mpz_poly_bivariate(self && o) = default;
-    cxx_mpz_poly_bivariate& operator=(self && o) = default;
+    cxx_mpz_poly_bivariate & operator=(self && o) = default;
 #endif
 #if 0
     private:
@@ -76,35 +81,37 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
     cxx_mpz_poly & operator[](unsigned int d) { return super::operator[](d); }
     public:
 #endif
-    cxx_mpz_poly const & operator[](unsigned int d) const { return super::operator[](d); }
-    std::string print_poly(std::string const& var) const;
-
-    void swap(self& a) {
-        ((super&)*this).swap((super&)a);
+    cxx_mpz_poly const & operator[](unsigned int d) const
+    {
+        return super::operator[](d);
     }
+    std::string print_poly(std::string const & var) const;
 
-    private:
-    void cleandeg(int deg) {
+    void swap(self & a) { ((super &)*this).swap((super &)a); }
+
+  private:
+    void cleandeg(int deg)
+    {
         ASSERT(deg >= -1);
-        if ((size_t)(deg+1) >= size())
-            deg = size()-1;
+        if ((size_t)(deg + 1) >= size())
+            deg = size() - 1;
         erase(begin() + deg + 1, end());
         while (!empty() && super::back() == 0)
             pop_back();
     }
-    public:
 
+  public:
     /* setcoeffs from an array ? Do we need that ? */
 
-    template <typename T, std::enable_if_t<
-        std::is_integral<T>::value,
-        int> = 0 >
-    self& operator=(T c) {
+    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0>
+    self & operator=(T c)
+    {
         assign(1, cxx_mpz_poly(c));
         cleandeg(0);
         return *this;
     }
-    self& operator=(mpz_srcptr c) {
+    self & operator=(mpz_srcptr c)
+    {
         assign(1, cxx_mpz_poly(c));
         cleandeg(0);
         return *this;
@@ -112,30 +119,36 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
 
     struct lifted_x {
         mpz_poly_srcptr c;
-        lifted_x(mpz_poly_srcptr c) : c(c) {}
+        lifted_x(mpz_poly_srcptr c)
+            : c(c)
+        {
+        }
         // operator mpz_poly_srcptr() const { return c; }
         mpz_poly_srcptr operator->() const { return c; }
     };
 
     struct lifted_y {
         mpz_poly_srcptr c;
-        lifted_y(mpz_poly_srcptr c) : c(c) {}
+        lifted_y(mpz_poly_srcptr c)
+            : c(c)
+        {
+        }
         // operator mpz_poly_srcptr() const { return c; }
         mpz_poly_srcptr operator->() const { return c; }
     };
 
-    self& operator=(lifted_x const & c) 
+    self & operator=(lifted_x const & c)
     {
         assign(1, c.c);
         cleandeg(0);
         return *this;
     }
 
-    self& operator=(lifted_y const & c) 
+    self & operator=(lifted_y const & c)
     {
         clear();
         reserve(c->deg + 1);
-        for(int i = 0 ; i <= c->deg ; i++) {
+        for (int i = 0; i <= c->deg; i++) {
             emplace_back(mpz_poly_coeff_const(c.c, i));
         }
         return *this;
@@ -146,68 +159,78 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
      * Implicitly, we understand c as meaning c(x). But it's also
      * possible to think of it as c(y)...
      */
-    self& operator=(mpz_poly_srcptr c) 
-    {
-        return *this = lifted_x(c);
-    }
+    self & operator=(mpz_poly_srcptr c) { return *this = lifted_x(c); }
 
-    template <typename T, std::enable_if_t<
-        std::is_integral<T>::value,
-        int> = 0 >
-    inline cxx_mpz_poly_bivariate(T c) { *this = c; }
+    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0>
+    inline cxx_mpz_poly_bivariate(T c)
+    {
+        *this = c;
+    }
     inline cxx_mpz_poly_bivariate(mpz_srcptr c) { *this = c; }
     inline cxx_mpz_poly_bivariate(lifted_x const & c) { *this = c; }
     inline cxx_mpz_poly_bivariate(lifted_y const & c) { *this = c; }
     inline cxx_mpz_poly_bivariate(mpz_poly_srcptr c) { *this = c; }
 
-    template<typename T>
-    class named_proxy {
+    template <typename T> class named_proxy
+    {
         static_assert(std::is_reference<T>::value);
         typedef typename std::remove_reference<T>::type V;
         typedef typename std::remove_const<V>::type Vnc;
         typedef named_proxy<Vnc &> nc;
-        static constexpr const bool is_c = std::is_const<V>::value;
-        public:
+        static constexpr bool const is_c = std::is_const<V>::value;
+
+      public:
         T c;
         std::string x;
         std::string y;
         named_proxy(T c, std::string const & x, std::string const & y)
-            : c(c), x(x), y(y)
-        {}
-        template<
-                typename U=T,
-                typename = typename std::enable_if<
-                    std::is_same<U, nc>::value
-                >::type
-            >
-        named_proxy(U const & c) : c(c.c), x(c.x), y(c.y) {}
+            : c(c)
+            , x(x)
+            , y(y)
+        {
+        }
+        template <typename U = T, typename = typename std::enable_if<
+                                      std::is_same<U, nc>::value>::type>
+        named_proxy(U const & c)
+            : c(c.c)
+            , x(c.x)
+            , y(c.y)
+        {
+        }
     };
 
-    named_proxy<self &> named(std::string const & x, std::string const & y) {
+    named_proxy<self &> named(std::string const & x, std::string const & y)
+    {
         return named_proxy<self &>(*this, x, y);
     }
-    named_proxy<self const &> named(std::string const & x, std::string const & y) const {
+    named_proxy<self const &> named(std::string const & x,
+                                    std::string const & y) const
+    {
         return named_proxy<self const &>(*this, x, y);
     }
 
-    static self yi(unsigned int i) {
+    static self yi(unsigned int i)
+    {
         self f;
         return f.set_xi(i);
     }
 
-    self& set_yi(unsigned int i) {
+    self & set_yi(unsigned int i)
+    {
         cxx_mpz_poly a;
-        super::assign(i+1, a);
+        super::assign(i + 1, a);
         mpz_poly_set_xi(back(), 0);
         return *this;
     }
 
-    static self xi(unsigned int i) {
+    static self xi(unsigned int i)
+    {
         self f;
         return f.set_xi(i);
     }
 
-    self& set_xi(unsigned int i) {
+    self & set_xi(unsigned int i)
+    {
         cxx_mpz_poly a;
         super::assign(1, a);
         mpz_poly_set_xi(back(), i);
@@ -216,8 +239,9 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
 
     /* Do we want to keep analogues of the set_ab functions ? */
     /*
-    void mpz_poly_bivariate_set_ab (mpz_poly_bivariate_ptr rel, int64_t a, uint64_t b);
-    void mpz_poly_bivariate_init_set_mpz_ab (mpz_poly_bivariate_ptr rel, mpz_srcptr a, mpz_srcptr b);
+    void mpz_poly_bivariate_set_ab (mpz_poly_bivariate_ptr rel, int64_t a,
+    uint64_t b); void mpz_poly_bivariate_init_set_mpz_ab (mpz_poly_bivariate_ptr
+    rel, mpz_srcptr a, mpz_srcptr b);
     */
 
 #if 0
@@ -227,20 +251,26 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
 #endif
     cxx_mpz_poly const & lc() const { return back(); }
 
-    bool normalized_p() const {
+    bool normalized_p() const
+    {
         return empty() || (mpz_poly_normalized_p(lc()) && lc()->deg != -1);
     }
 
-    bool monic_p() const {
-        return empty() || (lc()->deg == 0 && mpz_cmp_ui(mpz_poly_coeff_const(lc(), 0), 1) == 0);
+    bool monic_p() const
+    {
+        return empty() || (lc()->deg == 0 &&
+                           mpz_cmp_ui(mpz_poly_coeff_const(lc(), 0), 1) == 0);
     }
 
-    int cmp(self const & o) const {
+    int cmp(self const & o) const
+    {
         int r = (size() > o.size()) - (o.size() > size());
-        if (r) return r;
-        for(int d = size() ; --d > 0 ; ) {
+        if (r)
+            return r;
+        for (int d = size(); --d > 0;) {
             r = mpz_poly_cmp((*this)[d], o[d]);
-            if (r) return r;
+            if (r)
+                return r;
         }
         return 0;
     }
@@ -279,17 +309,17 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
     static void pow_ui(self &, self const &, unsigned long);
     static inline void mod_fy(self & a, self const & b, mpz_poly_srcptr fy)
     {
-        self FY { lifted_y(fy)};
+        self FY {lifted_y(fy)};
         mod_fy(a, b, FY);
     }
     static void div_qr(self & q, self & r, self const & f, self const & g);
 
-
     /* this substitutes the variable y with the given evaluation
-     * polynomial, and returns a cxx_mpz_poly */ 
-    static void eval_fy(cxx_mpz_poly & a, self const & f, cxx_mpz_poly const & e);
+     * polynomial, and returns a cxx_mpz_poly */
+    static void eval_fy(cxx_mpz_poly & a, self const & f,
+                        cxx_mpz_poly const & e);
     /* this substitutes the variable x with the given evaluation
-     * integer, and returns a cxx_mpz_poly */ 
+     * integer, and returns a cxx_mpz_poly */
     static void eval_fx(cxx_mpz_poly & a, self const & f, mpz_srcptr e);
 
     /* computes f(y,x) from f(x,y) */
@@ -299,68 +329,96 @@ class cxx_mpz_poly_bivariate : private std::vector<cxx_mpz_poly> {
     static void resultant_y(cxx_mpz_poly & R, self const & f, self const & g);
     static void resultant_x(cxx_mpz_poly & R, self const & f, self const & g);
 
-    static void set_rrandomb(self & f, int dx, int dy, int bits, gmp_randstate_ptr rstate);
-    static void set_rrandomb_cab(self & f, int dx, int dy, int bits, gmp_randstate_ptr rstate);
+    static void set_rrandomb(self & f, int dx, int dy, int bits,
+                             gmp_randstate_ptr rstate);
+    static void set_rrandomb_cab(self & f, int dx, int dy, int bits,
+                                 gmp_randstate_ptr rstate);
 };
 
 /* printing needs a way to specify the variables... */
-std::ostream& operator<<(std::ostream& o, cxx_mpz_poly_bivariate::named_proxy<cxx_mpz_poly_bivariate const &> f);
-std::istream& operator>>(std::istream& in, cxx_mpz_poly_bivariate::named_proxy<cxx_mpz_poly_bivariate &> f);
+std::ostream & operator<<(
+    std::ostream & o,
+    cxx_mpz_poly_bivariate::named_proxy<cxx_mpz_poly_bivariate const &> f);
+std::istream &
+operator>>(std::istream & in,
+           cxx_mpz_poly_bivariate::named_proxy<cxx_mpz_poly_bivariate &> f);
 
 /* we do have a default behaviour, though */
-inline std::ostream& operator<<(std::ostream& o, cxx_mpz_poly_bivariate const & f)
+inline std::ostream & operator<<(std::ostream & o,
+                                 cxx_mpz_poly_bivariate const & f)
 {
     return o << f.named("x", "y");
 }
 
-inline std::istream& operator>>(std::istream& in, cxx_mpz_poly_bivariate & f)
+inline std::istream & operator>>(std::istream & in, cxx_mpz_poly_bivariate & f)
 {
     return in >> f.named("x", "y");
 }
 
-
 /*
-void mpz_poly_bivariate_div_xi(mpz_poly_bivariate_ptr g, mpz_poly_bivariate_srcptr f, int i);
-void mpz_poly_bivariate_mul_xi(mpz_poly_bivariate_ptr g, mpz_poly_bivariate_srcptr f, int i);
-void mpz_poly_bivariate_mul_xplusa(mpz_poly_bivariate_ptr g, mpz_poly_bivariate_srcptr f, mpz_srcptr a);
+void mpz_poly_bivariate_div_xi(mpz_poly_bivariate_ptr g,
+mpz_poly_bivariate_srcptr f, int i); void
+mpz_poly_bivariate_mul_xi(mpz_poly_bivariate_ptr g, mpz_poly_bivariate_srcptr f,
+int i); void mpz_poly_bivariate_mul_xplusa(mpz_poly_bivariate_ptr g,
+mpz_poly_bivariate_srcptr f, mpz_srcptr a);
 
-  
-void mpz_poly_bivariate_eval(mpz_ptr res, mpz_poly_bivariate_srcptr f, mpz_srcptr x);
-void mpz_poly_bivariate_eval_ui (mpz_ptr res, mpz_poly_bivariate_srcptr f, unsigned long x);
-void mpz_poly_bivariate_eval_diff_ui (mpz_ptr res, mpz_poly_bivariate_srcptr f, unsigned long x);
-void mpz_poly_bivariate_eval_diff (mpz_ptr res, mpz_poly_bivariate_srcptr f, mpz_srcptr x);
-void mpz_poly_bivariate_eval_poly(mpz_poly_bivariate_ptr res, mpz_poly_bivariate_srcptr f, mpz_poly_bivariate_srcptr x);
-void mpz_poly_bivariate_eval_diff_poly (mpz_poly_bivariate_ptr res, mpz_poly_bivariate_srcptr f, mpz_poly_bivariate_srcptr x);
-void mpz_poly_bivariate_eval_mod_mpz(mpz_t res, mpz_poly_bivariate_srcptr f, mpz_srcptr x, mpz_srcptr m);
-int mpz_poly_bivariate_is_root(mpz_poly_bivariate_srcptr poly, mpz_srcptr root, mpz_srcptr modulus);
-void mpz_poly_bivariate_eval_several_mod_mpz(mpz_ptr * res, mpz_poly_bivariate_srcptr * f, int k, mpz_srcptr x, mpz_srcptr m);
-void mpz_poly_bivariate_sqr_mod_f_mod_mpz(mpz_poly_bivariate_ptr Q, mpz_poly_bivariate_srcptr P, mpz_poly_bivariate_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
-void mpz_poly_bivariate_pow_ui(mpz_poly_bivariate_ptr B, mpz_poly_bivariate_srcptr A, unsigned long n);
-void mpz_poly_bivariate_pow_ui_mod_f(mpz_poly_bivariate_ptr B, mpz_poly_bivariate_srcptr A, unsigned long n, mpz_poly_bivariate_srcptr f);
-void mpz_poly_bivariate_pow_mod_f_mod_ui(mpz_poly_bivariate_ptr Q, mpz_poly_bivariate_srcptr P, mpz_poly_bivariate_srcptr f, mpz_srcptr a, unsigned long p);
-void mpz_poly_bivariate_pow_mod_f_mod_mpz(mpz_poly_bivariate_ptr Q, mpz_poly_bivariate_srcptr P, mpz_poly_bivariate_srcptr f, mpz_srcptr a, mpz_srcptr p);
-void mpz_poly_bivariate_pow_ui_mod_f_mod_mpz (mpz_poly_bivariate_ptr Q, mpz_poly_bivariate_srcptr P, mpz_poly_bivariate_srcptr f, unsigned long a, mpz_srcptr p);
-void mpz_poly_bivariate_derivative(mpz_poly_bivariate_ptr df, mpz_poly_bivariate_srcptr f);
-mpz_poly_bivariate* mpz_poly_bivariate_base_modp_init (mpz_poly_bivariate_srcptr P0, int p, unsigned long *K, int l);
-void mpz_poly_bivariate_base_modp_clear (mpz_poly_bivariate *P, int l);
-void mpz_poly_bivariate_base_modp_lift(mpz_poly_bivariate_ptr a, mpz_poly_bivariate *P, int k, mpz_srcptr pk);
-size_t mpz_poly_bivariate_sizeinbase (mpz_poly_bivariate_srcptr f, int base);
-size_t mpz_poly_bivariate_size (mpz_poly_bivariate_srcptr f);
-void mpz_poly_bivariate_infinity_norm(mpz_ptr in, mpz_poly_bivariate_srcptr f);
+
+void mpz_poly_bivariate_eval(mpz_ptr res, mpz_poly_bivariate_srcptr f,
+mpz_srcptr x); void mpz_poly_bivariate_eval_ui (mpz_ptr res,
+mpz_poly_bivariate_srcptr f, unsigned long x); void
+mpz_poly_bivariate_eval_diff_ui (mpz_ptr res, mpz_poly_bivariate_srcptr f,
+unsigned long x); void mpz_poly_bivariate_eval_diff (mpz_ptr res,
+mpz_poly_bivariate_srcptr f, mpz_srcptr x); void
+mpz_poly_bivariate_eval_poly(mpz_poly_bivariate_ptr res,
+mpz_poly_bivariate_srcptr f, mpz_poly_bivariate_srcptr x); void
+mpz_poly_bivariate_eval_diff_poly (mpz_poly_bivariate_ptr res,
+mpz_poly_bivariate_srcptr f, mpz_poly_bivariate_srcptr x); void
+mpz_poly_bivariate_eval_mod_mpz(mpz_t res, mpz_poly_bivariate_srcptr f,
+mpz_srcptr x, mpz_srcptr m); int
+mpz_poly_bivariate_is_root(mpz_poly_bivariate_srcptr poly, mpz_srcptr root,
+mpz_srcptr modulus); void mpz_poly_bivariate_eval_several_mod_mpz(mpz_ptr * res,
+mpz_poly_bivariate_srcptr * f, int k, mpz_srcptr x, mpz_srcptr m); void
+mpz_poly_bivariate_sqr_mod_f_mod_mpz(mpz_poly_bivariate_ptr Q,
+mpz_poly_bivariate_srcptr P, mpz_poly_bivariate_srcptr f, mpz_srcptr m,
+mpz_srcptr invf, mpz_srcptr invm); void
+mpz_poly_bivariate_pow_ui(mpz_poly_bivariate_ptr B, mpz_poly_bivariate_srcptr A,
+unsigned long n); void mpz_poly_bivariate_pow_ui_mod_f(mpz_poly_bivariate_ptr B,
+mpz_poly_bivariate_srcptr A, unsigned long n, mpz_poly_bivariate_srcptr f); void
+mpz_poly_bivariate_pow_mod_f_mod_ui(mpz_poly_bivariate_ptr Q,
+mpz_poly_bivariate_srcptr P, mpz_poly_bivariate_srcptr f, mpz_srcptr a, unsigned
+long p); void mpz_poly_bivariate_pow_mod_f_mod_mpz(mpz_poly_bivariate_ptr Q,
+mpz_poly_bivariate_srcptr P, mpz_poly_bivariate_srcptr f, mpz_srcptr a,
+mpz_srcptr p); void mpz_poly_bivariate_pow_ui_mod_f_mod_mpz
+(mpz_poly_bivariate_ptr Q, mpz_poly_bivariate_srcptr P,
+mpz_poly_bivariate_srcptr f, unsigned long a, mpz_srcptr p); void
+mpz_poly_bivariate_derivative(mpz_poly_bivariate_ptr df,
+mpz_poly_bivariate_srcptr f); mpz_poly_bivariate*
+mpz_poly_bivariate_base_modp_init (mpz_poly_bivariate_srcptr P0, int p, unsigned
+long *K, int l); void mpz_poly_bivariate_base_modp_clear (mpz_poly_bivariate *P,
+int l); void mpz_poly_bivariate_base_modp_lift(mpz_poly_bivariate_ptr a,
+mpz_poly_bivariate *P, int k, mpz_srcptr pk); size_t
+mpz_poly_bivariate_sizeinbase (mpz_poly_bivariate_srcptr f, int base); size_t
+mpz_poly_bivariate_size (mpz_poly_bivariate_srcptr f); void
+mpz_poly_bivariate_infinity_norm(mpz_ptr in, mpz_poly_bivariate_srcptr f);
 size_t mpz_poly_bivariate_totalsize (mpz_poly_bivariate_srcptr f);
-void mpz_poly_bivariate_gcd_mpz (mpz_poly_bivariate_ptr h, mpz_poly_bivariate_srcptr f, mpz_poly_bivariate_srcptr g, mpz_srcptr p);
+void mpz_poly_bivariate_gcd_mpz (mpz_poly_bivariate_ptr h,
+mpz_poly_bivariate_srcptr f, mpz_poly_bivariate_srcptr g, mpz_srcptr p);
 // compute f = GCD(f,g) mod N. If this fails, put the factor in the last
 // given argument.
-int mpz_poly_bivariate_pseudogcd_mpz(mpz_poly_bivariate_ptr , mpz_poly_bivariate_ptr , mpz_srcptr , mpz_ptr);
-void mpz_poly_bivariate_xgcd_mpz(mpz_poly_bivariate_ptr gcd, mpz_poly_bivariate_srcptr f, mpz_poly_bivariate_srcptr g, mpz_poly_bivariate_ptr u, mpz_poly_bivariate_ptr v, mpz_srcptr p);
-void mpz_poly_bivariate_homography (mpz_poly_bivariate_ptr Fij, mpz_poly_bivariate_srcptr F, int64_t H[4]);
-void mpz_poly_bivariate_homogeneous_eval_siui (mpz_ptr v, mpz_poly_bivariate_srcptr f, const int64_t i, const uint64_t j);
-void mpz_poly_bivariate_content (mpz_ptr c, mpz_poly_bivariate_srcptr F);
-int mpz_poly_bivariate_has_trivial_content (mpz_poly_bivariate_srcptr F);
-void mpz_poly_bivariate_resultant(mpz_ptr res, mpz_poly_bivariate_srcptr p, mpz_poly_bivariate_srcptr q);
-void mpz_poly_bivariate_discriminant(mpz_ptr res, mpz_poly_bivariate_srcptr f);
-int mpz_poly_bivariate_squarefree_p(mpz_poly_bivariate_srcptr f);
-int mpz_poly_bivariate_is_irreducible_z(mpz_poly_bivariate_srcptr f);
+int mpz_poly_bivariate_pseudogcd_mpz(mpz_poly_bivariate_ptr ,
+mpz_poly_bivariate_ptr , mpz_srcptr , mpz_ptr); void
+mpz_poly_bivariate_xgcd_mpz(mpz_poly_bivariate_ptr gcd,
+mpz_poly_bivariate_srcptr f, mpz_poly_bivariate_srcptr g, mpz_poly_bivariate_ptr
+u, mpz_poly_bivariate_ptr v, mpz_srcptr p); void mpz_poly_bivariate_homography
+(mpz_poly_bivariate_ptr Fij, mpz_poly_bivariate_srcptr F, int64_t H[4]); void
+mpz_poly_bivariate_homogeneous_eval_siui (mpz_ptr v, mpz_poly_bivariate_srcptr
+f, const int64_t i, const uint64_t j); void mpz_poly_bivariate_content (mpz_ptr
+c, mpz_poly_bivariate_srcptr F); int mpz_poly_bivariate_has_trivial_content
+(mpz_poly_bivariate_srcptr F); void mpz_poly_bivariate_resultant(mpz_ptr res,
+mpz_poly_bivariate_srcptr p, mpz_poly_bivariate_srcptr q); void
+mpz_poly_bivariate_discriminant(mpz_ptr res, mpz_poly_bivariate_srcptr f); int
+mpz_poly_bivariate_squarefree_p(mpz_poly_bivariate_srcptr f); int
+mpz_poly_bivariate_is_irreducible_z(mpz_poly_bivariate_srcptr f);
 
 int mpz_poly_bivariate_number_of_real_roots(mpz_poly_bivariate_srcptr f);
 
@@ -370,30 +428,39 @@ struct mpz_poly_bivariate_with_m_s {
 };
 typedef struct mpz_poly_bivariate_with_m_s mpz_poly_bivariate_with_m[1];
 typedef struct mpz_poly_bivariate_with_m_s * mpz_poly_bivariate_with_m_ptr;
-typedef const struct mpz_poly_bivariate_with_m_s * mpz_poly_bivariate_with_m_srcptr;
+typedef const struct mpz_poly_bivariate_with_m_s *
+mpz_poly_bivariate_with_m_srcptr;
 
 struct mpz_poly_bivariate_factor_list_s {
     mpz_poly_bivariate_with_m * factors;
     int alloc;
     int size;
 };
-typedef struct mpz_poly_bivariate_factor_list_s mpz_poly_bivariate_factor_list[1];
-typedef struct mpz_poly_bivariate_factor_list_s * mpz_poly_bivariate_factor_list_ptr;
-typedef const struct mpz_poly_bivariate_factor_list_s * mpz_poly_bivariate_factor_list_srcptr;
+typedef struct mpz_poly_bivariate_factor_list_s
+mpz_poly_bivariate_factor_list[1]; typedef struct
+mpz_poly_bivariate_factor_list_s * mpz_poly_bivariate_factor_list_ptr; typedef
+const struct mpz_poly_bivariate_factor_list_s *
+mpz_poly_bivariate_factor_list_srcptr;
 
 void mpz_poly_bivariate_factor_list_init(mpz_poly_bivariate_factor_list_ptr l);
 void mpz_poly_bivariate_factor_list_clear(mpz_poly_bivariate_factor_list_ptr l);
 void mpz_poly_bivariate_factor_list_flush(mpz_poly_bivariate_factor_list_ptr l);
-void mpz_poly_bivariate_factor_list_push(mpz_poly_bivariate_factor_list_ptr l, mpz_poly_bivariate_srcptr f, int m);
-void mpz_poly_bivariate_factor_list_fprintf(FILE* fp, mpz_poly_bivariate_factor_list_srcptr l);
-int mpz_poly_bivariate_factor_sqf(mpz_poly_bivariate_factor_list_ptr lf, mpz_poly_bivariate_srcptr f, mpz_srcptr p);
-int mpz_poly_bivariate_factor_ddf(mpz_poly_bivariate_factor_list_ptr lf, mpz_poly_bivariate_srcptr f0, mpz_srcptr p);
-int mpz_poly_bivariate_factor_edf(mpz_poly_bivariate_factor_list_ptr lf, mpz_poly_bivariate_srcptr f, int k, mpz_srcptr p, gmp_randstate_t rstate);
+void mpz_poly_bivariate_factor_list_push(mpz_poly_bivariate_factor_list_ptr l,
+mpz_poly_bivariate_srcptr f, int m); void
+mpz_poly_bivariate_factor_list_fprintf(FILE* fp,
+mpz_poly_bivariate_factor_list_srcptr l); int
+mpz_poly_bivariate_factor_sqf(mpz_poly_bivariate_factor_list_ptr lf,
+mpz_poly_bivariate_srcptr f, mpz_srcptr p); int
+mpz_poly_bivariate_factor_ddf(mpz_poly_bivariate_factor_list_ptr lf,
+mpz_poly_bivariate_srcptr f0, mpz_srcptr p); int
+mpz_poly_bivariate_factor_edf(mpz_poly_bivariate_factor_list_ptr lf,
+mpz_poly_bivariate_srcptr f, int k, mpz_srcptr p, gmp_randstate_t rstate);
 
 // output is sorted by degree and lexicographically
-int mpz_poly_bivariate_factor(mpz_poly_bivariate_factor_list lf, mpz_poly_bivariate_srcptr f, mpz_srcptr p, gmp_randstate_t rstate);
-int mpz_poly_bivariate_is_irreducible(mpz_poly_bivariate_srcptr f, mpz_srcptr p);
+int mpz_poly_bivariate_factor(mpz_poly_bivariate_factor_list lf,
+mpz_poly_bivariate_srcptr f, mpz_srcptr p, gmp_randstate_t rstate); int
+mpz_poly_bivariate_is_irreducible(mpz_poly_bivariate_srcptr f, mpz_srcptr p);
 
 */
 
-#endif	/* MPZ_poly_bivariate_H_ */
+#endif /* MPZ_poly_bivariate_H_ */

@@ -1,25 +1,26 @@
 #include "cado.h" // IWYU pragma: keep
-#include <iostream>
-#include <sstream>
-#include <cstdlib>
-#include <gmp.h>
-#include "tests_common.h"
 #include "macros.h"
 #include "mpz_poly.h"
 #include "mpz_poly_bivariate.hpp"
+#include "tests_common.h"
+#include <cstdlib>
+#include <gmp.h>
+#include <iostream>
+#include <sstream>
 
 void test_mpz_poly_bivariate_trivialities()
 {
     typedef cxx_mpz_poly_bivariate T;
 
-    const char * example1 = "(11+17*x+42*x^2)+(12+18*x+43*x^2)*y^2";
-    const char * example2 = "(11+17*x+42*x^2)+(12+18*x+43*x^2)*y^2+(12+18*x+x^5)*y^5";
-    const char * example3 = "(11+17*x+42*x^2)-(12+18*x+43*x^2)*y^2";
+    char const * example1 = "(11+17*x+42*x^2)+(12+18*x+43*x^2)*y^2";
+    char const * example2 =
+        "(11+17*x+42*x^2)+(12+18*x+43*x^2)*y^2+(12+18*x+x^5)*y^5";
+    char const * example3 = "(11+17*x+42*x^2)-(12+18*x+43*x^2)*y^2";
     {
         T f, g;
 
-        std::istringstream("(11+17*x+42*x^2)+(12+18*x+43*x^2)*y^2")
-            >> f.named("x", "y");
+        std::istringstream("(11+17*x+42*x^2)+(12+18*x+43*x^2)*y^2") >>
+            f.named("x", "y");
 
         std::ostringstream os;
         os << f << std::endl;
@@ -47,7 +48,6 @@ void test_mpz_poly_bivariate_trivialities()
 
         ASSERT_ALWAYS(f == g);
     }
-
 
     {
         T f, g;
@@ -91,7 +91,7 @@ void test_mpz_poly_bivariate_trivialities()
     }
 
     {
-        T f,g;
+        T f, g;
         std::istringstream(example3) >> f.named("x", "y");
 
         T::pow_ui(f, f, 3);
@@ -101,7 +101,16 @@ void test_mpz_poly_bivariate_trivialities()
         bool ok = (f == g);
         ASSERT_ALWAYS(ok);
 
-        std::istringstream("-79507*x^6*y^6 + 232974*x^6*y^4 - 227556*x^6*y^2 + 74088*x^6 - 99846*x^5*y^6 + 289347*x^5*y^4 - 279468*x^5*y^2 + 89964*x^5 - 108360*x^4*y^6 + 310821*x^4*y^4 - 297093*x^4*y^2 + 94626*x^4 - 61560*x^3*y^6 + 174672*x^3*y^4 - 165156*x^3*y^2 + 52037*x^3 - 30240*x^2*y^6 + 84924*x^2*y^4 - 79473*x^2*y^2 + 24783*x^2 - 7776*x*y^6 + 21600*x*y^4 - 19998*x*y^2 + 6171*x - 1728*y^6 + 4752*y^4 - 4356*y^2 + 1331") >> g.named("x", "y");
+        std::istringstream(
+            "-79507*x^6*y^6 + 232974*x^6*y^4 - 227556*x^6*y^2 + 74088*x^6 - "
+            "99846*x^5*y^6 + 289347*x^5*y^4 - 279468*x^5*y^2 + 89964*x^5 - "
+            "108360*x^4*y^6 + 310821*x^4*y^4 - 297093*x^4*y^2 + 94626*x^4 - "
+            "61560*x^3*y^6 + 174672*x^3*y^4 - 165156*x^3*y^2 + 52037*x^3 - "
+            "30240*x^2*y^6 + 84924*x^2*y^4 - 79473*x^2*y^2 + 24783*x^2 - "
+            "7776*x*y^6 + 21600*x*y^4 - 19998*x*y^2 + 6171*x - 1728*y^6 + "
+            "4752*y^4 "
+            "- 4356*y^2 + 1331") >>
+            g.named("x", "y");
         ok = (f == g);
         ASSERT_ALWAYS(ok);
     }
@@ -138,7 +147,7 @@ void test_mpz_poly_bivariate_trivialities()
 }
 
 /* a shorthand so that we can use user-defined literals */
-cxx_mpz operator "" _mpz (const char* str, size_t)
+cxx_mpz operator"" _mpz(char const * str, size_t)
 {
     cxx_mpz res;
     mpz_set_str(res, str, 0);
@@ -147,17 +156,17 @@ cxx_mpz operator "" _mpz (const char* str, size_t)
 
 void test_mpz_poly_bivariate_resultant(unsigned long iter)
 {
-    for(unsigned long i = 0 ; i < iter ; i++) {
-        const int d = 2 + gmp_urandomm_ui(state, 5);
+    for (unsigned long i = 0; i < iter; i++) {
+        int const d = 2 + gmp_urandomm_ui(state, 5);
 
         cxx_mpz_poly_bivariate f, g;
 
-        for( ; f == g ; ) {
+        for (; f == g;) {
             /* We need two Cab curves, so that there's a single place at
              * infinity, which implies that both resultants have the same
              * degree. */
-            cxx_mpz_poly_bivariate::set_rrandomb_cab (f, d-1, d, 3, state);
-            cxx_mpz_poly_bivariate::set_rrandomb_cab (g, d-1, d, 3, state);
+            cxx_mpz_poly_bivariate::set_rrandomb_cab(f, d - 1, d, 3, state);
+            cxx_mpz_poly_bivariate::set_rrandomb_cab(g, d - 1, d, 3, state);
         }
 
         cxx_mpz_poly rx, ry;
@@ -165,7 +174,8 @@ void test_mpz_poly_bivariate_resultant(unsigned long iter)
         cxx_mpz_poly_bivariate::resultant_x(rx, f, g);
         cxx_mpz_poly_bivariate::resultant_y(ry, f, g);
 
-        const int ok = (rx != 0) && (ry != 0) && (mpz_poly_degree(rx) == mpz_poly_degree(ry));
+        int const ok = (rx != 0) && (ry != 0) &&
+                       (mpz_poly_degree(rx) == mpz_poly_degree(ry));
         if (!ok) {
             std::cerr << "// bug in resultant" << std::endl;
             std::cerr << "f = " << f << std::endl;
@@ -189,7 +199,8 @@ void test_mpz_poly_bivariate_resultant(unsigned long iter)
         std::istringstream("x*y^3+x^2+1") >> g.named("x", "y");
 
         cxx_mpz_poly_bivariate::resultant_y(ry, f, g);
-        std::istringstream("x^5 - 3*x^4 + 4*x^3 - 4*x^2 + 2*x - 1") >> tmp.named("x");
+        std::istringstream("x^5 - 3*x^4 + 4*x^3 - 4*x^2 + 2*x - 1") >>
+            tmp.named("x");
         ok = (tmp == ry);
         if (!ok) {
             std::cerr << "// bug in resultant" << std::endl;
@@ -218,11 +229,16 @@ void test_mpz_poly_bivariate_resultant(unsigned long iter)
         cxx_mpz_poly tmp, rx, ry;
         int ok;
 
-        std::istringstream("(11+17*x+42*x^2)+(12+18*x+42*x^2)*y^2") >> f.named("x", "y");
-        std::istringstream("(10+15*x+100*x^2)+(20+41*x+17*x^2)*y^2") >> g.named("x", "y");
+        std::istringstream("(11+17*x+42*x^2)+(12+18*x+42*x^2)*y^2") >>
+            f.named("x", "y");
+        std::istringstream("(10+15*x+100*x^2)+(20+41*x+17*x^2)*y^2") >>
+            g.named("x", "y");
 
         cxx_mpz_poly_bivariate::resultant_y(ry, f, g);
-        std::istringstream("12152196*x^8 + 2921268*x^7 + 1332913*x^6 - 2865824*x^5 - 1030822*x^4 - 226892*x^3 + 152561*x^2 + 86200*x + 10000") >> tmp.named("x");
+        std::istringstream("12152196*x^8 + 2921268*x^7 + 1332913*x^6 - "
+                           "2865824*x^5 - 1030822*x^4 "
+                           "- 226892*x^3 + 152561*x^2 + 86200*x + 10000") >>
+            tmp.named("x");
         ok = (tmp == ry);
         if (!ok) {
             std::cerr << "// bug in resultant" << std::endl;
@@ -234,7 +250,9 @@ void test_mpz_poly_bivariate_resultant(unsigned long iter)
         ASSERT_ALWAYS(ok);
 
         cxx_mpz_poly_bivariate::resultant_x(rx, f, g);
-        std::istringstream("591408*y^8 + 30348*y^6 - 967958*y^4 + 52635*y^2 + 467750") >> tmp.named("y");
+        std::istringstream(
+            "591408*y^8 + 30348*y^6 - 967958*y^4 + 52635*y^2 + 467750") >>
+            tmp.named("y");
         ok = (tmp == rx);
         if (!ok) {
             std::cerr << "// bug in resultant" << std::endl;
@@ -251,13 +269,25 @@ void test_mpz_poly_bivariate_resultant(unsigned long iter)
         cxx_mpz_poly rx, ry;
         int ok;
 
-        std::istringstream("(467750+11*x+38960*x^2+17*x^3+42*x^4+44919*x^6+622660*x^8) +(12+18*x+43*x^2)*y^2 +(100+11*x+46*x^2+17*x^3+42*x^4+43*x^6+622660*x^8)*y^4 +(12+11*x+18*x^2+17*x^3+42*x^4+43*x^6+622660*x^8)*y^5") >> f.named("x", "y");
+        std::istringstream(
+            "(467750+11*x+38960*x^2+17*x^3+42*x^4+44919*x^6+622660*x^8) "
+            "+(12+18*x+43*x^2)*y^2 "
+            "+(100+11*x+46*x^2+17*x^3+42*x^4+43*x^6+622660*x^8)*y^4 "
+            "+(12+11*x+18*x^2+17*x^3+42*x^4+43*x^6+622660*x^8)*y^5") >>
+            f.named("x", "y");
 
-        std::istringstream("(10+15*x+100*x^2) +(10+15*x+100*x^2+17*x^3+42*x^4+43*x^6+622660*x^8)*y +(20+41*x+17*x^2)*y^2 +(20+41*x+17*x^2+17*x^3+42*x^4+43*x^6+622660*x^8)*y^4") >> g.named("x", "y");
+        std::istringstream(
+            "(10+15*x+100*x^2) "
+            "+(10+15*x+100*x^2+17*x^3+42*x^4+43*x^6+622660*x^8)*y "
+            "+(20+41*x+17*x^2)*y^2 "
+            "+(20+41*x+17*x^2+17*x^3+42*x^4+43*x^6+622660*x^8)*y^4") >>
+            g.named("x", "y");
 
         cxx_mpz_poly_bivariate::resultant_y(ry, f, g);
         ok = (mpz_poly_degree(ry) == 72);
-        ok = ok && ry[42] == "1494774748820383618990632550811343575455342810669737"_mpz;
+        ok = ok &&
+             ry[42] ==
+                 "1494774748820383618990632550811343575455342810669737"_mpz;
         if (!ok) {
             std::cerr << "// bug in resultant" << std::endl;
             std::cerr << "f = " << f << std::endl;
@@ -268,7 +298,10 @@ void test_mpz_poly_bivariate_resultant(unsigned long iter)
 
         cxx_mpz_poly_bivariate::resultant_x(rx, f, g);
         ok = (mpz_poly_degree(rx) == 72);
-        ok = ok && rx[42] == "392307271360601863563100893262849685478724955452018428897254854297277064613707763200"_mpz;
+        ok =
+            ok &&
+            rx[42] ==
+                "392307271360601863563100893262849685478724955452018428897254854297277064613707763200"_mpz;
         if (!ok) {
             std::cerr << "// bug in resultant" << std::endl;
             std::cerr << "f = " << f << std::endl;
@@ -279,14 +312,13 @@ void test_mpz_poly_bivariate_resultant(unsigned long iter)
     }
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
     unsigned long iter = 500;
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
     tests_common_get_iter(&iter);
     test_mpz_poly_bivariate_trivialities();
     test_mpz_poly_bivariate_resultant(iter);
-    tests_common_clear ();
+    tests_common_clear();
     return EXIT_SUCCESS;
 }
