@@ -4835,6 +4835,17 @@ std::ostream& operator<<(std::ostream& o, cxx_mpz_poly const & f) {
     return o << f.print_poly(std::string("x"));
 }
 
+std::ostream& operator<<(std::ostream& os, mpz_poly_coeff_list const & P) {
+    if (P.P.degree() < 0)
+        return os << "0";
+    for(int i = 0 ; i <= P.P.degree() ; i++) {
+        if (i) os << P.sep;
+        os << P.P->coeff[i];
+    }
+    return os;
+}
+
+
 int mpz_poly_set_from_expression(mpz_poly_ptr f, const char * value)
 {
     cxx_mpz_poly tmp;

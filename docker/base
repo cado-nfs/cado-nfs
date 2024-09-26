@@ -16,5 +16,5 @@ FROM ubuntu:latest as runtime
 MAINTAINER Emmanuel Thomé
 ARG DEBIAN_FRONTEND=noninteractive
 # Add all the *runtime* requirements
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 gzip bc libgomp1 libhwloc15 libgmp10 libfmt8
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 gzip bc libgomp1 libhwloc15 libgmp10 libfmt9
 

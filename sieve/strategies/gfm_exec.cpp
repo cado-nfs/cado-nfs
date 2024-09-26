@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 	int lb = -1, ub = -1, len_n = -1, method = -1;
   ec_parameterization_t curve = MONTY12;
 	// {b1min, b1max, b1step, cmin, cmax, cstep}
-	int *param = (int*) calloc(sizeof(int), 6);
+        int *param = (int*) calloc(6, sizeof(int));
 	ASSERT(param != NULL);
 
 	int opt_ch = param_list_parse_switch(pl, "-ch");
