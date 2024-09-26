@@ -21,9 +21,9 @@ in=$5 # say 'res_precompt_st'
 out=$6 # say 'res_matrix'
 
 let "r0=0"
-while [ $r0 -le $mfb0 ]; do
+while [ $r0 -le $mfb0 ] ; do
 let "r1=0"
-while [ $r1 -le $mfb1 ]; do
+while [ $r1 -le $mfb1 ] ; do
 $CADO_NFS/sieve/strategies/gst -gst -mfb0 $mfb0 -lim0 $lim0 -mfb1 $mfb1 -lim1 $lim1 -r0 $r0 -r1 $r1 -in $in -out $out
 let "r1 = r1 + 1"
 done
