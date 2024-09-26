@@ -1050,7 +1050,6 @@ static inline void invert_q2_mod_all_p2_subtask(polyselect_thread_ptr thread) /*
     const uint32_t * Primes = pt->Primes;
     polyselect_poly_header_srcptr header = thread->team->header;
     const uint8_t * number_of_roots_per_prime = thread->team->R->nr;
-    /* Step 1: inversion; compute 1/q^2 (mod p_i^2) to invqq[i] */
     for (unsigned long i = i0; i < i1; i++)
     {
         unsigned long p = Primes[i];
@@ -1124,6 +1123,7 @@ collision_on_sq_conductor(unsigned long c, polyselect_thread_ptr thread)
 
       /* collision batch */
 
+      /* Step 1: inversion; compute 1/q^2 (mod p_i^2) to invqq[i] */
       struct invert_q2_mod_all_p2_data arg[1] = {{ .q = q, .invqq = invqq }};
       polyselect_thread_team_post_work(thread->team, thread, invert_q2_mod_all_p2_subtask, arg);
  
