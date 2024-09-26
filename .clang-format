@@ -1,0 +1,28 @@
+---
+Language:      Cpp
+BasedOnStyle:  LLVM
+BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
+BreakBeforeBraces: Linux
+ForEachMacros:
+  - BOOST_FOREACH
+  - SEVERAL_THREADS_PLAY_MPI_BEGIN
+  - SEVERAL_THREADS_PLAY_MPI_BEGIN2
+IndentWidth:     4
+SpaceBeforeCpp11BracedList: true
+PointerAlignment: Middle
+QualifierAlignment: Right
+SpaceBeforeParensOptions:
+  AfterFunctionDefinitionName: false
+  AfterFunctionDeclarationName: false
+SpaceBeforeRangeBasedForLoopColon: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+AttributeMacros:
+  - MAYBE_UNUSED
+  - ATTR_PRINTF
+  - ATTR_ALIGNED
+  - ATTRIBUTE_WARN_UNUSED_RESULT
+  - ATTRIBUTE_ALWAYS_INLINE
+  - ATTRIBUTE_NODISCARD
+  - ATTRIBUTE_ARTIFICIAL
+BitFieldColonSpacing: None
