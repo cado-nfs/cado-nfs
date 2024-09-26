@@ -2590,8 +2590,17 @@ class Polysel2Task(ClientServerTask, HasStatistics, DoesImport, patterns.Observe
                               poly)
             return None
         if not poly.MurphyE:
-            self.logger.warning("Polynomial in file %s has no Murphy E value",
-                             filename)
+            self.logger.warning("Polynomial in file %s has no Murphy E value, "
+                                "computing it", filename)
+            p = cadoprograms.Score(inputpoly=filename,
+                                   **self.merged_args[1])
+            process = cadocommand.Command(p)
+            (rc, stdout, stderr) = process.wait()
+            if rc != 0:
+                self.logger.error("Computing murphyE failed with exit code %d",
+                                    rc)
+            poly.MurphyE = float(stdout)
+            self.logger.info("Computed murphyE is %.5g", poly.MurphyE)
         if poly.skew is None:
             if not allow_no_skewness:
                 self.logger.error("Polynomial in file %s has no skew value",

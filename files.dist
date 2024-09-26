@@ -866,6 +866,7 @@ polyselect/ropt_sublattice_priority_queue.cpp
 polyselect/ropt_sublattice_priority_queue.h
 polyselect/ropt_tree.c
 polyselect/ropt_tree.h
+polyselect/score.c
 polyselect/size_optimization.c
 polyselect/size_optimization.h
 polyselect/skewness.c
