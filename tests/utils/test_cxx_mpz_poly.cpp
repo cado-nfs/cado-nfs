@@ -8,9 +8,15 @@
 #include <algorithm>
 #include "mpz_poly.h"
 
+/*
+ * we now have it in cxx_mpz_poly
 bool operator<(cxx_mpz_poly const& a, cxx_mpz_poly const& b) {
     return mpz_poly_cmp(a, b) < 0;
 }
+bool operator<(cxx_mpz_poly & a, cxx_mpz_poly & b) {
+    return mpz_poly_cmp(a, b) < 0;
+}
+*/
 
 // coverity[root_function]
 int main(int argc, char * argv[])

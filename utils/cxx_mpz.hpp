@@ -35,6 +35,7 @@ public:
         mpz_set(x, o.x);
         return *this;
     }
+    /* XXX but this is C++14 ! */
     template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
     cxx_mpz & operator=(const T a) {
         gmp_auxx::mpz_set(x, a);
@@ -148,6 +149,8 @@ extern void mpq_clear(cxx_mpq & pl) __attribute__((error("mpq_clear must not be 
 
 #define CXX_MPZ_DEFINE_CMP(OP) \
 inline bool operator OP(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) OP 0; } \
+inline bool operator OP(mpz_srcptr a, cxx_mpz const & b) { return mpz_cmp(a, b) OP 0; } \
+inline bool operator OP(cxx_mpz const & a, mpz_srcptr b) { return mpz_cmp(a, b) OP 0; } \
 template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >   \
 inline bool operator OP(cxx_mpz const & a, const T b) { return gmp_auxx::mpz_cmp(a, b) OP 0; } \
 template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >   \
