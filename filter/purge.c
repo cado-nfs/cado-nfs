@@ -426,7 +426,7 @@ int main(int argc, char **argv)
 
     if (!purgedname) {
         fprintf(stderr, "Error, option -out is mandatory\n");
-        exit(EXIT_FAILURE);
+        usage(pl, argv0);
     }
     /* }}} */
 
@@ -471,12 +471,12 @@ int main(int argc, char **argv)
     {
       fprintf(stderr, "Error, -col-max-index is too large for a 32-bit "
                       "program\nSee #define SIZEOF_INDEX in typedefs.h\n");
-      exit(EXIT_FAILURE);
+      usage(pl, argv0);
     }
     if (nthreads == 0)
     {
       fprintf(stderr, "Error, -t should be non-zero\n");
-      exit(EXIT_FAILURE);
+      usage(pl, argv0);
     }
 
     /* Printing relevant information */
