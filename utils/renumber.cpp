@@ -1301,7 +1301,9 @@ void renumber_t::builder::preprocess(prime_chunk & P, gmp_randstate_ptr rstate)/
 void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
 {
     bool preprocess_done;
+#ifdef HAVE_OPENMP
 #pragma omp atomic read
+#endif
     preprocess_done = P.preprocess_done;
     ASSERT_ALWAYS(preprocess_done);
 
