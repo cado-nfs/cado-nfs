@@ -1262,6 +1262,7 @@ tests/polyselect/CMakeLists.txt
 tests/polyselect/Makefile
 tests/polyselect/c80msieve.sample
 tests/polyselect/gfpkdlpolyselect_test.c
+tests/polyselect/ropt.rsa250.txt
 tests/polyselect/sopt.input1.txt
 tests/polyselect/sopt.input2.txt
 tests/polyselect/table_t_Py_f_deg4_type0_h1_t-200--200.c

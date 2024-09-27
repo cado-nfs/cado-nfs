@@ -71,16 +71,42 @@ cado_divert_test(test_ropt_adv deg6
     )
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})
-    # We need this to cover the ropt_quadratic code. It takes a minute or
-    # so.
-    cado_divert_test(test_ropt_adv deg6large
-        APPEND_ARGUMENTS
+    # We need this to cover the ropt_quadratic code.
+    # Honestly, it's way too long, it takes two minutes or
+    # so on my laptop. Furthermore, it looks very odd, since in this
+    # example I have the impression that the output of the "optimization"
+    # is actually not as good as the input...
+    cado_define_test(test_ropt_adv_deg6large
+        PROGRAM
+        ${CADO_NFS_SOURCE_DIR}/tests/wrap-test.sh
+        --expect-sha1 d451c895d0fbc5cf1a58253235d05151f15c159b
+        --filter-output "^[^#]"
+        --
+        ${CADO_NFS_BINARY_DIR}/polyselect/polyselect_ropt --adv
         -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/rsa768.poly
         -v -v
         -amin -16 -amax 16 -bmax 10 -cmax 10000
         -e 3 5 2 1
-    TIMEOUT 240
+        TARGET_DEPENDENCIES polyselect_ropt
+        TIMEOUT 360
     )
+
+    # takes less than a minute on my laptop. The ropteffort parameter
+    # isn't much tunable, unfortunately. I'm not sure that we really need
+    # this addition in order to cover new pieces of code.
+    cado_define_test(test_ropt_list_rsa250
+        PROGRAM
+        ${CADO_NFS_SOURCE_DIR}/tests/wrap-test.sh
+        --expect-sha1 fa313790a88f19182f4c4f7d1dc7739d05adda34
+        --filter-output "^[^#]"
+        --
+        ${CADO_NFS_BINARY_DIR}/polyselect/polyselect_ropt
+        -inputpolys ${CADO_NFS_SOURCE_DIR}/tests/polyselect/ropt.rsa250.txt
+        -Bf 2.100e+09 -Bg 1.800e+09 -area 2.400e+19
+        -ropteffort 0.05
+        TARGET_DEPENDENCIES polyselect_ropt
+        TIMEOUT 360
+        )
 endif()
 
 cado_define_test(

@@ -39,7 +39,9 @@ if ! type -p "$SHA1BIN" > /dev/null ; then
     exit 1
 fi
 
-got_sha1=$("$@" | grep "$filter_regex" | $SHA1BIN)
+exec 3>&1
+
+got_sha1=$("$@" | tee >(cat >&3) | grep "$filter_regex" | $SHA1BIN)
 
 if ! [ "$expect_sha1" ] ; then
     exit 0
