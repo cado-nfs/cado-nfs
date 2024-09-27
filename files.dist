@@ -1465,6 +1465,7 @@ tests/utils/test_mpz_poly_bivariate.c
 tests/utils/test_mpz_poly_parsing.cpp
 tests/utils/test_mpz_vector.c
 tests/utils/test_omega.c
+tests/utils/test_random_distributions.cpp
 tests/utils/test_relation.cpp
 tests/utils/test_rootfinder.c
 tests/utils/test_roots_mod.c
@@ -1642,6 +1643,8 @@ utils/params.h
 utils/polyroots.c
 utils/purgedfile.c
 utils/purgedfile.h
+utils/random_distributions.cpp
+utils/random_distributions.hpp
 utils/relation-tools.c
 utils/relation-tools.h
 utils/relation.cpp

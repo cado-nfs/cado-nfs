@@ -162,7 +162,7 @@ comp_sq_roots ( polyselect_poly_header_srcptr header,
 /* return the maximal number of special-q's with k elements among lq
  *
  * This is the same as the degree k coefficient of the product
- * \prod_{i=1}^{lq} (1-a_i x)
+ * \prod_{i=1}^{lq} (1+a_i x)
  * with a_i = SQ_R->nr[i]
  * but it is slightly unsatisfactory that we're apparently unable to
  * compute the result in less time than O(binomial(n,k)*k)... (well, to
