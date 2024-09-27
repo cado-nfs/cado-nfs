@@ -47,12 +47,21 @@ cado_define_test(test_ropt_adv
     TARGET_DEPENDENCIES polyselect_ropt
     NO_DEFAULT_RUN
     TIMEOUT 60
+    EXPECT_SHA1 42
+    SHA1_ON_REGEXP_LINES "^[^#]"
     )
 
+set(ropt_sha1_c80 68c14f886966071c2b79983f94f34cfd218d123b)
+set(ropt_sha1_c75 8d08dd3fd67e358e291c0aeb7cc5935682b91758)
+set(ropt_sha1_c70 3164916d4b4bc5512e9ae283d6bb604fe6ad3930)
+set(ropt_sha1_c65 5c7adf825238c1a75fcb33567b2460e2e3b11486)
+set(ropt_sha1_c60 d945f8b4b1f51b07d5efdbcc8f32d74d185f7f76)
 foreach(example c60 c65 c70 c75 c80)
     cado_divert_test(test_ropt_adv ${example}
         APPEND_ARGUMENTS
-        -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/${example}.poly)
+        -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/${example}.poly
+        EXPECT_SHA1 ${ropt_sha1_${example}}
+    )
 endforeach()
 
 cado_divert_test(test_ropt_adv c80msieve
@@ -60,7 +69,9 @@ cado_divert_test(test_ropt_adv c80msieve
     -fm ${CMAKE_CURRENT_SOURCE_DIR}/c80msieve.sample
     -d 4
     -n 12022203778835263712651529862414424087010841660557141141978630366614660861225497
-    -v -v -amin -16 -amax 16 -e 2 2 1 -bmax 10 -cmax 10000)
+    -v -v -amin -16 -amax 16 -e 2 2 1 -bmax 10 -cmax 10000
+    EXPECT_SHA1 cf2da7482ab71b79b298204a66fcccdb4593c633
+)
 
 # This should take only a few seconds.
 cado_divert_test(test_ropt_adv deg6
@@ -68,6 +79,7 @@ cado_divert_test(test_ropt_adv deg6
     -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/rsa768.poly
     -v -v -d 6   -amin -4 -amax 4 -e 1 1 -bmax 6 -cmax 12
     TIMEOUT 120
+    EXPECT_SHA1 d451c895d0fbc5cf1a58253235d05151f15c159b
     )
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})
@@ -75,19 +87,15 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
     # Honestly, it's way too long, it takes two minutes or
     # so on my laptop. Furthermore, it looks very odd, since in this
     # example I have the impression that the output of the "optimization"
-    # is actually not as good as the input...
-    cado_define_test(test_ropt_adv_deg6large
-        PROGRAM
-        ${CADO_NFS_SOURCE_DIR}/tests/wrap-test.sh
-        --expect-sha1 d451c895d0fbc5cf1a58253235d05151f15c159b
-        --filter-output "^[^#]"
-        --
-        ${CADO_NFS_BINARY_DIR}/polyselect/polyselect_ropt --adv
+    # is actually not as good as the input... (and it's also quite
+    # bizarre that the output is exactly the same as test_ropt_adv_deg6)
+    cado_divert_test(test_ropt_adv deg6large
+        APPEND_ARGUMENTS
         -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/rsa768.poly
         -v -v
         -amin -16 -amax 16 -bmax 10 -cmax 10000
         -e 3 5 2 1
-        TARGET_DEPENDENCIES polyselect_ropt
+        EXPECT_SHA1 d451c895d0fbc5cf1a58253235d05151f15c159b
         TIMEOUT 360
     )
 
@@ -96,14 +104,12 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
     # this addition in order to cover new pieces of code.
     cado_define_test(test_ropt_list_rsa250
         PROGRAM
-        ${CADO_NFS_SOURCE_DIR}/tests/wrap-test.sh
-        --expect-sha1 fa313790a88f19182f4c4f7d1dc7739d05adda34
-        --filter-output "^[^#]"
-        --
         ${CADO_NFS_BINARY_DIR}/polyselect/polyselect_ropt
         -inputpolys ${CADO_NFS_SOURCE_DIR}/tests/polyselect/ropt.rsa250.txt
         -Bf 2.100e+09 -Bg 1.800e+09 -area 2.400e+19
         -ropteffort 0.05
+        EXPECT_SHA1 fa313790a88f19182f4c4f7d1dc7739d05adda34
+        SHA1_ON_REGEXP_LINES "^[^#]"
         TARGET_DEPENDENCIES polyselect_ropt
         TIMEOUT 360
         )
@@ -139,35 +145,37 @@ cado_divert_test(test_polyselect_gfpn 3 APPEND_ARGUMENTS 45086221481123679612257
 
 include(CMakeLists-nodist.txt OPTIONAL)
 
-macro(define_sopt_test n input sha)
-cado_define_test(test_sopt_${input} PROGRAM
-    ${CADO_NFS_SOURCE_DIR}/tests/wrap-test.sh --expect-sha1
-    ${sha} --filter-output "^[^#]" --
-    ${CADO_NFS_BINARY_DIR}/polyselect/sopt  -sopteffort 2
-    -inputpolys ${CMAKE_CURRENT_SOURCE_DIR}/${input}
+cado_define_test(test_sopt PROGRAM
+    ${CADO_NFS_BINARY_DIR}/polyselect/sopt
+    -sopteffort 2
+    NO_DEFAULT_RUN
+    SHA1_ON_REGEXP_LINES "^[^#]"
+    TARGET_DEPENDENCIES sopt
 )
-endmacro()
 
-define_sopt_test(1 sopt.input1.txt 465209edaa2c8bbad4e7254a7d6fcf2f121a71b8)
-define_sopt_test(2 sopt.input2.txt a3aadd110944689565adb70ae7456b69d8d97dbc)
+cado_divert_test(test_sopt 1
+    APPEND_ARGUMENTS
+    -inputpolys ${CMAKE_CURRENT_SOURCE_DIR}/sopt.input1.txt
+    EXPECT_SHA1 465209edaa2c8bbad4e7254a7d6fcf2f121a71b8
+)
+cado_divert_test(test_sopt 2
+    APPEND_ARGUMENTS
+    -inputpolys ${CMAKE_CURRENT_SOURCE_DIR}/sopt.input2.txt
+    EXPECT_SHA1 a3aadd110944689565adb70ae7456b69d8d97dbc
+)
 
 
 cado_define_test(polyselect_add_score
-    SCRIPT
-    ${CADO_NFS_SOURCE_DIR}/tests/wrap-test.sh
-        --expect-sha1 27954264d0ab7e6bf8bbc07a8376ff9c63649ba8
-        --
+    PROGRAM
         ${CADO_NFS_BINARY_DIR}/polyselect/score
         -Bf 1e+04 -Bg 2e+05 -area 5e+10
         ${CADO_NFS_SOURCE_DIR}/tests/misc/c60.poly
+    EXPECT_SHA1 27954264d0ab7e6bf8bbc07a8376ff9c63649ba8
     TARGET_DEPENDENCIES score)
 
 cado_define_test(polyselect_add_skewness
-    SCRIPT
-    ${CADO_NFS_SOURCE_DIR}/tests/wrap-test.sh
-        --expect-sha1
-        0694420c819d125950c304e205c0593cefa889db
-        --
+    PROGRAM
         ${CADO_NFS_BINARY_DIR}/polyselect/skewness
         ${CADO_NFS_SOURCE_DIR}/tests/misc/c60.poly
+    EXPECT_SHA1 0694420c819d125950c304e205c0593cefa889db
     TARGET_DEPENDENCIES skewness)
