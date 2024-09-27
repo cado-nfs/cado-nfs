@@ -221,13 +221,13 @@ class GeneralClass(object):
         d={}
         with open(self.poly(), "r") as file:
             for line in file:
-                if re.match("^\s*#", line):
+                if re.match(r"^\s*#", line):
                     continue
-                if re.match("^\s*$", line):
+                if re.match(r"^\s*$", line):
                     continue
                 key,value=line.split(":")
                 key = key.strip()
-                foo = re.match("^([cY])(\d+)$", key)
+                foo = re.match(r"^([cY])(\d+)$", key)
                 if foo:
                     s,i=foo.groups()
                     if s not in d:
@@ -374,7 +374,7 @@ class GeneralClass(object):
             for line in bad:
                 if line[0] == '#':
                     continue
-                foo = re.match("^(\d+),(\d+):(\d+): (\d+)$", line)
+                foo = re.match(r"^(\d+),(\d+):(\d+): (\d+)$", line)
                 if foo:
                     self.list_badideals.append((int(foo.groups()[0]),
                         int(foo.groups()[1]), int(foo.groups()[2])))
@@ -387,8 +387,8 @@ class GeneralClass(object):
             for line in bad:
                 if line[0] == '#':
                     continue
-                pattern = "^(\d+) (\d+) (\d+) (\d+) (.+)$"
-                foo = re.match(pattern, line)
+                pattern = r"^(\d+) (\d+) (\d+) (\d+) (.+)$"
+                foo = re.match(rpattern, line)
                 if foo:
                     self.badidealdata.append((
                         int(foo.groups()[0]), # p
@@ -438,7 +438,7 @@ class LogBase(object):
 
             with open(general.log(),'r') as file:
                 line = file.readline()
-                m = re.match("^(\w+) added column (\d+)$",line)
+                m = re.match(r"^(\w+) added column (\d+)$",line)
                 if m:
                     self.fullcolumn = int(m.groups()[1])
                 else:
@@ -706,7 +706,7 @@ class DescentUpperClass(object):
         lines = rrr.splitlines()
         with open(todofilename, "a") as f:
             for line in lines:
-                foo = re.match("^Taken: ([0-9\-]+),([0-9\-]+):([0-9a-fA-F,]+):([0-9a-fA-F,]+)", line)
+                foo = re.match(r"^Taken: ([0-9\-]+),([0-9\-]+):([0-9a-fA-F,]+):([0-9a-fA-F,]+)", line)
                 assert foo
                 foog = foo.groups()
                 a = int(foog[0])
@@ -836,7 +836,7 @@ class DescentUpperClass(object):
             if line[0] != '#':
                 rel_holder.set((idx, line))
                 return True
-            if re.match("^# (Now sieving.*q=|\d+ relation)", line):
+            if re.match(r"^# (Now sieving.*q=|\d+ relation)", line):
                 sys.stdout.write('\n')
                 print(line.rstrip())
                 sys.stdout.flush()
@@ -930,26 +930,26 @@ class DescentUpperClass(object):
         has_winner = object_holder(True)
 
         def consume(has_winner, general, idx, line):
-            foo = re.match("^Youpi: e = (\d+) is a winner", line)
+            foo = re.match(r"^Youpi: e = (\d+) is a winner", line)
             if foo:
                 has_winner.set(True)
                 general.initrandomizer = int(foo.groups()[0])
-            foo = re.match("^U = ([0-9\-,]+)", line)
+            foo = re.match(r"^U = ([0-9\-,]+)", line)
             if foo:
                 general.initU = [ int(x) for x in foo.groups()[0].split(',') ]
-            foo = re.match("^V = ([0-9\-,]+)", line)
+            foo = re.match(r"^V = ([0-9\-,]+)", line)
             if foo:
                 general.initV = [ int(x) for x in foo.groups()[0].split(',') ]
-            foo = re.match("^u = ([0-9]+)", line)
+            foo = re.match(r"^u = ([0-9]+)", line)
             if foo:
                 general.initu = int(foo.groups()[0])
-            foo = re.match("^v = ([0-9]+)", line)
+            foo = re.match(r"^v = ([0-9]+)", line)
             if foo:
                 general.initv = int(foo.groups()[0])
-            foo = re.match("^fac_u = ([, 0-9]+)", line)
+            foo = re.match(r"^fac_u = ([, 0-9]+)", line)
             if foo:
                 general.initfacu = [ [ int(y) for y in x.split(',') ] for x in foo.groups()[0].split(' ') ]
-            foo = re.match("^fac_v = ([, 0-9]+)", line)
+            foo = re.match(r"^fac_v = ([, 0-9]+)", line)
             if foo:
                 general.initfacv = [ [ int(y) for y in x.split(',') ] for x in foo.groups()[0].split(' ') ]
 
@@ -1042,12 +1042,12 @@ class DescentMiddleClass(object):
         values_lim1.add(self.args.lim1)
         with open(self.args.descent_hint, 'r') as file:
             for line in file:
-                if re.match("^\s*#", line):
+                if re.match(r"^\s*#", line):
                     continue
-                if re.match("^\s*$", line):
+                if re.match(r"^\s*$", line):
                     continue
                 line = line.strip()
-                foo = re.match("^.*I=(\d+)\s+(\d+),[\d.,]+\s+(\d+),[\d.,]+$",
+                foo = re.match(r"^.*I=(\d+)\s+(\d+),[\d.,]+\s+(\d+),[\d.,]+$",
                         line)
                 if not foo:
                     print("Warning, parse error in hint file at line:\n" + line)
@@ -1099,17 +1099,17 @@ class DescentMiddleClass(object):
         failed = []
         
         def consume(printing, failed, idx, line):
-            if re.match("^# taking path", line):
+            if re.match(r"^# taking path", line):
                 print(line.rstrip())
-            elif re.match("^# END TREE", line):
+            elif re.match(r"^# END TREE", line):
                 print("")
                 printing.unset()
             elif printing.v:
                 print(line.rstrip())
-                foo = re.match("# FAILED (\d+\@\d+)", line)
+                foo = re.match(r"# FAILED (\d+\@\d+)", line)
                 if foo:
                     failed.append(foo.groups()[0])
-            elif re.match("^# BEGIN TREE", line):
+            elif re.match(r"^# BEGIN TREE", line):
                 print("")
                 printing.set(True)
 
@@ -1172,7 +1172,7 @@ class DescentLowerClass(object):
             with open(rfile, 'r') as file:
                 with open(relsforSM, 'a') as fileSM:
                     for line in file:
-                        foo = re.match("^Taken: (-?\d+),(-?\d+):", line)
+                        foo = re.match(r"^Taken: (-?\d+),(-?\d+):", line)
                         if foo:
                             r = line.split(':')[1:]
                             r[0] = r[0].lstrip()
@@ -1402,7 +1402,7 @@ if __name__ == '__main__':
     cp = subprocess.Popen([ las_bin, "-help" ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
-    if re.search("unused, needs hwloc", cp.stderr.read().decode()):
+    if re.search(r"unused, needs hwloc", cp.stderr.read().decode()):
         has_hwloc = False
     else:
         has_hwloc = True
