@@ -368,7 +368,7 @@ struct cxx_mpz_poly {
 
     template<typename T>
     class named_proxy {
-        static_assert(std::is_reference<T>::value);
+        static_assert(std::is_reference<T>::value, "T must be a reference");
         typedef typename std::remove_reference<T>::type V;
         typedef typename std::remove_const<V>::type Vnc;
         typedef named_proxy<Vnc &> nc;

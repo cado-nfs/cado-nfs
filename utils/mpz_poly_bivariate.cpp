@@ -1,8 +1,10 @@
-#include "mpz_poly_bivariate.hpp"
 #include "cado.h"
-#include "cado_expression_parser.hpp"
+
 #include <sstream>
 #include <string>
+
+#include "cado_expression_parser.hpp"
+#include "mpz_poly_bivariate.hpp"
 
 /* Polynomial arithmetic */
 void cxx_mpz_poly_bivariate::neg(cxx_mpz_poly_bivariate & f,
