@@ -3,6 +3,7 @@ import re
 import sys
 
 from sage.rings.integer_ring import ZZ
+from sage.rings.finite_rings.integer_mod_ring import Integers
 from sage.rings.real_mpfr import RR
 from sage.rings.number_field.number_field import NumberField
 from .tools import get_verbose
@@ -61,6 +62,15 @@ class CadoPolyFile(object):
         self.skewness = 0
         self.N = 0
         self.nt = None
+        self.m = None
+
+    def _check_mapping(self):
+        # we only know how to do it when we have a polynomial of degree 1
+        # somewhere.
+        rat = [ i for i,f in enumerate(self.f) if f.degree() == 1 ]
+        assert len(rat)
+        m, = self.f[rat[0]].roots(Integers(self.N), multiplicities=False)
+        return ZZ(m)
 
     def read(self):
         try:
@@ -110,6 +120,8 @@ class CadoPolyFile(object):
             return
         elif m := re.match(rf"^[nN]{eq}{nb}$", line):
             self.N = ZZ(m.group(1))
+        elif m := re.match(rf"^[m]{eq}{nb}$", line):
+            self.m = ZZ(m.group(1))
         elif m := re.match(rf"^skew{eq}{nbf}$", line):
             self.skewness = RR(m.group(1))
         elif m := re.match(rf"^c(\d+){eq}{nb}$", line):
@@ -152,6 +164,8 @@ class CadoPolyFile(object):
             if f.resultant(g) % self.N != 0:
                 raise ValueError("resultant of polynomials 0 and {i}" +
                                  " is not zero modulo N")
+            if f(self.m) % self.N != 0:
+                raise ValueError(f"polynomial {i} does not vanish mod {self.N}: {f(self.m)}")
 
     def __read(self, contents):
         self.__clear_fields_for_read()
@@ -162,6 +176,9 @@ class CadoPolyFile(object):
         if len(self.f) < 2:
             raise ValueError("poly file must" +
                              " contain at least two polynomials")
+
+        if self.m is None:
+            self.m = self._check_mapping()
 
         self.__create_fields()
         self.__check_resultant()

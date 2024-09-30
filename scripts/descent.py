@@ -239,10 +239,20 @@ class GeneralClass(object):
                     d[key] = value.strip()
             if 'poly0' in d:
                 assert 'Y' not in d
-                d['Y'] = [ int(x) for x in d["poly0"].split(',') ]
+                v = d["poly0"]
+                if 'x' in v:
+                    raise ValueError("Please teach me how to parse a polynomial")
+                    d['Y'] = ZZ['x'](v).list()
+                else:
+                    d['Y'] = [ int(x) for x in v.split(',') ]
             if 'poly1' in d:
                 assert 'c' not in d
-                d['c'] = [ int(x) for x in d["poly1"].split(',') ]
+                v = d["poly1"]
+                if 'x' in v:
+                    raise ValueError("Please teach me how to parse a polynomial")
+                    d['c'] = ZZ['x'](v).list()
+                else:
+                    d['c'] = [ int(x) for x in v.split(',') ]
         return d
 
     def p(self):
