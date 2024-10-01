@@ -623,7 +623,7 @@ main (int argc, char *argv[])
   printf ("# Done reading renumber table\n");
   fflush (stdout);
 
-  for (int side = 0; side < 2; ++side) {
+  for (int side = 0; side < ren_table.get_nb_polys(); ++side) {
       if (ren_table.get_lpb(side) != (unsigned long)lpb[side]) {
           fprintf(stderr, "Error: on side %d, lpb on the command-line is different from the one in the renumber file\n", side);
           exit(EXIT_FAILURE);

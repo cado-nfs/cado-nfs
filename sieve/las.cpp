@@ -192,7 +192,7 @@ static size_t expected_memory_usage_per_binding_zone(siever_config const & sc,/*
      */
     size_t memory = 0;
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
         if (!sc.sides[side].lim) continue;
         double p1 = sc.sides[side].lim;
         double p0 = 2;
@@ -290,7 +290,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     // toplevel is computed by fb_factorbase::slicing::slicing, based on
     // thresholds in fbK
     int toplevel = -1;
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
         int m;
         for(m = 0 ; m < FB_MAX_PARTS && K[side].thresholds[m] < sc.sides[side].lim; ++m);
         if (m > toplevel)
@@ -364,7 +364,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
         // fill the buckets locally with short hints (and short positions:
         // bucket_update_t<1, shorthint_t>)
 
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
             if (!sc.sides[side].lim) continue;
             /* In truth, I sort of know it isn't valid. We've built most
              * of the stuff on the idea that there's a global "toplevel"
@@ -453,7 +453,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
             }
         }
 
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
             if (!sc.sides[side].lim) continue;
             double p1 = K[side].thresholds[1];
             double p0 = K[side].thresholds[0];
@@ -510,7 +510,7 @@ static size_t expected_memory_usage_per_subjob(siever_config const & sc,/*{{{*/
     } else if (toplevel == 1) {
         // *ALL* bucket updates are computed in one go as
         // bucket_update_t<1, shorthint_t>
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
             if (!sc.sides[side].lim) continue;
             ASSERT_ALWAYS(K[side].thresholds[1] == sc.sides[side].lim);
             double p1 = K[side].thresholds[1];
@@ -728,7 +728,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
             ws.allocate_buckets(*aux_p, pool);
         }
 
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < nsides ; side++) {
             nfs_work::side_data & wss(ws.sides[side]);
             if (wss.no_fb()) continue;
 
@@ -744,7 +744,7 @@ static void do_one_special_q_sublat(nfs_work & ws, std::shared_ptr<nfs_work_cofa
          */
         BOOKKEEPING_TIMER(timer_special_q);
 
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < nsides ; side++) {
             nfs_work::side_data & wss(ws.sides[side]);
             if (wss.no_fb()) continue;
             pool.add_task_lambda([&ws,aux_p,side](worker_thread * worker,int){
@@ -878,7 +878,7 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
     /* Currently we assume that we're doing sieving + resieving on
      * both sides, or we're not. In the latter case, we expect to
      * complete the factoring work with batch cofactorization */
-    ASSERT_ALWAYS(las.batch || las.batch_print_survivors.filename || (ws.conf.sides[0].lim && ws.conf.sides[1].lim));
+    ASSERT_ALWAYS(las.batch || las.batch_print_survivors.filename || las.cpoly->nb_polys == 1 || (ws.conf.sides[0].lim && ws.conf.sides[1].lim));
 
     std::shared_ptr<nfs_work_cofac> wc_p;
 
@@ -938,7 +938,8 @@ static bool do_one_special_q(las_info & las, nfs_work & ws, std::shared_ptr<nfs_
     return true;
 }/*}}}*/
 
-static void prepare_timer_layout_for_multithreaded_tasks(timetree_t & timer)
+static void prepare_timer_layout_for_multithreaded_tasks(timetree_t & timer,
+                                                         int nb_polys)
 {
     /* This does nothing. We're just setting up the required
      * empty shell so that all the multithreaded tasks that
@@ -947,7 +948,7 @@ static void prepare_timer_layout_for_multithreaded_tasks(timetree_t & timer)
      */
 #ifndef DISABLE_TIMINGS
     timetree_t::accounting_child x(timer, tdict_slot_for_threads);
-    for (int side = 0; side < 2; ++side) {
+    for (int side = 0; side < nb_polys; ++side) {
         MARK_TIMER_FOR_SIDE(timer, side);
         TIMER_CATEGORY(timer, sieving(side));
     }
@@ -1134,7 +1135,7 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
 
                     ACTIVATE_TIMER(timer_special_q);
 
-                    prepare_timer_layout_for_multithreaded_tasks(timer_special_q);
+                    prepare_timer_layout_for_multithreaded_tasks(timer_special_q, las.cpoly->nb_polys);
 
                     bool done = do_one_special_q(las, workspaces, aux_p, pool);
 

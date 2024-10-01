@@ -35,15 +35,17 @@ cofac_standalone::cofac_standalone() : a(0), b(0) {/*{{{*/
 #endif
 }/*}}}*/
 cofac_standalone::cofac_standalone(int nsides, int N, size_t x, int logI, qlattice_basis const & Q)
-    : S(nsides, 0)
-    , norm(nsides, 0)
-    , factors(nsides)
-    , lps(nsides)
+    : S(std::max(nsides, 2), 0)
+    , norm(std::max(nsides, 2), 0)
+    , factors(std::max(nsides, 2))
+    , lps(std::max(nsides, 2))
 {/*{{{*/
     convert_Nx_to_ab (a, b, N, x, logI, Q);
 #ifdef SUPPORT_LARGE_Q
     convert_Nx_to_abmpz (az, bz, N, x, logI, Q);
 #endif
+    if (nsides == 1)
+        norm[1] = 1UL;
 }/*}}}*/
 bool cofac_standalone::trace_on_spot() const {/*{{{*/
     return extern_trace_on_spot_ab(a, b);
@@ -114,7 +116,7 @@ relation cofac_standalone::get_relation(las_todo_entry const & doing) {/*{{{*/
 
     /* Note that we explicitly do not bother about storing r in
      * the relations below */
-    for (int side = 0; side < 2; side++) {
+    for (unsigned int side = 0; side < rel.sides.size(); side++) {
         for (auto const& z : factors[side])
             rel.add(side, z, 0);
         for (auto const& z : lps[side])
@@ -150,7 +152,7 @@ int cofac_standalone::factor_both_leftover_norms(nfs_work_cofac & wc) {/*{{{*/
     /* This proxies to las-cofactor.cpp */
     return ::factor_both_leftover_norms(norm,
             lps,
-            {{ wc.sc.sides[0].lim, wc.sc.sides[1].lim }},
+            {{ wc.sc.sides[0].lim, wc.sc.sides.size() == 1 ? 0 : wc.sc.sides[1].lim }},
             *wc.strategies);
 }/*}}}*/
 

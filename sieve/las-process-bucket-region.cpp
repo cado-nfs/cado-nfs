@@ -236,7 +236,7 @@ process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn
     memset(SS, 0, BUCKET_REGION);
 
     /* see comment in process_bucket_region_run::operator()() */
-    do_resieve = ws.conf.sides[0].lim && ws.conf.sides[1].lim;
+    do_resieve = ws.conf.sides[0].lim && (nsides == 1 || ws.conf.sides[1].lim);
 
     /* we're ready to go ! processing is in the operator() method.
     */
@@ -302,7 +302,7 @@ void process_bucket_region_run::apply_buckets(int side)/*{{{*/
 
 static void update_checksums(nfs_work::thread_data & tws, nfs_aux::thread_data & taux)
 {
-    for(int side = 0 ; side < 2 ; side++)
+    for(unsigned int side = 0 ; side < tws.sides.size() ; side++)
         taux.update_checksums(side, tws.sides[side].bucket_region, BUCKET_REGION);
 }
 
@@ -404,7 +404,7 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 
         unsigned char * const both_S[2] = {
             S[0] ? S[0] + offset : NULL,
-            S[1] ? S[1] + offset : NULL,
+            S.size() > 1 && S[1] ? S[1] + offset : NULL,
         };
         /* TODO FIXME XXX that's weird. How come don't we merge that with
          * the lognorm computation that goes in the ws.sides[side]
@@ -526,7 +526,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
         rep.survivors.after_sieve++;
 
-        if (S[0] && S[1])
+        if (S[0] && S.size() > 1 && S[1])
             rep.mark_survivor(S[0][x], S[1][x]);
 
         /* For factor_leftover_norm, we need to pass the information of the
@@ -541,7 +541,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         /* start building a new object. This is a swap operation */
         cur = cofac_standalone(nsides, N, x, ws.conf.logI, ws.Q);
 
-        for(int side = 0 ; side < 2 ; side++) {
+        for(int side = 0 ; side < nsides ; side++) {
             if (ws.sides[side].no_fb()) continue;
             cur.S[side] = S[side][x];
         }
@@ -577,7 +577,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
         if (do_resieve) {
 
-            for(int pside = 0 ; pass && pside < 2 ; pside++) {
+            for(int pside = 0 ; pass && pside < nsides ; pside++) {
                 int side = trialdiv_first_side ^ pside;
                 nfs_work::side_data & wss(ws.sides[side]);
 
@@ -656,7 +656,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
             /* no resieve, so no list of prime factors to divide. No
              * point in doing trial division anyway either.
              */
-            for(int side = 0 ; side < 2 ; side++) {
+            for(int side = 0 ; side < nsides ; side++) {
                 CHILD_TIMER_PARAMETRIC(timer, "side ", side, " pre-cofactoring checks");
                 TIMER_CATEGORY(timer, cofactoring(side));
 
@@ -894,7 +894,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
             /* We need to compute more init positions */
             int more = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1] - done);
 
-            for(int side = 0 ; side < 2 ; side++) {
+            for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
                 nfs_work::side_data & wss(ws.sides[side]);
                 if (wss.no_fb()) continue;
                 pool.add_task_lambda([=,&ws](worker_thread * worker, int){
@@ -922,7 +922,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
             ready = more;
 
             /* Now these new start positions are ready to be used */
-            for(int side = 0 ; side < 2 ; side++) {
+            for(unsigned int side = 0 ; side < ws.sides.size() ; side++) {
                 nfs_work::side_data & wss(ws.sides[side]);
                 if (wss.no_fb()) continue;
                 small_sieve_activate_many_start_positions(wss.ssd);

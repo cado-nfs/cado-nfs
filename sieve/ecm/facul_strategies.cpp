@@ -736,7 +736,11 @@ facul_strategies::facul_strategies(
         facul_method_side::fix_is_last(chain);
     }
 
-    direct_access.assign((1 + mfb[0]) * (1 + mfb[1]), nullptr);
+    unsigned int M = 1U;
+    for (unsigned int m: mfb) {
+        M *= (m+1U);
+    }
+    direct_access.assign(M, nullptr);
 
     /* fill the direct_access array */
     for(auto const & v : parsed_file) {
@@ -913,7 +917,11 @@ facul_strategies::facul_strategies (
             max_ncurves = ncurves[side];
     }
 
-    verbose_output_print(0, 2, "# Using default strategy for the cofactorization: ncurves0=%d ncurves1=%d\n", ncurves[0], ncurves[1]);
+    verbose_output_print(0, 2, "# Using default strategy for the cofactorization:");
+    for (unsigned int i = 0; i < ncurves.size(); i++) {
+        verbose_output_print(0, 2, " ncurves%u=%d", i, ncurves[i]);
+    }
+    verbose_output_print(0, 2, "\n");
 
     /* prepare the chain of methods that we want to use in order to
      * factor a number, irrespective of its side.
@@ -925,15 +933,15 @@ facul_strategies::facul_strategies (
      *
      * NOTE: This is incompatible with USE_MPQS
      */
-    std::vector<std::vector<facul_method::parameters_with_side>> w(2);
-    for(int first = 0 ; first < 2 ; first++) {
+    std::vector<std::vector<facul_method::parameters_with_side>> w(nsides);
+    for(int first = 0 ; first < nsides ; first++) {
         /* first == 0 means that r >= a: the rational side is largest.
          * Try to factor it first.
          *
          * Note that facul_strategies::operator() returns
          * uniform_strategy[r < a]
          */
-        for (int z = 0; z < 2; z++) {
+        for (int z = 0; z < nsides; z++) {
             int side = first ^ z;
             int n = ncurves[side] + (chain_parameters.size() - max_ncurves);
             for(facul_method::parameters const & mp: chain_parameters) {

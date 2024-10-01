@@ -99,7 +99,7 @@ struct sieve_shared_data {
 
     /* }}} */
 
-    side_data sides[2];
+    side_data sides[2]; /* XXX HARDCODED 2 */
 
     /* Most of the member functions below which take a side argument
      * should be members of the side_data structure instead.

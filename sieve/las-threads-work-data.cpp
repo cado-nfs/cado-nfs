@@ -20,7 +20,7 @@ class nfs_aux; // IWYU pragma: keep
 
 nfs_work::thread_data::thread_data(thread_data && o) : ws(o.ws)
 {
-    for(int side = 0 ; side < 2 ; side++) {
+    for(unsigned int side = 0 ; side < sides.size() ; side++) {
         sides[side].bucket_region = o.sides[side].bucket_region;
         o.sides[side].bucket_region = NULL;
     }
@@ -33,7 +33,7 @@ nfs_work::thread_data::thread_data(thread_data && o) : ws(o.ws)
 nfs_work::thread_data::thread_data(thread_data const & o)
     : ws(o.ws)
 {
-    for(int side = 0 ; side < 2 ; side++) {
+    for(unsigned int side = 0 ; side < sides.size() ; side++) {
         ASSERT_ALWAYS(o.sides[side].bucket_region == NULL);
         sides[side].bucket_region = NULL;
     }
@@ -44,7 +44,7 @@ nfs_work::thread_data::thread_data(thread_data const & o)
      * for the memory allocator if we allocate and free always the same
      * size.
      */
-    for(int side = 0 ; side < 2 ; side++) {
+    for(unsigned int side = 0 ; side < sides.size() ; side++) {
         if (!sides[side].bucket_region)
             sides[side].bucket_region = ws.local_memory.alloc_bucket_region();
         memcpy(sides[side].bucket_region, o.sides[side].bucket_region, BUCKET_REGION);
@@ -58,7 +58,7 @@ nfs_work::thread_data::thread_data(thread_data const & o)
 nfs_work::thread_data::thread_data(nfs_work & ws)
     : ws(ws)
 {
-    for(int side = 0 ; side < 2 ; side++) {
+    for(unsigned int side = 0 ; side < sides.size() ; side++) {
         sides[side].bucket_region = NULL;
         if (ws.sides[side].no_fb()) continue;
         sides[side].bucket_region = ws.local_memory.alloc_bucket_region();
@@ -69,7 +69,7 @@ nfs_work::thread_data::thread_data(nfs_work & ws)
 
 nfs_work::thread_data::~thread_data()
 {
-    for(int side = 0 ; side < 2 ; side++) {
+    for(unsigned int side = 0 ; side < sides.size() ; side++) {
         if (ws.sides[side].no_fb()) continue;
         ws.local_memory.free_bucket_region(sides[side].bucket_region);
         sides[side].bucket_region = NULL;
@@ -81,7 +81,7 @@ nfs_work::thread_data::~thread_data()
 /* only used once a siever_config has been attached to the parent structure */
 void nfs_work::thread_data::allocate_bucket_regions()
 {
-    for(int side = 0 ; side < 2 ; side++) {
+    for(unsigned int side = 0 ; side < sides.size() ; side++) {
         if (ws.sides[side].no_fb()) {
             if (sides[side].bucket_region)
                 ws.local_memory.free_bucket_region(sides[side].bucket_region);
@@ -142,9 +142,9 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
     verbose_output_print(0, 2, "# Reserving buckets with a multiplier of %s\n",
             bk_multiplier.print_all().c_str());
 
-    bool do_resieve = conf.sides[0].lim && conf.sides[1].lim;
+    bool do_resieve = conf.sides[0].lim && (las.cpoly->nb_polys == 1 || conf.sides[1].lim);
 
-    for (int side = 0; side < 2; side++) {
+    for (unsigned int side = 0; side < sides.size(); side++) {
         side_data & wss(sides[side]);
         if (wss.no_fb()) continue;
         wss.group.allocate_buckets(
@@ -175,7 +175,7 @@ nfs_work::buckets_max_full()
     size_t maxfull_updates = 0;
     size_t maxfull_room = 0;
     typedef bucket_array_t<LEVEL, HINT> BA_t;
-    for(int side = 0 ; side < 2 ; side++) {
+    for(unsigned int side = 0 ; side < sides.size() ; side++) {
         side_data & wss(sides[side]);
         for (auto const & BA : wss.bucket_arrays<LEVEL, HINT>()) {
             unsigned int index;
@@ -288,7 +288,7 @@ void nfs_work::compute_toplevel_and_buckets()
 {
     // Now that fb have been initialized, we can set the toplevel.
     toplevel = -1;
-    for(int side = 0 ; side < 2 ; side++) {
+    for(unsigned int side = 0 ; side < sides.size() ; side++) {
         side_data & wss(sides[side]);
         if (wss.no_fb()) continue;
 
@@ -321,7 +321,7 @@ void nfs_work::prepare_for_new_q(las_info & las0) {
     ASSERT_ALWAYS(&las == &las0);
     /* The config on which we're running is now decided. In order to
      * select the factor base to use, we also need the log scale */
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
         nfs_work::side_data & wss(sides[side]);
 
         /* Even when we have no factor base, we do the lognorm setup

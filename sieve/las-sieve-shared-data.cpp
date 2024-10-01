@@ -59,8 +59,8 @@ sieve_shared_data::sieve_shared_data( /*{{{*/
 }
 void sieve_shared_data::load_factor_base(cxx_param_list & pl, int nthreads) /*{{{*/
 {
-    sides[0] = side_data {0, cpoly, pl, nthreads};
-    sides[1] = side_data {1, cpoly, pl, nthreads};
+    for (int i = 0; i < cpoly->nb_polys; i ++)
+        sides[i] = side_data {i, cpoly, pl, nthreads};
 }
 /*}}}*/
 /*}}}*/

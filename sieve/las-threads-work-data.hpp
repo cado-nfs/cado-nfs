@@ -188,7 +188,7 @@ class nfs_work {
         dumpfile_t dumpfile;
     };
 
-    std::array<side_data, 2> sides;
+    std::array<side_data, 2> sides; /* XXX HARDCODED 2 */
 
     /* All of this exists _for each thread_ */
     struct thread_data {
@@ -200,7 +200,7 @@ class nfs_work {
         };
 
         nfs_work &ws;  /* a pointer to the parent structure, really */
-        std::array<side_data, 2> sides;
+        std::array<side_data, 2> sides; /* XXX HARDCODED 2 */
         /* SS is used only in process_bucket region */
         unsigned char *SS = NULL;
 

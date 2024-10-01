@@ -87,11 +87,12 @@ nfs_aux::~nfs_aux()
     // coverity[fun_call_w_exception]
     rt.rep.display_survivor_counters();
 
-    verbose_output_print(0, 2,
-            "# Checksums over sieve region: "
-            "after all sieving: %u, %u\n",
-            checksum_post_sieve[0].get_checksum(),
-            checksum_post_sieve[1].get_checksum());
+    verbose_output_print(0, 2, "# Checksums over sieve region: after all "
+                               "sieving:");
+    for (auto ck: checksum_post_sieve) {
+        verbose_output_print(0, 2, " %u", ck.get_checksum());
+    }
+    verbose_output_print(0, 2, "\n");
 
     verbose_output_vfprint(0, 1, gmp_vfprintf,
             "# %lu %s\n",

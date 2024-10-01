@@ -37,7 +37,7 @@ bool register_contending_relation(las_info const & las, las_todo_entry const & d
     contender.rel = rel;
     double time_left = 0;
 
-    for(int side = 0 ; side < 2 ; side++) {
+    for(int side = 0 ; side < las.cpoly->nb_polys ; side++) {
         for(unsigned int i = 0 ; i < rel.sides[side].size() ; i++) {
             relation::pr const & v(rel.sides[side][i]);
             if (mpz_cmp(doing.p, v.p) == 0)

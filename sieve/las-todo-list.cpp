@@ -95,8 +95,8 @@ las_todo_list::las_todo_list(cxx_cado_poly const & cpoly, cxx_param_list & pl)
             verbose_output_print(0, 1, "# Warning: argument -nq takes priority over -q1 ; -q1 ignored\n");
     }
 
-    sqside = 1;
-    if (!param_list_parse_int(pl, "sqside", &sqside)) {
+    sqside = cpoly->nb_polys == 1 ? 0 : 1;
+    if (!param_list_parse_int(pl, "sqside", &sqside) && cpoly->nb_polys > 1) {
         verbose_output_print(0, 1, "# Warning: sqside not given, "
                 "assuming side 1 for backward compatibility.\n");
     }
