@@ -338,6 +338,19 @@ void * prep_prog_gfp(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
                 ASSERT_ALWAYS(rc == 1);
             }
         }
+        if (mmt.n0[!bw->dir] < mmt.n0[bw->dir]) {
+            printf("System is underdetermined: RHS has %u coordinates, and the matrix has dimension %u * %u\n", mmt.n0[!bw->dir], mmt.n0[0], mmt.n0[1]);
+
+            for(unsigned int i = mmt.n0[!bw->dir] ; i < mmt.n0[bw->dir] ; i++) {
+                for(unsigned int j = 0 ; j < nrhs ; j++) {
+                    int rc;
+                    memset(coeff, 0, A->elt_stride());
+                    A->set(A->vec_item(coeff, 0), c);
+                    rc = fwrite(coeff, A->elt_stride(), 1, vec_files[j]);
+                    ASSERT_ALWAYS(rc == 1);
+                }
+            }
+        }
         A->free(coeff);
 
         for(unsigned int j = 0 ; j < nrhs ; j++) {
