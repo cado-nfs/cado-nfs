@@ -284,6 +284,13 @@ int cado_poly_read(cado_poly_ptr cpoly, const char *filename)
 int cado_poly_check_mapping(mpz_poly_ptr G, cado_poly_srcptr cpoly,
         mpz_srcptr N)
 {
+    if (cpoly->nb_polys == 1)
+    {
+        if (G)
+            mpz_poly_set(G, cpoly->pols[0]);
+        return 1;
+    }
+
     /* scratch space for mpz_poly_pseudogcd_mpz, which destroys its
      * input.
      */
