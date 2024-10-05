@@ -1,4 +1,5 @@
 from sage.rings.integer_ring import ZZ
+
 from cado_sage.tools import get_verbose, cat_or_zcat
 
 
@@ -28,7 +29,7 @@ class CadoIdealsDebugFile(object):
             rep += ", no data read yet"
             return rep
         else:
-            rep += f", {len(self.ideals)} ideals"
+            rep += f", {len(self._ideals)} ideals"
             return rep
 
     def read(self):
@@ -44,7 +45,7 @@ class CadoIdealsDebugFile(object):
             if t.startswith('#'):
                 continue
 
-            parser, *data = t.split(' ')
+            parser, *data = t.split()
 
             if parser == 'J':
                 # the "data" field is actually a bit of a lie, b
