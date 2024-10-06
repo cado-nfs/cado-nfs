@@ -1110,10 +1110,8 @@ std::string renumber_t::debug_data_machine_description(index_t i) const
                     throw std::runtime_error("call compute_bad_ideals() first!\n");
                 }
                 std::ostringstream os;
-                os << "generic " << x.side;
-                for(auto const & x : b.second.machine_description[j]) {
-                    os << " " << x;
-                }
+                os << "generic " << x.side
+                   << " " << b.second.machine_description[j];
                 return os.str();
             }
             j -= b.second.nbad;
@@ -1131,10 +1129,10 @@ std::string renumber_t::debug_data_machine_description(index_t i) const
             for(auto const & y : small_primes[x.side]) {
                 if (x.p == y.first) {
                     std::ostringstream os;
-                    os << "generic " << x.side;
-                    for(auto const & x : generic_machine_description(f, x.side, x.p, x.r)) {
-                        os << " " << x;
-                    }
+                    os << "generic " << x.side
+                        << " "
+                        << generic_machine_description(f, x.side, x.p, x.r);
+
                     return os.str();
                 }
             }
