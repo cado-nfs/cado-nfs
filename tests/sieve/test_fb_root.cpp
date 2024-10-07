@@ -20,6 +20,7 @@
 #include "las-fbroot-qlattice.hpp"
 #include "fb.hpp"
 #include "timing.h"  // seconds
+#include "fmt/ostream.h"
 #include "fmt/format.h"
 #include "tests_common.h"
 
@@ -53,31 +54,8 @@ std::ostream& operator<<(std::ostream& os, fb_root_p1_t<T> const & R)
  * https://stackoverflow.com/questions/25594644/warning-specialization-of-template-in-different-namespace
  */
 namespace fmt {
-template <typename T> struct /* fmt:: */ formatter<fb_root_p1_t<T>>: formatter<string_view> {
-    // only allow {} for formatting. No :, no :x, etc. It could be nice
-    // to allow them, though. Note that this should be constexpr with
-    // c++-14 or later
-    // auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
-    template <typename FormatContext>
-        auto format(fb_root_p1_t<T> const & c, FormatContext& ctx) -> decltype(ctx.out()) {
-            std::ostringstream os;
-            os << c;
-            return formatter<string_view>::format( string_view(os.str()), ctx);
-        }
-};
-
-template <> struct /* fmt:: */ formatter<qlattice_basis>: formatter<string_view> {
-    // only allow {} for formatting. No :, no :x, etc. It could be nice
-    // to allow them, though. Note that this should be constexpr with
-    // c++-14 or later
-    // auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
-    template <typename FormatContext>
-        auto format(qlattice_basis const & c, FormatContext& ctx) -> decltype(ctx.out()) {
-            std::ostringstream os;
-            os << c;
-            return formatter<string_view>::format( string_view(os.str()), ctx);
-        }
-};
+template <typename T> struct formatter<fb_root_p1_t<T>>: ostream_formatter {};
+template <> struct formatter<qlattice_basis>: ostream_formatter {};
 }
 
 
@@ -139,7 +117,7 @@ make_random_fb_root(const fbprime_t p, mpz_ptr t)
 {
     mpz_set_ui (t, p);
     tests_common_urandomm (t, t);
-    fbroot_t r = mpz_get_ui (t);
+    fbroot_t const r = mpz_get_ui (t);
     ASSERT_ALWAYS (r < p);
     return r;
 }
@@ -215,8 +193,8 @@ static
 fb_entry_x_roots<Nr_roots> make_random_fb_entry_x_roots(
         mpz_ptr t, mpz_ptr u)
 {
-    fbprime_t p = make_random_fb_prime(t);
-    redc_invp_t invq = make_invp32(p, t, u);
+    fbprime_t const p = make_random_fb_prime(t);
+    redc_invp_t const invq = make_invp32(p, t, u);
     fbroot_t rr[Nr_roots];
     for (int i_root = 0; i_root < Nr_roots; i_root++) {
         rr[i_root] = make_random_fb_root(p, t);
@@ -271,7 +249,7 @@ test_chain_fb_root_in_qlattice_batch(basis_citer_t basis_begin,
             }
         }
         st = seconds() - st;
-        volatile fbroot_t fake_sum_vol = fake_sum;
+        volatile fbroot_t const fake_sum_vol = fake_sum;
         if (fake_sum_vol) {}
         printf ("fb_entry_x_roots<%d>::transform_roots with %d-bit basis: %lu tests took %.2fs\n",
                 Nr_roots, bits, N * N, st);
@@ -352,7 +330,7 @@ test_chain_fb_root_in_qlattice_batch<0>(basis_citer_t basis_begin MAYBE_UNUSED,
 void test_one_root_31bits(const fbprime_t p, fb_root_p1 const & Rab, const uint32_t invp,
                      const qlattice_basis &basis)
 {
-    fb_root_p1 r31 = fb_root_in_qlattice_31bits (p, Rab, invp, basis);
+    fb_root_p1 const r31 = fb_root_in_qlattice_31bits (p, Rab, invp, basis);
     auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
     if (rref != r31) {
         print_error_and_exit(p, Rab, r31, rref, basis, 31);
@@ -414,7 +392,7 @@ test_fb_root_in_qlattice_31bits (const bool test_timing,
       r = 0;
       for (j = 0; j < N; j++)
           for (i = 0; i < N; i++) {
-              fb_root_p1 Rab { R[i], false };
+              fb_root_p1 const Rab { R[i], false };
               auto Rij = fb_root_in_qlattice_31bits (p[i], Rab, invp[i], basis[j]);
               r += Rij.r;
           }
@@ -489,7 +467,7 @@ test_fb_root_in_qlattice_127bits (const bool test_timing,
       r = 0;
       for (j = 0; j < N; j++)
           for (i = 0; i < N; i++) {
-              fb_root_p1 Rab = R[i];
+              fb_root_p1 const Rab = R[i];
               auto Rij = fb_root_in_qlattice_127bits (p[i], Rab, invp64[i], basis[j]);
               r += Rij.r;
           }
@@ -502,8 +480,8 @@ test_fb_root_in_qlattice_127bits (const bool test_timing,
       /* correctness test */
       for (i = 0; i < N; i++) {
           for (j = 0; j < N; j++) {
-              fb_root_p1 Rab = R[i];
-              fb_root_p1 r127 = fb_root_in_qlattice_127bits (p[i], R[i], invp64[i], basis[j]);
+              fb_root_p1 const Rab = R[i];
+              fb_root_p1 const r127 = fb_root_in_qlattice_127bits (p[i], R[i], invp64[i], basis[j]);
               auto rref = ref_fb_root_in_qlattice (p[i], R[i], basis[j]);
               if (rref != r127)
                   print_error_and_exit(p[i], Rab, r127, rref, basis[j], 127);
@@ -527,10 +505,10 @@ bug20200225 (void)
     {
         /* exercises bug in assembly part of invmod_redc_32 (starting
          * around line 326 with 2nd #ifdef HAVE_GCC_STYLE_AMD64_INLINE_ASM) */
-        unsigned long a = 8088625;
-        unsigned long b = 2163105767;
-        uint64_t expected = 2062858318;
-        uint64_t got = invmod_redc_32 (a, b, -invmod_po2(b));
+        unsigned long const a = 8088625;
+        unsigned long const b = 2163105767;
+        uint64_t const expected = 2062858318;
+        uint64_t const got = invmod_redc_32 (a, b, -invmod_po2(b));
         if (expected != got) {
             fprintf (stderr, "Error in invmod_redc_32 for a=%lu b=%lu\n", a, b);
             gmp_fprintf (stderr, "Expected %Zd\n", mpz_srcptr(expected));
@@ -540,10 +518,10 @@ bug20200225 (void)
     }
 
     {
-        unsigned long a = 76285;
-        unsigned long b = 2353808591;
-        uint64_t expected = 2102979166;
-        uint64_t got = invmod_redc_32(a, b, -invmod_po2(b));
+        unsigned long const a = 76285;
+        unsigned long const b = 2353808591;
+        uint64_t const expected = 2102979166;
+        uint64_t const got = invmod_redc_32(a, b, -invmod_po2(b));
         if (expected != got) {
             fprintf (stderr, "Error in invmod_redc_32 for a:=%lu; b:=%lu;\n",
                     a, b);
@@ -554,74 +532,74 @@ bug20200225 (void)
     }
 
     {
-        fbprime_t p = 3628762957;
-        fb_root_p1 Rab { 1702941053 };
-        uint64_t invp = 5839589727713490555UL;
-        qlattice_basis basis { 
+        fbprime_t const p = 3628762957;
+        fb_root_p1 const Rab { 1702941053 };
+        uint64_t const invp = 5839589727713490555UL;
+        qlattice_basis const basis { 
             -2503835703516628395L, 238650852,
                 -3992552824749287692L, 766395543
         };
         auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
-        fb_root_p1 r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        fb_root_p1 const r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
         if (rref != r127)
             print_error_and_exit(p, Rab, r127, rref, basis, 127);
     }
 
     {
         /* exercises bug in invmod_redc_32, already tested directly above */
-        fbprime_t p = 2163105767;
-        fb_root_p1 Rab = 1743312141;
-        uint64_t invp = 3235101737;
-        qlattice_basis basis {
+        fbprime_t const p = 2163105767;
+        fb_root_p1 const Rab = 1743312141;
+        uint64_t const invp = 3235101737;
+        qlattice_basis const basis {
             -30118114923155082L, -749622022,
                 -2851499432479966615L, -443074848,
         };
         auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
 
-        fb_root_p1 r31 = fb_root_in_qlattice_31bits (p, Rab, invp, basis);
+        fb_root_p1 const r31 = fb_root_in_qlattice_31bits (p, Rab, invp, basis);
         if (rref != r31)
             print_error_and_exit(p, Rab, r31, rref, basis, 31);
     }
 
     {
-        fbprime_t p = 3725310689;
-        fb_root_p1 Rab = 2661839516;
-        uint64_t invp = 1066179678986106591UL;
-        qlattice_basis basis {
+        fbprime_t const p = 3725310689;
+        fb_root_p1 const Rab = 2661839516;
+        uint64_t const invp = 1066179678986106591UL;
+        qlattice_basis const basis {
             3008222006914909739L, 877054135,
             3170231873717741170L, 932375769,
         };
         auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
-        fb_root_p1 r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        fb_root_p1 const r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
         if (rref != r127)
             print_error_and_exit(p, Rab, r127, rref, basis, 127);
     }
 
     {
         /* This is playing with the 32-bit limit */
-        fbprime_t p = 3486784401;       // 3^20
-        fb_root_p1 Rab = 2009510725;
-        uint64_t invp = 898235023;
-        qlattice_basis basis {
+        fbprime_t const p = 3486784401;       // 3^20
+        fb_root_p1 const Rab = 2009510725;
+        uint64_t const invp = 898235023;
+        qlattice_basis const basis {
             -1353180941,
                 -5,
                 -223660881,
                 8,
         };
         auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
-        fb_root_p1 r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        fb_root_p1 const r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
         if (rref != r127)
             print_error_and_exit(p, Rab, r127, rref, basis, 127);
     }
     {
-        fbprime_t p = 3;
-        fb_root_p1 Rab = 2;
-        uint64_t invp = 1431655765;
-        qlattice_basis basis {
+        fbprime_t const p = 3;
+        fb_root_p1 const Rab = 2;
+        uint64_t const invp = 1431655765;
+        qlattice_basis const basis {
             -14730287151, 11, -6528529, -2,
         };
         auto rref = ref_fb_root_in_qlattice (p, Rab, basis);
-        fb_root_p1 r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
+        fb_root_p1 const r127 = fb_root_in_qlattice_127bits (p, Rab, invp, basis);
         if (rref != r127)
             print_error_and_exit(p, Rab, r127, rref, basis, 127);
     }

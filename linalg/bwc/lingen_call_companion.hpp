@@ -11,6 +11,7 @@
 #include "timing.h"     /* weighted_double */
 #include "lingen_round_operand_size.hpp"
 #include "lingen_mul_substeps_base.hpp"
+#include "fmt/ostream.h"
 #include "fmt/format.h"
 
 /* This object is passed as a companion info to a call of
@@ -171,18 +172,7 @@ inline std::istream& operator>>(std::istream& is, lingen_call_companion::key & c
 }
 
 namespace fmt {
-    template <> struct /* fmt:: */ formatter<lingen_call_companion::key>: formatter<string_view> {
-    // only allow {} for formatting. No :, no :x, etc. It could be nice
-    // to allow them, though. Note that this should be constexpr with
-    // c++-14 or later
-    auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
-    template <typename FormatContext>
-auto format(lingen_call_companion::key const & c, FormatContext& ctx) -> decltype(ctx.out()) {
-            std::ostringstream os;
-            os << c;
-            return formatter<string_view>::format( string_view(os.str()), ctx);
-        }
-};
+    template <> struct formatter<lingen_call_companion::key>: ostream_formatter {};
 }
 
 
