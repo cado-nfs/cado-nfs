@@ -313,8 +313,18 @@ main (int argc, char *argv[])
                     fmt::print("ab{0}=(OK{0}.fractional_ideal({1}-{2}*alpha{0}))\n",
                             side, rel.az, rel.bz);
                 } else {
-                    fmt::print("ab{0}=(OK{0}.fractional_ideal({1}-{2}*alpha{0})*J{0})\n",
-                            side, rel.az, rel.bz);
+                    // there's something very fishy in the handling of
+                    // positional arguments with the following format.
+                    // Every once in a while, I get 'ab780' instead of a,
+                    // but _not_ when under gdb.
+                    // fmt::print("ab{0}=(OK{0}.fractional_ideal({1}-{2}*alpha{0})*J{0})\n",
+                    //         side, rel.az, rel.bz);
+                    auto gen = fmt::format("{}-{}*alpha{}", rel.az, rel.bz, side);
+                    auto ab = fmt::format("ab{}", side);
+                    auto I = fmt::format("OK{}.fractional_ideal({})", side, gen);
+                    auto J = fmt::format("J{}", side);
+
+                    fmt::print("{}=({}*{})\n", ab, I, J);
                 }
             }
 
