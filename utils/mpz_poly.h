@@ -15,12 +15,14 @@
 #include <istream>      // std::istream // IWYU pragma: keep
 #include <ostream>      // std::ostream // IWYU pragma: keep
 #include <type_traits>
+#include "fmt/ostream.h"
 #include "fmt/format.h"
 #include "cxx_mpz.hpp"
 #endif
 
 #include "gmp_aux.h"
 #include "macros.h"
+#include "gmp_aux.h"      // for gmp_randstate_ptr
 
 #define xxxMPZ_POLY_TIMINGS
 // for timings of roots mod p (beware, this is not thread-safe)
@@ -113,8 +115,9 @@ void mpz_poly_set_double_poly(mpz_poly_ptr g, double_poly_srcptr f);
 int mpz_poly_set_from_expression(mpz_poly_ptr f, const char * value);
 
 void mpz_poly_init_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b);
-void mpz_poly_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b);
 void mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b);
+void mpz_poly_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b);
+void mpz_poly_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b);
 
 void mpz_poly_setcoeff(mpz_poly_ptr f, int i, mpz_srcptr z);
 void mpz_poly_setcoeff_si(mpz_poly_ptr f, int i, long z);
@@ -122,7 +125,6 @@ void mpz_poly_setcoeff_ui(mpz_poly_ptr f, int i, unsigned long z);
 void mpz_poly_setcoeff_int64(mpz_poly_ptr f, int i, int64_t z);
 void mpz_poly_setcoeff_uint64(mpz_poly_ptr f, int i, uint64_t z);
 void mpz_poly_setcoeff_double(mpz_poly_ptr f, int i, double z);
-void mpz_poly_getcoeff(mpz_ptr res, int i, mpz_poly_srcptr f);
 
 void mpz_poly_set_signed_urandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
 void mpz_poly_set_signed_rrandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
@@ -130,6 +132,7 @@ void mpz_poly_set_signed_urandomm (mpz_poly_ptr f, int d, gmp_randstate_ptr stat
 void mpz_poly_set_urandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
 void mpz_poly_set_rrandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
 void mpz_poly_set_urandomm (mpz_poly_ptr f, int d, gmp_randstate_ptr state, mpz_srcptr N);
+void mpz_poly_set_urandomm_ui (mpz_poly_ptr f, int d, gmp_randstate_ptr state, unsigned long m);
 
 /* functions for Joux-Lercier and generalized Joux-Lercier */
 int mpz_poly_setcoeffs_counter(mpz_poly_ptr f, int* max_abs_coeffs, unsigned long *next_counter, int deg, unsigned long counter, unsigned int bound);
@@ -246,6 +249,12 @@ void mpz_poly_gcd_mpz (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz
 // compute f = GCD(f,g) mod N. If this fails, put the factor in the last
 // given argument.
 int mpz_poly_pseudogcd_mpz(mpz_poly_ptr , mpz_poly_ptr , mpz_srcptr , mpz_ptr);
+/* lc(b)*(deg(a)-deg(b)+1) = q*b+r */
+void mpz_poly_pseudo_division(mpz_poly_ptr q, mpz_poly_ptr r,
+    mpz_poly_srcptr a, mpz_poly_srcptr b);
+/* lc(b)*(deg(a)-deg(b)+1) = q*b+r */
+void mpz_poly_pseudo_remainder(mpz_poly_ptr r,
+    mpz_poly_srcptr a, mpz_poly_srcptr b);
 void mpz_poly_xgcd_mpz(mpz_poly_ptr gcd, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_poly_ptr u, mpz_poly_ptr v, mpz_srcptr p);
 void mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4]);
 void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, int64_t i, uint64_t j);
@@ -282,6 +291,7 @@ void mpz_poly_factor_list_clear(mpz_poly_factor_list_ptr l);
 void mpz_poly_factor_list_flush(mpz_poly_factor_list_ptr l);
 void mpz_poly_factor_list_push(mpz_poly_factor_list_ptr l, mpz_poly_srcptr f, int m);
 void mpz_poly_factor_list_fprintf(FILE* fp, mpz_poly_factor_list_srcptr l);
+void mpz_poly_factor_list_accumulate(mpz_poly_ptr f, mpz_poly_factor_list_srcptr l);
 int mpz_poly_factor_sqf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f, mpz_srcptr p);
 int mpz_poly_factor_ddf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f0, mpz_srcptr p);
 int mpz_poly_factor_edf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f, int k, mpz_srcptr p, gmp_randstate_t rstate);
@@ -342,6 +352,14 @@ struct cxx_mpz_poly {
         mpz_poly_set_mpz(x, b);
         return *this;
     }
+    cxx_mpz_poly (const cxx_mpz & rhs) {
+        mpz_poly_init(x, -1);
+        *this = rhs;
+    }
+    cxx_mpz_poly & operator=(cxx_mpz const & a) {
+        mpz_poly_set_mpz(x, a);
+        return *this;
+    }
 #if __cplusplus >= 201103L
     cxx_mpz_poly(cxx_mpz_poly && o) {
         mpz_poly_init(x, -1);
@@ -352,6 +370,20 @@ struct cxx_mpz_poly {
         return *this;
     }
 #endif
+    cxx_mpz_poly(std::string const & e) : cxx_mpz_poly() {
+        mpz_poly_set_from_expression(x, e.c_str());
+    }
+    cxx_mpz_poly& operator=(std::string const & e) {
+        mpz_poly_set_from_expression(x, e.c_str());
+        return *this;
+    }
+    cxx_mpz_poly(const char * e) : cxx_mpz_poly() {
+        mpz_poly_set_from_expression(x, e);
+    }
+    cxx_mpz_poly& operator=(const char * e) {
+        mpz_poly_set_from_expression(x, e);
+        return *this;
+    }
     // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 
     ~cxx_mpz_poly() { mpz_poly_clear(x); }
@@ -467,24 +499,8 @@ struct mpz_poly_coeff_list {
 std::ostream& operator<<(std::ostream& os, mpz_poly_coeff_list const & P);
 
 namespace fmt {
-    template <> struct /* fmt:: */ formatter<mpz_poly_coeff_list>: formatter<string_view> {
-    template <typename FormatContext>
-        auto format(mpz_poly_coeff_list const & c, FormatContext& ctx) -> decltype(ctx.out())
-        {
-            std::ostringstream os;
-            os << c;
-            return formatter<string_view>::format( string_view(os.str()), ctx);
-        }
-};
-    template <> struct /* fmt:: */ formatter<cxx_mpz_poly>: formatter<string_view> {
-    template <typename FormatContext>
-        auto format(cxx_mpz_poly const & c, FormatContext& ctx) -> decltype(ctx.out())
-        {
-            std::ostringstream os;
-            os << c;
-            return formatter<string_view>::format( string_view(os.str()), ctx);
-        }
-};
+    template <> struct formatter<cxx_mpz_poly>: ostream_formatter {};
+    template <> struct formatter<mpz_poly_coeff_list>: ostream_formatter {};
 }
 
 
@@ -493,6 +509,11 @@ std::vector<std::pair<cxx_mpz_poly, int>> mpz_poly_factor(mpz_poly_srcptr f, mpz
 std::vector<std::pair<cxx_mpz_poly, int>> 
 mpz_poly_factor_and_lift_padically(mpz_poly_srcptr f, mpz_srcptr ell, int prec, gmp_randstate_t rstate);
 
+/* returns 1 if parsing was successful */
+inline int mpz_poly_set_from_expression(mpz_poly_ptr f, std::string const & value)
+{
+    return mpz_poly_set_from_expression(f, value.c_str());
+}
 #endif
 
 #endif	/* MPZ_POLY_H_ */
