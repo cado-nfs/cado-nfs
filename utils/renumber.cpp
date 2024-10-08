@@ -867,7 +867,7 @@ void renumber_t::compute_bad_ideals()
                 bad_ideals_max_p = p;
         }
     }
-    if (old_nbad) {
+    if (old_nbad || above_all > above_add) {
         ASSERT_ALWAYS(above_bad - above_add == old_nbad);
     } else {
         above_all = above_cache = above_bad;
