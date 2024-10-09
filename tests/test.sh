@@ -64,7 +64,7 @@ dotest() {
 got_sha1=$(dotest "$@" <"$stdin" | tee >(cat >&3) | (grep "$filter_regex" || :) | $SHA1BIN)
 
 if ! [ "$expect_sha1" ] ; then
-    echo "========= $got_sha1 ========"
+    # echo "========= $got_sha1 ========"
     exit 0
 fi
 
