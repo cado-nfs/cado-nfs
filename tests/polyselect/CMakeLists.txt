@@ -88,14 +88,22 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
     # so on my laptop. Furthermore, it looks very odd, since in this
     # example I have the impression that the output of the "optimization"
     # is actually not as good as the input... (and it's also quite
-    # bizarre that the output is exactly the same as test_ropt_adv_deg6)
-    cado_divert_test(test_ropt_adv deg6large
+    # bizarre that on the rsa768 polynomial, the output is exactly the
+    # same as test_ropt_adv_deg6)
+    #
+    # note that most of the runtime-affecting parameters in here are
+    # actually hardcoded, e.g. in polyselect/ropt_param.c ; there's very
+    # little that can be done to change the running time, short of
+    # changing the size of the number to be factored.
+    cado_divert_test(test_ropt_adv deg5large
         APPEND_ARGUMENTS
-        -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/rsa768.poly
+        -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/rsa155.poly
         -v -v
         -amin -16 -amax 16 -bmax 10 -cmax 10000
         -e 3 5 2 1
-        EXPECT_SHA1 d451c895d0fbc5cf1a58253235d05151f15c159b
+        EXPECT_SHA1 e592a8f38c898163fe0e5995580df6dc2694fcd3
+        # this one is for rsa768.poly (degree 6)
+        # EXPECT_SHA1 d451c895d0fbc5cf1a58253235d05151f15c159b
         TIMEOUT 360
     )
 
