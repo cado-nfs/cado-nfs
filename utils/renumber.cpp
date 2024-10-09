@@ -33,7 +33,7 @@
 #include "macros.h"
 #include "fmt/format.h"
 
-#if defined(_GLIBCXX_DEBUG) && defined(_GLIBCXX_DEBUG_DISABLE_CHECK_PARTITIONED)
+#if defined(__GLIBCXX__) && defined(_GLIBCXX_DEBUG) && defined(_GLIBCXX_DEBUG_DISABLE_CHECK_PARTITIONED)
 namespace __gnu_debug {
 template<>
 inline bool __check_partitioned_lower<std::vector<std::array<p_r_values_t, 2>>::const_iterator>(
