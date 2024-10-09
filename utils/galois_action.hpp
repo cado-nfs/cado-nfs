@@ -7,6 +7,7 @@
 #include "renumber.hpp"     // for renumber_t
 #include "typedefs.h"       // for index_t
 #include "fmt/format.h"     // for fmt::formatter
+#include "fmt/ostream.h"
 
 /*
  * Implementation of Galois action.
@@ -94,15 +95,8 @@ private:
 };
 
 namespace fmt {
-    template <> struct formatter<galois_action>: formatter<string_view> {
-        template <typename FormatContext>
-        auto format(galois_action const & g, FormatContext& ctx) -> decltype(ctx.out())
-        {
-            std::ostringstream os;
-            os << g;
-            return formatter<string_view>::format( string_view(os.str()), ctx);
-        }
-    };
+    template <> struct formatter<galois_action>: ostream_formatter {};
+
 }
 
 #endif  /* CADO_GALOIS_ACTION_HPP_ */

@@ -15,7 +15,7 @@ void
 mpz_poly_getcoeff_wrapper (mpz_t res, int i, const mpz_poly f)
 {
   if (i <= f->deg)
-    mpz_poly_getcoeff (res, i, f);
+    mpz_set(res, mpz_poly_coeff_const(f, i));
   else
     mpz_set_ui (res, 0);
 }

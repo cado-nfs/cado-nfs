@@ -1214,9 +1214,9 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     serialize(mmt.pi->m);
 
     auto w = mmt_vec_hamming_weight(y);
-    {
+
+    if (tcan_print)
         fmt::print("Hamming weight of sum: {}\n", w);
-    }
 
     /* Note that for the inhomogeneous case, we'll do the loop only
      * once, since we end with a break. */

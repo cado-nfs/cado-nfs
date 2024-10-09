@@ -51,7 +51,7 @@ cado_define_test(test_threadpool.cpp LIBRARIES utils tests)
 cado_define_test(test_verbose.c LIBRARIES utils tests) # Should be run under Helgrind or other thread checkers
 cado_define_test(test_modredc2ul2_Q_to_Fp.c LIBRARIES utils tests)
 cado_define_test(test_mpz_vector.c LIBRARIES utils)
-cado_define_test(test_mpz_poly_bivariate.c LIBRARIES utils)
+cado_define_test(test_mpz_poly_bivariate.cpp LIBRARIES utils tests)
 cado_define_test(test_smallset.cpp LIBRARIES)
 cado_define_test(test_mpz_mat.c LIBRARIES utils)
 cado_define_test(test_gpf.c LIBRARIES utils)

@@ -25,7 +25,7 @@ set (sources
         polyroots.c 
         tdict.cpp
         version_info.c
-	modified_files.c threadpool.cpp mpz_poly_bivariate.c
+	modified_files.c threadpool.cpp mpz_poly_bivariate.cpp
         gmpxx.cpp
         rho.c gpf.cpp
         sha1.c

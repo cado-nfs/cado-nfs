@@ -15,6 +15,7 @@
 #include <istream>      // std::istream // IWYU pragma: keep
 #include <ostream>      // std::ostream // IWYU pragma: keep
 #include <type_traits>
+#include "fmt/ostream.h"
 #include "fmt/format.h"
 #include "cxx_mpz.hpp"
 #endif
@@ -32,6 +33,11 @@ typedef const struct double_poly_s * double_poly_srcptr;
 #endif
 
 #ifdef __cplusplus
+#include <string>
+#include <vector>
+#include <istream>      // std::istream // IWYU pragma: keep
+#include <ostream>      // std::ostream // IWYU pragma: keep
+#include "cxx_mpz.hpp"
 extern "C" {
 #endif
 
@@ -93,6 +99,7 @@ void mpz_poly_set(mpz_poly_ptr g, mpz_poly_srcptr f);
 void mpz_poly_swap (mpz_poly_ptr f, mpz_poly_ptr g);
 void mpz_poly_clear(mpz_poly_ptr f);
 static inline int mpz_poly_degree(mpz_poly_srcptr f) { return f->deg; }
+int mpz_poly_valuation(mpz_poly_srcptr f);
 
 void mpz_poly_cleandeg(mpz_poly_ptr f, int deg);
 void mpz_poly_setcoeffs(mpz_poly_ptr f, mpz_t * coeffs, int d);
@@ -112,14 +119,12 @@ void mpz_poly_init_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b);
 void mpz_poly_set_ab (mpz_poly_ptr rel, int64_t a, uint64_t b);
 void mpz_poly_set_mpz_ab (mpz_poly_ptr rel, mpz_srcptr a, mpz_srcptr b);
 
-
 void mpz_poly_setcoeff(mpz_poly_ptr f, int i, mpz_srcptr z);
 void mpz_poly_setcoeff_si(mpz_poly_ptr f, int i, long z);
 void mpz_poly_setcoeff_ui(mpz_poly_ptr f, int i, unsigned long z);
 void mpz_poly_setcoeff_int64(mpz_poly_ptr f, int i, int64_t z);
 void mpz_poly_setcoeff_uint64(mpz_poly_ptr f, int i, uint64_t z);
 void mpz_poly_setcoeff_double(mpz_poly_ptr f, int i, double z);
-void mpz_poly_getcoeff(mpz_ptr res, int i, mpz_poly_srcptr f);
 
 void mpz_poly_set_signed_urandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
 void mpz_poly_set_signed_rrandomb (mpz_poly_ptr f, int d, gmp_randstate_ptr state, int k);
@@ -146,6 +151,7 @@ static inline mpz_ptr mpz_poly_lc_w (mpz_poly_ptr f) {
     return mpz_poly_coeff(f, f->deg);
 }
 
+
 /* Print functions */
 int mpz_poly_asprintf(char ** res, mpz_poly_srcptr f);
 /* Print coefficients of f.
@@ -166,6 +172,8 @@ void mpz_poly_print_raw(mpz_poly_srcptr f);
 int mpz_poly_cmp (mpz_poly_srcptr, mpz_poly_srcptr);
 int mpz_poly_normalized_p (mpz_poly_srcptr f);
 int mpz_poly_is_monic (mpz_poly_srcptr f);
+int mpz_poly_is_monomial_multiple(mpz_poly_srcptr f);
+int mpz_poly_is_monomial(mpz_poly_srcptr f);
 
 /* Polynomial arithmetic */
 void mpz_poly_to_monic(mpz_poly_ptr g, mpz_poly_srcptr f);
@@ -202,10 +210,11 @@ int mpz_poly_mod_mpz_lazy (mpz_poly_ptr R, mpz_poly_srcptr A, mpz_srcptr m);
 void mpz_poly_mul_mod_f_mod_mpz(mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2, mpz_poly_srcptr f, mpz_srcptr m, mpz_srcptr invf, mpz_srcptr invm);
 void mpz_poly_mul_mod_f (mpz_poly_ptr Q, mpz_poly_srcptr P1, mpz_poly_srcptr P2, mpz_poly_srcptr f);
 void mpz_poly_reduce_frac_mod_f_mod_mpz (mpz_poly_ptr num, mpz_poly_ptr denom, mpz_poly_srcptr F, mpz_srcptr m);
-int mpz_poly_div_qr (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr p);
-int mpz_poly_div_r (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr p);
-int mpz_poly_div_qr_z (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g);
-int mpz_poly_div_r_z (mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g);
+int mpz_poly_div_qr_mod_mpz (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_srcptr p);
+int mpz_poly_div_r_mod_mpz_clobber (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_srcptr p);
+int mpz_poly_div_qr (mpz_poly_ptr q, mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g);
+int mpz_poly_div_r (mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g);
+int mpz_poly_mod (mpz_poly_ptr r, mpz_poly_srcptr f, mpz_poly_srcptr g);
 int mpz_poly_divexact (mpz_poly_ptr q, mpz_poly_srcptr h, mpz_poly_srcptr f, mpz_srcptr p);
 void mpz_poly_div_2_mod_mpz(mpz_poly_ptr f, mpz_poly_srcptr g, mpz_srcptr m);
 void mpz_poly_div_xi(mpz_poly_ptr g, mpz_poly_srcptr f, int i);
@@ -240,6 +249,12 @@ void mpz_poly_gcd_mpz (mpz_poly_ptr h, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz
 // compute f = GCD(f,g) mod N. If this fails, put the factor in the last
 // given argument.
 int mpz_poly_pseudogcd_mpz(mpz_poly_ptr , mpz_poly_ptr , mpz_srcptr , mpz_ptr);
+/* lc(b)*(deg(a)-deg(b)+1) = q*b+r */
+void mpz_poly_pseudo_division(mpz_poly_ptr q, mpz_poly_ptr r,
+    mpz_poly_srcptr a, mpz_poly_srcptr b);
+/* lc(b)*(deg(a)-deg(b)+1) = q*b+r */
+void mpz_poly_pseudo_remainder(mpz_poly_ptr r,
+    mpz_poly_srcptr a, mpz_poly_srcptr b);
 void mpz_poly_xgcd_mpz(mpz_poly_ptr gcd, mpz_poly_srcptr f, mpz_poly_srcptr g, mpz_poly_ptr u, mpz_poly_ptr v, mpz_srcptr p);
 void mpz_poly_homography (mpz_poly_ptr Fij, mpz_poly_srcptr F, int64_t H[4]);
 void mpz_poly_homogeneous_eval_siui (mpz_ptr v, mpz_poly_srcptr f, int64_t i, uint64_t j);
@@ -276,6 +291,7 @@ void mpz_poly_factor_list_clear(mpz_poly_factor_list_ptr l);
 void mpz_poly_factor_list_flush(mpz_poly_factor_list_ptr l);
 void mpz_poly_factor_list_push(mpz_poly_factor_list_ptr l, mpz_poly_srcptr f, int m);
 void mpz_poly_factor_list_fprintf(FILE* fp, mpz_poly_factor_list_srcptr l);
+void mpz_poly_factor_list_accumulate(mpz_poly_ptr f, mpz_poly_factor_list_srcptr l);
 int mpz_poly_factor_sqf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f, mpz_srcptr p);
 int mpz_poly_factor_ddf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f0, mpz_srcptr p);
 int mpz_poly_factor_edf(mpz_poly_factor_list_ptr lf, mpz_poly_srcptr f, int k, mpz_srcptr p, gmp_randstate_t rstate);
@@ -336,6 +352,14 @@ struct cxx_mpz_poly {
         mpz_poly_set_mpz(x, b);
         return *this;
     }
+    cxx_mpz_poly (const cxx_mpz & rhs) {
+        mpz_poly_init(x, -1);
+        *this = rhs;
+    }
+    cxx_mpz_poly & operator=(cxx_mpz const & a) {
+        mpz_poly_set_mpz(x, a);
+        return *this;
+    }
 #if __cplusplus >= 201103L
     cxx_mpz_poly(cxx_mpz_poly && o) {
         mpz_poly_init(x, -1);
@@ -346,6 +370,20 @@ struct cxx_mpz_poly {
         return *this;
     }
 #endif
+    cxx_mpz_poly(std::string const & e) : cxx_mpz_poly() {
+        mpz_poly_set_from_expression(x, e.c_str());
+    }
+    cxx_mpz_poly& operator=(std::string const & e) {
+        mpz_poly_set_from_expression(x, e.c_str());
+        return *this;
+    }
+    cxx_mpz_poly(const char * e) : cxx_mpz_poly() {
+        mpz_poly_set_from_expression(x, e);
+    }
+    cxx_mpz_poly& operator=(const char * e) {
+        mpz_poly_set_from_expression(x, e);
+        return *this;
+    }
     // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 
     ~cxx_mpz_poly() { mpz_poly_clear(x); }
@@ -359,10 +397,94 @@ struct cxx_mpz_poly {
     mpz_poly_ptr operator->() { return x; }
     mpz_poly_srcptr operator->() const { return x; }
     std::string print_poly(std::string const& var) const;
+
+    template<typename T>
+    class named_proxy {
+        static_assert(std::is_reference<T>::value, "T must be a reference");
+        typedef typename std::remove_reference<T>::type V;
+        typedef typename std::remove_const<V>::type Vnc;
+        typedef named_proxy<Vnc &> nc;
+        static constexpr const bool is_c = std::is_const<V>::value;
+        public:
+        T c;
+        std::string x;
+        named_proxy(T c, std::string const & x)
+            : c(c), x(x)
+        {}
+        template<
+                typename U = T,
+                typename = typename std::enable_if<
+                    std::is_same<U, nc>::value
+                >::type
+            >
+        named_proxy(U const & c) : c(c.c), x(c.x) {}
+    };
+
+    named_proxy<cxx_mpz_poly &> named(std::string const & x) {
+        return named_proxy<cxx_mpz_poly &>(*this, x);
+    }
+    named_proxy<cxx_mpz_poly const &> named(std::string const & x) const {
+        return named_proxy<cxx_mpz_poly const &>(*this, x);
+    }
+
+    /* A few initializers and convenience functions */
+    cxx_mpz_poly& operator=(mpz_srcptr a)
+    {
+        mpz_poly_realloc(x, 1);
+        mpz_poly_setcoeff(x, 0, a);
+        mpz_poly_cleandeg(x, 0);
+        return *this;
+    }
+    inline cxx_mpz_poly(mpz_srcptr c) : cxx_mpz_poly() { *this = c; }
+    bool operator==(mpz_srcptr a) const {
+        if (mpz_cmp_ui(a, 0) == 0) return x->deg == -1;
+        return x->deg == 0 && mpz_cmp(mpz_poly_coeff_const(x, 0), a) == 0;
+    }
+    inline bool operator==(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) == 0; }
+    inline bool operator!=(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) != 0; }
+    inline bool operator<(mpz_poly_srcptr a) const { return mpz_poly_cmp(x, a) < 0; }
+    /* we need to add these explicitly in order to resolve ambiguities */
+    inline bool operator==(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) == 0; }
+    inline bool operator!=(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) != 0; }
+    inline bool operator<(cxx_mpz_poly const & a) const { return mpz_poly_cmp(x, a) < 0; }
+
+
+    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
+    bool operator==(T a) const {
+        if (a == 0) return x->deg == -1;
+        return x->deg == 0 && gmp_auxx::mpz_cmp(mpz_poly_coeff_const(x, 0), a) == 0;
+    }
+    template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
+    inline bool operator!=(T a) const { return !((*this) == a); }
+
+    // mpz_ptr operator[](unsigned int i) { return mpz_poly_coeff_const(x, i); }
+    mpz_srcptr operator[](unsigned int i) const { return mpz_poly_coeff_const(x, i); }
 };
 
-std::ostream& operator<<(std::ostream& o, cxx_mpz_poly const & f);
-std::istream& operator>>(std::istream& in, cxx_mpz_poly & f);
+
+
+/* printing needs a way to specify the variables... */
+std::ostream& operator<<(std::ostream& o, cxx_mpz_poly::named_proxy<cxx_mpz_poly const &> f);
+std::istream& operator>>(std::istream& in, cxx_mpz_poly::named_proxy<cxx_mpz_poly &> f);
+
+/* we do have a default behaviour, though */
+inline std::ostream& operator<<(std::ostream& o, cxx_mpz_poly const & f)
+{
+    return o << f.named("x");
+}
+
+inline std::istream& operator>>(std::istream& in, cxx_mpz_poly & f)
+{
+    return in >> f.named("x");
+}
+
+/* If there is an integer that takes the value evaluations[i] at
+ * points[i] for all i, store it to resultant and return 1. Otherwise 0
+ * is return, and the resultant value is clobbered.
+ */
+int mpz_poly_interpolate(mpz_poly_ptr resultant,
+        std::vector<cxx_mpz> const & points,
+        std::vector<cxx_mpz> const & evaluations);
 
 #if GNUC_VERSION_ATLEAST(4,3,0)
 extern void mpz_poly_init(cxx_mpz_poly & pl, int) __attribute__((error("mpz_poly_init must not be called on a mpz_poly reference -- it is the caller's business (via a ctor)")));
@@ -377,24 +499,8 @@ struct mpz_poly_coeff_list {
 std::ostream& operator<<(std::ostream& os, mpz_poly_coeff_list const & P);
 
 namespace fmt {
-    template <> struct /* fmt:: */ formatter<mpz_poly_coeff_list>: formatter<string_view> {
-    template <typename FormatContext>
-        auto format(mpz_poly_coeff_list const & c, FormatContext& ctx) -> decltype(ctx.out())
-        {
-            std::ostringstream os;
-            os << c;
-            return formatter<string_view>::format( string_view(os.str()), ctx);
-        }
-};
-    template <> struct /* fmt:: */ formatter<cxx_mpz_poly>: formatter<string_view> {
-    template <typename FormatContext>
-        auto format(cxx_mpz_poly const & c, FormatContext& ctx) -> decltype(ctx.out())
-        {
-            std::ostringstream os;
-            os << c;
-            return formatter<string_view>::format( string_view(os.str()), ctx);
-        }
-};
+    template <> struct formatter<cxx_mpz_poly>: ostream_formatter {};
+    template <> struct formatter<mpz_poly_coeff_list>: ostream_formatter {};
 }
 
 
@@ -403,6 +509,11 @@ std::vector<std::pair<cxx_mpz_poly, int>> mpz_poly_factor(mpz_poly_srcptr f, mpz
 std::vector<std::pair<cxx_mpz_poly, int>> 
 mpz_poly_factor_and_lift_padically(mpz_poly_srcptr f, mpz_srcptr ell, int prec, gmp_randstate_t rstate);
 
+/* returns 1 if parsing was successful */
+inline int mpz_poly_set_from_expression(mpz_poly_ptr f, std::string const & value)
+{
+    return mpz_poly_set_from_expression(f, value.c_str());
+}
 #endif
 
 #endif	/* MPZ_POLY_H_ */
