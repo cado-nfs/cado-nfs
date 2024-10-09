@@ -120,13 +120,12 @@ if(HAVE_PERL_DIGEST_MD5)
                 TARGET_DEPENDENCIES lingen_b64
                 AVOID_CONCURRENT 4
                 TIMEOUT 60
+                PROVIDE_TEMPORARY_WDIR
                 SCRIPT
-                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen.sh
                 ${ARGN}
                 TARGET_DEPENDENCIES lingen_b64
-                AVOID_CONCURRENT
                 )
         endforeach()
     endmacro()
@@ -341,8 +340,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 set(suffix)
             endif()
             cado_define_test(test_bwc_lingen_${layer}_test0${suffix}
+                PROVIDE_TEMPORARY_WDIR
                 SCRIPT
-                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
                 2b6428178054fc0d3931dcdc9257ccf3bdea62f9 4 2 36 1009 17042
@@ -356,8 +355,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             cado_divert_test(test_bwc_lingen_${layer}_test0${suffix} frag
                 APPEND_ARGUMENTS io_block_size=1024)
             cado_define_test(test_bwc_lingen_${layer}_test1${suffix}
+                PROVIDE_TEMPORARY_WDIR
                 SCRIPT
-                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
                 f9bc59f0caaca0fd523ef6a020a6f49fa97f38e9 4 2 200 1009 88888
@@ -369,8 +368,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 TIMEOUT 60
                 )
             cado_define_test(test_bwc_lingen_${layer}_test2${suffix}
+                PROVIDE_TEMPORARY_WDIR
                 SCRIPT
-                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
                 b448493e04299d8d54be6cc1273c43293520ac9e 3 3 1000 1009 1111
@@ -387,8 +386,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
             # the execution, and that eventually goes to the checkpoint file
             # as well, wreaking obvious havoc.
             cado_define_test(test_bwc_lingen_${layer}_test2_checkpoints${suffix}
+                PROVIDE_TEMPORARY_WDIR
                 SCRIPT
-                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-lingen-checkpoints.sh
                 c82b888f2ba844f6db1e30e091444d1023052f87 3 3 1000 1009 1111
@@ -416,8 +415,8 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 set(suffix)
             endif()
             cado_define_test(test_bwc_lingen_${layer}_test4${suffix}
+                PROVIDE_TEMPORARY_WDIR
                 SCRIPT
-                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env WDIR
                 ${CADO_NFS_SOURCE_DIR}/tests/do_with_mpi.sh "${mpiconf}"
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-plingen.sh
                 # For some reason, the 32-bit test returns an equivalent,
@@ -774,9 +773,8 @@ foreach(arith_layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
 endforeach()
 
 cado_define_test(TEST_NAME spmv_bucket_30075
-    PROGRAM
-    ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir --
-    ${CMAKE_CURRENT_SOURCE_DIR}/bug30075.sh
+    PROVIDE_TEMPORARY_WDIR
+    PROGRAM ${CMAKE_CURRENT_SOURCE_DIR}/bug30075.sh
     TARGET_DEPENDENCIES
     spmv_test bwc_matmul_gf2 mf_bal mf_scan
 )
@@ -791,8 +789,9 @@ cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-matcache.sh
 
 #########################################################################
 
-cado_define_test(TEST_NAME bwc_staged_krylov PROGRAM
-    ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
+cado_define_test(TEST_NAME bwc_staged_krylov
+    PROVIDE_TEMPORARY_WDIR
+    PROGRAM
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/krylov thr=2x2 nullspace=left
     interval=200  mn=64 prime=2  ys=0..64 start=0 end=200
     skip_online_checks=1 rebuild_cache=1 seed=1
@@ -867,8 +866,8 @@ cado_divert_test(test-blocklanczos left-thr23
 
 cado_define_test(TEST_NAME test-blocklanczos-staged
     AVOID_CONCURRENT
+    PROVIDE_TEMPORARY_WDIR
     PROGRAM
-    ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/bwc.pl :mpirun --
     ${CADO_NFS_BINARY_DIR}/linalg/bwc/blocklanczos
     random_matrix=1200,1000,80,seed=1 m=64 n=64 ys=0..64
@@ -880,8 +879,8 @@ cado_define_test(TEST_NAME test-blocklanczos-staged
 ### # This is testing the old binary.
 ### cado_define_test(TEST_NAME test-lingen-crc
 ###     AVOID_CONCURRENT
+###     PROVIDE_TEMPORARY_WDIR
 ###     PROGRAM
-###     ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --arg wdir --
 ###     ${CADO_NFS_SOURCE_DIR}/tests/linalg/bwc/test-lingen-crc.sh
 ###     bindir=${CADO_NFS_BINARY_DIR}/linalg/bwc
 ###     seed=0 m=64 n=64 random_stem=30000 sequence_length=200
@@ -906,8 +905,9 @@ set_target_properties(test_matrix_file PROPERTIES
     COMPILE_FLAGS "--mpi ${OpenMP_CXX_FLAGS}"
     LINK_FLAGS "--mpi ${OpenMP_CXX_FLAGS}")
 
-cado_define_test(test_matrix_file_script SCRIPT
-${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir --
+cado_define_test(test_matrix_file_script
+    PROVIDE_TEMPORARY_WDIR
+    SCRIPT
 ${CMAKE_CURRENT_SOURCE_DIR}/test_matrix_file.sh
 TARGET_DEPENDENCIES test_matrix_file
 NO_DEFAULT_RUN)

@@ -1,11 +1,9 @@
 cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/testsm.sh
-    PRECOMMAND
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+    PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES sm)
 
 cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_filter_galois.sh
-    PRECOMMAND
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+    PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES filter_galois)
 
 set(sage_opt)

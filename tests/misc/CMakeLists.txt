@@ -50,8 +50,7 @@ cado_define_test(test_renumber_file
     NO_DEFAULT_RUN
     SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.sh
     -b ${CADO_NFS_BINARY_DIR} 
-    PRECOMMAND
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+    PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES freerel debug_renumber)
 
 # Test MNFS with 5 polys (interesting primes are 2 and 3)

@@ -1166,7 +1166,6 @@ tests/filter/testsm.p59.index.gz
 tests/filter/testsm.p59.poly
 tests/filter/testsm.p59.purged.gz
 tests/filter/testsm.sh
-tests/generic_test_sha1_output.sh
 tests/gf2x/CMakeLists.txt
 tests/gf2x/test_cantor.c
 tests/guess_mpi_configs.sh
@@ -1484,7 +1483,6 @@ tests/utils/test_usp.c
 tests/utils/test_verbose.c
 tests/utils/testbase-rootfinder.quick
 tests/utils/testmpz-rootfinder.quick
-tests/wrap-test.sh
 utils/CMakeLists.txt
 utils/Makefile
 utils/alloc_proxy.h

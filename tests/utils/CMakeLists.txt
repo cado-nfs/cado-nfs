@@ -61,13 +61,13 @@ cado_define_test(test_mod.cpp LIBRARIES utils tests)
 cado_define_test(test_modint.cpp LIBRARIES utils tests)
 cado_define_test(test_istream_matcher.cpp LIBRARIES utils tests)
 cado_define_test(test_mmappable_vector.cpp LIBRARIES utils
-    PRECOMMAND "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --arg --tmpdir
+    PROVIDE_TEMPORARY_WDIR
     TIMEOUT 60
     )
 cado_define_test(test_sha1.c LIBRARIES utils ARGUMENTS --test)
 cado_define_test(test_fstream_maybe_compressed.cpp LIBRARIES utils
-    NO_DEFAULT_RUN
-    PRECOMMAND "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --arg --wdir)
+    PROVIDE_TEMPORARY_WDIR
+    NO_DEFAULT_RUN)
 cado_divert_test(test_fstream_maybe_compressed gz ARGUMENTS test.gz)
 cado_divert_test(test_fstream_maybe_compressed bz2 ARGUMENTS test.bz2)
 cado_divert_test(test_fstream_maybe_compressed none ARGUMENTS test)
@@ -80,8 +80,7 @@ cado_define_test(
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.small-example
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.rsa220
         ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory/badideals.p1024
-    PRECOMMAND
-        ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir --
+    PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES
         numbertheory_tool
     )
@@ -94,16 +93,16 @@ add_subdirectory(numbertheory)
 if(SAGE)
     cado_define_test(
         SCRIPT
-        ${CMAKE_CURRENT_SOURCE_DIR}/test_explain_relations.sh
-        PRECOMMAND "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env wdir --
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_explain_relations.sh
+        PROVIDE_TEMPORARY_WDIR
         NO_DEFAULT_RUN
         TARGET_DEPENDENCIES
-        makefb
-        freerel
-        las
-        dup1
-        dup2
-        explain_indexed_relation
+            makefb
+            freerel
+            las
+            dup1
+            dup2
+            explain_indexed_relation
     )
 
     # note that the sage preparser takes an absurd amount of time here,

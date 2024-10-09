@@ -53,7 +53,8 @@ cado_define_test(test_ropt_adv
 
 set(ropt_sha1_c80 68c14f886966071c2b79983f94f34cfd218d123b)
 set(ropt_sha1_c75 8d08dd3fd67e358e291c0aeb7cc5935682b91758)
-set(ropt_sha1_c70 3164916d4b4bc5512e9ae283d6bb604fe6ad3930)
+# 38deff1c0c2d303cc87960e4f98d0fbb3a58ef24 is on freebsd. See #30098
+set(ropt_sha1_c70 3164916d4b4bc5512e9ae283d6bb604fe6ad3930,38deff1c0c2d303cc87960e4f98d0fbb3a58ef24)
 set(ropt_sha1_c65 5c7adf825238c1a75fcb33567b2460e2e3b11486)
 set(ropt_sha1_c60 d945f8b4b1f51b07d5efdbcc8f32d74d185f7f76)
 foreach(example c60 c65 c70 c75 c80)

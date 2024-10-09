@@ -1,6 +1,7 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 #include <memory>
@@ -281,11 +282,12 @@ void test_allocate_0_bytes(void) /* shouldn't segfault */
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc MAYBE_UNUSED, char * argv[] MAYBE_UNUSED)
 {
-    if (argc == 3 && std::string(argv[1]) == "--tmpdir") {
-        tmpdir = argv[2];
-    }
+    const char * env_wdir = getenv("wdir");
+    if (env_wdir)
+        tmpdir = env_wdir;
+
     TESTFILE  = strdup((std::string(tmpdir) + "/testfile").c_str());
     TESTFILE2 = strdup((std::string(tmpdir) + "/testfile2").c_str());
 

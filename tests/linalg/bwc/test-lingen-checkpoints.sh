@@ -6,12 +6,6 @@ unset DISPLAY
 set -e
 if [ "$CADO_DEBUG" ] ; then set -x ; fi
 
-if ! [ "$WDIR" ] ; then
-    echo "Want \$WDIR" >&2
-    exit 1
-fi
-
-
 echo "Using mpi=$mpi; $mpirun; $mpi_extra_args"
 
 # scan for arguments that are useful to pass to lingen_verify_checkpoints
@@ -112,13 +106,13 @@ verify() {
 
 args=("$@")
 
-set -- "${args[@]}" tuning_schedule_filename="$WDIR/ts.txt"
+set -- "${args[@]}" tuning_schedule_filename="$wdir/ts.txt"
 
 # First decide once and for all on the schedule for the multiplications.
 "`dirname $0`"/test-plingen.sh "$@" --tune
 
 # Do a first run, and save a series of checkpoints
-cpdir="$WDIR/cp"
+cpdir="$wdir/cp"
 mkdir "$cpdir"
 set -- "$@" tuning_quiet=1 checkpoint_directory="$cpdir"
 "`dirname $0`"/test-plingen.sh "$@"

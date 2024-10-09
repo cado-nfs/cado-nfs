@@ -23,7 +23,9 @@ NCPUS=$("`dirname $0`"/ncpus.sh)
 
 # We expect to be called with provide-wdir.sh, so that we don't need to
 # create a directory by ourselves.
-: ${t=${TMPDIR-/tmp}}
+: ${wdir=${TMPDIR-/tmp}}
+
+t="${wdir}"
 
 POLYFILE=$t/p3dd7-f4g3-GJL-1.poly
 PARAMFILE=$t/p3dd7-f4g3-GJL-1.params

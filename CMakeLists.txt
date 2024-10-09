@@ -40,7 +40,7 @@ get_override(TIMEOUT_SCALE   TIMEOUT_SCALE)
 
 # If you change the min version, also change scripts/call_cmake.sh
 # It must be called before the project() command.
-cmake_minimum_required(VERSION 3.5.0)
+cmake_minimum_required(VERSION 3.18.0)
 
 project(CADO_NFS)
 
