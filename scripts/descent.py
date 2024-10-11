@@ -124,10 +124,10 @@ class GeneralClass(object):
     def __init__(self, args):
         self._conn = None
         self.args = args
-        if bool(args.db) == bool(args.prefix and args.datadir):
+        if bool(self.args.db) == bool(self.args.prefix and self.args.datadir):
             raise ValueError("Either --db (with an sqlite db) or the combo --prefix + --datadir must be specified")
-        if args.tmpdir:
-            self._tmpdir = args.tmpdir
+        if self.args.tmpdir:
+            self._tmpdir = self.args.tmpdir
             # do mkdir ???
         else:
             self._tmpdir = tempfile.mkdtemp(dir="/tmp")
@@ -137,11 +137,11 @@ class GeneralClass(object):
         self.initrandomizer = 1
     
     def __connect(self):
-        if args.db and not self._conn:
-            self._conn = sqlite3.connect(args.db)
+        if self.args.db and not self._conn:
+            self._conn = sqlite3.connect(self.args.db)
 
     def __getdb(self, query):
-        if not args.db:
+        if not self.args.db:
             return None
         self.__connect()
         self._cursor = self._conn.cursor()
@@ -157,12 +157,12 @@ class GeneralClass(object):
                 return v
         except KeyError:
             pass
-        if args.db and table:
+        if self.args.db and table:
             v=self.__getdb("select value from %s where kkey='%s'" % (table, key))
             if v is not None and len(v) > 0:
-                return os.path.join(os.path.dirname(args.db), v[0])
-        elif args.datadir and args.prefix:
-            return os.path.join(args.datadir, args.prefix + "." + typical)
+                return os.path.join(os.path.dirname(self.args.db), v[0])
+        elif self.args.datadir and self.args.prefix:
+            return os.path.join(self.args.datadir, self.args.prefix + "." + typical)
         raise ValueError("no %s file known" % shortname)
 
     def __getarg(self, shortname, table, key):
@@ -172,23 +172,23 @@ class GeneralClass(object):
                 return v
         except KeyError:
             pass
-        if args.db:
+        if self.args.db:
             v=self.__getdb("select value from %s where kkey='%s'" % (table, key))
             if v is not None and len(v) > 0:
                 return v[0]
         raise ValueError("no %s parameter known" % shortname)
 
     def prefix(self):
-        if args.prefix:
-            return args.prefix
+        if self.args.prefix:
+            return self.args.prefix
         else:
-            return os.path.basename(args.db).split('.')[0]
+            return os.path.basename(self.args.db).split('.')[0]
 
     def datadir(self):
-        if args.datadir:
-            return args.datadir
-        elif args.db:
-            return os.path.dirname(args.db)
+        if self.args.datadir:
+            return self.args.datadir
+        elif self.args.db:
+            return os.path.dirname(self.args.db)
         else:
             raise ValueError("Need --datadir or --db with an sqlite db")
 
@@ -208,15 +208,15 @@ class GeneralClass(object):
     def fb0(self):
         return self.__getfile("fb0", "roots0.gz", "factorbase", "outputfile")
     def ell(self):
-        return int(args.ell)
+        return int(self.args.ell)
     def lpb0(self):
-        return args.lpb0
+        return self.args.lpb0
     def lpb1(self):
-        return args.lpb1
+        return self.args.lpb1
     def tmpdir(self):
         return self._tmpdir
     def threads(self):
-        return int(args.threads)
+        return int(self.args.threads)
     def poly_data(self):
         d={}
         with open(self.poly(), "r") as file:
@@ -259,17 +259,17 @@ class GeneralClass(object):
         d=self.poly_data()
         return int(d["n"])
     def extdeg(self):
-        if args.gfpext:
-            return args.gfpext
+        if self.args.gfpext:
+            return self.args.gfpext
         else:
             return 1
 
     def target(self):
         if self.extdeg() == 1:
-            return int(args.target)
+            return int(self.args.target)
         else:
-            return [int(x) for x in args.target.split(",")]
-    
+            return [int(x) for x in self.args.target.split(",")]
+
     # short name for the target, to be used in filenames
     def short_target(self):
         target = str(self.args.target)
@@ -299,14 +299,14 @@ class GeneralClass(object):
             self._conn.close()
 
     def descentinit_bin(self):
-        return os.path.join(args.cadobindir, "misc", "descent_init_Fp")
+        return os.path.join(self.args.cadobindir, "misc", "descent_init_Fp")
 
     def las_bin(self):
-        return os.path.join(args.cadobindir, "sieve", "las")
+        return os.path.join(self.args.cadobindir, "sieve", "las")
     def sm_simple_bin(self):
-        return os.path.join(args.cadobindir, "filter", "sm_simple")
+        return os.path.join(self.args.cadobindir, "filter", "sm_simple")
     def numbertheory_bin(self):
-        return os.path.join(args.cadobindir, "utils", "numbertheory_tool")
+        return os.path.join(self.args.cadobindir, "utils", "numbertheory_tool")
 
     def lasMiddle_base_args(self):
         # TODO add threads once it's fixed.
@@ -613,26 +613,27 @@ class DescentUpperClass(object):
     def __init__(self, general, args):
         self.general = general
         self.logDB = general.logDB
+        self.args = args
 
-        if args.external_init != None:
-            self.external = args.external_init
+        if self.args.external_init != None:
+            self.external = self.args.external_init
             if not os.path.exists(self.external):
                 raise NameError("Given external file for init does not exist")
         else:
             self.external = None
-            self.tkewness = int(args.init_tkewness)
-            self.lim      = int(args.init_lim)
-            self.lpb      = int(args.init_lpb)
-            self.mfb      = int(args.init_mfb)
-            self.ncurves  = int(args.init_ncurves)
-            self.I        = int(args.init_I)
-            self.side     = int(args.init_side)
-            self.mineff   = int(args.init_mineff)
-            self.maxeff   = int(args.init_maxeff)
-            self.minB1    = int(args.init_minB1)
-            self.slaves   = int(args.slaves)
+            self.tkewness = int(self.args.init_tkewness)
+            self.lim      = int(self.args.init_lim)
+            self.lpb      = int(self.args.init_lpb)
+            self.mfb      = int(self.args.init_mfb)
+            self.ncurves  = int(self.args.init_ncurves)
+            self.I        = int(self.args.init_I)
+            self.side     = int(self.args.init_side)
+            self.mineff   = int(self.args.init_mineff)
+            self.maxeff   = int(self.args.init_maxeff)
+            self.minB1    = int(self.args.init_minB1)
+            self.slaves   = int(self.args.slaves)
             # the final step needs to know the init side as well.
-            general.init_side = int(args.init_side)
+            general.init_side = int(self.args.init_side)
 
     def __isqrt(self, n):
         x = n
@@ -1032,10 +1033,10 @@ class DescentMiddleClass(object):
         values_I=set()
         values_lim0=set()
         values_lim1=set()
-        values_I.add(args.I)
-        values_lim0.add(args.lim0)
-        values_lim1.add(args.lim1)
-        with open(args.descent_hint, 'r') as file:
+        values_I.add(self.args.I)
+        values_lim0.add(self.args.lim0)
+        values_lim1.add(self.args.lim1)
+        with open(self.args.descent_hint, 'r') as file:
             for line in file:
                 if re.match("^\s*#", line):
                     continue
@@ -1064,29 +1065,29 @@ class DescentMiddleClass(object):
 
 
     def do_descent(self, todofile):
-        tmpdir = general.tmpdir()
-        prefix = general.prefix() + ".descent.%s.middle." % general.short_target()
+        tmpdir = self.general.tmpdir()
+        prefix = self.general.prefix() + ".descent.%s.middle." % self.general.short_target()
 
         f = open(todofile, 'r')
         ntodo = len(list(f))
         f.close()
         print ("--- Sieving (middle, %d rational primes) ---" % ntodo)
-        s=general.lasMiddle_base_args()
-        if args.descent_hint:
-            s += [ "--descent-hint-table", args.descent_hint ]
+        s=self.general.lasMiddle_base_args()
+        if self.args.descent_hint:
+            s += [ "--descent-hint-table", self.args.descent_hint ]
         s += [
                 "--I", self.args.I,
                 "--lim0", self.args.lim0,
                 "--lim1", self.args.lim1,
-                "--lpb0", general.lpb0(),
+                "--lpb0", self.general.lpb0(),
                 "--mfb0", self.args.mfb0,
-                "--lpb1", general.lpb1(),
+                "--lpb1", self.general.lpb1(),
                 "--mfb1", self.args.mfb1,
                 "-t", "machine,1,pu" if has_hwloc else "4"
              ]
         s += [ "--todo", todofile ]
         call_that=[str(x) for x in s]
-        relsfilename = os.path.join(general.datadir(), prefix + "rels")
+        relsfilename = os.path.join(self.general.datadir(), prefix + "rels")
 
         printing = object_holder(False)
         failed = []
@@ -1278,9 +1279,9 @@ class DescentLowerClass(object):
             print("# ell=%d" % ell)
             print("log(2)=%d" % logDB.get_log(2, -1, 0))
             print("log(3)=%d" % logDB.get_log(3, -1, 0))
-            print("# target=%s" % args.target)
+            print("# target=%s" % self.args.target)
             print("log(target)=%d" % log_target)
-            check_result(2, logDB.get_log(2, -1, 0), int(args.target), log_target, p, ell)
+            check_result(2, logDB.get_log(2, -1, 0), int(self.args.target), log_target, p, ell)
         else:
             ## No rational side; more complicated.
             # We need to compute the SMs for U and V.
@@ -1331,7 +1332,7 @@ class DescentLowerClass(object):
             log_target = (log_target * multiplier) % ell
             print("# p=%d" % general.p())
             print("# ell=%d" % ell)
-            print("# target=%s" % args.target)
+            print("# target=%s" % self.args.target)
             print("log(target)=%d" % log_target)
 
 
