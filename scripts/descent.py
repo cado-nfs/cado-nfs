@@ -237,12 +237,18 @@ class GeneralClass(object):
                     d[s][int(i)]=value.strip()
                 else:
                     d[key] = value.strip()
+            # after all, we don't need to parse the polynomials at all.
+            # only has_rational_side is ever used, and all we care about
+            # is its boolean value.
+
+            # If we _must_ parse the polynomials, it's a bit annoying now
+            # that they can be written in algebraic form...
             if 'poly0' in d:
                 assert 'Y' not in d
                 v = d["poly0"]
                 if 'x' in v:
                     raise ValueError("Please teach me how to parse a polynomial")
-                    d['Y'] = ZZ['x'](v).list()
+                    # d['Y'] = ZZ['x'](v).list()
                 else:
                     d['Y'] = [ int(x) for x in v.split(',') ]
             if 'poly1' in d:
@@ -250,7 +256,7 @@ class GeneralClass(object):
                 v = d["poly1"]
                 if 'x' in v:
                     raise ValueError("Please teach me how to parse a polynomial")
-                    d['c'] = ZZ['x'](v).list()
+                    # d['c'] = ZZ['x'](v).list()
                 else:
                     d['c'] = [ int(x) for x in v.split(',') ]
         return d
@@ -281,6 +287,7 @@ class GeneralClass(object):
     def has_rational_side(self):
         d=self.poly_data()
         return len(d["Y"]) == 2
+
     def rational_poly():
         d=self.poly_data()
         assert len(d["Y"]) == 2
