@@ -49,6 +49,10 @@ class GeneralClass(object):
         parser.add_argument("--log",
                             help="File with known logs",
                             type=str)
+        parser.add_argument("--no-logs",
+                            help="Work without logs, only compute relations",
+                            default=False,
+                            action='store_true')
         parser.add_argument("--gfpext",
                             help="Degree of extension (default 1)",
                             type=int)
@@ -88,7 +92,10 @@ class GeneralClass(object):
             self._tmpdir = tempfile.mkdtemp(dir="/tmp")
         self.hello()
         self.__load_badidealdata()
-        self.logDB = LogBase(self)
+        if self.args.no_logs:
+            self.logDB = None
+        else:
+            self.logDB = LogBase(self)
         self.initrandomizer = 1
 
     def __connect(self):
@@ -158,7 +165,10 @@ class GeneralClass(object):
                               "renumberfilename")
 
     def log(self):
-        return self.__getfile("log", "dlog", "reconstructlog", "dlog")
+        if self.args.no_logs:
+            return None
+        else:
+            return self.__getfile("log", "dlog", "reconstructlog", "dlog")
 
     def badideals(self):
         return os.path.join(self.datadir(), self.prefix() + ".badideals")
@@ -286,14 +296,14 @@ class GeneralClass(object):
              "--recursive-descent",
              "--allow-largesq",
              "--never-discard",  # useful for small computations.
-             "--renumber", self.renumber(),
-             "--log", self.log(),
              "--fb1", self.fb1(),
              "--poly", self.poly(),
              ]
+        if not self.args.no_logs:
+            s += ["--renumber", self.renumber()]
+            s += ["--log", self.log()]
         if not self.has_rational_side():
-            s.append("--fb0")
-            s.append(self.fb0())
+            s += ["--fb0", self.fb0()]
         return [ str(x) for x in s ]
 
     # There's no las_init_base_args, since DescentUpperClass uses only
@@ -319,10 +329,9 @@ class GeneralClass(object):
         for f in [self.log(),
                   self.poly(),
                   self.renumber(),
-                  self.log(),
                   self.fb1()
                   ]:
-            if not os.path.exists(f):
+            if f is not None and not os.path.exists(f):
                 errors.append("%s missing" % f)
 
         if len(errors):
