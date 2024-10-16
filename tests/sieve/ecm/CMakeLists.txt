@@ -8,7 +8,7 @@ set(testbench_path ${CADO_NFS_BINARY_DIR}/sieve/ecm/testbench)
 # This is just to factor out the common dependency on testbench
 cado_define_test(test_factor
     SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_testbench.sh
-
+    PROVIDE_TEMPORARY_WDIR
     NO_DEFAULT_RUN
     TARGET_DEPENDENCIES testbench)
 
