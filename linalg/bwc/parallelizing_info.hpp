@@ -339,6 +339,14 @@ extern void shared_free(pi_comm_ptr wr, void * ptr);
 template<typename T>
 struct shared_free_deleter {
     pi_comm_ptr wr = nullptr;
+    shared_free_deleter() = default;
+    ~shared_free_deleter() = default;
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
+    shared_free_deleter(pi_comm_ptr wr) : wr(wr) {}
+    shared_free_deleter(shared_free_deleter const &) = default;
+    shared_free_deleter& operator=(shared_free_deleter const &) = default;
+    shared_free_deleter(shared_free_deleter &&) noexcept = default;
+    shared_free_deleter& operator=(shared_free_deleter &&) noexcept = default;
     void operator()(T * ptr) const { if (wr) shared_free(wr, ptr); }
 };
 

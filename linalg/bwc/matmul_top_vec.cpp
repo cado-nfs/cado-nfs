@@ -88,7 +88,7 @@ mmt_vec::pointer_to_others create_pointer_to_others(pi_comm_ptr wr, mmt_vec * v)
             static_cast<mmt_vec **>(shared_malloc(
                     wr, 
                     wr->ncores * sizeof(mmt_vec *))),
-            { wr });
+            wr);
     ret.get()[wr->trank] = v;
     serialize_threads(wr);
     return ret;
