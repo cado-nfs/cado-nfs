@@ -738,7 +738,7 @@ void print_node_assignment(MPI_Comm comm)/*{{{*/
 /* We don't have a header file for this one */
 extern "C" void check_for_mpi_problems();
 
-int wrapped_main(int argc, const char *argv[])
+int wrapped_main(int argc, char const *argv[])
 {
     cxx_param_list pl;
 

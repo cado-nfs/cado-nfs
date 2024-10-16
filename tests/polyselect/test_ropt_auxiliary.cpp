@@ -261,7 +261,7 @@ void test_rotate_aux(unsigned long iter)
     }
 }
 
-int main(int argc, const char * argv[])
+int main(int argc, char const * argv[])
 {
     unsigned long iter = 50;
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);

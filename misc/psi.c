@@ -260,7 +260,7 @@ Psi_k_print(const uint64_t x, const uint64_t y, const uint64_t z,
 
 
 
-int main(int argc, char * argv[])
+int main(int argc, char * argv[])  // not 'char const' because of strtok
 {
   uint64_t x, y, z, result = 0, sum = 0;
   int print = 0;

@@ -894,6 +894,7 @@ scripts/cadofactor/wudb.py
 scripts/cadofactor/wuserver.py
 scripts/call_cmake.sh
 scripts/check_compilation_units_policy.pl
+scripts/check_main_constness.sh
 scripts/check_python_pathdetection_stub.sh
 scripts/check_repo_policies.sh
 scripts/descent.py
