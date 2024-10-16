@@ -368,8 +368,7 @@ static void test_u64arith_div2mod(unsigned long iter) {
 /* TODO: add tests for u64arith_redc() */
 
 // coverity[root_function]
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 100;
   tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);

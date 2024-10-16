@@ -222,7 +222,8 @@ TestWeierstrass<MODULUS>::parseLine(const char *line) const {
 }
 
 // coverity[root_function]
-int main(int argc, const char *argv[]) {
+int main(int argc, char const * argv[])
+{
     bool ok = true;
     tests_common_cmdline (&argc, &argv, PARSE_VERBOSE);
     int const verbose = tests_common_get_verbose ();

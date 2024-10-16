@@ -610,8 +610,7 @@ bug20200225 (void)
    Giving only "-time" does only timing. Giving neither or both does both. */
 
 // coverity[root_function]
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long N = 100;
   int test_correctness = 1, test_timing = 1;

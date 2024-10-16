@@ -338,10 +338,9 @@ static void usage (const char *argv, param_list pl)
   exit (EXIT_FAILURE);
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-  char *argv0 = argv[0];
+  const char * argv0 = argv[0];
   int verbose = 0, quiet = 0, print = 0;
 
   mpz_t N, minP, maxP, max_skewness;

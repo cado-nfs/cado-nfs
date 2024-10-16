@@ -58,7 +58,7 @@ void * bench_comm_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYB
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

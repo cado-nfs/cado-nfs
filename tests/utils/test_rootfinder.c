@@ -112,8 +112,7 @@ void usage()
     exit(EXIT_FAILURE);
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
     const struct test_rootfinder_example examples[] = {
 	{ "4294967291", "-3*x^2 + 1", 2 },

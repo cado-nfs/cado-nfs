@@ -153,7 +153,7 @@ fclose_maybe_compressed (FILE * f, const char * name)
 
 /* Pass 1: read relations and count ideal weight in T[p] (capped to 255) */
 void
-pass1 (int argc, char *argv[], unsigned long col_max_index)
+pass1 (int argc, char const * argv[], unsigned long col_max_index)
 {
   char s[MAX_SIZE], *end;
   long a;
@@ -216,7 +216,7 @@ pass1 (int argc, char *argv[], unsigned long col_max_index)
 
 /* Pass 2: output relations with no singleton */
 void
-pass2 (int argc, char *argv[], char *out_file)
+pass2 (int argc, char const * argv[], char *out_file)
 {
   char s[MAX_SIZE], *end;
   long a;
@@ -272,8 +272,7 @@ pass2 (int argc, char *argv[], char *out_file)
   fclose (out);
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long col_max_index = 0;
   char *out_file = NULL;

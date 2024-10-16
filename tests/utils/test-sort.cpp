@@ -87,7 +87,7 @@ static int gcmp(const void * pa, const void * pb)
     return (a < b) - (b < a);
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     double exp_growth = 0.1;
     bool verbose = false;

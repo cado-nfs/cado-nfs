@@ -55,7 +55,7 @@ int original_test(bool display)
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     bool display = false;
     if (argc >= 2 && strcmp(argv[1], "--display") == 0)

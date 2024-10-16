@@ -774,8 +774,7 @@ usage ()
     exit (1);
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
     int i;
     mpz_t N;

@@ -25,8 +25,7 @@ set_sqrt_2exp(mpz_t N, const unsigned int e)
 }
 
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   mpz_t N, f, *primes;
   unsigned long bits, iter = 100, i, found = 0, n_primes;

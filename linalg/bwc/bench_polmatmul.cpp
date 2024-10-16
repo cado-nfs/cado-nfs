@@ -902,7 +902,7 @@ void do_polmm_timings(unsigned long m, unsigned long n, unsigned long N)
     }
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     /* This is a bench program. We want the output quick.  */
     setbuf(stdout, NULL);

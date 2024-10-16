@@ -4,7 +4,7 @@
 #include <array>
 #include "ecm/facul_strategies.hpp"
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     if (argc > 2)
         exit(EXIT_FAILURE);

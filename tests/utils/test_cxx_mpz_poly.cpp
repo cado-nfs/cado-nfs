@@ -19,7 +19,7 @@ bool operator<(cxx_mpz_poly & a, cxx_mpz_poly & b) {
 */
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     if (argc > 1) {
         srand(atoi(argv[1]));

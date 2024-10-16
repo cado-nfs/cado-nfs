@@ -12,7 +12,8 @@
 #include "misc.h"
 
 // coverity[root_function]
-int main(int argc, const char **argv) {
+int main(int argc, char const * argv[])
+{
     unsigned long N = 1000000;
     int test_correctness = 1, test_timing = 1;
 

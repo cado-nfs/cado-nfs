@@ -30,7 +30,7 @@ void *print_stuff (void *data)
 }
 
 
-int main(int argc, const char **argv)
+int main(int argc, char const * argv[])
 {
   tests_common_cmdline(&argc, &argv, PARSE_VERBOSE);
   verbose = tests_common_get_verbose();

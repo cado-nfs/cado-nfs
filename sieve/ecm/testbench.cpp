@@ -125,7 +125,7 @@ tryfactor (cxx_mpz const & N, facul_strategy_oneside const & strategy,
   return facul_code;
 }
 
-static void print_help (char *programname)
+static void print_help (const char *programname)
 {
   printf ("%s [options] [<start> <stop>]\n", programname);
   printf ("Run factoring method on numbers in interval [<start>, <stop>], or from file\n");
@@ -173,13 +173,13 @@ next_prime (unsigned long start)
 }
 
 // coverity[root_function]
-int main (int argc, char **argv)
+int main(int argc, char const * argv[])
 {
-  char *argv0 = argv[0];
+  const char * argv0 = argv[0];
   unsigned long start, stop, i, mod = 0UL, inpstop = ULONG_MAX;
   unsigned long hits = 0, total = 0;
   unsigned long fbb = 0, lpb = ULONG_MAX;
-  char *inp_fn = NULL;
+  const char * inp_fn = NULL;
   FILE *inp;
   cxx_mpz N, cof;
   int const nr_methods = 0;

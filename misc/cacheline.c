@@ -255,7 +255,8 @@ void printpointers(unsigned int ** const buckets, unsigned int * const bucket_st
 }
 
 
-int main(int argc, char **argv) {
+int main(int argc, char const * argv[])
+{
   size_t pagesize;
   int iter = 10;
   unsigned int **buckets;

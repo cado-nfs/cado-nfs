@@ -919,7 +919,7 @@ struct find_value_change_points_recursive {
 
 #if 0
 /* test code */
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     double scale = 1;
     if (argc == 2) {

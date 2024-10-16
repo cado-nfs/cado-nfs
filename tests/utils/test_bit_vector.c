@@ -96,8 +96,7 @@ test_bit_vector_read_from_file (void)
   bit_vector_clear (c);
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 20000;
   tests_common_cmdline (&argc, &argv, PARSE_SEED | PARSE_ITER);

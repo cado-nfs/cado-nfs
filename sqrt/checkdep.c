@@ -90,7 +90,10 @@ checkVector (int *vec, int ncols, int skip)
 }
 
 static void
-checkSparseAll (char *matname, char *kername, int compact, int skip, int verbose)
+checkSparseAll (
+        const char *matname,
+        const char *kername,
+        int compact, int skip, int verbose)
 {
     FILE *matfile, *kerfile;
     int nrows, ncols, nlimbs, *vec, ndep, ret;
@@ -186,8 +189,11 @@ checkWithIndex (FILE *purgedfile, FILE *indexfile, FILE *kerfile, int verbose,
 }
 
 static void
-checkWithIndexAll (char *purgedname, char *indexname, char *kername,
-		   int skip, int verbose)
+checkWithIndexAll (
+        const char *purgedname,
+        const char *indexname,
+        const char *kername,
+	int skip, int verbose)
 {
     FILE *purgedfile = fopen(purgedname, "r");
     FILE *indexfile = fopen(indexname, "r");
@@ -223,11 +229,12 @@ usage (void)
   exit (1);
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-    char *matname = NULL, *indexname = NULL, *purgedname = NULL;
-    char *kername = NULL;
+    const char * matname = NULL;
+    const char * indexname = NULL;
+    const char * purgedname = NULL;
+    const char * kername = NULL;
     int verbose = 0, compact = 0, skip = 0;
 
     while(argc > 1 && argv[1][0] == '-'){

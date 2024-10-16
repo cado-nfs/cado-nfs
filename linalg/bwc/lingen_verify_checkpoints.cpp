@@ -756,7 +756,7 @@ int sanity_check(std::string filename)
 }
 
 // coverity[root_function]
-int main(int argc, const char * argv[])
+int main(int argc, char const * argv[])
 {
     /* We're not really mpi, but we link code that _is_ mpi */
     MPI_Init(&argc, (char ***) &argv);

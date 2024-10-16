@@ -7,7 +7,7 @@
 #include "macros.h"
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     const char * filename = "test.gz";
     const char * t = getenv("wdir");

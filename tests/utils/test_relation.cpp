@@ -207,8 +207,7 @@ test_conversion (unsigned int nb)
   return err;
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   int err = 0;
   unsigned long iter = 10000;

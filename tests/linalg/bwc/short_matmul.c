@@ -281,7 +281,7 @@ void usage()
     fprintf(stderr, "Usage: short-matmul [-t] <matrix file> <vector file> <vector output file>\n");
     exit(1);
 }
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     int mul_left = 0;
     mpz_t p;

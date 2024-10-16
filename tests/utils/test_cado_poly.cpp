@@ -100,8 +100,7 @@ void test_cado_poly_sanitycheck_file(const char * file)
 }
 
 // coverity[root_function]
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   tests_common_cmdline(&argc, &argv, 0);
   test_cado_poly_set ();

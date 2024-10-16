@@ -103,8 +103,7 @@ void test_SatisfiesMinMaxHeap_Alternating(size_t nvalues)
             "Values were not popped in the correct order.");
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
     unsigned long iter = 20000;
     tests_common_cmdline (&argc, &argv, PARSE_SEED | PARSE_ITER);

@@ -725,7 +725,8 @@ ModulusMPZ Tests<ModulusMPZ>::randomModulus(const bool odd) const {
     return m;
 }
 
-int main(int argc, const char **argv) {
+int main(int argc, char const * argv[])
+{
     unsigned long iter = 100;
     bool ok = true;
   

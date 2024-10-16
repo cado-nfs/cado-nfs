@@ -191,7 +191,7 @@ void test_arbitrary(gmp_randstate_ptr rstate, unsigned long iter)
     }
 }
 
-int main(int argc, const char * argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 20000;
 

@@ -94,9 +94,9 @@ void declare_usage(cxx_param_list & pl)
     lingen_platform::declare_usage(pl);
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
-    MPI_Init(&argc, &argv);
+    MPI_Init(&argc, (char ***) &argv);
 
     cxx_mpz p;
     gmp_randstate_t rstate;

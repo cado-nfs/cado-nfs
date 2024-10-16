@@ -282,7 +282,7 @@ void test_allocate_0_bytes(void) /* shouldn't segfault */
 }
 
 // coverity[root_function]
-int main(int argc MAYBE_UNUSED, char * argv[] MAYBE_UNUSED)
+int main(int argc MAYBE_UNUSED, char const * argv[] MAYBE_UNUSED)
 {
     const char * env_wdir = getenv("wdir");
     if (env_wdir)

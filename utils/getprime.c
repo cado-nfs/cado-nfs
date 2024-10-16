@@ -312,7 +312,7 @@ unsigned long getprime_mt(prime_info_ptr pi)
 }
 
 #ifdef MAIN
-int main(int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
     unsigned long p, B;
     unsigned long ii = 0;

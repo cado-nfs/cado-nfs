@@ -413,13 +413,13 @@ static void usage (const char *argv, const char * missing, param_list pl)
 /* -------------------------------------------------------------------------- */
 
 // coverity[root_function]
-int main (int argc, char **argv)
+int main(int argc, char const * argv[])
 {
-    MPI_Init(&argc, & argv);
+    MPI_Init(&argc, (char ***) &argv);
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    char *argv0 = argv[0];
+    const char *argv0 = argv[0];
 
     const char *polyfile = NULL;
 

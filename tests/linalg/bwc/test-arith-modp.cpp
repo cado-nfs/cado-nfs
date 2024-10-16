@@ -143,7 +143,7 @@ void do_tests(unsigned long iter, int summands, int cbound )
 }
 
 // coverity[root_function]
-int main(int argc, const char * argv[])
+int main(int argc, char const * argv[])
 {
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER | PARSE_VERBOSE);
 

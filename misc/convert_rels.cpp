@@ -140,7 +140,7 @@ struct relation_data {
     read_relation_func read_relation;
     print_relation_func print_relation;
 
-    char* relation_filename;
+    const char * relation_filename;
 
     int iformat;
     int oformat;
@@ -603,12 +603,12 @@ read_relation_cado (FILE *fp, relation  *rel, relation_data * data MAYBE_UNUSED)
 }
 
 int 
-fk_read_line (char *lp, const int maxlen, FILE *fp, char *file)
+fk_read_line (const char * lp, const int maxlen, FILE *fp, char *file)
 {
   int i, skip;
 
   do {
-    if (fgets (lp, maxlen, fp) == NULL)
+    if (fgets ((char**) lp, maxlen, fp) == NULL)
       return 0; /* Possibly EOF */
 
     line_number ++;
@@ -664,7 +664,7 @@ read_relation_fk (FILE *fp, relation  *rel, relation_data * data)
 {
   char line[512];
   char *lp;
-  char* file = data->relation_filename;
+  const char * file = data->relation_filename;
 
   /* Read the "W" line with the a and b values */
   do
@@ -1440,8 +1440,7 @@ void* write_rels(void* _args) {
     return NULL;
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
   FILE *fp;
   int32_t *rfb = NULL, *afb = NULL;
@@ -1451,7 +1450,7 @@ main (int argc, char *argv[])
   int oformat = FORMAT_CADO; /* default output format */
   mpz_t f[DEGF_MAX + 1];
   int num_files = 0;
-  char *program_name = argv[0];
+  const char * program_name = argv[0];
   int lpb = 0; /* 0 means no bound */
   int multi = 1, in_alg_first = 0, out_alg_first = 0;
 
@@ -1465,11 +1464,11 @@ main (int argc, char *argv[])
   read_relation_func read_relation = NULL;
   print_relation_func print_relation = NULL;
 
-  char *fbfile = NULL; /* name of factor base file */
-  char *relsfile = NULL; /* name of binary file to read */
-  char* polyfile = NULL; /* The polynomial file */
-  char* renumberfile = NULL; /* The renumbered file */
-  char* outfile = NULL;
+  const char * fbfile = NULL; /* name of factor base file */
+  const char * relsfile = NULL; /* name of binary file to read */
+  const char * polyfile = NULL; /* The polynomial file */
+  const char * renumberfile = NULL; /* The renumbered file */
+  const char * outfile = NULL;
 
   FILE* out_fp = stdout;
 

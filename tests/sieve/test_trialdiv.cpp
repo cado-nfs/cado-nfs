@@ -116,7 +116,7 @@ test_trialdiv (int n, unsigned long iter)
 }
 
 // coverity[root_function]
-int main (int argc, const char **argv)
+int main(int argc, char const * argv[])
 {
   int i, len = 1, nr_primes = 1000, nr_N = 100000;
   unsigned long expect = 0, nr_div = 0;

@@ -9,7 +9,8 @@
 
 void omega (residue_t o, residue_t b, const unsigned long k, const modulus_t pp);
 
-int main(int argc, char **argv) {
+int main(int argc, char const * argv[])
+{
   unsigned long p, minp = 3, maxp = 5000UL;
   enumeratediv_t div;
   int use_gp = 0;

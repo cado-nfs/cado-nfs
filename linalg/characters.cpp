@@ -618,7 +618,7 @@ declare_usage (param_list pl)
 }
 
 // coverity[root_function]
-int main(int argc, const char **argv)
+int main(int argc, char const * argv[])
 {
     const char * heavyblockname = NULL;
     int nchars, nratchars = 0;

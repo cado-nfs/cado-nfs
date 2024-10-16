@@ -428,7 +428,7 @@ test_speed(test_wrap & tw)
     return dummy_local;
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);

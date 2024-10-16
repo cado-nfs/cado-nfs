@@ -417,8 +417,7 @@ HalfGcd (mpz_t a, mpz_t b, mpz_t u)
 double aver_gain[N], gain_u[N], gain_v[N];
 unsigned long nb_test[N];
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
   mpz_t p, z, ze, t, u, v, f, u0, v0;
   unsigned long e, L, l, lu, lv, i, seed = 0, target = 0;

@@ -175,8 +175,7 @@ test_sm (FILE * datafile)
   return err;
 }
 
-int
-main (int argc, char **argv)
+int main(int argc, char const * argv[])
 {
   FILE *datafile = NULL;
 

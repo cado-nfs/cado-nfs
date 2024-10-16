@@ -47,7 +47,8 @@ roots_mod_mpz(uint64_t *r, uint64_t a, int d, uint64_t p, gmp_randstate_ptr rsta
 }
 
 
-int main(int argc, char **argv) {
+int main(int argc, char const * argv[])
+{
   uint64_t *r1, *r2;
   unsigned long a, p, d;
   int n1, n2, i;

@@ -408,7 +408,7 @@ out_msieve (mpz_t N, mpz_t *X, int deg, mpz_t *Y, int degY)
 }
 
 static void
-usage (char *argv0)
+usage (const char *argv0)
 {
   fprintf (stderr, "Usage: %s [options] < file1 > file2\n", argv0);
   fprintf (stderr, "Options:\n");
@@ -428,8 +428,7 @@ usage (char *argv0)
 #define FORMAT_CWI    3
 #define FORMAT_MSIEVE 4
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
   mpz_t N, *X, *Y, M;
   int iformat = FORMAT_CADO;

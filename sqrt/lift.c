@@ -220,7 +220,7 @@ void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* 
 
 #define EXAMPLE_FROM_RSA768
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     program_starttime = wct_seconds();
 

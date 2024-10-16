@@ -260,12 +260,12 @@ Psi_k_print(const uint64_t x, const uint64_t y, const uint64_t z,
 
 
 
-int main(int argc, char **argv)
+int main(int argc, char * argv[])
 {
   uint64_t x, y, z, result = 0, sum = 0;
   int print = 0;
   char k_default[4] = {'0',',','1',0}; /* Need this non-const, thus no literal string */
-  char *k_values = k_default;
+  const char * k_values = k_default;
 
   while (argc > 1) {
     if (strcmp(argv[1], "-k") == 0) {

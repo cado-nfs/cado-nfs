@@ -97,8 +97,7 @@ test_rho (void)
   check_num_abs (y, 6.08381226695129e-21, 3.5e-21);
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   tests_common_cmdline (&argc, &argv, PARSE_SEED);
   test_rho ();

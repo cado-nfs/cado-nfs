@@ -480,7 +480,7 @@ int test_mp_fppol(gmp_randstate_t rstate)/*{{{*/
     return 0;
 }/*}}}*/
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     seed = getpid();
     // s=84; seed=12682; longstrings=0; 

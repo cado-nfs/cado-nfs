@@ -180,8 +180,7 @@ int test_modredc_batchinv (const size_t len, unsigned long uc)
   return ok;
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 20;
   int ok = 1;

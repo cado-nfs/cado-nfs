@@ -65,8 +65,7 @@ test_modredcul_intinv (unsigned long iter)
   mpz_clear (yy);
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 200000;
 

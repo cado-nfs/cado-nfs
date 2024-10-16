@@ -316,7 +316,7 @@ int test_redc_u32(gmp_randstate_t rstate, size_t N, bool check)
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);

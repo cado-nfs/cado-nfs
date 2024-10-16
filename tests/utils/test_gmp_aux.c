@@ -402,8 +402,7 @@ test_next_mpz_with_factor_constraints (void)
 
 
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 1000000;
   tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);

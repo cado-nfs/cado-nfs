@@ -310,9 +310,9 @@ void check_for_mpi_problems()
 }
 
 #ifdef WANT_MAIN
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
-    MPI_Init(&argc, &argv);
+    MPI_Init(&argc, (char***) &argv);
     check_for_mpi_problems();
     MPI_Finalize();
 }

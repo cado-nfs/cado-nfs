@@ -531,8 +531,7 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
 /**
  * Interface main_adv(). This will call ropt_on_cadopoly().
  */
-static int
-main_adv (int argc, char const * argv[])
+static int main_adv (int argc, char const * argv[])
 {
   char const ** argv0 = argv;
   argv += 1;
@@ -691,8 +690,7 @@ void cado_poly_ropt_printer(int i, double score, cado_poly_ptr best_poly, void *
 /**
  * Interface main_basic()
  */
-static int
-main_basic (int argc, char const * argv[])
+static int main_basic (int argc, char const * argv[])
 {
   char const **argv0 = argv;
   const char *polys_filename = NULL;
@@ -916,8 +914,7 @@ main_basic (int argc, char const * argv[])
  * depending whether we have the option --adv.
  * Note the cadoprograms.py uses the main_basic() interface.
  */
-int
-main (int argc, char const * argv[])
+int main (int argc, char const * argv[])
 {
   /* usage */
 

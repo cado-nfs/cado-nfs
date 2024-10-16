@@ -167,7 +167,7 @@ bool test_all(const unsigned long iter, const size_t arraysize,
 }
 
 // coverity[root_function]
-int main(int argc, const char **argv)
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 1;
   size_t const arraysize = 65536;
