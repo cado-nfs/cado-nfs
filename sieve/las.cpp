@@ -1459,11 +1459,11 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
 }/*}}}*/
 
 // coverity[root_function]
-int main (int argc0, char *argv0[])/*{{{*/
+int main (int argc0, char const * argv0[])/*{{{*/
 {
     double t0, wct;
     int argc = argc0;
-    char **argv = argv0;
+    char const **argv = argv0;
 
     setbuf(stdout, nullptr);
     setbuf(stderr, nullptr);

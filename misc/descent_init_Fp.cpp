@@ -481,10 +481,10 @@ void descent_configure_switches(cxx_param_list & pl)
 
 
 int
-main(int argc0, char* argv0[])
+main(int argc0, char const * argv0[])
 {
     int argc = argc0;
-    char **argv = argv0;
+    char const ** argv = argv0;
 
     unsigned long seed = 0;
     unsigned long target = 0; // the target smoothness

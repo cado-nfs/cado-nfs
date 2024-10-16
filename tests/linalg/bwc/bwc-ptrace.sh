@@ -139,6 +139,7 @@ EOF
 argument_checking() {
     case "$nullspace" in
         left|right) ;;
+        LEFT|RIGHT) ;;
         *) echo "\$nullspace must be left or right" >&2; usage;;
     esac
     if [ "$prime" != 2 ] ; then
@@ -223,7 +224,7 @@ create_test_matrix_if_needed() {
     # It's better to look for a kernel which is not trivial. Thus
     # specifying --kright for random generation is a good move prior to
     # running this script for nullspace=right
-    kside="--k$nullspace"
+    kside="--k${nullspace,,}"
 
     # We only care the binary matrix, really. Nevertheless, the random
     # matrix is created as text, and later transformed to binary format.
@@ -243,12 +244,12 @@ create_test_matrix_if_needed() {
     if [ "$prime" = 2 ] ; then
         basename=$mats/t${escaped_size}
         matrix="$basename.matrix.bin"
-        rmargs+=(--k$nullspace ${random_matrix_minkernel})
+        rmargs+=(--k${nullspace,,} ${random_matrix_minkernel})
         # ncols=
     elif ! [ "$nrhs" ] ; then
         basename=$mats/t${escaped_size}p
         matrix="$basename.matrix.bin"
-        rmargs+=(--k$nullspace ${random_matrix_minkernel})
+        rmargs+=(--k${nullspace,,} ${random_matrix_minkernel})
         rmargs+=(-c ${random_matrix_maxcoeff})
         rmargs+=(-Z)
     else
@@ -272,7 +273,7 @@ create_test_matrix_if_needed() {
         matrix="$basename.matrix.bin"
         rhsfile="$basename.rhs.txt"
         rmargs+=(-c ${random_matrix_maxcoeff})
-        rmargs+=(rhs="$nrhs,$prime,$rhsfile")
+        rmargs+=(rhs="$nrhs,$prime,$rhsfile,${nullspace,,}")
     fi
     rmargs=($nrows $ncols -s $seed "${rmargs[@]}" --freq --binary --output "$matrix")
     rwfile=${matrix%%bin}rw.bin
@@ -535,14 +536,14 @@ magma_save_matrix() { # {{{
     fi > $mdir/vectorspace.m
 
     placemats() {
-        if [ "$nullspace" = left ] ; then
+        if [ "${nullspace,,}" = left ] ; then
             transpose_if_left="Transpose"
         else
             transpose_if_left=""
         fi
         cat <<-EOF
             p:=$prime;
-            nullspace:="$nullspace";
+            nullspace:="${nullspace,,}";
             xtr:=func<x|$transpose_if_left(x)>;
             M:=Matrix(GF(p),Matrix (M));
             nr:=Nrows(M);
@@ -841,9 +842,13 @@ if [ "$sage" ] ; then
     sage_args=( m=$m n=$n p=$prime
                 wdir=$wdir matrix=$matrix
                 nh=$Nh nv=$Nv
+                nullspace=$nullspace
     )
     if [ "$wordsize" != 64 ] ; then
         sage_args+=(wordsize=$wordsize)
+    fi
+    if [ "$rhsfile" ] ; then
+        sage_args+=(rhs=$rhsfile)
     fi
     if [ "$CADO_DEBUG" ] ; then set -x ; fi
     set -eo pipefail

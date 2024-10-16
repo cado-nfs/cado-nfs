@@ -507,13 +507,12 @@ static void declare_usage(param_list pl)
 }
 
 // coverity[root_function]
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
   cxx_param_list pl;
   cxx_cado_poly cpoly;
   int sqside = -1;
-  char *argv0 = argv[0];
+  const char *argv0 = argv[0];
   int lpb[2] = {0, 0};
   uint64_t q0 = 0;
   uint64_t q1 = 0;

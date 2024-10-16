@@ -250,13 +250,13 @@ void mf_bal_configure_switches(param_list_ptr pl, struct mf_bal_args * mba)
 }
 
 
-void mf_bal_parse_cmdline(struct mf_bal_args * mba, param_list_ptr pl, int * p_argc, char *** p_argv)
+void mf_bal_parse_cmdline(struct mf_bal_args * mba, param_list_ptr pl, int * p_argc, char const *** p_argv)
 {
     unsigned int wild =  0;
     (*p_argv)++,(*p_argc)--;
     for(;(*p_argc);) {
-        char * q;
-        if (param_list_update_cmdline(pl, &(*p_argc), &(*p_argv))) continue;
+        const char * q;
+        if (param_list_update_cmdline(pl, p_argc, p_argv)) continue;
 
         if ((*p_argv)[0][0] != '-' && wild == 0 && (q = strchr((*p_argv)[0],'x')) != NULL) {
             mba->nh = atoi((*p_argv)[0]);
@@ -341,15 +341,15 @@ void mf_bal_adjust_from_option_string(struct mf_bal_args * mba, const char * opt
      */
     if (!opts) return;
     /* Create a new param_list from opts {{{ */
-    char ** n_argv;
-    char ** n_argv0;
+    const char ** n_argv;
+    const char ** n_argv0;
     int n_argc;
     char * my_opts;
     ASSERT_ALWAYS(opts);
     my_opts = strdup(opts);
-    n_argv0 = n_argv = (char **) malloc(strlen(my_opts) * sizeof(char*));
+    n_argv0 = n_argv = (const char **) malloc(strlen(my_opts) * sizeof(const char*));
     n_argc = 0;
-    n_argv[n_argc++]=strdup("mf_bal");
+    n_argv[n_argc++] = strdup("mf_bal");
     for(char * q = my_opts, * qq; q != NULL; q = qq) {
         qq = strchr(q, ',');
         if (qq) { *qq++='\0'; }
@@ -366,8 +366,8 @@ void mf_bal_adjust_from_option_string(struct mf_bal_args * mba, const char * opt
 
     param_list_clear(pl2);
     free(my_opts);
-    free(n_argv0[0]);
-    free(n_argv0);
+    free((char *) n_argv0[0]);
+    free((char **) n_argv0);
 
     /* }}} */
 }

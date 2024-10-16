@@ -1573,7 +1573,7 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     sqrt_data_t data = {.abs = abs.get(), .dep_masks = dep_masks,
                         .dep_counts = dep_counts, .nonzero_deps = nonzero_deps,
                         .dep_files = dep_files};
-    char *fic[2] = {(char *) purgedname, nullptr};
+    char const *fic[2] = {purgedname, nullptr};
     filter_rels (fic, (filter_rels_callback_t) thread_sqrt, &data,
           EARLYPARSE_NEED_AB_HEXA, nullptr, nullptr);
 
@@ -1668,12 +1668,12 @@ void usage(param_list pl, const char * argv0, FILE *f)
 }
 
 // coverity[root_function]
-int main(int argc, char *argv[])
+int main(int argc, char const *argv[])
 {
     unsigned int numdep = UINT_MAX;
     int nthreads = 1, ret MAYBE_UNUSED, i;
 
-    char * me = *argv;
+    char const * me = *argv;
     /* print the command line */
     fprintf (stderr, "%s.r%s", argv[0], cado_revision_string);
     for (i = 1; i < argc; i++)

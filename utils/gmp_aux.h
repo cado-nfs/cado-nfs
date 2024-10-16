@@ -60,6 +60,7 @@ extern void mpz_init_set_int64 (mpz_ptr, int64_t);
 extern void mpz_set_uint64 (mpz_ptr, uint64_t);
 extern void mpz_set_int64 (mpz_ptr, int64_t);
 extern uint64_t mpz_get_uint64 (mpz_srcptr);
+extern uint64_t mpz_getlimbn_uint64 (mpz_srcptr z, unsigned int i);
 extern int64_t mpz_get_int64 (mpz_srcptr);
 extern void mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, uint64_t c);
 extern int mpz_cmp_uint64 (mpz_srcptr a, uint64_t c);
@@ -90,6 +91,7 @@ static inline void mpz_init_set_int64 (mpz_ptr a, const int64_t b) {mpz_init_set
 static inline void mpz_set_uint64 (mpz_ptr a, const uint64_t b) {mpz_set_ui(a, b);}
 static inline void mpz_set_int64 (mpz_ptr a, const int64_t b) {mpz_set_si(a, b);}
 static inline uint64_t mpz_get_uint64 (mpz_srcptr a) {return (uint64_t) mpz_get_ui(a);}
+static inline uint64_t mpz_getlimbn_uint64 (mpz_srcptr z, unsigned int i) { return (uint64_t) mpz_getlimbn(z, i); }
 static inline int64_t mpz_get_int64 (mpz_srcptr a) {return (int64_t) mpz_get_si(a);}
 static inline void mpz_mul_uint64 (mpz_ptr a, mpz_srcptr b, const uint64_t c) {mpz_mul_ui(a, b, c);}
 static inline int mpz_cmp_uint64 (mpz_srcptr a, const uint64_t c) {return mpz_cmp_ui(a, c);}

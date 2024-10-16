@@ -168,16 +168,14 @@ blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
     /* it's not really in the plans yet */
     ASSERT_ALWAYS(mmt.matrices.size() == 1);
 
-
     for(int i = 0 ; i < 3 ; i++) {
         /* We also need D_n, D_{n-1}, D_{n-2}. Those are in fact bitmaps.
          * Not clear that the bitmap type is really the one we want, though. */
         bit_vector_init(D[i], bw->n);
         /* We need as well the two previous vectors. For these, distributed
          * storage will be ok. */
-        mmt_vec_setup(V[i], mmt,0,0, bw->dir, 0, mmt.n[bw->dir]);
+        V[i] = mmt_vec(mmt, nullptr, nullptr, bw->dir, 0, mmt.n[bw->dir]);
     }
-
 }
 
 blstate::~blstate()
@@ -850,7 +848,7 @@ void * bl_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED
  */
 #ifndef BL_TESTING
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     param_list pl;
 

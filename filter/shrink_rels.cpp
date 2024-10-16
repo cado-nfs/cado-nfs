@@ -98,9 +98,9 @@ static void declare_usage(param_list pl)
 
 // coverity[root_function]
 int
-main (int argc, char *argv[])
+main (int argc, char const *argv[])
 {
-    char * argv0 = argv[0];
+    char const * argv0 = argv[0];
     cxx_param_list pl;
 
     declare_usage(pl);

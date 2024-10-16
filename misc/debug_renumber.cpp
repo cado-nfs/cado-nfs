@@ -29,22 +29,21 @@ static void declare_usage(cxx_param_list & pl)
 }
 
 static void
-usage (cxx_param_list & pl, char *argv0)
+usage (cxx_param_list & pl, const char *argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
 }
 
 // coverity[root_function]
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
     int check = 0;
     int build = 0;
     int quiet = 0;
     int bench = 0;
     int for_dl = 0;
-    char *argv0 = argv[0];
+    const char * argv0 = argv[0];
     cxx_cado_poly cpoly;
 
     cxx_param_list pl;

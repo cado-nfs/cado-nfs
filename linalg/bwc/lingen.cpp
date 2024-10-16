@@ -738,9 +738,8 @@ void print_node_assignment(MPI_Comm comm)/*{{{*/
 /* We don't have a header file for this one */
 extern "C" void check_for_mpi_problems();
 
-int wrapped_main(int argc, char *argv[])
+int wrapped_main(int argc, const char *argv[])
 {
-
     cxx_param_list pl;
 
     bw_common_decl_usage(pl);
@@ -1124,7 +1123,7 @@ int wrapped_main(int argc, char *argv[])
  * main are allowed to use MPI_Comm_rank.
  */
 // coverity[root_function]
-int main(int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
 #ifdef  HAVE_OPENMP
     if (getenv("OMP_DYNAMIC") == NULL) {

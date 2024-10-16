@@ -45,87 +45,131 @@
 
 /* {{{ vector init/clear */
 
-mmt_vec::mmt_vec(matmul_top_data & mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n)
+/* We have a few intermediary tools that are used in the ctor
+ */
+static unsigned int i0_along_division(pi_comm_srcptr wr, unsigned int n)
 {
-    mmt_vec_setup(*this, mmt, abase, pitype, d, flags, n);
+    return (n / wr->totalsize) * (wr->jrank * wr->ncores + wr->trank);
 }
 
-/* this is for a vector which will be of interest to a group of threads
- * and jobs in direction d */
-void mmt_vec_setup(mmt_vec & v, matmul_top_data & mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n)
+static unsigned int i1_along_division(pi_comm_srcptr wr, unsigned int n)
 {
-    if (abase == NULL) abase = mmt.abase;
-    if (pitype == NULL) pitype = mmt.pitype;
-    v.pi = mmt.pi;
-    v.d = d;
-    v.abase = abase;
-    v.pitype = pitype;
-    v.n = n;
+    return (n / wr->totalsize) * (wr->jrank * wr->ncores + wr->trank + 1);
+}
 
-    ASSERT_ALWAYS(n % mmt.pi->m->totalsize == 0);
-
-    pi_comm_ptr wr = mmt.pi->wr[d];
-    pi_comm_ptr xwr = mmt.pi->wr[!d];
-
-    /* now what is the size which we are going to allocate locally */
-    n /= xwr->totalsize;
-    v.i0 = n * (xwr->jrank * xwr->ncores + xwr->trank);
-    v.i1 = v.i0 + n;
-
+static unsigned int alloc_size_with_readahead(
+        pi_comm_srcptr wr,
+        matmul_top_data const & mmt,
+        unsigned int n)
+{
+    n /= wr->totalsize;
     /* Look for readahead settings for all submatrices */
     n += ABASE_UNIVERSAL_READAHEAD_ITEMS;
-    for(auto const & Mloc : mmt.matrices) {
+    for(auto const & Mloc : mmt.matrices)
         matmul_aux(Mloc.mm, MATMUL_AUX_GET_READAHEAD, &n);
-    }
-
-    if (flags & THREAD_SHARED_VECTOR) {
-        if (wr->trank == 0) {
-            v.v = abase->alloc(n, ALIGNMENT_ON_ALL_BWC_VECTORS);
-            abase->vec_set_zero(v.v, n);
-        }
-        pi_thread_bcast(&v.v, sizeof(void*), BWC_PI_BYTE, 0, wr);
-        v.siblings = NULL;
-    } else {
-        v.v = abase->alloc(n, ALIGNMENT_ON_ALL_BWC_VECTORS);
-        abase->vec_set_zero(v.v, n);
-        v.siblings = (mmt_vec **) shared_malloc(wr, wr->ncores * sizeof(mmt_vec *));
-        v.siblings[wr->trank] = &v;
-    }
-    /* Vectors begin initialized to zero, so we have full consistency */
-    v.consistency = 2;
-    serialize_threads(v.pi->m);
-
-    // pi_log_op(v.pi->m, "Hello, world");
-    /* fill wrpals and mpals */
-    v.wrpals[0] = (mmt_vec **) shared_malloc(v.pi->wr[0], v.pi->wr[0]->ncores * sizeof(mmt_vec *));
-    v.wrpals[0][v.pi->wr[0]->trank] = &v;
-    serialize_threads(v.pi->m);
-    v.wrpals[1] = (mmt_vec **) shared_malloc(v.pi->wr[1], v.pi->wr[1]->ncores * sizeof(mmt_vec *));
-    v.wrpals[1][v.pi->wr[1]->trank] = &v;
-    serialize_threads(v.pi->m);
-    v.mpals = (mmt_vec **) shared_malloc(v.pi->m, v.pi->m->ncores * sizeof(mmt_vec *));
-    v.mpals[v.pi->m->trank] = &v;
-    serialize_threads(v.pi->m);
-
+    return n;
 }
 
-mmt_vec::~mmt_vec()
+static bool own_his_vector(pi_comm_srcptr wr, int flags)
 {
-    if (d == -1) return;
-    pi_comm_ptr wr = pi->wr[d];
+    if (!(flags & THREAD_SHARED_VECTOR))
+        return true;
+
+    if (wr->trank == 0)
+        return true;
+
+    return false;
+}
+
+static
+mmt_vec::pointer_to_others create_pointer_to_others(pi_comm_ptr wr, mmt_vec * v)
+{
+    mmt_vec::pointer_to_others ret(
+            static_cast<mmt_vec **>(shared_malloc(
+                    wr, 
+                    wr->ncores * sizeof(mmt_vec *))),
+            { wr });
+    ret.get()[wr->trank] = v;
     serialize_threads(wr);
-    if (rsbuf[0]) abase->free(rsbuf[0]);
-    if (rsbuf[1]) abase->free(rsbuf[1]);
-    if (siblings) {
-        abase->free(v);
-        shared_free(wr, siblings);
-    } else {
-        if (wr->trank == 0)
-            abase->free(v);
-    }
-    shared_free(pi->wr[0], wrpals[0]);
-    shared_free(pi->wr[1], wrpals[1]);
-    shared_free(pi->m, mpals);
+    return ret;
+}
+
+static arith_generic::elt * owned_or_shared(
+        arith_generic::owned_vector const & vv,
+        pi_comm_ptr wr,
+        int flags)
+{
+    if (!(flags & THREAD_SHARED_VECTOR))
+        return vv.get();
+
+    arith_generic::elt * v;
+    if (wr->trank == 0)
+        v = vv.get();
+    pi_thread_bcast(&v, sizeof(void*), BWC_PI_BYTE, 0, wr);
+
+    return v;
+}
+
+void mmt_vec::set_pointer_to_others(bool with_siblings)
+{
+    if (with_siblings)
+        siblings = create_pointer_to_others(pi->wr[d], this);
+    mpals = create_pointer_to_others(pi->m, this);
+    wrpals[0] = create_pointer_to_others(pi->wr[0], this);
+    wrpals[1] = create_pointer_to_others(pi->wr[1], this);
+}
+
+mmt_vec::mmt_vec(mmt_vec && o) noexcept
+    : abase(o.abase)
+    , pi(o.pi)
+    , d(o.d)
+    , pitype(o.pitype)
+    , n(o.n)
+    , i0(o.i0)
+    , i1(o.i1)
+    , owned_v(std::move(o.owned_v))
+    , v(o.v)
+    , consistency(o.consistency)
+{
+    /* no information here is conveyed beyond the pointers to the other
+     * structures on the other cores. So the gist of it is only to make
+     * the move operation a collective rendezvous point.
+     */
+    set_pointer_to_others(!mmt_vec_is_shared(o));
+}
+
+mmt_vec::mmt_vec(matmul_top_data & mmt,
+        arith_generic * abase,
+        pi_datatype_ptr pitype,
+        int d,
+        int flags,
+        unsigned int n)
+    : abase(abase ? abase : mmt.abase)
+    , pi(mmt.pi)
+    , d(d)
+    , pitype(pitype ? pitype : mmt.pitype)
+    , n(n)
+    , i0(i0_along_division(pi->wr[!d], n))
+    , i1(i1_along_division(pi->wr[!d], n))
+    , owned_v(
+            own_his_vector(pi->wr[d], flags)
+            ? this->abase->alloc_vector(
+                alloc_size_with_readahead(pi->wr[!d], mmt, n),
+                ALIGNMENT_ON_ALL_BWC_VECTORS)
+            : arith_generic::owned_vector())
+    , v(owned_or_shared(owned_v, pi->wr[d], flags))
+
+{
+    ASSERT_ALWAYS(n % pi->m->totalsize == 0);
+
+    if (owned_v)
+        this->abase->vec_set_zero(v, alloc_size_with_readahead(pi->wr[!d], mmt, n));
+
+    set_pointer_to_others(!(flags & THREAD_SHARED_VECTOR));
+
+    serialize_threads(pi->m);
+
+    consistency = 2;
 }
 /* }}} */
 
@@ -238,7 +282,7 @@ void mmt_vec_share_across_threads(mmt_vec & v)
     for(unsigned int t = 0 ; t < wr->ncores ; t++) {
         if (t == wr->trank)
             continue;
-        mmt_vec const & w = mmt_vec_sibling(v, t);
+        mmt_vec const & w = v.sibling(t);
 
         for(unsigned int j = 0 ; j < wr->njobs ; j++) {
             size_t const off = mmt_my_own_offset_in_items(w, j);
@@ -285,7 +329,7 @@ void mmt_full_vec_set(mmt_vec & w, mmt_vec const & v)
          * in the other cases, we copy the full range between i0 and i1,
          * it seems reasonable to attempt to do the same.
          */
-        mmt_vec const & vt = mmt_vec_sibling(v, wr->trank);
+        mmt_vec const & vt = v.sibling(wr->trank);
 
         for(unsigned int j = 0 ; j < wr->njobs ; j++) {
             size_t const off = mmt_my_own_offset_in_items(vt, j);
@@ -426,24 +470,6 @@ void mmt_vec_clear_padding(mmt_vec & v, size_t unpadded, size_t padded)
                 v.abase->vec_subvec(v.v, s0), s1-s0);
 
     serialize(v.pi->m);
-}
-
-mmt_vec & mmt_vec_sibling(mmt_vec & v, unsigned int i)
-{
-    if (v.siblings) {
-        return *v.siblings[i];
-    } else {
-        return v;
-    }
-}
-
-mmt_vec const & mmt_vec_sibling(mmt_vec const & v, unsigned int i)
-{
-    if (v.siblings) {
-        return *v.siblings[i];
-    } else {
-        return v;
-    }
 }
 
 /* {{{ generic interfaces for load/save */

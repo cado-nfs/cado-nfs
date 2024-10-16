@@ -59,7 +59,7 @@ extern int param_list_read_file(param_list_ptr pl, const char * name);
 // <key>=<value> ; configured switches and aliases for the param list are
 // also checked.
 extern int param_list_update_cmdline(param_list_ptr pl,
-        int * p_argc, char *** p_argv) ATTRIBUTE_NONNULL((2,3));
+        int * p_argc, char const *** p_argv) ATTRIBUTE_NONNULL((2,3));
 
 #ifdef __cplusplus
 }
@@ -255,7 +255,7 @@ struct param_list_impl {
     /* We use this to remember the first command line pointer which have
      * been given to us */
     int cmdline_argc0;
-    char ** cmdline_argv0;
+    char const ** cmdline_argv0;
     // did the user use the doc functionality ?
     bool use_doc;
 };
@@ -280,11 +280,11 @@ struct cxx_param_list {
         return *this;
     }
 #if __cplusplus >= 201103L
-    cxx_param_list(cxx_param_list && o) {
+    cxx_param_list(cxx_param_list && o) noexcept {
         param_list_init(x);
         param_list_swap(x, o.x);
     }
-    cxx_param_list& operator=(cxx_param_list && o) {
+    cxx_param_list& operator=(cxx_param_list && o) noexcept {
         param_list_swap(x, o.x);
         return *this;
     }
@@ -299,6 +299,12 @@ struct cxx_param_list {
 extern void param_list_init(cxx_param_list & pl) __attribute__((error("param_list_init must not be called on a param_list reference -- it is the caller's business (via a ctor)")));
 extern void param_list_clear(cxx_param_list & pl) __attribute__((error("param_list_clear must not be called on a param_list reference -- it is the caller's business (via a dtor)")));
 #endif
+
+struct parameter_error : public std::runtime_error {
+    explicit parameter_error(std::string const & arg)
+        : std::runtime_error(arg)
+    {}
+};
 
 #endif
 

@@ -28,10 +28,10 @@ static void declare_usage(param_list pl)
 
 // coverity[root_function]
 int
-main (int argc, char *argv[])
+main (int argc, char const *argv[])
 {
   param_list pl;
-  char *argv0 = argv[0];
+  const char *argv0 = argv[0];
   double st, wct;
   st = seconds();
   wct = wct_seconds();

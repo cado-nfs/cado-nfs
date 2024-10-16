@@ -21,13 +21,15 @@ class BwcParameters(object):
         self.p_words = len((self.p**self.splitwidth - 1).digits(word))
         self.p_bytes = self.p_words * (self.wordsize // 8)
         n = kwargs.get('nullspace', None)
-        if n == 'left':
-            self.nullspace = self.NULLSPACE_LEFT
-        elif n == 'right':
-            self.nullspace = self.NULLSPACE_RIGHT
-        else:
+        if n is None:
             # default behavior is to let the prime decide.
             pass
+        elif n == 'left' or n == 'LEFT':
+            self.nullspace = self.NULLSPACE_LEFT
+        elif n == 'right' or n == 'RIGHT':
+            self.nullspace = self.NULLSPACE_RIGHT
+        else:
+            raise ValueError(f"Unexpected nullspace={n}")
 
     def is_nullspace_left(self):
         return self.nullspace == self.NULLSPACE_LEFT

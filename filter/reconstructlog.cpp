@@ -1077,7 +1077,11 @@ compute_log_from_rels (bit_vector needed_rels,
   printf ("# DEBUG: Using %d thread(s) for thread_sm\n", nt);
 #endif
   fflush(stdout);
-  char *fic[3] = {(char *) relspfilename, (char *) relsdfilename, NULL};
+  char const *fic[3] = {
+      (const char *) relspfilename,
+      (const char *) relsdfilename,
+      nullptr
+  };
 
   /* When purged.gz and relsdel.gz both have SM info included, we may
    * have an advantage in having more threads for thread_insert. Note
@@ -1177,7 +1181,7 @@ compute_needed_rels (bit_vector needed_rels,
   /* Reading all relations */
   printf ("# Reading relations from %s and %s\n", relspfilename, relsdfilename);
   fflush(stdout);
-  char *fic[3] = {(char *) relspfilename, (char *) relsdfilename, NULL};
+  char const * fic[3] = {(const char *) relspfilename, (const char *) relsdfilename, NULL};
   filter_rels (fic, (filter_rels_callback_t) &dep_thread_insert, (void *) &data,
                EARLYPARSE_NEED_INDEX, NULL, NULL);
 
@@ -1282,7 +1286,7 @@ static void declare_usage(param_list pl)
 }
 
 static void
-usage (param_list pl, char *argv0)
+usage (param_list pl, char const * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -1291,9 +1295,9 @@ usage (param_list pl, char *argv0)
 
 // coverity[root_function]
 int
-main(int argc, char *argv[])
+main(int argc, char const * argv[])
 {
-  char *argv0 = argv[0];
+  char const * argv0 = argv[0];
 
   uint64_t nrels_tot = 0, nrels_purged, nrels_del, nrels_needed;
   uint64_t nprimes;

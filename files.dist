@@ -457,6 +457,7 @@ linalg/bwc/README.OpenMPI
 linalg/bwc/README.TORQUE
 linalg/bwc/README.gfp
 linalg/bwc/TODO
+linalg/bwc/abase_proxy.hpp
 linalg/bwc/acollect.c
 linalg/bwc/arith-concrete-base.hpp
 linalg/bwc/arith-cross.cpp
@@ -1283,6 +1284,7 @@ tests/sagemath/cado_sage/bwc/f_files.py
 tests/sagemath/cado_sage/bwc/matrix.py
 tests/sagemath/cado_sage/bwc/matrix_tools.py
 tests/sagemath/cado_sage/bwc/parameters.py
+tests/sagemath/cado_sage/bwc/right_hand_side.py
 tests/sagemath/cado_sage/bwc/s_vector.py
 tests/sagemath/cado_sage/bwc/s_vector_set.py
 tests/sagemath/cado_sage/bwc/vector.py

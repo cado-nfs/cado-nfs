@@ -101,7 +101,7 @@ double get_alpha_affine_p (mpz_poly_srcptr f, unsigned long p, gmp_randstate_ptr
 /* poly info, being called in order */
 void print_cadopoly_fg (FILE*, mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr);
 double print_cadopoly (FILE*, cado_poly_srcptr);
-void print_cadopoly_extra (FILE*, cado_poly, int, char**, double);
+void print_cadopoly_extra (FILE*, cado_poly, int, char const **, double);
 double print_poly_fg (mpz_poly_srcptr, mpz_poly_srcptr, mpz_srcptr, int);
 
 void cado_poly_set_skewness_if_undefined(cado_poly_ptr cpoly);

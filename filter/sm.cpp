@@ -79,10 +79,10 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
   /* For each rel, read the a,b-pair and init the corresponding poly pairs[] */
   fprintf(stdout, "\n# Reading %" PRIu64 " (a,b) pairs\n", nrows);
   fflush(stdout);
-  char *fic[2] = {(char *) purgedname, NULL};
+  char const *fic[2] = {(const char *) purgedname, NULL};
   filter_rels (fic, (filter_rels_callback_t) thread_sm,
           &pairs,
-          EARLYPARSE_NEED_AB_HEXA, NULL, NULL);
+          EARLYPARSE_NEED_AB_HEXA, nullptr, nullptr);
 
 
   /* Array of (small_nrows) relation-sets built from array (pairs) and
@@ -236,9 +236,9 @@ static void usage (const char *argv, const char * missing, param_list pl)
 
 /* -------------------------------------------------------------------------- */
 
-int main (int argc, char **argv)
+int main (int argc, char const ** argv)
 {
-  MPI_Init(&argc, &argv);
+  MPI_Init(&argc, (char ***) &argv);
   int rank;
   int size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -246,7 +246,7 @@ int main (int argc, char **argv)
   int const idoio = (rank == 0); // Am I the job allowed to do I/O ?
   double t0;
 
-  char *argv0 = argv[0];
+  char const * argv0 = argv[0];
 
   const char *polyfile = NULL;
   const char *purgedfile = NULL;

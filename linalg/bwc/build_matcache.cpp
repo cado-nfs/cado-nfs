@@ -26,10 +26,10 @@ void declare_usage(param_list_ptr pl)
     param_list_decl_usage(pl, "tmpdir", "directory where matrix cache file is saved (defaults to /tmp)\n");
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     matmul_t mm;
-    char *argv0 = argv[0];
+    const char *argv0 = argv[0];
 
     mpz_t prime;
     int withcoeffs = 0;

@@ -12,49 +12,73 @@ struct matmul_top_data;
 // vectors, never used as destination), and in some cases not.
 
 struct mmt_vec {
-    arith_generic * abase = NULL;
-    parallelizing_info_ptr pi = NULL;
+    arith_generic * abase = nullptr;
+    parallelizing_info_ptr pi = nullptr;
     int d = -1;
-    pi_datatype_ptr pitype = NULL;
-    arith_generic::elt * v = NULL;
-    mmt_vec ** siblings = NULL;     /* pi->wr[d]->ncores siblings ;
-                                       only in case all cores in the communicator
-                                       have their own data area v */
-    mmt_vec ** mpals = NULL;        /* pi->m->ncores siblings, always */
+    pi_datatype_ptr pitype = nullptr;
 
-    mmt_vec ** wrpals[2] = {NULL,   /* pi->wr[0]->ncores and */
-                            NULL};  /* pi->wr[1]->ncores siblings, always. */
+    unsigned int n = 0;          // total size in items
+    unsigned int i0 = 0;
+    unsigned int i1 = 0;
+
+    arith_generic::owned_vector owned_v;
+
+    // v == owned_v except for shared vector, where this holds only at
+    // pi->wr[d]->trank == 0
+    arith_generic::elt * v = nullptr;
+
+    /* pointers to other vectors are held in shared memory areas (shared
+     * among cores, of course)
+     */
+    typedef std::unique_ptr<
+                mmt_vec *,
+                shared_free_deleter<mmt_vec *>> pointer_to_others;
+
+    /* pi->wr[d]->ncores siblings ; only in case all cores in the
+     * communicator have their own data area v */
+    pointer_to_others siblings;
+
+    /* pi->m->ncores siblings, always */
+    pointer_to_others mpals;
+
+    /* pi->wr[0]->ncores and */
+    /* pi->wr[1]->ncores siblings, always. */
+    pointer_to_others wrpals[2];
+
+    private:
+    void set_pointer_to_others(bool with_siblings);
+
+    public:
 
     mmt_vec() = default;
     mmt_vec(matmul_top_data & mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n);
-    ~mmt_vec();
     mmt_vec(mmt_vec const &) = delete;
     mmt_vec& operator=(mmt_vec const &) = delete;
-    mmt_vec(mmt_vec &&) = default;
     mmt_vec& operator=(mmt_vec &&) = default;
+    ~mmt_vec() = default;
 
-    unsigned int n;          // total size in items
-    unsigned int i0;
-    unsigned int i1;
+    /* We need to do some stuff here! */
+    mmt_vec(mmt_vec && o) noexcept;
+
     size_t rsbuf_items = 0;      // auto-expanded on demand.
 
     // ATTENTION: elements are laid out flat in here! rsbuf[0][i] is not
     // a thing.
-    arith_generic::elt * rsbuf[2] = { NULL, NULL };            // only for RS_CHOICE == RS_CHOICE_MINE
-    int consistency;    /* 0 == inconsistent ; 1 == partial ; 2 == full */
+    arith_generic::owned_vector rsbuf[2];            // only for RS_CHOICE == RS_CHOICE_MINE
+    int consistency = 0;    /* 0 == inconsistent ; 1 == partial ; 2 == full */
+
+    // XXX private ?
+    mmt_vec & sibling(unsigned int i) { return siblings ? *(siblings.get()[i]) : *this; }
+    mmt_vec const & sibling(unsigned int i) const { return siblings ? *(siblings.get()[i]) : *this; }
 };
 
-
 /* some handy macros to access portions of mmt_vec's */
-#define SUBVEC(v,w,offset) (v)->abase->vec_subvec(v->abase, (v)->w, offset)
-#define SUBVEC_const(v,w,offset) (v)->abase->vec_subvec_const(v->abase, (v)->w, offset)
+#define SUBVEC(v,w,offset) (v)->abase->vec_subvec((v)->abase, (v)->w, offset)
+#define SUBVEC_const(v,w,offset) (v)->abase->vec_subvec_const((v)->abase, (v)->w, offset)
 
 /* These are flags for the distributed vectors. For the moment we have
  * only one flag */
 #define THREAD_SHARED_VECTOR    1
-
-/* This is almost a constructor. */
-extern void mmt_vec_setup(mmt_vec &, matmul_top_data & mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n);
 
 extern size_t mmt_my_own_size_in_items(mmt_vec const & v);
 extern size_t mmt_my_own_size_in_bytes(mmt_vec const & v);
@@ -91,7 +115,7 @@ extern int mmt_vec_save(mmt_vec & v, const char * name, unsigned int itemsondisk
 extern void mmt_vec_clear_padding(mmt_vec & v, size_t unpadded, size_t padded);
 
 static inline int mmt_vec_is_shared(mmt_vec const & v) {
-    return v.siblings == NULL;
+    return v.siblings.get() == nullptr;
 }
 
 extern void mmt_vec_share_across_threads(mmt_vec & v);
@@ -110,8 +134,6 @@ static inline int mmt_vec_save(mmt_vec & v, std::string const & name, unsigned i
 }
 
 // private ?
-extern mmt_vec & mmt_vec_sibling(mmt_vec & v, unsigned int i);
-extern mmt_vec const & mmt_vec_sibling(mmt_vec const & v, unsigned int i);
 extern void mmt_vec_downgrade_consistency(mmt_vec & v);
 
 #endif	/* MATMUL_TOP_VEC_HPP_ */

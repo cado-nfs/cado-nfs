@@ -116,9 +116,9 @@ static void usage (const char *argv, const char * missing, param_list pl)
 /* -------------------------------------------------------------------------- */
 
 // coverity[root_function]
-int main (int argc, char **argv)
+int main (int argc, char const *argv[])
 {
-  char *argv0 = argv[0];
+  char const * argv0 = argv[0];
 
   const char *polyfile = NULL;
   const char *infile = NULL;

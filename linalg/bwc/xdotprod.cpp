@@ -4,7 +4,7 @@
 #include "matmul_top_vec.hpp"
 #include "xdotprod.hpp"
 
-void x_dotprod(arith_generic::elt * dst, uint32_t * xv, unsigned int m, unsigned int nx, mmt_vec const & v, int sign)
+void x_dotprod(arith_generic::elt * dst, uint32_t const * xv, unsigned int m, unsigned int nx, mmt_vec const & v, int sign)
 {
     /* We're reading from the shared right vector data -- this area is
      * written to by the other threads in the column. Some of them might

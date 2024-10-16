@@ -437,7 +437,7 @@ int main (int argc, char **argv)
 
     argc--,argv++;
     for ( ; argc ; ) {
-        if (param_list_update_cmdline (pl, &argc, &argv)) { continue; }
+        if (param_list_update_cmdline (pl, &argc, (char const ***) &argv)) { continue; }
         fprintf (stderr, "Unhandled parameter %s\n", argv[0]);
         usage (argv0, NULL, pl);
     }

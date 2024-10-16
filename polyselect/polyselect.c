@@ -670,9 +670,9 @@ void * thread_loop(polyselect_thread_ptr thread)
 }
 
 
-int main(int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-  char **argv0 = argv;
+  char const ** argv0 = argv;
   /* nthreads = 0 means: do something automatic */
   int quiet = 0;
   const char * chronogram_file = NULL;

@@ -21,5 +21,6 @@ from .x_vector import BwcXVector  # noqa: F401
 from .check_data import BwcCheckData  # noqa: F401
 from .a_files import BwcAFiles  # noqa: F401
 from .f_files import BwcFFiles  # noqa: F401
+from .right_hand_side import BwcRightHandSide  # noqa: F401
 from .s_vector import BwcSVector  # noqa: F401
 from .s_vector_set import BwcSVectorSet  # noqa: F401

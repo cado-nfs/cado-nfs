@@ -175,15 +175,16 @@ class BwcFFiles(object):
             V += v * mcoeff(self.F, k)
             v = MQ * v
 
-        print("Checking solutions derived from the linear generator")
+        print("Checking solutions derived from the linear generator ...")
 
         should_be_zero = rhs * U + MQ * V
         if should_be_zero != 0:
             rk = should_be_zero.rank()
             event = f"rhs * U + MQ * V has rank {rk} (should be zero)"
             print(f"check failed: {event} {NOK}")
-            print("This is typically _not_ recovered by the C code, " +
-                  "but is otherwise rather harmless. Shit happens.")
+            print("This is typically _not_ recovered by the C code, "
+                  "but is otherwise rather harmless if the rank "
+                  "that remains is small. Shit happens.")
             raise ValueError("check failed " + NOK)
 
         if self.params.is_nullspace_right():
@@ -198,6 +199,11 @@ class BwcFFiles(object):
                 elif QV[:MQ.parent.ncols_orig, j] == 0:
                     print(f"{warn} on the interesting columns {EXCL}")
 
-        print("Checking solutions derived from the linear generator " + OK)
+        if self.params.is_nullspace_left():
+            # This the current state of affairs, but it's a bug! We
+            # should modify rhs before feeding it to bwc!
+            assert U.T * rhs.T * MQ.parent.Q.T  + V.T*MQ.parent.M == 0
+
+        print("Checking solutions derived from the linear generator ... " + OK)
 
         return (U, V)

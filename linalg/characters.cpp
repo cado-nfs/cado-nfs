@@ -335,7 +335,7 @@ static blockmatrix big_character_matrix(alg_prime_t * chars, unsigned int nchars
     fprintf(stderr, "Reading %" PRIu64 " (a,b) pairs from %s\n", nrows,
                      purgedname);
     chars_data_t data = {.a = all_A, .b=all_B};
-    char *fic[2] = {(char *) purgedname, NULL};
+    const char *fic[2] = {purgedname, NULL};
     filter_rels (fic, (filter_rels_callback_t) thread_chars, &data,
           EARLYPARSE_NEED_AB_HEXA, NULL, NULL);
 
@@ -618,7 +618,7 @@ declare_usage (param_list pl)
 }
 
 // coverity[root_function]
-int main(int argc, char **argv)
+int main(int argc, const char **argv)
 {
     const char * heavyblockname = NULL;
     int nchars, nratchars = 0;
@@ -629,7 +629,7 @@ int main(int argc, char **argv)
     const char *outname = NULL;
     int nthreads = 1;
     unsigned long lpb[2] = {0,0};
-    char *argv0 = argv[0];
+    const char *argv0 = argv[0];
     double const cpu0 = seconds ();
     double const wct0 = wct_seconds ();
 

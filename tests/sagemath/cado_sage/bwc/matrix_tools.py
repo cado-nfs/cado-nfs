@@ -29,27 +29,27 @@ def mcoeff(M, i):
     KP = M.base_ring()
     m = M.nrows()
     n = M.ncols()
-    return matrix(KP.base_ring(), m, n, [a[i] for a in M.coefficients()])
+    return matrix(KP.base_ring(), m, n, [a[i] for a in M.list()])
 
 
 def mrev(M, n):
-    return M.parent()([a.reverse(degree=n) for a in M.coefficients()])
+    return M.parent()([a.reverse(degree=n) for a in M.list()])
 
 
 def mdeg(M):
-    return max([a.degree() for a in M.coefficients()])
+    return max([a.degree() for a in M.list()])
 
 
 def mmod(M, n):
     KP = M.base_ring()
     t = KP.gen()
-    return M.parent()([a.mod(t**n) for a in M.coefficients()])
+    return M.parent()([a.mod(t**n) for a in M.list()])
 
 
 def mdiv(M, n):
     KP = M.base_ring()
     t = KP.gen()
-    return M.parent()([a // t**n for a in M.coefficients()])
+    return M.parent()([a // t**n for a in M.list()])
 
 
 def mdivmod(M, n):

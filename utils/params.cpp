@@ -302,7 +302,7 @@ int param_list_configure_switch(param_list_ptr pl, const char * switchname, int 
 }
 
 int param_list_update_cmdline(param_list_ptr pl,
-        int * p_argc, char *** p_argv)
+        int * p_argc, char const *** p_argv)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
     ASSERT_ALWAYS(*p_argv != NULL);
@@ -424,7 +424,7 @@ get_assoc(param_list_ptr pl, const char * key, std::string & value, bool stealth
     const char * t = get_assoc_ptr(pl, key, stealth, seen);
     if (t)
         value = t;
-    return t != NULL;
+    return t != nullptr;
 }
 
 
@@ -940,7 +940,7 @@ void param_list_print_command_line(FILE * stream, param_list_srcptr pl)
     if (!pli.cmdline_argv0)
         return;
 
-    char **argv = pli.cmdline_argv0;
+    char const **argv = pli.cmdline_argv0;
     int const argc = pli.cmdline_argc0;
 
     if (verbose_enabled(CADO_VERBOSE_PRINT_CMDLINE)) {

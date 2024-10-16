@@ -1240,14 +1240,14 @@ uint64_t filter_rels2_inner(std::vector<std::string> const & input_files,
     return nactive;
 }
 
-uint64_t filter_rels2(char ** input_files,
+uint64_t filter_rels2(char const ** input_files,
         struct filter_rels_description * desc,
         int earlyparse_needed_data,
         bit_vector_srcptr active,
         timingstats_dict_ptr stats)
 {
     std::vector<std::string> stl_input_files;
-    for(char ** x = input_files ; *x ; x++) {
+    for(char const ** x = input_files ; *x ; x++) {
         stl_input_files.emplace_back(*x);
     }
     return filter_rels2(stl_input_files, desc, earlyparse_needed_data, active, stats);
@@ -1297,7 +1297,7 @@ uint64_t filter_rels2(std::vector<std::string> const & input_files,
     }
 }
 
-uint64_t filter_rels(char ** input_files,
+uint64_t filter_rels(char const ** input_files,
         filter_rels_callback_t f,
         void * arg,
         int earlyparse_needed_data,
@@ -1308,7 +1308,7 @@ uint64_t filter_rels(char ** input_files,
         { f, arg, 1, }, { nullptr, nullptr, 0, },
     };
     std::vector<std::string> stl_input_files;
-    for(char ** x = input_files ; *x ; x++) {
+    for(char const ** x = input_files ; *x ; x++) {
         stl_input_files.emplace_back(*x);
     }
     return filter_rels2(stl_input_files, desc, earlyparse_needed_data, active, stats);

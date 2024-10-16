@@ -22,7 +22,7 @@
 
 using namespace std;
 
-char ** original_argv;
+char const ** original_argv;
 gmp_randstate_t state;
 
 /* This program is intended to replicate exactly the behaviour of the
@@ -128,7 +128,7 @@ void badideals_declare_usage(cxx_param_list & pl)/*{{{*/
     param_list_decl_usage(pl, "ell", "ell (for computing default number of maps ; not used for bad ideals)");
 }/*}}}*/
 
-void usage(param_list_ptr pl, char ** argv, const char * msg = NULL)/*{{{*/
+void usage(param_list_ptr pl, char const ** argv, const char * msg = NULL)/*{{{*/
 {
     param_list_print_usage(pl, argv[0], stderr);
     if (msg) {
@@ -138,7 +138,7 @@ void usage(param_list_ptr pl, char ** argv, const char * msg = NULL)/*{{{*/
 }/*}}}*/
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
 

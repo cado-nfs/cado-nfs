@@ -125,7 +125,7 @@ struct filter_rels_description {
     int n;
 };
 
-extern uint64_t filter_rels2(char ** input_files,
+extern uint64_t filter_rels2(char const ** input_files,
         struct filter_rels_description * desc,
         int earlyparse_needed_data,
         bit_vector_srcptr active,
@@ -133,7 +133,7 @@ extern uint64_t filter_rels2(char ** input_files,
 
 typedef void *(*filter_rels_callback_t) (void *, earlyparsed_relation_ptr);
 
-extern uint64_t filter_rels(char ** input_files,
+extern uint64_t filter_rels(char const ** input_files,
         filter_rels_callback_t f,
         void * arg,
         int earlyparse_needed_data,

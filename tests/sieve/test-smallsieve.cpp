@@ -937,14 +937,14 @@ void declare_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "only-complete-functions",  "restrict to testing the complete small sieve functions");
 }
 
-int main(int argc0, char * argv0[])
+int main(int argc0, char const * argv0[])
 {
     int logI = 16;
     int logA = 0;
     int bmin = 0;
     int bmax = 0;
     int argc = argc0;
-    char **argv = argv0;
+    char const **argv = argv0;
     cxx_param_list pl;
 
     declare_usage(pl);

@@ -334,6 +334,14 @@ extern void * shared_malloc(pi_comm_ptr wr, size_t size);
 extern void * shared_malloc_set_zero(pi_comm_ptr wr, size_t size);
 extern void shared_free(pi_comm_ptr wr, void * ptr);
 
+/* Use in std::unique_ptr<T, shared_free_deleter<T>>
+ */
+template<typename T>
+struct shared_free_deleter {
+    pi_comm_ptr wr = nullptr;
+    void operator()(T * ptr) const { if (wr) shared_free(wr, ptr); }
+};
+
 
 /* prints the given string in a ascii-form matrix. */
 extern void grid_print(parallelizing_info_ptr pi, char * buf, size_t siz, int print);

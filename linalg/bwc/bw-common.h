@@ -132,7 +132,7 @@ struct bw_params {
     int check_stops[MAX_NUMBER_OF_CHECK_STOPS];
 
     int original_argc;
-    char ** original_argv;
+    char const ** original_argv;
 
     double wct_base;
 };
@@ -168,9 +168,9 @@ extern "C" {
 */
 
 void bw_common_decl_usage(param_list);
-void bw_common_parse_cmdline(struct bw_params * bw, param_list pl, int * p_argc, char *** p_argv);
+void bw_common_parse_cmdline(struct bw_params * bw, param_list pl, int * p_argc, char const *** p_argv);
 void bw_common_interpret_parameters(struct bw_params * bw, param_list pl);
-int bw_common_init(struct bw_params * bw, int * p_argc, char *** p_argv);
+int bw_common_init(struct bw_params * bw, int * p_argc, char const *** p_argv);
 int bw_common_clear(struct bw_params * bw);
 
 

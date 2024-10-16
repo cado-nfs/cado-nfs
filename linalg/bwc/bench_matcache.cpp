@@ -58,7 +58,7 @@ struct bench_args {
     int rebuild;
     mpz_t prime;
     double freq;
-    char ** mfiles;
+    char const ** mfiles;
     const char * source_vec;
     struct private_args * p;
     struct worker_threads_group * tg;
@@ -207,7 +207,7 @@ void clear_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
     A->free(p->rowvec); // nr
 }/*}}}*/
 
-void banner(int argc, char * argv[])
+void banner(int argc, char const * argv[])
 {
     /* print command line */
     fprintf (stderr, "# (%s) %s", cado_revision_string, (argv)[0]);
@@ -221,7 +221,7 @@ void banner(int argc, char * argv[])
     fprintf(stderr, "# Compilation flags " CFLAGS "\n");
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     struct bench_args ba[1];
 
@@ -233,7 +233,7 @@ int main(int argc, char * argv[])
     memset(ba, 0, sizeof(ba));
 
     ba->impl = "bucket";
-    char * file = NULL;
+    const char * file = NULL;
     int nocheck = 0;
     ba->nchecks = 4;
     ba->nthreads = 1;

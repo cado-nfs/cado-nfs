@@ -130,10 +130,11 @@ static void declare_usage(cxx_param_list & pl)/*{{{*/
 }/*}}}*/
 
 // coverity[root_function]
-int main (int argc0, char *argv0[])/*{{{*/
+int main(int argc0, char const * argv0[])
+    /*{{{*/
 {
     int argc = argc0;
-    char **argv = argv0;
+    const char **argv = argv0;
 
 #ifdef HAVE_MINGW
     _fmode = _O_BINARY;     /* Binary open for all files */

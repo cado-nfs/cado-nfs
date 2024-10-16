@@ -756,11 +756,10 @@ int sanity_check(std::string filename)
 }
 
 // coverity[root_function]
-int
-main(int argc, char* argv[])
+int main(int argc, const char * argv[])
 {
     /* We're not really mpi, but we link code that _is_ mpi */
-    MPI_Init(&argc, &argv);
+    MPI_Init(&argc, (char ***) &argv);
     cxx_param_list pl;
 
     seed = getpid();
@@ -769,7 +768,7 @@ main(int argc, char* argv[])
 
     const char* argv0 = argv[0];
 
-    std::vector<std::pair<char **, int> > todo;
+    std::vector<std::pair<const char **, int> > todo;
 
     param_list_configure_switch(pl, "-v", &verbose);
     for (argc--, argv++; argc;) {

@@ -25,11 +25,11 @@ static void declare_usage(cxx_param_list & pl)
 
 // coverity[root_function]
 int
-main (int argc, char *argv[])
+main (int argc, char const *argv[])
 {
   cxx_param_list pl;
   cxx_cado_poly cpoly;
-  char *argv0 = argv[0];
+  char const *argv0 = argv[0];
   unsigned long nb_threads = 1;
 
   declare_usage(pl);

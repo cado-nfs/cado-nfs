@@ -42,10 +42,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "fmt/core.h"
 #include "fmt/format.h"
 
-char * argv0;
+char const * argv0;
 
 static void
-usage(cxx_param_list & pl, char* argv0)
+usage(cxx_param_list & pl, char const * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -157,7 +157,7 @@ declare_usage(param_list pl)
 
 // coverity[root_function]
 int
-main(int argc, char* argv[])
+main(int argc, char const * argv[])
 {
     argv0 = argv[0];
     cxx_param_list pl;

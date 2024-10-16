@@ -279,12 +279,14 @@ class BwcMatrix(object):
         if nrows is not None:
             assert self.nrows_orig <= nrows
             self.nrows = nrows
+            # self.nrows = max(nrows, self.nrows_orig)
         else:
             self.nrows = self.nrows_orig
 
         if ncols is not None:
             assert self.ncols_orig <= ncols
             self.ncols = ncols
+            # self.ncols = max(ncols, self.ncols_orig)
         else:
             # attention. We fill it for completeness, but it can be
             # that the matrix has some zero cols at the end. This is
@@ -292,12 +294,22 @@ class BwcMatrix(object):
             self.ncols = self.ncols_orig
 
         self.ncoeffs = len(inline_data)
-        r2 = sum([float(x * x) for x in inline_row_weights]) / self.nrows_orig
-        c2 = sum([float(x * x) for x in inline_col_weights]) / self.ncols_orig
-        rmean = float(self.ncoeffs / self.nrows_orig)
-        rsdev = math.sqrt(r2 - rmean**2)
-        cmean = float(self.ncoeffs / self.ncols_orig)
-        csdev = math.sqrt(c2 - cmean**2)
+
+        if self.nrows_orig:
+            r2 = sum([float(x * x) for x in inline_row_weights]) / self.nrows_orig
+            rmean = float(self.ncoeffs / self.nrows_orig)
+            rsdev = math.sqrt(r2 - rmean**2)
+        else:
+            rmean = 0
+            rsdev = 0
+
+        if self.ncols_orig:
+            c2 = sum([float(x * x) for x in inline_col_weights]) / self.ncols_orig
+            cmean = float(self.ncoeffs / self.ncols_orig)
+            csdev = math.sqrt(c2 - cmean**2)
+        else:
+            cmean = 0
+            csdev = 0
 
         rowscols = f"{self.nrows_orig} rows {self.ncols_orig} cols"
         coeffs = f"{self.ncoeffs} coefficients"
@@ -359,8 +371,12 @@ class BwcMatrix(object):
                 # id = f"{self.balancing.checksum:08x}.h{i}.v{j}"
                 id = f"h{i}.v{j}"
                 fname = os.path.join(dir, sdir, f"{sdir}.{id}.bin")
-                nrp = bal.tr // bal.nh
-                ncp = bal.tc // bal.nv
+                if self.params.is_nullspace_left():
+                    ncp = bal.tr // bal.nh
+                    nrp = bal.tc // bal.nv
+                else:
+                    nrp = bal.tr // bal.nh
+                    ncp = bal.tc // bal.nv
                 self.submatrices[i][j] = BwcMatrix(self.params, fname)
                 self.submatrices[i][j].__read(nrows=nrp, ncols=ncp)
         # Now we want to check the consistency of the matrix that we just

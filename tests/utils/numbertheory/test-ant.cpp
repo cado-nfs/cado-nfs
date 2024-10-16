@@ -31,7 +31,7 @@ using namespace std;
 /* we'd like to get rid of this! */
 using namespace numbertheory_internals;
 
-static char ** original_argv;
+static const char ** original_argv;
 
 static void decl_usage(param_list_ptr pl)/*{{{*/
 {
@@ -44,7 +44,7 @@ static void decl_usage(param_list_ptr pl)/*{{{*/
     param_list_decl_usage(pl, "elements", "ideal generators (separated by ;)");
 }/*}}}*/
 
-void usage(param_list_ptr pl, char ** argv, const char * msg = NULL)/*{{{*/
+void usage(param_list_ptr pl, char const ** argv, const char * msg = NULL)/*{{{*/
 {
     param_list_print_usage(pl, argv[0], stderr);
     if (msg) {
@@ -712,7 +712,8 @@ int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
 }/*}}}*/
 
 // coverity[root_function]
-int main(int argc, char *argv[]) /*{{{ */
+int main(int argc, char const * argv[])
+    /*{{{ */
 {
     cxx_param_list pl;
 

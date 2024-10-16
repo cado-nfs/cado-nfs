@@ -1218,10 +1218,9 @@ static void declare_usage(param_list pl)
 /************************************************************************/
 
 // coverity[root_function]
-int main(int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
     declare_usage(pl);
 
     if (argc <= 1) {
@@ -1244,7 +1243,6 @@ int main(int argc, char *argv[])
 	}
 	fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
 	param_list_print_usage(pl, argv[0], stderr);
-	param_list_clear(pl);
 	exit(EXIT_FAILURE);
     }
 
@@ -1268,7 +1266,6 @@ int main(int argc, char *argv[])
     if (lim0 == 0 || lpb0 == -1 || mfb0 == -1 ||
 	lim1 == 0 || lpb1 == -1 || mfb1 == -1 || C0 == -1) {
 	fputs("ALL parameters are mandatory!\n", stderr);
-	param_list_clear(pl);
 	exit(EXIT_FAILURE);
     }
 
@@ -1313,7 +1310,6 @@ int main(int argc, char *argv[])
 	 param_list_lookup_string(pl, "decomp")) == NULL) {
 	fputs("Parser error: Please re-run with the option "
 	      "-decomp and a valid directory name.\n", stderr);
-	param_list_clear(pl);
 	exit(EXIT_FAILURE);
     }
     //option: distribution cofactors 
@@ -1323,7 +1319,6 @@ int main(int argc, char *argv[])
     	fputs("Parser error: Please re-run with the option -dist "
     	      "followed by the pathname of the file which stores the "
     	      "distribution of our cofactors.\n", stderr);
-    	param_list_clear(pl);
     	exit(EXIT_FAILURE);
     }
 
@@ -1331,13 +1326,11 @@ int main(int argc, char *argv[])
     unsigned long **distrib_C = extract_matrix_C(file_C, mfb0 + 1, mfb1 + 1);
     if (distrib_C == NULL) {
     	fprintf(stderr, "Error while reading file %s\n", name_file_cofactor);
-    	param_list_clear(pl);
     	exit(EXIT_FAILURE);
     }
     fclose(file_C);
 
-    gmp_randstate_t state;
-    gmp_randinit_default(state);
+    cxx_gmp_randstate state;
 
     //select our methods
     //tabular_fm_t *methods = generate_methods_cado(lpb);
@@ -1608,9 +1601,6 @@ int main(int argc, char *argv[])
     }
     free(distrib_C);
     free(matrix);
-    gmp_randclear(state);
-    param_list_clear(pl);
 
     return EXIT_SUCCESS;
-    
 }

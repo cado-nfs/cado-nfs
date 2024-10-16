@@ -29,6 +29,7 @@
 #include "matmul_top_comm.hpp"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
+#include "abase_proxy.hpp"
 #include "parallelizing_info.hpp"
 #include "params.h"
 #include "portability.h"
@@ -385,36 +386,6 @@ void compress_vector_to_sparse(arith_generic::elt * matrix, unsigned int j, unsi
         }
     }
 }
-
-struct abase_proxy {
-
-    parallelizing_info_ptr pi;
-    std::unique_ptr<arith_generic> A;
-    pi_datatype_ptr A_pi;
-
-    abase_proxy(parallelizing_info_ptr pi, int width)
-        : pi(pi)
-        , A(arith_generic::instance(bw->p, width))
-    {
-        A_pi = pi_alloc_arith_datatype(pi, A.get());
-    }
-    abase_proxy(abase_proxy&&) = default;
-    abase_proxy& operator=(abase_proxy&&) = default;
-    static abase_proxy most_natural(parallelizing_info_ptr pi) {
-        return abase_proxy(pi, mpz_cmp_ui(bw->p, 2) == 0 ? 64 : 1);
-    }
-    std::map<arith_generic *, std::shared_ptr<arith_cross_generic>> tdict;
-    arith_cross_generic * templates(arith_generic * A1) {
-        auto it = tdict.find(A1);
-        if (it == tdict.end())
-            tdict[A1] = std::shared_ptr<arith_cross_generic>(arith_cross_generic::instance(A.get(), A1));
-        return tdict[A1].get();
-    }
-    ~abase_proxy()
-    {
-        pi_free_arith_datatype(pi, A_pi);
-    }
-};
 
 struct rhs /*{{{*/ {
     matmul_top_data & mmt;
@@ -1463,7 +1434,7 @@ void * gather_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     param_list pl;
 

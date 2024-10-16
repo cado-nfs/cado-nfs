@@ -77,7 +77,7 @@ usage (param_list pl, const char *argv0)
 /* -------------------------------------------------------------------------- */
 
 // coverity[root_function]
-int main (int argc, char **argv)
+int main (int argc, char const **argv)
 {
   const char *argv0 = argv[0];
   uint64_t col_max_index = 0;

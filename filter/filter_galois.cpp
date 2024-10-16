@@ -31,7 +31,7 @@
 
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-char *argv0; /* = argv[0] */
+char const * argv0; /* = argv[0] */
 
 static std::unique_ptr<uint32_t[]> H; /* H contains the hash table */
 static unsigned long K = 0; /* Size of the hash table */
@@ -179,7 +179,7 @@ static void declare_usage(param_list pl)
 }
 
 static void
-usage (param_list pl, char *argv0)
+usage (param_list pl, char const * argv0)
 {
   param_list_print_usage(pl, argv0, stderr);
   exit(EXIT_FAILURE);
@@ -187,7 +187,7 @@ usage (param_list pl, char *argv0)
 
 // coverity[root_function]
 int
-main (int argc, char *argv[])
+main (int argc, char const * argv[])
 {
   argv0 = argv[0];
   cxx_cado_poly cpoly;
@@ -319,17 +319,17 @@ main (int argc, char *argv[])
              renumber_tab.number_of_bad_ideals());
 
   std::cout << "Rewriting relations files\n";
-  char ** files;
-  files = filelist ? filelist_from_file (basepath, filelist, 0) : argv;
+
+  char const ** files = filelist ? filelist_from_file (basepath, filelist, 0) : argv;
 
   std::cout << "Reading files (using 1 auxiliary thread):\n";
   timingstats_dict_t stats;
   timingstats_dict_init(stats);
 
-  for (char **p = files; *p ; p++) {
+  for (char const **p = files; *p ; p++) {
     // FILE * output = nullptr;
     std::string oname;
-    char * local_filelist[] = { *p, nullptr};
+    const char * local_filelist[] = { *p, nullptr};
 
     oname = get_outfilename_from_infilename (*p, outfmt, outdir);
 

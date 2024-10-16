@@ -94,11 +94,11 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
      *   the coefficients which get added to the computation at each
      *   iteration: we need n vectors -- or n/64 for the binary case.
      */
-    mmt_vec * vi = new mmt_vec[bw->n / splitwidth];
+    std::vector<mmt_vec> vi;
     matmul_top_matrix * mptr = &mmt.matrices[bw->dir ? (mmt.matrices.size() - 1) : 0];
     for(int i = 0 ; i < bw->n / splitwidth ; i++) {
-        mmt_vec_setup(vi[i], mmt, Av.get(), Av_pi, bw->dir, 1, mptr->n[bw->dir]);
-        mmt_full_vec_set_zero(vi[i]);
+        vi.emplace_back(mmt, Av.get(), Av_pi, bw->dir, 1, mptr->n[bw->dir]);
+        mmt_full_vec_set_zero(vi.back());
     }
     /* }}} */
 
@@ -491,7 +491,6 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     }
     serialize(pi->m);
     if (fake) gmp_randclear(rstate);
-    delete[] vi;
 
     for(unsigned int k = 0 ; k < Av_multiplex * As_multiplex ; k++) {
         As->free((fcoeffs[k]));
@@ -510,7 +509,7 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     param_list pl;
 
