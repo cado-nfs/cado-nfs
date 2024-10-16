@@ -98,12 +98,13 @@ std::vector<int> generic_params_process_loop(cxx_param_list & pl,
         iterator begin, iterator end)
 {
     std::vector<std::string> tmp;
-    std::vector<const char *> argv;
-    for(iterator it = begin ; it != end ; ++it) {
+    for(iterator it = begin ; it != end ; ++it)
         tmp.emplace_back(*it);
-        argv.push_back(tmp.back().c_str());
-    }
-    return generic_params_process_loop(pl, argv.size(), argv.data());
+    std::vector<const char *> argv;
+    argv.reserve(tmp.size());
+    for(auto const & s : tmp)
+        argv.emplace_back(s.c_str());
+    return generic_params_process_loop(pl, (int) argv.size(), argv.data());
 }
 /* }}} */
 
