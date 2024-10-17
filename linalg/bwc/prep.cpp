@@ -208,14 +208,14 @@ void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * is,
                 for (auto & r: leader_vecs)
                     A->vec_set_zero(r.get(), eitems);
 
-                for (unsigned int i = 0; i < bound - offset; i++) {
+                for (unsigned int i = offset ; i < bound ; i++) {
                     for (auto & r: leader_vecs) {
                         /* TODO: a binary version would only have to
                          * update these three lines
                          */
                         (*is) >> c;
                         ASSERT_ALWAYS(bool(*is));
-                        A->set(A->vec_item(r.get(), i), c);
+                        A->set(A->vec_item(r.get(), i - offset), c);
                     }
                 }
             }
