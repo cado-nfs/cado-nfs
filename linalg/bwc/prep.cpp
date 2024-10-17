@@ -231,7 +231,7 @@ void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * is,
                         MPI_Recv(rhs_vecs[j].v, (int)A->vec_elt_stride(eitems),
                                  MPI_BYTE, 0, (int)round, xwr->pals,
                                  MPI_STATUS_IGNORE);
-                } else {
+                } else if (xwr->jrank == 0) {
                     A->vec_set(rhs_vecs[j].v, leader_vecs[j].get(), eitems);
                 }
             }
