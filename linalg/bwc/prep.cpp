@@ -148,7 +148,7 @@ void read_rhs_from_file(std::vector<mmt_vec> & rhs_vecs, std::istream * is,
 
     arith_generic * A = rhs_vecs[0].abase;
     parallelizing_info_ptr pi = rhs_vecs[0].pi;
-    int d = rhs_vecs[0].d;
+    int const d = rhs_vecs[0].d;
     auto i1 = rhs_vecs[0].i1;
     auto i0 = rhs_vecs[0].i0;
     auto eitems = i1 - i0;
