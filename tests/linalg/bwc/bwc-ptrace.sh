@@ -101,6 +101,8 @@ rhsfile="$rhs"
 : ${interval=50}
 # : ${mm_impl=basicp}
 
+nullspace_lowercase=$(echo $nullspace | tr A-Z a-z)
+
 if ! type -p seq >/dev/null ; then
     seq() {
         first="$1"
@@ -224,7 +226,7 @@ create_test_matrix_if_needed() {
     # It's better to look for a kernel which is not trivial. Thus
     # specifying --kright for random generation is a good move prior to
     # running this script for nullspace=right
-    kside="--k${nullspace,,}"
+    kside="--k${nullspace_lowercase}"
 
     # We only care the binary matrix, really. Nevertheless, the random
     # matrix is created as text, and later transformed to binary format.
@@ -244,12 +246,12 @@ create_test_matrix_if_needed() {
     if [ "$prime" = 2 ] ; then
         basename=$mats/t${escaped_size}
         matrix="$basename.matrix.bin"
-        rmargs+=(--k${nullspace,,} ${random_matrix_minkernel})
+        rmargs+=(--k${nullspace_lowercase} ${random_matrix_minkernel})
         # ncols=
     elif ! [ "$nrhs" ] ; then
         basename=$mats/t${escaped_size}p
         matrix="$basename.matrix.bin"
-        rmargs+=(--k${nullspace,,} ${random_matrix_minkernel})
+        rmargs+=(--k${nullspace_lowercase} ${random_matrix_minkernel})
         rmargs+=(-c ${random_matrix_maxcoeff})
         rmargs+=(-Z)
     else
@@ -273,7 +275,7 @@ create_test_matrix_if_needed() {
         matrix="$basename.matrix.bin"
         rhsfile="$basename.rhs.txt"
         rmargs+=(-c ${random_matrix_maxcoeff})
-        rmargs+=(rhs="$nrhs,$prime,$rhsfile,${nullspace,,}")
+        rmargs+=(rhs="$nrhs,$prime,$rhsfile,${nullspace_lowercase}")
     fi
     rmargs=($nrows $ncols -s $seed "${rmargs[@]}" --freq --binary --output "$matrix")
     rwfile=${matrix%%bin}rw.bin
@@ -536,14 +538,14 @@ magma_save_matrix() { # {{{
     fi > $mdir/vectorspace.m
 
     placemats() {
-        if [ "${nullspace,,}" = left ] ; then
+        if [ "${nullspace_lowercase}" = left ] ; then
             transpose_if_left="Transpose"
         else
             transpose_if_left=""
         fi
         cat <<-EOF
             p:=$prime;
-            nullspace:="${nullspace,,}";
+            nullspace:="${nullspace_lowercase}";
             xtr:=func<x|$transpose_if_left(x)>;
             M:=Matrix(GF(p),Matrix (M));
             nr:=Nrows(M);
