@@ -29,8 +29,7 @@ struct blstate {
     std::unique_ptr<arith_cross_generic> AxA;
     mmt_vec y, my;
 
-
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
 
     /* We'll need several intermediary n*n matrices. These will be
      * allocated everywhere (we set flags to 0, so as to avoid having
@@ -151,8 +150,13 @@ blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
     : A(arith_generic::instance(bw->p, bw->ys[1]-bw->ys[0]))
     , mmt(A.get(), pi, pl, bw->dir)
     , AxA(arith_cross_generic::instance(A.get(), A.get()))
-    , y(mmt,0,0,  bw->dir, 0, mmt.n[bw->dir])
-    , my(mmt,0,0, !bw->dir, 0, mmt.n[!bw->dir])
+    , y(mmt, nullptr, nullptr,  bw->dir, 0, mmt.n[bw->dir])
+    , my(mmt, nullptr, nullptr, !bw->dir, 0, mmt.n[!bw->dir])
+    , V {
+        mmt_vec(mmt, nullptr, nullptr, bw->dir, 0, mmt.n[bw->dir]),
+        mmt_vec(mmt, nullptr, nullptr, bw->dir, 0, mmt.n[bw->dir]),
+        mmt_vec(mmt, nullptr, nullptr, bw->dir, 0, mmt.n[bw->dir]),
+    }
 {
     /* Note that THREAD_SHARED_VECTOR can't work in a block Lanczos
      * context, since both ways are used for input and output.
@@ -163,8 +167,6 @@ blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
      * footprint in the end.
      */
 
-    gmp_randinit_default(rstate);
-
     /* it's not really in the plans yet */
     ASSERT_ALWAYS(mmt.matrices.size() == 1);
 
@@ -174,7 +176,6 @@ blstate::blstate(parallelizing_info_ptr pi, param_list_ptr pl)
         bit_vector_init(D[i], bw->n);
         /* We need as well the two previous vectors. For these, distributed
          * storage will be ok. */
-        V[i] = mmt_vec(mmt, nullptr, nullptr, bw->dir, 0, mmt.n[bw->dir]);
     }
 }
 
@@ -186,7 +187,6 @@ blstate::~blstate()
          * Not clear that the bitmap type is really the one we want, though. */
         bit_vector_clear(D[i]);
     }
-    gmp_randclear(rstate);
 }
 
 void blstate::set_start()

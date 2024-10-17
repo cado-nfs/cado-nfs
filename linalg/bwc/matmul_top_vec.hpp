@@ -54,8 +54,9 @@ struct mmt_vec {
     mmt_vec(matmul_top_data & mmt, arith_generic * abase, pi_datatype_ptr pitype, int d, int flags, unsigned int n);
     mmt_vec(mmt_vec const &) = delete;
     mmt_vec& operator=(mmt_vec const &) = delete;
-    mmt_vec& operator=(mmt_vec &&) = default;
     ~mmt_vec() = default;
+
+    mmt_vec& operator=(mmt_vec &&) = delete;
 
     /* We need to do some stuff here! */
     mmt_vec(mmt_vec && o) noexcept;
