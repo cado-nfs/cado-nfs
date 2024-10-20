@@ -33,7 +33,7 @@
 #include "macros.h"
 #include "fmt/format.h"
 
-#if defined(_GLIBCXX_DEBUG) && defined(_GLIBCXX_DEBUG_DISABLE_CHECK_PARTITIONED)
+#if defined(__GLIBCXX__) && defined(_GLIBCXX_DEBUG) && defined(_GLIBCXX_DEBUG_DISABLE_CHECK_PARTITIONED)
 namespace __gnu_debug {
 template<>
 inline bool __check_partitioned_lower<std::vector<std::array<p_r_values_t, 2>>::const_iterator>(
@@ -1300,7 +1300,13 @@ void renumber_t::builder::preprocess(prime_chunk & P, gmp_randstate_ptr rstate)/
 
 void renumber_t::builder::postprocess(prime_chunk & P)/*{{{*/
 {
-    ASSERT_ALWAYS(P.preprocess_done);
+    bool preprocess_done;
+#ifdef HAVE_OPENMP
+#pragma omp atomic read
+#endif
+    preprocess_done = P.preprocess_done;
+    ASSERT_ALWAYS(preprocess_done);
+
     /* put all entries from x into the renumber table, and also print
      * to freerel_file any free relation encountered. This is done
      * synchronously.

@@ -409,7 +409,7 @@ get_assoc_ptr(param_list_ptr pl, const char * key, bool stealth = false, int * c
         if (!stealth && !is_documented_key(pl, key)) 
             fprintf(stderr, "# Warning: parameter %s is checked by this program but is undocumented.\n", key);
     }
-    auto it = pli.p.find(key);
+    auto it = pli.p.find(key ? key : "");
     if (it == pli.p.end())
         return NULL;
 

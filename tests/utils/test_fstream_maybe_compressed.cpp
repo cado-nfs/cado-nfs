@@ -1,4 +1,5 @@
 #include "cado.h" // IWYU pragma: keep
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <unistd.h>
@@ -8,12 +9,10 @@
 int main(int argc, char * argv[])
 {
     const char * filename = "test.gz";
+    const char * t = getenv("wdir");
 
-    if (argc > 2 && std::string(argv[1]) == "--wdir") {
-        chdir(argv[2]);
-        argc--,argv++;
-        argc--,argv++;
-    }
+    if (t)
+        chdir(t);
 
     if (argc > 1)
         filename = argv[1];

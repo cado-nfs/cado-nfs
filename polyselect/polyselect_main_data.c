@@ -203,7 +203,7 @@ static size_t snprintf_expected_time_target_E(
  * parameter, since it's handy to predict which ad we can expect to
  * reach.
  *
- * This uses the Weibull moments functions. Notet that the maxtime
+ * This uses the Weibull moments functions. Note that the maxtime
  * option is incompatible with target_E (which also uses the same
  * things)
  */

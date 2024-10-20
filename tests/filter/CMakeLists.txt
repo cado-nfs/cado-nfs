@@ -1,11 +1,9 @@
 cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/testsm.sh
-    PRECOMMAND
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+    PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES sm)
 
 cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test_filter_galois.sh
-    PRECOMMAND
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
+    PROVIDE_TEMPORARY_WDIR
     TARGET_DEPENDENCIES filter_galois)
 
 set(sage_opt)
@@ -37,6 +35,7 @@ cado_divert_test(test_dup2${sage_opt} c105_30003
     -rels ${CMAKE_CURRENT_SOURCE_DIR}/c105_30003.rels.gz
     -lpbs 25,26
     TIMEOUT 120
+    ${AVOID_CONCURRENT_UNDER_COVERAGE}
     )
 endif()
 
@@ -48,5 +47,5 @@ cado_divert_test(test_dup2${sage_opt} c105_30004
     -dl
     -S daa017e17f50607820e7896dcc3a05370364b3b4
     -R 2959973f1
-    TIMEOUT 60
+    TIMEOUT 90
     )

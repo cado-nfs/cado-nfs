@@ -48,7 +48,7 @@ compute_murphyE (char *input_file, char *output_file)
 		    output_file);
             rc = EXIT_FAILURE;
 	} else {
-            cado_poly_fprintf(of, p, "");
+            cado_poly_fprintf(of, "", p);
         }
     }
     cado_poly_clear(p);

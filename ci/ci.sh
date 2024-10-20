@@ -36,7 +36,13 @@ case "$CI_JOB_NAME" in
         # With some tests, the coverage test time goes to the roof, but
         # it's not always so. A blanket TIMEOUT_SCALE is probably a gross
         # fix, but we can live with it.
-        export TIMEOUT_SCALE=2
+        export TIMEOUT_SCALE=4
+
+        # It's probably debatable. If we _do_ get more coverage with
+        # expensive checks, then frankly, I would consider it a bit of a
+        # bug: it would be better to get the same coverage with the
+        # normal tests.
+        export CHECKS_EXPENSIVE=1
         ;;
     *"using package libfmt-dev"*)
         export install_package_libfmt_dev=1

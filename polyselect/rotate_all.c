@@ -82,38 +82,42 @@ special_update (double *A, long K0, long K1, const residueul_t gpn,
 }
 
 /* f(x) of degree d is the polynomial f0(x) + j*x*g(x)
-   where g(x) = b*x-m.
    A is a table of K1-K0+1 entries, where A[k-K0] corresponds to the alpha
    contribution for f(x) + k*g(x)
    p is the current prime, we consider pn = p^n here */
 void
-update_table (mpz_poly_srcptr F, mpz_poly_srcptr g, double *A, long K0, long K1,
+update_table (mpz_poly_srcptr f, mpz_poly_srcptr g, double *A, long K0, long K1,
 	      unsigned long pn, double alpha_p)
 {
   long k, k0;
   modul_poly_t fpn; /* f mod p^n */
   modulusul_t Pn;
-  residueul_t l, gpn, bpn, r, v;
+  residueul_t gpn, bpn, r, v;
   int ret;
 
   modul_initmod_ul (Pn, pn);
   modul_init (gpn, Pn);
   modul_init (bpn, Pn);
   modul_init (r, Pn);
-  modul_init (l, Pn);
   modul_init (v, Pn);
 
-  modul_poly_init (fpn, F->deg);
+  modul_poly_init (fpn, mpz_poly_degree(f));
 
   /* first reduce f(x) and g(x) mod p^n */
-  modul_poly_set_mod_raw (fpn, F, Pn);
+  modul_poly_set_mod_raw (fpn, f, Pn);
 
+  ASSERT_ALWAYS(mpz_poly_degree(g) == 1);
+
+  /* compute -g(0) */
   modul_set_ul (gpn, mpz_fdiv_ui (mpz_poly_coeff_const(g, 0), pn), Pn);
   modul_neg(gpn, gpn, Pn);
+
   /* invariant: gpn = -g(l) */
   modul_set_ul (bpn, mpz_fdiv_ui (mpz_poly_coeff_const(g, 1), pn), Pn);
-  modul_set_ul (l, 0, Pn);
 
+  residueul_t l;
+  modul_init (l, Pn);
+  modul_set_ul (l, 0, Pn);
   for (;;)
     {
       modul_poly_eval (r, fpn, l, Pn);
@@ -186,8 +190,10 @@ rotate_area (long K0, long K1, long J0, long J1)
    increasing, then the optimal K corresponds to the minimum of that function.
 */
 void
-rotate_bounds (mpz_poly_ptr f, mpz_poly_srcptr g, long *K0, long *K1,
-               long *J0, long *J1, int verbose)
+rotate_bounds (mpz_poly_ptr f, mpz_poly_srcptr g,
+        long *K0, long *K1,
+        long *J0, long *J1,
+        int verbose)
 {
   /* exp_alpha[i] corresponds to K=2^i polynomials for m=0, s=1
      f := x -> 1/2*(1 - erf(x/sqrt(2)));
@@ -288,9 +294,10 @@ rotate_bounds (mpz_poly_ptr f, mpz_poly_srcptr g, long *K0, long *K1,
    */
 double
 rotate (mpz_poly_ptr f, unsigned long alim,
-        mpz_poly_srcptr g,
+        mpz_poly_srcptr g, /* b*x-m */
         long *jmin, long *kmin, int multi, int verbose)
 {
+    // mpz_poly D;
     long K0, K1, J0, J1, k0, k, i, j, j0, bestk;
     double *A, alpha, lognorm, best_alpha = DBL_MAX, best_lognorm = DBL_MAX;
     double corr = 0.0;

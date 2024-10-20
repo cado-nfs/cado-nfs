@@ -34,8 +34,8 @@ if(BWC_GFP_ARITHMETIC_BACKENDS)
             COMPILE_FLAGS "--mpi ${OpenMP_C_FLAGS} -DDEBUG_FFT"
             LINK_FLAGS "--mpi ${OpenMP_C_FLAGS}")
         cado_define_test(test-flint-debug-magma
+            PROVIDE_TEMPORARY_WDIR
             SCRIPT
-                ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env TMPDIR
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-flint-debug-magma.sh
                 ${MAGMA}
                 ${CMAKE_CURRENT_SOURCE_DIR}/test-flint.m

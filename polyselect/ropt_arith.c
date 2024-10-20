@@ -108,7 +108,7 @@ ij2uv ( mpz_srcptr A,
  * Find coordinate a such that
  * A + MOD*a = u (mod p).
  */
-unsigned int
+static unsigned int
 uv2ab_mod ( mpz_srcptr A,
             mpz_srcptr MOD,
             unsigned int U,
@@ -145,7 +145,6 @@ uv2ij_mod ( mpz_srcptr A,
 
   return i;
 }
-
 
 /**
  * Compute fuv = f+(u*x+v)*g,
@@ -330,32 +329,38 @@ void
 Lemma21 ( ropt_poly_ptr poly,
           mpz_t N,
           int d,
-          mpz_srcptr p,
           mpz_srcptr ad,
+          mpz_srcptr p,
           mpz_srcptr m,
-          mpz_ptr res )
+          mpz_ptr res)
 {
   mpz_t r, mi, invp, l, ln;
   int i;
 
-  /* very basic settings inside the ropt_poly structure */
-  mpz_set (poly->n, N);
-  poly->d = d;
-  mpz_poly_set_zero(poly->f);
-  mpz_poly_set_zero(poly->g);
-  mpz_poly_setcoeff(poly->f, poly->d, ad);
-  mpz_poly_setcoeff(poly->g, 1, l);
-  mpz_neg(mpz_poly_coeff(poly->g, 0), m);
+  mpz_poly_ptr F = poly->cpoly->pols[1];
+  mpz_poly_ptr G = poly->cpoly->pols[0];
 
+  /* very basic settings inside the ropt_poly structure */
 
   mpz_init (r);
   mpz_init_set_ui (l, 1);
   mpz_init (ln);
   mpz_init (mi);
   mpz_init (invp);
+
+  /* Set in the ropt_poly structure the fields that derive directly from
+   * our arguments */
+  mpz_set(poly->cpoly->n, N);
+  mpz_poly_set_zero(F);
+  mpz_poly_setcoeff(F, d, ad);
+  mpz_poly_set_mpz_ab(G, m, p); /* sets to m-px */
+  mpz_poly_neg(G, G); /* we want px-m */
+
+
   mpz_pow_ui (mi, m, d);
 
-  mpz_ptr lc = mpz_poly_lc_w(poly->f);
+
+  mpz_ptr lc = mpz_poly_lc_w(F);
 
   if (mpz_cmp_ui (lc, 0) < 0)
     mpz_abs (lc, lc);
@@ -380,9 +385,9 @@ Lemma21 ( ropt_poly_ptr poly,
   
   for (i = d - 1; i >= 0; i--)
   {
-    mpz_ptr ai = mpz_poly_coeff(poly->f, i);
+    mpz_ptr ai = mpz_poly_coeff(F, i);
     /* invariant: mi = m^(i+1) */
-    mpz_mul (ai, mpz_poly_coeff_const(poly->f, i+1), mi);
+    mpz_mul (ai, mpz_poly_coeff_const(F, i+1), mi);
     mpz_sub (r, r, ai);
     ASSERT (mpz_divisible_p (r, p));
     mpz_divexact (r, r, p);

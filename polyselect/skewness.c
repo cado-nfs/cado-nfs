@@ -49,7 +49,7 @@ compute_skewness (char *input_file, char *output_file)
         cado_poly_clear (p);
         exit (EXIT_FAILURE);
       }
-    cado_poly_fprintf (of, p, "");
+    cado_poly_fprintf (of, "", p);
     cado_poly_clear (p);
   }
 } 

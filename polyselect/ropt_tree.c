@@ -152,7 +152,7 @@ new_node ( void )
   pnode->firstchild = pnode->nextsibling = pnode->parent = NULL;
   pnode->r = NULL;
   pnode->roottype = NULL;
-  pnode->u = pnode->v = pnode->nr = pnode->e = 0;
+  pnode->u = pnode->v = pnode->nr = 0; // pnode->e = 0;
   pnode->val = 0.0;
   return pnode;
 }
@@ -243,7 +243,7 @@ insert_node ( node *parent,
     (*currnode)->r[0] = r;
     (*currnode)->roottype[0] = k;
     (*currnode)->nr += 1;
-    (*currnode)->e = curr_e;
+    // (*currnode)->e = curr_e;
     /* such (u, v) is new, hence we inheritate the val from its parent. */
     if (k == 2)
       (*currnode)->val += 1.0 / (double) pe + (*currnode)->parent->val;
@@ -281,358 +281,6 @@ free_node ( node **ptr )
     free (*ptr);
   }
 }
-
-
-/**
- * Create priority queue for best sublattices of length len.
- */
-void
-new_sublattice_pq ( sublattice_pq **ppqueue,
-                    unsigned long len )
-{
-  if ( len < 2 ) {
-    fprintf(stderr,"Error: len < 2 in new_sublattice_pq()\n");
-    exit(1);
-  }
-
-  (*ppqueue) = (sublattice_pq *) malloc (sizeof (sublattice_pq));
-  if ( (*ppqueue) == NULL) {
-    fprintf(stderr,"Error: malloc failed in new_sublattice_pq()\n");
-    exit(1);
-  }
-
-  (*ppqueue)->len = len;
-
-  (*ppqueue)->u = (mpz_t *) malloc (len* sizeof (mpz_t));
-  (*ppqueue)->v = (mpz_t *) malloc (len* sizeof (mpz_t));
-  (*ppqueue)->val = (float *) malloc (len* sizeof (float));
-  (*ppqueue)->modulus = (mpz_t *) malloc (len* sizeof (mpz_t));
-  if ( (*ppqueue)->u == NULL || (*ppqueue)->v == NULL ||
-       (*ppqueue)->v == NULL || (*ppqueue)->val == NULL ) {
-    fprintf(stderr,"Error: malloc failed in new_sublattice_pq()\n");
-    exit(1);
-  }
-
-  int i;
-  for (i = 0; i < (*ppqueue)->len; i++) {
-    mpz_init ( (*ppqueue)->u[i] );
-    mpz_init ( (*ppqueue)->v[i] );
-    mpz_init ( (*ppqueue)->modulus[i] );
-  }
-
-  mpz_set_ui ( (*ppqueue)->u[0], 0 );
-  mpz_set_ui ( (*ppqueue)->v[0], 0 );
-  mpz_set_ui ( (*ppqueue)->modulus[0], 0 );
-  (*ppqueue)->val[0] = -FLT_MAX;
-  (*ppqueue)->used = 1; // u[0] and v[0] are null elements
-}
-
-
-/**
- * Create priority queue for best sublattices of length len.
- */
-void
-free_sublattice_pq ( sublattice_pq **ppqueue )
-{
-  int i;
-  for (i = 0; i < (*ppqueue)->len; i++)
-  {
-    mpz_clear ( (*ppqueue)->u[i] );
-    mpz_clear ( (*ppqueue)->v[i] );
-    mpz_clear ( (*ppqueue)->modulus[i] );
-  }
-
-  free ( (*ppqueue)->val );
-  free ( (*ppqueue)->u );
-  free ( (*ppqueue)->v );
-  free ( (*ppqueue)->modulus );
-  free ( *ppqueue );
-}
-
-
-/**
- * Sift-up to add, if the queue is not full.
- */
-static inline void
-insert_sublattice_pq_up ( sublattice_pq *pqueue,
-                          mpz_t u,
-                          mpz_t v,
-                          mpz_t mod,
-                          float val )
-{
-  int i;
-
-  for ( i = pqueue->used;
-        val < pqueue->val[pq_parent(i)];
-        i /= 2 ) {
-
-    mpz_set ( pqueue->u[i], pqueue->u[pq_parent(i)] );
-    mpz_set ( pqueue->v[i], pqueue->v[pq_parent(i)] );
-    mpz_set ( pqueue->modulus[i], pqueue->modulus[pq_parent(i)] );
-    pqueue->val[i] = pqueue->val[pq_parent(i)];
-  }
-
-  mpz_set (pqueue->u[i], u);
-  mpz_set (pqueue->v[i], v);
-  mpz_set (pqueue->modulus[i], mod);
-  pqueue->val[i] = val;
-  pqueue->used ++;
-}
-
-
-/**
- * Sift-down, if the heap is full.
- */
-static inline void
-insert_sublattice_pq_down ( sublattice_pq *pqueue,
-                            mpz_t u,
-                            mpz_t v,
-                            mpz_t mod,
-                            float val )
-{
-  int i, l;
-
-  for (i = 1; i*2 < pqueue->used; i = l) {
-
-    l = (i << 1);
-
-    /* right > left ? */
-    if ( (l+1) < pqueue->used &&
-         pqueue->val[l+1] <= pqueue->val[l] )
-      l ++;
-
-    /* switch larger child with parent */
-    if ( (pqueue->val[l] < val) ||
-         (pqueue->val[l] == val && mpz_cmp (pqueue->u[l], u) > 0) ) {
-      mpz_set (pqueue->u[i], pqueue->u[l]);
-      mpz_set (pqueue->v[i], pqueue->v[l]);
-      mpz_set (pqueue->modulus[i], pqueue->modulus[l]);
-      pqueue->val[i] = pqueue->val[l];
-    }
-    else
-      break;
-  }
-
-  mpz_set (pqueue->u[i], u);
-  mpz_set (pqueue->v[i], v);
-  mpz_set (pqueue->modulus[i], mod);
-  pqueue->val[i] = val;
-}
-
-
-/**
- * Insert to the priority queue.
- */
-void
-insert_sublattice_pq ( sublattice_pq *pqueue,
-                       mpz_t u,
-                       mpz_t v,
-                       mpz_t mod,
-                       float val )
-{
-  /*
-    gmp_fprintf (stderr, "# Debug: inserting (%Zd, %Zd), val: %.2f, "
-    "used: %d, len: %d\n", u, v, val,
-    pqueue->used, pqueue->len);
-  */
-  /* queue is full,  */
-  if (pqueue->len == pqueue->used) {
-    if ( val >= pqueue->val[1] ) {
-      insert_sublattice_pq_down (pqueue, u, v, mod, val);
-    }
-  }
-
-  /* queue is not full, sift-up */
-  else if (pqueue->len > pqueue->used) {
-    insert_sublattice_pq_up (pqueue, u, v, mod, val);
-  }
-  else {
-    fprintf(stderr,"Error: error (pqueue->len < pqueue->used) "
-            "in insert_sublattice_pq()\n");
-    exit(1);
-  }
-}
-
-
-/**
- * Create priority queue for sublattices over a single p^e.
- */
-void
-new_single_sublattice_pq ( single_sublattice_pq **ppqueue,
-                           unsigned long len )
-{
-  if ( len < 1 ) {
-    fprintf(stderr,"Error: len < 1 in new_single_sublattice_pq()\n");
-    exit(1);
-  }
-
-  (*ppqueue) = (single_sublattice_pq *) malloc (
-    sizeof(single_sublattice_pq) );
-  if ( (*ppqueue) == NULL) {
-    fprintf(stderr,"Error: malloc failed in new_single_sublattice_pq()\n");
-    exit(1);
-  }
-
-  (*ppqueue)->len = len;
-  (*ppqueue)->u = (unsigned int *) malloc (len * sizeof (unsigned int));
-  (*ppqueue)->v = (unsigned int *) malloc (len * sizeof (unsigned int));
-  (*ppqueue)->e = (char *) malloc (len * sizeof (char));
-  (*ppqueue)->val = (float *) malloc (len * sizeof (float));
-
-  if ( (*ppqueue)->u == NULL ||
-       (*ppqueue)->v == NULL ||
-       (*ppqueue)->e == NULL ||
-       (*ppqueue)->val == NULL ) {
-    fprintf(stderr,"Error: malloc failed in new_single_sublattice_pq()\n");
-    exit(1);
-  }
-
-  /* u[0] and v[0] are null elements */
-  (*ppqueue)->u[0] = 0;
-  (*ppqueue)->v[0] = 0;
-  (*ppqueue)->e[0] = 0;
-  (*ppqueue)->val[0] = -FLT_MAX;
-  (*ppqueue)->used = 1;
-}
-
-
-/**
- * Free
- */
-void
-free_single_sublattice_pq ( single_sublattice_pq **ppqueue )
-{
-  free ( (*ppqueue)->u );
-  free ( (*ppqueue)->v );
-  free ( (*ppqueue)->e );
-  free ( (*ppqueue)->val );
-  free ( *ppqueue );
-}
-
-
-/**
- * Sift-up to add, if the queue is not full.
- */
-static inline void
-insert_single_sublattice_pq_up ( single_sublattice_pq *pqueue,
-                                 unsigned int u,
-                                 unsigned int v,
-                                 float val,
-                                 char e )
-{
-  int k;
-
-  for ( k = pqueue->used;
-        val < pqueue->val[pq_parent(k)];
-        k /= 2 )
-  {
-    pqueue->u[k] = pqueue->u[pq_parent(k)];
-    pqueue->v[k] = pqueue->v[pq_parent(k)];
-    pqueue->e[k] = pqueue->e[pq_parent(k)];
-    pqueue->val[k] = pqueue->val[pq_parent(k)];
-  }
-
-  pqueue->u[k] = u;
-  pqueue->v[k] = v;
-  pqueue->e[k] = e;
-  pqueue->val[k] = val;
-
-  pqueue->used ++;
-}
-
-
-/**
- * Sift-down, if the heap is full.
- */
-static inline void
-insert_single_sublattice_pq_down ( single_sublattice_pq *pqueue,
-                                   unsigned int u,
-                                   unsigned int v,
-                                   float val,
-                                   char e )
-{
-  int k, l;
-
-  for (k = 1; k*2 < pqueue->used; k = l) {
-
-    l = (k << 1);
-
-    /* right < left ? */
-    if ( (l+1) < pqueue->used &&
-         (pqueue->val[l+1] < pqueue->val[l]) )
-      l ++;
-
-    /* switch smaller child with parent */
-    if ( pqueue->val[l] < val ) {
-
-      pqueue->u[k] = pqueue->u[l];
-      pqueue->v[k] = pqueue->v[l];
-      pqueue->e[k] = pqueue->e[l];
-      pqueue->val[k] = pqueue->val[l];
-    }
-    else
-      break;
-  }
-  pqueue->u[k] = u;
-  pqueue->v[k] = v;
-  pqueue->e[k] = e;
-  pqueue->val[k] = val;
-}
-
-
-/**
- * Insert to the priority queue.
- */
-void
-insert_single_sublattice_pq ( single_sublattice_pq *pqueue,
-                              unsigned int u,
-                              unsigned int v,
-                              float val,
-                              char e )
-{
-
-  /* queue is full,  */
-  if (pqueue->len == pqueue->used) {
-    if ( val > pqueue->val[1] ) {
-      insert_single_sublattice_pq_down (pqueue, u, v, val, e);
-    }
-  }
-  /* queue is not full, sift-up */
-  else if (pqueue->len > pqueue->used) {
-    insert_single_sublattice_pq_up (pqueue, u, v, val, e);
-  }
-  else {
-    fprintf (stderr, "Error: error (pqueue->len < pqueue->used) "
-             "in insert_single_sublattice_pq()\n");
-    exit(1);
-  }
-}
-
-
-/**
- * Extract the max of the priority queue.
- */
-void
-extract_single_sublattice_pq ( single_sublattice_pq *pqueue,
-                               unsigned int *u,
-                               unsigned int *v,
-                               float *val,
-                               char *e )
-{
-  /* don't extract u[0] since it is just a placeholder. */
-  pqueue->used --;
-  (*u) = pqueue->u[1];
-  (*v) = pqueue->v[1];
-  (*val) = pqueue->val[1];
-  (*e) = pqueue->e[1];
-
-  insert_single_sublattice_pq_down ( pqueue,
-                                     pqueue->u[pqueue->used],
-                                     pqueue->v[pqueue->used],
-                                     pqueue->val[pqueue->used],
-                                     pqueue->e[pqueue->used] );
-}
-
 
 /**
  * Create priority queue for sublattices with best alpha.
@@ -714,9 +362,9 @@ free_alpha_pq ( alpha_pq **ppqueue )
 static inline void
 insert_alpha_pq_up ( alpha_pq *pqueue,
                      int w,
-                     mpz_t u,
-                     mpz_t v,
-                     mpz_t modulus,
+                     mpz_srcptr u,
+                     mpz_srcptr v,
+                     mpz_srcptr modulus,
                      double alpha )
 {
   int k;
@@ -746,9 +394,9 @@ insert_alpha_pq_up ( alpha_pq *pqueue,
 static inline void
 insert_alpha_pq_down ( alpha_pq *pqueue,
                        int w,
-                       mpz_t u,
-                       mpz_t v,
-                       mpz_t modulus,
+                       mpz_srcptr u,
+                       mpz_srcptr v,
+                       mpz_srcptr modulus,
                        double alpha )
 {
   int k, l;
@@ -788,9 +436,9 @@ insert_alpha_pq_down ( alpha_pq *pqueue,
 void
 extract_alpha_pq ( alpha_pq *pqueue,
                    int *w,
-                   mpz_t u,
-                   mpz_t v,
-                   mpz_t modulus,
+                   mpz_ptr u,
+                   mpz_ptr v,
+                   mpz_ptr modulus,
                    double *alpha )
 {
   /* don't extract u[0] since it is just a placeholder. */
@@ -816,9 +464,9 @@ extract_alpha_pq ( alpha_pq *pqueue,
 void
 insert_alpha_pq ( alpha_pq *pqueue,
                   int w,
-                  mpz_t u,
-                  mpz_t v,
-                  mpz_t modulus,
+                  mpz_srcptr u,
+                  mpz_srcptr v,
+                  mpz_srcptr modulus,
                   double alpha )
 {
 
@@ -1159,9 +807,9 @@ free_MurphyE_pq ( MurphyE_pq **ppqueue )
 static inline void
 insert_MurphyE_pq_up ( MurphyE_pq *pqueue,
                        int w,
-                       mpz_t u,
-                       mpz_t v,
-                       mpz_t modulus,
+                       mpz_srcptr u,
+                       mpz_srcptr v,
+                       mpz_srcptr modulus,
                        double E )
 {
   int k;
@@ -1193,9 +841,9 @@ insert_MurphyE_pq_up ( MurphyE_pq *pqueue,
 static inline void
 insert_MurphyE_pq_down ( MurphyE_pq *pqueue,
                          int w,
-                         mpz_t u,
-                         mpz_t v,
-                         mpz_t modulus,
+                         mpz_srcptr u,
+                         mpz_srcptr v,
+                         mpz_srcptr modulus,
                          double E )
 {
   int k, l;
@@ -1237,9 +885,9 @@ insert_MurphyE_pq_down ( MurphyE_pq *pqueue,
 void
 extract_MurphyE_pq ( MurphyE_pq *pqueue,
                      int *w,
-                     mpz_t u,
-                     mpz_t v,
-                     mpz_t modulus,
+                     mpz_ptr u,
+                     mpz_ptr v,
+                     mpz_ptr modulus,
                      double *E )
 {
   /* don't extract u[0] since it is just a placeholder. */
@@ -1265,9 +913,9 @@ extract_MurphyE_pq ( MurphyE_pq *pqueue,
 void
 insert_MurphyE_pq ( MurphyE_pq *pqueue,
                     int w,
-                    mpz_t u,
-                    mpz_t v,
-                    mpz_t modulus,
+                    mpz_srcptr u,
+                    mpz_srcptr v,
+                    mpz_srcptr modulus,
                     double E )
 {
 

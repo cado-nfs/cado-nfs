@@ -76,7 +76,7 @@ endif()
 set(CADO_NFS_TEST_KEYWORDS_LAST_WINS TIMEOUT AVOID_CONCURRENT)
 set(CADO_NFS_TEST_KEYWORDS_FIRST_WINS_NOISY WORKING_DIRECTORY TEST_NAME)
 
-macro(cado_set_test_timeout TEST_NAME TIMEOUT)
+function(cado_set_test_timeout TEST_NAME TIMEOUT)
     if(TIMEOUT_SCALE)
         MATH(EXPR scaled_timeout "${TIMEOUT}*${TIMEOUT_SCALE}")
         set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT
@@ -84,11 +84,211 @@ macro(cado_set_test_timeout TEST_NAME TIMEOUT)
     else()
         set_property(TEST ${TEST_NAME} PROPERTY TIMEOUT ${TIMEOUT})
     endif()
+endfunction()
+
+
+set(CADO_NFS_TEST_KEYWORDS_USUAL
+    # these args all thare the same kind of treatment in cado-nfs tests:
+    # only one argument are accepted, and they get propagated to diverted
+    # tests.
+    EXPECT_SHA1
+    SHA1_ON_REGEXP_LINES
+    STDIN
+    TIMEOUT
+    WORKING_DIRECTORY
+)
+
+set(CADO_NFS_TEST_KEYWORDS_MULTI
+    # pretty much the same, but multi args are ok (and expected)
+    ENVIRONMENT
+    PRECOMMAND
+    ARGUMENTS
+)
+
+set(CADO_NFS_TEST_KEYWORDS_FLAGS
+    NO_DEFAULT_RUN
+    AVOID_CONCURRENT
+    EXPECT_FAIL
+    PROVIDE_TEMPORARY_WDIR
+)
+
+set(CADO_NFS_TEST_KEYWORDS_DO_NOT_PROPAGATE
+    NO_DEFAULT_RUN
+)
+
+set(CADO_NFS_TEST_KEYWORDS_SPECIAL_PROPAGATE_RULES
+    ENVIRONMENT
+    PRECOMMAND
+    ARGUMENTS
+    EXECUTABLE
+)
+
+list(APPEND CADO_NFS_TEST_KEYWORDS_FIRST_WINS_NOISY
+    ${CADO_NFS_TEST_KEYWORDS_USUAL})
+
+
+macro(cado_nfs_test_propagate_ARGUMENTS)
+    # message(STATUS "propagating ARGUMENTS for ${TEST_NAME} ; ${TEST_BASE}_EXECUTABLE=${${TEST_BASE}_EXECUTABLE}; ${TEST_BASE}_ARGUMENTS=${${TEST_BASE}_ARGUMENTS}; APPEND_ARGUMENTS=${APPEND_ARGUMENTS}")
+    if (NOT nARGUMENTS GREATER 0)
+        set(ARGUMENTS ${${TEST_BASE}_ARGUMENTS} ${APPEND_ARGUMENTS})
+        list(LENGTH ARGUMENTS nARGUMENTS)
+    elseif (nAPPEND_ARGUMENTS)
+        message(FATAL_ERROR "ARGUMENTS and APPEND_ARGUMENTS are incompatible")
+    endif()
 endmacro()
 
-macro(cado_define_test)
-    # This macro is appropriate for a test which consists in running a
-    # binary. The different ways to call this macro are:
+macro(cado_nfs_test_propagate_ENVIRONMENT)
+    if (NOT nENVIRONMENT GREATER 0)
+        set(ENVIRONMENT ${${TEST_BASE}_ENVIRONMENT} ${APPEND_ENVIRONMENT})
+        list(LENGTH ENVIRONMENT nENVIRONMENT)
+    elseif (nAPPEND_ENVIRONMENT)
+        message(FATAL_ERROR "ENVIRONMENT and APPEND_ENVIRONMENT are incompatible")
+    endif()
+endmacro()
+
+macro(cado_nfs_test_propagate_PRECOMMAND)
+    if (NOT nPRECOMMAND GREATER 0)
+        set(PRECOMMAND ${PREPEND_PRECOMMAND} ${${TEST_BASE}_PRECOMMAND})
+        list(LENGTH PRECOMMAND nPRECOMMAND)
+    elseif (nPREPEND_PRECOMMAND)
+        message(FATAL_ERROR "PRECOMMAND and PREPEND_PRECOMMAND are incompatible")
+    endif()
+endmacro()
+
+macro(cado_nfs_test_propagate_EXECUTABLE)
+    set(EXECUTABLE ${${TEST_BASE}_EXECUTABLE})
+endmacro()
+
+
+macro(cado_nfs_test_process_EXPECT_SHA1)
+    list(APPEND wrapper_args --expect-sha1 ${EXPECT_SHA1})
+endmacro()
+
+macro(cado_nfs_test_process_SHA1_ON_REGEXP_LINES)
+    if(NOT EXPECT_SHA1)
+        message(FATAL_ERROR "SHA1_ON_REGEXP_LINES ignored if EXPECT_SHA1 is not set")
+    endif()
+    list(APPEND wrapper_args --filter-output "${SHA1_ON_REGEXP_LINES}")
+endmacro()
+
+macro(cado_nfs_test_process_STDIN)
+    list(APPEND wrapper_args --stdin ${STDIN})
+endmacro()
+
+function(cado_nfs_test_process_AVOID_CONCURRENT)
+    set(LOCKED_RESOURCES)
+    set(n ${AVOID_CONCURRENT})
+    if(n GREATER ${test_concurrency_tolerance})
+        set(n ${test_concurrency_tolerance})
+    endif()
+    foreach(j RANGE 1 ${n})
+        MATH(EXPR testmod "(${test_index} + ${j}) % ${test_concurrency_tolerance}")
+        LIST(APPEND LOCKED_RESOURCES lock.${testmod})
+    endforeach()
+    if(n GREATER_EQUAL 2)
+        message(STATUS "Test ${TEST_NAME} locks resources ${LOCKED_RESOURCES}")
+    endif()
+    set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK
+        ${LOCKED_RESOURCES})
+    # MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
+    # set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK lock.${testmod})
+endfunction()
+
+function(cado_nfs_test_process_TIMEOUT)
+    cado_set_test_timeout(${TEST_NAME} ${TIMEOUT})
+endfunction()
+
+macro(cado_nfs_test_process_EXPECT_FAIL)
+    # This gets called once before add_test, and once after
+    if(${TEST_NAME}_TEST_EXISTS)
+        set_tests_properties(${TEST_NAME} PROPERTIES WILL_FAIL 1)
+    else()
+        LIST(APPEND wrapper_args --abort-to-fail)
+    endif()
+endmacro()
+
+macro(cado_nfs_test_process_PROVIDE_TEMPORARY_WDIR)
+    set(provide_wdir ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env wdir)
+endmacro()
+
+macro(cado_nfs_test_process_keyword ARG)
+    if(n${ARG} GREATER 0)
+        cmake_language(CALL cado_nfs_test_process_${ARG} ${ARGN})
+    endif()
+endmacro()
+
+macro(cado_nfs_test_compute_lengths)
+    foreach(x
+            ${CADO_NFS_TEST_KEYWORDS_USUAL}
+            ${CADO_NFS_TEST_KEYWORDS_MULTI}
+            ${CADO_NFS_TEST_KEYWORDS_FLAGS}
+        )
+        list(LENGTH ${x} n${x})
+    endforeach()
+endmacro()
+
+macro(cado_nfs_test_propagate_all)
+    foreach(x
+            ${CADO_NFS_TEST_KEYWORDS_USUAL}
+            ${CADO_NFS_TEST_KEYWORDS_MULTI}
+            ${CADO_NFS_TEST_KEYWORDS_FLAGS}
+            EXECUTABLE
+        )
+        if (${x} IN_LIST CADO_NFS_TEST_KEYWORDS_DO_NOT_PROPAGATE)
+        elseif (${x} IN_LIST
+                CADO_NFS_TEST_KEYWORDS_SPECIAL_PROPAGATE_RULES)
+            cmake_language(CALL cado_nfs_test_propagate_${x})
+            list(LENGTH ${x} n${x})
+        else()
+            if (NOT n${x} GREATER 0 AND ${TEST_BASE}_${x})
+                # message(STATUS "propagating ${x} from ${TEST_BASE} to ${TEST_NAME}")
+                set(${x} ${${TEST_BASE}_${x}})
+                list(LENGTH ${x} n${x})
+            endif()
+        endif()
+    endforeach()
+endmacro()
+
+macro(cado_nfs_test_process_environment)
+    set(test_env)
+    foreach(v
+            CADO_NFS_SOURCE_DIR
+            CADO_NFS_BINARY_DIR
+            CMAKE_CURRENT_SOURCE_DIR
+            CMAKE_CURRENT_BINARY_DIR
+            PROJECT_BINARY_DIR
+            MAGMA
+            SAGE
+        )
+        if(${v})
+            list(APPEND test_env ${v}=${${v}})
+        endif()
+    endforeach()
+    list(APPEND test_env ${ENVIRONMENT})
+endmacro()
+
+function(cado_nfs_test_print_debug)
+    foreach(x
+            EXECUTABLE
+            IMPLICIT
+            TEST_DEPENDENCIES
+            TARGET_DEPENDENCIES
+            LIBRARIES
+            SOURCES
+            SCRIPT
+            ${CADO_NFS_TEST_KEYWORDS_USUAL}
+            ${CADO_NFS_TEST_KEYWORDS_MULTI}
+            ${CADO_NFS_TEST_KEYWORDS_FLAGS}
+        )
+        # if(n${x})
+        #     message(STATUS "${TEST_NAME}: ${x}=${${x}}")
+        # endif()
+    endforeach()
+endfunction()
+
+function(cado_define_test)
+    # This function is appropriate for a test which consists in running a
+    # binary. The different ways to call this function are:
     # 
     # cado_define_test(SOURCES foo.c bar.c
     #                        [TEST_NAME x]
@@ -164,7 +364,7 @@ macro(cado_define_test)
     # common set of arguments to be passed to all diversions, provided
     # these are defined with APPEND_ARGUMENTS
 
-    # Some additional features have been added after this macro was
+    # Some additional features have been added after this function was
     # documented. We have ENVIRONMENT, PRECOMMAND, as well as their
     # APPEND_ friends.
 
@@ -174,14 +374,14 @@ macro(cado_define_test)
     set(LIBRARIES)
     set(SOURCES)
     set(SCRIPT)
-    set(ARGUMENTS)
-    set(ENVIRONMENT)
-    set(PRECOMMAND)
     set(TEST_NAME)
-    set(WORKING_DIRECTORY)
-    set(NO_DEFAULT_RUN)
-    set(AVOID_CONCURRENT)
-    set(EXPECT_FAIL)
+    foreach(x
+            ${CADO_NFS_TEST_KEYWORDS_USUAL}
+            ${CADO_NFS_TEST_KEYWORDS_MULTI}
+            ${CADO_NFS_TEST_KEYWORDS_FLAGS}
+        )
+        set(${x})
+    endforeach()
     set(current IMPLICIT)
     set(TIMEOUT 20)
     foreach(x ${ARGN})
@@ -195,59 +395,31 @@ macro(cado_define_test)
             SET(current SOURCES)
         elseif ((x STREQUAL "SCRIPT") OR (x STREQUAL "PROGRAM"))
             SET(current SCRIPT)
-        elseif (x STREQUAL "ARGUMENTS")
-            SET(current ARGUMENTS)
-        elseif (x STREQUAL "ENVIRONMENT")
-            SET(current ENVIRONMENT)
-        elseif (x STREQUAL "PRECOMMAND")
-            SET(current PRECOMMAND)
         elseif (x STREQUAL "TEST_NAME")
             SET(current TEST_NAME)
-        elseif (x STREQUAL "WORKING_DIRECTORY")
-            SET(current WORKING_DIRECTORY)
-        elseif (x STREQUAL "NO_DEFAULT_RUN")
-            SET(current NO_DEFAULT_RUN)
-            # special, because it's a flag, really
-            set(NO_DEFAULT_RUN 1)
-        elseif (x STREQUAL "AVOID_CONCURRENT")
-            SET(current AVOID_CONCURRENT)
-            set(AVOID_CONCURRENT 1)
-        elseif (x STREQUAL "EXPECT_FAIL")
-            SET(current EXPECT_FAIL)
-            set(EXPECT_FAIL 1)
-        elseif (x STREQUAL "TIMEOUT")
-            SET(current TIMEOUT)
+        elseif (x IN_LIST CADO_NFS_TEST_KEYWORDS_USUAL)
+            set(current ${x})
+        elseif (x IN_LIST CADO_NFS_TEST_KEYWORDS_MULTI)
+            set(current ${x})
+        elseif (x IN_LIST CADO_NFS_TEST_KEYWORDS_FLAGS)
+            set(current ${x})
+            set(${x} 1)
         elseif (current IN_LIST CADO_NFS_TEST_KEYWORDS_LAST_WINS)
             set(${current} ${x})
         else()
             list(APPEND ${current} ${x})
         endif()
     endforeach(x)
-    # do some checking.
-    #message(STATUS "IMPLICIT is ${IMPLICIT}")
-    #message(STATUS "TEST_DEPENDENCIES is ${TEST_DEPENDENCIES}")
-    #message(STATUS "TARGET_DEPENDENCIES is ${TARGET_DEPENDENCIES}")
-    #message(STATUS "LIBRARIES is ${LIBRARIES}")
-    #message(STATUS "SOURCES is ${SOURCES}")
-    #message(STATUS "SCRIPT is ${SCRIPT}")
-    #message(STATUS "ARGUMENTS is ${ARGUMENTS}")
-    #message(STATUS "ENVIRONMENT is ${ENVIRONMENT}")
-    #message(STATUS "PRECOMMAND is ${PRECOMMAND}")
-    #message(STATUS "TEST_NAME is ${TEST_NAME}")
-    #message(STATUS "WORKING_DIRECTORY is ${WORKING_DIRECTORY}")
-    #message(STATUS "NO_DEFAULT_RUN is ${NO_DEFAULT_RUN}")
+
     list(LENGTH TEST_NAME nTEST_NAME)
-    list(LENGTH WORKING_DIRECTORY nWORKING_DIRECTORY)
-    list(LENGTH TIMEOUT nTIMEOUT)
     list(LENGTH SOURCES nSOURCES)
     list(LENGTH SCRIPT nSCRIPT)
     list(LENGTH LIBRARIES nLIBRARIES)
     list(LENGTH IMPLICIT nIMPLICIT)
-    list(LENGTH NO_DEFAULT_RUN nNO_DEFAULT_RUN)
     list(LENGTH TARGET_DEPENDENCIES nTARGET_DEPENDENCIES)
-    list(LENGTH ARGUMENTS nARGUMENTS)
-    list(LENGTH ENVIRONMENT nENVIRONMENT)
-    list(LENGTH PRECOMMAND nPRECOMMAND)
+
+    cado_nfs_test_compute_lengths()
+
     # direct the implicit parameters somewhere
     if(nIMPLICIT GREATER 0) 
         if (((nSOURCES GREATER 0) OR (nSCRIPT GREATER 0)) AND (nTEST_NAME GREATER 0))
@@ -310,10 +482,13 @@ macro(cado_define_test)
             message(FATAL_ERROR "cannot find a name for test")
         endif()
     endif()
-    if(nNO_DEFAULT_RUN GREATER 1)
-        message(FATAL_ERROR "discarded arguments after NO_DEFAULT_RUN for test ${TEST_NAME}")
-        set(NO_DEFAULT_RUN 1)
-    endif()
+
+    foreach(x ${CADO_NFS_TEST_KEYWORDS_FLAGS})
+        if(n${x} GREATER 1)
+            message(FATAL_ERROR "discarded arguments after ${x} for test ${TEST_NAME}")
+            set(${x} 1)
+        endif()
+    endforeach()
 
     # If we have a binary to build, then the meaning of
     # TARGET_DEPENDENCIES is most probably that we want the binary target
@@ -331,7 +506,22 @@ macro(cado_define_test)
 
     if(NOT TEST_NAME)
         message(FATAL_ERROR "could not find a test name")
+    endif()
+
+    if (nSCRIPT EQUAL 0)
+        set(EXECUTABLE ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME})
+    else()
+        set(binary ${SCRIPT})
+        if (${SCRIPT} MATCHES "\\.sh$")
+            set(binary env bash ${SCRIPT})
         endif()
+        set(EXECUTABLE ${binary})
+    endif()
+
+    cado_nfs_test_propagate_all()
+
+    cado_nfs_test_print_debug()
+
     # even script tests may define target dependencies, even though it's
     # probably of little use.
     add_custom_target(${TEST_NAME}_dependencies)
@@ -346,72 +536,56 @@ macro(cado_define_test)
         # endif()
     endif()
 
-    if (nSCRIPT EQUAL 0)
-        set(${TEST_NAME}_EXECUTABLE ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME})
-    else()
-        set(binary ${SCRIPT})
-        if (${SCRIPT} MATCHES "\\.sh$")
-            set(binary env bash ${SCRIPT})
-        endif()
-        set(${TEST_NAME}_EXECUTABLE ${binary})
-    endif()
-
     # save for use by diverted tests
-    set(${TEST_NAME}_ARGUMENTS ${ARGUMENTS})
-    set(${TEST_NAME}_ENVIRONMENT ${ENVIRONMENT})
-    set(${TEST_NAME}_PRECOMMAND ${PRECOMMAND})
-    set(${TEST_NAME}_AVOID_CONCURRENT ${AVOID_CONCURRENT})
-    set(${TEST_NAME}_EXPECT_FAIL ${EXPECT_FAIL})
-    set(${TEST_NAME}_TIMEOUT ${TIMEOUT})
+    foreach(x
+            ${CADO_NFS_TEST_KEYWORDS_USUAL}
+            ${CADO_NFS_TEST_KEYWORDS_MULTI}
+            ${CADO_NFS_TEST_KEYWORDS_FLAGS}
+            EXECUTABLE
+        )
+        set(${TEST_NAME}_${x} ${${x}} PARENT_SCOPE)
+    endforeach()
 
     if(NOT NO_DEFAULT_RUN)
-        set(test_env env)
-        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR MAGMA SAGE)
-            if(${v})
-                set(test_env ${test_env} ${v}=${${v}})
-            endif()
-        endforeach()
-        if (nENVIRONMENT GREATER 0)
-            set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
-        endif()
+        cado_nfs_test_process_environment()
         MATH(EXPR test_index "${test_index}+1")
-        set(A2F)
-        if(EXPECT_FAIL)
-            list(APPEND A2F ${CADO_NFS_SOURCE_DIR}/tests/abort-to-fail.sh)
-        endif()
-        # remove the pre-call to ${${TEST_NAME}_LOCKF} (right before
-        # A2F), because it doesn't play nicely with TIMEOUT. It's likely
-        # that using RESOURCE_LOCK below is a better idea.
-        set(add_test_args NAME ${TEST_NAME} COMMAND ${test_env} ${A2F} ${${TEST_NAME}_PRECOMMAND} ${CADO_NFS_SOURCE_DIR}/tests/test.sh ${${TEST_NAME}_EXECUTABLE} ${ARGUMENTS})
-        if(nWORKING_DIRECTORY GREATER 0)
-            list(APPEND add_test_args WORKING_DIRECTORY ${WORKING_DIRECTORY})
-        endif()
-        add_test(${add_test_args})
-        if(AVOID_CONCURRENT)
-            set(${TEST_NAME}_LOCKED_RESOURCES)
-            set(n ${AVOID_CONCURRENT})
-            if(n GREATER ${test_concurrency_tolerance})
-                set(n ${test_concurrency_tolerance})
-            endif()
-            foreach(j RANGE 1 ${n})
-                MATH(EXPR testmod "(${test_index} + ${j}) % ${test_concurrency_tolerance}")
-                LIST(APPEND ${TEST_NAME}_LOCKED_RESOURCES lock.${testmod})
-            endforeach()
-            if(n GREATER_EQUAL 2)
-                message(STATUS "Test ${TEST_NAME} locks resources ${${TEST_NAME}_LOCKED_RESOURCES}")
-            endif()
-            set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK
-                ${${TEST_NAME}_LOCKED_RESOURCES})
-            # set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK lock.${testmod})
-        endif()
         # if(CADO_NFS_LOCK_TOOL AND AVOID_CONCURRENT)
         #     MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
         #     set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock.${testmod})
         # endif()
-        if(nTIMEOUT GREATER 0)
-            cado_set_test_timeout(${TEST_NAME} ${TIMEOUT})
+
+        set(wrapper_args)
+        set(provide_wdir)
+
+        cado_nfs_test_process_keyword(EXPECT_SHA1)
+        cado_nfs_test_process_keyword(SHA1_ON_REGEXP_LINES)
+        cado_nfs_test_process_keyword(STDIN)
+        cado_nfs_test_process_keyword(EXPECT_FAIL)
+        cado_nfs_test_process_keyword(PROVIDE_TEMPORARY_WDIR)
+
+        set(add_test_args
+            NAME ${TEST_NAME}
+            COMMAND
+                env ${test_env}
+                ${PRECOMMAND}
+                ${provide_wdir}
+                ${CADO_NFS_SOURCE_DIR}/tests/test.sh
+                ${wrapper_args}
+                --
+                ${EXECUTABLE}
+                ${ARGUMENTS}
+            )
+        if(nWORKING_DIRECTORY GREATER 0)
+            list(APPEND add_test_args WORKING_DIRECTORY ${WORKING_DIRECTORY})
         endif()
+        add_test(${add_test_args})
+
+        cado_nfs_test_process_keyword(AVOID_CONCURRENT)
+        cado_nfs_test_process_keyword(TIMEOUT)
+
+
         set(${TEST_NAME}_TEST_EXISTS 1)
+        set(${TEST_NAME}_TEST_EXISTS 1 PARENT_SCOPE)
         if(nTARGET_DEPENDENCIES GREATER 0)
             # seems that we need set_tests_properties to take only a
             # ;-separated list here.
@@ -420,25 +594,24 @@ macro(cado_define_test)
             set_tests_properties (${TEST_NAME} PROPERTIES DEPENDS "${all_deps}")
         endif()
         set_tests_properties(${TEST_NAME} PROPERTIES SKIP_RETURN_CODE 125)
-        if (EXPECT_FAIL)
-            set_tests_properties(${TEST_NAME} PROPERTIES WILL_FAIL 1)
-        endif()
+        cado_nfs_test_process_keyword(EXPECT_FAIL)
     else()
         # There is a special case. Even a NO_DEFAULT_RUN test may have
         # test dependencies, because that's a handy way to have all
         # inherited tests depend on these.
-        set(${TEST_NAME}_TEST_DEPENDENCIES ${TEST_DEPENDENCIES})
+        set(${TEST_NAME}_TEST_DEPENDENCIES ${TEST_DEPENDENCIES}
+            PARENT_SCOPE)
     endif()
         if(nTIMEOUT GREATER 0)
             # message(STATUS "Timeout for ${TEST_NAME} is ${TIMEOUT}")
         endif()
-endmacro()
+endfunction()
 
-macro(cado_divert_test TEST_BASE DIVERSION)
-    # This macro is appropriate when a test defined by
+function(cado_divert_test TEST_BASE DIVERSION)
+    # This function is appropriate when a test defined by
     # cado_define_test (possibly with NO_DEFAULT_RUN) needs to be
     # called several times with various parameter sets.
-    # The different ways to call this macro are:
+    # The different ways to call this function are:
     # 
     # optional arguments:
     #           TEST_DEPENDENCIES
@@ -463,27 +636,21 @@ macro(cado_divert_test TEST_BASE DIVERSION)
     # NOTE that if the base test name does indeed correspond to a test
     # (that is, it was not defined with NO_DEFAULT_RUN), then the
     # diverted test is made to depend on this base test.
-    set(ARGUMENTS)
-    set(ENVIRONMENT)
-    set(PRECOMMAND)
     set(APPEND_ARGUMENTS)
     set(APPEND_ENVIRONMENT)
     set(PREPEND_PRECOMMAND)
     set(TEST_DEPENDENCIES)
     set(TARGET_DEPENDENCIES)
-    set(NO_DEFAULT_RUN)
-    set(AVOID_CONCURRENT)
-    set(EXPECT_FAIL)
+    foreach(x
+            ${CADO_NFS_TEST_KEYWORDS_USUAL}
+            ${CADO_NFS_TEST_KEYWORDS_MULTI}
+            ${CADO_NFS_TEST_KEYWORDS_FLAGS}
+        )
+        set(${x})
+    endforeach()
     set(current ARGUMENTS)
-    set(TIMEOUT)
     foreach(x ${ARGN})
-        if (x STREQUAL "ARGUMENTS")
-            SET(current ARGUMENTS)
-        elseif (x STREQUAL "ENVIRONMENT")
-            SET(current ENVIRONMENT)
-        elseif (x STREQUAL "PRECOMMAND")
-            SET(current PRECOMMAND)
-        elseif (x STREQUAL "APPEND_ARGUMENTS")
+        if (x STREQUAL "APPEND_ARGUMENTS")
             SET(current APPEND_ARGUMENTS)
         elseif (x STREQUAL "APPEND_ENVIRONMENT")
             SET(current APPEND_ENVIRONMENT)
@@ -493,74 +660,32 @@ macro(cado_divert_test TEST_BASE DIVERSION)
             SET(current TEST_DEPENDENCIES)
         elseif (x STREQUAL "TARGET_DEPENDENCIES")
             SET(current TARGET_DEPENDENCIES)
-        elseif (x STREQUAL "NO_DEFAULT_RUN")
-            SET(current NO_DEFAULT_RUN)
-            # special, because it's a flag, really
-            set(NO_DEFAULT_RUN 1)
-        elseif (x STREQUAL "AVOID_CONCURRENT")
-            SET(current AVOID_CONCURRENT)
-            set(AVOID_CONCURRENT 1)
-        elseif (x STREQUAL "TIMEOUT")
-            SET(current TIMEOUT)
-        elseif (x STREQUAL "EXPECT_FAIL")
-            SET(current EXPECT_FAIL)
-            set(EXPECT_FAIL 1)
+        elseif (x IN_LIST CADO_NFS_TEST_KEYWORDS_USUAL)
+            set(current ${x})
+        elseif (x IN_LIST CADO_NFS_TEST_KEYWORDS_MULTI)
+            set(current ${x})
+        elseif (x IN_LIST CADO_NFS_TEST_KEYWORDS_FLAGS)
+            set(current ${x})
+            set(${x} 1)
         elseif (current IN_LIST CADO_NFS_TEST_KEYWORDS_LAST_WINS)
             set(${current} ${x})
         else()
             list(APPEND ${current} ${x})
         endif()
     endforeach(x)
-    # do some checking.
-    list(LENGTH TARGET_DEPENDENCIES nTARGET_DEPENDENCIES)
-    list(LENGTH ARGUMENTS nARGUMENTS)
-    list(LENGTH ENVIRONMENT nENVIRONMENT)
-    list(LENGTH PRECOMMAND nPRECOMMAND)
-    list(LENGTH TIMEOUT nTIMEOUT)
-    list(LENGTH APPEND_ARGUMENTS nAPPEND_ARGUMENTS)
-    list(LENGTH APPEND_ENVIRONMENT nAPPEND_ENVIRONMENT)
-    list(LENGTH PREPEND_PRECOMMAND nPREPEND_PRECOMMAND)
-    list(LENGTH NO_DEFAULT_RUN nNO_DEFAULT_RUN)
-    if ((nAPPEND_ARGUMENTS GREATER 0) AND (nARGUMENTS GREATER 0))
-        message(FATAL_ERROR "ARGUMENTS and APPEND_ARGUMENTS are incompatible")
-    endif()
-    if ((nAPPEND_ENVIRONMENT GREATER 0) AND (nENVIRONMENT GREATER 0))
-        message(FATAL_ERROR "ENVIRONMENT and APPEND_ENVIRONMENT are incompatible")
-    endif()
-    if ((nPREPEND_PRECOMMAND GREATER 0) AND (nPRECOMMAND GREATER 0))
-        message(FATAL_ERROR "PRECOMMAND and PREPEND_PRECOMMAND are incompatible")
-    endif()
 
     set(TEST_NAME "${TEST_BASE}_${DIVERSION}")
 
-    if (NOT nARGUMENTS GREATER 0)
-        set(ARGUMENTS ${${TEST_BASE}_ARGUMENTS} ${APPEND_ARGUMENTS})
-        list(LENGTH ARGUMENTS nARGUMENTS)
-    endif()
+    list(LENGTH TARGET_DEPENDENCIES nTARGET_DEPENDENCIES)
+    list(LENGTH APPEND_ARGUMENTS nAPPEND_ARGUMENTS)
+    list(LENGTH APPEND_ENVIRONMENT nAPPEND_ENVIRONMENT)
+    list(LENGTH PREPEND_PRECOMMAND nPREPEND_PRECOMMAND)
 
-    if (NOT nENVIRONMENT GREATER 0)
-        set(ENVIRONMENT ${${TEST_BASE}_ENVIRONMENT} ${APPEND_ENVIRONMENT})
-        list(LENGTH ENVIRONMENT nENVIRONMENT)
-    endif()
+    cado_nfs_test_compute_lengths()
 
-    if (NOT nPRECOMMAND GREATER 0)
-        set(PRECOMMAND ${PREPEND_PRECOMMAND} ${${TEST_BASE}_PRECOMMAND})
-        list(LENGTH PRECOMMAND nPRECOMMAND)
-    endif()
+    cado_nfs_test_propagate_all()
 
-    if (NOT AVOID_CONCURRENT GREATER 0)
-        set(AVOID_CONCURRENT ${${TEST_BASE}_AVOID_CONCURRENT})
-    endif()
-
-    if (NOT EXPECT_FAIL GREATER 0)
-        set(EXPECT_FAIL ${${TEST_BASE}_EXPECT_FAIL})
-    endif()
-
-    if (NOT nTIMEOUT GREATER 0)
-        set(TIMEOUT ${${TEST_BASE}_TIMEOUT})
-        # message(STATUS "Timeout for ${TEST_NAME} is inherited from ${TEST_BASE}: ${TIMEOUT}")
-        list(LENGTH TIMEOUT nTIMEOUT)
-    endif()
+    cado_nfs_test_print_debug()
 
     # we want to define builddep_X unconditionally, depending at least on
     # the dependencies of the base test.
@@ -571,57 +696,56 @@ macro(cado_divert_test TEST_BASE DIVERSION)
         ${CMAKE_BINARY_DIR} --target ${TEST_NAME}_dependencies)
 
 
-    set(${TEST_NAME}_EXECUTABLE ${${TEST_BASE}_EXECUTABLE})
-    set(${TEST_NAME}_ARGUMENTS ${ARGUMENTS})
-    set(${TEST_NAME}_ENVIRONMENT ${ENVIRONMENT})
-    set(${TEST_NAME}_PRECOMMAND ${PRECOMMAND})
-    set(${TEST_NAME}_AVOID_CONCURRENT ${AVOID_CONCURRENT})
-    set(${TEST_NAME}_EXPECT_FAIL ${EXPECT_FAIL})
-    set(${TEST_NAME}_TIMEOUT ${TIMEOUT})
+    # save for use by diverted tests
+    foreach(x
+            ${CADO_NFS_TEST_KEYWORDS_USUAL}
+            ${CADO_NFS_TEST_KEYWORDS_MULTI}
+            ${CADO_NFS_TEST_KEYWORDS_FLAGS}
+            EXECUTABLE
+        )
+        set(${TEST_NAME}_${x} ${${x}} PARENT_SCOPE)
+    endforeach()
 
     if(NOT NO_DEFAULT_RUN)
-        set(test_env env)
-        foreach(v CADO_NFS_SOURCE_DIR CADO_NFS_BINARY_DIR CMAKE_CURRENT_SOURCE_DIR CMAKE_CURRENT_BINARY_DIR PROJECT_BINARY_DIR MAGMA SAGE)
-            if(${v})
-                set(test_env ${test_env} ${v}=${${v}})
-            endif()
-        endforeach()
-        if (nENVIRONMENT GREATER 0)
-            set(test_env ${test_env} ${${TEST_NAME}_ENVIRONMENT})
-        endif()
+        cado_nfs_test_process_environment()
         MATH(EXPR test_index "${test_index}+1")
         # if(CADO_NFS_LOCK_TOOL AND AVOID_CONCURRENT)
         #     MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
         #     set(${TEST_NAME}_LOCKF ${CADO_NFS_LOCK_TOOL} ${PROJECT_BINARY_DIR}/lock.${testmod})
         # endif()
-        set(A2F)
-        if(EXPECT_FAIL)
-            list(APPEND A2F ${CADO_NFS_SOURCE_DIR}/tests/abort-to-fail.sh)
+
+        set(wrapper_args)
+        set(provide_wdir)
+
+        cado_nfs_test_process_keyword(EXPECT_SHA1)
+        cado_nfs_test_process_keyword(SHA1_ON_REGEXP_LINES)
+        cado_nfs_test_process_keyword(STDIN)
+        cado_nfs_test_process_keyword(EXPECT_FAIL)
+        cado_nfs_test_process_keyword(PROVIDE_TEMPORARY_WDIR)
+
+        set(add_test_args
+            NAME ${TEST_NAME}
+            COMMAND
+                env ${test_env}
+                ${PRECOMMAND}
+                ${provide_wdir}
+                ${CADO_NFS_SOURCE_DIR}/tests/test.sh
+                ${wrapper_args}
+                --
+                ${EXECUTABLE}
+                ${ARGUMENTS}
+            )
+        if(nWORKING_DIRECTORY GREATER 0)
+            list(APPEND add_test_args WORKING_DIRECTORY ${WORKING_DIRECTORY})
         endif()
-        # dropping ${${TEST_NAME}_LOCKF} (see in cado_define_test)
-        add_test(NAME ${TEST_NAME} COMMAND ${test_env} ${A2F} ${${TEST_NAME}_PRECOMMAND} ${CADO_NFS_SOURCE_DIR}/tests/test.sh ${${TEST_BASE}_EXECUTABLE} ${ARGUMENTS})
-        if(AVOID_CONCURRENT)
-            set(${TEST_NAME}_LOCKED_RESOURCES)
-            set(n ${AVOID_CONCURRENT})
-            if(n GREATER ${test_concurrency_tolerance})
-                set(n ${test_concurrency_tolerance})
-            endif()
-            foreach(j RANGE 1 ${n})
-                MATH(EXPR testmod "(${test_index} + ${j}) % ${test_concurrency_tolerance}")
-                LIST(APPEND ${TEST_NAME}_LOCKED_RESOURCES lock.${testmod})
-            endforeach()
-            if(n GREATER_EQUAL 2)
-                message(STATUS "Test ${TEST_NAME} locks resources ${${TEST_NAME}_LOCKED_RESOURCES}")
-            endif()
-            set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK
-                ${${TEST_NAME}_LOCKED_RESOURCES})
-            # MATH(EXPR testmod "${test_index} % ${test_concurrency_tolerance}")
-            # set_property(TEST ${TEST_NAME} PROPERTY RESOURCE_LOCK lock.${testmod})
-        endif()
-        if(nTIMEOUT GREATER 0)
-            cado_set_test_timeout(${TEST_NAME} ${TIMEOUT})
-        endif()
+        add_test(${add_test_args})
+
+        cado_nfs_test_process_keyword(AVOID_CONCURRENT)
+        cado_nfs_test_process_keyword(TIMEOUT)
+
+
         set(${TEST_NAME}_TEST_EXISTS 1)
+        set(${TEST_NAME}_TEST_EXISTS 1 PARENT_SCOPE)
         # prepare a ;-separated list for set_tests_properties
         # note that we do not need to make the test depend on
         # builddep_${TEST_BASE}, since we have made ${TEST_NAME}_dependencies
@@ -638,9 +762,7 @@ macro(cado_divert_test TEST_BASE DIVERSION)
         string_join(all_deps ";" ${deps})
         set_tests_properties(${TEST_NAME} PROPERTIES DEPENDS "${all_deps}")
         set_tests_properties(${TEST_NAME} PROPERTIES SKIP_RETURN_CODE 125)
-        if (EXPECT_FAIL)
-            set_tests_properties(${TEST_NAME} PROPERTIES WILL_FAIL 1)
-        endif()
+        cado_nfs_test_process_keyword(EXPECT_FAIL)
     else()
         set(deps ${TEST_DEPENDENCIES})
         if(${TEST_BASE}_TEST_EXISTS)
@@ -648,9 +770,10 @@ macro(cado_divert_test TEST_BASE DIVERSION)
         else()
             list(APPEND deps ${${TEST_BASE}_TEST_DEPENDENCIES})
         endif()
-        set(${TEST_NAME}_TEST_DEPENDENCIES ${deps})
+        set(${TEST_NAME}_TEST_DEPENDENCIES ${deps} PARENT_SCOPE)
     endif()
-endmacro()
+endfunction()
+
 
 add_custom_target(full_dependencies_base)
 add_dependencies(full_dependencies_base
@@ -659,6 +782,11 @@ add_dependencies(full_dependencies_base
         las
         dup1 dup2 purge
         )
+
+set(AVOID_CONCURRENT_UNDER_COVERAGE)
+if(COVERAGE_TEST)
+    set(AVOID_CONCURRENT_UNDER_COVERAGE AVOID_CONCURRENT)
+endif()
 
 # MPI binaries are not properly launched by cado-nfs.py (see #21819)
 if(NOT MINGW AND NOT HAVE_MPI)
@@ -818,8 +946,8 @@ if(NOT HAVE_MPI AND DEFINED ENV{CHECKS_EXPENSIVE})
 #        )
         cado_define_test(full_gfp3
             SCRIPT
-                ${CMAKE_CURRENT_SOURCE_DIR}/provide-wdir.sh  --env t
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_gfp3.sh
+            PROVIDE_TEMPORARY_WDIR
             TARGET_DEPENDENCIES full_p30_dependencies
             lingen_pz sm reconstructlog-dl merge-dl replay-dl numbertheory_tool
         AVOID_CONCURRENT
