@@ -20,7 +20,9 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 # for the other small primes
 set(example_N 412023436986659543855531365332575948179811699844327982845455626433876445565248426198098870423161841879261420247188869492560931776375033421130982397485150944909106910269861031862704114880866970564902903653658867433731720813104105190864254793282601391257624033946373269391)
 polyselect_test(8 -N ${example_N} degree=6 P=1000000 admin=3720
-    admax=3721 nq=7776 TIMEOUT 60)
+    admax=3721 nq=7776 TIMEOUT 120
+    ${AVOID_CONCURRENT_UNDER_COVERAGE}
+)
 endif()
 
 ## we disable the following test since twocubics is not in "make dist"
@@ -74,13 +76,15 @@ cado_divert_test(test_ropt_adv c80msieve
     EXPECT_SHA1 cf2da7482ab71b79b298204a66fcccdb4593c633
 )
 
-# This should take only a few seconds.
+# This should take only a few seconds. Under certain circumstances, it
+# seems to take a lot more...
 cado_divert_test(test_ropt_adv deg6
     APPEND_ARGUMENTS
     -f ${CADO_NFS_SOURCE_DIR}/parameters/polynomials/rsa768.poly
     -v -v -d 6   -amin -4 -amax 4 -e 1 1 -bmax 6 -cmax 12
-    TIMEOUT 120
+    TIMEOUT 240
     EXPECT_SHA1 d451c895d0fbc5cf1a58253235d05151f15c159b
+    ${AVOID_CONCURRENT_UNDER_COVERAGE}
     )
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})

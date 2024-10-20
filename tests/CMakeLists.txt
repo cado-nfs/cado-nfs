@@ -783,6 +783,11 @@ add_dependencies(full_dependencies_base
         dup1 dup2 purge
         )
 
+set(AVOID_CONCURRENT_UNDER_COVERAGE)
+if(COVERAGE_TEST)
+    set(AVOID_CONCURRENT_UNDER_COVERAGE AVOID_CONCURRENT)
+endif()
+
 # MPI binaries are not properly launched by cado-nfs.py (see #21819)
 if(NOT MINGW AND NOT HAVE_MPI)
 

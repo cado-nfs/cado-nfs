@@ -35,6 +35,7 @@ cado_divert_test(test_dup2${sage_opt} c105_30003
     -rels ${CMAKE_CURRENT_SOURCE_DIR}/c105_30003.rels.gz
     -lpbs 25,26
     TIMEOUT 120
+    ${AVOID_CONCURRENT_UNDER_COVERAGE}
     )
 endif()
 

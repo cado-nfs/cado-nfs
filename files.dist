@@ -53,6 +53,7 @@ config/check_types.cmake
 config/clock_gettime.cmake
 config/cxxabi.cmake
 config/cxxwrap.pl.in
+config/detect-coverage.cmake
 config/detect-static-analysis.cmake
 config/execinfo.cmake
 config/fmt.cmake
