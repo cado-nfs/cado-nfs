@@ -215,22 +215,26 @@ step_check() {
     # --no-compress-output is perhaps better for test uploading, as ctest
     # likes to store as zlib but headerless, which is a bit of a pain
 
-    ctest_args="-T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144"
+    ctest_args=(-T Test --no-compress-output --test-output-size-passed 4096 --test-output-size-failed 262144)
 
     if [ "$specific_checks" = "bwc.sagemath" ] ; then
-        ctest_args="$ctest_args -R with_sagemath"
+        ctest_args+=(-R with_sagemath)
     elif [ "$specific_checks" = "including_mpi" ] ; then
         # nothing to do
         :
     elif [ "$specific_checks" = "only_mpi" ] ; then
-        ctest_args="$ctest_args -R mpi"
+        ctest_args+=(-R mpi)
+    fi
+
+    if [[ $CI_JOB_NAME =~ ([[:digit:]]+)/([[:digit:]]+) ]] ; then
+        ctest_args+=(-I ${BASH_REMATCH[1]},,${BASH_REMATCH[2]})
     fi
 
     if [ "$using_cmake_directly" ] ; then
         set -o pipefail
-        (cd "$build_tree" ; "${test_precommand[@]}" ctest -j$NCPUS $ctest_args ) | "$source_tree"/scripts/filter-ctest.pl
+        (cd "$build_tree" ; "${test_precommand[@]}" ctest -j$NCPUS "${ctest_args[@]}" ) | "$source_tree"/scripts/filter-ctest.pl
     else
-        "${test_precommand[@]}" "${MAKE}" check ARGS="-j$NCPUS $ctest_args"
+        "${test_precommand[@]}" "${MAKE}" check ARGS="-j$NCPUS ${ctest_args[*]}"
     fi
     rc=$?
     export rc

@@ -339,8 +339,7 @@ bwc.sagemath specific expensive checks with gcc:
 ############################################################################
 # coverage. Actually, this is not really dependent on checks, after all.
 # It does depend on the availability of the coverage images, though!
-#
-coverage tests on checks with gcc:
+.coverage-job: &coverage-job
   <<: *coverage-template
   stage: thorough
   # do not start it prematurely, in case previous jobs failed
@@ -354,6 +353,22 @@ coverage tests on checks with gcc:
       - coverage-*.json
       - coverage-*-generated-sources.tar.gz
     expire_in: 1 week
+
+coverage tests 1/7 on checks with gcc:
+  <<: *coverage-job
+coverage tests 2/7 on checks with gcc:
+  <<: *coverage-job
+coverage tests 3/7 on checks with gcc:
+  <<: *coverage-job
+coverage tests 4/7 on checks with gcc:
+  <<: *coverage-job
+coverage tests 5/7 on checks with gcc:
+  <<: *coverage-job
+coverage tests 6/7 on checks with gcc:
+  <<: *coverage-job
+coverage tests 7/7 on checks with gcc:
+  <<: *coverage-job
+
 
 
 # The json coverage reports for different runs are imported, provided we
