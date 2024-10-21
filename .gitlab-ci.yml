@@ -354,19 +354,31 @@ bwc.sagemath specific expensive checks with gcc:
       - coverage-*-generated-sources.tar.gz
     expire_in: 1 week
 
-coverage tests 1/7 on checks with gcc:
+coverage tests 1/13 on checks with gcc:
   <<: *coverage-job
-coverage tests 2/7 on checks with gcc:
+coverage tests 2/13 on checks with gcc:
   <<: *coverage-job
-coverage tests 3/7 on checks with gcc:
+coverage tests 3/13 on checks with gcc:
   <<: *coverage-job
-coverage tests 4/7 on checks with gcc:
+coverage tests 4/13 on checks with gcc:
   <<: *coverage-job
-coverage tests 5/7 on checks with gcc:
+coverage tests 5/13 on checks with gcc:
   <<: *coverage-job
-coverage tests 6/7 on checks with gcc:
+coverage tests 6/13 on checks with gcc:
   <<: *coverage-job
-coverage tests 7/7 on checks with gcc:
+coverage tests 7/13 on checks with gcc:
+  <<: *coverage-job
+coverage tests 8/13 on checks with gcc:
+  <<: *coverage-job
+coverage tests 9/13 on checks with gcc:
+  <<: *coverage-job
+coverage tests 10/13 on checks with gcc:
+  <<: *coverage-job
+coverage tests 11/13 on checks with gcc:
+  <<: *coverage-job
+coverage tests 12/13 on checks with gcc:
+  <<: *coverage-job
+coverage tests 13/13 on checks with gcc:
   <<: *coverage-job
 
 
