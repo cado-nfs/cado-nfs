@@ -65,18 +65,18 @@ if(DEFINED ENV{CHECKS_EXPENSIVE})
 cado_define_test(test_renumber_on_the_fly_c105_30003
     PROGRAM ${PROJECT_BINARY_DIR}/misc/debug_renumber
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.data/c105_30003.poly
-    -lpbs 25,26
+    -lpbs 22,23
     -check -build -quiet
     TARGET_DEPENDENCIES debug_renumber
-    TIMEOUT 240
+    TIMEOUT 60
     ${AVOID_CONCURRENT_UNDER_COVERAGE}
 )
 
 cado_divert_test(test_renumber_file c105_30003
     APPEND_ARGUMENTS
     -poly ${CMAKE_CURRENT_SOURCE_DIR}/test_renumber.data/c105_30003.poly
-    -lpbs 25,26
-    TIMEOUT 240
+    -lpbs 22,23
+    TIMEOUT 60
     ${AVOID_CONCURRENT_UNDER_COVERAGE}
     )
 endif()

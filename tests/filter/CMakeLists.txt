@@ -27,14 +27,14 @@ endif()
 
 if(DEFINED ENV{CHECKS_EXPENSIVE})
     # rels found by:
-    # makefb -poly c105_30003.poly    -lim 1600000 -side 1 -out /tmp/r1.gz
-    # las -poly c105_30003.poly -I 12 -sqside 1 -q0 300000 -q1 300020 -lim0 1000000 -lim1 1600000 -lpb0 25 -lpb1 26 -mfb0 50 -mfb1 52 -fb1 /tmp/r1.gz -v
+    # ./build/sieve/makefb   -poly ./tests/misc/test_renumber.data/c105_30003.poly   -lim 1600000 -side 1 -out /tmp/r1.gz
+    # ./build/sieve/las  -I 14    -poly ./tests/misc/test_renumber.data/c105_30003.poly   -sqside 1 -q0 300000 -q1 300020 -lim0 1000000 -lim1 1600000 -lpb0 22 -lpb1 23 -mfb0 50 -mfb1 52 -fb1 /tmp/r1.gz -v
 cado_divert_test(test_dup2${sage_opt} c105_30003
     APPEND_ARGUMENTS
     -poly ${CADO_NFS_SOURCE_DIR}/tests/misc/test_renumber.data/c105_30003.poly
     -rels ${CMAKE_CURRENT_SOURCE_DIR}/c105_30003.rels.gz
-    -lpbs 25,26
-    TIMEOUT 120
+    -lpbs 22,23
+    TIMEOUT 40
     ${AVOID_CONCURRENT_UNDER_COVERAGE}
     )
 endif()
