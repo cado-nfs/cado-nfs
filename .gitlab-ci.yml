@@ -351,6 +351,7 @@ bwc.sagemath specific expensive checks with gcc:
   artifacts:
     paths:
       - coverage-*.json
+      - coverage-*.info
       - coverage-*-generated-sources.tar.gz
     expire_in: 1 week
 

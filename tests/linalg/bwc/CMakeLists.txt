@@ -30,7 +30,7 @@ macro(add_bwc_test nm script)
         # override it.
         cado_define_test(test_bwc_${nm}${suffix}
             AVOID_CONCURRENT
-            TARGET_DEPENDENCIES bwc_full
+            TARGET_DEPENDENCIES bwc_full random_matrix
             # We have cases where _many_ bwc tests end up taking more
             # than the default 20 seconds. Maybe it's better to add
             # the cutoff.
