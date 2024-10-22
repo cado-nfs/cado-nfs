@@ -36,13 +36,22 @@ case "$CI_JOB_NAME" in
         # With some tests, the coverage test time goes to the roof, but
         # it's not always so. A blanket TIMEOUT_SCALE is probably a gross
         # fix, but we can live with it.
-        export TIMEOUT_SCALE=4
+        export TIMEOUT_SCALE=2
 
-        # It's probably debatable. If we _do_ get more coverage with
-        # expensive checks, then frankly, I would consider it a bit of a
-        # bug: it would be better to get the same coverage with the
-        # normal tests.
-        export CHECKS_EXPENSIVE=1
+        # # It's probably debatable. If we _do_ get more coverage with
+        # # expensive checks, then frankly, I would consider it a bit of a
+        # # bug: it would be better to get the same coverage with the
+        # # normal tests.
+        # export CHECKS_EXPENSIVE=1
+
+        debian_packages="$debian_packages     lcov"
+        alpine_packages="$alpine_packages     lcov"
+        if ! is_debian && ! is_alpine ; then
+            echo "lcov: only on debian|alpine" >&2
+            # because I'm lazy, and also I'm not sure there would be a point
+            # in doing it on several systems anyway.
+            exit 1
+        fi
         ;;
     *"using package libfmt-dev"*)
         export install_package_libfmt_dev=1
