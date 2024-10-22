@@ -55,8 +55,8 @@ cado_define_test(c90_21505_sieve
             CHECKSUM_FILE=
             LAS_BINARY=${las_path}
             "REGEX=^-18320,3:.*74f"
+        PROVIDE_TEMPORARY_WDIR
         SCRIPT
-            "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
             -v -v --adjust-strategy 0
         TARGET_DEPENDENCIES las
@@ -84,8 +84,8 @@ cado_define_test(c90_21553_sieve
             CHECKSUM_FILE=
             LAS_BINARY=${las_path}
             "REGEX=^22938,1:.*,b,.*"
+        PROVIDE_TEMPORARY_WDIR
         SCRIPT
-            "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
             -v -v --adjust-strategy 0
         TARGET_DEPENDENCIES las
@@ -132,8 +132,8 @@ set(c95_21684_poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly)
 #             CHECKSUM_FILE=
 #             LAS_BINARY=${las_path}
 #             "REGEX=reports"
+#         PROVIDE_TEMPORARY_WDIR
 #         SCRIPT
-#             "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
 #             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
 #             -v -v --adjust-strategy 0
 #         TARGET_DEPENDENCIES las
@@ -165,8 +165,8 @@ cado_define_test(F9
             lpb1=26 mfb1=52 lambda1=2.2
             q0=1200000 q1=1200200
             CHECKSUM_FILE=${F9_checksums}
+        PROVIDE_TEMPORARY_WDIR
         SCRIPT
-            "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
             -v --adjust-strategy 0
         TARGET_DEPENDENCIES las
@@ -368,11 +368,11 @@ set(c120_base_env
 
 # Try sieving I (see bug 18814)
 cado_define_test(sievetest_I
+        PROVIDE_TEMPORARY_WDIR
         SCRIPT
             env ${c120_base_env}
             REFERENCE_SHA1=da39a3ee5e6b4b0d3255bfef95601890afd80709
             REFERENCE_REVISION=88ddb4f779defe692aed14a79ef8c952a4f68efa
-            "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
         TARGET_DEPENDENCIES las
         )
@@ -395,8 +395,8 @@ set(c30_30012_base_env
 cado_define_test(c30_30012
     ENVIRONMENT
         ${c30_30012_base_env}
+    PROVIDE_TEMPORARY_WDIR
     SCRIPT
-        "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
         ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
     NO_DEFAULT_RUN
     )
@@ -480,8 +480,8 @@ cado_define_test(F9_dupsup
             CHECKSUM_FILE=
             DUPSUP_BINARY=${dupsup_path}
             DUPE_COUNT=13
+        PROVIDE_TEMPORARY_WDIR
         SCRIPT
-            "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
             ${CMAKE_CURRENT_SOURCE_DIR}/F9.dupsup.sh
             -v -v --adjust-strategy 0
         TARGET_DEPENDENCIES las dupsup
@@ -491,8 +491,8 @@ cado_define_test(F9_dupsup
 
 # Try fake relation generation
 cado_define_test(F9_fakereltest
+    PROVIDE_TEMPORARY_WDIR
     SCRIPT
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
     ${CMAKE_CURRENT_SOURCE_DIR}/F9.fakerels.sh
     ${F9_roots} ${las_path} ${CADO_NFS_SOURCE_DIR}
     TARGET_DEPENDENCIES fake_rels freerel las
@@ -505,8 +505,8 @@ cado_define_test(F9_fakereltest
 
 # Check a bug in fake_rels (see 9d52c08c)
 cado_define_test(c60_fakereltest
+    PROVIDE_TEMPORARY_WDIR
     SCRIPT
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env WORKDIR
     ${CMAKE_CURRENT_SOURCE_DIR}/c60.fakerels.sh
     TARGET_DEPENDENCIES fake_rels freerel
     TIMEOUT 60
@@ -533,11 +533,9 @@ add_trialdiv_test(6)
 
 cado_define_test(test_trialdiv_stdin
     SCRIPT
-    ${CADO_NFS_SOURCE_DIR}/tests/generic_test_sha1_output.sh
     ${CMAKE_CURRENT_BINARY_DIR}/test_trialdiv_5 -seed 1 -i 1000
-    ENVIRONMENT
-    REFERENCE_SHA1=62ce4b010a4ecdaa4bacf977687748b5f82dc4c4
-    STDIN=${CMAKE_CURRENT_SOURCE_DIR}/test_trialdiv_example_stdin.txt
+    STDIN ${CMAKE_CURRENT_SOURCE_DIR}/test_trialdiv_example_stdin.txt
+    EXPECT_SHA1 62ce4b010a4ecdaa4bacf977687748b5f82dc4c4
     TARGET_DEPENDENCIES
     test_trialdiv_5
     )

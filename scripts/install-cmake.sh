@@ -11,9 +11,9 @@
 # "skipped tests"
 
 name=cmake
-version=3.4.3
+version=3.18.6
 package=${name}-${version}.tar.gz
-url=http://www.cmake.org/files/v3.4/${package}
+url=http://www.cmake.org/files/v3.18/${package}
 
 prefix="$1"
 shift

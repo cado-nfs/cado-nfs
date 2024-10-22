@@ -49,6 +49,10 @@ set_target_properties(polyselect PROPERTIES
 
 add_executable (polyselect_ropt
     ropt_main.c
+    best_polynomials_queue.cpp
+    ropt_single_sublattice_priority_queue.cpp
+    ropt_sublattice_priority_queue.cpp
+    ropt_sublattice_crt.cpp
     ropt.c
     ropt_arith.c
     ropt_io.c
@@ -59,6 +63,7 @@ add_executable (polyselect_ropt
     ropt_stage2.c
     ropt_str.c
     ropt_tree.c
+    ropt_sublattice_priority_queue.cpp
 )
 target_link_libraries (polyselect_ropt polyselect_common ${pthread_libs})
 set_target_properties(polyselect_ropt PROPERTIES
@@ -79,7 +84,6 @@ endif()
 install(TARGETS polyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 install(TARGETS polyselect_ropt RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
 install(TARGETS polyselect3 RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
-include(CMakeLists-nodist.txt OPTIONAL)
 
 # dlpolyselect
 add_executable (dlpolyselect dlpolyselect.c)
@@ -87,6 +91,9 @@ set_target_properties(dlpolyselect PROPERTIES
   COMPILE_FLAGS "${OpenMP_C_FLAGS}" LINK_FLAGS "${OpenMP_C_FLAGS}")
 target_link_libraries (dlpolyselect polyselect_common utils)
 install(TARGETS dlpolyselect RUNTIME DESTINATION ${LIBSUFFIX}/polyselect)
+
+
+include(CMakeLists-nodist.txt OPTIONAL)
 
 # skewness
 add_executable (skewness skewness.c)

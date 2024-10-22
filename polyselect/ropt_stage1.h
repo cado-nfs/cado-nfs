@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-int ropt_stage1 ( ropt_poly_ptr poly,
+int ropt_stage1 ( ropt_poly_srcptr poly,
                   ropt_bound_ptr bound,
                   ropt_s1param_ptr s1param,
                   ropt_param_srcptr param,

@@ -10,7 +10,9 @@
 #include <type_traits>
 #include <stdlib.h>
 #include "fmt/format.h"
+#include "fmt/ostream.h"
 #include <sstream>
+#include "fmt/core.h"
 #include "gmp_aux.h"
 #include "gmp_auxx.hpp"
 
@@ -35,6 +37,7 @@ public:
         mpz_set(x, o.x);
         return *this;
     }
+    /* XXX but this is C++14 ! */
     template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
     cxx_mpz & operator=(const T a) {
         gmp_auxx::mpz_set(x, a);
@@ -148,6 +151,8 @@ extern void mpq_clear(cxx_mpq & pl) __attribute__((error("mpq_clear must not be 
 
 #define CXX_MPZ_DEFINE_CMP(OP) \
 inline bool operator OP(cxx_mpz const & a, cxx_mpz const & b) { return mpz_cmp(a, b) OP 0; } \
+inline bool operator OP(mpz_srcptr a, cxx_mpz const & b) { return mpz_cmp(a, b) OP 0; } \
+inline bool operator OP(cxx_mpz const & a, mpz_srcptr b) { return mpz_cmp(a, b) OP 0; } \
 template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >   \
 inline bool operator OP(cxx_mpz const & a, const T b) { return gmp_auxx::mpz_cmp(a, b) OP 0; } \
 template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >   \
@@ -159,6 +164,10 @@ CXX_MPZ_DEFINE_CMP(<)
 CXX_MPZ_DEFINE_CMP(>)
 CXX_MPZ_DEFINE_CMP(<=)
 CXX_MPZ_DEFINE_CMP(>=)
+
+#if __cplusplus >= 202002L
+inline bool operator<=>(cxx_mpz const & a, cxx_mpz const & b) { return gmp_auxx::mpz_cmp(b, a); }
+#endif
 
 inline cxx_mpz operator+(cxx_mpz const & a, cxx_mpz const & b) { cxx_mpz r; mpz_add(r, a, b); return r; }
 template <typename T, std::enable_if_t<std::is_integral<T>::value, int> = 0 >
@@ -230,19 +239,8 @@ inline std::istream& operator>>(std::istream& is, cxx_mpz & x) { return is >> (m
 inline std::istream& operator>>(std::istream& is, cxx_mpq & x) { return is >> (mpq_ptr) x; }
 
 namespace fmt {
-    template <> struct /* fmt:: */ formatter<cxx_mpz>: formatter<string_view> {
-    // only allow {} for formatting. No :, no :x, etc. It could be nice
-    // to allow them, though. Note that this should be constexpr with
-    // c++-14 or later
-    // auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
-    template <typename FormatContext>
-        auto format(cxx_mpz const & c, FormatContext& ctx) -> decltype(ctx.out())
-        {
-            std::ostringstream os;
-            os << c;
-            return formatter<string_view>::format( string_view(os.str()), ctx);
-        }
-};
+    template <> struct formatter<cxx_mpz>: ostream_formatter {};
+    template <> struct formatter<cxx_mpq>: ostream_formatter {};
 }
 
 #endif	/* CXX_MPZ_HPP_ */

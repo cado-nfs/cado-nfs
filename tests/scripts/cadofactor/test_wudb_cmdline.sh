@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
 
-: ${TMPDIR=/tmp}
+: ${wdir=/tmp}
+
+TMPDIR="${wdir}"
+export TMPDIR
 
 SCRIPTDIR="$1"
 

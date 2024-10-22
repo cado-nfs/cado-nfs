@@ -16,15 +16,16 @@ foreach (doctest_source ${PYTHON_DOCTEST_SOURCES})
   # Add doctest of Python sources, e.g., doctest cadoparams.py under test
   # name cadoparams
   cado_define_test(TEST_NAME test_python_${basename}
-      PROGRAM
+      PRECOMMAND
       ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env TMPDIR
+      PROGRAM
       python3 -m doctest ${doctest_source}
       TEST_DEPENDENCIES)
   set_tests_properties(test_python_${basename} PROPERTIES RUN_SERIAL 1)
 endforeach (doctest_source)
 
 cado_define_test(test_wudb_cmdline
+    PROVIDE_TEMPORARY_WDIR
     SCRIPT
-    "${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh" --env TMPDIR
     "${CMAKE_CURRENT_SOURCE_DIR}/test_wudb_cmdline.sh" "${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/"
 )

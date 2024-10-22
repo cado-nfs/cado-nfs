@@ -37,7 +37,7 @@ void Lemma21 ( ropt_poly_ptr poly,
                mpz_srcptr ad,
                mpz_srcptr p,
                mpz_srcptr m,
-               mpz_ptr res );
+               mpz_ptr res);
 
 unsigned long
 solve_lineq ( unsigned long a,
@@ -70,8 +70,7 @@ void ab2uv ( mpz_srcptr A,
              mpz_ptr u );
 
 
-long ab2ij ( long Amin,
-             long a );
+long ab2ij ( long Amin, long a );
 
 
 void ij2uv ( mpz_srcptr A,

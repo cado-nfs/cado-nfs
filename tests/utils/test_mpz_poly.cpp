@@ -1,10 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
 #include "macros.h"
+#include <iostream>
+#include <sstream>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <gmp.h>
+#include <iostream>
 #include "mpz_poly.h"
 #include "cxx_mpz.hpp"
 #include "mpz_polymodF.h"
@@ -184,7 +187,7 @@ test_mpz_polymodF_mul ()
               /* T should be a multiple of F */
               while (T->deg >= F->deg)
                 {
-                  int oldd = T->deg;
+                  int const oldd = T->deg;
                   if (!mpz_divisible_p (mpz_poly_lc(T), mpz_poly_lc(F)))
                     {
                       printf ("Error in test_mpz_polymodF_mul\n");
@@ -294,8 +297,8 @@ test_mpz_poly_sqr_mod_f_mod_mpz (unsigned long iter)
     {
       mpz_poly Q, P, f;
       mpz_t m, invm;
-      int k = 2 + gmp_urandomm_ui(state, 127);
-      int d = 1 + gmp_urandomm_ui(state, 7);
+      int const k = 2 + gmp_urandomm_ui(state, 127);
+      int const d = 1 + gmp_urandomm_ui(state, 7);
 
       mpz_init (m);
       do mpz_urandomb (m, state, k); while (mpz_tstbit (m, 0) == 0);
@@ -356,7 +359,7 @@ test_mpz_poly_fprintf (void)
 
   f->deg = -1;
   mpz_poly_fprintf (stdout, f);
-  mpz_poly_getcoeff (c, 0, f);
+  mpz_set(c, mpz_poly_coeff_const(f, 0));
   ASSERT_ALWAYS (mpz_cmp_ui (c, 0) == 0);
   mpz_set_ui (c, 17);
   mpz_poly_eval (v[0], f, c);
@@ -481,7 +484,7 @@ test_mpz_poly_pow_mod_f_mod_ui (void)
 {
   mpz_poly Q, P, f;
   mpz_t a, pp;
-  unsigned long p = 4294967291UL;
+  unsigned long const p = 4294967291UL;
 
   mpz_poly_init (Q, -1);
   mpz_poly_init (P, -1);
@@ -580,7 +583,7 @@ test_mpz_poly_base_modp_init (unsigned long iter)
   mpz_poly f, *P, g;
   mpz_t pk;
   size_t s;
-  mpz_poly_parallel_info pinf;
+  mpz_poly_parallel_info const pinf;
 
   mpz_poly_init (f, -1);
   mpz_poly_init (g, -1);
@@ -661,40 +664,29 @@ void test_mpz_poly_factor(unsigned long iter)
 
     
     mpz_set_ui(p, 2);
-    // 0+1*x^1+2*x^2+2*x^3+2*x^4  
-    mpz_poly_setcoeffs_si_var(f, 4, 0, 1, 2, 2, 2);
+
+    mpz_poly_set_from_expression(f, "x+2*x^2+2*x^3+2*x^4");
     mpz_poly_factor(lf, f, p, state);
     ASSERT_ALWAYS(lf->size == 1);
-    mpz_t coeff;
-    mpz_init(coeff);
-    mpz_poly_getcoeff(coeff, 0, lf->factors[0]->f);
-    ASSERT_ALWAYS(mpz_cmp_ui(coeff, 0) == 0);
-    mpz_poly_getcoeff(coeff, 1, lf->factors[0]->f);
-    ASSERT_ALWAYS(mpz_cmp_ui(coeff, 1) == 0);
+    mpz_poly_mod_mpz(f, f, p, NULL);
+    ASSERT_ALWAYS(mpz_poly_cmp(lf->factors[0]->f, f) == 0);
 
-    // 1+0*x^1+2*x^2+2*x^3+2*x^4  
-    mpz_poly_setcoeffs_si_var(f, 4, 1, 0, 2, 2, 2);
+    mpz_poly_set_from_expression(f, "1+2*x^2+2*x^3+2*x^4");
     mpz_poly_factor(lf, f, p, state);
     ASSERT_ALWAYS(lf->size == 0);
 
-    //0+1*x^1-2*x^2-2*x^3-2*x^4
-    mpz_poly_setcoeffs_si_var(f, 4, 0, 1, -2, -2, -2);
+    mpz_poly_set_from_expression(f, "x-2*x^2-2*x^3-2*x^4");
     mpz_poly_factor(lf, f, p, state);
     ASSERT_ALWAYS(lf->size == 1);
-    mpz_poly_getcoeff(coeff, 0, lf->factors[0]->f);
-    ASSERT_ALWAYS(mpz_cmp_ui(coeff, 0) == 0);
-    mpz_poly_getcoeff(coeff, 1, lf->factors[0]->f);
-    ASSERT_ALWAYS(mpz_cmp_ui(coeff, 1) == 0);
+    mpz_poly_mod_mpz(f, f, p, NULL);
+    ASSERT_ALWAYS(mpz_poly_cmp(lf->factors[0]->f, f) == 0);
 
-    mpz_clear(coeff);
 
-    //x^10 + x^9 + x^8 + 1
-    mpz_poly_setcoeffs_si_var(f, 10, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1);
+    mpz_poly_set_from_expression(f, "x^10 + x^9 + x^8 + 1");
     mpz_poly_factor(lf, f, p, state);
     ASSERT_ALWAYS(lf->size == 3);
 
-    //x^10 + x^8 + x^7 + x^6 + x^2 + x + 1
-    mpz_poly_setcoeffs_si_var(f, 10, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1);
+    mpz_poly_set_from_expression(f, "x^10 + x^8 + x^7 + x^6 + x^2 + x + 1");
     mpz_poly_factor(lf, f, p, state);
     ASSERT_ALWAYS(lf->size == 1);
 
@@ -787,7 +779,7 @@ void test_mpz_poly_factor(unsigned long iter)
 
     {
         /* Now factor x^(p-1)-1 */
-        unsigned long pp = 7;
+        unsigned long const pp = 7;
         mpz_set_ui(p, pp);
         mpz_poly_set_xi(f, pp - 1);
         mpz_poly_sub_ui(f, f, 1);
@@ -829,13 +821,13 @@ void test_mpz_poly_factor_padic(unsigned long iter)
 
     for(unsigned long i = 0 ; i < iter ; ) {
         /* pick a prime between 4 and 128 bits */
-        unsigned long pbits = gmp_urandomm_ui(rstate, 124) + 4;
+        unsigned long const pbits = gmp_urandomm_ui(rstate, 124) + 4;
         for( ; !mpz_probab_prime_p(p, 2) ; mpz_urandomb(p, rstate, pbits));
 
         cxx_mpz disc = 0;
         for( ; mpz_cmp_ui(disc, 0) == 0 ; ) {
             /* pick a degree between 2 and 10 */
-            unsigned long deg = gmp_urandomm_ui(rstate, 8) + 2;
+            unsigned long const deg = gmp_urandomm_ui(rstate, 8) + 2;
 
             for(unsigned long i = 0 ; i < deg ; i++)
                 mpz_poly_setcoeff_ui(f, i, gmp_urandomm_ui(rstate, 100));
@@ -846,7 +838,7 @@ void test_mpz_poly_factor_padic(unsigned long iter)
             mpz_mod(disc, disc, p);
         }
 
-        int prec = MAX(2, 256 / pbits);
+        int const prec = MAX(2, 256 / pbits);
         auto lf = mpz_poly_factor_and_lift_padically(f, p, prec, state);
 
         cxx_mpz px;
@@ -871,22 +863,32 @@ void test_mpz_poly_factor_padic(unsigned long iter)
 
 void test_mpz_poly_trivialities()
 {
-    mpz_t a[5], p;
+    mpz_t p;
     mpz_poly f, g, q, r;
     mpz_poly_factor_list lf;
     int rc;
 
-    mpz_init_set_ui(a[0], 1);
-    mpz_init_set_ui(a[1], 4);
-    mpz_init_set_ui(a[2], 6);
-    mpz_init_set_ui(a[3], 4);
-    mpz_init_set_ui(a[4], 1);
     mpz_init_set_ui(p, 13);
     mpz_poly_init(f, -1);
     mpz_poly_init(g, -1);
     mpz_poly_init(q, -1);
     mpz_poly_init(r, -1);
-    mpz_poly_setcoeffs(f, a, 4);
+
+    {
+        mpz_t a[5];
+        mpz_init_set_ui(a[0], 1);
+        mpz_init_set_ui(a[1], 4);
+        mpz_init_set_ui(a[2], 6);
+        mpz_init_set_ui(a[3], 4);
+        mpz_init_set_ui(a[4], 1);
+        mpz_poly_setcoeffs(f, a, 4);
+        mpz_clear(a[4]);
+        mpz_clear(a[3]);
+        mpz_clear(a[2]);
+        mpz_clear(a[1]);
+        mpz_clear(a[0]);
+    }
+
     {
         mpz_poly_factor_list_init(lf);
         mpz_poly_factor(lf, f, p, state);
@@ -894,12 +896,11 @@ void test_mpz_poly_trivialities()
         mpz_poly_swap(f, lf->factors[0]->f);
         mpz_poly_factor_list_clear(lf);
     }
+
     /* we expect to have f == x + 1 */
     mpz_poly_setcoeffs_ui_var(g, 1, 1, 1);
-    mpz_poly_getcoeff(a[0], 0, f);
-    ASSERT_ALWAYS(mpz_cmp_ui(a[0], 1) == 0);
-    mpz_poly_getcoeff(a[1], 1, f);
-    ASSERT_ALWAYS(mpz_cmp_ui(a[1], 1) == 0);
+    ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(f, 0), 1) == 0);
+    ASSERT_ALWAYS(mpz_cmp_ui(mpz_poly_coeff_const(f, 1), 1) == 0);
     mpz_poly_sub_mod_mpz(f, f, g, p);
     mpz_poly_set_zero(g);
     ASSERT_ALWAYS(mpz_poly_cmp(f, g) == 0);
@@ -925,9 +926,8 @@ void test_mpz_poly_trivialities()
     mpz_poly_sub_ui(g, g, 1);
     mpz_poly_mul(f, f, g);
     mpz_poly_set_zero(g);
-    mpz_set_ui(a[0], 1);
     mpz_poly_set_xi(g, 2);
-    mpz_poly_setcoeff(g, 1, a[0]);
+    mpz_poly_setcoeff_ui(g, 1, 1);
     ASSERT_ALWAYS(mpz_poly_cmp(f, g) == 0);
 
     /* multiply by zero */
@@ -940,7 +940,7 @@ void test_mpz_poly_trivialities()
     mpz_set_ui(p, 143);
     mpz_poly_setcoeffs_ui_var(f, 2, 1, 1, 3);
     mpz_poly_setcoeffs_ui_var(g, 1, 1, 11);
-    rc = mpz_poly_div_r(f, g, p);
+    rc = mpz_poly_div_r_mod_mpz_clobber(f, g, p);
     ASSERT_ALWAYS(rc == 0);
     mpz_poly_setcoeffs_ui_var(f, 2, 1, 1, 3);
     mpz_poly_setcoeffs_ui_var(g, 1, 1, 11);
@@ -952,10 +952,10 @@ void test_mpz_poly_trivialities()
     /* test div_qr */
     mpz_poly_setcoeffs_ui_var(f, 4, 1, 1, 1, 1, 3);
     mpz_poly_setcoeffs_ui_var(g, 2, 1, 2, 11);
-    rc = mpz_poly_div_qr(q, r, f, g, p);
+    rc = mpz_poly_div_qr_mod_mpz(q, r, f, g, p);
     ASSERT_ALWAYS(rc == 0);
     mpz_set_ui(p, 13);
-    rc = mpz_poly_div_qr(q, r, f, g, p);
+    rc = mpz_poly_div_qr_mod_mpz(q, r, f, g, p);
     mpz_poly_setcoeffs_ui_var(f, 2, 0, 11, 5);
     mpz_poly_setcoeffs_ui_var(g, 1, 1, 3);
     ASSERT_ALWAYS(rc);
@@ -981,11 +981,6 @@ void test_mpz_poly_trivialities()
     mpz_poly_clear(g);
     mpz_poly_clear(q);
     mpz_poly_clear(r);
-    mpz_clear(a[4]);
-    mpz_clear(a[3]);
-    mpz_clear(a[2]);
-    mpz_clear(a[1]);
-    mpz_clear(a[0]);
     mpz_clear(p);
 }
 
@@ -1117,15 +1112,7 @@ test_mpz_poly_discriminant (unsigned long iter)
     {
         int N = 10;
         int d = 1 + gmp_urandomm_ui(state, N-1);
-        mpz_poly_set_zero(f);
-        for (int i = 0; i <= d; i++) {
-            long c;
-            do {
-                c = gmp_urandomm_ui(state, 5) - 2;
-            } while (i == d && c == 0);
-            mpz_poly_setcoeff_si(f, i, c);
-        }
-        mpz_poly_cleandeg(f, d);
+        mpz_poly_set_urandomm_ui(f, d, state, 2);
         mpz_poly_discriminant (D, f);
     }
 
@@ -1182,6 +1169,53 @@ void test_mpz_poly_infinity_norm()
   mpz_poly_clear(f);
 }
 
+void test_mpz_poly_interpolation(unsigned long iter)
+{
+    {
+        std::vector<cxx_mpz> points;
+        std::vector<cxx_mpz> evaluations;
+        cxx_mpz_poly f;
+        std::istringstream("x+x^2-x^17+3") >> f;
+        for(int i = 0 ; i < 24 ; i++) { 
+            cxx_mpz t(i), e;
+            mpz_poly_eval(e, f, t);
+            points.push_back(t);
+            evaluations.push_back(e);
+        }
+        cxx_mpz_poly tmp;
+        int ok = mpz_poly_interpolate(tmp, points, evaluations);
+        ASSERT_ALWAYS(tmp == f);
+        ASSERT_ALWAYS(ok);
+    }
+
+    for(unsigned long i = 0 ; i < iter ; i++) {
+        const int d = 4 + gmp_urandomm_ui(state, 97);
+        cxx_mpz_poly f;
+        mpz_poly_set_rrandomb(f, d, state, 5);
+
+        std::vector<cxx_mpz> points;
+        std::vector<cxx_mpz> evaluations;
+
+        int neval = d + 1;
+
+        for(int i = 0 ; i < neval ; i++) {
+            cxx_mpz t(i), e;
+            mpz_poly_eval(e, f, t);
+            points.push_back(t);
+            evaluations.push_back(e);
+        }
+        cxx_mpz_poly tmp;
+        const int ok = mpz_poly_interpolate(tmp, points, evaluations);
+        if (!ok || (tmp != f)) {
+            std::cerr << "// bug in resultant" << std::endl;
+            std::cerr << f << std::endl;
+            std::cerr << tmp << std::endl;
+        }
+        ASSERT_ALWAYS(tmp == f);
+        ASSERT_ALWAYS(ok);
+    }
+}
+
 // coverity[root_function]
 int
 main (int argc, const char *argv[])
@@ -1205,9 +1239,10 @@ main (int argc, const char *argv[])
   test_mpz_poly_factor_padic(2 + iter / 20);
   test_mpz_poly_trivialities ();
   test_mpz_poly_resultant();
-  test_mpz_poly_discriminant(20000);
+  test_mpz_poly_discriminant(iter);
   test_mpz_poly_discriminant2(10);
   test_mpz_poly_infinity_norm();
+  test_mpz_poly_interpolation(iter);
   tests_common_clear ();
   exit (EXIT_SUCCESS);
 }

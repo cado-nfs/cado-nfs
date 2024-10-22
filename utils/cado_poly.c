@@ -84,8 +84,6 @@ cado_poly_swap (cado_poly_ptr p, cado_poly_ptr q)
 // returns 0 on failure, 1 on success.
 int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
 {
-  int ret = 1;
-
   /* Parse skew value. Set to 0.0 to ensure that we get an invalid skewness
      in case it is not given */
   cpoly->skew = 0.0;
@@ -134,10 +132,11 @@ int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
 
   /* Parse value of N. Two keys possible: n or None. Return 0 if not found. */
   if (!param_list_parse_mpz(pl, "n", cpoly->n) &&
+      !param_list_parse_mpz(pl, "N", cpoly->n) &&
       !param_list_parse_mpz(pl, NULL, cpoly->n))
   {
     fprintf (stderr, "Error, no value for N in cado_poly_set_plist\n");
-    ret = 0;
+    return 0;
   }
 
   for (int side = 0; side < cpoly->nb_polys; side++)
@@ -145,7 +144,7 @@ int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
     {
       fprintf (stderr, "Error, polynomial on side %u has degree < 0 in "
                        "cado_poly_set_plist\n", side);
-      ret = 0;
+      return 0;
     }
 
   for (int side = 0; side < cpoly->nb_polys; side++) {
@@ -171,9 +170,12 @@ int cado_poly_set_plist(cado_poly_ptr cpoly, param_list_ptr pl)
   }
 
   /* check that N divides the resultant*/
-  ASSERT_ALWAYS(cado_poly_check_mapping(NULL, cpoly, cpoly->n));
+  if (!cado_poly_check_mapping(NULL, cpoly, cpoly->n)) {
+      fprintf (stderr, "Error, polynomial file is inconsisent (no common mapping to target ring)\n");
+      return 0;
+  }
 
-  return ret;
+  return 1;
 }
 
 // returns 0 on failure, 1 on success.
@@ -428,7 +430,7 @@ cado_poly_get_ratside (cado_poly_srcptr cpoly)
 }
 
 void
-cado_poly_fprintf (FILE *fp, cado_poly_srcptr cpoly, const char *prefix)
+cado_poly_fprintf (FILE *fp, const char * prefix, cado_poly_srcptr cpoly)
 {
   if (prefix)
     fputs (prefix, fp);
@@ -451,30 +453,13 @@ cado_poly_fprintf (FILE *fp, cado_poly_srcptr cpoly, const char *prefix)
   fprintf (fp, "skew: %1.3f\n", cpoly->skew);
 }
 
-/* if exp_E = 0, print E = lognorm + alpha (root-optimized polynomial),
-   otherwise print exp_E */
 void
-cado_poly_fprintf_info (FILE *fp, double lognorm, double exp_E, double alpha,
-                        double alpha_proj, unsigned int nrroots,
-                        const char *prefix)
-{
-  if (prefix)
-    fputs (prefix, fp);
-  /* Always print "# " after the prefix and before the info line. */
-  fprintf (fp, "# lognorm %1.2f, %s %1.2f, alpha %1.2f (proj %1.2f),"
-             " %u real root%s\n",
-             lognorm, (exp_E == 0) ? "E" : "exp_E",
-             (exp_E == 0) ? lognorm + alpha : exp_E, alpha, alpha_proj,
-             nrroots, (nrroots <= 1) ? "" : "s");
-}
-
-void
-cado_poly_fprintf_MurphyE (FILE *fp, double MurphyE, double bound_f,
-                           double bound_g, double area, const char *prefix)
+cado_poly_fprintf_MurphyE (FILE *fp, const char * prefix, int side,
+        double MurphyE, double bound_f, double bound_g, double area)
 {
   if (prefix)
     fputs (prefix, fp);
   /* Always print "# " after the prefix and before the MurphyE line. */
-  fprintf (fp, "# MurphyE(Bf=%.3e,Bg=%.3e,area=%.3e)=%.3e\n", bound_f, bound_g,
+  fprintf (fp, "# side %d MurphyE(Bf=%.3e,Bg=%.3e,area=%.3e)=%.3e\n", side, bound_f, bound_g,
                area, MurphyE);
 }

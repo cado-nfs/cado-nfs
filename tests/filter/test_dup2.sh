@@ -119,4 +119,5 @@ fi
 if [ "$SAGE" ] ; then
     "${CADO_NFS_BINARY_DIR}/misc/explain_indexed_relation" -renumber  "$RENUMBER" -poly "$POLY" "${DL[@]}" -relations <(zcat "$WORK_RELS" )  > "$WORKDIR/check.sage"
     "$SAGE" "$WORKDIR/check.sage"
+    pgrep -f sage-cleaner | xargs -r kill
 fi

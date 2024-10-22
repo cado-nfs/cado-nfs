@@ -89,7 +89,7 @@ struct mpz_parser_traits {
     void set_mpz(cxx_mpz & a, cxx_mpz const & z) {
         mpz_set(a, z);
     }
-    void set_literal_power(cxx_mpz &, char, unsigned long) {
+    void set_literal_power(cxx_mpz &, std::string const&, unsigned long) {
         // never called. we could do some gymnastics to statically elide
         // this call, but that does not seem to be worth it.
     }

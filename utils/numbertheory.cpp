@@ -81,7 +81,7 @@ void mpq_poly_to_mat_row(mpq_mat_ptr M, const unsigned int i, mpz_poly_srcptr f,
     ASSERT_ALWAYS(f->deg < (int) M->n);
     for (unsigned int j = 0 ; j < M->n; j++){
         mpq_ptr mij = mpq_mat_entry(M,i,j);
-        mpz_poly_getcoeff(mpq_numref(mij), j, f);
+        mpz_set(mpq_numref(mij), mpz_poly_coeff_const(f, j));
         mpz_set(mpq_denref(mij), denom);
         mpq_canonicalize(mij);
     }

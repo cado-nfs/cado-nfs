@@ -34,8 +34,6 @@
 /* number of rows for size_total_sublattices */
 #define NUM_DEFAULT_DIGITS 20
 
-#define DEBUG 0
-
 /* Don't change this. */
 #define NUM_SUBLATTICE_PRIMES 9
 
@@ -100,8 +98,6 @@ extern size_t size_tune_sievearray;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 extern const unsigned int ropt_primes[];
-
-extern const unsigned char next_prime_idx[];
 
 extern const unsigned int default_sublattice_pe[NUM_DEFAULT_SUBLATTICE][NUM_SUBLATTICE_PRIMES];
 

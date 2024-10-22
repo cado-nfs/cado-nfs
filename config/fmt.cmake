@@ -50,16 +50,12 @@ endif()
 
 # Yeah. CMake docs defines the ``PATH'' to a file as being its dirname. Very
 # helpful documentation there :-((
-message(STATUS "FMT_INCDIR=${FMT_INCDIR}")
-message(STATUS "FMT_LIB=${FMT_LIB}")
 string(COMPARE NOTEQUAL "${FMT_INCDIR}" FMT_INCDIR-NOTFOUND FMT_INCDIR_OK)
 string(COMPARE NOTEQUAL "${FMT_LIB}" FMT_LIB-NOTFOUND FMT_LIBDIR_OK)
 
 get_filename_component(FMT_LIBDIR ${FMT_LIB} PATH)
 
 if(FMT_INCDIR_OK AND FMT_LIBDIR_OK)
-include_directories(${FMT_INCDIR})
-link_directories(${FMT_LIBDIR})
 include(CheckCXXSourceCompiles)
 set(CMAKE_REQUIRED_FLAGS "-L${FMT_LIBDIR}")
 set(CMAKE_REQUIRED_DEFINITIONS)
@@ -76,6 +72,10 @@ CHECK_CXX_SOURCE_COMPILES("
 #error \"MISSING FMT_VERSION\"
 #endif
 #include <fmt/format.h>
+
+#if FMT_VERSION < 90000
+#error \"Maintaining compatibility with libfmt8 and earlier is a waste of time\"
+#endif
 
 #if FMT_VERSION >= 90000
 /* with fmt8, formatting a const reference to a type that defines a
@@ -105,7 +105,7 @@ int main(void)
 {
 #if FMT_VERSION >= 90000
     cxx_foo b;
-    cxx_foo const & a(b);
+    cxx_foo const & a = b;
     std::cout << fmt::format(FMT_STRING(\"{} {} {}\"), \"Catch\", 22, a) << std::endl;
 #else
     std::cout << fmt::format(FMT_STRING(\"{} {}\"), \"Catch\", 22) << std::endl;
@@ -116,11 +116,17 @@ int main(void)
 " HAVE_FMT)
 if(HAVE_FMT)
     message(STATUS "Using the fmt library found on the system")
+    message(STATUS "FMT_INCDIR=${FMT_INCDIR}")
+    message(STATUS "FMT_LIB=${FMT_LIB}")
+    include_directories(${FMT_INCDIR})
+    link_directories(${FMT_LIBDIR})
 else()
-    message(FATAL_ERROR "A version of the fmt library was found by cmake, but it apparently does not fit our criteria. This is a fatal error, as we cannot be sure that our embedded copy will work correctly in that case")
+    message(STATUS "Forcibly *NOT* using the fmt library found on the system (too old)")
 endif()
+
 elseif(FMT_INCDIR_OK OR FMT_LIBDIR_OK)
     message(FATAL_ERROR "A partly installed version of the fmt library was found by cmake, but it lacks either the headers or the library. This is a fatal error, as we cannot be sure that our embedded copy will work correctly in that case")
 else()
     message(STATUS "Using the embedded fmt library")
 endif()
+

@@ -38,9 +38,10 @@ get_override(BWC_EXTRA_BACKENDS    BWC_EXTRA_BACKENDS)
 get_override(CHECKS_EXPENSIVE   CHECKS_EXPENSIVE)
 get_override(TIMEOUT_SCALE   TIMEOUT_SCALE)
 
+
 # If you change the min version, also change scripts/call_cmake.sh
 # It must be called before the project() command.
-cmake_minimum_required(VERSION 3.5.0)
+cmake_minimum_required(VERSION 3.18.0)
 
 project(CADO_NFS)
 
@@ -392,6 +393,7 @@ include("${CADO_NFS_SOURCE_DIR}/config/alignas.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/int128.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/m4ri.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/detect-static-analysis.cmake")
+include("${CADO_NFS_SOURCE_DIR}/config/detect-coverage.cmake")
 include("${CADO_NFS_SOURCE_DIR}/config/execinfo.cmake")
 CHECK_INCLUDE_FILES (sys/endian.h HAVE_SYS_ENDIAN_H)
 include("${CADO_NFS_SOURCE_DIR}/config/bswap32.cmake")

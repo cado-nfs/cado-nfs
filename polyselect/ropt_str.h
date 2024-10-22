@@ -2,22 +2,22 @@
 #define ROPT_STR_H
 #include <gmp.h>
 #include <stdbool.h>    // for bool (in C)
+#include "cado_poly.h"
 #include "mpz_poly.h"
 
 /* --- structs for ropt --- */
 
 /**
  * Struct for the polynomial currently being ropt-ed.
+ *
+ * TODO: this should at least contain a cado_poly. The only reason not to
+ * do it would be to save a pointer indirection for the pols member.
  */
 struct ropt_poly_s {
   /* polynomial */
-  int d;
-  double skew;
   double alpha_proj;
-  mpz_t n;
   mpz_t m;
-  mpz_poly f;
-  mpz_poly g;
+  cado_poly cpoly;
 
   /* polynomial values */
   mpz_t *fx;
@@ -77,7 +77,7 @@ struct ropt_s1param_s {
   /* upper bound for e_i */
   unsigned int *e_sl;
 
-  mpz_t modulus;
+  // mpz_t modulus;
 
   unsigned long modbound;
 };
@@ -212,8 +212,7 @@ typedef const struct ropt_info_s * ropt_info_srcptr;
 extern "C" {
 #endif
 
-/* ropt_poly*/
-
+/* ropt_poly_t */
 void ropt_poly_init ( ropt_poly_ptr );
 
 void ropt_poly_refresh ( ropt_poly_ptr );
@@ -225,7 +224,7 @@ bool ropt_poly_setup_check ( ropt_poly_ptr );
 void ropt_poly_clear ( ropt_poly_ptr );
 
 
-/* ropt_bound */
+/* ropt_bound_t */
 void ropt_bound_init ( ropt_bound_ptr );
 
 void ropt_bound_setup ( ropt_poly_srcptr poly,
@@ -270,18 +269,18 @@ void ropt_s1param_resetup ( ropt_poly_srcptr poly,
 void
 ropt_s1param_resetup_modbound ( ropt_poly_srcptr poly,
                                 ropt_s1param_ptr s1param,
-                                ropt_bound_ptr bound,
-                                ropt_param_ptr param,
+                                ropt_bound_srcptr bound,
+                                ropt_param_srcptr param,
                                 unsigned int nbest,
                                 unsigned long modbound);
 
 void ropt_s1param_clear ( ropt_s1param_ptr s1param );
 
 
-/* ropt_s2param */
+/* ropt_s2param_t */
 void ropt_s2param_init ( ropt_s2param_ptr s2param );
 
-void ropt_s2param_clear ( ropt_s2param_ptr s2param );
+void ropt_s2param_clear (ropt_s2param_ptr s2param );
 
 void ropt_s2param_setup ( ropt_bound_srcptr bound,
                           ropt_s1param_srcptr s1param,
@@ -311,22 +310,24 @@ void ropt_s2param_print ( ropt_s2param_srcptr s2param );
 
 
 /* bestpoly */
-void ropt_bestpoly_init ( ropt_bestpoly_ptr bestpoly,
-                          int d );
+void ropt_bestpoly_init ( ropt_bestpoly_ptr bestpoly);
                       
 void ropt_bestpoly_set ( ropt_bestpoly_ptr bestpoly,
-                           mpz_poly_srcptr f, mpz_poly_srcptr g);
+                           mpz_poly_srcptr f,
+                           mpz_poly_srcptr g);
 
 void ropt_bestpoly_clear ( ropt_bestpoly_ptr bestpoly);
 
 
 /* param */
 void ropt_param_init ( ropt_param_ptr param );
+
 void ropt_param_clear ( ropt_param_ptr param );
 
 
 /* info */
 void ropt_info_init ( ropt_info_ptr info );
+
 void ropt_info_clear ( ropt_info_ptr info );
 
 

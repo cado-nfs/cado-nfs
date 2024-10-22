@@ -188,10 +188,10 @@ checks shared libs on debian-testing system with gcc:
     - *checks-script
   <<: *checks-junit-report
 
-checks on debian10 system with gcc:
+checks on debian11 system with gcc:
   <<: *common-template
   stage: early
-  image: debian:10
+  image: debian:11
   before_script:
     - ci/ci/00-prepare-docker.sh
   script:
@@ -460,7 +460,7 @@ checks on freebsd14.1 system with clang:
     - make -C ci/ci/utilities/tanker
     - ci/ci/50-libvirt-wrap-tests.sh freebsd:14.1 ci/ci/40-testsuite.sh
 
-coverity on debian10 system with gcc:
+coverity on debian11 system with gcc:
   # override the common template.
   rules:
     - if: $CI_COMMIT_MESSAGE =~ /skip some ci/
@@ -472,7 +472,7 @@ coverity on debian10 system with gcc:
       when: always
     - when: never
   stage: early
-  image: debian:10
+  image: debian:11
   before_script:
     - ci/ci/00-prepare-docker.sh
   script:

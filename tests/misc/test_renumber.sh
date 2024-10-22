@@ -2,7 +2,7 @@
 
 set -e
 
-: ${WORKDIR?missing}
+: ${wdir?missing}
 
 while [ $# -gt 0 ] ; do
     if [ "$1" = "-b" ] ; then
@@ -27,7 +27,7 @@ done
 : ${POLY?missing}
 : ${LPBS?missing}
 
-RENUMBER="${WORKDIR}/renumber.gz"
+RENUMBER="${wdir}/renumber.gz"
 
 ${BUILD_DIR}/sieve/freerel -poly ${POLY} -renumber ${RENUMBER} \
                            -lpbs "$LPBS" 

@@ -93,7 +93,6 @@ polyselect/integral.sage
 polyselect/kleinjung-list-of-lattices.sage
 polyselect/kleinjung.sage
 polyselect/linear_interpolation.sage
-polyselect/makefile_gfpkdl.make
 polyselect/rootsieve1.c
 polyselect/rotate.c
 polyselect/rotate_all.c
@@ -144,6 +143,7 @@ sieve/strategies/script_str_r.sh
 sieve/strategies/test_strategy_cado.cpp
 sqrt/CMakeLists-nodist.txt
 sqrt/lift.c
+tests/polyselect/CMakeLists-nodist.txt
 tests/utils/build-testcases-rootfinder.m
 utils/CMakeLists-nodist.txt
 utils/README_POLYNOMIALS

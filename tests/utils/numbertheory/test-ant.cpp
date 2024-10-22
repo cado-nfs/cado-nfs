@@ -441,7 +441,7 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
                 mpz_mul(denom, denom, mpz_poly_lc(f));
                 mpz_mul(mpz_poly_coeff(e, k), mpz_poly_coeff_const(e, k), denom);
             }
-            mpz_poly_div_r_z(e, e, fh);
+            mpz_poly_div_r(e, e, fh);
             for(int k = 0 ; k <= e->deg ; k++) {
                 mpz_mul(mpz_poly_coeff(e, k), mpz_poly_coeff_const(e, k), c);
                 mpz_mul(c, c, mpz_poly_lc(f));

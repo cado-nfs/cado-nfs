@@ -168,8 +168,8 @@ rotate_bounds_W_lu ( ropt_poly_srcptr poly,
 {
   mpz_poly F, G;
 
-  mpz_poly_srcptr F0 = poly->f;
-  mpz_poly_srcptr G0 = poly->g;
+  mpz_poly_srcptr F0 = poly->cpoly->pols[1];
+  mpz_poly_srcptr G0 = poly->cpoly->pols[0];
   mpz_poly_init (F, F0->deg);
   mpz_poly_init (G, G0->deg);
 
@@ -219,18 +219,19 @@ rotate_bounds_W_lu ( ropt_poly_srcptr poly,
 void
 ropt_poly_init ( ropt_poly_ptr poly )
 {
-  mpz_init (poly->n);
   mpz_init (poly->m);
 
-  mpz_poly_init(poly->f, -1);
-  mpz_poly_init(poly->g, -1);
+  cado_poly_init(poly->cpoly);
+  cado_poly_provision_new_poly(poly->cpoly);
+  cado_poly_provision_new_poly(poly->cpoly);
 
   /* fx, gx holds pre-computed values f(r), g(r) where 0 <= r < p. */
-  poly->fx = (mpz_t *) malloc ((ropt_primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
-  poly->gx = (mpz_t *) malloc ((ropt_primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
-  poly->numerator = (mpz_t *) malloc ((ropt_primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
+  (poly->fx) = (mpz_t *) malloc ((ropt_primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
+  (poly->gx) = (mpz_t *) malloc ((ropt_primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
+  (poly->numerator) = (mpz_t *) malloc ((ropt_primes[ROPT_NPRIMES-1]+1) * sizeof (mpz_t));
 
-  if (poly->fx == NULL || poly->gx == NULL || poly->numerator == NULL) {
+  if ( ((poly->fx) == NULL) || ((poly->gx) == NULL) ||
+       ((poly->numerator) == NULL) ) {
     fprintf(stderr, "Error, cannot allocate memory in %s\n", __func__);
     exit(1);
   }
@@ -249,11 +250,10 @@ ropt_poly_init ( ropt_poly_ptr poly )
 void
 ropt_poly_refresh ( ropt_poly_ptr poly )
 {
-  mpz_set_ui (poly->n, 0);
+  mpz_set_ui (poly->cpoly->n, 0);
   mpz_set_ui (poly->m, 0);
-
-  mpz_poly_set_zero(poly->f);
-  mpz_poly_set_zero(poly->g);
+  mpz_poly_set_zero(poly->cpoly->pols[1]);
+  mpz_poly_set_zero(poly->cpoly->pols[0]);
   for (unsigned int i = 0; i <= ropt_primes[ROPT_NPRIMES-1]; i++) {
     mpz_set_ui (poly->fx[i], 0);
     mpz_set_ui (poly->gx[i], 0);
@@ -275,13 +275,13 @@ ropt_poly_compute_evaluations (ropt_poly_ptr poly)
     mpz_set_ui (poly->fx[i], 0);
     mpz_set_ui (poly->gx[i], 0);
     /* fx[i] is f(i), gx[i] is g(i) */
-    mpz_poly_eval_ui (poly->fx[i], poly->f, i);
-    mpz_poly_eval_ui (poly->gx[i], poly->g, i);
+    mpz_poly_eval_ui (poly->fx[i], poly->cpoly->pols[1],i);
+    mpz_poly_eval_ui (poly->gx[i], poly->cpoly->pols[0], i);
     /* numerator[i] is f(i)*g'(i) - f'(i)*g(i) */
-    mpz_poly_eval_diff_ui (poly->numerator[i], poly->f, i);
+    mpz_poly_eval_diff_ui (poly->numerator[i], poly->cpoly->pols[1], i);
     mpz_mul (poly->numerator[i], poly->numerator[i], poly->gx[i]);
     mpz_neg (poly->numerator[i], poly->numerator[i]);
-    mpz_poly_eval_diff_ui (tmp, poly->g, i);    /* it's g_1 anyway */
+    mpz_poly_eval_diff_ui (tmp, poly->cpoly->pols[0], i);    /* it's g_1 anyway */
     mpz_mul (tmp, poly->fx[i], tmp);
     mpz_add (poly->numerator[i], tmp, poly->numerator[i]);
   }
@@ -296,18 +296,16 @@ ropt_poly_compute_evaluations (ropt_poly_ptr poly)
 bool
 ropt_poly_setup_check ( ropt_poly_ptr poly )
 {
-  poly->d = poly->f->deg;
-
   /* m = -Y0/Y1 mod n */
-  mpz_invert (poly->m, mpz_poly_coeff_const(poly->g, 1), poly->n);
+  mpz_invert (poly->m, mpz_poly_coeff_const(poly->cpoly->pols[0], 1), poly->cpoly->n);
   mpz_neg (poly->m, poly->m);
-  mpz_mul (poly->m, poly->m, mpz_poly_coeff_const(poly->g, 0));
-  mpz_mod (poly->m, poly->m, poly->n);
+  mpz_mul (poly->m, poly->m, mpz_poly_coeff_const(poly->cpoly->pols[0], 0));
+  mpz_mod (poly->m, poly->m, poly->cpoly->n);
 
   /* check if m is a root of f mod n */
   mpz_t t;
   mpz_init (t);
-  mpz_poly_eval_mod_mpz(t, poly->f, poly->m, poly->n);
+  mpz_poly_eval_mod_mpz(t, poly->cpoly->pols[1], poly->m, poly->cpoly->n);
   int ret = mpz_cmp_ui (t, 0) == 0;
   mpz_clear (t);
 
@@ -317,24 +315,23 @@ ropt_poly_setup_check ( ropt_poly_ptr poly )
 
 /**
  * Precompute fx, gx and numerator in ropt_poly_t. Note: poly->f,
- * poly->g, poly->d, poly->n must be set in prior.
+ * poly->g, poly->d, poly->cpoly->n must be set in prior.
  * This function can be called to reset poly after rotation.
  */
 void
 ropt_poly_setup ( ropt_poly_ptr poly )
 {
   if (!ropt_poly_setup_check (poly)) {
-    fprintf (stderr, "ERROR: The following polynomial have no common"
+    fprintf (stderr, "ERROR: The following polynomials have no common"
              " root. \n");
-
-    print_cadopoly_fg (stderr, poly->f, poly->g, poly->n);
+    print_cadopoly_fg (stderr, poly->cpoly->pols[1], poly->cpoly->pols[0], poly->cpoly->n);
     exit (1);
   }
 
   /* pre-compute f(r) for all r < B */
   ropt_poly_compute_evaluations(poly);
   /* projective alpha */
-  poly->alpha_proj = get_alpha_projective (poly->f, get_alpha_bound ());
+  poly->alpha_proj = get_alpha_projective (poly->cpoly->pols[1], get_alpha_bound ());
 }
 
 
@@ -350,10 +347,7 @@ ropt_poly_clear ( ropt_poly_ptr poly )
     mpz_clear(poly->numerator[i]);
   }
 
-  mpz_poly_clear(poly->f);
-  mpz_poly_clear(poly->g);
-
-  mpz_clear (poly->n);
+  cado_poly_clear(poly->cpoly);
   mpz_clear (poly->m);
 
   free (poly->fx);
@@ -390,11 +384,16 @@ ropt_bound_setup_normbound ( ropt_poly_srcptr poly,
                              ropt_param_srcptr param,
                              double incr )
 {
+  /* XXX when we put a cpoly inside ropt_poly, we can reuse the
+   * cado_poly_stats type. Except that cado_poly_stats always computes
+   * alpha, whieh here we don't really care. Not sure it's a problem
+   */
+  mpz_poly_srcptr F = poly->cpoly->pols[1];
+  mpz_poly_srcptr G = poly->cpoly->pols[0];
   double skewness;
-  skewness = L2_skewness (poly->f, SKEWNESS_DEFAULT_PREC);
-  bound->init_lognorm = L2_lognorm (poly->f, skewness);
-  bound->bound_E = (bound->init_lognorm + expected_rotation_gain (poly->f, poly->g))
-    * incr;
+  skewness = L2_skewness (F, SKEWNESS_DEFAULT_PREC);
+  bound->init_lognorm = L2_lognorm (F, skewness);
+  bound->bound_E = (bound->init_lognorm + expected_rotation_gain (F, G)) * incr;
   /* setup lognorm bound, either from input or by default
      By default, we do not use bound_lognorm to bound the 
      rotation; instead we use (lognorm + exp_E)          */
@@ -436,7 +435,7 @@ ropt_bound_setup_globalbound ( ropt_poly_srcptr poly,
                                ropt_param_ptr param )
 {
   /* w bound */
-  if (poly->d == 6) {
+  if (mpz_poly_degree(poly->cpoly->pols[1]) == 6) {
     if (param->w_length > 0) {
       bound->global_w_boundl = param->w_left_bound;
       bound->global_w_boundr = param->w_left_bound + param->w_length - 1;
@@ -452,10 +451,10 @@ ropt_bound_setup_globalbound ( ropt_poly_srcptr poly,
   }
 
   /* u bound */
-  rotate_bounds_U_lu (poly->f, poly->g, bound);
+  rotate_bounds_U_lu (poly->cpoly->pols[1], poly->cpoly->pols[0], bound);
 
   /* v bound */
-  rotate_bounds_V_mpz (poly->f, poly->g, bound);
+  rotate_bounds_V_mpz (poly->cpoly->pols[1], poly->cpoly->pols[0], bound);
 }
 
 
@@ -466,7 +465,9 @@ static inline void
 ropt_bound_setup_others ( ropt_poly_srcptr poly,
                           ropt_bound_ptr bound )
 {
-  bound->exp_min_alpha = expected_rotation_gain (poly->f, poly->g);
+  mpz_poly_srcptr G = poly->cpoly->pols[0];
+  mpz_poly_srcptr F = poly->cpoly->pols[1];
+  bound->exp_min_alpha = expected_rotation_gain (F, G);
 }
 
 
@@ -553,10 +554,10 @@ ropt_bound_reset ( ropt_poly_srcptr poly,
 {
 
   /* u bound */
-  rotate_bounds_U_lu (poly->f, poly->g, bound);
+  rotate_bounds_U_lu (poly->cpoly->pols[1], poly->cpoly->pols[0], bound);
 
   /* v bound */
-  rotate_bounds_V_mpz (poly->f, poly->g, bound);
+  rotate_bounds_V_mpz (poly->cpoly->pols[1], poly->cpoly->pols[0], bound);
 
   /* set exp_min_alpha */
   ropt_bound_setup_others (poly, bound);
@@ -612,8 +613,6 @@ ropt_s1param_init ( ropt_s1param_ptr s1param )
      sublattices */
   s1param->nbest_sl_tunemode = 0;
 
-  mpz_init_set_ui (s1param->modulus, 1UL);
-
   s1param->e_sl = (unsigned int*)
     malloc ( NUM_SUBLATTICE_PRIMES * sizeof (unsigned int) );
 
@@ -668,7 +667,7 @@ ropt_s1param_setup_e_sl ( ropt_poly_srcptr poly,
     modbound = bound_by_u / 8;
 
   /* adjust for small skewness but large bound (not sure if this is good) */
-  double skew = L2_skewness (poly->f, SKEWNESS_DEFAULT_PREC);
+  double skew = L2_skewness (poly->cpoly->pols[1], SKEWNESS_DEFAULT_PREC);
   if ((double) modbound > skew)
     modbound = (unsigned long) skew;
 
@@ -744,7 +743,7 @@ ropt_s1param_setup ( ropt_poly_srcptr poly,
   s1param->tlen_e_sl = s1param->len_e_sl;
 
   /* Set 2: "nbest_sl", depending on the size of n */
-  j = mpz_sizeinbase (poly->n, 10);
+  j = mpz_sizeinbase (poly->cpoly->n, 10);
   for (i = 0; i < NUM_DEFAULT_DIGITS-1; i ++)
     if (size_total_sublattices[i][0] > j)
       break;
@@ -785,7 +784,7 @@ ropt_s1param_resetup ( ropt_poly_srcptr poly,
   unsigned int i, j;
   s1param->len_e_sl = NUM_SUBLATTICE_PRIMES;
   s1param->tlen_e_sl = s1param->len_e_sl;
-  j = mpz_sizeinbase (poly->n, 10);
+  j = mpz_sizeinbase (poly->cpoly->n, 10);
   for (i = 0; i < NUM_DEFAULT_DIGITS; i ++)
     if (size_total_sublattices[i][0] > j)
       break;
@@ -809,8 +808,8 @@ ropt_s1param_resetup ( ropt_poly_srcptr poly,
 void
 ropt_s1param_resetup_modbound ( ropt_poly_srcptr poly,
                                 ropt_s1param_ptr s1param,
-                                ropt_bound_ptr bound,
-                                ropt_param_ptr param,
+                                ropt_bound_srcptr bound,
+                                ropt_param_srcptr param,
                                 unsigned int nbest,
                                 unsigned long modbound)
 {
@@ -845,7 +844,6 @@ ropt_s1param_clear ( ropt_s1param_ptr s1param )
 {
   free(s1param->e_sl);
   free(s1param->individual_nbest_sl);
-  mpz_clear (s1param->modulus);
 }
 
 
@@ -876,7 +874,7 @@ ropt_s2param_init ( ropt_s2param_ptr s2param )
  * Free ropt_s2param.
  */
 void
-ropt_s2param_clear (ropt_s2param_ptr s2param )
+ropt_s2param_clear( ropt_s2param_ptr s2param )
 {
   mpz_clear (s2param->Umax);
   mpz_clear (s2param->Umin);
@@ -885,8 +883,8 @@ ropt_s2param_clear (ropt_s2param_ptr s2param )
   mpz_clear (s2param->A);
   mpz_clear (s2param->B);
   mpz_clear (s2param->MOD);
-  mpz_poly_clear(s2param->f);
-  mpz_poly_clear(s2param->g);
+  mpz_poly_clear (s2param->f);
+  mpz_poly_clear (s2param->g);
 }
 
 
@@ -1079,11 +1077,10 @@ ropt_s2param_print ( ropt_s2param_srcptr s2param )
  * Init bestpoly.
  */
 void
-ropt_bestpoly_init ( ropt_bestpoly_ptr bestpoly,
-                     int d )
+ropt_bestpoly_init ( ropt_bestpoly_ptr bestpoly)
 {
-    mpz_poly_init(bestpoly->f, d);
-    mpz_poly_init(bestpoly->g, 1);
+    mpz_poly_init(bestpoly->f, -1);
+    mpz_poly_init(bestpoly->g, -1);
 }
 
 
@@ -1106,7 +1103,6 @@ ropt_bestpoly_set ( ropt_bestpoly_ptr bestpoly,
 void
 ropt_bestpoly_clear ( ropt_bestpoly_ptr bestpoly )
 {
-
     mpz_poly_clear(bestpoly->f);
     mpz_poly_clear(bestpoly->g);
 }

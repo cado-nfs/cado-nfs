@@ -1,6 +1,8 @@
 #ifndef TABLE_F_PY_PHI__F_DEG4_S02_C4V4_H1_PY_S20_F01_H_
 #define TABLE_F_PY_PHI__F_DEG4_S02_C4V4_H1_PY_S20_F01_H_
 
+#include "gfpkdlpolyselect.h"
+
 // pragma no prototypes
 
 /* table of polynomials f preselected with good properties. */
