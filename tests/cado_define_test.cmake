@@ -213,7 +213,6 @@ function(cado_define_test)
 
     cado_nfs_test_handle_script_or_binary()
 
-    cado_nfs_test_propagate_all()
     cado_nfs_test_print_debug()
     cado_epilogue_create_test()
 endfunction()

@@ -107,6 +107,7 @@ set(CADO_NFS_TEST_KEYWORDS_SPECIAL_PROPAGATE_RULES
     PRECOMMAND
     ARGUMENTS
     EXECUTABLE
+    TARGET_DEPENDENCIES
 )
 
 list(APPEND CADO_NFS_TEST_KEYWORDS_FIRST_WINS_NOISY
@@ -148,6 +149,7 @@ endmacro()
 macro(cado_nfs_test_propagate_TARGET_DEPENDENCIES)
     # we want to define builddep_X unconditionally, depending at least on
     # the dependencies of the base test.
+    # message(STATUS "-------------- propagating TARGET_DEPENDENCIES from ${TEST_BASE} to ${TEST_NAME}")
     list(APPEND TARGET_DEPENDENCIES ${TEST_BASE}_dependencies)
 endmacro()
 
@@ -232,6 +234,7 @@ macro(cado_nfs_test_propagate_all)
         if (${x} IN_LIST CADO_NFS_TEST_KEYWORDS_DO_NOT_PROPAGATE)
         elseif (${x} IN_LIST
                 CADO_NFS_TEST_KEYWORDS_SPECIAL_PROPAGATE_RULES)
+            # message(STATUS "### ${TEST_BASE} --> ${TEST_NAME} --> cado_nfs_test_propagate_${x}")
             cmake_language(CALL cado_nfs_test_propagate_${x})
             list(LENGTH ${x} n${x})
         else()
