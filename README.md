@@ -5,7 +5,7 @@ If you're accessing the cado-nfs source from a different link, it may be
 an outdated fork.
 
 [![pipeline status](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/pipeline.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/pipelines?ref=master)
-[![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/coverage.html?job=merge+coverage+tests)
+[![coverage report](https://gitlab.inria.fr/cado-nfs/cado-nfs/badges/master/coverage.svg)](https://gitlab.inria.fr/cado-nfs/cado-nfs/-/jobs/artifacts/master/file/coverage/lcov/index.html?job=merge+coverage+tests)
 [![coverity scan](https://scan.coverity.com/projects/23184/badge.svg)](https://scan.coverity.com/projects/cado-nfs)
 
 Quick install:
