@@ -30,7 +30,7 @@ macro(add_bwc_test nm script)
         # override it.
         cado_define_test(test_bwc_${nm}${suffix}
             AVOID_CONCURRENT
-            TARGET_DEPENDENCIES bwc_full
+            TARGET_DEPENDENCIES bwc_full random_matrix
             # We have cases where _many_ bwc tests end up taking more
             # than the default 20 seconds. Maybe it's better to add
             # the cutoff.
@@ -785,7 +785,10 @@ cado_define_test(TEST_NAME spmv_bucket_30075
 cado_define_test(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/test-matcache.sh
     --matrix-size 1000 --density 10
     TARGET_DEPENDENCIES
-    random_matrix build_matcache bench_matcache)
+    random_matrix build_matcache
+    bench_matcache
+    bwc_matmul_gf2
+)
 
 #########################################################################
 

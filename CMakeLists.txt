@@ -43,6 +43,9 @@ get_override(TIMEOUT_SCALE   TIMEOUT_SCALE)
 # It must be called before the project() command.
 cmake_minimum_required(VERSION 3.18.0)
 
+# if we want to use JOB_SERVER_AWARE, we need 3.28.0
+# cmake_minimum_required(VERSION 3.28.0)
+
 project(CADO_NFS)
 
 # must be done early, but after project()
@@ -105,7 +108,10 @@ enable_testing()
 # obeyed. This has the consequence that in order to pass a $, you need to
 # pass $$ ; well, plus quoting. So that gives, e.g.:
 #        make check ARGS="-R ^foo\$\$"
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V $(ARGS))
+add_custom_target(check
+    COMMAND ${CMAKE_CTEST_COMMAND} -V $(ARGS)
+    # JOB_SERVER_AWARE true
+)
 
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
 	# sigh...

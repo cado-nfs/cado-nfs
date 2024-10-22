@@ -20,7 +20,7 @@ foreach (doctest_source ${PYTHON_DOCTEST_SOURCES})
       ${CADO_NFS_SOURCE_DIR}/tests/provide-wdir.sh --env TMPDIR
       PROGRAM
       python3 -m doctest ${doctest_source}
-      TEST_DEPENDENCIES)
+      )
   set_tests_properties(test_python_${basename} PROPERTIES RUN_SERIAL 1)
 endforeach (doctest_source)
 

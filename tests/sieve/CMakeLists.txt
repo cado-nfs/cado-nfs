@@ -44,6 +44,7 @@ cado_define_test(c90_21505_makefb
             -poly ${c90_21505_poly} -lim 811066 -maxbits 11
             -out ${c90_21505_roots}
         TARGET_DEPENDENCIES makefb
+        FIXTURES_SETUP c90_21505.fb
         )
 
 cado_define_test(c90_21505_sieve
@@ -60,7 +61,7 @@ cado_define_test(c90_21505_sieve
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
             -v -v --adjust-strategy 0
         TARGET_DEPENDENCIES las
-        TEST_DEPENDENCIES c90_21505_makefb
+        FIXTURES_REQUIRED c90_21505.fb
         )
 
 
@@ -73,6 +74,7 @@ cado_define_test(c90_21553_makefb
             -poly ${c90_21553_poly} -lim 811066 -maxbits 11
             -out ${c90_21553_roots}
         TARGET_DEPENDENCIES makefb
+        FIXTURES_SETUP c90_21553.fb
         )
 
 cado_define_test(c90_21553_sieve
@@ -89,7 +91,7 @@ cado_define_test(c90_21553_sieve
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
             -v -v --adjust-strategy 0
         TARGET_DEPENDENCIES las
-        TEST_DEPENDENCIES c90_21553_makefb
+        FIXTURES_REQUIRED c90_21553.fb
         )
 
 set(c95_21684_poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly)
@@ -146,14 +148,18 @@ set(c95_21684_poly ${CMAKE_CURRENT_SOURCE_DIR}/c95_21684.poly)
 # not actually test anything
 cado_define_test(F9_sievetest_cleanup
         PROGRAM ${CMAKE_COMMAND} -E remove -f
-        ${F9_checksums} ${F9_checksums}_quick)
+        ${F9_checksums} ${F9_checksums}_quick
+        FIXTURES_SETUP F9.sievetest_cleanup
+    )
 
 cado_define_test(F9_makefb
         PROGRAM
             ${makefb_path}
             -poly ${F9_poly} -lim 1200000 -maxbits 10
             -out ${F9_roots}
-        TARGET_DEPENDENCIES makefb)
+        TARGET_DEPENDENCIES makefb
+        FIXTURES_SETUP F9.fb
+    )
 
 # Most F9 tests easily take between 5 and 10 seconds on a laptop,
 # and this can grow to several tens of seconds on a container that runs
@@ -170,7 +176,7 @@ cado_define_test(F9
             ${CMAKE_CURRENT_SOURCE_DIR}/sievetest.sh
             -v --adjust-strategy 0
         TARGET_DEPENDENCIES las
-        TEST_DEPENDENCIES F9_sievetest_cleanup F9_makefb
+        FIXTURES_REQUIRED F9.fb F9.sievetest_cleanup
         NO_DEFAULT_RUN
         TIMEOUT 90
         )
@@ -186,9 +192,11 @@ cado_define_test(bogus_fbc_is_consistent
     PROGRAM
     ${CADO_NFS_SOURCE_DIR}/sieve/inspect-fbc-file.pl -fbc
     ${CMAKE_CURRENT_SOURCE_DIR}/bogus${OS_PAGE_SIZE}.fbc)
+
 add_custom_target(copy_bogus_fbc ${CMAKE_COMMAND} -E copy
     ${CMAKE_CURRENT_SOURCE_DIR}/bogus${OS_PAGE_SIZE}.fbc
     ${CMAKE_CURRENT_BINARY_DIR}/bogus-copy.fbc)
+
 cado_divert_test(F9_sieve reuse_foreign_fbc
         APPEND_ENVIRONMENT
         fbc=${CMAKE_CURRENT_BINARY_DIR}/bogus-copy.fbc
@@ -341,7 +349,8 @@ cado_divert_test(F9_quick tracek
         APPEND_ARGUMENTS
             -traceab -8517,584707
         TARGET_DEPENDENCIES las_tracek
-        TEST_DEPENDENCIES F9_makefb F9_sieve
+        TEST_DEPENDENCIES F9_sieve
+        FIXTURES_REQUIRED F9.fb
         )
 
 # Try a too-large lambda value. We could divert on any test we like, but
@@ -464,7 +473,7 @@ cado_divert_test(F9 descent
         APPEND_ARGUMENTS
             -allow-largesq
         TARGET_DEPENDENCIES las_descent
-        TEST_DEPENDENCIES F9_makefb
+        FIXTURES_REQUIRED F9.fb
         TIMEOUT 30
         )
 
@@ -485,7 +494,7 @@ cado_define_test(F9_dupsup
             ${CMAKE_CURRENT_SOURCE_DIR}/F9.dupsup.sh
             -v -v --adjust-strategy 0
         TARGET_DEPENDENCIES las dupsup
-        TEST_DEPENDENCIES F9_sievetest_cleanup F9_makefb F9_sieve
+        FIXTURES_REQUIRED F9.fb F9.sievetest_cleanup
         TIMEOUT 60
         )
 
@@ -496,7 +505,7 @@ cado_define_test(F9_fakereltest
     ${CMAKE_CURRENT_SOURCE_DIR}/F9.fakerels.sh
     ${F9_roots} ${las_path} ${CADO_NFS_SOURCE_DIR}
     TARGET_DEPENDENCIES fake_rels freerel las
-    TEST_DEPENDENCIES F9_makefb
+    FIXTURES_REQUIRED F9.fb
     TIMEOUT 120
 )
 # This really taking super long with valgrind in particular, so let's

@@ -1145,6 +1145,9 @@ sqrt/sqrt.cpp
 tests/.clang-tidy
 tests/CMakeLists.txt
 tests/README
+tests/cado_define_test.cmake
+tests/cado_divert_test.cmake
+tests/cado_test.cmake
 tests/do_with_mpi.sh
 tests/estimate_matsize/CMakeLists.txt
 tests/estimate_matsize/p30.ems.params
