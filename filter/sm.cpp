@@ -52,10 +52,10 @@ stats_data_t stats; /* struct for printing progress */
 void *
 thread_sm (void * context_data, earlyparsed_relation_ptr rel)
 {
-  pair_and_sides * ps = (pair_and_sides *) context_data;
-  mpz_poly_set_ab(ps[rel->num]->ab, rel->a, rel->b);
-  ps[rel->num]->active_sides[0] = rel->active_sides[0];
-  ps[rel->num]->active_sides[1] = rel->active_sides[1];
+  std::vector<pair_and_sides> & ps = *(std::vector<pair_and_sides> *) context_data;
+  ps[rel->num] = pair_and_sides(
+          rel->a, rel->b,
+          rel->active_sides[0], rel->active_sides[1]);
 
   return NULL;
 }
@@ -74,16 +74,14 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
 
   purgedfile_read_firstline (purgedname, &nrows, &ncols);
 
-  pair_and_sides * pairs = (pair_and_sides *) malloc (nrows * sizeof(pair_and_sides));
-  for (uint64_t i = 0; i < nrows; i++)
-    mpz_poly_init (pairs[i]->ab, -1);
+  std::vector<pair_and_sides> pairs(nrows);
 
-  ASSERT_ALWAYS (pairs != NULL);
   /* For each rel, read the a,b-pair and init the corresponding poly pairs[] */
   fprintf(stdout, "\n# Reading %" PRIu64 " (a,b) pairs\n", nrows);
   fflush(stdout);
   char *fic[2] = {(char *) purgedname, NULL};
-  filter_rels (fic, (filter_rels_callback_t) thread_sm, pairs,
+  filter_rels (fic, (filter_rels_callback_t) thread_sm,
+          &pairs,
           EARLYPARSE_NEED_AB_HEXA, NULL, NULL);
 
 
@@ -94,7 +92,7 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
   ASSERT_ALWAYS (ix != NULL);
 
   ret = fscanf(ix, "%" SCNu64 "\n", small_nrows);
-  ASSERT(ret == 1);
+  ASSERT_ALWAYS(ret == 1);
 
   rels = (sm_relset_ptr) malloc (*small_nrows * sizeof(sm_relset_t));
   ASSERT_ALWAYS (rels != NULL);
@@ -124,10 +122,6 @@ sm_relset_ptr build_rel_sets(const char * purgedname, const char * indexname,
   stats_print_progress (stats, *small_nrows, 0, 0, 1);
   fclose_maybe_compressed(ix, indexname);
 
-  for (uint64_t i = 0; i < nrows; i++)
-    mpz_poly_clear (pairs[i]->ab);
-  free (pairs);
-  
   return rels;
 }
 

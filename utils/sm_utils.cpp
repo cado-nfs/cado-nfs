@@ -182,7 +182,7 @@ sm_relset_copy (sm_relset_t r, sm_relset_srcptr s)
 void
 sm_build_one_relset(sm_relset_ptr rel,
                     const uint64_t *r, const int64_t *e, int len,
-                    const pair_and_sides * ps,
+                    std::vector<pair_and_sides> const & ps,
                     const mpz_poly_srcptr * F, int nb_polys,
 		    mpz_srcptr ell2)
 {
@@ -207,8 +207,8 @@ sm_build_one_relset(sm_relset_ptr rel,
   {
     /* Should never happen! */
     ASSERT_ALWAYS(e[k] != 0);
-    mpz_poly_srcptr ab = ps[r[k]]->ab;
-    const unsigned int * si = ps[r[k]]->active_sides;
+    cxx_mpz_poly const & ab = ps[r[k]].ab;
+    const unsigned int * si = ps[r[k]].active_sides;
 
     if (e[k] > 0)
     {

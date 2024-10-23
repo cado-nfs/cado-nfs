@@ -8,7 +8,6 @@
 #include "mpz_poly.h"   // mpz_poly_srcptr
 #include "macros.h"
 
-#define TEST_MAX_AB 16
 #define FREQ 2 // when possible one time out of FREQ we try sm_single_rel
 
 void
@@ -34,7 +33,7 @@ test_sm (FILE * datafile)
     mpz_t tmp, ell;
     int64_t a, e[MAX_LEN_RELSET];
     uint64_t b, len_relset, r[MAX_LEN_RELSET];
-    pair_and_sides ab_polys[TEST_MAX_AB];
+    std::vector<pair_and_sides> ab_polys;
     sm_relset_t relset;
 
     ret = fscanf(datafile, "in %d", &degF);
@@ -59,15 +58,13 @@ test_sm (FILE * datafile)
 
     ret = fscanf(datafile, " %d", &nb_ab);
     ASSERT_ALWAYS (ret == 1);
-    ASSERT_ALWAYS (nb_ab <= TEST_MAX_AB);
 
     for (int i = 0; i < nb_ab; i++)
     {
       ret = fscanf (datafile, " %" SCNd64 " %" SCNu64 "", &a, &b);
       ASSERT_ALWAYS (ret == 2);
-      mpz_poly_init_set_ab (ab_polys[i]->ab, a, b);
-      ab_polys[i]->active_sides[0] = 0;
-      ab_polys[i]->active_sides[1] = 1;
+      pair_and_sides ps(a, b, 0, 1);
+      ab_polys.push_back(ps);
     }
 
     ret = fscanf(datafile, " %" SCNu64 "", &len_relset);
@@ -136,7 +133,7 @@ test_sm (FILE * datafile)
     if (len_relset == 1 && e[0] == 1 && nb_test_single_rel % FREQ == 0)
     {
       nb_test_single_rel++;
-      sm_info.compute_piecewise(SMc, ab_polys[r[0]]->ab);
+      sm_info.compute_piecewise(SMc, ab_polys[r[0]].ab);
     } else {
       mpz_poly_srcptr FF[2] = {F, F};
       sm_relset_init (relset, FF, 2);
@@ -164,11 +161,11 @@ test_sm (FILE * datafile)
       fprintf (stderr, "\n# (a,b) pairs are:\n");
       for (int i = 0; i < nb_ab; i++)
       {
-        mpz_poly_getcoeff_wrapper (tmp, 0, ab_polys[i]->ab);
-        a = mpz_get_si (tmp);
-        mpz_poly_getcoeff_wrapper (tmp, 1, ab_polys[i]->ab);
-        b = mpz_get_ui (tmp);
-        fprintf (stderr, "%d %" SCNd64 ",%" SCNu64 "\n", i, a, b);
+        cxx_mpz tmp;
+        mpz_neg(tmp, mpz_poly_coeff_const(ab_polys[i].ab, 1));
+        gmp_fprintf (stderr, "%d %" SCNd64 ",%" SCNu64 "\n", i,
+                mpz_poly_coeff_const(ab_polys[i].ab, 0),
+                (mpz_srcptr) tmp);
       }
       if (mpz_poly_cmp (N, Nc) != 0)
       {
@@ -200,10 +197,6 @@ test_sm (FILE * datafile)
       }
       fprintf (stderr, "\n#######################\n");
     }
-
-
-    for (int i = 0; i < nb_ab; i++)
-      mpz_poly_clear (ab_polys[i]->ab);
     mpz_clear (tmp);
     mpz_clear (ell);
     mpz_poly_clear (F);

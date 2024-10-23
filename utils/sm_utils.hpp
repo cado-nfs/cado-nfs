@@ -55,6 +55,7 @@
 #include <stdint.h>
 #include <stdio.h>      // FILE
 #include <gmp.h>        // mpz_t
+#include <vector>
 #include "mpz_poly.h"
 #include "mpz_mat.h"
 #include "cxx_mpz.hpp"
@@ -121,14 +122,26 @@ typedef const sm_relset_struct_t * sm_relset_srcptr;
  * related to the pair.
  * This is only used by thread_sm
  */
-struct pair_and_sides_s {
+struct pair_and_sides {
     /* mpz_poly because we might think of using higher degree */
-    mpz_poly ab;
+    cxx_mpz_poly ab;
     unsigned int active_sides[2];
+    pair_and_sides(mpz_srcptr a, mpz_srcptr b, int s0, int s1) {
+        mpz_poly_set_mpz_ab(ab, a, b);
+        active_sides[0] = s0;
+        active_sides[1] = s1;
+    }
+    pair_and_sides(int64_t a, uint64_t b, int s0, int s1) {
+        mpz_poly_set_ab(ab, a, b);
+        active_sides[0] = s0;
+        active_sides[1] = s1;
+    }
+    pair_and_sides() = default;
+    pair_and_sides(pair_and_sides const &) = default;
+    pair_and_sides(pair_and_sides &&) = default;
+    pair_and_sides& operator=(pair_and_sides const &) = default;
+    pair_and_sides& operator=(pair_and_sides &&) = default;
 };
-typedef struct pair_and_sides_s pair_and_sides[1];
-typedef struct pair_and_sides_s * pair_and_sides_ptr;
-typedef const struct pair_and_sides_s * pair_and_sides_srcptr;
 
 #ifdef __cplusplus
 extern "C" {
@@ -148,7 +161,7 @@ void mpz_poly_init_set_ab (mpz_poly_ptr, int64_t, uint64_t);
 // corresponding side.
 void sm_build_one_relset (sm_relset_ptr rel,
                     const uint64_t *r, const int64_t *e, int len,
-                    const pair_and_sides * ps,
+                    std::vector<pair_and_sides> const & ps,
                     const mpz_poly_srcptr * F, int nb_polys,
 		    mpz_srcptr ell2);
 
