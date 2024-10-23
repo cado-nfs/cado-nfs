@@ -36,9 +36,13 @@ int prime_ideal_inertia_degree(cxx_mpz_mat const& I);
 
 std::pair<cxx_mpz, cxx_mpz_mat> prime_ideal_two_element(cxx_mpq_mat const& O, cxx_mpz_poly const& f, cxx_mpz_mat const& M, cxx_mpz_mat const& I);
 
+std::string write_order_element_as_vector(cxx_mpz_mat const& z);
+
 std::string write_element_as_polynomial(cxx_mpq_mat const& theta_q, std::string const& var);
 
 std::vector<cxx_mpz> write_element_as_list_of_integers(cxx_mpq_mat const& theta_q);
+
+cxx_mpz_mat multiply_elements_in_order(cxx_mpz_mat const& M, cxx_mpz_mat const& E, cxx_mpz_mat const& F);
 
 struct ideal_comparator {
     typedef std::pair<cxx_mpz_mat,int> Im_t;

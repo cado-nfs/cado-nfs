@@ -947,6 +947,19 @@ string write_element_as_polynomial(cxx_mpq_mat const& theta_q, string const& var
     }
 }
 
+string write_order_element_as_vector(cxx_mpz_mat const& z)
+{
+    ASSERT_ALWAYS(z->m == 1);
+    ostringstream s;
+    s << "[";
+    for(unsigned int i = 0 ; i < z->n ; i++) {
+        if (i) s << ", ";
+        s << z(0,i);
+    }
+    s << "]";
+    return s.str();
+}
+
 std::vector<cxx_mpz>
 write_element_as_list_of_integers(cxx_mpq_mat const& theta_q)
 {
