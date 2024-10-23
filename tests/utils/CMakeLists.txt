@@ -103,6 +103,7 @@ if(SAGE)
             dup1
             dup2
             explain_indexed_relation
+        TIMEOUT 60
     )
     add_dependencies(all_sagemath_test_dependencies
         test_explain_relations_with_sagemath_dependencies)
