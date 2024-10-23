@@ -73,8 +73,6 @@ typedef struct punched_interval_s * punched_interval_ptr;
 
 void punched_interval_free(punched_interval_ptr c, punched_interval_ptr * pool);
 
-void punched_interval_set_full(punched_interval_ptr x, double b0, double b1);
-
 punched_interval_ptr punched_interval_alloc(punched_interval_ptr * pool, double b0, double b1);
 
 void punched_interval_free_pool(punched_interval_ptr * pool);

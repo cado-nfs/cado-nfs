@@ -188,6 +188,7 @@ double random_binomial(gmp_randstate_t rstate, unsigned long n, double p)
 void punched_interval_free(punched_interval_ptr c, punched_interval_ptr * pool)
 {
     if (!c) return;
+    // fprintf(stderr, "STOW %p\n", c);
     /* enqueue both children to the free pool */
     punched_interval_free(c->left, pool);
     punched_interval_free(c->right, pool);
@@ -197,27 +198,25 @@ void punched_interval_free(punched_interval_ptr c, punched_interval_ptr * pool)
     *pool = c;
 }
 
-void punched_interval_set_full(punched_interval_ptr x, double b0, double b1)
-{
-    x->b0 = b0;
-    x->b1 = b1;
-    x->has_left = 0;
-    x->holes = 0;
-    x->left = 0;
-    x->right = 0;
-}
-
 punched_interval_ptr punched_interval_alloc(punched_interval_ptr * pool, double b0, double b1)
 {
     punched_interval_ptr x;
     if (*pool) {
         x = *pool;
+        // fprintf(stderr, "REUSE %p\n", x);
         *pool = x->left;
     } else {
         x = (struct punched_interval_s *) malloc(sizeof(struct punched_interval_s));
+        // fprintf(stderr, "ALLOC %p\n", x);
     }
     memset(x, 0, sizeof(struct punched_interval_s));
-    punched_interval_set_full(x, b0, b1);
+
+    x->b0 = b0;
+    x->b1 = b1;
+    x->has_left = 0;
+    x->holes = 0;
+    x->left = nullptr;
+    x->right = nullptr;
     return x;
 }
 
@@ -225,9 +224,10 @@ void punched_interval_free_pool(punched_interval_ptr * pool)
 {
     for(punched_interval_ptr q = *pool, v ; q ; q = v) {
         v = q->left;
+        // fprintf(stderr, "FREE %p\n", q);
         free(q);
     }
-    *pool = NULL;
+    *pool = nullptr;
 }
 
 void punched_interval_pre_free_pool(punched_interval_ptr * pool, int max, int print)

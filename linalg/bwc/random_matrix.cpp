@@ -518,7 +518,7 @@ int cmp_u32(uint32_t const * a, uint32_t const * b)
     return (*a > *b) - (*b > *a);
 }
 
-uint32_t generate_row(gmp_randstate_t rstate, random_matrix_ddata_ptr f, uint32_t * ptr, punched_interval_ptr range, punched_interval_ptr * pool)
+uint32_t generate_row(gmp_randstate_t rstate, random_matrix_ddata_ptr f, uint32_t * ptr, punched_interval_ptr * pool)
 {
     /* pick a row weight */
     /*
@@ -526,8 +526,7 @@ uint32_t generate_row(gmp_randstate_t rstate, random_matrix_ddata_ptr f, uint32_
        */
     uint32_t weight;
     for( ; (weight = random_poisson(rstate, f->mean)) >= f->ncols ; );
-    // punched_interval_ptr range = punched_interval_alloc(0, f->mean);
-    punched_interval_set_full(range, 0, f->mean);
+    punched_interval_ptr range = punched_interval_alloc(pool, 0, f->mean);
     for(uint32_t i = 0 ; i < weight ; i++) {
         // punched_interval_print(stdout, range);
         uint32_t k = punched_interval_pick(pool, range,
@@ -540,7 +539,7 @@ uint32_t generate_row(gmp_randstate_t rstate, random_matrix_ddata_ptr f, uint32_
         ptr[i] = k;
     }
     qsort(ptr, weight, sizeof(uint32_t), (sortfunc_t) &cmp_u32);
-    // punched_interval_free(range);
+    punched_interval_free(range, pool);
     return weight;
 }
 
@@ -693,10 +692,9 @@ void random_matrix_get_u32_byrows(gmp_randstate_t rstate, random_matrix_ddata_pt
         uint32_t * ptr = (uint32_t *) malloc(F->ncols * sizeof(uint32_t));
         /* we'd like to avoid constant malloc()'s and free()'s */
         punched_interval_ptr pool = NULL;
-        punched_interval_ptr range = punched_interval_alloc(&pool, 0, 1);
         for(unsigned long i = 0 ; i < F->nrows ; i++) {
             // long v = 0;
-            uint32_t const c = generate_row(rstate, F, ptr, range, & pool);
+            uint32_t const c = generate_row(rstate, F, ptr, & pool);
             PUSH_P(c);
             for(unsigned long j = 0 ; j < c ; j++) {
                 PUSH_P(ptr[j]);
@@ -722,7 +720,6 @@ void random_matrix_get_u32_byrows(gmp_randstate_t rstate, random_matrix_ddata_pt
             PUSH_P(0);
         }
         if (F->print) printf("\n");
-        punched_interval_free(range, &pool);
         punched_interval_free_pool(&pool);
         free(ptr);
 #undef PUSH_P
@@ -828,8 +825,7 @@ void random_matrix_get_u32_bycolumns(gmp_randstate_t rstate, random_matrix_ddata
                 t0 = time(NULL);
             }
             if (heavy) {
-                punched_interval_ptr range = punched_interval_alloc(&pool, 0, 1);
-                punched_interval_set_full(range, 0, wmean);
+                punched_interval_ptr range = punched_interval_alloc(&pool, 0, wmean);
                 for(unsigned long i = 0 ; i < weight ; i++) {
                     // punched_interval_print(stdout, range);
                     double x = random_uniform(rstate) * (range->b1 - range->holes);
@@ -997,14 +993,13 @@ void random_matrix_process_print(random_matrix_process_data & r, random_matrix_d
     uint64_t total_coeffs = 0;
     double tot_sq = 0;
     punched_interval_ptr pool = NULL;
-    punched_interval_ptr range = punched_interval_alloc(&pool, 0, 1);
     for(unsigned long i = 0 ; i < r.nrows ; i++) {
         long v = 0;
         uint32_t c;
         if (i >= F->nrows)
             c = 0;
         else
-            c = generate_row(rstate, F, ptr.get(), range, &pool);
+            c = generate_row(rstate, F, ptr.get(), &pool);
         if (avoid_zero_columns && i >= 0.9 * r.ncols) {
             for( ; next_priority_col < r.ncols ; next_priority_col++)
                 if (!colweights[next_priority_col]) break;
@@ -1068,7 +1063,6 @@ void random_matrix_process_print(random_matrix_process_data & r, random_matrix_d
             fwrite(colweights.get(), sizeof(uint32_t), r.ncols, r.cw.get());
         }
     }
-    punched_interval_free(range, &pool);
     punched_interval_free_pool(&pool);
     F->total_coeffs = total_coeffs;
     double const e = (double) total_coeffs / r.nrows;

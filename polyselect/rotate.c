@@ -122,6 +122,8 @@ int main(int argc, char const * argv[])
 
     print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
 
+    cado_poly_clear(cpoly);
+
     param_list_clear(pl);
     mpz_clear(tmp);
     mpz_poly_clear(rot);

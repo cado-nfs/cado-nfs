@@ -570,5 +570,6 @@ int main(int argc, char const * argv[])
     cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
 
     print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
+    cado_poly_clear(cpoly);
     return 0;
 } 
