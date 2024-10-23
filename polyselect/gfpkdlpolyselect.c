@@ -70,9 +70,9 @@ static bool get_g_CONJ(mpz_poly g[], mpz_poly phi, ppf_t params_g, int f_id, mpz
 /* print functions */
 
 static void mpz_poly_fprintf_cado_format_line (FILE *fp, mpz_poly f, 
-					const int j, const char* label_poly);
+					int j, const char* label_poly);
 // static void mpz_phi_poly_fprintf_cado_format_line (FILE *fp, const long int phi_coeff[MAX_DEGREE + 1][DEG_PY], unsigned int deg_phi, unsigned int deg_Py, int j, const char *label_poly);
-static void fprintf_gfpn_poly_info (FILE* fp, mpz_poly f, const char *label_poly);
+static void fprintf_gfpn_poly_info (FILE* fp, mpz_poly_srcptr f, const char *label_poly);
 
 /**
  * \brief Return appropriate degrees of polynomials f and g for CONJUGATION
@@ -669,7 +669,6 @@ bool get_g_CONJ(mpz_poly g[], mpz_poly phi,
     if (found_g){
       eval_si_phi_mpz_y(phi, ((ff->tab)[f_id]).phi, ff->deg_phi, tab_roots_Py[i]);
       for (i=0; (i<nb_found) && (i< (int)params->mnfs); i++){
-	mpz_poly_init(g[i], params_g->deg);
 	mpz_poly_set(g[i], gi[i]);
       }
     }
@@ -695,7 +694,7 @@ bool get_g_CONJ(mpz_poly g[], mpz_poly phi,
  */
 
 // , mpz_t ell, unsigned int mnfs
-int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED, unsigned int mnfs,
+int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED, unsigned int const mnfs,
 		      const char* out_filename){
   bool found_f=false, found_g=false;
   int f_id;
@@ -703,7 +702,6 @@ int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED,
   unsigned int deg_f = 2*n, deg_g = 2*n, i=0;
   // take the largest possibility as default init for deg_f and deg_g.
   mpz_poly f;
-  mpz_poly *g;
 
   const fPyphi_poly_t* ff;
   mpz_poly phi;
@@ -723,7 +721,7 @@ int gfpkdlpolyselect( unsigned int n, mpz_srcptr p, mpz_srcptr ell MAYBE_UNUSED,
     // plus quelques autres parametres
     if (ff != NULL){
       mpz_poly_init(f, deg_f);
-      g = (mpz_poly *) malloc(mnfs * sizeof(mpz_poly));
+      mpz_poly * g = (mpz_poly *) malloc(mnfs * sizeof(mpz_poly));
       FATAL_ERROR_CHECK (g == NULL, "not enough memory to allocate for table of g.");
       for (i=0; i<mnfs;i++){
 	mpz_poly_init(g[i], ff->deg_phi);
@@ -867,7 +865,7 @@ void mpz_phi_poly_fprintf_cado_format_line (FILE *fp, const long int phi_coeff[M
 #endif
 
 void
-fprintf_gfpn_poly_info ( FILE* fp, mpz_poly f, const char *label_poly)
+fprintf_gfpn_poly_info ( FILE* fp, mpz_poly_srcptr f, const char *label_poly)
 {
   //unsigned int i;
     double skew, logmu, alpha;

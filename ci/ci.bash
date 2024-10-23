@@ -231,8 +231,13 @@ dispatch_valgrind_files() {
     # business (e.g., cado-nfs-client.py can do that). It is possible
     # that vlagrind report leaks in such cases, but we're not super
     # interested in them
+    # SIGABRT is also what we get when an expect-fail test aborts on an
+    # exception. Likewise, there is little to worry about _in the
+    # valgrind setting_ about aborts in general. (If a SIGABRT error
+    # happens for a reason that is not an expect-fail, then the other
+    # tests should catch it!)
     ls | grep pid | xargs -r egrep -l 'ERROR SUMMARY: 0' | xargs -r mv -t ok
-    ls | grep pid | xargs -r egrep -l 'Process terminating.*signal.*SIG(TERM|INT|HUP)' pid-* | xargs -r mv -t ok-signal
+    ls | grep pid | xargs -r egrep -l 'Process terminating.*signal.*SIG(TERM|INT|HUP|ABRT)' pid-* | xargs -r mv -t ok-signal
     ls | grep pid | xargs -r egrep -l 'ERROR SUMMARY: [^0]' pid-* | xargs -r mv -t nok
 }
 
