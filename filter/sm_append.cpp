@@ -326,12 +326,10 @@ static void sm_append_slave(std::vector<sm_side_info> const & sm_info, int nb_po
 static void sm_append_sync(FILE * in, FILE * out, std::vector<sm_side_info> const & sm_info, int nb_polys)
 {
     char buf[1024];
-    mpz_poly pol, smpol;
+    cxx_mpz_poly pol, smpol;
     int maxdeg = sm_info[0].f->deg;
     for(int side = 1; side < nb_polys; side++)
         maxdeg = MAX(maxdeg, sm_info[side].f->deg);
-    mpz_poly_init(pol, maxdeg);
-    mpz_poly_init(smpol, maxdeg);
     while (fgets(buf, 1024, in)) {
         int n = strlen(buf);
         if (!n) break;
@@ -367,9 +365,7 @@ static void sm_append_sync(FILE * in, FILE * out, std::vector<sm_side_info> cons
                 fputc(',', out);
         }
         fputc('\n', out);
-        mpz_poly_clear(pol);
     }
-    mpz_poly_clear(smpol);
 }
 
 

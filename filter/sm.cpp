@@ -503,9 +503,11 @@ int main (int argc, char **argv)
                       part_rels[i].denom[side],
                       sm_info[side].f0,
                       sm_info[side].ell2);
-              sm_info[side].compute_piecewise(
-                      dst[i][side],
-                      part_rels[i].num[side]);
+              cxx_mpz_poly SM;
+              cxx_mpz_poly u;
+              mpz_poly_set(u, part_rels[i].num[side]);
+              sm_info[side].compute_piecewise( SM, u);
+              mpz_poly_swap(dst[i][side], SM);
           }
           if (thid == 0) {
               /* Static schedule, all threads can reasonably be expected

@@ -39,12 +39,10 @@ static void my_sm(const char *outfile, const char *infile,
   }
 
   char buf[1024];
-  mpz_poly pol, smpol;
+  cxx_mpz_poly pol, smpol;
   int maxdeg = 0;
   for(int side = 0; side < nb_polys; side++)
       maxdeg = MAX(maxdeg, sm_info[side].f->deg);
-  mpz_poly_init(pol, maxdeg);
-  mpz_poly_init(smpol, maxdeg);
   while (fgets(buf, 1024, in)) {
     if (buf[0] == '#')
       continue;
@@ -77,7 +75,6 @@ static void my_sm(const char *outfile, const char *infile,
         mpz_init(a); mpz_init(b);
         int ret = gmp_sscanf(buf, "%Zd,%Zd:", a, b);
         ASSERT_ALWAYS(ret == 2);
-        mpz_poly_clear(pol);
 	mpz_poly_init_set_mpz_ab(pol, a, b);
         mpz_clear(a); mpz_clear(b);
     }
@@ -89,8 +86,6 @@ static void my_sm(const char *outfile, const char *infile,
     }
     fprintf(out, "\n");
   }
-  mpz_poly_clear(pol);
-  mpz_poly_clear(smpol);
 
   if (out != NULL)
     fclose(out);

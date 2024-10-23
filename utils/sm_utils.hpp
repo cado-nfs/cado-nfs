@@ -105,7 +105,7 @@ struct sm_side_info {
      * compatible, as the change of basis is precomputed within the
      * sm_side_info structure.
      */
-    void compute_piecewise(mpz_poly_ptr dst, mpz_poly_srcptr u) const;
+    void compute_piecewise(cxx_mpz_poly & dst, cxx_mpz_poly const & u) const;
 };
 
 typedef struct {
