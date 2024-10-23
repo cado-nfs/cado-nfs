@@ -3,6 +3,9 @@
 #include <stdlib.h>     // free, malloc, abort
 #include <string.h>     // strcmp memset
 #include <gmp.h>
+
+#include <vector>
+
 #include "macros.h"     // for ASSERT_ALWAYS
 #include "mpz_poly.h"   // mpz_poly
 #include "sm_utils.hpp"
