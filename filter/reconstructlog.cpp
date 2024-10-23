@@ -371,10 +371,8 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
         for(int side = 0 ; side < data.cpoly->nb_polys ; side++) {
             sm_side_info const & S = data.sm_info[side];
             if (S.nsm > 0 && (nonvoidside & (((uint64_t) 1) << side))) {
-                mpz_poly u;
-                mpz_poly_init(u, MAX(1, S.f->deg-1));
-                mpz_poly_setcoeff_int64(u, 0, a);
-                mpz_poly_setcoeff_int64(u, 1, -b);
+                cxx_mpz_poly u;
+                mpz_poly_set_ab(u, a, b);
                 S.compute_piecewise(u, u);
                 ASSERT_ALWAYS(u->deg < S.f->deg);
                 if (S.mode == SM_MODE_LEGACY_PRE2018) {
@@ -387,7 +385,6 @@ thread_sm (void * context_data, earlyparsed_relation_ptr rel)
                     }
                 }
                 mpz_mod(l, l, ell);
-                mpz_poly_clear(u);
             }
         }
     }
