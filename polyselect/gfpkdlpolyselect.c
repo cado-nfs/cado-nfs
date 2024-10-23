@@ -669,7 +669,6 @@ bool get_g_CONJ(mpz_poly g[], mpz_poly phi,
     if (found_g){
       eval_si_phi_mpz_y(phi, ((ff->tab)[f_id]).phi, ff->deg_phi, tab_roots_Py[i]);
       for (i=0; (i<nb_found) && (i< (int)params->mnfs); i++){
-	mpz_poly_init(g[i], params_g->deg);
 	mpz_poly_set(g[i], gi[i]);
       }
     }
