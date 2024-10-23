@@ -778,8 +778,7 @@ void random_matrix_get_u32_bycolumns(gmp_randstate_t rstate, random_matrix_ddata
                 t0 = time(NULL);
             }
             if (heavy) {
-                punched_interval_ptr range = punched_interval_alloc(&pool, 0, 1);
-                punched_interval_set_full(range, 0, wmean);
+                punched_interval_ptr range = punched_interval_alloc(&pool, 0, wmean);
                 for(unsigned long i = 0 ; i < weight ; i++) {
                     // punched_interval_print(stdout, range);
                     double x = random_uniform(rstate) * (range->b1 - range->holes);
