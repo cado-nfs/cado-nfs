@@ -94,7 +94,7 @@ struct sm_side_info {
 
     cxx_mpz_mat matrix; // only if sm->mode == SM_MODE_LEGACY_PRE2018
 
-    enum sm_mode mode;
+    enum sm_mode mode = SM_MODE_2018;
 
     sm_side_info(mpz_poly_srcptr f0, mpz_srcptr ell, bool handle_small_ell = false);
     void set_mode(const char * mode_string);
