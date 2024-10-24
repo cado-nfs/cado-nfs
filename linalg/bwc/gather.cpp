@@ -170,71 +170,6 @@ void fprint_signed(FILE * f, arith_generic * A, arith_generic::elt const & x)
     fprintf(f, "%s", os.str().c_str());
 }
 
-void allgather(std::vector<unsigned int>& v, pi_comm_ptr wr)/*{{{*/
-{
-    /* want to collectively merge all vectors "v". boost mpi
-     * would be great for that, really */
-
-    /* first merge to one leader per node */
-
-    std::vector<unsigned int> *mainv;
-    mainv = &v;
-    /* Yes, we're sharing a pointer, here */
-
-    /* XXX XXX XXX
-     * The call to MPI_Allreduce is only safe as long as the caller
-     * function has made sure that only a single thread in the orthogonal
-     * communicator wr->xwr calls it!
-     *
-     */
-    ASSERT_ALWAYS(wr->xwr->trank == 0);
-    ASSERT_ALWAYS(wr->xwr->jrank == 0); // not that important, but anyway
-                                        // it's how the caller calls us
-                                        // presently.
-    pi_thread_bcast(&mainv, sizeof(mainv), BWC_PI_BYTE, 0, wr);
-
-    for(unsigned int j = 1 ; j < wr->ncores ; ++j) {
-        if (wr->trank == j)
-            mainv->insert(mainv->end(), v.begin(), v.end());
-        serialize_threads(wr);
-    }
-
-    if (wr->trank == 0) {
-        std::vector<unsigned int> allv;
-        std::vector<int> sizes(wr->njobs, 0);
-        std::vector<int> displs(wr->njobs, 0);
-        sizes[wr->jrank] = v.size();
-        int total = v.size();
-
-        ASSERT_ALWAYS(wr->xwr->trank == 0);     // see above
-        MPI_Allreduce(MPI_IN_PLACE, &total, 1, MPI_INT, MPI_SUM,
-                wr->pals);
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                sizes.data(), 1, MPI_INT, wr->pals);
-        for(unsigned int i = 1 ; i < wr->njobs ; i++)
-            displs[i] = displs[i-1] + sizes[i-1];
-        allv.assign(total, 0);
-        std::copy(v.begin(), v.end(), allv.begin() + displs[wr->jrank]);
-        MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                allv.data(), sizes.data(), displs.data(), MPI_UNSIGNED,
-                wr->pals);
-        std::swap(v, allv);
-    }
-
-    serialize_threads(wr);
-    v = *mainv;
-    serialize_threads(wr);
-}/*}}}*/
-
-void broadcast(std::vector<unsigned int>& v, parallelizing_info_ptr pi)/*{{{*/
-{
-    int total = v.size();
-    pi_bcast(&total, 1, BWC_PI_INT, 0, 0, pi->m);
-    if (pi->m->jrank || pi->m->trank) v.assign(total, 0);
-    pi_bcast(v.data(), total, BWC_PI_UNSIGNED, 0, 0, pi->m);
-    serialize(pi->m);
-}/*}}}*/
-
 std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigned int maxidx, int want_nonzero)/*{{{*/
 {
     arith_generic * A = y.abase;
@@ -252,10 +187,10 @@ std::vector<unsigned int> indices_of_zero_or_nonzero_values(mmt_vec & y, unsigne
         }
 
         /* in fact, a single gather at node 0 thread 0 would do */
-        allgather(myz, pi->wr[!y.d]);
+        parallelizing_info_experimental::allgather(myz, pi->wr[!y.d]);
     }
 
-    broadcast(myz, pi);    /* And broadcast that to everyone as well. */
+    parallelizing_info_experimental::broadcast(myz, pi);    /* And broadcast that to everyone as well. */
 
     return myz;
 }/*}}}*/
