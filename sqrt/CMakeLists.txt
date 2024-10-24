@@ -9,6 +9,12 @@ set_target_properties(sqrt PROPERTIES
     COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
     LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
+add_executable(mgmsqrt mgmsqrt.cpp)
+target_link_libraries(sqrt utils_with_io ${pthread_libs})
+set_target_properties(sqrt PROPERTIES
+    COMPILE_FLAGS "${OpenMP_CXX_FLAGS}"
+    LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+
 add_executable(checkdep ${EXCLUDE_FROM_RELEASE_BUILD} checkdep.c)
 target_link_libraries(checkdep utils)
 

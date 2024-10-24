@@ -1161,6 +1161,9 @@ sqrt/checkdep.c
 sqrt/crtalgsqrt.c
 sqrt/knapsack.c
 sqrt/knapsack.h
+sqrt/mgmsqrt.cpp
+sqrt/montgomery.md
+sqrt/montgomery.sage
 sqrt/powers_of_p.cpp
 sqrt/powers_of_p.h
 sqrt/sqrt.cpp
@@ -1307,6 +1310,7 @@ tests/sagemath/cado_sage/bwc/x_vector.py
 tests/sagemath/cado_sage/ideals_debug.py
 tests/sagemath/cado_sage/ideals_map.py
 tests/sagemath/cado_sage/index.py
+tests/sagemath/cado_sage/montgomery_reduction_process.py
 tests/sagemath/cado_sage/number_theory.py
 tests/sagemath/cado_sage/poly.py
 tests/sagemath/cado_sage/purged.py

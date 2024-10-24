@@ -56,10 +56,12 @@
 #include <stdio.h>      // FILE
 #include <gmp.h>        // mpz_t
 #include <vector>
+
 #include "mpz_poly.h"
 #include "mpz_mat.h"
 #include "cxx_mpz.hpp"
 #include "cado_poly.h"  // MAX_DEGREE, NB_POLYS_MAX
+#include "numbertheory.hpp"
 
 enum sm_mode {
     SM_MODE_LEGACY_PRE2018 = 1,
@@ -77,11 +79,40 @@ struct sm_side_info {
     cxx_mpz_poly f;       /* monic */
     cxx_mpz exponent;
 
+#if 0
+    all_valuations_above_p nt;
+
+    struct one_ideal {
+        cxx_mpz_mat H;  /* HNF basis with respect to the order */
+        cxx_mpz_mat a;  /* valuation helper with respect to the order */
+        cxx_mpq_mat uniformizer;        /* as a polynomial in alpha */
+        one_ideal(cxx_mpz_mat const & H, cxx_mpz_mat const & a, cxx_mpq_mat const & u)
+            : H(H), a(a), uniformizer(u)
+        {}
+        one_ideal(one_ideal const &) = default;
+        one_ideal(one_ideal &&) = default;
+        one_ideal& operator=(one_ideal const &) = default;
+        one_ideal& operator=(one_ideal &&) = default;
+    };
+    std::vector<one_ideal> ideals;
+#endif
+
+    /* ell-maximal order O, and O-ideals above ell. M is the
+     * multiplication table of O. We don't accept the case where ell
+     * ramifies, so we don't need to store the ramification index. On the
+     * other hand, a uniformizing element is stored for each ideal, with
+     * respect to the polynomial basis.
+     */
+    cxx_mpq_mat O;
+    cxx_mpz_mat M;
+
     struct piece {
         cxx_mpz_poly g;
         int m;
         bool is_used;
         cxx_mpz exponent;
+        cxx_mpz_mat a;  /* valuation helper with respect to the order */
+        cxx_mpq_mat uniformizer;        /* as a polynomial in alpha */
         piece(cxx_mpz_poly const & g, const int & m, bool is_used, int exponent)
             : g(g)
             , m(m)
