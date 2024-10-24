@@ -27,7 +27,7 @@ static void signal_handling (int signum)/*{{{*/
    sz = backtrace (buffer, sz);
 
    {
-       const std::unique_ptr<char *[], free_delete> text(backtrace_symbols (buffer, sz));
+       const std::unique_ptr<char *[], free_delete<char *>> text(backtrace_symbols (buffer, sz));
 
        fprintf(stderr, "======= Backtrace: =========\n");
        for (i = 0; i < sz; i++)

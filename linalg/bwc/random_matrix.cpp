@@ -272,12 +272,12 @@ random_matrix_process_data::random_matrix_process_data(
     }
 
     if (freq) {
-        std::unique_ptr<char[]> const cwname(
+        std::unique_ptr<char, free_delete<char>> const cwname(
                 derived_filename(ofilename, "cw", binary ? ".bin" : ".txt"));
         cw.reset(fopen(cwname.get(), binary ? "wb" : "w"));
         DIE_ERRNO_DIAG(!bool(cw), "fopen(%s)", cwname.get());
 
-        std::unique_ptr<char[]> const rwname(
+        std::unique_ptr<char, free_delete<char>> const rwname(
                 derived_filename(ofilename, "rw", binary ? ".bin" : ".txt"));
         rw.reset(fopen(rwname.get(), binary ? "wb" : "w"));
         DIE_ERRNO_DIAG(!bool(rw), "fopen(%s)", rwname.get());

@@ -207,9 +207,10 @@ template <typename T, typename U >
 using integral_fits_t = typename integral_fits<T, U>::type;
 
 /* Use this for unique_ptr's of objects allocated with malloc() */
+template<typename T>
 struct free_delete
 {
-    void operator()(void* x) {
+    void operator()(T* x) {
         free(x);        // NOLINT(cppcoreguidelines-no-malloc,hicpp-no-malloc)
     }
 };
