@@ -71,12 +71,11 @@ static void my_sm(const char *outfile, const char *infile,
     }
     else{
 	// we read a relation
-        mpz_t a, b;
-        mpz_init(a); mpz_init(b);
-        int const ret = gmp_sscanf(buf, "%Zd,%Zd:", a, b);
+        cxx_mpz a, b;
+        int const ret = gmp_sscanf(buf, "%Zd,%Zd:",
+                (mpz_ptr) a, (mpz_ptr) b);
         ASSERT_ALWAYS(ret == 2);
-	mpz_poly_init_set_mpz_ab(pol, a, b);
-        mpz_clear(a); mpz_clear(b);
+	mpz_poly_set_mpz_ab(pol, a, b);
     }
     for (int side = 0; side < nb_polys; ++side) {
       sm_info[side].compute_piecewise(smpol, pol);
