@@ -1,7 +1,7 @@
 #ifndef PARALLELIZING_INFO_HPP_
 #define PARALLELIZING_INFO_HPP_
 
-#include <stdio.h>            // for FILE
+#include <cstdio>            // for FILE
 
 #include <sys/types.h>        // for ssize_t
 #include <sys/time.h>   /* for struct timeval */
@@ -11,6 +11,8 @@
 #include "select_mpi.h"
 #include "arith-generic.hpp"
 #include <map>
+#include <vector>
+#include <set>
 #include "lock_guarded_container.hpp"
 
 /*
@@ -333,6 +335,15 @@ extern int pi_data_eq(void * buffer,
 extern void * shared_malloc(pi_comm_ptr wr, size_t size);
 extern void * shared_malloc_set_zero(pi_comm_ptr wr, size_t size);
 extern void shared_free(pi_comm_ptr wr, void * ptr);
+
+/* These two interfaces are experimental only */
+
+namespace parallelizing_info_experimental {
+    void broadcast(std::vector<unsigned int>& v, parallelizing_info_ptr pi);
+    void allgather(std::vector<unsigned int>& v, pi_comm_ptr wr);
+    void broadcast(std::set<unsigned int>& v, parallelizing_info_ptr pi);
+    void allgather(std::set<unsigned int>& v, pi_comm_ptr wr);
+}
 
 /* Use in std::unique_ptr<T, shared_free_deleter<T>>
  */

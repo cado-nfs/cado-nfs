@@ -571,6 +571,10 @@ struct prep_object {
             if (A->is_zero(A->vec_item(my.v, i - my.i0)))
                 ret0.insert(i);
         }
+        SEVERAL_THREADS_PLAY_MPI_BEGIN(my.pi->wr[my.d]) {
+            parallelizing_info_experimental::allgather(ret0, my.pi->wr[my.d]->xwr);
+        }
+        SEVERAL_THREADS_PLAY_MPI_END();
 
         /* do it a second time: this gives us a chance to remove some
          * zero coordinates from our list */
@@ -586,12 +590,18 @@ struct prep_object {
                 if (A->is_zero(A->vec_item(my.v, i - my.i0)))
                     ret1.insert(i);
             }
+            SEVERAL_THREADS_PLAY_MPI_BEGIN(my.pi->wr[my.d]) {
+                parallelizing_info_experimental::allgather(ret1, my.pi->wr[my.d]->xwr);
+            }
+            SEVERAL_THREADS_PLAY_MPI_END();
+
             std::set<unsigned int> early_nz;
             for(auto const i : ret1) {
                 if (ret0.find(i) == ret0.end())
                     /* i wasn't zero in an earlier iteration */
                     early_nz.insert(i);
             }
+
             for(auto const i : early_nz)
                 ret1.erase(ret1.find(i));
             /* at this point, ret1 is a subset of ret0. We'll keep
