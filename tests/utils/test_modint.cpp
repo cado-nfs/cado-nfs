@@ -59,7 +59,8 @@ public:
     }
 };
 
-int main(int argc, const char **argv) {
+int main(int argc, char const * argv[])
+{
     bool ok = true;
   
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);

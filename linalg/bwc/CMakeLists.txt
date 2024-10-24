@@ -462,7 +462,7 @@ macro(bwc_program v)
 endmacro()
 
 bwc_program(acollect acollect.c)
-bwc_program(prep prep.cpp)
+bwc_program(prep prep.cpp xdotprod.cpp)
 target_link_libraries(prep bitlinalg)
 bwc_program(krylov krylov.cpp xdotprod.cpp)
 bwc_program(bwccheck bwccheck.cpp xdotprod.cpp)

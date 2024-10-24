@@ -49,13 +49,13 @@ void * program(parallelizing_info_ptr pi, param_list pl MAYBE_UNUSED, void * arg
     return NULL;
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     int rank;
     int size;
     param_list pl;
 
-    MPI_Init(&argc, &argv);
+    MPI_Init(&argc, (char ***) &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 

@@ -4,15 +4,18 @@
 #include <string>
 #include <unistd.h>
 #include "gzip.h"
+#include "macros.h"
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     const char * filename = "test.gz";
     const char * t = getenv("wdir");
 
-    if (t)
-        chdir(t);
+    if (t) {
+        int const rc = chdir(t);
+        ASSERT_ALWAYS(rc == 0);
+    }
 
     if (argc > 1)
         filename = argv[1];

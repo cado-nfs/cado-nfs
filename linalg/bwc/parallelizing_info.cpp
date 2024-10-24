@@ -150,7 +150,7 @@ void grid_print(parallelizing_info_ptr pi, char * buf, size_t siz, int print)
 
     /* instead of doing memcpy, we align the stuff. */
     char * fmt;
-    int rc = asprintf(&fmt, "%%-%lus", maxsize-1);
+    int const rc = asprintf(&fmt, "%%-%lus", maxsize-1);
     ASSERT_ALWAYS(rc >= 0);
     snprintf(strings + me * maxsize, maxsize, fmt, buf);
     free(fmt);
@@ -164,17 +164,17 @@ void grid_print(parallelizing_info_ptr pi, char * buf, size_t siz, int print)
         /* There's also the null byte counted in siz. So that makes one
          * less.
          */
-        unsigned int nj0 = pi->wr[0]->njobs;
-        unsigned int nj1 = pi->wr[1]->njobs;
-        unsigned int nt0 = pi->wr[0]->ncores;
-        unsigned int nt1 = pi->wr[1]->ncores;
+        unsigned int const nj0 = pi->wr[0]->njobs;
+        unsigned int const nj1 = pi->wr[1]->njobs;
+        unsigned int const nt0 = pi->wr[0]->ncores;
+        unsigned int const nt1 = pi->wr[1]->ncores;
         print_several(nj0, nt0, '-', '+', maxsize-1);
         for(unsigned int j1 = 0 ; j1 < nj1 ; j1++) {
             for(unsigned int t1 = 0 ; t1 < nt1 ; t1++) {
                 printf("|");
                 for(unsigned int j0 = 0 ; j0 < nj0 ; j0++) {
                     for(unsigned int t0 = 0 ; t0 < nt0 ; t0++) {
-                        int fence = t0 == nt0 - 1;
+                        int const fence = t0 == nt0 - 1;
                         printf("%s%c", ptr, fence ? '|' : ' ');
                         ptr += maxsize;
                     }
@@ -190,7 +190,7 @@ void grid_print(parallelizing_info_ptr pi, char * buf, size_t siz, int print)
 
 static void get_node_number_and_prefix(parallelizing_info_ptr pi)
 {
-    int len = strlen(pi->nodename);
+    int const len = strlen(pi->nodename);
     int minlen = len;
     int maxlen = len;
     MPI_Allreduce(MPI_IN_PLACE, &minlen, 1, MPI_INT, MPI_MIN, pi->m->pals);
@@ -236,9 +236,9 @@ static void display_process_grid(parallelizing_info_ptr pi)
     MPI_Allgather((void *) my_coords.data(), 2, MPI_INT, (void*) all_cpairs, 2, MPI_INT, pi->m->pals);
 
     for(unsigned int i = 0 ; i < pi->m->njobs ; i++) {
-        int x = all_cpairs[i][0];
-        int y = all_cpairs[i][1];
-        unsigned int j = y * pi->wr[0]->njobs + x;
+        int const x = all_cpairs[i][0];
+        int const y = all_cpairs[i][1];
+        unsigned int const j = y * pi->wr[0]->njobs + x;
         if (j >= pi->m->njobs) {
             fprintf(stderr, "uh ?\n");
             pi_abort(EXIT_FAILURE, pi->m);
@@ -256,7 +256,7 @@ static void display_process_grid(parallelizing_info_ptr pi)
         }
         char * pad = (char *) malloc(PI_NAMELEN);
         memset(pad, ' ', PI_NAMELEN);
-        int node_id_len = strlen(pi->nodenumber_s);
+        int const node_id_len = strlen(pi->nodenumber_s);
         pad[node_id_len]='\0';
         if (node_id_len) {
             if (pi->thr_orig[0]) {
@@ -280,8 +280,8 @@ static void display_process_grid(parallelizing_info_ptr pi)
                      * identity (same leader)
                      */
                     ASSERT_ALWAYS(!it && !jt);
-                    unsigned int i0 = i - (i % pi->thr_orig[0]);
-                    unsigned int j0 = j - (j % pi->thr_orig[1]);
+                    unsigned int const i0 = i - (i % pi->thr_orig[0]);
+                    unsigned int const j0 = j - (j % pi->thr_orig[1]);
                     const char * ref = all_node_ids2 + PI_NAMELEN * (i0 * pi->wr[0]->njobs + j0); 
                     if (strcmp(ref, what) != 0) {
                         mapping_error=1;
@@ -357,19 +357,19 @@ static void pi_init_mpilevel(parallelizing_info_ptr pi, param_list pl)
         if (grank == 0)
             printf("Making %d independent single-threaded MPI jobs, instead of %d %d-thread jobs\n",
                 pi->m->totalsize, pi->m->njobs, pi->m->ncores);
-        int tt = pi->m->ncores;
+        int const tt = pi->m->ncores;
 
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        int nnum = rank / tt;
-        int nidx = rank % tt;
-        int ni = nnum / nvj;
-        int nj = nnum % nvj;
-        int ti = nidx / nvc;
-        int tj = nidx % nvc;
-        int i = ni * nhc + ti;
-        int j = nj * nvc + tj;
-        int nrank = i * (nvj * nvc) + j;
+        int const nnum = rank / tt;
+        int const nidx = rank % tt;
+        int const ni = nnum / nvj;
+        int const nj = nnum % nvj;
+        int const ti = nidx / nvc;
+        int const tj = nidx % nvc;
+        int const i = ni * nhc + ti;
+        int const j = nj * nvc + tj;
+        int const nrank = i * (nvj * nvc) + j;
 
         MPI_Comm_split(MPI_COMM_WORLD, 0, nrank, & pi->m->pals);
         pi->m->ncores = 1;
@@ -443,7 +443,7 @@ static void pi_init_mpilevel(parallelizing_info_ptr pi, param_list pl)
             msgsize = strlen(cpubinding_messages);
         MPI_Allreduce(MPI_IN_PLACE, &msgsize, 1, MPI_INT, MPI_MAX, pi->m->pals);
         msgsize++;
-        int chunksize = PI_NAMELEN + msgsize;
+        int const chunksize = PI_NAMELEN + msgsize;
         char * big_pool = (char *) malloc(pi->m->njobs * chunksize);
         memset(big_pool, 0, pi->m->njobs * chunksize);
         if (cpubinding_messages) {
@@ -513,8 +513,8 @@ pi_grid_init(parallelizing_info_ptr pi)
 {
     // unsigned int nvj = pi->wr[0]->njobs;
     // unsigned int nhj = pi->wr[1]->njobs;
-    unsigned int nvc = pi->wr[0]->ncores;
-    unsigned int nhc = pi->wr[1]->ncores;
+    unsigned int const nvc = pi->wr[0]->ncores;
+    unsigned int const nhc = pi->wr[1]->ncores;
 
     /* used in several places for doing snprintf */
     char buf[20];
@@ -549,8 +549,8 @@ pi_grid_init(parallelizing_info_ptr pi)
     for(unsigned int k = 0 ; k < nhc * nvc ; k++) {
         parallelizing_info_ptr e = grid[k];
         memcpy(e, pi, sizeof(parallelizing_info));
-        unsigned int k0 = k % nvc;
-        unsigned int k1 = k / nvc;
+        unsigned int const k0 = k % nvc;
+        unsigned int const k1 = k / nvc;
         e->m->trank = k;
         e->wr[0]->trank = k0;
         e->wr[1]->trank = k1;
@@ -585,7 +585,7 @@ pi_grid_init(parallelizing_info_ptr pi)
     for(unsigned int c = 0 ; c < pi->wr[1]->ncores ; c++) {
         snprintf(buf, sizeof(buf), "r%u", 
                 pi->wr[1]->jrank * pi->wr[1]->ncores + c);
-        unsigned int Nc = c * pi->wr[0]->ncores;
+        unsigned int const Nc = c * pi->wr[0]->ncores;
         pi_comm_ptr leader = grid[Nc]->wr[0];
         pi_comm_init_pthread_things(leader, buf);
         // replicate.
@@ -602,7 +602,7 @@ pi_grid_init(parallelizing_info_ptr pi)
         pi_comm_init_pthread_things(leader, buf);
         // replicate.
         for(unsigned int k = 0 ; k < pi->wr[1]->ncores ; k++) {
-            unsigned int Nk = k * pi->wr[0]->ncores;
+            unsigned int const Nk = k * pi->wr[0]->ncores;
             grid[c + Nk]->wr[1]->th = leader->th;
         }
     }
@@ -695,7 +695,7 @@ static void pi_grid_clear(parallelizing_info_ptr pi, parallelizing_info * grid)
 {
     // destroy row barriers.
     for(unsigned int c = 0 ; c < pi->wr[1]->ncores ; c++) {
-        unsigned int Nc = c * pi->wr[0]->ncores;
+        unsigned int const Nc = c * pi->wr[0]->ncores;
         pi_comm_destroy_pthread_things(grid[Nc]->wr[0]);
     }
     // destroy column barriers
@@ -964,7 +964,7 @@ static void pi_log_print_backend(pi_comm_ptr wr, const char * myname, char ** st
 void pi_log_print(pi_comm_ptr wr)
 {
     /* FIXME stdout or stderr ? */
-    int alloc = PI_LOG_BOOK_ENTRIES;
+    int const alloc = PI_LOG_BOOK_ENTRIES;
     char ** strings = new char*[alloc];
     int n = 0;
     pi_log_print_backend(wr, "", strings, &n, alloc);
@@ -986,7 +986,7 @@ int p_strcmp(char const * const * a, char const * const * b)
 
 void pi_log_print_all(parallelizing_info_ptr pi)
 {
-    int alloc = 3 * PI_LOG_BOOK_ENTRIES;
+    int const alloc = 3 * PI_LOG_BOOK_ENTRIES;
     char ** strings = new char *[alloc];
     int n = 0;
     char * myname;
@@ -1496,12 +1496,12 @@ void pi_allgather(void * sendbuf,
     ASSERT_ALWAYS(sendbuf == NULL);
     ASSERT_ALWAYS(sendtype == NULL);
     ASSERT_ALWAYS(sendcount == 0);
-    size_t per_thread = recvcount * recvtype->item_size;
+    size_t const per_thread = recvcount * recvtype->item_size;
     /* share the adress of the leader's buffer with everyone */
     void * recvbuf_leader = recvbuf;
     pi_thread_bcast(&recvbuf_leader, sizeof(void*), BWC_PI_BYTE, 0, wr);
     /* Now everyone writes its data there. */
-    size_t offset = (wr->jrank * wr->ncores + wr->trank) * per_thread;
+    size_t const offset = (wr->jrank * wr->ncores + wr->trank) * per_thread;
     memcpy( pointer_arith(recvbuf_leader, offset),
             pointer_arith_const(recvbuf, offset),
             per_thread);
@@ -1547,7 +1547,7 @@ int pi_thread_data_eq(void *buffer, size_t count, pi_datatype_ptr datatype, pi_c
      *  ok0 = x0==x1==x2==x3==x4
      */
     for(unsigned int stride = 1 ; stride < wr->ncores ; stride <<= 1) {
-        unsigned int i = wr->trank;
+        unsigned int const i = wr->trank;
         serialize_threads(wr);       /* because of this, we don't
                                            leave the loop with break */
         if (i + stride >= wr->ncores) continue;
@@ -1556,7 +1556,7 @@ int pi_thread_data_eq(void *buffer, size_t count, pi_datatype_ptr datatype, pi_c
         oks[i] = oks[i] && oks[i + stride] && memcmp(bufs[i], bufs[i + stride], datatype->item_size * count) == 0;
     }
     serialize_threads(wr);
-    int ok = oks[0];
+    int const ok = oks[0];
     shared_free(wr, oks);
     shared_free(wr, bufs);
     return ok;
@@ -1829,9 +1829,9 @@ ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_
     ASSERT_ALWAYS(epos <= chunksize);
     ASSERT_ALWAYS(totalsize % chunksize == 0);
     ASSERT_ALWAYS(size % chunksize == 0);
-    size_t loc_totalsize = (totalsize / chunksize) * (epos - spos);
-    size_t loc_size = (size / chunksize) * (epos - spos);
-    size_t chunk_per_rank = size / chunksize;
+    size_t const loc_totalsize = (totalsize / chunksize) * (epos - spos);
+    size_t const loc_size = (size / chunksize) * (epos - spos);
+    size_t const chunk_per_rank = size / chunksize;
 
     /* Some sanity checking. This is not technically required: of
      * course we would be able to cope with uneven data sets.
@@ -1840,15 +1840,15 @@ ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_
     unsigned long size_ul = size;
     ASSERT_ALWAYS(pi_data_eq(&size_ul, 1, BWC_PI_UNSIGNED_LONG, f->pi->m));
 
-    unsigned int nci = f->pi->wr[f->inner]->ncores;
-    unsigned int nco = f->pi->wr[f->outer]->ncores;
-    unsigned int nji = f->pi->wr[f->inner]->njobs;
-    unsigned int njo = f->pi->wr[f->outer]->njobs;
-    unsigned int ci  = f->pi->wr[f->inner]->trank;
-    unsigned int co  = f->pi->wr[f->outer]->trank;
-    unsigned int ji  = f->pi->wr[f->inner]->jrank;
-    unsigned int jo  = f->pi->wr[f->outer]->jrank;
-    unsigned int jm  = f->pi->m->jrank;
+    unsigned int const nci = f->pi->wr[f->inner]->ncores;
+    unsigned int const nco = f->pi->wr[f->outer]->ncores;
+    unsigned int const nji = f->pi->wr[f->inner]->njobs;
+    unsigned int const njo = f->pi->wr[f->outer]->njobs;
+    unsigned int const ci  = f->pi->wr[f->inner]->trank;
+    unsigned int const co  = f->pi->wr[f->outer]->trank;
+    unsigned int const ji  = f->pi->wr[f->inner]->jrank;
+    unsigned int const jo  = f->pi->wr[f->outer]->jrank;
+    unsigned int const jm  = f->pi->m->jrank;
 
     /* the inner threads will do writes and MPI sends in one go. For
      * outer threads, it is not possible to concatenate similarly,
@@ -1862,7 +1862,7 @@ ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_
     for(unsigned int xjo = 0 ; xjo < njo ; xjo++) {
         for(unsigned int xco = 0 ; xco < nco ; xco++) {
             for(unsigned int xji = 0 ; xji < nji ; xji++) {
-                unsigned int xj = mrank_from_tworanks(f->pi, f->inner, xji, xjo);
+                unsigned int const xj = mrank_from_tworanks(f->pi, f->inner, xji, xjo);
                 if (jm == xj) {
                     ASSERT_ALWAYS (ji == xji && jo == xjo);
                     /* fill the buffer with the contents relevant to the
@@ -1893,14 +1893,14 @@ ssize_t pi_file_write_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_
                                     MPI_STATUS_IGNORE);
                         }
                         if (!failed) {
-                            size_t wanna_write = MIN(nci * loc_size, loc_totalsize - res);
+                            size_t const wanna_write = MIN(nci * loc_size, loc_totalsize - res);
                             if (wanna_write < nci * loc_size)
                                 ASSERT_ALWAYS(area_is_zero(sbuf, wanna_write, nci * loc_size));
                             /* POSIX fwrite is required to set errno
                              * http://pubs.opengroup.org/onlinepubs/9699919799/functions/fwrite.html
                              */
                             errno = 0;
-                            ssize_t x = fwrite(sbuf, 1, wanna_write, f->f);
+                            ssize_t const x = fwrite(sbuf, 1, wanna_write, f->f);
                             res += x;
                             if (x < (ssize_t) wanna_write)
                                 failed = errno ? errno : EIO;
@@ -1941,9 +1941,9 @@ ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
     ASSERT_ALWAYS(epos <= chunksize);
     ASSERT_ALWAYS(totalsize % chunksize == 0);
     ASSERT_ALWAYS(size % chunksize == 0);
-    size_t loc_totalsize = (totalsize / chunksize) * (epos - spos);
-    size_t loc_size = (size / chunksize) * (epos - spos);
-    size_t chunk_per_rank = size / chunksize;
+    size_t const loc_totalsize = (totalsize / chunksize) * (epos - spos);
+    size_t const loc_size = (size / chunksize) * (epos - spos);
+    size_t const chunk_per_rank = size / chunksize;
 
     /* Some sanity checking. This is not technically required: of
      * course we would be able to cope with uneven data sets.
@@ -1952,15 +1952,15 @@ ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
     unsigned long size_ul = size;
     ASSERT_ALWAYS(pi_data_eq(&size_ul, 1, BWC_PI_UNSIGNED_LONG, f->pi->m));
 
-    unsigned int nci = f->pi->wr[f->inner]->ncores;
-    unsigned int nco = f->pi->wr[f->outer]->ncores;
-    unsigned int nji = f->pi->wr[f->inner]->njobs;
-    unsigned int njo = f->pi->wr[f->outer]->njobs;
-    unsigned int ci  = f->pi->wr[f->inner]->trank;
-    unsigned int co  = f->pi->wr[f->outer]->trank;
-    unsigned int ji  = f->pi->wr[f->inner]->jrank;
-    unsigned int jo  = f->pi->wr[f->outer]->jrank;
-    unsigned int jm  = f->pi->m->jrank;
+    unsigned int const nci = f->pi->wr[f->inner]->ncores;
+    unsigned int const nco = f->pi->wr[f->outer]->ncores;
+    unsigned int const nji = f->pi->wr[f->inner]->njobs;
+    unsigned int const njo = f->pi->wr[f->outer]->njobs;
+    unsigned int const ci  = f->pi->wr[f->inner]->trank;
+    unsigned int const co  = f->pi->wr[f->outer]->trank;
+    unsigned int const ji  = f->pi->wr[f->inner]->jrank;
+    unsigned int const jo  = f->pi->wr[f->outer]->jrank;
+    unsigned int const jm  = f->pi->m->jrank;
 
     void * sbuf = shared_malloc_set_zero(f->pi->m, loc_size * nci);
 
@@ -1970,7 +1970,7 @@ ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
     for(unsigned int xjo = 0 ; xjo < njo ; xjo++) {
         for(unsigned int xco = 0 ; xco < nco ; xco++) {
             for(unsigned int xji = 0 ; xji < nji ; xji++) {
-                unsigned int xj = mrank_from_tworanks(f->pi, f->inner, xji, xjo);
+                unsigned int const xj = mrank_from_tworanks(f->pi, f->inner, xji, xjo);
                 /* for job (ji,jo), nci*nco threads enter here. Unless
                  * (ji == xji && jo == xjo), this loop becomes trivial.
                  */
@@ -1980,12 +1980,12 @@ ssize_t pi_file_read_chunk(pi_file_handle_ptr f, void * buf, size_t size, size_t
                         /* leader node to read then send data */
                         memset(sbuf, 0, nci * loc_size);
                         if (!failed) {
-                            size_t wanna_read = MIN(nci * loc_size, loc_totalsize - res);
+                            size_t const wanna_read = MIN(nci * loc_size, loc_totalsize - res);
                             /* POSIX fread is required to set errno
                              * http://pubs.opengroup.org/onlinepubs/9699919799/functions/fread.html
                              */
                             errno = 0;
-                            ssize_t x = fread(sbuf, 1, wanna_read, f->f);
+                            ssize_t const x = fread(sbuf, 1, wanna_read, f->f);
                             res += x;
                             if (x < (ssize_t) wanna_read)
                                 failed = errno ? errno : EIO;

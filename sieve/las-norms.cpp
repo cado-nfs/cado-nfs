@@ -82,7 +82,7 @@ static inline double lg2_raw (double i) {
  * fact that lg2 is a bit fuzzy.
  */
 static double lg2_reciprocal(double x) {
-    int x0 = x;
+    int const x0 = x;
     return exp2(x0) * (1 + x-x0);
 }
 
@@ -170,8 +170,8 @@ static double get_maxnorm_aux (double_poly_srcptr poly, double s)
   double gmax = fabs (poly->coeff[0]);
   for (unsigned int k = 0; k <= nr_roots; k++)
     {
-      double x = (k < nr_roots) ? roots[k] : s;
-      double va = fabs (double_poly_eval (poly, x));
+      double const x = (k < nr_roots) ? roots[k] : s;
+      double const va = fabs (double_poly_eval (poly, x));
       if (va > gmax)
         gmax = va;
     }
@@ -186,8 +186,8 @@ static double get_maxnorm_aux (double_poly_srcptr poly, double s)
 static double
 get_maxnorm_aux_pm (double_poly_srcptr poly, double s)
 {
-  double norm1 = get_maxnorm_aux(poly, s);
-  double norm2 = get_maxnorm_aux(poly, -s);
+  double const norm1 = get_maxnorm_aux(poly, s);
+  double const norm2 = get_maxnorm_aux(poly, -s);
   return (norm2 > norm1) ? norm2 : norm1;
 }
 /* }}} */
@@ -300,7 +300,7 @@ lognorm_base::lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly
     if (Q.sublat.m > 0)
         double_poly_mul_double(fijd, fijd, pow(Q.sublat.m, fijd->deg));
 
-    int I = 1 << logI;
+    int const I = 1 << logI;
 
     maxlog2 = log2(get_maxnorm_rectangular (fijd, (double)(I/2), (double)J));
 
@@ -325,7 +325,7 @@ lognorm_base::lognorm_base(siever_config const & sc, cxx_cado_poly const & cpoly
             side, maxlog2, scale, exp2 (1. / scale));
 
     /* we want to select relations with a cofactor of less than r bits */
-    double max_lambda = (maxlog2 - LOGNORM_GUARD_BITS / scale) / sc.sides[side].lpb;
+    double const max_lambda = (maxlog2 - LOGNORM_GUARD_BITS / scale) / sc.sides[side].lpb;
     double lambda = sc.sides[side].lambda;
     double r = maxlog2 - LOGNORM_GUARD_BITS / scale;
 
@@ -406,14 +406,14 @@ lognorm_reference::lognorm_reference(siever_config const & sc, cxx_cado_poly con
      * Do the same for the algebraic side (with the corresponding bound for
      * the norms.
      */
-    int k = (int) ceil (log2 (maxlog2));
-    int K = 1 << k;
+    int const k = (int) ceil (log2 (maxlog2));
+    int const K = 1 << k;
     ASSERT_ALWAYS(lognorm_reference::NORM_BITS >= k);
-    int l = lognorm_reference::NORM_BITS - k;
-    int L = 1 << l;
+    int const l = lognorm_reference::NORM_BITS - k;
+    int const L = 1 << l;
 
     /* extract k bits from the exponent, and l bits from the mantissa */
-    double h = 1.0 / (double) L;
+    double const h = 1.0 / (double) L;
     double e,m;
     int i,j;
     for (e = 1.0, i = 0; i < K; i++, e *= 2.0)
@@ -459,10 +459,10 @@ static void lognorm_fill_rat_reference(
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
 
-    double u0 = fijd->coeff[0];
-    double u1 = fijd->coeff[1];
+    double const u0 = fijd->coeff[0];
+    double const u1 = fijd->coeff[1];
 
-    int l = lognorm_reference::NORM_BITS - (int) ceil(log2(maxlog2));
+    int const l = lognorm_reference::NORM_BITS - (int) ceil(log2(maxlog2));
 
     for(unsigned int j = j0 ; j < j1 ; j++) {
 	double z = u0 * j + u1 * i0;
@@ -480,7 +480,7 @@ static void lognorm_fill_rat_reference(
             /* we first get rid of the sign bit, then unshift the
              * exponent.  */
             y = ((y<<1) - (UINT64_C(0x3FF)<<53)) >> (53-l);
-            unsigned char n = L[y];
+            unsigned char const n = L[y];
 	    ASSERT(n > 0);
 	    *S++ = n;
 	    z += u1;
@@ -496,7 +496,7 @@ static void lognorm_fill_alg_reference (unsigned char *S, uint32_t N, int logI, 
     LOGNORM_FILL_COMMON_DEFS();
     LOGNORM_COMMON_HANDLE_ORIGIN();
 
-    double modscale = scale/0x100000;
+    double const modscale = scale/0x100000;
     const double offset = 0x3FF00000 - LOGNORM_GUARD_BITS / modscale;
 
     cxx_double_poly u;
@@ -530,13 +530,13 @@ lognorm_smart::lognorm_smart(siever_config const & sc, cxx_cado_poly const & cpo
 
     if (fijd->deg > 1) {
         piecewise_linear_approximator A(fijd, log(2)/scale);
-        int I = 1 << logI;
+        int const I = 1 << logI;
         G = A.logapprox(-(I/2), I/2);
     }
 }/*}}}*/
 
 static inline double compute_y(double G, double offset, double modscale) {
-    double res = lg2 ((G) + 1., offset, modscale);
+    double const res = lg2 ((G) + 1., offset, modscale);
     return res;
 }
 
@@ -546,8 +546,8 @@ static inline double compute_y(double G, double offset, double modscale) {
  */
 static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsigned int j0, unsigned int j1, double scale, cxx_double_poly const & fijd, const double *cexp2)
 {
-    double modscale = scale / 0x100000;
-    double offset = 0x3FF00000 - LOGNORM_GUARD_BITS / modscale;
+    double const modscale = scale / 0x100000;
+    double const offset = 0x3FF00000 - LOGNORM_GUARD_BITS / modscale;
     /* The lg2 function wants  a positive value.
      * Here, in the classical rational initialization, the degree of the
      * used polynomial F(i,j) is hardcoded to 1. So, it's possible to have
@@ -561,8 +561,8 @@ static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsi
      * we have 0 <= log2(z) - L(z) < 0.0861, for any real z > 0.
      */
 
-    double u0 = fijd->coeff[0];
-    double u1 = fijd->coeff[1];
+    double const u0 = fijd->coeff[0];
+    double const u1 = fijd->coeff[1];
 
     if (UNLIKELY(u1 == 0)) {
         /* constant approximating functions do occur, see bug 21684. This
@@ -570,9 +570,9 @@ static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsi
          * do get with nonlinear polynomial selection.
          */
         for (unsigned int j = j0; j < j1; j++) {
-            double g = fabs(u0 * j);
-            uint8_t y = COMPUTE_Y(g);
-            size_t di = i1 - i0;
+            double const g = fabs(u0 * j);
+            uint8_t const y = COMPUTE_Y(g);
+            size_t const di = i1 - i0;
             memset_with_writeahead(S, y, di, MEMSET_MIN);
             S += di;
         }
@@ -580,14 +580,14 @@ static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsi
     }
 
     using std::signbit;
-    double u1_abs = fabs(u1);
-    double inv_u1_abs = 1/u1_abs;
+    double const u1_abs = fabs(u1);
+    double const inv_u1_abs = 1/u1_abs;
 
     for (unsigned int j = j0; j < j1; j++) {
 	int i = i0;
 	double g = fabs(u0 * j + u1 * i0);
 	uint8_t y;
-	double root = -u0 * j / u1;
+	double const root = -u0 * j / u1;
 
 	bool root_ahead = false;
 
@@ -629,7 +629,7 @@ static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsi
                 ix += (ix >= 0);
                 if (UNLIKELY(ix >= (double) i1))
 		    ix = i1;
-		size_t di = (int) ix - i;	/* The cast matters ! */
+		size_t const di = (int) ix - i;	/* The cast matters ! */
 		i = ix;
 		if (!di)
                     break;
@@ -668,7 +668,7 @@ static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsi
             *S++ = y;
             i++;
             g += u1_abs;
-            uint8_t oy = y;
+            uint8_t const oy = y;
             y = COMPUTE_Y(g);
             if (y == oy)
                 break;
@@ -690,7 +690,7 @@ static void lognorm_fill_rat_smart_inner (unsigned char *S, int i0, int i1, unsi
                  * bug 21518 seems to trigger a nasty corner case */
                 if (UNLIKELY(ix >= i1))
                     ix = i1;
-                size_t di = (int) ix - i;	/* The cast matters ! */
+                size_t const di = (int) ix - i;	/* The cast matters ! */
                 i = ix;
                 memset_with_writeahead(S, y, di, MEMSET_MIN);
                 S += di;
@@ -731,9 +731,10 @@ static void lognorm_fill_alg_smart (unsigned char *S, uint32_t N, int logI, doub
         // int i = i0;
         double mj1 = j;
         ASSERT(fijd->deg > 1);
-        for(int d = fijd->deg ; --d > 1 ; mj1 *= j);
-        for(std::pair<double, double> uv : G.equations) {
-            double r1 = *it++;
+        for(int d = fijd->deg ; --d > 1 ; )
+            mj1 *= j;
+        for(std::pair<double, double> const & uv : G.equations) {
+            double const r1 = *it++;
             int Gi0 = j*r0 + (j*r0 >= 0);
             int Gi1 = j*r1 + (j*r1 >= 0);
             Gi0 = std::max(Gi0, i0);
@@ -813,7 +814,7 @@ get_maxnorm_circular (double_poly_srcptr src_poly, const double X,
   max_norm = fabs (src_poly->coeff[d] * pow (X, (double) d));
   for (i = 0; i < nr; i++)
     {
-      double u = roots[i];
+      double const u = roots[i];
       x = X * u / sqrt (1.0 + u * u);
       y = Y / sqrt (1.0 + u * u);
       v = double_poly_eval (src_poly, x / y) * pow (y, (double) d);
@@ -837,7 +838,7 @@ void sieve_range_adjust::prepare_fijd()/*{{{*/
      * done several times in the computation, but that's a trivial
      * computation anyway.
      */
-    int nsides = cpoly->nb_polys;
+    int const nsides = cpoly->nb_polys;
     fijd.assign(nsides, {});
     for (int side = 0; side < nsides; side++) {
         cxx_mpz_poly fz;
@@ -892,7 +893,7 @@ sieve_range_adjust::sieve_info_update_norm_data_Jmax (bool keep_logI)
   double Jmax = (1 << (logA - logI));
 
   prepare_fijd();
-  int nsides = cpoly->nb_polys;
+  int const nsides = cpoly->nb_polys;
 
   for (int side = 0; side < nsides; side++)
     {
@@ -972,14 +973,14 @@ qlattice_basis operator*(sieve_range_adjust::mat<int> const& m, qlattice_basis c
  */
 double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle, int squeeze, int N)
 {
-    int nsides = cpoly->nb_polys;
-    int nx = 1 << (N - squeeze);
-    int ny = 1 << (N + squeeze);
+    int const nsides = cpoly->nb_polys;
+    int const nx = 1 << (N - squeeze);
+    int const ny = 1 << (N + squeeze);
 
     /* We'll integrate over [-X/2,X/2] times [0,Y/2], which has to have
      * size 2^A */
-    double X = 1UL << ((logA-logA/2) - squeeze);
-    double Y = 1UL << (logA/2     + squeeze + 1);
+    double const X = 1UL << ((logA-logA/2) - squeeze);
+    double const Y = 1UL << (logA/2     + squeeze + 1);
     /* In other words, X is I, and Jmax is Y/2. We can see that X*Y/2 =
      * 2^A as desired */
 
@@ -989,11 +990,11 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle,
 
     double sum = 0;
     for(int i = -nx/2 ; i <= nx/2 ; i++) {
-        double x = X/nx * i;
+        double const x = X/nx * i;
         /* We're doing half of the computation on the y axis, since
          * it's symmetric anyway */
         for(int j = 0 ; j <= ny/2 ; j++) {
-            double y = Y/ny * j;
+            double const y = Y/ny * j;
             vec<double> xys = vec<double>(x,y) * shuffle;
 
             double weight = 1;
@@ -1004,9 +1005,9 @@ double sieve_range_adjust::estimate_yield_in_sieve_area(mat<int> const& shuffle,
             double sprod = 0;
             double p0 = 1;
             for(int side = 0 ; side < nsides ; side++) {
-                double z = double_poly_eval_homogeneous(fijd[side], xys[0], xys[1]);
-                double a = log2(fabs(z));
-                double d = dickman_rho_local(a/conf.sides[side].lpb, fabs(z));
+                double const z = double_poly_eval_homogeneous(fijd[side], xys[0], xys[1]);
+                double const a = log2(fabs(z));
+                double const d = dickman_rho_local(a/conf.sides[side].lpb, fabs(z));
                 verbose_output_print(0, 4, " %d %e %e", side, z, d);
                 if (side == 0)
                     p0 = d;
@@ -1038,7 +1039,7 @@ int sieve_range_adjust::adjust_with_estimated_yield()/*{{{*/
      * since we use that to avoid part of the computation (for squeeze==0,
      * the range is square when A is even, so swapping makes no sense).
      */
-    mat<int> shuffle_matrices[] = {
+    mat<int> const shuffle_matrices[] = {
         mat<int>( 1, 0, 0, 1 ),
         mat<int>( 0, 1, 1, 0 ),
 
@@ -1109,14 +1110,14 @@ B:=[bestrep(a):a in {{a*b*c*x:a in {1,-1},b in {1,d},c in {1,s}}:x in MM}];
 
     /* We integrate on 2^(2*N-1) points (well, morally 2^(2N), but we halve
      * that by homogeneity) */
-    int N = 5;
+    int const N = 5;
 
-    double reference = estimate_yield_in_sieve_area(shuffle_matrices[0], 0, N);
+    double const reference = estimate_yield_in_sieve_area(shuffle_matrices[0], 0, N);
     for(int squeeze = ADJUST_STRATEGY2_MIN_SQUEEZE ; squeeze <= ADJUST_STRATEGY2_MAX_SQUEEZE ; squeeze++) {
         for(int r = 0 ; r < nmatrices ; r++) {
             if (squeeze == 0 && (r & 1)) continue;
             mat<int> const & Sr(shuffle_matrices[r]);
-            double sum = estimate_yield_in_sieve_area(Sr, squeeze, N);
+            double const sum = estimate_yield_in_sieve_area(Sr, squeeze, N);
             if (sum > best_sum) {
                 best_r = r;
                 best_squeeze = squeeze;
@@ -1212,10 +1213,10 @@ int sieve_range_adjust::sieve_info_adjust_IJ()/*{{{*/
         swap(Q.a0, Q.a1);
         swap(Q.b0, Q.b1);
     }
-    double maxab1 = MAX(abs(Q.a1) / rt_skew, abs(Q.b1) * rt_skew);
-    double B = sqrt (2.0 * mpz_get_d(Q.doing.p) / sqrt (3.0));
+    double const maxab1 = MAX(abs(Q.a1) / rt_skew, abs(Q.b1) * rt_skew);
+    double const B = sqrt (2.0 * mpz_get_d(Q.doing.p) / sqrt (3.0));
 
-    uint32_t I = 1UL << ((logA+1)/2);
+    uint32_t const I = 1UL << ((logA+1)/2);
     J = 1UL << ((logA-1)/2);
     J = (uint32_t) (B / maxab1 * (double) J);
 
@@ -1229,13 +1230,13 @@ int sieve_range_adjust::sieve_info_adjust_IJ()/*{{{*/
 int sieve_range_adjust::round_to_full_bucket_regions(const char * origin, std::string const & message)/*{{{*/
 {
     /* Compute number of i-lines per bucket region, must be integer */
-    uint32_t i = 1U << MAX(LOG_BUCKET_REGION - logI, 0);
+    uint32_t const i = 1U << MAX(LOG_BUCKET_REGION - logI, 0);
 
     // we no longer need to do that.
     // i *= nb_threads;  /* ensures nb of bucket regions divisible by nb_threads */
 
     /* Bug 15617: if we round up, we are not true to our promises */
-    uint32_t nJ = (J / i) * i; /* Round down to multiple of i */
+    uint32_t const nJ = (J / i) * i; /* Round down to multiple of i */
 
     if (message.empty()) {
         verbose_output_print(0, 3, "# %s(): logI=%d J=%" PRIu32 "\n", origin, logI, nJ);

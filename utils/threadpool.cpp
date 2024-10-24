@@ -38,13 +38,13 @@ worker_thread::worker_thread(thread_pool &_pool, const size_t _preferred_queue, 
         // coverity[uninit_member]
         return;
     }
-    int rc = pthread_create(&thread, NULL, pool.thread_work_on_tasks_static, this);
+    int const rc = pthread_create(&thread, NULL, pool.thread_work_on_tasks_static, this);
     ASSERT_ALWAYS(rc == 0);
 }
 
 worker_thread::~worker_thread() {
   if (preferred_queue == SIZE_MAX) return;
-  int rc = pthread_join(thread, NULL);
+  int const rc = pthread_join(thread, NULL);
   // timer.self will be essentially lost here. the best thing to do is to
   // create a phony task which collects the busy wait times for all
   // threads, at regular intervals, so that timer.self will be
@@ -175,7 +175,7 @@ thread_pool::thread_work_on_tasks(worker_thread & I)
   tt += seconds_thread();
   /* tt is now the wall-clock time spent really within this function,
    * waiting for mutexes and condition variables...  */
-  std::lock_guard<std::mutex> dummy(mm_cumulated_wait_time);
+  std::lock_guard<std::mutex> const dummy(mm_cumulated_wait_time);
   cumulated_wait_time += tt;
 }
 
@@ -307,7 +307,7 @@ void thread_pool::drain_queue(const size_t queue, void (*f)(task_result*))
 {
     /* works both in synchronous and non-synchronous case */
     my_unique_lock u(*this);
-    for(size_t cr = created[queue]; joined[queue] < cr ; ) {
+    for(size_t const cr = created[queue]; joined[queue] < cr ; ) {
         while (results[queue].empty())
             wait(results[queue].not_empty, u);
         task_result * result = results[queue].front();

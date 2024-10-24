@@ -46,7 +46,7 @@ void mmt_full_vec_set_dummy1(mmt_vec & y, size_t unpadded)
 #else
     for(unsigned int j = 0 ; j < y.pi->wr[y.d]->njobs ; j++) {
         for(size_t di = 0 ; di < mmt_my_own_size_in_items(y) ; di++) {
-            size_t i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
+            size_t const i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
             if (i >= unpadded)
                 break;
             arith_generic::elt * dst = y.abase->vec_subvec(mmt_my_own_subvec(y, j), di);
@@ -82,7 +82,7 @@ void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
 #else
     for(unsigned int j = 0 ; j < y.pi->wr[y.d]->njobs ; j++) {
         for(size_t di = 0 ; di < mmt_my_own_size_in_items(y) ; di++) {
-            size_t i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
+            size_t const i = y.i0 + mmt_my_own_offset_in_items(y, j) + di;
             if (i >= unpadded)
                 break;
             arith_generic::elt * dst = y.abase->vec_subvec(mmt_my_own_subvec(y, j), di);
@@ -100,7 +100,7 @@ void mmt_full_vec_set_dummy2(mmt_vec & y, size_t unpadded)
 void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {
 
-    int ys[2] = { bw->ys[0], bw->ys[1], };
+    int const ys[2] = { bw->ys[0], bw->ys[1], };
     /*
      * Hmm. Interleaving doesn't make a lot of sense for this program,
      * right ? Furthermore, it gets in the way for the sanity checks. We
@@ -140,10 +140,10 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
     mmt_vec & y = ymy[0];
     mmt_vec & my = ymy[1];
 
-    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
+    unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     const char * sanity_check_vector = param_list_lookup_string(pl, "sanity_check_vector");
-    int only_export = param_list_lookup_string(pl, "export_cachelist") != NULL;
+    int const only_export = param_list_lookup_string(pl, "export_cachelist") != NULL;
 
     // in no situation shall we try to do our sanity check if we've just
     // been told to export our cache list. Note also that this sanity
@@ -237,7 +237,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
                 A->vec_subvec(y.v, offset_v),
                 how_many);
         pi_allreduce(NULL, dp1, A->simd_groupsize(), mmt.pitype, BWC_PI_SUM, pi->m);
-        int diff = memcmp(dp0, dp1, A->vec_elt_stride(A->simd_groupsize()));
+        int const diff = memcmp(dp0, dp1, A->vec_elt_stride(A->simd_groupsize()));
         if (pi->m->jrank == 0 && pi->m->trank == 0) {
             if (diff) {
                 printf("%s : failed\n", checkname);
@@ -255,7 +255,7 @@ void * dispatch_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_
 
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     param_list pl;
 

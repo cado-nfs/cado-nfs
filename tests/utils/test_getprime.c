@@ -5,7 +5,7 @@
 #include "getprime.h"
 #include "macros.h"
 
-  int verbose = 0;
+int verbose = 0;
 
 void
 test_getprime (unsigned long count, unsigned long exp_max)
@@ -59,8 +59,7 @@ test_getprime_range (unsigned long lower_bound, unsigned long upper_bound, unsig
  *      - count and exp-max (default)
  *      - bound and count (and, optionally, seek)
  */
-int
-main (int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long count = 1000000;
   unsigned long exp_max = 15485867;

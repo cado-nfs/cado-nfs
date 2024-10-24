@@ -1,9 +1,11 @@
 #ifndef ARITH_GENERIC_HPP_
 #define ARITH_GENERIC_HPP_
 
-#include <stddef.h>
+#include <cstddef>
 #include <string>
 #include <ostream>
+#include <memory>
+
 #include "cxx_mpz.hpp"
 #include "gmp_aux.h"
 #include "arith-concrete-base.hpp"
@@ -41,7 +43,10 @@ struct arith_generic {
     virtual bool vec_is_zero(elt const *, size_t) const = 0;
     virtual void vec_set_random(elt *, size_t, gmp_randstate_ptr) const = 0;
     virtual void vec_add_dotprod(elt &, elt const *, elt const *, size_t) const = 0;
-    virtual void vec_addmul_and_reduce(elt *, elt const *, elt const &, size_t) const = 0;
+
+    /* w += u * v, length n */
+    virtual void vec_addmul_and_reduce(elt * w, elt const * u, elt const & v, size_t n) const = 0;
+
     virtual int vec_cmp(elt const * a, elt const * b, size_t k) const = 0;
     virtual int cmp(elt const & a, elt const & b) const = 0;
     virtual int cmp(elt const & a, unsigned long b) const = 0;
@@ -52,10 +57,10 @@ struct arith_generic {
     virtual elt * vec_subvec(elt *, size_t) const = 0;
     virtual elt const * vec_subvec(elt const *, size_t) const = 0;
 
-    inline elt & vec_item(elt * p, size_t k) { return *vec_subvec(p, k); }
-    inline elt const & vec_item(elt const * p, size_t k) { return *vec_subvec(p, k); }
+    inline elt & vec_item(elt * p, size_t k) const { return *vec_subvec(p, k); }
+    inline elt const & vec_item(elt const * p, size_t k) const { return *vec_subvec(p, k); }
     virtual size_t vec_elt_stride(size_t) const = 0;
-    inline size_t elt_stride() { return vec_elt_stride(1); }
+    inline size_t elt_stride() const { return vec_elt_stride(1); }
     virtual bool is_zero(elt const &) const = 0;
     virtual void simd_set_ui_at(elt &, size_t, int) const = 0;
     virtual void simd_add_ui_at(elt &, size_t, int) const = 0;
@@ -65,10 +70,15 @@ struct arith_generic {
     virtual int vec_simd_hamming_weight(elt const * p, size_t n) const = 0;
     virtual int vec_simd_find_first_set(elt &, elt const * p, size_t n) const = 0;
     virtual std::ostream& cxx_out(std::ostream&, elt const &) const = 0;
+
+    /* do not use this in C++ programs. Use the RAII alloc_vector instead
+     */
     virtual elt * alloc(size_t = 1, size_t = 64) const = 0;
     virtual elt * realloc(elt *, size_t, size_t, size_t = 64) const = 0;
     virtual void free(elt *) const = 0;
+
     virtual void set(elt &, elt const &) const = 0;
+    virtual void inverse(elt &, elt const &) const = 0;
     virtual void neg(elt &, elt const &) const = 0;
     virtual void set(elt &, cxx_mpz const &) const = 0;
     virtual void add_and_reduce(elt &, elt const &) const = 0;
@@ -85,6 +95,19 @@ struct arith_generic {
     virtual ~arith_generic() = default;
 
     static arith_generic * instance(mpz_srcptr p, int simd_groupsize);
+
+    struct elt_deleter {
+        arith_generic * A;
+        void operator()(elt * x) const { A->free(x); }
+    };
+
+    typedef std::unique_ptr<elt, elt_deleter> owned_vector;
+
+    /* Use this in C++ programs */
+    owned_vector
+    alloc_vector(size_t n = 1, size_t align = 64) {
+        return owned_vector(alloc(n, align), { this });
+    }
 };
 
 /* the counterpart would be arith-hard, probably (and arith-modp is

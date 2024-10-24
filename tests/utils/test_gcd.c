@@ -191,8 +191,7 @@ test_bin_gcd_int64_safe (const unsigned long iter)
     }
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 200000;
   tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);

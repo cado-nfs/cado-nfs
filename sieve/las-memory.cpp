@@ -38,8 +38,8 @@ void * las_memory_accessor::alloc_frequent_size(size_t size)
         return malloc_aligned(size, 128);
     if (size == 0)
         return NULL;
-    size_t rsize = next_power_of_2(size);
-    std::lock_guard<std::mutex> dummy(frequent_regions_pool.mutex());
+    size_t const rsize = next_power_of_2(size);
+    std::lock_guard<std::mutex> const dummy(frequent_regions_pool.mutex());
     auto & pool(frequent_regions_pool[rsize]);
     if (rsize > LARGE_PAGE_SIZE) {
         /* This should hardly ever occur, most probably never, but in
@@ -70,12 +70,12 @@ void las_memory_accessor::free_frequent_size(void * v, size_t size)
         return;
     }
     if (!v) return;
-    size_t rsize = next_power_of_2(size);
+    size_t const rsize = next_power_of_2(size);
     if (rsize > LARGE_PAGE_SIZE) {
         free_aligned(v);
         return;
     }
-    std::lock_guard<std::mutex> dummy(frequent_regions_pool.mutex());
+    std::lock_guard<std::mutex> const dummy(frequent_regions_pool.mutex());
     auto & pool(frequent_regions_pool[rsize]);
     pool.push(v);
 }
@@ -84,8 +84,8 @@ void * las_memory_accessor::physical_alloc(size_t size, bool affect)
 {
 #if defined(HAVE_MMAP) && defined(MAP_HUGETLB)
     {
-        size_t nr_pages = iceildiv(size, LARGE_PAGE_SIZE);
-        size_t rounded_up_size = nr_pages * LARGE_PAGE_SIZE; 
+        size_t const nr_pages = iceildiv(size, LARGE_PAGE_SIZE);
+        size_t const rounded_up_size = nr_pages * LARGE_PAGE_SIZE; 
         /* Start by trying mmap() */
         void *m = mmap (NULL, rounded_up_size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_HUGETLB, -1, 0);
         if (m == MAP_FAILED) {
@@ -93,7 +93,7 @@ void * las_memory_accessor::physical_alloc(size_t size, bool affect)
             // perror("mmap failed");
         } else {
             {
-                std::lock_guard<std::mutex> dummy(was_mmapped.mutex());
+                std::lock_guard<std::mutex> const dummy(was_mmapped.mutex());
                 was_mmapped.insert(m);
             }
             if (affect) touch(m, size);
@@ -104,8 +104,8 @@ void * las_memory_accessor::physical_alloc(size_t size, bool affect)
 
 
 #ifdef MADV_HUGEPAGE
-    size_t nr_pages = iceildiv(size, LARGE_PAGE_SIZE);
-    size_t rounded_up_size = nr_pages * LARGE_PAGE_SIZE; 
+    size_t const nr_pages = iceildiv(size, LARGE_PAGE_SIZE);
+    size_t const rounded_up_size = nr_pages * LARGE_PAGE_SIZE; 
     /* If mmap() didn't work, try aligned malloc() with madvise() */
     void *m = malloc_aligned(rounded_up_size, LARGE_PAGE_SIZE);
     int r;
@@ -149,9 +149,9 @@ void las_memory_accessor::physical_free(void * p, size_t size MAYBE_UNUSED)
 {
 #if defined(HAVE_MMAP) && defined(MAP_HUGETLB)
     {
-        size_t nr_pages = iceildiv(size, LARGE_PAGE_SIZE);
-        size_t rounded_up_size = nr_pages * LARGE_PAGE_SIZE; 
-        std::lock_guard<std::mutex> dummy(was_mmapped.mutex());
+        size_t const nr_pages = iceildiv(size, LARGE_PAGE_SIZE);
+        size_t const rounded_up_size = nr_pages * LARGE_PAGE_SIZE; 
+        std::lock_guard<std::mutex> const dummy(was_mmapped.mutex());
         auto it = was_mmapped.find(p);
         if (it != was_mmapped.end()) {
             munmap((void *) p, rounded_up_size);

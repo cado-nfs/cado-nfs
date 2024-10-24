@@ -122,13 +122,13 @@ void matmul_top_mul(matmul_top_data & mmt, mmt_vec * v, struct timing_data * tt)
      * that is).
      */
 
-    int d = v[0].d;
-    int nmats_odd = mmt.matrices.size() & 1;
+    int const d = v[0].d;
+    int const nmats_odd = mmt.matrices.size() & 1;
     int midx = (d ? (mmt.matrices.size() - 1) : 0);
     for(size_t l = 0 ; l < mmt.matrices.size() ; l++) {
         mmt_vec const & src = v[l];
-        bool last = l == (mmt.matrices.size() - 1);
-        size_t lnext = last && !nmats_odd ? 0 : (l+1);
+        bool const last = l == (mmt.matrices.size() - 1);
+        size_t const lnext = last && !nmats_odd ? 0 : (l+1);
         mmt_vec & dst = v[lnext];
 
         ASSERT_ALWAYS(src.consistency == 2);
@@ -337,7 +337,7 @@ void mmt_apply_identity(mmt_vec & w, mmt_vec const & v)
     serialize_threads(w.pi->m);
 
     unsigned int v_off, w_off;
-    unsigned int how_many = intersect_two_intervals(&v_off, &w_off,
+    unsigned int const how_many = intersect_two_intervals(&v_off, &w_off,
             v.i0, v.i1, w.i0, w.i1);
 
     A->vec_set(A->vec_subvec(w.v, w_off), A->vec_subvec(v.v, v_off), how_many);
@@ -392,7 +392,7 @@ void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec &
     ASSERT_ALWAYS(y.consistency == 2);
     /* input: fully consistent */
     /* output: fully consistent */
-    int d = y.d;
+    int const d = y.d;
     arith_generic * A = y.abase;
 
     serialize_threads(y.pi->m);
@@ -475,7 +475,7 @@ void mmt_vec_apply_or_unapply_S_inner(matmul_top_data & mmt, int midx, mmt_vec &
 /* multiply v by Sr^-1 if v.d == 0, by Sc^-1 if v.d == 1 */
 void mmt_vec_unapply_S(matmul_top_data & mmt, int midx, mmt_vec & y)
 {
-    matmul_top_matrix & Mloc = mmt.matrices[midx];
+    matmul_top_matrix  const& Mloc = mmt.matrices[midx];
     mmt_vec_apply_or_unapply_S_inner(mmt, midx, y, 0);
     if ((Mloc.bal.flags & FLAG_REPLICATE) && !Mloc.has_perm(y.d)) {
         if (y.d == 0) {
@@ -491,7 +491,7 @@ void mmt_vec_unapply_S(matmul_top_data & mmt, int midx, mmt_vec & y)
 /* multiply v by Sr if v.d == 0, by Sc if v.d == 1 */
 void mmt_vec_apply_S(matmul_top_data & mmt, int midx, mmt_vec & y)
 {
-    matmul_top_matrix & Mloc = mmt.matrices[midx];
+    matmul_top_matrix  const& Mloc = mmt.matrices[midx];
     if ((Mloc.bal.flags & FLAG_REPLICATE) && !Mloc.has_perm(y.d)) {
         if (y.d == 0) {
             /* implicit Sr is P * Sc */
@@ -548,7 +548,7 @@ void mmt_vec_apply_or_unapply_T_inner(matmul_top_data & mmt, mmt_vec & y, int ap
      *
      */
     if (y.d == 0) return;
-    matmul_top_matrix & Mloc = mmt.matrices[mmt.matrices.size() - 1];
+    matmul_top_matrix  const& Mloc = mmt.matrices[mmt.matrices.size() - 1];
     ASSERT_ALWAYS(y.consistency == 2);
     serialize_threads(y.pi->m);
     mmt_vec yt(mmt, y.abase, y.pitype, !y.d, 0, y.n);
@@ -614,7 +614,7 @@ static void get_local_permutations_ranges(matmul_top_data & mmt, int d, unsigned
         pos[dir] = piwr->jrank * piwr->ncores + piwr->trank;
     }
 
-    size_t e = mmt.n[d] / mmt.pi->m->totalsize;
+    size_t const e = mmt.n[d] / mmt.pi->m->totalsize;
     ii[0] = e *  pos[!d]    * mmt.pi->wr[d]->totalsize;
     ii[1] = e * (pos[!d]+1) * mmt.pi->wr[d]->totalsize;
     jj[0] = e *  pos[d]     * mmt.pi->wr[!d]->totalsize;
@@ -623,8 +623,8 @@ static void get_local_permutations_ranges(matmul_top_data & mmt, int d, unsigned
 
 void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
 {
-    int midx = d == 0 ? 0 : (mmt.matrices.size() - 1);
-    matmul_top_matrix & Mloc = mmt.matrices[midx];
+    int const midx = d == 0 ? 0 : (mmt.matrices.size() - 1);
+    matmul_top_matrix  const& Mloc = mmt.matrices[midx];
     /* d == 1: twist(v) = v*Sc^-1
      * d == 0: twist(v) = v*Sr^-1
      */
@@ -647,7 +647,7 @@ void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
             r[uv[1] - jj[0]] = uv[0];
         }
         for(unsigned int k = 0 ; k < n ; k++) {
-            unsigned int j = xs[k];
+            unsigned int const j = xs[k];
             if (j >= jj[0] && j < jj[1])
                 xs[k] = r[j - jj[0]];
             else
@@ -672,22 +672,22 @@ void indices_twist(matmul_top_data & mmt, uint32_t * xs, unsigned int n, int d)
             r[uv[1] - jj[0]] = uv[0];
         }
         /* nh and nv are the same for all submatrices, really */
-        unsigned int nn[2] = { Mloc.bal.nh, Mloc.bal.nv };
+        unsigned int const nn[2] = { Mloc.bal.nh, Mloc.bal.nv };
         /* for d == 0, we have implicit Sr = P * Sc.
          * for d == 1, we have implicit Sc = P^-1 * Sc
          */
-        size_t z = Mloc.bal.trows / (nn[0]*nn[1]);
+        size_t const z = Mloc.bal.trows / (nn[0]*nn[1]);
         for(unsigned int k = 0 ; k < n ; k++) {
-            unsigned int j = xs[k];
+            unsigned int const j = xs[k];
             /* for d == 0, index i goes to P^-1[Sc^-1[i]] */
             if (j >= jj[0] && j < jj[1]) {
-                unsigned int i = r[j - jj[0]];
-                unsigned int qz = i / z;
-                unsigned int rz = i % z;
+                unsigned int const i = r[j - jj[0]];
+                unsigned int const qz = i / z;
+                unsigned int const rz = i % z;
                 /* P    sends sub-block nv*i+j to sub-block nh*j+i */
                 /* P^-1 sends sub-block nh*j+i to sub-block nv*i+j */
-                unsigned int qh = qz / nn[d];
-                unsigned int rh = qz % nn[d];
+                unsigned int const qh = qz / nn[d];
+                unsigned int const rh = qz % nn[d];
                 ASSERT_ALWAYS(qz == qh * nn[d] + rh);
                 ASSERT_ALWAYS(i == (qh * nn[d] + rh)*z + rz);
                 xs[k] = (rh * nn[!d] + qh)*z + rz;
@@ -730,11 +730,11 @@ void matmul_top_fill_random_source(matmul_top_data & mmt, int d)
  */
 void matmul_top_mul_cpu(matmul_top_data & mmt, int midx, int d, mmt_vec & w, mmt_vec const & v)
 {
-    matmul_top_matrix & Mloc = mmt.matrices[midx];
+    matmul_top_matrix  const& Mloc = mmt.matrices[midx];
     ASSERT_ALWAYS(v.consistency == 2);
     ASSERT_ALWAYS(w.abase == v.abase);
-    unsigned int di_in  = v.i1 - v.i0;
-    unsigned int di_out = w.i1 - w.i0;
+    unsigned int const di_in  = v.i1 - v.i0;
+    unsigned int const di_out = w.i1 - w.i0;
     ASSERT_ALWAYS(Mloc.mm->dim[!d] == di_out);
     ASSERT_ALWAYS(Mloc.mm->dim[d] == di_in);
 
@@ -832,8 +832,8 @@ static std::string matrix_get_derived_cache_subdir(std::string const & matrixnam
 {
     /* input is NULL in the case of random matrices */
     if (matrixname.empty()) return std::string();
-    unsigned int nh = pi->wr[1]->totalsize;
-    unsigned int nv = pi->wr[0]->totalsize;
+    unsigned int const nh = pi->wr[1]->totalsize;
+    unsigned int const nv = pi->wr[0]->totalsize;
     char * copy = strdup(matrixname.c_str());
     char * t;
     if (strlen(copy) > 4 && strcmp((t = copy + strlen(copy) - 4), ".bin") == 0) {
@@ -844,7 +844,7 @@ static std::string matrix_get_derived_cache_subdir(std::string const & matrixnam
     } else {
         t++;
     }
-    int rc = asprintf(&t, "%s.%ux%u", t, nh, nv);
+    int const rc = asprintf(&t, "%s.%ux%u", t, nh, nv);
     ASSERT_ALWAYS(rc >=0);
     free(copy);
     std::string s(t);
@@ -854,7 +854,7 @@ static std::string matrix_get_derived_cache_subdir(std::string const & matrixnam
 
 static void matrix_create_derived_cache_subdir(std::string const & matrixname, parallelizing_info_ptr pi)
 {
-    std::string d = matrix_get_derived_cache_subdir(matrixname, pi);
+    std::string const d = matrix_get_derived_cache_subdir(matrixname, pi);
     struct stat sbuf[1];
     int rc = stat(d.c_str(), sbuf);
     if (rc < 0 && errno == ENOENT) {
@@ -872,9 +872,9 @@ static std::string matrix_get_derived_balancing_filename(std::string const & mat
 {
     /* input is NULL in the case of random matrices */
     if (matrixname.empty()) return std::string();
-    std::string dn = matrix_get_derived_cache_subdir(matrixname, pi);
+    std::string const dn = matrix_get_derived_cache_subdir(matrixname, pi);
     char * t;
-    int rc = asprintf(&t, "%s/%s.bin", dn.c_str(), dn.c_str());
+    int const rc = asprintf(&t, "%s/%s.bin", dn.c_str(), dn.c_str());
     ASSERT_ALWAYS(rc >=0);
     std::string s(t);
     free(t);
@@ -900,8 +900,8 @@ static std::string matrix_get_derived_cache_filename_stem(std::string const & ma
         pi_comm_ptr wr = pi->wr[d];
         pos[d] = wr->jrank * wr->ncores + wr->trank;
     }
-    std::string dn = matrix_get_derived_cache_subdir(matrixname, pi);
-    int rc = asprintf(&t, "%s/%s.%08" PRIx32 ".h%d.v%d",
+    std::string const dn = matrix_get_derived_cache_subdir(matrixname, pi);
+    int const rc = asprintf(&t, "%s/%s.%08" PRIx32 ".h%d.v%d",
             dn.c_str(), dn.c_str(), checksum, pos[1], pos[0]);
     ASSERT_ALWAYS(rc >=0);
     free(copy);
@@ -929,8 +929,8 @@ static std::string matrix_get_derived_submatrix_filename(std::string const & mat
         pi_comm_ptr wr = pi->wr[d];
         pos[d] = wr->jrank * wr->ncores + wr->trank;
     }
-    std::string dn = matrix_get_derived_cache_subdir(matrixname, pi);
-    int rc = asprintf(&t, "%s/%s.h%d.v%d.bin",
+    std::string const dn = matrix_get_derived_cache_subdir(matrixname, pi);
+    int const rc = asprintf(&t, "%s/%s.h%d.v%d.bin",
             dn.c_str(), dn.c_str(), pos[1], pos[0]);
     ASSERT_ALWAYS(rc >=0);
     free(copy);
@@ -1078,7 +1078,7 @@ static void matmul_top_init_prepare_local_permutations(matmul_top_data & mmt, in
 
         /* now create the really local permutation */
         for(unsigned int i = ii[0] ; i < ii[1] ; i++) {
-            unsigned int j = balperm[d][i];
+            unsigned int const j = balperm[d][i];
             if (j >= jj[0] && j < jj[1])
                 Mloc.perm[d].push_back({i, j});
         }
@@ -1123,7 +1123,7 @@ matmul_top_data::matmul_top_data(
 {
     matmul_top_data & mmt = *this;
 
-    int nbals = param_list_get_list_count(pl, "balancing");
+    int const nbals = param_list_get_list_count(pl, "balancing");
     int multimat = 0;
     int nmatrices = param_list_lookup_string(pl, "matrix") != NULL;
     param_list_parse_int(pl, "multi_matrix", &multimat);
@@ -1260,7 +1260,7 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
     struct stat st[1];
     int * has_cache = (int *) shared_malloc_set_zero(pi->m, pi->m->totalsize * sizeof(int));
     rc = stat(Mloc.mm->cachefile_name, st);
-    unsigned int mynode = pi->m->ncores * pi->m->jrank;
+    unsigned int const mynode = pi->m->ncores * pi->m->jrank;
     has_cache[mynode + pi->m->trank] = rc == 0;
     serialize_threads(pi->m);
 
@@ -1270,7 +1270,7 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
                 has_cache, pi->m->ncores, MPI_INT, pi->m->pals);
 
         for(unsigned int j = 0 ; j < pi->m->ncores ; j++) {
-            int s = strlen(tlines[j]);
+            int const s = strlen(tlines[j]);
             if (s >= len) len = s;
         }
         MPI_Allreduce(MPI_IN_PLACE, &len, 1, MPI_INT, MPI_MAX, pi->m->pals);
@@ -1287,7 +1287,7 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
             FILE * f = fopen(cachelist, "wb");
             DIE_ERRNO_DIAG(f == NULL, "fopen(%s)", cachelist);
             for(unsigned int j = 0 ; j < pi->m->njobs ; j++) {
-                unsigned int j0 = j * pi->m->ncores;
+                unsigned int const j0 = j * pi->m->ncores;
                 fprintf(f, "get-cache ");
                 for(unsigned int k = 0 ; k < pi->m->ncores ; k++) {
                     char * t = info + (j0 + k) * (len + 1);
@@ -1303,7 +1303,7 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
                 fprintf(f, "\n");
             }
             for(unsigned int j = 0 ; j < pi->m->njobs ; j++) {
-                unsigned int j0 = j * pi->m->ncores;
+                unsigned int const j0 = j * pi->m->ncores;
                 fprintf(f, "has-cache ");
                 for(unsigned int k = 0 ; k < pi->m->ncores ; k++) {
                     char * t = info + (j0 + k) * (len + 1);
@@ -1336,7 +1336,7 @@ static int export_cache_list_if_requested(matmul_top_matrix & Mloc, parallelizin
 
 static unsigned int local_fraction(unsigned int normal, pi_comm_ptr wr)
 {
-    unsigned int i = wr->jrank * wr->ncores + wr->trank;
+    unsigned int const i = wr->jrank * wr->ncores + wr->trank;
     return normal / wr->totalsize + (i < (normal % wr->totalsize));
 }
 
@@ -1345,7 +1345,7 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, param_lis
 {
     int rebuild = 0;
     param_list_parse_int(pl, "rebuild_cache", &rebuild);
-    int can_print = (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0);
+    int const can_print = (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0);
 
     matmul_top_matrix & Mloc = mmt.matrices[midx];
 
@@ -1458,10 +1458,10 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, param_lis
              * the padding area.
              */
 
-            unsigned int data_nrows = local_fraction(Mloc.n0[0], mmt.pi->wr[1]);
-            unsigned int data_ncols = local_fraction(Mloc.n0[1], mmt.pi->wr[0]);
-            unsigned int padded_nrows = Mloc.n[0] / mmt.pi->wr[1]->totalsize;
-            unsigned int padded_ncols = Mloc.n[1] / mmt.pi->wr[0]->totalsize;
+            unsigned int const data_nrows = local_fraction(Mloc.n0[0], mmt.pi->wr[1]);
+            unsigned int const data_ncols = local_fraction(Mloc.n0[1], mmt.pi->wr[0]);
+            unsigned int const padded_nrows = Mloc.n[0] / mmt.pi->wr[1]->totalsize;
+            unsigned int const padded_ncols = Mloc.n[1] / mmt.pi->wr[0]->totalsize;
 
             random_matrix_get_u32(mmt.pi, pl, m,
                     data_nrows, data_ncols, padded_nrows, padded_ncols);
@@ -1483,7 +1483,7 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, param_lis
             int ssm = 0;
             param_list_parse_int(pl, "save_submatrices", &ssm);
             if (ssm) {
-                std::string submat = matrix_get_derived_submatrix_filename(Mloc.mname, mmt.pi);
+                std::string const submat = matrix_get_derived_submatrix_filename(Mloc.mname, mmt.pi);
                 fprintf(stderr, "DEBUG: creating %s\n", submat.c_str());
                 FILE * f = fopen(submat.c_str(), "wb");
                 fwrite(m->p, sizeof(uint32_t), m->size, f);
@@ -1577,7 +1577,7 @@ void matmul_top_report(matmul_top_data & mmt, double scale, int full)
 
 matmul_top_data::~matmul_top_data()
 {
-    matmul_top_data & mmt = *this;
+    matmul_top_data  const& mmt = *this;
     pi_free_arith_datatype(mmt.pi, mmt.pitype);
     serialize_threads(mmt.pi->m);
     serialize(mmt.pi->m);

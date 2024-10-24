@@ -167,10 +167,10 @@ bool test_all(const unsigned long iter, const size_t arraysize,
 }
 
 // coverity[root_function]
-int main(int argc, const char **argv)
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 1;
-  size_t arraysize = 65536;
+  size_t const arraysize = 65536;
   bool ok = true;
   tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
   tests_common_get_iter(&iter);
@@ -180,7 +180,7 @@ int main(int argc, const char **argv)
 #endif
 
   {
-    sieve2357base::prime_t all_primes[] = {
+    sieve2357base::prime_t const all_primes[] = {
       /* q idx logp */
       {1, 0, 2},
       {2, 1, 1},

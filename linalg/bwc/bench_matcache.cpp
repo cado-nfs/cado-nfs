@@ -58,7 +58,7 @@ struct bench_args {
     int rebuild;
     mpz_t prime;
     double freq;
-    char ** mfiles;
+    char const ** mfiles;
     const char * source_vec;
     struct private_args * p;
     struct worker_threads_group * tg;
@@ -81,14 +81,14 @@ void init_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct b
                 tnum, (int) time(NULL) - t0);
         pthread_mutex_unlock(&tg->mu);
     } else {
-        clock_t ct0 = clock();
+        clock_t const ct0 = clock();
         pthread_mutex_lock(&tg->mu);
         fprintf(stderr, "T%d Building cache file for %s\n",
                 tnum, ba->mfiles[tnum]);
         pthread_mutex_unlock(&tg->mu);
         ASSERT_ALWAYS(p->mm->store_transposed == ba->transpose);
         matrix_u32 m;
-        int withcoeffs = mpz_cmp_ui(ba->prime, 2) > 0;
+        int const withcoeffs = mpz_cmp_ui(ba->prime, 2) > 0;
         mf_prepare_matrix_u32(p->mm, m, ba->mfiles[tnum], withcoeffs);
         matmul_build_cache(p->mm, m);
         pthread_mutex_lock(&tg->mu);
@@ -134,8 +134,8 @@ void check_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
 
     unsigned int nr = p->mm->dim[0];
     unsigned int nc = p->mm->dim[1];
-    unsigned int nr0 = nr;
-    unsigned int nc0 = nc;
+    unsigned int const nr0 = nr;
+    unsigned int const nc0 = nc;
     matmul_aux(p->mm, MATMUL_AUX_GET_READAHEAD, &nr);
     matmul_aux(p->mm, MATMUL_AUX_GET_READAHEAD, &nc);
 
@@ -196,8 +196,8 @@ void clear_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
 {
     struct private_args * p = ba->p + tnum;
     arith_generic * A = ba->xx;
-    unsigned int nr MAYBE_UNUSED = p->mm->dim[0];
-    unsigned int nc MAYBE_UNUSED = p->mm->dim[1];
+    unsigned int const nr MAYBE_UNUSED = p->mm->dim[0];
+    unsigned int const nc MAYBE_UNUSED = p->mm->dim[1];
     pthread_mutex_lock(&tg->mu);
     matmul_report(p->mm, ba->freq);
     printf("\n");
@@ -207,7 +207,7 @@ void clear_func(struct worker_threads_group * tg MAYBE_UNUSED, int tnum, struct 
     A->free(p->rowvec); // nr
 }/*}}}*/
 
-void banner(int argc, char * argv[])
+void banner(int argc, char const * argv[])
 {
     /* print command line */
     fprintf (stderr, "# (%s) %s", cado_revision_string, (argv)[0]);
@@ -221,7 +221,7 @@ void banner(int argc, char * argv[])
     fprintf(stderr, "# Compilation flags " CFLAGS "\n");
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     struct bench_args ba[1];
 
@@ -233,7 +233,7 @@ int main(int argc, char * argv[])
     memset(ba, 0, sizeof(ba));
 
     ba->impl = "bucket";
-    char * file = NULL;
+    const char * file = NULL;
     int nocheck = 0;
     ba->nchecks = 4;
     ba->nthreads = 1;
@@ -402,10 +402,10 @@ int main(int argc, char * argv[])
          * times matrix -> colvec) */
         arith_generic::elt * srcvec = ba->transpose ? p->rowvec : p->colvec;
         arith_generic::elt * dstvec = ba->transpose ? p->colvec : p->rowvec;
-        int n = p->mm->dim[1 ^ ba->transpose];
+        int const n = p->mm->dim[1 ^ ba->transpose];
         fprintf(stderr, "reading %zu bytes from %s\n",
                 n * sizeof(uint64_t), tmp);
-        int nread = fread(srcvec, sizeof(uint64_t), n, f);
+        int const nread = fread(srcvec, sizeof(uint64_t), n, f);
         if (nread != n) {
             fprintf(stderr, "short read (%d < %d)\n", nread, n);
             exit(1);
@@ -413,13 +413,13 @@ int main(int argc, char * argv[])
         fclose(f);
         worker_threads_do(ba->tg, (worker_func_t) &mul_func, ba);
         char * dstfile;
-        int rc = asprintf(&dstfile, "%s.dst", tmp);
+        int const rc = asprintf(&dstfile, "%s.dst", tmp);
         ASSERT_ALWAYS(rc >= 0);
         f = fopen(dstfile, "wb");
-        int nw = p->mm->dim[0 ^ ba->transpose];
+        int const nw = p->mm->dim[0 ^ ba->transpose];
         fprintf(stderr, "writing %zu bytes to %s\n",
                 nw * sizeof(uint64_t), dstfile);
-        int nwritten = fwrite(dstvec, sizeof(uint64_t), nw, f);
+        int const nwritten = fwrite(dstvec, sizeof(uint64_t), nw, f);
         if (nwritten != nw) {
             fprintf(stderr, "short write (%d < %d)\n", nwritten, nw);
             exit(1);
@@ -438,7 +438,7 @@ int main(int argc, char * argv[])
     double last[10]={0,};
     double sum_last = 0;
 
-    clock_t t0 = clock();
+    clock_t const t0 = clock();
     double next = 0.25 * CLOCKS_PER_SEC;
     double t1 = 0;
     double t, dt;

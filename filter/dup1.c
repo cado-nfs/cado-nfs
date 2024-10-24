@@ -226,7 +226,7 @@ static void declare_usage(param_list pl)
 }
 
 static void
-usage (param_list pl, char *argv0)
+usage (param_list pl, char const * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -234,9 +234,9 @@ usage (param_list pl, char *argv0)
 
 
 int
-main (int argc, char * argv[])
+main (int argc, char const * argv[])
 {
-    char * argv0 = argv[0];
+    char const * argv0 = argv[0];
     unsigned int log_max_nrels_per_files = DEFAULT_LOG_MAX_NRELS_PER_FILES;
     int only_slice = -1;
     int abhexa = 0;
@@ -331,7 +331,7 @@ main (int argc, char * argv[])
     }
 
     set_antebuffer_path (argv0, path_antebuffer);
-    char ** files = filelist ? filelist_from_file(basepath, filelist, 0) : argv;
+    char const ** files = filelist ? filelist_from_file(basepath, filelist, 0) : argv;
 
     // If not output suffix is specified, use suffix of first input file
     if (!outfmt && files[0] != NULL)

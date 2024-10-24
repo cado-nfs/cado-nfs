@@ -71,7 +71,7 @@ struct shrink_action {
             if (!(std::istringstream(line) >> rel))
                 throw std::runtime_error(fmt::format(FMT_STRING("parse error while reading {}"), line));
 
-            double rnd = double(u64_random(rstate)) / double(UINT64_MAX);
+            double const rnd = double(u64_random(rstate)) / double(UINT64_MAX);
             if (rnd >= row_fraction)
                 continue;
 
@@ -98,9 +98,9 @@ static void declare_usage(param_list pl)
 
 // coverity[root_function]
 int
-main (int argc, char *argv[])
+main (int argc, char const *argv[])
 {
-    char * argv0 = argv[0];
+    char const * argv0 = argv[0];
     cxx_param_list pl;
 
     declare_usage(pl);

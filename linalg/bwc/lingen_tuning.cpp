@@ -79,16 +79,16 @@ std::vector<lingen_substep_schedule> optimize(
         lingen_tuning_cache & C,
         size_t reserved)
 { /* {{{ */
-    unsigned int nr0 = U.mpi_split0(mesh).block_size_upper_bound();
-    unsigned int nr1 = U.mpi_split1(mesh).block_size_upper_bound();
-    unsigned int nr2 = U.mpi_split2(mesh).block_size_upper_bound();
+    unsigned int const nr0 = U.mpi_split0(mesh).block_size_upper_bound();
+    unsigned int const nr1 = U.mpi_split1(mesh).block_size_upper_bound();
+    unsigned int const nr2 = U.mpi_split2(mesh).block_size_upper_bound();
     size_t min_my_ram = SIZE_MAX;
     lingen_substep_schedule S_lean;
     S_lean.fft_type = lingen_substep_schedule::FFT_NONE; /* placate compiler */
     std::vector<lingen_substep_schedule> all_schedules;
 
     unsigned int nvalid = 0;
-    for(lingen_substep_schedule::fft_type_t fft : allowed_ffts) {
+    for(lingen_substep_schedule::fft_type_t const fft : allowed_ffts) {
         if (!U.fft_type_valid(fft)) continue;
         nvalid++;
     }
@@ -96,14 +96,14 @@ std::vector<lingen_substep_schedule> optimize(
         throw std::invalid_argument("FFT choice restricted to zero valid FFTs, tuning_thresholds is probably wrong");
     }
 
-    for(lingen_substep_schedule::fft_type_t fft : allowed_ffts) {
+    for(lingen_substep_schedule::fft_type_t const fft : allowed_ffts) {
         if (!U.fft_type_valid(fft)) continue;
-        for(unsigned int shrink0 : all_splits_of(nr0)) {
-            for(unsigned int shrink2 : all_splits_of(nr2)) {
+        for(unsigned int const shrink0 : all_splits_of(nr0)) {
+            for(unsigned int const shrink2 : all_splits_of(nr2)) {
                 if (fft == lingen_substep_schedule::FFT_NONE)
                     if (shrink0 > 1 || shrink2 > 1) continue;
-                unsigned int nrs0 = U.shrink_split0(mesh, shrink0).block_size_upper_bound();
-                unsigned int nrs2 = U.shrink_split2(mesh, shrink2).block_size_upper_bound();
+                unsigned int const nrs0 = U.shrink_split0(mesh, shrink0).block_size_upper_bound();
+                unsigned int const nrs2 = U.shrink_split2(mesh, shrink2).block_size_upper_bound();
                 /* first the splits with b0 == nrs0 */
                 {
                     unsigned int b0 = nrs0;
@@ -114,7 +114,7 @@ std::vector<lingen_substep_schedule> optimize(
                             S.shrink0 = shrink0;
                             S.shrink2 = shrink2;
                             S.batch = {{ b0, b1, b2 }};
-                            size_t my_ram = U.get_peak_ram(mesh, S);
+                            size_t const my_ram = U.get_peak_ram(mesh, S);
                             if (reserved + my_ram <= P.available_ram || P.available_ram == 0) {
                                 all_schedules.push_back(S);
                             }
@@ -135,7 +135,7 @@ std::vector<lingen_substep_schedule> optimize(
                             S.shrink0 = shrink0;
                             S.shrink2 = shrink2;
                             S.batch = {{ b0, b1, b2 }};
-                            size_t my_ram = U.get_peak_ram(mesh, S);
+                            size_t const my_ram = U.get_peak_ram(mesh, S);
                             if (reserved + my_ram <= P.available_ram || P.available_ram == 0) {
                                 all_schedules.push_back(S);
                             }
@@ -187,7 +187,7 @@ std::vector<lingen_substep_schedule> optimize(
     std::vector<lingen_substep_schedule> res;
 
     for(auto const & S : all_schedules) {
-        std::string f = fmt::sprintf("%s%s;%s",
+        std::string const f = fmt::sprintf("%s%s;%s",
                 mesh > 1 ? "MPI-" : "",
                 op_mul_or_mp_base::op_name(U.op_type),
                 S.fft_name());
@@ -246,9 +246,9 @@ struct lingen_tuner {
         tuning_thresholds_t(cxx_param_list & pl, std::ostream& os, lingen_platform const & P) {/*{{{*/
             const char * tmp = param_list_lookup_string(pl, "tuning_thresholds");
             if (!tmp) return;
-            std::string tlist = tmp;
+            std::string const tlist = tmp;
             for(size_t pos = 0 ; pos != std::string::npos ; ) {
-                size_t next = tlist.find(',', pos);
+                size_t const next = tlist.find(',', pos);
                 std::string tok;
                 if (next == std::string::npos) {
                     tok = tlist.substr(pos);
@@ -258,13 +258,13 @@ struct lingen_tuner {
                     pos = next + 1;
                 }
                 auto error = [&tok](std::string const& reason) {
-                    std::string base = fmt::format(
+                    std::string const base = fmt::format(
                             "tuning_thresholds is bad:"
                             " pair \"{}\" ", tok);
                     throw std::invalid_argument(base + reason);
                 };
 
-                size_t colon = tok.find(':');
+                size_t const colon = tok.find(':');
                 if (colon == std::string::npos)
                     error("has no colon");
 
@@ -399,7 +399,7 @@ struct lingen_tuner {
     double compute_and_report_basecase(std::ostream& os, size_t length, bool do_timings) { /*{{{*/
         double tt;
 
-        lingen_tuning_cache::basecase_key K { mpz_sizeinbase(p, 2), m, n, length, P.openmp_threads };
+        lingen_tuning_cache::basecase_key const K { mpz_sizeinbase(p, 2), m, n, length, P.openmp_threads };
 
         os << fmt::format(FMT_STRING("# basecase (@{}): "), length);
 
@@ -455,9 +455,9 @@ struct lingen_tuner {
          *
          */                     
 
-        size_t Q = L >> (i+1);
-        size_t u = (L >> i) & 1;
-        size_t v = L % (1 << i);
+        size_t const Q = L >> (i+1);
+        size_t const u = (L >> i) & 1;
+        size_t const v = L % (1 << i);
 
         /* at i == floor level, we have (1<<(i-1)) < L <= (1<<i), Q = 0, and:
          *
@@ -477,8 +477,8 @@ struct lingen_tuner {
             std::vector<weighted_call_t> res {{ w1 }};
             return res;
         } else if (v) {
-            weighted_call_t w0 { 2*Q + u,     Q + u, Q,     (1 << i) - v };
-            weighted_call_t w1 { 2*Q + u + 1, Q + 1, Q + u, v };
+            weighted_call_t const w0 { 2*Q + u,     Q + u, Q,     (1 << i) - v };
+            weighted_call_t const w1 { 2*Q + u + 1, Q + 1, Q + u, v };
             std::vector<weighted_call_t> res {{ w0, w1 }};
             return res;
         } else {
@@ -585,16 +585,16 @@ struct lingen_tuner {
          * share of the reserved memory comes from the topmost levels
          * anyway, so we surmise that P.r is appropriate there.
          */
-        size_t base_E  = iceildiv(m,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
-        size_t base_pi = iceildiv(m+n,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
+        size_t const base_E  = iceildiv(m,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
+        size_t const base_pi = iceildiv(m+n,P.r)*iceildiv(m+n,P.r)*mpz_size(p)*sizeof(mp_limb_t);
         constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
-        size_t reserved_base = base_E * iceildiv(L - (L >> depth), simd);
+        size_t const reserved_base = base_E * iceildiv(L - (L >> depth), simd);
         size_t reserved_mp  = base_pi * iceildiv(iceildiv(m * iceildiv(L, 1<<depth), m+n), simd);
         size_t reserved_mul = base_pi * iceildiv(iceildiv(m * iceildiv(2*L, 1<<depth), m+n), simd);
         reserved_mp += reserved_base;
         reserved_mul += reserved_base;
 
-        size_t reserved = op_type == op_mul_or_mp_base::OP_MP ? reserved_mp : reserved_mul;
+        size_t const reserved = op_type == op_mul_or_mp_base::OP_MP ? reserved_mp : reserved_mul;
 
         os << fmt::format(FMT_STRING("# {} reserved storage = {}\n"),
                 op_mul_or_mp_base::op_name(op_type),
@@ -603,12 +603,12 @@ struct lingen_tuner {
         size_t L, Lleft, Lright;
         unsigned int weight;
         std::tie(L, Lleft, Lright, weight) = cw;
-        lingen_call_companion::key K { depth, L };
+        lingen_call_companion::key const K { depth, L };
         ASSERT_ALWAYS(weight);
 
         ASSERT_ALWAYS (recursion_makes_sense(L));
         auto step = substep(cw, op_type);
-        bool print_here = true;
+        bool const print_here = true;
 #if 0
         if (print_here)
             step.report_size_stats_human(os);
@@ -617,7 +617,7 @@ struct lingen_tuner {
         std::vector<lingen_substep_schedule> SS;
 
         if (stored_hints.find(K) != stored_hints.end()) {
-            lingen_substep_schedule S = stored_hints.at(K)[op_type].S;
+            lingen_substep_schedule const S = stored_hints.at(K)[op_type].S;
             if (step.is_valid_schedule(P, mesh, S)) {
                 os << "# Using imposed schedule " << S.serialize() << "\n";
                 SS.push_back(S);
@@ -636,7 +636,7 @@ struct lingen_tuner {
         for(auto const & S : SS)
             step.get_and_report_call_time(os, P, mesh, S, C, do_timings);
 
-        lingen_substep_schedule S = SS.front();
+        lingen_substep_schedule const S = SS.front();
 
         if (print_here)
             step.report_op_winner(os, mesh, S);
@@ -654,7 +654,7 @@ struct lingen_tuner {
         U = step.get_companion(os, P, mesh, S, C, reserved, do_timings);
         os << "#\n";
 
-        size_t mm = U.ram_total();
+        size_t const mm = U.ram_total();
         if (mm > peak) { ipeak = depth; peak = mm; }
 
         return U;
@@ -731,7 +731,7 @@ struct lingen_tuner {
         bool from_thresholds_mesh_level(std::ostream& os, lingen_tuner & tuner, tuner_persistent_data & persist, lingen_call_companion::key const & K) {/*{{{*/
             T_t const & T(tuner.tuning_thresholds);
             lingen_platform const & P(tuner.P);
-            unsigned int L = K.L;
+            unsigned int const L = K.L;
             /* first decision: do we force recursion. There are various
              * reasons to do so, since we have various thresholds that
              * implicitly enable recursion */
@@ -813,17 +813,17 @@ struct lingen_tuner {
              * thresholds. Therefore, checking against "recursive" or
              * "collective" doesn't make sense.
              */
-            unsigned int L = K.L;
+            unsigned int const L = K.L;
             ffts.clear();
             /* Okay, it's a bit of spaghetti, but the small and concise
              * loop would not be easier to understand.
              */
             std::ostringstream explanation;
 #ifdef LINGEN_BINARY
-            bool hc = T.has(T_t::cantor);
-            bool ht = T.has(T_t::ternary);
-            unsigned int tc = T[T_t::cantor];
-            unsigned int tt = T[T_t::ternary];
+            bool const hc = T.has(T_t::cantor);
+            bool const ht = T.has(T_t::ternary);
+            unsigned int const tc = T[T_t::cantor];
+            unsigned int const tt = T[T_t::ternary];
             if (hc && ht) {
                 if (tc >= tt) {
                     if (L >= tc) {
@@ -881,8 +881,8 @@ struct lingen_tuner {
                 explanation << explain(T, T_t::recursive);
             }
 #else
-            bool hf = T.has(T_t::flint);
-            bool tf = T[T_t::flint];
+            bool const hf = T.has(T_t::flint);
+            bool const tf = T[T_t::flint];
             if (hf) {
                 if (L >= tf) {
                     ffts.push_back(lingen_substep_schedule::FFT_FLINT);
@@ -914,9 +914,9 @@ struct lingen_tuner {
      * which are covered in tune_local_at_depth_mp_or_mul() and optimize()
      */
     configurations_to_test find_configurations_to_test(std::ostream & os,  tuner_persistent_data & persist, lingen_call_companion::key const & K) {/*{{{*/
-        unsigned int L = K.L;
+        unsigned int const L = K.L;
         configurations_to_test C;
-        bool impose_hints(persist.impose_hints);
+        bool const impose_hints(persist.impose_hints);
 
         if (C.from_stored_hints(os, *this, persist, K))
             return C;
@@ -978,7 +978,7 @@ struct lingen_tuner {
             unsigned int weight;
             std::tie(L, Lleft, Lright, weight) = cw;
             if (!L) continue;
-            double ratio = weight / (double) (1U << depth);
+            double const ratio = weight / (double) (1U << depth);
             os_pre << fmt::sprintf("# input size %zu, %u times [%.1f%%]\n",
                     L, weight, 100*ratio);
         }
@@ -1020,7 +1020,7 @@ struct lingen_tuner {
                 continue;
             }
 
-            lingen_call_companion::key K { depth, L };
+            lingen_call_companion::key const K { depth, L };
 
             /* We **MUST** create hints[K], at this point. We will gain
              * _some_ insight from stored_hints[] and maybe from the
@@ -1140,12 +1140,12 @@ struct lingen_tuner {
 
         /* Now give a summary at this level */
 
-        size_t L0 = std::get<0>(cws.front());
-        size_t L1 = std::get<0>(cws.back());
+        size_t const L0 = std::get<0>(cws.front());
+        size_t const L1 = std::get<0>(cws.back());
         /* calls_and_weights_at_depth must return a sorted list */
         ASSERT_ALWAYS(L0 <= L1);
-        unsigned int mesh0 = best[L0].first;
-        unsigned int mesh1 = best[L1].first;
+        unsigned int const mesh0 = best[L0].first;
+        unsigned int const mesh1 = best[L1].first;
 
         if (do_all_timings) {
             for(auto mesh : mesh_all) {
@@ -1153,7 +1153,7 @@ struct lingen_tuner {
                     double tt = mesh_tt_weighted[mesh].second;
                     // std::string rescaled;
                     if (mesh_tt_weighted[mesh].first != (1U << depth)) {
-                        double ratio = mesh_tt_weighted[mesh].first / (double) (1U << depth);
+                        double const ratio = mesh_tt_weighted[mesh].first / (double) (1U << depth);
                         // rescaled = fmt::sprintf("[rescaled from %.1f%%] ", 100*ratio);
                         tt /= ratio;
                     }
@@ -1165,7 +1165,7 @@ struct lingen_tuner {
                 }
             }
 
-            double tt_total = best[L0].second * std::get<3>(cws.front())
+            double const tt_total = best[L0].second * std::get<3>(cws.front())
                             + best[L1].second * std::get<3>(cws.back());
 
             if (mesh0 == mesh1) {
@@ -1181,7 +1181,7 @@ struct lingen_tuner {
         }
 
         if (mesh0 || mesh1) {
-            lingen_call_companion U = U_typical;
+            lingen_call_companion const U = U_typical;
             if (U.mp.ram_total() > U.mul.ram_total()) {
                 (*p_talk) << fmt::sprintf("#   (memory(MP): %s, incl %s reserved)\n",
                         size_disp(U.mp.ram_total()),
@@ -1196,7 +1196,7 @@ struct lingen_tuner {
         return timed_something;
     }/*}}}*/
     lingen_hints tune_local(std::ostream& os, lingen_hints & stored_hints) {/*{{{*/
-        size_t N = m*n*L/(m+n);
+        size_t const N = m*n*L/(m+n);
         char buf[20];
 
         /* same mechanism in tune_local_at_depth ; output goes to a
@@ -1229,7 +1229,7 @@ struct lingen_tuner {
             strat_name[P.r] = fmt::sprintf("recursive(%d*%d-nodes)", P.r, P.r);
         }
 
-        int fl = log2(L-1) + 1; /* ceil(log_2(L)) */
+        int const fl = log2(L-1) + 1; /* ceil(log_2(L)) */
 
         tuner_persistent_data persist(stored_hints);
 
@@ -1244,7 +1244,7 @@ struct lingen_tuner {
         }
 
         for(int i = fl ; i>=0 ; i--) {
-            bool timed_here = tune_local_at_depth((*p_talk), persist, i);
+            bool const timed_here = tune_local_at_depth((*p_talk), persist, i);
             if (timed_here && !timed_something) {
                 os << os_pre.str();
                 os_pre.str();
@@ -1255,8 +1255,8 @@ struct lingen_tuner {
 
         tuner_persistent_data::level_strategy_map & best(persist.best);
         lingen_hints & hints(persist.hints);
-        size_t peak(persist.peak);
-        int ipeak(persist.ipeak);
+        size_t const peak(persist.peak);
+        int const ipeak(persist.ipeak);
 
         /*****************************************************************/
         /* make the mesh sizes monotonic. In truth, we can only do this
@@ -1391,7 +1391,7 @@ constexpr const char * lingen_tuner::tuning_thresholds_t::notiming;
 
 lingen_hints lingen_tuning(bw_dimensions & d, size_t L, MPI_Comm comm, cxx_param_list & pl)
 {
-    lingen_tuner::output_info O(pl);
+    lingen_tuner::output_info const O(pl);
     if (O.quiet) {
         std::ostringstream os;
         return lingen_tuner(os, d, L, comm, pl).tune(os);

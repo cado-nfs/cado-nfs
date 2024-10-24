@@ -35,7 +35,7 @@
 detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_cofac_parameters * param)
 {
     /* Import some contextual stuff. */
-    int id = worker->rank();
+    int const id = worker->rank();
     nfs_work_cofac & wc(*param->wc_p);
     nfs_aux & aux(*param->aux_p);
     nfs_aux::thread_data & taux(aux.th[id]);
@@ -47,7 +47,7 @@ detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_co
 
     cofac_standalone & cur(*param);
 
-    int nsides = las.cpoly->nb_polys;
+    int const nsides = las.cpoly->nb_polys;
 
     std::vector<int> cof_bitsize(nsides, 0);
     las.cofac_stats.call(cur.norm, cof_bitsize);
@@ -55,7 +55,7 @@ detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_co
     SIBLING_TIMER(timer, "cofactoring"); // aka factor_both_leftover_norms
     TIMER_CATEGORY(timer, cofactoring_mixed());
 
-    int pass = cur.factor_both_leftover_norms(wc);
+    int const pass = cur.factor_both_leftover_norms(wc);
     rep.survivors.cofactored += (pass != 0);
 
     auto res = new detached_cofac_result;
@@ -90,17 +90,17 @@ detached_cofac_result * detached_cofac_inner(worker_thread * worker, detached_co
     }
 
     {
-        int do_check = las.suppress_duplicates;
+        int const do_check = las.suppress_duplicates;
 
         /* note that if we have large primes which don't fit in
          * an unsigned long, then the duplicate check will
          * quickly return "no".
          */
 
-        nfs_aux::abpair_t ab(cur.a, cur.b);
+        nfs_aux::abpair_t const ab(cur.a, cur.b);
         bool is_new_rel;
         {
-            std::lock_guard<std::mutex> foo(rel_hash.mutex());
+            std::lock_guard<std::mutex> const foo(rel_hash.mutex());
             is_new_rel = rel_hash.insert(ab).second;
         }
 
@@ -168,7 +168,7 @@ task_result * detached_cofac(worker_thread * worker, task_parameters * _param, i
     detached_cofac_parameters *param = static_cast<detached_cofac_parameters *>(_param);
 
     /* Import some contextual stuff. */
-    int id = worker->rank();
+    int const id = worker->rank();
     nfs_aux & aux(*param->aux_p);
     nfs_aux::thread_data & taux(aux.th[id]);
     las_report & rep(taux.rep);

@@ -57,7 +57,7 @@ usage (){
  *
  * inspired by main function of dlpolyselect.c
  */
-int main(int argc, char* argv[])
+int main(int argc, char const * argv[])
 {
   // first, catch k and p
   // then, compute the two polynomials (f,g)

@@ -3391,13 +3391,13 @@ void banner()
     }
 }
 
-int main(int argc, char **argv)
+int main(int argc, char const ** argv)
 {
     int ret, i;
     int asked_r = 0;
     // int size_guess = 0;
 
-    MPI_Init(&argc, &argv);
+    MPI_Init(&argc, (char ***) &argv);
     program_starttime = wct_seconds();
 
     MPI_Comm_rank(MPI_COMM_WORLD, &glob.rank);

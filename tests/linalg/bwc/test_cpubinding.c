@@ -97,7 +97,7 @@ int do_cpubinding_tests(const char * cpubinding_conf)
     return !nb_nok;
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     const char * cpubinding_conf = NULL;
     param_list pl;

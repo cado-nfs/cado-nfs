@@ -1,12 +1,14 @@
 #ifndef UTILS_CXX_HPP_
 #define UTILS_CXX_HPP_
 
-#include <limits>
-#include <type_traits>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <memory>
 #include <string>
+#include <type_traits>
+#include <vector>
+
 #include "macros.h"
 
 /* Base class with private copy-constructor and assignment operator.
@@ -222,5 +224,44 @@ struct std::default_delete<FILE>
 {
     void operator()(FILE* x) { fclose(x); }
 };
+
+#define CADO_DEFAULT_CXX_CTOR(T)        \
+    T() = default
+
+#define CADO_DEFAULT_COPY_CTOR(T)       \
+    T(T const &) = default
+
+#define CADO_DEFAULT_COPY_ASSIGNMENT(T) \
+    T& operator=(T const &) = default
+
+#define CADO_DEFAULT_MOVE_CTOR(T)       \
+    T(T&&) = default
+
+#define CADO_DEFAULT_MOVE_ASSIGNMENT(T) \
+    T& operator=(T&&) = default
+
+#define CADO_DEFAULT_ALL_FIVE(T)        \
+    CADO_DEFAULT_CXX_CTOR(T);           \
+    CADO_DEFAULT_COPY_CTOR(T);          \
+    CADO_DEFAULT_COPY_ASSIGNMENT(T);    \
+    CADO_DEFAULT_MOVE_CTOR(T);          \
+    CADO_DEFAULT_MOVE_ASSIGNMENT(T)
+
+
+static inline std::vector<std::string> split(
+        const std::string& s,
+        const std::string& delimiter)
+{
+    std::vector<std::string> tokens;
+    size_t pos = 0, next;
+    for ( ;
+            (next = s.find(delimiter, pos)) != std::string::npos ;
+            pos = next + delimiter.size()
+            )
+        tokens.push_back(s.substr(pos, next - pos));
+    tokens.push_back(s.substr(pos));
+
+    return tokens;
+}
 
 #endif	/* UTILS_CXX_HPP_ */

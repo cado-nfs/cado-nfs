@@ -39,7 +39,7 @@ void test_bblas_level3::level3a()
     {
         mat64 & R = * (mat64 *) r;
         mat64 & XR = * (mat64 *) xr;
-        mat64 & A = * (mat64 *) a;
+        mat64  const& A = * (mat64 *) a;
         mat64_add(R, A, w);
         XR = R;
 
@@ -64,7 +64,7 @@ void test_bblas_level3::transpose() {
     {
         mat64 & R = * (mat64 *) r;
         mat64 & XR = * (mat64 *) xr;
-        mat64 & A = * (mat64 *) a;
+        mat64  const& A = * (mat64 *) a;
 
         mat64_transpose(R, A);
         mat64_transpose(XR, R);
@@ -94,7 +94,7 @@ void test_bblas_level3::matpoly_polmat() {
     }
     mat64 * A = mat64::alloc(n * K * L);
     mat64 * B = mat64::alloc(n * K * L);
-    size_t datasize = K * 64 * L * 64 * iceildiv(n, ULONG_BITS) * (64 / ULONG_BITS);
+    size_t const datasize = K * 64 * L * 64 * iceildiv(n, ULONG_BITS) * (64 / ULONG_BITS);
     unsigned long * data = new unsigned long[datasize];
     unsigned long * data_t = new unsigned long[datasize];
     memfill_random(A, n * K * L * sizeof(mat64), rstate);
@@ -134,7 +134,7 @@ void test_bblas_level3::matmul() {
 
     mat64 & R = * (mat64 *) r;
     mat64 & XR = * (mat64 *) xr;
-    mat64 & A = * (mat64 *) a;
+    mat64  const& A = * (mat64 *) a;
 
     /* multiplicate of two 64x64 matrices */
     mul_6464_6464(R, A, w);
@@ -167,10 +167,10 @@ void test_bblas_level3::matmul() {
 
 test_bblas_base::tags_t test_bblas_level3::rank_n_update_tags { "rank_n_update", "l3c", "l3", };/*{{{*/
 void test_bblas_level3::rank_n_update() {
-    unsigned int n = nmax;
+    unsigned int const n = nmax;
     printf(" -- rank-n updates --\n");
 
-    mat64 & R = * (mat64 *) r;
+    mat64  const& R = * (mat64 *) r;
 
     TIME1N(1, mul_TN64_N64_addmul, R, a, b, n);
     TIME1N(5, mul_TN32_N64_C, r, (uint32_t*)a, b, n);
@@ -180,7 +180,7 @@ void test_bblas_level3::rank_n_update() {
 test_bblas_base::tags_t test_bblas_level3::level3c_tags { "l3c", "l3" };/*{{{*/
 void test_bblas_level3::level3c_list()
 {
-    unsigned int n = nmax;
+    unsigned int const n = nmax;
     /* multiplication of a vector by a matrix */
     mul_N64_6464_vec(r, a, w, n);
     memcpy(xr, r, n * sizeof(uint64_t));
@@ -257,13 +257,13 @@ void test_bblas_level3::trsm() {
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         mat64 Lr;
-        unsigned int n0 = gmp_urandomm_ui(rstate, 64);
-        unsigned int n1 = gmp_urandomm_ui(rstate, 65 - n0) + n0;
+        unsigned int const n0 = gmp_urandomm_ui(rstate, 64);
+        unsigned int const n1 = gmp_urandomm_ui(rstate, 65 - n0) + n0;
         mat64_fill_random(Lr, rstate);
         L = 1;
         for(unsigned int i = n0 + 1 ; i < n1 ; i++) {
             /* import bits [n0..i-1] from Lr */
-            uint64_t m = (-(UINT64_C(1) << n0)) & ((UINT64_C(1) << i)-1);
+            uint64_t const m = (-(UINT64_C(1) << n0)) & ((UINT64_C(1) << i)-1);
             L[i] ^= Lr[i] & m;
         }
 
@@ -289,7 +289,7 @@ void test_bblas_level3::m8()
     /* add */
     mat8 & R = * (mat8 *) r;
     mat8 & XR = * (mat8 *) xr;
-    mat8 & A = * (mat8 *) a;
+    mat8  const& A = * (mat8 *) a;
     mat8 w8;
 
     mat8::fill_random(w8, rstate);
@@ -310,13 +310,13 @@ void test_bblas_level3::m8()
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
         mat8 Lr;
-        unsigned int n0 = gmp_urandomm_ui(rstate, mat8::width);
-        unsigned int n1 = gmp_urandomm_ui(rstate, mat8::width + 1 - n0) + n0;
+        unsigned int const n0 = gmp_urandomm_ui(rstate, mat8::width);
+        unsigned int const n1 = gmp_urandomm_ui(rstate, mat8::width + 1 - n0) + n0;
         mat8::fill_random(Lr, rstate);
         L = 1;
         for(unsigned int i = n0 + 1 ; i < n1 ; i++) {
             /* import bits [n0..i-1] from Lr */
-            uint8_t m = (-(UINT8_C(1) << n0)) & ((UINT8_C(1) << i)-1);
+            uint8_t const m = (-(UINT8_C(1) << n0)) & ((UINT8_C(1) << i)-1);
             L[i] ^= Lr[i] & m;
         }
 

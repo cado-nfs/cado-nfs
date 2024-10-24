@@ -42,7 +42,7 @@ typename std::enable_if<(n < sizeof...(T)), std::istream&>::type
 {
     if (!is) return is;
     if (n) {
-        int c = is.get();
+        int const c = is.get();
         if (c != ';' && c != ' ') {
             is.setstate(std::ios_base::failbit);
             return is;
@@ -61,7 +61,7 @@ template<typename T, typename U>
 std::istream& operator>>(std::istream& is, std::pair<T,U> & x)
 {
     is >> x.first;
-    int c = is.get();
+    int const c = is.get();
     if (!is || c != ',') {
         /* since c++11, unget clears eofbit */
         is.setstate(std::ios_base::failbit);
@@ -78,7 +78,7 @@ std::istream& operator>>(std::istream& is, std::list<T> & L)
     L.clear();
     for(unsigned int item = 0 ; ; item++) {
         if (item) {
-            int c = is.get();
+            int const c = is.get();
             if (!is || c != ',') {
                 /* since c++11, unget clears eofbit */
                 is.unget();
@@ -125,7 +125,7 @@ std::istream& operator>>(std::istream& is, std::array<T, n>& arr)
     for(size_t i = 0 ; i < n ; i++) {
         if (i) {
             char c;
-            std::ios_base::fmtflags ff = is.flags();
+            std::ios_base::fmtflags const ff = is.flags();
             is.flags(ff & ~std::ios_base::skipws);
             is >> c;
             is.flags(ff);

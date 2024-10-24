@@ -38,7 +38,7 @@ void param_list_init(param_list_ptr pl)
 void param_list_set(param_list_ptr pl, param_list_srcptr pl0)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
-    param_list_impl & pli0 = *static_cast<param_list_impl *>(pl0->pimpl);
+    param_list_impl  const& pli0 = *static_cast<param_list_impl *>(pl0->pimpl);
     pli = pli0;
 }
 
@@ -66,7 +66,7 @@ void param_list_usage_header(param_list_ptr pl, const char * hdr, ...)
     va_list ap;
     va_start(ap, hdr);
     char * tmp;
-    int rc = vasprintf(&tmp, hdr, ap);
+    int const rc = vasprintf(&tmp, hdr, ap);
     ASSERT_ALWAYS(rc >= 0);
     pli.usage_header = std::string(tmp);
     free(tmp);
@@ -222,7 +222,7 @@ int param_list_read_stream(param_list_ptr pl, FILE *f, int stop_on_empty_line)
         }
         for( ; p[l] && (isalnum((int)(unsigned char)p[l]) || p[l] == '_' || p[l] == '-') ; l++);
 
-        int lhs_length = l;
+        int const lhs_length = l;
 
         if (lhs_length == 0) {
             fprintf(stderr, "Parse error, no usable key for config line:\n%s\n",
@@ -265,7 +265,7 @@ int param_list_read_file(param_list_ptr pl, const char * name)
         fprintf(stderr, "Cannot read %s\n", name);
         exit(1);
     }
-    int r = param_list_read_stream(pl, f, 0);
+    int const r = param_list_read_stream(pl, f, 0);
     fclose(f);
     return r;
 }
@@ -302,7 +302,7 @@ int param_list_configure_switch(param_list_ptr pl, const char * switchname, int 
 }
 
 int param_list_update_cmdline(param_list_ptr pl,
-        int * p_argc, char *** p_argv)
+        int * p_argc, char const *** p_argv)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
     ASSERT_ALWAYS(*p_argv != NULL);
@@ -403,7 +403,7 @@ static const char *
 get_assoc_ptr(param_list_ptr pl, const char * key, bool stealth = false, int * const seen = NULL)
 {
     param_list_impl & pli = *static_cast<param_list_impl *>(pl->pimpl);
-    std::lock_guard<std::mutex> dummy(mutex);
+    std::lock_guard<std::mutex> const dummy(mutex);
     if (pli.use_doc) {
         for(int i = 0 ; i < 2 && *key == '-' ; key++, i++) ;
         if (!stealth && !is_documented_key(pl, key)) 
@@ -424,7 +424,7 @@ get_assoc(param_list_ptr pl, const char * key, std::string & value, bool stealth
     const char * t = get_assoc_ptr(pl, key, stealth, seen);
     if (t)
         value = t;
-    return t != NULL;
+    return t != nullptr;
 }
 
 
@@ -604,6 +604,8 @@ template int param_list_parse<std::vector<int>>(param_list_ptr pl, const char * 
 template int param_list_parse<std::vector<std::string>>(param_list_ptr pl, const char * key, std::vector<std::string> & r);
 
 template int param_list_parse<std::string>(param_list_ptr pl, const char * key, std::string & r);
+template int param_list_parse<cxx_mpz>(param_list_ptr pl, const char * key, cxx_mpz & r);
+template int param_list_parse<cxx_mpz_poly>(param_list_ptr pl, const char * key, cxx_mpz_poly & r);
 
 int param_list_parse_long(param_list_ptr pl, const char * key, long * r)
 {
@@ -662,7 +664,7 @@ int param_list_parse_mpz(param_list_ptr pl, const char * key,
     mpz_ptr f)
 {
     cxx_mpz P;
-    int b = param_list_parse(pl, key, P);
+    int const b = param_list_parse(pl, key, P);
     if (b)
         mpz_set(f, P);
     return b;
@@ -672,7 +674,7 @@ int param_list_parse_mpz_poly(param_list_ptr pl, const char * key,
     mpz_poly_ptr f)
 {
     cxx_mpz_poly P;
-    int b = param_list_parse(pl, key, P);
+    int const b = param_list_parse(pl, key, P);
     if (b)
         mpz_poly_set(f, P);
     return b;
@@ -938,8 +940,8 @@ void param_list_print_command_line(FILE * stream, param_list_srcptr pl)
     if (!pli.cmdline_argv0)
         return;
 
-    char **argv = pli.cmdline_argv0;
-    int argc = pli.cmdline_argc0;
+    char const **argv = pli.cmdline_argv0;
+    int const argc = pli.cmdline_argc0;
 
     if (verbose_enabled(CADO_VERBOSE_PRINT_CMDLINE)) {
         /* print command line */
@@ -1031,9 +1033,9 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
     int has_lpb01 = 0;
     for(int side = 0 ; side < n ; side++) {
         char * keyi;
-        int rc = asprintf(&keyi, "%s%u", key, side);
+        int const rc = asprintf(&keyi, "%s%u", key, side);
         ASSERT_ALWAYS(rc >= 0);
-        int gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
+        int const gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
         free(keyi);
         if (!gotit && side == 0 && policy == ARGS_PER_SIDE_DEFAULT_COPY_PREVIOUS)
             break;
@@ -1044,11 +1046,11 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
         /* at this point we know that key0 has a value */
         for(int side = 0 ; side < n ; side++) {
             char * keyi;
-            int rc = asprintf(&keyi, "%s%u", key, side);
+            int const rc = asprintf(&keyi, "%s%u", key, side);
             ASSERT_ALWAYS(rc >= 0);
             if (side)
                 lpb_arg[side] = lpb_arg[side - 1];
-            int gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
+            int const gotit = param_list_parse_inner<T>(pl, keyi, lpb_arg[side], true);
             ASSERT_ALWAYS(side > 0 || gotit);
             free(keyi);
         }
@@ -1059,11 +1061,11 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
     {
 
         if (!(has_nlpbs = param_list_parse_list(pl, key, temp, ","))) {
-            char c = std::string(key).back();
+            char const c = std::string(key).back();
             if (c != 'x' && c != 's') {
                 /* try with s. */
                 char * keys;
-                int rc = asprintf(&keys, "%ss", key);
+                int const rc = asprintf(&keys, "%ss", key);
                 ASSERT_ALWAYS(rc >= 0);
                 has_nlpbs = param_list_parse_list(pl, keys, temp, ",", true);
                 free(keys);

@@ -39,7 +39,8 @@ static void printMatrix(mp_limb_t *M, int nrows, int ncols,
 }
 #endif
 
-int main(int argc, char **argv) {
+int main(int argc, char const * argv[])
+{
   mp_limb_t* mat;
   mp_limb_t** ker;
   int nrows, ncols, limbs_per_row, limbs_per_col;

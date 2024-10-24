@@ -220,7 +220,7 @@ void root_lift(struct prime_data * p, mpz_ptr rx, mpz_ptr irx, int precision)/* 
 
 #define EXAMPLE_FROM_RSA768
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     program_starttime = wct_seconds();
 
@@ -305,7 +305,7 @@ int main(int argc, char * argv[])
 
     {
         char sbuf[32];
-        fprintf(stderr, "# [%2.2lf] Lifting to precision l=%d (p^l is approx %s)\n", WCT, precision, size_disp(precision * log(prime->p)/M_LN2 / 8, sbuf));
+        fprintf(stderr, "# [%2.2lf] Lifting to precision l=%d (p^l is approx %d)\n", WCT, precision, size_disp(precision * log(prime->p)/M_LN2 / 8, sbuf));
     }
 
     fprintf(stderr, "# [%2.2lf] Computing powers of p\n", WCT);

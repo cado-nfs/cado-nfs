@@ -196,7 +196,7 @@ matmul_ptr matmul_init(arith_generic * x, unsigned int nr, unsigned int nc, cons
     param_list_parse_int(pl, "no_save_cache", &mm->no_save_cache);
 
     if (locfile) {
-        int rc = asprintf(&mm->cachefile_name, "%s-%s%s.bin", locfile, mm->bind->impl, mm->store_transposed ? "T" : "");
+        int const rc = asprintf(&mm->cachefile_name, "%s-%s%s.bin", locfile, mm->bind->impl, mm->store_transposed ? "T" : "");
         FATAL_ERROR_CHECK(rc < 0, "out of memory");
     } else {
         mm->cachefile_name = NULL;
@@ -252,7 +252,7 @@ static void save_to_local_copy(matmul_ptr mm)
         fprintf(stderr, "stat(%s): %s\n", mm->cachefile_name, strerror(errno));
         return;
     }
-    unsigned long fsize = sbuf->st_size;
+    unsigned long const fsize = sbuf->st_size;
 
 #ifdef HAVE_STATVFS_H
     /* Check for remaining space on the filesystem */
@@ -269,7 +269,7 @@ static void save_to_local_copy(matmul_ptr mm)
     struct statvfs sf[1];
     rc = statvfs(dirname, sf);
     if (rc >= 0) {
-        unsigned long mb = sf->f_bsize * sf->f_bavail;
+        unsigned long const mb = sf->f_bsize * sf->f_bavail;
 
         if (fsize > mb * 0.5) {
             fprintf(stderr, "Copying %s to %s would occupy %lu MB out of %lu MB available, so more than 50%%. Skipping copy\n",

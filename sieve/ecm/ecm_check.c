@@ -30,8 +30,7 @@ tryecm (const unsigned long p, const ecm_plan_t *plan)
   return r;
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long B1, B2, sigma, p;
   int ep = 0, verbose = 0;

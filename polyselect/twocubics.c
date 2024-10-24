@@ -453,10 +453,9 @@ usage (const char *argv, const char * missing, param_list pl)
   exit (EXIT_FAILURE);
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-  char **argv0 = argv;
+  char const ** argv0 = argv;
   int quiet = 0, nthreads = 1;
 
   polyselect_main_data main_data;

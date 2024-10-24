@@ -54,8 +54,7 @@ declare_usage(cxx_param_list& pl) /*{{{*/
 } /*}}}*/
 
 // coverity[root_function]
-int
-main(int argc, char* argv[])
+int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
     unsigned int n = 2 * 1000 * 1000;

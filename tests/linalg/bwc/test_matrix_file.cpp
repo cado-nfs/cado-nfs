@@ -26,7 +26,7 @@ std::ostream * bind(cxx_param_list & pl, const char * option_name, std::shared_p
 }
 
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     cxx_param_list pl;
     argv++, argc--;

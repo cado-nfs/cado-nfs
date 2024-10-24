@@ -142,7 +142,7 @@ void nfs_work::allocate_buckets(nfs_aux & aux, thread_pool & pool)
     verbose_output_print(0, 2, "# Reserving buckets with a multiplier of %s\n",
             bk_multiplier.print_all().c_str());
 
-    bool do_resieve = conf.sides[0].lim && conf.sides[1].lim;
+    bool const do_resieve = conf.sides[0].lim && conf.sides[1].lim;
 
     for (int side = 0; side < 2; side++) {
         side_data & wss(sides[side]);
@@ -176,7 +176,7 @@ nfs_work::buckets_max_full()
     size_t maxfull_room = 0;
     typedef bucket_array_t<LEVEL, HINT> BA_t;
     for(int side = 0 ; side < 2 ; side++) {
-        side_data & wss(sides[side]);
+        side_data  const& wss(sides[side]);
         for (auto const & BA : wss.bucket_arrays<LEVEL, HINT>()) {
             unsigned int index;
             const double ratio = BA.max_full(&index);
@@ -190,8 +190,8 @@ nfs_work::buckets_max_full()
         }
     }
     if (maxfull_ratio > 1) {
-        int side = maxfull_side;
-        side_data & wss(sides[side]);
+        int const side = maxfull_side;
+        side_data  const& wss(sides[side]);
         auto const & BAs = wss.bucket_arrays<LEVEL, HINT>();
         std::ostringstream os;
         os << "bucket " << maxfull_index << " on side " << maxfull_side << ":";
@@ -201,7 +201,7 @@ nfs_work::buckets_max_full()
                 m = BA.nb_of_updates(maxfull_index);
         }
         for (auto const & BA : wss.bucket_arrays<LEVEL, HINT>()) {
-            size_t z = BA.nb_of_updates(maxfull_index);
+            size_t const z = BA.nb_of_updates(maxfull_index);
             os << " " << z;
             if (z == m) os << "*";
         }
@@ -289,16 +289,16 @@ void nfs_work::compute_toplevel_and_buckets()
     // Now that fb have been initialized, we can set the toplevel.
     toplevel = -1;
     for(int side = 0 ; side < 2 ; side++) {
-        side_data & wss(sides[side]);
+        side_data  const& wss(sides[side]);
         if (wss.no_fb()) continue;
 
-        int level = wss.fbs->get_toplevel();
+        int const level = wss.fbs->get_toplevel();
         if (level > toplevel) toplevel = level;
     }
     ASSERT_ALWAYS(toplevel >= 1);
 
     /* update number of buckets at toplevel */
-    size_t (&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
+    size_t  const(&BRS)[FB_MAX_PARTS] = BUCKET_REGIONS;
 
     for(int i = 0 ; i < FB_MAX_PARTS ; ++i) nb_buckets[i] = 0;
 

@@ -34,7 +34,7 @@ static void declare_usage(param_list pl)
 /************************************************************************/
 
 // coverity[root_function]
-int main(int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
     int nb_test = 0;
     param_list pl;
@@ -76,8 +76,8 @@ int main(int argc, char *argv[])
     int len_p_min = -1; //default_value
     int final_nb_fm = -1; //default value
     
-    int opt_proba = param_list_parse_switch(pl, "-p");
-    int opt_time = param_list_parse_switch(pl, "-t");
+    int const opt_proba = param_list_parse_switch(pl, "-p");
+    int const opt_time = param_list_parse_switch(pl, "-t");
     param_list_parse_int(pl, "lb", &len_p_min);
     param_list_parse_int(pl, "f", &final_nb_fm);
     param_list_parse_int(pl, "N", &nb_test);
@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
 	}
     
     FILE *file_out = fopen(pathname_out, "w");
-    int err = tabular_fm_fprint(file_out, c);
+    int const err = tabular_fm_fprint(file_out, c);
     if (err < 0) {
 	fprintf(stderr, "error:: try to write in the file %s.\n", pathname_out);
 	param_list_clear(pl);

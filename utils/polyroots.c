@@ -535,7 +535,7 @@ uint32_t poly_roots_double(const double *poly, uint32_t degree, double complex *
 
 
 #ifdef  MAIN
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     int degree = argc - 2;
     printf("degree %d\n", degree);

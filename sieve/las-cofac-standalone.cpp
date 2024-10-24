@@ -131,7 +131,7 @@ relation cofac_standalone::get_relation(las_todo_entry const & doing) {/*{{{*/
     return rel;
 }/*}}}*/
 void cofac_standalone::transfer_to_cofac_list(lock_guarded_container<cofac_list> & L, las_todo_entry const & doing) {/*{{{*/
-    std::lock_guard<std::mutex> foo(L.mutex());
+    std::lock_guard<std::mutex> const foo(L.mutex());
     /* "doing" must be an object that lives in the main todo list,
      * and will stay alive until the end of the program. Yes, it's a
      * bit dangerous. */

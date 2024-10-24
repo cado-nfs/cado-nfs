@@ -38,7 +38,7 @@ struct add_dotprod {
         for(unsigned int i = 0 ; i < n ; i++) {
             uint64_t * w0 = (uint64_t *) w;
             for(unsigned int l = 0 ; l < L ; l++) {
-                uint64_t b = *v++;
+                uint64_t const b = *v++;
                 uint64_t *sw = w0;
                 const uint64_t * u0 = u;
                 for(unsigned int k = 0 ; k < K ; k++) {
@@ -95,7 +95,7 @@ struct add_dotprod<0,2> {
         __m128i const * vv = reinterpret_cast<const __m128i*>(v);
         for(unsigned int i = 0 ; i < n ; i++) {
             __m128i * w0 = (__m128i*) w;
-            __m128i mb[4][2] = {
+            __m128i const mb[4][2] = {
                 {_mm_setzero_si128(), _mm_setzero_si128()},
                 {*vv, _mm_setzero_si128()},
                 {_mm_setzero_si128(), *vv},
@@ -175,9 +175,9 @@ struct addmul_tiny {
                 const uint64_t * vv = v0;
                 for(unsigned int k = 0 ; k < K ; k++) {
                     __m128i a = _mm_setr_epi64(_mm_cvtsi64_m64(u0[k]), _mm_cvtsi64_m64(u1[k]));
-                    __m128i one = _mm_set1_epi64(_mm_cvtsi64_m64(1));
+                    __m128i const one = _mm_set1_epi64(_mm_cvtsi64_m64(1));
                     for (unsigned int i = 0; i < 64; i++) {
-                        __m128i zw = _mm_set1_epi64(_mm_cvtsi64_m64(*vv));
+                        __m128i const zw = _mm_set1_epi64(_mm_cvtsi64_m64(*vv));
                         r = _mm_xor_si128(r, _mm_and_si128(zw, _mm_sub_epi64(_mm_setzero_si128(), _mm_and_si128(a, one))));
                         a = _mm_srli_epi64(a, 1);
                         vv += L;

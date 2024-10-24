@@ -466,7 +466,7 @@ static void declare_usage(param_list pl)
 }
 
 int
-main (int argc, char *argv[])
+main (int argc, char const *argv[])
 {
   param_list pl;
   cado_poly cpoly;
@@ -475,7 +475,7 @@ main (int argc, char *argv[])
   int maxbits = 1;  // disable powers by default
   int side = -1;
   unsigned long lim = ULONG_MAX;
-  char *argv0 = argv[0];
+  char const *argv0 = argv[0];
   unsigned long nb_threads = 1;
 
   param_list_init(pl);

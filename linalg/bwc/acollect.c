@@ -124,7 +124,7 @@ int read_afiles(struct afile_list * a)
     return a->n;
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     param_list pl;
 

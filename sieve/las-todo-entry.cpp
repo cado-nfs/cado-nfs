@@ -38,7 +38,7 @@ void las_todo_entry::find_prime_factors()
 
     cxx_mpz B;
     mpz_sqrt(B, p);
-    unsigned long bound = mpz_get_ui(B);
+    unsigned long const bound = mpz_get_ui(B);
 
     cxx_mpz pp;
     mpz_init_set(pp, p);
@@ -124,7 +124,7 @@ std::istream& operator>>(std::istream& is, las_todo_entry & doing)
     is >> std::ws >> expect("r");
     if (!is) return is;
     /* support old-style q printing */
-    int c = is.peek();
+    int const c = is.peek();
     if (c == 'h')
         is >> expect("ho");
     is >> expect("=");

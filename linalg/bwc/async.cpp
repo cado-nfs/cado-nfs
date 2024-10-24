@@ -39,7 +39,7 @@ static void extract_interval(timing_interval_data * since_last_reset, timing_int
     since_beginning[t->which]->thread[0] += d[0];
     since_beginning[t->which]->thread[1] += d[1];
 
-    double w = wct_seconds();
+    double const w = wct_seconds();
     since_last_reset[t->which]->wct += w;
     since_beginning[t->which]->wct += w;
 }
@@ -48,7 +48,7 @@ void timing_next_timer(struct timing_data * t)
 {
     if (!t) return;
     double d[2];
-    int next = (t->which + 1) % t->ntimers;
+    int const next = (t->which + 1) % t->ntimers;
 
     seconds_user_sys(d);
     t->since_last_reset[t->which]->job[0] += d[0];
@@ -70,7 +70,7 @@ void timing_next_timer(struct timing_data * t)
     t->since_beginning[next]->thread[0] -= d[0];
     t->since_beginning[next]->thread[1] -= d[1];
 
-    double w = wct_seconds();
+    double const w = wct_seconds();
     t->since_last_reset[t->which]->wct += w;
     t->since_last_reset[next]->wct -= w;
     t->since_beginning[t->which]->wct += w;
@@ -96,7 +96,7 @@ static void timing_partial_init(struct timing_data * t, int iter)
     t->since_last_reset[t->which]->thread[0] = -d[0];
     t->since_last_reset[t->which]->thread[1] = -d[1];
 
-    double w = wct_seconds();
+    double const w = wct_seconds();
     t->since_last_reset[t->which]->wct = -w;
 }
 
@@ -108,7 +108,7 @@ void timing_init(struct timing_data * t, int n, int start, int end)
     t->items = (size_t *) malloc(n * sizeof(size_t));
     for(int i = 0 ; i < n ; i++) {
         t->items[i] = 0;
-        int rc = asprintf(&(t->names[i]), "timer%d", i);
+        int const rc = asprintf(&(t->names[i]), "timer%d", i);
         ASSERT_ALWAYS(rc >= 0);
     }
     t->since_last_reset = (timing_interval_data*) malloc(n * sizeof(timing_interval_data));
@@ -128,7 +128,7 @@ void timing_set_timer_name(struct timing_data * t, int i, const char * fmt, ...)
     va_start(ap, fmt);
     ASSERT_ALWAYS(i >= 0 && i < t->ntimers);
     free(t->names[i]);
-    int rc = vasprintf(&(t->names[i]), fmt, ap);
+    int const rc = vasprintf(&(t->names[i]), fmt, ap);
     ASSERT_ALWAYS(rc >= 0);
     va_end(ap);
 }
@@ -251,7 +251,7 @@ void timing_check(parallelizing_info pi, struct timing_data * timing, int iter, 
     timing_interval_data since_last_reset[timing->ntimers];
     timing_interval_data since_beginning[timing->ntimers];
     extract_interval(since_last_reset, since_beginning, timing);
-    double di = iter - timing->go_mark;
+    double const di = iter - timing->go_mark;
 
     ASSERT_ALWAYS(timing->ntimers % 4 == 0);
 
@@ -271,8 +271,8 @@ void timing_check(parallelizing_info pi, struct timing_data * timing, int iter, 
         thrcomm += since_last_reset[4*k+2]->thread[0];
     }
 
-    double cput = cpu + cpuw;
-    double commt = comm + commw;
+    double const cput = cpu + cpuw;
+    double const commt = comm + commw;
     // (avg wct cpu)(cpu % cpu) + (avg comm)(cpu % comm)
     snprintf(buf, sizeof(buf), "%.2f@%.0f%%+%.2f@%.0f%%",
             cput/di, 100.0 * thrcpu / cput,
@@ -295,7 +295,7 @@ void timing_disp_backend(parallelizing_info pi, struct timing_data * timing, int
 
     timing_interval_data * T = done ? since_beginning : since_last_reset;
 
-    double di = iter - timing->go_mark;
+    double const di = iter - timing->go_mark;
 
     /* for each timer, we want to print:
      *
@@ -314,7 +314,7 @@ void timing_disp_backend(parallelizing_info pi, struct timing_data * timing, int
         ncoeffs_d[i] = timing->items[i];
     }
 
-    int ndoubles = timing->ntimers * sizeof(timing_interval_data) / sizeof(double);
+    int const ndoubles = timing->ntimers * sizeof(timing_interval_data) / sizeof(double);
 
     pi_allreduce((double*) T, (double*) Tsum,
             ndoubles, BWC_PI_DOUBLE, BWC_PI_SUM,
@@ -333,11 +333,11 @@ void timing_disp_backend(parallelizing_info pi, struct timing_data * timing, int
     for(int i = 0 ; i < timing->ntimers ; i++) {
         sum_dwct += Tsum[i]->wct;
     }
-    double avdwct = sum_dwct / pi->m->totalsize / di;
+    double const avdwct = sum_dwct / pi->m->totalsize / di;
 
     if (print) {
         for(int timer = 0 ; timer < timing->ntimers ; timer++) {
-            double avwct = Tsum[timer]->wct / pi->m->totalsize / di;
+            double const avwct = Tsum[timer]->wct / pi->m->totalsize / di;
 
             char extra[32]={'\0'};
             if (ncoeffs_d[timer] != 0) {
@@ -345,7 +345,7 @@ void timing_disp_backend(parallelizing_info pi, struct timing_data * timing, int
                 // total (aggregated) wall-clock time per iteration within
                 // the cpu-bound part, and divided by the total number of
                 // coefficients.
-                double nsc = Tsum[timer]->wct / di / ncoeffs_d[timer] * 1.0e9;
+                double const nsc = Tsum[timer]->wct / di / ncoeffs_d[timer] * 1.0e9;
                 snprintf(extra, sizeof(extra), ", %.2f ns/%.1fGitems", nsc, ncoeffs_d[timer]*1.0e-9);
             }
 

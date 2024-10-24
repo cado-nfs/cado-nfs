@@ -36,7 +36,7 @@ void ECWeierstrass<MODULUS>::AffinePoint::dbl (AffinePoint &R) const {
     curve.m.add (v, v, u);
     curve.m.add (v, v, curve.a); /* 3x^2 + a */
     curve.m.add (u, y, y);
-    bool ret = curve.m.inv (lambda, u);    /* 1/(2*y) */
+    bool const ret = curve.m.inv (lambda, u);    /* 1/(2*y) */
     if (ret) {
         curve.m.mul (lambda, lambda, v);
         curve.m.sqr (u, lambda);
@@ -78,7 +78,7 @@ void ECWeierstrass<MODULUS>::AffinePoint::add (AffinePoint &R, const AffinePoint
     }
     
     curve.m.sub (u, Q.x, x);
-    bool ret = curve.m.inv (v, u);
+    bool const ret = curve.m.inv (v, u);
     if (ret) {
         curve.m.sub (u, Q.y, y);
         curve.m.mul (lambda, u, v);

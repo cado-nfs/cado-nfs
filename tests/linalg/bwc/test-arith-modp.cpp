@@ -14,9 +14,9 @@ template<typename F>
 void do_tests(unsigned long iter, int summands, int cbound )
 {
 
-    size_t maximum_limbs = std::conditional<F::is_constant_width, std::integral_constant<size_t, F::constant_width>, std::integral_constant<int, 32>>::type::value;
+    size_t const maximum_limbs = std::conditional<F::is_constant_width, std::integral_constant<size_t, F::constant_width>, std::integral_constant<int, 32>>::type::value;
 
-    mp_size_t m = maximum_limbs * mp_bits_per_limb;
+    mp_size_t const m = maximum_limbs * mp_bits_per_limb;
     // mp_size_t ell = F::extra*mp_bits_per_limb;
 
     uint64_t tt = 0;
@@ -47,7 +47,7 @@ void do_tests(unsigned long iter, int summands, int cbound )
         } while (mpz_size(pz) < maximum_limbs || mpz_even_p(pz) || mpz_cmp_ui(pz, 1) == 0);
         F field(pz, 1);
 
-        size_t N = field.template nlimbs<typename F::elt>();
+        size_t const N = field.template nlimbs<typename F::elt>();
 
         typedef typename F::elt_ur_for_add a_type;
         typedef typename F::elt_ur_for_addmul m_type;
@@ -143,7 +143,7 @@ void do_tests(unsigned long iter, int summands, int cbound )
 }
 
 // coverity[root_function]
-int main(int argc, const char * argv[])
+int main(int argc, char const * argv[])
 {
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER | PARSE_VERBOSE);
 

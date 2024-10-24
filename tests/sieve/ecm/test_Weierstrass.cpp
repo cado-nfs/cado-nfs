@@ -192,7 +192,7 @@ TestWeierstrass<MODULUS>::parseLine(const char *line) const {
         std::cerr << "Could not set point" << std::endl;
         ok = false;
     }
-    Curve c ( *m, a );
+    Curve const c ( *m, a );
 
     if (affine) {
         AffinePoint p1 ( c ), p2 ( c ), pReference ( c );
@@ -222,10 +222,11 @@ TestWeierstrass<MODULUS>::parseLine(const char *line) const {
 }
 
 // coverity[root_function]
-int main(int argc, const char *argv[]) {
+int main(int argc, char const * argv[])
+{
     bool ok = true;
     tests_common_cmdline (&argc, &argv, PARSE_VERBOSE);
-    int verbose = tests_common_get_verbose ();
+    int const verbose = tests_common_get_verbose ();
 
     if (argc < 2) {
         fprintf(stderr, "Input file missing\n");
@@ -237,10 +238,10 @@ int main(int argc, const char *argv[]) {
         exit(EXIT_FAILURE);
     }
     
-    TestWeierstrass<Modulus64> test1(verbose);
-    TestWeierstrass<ModulusREDC64> test2(verbose);
-    TestWeierstrass<ModulusREDC126> test3(verbose);
-    TestWeierstrass<ModulusMPZ> test4(verbose);
+    TestWeierstrass<Modulus64> const test1(verbose);
+    TestWeierstrass<ModulusREDC64> const test2(verbose);
+    TestWeierstrass<ModulusREDC126> const test3(verbose);
+    TestWeierstrass<ModulusMPZ> const test4(verbose);
 
     constexpr size_t buflen = 1024;
     char line[buflen];

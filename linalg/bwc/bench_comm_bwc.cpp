@@ -24,42 +24,24 @@
 #include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
 #include "fmt/format.h"
 #include "macros.h"
+#include "timing.h"
+
 using namespace fmt::literals;
-
-double
-wct_seconds (void)
-{
-    struct timeval tv[1];
-    gettimeofday (tv, NULL);
-    return (double)tv->tv_sec + (double)tv->tv_usec*1.0e-6;
-}
-
-void thread_seconds_user_sys(double * res, double m)
-{
-    struct rusage ru[1];
-#ifdef HAVE_RUSAGE_THREAD
-    getrusage(RUSAGE_THREAD, ru);
-#else
-#error "implement me"
-#endif
-    res[0] += m * ((double)ru->ru_utime.tv_sec + (double)ru->ru_utime.tv_usec/1.0e6);
-    res[1] += m * ((double)ru->ru_stime.tv_sec + (double)ru->ru_stime.tv_usec/1.0e6);
-}
 
 void * bench_comm_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {
-    int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
-    fake = fake || param_list_lookup_string(pl, "static_random_matrix") != NULL;
+    int fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
+    fake = fake || param_list_lookup_string(pl, "static_random_matrix") != nullptr;
     if (fake) bw->skip_online_checks = 1;
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
 
-    int ys[2] = { bw->ys[0], bw->ys[1], };
+    int const ys[2] = { bw->ys[0], bw->ys[1], };
     if (pi->interleaved) {
         fprintf(stderr, "bench_bwc does not work in the interleaved setting\n");
         exit(EXIT_FAILURE);
     }
 
-    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
+    std::unique_ptr<arith_generic> const A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     block_control_signals();
 
     matmul_top_data mmt(A.get(), pi, pl, bw->dir);
@@ -72,16 +54,15 @@ void * bench_comm_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYB
     }
     serialize(pi->m);
 
-    return NULL;
+    return nullptr;
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -109,10 +90,9 @@ int main(int argc, char * argv[])
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
-    pi_go(bench_comm_prog, pl, 0);
+    pi_go(bench_comm_prog, pl, nullptr);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
     bw_common_clear(bw);
 
     return 0;

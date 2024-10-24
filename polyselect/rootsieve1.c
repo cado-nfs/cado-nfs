@@ -872,8 +872,7 @@ best_mod (double area, double maxeffort, double keep)
   return mod;
 }
 
-int
-main (int argc, char **argv)
+int main(int argc, char const * argv[])
 {
     int argc0 = argc;
     char **argv0 = argv;

@@ -564,7 +564,7 @@ void mul_N64_6464_avx2(uint64_t *C,/*{{{*/
 
     /* If m is odd, then we can't do sse all the way through because of
      * data width */
-    __m256d zd = _mm256_setzero_pd();
+    __m256d const zd = _mm256_setzero_pd();
 
     for (j = 0; j + (SIMD*2 - 1) < m ; j += SIMD*2) {
         __m256i c0 = _mm256_setzero_si256();
@@ -572,10 +572,16 @@ void mul_N64_6464_avx2(uint64_t *C,/*{{{*/
         __m256i a0 = *Aw++;
         __m256i a1 = *Aw++;
 
-        for (int i = 64; i--;) {
-            __m256d Bd = _mm256_castsi256_pd(_mm256_set1_epi64x(B[i]));
-            __m256d c0d = _mm256_blendv_pd(zd, Bd, _mm256_castsi256_pd(a0));
-            __m256d c1d = _mm256_blendv_pd(zd, Bd, _mm256_castsi256_pd(a1));
+	for (int i = 64; i--;) {
+            __m256d const Bd = _mm256_castsi256_pd(_mm256_set1_epi64x(B[i]));
+            __m256d const c0d = _mm256_blendv_pd(
+                    zd,
+                    Bd,
+                    _mm256_castsi256_pd(a0));
+            __m256d const c1d = _mm256_blendv_pd(
+                    zd,
+                    Bd,
+                    _mm256_castsi256_pd(a1));
             c0 = _mm256_xor_si256(c0, _mm256_castpd_si256(c0d));
             c1 = _mm256_xor_si256(c1, _mm256_castpd_si256(c1d));
             a0 = _mm256_slli_epi64(a0, 1);
@@ -618,9 +624,9 @@ void mul_N64_6464_sse(uint64_t *C,/*{{{*/
         __m128i c = _mm_setzero_si128();
 	__m128i a = *Aw++;
 
-        __m128i one = _cado_mm_set1_epi64_c(1);
+        __m128i const one = _cado_mm_set1_epi64_c(1);
 	for (int i = 0; i < 64; i++) {
-	    __m128i bw = _cado_mm_set1_epi64(B[i]);
+	    __m128i const bw = _cado_mm_set1_epi64(B[i]);
             // c ^= (bw & -(a & one));
             c = _mm_xor_si128(c, _mm_and_si128(bw, _mm_sub_epi64(_mm_setzero_si128(), _mm_and_si128(a, one))));
 	    a = _mm_srli_epi64(a, 1);
@@ -734,9 +740,9 @@ void addmul_N64_6464_avx2(uint64_t *C,/*{{{*/
         __m256i c = _mm256_setzero_si256();
 	__m256i a = *Aw++;
 
-        __m256i one = _mm256_set1_epi64x(INT64_C(1));
+        __m256i const one = _mm256_set1_epi64x(INT64_C(1));
 	for (int i = 0; i < 64; i++) {
-	    __m256i bw = _mm256_set1_epi64x(B[i]);
+	    __m256i const bw = _mm256_set1_epi64x(B[i]);
 	    // c ^= (bw & -(a & one));
             c = _mm256_xor_si256(c, _mm256_and_si256(bw, _mm256_sub_epi64(_mm256_setzero_si256(), _mm256_and_si256(a, one))));
 	    a = _mm256_srli_epi64(a, 1);
@@ -775,9 +781,9 @@ void addmul_N64_6464_sse(uint64_t *C,/*{{{*/
         __m128i c = _mm_setzero_si128();
 	__m128i a = *Aw++;
 
-        __m128i one = _cado_mm_set1_epi64_c(1);
+        __m128i const one = _cado_mm_set1_epi64_c(1);
 	for (int i = 0; i < 64; i++) {
-	    __m128i bw = _cado_mm_set1_epi64(B[i]);
+	    __m128i const bw = _cado_mm_set1_epi64(B[i]);
 	    // c ^= (bw & -(a & one));
             c = _mm_xor_si128(c, _mm_and_si128(bw, _mm_sub_epi64(_mm_setzero_si128(), _mm_and_si128(a, one))));
 	    a = _mm_srli_epi64(a, 1);
@@ -863,7 +869,7 @@ void addmul_TN64K_N64_sse2(uint64_t * w, uint64_t const * u, uint64_t const * v,
         // mb[4][2], or even [4]. This wouldn't change the code much
         // (see the m128 version), and is likely to speed things up a
         // wee bit maybe.
-        __m128i mb[4] = {
+        __m128i const mb[4] = {
             _mm_setzero_si128(),
             _cado_mm_setr_epi64(*v, 0 ),
             _cado_mm_setr_epi64(0,  *v),

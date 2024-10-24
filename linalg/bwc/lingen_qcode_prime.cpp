@@ -41,7 +41,7 @@ typedef int (*sortfunc_t) (const void*, const void*);
 static int lexcmp2(const int x[2], const int y[2])
 {
     for(int i = 0 ; i < 2 ; i++) {
-        int d = x[i] - y[i];
+        int const d = x[i] - y[i];
         if (d) return d;
     }
     return 0;
@@ -56,9 +56,9 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
     int generator_found = 0;
 
     bw_dimensions & d = bm.d;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
-    unsigned int b = m + n;
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
+    unsigned int const b = m + n;
     matpoly::arith_hard * ab = & d.ab;
     ASSERT(E.m == m);
     ASSERT(E.n == b);
@@ -68,7 +68,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
     unsigned int mi, ma;
     std::tie(mi, ma) = get_minmax_delta(bm.delta);
 
-    unsigned int pi_room_base = expected_pi_length(d, bm.delta, E.get_size());
+    unsigned int const pi_room_base = expected_pi_length(d, bm.delta, E.get_size());
 
     matpoly pi(ab, b, b, pi_room_base);
     pi.set_size(pi_room_base);
@@ -121,7 +121,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
         }
         /* icc openmp doesn't grok todo.size() as being a constant
          * loop bound */
-        unsigned int nj = todo.size();
+        unsigned int const nj = todo.size();
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel
@@ -134,8 +134,8 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 #endif
             for(unsigned int jl = 0 ; jl < nj ; ++jl) {
                 for(unsigned int i = 0 ; i < m ; ++i) {
-                    unsigned int j = todo[jl];
-                    unsigned int lj = MIN(pi_real_lengths[j], t + 1);
+                    unsigned int const j = todo[jl];
+                    unsigned int const lj = MIN(pi_real_lengths[j], t + 1);
                     ab->set_zero(*e_ur);
                     for(unsigned int k = 0 ; k < b ; ++k) {
                         for(unsigned int s = 0 ; s < lj ; s++) {
@@ -156,7 +156,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
 
         unsigned int newluck = 0;
         for(unsigned int jl = 0 ; jl < todo.size() ; ++jl) {
-            unsigned int j = todo[jl];
+            unsigned int const j = todo[jl];
             unsigned int nz = 0;
             for(unsigned int i = 0 ; i < m ; i++) {
                 nz += ab->is_zero(e.coeff(i, j, 0));
@@ -176,7 +176,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
              * like this to be impossible by mere chance. Thus we want n*k >
              * luck_mini, which can easily be checked */
 
-            int luck_mini = expected_pi_length(d);
+            int const luck_mini = expected_pi_length(d);
             unsigned int luck_sure = 0;
 
             printf("t=%d, canceled columns:", bm.t);
@@ -229,7 +229,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
         std::vector<unsigned int> pivot_columns;
         /* Loop through logical indices */
         for(unsigned int jl = 0; jl < b; jl++) {
-            unsigned int j = ctable[jl][1];
+            unsigned int const j = ctable[jl][1];
             unsigned int u = 0;
             /* {{{ Find the pivot */
             for( ; u < m ; u++) {
@@ -244,7 +244,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             pivot_columns.push_back(j);
             /* {{{ Cancel this coeff in all other columns. */
             auto inv = ab->alloc();
-            int rc = ab->inverse(*inv, e.coeff(u, j, 0));
+            int const rc = ab->inverse(*inv, e.coeff(u, j, 0));
             if (!rc) {
                 std::ostringstream os;
                 ab->cxx_out(os, *inv);
@@ -254,7 +254,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             }
             ab->neg(*inv, *inv);
             for (unsigned int kl = jl + 1; kl < b ; kl++) {
-                unsigned int k = ctable[kl][1];
+                unsigned int const k = ctable[kl][1];
                 if (ab->is_zero(e.coeff(u, k, 0)))
                     continue;
                 // add lambda = e[u,k]*-e[u,j]^-1 times col j to col k.
@@ -298,7 +298,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
          * that the columns that we do read are done at this point.
          */
         for(unsigned int jl = 0; jl < b; jl++) {
-            unsigned int j = ctable[jl][1];
+            unsigned int const j = ctable[jl][1];
             if (!is_pivot[j])
                 pivot_columns.push_back(j);
         }
@@ -311,7 +311,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
             auto tmp_pi = ab->alloc<arith_hard::elt_ur_for_addmul>();
 
             for(unsigned int jl = 0 ; jl < b ; ++jl) {
-                unsigned int j = pivot_columns[jl];
+                unsigned int const j = pivot_columns[jl];
                 /* compute column j completely. We may put this interface in
                  * matpoly, but it's really special-purposed, to the point
                  * that it really makes little sense IMO
@@ -345,7 +345,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                  * sense in that particular case, it's fine enough here
                  * to read the data now after the critical section above.
                  */
-                unsigned int dummy = pi_real_lengths[j];
+                unsigned int const dummy = pi_real_lengths[j];
 
 #ifdef HAVE_OPENMP
 #pragma omp for collapse(2)
@@ -357,7 +357,7 @@ matpoly bw_lingen_basecase_raw(bmstatus & bm, matpoly const & E) /*{{{*/
                         ab->set(*tmp_pi, piijs);
 
                         for(unsigned int kl = 0 ; kl < MIN(m,jl) ; kl++) {
-                            unsigned int k = pivot_columns[kl];
+                            unsigned int const k = pivot_columns[kl];
                             /* TODO: if column k was already a pivot on previous
                              * turn (which could happen, depending on m and n),
                              * then the corresponding entry is probably zero
@@ -450,7 +450,7 @@ matpoly
 bw_lingen_basecase(bmstatus & bm, matpoly & E)
 {
     lingen_call_companion const & C = bm.companion(bm.depth(), E.get_size());
-    tree_stats::sentinel dummy(bm.stats, "basecase", E.get_size(), C.total_ncalls, true);
+    tree_stats::sentinel const dummy(bm.stats, "basecase", E.get_size(), C.total_ncalls, true);
     bm.stats.plan_smallstep("basecase", C.ttb);
     bm.stats.begin_smallstep("basecase");
     matpoly pi = bw_lingen_basecase_raw(bm, E);
@@ -463,7 +463,7 @@ void test_basecase(matpoly::arith_hard * ab, unsigned int m, unsigned int n, siz
 {
     /* used by testing code */
     bmstatus bm(m,n,ab->characteristic());
-    unsigned int t0 = iceildiv(m,n);
+    unsigned int const t0 = iceildiv(m,n);
     bm.set_t0(t0);
     matpoly E(ab, m, m+n, L);
     E.zero_pad(L);

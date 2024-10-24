@@ -245,6 +245,15 @@ foreach(layer ${BWC_GFP_ARITHMETIC_BACKENDS_FOR_TESTS})
                 TARGET_DEPENDENCIES
                 lingen_pz lingen_${layer})
 
+            set(t modp_inhomogeneous_left_minimal_2rhs_mn4)
+            set(${t}_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
+            add_bwc_test(${t} bwc-ptrace.sh
+                nullspace=LEFT
+                prime=1009 random_matrix_size=50 nrhs=2 m=4 n=4 seed=1
+                TARGET_DEPENDENCIES
+                lingen_pz lingen_${layer})
+                create_magma_sage_diversions(${t})
+
             if(DEFINED ENV{CHECKS_EXPENSIVE})
                 set(t modp_inhomogeneous_minimal_2rhs_mn4_expensive)
                 add_bwc_test(${t} bwc-ptrace.sh

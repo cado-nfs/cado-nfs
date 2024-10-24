@@ -25,7 +25,7 @@ void mf_prepare_matrix_u32(matmul_ptr mm, matrix_u32_ptr m, const char * file, i
     memset(rw, 0, sizeof(rw));
     memset(cw, 0, sizeof(cw));
     struct stat sbuf[1];
-    int rc = stat(file, sbuf);
+    int const rc = stat(file, sbuf);
     if (rc < 0) {
         fprintf(stderr, "stat(%s): %s\n", file, strerror(errno));
         exit(1);
@@ -35,7 +35,7 @@ void mf_prepare_matrix_u32(matmul_ptr mm, matrix_u32_ptr m, const char * file, i
     ASSERT_ALWAYS(mf->p);
     FILE * f = fopen(file, "rb");
     ASSERT_ALWAYS(f);
-    int nread = fread(mf->p, sizeof(uint32_t), mf->size, f);
+    int const nread = fread(mf->p, sizeof(uint32_t), mf->size, f);
     if (nread < (int) mf->size) {
         fprintf(stderr, "%s: short read (%d < %" PRIu64 ")\n", file, nread, mf->size);
         exit(1);

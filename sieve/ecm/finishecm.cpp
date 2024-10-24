@@ -28,10 +28,10 @@ static void declare_usage(param_list pl)
 
 // coverity[root_function]
 int
-main (int argc, char *argv[])
+main (int argc, char const *argv[])
 {
   param_list pl;
-  char *argv0 = argv[0];
+  const char *argv0 = argv[0];
   double st, wct;
   st = seconds();
   wct = wct_seconds();
@@ -112,12 +112,12 @@ main (int argc, char *argv[])
       std::vector<cxx_mpz> factorsR, factorsA;
   
       if (mpz_sizeinbase(R, 2) > (size_t)lpb[0]) {
-          int found = facul(factorsR, R, strategy0);
+          int const found = facul(factorsR, R, strategy0);
           if (found <= 0)
               continue;
       }
       if (mpz_sizeinbase(A, 2) > (size_t)lpb[1]) {
-          int found = facul(factorsA, A, strategy1);
+          int const found = facul(factorsA, A, strategy1);
           if (found <= 0)
               continue;
       }

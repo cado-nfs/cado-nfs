@@ -8,8 +8,6 @@
 #include "utils/u64arith.h"
 #include "misc.h"
 
-// NOLINTBEGIN(concurrency-mt-unsafe)
-
 static void test_one_u64arith_gt_2_2(const uint64_t a1, const uint64_t a2,
   const uint64_t b1, const uint64_t b2, const int v)
 {
@@ -370,8 +368,7 @@ static void test_u64arith_div2mod(unsigned long iter) {
 /* TODO: add tests for u64arith_redc() */
 
 // coverity[root_function]
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 100;
   tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
@@ -391,5 +388,3 @@ main (int argc, const char *argv[])
   tests_common_clear();
   return EXIT_SUCCESS;
 }
-
-// NOLINTEND(concurrency-mt-unsafe)

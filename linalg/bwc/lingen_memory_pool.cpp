@@ -8,7 +8,7 @@
 void memory_pool_details::inaccuracy_handler<true>::handle_expand(size_t already_allocated, size_t asked, size_t & previously_allowed)
 {
     if (already_allocated + asked > previously_allowed) {
-        size_t d = (already_allocated + asked) - previously_allowed;
+        size_t const d = (already_allocated + asked) - previously_allowed;
         {
             char buf[20];
             /*
@@ -52,7 +52,7 @@ void memory_pool_details::alloc_check(const char * text, bool condition)
 
 std::string remove_trailing_address_suffix(std::string const& a, std::string& suffix)
 {
-    size_t pos = a.find('+');
+    size_t const pos = a.find('+');
     if (pos == a.npos) {
         suffix.clear();
         return a;
@@ -63,13 +63,13 @@ std::string remove_trailing_address_suffix(std::string const& a, std::string& su
 
 std::string get_parenthesized_arg(std::string const& a, std::string& prefix, std::string& suffix)
 {
-    size_t pos = a.find('(');
+    size_t const pos = a.find('(');
     if (pos == a.npos) {
         prefix=a;
         suffix.clear();
         return std::string();
     }
-    size_t pos2 = a.find(')', pos + 1);
+    size_t const pos2 = a.find(')', pos + 1);
     if (pos2 == a.npos) {
         prefix=a;
         suffix.clear();

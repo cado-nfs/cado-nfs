@@ -122,7 +122,7 @@ static las_todo_entry special_q_from_ab(const int64_t a, const uint64_t b, sq_wi
 
     mpz_set_ui(p, sq.q);
     mpz_set_uint64(r, b);
-    int ret = mpz_invert(r, r, p);
+    int const ret = mpz_invert(r, r, p);
     ASSERT_ALWAYS(ret);
     mpz_mul_int64(r, r, a);
     mpz_mod(r, r, p);
@@ -144,9 +144,9 @@ bounded_pow(const unsigned long b, const unsigned long e, const unsigned long li
   unsigned long r = b;
   /* overflow is the largest ulong that can be multiplied by b without
      overflowing */
-  unsigned long overflow = ULONG_MAX / b;
+  unsigned long const overflow = ULONG_MAX / b;
   for (unsigned long i = 1; i < e && r <= overflow; i++) {
-    unsigned long t = r * b;
+    unsigned long const t = r * b;
     if (t > lim) {
       break;
     }
@@ -215,8 +215,8 @@ sq_finds_relation(las_info const & las,
         bool must,
         bool talk)
 {
-  int logI = conf.logI;
-  int nsides = las.cpoly->nb_polys;
+  int const logI = conf.logI;
+  int const nsides = las.cpoly->nb_polys;
 
   if (talk) {   // Print some info
       verbose_output_vfprint(0, VERBOSE_LEVEL, gmp_vfprintf,
@@ -259,7 +259,7 @@ sq_finds_relation(las_info const & las,
   std::vector<uint8_t> remaining_lognorm(nsides);
   bool is_dupe = true;
   for (int side = 0; side < nsides; side++) {
-    lognorm_smart L(conf, las.cpoly, side, Q, conf.logI, J);
+    lognorm_smart const L(conf, las.cpoly, side, Q, conf.logI, J);
 
     /* This lognorm is the evaluation of fij(i,j)/q on the side with the
      * special-q, so we don't have to subtract it.
@@ -297,7 +297,7 @@ sq_finds_relation(las_info const & las,
   std::vector<cxx_mpz> cof(nsides);
   for (int side = 0; side < nsides; side++) {
     mpz_set_ui(cof[side], 1);
-    unsigned long lim = conf.sides[side].lim;
+    unsigned long const lim = conf.sides[side].lim;
 
     for (unsigned int i = 0; i < rel.sides[side].size(); i++) {
       const unsigned long p = mpz_get_ui(rel.sides[side][i].p);
@@ -329,7 +329,7 @@ sq_finds_relation(las_info const & las,
   }
 
   std::vector<std::vector<cxx_mpz>> f(nsides);
-  int pass = factor_both_leftover_norms(cof, f,
+  int const pass = factor_both_leftover_norms(cof, f,
           siever_side_config::collect_lim(conf.sides),
           *las.get_strategies(conf));
 
@@ -400,7 +400,7 @@ all_multiples(std::vector<uint64_t> & prime_list) {
     return res;
   }
 
-  uint64_t p = prime_list.back();
+  uint64_t const p = prime_list.back();
   prime_list.pop_back();
 
   if (prime_list.empty()) {
@@ -412,7 +412,7 @@ all_multiples(std::vector<uint64_t> & prime_list) {
 
   std::vector<sq_with_fac> res = all_multiples(prime_list);
 
-  size_t L = res.size();
+  size_t const L = res.size();
   cxx_mpz pp;
   mpz_set_uint64(pp, p);
   for (size_t i = 0; i < L; ++i) {
@@ -423,8 +423,8 @@ all_multiples(std::vector<uint64_t> & prime_list) {
     cxx_mpz prod;
     mpz_mul_uint64(prod, pp, res[i].q);
     if (mpz_fits_uint64_p(prod)) {
-      uint64_t q = mpz_get_uint64(prod);
-      struct sq_with_fac entry = {q, facq};
+      uint64_t const q = mpz_get_uint64(prod);
+      struct sq_with_fac const entry = {q, facq};
       res.push_back(entry);
     }
   }
@@ -445,7 +445,7 @@ relation_is_duplicate(relation const& rel,
         las_todo_entry const & doing,
         las_info const& las)
 {
-    int nsides = las.cpoly->nb_polys;
+    int const nsides = las.cpoly->nb_polys;
 
     /* If the special-q does not fit in an unsigned long, we assume it's not a
        duplicate and just move on */
@@ -474,7 +474,7 @@ relation_is_duplicate(relation const& rel,
         std::vector<uint64_t> prime_list;
 
         for(unsigned int i = 0 ; i < rel.sides[side].size() ; i++) {
-            uint64_t p = mpz_get_uint64(rel.sides[side][i].p);
+            uint64_t const p = mpz_get_uint64(rel.sides[side][i].p);
 
             // can this p be part of valid sq ?
             if (! las.allow_composite_q) {
@@ -508,9 +508,9 @@ relation_is_duplicate(relation const& rel,
 
             // emulate sieving for the valid sq, and check if it finds our
             // relation.
-            las_todo_entry other = special_q_from_ab(rel.a, rel.b, sq, side);
+            las_todo_entry const other = special_q_from_ab(rel.a, rel.b, sq, side);
 
-            bool is_dupe = sq_finds_relation(las, other, rel, true, true);
+            bool const is_dupe = sq_finds_relation(las, other, rel, true, true);
             verbose_output_print(0, VERBOSE_LEVEL,
                     "# DUPECHECK relation is probably%s a dupe\n",
                     is_dupe ? "" : " not");

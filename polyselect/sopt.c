@@ -48,9 +48,9 @@ usage (const char *argv, param_list pl)
 /*
    main function 
 */
-int main (int argc, char **argv)
+int main (int argc, char const * argv[])
 {
-  char *argv0 = argv[0];
+  char const * argv0 = argv[0];
   int use_only_translation = 0; /* only use translation in optimization */
   unsigned int sopt_effort = SOPT_DEFAULT_EFFORT; /* size optimization effort */
   int verbose = 0;

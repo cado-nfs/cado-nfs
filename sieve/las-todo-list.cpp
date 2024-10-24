@@ -31,7 +31,7 @@ static void next_legitimate_specialq(cxx_mpz & r, std::vector<uint64_t> & fac_r,
 {
     if (L.allow_composite_q) {
         unsigned long tfac[64];
-        int nf = next_mpz_with_factor_constraints(r, tfac,
+        int const nf = next_mpz_with_factor_constraints(r, tfac,
                 s, diff, L.qfac_min, L.qfac_max);
         fac_r.assign(tfac, tfac + nf);
     } else {
@@ -279,7 +279,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             if (roots.empty()) nb_no_roots++;
 
             if (galois) {
-                size_t nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
+                size_t const nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
                 roots.erase(roots.begin() + nroots, roots.end());
             }
 
@@ -301,7 +301,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             push_here = std::min(push_here, int(nq_max - nq_pushed));
         for(int i = 0 ; i < push_here ; i++) {
             nq_pushed++;
-            int ind = push_here-i-1;
+            int const ind = push_here-i-1;
             push_unlocked(my_list[ind].q, my_list[ind].r, sqside);
         }
     } else { /* random sampling case */
@@ -310,14 +310,14 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
         cxx_mpz diff;
         mpz_sub(diff, q1, q0);
         ASSERT_ALWAYS(nq_pushed == 0 || nq_pushed == nq_max);
-	unsigned long n = nq_max;
+	unsigned long const n = nq_max;
         unsigned int spin = 0;
         for ( ; nq_pushed < n ; ) {
             /* try in [q0 + k * (q1-q0) / n, q0 + (k+1) * (q1-q0) / n[ */
             cxx_mpz q0l, q1l;
 	    /* we use k = n-1-nq_pushed instead of k=nq_pushed so that
 	       special-q's are sieved in increasing order */
-	    unsigned long k = n - 1 - nq_pushed;
+	    unsigned long const k = n - 1 - nq_pushed;
             mpz_mul_ui(q0l, diff, k);
             mpz_mul_ui(q1l, diff, k + 1);
             mpz_fdiv_q_ui(q0l, q0l, n);
@@ -340,7 +340,7 @@ bool las_todo_list::feed_qrange(gmp_randstate_t rstate)
             }
             spin = 0;
             if (galois) {
-                size_t nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
+                size_t const nroots = skip_galois_roots(roots.size(), q, (mpz_t*)roots.data(), galois);
                 roots.erase(roots.begin() + nroots, roots.end());
             }
             nq_pushed++;
@@ -426,7 +426,7 @@ bool las_todo_list::feed_qlist()
             // For rational side, we can compute the root easily.
             ASSERT_ALWAYS(f->deg == 1);
             /* ugly cast, yes */
-            int nroots = mpz_poly_roots ((mpz_t*) &r, f, p, rstate);
+            int const nroots = mpz_poly_roots ((mpz_t*) &r, f, p, rstate);
             ASSERT_ALWAYS(nroots == 1);
         }
     }
@@ -440,7 +440,7 @@ bool las_todo_list::feed_qlist()
 
 bool las_todo_list::feed(gmp_randstate_t rstate)
 {
-    std::lock_guard<std::mutex> foo(mm);
+    std::lock_guard<std::mutex> const foo(mm);
     if (!super::empty())
         return true;
     if (todo_list_fd)
@@ -453,7 +453,7 @@ bool las_todo_list::feed(gmp_randstate_t rstate)
  */
 las_todo_entry * las_todo_list::feed_and_pop(gmp_randstate_t rstate)
 {
-    std::lock_guard<std::mutex> foo(mm);
+    std::lock_guard<std::mutex> const foo(mm);
     if (super::empty()) {
         if (todo_list_fd)
             feed_qlist();
@@ -462,7 +462,7 @@ las_todo_entry * las_todo_list::feed_and_pop(gmp_randstate_t rstate)
     }
     if (super::empty())
         return nullptr;
-    las_todo_entry doing = super::top();
+    las_todo_entry const doing = super::top();
     super::pop();
     history.push_back(doing);
     return &history.back();

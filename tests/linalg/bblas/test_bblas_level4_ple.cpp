@@ -40,13 +40,13 @@ int test_bblas_level4::test_PLE_find_pivot(unsigned int m, unsigned int n)/*{{{*
             }
         }
         for(unsigned int ell = 0 ; ell < 100 ; ell++) {
-            unsigned int jj = gmp_urandomm_ui(rstate, n);
-            unsigned int ii = gmp_urandomm_ui(rstate, m);
-            int p = ple.find_pivot(ii / B, jj / B, ii % B, jj % B);
-            unsigned int x = f[jj]+ii;
-            unsigned int d = u[jj];
+            unsigned int const jj = gmp_urandomm_ui(rstate, n);
+            unsigned int const ii = gmp_urandomm_ui(rstate, m);
+            int const p = ple.find_pivot(ii / B, jj / B, ii % B, jj % B);
+            unsigned int const x = f[jj]+ii;
+            unsigned int const d = u[jj];
             /* first r>=0 such that x+r is a multiple of d */
-            unsigned int r = (d - 1) - ((x-1) % d);
+            unsigned int const r = (d - 1) - ((x-1) % d);
             if ((ii + r) >= m) {
                 ASSERT_ALWAYS(p == -1);
             } else {
@@ -68,10 +68,10 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
     PLE<T> ple(A.view());
 
     for(unsigned int k = 0 ; k < 1000 ; k++) {
-        unsigned int kjj0 = gmp_urandomm_ui(rstate, n - 1) + 1;
-        unsigned int kjj1 = gmp_urandomm_ui(rstate, n + 1 - kjj0) + kjj0;
-        unsigned int pjj = gmp_urandomm_ui(rstate, kjj0);
-        unsigned int pii = gmp_urandomm_ui(rstate, m);
+        unsigned int const kjj0 = gmp_urandomm_ui(rstate, n - 1) + 1;
+        unsigned int const kjj1 = gmp_urandomm_ui(rstate, n + 1 - kjj0) + kjj0;
+        unsigned int const pjj = gmp_urandomm_ui(rstate, kjj0);
+        unsigned int const pii = gmp_urandomm_ui(rstate, m);
         A = 0;
         T examples[n/B][4];
         for(unsigned int bj = 0 ; bj < n/B ; bj++) {
@@ -100,7 +100,7 @@ int test_bblas_level4::test_PLE_propagate_pivot(unsigned int m, unsigned int n)/
             }
         }
         ple.propagate_pivot(pii / B, pjj / B, pii % B, pjj % B);
-        unsigned int bj = pjj / B;
+        unsigned int const bj = pjj / B;
         for(unsigned int ii = 0 ; ii < m ; ii++) {
             T a = examples[bj][2 * (ii > pii) + (ii & 1)];
             ASSERT_ALWAYS(A.X[(ii/B)*(n/B)+bj][ii%B] == a);
@@ -120,27 +120,27 @@ int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsig
 
     for(unsigned int ii = 0, kk = 0 ; ii < m ; ii++) {
         for(unsigned int bj = 0 ; bj < n/B ; bj++, kk++) {
-            unsigned int  bi =  ii / B;
-            unsigned int   i =  ii % B;
+            unsigned int  const bi =  ii / B;
+            unsigned int   const i =  ii % B;
             A.X[bi * n/B + bj][i] = kk;
         }
     }
 
     for(unsigned int k = 1 ; k <= 1000 ; k++) {
-        unsigned int ii0 = gmp_urandomm_ui(rstate, m);
-        unsigned int ii1 = std::min((mp_limb_t) k, gmp_urandomm_ui(rstate, m + 1 - ii0)) + ii0;
-        unsigned int bj0 = gmp_urandomm_ui(rstate, n/B);
+        unsigned int const ii0 = gmp_urandomm_ui(rstate, m);
+        unsigned int const ii1 = std::min((mp_limb_t) k, gmp_urandomm_ui(rstate, m + 1 - ii0)) + ii0;
+        unsigned int const bj0 = gmp_urandomm_ui(rstate, n/B);
 
         std::vector<unsigned int> q;
 
         for(unsigned int ii = ii0 ; ii < ii1 ; ii++) {
-            unsigned int pii = gmp_urandomm_ui(rstate, m - ii) + ii;
+            unsigned int const pii = gmp_urandomm_ui(rstate, m - ii) + ii;
             q.push_back(pii);
             if (ii == pii) continue;
-            unsigned int  bi =  ii / B;
-            unsigned int   i =  ii % B;
-            unsigned int pbi = pii / B;
-            unsigned int  pi = pii % B;
+            unsigned int  const bi =  ii / B;
+            unsigned int   const i =  ii % B;
+            unsigned int const pbi = pii / B;
+            unsigned int  const pi = pii % B;
             bitmat<T> & Y = A.X[bi * n/B + bj0];
             bitmat<T> & pY = A.X[pbi * n/B + bj0];
             T c = Y[i] ^ pY[pi];
@@ -154,8 +154,8 @@ int test_bblas_level4::test_PLE_propagate_row_permutations(unsigned int m, unsig
 
         for(unsigned int ii = 0 ; ii < m ; ii++) {
             for(unsigned int bj = 0 ; bj < n/B ; bj++) {
-                unsigned int  bi =  ii / B;
-                unsigned int   i =  ii % B;
+                unsigned int  const bi =  ii / B;
+                unsigned int   const i =  ii % B;
                 ASSERT_ALWAYS(A.X[bi * n/B + bj][i] == T(A.X[bi * n/B][i] + bj));
             }
         }
@@ -196,7 +196,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
          *
          */
 
-        unsigned int r = gmp_urandomm_ui(rstate, std::min(m, n) + 1);
+        unsigned int const r = gmp_urandomm_ui(rstate, std::min(m, n) + 1);
         std::vector<unsigned int> pivs;
         /* generating binomial(n, r) is like generating with repetition r
          * things among n-(r-1) = n-r+1.  */
@@ -212,7 +212,7 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
             unsigned int rr = 0;
             for(unsigned int jj = 0 ; jj < n ; jj++) {
                 bool is_piv= false;
-                unsigned int bj = jj / B;
+                unsigned int const bj = jj / B;
                 if (ppiv < pivs.end() && jj == *ppiv) {
                     is_piv = true;
                     ppiv++;
@@ -278,11 +278,11 @@ int test_bblas_level4::test_PLE_move_L_fragments(unsigned int m, unsigned int n)
             for( ; rr < r && pivs[rr] == jj ; rr++, jj++);
             if (rr == r) break;
             rr1 = rr + 1;
-            unsigned int br = rr / B;
-            unsigned int bp = pivs[rr] / B;
+            unsigned int const br = rr / B;
+            unsigned int const bp = pivs[rr] / B;
             for( ; rr1 < r && rr1 / B == br && pivs[rr1] / B == bp ; rr1++);
             /* move rr1 - rr columns together */
-            std::vector<unsigned int> Q(pivs.begin() + rr, pivs.begin() + rr1);
+            std::vector<unsigned int> const Q(pivs.begin() + rr, pivs.begin() + rr1);
 
             ple.move_L_fragments(rr, Q);
         }
@@ -349,7 +349,7 @@ void test_bblas_level4::meta_ple()
 {
     typedef bitmat<T> matrix;
     constexpr const unsigned int B = matrix::width;
-    std::vector<std::pair<unsigned int, unsigned int>> mns
+    std::vector<std::pair<unsigned int, unsigned int>> const mns
     {{
          {B,B},
          {B,2*B},
@@ -388,7 +388,7 @@ void test_bblas_level4::meta_ple()
         printf(" -- PLE(m=%u, n=%u)\n", m, n);
 
         // TIME1N_SPINS(randomize(), 2, do_ple, &X[0], m/B, n/B);
-        std::string what = "PLE";       // complete me
+        std::string const what = "PLE";       // complete me
 
         if (m + n >= 10 * B) {
             randomize();

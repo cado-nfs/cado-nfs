@@ -94,9 +94,9 @@ void declare_usage(cxx_param_list & pl)
     lingen_platform::declare_usage(pl);
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
-    MPI_Init(&argc, &argv);
+    MPI_Init(&argc, (char ***) &argv);
 
     cxx_mpz p;
     gmp_randstate_t rstate;
@@ -135,18 +135,18 @@ int main(int argc, char * argv[])
     param_list_parse_uint(pl, "L", &L);
     param_list_parse_ulong(pl, "seed", &seed);
 
-    lingen_platform P(MPI_COMM_WORLD, pl);
+    lingen_platform const P(MPI_COMM_WORLD, pl);
 
     if (param_list_warn_unused(pl))
         exit(EXIT_FAILURE);
 #ifdef LINGEN_BINARY
     if (m & 63) {
-        unsigned int nm = 64 * iceildiv(m, 64);
+        unsigned int const nm = 64 * iceildiv(m, 64);
         printf("Round m=%u to m=%u\n", m, nm);
         m = nm;
     }
     if (n & 63) {
-        unsigned int nn = 64 * iceildiv(n, 64);
+        unsigned int const nn = 64 * iceildiv(n, 64);
         printf("Round n=%u to n=%u\n", n, nn);
         n = nn;
     }
