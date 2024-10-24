@@ -555,6 +555,7 @@ void mmt_vec_apply_or_unapply_T_inner(matmul_top_data & mmt, mmt_vec & y, int ap
      *
      */
     if (y.d == 0) return;
+
     matmul_top_matrix  const& Mloc = mmt.matrices[mmt.matrices.size() - 1];
     ASSERT_ALWAYS(y.consistency == 2);
     serialize_threads(y.pi->m);

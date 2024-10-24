@@ -43,6 +43,14 @@ class BwcRightHandSide():
         assert self.dimension == M.ncols_orig if self.params.nullspace == 0 else M.nrows_orig
         print("Checking that the RHS dimension is consistent ..." + OK)
         print("Checking that the RHS makes up the first rows of V ...")
-        assert self.R == v[:self.dimension, :r]
-        assert 0 == v[self.dimension:, :r]
+        if self.params.is_nullspace_left():
+            assert self.dimension == M.ncols_orig
+            w = M.Q * v[:,:r]
+            assert w[:self.dimension,:] == self.R
+            assert 0 == v[self.dimension:, :r]
+            assert 0 == w[self.dimension:, :]
+        else:
+            assert self.dimension == M.nrows_orig
+            assert self.R == v[:self.dimension, :r]
+            assert 0 == v[self.dimension:, :r]
         print("Checking that the RHS makes up the first rows of V ... " + OK)

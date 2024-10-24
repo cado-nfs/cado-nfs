@@ -378,9 +378,20 @@ struct prep_object {
 
         std::vector<mmt_vec> rhs_vecs;
 
+        /* the rhs vectors have mmt.n0[!bw->dir] coordinates, and they
+         * must be considered as vectors in the direction !bw->dir if we
+         * want to get a chance to apply the T (decorrelating)
+         * permutation on them.
+         *
+         * This being said, for the purposes of serving as init vectors
+         * for the iteration, we obviously want to store them as vectors
+         * with respect to the larger dimension unpadded =
+         * max(mmt->n0[*]).
+         */
+
         for (unsigned int j = 0; j * splitwidth < nrhs; j++) {
-            rhs_vecs.emplace_back(mmt, Av, Av_pi, bw->dir, /* shared ! */ 1,
-                                  mmt.n[bw->dir]);
+            rhs_vecs.emplace_back(mmt, Av, Av_pi, !bw->dir, /* shared ! */ 1,
+                                  mmt.n[!bw->dir]);
 
             mmt_full_vec_set_zero(rhs_vecs.back());
 
@@ -396,7 +407,7 @@ struct prep_object {
              * with nullspace=left
              * XXX true ? twist ? untwist ? Always ?
              */
-            // mmt_vec_twist(mmt, rhs_vecs[j]);
+            mmt_vec_apply_T(mmt, rhs_vecs[j]);
 
             std::string const name =
                 fmt::format("V{}-{}.0", j * splitwidth, (j + 1) * splitwidth);
