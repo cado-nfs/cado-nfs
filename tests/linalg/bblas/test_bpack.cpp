@@ -55,7 +55,7 @@ template<typename T>
 void test_bpack::meta_bpack()
 {
     constexpr const unsigned int B = bitmat<T>::width;
-    std::vector<std::pair<unsigned int, unsigned int>> mns
+    std::vector<std::pair<unsigned int, unsigned int>> const mns
     {{
          {B,B},
          {B,2*B},
@@ -74,8 +74,8 @@ void test_bpack::meta_bpack()
      }};
 
     for(auto x : mns) {
-        unsigned int m = x.first;
-        unsigned int n = x.second;
+        unsigned int const m = x.first;
+        unsigned int const n = x.second;
         if (n > m) continue;
         printf(" -- ILT(m=%u, n=%u)\n", m, n);
         test_invert_triangular<T>(m, n);

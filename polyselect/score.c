@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "murphyE.h"
 
 static int
-compute_murphyE (char *input_file, char *output_file)
+compute_murphyE (const char *input_file, const char *output_file)
 {
     cado_poly p;
     double E;
@@ -56,14 +56,14 @@ compute_murphyE (char *input_file, char *output_file)
 }
 
 // usage: score input_file <output_file>
-int main(int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
     param_list pl;
     param_list_init(pl);
 
     const char * progname = argv[0];
-    char *input_file = NULL;
-    char *output_file = NULL;
+    const char *input_file = NULL;
+    const char *output_file = NULL;
 
     param_list_decl_usage(pl, "Bf", "smoothness bound on f side");
     param_list_decl_usage(pl, "Bg", "smoothness bound on g side");

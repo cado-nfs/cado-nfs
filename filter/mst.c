@@ -45,7 +45,7 @@ minimalSpanningTree (int *start, int *end, int m,
               jmin = j;
               wmin = A[S[i]][T[j]];
             }
-      ASSERT(imin != -1 && jmin != -1);
+      ASSERT_ALWAYS(wmin < INT_MAX);
       s = S[imin];
       t = T[jmin];
       w += wmin;

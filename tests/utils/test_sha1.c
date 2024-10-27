@@ -29,7 +29,7 @@ void stdio_util(FILE * in, FILE * out) {
     fputs("\n", out);
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     if (argc == 2 && strcmp(argv[1], "--test") == 0) {
         unsigned int ntests = sizeof(test_vectors)/sizeof(test_vectors[0]);

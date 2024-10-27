@@ -40,7 +40,7 @@ int main()
                         int n = 0;
                         auto itx = it;
                         for(; itx != rel.data.end() && *it == *itx ; ++itx, n++);
-                        index_t p = *it;
+                        index_t const p = *it;
 #pragma omp critical
                         {
                             if (p >= density.size())

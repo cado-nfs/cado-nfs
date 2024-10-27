@@ -51,8 +51,8 @@ void lingen_io_matpoly_interpret_parameters(cxx_param_list & pl)
 #ifndef LINGEN_BINARY
 int matpoly_write(matpoly::arith_hard * ab, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
-    unsigned int m = transpose ? M.n : M.m;
-    unsigned int n = transpose ? M.m : M.n;
+    unsigned int const m = transpose ? M.n : M.m;
+    unsigned int const n = transpose ? M.m : M.n;
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
@@ -80,26 +80,26 @@ int matpoly_write(matpoly::arith_hard * ab, std::ostream& os, matpoly const & M,
 #else
 int matpoly_write(matpoly::arith_hard *, std::ostream& os, matpoly const & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
-    unsigned int m = M.m;
-    unsigned int n = M.n;
+    unsigned int const m = M.m;
+    unsigned int const n = M.n;
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
-    unsigned int mc = iceildiv(M.m, ULONG_BITS);
-    unsigned int nc = iceildiv(M.n, ULONG_BITS);
-    size_t ulongs_per_mat = transpose ? (M.n * mc) : (M.m * nc);
+    unsigned int const mc = iceildiv(M.m, ULONG_BITS);
+    unsigned int const nc = iceildiv(M.n, ULONG_BITS);
+    size_t const ulongs_per_mat = transpose ? (M.n * mc) : (M.m * nc);
     std::vector<unsigned long> buf(ulongs_per_mat);
     for(unsigned int k = k0 ; k < k1 ; k++) {
         buf.assign(ulongs_per_mat, 0);
         bool err = false;
-        size_t kq = k / ULONG_BITS;
-        size_t kr = k % ULONG_BITS;
-        unsigned long km = 1UL << kr;
+        size_t const kq = k / ULONG_BITS;
+        size_t const kr = k % ULONG_BITS;
+        unsigned long const km = 1UL << kr;
         if (!transpose) {
             for(unsigned int i = 0 ; i < m ; i++) {
                 unsigned long * v = &(buf[i * nc]);
                 for(unsigned int j = 0 ; j < n ; j++) {
-                    unsigned int jq = j / ULONG_BITS;
-                    unsigned int jr = j % ULONG_BITS;
-                    unsigned long bit = (M.part(i, j)[kq] & km) != 0;
+                    unsigned int const jq = j / ULONG_BITS;
+                    unsigned int const jr = j % ULONG_BITS;
+                    unsigned long const bit = (M.part(i, j)[kq] & km) != 0;
                     v[jq] |= bit << jr;
                 }
             }
@@ -107,9 +107,9 @@ int matpoly_write(matpoly::arith_hard *, std::ostream& os, matpoly const & M, un
             for(unsigned int j = 0 ; j < n ; j++) {
                 unsigned long * v = &(buf[j * mc]);
                 for(unsigned int i = 0 ; i < m ; i++) {
-                    unsigned int iq = i / ULONG_BITS;
-                    unsigned int ir = i % ULONG_BITS;
-                    unsigned long bit = (M.part(i, j)[kq] & km) != 0;
+                    unsigned int const iq = i / ULONG_BITS;
+                    unsigned int const ir = i % ULONG_BITS;
+                    unsigned long const bit = (M.part(i, j)[kq] & km) != 0;
                     v[iq] |= bit << ir;
                 }
             }
@@ -142,7 +142,7 @@ int matpoly_write_split(matpoly::arith_hard * ab MAYBE_UNUSED, std::vector<std::
 {
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
 #ifdef LINGEN_BINARY
-    size_t ulongs_per_mat = splitwidth * splitwidth / ULONG_BITS;
+    size_t const ulongs_per_mat = splitwidth * splitwidth / ULONG_BITS;
     std::vector<unsigned long> buf(ulongs_per_mat);
 #endif
     for(unsigned int k = k0 ; k < k1 ; k++) {
@@ -166,16 +166,16 @@ int matpoly_write_split(matpoly::arith_hard * ab MAYBE_UNUSED, std::vector<std::
                 if (ascii)
                     abort();
                 buf.assign(ulongs_per_mat, 0);
-                size_t kq = k / ULONG_BITS;
-                size_t kr = k % ULONG_BITS;
+                size_t const kq = k / ULONG_BITS;
+                size_t const kr = k % ULONG_BITS;
                 for(unsigned int di = 0 ; di < splitwidth ; di++) {
-                    unsigned int ii = i + di;
-                    unsigned int ulongs_per_row = splitwidth / ULONG_BITS;
+                    unsigned int const ii = i + di;
+                    unsigned int const ulongs_per_row = splitwidth / ULONG_BITS;
                     for(unsigned int dj0 = 0 ; dj0 < ulongs_per_row ; dj0++) {
                         for(unsigned int dj = 0 ; dj < ULONG_BITS ; dj++) {
-                            unsigned int jj = j + dj0 * ULONG_BITS + dj;
+                            unsigned int const jj = j + dj0 * ULONG_BITS + dj;
                             const unsigned long * mij = M.part(ii, jj);
-                            unsigned long bit = (mij[kq] >> kr) & 1;
+                            unsigned long const bit = (mij[kq] >> kr) & 1;
                             buf[di * ulongs_per_row + dj0] ^= bit << dj;
                         }
                     }
@@ -208,8 +208,8 @@ int matpoly_write_split(matpoly::arith_hard * ab MAYBE_UNUSED, std::vector<std::
 int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k0, unsigned int k1, int ascii, int transpose)
 {
     ASSERT_ALWAYS(!M.check_pre_init());
-    unsigned int m = transpose ? M.n : M.m;
-    unsigned int n = transpose ? M.m : M.n;
+    unsigned int const m = transpose ? M.n : M.m;
+    unsigned int const n = transpose ? M.m : M.n;
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
     for(unsigned int k = k0 ; k < k1 ; k++) {
         int err = 0;
@@ -242,12 +242,12 @@ int matpoly_read_inner(matpoly::arith_hard *, FILE * f, matpoly & M, unsigned in
      * (i.e., rows when in row-major order) are padded to multiples of
      * ULONG_BITS
      */
-    unsigned int m = M.m;
-    unsigned int n = M.n;
+    unsigned int const m = M.m;
+    unsigned int const n = M.n;
     ASSERT_ALWAYS(k0 == k1 || (k0 < M.get_size() && k1 <= M.get_size()));
-    unsigned int mc = iceildiv(M.m, ULONG_BITS);
-    unsigned int nc = iceildiv(M.n, ULONG_BITS);
-    size_t ulongs_per_mat = transpose ? (M.n * mc) : (M.m * nc);
+    unsigned int const mc = iceildiv(M.m, ULONG_BITS);
+    unsigned int const nc = iceildiv(M.n, ULONG_BITS);
+    size_t const ulongs_per_mat = transpose ? (M.n * mc) : (M.m * nc);
     batch = MIN(batch, k1 - k0);
     std::vector<unsigned long> buf(ulongs_per_mat * batch);
     for(unsigned int k = k0 ; k < k1 ; k+=batch) {
@@ -269,24 +269,24 @@ int matpoly_read_inner(matpoly::arith_hard *, FILE * f, matpoly & M, unsigned in
                     return k - k0;
             } else {
                 /* use pread -- good for multithreading */
-                size_t one = ulongs_per_mat * sizeof(unsigned long);
-                off_t off = base + (k - k0) * one;
-                ssize_t r = pread(fileno(f), buf.data(), one * batch, off);
+                size_t const one = ulongs_per_mat * sizeof(unsigned long);
+                off_t const off = base + (k - k0) * one;
+                ssize_t const r = pread(fileno(f), buf.data(), one * batch, off);
                 if (r < 0) rc = 0;
                 else rc = r / sizeof(unsigned long);
             }
             good = rc / ulongs_per_mat;
         }
         for(unsigned int b = 0 ; b < good ; b++) {
-            size_t kq = (k + b) / ULONG_BITS;
-            size_t kr = (k + b) % ULONG_BITS;
+            size_t const kq = (k + b) / ULONG_BITS;
+            size_t const kr = (k + b) % ULONG_BITS;
             if (!transpose) {
                 for(unsigned int i = 0 ; i < m ; i++) {
                     unsigned long * v = &(buf[b * ulongs_per_mat + i * nc]);
                     for(unsigned int j = 0 ; j < n ; j++) {
-                        unsigned int jq = j / ULONG_BITS;
-                        unsigned int jr = j % ULONG_BITS;
-                        unsigned long bit = (v[jq] >> jr) & 1;
+                        unsigned int const jq = j / ULONG_BITS;
+                        unsigned int const jr = j % ULONG_BITS;
+                        unsigned long const bit = (v[jq] >> jr) & 1;
                         M.part(i, j)[kq] &= ~(1UL << kr);
                         M.part(i, j)[kq] |= bit << kr;
                     }
@@ -295,9 +295,9 @@ int matpoly_read_inner(matpoly::arith_hard *, FILE * f, matpoly & M, unsigned in
                 for(unsigned int j = 0 ; j < n ; j++) {
                     unsigned long * v = &(buf[b * ulongs_per_mat + j * mc]);
                     for(unsigned int i = 0 ; i < m ; i++) {
-                        unsigned int iq = i / ULONG_BITS;
-                        unsigned int ir = i % ULONG_BITS;
-                        unsigned long bit = (v[iq] >> ir) & 1;
+                        unsigned int const iq = i / ULONG_BITS;
+                        unsigned int const ir = i % ULONG_BITS;
+                        unsigned long const bit = (v[iq] >> ir) & 1;
                         M.part(i, j)[kq] &= ~(1UL << kr);
                         M.part(i, j)[kq] |= bit << kr;
                     }
@@ -314,14 +314,14 @@ int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k
 {
     int rc = 0;
     if (k0 % ULONG_BITS) {
-        unsigned int fk0 = MIN(k1, k0 + ULONG_BITS - (k0 % ULONG_BITS));
+        unsigned int const fk0 = MIN(k1, k0 + ULONG_BITS - (k0 % ULONG_BITS));
         rc += matpoly_read_inner(ab, f, M, k0, fk0, ascii, transpose, -1);
         if (rc < (int) (fk0 - k0) || fk0 == k1)
             return rc;
         return rc + matpoly_read(ab, f, M, fk0, k1, ascii, transpose);
     }
     if (k1 % ULONG_BITS) {
-        unsigned int fk1 = MAX(k0, k1 - (k1 % ULONG_BITS));
+        unsigned int const fk1 = MAX(k0, k1 - (k1 % ULONG_BITS));
         if (k0 < fk1) {
             /* recurse and to the bulk of the processing on aligned
              * values */
@@ -335,11 +335,11 @@ int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k
     ASSERT_ALWAYS(!(k0 % ULONG_BITS));
     ASSERT_ALWAYS(!(k1 % ULONG_BITS));
 
-    off_t pos0 = ftell(f);
-    unsigned int mc = iceildiv(M.m, ULONG_BITS);
-    unsigned int nc = iceildiv(M.n, ULONG_BITS);
-    size_t ulongs_per_mat = transpose ? (M.n * mc) : (M.m * nc);
-    size_t one = ulongs_per_mat * sizeof(unsigned long);
+    off_t const pos0 = ftell(f);
+    unsigned int const mc = iceildiv(M.m, ULONG_BITS);
+    unsigned int const nc = iceildiv(M.n, ULONG_BITS);
+    size_t const ulongs_per_mat = transpose ? (M.n * mc) : (M.m * nc);
+    size_t const one = ulongs_per_mat * sizeof(unsigned long);
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel
@@ -348,10 +348,10 @@ int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k
 #ifdef HAVE_OPENMP
         unsigned int nth = omp_get_num_threads();
 #else
-        unsigned int nth = 1;
+        unsigned int const nth = 1;
 #endif
-        unsigned int dk = ((k1 - k0)/ULONG_BITS) / nth;
-        unsigned int mk = ((k1 - k0)/ULONG_BITS) % nth;
+        unsigned int const dk = ((k1 - k0)/ULONG_BITS) / nth;
+        unsigned int const mk = ((k1 - k0)/ULONG_BITS) % nth;
         unsigned int idx = 0;
 #ifdef HAVE_OPENMP
         idx = omp_get_thread_num();
@@ -361,8 +361,8 @@ int matpoly_read(matpoly::arith_hard * ab, FILE * f, matpoly & M, unsigned int k
         lk0 *= ULONG_BITS;
         lk1 *= ULONG_BITS;
 
-        off_t base = pos0 + (lk0 - k0) * one;
-        int my_rc = matpoly_read_inner(ab, f, M, lk0, lk1, ascii, transpose, base, UINT_MAX);
+        off_t const base = pos0 + (lk0 - k0) * one;
+        int const my_rc = matpoly_read_inner(ab, f, M, lk0, lk1, ascii, transpose, base, UINT_MAX);
 
 #ifdef HAVE_OPENMP
 #pragma omp critical

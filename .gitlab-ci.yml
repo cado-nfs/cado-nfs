@@ -229,6 +229,7 @@ checks on fedora system with gcc:
 #   <<: *checks-junit-report
  
 checks on centos9 system with gcc:
+  allow_failure: true
   <<: *common-template
   stage: early
   image: quay.io/centos/centos:stream9

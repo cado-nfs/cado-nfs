@@ -27,44 +27,25 @@
 #include "macros.h"
 #include "matmul_top_vec.hpp"
 #include "mmt_vector_pair.hpp"
+#include "timing.h"
 
 using namespace fmt::literals;
 
-double
-wct_seconds (void)
-{
-    struct timeval tv[1];
-    gettimeofday (tv, NULL);
-    return (double)tv->tv_sec + (double)tv->tv_usec*1.0e-6;
-}
-
-void thread_seconds_user_sys(double * res, double m)
-{
-    struct rusage ru[1];
-#ifdef HAVE_RUSAGE_THREAD
-    getrusage(RUSAGE_THREAD, ru);
-#else
-#error "implement me"
-#endif
-    res[0] += m * ((double)ru->ru_utime.tv_sec + (double)ru->ru_utime.tv_usec/1.0e6);
-    res[1] += m * ((double)ru->ru_stime.tv_sec + (double)ru->ru_stime.tv_usec/1.0e6);
-}
-
 void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {
-    int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
-    fake = fake || param_list_lookup_string(pl, "static_random_matrix") != NULL;
+    int fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
+    fake = fake || param_list_lookup_string(pl, "static_random_matrix") != nullptr;
     if (fake) bw->skip_online_checks = 1;
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
 
-    int ys[2] = { bw->ys[0], bw->ys[1], };
+    int const ys[2] = { bw->ys[0], bw->ys[1], };
     if (pi->interleaved) {
         fprintf(stderr,
                 "bench_cpu_bwc does not work in the interleaved setting\n");
         exit(EXIT_FAILURE);
     }
 
-    std::unique_ptr<arith_generic> A(arith_generic::instance(bw->p, ys[1]-ys[0]));
+    std::unique_ptr<arith_generic> const A(arith_generic::instance(bw->p, ys[1]-ys[0]));
     block_control_signals();
 
     matmul_top_data mmt(A.get(), pi, pl, bw->dir);
@@ -90,7 +71,7 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
     {
         gmp_randstate_t rstate;
         gmp_randinit_default(rstate);
-        unsigned long g = pi->m->jrank * pi->m->ncores + pi->m->trank;
+        unsigned long const g = pi->m->jrank * pi->m->ncores + pi->m->trank;
         gmp_randseed_ui(rstate, bw->seed + g);
         mmt_vec_set_random_inconsistent(ymy[0], rstate);
         mmt_vec_truncate(mmt, ymy[0]);
@@ -109,18 +90,20 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
         serialize(pi->m);
         double timers[3] = {0,};
         timers[2] = -wct_seconds();
-        thread_seconds_user_sys(timers, -1);
+        thread_seconds_user_sys(timers);
+        timers[0] *= -1;
+        timers[1] *= -1;
 
         for(int i = 0 ; i < streak ; i++) {
             // matmul_top_mul(mmt, ymy, timing);
             {
-                int d = ymy[0].d;
-                int nmats_odd = mmt.matrices.size() & 1;
+                int const d = ymy[0].d;
+                int const nmats_odd = mmt.matrices.size() & 1;
                 int midx = (d ? (mmt.matrices.size() - 1) : 0);
                 for(size_t l = 0 ; l < mmt.matrices.size() ; l++) {
                     mmt_vec & src = ymy[l];
-                    int last = l == (mmt.matrices.size() - 1);
-                    int lnext = last && !nmats_odd ? 0 : (l+1);
+                    int const last = l == (mmt.matrices.size() - 1);
+                    int const lnext = last && !nmats_odd ? 0 : (l+1);
                     mmt_vec & dst = ymy[lnext];
 
                     src.consistency = 2;
@@ -131,7 +114,7 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
                 }
             }
         }
-        thread_seconds_user_sys(timers, 1);
+        thread_seconds_user_sys(timers);
         timers[2] += wct_seconds();
         serialize(pi->m);
 
@@ -141,8 +124,8 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
 
         double slowest = timers[2]/streak;
         double fastest = timers[2]/streak;
-        pi_allreduce(NULL, &slowest, 1, BWC_PI_DOUBLE, BWC_PI_MAX, pi->m);
-        pi_allreduce(NULL, &fastest, 1, BWC_PI_DOUBLE, BWC_PI_MIN, pi->m);
+        pi_allreduce(nullptr, &slowest, 1, BWC_PI_DOUBLE, BWC_PI_MAX, pi->m);
+        pi_allreduce(nullptr, &fastest, 1, BWC_PI_DOUBLE, BWC_PI_MIN, pi->m);
         if (tcan_print)
             printf("Cpu time spread: %.2f ... %.2f (delta = %.2f)\n",
                     fastest, slowest, slowest - fastest);
@@ -165,11 +148,11 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
     }
     serialize(pi->m);
 
-    return NULL;
+    return nullptr;
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     param_list pl;
 

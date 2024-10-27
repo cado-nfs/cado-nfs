@@ -292,15 +292,15 @@ void bpack_ops<T>::mul_lt_ge(bpack_const_view<T> A, bpack_view<T> X)
     {
         /* Use a temp variable */
         bpack<T> Y(X.nrows(), B);
-        size_t A_stride = &A.cell(1,0) - &A.cell(0,0);
-        size_t T_stride = &Y.cell(1,0) - &Y.cell(0,0);
+        size_t const A_stride = &A.cell(1,0) - &A.cell(0,0);
+        size_t const T_stride = &Y.cell(1,0) - &Y.cell(0,0);
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
     for(unsigned int bj = 0 ; bj < X.ncolblocks() ; bj += Y.ncolblocks()) {
         /* refresh our temp variable */
         Y = 0;
-        unsigned int ndbj = std::min(Y.ncolblocks(), X.ncolblocks() - bj);
+        unsigned int const ndbj = std::min(Y.ncolblocks(), X.ncolblocks() - bj);
         for(unsigned int bk = 0 ; bk < A.ncolblocks() ; bk++) {
             for(unsigned int dbj = 0 ; dbj < ndbj ; dbj++) {
                 bitmat<T>::addmul_blocks(&Y.cell(0,dbj), &A.cell(0, bk), X.cell(bk, bj + dbj), A.nrowblocks(), T_stride, A_stride);

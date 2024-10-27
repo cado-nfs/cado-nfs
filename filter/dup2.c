@@ -72,7 +72,7 @@
 
 #define DEBUG 0
 
-char *argv0; /* = argv[0] */
+char const * argv0; /* = argv[0] */
 
 /* Renumbering table to convert from (p,r) to an index */
 renumber_proxy_t renumber_tab;
@@ -193,6 +193,15 @@ print_relation (FILE * file, earlyparsed_relation_srcptr rel)
   if (number_of_additional_columns(renumber_tab)) {
       size_t n = renumber_table_get_nb_polys(renumber_tab);
       if (n == 2) {
+          /* Possible cases when we have two sides:
+           *  - both are monic, there is no J ideal
+           *  - only one is monic, there is only one J ideal
+           *  - neither is monic, we have two J ideals, but since n==2
+           *  it's okay to have only one additional column to count both
+           *  of them together.
+           * Either way, we only have one additional column (if we have
+           * any, of course), and it's number zero
+           */
           p = u64toa16(p, (uint64_t) 0);
           *p++ = ',';
       } else {
@@ -390,7 +399,7 @@ compute_index_rel (earlyparsed_relation_ptr rel)
  * possibility that *oname == infilename on return.
  */
 static void
-get_outfilename_from_infilename (char *infilename, const char *outfmt,
+get_outfilename_from_infilename (char const * infilename, const char *outfmt,
                                  const char *outdir, char **oname,
                                  char **oname_tmp)
 {
@@ -582,14 +591,14 @@ static void declare_usage(param_list pl)
 }
 
 static void
-usage (param_list pl, char *argv0)
+usage (param_list pl, char const * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
 }
 
 int
-main (int argc, char *argv[])
+main (int argc, char const * argv[])
 {
     argv0 = argv[0];
 
@@ -712,16 +721,17 @@ main (int argc, char *argv[])
            K, (K * sizeof (uint32_t)) >> 20);
 
   /* Construct the two filelists : new files and already renumbered files */
-  char ** files_already_renumbered, ** files_new;
+  char const ** files_already_renumbered;
+  char const ** files_new;
   {
       unsigned int nb_files = 0;
       fprintf(stderr, "Constructing the two filelists...\n");
-      char ** files = filelist ? filelist_from_file (basepath, filelist, 0) : argv;
-      for (char ** p = files; *p; p++)
+      char const ** files = filelist ? filelist_from_file (basepath, filelist, 0) : argv;
+      for (char const ** p = files; *p; p++)
           nb_files++;
 
-      files_already_renumbered = (char **) malloc((nb_files + 1) * sizeof(char*));
-      files_new = (char **) malloc((nb_files + 1) * sizeof(char*));
+      files_already_renumbered = (char const **) malloc((nb_files + 1) * sizeof(char*));
+      files_new = (char const **) malloc((nb_files + 1) * sizeof(char*));
 
       /* separate already processed files
        * check if f_tmp is in raw format a,b:...:... or 
@@ -729,7 +739,7 @@ main (int argc, char *argv[])
        */
       unsigned int nb_f_new = 0;
       unsigned int nb_f_renumbered = 0;
-      for (char ** p = files; *p; p++) {
+      for (char const ** p = files; *p; p++) {
           /* always strdup these, so that we can safely call
            * filelist_clear in the end */
           if (check_whether_file_is_renumbered(*p, renumber_table_get_nb_polys(renumber_tab))) {
@@ -765,10 +775,9 @@ main (int argc, char *argv[])
               " (using %d auxiliary threads for roots mod p):\n",
               desc[0].n);
 
-      for (char **p = files_new; *p ; p++) {
+      for (char const ** p = files_new; *p ; p++) {
           FILE * output = NULL;
           char * oname, * oname_tmp;
-          char * local_filelist[] = { *p, NULL};
 
           get_outfilename_from_infilename (*p, outfmt, outdir, &oname, &oname_tmp);
           output = fopen_maybe_compressed(oname_tmp, "w");
@@ -782,7 +791,7 @@ main (int argc, char *argv[])
 
           nrels = ndup = 0;
 
-          uint64_t loc_nrels = filter_rels2(local_filelist, desc,
+          uint64_t loc_nrels = filter_rels2(p, desc,
                   EARLYPARSE_NEED_AB_DECIMAL | EARLYPARSE_NEED_PRIMES,
                   NULL, NULL);
 

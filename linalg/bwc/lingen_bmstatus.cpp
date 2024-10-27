@@ -12,7 +12,7 @@
 /* Attention: reloading a checkpoint invalidates this reference !! */
 lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/
 {
-    lingen_hints::key_type K { depth, L };
+    lingen_hints::key_type const K { depth, L };
 
     if (hints.find(K) != hints.end())
         return hints[K];
@@ -54,8 +54,8 @@ lingen_call_companion & bmstatus::companion(int depth, size_t L)/*{{{*/
 
 void bmstatus::display_deltas() const /*{{{*/
 {
-    unsigned int m = d.m;
-    unsigned int n = d.n;
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
 
     int rank;
     MPI_Comm_rank(com[0], &rank);
@@ -76,7 +76,7 @@ void bmstatus::display_deltas() const /*{{{*/
         unsigned int nrep = 0;
         int overflow = INT_MAX;
         for(unsigned int i = 0 ; i < m + n ; i++) {
-            unsigned int d = delta[i];
+            unsigned int const d = delta[i];
             if (d == last && (lucky[i] < 0) == overflow) {
                 nrep++;
                 continue;

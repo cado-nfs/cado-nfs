@@ -133,9 +133,17 @@ seconds_user_sys (double * res)
 double
 wct_seconds (void)
 {
+#ifdef HAVE_CLOCK_MONOTONIC
+    struct timespec ts[1];
+    clock_gettime(CLOCK_MONOTONIC, ts);
+    double r = 1.0e-9 * (double) ts->tv_nsec;
+    r += (double) ts->tv_sec;
+    return r;
+#else
     struct timeval tv[1];
     gettimeofday (tv, nullptr);
     return (double)tv->tv_sec + (double)tv->tv_usec*1.0e-6;
+#endif
 }
 
 /* Print timings (cpu/wct) and memory usage since cpu0/wct0.

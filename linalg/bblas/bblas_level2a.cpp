@@ -64,7 +64,7 @@ void addmul_To64_o64_lsb_packof2(mat64 & r, uint64_t a, uint64_t w)/*{{{*/
 void addmul_To64_o64_lsb_sse_v1(mat64 & r, uint64_t a, uint64_t w)/*{{{*/
 {
     /* Using sse-2 */
-    __m128i mb[4] = {
+    __m128i const mb[4] = {
 	_mm_setzero_si128(),
 	_cado_mm_setr_epi64(w, 0),
 	_cado_mm_setr_epi64(0, w),

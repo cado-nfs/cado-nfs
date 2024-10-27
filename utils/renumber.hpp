@@ -138,6 +138,9 @@ public:
     inline index_t get_max_index() const { return above_all; }
     inline index_t get_max_cached_index() const { return above_cache; }
     inline index_t number_of_additional_columns() const { return above_add; }
+    /* sides where the J ideal is non trivial (even in the degree 1
+     * case). So it's really the list of sides where f is not monic
+     */
     std::vector<int> get_sides_of_additional_columns() const;
     inline index_t number_of_bad_ideals() const { return above_bad - above_add; }
     inline size_t get_memory_size() const {
@@ -200,6 +203,10 @@ public:
     }
     bool is_additional_column (index_t h) const {
         return h < above_add;
+    }
+
+    bool has_merged_additional_column() const {
+        return get_nb_polys() == 2 && get_sides_of_additional_columns().size() == 2;
     }
 
     index_t index_from_p_r (p_r_side) const;

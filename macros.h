@@ -145,10 +145,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
    undefined in C89. */
 /* iceildiv requires *unsigned* operands in spite of the name suggesting
    (signed) integer type. For negative operands, the result is wrong. */
+// NOLINTBEGIN(readability-container-size-empty)
 #define iceildiv(x,y) ((x) == 0 ? 0 : ((x)-1)/(y)+1)
 /* siceildiv requires signed operands, or the compiler will throw warnings
    with -Wtype-limits */
 #define siceildiv(x,y) ((x) == 0 ? 0 : ((x)<0) + ((y)<0) == 1 ? (x)/(y) : ((x)-1+2*((y)<0))/(y)+1)
+// NOLINTEND(readability-container-size-empty)
 #endif
 
 #define LEXGE2(X,Y,A,B) ((X)>(A) || ((X) == (A) && (Y) >= (B)))

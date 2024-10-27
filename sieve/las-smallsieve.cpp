@@ -174,7 +174,7 @@ static void small_sieve_print_contents(const char * prefix, small_sieve_data_t c
 void small_sieve_info(const char * what, int side, small_sieve_data_t const & r)
 {
     char * tmp;
-    int rc = asprintf(&tmp, "%s(side %d)", what, side);
+    int const rc = asprintf(&tmp, "%s(side %d)", what, side);
     ASSERT_ALWAYS(rc >= 0);
     small_sieve_print_contents(tmp, r);
     free(tmp);
@@ -215,9 +215,9 @@ ssp_t::ssp_t(fbprime_t _p, fbprime_t _r, unsigned char _logp, bool proj) /*{{{*/
     }
     if (proj) {
         set_proj();
-        unsigned int v = r; /* have consistent notations */
-        unsigned int g = gcd_ul(p, v);
-        fbprime_t q = p / g;
+        unsigned int const v = r; /* have consistent notations */
+        unsigned int const g = gcd_ul(p, v);
+        fbprime_t const q = p / g;
         set_q(q);
         set_g(g);
         if (q == 1) {
@@ -251,8 +251,8 @@ ssp_t::ssp_t(fbprime_t _p, fbprime_t _r, unsigned char _logp, bool proj) /*{{{*/
 /* Functor for sorting ssp_t in the order in which sieve2357 expects them */
 struct order_ssp_t {
     bool operator()(const ssp_t &ssp1, const ssp_t &ssp2) const {
-        fbprime_t q1 = ssp1.is_proj() ? ssp1.get_q() : ssp1.get_p();
-        fbprime_t q2 = ssp2.is_proj() ? ssp2.get_q() : ssp2.get_p();
+        fbprime_t const q1 = ssp1.is_proj() ? ssp1.get_q() : ssp1.get_p();
+        fbprime_t const q2 = ssp2.is_proj() ? ssp2.get_q() : ssp2.get_p();
         return sieve2357base::order_lt(q1, q2);
     }
 };
@@ -293,7 +293,7 @@ void small_sieve_init(small_sieve_data_t & ssd,
     
     // If we are doing sublattices modulo m, then we jump virtually m
     // times faster.
-    unsigned int sublatm = Q.sublat.m;
+    unsigned int const sublatm = Q.sublat.m;
 
     for (auto const & c : { &resieved, &rest }) {
         if (c == &rest)
@@ -310,7 +310,7 @@ void small_sieve_init(small_sieve_data_t & ssd,
 
             for (int nr = 0; nr < e.nr_roots; nr++) {
                 const fb_general_root &root = e.roots[nr];
-                fb_root_p1 Rab { root.r, root.proj };
+                fb_root_p1 const Rab { root.r, root.proj };
 
                 if (!Q.doing.is_coprime_to(pp)) {
                     continue;
@@ -331,8 +331,8 @@ void small_sieve_init(small_sieve_data_t & ssd,
 
                 WHERE_AM_I_UPDATE(w, r, Rab.to_old_format(p));
                 auto Rq = fb_root_in_qlattice(p, Rab, e.invq, Q);
-                fbroot_t r_q = Rq.r;
-                bool is_proj_in_ij = Rq.is_projective();
+                fbroot_t const r_q = Rq.r;
+                bool const is_proj_in_ij = Rq.is_projective();
                 /* If this root is somehow interesting (projective in (a,b) or
                    in (i,j) plane), print a message */
                 if (verbose && (Rab.is_projective() || is_proj_in_ij))
@@ -393,7 +393,7 @@ void small_sieve_init(small_sieve_data_t & ssd,
                          * LOG_BUCKET_REGION, and then we'll use r to compute
                          * the start positions.
                          */
-                        int v = LOG_BUCKET_REGION - logI;
+                        int const v = LOG_BUCKET_REGION - logI;
                         /* faster than a modular reduction as long as v<=10,
                          * which will be our use case anyway.
                          */
@@ -556,7 +556,7 @@ void small_sieve_start(std::vector<spos_t> & ssdpos,
      *  compute the starting point from within sieve_small_bucket_region
      *  for each bucket region.
      */
-    small_sieve_base C(logI, first_region_index, sl);
+    small_sieve_base const C(logI, first_region_index, sl);
     ssdpos.clear();
     ssdpos.reserve(ssd.ssps.size());
     for (ssp_simple_t const & ssp : ssd.ssps) {
@@ -590,9 +590,9 @@ void small_sieve_prepare_many_start_positions(
     auto & res(ssd.ssdpos_many_next);
     res.clear();
 
-    int logB = LOG_BUCKET_REGION;
-    int v = logI - logB;
-    int w = (v > 0) ? (1 << v) : 1;
+    int const logB = LOG_BUCKET_REGION;
+    int const v = logI - logB;
+    int const w = (v > 0) ? (1 << v) : 1;
 
     res.assign(nregions + w, std::vector<spos_t>(ssd.ssps.size(), 0));
 
@@ -710,7 +710,7 @@ void small_sieve::handle_projective_prime(ssp_t const & ssp, where_am_I & w MAYB
 #ifdef TRACE_K
             if (trace_on_spot_Nx(w->N, (1-i0))) {
                 WHERE_AM_I_UPDATE(w, x, trace_Nx.x);
-                unsigned int v = logp;
+                unsigned int const v = logp;
                 sieve_increase_logging(S + w->x, v, w);
             }
 #endif
@@ -745,9 +745,9 @@ void small_sieve::handle_projective_prime(ssp_t const & ssp, where_am_I & w MAYB
 #ifdef TRACE_K
             if (trace_on_range_Nx(w->N, pos, pos + F())) {
                 WHERE_AM_I_UPDATE(w, x, trace_Nx.x);
-                unsigned int x = trace_Nx.x;
-                unsigned int index = x % I();
-                unsigned int v = (((unsigned char *)(&logps2))[index%sizeof(unsigned long)]);
+                unsigned int const x = trace_Nx.x;
+                unsigned int const index = x % I();
+                unsigned int const v = (((unsigned char *)(&logps2))[index%sizeof(unsigned long)]);
                 sieve_increase_logging(S + w->x, v, w);
             }
 #endif
@@ -966,12 +966,12 @@ resieve_small_bucket_region (bucket_primes_t *BP,
         where_am_I & w MAYBE_UNUSED)
 {
     SMALLSIEVE_COMMON_DEFS();
-    small_sieve_base C(logI, N, sl);
+    small_sieve_base const C(logI, N, sl);
 
     unsigned char *S_ptr;
     const int resieve_very_verbose = 0;
 
-    unsigned int i_compens_sublat = sublati0 & 1;
+    unsigned int const i_compens_sublat = sublati0 & 1;
 
     // Odd/even property of j is the same as for j+2, even with
     // sublat, unless sublat.m is even, which is not handled right
@@ -982,7 +982,7 @@ resieve_small_bucket_region (bucket_primes_t *BP,
         auto const & ssps(ssd.ssps[index]);
 
         const fbprime_t p = ssps.get_p();
-        fbprime_t r = ssps.get_r();
+        fbprime_t const r = ssps.get_r();
         WHERE_AM_I_UPDATE(w, p, p);
         int pos = ssdpos[index];
         S_ptr = S;
@@ -1015,7 +1015,7 @@ resieve_small_bucket_region (bucket_primes_t *BP,
          *  - we really want to have the same structure both for
          *    small sieve and resieving.
          */
-        bool row0_even = (((j0&sublatm)+sublatj0) & 1) == 0;
+        bool const row0_even = (((j0&sublatm)+sublatj0) & 1) == 0;
         unsigned int q = row0_even ? p : 0;
         int i = 0; /* placate gcc */
         for (unsigned int j = j0; j < j1; j ++) {
@@ -1023,7 +1023,7 @@ resieve_small_bucket_region (bucket_primes_t *BP,
             for (i = pos + (q& -!((pos+i_compens_sublat)&1)) ; i < C.F() ; i += p+q) {
                 if (LIKELY(S_ptr[i] == 255)) continue;
                 bucket_update_t<1, primehint_t> prime;
-                unsigned int x = ((size_t) (j-j0) << logI) + i;
+                unsigned int const x = ((size_t) (j-j0) << logI) + i;
                 if (resieve_very_verbose) {
                     verbose_output_print(0, 1, "resieve_small_bucket_region: root %"
                             FBROOT_FORMAT ",%" FBPRIME_FORMAT" divides at x = "

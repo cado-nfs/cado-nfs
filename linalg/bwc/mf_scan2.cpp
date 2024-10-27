@@ -277,9 +277,9 @@ void maincode(ringbuf_ptr R, int consumers, FILE * f_in, FILE * f_rw, FILE * f_c
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
-    char * argv0 = argv[0];
+    const char * argv0 = argv[0];
 
     cxx_param_list pl;
     const char * rwfile = NULL;

@@ -31,7 +31,7 @@ struct badideal {/*{{{*/
     std::vector<branch> branches;
 
     std::vector<std::string> sagemath_string; // nbad strings.
-    std::vector<std::vector<cxx_mpz>> machine_description; // nbad vectors.
+    std::vector<std::string> machine_description; // nbad vectors.
 
     badideal(cxx_mpz const& p, cxx_mpz const& r, int nbad) : p(p), r(r), nbad(nbad) {}
     badideal(std::istream &);
@@ -47,12 +47,12 @@ struct badideal {/*{{{*/
 };/*}}}*/
 
 std::vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side);
-std::vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, gmp_randstate_t state);
+std::vector<badideal> badideals_for_polynomial(cxx_mpz_poly const& f, int side, cxx_gmp_randstate & state);
 std::vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const& p);
-std::vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const& p, gmp_randstate_t state);
+std::vector<badideal> badideals_above_p(cxx_mpz_poly const& f, int side, cxx_mpz const& p, cxx_gmp_randstate & state);
 
 std::string generic_sagemath_string(cxx_mpz_poly const & f, int side, cxx_mpz const & p, cxx_mpz const & r);
-std::vector<cxx_mpz> generic_machine_description(cxx_mpz_poly const & f, int, cxx_mpz const & p, cxx_mpz const & r);
+std::string generic_machine_description(cxx_mpz_poly const & f, int, cxx_mpz const & p, cxx_mpz const & r);
 
 int get_inertia_of_prime_ideal(cxx_mpz_poly const & f, cxx_mpz const & p, cxx_mpz const & r);
 

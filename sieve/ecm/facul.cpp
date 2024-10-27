@@ -19,7 +19,7 @@ facul (std::vector<cxx_mpz> & factors, cxx_mpz const & N, facul_strategy_oneside
     /* XXX ATTENTION: This function may be called recursively. In
      * particular it may happen that the factors[] vector is not empty. */
 
-    size_t factors_previous_size = factors.size();
+    size_t const factors_previous_size = factors.size();
 
 #ifdef PARI
     gmp_fprintf (stderr, "%Zd", N);
@@ -84,7 +84,7 @@ facul_aux (std::vector<cxx_mpz> & factors, const FaculModulusBase *m,
 #endif  /* ENABLE_UNSAFE_FACUL_STATS */
       const FaculModulusBase *fm = NULL, *cfm = NULL;
 
-      int res_fac = m->facul_doit_onefm(factors,
+      int const res_fac = m->facul_doit_onefm(factors,
             *meth.method, fm, cfm,
             strategies.lpb[side],
             strategies.BB[side],
@@ -118,7 +118,7 @@ facul_aux (std::vector<cxx_mpz> & factors, const FaculModulusBase *m,
       */
       if (fm != NULL)
 	{
-	  int found2 = facul_aux (factors, fm, strategies,
+	  int const found2 = facul_aux (factors, fm, strategies,
 				  methods, i+1, side);
           if (found2 < 1)// FACUL_NOT_SMOOTH or FACUL_MAYBE
 	    {
@@ -136,7 +136,7 @@ facul_aux (std::vector<cxx_mpz> & factors, const FaculModulusBase *m,
 	}
       if (cfm != NULL)
 	{
-	  int found2 = facul_aux (factors, cfm, strategies,
+	  int const found2 = facul_aux (factors, cfm, strategies,
 				  methods, i+1, side);
           if (found2 < 1)// FACUL_NOT_SMOOTH or FACUL_MAYBE
           {
@@ -173,7 +173,7 @@ facul_both_src (std::vector<std::vector<cxx_mpz>> & factors, const FaculModulusB
 		facul_strategies const & strategies, int* cof,
 		int* is_smooth)
 {
-    int nsides = factors.size();
+    int const nsides = factors.size();
     std::vector<int> found(nsides, 0);
 
     std::vector<facul_method_side> const & methods = strategies(cof[0],cof[1]);
@@ -196,7 +196,7 @@ facul_both_src (std::vector<std::vector<cxx_mpz>> & factors, const FaculModulusB
             stats_index_transition = i+1;
         }
 #endif  /* ENABLE_UNSAFE_FACUL_STATS */
-        int side = methods[i].side;
+        int const side = methods[i].side;
         if (is_smooth[side] != FACUL_MAYBE)
         {
             /* If both sides are smooth, we can exit the loop,
@@ -278,7 +278,7 @@ facul_both_src (std::vector<std::vector<cxx_mpz>> & factors, const FaculModulusB
                         // this code deserves some long overdue cleanup.
                         //
                         // coverity[uninit_use]
-                        int found2 = facul_aux (factors[side],
+                        int const found2 = facul_aux (factors[side],
                                 f[side][ind_cof], strategies,
                                 methods, last_i[side] + 1, side);
                         if (found2 < 1)// FACUL_NOT_SMOOTH or FACUL_MAYBE
@@ -314,7 +314,7 @@ facul_both (std::vector<std::vector<cxx_mpz>> & factors,
             std::vector<cxx_mpz> & N,
 	    facul_strategies const & strategies, int* is_smooth)
 {
-  int nsides = factors.size();
+  int const nsides = factors.size();
   ASSERT_ALWAYS(factors.size() == (size_t) nsides);
   ASSERT_ALWAYS(N.size() ==(size_t)  nsides);
   int cof[2];

@@ -36,7 +36,7 @@ int check_points( tabular_point_t* t)
     return 1;
 }
 
-int main(int argc, char**argv)
+int main(int argc, char const * argv[])
 {
     srand(time(NULL));
 #ifdef FPRINT

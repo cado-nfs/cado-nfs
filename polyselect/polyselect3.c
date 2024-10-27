@@ -41,11 +41,11 @@ declare_usage (param_list pl)
 }
 
 int
-main (int argc, char *argv[])
+main (int argc, char const * argv[])
 {
   param_list pl;
   FILE *f;
-  char *argv0 = argv[0];
+  char const * argv0 = argv[0];
   double Bf, Bg, area;
   int nthreads = 1;
   int num = 1; /* number of files to process */

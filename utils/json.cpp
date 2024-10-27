@@ -73,7 +73,7 @@ public:
     json parse_inner() {
         if (accept(LEFT_SQUARE_BRACKET)) {
             json_array * j;
-            json jj(j = new json_array());
+            json const jj(j = new json_array());
             bool trailing_comma = false;
             for(;!accept(RIGHT_SQUARE_BRACKET);) {
                 j->data.push_back(parse_inner());
@@ -83,7 +83,7 @@ public:
             return jj;
         } else if (accept(LEFT_BRACE)) {
             json_hash * j;
-            json jj(j = new json_hash());
+            json const jj(j = new json_hash());
             bool trailing_comma = false;
             for(;!accept(RIGHT_BRACE);) {
                 expect(STRING);
@@ -108,7 +108,7 @@ public:
     }
 
     json parse() {
-        json j = parse_inner();
+        json const j = parse_inner();
         if (!dry())
             throw parse_error();
         return j;

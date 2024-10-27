@@ -131,6 +131,9 @@ struct arith_wrapper: public arith_generic, public T {
     virtual void set(elt & dst, elt const & src) const override {
         concrete()->set(cast(dst), cast(src));
     }
+    virtual void inverse(elt & dst, elt const & src) const override {
+        concrete()->inverse(cast(dst), cast(src));
+    }
     virtual void set(elt & dst, cxx_mpz const & src) const override {
         concrete()->set(cast(dst), src);
     }

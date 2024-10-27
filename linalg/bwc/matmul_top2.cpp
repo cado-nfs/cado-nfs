@@ -14,7 +14,7 @@
 char * matrix_list_get_item(param_list_ptr pl, const char * key, int midx)
 {
     std::vector<std::string> m;
-    int rc = param_list_parse(pl, key, m);
+    int const rc = param_list_parse(pl, key, m);
     if (rc == 0)
         return NULL;
     ASSERT_ALWAYS(midx < (int) m.size());

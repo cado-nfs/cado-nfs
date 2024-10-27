@@ -23,55 +23,28 @@
 #include "params.h"
 #include "portability.h" // strdup // IWYU pragma: keep
 #include "timing.h"     // seconds
+#include "getprime.h"
 #include "misc.h"
 
 using namespace std;
-static char ** original_argv;
 
-namespace straightforward_poly_io {
-istream& operator>>(istream& is, cxx_mpz_poly& f)/*{{{*/
-{
-    vector<cxx_mpz> v;
-    cxx_mpz a;
-    for( ; is >> a ; v.push_back(a)) ;
-    mpz_poly_realloc(f, v.size());
-    for(unsigned int i = 0 ; i < v.size() ; i++) {
-        mpz_set(mpz_poly_coeff(f, i), v[i]);
-    }
-    mpz_poly_cleandeg(f, v.size()-1);
-    is.clear();
-    return is;
-}
-/*}}}*/
+/* we'd like to get rid of this! */
+using namespace numbertheory_internals;
 
-/* This format looks weird. Is it used at all? */
-ostream& operator<<(ostream& o, cxx_mpz_poly const& v)/*{{{*/
-{
-    /* note that we can't cheat and use cxx_mpz here */
-    ostream_iterator<mpz_t> it(o, " ");
-    if (v->deg>=0) {
-        copy(v->_coeff, v->_coeff + v->deg, it);
-        o << mpz_poly_lc(v);
-    } else {
-        o << "0";
-    }
-    return o;
-}/*}}}*/
-}
+static const char ** original_argv;
 
 static void decl_usage(param_list_ptr pl)/*{{{*/
 {
     param_list_decl_usage(pl, "test", "which test to run");
     param_list_decl_usage(pl, "prime", "prime");
-    param_list_decl_usage(pl, "polystr", "polynomial (string)");
-    param_list_decl_usage(pl, "polyfile", "polynomial (file)");
+    param_list_decl_usage(pl, "poly", "polynomial (string)");
     param_list_decl_usage(pl, "out", "output file");
     param_list_decl_usage(pl, "batch", "batch input file with test vectors and expected results");
     param_list_decl_usage(pl, "seed", "seed used for random picks");
     param_list_decl_usage(pl, "elements", "ideal generators (separated by ;)");
 }/*}}}*/
 
-void usage(param_list_ptr pl, char ** argv, const char * msg = NULL)/*{{{*/
+void usage(param_list_ptr pl, char const ** argv, const char * msg = NULL)/*{{{*/
 {
     param_list_print_usage(pl, argv[0], stderr);
     if (msg) {
@@ -80,54 +53,20 @@ void usage(param_list_ptr pl, char ** argv, const char * msg = NULL)/*{{{*/
     exit(EXIT_FAILURE);
 }/*}}}*/
 
-struct iowrap {/*{{{*/
-    streambuf * ibuf, * obuf;
-private:
-    ifstream ifs;
-    ofstream ofs;
-    istringstream iss;
-public:
-    iowrap(param_list_ptr pl) {
-        const char * tmp;
-        if ((tmp = param_list_lookup_string(pl, "polystr")) != NULL) {
-            iss.str(tmp);
-            ibuf = iss.rdbuf();
-        } else if ((tmp = param_list_lookup_string(pl, "polyfile")) != NULL) {
-            if (strcmp(tmp, "-") == 0) {
-                ibuf = cin.rdbuf();
-            } else {
-                ifs.open(tmp);
-                ibuf = ifs.rdbuf();
-            }
-        } else {
-            usage(pl, original_argv, "Please provide either --polyfile or --polystr");
-        }
-        if ((tmp = param_list_lookup_string(pl, "out")) != NULL && strcmp(tmp, "-") != 0) {
-            ofs.open(tmp);
-            obuf = ofs.rdbuf();
-        } else {
-            obuf = cout.rdbuf();
-        }
-    }
-};/*}}}*/
-
 int do_p_maximal_order(param_list_ptr pl) /*{{{*/
 {
-    cxx_mpz_poly f;
     cxx_mpz p;
-
     if (!param_list_parse_mpz(pl, "prime", p)) usage(pl, original_argv, "missing prime argument");
 
-    iowrap io(pl);
-    istream in(io.ibuf);
-    ostream out(io.obuf);
+    std::string polystr;
+    if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
+    cxx_mpz_poly const f(polystr);
 
-    if (!(straightforward_poly_io::operator>>(in, f))) usage(pl, original_argv, "cannot parse polynomial");
     cxx_mpq_mat M = p_maximal_order(f, p);
     cxx_mpz D;
     cxx_mpz_mat A;
     mpq_mat_numden(A, D, M);
-    out << "1/" << D << "*\n" << A << endl;
+    std::cout << "1/" << D << "*\n" << A << endl;
 
     return 1;
 }
@@ -228,7 +167,6 @@ vector<pair<cxx_mpz_mat, int> > batch_read_prime_factorization(istream & in, uns
 
 int do_p_maximal_order_batch(param_list_ptr pl) /*{{{*/
 {
-    cxx_mpz_poly f;
     const char * tmp;
 
     if ((tmp = param_list_lookup_string(pl, "batch")) == NULL)
@@ -243,22 +181,25 @@ int do_p_maximal_order_batch(param_list_ptr pl) /*{{{*/
         if (s.empty()) continue;
         if (s[0] == '#') continue;
         invalid_argument exc(string("Parse error on input") + s);
-        istringstream is0(s);
-        if (!(straightforward_poly_io::operator>>(is0, f))) usage(pl, original_argv, "cannot parse polynomial");
+
+        cxx_mpz_poly f;
+        if (!mpz_poly_set_from_expression(f, s))
+            usage(pl, original_argv, "cannot parse polynomial");
+
 
         if (!(getline(is, s, '\n')))
             throw exc;
-        cxx_mpz d;
-        cxx_mpz_mat A(f->deg, f->deg);
+        cxx_mpz const d;
+        cxx_mpz_mat const A(f->deg, f->deg);
         istringstream is1(s);
         cxx_mpz p;
         if (!(is1 >> p))
             throw exc;
 
-        cxx_mpq_mat O = batch_read_order_basis(is1, f->deg);
-        cxx_mpq_mat my_O = p_maximal_order(f, p);
+        cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
+        cxx_mpq_mat const my_O = p_maximal_order(f, p);
 
-        bool ok = sl_equivalent_matrices(O, my_O, p);
+        bool const ok = sl_equivalent_matrices(O, my_O, p);
 
         cout << ok_NOK(ok) << " test " << test
             << " (degree " << f->deg << ", p=" << p << ")"
@@ -276,36 +217,43 @@ int do_p_maximal_order_batch(param_list_ptr pl) /*{{{*/
 
 int do_factorization_of_prime(param_list_ptr pl) /*{{{*/
 {
-    cxx_mpz_poly f;
     cxx_mpz p;
-
     if (!param_list_parse_mpz(pl, "prime", p)) usage(pl, original_argv, "missing prime argument");
 
-    iowrap io(pl);
-    istream in(io.ibuf);
-    ostream out(io.obuf);
+    std::string polystr;
+    if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
+    cxx_mpz_poly const f(polystr);
 
-    if (!(straightforward_poly_io::operator>>(in, f))) usage(pl, original_argv, "cannot parse polynomial");
-    cxx_mpq_mat M = p_maximal_order(f, p);
-    gmp_randstate_t state;
-    gmp_randinit_default(state);
+    number_field K(f);
+    K.bless("K", "alpha");
+    number_field_order O = K.p_maximal_order(p);
+    O.bless(fmt::format("O{}", p));
+
+    cxx_gmp_randstate state;
     unsigned long seed = 0;
     if (param_list_parse_ulong(pl, "seed", &seed)) {
         gmp_randseed_ui(state, seed);
     }
-    vector<pair<cxx_mpz_mat, int> > F = factorization_of_prime(M, f, p, state);
-    gmp_randclear(state);
-    out << F.size() << "\n";
-    for(unsigned int k = 0 ; k < F.size() ; k++) {
-        out << F[k].first << " " << F[k].second << endl;
+    fmt::print("{}.<{}lpha>={:S}\n", K.name, K.varname, K);
+    fmt::print("{}={:S}\n", O.name, O);
+    auto F = O.factor(p, state);
+
+    // number_field_fractional_ideal I = O.fractional_ideal({K(11)});
+
+    fmt::print("assert {}.fractional_ideal({}) == prod([\n", O.name, p);
+    for(auto const & fe : F) {
+        fmt::print("\t{}", fe.first);
+        if (fe.second > 1)
+            fmt::print("^{}", fe.second);
+        fmt::print(",\n");
     }
+    fmt::print("])\n");
     return 1;
 }
 /*}}}*/
 
 int do_factorization_of_prime_batch(param_list_ptr pl) /*{{{*/
 {
-    cxx_mpz_poly f;
     const char * tmp;
 
     if ((tmp = param_list_lookup_string(pl, "batch")) == NULL)
@@ -321,8 +269,9 @@ int do_factorization_of_prime_batch(param_list_ptr pl) /*{{{*/
 
         invalid_argument exc(string("Parse error on input") + s);
 
-        istringstream is0(s);
-        if (!(straightforward_poly_io::operator>>(is0, f))) usage(pl, original_argv, "cannot parse polynomial");
+        cxx_mpz_poly f;
+        if (!mpz_poly_set_from_expression(f, s))
+            usage(pl, original_argv, "cannot parse polynomial");
 
         if (!(getline(is, s, '\n')))
             throw exc;
@@ -332,13 +281,13 @@ int do_factorization_of_prime_batch(param_list_ptr pl) /*{{{*/
         cxx_mpz p;
         if (!(is1 >> p)) throw exc;
 
-        string keyword;
-        cxx_mpq_mat O = batch_read_order_basis(is1, f->deg);
-        cxx_mpz_mat M = multiplication_table_of_order(O, f);
+        string const keyword;
+        cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
+        cxx_mpz_mat const M = multiplication_table_of_order(O, f);
 
         vector<pair<cxx_mpz_mat, int> > ideals = batch_read_prime_factorization(is1, f->deg, p, O, M);
 
-        cxx_mpq_mat my_O = p_maximal_order(f, p);
+        cxx_mpq_mat const my_O = p_maximal_order(f, p);
 
         bool ok = sl_equivalent_matrices(O, my_O, p);
 
@@ -377,14 +326,13 @@ int do_factorization_of_prime_batch(param_list_ptr pl) /*{{{*/
 
 int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
 {
-    cxx_mpz_poly f;
     cxx_mpz p;
-
     if (!param_list_parse_mpz(pl, "prime", p)) usage(pl, original_argv, "missing prime argument");
 
-    iowrap io(pl);
-    istream in(io.ibuf);
-    ostream out(io.obuf);
+    std::string polystr;
+    if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
+    cxx_mpz_poly f(polystr);
+
 
     /* Now read the element description */
     vector<cxx_mpz_poly> elements; 
@@ -405,9 +353,8 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
     }
 
 
-    if (!(straightforward_poly_io::operator>>(in, f))) usage(pl, original_argv, "cannot parse polynomial");
     cxx_mpq_mat O = p_maximal_order(f, p);
-    cxx_mpz_mat M = multiplication_table_of_order(O, f);
+    cxx_mpz_mat const M = multiplication_table_of_order(O, f);
 
     /* We need to reduce our generating elements modulo f, at the expense
      * of creating denominators all over the place.
@@ -465,7 +412,7 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
 
     for(unsigned int k = 0 ; k < F.size() ; k++) {
         cxx_mpz_mat const& fkp(F[k].first);
-        cxx_mpz_mat a = valuation_helper_for_ideal(M, fkp, p);
+        cxx_mpz_mat const a = valuation_helper_for_ideal(M, fkp, p);
         pair<cxx_mpz, cxx_mpz_mat> two = prime_ideal_two_element(O, f, M, fkp);
 
         cxx_mpq_mat theta_q;
@@ -473,10 +420,10 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
             mpq_mat_set_mpz_mat(theta_q, two.second);
             mpq_mat_mul(theta_q, theta_q, O);
         }
-        string uniformizer = write_element_as_polynomial(theta_q, "alpha");
+        string const uniformizer = write_element_as_polynomial(theta_q, "alpha");
 
-        int e = F[k].second;
-        int v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
+        int const e = F[k].second;
+        int const v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
 
         cout << "# (p=" << p
             << ", k=" << k
@@ -494,7 +441,6 @@ int do_valuations_of_ideal(param_list_ptr pl) /*{{{*/
 
 int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
 {
-    cxx_mpz_poly f;
     const char * tmp;
 
     if ((tmp = param_list_lookup_string(pl, "batch")) == NULL)
@@ -511,8 +457,9 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
 
         invalid_argument exc(string("Parse error on input") + s);
 
-        istringstream is0(s);
-        if (!(straightforward_poly_io::operator>>(is0, f))) usage(pl, original_argv, "cannot parse polynomial");
+        cxx_mpz_poly f;
+        if (!mpz_poly_set_from_expression(f, s))
+            usage(pl, original_argv, "cannot parse polynomial");
 
         if (!(getline(is, s, '\n')))
             throw exc;
@@ -522,13 +469,13 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
         cxx_mpz p;
         if (!(is1 >> p)) throw exc;
 
-        string keyword;
-        cxx_mpq_mat O = batch_read_order_basis(is1, f->deg);
-        cxx_mpz_mat M = multiplication_table_of_order(O, f);
+        string const keyword;
+        cxx_mpq_mat const O = batch_read_order_basis(is1, f->deg);
+        cxx_mpz_mat const M = multiplication_table_of_order(O, f);
 
         vector<pair<cxx_mpz_mat, int> > ideals = batch_read_prime_factorization(is1, f->deg, p, O, M);
 
-        cxx_mpq_mat my_O = p_maximal_order(f, p);
+        cxx_mpq_mat const my_O = p_maximal_order(f, p);
 
         bool ok = sl_equivalent_matrices(O, my_O, p);
 
@@ -578,13 +525,13 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
                         throw exc;
                 }
             }
-            pair<cxx_mpz_mat, cxx_mpz> Id = generate_ideal(O, M, cxx_mpq_mat(gens));
+            pair<cxx_mpz_mat, cxx_mpz> const Id = generate_ideal(O, M, cxx_mpq_mat(gens));
             vector<int> my_vals;
             for(unsigned int ell = 0 ; ell < my_ideals.size() ; ell++) {
                 cxx_mpz_mat const& fkp(my_ideals[ell].first);
-                int e = my_ideals[ell].second;
-                cxx_mpz_mat a = valuation_helper_for_ideal(M, fkp, p);
-                int v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
+                int const e = my_ideals[ell].second;
+                cxx_mpz_mat const a = valuation_helper_for_ideal(M, fkp, p);
+                int const v = valuation_of_ideal_at_prime_ideal(M, Id, a, e, p);
                 my_vals.push_back(v);
             }
             if (!(is1 >> keyword) || keyword != "valuations") throw exc;
@@ -617,6 +564,88 @@ int do_valuations_of_ideal_batch(param_list_ptr pl) /*{{{*/
 }
 /*}}}*/
 
+int do_number_theory_object_interface(param_list_ptr pl)
+{
+    cxx_gmp_randstate state;
+    unsigned long seed = 0;
+    if (param_list_parse_ulong(pl, "seed", &seed)) {
+        gmp_randseed_ui(state, seed);
+    }
+
+    std::string polystr;
+    if (!param_list_parse(pl, "poly", polystr)) usage(pl, original_argv, "missing poly argument");
+    cxx_mpz_poly f(polystr);
+
+
+    number_field K(f);
+
+    K.bless("K", "alpha");
+
+    fmt::print("print(\"working with {}\")\n", K);
+    fmt::print("ZP.<x> = ZZ[]\n");
+    fmt::print("{}.<{}> = NumberField({})\n", K.name, K.varname, f);
+
+    auto alpha = K.gen();
+    auto x = K(1);
+
+    const int N = 2 * f.degree();
+
+    for(int i = 0 ; i < N ; i++) {
+        fmt::print("assert alpha^{} == {}\n", i, x);
+        x = x * alpha;
+    }
+
+    fmt::print("assert (alpha^{}).trace() == {}\n", N, x.trace());
+
+    prime_info pi;
+    prime_info_init(pi);
+    for(unsigned long pp ; (pp = getprime_mt(pi)) < 12 ; pp++) {
+        fmt::print("print(\"tests mod p={}\")\n", pp);
+        cxx_mpz p = pp;
+        number_field_order Op = K.p_maximal_order(p);
+        Op.bless(fmt::format("O{}", p));
+        fmt::print("print(\"computed {}\")\n", Op);
+        fmt::print("{} = {:S}\n", Op.name, Op);
+        fmt::print("assert {}.is_maximal({})\n", Op.name, p);
+
+        auto fac_p = Op.factor(p);
+        fmt::print("assert {}.fractional_ideal({}) == prod([\n", Op.name, p);
+        for(auto const & Ie : fac_p) {
+            number_field_prime_ideal const & I(Ie.first);
+            int e = Ie.second;
+            if (e == 1) {
+                fmt::print(" {},\n", I);
+            } else {
+                fmt::print(" ({})^{},\n", I, e);
+            }
+        }
+        fmt::print("])\n");
+
+        for(int i = 0 ; i < 4 ; i++) {
+            cxx_mpz_poly phi;
+            int64_t a = gmp_urandomm_ui(state, 1000);
+            uint64_t b = gmp_urandomm_ui(state, 1000);
+            fmt::print("print(\"computing valuations above {} for a={} b={}\")\n", p, a, b);
+            mpz_poly_set_ab(phi, a, b);
+            number_field_element const z = K(phi);
+            number_field_fractional_ideal I = Op.fractional_ideal({z});
+
+            fmt::print("I_{0}_{1} = {2}.fractional_ideal([{0}-{1}*{3}])\n",
+                    a, b, Op.name, K.varname);
+            fmt::print("assert I_{}_{} == {}\n", a, b, I);
+            for(auto const & Ie : fac_p) {
+                fmt::print("assert I_{}_{}.valuation({}) == {}\n",
+                        a, b, Ie.first, 
+                        I.valuation(Ie.first));
+                fmt::print("print(\"{}\")\n", I.valuation(Ie.first));
+            }
+        }
+    }
+    prime_info_clear(pi);
+
+    return 1;
+}
+
 int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
 {
     unsigned int m = 8;
@@ -640,7 +669,7 @@ int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
     mpz_set_ui(p, 19);
     param_list_parse_mpz(pl, "prime", p);
 
-    if (0) {
+    if (1) {
         printf("\n\nCas 0.1\n\n");
         mpq_mat_urandomm(M, state, p);
         mpq_mat_fprint(stdout, M);
@@ -652,7 +681,7 @@ int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
         printf("\n");
     }
 
-    if (0) {
+    if (1) {
         printf("\n\nCas 0.2\n\n");
         mpz_mat_urandomm(Mz, state, p);
         mpz_mat_fprint(stdout, Mz);
@@ -670,7 +699,7 @@ int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
         mpz_mat_urandomm(Mz, state, p);
         mpz_mat_fprint(stdout, Mz); printf("\n");
         double t = seconds();
-        mpz_mat_hnf_backend(Mz, Tz);
+        mpz_mat_hermite_form(Mz, Tz);
         t = seconds()-t;
         mpz_mat_fprint(stdout, Mz); printf("\n");
         mpz_mat_fprint(stdout, Tz); printf("\n");
@@ -683,13 +712,12 @@ int do_linear_algebra_timings(param_list_ptr pl)/*{{{*/
 }/*}}}*/
 
 // coverity[root_function]
-int main(int argc, char *argv[]) /*{{{ */
+int main(int argc, char const * argv[])
+    /*{{{ */
 {
     cxx_param_list pl;
 
     param_list_configure_alias(pl, "prime", "p");
-    param_list_configure_alias(pl, "polystr", "f");
-    param_list_configure_alias(pl, "out", "o");
 
     decl_usage(pl);
 
@@ -722,6 +750,8 @@ int main(int argc, char *argv[]) /*{{{ */
         rc = do_valuations_of_ideal_batch(pl);
     } else if (strcmp(tmp, "linear-algebra-timings") == 0) {
         rc = do_linear_algebra_timings(pl);
+    } else if (strcmp(tmp, "nt-object-interface") == 0) {
+        rc = do_number_theory_object_interface(pl);
     } else {
         usage(pl, original_argv, "unknown test");
     }

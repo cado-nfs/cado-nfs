@@ -174,7 +174,15 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if(MINGW)
         set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
     else()
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+        # according to https://gcc.gnu.org/projects/cxx-status.html
+        # we're pushing the min gcc version from 12 to 14, in order to
+        # avoid a false positive with libfmt. I observe
+        # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=109717 with g++13
+        # and not g++14
+        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14.0)
+            set (CMAKE_CXX_FLAGS "-std=c++20 -Wno-c++11-compat ${CMAKE_CXX_FLAGS}")
+            message(STATUS "Enabling C++20 support")
+        elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
             # we only require c++11, not c++17. However c++17 adds the
             # possibility to benefit from some compile-time checks, of
             # format strings notably. Therefore we choose to enable it
@@ -241,10 +249,17 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang" OR CMAKE_HOST_SYSTEM_NAME
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "^Clang")
     set (CMAKE_CXX_FLAGS "-W -Wall ${CMAKE_CXX_FLAGS}")
     # According to http://clang.llvm.org/cxx_status.html
+    # deciding when to enable a given feature set is always some hit and
+    # miss, because it takes time (like, a multiple version timespan) for
+    # support to be considered complete.
     # Caveat: Apple's clang identifies itself as plain Clang on some
     # occasions... I don't exactly know when and how, but there's some
     # potential for misconfiguration.
-    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5")
+    if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16")
+        set (CMAKE_CXX_FLAGS   "-std=c++20 ${CMAKE_CXX_FLAGS}")
+        set (HAVE_CXX11 1)
+        message(STATUS "Enabling C++20 support")
+    elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5")
         set (CMAKE_CXX_FLAGS   "-std=c++17 ${CMAKE_CXX_FLAGS}")
         set (HAVE_CXX11 1)
         message(STATUS "Enabling C++17 support")
@@ -551,7 +566,7 @@ add_subdirectory (linalg)
 add_subdirectory (filter)
 add_subdirectory (linalg/bwc)
 add_subdirectory (misc)
-add_subdirectory (scripts/cadofactor)
+add_subdirectory (scripts)
 add_subdirectory (tests EXCLUDE_FROM_ALL)
 
 add_custom_target(dist
@@ -572,23 +587,6 @@ configure_file(config/source-location.txt.in source-location.txt ESCAPE_QUOTES @
 configure_file(cado-nfs-client.py cado-nfs-client.py ESCAPE_QUOTES @ONLY)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs.py DESTINATION ${BINSUFFIX})
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cado-nfs-client.py DESTINATION ${BINSUFFIX})
-
-# Some scripts are handy to have also in the bin directory.
-foreach(script
-        split.py
-        descent.py
-        descent_helper_asyncio.py
-        descent_helper_fallback.py
-    )
-    configure_file(
-        ${CADO_NFS_SOURCE_DIR}/scripts/${script}
-        ${CADO_NFS_BINARY_DIR}/scripts/${script}
-        COPYONLY)
-endforeach(script)
-
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent.py DESTINATION ${LIBSUFFIX}/scripts)
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent_helper_asyncio.py DESTINATION ${LIBSUFFIX}/scripts)
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/scripts/descent_helper_fallback.py DESTINATION ${LIBSUFFIX}/scripts)
 
 
 message(STATUS "Main scripts will go to ${CMAKE_INSTALL_PREFIX}/${BINSUFFIX}")

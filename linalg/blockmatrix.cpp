@@ -38,17 +38,17 @@ void blockmatrix::copy_colrange(blockmatrix const & A, unsigned int j0, unsigned
     constexpr const unsigned int B = matrix::width;
     typedef matrix::datatype U;
 
-    unsigned int block0 = j0 / B;
+    unsigned int const block0 = j0 / B;
     U * masks = new U[A.ncblocks];
     for(unsigned int b = block0 ; b*B < j1 ; b++) {
         U mask = -U(1);
         if (j0 >= b * B) {
-            unsigned int z0 = j0 - b*B;
+            unsigned int const z0 = j0 - b*B;
             ASSERT_ALWAYS(z0 < B);
             mask &= (U(-1)) << z0;
         }
         if (j1 - b * B <= B) {
-            unsigned int z1 = B - (j1 - b*B);
+            unsigned int const z1 = B - (j1 - b*B);
             /* z1 is between 0 and B-1 */
             mask &= U(-1) >> z1;
         }
@@ -56,7 +56,7 @@ void blockmatrix::copy_colrange(blockmatrix const & A, unsigned int j0, unsigned
     }
     for(unsigned int ii = 0 ; ii < A.nrows() ; ii++) {
         for(unsigned int jj = block0 * B ; jj < j1 ; jj += B) {
-            U m = masks[jj / B];
+            U const m = masks[jj / B];
             (*this)[ii][jj] &= ~m;
             (*this)[ii][jj] |= A[ii][jj] & m;
         }
@@ -208,15 +208,15 @@ void blockmatrix::reverse_columns()
 void blockmatrix::reverse_rows()
 {
     for(unsigned int ib = 0 ; ib < nrblocks ; ib++) {
-        unsigned int xib = nrblocks - 1 - ib;
+        unsigned int const xib = nrblocks - 1 - ib;
         if (xib < ib) break;
         for(unsigned int i = 0 ; i < 64 ; i++) {
-            unsigned int ii = ib * 64 + i;
-            unsigned int xi = 63 - i;
-            unsigned int xii = xib * 64 + xi;
+            unsigned int const ii = ib * 64 + i;
+            unsigned int const xi = 63 - i;
+            unsigned int const xii = xib * 64 + xi;
             if (xii < ii) break;
             for(unsigned int j = 0 ; j < ncblocks ; j++) {
-                uint64_t t = getblock(ib, j)[i];
+                uint64_t const t = getblock(ib, j)[i];
                 getblock(ib, j)[i] = getblock(xib, j)[xi];
                 getblock(xib, j)[xi] = t;
             }
@@ -231,8 +231,8 @@ void blockmatrix::copy_to_flat(flat_area F, const_view_t V)
 {
     typedef matrix::datatype U;
     constexpr const unsigned int B = matrix::width;
-    unsigned int i0 = 0;
-    unsigned int j0 = 0;
+    unsigned int const i0 = 0;
+    unsigned int const j0 = 0;
     for(unsigned int i = 0 ; i < V.nrblocks() ; i++) {
         for(unsigned int j = 0 ; j < V.ncblocks() ; j++) {
             matrix const & tm = V.getblock(i, j);
@@ -248,8 +248,8 @@ void blockmatrix::copy_transpose_to_flat(flat_area F, const_view_t V)
 {
     typedef matrix::datatype U;
     constexpr const unsigned int B = matrix::width;
-    unsigned int i0 = 0;
-    unsigned int j0 = 0;
+    unsigned int const i0 = 0;
+    unsigned int const j0 = 0;
     for(unsigned int i = 0 ; i < V.nrblocks() ; i++) {
         for(unsigned int j = 0 ; j < V.ncblocks() ; j++) {
             matrix tm;
@@ -307,8 +307,8 @@ void blockmatrix::copy_transpose_from_flat(view_t V, const_flat_area F)
 {
     typedef matrix::datatype U;
     constexpr const unsigned int B = matrix::width;
-    unsigned int i0 = 0;
-    unsigned int j0 = 0;
+    unsigned int const i0 = 0;
+    unsigned int const j0 = 0;
     for(unsigned int i = 0 ; i < V.nrblocks() ; i++) {
         for(unsigned int j = 0 ; j < V.ncblocks() ; j++) {
             matrix tm;
@@ -324,8 +324,8 @@ void blockmatrix::copy_from_flat(view_t V, const_flat_area F)
 {
     typedef matrix::datatype U;
     constexpr const unsigned int B = matrix::width;
-    unsigned int i0 = 0;
-    unsigned int j0 = 0;
+    unsigned int const i0 = 0;
+    unsigned int const j0 = 0;
     for(unsigned int i = 0 ; i < V.nrblocks() ; i++) {
         for(unsigned int j = 0 ; j < V.ncblocks() ; j++) {
             matrix & tm = V.getblock(i, j);
@@ -352,7 +352,7 @@ blockmatrix::read_from_flat_file (int i0, int j0,
     for(unsigned int r = 0 ; r < fnrows ; r++) {
         for(unsigned int g = 0 ; g < fncols ; g+=64) {
             uint64_t v;
-            int rc = fread(&v, sizeof(uint64_t), 1, f);
+            int const rc = fread(&v, sizeof(uint64_t), 1, f);
             ASSERT_ALWAYS(rc == 1);
             (*this)[i0+r][j0+g] = u64_convert_from_little_endian (v);
         }
@@ -379,7 +379,7 @@ void blockmatrix::read_transpose_from_flat_file(int i0, int j0, const char * nam
         for(unsigned int i = 0 ; g + i < fnrows && i < 64 ; i++) {
             for(unsigned int s = 0 ; s < fncols ; s+=64) {
                 uint64_t v;
-                int rc = fread(&v, sizeof(uint64_t), 1, f);
+                int const rc = fread(&v, sizeof(uint64_t), 1, f);
                 ASSERT_ALWAYS(rc == 1);
                 tmp[s/64][i]=v;
             }
@@ -407,7 +407,7 @@ void blockmatrix::write_to_flat_file(const char * name, int i0, int j0, unsigned
             uint64_t v;
             v = getblock(((i0+r)/64), ((j0+g)/64))[(i0+r)%64];
             v = u64_convert_to_little_endian (v);
-            int rc = fwrite(&v, sizeof(uint64_t), 1, f);
+            int const rc = fwrite(&v, sizeof(uint64_t), 1, f);
             ASSERT_ALWAYS(rc == 1);
         }
     }

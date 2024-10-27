@@ -311,7 +311,8 @@ simulation(cache_t *cache, pages_t *pages, int argc, char **argv) {
 }
 
 
-int main(int argc, char **argv) {
+int main(int argc, char const * argv[])
+{
   cache_t cache[1];
   pages_t pages[1];
   int verbose = 0;

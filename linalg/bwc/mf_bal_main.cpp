@@ -15,7 +15,7 @@
  * Essentially we would hook onto the mmt_fill_fields_from_balancing()
  * function called from mmt_finish_init().
  */
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     param_list pl;
     struct mf_bal_args mba[1];

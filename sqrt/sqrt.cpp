@@ -613,7 +613,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
   if (mpz_sgn (prod) < 0)
     {
       fprintf (stderr, "Error, product is negative: try another dependency\n");
-      exit(EXIT_FAILURE);       // NOLINT(concurrency-mt-unsafe)
+      exit(EXIT_FAILURE);
     }
 
 #pragma omp critical
@@ -665,7 +665,7 @@ calculateSqrtRat (std::string const & prefix, unsigned int numdep, cxx_cado_poly
           p = getprime_mt (pi);
         }
       prime_info_clear (pi);
-      exit(EXIT_FAILURE);       // NOLINT(concurrency-mt-unsafe)
+      exit(EXIT_FAILURE);
     }
 
   mpz_mod (prod, prod, Np);
@@ -991,7 +991,7 @@ cxx_mpz_polymodF_sqrt (cxx_mpz_polymodF & res, cxx_mpz_polymodF & AA, cxx_mpz_po
       {
         fprintf (stderr, "Failed to reconstruct an integer polynomial\n");
         printf ("Failed\n");
-        exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
+        exit(EXIT_FAILURE);
       }
 
     /* invariant: invsqrtA = 1/sqrt(A) bmod p^k */
@@ -1148,7 +1148,7 @@ FindSuitableModP (cxx_mpz_poly const & F, cxx_mpz const & N)
       {
 	fprintf (stderr, "Error, found no suitable prime up to %d\n", MAXP);
 	fprintf (stderr, "See paragraph \"Factoring with SNFS\" in README\n");
-	exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
+	exit(EXIT_FAILURE);
       }
     }
   modul_poly_clear (fp);
@@ -1412,7 +1412,7 @@ calculateGcd (std::string const & prefix, unsigned int numdep, cxx_mpz const & N
             const std::lock_guard<std::mutex> dummy(stdio_guard);
             fmt::print(stderr, "Error, cannot open file {} for reading\n",
                     sidename[side]);
-            exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
+            exit(EXIT_FAILURE);
         }
         gmp_fscanf (sidefile[side], "%Zd", (mpz_ptr) sidesqrt[side]);
         fclose_maybe_compressed_lock (sidefile[side], sidename[side].c_str());
@@ -1506,13 +1506,13 @@ void create_dependencies(const char * prefix, const char * indexname, const char
         ker = fopen(kername, "rb");
         if (!ker) {
             perror(kername);
-            exit(errno);        // NOLINT(concurrency-mt-unsafe)
+            exit(errno);
         }
         struct stat sbuf[1];
         ret = fstat(fileno(ker), sbuf);
         if (ret < 0) {
             perror(kername);
-            exit(errno);        // NOLINT(concurrency-mt-unsafe)
+            exit(errno);
         }
         ASSERT_ALWAYS(sbuf->st_size % small_nrows == 0);
         const unsigned int ndepbytes = sbuf->st_size / small_nrows;
@@ -1527,7 +1527,7 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     uint64_t nrows, ncols;
     purgedfile_read_firstline (purgedname, &nrows, &ncols);
 
-    std::unique_ptr<uint64_t[]> abs(new uint64_t[nrows]);
+    std::unique_ptr<uint64_t[]> const abs(new uint64_t[nrows]);
     std::fill(abs.get(), abs.get() + nrows, 0);
 
     for(uint64_t i = 0 ; i < small_nrows ; i++) {
@@ -1559,7 +1559,7 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     unsigned int dep_counts[64]={0,};
 
     for(unsigned int i = 0 ; i < 64U ; i++) {
-        uint64_t m = UINT64_C(1) << i;
+        uint64_t const m = UINT64_C(1) << i;
         if (sanity & m)
             dep_masks[nonzero_deps++] = m;
     }
@@ -1573,7 +1573,7 @@ void create_dependencies(const char * prefix, const char * indexname, const char
     sqrt_data_t data = {.abs = abs.get(), .dep_masks = dep_masks,
                         .dep_counts = dep_counts, .nonzero_deps = nonzero_deps,
                         .dep_files = dep_files};
-    char *fic[2] = {(char *) purgedname, nullptr};
+    char const *fic[2] = {purgedname, nullptr};
     filter_rels (fic, (filter_rels_callback_t) thread_sqrt, &data,
           EARLYPARSE_NEED_AB_HEXA, nullptr, nullptr);
 
@@ -1664,16 +1664,16 @@ void usage(param_list pl, const char * argv0, FILE *f)
     fprintf(f, "or %s (-side0 || -side1 || -gcd) -poly polyname -prefix prefix -dep numdep -t ndep\n\n", argv0);
     fprintf(f, "(a,b) pairs of dependency relation 'numdep' will be r/w in file 'prefix.numdep',");
     fprintf(f, " side0 sqrt in 'prefix.side0.numdep' ...\n");
-    exit(EXIT_FAILURE);     // NOLINT(concurrency-mt-unsafe)
+    exit(EXIT_FAILURE);
 }
 
 // coverity[root_function]
-int main(int argc, char *argv[])
+int main(int argc, char const *argv[])
 {
     unsigned int numdep = UINT_MAX;
     int nthreads = 1, ret MAYBE_UNUSED, i;
 
-    char * me = *argv;
+    char const * me = *argv;
     /* print the command line */
     fprintf (stderr, "%s.r%s", argv[0], cado_revision_string);
     for (i = 1; i < argc; i++)

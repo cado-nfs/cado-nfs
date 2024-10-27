@@ -86,7 +86,7 @@ test_mishmash (unsigned int B1min, unsigned int B1max, int compress,
   return n;
 }
 
-int main (int argc, const char **argv)
+int main(int argc, char const * argv[])
 {
   unsigned int nerrors = 0;
 

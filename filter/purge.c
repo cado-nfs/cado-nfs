@@ -276,25 +276,25 @@ thread_print(data_second_pass_ptr arg, earlyparsed_relation_ptr rel)
    *    such list)
    *    p ranges over all paths listed in the filelist.
    */
-char **filelist_from_file_with_subdirlist(const char *basepath,
+char const ** filelist_from_file_with_subdirlist(const char *basepath,
 					  const char *filelist,
 					  const char *subdirlist)
 {
     /* count the number of files in the filelist */
     int nfiles = 0;
     int nsubdirs = 0;
-    char **fl = filelist_from_file(NULL, filelist, 0);
-    for (char **p = fl; *p; p++, nfiles++);
+    char const ** fl = filelist_from_file(NULL, filelist, 0);
+    for (char const ** p = fl; *p; p++, nfiles++);
 
-    char **sl = filelist_from_file(basepath, subdirlist, 1);
-    for (char **p = sl; *p; p++, nsubdirs++);
+    char const ** sl = filelist_from_file(basepath, subdirlist, 1);
+    for (char const ** p = sl; *p; p++, nsubdirs++);
 
-    char ** fic = (char **) malloc((nsubdirs * nfiles + 1) * sizeof(char *));
+    char ** fic = (char ** ) malloc((nsubdirs * nfiles + 1) * sizeof(char *));
     ASSERT_ALWAYS(fic != NULL);
 
-    char **full = fic;
-    for (char **f = fl; *f; f++) {
-	for (char **s = sl; *s; s++, full++) {
+    char ** full = fic;
+    for (char const ** f = fl; *f; f++) {
+	for (char const ** s = sl; *s; s++, full++) {
 	    int ret = asprintf(full, "%s/%s", *s, *f);
 	    ASSERT_ALWAYS(ret >= 0);
 	}
@@ -302,7 +302,7 @@ char **filelist_from_file_with_subdirlist(const char *basepath,
     *full = NULL;
     filelist_clear(fl);
     filelist_clear(sl);
-    return fic;
+    return (char const **) fic;
 }
 
 static void declare_usage(param_list pl)
@@ -336,7 +336,7 @@ static void declare_usage(param_list pl)
 }
 
 static void
-usage (param_list pl, char *argv0)
+usage (param_list pl, const char *argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -345,12 +345,12 @@ usage (param_list pl, char *argv0)
 
 /*************************** main ********************************************/
 
-int main(int argc, char **argv)
+int main(int argc, char const * argv[])
 {
-    char * argv0 = argv[0];
+    const char * argv0 = argv[0];
     param_list pl;
     uint64_t col_min_index_arg = UMAX(uint64_t);
-    char ** input_files;
+    char const ** input_files;
     uint64_t col_max_index_arg = 0;
     uint64_t nrows_init_arg = 0;
     purge_matrix_t mat; /* All info regarding the matrix is in this struct */
@@ -426,7 +426,7 @@ int main(int argc, char **argv)
 
     if (!purgedname) {
         fprintf(stderr, "Error, option -out is mandatory\n");
-        exit(EXIT_FAILURE);
+        usage(pl, argv0);
     }
     /* }}} */
 
@@ -471,12 +471,12 @@ int main(int argc, char **argv)
     {
       fprintf(stderr, "Error, -col-max-index is too large for a 32-bit "
                       "program\nSee #define SIZEOF_INDEX in typedefs.h\n");
-      exit(EXIT_FAILURE);
+      usage(pl, argv0);
     }
     if (nthreads == 0)
     {
       fprintf(stderr, "Error, -t should be non-zero\n");
-      exit(EXIT_FAILURE);
+      usage(pl, argv0);
     }
 
     /* Printing relevant information */

@@ -28,8 +28,8 @@ std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned 
 {
     std::vector<unsigned long> ret;
     ret.push_back(p0);
-    unsigned long previous = p0;
-    double total_count = nprimes_interval(p0, p1);
+    unsigned long const previous = p0;
+    double const total_count = nprimes_interval(p0, p1);
     /* by proceeding like this, we're wasting time, since p1 always
      * serves as an endpoint, so that we have a complexity which is
      * roughly n * log(p1-p0). We could have something like log(p1-p0) +
@@ -40,12 +40,12 @@ std::vector<unsigned long> subdivide_primes_interval(unsigned long p0, unsigned 
         /* find smallest p such that nprimes_interval(previous, p) >= i *
          * total_count / n ; do simple dichotomy.
          */
-        double target = i * total_count / n;
+        double const target = i * total_count / n;
         unsigned long q0 = previous;
         unsigned long q1 = p1;
         unsigned long q = previous + (p1 - previous) / (n - i);
         for( ; q > q0 ; ) {
-            double r = nprimes_interval(p0, q);
+            double const r = nprimes_interval(p0, q);
             if (r < target)
                 q0 = q;
             else

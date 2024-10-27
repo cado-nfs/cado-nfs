@@ -30,9 +30,9 @@ usage (const char *argv, const char * missing, param_list pl)
     exit (EXIT_FAILURE);
 }
 
-int main (int argc, char *argv[])
+int main (int argc, char const * argv[])
 {
-    char **argv0 = argv;
+    char const ** argv0 = argv;
     mpz_t p, ell;
     unsigned int n = 0;
     unsigned int mnfs = 0;

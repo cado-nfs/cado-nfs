@@ -38,8 +38,8 @@ static inline unsigned int
 sieve_info_test_lognorm_sse2_mask(__m128i * S0, const __m128i pattern0,
                              const __m128i *S1, const __m128i pattern1)
 {
-    __m128i a = *S0;
-    __m128i r = *S1;
+    __m128i const a = *S0;
+    __m128i const r = *S1;
     __m128i m1, m2;
     /* _mm_cmpgt_epi8() performs signed comparison, but we have unsigned
        bytes. We can switch to signed in a way that preserves ordering by
@@ -79,8 +79,8 @@ sieve_info_test_lognorm_sse2_mask(__m128i * S0, const __m128i pattern0,
 static inline unsigned int
 sieve_info_test_lognorm_sse2_mask_oneside(__m128i * S0, const __m128i pattern0)
 {
-    __m128i a = *S0;
-    __m128i m1 = _mm_cmpgt_epi8 (pattern0, _mm_xor_si128(a, sign_conversion));
+    __m128i const a = *S0;
+    __m128i const m1 = _mm_cmpgt_epi8 (pattern0, _mm_xor_si128(a, sign_conversion));
     *S0 = _mm_or_si128(a, _mm_xor_si128(m1, ff));
     return (unsigned int) _mm_movemask_epi8(m1);
 }
@@ -173,7 +173,7 @@ search_survivors_in_line1_sse2(unsigned char * const SS[2],
 
     /* The reason for the bound+1 here is documented in
        sieve_info_test_lognorm_sse2_mask() */
-    __m128i patterns[2] = {
+    __m128i const patterns[2] = {
         _mm_xor_si128(_mm_and_si128(_mm_set1_epi8(bound[0] + 1), even_mask), sign_conversion),
         _mm_xor_si128(_mm_and_si128(_mm_set1_epi8(bound[1] + 1), even_mask), sign_conversion)
     };
@@ -212,7 +212,7 @@ search_survivors_in_line1_sse2_oneside(unsigned char * SS,
 
     /* The reason for the bound+1 here is documented in
        sieve_info_test_lognorm_sse2_mask() */
-    __m128i pattern =
+    __m128i const pattern =
         _mm_xor_si128(_mm_and_si128(_mm_set1_epi8(bound + 1), even_mask), sign_conversion);
     const int x_step = sizeof(__m128i);
 

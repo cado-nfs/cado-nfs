@@ -64,12 +64,12 @@ struct check_data {
          * Therefore, we must really understand the check vector as
          * playing a role in the very same direction of the y vector!
          */
-        std::string Cv_filename = fmt::format(FMT_STRING("Cv%u-%u.{}"), bw->interval);
+        std::string const Cv_filename = fmt::format(FMT_STRING("Cv%u-%u.{}"), bw->interval);
         int ok = mmt_vec_load(check_vector, Cv_filename, mmt.n0[bw->dir], 0);
         if (!ok) {
             if (tcan_print)
                 fmt::fprintf(stderr, "check file %s not found, trying legacy check mode\n", Cv_filename);
-            std::string C_filename = fmt::format(FMT_STRING("C%u-%u.{}"), bw->interval);
+            std::string const C_filename = fmt::format(FMT_STRING("C%u-%u.{}"), bw->interval);
             ok = mmt_vec_load(check_vector, C_filename, mmt.n0[bw->dir], 0);
             if (!ok) {
                 if (tcan_print)
@@ -79,11 +79,11 @@ struct check_data {
             legacy_check_mode = 1;
         }
         if (!legacy_check_mode) {
-            std::string Ct_filename = fmt::format(FMT_STRING("Ct0-{}.0-{}"), nchecks, bw->m);
+            std::string const Ct_filename = fmt::format(FMT_STRING("Ct0-{}.0-{}"), nchecks, bw->m);
             Tdata = Ac->alloc(bw->m, ALIGNMENT_ON_ALL_BWC_VECTORS);
             if (pi->m->trank == 0 && pi->m->jrank == 0) {
                 FILE * Tfile = fopen(Ct_filename.c_str(), "rb");
-                int rc = fread(Tdata, Ac->vec_elt_stride(bw->m), 1, Tfile);
+                int const rc = fread(Tdata, Ac->vec_elt_stride(bw->m), 1, Tfile);
                 ASSERT_ALWAYS(rc == 1);
                 fclose(Tfile);
             }
@@ -157,11 +157,11 @@ struct check_data {
 
 void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
 {
-    int legacy_check_mode = 0;
+    int const legacy_check_mode = 0;
     int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
     fake = fake || param_list_lookup_string(pl, "static_random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
-    int tcan_print = bw->can_print && pi->m->trank == 0;
+    int const tcan_print = bw->can_print && pi->m->trank == 0;
     struct timing_data timing[1];
 
     int ys[2] = { bw->ys[0], bw->ys[1], };
@@ -183,7 +183,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 
     mmt_vector_pair ymy(mmt, bw->dir);
 
-    unsigned int unpadded = MAX(mmt.n0[0], mmt.n0[1]);
+    unsigned int const unpadded = MAX(mmt.n0[0], mmt.n0[1]);
 
     serialize(pi->m);
     
@@ -211,7 +211,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
      */
     serialize(pi->m);
     if (!fake) {
-        int ok = mmt_vec_load(ymy[0], fmt::format(FMT_STRING("V%u-%u.{}"), bw->start), unpadded, ys[0]);
+        int const ok = mmt_vec_load(ymy[0], fmt::format(FMT_STRING("V%u-%u.{}"), bw->start), unpadded, ys[0]);
         ASSERT_ALWAYS(ok);
     } else {
         gmp_randstate_t rstate;
@@ -239,7 +239,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         mmt_vec_set_random_through_file(mmt, NULL, v_name, bw->dir, bw->start, unpadded, rstate);
         if (tcan_print) { printf("done\n"); }
 #else
-        unsigned long g = pi->m->jrank * pi->m->ncores + pi->m->trank;
+        unsigned long const g = pi->m->jrank * pi->m->ncores + pi->m->trank;
         gmp_randseed_ui(rstate, bw->seed + g);
         mmt_vec_set_random_inconsistent(ymy[0], rstate);
         mmt_vec_truncate(mmt, ymy[0]);
@@ -339,8 +339,8 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
                 mmt.pitype, BWC_PI_SUM, pi->m);
 
         if (pi->m->trank == 0 && pi->m->jrank == 0 && !fake) {
-            std::string tmp = fmt::format(FMT_STRING("A{}-{}.{}-{}"), ys[0], ys[1], s, s+bw->interval);
-            std::string tmptmp = tmp + ".tmp";
+            std::string const tmp = fmt::format(FMT_STRING("A{}-{}.{}-{}"), ys[0], ys[1], s, s+bw->interval);
+            std::string const tmptmp = tmp + ".tmp";
             FILE * f = fopen(tmptmp.c_str(), "wb");
             int rc = fwrite(xymats, A->elt_stride(), bw->m*bw->interval, f);
             fclose(f);
@@ -395,7 +395,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
 }
 
 // coverity[root_function]
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     param_list pl;
 

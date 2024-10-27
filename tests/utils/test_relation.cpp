@@ -74,9 +74,9 @@ test_compute_r (unsigned int nb)
     mpz_set_int64 (ta, a);
     mpz_set_uint64 (tb, b);
 
-    unsigned long r = relation_compute_r (a, b, p);
+    unsigned long const r = relation_compute_r (a, b, p);
 
-    unsigned long r2 = mpz_compute_r (ta, tb, tp);
+    unsigned long const r2 = mpz_compute_r (ta, tb, tp);
     if (r != r2)
     {
       gmp_fprintf (stderr, "ERROR: a=%" PRId64 " b=%" PRIu64" p=%" PRpr "\n"
@@ -100,7 +100,7 @@ int test_compute_all_r (unsigned int nb)
 
   for (unsigned int i = 0; i < nb; i++)
   {
-      int64_t a = i64_random(state);
+      int64_t const a = i64_random(state);
       uint64_t b = u64_random(state); b += !b;
       relation t1(a, b);
 
@@ -125,7 +125,7 @@ int test_compute_all_r (unsigned int nb)
       mpz_set_int64 (ta, t2.a);
       mpz_set_uint64 (tb, t2.b);
       mpz_set (tp, t2.sides[1][k].p);
-      unsigned long r = mpz_compute_r (ta, tb, tp);
+      unsigned long const r = mpz_compute_r (ta, tb, tp);
       if (r != mpz_get_ui(t1.sides[1][k].r))
       {
         gmp_fprintf (stderr, "ERROR: a=%" PRId64 " b=%" PRIu64" p=%" PRpr "\n"
@@ -172,8 +172,8 @@ test_conversion (unsigned int nb)
 
   for (unsigned int i = 0; i < nb; i++)
   {
-    uint64_t a = u64_random(state);
-    int64_t b = i64_random(state);
+    uint64_t const a = u64_random(state);
+    int64_t const b = i64_random(state);
 
     mpz_set_uint64 (t, a);
 
@@ -207,8 +207,7 @@ test_conversion (unsigned int nb)
   return err;
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   int err = 0;
   unsigned long iter = 10000;

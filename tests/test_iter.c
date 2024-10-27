@@ -68,7 +68,7 @@ test_iter_uint64_next(void *output, test_iter_t iter)
 
 
 #ifdef TESTDRIVE
-int main(int argc, char **argv)
+int main(int argc, char const * argv[])
 {
   test_iter_t iter;
   test_iter_init(iter, atoi(argv[1]), test_iter_int64_next);

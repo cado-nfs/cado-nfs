@@ -125,10 +125,10 @@ static void chomp(char *s) {
    Empty lines and comment lines (starting with '#') are skipped.
    If basepath != NULL, it is used as path before each read filename
 */
-char ** filelist_from_file(const char * basepath, const char * filename,
+char const ** filelist_from_file(const char * basepath, const char * filename,
                            int typ)
 {
-    char ** files = NULL;
+    char const ** files = NULL;
     int nfiles_alloc = 0;
     int nfiles = 0;
     FILE *f;
@@ -154,7 +154,7 @@ char ** filelist_from_file(const char * basepath, const char * filename,
 
         if (nfiles == nfiles_alloc) {
             nfiles_alloc += nfiles_alloc / 2 + 16;
-            files = (char**) realloc(files, nfiles_alloc * sizeof(char*));
+            files = (char const **) realloc(files, nfiles_alloc * sizeof(char const *));
         }
         if (basepath) {
             char * name;
@@ -170,21 +170,21 @@ char ** filelist_from_file(const char * basepath, const char * filename,
 
     if (nfiles == nfiles_alloc) {
         nfiles_alloc += nfiles_alloc / 2 + 16;
-        files = (char**) realloc(files, nfiles_alloc * sizeof(char*));
+        files = (char const **) realloc(files, nfiles_alloc * sizeof(char const *));
     }
     files[nfiles++] = NULL;
     return files;
 }
 
-void filelist_clear(char ** filelist)
+void filelist_clear(char const ** filelist)
 {
     if (!filelist) return;
-    for(char ** p = filelist ; *p ; p++)
-        free(*p);
+    for(char const ** p = filelist ; *p ; p++)
+        free((char *) *p);
     free(filelist);
 }
 
-int mkdir_with_parents(const char * dir, int fatal)
+int mkdir_with_parents(char const * dir, int fatal)
 {
     char * tmp = strdup(dir);
     int n = strlen(dir);

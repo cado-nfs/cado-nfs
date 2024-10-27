@@ -314,7 +314,7 @@ trialdiv_data::trial_divide (std::vector<uint64_t> & f, cxx_mpz & N, size_t max_
 
   for ( ; mpz_cmp_ui (N, 1UL) > 0 && max_factors ; max_factors--)
     {
-      size_t s = mpz_size(N);
+      size_t const s = mpz_size(N);
       mp_limb_t u = 0;
 #if VERBOSE
       gmp_printf ("s = %d, N = %Zd, ", s, N);
@@ -322,7 +322,7 @@ trialdiv_data::trial_divide (std::vector<uint64_t> & f, cxx_mpz & N, size_t max_
       ASSERT_ALWAYS (s <= TRIALDIV_MAXLEN);
       if (s == 1)
         {
-	  mp_limb_t t = mpz_getlimbn (N, 0);
+	  mp_limb_t const t = mpz_getlimbn (N, 0);
 	  while ((u = t * d->pinv) > d->plim)
 	    d++;
         }

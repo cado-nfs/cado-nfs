@@ -16,7 +16,7 @@
 
 void balancing_set_row_col_count(balancing & bal)
 {
-    unsigned int s = bal.nh * bal.nv;
+    unsigned int const s = bal.nh * bal.nv;
     unsigned int b = iceildiv(bal.nrows, s);
     for( ; b % MINIMUM_ITEMS_IN_BWC_CHUNKS ; b++);
     bal.trows = s * b;
@@ -39,9 +39,9 @@ void balancing_finalize(balancing & bal)
      * permutations if we have both a row and a column permutation in the
      * file, right?
      */
-    uint32_t c = bal.flags & FLAG_ROWPERM;
-    uint32_t r = bal.flags & FLAG_COLPERM;
-    uint32_t a = bal.flags & FLAG_REPLICATE;
+    uint32_t const c = bal.flags & FLAG_ROWPERM;
+    uint32_t const r = bal.flags & FLAG_COLPERM;
+    uint32_t const a = bal.flags & FLAG_REPLICATE;
     ASSERT_ALWAYS(!(c && r && a));
 
     if (bal.flags & FLAG_ROWPERM) {
@@ -170,9 +170,9 @@ void balancing_read_header_inner(balancing & bal, FILE * pfile)
      * permutations if we have both a row and a column permutation in the
      * file, right?
      */
-    uint32_t c = bal.flags & FLAG_ROWPERM;
-    uint32_t r = bal.flags & FLAG_COLPERM;
-    uint32_t a = bal.flags & FLAG_REPLICATE;
+    uint32_t const c = bal.flags & FLAG_ROWPERM;
+    uint32_t const r = bal.flags & FLAG_COLPERM;
+    uint32_t const a = bal.flags & FLAG_REPLICATE;
     ASSERT_ALWAYS(!(c && r && a));
 
 }
@@ -211,12 +211,12 @@ void balancing_read(balancing & bal, std::string const & filename)
     balancing_set_row_col_count(bal);
     if (bal.flags & FLAG_ROWPERM) {
         bal.rowperm = (uint32_t *) malloc(bal.trows * sizeof(uint32_t));
-        int rc = fread32_little(bal.rowperm, bal.trows, pfile);
+        int const rc = fread32_little(bal.rowperm, bal.trows, pfile);
         ASSERT_ALWAYS(rc == (int) bal.trows);
     }
     if (bal.flags & FLAG_COLPERM) {
         bal.colperm = (uint32_t *) malloc(bal.tcols * sizeof(uint32_t));
-        int rc = fread32_little(bal.colperm, bal.tcols, pfile);
+        int const rc = fread32_little(bal.colperm, bal.tcols, pfile);
         ASSERT_ALWAYS(rc == (int) bal.tcols);
     }
     fclose(pfile);

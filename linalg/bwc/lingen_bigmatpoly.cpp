@@ -437,8 +437,8 @@ bigmatpoly bigmatpoly::mul(bigmatpoly & a, bigmatpoly & b)/*{{{*/
     lc.zero();
     c.set_size(csize);
     ASSERT_ALWAYS(a.n == b.m);
-    unsigned int i = c.irank();
-    unsigned int j = c.jrank();
+    unsigned int const i = c.irank();
+    unsigned int const j = c.jrank();
     for(unsigned int k = 0 ; k < a.n1 ; k++) {
         lc.addmul(a.cell(i, k), b.cell(k, j));
     }
@@ -447,7 +447,7 @@ bigmatpoly bigmatpoly::mul(bigmatpoly & a, bigmatpoly & b)/*{{{*/
 
 bigmatpoly bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
 {
-    unsigned bsize = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
+    unsigned const bsize = MAX(a.size, c.size) - MIN(a.size, c.size) + 1;
     ASSERT_ALWAYS(a.n == c.m);
     ASSERT_ALWAYS(a.n1 == c.m1);
     bigmatpoly b(a.ab, a.get_model(), a.m, c.n, bsize);
@@ -460,8 +460,8 @@ bigmatpoly bigmatpoly::mp(bigmatpoly & a, bigmatpoly & c) /*{{{*/
     b.set_size(bsize);
     ASSERT_ALWAYS(lb.get_size() == bsize);
     ASSERT_ALWAYS(lb.capacity() >= lb.get_size());
-    unsigned int i = c.irank();
-    unsigned int j = c.jrank();
+    unsigned int const i = c.irank();
+    unsigned int const j = c.jrank();
     for(unsigned int k = 0 ; k < a.n1 ; k++) {
         lb.addmp(a.cell(i, k), c.cell(k, j));
     }
@@ -629,7 +629,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
     void gather_A(unsigned int i0, unsigned int iloop0, unsigned int iloop1)/*{{{*/
     {
         begin_smallstep("gather_A", b0 * b1);
-        unsigned int aj = a_jrank();
+        unsigned int const aj = a_jrank();
         unsigned int ak0mpi, ak1mpi;
         std::tie(ak0mpi, ak1mpi) = mpi_split1.nth_block(aj);
 
@@ -639,14 +639,14 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         /* XXX ak0 and co, and esp. ak1-ak0, are *NOT* identical across
          * mpi jobs. All that we have is ak1-ak0 <= b1 and bk1-bk0 <= b1.
          * In the non-mpi case, ak0==bk0 and ak1==bk1 */
-        unsigned int ak0 = ak0mpi + kk0;
-        unsigned int ak1 = std::min(ak1mpi, ak0 + b1);
+        unsigned int const ak0 = ak0mpi + kk0;
+        unsigned int const ak1 = std::min(ak1mpi, ak0 + b1);
 
         unsigned int ii0, ii1;
         std::tie(ii0, ii1) = loop0.nth_block(iloop0);
 
-        submatrix_range Ra  (i0 + ii0, ak0-ak0mpi, ii1 - ii0, ak1-ak0);
-        submatrix_range Rat (     0,   aj * b1,    ii1 - ii0, ak1-ak0);
+        submatrix_range const Ra  (i0 + ii0, ak0-ak0mpi, ii1 - ii0, ak1-ak0);
+        submatrix_range const Rat (     0,   aj * b1,    ii1 - ii0, ak1-ak0);
 
         /* This is the analogue of the "dft_A" step in the transform
          * case.
@@ -666,7 +666,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
     void gather_B(unsigned int j0, unsigned int iloop1, unsigned int iloop2)/*{{{*/
     {
         begin_smallstep("gather_B", b1 * b2);
-        unsigned int bi = b_irank();
+        unsigned int const bi = b_irank();
         unsigned int bk0mpi, bk1mpi;
         std::tie(bk0mpi, bk1mpi) = mpi_split1.nth_block(bi);
 
@@ -676,14 +676,14 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         /* XXX ak0 and co, and esp. ak1-ak0, are *NOT* identical across
          * mpi jobs. All that we have is ak1-ak0 <= b1 and bk1-bk0 <= b1.
          * In the non-mpi case, ak0==bk0 and ak1==bk1 */
-        unsigned int bk0 = bk0mpi + kk0;
-        unsigned int bk1 = std::min(bk1mpi, bk0 + b1);
+        unsigned int const bk0 = bk0mpi + kk0;
+        unsigned int const bk1 = std::min(bk1mpi, bk0 + b1);
 
         unsigned int jj0, jj1;
         std::tie(jj0, jj1) = loop2.nth_block(iloop2);
 
-        submatrix_range Rb   (bk0-bk0mpi, j0 + jj0, bk1-bk0, jj1 - jj0);
-        submatrix_range Rbt  (bi * b1,      0,      bk1-bk0, jj1 - jj0);
+        submatrix_range const Rb   (bk0-bk0mpi, j0 + jj0, bk1-bk0, jj1 - jj0);
+        submatrix_range const Rbt  (bi * b1,      0,      bk1-bk0, jj1 - jj0);
 
         b_peers.zero_with_size(b.get_size());
         matpoly::copy(b_peers.view(Rbt), b_local().view(Rb));
@@ -704,13 +704,13 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         begin_smallstep("addmul", b0 * b1 * b2 * r);
 
         // rounding might surprise us.
-        submatrix_range Ratxx(0,   0,   ii1 - ii0, r*b1);
-        submatrix_range Rbtxx(0,   0,   r*b1,      jj1 - jj0);
-        submatrix_range Rct  (cdst.i0 + ii0, cdst.j0 + jj0, ii1 - ii0, jj1 - jj0);
+        submatrix_range const Ratxx(0,   0,   ii1 - ii0, r*b1);
+        submatrix_range const Rbtxx(0,   0,   r*b1,      jj1 - jj0);
+        submatrix_range const Rct  (cdst.i0 + ii0, cdst.j0 + jj0, ii1 - ii0, jj1 - jj0);
 
-        matpoly::view_t c_loc(cdst.M, Rct);
-        matpoly::view_t a_loc = a_peers.view(Ratxx);
-        matpoly::view_t b_loc = b_peers.view(Rbtxx);
+        matpoly::view_t const c_loc(cdst.M, Rct);
+        matpoly::view_t const a_loc = a_peers.view(Ratxx);
+        matpoly::view_t const b_loc = b_peers.view(Rbtxx);
 
         OP_T::addcompose(c_loc, a_loc, b_loc);
 
@@ -746,8 +746,8 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         /* In the non-mpi case, mpi_split1 has one chunk only, 
          * rank==0, so that ak0mpi=bk0mpi=0 and ak1mpi=bk1mpi=a.n
          */
-        unsigned int aj = a_jrank();
-        unsigned int bi = b_jrank();
+        unsigned int const aj = a_jrank();
+        unsigned int const bi = b_jrank();
         unsigned int ak0mpi, ak1mpi;
         unsigned int bk0mpi, bk1mpi;
         std::tie(ak0mpi, ak1mpi) = mpi_split1.nth_block(aj);
@@ -765,10 +765,10 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
         loop2 = subdivision::by_block_size(j1 - j0, b2);
 
         ASSERT_ALWAYS(loop0.nblocks() == 1 || loop2.nblocks() == 1);
-        bool process_blocks_row_major = b0 == nrs0;
+        bool const process_blocks_row_major = b0 == nrs0;
 
         /* Now do a subblock */
-        submatrix_range Rc(i0, j0, i1-i0, j1-j0);
+        submatrix_range const Rc(i0, j0, i1-i0, j1-j0);
         matpoly::view_t cdst = c_local().view(Rc);
         cdst.zero();
 
@@ -776,7 +776,7 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
             if (process_blocks_row_major) {
                 ASSERT_ALWAYS(loop0.nblocks() == 1);
                 ASSERT_ALWAYS(nrs0 == b0);
-                unsigned int iloop0 = 0;
+                unsigned int const iloop0 = 0;
                 logline_printf(1, "gather_A (%u*%u)\n", b0, b1);
                 gather_A(i0, iloop0, iloop1);
                 for(unsigned int iloop2 = 0 ; iloop2 < loop2.nblocks() ; iloop2++) {
@@ -787,14 +787,14 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
                     addmul_for_block(cdst, iloop0, iloop2);
                 }
                 /* adjust counts */
-                unsigned int e2 = (iceildiv(nrs2, b2) - loop2.nblocks());
-                unsigned int x2 = e2 * b2;
+                unsigned int const e2 = (iceildiv(nrs2, b2) - loop2.nblocks());
+                unsigned int const x2 = e2 * b2;
                 skip_smallstep("gather_B", b1 * x2);
                 skip_smallstep("addmul", b0 * b1 * x2 * r);
             } else {
                 ASSERT_ALWAYS(loop2.nblocks() == 1);
                 ASSERT_ALWAYS(nrs2 == b2);
-                unsigned int iloop2 = 0;
+                unsigned int const iloop2 = 0;
                 logline_printf(1, "gather_B (%u*%u)\n", b1, b2);
                 gather_B(j0, iloop1, iloop2);
                 for(unsigned int iloop0 = 0 ; iloop0 < loop0.nblocks() ; iloop0++) {
@@ -805,8 +805,8 @@ template<typename OP_T> struct mp_or_mul : public OP_CTX {
                     addmul_for_block(cdst, iloop0, iloop2);
                 }
                 /* adjust counts */
-                unsigned int e0 = (iceildiv(nrs0, b0) - loop0.nblocks());
-                unsigned int x0 = e0 * b0;
+                unsigned int const e0 = (iceildiv(nrs0, b0) - loop0.nblocks());
+                unsigned int const x0 = e0 * b0;
                 skip_smallstep("gather_A", x0 * b1);
                 skip_smallstep("addmul", x0 * b1 * b2 * r);
             }
@@ -1143,10 +1143,10 @@ class gather_mat : public scatter_gather_base {/*{{{*/
     void mini_recv(size_t src_offset, size_t dst_offset, unsigned int i0, unsigned int i1, unsigned int j0, unsigned int j1, MPI_Request * & req)/*{{{*/
     {
         ASSERT_ALWAYS(!use_intermediary_tight);
-        unsigned int ii = R.flatten(i1, i0);
-        unsigned int jj = C.flatten(j1, j0);
-        unsigned int peer = i1 * n1 + j1;
-        unsigned int tag = ii * shell.n + jj;
+        unsigned int const ii = R.flatten(i1, i0);
+        unsigned int const jj = C.flatten(j1, j0);
+        unsigned int const peer = i1 * n1 + j1;
+        unsigned int const tag = ii * shell.n + jj;
         auto to = ab->vec_subvec(dst.part(ii, jj), dst_offset);
         auto from = ab->vec_subvec(src.my_cell().part(i0, j0), src_offset);
 
@@ -1190,7 +1190,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
             for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
                 for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
                     for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
-                        unsigned int peer = i1 * n1 + j1;
+                        unsigned int const peer = i1 * n1 + j1;
                         if (peer)
                             MPI_Wait(req, MPI_STATUS_IGNORE);
                         req++;
@@ -1206,9 +1206,9 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         MPI_Request * req = reqs;
         for(unsigned int i0 = 0 ; i0 < src.m0r() ; i0++) {
             for(unsigned int j0 = 0 ; j0 < src.n0r() ; j0++) {
-                unsigned int ii = R.flatten(src.irank(), i0);
-                unsigned int jj = C.flatten(src.jrank(), j0);
-                unsigned int tag = ii * shell.n + jj;
+                unsigned int const ii = R.flatten(src.irank(), i0);
+                unsigned int const jj = C.flatten(src.jrank(), j0);
+                unsigned int const tag = ii * shell.n + jj;
                 auto from = ab->vec_subvec(src.my_cell().part(i0, j0), src_offset);
                 /* battle const-deprived MPI prototypes... */
                 if (use_nonblocking) {
@@ -1252,12 +1252,12 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         v += R.nth_block_size(i1) * C.nth_block_start(j1);
         for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
             for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
-                unsigned int ii = R.flatten(i1, i0);
-                unsigned int jj = C.flatten(j1, j0);
+                unsigned int const ii = R.flatten(i1, i0);
+                unsigned int const jj = C.flatten(j1, j0);
                 auto to = ab->vec_subvec(dst.part(ii, jj), dst_offset);
-                unsigned int w = v + i0 * C.nth_block_size(j1) + j0;
-                unsigned int wi = w / shell.n;
-                unsigned int wj = w % shell.n;
+                unsigned int const w = v + i0 * C.nth_block_size(j1) + j0;
+                unsigned int const wi = w / shell.n;
+                unsigned int const wj = w % shell.n;
                 auto from = dst_partial.part(wi, wj);
                 ab->vec_set(to, from, roundup_simd(len));
             }
@@ -1266,22 +1266,22 @@ class gather_mat : public scatter_gather_base {/*{{{*/
 
     void post_block_recv(unsigned int i1, unsigned int j1, MPI_Request * & req)
     {
-        unsigned int peer = i1 * n1 + j1;
+        unsigned int const peer = i1 * n1 + j1;
         matpoly::ptr rank0_to;
 
         {
             unsigned int v = 0;
             v += R.nth_block_start(i1) * shell.n;
             v += R.nth_block_size(i1) * C.nth_block_start(j1);
-            unsigned int vi = v / shell.n;
-            unsigned int vj = v % shell.n;
+            unsigned int const vi = v / shell.n;
+            unsigned int const vj = v % shell.n;
             rank0_to = dst_partial.part(vi, vj);
         }
-        unsigned int blocksize = R.nth_block_size(i1) * C.nth_block_size(j1);
+        unsigned int const blocksize = R.nth_block_size(i1) * C.nth_block_size(j1);
 
         auto peer_from = src_partial.my_cell().part(0,0);
 
-        unsigned int tag = peer;
+        unsigned int const tag = peer;
 
         constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
         ASSERT_ALWAYS(batch_length % simd == 0);
@@ -1315,7 +1315,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         MPI_Request * req = reqs;
         for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
             for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
-                unsigned int peer = i1 * n1 + j1;
+                unsigned int const peer = i1 * n1 + j1;
                 if (use_nonblocking) {
                     if (peer) MPI_Wait(req, MPI_STATUS_IGNORE);
                     req++;
@@ -1329,8 +1329,8 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         ASSERT_ALWAYS(use_intermediary_tight);
         ASSERT_ALWAYS (rank());
         auto peer_to = src_partial.my_cell().part(0,0);
-        unsigned int tag = rank();
-        unsigned int blocksize = src.m0r() * src.n0r();
+        unsigned int const tag = rank();
+        unsigned int const blocksize = src.m0r() * src.n0r();
         if (use_nonblocking) {
             MPI_Request req[1];
             MPI_Isend((void*) peer_to, blocksize, mt, 0, tag, get_model().com[0], req);
@@ -1345,9 +1345,9 @@ class gather_mat : public scatter_gather_base {/*{{{*/
         /* XXX in dst_partial, the data is stored contiguously ! */
         for (unsigned int i = 0; i < src.m0r(); ++i) {
             for (unsigned int j = 0; j < src.n0r(); ++j) {
-                unsigned int v = i * src.n0r() + j;
-                unsigned int vi = v / n0;
-                unsigned int vj = v % n0;
+                unsigned int const v = i * src.n0r() + j;
+                unsigned int const vi = v / n0;
+                unsigned int const vj = v % n0;
                 auto to = ab->vec_subvec(src_partial.my_cell().part(vi, vj), 0);
                 auto from = ab->vec_subvec(src.my_cell().part(i, j), src_offset);
                 ab->vec_set(to, from, roundup_simd(len));
@@ -1429,7 +1429,7 @@ class gather_mat : public scatter_gather_base {/*{{{*/
          * throughout.
          */
         for(size_t offset = 0 ; offset < shell.size ; ) {
-            size_t len = MIN(batch_length, shell.size - offset);
+            size_t const len = MIN(batch_length, shell.size - offset);
 
             partial(offset, offset, len);
 
@@ -1489,10 +1489,10 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
     void mini_send(size_t src_offset, size_t dst_offset, unsigned int i0, unsigned int i1, unsigned int j0, unsigned int j1, MPI_Request * & req)/*{{{*/
     {
         ASSERT_ALWAYS(!use_intermediary_tight);
-        unsigned int ii = R.flatten(i1, i0);
-        unsigned int jj = C.flatten(j1, j0);
-        unsigned int peer = i1 * n1 + j1;
-        unsigned int tag = ii * shell.n + jj;
+        unsigned int const ii = R.flatten(i1, i0);
+        unsigned int const jj = C.flatten(j1, j0);
+        unsigned int const peer = i1 * n1 + j1;
+        unsigned int const tag = ii * shell.n + jj;
         auto from = ab->vec_subvec(src.part(ii, jj), src_offset);
         auto to = ab->vec_subvec(dst.my_cell().part(i0, j0), dst_offset);
 
@@ -1537,7 +1537,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
             for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
                 for(unsigned int j1 = 0 ; j1 < C.nblocks() ; j1++) {
                     for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
-                        unsigned int peer = i1 * n1 + j1;
+                        unsigned int const peer = i1 * n1 + j1;
                         if (peer)
                             MPI_Wait(req, MPI_STATUS_IGNORE);
                         req++;
@@ -1553,9 +1553,9 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         MPI_Request * req = reqs;
         for(unsigned int i0 = 0 ; i0 < dst.m0r() ; i0++) {
             for(unsigned int j0 = 0 ; j0 < dst.n0r() ; j0++) {
-                unsigned int ii = R.flatten(dst.irank(), i0);
-                unsigned int jj = C.flatten(dst.jrank(), j0);
-                unsigned int tag = ii * shell.n + jj;
+                unsigned int const ii = R.flatten(dst.irank(), i0);
+                unsigned int const jj = C.flatten(dst.jrank(), j0);
+                unsigned int const tag = ii * shell.n + jj;
                 auto to = ab->vec_subvec(dst.my_cell().part(i0, j0), dst_offset);
                 if (use_nonblocking) {
                     MPI_Irecv(to, 1, mt, 0, tag, get_model().com[0], req);
@@ -1598,12 +1598,12 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         v += R.nth_block_size(i1) * C.nth_block_start(j1);
         for(unsigned int i0 = 0 ; i0 < R.nth_block_size(i1) ; i0++) {
             for(unsigned int j0 = 0 ; j0 < C.nth_block_size(j1) ; j0++) {
-                unsigned int ii = R.flatten(i1, i0);
-                unsigned int jj = C.flatten(j1, j0);
+                unsigned int const ii = R.flatten(i1, i0);
+                unsigned int const jj = C.flatten(j1, j0);
                 auto from = ab->vec_subvec(src.part(ii, jj), src_offset);
-                unsigned int w = v + i0 * C.nth_block_size(j1) + j0;
-                unsigned int wi = w / shell.n;
-                unsigned int wj = w % shell.n;
+                unsigned int const w = v + i0 * C.nth_block_size(j1) + j0;
+                unsigned int const wi = w / shell.n;
+                unsigned int const wj = w % shell.n;
                 auto to = src_partial.part(wi, wj);
                 ab->vec_set(to, from, roundup_simd(len));
             }
@@ -1612,23 +1612,23 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
 
     void post_block_send(unsigned int i1, unsigned int j1, MPI_Request * & req)
     {
-        unsigned int peer = i1 * n1 + j1;
+        unsigned int const peer = i1 * n1 + j1;
         matpoly::srcptr rank0_from;
 
         {
             unsigned int v = 0;
             v += R.nth_block_start(i1) * shell.n;
             v += R.nth_block_size(i1) * C.nth_block_start(j1);
-            unsigned int vi = v / shell.n;
-            unsigned int vj = v % shell.n;
+            unsigned int const vi = v / shell.n;
+            unsigned int const vj = v % shell.n;
             rank0_from = src_partial.part(vi, vj);
         }
-        unsigned int blocksize = R.nth_block_size(i1) * C.nth_block_size(j1);
+        unsigned int const blocksize = R.nth_block_size(i1) * C.nth_block_size(j1);
 
         auto peer_to = dst_partial.my_cell().part(0,0);
 
         /* We can send the data now */
-        unsigned int tag = peer;
+        unsigned int const tag = peer;
 
         constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
         ASSERT_ALWAYS(batch_length % simd == 0);
@@ -1664,7 +1664,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         MPI_Request * req = reqs;
         for(unsigned int i1 = 0 ; i1 < m1 ; i1++) {
             for(unsigned int j1 = 0 ; j1 < n1 ; j1++) {
-                unsigned int peer = i1 * n1 + j1;
+                unsigned int const peer = i1 * n1 + j1;
                 if (peer) MPI_Wait(req, MPI_STATUS_IGNORE);
                 req++;
             }
@@ -1675,8 +1675,8 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         ASSERT_ALWAYS(use_intermediary_tight);
         ASSERT_ALWAYS (rank());
         auto peer_to = dst_partial.my_cell().part(0,0);
-        unsigned int tag = rank();
-        unsigned int blocksize = dst.m0r() * dst.n0r();
+        unsigned int const tag = rank();
+        unsigned int const blocksize = dst.m0r() * dst.n0r();
         if (use_nonblocking) {
             MPI_Request req[1];
             MPI_Irecv(peer_to, blocksize, mt, 0, tag, get_model().com[0], req);
@@ -1691,9 +1691,9 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
         /* XXX in dst_partial, the data is stored contiguously ! */
         for (unsigned int i = 0; i < dst.m0r(); ++i) {
             for (unsigned int j = 0; j < dst.n0r(); ++j) {
-                unsigned int v = i * dst.n0r() + j;
-                unsigned int vi = v / n0;
-                unsigned int vj = v % n0;
+                unsigned int const v = i * dst.n0r() + j;
+                unsigned int const vi = v / n0;
+                unsigned int const vj = v % n0;
                 auto from = ab->vec_subvec(dst_partial.my_cell().part(vi, vj), 0);
                 auto to = ab->vec_subvec(dst.my_cell().part(i, j), dst_offset);
                 ab->vec_set(to, from, roundup_simd(len));
@@ -1786,7 +1786,7 @@ class scatter_mat : public scatter_gather_base {/*{{{*/
          * throughout.
          */
         for(size_t offset = 0 ; offset < shell.size ; ) {
-            size_t len = MIN(batch_length, shell.size - offset);
+            size_t const len = MIN(batch_length, shell.size - offset);
 
             partial(offset, offset, len);
 

@@ -439,16 +439,16 @@ declare_usage (param_list pl)
 }
 
 static void
-usage (param_list pl, char *argv0)
+usage (param_list pl, char const * argv0)
 {
   param_list_print_usage (pl, argv0, stderr);
   exit(EXIT_FAILURE);
 }
 
 int
-main (int argc, char * argv[])
+main (int argc, char const * argv[])
 {
-    char * argv0 = argv[0];
+    char const * argv0 = argv[0];
     FILE *outfile = NULL;
 
     param_list pl;
@@ -535,7 +535,7 @@ main (int argc, char * argv[])
         free(lpb_arg);
     }
 
-    char ** files = filelist ? filelist_from_file(basepath, filelist, 0) : argv;
+    char const ** files = filelist ? filelist_from_file(basepath, filelist, 0) : argv;
 
     if (outfilename)
     {

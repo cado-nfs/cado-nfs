@@ -48,8 +48,7 @@ test_batchinvredc_u32(const uint32_t *a, const uint32_t p, const uint32_t invp, 
 
 /* The usual tests command line parameters "-seed" and "-iter" are accepted. */
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long N = 100;
   bool all_ok = true;

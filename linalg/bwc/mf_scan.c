@@ -62,7 +62,7 @@ static void autodetection_error(const char * what)
     exit(1);
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     param_list pl;
 

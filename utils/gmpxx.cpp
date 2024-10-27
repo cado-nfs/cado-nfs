@@ -35,14 +35,14 @@ inline int getbase(ostream const& o)
 
 ostream& operator<<(ostream& os, mpz_srcptr x)
 {
-    const unique_ptr<char, free_delete> str(mpz_get_str(nullptr, getbase(os), x));
+    const unique_ptr<char, free_delete<char>> str(mpz_get_str(nullptr, getbase(os), x));
     os << str.get();
     return os;
 }
 
 ostream& operator<<(ostream& os, mpq_srcptr x)
 {
-    const unique_ptr<char, free_delete> str(mpq_get_str(nullptr, getbase(os), x));
+    const unique_ptr<char, free_delete<char>> str(mpq_get_str(nullptr, getbase(os), x));
     os << str.get();
     return os;
 }

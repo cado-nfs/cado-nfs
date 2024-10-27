@@ -62,8 +62,7 @@ typedef struct {
 } stats_t;
 
 
-int 
-main (int argc, char **argv)
+int main(int argc, char const * argv[])
 {
   mpz_t E, m_c;
   unsigned long N, O, c, c_gcdiv_d, p, i, j, imin = 0, imax = 0;

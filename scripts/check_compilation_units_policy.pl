@@ -105,7 +105,7 @@ FILE: for my $f (@all_files) {
         } else {
             if (/^\s*#\s*include/) {
                 push @includes, [ $lnum, $_ ];
-                if (defined($self_include) && /\"$self_include\"/) {
+                if (defined($self_include) && /[\"\/]$self_include\"/) {
                     push @include_self, $aa;
                 }
                 if (/.*cado\.h/) { push @include_cado, $aa; }

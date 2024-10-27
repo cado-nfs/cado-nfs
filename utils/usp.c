@@ -599,8 +599,7 @@ usp_root_interval_refine (usp_root_interval_ptr r, mpz_poly_srcptr P, double pre
 #undef MAX_LOOPS
 
 #ifdef MAIN
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
   int i, s, n, nroots, verbose = 1;
   double T = 0.0;

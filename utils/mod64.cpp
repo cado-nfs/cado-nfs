@@ -123,13 +123,13 @@ Modulus64::inv_powerof2 (Residue &r, const Residue &A) const
       set(r, even_inv_lookup_table[(y-1) >> 1] & (x-1));
     else
     {
-      uint64_t h = x >> (u64arith_ctz(x) >> 1);
-            Modulus64 m2(h);
+      uint64_t const h = x >> (u64arith_ctz(x) >> 1);
+            Modulus64 const m2(h);
       Residue B(*this);
       m2.set_reduced (B, (y & (h-1)));
 
       m2.inv_powerof2 (r, B);
-      uint64_t t = get_u64(r);
+      uint64_t const t = get_u64(r);
       set(r,  (2 * t - t*t*y) & (x-1));
     }
     return 1;

@@ -42,10 +42,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "fmt/core.h"
 #include "fmt/format.h"
 
-char * argv0;
+char const * argv0;
 
 static void
-usage(cxx_param_list & pl, char* argv0)
+usage(cxx_param_list & pl, char const * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -115,12 +115,12 @@ void freerel_data_t::operator()(renumber_t & R, p_r_values_t p, index_t idx, ren
         for(size_t i = 1 ; i < full_sides.size() ; i++) {
             /* print a new free relation */
             sink << fmt::format(FMT_STRING("{:x},0:"), p);
-            int side0 = full_sides[i-1].first;
-            index_t i0 = full_sides[i-1].second;
-            unsigned int n0 = C.nroots[side0];
-            int side1 = full_sides[i].first;
-            index_t i1 = full_sides[i].second;
-            unsigned int n1 = C.nroots[side1];
+            int const side0 = full_sides[i-1].first;
+            index_t const i0 = full_sides[i-1].second;
+            unsigned int const n0 = C.nroots[side0];
+            int const side1 = full_sides[i].first;
+            index_t const i1 = full_sides[i].second;
+            unsigned int const n1 = C.nroots[side1];
             bool first = true;
             sink << std::hex;
             for(unsigned int k = 0 ; k < n0 ; k++, first=false) {
@@ -157,7 +157,7 @@ declare_usage(param_list pl)
 
 // coverity[root_function]
 int
-main(int argc, char* argv[])
+main(int argc, char const * argv[])
 {
     argv0 = argv[0];
     cxx_param_list pl;
@@ -250,13 +250,13 @@ main(int argc, char* argv[])
     renumber_t renumber_table(cpoly);
     renumber_table.set_lpb(lpb);
 
-    int max_lpb = renumber_table.get_max_lpb();
+    int const max_lpb = renumber_table.get_max_lpb();
     if (max_lpb >= (int) sizeof(unsigned long) * CHAR_BIT) {
       fprintf (stderr, "Error, cannot handle lpb >= %zu (max(lpbs) is %d)\n",
                        sizeof(unsigned long) * CHAR_BIT, max_lpb);
       abort();
     }
-    unsigned long lpbmax = 1UL << max_lpb;
+    unsigned long const lpbmax = 1UL << max_lpb;
     printf("Generating renumber table for 2 <= p <= %lu\n", lpbmax);
 
     /* This reads the options:
@@ -264,7 +264,7 @@ main(int argc, char* argv[])
      * renumber
      *
      */
-    index_t R_max_index = renumber_table.build(pl, for_dl, F.get());
+    index_t const R_max_index = renumber_table.build(pl, for_dl, F.get());
 
     if (F.get()) {
         /* /!\ Needed by the Python script. /!\ */

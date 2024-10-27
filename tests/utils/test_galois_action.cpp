@@ -9,9 +9,9 @@ test_galois_apply_one(galois_action const & G,
                       bool (*is_fixed_point) (unsigned long r, unsigned long p)){
     bool ret = true;
 
-    std::vector<unsigned long> P { 2, 3, 5, 11, 23, 101 };
+    std::vector<unsigned long> const P { 2, 3, 5, 11, 23, 101 };
 
-    for (unsigned long p: P) {
+    for (unsigned long const p: P) {
         if ((p == 2 && (G.get_order() == 4 || G.get_order() == 6))
                 || (p == 3 && G.get_order() == 6))
             /* skip 2 for action of order 4 and 6, skip 3 for action
@@ -59,28 +59,28 @@ test_galois_apply()
     bool ret = true;
 
     /* galois action identity: every r is a fixed point */
-    galois_action Gnone("none");
+    galois_action const Gnone("none");
     auto is_fixed_point_none = [](unsigned long, unsigned long) {
         return true;
     };
     ret &= test_galois_apply_one(Gnone, is_fixed_point_none);
 
     /* galois action x->-x: only fixed points are 0, p (=oo) and (r=1,p=2) */
-    galois_action Gneg("_y");
+    galois_action const Gneg("_y");
     auto is_fixed_point_neg = [](unsigned long r, unsigned long p) {
             return p == 2 || r == 0 || r == p;
     };
     ret &= test_galois_apply_one(Gneg, is_fixed_point_neg);
 
     /* galois action x->1/x: only fixed points are 1 and -1 */
-    galois_action Ginv("1/y");
+    galois_action const Ginv("1/y");
     auto is_fixed_point_inv = [](unsigned long r, unsigned long p) {
             return r == 1 || r == p-1;
     };
     ret &= test_galois_apply_one(Ginv, is_fixed_point_inv);
 
     /* galois action x->1-1/x: fixed points are such that r^2-r+1 mod p == 0 */
-    galois_action G31("autom3.1");
+    galois_action const G31("autom3.1");
     auto is_fixed_point_31 = [](unsigned long r, unsigned long p) {
             /* only use with small values to avoid overflow */
             return ((r*r-r+1) % p) == 0;
@@ -88,7 +88,7 @@ test_galois_apply()
     ret &= test_galois_apply_one(G31, is_fixed_point_31);
 
     /* galois action x->-1-1/x: fixed points are such that r^2+r+1 mod p == 0 */
-    galois_action G32("autom3.2");
+    galois_action const G32("autom3.2");
     auto is_fixed_point_32 = [](unsigned long r, unsigned long p) {
             /* only use with small values to avoid overflow */
             return ((r*r+r+1) % p) == 0;
@@ -96,7 +96,7 @@ test_galois_apply()
     ret &= test_galois_apply_one(G32, is_fixed_point_32);
 
     /* galois action x->-(x+1)/(x-1): fixed points are s.t. r^2+1 mod p == 0 */
-    galois_action G41("autom4.1");
+    galois_action const G41("autom4.1");
     auto is_fixed_point_41 = [](unsigned long r, unsigned long p) {
             /* only use with small values to avoid overflow */
             return ((r*r+1) % p) == 0;
@@ -104,7 +104,7 @@ test_galois_apply()
     ret &= test_galois_apply_one(G41, is_fixed_point_41);
 
     /* galois action x->-(2*x+1)/(x-1): fixed points are s.t. r^2+r+1 mod p == 0 */
-    galois_action G61("autom6.1");
+    galois_action const G61("autom6.1");
     auto is_fixed_point_61 = [](unsigned long r, unsigned long p) {
             /* only use with small values to avoid overflow */
             return ((r*r+r+1) % p) == 0;
@@ -139,7 +139,7 @@ test_galois_hash()
     /*
      * galois action identity
      */
-    galois_action Gnone("none");
+    galois_action const Gnone("none");
     TEST_HASH_NEQ(Gnone, -42, 17, -17, 42); /* h(a, b) != h(-b, a) */
     TEST_HASH_NEQ(Gnone, 42, 17, 17, 42);   /* h(a, b) != h(b, a) */
     TEST_HASH_NEQ(Gnone, -42, 17, 42, 17);  /* h(a, b) != h(-a, b) */
@@ -147,7 +147,7 @@ test_galois_hash()
     /*
      * galois action x->-x
      */
-    galois_action Gneg("_y");
+    galois_action const Gneg("_y");
     TEST_HASH_NEQ(Gneg, -42, 17, -17, 42);  /* h(a, b) != h(-b, a) */
     TEST_HASH_NEQ(Gneg, 42, 17, 17, 42);    /* h(a, b) != h(b, a) */
     TEST_HASH_EQ(Gneg, -42, 17, 42, 17);    /* h(a, b) == h(-a, b) */
@@ -155,7 +155,7 @@ test_galois_hash()
     /*
      * galois action x->1/x
      */
-    galois_action Ginv("1/y");
+    galois_action const Ginv("1/y");
     TEST_HASH_EQ(Ginv, -42, 17, -17, 42);   /* h(a, b) == h(-b, a) */
     TEST_HASH_EQ(Ginv, 42, 17, 17, 42);     /* h(a, b) == h(b, a) */
     TEST_HASH_EQ(Ginv, -42, 17, -17, 42);   /* h(a, b) == h(-b, -a) */
@@ -164,7 +164,7 @@ test_galois_hash()
     /*
      * galois action x->1-1/x
      */
-    galois_action G31("autom3.1");
+    galois_action const G31("autom3.1");
     /* test case: a < 0 < b */
     TEST_HASH_EQ(G31, -17, 42, 42, 59);     /* h(a, b) == h(b, b-a) */
     TEST_HASH_EQ(G31, -17, 42, 59, 17);     /* h(a, b) == h(b-a, -a) */
@@ -186,7 +186,7 @@ test_galois_hash()
     /*
      * galois action x->-1-1/x
      */
-    galois_action G32("autom3.2");
+    galois_action const G32("autom3.2");
     /* test case: 0 < a */
     TEST_HASH_EQ(G32, 17, 42, -42, 59);     /* h(a, b) == h(-b, a+b) */
     TEST_HASH_EQ(G32, 17, 42, -59, 17);     /* h(a, b) == h(-a-b, a) */
@@ -208,7 +208,7 @@ test_galois_hash()
     /*
      * galois action x->-(x+1)/(x-1)
      */
-    galois_action G41("autom4.1");
+    galois_action const G41("autom4.1");
     /* test case: a < -b < 0 */
     TEST_HASH_EQ(G41, -42, 17, 59, 25);     /* h(a, b) == h(b-a, -(a+b)) */
     TEST_HASH_EQ(G41, -42, 17, 17, 42);     /* h(a, b) == h(b, -a) */
@@ -233,7 +233,7 @@ test_galois_hash()
     /*
      * galois action x->-(2*x+1)/(x-1)
      */
-    galois_action G61("autom6.1");
+    galois_action const G61("autom6.1");
     /* test case: 0 < b < a */
     TEST_HASH_EQ(G61, 42, 17, 25, 76);    /* h(a, b) == h(a-b, a+2*b) */
     TEST_HASH_EQ(G61, 42, 17, -17, 59);   /* h(a, b) == h(-b, a+b) */
@@ -282,8 +282,7 @@ test_galois_hash()
 }
 
 // coverity[root_function]
-int
-main(int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
     unsigned long iter = 100;
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);

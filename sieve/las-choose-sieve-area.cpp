@@ -29,7 +29,7 @@ static bool choose_sieve_area(las_info const & las,
 {
     sieve_range_adjust Adj;
 
-    int adjust_strategy = las.adjust_strategy;
+    int const adjust_strategy = las.adjust_strategy;
     {
 
     /* Our business: find an appropriate siever_config, that is
@@ -79,7 +79,7 @@ static bool choose_sieve_area(las_info const & las,
 
     /* Try strategies for adopting the sieving range */
 
-    int should_discard = !Adj.sieve_info_adjust_IJ();
+    int const should_discard = !Adj.sieve_info_adjust_IJ();
 
     if (should_discard) {
         if (never_discard) {

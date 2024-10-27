@@ -13,7 +13,7 @@ target_link_libraries (makefb utils)
 
 add_library (trialdiv OBJECT trialdiv.cpp)
 
-add_library(las_core_0 OBJECT fb.cpp las-side-config.cpp)
+add_library(las_core_0 OBJECT las-side-config.cpp)
 
 add_executable(freerel freerel.cpp $<TARGET_OBJECTS:las_core_0>)
 target_link_libraries(freerel utils)
@@ -73,6 +73,7 @@ add_library(las_core_c OBJECT
 )
 
 set(las_multi_a_sources
+        fb.cpp
 	bucket.cpp
 	las-fill-in-buckets.cpp
 	las-smallsieve.cpp

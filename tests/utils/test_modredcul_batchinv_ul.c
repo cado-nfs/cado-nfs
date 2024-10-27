@@ -240,8 +240,7 @@ test_modredcul_batch_Q_to_Fp(const unsigned long num, const unsigned long den,
   return ok;
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 20;
   int ok = 1;

@@ -74,8 +74,10 @@ struct matmul_top_data {
     pi_datatype_ptr pitype;
     /* These n[] and n0[] correspond to the dimensions of the product
      *
-     * n[0] is matrices[0]->n[0]
-     * n[1] is matrices[nmatrices-1]->n[1]
+     * n[0] is matrices[0]->n[0] (number of rows, includding padding.)
+     * n[1] is matrices[nmatrices-1]->n[1] (number of columns, includding padding.)
+     *
+     * and without padding:
      * n0[0] is matrices[0]->n0[0]
      * n0[1] is matrices[nmatrices-1]->n0[1]
      */

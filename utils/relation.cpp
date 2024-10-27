@@ -101,7 +101,7 @@ void relation::print (FILE *file, const char *prefix) const
     std::ostringstream os;
     if (prefix) os << prefix;
     os << *this << '\n';
-    int rc = fputs(os.str().c_str(), file);
+    int const rc = fputs(os.str().c_str(), file);
     if (rc < 0) {
         perror("Error writing relation");
         abort();
@@ -110,7 +110,7 @@ void relation::print (FILE *file, const char *prefix) const
 
 std::ostream& operator<<(std::ostream& os, relation const &rel)
 {
-    IoStreamFlagsRestorer dummy(os);
+    IoStreamFlagsRestorer const dummy(os);
     {
         os << rel.az << ',' << rel.bz;
         os << std::hex;
@@ -165,7 +165,7 @@ void relation::add(unsigned int side_index, unsigned long p)
 void relation::fixup_r(bool also_rational)
 {
     for(unsigned int side_index = 0 ; side_index < sides.size() ; side_index++) {
-        int side = active_sides[side_index];
+        int const side = active_sides[side_index];
         if (!also_rational) {
             if ((int) side == rational_side)
                 continue;

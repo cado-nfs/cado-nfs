@@ -94,7 +94,7 @@ fm_t *tabular_fm_get_fm(tabular_fm_t * t, int index)
 
 void tabular_fm_concat(tabular_fm_t * t1, tabular_fm_t * t2)
 {
-    int len = t2->index;
+    int const len = t2->index;
     for (int i = 0; i < len; i++)
 	tabular_fm_add_fm(t1, t2->tab[i]);
 }
@@ -115,7 +115,7 @@ bool tabular_fm_is_zero(tabular_fm_t * t, int index)
 tabular_fm_t *extract_fm_method(tabular_fm_t * t, int method, int curve)
 {
     tabular_fm_t *res = tabular_fm_create();
-    int len = t->index;
+    int const len = t->index;
     for (int i = 0; i < len; i++) {
 	fm_t *el = t->tab[i];
 	if ((int)el->method[0] == method) {
@@ -140,7 +140,7 @@ int tabular_fm_print(tabular_fm_t * t)
 
 int tabular_fm_fprint(FILE * file, tabular_fm_t * t)
 {
-    int len = t->index;
+    int const len = t->index;
     for (int i = 0; i < len; i++) {
 	fm_t *elem = tabular_fm_get_fm(t, i);
 	if (fm_fprint(file, elem) < 0)
@@ -171,9 +171,9 @@ static fm_t *sub_routine_fm_fscanf(FILE * file, int *current_char)
 {
     fm_t *fm = fm_create();
 
-    int len_method = 100;
-    int len_proba = 100;
-    int len_time = 100;
+    int const len_method = 100;
+    int const len_proba = 100;
+    int const len_time = 100;
 
     unsigned long method[len_method];
     double proba[len_proba];
@@ -222,7 +222,7 @@ tabular_fm_t* tabular_fm_fscan(FILE * file)
 	return NULL;
     tabular_fm_t * res = tabular_fm_create ();
     int current_char = fgetc(file);
-    int rc = ungetc(current_char, file);
+    int const rc = ungetc(current_char, file);
     ASSERT_ALWAYS(rc != EOF);
     while (current_char != EOF) {
 	fm_t *fm = sub_routine_fm_fscanf(file, &current_char);
@@ -248,10 +248,10 @@ int fm_cmp(fm_t * el1, fm_t * el2)
     /*assume that the variable len_p_min is the same for the both
       fm_t.*/
     //compare the probabilities!
-    int len1 = el1->len_proba;
-    int len2 = el2->len_proba;
+    int const len1 = el1->len_proba;
+    int const len2 = el2->len_proba;
 
-    int len = (len1 < len2) ? len1 : len2;
+    int const len = (len1 < len2) ? len1 : len2;
     double diff_proba = 0;
     for (int i = 0; i < len; i++) 
 	if (el1->proba[i] > EPSILON_DBL && el2->proba[i] > EPSILON_DBL) 

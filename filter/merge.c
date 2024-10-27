@@ -159,7 +159,7 @@ declare_usage(param_list pl)
 }
 
 static void
-usage (param_list pl, char *argv0)
+usage (param_list pl, const char * argv0)
 {
     param_list_print_usage(pl, argv0, stderr);
     exit(EXIT_FAILURE);
@@ -262,7 +262,7 @@ static void
 filter_matrix_read (filter_matrix_t *mat, const char *purgedname)
 {
   uint64_t nread;
-  char *fic[2] = {(char *) purgedname, NULL};
+  char const * fic[2] = {purgedname, NULL};
 
   /* first check if purgedname is seekable. if yes, we can do multithread
    * I/O */
@@ -1401,10 +1401,9 @@ void sanity_check_matrix_sizes(filter_matrix_t * mat MAYBE_UNUSED)
 #endif
 }
 
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-    char *argv0 = argv[0];
+    const char *argv0 = argv[0];
 
     filter_matrix_t mat[1];
     FILE * history;

@@ -122,7 +122,7 @@ print_cadopoly (FILE *fp, cado_poly_srcptr cpoly)
    Print f, g, lognorm, skew, alpha, MurphyE, REV, time duration.
 */
 void
-print_cadopoly_extra (FILE *fp, cado_poly cpoly, int argc, char *argv[], double st)
+print_cadopoly_extra (FILE *fp, cado_poly cpoly, int argc, char const * argv[], double st)
 {
    int i;
 

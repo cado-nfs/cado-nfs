@@ -11,7 +11,7 @@
  * which matches the desided format.
  */
 
-// NOLINTBEGIN(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,concurrency-mt-unsafe,cert-err34-c)
+// NOLINTBEGIN(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,cert-err34-c)
 void
 purgedfile_read_firstline (const char *fname, uint64_t *nrows, uint64_t *ncols)
 {
@@ -37,4 +37,4 @@ purgedfile_read_firstline (const char *fname, uint64_t *nrows, uint64_t *ncols)
   fclose_maybe_compressed(f_tmp, fname);
   exit(EXIT_FAILURE);
 }
-// NOLINTEND(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,concurrency-mt-unsafe,cert-err34-c)
+// NOLINTEND(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,cert-err34-c)

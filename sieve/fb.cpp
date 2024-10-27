@@ -121,8 +121,8 @@ fb_is_power (fbprime_t q, unsigned long *final_k)
   maxk = fb_log_2(q);
   for (k = maxk; k >= 2; k--)
     {
-      double dp = pow ((double) q, 1.0 / (double) k);
-      double rdp = trunc(dp + 0.5);
+      double const dp = pow ((double) q, 1.0 / (double) k);
+      double const rdp = trunc(dp + 0.5);
       if (fabs(dp - rdp) < 0.001) {
         p = (uint32_t) rdp ;
         if (q % p == 0) {
@@ -218,7 +218,7 @@ fb_entry_general::read_roots (const char *lineptr, const unsigned char nexp,
         }
         last_t = t;
 
-        fb_root_p1 R = fb_root_p1::from_old_format(t, q);
+        fb_root_p1 const R = fb_root_p1::from_old_format(t, q);
 
         roots[nr_roots++] = fb_general_root(R, nexp, oldexp);
         if (*lineptr != '\0' && *lineptr != ',') {
@@ -497,7 +497,7 @@ fb_linear_root (cxx_mpz_poly const & poly, const fbprime_t q)
     {
       ASSERT_ALWAYS(mpz_gcd_ui(NULL, mpz_poly_coeff_const(poly, 1), q) > 1);
       /* invert r0 instead. */
-      int rc = modul_inv (r0, r0, m);
+      int const rc = modul_inv (r0, r0, m);
       ASSERT_ALWAYS(rc != 0);
     }
 
@@ -660,7 +660,7 @@ struct fb_factorbase::helper_functor_append {
              * field */
             if (!isG && N > deg) return;
             for(auto it = pool.begin(); it != pool.end(); ) {
-                fb_entry_general E = std::move(*it);
+                fb_entry_general const E = std::move(*it);
                 /* see above */
                 ASSERT(E.nr_roots > 0 && E.nr_roots <= deg);
                 /* why E.nr_roots == deg-1 ? Because it *can* happen,
@@ -670,12 +670,12 @@ struct fb_factorbase::helper_functor_append {
                  * 
                  * (on the rsa155 polynomial, this happens mod 11 and 43).
                  */
-                bool must_go_to_general = !E.is_simple() || E.k > 1
+                bool const must_go_to_general = !E.is_simple() || E.k > 1
                     || E.nr_roots == (deg-1)
                     /* || E.q < powlim TODO */;
 
-                bool ok1 = isG && must_go_to_general;
-                bool ok2 = !isG && !must_go_to_general && N == E.nr_roots;
+                bool const ok1 = isG && must_go_to_general;
+                bool const ok2 = !isG && !must_go_to_general && N == E.nr_roots;
                 if (ok1 || ok2) {
                     auto it_next = it;
                     ++it_next;
@@ -767,8 +767,8 @@ struct helper_functor_count_weight_parts : public fb_factorbase::slicing::stats_
             constexpr int n = FB_ENTRY_TYPE::is_general_type ? -1 : FB_ENTRY_TYPE::fixed_nr_roots;
 
             for(int i = 0 ; i < FB_MAX_PARTS ; i++) {
-                size_t k0 = local_thresholds[i][1+n];
-                size_t k1 = local_thresholds[i+1][1+n];
+                size_t const k0 = local_thresholds[i][1+n];
+                size_t const k1 = local_thresholds[i+1][1+n];
                 if (k1 != k0 && i > toplevel) toplevel = i;
                 primes[i] += k1 - k0;
                 weight[i] += x.weight_delta(k0, k1);
@@ -801,8 +801,8 @@ struct helper_functor_dispatch_small_sieved_primes {
             /* the product td_thresh * it->get_nr_roots() will be
              * folded outside the loop for the most common cases.
              */
-            size_t k0 = local_thresholds[0][1+n];
-            size_t k1 = local_thresholds[1][1+n];
+            size_t const k0 = local_thresholds[0][1+n];
+            size_t const k1 = local_thresholds[1][1+n];
             for(size_t k = k0 ; k < k1 ; ++k) {
                 FB_ENTRY_TYPE const & E(x[k]);
                 if (E.get_q() < K.skipped) {
@@ -810,7 +810,7 @@ struct helper_functor_dispatch_small_sieved_primes {
                         S.small_sieve_entries.skipped.push_back(E.p);
                     continue;
                 }
-                fb_entry_general G(E);
+                fb_entry_general const G(E);
                 /* Currently, trial division gobbles factors as long as
                  * they are found. Therefore it does not make sense to
                  * resieve powers of trial-divided primes.
@@ -935,7 +935,7 @@ struct find_value_change_points_recursive {
 
 #if 0
 /* test code */
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     double scale = 1;
     if (argc == 2) {
@@ -1019,10 +1019,10 @@ struct helper_functor_subdivide_slices {
             typedef std::vector<slice_t> vslice_t;
 
             constexpr int n = FB_ENTRY_TYPE::is_general_type ? -1 : FB_ENTRY_TYPE::fixed_nr_roots;
-            size_t k0 = local_thresholds[part_index][1+n];
-            size_t k1 = local_thresholds[part_index + 1][1+n];
+            size_t const k0 = local_thresholds[part_index][1+n];
+            size_t const k1 = local_thresholds[part_index + 1][1+n];
 
-            size_t interval_width = k1 - k0;
+            size_t const interval_width = k1 - k0;
             if (!interval_width) return;
             typedef typename ventry_t::const_iterator it_t;
 
@@ -1057,12 +1057,12 @@ struct helper_functor_subdivide_slices {
             for(auto const & s : pool) {
                 /* s is a slice with common logp value. Maybe we have to
                  * split it. */
-                unsigned char cur_logp = s.logp;
+                unsigned char const cur_logp = s.logp;
                 auto swb = x.weight_begin() + (s.begin() - x.begin());
                 auto swe = x.weight_begin() + (s.end() - x.begin());
-                double w0 = *swb;
-                size_t npieces_for_addressable_slices = iceildiv(s.size(), std::numeric_limits<slice_offset_t>::max());
-                size_t npieces_for_no_bulky_slice = ceil(s.weight / max_slice_weight);
+                double const w0 = *swb;
+                size_t const npieces_for_addressable_slices = iceildiv(s.size(), std::numeric_limits<slice_offset_t>::max());
+                size_t const npieces_for_no_bulky_slice = ceil(s.weight / max_slice_weight);
                 if (npieces_for_no_bulky_slice > 1 || npieces_for_addressable_slices > 1)
                     verbose_output_print (0, 4, "# [side-%d part %d %s logp=%d; %zu entries, weight=%f]: min %zu slices to be addressable, min %zu to make sure weight does not exceed cap %f\n",
                             side,
@@ -1088,7 +1088,7 @@ struct helper_functor_subdivide_slices {
                     it_t jt = s.end();
                     ssplits.push_back(jt);
                     for(size_t k = 1 ; k <= npieces ; ++k) {
-                        double target = w0 + ((npieces-k) * s.weight) / npieces;
+                        double const target = w0 + ((npieces-k) * s.weight) / npieces;
                         /* Find first position where the cdf is >= target */
                         it_t it;
                         if (k == npieces) {
@@ -1245,18 +1245,18 @@ fb_factorbase::slicing::slicing(fb_factorbase const & fb, fb_factorbase::key_typ
     slice_index_t s = 0;
     for (int i = 1; i < FB_MAX_PARTS; i++) {
         parts[i].first_slice_index = s;
-        double max_slice_weight = D.weight[i] / 4 / K.nb_threads;
+        double const max_slice_weight = D.weight[i] / 4 / K.nb_threads;
         helper_functor_subdivide_slices SUB { parts[i], fb.side, i, K, local_thresholds, max_slice_weight, s };
         multityped_array_foreach(SUB, fb.entries);
         s += parts[i].nslices();
     }
 
     for (int i = 0; i <= toplevel; i++) {
-        size_t nr_primes = D.primes[i];
-        size_t nr_roots = D.ideals[i];
-        double weight = D.weight[i];
+        size_t const nr_primes = D.primes[i];
+        size_t const nr_roots = D.ideals[i];
+        double const weight = D.weight[i];
         // total_weight += weight;
-        int side = fb.side;
+        int const side = fb.side;
         if (!nr_primes) continue;
 
         std::ostringstream os;
@@ -1471,8 +1471,8 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
 {
     cxx_mpz_poly const & poly(f);
     /* Prepare for computing powers up to that limit */
-    decltype(powlim) plim = (powlim == std::numeric_limits<decltype(powlim)>::max()) ? lim : powlim;
-    std::vector<fb_power_t> powers(fb_powers(plim));
+    decltype(powlim) const plim = (powlim == std::numeric_limits<decltype(powlim)>::max()) ? lim : powlim;
+    std::vector<fb_power_t> const powers(fb_powers(plim));
     size_t next_pow = 0;
 
     verbose_output_print(0, 1,
@@ -1482,7 +1482,7 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
 
 #define MARGIN 3
     // Prepare more tasks, so that threads keep being busy.
-    unsigned int nb_tab = nb_threads + MARGIN;
+    unsigned int const nb_tab = nb_threads + MARGIN;
     task_info_t * T = new task_info_t[nb_tab];
     make_linear_thread_param * params = new make_linear_thread_param[nb_tab];
     for (unsigned int i = 0; i < nb_tab; ++i) {
@@ -1494,7 +1494,7 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
     // will really be in the factor base. However, next_prime must be 64
     // bit to avoid problems with overflows when computing
     // next_prime(previous_prime(maxp)).
-    fbprime_t maxp = lim;
+    fbprime_t const maxp = lim;
     uint64_t next_prime = 2;
 
     prime_info pi;
@@ -1530,7 +1530,7 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
         active_task--;
         task_info_t * curr_T = res->T;
 
-        unsigned int just_finished = curr_T->index;
+        unsigned int const just_finished = curr_T->index;
         if (just_finished == completed_tasks) {
             store_task_result(*this, *curr_T);
             completed_tasks++;
@@ -1564,7 +1564,7 @@ void fb_factorbase::make_linear_threadpool (unsigned int nb_threads)
             static_cast<make_linear_thread_result *>(result);
         task_info_t * curr_T = res->T;
 
-        unsigned int just_finished = curr_T->index;
+        unsigned int const just_finished = curr_T->index;
         if (just_finished == completed_tasks) {
             store_task_result(*this, *curr_T);
             completed_tasks++;
@@ -1874,7 +1874,7 @@ static fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_
      * can tell).
      */
     if (!fbc_filename) return fbc_header();
-    int fbc = open(fbc_filename, O_RDONLY);
+    int const fbc = open(fbc_filename, O_RDONLY);
     if (fbc < 0) return fbc_header();
     struct stat sbuf[1];
     if (fstat(fbc, sbuf) < 0) {
@@ -1887,14 +1887,14 @@ static fbc_header find_fbc_header_block_for_poly(const char * fbc_filename, cxx_
         return fbc_header();
     }
 
-    size_t fbc_size = lseek(fbc,0,SEEK_END);
+    size_t const fbc_size = lseek(fbc,0,SEEK_END);
 
     for(size_t header_offset = 0, index = 0 ; header_offset != fbc_size ; index++) {
         /* Read header block starting at position "header_offset" */
         std::vector<char> area(fbc_header::header_block_size);
-        off_t rc = lseek(fbc, header_offset, SEEK_SET);
+        off_t const rc = lseek(fbc, header_offset, SEEK_SET);
         ASSERT_ALWAYS(rc >= 0);
-        ssize_t nr = ::read(fbc, area.data(), area.size());
+        ssize_t const nr = ::read(fbc, area.data(), area.size());
         ASSERT_ALWAYS(nr >= 0 && (size_t) nr == area.size());
         imemstream is(area.data(), area.size());
         fbc_header hdr;
@@ -1962,7 +1962,7 @@ struct helper_functor_recreate_fbc_header {
                 return;
             }
             ASSERT_ALWAYS(block.entries.size() == 1 + n);
-            fbc_header::entryvec e {
+            fbc_header::entryvec const e {
                     current_offset,
                     0,  /* will be done later */
                     x.size(),
@@ -2015,13 +2015,13 @@ struct helper_functor_write_to_fbc_file {
             if (next == chunks.end()) return;
             ASSERT_ALWAYS(sizeof(FB_ENTRY_TYPE) == next->entry_size);
 
-            off_t rc = lseek(fbc, header_block_offset + next->offset, SEEK_SET);
+            off_t const rc = lseek(fbc, header_block_offset + next->offset, SEEK_SET);
             ASSERT_ALWAYS(rc != (off_t) -1);
             ASSERT_ALWAYS(x.size() == next->nentries);
             size_t n = sizeof(FB_ENTRY_TYPE) * x.size();
             size_t written = 0;
             while (n > 0) {
-                ssize_t m = ::write(fbc, (char *)(x.data())+written, n);
+                ssize_t const m = ::write(fbc, (char *)(x.data())+written, n);
                 ASSERT_ALWAYS (m != -1);
                 ASSERT_ALWAYS (m <= (ssize_t)n);
                 n -= m;
@@ -2039,12 +2039,12 @@ struct helper_functor_write_to_fbc_file_weight_part {
     template<typename T>
         void operator()(T & x) {
             if (next == chunks.end()) return;
-            off_t rc = lseek(fbc, header_block_offset + next->weight_offset, SEEK_SET);
+            off_t const rc = lseek(fbc, header_block_offset + next->weight_offset, SEEK_SET);
             DIE_ERRNO_DIAG(rc == (off_t) -1, "seek(%s)", "[fbc file]");
             size_t n = sizeof(double) * (x.size() + 1);
             size_t written = 0;
             while (n > 0) {
-                ssize_t m = ::write(fbc, (char *)(&*x.weight_begin()) + written, n);
+                ssize_t const m = ::write(fbc, (char *)(&*x.weight_begin()) + written, n);
                 ASSERT_ALWAYS (m != -1);
                 ASSERT_ALWAYS (m <= (ssize_t)n);
                 n -= m;
@@ -2092,7 +2092,7 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
 
     double tfb = seconds ();
     double tfb_wct = wct_seconds ();
-    std::string polystring = f.print_poly("x");
+    std::string const polystring = f.print_poly("x");
 
 
     fbc_header hdr;
@@ -2172,9 +2172,9 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
 
         /* Next, we must append it to the cache file */
 
-        int fbc = open(fbc_filename, O_RDWR | O_CREAT, 0666);
+        int const fbc = open(fbc_filename, O_RDWR | O_CREAT, 0666);
         if (fbc >= 0) {
-            size_t fbc_size = lseek(fbc, 0, SEEK_END);
+            size_t const fbc_size = lseek(fbc, 0, SEEK_END);
 
             if ((fbc_size & (sysconf(_SC_PAGE_SIZE) - 1)) != 0) {
                 fprintf(stderr, "Fatal error: existing cache file %s is not page-aligned\n", fbc_filename);
@@ -2193,8 +2193,8 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
              * fseek + fwrite, thereby inserting zeroes automagically (POSIX says
              * that). 
              */
-            size_t n = os.str().size();
-            ssize_t m = ::write(fbc, os.str().c_str(), n);
+            size_t const n = os.str().size();
+            ssize_t const m = ::write(fbc, os.str().c_str(), n);
             ASSERT_ALWAYS(m == (ssize_t) n);
 
             helper_functor_write_to_fbc_file W1 { fbc, fbc_size, S.entries, S.entries.begin() };
@@ -2202,7 +2202,7 @@ fb_factorbase::fb_factorbase(cxx_cado_poly const & cpoly, int side, cxx_param_li
             helper_functor_write_to_fbc_file_weight_part W2 { fbc, fbc_size, S.entries, S.entries.begin() };
             multityped_array_foreach(W2, entries);
             ASSERT_ALWAYS((size_t) lseek(fbc, 0, SEEK_END) <= fbc_size + S.size);
-            int ret = ftruncate(fbc, fbc_size + S.size);
+            int const ret = ftruncate(fbc, fbc_size + S.size);
             ASSERT_ALWAYS (ret == 0);
             close(fbc);
             tfb = seconds () - tfb;

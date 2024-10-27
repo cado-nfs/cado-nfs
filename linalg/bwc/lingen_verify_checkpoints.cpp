@@ -107,7 +107,7 @@ class matrix_reader
     }
 
     bool has_single_file_data() const {
-        std::string filename = get_filename_ij(1, 0, 0);
+        std::string const filename = get_filename_ij(1, 0, 0);
         return access(filename.c_str(), R_OK) == 0;
     }
     unsigned int has_mpi_data() const {
@@ -161,7 +161,7 @@ public:
 
         for (unsigned long i = 0; i < k; i++) {
             for (unsigned long j = 0; j < k; j++) {
-                std::string filename = get_filename_ij(k, i, j);
+                std::string const filename = get_filename_ij(k, i, j);
                 files.emplace_back(filename, std::ios_base::in);
                 if (!files.back().good())
                     throw std::runtime_error("cannot open " + filename);
@@ -183,17 +183,17 @@ public:
             unsigned int n
             )
     {
-        int nij = k * block_i + block_j;
+        int const nij = k * block_i + block_j;
         ASSERT_ALWAYS(nrows == M.nrows);
         ASSERT_ALWAYS(ncols == M.ncols);
         unsigned int i0, i1;
         unsigned int j0, j1;
-        subdivision Srows(M.nrows, k);
-        subdivision Scols(M.ncols, k);
+        subdivision const Srows(M.nrows, k);
+        subdivision const Scols(M.ncols, k);
         std::tie(i0, i1) = Srows.nth_block(block_i);
         std::tie(j0, j1) = Scols.nth_block(block_j);
-        unsigned int nix = Srows.block_size_upper_bound();
-        unsigned int njx = Scols.block_size_upper_bound();
+        unsigned int const nix = Srows.block_size_upper_bound();
+        unsigned int const njx = Scols.block_size_upper_bound();
         cxx_mpz tmp;
         mpz_realloc2(tmp, lingen_p * mp_bits_per_limb);
         std::ifstream& F(files[nij]);
@@ -209,10 +209,10 @@ public:
                 for (unsigned int dj = 0; dj < njx; dj++) {
                     ASSERT_ALWAYS((unsigned long) ALLOC(tmp) >= lingen_p);
                     SIZ(tmp) = lingen_p;
-                    size_t sz = lingen_p * sizeof(mp_limb_t);
+                    size_t const sz = lingen_p * sizeof(mp_limb_t);
                     {
                     F.read((char*)PTR(tmp), sz);
-                    bool good_read = F.good();
+                    bool const good_read = F.good();
                     if (!good_read) {
                         fmt::fprintf(stderr, "read error on file (%i,%i) [%s] when reading coefficient of degree %u, local position (%u,%u). File offset of coefficient is %zd\n",
                                 block_i,
@@ -324,7 +324,7 @@ struct cp_useful_info
 cp_useful_info
 read_cp_aux(std::string const& s)
 {
-    std::string filename = s + ".aux";
+    std::string const filename = s + ".aux";
     FILE* fp;
     fp = fopen(filename.c_str(), "r");
     if (fp == NULL) {
@@ -369,7 +369,7 @@ read_matrix(const char* s,
             cxx_mpz const& x)
 {
     auto cp = read_cp_aux(s);
-    unsigned long deg = cp.deg;
+    unsigned long const deg = cp.deg;
     matrix M(nrows, ncols);
     matrix_reader R(nrows, ncols, deg, s, false);
     cxx_mpz x_power_k;
@@ -417,7 +417,7 @@ mul_right(std::vector<cxx_mpz>& w,
 {
     ASSERT_ALWAYS(v.size() == M.ncols);
     ASSERT_ALWAYS(w.size() == M.nrows);
-    unsigned long n = M.ncols;
+    unsigned long const n = M.ncols;
     cxx_mpz tmp;
     for (unsigned long i = 0; i < M.nrows; i++) {
         mpz_set_ui(w[i], 0);
@@ -500,8 +500,8 @@ do_check_pi(const char* pi_left_filename,
             const char* pi_filename)
 {
     int ret;
-    unsigned long nrows = bw_parameters.m + bw_parameters.n;
-    unsigned long ncols = bw_parameters.m + bw_parameters.n;
+    unsigned long const nrows = bw_parameters.m + bw_parameters.n;
+    unsigned long const ncols = bw_parameters.m + bw_parameters.n;
 
     std::vector<cxx_mpz> u(nrows);
     std::vector<cxx_mpz> v(nrows);
@@ -515,9 +515,9 @@ do_check_pi(const char* pi_left_filename,
     if (verbose)
         gmp_printf("x=%Zd\n", (mpz_srcptr)x);
 
-    cp_useful_info cp = read_cp_aux(pi_filename);
+    cp_useful_info const cp = read_cp_aux(pi_filename);
 
-    std::string check_name =
+    std::string const check_name =
       fmt::sprintf("check (seed=%lu, depth %d, t=%u, pi_left*pi_right=pi)",
                    seed,
                    cp.level,
@@ -530,17 +530,17 @@ do_check_pi(const char* pi_left_filename,
     /* we used to have omp sections here. It feels wrong.  */
     {
         {
-            matrix Mab = read_matrix(pi_left_filename, nrows, ncols, x);
+            matrix const Mab = read_matrix(pi_left_filename, nrows, ncols, x);
             mul_left(u_times_piab, u, Mab);
         }
 
         {
-            matrix Mbc = read_matrix(pi_right_filename, nrows, ncols, x);
+            matrix const Mbc = read_matrix(pi_right_filename, nrows, ncols, x);
             mul_right(pibc_times_v, Mbc, v);
         }
 
         {
-            matrix Mac = read_matrix(pi_filename, nrows, ncols, x);
+            matrix const Mac = read_matrix(pi_filename, nrows, ncols, x);
             mul_right(piac_times_v, Mac, v);
         }
     }
@@ -590,8 +590,8 @@ parse_t0_t1(std::string const& E_filename, std::string const& pi_filename)
     pi_pos++;
 
     /* comparison will start from here */
-    size_t E_pos0 = E_pos;
-    size_t pi_pos0 = pi_pos;
+    size_t const E_pos0 = E_pos;
+    size_t const pi_pos0 = pi_pos;
 
     /* skip over the level */
     E_pos = E_filename.find('.', E_pos);
@@ -629,8 +629,8 @@ int
 do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
 {
     int ret;
-    unsigned int m = bw_parameters.m;
-    unsigned int n = bw_parameters.n;
+    unsigned int const m = bw_parameters.m;
+    unsigned int const n = bw_parameters.n;
 
     std::vector<cxx_mpz> u(m);
     fill_random(u);
@@ -645,12 +645,12 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
     /* Note that all the useful info is in the aux file for pi, really.
      * The one for E is stored at t0, and is not really useful.
      */
-    cp_useful_info cp = read_cp_aux(pi_filename);
+    cp_useful_info const cp = read_cp_aux(pi_filename);
 
-    unsigned long deg_pi = cp.deg;
-    unsigned long t = cp.t;
-    unsigned long t0 = cp.t0;
-    unsigned long t1 = cp.t1;
+    unsigned long const deg_pi = cp.deg;
+    unsigned long const t = cp.t;
+    unsigned long const t0 = cp.t0;
+    unsigned long const t1 = cp.t1;
     unsigned long deg_E = t - t0 - 1;
     deg_E = MIN(deg_E, (unsigned long) restrict_E);
 
@@ -713,8 +713,8 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
         RE.read1_accumulate(E, x_inc, x, deg_E - deg_pi + k);
         pi.zero();
         Rpi.read1_accumulate(pi, x_dec, xinv, k);
-        std::vector<cxx_mpz> u_E = u * E;
-        std::vector<cxx_mpz> pi_v = pi * v;
+        std::vector<cxx_mpz> const u_E = u * E;
+        std::vector<cxx_mpz> const pi_v = pi * v;
         add_scalar_product(res, u_E, pi_v);
     }
 
@@ -732,7 +732,7 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
 
 int sanity_check(std::string filename)
 {
-    cp_useful_info cp = read_cp_aux(filename);
+    cp_useful_info const cp = read_cp_aux(filename);
     bmstatus bm(bw_parameters.m,bw_parameters.n, prime);
     bm.set_t0(cp.t0);
     bm.hints= hints;
@@ -743,8 +743,8 @@ int sanity_check(std::string filename)
             fmt::fprintf(stderr, "%s is missing\n", lcp.auxfile);
             return false;
         }
-        int sdata_ok = access(lcp.sdatafile.c_str(), R_OK) == 0;
-        int gdata_ok = lcp.rank || access(lcp.gdatafile.c_str(), R_OK) == 0;
+        int const sdata_ok = access(lcp.sdatafile.c_str(), R_OK) == 0;
+        int const gdata_ok = lcp.rank || access(lcp.gdatafile.c_str(), R_OK) == 0;
         fmt::fprintf(stderr, "scattered datafile %s: %s\n", lcp.sdatafile, sdata_ok ? "ok" : "not found");
         fmt::fprintf(stderr, "gathered datafile %s: %s\n", lcp.gdatafile, gdata_ok ? "ok" : "not found");
         return sdata_ok || gdata_ok;
@@ -756,11 +756,10 @@ int sanity_check(std::string filename)
 }
 
 // coverity[root_function]
-int
-main(int argc, char* argv[])
+int main(int argc, char const * argv[])
 {
     /* We're not really mpi, but we link code that _is_ mpi */
-    MPI_Init(&argc, &argv);
+    MPI_Init(&argc, (char ***) &argv);
     cxx_param_list pl;
 
     seed = getpid();
@@ -769,7 +768,7 @@ main(int argc, char* argv[])
 
     const char* argv0 = argv[0];
 
-    std::vector<std::pair<char **, int> > todo;
+    std::vector<std::pair<const char **, int> > todo;
 
     param_list_configure_switch(pl, "-v", &verbose);
     for (argc--, argv++; argc;) {

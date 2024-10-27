@@ -111,7 +111,7 @@ lingen_checkpoint::lingen_checkpoint(bmstatus & bm, unsigned int t0, unsigned in
 
 std::string lingen_checkpoint::get_cp_basename(bmstatus & bm, cp_which which, unsigned int t0, unsigned int t1)
 {
-    int level = bm.depth();
+    int const level = bm.depth();
     std::string base;
     switch(which) {
         case LINGEN_CHECKPOINT_E:
@@ -127,9 +127,9 @@ std::string lingen_checkpoint::get_cp_basename(bmstatus & bm, cp_which which, un
 
 bool lingen_checkpoint::save_aux_file(size_t Xsize) const /*{{{*/
 {
-    bw_dimensions & d = bm.d;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
+    bw_dimensions  const& d = bm.d;
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
     if (rank) return 1;
     std::ofstream os(auxfile);
     os << "format " << format << "\n";
@@ -155,7 +155,7 @@ bool lingen_checkpoint::save_aux_file(size_t Xsize) const /*{{{*/
     os << "\n";
     os << bm.stats;
     os << "\n";
-    bool ok = os.good();
+    bool const ok = os.good();
     if (!ok)
         unlink(auxfile.c_str());
     return ok;
@@ -203,9 +203,9 @@ bool lingen_checkpoint::checkpoint_already_present() const/*{{{*/
 bool lingen_checkpoint::load_aux_file(size_t & Xsize)/*{{{*/
 {
     bmstatus nbm = bm;
-    bw_dimensions & d = bm.d;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
+    bw_dimensions  const& d = bm.d;
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
     if (rank) return 1;
     std::ifstream is(auxfile);
     if (!is.good()) return false;
@@ -318,8 +318,8 @@ int load_checkpoint_file<matpoly>(bmstatus & bm, cp_which which, matpoly & X, un
 {
     bw_dimensions & d = bm.d;
     matpoly::arith_hard * ab = & d.ab;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
 
     if (!lingen_checkpoint::directory) return 0;
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
@@ -400,10 +400,10 @@ int load_mpi_checkpoint_file_scattered(bmstatus & bm, cp_which which, bigmatpoly
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
-    bw_dimensions & d = bm.d;
+    bw_dimensions  const& d = bm.d;
     matpoly::arith_hard * ab = & bm.d.ab;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
     lingen_checkpoint cp(bm, which, t0, t1, 1);
     ASSERT_ALWAYS(X.check_pre_init());
     size_t Xsize;
@@ -490,8 +490,8 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
     MPI_Comm_rank(bm.com[0], &rank);
     bw_dimensions & d = bm.d;
     matpoly::arith_hard * ab = & d.ab;
-    unsigned int m = d.m;
-    unsigned int n = d.n;
+    unsigned int const m = d.m;
+    unsigned int const n = d.n;
     lingen_checkpoint cp(bm, which, t0, t1, 1);
     cp.datafile = cp.gdatafile;
     size_t Xsize = 0;
@@ -536,15 +536,15 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
         }
         X.set_size(Xsize);
 
-        double avg = average_matsize(ab, X.m, X.n, 0);
-        unsigned int B = iceildiv(io_matpoly_block_size, avg);
+        double const avg = average_matsize(ab, X.m, X.n, 0);
+        unsigned int const B = iceildiv(io_matpoly_block_size, avg);
 
         /* This is only temp storage ! */
         matpoly loc(ab, X.m, X.n, B);
         loc.zero_pad(B);
 
         for(unsigned int k = 0 ; ok && k < X.get_size() ; k += B) {
-            unsigned int nc = MIN(B, X.get_size() - k);
+            unsigned int const nc = MIN(B, X.get_size() - k);
             if (!rank)
                 ok = matpoly_read(ab, data, loc, 0, nc, 0, 0) == (int) nc;
             MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
@@ -552,7 +552,7 @@ int load_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
         }
 
         if (!rank) {
-            int rc = fclose(data);
+            int const rc = fclose(data);
             ok = ok && (rc == 0);
         }
     } while (0);
@@ -598,15 +598,15 @@ int save_mpi_checkpoint_file_gathered(bmstatus & bm, cp_which which, bigmatpoly 
                 break;
             }
 
-            double avg = average_matsize(ab, X.m, X.n, 0);
-            unsigned int B = iceildiv(io_matpoly_block_size, avg);
+            double const avg = average_matsize(ab, X.m, X.n, 0);
+            unsigned int const B = iceildiv(io_matpoly_block_size, avg);
 
             /* This is only temp storage ! */
             matpoly loc(ab, X.m, X.n, B);
             loc.zero_pad(B);
 
             for(unsigned int k = 0 ; ok && k < X.get_size() ; k += B) {
-                unsigned int nc = MIN(B, X.get_size() - k);
+                unsigned int const nc = MIN(B, X.get_size() - k);
                 X.gather_mat_partial(loc, 0, k, nc);
                 if (!rank)
                     ok = matpoly_write(ab, data, loc, 0, nc, 0, 0) == (int) nc;
@@ -642,17 +642,17 @@ int load_checkpoint_file<bigmatpoly>(bmstatus & bm, cp_which which, bigmatpoly &
     if ((t1 - t0) < lingen_checkpoint::threshold) return 0;
     int rank;
     MPI_Comm_rank(bm.com[0], &rank);
-    lingen_checkpoint cp(bm, which, t0, t1, 1);
+    lingen_checkpoint const cp(bm, which, t0, t1, 1);
     int ok = 0;
-    int aux_ok = rank || access(cp.auxfile.c_str(), R_OK) == 0;
-    int sdata_ok = access(cp.sdatafile.c_str(), R_OK) == 0;
+    int const aux_ok = rank || access(cp.auxfile.c_str(), R_OK) == 0;
+    int const sdata_ok = access(cp.sdatafile.c_str(), R_OK) == 0;
     int scattered_ok = aux_ok && sdata_ok;
     MPI_Allreduce(MPI_IN_PLACE, &scattered_ok, 1, MPI_INT, MPI_MIN, bm.com[0]);
     if (scattered_ok) {
         ok = load_mpi_checkpoint_file_scattered(bm, which, X, t0, t1);
         if (ok) return ok;
     }
-    int gdata_ok = rank || access(cp.gdatafile.c_str(), R_OK) == 0;
+    int const gdata_ok = rank || access(cp.gdatafile.c_str(), R_OK) == 0;
     int gathered_ok = aux_ok && gdata_ok;
     MPI_Bcast(&gathered_ok, 1, MPI_INT, 0, bm.com[0]);
     if (gathered_ok) {

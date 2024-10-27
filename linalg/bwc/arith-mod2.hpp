@@ -408,11 +408,22 @@ struct gf2_base
     {
         T const* tx = static_cast<T const*>(this);
         tx->set_zero(x);
-        x.data()[0] = mpz_get_ui(a);
+        unsigned int K = tx->number_of_limbs();
+        /* TODO: we should probably _do_ something, right ? The code
+         * below seems about right, I just want to make sure we test it. */
+        ASSERT_ALWAYS(K == 1);
+        for (unsigned int i = 0; i < K; i++)
+            x.data()[i] = mpz_getlimbn_uint64(a, i);
         return x;
     }
 
     inline elt& neg(elt& x, elt const& a) const
+    {
+        T const* tx = static_cast<T const*>(this);
+        return tx->set(x, a);
+    }
+
+    inline elt& inverse(elt& x, elt const& a) const
     {
         T const* tx = static_cast<T const*>(this);
         return tx->set(x, a);
@@ -639,13 +650,14 @@ struct gf2_middle : public gf2_override<G, T>
             r += tx->simd_hamming_weight(tx->vec_item(p, i));
         return r;
     }
-    inline int vec_simd_find_first_set(elt&, elt const* p, size_t n) const
+    inline int vec_simd_find_first_set(elt& r, elt const* p, size_t n) const
     {
         T const* tx = static_cast<T const*>(this);
         int j = 0;
         for (size_t i = 0; i < n; ++i, j += tx->simd_groupsize()) {
             elt const& x = tx->vec_item(p, i);
             if (!tx->is_zero(x)) {
+                tx->set(r, x);
                 for (size_t k = 0; k < tx->simd_groupsize(); k++, j++) {
                     if (T::simd_test_ui_at(x, k))
                         return j;
@@ -664,10 +676,21 @@ struct gf2_middle : public gf2_override<G, T>
         abort();
     }
 
-    void vec_addmul_and_reduce(elt*, elt const*, elt const&, size_t) const
+    void vec_addmul_and_reduce(
+            elt* w,
+            elt const * u,
+            elt const& v,
+            size_t n) const
     {
-        /* same as above */
-        abort();
+        /* In the characteristic two case, we do have one use for this,
+         * which is to interpret v as zero if it's zero, and non-zero if
+         * it's non-zero. This turns out to be the correct way to
+         * abstract our vectors for use in a generic Gauss, for example
+         * (as in prep.cpp).
+         */
+        T const* tx = static_cast<T const*>(this);
+        if (!tx->is_zero(v))
+            tx->vec_add_and_reduce(w, u, n);
     }
 };
 

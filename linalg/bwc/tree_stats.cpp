@@ -54,18 +54,18 @@ std::ostream& tree_stats::recursively_print_substeps_at_depth(
         unsigned int total_ncalls,
         int nesting)
 {
-    std::string prefix(2 + nesting, ' ');
+    std::string const prefix(2 + nesting, ' ');
 
     if (nesting >= max_nesting)
         return os;
 
     for(auto const & y : FS) {
         std::string const & func(y.first);
-        unsigned int n = y.second.ncalled;
-        double t = y.second.real;
-        unsigned int items_per_call = y.second.items_per_call;
-        double th = y.second.planned_time;
-        double th_n = y.second.planned_calls;
+        unsigned int const n = y.second.ncalled;
+        double const t = y.second.real;
+        unsigned int const items_per_call = y.second.items_per_call;
+        double const th = y.second.planned_time;
+        double const th_n = y.second.planned_calls;
         os << prefix
            << "(" << func;
         /* For a function that has been entered k times (each time going
@@ -148,7 +148,7 @@ void tree_stats::print(unsigned int)
         /* Compute projected time for this level based on the total
          * breadth, and the calls which we had so far.
          */
-        double pt = u.projected_time();
+        double const pt = u.projected_time();
         u.last_printed_projected_time = pt;
 
         char mixedlevel_code = (u.size() <= 1) ? '\0' : 'a';
@@ -194,9 +194,9 @@ void tree_stats::print(unsigned int)
             running_stats const & r(wip->second);
             double level_th = 0;
             for(auto const & y : r.steps) {
-                double t = y.second.real;
-                double th = y.second.planned_time;
-                unsigned int n = y.second.ncalled;
+                double const t = y.second.real;
+                double const th = y.second.planned_time;
+                unsigned int const n = y.second.ncalled;
                 level_th += n ? t : th;
                 if (th > 0)
                     time_to_go += th * (r.total_ncalls() - n);
@@ -290,7 +290,7 @@ void tree_stats::leave()
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank) { --depth; return; }
-    double now = wct_seconds();
+    double const now = wct_seconds();
     auto sback = std::move(curstack.back());
     function_with_input_size const & sfunc = sback.first;
     running_stats & s = sback.second;
@@ -300,7 +300,7 @@ void tree_stats::leave()
     if (!curstack.empty())
         curstack.back().second.time_children += s.real;
     s.real -= s.time_children;
-    unsigned int level = --depth;
+    unsigned int const level = --depth;
     ASSERT_ALWAYS(depth == curstack.size());
     ASSERT_ALWAYS(level < levels.size());
     ASSERT_ALWAYS(!s.has_pending_smallsteps());
@@ -324,8 +324,8 @@ void tree_stats::leave()
     int needprint = 0;
     for(unsigned int k = 0 ; !needprint && k < levels.size() ; k++) {
         level_stats & u(levels[k]);
-        double t = u.projected_time();
-        double t0 = u.last_printed_projected_time;
+        double const t = u.projected_time();
+        double const t0 = u.last_printed_projected_time;
         needprint = (t < 0.9 * t0) || (t > 1.1 * t0);
     }
 
@@ -375,7 +375,7 @@ void tree_stats::begin_plan_smallstep(std::string const & func, weighted_double 
         step_time::steps_t * where = &s.steps;
         if (!s.nested_substeps.empty())
             where = & s.current_substep().steps;
-        running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
+        running_stats::steps_t::iterator const it =where->insert({func, step_time(func)}).first;
         s.nested_substeps.push_back(it);
 
         step_time & S(it->second);
@@ -431,7 +431,7 @@ void tree_stats::begin_plan_smallstep_microsteps(std::string const & func)
         step_time::steps_t * where = &s.steps;
         if (!s.nested_substeps.empty())
             where = & s.current_substep().steps;
-        running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
+        running_stats::steps_t::iterator const it =where->insert({func, step_time(func)}).first;
         s.nested_substeps.push_back(it);
 
     } catch (std::runtime_error const & e) {
@@ -476,7 +476,7 @@ void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)
         step_time::steps_t * where = &s.steps;
         if (!s.nested_substeps.empty())
             where = & s.current_substep().steps;
-        running_stats::steps_t::iterator it =where->insert({func, step_time(func)}).first;
+        running_stats::steps_t::iterator const it =where->insert({func, step_time(func)}).first;
         it->second.set_total_ncalls(s.total_ncalls());
         s.nested_substeps.push_back(it);
         step_time & S(s.current_substep());
@@ -534,7 +534,7 @@ void tree_stats::skip_smallstep(std::string const & func, unsigned int ncalls)
         step_time::steps_t * where = &s.steps;
         if (!s.nested_substeps.empty())
             where = & s.current_substep().steps;
-        running_stats::steps_t::iterator it = where->insert({func, step_time(func)}).first;
+        running_stats::steps_t::iterator const it = where->insert({func, step_time(func)}).first;
         it->second.set_total_ncalls(s.total_ncalls());
         s.nested_substeps.push_back(it);
         step_time & S(s.current_substep());

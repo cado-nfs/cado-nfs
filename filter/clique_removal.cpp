@@ -199,7 +199,7 @@ comp_sorted_bin_tree_insert (comp_sorted_bin_tree_ptr T, comp_t new_node)
     size_t cur = T->size;
     while (cur)
     {
-      size_t father = (cur - 1) >> 1;
+      size_t const father = (cur - 1) >> 1;
       if (UNLIKELY (comp_weight_is_larger (new_node, T->tree[father])))
         break;
       T->tree[cur] = T->tree[father];
@@ -266,18 +266,18 @@ compute_one_connected_component (comp_t *clique, purge_matrix_srcptr mat,
 
   /* Loop on all connected rows */
   for(size_t k = 0 ; k < row_buffer.size() ; k++) {
-    uint64_t cur_row = row_buffer[k];
+    uint64_t const cur_row = row_buffer[k];
 
     /* Loop on all columns of the current row */
     for (index_t * h = mat->row_compact[cur_row]; *h != UMAX(*h); h++)
     {
-      index_t cur_h = *h;
-      weight_t cur_h_weight = mat->cols_weight[cur_h];
+      index_t const cur_h = *h;
+      weight_t const cur_h_weight = mat->cols_weight[cur_h];
       clique->w += comp_weight_function (cur_h_weight);
       if (UNLIKELY(cur_h_weight == 2))
       {
         ASSERT_ALWAYS(cur_row <= mat->sum2_row[cur_h]);
-        uint64_t the_other_row = mat->sum2_row[cur_h] - cur_row;
+        uint64_t const the_other_row = mat->sum2_row[cur_h] - cur_row;
         /* First, if the_other_row < clique.i, the connected component was
          * already found (by this thread or another). return 0 */
         if (the_other_row < clique->i)
@@ -308,12 +308,12 @@ delete_one_connected_component (purge_matrix_ptr mat, uint64_t cur_row,
 
   /* Loop on all connected rows */
   for(size_t k = 0 ; k < row_buffer.size() ; k++) {
-    uint64_t cur_row = row_buffer[k];
+    uint64_t const cur_row = row_buffer[k];
     /* Loop on all columns of the current row */
     for (index_t * h = mat->row_compact[cur_row]; *h != UMAX(*h); h++)
     {
-      index_t cur_h = *h;
-      weight_t cur_h_weight = mat->cols_weight[cur_h];
+      index_t const cur_h = *h;
+      weight_t const cur_h_weight = mat->cols_weight[cur_h];
       /* We might have some H->hashcount[h] = 3, which is decreased to 2, but
        * we don't want to treat that case. Thus we check in addition that
        * mat->sum2_row[h] <> 0, which only occurs when H->hashcount[h] = 2
@@ -321,7 +321,7 @@ delete_one_connected_component (purge_matrix_ptr mat, uint64_t cur_row,
       if (UNLIKELY(cur_h_weight == 2 && mat->sum2_row[cur_h]))
       {
         ASSERT_ALWAYS(cur_row <= mat->sum2_row[cur_h]);
-        uint64_t the_other_row = mat->sum2_row[cur_h] - cur_row;
+        uint64_t const the_other_row = mat->sum2_row[cur_h] - cur_row;
         /* If the_other_row is not already in the buffer, add it as a todo. */
         if (!vector_contains(row_buffer, the_other_row))
             row_buffer.push_back(the_other_row);
@@ -330,7 +330,7 @@ delete_one_connected_component (purge_matrix_ptr mat, uint64_t cur_row,
   }
 
   /* Now, we deleted all rows explored */
-  for (uint64_t pt : row_buffer)
+  for (uint64_t const pt : row_buffer)
     purge_matrix_delete_row (mat, pt);
     /* mat->nrows and mat->ncols are updated by purge_matrix_delete_row. */
 }
@@ -360,7 +360,7 @@ purge_matrix_print_stats_on_cliques (FILE *out, purge_matrix_srcptr mat,
     if (purge_matrix_is_row_active (mat, i))
     {
       comp_t c = {.i = i, .w = 0.0};
-      uint64_t nrows = compute_one_connected_component (&c, mat, buf);
+      uint64_t const nrows = compute_one_connected_component (&c, mat, buf);
       len[i] = nrows;
     }
   }
@@ -417,7 +417,7 @@ clique_removal_core_mt_thread (void *pt)
       if (purge_matrix_is_row_active (data->mat, i))
       {
         clique.i = i;
-        unsigned int nb_rows = compute_one_connected_component (&(clique),
+        unsigned int const nb_rows = compute_one_connected_component (&(clique),
                                               data->mat, buf);
         if (nb_rows == 0) /* this component was already found earlier */
           continue;
@@ -552,7 +552,7 @@ clique_removal_core_mono (purge_matrix_ptr mat, int64_t target_excess,
   {
     if (purge_matrix_is_row_active (mat, clique.i))
     {
-      unsigned int nb_rows = compute_one_connected_component (&(clique),
+      unsigned int const nb_rows = compute_one_connected_component (&(clique),
                                             mat, buf);
       if (nb_rows == 0) /* this component was already found earlier */
         continue;
@@ -607,7 +607,7 @@ void
 cliques_removal (purge_matrix_ptr mat, int64_t target_excess,
                  unsigned int nthreads, int verbose)
 {
-  int64_t excess = purge_matrix_compute_excess (mat);
+  int64_t const excess = purge_matrix_compute_excess (mat);
   uint64_t nb_cliques_del = 0;
   size_t max_nb_comp;
 

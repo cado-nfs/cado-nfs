@@ -104,8 +104,7 @@ test_dllist(size_t len MAYBE_UNUSED)
     }
 }
 
-int
-main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
   unsigned long iter = 100, i;
 

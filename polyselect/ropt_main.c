@@ -69,7 +69,7 @@ best_polynomials_queue best_polys;
  * Usage
  */
 void
-usage_adv (char **argv)
+usage_adv (char const **argv)
 {
   fprintf (stderr, "Error: Unhandled parameter: %s\n", argv[1]);
   fprintf (stderr, "\n");
@@ -143,7 +143,7 @@ usage_adv (char **argv)
  */
 static void
 ropt_parse_param ( int argc,
-                   char **argv,
+                   char const ** argv,
                    ropt_param_ptr param )
 {
   int A = 0;
@@ -531,11 +531,9 @@ ropt_wrapper (cado_poly_ptr input_poly, unsigned int poly_id,
 /**
  * Interface main_adv(). This will call ropt_on_cadopoly().
  */
-static int
-main_adv (int argc, char **argv)
+static int main_adv (int argc, char const * argv[])
 {
-
-  char **argv0 = argv;
+  char const ** argv0 = argv;
   argv += 1;
   argc -= 1;
   int i;
@@ -553,7 +551,7 @@ main_adv (int argc, char **argv)
   if (argc >= 3 && strcmp(argv[1], "-f") == 0) {
 
     FILE *file = NULL;
-    char *filename = NULL;
+    const char *filename = NULL;
     // coverity[parm_assign]
     filename = argv[2];
     argv += 2;
@@ -580,7 +578,7 @@ main_adv (int argc, char **argv)
   else if (argc >= 3 && strcmp(argv[1], "-fm") == 0) {
 
     FILE *file = NULL;
-    char *filename = NULL;
+    const char *filename = NULL;
     filename = argv[2];
     argv += 2;
     argc -= 2;
@@ -692,10 +690,9 @@ void cado_poly_ropt_printer(int i, double score, cado_poly_ptr best_poly, void *
 /**
  * Interface main_basic()
  */
-static int
-main_basic (int argc, char **argv)
+static int main_basic (int argc, char const * argv[])
 {
-  char **argv0 = argv;
+  char const **argv0 = argv;
   const char *polys_filename = NULL;
   double st0 = seconds ();
   FILE *polys_file = NULL;
@@ -917,8 +914,7 @@ main_basic (int argc, char **argv)
  * depending whether we have the option --adv.
  * Note the cadoprograms.py uses the main_basic() interface.
  */
-int
-main (int argc, char **argv)
+int main (int argc, char const * argv[])
 {
   /* usage */
 

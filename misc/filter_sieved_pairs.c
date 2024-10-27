@@ -70,7 +70,7 @@ int next_cand_sieved_pair(cand_t cand, void *params) {
   return 1;
 }
 
-void usage(char *argv0) {
+void usage(const char *argv0) {
   fprintf(stderr, "./%s [-mt n] [-minB1 b1] [-mineff e] [-maxeff E] [-seed s] -target t <filename>\n", argv0);
   abort();
 }
@@ -94,8 +94,9 @@ void * process_one_thread(void *thparams) {
   return (void *)winner;
 }
 
-int main(int argc, char **argv) {
-  char *argv0 = argv[0];
+int main(int argc, char const * argv[])
+{
+  const char *argv0 = argv[0];
   unsigned long seed = 0;
   unsigned long target = 0;
   unsigned long nthread = 1;

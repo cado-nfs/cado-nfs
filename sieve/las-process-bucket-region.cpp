@@ -62,7 +62,7 @@
 
 MAYBE_UNUSED static inline void subusb(unsigned char *S1, unsigned char *S2, ssize_t offset)
 {
-    int ex = (unsigned int) S1[offset] - (unsigned int) S2[offset];
+    int const ex = (unsigned int) S1[offset] - (unsigned int) S2[offset];
     if (UNLIKELY(ex < 0)) S1[offset] = 0; else S1[offset] = ex;	     
 }
 
@@ -216,14 +216,14 @@ process_bucket_region_run::process_bucket_region_run(process_bucket_region_spawn
     w(taux.w),
     sides(ws.las.cpoly->nb_polys)
 {
-    int nsides = sides.size();
+    int const nsides = sides.size();
 
     w = w_saved;
     WHERE_AM_I_UPDATE(w, N, first_region0_index + already_done + bucket_relative_index);
 
     /* This is local to this thread */
     for(int side = 0 ; side < nsides ; side++) {
-        nfs_work::side_data & wss(ws.sides[side]);
+        nfs_work::side_data  const& wss(ws.sides[side]);
         if (wss.no_fb()) {
             S[side] = NULL;
         } else {
@@ -254,7 +254,7 @@ void process_bucket_region_run::init_norms(int side)/*{{{*/
     CHILD_TIMER(timer, "init norms");
     TIMER_CATEGORY(timer, norms(side));
 
-    int N = first_region0_index + already_done + bucket_relative_index;
+    int const N = first_region0_index + already_done + bucket_relative_index;
 
     ws.sides[side].lognorms.fill(S[side], N);
 
@@ -267,7 +267,7 @@ void process_bucket_region_run::init_norms(int side)/*{{{*/
 
 template<bool with_hints> void process_bucket_region_run::apply_buckets_inner(int side)/*{{{*/
 {
-    nfs_work::side_data & wss(ws.sides[side]);
+    nfs_work::side_data  const& wss(ws.sides[side]);
 
     typedef typename hints_proxy<with_hints>::l my_longhint_t;
     typedef typename hints_proxy<with_hints>::s my_shorthint_t;
@@ -344,11 +344,11 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
     CHILD_TIMER(timer, __func__);
     TIMER_CATEGORY(timer, search_survivors());
 
-    int N = first_region0_index + already_done + bucket_relative_index;
+    int const N = first_region0_index + already_done + bucket_relative_index;
 
     /* change N, which is a bucket number, to
      * (i0, i1, j0, j1) */
-    int logI = ws.conf.logI;
+    int const logI = ws.conf.logI;
     /* This bit of code is replicated from las-smallsieve.cpp */
     const unsigned int log_lines_per_region = MAX(0, LOG_BUCKET_REGION - logI);
     const unsigned int log_regions_per_line = MAX(0, logI - LOG_BUCKET_REGION);
@@ -380,8 +380,8 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 #endif  /* }}} */
 
 #ifdef TRACE_K /* {{{ */
-    nfs_work::side_data & side0(ws.sides[0]);
-    nfs_work::side_data & side1(ws.sides[1]);
+    nfs_work::side_data  const& side0(ws.sides[0]);
+    nfs_work::side_data  const& side1(ws.sides[1]);
     for (int x = 0; x < 1 << LOG_BUCKET_REGION; x++) {
         if (trace_on_spot_Nx(N, x)) {
             verbose_output_print(TRACE_CHANNEL, 0,
@@ -400,7 +400,7 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 
     for (unsigned int j = j0; j < j1; j++)
     {
-        int offset = (j-j0) << logI;
+        int const offset = (j-j0) << logI;
 
         unsigned char * const both_S[2] = {
             S[0] ? S[0] + offset : NULL,
@@ -415,7 +415,7 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
             ws.sides[0].lognorms.bound,
             ws.sides[1].lognorms.bound,
         };
-        size_t old_size = temp_sv.size();
+        size_t const old_size = temp_sv.size();
 
         ASSERT(j < ws.J);
 
@@ -452,7 +452,7 @@ process_bucket_region_run::survivors_t process_bucket_region_run::search_survivo
 }/*}}}*/
 void process_bucket_region_run::purge_buckets(int side)/*{{{*/
 {
-    nfs_work::side_data & wss(ws.sides[side]);
+    nfs_work::side_data  const& wss(ws.sides[side]);
 
     SIBLING_TIMER(timer, "purge buckets");
     TIMER_CATEGORY(timer, cofactoring(side));
@@ -501,7 +501,7 @@ void process_bucket_region_run::resieve(int side)/*{{{*/
 
 void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*/
 {
-    int nsides = sides.size();
+    int const nsides = sides.size();
 
     /* by declaring this timer "fuzzy", we make the child timers use only
      * userspace calls, and not system calls. This makes it possible to
@@ -511,7 +511,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
     // CHILD_TIMER(timer, __func__);
     TIMER_CATEGORY(timer, cofactoring_mixed());
 
-    int N = first_region0_index + already_done + bucket_relative_index;
+    int const N = first_region0_index + already_done + bucket_relative_index;
     unsigned char * Sx = S[0] ? S[0] : S[1];
 
     cofac_standalone cur;
@@ -578,8 +578,8 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
         if (do_resieve) {
 
             for(int pside = 0 ; pass && pside < 2 ; pside++) {
-                int side = trialdiv_first_side ^ pside;
-                nfs_work::side_data & wss(ws.sides[side]);
+                int const side = trialdiv_first_side ^ pside;
+                nfs_work::side_data  const& wss(ws.sides[side]);
 
                 CHILD_TIMER_PARAMETRIC(timer, "side ", side, " pre-cofactoring checks");
                 TIMER_CATEGORY(timer, cofactoring(side));
@@ -662,7 +662,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 
                 SIBLING_TIMER(timer, "recompute complete norm");
 
-                nfs_work::side_data & wss(ws.sides[side]);
+                nfs_work::side_data  const& wss(ws.sides[side]);
 
                 /* factor() in batch.cpp recomputes the complete norm, so
                  * there's no need to compute the norm right now for the
@@ -762,7 +762,7 @@ void process_bucket_region_run::cofactoring_sync (survivors_t & survivors)/*{{{*
 }/*}}}*/
 void process_bucket_region_run::operator()() {/*{{{*/
 
-    int nsides = sides.size();
+    int const nsides = sides.size();
 
     // This is too verbose.
     // fprintf(stderr, "=== entering PBR for report id %lu\n", rep.id);
@@ -777,7 +777,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
             return;
     } else if (exit_after_rel_found) {
         if (rep.reports) {
-            std::lock_guard<std::mutex> foo(protect_global_exit_semaphore);
+            std::lock_guard<std::mutex> const foo(protect_global_exit_semaphore);
             global_exit_semaphore=1;
             return;
         }
@@ -785,7 +785,7 @@ void process_bucket_region_run::operator()() {/*{{{*/
 
     for (int side = 0; side < nsides; side++) {
         WHERE_AM_I_UPDATE(w, side, side);
-        nfs_work::side_data & wss(ws.sides[side]);
+        nfs_work::side_data  const& wss(ws.sides[side]);
         if (wss.no_fb()) {
             ASSERT_ALWAYS(S[side] == NULL);
             continue;
@@ -829,16 +829,16 @@ void process_bucket_region_run::operator()() {/*{{{*/
         MARK_TIMER_FOR_SIDE(timer, side);
         sides[side].purged.allocate_memory(ws.local_memory, BUCKET_REGION);
         purge_buckets(side);
-        size_t ns = survivors.size();
-        double maxnorm = ws.sides[side].lognorms.get_maxlog2();
-        double logp_lb = log2(ws.sides[side].fbK.td_thresh);
-        size_t nprimes_max = ns * maxnorm / logp_lb;
+        size_t const ns = survivors.size();
+        double const maxnorm = ws.sides[side].lognorms.get_maxlog2();
+        double const logp_lb = log2(ws.sides[side].fbK.td_thresh);
+        size_t const nprimes_max = ns * maxnorm / logp_lb;
         sides[side].primes.allocate_memory(ws.local_memory, nprimes_max);
         resieve(side);
     }
 
 #ifdef TRACE_K
-    int N = first_region0_index + already_done + bucket_relative_index;
+    int const N = first_region0_index + already_done + bucket_relative_index;
     /* FIXME FIXME FIXME MNFS -- what do we want to do here? */
     if (trace_on_spot_Nx(N, trace_Nx.x)) {
         unsigned char * Sx = S[0] ? S[0] : S[1];
@@ -869,7 +869,7 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
     else
         first_skipped_br >>= LOG_BUCKET_REGION - ws.conf.logI;
 
-    size_t small_sieve_regions_ready = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1]);
+    size_t const small_sieve_regions_ready = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1]);
 
     for(int done = 0, ready = small_sieve_regions_ready ; done < ws.nb_buckets[1] ; ) {
 
@@ -892,10 +892,10 @@ void process_many_bucket_regions(nfs_work & ws, std::shared_ptr<nfs_work_cofac> 
         if (done < ws.nb_buckets[1]) {
 
             /* We need to compute more init positions */
-            int more = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1] - done);
+            int const more = std::min(SMALL_SIEVE_START_POSITIONS_MAX_ADVANCE, ws.nb_buckets[1] - done);
 
             for(int side = 0 ; side < 2 ; side++) {
-                nfs_work::side_data & wss(ws.sides[side]);
+                nfs_work::side_data  const& wss(ws.sides[side]);
                 if (wss.no_fb()) continue;
                 pool.add_task_lambda([=,&ws](worker_thread * worker, int){
                         timetree_t & timer(aux_p->get_timer(worker));

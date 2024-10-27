@@ -56,9 +56,9 @@ extern unsigned long long int strtoull_const(const char *nptr, const char **endp
 extern char * derived_filename(const char * prefix, const char * what, const char * ext);
 extern int has_suffix(const char * path, const char * sfx);
 
-extern char ** filelist_from_file(const char * basepath, const char * filename,
+extern char const ** filelist_from_file(const char * basepath, const char * filename,
                                   int typ);
-extern void filelist_clear(char ** filelist);
+extern void filelist_clear(char const ** filelist);
 
 long get_arg_max(void);
 extern int mkdir_with_parents(const char * dir, int fatal);

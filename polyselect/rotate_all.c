@@ -508,7 +508,7 @@ rotate (mpz_poly_ptr f, unsigned long alim,
 
 
 static void
-usage_and_die (char *argv0)
+usage_and_die (const char *argv0)
 {
   fprintf (stderr, "usage: %s [-v] poly kmax\n", argv0);
   fprintf (stderr, "  apply rotation f += (j*x+k)*g to poly.\n");
@@ -517,14 +517,13 @@ usage_and_die (char *argv0)
   exit (1);
 }
 
-int
-main (int argc, char **argv)
+int main(int argc, char const * argv[])
 {
     cado_poly cpoly;
     long kmax, jmin, kmin;
     unsigned long alim = 2000;
     int argc0 = argc, verbose = 0;
-    char **argv0 = argv;
+    const char **argv0 = argv;
 
     while (argc >= 2 && strcmp (argv[1], "-v") == 0)
       {
@@ -571,5 +570,6 @@ main (int argc, char **argv)
     cpoly->skew = L2_skewness (cpoly->pols[ALG_SIDE], SKEWNESS_DEFAULT_PREC);
 
     print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
+    cado_poly_clear(cpoly);
     return 0;
 } 

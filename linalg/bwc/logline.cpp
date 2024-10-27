@@ -94,7 +94,7 @@ static double logline_timer()
 
 double logline_serialize()
 {
-    double tt = wct_seconds() - start_time;
+    double const tt = wct_seconds() - start_time;
     return tt;
 }
 
@@ -120,7 +120,7 @@ void logline_decl_usage(param_list_ptr pl)
 int logline_interpret_parameters(param_list_ptr pl)
 {
     int thr[10];
-    int n = param_list_parse_int_list(pl, "logline_threshold", thr, 10, ",");
+    int const n = param_list_parse_int_list(pl, "logline_threshold", thr, 10, ",");
     for(int i = 0 ; i < n ; i++) {
         logline_thresholds[i] = thr[i];
     }
@@ -157,7 +157,7 @@ static void logline_puts_raw(int level, const char * s)
     }
     fputs(s, current->f);
     current->prefixes.push_back(s);
-    size_t n = strlen(s);
+    size_t const n = strlen(s);
     current->nnl += (current->eol = s[n-1] == '\n');
     current->lastlevel = level;
 }
@@ -182,7 +182,7 @@ int logline_begin(FILE * f, size_t size, const char * fmt, ...)
     current->start = logline_timer();
     char * tmp;
     va_start(ap, fmt);
-    int rc = vasprintf(&(tmp), fmt, ap);
+    int const rc = vasprintf(&(tmp), fmt, ap);
     ASSERT_ALWAYS(rc >= 0);
     current->header = tmp;
     free(tmp);
@@ -198,7 +198,7 @@ int logline_end(double * rr, const char * fmt, ...)
     va_list ap;
     va_start(ap, fmt);
     char * text2;
-    double tt = logline_timer() - current->start;
+    double const tt = logline_timer() - current->start;
     if (fmt) {
         char * text;
         int rc;
@@ -228,7 +228,7 @@ int logline_vprintf(int level, const char * fmt, va_list ap)
 {
     if (!current) return 0;
     char * text;
-    int rc = vasprintf(&text, fmt, ap);
+    int const rc = vasprintf(&text, fmt, ap);
     ASSERT_ALWAYS(rc >= 0);
     logline_puts_raw(level, text);
     free(text);

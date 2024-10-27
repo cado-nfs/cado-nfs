@@ -116,7 +116,7 @@ test_usp ()
     mpz_poly_clear(p);
 }
 
-int main (int argc, const char *argv[])
+int main(int argc, char const * argv[])
 {
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
     test_usp ();

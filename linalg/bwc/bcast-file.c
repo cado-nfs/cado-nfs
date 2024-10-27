@@ -71,7 +71,7 @@ void share_file(const char * fname, int root, size_t total, MPI_Comm comm)
     free(buf);
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     struct stat sbuf[1];
 #ifdef HAVE_UTSNAME_H
@@ -84,7 +84,7 @@ int main(int argc, char * argv[])
 #ifdef HAVE_UTSNAME_H
     uname(u);
 #endif
-    MPI_Init(&argc, &argv);
+    MPI_Init(&argc, (char***) &argv);
 
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);

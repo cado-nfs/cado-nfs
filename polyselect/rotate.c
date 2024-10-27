@@ -42,9 +42,9 @@ void declare_usage(param_list_ptr pl)
 }
 
 
-int main(int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
-    char ** argv0 = argv;
+    char const ** argv0 = argv;
     int argc0 = argc;
     cado_poly cpoly;
     int I = 0;
@@ -121,6 +121,8 @@ int main(int argc, char *argv[])
     mpz_poly_add(cpoly->pols[ALG_SIDE], cpoly->pols[ALG_SIDE], rot);
 
     print_cadopoly_extra (stdout, cpoly, argc0, argv0, 0);
+
+    cado_poly_clear(cpoly);
 
     param_list_clear(pl);
     mpz_clear(tmp);

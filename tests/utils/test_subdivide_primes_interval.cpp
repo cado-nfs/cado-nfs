@@ -15,7 +15,7 @@ void decl_usage(cxx_param_list & pl)
     param_list_decl_usage(pl, "n", "number of intervals");
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char const * argv[])
 {
     const char * progname = argv[0];
 

@@ -2,7 +2,7 @@
 #include <gmp.h>
 #include <stdio.h>
 
-int main(int argc, char **argv)
+int main(int argc, char const * argv[])
 {
 	if (argc != 3) {
 		fprintf(stderr, "usage: %s integer integer\n", argv[0]);

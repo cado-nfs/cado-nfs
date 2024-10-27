@@ -23,7 +23,7 @@ void test_bblas_level2::level2a() {
     /* TODO: check correctness */
     printf(" -- rank-1 updates --\n");
 
-    mat64 & R = * (mat64 *) r;
+    mat64  const& R = * (mat64 *) r;
 
     TIME1(1, addmul_To64_o64, R, *a, *b);
 
@@ -38,7 +38,7 @@ void test_bblas_level2::level2a() {
 test_bblas_base::tags_t test_bblas_level2::level2_tags { "vecmul", "l2b", "l2" };
 /*{{{*/
 void test_bblas_level2::level2() {
-    unsigned int n = 1;
+    unsigned int const n = 1;
 
     printf(" -- vector times (transpose of) matrix --\n");
     /* BLAS level 2 analogue: cblas_dgemv */

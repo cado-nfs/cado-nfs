@@ -99,7 +99,8 @@ static void ab_cons () {
   }
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char const * argv[])
+{
   pthread_t ab_tc;
   pthread_attr_t ab_attr;
   uintptr_t cpy_ab_cptp = 0;

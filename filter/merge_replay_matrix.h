@@ -64,9 +64,9 @@ void clearMat (filter_matrix_t *mat);
 
 void print_row(filter_matrix_t *mat, index_t i);
 
-#define matCell(mat, i, k) rowCell(mat->rows[i], k)
-#define rowLength(row, i) rowCell(row[i], 0)
-#define matLengthRow(mat, i) matCell(mat, i, 0)
+#define matCell(mat, i, k) rowCell((mat)->rows[(i)], (k))
+#define rowLength(row, i) rowCell((row)[(i)], 0)
+#define matLengthRow(mat, i) matCell((mat), (i), 0)
 #define isRowNull(mat, i) ((mat)->rows[(i)] == NULL)
 
 #define SPARSE_ITERATE(mat, i, k) for((k)=1; (k)<=lengthRow((mat),(i)); (k)++)

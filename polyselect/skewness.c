@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 #include "cado_poly.h"
 
 static void
-compute_skewness (char *input_file, char *output_file)
+compute_skewness (const char *input_file, const char *output_file)
 {
   cado_poly p;
   cado_poly_init (p);
@@ -55,11 +55,10 @@ compute_skewness (char *input_file, char *output_file)
 } 
 
 // usage: skewness input_file output_file
-int
-main (int argc, char *argv[])
+int main(int argc, char const * argv[])
 {
   ASSERT_ALWAYS (argc == 2 || argc == 3);
-  char *input_file = argv[1];
-  char *output_file = (argc == 3) ? argv[2] : NULL;
+  const char *input_file = argv[1];
+  const char *output_file = (argc == 3) ? argv[2] : NULL;
   compute_skewness (input_file, output_file);
 }

@@ -137,7 +137,7 @@ int main()
     int fail = 0;
     for(size_t i = 0 ; i < (sizeof(data)/sizeof(data[0])) ; i++) {
         uint64_t B[64];
-        uint64_t T = extraction_step(B, data[i].A, data[i].S);
+        uint64_t const T = extraction_step(B, data[i].A, data[i].S);
         if (memcmp(B, data[i].B, sizeof(B)) != 0 || T != data[i].T) {
             fprintf(stderr, "failed check number %zu\n", i);
             fail++;
