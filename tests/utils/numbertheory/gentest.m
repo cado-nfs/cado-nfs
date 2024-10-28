@@ -1,4 +1,6 @@
 SetColumns(0);
+ZP:=PolynomialRing(Integers());
+AssignNames(~ZP, ["x"]);
 ps:=func<x|Join([Sprintf("%o",y):y in x], " ")>;
 for i in [1..40] do
     d:=Random(10)+2;
