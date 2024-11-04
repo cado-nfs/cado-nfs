@@ -1,8 +1,10 @@
 #include "cado.h"
+
 #include "arith-generic.hpp"
 #include "arith-mod2.hpp"
 #include "arith-modp.hpp"
 #include "bwc_config.h"
+#include "gmp_aux.h"
 #ifdef  BUILD_DYNAMICALLY_LINKABLE_BWC
 #include <dlfcn.h>
 #include "solib-naming.h"
@@ -39,123 +41,123 @@ struct arith_wrapper: public arith_generic, public T {
     public:
 
     template<typename... Args> arith_wrapper(Args&&... args) : T(std::forward<Args>(args)...) {}
-    virtual T * concrete() override { return dynamic_cast<T *>(this); }
-    virtual T const * concrete() const override { return dynamic_cast<T const *>(this); }
+    T * concrete() override { return dynamic_cast<T *>(this); }
+    T const * concrete() const override { return dynamic_cast<T const *>(this); }
 
-    virtual void vec_add_and_reduce(elt * dst, elt const * b, size_t n) const override {
+    void vec_add_and_reduce(elt * dst, elt const * b, size_t n) const override {
         concrete()->vec_add_and_reduce(cast(dst), cast(b), n);
     }
-    virtual void add_and_reduce(elt & dst, elt const & b) const override {
+    void add_and_reduce(elt & dst, elt const & b) const override {
         concrete()->add_and_reduce(cast(dst), cast(b));
     }
-    virtual void sub_and_reduce(elt & dst, elt const & b) const override {
+    void sub_and_reduce(elt & dst, elt const & b) const override {
         concrete()->sub_and_reduce(cast(dst), cast(b));
     }
 
-    virtual void vec_set(elt * x, elt const * a, size_t n) const override {
+    void vec_set(elt * x, elt const * a, size_t n) const override {
         concrete()->vec_set(cast(x), cast(a), n);
     }
-    virtual void vec_neg(elt * x, elt const * a, size_t n) const override {
+    void vec_neg(elt * x, elt const * a, size_t n) const override {
         concrete()->vec_neg(cast(x), cast(a), n);
     }
-    virtual void vec_set_zero(elt * dst, size_t n) const override {
+    void vec_set_zero(elt * dst, size_t n) const override {
         concrete()->vec_set_zero(cast(dst), n);
     }
-    virtual bool vec_is_zero(elt const * a, size_t n) const override {
+    bool vec_is_zero(elt const * a, size_t n) const override {
         return concrete()->vec_is_zero(cast(a), n);
     }
-    virtual void vec_set_random(elt * dst, size_t n, gmp_randstate_ptr rstate) const override {
+    void vec_set_random(elt * dst, size_t n, cxx_gmp_randstate & rstate) const override {
         concrete()->vec_set_random(cast(dst), n, rstate);
     }
-    virtual elt * vec_subvec(elt * a, size_t n) const override {
+    elt * vec_subvec(elt * a, size_t n) const override {
         return uncast(concrete()->vec_subvec(cast(a), n));
     }
-    virtual elt const * vec_subvec(elt const * a, size_t n) const override {
+    elt const * vec_subvec(elt const * a, size_t n) const override {
         return uncast(concrete()->vec_subvec(cast(a), n));
     }
-    virtual size_t vec_elt_stride(size_t n) const override {
+    size_t vec_elt_stride(size_t n) const override {
         return concrete()->vec_elt_stride(n);
     }
-    virtual void vec_add_dotprod(elt & w, elt const * u, elt const * v, size_t n) const override
+    void vec_add_dotprod(elt & w, elt const * u, elt const * v, size_t n) const override
     {
         concrete()->vec_add_dotprod(cast(w), cast(u), cast(v), n);
     }
-    virtual void vec_addmul_and_reduce(elt * w, elt const * u, elt const & v, size_t n) const override
+    void vec_addmul_and_reduce(elt * w, elt const * u, elt const & v, size_t n) const override
     {
         concrete()->vec_addmul_and_reduce(cast(w), cast(u), cast(v), n);
     }
-    virtual int vec_cmp(elt const * a, elt const * b, size_t k) const override {
+    int vec_cmp(elt const * a, elt const * b, size_t k) const override {
         return concrete()->vec_cmp(cast(a), cast(b), k);
     }
-    virtual int cmp(elt const & a, elt const & b) const override {
+    int cmp(elt const & a, elt const & b) const override {
         return concrete()->cmp(cast(a), cast(b));
     }
-    virtual int cmp(elt const & a, unsigned long b) const override {
+    int cmp(elt const & a, unsigned long b) const override {
         return concrete()->cmp(cast(a), b);
     }
 
-    virtual bool is_zero(elt const & x) const override { return concrete()->is_zero(cast(x)); }
-    virtual void simd_set_ui_at(elt & a, size_t k, int v) const override {
+    bool is_zero(elt const & x) const override { return concrete()->is_zero(cast(x)); }
+    void simd_set_ui_at(elt & a, size_t k, int v) const override {
         concrete()->simd_set_ui_at(cast(a), k, v);
     }
-    virtual void simd_add_ui_at(elt & a, size_t k, int v) const override {
+    void simd_add_ui_at(elt & a, size_t k, int v) const override {
         concrete()->simd_add_ui_at(cast(a), k, v);
     }
-    virtual int simd_hamming_weight(elt const & a) const override {
+    int simd_hamming_weight(elt const & a) const override {
         return concrete()->simd_hamming_weight(cast(a));
     }
-    virtual void vec_simd_set_ui_at(elt * a, size_t k, int v) const override {
+    void vec_simd_set_ui_at(elt * a, size_t k, int v) const override {
         concrete()->vec_simd_set_ui_at(cast(a), k, v);
     }
-    virtual void vec_simd_add_ui_at(elt * a, size_t k, int v) const override {
+    void vec_simd_add_ui_at(elt * a, size_t k, int v) const override {
         concrete()->vec_simd_set_ui_at(cast(a), k, v);
     }
-    virtual int vec_simd_hamming_weight(elt const * a, size_t n) const override {
+    int vec_simd_hamming_weight(elt const * a, size_t n) const override {
         return concrete()->vec_simd_hamming_weight(cast(a), n);
     }
-    virtual int vec_simd_find_first_set(elt & a, elt const * p, size_t n) const override {
+    int vec_simd_find_first_set(elt & a, elt const * p, size_t n) const override {
         return concrete()->vec_simd_find_first_set(cast(a), cast(p), n);
     }
-    virtual std::ostream& cxx_out(std::ostream& os, elt const & x) const override {
+    std::ostream& cxx_out(std::ostream& os, elt const & x) const override {
         return concrete()->cxx_out(os, cast(x));
     }
-    virtual elt * alloc(size_t n = 1, size_t al = 64) const override {
+    elt * alloc(size_t n = 1, size_t al = 64) const override {
         return uncast(concrete()->alloc(n, al));
     }
-    virtual elt * realloc(elt * p, size_t o, size_t n, size_t al = 64) const override {
+    elt * realloc(elt * p, size_t o, size_t n, size_t al = 64) const override {
         return uncast(concrete()->realloc(cast(p), o, n, al));
     }
-    virtual void free(elt * dst) const override {
+    void free(elt * dst) const override {
         return concrete()->free(cast(dst));
     }
-    virtual void set(elt & dst, elt const & src) const override {
+    void set(elt & dst, elt const & src) const override {
         concrete()->set(cast(dst), cast(src));
     }
-    virtual void inverse(elt & dst, elt const & src) const override {
+    void inverse(elt & dst, elt const & src) const override {
         concrete()->inverse(cast(dst), cast(src));
     }
-    virtual void set(elt & dst, cxx_mpz const & src) const override {
+    void set(elt & dst, cxx_mpz const & src) const override {
         concrete()->set(cast(dst), src);
     }
-    virtual void neg(elt & dst, elt const & src) const override {
+    void neg(elt & dst, elt const & src) const override {
         concrete()->neg(cast(dst), cast(src));
     }
-    virtual std::string impl_name() const override {
+    std::string impl_name() const override {
         return T::impl_name();
     }
-    virtual size_t simd_groupsize() const override {
+    size_t simd_groupsize() const override {
         return concrete()->simd_groupsize();
     }
-    virtual bool is_characteristic_two() const override {
+    bool is_characteristic_two() const override {
         return T::is_characteristic_two;
     }
-    virtual mpz_srcptr characteristic() const override {
+    mpz_srcptr characteristic() const override {
         return concrete()->characteristic();
     }
-    virtual void reduce(elt & a) const override {
+    void reduce(elt & a) const override {
         concrete()->reduce(cast(a));
     }
-    virtual ~arith_wrapper() override = default;
+    ~arith_wrapper() override = default;
 };
 
 #ifdef ARITH_LAYER

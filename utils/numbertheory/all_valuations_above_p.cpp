@@ -1,5 +1,6 @@
 #include "cado.h"
 
+#include "gmp_aux.h"
 #include "all_valuations_above_p.hpp"
 #include "numbertheory_internals.hpp"
 #include "number_field_element.hpp"

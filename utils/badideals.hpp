@@ -3,7 +3,10 @@
 #include <string>
 #include <vector>
 #include <iosfwd>
+
 #include <gmp.h>        // for gmp_randstate_t
+
+#include "gmp_aux.h"
 #include "cxx_mpz.hpp"
 #include "mpz_poly.h"
 

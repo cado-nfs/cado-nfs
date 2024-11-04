@@ -1,12 +1,17 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <climits>                         // for ULONG_MAX
 #include <cstdint>                         // for SIZE_MAX
+
 #include <algorithm>                        // for min
 #include <utility>                          // for move
 #include <vector>                           // for vector
+
 #include <gmp.h>                // for gmp_randstate_t, gmp_randclear, gmp_r...
+
+#include "gmp_aux.h"
 #ifdef LINGEN_BINARY
 #include "gf2x-fft.h"
 #include "gf2x-fake-fft.h"
@@ -34,13 +39,13 @@ struct matpoly_checker_base {
     unsigned int len2;
     matpoly::memory_guard dummy;
 
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
     /* tests are free to seed and re-seed the checker's private rstate, a
      * priori with this random seed which was taken from the initial
      * random state */
     unsigned long seed;
 
-    matpoly_checker_base(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int len1, unsigned int len2, gmp_randstate_t rstate0)
+    matpoly_checker_base(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int len1, unsigned int len2, cxx_gmp_randstate & rstate0)
         : ab(p, 1)
         , m(m)
         , n(n)
@@ -49,7 +54,6 @@ struct matpoly_checker_base {
         , dummy(SIZE_MAX)
         , seed(gmp_urandomm_ui(rstate0, ULONG_MAX))
     {
-        gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, seed);
         // ab might be left uninit, depending on the mpfq layer. This is
         // harmless.
@@ -64,14 +68,10 @@ struct matpoly_checker_base {
         , dummy(SIZE_MAX)
         , seed(o.seed)
     {
-        gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, seed);
         // ab might be left uninit, depending on the mpfq layer. This is
         // harmless.
         // coverity[uninit_member]
-    }
-    ~matpoly_checker_base() {
-        gmp_randclear(rstate);
     }
 
     int ctor_and_pre_init() {
@@ -402,7 +402,7 @@ struct matpoly_checker_ft : public matpoly_checker_base {
         , stats_sentinel(stats, "test", 0, 1)
         , dummy_ft(SIZE_MAX)
     {}
-    matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int len1, unsigned int len2, gmp_randstate_t rstate0)
+    matpoly_checker_ft(cxx_mpz const & p, unsigned int m, unsigned int n, unsigned int len1, unsigned int len2, cxx_gmp_randstate & rstate0)
         : matpoly_checker_base(p, m, n, len1, len2, rstate0)
         , stats_sentinel(stats, "test", 0, 1)
         , dummy_ft(SIZE_MAX)
@@ -456,7 +456,7 @@ int main(int argc, char const * argv[])
     MPI_Init(&argc, (char ***) &argv);
 
     cxx_mpz p;
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
 
     unsigned int m = 4;
     unsigned int n = 2;
@@ -467,8 +467,8 @@ int main(int argc, char const * argv[])
 
     cxx_param_list pl;
 
-    setbuf(stdout, NULL);
-    setbuf(stderr, NULL);
+    setbuf(stdout, nullptr);
+    setbuf(stderr, nullptr);
 
     param_list_configure_switch(pl, "--test-basecase", &test_basecase);
 
@@ -513,7 +513,6 @@ int main(int argc, char const * argv[])
     }
 #endif
 
-    gmp_randinit_default(rstate);
     gmp_randseed_ui(rstate, seed);
 
     matpoly_checker_base checker(p, m, n, len1, len2, rstate);
@@ -561,8 +560,6 @@ int main(int argc, char const * argv[])
         printf("test basecase m=%u n=%u len1=%u\n", m, n, len1);
         checker.test_basecase();
     }
-
-    gmp_randclear(rstate);
 
     MPI_Finalize();
 }

@@ -19,8 +19,8 @@ void usage()
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    param_list pl;
-    param_list_init(pl);
+    cxx_param_list pl;
+
     /* Vectors must be *in order* !!! */
     argv++,argc--;
     unsigned int ncols = 0;
@@ -162,7 +162,7 @@ int main(int argc, char const * argv[])
     printf("%s: written %d kernel vectors\n", outfile, rankf);
     free(zone);
     free(kzone);
-    param_list_clear(pl);
+
 
     return 0;
 }

@@ -552,7 +552,7 @@ set_target_properties(check_mpi_problems PROPERTIES
 set(mod2_plain_mpi_tests mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
 add_bwc_test(mod2_plain bwc-ptrace.sh prime=2 nullspace=left
     random_matrix_size=800 m=64 n=64 seed=1 thr=2x2
-    TARGET_DEPENDENCIES mf_scan)
+    TARGET_DEPENDENCIES mf_scan2)
 create_magma_sage_diversions(mod2_plain)
 if(SAGE)
     cado_set_test_timeout(test_bwc_mod2_plain_with_sagemath 480)
@@ -560,18 +560,18 @@ endif()
 
 add_bwc_test(mod2_padded bwc-ptrace.sh prime=2 nullspace=left
     random_matrix_size=700,600 m=64 n=64 seed=1 thr=2x2
-    TARGET_DEPENDENCIES mf_scan)
+    TARGET_DEPENDENCIES mf_scan2)
 
 add_bwc_test(mod2_secure_continuation bwc-test-secure-continuation.sh
     prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64
-    TARGET_DEPENDENCIES mf_scan
+    TARGET_DEPENDENCIES mf_scan2
     TIMEOUT 60
 )
 
 add_bwc_test(mod2_secure_consistent-defaults
     bwc-test-secure-consistent-defaults.sh
     prime=2 nullspace=left random_matrix_size=800 m=64 n=64 seed=1 thr=2x2 interval=64
-    TARGET_DEPENDENCIES mf_scan
+    TARGET_DEPENDENCIES mf_scan2
     TIMEOUT 60
 )
 
@@ -580,17 +580,17 @@ add_bwc_test(mod2_secure_consistent-defaults
 add_bwc_test(mod2_rolling bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=2000
     interval=10 keep_rolling_checkpoints=2 checkpoint_precious=40 m=64 n=64
     seed=1 thr=2x2 stop_at_step=lingen
-    TARGET_DEPENDENCIES mf_scan)
+    TARGET_DEPENDENCIES mf_scan2)
 
 add_bwc_test(mod2_8k bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2
-    TARGET_DEPENDENCIES mf_scan
+    TARGET_DEPENDENCIES mf_scan2
     AVOID_CONCURRENT 4
     TIMEOUT 180
 )
 
 if (COMPILE_MPFQ_BINARY_FIELD_m128)
     add_bwc_test(mod2_8k_simd128 bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=8000 m=128 n=128 seed=1 thr=2 simd=128
-    TARGET_DEPENDENCIES mf_scan
+    TARGET_DEPENDENCIES mf_scan2
     AVOID_CONCURRENT 4
     TIMEOUT 90
 )
@@ -598,18 +598,18 @@ endif()
 
 set(mod2_oddthr mpi_rect1 mpi_rect2 mpi_square1 mpi_square2)
 add_bwc_test(mod2_oddthr bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=128 n=128 seed=1 thr=3
-    TARGET_DEPENDENCIES mf_scan)
+    TARGET_DEPENDENCIES mf_scan2)
 
 add_bwc_test(mod2_interleaving bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=800 m=128 n=128
     interleaving=1 seed=1 thr=2
-    TARGET_DEPENDENCIES mf_scan)
+    TARGET_DEPENDENCIES mf_scan2)
  
 add_bwc_test(mod2_m_neq_n bwc-ptrace.sh prime=2 nullspace=left random_matrix_size=400 m=128 n=64
     seed=1 thr=5
-    TARGET_DEPENDENCIES mf_scan)
+    TARGET_DEPENDENCIES mf_scan2)
 
 if(HAVE_CXX11 AND HAVE_HWLOC)
-    cado_define_test(test_cpubinding.c
+    cado_define_test(test_cpubinding.cpp
         ARGUMENTS
         --cpubinding ${CMAKE_CURRENT_SOURCE_DIR}/cpubind_config_file_for_tests.conf
         LIBRARIES utils bwc_base)
@@ -657,7 +657,7 @@ foreach(mpiconf nompi ${mpiconfs})
         ${CMAKE_CURRENT_SOURCE_DIR}/bwc-dispatch-matmul.sh
         density=2
         thr=2x2
-        TARGET_DEPENDENCIES bwc_matmul_gf2 dispatch mf_scan mf_bal
+        TARGET_DEPENDENCIES bwc_matmul_gf2 dispatch mf_scan2 mf_bal
         random_matrix
         )
 endforeach()
@@ -713,7 +713,7 @@ macro(create_test_spmv test_spmv_base)
                 ${ARGN}
                 NO_DEFAULT_RUN
                 TARGET_DEPENDENCIES
-                random_matrix spmv_test short_matmul mf_scan mf_bal bwc_matmul_gf2)
+                random_matrix spmv_test short_matmul mf_scan2 mf_bal bwc_matmul_gf2)
 
 
             cado_divert_test(test_spmv_${test_spmv_base}${suffix} 11 APPEND_ARGUMENTS thr=1x1)
@@ -785,7 +785,7 @@ cado_define_test(TEST_NAME spmv_bucket_30075
     PROVIDE_TEMPORARY_WDIR
     PROGRAM ${CMAKE_CURRENT_SOURCE_DIR}/bug30075.sh
     TARGET_DEPENDENCIES
-    spmv_test bwc_matmul_gf2 mf_bal mf_scan
+    spmv_test bwc_matmul_gf2 mf_bal mf_scan2
 )
 
 
@@ -863,7 +863,7 @@ cado_define_test(TEST_NAME test-blocklanczos
     PROGRAM ${CMAKE_CURRENT_SOURCE_DIR}/test-blocklanczos.sh
         --density 10
     NO_DEFAULT_RUN
-    TARGET_DEPENDENCIES mf_scan mf_bal random_matrix blocklanczos
+    TARGET_DEPENDENCIES mf_scan2 mf_bal random_matrix blocklanczos
     bwc_full_gf2 short_matmul)
 cado_divert_test(test-blocklanczos right
     APPEND_ARGUMENTS --matrix-size "1000,2000" --nullspace RIGHT)

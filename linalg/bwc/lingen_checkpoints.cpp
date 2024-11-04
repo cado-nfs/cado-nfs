@@ -27,7 +27,7 @@
 #include "lingen_checkpoints.hpp"
 #include "lingen_io_matpoly.hpp"
 #include "lingen_average_matsize.hpp"
-#include "logline.h"
+#include "logline.hpp"
 #include "fmt/printf.h" // IWYU pragma: keep
 #include "cxx_mpz.hpp"
 

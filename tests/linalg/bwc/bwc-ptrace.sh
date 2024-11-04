@@ -309,22 +309,8 @@ create_auxiliary_weight_files() {
     if [ "$prime" != 2 ] ; then withcoeffs=--withcoeffs ; fi
     case "$matrix" in
         *.txt)
-            if [ "$rhsfile" ] ; then
-                # It's really a hassle to keep the conversion code (which
-                # existed until dad7019)
-                echo "Please supply $rhs as a *binary* file, please\n" >&2
-                exit 1
-            fi
-            matrix_txt="$matrix"
-            matrix=${matrix%%txt}bin
-            rwfile=${matrix%%bin}rw.bin
-            cwfile=${matrix%%bin}cw.bin
-            if [ "$matrix" -nt "$matrix_txt" ] && [ "$rwfile" -nt "$matrix_txt" ] && [ "$cwfile" -nt "$matrix_txt" ] ; then
-                echo "Taking existing $mfile, $rwfile, $cwfile as accompanying $matrix_txt"
-            else
-                echo "Creating files $matrix, $rwfile, $cwfile from $matrix_txt"
-                $bindir/mf_scan  --ascii-in $withcoeffs --mfile $matrix_txt  --freq --binary-out --ofile $matrix
-            fi
+            echo "please convert the matrix to binary first" >&2
+            exit 1
             ;;
         *.bin)
             rwfile=${matrix%%bin}rw.bin
@@ -332,7 +318,7 @@ create_auxiliary_weight_files() {
             if [ "$rwfile" -nt "$matrix" ] && [ "$cwfile" -nt "$matrix" ] ; then
                 echo "Taking existing $rwfile, $cwfile as accompanying $matrix"
             else
-                $bindir/mf_scan  --binary-in $withcoeffs --mfile $matrix --freq
+                $bindir/mf_scan2  $withcoeffs --mfile $matrix --freq
             fi
             ;;
     esac

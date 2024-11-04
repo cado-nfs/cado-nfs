@@ -1,6 +1,7 @@
 /* Copyright (C) 1999--2007 Emmanuel Thom'e --- see LICENSE file */
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <sys/param.h>
+
 #include <cstdint>                        // for SIZE_MAX
 #include <cmath>                          // for ceil
 #include <cstdio>                         // for printf, fprintf, size_t
@@ -15,12 +16,13 @@
 #include <vector>                         // for vector
 
 #include <sys/utsname.h>                  // for uname, utsname
-#include <gmp.h>                          // for gmp_randclear, gmp_randinit...
-
-#include "bw-common.h"                    // for bw, bw_common_clear, bw_com...
+#include <gmp.h>
 #include "fmt/core.h"                     // for check_format_string
 #include "fmt/format.h"                   // for basic_buffer::append, basic...
 #include "fmt/printf.h" // IWYU pragma: keep
+
+#include "gmp_aux.h"
+#include "bw-common.h"                    // for bw, bw_common_clear, bw_com...
 #ifdef LINGEN_BINARY
 #include "gf2x-fft.h"                     // for gf2x_cantor_fft_info
 #include "gf2x-ternary-fft.h"             // for gf2x_ternary_fft_info
@@ -43,7 +45,7 @@
 #include "lingen_qcode_select.hpp"           // for bw_lingen_basecase
 #include "lingen_substep_schedule.hpp"    // for lingen_substep_schedule
 #include "lingen_tuning.hpp"              // for lingen_tuning, lingen_tunin...
-#include "logline.h"                      // for logline_end, logline_init_t...
+#include "logline.hpp"                      // for logline_end, logline_init_t...
 #include "macros.h"                       // for ASSERT_ALWAYS, iceildiv, MIN
 #include "memusage.h"                     // for PeakMemusage
 #include "misc.h"                         // for size_disp
@@ -64,7 +66,7 @@ static unsigned int input_length = 0;
 static int split_input_file = 0;  /* unsupported ; do acollect by ourselves */
 static int split_output_file = 0; /* do split by ourselves */
 
-gmp_randstate_t rstate;
+cxx_gmp_randstate rstate;
 
 static int allow_zero_on_rhs = 0;
 
@@ -754,7 +756,6 @@ int wrapped_main(int argc, char const *argv[])
 
     bw_common_interpret_parameters(bw, pl);
     /* {{{ interpret our parameters */
-    gmp_randinit_default(rstate);
 
     int rank;
     int size;
@@ -1113,8 +1114,6 @@ int wrapped_main(int argc, char const *argv[])
     }
 
     if (ffile) free(ffile);
-
-    gmp_randclear(rstate);
 
     return 0;   // ignored.
 }

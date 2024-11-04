@@ -274,7 +274,7 @@ struct gf2_override<128, T> : public gf2_base<128, T>
       : gf2_base<G, T>(std::forward<Args>(args)...)
     {}
     /* {{{ assignments */
-    static inline void set_random(elt& x, gmp_randstate_ptr rstate)
+    static inline void set_random(elt& x, cxx_gmp_randstate & rstate)
     {
         __m64 lo = _mm_cvtsi64_m64(u64_random(rstate));
         __m64 hi = _mm_cvtsi64_m64(u64_random(rstate));
@@ -429,7 +429,7 @@ struct gf2_base
         return tx->set(x, a);
     }
 
-    inline void set_random(elt& x, gmp_randstate_ptr rstate) const
+    inline void set_random(elt& x, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
         unsigned int K = tx->number_of_limbs();
@@ -602,7 +602,7 @@ struct gf2_middle : public gf2_override<G, T>
         tx->vec_set(q, p, n);
     }
 
-    inline void vec_set_random(elt* p, size_t k, gmp_randstate_ptr rstate) const
+    inline void vec_set_random(elt* p, size_t k, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < k; ++i)

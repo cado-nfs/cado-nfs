@@ -1,13 +1,19 @@
 #include "cado.h"
+
+#include <cmath>
+
+#include <algorithm>
+#include <vector>
+
+#include "fmt/core.h"
+
+#include "gmp_aux.h"
 #include "macros.h"
 #include "random_distributions.hpp"
 #include "tests_common.h"
-#include <algorithm>
-#include <cmath>
-#include <vector>
 
 /* Some tests */
-void test_random_normal_standard(gmp_randstate_t rstate, unsigned long N,
+void test_random_normal_standard(cxx_gmp_randstate & rstate, unsigned long N,
                                  int logscale_report)
 {
     double s = 0, ss = 0;
@@ -20,18 +26,18 @@ void test_random_normal_standard(gmp_randstate_t rstate, unsigned long N,
         }
         double const m = s / double(l);
         double const sd = sqrt(ss / double(l) - m * m);
-        fprintf(stderr, "%s: after %lu picks, mean=%.3f sdev=%.3f\n", __func__,
+        fmt::print(stderr, "{}: after {} picks, mean={:.3f} sdev={:.3f}\n", __func__,
                 l, m, sd);
 
         if (l >= 1024) {
-            ASSERT_ALWAYS(abs(m) <= 0.1);
-            ASSERT_ALWAYS(abs(sd - 1) <= 0.1);
+            ASSERT_ALWAYS(std::abs(m) <= 0.1);
+            ASSERT_ALWAYS(std::abs(sd - 1) <= 0.1);
             fprintf(stderr, "%s: checks passed\n", __func__);
         }
     }
 }
 
-void test_random_normal(gmp_randstate_t rstate, double xm, double xs,
+void test_random_normal(cxx_gmp_randstate & rstate, double xm, double xs,
                         unsigned long N, int logscale_report)
 {
     double s = 0, ss = 0;
@@ -54,7 +60,7 @@ void test_random_normal(gmp_randstate_t rstate, double xm, double xs,
     }
 }
 
-void test_random_normal_constrained(gmp_randstate_t rstate, double xm,
+void test_random_normal_constrained(cxx_gmp_randstate & rstate, double xm,
                                     double xs, unsigned long a, unsigned long b,
                                     unsigned long N, int logscale_report)
 {
@@ -89,7 +95,7 @@ void test_random_normal_constrained(gmp_randstate_t rstate, double xm,
  * and pdf Pr(X=k)=xm^k/k!*exp(-xm), but restrict the output to values
  * that are at most n
  */
-void test_random_poisson(gmp_randstate_t rstate, double xm, unsigned long n,
+void test_random_poisson(cxx_gmp_randstate & rstate, double xm, unsigned long n,
                          unsigned long N, int logscale_report)
 {
     double s = 0, ss = 0;
@@ -114,28 +120,24 @@ void test_random_poisson(gmp_randstate_t rstate, double xm, unsigned long n,
     }
 }
 
-struct cdf_pow_description {
+struct test_column_distribution : public matrix_column_distribution {
     size_t N;
     double e;
+    test_column_distribution(size_t N, double e) : N(N), e(e) {}
+    inline double q(double x) const override
+    {
+        return pow(x / double(N), e);
+    }
+    inline double qrev(double x) const override
+    {
+        return pow(x, 1.0 / e) * double(N);
+    }
 };
 
-double cdf_pow(void const * f, double x)
-{
-    auto const * C = static_cast<const struct cdf_pow_description *>(f);
-    return pow(x / double(C->N), C->e);
-}
-double cdf_invpow(void const * f, double x)
-{
-    auto const * C = static_cast<const struct cdf_pow_description *>(f);
-    return pow(x, 1.0 / C->e) * double(C->N);
-}
-
-void test_arbitrary(gmp_randstate_ptr rstate, unsigned long iter)
+void test_arbitrary(cxx_gmp_randstate & rstate, unsigned long iter)
 {
     for (int ee = 1; ee < 6; ee++) {
-        struct cdf_pow_description C {
-            8192, double(ee)
-        };
+        test_column_distribution const C(8192, ee);
 
         size_t K = ceil(sqrt(double(C.N)));
         for (; K * K < C.N; K++)
@@ -153,9 +155,7 @@ void test_arbitrary(gmp_randstate_ptr rstate, unsigned long iter)
             punched_interval_ptr range = punched_interval_alloc(&pool, 0, 1);
             for (unsigned long i = 0; i < K; i++) {
                 unsigned long const a = punched_interval_pick(
-                    &pool, range, (double (*)(void const *, double))cdf_pow,
-                    (double (*)(void const *, double))cdf_invpow,
-                    (void const *)&C, rstate);
+                    &pool, range, C, rstate);
                 ASSERT_ALWAYS(a < C.N);
                 bins[a / K]++;
             }
@@ -171,7 +171,7 @@ void test_arbitrary(gmp_randstate_ptr rstate, unsigned long iter)
 
         double s0 = 0, s1 = 0, s2 = 0;
         for (size_t i = 0; i < K; i++) {
-            double const nd = cdf_pow(&C, double(std::min((i + 1) * K, C.N)));
+            double const nd = C.q(double(std::min((i + 1) * K, C.N)));
             int const got = bins[i];
             double const expect = double(npicks) * (nd - d);
             // printf("%zu %d %.1f\n", i, got, expect);
@@ -200,8 +200,7 @@ int main(int argc, char const * argv[])
     tests_common_cmdline(&argc, &argv, PARSE_SEED | PARSE_ITER);
     tests_common_get_iter(&iter);
 
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
 
     test_random_normal_standard(rstate, iter, 2);
     test_random_normal(rstate, 4242.0, 1717.0, iter, 2);
@@ -211,7 +210,6 @@ int main(int argc, char const * argv[])
 
     test_arbitrary(rstate, iter);
 
-    gmp_randclear(rstate);
     tests_common_clear();
     return EXIT_SUCCESS;
 }

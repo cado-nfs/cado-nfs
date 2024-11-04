@@ -167,9 +167,9 @@ extern "C" {
 
 */
 
-void bw_common_decl_usage(param_list);
-void bw_common_parse_cmdline(struct bw_params * bw, param_list pl, int * p_argc, char const *** p_argv);
-void bw_common_interpret_parameters(struct bw_params * bw, param_list pl);
+void bw_common_decl_usage(param_list_ptr);
+void bw_common_parse_cmdline(struct bw_params * bw, param_list_ptr pl, int * p_argc, char const *** p_argv);
+void bw_common_interpret_parameters(struct bw_params * bw, param_list_ptr pl);
 int bw_common_init(struct bw_params * bw, int * p_argc, char const *** p_argv);
 int bw_common_clear(struct bw_params * bw);
 

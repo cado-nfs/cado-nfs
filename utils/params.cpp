@@ -579,6 +579,37 @@ param_list_parse_inner(param_list_ptr pl, const char * key, T & r, bool stealth 
     throw parameter_exception(ss.str());
 }
 
+template<>
+int
+param_list_parse_inner<bool>(param_list_ptr pl, const char * key, bool & r, bool stealth)
+{
+    std::string value;
+    std::string diagnostic;
+    if (!get_assoc(pl, key, value, stealth))
+        return 0;
+    try {
+        int v;
+        if (parse<int>()(value, v)) {
+            r = v;
+            return 1;
+        } else if (value == "true" || value == "True" || value == "yes" || value == "on") {
+            r = true;
+            return 1;
+        } else if (value == "false" || value == "False" || value == "no" || value == "off") {
+            r = false;
+            return 1;
+        }
+    } catch (parameter_exception const & e) {
+        diagnostic = e.what();
+    }
+
+    auto s = fmt::format("cannot cast parameter {} to type bool", key);
+    if (!diagnostic.empty()) {
+        s += ": " + diagnostic;
+    }
+    throw parameter_exception(s);
+}
+
 template<typename T>
 int
 param_list_parse(param_list_ptr pl, const char * key, T & r)
@@ -587,6 +618,7 @@ param_list_parse(param_list_ptr pl, const char * key, T & r)
 }
 
 
+template int param_list_parse<bool>(param_list_ptr pl, const char * key, bool & r);
 template int param_list_parse<int>(param_list_ptr pl, const char * key, int & r);
 template int param_list_parse<unsigned int>(param_list_ptr pl, const char * key, unsigned int & r);
 #ifndef LONG_IS_EXACTLY_INT

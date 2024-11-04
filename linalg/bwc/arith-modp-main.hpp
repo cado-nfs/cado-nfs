@@ -322,7 +322,7 @@ struct gfp_base : public arith_concrete_base
     }
 
     gfp_polymorphic(inline, 0, void)
-      set_random(X& x, gmp_randstate_ptr rstate) const
+      set_random(X& x, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
         cxx_mpz xz;
@@ -905,7 +905,7 @@ struct gfp_base : public arith_concrete_base
     }
 
     gfp_polymorphic(inline, 0, void)
-      vec_set_random(X* p, size_t k, gmp_randstate_ptr rstate) const
+      vec_set_random(X* p, size_t k, cxx_gmp_randstate & rstate) const
     {
         T const* tx = static_cast<T const*>(this);
         for (size_t i = 0; i < k; ++i)

@@ -1,10 +1,13 @@
 #include "cado.h" // IWYU pragma: keep
 // IWYU pragma: no_include <ext/alloc_traits.h>
 // IWYU pragma: no_include <memory>
+
 #include <cstring>
 #include <climits>
 #include <cerrno>             // for errno
-#include <stdlib.h>            // for free, NULL
+#include <cstdlib>            // for free, NULL
+#include <cctype>
+
 #include <type_traits>         // for remove_reference<>::type
 #include <utility>             // for pair, move, swap, make_pair
 #include <string>
@@ -14,14 +17,14 @@
 #include <fstream>      // ifstream // IWYU pragma: keep
 #include <sstream>      // ostringstream // IWYU pragma: keep
 #include <stdexcept>
-#include <cctype>
 #include <algorithm>
 #include <iterator>
 #include <vector>
+
 #include <hwloc.h>
 #include <hwloc/bitmap.h>
 
-#include "cpubinding.h"
+#include "cpubinding.hpp"
 #include "params.h"     // param_list
 #include "macros.h"
 #include "portability.h" // strdup
@@ -33,7 +36,7 @@
 /* All output is prefixed by this. */
 #define PRE "cpubinding: "
 
-void cpubinding_decl_usage(param_list_ptr pl)
+void cpubinding_decl_usage(cxx_param_list & pl)
 {
     param_list_decl_usage(pl, "input-topology-file",
             "simulated topology, only for testing");
@@ -42,7 +45,7 @@ void cpubinding_decl_usage(param_list_ptr pl)
     param_list_decl_usage(pl, "cpubinding", "path to a cpubinding.conf file, or explicit CPU binding string");
 }
 
-void cpubinding_lookup_parameters(param_list_ptr pl)
+void cpubinding_lookup_parameters(cxx_param_list & pl)
 {
     param_list_lookup_string(pl, "cpubinding");
 }
@@ -815,7 +818,7 @@ class cpubinder {
     cpubinder&operator=(cpubinder const&) = delete;
     cpubinder(std::ostream& os) : os(os) { hwloc_topology_init(&topology); }
     ~cpubinder() { hwloc_topology_destroy(topology); }
-    void read_param_list(param_list_ptr pl, int want_conf_file);
+    void read_param_list(cxx_param_list & pl, int want_conf_file);
     bool find(thread_split const& thr);
     void force(thread_split const& ,const char * desc);
     void set_permissive_binding();
@@ -825,7 +828,7 @@ class cpubinder {
 };
 
 
-void cpubinder::read_param_list(param_list_ptr pl, int want_conf_file)
+void cpubinder::read_param_list(cxx_param_list & pl, int want_conf_file)
 {
     /* the first two arguments here are not parsed in the cado-nfs
      * context. It's only used by the helper binary I have for testing
@@ -1184,7 +1187,7 @@ void cpubinder::stage()
  * This returns NULL if cpubinding failed.
  */
 
-void * cpubinding_get_info(char ** messages, param_list_ptr pl, unsigned int tt0, unsigned int tt1)
+void * cpubinding_get_info(char ** messages, cxx_param_list & pl, unsigned int tt0, unsigned int tt1)
 {
     const char * conf = param_list_lookup_string(pl, "cpubinding");
     thread_split const thr(tt0, tt1);

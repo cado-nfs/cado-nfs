@@ -1,11 +1,15 @@
 #include "cado.h" // IWYU pragma: keep
-#include <array>
-#include <vector>
 #include <cstdlib>
 #include <cstdio>
 #include <cmath>
 #include <cstring>
+
+#include <array>
+#include <vector>
+
 #include <gmp.h>
+
+#include "gmp_aux.h"
 #include "pm1.h"
 #include "pp1.h"
 #include "facul_ecm.h"

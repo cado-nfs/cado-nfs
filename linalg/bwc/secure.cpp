@@ -4,17 +4,22 @@
 #include <cstdint>              // for uint32_t
 #include <cstdlib>
 #include <cstdio>
+
 #include <string>                // for string
 #include <memory>
 #include <algorithm>
 #include <vector>
+
 #include <sys/stat.h>
-#include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
-#include "async.hpp"
-#include "bw-common.h"
+
+#include <gmp.h>
 #include "fmt/core.h"            // for check_format_string
 #include "fmt/format.h"
 #include "fmt/printf.h" // IWYU pragma: keep
+
+#include "gmp_aux.h"
+#include "async.hpp"
+#include "bw-common.h"
 #include "macros.h"
 #include "matmul.hpp"              // for matmul_public_s
 #include "matmul_top.hpp"
@@ -27,6 +32,7 @@
 #include "xvectors.hpp"
 #include "mmt_vector_pair.hpp"
 #include "utils_cxx.hpp"
+
 using namespace fmt::literals;
 
 int legacy_check_mode = 0;
@@ -56,7 +62,7 @@ int legacy_check_mode = 0;
  * (T): This assumes that nullspace=right. If nullspace=left, replace M by trsp(M).
  */
 
-void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
 
     int const fake = param_list_lookup_string(pl, "random_matrix") != NULL;
@@ -93,8 +99,8 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
     int rc;
 
     /* To fill Cr and Ct, we need a random state */
-    gmp_randstate_t rstate;
-    gmp_randinit_default(rstate);
+    cxx_gmp_randstate rstate;
+
 #if 0
     /* After all, a zero seed is fine, too */
     if (pi->m->trank == 0 && !bw->seed) {
@@ -433,18 +439,16 @@ void * sec_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSE
 
     A->free(Tdata);
 
-    gmp_randclear(rstate);
-
     return NULL;
 }
 
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -475,7 +479,7 @@ int main(int argc, char const * argv[])
     pi_go(sec_prog, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
+
     bw_common_clear(bw);
     return 0;
 }

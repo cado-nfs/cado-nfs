@@ -12,6 +12,7 @@
 
 #include <gmp.h>
 
+#include "gmp_aux.h"
 #include "abase_proxy.hpp"
 #include "arith-generic.hpp"
 #include "balancing.hpp" // for balancing_pre_shuffle
@@ -30,7 +31,7 @@
 #include "xdotprod.hpp"
 #include "xvectors.hpp"
 
-void bw_rank_check(matmul_top_data & mmt, param_list_ptr pl)
+void bw_rank_check(matmul_top_data & mmt, cxx_param_list & pl)
 {
     int const tcan_print = bw->can_print && mmt.pi->m->trank == 0;
     unsigned int const r = matmul_top_rank_upper_bound(mmt);
@@ -264,7 +265,7 @@ struct prep_object {
     std::unique_ptr<uint32_t[]> xvecs;
     std::vector<unsigned int> Z;
 
-    prep_object(parallelizing_info_ptr pi, param_list_ptr pl)
+    prep_object(parallelizing_info_ptr pi, cxx_param_list & pl)
         : pi(pi)
         , tcan_print(bw->can_print && pi->m->trank == 0)
         , char2(mpz_cmp_ui(bw->p, 2) == 0)
@@ -325,7 +326,7 @@ struct prep_object {
      * TODO: we must probably add a layer of twisting / untwisting here.
      *
      */
-    unsigned int load_and_prepare_rhs_vectors(param_list_ptr pl)
+    unsigned int load_and_prepare_rhs_vectors(cxx_param_list & pl)
     { // {{{
         parallelizing_info_ptr pi = mmt.pi;
         arith_generic * A = mmt.abase;
@@ -687,7 +688,7 @@ struct prep_object {
     } // }}}
 };
 
-void * prep_prog(parallelizing_info_ptr pi, param_list pl,
+void * prep_prog(parallelizing_info_ptr pi, cxx_param_list & pl,
                  void * arg MAYBE_UNUSED)
 {
     prep_object P(pi, pl);

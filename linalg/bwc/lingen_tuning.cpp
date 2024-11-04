@@ -19,12 +19,13 @@
 #include <vector>                              // for vector
 
 #include <gmp.h>                               // for mp_limb_t, mpz_size
-
-#include "lingen_tuning.hpp"
-#include "cxx_mpz.hpp"                         // for cxx_mpz
 #include "fmt/core.h"                          // for check_format_string
 #include "fmt/format.h"                        // for basic_buffer::append
 #include "fmt/ostream.h"                       // for formatbuf<>::int_type
+
+#include "gmp_aux.h"
+#include "lingen_tuning.hpp"
+#include "cxx_mpz.hpp"                         // for cxx_mpz
 #include "arith-hard.hpp"                  // for abdst_field
 #include "lingen_bw_dimensions.hpp"            // for bw_dimensions
 #include "lingen_call_companion.hpp"           // for lingen_call_companion
@@ -211,7 +212,7 @@ struct lingen_tuner {
     size_t L;
     lingen_platform P;
     lingen_tuning_cache C;
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
     const char * timing_cache_filename = NULL;
     const char * schedule_filename = NULL;
 
@@ -353,7 +354,6 @@ struct lingen_tuner {
         tuning_thresholds(pl, os, P)
     {
         mpz_set (p, ab->characteristic());
-        gmp_randinit_default(rstate);
         gmp_randseed_ui(rstate, 1);
 
         param_list_parse_double(pl, "basecase-keep-until", &basecase_keep_until);
@@ -374,7 +374,6 @@ struct lingen_tuner {
         MPI_Comm_rank(P.comm, &rank);
         if (rank == 0)
             C.save(timing_cache_filename);
-        gmp_randclear(rstate);
     }/*}}}*/
     std::tuple<size_t, double> mpi_threshold_comm_and_time() {/*{{{*/
         /* This is the time taken by gather() and scatter() right at the

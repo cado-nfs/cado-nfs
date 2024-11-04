@@ -29,11 +29,12 @@
 
 #include <unistd.h>
 #include <gmp.h>
-
-#include "cxx_mpz.hpp"
 #include "fmt/core.h"                // for check_format_string, char_t, format
 #include "fmt/format.h"
 #include "fmt/printf.h" // IWYU pragma: keep
+
+#include "gmp_aux.h"
+#include "cxx_mpz.hpp"
 #include "gmp-hacks.h"
 #include "arith-hard.hpp"        // for mpfq_p_1_field_specify, MPFQ_PRI...
 #include "lingen_bmstatus.hpp"
@@ -57,7 +58,7 @@ struct
 cxx_mpz prime;          /* prime modulus */
 unsigned long lingen_p; /* number of limbs per coefficient */
 int mpi_k = 1;          /* matrix is cut in k x k submatrices */
-gmp_randstate_t state;
+cxx_gmp_randstate state;
 int verbose = 0;
 unsigned long seed;
 unsigned long global_batch = 128;
@@ -296,7 +297,7 @@ public:
     }
 };
 
-void mpz_urandomm_nz(mpz_ptr a, gmp_randstate_t state, mpz_srcptr prime)
+void mpz_urandomm_nz(mpz_ptr a, cxx_gmp_randstate & state, mpz_srcptr prime)
 {
     ASSERT_ALWAYS(mpz_cmp_ui(prime, 1) > 0);
     do {
@@ -843,7 +844,6 @@ int main(int argc, char const * argv[])
         exit(EXIT_FAILURE);
     }
 
-    gmp_randinit_default(state);
     gmp_randseed_ui(state, seed);
 
     lingen_p = mpz_size(prime);
@@ -873,7 +873,6 @@ int main(int argc, char const * argv[])
         }
     }
 
-    gmp_randclear(state);
     MPI_Finalize();
 
     return ret ? EXIT_SUCCESS : EXIT_FAILURE;

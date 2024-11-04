@@ -1,15 +1,24 @@
 #include "cado.h" // IWYU pragma: keep
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cstdint>              // for uint32_t
+                                //
 #include <memory>
 #include <string>                // for string, operator+
-#include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
+                                 //
 #ifdef HAVE_RESOURCE_H
 #include <sys/resource.h>	/* for cputime */
 #endif
 #include <sys/time.h>	/* for gettimeofday */
+
+#include <gmp.h>
+#include "fmt/core.h"            // for check_format_string
+#include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
+#include "fmt/format.h"
+
+#include "gmp_aux.h"
 #include "matmul.hpp"              // for matmul_public_s
 #include "parallelizing_info.hpp"
 #include "matmul_top.hpp"
@@ -21,9 +30,6 @@
 #include "xdotprod.hpp"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
-#include "fmt/core.h"            // for check_format_string
-#include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
-#include "fmt/format.h"
 #include "macros.h"
 #include "matmul_top_vec.hpp"
 #include "mmt_vector_pair.hpp"
@@ -31,7 +37,7 @@
 
 using namespace fmt::literals;
 
-void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+void * bench_cpu_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     int fake = param_list_lookup_string(pl, "random_matrix") != nullptr;
     fake = fake || param_list_lookup_string(pl, "static_random_matrix") != nullptr;
@@ -69,13 +75,12 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
      */
     serialize(pi->m);
     {
-        gmp_randstate_t rstate;
-        gmp_randinit_default(rstate);
+        cxx_gmp_randstate rstate;
+
         unsigned long const g = pi->m->jrank * pi->m->ncores + pi->m->trank;
         gmp_randseed_ui(rstate, bw->seed + g);
         mmt_vec_set_random_inconsistent(ymy[0], rstate);
         mmt_vec_truncate(mmt, ymy[0]);
-        gmp_randclear(rstate);
     }
     serialize(pi->m);
 
@@ -154,10 +159,10 @@ void * bench_cpu_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -188,7 +193,7 @@ int main(int argc, char const * argv[])
     pi_go(bench_cpu_prog, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
+    
     bw_common_clear(bw);
 
     return 0;

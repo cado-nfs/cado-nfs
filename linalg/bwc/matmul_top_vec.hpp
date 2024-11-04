@@ -1,6 +1,7 @@
 #ifndef MATMUL_TOP_VEC_HPP_
 #define MATMUL_TOP_VEC_HPP_
 
+#include "gmp_aux.h"
 #include "parallelizing_info.hpp"
 #include "arith-generic.hpp"
 
@@ -90,11 +91,11 @@ extern arith_generic::elt * mmt_my_own_subvec(mmt_vec & v);
 extern arith_generic::elt * mmt_my_own_subvec(mmt_vec & v, unsigned int);
 extern arith_generic::elt const * mmt_my_own_subvec(mmt_vec const & v);
 
-extern void mmt_vec_set_random_through_file(mmt_vec & v, const char * name, unsigned int itemsondisk, gmp_randstate_t rstate, unsigned int block_position);
+extern void mmt_vec_set_random_through_file(mmt_vec & v, const char * name, unsigned int itemsondisk, cxx_gmp_randstate & rstate, unsigned int block_position);
 
 /* do not use this function if you want consistency when the splitting
  * changes ! */
-extern void mmt_vec_set_random_inconsistent(mmt_vec & v, gmp_randstate_t rstate);
+extern void mmt_vec_set_random_inconsistent(mmt_vec & v, cxx_gmp_randstate & rstate);
 extern unsigned long mmt_vec_hamming_weight(mmt_vec const & y);
 extern void mmt_vec_set_x_indices(mmt_vec & y, uint32_t * gxvecs, int m, unsigned int nx);
 extern void mmt_vec_set_expanded_copy_of_local_data(mmt_vec & y, const void * v, unsigned int n);
@@ -121,7 +122,7 @@ static inline int mmt_vec_is_shared(mmt_vec const & v) {
 
 extern void mmt_vec_share_across_threads(mmt_vec & v);
 
-static inline void mmt_vec_set_random_through_file(mmt_vec & v, std::string const & name, unsigned int itemsondisk, gmp_randstate_t rstate, unsigned int block_position) {
+static inline void mmt_vec_set_random_through_file(mmt_vec & v, std::string const & name, unsigned int itemsondisk, cxx_gmp_randstate & rstate, unsigned int block_position) {
     mmt_vec_set_random_through_file(v, name.c_str(), itemsondisk, rstate, block_position);
 }
 static inline int mmt_vec_load(mmt_vec & v, std::string const & name, unsigned int itemsondisk, unsigned int block_position) ATTRIBUTE_WARN_UNUSED_RESULT;

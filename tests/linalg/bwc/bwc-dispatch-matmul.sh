@@ -92,7 +92,7 @@ trap cleanup EXIT
 
 # MPI=/localdisk/ethome/Packages/openmpi-1.8.2 DEBUG=1 make -j8
 
-"$bindir/linalg/bwc/mf_scan" --ascii-in --mfile <("$bindir/linalg/bwc/random_matrix" $nrows -d $density -s $seed)  --binary-out --freq --ofile $D/$M.bin
+"$bindir/linalg/bwc/random_matrix" $nrows -d $density -s $seed --binary -o $D/$M.bin --freq
 
 $bindir/linalg/bwc/mf_bal mfile=$D/$M.bin out=$D/ $nh $nv
 

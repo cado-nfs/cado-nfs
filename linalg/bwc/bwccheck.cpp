@@ -590,7 +590,7 @@ void check_A_files(arith_generic * Ac, std::vector<Vfile> const & Vfiles, std::v
  * way programs such as krylov or mksol are written.
  *
  */
-void * check_prog(param_list pl MAYBE_UNUSED, int argc, char const * argv[])
+void * check_prog(cxx_param_list & pl MAYBE_UNUSED, int argc, char const * argv[])
 {
     int const withcoeffs = mpz_cmp_ui(bw->p, 2) > 0;
     int const nchecks = withcoeffs ? NCHECKS_CHECK_VECTOR_GFp : NCHECKS_CHECK_VECTOR_GF2;
@@ -831,10 +831,10 @@ void * check_prog(param_list pl MAYBE_UNUSED, int argc, char const * argv[])
 
 int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
 
     param_list_usage_header(pl,
             "Usage: %s [options] -- [list of file names]\n"
@@ -859,7 +859,6 @@ int main(int argc, char const * argv[])
 
     check_prog(pl, argc, argv);
 
-    param_list_clear(pl);
     bw_common_clear(bw);
 
     return 0;

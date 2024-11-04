@@ -173,7 +173,7 @@ void matpoly::set_constant_ui(unsigned long e) {
 }
 /* }}} */
 
-void matpoly::fill_random(unsigned int k0, unsigned int k1, gmp_randstate_t rstate)
+void matpoly::fill_random(unsigned int k0, unsigned int k1, cxx_gmp_randstate & rstate)
 {
     ASSERT_ALWAYS(b2w(k1) <= alloc_words);
     size_t const nw0 = b2w(k0);

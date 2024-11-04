@@ -1,5 +1,6 @@
 #include "cado.h"
 
+#include "gmp_aux.h"
 #include "numbertheory/number_field.hpp"
 #include "numbertheory/number_field_order.hpp"
 #include "numbertheory/number_field_element.hpp"

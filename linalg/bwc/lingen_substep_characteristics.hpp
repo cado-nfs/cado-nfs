@@ -5,9 +5,11 @@
 #include <memory>
 #include <tuple>
 
-#include "cxx_mpz.hpp"
 #include "fmt/format.h"
 #include "fmt/printf.h"
+
+#include "gmp_aux.h"
+#include "cxx_mpz.hpp"
 #include "subdivision.hpp"
 #include "lingen_platform.hpp"
 #include "lingen_substep_schedule.hpp"
@@ -35,7 +37,7 @@ struct lingen_substep_characteristics {
 
     matpoly::arith_hard * ab;
     cxx_mpz p;
-    gmp_randstate_t & rstate;
+    cxx_gmp_randstate & rstate;
 
     /* length of the input (E) for the call under consideration ; this is
      * not the input length for the overall algorithm !
@@ -108,7 +110,7 @@ struct lingen_substep_characteristics {
         return true;
     }
 
-    lingen_substep_characteristics(matpoly::arith_hard * ab, gmp_randstate_t & rstate, size_t input_length, op_mul_or_mp_base::op_type_t op_type, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
+    lingen_substep_characteristics(matpoly::arith_hard * ab, cxx_gmp_randstate & rstate, size_t input_length, op_mul_or_mp_base::op_type_t op_type, unsigned int n0, unsigned int n1, unsigned int n2, size_t asize, size_t bsize, size_t csize) :/*{{{*/
         ab(ab),
         rstate(rstate),
         input_length(input_length),

@@ -4,8 +4,12 @@
 #include <cstdlib>
 #include <climits>
 #include <ctime>                // for time
+
 #include <string>                // for string
-#include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
+
+#include <gmp.h>
+#include "fmt/format.h"
+
 #include "matmul.hpp"              // for matmul_public_s
 #include "parallelizing_info.hpp"
 #include "matmul_top.hpp"
@@ -14,15 +18,16 @@
 #include "params.h"
 #include "misc.h"
 #include "bw-common.h"
+#include "gmp_aux.h"
 #include "async.hpp"
 #include "arith-cross.hpp"
 #include "arith-generic.hpp"
-#include "fmt/format.h"
 #include "macros.h"
 #include "mmt_vector_pair.hpp"
+
 using namespace fmt::literals;
 
-void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+void * mksol_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     int const fake = param_list_lookup_string(pl, "random_matrix") != NULL;
     if (fake) bw->skip_online_checks = 1;
@@ -118,9 +123,8 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
     /* }}} */
 
     /* {{{ Read all vi's */
-    gmp_randstate_t rstate;
+    cxx_gmp_randstate rstate;
     if (fake) {
-        gmp_randinit_default(rstate);
         if (pi->m->trank == 0 && !bw->seed) {
             bw->seed = time(NULL);
             MPI_Bcast(&bw->seed, 1, MPI_INT, 0, pi->m->pals);
@@ -490,7 +494,6 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
         printf("Done mksol.\n");
     }
     serialize(pi->m);
-    if (fake) gmp_randclear(rstate);
 
     for(unsigned int k = 0 ; k < Av_multiplex * As_multiplex ; k++) {
         As->free((fcoeffs[k]));
@@ -511,10 +514,10 @@ void * mksol_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNU
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -544,7 +547,7 @@ int main(int argc, char const * argv[])
     pi_go(mksol_prog, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
+
     bw_common_clear(bw);
 
     return 0;

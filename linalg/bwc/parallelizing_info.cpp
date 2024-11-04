@@ -1,19 +1,27 @@
 #include "cado.h" // IWYU pragma: keep
-#include <pthread.h>      // for pthread_t
+                  //
+#include <cctype>
+#include <cerrno>
+#include <cinttypes>
+#include <cstdarg>
 #include <cstddef>       // for ptrdiff_t
-#include <cstdlib>
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
-#include <sys/types.h>
-#include <cerrno>
-#include <cstdarg>
-#include <cstdint>
-#include <cinttypes>
-#include <cctype>
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <thread>
+
+#include <pthread.h>      // for pthread_t
+#include <sys/types.h>
+#include <sys/time.h>   // gettimeofday
+#ifdef  HAVE_UTSNAME_H
+#include <sys/utsname.h>
+#include <climits>
+#endif
 
 #include "select_mpi.h"
 #include "parallelizing_info.hpp"
@@ -23,15 +31,8 @@
 #include "timing.h"
 #include "portability.h"
 
-
-#include <sys/time.h>   // gettimeofday
-#ifdef  HAVE_UTSNAME_H
-#include <sys/utsname.h>
-#include <climits>
-#endif
-
 #if defined(HAVE_HWLOC) && defined(HAVE_CXX11)
-#include "cpubinding.h"
+#include "cpubinding.hpp"
 #include "params.h"
 #endif  /* defined(HAVE_HWLOC) && defined(HAVE_CXX11) */
 
@@ -79,38 +80,38 @@ static void print_several(unsigned int n1, unsigned int n2, char a, char b, unsi
     free(toto);
 }
 
-struct pi_go_helper_s {
-    void *(*fcn)(parallelizing_info_ptr, param_list pl, void*);
-    parallelizing_info_ptr p;
-    param_list_ptr pl;
-    void * arg;
-};
-
-void * pi_go_helper_func(struct pi_go_helper_s * s)
+template<typename Callable, typename... Args>
+void * pi_go_call_thread(
+        Callable&& f,
+        parallelizing_info_ptr p,
+        cxx_param_list & pl,
+        Args&&... args)
 {
-    pi_interleaving_enter(s->p);
+    pi_interleaving_enter(p);
 #if defined(HAVE_HWLOC) && defined(HAVE_CXX11)
-    cpubinding_do_pinning(s->p->cpubinding_info, s->p->wr[1]->trank, s->p->wr[0]->trank);
+    cpubinding_do_pinning(p->cpubinding_info,
+            int(p->wr[1]->trank),
+            int(p->wr[0]->trank));
 #endif /* defined(HAVE_HWLOC) && defined(HAVE_CXX11) */
     int debug = 0;
-    param_list_parse_int(s->pl, "debug-parallel-bwc", &debug);
+    param_list_parse(pl, "debug-parallel-bwc", debug);
 
     if (debug) {
-        pi_log_init(s->p->m);
-        pi_log_init(s->p->wr[0]);
-        pi_log_init(s->p->wr[1]);
+        pi_log_init(p->m);
+        pi_log_init(p->wr[0]);
+        pi_log_init(p->wr[1]);
     }
 
-    void * ret = (s->fcn)(s->p, s->pl, s->arg);
+    void * ret = f(p, pl, std::forward<Args>(args)...);
 
     if (debug) {
-        pi_log_clear(s->p->m);
-        pi_log_clear(s->p->wr[0]);
-        pi_log_clear(s->p->wr[1]);
+        pi_log_clear(p->m);
+        pi_log_clear(p->wr[0]);
+        pi_log_clear(p->wr[1]);
     }
 
-    pi_interleaving_flip(s->p);
-    pi_interleaving_leave(s->p);
+    pi_interleaving_flip(p);
+    pi_interleaving_leave(p);
     return ret;
 }
 
@@ -307,7 +308,7 @@ static void display_process_grid(parallelizing_info_ptr pi)
     MPI_Barrier(pi->m->pals);
 }
 
-static void pi_init_mpilevel(parallelizing_info_ptr pi, param_list pl)
+static void pi_init_mpilevel(parallelizing_info_ptr pi, cxx_param_list & pl)
 {
     int err;
 
@@ -664,31 +665,20 @@ static void pi_go_mt_now(
         parallelizing_info ** grids,
         unsigned int ngrids,
         unsigned int n,
-        void *(*fcn)(parallelizing_info_ptr, param_list pl, void *),
-        param_list pl,
+        void *(&&fcn)(parallelizing_info_ptr, cxx_param_list & pl, void *),
+        cxx_param_list & pl,
         void * arg)
 {
-    my_pthread_t * tgrid;
-    struct pi_go_helper_s * helper_grid;
-
-    tgrid = new my_pthread_t[n * ngrids];
-    helper_grid = new pi_go_helper_s[n * ngrids];
+    std::vector<std::thread> threads;
+    threads.reserve(n * ngrids);
 
     for(unsigned int k = 0 ; k < n * ngrids ; k++) {
-        helper_grid[k].fcn = fcn;
-        helper_grid[k].pl = pl;
-        helper_grid[k].arg = arg;
-        helper_grid[k].p = (parallelizing_info_ptr) grids[k/n] + (k%n);
-        my_pthread_create(tgrid+k, NULL,
-                (pthread_callee_t) pi_go_helper_func, helper_grid+k);
+        auto * g = (parallelizing_info_ptr) (grids[k/n] + (k%n))[0];
+        threads.emplace_back(pi_go_call_thread<decltype(fcn), void*>,
+                std::ref(fcn), g, std::ref(pl), arg);
     }
-
-    // nothing done here. We're the main job.
-    for(unsigned int k = 0 ; k < n * ngrids ; k++) {
-        my_pthread_join(tgrid[k], NULL);
-    }
-    delete[] helper_grid;
-    delete[] tgrid;
+    for(auto & t : threads)
+        t.join();
 }
 
 static void pi_grid_clear(parallelizing_info_ptr pi, parallelizing_info * grid)
@@ -748,8 +738,8 @@ static void shout_going_mt(pi_comm_ptr m)
 #endif
 
 static void pi_go_inner_not_interleaved(
-        void *(*fcn)(parallelizing_info_ptr, param_list pl, void *),
-        param_list pl,
+        void *(&&fcn)(parallelizing_info_ptr, cxx_param_list & pl, void *),
+        cxx_param_list & pl,
         void * arg)
 {
     parallelizing_info pi;
@@ -764,8 +754,8 @@ static void pi_go_inner_not_interleaved(
 }
 
 static void pi_go_inner_interleaved(
-        void *(*fcn)(parallelizing_info_ptr, param_list pl, void *),
-        param_list pl,
+        void *(&&fcn)(parallelizing_info_ptr, cxx_param_list & pl, void *),
+        cxx_param_list & pl,
         void * arg)
 {
     parallelizing_info pi[2];
@@ -782,13 +772,14 @@ static void pi_go_inner_interleaved(
 
     /* Now the whole point is that it's the _same_ barrier ! */
     my_pthread_barrier_t b;
-    my_pthread_barrier_init(&b, NULL, 2 * pi[0]->m->ncores);
+    my_pthread_barrier_init(&b, nullptr, 2 * pi[0]->m->ncores);
     pi[0]->interleaved->b = &b;
     pi[1]->interleaved->b = &b;
 
-    auto d = new pi_dictionary;
-    pi[0]->dict = d;
-    pi[1]->dict = d;
+    pi_dictionary d;
+
+    pi[0]->dict = &d;
+    pi[1]->dict = &d;
 
     grids[0] = pi_grid_init(pi[0]);
     grids[1] = pi_grid_init(pi[1]);
@@ -802,7 +793,6 @@ static void pi_go_inner_interleaved(
     pi_grid_clear(pi[1], grids[1]);
 
     my_pthread_barrier_destroy(&b);
-    delete d;
 
     pi_clear_mpilevel(pi[0]);
     pi_clear_mpilevel(pi[1]);
@@ -820,12 +810,12 @@ void * pi_load_generic(parallelizing_info_ptr pi, unsigned long key, unsigned lo
     const std::lock_guard<std::mutex> dummy(pi->dict->mutex());
     auto it = pi->dict->find(std::make_pair(key, who));
     if (it == pi->dict->end())
-        return NULL;
+        return nullptr;
     else
         return it->second;
 }
 
-void parallelizing_info_decl_usage(param_list pl)/*{{{*/
+void parallelizing_info_decl_usage(cxx_param_list & pl)/*{{{*/
 {
     param_list_decl_usage(pl, "mpi", "number of MPI nodes across which the execution will span, with mesh dimensions");
     param_list_decl_usage(pl, "thr", "number of threads (on each node) for the program, with mesh dimensions");
@@ -841,7 +831,7 @@ void parallelizing_info_decl_usage(param_list pl)/*{{{*/
 }
 /*}}}*/
 
-void parallelizing_info_lookup_parameters(param_list_ptr pl)/*{{{*/
+void parallelizing_info_lookup_parameters(cxx_param_list & pl)/*{{{*/
 {
     /* These will all be looked later (within this file, though).
      */
@@ -861,8 +851,8 @@ void parallelizing_info_lookup_parameters(param_list_ptr pl)/*{{{*/
 
 
 void pi_go(
-        void *(*fcn)(parallelizing_info_ptr, param_list pl, void *),
-        param_list pl,
+        void *(&&fcn)(parallelizing_info_ptr, cxx_param_list & pl, void *),
+        cxx_param_list & pl,
         void * arg)
 {
     int interleaving = 0;
@@ -1594,6 +1584,7 @@ void * shared_malloc(pi_comm_ptr wr, size_t size)
     pi_thread_bcast(&ptr, sizeof(void*), BWC_PI_BYTE, 0, wr);
     return ptr;
 }
+
 
 void * shared_malloc_set_zero(pi_comm_ptr wr, size_t size)
 {

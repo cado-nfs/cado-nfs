@@ -2,9 +2,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>              // for uint32_t
+
 #include <memory>
 #include <string>                // for string, operator+
+
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
+#include "fmt/core.h"            // for check_format_string
+#include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
+#include "fmt/format.h"
+
+#include "gmp_aux.h"
 #include "matmul.hpp"              // for matmul_public_s
 #include "parallelizing_info.hpp"
 #include "matmul_top.hpp"
@@ -17,9 +24,6 @@
 #include "rolling.hpp"
 #include "arith-generic.hpp"
 #include "arith-cross.hpp"
-#include "fmt/core.h"            // for check_format_string
-#include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
-#include "fmt/format.h"
 #include "macros.h"
 #include "mmt_vector_pair.hpp"
 #include "utils_cxx.hpp"
@@ -155,7 +159,7 @@ struct check_data {
     }
 };
 
-void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UNUSED)
+void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE_UNUSED)
 {
     int const legacy_check_mode = 0;
     int fake = param_list_lookup_string(pl, "random_matrix") != NULL;
@@ -214,8 +218,7 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         int const ok = mmt_vec_load(ymy[0], fmt::format(FMT_STRING("V%u-%u.{}"), bw->start), unpadded, ys[0]);
         ASSERT_ALWAYS(ok);
     } else {
-        gmp_randstate_t rstate;
-        gmp_randinit_default(rstate);
+        cxx_gmp_randstate rstate;
 #if 0
         /* This is for setting the source vector to something consistent
          * across mappings, so that given a fixed (fake, here) matrix, any
@@ -244,7 +247,6 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
         mmt_vec_set_random_inconsistent(ymy[0], rstate);
         mmt_vec_truncate(mmt, ymy[0]);
 #endif
-        gmp_randclear(rstate);
     }
     serialize(pi->m);
 
@@ -391,16 +393,16 @@ void * krylov_prog(parallelizing_info_ptr pi, param_list pl, void * arg MAYBE_UN
     param_list_parse_int(pl, "full_report", &want_full_report);
     matmul_top_report(mmt, 1.0, want_full_report);
 
-    return NULL;
+    return nullptr;
 }
 
 // coverity[root_function]
 int main(int argc, char const * argv[])
 {
-    param_list pl;
+    cxx_param_list pl;
 
     bw_common_init(bw, &argc, &argv);
-    param_list_init(pl);
+
     parallelizing_info_init();
 
     bw_common_decl_usage(pl);
@@ -431,7 +433,7 @@ int main(int argc, char const * argv[])
     pi_go(krylov_prog, pl, 0);
 
     parallelizing_info_finish();
-    param_list_clear(pl);
+
     bw_common_clear(bw);
 
     return 0;
