@@ -23,12 +23,12 @@ typedef fbprime_t redc_invp_t;
    factor base entry. */
 /* Each slice in a factor base has a unique index */
 typedef uint32_t slice_index_t;
-/* Each factor base entry withing a slice has a unique offset */
+/* Each factor base entry within a slice has a unique offset */
 typedef uint16_t slice_offset_t;
 
 // FIXME: could probably go somewhere else...
 // Small struct for sublattice info:
-// One sieves only positions congrent to (i0,j0) mod m
+// One sieves only positions congruent to (i0,j0) mod m
 struct sublat_s {
     uint32_t m=0; // 0 means no sublattices.
     uint32_t i0=0;
