@@ -28,7 +28,7 @@
  */
 unsigned long trialdiv_data::max_p =
             (TRIALDIV_MAXLEN == 1) ?
-                ULONG_MAX : 
+                ULONG_MAX :
                 std::min(
                         (unsigned long) (std::sqrt(ULONG_MAX / (TRIALDIV_MAXLEN - 1)) - 1),
                         ULONG_MAX);
@@ -90,7 +90,7 @@ trialdiv_div3 (const unsigned long *n, const trialdiv_divisor_t *d)
   __asm__ ("# trialdiv_div3");
 #endif
 #if VERBOSE
-    printf ("p = %lu, n2:n1:n0 = %lu * w^2 + %lu * w + %lu", 
+    printf ("p = %lu, n2:n1:n0 = %lu * w^2 + %lu * w + %lu",
             d->p, n[2], n[1], n[0]);
 #endif
   ularith_mul_ul_ul_2ul (&x0, &x1, n[1], d->w[0]); /* n_1 * (w^1 % p) */
@@ -297,17 +297,17 @@ trialdiv2_divexact (mpz_ptr N, mp_limb_t p, mp_limb_t pinv)
 }
 
 /* Divides primes in d out of N and stores them (with multiplicity) in f.
-   Never stores more than max_div primes in f. Returns the number of
-   primes found, or max_div+1 if the number of primes exceeds max_div. 
-   Primes not stored in f (because max_div was exceeded) are not divided out.
+   Never stores more than max_factors primes in f. Returns the number of
+   primes found, or max_factors+1 if the number of primes exceeds max_factors.
+   Primes not stored in f (because max_factors was exceeded) are not divided out.
    This way, trial division of highly composite values can be processed
    by repeated calls of trialdiv(). */
 
-size_t 
+size_t
 trialdiv_data::trial_divide (std::vector<uint64_t> & f, cxx_mpz & N, size_t max_factors) const
 {
   auto d = begin();
-  
+
 #if TRIALDIV_MAXLEN > 8
 #error trialdiv not implemented for input sizes of more than 8 words
 #endif
@@ -376,7 +376,7 @@ trialdiv_data::trial_divide (std::vector<uint64_t> & f, cxx_mpz & N, size_t max_
             d++;
         }
 #endif
-#if VERBOSE 
+#if VERBOSE
       printf ("\n");
 #endif
 
