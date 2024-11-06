@@ -666,7 +666,7 @@ uint32_t * matrix_transpose(uint32_t * p, size_t size, unsigned long nrows, unsi
 
 matrix_u32 random_matrix_ddata::get_byrows(cxx_gmp_randstate & rstate)
 {
-    matrix_u32 ret { matrix_u32::withcoeffs_option(maxcoeff > 0) };
+    matrix_u32 ret { matrix_u32::withcoeffs_option { maxcoeff > 0 } };
 
     /* Now we essentially have a copy of printrows above, except that
      * we're outputting binary, and not to a stream but to memory.  */
@@ -724,7 +724,7 @@ matrix_u32 random_matrix_ddata::get_byrows(cxx_gmp_randstate & rstate)
 
 matrix_u32 random_matrix_ddata::get_bycolumns(cxx_gmp_randstate & rstate)
 {
-    matrix_u32 ret { matrix_u32::withcoeffs_option(maxcoeff > 0) };
+    matrix_u32 ret { matrix_u32::withcoeffs_option { maxcoeff > 0 } };
 
     total_coeffs = 0;
     double tot_sq = 0;
