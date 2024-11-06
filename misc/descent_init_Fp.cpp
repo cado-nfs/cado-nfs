@@ -397,13 +397,13 @@ find_root(cxx_mpz const & p, cxx_mpz_poly const & f1, cxx_mpz_poly const & f2)
 void
 usage(char* argv0)
 {
-    fprintf(stderr,
-            "%s [-poly polfile] [-side xxx] [-extdeg n] [-jl] [-mt n] [-mineff "
+    fmt::print(stderr,
+            "{} [-poly polfile] [-side xxx] [-extdeg n] [-jl] [-mt n] [-mineff "
             "e] [-maxeff E] [-seed s] [-lpb t] [-v] p z\n",
             argv0);
-    fprintf(stderr,
+    fmt::print(stderr,
             "  If extdeg > 1, then z must be a white-separated sequence of "
-            "coefs z0 z1 ... z_{k-1}\n");
+            "coefs z0 z1 ... z_{{k-1}}\n");
     abort();
 }
 
@@ -517,7 +517,7 @@ main(int argc0, char const * argv0[])
             argv++, argc--;
             continue;
         }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
+        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
         param_list_print_usage(pl, argv0[0], stderr);
         return EXIT_FAILURE;
     }
@@ -541,7 +541,7 @@ main(int argc0, char const * argv0[])
     }
 
     if ((jl || (ext > 1)) && !polyfilename) {
-        fprintf(
+        fmt::print(
           stderr,
           "Error, must provide -poly when extdeg > 1 or using -jl option\n");
         param_list_print_usage(pl, argv0[0], stderr);
@@ -549,12 +549,12 @@ main(int argc0, char const * argv0[])
     }
 
     if (ext > 1 && jl) {
-        fprintf(stderr, "Warning: ignoring the -jl option with extdeg > 1\n");
+        fmt::print(stderr, "Warning: ignoring the -jl option with extdeg > 1\n");
         jl = 0;
     }
 
     if (wild.size() != ext + 1) {
-        fprintf(stderr, "Error: for extension degree %d, we need %d tail arguments\n",
+        fmt::print(stderr, "Error: for extension degree {}, we need {} tail arguments\n",
                 ext, ext + 1);
         return EXIT_FAILURE;
     }
@@ -626,7 +626,7 @@ main(int argc0, char const * argv0[])
             if (!has_distinct_factors(facu) ||
                 !has_distinct_factors(facv))
             {
-                printf("Fail: non-squarefree norm\n");
+                fmt::print("Fail: non-squarefree norm\n");
                 // one of them is not squarefree. Restart the thread and wait
                 // for another candidate.
                 auto th = std::thread(one_descent_thread, params, smooth_param, target, mode);
@@ -635,27 +635,27 @@ main(int argc0, char const * argv0[])
                 continue;
             }
 
-            std::cout << fmt::format(FMT_STRING("U = {}\nV = {}\nu = {}\nv = {}\n"),
+            std::cout << fmt::format("U = {}\nV = {}\nu = {}\nv = {}\n",
                     mpz_poly_coeff_list(U,","),
                     mpz_poly_coeff_list(V,","),
                     u, v);
 
             std::cout << "fac_u =";
             for(cxx_mpz const & p : facu) {
-                std::cout << fmt::format(FMT_STRING(" {},{}"),
+                std::cout << fmt::format(" {},{}",
                         p, find_root(p, U, params.f));
             }
             std::cout << "\n";
 
             std::cout << "fac_v =";
             for(cxx_mpz const & p : facv) {
-                std::cout << fmt::format(FMT_STRING(" {},{}"),
+                std::cout << fmt::format(" {},{}",
                         p, find_root(p, V, params.f));
             }
             std::cout << "\n";
 
         }
-        printf("Youpi: e = %lu is a winner\n", winner.second.e);
+        fmt::print("Youpi: e = {} is a winner\n", winner.second.e);
         break;
     }
 
@@ -666,7 +666,7 @@ main(int argc0, char const * argv0[])
         t.second.join();
     threads.clear();
 
-    printf("Total CPU time: %.1f s\n",
+    fmt::print("Total CPU time: {:.1f} s\n",
            ((double)(clock() - tm)) / CLOCKS_PER_SEC);
 
     return EXIT_SUCCESS;

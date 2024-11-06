@@ -239,11 +239,11 @@ struct dispatcher {/*{{{*/
 
 
         if (pi->m->jrank == 0) {
-            printf("Beginning balancing with %zu readers for file %s\n",
-                    nreaders(), mfile.c_str());
+            fmt::print("Beginning balancing with {} readers for file {}\n",
+                    nreaders(), mfile);
             for(unsigned int i = 0 ; i < pi->m->njobs ; i++) {
                 if (reader_map.is_reader(i))
-                    printf("Job %d is reader number %d\n", i, reader_map.index[i]);
+                    fmt::print("Job {} is reader number {}\n", i, reader_map.index[i]);
             }
         }
         ASSERT_ALWAYS(nreaders());
@@ -512,7 +512,7 @@ void dispatcher::reader_compute_offsets()/*{{{*/
         for(unsigned int i = 0 ; i < pi->m->njobs ; i++) {
             if (!reader_map.is_reader(i)) continue;
             int const r = reader_map.index[i];
-            fmt::printf("Job %d (reader number %d) reads rows %" PRIu32 " to %" PRIu32 " and expects %s\n",
+            fmt::print("Job {} (reader number {}) reads rows {} to {} and expects {}\n",
                     i, r,
                     row0_per_reader[r],
                     row0_per_reader[r+1],
@@ -525,10 +525,10 @@ void dispatcher::reader_compute_offsets()/*{{{*/
     offset_per_reader = bytes_per_reader;
     integrate(offset_per_reader);
     unsigned int r = reader_map.index[pi->m->jrank];
-    fmt::print(FMT_STRING("Job {} (reader number {})"
+    fmt::print("Job {} (reader number {})"
                 " reads rows {} to {}"
                 " and expects {} ({} bytes)"
-                " from offset {}\n"),
+                " from offset {}\n",
             pi->m->jrank, r,
             row0_per_reader[ridx],
             row0_per_reader[ridx+1],
@@ -596,7 +596,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
         {
             size_t const rc = fread(&w, sizeof(uint32_t), 1, f.get());
             if (rc != 1) {
-                fprintf(stderr, "%s: short read\n", mfile.c_str());
+                fmt::print(stderr, "{}: short read\n", mfile);
                 exit(EXIT_FAILURE);
             }
         }
@@ -608,7 +608,7 @@ void dispatcher::reader_thread_data::read()/*{{{*/
         {
             size_t const rc = fread(row.data(), sizeof(uint32_t), ww, f.get());
             if (rc != ww) {
-                fprintf(stderr, "%s: short read\n", mfile.c_str());
+                fmt::print(stderr, "{}: short read\n", mfile);
                 exit(EXIT_FAILURE);
             }
         }
@@ -1083,7 +1083,7 @@ void dispatcher::stats()
     if (!verbose_enabled(CADO_VERBOSE_PRINT_BWC_DISPATCH_OUTER)) return;
     uint32_t const quo_r = bal.trows / bal.nh;
     for(unsigned int k = 0 ; k < pi->m->ncores ; k++) {
-        printf("[J%uT%u] N=%" PRIu32 " W=%zu\n",
+        fmt::print("[J{}T{}] N={} W={}\n",
                 pi->m->jrank, k,
                 quo_r,
                 (endpoint.args_per_thread[k]->p.size()-quo_r)/(1+withcoeffs));

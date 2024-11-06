@@ -100,7 +100,7 @@ class matrix_reader
         int nij = k * i + j;
         std::string filename;
         if (k > 1) {
-            filename = stem + fmt::format(FMT_STRING(".{}.data"), nij);
+            filename = stem + fmt::format(".{}.data", nij);
         } else {
             filename = stem + ".single.data";
         }
@@ -118,12 +118,12 @@ class matrix_reader
         unsigned int c = 0;
         for (unsigned int k = 1 ; k < 64 ; k++) {
             for (unsigned int s = 0 ; c < k * k ; c++, s++) {
-                filename = stem + fmt::format(FMT_STRING(".{}.data"), c);
+                filename = stem + fmt::format(".{}.data", c);
                 fprintf(stderr, "test %s\n", filename.c_str());
                 if (access(filename.c_str(), R_OK) != 0) {
                     if (s == 0) {
                         if (k-1 == 1) {
-                            throw std::runtime_error(fmt::format(FMT_STRING("weird: we have 1-node mpi data for checkpoint {}, which in theory we shouldn't produce\n"), filename));
+                            throw std::runtime_error(fmt::format("weird: we have 1-node mpi data for checkpoint {}, which in theory we shouldn't produce\n", filename));
                             /* anyway it's going to fail with the present
                              * code, because the meaning of k==1 is
                              * ambiguous */
@@ -519,7 +519,7 @@ do_check_pi(const char* pi_left_filename,
     cp_useful_info const cp = read_cp_aux(pi_filename);
 
     std::string const check_name =
-      fmt::sprintf("check (seed=%lu, depth %d, t=%u, pi_left*pi_right=pi)",
+      fmt::format("check (seed={}, depth {}, t={}, pi_left*pi_right=pi)",
                    seed,
                    cp.level,
                    cp.t);
@@ -655,12 +655,9 @@ do_check_E_short(std::string const& E_filename, std::string const& pi_filename)
     unsigned long deg_E = t - t0 - 1;
     deg_E = MIN(deg_E, (unsigned long) restrict_E);
 
-    std::string check_name = fmt::sprintf(
-      "check (seed=%lu, depth %d, t=%u, E*pi=O(X^%lu))",
-                   seed,
-                   cp.level,
-                   cp.t,
-                   deg_E);
+    std::string check_name = fmt::format(
+            "check (seed={}, depth {}, t={}, E*pi=O(X^{}))",
+            seed, cp.level, cp.t, deg_E);
 
     if (t < t1)
         check_name += " [truncated cp at end]";
@@ -832,9 +829,9 @@ int main(int argc, char const * argv[])
         std::ifstream is(tmp);
         if (is && is >> hints) {
             /* This one _always_ goes to stdout */
-            std::cout << fmt::sprintf("# Read tuning schedule from %s\n", tmp);
+            std::cout << fmt::format("# Read tuning schedule from {}\n", tmp);
         } else {
-            std::cerr << fmt::sprintf("# Failed to read tuning schedule from %s\n", tmp);
+            std::cerr << fmt::format("# Failed to read tuning schedule from {}\n", tmp);
             hints = lingen_hints();
         }
     }

@@ -8,7 +8,6 @@
 
 #include <gmp.h>                 // for gmp_randclear, gmp_randinit_default
 #include "fmt/core.h"            // for check_format_string
-#include "fmt/printf.h" // fmt::fprintf // IWYU pragma: keep
 #include "fmt/format.h"
 
 #include "gmp_aux.h"
@@ -59,8 +58,8 @@ struct check_data {
         , AxAc(arith_cross_generic::instance(A, Ac.get()))
         , check_vector(mmt, Ac.get(), Ac_pi,
                   bw->dir, THREAD_SHARED_VECTOR, mmt.n[bw->dir])
+        , tcan_print(bw->can_print && pi->m->trank == 0)
       {
-          tcan_print = bw->can_print && pi->m->trank == 0;
       }
 
     void load() {
@@ -68,22 +67,22 @@ struct check_data {
          * Therefore, we must really understand the check vector as
          * playing a role in the very same direction of the y vector!
          */
-        std::string const Cv_filename = fmt::format(FMT_STRING("Cv%u-%u.{}"), bw->interval);
+        std::string const Cv_filename = fmt::format("Cv%u-%u.{}", bw->interval);
         int ok = mmt_vec_load(check_vector, Cv_filename, mmt.n0[bw->dir], 0);
         if (!ok) {
             if (tcan_print)
-                fmt::fprintf(stderr, "check file %s not found, trying legacy check mode\n", Cv_filename);
-            std::string const C_filename = fmt::format(FMT_STRING("C%u-%u.{}"), bw->interval);
+                fmt::print(stderr, "check file {} not found, trying legacy check mode\n", Cv_filename);
+            std::string const C_filename = fmt::format("C%u-%u.{}", bw->interval);
             ok = mmt_vec_load(check_vector, C_filename, mmt.n0[bw->dir], 0);
             if (!ok) {
                 if (tcan_print)
-                    fmt::fprintf(stderr, "check file %s not found either\n", C_filename);
+                    fmt::print(stderr, "check file {} not found either\n", C_filename);
                 pi_abort(EXIT_FAILURE, pi->m);
             }
             legacy_check_mode = 1;
         }
         if (!legacy_check_mode) {
-            std::string const Ct_filename = fmt::format(FMT_STRING("Ct0-{}.0-{}"), nchecks, bw->m);
+            std::string const Ct_filename = fmt::format("Ct0-{}.0-{}", nchecks, bw->m);
             Tdata = Ac->alloc(bw->m, ALIGNMENT_ON_ALL_BWC_VECTORS);
             if (pi->m->trank == 0 && pi->m->jrank == 0) {
                 FILE * Tfile = fopen(Ct_filename.c_str(), "rb");
@@ -91,7 +90,7 @@ struct check_data {
                 ASSERT_ALWAYS(rc == 1);
                 fclose(Tfile);
             }
-            if (tcan_print) fmt::printf("loaded %s\n", Ct_filename);
+            if (tcan_print) fmt::print("loaded {}\n", Ct_filename);
             pi_bcast(Tdata, bw->m, Ac_pi, 0, 0, pi->m);
         }
 
@@ -215,7 +214,7 @@ void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MA
      */
     serialize(pi->m);
     if (!fake) {
-        int const ok = mmt_vec_load(ymy[0], fmt::format(FMT_STRING("V%u-%u.{}"), bw->start), unpadded, ys[0]);
+        int const ok = mmt_vec_load(ymy[0], fmt::format("V%u-%u.{}", bw->start), unpadded, ys[0]);
         ASSERT_ALWAYS(ok);
     } else {
         cxx_gmp_randstate rstate;
@@ -257,7 +256,7 @@ void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MA
     }
     serialize_threads(pi->m);
     if (tcan_print) {
-        printf ("Target iteration is %u\n", bw->end);
+        fmt::print("Target iteration is {}\n", bw->end);
     }
     ASSERT_ALWAYS(bw->end % bw->interval == 0);
 
@@ -270,7 +269,7 @@ void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MA
     arith_generic::elt * xymats;
 
     if (tcan_print) {
-        printf("Each thread allocates %zd kb for the A matrices\n",
+        fmt::print("Each thread allocates {} kb for the A matrices\n",
                 A->vec_elt_stride(bw->m*bw->interval) >> 10);
     }
     xymats = A->alloc(bw->m*bw->interval, ALIGNMENT_ON_ALL_BWC_VECTORS);
@@ -328,7 +327,9 @@ void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MA
         pi_interleaving_flip(pi);
 
         if (C && !C->verify(ymy[0], gxvecs.get(), nx)) {
-            printf("Failed %scheck at iteration %d\n", legacy_check_mode ? "(legacy) " : "", s + bw->interval);
+            fmt::print("Failed {}check at iteration {}\n",
+                    legacy_check_mode ? "(legacy) " : "",
+                    s + bw->interval);
             exit(1);
         }
 
@@ -336,18 +337,18 @@ void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MA
         mmt_vec_untwist(mmt, ymy[0]);
 
         /* Now (and only now) collect the xy matrices */
-        pi_allreduce(NULL, xymats,
+        pi_allreduce(nullptr, xymats,
                 bw->m * bw->interval,
                 mmt.pitype, BWC_PI_SUM, pi->m);
 
         if (pi->m->trank == 0 && pi->m->jrank == 0 && !fake) {
-            std::string const tmp = fmt::format(FMT_STRING("A{}-{}.{}-{}"), ys[0], ys[1], s, s+bw->interval);
+            std::string const tmp = fmt::format("A{}-{}.{}-{}", ys[0], ys[1], s, s+bw->interval);
             std::string const tmptmp = tmp + ".tmp";
             FILE * f = fopen(tmptmp.c_str(), "wb");
             int rc = fwrite(xymats, A->elt_stride(), bw->m*bw->interval, f);
             fclose(f);
             if (rc != bw->m*bw->interval) {
-                fprintf(stderr, "Ayee -- short write\n");
+                fmt::print(stderr, "Ayee -- short write\n");
                 // make sure our input data won't be deleted -- this
                 // chunk will have to be redone later, maybe the disk
                 // failure is temporary (?)
@@ -361,11 +362,11 @@ void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MA
         }
 
         if (!fake) {
-            mmt_vec_save(ymy[0], fmt::format(FMT_STRING("V%u-%u.{}"), s + bw->interval), unpadded, ys[0]);
+            mmt_vec_save(ymy[0], fmt::format("V%u-%u.{}", s + bw->interval), unpadded, ys[0]);
         }
 
         if (pi->m->trank == 0 && pi->m->jrank == 0) {
-            keep_rolling_checkpoints(fmt::format(FMT_STRING("V{}-{}"), ys[0], ys[1]), s + bw->interval);
+            keep_rolling_checkpoints(fmt::format("V{}-{}", ys[0], ys[1]), s + bw->interval);
         }
 
         serialize(pi->m);
@@ -382,9 +383,8 @@ void * krylov_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MA
     pi_log_clear(pi->wr[1]);
 #endif
 
-    if (tcan_print) {
-        printf("Done krylov.\n");
-    }
+    if (tcan_print)
+        fmt::print("Done krylov.\n");
     serialize(pi->m);
 
     A->free(xymats);
@@ -416,7 +416,7 @@ int main(int argc, char const * argv[])
     parallelizing_info_lookup_parameters(pl);
     matmul_top_lookup_parameters(pl);
     /* interpret our parameters */
-    if (bw->ys[0] < 0) { fprintf(stderr, "no ys value set\n"); exit(1); }
+    if (bw->ys[0] < 0) { fmt::print(stderr, "no ys value set\n"); exit(1); }
 
     ASSERT_ALWAYS(param_list_lookup_string(pl, "ys"));
     ASSERT_ALWAYS(!param_list_lookup_string(pl, "solutions"));

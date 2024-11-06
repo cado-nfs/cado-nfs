@@ -106,9 +106,9 @@ int main(void)
 #if FMT_VERSION >= 90000
     cxx_foo b;
     cxx_foo const & a = b;
-    std::cout << fmt::format(FMT_STRING(\"{} {} {}\"), \"Catch\", 22, a) << std::endl;
+    std::cout << fmt::format(\"{} {} {}\", \"Catch\", 22, a) << std::endl;
 #else
-    std::cout << fmt::format(FMT_STRING(\"{} {}\"), \"Catch\", 22) << std::endl;
+    std::cout << fmt::format(\"{} {}\", \"Catch\", 22) << std::endl;
 #endif
     return 0;
 }

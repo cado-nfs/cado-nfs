@@ -15,7 +15,6 @@
 #include <gmp.h>
 #include "fmt/core.h"            // for check_format_string
 #include "fmt/format.h"
-#include "fmt/printf.h" // IWYU pragma: keep
 
 #include "gmp_aux.h"
 #include "async.hpp"
@@ -114,20 +113,20 @@ void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
 #endif
     gmp_randseed_ui(rstate, bw->seed);
     if (tcan_print) {
-        printf("// Random generator seeded with %d\n", bw->seed);
+        fmt::print("// Random generator seeded with {}\n", bw->seed);
     }
 
     /* Ct is a constant projection matrix of size bw->m * nchecks */
     /* It depends only on the random seed. We create it if start==0, or
      * reload it otherwise. */
-    std::string const Tfilename = fmt::format(FMT_STRING("Ct0-{}.0-{}"), nchecks, bw->m);
+    std::string const Tfilename = fmt::format("Ct0-{}.0-{}", nchecks, bw->m);
     size_t const T_coeff_size = A->vec_elt_stride(bw->m);
     arith_generic::elt * Tdata;
     Tdata = A->alloc(bw->m);
 
     /* Cr is a list of matrices of size nchecks * nchecks */
     /* It depends only on the random seed */
-    std::string const Rfilename = fmt::format(FMT_STRING("Cr0-{}.0-{}"), nchecks, nchecks);
+    std::string const Rfilename = fmt::format("Cr0-{}.0-{}", nchecks, nchecks);
     FILE * Rfile = NULL;
     size_t const R_coeff_size = A->vec_elt_stride(nchecks);
 
@@ -168,15 +167,21 @@ void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
 
             if (bw->start == 0) {
                 if (R && R.sbuf->st_size) {
-                    fmt::fprintf(stderr, "Refusing to overwrite %s with new random data\n", Rfilename);
+                    fmt::print(stderr, "Refusing to overwrite {} with new random data\n", Rfilename);
                     consistency = 0;
                 }
             } else {
                 if (!R) {
-                    fmt::fprintf(stderr, "Cannot expand non-existing %s with new random data\n", Rfilename);
+                    fmt::print(stderr,
+                            "Cannot expand non-existing {}"
+                            " with new random data\n", Rfilename);
                     consistency = 0;
                 } else if ((size_t) R.sbuf->st_size != (size_t) bw->start * R_coeff_size) {
-                    fmt::fprintf(stderr, "Cannot expand %s (%u entries) starting at position %u\n", Rfilename, (unsigned int) (R.sbuf->st_size / R_coeff_size), bw->start);
+                    fmt::print(stderr,
+                            "Cannot expand {} ({} entries)"
+                            " starting at position {}\n",
+                            Rfilename,
+                            (unsigned int) (R.sbuf->st_size / R_coeff_size), bw->start);
                     consistency = 0;
                 }
             }
@@ -186,15 +191,19 @@ void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
             file_guard T(Tfilename.c_str(), bw->start == 0 ? "wb" : "rb");
             if (bw->start == 0) {
                 if (T && T.sbuf->st_size) {
-                    fmt::fprintf(stderr, "Refusing to overwrite %s with new random data\n", Tfilename);
+                    fmt::print(stderr, "Refusing to overwrite {}"
+                            " with new random data\n", Tfilename);
                     consistency = 0;
                 }
             } else {
                 if (!T) {
-                    fmt::fprintf(stderr, "File %s not found, cannot expand check data\n", Tfilename);
+                    fmt::print(stderr, "File {} not found,"
+                            " cannot expand check data\n", Tfilename);
                     consistency = 0;
                 } else if ((size_t) T.sbuf->st_size != T_coeff_size) {
-                    fmt::fprintf(stderr, "File %s has wrong size (%zu != %zu), cannot expand check data\n", Tfilename, (size_t) T.sbuf->st_size, T_coeff_size);
+                    fmt::print(stderr, "File {} has wrong size ({} != {}),"
+                            " cannot expand check data\n", Tfilename,
+                            (size_t) T.sbuf->st_size, T_coeff_size);
                     consistency = 0;
                 }
             }
@@ -217,14 +226,14 @@ void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
             if (bw->start == 0) {
                 rc = fwrite(Tdata, A->vec_elt_stride(bw->m), 1, T.f);
                 ASSERT_ALWAYS(rc == 1);
-                if (tcan_print) fmt::printf("Saved %s\n", Tfilename);
+                if (tcan_print) fmt::print("Saved {}\n", Tfilename);
             } else {
                 /* We should be reading the same data, unless we changed
                  * the seed.
                  */
                 rc = fread(Tdata, A->vec_elt_stride(bw->m), 1, T.f);
                 ASSERT_ALWAYS(rc == 1);
-                if (tcan_print) fmt::printf("Loaded %s\n", Tfilename);
+                if (tcan_print) fmt::print("Loaded {}\n", Tfilename);
             }
             /* }}} */
 
@@ -257,7 +266,7 @@ void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
     /* {{{ create initial Cv and Cd, or load them if start>0 */
     if (bw->start == 0) {
         if (tcan_print)
-            printf("We have start=0: creating Cv0-%u.0 as an expanded copy of X*T\n", nchecks);
+            fmt::print("We have start=0: creating Cv0-{}.0 as an expanded copy of X*T\n", nchecks);
 
         std::unique_ptr<uint32_t[]> gxvecs;
         unsigned int nx = 0;
@@ -294,12 +303,12 @@ void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
         int ok;
 
         if (legacy_check_mode) {
-            ok = mmt_vec_load(my,   fmt::format(FMT_STRING("C%u-%u.{}"), bw->start), unpadded, 0);
+            ok = mmt_vec_load(my,   fmt::format("C%u-%u.{}", bw->start), unpadded, 0);
             ASSERT_ALWAYS(ok);
         } else {
-            ok = mmt_vec_load(my,   fmt::format(FMT_STRING("Cv%u-%u.{}"), bw->start), unpadded, 0);
+            ok = mmt_vec_load(my,   fmt::format("Cv%u-%u.{}", bw->start), unpadded, 0);
             ASSERT_ALWAYS(ok);
-            ok = mmt_vec_load(dvec, fmt::format(FMT_STRING("Cd%u-%u.{}"), bw->start), unpadded, 0);
+            ok = mmt_vec_load(dvec, fmt::format("Cd%u-%u.{}", bw->start), unpadded, 0);
             ASSERT_ALWAYS(ok);
         }
     }
@@ -340,13 +349,8 @@ void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
     serialize_threads(pi->m);
 
     if (tcan_print) {
-        printf("Computing trsp(x)*M^k for check stops k=");
-        for(unsigned int s = 0 ; s < check_stops.size() ; s++) {
-            int const next = check_stops[s];
-            if (s) printf(",");
-            printf("%d", next);
-        }
-        printf("\n");
+        fmt::print("Computing trsp(x)*M^k for check stops k={}\n",
+                join(check_stops, ","));
     }
     serialize(pi->m);
     /* }}} */
@@ -381,7 +385,7 @@ void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
          * stdio buffering), while no Cd file has been written yet.
          * Therefore this is mostly a matter of consistency.
          */
-        arith_generic::elt * Rdata_stream = NULL;
+        arith_generic::elt * Rdata_stream = nullptr;
         int const k0 = k;
         if (!legacy_check_mode && (next - k0)) {
             Rdata_stream = A->alloc(nchecks * (next - k0), ALIGNMENT_ON_ALL_BWC_VECTORS);
@@ -419,10 +423,10 @@ void * sec_prog(parallelizing_info_ptr pi, cxx_param_list & pl, void * arg MAYBE
         mmt_vec_untwist(mmt, dvec);
 
         if (legacy_check_mode) {
-            mmt_vec_save(my,   fmt::format(FMT_STRING("C%u-%u.{}"), k), unpadded, 0);
+            mmt_vec_save(my,   fmt::format("C%u-%u.{}", k), unpadded, 0);
         } else {
-            mmt_vec_save(my,   fmt::format(FMT_STRING("Cv%u-%u.{}"), k), unpadded, 0);
-            mmt_vec_save(dvec, fmt::format(FMT_STRING("Cd%u-%u.{}"), k), unpadded, 0);
+            mmt_vec_save(my,   fmt::format("Cv%u-%u.{}", k), unpadded, 0);
+            mmt_vec_save(dvec, fmt::format("Cd%u-%u.{}", k), unpadded, 0);
             if (pi->m->trank == 0 && pi->m->jrank == 0 && (next - k0)) {
                 rc = fwrite(Rdata_stream, A->vec_elt_stride(nchecks), next - k0, Rfile);
                 ASSERT_ALWAYS(rc == (next - k0));

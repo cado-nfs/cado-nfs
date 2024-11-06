@@ -674,8 +674,8 @@ void renumber_t::read_header(std::istream& is)
     if (iss >> f && (f == format_flat)) {
         format = f;
     } else {
-        throw std::runtime_error(fmt::format(FMT_STRING(
-                        "Renumber format error. Got {}, expected {} instead. You must regenerate the renumber table with the freerel tool."),
+        throw std::runtime_error(fmt::format(
+                        "Renumber format error. Got {}, expected {} instead. You must regenerate the renumber table with the freerel tool.",
                     f, format_flat));
     }
 

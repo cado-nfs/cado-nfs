@@ -408,7 +408,7 @@ struct matmul_bucket_methods {
                 ASSERT_ALWAYS(!huge && !vsc);
                 vsc=1;
             } else {
-                fprintf(stderr, "Parse error: %s\n", p);
+                fmt::print(stderr, "Parse error: {}\n", p);
             }
             if (!q) break;
             p = q + 1;
@@ -647,8 +647,8 @@ static int builder_do_small_slice(builder<Arith> * mb, struct small_slice_t * S,
     if ((i1-i0) >> SMALL_SLICES_I_BITS) keep2=0;
 
     if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-        if (!keep1) printf(" [cannot be small1, beyond impl limits]");
-        if (!keep2) printf(" [cannot be small2, beyond impl limits]");
+        if (!keep1) fmt::print(" [cannot be small1, beyond impl limits]");
+        if (!keep2) fmt::print(" [cannot be small2, beyond impl limits]");
     }
 
     if (!mb->mm->methods.small2) keep2=0;
@@ -795,12 +795,12 @@ static void split_large_slice_in_vblocks(builder<Arith> * mb, large_slice_t * L,
         vbl_ncols_variance += ((double)(j1-j0)) * ((double)(j1-j0));
 #if 0
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-            printf(" vbl%u", vblocknum);
-            printf(": %ss %u..%u ", mb->colname, j0, j1);
-            printf("; w %u", V.n);
-            printf("; avg dj %.1f", (j1 - j0) / (double) V.n);
-            if (V.pad) printf("; pad 6*%u", V.pad);
-            printf("\n");
+            fmt::print(" vbl{}", vblocknum);
+            fmt::print(": {} {}..{} ", mb->colname, j0, j1);
+            fmt::print("; w {}", V.n);
+            fmt::print("; avg dj {:.1f}", (j1 - j0) / (double) V.n);
+            if (V.pad) fmt::print("; pad 6*{}", V.pad);
+            fmt::print("\n");
         }
 #endif
         transfer(&(L->vbl), &V);
@@ -1138,12 +1138,12 @@ static void split_huge_slice_in_vblocks(builder<Arith> * mb, huge_slice_t * H, h
         /* TODO: have some sort of verbosity level */
 #if 0
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-            printf(" vbl%u", vblocknum);
-            printf(": %ss %u..%u ", mb->colname, j0, j1);
-            printf("; w %u", V.n);
-            printf("; avg dj %.1f", (j1 - j0) / (double) V.n);
-            if (V.pad) printf("; pad 6*%u", V.pad);
-            printf("\n");
+            fmt::print(" vbl{}", vblocknum);
+            fmt::print(": {} {}..{} ", mb->colname, j0, j1);
+            fmt::print("; w {}", V.n);
+            fmt::print("; avg dj {:.1f}", (j1 - j0) / (double) V.n);
+            if (V.pad) fmt::print("; pad 6*{}", V.pad);
+            fmt::print("\n");
         }
 #endif
 
@@ -1259,7 +1259,7 @@ static int builder_do_huge_slice(builder<Arith> * mb, struct huge_slice_t * H, u
     H->dj_avg = mb->ncols_t / (double) H->hdr->ncoeffs;
 
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
-            " w=%" PRIu64 ", avg dj=%.1f, max dj=%u, bucket block hit=1/%.1f\n",
+            " w={}, avg dj={:.1f}, max dj={}, bucket block hit=1/{:.1f}\n",
             H->hdr->ncoeffs, H->dj_avg, H->dj_max,
             H->nlarge * H->dj_avg);
 
@@ -1336,11 +1336,8 @@ static vector<unsigned int> flush_periods(unsigned int nvstrips)
     }
     std::reverse(fp.begin(), fp.end());
     if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-        printf("Considering cells to be flushed every");
-        for(unsigned int s = 0 ; s < fp.size() ; s++) {
-            printf(" %u", fp[s]);
-        }
-        printf(" vstrips\n");
+        fmt::print("Considering cells to be flushed every {} vstrips\n",
+                join(fp, " "));
     }
     ASSERT_ALWAYS(fp.back() == min(255u, nvstrips));
     ASSERT_ALWAYS(fp.front() == 1);
@@ -1486,9 +1483,9 @@ static void vsc_fill_buffers(builder<Arith> * mb, struct vsc_slice_t * V)
         }
         /*
            if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-                printf("Post counts\n");
+               fmt::print("Post counts\n");
                 for(unsigned int d = 0 ; d < nvstrips ; d++) {
-                    printf(" (nrows=%u) [%u].sub[%u] : %lu coeffs ; xsize=%zu, csize=%zu\n", V->steps[s].nrows, d, s, V->dispatch[d].sub[s].hdr->ncoeffs, V->dispatch[d].sub[s].x.size(), V->dispatch[d].sub[s].c.size());
+                    fmt::print(" (nrows={}) [{}].sub[{}] : {} coeffs ; xsize={}, csize={}\n", V->steps[s].nrows, d, s, V->dispatch[d].sub[s].hdr->ncoeffs, V->dispatch[d].sub[s].x.size(), V->dispatch[d].sub[s].c.size());
                 }
             }
         */
@@ -1514,11 +1511,11 @@ static void vsc_fill_buffers(builder<Arith> * mb, struct vsc_slice_t * V)
             if (cm >= m) m = cm;
         }
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-            printf("Rows %" PRIu32 "+%" PRIu32, old_ii, V->steps[s].nrows);
+            fmt::print("Rows {}+{}", old_ii, V->steps[s].nrows);
             if (V->steps[s].density_upper_bound != UINT_MAX) {
-                printf(": d < %u", V->steps[s].density_upper_bound);
+                fmt::print(": d < {}", V->steps[s].density_upper_bound);
             }
-            printf("; %u flushes (every %u), tbuf space %lu\n", iceildiv(nvstrips, defer), defer, m);
+            fmt::print("; {} flushes (every {}), tbuf space {}\n", iceildiv(nvstrips, defer), defer, m);
         }
         m += 1; // add space for one dummy pointer.
         V->steps[s].tbuf_space = m;
@@ -1743,14 +1740,14 @@ static void builder_do_all_small_slices(builder<Arith> * mb, uint32_t * p_i0, ui
         small_slice_t S[1];
 
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-            printf("Ssl%u: %ss %u+%u...", s, mb->rowname, i0, i1-i0);
+            fmt::print("Ssl{}: {} {}+{}...", s, mb->rowname, i0, i1-i0);
             fflush(stdout);
         }
 
         int const keep = builder_do_small_slice(mb, S, i0, i1);
 
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-            printf(" w %" PRIu32 " ; avg dj %.1f ; max dj %u%s\n",
+            fmt::print(" w {} ; avg dj {:.1f} ; max dj {}{}\n",
                     S->ncoeffs, S->dj_avg, S->dj_max,
                     S->is_small2 ? " [packed]" : "");
             fflush(stdout);
@@ -1782,7 +1779,7 @@ static void builder_do_all_large_slices(builder<Arith> * mb, uint32_t * p_i0, un
         uint32_t const i1 = * p_i0 + (s + 1) * (uint64_t) rem_nrows / nlarge_slices;
 
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-            printf("Lsl%u %ss %u+%u", s, mb->rowname, i0, i1-i0);
+            fmt::print("Lsl{} {} {}+{}", s, mb->rowname, i0, i1-i0);
             fflush(stdout);
         }
 
@@ -1815,7 +1812,7 @@ static void builder_do_all_huge_slices(builder<Arith> * mb, uint32_t * p_i0, uns
         uint32_t const i1 = * p_i0 + (s + 1) * (uint64_t) rem_nrows / nhuge_slices;
 
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-            printf("Hsl%u %ss %u+%u", s, mb->rowname, i0, i1-i0);
+            fmt::print("Hsl{} {} {}+{}", s, mb->rowname, i0, i1-i0);
             fflush(stdout);
         }
         builder_do_huge_slice(mb, H, i0, i1, scratch2size);
@@ -1970,7 +1967,7 @@ static void builder_push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice_t * V)
         /* The stream of u16 values corresponding to this strip */
         for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
             vsc_sub_slice_t & S(D.sub[l]);
-            // printf("save dispatch(%zu), sum=%x\n", S.x.size(), idiotic_sum((void*) ptrbegin(S.x), S.x.size() * sizeof(uint16_t)));
+            // fmt::print("save dispatch({}), sum={}\n", S.x.size(), idiotic_sum((void*) ptrbegin(S.x), S.x.size() * sizeof(uint16_t)));
             mm->t16.insert(mm->t16.end(), S.x.begin(), S.x.end());
             S.x.clear();
         }
@@ -2002,8 +1999,8 @@ static void builder_push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice_t * V)
                         make_pair(k - (k % defer), l),
                         make_pair(0, S.c.size())));
             mm->headers[cidx + l].ncoeffs += chdr->ncoeffs;
-            // printf("save combine(%zu), sum=%x\n", S.c.size(), idiotic_sum((void*) ptrbegin(S.c), S.c.size()));
-            // printf("m=%u\n", *max_element(S.c.begin(), S.c.end()));
+            // fmt::print("save combine({}), sum={}\n", S.c.size(), idiotic_sum((void*) ptrbegin(S.c), S.c.size()));
+            // fmt::print("m={}\n", *max_element(S.c.begin(), S.c.end()));
             append_compressed(mm->t8, S.c, defer);
             S.c.clear();
             mm->headers.push_back(*chdr);
@@ -2020,8 +2017,8 @@ static void builder_push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice_t * V)
         unsigned int const defer = V->steps[l].defer;
         unsigned long const count = compressed_size(s, defer);
         /*
-        printf("straight-order (defer %u, vstrip #%u)"
-                ": @%" PRIu64 " combine(%" PRIu64 "), sum=%x\n",
+           fmt::print("straight-order (defer {}, vstrip #{})"
+                ": @{} combine({}), sum={}\n",
                 V->steps[csizes[i].first.second].defer, csizes[i].first.first,
                 csizes[i].second.first, csizes[i].second.second,
                 idiotic_sum((void*) &*(mm->t8.begin() + o8 + csizes[i].second.first), csizes[i].second.second));
@@ -2033,8 +2030,8 @@ static void builder_push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice_t * V)
     mm->auxiliary.push_back(2 * csizes.size() + 1);
     for(unsigned int i = 0 ; i < csizes.size() ; i++) {
         /*
-        printf("straight-order (defer %u, vstrip #%u)"
-                ": @%" PRIu64 " combine(%" PRIu64 "), sum=%x\n",
+           fmt::print("straight-order (defer {}, vstrip #{})"
+                ": @{} combine({}), sum={}\n",
                 V->steps[csizes[i].first.second].defer, csizes[i].first.first,
                 csizes[i].second.first, csizes[i].second.second,
                 idiotic_sum((void*) &*(mm->t8.begin() + o8 + csizes[i].second.first), csizes[i].second.second));
@@ -2076,7 +2073,7 @@ void matmul_bucket<Arith>::build_cache(matrix_u32 && m)
         builder_do_all_huge_slices(&mb, &main_i0, fence, scratch2size);
     }
     if (main_i0 < fence) {
-        fprintf(stderr, "ARGH ! only created a submatrix (%" PRIu32 " < %" PRIu32 ") !!\n", main_i0, fence);
+        fmt::print(stderr, "ARGH ! only created a submatrix ({} < {}) !!\n", main_i0, fence);
         exit(1);
     }
 
@@ -2608,7 +2605,7 @@ static inline void matmul_sub_vsc_dispatch(arith_hard * ab, arith_hard::elt * ds
 #ifdef MATMUL_SUB_VSC_DISPATCH_H
     matmul_sub_vsc_dispatch_asm(cvt(dst), cvt(src), q, count);
 #else
-    // printf("dispatch(%u), sum=%x\n", count, idiotic_sum((void*)q, count * sizeof(uint16_t)));
+    // fmt::print("dispatch({}), sum={:x}\n", count, idiotic_sum((void*)q, count * sizeof(uint16_t)));
     for( ; count-- ; ) {
         ab->set(*dst, src[*q++]);
         dst = ab->vec_subvec(dst, 1);
@@ -2621,8 +2618,8 @@ static inline void matmul_sub_vsc_combine(arith_hard * ab MAYBE_UNUSED, arith_ha
 #ifdef MATMUL_SUB_VSC_COMBINE_H_
     matmul_sub_vsc_combine_asm(cvt(dst), cvt(mptrs), q, count, defer);
 #else
-    // printf("combine(%u), defer %u\n", count, defer);
-    // printf("combine(%u), sum=%x\n", count, idiotic_sum((void*)q, compressed_size(count, defer)));
+    // fmt::print("combine({}), defer {}\n", count, defer);
+    // fmt::print("combine({}), sum={:x}\n", count, idiotic_sum((void*)q, compressed_size(count, defer)));
     if (0) {
 #ifdef COMPRESS_COMBINERS_1
     } else if (defer == 1) {
@@ -2684,8 +2681,8 @@ static inline void matmul_sub_vsc_combine(arith_hard * ab MAYBE_UNUSED, arith_ha
 #ifndef MATMUL_SUB_VSC_COMBINE_TR_H_
 static inline void matmul_sub_vsc_combine_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** mptrs, const arith_hard::elt * qw, const uint8_t * z, unsigned int count, unsigned int defer MAYBE_UNUSED)
 {
-    // printf("uncombine(%u), defer %u\n", count, defer);
-    // printf("uncombine(%u), sum=%x\n", count, idiotic_sum((void*)z, compressed_size(count, defer)));
+    // fmt::print("uncombine({}), defer {}\n", count, defer);
+    // fmt::print("uncombine({}), sum={}\n", count, idiotic_sum((void*)z, compressed_size(count, defer)));
     if (0) {
 #ifdef COMPRESS_COMBINERS_1
     } else if (defer == 1) {
@@ -2747,7 +2744,7 @@ static inline void matmul_sub_vsc_combine_tr(arith_hard * ab MAYBE_UNUSED, arith
 #ifndef MATMUL_SUB_VSC_DISPATCH_TR_H_
 static inline void matmul_sub_vsc_dispatch_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * qr, const arith_hard::elt * q, const uint16_t * z, unsigned int count)
 {
-    // printf("undispatch(%u), sum=%x\n", count, idiotic_sum((void*)z, count * sizeof(uint16_t)));
+    // fmt::print("undispatch({}), sum={}\n", count, idiotic_sum((void*)z, count * sizeof(uint16_t)));
     for( ; count-- ; ) {
         ab->add(ab->vec_item(qr, *z++), *q);
         q = ab->vec_subvec(q, 1);
@@ -3009,7 +3006,7 @@ void matmul_bucket<Arith>::finish_init()
     /*
     for(uint16_t h = 0 ; h < headers.size() ; h++) {
         slice_header_t * hdr = & (headers[h]);
-        printf("block %d %s [%d..%d[ x [%d..%d[, %d cld, %" PRIu64 " coeffs\n",
+        fmt::print("block {} {} [{}..{}[ x [{}..{}[, {} cld, {} coeffs\n",
                 h, slice_name(hdr->t),
                 hdr->i0, hdr->i1,
                 hdr->j0, hdr->j1,
@@ -3074,17 +3071,17 @@ void matmul_bucket<Arith>::finish_init()
                     /*
                     for(unsigned int s = 0 ; s < V->steps.size() ; s++) {
                         unsigned int defer = V->steps[s].defer;
-                        printf("Rows %" PRIu32 "+%" PRIu32, headers[Ridx++].i0, V->steps[s].nrows);
+                        fmt::print("Rows {}+{}", headers[Ridx++].i0, V->steps[s].nrows);
                         if (V->steps[s].density_upper_bound != UINT_MAX) {
-                            printf(": d < %u", V->steps[s].density_upper_bound);
+                            fmt::print(": d < {}", V->steps[s].density_upper_bound);
                         }
-                        printf("; %u flushes (every %u), tbuf space %lu\n", iceildiv(nvstrips, defer), defer, V->steps[s].tbuf_space);
+                        fmt::print("; {} flushes (every {}), tbuf space {}\n", iceildiv(nvstrips, defer), defer, V->steps[s].tbuf_space);
                     }
                     */
                 }
                 break;
             default:
-                fprintf(stderr, "Unexpected block %s encountered\n",
+                fmt::print(stderr, "Unexpected block {} encountered\n",
                         slice_name(hdr->t));
                 break;
         }
@@ -3218,7 +3215,7 @@ static inline void matmul_bucket_mul_loop(matmul_bucket<Arith> * mm, typename Ar
              * obeying the header structure, so the default branch also
              * aborts. */
             default:
-                fprintf(stderr, "Bogus slice type seen: %d\n", hdr->t);
+                fmt::print(stderr, "Bogus slice type seen: {}\n", hdr->t);
                 ASSERT_ALWAYS(0);
         }
         if (hdr->j1 == pos->ncols_t) { pos->i = hdr->i1; }
@@ -3251,7 +3248,7 @@ void matmul_bucket<Arith>::mul(void * xdst, void const * xsrc, int d)
         /* BEWARE, it's a priori sub-optimal ! In practice, the
          * difference isn't so striking though. */
         if (iteration[d] == 10) {
-            fprintf(stderr, "Warning: Doing many iterations with bad code\n");
+            fmt::print(stderr, "Warning: Doing many iterations with bad code\n");
         }
         /* We zero out the dst area beforehand */
         ab->vec_set_zero(dst, pos->ncols_t);
@@ -3313,7 +3310,7 @@ static std::ostream& matmul_bucket_report_vsc(std::ostream& os, matmul_bucket<Ar
      * for the moment transposed mults don't properly store timing info
      */
     /*
-    printf("jitter %.2f - %.2f = %.2f\n",
+    fmt::print("jitter {:.2f} - {:.2f} = {:.2f}\n",
             total_from_defer_rows / scale0, total_from_defer_cmbs / scale0,
             (total_from_defer_rows - total_from_defer_cmbs) / scale0);
             */
@@ -3325,15 +3322,15 @@ static std::ostream& matmul_bucket_report_vsc(std::ostream& os, matmul_bucket<Ar
         t = dtime[l].second / scale0;
         a = 1.0e9 * t / nc;
         *p_t_total += t;
-        os << fmt::sprintf("defer\t%.2fs         ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
-            " scaled*%.2f : %5.2f/c\n",
+        os << fmt::format("defer\t{:.2f}s         ; n={:>9d} ; {:5.2f} ns/c ;"
+            " scaled*{:.2f} : {:5.2f}/c\n",
             t, nc, a, scale, a * scale);
         nc = ctime[l].first;
         t = ctime[l].second / scale0;
         a = 1.0e9 * t / nc;
         *p_t_total += t;
-        os << fmt::sprintf("      + %.2fs [%.2fs] ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
-            " scaled*%.2f : %5.2f/c\n",
+        os << fmt::format("      + {:.2f}s [{:.2f}s] ; n={:>9d} ; {:5.2f} ns/c ;"
+            " scaled*{:.2f} : {:5.2f}/c\n",
             t, *p_t_total, nc, a, scale, a * scale);
     }
     hdr--;
@@ -3351,7 +3348,7 @@ void matmul_bucket<Arith>::report(double scale)
 
     vector<slice_header_t>::iterator hdr;
 
-    os << fmt::sprintf("n %" PRIu64 " %.3fs/iter (wct of cpu-bound loop)\n",
+    os << fmt::format("n {} {:.3f}s/iter (wct of cpu-bound loop)\n",
             ncoeffs,
             main_timing.t / scale0
             );
@@ -3368,8 +3365,8 @@ void matmul_bucket<Arith>::report(double scale)
         t /= scale0;
         t_total += t;
         double const a = 1.0e9 * t / nc;
-        os << fmt::sprintf("%s\t%.2fs [%.2fs] ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
-            " scaled*%.2f : %5.2f/c\n",
+        os << fmt::format("{}\t{:.2f}s [{:.2f}s] ; n={:>9d} ; {:5.2f} ns/c ;"
+            " scaled*{:.2f} : {:5.2f}/c\n",
             slice_name(hdr->t), t, t_total,
             nc, a, scale, a * scale);
     }
@@ -3387,8 +3384,8 @@ void matmul_bucket<Arith>::report(double scale)
         if (nc == 0) continue;
         t /= scale0;
         double const a = 1.0e9 * t / nc;
-        os << fmt::sprintf("%s\t%.2fs ; n=%-9" PRIu64 " ; %5.2f ns/c ;"
-            " scaled*%.2f : %5.2f/c\n",
+        os << fmt::format("{}\t{:.2f}s ; n={:>9d} ; {:5.2f} ns/c ;"
+            " scaled*{:.2f} : {:5.2f}/c\n",
             slice_name(i), t,
             nc, a, scale, a * scale);
     }

@@ -1357,7 +1357,7 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
                 serialize(mmt.pi->m);
                 t_read += wct_seconds();
                 if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == j && cache_loaded) {
-                    fmt::print("[{}] J{}T{}-{}: read cache {} (and others) in %.2fs (round {}/{})\n",
+                    fmt::print("[{}] J{}T{}-{}: read cache {} (and others) in {:.2f}s (round {}/{})\n",
                     mmt.pi->nodenumber_s,
                     mmt.pi->m->jrank,
                     mmt.pi->m->trank,
@@ -1374,7 +1374,7 @@ static void matmul_top_read_submatrix(matmul_top_data & mmt, int midx, cxx_param
             serialize(mmt.pi->m);
             t_read += wct_seconds();
             if (mmt.pi->m->jrank == 0 && mmt.pi->m->trank == 0 && cache_loaded) {
-                fmt::print("[{}] J{}: read cache {} (and others) in %.2fs\n",
+                fmt::print("[{}] J{}: read cache {} (and others) in {:.2f}s\n",
                         mmt.pi->nodenumber_s,
                         mmt.pi->m->jrank,
                         Mloc.mm->cachefile_name,

@@ -89,13 +89,13 @@ std::ostream& tree_stats::recursively_print_substeps_at_depth(
          *      real = k * X * t1
          */
         os << " "
-            << fmt::sprintf("%zu/%zu",
+            << fmt::format("{}/{}",
                     items_per_call * (size_t) n,
                     items_per_call * (size_t) total_ncalls);
         if (n) {
             if (th > 0)
-                os << fmt::sprintf(" [%.1f%%]", 100.0 * (t/n) / (th/th_n));
-            os << " " << fmt::format(FMT_STRING("{:.2g} -> {:.1f}"),
+                os << fmt::format(" [{:.1f}%%]", 100.0 * (t/n) / (th/th_n));
+            os << " " << fmt::format("{:.2g} -> {:.1f}",
                     t / n / items_per_call, t / n * (double) total_ncalls);
         } else if (th > 0) {
             /* Since n == 0, begin_smallstep has never been called.
@@ -104,7 +104,7 @@ std::ostream& tree_stats::recursively_print_substeps_at_depth(
              * that th_n corresponds to one call of the function, not
              * more */
             ASSERT_ALWAYS(th_n == 1);
-            os << fmt::sprintf(" %.2g -> %.1f",
+            os << fmt::format(" {:.2g} -> {:.1f}",
                     (th/th_n), (th/th_n) * (double) total_ncalls);
         }
         os << ")\n";
@@ -170,11 +170,11 @@ void tree_stats::print(unsigned int)
             } else {
                 os << "--";
             }
-            os << " " << fmt::sprintf("[%u-%u, %s]", F.min_inputsize, F.max_inputsize, fi.func)
-               << " " << fmt::sprintf("%u/%u", F.ncalled, F.total_ncalls())
-               << " " << fmt::sprintf("%.2g -> %.1f",
+            os << " " << fmt::format("[{}-{}, {}]", F.min_inputsize, F.max_inputsize, fi.func)
+               << " " << fmt::format("{}/{}", F.ncalled, F.total_ncalls())
+               << " " << fmt::format("{:.2g} -> {:.1f}",
                        F.real / F.ncalled, F.projected_time())
-               << " " << fmt::sprintf(" (total: %.1f wct)", sum)
+               << " " << fmt::format(" (total: {:.1f} wct)", sum)
                << "\n";
 
             step_time FS = F;
@@ -209,14 +209,14 @@ void tree_stats::print(unsigned int)
             } else {
                 os << "--";
             }
-            os << fmt::sprintf("* [%u, %s] 0/%u",
+            os << fmt::format("* [{}, {}] 0/{}",
                     r.inputsize,
                     fi.func,
                     r.total_ncalls()
                     );
             if (level_th > 0) {
                 sum += level_th * r.total_ncalls();
-                os << fmt::sprintf(" %.2g -> %.1f (total: %.1f wct)",
+                os << fmt::format(" {:.2g} -> {:.1f} (total: {:.1f} wct)",
                         level_th, level_th * r.total_ncalls(),
                         sum);
             }
@@ -246,7 +246,7 @@ void tree_stats::print(unsigned int)
         unsigned int s = strlen(eta_string);
         for( ; s && isspace((int)(unsigned char)eta_string[s-1]) ; eta_string[--s]='\0') ;
 
-        printf("lingen ETA: %s\n", eta_string);
+        fmt::print("lingen ETA: {}\n", eta_string);
     }
 }
 
@@ -359,7 +359,7 @@ void tree_stats::final_print()
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         if (!rank)
-            printf("lingen done at: %s\n", eta_string);
+            fmt::print("lingen done at: {}\n", eta_string);
     }
 }
 
@@ -386,7 +386,8 @@ void tree_stats::begin_plan_smallstep(std::string const & func, weighted_double 
         S.planned_calls++;
     } catch (std::runtime_error const & e) {
         std::stringstream os;
-        os << fmt::format(FMT_STRING("Exception at {}({}, {:.3g}, {})\n"), __func__, func, theory.t, theory.n);
+        os << fmt::format("Exception at {}({}, {:.3g}, {})\n",
+                __func__, func, theory.t, theory.n);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
@@ -407,7 +408,7 @@ void tree_stats::end_plan_smallstep()
         // now that we have compile-time checking of format strings, at
         // least with c++17, we can safely silence this false positive.
         // coverity[fun_call_w_exception]
-        os << fmt::format(FMT_STRING("Exception at {}()\n"), __func__);
+        os << fmt::format("Exception at {}()\n", __func__);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
@@ -438,7 +439,7 @@ void tree_stats::begin_plan_smallstep_microsteps(std::string const & func)
         std::stringstream os;
         // see above
         // coverity[fun_call_w_exception]
-        os << fmt::format(FMT_STRING("Exception at {}\n"), __func__);
+        os << fmt::format("Exception at {}\n", __func__);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
@@ -487,7 +488,7 @@ void tree_stats::begin_smallstep(std::string const & func, unsigned int ncalls)
         std::stringstream os;
         // see above
         // coverity[fun_call_w_exception]
-        os << fmt::format(FMT_STRING("Exception at {}({},{})\n"), __func__, func, ncalls);
+        os << fmt::format("Exception at {}({},{})\n", __func__, func, ncalls);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
@@ -515,7 +516,7 @@ void tree_stats::end_smallstep()
         std::stringstream os;
         // see above
         // coverity[fun_call_w_exception]
-        os << fmt::format(FMT_STRING("Exception at {}()\n"), __func__);
+        os << fmt::format("Exception at {}()\n", __func__);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
@@ -549,7 +550,7 @@ void tree_stats::skip_smallstep(std::string const & func, unsigned int ncalls)
         std::stringstream os;
         // see above
         // coverity[fun_call_w_exception]
-        os << fmt::format(FMT_STRING("Exception at {}({}, {})\n"), __func__, func, ncalls);
+        os << fmt::format("Exception at {}({}, {})\n", __func__, func, ncalls);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
@@ -581,7 +582,7 @@ bool tree_stats::local_smallsteps_done(bool compulsory) const
         std::stringstream os;
         // see above
         // coverity[fun_call_w_exception]
-        os << fmt::format(FMT_STRING("Exception at {}()\n"), __func__);
+        os << fmt::format("Exception at {}()\n", __func__);
         os << "State of *this\n";
         debug_print(os);
         os << "Error message: " << e.what() << "\n";
@@ -600,16 +601,16 @@ std::ostream& tree_stats::debug_print(std::ostream& os) const
     return os;
 }
 
-std::ostream& tree_stats::step_time::debug_print(std::ostream& os, std::string indent) const {
-    os << indent << fmt::format(FMT_STRING("name={}\n"), name);
-    os << indent << fmt::format(FMT_STRING("items_pending={}\n"), items_pending);
-    os << indent << fmt::format(FMT_STRING("items_per_call={}\n"), items_per_call);
-    os << indent << fmt::format(FMT_STRING("ncalled={}\n"), ncalled);
-    os << indent << fmt::format(FMT_STRING("planned_calls={}\n"), planned_calls);
-    os << indent << fmt::format(FMT_STRING("planned_time={}\n"), planned_time);
-    os << indent << fmt::format(FMT_STRING("total_ncalls={}\n"), total_ncalls());
-    os << indent << fmt::format(FMT_STRING("is_transition={}\n"), is_transition_level());
-    os << indent << fmt::format(FMT_STRING("real={}\n"), real);
+std::ostream& tree_stats::step_time::debug_print(std::ostream& os, std::string const & indent) const {
+    os << indent << fmt::format("name={}\n", name);
+    os << indent << fmt::format("items_pending={}\n", items_pending);
+    os << indent << fmt::format("items_per_call={}\n", items_per_call);
+    os << indent << fmt::format("ncalled={}\n", ncalled);
+    os << indent << fmt::format("planned_calls={}\n", planned_calls);
+    os << indent << fmt::format("planned_time={}\n", planned_time);
+    os << indent << fmt::format("total_ncalls={}\n", total_ncalls());
+    os << indent << fmt::format("is_transition={}\n", is_transition_level());
+    os << indent << fmt::format("real={}\n", real);
     for(auto const & s : steps) {
         s.second.debug_print(os, indent + "  ");
     }

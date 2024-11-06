@@ -685,9 +685,9 @@ int param_list_parse_string(param_list_ptr pl, const char * key, char * r, size_
     if (!get_assoc(pl, key, value))
         return 0;
     if (r && strlcpy(r, value.c_str(), n) > n) {
-        throw parameter_exception { fmt::format(FMT_STRING(
+        throw parameter_exception { fmt::format(
                 " parameter for key {} does not fit within string buffer"
-                " of length {}\n"), key, n) };
+                " of length {}\n", key, n) };
     }
     return 1;
 }
@@ -834,9 +834,9 @@ int param_list_parse_raw_fixed_list(param_list_ptr pl, const char * key, T * r, 
         return 0;
 
     if (v.size() > n) {
-        throw parameter_exception { fmt::format(FMT_STRING(
+        throw parameter_exception { fmt::format(
                     " parameter for key {} does not fit in fixed list"
-                    " of length {}\n"), key, n) };
+                    " of length {}\n", key, n) };
     }
     std::copy(v.begin(), v.end(), r);
     return v.size();
@@ -899,7 +899,7 @@ int param_list_parse_switch(param_list_ptr pl, const char * key)
     if (!get_assoc(pl, key, value, false, &seen))
         return 0;
     if (!value.empty())
-        throw parameter_exception(fmt::format(FMT_STRING("Parse error: option {} accepts no argument\n"), key));
+        throw parameter_exception(fmt::format("Parse error: option {} accepts no argument\n", key));
     return seen;
 }
 
@@ -1108,9 +1108,8 @@ int param_list_parse_per_side(param_list_ptr pl, const char * key, T * lpb_arg, 
             lpb_arg[i] = temp[i];
         if (has_nlpbs > n)
             throw parameter_exception(fmt::format(
-                        FMT_STRING(
                             "Number of values for parameter {}"
-                            " exceeds the maximum {}.")
+                            " exceeds the maximum {}."
                         , key, n));
 
     }

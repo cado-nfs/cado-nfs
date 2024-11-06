@@ -86,7 +86,7 @@ struct gfp_base : public arith_concrete_base
     static constexpr const size_t constant_width = N__;
     static constexpr const bool is_constant_width = N__ > 0;
     static constexpr const bool is_variable_width = N__ == 0;
-    static std::string impl_name() { return is_constant_width ? fmt::format(FMT_STRING("p{}"), N__) : "pz"; }
+    static std::string impl_name() { return is_constant_width ? fmt::format("p{}", N__) : "pz"; }
     static constexpr const bool is_characteristic_two = false;
     static constexpr bool simd_groupsize() { return 1; }
 

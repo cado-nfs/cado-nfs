@@ -468,9 +468,9 @@ struct gf2_base
         for (unsigned int i = 0; i < K; i++) {
             // We _know_ that we're dealing with a 64-bit type
             // anyway, so what follows is unnecessary.
-            // o << fmt::format(FMT_STRING("{0:0{1}}"), x.data()[i],
+            // o << fmt::format("{0:0{1}}", x.data()[i],
             // sizeof(x.data()[i]) * CHAR_BIT / 4);
-            o << fmt::format(FMT_STRING("{0:016x}"), x.data()[i]);
+            o << fmt::format("{0:016x}", x.data()[i]);
         }
         return o;
     }
@@ -712,7 +712,7 @@ struct gf2 : public gf2_middle<G, gf2<G>>
     {
         if (G == 0)
             return "bz";
-        return fmt::format(FMT_STRING("b{}"), G);
+        return fmt::format("b{}", G);
     }
 };
 }

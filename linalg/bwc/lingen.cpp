@@ -265,9 +265,9 @@ void truncate_overflow(bmstatus & bm, matpoly_type & pi, unsigned int pi_expect)
             if (bm.delta[j] >= maxdelta_lucky)
                 maxdelta_lucky = bm.delta[j];
         }
-        printf("truncating excess cols\n"
-                "   pi has length %zu, we expected %u at most.\n"
-                "   max delta on the %u lucky columns: %u\n",
+        fmt::print("truncating excess cols\n"
+                "   pi has length {}, we expected {} at most.\n"
+                "   max delta on the {} lucky columns: {}\n",
                 pi.get_size(),
                 pi_expect,
                 nluck,
@@ -305,7 +305,7 @@ matpoly_type bw_lingen_recursive(bmstatus & bm, matpoly_type & E) /*{{{*/
      * reference _later_ */
     lingen_call_companion const C0 = bm.companion(depth, z);
 
-    tree_stats::sentinel const dummy(bm.stats, fmt::sprintf("%srecursive", matpoly_diverter<matpoly_type>::prefix), z, C0.total_ncalls);
+    tree_stats::sentinel const dummy(bm.stats, fmt::format("{}recursive", matpoly_diverter<matpoly_type>::prefix), z, C0.total_ncalls);
 
     bm.stats.plan_smallstep(C0.mp.step_name(), C0.mp.tt);
     bm.stats.plan_smallstep(C0.mul.step_name(), C0.mul.tt);
@@ -429,7 +429,7 @@ matpoly bw_lingen_single_nocp(bmstatus & bm, matpoly & E) /*{{{*/
 
     // ASSERT_ALWAYS(E.size < bm.lingen_mpi_threshold);
 
-    // fprintf(stderr, "Enter %s\n", __func__);
+    // fmt::print(stderr, "Enter {}\n", __func__);
     if (!bm.recurse(E.get_size())) {
         tree_stats::transition_sentinel const dummy(bm.stats, "recursive_threshold", E.get_size(), C.total_ncalls);
         bm.t_basecase -= seconds();
@@ -439,7 +439,7 @@ matpoly bw_lingen_single_nocp(bmstatus & bm, matpoly & E) /*{{{*/
     } else {
         pi = bw_lingen_recursive(bm, E);
     }
-    // fprintf(stderr, "Leave %s\n", __func__);
+    // fmt::print(stderr, "Leave {}\n", __func__);
 
     return pi;
 }/*}}}*/
@@ -498,7 +498,7 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
     if (load_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, t0, t1))
         return pi;
 
-    // fprintf(stderr, "Enter %s\n", __func__);
+    // fmt::print(stderr, "Enter {}\n", __func__);
     if (go_mpi) {
         pi = bw_lingen_recursive(bm, E);
     } else {
@@ -534,7 +534,7 @@ bigmatpoly bw_biglingen_collective(bmstatus & bm, bigmatpoly & E)/*{{{*/
         /* Don't forget to broadcast delta from root node to others ! */
         bm.stats.end_smallstep();
     }
-    // fprintf(stderr, "Leave %s\n", __func__);
+    // fmt::print(stderr, "Leave {}\n", __func__);
 
     save_checkpoint_file(bm, LINGEN_CHECKPOINT_PI, pi, t0, t1);
 
@@ -572,25 +572,25 @@ int check_luck_condition(bmstatus & bm)/*{{{*/
     MPI_Comm_rank(bm.com[0], &rank);
 
     if (!rank) {
-        printf("Number of lucky columns: %u (%u wanted)\n", nlucky, n);
+        fmt::print("Number of lucky columns: {} ({} wanted)\n", nlucky, n);
     }
 
     if (nlucky == n)
         return 1;
 
     if (!rank) {
-        fprintf(stderr, "Could not find the required set of solutions (nlucky=%u)\n", nlucky);
+        fmt::print(stderr, "Could not find the required set of solutions (nlucky={})\n", nlucky);
     }
     if (random_input_length) {
         static int once=0;
         if (once++) {
             if (!rank) {
-                fprintf(stderr, "Solution-faking loop crashed\n");
+                fmt::print(stderr, "Solution-faking loop crashed\n");
             }
             MPI_Abort(bm.com[0], EXIT_FAILURE);
         }
         if (!rank) {
-            printf("Random input: faking successful computation\n");
+            fmt::print("Random input: faking successful computation\n");
         }
         for(unsigned int j = 0 ; j < n ; j++) {
             unsigned int const s = (j * 1009) % (m+n);
@@ -626,7 +626,7 @@ void print_node_assignment(MPI_Comm comm)/*{{{*/
         MPI_Comm_get_name(comm, name, &len);
         name[79]=0;
         for(int i = 0 ; i < size ; i++) {
-            printf("# %s rank %d: %s\n", name, i, global + i * sz);
+            fmt::print("# {} rank {}: {}\n", name, i, global + i * sz);
         }
     }
     free(global);
@@ -771,15 +771,15 @@ int wrapped_main(int argc, char const *argv[])
     const char * afile = param_list_lookup_string(pl, "afile");
 
     if (bw->m == -1) {
-	fprintf(stderr, "no m value set\n");
+	fmt::print(stderr, "no m value set\n");
 	exit(EXIT_FAILURE);
     }
     if (bw->n == -1) {
-	fprintf(stderr, "no n value set\n");
+	fmt::print(stderr, "no n value set\n");
 	exit(EXIT_FAILURE);
     }
     if (!global_flag_tune && !(afile || random_input_length)) {
-        fprintf(stderr, "No afile provided\n");
+        fmt::print(stderr, "No afile provided\n");
         exit(EXIT_FAILURE);
     }
 
@@ -799,13 +799,13 @@ int wrapped_main(int argc, char const *argv[])
     const char * rhs_name = param_list_lookup_string(pl, "rhs");
     if (!global_flag_tune && !random_input_length) {
         if (!rhs_name) {
-            fprintf(stderr, "# When using lingen, you must either supply --random-input-with-length, or provide a rhs, or possibly provide rhs=none\n");
+            fmt::print(stderr, "# When using lingen, you must either supply --random-input-with-length, or provide a rhs, or possibly provide rhs=none\n");
         } else if (strcmp(rhs_name, "none") == 0) {
             rhs_name = NULL;
         }
     }
     if (param_list_parse_uint(pl, "nrhs", &(bm.d.nrhs)) && rhs_name) {
-        fprintf(stderr, "# the command line arguments rhs= and nrhs= are incompatible\n");
+        fmt::print(stderr, "# the command line arguments rhs= and nrhs= are incompatible\n");
         exit(EXIT_FAILURE);
     }
     if (rhs_name && strcmp(rhs_name, "none") != 0) {
@@ -823,7 +823,7 @@ int wrapped_main(int argc, char const *argv[])
     param_list_parse_uint(pl, "lingen_mpi_threshold", &(bm.lingen_mpi_threshold));
     if (bm.lingen_mpi_threshold < bm.lingen_threshold) {
         bm.lingen_mpi_threshold = bm.lingen_threshold;
-        fprintf(stderr, "Argument fixing: setting lingen_mpi_threshold=%u (because lingen_threshold=%u)\n",
+        fmt::print(stderr, "Argument fixing: setting lingen_mpi_threshold={} (because lingen_threshold={})\n",
                 bm.lingen_mpi_threshold, bm.lingen_threshold);
     }
 
@@ -854,13 +854,13 @@ int wrapped_main(int argc, char const *argv[])
         if (param_list_parse_intxint(pl, "thr", thr)) {
             if (omp_get_max_threads() >= thr[0] * thr[1]) {
                 if (!rank)
-                    printf("# Limiting number of openmp threads to %d\n",
+                    fmt::print("# Limiting number of openmp threads to {}\n",
                             thr[0] * thr[1]);
                 omp_set_num_threads(thr[0] * thr[1]);
             } else {
                 if (!rank)
-                    printf("# Number of openmp threads is capped at %d"
-                            ", which is below thr=%dx%d. Keeping as it is\n",
+                    fmt::print("# Number of openmp threads is capped at {}"
+                            ", which is below thr={}{}. Keeping as it is\n",
                             omp_get_max_threads(),
                             thr[0], thr[1]);
             }
@@ -869,7 +869,7 @@ int wrapped_main(int argc, char const *argv[])
         if (param_list_parse_intxint(pl, "thr", thr)) {
             if (thr[0]*thr[1] != 1) {
                 if (!rank) {
-                    fprintf(stderr, "This program only wants openmp for multithreading. Ignoring thr argument.\n");
+                    fmt::print(stderr, "This program only wants openmp for multithreading. Ignoring thr argument.\n");
                 }
                 param_list_add_key(pl, "thr", "1x1", PARAMETER_FROM_CMDLINE);
             }
@@ -878,16 +878,16 @@ int wrapped_main(int argc, char const *argv[])
 
 #ifdef  FAKEMPI_H_
         if (mpi[0]*mpi[1] > 1) {
-            fprintf(stderr, "non-trivial option mpi= can't be used with fakempi. Please do an MPI-enabled build (MPI=1)\n");
+            fmt::print(stderr, "non-trivial option mpi= can't be used with fakempi. Please do an MPI-enabled build (MPI=1)\n");
             exit(EXIT_FAILURE);
         }
 #endif
         if (!rank)
-            printf("# size=%d mpi=%dx%d thr=%dx%d\n", size, mpi[0], mpi[1], thr[0], thr[1]);
+            fmt::print("# size={} mpi={}{} thr={}{}\n", size, mpi[0], mpi[1], thr[0], thr[1]);
         ASSERT_ALWAYS(size == mpi[0] * mpi[1]);
         if (bm.mpi_dims[0] != bm.mpi_dims[1]) {
             if (!rank)
-                fprintf(stderr, "The current lingen code is limited to square splits ; here, we received a %d x %d split, which will not work\n",
+                fmt::print(stderr, "The current lingen code is limited to square splits ; here, we received a {} x {} split, which will not work\n",
                     bm.mpi_dims[0], bm.mpi_dims[1]);
             abort();
         }
@@ -910,10 +910,10 @@ int wrapped_main(int argc, char const *argv[])
 
         constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
         if ((bm.d.m + bm.d.n) / simd < (unsigned int) mpi[0]) {
-            printf("########################################################\n");
-            printf("# Warning: this run will leave some resources idle:\n"
-                   "# the matrices of size %u*%u and %u*%u can be split into\n"
-                   "# chunks of minimal size %u, whence an mpi split over %d*%d is useless\n",
+            fmt::print("########################################################\n");
+            fmt::print("# Warning: this run will leave some resources idle:\n"
+                   "# the matrices of size {}*{} and {}*{} can be split into\n"
+                   "# chunks of minimal size {}, whence an mpi split over {}*{} is useless\n",
                    bm.d.m,
                    bm.d.m + bm.d.n,
                    bm.d.m + bm.d.n,
@@ -921,7 +921,7 @@ int wrapped_main(int argc, char const *argv[])
                    simd,
                    mpi[0],
                    mpi[0]);
-            printf("########################################################\n");
+            fmt::print("########################################################\n");
         }
     }
     /* }}} */
@@ -1008,9 +1008,9 @@ int wrapped_main(int argc, char const *argv[])
 
     if (!rank) {
         char buf[20];
-        printf("# Estimated memory for JUST transforms (per node): %s\n",
+        fmt::print("# Estimated memory for JUST transforms (per node): {}\n",
                 size_disp(2*c0, buf));
-        printf("# Estimated peak total memory (per node): max at depth %d: %s\n",
+        fmt::print("# Estimated peak total memory (per node): max at depth {}: {}\n",
                 bm.hints.ipeak,
                 size_disp(bm.hints.peak, buf));
     }
@@ -1020,11 +1020,11 @@ int wrapped_main(int argc, char const *argv[])
     if (go_mpi) {
         if (!rank) {
             if (size > 1) {
-                printf("Expected length %zu exceeds MPI threshold,"
+                fmt::print("Expected length {} exceeds MPI threshold,"
                        " going MPI now.\n",
                        L);
             } else {
-                printf("Expected length %zu exceeds MPI threshold, "
+                fmt::print("Expected length {} exceeds MPI threshold, "
                        "but the process is not running in an MPI context.\n",
                        L);
             }
@@ -1058,7 +1058,7 @@ int wrapped_main(int argc, char const *argv[])
         bigmatpoly pi = bw_biglingen_collective(bm, E);
         bm.stats.final_print();
         bm.display_deltas();
-        if (!rank) printf("(pi.alloc = %zu)\n", pi.my_cell().capacity());
+        if (!rank) fmt::print("(pi.alloc = {})\n", pi.my_cell().capacity());
         constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
         pi.zero_pad(simd * iceildiv(pi.get_size(), simd));
         if (check_luck_condition(bm)) {
@@ -1092,7 +1092,7 @@ int wrapped_main(int argc, char const *argv[])
         matpoly pi = bw_lingen_single(bm, E);
         bm.stats.final_print();
         bm.display_deltas();
-        if (!rank) printf("(pi.alloc = %zu)\n", pi.capacity());
+        if (!rank) fmt::print("(pi.alloc = {})\n", pi.capacity());
         constexpr const unsigned int simd = matpoly::over_gf2 ? ULONG_BITS : 1;
         pi.zero_pad(simd * iceildiv(pi.get_size(), simd));
         if (check_luck_condition(bm)) {
@@ -1104,13 +1104,13 @@ int wrapped_main(int argc, char const *argv[])
     }
 
     if (!rank && random_input_length) {
-        printf("t_basecase = %.2f\n", bm.t_basecase);
-        printf("t_mp = %.2f\n", bm.t_mp);
-        printf("t_mul = %.2f\n", bm.t_mul);
-        printf("t_cp_io = %.2f\n", bm.t_cp_io);
+        fmt::print("t_basecase = {:.2f}\n", bm.t_basecase);
+        fmt::print("t_mp = {:.2f}\n", bm.t_mp);
+        fmt::print("t_mul = {:.2f}\n", bm.t_mul);
+        fmt::print("t_cp_io = {:.2f}\n", bm.t_cp_io);
         long const peakmem = PeakMemusage();
         if (peakmem > 0)
-            printf("# PeakMemusage (MB) = %ld (VmPeak: can be misleading)\n", peakmem >> 10);
+            fmt::print("# PeakMemusage (MB) = {} (VmPeak: can be misleading)\n", peakmem >> 10);
     }
 
     if (ffile) free(ffile);

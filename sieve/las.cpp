@@ -660,16 +660,16 @@ void check_whether_q_above_lare_prime_bound(siever_config const & conf, las_todo
     if (allow_largesq) return;
 
     if (mpz_sizeinbase(doing.p, 2) > conf.sides[doing.side].lpb) {
-        fprintf(stderr, "ERROR: The special q (%d bits) is larger than the "
-                "large prime bound on side %d (%d bits).\n",
+        fmt::print(stderr, "ERROR: The special q ({} bits) is larger than the "
+                "large prime bound on side {} ({} bits).\n",
                 (int) mpz_sizeinbase(doing.p, 2),
                 doing.side,
                 conf.sides[doing.side].lpb);
-        fprintf(stderr, "       You can disable this check with "
+        fmt::print(stderr, "       You can disable this check with "
                 "the -allow-largesq argument,\n");
-        fprintf(stderr, "       It is for instance useful for the "
+        fmt::print(stderr, "       It is for instance useful for the "
                 "descent.\n");
-        fprintf(stderr, "       Use tasks.sieve.allow_largesq=true.\n");
+        fmt::print(stderr, "       Use tasks.sieve.allow_largesq=true.\n");
         exit(EXIT_FAILURE);
     }
 }
@@ -987,16 +987,16 @@ void las_info::batch_print_survivors_t::doit()
             for (auto const &s : M) {
                 if (s.doing_p != curr_sq) {
                     curr_sq = s.doing_p;
-                    gmp_fprintf(out,
-                            "# q = (%Zd, %Zd, %d)\n",
-                            (mpz_srcptr) s.doing_p->p,
-                            (mpz_srcptr) s.doing_p->r,
+                    fmt::print(out,
+                            "# q = ({}, {}, {})\n",
+                            s.doing_p->p,
+                            s.doing_p->r,
                             s.doing_p->side);
                 }
-                gmp_fprintf(out,
-                        "%" PRId64 " %" PRIu64 " %Zd %Zd\n", s.a, s.b,
-                        (mpz_srcptr) s.cofactor[0],
-                        (mpz_srcptr) s.cofactor[1]);
+                fmt::print(out,
+                        "{} {} {} {}\n", s.a, s.b,
+                        s.cofactor[0],
+                        s.cofactor[1]);
             }
             fclose(out);
             int const rc = rename(f_part.c_str(), f.c_str());
@@ -1075,9 +1075,9 @@ static void las_subjob(las_info & las, int subjob, las_todo_list & todo, report_
                     if (las.tree.depth() == 0) {
                         if (recursive_descent) {
                             /* BEGIN TREE / END TREE are for the python script */
-                            fprintf(main_output->output, "# BEGIN TREE\n");
+                            fmt::print(main_output->output, "# BEGIN TREE\n");
                             las.tree.display_last_tree(main_output->output);
-                            fprintf(main_output->output, "# END TREE\n");
+                            fmt::print(main_output->output, "# END TREE\n");
                         }
                         las.tree.visited.clear();
                     }
@@ -1283,7 +1283,7 @@ static std::string relation_cache_subdir_name(std::vector<unsigned long> const &
     for(unsigned int i = 0 ; i + 1 < split_q.size() ; i++) {
         int l = 0;
         for(unsigned long s = 1 ; splits[i] > s ; s*=10, l++);
-        d += fmt::format(FMT_STRING("/{:0{}}"), split_q[i], l);
+        d += fmt::format("/{:0{}}", split_q[i], l);
     }
     return d;
 }/*}}}*/
@@ -1317,8 +1317,7 @@ static std::string relation_cache_find_filepath(std::string const & cache_path, 
         mpz_fdiv_q_ui(q, q, splits[i]);
     }
     if (mpz_cmp_ui(q, 0) != 0) {
-        gmp_fprintf(stderr, "# q is too large for relation cache\n",
-                (mpz_srcptr) oq);
+        fmt::print(stderr, "# q is too large for relation cache\n", oq);
         exit(EXIT_FAILURE);
     }
 
@@ -1339,9 +1338,7 @@ static std::string relation_cache_find_filepath(std::string const & cache_path, 
 
     if (filepath.empty()) {
         searched.push_back(d);
-        std::ostringstream os;
-        for(auto const & s : searched) os << " " << s;
-        gmp_fprintf(stderr, "# no file found in relation cache for q=%Zd (searched directories:%s)\n", (mpz_srcptr) q, os.str().c_str());
+        fmt::print(stderr, "# no file found in relation cache for q={} (searched directories: {})\n", q, join(searched, " "));
         exit(EXIT_FAILURE);
     }
 
@@ -1362,7 +1359,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
             splits.push_back((long) dirinfo["splits"][i]);
         }
     } catch (std::exception const & e) {
-        fprintf(stderr, "# Cannot read relation cache, or dirinfo.json in relation cache\n");
+        fmt::print(stderr, "# Cannot read relation cache, or dirinfo.json in relation cache\n");
         exit(EXIT_FAILURE);
     }
 
@@ -1418,7 +1415,7 @@ static void quick_subjob_loop_using_cache(las_info & las, las_todo_list & todo)/
             std::istringstream is(line);
             relation rel;
             if (!(is >> rel)) {
-                gmp_fprintf(stderr, "# parse error in relation\n");
+                fmt::print(stderr, "# parse error in relation\n");
                 exit(EXIT_FAILURE);
             }
             if (!sq_finds_relation(las, aux.doing, conf, Q, J, rel))
@@ -1486,7 +1483,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
             argv++,argc--;
             continue;
         }
-        fprintf(stderr, "Unhandled parameter %s\n", argv[0]);
+        fmt::print(stderr, "Unhandled parameter {}\n", argv[0]);
         param_list_print_usage(pl, argv0[0], stderr);
         exit(EXIT_FAILURE);
     }
@@ -1560,7 +1557,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
             const size_t ram0 = expected_memory_usage_per_binding_zone(sc0, las, false);
             for(int z = 1, s = 1 << 30, n = 1, spin=0 ; ; spin++) {
                 if (spin > 10) {
-                    fprintf(stderr, "Warning: computation of expected memory does not stabilize after %d attempts, picking the situation as it is\n", spin);
+                    fmt::print(stderr, "Warning: computation of expected memory does not stabilize after {} attempts, picking the situation as it is\n", spin);
                     break;
                 }
                 const size_t ram1 = expected_memory_usage_per_subjob_worst_logI(sc0, las, n, false);
@@ -1571,7 +1568,7 @@ int main (int argc0, char const * argv0[])/*{{{*/
                     << " " << (double) ram0 / (1 << 30)
                     << " " << (double) ram1 / (1 << 30)
                     << " " << (double) jobram / (1 << 30);
-                fprintf(stderr, "%s\n", os.str().c_str());
+                fmt::print(stderr, "{}\n", os.str());
                 */
                 las.set_parallel(pl, (double) jobram / (1U << 30U));
                 const int nz = las.number_of_memory_binding_zones();

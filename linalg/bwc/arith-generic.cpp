@@ -243,13 +243,13 @@ arith_generic * arith_generic::instance(mpz_srcptr p, int simd_groupsize)
     std::string vlibname;
     if (mpz_cmp_ui(p, 2) == 0) {
         ASSERT_ALWAYS(simd_groupsize % 64 == 0);
-        libname = fmt::format(FMT_STRING(SOLIB_PREFIX "arithmetic_b{}" SOLIB_SUFFIX), simd_groupsize);
+        libname = fmt::format(SOLIB_PREFIX "arithmetic_b{}" SOLIB_SUFFIX, simd_groupsize);
         vlibname = SOLIB_PREFIX "arithmetic_bz" SOLIB_SUFFIX;
     } else {
         ASSERT_ALWAYS(simd_groupsize == 1);
         ASSERT_ALWAYS(mpz_cmp_ui(p, 0) > 0);
         size_t nwords = mpz_size(p);
-        libname = fmt::format(FMT_STRING(SOLIB_PREFIX "arithmetic_p{}" SOLIB_SUFFIX), nwords);
+        libname = fmt::format(SOLIB_PREFIX "arithmetic_p{}" SOLIB_SUFFIX, nwords);
         vlibname = SOLIB_PREFIX "arithmetic_pz" SOLIB_SUFFIX;
     }
 
