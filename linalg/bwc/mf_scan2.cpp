@@ -3,13 +3,17 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
-#include "omp_proxy.h"
+
 #include <mutex>
 #include <atomic>
 #include <vector>
+#include <thread>
+
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
 #endif
+#include "omp_proxy.h"
+
 #include "ringbuf.h"
 #include "macros.h"          // for ASSERT_ALWAYS, MAX, MIN
 #include "params.h"     // param_list
@@ -24,7 +28,7 @@ void mf_scan2_decl_usage(cxx_param_list & pl)
             "This program make one reading pass through a binary matrix, and produces\n"
             "the companion .rw and .cw files.\n"
             "Typical usage:\n"
-            "\tmf_scan [<matrix file name> | options...]\n"
+            "\tmf_scan2 [<matrix file name> | options...]\n"
             );
     param_list_decl_usage(pl, "withcoeffs", "Handle DLP matrix, with coefficients\n");
     param_list_decl_usage(pl, "mfile", "Input matrix name (free form also accepted)");
@@ -93,9 +97,8 @@ class reporter {
     void reset() { t0 = last_report = wct_seconds(); }
 };
 
-namespace {
+
 reporter report;
-}
 
 inline unsigned int get_segment_index(uint32_t c)
 {
@@ -252,17 +255,17 @@ void finish_write_and_clear_segments(uint32_t c, uint32_t colmax, FILE * f_cw)
 }
 
 template<bool withcoeffs>
-void write_column_weights(parser_thread<withcoeffs> * T, int consumers, FILE * f_cw)
+void write_column_weights(std::vector<parser_thread<withcoeffs>> & T, FILE * f_cw)
 {
-    for(int i = 1 ; i < consumers ; i++) {
+    for(size_t i = 1 ; i < T.size() ; i++) {
         for(size_t j = 0 ; j < thread_private_count ; j++)
             T[0].cw[j] += T[i].cw[j];
         T[0].colmax = MAX(T[0].colmax, T[i].colmax);
     }
-    uint32_t colmax = T[0].colmax;
+    uint32_t const colmax = T[0].colmax;
     uint32_t c = 0;
     for( ; c < thread_private_count && c < colmax ; c++) {
-        int rc = fwrite32_little(&T[0].cw[c], 1, f_cw);
+        auto const rc = fwrite32_little(&T[0].cw[c], 1, f_cw);
         ASSERT_ALWAYS(rc == 1);
     }
     finish_write_and_clear_segments(c, colmax, f_cw);
@@ -271,10 +274,11 @@ void write_column_weights(parser_thread<withcoeffs> * T, int consumers, FILE * f
 template<bool withcoeffs>
 void maincode(ringbuf_ptr R, int nb_consumers, FILE * f_in, FILE * f_rw, FILE * f_cw)
 {
-    parser_thread<withcoeffs> T[consumers];
+    std::vector<parser_thread<withcoeffs>> T(nb_consumers);
+#ifdef HAVE_OPENMP
 #pragma omp parallel
     {
-        int t = omp_get_thread_num();
+        int const t = omp_get_thread_num();
         if (t == 0) {
             master_loop<withcoeffs>(R, f_in, f_rw);
         } else {
@@ -283,7 +287,19 @@ void maincode(ringbuf_ptr R, int nb_consumers, FILE * f_in, FILE * f_rw, FILE * 
     }
     report.producer_report(0, true);
 #pragma omp barrier
-    write_column_weights(T, consumers, f_cw);
+#else
+    std::thread producer(master_loop<withcoeffs>, R, f_in, f_rw);
+    std::vector<std::thread> consumers;
+    consumers.reserve(T.size());
+    for(auto & t : T)
+        consumers.emplace_back(&parser_thread<withcoeffs>::loop, std::ref(t), R);
+
+    producer.join();
+    report.producer_report(0, true);
+    for(auto & t : consumers)
+        t.join();
+#endif
+    write_column_weights(T, f_cw);
 }
 
 // coverity[root_function]
@@ -364,11 +380,13 @@ int main(int argc, char const * argv[])
 #else
     uint64_t ram = 1 << 30;
     int threads = 2;
+#ifdef HAVE_OPENMP
 #pragma omp parallel
     {
 #pragma omp single
         threads = omp_get_num_threads();
     }
+#endif
 #endif
 
     size_t ringbuf_size = ram / 4;
