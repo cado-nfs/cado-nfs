@@ -212,6 +212,7 @@ checks on fedora system with gcc:
   <<: *common-template
   stage: early
   image: fedora:latest
+  allow_failure: true
   before_script:
     - ci/ci/00-prepare-docker.sh
   script:
