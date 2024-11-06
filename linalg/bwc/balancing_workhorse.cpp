@@ -787,9 +787,40 @@ void dispatcher::reader_fill_index_maps()/*{{{*/
                     }
                 }
             }
-        } else {
+        } else if (xr && !xc) {
             fprintf(stderr, "The current code expects a column permutation replicated on rows, not the converse. There is little adaptation work, but yet to be done. Maybe you could pass \"--reorder columns\" to mf_bal ?\n");
             abort();
+        } else if (!xr && !xc) {
+            /* do the same, but using the identity for xr and xc
+             */
+            for (uint32_t i = 0; i < xbal.tcols; i++) {
+                uint32_t const q = balancing_pre_unshuffle(bal, i);
+                ASSERT_ALWAYS(fw_colperm[q] == UINT32_MAX);
+                fw_colperm[q] = i;
+            }
+            /* In this case we arrange so that the replicated permutation is so
+             * that eventually, we are still computing iterates of a matrix
+             * which is conjugate to the one we're interested in */
+
+            uint32_t const nh = xbal.nh;
+            uint32_t const nv = xbal.nv;
+            ASSERT_ALWAYS(xbal.trows % (nh * nv) == 0);
+            uint32_t const elem = xbal.trows / (nh * nv);
+            uint32_t ix = 0;
+            uint32_t iy = 0;
+            for(uint32_t i = 0 ; i < nh ; i++) {
+                for(uint32_t j = 0 ; j < nv ; j++) {
+                    ix = (i * nv + j) * elem;
+                    iy = (j * nh + i) * elem;
+                    for(uint32_t k = 0 ; k < elem ; k++) {
+                        ASSERT_ALWAYS(iy + k < xbal.trows);
+                        uint32_t const r = iy+k;
+                        ASSERT_ALWAYS(r < xbal.trows);
+                        ASSERT_ALWAYS(fw_rowperm[r] == UINT32_MAX);
+                        fw_rowperm[r] = ix+k;
+                    }
+                }
+            }
         }
     } else {
         /* In this case, because the row and column permutations depend

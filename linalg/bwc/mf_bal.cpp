@@ -293,27 +293,31 @@ void mf_bal_interpret_parameters(struct mf_bal_args * mba, cxx_param_list & pl)
 
     if ((tmp = param_list_lookup_string(pl, "reorder")) != NULL) {
         if (strcmp(tmp, "auto") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_AUTO;
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_AUTO;
-        } else if (strcmp(tmp, "rows") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_NO;
-            mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_YES;
-        } else if (strcmp(tmp, "columns") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_AUTO;
+        } else if (strcmp(tmp, "none") == 0) {
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_NO;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_NO;
+        } else if (strcmp(tmp, "rows") == 0) {
+            mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_YES;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_NO;
+        } else if (strcmp(tmp, "columns") == 0) {
+            mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_NO;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
         } else if (strcmp(tmp, "rows,columns") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_YES;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
         } else if (strcmp(tmp, "columns,rows") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_YES;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
         } else if (strcmp(tmp, "both") == 0) {
-            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
             mba->do_perm[0] = mf_bal_args::MF_BAL_PERM_YES;
+            mba->do_perm[1] = mf_bal_args::MF_BAL_PERM_YES;
         } else {
             fprintf(stderr, "Argument \"%s\" to the \"reorder\" parameter not understood\n"
                     "Supported values are:\n"
                     "\tauto (default)\n"
+                    "\tnone\n"
                     "\trows\n"
                     "\tcolumns\n"
                     "\tboth (equivalent forms: \"rows,columns\" or \"columns,rows\"\n",
