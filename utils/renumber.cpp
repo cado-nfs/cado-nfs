@@ -1523,7 +1523,7 @@ int renumber_t::inertia_from_p_r(p_r_side x) const
                 exceptional_inertia[x] = inertia;
             }
             if (inertia != 1) {
-                std::cerr << fmt::format(FMT_STRING("# computed exceptional inertia {} for ideal {},{} on side {}\n"), inertia, x.p, x.r, x.side);
+                std::cerr << fmt::format("# computed exceptional inertia {} for ideal {},{} on side {}\n", inertia, x.p, x.r, x.side);
             }
             return inertia;
         }

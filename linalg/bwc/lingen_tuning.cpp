@@ -1309,7 +1309,7 @@ struct lingen_tuner {
         }
         hints.ipeak=ipeak;
         hints.peak=peak;
-        os << fmt::format("({},{},{},{:.1f},{:1.f})\n",m,n,P.r,time_best,(double)peak/1024./1024./1024.);
+        os << fmt::format("({},{},{},{:.1f},{:.1f})\n",m,n,P.r,time_best,(double)peak/1024./1024./1024.);
 
         /* This one is strictly linear anyway */
         hints.tt_gather_per_unit = tt_com0 / 2 / L;
