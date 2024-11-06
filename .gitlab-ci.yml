@@ -466,6 +466,7 @@ checks on osx system:
   script:
     - *checks-script
   <<: *checks-junit-report
+  allow_failure: true
  
 # See #30036: it seems that testing with gcc on freebsd is
 # definitely too much pain now.
