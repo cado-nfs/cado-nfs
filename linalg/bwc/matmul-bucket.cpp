@@ -537,6 +537,101 @@ template<typename T, typename U> T safe_assign(T & a, U const& b) {
     return a = b;
 }
 
+struct small_slice {
+    uint32_t i0 = 0;
+    uint32_t i1 = 0;
+    unsigned int ncoeffs = 0;
+    double dj_avg = 0;
+    uint32_t dj_max = 0;
+    int is_small2 = 0;
+
+    typedef std::vector<std::pair<uint16_t, uint16_t> > Lv_t;
+    typedef Lv_t::const_iterator Lvci_t;
+    typedef Lv_t::iterator Lvi_t;
+
+    typedef std::deque<Lv_t> Lu_t;
+    typedef Lu_t::const_iterator Luci_t;
+    typedef Lu_t::iterator Lui_t;
+
+    Lu_t Lu;
+};
+
+struct large_slice {
+    slice_header_t hdr[1];
+    double dj_avg;
+    uint32_t dj_max;
+
+    struct vblock {
+        uint32_t j0;
+        uint32_t j1;
+        unsigned int n;             // number of coeffs.
+        unsigned int pad;           // (half the) number of padding coeffs.
+        vector<uint8_t> t8c;        // read: contribution to t8.
+        vector<unsigned int> auxc;  // read: contribution to auxiliary.
+    };
+
+    list<vblock> vbl;
+
+    struct raw {
+        vector<uint8_t> ind[LSL_NBUCKETS_MAX];
+        vector<uint8_t> main;
+        vector<uint32_t> col_sizes;
+        vector<uint32_t> pad_sizes;
+    };
+};
+
+struct huge_slice {
+    slice_header_t hdr[1];
+    double dj_avg;
+    uint32_t dj_max;
+    unsigned int nlarge;
+    list<large_slice::vblock> vbl;
+
+    struct raw {
+        struct subslice {
+            vector<uint8_t> ind[LSL_NBUCKETS_MAX];
+            vector<uint8_t> main;
+        };
+
+        vector<uint8_t> super;
+        vector<subslice> subs;
+        vector<uint32_t> col_sizes;
+        vector<uint32_t> pad_sizes;
+    };
+};
+
+struct vsc_slice {
+    /* This header is mostly a placeholder, and is not here to reflect an
+     * additional pass on the data. */
+    slice_header_t hdr[1];
+
+    struct step {
+        unsigned int defer;
+        uint32_t nrows;
+        unsigned int density_upper_bound;
+        unsigned long tbuf_space;
+    };
+
+    vector<step> steps;
+
+    struct middle_slice {
+        slice_header_t hdr[1];
+
+        struct sub_slice {
+            slice_header_t hdr[1];
+            vector<uint16_t> x;
+            vector<uint8_t> c;
+        };
+
+        vector<sub_slice> sub;
+    };
+
+    vector<middle_slice> dispatch;
+    vector<uint32_t> transpose_help;
+    unsigned long tbuf_space;
+};
+
+
 template<typename Arith>
 struct builder {
     matmul_bucket<Arith> * mm;
@@ -551,6 +646,31 @@ struct builder {
     /* Statistics on the prime parameter affecting performance of
      * subroutines. All are computed as (total sum, #samples) */
     builder(matmul_bucket<Arith> * mm, matrix_u32 && m);
+
+    void do_all_small_slices(uint32_t * p_i0, uint32_t imax, unsigned int npack);
+    void do_all_large_slices(uint32_t * p_i0, unsigned int imax, unsigned int scratch1size);
+    int prepare_vsc_slices(struct vsc_slice * V, uint32_t i0, uint32_t imax);
+    void do_all_huge_slices(uint32_t * p_i0, unsigned int imax, unsigned int scratch2size);
+    static void push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice * V);
+
+    private:
+    int do_small_slice(small_slice * S, uint32_t i0, uint32_t i1);
+
+    void split_large_slice_in_vblocks(large_slice * L, large_slice::raw * R, unsigned int scratch1size);
+    uint32_t * do_partial_transpose(vector<uint32_t> & cs, uint32_t i0, uint32_t i1);
+    int do_large_slice(large_slice * L, uint32_t i0, uint32_t i1, uint32_t imax, unsigned int scratch1size);
+
+    void split_huge_slice_in_vblocks(huge_slice * H, huge_slice::raw * R, unsigned int scratch2size);
+    int do_huge_slice(huge_slice * H, uint32_t i0, uint32_t i1, unsigned int scratch2size);
+
+    vector<unsigned long> rowblock_weights(vsc_slice * V);
+    void compute_staircase(struct vsc_slice * V);
+    void vsc_fill_buffers(vsc_slice * V);
+
+
+    static void push_small_slice(matmul_bucket<Arith> * mm, small_slice * S);
+    static void push_large_slice(matmul_bucket<Arith> * mm, large_slice * L);
+    static void push_huge_slice(matmul_bucket<Arith> * mm, huge_slice * H);
 };
 
 template<typename Arith>
@@ -577,27 +697,8 @@ builder<Arith>::builder(matmul_bucket<Arith> * mm, matrix_u32 && m)
 
 /* {{{ small slices */
 
-struct small_slice_t {
-    uint32_t i0 = 0;
-    uint32_t i1 = 0;
-    unsigned int ncoeffs = 0;
-    double dj_avg = 0;
-    uint32_t dj_max = 0;
-    int is_small2 = 0;
-
-    typedef std::vector<std::pair<uint16_t, uint16_t> > Lv_t;
-    typedef Lv_t::const_iterator Lvci_t;
-    typedef Lv_t::iterator Lvi_t;
-
-    typedef std::deque<Lv_t> Lu_t;
-    typedef Lu_t::const_iterator Luci_t;
-    typedef Lu_t::iterator Lui_t;
-
-    Lu_t Lu;
-};
-
 template<typename Arith>
-static int builder_do_small_slice(builder<Arith> * mb, struct small_slice_t * S, uint32_t i0, uint32_t i1)
+int builder<Arith>::do_small_slice(small_slice * S, uint32_t i0, uint32_t i1)
 {
     S->i0 = i0;
     S->i1 = i1;
@@ -605,23 +706,23 @@ static int builder_do_small_slice(builder<Arith> * mb, struct small_slice_t * S,
     ASSERT_ALWAYS(i1-i0 <= (1 << 16) );
 
     /* Make enough vstrips */
-    S->Lu.assign(iceildiv(mb->ncols_t, 1UL << 16), small_slice_t::Lv_t());
-    const uint32_t * ptr0 = mb->rowhead;
+    S->Lu.assign(iceildiv(ncols_t, 1UL << 16), small_slice::Lv_t());
+    const uint32_t * ptr0 = rowhead;
     /* We're doing a new slice */
     for(uint32_t i = i0 ; i < i1 ; i++) {
-        for(unsigned int j = 0 ; j < *mb->rowhead ; j++) {
-            uint32_t const jj = mb->rowhead[1+j];
+        for(unsigned int j = 0 ; j < *rowhead ; j++) {
+            uint32_t const jj = rowhead[1+j];
             S->Lu[jj >> 16].emplace_back(jj % (1 << 16), i-i0);
             S->ncoeffs++;
         }
-        mb->rowhead += 1 + *mb->rowhead;
+        rowhead += 1 + *rowhead;
     }
     /* L is the list of (column index, row index) of all
      * coefficients in the current horizontal slice */
 
     /* Convert all j indices to differences */
     S->dj_max = 0;
-    S->dj_avg = mb->ncols_t / (double) (S->ncoeffs + !S->ncoeffs);
+    S->dj_avg = ncols_t / (double) (S->ncoeffs + !S->ncoeffs);
 
     uint32_t lu_offset = 0;
     uint32_t j = 0;
@@ -651,9 +752,9 @@ static int builder_do_small_slice(builder<Arith> * mb, struct small_slice_t * S,
         if (!keep2) fmt::print(" [cannot be small2, beyond impl limits]");
     }
 
-    if (!mb->mm->methods.small2) keep2=0;
+    if (!mm->methods.small2) keep2=0;
 
-    if (mb->mm->methods.something_beyond("small1,small2")) {
+    if (mm->methods.something_beyond("small1,small2")) {
         /* Then we have more than just small slices. So we're enforcing
          * our separation criterion based on DJ */
         keep1 = keep1 && S->dj_avg < DJ_CUTOFF1;
@@ -663,7 +764,7 @@ static int builder_do_small_slice(builder<Arith> * mb, struct small_slice_t * S,
     S->is_small2 = keep2;
 
     if (!keep1 && !keep2) {
-        mb->rowhead = ptr0;
+        rowhead = ptr0;
     }
     return keep1 || keep2;
 }
@@ -672,31 +773,8 @@ static int builder_do_small_slice(builder<Arith> * mb, struct small_slice_t * S,
 
 /* {{{ large slices */
 
-struct large_slice_vblock_t {
-    uint32_t j0;
-    uint32_t j1;
-    unsigned int n;             // number of coeffs.
-    unsigned int pad;           // (half the) number of padding coeffs.
-    vector<uint8_t> t8c;        // read: contribution to t8.
-    vector<unsigned int> auxc;  // read: contribution to auxiliary.
-};
-
-struct large_slice_t {
-    slice_header_t hdr[1];
-    double dj_avg;
-    uint32_t dj_max;
-    list<large_slice_vblock_t> vbl;
-};
-
-struct large_slice_raw_t {
-    vector<uint8_t> ind[LSL_NBUCKETS_MAX];
-    vector<uint8_t> main;
-    vector<uint32_t> col_sizes;
-    vector<uint32_t> pad_sizes;
-};
-
 template<typename Arith>
-static void split_large_slice_in_vblocks(builder<Arith> * mb, large_slice_t * L, large_slice_raw_t * R, unsigned int scratch1size)
+void builder<Arith>::split_large_slice_in_vblocks(large_slice * L, large_slice::raw * R, unsigned int scratch1size)
 {
     /* Now split into vslices */
     uint8_t * mp = ptrbegin(R->main);
@@ -706,11 +784,11 @@ static void split_large_slice_in_vblocks(builder<Arith> * mb, large_slice_t * L,
     }
     unsigned int vblocknum = 0;
     double vbl_ncols_variance = 0;
-    for(uint32_t j = 0 ; j < mb->ncols_t ; vblocknum++) {
+    for(uint32_t j = 0 ; j < ncols_t ; vblocknum++) {
         uint32_t const j0 = j;
         size_t n = 0;
         size_t np = 0;
-        for( ; j < mb->ncols_t ; j++) {
+        for( ; j < ncols_t ; j++) {
             size_t const dn = R->col_sizes[j];
             size_t const dnp = R->pad_sizes[j];
             if (n + dn + 2 * (np + dnp) > scratch1size) {
@@ -724,7 +802,7 @@ static void split_large_slice_in_vblocks(builder<Arith> * mb, large_slice_t * L,
         }
         uint32_t const j1 = j;
 
-        large_slice_vblock_t V;
+        large_slice::vblock V;
         V.j0 = j0;
         V.j1 = j1;
         /* First the main block, then all the bucket blocks. These come
@@ -787,8 +865,8 @@ static void split_large_slice_in_vblocks(builder<Arith> * mb, large_slice_t * L,
             ip[k] += ind_sizes[k];
             V.auxc.push_back(ind_sizes[k]);
 
-            // mb->asb_avg[0] += ind_sizes[k];
-            // mb->asb_avg[1] += MIN(L->hdr->i1 - L->hdr->i0 - k * 256, 256);
+            // asb_avg[0] += ind_sizes[k];
+            // asb_avg[1] += MIN(L->hdr->i1 - L->hdr->i0 - k * 256, 256);
         }
         ASSERT(q == ptrend(V.t8c));
 
@@ -796,7 +874,7 @@ static void split_large_slice_in_vblocks(builder<Arith> * mb, large_slice_t * L,
 #if 0
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
             fmt::print(" vbl{}", vblocknum);
-            fmt::print(": {} {}..{} ", mb->colname, j0, j1);
+            fmt::print(": {} {}..{} ", colname, j0, j1);
             fmt::print("; w {}", V.n);
             fmt::print("; avg dj {:.1f}", (j1 - j0) / (double) V.n);
             if (V.pad) fmt::print("; pad 6*{}", V.pad);
@@ -805,7 +883,7 @@ static void split_large_slice_in_vblocks(builder<Arith> * mb, large_slice_t * L,
 #endif
         transfer(&(L->vbl), &V);
     }
-    double vbl_ncols_mean = mb->ncols_t;
+    double vbl_ncols_mean = ncols_t;
     vbl_ncols_mean /= vblocknum;
     vbl_ncols_variance /= vblocknum;
     double const vbl_ncols_sdev = sqrt(vbl_ncols_variance - vbl_ncols_mean * vbl_ncols_mean);
@@ -826,12 +904,12 @@ static void split_large_slice_in_vblocks(builder<Arith> * mb, large_slice_t * L,
  */
 
 template<typename Arith>
-static uint32_t * do_partial_transpose(builder<Arith> * mb, vector<uint32_t> & cs, uint32_t i0, uint32_t i1) /*{{{*/
+uint32_t * builder<Arith>::do_partial_transpose(vector<uint32_t> & cs, uint32_t i0, uint32_t i1) /*{{{*/
 {
     uint32_t * cols;
     uint32_t * qptr;
 
-    const uint32_t * ptr = mb->rowhead;
+    const uint32_t * ptr = rowhead;
     for(uint32_t i = i0 ; i < i1 ; i++) {
         uint32_t w = *ptr++;
         for( ; w-- ; ) {
@@ -839,16 +917,16 @@ static uint32_t * do_partial_transpose(builder<Arith> * mb, vector<uint32_t> & c
             cs[j]++;
         }
     }
-    cols = new uint32_t[ptr - mb->rowhead - (i1 - i0)];
+    cols = new uint32_t[ptr - rowhead - (i1 - i0)];
     qptr = cols;
 
     vector<uint32_t *> colptrs;
-    for(uint32_t j = 0 ; j < mb->ncols_t ; j++) {
+    for(uint32_t j = 0 ; j < ncols_t ; j++) {
         colptrs.push_back(qptr);
         qptr += cs[j];
     }
-    ASSERT(qptr-cols == ptr - mb->rowhead - (ptrdiff_t) (i1 - i0));
-    ptr = mb->rowhead;
+    ASSERT(qptr-cols == ptr - rowhead - (ptrdiff_t) (i1 - i0));
+    ptr = rowhead;
     for(uint32_t i = i0 ; i < i1 ; i++) {
         uint32_t w = *ptr++;
         for( ; w-- ; ) {
@@ -857,37 +935,37 @@ static uint32_t * do_partial_transpose(builder<Arith> * mb, vector<uint32_t> & c
         }
     }
     colptrs.clear();
-    mb->rowhead = ptr;
+    rowhead = ptr;
     return cols;
 }/*}}}*/
 
 template<typename Arith>
-static int builder_do_large_slice(builder<Arith> * mb, struct large_slice_t * L, uint32_t i0, uint32_t i1, uint32_t imax, unsigned int scratch1size)
+int builder<Arith>::do_large_slice(large_slice * L, uint32_t i0, uint32_t i1, uint32_t imax, unsigned int scratch1size)
 {
     memset(L->hdr, 0, sizeof(slice_header_t));
     L->hdr->t = SLICE_TYPE_LARGE_ENVELOPE;
     L->hdr->j0 = 0;
-    L->hdr->j1 = mb->ncols_t;
+    L->hdr->j1 = ncols_t;
     L->hdr->i0 = i0;
     L->hdr->i1 = i1;
     L->hdr->ncoeffs = 0;
 
     L->dj_max = 0;
 
-    large_slice_raw_t R[1];
+    large_slice::raw R[1];
 
-    R->col_sizes.assign(mb->ncols_t, 0);
-    R->pad_sizes.assign(mb->ncols_t, 0);
+    R->col_sizes.assign(ncols_t, 0);
+    R->pad_sizes.assign(ncols_t, 0);
 
-    const uint32_t * ptr0 = mb->rowhead;
-    uint32_t * cols = do_partial_transpose(mb, R->col_sizes, i0, i1);
+    const uint32_t * ptr0 = rowhead;
+    uint32_t * cols = do_partial_transpose(R->col_sizes, i0, i1);
     uint32_t * qptr = cols;
 
     uint32_t last_j = 0;
 
     /* First we create a huge unique vblock, and later on decide on
      * how to split it. */
-    for(uint32_t j = 0 ; j < mb->ncols_t ; j++) {
+    for(uint32_t j = 0 ; j < ncols_t ; j++) {
         uint32_t len  = R->col_sizes[j];
 
         if (!len) continue;
@@ -921,19 +999,19 @@ static int builder_do_large_slice(builder<Arith> * mb, struct large_slice_t * L,
         }
         R->main.pop_back();
     }
-    ASSERT(qptr-cols == mb->rowhead - ptr0 - (ptrdiff_t) (i1 - i0));
-    qptr = NULL;
+    ASSERT(qptr-cols == rowhead - ptr0 - (ptrdiff_t) (i1 - i0));
+    qptr = nullptr;
     delete[] cols;
-    cols = NULL;
+    cols = nullptr;
 
     /* The average dj is quite easy */
-    L->dj_avg = mb->ncols_t / (double) L->hdr->ncoeffs;
+    L->dj_avg = ncols_t / (double) L->hdr->ncoeffs;
 
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
             " w=%" PRIu64 ", avg dj=%.1f, max dj=%u, bucket hit=1/%.1f",
             L->hdr->ncoeffs, L->dj_avg, L->dj_max, LSL_NBUCKETS_MAX * L->dj_avg);
 
-    if (mb->mm->methods.something_beyond("large")) {
+    if (mm->methods.something_beyond("large")) {
         /* Then we may enforce our separation criterion */
         if (L->dj_avg > DJ_CUTOFF2) {
             verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
@@ -944,7 +1022,7 @@ static int builder_do_large_slice(builder<Arith> * mb, struct large_slice_t * L,
             } else {
                 /* We won't keep this slice */
                 verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD, "\n");
-                mb->rowhead = ptr0;
+                rowhead = ptr0;
                 return 0;
             }
         }
@@ -953,7 +1031,7 @@ static int builder_do_large_slice(builder<Arith> * mb, struct large_slice_t * L,
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
             "\n");
 
-    split_large_slice_in_vblocks(mb, L, R, scratch1size);
+    split_large_slice_in_vblocks(L, R, scratch1size);
 
     safe_assign(L->hdr->nchildren, L->vbl.size());
 
@@ -964,38 +1042,18 @@ static int builder_do_large_slice(builder<Arith> * mb, struct large_slice_t * L,
 
 /* {{{ huge slices */
 
-struct huge_slice_t {
-    slice_header_t hdr[1];
-    double dj_avg;
-    uint32_t dj_max;
-    unsigned int nlarge;
-    list<large_slice_vblock_t> vbl;
-};
-
-struct huge_subslice_raw_t {
-    vector<uint8_t> ind[LSL_NBUCKETS_MAX];
-    vector<uint8_t> main;
-};
-
-struct huge_subslice_ptrblock_t {
-    uint8_t * ip[LSL_NBUCKETS_MAX];
-    uint8_t * mp;
-};
-
-struct huge_slice_raw_t {
-    vector<uint8_t> super;
-    vector<huge_subslice_raw_t> subs;
-    vector<uint32_t> col_sizes;
-    vector<uint32_t> pad_sizes;
-};
-
 template<typename Arith>
-static void split_huge_slice_in_vblocks(builder<Arith> * mb, huge_slice_t * H, huge_slice_raw_t * R, unsigned int scratch2size)/*{{{*/
+void builder<Arith>::split_huge_slice_in_vblocks(huge_slice * H, huge_slice::raw * R, unsigned int scratch2size)/*{{{*/
 {
+    struct ptrblock {
+        uint8_t * ip[LSL_NBUCKETS_MAX];
+        uint8_t * mp;
+    };
+
     /* Now split into vslices */
     // unsigned int lsize = iceildiv(H->hdr->i1 - H->hdr->i0, H->nlarge);
     uint8_t * sp = ptrbegin(R->super);
-    vector<huge_subslice_ptrblock_t> ptrs(R->subs.size());
+    vector<ptrblock> ptrs(R->subs.size());
     for(unsigned int i = 0 ; i < R->subs.size() ; i++) {
         ptrs[i].mp = ptrbegin(R->subs[i].main);
         for(int k = 0 ; k < LSL_NBUCKETS_MAX ; k++) {
@@ -1004,14 +1062,14 @@ static void split_huge_slice_in_vblocks(builder<Arith> * mb, huge_slice_t * H, h
     }
     double vbl_ncols_variance = 0;
     unsigned int vblocknum = 0;
-    for(uint32_t j = 0 ; j < mb->ncols_t ; vblocknum++) {
+    for(uint32_t j = 0 ; j < ncols_t ; vblocknum++) {
         uint32_t const j0 = j;
 #if 0
         /* First way to advance to the next j -- compare the total number
          * of coeffs to the scratch2size argument */
         size_t n = 0;
         size_t np = 0;
-        for( ; j < mb->ncols_t ; j++) {
+        for( ; j < ncols_t ; j++) {
             size_t dn = R->col_sizes[j];
             size_t dnp = R->pad_sizes[j];
             if (n + dn + 2 * (np + dnp) > scratch2size) {
@@ -1042,7 +1100,7 @@ static void split_huge_slice_in_vblocks(builder<Arith> * mb, huge_slice_t * H, h
         }
         {
             vector<unsigned int> Lsizes(H->nlarge, 0);
-            for( ; j < mb->ncols_t && sp != ptrend(R->super) ; ) {
+            for( ; j < ncols_t && sp != ptrend(R->super) ; ) {
                 unsigned int const dj = *sp;
                 j += dj;
                 if (dj) {
@@ -1061,7 +1119,7 @@ static void split_huge_slice_in_vblocks(builder<Arith> * mb, huge_slice_t * H, h
             }
             if (sp == ptrend(R->super)) {
                 spc = sp;
-                j1 = mb->ncols_t;
+                j1 = ncols_t;
             }
         }
         /* TODO: abandon the n/np distinction. It's useful for debugging
@@ -1079,7 +1137,7 @@ static void split_huge_slice_in_vblocks(builder<Arith> * mb, huge_slice_t * H, h
 #endif
 
         /* That's the same type, although it contains more stuff. */
-        large_slice_vblock_t V;
+        large_slice::vblock V;
         V.j0 = j0;
         V.j1 = j1;
         V.auxc.reserve(1 + H->nlarge * (1 + LSL_NBUCKETS_MAX));
@@ -1127,8 +1185,8 @@ static void split_huge_slice_in_vblocks(builder<Arith> * mb, huge_slice_t * H, h
                 q += ind_sizes[k];
                 ptrs[l].ip[k] += ind_sizes[k];
                 V.auxc.push_back(ind_sizes[k]);
-                // mb->asb_avg[0] += ind_sizes[k];
-                // mb->asb_avg[1] += MIN(i_size - k * 256, 256);
+                // asb_avg[0] += ind_sizes[k];
+                // asb_avg[1] += MIN(i_size - k * 256, 256);
             }
         }
         ASSERT(q == ptrend(V.t8c));
@@ -1139,7 +1197,7 @@ static void split_huge_slice_in_vblocks(builder<Arith> * mb, huge_slice_t * H, h
 #if 0
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
             fmt::print(" vbl{}", vblocknum);
-            fmt::print(": {} {}..{} ", mb->colname, j0, j1);
+            fmt::print(": {} {}..{} ", colname, j0, j1);
             fmt::print("; w {}", V.n);
             fmt::print("; avg dj {:.1f}", (j1 - j0) / (double) V.n);
             if (V.pad) fmt::print("; pad 6*{}", V.pad);
@@ -1154,7 +1212,7 @@ static void split_huge_slice_in_vblocks(builder<Arith> * mb, huge_slice_t * H, h
                 " 0 vblocks\n");
         return;
     }
-    double vbl_ncols_mean = mb->ncols_t;
+    double vbl_ncols_mean = ncols_t;
     vbl_ncols_mean /= vblocknum;
     vbl_ncols_variance /= vblocknum;
     double const vbl_ncols_sdev = sqrt(vbl_ncols_variance - vbl_ncols_mean * vbl_ncols_mean);
@@ -1163,25 +1221,25 @@ static void split_huge_slice_in_vblocks(builder<Arith> * mb, huge_slice_t * H, h
 }/*}}}*/
 
 template<typename Arith>
-static int builder_do_huge_slice(builder<Arith> * mb, struct huge_slice_t * H, uint32_t i0, uint32_t i1, unsigned int scratch2size)
+int builder<Arith>::do_huge_slice(huge_slice * H, uint32_t i0, uint32_t i1, unsigned int scratch2size)
 {
     memset(H->hdr, 0, sizeof(slice_header_t));
     H->hdr->t = SLICE_TYPE_HUGE_ENVELOPE;
     H->hdr->j0 = 0;
-    H->hdr->j1 = mb->ncols_t;
+    H->hdr->j1 = ncols_t;
     H->hdr->i0 = i0;
     H->hdr->i1 = i1;
     H->hdr->ncoeffs = 0;
 
     H->dj_max = 0;
 
-    huge_slice_raw_t R[1];
+    huge_slice::raw R[1];
 
-    R->col_sizes.assign(mb->ncols_t, 0);
-    R->pad_sizes.assign(mb->ncols_t, 0);
+    R->col_sizes.assign(ncols_t, 0);
+    R->pad_sizes.assign(ncols_t, 0);
 
-    const uint32_t * ptr0 = mb->rowhead;
-    uint32_t * cols = do_partial_transpose(mb, R->col_sizes, i0, i1);
+    const uint32_t * ptr0 = rowhead;
+    uint32_t * cols = do_partial_transpose(R->col_sizes, i0, i1);
     uint32_t * qptr = cols;
 
     /* How many large slices in this huge slice ? */
@@ -1192,7 +1250,7 @@ static int builder_do_huge_slice(builder<Arith> * mb, struct huge_slice_t * H, u
     unsigned int const lsize = iceildiv(i1 - i0, H->nlarge);
     ASSERT(lsize <= LSL_NBUCKETS_MAX * 256);
     ASSERT(lsize * H->nlarge >= i1 - i0);
-    R->subs.assign(H->nlarge, huge_subslice_raw_t());
+    R->subs.assign(H->nlarge, huge_slice::raw::subslice());
 
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
             " (%u*%u) ", H->nlarge, lsize);
@@ -1200,15 +1258,15 @@ static int builder_do_huge_slice(builder<Arith> * mb, struct huge_slice_t * H, u
 
     /* First we create a huge unique vblock, and later on decide on
      * how to split it. */
-    uint32_t next_dot = mb->ncols_t / H->nlarge;
-    for(uint32_t j = 0 ; j < mb->ncols_t ; j++) {
+    uint32_t next_dot = ncols_t / H->nlarge;
+    for(uint32_t j = 0 ; j < ncols_t ; j++) {
         uint32_t len  = R->col_sizes[j];
 
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
             if (j > next_dot) {
                 printf(".");
                 fflush(stdout);
-                next_dot += mb->ncols_t / H->nlarge;
+                next_dot += ncols_t / H->nlarge;
             }
         }
 
@@ -1250,13 +1308,13 @@ static int builder_do_huge_slice(builder<Arith> * mb, struct huge_slice_t * H, u
         R->super.pop_back();
     }
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD, "\n");
-    ASSERT(qptr-cols == mb->rowhead - ptr0 - (ptrdiff_t) (i1 - i0));
-    qptr = NULL;
+    ASSERT(qptr-cols == rowhead - ptr0 - (ptrdiff_t) (i1 - i0));
+    qptr = nullptr;
     delete[] cols;
-    cols = NULL;
+    cols = nullptr;
 
     /* The average dj is quite easy */
-    H->dj_avg = mb->ncols_t / (double) H->hdr->ncoeffs;
+    H->dj_avg = ncols_t / (double) H->hdr->ncoeffs;
 
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
             " w={}, avg dj={:.1f}, max dj={}, bucket block hit=1/{:.1f}\n",
@@ -1265,11 +1323,11 @@ static int builder_do_huge_slice(builder<Arith> * mb, struct huge_slice_t * H, u
 
     if (0) {
         /* Don't keep -- well, here this never occurs */
-        mb->rowhead = ptr0;
+        rowhead = ptr0;
         return 0;
     }
 
-    split_huge_slice_in_vblocks(mb, H, R, scratch2size);
+    split_huge_slice_in_vblocks(H, R, scratch2size);
 
     safe_assign(H->hdr->nchildren, H->vbl.size());
 
@@ -1279,13 +1337,6 @@ static int builder_do_huge_slice(builder<Arith> * mb, struct huge_slice_t * H, u
 /* }}} */
 
 /* {{{ vertical staircase slices */
-
-struct vsc_step_t {
-    unsigned int defer;
-    uint32_t nrows;
-    unsigned int density_upper_bound;
-    unsigned long tbuf_space;
-};
 
 static inline unsigned int when_flush(unsigned int k, unsigned int nv, unsigned int defer)
 {
@@ -1298,27 +1349,6 @@ static inline unsigned int when_flush(unsigned int k, unsigned int nv, unsigned 
 static inline int flush_here(unsigned int k, unsigned int nv, unsigned int defer) {
     return k == when_flush(k,nv,defer);
 }
-
-struct vsc_sub_slice_t {
-    slice_header_t hdr[1];
-    vector<uint16_t> x;
-    vector<uint8_t> c;
-};
-
-struct vsc_middle_slice_t {
-    slice_header_t hdr[1];
-    vector<vsc_sub_slice_t> sub;
-};
-
-struct vsc_slice_t {
-    /* This header is mostly a placeholder, and is not here to reflect an
-     * additional pass on the data. */
-    slice_header_t hdr[1];
-    vector<vsc_step_t> steps;
-    vector<vsc_middle_slice_t> dispatch;
-    vector<uint32_t> transpose_help;
-    unsigned long tbuf_space;
-};
 
 /* {{{ decide on our flushing periods (this step is data independent) */
 static vector<unsigned int> flush_periods(unsigned int nvstrips)
@@ -1348,14 +1378,15 @@ static vector<unsigned int> flush_periods(unsigned int nvstrips)
 
 /* {{{ read the row weights */
 template<typename Arith>
-static vector<unsigned long> rowblock_weights(builder<Arith> * mb, struct vsc_slice_t * V)
+vector<unsigned long> 
+builder<Arith>::rowblock_weights(struct vsc_slice * V)
 {
     vector<unsigned long> blockweight;
-    const uint32_t * ptr = mb->rowhead;
+    const uint32_t * ptr = rowhead;
     /* It's a bit unfortunate, but since here we do speedy parsing of the
      * row weights, we're taking a shortcut which is valid only if our
      * data set spans the entire column range */
-    ASSERT_ALWAYS(V->hdr->j0 == 0 && V->hdr->j1 == mb->ncols_t);
+    ASSERT_ALWAYS(V->hdr->j0 == 0 && V->hdr->j1 == ncols_t);
     for(uint32_t i = V->hdr->i0 ; i < V->hdr->i1 ; ) {
         unsigned long bw = 0;
         for(uint32_t di = 0 ; di < VSC_BLOCKS_ROW_BATCH && i < V->hdr->i1 ; i++, di++) {
@@ -1371,11 +1402,11 @@ static vector<unsigned long> rowblock_weights(builder<Arith> * mb, struct vsc_sl
 
 /*{{{*/
 template<typename Arith>
-static void compute_staircase(builder<Arith> * mb, struct vsc_slice_t * V)
+void builder<Arith>::compute_staircase(struct vsc_slice * V)
 {
     unsigned int const nvstrips = V->dispatch.size();
 
-    vector<unsigned long> blockweight = rowblock_weights(mb, V);
+    vector<unsigned long> blockweight = rowblock_weights(V);
     vector<unsigned int> flushperiod = flush_periods(nvstrips);
 
     /* {{{ first dispatching pass */
@@ -1390,7 +1421,7 @@ static void compute_staircase(builder<Arith> * mb, struct vsc_slice_t * V)
             ii = min(V->hdr->i0 + k * VSC_BLOCKS_ROW_BATCH, V->hdr->i1);
             uint32_t const di = ii - old_ii;
             if (di) {
-                vsc_step_t step;
+                vsc_slice::step step;
                 step.defer = flushperiod[s];
                 step.nrows = di;
                 step.tbuf_space = 0;    // to be set later.
@@ -1449,12 +1480,12 @@ static void compute_staircase(builder<Arith> * mb, struct vsc_slice_t * V)
 
 /*{{{*/
 template<typename Arith>
-static void vsc_fill_buffers(builder<Arith> * mb, struct vsc_slice_t * V)
+void builder<Arith>::vsc_fill_buffers(vsc_slice * V)
 {
     unsigned int const nvstrips = V->dispatch.size();
     uint32_t const width = iceildiv(V->hdr->j1 - V->hdr->j0, nvstrips);
     ASSERT_ALWAYS(width > 0);
-    const uint32_t * ptr = mb->rowhead;
+    const uint32_t * ptr = rowhead;
     uint32_t i = V->hdr->i0;
     V->tbuf_space = 0;
 
@@ -1535,14 +1566,14 @@ static void vsc_fill_buffers(builder<Arith> * mb, struct vsc_slice_t * V)
 /*}}}*/
 
 template<typename Arith>
-static int builder_prepare_vsc_slices(builder<Arith> * mb, struct vsc_slice_t * V, uint32_t i0, uint32_t imax)
+int builder<Arith>::prepare_vsc_slices(struct vsc_slice * V, uint32_t i0, uint32_t imax)
 {
     memset(V->hdr, 0, sizeof(slice_header_t));
     V->hdr->t = SLICE_TYPE_DEFER_ENVELOPE;
     V->hdr->i0 = i0;
     V->hdr->i1 = imax;
     V->hdr->j0 = 0;
-    V->hdr->j1 = mb->ncols_t;
+    V->hdr->j1 = ncols_t;
     V->hdr->ncoeffs = 0;
 
     unsigned int const nvstrips = iceildiv(V->hdr->j1 - V->hdr->j0, 1 << 16);
@@ -1554,7 +1585,7 @@ static int builder_prepare_vsc_slices(builder<Arith> * mb, struct vsc_slice_t * 
 
     // prepare the dispatch slice headers
     for(uint32_t j = V->hdr->j0 ; j < V->hdr->j1 ; j += width) {
-        vsc_middle_slice_t v;
+        vsc_slice::middle_slice v;
         memset(v.hdr, 0, sizeof(slice_header_t));
         v.hdr->t = SLICE_TYPE_DEFER_COLUMN;
         v.hdr->i0 = V->hdr->i0;
@@ -1567,12 +1598,12 @@ static int builder_prepare_vsc_slices(builder<Arith> * mb, struct vsc_slice_t * 
     }
     ASSERT(V->dispatch.size() == nvstrips);
 
-    compute_staircase(mb, V);
+    compute_staircase(V);
     for(unsigned int k = 0 ; k < V->dispatch.size() ; k++) {
         safe_assign(V->dispatch[k].hdr->nchildren, V->steps.size());
         uint32_t i0 = V->hdr->i0;
         for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
-            vsc_sub_slice_t w;
+            vsc_slice::middle_slice::sub_slice w;
             memset(w.hdr, 0, sizeof(slice_header_t));
             w.hdr->t = SLICE_TYPE_DEFER_DIS;
             w.hdr->i0 = i0;
@@ -1584,7 +1615,7 @@ static int builder_prepare_vsc_slices(builder<Arith> * mb, struct vsc_slice_t * 
             V->dispatch[k].sub.push_back(w);
         }
     }
-    vsc_fill_buffers(mb, V);
+    vsc_fill_buffers(V);
 
     return 0;
 }
@@ -1595,8 +1626,8 @@ static int builder_prepare_vsc_slices(builder<Arith> * mb, struct vsc_slice_t * 
 /* Pushing slices to mm ; all these routines clear the given slice stack */
 
 /* {{{ small slices */
-    template<typename Arith>
-static void builder_push_small_slice(matmul_bucket<Arith> * mm, small_slice_t * S)
+template<typename Arith>
+void builder<Arith>::push_small_slice(matmul_bucket<Arith> * mm, small_slice * S)
 {
     unsigned int const ncols_t = mm->dim[!mm->store_transposed];
     if (S->is_small2) {
@@ -1620,15 +1651,14 @@ static void builder_push_small_slice(matmul_bucket<Arith> * mm, small_slice_t * 
         unsigned int j = 0;
         uint32_t lu_offset = 0;
         for( ; ! S->Lu.empty() ; S->Lu.pop_front(), lu_offset+=1<<16) {
-            small_slice_t::Lv_t lv;
+            small_slice::Lv_t lv;
             swap(lv, S->Lu.front());
-            typedef small_slice_t::Lvci_t Lvci_t;
-            for(Lvci_t lvp = lv.begin() ; lvp != lv.end() ; ++lvp) {
-                uint32_t const dj = (lu_offset + lvp->first) - j;
+            for(auto const & s : lv) {
+                uint32_t const dj = (lu_offset + s.first) - j;
                 ASSERT_ALWAYS(dj < (1 << SMALL_SLICES_DJ_BITS) );
-                ASSERT_ALWAYS(lvp->second < (1 << SMALL_SLICES_I_BITS) );
-                mm->t16.push_back((dj << SMALL_SLICES_I_BITS) | lvp->second);
-                j = lu_offset + lvp->first;
+                ASSERT_ALWAYS(s.second < (1 << SMALL_SLICES_I_BITS) );
+                mm->t16.push_back((dj << SMALL_SLICES_I_BITS) | s.second);
+                j = lu_offset + s.first;
             }
         }
 
@@ -1653,9 +1683,8 @@ static void builder_push_small_slice(matmul_bucket<Arith> * mm, small_slice_t * 
 
         unsigned int lu_offset = 0;
         for( ; ! S->Lu.empty() ; S->Lu.pop_front()) {
-            small_slice_t::Lv_t lv;
+            small_slice::Lv_t lv;
             swap(lv, S->Lu.front());
-            typedef small_slice_t::Lvci_t Lvci_t;
 
             slice_header_t hdr[1];
             memset(hdr, 0, sizeof(slice_header_t));
@@ -1665,9 +1694,9 @@ static void builder_push_small_slice(matmul_bucket<Arith> * mm, small_slice_t * 
             hdr->j0 = lu_offset;
             hdr->nchildren = 0;
             hdr->ncoeffs = lv.size();
-            for(Lvci_t lvp = lv.begin() ; lvp != lv.end() ; ++lvp) {
-                mm->t16.push_back(lvp->first);
-                mm->t16.push_back(lvp->second);
+            for(auto const & s : lv) {
+                mm->t16.push_back(s.first);
+                mm->t16.push_back(s.second);
             }
             lu_offset += (1UL << 16);
             hdr->j1 = min(lu_offset, ncols_t);
@@ -1684,11 +1713,11 @@ static void builder_push_small_slice(matmul_bucket<Arith> * mm, small_slice_t * 
 
 /* {{{ large slices */
 template<typename Arith>
-static void builder_push_large_slice(matmul_bucket<Arith> * mm, large_slice_t * L)
+void builder<Arith>::push_large_slice(matmul_bucket<Arith> * mm, large_slice * L)
 {
     mm->headers.push_back(*L->hdr);
     for( ; ! L->vbl.empty() ; L->vbl.pop_front()) {
-        large_slice_vblock_t & V(L->vbl.front());
+        large_slice::vblock & V(L->vbl.front());
         mm->auxiliary.insert(mm->auxiliary.end(), V.auxc.begin(), V.auxc.end());
         unsigned const t8_size =  V.t8c.size();
         mm->t8.insert(mm->t8.end(), V.t8c.begin(), V.t8c.end());
@@ -1704,12 +1733,12 @@ static void builder_push_large_slice(matmul_bucket<Arith> * mm, large_slice_t * 
 /* {{{ huge slices */
 
 template<typename Arith>
-static void builder_push_huge_slice(matmul_bucket<Arith> * mm, huge_slice_t * H)
+void builder<Arith>::push_huge_slice(matmul_bucket<Arith> * mm, huge_slice * H)
 {
     mm->headers.push_back(*H->hdr);
     mm->auxiliary.push_back(H->nlarge);
     for( ; ! H->vbl.empty() ; H->vbl.pop_front()) {
-        large_slice_vblock_t & V(H->vbl.front());
+        large_slice::vblock & V(H->vbl.front());
         mm->auxiliary.insert(mm->auxiliary.end(), V.auxc.begin(), V.auxc.end());
         unsigned const t8_size =  V.t8c.size();
         ASSERT_ALWAYS((t8_size & 1) == 0);
@@ -1724,7 +1753,7 @@ static void builder_push_huge_slice(matmul_bucket<Arith> * mm, huge_slice_t * H)
 
 /* {{{ small slices */
 template<typename Arith>
-static void builder_do_all_small_slices(builder<Arith> * mb, uint32_t * p_i0, uint32_t imax, unsigned int npack)
+void builder<Arith>::do_all_small_slices(uint32_t * p_i0, uint32_t imax, unsigned int npack)
 {
     /* npack is a guess for the expected size of small slices ; they are
      * arranged later to all have approximately equal size.
@@ -1737,14 +1766,14 @@ static void builder_do_all_small_slices(builder<Arith> * mb, uint32_t * p_i0, ui
         uint32_t const i0 = i00 +  s    * (uint64_t) (imax - i00) / nslices;
         uint32_t const i1 = i00 + (s+1) * (uint64_t) (imax - i00) / nslices;
 
-        small_slice_t S[1];
+        small_slice S[1];
 
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-            fmt::print("Ssl{}: {} {}+{}...", s, mb->rowname, i0, i1-i0);
+            fmt::print("Ssl{}: {} {}+{}...", s, rowname, i0, i1-i0);
             fflush(stdout);
         }
 
-        int const keep = builder_do_small_slice(mb, S, i0, i1);
+        int const keep = do_small_slice(S, i0, i1);
 
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
             fmt::print(" w {} ; avg dj {:.1f} ; max dj {}{}\n",
@@ -1758,7 +1787,7 @@ static void builder_do_all_small_slices(builder<Arith> * mb, uint32_t * p_i0, ui
                     "Switching to large slices. Ssl%u to be redone\n", s);
             break;
         }
-        builder_push_small_slice(mb->mm, S);
+        push_small_slice(mm, S);
         // transfer(Sq, S);
         done += i1 - i0;
     }
@@ -1768,22 +1797,22 @@ static void builder_do_all_small_slices(builder<Arith> * mb, uint32_t * p_i0, ui
 
 /* {{{ large slices */
 template<typename Arith>
-static void builder_do_all_large_slices(builder<Arith> * mb, uint32_t * p_i0, unsigned int imax, unsigned int scratch1size)
+void builder<Arith>::do_all_large_slices(uint32_t * p_i0, unsigned int imax, unsigned int scratch1size)
 {
     unsigned int const rem_nrows = imax - *p_i0;
     unsigned int const nlarge_slices = iceildiv(rem_nrows, LSL_NBUCKETS_MAX * 256);
     uint32_t done = 0;
     for(unsigned int s = 0 ; s < nlarge_slices ; s++) {
-        large_slice_t L[1];
+        large_slice L[1];
         uint32_t const i0 = * p_i0 +  s      * (uint64_t) rem_nrows / nlarge_slices;
         uint32_t const i1 = * p_i0 + (s + 1) * (uint64_t) rem_nrows / nlarge_slices;
 
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-            fmt::print("Lsl{} {} {}+{}", s, mb->rowname, i0, i1-i0);
+            fmt::print("Lsl{} {} {}+{}", s, rowname, i0, i1-i0);
             fflush(stdout);
         }
 
-        int const keep = builder_do_large_slice(mb, L, i0, i1, imax, scratch1size);
+        int const keep = do_large_slice(L, i0, i1, imax, scratch1size);
 
         if (!keep) {
             verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
@@ -1792,7 +1821,7 @@ static void builder_do_all_large_slices(builder<Arith> * mb, uint32_t * p_i0, un
         }
 
         // transfer(Lq, L);
-        builder_push_large_slice(mb->mm, L);
+        push_large_slice(mm, L);
         done += i1 - i0;
     }
     *p_i0 += done;
@@ -1801,22 +1830,22 @@ static void builder_do_all_large_slices(builder<Arith> * mb, uint32_t * p_i0, un
 
 /* {{{ huge slices */
 template<typename Arith>
-static void builder_do_all_huge_slices(builder<Arith> * mb, uint32_t * p_i0, unsigned int imax, unsigned int scratch2size)
+void builder<Arith>::do_all_huge_slices(uint32_t * p_i0, unsigned int imax, unsigned int scratch2size)
 {
     unsigned int const rem_nrows = imax - *p_i0;
     unsigned int const nhuge_slices = iceildiv(rem_nrows, HUGE_MPLEX_MAX * LSL_NBUCKETS_MAX * 256);
     uint32_t done = 0;
     for(unsigned int s = 0 ; s < nhuge_slices ; s++) {
-        huge_slice_t H[1];
+        huge_slice H[1];
         uint32_t const i0 = * p_i0 +  s      * (uint64_t) rem_nrows / nhuge_slices;
         uint32_t const i1 = * p_i0 + (s + 1) * (uint64_t) rem_nrows / nhuge_slices;
 
         if (verbose_enabled(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD)) {
-            fmt::print("Hsl{} {} {}+{}", s, mb->rowname, i0, i1-i0);
+            fmt::print("Hsl{} {} {}+{}", s, rowname, i0, i1-i0);
             fflush(stdout);
         }
-        builder_do_huge_slice(mb, H, i0, i1, scratch2size);
-        builder_push_huge_slice(mb->mm, H);
+        do_huge_slice(H, i0, i1, scratch2size);
+        push_huge_slice(mm, H);
         // transfer(Hq, H);
         done += i1 - i0;
     }
@@ -1907,7 +1936,7 @@ static void append_compressed(vector<uint8_t>& t8, vector<uint8_t> const& S, uns
 }
 
 template<typename Arith>
-static void builder_push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice_t * V)
+void builder<Arith>::push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice * V)
 {
     verbose_printf(CADO_VERBOSE_PRINT_BWC_CACHE_BUILD,
             "Flushing staircase slices\n");
@@ -1917,18 +1946,19 @@ static void builder_push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice_t * V)
     mm->auxiliary.push_back(V->dispatch.size());
     mm->auxiliary.push_back(V->steps.size());
 
-    for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
-        mm->auxiliary.push_back(V->steps[l].defer);
-        mm->auxiliary.push_back(V->steps[l].tbuf_space);
+    for(auto const & step : V->steps) {
+        mm->auxiliary.push_back(step.defer);
+        mm->auxiliary.push_back(step.tbuf_space);
     }
 
     /* all headers */
-    for(unsigned int k = 0 ; k < V->dispatch.size() ; k++) {
-        mm->headers.push_back(*V->dispatch[k].hdr);
+    for(auto const & D : V->dispatch) {
+        mm->headers.push_back(*D.hdr);
     }
-    for(unsigned int k = 0 ; k < V->dispatch.size() ; k++) {
-        for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
-            mm->headers.push_back(*V->dispatch[k].sub[l].hdr);
+    for(auto const & D : V->dispatch) {
+        ASSERT_ALWAYS(D.sub.size() == V->steps.size());
+        for(auto const & S : D.sub) {
+            mm->headers.push_back(*S.hdr);
         }
     }
 
@@ -1943,12 +1973,12 @@ static void builder_push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice_t * V)
 
     unsigned int const cidx = mm->headers.size();
 
-    for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
+    for(auto const & S : V->dispatch[0].sub) {
         slice_header_t chdr[1];
         memset(chdr, 0, sizeof(slice_header_t));
         chdr->t = SLICE_TYPE_DEFER_ROW;
-        chdr->i0 = V->dispatch[0].sub[l].hdr->i0;
-        chdr->i1 = V->dispatch[0].sub[l].hdr->i1;
+        chdr->i0 = S.hdr->i0;
+        chdr->i1 = S.hdr->i1;
         chdr->j0 = V->hdr->j0;
         chdr->j1 = V->hdr->j1;
         chdr->nchildren = 0;
@@ -1962,11 +1992,10 @@ static void builder_push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice_t * V)
 
     /* dispatch data goes in dispatching order */
     for(unsigned int k = 0 ; k < V->dispatch.size() ; k++) {
-        vsc_middle_slice_t& D(V->dispatch[k]);
+        auto & D(V->dispatch[k]);
 
         /* The stream of u16 values corresponding to this strip */
-        for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
-            vsc_sub_slice_t & S(D.sub[l]);
+        for(auto & S : D.sub) {
             // fmt::print("save dispatch({}), sum={}\n", S.x.size(), idiotic_sum((void*) ptrbegin(S.x), S.x.size() * sizeof(uint16_t)));
             mm->t16.insert(mm->t16.end(), S.x.begin(), S.x.end());
             S.x.clear();
@@ -1987,7 +2016,7 @@ static void builder_push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice_t * V)
             chdr->nchildren = 0;
             chdr->ncoeffs = 0;
             /* flush this one */
-            vsc_sub_slice_t & S(V->dispatch[k].sub[l]);
+            vsc_slice::middle_slice::sub_slice & S(V->dispatch[k].sub[l]);
             for( ; k0 <= k ; k0++) {
                 chdr->ncoeffs += V->dispatch[k0].sub[l].hdr->ncoeffs;
             }
@@ -1995,9 +2024,9 @@ static void builder_push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice_t * V)
 
             ASSERT_ALWAYS(S.c.size() == chdr->ncoeffs + V->steps[l].nrows);
 
-            csizes.push_back(make_pair(
+            csizes.emplace_back(
                         make_pair(k - (k % defer), l),
-                        make_pair(0, S.c.size())));
+                        make_pair(0, S.c.size()));
             mm->headers[cidx + l].ncoeffs += chdr->ncoeffs;
             // fmt::print("save combine({}), sum={}\n", S.c.size(), idiotic_sum((void*) ptrbegin(S.c), S.c.size()));
             // fmt::print("m={}\n", *max_element(S.c.begin(), S.c.end()));
@@ -2010,34 +2039,34 @@ static void builder_push_vsc_slices(matmul_bucket<Arith> * mm, vsc_slice_t * V)
     /* This fixes the reading order w.r.t. the positioning and size of
      * the combining slices */
     uint64_t p8 = 0;
-    for(unsigned int i = 0 ; i < csizes.size() ; i++) {
-        // unsigned int k = csizes[i].first.first;
-        unsigned int const l = csizes[i].first.second;
-        unsigned long const s = csizes[i].second.second;
+    for(auto & cs : csizes) {
+        // unsigned int k = cs.first.first;
+        unsigned int const l = cs.first.second;
+        unsigned long const s = cs.second.second;
         unsigned int const defer = V->steps[l].defer;
         unsigned long const count = compressed_size(s, defer);
         /*
            fmt::print("straight-order (defer {}, vstrip #{})"
-                ": @{} combine({}), sum={}\n",
+                ": @{} combine({}), sum={:x}\n",
                 V->steps[csizes[i].first.second].defer, csizes[i].first.first,
                 csizes[i].second.first, csizes[i].second.second,
                 idiotic_sum((void*) &*(mm->t8.begin() + o8 + csizes[i].second.first), csizes[i].second.second));
                 */
-        csizes[i].second.first = p8;
+        cs.second.first = p8;
         p8 += count;
     }
     sort(csizes.begin(), csizes.end());
     mm->auxiliary.push_back(2 * csizes.size() + 1);
-    for(unsigned int i = 0 ; i < csizes.size() ; i++) {
+    for(auto const & cs : csizes) {
         /*
            fmt::print("straight-order (defer {}, vstrip #{})"
-                ": @{} combine({}), sum={}\n",
-                V->steps[csizes[i].first.second].defer, csizes[i].first.first,
-                csizes[i].second.first, csizes[i].second.second,
-                idiotic_sum((void*) &*(mm->t8.begin() + o8 + csizes[i].second.first), csizes[i].second.second));
+                ": @{} combine({}), sum={:x}\n",
+                V->steps[cs.first.second].defer, cs.first.first,
+                cs.second.first, cs.second.second,
+                idiotic_sum((void*) &*(mm->t8.begin() + o8 + cs.second.first), cs.second.second));
                 */
-        mm->auxiliary.push_back(csizes[i].second.first);
-        mm->auxiliary.push_back(csizes[i].second.second);
+        mm->auxiliary.push_back(cs.second.first);
+        mm->auxiliary.push_back(cs.second.second);
     }
     mm->auxiliary.push_back(p8);
 
@@ -2056,21 +2085,21 @@ void matmul_bucket<Arith>::build_cache(matrix_u32 && m)
     uint32_t main_i0 = 0;
     uint32_t const fence = mb.nrows_t;
     if (methods.small1 || methods.small2)
-        builder_do_all_small_slices(&mb, &main_i0, fence, npack);
+        mb.do_all_small_slices(&main_i0, fence, npack);
 
     if (methods.large)
-        builder_do_all_large_slices(&mb, &main_i0, fence, scratch1size);
+        mb.do_all_large_slices(&main_i0, fence, scratch1size);
 
     /* Note that vsc and huge are exclusive ! */
     if (methods.vsc && main_i0 < fence) {
-        vsc_slice_t V[1];
-        builder_prepare_vsc_slices(&mb, V, main_i0, fence);
+        vsc_slice V[1];
+        mb.prepare_vsc_slices(V, main_i0, fence);
         scratch3size = MAX(scratch3size, V->tbuf_space);
-        builder_push_vsc_slices(this, V);
+        builder<Arith>::push_vsc_slices(this, V);
         main_i0 = fence;
     }
     if (methods.huge && main_i0 < fence) {
-        builder_do_all_huge_slices(&mb, &main_i0, fence, scratch2size);
+        mb.do_all_huge_slices(&main_i0, fence, scratch2size);
     }
     if (main_i0 < fence) {
         fmt::print(stderr, "ARGH ! only created a submatrix ({} < {}) !!\n", main_i0, fence);
@@ -2682,7 +2711,7 @@ static inline void matmul_sub_vsc_combine(arith_hard * ab MAYBE_UNUSED, arith_ha
 static inline void matmul_sub_vsc_combine_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt ** mptrs, const arith_hard::elt * qw, const uint8_t * z, unsigned int count, unsigned int defer MAYBE_UNUSED)
 {
     // fmt::print("uncombine({}), defer {}\n", count, defer);
-    // fmt::print("uncombine({}), sum={}\n", count, idiotic_sum((void*)z, compressed_size(count, defer)));
+    // fmt::print("uncombine({}), sum={:x}\n", count, idiotic_sum((void*)z, compressed_size(count, defer)));
     if (0) {
 #ifdef COMPRESS_COMBINERS_1
     } else if (defer == 1) {
@@ -2744,7 +2773,7 @@ static inline void matmul_sub_vsc_combine_tr(arith_hard * ab MAYBE_UNUSED, arith
 #ifndef MATMUL_SUB_VSC_DISPATCH_TR_H_
 static inline void matmul_sub_vsc_dispatch_tr(arith_hard * ab MAYBE_UNUSED, arith_hard::elt * qr, const arith_hard::elt * q, const uint16_t * z, unsigned int count)
 {
-    // fmt::print("undispatch({}), sum={}\n", count, idiotic_sum((void*)z, count * sizeof(uint16_t)));
+    // fmt::print("undispatch({}), sum={:x}\n", count, idiotic_sum((void*)z, count * sizeof(uint16_t)));
     for( ; count-- ; ) {
         ab->add(ab->vec_item(qr, *z++), *q);
         q = ab->vec_subvec(q, 1);
@@ -2753,7 +2782,7 @@ static inline void matmul_sub_vsc_dispatch_tr(arith_hard * ab MAYBE_UNUSED, arit
 #endif
 
 /* in preparation for different steps, including the matrix
- * multiplication itself, we are rebuilding the vsc_slice_t object, or at
+ * multiplication itself, we are rebuilding the vsc_slice object, or at
  * least its skeleton ; it makes it easy to run the control loops.  The
  * real data payload is of course not copied again ! */
 
@@ -2761,7 +2790,7 @@ template<typename Arith>
 static inline void rebuild_vsc_slice_skeleton(
         matmul_bucket<Arith> * mm,
         vector<slice_header_t>::iterator & hdr, 
-        vsc_slice_t * V, struct pos_desc * pos,
+        vsc_slice * V, struct pos_desc * pos,
         unsigned int & nvstrips,
         unsigned int & Midx,
         unsigned int & Didx,
@@ -2779,15 +2808,15 @@ static inline void rebuild_vsc_slice_skeleton(
 
     Midx = hdr - mm->headers.begin();
     for(unsigned int k = 0 ; k < V->dispatch.size() ; k++) {
-        vsc_middle_slice_t &D (V->dispatch[k]);
+        vsc_slice::middle_slice &D (V->dispatch[k]);
         *D.hdr = *hdr++;
     }
     Didx = hdr - mm->headers.begin();
     for(unsigned int k = 0 ; k < V->dispatch.size() ; k++) {
-        vsc_middle_slice_t &D (V->dispatch[k]);
+        vsc_slice::middle_slice &D (V->dispatch[k]);
         D.sub.resize(V->steps.size());
         for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
-            vsc_sub_slice_t & S(D.sub[l]);
+            vsc_slice::middle_slice::sub_slice & S(D.sub[l]);
             *S.hdr = *hdr++;
             V->steps[l].nrows = S.hdr->i1 - S.hdr->i0;
         }
@@ -2823,7 +2852,7 @@ static inline void matmul_bucket_mul_vsc(matmul_bucket<Arith> * mm, vector<slice
 
     /* {{{ */
 
-    vsc_slice_t V[1];
+    vsc_slice V[1];
     unsigned int nvstrips;
     unsigned int Midx;
     unsigned int Didx;
@@ -2857,11 +2886,11 @@ static inline void matmul_bucket_mul_vsc(matmul_bucket<Arith> * mm, vector<slice
         uint32_t const skipover = *pos->ql++;
         pos->ql += skipover;
         for(unsigned int k = 0 ; k < V->dispatch.size() ; k++) {
-            vsc_middle_slice_t const & D(V->dispatch[k]);
+            vsc_slice::middle_slice const & D(V->dispatch[k]);
             const typename Arith::elt * qr = src + D.hdr->j0;
             mm->slice_timings[Midx].t -= wct_seconds();
             for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
-                vsc_sub_slice_t const & S(D.sub[l]);
+                vsc_slice::middle_slice::sub_slice const & S(D.sub[l]);
                 typename Arith::elt * q = cptrs[l];
                 unsigned int const count = S.hdr->ncoeffs;
                 ASSERT(base_ptrs[l] <= q);
@@ -2879,7 +2908,7 @@ static inline void matmul_bucket_mul_vsc(matmul_bucket<Arith> * mm, vector<slice
             Midx++;
 
             for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
-                vsc_sub_slice_t const & S(D.sub[l]);
+                vsc_slice::middle_slice::sub_slice const & S(D.sub[l]);
                 unsigned int const defer = V->steps[l].defer;
                 if (!flush_here(k,nvstrips,defer))
                     continue;
@@ -2920,10 +2949,10 @@ static inline void matmul_bucket_mul_vsc(matmul_bucket<Arith> * mm, vector<slice
          */
         pos->ql++;      // only the count, for fast skipover.
         for(unsigned int k = 0 ; k < V->dispatch.size() ; k++) {
-            vsc_middle_slice_t const & D(V->dispatch[k]);
+            vsc_slice::middle_slice const & D(V->dispatch[k]);
             typename Arith::elt * qr = dst + D.hdr->j0;
             for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
-                vsc_sub_slice_t const & S(D.sub[l]);
+                vsc_slice::middle_slice::sub_slice const & S(D.sub[l]);
                 unsigned int const defer = V->steps[l].defer;
 
                 /* Here the test is not the same. We have to fill the
@@ -2960,7 +2989,7 @@ static inline void matmul_bucket_mul_vsc(matmul_bucket<Arith> * mm, vector<slice
 
             mm->slice_timings[Midx].t -= wct_seconds();
             for(unsigned int l = 0 ; l < V->steps.size() ; l++) {
-                vsc_sub_slice_t const & S(D.sub[l]);
+                vsc_slice::middle_slice::sub_slice const & S(D.sub[l]);
                 typename Arith::elt * q = cptrs[l];
                 unsigned int const count = S.hdr->ncoeffs;
                 ASSERT(base_ptrs[l] <= q);
@@ -3013,7 +3042,7 @@ void matmul_bucket<Arith>::finish_init()
                 hdr->nchildren, hdr->ncoeffs);
     }
     */
-    for(vector<slice_header_t>::iterator hdr = headers.begin() ; hdr != headers.end() ; hdr++) {
+    for(auto hdr = headers.begin() ; hdr != headers.end() ; ++hdr) {
         switch(hdr->t) {
             case SLICE_TYPE_SMALL1:
                 break;
@@ -3060,7 +3089,7 @@ void matmul_bucket<Arith>::finish_init()
                 break;
             case SLICE_TYPE_DEFER_ENVELOPE:
                 {
-                    vsc_slice_t V[1];
+                    vsc_slice V[1];
                     unsigned int nvstrips;
                     unsigned int Midx;
                     unsigned int Didx;
@@ -3145,9 +3174,11 @@ void matmul_bucket<Arith>::finish_init()
 #endif
 
     arith_hard * ab = xab;
+    // NOLINTBEGIN(readability-static-accessed-through-instance)
     scratch1 = ab->alloc(scratch1size);
     scratch2 = ab->alloc(scratch2size);
     scratch3 = ab->alloc(scratch3size);
+    // NOLINTEND(readability-static-accessed-through-instance)
 
     slice_timings.resize(headers.size());
 }
