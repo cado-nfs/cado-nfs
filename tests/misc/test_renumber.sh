@@ -2,7 +2,7 @@
 
 set -e
 
-: ${wdir?missing}
+: ${wdir:?missing}
 
 while [ $# -gt 0 ] ; do
     if [ "$1" = "-b" ] ; then
@@ -23,9 +23,9 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-: ${BUILD_DIR?missing}
-: ${POLY?missing}
-: ${LPBS?missing}
+: ${BUILD_DIR:?missing}
+: ${POLY:?missing}
+: ${LPBS:?missing}
 
 RENUMBER="${wdir}/renumber.gz"
 

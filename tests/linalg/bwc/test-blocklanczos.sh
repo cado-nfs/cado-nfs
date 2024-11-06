@@ -60,7 +60,7 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-: "${CADO_NFS_BINARY_DIR?missing}"
+: "${CADO_NFS_BINARY_DIR:?missing}"
 
 redirect_unless_debug() {
     file="$1"

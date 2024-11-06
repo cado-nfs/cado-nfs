@@ -54,8 +54,8 @@ set -e
 : ${seed=0}
 
 # These are normally set by cmake during tests
-if ! [ -d ${CADO_NFS_BINARY_DIR?missing} ] ; then echo "$CADO_NFS_BINARY_DIR missing" >&2 ; exit 1 ; fi
-if ! [ -d ${CADO_NFS_SOURCE_DIR?missing} ] ; then echo "$CADO_NFS_SOURCE_DIR missing" >&2 ; exit 1 ; fi
+if ! [ -d ${CADO_NFS_BINARY_DIR:?missing} ] ; then echo "$CADO_NFS_BINARY_DIR missing" >&2 ; exit 1 ; fi
+if ! [ -d ${CADO_NFS_SOURCE_DIR:?missing} ] ; then echo "$CADO_NFS_SOURCE_DIR missing" >&2 ; exit 1 ; fi
 
 
 ## The following can also be overriden with env variables

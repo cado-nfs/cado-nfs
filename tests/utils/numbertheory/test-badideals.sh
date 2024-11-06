@@ -28,7 +28,7 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-: ${CADO_NFS_BINARY_DIR?missing}
+: ${CADO_NFS_BINARY_DIR:?missing}
 
 if ! [ "$CADO_NFS_BINARY_DIR/utils/numbertheory_tool" ] ; then
     usage

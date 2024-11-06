@@ -17,7 +17,7 @@ while [ $# -gt 1 ] ; do
     fi
 done
 
-: ${OUTPUTDIR?missing}
+: ${OUTPUTDIR:?missing}
 
 rev=
 
