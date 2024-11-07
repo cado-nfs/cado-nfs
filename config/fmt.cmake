@@ -114,6 +114,34 @@ int main(void)
 }
 
 " HAVE_FMT)
+if(NOT HAVE_FMT)
+    set(fmt_error "too old: want 9+, and 11+ for c++20")
+elseif(HAVE_CXX20)
+    # We're being a bit excessive here. On debian at least, version
+    # 10.1.1+ds1-1 works ok with c++20. The problem is that c++20 is
+    # broken in some of the later released versions, so it's actually
+    # hard to keep track.
+    set(CMAKE_REQUIRED_FLAGS "-L${FMT_LIBDIR}")
+    set(CMAKE_REQUIRED_DEFINITIONS)
+    set(CMAKE_REQUIRED_INCLUDES ${FMT_INCDIR})
+    set(CMAKE_REQUIRED_LIBRARIES "-lfmt")
+    CHECK_CXX_SOURCE_COMPILES("
+#include <iostream>
+#include <fmt/core.h>
+#ifdef FMT_VERSION
+#if FMT_VERSION < 110003
+#error \"too old\"
+#endif
+int main(void)
+{
+    return 0;
+}
+" HAVE_FMT_GOOD_FOR_CXX20)
+if(NOT HAVE_FMT_GOOD_FOR_CXX20)
+    set(fmt_error "too old: version>11.0.2 is required for c++20")
+    set(HAVE_FMT "" CACHE INTERNAL "Test fmt library")
+endif()
+endif()
 if(HAVE_FMT)
     message(STATUS "Using the fmt library found on the system")
     message(STATUS "FMT_INCDIR=${FMT_INCDIR}")
@@ -121,12 +149,14 @@ if(HAVE_FMT)
     include_directories(${FMT_INCDIR})
     link_directories(${FMT_LIBDIR})
 else()
-    message(STATUS "Forcibly *NOT* using the fmt library found on the system (too old)")
+    message(STATUS "Forcibly *NOT* using the fmt library found on the system (${fmt_error})")
 endif()
 
 elseif(FMT_INCDIR_OK OR FMT_LIBDIR_OK)
-    message(FATAL_ERROR "A partly installed version of the fmt library was found by cmake, but it lacks either the headers or the library. This is a fatal error, as we cannot be sure that our embedded copy will work correctly in that case")
+    message(STATUS "A partly installed version of the fmt library was found by cmake, but it lacks either the headers or the library.  Using our embedded library")
+    set(HAVE_FMT "" CACHE INTERNAL "Test fmt library")
 else()
     message(STATUS "Using the embedded fmt library")
+    set(HAVE_FMT "" CACHE INTERNAL "Test fmt library")
 endif()
 
