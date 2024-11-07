@@ -12,7 +12,6 @@
 #ifdef HAVE_HWLOC
 #include <hwloc.h>
 #endif
-#include "omp_proxy.h"
 
 #include "ringbuf.h"
 #include "macros.h"          // for ASSERT_ALWAYS, MAX, MIN
@@ -275,19 +274,6 @@ template<bool withcoeffs>
 void maincode(ringbuf_ptr R, int nb_consumers, FILE * f_in, FILE * f_rw, FILE * f_cw)
 {
     std::vector<parser_thread<withcoeffs>> T(nb_consumers);
-#ifdef HAVE_OPENMP
-#pragma omp parallel
-    {
-        int const t = omp_get_thread_num();
-        if (t == 0) {
-            master_loop<withcoeffs>(R, f_in, f_rw);
-        } else {
-            T[t-1].loop(R);
-        }
-    }
-    report.producer_report(0, true);
-#pragma omp barrier
-#else
     std::thread producer(master_loop<withcoeffs>, R, f_in, f_rw);
     std::vector<std::thread> consumers;
     consumers.reserve(T.size());
@@ -298,7 +284,6 @@ void maincode(ringbuf_ptr R, int nb_consumers, FILE * f_in, FILE * f_rw, FILE * 
     report.producer_report(0, true);
     for(auto & t : consumers)
         t.join();
-#endif
     write_column_weights(T, f_cw);
 }
 
@@ -380,13 +365,6 @@ int main(int argc, char const * argv[])
 #else
     uint64_t ram = 1 << 30;
     int threads = 2;
-#ifdef HAVE_OPENMP
-#pragma omp parallel
-    {
-#pragma omp single
-        threads = omp_get_num_threads();
-    }
-#endif
 #endif
 
     size_t ringbuf_size = ram / 4;
@@ -417,7 +395,6 @@ int main(int argc, char const * argv[])
     thread_read_window  /= sizeof(uint32_t);
     report.reset();
 
-    omp_set_num_threads(threads);
     int const consumers = threads-1;
 
     if (!withcoeffs) {
