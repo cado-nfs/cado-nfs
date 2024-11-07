@@ -922,21 +922,17 @@ static void matmul_top_init_fill_balancing_header(matmul_top_data & mmt, int i, 
             if (access(Mloc.bname.c_str(), R_OK) != 0) {
                 if (errno == ENOENT) {
                     printf("Creating balancing file %s\n", Mloc.bname.c_str());
-                    /* hmm. Did designated initializers a la C make their
-                     * way to the C++ standard? I'm surprised. */
-                    struct mf_bal_args mba = {
-                        .rwfile = {},
-                        .cwfile = {},
-                        .mfile = Mloc.mname,
-                        .bfile = Mloc.bname,
-                        .quiet = 0,
-                        .nh = (int) pi->wr[1]->totalsize,
-                        .nv = (int) pi->wr[0]->totalsize,
-                        .withcoeffs = !mmt.abase->is_characteristic_two(),
-                        .rectangular = 0,
-                        .skip_decorrelating_permutation = 0,
-                        .do_perm = { mf_bal_args::MF_BAL_PERM_AUTO, mf_bal_args::MF_BAL_PERM_AUTO },
-                    };
+                    mf_bal_args mba;
+                    mba.mfile = Mloc.mname;
+                    mba.bfile = Mloc.bname;
+                    mba.quiet = 0;
+                    mba.nh = (int) pi->wr[1]->totalsize;
+                    mba.nv = (int) pi->wr[0]->totalsize;
+                    mba.withcoeffs = !mmt.abase->is_characteristic_two();
+                    mba.rectangular = 0;
+                    mba.skip_decorrelating_permutation = 0;
+                    mba.do_perm[0] = mf_bal_args::MF_BAL_PERM_AUTO;
+                    mba.do_perm[0] = mf_bal_args::MF_BAL_PERM_AUTO;
                     mf_bal_adjust_from_option_string(&mba, param_list_lookup_string(pl, "balancing_options"));
                     /* withcoeffs being a switch for param_list, it is
                      * clobbered by the configure_switch mechanism */
