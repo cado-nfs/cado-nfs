@@ -131,6 +131,7 @@ cado_define_test(full_c30
         characters
         bwc_full_gf2
         sqrt
+        score
     AVOID_CONCURRENT
     TIMEOUT 300
         )
