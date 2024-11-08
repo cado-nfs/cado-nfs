@@ -169,6 +169,8 @@ void balancing_read_header_inner(balancing & bal, FILE * pfile)
     uint32_t const a = bal.flags & FLAG_REPLICATE;
     ASSERT_ALWAYS(!(c && r && a));
 
+    ASSERT_ALWAYS(bal.nh);
+    ASSERT_ALWAYS(bal.nv);
 }
 
 void balancing_read_header(balancing & bal, std::string const & filename)
