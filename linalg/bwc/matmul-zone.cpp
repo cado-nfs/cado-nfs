@@ -106,6 +106,7 @@ struct cachefile {
     FILE * f;
     cachefile(FILE * f) : f(f) {}
     template<typename T> struct basic_seq {
+        static constexpr bool rigid_element_size = false;
         cachefile& out(cachefile& c, T const * t, size_t n) const {
             for(size_t i = 0 ; i < n ; i++) c << t[i];
             return c;
@@ -121,6 +122,7 @@ struct cachefile {
 
 template<> struct cachefile::seq<uint16_t> : public cachefile::basic_seq<uint16_t> {
     typedef uint16_t T;
+    static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == sizeof(uint16_t), "please fix struct padding");
         MATMUL_COMMON_READ_MANY16(t, n, c.f);
@@ -135,6 +137,7 @@ template<> struct cachefile::seq<uint16_t> : public cachefile::basic_seq<uint16_
 
 template<> struct cachefile::seq<uint32_t> : public cachefile::basic_seq<uint32_t> {
     typedef uint32_t T;
+    static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == sizeof(uint32_t), "please fix struct padding");
         MATMUL_COMMON_READ_MANY32(t, n, c.f);
@@ -149,6 +152,7 @@ template<> struct cachefile::seq<uint32_t> : public cachefile::basic_seq<uint32_
 
 template<> struct cachefile::seq<pair<int, uint32_t>> : public cachefile::basic_seq<pair<int, uint32_t>> {
     typedef pair<int, uint32_t> T;
+    static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == 2 * sizeof(uint32_t), "please fix struct padding");
         MATMUL_COMMON_READ_MANY32(t, 2*n, c.f);
@@ -164,6 +168,7 @@ template<> struct cachefile::seq<pair<int, uint32_t>> : public cachefile::basic_
 template<> struct cachefile::seq<pair<uint16_t, int32_t>> : public cachefile::basic_seq<pair<uint16_t, int32_t>> {
 #if 0
     typedef pair<uint16_t, int32_t> T;
+    static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == 3 * sizeof(uint16_t), "please fix struct padding");
         MATMUL_COMMON_READ_MANY16(t, 3*n, c.f);
@@ -179,6 +184,7 @@ template<> struct cachefile::seq<pair<uint16_t, int32_t>> : public cachefile::ba
 
 template<> struct cachefile::seq<pair<uint16_t, uint16_t>> : public cachefile::basic_seq<pair<uint16_t, uint16_t>> {
     typedef pair<uint16_t, uint16_t> T;
+    static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == 2 * sizeof(uint16_t), "please fix struct padding");
         MATMUL_COMMON_READ_MANY16(t, 2*n, c.f);
@@ -193,6 +199,7 @@ template<> struct cachefile::seq<pair<uint16_t, uint16_t>> : public cachefile::b
 
 template<> struct cachefile::seq<pair<int, pair<uint32_t, int32_t>>> : public cachefile::basic_seq<pair<int, pair<uint32_t, int32_t>>> {
     typedef pair<int, pair<uint32_t, int32_t>> T;
+    static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == 3 * sizeof(uint32_t), "please fix struct padding");
         MATMUL_COMMON_READ_MANY32(t, 3*n, c.f);
@@ -215,6 +222,7 @@ struct triple_161632 {
 
 template<> struct cachefile::seq<triple_161632> : public cachefile::basic_seq<triple_161632> {
     typedef triple_161632 T;
+    static constexpr bool rigid_element_size = true;
     cachefile& in(cachefile& c, T * t, size_t n) {
         static_assert(sizeof(T) == 4 * sizeof(uint16_t), "please fix struct padding");
         MATMUL_COMMON_READ_MANY16(t, 4*n, c.f);
@@ -280,7 +288,10 @@ template<typename T> cachefile& operator>>(cachefile & c, vector<T>&v)
     uint64_t size;
     c >> size;
     ASSERT_ALWAYS(v.empty());
-    resize_and_check_meaningful(v, size, c.f);
+    if (cachefile::seq<T>::rigid_element_size)
+        resize_and_check_meaningful(v, size, c.f);
+    else
+        v.resize(size);
     return cachefile::seq<T>().in(c, v.data(), v.size());
 }
 template<typename T> cachefile& operator<<(cachefile & c, vector<T> const &v)

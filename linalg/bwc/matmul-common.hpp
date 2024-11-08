@@ -30,12 +30,15 @@ extern const char * const rowcol[2];  // [0] = "row" [1] = "col"
 /* Use this instead fo just vector::resize before using
  * MATMUL_COMMON_READ_MANYxxx ; this at least makes sure that we're not
  * allocating more than the file size!
+ *
+ * This must be called only when T is a type with rigid allocation size
+ * (immediate POD types, or maybe pairs/tuples)
  */
 template<typename T>
 void resize_and_check_meaningful(std::vector<T> & a, size_t n, FILE * f)
 {
     struct stat sbuf[1];
-    int rc = fstat(fileno(f), sbuf);
+    int const rc = fstat(fileno(f), sbuf);
     ASSERT_ALWAYS(rc == 0);
     long here = ftell(f);
     ASSERT_ALWAYS(here >= 0);
