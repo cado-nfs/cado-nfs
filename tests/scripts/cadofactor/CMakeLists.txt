@@ -28,4 +28,5 @@ cado_define_test(test_wudb_cmdline
     PROVIDE_TEMPORARY_WDIR
     SCRIPT
     "${CMAKE_CURRENT_SOURCE_DIR}/test_wudb_cmdline.sh" "${CADO_NFS_SOURCE_DIR}/scripts/cadofactor/"
+    TIMEOUT 60
 )
