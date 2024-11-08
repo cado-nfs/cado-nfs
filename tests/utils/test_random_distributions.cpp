@@ -99,6 +99,7 @@ void test_random_poisson(cxx_gmp_randstate & rstate, double xm, unsigned long n,
                          unsigned long N, int logscale_report)
 {
     double s = 0, ss = 0;
+    ASSERT_ALWAYS(logscale_report > 1);
     for (unsigned long i = 0, l = logscale_report; l <= N;
          l *= logscale_report) {
         for (; i < l; i++) {
