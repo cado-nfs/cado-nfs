@@ -38,8 +38,10 @@ matrix_u32::from_file(std::string const & mfile,
 {
     matrix_u32 m(/* transpose, */ withcoeffs);
     m.mfile = mfile;
-    std::string const rwfile = derived_filename(mfile.c_str(), "rw", ".bin");
-    std::string const cwfile = derived_filename(mfile.c_str(), "cw", ".bin");
+    std::string const rwfile = std::unique_ptr<char, free_delete<char>>(
+            derived_filename(mfile.c_str(), "rw", ".bin")).get();
+    std::string const cwfile = std::unique_ptr<char, free_delete<char>>(
+            derived_filename(mfile.c_str(), "cw", ".bin")).get();
 
     size_t const msize = number_of_words(mfile);
 
