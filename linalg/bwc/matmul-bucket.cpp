@@ -4,6 +4,7 @@
  * to it ; a conversion to C would not be extremely difficult */
 
 #include "cado.h" // IWYU pragma: keep
+
 // IWYU pragma: no_include <memory>
 #include <cinttypes>
 #include <climits>
@@ -14,6 +15,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+
 // C++ headers.
 #include <algorithm>    // sort
 #include <deque>
@@ -25,9 +27,8 @@
 #include <utility>          // for pair, make_pair, swap
 #include <vector>
 
-#include "fmt/core.h"       // for check_format_string
-#include "fmt/format.h"     // for basic_buffer::append, basic_parse_context...
-#include "fmt/printf.h"     // fmt::fprintf // IWYU pragma: keep
+#include "fmt/format.h"     // for fmt::format, fmt::print
+
 #include "matmul.hpp"       // for matmul_ptr, matmul_public_s, MATMUL_AUX_Z...
 #include "macros.h"
 #include "verbose.h"    // CADO_VERBOSE_PRINT_BWC_CACHE_BUILD
@@ -2141,11 +2142,16 @@ int matmul_bucket<Arith>::reload_cache_private()/* {{{ */
     MATMUL_COMMON_READ_ONE32(n16, f.get());
     MATMUL_COMMON_READ_ONE32(n8, f.get());
     MATMUL_COMMON_READ_ONE32(naux, f.get());
-    t16.resize(n16);
-    t8.resize(n8);
-    auxiliary.resize(naux);
+
+    resize_and_check_meaningful(t16, n16, f.get());
     MATMUL_COMMON_READ_MANY16(ptrbegin(t16), n16, f.get());
+
+
+    resize_and_check_meaningful(t8, n8, f.get());
     MATMUL_COMMON_READ_MANY8(ptrbegin(t8), n8, f.get());
+
+
+    resize_and_check_meaningful(auxiliary, naux, f.get());
     MATMUL_COMMON_READ_MANY32(ptrbegin(auxiliary), naux, f.get());
 
     finish_init();

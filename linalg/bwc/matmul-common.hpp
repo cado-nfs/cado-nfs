@@ -6,6 +6,8 @@
 
 #include <memory>
 
+#include <sys/stat.h>
+
 #include "utils_cxx.hpp"        // for unique_ptr<FILE>
 #include "macros.h"  // for DIE_ERRNO_DIAG, FATAL_ERROR_CHECK
 
@@ -24,6 +26,23 @@ extern const char * const rowcol[2];  // [0] = "row" [1] = "col"
 #define ASM_COMMENT(x)  /**/
 #endif
 #endif
+
+/* Use this instead fo just vector::resize before using
+ * MATMUL_COMMON_READ_MANYxxx ; this at least makes sure that we're not
+ * allocating more than the file size!
+ */
+template<typename T>
+void resize_and_check_meaningful(std::vector<T> & a, size_t n, FILE * f)
+{
+    struct stat sbuf[1];
+    int rc = fstat(fileno(f), sbuf);
+    ASSERT_ALWAYS(rc == 0);
+    long here = ftell(f);
+    ASSERT_ALWAYS(here >= 0);
+    size_t there = (size_t) here + n * sizeof(T);
+    ASSERT_ALWAYS(there <= (size_t) sbuf->st_size);
+    a.resize(n);
+}
 
 /* I/O with cache files is made easier with these macros ; rather than
  * having to check for errors over and over again... */

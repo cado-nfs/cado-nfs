@@ -279,7 +279,8 @@ template<typename T> cachefile& operator>>(cachefile & c, vector<T>&v)
 {
     uint64_t size;
     c >> size;
-    v.insert(v.end(), size, T());
+    ASSERT_ALWAYS(v.empty());
+    resize_and_check_meaningful(v, size, c.f);
     return cachefile::seq<T>().in(c, v.data(), v.size());
 }
 template<typename T> cachefile& operator<<(cachefile & c, vector<T> const &v)
