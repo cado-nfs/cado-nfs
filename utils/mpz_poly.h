@@ -469,7 +469,7 @@ struct cxx_mpz_poly {
      * .coeff() everywhere.
      */
     mpz_srcptr
-    operator[](unsigned int i) const __attribute__((deprecated)) { return this->coeff(i); }
+    operator[](unsigned int i) const ATTRIBUTE_DEPRECATED { return this->coeff(i); }
 };
 
 
